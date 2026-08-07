@@ -465,8 +465,19 @@ export function useCivitaiLoraLibrary(
     setPage((current) => Math.max(1, current - 1))
   }, [isRevalidating, page])
 
-  const selectedItem =
-    items.find((item) => item.id === selectedItemId) ?? items[0] ?? null
+  // 「没选就是没选」——不给 `?? items[0]` 兜底（owner 2026-08-07 拍板去掉）。
+  //
+  // ⚠ 那个兜底害过一次：列表一变（换排序/筛选/翻页/搜索/重拉），旧的
+  // selectedItemId 对不上任何一项，selectedItem 就悄悄回落到第一项；调用方若
+  // 还持有「详情已展开」的布尔，第一行就凭空变成展开态，用户点它反而是收起
+  // ——表现为「第一下点不开」，且只在换过列表之后出现，极难归因。
+  // 它买到的唯一好处是投机的：useCivitaiMinedPrompts 只要拿到
+  // modelId+modelVersionId 就立刻发请求，等于每次打开库/换筛选都为一个用户
+  // 可能永远不点的项打一次 Civitai（而 Civitai 有限流，见 civitai-lora
+  // .service 的 429 退避）。消费方（样例图 / 配方 modal / mined prompts）全都
+  // 只在展开态下用得到，而展开必然先 selectItem，所以去掉不会让谁变空。
+  // 这也让本 hook 与 useHuggingFaceLoraLibrary（局部 state、从无兜底）同源。
+  const selectedItem = items.find((item) => item.id === selectedItemId) ?? null
 
   // First-paint loader: whenever we have nothing to render AND either a fetch
   // is in progress OR no fetch has resolved yet. The `!hasResolvedOnce` half is

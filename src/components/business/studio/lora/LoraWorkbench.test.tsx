@@ -1266,13 +1266,33 @@ describe('LoraWorkbench module tab bar — P2-4/P2-7', () => {
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
   })
 
-  it('renders exactly three tabs with the tab role, generate selected on the generate deep link', () => {
+  // owner 2026-08-07：三段变四段——原本藏在「库」内部 公开/我的 segmented 里的
+  // 「我的」提升为一等 tab 并改名「收藏」，「公开」那半随之取消。
+  it('renders exactly four tabs with the tab role, generate selected on the generate deep link', () => {
     render(<LoraWorkbench />)
 
-    expect(screen.getAllByRole('tab')).toHaveLength(3)
+    expect(screen.getAllByRole('tab')).toHaveLength(4)
+    expect(
+      screen.getByRole('tab', { name: /LoraWorkbench:tabs\.favorites/ }),
+    ).toBeInTheDocument()
     expect(
       screen.getByRole('tab', { name: /LoraWorkbench:tabs\.generate/ }),
     ).toHaveAttribute('aria-selected', 'true')
+  })
+
+  // 收藏 tab 直接把 section 打到 mine（以前要先进「库」再点内部 segmented）。
+  it('activating 收藏 navigates straight to the mine section', () => {
+    render(<LoraWorkbench />)
+
+    fireEvent.mouseDown(
+      screen.getByRole('tab', { name: /LoraWorkbench:tabs\.favorites/ }),
+      { button: 0 },
+    )
+
+    expect(mockRouterReplace).toHaveBeenCalledWith(
+      expect.stringContaining('section=mine'),
+      expect.objectContaining({ scroll: false }),
+    )
   })
 
   it('navigates (URL replace) to the activated section — Radix tabs activate on primary mousedown', () => {

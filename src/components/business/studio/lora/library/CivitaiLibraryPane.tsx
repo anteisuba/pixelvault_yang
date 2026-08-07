@@ -204,10 +204,17 @@ export function CivitaiCommunityBranch({
   const [recipeModalIndex, setRecipeModalIndex] = useState<number | null>(null)
   const [history, setHistory] = useState<string[]>([])
   const [historyOpen, setHistoryOpen] = useState(false)
-  // R1 库聚焦浏览：详情从按需抽屉改成「原位置展开」——detailOpen 标记选中项
-  // 是否在列表里就地展开（LoraLibraryRowDetail）。单展开：只有 selectedItem
-  // 的详情渲染，点另一行即切换。
-  const [detailOpen, setDetailOpen] = useState(false)
+  // R1 库聚焦浏览：详情从按需抽屉改成「原位置展开」。单展开：同一时刻只有一行
+  // 的详情渲染，点另一行即切换；`null` = 全部收起。
+  //
+  // ⚠ 这里**必须存展开项自己的 id**，不能写成「detailOpen 布尔 + 比对
+  // library.selectedItem」。hook 里 `selectedItem` 是
+  // `items.find(...) ?? items[0]`——带兜底：一旦列表变了（换排序/筛选/翻页/
+  // 重拉），旧的 selectedItemId 对不上任何一项，selectedItem 就悄悄回落到**第
+  // 一项**；此时若 detailOpen 还是 true，第一行就凭空变成展开态，用户点它反而
+  // 是收起 → 表现为「第一下点不开」（owner 2026-08-07 实拍）。
+  // 与 HuggingFaceLoraLibrary 的写法对齐（那边本来就是局部 state、无兜底）。
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
   const searchWrapperRef = useRef<HTMLDivElement>(null)
   const { isLoaded, userId } = useAuth()
   const activeClerkId: string | null = isLoaded ? userId : null
@@ -272,18 +279,19 @@ export function CivitaiCommunityBranch({
   )
 
   // 原位展开切换：点已展开的当前项 → 收起；点其它项 → 切换选中并展开。
+  // 判据是「这一行的 id 是不是当前展开的那个」，与 library.selectedItem 的兜底
+  // 无关（见 expandedItemId 处的注释）。
   const handleToggleItem = useCallback(
     (item: CivitaiLoraLibraryItem) => {
-      const isCurrentlyExpanded =
-        detailOpen && library.selectedItem?.id === item.id
-      if (isCurrentlyExpanded) {
-        setDetailOpen(false)
+      if (expandedItemId === item.id) {
+        setExpandedItemId(null)
         return
       }
+      // selectItem 仍要调：样例图 / 来源配方 modal 读的是 library.selectedItem。
       library.selectItem(item)
-      setDetailOpen(true)
+      setExpandedItemId(item.id)
     },
-    [detailOpen, library],
+    [expandedItemId, library],
   )
 
   const handleSortChange = useCallback(
@@ -419,9 +427,13 @@ export function CivitaiCommunityBranch({
 
   return (
     <section className="space-y-3">
-      {/* 结果区：单列宽幅效果流 + 原位展开详情 + 真实分页。搜索/排序/NSFW/
-          刷新已 portal 进 LoraWorkbench 顶栏；类型/底模留在结果区上方（随内层
-          crossfade），与确认图一致。 */}
+      {/* 结果区：单列宽幅效果流 + 原位展开详情 + 真实分页。
+          顶栏（portal 进 LoraWorkbench）只留「在哪 / 找什么 / 怎么排」＝
+          搜索 + 来源 + 排序；这一行是「筛到什么」＝类型 / 底模 / 安全，末尾跟
+          刷新（按当前条件重拉）。
+          ⚠ owner 2026-08-07：安全（NSFW 分级）本来在顶栏和排序并列，但它**是
+          筛选**——缩小结果集，和类型/底模同类；排序不缩小只重排，两者混在一行
+          读不出层次。 */}
       <div className="flex min-h-0 flex-col gap-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <LoraLibraryFilterCombobox
@@ -443,6 +455,42 @@ export function CivitaiCommunityBranch({
             searchPlaceholder={t('baseModelSearchPlaceholder')}
             emptyText={t('baseModelSearchEmpty')}
           />
+          <button
+            type="button"
+            onClick={handleNsfwToggle}
+            aria-label={`${t('nsfwToggleHint')}：${t(
+              NSFW_FILTER_LABEL_KEYS[library.nsfwFilter],
+            )}`}
+            title={t('nsfwToggleHint')}
+            className={cn(
+              'inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-xs font-medium transition-colors',
+              library.nsfwFilter === 'nsfwOnly'
+                ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                : library.nsfwFilter === 'safe'
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+            )}
+          >
+            {library.nsfwFilter === 'nsfwOnly' ? (
+              <ShieldAlert className="size-3.5" aria-hidden />
+            ) : library.nsfwFilter === 'safe' ? (
+              <ShieldCheck className="size-3.5" aria-hidden />
+            ) : (
+              <Shield className="size-3.5" aria-hidden />
+            )}
+            {t(NSFW_FILTER_LABEL_KEYS[library.nsfwFilter])}
+          </button>
+          {/* 刷新推到最右：它不是筛选条件，是「按当前条件重拉」的动作。 */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => void library.refresh()}
+            aria-label={t('refresh')}
+            className="ml-auto shrink-0"
+          >
+            <RefreshCw className="size-3.5" aria-hidden />
+          </Button>
         </div>
 
         <div
@@ -496,8 +544,7 @@ export function CivitaiCommunityBranch({
           ) : (
             <div className="flex flex-col gap-1">
               {library.items.map((item, index) => {
-                const isExpanded =
-                  detailOpen && library.selectedItem?.id === item.id
+                const isExpanded = expandedItemId === item.id
                 return (
                   <LoraLibraryDetailReveal
                     key={item.id}
@@ -518,7 +565,7 @@ export function CivitaiCommunityBranch({
                         isFavorited={isFavorited(item.loraUrl)}
                         onUse={handleUse}
                         onFavorite={handleFavoriteToggle}
-                        onCollapse={() => setDetailOpen(false)}
+                        onCollapse={() => setExpandedItemId(null)}
                         sampleImages={sampleImages}
                         onSampleClick={handleSampleClick}
                         onPreviewCover={(target) => {
@@ -651,41 +698,8 @@ export function CivitaiCommunityBranch({
                   {t('sortFallbackLabel')}
                 </span>
               ) : null}
-              <button
-                type="button"
-                onClick={handleNsfwToggle}
-                aria-label={`${t('nsfwToggleHint')}：${t(
-                  NSFW_FILTER_LABEL_KEYS[library.nsfwFilter],
-                )}`}
-                title={t('nsfwToggleHint')}
-                className={cn(
-                  'inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors',
-                  library.nsfwFilter === 'nsfwOnly'
-                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                    : library.nsfwFilter === 'safe'
-                      ? 'border-primary/40 bg-primary/10 text-primary'
-                      : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
-                )}
-              >
-                {library.nsfwFilter === 'nsfwOnly' ? (
-                  <ShieldAlert className="size-3.5" aria-hidden />
-                ) : library.nsfwFilter === 'safe' ? (
-                  <ShieldCheck className="size-3.5" aria-hidden />
-                ) : (
-                  <Shield className="size-3.5" aria-hidden />
-                )}
-                {t(NSFW_FILTER_LABEL_KEYS[library.nsfwFilter])}
-              </button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => void library.refresh()}
-                aria-label={t('refresh')}
-                className="shrink-0"
-              >
-                <RefreshCw className="size-3.5" aria-hidden />
-              </Button>
+              {/* 安全（NSFW 分级）与刷新已下沉到类型/底模那一行——见结果区上方
+                  那段注释。这里只剩排序。 */}
             </>,
             controlsSlotNode,
           )

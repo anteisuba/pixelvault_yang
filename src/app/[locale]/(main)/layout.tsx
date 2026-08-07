@@ -7,7 +7,6 @@ import { MainProviders } from '@/components/layout/MainProviders'
 import {
   MobileCollapsedRail,
   MobileHeader,
-  MobileTabBar,
 } from '@/components/layout/MobileTabBar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
@@ -51,13 +50,16 @@ export default async function MainLayout({
             <AppSidebar />
             <MobileCollapsedRail />
             <MobileHeader />
+            {/* owner 2026-08-07：底部 MobileTabBar 已删——它只有「创作 / 画廊」
+                两个入口，而两者都在常驻左 rail（MobileCollapsedRail）里，纯冗余。
+                ⚠ `pb-12` 是当初专门给它让位的 48px，必须一起去掉，否则每个移动端
+                页面底部会留一条死白。 */}
             <SidebarInset
               id="main-content"
-              className="pt-11 pb-12 pl-11 lg:pt-0 lg:pb-0 lg:pl-0"
+              className="pt-11 pl-11 lg:pt-0 lg:pl-0"
             >
               {children}
             </SidebarInset>
-            <MobileTabBar />
           </SidebarProvider>
         </MainProviders>
         <Toaster />

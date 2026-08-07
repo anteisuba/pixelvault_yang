@@ -8,11 +8,9 @@ import {
   Layers,
   LayoutGrid,
   Library,
-  LogIn,
   Mic,
   Palette,
   PanelLeft,
-  Sparkles,
   Swords,
   UserCircle,
   Video,
@@ -29,23 +27,8 @@ import { useHasHydrated } from '@/hooks/use-has-hydrated'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/ui/sidebar'
 
-const MOBILE_TAB_ITEM_CLASS_NAME =
-  'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-muted-foreground transition-colors duration-[180ms] ease-out [&:active]:opacity-72 [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm'
-
 const MOBILE_RAIL_ITEM_CLASS_NAME =
   'flex h-11 w-11 shrink-0 items-center justify-center text-sidebar-foreground/58 transition-colors duration-[180ms] ease-out [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2'
-
-interface TabItem {
-  href: string
-  label: string
-  icon: React.ElementType
-  /**
-   * Optional override for the route prefix used to compute the active state.
-   * Defaults to `href`. The Studio tab points at `/studio/image` for fast
-   * navigation but should still light up on `/studio/video|audio|3d` etc.
-   */
-  activePrefix?: string
-}
 
 interface RailActiveRule {
   path: string
@@ -59,11 +42,6 @@ interface RailItem {
   activeRules: RailActiveRule[]
 }
 
-interface TabListProps {
-  tabs: TabItem[]
-  pathname: string
-}
-
 function isTabActive(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
 }
@@ -71,28 +49,6 @@ function isTabActive(pathname: string, prefix: string): boolean {
 function isRailItemActive(pathname: string, rules: RailActiveRule[]): boolean {
   return rules.some(({ path, exact }) =>
     exact ? pathname === path : isTabActive(pathname, path),
-  )
-}
-
-function TabList({ tabs, pathname }: TabListProps) {
-  return (
-    <div className="flex h-full flex-1 items-stretch">
-      {tabs.map(({ href, label, icon: Icon, activePrefix }) => (
-        <Link
-          key={href}
-          href={href}
-          className={cn(
-            MOBILE_TAB_ITEM_CLASS_NAME,
-            isTabActive(pathname, activePrefix ?? href) && 'text-primary',
-          )}
-        >
-          <Icon className="size-5" />
-          <span className="max-w-[4.5rem] truncate text-3xs font-medium leading-none">
-            {label}
-          </span>
-        </Link>
-      ))}
-    </div>
   )
 }
 
@@ -346,47 +302,7 @@ export function MobileHeader() {
   )
 }
 
-export function MobileTabBar() {
-  const pathname = usePathname()
-  const t = useTranslations('Navbar')
-  // Same hydration story as AppSidebarFooter — wait for both hydration and
-  // Clerk before rendering the auth-conditional tab list.
-  const hasHydrated = useHasHydrated()
-  const { isLoaded } = useUser()
-
-  const signedInTabs: TabItem[] = [
-    {
-      href: ROUTES.STUDIO_IMAGE,
-      label: t('links.create'),
-      icon: Sparkles,
-      activePrefix: ROUTES.STUDIO,
-    },
-    { href: ROUTES.GALLERY, label: t('links.gallery'), icon: LayoutGrid },
-  ]
-
-  const signedOutTabs: TabItem[] = [
-    { href: ROUTES.GALLERY, label: t('links.gallery'), icon: LayoutGrid },
-    { href: ROUTES.SIGN_IN, label: t('signIn'), icon: LogIn },
-  ]
-
-  return (
-    <nav
-      aria-label={t('mobileNavigation')}
-      className="keyboard-hidden-while-open fixed bottom-0 left-11 right-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 lg:hidden"
-      style={{ paddingBottom: 'var(--keyboard-safe-area-bottom, 0px)' }}
-    >
-      <div className="h-12">
-        {hasHydrated && isLoaded && (
-          <>
-            <SignedIn>
-              <TabList tabs={signedInTabs} pathname={pathname} />
-            </SignedIn>
-            <SignedOut>
-              <TabList tabs={signedOutTabs} pathname={pathname} />
-            </SignedOut>
-          </>
-        )}
-      </div>
-    </nav>
-  )
-}
+// owner 2026-08-07：底部 MobileTabBar 已整个删除。它只有「创作 / 画廊」两个入口，
+// 而两者都在常驻左 rail（MobileCollapsedRail）里 —— 纯冗余，占着 48px 还挡内容。
+// 本文件保留的是 MobileCollapsedRail（左竖 rail）与 MobileHeader（顶部标题条）。
+// 挂载点与它专用的 `pb-12` 让位一起在 app/[locale]/(main)/layout.tsx 拆掉了。

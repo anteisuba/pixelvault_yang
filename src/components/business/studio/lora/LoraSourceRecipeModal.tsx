@@ -9,6 +9,7 @@ import {
   Sparkles,
   Users,
   Wand2,
+  X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -25,6 +26,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -231,20 +233,58 @@ export function LoraSourceRecipeModal({
       <DialogContent
         closeLabel={t('sourceRecipeClose')}
         className="flex max-h-[min(90vh,48rem)] w-[min(96vw,64rem)] max-w-[min(96vw,64rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[min(96vw,64rem)] md:flex-row"
+        // 窄宽自己出「返回」胶囊，所以关掉默认的 ×——一个断点只留一个关闭键。
+        showCloseButton={false}
       >
         <DialogTitle className="sr-only">{assetName}</DialogTitle>
+        {/* 关闭键与封面/结果预览对齐（owner 2026-08-07）：窄宽是「‹ 返回」胶囊
+            （那时弹窗几乎占满屏，读起来像一个页面，需要返回语义），桌面回到右上
+            角的 ×。两者互斥显示。 */}
+        <DialogClose asChild>
+          <button
+            type="button"
+            className="absolute right-3 top-3 z-10 inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-3 text-sm font-medium text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:hidden"
+            aria-label={t('coverPreviewBack')}
+          >
+            <ChevronLeft className="size-4" aria-hidden />
+            <span>{t('coverPreviewBack')}</span>
+          </button>
+        </DialogClose>
+        <DialogClose asChild>
+          <button
+            type="button"
+            className="absolute right-4 top-4 z-10 hidden rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 sm:inline-flex"
+          >
+            <X className="size-4" aria-hidden />
+            <span className="sr-only">{t('sourceRecipeClose')}</span>
+          </button>
+        </DialogClose>
         <DialogDescription className="sr-only">
           {t('sourceRecipeDescription')}
         </DialogDescription>
 
-        {/* 左：固定大图 + prev/next + 计数 */}
-        <div className="relative flex min-h-64 items-center justify-center bg-muted/60 md:min-h-0 md:min-w-0 md:flex-1">
+        {/* 左：固定大图 + prev/next + 计数。
+            ⚠ 高度必须是**确定值**，不能只靠 flex 分配。竖版来源图（Civitai 常见
+            2:3，甚至 1920×3840 的竖向拼版）会把自己撑得比弹窗还高，被
+            overflow-hidden 裁掉头尾（owner 2026-08-07 实拍）。
+            下面那张图用 `max-h-full` 兜底，而 `max-height:100%` **要求父级高度
+            确定**：
+            - 桌面 `md:flex-row`：格子高度由交叉轴 stretch 给出，是确定的 ✅
+            - 窄宽 `flex-col`：容器高度是 `max-h-…` 撑出来的 auto，百分比解析不
+              出来 → `max-h-full` 形同虚设，图片又恢复自然高度被裁 ❌
+            所以窄宽这一档写死 `h-[45vh]`（弹窗自身封顶 90vh，一半给图、一半给
+            配方），桌面再交还给 flex。 */}
+        <div className="relative flex h-[45vh] min-h-0 shrink-0 items-center justify-center overflow-hidden bg-muted/60 md:h-auto md:min-w-0 md:flex-1 md:shrink">
           {recipe ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={proxyCivitaiImageUrl(recipe.imageUrl)}
               alt={assetName}
-              className="max-h-[min(90vh,48rem)] w-full object-contain"
+              // ⚠ 不能用 `w-full` + 视口级 max-h：`w-full` 强制盒子铺满宽度，竖图
+              // 的盒子高度就 = 宽度 × 高宽比，远超弹窗；而那个 max-h 又和整个弹窗
+              // 一样大，等于没约束。改成贴着**父格**的 max-h/max-w，object-contain
+              // 才真的能把整张图装进去。
+              className="max-h-full max-w-full object-contain"
             />
           ) : null}
           {hasMultiple ? (

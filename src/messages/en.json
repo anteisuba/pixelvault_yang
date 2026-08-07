@@ -1618,6 +1618,7 @@
       "generate": "Generate",
       "library": "Library",
       "mine": "Mine",
+      "favorites": "Favorites",
       "train": "Train",
       "community": "LoRA Library"
     },

@@ -56,9 +56,13 @@ export function LoraLibraryCard(props: LoraLibraryCardProps) {
   // （civitai 来源的封面同样过代理，非 civitai URL 透传）。
   let thumbUrl: string | null = null
   if (props.source === 'civitai') {
+    // ⚠ 顺序不能写成 thumb → card：`thumbImageUrl` 是 **96px 宽**的档位，是给
+    // LoraLibraryRow 那种 size-14(56px) 的小方块用的；这里的卡是
+    // `aspect-[3/4] w-full`（栅格里约 200px 宽），拿 96px 去铺等于放大 2 倍，
+    // 糊得很明显（owner 2026-08-07 实拍）。`cardImageUrl` 正好是 450px 档。
     const civitaiThumb =
-      props.item.thumbImageUrl ??
       props.item.cardImageUrl ??
+      props.item.thumbImageUrl ??
       props.item.coverImageUrl
     thumbUrl = civitaiThumb ? proxyCivitaiImageUrl(civitaiThumb) : null
   } else if (props.source === 'huggingface') {

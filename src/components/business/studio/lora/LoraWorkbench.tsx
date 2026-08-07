@@ -67,7 +67,6 @@ import {
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { CommunitySourceBranch } from '@/components/business/studio/lora/library/LoraLibraryTabs'
-import { LoraLibrarySegmented } from '@/components/business/studio/lora/library/LoraLibrarySegmented'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useHuggingFaceLoraShowcase } from '@/hooks/use-huggingface-lora-showcase'
 import { useRunnerUsage } from '@/hooks/prompts/use-runner-usage'
@@ -264,12 +263,10 @@ export function LoraWorkbench() {
     [setActiveSection],
   )
 
-  // 「库」tab 同时覆盖 community(公开)/mine(我的) 两个子态：tabValue 把 mine
-  // 折回 community，使 community trigger 在两态下都高亮。
-  const tabValue =
-    activeSection === LORA_WORKBENCH_SECTIONS.MINE
-      ? LORA_WORKBENCH_SECTIONS.COMMUNITY
-      : activeSection
+  // owner 2026-08-07：「我的」从库内的 公开/我的 segmented 提升为一等 tab（改名
+  // 「收藏」），公开那半随之取消——库 tab 本身就是公开源，不必再给一个二选一。
+  // 于是 section 与 tab 值一一对应，不再需要把 mine 折回 community。
+  const tabValue = activeSection
   const isLibrary =
     activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ||
     activeSection === LORA_WORKBENCH_SECTIONS.MINE
@@ -277,11 +274,13 @@ export function LoraWorkbench() {
   // 正常页面流。驱动下方 shell + 三栏的条件 height 链。
   const isGenerate = activeSection === LORA_WORKBENCH_SECTIONS.GENERATE
 
-  // D7⑦: 壳（tab bar）不动，body crossfade。顶层三段（生成 / 库 / 训练）
-  // 切换时整块 body 淡入；库内公开↔我的属同一壳，只让内层内容淡入、pills
-  // 不动。key 变化触发 React 重挂载 → animate-in fade 播放；reduced-motion
-  // 由 globals.css 的全局 media 块降级为直切。
-  const bodyKey = isLibrary ? 'library' : activeSection
+  // D7⑦: 壳（tab bar）不动，body crossfade。四段（生成 / 库 / 收藏 / 训练）
+  // 每次切换都整块 body 淡入。key 变化触发 React 重挂载 → animate-in fade
+  // 播放；reduced-motion 由 globals.css 的全局 media 块降级为直切。
+  // ⚠ 以前这里是 `isLibrary ? 'library' : activeSection`——因为公开↔我的同属
+  // 「库」这一个 tab，故意不重挂载。现在收藏是独立 tab，库↔收藏必须换 key，
+  // 否则那一次切换是硬切、和另外三段手感不一致。
+  const bodyKey = activeSection
 
   // R1 close-review（owner 2026-07-19「左右空出这么大的空间」）：内容容器
   // max-w-6xl→7xl，宽视口下收窄两侧留白。
@@ -317,6 +316,14 @@ export function LoraWorkbench() {
               className="px-3 text-sm"
             >
               {t('tabs.library')}
+            </TabsTrigger>
+            {/* owner 2026-08-07：原库内 公开/我的 segmented 里的「我的」提到这一
+                行，改名「收藏」；「公开」那半取消——库 tab 本身就是公开源。 */}
+            <TabsTrigger
+              value={LORA_WORKBENCH_SECTIONS.MINE}
+              className="px-3 text-sm"
+            >
+              {t('tabs.favorites')}
             </TabsTrigger>
             <TabsTrigger
               value={LORA_WORKBENCH_SECTIONS.TRAIN}
@@ -363,53 +370,37 @@ export function LoraWorkbench() {
 
         {isLibrary ? (
           <section className="space-y-3">
-            {/* R1 顶栏（lora-library.md §3）：搜索占左侧主位，公开/我的 + 来源
-                + 排序/安全/刷新在右侧低层级，同一条顶栏。整行常驻不随 section
-                切换重挂载（下面 crossfade 只包结果内层）——搜索槽 / 来源槽 /
-                控件槽由各源 pane 通过 portal 挂内容进来（state 仍留原层级）；
-                「我的」子态无双源无搜索，只剩公开/我的下拉，其余槽不渲染。 */}
-            <div className="flex flex-wrap items-center gap-2">
-              {activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ? (
-                <div ref={setLibrarySearchSlot} className="min-w-0 flex-1" />
-              ) : null}
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {/* R1 close-review：公开/我的只有两个值，owner「不要下拉」——
-                    改紧凑 segmented 切换。 */}
-                <LoraLibrarySegmented
-                  ariaLabel={t('libraryScopeLabel')}
-                  value={
-                    activeSection === LORA_WORKBENCH_SECTIONS.MINE
-                      ? LORA_WORKBENCH_SECTIONS.MINE
-                      : LORA_WORKBENCH_SECTIONS.COMMUNITY
-                  }
-                  onChange={(value) => setActiveSection(value)}
-                  options={[
-                    {
-                      value: LORA_WORKBENCH_SECTIONS.COMMUNITY,
-                      label: t('library.public'),
-                      icon: <Compass className="size-3.5" aria-hidden />,
-                    },
-                    {
-                      value: LORA_WORKBENCH_SECTIONS.MINE,
-                      label: t('tabs.mine'),
-                      icon: <Heart className="size-3.5" aria-hidden />,
-                    },
-                  ]}
+            {/* R1 顶栏（lora-library.md §3）：搜索占左侧主位，来源 + 排序/安全/
+                刷新在右侧低层级，同一条顶栏。搜索槽 / 来源槽 / 控件槽由各源 pane
+                通过 portal 挂内容进来（state 仍留原层级）。
+                ⚠ owner 2026-08-07：原来这行最左还有个 公开/我的 segmented，现已
+                取消——「我的」升成了 tab 行里的「收藏」，「公开」冗余（库 tab 本身
+                就是公开源）。「收藏」子态无双源无搜索，整条顶栏因此不渲染。 */}
+            {activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {/* 搜索占左侧主位；basis 给一个下限，窄宽时整条独占一行而不是被
+                    右侧控件挤成一个只剩放大镜的方框。 */}
+                <div
+                  ref={setLibrarySearchSlot}
+                  className="min-w-0 flex-1 basis-64"
                 />
-                {activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ? (
-                  <>
-                    <div
-                      ref={setLibrarySourceNavSlot}
-                      className="flex shrink-0 flex-wrap items-center gap-2"
-                    />
-                    <div
-                      ref={setLibraryControlsSlot}
-                      className="flex shrink-0 flex-wrap items-center gap-2"
-                    />
-                  </>
-                ) : null}
+                {/* ⚠ 这一组以前挂着 `shrink-0`，而 `shrink-0` 会让 flexbox 直接
+                    发给它 max-content 宽度 —— 它就永远没有「需要换行」的约束，
+                    自己的 `flex-wrap` 等于失效，窄宽时硬生生撑破容器和邻居叠在
+                    一起（owner 2026-08-07 实拍）。去掉 shrink-0 + 补 min-w-0，
+                    换行才真的会发生。 */}
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <div
+                    ref={setLibrarySourceNavSlot}
+                    className="flex min-w-0 flex-wrap items-center gap-2"
+                  />
+                  <div
+                    ref={setLibraryControlsSlot}
+                    className="flex min-w-0 flex-wrap items-center gap-2"
+                  />
+                </div>
               </div>
-            </div>
+            ) : null}
 
             {/* 公开↔我的：顶栏是壳保持不动，只让内层结果 crossfade。 */}
             <div

@@ -294,6 +294,18 @@ export function HuggingFaceLoraLibrary({
             searchPlaceholder={t('baseModelSearchPlaceholder')}
             emptyText={t('baseModelSearchEmpty')}
           />
+          {/* 刷新推到最右：它不是筛选条件，是「按当前条件重拉」的动作。与
+              Civitai 源那一行同构（那边多一个安全档，HF 没有分级筛选）。 */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => void library.refresh()}
+            aria-label={t('refresh')}
+            className="ml-auto shrink-0"
+          >
+            <RefreshCw className="size-3.5" aria-hidden />
+          </Button>
         </div>
 
         {library.error ? (
@@ -458,16 +470,7 @@ export function HuggingFaceLoraLibrary({
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => void library.refresh()}
-                aria-label={t('refresh')}
-                className="shrink-0"
-              >
-                <RefreshCw className="size-3.5" aria-hidden />
-              </Button>
+              {/* 刷新已下沉到类型/底模那一行——见上方筛选行的注释。顶栏只剩排序。 */}
             </>,
             controlsSlotNode,
           )

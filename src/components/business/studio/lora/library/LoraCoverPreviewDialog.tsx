@@ -37,9 +37,17 @@ export function LoraCoverPreviewDialog({
         if (!open) onClose()
       }}
     >
+      {/* 点空白处关闭（owner 2026-08-07）：这个 DialogContent 铺满整屏并把图
+          居中，所以图周围那片「空白」其实**在 content 内部**，不是 Radix 的遮罩
+          ——遮罩点击关闭对它不生效，桌面上又没有可见关闭键（返回胶囊是
+          sm:hidden），等于只能按 Esc。用 target===currentTarget 只认打在容器
+          自身上的点击，点图片/返回键不会误关。 */}
       <DialogContent
         className="left-0 top-0 h-svh max-h-svh w-dvw max-w-none translate-x-0 translate-y-0 place-items-center rounded-none border-none bg-transparent p-3 shadow-none sm:left-1/2 sm:top-1/2 sm:h-auto sm:w-auto sm:max-w-[min(90vw,72rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:p-0"
         showCloseButton={false}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) onClose()
+        }}
       >
         <DialogTitle className="sr-only">{preview?.name ?? ''}</DialogTitle>
         <DialogClose asChild>

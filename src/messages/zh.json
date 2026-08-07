@@ -1618,6 +1618,7 @@
       "generate": "生成",
       "library": "库",
       "mine": "我的",
+      "favorites": "收藏",
       "train": "训练",
       "community": "LoRA 库"
     },

@@ -1618,6 +1618,7 @@
       "generate": "生成",
       "library": "ライブラリ",
       "mine": "マイ",
+      "favorites": "お気に入り",
       "train": "学習",
       "community": "LoRA ライブラリ"
     },

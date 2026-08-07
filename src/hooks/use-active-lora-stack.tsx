@@ -25,7 +25,12 @@ import type { ActiveLora, LoraAssetRecord } from '@/types'
 // doesn't match the active session.
 const STORAGE_KEY_PREFIX = 'pv.active-lora-stack.v2'
 const LEGACY_GLOBAL_STORAGE_KEY = 'pv.active-lora-stack.v1'
-const MAX_STACK = 3 // FAL flux-lora supports up to 5; cap UI at 3 for clarity
+// 挂载数量不设上限（owner 2026-08-07）。三个后端都不限：fal 官方文档写「You can
+// use any number of LoRAs」、Replicate `delta-lock/noobai-xl` 的 `loras` 是不限长度
+// 的列表、runner 是我们自己的 ComfyUI（workflow-builder 一个 LoRA 串一个
+// LoraLoader，想串几个串几个）。旧的 MAX_STACK=3 纯粹是「界面清爽」拍的数，却又
+// 只有它真的做闸、能力表里的 maxLoras 从不做闸——两把尺子对不上就是 H 那个
+// 「做同款后多挂载失效」的根因。现在一把尺子也不要了。
 
 function getStorageKey(clerkId: string): string {
   return `${STORAGE_KEY_PREFIX}.${clerkId}`
@@ -194,7 +199,7 @@ function readFromStorage(clerkId: string): StoredEntry[] {
     ) {
       const envelope = parsed as { ownerClerkId: unknown; items: unknown[] }
       if (envelope.ownerClerkId !== clerkId) return []
-      return envelope.items.filter(isValidEntry).slice(0, MAX_STACK)
+      return envelope.items.filter(isValidEntry)
     }
     // Legacy v1 raw arrays. They lived under a global key so we never
     // know who wrote them — discard on first read. The legacy global
@@ -300,20 +305,20 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
       }
       if (cancelled) return
       if (resolved.length > 0) {
-        // Predict which entries will actually land (dup/capacity) against
-        // the latest snapshot so the mount event matches the merge below.
+        // Predict which entries will actually land (dedup only — no capacity
+        // cap) against the latest snapshot so the mount event matches the
+        // merge below.
         const currentIds = new Set(
           itemsRef.current.map((entry) => entry.asset.id),
         )
-        const capacity = Math.max(0, MAX_STACK - itemsRef.current.length)
-        const added = resolved
-          .filter((entry) => !currentIds.has(entry.asset.id))
-          .slice(0, capacity)
+        const added = resolved.filter(
+          (entry) => !currentIds.has(entry.asset.id),
+        )
         setItems((prev) => {
           const seen = new Set(prev.map((entry) => entry.asset.id))
           const merged = [...prev]
           for (const entry of resolved) {
-            if (!seen.has(entry.asset.id) && merged.length < MAX_STACK) {
+            if (!seen.has(entry.asset.id)) {
               merged.push(entry)
               seen.add(entry.asset.id)
             }
@@ -351,14 +356,11 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
     // willAdd reads the post-render mirror: exact for real interactions
     // (one push per click/tick). Same-tick batched pushes may evaluate
     // against a stale mirror and over-fire the mount event — items
-    // themselves stay correct via the updater guards below.
+    // themselves stay correct via the dedup guard below.
     const current = itemsRef.current
-    const willAdd =
-      !current.some((entry) => entry.asset.id === asset.id) &&
-      current.length < MAX_STACK
+    const willAdd = !current.some((entry) => entry.asset.id === asset.id)
     setItems((prev) => {
       if (prev.some((entry) => entry.asset.id === asset.id)) return prev
-      if (prev.length >= MAX_STACK) return prev
       return [...prev, { asset, scale }]
     })
     if (willAdd) {
@@ -484,5 +486,3 @@ export function useActiveLoraStack(): ActiveLoraStackValue {
   }
   return ctx
 }
-
-export const LORA_STACK_MAX = MAX_STACK

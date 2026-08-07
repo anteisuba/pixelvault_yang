@@ -1892,6 +1892,7 @@
     "sourceRecipeExtraLoraLocateStrong": "可自动定位",
     "sourceRecipeExtraLoraLocateNameOnly": "仅有名称",
     "sourceRecipeExtraLoraSearchLink": "去 Civitai 找",
+    "sourceRecipeExtraLoraInclude": "做同款时一起挂上「{name}」",
     "sourceRecipeExtraLoraNameOnlyHint": "部分额外 LoRA 只有本地文件名，没有 hash / 版本 ID；做同款时可能无法自动挂上，需要手动搜索添加。",
     "sourceRecipePromptCopied": "提示词已复制",
     "sourceRecipeNegativeCopied": "负面提示词已复制",

@@ -132,7 +132,19 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       guidanceScale: { min: 1, max: 20, step: 0.5, default: 7.5 },
       steps: { min: 1, max: 50, step: 1, default: 28 },
       loraScale: { min: 0.1, max: 2, step: 0.05, default: 1 },
-      maxLoras: 2,
+      // 2026-08-07 核实（Replicate 公开 schema 页）：唯一还在跑的 Replicate LoRA
+      // 路线是 ILLUSTRIOUS_XL → `delta-lock/noobai-xl`，它的 `loras` 入参是一个
+      // **不限长度**的列表（`"URL:Strength,URL:Strength,…"` 或 JSON list dumped
+      // as string），schema 里没有任何数量上限。另一条 Replicate LoRA 路线
+      // ANIMA_PENCIL_XL 已 available:false（`lucataco/animapencil-xl-v4` 端点 404）。
+      // 旧值 2 是 2026-03 随首版 LoRA 支持写进来的、无注释无依据的保守数。
+      //
+      // ⚠ 现在还读这个字段的只剩**画布**（CharacterImageLoraControls 封顶 /
+      // StudioNodeWorkbench 的 .slice(0, maxLoras) / CapabilityForm 的加号闸）。
+      // LoRA 装配台与卡片配方编译两条链路已按 owner 2026-08-07 的「不设上限」把
+      // 各自的截断整条退役，都不再读它。这里留 3 只是给画布一个比 2 更贴近事实的
+      // 数，不是 provider 的真实上限——真实上限是「没有」。
+      maxLoras: 3,
       maxReferenceImages: 1,
     },
 

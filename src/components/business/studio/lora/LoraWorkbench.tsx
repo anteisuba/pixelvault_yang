@@ -64,10 +64,7 @@ import {
   type CivitaiRecipeExtraLora,
   type LoraAssetRecord,
 } from '@/types'
-import {
-  LORA_STACK_MAX,
-  useActiveLoraStack,
-} from '@/hooks/use-active-lora-stack'
+import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { CommunitySourceBranch } from '@/components/business/studio/lora/library/LoraLibraryTabs'
 import { LoraLibrarySegmented } from '@/components/business/studio/lora/library/LoraLibrarySegmented'
@@ -149,7 +146,10 @@ import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
 import { parseHuggingFaceLoraSourceUrl } from '@/lib/huggingface-lora-source'
 import { LoraHuggingFaceShowcaseStrip } from '@/components/business/studio/prompt-tags/LoraHuggingFaceShowcaseStrip'
 import { LoraSourceImagePreviewStrip } from '@/components/business/studio/prompt-tags/LoraSourceImagePreviewStrip'
-import { LoraSourceRecipeStrip } from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
+import {
+  LoraSourceRecipeStrip,
+  type ApplyRecipeOptions,
+} from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
 import { PromptTagAutocomplete } from '@/components/business/studio/prompt-tags/PromptTagAutocomplete'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { StudioGeneratingProgress } from '@/components/business/studio-shared'
@@ -1054,7 +1054,8 @@ function GenerateBranch({
       : 0
   const referenceStrengthConfig = baseCapability?.referenceStrength
   const loraScaleConfig = baseCapability?.loraScale
-  const maxLoras = baseCapability?.maxLoras
+  // 挂载数量不设上限（owner 2026-08-07）——三个后端都不限，见 use-active-lora-stack
+  // 里 MAX_STACK 退役处的依据。做同款的补挂因此也不传 maxStack（默认无上限）。
   const [referenceStrength, setReferenceStrength] = useState(
     referenceStrengthConfig?.default ?? 0.7,
   )
@@ -1117,8 +1118,14 @@ function GenerateBranch({
           tExtra('recipeExtraAutoMounted', { count: result.newlyMounted }),
         )
       }
-      const unresolved = result.missing + result.incompatible
+      // overCapacity 恒为 0：挂载不设上限，mountExtras 不传 maxStack。留在算式里
+      // 是为了「哪天想给做同款加个软上限」时只改传参那一行，这里不用再动。
+      const unresolved =
+        result.missing + result.incompatible + result.overCapacity
       if (unresolved > 0) {
+        // 「为什么没挂上」要说清——补救动作不一样：架构不兼容要换底模，定位不到
+        // 只能去 Civitai 找。以前两种都只报一句「仍有 N 个未挂载」，做同款看上去
+        // 就像凭空把多挂载弄坏了。
         toast.warning(
           tExtra('recipeExtraApplyLimited', { count: unresolved }),
           result.incompatible > 0
@@ -1135,7 +1142,6 @@ function GenerateBranch({
       const result = await mountRecipeExtraLoras({
         extras,
         stackItems: stack.items,
-        maxStack: LORA_STACK_MAX,
         baseModelFamily: loraFamily,
         resolveLora: resolveCivitaiLoraAPI,
         pushLora: stack.push,
@@ -1176,7 +1182,7 @@ function GenerateBranch({
   }, [])
 
   const handleApplyRecipe = useCallback(
-    (recipe: CivitaiImageRecipe, options: { includeSeed: boolean }) => {
+    (recipe: CivitaiImageRecipe, options: ApplyRecipeOptions) => {
       const plan = buildCivitaiRecipeGenerationPlan(recipe)
       const params = applyRecipePlanToAdvancedParams(undefined, plan, options)
       // G3b-2b：应用前快照当前输入（+ 该分组当前 scale），撤销时整批回滚。
@@ -1247,9 +1253,11 @@ function GenerateBranch({
         })
       }
       // owner 2026-07-20：做同款 = 真还原——除了 prompt/参数/底模引用，还把配方
-      // 里叠加的其他 LoRA 一起挂上（受容量与架构兼容闸约束）。结果 toast 异步
-      // 回报成功/失败数，避免静默失败。
-      void mountExtras(plan.extraLoras)
+      // 里叠加的其他 LoRA 一起挂上（架构不兼容的仍会被兼容闸拦下）。结果 toast
+      // 异步回报成功/失败数，避免静默失败。
+      // owner 2026-08-07：挂哪些由 modal 的勾选决定（默认全选），不再无条件用
+      // plan.extraLoras 全量——所以这里读 options 而不是 plan。
+      void mountExtras(options.extraLoras)
       // CD③：落台即进「待审阅」，并把变更卡摊开——用户得先看见改了什么。
       if (recipeGroupAsset) {
         setCollocationPending(true)
@@ -2036,7 +2044,6 @@ function GenerateBranch({
           workspaceOptionForBase && openKeySetupFor(workspaceOptionForBase)
         }
         loraScaleConfig={loraScaleConfig}
-        maxLoras={maxLoras}
         activeRecipeGroupId={recipeGroupKey}
         onSelectRecipeGroup={setRecipeGroupAssetId}
         onAddLora={() => setLibraryModalOpen(true)}
@@ -2181,19 +2188,24 @@ function GenerateBranch({
           </button>
         ) : null}
 
+        {/* ⚠ 断点必须是 `lg:`（1024）而不是 `md:`（768）——要和 useIsMobile 的
+            MOBILE_BREAKPOINT=1024 同边界，那个 hook 的注释也明写「必须与布局
+            chrome 的 lg: CSS 断点保持同一边界」。用 md: 时 768–1023（平板）这一段
+            会：列位按 768 就预留 300px，而列里的 assemblyColumn 受 !isAssistantMobile
+            门控到 1024 才渲染 → 留下一整条 300px 的空白沟（owner 2026-08-07 实拍）。 */}
         <div
           className={cn(
-            'lora-motion-cols md:grid md:min-h-0 md:flex-1 md:items-stretch md:gap-5 md:overflow-hidden',
+            'lora-motion-cols lg:grid lg:min-h-0 lg:flex-1 lg:items-stretch lg:gap-5 lg:overflow-hidden',
             // 折叠时左列收成图标 rail 宽度，创作面吃掉剩余空间（列宽走过渡，
             // 不瞬跳——CD 动效轴「柔顺连续」）。
             assemblyCollapsed
-              ? 'md:grid-cols-[56px_minmax(0,1fr)]'
-              : 'md:grid-cols-[300px_minmax(0,1fr)]',
+              ? 'lg:grid-cols-[56px_minmax(0,1fr)]'
+              : 'lg:grid-cols-[300px_minmax(0,1fr)]',
           )}
         >
-          {/* 左装配栏：桌面常驻（锁高时自身内滚·min-h-0 允许收缩）；移动端此格
-              空着，装配内容由上面的紧凑条唤起 sheet 承载（S7）。 */}
-          <div className="hidden space-y-3 md:block md:min-h-0 md:overflow-y-auto md:pr-1">
+          {/* 左装配栏：桌面常驻（锁高时自身内滚·min-h-0 允许收缩）；平板/移动端此
+              格整个不渲染，装配内容由上面的紧凑条唤起 sheet 承载（S7）。 */}
+          <div className="hidden space-y-3 lg:block lg:min-h-0 lg:overflow-y-auto lg:pr-1">
             {/* 单实例：桌面渲染在这里，移动端渲染在 sheet 里（isAssistantMobile
                 二选一，避免 LoraSpineBar 被挂两份、内部状态分叉）。 */}
             {!isAssistantMobile ? assemblyColumn : null}
@@ -2287,7 +2299,6 @@ function GenerateBranch({
                       <LoraOftenMountedWithRow
                         extras={oftenMountedExtras}
                         statusByKey={extraMountStatusByKey}
-                        stackFull={stack.items.length >= LORA_STACK_MAX}
                         onMountExtra={handleMountExtraLora}
                       />
                     </>
@@ -2767,8 +2778,6 @@ interface LoraSpineBarProps {
   /** 当前底模的 LoRA scale 值域（0.1–2.0）——驱动 chip 的 scale popover。
    *  底模未选或不支持 LoRA 时 undefined，此时 chip 退回静态文本。 */
   loraScaleConfig: NumericRange | undefined
-  /** 当前底模的多挂载上限（fal 5 / Replicate delta-lock 2）——余量小字用。 */
-  maxLoras: number | undefined
   /** B10-8：当前激活的配方分组（=正在展示来源图/配方的挂载）。多挂载时脊柱条
    *  chip 点名字即切换到该 LoRA 的来源图集与配方面板。 */
   activeRecipeGroupId: string | null
@@ -2794,7 +2803,6 @@ function LoraSpineBar({
   needsKeySetup,
   onRequestKeySetup,
   loraScaleConfig,
-  maxLoras,
   activeRecipeGroupId,
   onSelectRecipeGroup,
   onAddLora,
@@ -3239,8 +3247,9 @@ function LoraSpineBar({
           {t('spine.empty')}
         </span>
       )}
-      {/* CD：「＋ 添加 LoRA」是整宽虚线按钮（栈的收尾位·点开库 modal），容量
-          在下方小字（满栈时才是硬信息，不抢主按钮）。 */}
+      {/* CD：「＋ 添加 LoRA」是整宽虚线按钮（栈的收尾位·点开库 modal）。原先按钮
+          下方那行 `N/M` 余量小字已删——挂载不设上限后没有 M 可言，而「已挂 N」
+          在本栏顶部早就有了，再放一个只会让人以为还有个上限。 */}
       <button
         type="button"
         onClick={onAddLora}
@@ -3249,14 +3258,6 @@ function LoraSpineBar({
         <Plus className="size-3.5" aria-hidden />
         {t('spine.addLoraFull')}
       </button>
-      {maxLoras && maxLoras > 1 ? (
-        <span className="font-mono text-2xs text-muted-foreground/70">
-          {t('spine.mountCount', {
-            current: stack.items.length,
-            max: maxLoras,
-          })}
-        </span>
-      ) : null}
       {/* CD 装配栏「触发词」段：可单独停用的高亮 chips（停用=虚线 + 删除线，
           不进编译）。与搭配审阅卡里那份共用同一套 disabled 状态。 */}
       {triggerEntries.length > 0 ? (
@@ -3319,7 +3320,6 @@ function LoraSpineBar({
 interface LoraOftenMountedWithRowProps {
   extras: readonly OftenMountedExtra[]
   statusByKey: Record<string, ExtraMountStatus>
-  stackFull: boolean
   onMountExtra: (extra: CivitaiRecipeExtraLora) => void
 }
 
@@ -3330,7 +3330,6 @@ interface LoraOftenMountedWithRowProps {
 function LoraOftenMountedWithRow({
   extras,
   statusByKey,
-  stackFull,
   onMountExtra,
 }: LoraOftenMountedWithRowProps) {
   const t = useTranslations('LoraWorkbench')
@@ -3369,7 +3368,7 @@ function LoraOftenMountedWithRow({
             ) : (
               <button
                 type="button"
-                disabled={status === 'loading' || stackFull}
+                disabled={status === 'loading'}
                 onClick={() => onMountExtra(extra)}
                 className="underline underline-offset-2 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
               >

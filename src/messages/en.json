@@ -1892,6 +1892,7 @@
     "sourceRecipeExtraLoraLocateStrong": "Auto-locatable",
     "sourceRecipeExtraLoraLocateNameOnly": "Name only",
     "sourceRecipeExtraLoraSearchLink": "Search on Civitai",
+    "sourceRecipeExtraLoraInclude": "Mount “{name}” along with Recreate",
     "sourceRecipeExtraLoraNameOnlyHint": "Some extra LoRAs only have a local file name (no hash / version id). Recreate may fail to auto-mount them — search and add manually if needed.",
     "sourceRecipePromptCopied": "Prompt copied",
     "sourceRecipeNegativeCopied": "Negative prompt copied",

@@ -64,7 +64,15 @@ interface LoraSourceRecipeModalProps {
    * Generate variant「做同款」：应用真实可用配方到主台，不直接生成。
    * G3b-seed：includeSeed = 是否锁原图 seed（modal 内「用原图 seed」勾选）。
    */
-  onApplyRecipe?: (recipe: CivitaiImageRecipe, includeSeed: boolean) => void
+  /**
+   * `extraLoras` = 用户在下面「额外挂载」区块里**勾中**的那些（默认全选）。
+   * 做同款只补挂这批，不再无条件用 recipe.extraLoras 全量。
+   */
+  onApplyRecipe?: (
+    recipe: CivitaiImageRecipe,
+    includeSeed: boolean,
+    extraLoras: readonly CivitaiRecipeExtraLora[],
+  ) => void
 }
 
 function formatSize(recipe: CivitaiImageRecipe): string | null {
@@ -106,6 +114,9 @@ function hasStrongLocator(extra: CivitaiRecipeExtraLora): boolean {
   return extra.hash !== undefined || extra.modelVersionId !== undefined
 }
 
+/** 「一个也没取消」的稳定空集——每次 render 新建会让下游 memo 白失效。 */
+const EMPTY_KEYS: ReadonlySet<string> = new Set()
+
 export function LoraSourceRecipeModal({
   open,
   onOpenChange,
@@ -125,6 +136,35 @@ export function LoraSourceRecipeModal({
   const hasMultiple = total > 1
   // G3b-seed：做同款是否锁原图 seed（仅当当前配方带 seed 时才有意义）。
   const [includeSeed, setIncludeSeed] = useState(false)
+  // owner 2026-08-07：额外 LoRA 可以逐个取消勾选，做同款只挂勾中的。存「排除集」
+  // 而不是「选中集」——默认全挂是既有行为，空集就等于什么都不用初始化；而且
+  // prev/next 换图时 extras 整批换掉，选中集会残留上一张的 key。
+  //
+  // 排除集**连着它属于哪一张图**一起存：只要翻了图就重置回「全挂」——翻走再翻
+  // 回来也算，回到哪一张都是干净的，上一张的取消不会跟着走。
+  // 这是 React 官方的「render 期按 props 调整 state」写法，不是 useEffect——用
+  // effect 重置会级联渲染，react-hooks/set-state-in-effect 也会拦下来。
+  const [excluded, setExcluded] = useState<{
+    index: number
+    keys: ReadonlySet<string>
+  }>(() => ({ index, keys: EMPTY_KEYS }))
+  if (excluded.index !== index) {
+    setExcluded({ index, keys: EMPTY_KEYS })
+  }
+  const excludedExtraKeys =
+    excluded.index === index ? excluded.keys : EMPTY_KEYS
+  const toggleExtra = useCallback(
+    (key: string) => {
+      setExcluded((prev) => {
+        const base = prev.index === index ? prev.keys : EMPTY_KEYS
+        const keys = new Set(base)
+        if (keys.has(key)) keys.delete(key)
+        else keys.add(key)
+        return { index, keys }
+      })
+    },
+    [index],
+  )
 
   const goPrev = useCallback(() => {
     if (total <= 1) return
@@ -165,6 +205,11 @@ export function LoraSourceRecipeModal({
   // 该图叠加的其它 LoRA——做同款前必须可见（Library 详情与 Generate 共用）。
   const extraLoras = recipe?.extraLoras ?? []
   const hasExtraLoras = extraLoras.length > 0
+  // 做同款实际会补挂的那批 = 勾中的。摘要行按它计数，全不勾时整行不出——
+  // 不做「还将尝试挂载 0 个」这种假承诺。
+  const selectedExtraLoras = extraLoras.filter(
+    (extra) => !excludedExtraKeys.has(extraLoraKey(extra)),
+  )
   const hasNameOnlyExtras = extraLoras.some(
     (extra) => isRecipeExtraResolvable(extra) && !hasStrongLocator(extra),
   )
@@ -261,14 +306,14 @@ export function LoraSourceRecipeModal({
                             : null}
                         </dd>
                       </div>
-                      {hasExtraLoras ? (
+                      {selectedExtraLoras.length > 0 ? (
                         <div className="flex gap-2">
                           <dt className="w-12 shrink-0 text-muted-foreground">
                             {t('sourceRecipeExtraLorasLabel')}
                           </dt>
                           <dd className="min-w-0 flex-1 text-foreground">
                             {t('sourceRecipeExtraLorasSummary', {
-                              count: extraLoras.length,
+                              count: selectedExtraLoras.length,
                             })}
                           </dd>
                         </div>
@@ -396,22 +441,47 @@ export function LoraSourceRecipeModal({
                       {extraLoras.map((extra) => {
                         const label = extraLoraLabel(extra)
                         const strong = hasStrongLocator(extra)
+                        const key = extraLoraKey(extra)
+                        const included = !excludedExtraKeys.has(key)
                         return (
                           <li
-                            key={extraLoraKey(extra)}
+                            key={key}
                             className="rounded-md border border-border/50 bg-muted/20 px-2.5 py-1.5"
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <span className="min-w-0 break-all font-mono text-2xs leading-snug text-foreground">
-                                {label}
-                              </span>
+                              {/* 勾选=做同款时一并补挂（默认全选）。整块名字可点，
+                                  命中区比 12px 的方框大得多。 */}
+                              <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-1.5">
+                                <input
+                                  type="checkbox"
+                                  checked={included}
+                                  onChange={() => toggleExtra(key)}
+                                  aria-label={t(
+                                    'sourceRecipeExtraLoraInclude',
+                                    { name: label },
+                                  )}
+                                  className="mt-0.5 size-3 shrink-0 accent-primary"
+                                />
+                                <span
+                                  className={cn(
+                                    'min-w-0 break-all font-mono text-2xs leading-snug',
+                                    included
+                                      ? 'text-foreground'
+                                      : 'text-muted-foreground line-through',
+                                  )}
+                                >
+                                  {label}
+                                </span>
+                              </label>
                               {extra.weight !== undefined ? (
                                 <span className="shrink-0 font-mono text-2xs text-muted-foreground">
                                   {extra.weight}
                                 </span>
                               ) : null}
                             </div>
-                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
+                            {/* pl 对齐上一行的名字（跳过 12px 方框 + 6px 间距），
+                                否则定位提示会顶到勾选框正下方，读起来像另一列。 */}
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-[1.125rem] text-2xs text-muted-foreground">
                               <span>
                                 {strong
                                   ? t('sourceRecipeExtraLoraLocateStrong')
@@ -510,7 +580,7 @@ export function LoraSourceRecipeModal({
                       size="sm"
                       className="transition-transform active:scale-[0.97]"
                       onClick={() => {
-                        onApplyRecipe(recipe, includeSeed)
+                        onApplyRecipe(recipe, includeSeed, selectedExtraLoras)
                         onOpenChange(false)
                       }}
                     >

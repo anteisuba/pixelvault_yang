@@ -144,17 +144,27 @@ describe('useActiveLoraStack', () => {
     expect(result.current.items).toHaveLength(1)
   })
 
-  it('respects MAX_STACK cap', () => {
+  // owner 2026-08-07：挂载不设上限。旧的 MAX_STACK=3 是「界面清爽」拍的数，
+  // 而三个后端（fal / Replicate / runner）都不限 LoRA 数量——见 hook 顶部注释。
+  // 这里越过原来的 3 是**断言点**，不是边界试探。
+  it('keeps pushing past the retired 3-mount cap (no limit)', () => {
     const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
 
     act(() => {
       result.current.push(makeAsset({ id: '1', styleCode: 'c1' }))
       result.current.push(makeAsset({ id: '2', styleCode: 'c2' }))
       result.current.push(makeAsset({ id: '3', styleCode: 'c3' }))
-      result.current.push(makeAsset({ id: '4', styleCode: 'c4' })) // dropped
+      result.current.push(makeAsset({ id: '4', styleCode: 'c4' }))
+      result.current.push(makeAsset({ id: '5', styleCode: 'c5' }))
     })
 
-    expect(result.current.items.map((i) => i.asset.id)).toEqual(['1', '2', '3'])
+    expect(result.current.items.map((i) => i.asset.id)).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+    ])
   })
 
   it('push fires a mount event that acknowledge clears', () => {

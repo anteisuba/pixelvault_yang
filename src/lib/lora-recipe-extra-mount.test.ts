@@ -64,7 +64,12 @@ describe('mountRecipeExtraLoras', () => {
       setStatus: (key, status) => statuses.push([key, status]),
     })
 
-    expect(result).toEqual({ newlyMounted: 2, missing: 0, incompatible: 0 })
+    expect(result).toEqual({
+      newlyMounted: 2,
+      missing: 0,
+      incompatible: 0,
+      overCapacity: 0,
+    })
     expect(pushLora).toHaveBeenNthCalledWith(1, extraByHash, 0.4)
     expect(pushLora).toHaveBeenNthCalledWith(2, extraByVersion, 0.3)
     expect(setLoraScale).not.toHaveBeenCalled()
@@ -163,14 +168,21 @@ describe('mountRecipeExtraLoras', () => {
       setStatus: (key, status) => statuses.push([key, status]),
     })
 
-    expect(result).toEqual({ newlyMounted: 0, missing: 0, incompatible: 0 })
+    expect(result).toEqual({
+      newlyMounted: 0,
+      missing: 0,
+      incompatible: 0,
+      overCapacity: 0,
+    })
     expect(resolveLora).not.toHaveBeenCalled()
     expect(pushLora).not.toHaveBeenCalled()
     expect(setLoraScale).toHaveBeenCalledWith('mounted-extra', 0.62)
     expect(statuses).toEqual([['aabbcc', 'mounted']])
   })
 
-  it('reports missing extras when the LoRA stack capacity is reached', async () => {
+  // 容量不足要单独记成 overCapacity，不能混进 missing——两者的补救动作不同
+  // （卸掉一个 vs 这个 LoRA 根本定位不到），toast 要据此说清「为什么没挂上」。
+  it('counts capacity-blocked extras as overCapacity, not missing', async () => {
     const firstExtra = makeAsset({
       id: 'first-extra',
       styleCode: 'first-extra',
@@ -200,7 +212,12 @@ describe('mountRecipeExtraLoras', () => {
       setStatus: (key, status) => statuses.push([key, status]),
     })
 
-    expect(result).toEqual({ newlyMounted: 1, missing: 1, incompatible: 0 })
+    expect(result).toEqual({
+      newlyMounted: 1,
+      missing: 0,
+      incompatible: 0,
+      overCapacity: 1,
+    })
     expect(pushLora).toHaveBeenCalledTimes(1)
     expect(pushLora).toHaveBeenCalledWith(firstExtra, 0.4)
     expect(statuses).toContainEqual(['v12', 'failed'])
@@ -242,7 +259,12 @@ describe('mountRecipeExtraLoras', () => {
       isBaseCompatible: (fam) => fam.toLowerCase().includes('illustrious'),
     })
 
-    expect(result).toEqual({ newlyMounted: 1, missing: 0, incompatible: 1 })
+    expect(result).toEqual({
+      newlyMounted: 1,
+      missing: 0,
+      incompatible: 1,
+      overCapacity: 0,
+    })
     expect(pushLora).toHaveBeenCalledTimes(1)
     expect(pushLora).toHaveBeenCalledWith(illuExtra, 0.6)
     expect(statuses).toContainEqual(['v22', 'incompatible'])

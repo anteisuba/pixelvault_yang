@@ -96,7 +96,6 @@ vi.mock('@/hooks/use-lora-assets', () => ({
 }))
 
 vi.mock('@/hooks/use-active-lora-stack', () => ({
-  LORA_STACK_MAX: 3,
   useActiveLoraStack: () => ({
     items: [],
     push: mockStackPush,

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -56,6 +56,12 @@ const mockAddTag = vi.hoisted(() => vi.fn())
 const mockRouterReplace = vi.hoisted(() => vi.fn())
 const mockRouterPush = vi.hoisted(() => vi.fn())
 const mockUseHuggingFaceLoraShowcase = vi.hoisted(() => vi.fn())
+// H（2026-08-07 owner）：做同款要把配方里叠加的其它 LoRA 一并挂上。挂载动作
+// 走 stack.push / 解析走 resolveCivitaiLoraAPI —— 两者都要是**跨渲染稳定**的
+// mock，否则断言拿到的是上一帧那个已经被丢弃的 vi.fn()。
+const mockStackPush = vi.hoisted(() => vi.fn())
+const mockStackSetScale = vi.hoisted(() => vi.fn())
+const mockResolveCivitaiLora = vi.hoisted(() => vi.fn())
 
 vi.mock('@/constants/feature-flags', () => ({
   FEATURE_FLAGS: {
@@ -86,8 +92,15 @@ vi.mock('next-intl', () => ({
     `${namespace}:${key}`,
 }))
 
+// `warning` 是做同款补挂失败时唯一的用户可见反馈（recipeExtraApplyLimited）——
+// 漏 stub 会让那条分支炸成 unhandled rejection 而不是被断言到。
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  },
 }))
 
 vi.mock('next/navigation', () => ({
@@ -144,21 +157,48 @@ let mockStackItems: { asset: MockStackAsset; scale: number }[] = [
 ]
 
 vi.mock('@/hooks/use-active-lora-stack', () => ({
-  LORA_STACK_MAX: 3,
   useActiveLoraStack: () => ({
     get items() {
       return mockStackItems
     },
-    push: vi.fn(),
-    setScale: vi.fn(),
+    push: mockStackPush,
+    setScale: mockStackSetScale,
     remove: vi.fn(),
     clear: vi.fn(),
   }),
 }))
 
+// 做同款的额外 LoRA 解析（本地库 → Civitai）。默认「解析不到」，需要它成功的
+// 用例自己 mockResolvedValue —— 避免真的打 fetch。
+vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/lib/api-client/lora-assets')>()
+  return { ...actual, resolveCivitaiLoraAPI: mockResolveCivitaiLora }
+})
+
 vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: mockUseApiKeysContext,
 }))
+
+// H：挂载**不设上限**。默认透传真实能力表；无上限用例把 maxLoras 压到一个极小值
+// （比栈里已有的挂载还小），只要还有任何一处拿它做闸，补挂就会被挡下 → 用例红。
+let mockMaxLorasOverride: number | undefined
+vi.mock('@/constants/provider-capabilities', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/constants/provider-capabilities')>()
+  return {
+    ...actual,
+    getCapabilityConfig: (adapter: string, modelId: string) => {
+      const config = actual.getCapabilityConfig(
+        adapter as never,
+        modelId as never,
+      )
+      return mockMaxLorasOverride === undefined
+        ? config
+        : { ...config, maxLoras: mockMaxLorasOverride }
+    },
+  }
+})
 
 // LoraTagPicker (自己搭配) and PromptTagTray both read this — not under test
 // here (covered separately by prompt-tag-search/compiler/stack's own
@@ -294,6 +334,10 @@ beforeEach(() => {
   mockRunnerUsage = null
   mockStackItems = [{ asset: stackAsset, scale: 1 }]
   mockTraySelections = []
+  mockStackPush.mockReset()
+  mockStackSetScale.mockReset()
+  mockResolveCivitaiLora.mockReset().mockResolvedValue({ success: false })
+  mockMaxLorasOverride = undefined
   mockUseHuggingFaceLoraShowcase.mockReset().mockReturnValue({
     images: [],
     prompts: [],
@@ -662,6 +706,89 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     expect(mockGenerate.mock.calls[0][0].image.freePrompt).toBe(
       'testlora, best quality, 1girl',
     )
+  })
+
+  // H（2026-08-07 owner「点击做同款后多挂载失效」）：做同款 = 真还原——配方里
+  // 叠加的其它 LoRA 必须一并挂进栈（受容量 + 架构兼容闸约束），否则只还原了
+  // 主 LoRA，多挂载形同虚设。既有覆盖只到「做同款替换正文/参数」为止。
+  it('H: 做同款 mounts every extra LoRA the recipe stacked, not just the primary', async () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'best quality, 1girl',
+        extraLoras: [
+          { name: 'detail tweaker', weight: 0.4, modelVersionId: 111 },
+          { name: 'rim light', weight: 0.6, modelVersionId: 222 },
+        ],
+      },
+    ]
+    mockResolveCivitaiLora.mockImplementation(
+      async ({ modelVersionId }: { modelVersionId?: number }) => ({
+        success: true,
+        data: {
+          ...stackAsset,
+          id: `extra-${modelVersionId}`,
+          name: `Extra ${modelVersionId}`,
+          modelVersionId,
+        },
+      }),
+    )
+
+    render(<LoraWorkbench />)
+    applyFirstRecipeViaModal()
+
+    await waitFor(() => expect(mockStackPush).toHaveBeenCalledTimes(2))
+    expect(
+      mockStackPush.mock.calls.map((call) => (call[0] as { id: string }).id),
+    ).toEqual(['extra-111', 'extra-222'])
+    // 配方给了 weight 就按配方的权重挂，不落回资产默认值。
+    expect(mockStackPush.mock.calls.map((call) => call[1] as number)).toEqual([
+      0.4, 0.6,
+    ])
+  })
+
+  // H 的回归闸：挂载不设上限（owner 2026-08-07）——做同款要能把配方里的额外 LoRA
+  // **全部**补上，既不看底模的 maxLoras 也不看任何写死的栈上限。这两个数曾经打
+  // 架：余量小字读底模 maxLoras(当时 Replicate=2)、闸门读写死的 3，于是计数器显示
+  // 自相矛盾的 `3/2`，而栈一满做同款就补不上额外 LoRA。把 maxLoras 压到 1（比栈里
+  // 已有的主 LoRA 还小）——只要还有任何一处在拿它做闸，补挂就会被挡下。
+  it('H: 做同款 mounts every extra even when the base declares a smaller maxLoras (no cap)', async () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+    mockMaxLorasOverride = 1
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'best quality, 1girl',
+        extraLoras: [
+          { name: 'detail tweaker', weight: 0.4, modelVersionId: 111 },
+          { name: 'rim light', weight: 0.6, modelVersionId: 222 },
+          { name: 'hand fix', weight: 0.2, modelVersionId: 333 },
+        ],
+      },
+    ]
+    mockResolveCivitaiLora.mockImplementation(
+      async ({ modelVersionId }: { modelVersionId?: number }) => ({
+        success: true,
+        data: {
+          ...stackAsset,
+          id: `extra-${modelVersionId}`,
+          name: `Extra ${modelVersionId}`,
+          modelVersionId,
+        },
+      }),
+    )
+
+    render(<LoraWorkbench />)
+    applyFirstRecipeViaModal()
+
+    // 主 LoRA(1) + 3 个额外 = 4，远超旧的硬上限 3 与底模声明的 1。一个都不许掉。
+    await waitFor(() => expect(mockStackPush).toHaveBeenCalledTimes(3))
+    expect(
+      mockStackPush.mock.calls.map((call) => (call[0] as { id: string }).id),
+    ).toEqual(['extra-111', 'extra-222', 'extra-333'])
   })
 
   it('G3b-2b: the 搭配 status bar undo restores the pre-做同款 prompt snapshot', () => {

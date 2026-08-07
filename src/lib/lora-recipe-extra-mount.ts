@@ -14,9 +14,17 @@ export type ExtraMountStatus = 'loading' | 'mounted' | 'failed' | 'incompatible'
 
 export interface RecipeExtraMountResult {
   newlyMounted: number
+  /** Not locatable at all (unresolvable locator, or resolve came back empty). */
   missing: number
   /** Resolved but rejected for base-model architecture mismatch. */
   incompatible: number
+  /**
+   * Resolved and compatible, but there was no slot left (`maxStack` reached).
+   * Kept apart from `missing` because the user's remedy is completely
+   * different — "卸掉一个再试" vs "这个 LoRA 定位不到". Lumping them together is
+   * what made 做同款 look like it silently broke multi-mount.
+   */
+  overCapacity: number
 }
 
 interface RecipeExtraStackEntry {
@@ -38,7 +46,13 @@ interface ResolveRecipeExtraLoraResponse {
 interface MountRecipeExtraLorasOptions {
   extras: readonly CivitaiRecipeExtraLora[]
   stackItems: readonly RecipeExtraStackEntry[]
-  maxStack: number
+  /**
+   * Optional cap on the resulting stack size. Omit for no limit — which is what
+   * the LoRA workbench does (owner 2026-08-07: 挂载不设上限；fal / Replicate /
+   * runner 三个后端都不限数量)。Pass a number only if a surface wants its own
+   * soft cap; extras blocked by it come back as `overCapacity`.
+   */
+  maxStack?: number
   baseModelFamily?: string | null
   resolveLora: (
     params: ResolveRecipeExtraLoraParams,
@@ -122,7 +136,7 @@ function findMountedExtra(
 export async function mountRecipeExtraLoras({
   extras,
   stackItems,
-  maxStack,
+  maxStack = Number.POSITIVE_INFINITY,
   baseModelFamily,
   resolveLora,
   pushLora,
@@ -133,6 +147,7 @@ export async function mountRecipeExtraLoras({
   let newlyMounted = 0
   let missing = 0
   let incompatible = 0
+  let overCapacity = 0
   const projectedIds = new Set(stackItems.map((entry) => entry.asset.id))
   let projectedCount = stackItems.length
   const seenKeys = new Set<string>()
@@ -192,7 +207,7 @@ export async function mountRecipeExtraLoras({
 
     if (projectedCount >= maxStack) {
       setStatus?.(key, 'failed')
-      missing += 1
+      overCapacity += 1
       continue
     }
 
@@ -203,7 +218,7 @@ export async function mountRecipeExtraLoras({
     setStatus?.(key, 'mounted')
   }
 
-  return { newlyMounted, missing, incompatible }
+  return { newlyMounted, missing, incompatible, overCapacity }
 }
 
 // ── §4.2「常与它同挂」聚合（lora-workbench.md §4.2）──────────────────────

@@ -11,7 +11,7 @@ import {
 } from '@/lib/civitai-image-url'
 import { Button } from '@/components/ui/button'
 import { LoraSourceRecipeModal } from '@/components/business/studio/lora/LoraSourceRecipeModal'
-import type { CivitaiImageRecipe } from '@/types'
+import type { CivitaiImageRecipe, CivitaiRecipeExtraLora } from '@/types'
 
 /**
  * Source image band (G3b · references/pages/lora-generate.md §3.1)：只呈现
@@ -23,6 +23,11 @@ import type { CivitaiImageRecipe } from '@/types'
 
 export interface ApplyRecipeOptions {
   includeSeed: boolean
+  /**
+   * 做同款要补挂的额外 LoRA——modal 的「额外挂载」区块里勾中的那批（默认全选）。
+   * 由 modal 决定而不是由 parent 从 recipe 里全量取，用户才能逐个取消。
+   */
+  extraLoras: readonly CivitaiRecipeExtraLora[]
 }
 
 interface LoraSourceRecipeStripProps {
@@ -144,8 +149,8 @@ export function LoraSourceRecipeStrip({
         assetName={assetName}
         baseModelFamily={baseModelFamily}
         sourceUrl={sourceUrl}
-        onApplyRecipe={(recipe, includeSeed) =>
-          onApplyRecipe(recipe, { includeSeed })
+        onApplyRecipe={(recipe, includeSeed, extraLoras) =>
+          onApplyRecipe(recipe, { includeSeed, extraLoras })
         }
       />
     </div>

@@ -30,7 +30,27 @@ export type ProviderCapability =
  */
 export type ReferenceImageMode = 'native' | 'img2img' | 'director'
 
+/**
+ * OpenAI's `POST /v1/images/edits` accepts up to 16 input images for the
+ * gpt-image family (each png/webp/jpg under 50MB).
+ * https://developers.openai.com/api/reference/resources/images/methods/edit
+ */
 export const OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES = 16
+
+/**
+ * ⚠ UNVERIFIED (J4, 2026-08-07) — kept at its shipped value on purpose.
+ *
+ * No source was ever recorded for 14, and the 2026-08-07 sweep could not
+ * confirm it: 火山's Seedream API reference is JS-rendered and did not resolve,
+ * and the only figures reachable were for **Seedream 4.0** (≤10 reference
+ * images, input+output ≤15) — a version this project does not ship. We run 4.5
+ * and 5.0, so those numbers are a near-match, not evidence.
+ *
+ * Left alone rather than lowered: shrinking a cap on a near-match would break
+ * working multi-reference runs to fix a problem nobody has observed. To settle
+ * it, read the 4.5/5.0 API reference in a real browser (JS on), or submit 11+
+ * references to a `*_VOLCENGINE` Seedream model and see whether 火山 400s.
+ */
 export const VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES = 14
 export const FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX = 3
 export const FAL_KLING_V3_MAX_REFERENCE_IMAGES =
@@ -139,11 +159,13 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       // ANIMA_PENCIL_XL 已 available:false（`lucataco/animapencil-xl-v4` 端点 404）。
       // 旧值 2 是 2026-03 随首版 LoRA 支持写进来的、无注释无依据的保守数。
       //
-      // ⚠ 现在还读这个字段的只剩**画布**（CharacterImageLoraControls 封顶 /
-      // StudioNodeWorkbench 的 .slice(0, maxLoras) / CapabilityForm 的加号闸）。
-      // LoRA 装配台与卡片配方编译两条链路已按 owner 2026-08-07 的「不设上限」把
-      // 各自的截断整条退役，都不再读它。这里留 3 只是给画布一个比 2 更贴近事实的
-      // 数，不是 provider 的真实上限——真实上限是「没有」。
+      // ⚠ 这个数**不是 provider 的真实上限——真实上限是「没有」**。它现在只剩两个
+      // 读者，且都是「加号还能不能按」的 UI 闸，不再有任何一条链路拿它截断发出去
+      // 的载荷：`CharacterImageLoraControls`（与自己的 maxItems 取 min）与
+      // `CapabilityForm` 的加号闸。
+      // 已按 owner 2026-08-07「一把尺子也不要了」退役掉的截断：LoRA 装配台、卡片
+      // 配方编译（H，2026-08-07）、以及 StudioNodeWorkbench 两条 generate 路径的
+      // `.slice(0, maxLoras)`（J4，2026-08-07）。
       maxLoras: 3,
       maxReferenceImages: 1,
     },
@@ -171,6 +193,9 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
     [AI_ADAPTER_TYPES.GEMINI]: {
       capabilities: ['resolution', 'imageAnalysis'],
       resolutionOptions: ['1K', '2K', '4K'],
+      // Gemini 3 Pro Image accepts at most 14 images per prompt (of which ≤6
+      // object and ≤5 human references).
+      // https://ai.google.dev/gemini-api/docs/models/gemini-3-pro-image
       maxReferenceImages: 14,
       referenceImageMode: 'native',
     },

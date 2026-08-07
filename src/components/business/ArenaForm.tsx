@@ -222,13 +222,23 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
     handleInputChange,
   } = useImageUpload()
 
-  // Use the minimum maxReferenceImages across all selected models
+  // Use the minimum maxReferenceImages across all selected models.
+  // ⚠ Must pass `modelId` — `resolveConfig` returns the *adapter* default when
+  // it is omitted, and the adapter default is the conservative floor (OPENAI is
+  // 1) rather than the model's real capability (GPT Image 2 is 16). Dropping it
+  // also dragged every co-selected model down through the `Math.min`, and
+  // `ReferenceImageSection` turns `maxImages === 1` into a single-select file
+  // input — so the picker silently stopped accepting multiple files.
   const arenaMaxRefImages = useMemo(() => {
-    const selectedAdapters = modelOptions
-      .filter((opt) => readyOptionIds.has(opt.optionId))
-      .map((opt) => opt.adapterType)
-    if (selectedAdapters.length === 0) return 1
-    return Math.min(...selectedAdapters.map((a) => getMaxReferenceImages(a)))
+    const selected = modelOptions.filter((opt) =>
+      readyOptionIds.has(opt.optionId),
+    )
+    if (selected.length === 0) return 1
+    return Math.min(
+      ...selected.map((opt) =>
+        getMaxReferenceImages(opt.adapterType, opt.modelId),
+      ),
+    )
   }, [modelOptions, readyOptionIds])
 
   const toggleModel = useCallback((optionId: string) => {

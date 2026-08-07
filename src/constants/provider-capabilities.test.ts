@@ -100,4 +100,19 @@ describe('provider-capabilities', () => {
     expect(config.referenceStrength).toBeDefined()
     expect(config.capabilities).toContain('referenceStrength')
   })
+
+  // J4: the adapter default is a conservative floor, not a capability. Callers
+  // that know their model MUST pass it — ArenaForm shipped without it and
+  // collapsed GPT Image 2 from 16 reference images to 1, which additionally
+  // turned the picker into a single-select input. This pins the gap so the
+  // adapter-only reading can never look "good enough" again.
+  it('resolves GPT Image 2 to its model cap, not the OPENAI adapter floor', () => {
+    expect(getMaxReferenceImages(AI_ADAPTER_TYPES.OPENAI)).toBe(1)
+    expect(
+      getMaxReferenceImages(
+        AI_ADAPTER_TYPES.OPENAI,
+        AI_MODELS.OPENAI_GPT_IMAGE_2,
+      ),
+    ).toBe(16)
+  })
 })

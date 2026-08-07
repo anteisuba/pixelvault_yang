@@ -17,8 +17,25 @@ export type AudioOpusBitrate = (typeof AUDIO_OPUS_BITRATES)[number]
 export const AUDIO_LATENCIES = ['normal', 'balanced', 'low'] as const
 export type AudioLatency = (typeof AUDIO_LATENCIES)[number]
 
-/** TTS text input constraints */
+/**
+ * TTS text input constraints.
+ *
+ * 5000 = **ElevenLabs v3's** documented per-request limit (~5 min of audio);
+ * https://elevenlabs.io/docs/overview/models. It is enforced in three places:
+ * the Studio prompt gate, `GenerateAudioSchema`, and the worker payload schema.
+ *
+ * ⚠ It is applied to **every** TTS provider, and it is not the intersection of
+ * the two we ship — Fish Audio's API reference states no maximum on `text` at
+ * all (https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech),
+ * so Fish Audio users are held to a ceiling that belongs to a different vendor.
+ * Verified 2026-08-07 (J4); left as one number pending an owner call, because
+ * raising it is a product decision that interacts with the planned long-audio
+ * chunking pipeline (docs/plans/audio-domain-design-2026-07.md §2.2), which is
+ * specced to trigger *above* this value. Split it per provider before relying
+ * on it as a real capability ceiling.
+ */
 export const TTS_MAX_TEXT_LENGTH = 5000
+/** Soft "you're close" warning, 90% of TTS_MAX_TEXT_LENGTH. */
 export const TTS_PROMPT_WARNING_LENGTH = 4500
 export const TTS_ESTIMATED_CHARS_PER_MINUTE = 900
 export const TTS_MIN_PREVIEW_MINUTES = 0.1

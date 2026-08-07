@@ -76,7 +76,6 @@ import { INGEST_MOTION, NODE_EDGE_SIGNING_MOTION } from '@/constants/motion'
 import { DEFAULT_SCRIPT_PLANNER_PROVIDER } from '@/constants/script-breakdown'
 import { AUDIO_EMOTIONS, type AudioEmotion } from '@/constants/voice-cards'
 import {
-  getCapabilityConfig,
   getMaxReferenceImages,
   hasCapability,
 } from '@/constants/provider-capabilities'
@@ -1131,11 +1130,9 @@ function StudioNodeCanvas() {
         'lora',
         model.modelId,
       )
-      const maxLoras =
-        getCapabilityConfig(model.adapterType, model.modelId).maxLoras ??
-        Number.POSITIVE_INFINITY
+      // ⚠ No count cap — see the sibling generate path below. owner 2026-08-07.
       const loras = supportsLora
-        ? (node.data.loras ?? []).slice(0, maxLoras).map((lora) => ({
+        ? (node.data.loras ?? []).map((lora) => ({
             url: lora.loraUrl,
             scale: lora.scale,
           }))
@@ -1546,11 +1543,12 @@ function StudioNodeCanvas() {
       const supportsLora =
         isImageMediaNode &&
         hasCapability(model.adapterType, 'lora', model.modelId)
-      const maxLoras =
-        getCapabilityConfig(model.adapterType, model.modelId).maxLoras ??
-        Number.POSITIVE_INFINITY
+      // ⚠ No count cap — owner 2026-08-07「一把尺子也不要了」. fal/Replicate/runner
+      // all accept an unbounded LoRA list, so there is no real ceiling to align
+      // to; the old `.slice(0, maxLoras)` truncated silently against a number
+      // the capability table itself admitted was not the provider's limit.
       const loras = supportsLora
-        ? (node.data.loras ?? []).slice(0, maxLoras).map((lora) => ({
+        ? (node.data.loras ?? []).map((lora) => ({
             url: lora.loraUrl,
             scale: lora.scale,
           }))

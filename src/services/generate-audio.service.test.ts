@@ -741,6 +741,51 @@ describe('submitAudioGeneration', () => {
     )
   })
 
+  // ── Text ceiling is the model's own, not one shared number ──────────
+  // (L split, 2026-08-07 — 5000 was ElevenLabs v3's documented limit and was
+  // being enforced on every provider, including Fish, which publishes none.)
+  it('rejects text over the selected model’s documented limit before any job exists', async () => {
+    const generateAudio = vi.fn()
+    vi.mocked(resolveGenerationRoute).mockResolvedValue({
+      modelId: 'eleven-v3',
+      adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
+      providerConfig: {
+        label: 'ElevenLabs',
+        baseUrl: 'https://api.elevenlabs.io',
+      },
+      apiKey: 'eleven-key',
+      resolvedApiKeyId: 'sync-key-1',
+      creditCost: 5,
+    } as never)
+    vi.mocked(getProviderAdapter).mockReturnValue({ generateAudio } as never)
+
+    await expect(
+      submitAudioGeneration('clerk-1', {
+        prompt: 'a'.repeat(5001),
+        modelId: 'eleven-v3',
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 })
+
+    expect(generateAudio).not.toHaveBeenCalled()
+    expect(createGenerationJob).not.toHaveBeenCalled()
+  })
+
+  it('lets a model whose vendor documents no limit past that number', async () => {
+    vi.mocked(resolveGenerationRoute).mockResolvedValueOnce(
+      FAKE_SYNC_ROUTE as never,
+    )
+    vi.mocked(getProviderAdapter).mockReturnValue({} as never)
+
+    const result = await submitAudioGeneration('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      prompt: 'a'.repeat(20_000),
+      voiceId: 'voice-1',
+    })
+
+    expect(result).toMatchObject({ jobId: 'job-async-1' })
+    expect(mockDispatchWorkerRun).toHaveBeenCalled()
+  })
+
   it('enqueues legacy async audio routes in the execution outbox', async () => {
     const submitAudioToQueue = vi.fn()
     vi.mocked(getProviderAdapter).mockReturnValue({

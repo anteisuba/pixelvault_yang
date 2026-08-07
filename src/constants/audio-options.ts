@@ -18,25 +18,50 @@ export const AUDIO_LATENCIES = ['normal', 'balanced', 'low'] as const
 export type AudioLatency = (typeof AUDIO_LATENCIES)[number]
 
 /**
- * TTS text input constraints.
+ * Absolute ceiling on the text of ONE audio request — a **payload guard, not a
+ * capability ceiling**. Nothing derives a vendor's ability from this number.
  *
- * 5000 = **ElevenLabs v3's** documented per-request limit (~5 min of audio);
- * https://elevenlabs.io/docs/overview/models. It is enforced in three places:
- * the Studio prompt gate, `GenerateAudioSchema`, and the worker payload schema.
+ * Per-model capability lives on `ModelOption.maxPromptChars` (see
+ * `constants/models/audio.ts`); `resolveAudioTextLimit()` there is the single
+ * place that combines the two. A model that documents no ceiling declares none,
+ * and only this guard applies.
  *
- * ⚠ It is applied to **every** TTS provider, and it is not the intersection of
- * the two we ship — Fish Audio's API reference states no maximum on `text` at
- * all (https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech),
- * so Fish Audio users are held to a ceiling that belongs to a different vendor.
- * Verified 2026-08-07 (J4); left as one number pending an owner call, because
- * raising it is a product decision that interacts with the planned long-audio
- * chunking pipeline (docs/plans/audio-domain-design-2026-07.md §2.2), which is
- * specced to trigger *above* this value. Split it per provider before relying
- * on it as a real capability ceiling.
+ * 40_000 = the largest per-request ceiling any mainstream TTS vendor publishes
+ * (ElevenLabs Flash v2.5; the same table lists v3 at 5000, Multilingual v2 at
+ * 10_000 — https://elevenlabs.io/docs/overview/models). A single request longer
+ * than the biggest number anyone documents is not a synthesis request, it is an
+ * accident or abuse, so it is refused outright rather than billed per character.
+ * ⚠ It is **not** a promise that 40_000 works: at TTS_ESTIMATED_CHARS_PER_MINUTE
+ * that is ~44 min of speech and would almost certainly hit the model's
+ * `timeoutMs` (Fish: 60s) first. Where that wall actually stands is unmeasured —
+ * measure it before turning this into a user-facing promise. Long text is meant
+ * to go to the chunked pipeline instead (docs/plans/audio-domain-design-2026-07.md
+ * §2.2), which is specced to trigger above the *resolved per-model* limit.
+ *
+ * History: this replaces `TTS_MAX_TEXT_LENGTH = 5000`, which was ElevenLabs
+ * v3's number applied to every provider — including Fish Audio (publishes "no
+ * hard character cap", fair-use only), ElevenLabs SFX and ElevenLabs Music.
+ * v3 itself has been `available: false` since 2026-07-26, so the one model the
+ * number belonged to was not even reachable. Verified + split 2026-08-07 (L).
  */
-export const TTS_MAX_TEXT_LENGTH = 5000
-/** Soft "you're close" warning, 90% of TTS_MAX_TEXT_LENGTH. */
-export const TTS_PROMPT_WARNING_LENGTH = 4500
+export const AUDIO_PROMPT_PAYLOAD_MAX_CHARS = 40_000
+
+/** Soft "you're close" warning, at 90% of whichever limit is in force. */
+export const TTS_PROMPT_WARNING_RATIO = 0.9
+
+/**
+ * Transcript of the reference audio clip in a Fish Audio `references` pair —
+ * a short cloning sample's text, never synthesis input.
+ *
+ * ⚠ Inherited, not derived: it rode the old shared TTS cap and is kept at that
+ * value so nothing that works today breaks. Fish documents no limit on
+ * `references[].text`
+ * (https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech),
+ * so this is a payload guard too. Tightening it on a guess is the risky
+ * direction (it would reject working clone pairs); leave it unless a real
+ * upstream limit turns up.
+ */
+export const TTS_REFERENCE_TEXT_MAX_CHARS = 5000
 export const TTS_ESTIMATED_CHARS_PER_MINUTE = 900
 export const TTS_MIN_PREVIEW_MINUTES = 0.1
 export const AUDIO_SPEAKER_VOICE_IDS_MAX = 8

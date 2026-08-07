@@ -3613,7 +3613,8 @@
       "audioReferenceTextRequired": "アップロードした参考音声の書き起こしを入力してから生成してください。"
     },
     "audioPromptMeta": "{current} / {max} 文字 · 約 {minutes} 分 · 生成 {credits} 回分",
-    "audioPromptMetaNoModel": "{current} / {max} 文字 · 約 {minutes} 分 · モデル選択後に消費量を表示",
+    "audioPromptMetaNoLimit": "{current} 文字 · 約 {minutes} 分 · 生成 {credits} 回分",
+    "audioPromptMetaNoModel": "{current} 文字 · 約 {minutes} 分 · モデル選択後に消費量を表示",
     "samplePrompts": {
       "quickImage": "黄金時の静かな日本庭園、澄んだ池を泳ぐ錦鯉、静かに舞い散る桜の花びら",
       "animeIllustration": "流れるような銀髪の若き冒険者が崖の上に立ち、夕暮れ時の広大なファンタジー王国を見下ろしている",

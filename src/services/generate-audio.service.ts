@@ -23,9 +23,13 @@ import {
   AUDIO_EXPRESSIVENESS,
   AUDIO_EXPRESSIVENESS_VALUES,
   AUDIO_KIND,
+  TTS_REFERENCE_TEXT_MAX_CHARS,
   type AudioExpressivenessTier,
 } from '@/constants/audio-options'
-import { resolveAudioKind } from '@/constants/models/audio'
+import {
+  resolveAudioKind,
+  resolveAudioTextLimit,
+} from '@/constants/models/audio'
 import {
   AI_ADAPTER_TYPES,
   getProviderLabel,
@@ -156,7 +160,7 @@ const AudioSubmitOutboxPayloadSchema = z.object({
   repetitionPenalty: z.number().min(1).max(2).optional(),
   speakerVoiceIds: z.array(z.string().min(1).max(200)).optional(),
   referenceAudioUrl: z.string().url().optional(),
-  referenceText: z.string().trim().max(5000).optional(),
+  referenceText: z.string().trim().max(TTS_REFERENCE_TEXT_MAX_CHARS).optional(),
 })
 
 type AudioSubmitOutboxPayload = z.infer<typeof AudioSubmitOutboxPayloadSchema>
@@ -946,6 +950,30 @@ export async function submitAudioGeneration(
     provider: providerLabel,
     routeKind: route.isFreeGeneration ? 'free-tier' : 'user-key',
   })
+
+  // Per-model text ceiling. Runs before the kind dispatch so speech, SFX and
+  // music are all measured against **their own** model's documented limit —
+  // `modelConfig` here is the resolved (DB-first) config, so a catalog override
+  // carries its own maxPromptChars. Models whose vendor documents no limit
+  // declare none and are bounded only by the payload guard already applied by
+  // GenerateAudioRequestSchema. See resolveAudioTextLimit().
+  //
+  // ⚠ Measures the user's text, not the compiled provider prompt —
+  // buildProviderPrompt() injects emotion tags per sentence and can push the
+  // payload a few percent over. Unchanged from the pre-split behaviour, and
+  // only material for a model that declares a cap; if that ever matters, gate
+  // the compiled string and make the Studio counter show the same number.
+  const textLimit = resolveAudioTextLimit(modelConfig)
+  if (textLimit.declared !== undefined) {
+    const promptLength = request.prompt.trim().length
+    if (promptLength > textLimit.declared) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        `Text is too long for ${route.modelId} (${promptLength} characters, max ${textLimit.declared})`,
+        400,
+      )
+    }
+  }
 
   // SFX / music generate synchronously (ElevenLabs): run now and hand back an
   // already-COMPLETED job the client resolves on first poll.

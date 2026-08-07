@@ -3613,7 +3613,8 @@
       "audioReferenceTextRequired": "Add the transcript of your uploaded reference audio before generating."
     },
     "audioPromptMeta": "{current} / {max} chars · ≈ {minutes} min · ≈ {credits, plural, one {# credit} other {# credits}}",
-    "audioPromptMetaNoModel": "{current} / {max} chars · ≈ {minutes} min · select a model for cost",
+    "audioPromptMetaNoLimit": "{current} chars · ≈ {minutes} min · ≈ {credits, plural, one {# credit} other {# credits}}",
+    "audioPromptMetaNoModel": "{current} chars · ≈ {minutes} min · select a model for cost",
     "samplePrompts": {
       "quickImage": "A serene Japanese garden at golden hour, koi fish swimming in a crystal clear pond, cherry blossoms falling gently",
       "animeIllustration": "A young adventurer with flowing silver hair standing atop a cliff, overlooking a vast fantasy kingdom at sunset",

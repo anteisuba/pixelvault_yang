@@ -49,7 +49,9 @@
 
 - **剧本层**：复用两阶段剧本引擎的模式（大纲确认 → 对话稿确认，两道门），输出结构化对话稿：`{ speaker, text(含情绪标记), voiceCardId, 基调 }[]`。形态先做 双人对谈 + 单人朗读 两种。
 - **合成层**：新编排 service（确定性代码，不是 LLM）：逐段 TTS（每段带 speaker 音色 + 情绪编译）→ 拼接 → 单条长音频落 R2 + 分段清单存 meta。轮询/失败恢复与 video 生成同构（分段粒度重试）。
-- **长音频**：超 `TTS_MAX_TEXT_LENGTH`（5000）的纯朗读走同一分段管线（按章节切分），播客只是"多说话人版长音频"。
+- **长音频**：超出**该模型自己的**文本上限的纯朗读走同一分段管线（按章节切分），播客只是"多说话人版长音频"。
+  - ⚠ **触发条件已改（L，2026-08-07）**：原文写的是「超 `TTS_MAX_TEXT_LENGTH`（5000）」，那个全局常量已退役——5000 是 ElevenLabs v3 的每请求上限，却被套在每个 provider 头上（Fish Audio 官方明写无上限，SFX / 音乐同样被误卡）。现在读 `resolveAudioTextLimit(model)`（`src/constants/models/audio.ts`）：`declared` = 厂商文档写明的上限（没写就是 undefined），`enforced` = declared 或 `AUDIO_PROMPT_PAYLOAD_MAX_CHARS`（payload 护栏，**不是能力值**）。
+  - → 分段管线的门槛因此**按模型而不是按平台**：ElevenLabs v3 类（有 declared）在自己的数上分段；Fish 这种没有 declared 的，真正的墙是**合成耗时**（`timeoutMs`，Fish 现为 60s）而不是字数。**这堵墙在哪还没量过**——做 Phase E 第一件事（拼接 spike）时顺手量出来，再决定 Fish 线的分段阈值，别再拍一个数。
 - **技术依赖（先验证）**：服务端音频拼接方案（ffmpeg 可用性 / 纯 MP3 帧级拼接）——Phase D 第一件事是本地 spike，不确定性要先暴露。
 
 ## 3. 语音库设计（音色固定）

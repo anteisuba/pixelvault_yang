@@ -3613,7 +3613,8 @@
       "audioReferenceTextRequired": "请填写上传参考音频对应的文字稿后再生成。"
     },
     "audioPromptMeta": "{current} / {max} 字 · ≈ {minutes} 分钟 · ≈ {credits} 次生成额度",
-    "audioPromptMetaNoModel": "{current} / {max} 字 · ≈ {minutes} 分钟 · 选择模型后显示额度",
+    "audioPromptMetaNoLimit": "{current} 字 · ≈ {minutes} 分钟 · ≈ {credits} 次生成额度",
+    "audioPromptMetaNoModel": "{current} 字 · ≈ {minutes} 分钟 · 选择模型后显示额度",
     "samplePrompts": {
       "quickImage": "黄金时分的宁静日式庭院，锦鲤在清澈的池塘中游弋，樱花花瓣轻柔飘落",
       "animeIllustration": "一位银发飘逸的年轻冒险者站在悬崖之巅，俯瞰日落时分辽阔的奇幻王国",

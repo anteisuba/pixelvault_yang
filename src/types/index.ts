@@ -7,9 +7,10 @@ import {
   AUDIO_LATENCIES,
   AUDIO_MP3_BITRATES,
   AUDIO_OPUS_BITRATES,
+  AUDIO_PROMPT_PAYLOAD_MAX_CHARS,
   SFX_DURATION_RANGE,
   TTS_CHUNK_LENGTH_RANGE,
-  TTS_MAX_TEXT_LENGTH,
+  TTS_REFERENCE_TEXT_MAX_CHARS,
   TTS_REPETITION_PENALTY_RANGE,
   TTS_TEMPERATURE_RANGE,
   TTS_TOP_P_RANGE,
@@ -555,13 +556,18 @@ export type GenerateVideoResponse = GenerateResponse
 
 export const GenerateAudioRequestSchema = z
   .object({
+    // Payload guard only. The per-model ceiling is enforced in
+    // generate-audio.service.ts, where the resolved (DB-first) model config is
+    // available — a static schema cannot know which vendor this request routes
+    // to, and pinning one vendor's number here is exactly what the L split
+    // undid. See AUDIO_PROMPT_PAYLOAD_MAX_CHARS.
     prompt: z
       .string()
       .trim()
       .min(1, 'Text is required')
       .max(
-        TTS_MAX_TEXT_LENGTH,
-        `Text is too long (max ${TTS_MAX_TEXT_LENGTH} characters)`,
+        AUDIO_PROMPT_PAYLOAD_MAX_CHARS,
+        `Text is too long (max ${AUDIO_PROMPT_PAYLOAD_MAX_CHARS} characters)`,
       ),
     modelId: z.string().trim().min(1, 'Model is required').max(160),
     voiceId: z.string().trim().min(1).max(200).optional(),
@@ -632,7 +638,11 @@ export const GenerateAudioRequestSchema = z
       .max(8)
       .optional(),
     referenceAudioUrl: z.string().url().optional(),
-    referenceText: z.string().trim().max(TTS_MAX_TEXT_LENGTH).optional(),
+    referenceText: z
+      .string()
+      .trim()
+      .max(TTS_REFERENCE_TEXT_MAX_CHARS)
+      .optional(),
     apiKeyId: z.string().trim().min(1).optional(),
     /**
      * Optional cover image for the generated audio — stored BY REFERENCE on the
@@ -1555,7 +1565,7 @@ const WorkerAudioProviderInputSchema = z.object({
   modelId: z.string().min(1),
   externalModelId: z.string().min(1),
   referenceAudioUrl: z.string().url().optional(),
-  referenceText: z.string().trim().max(TTS_MAX_TEXT_LENGTH).optional(),
+  referenceText: z.string().trim().max(TTS_REFERENCE_TEXT_MAX_CHARS).optional(),
   voiceId: z.string().min(1).optional(),
   speakerVoiceIds: z.array(z.string().trim().min(1).max(200)).max(8).optional(),
   speed: z.number().min(0.5).max(2.0).optional(),

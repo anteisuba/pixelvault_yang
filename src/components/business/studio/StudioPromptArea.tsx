@@ -33,10 +33,10 @@ import { CARD_RECIPE } from '@/constants/cards/card-types'
 import {
   AUDIO_KIND,
   TTS_ESTIMATED_CHARS_PER_MINUTE,
-  TTS_MAX_TEXT_LENGTH,
   TTS_MIN_PREVIEW_MINUTES,
-  TTS_PROMPT_WARNING_LENGTH,
+  TTS_PROMPT_WARNING_RATIO,
 } from '@/constants/audio-options'
+import { resolveAudioTextLimit } from '@/constants/models/audio'
 import {
   STUDIO_TOOL_PANEL_NAMES,
   useStudioForm,
@@ -139,10 +139,17 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const trimmedPrompt = state.prompt.trim()
   const hasPromptForImage = Boolean(trimmedPrompt)
   const audioPromptLength = isAudioMode ? trimmedPrompt.length : 0
+  // Per-model, not per-app: the ceiling belongs to whichever vendor this model
+  // routes to, and most of them publish none (then only the payload guard
+  // applies). Mirrors the server check in generate-audio.service.ts.
+  const audioTextLimit = resolveAudioTextLimit(
+    isAudioMode ? getModelById(selectedModel?.modelId ?? '') : undefined,
+  )
   const isAudioPromptOverLimit =
-    isAudioMode && audioPromptLength > TTS_MAX_TEXT_LENGTH
+    isAudioMode && audioPromptLength > audioTextLimit.enforced
   const isAudioPromptNearLimit =
-    isAudioMode && audioPromptLength >= TTS_PROMPT_WARNING_LENGTH
+    isAudioMode &&
+    audioPromptLength >= audioTextLimit.enforced * TTS_PROMPT_WARNING_RATIO
   // Image free-prompt cap mirrors StudioGenerateSchema's
   // freePrompt.max(FREE_PROMPT_MAX_LENGTH); gate before the request 400s with
   // a generic VALIDATION_ERROR the user can't act on.
@@ -172,18 +179,27 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         estimatedMinutes > 0 && estimatedMinutes < 1 ? 1 : 0,
     }).format(estimatedMinutes)
   }, [audioPromptLength, locale])
-  const audioPromptMeta = selectedModel
-    ? tPromptArea('audioPromptMeta', {
+  // No model → no vendor → no known ceiling; a model whose vendor publishes no
+  // limit gets a plain character count. Printing the payload guard as a
+  // denominator would read as "you may write 40,000 characters", which is a
+  // promise nobody verified.
+  const audioPromptMeta = !selectedModel
+    ? tPromptArea('audioPromptMetaNoModel', {
         current: audioPromptLength,
-        max: TTS_MAX_TEXT_LENGTH,
-        minutes: audioEstimatedMinutesLabel,
-        credits: selectedModel.requestCount ?? 1,
-      })
-    : tPromptArea('audioPromptMetaNoModel', {
-        current: audioPromptLength,
-        max: TTS_MAX_TEXT_LENGTH,
         minutes: audioEstimatedMinutesLabel,
       })
+    : audioTextLimit.declared !== undefined
+      ? tPromptArea('audioPromptMeta', {
+          current: audioPromptLength,
+          max: audioTextLimit.declared,
+          minutes: audioEstimatedMinutesLabel,
+          credits: selectedModel.requestCount ?? 1,
+        })
+      : tPromptArea('audioPromptMetaNoLimit', {
+          current: audioPromptLength,
+          minutes: audioEstimatedMinutesLabel,
+          credits: selectedModel.requestCount ?? 1,
+        })
   type SelectedModelOption = NonNullable<typeof selectedModel>
   const modelOptions = isAudioMode
     ? audioModelOptions
@@ -846,7 +862,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       } else if (isAudioPromptOverLimit) {
         toast.info(
           tPromptArea('blocked.audioPromptTooLong', {
-            max: TTS_MAX_TEXT_LENGTH,
+            max: audioTextLimit.enforced,
           }),
         )
         focusStudioPrompt()
@@ -880,6 +896,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     hasRefImage,
     modelRejectsRefImages,
     isAudioPromptOverLimit,
+    audioTextLimit.enforced,
     isImagePromptOverLimit,
     imagePromptMaxChars,
     isAudioReferenceIncomplete,

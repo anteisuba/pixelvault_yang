@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
+import { AUDIO_PROMPT_PAYLOAD_MAX_CHARS } from '@/constants/audio-options'
 import { CARD_RECIPE } from '@/constants/cards/card-types'
 import { AI_MODELS } from '@/constants/models'
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
@@ -535,20 +535,30 @@ describe('StudioPromptArea', () => {
     )
   })
 
-  it('shows audio prompt estimate and disables generation when text exceeds the TTS limit', () => {
-    const audioModel = {
-      optionId: 'audio-option',
-      modelId: 'fish-audio-s2-pro',
-      keyId: 'fish-key-1',
-      keyLabel: 'Fish key',
-      adapterType: 'fish_audio',
-      providerConfig: {
-        label: 'Fish Audio',
-        baseUrl: 'https://api.fish.audio',
-      },
-      sourceType: 'saved',
-      requestCount: 2,
-    }
+  // ── Audio text limit is per model (L split, 2026-08-07) ─────────────
+  // Fish publishes no per-request cap, ElevenLabs v3 publishes 5000. The gate
+  // must read the selected model, not one shared number — 5001 chars is fine on
+  // one and blocked on the other.
+  const audioModelOption = (
+    modelId: string,
+    overrides: Record<string, unknown> = {},
+  ) => ({
+    optionId: 'audio-option',
+    modelId,
+    keyId: 'audio-key-1',
+    keyLabel: 'Audio key',
+    adapterType: 'fish_audio',
+    providerConfig: {
+      label: 'Fish Audio',
+      baseUrl: 'https://api.fish.audio',
+    },
+    sourceType: 'saved',
+    requestCount: 2,
+    ...overrides,
+  })
+
+  const renderAudioPrompt = (modelId: string, promptLength: number) => {
+    const audioModel = audioModelOption(modelId)
     mockUseAudioModelOptions.mockReturnValue({
       selectedModel: audioModel,
       modelOptions: [audioModel],
@@ -556,10 +566,32 @@ describe('StudioPromptArea', () => {
     setupStudioForm(WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE, {
       outputType: 'audio',
       selectedOptionId: 'audio-option',
-      prompt: 'a'.repeat(TTS_MAX_TEXT_LENGTH + 1),
+      prompt: 'a'.repeat(promptLength),
     })
 
     render(<StudioPromptArea />)
+  }
+
+  it('lets Fish Audio past 5000 chars and prints no denominator (vendor documents no cap)', () => {
+    renderAudioPrompt(AI_MODELS.FISH_AUDIO_S2_PRO, 5001)
+
+    expect(screen.getByText('audioPromptMetaNoLimit')).toBeInTheDocument()
+    expect(screen.queryByText('audioPromptMeta')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^generate$/ })).toBeEnabled()
+  })
+
+  it('still blocks Fish Audio at the payload guard', () => {
+    renderAudioPrompt(
+      AI_MODELS.FISH_AUDIO_S2_PRO,
+      AUDIO_PROMPT_PAYLOAD_MAX_CHARS + 1,
+    )
+
+    expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
+    expect(mockGenerate).not.toHaveBeenCalled()
+  })
+
+  it('blocks ElevenLabs v3 at its own documented 5000 and shows it as the denominator', () => {
+    renderAudioPrompt(AI_MODELS.ELEVENLABS_V3, 5001)
 
     expect(screen.getByText('audioPromptMeta')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()

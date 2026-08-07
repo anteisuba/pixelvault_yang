@@ -1,6 +1,6 @@
 # 本周待办清单（2026-08-07 owner 口述）
 
-> 状态：**H · C4 · L 已完成并合入 main（2026-08-07，`eb295d23` / `6c3add69` / `84487a71` / `1cf1fe2a`）；其余七条未开工。** owner 将开新会话逐条推进。
+> 状态：**H · C4 · L 已完成并合入 main（2026-08-07，`eb295d23` / `6c3add69` / `84487a71` / `1cf1fe2a`）；M 已完成待提交；其余六条未开工。** owner 将开新会话逐条推进。
 > 本文件是索引与去重锚点，逐条拆成独立任务包后各自更新。
 > **新会话第一步：读本文件索引表 → 确认该条是「接续」还是「新做」→ 再进对应域文档。** 完整推进流程见文末 §执行流程。
 
@@ -20,7 +20,7 @@
 | J     | 基础设施补强 + 常量普查      | 工程         | 🆕 四个子项；**J4 已完成**（2 条候选验完 + 续扫，见 §J4）；J1/J2/J3 未动          | J1 补视觉基线（I 的前置）          |
 | ~~K~~ | ~~LoRA 库界面重构~~          | 重构 + Bug   | ✅ **已完成合入 main**（`a77901db`）——非本周清单内，owner 另行交办                | —                                  |
 | ~~L~~ | ~~TTS 上限按 provider 拆分~~ | 工程 + 产品  | ✅ **已完成合入 main**（`1cf1fe2a`）——全局 5000 退役，改 per-model + payload 护栏 | —                                  |
-| M     | 角色图 LoRA 加号闸退役       | 工程         | 🆕 owner 2026-08-07 拍板「退役」                                                  | 定位 toast 的三语 i18n 键          |
+| ~~M~~ | ~~角色图 LoRA 加号闸退役~~   | 工程         | ✅ **已完成，待 owner 点头提交**——闸是幽灵闸，owner 拍板连组件一并删除            | —                                  |
 
 ⚠ **七条已变十条，且不是全集** —— owner 原话「我后面还有其他需求」。新条目按字母续编并入本表，不要另起文档。
 
@@ -304,18 +304,32 @@ owner 三条：
 
 ---
 
-## M. 角色图 LoRA 加号闸退役（owner 2026-08-07 拍板）
+## ~~M. 角色图 LoRA 加号闸退役~~（工程 · ✅ 2026-08-07 完成，待 owner 点头提交）
 
-**背景**：J4 把画布两条 generate 路径的 `.slice(0, maxLoras)` 退役了，但留了这一处。当时留它的理由是**性质不同**——它弹 toast 明示用户，属「拦住并告知」而非静默截断。owner 现拍板：一并退役。
+**开工前的任务描述有一条是错的，而且是关键那条。** 我写的是「留它的理由是性质不同——它弹 toast 明示用户，属**拦住并告知**」。实际上：**这道闸没有任何用户能碰到。**
 
-**从这里开始查**：
+⭐ **真实情况**：`CharacterImageLoraControls` 自 `04f8f6be`（2026-08-05「refine canvas and homepage workflows」）起**零消费者**——那个 commit 把它从详情面板摘掉、同时加了一条断言钉死它不再渲染（`ImageFamilyBody.test.tsx:169`）。全仓 grep 只剩 barrel 的 `export *` 和注释在提它。真机复核（owner 的 dev server + 真实画布）：角色图详情面板七槽是 角色卡 / 绑定音色 / 身份包 / 显示名 / 外观描述 / 听觉身份，**没有任何 LoRA 控件**；节点内联生成条也只有模型、比例、×1。`node.data.loras` 只有两处**读**（generate 路径），没有任何 UI **写**，实测 20 个节点的该字段全为空数组。
 
-- `src/components/business/node/CharacterImageLoraControls.tsx:61` 与 `:65-67` —— 上限计算，两条路径都被 `NODE_STUDIO_CHARACTER_IMAGE_LORAS.maxItems` 封顶，且第 66 行还与 `config.maxLoras` 取 `Math.min`。
-- `NODE_STUDIO_CHARACTER_IMAGE_LORAS.maxItems`（零注释裸数字，值为 5）。
+**owner 拍板**（2026-08-07，选择题）：① 角色图**不要** LoRA 能力 → 组件 + 测试一并删除；② 卡片域那道 5 上限**先不动**。
 
-⚠ **toast 的三语 i18n 键需自行定位** —— 我 grep `loraLimit|maxLora|loraMax` **未命中**（只找到 `sourceCounts` 那条计数显示，不是 toast）。J4 提到存在，但我没找到键名，**不猜**。退役后记得三语同步删，且 ⚠ 禁止用正则改 `src/messages/*.json`。
+**改了什么**：
 
-**参照判例**：H（`eb295d23` + `6c3add69`）与 J4（`f9522e44`）的退役方式——不是把 5 调大，是整条闸删掉，真吃不下时由 provider 报错（大声失败好过静默丢弃）。
+| 层     | 动作                                                                                                                                                             |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 组件   | `CharacterImageLoraControls.tsx` 整体删除；`node/index.ts` 的 `export *` 同步删                                                                                  |
+| 画布   | `StudioNodeWorkbench` 两条 generate 路径的 `node.data.loras` 死读退役；随之 `advancedParams` 与 `hasCapability` 导入一并清理                                     |
+| 常量   | `NODE_STUDIO_CHARACTER_IMAGE_LORAS.maxItems`（零注释裸数字 5）退役；四个 scale 字段保留（它们是 provider 真实取值域，仍被 `NodeWorkflowLoraSelectionSchema` 用） |
+| 能力表 | `provider-capabilities.ts` 的 `maxLoras` 注释更新——读者从「两个」变成**一个**（只剩竞技场 `CapabilityForm` 的加号闸）                                            |
+| i18n   | `StudioNode.characterImage.lora` **整个 namespace**（21 键）+ `detail.fieldLoras` 三语删除，各 -28 行，三语键数一致（4665）                                      |
+
+**故意没删的**：`NodeWorkflowLoraSelectionSchema` 与 node data 的 `loras` 字段。它们是**持久化数据形状**，删掉等于把既有画布里的该字段在 parse 时剥掉；留着零成本，日后把编辑入口接回七槽时也省一步。
+
+**开工后查出的、任务书没写的两条**（都在 M 范围外，owner 已定「先不动」，登记在此）：
+
+1. **卡片域的 5 上限是活的，而且是双层**：`SimpleCardManager` 的 `maxLoras = 5` 默认 prop（**没有任何调用方覆盖它**）+ 服务端 `CreateCharacterCardSchema` / 背景卡 / 风格卡三处 `loras.max(5)`。角色卡、背景卡、风格卡都受它管。这与 H/J4/M 的「挂载路径不设上限」并不矛盾——owner 那次拍板说的是挂载路径，卡片域不在范围内。
+2. **`AdvancedParamsSchema.loras.max(5)` 是惰性的**：注释写着「up to 5」，但**没有任何路由整体 parse 过它**（只有两个客户端 helper 用 `.shape.<字段>` 做单字段校验）。唯一会 parse 的 `/api/generate` 由角色卡创建表单调用，而那条路径根本不传 loras；画布走 `/api/studio/generate`，其 `advancedParams` 是开放 `z.record` → 不受这个 5 约束。⚠ 属「写着但不生效」那一类，别把它当成现行上限引用。
+
+**参照判例**：H（`eb295d23` + `6c3add69`）与 J4（`f9522e44`）——不是把 5 调大，是整条闸删掉。M 又加了一条：**闸退役之后要再问一句「这道闸现在还有人能碰到吗」**，否则退役的是个幽灵。
 
 ---
 

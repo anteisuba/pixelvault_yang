@@ -3968,33 +3968,6 @@
         "customLabelPlaceholder": "自定义分类名…",
         "setPrimary": "设为主图",
         "unsetPrimary": "取消主图"
-      },
-      "lora": {
-        "title": "LoRA",
-        "chip": "LoRA {count}/{max}",
-        "hint": "选择最多 {max} 个 LoRA，生成时写入高级参数。",
-        "noModel": "请先选择图像模型。",
-        "unsupported": "当前模型不支持 LoRA。",
-        "mineTab": "我的",
-        "discoverTab": "发现",
-        "urlTab": "URL",
-        "loading": "正在加载 LoRA...",
-        "empty": "暂无可用 LoRA。",
-        "selected": "已选",
-        "noneSelected": "还没有选择 LoRA。",
-        "assetMeta": "{type} · {family}",
-        "types": {
-          "subject": "主体",
-          "style": "风格"
-        },
-        "urlPlaceholder": "https://.../model.safetensors",
-        "importUrl": "导入 URL",
-        "invalidUrl": "请输入有效的 HTTPS LoRA URL。",
-        "customName": "自定义 LoRA",
-        "maxReached": "最多选择 {max} 个 LoRA。",
-        "scaleLabel": "LoRA 权重",
-        "remove": "移除 LoRA",
-        "insertTrigger": "插入 trigger"
       }
     },
     "voiceProfile": {
@@ -4457,7 +4430,6 @@
       "identityPackage": "对下游的身份包",
       "fieldModel": "模型",
       "fieldReferences": "参考图",
-      "fieldLoras": "LoRA",
       "fieldLastFailure": "上次失败",
       "fieldCategory": "分类",
       "fieldDisplayName": "显示名",

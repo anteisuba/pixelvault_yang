@@ -159,13 +159,15 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       // ANIMA_PENCIL_XL 已 available:false（`lucataco/animapencil-xl-v4` 端点 404）。
       // 旧值 2 是 2026-03 随首版 LoRA 支持写进来的、无注释无依据的保守数。
       //
-      // ⚠ 这个数**不是 provider 的真实上限——真实上限是「没有」**。它现在只剩两个
-      // 读者，且都是「加号还能不能按」的 UI 闸，不再有任何一条链路拿它截断发出去
-      // 的载荷：`CharacterImageLoraControls`（与自己的 maxItems 取 min）与
-      // `CapabilityForm` 的加号闸。
-      // 已按 owner 2026-08-07「一把尺子也不要了」退役掉的截断：LoRA 装配台、卡片
-      // 配方编译（H，2026-08-07）、以及 StudioNodeWorkbench 两条 generate 路径的
-      // `.slice(0, maxLoras)`（J4，2026-08-07）。
+      // ⚠ 这个数**不是 provider 的真实上限——真实上限是「没有」**。它现在只剩
+      // **一个**读者：`CapabilityForm` 的「加号还能不能按」UI 闸。没有任何一条链路
+      // 再拿它截断发出去的载荷。
+      // 已按 owner 2026-08-07「一把尺子也不要了」退役掉的：LoRA 装配台、卡片配方
+      // 编译（H，eb295d23 / 6c3add69）、StudioNodeWorkbench 两条 generate 路径的
+      // `.slice(0, maxLoras)`（J4，f9522e44）。
+      // M（2026-08-07）退役了最后一个读它的画布件 `CharacterImageLoraControls`
+      // 的加号闸——开工后查出该组件自 `04f8f6be`（08-05）起零渲染，owner 拍板
+      // 「角色图不要 LoRA 能力」，组件整体删除，画布侧不再有任何 LoRA 入口。
       maxLoras: 3,
       maxReferenceImages: 1,
     },

@@ -670,8 +670,18 @@ export const NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY: Record<
   frame: '首帧',
 }
 
+// ⚠ 这里**没有** maxItems，也不该再加回来（owner 2026-08-07）。
+// 原先的 `maxItems: 5` 是零注释裸数字，唯一读者是 `CharacterImageLoraControls`
+// 的加号闸；而那个组件自 `04f8f6be`（2026-08-05 详情面板七槽改造）起就没有任何
+// 地方渲染，owner 拍板「角色图不要 LoRA 能力」后连组件一并删除了。
+//
+// 于是本常量现在**只剩 scale 取值域还在用**（`NodeWorkflowLoraSelectionSchema`
+// 的 min/max/default）。那四个数是 provider 的真实取值域，不是拍的数，留着。
+// 若日后把 LoRA 编辑入口接回七槽面板：**别顺手补一个 maxItems** —— 三个后端
+// （fal「any number of LoRAs」· Replicate 不限长度列表 · 自家 ComfyUI）都不限
+// 数量，没有真上限可对齐。同批退役的还有 H（eb295d23 / 6c3add69）与 J4
+// （f9522e44）的四处写死上限。
 export const NODE_STUDIO_CHARACTER_IMAGE_LORAS = {
-  maxItems: 5,
   defaultScale: 1,
   minScale: 0.1,
   maxScale: 2,

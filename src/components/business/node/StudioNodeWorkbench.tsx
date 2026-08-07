@@ -75,10 +75,7 @@ import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
 import { INGEST_MOTION, NODE_EDGE_SIGNING_MOTION } from '@/constants/motion'
 import { DEFAULT_SCRIPT_PLANNER_PROVIDER } from '@/constants/script-breakdown'
 import { AUDIO_EMOTIONS, type AudioEmotion } from '@/constants/voice-cards'
-import {
-  getMaxReferenceImages,
-  hasCapability,
-} from '@/constants/provider-capabilities'
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { useCharacterImageGeneration } from '@/hooks/cards/use-character-image-generation'
 import { useSeedancePromptPlan } from '@/hooks/prompts/use-seedance-prompt-plan'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
@@ -1125,21 +1122,11 @@ function StudioNodeCanvas() {
         ],
         maxReferenceImages,
       ).imageUrls
-      const supportsLora = hasCapability(
-        model.adapterType,
-        'lora',
-        model.modelId,
-      )
-      // ⚠ No count cap — see the sibling generate path below. owner 2026-08-07.
-      const loras = supportsLora
-        ? (node.data.loras ?? []).map((lora) => ({
-            url: lora.loraUrl,
-            scale: lora.scale,
-          }))
-        : []
-      const advancedParams: AdvancedParams | undefined =
-        loras.length > 0 ? { loras } : undefined
-
+      // 画布不再往角色图挂 LoRA（owner 2026-08-07「不要」）：唯一的编辑入口
+      // `CharacterImageLoraControls` 早在 04f8f6be（2026-08-05，详情面板七槽改造）
+      // 就被摘出面板，之后两天里 `node.data.loras` 只有读没有写，恒为空数组。
+      // 这里连同 sibling generate 路径一起退役——留着等于让一条永远取不到值的
+      // 分支伪装成能力。要恢复能力得先把编辑入口接回七槽，那时再一起加。
       const result = await characterImageGeneration.generate(
         {
           modelId: model.modelId,
@@ -1148,7 +1135,6 @@ function StudioNodeCanvas() {
           aspectRatio: DEFAULT_ASPECT_RATIO,
           referenceImages:
             referenceImages.length > 0 ? referenceImages : undefined,
-          advancedParams,
         },
         {
           // Persist the jobId the moment it exists so a reload or poll-window
@@ -1540,19 +1526,6 @@ function StudioNodeCanvas() {
       const finalPrompt = referenceLegend
         ? `${referenceLegend}\n\n${seedanceReadyPrompt}`
         : seedanceReadyPrompt
-      const supportsLora =
-        isImageMediaNode &&
-        hasCapability(model.adapterType, 'lora', model.modelId)
-      // ⚠ No count cap — owner 2026-08-07「一把尺子也不要了」. fal/Replicate/runner
-      // all accept an unbounded LoRA list, so there is no real ceiling to align
-      // to; the old `.slice(0, maxLoras)` truncated silently against a number
-      // the capability table itself admitted was not the provider's limit.
-      const loras = supportsLora
-        ? (node.data.loras ?? []).map((lora) => ({
-            url: lora.loraUrl,
-            scale: lora.scale,
-          }))
-        : []
       // Negative prompt is video-only (Studio's VideoParams panel mirrors
       // this restriction). Image kinds don't surface a control today, so we
       // only forward it when generating video.
@@ -1568,10 +1541,8 @@ function StudioNodeCanvas() {
         isVideoMediaNode && typeof node.data.seed === 'number'
           ? node.data.seed
           : undefined
-      // Video negativePrompt now rides a flat field (the hook forwards it to
-      // submitVideoAPI); advancedParams stays image-only (loras).
-      const advancedParams: AdvancedParams | undefined =
-        loras.length > 0 ? { loras } : undefined
+      // 这条路径不再有 advancedParams 可送：它唯一的来源是角色图 LoRA，而那个
+      // 编辑入口 04f8f6be 起就不在面板里了（详见上方角色图 generate 路径注释）。
 
       // Bridge: duration is stored as a string in node.data (text-input
       // legacy). The wire format accepts either a 4-15 integer or the
@@ -1721,7 +1692,6 @@ function StudioNodeCanvas() {
           negativePrompt,
           generateAudio: videoGenerateAudio,
           seed: videoSeed,
-          advancedParams,
         },
         {
           // Persist the jobId the moment it exists so a reload or poll-window

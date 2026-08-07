@@ -3968,33 +3968,6 @@
         "customLabelPlaceholder": "Custom category name…",
         "setPrimary": "Set as primary",
         "unsetPrimary": "Unset primary"
-      },
-      "lora": {
-        "title": "LoRA",
-        "chip": "LoRA {count}/{max}",
-        "hint": "Select up to {max} LoRAs. They are sent as advanced parameters.",
-        "noModel": "Select an image model first.",
-        "unsupported": "The current model does not support LoRA.",
-        "mineTab": "Mine",
-        "discoverTab": "Discover",
-        "urlTab": "URL",
-        "loading": "Loading LoRAs...",
-        "empty": "No LoRAs available.",
-        "selected": "Selected",
-        "noneSelected": "No LoRA selected yet.",
-        "assetMeta": "{type} · {family}",
-        "types": {
-          "subject": "Subject",
-          "style": "Style"
-        },
-        "urlPlaceholder": "https://.../model.safetensors",
-        "importUrl": "Import URL",
-        "invalidUrl": "Enter a valid HTTPS LoRA URL.",
-        "customName": "Custom LoRA",
-        "maxReached": "Select up to {max} LoRAs.",
-        "scaleLabel": "LoRA scale",
-        "remove": "Remove LoRA",
-        "insertTrigger": "Insert trigger"
       }
     },
     "voiceProfile": {
@@ -4457,7 +4430,6 @@
       "identityPackage": "Identity passed downstream",
       "fieldModel": "Model",
       "fieldReferences": "References",
-      "fieldLoras": "LoRA",
       "fieldLastFailure": "Last failure",
       "fieldCategory": "Category",
       "fieldDisplayName": "Display name",

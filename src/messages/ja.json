@@ -3968,33 +3968,6 @@
         "customLabelPlaceholder": "カスタム分類名…",
         "setPrimary": "メイン画像に設定",
         "unsetPrimary": "メイン画像を解除"
-      },
-      "lora": {
-        "title": "LoRA",
-        "chip": "LoRA {count}/{max}",
-        "hint": "最大 {max} 個の LoRA を選択し、高度なパラメータとして送信します。",
-        "noModel": "先に画像モデルを選択してください。",
-        "unsupported": "現在のモデルは LoRA に対応していません。",
-        "mineTab": "自分",
-        "discoverTab": "発見",
-        "urlTab": "URL",
-        "loading": "LoRA を読み込み中...",
-        "empty": "利用できる LoRA はありません。",
-        "selected": "選択済み",
-        "noneSelected": "LoRA はまだ選択されていません。",
-        "assetMeta": "{type} · {family}",
-        "types": {
-          "subject": "主体",
-          "style": "スタイル"
-        },
-        "urlPlaceholder": "https://.../model.safetensors",
-        "importUrl": "URL をインポート",
-        "invalidUrl": "有効な HTTPS LoRA URL を入力してください。",
-        "customName": "カスタム LoRA",
-        "maxReached": "最大 {max} 個まで選択できます。",
-        "scaleLabel": "LoRA 強度",
-        "remove": "LoRA を削除",
-        "insertTrigger": "trigger を挿入"
       }
     },
     "voiceProfile": {
@@ -4457,7 +4430,6 @@
       "identityPackage": "下流に渡すアイデンティティ",
       "fieldModel": "モデル",
       "fieldReferences": "参照画像",
-      "fieldLoras": "LoRA",
       "fieldLastFailure": "前回の失敗",
       "fieldCategory": "分類",
       "fieldDisplayName": "表示名",

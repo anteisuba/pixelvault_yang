@@ -4267,9 +4267,12 @@
       },
       "referenceModeOn": "已连接参考输入，自动使用参考模型。",
       "sidecar": {
-        "modeLabel": "当前视频生成模式",
-        "modeText": "文生视频",
-        "modeReference": "参考生成",
+        "modeLabel": "视频生成模式",
+        "mode": {
+          "keyframe": "关键帧",
+          "image-reference": "多图参考",
+          "multimodal": "全能参考"
+        },
         "connectedCount": "{count} 个素材",
         "referenceHelper": "连接的素材会按模型能力进入本次请求",
         "textHelper": "可直接写提示词，或从画布接入参考素材",

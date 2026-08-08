@@ -125,26 +125,52 @@ function variantKeyOf(option: StudioModelOption): string {
 const TRAILING_QUALIFIER = /[（(][^（()）]*[)）]\s*$/
 
 /**
- * 型号行显示什么名字。
+ * 一族里每个型号行显示什么名字 —— **必须整族一起算**，单个型号自己决定不了。
  *
- * 一个型号底下的多个条目，差别只有**渠道**和**端点** —— `Seedance 2.0` /
- * `Seedance 2.0（参考端点）` / `Seedance 2.0（火山方舟）`。这两样分别是第三层和
- * 节点模式的职责，不该在第二层露出（设计见 cleanup §8.2：「用户只需要看见
- * Seedance 2.0」）。取**最短的那条标签**再削掉结尾括注，公共产品名就出来了：
- * `Seedance 2.5（火山方舟）` → `Seedance 2.5`。
+ * 型号底下的多个条目差别只有**渠道**和**端点**（`Seedance 2.0` /
+ * `Seedance 2.0（参考端点）` / `Seedance 2.0（火山方舟）`），这两样分别是第三层和
+ * 节点模式的职责，不该在第二层露出（cleanup §8.2：「用户只需要看见 Seedance 2.0」）。
+ * 所以取**最短的那条标签**再削掉结尾括注。
  *
- * ⚠ **只在型号有多个条目时才削。** 单条目型号（图片/音频/3D/LLM 全是这样）的括注
- * 装的是真实差别：`Seedream 5.0 Pro（火山方舟）` 削完与 fal 那条同名，同一个系列
- * 下就出现两行一模一样的字。
+ * ⚠ **削与不削的判据是「削完在本族里还唯一吗」，不是「这个型号有几个条目」。**
+ * 早先按条目数判，两头都错：
+ *
+ * - 图片的 `Seedream 5.0 Pro（火山方舟）` 是单条目，削完与 fal 那条同名 → 一族里
+ *   两行一模一样的字。**不能削。**
+ * - 视频节点按模式过滤之后，`Seedance 2.5（参考，火山方舟）` 也变成单条目（该模式
+ *   下 2.5 只剩参考端点这一条），按条目数判就**不削**，于是「参考」这个词漏到了
+ *   用户面前 —— 正是这套设计要消掉的那个概念。削完是 `Seedance 2.5`，本族唯一。
+ *
+ * 唯一性判据同时覆盖这两种，且不需要知道括注里装的是渠道还是端点。
  *
  * 不做成一张写死的标签表，是因为标签得跟着语言走 —— `klingV3Pro` 在 zh 下是
  * 「快手可灵 3.0 Pro」，写死英文就把中文用户的标签降级了。
  */
-export function deriveVariantLabel(labels: string[]): string {
-  if (labels.length === 0) return ''
-  const shortest = labels.reduce((a, b) => (b.length < a.length ? b : a))
-  if (labels.length === 1) return shortest
-  return shortest.replace(TRAILING_QUALIFIER, '').trim() || shortest
+export function deriveVariantLabels(
+  variants: { variantKey: string; labels: string[] }[],
+): Map<string, string> {
+  const base = new Map<string, string>()
+  const stripped = new Map<string, string>()
+  const strippedUses = new Map<string, number>()
+
+  for (const { variantKey, labels } of variants) {
+    const shortest = labels.length
+      ? labels.reduce((a, b) => (b.length < a.length ? b : a))
+      : ''
+    const bare = shortest.replace(TRAILING_QUALIFIER, '').trim() || shortest
+    base.set(variantKey, shortest)
+    stripped.set(variantKey, bare)
+    strippedUses.set(bare, (strippedUses.get(bare) ?? 0) + 1)
+  }
+
+  return new Map(
+    variants.map(({ variantKey }) => {
+      const bare = stripped.get(variantKey) ?? ''
+      // 削完撞名就退回原标签 —— 宁可长一点，也不能让一族里出现两行同名。
+      const unique = (strippedUses.get(bare) ?? 0) === 1
+      return [variantKey, unique ? bare : (base.get(variantKey) ?? bare)]
+    }),
+  )
 }
 
 export interface BaseModelPickerPanelProps {
@@ -272,13 +298,20 @@ export function BaseModelPickerPanel({
         list.push(opt)
         byVariant.set(key, list)
       }
+      const raw = Array.from(byVariant, ([variantKey, variantOpts]) => ({
+        variantKey,
+        labels: variantOpts.map(resolveModelLabel),
+        opts: variantOpts,
+      }))
+      // 整族一起算标签：削不削取决于「削完在本族里还唯一吗」，见 deriveVariantLabels。
+      const labels = deriveVariantLabels(raw)
       return {
         familyKey,
         label: familyLabelOf(opts[0]),
         opts,
-        variants: Array.from(byVariant, ([variantKey, variantOpts]) => ({
+        variants: raw.map(({ variantKey, opts: variantOpts }) => ({
           variantKey,
-          label: deriveVariantLabel(variantOpts.map(resolveModelLabel)),
+          label: labels.get(variantKey) ?? variantKey,
           opts: variantOpts,
         })),
       }

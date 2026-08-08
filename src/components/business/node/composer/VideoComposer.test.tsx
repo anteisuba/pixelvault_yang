@@ -19,6 +19,7 @@ import {
 } from 'vitest'
 
 import { AI_MODELS } from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
 // jsdom lacks ResizeObserver, which the radix Slider in the duration control
@@ -372,6 +373,99 @@ describe('VideoComposer compact sidecar', () => {
     spawnReference.mockClear()
   })
 
+  it('模式三档做成真 tab，当前档由字段决定', () => {
+    renderCompact({ videoMode: 'multimodal' } as Partial<NodeWorkflowNodeData>)
+
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      'sidecar.mode.keyframe',
+      'sidecar.mode.image-reference',
+      'sidecar.mode.multimodal',
+    ])
+    expect(
+      tabs.find((t) => t.getAttribute('aria-selected') === 'true')?.textContent,
+    ).toBe('sidecar.mode.multimodal')
+  })
+
+  it('存量节点没有模式字段时，从它当前的模型反推而不是默认成关键帧', () => {
+    // 一个「全能参考」的存量节点：默认成关键帧会让它一打开就显示错档，
+    // 并按不兼容把用户的模型清掉。反推是精确的（模式 ↔ referenceMode 一一对应）。
+    renderCompact({
+      model: {
+        optionId: 'workspace:ref',
+        modelId: AI_MODELS.SEEDANCE_20_REFERENCE,
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: { label: 'fal', baseUrl: 'https://x.test' },
+      },
+    } as Partial<NodeWorkflowNodeData>)
+
+    expect(
+      screen
+        .getAllByRole('tab')
+        .find((t) => t.getAttribute('aria-selected') === 'true')?.textContent,
+    ).toBe('sidecar.mode.multimodal')
+  })
+
+  it('切档时清掉不兼容的模型与参数档，但**不动**用户已传的素材', () => {
+    renderCompact({
+      videoMode: 'multimodal',
+      duration: '10',
+      resolution: '720p',
+      model: {
+        optionId: 'workspace:ref',
+        modelId: AI_MODELS.SEEDANCE_20_REFERENCE,
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: { label: 'fal', baseUrl: 'https://x.test' },
+      },
+    } as Partial<NodeWorkflowNodeData>)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'sidecar.mode.keyframe' }))
+
+    const patch = updateNodeData.mock.calls.at(-1)?.[1]
+    expect(patch).toEqual({
+      videoMode: 'keyframe',
+      model: undefined,
+      duration: undefined,
+      resolution: undefined,
+    })
+    // 素材字段一个都不许出现在补丁里 —— 切视图不销毁用户的劳动。
+    for (const assetField of [
+      'referenceImages',
+      'referenceVideoUrl',
+      'voiceReferenceAudioUrl',
+      'audioClip',
+    ]) {
+      expect(patch).not.toHaveProperty(assetField)
+    }
+  })
+
+  it('切到该模型仍然支持的档时，保留模型与参数档', () => {
+    renderCompact({
+      videoMode: 'keyframe',
+      duration: '10',
+      model: {
+        optionId: 'workspace:ref',
+        modelId: AI_MODELS.SEEDANCE_20_REFERENCE,
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: { label: 'fal', baseUrl: 'https://x.test' },
+      },
+    } as Partial<NodeWorkflowNodeData>)
+
+    fireEvent.click(
+      screen.getByRole('tab', { name: 'sidecar.mode.multimodal' }),
+    )
+
+    expect(updateNodeData.mock.calls.at(-1)?.[1]).toEqual({
+      videoMode: 'multimodal',
+    })
+  })
+
+  it('点当前已选中的档不写库', () => {
+    renderCompact({ videoMode: 'keyframe' } as Partial<NodeWorkflowNodeData>)
+    fireEvent.click(screen.getByRole('tab', { name: 'sidecar.mode.keyframe' }))
+    expect(updateNodeData).not.toHaveBeenCalled()
+  })
+
   it('connects or adds references inside the compact editor without opening detail', () => {
     listConnectableReferences.mockReturnValue([
       {
@@ -525,8 +619,9 @@ describe('VideoComposer references row (detail)', () => {
     expect(
       screen.getByRole('textbox', { name: 'prompt.label' }),
     ).toBeInTheDocument()
-    // 动作坞：模式名（派生值，纯文本无控件壳）
-    expect(screen.getByText('sidecar.modeText')).toBeInTheDocument()
+    // 动作坞：模式名（读节点上的模式字段，纯文本无控件壳）。夹具节点没有
+    // `videoMode` 也没有 model → 反推不出来，落到默认档「关键帧」。
+    expect(screen.getByText('sidecar.mode.keyframe')).toBeInTheDocument()
     // R1：四个槽标题全不出现
     for (const heading of [
       'studio.currentFilm',

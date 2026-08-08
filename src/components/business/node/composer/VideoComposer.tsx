@@ -49,6 +49,13 @@ import {
 } from '@/constants/node-types'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 import {
+  DEFAULT_VIDEO_NODE_MODE,
+  VIDEO_NODE_MODES,
+  getNodeModeForModel,
+  modelSurvivesModeSwitch,
+  type VideoNodeMode,
+} from '@/constants/video-node-modes'
+import {
   VIDEO_ASPECT_RATIOS,
   VIDEO_RESOLUTIONS,
   type VideoResolution,
@@ -418,6 +425,60 @@ export function VideoComposer({
   const [pendingSetupOptionId, setPendingSetupOptionId] = useState<
     string | null
   >(null)
+
+  /**
+   * 当前模式。存量节点没有 `videoMode` 字段 —— **从它当前的模型反推**，不是默认成
+   * 关键帧：模式与契约的 `referenceMode` 一一对应，所以反推是精确的。默认成关键帧
+   * 会让一个存量的「全能参考」节点一打开就显示错档，还会按不兼容把用户的模型清掉。
+   */
+  const videoMode: VideoNodeMode =
+    data.videoMode ??
+    (data.model
+      ? getNodeModeForModel(data.model.modelId, data.model.adapterType)
+      : DEFAULT_VIDEO_NODE_MODE)
+
+  /**
+   * 切档（§9.3）：不符合新模式的模型**直接消失并清空选择**，模型相关的参数档一并
+   * 回默认（新模型未必支持旧档位）。**用户已传的素材一律保留在数据层** —— 素材是
+   * 用户的劳动，模式是可来回切的视图状态，切回来还在，只是当前模式下不发送。
+   */
+  const selectVideoMode = useCallback(
+    (next: VideoNodeMode) => {
+      if (next === videoMode) return
+      const keepModel = modelSurvivesModeSwitch(
+        data.model?.modelId,
+        data.model?.adapterType,
+        next,
+      )
+      updateNodeData(id, {
+        videoMode: next,
+        ...(keepModel
+          ? {}
+          : { model: undefined, duration: undefined, resolution: undefined }),
+      })
+    },
+    [
+      id,
+      videoMode,
+      data.model?.modelId,
+      data.model?.adapterType,
+      updateNodeData,
+    ],
+  )
+
+  /**
+   * 模型列表按模式收窄 —— 不符合当前模式的模型**直接消失**（owner 拍板：不是置灰。
+   * 置灰仍是在用状态解释「你不能用」，不出现才让人一眼看出这一档能选什么）。
+   *
+   * ⚠ 必须 memo：谓词的引用每次 render 变一次的话，选择器拿到的 `options` 数组身份
+   * 也跟着变 —— 那正是 `BaseModelPickerPanel` 注释里记的那个坑（视图被重置回第一层）。
+   * 那边有 `wasOpenRef` 兜着，但没理由主动去撞它。
+   */
+  const filterModelByMode = useCallback(
+    (option: StudioModelOption) =>
+      getNodeModeForModel(option.modelId, option.adapterType) === videoMode,
+    [videoMode],
+  )
 
   const commitSharedVideoModel = useCallback(
     (option: StudioModelOption) => {
@@ -989,16 +1050,29 @@ export function VideoComposer({
     return (
       <>
         <div className="canvas-video-composer-compact">
+          {/* 模式三档（§9.4 updream 对标：切换器就在参数面板顶部）。这里原先是一个
+              **派生**的只读指示器 —— 「有没有接参考」推出「文生/参考」两档。模式移
+              到节点上之后它变成真控件：档位是用户选的，模型列表、节点形态、走哪个
+              端点都跟着它走。段控皮肤（selected 底 + 描边 + 投影）本来就在 CSS 里。 */}
           <div
             className="canvas-video-composer-mode"
+            role="tablist"
             aria-label={tc('sidecar.modeLabel')}
           >
-            <span data-active="true">
-              {composer.hasReferenceInputs
-                ? tc('sidecar.modeReference')
-                : tc('sidecar.modeText')}
-            </span>
-            <span>
+            {VIDEO_NODE_MODES.map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                role="tab"
+                {...KEY_GUARD}
+                aria-selected={mode === videoMode}
+                data-active={mode === videoMode ? 'true' : undefined}
+                onClick={() => selectVideoMode(mode)}
+              >
+                {tc(`sidecar.mode.${mode}`)}
+              </button>
+            ))}
+            <span className="canvas-video-composer-mode-count">
               {tc('sidecar.connectedCount', {
                 count: composer.referenceTokens.length,
               })}
@@ -1215,6 +1289,7 @@ export function VideoComposer({
               onChange={selectSharedVideoModel}
               onRequestSetup={requestSharedVideoModelSetup}
               triggerLabel={modelLabel}
+              filterOption={filterModelByMode}
               className="canvas-video-composer-model"
             />
             <ResponsivePopover>
@@ -1522,6 +1597,7 @@ export function VideoComposer({
             onChange={selectSharedVideoModel}
             onRequestSetup={requestSharedVideoModelSetup}
             triggerLabel={pickerLabel}
+            filterOption={filterModelByMode}
             className="canvas-detail-model-picker h-10 w-full rounded-xl"
           />
 
@@ -1952,11 +2028,12 @@ export function VideoComposer({
 
     dock: (
       <div className="canvas-detail-dock-bar">
-        {/* 模式名 = 模型契约 × 这一次接了没有（契约 §8）。R6：派生值不穿控件壳。 */}
+        {/* 模式名。⚠ 这里读的是**节点上的模式字段**，不再是「接了没有」推出来的 —— 两
+            处显示同一个事实。R6：派生值不穿控件壳，所以这里仍是纯文本。
+            `density='detail'`（七槽）的模式**切换器**放哪个槽还没定（cleanup §9.4 末），
+            定了之前这里只显示不可改。 */}
         <span className="text-xs font-semibold text-node-foreground">
-          {composer.hasReferenceInputs
-            ? tc('sidecar.modeReference')
-            : tc('sidecar.modeText')}
+          {tc(`sidecar.mode.${videoMode}`)}
         </span>
         <p
           className="canvas-detail-dock-reason"

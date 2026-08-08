@@ -4267,9 +4267,12 @@
       },
       "referenceModeOn": "参照入力が接続されています — 参照モデルを使用します。",
       "sidecar": {
-        "modeLabel": "現在の動画生成モード",
-        "modeText": "テキストから動画",
-        "modeReference": "参照生成",
+        "modeLabel": "動画生成モード",
+        "mode": {
+          "keyframe": "キーフレーム",
+          "image-reference": "画像参照",
+          "multimodal": "フル参照"
+        },
         "connectedCount": "素材 {count} 件",
         "referenceHelper": "接続した素材はモデルの対応範囲に応じて今回のリクエストへ送信されます",
         "textHelper": "プロンプトを書くか、キャンバスから参照素材を接続します",

@@ -35,6 +35,18 @@ interface CommonProps {
   className?: string
   disabled?: boolean
   detailForOption?: (option: StudioModelOption) => string | undefined
+  /**
+   * 在这些模态各自的 hook 取到清单之后再收窄一次。谓词由调用方给 —— 组件本身不认
+   * 识任何业务口径。
+   *
+   * 起因是视频节点的**模式**（关键帧 / 多图参考 / 全能参考）：不符合当前模式的模型
+   * 要**直接从列表消失**（owner 2026-08-08 拍板，不是置灰）。
+   *
+   * ⚠ 与 `WorkflowModelPicker` 的 `options` prop 不冲突：那边是**换掉数据源**（父级
+   * 自己 curate 一份），这里是**在同一个数据源上过滤**。视频节点要的是后者 —— 清单
+   * 还是那份视频模型清单，只是按模式收窄。
+   */
+  filterOption?: (option: StudioModelOption) => boolean
 }
 
 export type MainModelPickerProps = CommonProps &
@@ -64,41 +76,61 @@ export function MainModelPicker(props: MainModelPickerProps) {
   }
 }
 
-function MainModelPickerImage(props: CommonProps) {
+/**
+ * ⚠ `filterOption` 必须在这里消化掉，不能连同 `...props` 一起 spread 进
+ * `BaseModelPickerPanel` —— 那边没有这个 prop，会被**静默丢弃**（同 D7 台账里
+ * `triggerLabel` 那次：传了一个不存在的 prop，谁都没报错，功能就是不生效）。
+ */
+function useFiltered(
+  modelOptions: StudioModelOption[],
+  filterOption: CommonProps['filterOption'],
+): StudioModelOption[] {
+  return useMemo(
+    () => (filterOption ? modelOptions.filter(filterOption) : modelOptions),
+    [modelOptions, filterOption],
+  )
+}
+
+function MainModelPickerImage({ filterOption, ...props }: CommonProps) {
   const { modelOptions } = useImageModelOptions()
-  return <BaseModelPickerPanel options={modelOptions} {...props} />
+  const options = useFiltered(modelOptions, filterOption)
+  return <BaseModelPickerPanel options={options} {...props} />
 }
 
-function MainModelPickerVideo(props: CommonProps) {
+function MainModelPickerVideo({ filterOption, ...props }: CommonProps) {
   const { modelOptions } = useVideoModelOptions(props.value ?? '')
-  return <BaseModelPickerPanel options={modelOptions} {...props} />
+  const options = useFiltered(modelOptions, filterOption)
+  return <BaseModelPickerPanel options={options} {...props} />
 }
 
-function MainModelPickerAudio(props: CommonProps) {
+function MainModelPickerAudio({ filterOption, ...props }: CommonProps) {
   const { modelOptions } = useAudioModelOptions()
-  return <BaseModelPickerPanel options={modelOptions} {...props} />
+  const options = useFiltered(modelOptions, filterOption)
+  return <BaseModelPickerPanel options={options} {...props} />
 }
 
-function MainModelPicker3D(props: CommonProps) {
+function MainModelPicker3D({ filterOption, ...props }: CommonProps) {
   const { modelOptions } = use3DModelOptions()
-  return <BaseModelPickerPanel options={modelOptions} {...props} />
+  const options = useFiltered(modelOptions, filterOption)
+  return <BaseModelPickerPanel options={options} {...props} />
 }
 
 interface LLMSubProps extends CommonProps {
   scope: LlmCapabilityScope
 }
 
-function MainModelPickerLLM({ scope, ...rest }: LLMSubProps) {
+function MainModelPickerLLM({ scope, filterOption, ...rest }: LLMSubProps) {
   const { allRoutes } = useLLMRoutePicker(scope)
 
   const options = useMemo<StudioModelOption[]>(
     () => allRoutes.map(routeToStudioOption),
     [allRoutes],
   )
+  const filtered = useFiltered(options, filterOption)
 
   return (
     <BaseModelPickerPanel
-      options={options}
+      options={filtered}
       savedOptionLabelMode="model"
       {...rest}
     />

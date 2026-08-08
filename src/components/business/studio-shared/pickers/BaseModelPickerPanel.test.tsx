@@ -32,7 +32,7 @@ vi.mock('@/contexts/api-keys-context', () => ({
 
 import {
   BaseModelPickerPanel,
-  deriveVariantLabel,
+  deriveVariantLabels,
 } from '@/components/business/studio-shared/pickers/BaseModelPickerPanel'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { AI_MODELS } from '@/constants/models'
@@ -104,45 +104,87 @@ const SEEDANCE_FIXTURE: StudioModelOption[] = [
   }),
 )
 
-describe('deriveVariantLabel', () => {
+describe('deriveVariantLabels', () => {
+  const labelsOf = (variants: { variantKey: string; labels: string[] }[]) =>
+    Object.fromEntries(deriveVariantLabels(variants))
+
   it('hoists the shared product name off a multi-channel 型号', () => {
     expect(
-      deriveVariantLabel([
-        'Seedance 2.5（火山方舟）',
-        'Seedance 2.5（参考·火山方舟）',
+      labelsOf([
+        {
+          variantKey: 'seedance-2.5',
+          labels: ['Seedance 2.5（火山方舟）', 'Seedance 2.5（参考·火山方舟）'],
+        },
       ]),
-    ).toBe('Seedance 2.5')
+    ).toEqual({ 'seedance-2.5': 'Seedance 2.5' })
   })
 
   it('prefers a member that already carries no qualifier', () => {
     expect(
-      deriveVariantLabel([
-        'Seedance 2.0（火山方舟）',
-        'Seedance 2.0',
-        'Seedance 2.0（参考端点）',
+      labelsOf([
+        {
+          variantKey: 'seedance-2.0',
+          labels: [
+            'Seedance 2.0（火山方舟）',
+            'Seedance 2.0',
+            'Seedance 2.0（参考端点）',
+          ],
+        },
       ]),
-    ).toBe('Seedance 2.0')
+    ).toEqual({ 'seedance-2.0': 'Seedance 2.0' })
   })
 
-  it('keeps the qualifier on a single-member 型号', () => {
-    // Image models are one-model-per-型号: stripping here would make the
-    // VolcEngine row read identically to its fal sibling in the same 系列.
-    expect(deriveVariantLabel(['Seedream 5.0 Pro（火山方舟）'])).toBe(
-      'Seedream 5.0 Pro（火山方舟）',
-    )
+  it('strips a single-member 型号 too, when the result stays unique', () => {
+    // 视频节点按模式过滤之后，2.5 在「全能参考」档下只剩参考端点这一条。按条目数
+    // 判就不削，「参考」这个词会漏到用户面前 —— 而它正是这套设计要消掉的概念。
+    expect(
+      labelsOf([
+        { variantKey: 'seedance-2.0', labels: ['Seedance 2.0（参考端点）'] },
+        {
+          variantKey: 'seedance-2.5',
+          labels: ['Seedance 2.5（参考，火山方舟）'],
+        },
+      ]),
+    ).toEqual({
+      'seedance-2.0': 'Seedance 2.0',
+      'seedance-2.5': 'Seedance 2.5',
+    })
+  })
+
+  it('keeps the qualifier when stripping would collide inside the 系列', () => {
+    // 图片的 Seedream：fal 与火山各一条，削完同名 —— 一族里不许出现两行一样的字。
+    expect(
+      labelsOf([
+        { variantKey: 'seedream-5.0-pro', labels: ['Seedream 5.0 Pro'] },
+        {
+          variantKey: 'seedream-5.0-pro-volc',
+          labels: ['Seedream 5.0 Pro（火山方舟）'],
+        },
+      ]),
+    ).toEqual({
+      'seedream-5.0-pro': 'Seedream 5.0 Pro',
+      'seedream-5.0-pro-volc': 'Seedream 5.0 Pro（火山方舟）',
+    })
   })
 
   it('handles half-width parentheses and leaves plain names alone', () => {
     expect(
-      deriveVariantLabel(['Seedance 2.5 (VolcEngine)', 'Seedance 2.5 (fal)']),
-    ).toBe('Seedance 2.5')
-    expect(deriveVariantLabel(['快手可灵 3.0 Pro'])).toBe('快手可灵 3.0 Pro')
+      labelsOf([
+        {
+          variantKey: 'v',
+          labels: ['Seedance 2.5 (VolcEngine)', 'Seedance 2.5 (fal)'],
+        },
+        { variantKey: 'k', labels: ['快手可灵 3.0 Pro'] },
+      ]),
+    ).toEqual({ v: 'Seedance 2.5', k: '快手可灵 3.0 Pro' })
   })
 
   it('never returns an empty label', () => {
-    expect(deriveVariantLabel([])).toBe('')
-    // A label that is nothing but a qualifier keeps its original text.
-    expect(deriveVariantLabel(['（火山方舟）', '（fal）'])).toBe('（fal）')
+    expect(labelsOf([{ variantKey: 'x', labels: [] }])).toEqual({ x: '' })
+    // 整条标签就是一个括注时，削完是空 —— 退回原文而不是留白。
+    expect(
+      labelsOf([{ variantKey: 'y', labels: ['（火山方舟）', '（fal）'] }]),
+    ).toEqual({ y: '（fal）' })
   })
 })
 

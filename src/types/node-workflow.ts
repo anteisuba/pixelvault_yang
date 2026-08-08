@@ -29,6 +29,7 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
+import { VIDEO_NODE_MODES } from '@/constants/video-node-modes'
 import { ALL_VIDEO_VARIANTS } from '@/constants/video-brands'
 import { SCRIPT_PLANNER_PROVIDERS } from '@/constants/script-breakdown'
 import { SCRIPT_DOC_DEPTHS, SCRIPT_DOC_STAGES } from '@/constants/script-doc'
@@ -230,6 +231,17 @@ export const NodeWorkflowNodeDataSchema = z
     audioClip: NodeWorkflowAudioClipSchema.optional(),
     motion: z.string().optional(),
     duration: z.string().optional(),
+    /**
+     * 视频节点的**模式**（关键帧 / 多图参考 / 全能参考）。它决定三件事：节点长
+     * 什么样、走哪个端点、模型选择器里出现谁。设计见
+     * `docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §8.5–§8.7。
+     *
+     * ⚠ **可选，且不写 migration**。存量节点没有这个字段，读的时候从它当前的模型
+     * 反推（`getNodeModeForModel`）—— 契约里的 `referenceMode` 与模式一一对应，所以
+     * 反推是精确的，不是猜。默认成「关键帧」会让存量的 Reference 节点一打开就显示
+     * 错档、并按不兼容清掉用户的模型。
+     */
+    videoMode: z.enum(VIDEO_NODE_MODES).optional(),
     // videoMerge node: per-upstream-clip trim overrides. The Inspector keys
     // these by upstream URL so reconnection order doesn't lose user edits.
     // startSec / endSec are seconds within the source clip. When neither

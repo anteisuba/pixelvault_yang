@@ -1089,23 +1089,45 @@
   gap: 4px;
 }
 
-.domain-canvas .canvas-video-composer-mode span {
+.domain-canvas .canvas-video-composer-mode button {
   display: inline-flex;
   min-height: var(--canvas-control-h-sm);
   align-items: center;
   padding: 0 9px;
   color: var(--canvas-ink-muted);
   background: var(--canvas-fill-control);
+  /* ⚠ 透明描边不能省：选中态要加 1px 实边，基态没有的话，每次切档整行都会因为
+     多出 2px 而重排一次。原先只有一个静态的「选中」项，看不出来；三档可点之后
+     它每一次点击都会抖。 */
+  border: 1px solid transparent;
   border-radius: 8px;
   font-size: 11px;
   font-weight: 600;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
 }
 
-.domain-canvas .canvas-video-composer-mode span[data-active='true'] {
+.domain-canvas .canvas-video-composer-mode button:hover {
+  color: var(--canvas-ink);
+}
+
+.domain-canvas .canvas-video-composer-mode button[data-active='true'] {
   color: var(--canvas-ink);
   background: var(--canvas-seg-selected);
-  border: 1px solid var(--canvas-stroke-bold);
+  border-color: var(--canvas-stroke-bold);
   box-shadow: var(--canvas-seg-shadow);
+}
+
+/* 素材计数是这一行的说明文字，不是第四个档 —— 推到右端，且不穿控件壳。 */
+.domain-canvas .canvas-video-composer-mode-count {
+  margin-left: auto;
+  padding-right: 2px;
+  color: var(--canvas-ink-muted);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .domain-canvas .canvas-video-composer-helper {

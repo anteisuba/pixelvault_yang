@@ -47,6 +47,11 @@ interface CommonProps {
   }
   className?: string
   disabled?: boolean
+  /**
+   * media 变体专用：在模态清单之上再收窄一次（视频节点按模式过滤）。谓词由调用方
+   * 给。planner/assistant 变体走的是另一条渲染路径，不消费它。
+   */
+  filterOption?: (option: StudioModelOption) => boolean
 }
 
 export type CanvasRoutePickerProps = CommonProps &

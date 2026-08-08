@@ -4267,9 +4267,12 @@
       },
       "referenceModeOn": "Reference inputs connected — using the reference model.",
       "sidecar": {
-        "modeLabel": "Current video generation mode",
-        "modeText": "Text to video",
-        "modeReference": "Reference generation",
+        "modeLabel": "Video generation mode",
+        "mode": {
+          "keyframe": "Keyframe",
+          "image-reference": "Image reference",
+          "multimodal": "Full reference"
+        },
         "connectedCount": "{count} assets",
         "referenceHelper": "Connected assets enter this request when the model supports them",
         "textHelper": "Write a prompt or connect reference assets from the canvas",

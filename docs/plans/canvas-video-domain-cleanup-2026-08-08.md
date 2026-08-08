@@ -483,6 +483,53 @@ owner 选的路子：先落不依赖模式的部分 + 止血，提交链路的�
 
 **闸门**：全量 tsc 0 error · eslint 干净 · 受影响 63 文件 577 测试全绿 · 画布真机验过（节点卡渲染正常、三层钻取可用、选 2.5 之后节点持久化的就是 `seedance-2.5-volcengine`、aria-label 变回「选择模型」）。
 
+### 9.10 ✅ 收敛完成 + 切片 4 节点侧（2026-08-08）
+
+两批落地，commit `49750d7e`（节点侧）与本批（提交链路）。**全仓现在只有一套视频分类。**
+
+#### 语义切换：reference-by-input → mode-by-node
+
+这是整件事的核心，一句话：**端点从「按输入自动判」改成「按节点上的模式」。**
+
+旧规则在有了显式模式之后就是错的——用户选了「关键帧」，往节点上接一段视频，不该被偷偷换到全能参考的端点上。旧规则要解决的问题仍然被解决着：持久化的 `data.model` 只记「型号 + 渠道」，端点每次提交按模式重算，所以节点后来加了参考边也不会卡在旧 id 上。
+
+`lib/video-node-model-resolver.ts` 取代 `lib/video-model-resolver.ts` + `constants/video-brands.ts`（三个文件已删）。三个消费者共用同一份答案：
+
+| 消费者                                | 之前                                                             | 现在                                       |
+| ------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------ |
+| 提交（`StudioNodeWorkbench`）         | `resolveEffectiveVideoModelOption(model, hasReferenceInputs, …)` | `resolveVideoModelForMode(model, mode, …)` |
+| 容量/送出预览（`use-video-composer`） | 自己拆 brand/variant/provider 算一遍                             | 同上，**同一个函数**                       |
+| autospawn                             | brand+variant+provider 双段回退                                  | `pickDefaultVideoModel(variant, mode, …)`  |
+
+模式的推导（存量节点从模型反推）也收进 `useVideoComposer` 一处，组件不再自己算第二遍。
+
+⚠ **解析不到时返回 null、调用方保留原选择**，绝不回退到别的端点——旧实现就是这么把 2.5 静默换成 2.0 的。
+
+#### 节点侧（§9.3 全部行为已实现）
+
+模式字段 `videoMode`（可选，存量节点从模型反推，不写 migration）· 三档 tab 落在 `canvas-video-composer-mode`（那里原本是个派生的只读指示器，段控皮肤本来就在）· 切档清不兼容的模型与参数档、**素材一律保留** · 模型列表按模式收窄（`MainModelPicker` 新增 `filterOption`）。
+
+真机端到端：同一个型号 `Seedance 2.5`，在关键帧档下落到 `seedance-2.5-volcengine`，在全能参考档下落到 `seedance-2.5-reference-volcengine`。
+
+#### 持久化形状变更
+
+`VideoDefaultModelSchema`：`{brand, variant}` → `{variant}`（型号键）。旧的 `variant: z.enum(ALL_VIDEO_VARIANTS)` 有个毛病——**往目录加一个新型号就是一次持久化 schema 变更**；换成普通字符串后不再是。旧项目的值解析失败 → `.catch(undefined)` → 退化成「没有默认」，用户重选一次。
+
+⚠ 它**仍然没有写入口**（`setDefaultVideoModel` 不在 context 类型里），恒为 `undefined`。补入口还是整条删，未定。
+
+#### ⚠ 写测试时被本文档骗了一次
+
+我照 **§3 那张表**写「多图参考档退到 Veo 3.1」，测试红了才发现 **Veo 3.1 与 LTX 2.3 在目录里都是 `available: false`**。§3 写的是设计意图，不是当前目录事实。
+
+→ **这一档目前只有 Gemini Omni Flash 一个可用模型**（而它的原生视频还停在 501）。三档模式的设计不受影响，但「多图参考」在模型池填起来之前基本是空的。
+→ 教训同 §一.2：**引用文档里的表当代码事实之前，先对一遍目录。**
+
+#### 还剩
+
+- 选择器**触发器**仍显示原始路由名（`Seedance 2.5（参考，火山方舟）`），列表里已经是干净的 `Seedance 2.5`。要修得把已存在的 `labelForOption` prop 接出来，注意它同时作用于列表项。
+- 「N 段素材在当前模式下不会发送」提示 + 发送链路按模式过滤 —— 等切片 6 把槽位按模式藏起来才有意义（现在所有素材区都还照渲染，没有「藏着却发出去」的情况）。
+- 切片 6：三种槽位形态 + 首尾帧，含 worker 侧 `last_frame` 分支（§1.2）。
+
 ## Last Verified
 
 2026-08-08 · §1 五层链路、§2.1 i18n 现状、§4 参数矩阵、§5.1/5.3 节点与引用计数均为本地实读。⚠ **未验证项**：① `addCatalog.items.collect` 是否真是孤儿键（只 grep 了 `canvas-add-catalog.ts` 一个文件）② §1.2 四条锚点均未实际改动验证 ③ 首尾帧补上后与 2.5 `ratio=adaptive` 的联动未实测。

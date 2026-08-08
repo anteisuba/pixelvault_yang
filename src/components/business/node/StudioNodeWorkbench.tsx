@@ -163,7 +163,8 @@ import {
   clearStudioNodeResult,
   readStudioNodeResult,
 } from '@/lib/studio-node-handoff'
-import { resolveEffectiveVideoModelOption } from '@/lib/video-model-resolver'
+import { getNodeModeForModel } from '@/constants/video-node-modes'
+import { resolveVideoModelForMode } from '@/lib/video-node-model-resolver'
 import { canConnectNodeTypes } from '@/lib/node-connection-rules'
 import {
   edgePairKey,
@@ -1598,21 +1599,21 @@ function StudioNodeCanvas() {
           ? (node.data.voiceEmotion as AudioEmotion)
           : undefined
 
-      // Reference-ness is mode-by-input: resolve it HERE from the actual
-      // harvested inputs, not from the persisted (possibly stale) data.model. A
-      // video node defaulted to a non-reference Seedance id keeps that id even
-      // after reference edges (character image / reference video / voice) are
-      // wired — `useVideoComposer` resolves the model only once — and the worker
-      // then routes it to `buildSeedance20`, which silently drops video_urls /
-      // audio_urls. Re-resolving at submit keeps the reference clip alive.
-      const videoHasReferenceInputs =
-        effectiveReferenceImages.length > 0 ||
-        upstreamVideoUrls.length > 0 ||
-        upstreamAudioUrls.length > 0
+      // 端点由**节点上的模式**挑，不再按「这次接了什么」自动判。
+      //
+      // 旧做法（reference-by-input）在有了显式模式之后是错的：用户选了「关键帧」，
+      // 往节点上接一段视频，不该把他偷偷换到全能参考的端点上；反过来选了「全能参考」
+      // 却还没接东西，也不该掉回首帧端点。模式是用户说了算的那个事实，输入不是。
+      //
+      // 它当初要解决的问题仍然被解决着：持久化的 data.model 只记「型号 + 渠道」，
+      // 具体端点每次提交按模式重算，所以节点后来加了参考边也不会卡在旧 id 上。
+      //
+      // ⚠ 解析不到时保留原选择（`?? model.modelId`），绝不回退到别的端点。
       const effectiveVideoModel = isVideoMediaNode
-        ? resolveEffectiveVideoModelOption(
+        ? resolveVideoModelForMode(
             model,
-            videoHasReferenceInputs,
+            node.data.videoMode ??
+              getNodeModeForModel(model.modelId, model.adapterType),
             modelOptionsByType[NODE_TYPE_IDS.seedance] ?? [],
           )
         : null

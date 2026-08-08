@@ -979,15 +979,13 @@ describe('useNodeWorkflow', () => {
     })
 
     act(() => {
-      result.current.setDefaultVideoModel({
-        brand: 'Seedance',
-        variant: 'standard',
-      })
+      // 型号键（`MODEL_VARIANTS`），不再是 brand + qualityTier 推的速度档 ——
+      // 那对旧值分不开 Seedance 2.0 与 2.5。
+      result.current.setDefaultVideoModel({ variant: 'seedance-2.0-fast' })
     })
 
     expect(result.current.defaultVideoModel).toEqual({
-      brand: 'Seedance',
-      variant: 'standard',
+      variant: 'seedance-2.0-fast',
     })
   })
 

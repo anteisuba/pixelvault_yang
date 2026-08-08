@@ -150,25 +150,32 @@ const { composerState } = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('@/hooks/node/use-video-composer', () => ({
-  useVideoComposer: () => ({
-    options: [],
-    brands: ['Seedance'],
-    state: { brand: 'Seedance', variant: 'fast', provider: undefined },
-    variants: [],
-    isDualProvider: false,
-    hasReferenceInputs: false,
-    hasUpstreamInputs: true,
-    referenceKinds: composerState.referenceKinds,
-    referenceTokens: composerState.referenceTokens,
-    referencedTokenIds: composerState.referencedTokenIds,
-    selectBrand: vi.fn(),
-    selectVariant: vi.fn(),
-    selectProvider: vi.fn(),
-    maxReferenceImages: composerState.maxReferenceImages,
-    sendPreview: composerState.sendPreview,
-  }),
-}))
+/**
+ * ⚠ `videoMode` 用**真实**的推导，不在 mock 里手写一份简化版：模式的事实源在
+ * `useVideoComposer` 里（存量节点从模型反推），组件只是读它。写个
+ * `data.videoMode ?? 'keyframe'` 的假货，就等于让这些测试绕开真正要守的那条规则。
+ */
+vi.mock('@/hooks/node/use-video-composer', async () => {
+  const { DEFAULT_VIDEO_NODE_MODE, getNodeModeForModel } =
+    await import('@/constants/video-node-modes')
+  return {
+    useVideoComposer: (_nodeId: string, data: NodeWorkflowNodeData) => ({
+      options: [],
+      videoMode:
+        data?.videoMode ??
+        (data?.model
+          ? getNodeModeForModel(data.model.modelId, data.model.adapterType)
+          : DEFAULT_VIDEO_NODE_MODE),
+      hasReferenceInputs: false,
+      hasUpstreamInputs: true,
+      referenceKinds: composerState.referenceKinds,
+      referenceTokens: composerState.referenceTokens,
+      referencedTokenIds: composerState.referencedTokenIds,
+      maxReferenceImages: composerState.maxReferenceImages,
+      sendPreview: composerState.sendPreview,
+    }),
+  }
+})
 
 /** Round 2 A: open the inline 管理素材 region and return its content root. */
 function openManager() {

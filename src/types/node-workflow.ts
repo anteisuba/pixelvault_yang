@@ -30,7 +30,6 @@ import {
 } from '@/constants/node-types'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 import { VIDEO_NODE_MODES } from '@/constants/video-node-modes'
-import { ALL_VIDEO_VARIANTS } from '@/constants/video-brands'
 import { SCRIPT_PLANNER_PROVIDERS } from '@/constants/script-breakdown'
 import { SCRIPT_DOC_DEPTHS, SCRIPT_DOC_STAGES } from '@/constants/script-doc'
 import {
@@ -504,15 +503,20 @@ export const NodeWorkflowEdgeSchema = z
   .passthrough()
 
 /**
- * Canvas-default video model (two-tier switcher taxonomy). Persisted per
- * project so new video nodes inherit a consistent cross-shot baseline; the
- * topbar chip reads/sets it and the autospawn effect resolves a concrete model
- * from it. Provider + reference-ness are resolved per node at spawn time.
+ * 项目级的默认视频**型号**（`MODEL_VARIANTS` 的键，如 `seedance-2.0-fast`）。按项目
+ * 持久化，新建视频节点时继承它，好让跨镜头有个一致的基准；渠道与端点在 spawn 时按
+ * 用户手上的 key 和节点模式各自解析（`pickDefaultVideoModel`）。
+ *
+ * ⚠ **它目前没有写入口** —— `setDefaultVideoModel` 不在 `NodeWorkflowActionsContext`
+ * 的类型里，所以没有任何组件能写它，实际恒为 `undefined`（注释里说的「topbar chip」
+ * 不存在）。要么补上入口，要么整条删，见 cleanup §9.10。
+ *
+ * ⚠ 型号是**普通字符串不是 enum**：写成 enum 的话，往目录加一个新型号就变成一次
+ * 持久化 schema 变更（旧的 `variant: z.enum(ALL_VIDEO_VARIANTS)` 就是这个毛病）。
+ * 认不出来的值配合 `.catch(undefined)` 自然退化成「没有默认」。
  */
 export const VideoDefaultModelSchema = z.object({
-  brand: z.string().trim().min(1).max(40),
-  // Seedance speed (standard/fast) or Kling product track (v3/o3).
-  variant: z.enum(ALL_VIDEO_VARIANTS),
+  variant: z.string().trim().min(1).max(60),
 })
 export type VideoDefaultModel = z.infer<typeof VideoDefaultModelSchema>
 

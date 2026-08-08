@@ -29,6 +29,15 @@ export type VideoNodeMode = (typeof VIDEO_NODE_MODES)[number]
 export const DEFAULT_VIDEO_NODE_MODE: VideoNodeMode = 'keyframe'
 
 /**
+ * 新建视频节点时的默认**型号**（`MODEL_VARIANTS` 的键）。
+ *
+ * 与旧的 brand+variant 双常量（`Seedance` + `fast`）等价，只是换成了目录的型号键
+ * —— 那对旧常量分不开 2.0 与 2.5。渠道不写死：由用户手上有哪个 key 决定
+ * （`pickDefaultVideoModel`）。
+ */
+export const DEFAULT_VIDEO_VARIANT = 'seedance-2.0-fast'
+
+/**
  * 模式 ↔ 发送契约的 `referenceMode` 是**一一对应**的。
  *
  * 这是整套设计成立的关键：模式不需要自己的一套模型清单，它直接就是既有

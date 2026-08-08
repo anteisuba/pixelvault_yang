@@ -5,7 +5,7 @@ import { NodeToolbar, Position, type NodeProps } from '@xyflow/react'
 import { AlertTriangle, Maximize2, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { getModelFamily } from '@/constants/models'
+import { getModelFamily, getModelVariant } from '@/constants/models'
 import {
   NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
@@ -46,8 +46,8 @@ export const SeedanceNode = memo(function SeedanceNode(
     data.status === NODE_STATUS_IDS.running
   const isMobile = useIsMobile()
 
-  // §5.1 shot override: this node's model brand differs from the canvas default
-  // → flag it (⚠ badge + dashed border) so cross-shot drift is scannable.
+  // §5.1 shot override：这个节点的模型与项目默认不一致 → 标出来（⚠ 徽标 + 虚线边），
+  // 好让跨镜头的漂移一眼扫得到。
   const {
     defaultVideoModel,
     updateNodeData,
@@ -55,13 +55,15 @@ export const SeedanceNode = memo(function SeedanceNode(
     multiSelectActive,
     canvasNodeDragActive,
   } = useNodeWorkflowActions()
-  // 直接读目录的系列名，不再绕 `deriveSwitcherStateFromModel` —— 那个函数除了
-  // family 还要算一个从 qualityTier 推出来的 variant，而这里根本用不上它，且那个
-  // variant 分不开 2.0 与 2.5。`MODEL_FAMILIES` 的值就是 `defaultVideoModel.brand`
-  // 存的那批字符串，是同一套。
+  // 侧车标题显示**系列**（Seedance / Kling），那是这张卡在讲哪个牌子。
   const nodeBrand = data.model ? getModelFamily(data.model.modelId) : null
+  // 但「有没有偏离项目默认」比的是**型号**：同族里从 Seedance 2.0 换到 2.5 属于实打
+  // 实的跨镜头漂移，按系列比就标不出来。型号也正是选择器第二层用户真正选的那一层。
+  const nodeVariant = data.model ? getModelVariant(data.model.modelId) : null
   const isOverridden = Boolean(
-    defaultVideoModel && nodeBrand && nodeBrand !== defaultVideoModel.brand,
+    defaultVideoModel &&
+    nodeVariant &&
+    nodeVariant !== defaultVideoModel.variant,
   )
 
   return (

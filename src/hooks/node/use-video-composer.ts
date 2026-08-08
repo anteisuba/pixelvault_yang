@@ -6,7 +6,12 @@ import { useTranslations } from 'next-intl'
 
 import { NODE_TYPE_IDS, NODE_WORKFLOW_FIELD_IDS } from '@/constants/node-types'
 import { getVideoModelImageLimit } from '@/constants/video-model-send-plan'
-import { VIDEO_BRAND_IDS, VIDEO_VARIANT_IDS } from '@/constants/video-brands'
+import {
+  DEFAULT_VIDEO_NODE_MODE,
+  DEFAULT_VIDEO_VARIANT,
+  getNodeModeForModel,
+  type VideoNodeMode,
+} from '@/constants/video-node-modes'
 import { useNodeWorkflowActions } from '@/components/business/node/NodeWorkflowActionsContext'
 import { parseMentions } from '@/components/business/node/composer/MentionInput'
 import type { ReferenceTokenData } from '@/components/business/node/composer/ReferenceTokenChip'
@@ -35,10 +40,9 @@ import {
   readVoiceUrl,
 } from '@/lib/node-workflow-graph'
 import {
-  pickDefaultProvider,
-  resolveEffectiveVideoModelOption,
-  resolveVideoModelId,
-} from '@/lib/video-model-resolver'
+  pickDefaultVideoModel,
+  resolveVideoModelForMode,
+} from '@/lib/video-node-model-resolver'
 import type {
   NodeWorkflowEdge,
   NodeWorkflowModelOption,
@@ -563,38 +567,35 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   // **零消费**，只是还挂在返回值里，让人以为画布用的是另一套分类。
   // 见 canvas-video-domain-cleanup-2026-08-08.md §9.8。
 
+  /**
+   * 节点当前的模式 —— **这一份是唯一事实源**，`VideoComposer` 也从这里取，别在组件里
+   * 再算一遍。
+   *
+   * 存量节点没有 `videoMode` 字段时从它当前的模型反推（模式与契约的 `referenceMode`
+   * 一一对应，反推是精确的）。默认成关键帧会让存量的「全能参考」节点一打开就显示错档。
+   */
+  const videoMode: VideoNodeMode =
+    data.videoMode ??
+    (data.model
+      ? getNodeModeForModel(data.model.modelId, data.model.adapterType)
+      : DEFAULT_VIDEO_NODE_MODE)
+
   useEffect(() => {
     if (data.model) return
     if (options.length === 0) return
-    // Inherit the canvas-default model (topbar chip); fall back to Seedance Fast
-    // when unset or when the default can't resolve, so a spawned node always
-    // gets a runnable model even if never selected.
-    const brand = defaultVideoModel?.brand ?? VIDEO_BRAND_IDS.seedance
-    const variant = defaultVideoModel?.variant ?? VIDEO_VARIANT_IDS.fast
-    const resolved =
-      resolveVideoModelId(
-        {
-          brand,
-          variant,
-          provider: pickDefaultProvider(brand, options),
-          hasReferenceInputs,
-        },
-        options,
-      ) ??
-      resolveVideoModelId(
-        {
-          brand: VIDEO_BRAND_IDS.seedance,
-          variant: VIDEO_VARIANT_IDS.fast,
-          provider: pickDefaultProvider(VIDEO_BRAND_IDS.seedance, options),
-          hasReferenceInputs,
-        },
-        options,
-      )
+    // 继承项目默认型号，取不到就用 DEFAULT_VIDEO_VARIANT —— 新生成的节点必须带一个
+    // 能跑的模型。⚠ 端点按**模式**挑，不再按「这次接了什么」自动判：一个刚生成、还
+    // 什么都没接的节点，也该落在它那一档对应的端点上。
+    const resolved = pickDefaultVideoModel(
+      defaultVideoModel?.variant ?? DEFAULT_VIDEO_VARIANT,
+      videoMode,
+      options,
+    )
     if (resolved) updateNodeData(nodeId, { model: toSelection(resolved) })
   }, [
     data.model,
     defaultVideoModel,
-    hasReferenceInputs,
+    videoMode,
     nodeId,
     options,
     updateNodeData,
@@ -607,22 +608,16 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   // value; undefined (model unknown) degrades to "no cap known", never a
   // guessed number.
   //
-  // ⚠ 这里原先自己拆 brand/variant/provider 再调 `resolveVideoModelId`，于是**中了
-  // 同一个撞车**：variant 轴分不开 2.0 与 2.5，一个 2.5 节点算出来的容量上限是
-  // 2.0 的（9/3/3 而不是 30/10/10），送出预览也按 2.0 算。改成直接复用
-  // `resolveEffectiveVideoModelOption` —— 它就是「按当前输入，实际会跑哪个模型」
-  // 的那一份答案，提交链路（StudioNodeWorkbench）用的也是它。同一个问题只留一个
-  // 实现，顺带把型号夹紧的止血一起继承过来。
+  // ⚠ 与提交链路（`StudioNodeWorkbench`）走**同一个** `resolveVideoModelForMode`：
+  // 「实际会跑哪个模型」只留一份实现，容量上限与送出预览就不会和真正发出去的请求
+  // 对不上。此前这里自己拆 brand/variant/provider 算了一遍，于是一个 2.5 节点的
+  // 容量按 2.0 算（9/3/3 而不是 30/10/10）。
   const effectivePreviewModel = useMemo(() => {
     if (!data.model) return data.model
     return (
-      resolveEffectiveVideoModelOption(
-        data.model,
-        hasReferenceInputs,
-        options,
-      ) ?? data.model
+      resolveVideoModelForMode(data.model, videoMode, options) ?? data.model
     )
-  }, [data.model, hasReferenceInputs, options])
+  }, [data.model, videoMode, options])
   const maxReferenceImages = getVideoModelImageLimit(
     effectivePreviewModel?.modelId,
     effectivePreviewModel?.adapterType,
@@ -666,6 +661,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
 
   return {
     options,
+    videoMode,
     hasReferenceInputs,
     hasUpstreamInputs,
     referenceKinds,

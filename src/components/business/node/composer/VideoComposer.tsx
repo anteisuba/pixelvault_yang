@@ -49,7 +49,6 @@ import {
 } from '@/constants/node-types'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 import {
-  DEFAULT_VIDEO_NODE_MODE,
   VIDEO_NODE_MODES,
   getNodeModeForModel,
   modelSurvivesModeSwitch,
@@ -426,16 +425,9 @@ export function VideoComposer({
     string | null
   >(null)
 
-  /**
-   * 当前模式。存量节点没有 `videoMode` 字段 —— **从它当前的模型反推**，不是默认成
-   * 关键帧：模式与契约的 `referenceMode` 一一对应，所以反推是精确的。默认成关键帧
-   * 会让一个存量的「全能参考」节点一打开就显示错档，还会按不兼容把用户的模型清掉。
-   */
-  const videoMode: VideoNodeMode =
-    data.videoMode ??
-    (data.model
-      ? getNodeModeForModel(data.model.modelId, data.model.adapterType)
-      : DEFAULT_VIDEO_NODE_MODE)
+  // 模式的事实源在 `useVideoComposer` 里（存量节点从模型反推的逻辑也在那）——
+  // 提交链路与容量计算读的是同一份，组件不再自己算第二遍。
+  const videoMode = composer.videoMode
 
   /**
    * 切档（§9.3）：不符合新模式的模型**直接消失并清空选择**，模型相关的参数档一并

@@ -71,6 +71,38 @@ export function stripFileExtension(fileName: string): string {
  * 优先链沿用 `CastDock` 那条（本来就是最全的一条），顺序即语义：专有身份名 →
  * 通用媒体标签。
  */
+/**
+ * 给一批节点算出「人能念出来的名字」—— 有真名字用真名字，没有的按**类型 + 序号**
+ * 提议一个（`参考视频1` / `角色2`）。
+ *
+ * ⚠ **这是提议，不是事实。** 序号按传进来的列表顺序算，增删节点会重新编号。所以它
+ * 只能用于**当下这一屏的显示**；一旦这个名字要被写进会留存的地方（@ 提及会把字面
+ * 文本存进 prompt），调用方必须先把名字**盖回节点**（`buildDisplayNamePatch`），
+ * 否则以后重新编号会让 `@参考视频2` 静默指向另一个节点。
+ *
+ * ⚠ 不改 `resolveNodeDisplayName` 的兜底：它有 9 个调用方，其中好几个**要**靠
+ * `undefined` 判断「从没命名过」（见 `use-downstream-uses` 的注释）。加个新函数，
+ * 不动老的。
+ */
+export function buildFallbackNodeNames<
+  T extends { id: string; data: NodeWorkflowNodeData },
+>(nodes: readonly T[], kindLabelOf: (node: T) => string): Map<string, string> {
+  const counters = new Map<string, number>()
+  const names = new Map<string, string>()
+  for (const node of nodes) {
+    const real = resolveNodeDisplayName(node.data)
+    if (real) {
+      names.set(node.id, real)
+      continue
+    }
+    const kind = kindLabelOf(node)
+    const next = (counters.get(kind) ?? 0) + 1
+    counters.set(kind, next)
+    names.set(node.id, `${kind}${next}`)
+  }
+  return names
+}
+
 export function resolveNodeDisplayName(
   data: NodeWorkflowNodeData,
 ): string | undefined {

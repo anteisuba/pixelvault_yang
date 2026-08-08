@@ -35,7 +35,10 @@ import {
   splitModelOptions,
   useSplitModelOptions,
 } from '@/hooks/use-split-model-options'
-import { getTranslatedModelLabel } from '@/lib/model-options'
+import {
+  getTranslatedModelDescription,
+  getTranslatedModelLabel,
+} from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 
 type SavedOptionLabelMode = 'key' | 'model'
@@ -261,6 +264,16 @@ export function BaseModelPickerPanel({
   const [activeFamily, setActiveFamily] = useState<string | null>(null)
   const [activeVariant, setActiveVariant] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  /**
+   * 悬停/聚焦到哪一行 —— 那一行才渲染它的一句话介绍（行内默认只留身份）。
+   *
+   * ⚠ 先前用的是 CSS `grid-template-rows: 0fr → 1fr` 的手风琴手法，**在这个布局里
+   * 不成立**：揭示层的子项带 `overflow:hidden`（最小尺寸 0）、容器高度又不定，`1fr`
+   * 被解析成 0，连内联 `!important` 都量到 0px。实测过才换掉的，别改回去。
+   *
+   * 记 optionId 而不是每行各自 useState：行是在 map 里生成的，不能带 hook。
+   */
+  const [revealedOptionId, setRevealedOptionId] = useState<string | null>(null)
   const reducedMotion = useReducedMotion()
 
   const tCommon = useTranslations('Common')
@@ -655,6 +668,9 @@ export function BaseModelPickerPanel({
     const optionModelLabel = resolveModelLabel(option)
     const providerLabel = getProviderLabel(option.providerConfig)
     const capabilityDetail = detailForOption?.(option)
+    const description = getTranslatedModelDescription(tModels, option.modelId)
+    // 第三层行的主字已经是渠道名（见 `modelGroups` 的 labelOverride），副行再写一遍
+    // provider 就是同一句话说两遍 —— 那一层只补「这条路由是哪来的」。
     const routeMeta = option.keyLabel
       ? savedOptionLabelMode === 'model'
         ? `${option.keyLabel} · ${providerLabel}`
@@ -662,9 +678,13 @@ export function BaseModelPickerPanel({
       : option.freeTier && option.sourceType === 'workspace'
         ? `${providerLabel} · ${tSetup('platformQuota')}`
         : providerLabel
-    const optionMeta = capabilityDetail
-      ? `${routeMeta} · ${capabilityDetail}`
-      : routeMeta
+    // 第三层（主字已是渠道名）**整条副行都不要**：那一层的职责只有「选哪家」，
+    // 型号早由返回键交代过，路由细节与一句话介绍都收进悬停层。owner：「只留公司
+    // 名字，比如 fal 和火山」。其余层保持原样的路由信息。
+    const isChannelRow = labelOverride === providerLabel
+    const optionMeta = isChannelRow
+      ? ''
+      : [routeMeta, capabilityDetail].filter(Boolean).join(' · ')
     const searchValue = [
       option.optionId,
       optionLabel,
@@ -682,6 +702,9 @@ export function BaseModelPickerPanel({
         key={option.optionId}
         value={searchValue}
         onSelect={() => handleSelectOption(option)}
+        onMouseEnter={() => setRevealedOptionId(option.optionId)}
+        onMouseLeave={() => setRevealedOptionId(null)}
+        onFocus={() => setRevealedOptionId(option.optionId)}
         className="group min-h-12 gap-3 px-3 py-2.5"
       >
         <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
@@ -698,9 +721,22 @@ export function BaseModelPickerPanel({
               {optionLabel}
             </span>
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
-            {optionMeta}
-          </span>
+          {optionMeta ? (
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
+              {optionMeta}
+            </span>
+          ) : null}
+          {/* 行内只留身份（型号 / 渠道）与路由，一句话介绍收进悬停展开层 ——
+              对标 libtv：默认极简，鼠标停上去行本身长高露出详情。
+              ⚠ 用 grid-rows 0fr→1fr 做展开而不是 max-height：文案长度不定，
+              猜一个 max-height 要么截断要么留白。
+              ⚠ 触屏没有 hover：`group-focus-within` 让键盘/触摸聚焦同样展开，
+              不然移动端永远读不到这段。 */}
+          {description && revealedOptionId === option.optionId ? (
+            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+              {description}
+            </span>
+          ) : null}
         </span>
         {isSelected ? (
           <Check className="size-4 shrink-0 text-foreground" />
@@ -716,6 +752,7 @@ export function BaseModelPickerPanel({
     const optionModelLabel = labelOverride ?? resolveModelLabel(option)
     const providerLabel = getProviderLabel(option.providerConfig)
     const capabilityDetail = detailForOption?.(option)
+    const description = getTranslatedModelDescription(tModels, option.modelId)
     const searchValue = [
       option.optionId,
       optionModelLabel,
@@ -731,6 +768,9 @@ export function BaseModelPickerPanel({
         key={option.optionId}
         value={searchValue}
         onSelect={() => handleSelectLocked(option)}
+        onMouseEnter={() => setRevealedOptionId(option.optionId)}
+        onMouseLeave={() => setRevealedOptionId(null)}
+        onFocus={() => setRevealedOptionId(option.optionId)}
         className="group min-h-12 gap-3 px-3 py-2.5 text-muted-foreground/65"
       >
         <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
@@ -741,9 +781,18 @@ export function BaseModelPickerPanel({
             {optionModelLabel}
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
-            {providerLabel}
-            {capabilityDetail ? ` · ${capabilityDetail}` : ''}
+            {labelOverride === providerLabel ? '' : providerLabel}
+            {capabilityDetail
+              ? `${labelOverride === providerLabel ? '' : ' · '}${capabilityDetail}`
+              : ''}
           </span>
+          {/* 缺 key 的行同样给介绍 —— 用户正是要靠它判断「值不值得为这个模型配一把
+              key」。同款悬停展开，见上方注释。 */}
+          {description && revealedOptionId === option.optionId ? (
+            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+              {description}
+            </span>
+          ) : null}
         </span>
       </CommandItem>
     )
@@ -798,21 +847,37 @@ export function BaseModelPickerPanel({
   // Shared between the flat search results and the drilled-in 渠道 view — both
   // render the same saved/platform/locked groups, only the underlying
   // visibleOptions differ.
+  //
+  // ⚠ 第三层的主字是**渠道名**（fal.ai / VolcEngine），不是完整模型名：那一层的
+  // 唯一职责就是选渠道，型号已经由返回键交代过（cleanup §8.2）。
+  //
+  // 两种情况**不套**这个覆写，都是因为没有「当前在哪个型号里」的上下文：
+  // · 搜索结果是平铺的，只写渠道名认不出是哪个模型；
+  // · `entryPath.view === 'channels'` 意味着系列与型号两层**全被跳过**、打开就
+  //   直接落在渠道层（LLM 路由选择器就是这样：一系列一型号）。那时没有返回键、
+  //   没有面包屑，行里只写「OpenAI」就把模型身份丢了。
+  const channelLabelOf = (option: StudioModelOption) =>
+    !searching && view === 'channels' && entryPath.view !== 'channels'
+      ? getProviderLabel(option.providerConfig)
+      : undefined
+
   const modelGroups = (
     <>
       {saved.length > 0 && (
         <CommandGroup heading={tSetup('configuredKeys')}>
-          {saved.map((o) => renderAvailableModelOption(o))}
+          {saved.map((o) => renderAvailableModelOption(o, channelLabelOf(o)))}
         </CommandGroup>
       )}
       {platform.length > 0 && (
         <CommandGroup heading={tSetup('platformQuota')}>
-          {platform.map((o) => renderAvailableModelOption(o))}
+          {platform.map((o) =>
+            renderAvailableModelOption(o, channelLabelOf(o)),
+          )}
         </CommandGroup>
       )}
       {locked.length > 0 && (
         <CommandGroup heading={tSetup('needsKey')}>
-          {locked.map((o) => renderLockedOption(o))}
+          {locked.map((o) => renderLockedOption(o, channelLabelOf(o)))}
         </CommandGroup>
       )}
     </>

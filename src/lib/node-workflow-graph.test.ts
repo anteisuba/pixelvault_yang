@@ -638,6 +638,72 @@ describe('审核门 —— 只有 approved 能进下游', () => {
   })
 })
 
+describe('harvestUpstreamImageUrls — 首尾帧顺序', () => {
+  it('首帧排在尾帧前面，与上游节点顺序无关', () => {
+    // 这就是 §1 第 ② 层丢掉的那件事：首尾区别一直存在于 imageCategory，采集时没读它，
+    // 两张关键帧按上游顺序入列 → provider 收到一组无序的图，视频不会以第二张结尾。
+    const upstream = [
+      makeNode('end', NODE_TYPE_IDS.image, {
+        status: 'idle',
+        imageCategory: 'frameEnd',
+        mediaUrl: 'https://cdn/end.png',
+      }),
+      makeNode('start', NODE_TYPE_IDS.image, {
+        status: 'idle',
+        imageCategory: 'frameStart',
+        mediaUrl: 'https://cdn/start.png',
+      }),
+    ]
+
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([
+      'https://cdn/start.png',
+      'https://cdn/end.png',
+    ])
+  })
+
+  it('没有分类的旧关键帧算首帧，存量图送出的第一张不变', () => {
+    // 旧的 role==='frame' 节点没有 imageCategory。它们必须仍按原上游顺序排在最前，
+    // 否则存量项目里「第一张就是首帧」的既有行为会被这次改动悄悄改掉。
+    const upstream = [
+      makeNode('legacy-a', NODE_TYPE_IDS.frameImage, {
+        status: 'idle',
+        mediaUrl: 'https://cdn/legacy-a.png',
+      }),
+      makeNode('legacy-b', NODE_TYPE_IDS.frameImage, {
+        status: 'idle',
+        mediaUrl: 'https://cdn/legacy-b.png',
+      }),
+      makeNode('end', NODE_TYPE_IDS.image, {
+        status: 'idle',
+        imageCategory: 'frameEnd',
+        mediaUrl: 'https://cdn/end.png',
+      }),
+    ]
+
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([
+      'https://cdn/legacy-a.png',
+      'https://cdn/legacy-b.png',
+      'https://cdn/end.png',
+    ])
+  })
+
+  it('同类关键帧之间保持上游顺序（排序必须稳定）', () => {
+    const upstream = ['s1', 's2', 's3'].map((id) =>
+      makeNode(id, NODE_TYPE_IDS.image, {
+        status: 'idle',
+        imageCategory: 'frameStart',
+        mediaUrl: `https://cdn/${id}.png`,
+      }),
+    )
+
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual([
+      'https://cdn/s1.png',
+      'https://cdn/s2.png',
+      'https://cdn/s3.png',
+    ])
+  })
+})
+
 describe('harvestUpstreamImageUrls', () => {
   it('orders keyframe URLs before visual reference URLs', () => {
     const upstream = [

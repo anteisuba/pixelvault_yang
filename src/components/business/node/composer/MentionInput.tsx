@@ -106,6 +106,8 @@ const THUMB_FILL: Record<MentionToken['kind'], string> = {
 const CHIP_BASE =
   'mention-chip mx-0.5 inline-flex select-none items-center gap-1 rounded-full py-0.5 align-baseline text-node-foreground'
 const MENTION_ATTR = 'data-mention'
+/** @ 下拉一次最多列几条 —— 再多就该靠打字收窄，滚动一长列比重打两个字慢。 */
+const MENTION_MAX_VISIBLE = 8
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
 /** A centered ▶ overlay — the shape language marks a video reference apart from
@@ -250,6 +252,23 @@ function insertNodeAtCaret(el: HTMLElement, node: Node): void {
   }
 }
 
+/** 打 `@` 时可选的一个画布节点。 */
+export interface MentionCandidate {
+  /** 节点 id —— 父级拿它去连线。 */
+  id: string
+  /** 插进正文的名字（不带 `@`）。 */
+  name: string
+  /** 分组用的类型名，已本地化；不给则不分组。 */
+  groupLabel?: string
+}
+
+/** 光标前的 `@查询` —— 没在写 @ 时为 null。 */
+interface MentionQuery {
+  text: string
+  /** 已经打出来的字符数（含 `@`），选中候选时要把它们删掉。 */
+  length: number
+}
+
 export interface MentionInputProps {
   value: string
   onValueChange(value: string): void
@@ -261,6 +280,32 @@ export interface MentionInputProps {
   onKeyUp?: KeyboardEventHandler<HTMLDivElement>
   onKeyDownCapture?: KeyboardEventHandler<HTMLDivElement>
   onKeyUpCapture?: KeyboardEventHandler<HTMLDivElement>
+  /**
+   * 打 `@` 时的候选 —— **画布上任意可连的节点**，不只是已经连进来的那些。
+   * 选中一个就等于「从画布选择」，会新建一条边（owner 2026-08-08 定的 B 方案）。
+   * 不传就没有下拉，行为与加这个能力之前完全一致。
+   */
+  mentionCandidates?: readonly MentionCandidate[]
+  /**
+   * 选中候选。组件已经把用户打的 `@查询` 从正文里删掉了，父级只需要**连线**，
+   * 再通过 ref 的 `insertToken(name)` 把胶囊插进去 —— 插入走的还是既有那条路。
+   */
+  onMentionSelect?(candidate: MentionCandidate): void
+}
+
+/** 光标所在文本节点上、紧邻光标的 `@查询`。不在写 @ 时返回 null。 */
+function readMentionQuery(editor: HTMLElement): MentionQuery | null {
+  const selection = editor.ownerDocument.getSelection()
+  if (!selection || !selection.isCollapsed) return null
+  const node = selection.anchorNode
+  if (!node || !editor.contains(node) || node.nodeType !== Node.TEXT_NODE) {
+    return null
+  }
+  const before = (node.textContent ?? '').slice(0, selection.anchorOffset)
+  // `@` 后不允许空格与第二个 `@`；`@` 前必须是行首或空白，免得把邮箱之类误判成提及。
+  const match = /(^|\s)@([^\s@]*)$/.exec(before)
+  if (!match) return null
+  return { text: match[2], length: match[2].length + 1 }
 }
 
 /**
@@ -287,12 +332,21 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       onKeyUp,
       onKeyDownCapture,
       onKeyUpCapture,
+      mentionCandidates,
+      onMentionSelect,
       ...rest
     },
     ref,
   ) {
     const editorRef = useRef<HTMLDivElement>(null)
     const [isComposing, setIsComposing] = useState(false)
+    // @ 下拉：查询串 + 光标处的屏幕坐标（浮层用 fixed 定位，画布有 transform，
+    // 只能用视口坐标）。null = 没在写 @。
+    const [mention, setMention] = useState<{
+      query: MentionQuery
+      rect: { left: number; bottom: number }
+    } | null>(null)
+    const [activeIndex, setActiveIndex] = useState(0)
     // Last value we rendered OR emitted — lets us skip re-rendering the DOM
     // (which would reset the caret) when `value` just echoes our own edit.
     const lastValueRef = useRef<string | null>(null)
@@ -322,12 +376,78 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       lastValueRef.current = value
     }, [value, isComposing, knownNames, tokenByName])
 
+    /** 候选按当前查询过滤（大小写不敏感，子串匹配即可）。 */
+    const matches = useMemo(() => {
+      if (!mention || !mentionCandidates?.length) return []
+      const q = mention.query.text.toLowerCase()
+      const hit = q
+        ? mentionCandidates.filter((c) => c.name.toLowerCase().includes(q))
+        : [...mentionCandidates]
+      return hit.slice(0, MENTION_MAX_VISIBLE)
+    }, [mention, mentionCandidates])
+
+    /** 光标动了就重算查询 —— 输入、点击、方向键都要走这里。 */
+    const syncMention = () => {
+      const el = editorRef.current
+      if (!el || !mentionCandidates?.length) {
+        setMention(null)
+        return
+      }
+      const query = readMentionQuery(el)
+      if (!query) {
+        setMention(null)
+        return
+      }
+      const selection = el.ownerDocument.getSelection()
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null
+      const rect = range?.getBoundingClientRect()
+      // 空 range 在某些位置量到全 0；退回编辑器自身的盒子，浮层至少不会飞到左上角。
+      const anchor =
+        rect && (rect.left || rect.bottom) ? rect : el.getBoundingClientRect()
+      setMention((prev) => {
+        // ⚠ 查询串没变就别重置高亮：ArrowDown 的 keyup 同样会走到这里，每次都归零
+        // 的话方向键就永远停在第一条。
+        if (prev?.query.text !== query.text) setActiveIndex(0)
+        return { query, rect: { left: anchor.left, bottom: anchor.bottom } }
+      })
+    }
+
     const emit = (serializedValue?: string) => {
       const el = editorRef.current
       if (!el) return
       const next = serializedValue ?? serializeEditor(el)
       lastValueRef.current = next
       onValueChange(next)
+    }
+
+    /**
+     * 选中一个候选：先把用户打出来的 `@查询` 从正文里删掉，再交给父级去连线 + 插胶囊。
+     *
+     * ⚠ 删除用 Range 直接操作 DOM，不走「改 value 再重渲染」—— 后者会重建整个编辑器
+     * 内容并把光标扔回开头（本组件半受控的原因，见顶部注释）。
+     */
+    const commitMention = (candidate: MentionCandidate) => {
+      const el = editorRef.current
+      const current = mention
+      setMention(null)
+      if (!el || !current) return
+      const selection = el.ownerDocument.getSelection()
+      const node = selection?.anchorNode
+      if (selection && node && node.nodeType === Node.TEXT_NODE) {
+        const end = selection.anchorOffset
+        const start = Math.max(0, end - current.query.length)
+        const range = el.ownerDocument.createRange()
+        range.setStart(node, start)
+        range.setEnd(node, end)
+        range.deleteContents()
+        selection.removeAllRanges()
+        const after = el.ownerDocument.createRange()
+        after.setStart(node, start)
+        after.collapse(true)
+        selection.addRange(after)
+      }
+      emit()
+      onMentionSelect?.(candidate)
     }
 
     useImperativeHandle(
@@ -365,47 +485,115 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     )
 
     return (
-      <div
-        ref={editorRef}
-        role="textbox"
-        aria-multiline="true"
-        aria-label={rest['aria-label']}
-        contentEditable
-        suppressContentEditableWarning
-        data-placeholder={placeholder}
-        onInput={() => {
-          if (!isComposing) {
+      <>
+        <div
+          ref={editorRef}
+          role="textbox"
+          aria-multiline="true"
+          aria-label={rest['aria-label']}
+          contentEditable
+          suppressContentEditableWarning
+          data-placeholder={placeholder}
+          onInput={() => {
+            if (!isComposing) {
+              const el = editorRef.current
+              if (!el) return
+              const next = serializeEditor(el)
+              emit(next)
+              syncMention()
+            }
+          }}
+          onCompositionStart={() => setIsComposing(true)}
+          onCompositionEnd={() => {
+            setIsComposing(false)
+            emit()
+            syncMention()
+          }}
+          onClick={syncMention}
+          onBlur={() => setMention(null)}
+          onPaste={(event) => {
+            // Chips only come from the ＋/click flow; pasted content is always
+            // flattened to plain text so no foreign markup enters the editor.
+            event.preventDefault()
+            const text = event.clipboardData.getData('text/plain')
             const el = editorRef.current
             if (!el) return
-            const next = serializeEditor(el)
-            emit(next)
-          }
-        }}
-        onCompositionStart={() => setIsComposing(true)}
-        onCompositionEnd={() => {
-          setIsComposing(false)
-          emit()
-        }}
-        onPaste={(event) => {
-          // Chips only come from the ＋/click flow; pasted content is always
-          // flattened to plain text so no foreign markup enters the editor.
-          event.preventDefault()
-          const text = event.clipboardData.getData('text/plain')
-          const el = editorRef.current
-          if (!el) return
-          insertNodeAtCaret(el, el.ownerDocument.createTextNode(text))
-          emit()
-        }}
-        onKeyDown={onKeyDown}
-        onKeyUp={onKeyUp}
-        onKeyDownCapture={onKeyDownCapture}
-        onKeyUpCapture={onKeyUpCapture}
-        className={cn(
-          'mention-input whitespace-pre-wrap break-words outline-none',
-          'empty:before:pointer-events-none empty:before:text-node-subtle empty:before:content-[attr(data-placeholder)]',
-          className,
-        )}
-      />
+            insertNodeAtCaret(el, el.ownerDocument.createTextNode(text))
+            emit()
+          }}
+          onKeyDown={(event) => {
+            // 下拉开着时，方向键/回车/Tab 归下拉，不能漏给编辑器（回车会插换行、
+            // 方向键会移光标把下拉关掉）。Escape 只关下拉，**并且要 stopPropagation**
+            // —— 否则它会一路冒泡把外层的节点面板一起关掉。
+            if (mention && matches.length > 0) {
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault()
+                setActiveIndex((i) => {
+                  const step = event.key === 'ArrowDown' ? 1 : -1
+                  return (i + step + matches.length) % matches.length
+                })
+                return
+              }
+              if (event.key === 'Enter' || event.key === 'Tab') {
+                event.preventDefault()
+                commitMention(matches[activeIndex] ?? matches[0])
+                return
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                event.stopPropagation()
+                setMention(null)
+                return
+              }
+            }
+            onKeyDown?.(event)
+          }}
+          onKeyUp={(event) => {
+            // 方向键/退格之后光标位置变了，查询要跟着重算。
+            syncMention()
+            onKeyUp?.(event)
+          }}
+          onKeyDownCapture={onKeyDownCapture}
+          onKeyUpCapture={onKeyUpCapture}
+          className={cn(
+            'mention-input whitespace-pre-wrap break-words outline-none',
+            'empty:before:pointer-events-none empty:before:text-node-subtle empty:before:content-[attr(data-placeholder)]',
+            className,
+          )}
+        />
+        {/* @ 候选浮层。fixed + 视口坐标：编辑器活在画布的 transform 里，用绝对定位
+          会被父级的缩放/平移带跑。
+          ⚠ `onMouseDown` 必须 preventDefault —— 否则点击先让编辑器失焦，onBlur 把
+          浮层关掉，click 永远等不到。 */}
+        {mention && matches.length > 0 ? (
+          <div
+            role="listbox"
+            aria-label={rest['aria-label']}
+            className="canvas-mention-popover"
+            style={{ left: mention.rect.left, top: mention.rect.bottom + 6 }}
+            onMouseDown={(event) => event.preventDefault()}
+          >
+            {matches.map((candidate, index) => (
+              <button
+                key={candidate.id}
+                type="button"
+                role="option"
+                aria-selected={index === activeIndex}
+                data-active={index === activeIndex ? 'true' : undefined}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => commitMention(candidate)}
+              >
+                <span className="truncate">{candidate.name}</span>
+                {candidate.groupLabel ? (
+                  <span className="canvas-mention-popover-kind">
+                    {candidate.groupLabel}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </>
     )
   },
 )

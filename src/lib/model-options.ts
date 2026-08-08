@@ -198,3 +198,23 @@ export function getTranslatedModelLabel(
   }
   return modelId
 }
+
+/**
+ * 模型的一句话介绍 —— 目录里 61 个模型**全都有** `description`，此前只是没有地方
+ * 显示。模型选择器把它收进悬停展开层（行内只留型号与渠道）。
+ *
+ * 目录外的 id（LLM 路由、EDIT_MODELS 那类）没有这条消息 → 返回 undefined，调用方
+ * 应当**不渲染那一层**，而不是显示一个空盒子或原样 key。
+ */
+export function getTranslatedModelDescription(
+  tModels: (key: string, values?: Record<string, string | number>) => string,
+  modelId: string,
+): string | undefined {
+  if (!isBuiltInModel(modelId)) return undefined
+  const key = `${getModelMessageKey(modelId)}.description`
+  const value = tModels(key)
+  // next-intl 解析不到时回落成 key 本身；那不是文案，别显示给用户。
+  return value && value !== key && !value.endsWith('.description')
+    ? value
+    : undefined
+}

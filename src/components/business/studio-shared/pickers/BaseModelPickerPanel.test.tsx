@@ -678,10 +678,17 @@ describe('BaseModelPickerPanel', () => {
       screen.queryByText('Seedance 2.0（火山方舟）'),
     ).not.toBeInTheDocument()
 
-    // Tier 3 — 渠道. Both channels of 2.0 are now listed; the VolcEngine label
-    // exists only at this depth.
+    // Tier 3 — 渠道。这一层的行**只写公司名**（owner：「只留公司名字，比如 fal 和
+    // 火山」）——型号已经由返回键交代过，再写一遍模型全名是同一句话说两遍。
     fireEvent.click(screen.getByText('Seedance 2.0'))
-    expect(screen.getByText('Seedance 2.0（火山方舟）')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE).label,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('Seedance 2.0（火山方舟）'),
+    ).not.toBeInTheDocument()
   })
 
   it('counts 型号 on a 系列 row and 渠道 on a 型号 row', () => {
@@ -910,8 +917,12 @@ describe('BaseModelPickerPanel', () => {
     fireEvent.click(screen.getByRole('button'))
     fireEvent.click(screen.getByText('MiniMax'))
 
-    // Skipped straight into 渠道 — both stations listed.
-    expect(screen.getByText('MiniMax H3（国内）')).toBeInTheDocument()
+    // Skipped straight into 渠道 —— 两个站都在，且行里写的是公司名。
+    expect(
+      screen.getByText(
+        getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE).label,
+      ),
+    ).toBeInTheDocument()
 
     fireEvent.click(screen.getAllByRole('button')[1])
     // Back at 系列, not at an empty 型号 step.
@@ -1018,11 +1029,21 @@ describe('BaseModelPickerPanel', () => {
     expect(trigger).toHaveTextContent('Seedance 2.0 · VolcEngine')
     expect(trigger).not.toHaveTextContent('（火山方舟）')
 
-    // 列表项不受影响：钻到第三层，两条渠道各自保留自己的完整标签。
+    // 列表项**不受触发器覆写影响**：钻到第三层，行里是渠道名（那是第三层自己的
+    // 规则），而不是触发器那套「型号 · 渠道」的拼法。
     fireEvent.click(trigger)
     fireEvent.click(screen.getByText('Seedance'))
     fireEvent.click(screen.getByText('Seedance 2.0'))
-    expect(screen.getByText('Seedance 2.0（火山方舟）')).toBeInTheDocument()
+    const volcLabel = getDefaultProviderConfig(
+      AI_ADAPTER_TYPES.VOLCENGINE,
+    ).label
+    expect(screen.getByText(volcLabel)).toBeInTheDocument()
+    // ⚠ 断言必须**限定在列表里**：`Seedance 2.0 · VolcEngine` 本来就存在 —— 它正是
+    // 触发器该显示的那串字。要守的是「它没有漏进列表项」。
+    const rows = screen.getAllByRole('option')
+    expect(
+      rows.some((r) => r.textContent?.includes(`Seedance 2.0 · ${volcLabel}`)),
+    ).toBe(false)
   })
 
   it('falls back to the option label when the caller passes no trigger override', () => {

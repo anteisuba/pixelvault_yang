@@ -161,7 +161,9 @@ export function NodeMediaPreview({
     typeof data.videoThumbnailUrl === 'string'
       ? data.videoThumbnailUrl
       : undefined
-  const hasWorkflowPrompt = Boolean(buildNodeWorkflowPrompt(type, data))
+  const isTextKind = kind === NODE_MEDIA_KIND_IDS.text
+  const workflowPrompt = buildNodeWorkflowPrompt(type, data)
+  const hasWorkflowPrompt = Boolean(workflowPrompt)
   const generationStatus =
     data.generationStatus ??
     (mediaUrl
@@ -290,6 +292,19 @@ export function NodeMediaPreview({
               // labelShownElsewhere：这张卡窗内左上角的 ImageCardStatusBadge
               // 已经写着「生成中」，中央不再重复一遍（B6「信息说三遍」同款）。
               <NodeProgressState label={t('generating')} labelShownElsewhere />
+            ) : isTextKind && workflowPrompt ? (
+              // 文本族的产物**就是文字**，它没有 mediaUrl —— 而上面那个分支的判据是
+              // `kind === text || !mediaUrl`，两个条件对文本节点恒成立，于是无论写了
+              // 多少字，卡面永远只显示空态占位。`ShotTextDetailBody` 的注释里早就记着
+              // 「卡面窗内还是恒定的空态占位」，当时只把详情面板修好了，卡面没跟上。
+              //
+              // 拼装复用 `buildNodeWorkflowPrompt` —— 与详情面板、与送进下游视频节点的
+              // 那份提示词同源，卡面看到的顺序就是真正发出去的顺序。
+              <div className="flex h-full flex-col justify-start overflow-hidden px-4 py-3">
+                <p className="line-clamp-6 whitespace-pre-wrap text-left text-xs leading-5 text-node-foreground">
+                  {workflowPrompt}
+                </p>
+              </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
                 {getEmptyIcon(kind, type)}

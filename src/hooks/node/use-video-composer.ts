@@ -36,6 +36,7 @@ import {
   isVideoSourceNode,
   isVisualReferenceNode,
   isVoiceProfileNode,
+  orderKeyframes,
   readVoiceCoverImage,
   readVoiceUrl,
 } from '@/lib/node-workflow-graph'
@@ -510,8 +511,9 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     // Keyframe references (首/尾帧, role=frame) — they ride image_urls (first,
     // per harvestUpstreamImageUrls) but have no name-token, so they surface as
     // projection-only slots in the 镜头 card (cast-redesign §3/§4, keyframe→镜头卡).
-    for (const node of incoming) {
-      if (!isKeyframeNode(node)) continue
+    // ⚠ 与采集/图例同一个 `orderKeyframes`：素材条上展示的就是首帧与尾帧这两张，
+    // 排列顺序得和真正送出去的顺序一致。（槽位号本来就是从实际载荷反查的，不受影响。）
+    for (const node of orderKeyframes(incoming)) {
       const url = getNodeMediaUrl(node.data)
       if (!url) continue
       const slotIndex = payloadImageUrls.indexOf(url)

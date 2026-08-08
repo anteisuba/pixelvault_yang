@@ -124,6 +124,70 @@ export function isKeyframeNode(node: NodeWorkflowNode): boolean {
 }
 
 /**
+ * 这是一张**卡片**（身份档案夹）吗 —— 角色卡 / 背景卡。
+ *
+ * 卡片与图是两件事，只是名字长得像：
+ *
+ * | role | 渲染 | 语义 |
+ * | --- | --- | --- |
+ * | character / background | `IdentityCollectorCard` | **卡片**：收集同一个主体的图，自己不生成 |
+ * | shot / frame / closeup | 图卡 | **图**：生成的落点 |
+ *
+ * ⚠ 判据必须是 **role**，不能是「媒体种类」。卡片的 kind 也是 `image`，所以按 kind
+ * 判会把卡片当成图 —— `inferComposerHost` 之前就是这么把生成框挂到角色卡上的。
+ *
+ * ⚠ 两个旧类型（`characterImage` / `backgroundImage`）名字里带 Image，其实渲染的
+ * 就是卡片，存量图里还有它们，必须一起认。「图片和卡片搞混」的根就在这两个名字上。
+ */
+export function isIdentityCardNode(node: {
+  type: NodeWorkflowNode['type']
+  data: NodeWorkflowNodeData
+}): boolean {
+  if (
+    node.type === NODE_TYPE_IDS.characterImage ||
+    node.type === NODE_TYPE_IDS.backgroundImage
+  ) {
+    return true
+  }
+  if (node.type !== NODE_TYPE_IDS.image) return false
+  return (
+    node.data.role === NODE_IMAGE_ROLE_IDS.character ||
+    node.data.role === NODE_IMAGE_ROLE_IDS.background
+  )
+}
+
+/**
+ * 关键帧节点按**时序**排：首帧在前、尾帧在后。
+ *
+ * `NODE_STUDIO_KEYFRAME_REFERENCE_ROLES` 的数组顺序（frameStart → frameEnd）本身就是
+ * 时序，直接拿它当排名，不另立一张映射表。
+ *
+ * ⚠ 旧的 `role === 'frame'` 节点没有 `imageCategory`，一律算**首帧**（rank 0）——
+ * 与改造前「按上游顺序、第一张当首帧」的行为一致，存量图不会因此改变送出的首帧。
+ *
+ * ⚠ 排序必须**稳定**：同类关键帧（比如两个 frameStart）之间保持原有上游顺序，否则
+ * 存量图里 `@ImageN` 的位置会漂。`Array.prototype.sort` 在现代 JS 里保证稳定。
+ *
+ * 采集与图例编号**共用这一个函数** —— 两处若各排各的，图例写着「关键帧尾2」而实际
+ * 送出的第二张是别的图，用户看到的解释就是假的。
+ */
+export function orderKeyframes(
+  nodes: readonly NodeWorkflowNode[],
+): NodeWorkflowNode[] {
+  const rank = (node: NodeWorkflowNode): number => {
+    const category = node.data.imageCategory
+    const index =
+      typeof category === 'string'
+        ? (NODE_STUDIO_KEYFRAME_REFERENCE_ROLES as readonly string[]).indexOf(
+            category,
+          )
+        : -1
+    return index === -1 ? 0 : index
+  }
+  return nodes.filter(isKeyframeNode).sort((a, b) => rank(a) - rank(b))
+}
+
+/**
  * A closeup image (face detail) — a unified `image` node with role=closeup
  * (cast-redesign §9 B). closeup has no legacy per-type equivalent, so it only
  * ever exists as `image` + role. It is NOT a direct visual reference (it wires
@@ -349,8 +413,13 @@ export function harvestUpstreamImageUrls(
   const result: string[] = []
   const blocked: BlockedUpstreamMedia[] = []
 
-  for (const node of upstreamNodes) {
-    if (!isKeyframeNode(node)) continue
+  // 关键帧先入列（它们钉住时序），且**首帧在前、尾帧在后**。
+  //
+  // 首尾区别一直存在于 `data.imageCategory`（frameStart / frameEnd），此前采集时没读
+  // 它，两张关键帧按上游节点顺序入列 —— 到了 provider 那边就是一组无序的图，视频不会
+  // 以第二张结尾（§1 五层链路的第 ② 层）。顺序在这里就是首尾语义的载体：下游按位置
+  // 取（images[0]=首帧、images[1]=尾帧），不必再发明一个并行字段。
+  for (const node of orderKeyframes(upstreamNodes)) {
     pushGated(result, blocked, node, getNodeMediaUrl(node.data))
   }
   // V-2 主图 + R3-6 出场组: a COLLECTOR card (character/background — the
@@ -699,9 +768,10 @@ export function harvestUpstreamVideoImageReferences(
   // toolbar already read+write for a shot/frame card; an unnamed one falls
   // back to `${category}${ordinal}` — a cosmetic-only fallback (no composer
   // auto-name to byte-match, since keyframes have no insertable token).
+  // ⚠ 与采集用**同一个** `orderKeyframes` —— 两处各排各的，就会出现图例写着
+  // 「关键帧尾2」而实际送出的第二张是别的图，给用户的解释是假的。
   let keyframeOrdinal = 0
-  for (const node of directUpstream) {
-    if (!isKeyframeNode(node)) continue
+  for (const node of orderKeyframes(directUpstream)) {
     const url = getNodeMediaUrl(node.data)
     if (!url || map.has(url)) continue
     keyframeOrdinal += 1

@@ -1083,6 +1083,46 @@
   gap: 10px;
 }
 
+/* @ 提及候选浮层。挂在 body 坐标系上（fixed），所以**不套 .domain-canvas 作用域**
+   —— 它虽然由画布里的编辑器唤起，但定位参照的是视口。 */
+.canvas-mention-popover {
+  position: fixed;
+  z-index: var(--z-index-canvas-transient);
+  display: flex;
+  min-width: 180px;
+  max-width: 280px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: var(--node-panel);
+  border: 1px solid var(--node-card-line);
+  border-radius: 10px;
+  box-shadow: var(--shadow-node-panel);
+}
+
+.canvas-mention-popover button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--node-foreground);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.canvas-mention-popover button[data-active='true'] {
+  background: var(--node-panel-soft);
+}
+
+.canvas-mention-popover-kind {
+  flex-shrink: 0;
+  color: var(--node-muted);
+  font-size: 11px;
+}
+
 .domain-canvas .canvas-video-composer-mode {
   display: flex;
   align-items: center;

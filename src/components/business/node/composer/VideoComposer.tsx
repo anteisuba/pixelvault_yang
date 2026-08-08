@@ -70,6 +70,11 @@ import {
 } from '@/lib/node-workflow-prompt'
 import { getSeedanceReferenceKind } from '@/lib/node-workflow-graph'
 import {
+  buildDisplayNamePatch,
+  buildFallbackNodeNames,
+  resolveNodeDisplayName,
+} from '@/lib/node-display-name'
+import {
   computeVideoRebindPreview,
   hasIgnoredRebindings,
   type VideoRebindPreviewItem,
@@ -171,24 +176,9 @@ function stopCanvasKey(event: KeyboardEvent<HTMLElement>) {
   event.stopPropagation()
 }
 
-function getCanvasReferenceLabel(node: NodeWorkflowNode): string {
-  const fields = [
-    node.data.characterName,
-    node.data.backgroundName,
-    node.data.shotName,
-    node.data.voiceName,
-    node.data.mediaLabel,
-    node.data.sourceLabel,
-  ]
-  return (
-    fields
-      .find(
-        (value): value is string =>
-          typeof value === 'string' && value.trim().length > 0,
-      )
-      ?.trim() ?? node.id
-  )
-}
+// `getCanvasReferenceLabel` 已删（2026-08-08）：它的兜底直接返回 `node.id`，于是
+// 没命名的节点在「从画布选择」里显示成一串 uuid，@ 候选里更是没法打字匹配。
+// 现在两处共用 `buildFallbackNodeNames` 的「类型+序号」提议名。
 
 const KEY_GUARD = {
   // React delegates capture handlers from the root. Stopping there prevents
@@ -1014,6 +1004,46 @@ export function VideoComposer({
   )
 
   const connectableReferences = listConnectableReferences?.(id) ?? []
+
+  /**
+   * @ 候选 = **画布上任意可连的节点**，与「从画布选择」同一份数据源。
+   *
+   * owner 2026-08-08 定的是 B 方案：@ 不只是插一个名字，选中就**新建一条边**，等于
+   * 「从画布选择」的打字版。所以候选不能只列已连进来的那些。
+   * ⚠ @ 只绑节点，**不绑模型** —— 模型有它自己的选择器（cleanup §9.4：模型选择在
+   * 节点面板内，不做第二个入口）。
+   */
+  const mentionKindOf = (node: NodeWorkflowNode) =>
+    tc(`refKind.${getSeedanceReferenceKind(node) ?? 'video'}`)
+  // 没起过名字的节点在这里拿一个「类型+序号」的**提议名**（uuid 是没法打字匹配的）。
+  const mentionNames = buildFallbackNodeNames(
+    connectableReferences,
+    mentionKindOf,
+  )
+  const mentionCandidates = connectableReferences.map((node) => ({
+    id: node.id,
+    name: mentionNames.get(node.id) ?? node.id,
+    groupLabel: mentionKindOf(node),
+  }))
+
+  const handleMentionSelect = (candidate: { id: string; name: string }) => {
+    const node = connectableReferences.find((n) => n.id === candidate.id)
+    // ⚠ 引用即命名：提议名是按列表顺序算的，会随增删重新编号，而 @ 存进 prompt 的是
+    // **字面文本** —— 不落库的话，以后 `@参考视频2` 会静默指向另一个节点。所以选中
+    // 的这一刻就把名字盖回节点，此后它就是真名字，素材条/从画布选择/图例全都一致。
+    if (node && !resolveNodeDisplayName(node.data)) {
+      updateNodeData(
+        node.id,
+        buildDisplayNamePatch(
+          { role: node.data.role, type: node.type },
+          candidate.name,
+        ),
+      )
+    }
+    // 先连线再插胶囊：胶囊只是正文里的名字，真正让这张图进请求的是那条边。
+    connectReferenceNode?.(candidate.id, id)
+    promptRef.current?.insertToken(candidate.name)
+  }
   const referenceAssetDialog = (
     <AssetSelectorDialog
       open={pendingAdd !== null}
@@ -1114,7 +1144,9 @@ export function VideoComposer({
                 {connectableReferences.length > 0 ? (
                   connectableReferences.map((node) => {
                     const kind = getSeedanceReferenceKind(node) ?? 'video'
-                    const label = getCanvasReferenceLabel(node)
+                    // 与 @ 候选**同一份名字**（`mentionNames`）：两处若各算各的，
+                    // 同一个没命名的节点会在两个入口叫不同的名字。
+                    const label = mentionNames.get(node.id) ?? node.id
                     return (
                       <button
                         key={node.id}
@@ -1560,6 +1592,8 @@ export function VideoComposer({
               handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
             }
             tokens={mentionTokens}
+            mentionCandidates={mentionCandidates}
+            onMentionSelect={handleMentionSelect}
             aria-label={tFields('prompt.label')}
             placeholder={tFields('prompt.placeholder')}
             className="min-h-40 w-full border-none bg-transparent px-2.5 py-2 text-xs leading-5 text-node-foreground"

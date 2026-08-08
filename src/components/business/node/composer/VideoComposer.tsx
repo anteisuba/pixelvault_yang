@@ -36,6 +36,7 @@ import { Slider } from '@/components/ui/slider'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { PROMPT_ENHANCE, type AspectRatio } from '@/constants/config'
+import { getModelFamily } from '@/constants/models'
 import { motionTransition } from '@/constants/motion'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -56,15 +57,12 @@ import {
   useVideoComposer,
   type ComposerReferenceToken,
 } from '@/hooks/node/use-video-composer'
+import { isRunnableModelOption } from '@/hooks/use-split-model-options'
 import {
   buildNodeWorkflowPrompt,
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
 import { getSeedanceReferenceKind } from '@/lib/node-workflow-graph'
-import {
-  getBrandKeyStatus,
-  deriveSwitcherStateFromModel,
-} from '@/lib/video-model-resolver'
 import {
   computeVideoRebindPreview,
   hasIgnoredRebindings,
@@ -404,18 +402,22 @@ export function VideoComposer({
     option: StudioModelOption
     preview: VideoRebindPreviewItem[]
   } | null>(null)
-  // Brand awaiting an API key via QuickSetupDialog (Hard Rule #8): a needs-key
-  // brand opens the dialog instead of going disabled.
+  // Model awaiting an API key via QuickSetupDialog (Hard Rule #8): a needs-key
+  // model opens the dialog instead of going disabled.
   const [quickSetup, setQuickSetup] = useState<{
     open: boolean
-    brand: string
+    label: string
     option: NodeWorkflowModelOption
   } | null>(null)
-  // The options list refreshes async after a key is verified; select the brand
-  // once it actually becomes ready.
-  const [pendingSetupBrand, setPendingSetupBrand] = useState<string | null>(
-    null,
-  )
+  // The options list refreshes async after a key is verified; apply the model
+  // once it actually becomes runnable.
+  //
+  // ⚠ 这里原先记的是**系列**，验完 key 之后调 `selectBrand(brand)` 重挑 —— 于是
+  // 用户点的是「Seedance 2.5（火山方舟）」，配完 key 落到的却是该系列里解析器随手
+  // 挑的另一条。记 optionId 就能落回他真正点的那一个。
+  const [pendingSetupOptionId, setPendingSetupOptionId] = useState<
+    string | null
+  >(null)
 
   const commitSharedVideoModel = useCallback(
     (option: StudioModelOption) => {
@@ -474,34 +476,44 @@ export function VideoComposer({
         keyLabel: option.keyLabel,
         maskedKey: option.maskedKey,
       }
-      const brand = deriveSwitcherStateFromModel(model).brand ?? option.modelId
-      setQuickSetup({ open: true, brand, option: model })
+      const label =
+        option.displayLabel ?? getModelFamily(option.modelId) ?? option.modelId
+      setQuickSetup({ open: true, label, option: model })
     },
     [],
   )
 
   // After QuickSetupDialog verifies a key, the option list refreshes a tick
-  // later; apply the brand selection once it shows up as ready.
-  const { options: composerOptions, selectBrand: composerSelectBrand } =
-    composer
+  // later; apply the model once it shows up as runnable.
+  const { options: composerOptions } = composer
   useEffect(() => {
-    if (!pendingSetupBrand) return
-    if (getBrandKeyStatus(pendingSetupBrand, composerOptions).ready) {
-      composerSelectBrand(pendingSetupBrand)
-      // One-shot reset: consume the pending signal exactly once when the
-      // async-refreshed options report the brand ready (not a render-cascade).
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPendingSetupBrand(null)
-    }
-  }, [pendingSetupBrand, composerOptions, composerSelectBrand])
+    if (!pendingSetupOptionId) return
+    const ready = composerOptions.find(
+      (option) =>
+        option.optionId === pendingSetupOptionId &&
+        isRunnableModelOption(option),
+    )
+    if (!ready) return
+    commitSharedVideoModel({
+      optionId: ready.optionId,
+      modelId: ready.modelId,
+      adapterType: ready.adapterType,
+      providerConfig: ready.providerConfig,
+      keyId: ready.apiKeyId,
+    } as StudioModelOption)
+    // One-shot reset: consume the pending signal exactly once when the
+    // async-refreshed options report the model runnable (not a render-cascade).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPendingSetupOptionId(null)
+  }, [pendingSetupOptionId, composerOptions, commitSharedVideoModel])
 
-  // Collapsed-picker summary: "brand · variant" (or just brand), falling back to
-  // the pick-model prompt; plus the key status for the inline dot/needs-key icon.
-  const pickerLabel = composer.state.brand
-    ? composer.state.variant
-      ? `${composer.state.brand} · ${tc(`variant.${composer.state.variant}`)}`
-      : composer.state.brand
-    : tc('pickModel')
+  // ⚠ 这里曾拼一个 "brand · variant"（`Seedance · 快速`）。它其实**从来没被显示
+  // 过**：`triggerLabel` 映射到 `triggerEmptyLabel`，那是「没选模型时的占位」，
+  // 选中之后触发器显示的是模型自己的标签。唯一的实际效果是把它当成了触发器的
+  // aria-label —— 于是读屏念「Seedance · 快速」而画面写「Seedance 2.0（火山方
+  // 舟）」，两者对不上。而且那个 variant 是从 qualityTier 推的，连 2.0 和 2.5
+  // 都分不开。占位就只写占位。
+  const pickerLabel = tc('pickModel')
   const selectedModelId = data.model?.modelId
   const capabilities = selectedModelId
     ? getVideoModelCapabilities(selectedModelId)
@@ -950,11 +962,8 @@ export function VideoComposer({
   // reference strip and a single bottom dock. Editing model-specific details
   // expands this same sidecar; it no longer lives inside the video card.
   if (density === 'card') {
-    const modelLabel = composer.state.brand
-      ? composer.state.variant
-        ? `${composer.state.brand} · ${tc(`variant.${composer.state.variant}`)}`
-        : composer.state.brand
-      : tc('pickModel')
+    // 同 `pickerLabel`：这是占位/aria-label，不是选中后的显示名。见上方注释。
+    const modelLabel = tc('pickModel')
     // ⚠ 这里**不能**直接把 data.duration 拼上 's'（2026-08-02 修，台账 D2）。
     // 那样写有两个后果，实拍图里的 `12ss` 是第一个：
     //   ① 助手写进来的值本身就带单位（node-assistant 的 prompt 计划里是
@@ -1972,11 +1981,11 @@ export function VideoComposer({
               setQuickSetup((prev) => (prev ? { ...prev, open } : prev))
             }
             modelId={quickSetup.option.modelId}
-            modelLabel={quickSetup.brand}
+            modelLabel={quickSetup.label}
             adapterType={quickSetup.option.adapterType as AI_ADAPTER_TYPES}
             optionId={quickSetup.option.optionId}
             onVerified={() => {
-              setPendingSetupBrand(quickSetup.brand)
+              setPendingSetupOptionId(quickSetup.option.optionId)
               setQuickSetup((prev) => (prev ? { ...prev, open: false } : prev))
             }}
           />

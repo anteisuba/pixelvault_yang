@@ -14,9 +14,13 @@
  */
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { AI_MODELS, getModelById, getModelFamily } from '@/constants/models'
 import {
-  SURFACED_VIDEO_BRANDS,
+  AI_MODELS,
+  getModelById,
+  getModelFamily,
+  getModelVariant,
+} from '@/constants/models'
+import {
   VIDEO_BRAND_VARIANTS,
   VIDEO_VARIANT_IDS,
   type VideoVariantId,
@@ -87,44 +91,12 @@ export function getBrandVariants(brand: string): readonly VideoVariantId[] {
   return VIDEO_BRAND_VARIANTS[brand] ?? []
 }
 
-/** Surfaced brands that actually have ≥1 available option, in surfaced order. */
-export function getSurfacedVideoBrands(
-  options: NodeWorkflowModelOption[],
-): string[] {
-  return SURFACED_VIDEO_BRANDS.filter((brand) =>
-    options.some((option) => optionFamily(option) === brand),
-  )
-}
-
-/** Unique providers (adapterTypes) available for a brand. */
-export function getBrandProviders(
-  brand: string,
-  options: NodeWorkflowModelOption[],
-): AI_ADAPTER_TYPES[] {
-  const seen = new Set<AI_ADAPTER_TYPES>()
-  for (const option of options) {
-    if (optionFamily(option) === brand) {
-      seen.add(optionAdapter(option))
-    }
-  }
-  return Array.from(seen)
-}
-
-export function isDualProviderBrand(
-  brand: string,
-  options: NodeWorkflowModelOption[],
-): boolean {
-  return getBrandProviders(brand, options).length > 1
-}
-
-export interface BrandKeyStatus {
-  /** True when the user has a key that can run this brand → runnable now. */
-  ready: boolean
-  /** Representative option to drive QuickSetupDialog when a key is missing. */
-  setupOption: NodeWorkflowModelOption | null
-  /** Saved key's label / masked value, shown next to a ready brand. */
-  keyLabel?: string
-}
+/**
+ * 2026-08-08 收敛：`getSurfacedVideoBrands` / `getBrandProviders` /
+ * `isDualProviderBrand` / `getBrandKeyStatus` 已删 —— 它们服务的是那条早已不存在
+ * 的 brand/variant/provider 切换栏。模型选择走 `BaseModelPickerPanel` 的三层钻取，
+ * 「只露 Seedance/Kling/Veo」的白名单也随之失效（选择器本来就显示全部系列）。
+ */
 
 /**
  * A brand is runnable when any of its options is reachable with a key the user
@@ -141,27 +113,6 @@ function findKeyedOption(
     brandOptions.find((option) => option.providerKeyId) ??
     null
   )
-}
-
-/**
- * Per-brand key status for the model rail. There is no platform/free tier in
- * this deployment — a brand is either backed by a key the user already holds
- * ("ready") or it needs one (route the click through QuickSetupDialog, Hard
- * Rule #8), never disabled.
- */
-export function getBrandKeyStatus(
-  brand: string,
-  options: NodeWorkflowModelOption[],
-): BrandKeyStatus {
-  const brandOptions = options.filter(
-    (option) => optionFamily(option) === brand,
-  )
-  const saved = brandOptions.find((option) => option.sourceType === 'saved')
-  return {
-    ready: Boolean(findKeyedOption(brandOptions)),
-    setupOption: pickBest(brandOptions),
-    keyLabel: saved?.keyLabel ?? saved?.maskedKey,
-  }
 }
 
 /** Default provider: one the user holds a key for, else any available, else FAL. */
@@ -248,6 +199,24 @@ export function resolveEffectiveVideoModelOption(
   const provider =
     (state.provider as AI_ADAPTER_TYPES | null) ??
     pickDefaultProvider(state.brand, options)
+
+  // ⚠ 止血（2026-08-08）：switcher 的 variant 轴是从 `qualityTier` 推的，只编码
+  // 速度档（standard/fast），**不编码代次**。Seedance 2.0 与 2.5 都是 premium →
+  // 撞进同一格 → `pickBest` 按数组顺序挑 → 选了 2.5 的节点在提交时被静默换成
+  // 2.0（三种输入组合全中，实测）。用户看不到任何提示，付的钱和等的时间都花在
+  // 另一个模型上。
+  //
+  // 这里先用目录的**型号键**（`MODEL_VARIANTS`，显式区分 2.0 / 2.0-fast / 2.5）
+  // 把候选夹到与用户所选同一型号，再交给旧解析器挑端点。
+  //
+  // ⛔ 这是过渡措施，不是终局：整个「reference 靠输入自动判」的机制会在切片 4
+  // 被「模式归节点」取代（见 canvas-video-domain-cleanup-2026-08-08.md §9.8），
+  // 届时本函数连同 `video-brands.ts` 一起删。**别在这上面继续加东西。**
+  const pickedVariant = getModelVariant(model.modelId)
+  const sameVariantOptions = pickedVariant
+    ? options.filter((o) => getModelVariant(o.modelId) === pickedVariant)
+    : options
+
   return resolveVideoModelId(
     {
       brand: state.brand,
@@ -255,7 +224,7 @@ export function resolveEffectiveVideoModelOption(
       provider,
       hasReferenceInputs,
     },
-    options,
+    sameVariantOptions,
   )
 }
 

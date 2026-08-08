@@ -541,7 +541,14 @@ describe('VideoComposer references row (detail)', () => {
   it('详情复用通用视频模型选择器，不再渲染自造品牌 rail', () => {
     const { container } = renderDetail()
     const picker = screen.getByTestId('shared-model-picker')
-    expect(picker).toHaveTextContent('Seedance · variant.fast')
+    // `triggerLabel` 是**没选模型时的占位**（`CanvasRoutePicker` 把它映射成
+    // `triggerEmptyLabel`），选中之后触发器显示的是模型自己的标签。
+    //
+    // ⚠ 这条断言原本锁的是 `Seedance · variant.fast` —— 那串字**在真实渲染里从
+    // 来没出现过**，只是本文件的 mock 把 triggerLabel 当文本渲染了出来，于是给了
+    // 一个「标签有在显示」的假信心。它还是从 qualityTier 推的，连 2.0 和 2.5 都
+    // 分不开。占位就断言占位。
+    expect(picker).toHaveTextContent('pickModel')
     expect(picker).toHaveAttribute('data-variant', 'media')
     expect(picker).toHaveAttribute('data-modality', 'video')
     expect(container.querySelector('.node-collapsible')).toBeNull()

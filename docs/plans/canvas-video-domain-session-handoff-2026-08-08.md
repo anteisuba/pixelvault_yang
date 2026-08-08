@@ -137,12 +137,17 @@ curl -s "https://api.github.com/repos/runpod-workers/worker-comfyui/contents/.ch
 
 ~~**然后开工切片 3**~~ —— ✅ **切片 3 已于 2026-08-08 交付**（`BaseModelPickerPanel` 三态机 + 三桶抽成纯函数 + `Common.channelCount`，全量 tsc/eslint/测试绿，studio 视频与图片两条线真机验过）。交付记录与实现时定死的规格空白见 `canvas-video-domain-cleanup-2026-08-08.md` **§9.8**。**下一件是切片 4**（节点模式字段 + `density='card'` 顶部三档 tab）。
 
-⚠ **切片 4 开工前必读 §9.8 的三个发现**，第一个会直接改变做法：
+owner 已拍板**两套分类需要收敛**。第一批（不依赖模式的部分 + 止血）已落地，见 cleanup **§9.9**。
 
-1. **画布视频节点不用那个选择器** —— `VideoComposer` 走的是 `constants/video-brands.ts` 的另一套 brand→variant 分类，且 reference **靠输入自动判**，与「模式归节点」互相矛盾；两处还有同名不同签名的 `resolveVideoModelId`。加 tab 前先决定两套收敛还是并存。
-2. 选择器第三层现在还带端点重复（2 渠道 × 2 端点），**要靠切片 4 的模式过滤消掉** —— 组件故意不自己挑。
-3. 单价没接进第三层，注入点是已有的 `detailForOption`，**排在模式过滤之后**做。
+⚠ **切片 4 开工前必读 §9.9**：
 
-**本轮判错一条留作教训**：交接原本写「8–10 条测试会红」，实际只红了 1 条。→ 「会红几条」是拍脑袋的估计，别当验收基线；红得少要去确认是设计对了还是测试太弱。
+1. **提交链路是唯一还没换的一处** —— `resolveEffectiveVideoModelOption` 要换成读节点模式的新解析器，这一处**没法脱离切片 4**。换完 `video-brands.ts` / `video-model-resolver.ts` 整体删（现在挂着的止血也一并消失）。
+2. **`VideoDefaultModelSchema` 故意没动**，它与 autospawn 的端点解析绑在一起，改两次持久化不如改一次。⚠ 顺带查明 **`setDefaultVideoModel` 不在 context 类型里 → 没有任何组件能写它**，`defaultVideoModel` 永远 undefined，`SeedanceNode` 的覆盖徽标是死的，schema 注释里说的「topbar chip」不存在。切片 4 要决定补入口还是整条删。
+3. 选择器第三层还带端点重复（2 渠道 × 2 端点），**靠切片 4 的模式过滤消掉**；单价注入点是 `detailForOption`，排在模式过滤之后。
+
+**本轮判错两条，都记在文档里**：
+
+- 交接原写「8–10 条测试会红」，实际只红 1 条 → 「会红几条」是拍的，别当验收基线；红得少要去确认是设计对了还是测试太弱。
+- 我写过「画布视频节点根本不用那个选择器」，**是错的**——它用（`VideoComposer` → `CanvasRoutePicker` → `BaseModelPickerPanel`）。grep 时漏了中间那层转发就下结论，与 §一.3「grep 一层就下结论」是同一个坑，**记着那条还是又踩了**。→ 说「X 不用 Y」之前，把中间转发层也 grep 一遍。
 
 ⚠ 这是 studio 与画布**共用**的组件，四个消费者自己都没测试。dev server 在跑（owner 开的，**别 kill**），改完用 claude-in-chrome 真机验。

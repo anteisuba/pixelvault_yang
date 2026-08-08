@@ -5,6 +5,7 @@ import { NodeToolbar, Position, type NodeProps } from '@xyflow/react'
 import { AlertTriangle, Maximize2, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { getModelFamily } from '@/constants/models'
 import {
   NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
@@ -14,7 +15,6 @@ import {
   buildDisplayNamePatch,
   resolveNodeDisplayName,
 } from '@/lib/node-display-name'
-import { deriveSwitcherStateFromModel } from '@/lib/video-model-resolver'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
@@ -55,8 +55,11 @@ export const SeedanceNode = memo(function SeedanceNode(
     multiSelectActive,
     canvasNodeDragActive,
   } = useNodeWorkflowActions()
-  const nodeState = deriveSwitcherStateFromModel(data.model)
-  const nodeBrand = nodeState.brand
+  // 直接读目录的系列名，不再绕 `deriveSwitcherStateFromModel` —— 那个函数除了
+  // family 还要算一个从 qualityTier 推出来的 variant，而这里根本用不上它，且那个
+  // variant 分不开 2.0 与 2.5。`MODEL_FAMILIES` 的值就是 `defaultVideoModel.brand`
+  // 存的那批字符串，是同一套。
+  const nodeBrand = data.model ? getModelFamily(data.model.modelId) : null
   const isOverridden = Boolean(
     defaultVideoModel && nodeBrand && nodeBrand !== defaultVideoModel.brand,
   )

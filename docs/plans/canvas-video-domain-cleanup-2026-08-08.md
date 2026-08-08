@@ -419,11 +419,69 @@ Veo 那条能对上不含音频档，说明 homepage 至少有一部分是按「
 
 #### 三个要带进切片 4 的发现
 
-1. ⚠ **画布的视频节点根本不用这个选择器。** `VideoComposer` / `SeedanceNode` / `use-video-composer` 走的是 `constants/video-brands.ts` + `lib/video-model-resolver.ts` 那套**另一个**两层分类（brand → variant，provider 是独立控件，reference 靠**输入自动判**）。它有自己的 `resolveVideoModelId`，与 `constants/video-node-modes.ts` 的**同名函数签名不同**，而且 reference 的处理方式与本设计**互相矛盾**（自动 vs 节点模式）。`ALL_VIDEO_VARIANTS` 还进了 `types/node-workflow.ts` 的 Zod 默认值。→ 切片 4 要在 `density='card'` 顶部加模式 tab，会正面撞上它；**先决定这两套是收敛还是并存**，别直接加。
+1. ❌ **这条我写错了，已于同日更正 —— 见 §9.9。** 原文是「画布的视频节点根本不用这个选择器」。**它用**：`VideoComposer:1509` 渲染 `CanvasRoutePicker variant="media"`，那条路径就是 `MainModelPicker → BaseModelPickerPanel`。我 grep 时关键词里没有 `CanvasRoutePicker`，一层没查到就下了结论（同 §一.3「grep 一层就下结论」）。旧分类当时还活着的只有四个窄用途，不是选择器本身。
 2. ⚠ **第三层现在是过渡态**：Seedance 2.0 显示 4 条 = 2 渠道 × 2 端点。组件**故意不**自己按模式挑一条 —— 选择器不知道模式（模式归节点），挑了就等于把另一个端点变成用户永远够不着的模型。切片 4 的模式过滤一上，(型号 × 渠道 × 模式) 唯一性保证每个渠道只剩一条，重复自然消失。
 3. ⚠ **没有接单价显示**，虽然 §8.2 说第三层「唯一职责是比价」。`MODEL_UNIT_PRICES` 按 `AI_MODELS` 索引，而这是四个模态共用的组件（LLM 路由的 id 根本不在枚举里）—— 硬塞进去就是把视频域概念塞进壳里，正是这次要避免的按模态分支。注入点用已有的 `detailForOption` prop，由调用方给。**排在模式过滤之后**：现在接，价格会挂在重复的端点行上。
 
 **顺带**：`MODEL_VARIANTS` 里 `HAPPYHORSE_10` 的 slug 是 `'happyhorse-1.1'`，模型名却是 HappyHorse 1.0。slug 不露出，纯内部不一致，改不改都行。
+
+### 9.9 ✅ 两套分类收敛 —— 第一批（2026-08-08，owner 拍板「需要收敛」）
+
+#### 先更正 §9.8 发现 1
+
+**「画布视频节点根本不用这个选择器」是错的。** `VideoComposer:1509` 渲染的是
+`CanvasRoutePicker variant="media" mediaModality="video"` → `MainModelPicker` →
+`BaseModelPickerPanel`。三层钻取在画布里一直是生效的。我 grep 的关键词里漏了
+`CanvasRoutePicker`，查了一层就下结论 —— 与 §一.3 记的是同一个坑，**这一轮又踩了一次**。
+
+同时更正：旧分类的 **UI 早就死了**。`composer.brands` / `variants` /
+`isDualProvider` / `selectVariant` / `selectProvider` / `previewBrandModelId`
+全部零消费，`SURFACED_VIDEO_BRANDS`（只露 Seedance/Kling/Veo 的白名单）也因此失效
+—— 画布视频选择器本来就列出全部七个系列。旧分类真正还活着的只有四处窄用途。
+
+#### ⭐ 顺带查出一个活缺陷：Seedance 2.5 被静默换成 2.0
+
+旧的 variant 轴由 `getVideoVariantForModelId` 从 **`qualityTier`** 推出，只编码速度档
+（standard / fast），**不编码代次**。2.0 与 2.5 都是 `premium` → 撞进同一格 →
+`pickBest` 取数组第一个。实测（一次性探针，跑真实目录）：
+
+| 用户选中             | 提交实际跑                          |
+| -------------------- | ----------------------------------- |
+| 2.5、无参考          | `seedance-2.0-volcengine`           |
+| 2.5、有参考          | `seedance-2.0-reference-volcengine` |
+| 2.5 参考端点、有参考 | `seedance-2.0-reference-volcengine` |
+
+`StudioNodeWorkbench:1619` 是 `submitModelId = effectiveVideoModel?.modelId ?? model.modelId`，
+**无条件**走这条路。`use-video-composer` 的 `effectivePreviewModel` 中同一个招 ——
+于是 2.5 节点的参考容量按 2.0 算（9/3/3 而不是 30/10/10），送出预览也是 2.0 的。
+
+**为什么一直没被发现**：`video-model-resolver.test.ts` 的夹具 `SEEDANCE_IDS` 只有 2.0
+的八条，`0fa75286` 接 2.5 时没扩它。→ **往目录加同系列新代次时，夹具必须跟着加。**
+
+好消息：`0fa75286` 当时**尚未 push**，线上没受影响。
+
+#### 本批落地了什么
+
+owner 选的路子：先落不依赖模式的部分 + 止血，提交链路的彻底替换留给切片 4。
+
+| 处                                              | 改法                                                                                                                                                                                                                                                                                                  |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **止血** `resolveEffectiveVideoModelOption`     | 先用目录型号键（`getModelVariant`）把候选夹到与用户所选**同一型号**，再交给旧解析器挑端点                                                                                                                                                                                                             |
+| `use-video-composer` 的 `effectivePreviewModel` | 不再自己拆 brand/variant/provider，**直接复用** `resolveEffectiveVideoModelOption` —— 「按当前输入实际会跑哪个模型」只留一份实现，止血自动继承                                                                                                                                                        |
+| `VideoComposer` 的 `pickerLabel` / `modelLabel` | 删掉「brand · variant」拼串。它**从来没被显示过**：`triggerLabel` 映射到 `triggerEmptyLabel`（无值时的占位），选中后触发器显示模型自己的标签；唯一实际效果是当了 aria-label，于是读屏念「Seedance · 快速」而画面写「Seedance 2.0（火山方舟）」                                                        |
+| `VideoComposer` 的 QuickSetup 重挑              | 记 **optionId** 而不是系列。原先配完 key 调 `selectBrand(brand)` 重挑，用户点的是「Seedance 2.5（火山方舟）」却会落到同系列的另一条                                                                                                                                                                   |
+| `SeedanceNode` 的 `isOverridden`                | `deriveSwitcherStateFromModel` → 直接 `getModelFamily`（`MODEL_FAMILIES` 的值就是 `defaultVideoModel.brand` 存的那批字符串）                                                                                                                                                                          |
+| **删**                                          | `getSurfacedVideoBrands` · `getBrandProviders` · `isDualProviderBrand` · `getBrandKeyStatus` · `SURFACED_VIDEO_BRANDS` · `use-video-composer` 的整套 switcher API（state / applySelection / brands / variants / isDualProvider / selectBrand / selectVariant / selectProvider / previewBrandModelId） |
+
+#### 留给切片 4 的
+
+- **提交链路** `resolveEffectiveVideoModelOption` → 新的 `resolveVideoModelId(型号, 渠道, 模式)`。它要读节点上的**模式字段**，那是切片 4 才加的 → 这一处**没法脱离切片 4**。届时 `video-brands.ts` / `video-model-resolver.ts` 整体删掉，止血一并消失。
+- **`VideoDefaultModelSchema {brand, variant}`**（按项目持久化）。本批**故意没动**：它与 autospawn 的端点解析绑在一起，而那一步也依赖模式，改两次持久化不如改一次。
+  - ⚠ 顺带查明：**`setDefaultVideoModel` 根本不在 `NodeWorkflowActionsContext` 的类型里**，没有任何组件能写它 → `defaultVideoModel` 永远是 `undefined` → `SeedanceNode` 的 ⚠ 覆盖徽标是死的，autospawn 恒走硬编码兜底（Seedance + fast）。schema 注释里说的「topbar chip 读写它」**那个 chip 不存在**。切片 4 要决定：补上写入口，还是整条删掉。
+  - 改 shape 时旧项目的 `{brand:'Seedance', variant:'fast'}` 会解析失败 → `.catch(undefined)` → 用户丢一次项目默认视频模型（可接受，但要知情）。
+  - 附带好处：现在的 `variant: z.enum(ALL_VIDEO_VARIANTS)` 意味着**加一个 variant id 就是一次持久化 schema 变更**；换成型号字符串就不再是。
+
+**闸门**：全量 tsc 0 error · eslint 干净 · 受影响 63 文件 577 测试全绿 · 画布真机验过（节点卡渲染正常、三层钻取可用、选 2.5 之后节点持久化的就是 `seedance-2.5-volcengine`、aria-label 变回「选择模型」）。
 
 ## Last Verified
 

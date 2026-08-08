@@ -6,9 +6,6 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { VIDEO_BRAND_IDS, VIDEO_VARIANT_IDS } from '@/constants/video-brands'
 import {
   deriveSwitcherStateFromModel,
-  getBrandKeyStatus,
-  getSurfacedVideoBrands,
-  isDualProviderBrand,
   pickDefaultProvider,
   resolveEffectiveVideoModelOption,
   resolveVideoModelId,
@@ -31,6 +28,11 @@ function opt(
   }
 }
 
+/**
+ * ⚠ 这份夹具原本只有 2.0 的八条 —— `0fa75286` 接 Seedance 2.5 时没有扩它，于是
+ * 「2.0 与 2.5 在 switcher 的 variant 轴上撞车」整整一轮没被任何测试碰到。
+ * **往目录里加同系列新代次时，这里必须跟着加**，否则撞车照样是静默的。
+ */
 const SEEDANCE_IDS = [
   AI_MODELS.SEEDANCE_20,
   AI_MODELS.SEEDANCE_20_FAST,
@@ -40,6 +42,8 @@ const SEEDANCE_IDS = [
   AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
 ]
 
 const ALL_OPTIONS = [
@@ -196,6 +200,34 @@ describe('resolveEffectiveVideoModelOption — generate-time reference re-resolv
     )
   })
 
+  it('never silently swaps a Seedance 2.5 selection for 2.0', () => {
+    // 回归：switcher 的 variant 轴从 qualityTier 推，只编码速度档不编码代次 →
+    // 2.0 与 2.5 都是 premium、撞进同一格 → pickBest 取数组第一个（2.0）。
+    // 实测三种输入组合全中，用户选 2.5、提交跑 2.0，全程无提示。
+    expect(effectiveId(AI_MODELS.SEEDANCE_25_VOLCENGINE, false)).toBe(
+      AI_MODELS.SEEDANCE_25_VOLCENGINE,
+    )
+    expect(effectiveId(AI_MODELS.SEEDANCE_25_VOLCENGINE, true)).toBe(
+      AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+    )
+    expect(effectiveId(AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE, true)).toBe(
+      AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+    )
+    expect(effectiveId(AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE, false)).toBe(
+      AI_MODELS.SEEDANCE_25_VOLCENGINE,
+    )
+  })
+
+  it('keeps 2.0 selections on 2.0 now that 2.5 shares the variant cell', () => {
+    // 对称方向：夹住型号之后，2.0 也不能被 2.5 抢走。
+    expect(effectiveId(AI_MODELS.SEEDANCE_20_VOLCENGINE, false)).toBe(
+      AI_MODELS.SEEDANCE_20_VOLCENGINE,
+    )
+    expect(effectiveId(AI_MODELS.SEEDANCE_20_VOLCENGINE, true)).toBe(
+      AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
+    )
+  })
+
   it('returns null for Kling/Veo (no _REFERENCE sibling ids; signal at build time)', () => {
     for (const modelId of [AI_MODELS.KLING_V3_PRO, AI_MODELS.KLING_O3_PRO]) {
       const model = getModelById(modelId)
@@ -213,29 +245,7 @@ describe('resolveEffectiveVideoModelOption — generate-time reference re-resolv
   })
 })
 
-describe('getSurfacedVideoBrands', () => {
-  it('surfaces only Seedance/Kling/Veo, never LTX/HappyHorse', () => {
-    const withHidden = [
-      ...ALL_OPTIONS,
-      opt(AI_MODELS.LTX_23),
-      opt(AI_MODELS.HAPPYHORSE_10),
-    ]
-    expect(getSurfacedVideoBrands(withHidden)).toEqual([
-      VIDEO_BRAND_IDS.seedance,
-      VIDEO_BRAND_IDS.kling,
-      VIDEO_BRAND_IDS.veo,
-    ])
-  })
-})
-
-describe('isDualProviderBrand / pickDefaultProvider', () => {
-  it('marks Seedance dual-provider but not Kling', () => {
-    expect(isDualProviderBrand(VIDEO_BRAND_IDS.seedance, ALL_OPTIONS)).toBe(
-      true,
-    )
-    expect(isDualProviderBrand(VIDEO_BRAND_IDS.kling, ALL_OPTIONS)).toBe(false)
-  })
-
+describe('pickDefaultProvider', () => {
   it('prefers the provider that has a saved key, else FAL', () => {
     expect(pickDefaultProvider(VIDEO_BRAND_IDS.seedance, ALL_OPTIONS)).toBe(FAL)
     const withSavedVolc = [
@@ -311,52 +321,7 @@ describe('deriveSwitcherStateFromModel', () => {
   })
 })
 
-describe('getBrandKeyStatus', () => {
-  it('marks a brand ready when it has a saved key, exposing the key label', () => {
-    const withSavedSeedance = [
-      { ...opt(AI_MODELS.SEEDANCE_20_FAST, 'saved'), keyLabel: 'my fal key' },
-      ...SEEDANCE_IDS.filter((id) => id !== AI_MODELS.SEEDANCE_20_FAST).map(
-        (id) => opt(id),
-      ),
-      opt(AI_MODELS.KLING_V3_PRO),
-    ]
-    const status = getBrandKeyStatus(
-      VIDEO_BRAND_IDS.seedance,
-      withSavedSeedance,
-    )
-    expect(status.ready).toBe(true)
-    expect(status.keyLabel).toBe('my fal key')
-  })
-
-  it('marks a brand needs-key when only workspace options exist, but still returns a setup option', () => {
-    const status = getBrandKeyStatus(VIDEO_BRAND_IDS.kling, ALL_OPTIONS)
-    expect(status.ready).toBe(false)
-    expect(status.setupOption?.modelId).toBe(AI_MODELS.KLING_V3_PRO)
-  })
-
-  it('returns no setup option for a brand with no options at all', () => {
-    expect(getBrandKeyStatus(VIDEO_BRAND_IDS.veo, [])).toEqual({
-      ready: false,
-      setupOption: null,
-      keyLabel: undefined,
-    })
-  })
-
-  it('marks a brand ready on provider-level key coverage alone', () => {
-    // The user's only fal key row is bound to Seedance, but fal keys are
-    // universal within the adapter — Kling must not be gated behind setup.
-    const covered = ALL_OPTIONS.map((option) =>
-      option.adapterType === FAL
-        ? { ...option, providerKeyId: 'fal-key-1' }
-        : option,
-    )
-    const status = getBrandKeyStatus(VIDEO_BRAND_IDS.kling, covered)
-
-    expect(status.ready).toBe(true)
-    // No key row is bound to Kling, so there is no key label to show.
-    expect(status.keyLabel).toBeUndefined()
-  })
-
+describe('pickDefaultProvider — provider-level key coverage', () => {
   it('prefers a provider-covered option over an uncovered one for the default provider', () => {
     const covered = ALL_OPTIONS.map((option) =>
       option.adapterType === VOLCENGINE

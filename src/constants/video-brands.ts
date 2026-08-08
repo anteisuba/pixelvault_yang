@@ -15,13 +15,9 @@ export const VIDEO_BRAND_IDS = {
   veo: 'Veo',
 } as const
 
-export const SURFACED_VIDEO_BRANDS = [
-  VIDEO_BRAND_IDS.seedance,
-  VIDEO_BRAND_IDS.kling,
-  VIDEO_BRAND_IDS.veo,
-] as const
-
-export type SurfacedVideoBrand = (typeof SURFACED_VIDEO_BRANDS)[number]
+// 2026-08-08 收敛：`SURFACED_VIDEO_BRANDS`（只露 Seedance/Kling/Veo 的白名单）
+// 已删 —— 它服务的 brand 切换栏早已不存在，模型选择走 `BaseModelPickerPanel`
+// 的三层钻取，那里本来就列出全部系列。留着只会让人以为 LTX/HappyHorse 被藏了。
 
 export const VIDEO_VARIANT_IDS = {
   standard: 'standard',

@@ -1,17 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_TYPE_IDS, NODE_WORKFLOW_FIELD_IDS } from '@/constants/node-types'
-import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getVideoModelImageLimit } from '@/constants/video-model-send-plan'
-import {
-  VIDEO_BRAND_IDS,
-  VIDEO_VARIANT_IDS,
-  type VideoVariantId,
-} from '@/constants/video-brands'
+import { VIDEO_BRAND_IDS, VIDEO_VARIANT_IDS } from '@/constants/video-brands'
 import { useNodeWorkflowActions } from '@/components/business/node/NodeWorkflowActionsContext'
 import { parseMentions } from '@/components/business/node/composer/MentionInput'
 import type { ReferenceTokenData } from '@/components/business/node/composer/ReferenceTokenChip'
@@ -40,11 +35,8 @@ import {
   readVoiceUrl,
 } from '@/lib/node-workflow-graph'
 import {
-  deriveSwitcherStateFromModel,
-  getBrandVariants,
-  getSurfacedVideoBrands,
-  isDualProviderBrand,
   pickDefaultProvider,
+  resolveEffectiveVideoModelOption,
   resolveVideoModelId,
 } from '@/lib/video-model-resolver'
 import type {
@@ -564,97 +556,12 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     return ids
   }, [referenceTokens, promptValue])
 
-  const state = useMemo(
-    () => deriveSwitcherStateFromModel(data.model),
-    [data.model],
-  )
-  const brands = useMemo(() => getSurfacedVideoBrands(options), [options])
-  const variants = useMemo(
-    () => (state.brand ? getBrandVariants(state.brand) : []),
-    [state.brand],
-  )
-  const isDualProvider = useMemo(
-    () => (state.brand ? isDualProviderBrand(state.brand, options) : false),
-    [options, state.brand],
-  )
-
-  const applySelection = useCallback(
-    (selection: {
-      brand: string
-      variant: VideoVariantId
-      provider: AI_ADAPTER_TYPES
-    }) => {
-      const resolved = resolveVideoModelId(
-        { ...selection, hasReferenceInputs },
-        options,
-      )
-      if (resolved) updateNodeData(nodeId, { model: toSelection(resolved) })
-    },
-    [hasReferenceInputs, nodeId, options, updateNodeData],
-  )
-
-  const selectBrand = useCallback(
-    (brand: string) => {
-      const brandVariants = getBrandVariants(brand)
-      const variant =
-        (state.variant && brandVariants.includes(state.variant)
-          ? state.variant
-          : brandVariants[0]) ?? VIDEO_VARIANT_IDS.fast
-      applySelection({
-        brand,
-        variant,
-        provider: pickDefaultProvider(brand, options),
-      })
-    },
-    [applySelection, options, state.variant],
-  )
-
-  const selectVariant = useCallback(
-    (variant: VideoVariantId) => {
-      if (!state.brand) return
-      applySelection({
-        brand: state.brand,
-        variant,
-        provider: state.provider ?? pickDefaultProvider(state.brand, options),
-      })
-    },
-    [applySelection, options, state.brand, state.provider],
-  )
-
-  const selectProvider = useCallback(
-    (provider: AI_ADAPTER_TYPES) => {
-      if (!state.brand) return
-      const variant =
-        state.variant ??
-        getBrandVariants(state.brand)[0] ??
-        VIDEO_VARIANT_IDS.fast
-      applySelection({ brand: state.brand, variant, provider })
-    },
-    [applySelection, state.brand, state.variant],
-  )
-
-  // Resolve the model id `selectBrand(brand)` WOULD apply, without applying it —
-  // lets the composer preview the capability rebind (将映射/将忽略) before the
-  // switch commits. Mirrors selectBrand's variant/provider resolution.
-  const previewBrandModelId = useCallback(
-    (brand: string): string | undefined => {
-      const brandVariants = getBrandVariants(brand)
-      const variant =
-        (state.variant && brandVariants.includes(state.variant)
-          ? state.variant
-          : brandVariants[0]) ?? VIDEO_VARIANT_IDS.fast
-      return resolveVideoModelId(
-        {
-          brand,
-          variant,
-          provider: pickDefaultProvider(brand, options),
-          hasReferenceInputs,
-        },
-        options,
-      )?.modelId
-    },
-    [hasReferenceInputs, options, state.variant],
-  )
+  // 2026-08-08 收敛：brand/variant/provider 这一整套 switcher 状态与它的三个
+  // setter（selectBrand / selectVariant / selectProvider）、以及 brands /
+  // variants / isDualProvider / previewBrandModelId 全部删除 —— 模型选择早就交给
+  // `CanvasRoutePicker`（→ `BaseModelPickerPanel` 三层钻取）了，这套 API 在 UI 上
+  // **零消费**，只是还挂在返回值里，让人以为画布用的是另一套分类。
+  // 见 canvas-video-domain-cleanup-2026-08-08.md §9.8。
 
   useEffect(() => {
     if (data.model) return
@@ -699,27 +606,23 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   // BOTH the panel's capacity math AND `sendPreview` below read the same
   // value; undefined (model unknown) degrades to "no cap known", never a
   // guessed number.
+  //
+  // ⚠ 这里原先自己拆 brand/variant/provider 再调 `resolveVideoModelId`，于是**中了
+  // 同一个撞车**：variant 轴分不开 2.0 与 2.5，一个 2.5 节点算出来的容量上限是
+  // 2.0 的（9/3/3 而不是 30/10/10），送出预览也按 2.0 算。改成直接复用
+  // `resolveEffectiveVideoModelOption` —— 它就是「按当前输入，实际会跑哪个模型」
+  // 的那一份答案，提交链路（StudioNodeWorkbench）用的也是它。同一个问题只留一个
+  // 实现，顺带把型号夹紧的止血一起继承过来。
   const effectivePreviewModel = useMemo(() => {
-    if (!state.brand || !state.variant || !state.provider) return data.model
+    if (!data.model) return data.model
     return (
-      resolveVideoModelId(
-        {
-          brand: state.brand,
-          variant: state.variant,
-          provider: state.provider,
-          hasReferenceInputs,
-        },
+      resolveEffectiveVideoModelOption(
+        data.model,
+        hasReferenceInputs,
         options,
       ) ?? data.model
     )
-  }, [
-    data.model,
-    hasReferenceInputs,
-    options,
-    state.brand,
-    state.provider,
-    state.variant,
-  ])
+  }, [data.model, hasReferenceInputs, options])
   const maxReferenceImages = getVideoModelImageLimit(
     effectivePreviewModel?.modelId,
     effectivePreviewModel?.adapterType,
@@ -763,19 +666,11 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
 
   return {
     options,
-    brands,
-    state,
-    variants,
-    isDualProvider,
     hasReferenceInputs,
     hasUpstreamInputs,
     referenceKinds,
     referenceTokens,
     referencedTokenIds,
-    selectBrand,
-    selectVariant,
-    selectProvider,
-    previewBrandModelId,
     maxReferenceImages,
     sendPreview,
   }

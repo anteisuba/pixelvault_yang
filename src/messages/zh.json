@@ -3742,8 +3742,8 @@
     "nodeTypes": {
       "shotText": "镜头文本",
       "shot": "镜头图",
-      "characterImage": "角色图",
-      "backgroundImage": "背景图",
+      "characterImage": "卡片",
+      "backgroundImage": "卡片",
       "frameImage": "关键帧",
       "image": "图片",
       "voice": "音色",

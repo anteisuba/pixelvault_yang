@@ -17,6 +17,7 @@ import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
 import { useNodeWorkflowActions } from '@/components/business/node/NodeWorkflowActionsContext'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { pushComposerHistory } from '@/lib/generate-composer-history'
+import { isIdentityCardNode } from '@/lib/node-workflow-graph'
 import type { GenerationRecord } from '@/types'
 import type {
   NodeWorkflowModelSelection,
@@ -98,6 +99,12 @@ export function inferComposerHost(
   node: NodeWorkflowNode | null,
 ): ComposerHost | null {
   if (!node) return null
+  // ⚠ 卡片（角色卡 / 背景卡）**不是生成宿主**。它是身份档案夹：收集同一个主体的图，
+  // 自己不产图 —— 要出图就落在图片节点上，卡片只负责引用（owner 2026-08-08）。
+  //
+  // 这里原先只按**媒体种类**设闸，而卡片的 kind 恰好也是 `image`，于是生成框直接挂
+  // 到了角色卡上。判据必须是 role，不是 kind —— 那个维度天然分不出卡片和图。
+  if (isIdentityCardNode(node)) return null
   const kind = NODE_MEDIA_KIND_BY_NODE_TYPE[node.type]
   if (
     kind !== NODE_MEDIA_KIND_IDS.image &&

@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type {
   NodeWorkflowNode,
@@ -44,10 +44,12 @@ describe('inferComposerHost (§7.5 宿主推断)', () => {
       mediaLabel: undefined,
     })
 
+    // ⚠ 这里原本用的是 `characterImage` —— 那是**卡片**，现在不再是生成宿主（见下一条）。
+    // 换成 shot（镜头图），它才是「图」这一侧、生成真正的落点。
     const populated = inferComposerHost(
-      makeNode('n2', NODE_TYPE_IDS.characterImage, {
+      makeNode('n2', NODE_TYPE_IDS.shot, {
         mediaUrl: 'https://cdn.test/a.png',
-        mediaLabel: '角色A',
+        mediaLabel: '镜头A',
       }),
     )
     expect(populated).toEqual({
@@ -55,8 +57,43 @@ describe('inferComposerHost (§7.5 宿主推断)', () => {
       mode: 'image',
       hasMedia: true,
       mediaUrl: 'https://cdn.test/a.png',
-      mediaLabel: '角色A',
+      mediaLabel: '镜头A',
     })
+  })
+
+  it('卡片不是生成宿主 —— 角色卡/背景卡都不挂生成框', () => {
+    // 卡片是身份档案夹：收集同一个主体的图，自己不产图。要出图就落在图片节点上，
+    // 卡片只负责引用（owner 2026-08-08）。
+    //
+    // ⚠ 此前的判据是「媒体种类」，而卡片的 kind 也是 image，于是生成框直接挂到了
+    // 角色卡上 —— 判据必须是 role，那个维度才分得出卡片和图。
+    for (const node of [
+      // 统一 image 节点 + 卡片 role
+      makeNode('c1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.character,
+      }),
+      makeNode('c2', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.background,
+      }),
+      // 两个旧类型：名字里带 Image，渲染的其实是卡片，存量图里还有
+      makeNode('c3', NODE_TYPE_IDS.characterImage),
+      makeNode('c4', NODE_TYPE_IDS.backgroundImage),
+    ]) {
+      expect(inferComposerHost(node), node.id).toBeNull()
+    }
+  })
+
+  it('图这一侧照常当宿主 —— 镜头/关键帧/特写不受影响', () => {
+    for (const role of [
+      NODE_IMAGE_ROLE_IDS.shot,
+      NODE_IMAGE_ROLE_IDS.frame,
+      NODE_IMAGE_ROLE_IDS.closeup,
+    ]) {
+      const host = inferComposerHost(
+        makeNode(`i-${role}`, NODE_TYPE_IDS.image, { role }),
+      )
+      expect(host?.mode, role).toBe('image')
+    }
   })
 
   it('locks audio mode for a voice node', () => {

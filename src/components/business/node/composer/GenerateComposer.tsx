@@ -35,7 +35,14 @@ import type { GenerationRecord } from '@/types'
 import type {
   NodeWorkflowModelOption,
   NodeWorkflowModelSelection,
+  NodeWorkflowNode,
 } from '@/types/node-workflow'
+import {
+  buildDisplayNamePatch,
+  buildFallbackNodeNames,
+  resolveNodeDisplayName,
+} from '@/lib/node-display-name'
+import { resolveNodePresentationType } from '@/lib/node-presentation'
 
 import { aspectBoxStyle } from './VideoComposer'
 import { GenerateComposerTemplatePicker } from './GenerateComposerTemplatePicker'
@@ -271,7 +278,14 @@ interface ComposerCoreProps {
  *  button, prompt, mode-aware param row + send. */
 function ComposerCore({ composer }: ComposerCoreProps) {
   const t = useTranslations('StudioNode.generateComposer')
-  const { modelOptionsByType, setExpandedNodeId } = useNodeWorkflowActions()
+  const tTypes = useTranslations('StudioNode.nodeTypes')
+  const {
+    modelOptionsByType,
+    setExpandedNodeId,
+    listConnectableReferences,
+    connectReferenceNode,
+    updateNodeData,
+  } = useNodeWorkflowActions()
   // 审核动作要的是宿主节点的完整 data（composer.host 只是摘要）。宿主本来就
   // 由「当前单选节点」推出（inferComposerHost），所以取同一个来源，两者不可能
   // 指向不同的卡。
@@ -343,6 +357,42 @@ function ComposerCore({ composer }: ComposerCoreProps) {
   // 的收窄不会穿过闭包，对 const 局部变量的收窄会）。
   const host = composer.host
 
+  /**
+   * @ 提及 —— 与视频节点同一套（`MentionInput` 本来就是四处共用的组件）。
+   * 没有宿主（空白画布起手）时没有连线目标，候选自然为空。
+   */
+  const mentionSource = host
+    ? (listConnectableReferences?.(host.nodeId) ?? [])
+    : []
+  // ⚠ 用 `resolveNodePresentationType` 而不是 `node.data.role` —— `nodeTypes` 是按
+  // **类型**编键的，直接拿 role 当键会解析不到、把 `StudioNode.nodeTypes.character`
+  // 原样显示给用户（实测撞到过）。这个函数就是为「role → 展示类型」准备的。
+  const mentionKindOf = (node: NodeWorkflowNode) =>
+    tTypes(resolveNodePresentationType(node))
+  const mentionNames = buildFallbackNodeNames(mentionSource, mentionKindOf)
+  const mentionCandidates = mentionSource.map((node) => ({
+    id: node.id,
+    name: mentionNames.get(node.id) ?? node.id,
+    groupLabel: mentionKindOf(node),
+  }))
+
+  const handleMentionSelect = (candidate: { id: string; name: string }) => {
+    if (!host) return
+    const node = mentionSource.find((n) => n.id === candidate.id)
+    // 引用即命名 —— 同 VideoComposer：提议名会随增删重编号，而 @ 存进 prompt 的是
+    // 字面文本，不落库以后就会指向别的节点。
+    if (node && !resolveNodeDisplayName(node.data)) {
+      updateNodeData?.(
+        node.id,
+        buildDisplayNamePatch(
+          { role: node.data.role, type: node.type },
+          candidate.name,
+        ),
+      )
+    }
+    connectReferenceNode?.(candidate.id, host.nodeId)
+  }
+
   const handleSelectAsset = (generation: GenerationRecord) => {
     composer.addReferenceFromAsset(generation)
     setAssetDialogOpen(false)
@@ -398,6 +448,8 @@ function ComposerCore({ composer }: ComposerCoreProps) {
           value={composer.promptDraft}
           onValueChange={composer.setPromptDraft}
           tokens={[]}
+          mentionCandidates={mentionCandidates}
+          onMentionSelect={handleMentionSelect}
           aria-label={t('placeholderEmpty')}
           placeholder={placeholder}
           {...KEY_GUARD}

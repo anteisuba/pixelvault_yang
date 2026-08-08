@@ -306,6 +306,33 @@ describe('planNodeAssistantOps · 触发生成', () => {
     })
   })
 
+  it('卡片不能生成 → notGeneratable（助手要出图得落在图片节点上）', () => {
+    // 卡片是身份档案夹，自己不产图；助手的产物落在图片节点，卡片只负责引用。
+    // ⚠ 卡片的 media kind 也是 image，只按 kind 判会让助手把结果写进卡片。
+    for (const node of [
+      makeNode('c1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.character,
+        model: GEMINI_MODEL,
+      }),
+      makeNode('c2', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.background,
+        model: GEMINI_MODEL,
+      }),
+      makeNode('c3', NODE_TYPE_IDS.characterImage, { model: GEMINI_MODEL }),
+      makeNode('c4', NODE_TYPE_IDS.backgroundImage, { model: GEMINI_MODEL }),
+    ]) {
+      const plan = planNodeAssistantOps(
+        batch({ op: 'generate', target: node.id }),
+        [node],
+        [],
+      )
+      expect(plan.ops[0], node.id).toMatchObject({
+        status: 'rejected',
+        reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.notGeneratable,
+      })
+    }
+  })
+
   it('没选模型 → noModel（与人手点生成时的拦法一致）', () => {
     const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
       role: NODE_IMAGE_ROLE_IDS.shot,

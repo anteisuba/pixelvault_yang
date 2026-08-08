@@ -69,6 +69,7 @@ import {
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
 import { getSeedanceReferenceKind } from '@/lib/node-workflow-graph'
+import { resolveNodePresentationType } from '@/lib/node-presentation'
 import {
   buildDisplayNamePatch,
   buildFallbackNodeNames,
@@ -1013,8 +1014,15 @@ export function VideoComposer({
    * ⚠ @ 只绑节点，**不绑模型** —— 模型有它自己的选择器（cleanup §9.4：模型选择在
    * 节点面板内，不做第二个入口）。
    */
-  const mentionKindOf = (node: NodeWorkflowNode) =>
-    tc(`refKind.${getSeedanceReferenceKind(node) ?? 'video'}`)
+  // ⚠ 参考类用 refKind（角色/镜头/参考视频…），**其余用节点类型**。此前一律
+  // `?? 'video'`，于是镜头文本这种结构类节点被叫成「参考视频1」并按这个名字落了库
+  // —— 名字一旦盖上去就是错的。
+  const mentionKindOf = (node: NodeWorkflowNode) => {
+    const refKind = getSeedanceReferenceKind(node)
+    return refKind
+      ? tc(`refKind.${refKind}`)
+      : tTypes(resolveNodePresentationType(node))
+  }
   // 没起过名字的节点在这里拿一个「类型+序号」的**提议名**（uuid 是没法打字匹配的）。
   const mentionNames = buildFallbackNodeNames(
     connectableReferences,

@@ -116,6 +116,7 @@ import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import { markMediaAwaitingReview, rejectMedia } from '@/lib/node-media-review'
 import {
   buildDisplayNamePatch,
+  resolveNodeDisplayName,
   stripFileExtension,
 } from '@/lib/node-display-name'
 import type {
@@ -140,6 +141,7 @@ import {
   harvestUpstreamShotTextPrompt,
   harvestUpstreamVideoImageReferences,
   harvestUpstreamVideoUrls,
+  getSeedanceReferenceKind,
   isShotNode,
   mergePromptWithUpstreamText,
   summarizeUpstreamSeedanceReferences,
@@ -2873,6 +2875,18 @@ function StudioNodeCanvas() {
   // exact same addEdge path onConnect already uses (idempotent — a duplicate
   // source→target is rejected before this is ever called, see
   // use-cast-ingest.ts's evaluateCastIngest).
+  /**
+   * 连线的**唯一落点** —— 拖边（ReactFlow 的 `onConnect`）、@ 提及、从画布选择、
+   * ＋添加素材全走这里。
+   *
+   * owner 2026-08-08：连上了也要进输入框。但**只有素材类**才插（图 / 声音 / 视频）——
+   * `getSeedanceReferenceKind` 认得出是不是参考。结构类的边（镜头文本 → 视频，它给的
+   * 就是 prompt 本身）插进去只是噪音。
+   *
+   * ⚠ 追加到正文末尾，不动光标：用户可能正在中间打字，把 token 插到光标处会打断他。
+   * ⚠ 已经提过的不再重复插一遍 —— 同一个素材连两次（比如断开再连）不该出现两个
+   *   `@名字`。
+   */
   const handleIngestConnect = useCallback(
     (sourceId: string, targetId: string) => {
       workflow.onConnect({
@@ -2880,6 +2894,24 @@ function StudioNodeCanvas() {
         target: targetId,
         sourceHandle: null,
         targetHandle: null,
+      })
+
+      const source = workflow.nodes.find((node) => node.id === sourceId)
+      const target = workflow.nodes.find((node) => node.id === targetId)
+      if (!source || !target) return
+      // 素材类才进正文；结构类（镜头文本等）不插。
+      if (!getSeedanceReferenceKind(source)) return
+
+      const name = resolveNodeDisplayName(source.data)
+      if (!name) return
+      const prompt =
+        typeof target.data.prompt === 'string' ? target.data.prompt : ''
+      const token = `@${name}`
+      if (prompt.includes(token)) return
+      workflow.updateNodeData(targetId, {
+        prompt: prompt
+          ? `${prompt.replace(/\s*$/, '')} ${token} `
+          : `${token} `,
       })
     },
     [workflow],

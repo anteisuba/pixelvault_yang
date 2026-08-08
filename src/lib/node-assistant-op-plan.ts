@@ -32,7 +32,7 @@ import {
   NODE_STATUS_IDS,
 } from '@/constants/node-types'
 import { canAssistantSetReviewState } from '@/lib/node-media-review'
-import { getNodeMediaUrl } from '@/lib/node-workflow-graph'
+import { getNodeMediaUrl, isIdentityCardNode } from '@/lib/node-workflow-graph'
 import { evaluateCastIngest } from '@/hooks/node/use-cast-ingest'
 import type {
   NodeAssistantOp,
@@ -306,7 +306,16 @@ export function planNodeAssistantOps(
         const kind = targetNode
           ? NODE_MEDIA_KIND_BY_NODE_TYPE[targetNode.type]
           : undefined
-        if (!targetNode || !kind || kind === NODE_MEDIA_KIND_IDS.text) {
+        // ⚠ 卡片（角色卡 / 背景卡）**不是生成目标**：它是身份档案夹，收集同一个主体
+        // 的图，自己不产图。助手要出图就落在图片节点上，卡片只负责引用
+        // （owner 2026-08-08）。与 `inferComposerHost` 的卡片闸门同一条判据 ——
+        // 卡片的 media kind 也是 image，只按 kind 判会让助手把结果写进卡片。
+        if (
+          !targetNode ||
+          !kind ||
+          kind === NODE_MEDIA_KIND_IDS.text ||
+          isIdentityCardNode(targetNode)
+        ) {
           planned.push({
             index,
             op,

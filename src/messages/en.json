@@ -3742,8 +3742,8 @@
     "nodeTypes": {
       "shotText": "Shot Text",
       "shot": "Shot Image",
-      "characterImage": "Character Image",
-      "backgroundImage": "Background Image",
+      "characterImage": "Card",
+      "backgroundImage": "Card",
       "frameImage": "Frame Image",
       "image": "Image",
       "voice": "Voice Profile",

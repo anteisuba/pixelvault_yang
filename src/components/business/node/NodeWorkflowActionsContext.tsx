@@ -15,7 +15,6 @@ import type { PlannedNodeAssistantOp } from '@/lib/node-assistant-op-plan'
 import type {
   NodeWorkflowModelOptionsByType,
   NodeWorkflowNode,
-  VideoDefaultModel,
 } from '@/types/node-workflow'
 
 /** A backfilled reference to autospawn upstream of a video node (§7.1): an
@@ -141,9 +140,6 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
    */
   canvasNodeDragActive?: boolean
   modelOptionsByType: NodeWorkflowModelOptionsByType
-  /** Canvas-default video model (two-tier {brand,variant}); new video nodes
-   *  inherit it via the autospawn effect. Set from the topbar chip. */
-  defaultVideoModel: VideoDefaultModel | undefined
   /** Right-rail workspace UI state, persisted on the project so it survives a
    *  reload. The ScriptDoc workspace reads + writes these through the context. */
   scriptDocStage: ScriptDocStage | undefined

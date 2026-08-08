@@ -998,6 +998,67 @@ describe('BaseModelPickerPanel', () => {
     expect(screen.queryByText('Kling 3.0 Pro')).not.toBeInTheDocument()
   })
 
+  it('lets the caller rewrite ONLY the collapsed trigger label', () => {
+    // 视频节点要触发器读「型号 · 渠道」而不带端点：模式已经说过一次「全能参考」了。
+    // ⚠ 覆写不能波及列表项 —— 第三层的渠道行恰恰要能区分火山与 fal，这正是
+    // `labelForOption`（触发器与列表项共用）用不上的原因。
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value="seedance-2.0-volcengine"
+        onChange={vi.fn()}
+        triggerLabelForOption={({ variantLabel, channelLabel }) =>
+          `${variantLabel} · ${channelLabel}`
+        }
+      />,
+    )
+
+    // 触发器：型号名（族内去重后的干净名）+ 渠道，原标签里的括注不出现。
+    const trigger = screen.getByRole('button')
+    expect(trigger).toHaveTextContent('Seedance 2.0 · VolcEngine')
+    expect(trigger).not.toHaveTextContent('（火山方舟）')
+
+    // 列表项不受影响：钻到第三层，两条渠道各自保留自己的完整标签。
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByText('Seedance'))
+    fireEvent.click(screen.getByText('Seedance 2.0'))
+    expect(screen.getByText('Seedance 2.0（火山方舟）')).toBeInTheDocument()
+  })
+
+  it('falls back to the option label when the caller passes no trigger override', () => {
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value="seedance-2.0-volcengine"
+        onChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button')).toHaveTextContent(
+      'Seedance 2.0（火山方舟）',
+    )
+  })
+
+  it('shows the placeholder when the selection is not in the passed options', () => {
+    // ⚠ 记一条容易误判的交互：`selectedOption` 是对**传进来的** options 解析的，而
+    // `filterOption`（视频节点按模式收窄）是在到达本组件**之前**就过滤掉的。所以一旦
+    // 选中的模型不属于当前模式，触发器读的是占位而不是那个模型名 —— 即使调用方的
+    // `data.model` 还存着值。
+    //
+    // 这在视频节点里应当是瞬态：切档会把不兼容的模型清掉（§9.3）。若稳定复现出这个
+    // 状态，说明清空那一步漏了，而不是这里显示错了。
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE.filter((o) => o.optionId !== 'kling-fal')}
+        value="kling-fal"
+        onChange={vi.fn()}
+        triggerLabelForOption={({ variantLabel, channelLabel }) =>
+          `${variantLabel} · ${channelLabel}`
+        }
+      />,
+    )
+    expect(screen.getByRole('button')).toHaveTextContent('Common.selectModel')
+  })
+
   it('uses the popover content as the scroll container', () => {
     render(
       <BaseModelPickerPanel

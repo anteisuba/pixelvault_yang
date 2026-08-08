@@ -972,22 +972,8 @@ describe('useNodeWorkflow', () => {
     expect(result.current.projects).toHaveLength(2)
   })
 
-  it('persists the canvas default video model', async () => {
-    const { result } = renderNodeWorkflowHook()
-    await act(async () => {
-      await Promise.resolve()
-    })
-
-    act(() => {
-      // 型号键（`MODEL_VARIANTS`），不再是 brand + qualityTier 推的速度档 ——
-      // 那对旧值分不开 Seedance 2.0 与 2.5。
-      result.current.setDefaultVideoModel({ variant: 'seedance-2.0-fast' })
-    })
-
-    expect(result.current.defaultVideoModel).toEqual({
-      variant: 'seedance-2.0-fast',
-    })
-  })
+  // 「持久化项目级默认视频模型」那条测试已随 `defaultVideoModel` 整条删除
+  // （cleanup §9.10）—— 它守的是一个没有写入口、恒为 undefined 的字段。
 
   it('persists and resets the project canvas appearance outside graph undo', async () => {
     vi.useFakeTimers()

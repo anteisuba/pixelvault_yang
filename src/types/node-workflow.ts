@@ -502,23 +502,12 @@ export const NodeWorkflowEdgeSchema = z
   })
   .passthrough()
 
-/**
- * 项目级的默认视频**型号**（`MODEL_VARIANTS` 的键，如 `seedance-2.0-fast`）。按项目
- * 持久化，新建视频节点时继承它，好让跨镜头有个一致的基准；渠道与端点在 spawn 时按
- * 用户手上的 key 和节点模式各自解析（`pickDefaultVideoModel`）。
- *
- * ⚠ **它目前没有写入口** —— `setDefaultVideoModel` 不在 `NodeWorkflowActionsContext`
- * 的类型里，所以没有任何组件能写它，实际恒为 `undefined`（注释里说的「topbar chip」
- * 不存在）。要么补上入口，要么整条删，见 cleanup §9.10。
- *
- * ⚠ 型号是**普通字符串不是 enum**：写成 enum 的话，往目录加一个新型号就变成一次
- * 持久化 schema 变更（旧的 `variant: z.enum(ALL_VIDEO_VARIANTS)` 就是这个毛病）。
- * 认不出来的值配合 `.catch(undefined)` 自然退化成「没有默认」。
- */
-export const VideoDefaultModelSchema = z.object({
-  variant: z.string().trim().min(1).max(60),
-})
-export type VideoDefaultModel = z.infer<typeof VideoDefaultModelSchema>
+// 2026-08-08：`VideoDefaultModelSchema`（项目级默认视频型号 + 跨镜头漂移徽标）整条
+// 删除。管道齐全但**没有写入口** —— `setDefaultVideoModel` 从来不在
+// `NodeWorkflowActionsContext` 的类型里，没有任何组件能写它，于是它恒为 undefined、
+// 徽标从不点亮、autospawn 永远走硬编码兜底。注释里说的「topbar chip」不存在。
+// owner 拍板删（cleanup §9.10）：留着无人消费的管道，正是这一轮清掉的那套 brand
+// switcher 的成因 —— 下一个会话会以为它在跑。要做时按新分类重建。
 
 export const CanvasAppearanceImageSchema = z.object({
   url: z.httpUrl().max(4000),
@@ -545,11 +534,6 @@ export const NodeWorkflowStateDataSchema = z.object({
    * coerces to an EMPTY state, wiping the user's nodes/edges.
    */
   scriptDoc: ScriptDocSchema.optional().catch(undefined),
-  /**
-   * Canvas-default video model. `.catch(undefined)` mirrors scriptDoc's
-   * seatbelt so a malformed value never fails the whole-state parse.
-   */
-  defaultVideoModel: VideoDefaultModelSchema.optional().catch(undefined),
   /**
    * Project-level canvas wallpaper. As with ScriptDoc, malformed appearance
    * data degrades to undefined instead of rejecting and emptying the graph.

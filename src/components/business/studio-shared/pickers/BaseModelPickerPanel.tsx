@@ -195,6 +195,20 @@ export interface BaseModelPickerPanelProps {
    * label to show in the trigger and list items.
    */
   labelForOption?: (option: StudioModelOption) => string
+  /**
+   * **只作用于收起态触发器**的标签覆写（`labelForOption` 是触发器与列表项共用的，
+   * 两者需求会冲突 —— 见 `selectedLabel` 处的注释）。
+   *
+   * 拿到的是选择器已经算好的型号名与渠道名，调用方只负责拼。典型用法：
+   * `({ variantLabel, channelLabel }) => `${variantLabel} · ${channelLabel}``
+   */
+  triggerLabelForOption?: (ctx: {
+    option: StudioModelOption
+    /** 该条目所属型号的显示名，已按族内唯一性削掉端点/渠道括注。 */
+    variantLabel: string
+    /** 该条目的渠道名（`providerConfig.label`）。 */
+    channelLabel: string
+  }) => string
   /** Optional secondary metadata shown on provider and model rows. */
   detailForOption?: (option: StudioModelOption) => string | undefined
 }
@@ -239,6 +253,7 @@ export function BaseModelPickerPanel({
   disabled,
   savedOptionLabelMode = 'model',
   labelForOption,
+  triggerLabelForOption,
   detailForOption,
 }: BaseModelPickerPanelProps) {
   const [open, setOpen] = useState(false)
@@ -380,8 +395,37 @@ export function BaseModelPickerPanel({
     () => options.find((o) => o.optionId === value),
     [options, value],
   )
+  /**
+   * 收起态触发器显示什么。默认是选中条目自己的标签。
+   *
+   * ⚠ 这里**不能**复用 `labelForOption` —— 它的契约是「触发器与列表项共用同一个覆写」，
+   * 而这两处的需求正好相反：视频节点想让触发器**不带端点**（`Seedance 2.5 · 火山方舟`，
+   * 「参考」由模式说了算），可第三层的渠道行恰恰要能区分火山与 fal。共用一个口就是
+   * 这个 prop 至今没人用的原因。
+   *
+   * 覆写函数拿到的是选择器**已经算好**的东西（族内去重过的型号名、渠道名），调用方
+   * 只负责拼 —— 标签推导那套（`deriveVariantLabels`）不该复制到调用点去。
+   */
+  const selectedVariantLabel = useMemo(() => {
+    if (!selectedOption) return null
+    const family = familyGroups.find(
+      (g) => g.familyKey === familyKeyOf(selectedOption),
+    )
+    return (
+      family?.variants.find(
+        (v) => v.variantKey === variantKeyOf(selectedOption),
+      )?.label ?? null
+    )
+  }, [familyGroups, selectedOption])
+
   const selectedLabel = selectedOption
-    ? resolveLabel(selectedOption)
+    ? // 选中项可能不在当前 options 里（如模式刚切、模型还没清），那时算不出型号名，
+      // 退回它自己的标签而不是显示空。
+      (triggerLabelForOption?.({
+        option: selectedOption,
+        variantLabel: selectedVariantLabel ?? resolveLabel(selectedOption),
+        channelLabel: getProviderLabel(selectedOption.providerConfig),
+      }) ?? resolveLabel(selectedOption))
     : resolvedTriggerEmptyLabel
 
   // ...but the check mark has to land on the row that survived dedupe, else a

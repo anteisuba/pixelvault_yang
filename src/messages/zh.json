@@ -4033,7 +4033,6 @@
       },
       "emptyPreview": "还没有生成视频",
       "generating": "生成中...",
-      "overrideHint": "覆盖了画布默认模型 — 可能与其它镜不一致。",
       "motionLabel": "运动",
       "cameraLabel": "镜头",
       "durationLabel": "时长",

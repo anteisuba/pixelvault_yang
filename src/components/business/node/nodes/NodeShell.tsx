@@ -70,9 +70,6 @@ interface NodeShellRootProps {
   children: ReactNode
   showSourceHandle?: boolean
   showTargetHandle?: boolean
-  /** Shot-override signal (§5.1): the node's model differs from the canvas
-   *  default → a neutral dashed border (no amber, per D1) so it's scannable. */
-  overridden?: boolean
   /**
    * True only for the character/background archive-card face
    * (`IdentityCollectorCard`) — see `NodeSelectionToolbarChrome`'s doc for
@@ -393,7 +390,6 @@ function NodeShellRoot({
   children,
   showSourceHandle = true,
   showTargetHandle = true,
-  overridden = false,
   isCollector,
   className,
 }: NodeShellRootProps) {
@@ -427,7 +423,6 @@ function NodeShellRoot({
         // 选中态与失败态改由 data-selected / data-status 驱动（见 canvas.css），
         // 原来的 ring + border 组合去掉，避免和 canvas-card 的 box-shadow 打架。
         'group relative w-node-card overflow-visible node-card-paper canvas-card',
-        overridden && 'border-dashed',
         className,
       )}
     >

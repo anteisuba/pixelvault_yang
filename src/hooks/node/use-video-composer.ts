@@ -136,23 +136,22 @@ function toSelection(
 }
 
 /**
- * Drives the two-tier video model switcher + provider picker for a single
- * video node. Derives the current {brand, variant, provider} from
- * `data.model`, computes whether reference inputs are bound (mode-by-input →
- * `_REFERENCE` model id), and exposes brand/variant/provider setters that
- * resolve to a concrete model and persist it via `updateNodeData`.
+ * 单个视频节点的编排状态：模式（关键帧 / 多图参考 / 全能参考）、上游素材的采集与
+ * 令牌化、容量上限、送出预览。
  *
- * It also owns the autospawn default-model effect (moved out of
- * SeedanceInspector): a seedance node spawned by `scriptDocToGraph` arrives
- * with `data.model` unset and reference edges already wired; this hook gives it
- * a runnable model even if the node is never selected.
+ * ⚠ 这段注释此前描述的是 brand/variant/provider 三段切换器 —— 那套已于 2026-08-08
+ * 随两套分类收敛一并删除（cleanup §9.9/§9.10）。模型选择走 `BaseModelPickerPanel`
+ * 的三层钻取，端点由**模式**决定，`videoMode` 就在这里推导（存量节点从模型反推）。
+ *
+ * 它还持有 autospawn 的默认模型 effect：`scriptDocToGraph` 投影出来的视频节点
+ * `data.model` 是空的、参考边却已经接好，这个 effect 保证它即使从没被选中也有一个
+ * 能跑的模型。
  */
 export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
   const tc = useTranslations('StudioNode.videoComposer')
-  const { modelOptionsByType, updateNodeData, defaultVideoModel } =
-    useNodeWorkflowActions()
+  const { modelOptionsByType, updateNodeData } = useNodeWorkflowActions()
 
   const options = useMemo(
     () => modelOptionsByType[NODE_TYPE_IDS.seedance] ?? [],
@@ -583,23 +582,17 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   useEffect(() => {
     if (data.model) return
     if (options.length === 0) return
-    // 继承项目默认型号，取不到就用 DEFAULT_VIDEO_VARIANT —— 新生成的节点必须带一个
-    // 能跑的模型。⚠ 端点按**模式**挑，不再按「这次接了什么」自动判：一个刚生成、还
-    // 什么都没接的节点，也该落在它那一档对应的端点上。
+    // 用默认型号起手 —— 新生成的节点必须带一个能跑的模型。
+    // （项目级默认型号已随 `defaultVideoModel` 一并删除，见 cleanup §9.10。）
+    // ⚠ 端点按**模式**挑，不再按「这次接了什么」自动判：一个刚生成、还什么都没接
+    // 的节点，也该落在它那一档对应的端点上。
     const resolved = pickDefaultVideoModel(
-      defaultVideoModel?.variant ?? DEFAULT_VIDEO_VARIANT,
+      DEFAULT_VIDEO_VARIANT,
       videoMode,
       options,
     )
     if (resolved) updateNodeData(nodeId, { model: toSelection(resolved) })
-  }, [
-    data.model,
-    defaultVideoModel,
-    videoMode,
-    nodeId,
-    options,
-    updateNodeData,
-  ])
+  }, [data.model, videoMode, nodeId, options, updateNodeData])
 
   // V-3b 容量护栏 / R3-6b §1: single source for the model's reference-image
   // cap — VideoComposer.tsx used to compute this itself from `data.model`,

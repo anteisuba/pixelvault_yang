@@ -13,7 +13,10 @@ import {
 } from '@/hooks/use-llm-route-picker'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 
-import { BaseModelPickerPanel } from './BaseModelPickerPanel'
+import {
+  BaseModelPickerPanel,
+  type BaseModelPickerPanelProps,
+} from './BaseModelPickerPanel'
 
 export type MainModelPickerModality =
   | 'image'
@@ -47,6 +50,11 @@ interface CommonProps {
    * 还是那份视频模型清单，只是按模式收窄。
    */
   filterOption?: (option: StudioModelOption) => boolean
+  /**
+   * 收起态触发器的标签覆写，原样透传给 `BaseModelPickerPanel`（那边接得住，所以不用
+   * 像 `filterOption` 一样在这里消化）。契约见该组件的 prop 注释。
+   */
+  triggerLabelForOption?: BaseModelPickerPanelProps['triggerLabelForOption']
 }
 
 export type MainModelPickerProps = CommonProps &

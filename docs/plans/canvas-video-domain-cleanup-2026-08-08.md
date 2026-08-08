@@ -511,11 +511,19 @@ owner 选的路子：先落不依赖模式的部分 + 止血，提交链路的�
 
 真机端到端：同一个型号 `Seedance 2.5`，在关键帧档下落到 `seedance-2.5-volcengine`，在全能参考档下落到 `seedance-2.5-reference-volcengine`。
 
-#### 持久化形状变更
+#### 持久化：`defaultVideoModel` 已整条删除（owner 拍板）
 
-`VideoDefaultModelSchema`：`{brand, variant}` → `{variant}`（型号键）。旧的 `variant: z.enum(ALL_VIDEO_VARIANTS)` 有个毛病——**往目录加一个新型号就是一次持久化 schema 变更**；换成普通字符串后不再是。旧项目的值解析失败 → `.catch(undefined)` → 退化成「没有默认」，用户重选一次。
+先把形状从 `{brand, variant}` 收敛到 `{variant}`，随后**整条删掉**。
 
-⚠ 它**仍然没有写入口**（`setDefaultVideoModel` 不在 context 类型里），恒为 `undefined`。补入口还是整条删，未定。
+删的理由是它**从来没有写入口**：`setDefaultVideoModel` 一直不在 `NodeWorkflowActionsContext` 的类型里，没有任何组件能调它。于是这个值恒为 `undefined`、⚠ 跨镜头漂移徽标从不点亮、autospawn 永远走硬编码兜底。schema 注释里写的「topbar chip reads/sets it」——**那个 chip 不存在**。
+
+> 留着无人消费的管道，正是这一轮清掉的那套 brand switcher 的成因 —— 下一个会话会以为它在跑。**我这一轮就被同类幽灵误导过一次**（§9.9 的更正）。
+
+一并删除：schema 字段 · `NodeWorkflowStateDataSchema.defaultVideoModel` · hook 的 setter 与只读值 · context 字段 · `StudioNodeWorkbench` 的两处接线 · `SeedanceNode` 的 `isOverridden` 与 ⚠ 徽标 · `NodeShell` 的 `overridden` prop 与虚线边（SeedanceNode 是它唯一消费者）· 孤儿 i18n 键 `overrideHint`（三语）· 那条守着它的测试。
+
+⚠ **「项目级默认模型」这个功能本身没有被否定**，被否定的是「管道半截挂着」。真要做时按新分类（型号键）重建，并且**先有写入口再有 schema**。
+
+顺带记一条：旧的 `variant: z.enum(ALL_VIDEO_VARIANTS)` 有个毛病——**往目录加一个新型号就是一次持久化 schema 变更**。将来重建时别再用 enum 存这种值。
 
 #### ⚠ 写测试时被本文档骗了一次
 
@@ -524,9 +532,26 @@ owner 选的路子：先落不依赖模式的部分 + 止血，提交链路的�
 → **这一档目前只有 Gemini Omni Flash 一个可用模型**（而它的原生视频还停在 501）。三档模式的设计不受影响，但「多图参考」在模型池填起来之前基本是空的。
 → 教训同 §一.2：**引用文档里的表当代码事实之前，先对一遍目录。**
 
+#### ✅ 触发器不再漏「参考」（owner 选「单开覆写口」）
+
+新增 `triggerLabelForOption`，**只作用于收起态触发器**。视频节点传
+`({ variantLabel, channelLabel }) => \`${variantLabel} · ${channelLabel}\``：
+
+|                  | 之前                                | 现在                          |
+| ---------------- | ----------------------------------- | ----------------------------- |
+| 模式 tab         | 全能参考                            | 全能参考                      |
+| 列表第二层       | Seedance 2.5                        | Seedance 2.5                  |
+| **收起后触发器** | **Seedance 2.5（参考，火山方舟）**  | **Seedance 2.5 · VolcEngine** |
+| 底下存的 id      | `seedance-2.5-reference-volcengine` | 不变                          |
+
+⚠ **没有复用 `labelForOption`**：它的契约是「触发器与列表项**共用**同一个覆写」，而这两处需求正好相反 —— 触发器要藏端点，第三层的渠道行恰恰要能区分火山与 fal。共用一个口正是那个 prop 至今没人用的原因。
+
+⚠ 覆写函数拿到的是选择器**已经算好**的型号名与渠道名，调用方只负责拼 —— `deriveVariantLabels` 那套族内去重不该复制到调用点。
+
+⚠ 记一条容易误判的交互：`selectedOption` 是对**传进来的** options 解析的，而 `filterOption`（按模式收窄）在到达组件**之前**就过滤掉了。所以选中的模型一旦不属于当前模式，触发器读的是占位而非模型名，即使 `data.model` 还存着值。这在视频节点里应当是瞬态（切档会清掉不兼容的模型）；**若稳定复现，说明清空那一步漏了，不是显示错了**。
+
 #### 还剩
 
-- 选择器**触发器**仍显示原始路由名（`Seedance 2.5（参考，火山方舟）`），列表里已经是干净的 `Seedance 2.5`。要修得把已存在的 `labelForOption` prop 接出来，注意它同时作用于列表项。
 - 「N 段素材在当前模式下不会发送」提示 + 发送链路按模式过滤 —— 等切片 6 把槽位按模式藏起来才有意义（现在所有素材区都还照渲染，没有「藏着却发出去」的情况）。
 - 切片 6：三种槽位形态 + 首尾帧，含 worker 侧 `last_frame` 分支（§1.2）。
 

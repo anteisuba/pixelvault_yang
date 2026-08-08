@@ -2,10 +2,10 @@
 
 import { memo } from 'react'
 import { NodeToolbar, Position, type NodeProps } from '@xyflow/react'
-import { AlertTriangle, Maximize2, Video } from 'lucide-react'
+import { Maximize2, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { getModelFamily, getModelVariant } from '@/constants/models'
+import { getModelFamily } from '@/constants/models'
 import {
   NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
@@ -46,10 +46,7 @@ export const SeedanceNode = memo(function SeedanceNode(
     data.status === NODE_STATUS_IDS.running
   const isMobile = useIsMobile()
 
-  // §5.1 shot override：这个节点的模型与项目默认不一致 → 标出来（⚠ 徽标 + 虚线边），
-  // 好让跨镜头的漂移一眼扫得到。
   const {
-    defaultVideoModel,
     updateNodeData,
     setExpandedNodeId,
     multiSelectActive,
@@ -57,14 +54,6 @@ export const SeedanceNode = memo(function SeedanceNode(
   } = useNodeWorkflowActions()
   // 侧车标题显示**系列**（Seedance / Kling），那是这张卡在讲哪个牌子。
   const nodeBrand = data.model ? getModelFamily(data.model.modelId) : null
-  // 但「有没有偏离项目默认」比的是**型号**：同族里从 Seedance 2.0 换到 2.5 属于实打
-  // 实的跨镜头漂移，按系列比就标不出来。型号也正是选择器第二层用户真正选的那一层。
-  const nodeVariant = data.model ? getModelVariant(data.model.modelId) : null
-  const isOverridden = Boolean(
-    defaultVideoModel &&
-    nodeVariant &&
-    nodeVariant !== defaultVideoModel.variant,
-  )
 
   return (
     <NodeShell
@@ -72,7 +61,6 @@ export const SeedanceNode = memo(function SeedanceNode(
       type={NODE_TYPE_IDS.seedance}
       selected={selected}
       status={data.status}
-      overridden={isOverridden}
       toolbarData={data}
       className="canvas-video-card"
     >
@@ -143,16 +131,6 @@ export const SeedanceNode = memo(function SeedanceNode(
           )
         }
         hideStatusBadge
-        action={
-          isOverridden ? (
-            <span
-              title={t('overrideHint')}
-              className="flex size-6 items-center justify-center rounded-lg border border-node-muted/50 bg-node-panel-inner text-node-foreground"
-            >
-              <AlertTriangle className="size-3.5" />
-            </span>
-          ) : null
-        }
       />
       <NodeShell.Body className="p-0">
         <div

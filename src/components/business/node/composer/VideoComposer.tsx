@@ -472,6 +472,24 @@ export function VideoComposer({
     [videoMode],
   )
 
+  /**
+   * 收起态触发器读「型号 · 渠道」，**不带端点**。
+   *
+   * 端点（参考 / 非参考）是模式的职责，不该在模型名里再说一遍 —— 否则模式 tab 写着
+   * 「全能参考」、按钮又写一遍「（参考…）」，同一件事说两遍，还把这套设计刚藏起来的
+   * 概念重新抖出来（cleanup §8.2）。渠道保留：用户选的就是型号 + 渠道这两层。
+   */
+  const triggerLabelForOption = useCallback(
+    ({
+      variantLabel,
+      channelLabel,
+    }: {
+      variantLabel: string
+      channelLabel: string
+    }) => `${variantLabel} · ${channelLabel}`,
+    [],
+  )
+
   const commitSharedVideoModel = useCallback(
     (option: StudioModelOption) => {
       updateNodeData(id, {
@@ -1282,6 +1300,7 @@ export function VideoComposer({
               onRequestSetup={requestSharedVideoModelSetup}
               triggerLabel={modelLabel}
               filterOption={filterModelByMode}
+              triggerLabelForOption={triggerLabelForOption}
               className="canvas-video-composer-model"
             />
             <ResponsivePopover>
@@ -1590,6 +1609,7 @@ export function VideoComposer({
             onRequestSetup={requestSharedVideoModelSetup}
             triggerLabel={pickerLabel}
             filterOption={filterModelByMode}
+            triggerLabelForOption={triggerLabelForOption}
             className="canvas-detail-model-picker h-10 w-full rounded-xl"
           />
 

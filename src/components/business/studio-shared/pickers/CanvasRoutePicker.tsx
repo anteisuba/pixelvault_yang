@@ -17,7 +17,11 @@ import {
 } from '@/hooks/use-llm-route-picker'
 import { cn } from '@/lib/utils'
 
-import { MainModelPicker, routeToStudioOption } from './MainModelPicker'
+import {
+  MainModelPicker,
+  routeToStudioOption,
+  type MainModelPickerProps,
+} from './MainModelPicker'
 
 export type CanvasRouteVariant = 'planner' | 'assistant' | 'media'
 export type CanvasRouteMediaModality = 'image' | 'video' | 'audio'
@@ -52,6 +56,8 @@ interface CommonProps {
    * 给。planner/assistant 变体走的是另一条渲染路径，不消费它。
    */
   filterOption?: (option: StudioModelOption) => boolean
+  /** media 变体专用：收起态触发器的标签覆写，透传到 `BaseModelPickerPanel`。 */
+  triggerLabelForOption?: MainModelPickerProps['triggerLabelForOption']
 }
 
 export type CanvasRoutePickerProps = CommonProps &

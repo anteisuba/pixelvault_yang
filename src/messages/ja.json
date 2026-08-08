@@ -4033,7 +4033,6 @@
       },
       "emptyPreview": "動画はまだ生成されていません",
       "generating": "生成中...",
-      "overrideHint": "キャンバスの既定モデルを上書きしています — 他のショットと不一致になる可能性があります。",
       "motionLabel": "動き",
       "cameraLabel": "カメラ",
       "durationLabel": "長さ",

@@ -29,7 +29,6 @@ vi.mock('@/components/business/node/NodeWorkflowActionsContext', () => ({
   useNodeWorkflowActions: () => ({
     modelOptionsByType: {},
     updateNodeData: vi.fn(),
-    defaultVideoModel: undefined,
   }),
 }))
 

@@ -4033,7 +4033,6 @@
       },
       "emptyPreview": "No video generated yet",
       "generating": "Generating...",
-      "overrideHint": "Overrides the canvas default model — may be inconsistent with other shots.",
       "motionLabel": "Motion",
       "cameraLabel": "Camera",
       "durationLabel": "Duration",

@@ -48,7 +48,6 @@ import {
   type NodeWorkflowProjectSummary,
   type NodeWorkflowState,
   type NodeWorkflowStorageSnapshot,
-  type VideoDefaultModel,
 } from '@/types/node-workflow'
 import {
   CanvasDerivedImageOutputsSchema,
@@ -115,8 +114,6 @@ export interface NodeWorkflowActions {
   ): string[]
   /** Persist the assistant's ScriptDoc fact model on the current project. */
   setScriptDoc(scriptDoc: ScriptDoc | undefined): void
-  /** Persist the canvas-default video model on the current project. */
-  setDefaultVideoModel(value: VideoDefaultModel | undefined): void
   /** Persist or reset the current project's canvas wallpaper. */
   setCanvasAppearance(value: CanvasAppearance | undefined): void
   /** Persist the right-rail drafting stage / depth / manual-edit locks. */
@@ -164,7 +161,6 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
   isHydrated: boolean
   state: NodeWorkflowState
   scriptDoc: ScriptDoc | undefined
-  defaultVideoModel: VideoDefaultModel | undefined
   canvasAppearance: CanvasAppearance | undefined
   scriptDocStage: ScriptDocStage | undefined
   scriptDocDepth: ScriptDocDepth | undefined
@@ -1467,22 +1463,6 @@ export function useNodeWorkflow({
     [defaultProjectName, setWorkflowStorage],
   )
 
-  const setDefaultVideoModel = useCallback(
-    (value: VideoDefaultModel | undefined) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({
-            ...currentState,
-            defaultVideoModel: value,
-          }),
-        ),
-      )
-    },
-    [defaultProjectName, setWorkflowStorage],
-  )
-
   const setCanvasAppearance = useCallback(
     (value: CanvasAppearance | undefined) => {
       setWorkflowStorage((currentStorage) =>
@@ -1888,7 +1868,6 @@ export function useNodeWorkflow({
       isHydrated,
       state,
       scriptDoc: state.scriptDoc,
-      defaultVideoModel: state.defaultVideoModel,
       canvasAppearance: state.canvasAppearance,
       scriptDocStage: state.scriptDocStage,
       scriptDocDepth: state.scriptDocDepth,
@@ -1908,7 +1887,6 @@ export function useNodeWorkflow({
       updateNodeData,
       updateEdgeData,
       setScriptDoc,
-      setDefaultVideoModel,
       setCanvasAppearance,
       setScriptDocStage,
       setScriptDocDepth,
@@ -1954,7 +1932,6 @@ export function useNodeWorkflow({
       renameCurrentProject,
       saveNow,
       setScriptDoc,
-      setDefaultVideoModel,
       setCanvasAppearance,
       setScriptDocStage,
       setScriptDocDepth,

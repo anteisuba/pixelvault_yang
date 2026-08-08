@@ -1,7 +1,9 @@
 # A+B 设计稿 —— 助手分域回复 × 画布助手→节点（2026-08-08）
 
 > **权力级别**：active plan（在飞任务包）。对应 [`week-2026-08-07-backlog.md`](week-2026-08-07-backlog.md) 的 **A** 与 **B** 两条。
-> **状态**：✅ **九片全部交付并真机验过（2026-08-08），尚未提交。** owner 已就 §5 三问拍板。逐片状态见 §4。
+> **状态**：✅ **九片全部交付并真机验过，已合入 main `49986510`（2026-08-08，44 文件 +2755/-469）。未 push。** owner 已就 §5 三问拍板。逐片状态见 §4。
+>
+> ⛔ **提交时踩了两个坑，记在 [[project-commit-mechanics]]**：① `git commit … | tail` 让管道吃掉了 git 的退出码，**把失败报成了成功**（落地判据只能是 HEAD 变没变）；② **全量 tsc + 全量 vitest 全绿之后仍被 pre-commit 的 eslint 拦** —— `react-hooks/refs` 抓到 `useRef(x).current` 在 render 期间被读，而那两样都不查 Hooks 规则。说「绿」要跑三样。
 > **对标依据**：[`libtv-canvas-ui-teardown-2026-08-07.md`](libtv-canvas-ui-teardown-2026-08-07.md)（实拍，非推测）。
 > **为什么 A 和 B 合成一份**：backlog 自己写着「A 与 B 耦合必须同做」。实查后确认耦合点是具体的 —— A3（助手自动填提示词）的落点就是 B 的 `add_node` op，A4（`@` 提及）的落点就是 B 的节点引用胶囊。分两份写会把同一个 schema 改动写两遍。
 

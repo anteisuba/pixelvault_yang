@@ -152,11 +152,22 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     defaultRole: 'subject',
     mode: 'native',
   },
-  // Seedance 2.5 keeps the 2.0 reference shape (reserved — see models/video.ts).
+  // Seedance 2.5：图片上限 30（官方「使用限制」段：「seedance 2.5 多模态参考生
+  // 视频：1~30 张」，2.0 系列才是 1~9）。
+  //
+  // ⚠ 这里曾写「keeps the 2.0 reference shape」并跟着设 max: 9 —— 那是把 2.0 的
+  // 契约误套给了 2.5，与 video-model-send-plan.ts 里同源的那条错误注释是同一份
+  // 拷贝，2026-08-08 GA 时一并纠正。两处的图片上限必须同步：这张表卡的是上传
+  // 数量，那边卡的是发送契约，只改一处会让 UI 与请求对不上。
+  //
+  // ⚠ 未决：2.5 支持**纯音频参考**（audioRequiresVisual: false），严格说图片
+  // 可以是 0 张，故 min 理应为 0、models/video.ts 的 requiresReferenceImage 理应
+  // 为 false。两者都还没动 —— 纯音频参考需要 UI 先支持「不传图只传音频」，不是
+  // 改个数字的事。见 docs/plans/seedance-25-ga-integration-2026-08.md §3.3。
   [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: {
     kind: 'flexible',
     min: 1,
-    max: 9,
+    max: 30,
     defaultRole: 'subject',
     mode: 'native',
   },

@@ -2,6 +2,8 @@
 
 > 状态:**P1–P3 已实证 + owner 拍板(2026-07-18)**。拍板两条:① **Krea2 走路线 (a) 等 upstream**——「查 worker-comfyui 新 tag 是否内置 ComfyUI≥0.27」并入模型月审(下次 2026-08 初),tag 追上即开工 Krea2(届时按 §2 P1 已实证的 loader 链直接施工);② **r4 拆分,r4a 先行**——多参考图(IPAdapter_plus)+ hires-fix + LRU 容量水位三件全绿灯项立即施工,Krea2 成为后续 r4b。P1 实证结论(受阻详情/三路线)保留在 §2 备查。
 > 背景:latent.moe/explore 热门模型审计(2026-07-18)——Krea 2 系(RedCraft2-Krea2RedMix 22 + MuseByStable 7 = 29 次)是 runner 最大架构空白;多参考图 = NovelAI Vibe Transfer 对标(上游调研 `docs/plans/lora-multi-reference-feasibility-2026-07.md`)。两者都动 fork 镜像,合并一次 r4 迭代。
+>
+> **2026-08-08 月审已执行,见 §2.5。** 一句话:拍板 ① 的等待对象**没到**(worker-comfyui 仍无新 tag),但等待理由**变了**(upstream main 已把 ComfyUI 钉到 0.29.0,只差发版);owner 当日拍板 **Krea2 继续排在第三**,前面是 Seedance 2.5 GA 接入与 r4a phase-2 的 LRU 转正。
 > 方法论对标:v4 Anima DiT 那次(探针 pod `/object_info` 确认原生支持 → 权重布局 → workflow → 家族路由,5 步跨栈)。
 
 ## 1. 现状基线(2026-07-18 审计,S3 + REST 实测)
@@ -24,10 +26,81 @@
 | P5  | Worker workflow 草案:`krea2-txt2img`(loader 链按 P1)· IPAdapter 注入分支(叠加进现有 SDXL txt2img/img2img,多图各带 weight)· **hires-fix 放大 pass**(4x-AnimeSharp,顺路件,纯 workflow 零新权重)                          | 在 dev pod 上单图端到端各跑通一次                                         | workers/execution 的 recipe→workflow 映射扩展面                                       | 未变;`krea2-txt2img` 的 loader 链细节已由 P1 补全(见上),可直接抄进 Worker builder,但要等 P1 路线拍板(GGUF 版 UNETLoader 节点类型不同,需替换成对应 GGUF loader 节点)。IPAdapter 分支 / hires-fix 分支不受 P1 影响,可独立先行。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | P6  | App 侧改动面:家族路由新桶 `krea2`(`normalizeToLoraBaseFamily`/兼容矩阵/底模 Select Runner 组按架构自动成组已支持)+ ReferenceSlot 1→N schema(与 image-edit-extensions 的 ReferenceSlotRole 扩展合并设计,别两次改同一件) | 代码走查                                                                  | app 切片清单                                                                          | 未变,不受 P1 影响。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
+## 2.5 2026-08 月审复核(2026-08-08 执行,兑现 07-18 拍板 ① 的「并入模型月审」)
+
+拍板 ① 定的复查动作是「查 worker-comfyui 新 tag 是否内置 ComfyUI≥0.27」。**答案:没有新 tag。但这个问法漏了一件事,补在下面。**
+
+### 2.5.1 ComfyUI 版本闸 —— 等待对象没到,等待理由变了
+
+| 查什么                                      | 结果(2026-08-08 实读)                                                                                                                                                                          |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Docker Hub `runpod/worker-comfyui` 最新 tag | 仍是 **5.8.6**(2026-06-17),`-base` / `-sdxl` / `-flux1-dev` 等变体同批,**无更新**                                                                                                              |
+| GitHub releases 最新                        | 同为 5.8.6,之后未发版                                                                                                                                                                          |
+| **upstream main 分支 Dockerfile**           | **`ARG COMFYUI_VERSION=0.29.0`** —— commit `Pin ComfyUI to 0.29.0, build with CUDA 12.8, update allowed CUDA versions`(**2026-07-30**),同批 `Pin runtime torch to 2.11.0+cu128, pin comfy-cli` |
+| `.changeset/`                               | 含未发布的 `pin-comfyui-cuda-12-8.md`                                                                                                                                                          |
+
+0.29.0 高于 Krea2 原生支持所需的 0.26/0.27。**推断(非事实):changeset 已就位意味着下一个 release 会带上 0.29.0。** 证伪法=盯 releases 页,发版当天读新 tag 的 Dockerfile 确认 `COMFYUI_VERSION`。
+
+**这对三条路线的影响:**
+
+- **路线 (a) 等 upstream** —— 从「被动、时间不可控」变成「**代码已就绪,只差发版**」。仍是零回归风险的最省路径。
+- **路线 (b) 自升 ComfyUI 核心** —— 07-18 评为「改 base 依赖版本,风险显著更高」。现在成本下降但**没有消失**:ComfyUI 版本本来就是 build arg,而我们的 fork 是 `FROM runpod/worker-comfyui:5.8.6-base` 加层(见 fork 仓库 Dockerfile 首行),要拿 0.29 得改成从 upstream 源码构建并传 build arg。**代价照旧要付**:0.25→0.29 跨四个小版本 + torch 跳到 2.11.0+cu128,现有三条 workflow(SDXL txt2img / SDXL img2img / Anima DiT)必须全量回归。
+- **路线 (c) GGUF custom node** —— 不再需要。0.29 原生支持之后,GGUF 的唯一价值从「绕开版本闸」退回到「省显存/省卷」,而 §2.5.3 显示卷才是瓶颈、显存不是。
+
+⚠ 一条已知坑,记下来免得施工时踩:ComfyUI 0.27 附带的官方 Krea2 模板用了嵌套 subgraph 节点,与当时的 comfyui-frontend-package 不兼容,社区解法是手搓等价的 9 节点扁平工作流。**本项目的 workflow 一律在 Worker 里手搓(`workers/execution/src/models/runner/`),不消费 ComfyUI 模板,故不受影响。**
+
+### 2.5.2 值不值得做 —— Krea2 vs Anima 实测(推翻「Krea2 评价更好」的简化说法)
+
+07-12 搁置 Krea2 的理由是「Civitai 全站 35% 但 anime app 占比低」。本次用 Civitai API 复测(口径=每个模型按**最新版本**的 baseModel 单一归属,加总 100%):
+
+| 口径                       | Krea 2  | Anima   | Illustrious |
+| -------------------------- | ------- | ------- | ----------- |
+| 本月最热 LoRA top100       | **52%** | 35%     | 10%         |
+| 本周最热 LoRA top100       | 35%     | **47%** | 11%         |
+| 最新发布 LoRA 100 条       | **34%** | 30%     | 23%         |
+| 本月最热 checkpoint top100 | 24%     | **38%** | 20%         |
+
+**结论:两者咬得很紧,没有一边倒。** LoRA 月榜 Krea2 反超,但周榜与 checkpoint 生态 Anima 仍领先。
+
+质量口碑上社区的共识是**分工不是高下**:Anima 的 VAE 强、色彩鲜艳通透、角色知识丰富,适合打底;Krea2 风格与 LoRA 依从性高、细节与文字渲染更好、整体色调控制强,单跑偏单调。Civitai 上因此流行 hybrid 工作流(Anima 出底图 → Krea2 精修)。两者同为 DiT,共同弱点是低 denoise 强度下会崩,不适合细粒度局部编辑。
+
+→ **07-12 那条搁置理由今天依然成立**:Anima 是已建成的动漫向管线,Krea2 补的是**写实向**空白。捡回 Krea2 的真触发条件不是热度数字,是**产品要不要进军写实** —— 这是 owner 的产品决策,不是 runner 的技术判断。
+
+### 2.5.3 容量复核 —— 官方一套够,社区底模一开就不够
+
+Krea2 官方档三件(体积为 07-18 P1 实测,本次未重测):UNET `krea2_turbo_fp8_scaled` 12.238GiB + 文本编码器 `qwen3vl_4b_fp8_scaled` 4.882GiB + VAE **复用现有 0 新增** = **17.12GiB**。
+
+- 现用量 ≈ **50.5GiB**(= §1 脚注的 47.40 实测 + r4a 测试端点播种的 IPAdapter 3.14)。⚠ **这是推算不是实测**,证伪法=按 07-18 那套 S3 SigV4 只读审计重跑一次。
+- - 官方一套 → ≈ 67.7GiB,80GB 卷剩 ~12GiB。**塞得下,不必为此扩容。**
+- **但热度榜上的 Krea2 LoRA 多数配社区 checkpoint**,Civitai API 实测体积:fp8/int8 **11.9–13.2GiB** · bf16 24.5GiB · nvfp4 7.2–8.2GiB · GGUF Q4_0 7.74GiB / Q2_K 4.68GiB。**缓存两个 fp8 档即超 80GB。** 这才是扩容的真触发点,不是 Krea2 本身。
+- 处置(建议,未拍板):① 卷 80→120GB(RunPod `PATCH /networkvolumes/{id}` 在线扩、无迁移,07-12 做过一次 40→80;每 40GB 约 $2.8/月)② **把 r4a 已实现但仍是 dry-run 的 LRU 水位转正**(见 §3)。两件互补:LRU 是止损,扩容是给缓存留呼吸空间。
+
+**GPU 侧不用动。** fp8 档权重合计约 17GiB,现端点 GPU 池 [4090/A5000] 都是 24GB,可全常驻;公开实测 4090 fp8 8 步 1024px 约 3–4s、3090 约 13s。只有 bf16 档需 ~28GB,不选它即可。
+
+### 2.5.4 owner 拍板(2026-08-08)
+
+优先级 **Seedance 2.5 GA 接入 > r4a phase-2 的 LRU 水位转正 > Krea2 管线(r4b)**。理由:前两件上游已开/代码已在手且互不依赖,Krea2 既等发版又等写实向的产品决策。
+
+- Seedance 2.5 → 独立任务包 `docs/plans/seedance-25-ga-integration-2026-08.md`
+- LRU 转正 → 归 r4a phase-2,**不新建文档**(见 §3 与 Last Verified 的 phase-2 清单)
+- Krea2 → 留在本文档作 r4b,下次复查随 2026-09 月审,或 worker-comfyui 发版当天提前触发
+
 ## 3. 顺路件(r4 一并)
 
 - **容量水位策略**(owner 已拍板立项):fork 启动自检 manifest 总量 >70GB → 按 `pixelvault-download-history.jsonl` LRU 淘汰 `civitai-*` 运行时缓存(loras/checkpoints/unet);**预置清单白名单永不淘汰**(WAI/animaPencil/Pony/SDXL1.0/anima-base/qwen encoder+vae)。fork 侧小增量。
 - **hires-fix 放大 pass**(P5 内):低成本高感知,材料已在 volume。
+
+### 3.1 r4a 交付状态与 phase-2 清单(2026-08-08 复核)
+
+**r4a 已施工完成、测试端点验证绿,生产未切换。** fork 仓库 HEAD = `c1dbf58`(2026-07-18)「r4a: multi-reference IPAdapter + capacity watermark LRU」,之后无新 commit(本次 `gh api` 实读)。镜像 tag `5.8.6-r4a`;测试端点挂生产同卷、`RUNNER_CACHE_DRY_RUN=1`;生产 template 仍锁精确 tag `5.8.6-r3`,故**推 fork 不影响生产**。四类 job 已在测试端点验过:SDXL 回归 ✓ / IPAdapter 单图 ✓(播种 3.14GiB,约 3.4 分钟)/ 多图 ✓(ImageBatch + combine_embeds)/ hires-fix ✗(见下)。
+
+**phase-2 待做(owner 08-08 拍板列为第二优先):**
+
+1. ⚠ **先修 hires-fix 的可复现 bug** —— `VAEDecode` 直连 `ImageUpscaleWithModel` 时 job 返回 COMPLETED 但无 output 也无 error(测试端点 4 次复现)。**同样的连法出现在 app 侧 `workers/execution/src/models/runner/workflow-builder.ts` 的 `upscalerModelFilename` 分支**——那个分支至今从未被调用过,所以这个坑还没在生产暴露过。⚠ 这条来自 07-18 的测试记录,**本次未重测**;证伪法=在测试端点重发一次 hires-fix job 看是否仍复现。
+2. **LRU 水位从 dry-run 转正** —— 即 §3 那条策略。这是 owner 08-08 排在第二位的那件,与 Krea2 无关也该做:卷现用量已过半(§2.5.3),缓存无上限增长的风险是既存的,不是 Krea2 引入的。
+3. Worker 侧 workflow 映射 + `wrangler deploy`。
+4. app 侧 `ReferenceSlot` 1→N —— ⚠ **与 image-edit-extensions 的 `ReferenceSlotRole` 扩展合并设计,别两次改同一件**(P6 原注)。
+5. 生产切换:template tag `5.8.6-r3` → `5.8.6-r4a`。
 
 ## 4. 施工顺序(实证后)
 
@@ -40,5 +113,7 @@ P1–P3 实证(半天,dev pod)→ 回写本文档 §2 结论 → fork r4 构建+
 - Anima DiT img2img(需求信号弱,等用户要)。
 
 ## Last Verified
+
+2026-08-08 · **月审复核(§2.5)**:worker-comfyui tag / upstream main Dockerfile / changeset 为 GitHub + Docker Hub API 实读;Krea2 与 Anima 的四组占比、Krea2 社区 checkpoint 体积为 Civitai API 实测;fork HEAD 为 `gh api` 实读。⚠ **未实测项**:卷现用量 50.5GiB 是推算(47.40 实测 + 3.14 播种),Krea2 官方档三件体积沿用 07-18 P1 数字,hires-fix bug 未重测。owner 当日拍板优先级见 §2.5.4。
 
 2026-07-18 · 基线数字全部 S3/REST 实测;**P1–P3 已实证**(一次性 dev pod `runpod/worker-comfyui:5.8.6-base` on RTX 3090,08:04–08:12 UTC,已 terminate 并验证删除;S3 SigV4 只读审计)。P1 结论=受阻(ComfyUI 核心版本差 0.25.0 vs 需要的 0.27,worker-comfyui 无更新 tag 可换),P2/P3 结论正常。P4–P6 待 P1 路线拍板后按上表备注修正,尚未实证。

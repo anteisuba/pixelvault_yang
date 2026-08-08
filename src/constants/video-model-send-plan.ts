@@ -54,6 +54,31 @@ const FIRST_FRAME_SLOTS: VideoReferenceSlots = {
   audio: 0,
 }
 
+/** Seedance 2.0 系列：图 0-9 + 视频 0-3 + 音频 0-3，音频必须搭配图或视频。 */
+const SEEDANCE_20_REFERENCE_SLOTS: VideoReferenceSlots = {
+  images: 9,
+  videos: 3,
+  audio: 3,
+  total: 12,
+  audioRequiresVisual: true,
+}
+
+/**
+ * Seedance 2.5：图 30 / 视频 10 / 音频 10（官方「使用限制」段），合计 50 —— 与
+ * 官方通稿「最高 50 个全模态素材参考」自洽。
+ *
+ * `audioRequiresVisual: false` 的依据是官方模型能力表「多模态参考 → 音频参考」
+ * 那一行：2.5 打 ✓，而 2.0 / 2.0 fast / 2.0 mini 三列都写「✗（需搭配图片/视频）」。
+ * 也就是说**只有 2.5 支持纯音频参考**。
+ */
+const SEEDANCE_25_REFERENCE_SLOTS: VideoReferenceSlots = {
+  images: 30,
+  videos: 10,
+  audio: 10,
+  total: 50,
+  audioRequiresVisual: false,
+}
+
 const FALLBACK_CONTRACT: VideoModelSendContract = {
   family: 'fallback',
   referenceMode: 'text-or-first-frame',
@@ -75,8 +100,19 @@ const SEEDANCE_REFERENCE_IDS = new Set<string>([
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
   AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
-  // 2.5 keeps the 2.0 multimodal-reference shape (图 0-9 + 视频 0-3 + 音频 0-3,
-  // 音频不可独存) per 火山's own API doc. Reserved until the model id ships.
+  AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+])
+
+/**
+ * 2.5 与 2.0 的多模态上限不同，必须按代分叉。
+ *
+ * ⚠ 这里曾有一条注释写「2.5 沿用 2.0 的 9/3/3、音频不可独存，per 火山's own
+ * API doc」——**那条是错的**：它描述的其实是 2.0 的契约，被误套给了 2.5。
+ * 2026-08-08 GA 当天以官方「视频生成教程」的使用限制段校准后推翻，两代的真实
+ * 数字见下面两个 SLOTS 常量。合并去重会让 2.5 被 2.0 的上限卡死。
+ */
+const SEEDANCE_25_IDS = new Set<string>([
+  AI_MODELS.SEEDANCE_25_VOLCENGINE,
   AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
 ])
 
@@ -133,19 +169,16 @@ export function getVideoModelSendContract(
 
   if (SEEDANCE_IDS.has(normalized)) {
     const referenceMode = SEEDANCE_REFERENCE_IDS.has(normalized)
+    const isGen25 = SEEDANCE_25_IDS.has(normalized)
     return {
       family: 'seedance',
       referenceMode: referenceMode
         ? 'multimodal-reference'
         : 'text-or-first-frame',
       slots: referenceMode
-        ? {
-            images: 9,
-            videos: 3,
-            audio: 3,
-            total: 12,
-            audioRequiresVisual: true,
-          }
+        ? isGen25
+          ? SEEDANCE_25_REFERENCE_SLOTS
+          : SEEDANCE_20_REFERENCE_SLOTS
         : FIRST_FRAME_SLOTS,
       parameters: {
         duration: true,

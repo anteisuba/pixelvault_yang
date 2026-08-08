@@ -128,13 +128,16 @@ export const isRetiredModelId = (modelId: string): boolean =>
  * Listing an id here is a promise that someone will come back for it — keep it
  * short, and delete the entry the moment the model ships or the plan dies.
  */
-export const RESERVED_MODEL_IDS = [
-  // 火山 published Seedance 2.5 pricing + a model detail page on 2026-07-31,
-  // but the API doc still reads 「在线体验与 API 调用即将上线」and no dated
-  // model id exists. See docs/references/model-catalog.md §⑫.
-  AI_MODELS.SEEDANCE_25_VOLCENGINE,
-  AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
-] as const satisfies readonly AI_MODELS[]
+/**
+ * 「预留」是 `available: false` 的第三种合法理由（另两种：RETIRED 已退役、
+ * RUNNER 特性开关）。往里加一个 id 等于承诺有人会回来收尾 ——
+ * **模型一上线、或计划一死，就删掉那行。**
+ *
+ * 现在是空的：唯二的住户（Seedance 2.5 火山双变体）在火山 2026-08-07 开放 API
+ * 之后已于 08-08 上线，按上面这条规矩清出。数组和 `isReservedModelId` 保留是
+ * 因为机制本身还要用——下一个「已官宣、未开放」的模型直接往里加即可。
+ */
+export const RESERVED_MODEL_IDS = [] as const satisfies readonly AI_MODELS[]
 
 const RESERVED_MODEL_ID_SET = new Set<string>(RESERVED_MODEL_IDS)
 
@@ -205,11 +208,74 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.HUNYUAN3D_V31_PRO]: 'Hunyuan3D',
   [AI_MODELS.TRELLIS_2]: 'TRELLIS',
   [AI_MODELS.TRIPOSR]: 'TripoSR',
+  // 2026-08-08 补登记：全模态盘点时发现它是唯一没有 family 的模型。选择器第一层
+  // 改成按系列分组之后（见 canvas-video-domain-cleanup-2026-08-08.md §8），没有
+  // family 的模型会掉出所有分组、变成用户选不到的孤儿。
+  [AI_MODELS.RODIN_GEN_2_5]: 'Rodin',
 }
 
 /** Get the model family for a model ID. */
 export const getModelFamily = (modelId: string): string | null =>
   MODEL_FAMILIES[normalizeModelId(modelId)] ?? null
+
+/**
+ * 型号 —— 模型选择器**第二层**的分组键（`MODEL_FAMILIES` 是第一层「系列」）。
+ *
+ * 三层钻取（系列 → 型号 → 渠道）需要四个维度，其中**只有型号是新数据**，另外
+ * 三个都已经存在：
+ *
+ * | 层 | 取自 |
+ * | --- | --- |
+ * | 1 系列 | `MODEL_FAMILIES` |
+ * | 2 型号 | **本表** |
+ * | 3 渠道 | `adapterType`（显示名走 `providerConfig.label`） |
+ * | 端点（不露出） | `getVideoModelSendContract().referenceMode` |
+ *
+ * 「端点不露出」是这套结构的关键：`SEEDANCE_20` 与 `SEEDANCE_20_REFERENCE` 是
+ * 两个不同端点，今天在选择器里各占一条；有了型号分组之后，用户只看见
+ * 「Seedance 2.0」，走哪个端点由**节点上的模式**决定（关键帧 / 多图参考 /
+ * 全能参考），reference 这个词不必出现在 UI 里。
+ *
+ * ⚠ 值**显式写死，不从 `AI_MODELS` 字符串推导**。推导规则会是「剥掉渠道后缀和
+ * reference 后缀、但保留 fast」——`seedance-2.0-fast-reference-volcengine` 要剥
+ * 两段留一段，再多一个型号就可能剥错。
+ *
+ * ⚠ 一个系列只有一个型号时（Veo / Gemini / HappyHorse / LTX / MiniMax），UI 应
+ * **跳过第二层**直接进第三层，同 `BaseModelPickerPanel` 现有的 singleProvider
+ * 处理，别为了结构对称让用户多点一次。
+ *
+ * 设计出处：`docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §8。
+ */
+export const MODEL_VARIANTS: Record<string, string> = {
+  // Seedance：10 个条目 = 3 型号 × 渠道 × 端点
+  [AI_MODELS.SEEDANCE_20]: 'seedance-2.0',
+  [AI_MODELS.SEEDANCE_20_REFERENCE]: 'seedance-2.0',
+  [AI_MODELS.SEEDANCE_20_VOLCENGINE]: 'seedance-2.0',
+  [AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE]: 'seedance-2.0',
+  [AI_MODELS.SEEDANCE_20_FAST]: 'seedance-2.0-fast',
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: 'seedance-2.0-fast',
+  [AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE]: 'seedance-2.0-fast',
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]: 'seedance-2.0-fast',
+  [AI_MODELS.SEEDANCE_25_VOLCENGINE]: 'seedance-2.5',
+  [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: 'seedance-2.5',
+  // Kling：两个型号各一条
+  [AI_MODELS.KLING_V3_PRO]: 'kling-v3-pro',
+  [AI_MODELS.KLING_O3_PRO]: 'kling-o3-pro',
+  // MiniMax H3：4 个条目 = 1 型号 × 2 站（key 不通用）× 2 端点
+  [AI_MODELS.MINIMAX_H3]: 'minimax-h3',
+  [AI_MODELS.MINIMAX_H3_REFERENCE]: 'minimax-h3',
+  [AI_MODELS.MINIMAX_H3_CN]: 'minimax-h3',
+  [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: 'minimax-h3',
+  // 单型号系列 —— 第二层会被跳过
+  [AI_MODELS.VEO_31]: 'veo-3.1',
+  [AI_MODELS.GEMINI_OMNI_FLASH]: 'gemini-omni-flash',
+  [AI_MODELS.HAPPYHORSE_10]: 'happyhorse-1.1',
+  [AI_MODELS.LTX_23]: 'ltx-2.3',
+}
+
+/** Get the model variant (picker tier 2) for a model ID. */
+export const getModelVariant = (modelId: string): string | null =>
+  MODEL_VARIANTS[normalizeModelId(modelId)] ?? null
 
 /** Get unique model family names, ordered by first appearance. */
 export const getModelFamilyList = (): string[] => [

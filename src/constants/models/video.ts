@@ -272,30 +272,30 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
       resolution: '720p',
     },
   },
-  // ─── Seedance 2.5 (VolcEngine) — reserved, upstream not open yet ────────
-  // 2026-08-01 状态：火山已公开定价（70 / 42 元每百万 token，仅 480p/720p）与
-  // 模型详情页（族 id `doubao-seedance-2-5`），但「创建视频生成任务」API 文档
-  // 明写「在线体验与 API 调用即将上线」，模型列表页也还没有带日期的 model id。
+  // ─── Seedance 2.5 (VolcEngine) — GA 2026-08-07 ──────────────────────────
+  // 火山方舟 2026-08-07 上线 API。带日期 model id 取自官方「视频生成教程」的
+  // 模型能力表（docs.volcengine.com/docs/82379/2298881，页脚更新 08-07 13:46）。
+  // ⚠ 该文档站是 SPA，curl 只抓得到侧边栏，正文必须真浏览器打开。
   //
-  // ⚠ GA 时要改的三件事，别只改第一件：
-  //   1. externalModelId → 真实带日期 id（形如 doubao-seedance-2-5-YYMMDD）
-  //   2. available → true
-  //   3. **重新核对 supportedDurations** —— 下面那份是从 2.0 抄来的占位值。
-  //      2.5 的卖点是原生直出 30 秒，官方定价示例里输入视频可达 30s，所以真实
-  //      时长档大概率超出 4~15。宁可少给（用户选不到 30s）也别多给（直接 400）。
+  // 与 2.0 的差异已按代分叉，改任何一处前先读另外两处：
+  //   - supportedDurations：2.5 是 [4,30]，2.0 是 [4,15]（video-model-capabilities.ts）
+  //   - 多模态素材上限：2.5 是 30/10/10 且纯音频可独存，2.0 是 9/3/3 且不可独存
+  //     （video-model-send-plan.ts 的 SEEDANCE_25_REFERENCE_SLOTS）
   //
-  // fal 侧不接：`bytedance/seedance-2.5/*` 页面存在但挂 early-access 白名单，
-  // 条款写死 B2B only（须校验终端用户为企业），PixelVault 是个人消费者产品，
-  // 不符合准入 —— 见 docs/references/model-catalog.md §⑥。
+  // ⚠ 尚未实现的上游约束：2.5 在首帧/首尾帧/视频编辑/视频延长场景下 `ratio`
+  // 仅接受 `adaptive`，传具体宽高比会 400。我们目前没有 adaptive 这个选项，
+  // 首帧场景撞得上 —— 见 docs/plans/seedance-25-ga-integration-2026-08.md §3.3b。
+  //
+  // 另两站（BytePlus 国际 / fal）不在本次范围：BytePlus 需新开 adapter type
+  // （key 与火山不通用），fal 的 B2B only 准入尚未澄清。见任务包 §3.9 / §3.10。
   {
     id: AI_MODELS.SEEDANCE_25_VOLCENGINE,
     cost: 8,
     adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
-    // PLACEHOLDER — the published family id, not a callable dated id.
-    externalModelId: 'doubao-seedance-2-5',
+    externalModelId: 'doubao-seedance-2-5-260628',
     outputType: 'VIDEO',
-    available: false,
+    available: true,
     officialUrl:
       'https://console.volcengine.com/ark/region:cn-beijing/model/detail?Id=doubao-seedance-2-5',
     timeoutMs: 300_000,
@@ -310,9 +310,9 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     cost: 8,
     adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
-    externalModelId: 'doubao-seedance-2-5',
+    externalModelId: 'doubao-seedance-2-5-260628',
     outputType: 'VIDEO',
-    available: false,
+    available: true,
     officialUrl:
       'https://console.volcengine.com/ark/region:cn-beijing/model/detail?Id=doubao-seedance-2-5',
     timeoutMs: 300_000,

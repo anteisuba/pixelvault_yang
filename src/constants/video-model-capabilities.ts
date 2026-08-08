@@ -63,6 +63,19 @@ export const DEFAULT_VIDEO_MODEL_CAPABILITIES = {
   audio: { mode: 'auto' } as VideoAudioCapability,
 } as const satisfies VideoModelCapabilities
 
+/**
+ * Seedance 2.5 的整秒时长档 [4,30]（官方「视频生成教程」→ 视频时长段）。
+ * 2.0 系列停在 [4,15]，两代**不能共用一份数组** —— 给 2.0 放宽会 400，给 2.5
+ * 收窄则用户选不到 30 秒这个卖点。
+ *
+ * 上游还支持 `duration: -1`（模型自选时长），我们的 picker 是离散秒数列表、
+ * 没有「自动」这一档，故不在此暴露；要加得先在 UI 上给 -1 一个语义。
+ */
+const SEEDANCE_25_DURATIONS = [
+  4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+  25, 26, 27, 28, 29, 30,
+] as const
+
 export const VIDEO_MODEL_CAPABILITIES: Partial<
   Record<AI_MODELS, VideoModelCapabilities>
 > = {
@@ -150,20 +163,22 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedResolutions: ['720p'],
     supportedAspectRatios: ['16:9', '9:16'],
   },
-  // Seedance 2.5 — reserved, upstream not open (see models/video.ts).
-  // Resolutions are solid: 火山's price table prices 2.5 at 480p/720p only, with
-  // no 1080p/4k tier. ⚠ Durations are a PLACEHOLDER copied from 2.0 — the model's
-  // headline is native 30s, so re-derive this list from the API doc at GA.
+  // Seedance 2.5 — GA 2026-08-07. 官方「视频生成教程」的时长段原文：
+  // 「Seedance 2.0 系列: [4,15] 或设置为 -1 / **Seedance 2.5: [4,30] 或 -1**」。
+  // 480p/720p 是全部档位，2.5 没有 1080p/4k（4k 仅 2.0 独有）。
+  // ⚠ 时长比 2.0 长一倍，别把这份数组和 2.0 那几行合并去重。
   [AI_MODELS.SEEDANCE_25_VOLCENGINE]: {
-    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedDurations: SEEDANCE_25_DURATIONS,
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
+  // maxReferences 10（不是 2.0 的 3）：官方「使用限制」段写明 2.5 最多传入 10
+  // 段参考音频、总时长 ≤30s，而 2.0 系列是 3 段 / ≤15s。
   [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: {
-    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedDurations: SEEDANCE_25_DURATIONS,
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
-    audio: { mode: 'reference', maxReferences: 3 },
+    audio: { mode: 'reference', maxReferences: 10 },
   },
   // MiniMax H3 — 2K is the ONLY output resolution the model offers, on both
   // stations. A single-entry list (not an empty array) keeps the picker honest

@@ -46,6 +46,27 @@ export interface VideoModelSendContract {
   execution: VideoExecutionStatus
   /** Whether local @name tokens become provider positional @ImageN tokens. */
   positionalImageTokens: boolean
+  /**
+   * 带图发送时 `ratio` 被上游**钉死**成这个值；`null` = 照常发用户选的宽高比。
+   *
+   * ⚠ 只在「有图」的场景成立 —— 纯文生视频不受限。适配器因此要同时看这个字段和
+   * content 里到底有没有图，光看模型 id 会把纯文生的比例也一起改掉。
+   */
+  imageAspectRatioLock: string | null
+  /**
+   * 「关键帧」档下有几个**具名**槽位：1 = 只有首帧，2 = 首帧 + 尾帧。
+   *
+   * ⚠ 这是**能力声明**，不是数量上限 —— `slots.images` 说的是「最多能塞几张」，
+   * 这里说的是「这几张各自叫什么、模型认不认这个语义」。两者必须一起改：只放宽
+   * images 而不声明槽位，第二张图会被当成一张无语义的参考图发出去（那正是首尾帧
+   * 从未生效的原因，见 cleanup §1 第 ④⑤ 层）。
+   *
+   * ⚠ 判据是**我们的 worker 发得出来吗**，不是「上游支不支持」。目前只有火山
+   * （volcengine）的 builder 会发 `role:'last_frame'`；fal 的 builder 里根本没有
+   * 帧角色概念，minimax 只发 `first_frame`。声明得比实现宽，用户填了尾帧就会被
+   * 静默丢掉 —— 正是这一轮一路在治的那类缺陷。
+   */
+  keyframeSlots: 1 | 2
 }
 
 const FIRST_FRAME_SLOTS: VideoReferenceSlots = {
@@ -53,6 +74,26 @@ const FIRST_FRAME_SLOTS: VideoReferenceSlots = {
   videos: 0,
   audio: 0,
 }
+
+/** 首尾帧：首帧 + 尾帧两张，模型补中间。与「多图参考」互斥（火山明说三种场景不能混）。 */
+const FIRST_LAST_FRAME_SLOTS: VideoReferenceSlots = {
+  images: 2,
+  videos: 0,
+  audio: 0,
+}
+
+/**
+ * 能发出 `role:'last_frame'` 的模型 —— 即支持首尾帧的那批。
+ *
+ * 只有火山线：`workers/execution/src/models/volcengine/video-request-builder.ts`
+ * 是唯一带帧角色的 builder。fal 的没有帧角色，minimax 的只发 first_frame。
+ * ⚠ 接 BytePlus 时要一并加进来（它与火山同源，能力表也有首尾帧）。
+ */
+const FIRST_LAST_FRAME_MODEL_IDS = new Set<string>([
+  AI_MODELS.SEEDANCE_20_VOLCENGINE,
+  AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_VOLCENGINE,
+])
 
 /** Seedance 2.0 系列：图 0-9 + 视频 0-3 + 音频 0-3，音频必须搭配图或视频。 */
 const SEEDANCE_20_REFERENCE_SLOTS: VideoReferenceSlots = {
@@ -93,6 +134,9 @@ const FALLBACK_CONTRACT: VideoModelSendContract = {
   },
   execution: 'execution-not-migrated',
   positionalImageTokens: false,
+  imageAspectRatioLock: null,
+  // 兜底契约保守取 1：认不出的模型不该被当成支持首尾帧。
+  keyframeSlots: 1,
 }
 
 const SEEDANCE_REFERENCE_IDS = new Set<string>([
@@ -111,6 +155,13 @@ const SEEDANCE_REFERENCE_IDS = new Set<string>([
  * 2026-08-08 GA 当天以官方「视频生成教程」的使用限制段校准后推翻，两代的真实
  * 数字见下面两个 SLOTS 常量。合并去重会让 2.5 被 2.0 的上限卡死。
  */
+/**
+ * 火山对 2.5 的硬约束：**首帧 / 首尾帧 / 视频编辑 / 视频延长**这些「有图」的场景下
+ * `ratio` 只接受 `adaptive`，传具体宽高比直接 400。多模态参考那一档不在此列。
+ * 出处：官方「视频生成教程」使用限制段（docs.volcengine.com/docs/82379/2298881）。
+ */
+export const VOLCENGINE_ADAPTIVE_RATIO = 'adaptive'
+
 const SEEDANCE_25_IDS = new Set<string>([
   AI_MODELS.SEEDANCE_25_VOLCENGINE,
   AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
@@ -170,6 +221,10 @@ export function getVideoModelSendContract(
   if (SEEDANCE_IDS.has(normalized)) {
     const referenceMode = SEEDANCE_REFERENCE_IDS.has(normalized)
     const isGen25 = SEEDANCE_25_IDS.has(normalized)
+    // 首尾帧只在**关键帧档**（非参考端点）成立 —— 火山明说三种场景互斥，
+    // 参考端点走的是多模态那一档，不能再谈首尾。
+    const supportsFirstLast =
+      !referenceMode && FIRST_LAST_FRAME_MODEL_IDS.has(normalized)
     return {
       family: 'seedance',
       referenceMode: referenceMode
@@ -179,7 +234,9 @@ export function getVideoModelSendContract(
         ? isGen25
           ? SEEDANCE_25_REFERENCE_SLOTS
           : SEEDANCE_20_REFERENCE_SLOTS
-        : FIRST_FRAME_SLOTS,
+        : supportsFirstLast
+          ? FIRST_LAST_FRAME_SLOTS
+          : FIRST_FRAME_SLOTS,
       parameters: {
         duration: true,
         aspectRatio: true,
@@ -190,6 +247,11 @@ export function getVideoModelSendContract(
       },
       execution: executionStatus(adapterType),
       positionalImageTokens: referenceMode,
+      // 2.5 的关键帧档（首帧 / 首尾帧）带图时 `ratio` 只收 `adaptive`，传具体宽高比
+      // 会 400。参考端点不在这条约束里，照常发用户选的比例。
+      imageAspectRatioLock:
+        isGen25 && !referenceMode ? VOLCENGINE_ADAPTIVE_RATIO : null,
+      keyframeSlots: supportsFirstLast ? 2 : 1,
     }
   }
 
@@ -223,6 +285,8 @@ export function getVideoModelSendContract(
       },
       execution: executionStatus(adapterType),
       positionalImageTokens: referenceMode,
+      imageAspectRatioLock: null,
+      keyframeSlots: 1,
     }
   }
 
@@ -247,6 +311,8 @@ export function getVideoModelSendContract(
       },
       execution: executionStatus(adapterType),
       positionalImageTokens: false,
+      imageAspectRatioLock: null,
+      keyframeSlots: 1,
     }
   }
 
@@ -267,6 +333,8 @@ export function getVideoModelSendContract(
       },
       execution: executionStatus(adapterType),
       positionalImageTokens: false,
+      imageAspectRatioLock: null,
+      keyframeSlots: 1,
     }
   }
 
@@ -292,6 +360,8 @@ export function getVideoModelSendContract(
       },
       execution: 'execution-not-migrated',
       positionalImageTokens: false,
+      imageAspectRatioLock: null,
+      keyframeSlots: 1,
     }
   }
 
@@ -310,6 +380,8 @@ export function getVideoModelSendContract(
       },
       execution: executionStatus(adapterType),
       positionalImageTokens: false,
+      imageAspectRatioLock: null,
+      keyframeSlots: 1,
     }
   }
 

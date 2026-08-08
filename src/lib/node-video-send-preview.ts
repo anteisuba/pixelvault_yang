@@ -49,6 +49,7 @@ import {
   filterReferencedImages,
   translatePromptTokensToPositional,
 } from './node-video-prompt-translation'
+import { planVideoKeyframeImages } from './node-video-keyframe-plan'
 import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
 
 export interface VideoSendPreviewImageEntry {
@@ -281,9 +282,27 @@ export function buildVideoSendPreview({
   // Cap re-applied AFTER filtering — the entire fix. `imageIndexByName` is
   // re-filtered to the positions that survive so a name past the real cap
   // never resolves to an @ImageN token nothing was actually sent for.
-  const effectiveReferenceImages = referencedFilter.referenceImages.slice(
+  const cappedReferenceImages = referencedFilter.referenceImages.slice(
     0,
     effectiveMax,
+  )
+  // 切片 6 第 ⑤ 层守卫，与 `StudioNodeWorkbench` 的发送路径共用同一个函数 ——
+  // 预览和载荷不可能对不上，正是这个模块存在的意义（见文件头注释）。
+  const keyframePlan = planVideoKeyframeImages({
+    imageUrls: cappedReferenceImages,
+    keyframeUrls: harvestedImages.keyframeUrls,
+    modelId,
+    adapterType,
+  })
+  const effectiveReferenceImages = keyframePlan.imageUrls
+  // 关键帧档发不出去的图进**既有**的「什么被丢了」通道，不另起一个提示 —— 理由是
+  // `unsupported`（这个模式压根没有它的位置），不是容量不够。
+  dropped.push(
+    ...keyframePlan.dropped.map((url) => ({
+      kind: 'image' as const,
+      url,
+      reason: 'unsupported' as const,
+    })),
   )
   const imageIndexByName = new Map(
     Array.from(referencedFilter.imageIndexByName).filter(

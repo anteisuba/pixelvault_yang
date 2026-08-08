@@ -589,6 +589,13 @@ export function VideoComposer({
     seed: true,
   }
   const supportsSeed = parameterSupport.seed
+  // 2.5 的关键帧档一旦带图，`ratio` 就被上游钉死成 `adaptive`（传具体宽高比会 400）。
+  // 这时候还摆一个比例选择器，等于让用户设一个不会被采纳的值 —— 与「不支持就不渲染」
+  // 同一个处理（下面 parameterSupport.* 那批）。判据必须带上「真有图吗」：同一个模型
+  // 纯文生视频不受这条限制，比例照常可选。
+  const aspectRatioLockedByImages =
+    Boolean(composer.sendPreview.contract?.imageAspectRatioLock) &&
+    composer.sendPreview.images.length > 0
   // V-3b 容量护栏 (设计稿 §3.6) / R3-6b §1: the manager panel warns when 已引用图
   // exceeds the CURRENT model's actual cap (Seedance ≤9) rather than a
   // hardcoded number — undefined model = unknown cap = warning suppressed,
@@ -1391,7 +1398,7 @@ export function VideoComposer({
                   </ComposerField>
                 ) : null}
 
-                {parameterSupport.aspectRatio ? (
+                {parameterSupport.aspectRatio && !aspectRatioLockedByImages ? (
                   <ComposerField label={t('aspectRatioLabel')}>
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -1523,7 +1530,10 @@ export function VideoComposer({
     parameterSupport.duration && typeof data.duration === 'string'
       ? durationSummary
       : '',
-    parameterSupport.aspectRatio && typeof data.aspectRatio === 'string'
+    // 同上：比例被钉死时，摘要里还写「16:9」就是在说一件不会发生的事。
+    parameterSupport.aspectRatio &&
+    !aspectRatioLockedByImages &&
+    typeof data.aspectRatio === 'string'
       ? data.aspectRatio
       : '',
   ].filter(Boolean)

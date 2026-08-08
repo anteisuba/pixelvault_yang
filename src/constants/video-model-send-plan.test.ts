@@ -67,3 +67,53 @@ describe('video model send contracts', () => {
     expect(contract.execution).toBe('execution-not-migrated')
   })
 })
+
+describe('首尾帧能力声明（切片 6 第 ③④ 层）', () => {
+  it('火山线的关键帧档给两个具名槽，且槽位放宽到两张', () => {
+    // 只声明槽位而不放宽 images，第二张会在发送前被截掉；只放宽 images 而不声明
+    // 槽位，第二张会被当成一张无语义的参考图 —— 首尾帧从未生效正是卡在这两层。
+    for (const id of [
+      AI_MODELS.SEEDANCE_20_VOLCENGINE,
+      AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+      AI_MODELS.SEEDANCE_25_VOLCENGINE,
+    ]) {
+      const contract = getVideoModelSendContract(
+        id,
+        AI_ADAPTER_TYPES.VOLCENGINE,
+      )
+      expect(contract.keyframeSlots, id).toBe(2)
+      expect(contract.slots.images, id).toBe(2)
+    }
+  })
+
+  it('worker 发不出 last_frame 的模型一律只给一个槽', () => {
+    // ⚠ 判据是「我们的 builder 发得出来吗」，不是「上游支不支持」。fal 的 builder
+    // 里根本没有帧角色概念，minimax 只发 first_frame —— 声明得比实现宽，用户填了
+    // 尾帧就会被静默丢掉。
+    for (const [id, adapter] of [
+      [AI_MODELS.SEEDANCE_20, AI_ADAPTER_TYPES.FAL],
+      [AI_MODELS.SEEDANCE_20_FAST, AI_ADAPTER_TYPES.FAL],
+      [AI_MODELS.MINIMAX_H3, AI_ADAPTER_TYPES.MINIMAX],
+      [AI_MODELS.KLING_V3_PRO, AI_ADAPTER_TYPES.FAL],
+      [AI_MODELS.HAPPYHORSE_10, AI_ADAPTER_TYPES.FAL],
+    ] as const) {
+      const contract = getVideoModelSendContract(id, adapter)
+      expect(contract.keyframeSlots, id).toBe(1)
+      expect(contract.slots.images, id).toBe(1)
+    }
+  })
+
+  it('参考端点没有首尾帧 —— 三种场景互斥', () => {
+    // 火山明说 first-frame i2v / first+last frame / multimodal reference 三选一。
+    for (const id of [
+      AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
+      AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+    ]) {
+      expect(
+        getVideoModelSendContract(id, AI_ADAPTER_TYPES.VOLCENGINE)
+          .keyframeSlots,
+        id,
+      ).toBe(1)
+    }
+  })
+})

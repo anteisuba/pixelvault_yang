@@ -33,16 +33,39 @@ const MAX_DURATION = 15
 const DEFAULT_DURATION = 5
 
 /** Multimodal caps: ≤9 reference images, ≤3 videos, ≤3 audio clips. */
+/**
+ * 走**参考端点**（多模态参考）的内部 modelId。
+ *
+ * ⚠ 必须用内部 id：火山的参考端点与普通端点共用同一个 `externalModelId`，那边分不出。
+ * ⚠ 接 BytePlus 时要把它的参考端点 id 一并加进来。
+ */
+const REFERENCE_ENDPOINT_MODEL_IDS = new Set<string>([
+  'seedance-2.0-reference-volcengine',
+  'seedance-2.0-fast-reference-volcengine',
+  'seedance-2.5-reference-volcengine',
+])
+
 const MAX_REFERENCE_IMAGES = 9
 const MAX_REFERENCE_VIDEOS = 3
 const MAX_REFERENCE_AUDIO = 3
 
-/** The fast tier tops out at 720p; asking for 1080p there is a 400. */
-const FAST_MODEL_IDS = new Set([
-  'seedance-2.0-fast-volc',
-  'doubao-seedance-2-0-fast-260128',
-  'doubao-seedance-2-0-mini-260615',
-])
+/**
+ * The fast tier tops out at 720p; asking for 1080p there is a 400.
+ *
+ * ⚠ 这里键的是 **externalModelId**（`resolveResolution` 的入参就是它），与 src 侧
+ * 那份镜像键的维度不同 —— src 侧键内部 id。两边都对，但**别把值互相抄过去**。
+ * 普通 fast 与 fast-reference 共用同一个外部 id，一条就够。
+ */
+const FAST_MODEL_IDS = new Set(['doubao-seedance-2-0-fast-260128'])
+
+const ADAPTIVE_RATIO = 'adaptive'
+
+/**
+ * 只有 2.5 的**关键帧档**吃这条：首帧 / 首尾帧场景 `ratio` 必须是 `adaptive`。
+ * 键的是**内部** modelId —— 2.5 的参考端点与关键帧端点共用同一个 externalModelId，
+ * 拿外部 id 分不开这两个场景。
+ */
+const ADAPTIVE_RATIO_MODEL_IDS = new Set<string>(['seedance-2.5-volcengine'])
 
 export interface VolcEngineVideoBuilderInput {
   prompt: string
@@ -99,12 +122,25 @@ export function buildVolcEngineVideoRequest(
     MAX_REFERENCE_AUDIO,
   )
 
-  // ark forbids mixing its three scenarios (first-frame i2v / first+last frame /
-  // multimodal reference). Reference mode activates on multiple images or any
-  // reference video/audio; a lone image with nothing else stays a classic
-  // first-frame i2v so existing single-image behaviour is preserved.
+  // ark 的三个场景互斥：first-frame i2v / first+last frame / multimodal reference。
+  //
+  // ⚠ 判据从「数输入个数」改成「**看端点**」。旧判据是「图 >1 张 或 有视频/音频」——
+  // 于是两张关键帧（首帧 + 尾帧）会被判成多模态参考，全部按 `reference_image` 发出，
+  // 视频不会以第二张结尾。首尾帧从未生效，第 ⑤ 层就卡在这一句上（cleanup §1）。
+  //
+  // 端点由**节点上的模式**选定（关键帧 / 多图参考 / 全能参考），所以场景本来就已经
+  // 定了，不该在这里再从输入反推一次。
+  //
+  // ⚠ 火山的参考端点与普通端点共用同一个 `externalModelId`（都是
+  // `doubao-seedance-2-0-260128`），靠 content 里的 role 区分场景 —— 所以只能用我们
+  // **内部**的 modelId 判，不能用 externalModelId。
+  //
+  // ⚠ 保留「有视频/音频就升级成参考模式」这一路兜底：发送链路按模式过滤还没做
+  // （切片 6 待办），关键帧档的节点仍可能采集到视频/音频。直接砍掉这一条会把它们
+  // 静默丢掉 —— 那正是这一轮一路在治的那类缺陷。
+  const isReferenceEndpoint = REFERENCE_ENDPOINT_MODEL_IDS.has(input.modelId)
   const useReferenceMode =
-    referenceImageUrls.length > 1 ||
+    isReferenceEndpoint ||
     referenceVideoUrls.length > 0 ||
     referenceAudioUrls.length > 0
 
@@ -134,6 +170,20 @@ export function buildVolcEngineVideoRequest(
         })
       }
     }
+  } else if (referenceImageUrls.length >= 2) {
+    // 首尾帧：两条 image_url 并列，role 分别是 first_frame / last_frame（官方示例
+    // 就是这个形状）。顺序由采集端保证 —— `orderKeyframes` 按 imageCategory 把首帧
+    // 排在尾帧前面，这里只按位置取。
+    content.push({
+      type: 'image_url',
+      image_url: { url: referenceImageUrls[0] },
+      role: 'first_frame',
+    })
+    content.push({
+      type: 'image_url',
+      image_url: { url: referenceImageUrls[1] },
+      role: 'last_frame',
+    })
   } else if (referenceImageUrls.length === 1) {
     content.push({
       type: 'image_url',
@@ -147,7 +197,17 @@ export function buildVolcEngineVideoRequest(
     content,
   }
 
-  if (input.aspectRatio) {
+  // 2.5 的关键帧档带图时 `ratio` 只收 `adaptive`，传具体宽高比会 400（火山「视频生成
+  // 教程」使用限制段）。参考端点不在这条约束里。
+  //
+  // ⚠ src 侧的同一条规则住在发送契约里（`constants/video-model-send-plan.ts` 的
+  // `imageAspectRatioLock`）—— worker 进不到那份代码，这里是**手抄的镜像**，改一边
+  // 要手动同步另一边（vitest 也测不到 worker 这份）。
+  // ⚠ 判据是这次请求里**到底有没有图**，不是模型 id —— 同一个模型纯文生视频不受限。
+  const hasImageContent = content.some((item) => item.type === 'image_url')
+  if (hasImageContent && ADAPTIVE_RATIO_MODEL_IDS.has(input.modelId)) {
+    body.ratio = ADAPTIVE_RATIO
+  } else if (input.aspectRatio) {
     body.ratio = input.aspectRatio
   }
 

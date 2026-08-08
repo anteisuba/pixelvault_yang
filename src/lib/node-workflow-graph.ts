@@ -44,6 +44,15 @@ export interface BlockedUpstreamMedia {
 export interface HarvestedImageUrls {
   urls: string[]
   blocked: BlockedUpstreamMedia[]
+  /**
+   * `urls` 开头那一段里，真正被用户标成关键帧（`imageCategory` = frameStart /
+   * frameEnd）的图，按首→尾排好，且**只含过审的**（是 `urls` 的真前缀）。
+   *
+   * ⚠ 为什么单独给一份而不是只靠「排在最前」这个约定：约定只在**全是关键帧**时成立。
+   * 「1 张首帧 + 1 张角色卡图」的 `urls` 也是两条，下游若按位置取就会把角色图当尾帧
+   * 发出去。首尾语义的载体是分类，不是位置 —— 位置只是它的投影。
+   */
+  keyframeUrls: string[]
 }
 
 export interface HarvestedImageReferences {
@@ -412,6 +421,7 @@ export function harvestUpstreamImageUrls(
 ): HarvestedImageUrls {
   const result: string[] = []
   const blocked: BlockedUpstreamMedia[] = []
+  const keyframeUrls: string[] = []
 
   // 关键帧先入列（它们钉住时序），且**首帧在前、尾帧在后**。
   //
@@ -420,7 +430,10 @@ export function harvestUpstreamImageUrls(
   // 以第二张结尾（§1 五层链路的第 ② 层）。顺序在这里就是首尾语义的载体：下游按位置
   // 取（images[0]=首帧、images[1]=尾帧），不必再发明一个并行字段。
   for (const node of orderKeyframes(upstreamNodes)) {
-    pushGated(result, blocked, node, getNodeMediaUrl(node.data))
+    const url = getNodeMediaUrl(node.data)
+    // `pushGated` 返回「这张真的进了 urls 吗」—— 只收过审的那些，`keyframeUrls`
+    // 必须是 `urls` 的真前缀，否则下游拿它去选图会选到一张压根没发出去的。
+    if (pushGated(result, blocked, node, url) && url) keyframeUrls.push(url)
   }
   // V-2 主图 + R3-6 出场组: a COLLECTOR card (character/background — the
   // "身份档案夹" with a curatable gallery) expands to its full onStage set
@@ -445,7 +458,7 @@ export function harvestUpstreamImageUrls(
     }
   }
 
-  return { urls: result, blocked }
+  return { urls: result, blocked, keyframeUrls }
 }
 
 /**
@@ -483,7 +496,8 @@ export function harvestUpstreamCloseupUrls(
     }
   }
 
-  return { urls: result, blocked }
+  // 特写永远不是关键帧（它跟在主图后面入列），所以这里恒空。
+  return { urls: result, blocked, keyframeUrls: [] }
 }
 
 /**

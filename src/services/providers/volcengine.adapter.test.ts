@@ -31,7 +31,7 @@ interface VolcBodyCase {
 
 const VOLC_VIDEO_FIXTURES = {
   seedance20: {
-    id: 'doubao-seedance-2-0-260128',
+    id: AI_MODELS.SEEDANCE_20_VOLCENGINE,
     externalModelId: 'doubao-seedance-2-0-260128',
     videoDefaults: {
       generateAudio: true,
@@ -39,8 +39,24 @@ const VOLC_VIDEO_FIXTURES = {
     },
   },
   seedance20Fast: {
-    id: 'doubao-seedance-2-0-fast-260128',
+    id: AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
     externalModelId: 'doubao-seedance-2-0-fast-260128',
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
+  seedance25: {
+    id: AI_MODELS.SEEDANCE_25_VOLCENGINE,
+    externalModelId: 'doubao-seedance-2-5-260628',
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
+  seedance20Reference: {
+    id: AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
+    externalModelId: 'doubao-seedance-2-0-260128',
     videoDefaults: {
       generateAudio: true,
       resolution: '720p',
@@ -256,9 +272,9 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
   const VID1 = 'https://example.com/clip.mp4'
   const AUD1 = 'https://example.com/voice.mp3'
 
-  it('sends multiple images as reference_image (not first_frame)', () => {
+  it('reference endpoint: multiple images go out as reference_image', () => {
     const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20),
+      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20Reference),
       referenceImages: [IMG1, IMG2],
     })
 
@@ -267,6 +283,39 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
       { type: 'image_url', image_url: { url: IMG1 }, role: 'reference_image' },
       { type: 'image_url', image_url: { url: IMG2 }, role: 'reference_image' },
     ])
+  })
+
+  it('keyframe endpoint: two images go out as first_frame + last_frame', () => {
+    const body = buildVolcEngineVideoQueueBody({
+      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20),
+      referenceImages: [IMG1, IMG2],
+    })
+
+    expect(body.content).toEqual([
+      { type: 'text', text: PROMPT },
+      { type: 'image_url', image_url: { url: IMG1 }, role: 'first_frame' },
+      { type: 'image_url', image_url: { url: IMG2 }, role: 'last_frame' },
+    ])
+  })
+
+  it('两个端点共用同一个 externalModelId —— 只能按内部 modelId 分场景', () => {
+    const keyframe = buildVolcEngineVideoQueueBody(
+      buildInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1),
+    )
+    const reference = buildVolcEngineVideoQueueBody(
+      buildInput(VOLC_VIDEO_FIXTURES.seedance20Reference, IMG1),
+    )
+
+    // 发给火山的 model 字段完全一样 —— 这正是不能拿它当判据的原因。
+    expect(keyframe.model).toBe(reference.model)
+    expect(
+      getVideoModelSendContract(VOLC_VIDEO_FIXTURES.seedance20.id)
+        .referenceMode,
+    ).toBe('text-or-first-frame')
+    expect(
+      getVideoModelSendContract(VOLC_VIDEO_FIXTURES.seedance20Reference.id)
+        .referenceMode,
+    ).toBe('multimodal-reference')
   })
 
   it('combines reference image, video and audio entries', () => {
@@ -302,6 +351,31 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
     })
 
     expect(body.content).toEqual([{ type: 'text', text: PROMPT }])
+  })
+
+  it('2.5 关键帧档 + 有图 → ratio 强制 adaptive（传具体宽高比会 400）', () => {
+    const body = buildVolcEngineVideoQueueBody({
+      ...buildInput(VOLC_VIDEO_FIXTURES.seedance25, IMG1),
+    })
+
+    expect(body.ratio).toBe('adaptive')
+  })
+
+  it('⚠ 2.5 纯文生视频 → 比例照发，不受首帧那条约束', () => {
+    // 判据是「这次请求有没有图」，不是模型 id —— 只看 id 会把文生的比例也改掉。
+    const body = buildVolcEngineVideoQueueBody(
+      buildInput(VOLC_VIDEO_FIXTURES.seedance25),
+    )
+
+    expect(body.ratio).toBe('16:9')
+  })
+
+  it('2.0 + 有图 → 比例照发，这条约束只属于 2.5', () => {
+    const body = buildVolcEngineVideoQueueBody(
+      buildInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1),
+    )
+
+    expect(body.ratio).toBe('16:9')
   })
 
   it('caps references at 9 images / 3 videos / 3 audio', () => {

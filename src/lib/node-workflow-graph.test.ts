@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  NODE_IMAGE_ROLE_IDS,
+  NODE_REVIEW_STATE_IDS,
+  NODE_TYPE_IDS,
+} from '@/constants/node-types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
@@ -659,6 +663,54 @@ describe('harvestUpstreamImageUrls — 首尾帧顺序', () => {
       'https://cdn/start.png',
       'https://cdn/end.png',
     ])
+  })
+
+  it('keyframeUrls 只含关键帧，参考图不混进来', () => {
+    // 位置约定只在「全是关键帧」时成立：`urls` = [首帧, 角色图] 也是两条，下游按位置
+    // 取就会把角色图当尾帧。所以关键帧那一段要单独交出来。
+    const upstream = [
+      makeNode('start', NODE_TYPE_IDS.image, {
+        status: 'idle',
+        imageCategory: 'frameStart',
+        mediaUrl: 'https://cdn/start.png',
+      }),
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        status: 'idle',
+        mediaUrl: 'https://cdn/character.png',
+      }),
+    ]
+
+    const harvested = harvestUpstreamImageUrls(upstream)
+    expect(harvested.urls).toEqual([
+      'https://cdn/start.png',
+      'https://cdn/character.png',
+    ])
+    expect(harvested.keyframeUrls).toEqual(['https://cdn/start.png'])
+  })
+
+  it('keyframeUrls 是 urls 的真前缀 —— 被审核门挡下的关键帧不算数', () => {
+    // 选一张压根没发出去的图当尾帧，等于凭空发明了一帧。
+    const upstream = [
+      makeNode('start', NODE_TYPE_IDS.image, {
+        status: 'idle',
+        imageCategory: 'frameStart',
+        mediaUrl: 'https://cdn/start.png',
+      }),
+      makeNode('end', NODE_TYPE_IDS.image, {
+        status: 'idle',
+        imageCategory: 'frameEnd',
+        mediaUrl: 'https://cdn/end.png',
+        mediaReview: {
+          'https://cdn/end.png': { state: NODE_REVIEW_STATE_IDS.rejected },
+        },
+      }),
+    ]
+
+    const harvested = harvestUpstreamImageUrls(upstream)
+    expect(harvested.keyframeUrls).toEqual(['https://cdn/start.png'])
+    for (const url of harvested.keyframeUrls) {
+      expect(harvested.urls).toContain(url)
+    }
   })
 
   it('没有分类的旧关键帧算首帧，存量图送出的第一张不变', () => {

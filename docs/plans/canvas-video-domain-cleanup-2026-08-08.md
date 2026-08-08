@@ -552,9 +552,51 @@ owner 选的路子：先落不依赖模式的部分 + 止血，提交链路的�
 
 #### 还剩
 
-- 「N 段素材在当前模式下不会发送」提示 + 发送链路按模式过滤 —— 等切片 6 把槽位按模式藏起来才有意义（现在所有素材区都还照渲染，没有「藏着却发出去」的情况）。
-- 切片 6：三种槽位形态 + 首尾帧，含 worker 侧 `last_frame` 分支（§1.2）。
+- 「N 段素材在当前模式下不会发送」提示 —— 关键帧档那部分已随切片 6 落地（见 §9.11），其余模式的槽位形态仍未做。
+
+### 9.11 ✅ 切片 6 已交付：首尾帧五层全通（2026-08-08）
+
+§1 说「首尾帧在整条链路上从未实现」，现在五层都补上了。**逐层对照 §1 的表**：
+
+| 层         | 原状态                  | 现在                                                                                         |
+| ---------- | ----------------------- | -------------------------------------------------------------------------------------------- |
+| ① 画布 UI  | ✅ 本来就能标           | 未动 —— 用户在图片节点上标「关键帧首/尾」，入口是 `CanvasImageSelectionToolbar`              |
+| ② 图判定   | ❌ 首尾区别被丢         | `orderKeyframes` 按 `imageCategory` 排序（首在前），并新增 `HarvestedImageUrls.keyframeUrls` |
+| ③ 能力声明 | ⚠ 死代码                | **删掉了**（见下）                                                                           |
+| ④ 发送契约 | ❌ 只给一张的位置       | `keyframeSlots: 1 \| 2` + `FIRST_LAST_FRAME_SLOTS`（images: 2）                              |
+| ⑤ 请求体   | ❌ 无 `last_frame` 分支 | 两侧都加了 `first_frame` + `last_frame` 并列两条                                             |
+
+**③ 按 §1.2 第 4 条「要么用起来要么删掉」选了删**：`ReferenceImageCapability` 的 `slotted` 变体零个模型声明、唯一用例在测试里。首尾帧最终住在发送契约的 `keyframeSlots` + 适配器的 `role`。同批删掉 `ReferenceSlotRole` 里从未被发出过的 `first_frame` / `last_frame` / `mask` —— 它们正是 §1.2 说的「第三套并行概念」。⚠ 同文件的 `getReferenceCapabilityMax` / `getReferenceCapability` **有 3 个真实调用方**（studio 两处 + `generate-image.service`），没动。
+
+#### ⑤ 的判据从「数输入个数」改成「看端点」
+
+原判据 `图 >1 张 或 有视频/音频 → 多模态参考`，两张关键帧因此被判成一组无序参考图 —— 这就是 §1 那句「视频不会以第二张图结尾」的落点。端点由**节点上的模式**选定，场景本来就已经定了，不该在这里从输入再反推。
+
+⚠ **火山的参考端点与关键帧端点共用同一个 `externalModelId`**（`doubao-seedance-2-0-260128`），只能按我们**内部**的 modelId 分场景。
+
+#### ⚠ 位置约定不够，加了 `keyframeUrls`
+
+收割顺序是「关键帧在前，其余参考图跟在后面」。适配器按位置取（images[0]=首帧、images[1]=尾帧），**这条约定只在全是关键帧时成立**：
+
+    1 张首帧 + 1 张角色卡图  →  urls = [首帧, 角色图]  →  角色图被当成尾帧发出去
+
+新增 `lib/node-video-keyframe-plan.ts`（纯函数 + 7 条测试）在离开客户端前把选图定死，发送路径与预览层**共用同一个函数**。被留下的图进**既有**的 `dropped` 通道（理由 `unsupported`），不另起提示。⚠ 只对首尾帧档改变行为，其余模型原样透传。
+
+#### ⚠ 顺带修掉两条同形缺陷（判据用错了维度，与本轮一路在治的是同一类）
+
+1. **2.0 Fast 的 1080p 闸在生产里一次都没生效过。** `VOLCENGINE_SEEDANCE_20_FAST_MODEL_IDS` 装的是 `'seedance-2.0-fast-volc'`（**不存在的 id**）和外部 id，而 `resolveVolcEngineVideoResolution` 拿到的是**内部** id，两个都对不上。单测当时是绿的 —— 夹具喂的是外部 id，验的是另一个维度。**测试夹具已改用真实内部 id**。⚠ worker 那份键的是 `externalModelId` 且值对得上，**是好的**；两侧键的维度不同，别把值互相抄过去。
+2. **Seedance 2.5 + 首帧/首尾帧会直接 400**（§1.2 末尾预言的联动，`models/video.ts:285` 自己也标了「尚未实现的上游约束」）。契约新增 `imageAspectRatioLock`，两侧适配器在**这次请求真有图**时才改发 `adaptive`（只看模型 id 会把纯文生的比例也一起改掉）。composer 的比例控件与参数摘要同步在锁生效时收起 —— 摆一个不会被采纳的值等于骗人。
+
+#### ⬜ 已知缺口（明确不做，不是漏了）
+
+- `use-video-composer.ts` 的槽位徽标（图N）没接选帧函数：`effectivePreviewModel` 定义在 `referenceTokens` **之后**，接上去要重排一个两千行的 hook。徽标与容量上限本来就已不一致（发送路径用 `getMaxReferenceImages`、预览层用 `contract.slots`，**两套容量源**），这是既有问题不是这次引入的。
+- **两套容量源**本身没统一 —— 超出切片 6。
+- 未真机实测（改动集中在发送路径，画布上无可见变化；两侧共 8 + 22 条单测覆盖）。
 
 ## Last Verified
 
-2026-08-08 · §1 五层链路、§2.1 i18n 现状、§4 参数矩阵、§5.1/5.3 节点与引用计数均为本地实读。⚠ **未验证项**：① `addCatalog.items.collect` 是否真是孤儿键（只 grep 了 `canvas-add-catalog.ts` 一个文件）② §1.2 四条锚点均未实际改动验证 ③ 首尾帧补上后与 2.5 `ratio=adaptive` 的联动未实测。
+2026-08-08 · §1 五层链路、§2.1 i18n 现状、§4 参数矩阵、§5.1/5.3 节点与引用计数均为本地实读。⚠ **未验证项**：① `addCatalog.items.collect` 是否真是孤儿键（只 grep 了 `canvas-add-catalog.ts` 一个文件）。
+
+② §1.2 四条锚点 **2026-08-08 已随切片 6 全部执行验证**（见 §9.11）：第 1 条（②层保住首尾）走的是 `orderKeyframes` + 新增 `keyframeUrls`，**没改 `isKeyframeNode` 签名**；第 2 条（契约表达首尾帧）选了「`text-or-first-frame` 档内的子形态」而非第四个枚举值，落在 `keyframeSlots`；第 3 条（重写 builder 判据）已改成按端点判；第 4 条（`slotted`）选了删。
+
+③ 2.5 的 `ratio=adaptive` 联动**已实现**（契约 `imageAspectRatioLock` + 两侧适配器 + 单测），但**仍未真机实测**——需要一次真实的 2.5 首帧生成才能确认火山不再 400。

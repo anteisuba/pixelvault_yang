@@ -5,10 +5,11 @@
  * (video) getters into a single discriminated union so studio code can ask
  * "what reference images does this model accept?" without branching on surface.
  *
- * Step 1 of the reference-image redesign: pure addition, no downstream
- * consumers yet. Step 2 migrates UI to consume this and adds the
- * "preserve + mark disabled on model switch" behaviour. Step 3 introduces the
- * 'slotted' variant for first/last-frame video models.
+ * ⚠ 这里**不管首尾帧**。曾经预留过一个 `slotted` 变体（"Step 3"）说要用来表达首尾帧，
+ * 但它零个模型声明、唯一用例在测试里，躺了很久没人接。首尾帧最终落在发送契约上
+ * （`constants/video-model-send-plan.ts` 的 `keyframeSlots`）+ 适配器里的
+ * `role: 'first_frame' | 'last_frame'`，2026-08-08 补首尾帧时把这里的死变体删了 ——
+ * 同一件事留两套并行概念，比没有更糟。
  */
 
 import { AI_MODELS } from '@/constants/models'
@@ -27,30 +28,17 @@ import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
  * - 'general': model uses the image as a generic style/content reference.
  * - 'subject' / 'style': reserved for multi-role models (Kontext-style
  *   subject + scene compositing). Not emitted in Step 1.
- * - 'first_frame' / 'last_frame': video models that interpolate between two
- *   keyframes (Seedance last_frame_chain, Veo reference-to-video). Step 3.
- * - 'mask': inpainting / outpainting masks. Reserved.
+ *
+ * ⚠ 曾经还有 'first_frame' / 'last_frame' / 'mask' 三个值，一个都没被发出过 ——
+ * 首尾帧的家在 `video-model-send-plan.ts`，见文件头。
  */
-export type ReferenceSlotRole =
-  | 'general'
-  | 'subject'
-  | 'style'
-  | 'first_frame'
-  | 'last_frame'
-  | 'mask'
-
-export interface ReferenceSlot {
-  role: ReferenceSlotRole
-  required: boolean
-}
+export type ReferenceSlotRole = 'general' | 'subject' | 'style'
 
 /**
  * What a model accepts as reference input.
  *
  * - 'none': model doesn't take reference images (UI hides the chip).
  * - 'flexible': 0..max images, all sharing one default role.
- * - 'slotted': explicit ordered slots with per-slot role and required-ness.
- *   Reserved for Step 3.
  */
 export type ReferenceImageCapability =
   | { kind: 'none' }
@@ -61,7 +49,6 @@ export type ReferenceImageCapability =
       defaultRole: ReferenceSlotRole
       mode: ReferenceImageMode
     }
-  | { kind: 'slotted'; slots: readonly ReferenceSlot[] }
 
 export type ReferenceImageSurface = 'image' | 'video'
 
@@ -233,8 +220,6 @@ export function getReferenceCapabilityMax(
       return 0
     case 'flexible':
       return cap.max
-    case 'slotted':
-      return cap.slots.length
   }
 }
 
@@ -247,7 +232,5 @@ export function isReferenceImageRequired(
       return false
     case 'flexible':
       return cap.min > 0
-    case 'slotted':
-      return cap.slots.some((s) => s.required)
   }
 }

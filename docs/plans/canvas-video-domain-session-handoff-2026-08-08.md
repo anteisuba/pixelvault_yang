@@ -137,7 +137,9 @@ curl -s "https://api.github.com/repos/runpod-workers/worker-comfyui/contents/.ch
 
 ~~**然后开工切片 3**~~ —— ✅ **切片 3 已于 2026-08-08 交付**（`BaseModelPickerPanel` 三态机 + 三桶抽成纯函数 + `Common.channelCount`，全量 tsc/eslint/测试绿，studio 视频与图片两条线真机验过）。交付记录与实现时定死的规格空白见 `canvas-video-domain-cleanup-2026-08-08.md` **§9.8**。**下一件是切片 4**（节点模式字段 + `density='card'` 顶部三档 tab）。
 
-owner 已拍板**两套分类需要收敛**。第一批（不依赖模式的部分 + 止血）已落地，见 cleanup **§9.9**。
+owner 已拍板**两套分类需要收敛**。第一批（不依赖模式的部分 + 止血）已落地，见 cleanup **§9.9**；收敛完成 + 切片 4 见 **§9.10**。
+
+✅ **切片 6（首尾帧）已于 2026-08-08 交付** —— §1 五层链路全通，交付记录 cleanup **§9.11**。开工前若要接着做，先读那一节的「⬜ 已知缺口」：**两套容量源没统一**（发送路径 `getMaxReferenceImages` vs 预览层 `contract.slots`），composer 的槽位徽标因此还没接选帧函数。⚠ 同批修掉两条**同形缺陷**（判据用错了维度）：2.0 Fast 的 1080p 闸在生产里从未生效、2.5 + 首帧会 400。**2.5 那条仍未真机实测** —— 需要一次真实的 2.5 首帧生成才算数。
 
 ⚠ **切片 4 开工前必读 §9.9**：
 

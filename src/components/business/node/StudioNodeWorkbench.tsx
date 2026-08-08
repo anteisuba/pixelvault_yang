@@ -119,6 +119,7 @@ import {
   resolveNodeDisplayName,
   stripFileExtension,
 } from '@/lib/node-display-name'
+import { parseMentions } from '@/components/business/node/composer/MentionInput'
 import type {
   NodeAssistantOpNodeRef,
   PlannedNodeAssistantOp,
@@ -154,6 +155,7 @@ import {
 } from '@/lib/node-video-prompt-translation'
 import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
 import { assembleReferenceImagePayload } from '@/lib/node-reference-payload'
+import { planVideoKeyframeImages } from '@/lib/node-video-keyframe-plan'
 import type { AdvancedParams } from '@/types'
 import type {
   NodeWorkflowEdge,
@@ -1287,10 +1289,10 @@ function StudioNodeCanvas() {
           // stageOverrideUrls instead of always falling back to the card's
           // own onStage curation.
           harvestUpstreamImageUrls(upstreamNodes, workflow.edges, nodeId)
-        : { urls: [], blocked: [] }
+        : { urls: [], blocked: [], keyframeUrls: [] }
       const harvestedCloseups = isVideoMediaNode
         ? harvestUpstreamCloseupUrls(nodeId, workflow.edges, workflow.nodes)
-        : { urls: [], blocked: [] }
+        : { urls: [], blocked: [], keyframeUrls: [] }
       const upstreamImageUrls = [
         ...harvestedImages.urls,
         ...harvestedCloseups.urls,
@@ -1477,9 +1479,26 @@ function StudioNodeCanvas() {
       // still exceed the cap (the migration pass-through can return the full
       // uncapped set, or the user may @-mention more distinct images than
       // the model allows).
-      const effectiveReferenceImages = (
+      const cappedReferenceImages = (
         referencedFilter ? referencedFilter.referenceImages : referenceImages
       ).slice(0, maxReferenceImages)
+      // 切片 6 第 ⑤ 层守卫：关键帧档只有 first_frame / last_frame 两个位置，适配器
+      // 按位置取图。而收割顺序是「关键帧在前，其余参考图跟在后面」——「1 张首帧 +
+      // 1 张角色卡图」原样送下去，角色图就会被当成尾帧，视频以一张不相干的图结尾。
+      // 选图在这里定死，别让适配器去猜（判据是分类，不是位置）。
+      //
+      // 下游全都跟着 `effectiveReferenceImages` 走：图例按它编号，`imageIndexByName`
+      // 也按它的长度裁 —— 被留下的图对应的 @ImageN 因此自动消失，不会指向一张没发出
+      // 去的图。
+      const keyframePlan = isVideoMediaNode
+        ? planVideoKeyframeImages({
+            imageUrls: cappedReferenceImages,
+            keyframeUrls: harvestedImages.keyframeUrls,
+            modelId: model.modelId,
+            adapterType: model.adapterType,
+          })
+        : { imageUrls: cappedReferenceImages, dropped: [] }
+      const effectiveReferenceImages = keyframePlan.imageUrls
       const referenceLegend = isShotImageNode
         ? buildShotReferenceLegend(referenceImages, referenceByUrl)
         : isVideoMediaNode
@@ -2612,15 +2631,61 @@ function StudioNodeCanvas() {
   // deletion is never gated on the animation — `workflow.deleteEdge` always
   // fires synchronously in the same tick; the fading copy is a purely
   // decorative render-layer echo (§2.7 "数据先删/并行, 动画只是视觉层").
+  /**
+   * 断开一条素材边时，把正文里对应的 `@名字` 一并去掉。
+   *
+   * owner 2026-08-08：连线进输入框，断开就同步删 —— 否则正文会留下指向已断开节点的
+   * 名字，正是这轮一路在治的「显示与事实对不上」。
+   *
+   * ⚠ 用 `parseMentions` **分词再重组**，不写正则。它是**最长优先**匹配已知名字的
+   * （`@角色A2` 先于 `@角色A`），自己写边界判断迟早会把 `@角色1` 从 `@角色10` 里割
+   * 出来。已知名字给全画布的，不只给已连的 —— 否则删的那一刻源节点已经不算「已连」，
+   * 最长优先就失去了它需要的那份候选。
+   */
+  const stripMentionForEdge = useCallback(
+    (edge: NodeWorkflowEdge) => {
+      const source = workflow.nodes.find((node) => node.id === edge.source)
+      const target = workflow.nodes.find((node) => node.id === edge.target)
+      if (!source || !target) return
+      // 只有素材类当初才插了 token（与 `handleIngestConnect` 同一条判据）。
+      if (!getSeedanceReferenceKind(source)) return
+      const name = resolveNodeDisplayName(source.data)
+      if (!name) return
+      const prompt =
+        typeof target.data.prompt === 'string' ? target.data.prompt : ''
+      if (!prompt.includes(`@${name}`)) return
+
+      const knownNames = workflow.nodes
+        .map((node) => resolveNodeDisplayName(node.data))
+        .filter((value): value is string => Boolean(value))
+      const next = parseMentions(prompt, knownNames)
+        .filter(
+          (segment) => !(segment.type === 'token' && segment.name === name),
+        )
+        .map((segment) =>
+          segment.type === 'token' ? `@${segment.name}` : segment.text,
+        )
+        .join('')
+        // 拿掉 token 后左右两个空格会并在一起。
+        .replace(/ {2,}/g, ' ')
+        .replace(/ +$/, '')
+      if (next === prompt) return
+      workflow.updateNodeData(target.id, { prompt: next })
+    },
+    [workflow],
+  )
+
   const handleDeleteEdgeWithSignOff = useCallback(
     (edgeId: string) => {
       const edge = workflow.edges.find((candidate) => candidate.id === edgeId)
       if (edge && !prefersReducedMotion() && isEdgeCurrentlyVisible(edge)) {
         scheduleEdgeUnsign(edge)
       }
+      // 先摘 token 再删边 —— 摘的时候还需要读这条边的两端。
+      if (edge) stripMentionForEdge(edge)
       workflow.deleteEdge(edgeId)
     },
-    [workflow, isEdgeCurrentlyVisible, scheduleEdgeUnsign],
+    [workflow, isEdgeCurrentlyVisible, scheduleEdgeUnsign, stripMentionForEdge],
   )
 
   // The Del/Backspace path for a SELECTED edge never goes through
@@ -2632,6 +2697,9 @@ function StudioNodeCanvas() {
   // runs through ReactFlow's normal onEdgesChange → workflow.onEdgesChange.
   const handleEdgesDelete = useCallback(
     (edges: NodeWorkflowEdge[]) => {
+      // ⚠ 摘 token 在减弱动效之前 —— 那个 early return 只该管动画，不该把数据一致性
+      // 一起跳过（`prefers-reduced-motion` 的用户同样要删干净）。
+      for (const edge of edges) stripMentionForEdge(edge)
       if (prefersReducedMotion()) return
       for (const edge of edges) {
         if (isEdgeCurrentlyVisible(edge)) {
@@ -2639,7 +2707,7 @@ function StudioNodeCanvas() {
         }
       }
     },
-    [isEdgeCurrentlyVisible, scheduleEdgeUnsign],
+    [isEdgeCurrentlyVisible, scheduleEdgeUnsign, stripMentionForEdge],
   )
 
   // R3-7 一键成盒 (canvas-relationship-v3 §3.0b/§7): the multi-select "合成 N

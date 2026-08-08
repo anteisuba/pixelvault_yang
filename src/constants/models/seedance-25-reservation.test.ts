@@ -111,13 +111,34 @@ describe('Seedance 2.5 contract', () => {
     expect(durations?.[durations.length - 1]).toBe(15)
   })
 
-  it('keeps the non-reference variant on first-frame slots', () => {
+  it('keeps the non-reference variant on the keyframe endpoint —— 现在是首尾两张', () => {
+    // 这条原本断言 `images: 1`，锁的是「首尾帧从未实现」那个状态（cleanup §1）。
+    // 2026-08-08 补上首尾帧后，关键帧档给两个**具名**槽位：首帧 + 尾帧。
+    // ⚠ 与「多图参考」仍然互斥 —— referenceMode 不变，火山明说三种场景不能混。
     const contract = getVideoModelSendContract(
       AI_MODELS.SEEDANCE_25_VOLCENGINE,
       AI_ADAPTER_TYPES.VOLCENGINE,
     )
     expect(contract.referenceMode).toBe('text-or-first-frame')
-    expect(contract.slots).toMatchObject({ images: 1, videos: 0, audio: 0 })
+    expect(contract.slots).toMatchObject({ images: 2, videos: 0, audio: 0 })
+    expect(contract.keyframeSlots).toBe(2)
+  })
+
+  it('2.5 关键帧档带图时 ratio 被钉死成 adaptive', () => {
+    // 火山对 2.5 的硬约束：首帧 / 首尾帧场景传具体宽高比会 400。
+    // 参考端点不在这条约束里。
+    expect(
+      getVideoModelSendContract(
+        AI_MODELS.SEEDANCE_25_VOLCENGINE,
+        AI_ADAPTER_TYPES.VOLCENGINE,
+      ).imageAspectRatioLock,
+    ).toBe('adaptive')
+    expect(
+      getVideoModelSendContract(
+        AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+        AI_ADAPTER_TYPES.VOLCENGINE,
+      ).imageAspectRatioLock,
+    ).toBeNull()
   })
 
   it('has a working execution path', () => {

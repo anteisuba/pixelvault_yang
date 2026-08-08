@@ -172,18 +172,6 @@ describe('reference-image-capabilities', () => {
         }),
       ).toBe(4)
     })
-
-    it('returns slot count for slotted', () => {
-      expect(
-        getReferenceCapabilityMax({
-          kind: 'slotted',
-          slots: [
-            { role: 'first_frame', required: true },
-            { role: 'last_frame', required: false },
-          ],
-        }),
-      ).toBe(2)
-    })
   })
 
   describe('isReferenceImageRequired', () => {
@@ -213,24 +201,6 @@ describe('reference-image-capabilities', () => {
           mode: 'native',
         }),
       ).toBe(true)
-    })
-
-    it('returns true when any slot is required', () => {
-      expect(
-        isReferenceImageRequired({
-          kind: 'slotted',
-          slots: [{ role: 'first_frame', required: true }],
-        }),
-      ).toBe(true)
-    })
-
-    it('returns false when no slot is required', () => {
-      expect(
-        isReferenceImageRequired({
-          kind: 'slotted',
-          slots: [{ role: 'first_frame', required: false }],
-        }),
-      ).toBe(false)
     })
   })
 })

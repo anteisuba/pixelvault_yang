@@ -43,6 +43,10 @@ import {
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
+import type {
+  AssistantClarifyingQuestion,
+  AssistantNextStep,
+} from '@/types/assistant-protocol'
 import {
   USER_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_UPLOAD_MAX_BYTES,
@@ -2296,6 +2300,15 @@ export interface PromptAssistantResponseData {
   /** v2 structured result (§2.3) — present only when the request carried
    *  `loraContext`; undefined on the legacy `mode:'lora'`/`'general'` path. */
   lora?: PromptAssistantLoraResult
+  /**
+   * A2 对话协议的两个块，服务端从正文里剥好再下发（Studio 这条路是缓冲补全不是
+   * 流式，所以抽取放服务端；画布那条是流式，抽取只能在客户端）。仅 `mode:'general'`
+   * 可能带；`prompt` 已是剥掉标记段的正文。
+   */
+  ask?: AssistantClarifyingQuestion[]
+  next?: AssistantNextStep
+  /** 出现了完整的协议块但读不出载荷 —— 用来提示而不是静默吞掉。 */
+  protocolMalformed?: boolean
 }
 
 export interface PromptAssistantResponse {

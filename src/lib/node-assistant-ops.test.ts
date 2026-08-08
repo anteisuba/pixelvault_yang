@@ -16,6 +16,68 @@ function wrap(payload: string): string {
 }
 
 describe('extractNodeAssistantOps', () => {
+  // B1 / A3：在此之前 add_node 只有 intent / ref / name —— 助手能建节点、能起名、
+  // 能连线，唯独填不进一个字的提示词。
+  it('carries the prompt an add_node op writes into the new node', () => {
+    const prompt = '同发型同服装，只把配色换成蓝白。'
+    const result = extractNodeAssistantOps(
+      wrap(
+        JSON.stringify({
+          ops: [{ op: 'add_node', intent: 'image.shot', ref: 's1', prompt }],
+        }),
+      ),
+      { streamComplete: true },
+    )
+
+    expect(result.batch?.ops[0]).toMatchObject({ op: 'add_node', prompt })
+  })
+
+  // 真机抓到的：模型把「引用节点用 [[node:id]]」这条规则套到了 prompt 字段上，
+  // 而那个字段是发给图像模型的，标记会被当成画面描述。
+  it('strips node markers the model leaks into a prompt', () => {
+    const result = extractNodeAssistantOps(
+      wrap(
+        JSON.stringify({
+          ops: [
+            {
+              op: 'add_node',
+              intent: 'image.shot',
+              prompt:
+                'Same hairstyle as [[node:node-b7fd9268-de86]] , only the palette changes.',
+            },
+          ],
+        }),
+      ),
+      { streamComplete: true },
+    )
+
+    const op = result.batch?.ops[0]
+    expect(op).toMatchObject({ op: 'add_node' })
+    expect(op && 'prompt' in op ? op.prompt : '').toBe(
+      'Same hairstyle as , only the palette changes.',
+    )
+  })
+
+  it('rejects a prompt past the payload guard instead of truncating it', () => {
+    const result = extractNodeAssistantOps(
+      wrap(
+        JSON.stringify({
+          ops: [
+            {
+              op: 'add_node',
+              intent: 'image.shot',
+              prompt: 'x'.repeat(NODE_ASSISTANT_OP_LIMITS.maxPromptLength + 1),
+            },
+          ],
+        }),
+      ),
+      { streamComplete: true },
+    )
+
+    expect(result.batch).toBeNull()
+    expect(result.malformed).toBe(true)
+  })
+
   it('leaves a plain reply untouched', () => {
     const result = extractNodeAssistantOps('先把小林的定妆图定下来。')
     expect(result).toEqual({

@@ -51,12 +51,14 @@ describe('AssistantConversation', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Outline' }))
-    expect(screen.getByRole('textbox')).toHaveValue('Plan it')
+    // A4：输入框从 <textarea> 换成了 contentEditable 的 MentionInput（`@名字`
+    // 要渲染成胶囊），所以读的是 textContent 不是 value。
+    expect(screen.getByRole('textbox')).toHaveTextContent('Plan it')
 
     fireEvent.click(screen.getByRole('button', { name: 'send' }))
 
     await waitFor(() => expect(onSend).toHaveBeenCalledWith('Plan it'))
-    expect(screen.getByRole('textbox')).toHaveValue('')
+    expect(screen.getByRole('textbox')).toHaveTextContent('')
   })
 
   it('collapses a long assistant reply to one preview paragraph and expands it on demand', () => {
@@ -93,6 +95,11 @@ describe('AssistantConversation', () => {
     ).toHaveAttribute('aria-expanded', 'true')
   })
 
+  /**
+   * ⚠ A4 的守卫就是这一条。`@` 与附件按钮是**两种意图**：附件按钮＝挂附件，
+   * `@`＝把引用写进句子。第一版让「选中任何素材都插胶囊」，草稿因此永远非空，
+   * 这条当场变红 —— 它守的是 `assistant-shell.md` §4「用户可只附附件发送」。
+   */
   it('can send an uploaded reference without requiring typed text', async () => {
     const onSend = vi.fn().mockResolvedValue(undefined)
     render(

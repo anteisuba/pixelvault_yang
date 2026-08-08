@@ -2955,6 +2955,17 @@
     "extract": "抽出"
   },
   "PromptAssistant": {
+    "turn": {
+      "answerPrefix": "私の回答：",
+      "skipped": "これはスキップ",
+      "skip": "スキップ",
+      "customPlaceholder": "自分の言葉で答えることもできます",
+      "submitAnswers": "回答を送信",
+      "satisfiedPrefix": "この方向でいきます —— ",
+      "adjustFallback": "調整したい？方向を教えてください",
+      "askedTitle": "回答済み · {count}",
+      "malformed": "アシスタントはここに選択肢を出そうとしましたが、その部分が読み取れませんでした。もう一度聞くか、自分の言葉で答えてください。"
+    },
     "title": "プロンプトアシスタント",
     "placeholder": "作りたいものを説明してください...",
     "send": "送信",
@@ -3254,11 +3265,11 @@
     },
     "seedance25Volcengine": {
       "label": "Seedance 2.5（VolcEngine）",
-      "description": "ByteDance の 30 秒ワンパス生成モデル、火山方舟の直接 API 経由。予約枠 —— VolcEngine は API を未公開。"
+      "description": "ByteDance の 30 秒ワンパス生成モデル、火山方舟の直接 API 経由。480p/720p、4〜30 秒。"
     },
     "seedance25ReferenceVolcengine": {
       "label": "Seedance 2.5（参照・VolcEngine）",
-      "description": "Seedance 2.5 の参照から動画生成。予約枠 —— VolcEngine は API を未公開。"
+      "description": "Seedance 2.5 の参照から動画生成。最大 30 画像 / 10 動画 / 10 音声、音声のみの参照にも対応。"
     },
     "minimaxH3": {
       "label": "MiniMax H3",
@@ -4682,6 +4693,12 @@
       "scriptDocShotsLabel": "ショット · {count}",
       "scriptDocApplyResult": "キャンバスを同期しました：新規 {created}、更新 {updated}、削除 {removed}、再利用 {skipped}。",
       "scriptDocApplyNothing": "キャンバスは構成と一致しています。生成する新規ノードはありません。",
+      "scriptDocProjectionTitle": "投影で変わる内容",
+      "scriptDocProjectionCreate": "{count} 個のノードを作成",
+      "scriptDocProjectionUpdate": "{count} 個のノードを更新",
+      "scriptDocProjectionRemove": "{count} 個のノードと {edges} 本の接続を削除 —— 対応する役 / ショット / セリフが脚本から削除されています",
+      "scriptDocProjectionCancel": "キャンセル",
+      "scriptDocProjectionConfirm": "投影",
       "scriptDocApplyEmpty": "先に構成へキャラクターかショットを追加してください。",
       "scriptDocStepOutline": "構成",
       "scriptDocStepShots": "ショット",
@@ -4787,7 +4804,7 @@
       "thinking": "考えています...",
       "retry": "再試行",
       "placeholder": "キャンバス助手に質問...",
-      "modeHint": "適用前に確認",
+      "modeHint": "構造は自動配置 · 生成は確認",
       "research": "参考作品",
       "researchHint": "映画/アニメ/短編をWeb検索し、オリジナル脚本のアイデアに変換（Gemini/OpenAIルート）",
       "send": "送信",
@@ -5005,6 +5022,9 @@
       "appliedSummaryWithSkipped": "{applied} 件を適用、{skipped} 件をスキップしました",
       "appliedToast": "キャンバスの変更を {count} 件適用しました",
       "confirmGenerate": "生成を確認（クレジット消費）",
+      "confirmReview": "レビュー状態の変更を確認",
+      "autoApplied": "{count} 件をキャンバスに配置しました — まだ消費していません",
+      "undoAutoApplied": "元に戻す",
       "generateSeparateHint": "生成は個別に確認します",
       "rejectedPrefix": "実行しません：{reason}",
       "describe": {

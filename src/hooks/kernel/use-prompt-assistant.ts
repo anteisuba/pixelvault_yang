@@ -12,8 +12,16 @@ import type {
   PromptAssistantResponseLanguage,
 } from '@/types'
 import type { AssistantMediaReference } from '@/types/assistant-media'
+import type {
+  AssistantAskedPair,
+  AssistantClarifyingQuestion,
+  AssistantNextStep,
+} from '@/types/assistant-protocol'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
-import type { AssistantConversationSummary } from '@/types/assistant-conversation'
+import type {
+  AssistantConversationSummary,
+  AssistantSurfaceId,
+} from '@/types/assistant-conversation'
 import {
   chatPromptAssistantAPI,
   getAssistantConversationAPI,
@@ -51,6 +59,25 @@ export const STYLE_SHORTCUTS = {
 export interface PromptAssistantDisplayMessage extends PromptAssistantMessage {
   lora?: PromptAssistantLoraResult
   mediaReferences?: AssistantMediaReference[]
+  /**
+   * A2 对话协议的两个块。与 `lora` 同性质：**只活在客户端**，`toWireMessages` /
+   * `toStoredMessages` 都不带它们走。
+   *
+   * 不持久化是有意的 —— 反问选项和收敛按钮是**那一轮的交互态**，恢复历史时把
+   * 三轮前的按钮重新点亮，点下去只会把一句过期的答复发出去。要回看问过什么，看
+   * 的是历史里用户自己那条答复消息，那才是事实。
+   */
+  ask?: AssistantClarifyingQuestion[]
+  next?: AssistantNextStep
+  protocolMalformed?: boolean
+  /**
+   * A2c：这条用户消息回答了哪几个问题。挂在**用户**消息上（`ask` 挂在助手消息
+   * 上），「已询问」折叠块由它聚合而成。
+   *
+   * 同样不持久化：它是**派生数据**，事实源是用户那条答复消息本身，那条是持久化
+   * 的。恢复历史后折叠块为空而答复原文仍在 —— 少一个便利视图，不丢任何事实。
+   */
+  askedPairs?: AssistantAskedPair[]
 }
 
 interface PromptAssistantState {
@@ -121,61 +148,80 @@ export interface PromptAssistantSendOptions {
   useInspirationContext?: boolean
   research?: boolean
   loraContext?: LoraAssistantContext
+  /** A2c：这一发是反问卡的答复时，带上结构化的问答对（见 `AssistantAskedPair`）。 */
+  askedPairs?: AssistantAskedPair[]
 }
 
-// ─── Module-level store ──────────────────────────────────────────
+// ─── Module-level store，按 surface 分槽 ─────────────────────────────
 // StudioAssistantDock returns null when closed (and the mobile drawer
 // unmounts its content too), so a plain useState here loses the
 // conversation on every close. Hoisting to module scope — same
 // useSyncExternalStore pattern as the dock width store in
 // StudioAssistantDock.tsx — lets the conversation survive close/reopen.
-// Only one PromptAssistantPanel is ever mounted at a time (desktop dock
-// XOR mobile drawer), so a singleton is safe.
+//
+// ⚠ A1：原来这里是**一个**单例，注释写的理由是「同一时刻只挂一个 panel，所以单例
+// 安全」。那句话对「一个 panel」成立，对「一份对话」不成立 —— 图片 / 视频 / LoRA
+// 三处共用它，切页面时上一页的对话原样躺在下一页里。分槽后每个域各存各的；
+// 「关掉浮卡不丢对话」这个原始诉求不受影响，因为槽是按 surface 而不是按挂载。
 
-let promptAssistantState: PromptAssistantState = INITIAL_STATE
-const promptAssistantListeners = new Set<() => void>()
+const promptAssistantStates = new Map<
+  AssistantSurfaceId,
+  PromptAssistantState
+>()
+const promptAssistantListeners = new Map<AssistantSurfaceId, Set<() => void>>()
 
-function getPromptAssistantSnapshot(): PromptAssistantState {
-  return promptAssistantState
+function readState(surface: AssistantSurfaceId): PromptAssistantState {
+  return promptAssistantStates.get(surface) ?? INITIAL_STATE
 }
 
 function getServerPromptAssistantSnapshot(): PromptAssistantState {
   return INITIAL_STATE
 }
 
-function subscribePromptAssistant(listener: () => void): () => void {
-  promptAssistantListeners.add(listener)
-  return () => {
-    promptAssistantListeners.delete(listener)
-  }
-}
-
 function setPromptAssistantState(
+  surface: AssistantSurfaceId,
   updater: (prev: PromptAssistantState) => PromptAssistantState,
 ): void {
-  promptAssistantState = updater(promptAssistantState)
-  for (const listener of promptAssistantListeners) {
+  promptAssistantStates.set(surface, updater(readState(surface)))
+  for (const listener of promptAssistantListeners.get(surface) ?? []) {
     listener()
   }
 }
 
-export function usePromptAssistant() {
+/**
+ * @param surface 这段对话归哪个域。**没有默认值是有意的** —— 猜错的表现是「对话
+ * 安静地进了别的域的历史」，而那正是 A1 要修的病。
+ */
+export function usePromptAssistant(surface: AssistantSurfaceId) {
   const t = useTranslations('PromptAssistant')
   const tErrors = useTranslations('Errors')
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      const listeners =
+        promptAssistantListeners.get(surface) ?? new Set<() => void>()
+      listeners.add(listener)
+      promptAssistantListeners.set(surface, listeners)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    [surface],
+  )
+  const getSnapshot = useCallback(() => readState(surface), [surface])
   const state = useSyncExternalStore(
-    subscribePromptAssistant,
-    getPromptAssistantSnapshot,
+    subscribe,
+    getSnapshot,
     getServerPromptAssistantSnapshot,
   )
 
   useEffect(() => {
     let cancelled = false
     void Promise.all([
-      getAssistantConversationAPI({ surface: 'STUDIO' }),
-      listAssistantConversationsAPI({ surface: 'STUDIO', limit: 30 }),
+      getAssistantConversationAPI({ surface }),
+      listAssistantConversationsAPI({ surface, limit: 30 }),
     ]).then(([result, list]) => {
       if (cancelled) return
-      setPromptAssistantState((prev) => {
+      setPromptAssistantState(surface, (prev) => {
         const sessions = list.success ? list.data : prev.sessions
         if (!result.success || !result.data || prev.messages.length > 0) {
           return { ...prev, sessions }
@@ -198,20 +244,20 @@ export function usePromptAssistant() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [surface])
 
   const refreshSessions = useCallback(async () => {
     const result = await listAssistantConversationsAPI({
-      surface: 'STUDIO',
+      surface,
       limit: 30,
     })
     if (result.success) {
-      setPromptAssistantState((prev) => ({
+      setPromptAssistantState(surface, (prev) => ({
         ...prev,
         sessions: result.data,
       }))
     }
-  }, [])
+  }, [surface])
 
   // Runs the actual completion + persistence for a fully-assembled message
   // list — shared by `send` (which first optimistically appends the new
@@ -222,7 +268,7 @@ export function usePromptAssistant() {
       allMessages: PromptAssistantDisplayMessage[],
       opts?: PromptAssistantSendOptions,
     ) => {
-      setPromptAssistantState((prev) => ({
+      setPromptAssistantState(surface, (prev) => ({
         ...prev,
         messages: allMessages,
         isLoading: true,
@@ -252,30 +298,32 @@ export function usePromptAssistant() {
           role: 'assistant',
           content: result.data.prompt,
           lora: result.data.lora,
+          ask: result.data.ask,
+          next: result.data.next,
+          protocolMalformed: result.data.protocolMalformed,
         }
         const nextMessages = [...allMessages, assistantMessage]
-        setPromptAssistantState((prev) => ({
+        setPromptAssistantState(surface, (prev) => ({
           ...prev,
           messages: nextMessages,
           isLoading: false,
         }))
+        const currentSessionId = readState(surface).sessionId
         const persisted = await upsertAssistantConversationAPI({
-          ...(promptAssistantState.sessionId
-            ? { id: promptAssistantState.sessionId }
-            : {}),
-          surface: 'STUDIO',
+          ...(currentSessionId ? { id: currentSessionId } : {}),
+          surface,
           projectId: null,
           messages: toStoredMessages(nextMessages),
         })
         if (persisted.success) {
-          setPromptAssistantState((prev) => ({
+          setPromptAssistantState(surface, (prev) => ({
             ...prev,
             sessionId: persisted.data.id,
           }))
           void refreshSessions()
         }
       } else {
-        setPromptAssistantState((prev) => ({
+        setPromptAssistantState(surface, (prev) => ({
           ...prev,
           isLoading: false,
           error: getApiErrorMessage(tErrors, result, t('failed')),
@@ -283,7 +331,7 @@ export function usePromptAssistant() {
         }))
       }
     },
-    [refreshSessions, t, tErrors],
+    [refreshSessions, surface, t, tErrors],
   )
 
   const send = useCallback(
@@ -297,10 +345,11 @@ export function usePromptAssistant() {
           0,
           ASSISTANT_MEDIA_LIMITS.maxReferences,
         ),
+        ...(opts?.askedPairs?.length ? { askedPairs: opts.askedPairs } : {}),
       }
-      await runTurn([...promptAssistantState.messages, userMessage], opts)
+      await runTurn([...readState(surface).messages, userMessage], opts)
     },
-    [runTurn],
+    [runTurn, surface],
   )
 
   // §6 状态规范：引擎失败/输出验证失败的重试文字链——复用最后一条已在
@@ -308,12 +357,12 @@ export function usePromptAssistant() {
   // 一份）。只有「最后一条是用户消息且带着错误」时才有意义，否则是 no-op。
   const retry = useCallback(
     async (opts?: PromptAssistantSendOptions) => {
-      const current = promptAssistantState.messages
+      const current = readState(surface).messages
       const last = current[current.length - 1]
       if (!last || last.role !== 'user') return
       await runTurn(current, opts)
     },
-    [runTurn],
+    [runTurn, surface],
   )
 
   const applyPreset = useCallback(
@@ -333,33 +382,33 @@ export function usePromptAssistant() {
   )
 
   const clear = useCallback(() => {
-    setPromptAssistantState((prev) => ({
+    setPromptAssistantState(surface, (prev) => ({
       ...INITIAL_STATE,
       sessions: prev.sessions,
     }))
-  }, [])
+  }, [surface])
 
-  const selectSession = useCallback(async (id: string) => {
-    const result = await getAssistantConversationAPI({
-      surface: 'STUDIO',
-      id,
-    })
-    if (!result.success || !result.data) return
-    const conversation = result.data
-    setPromptAssistantState((prev) => ({
-      ...prev,
-      sessionId: conversation.id,
-      messages: conversation.messages.map(
-        ({ role, content, mediaReferences }) => ({
-          role,
-          content,
-          mediaReferences: mediaReferences ?? [],
-        }),
-      ),
-      error: null,
-      errorCode: null,
-    }))
-  }, [])
+  const selectSession = useCallback(
+    async (id: string) => {
+      const result = await getAssistantConversationAPI({ surface, id })
+      if (!result.success || !result.data) return
+      const conversation = result.data
+      setPromptAssistantState(surface, (prev) => ({
+        ...prev,
+        sessionId: conversation.id,
+        messages: conversation.messages.map(
+          ({ role, content, mediaReferences }) => ({
+            role,
+            content,
+            mediaReferences: mediaReferences ?? [],
+          }),
+        ),
+        error: null,
+        errorCode: null,
+      }))
+    },
+    [surface],
+  )
 
   return {
     ...state,

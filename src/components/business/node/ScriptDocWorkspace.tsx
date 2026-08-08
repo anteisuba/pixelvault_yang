@@ -62,11 +62,9 @@ import { isTouchPrimary } from '@/lib/touch'
 import { useNodeScriptDoc } from '@/hooks/use-node-script-doc'
 import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
 import type { AppLocale } from '@/i18n/routing'
-import type {
-  ScriptDoc,
-  ScriptDocClarifyingQuestion,
-  ScriptDocFocus,
-} from '@/types/script-doc'
+import type { AssistantClarifyingQuestion } from '@/types/assistant-protocol'
+import type { ScriptDoc, ScriptDocFocus } from '@/types/script-doc'
+import type { ApplyScriptDocResult } from '@/hooks/node/use-node-workflow'
 
 import { ClarifyingQuestionCard } from './ClarifyingQuestionCard'
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
@@ -122,6 +120,7 @@ export function ScriptDocWorkspace({
   const {
     setScriptDoc,
     applyScriptDocToGraph,
+    previewScriptDocProjection,
     focusGeneratedNodes,
     scriptDocStage,
     scriptDocDepth,
@@ -155,7 +154,7 @@ export function ScriptDocWorkspace({
   )
 
   const [pendingQuestions, setPendingQuestions] = useState<
-    ScriptDocClarifyingQuestion[] | null
+    AssistantClarifyingQuestion[] | null
   >(null)
   const [answerTurns, setAnswerTurns] = useState<
     { role: 'user'; content: string }[]
@@ -314,19 +313,38 @@ export function ScriptDocWorkspace({
     setScriptDocStage(SCRIPT_DOC_STAGE_IDS.shots)
   }, [hasContent, setScriptDocStage, t])
 
+  /**
+   * B4：**投影会删节点** —— 它拥有的节点（带 `scriptRef`）在对应角色/镜头/台词被
+   * 从剧本里删掉后成为孤儿，投影一并移除。改之前用户只能从事后的 toast 里读到
+   * 「移除 N 个」。所以按下「确认镜头」先跑一次不提交的预览，把差异摆出来；只有
+   * 「没有任何改动」和「拒绝」两种情况仍然直接给 toast —— 那两种没什么可确认的。
+   */
+  const [pendingProjection, setPendingProjection] =
+    useState<ApplyScriptDocResult | null>(null)
+
   const handleApply = useCallback(() => {
-    const result = applyScriptDocToGraph()
-    if (result.refusal) {
+    const preview = previewScriptDocProjection()
+    if (preview.refusal) {
       toast.info(t('scriptDocApplyEmpty'), TOAST_OPTIONS)
       return
     }
     if (
-      result.created === 0 &&
-      result.updated === 0 &&
-      result.removed === 0 &&
-      result.removedEdges === 0
+      preview.created === 0 &&
+      preview.updated === 0 &&
+      preview.removed === 0 &&
+      preview.removedEdges === 0
     ) {
       toast.info(t('scriptDocApplyNothing'), TOAST_OPTIONS)
+      return
+    }
+    setPendingProjection(preview)
+  }, [previewScriptDocProjection, t])
+
+  const handleConfirmProjection = useCallback(() => {
+    setPendingProjection(null)
+    const result = applyScriptDocToGraph()
+    if (result.refusal) {
+      toast.info(t('scriptDocApplyEmpty'), TOAST_OPTIONS)
       return
     }
     focusGeneratedNodes?.()
@@ -340,6 +358,56 @@ export function ScriptDocWorkspace({
       TOAST_OPTIONS,
     )
   }, [applyScriptDocToGraph, focusGeneratedNodes, t])
+
+  const projectionSummary = pendingProjection ? (
+    // ⚠ 底色必须是**不透明的 panel**，不能用 soft：`canvas-inline-notice--danger`
+    // 的配方叠在画布底 `#f1f1f1` 上实测只有 4.22:1（canvas.css 早写了这条警告，
+    // 我第一版照样踩了）。落在 panel 上才回到达标的 4.7x。
+    <div className="mx-4 mb-3 rounded-2xl border border-node-panel-inner bg-node-panel p-3">
+      <p className="text-2xs font-semibold text-node-foreground">
+        {t('scriptDocProjectionTitle')}
+      </p>
+      <ul className="mt-1.5 space-y-0.5 text-2xs text-node-muted">
+        <li>
+          {t('scriptDocProjectionCreate', { count: pendingProjection.created })}
+        </li>
+        <li>
+          {t('scriptDocProjectionUpdate', { count: pendingProjection.updated })}
+        </li>
+      </ul>
+      {/* 唯一破坏性的一条单独拎出来，别混在中性计数里。
+          ⚠ 用画布域已有的**语义类**（canvas.css `canvas-inline-notice--danger`，
+          同文件的报错块用的就是它），不是 `text-canvas-danger` —— 那个工具类不
+          存在；`node-danger` 更是 S4 时被显式删掉的，canvas.css:62 写着「勿在新
+          代码引用」。编一个类名的下场是颜色静默失效，正好是这一批在修的病。 */}
+      {pendingProjection.removed > 0 || pendingProjection.removedEdges > 0 ? (
+        <p className="canvas-inline-notice--danger mt-2 rounded-xl p-2.5 text-2xs leading-4">
+          {t('scriptDocProjectionRemove', {
+            count: pendingProjection.removed,
+            edges: pendingProjection.removedEdges,
+          })}
+        </p>
+      ) : null}
+      <div className="mt-2 flex items-center justify-end gap-1.5">
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => setPendingProjection(null)}
+          className="h-8 rounded-lg border border-node-panel-inner bg-node-panel px-2.5 text-2xs text-node-muted hover:text-node-foreground"
+        >
+          {t('scriptDocProjectionCancel')}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={handleConfirmProjection}
+          className="h-8 rounded-lg bg-node-foreground px-3 text-2xs text-node-canvas hover:bg-node-foreground/90"
+        >
+          {t('scriptDocProjectionConfirm')}
+        </Button>
+      </div>
+    </div>
+  ) : null
 
   const steps: { key: string; label: string; state: StepState }[] = [
     {
@@ -535,6 +603,8 @@ export function ScriptDocWorkspace({
             />
           </div>
         ) : null}
+
+        {projectionSummary}
 
         <div className="flex items-center gap-2">
           {isShotStage ? (

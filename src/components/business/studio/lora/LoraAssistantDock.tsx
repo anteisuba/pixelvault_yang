@@ -148,6 +148,7 @@ export function LoraAssistantDock({
             </DrawerTitle>
             <StudioAssistantHeaderActions
               mobile
+              assistantDomain={panelProps.assistantDomain ?? 'lora'}
               onClose={() => onOpenChange(false)}
             />
           </div>
@@ -198,7 +199,10 @@ export function LoraAssistantDock({
         title={t('dockTitle')}
         leading={<Bot className="size-4 shrink-0 text-primary" />}
         actions={
-          <StudioAssistantHeaderActions onClose={() => onOpenChange(false)} />
+          <StudioAssistantHeaderActions
+            assistantDomain={panelProps.assistantDomain ?? 'lora'}
+            onClose={() => onOpenChange(false)}
+          />
         }
       />
 

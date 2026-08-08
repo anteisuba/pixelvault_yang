@@ -8,6 +8,7 @@ import {
   SCRIPT_DOC_STAGES,
 } from '@/constants/script-doc'
 import { NODE_STUDIO_ASSISTANT_MESSAGE_ROLES } from '@/constants/node-studio'
+import { AssistantClarifyingQuestionSchema } from '@/types/assistant-protocol'
 import { LOCALES } from '@/i18n/routing'
 
 const ScriptDocIdSchema = z
@@ -175,23 +176,10 @@ export const NodeScriptDocRequestSchema = z.object({
 // ─── Clarifying questions (反问澄清卡) ────────────────────────────────────
 // The drafting step may return structured questions instead of an outline when
 // it needs creative direction. Chips backfill the next draft; never hue-coded.
-
-export const ScriptDocClarifyingOptionSchema = z.object({
-  id: ScriptDocIdSchema,
-  label: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.fieldMaxLength),
-})
-
-export const ScriptDocClarifyingQuestionSchema = z.object({
-  id: ScriptDocIdSchema,
-  question: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.fieldMaxLength),
-  options: z
-    .array(ScriptDocClarifyingOptionSchema)
-    .min(1)
-    .max(SCRIPT_DOC_LIMITS.maxClarifyOptions),
-  multiSelect: z.boolean().default(false),
-  allowCustom: z.boolean().default(true),
-  allowSkip: z.boolean().default(true),
-})
+//
+// ⚠ 形状定义已上收到 `types/assistant-protocol.ts`（A2：反问从「只有 ScriptDoc
+// 起草时才有」推广到四个域，`[[ask]]` 块用的是同一个 schema）。这里只保留剧本线
+// 自己的用法，**不再有第二份定义** —— 两份迟早分叉成两种问题卡。
 
 /**
  * What the server had to leave out of the prompt envelope to stay inside
@@ -225,7 +213,7 @@ export const NodeScriptDocResponseDataSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('questions'),
     questions: z
-      .array(ScriptDocClarifyingQuestionSchema)
+      .array(AssistantClarifyingQuestionSchema)
       .min(1)
       .max(SCRIPT_DOC_LIMITS.maxClarifyQuestions),
     trim: ScriptDocTrimNoticeSchema.optional(),
@@ -242,12 +230,6 @@ export type ScriptDocRole = z.infer<typeof ScriptDocRoleSchema>
 export type ScriptDocDialogueLine = z.infer<typeof ScriptDocDialogueLineSchema>
 export type ScriptDocShot = z.infer<typeof ScriptDocShotSchema>
 export type ScriptDoc = z.infer<typeof ScriptDocSchema>
-export type ScriptDocClarifyingOption = z.infer<
-  typeof ScriptDocClarifyingOptionSchema
->
-export type ScriptDocClarifyingQuestion = z.infer<
-  typeof ScriptDocClarifyingQuestionSchema
->
 export type ScriptDocFocus = z.infer<typeof ScriptDocFocusSchema>
 export type ScriptDocTrimNotice = z.infer<typeof ScriptDocTrimNoticeSchema>
 export type NodeScriptDocRequest = z.infer<typeof NodeScriptDocRequestSchema>

@@ -18,23 +18,34 @@ import { usePromptAssistant } from '@/hooks/kernel/use-prompt-assistant'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import { createAssistantConversationShareAPI } from '@/lib/api-client/assistant-conversation'
 import type { NodeAssistantHistorySession } from '@/lib/node-assistant-history'
+import type { AssistantProtocolDomain } from '@/constants/assistant-protocol'
+import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
 import { cn } from '@/lib/utils'
 
 interface StudioAssistantHeaderActionsProps {
   onClose(): void
   mobile?: boolean
+  /**
+   * A1：新对话 / 历史 / 分享读的必须是**面板正在用的那个槽**。宿主同时决定
+   * 面板的 domain 和这里的 domain —— 传成两个不同的值，用户会看到「历史列表
+   * 里全是别的域的对话」。
+   */
+  assistantDomain: AssistantProtocolDomain
 }
 
 export function StudioAssistantHeaderActions({
   onClose,
   mobile = false,
+  assistantDomain,
 }: StudioAssistantHeaderActionsProps) {
   const tConversation = useTranslations('StudioNode.conversation')
   const tHistory = useTranslations('StudioNode.history')
   const tPrompt = useTranslations('PromptAssistant')
   const { route, setRoute, researchEnabled, setResearchEnabled } =
     useStudioAssistantControls()
-  const { sessionId, sessions, clear, selectSession } = usePromptAssistant()
+  const { sessionId, sessions, clear, selectSession } = usePromptAssistant(
+    ASSISTANT_SURFACE_BY_DOMAIN[assistantDomain],
+  )
 
   const historySessions = useMemo<NodeAssistantHistorySession[]>(
     () =>

@@ -517,6 +517,83 @@ describe('useNodeWorkflow', () => {
     expect(result.current.canRedo).toBe(true)
   })
 
+  // B2.5：助手的一批 op 会挨个调 addNode（建节点要先拿到真 id 才能连线，没法像剧本
+  // 投影那样「先算完再一次提交」）。实测过没有包装时的行为：应用 3 项后按撤销是
+  // 3→2→1→0。这两条把「包了 = 一步」和「没包 = 一次一个」同时钉住 —— 只钉前者的话，
+  // 有人把包装去掉，测试照样绿。
+  it('collapses a whole batch into one undo step', async () => {
+    const { result } = renderNodeWorkflowHook()
+
+    await act(async () => {
+      await result.current.runAsSingleHistoryStep(() => {
+        result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+        result.current.addNode(NODE_TYPE_IDS.image, SECOND_POSITION)
+        result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+      })
+    })
+
+    expect(result.current.nodes).toHaveLength(3)
+
+    act(() => {
+      result.current.undo()
+    })
+
+    expect(result.current.nodes).toHaveLength(0)
+    expect(result.current.canUndo).toBe(false)
+  })
+
+  it('still records one history entry per call outside a batch', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, SECOND_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+    })
+
+    expect(result.current.nodes).toHaveLength(3)
+
+    act(() => {
+      result.current.undo()
+    })
+
+    expect(result.current.nodes).toHaveLength(2)
+  })
+
+  // B4：投影会**删**它拥有的节点（角色/镜头/台词从剧本里删掉后，对应节点成了孤儿）。
+  // 预览存在的唯一理由就是让用户在按下之前看见这件事 —— 所以它必须一个字节都不写。
+  it('previews a projection without touching the graph', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    act(() => {
+      result.current.setScriptDoc({
+        title: '深夜便利店',
+        logline: '一个店员和一个常客',
+        roles: [{ id: 'role-1', name: '小林', description: '疲惫的店员' }],
+        shots: [
+          {
+            id: 'shot-1',
+            summary: '小林擦柜台',
+            roleIds: ['role-1'],
+            dialogue: [],
+          },
+        ],
+      })
+    })
+
+    const before = result.current.nodes.length
+    let preview: ReturnType<typeof result.current.previewScriptDocProjection>
+    act(() => {
+      preview = result.current.previewScriptDocProjection()
+    })
+
+    expect(preview!.refusal).toBeNull()
+    expect(preview!.created).toBeGreaterThan(0)
+    // 一个字节都没写：节点数不变，撤销栈也没多一格。
+    expect(result.current.nodes).toHaveLength(before)
+    expect(result.current.canUndo).toBe(false)
+  })
+
   it('rejects a malformed derived image batch atomically without recording history', () => {
     const { result } = renderNodeWorkflowHook()
 

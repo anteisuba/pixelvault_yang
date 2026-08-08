@@ -8,6 +8,7 @@ import { db } from '@/lib/db'
 import { ensureUser } from '@/services/user.service'
 import {
   ASSISTANT_CONVERSATION_LIMITS,
+  ASSISTANT_SURFACE_IDS,
   AssistantConversationMessageSchema,
   type AssistantConversationMessageStored,
   type AssistantConversationRecord,
@@ -85,7 +86,9 @@ export async function upsertAssistantConversation(
   const messages = sanitizeMessages(input.messages)
   const title = titleFromMessages(messages)
   const projectId =
-    input.surface === 'NODE_CANVAS' ? (input.projectId ?? null) : null
+    input.surface === ASSISTANT_SURFACE_IDS.nodeCanvas
+      ? (input.projectId ?? null)
+      : null
 
   if (input.id) {
     const existing = await db.assistantConversation.findFirst({
@@ -134,7 +137,7 @@ export async function listAssistantConversations(
     where: {
       userId: user.id,
       surface: args.surface,
-      ...(args.surface === 'NODE_CANVAS' && args.projectId
+      ...(args.surface === ASSISTANT_SURFACE_IDS.nodeCanvas && args.projectId
         ? { projectId: args.projectId }
         : {}),
     },
@@ -186,7 +189,7 @@ export async function getAssistantConversation(
     where: {
       userId: user.id,
       surface: args.surface,
-      ...(args.surface === 'NODE_CANVAS' && args.projectId
+      ...(args.surface === ASSISTANT_SURFACE_IDS.nodeCanvas && args.projectId
         ? { projectId: args.projectId }
         : {}),
     },

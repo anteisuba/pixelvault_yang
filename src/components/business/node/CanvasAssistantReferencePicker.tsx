@@ -19,6 +19,9 @@ interface CanvasAssistantReferencePickerProps {
   references: readonly NodeAssistantMediaReference[]
   selectedReferences: readonly NodeAssistantMediaReference[]
   onAddReference(reference: NodeAssistantMediaReference): void
+  /** A4：让输入框里的 `@` 能打开同一个选择器。 */
+  open?: boolean
+  onOpenChange?(open: boolean): void
 }
 
 function createReferenceId(prefix: string): string {
@@ -30,6 +33,8 @@ export function CanvasAssistantReferencePicker({
   references,
   selectedReferences,
   onAddReference,
+  open,
+  onOpenChange,
 }: CanvasAssistantReferencePickerProps) {
   const t = useTranslations('StudioNode.conversation')
   const tVideo = useTranslations('StudioNode.videoReference')
@@ -116,6 +121,8 @@ export function CanvasAssistantReferencePicker({
 
   return (
     <AssistantReferencePicker
+      open={open}
+      onOpenChange={onOpenChange}
       disabled={disabled}
       hasSelection={selectedReferences.length > 0}
       existingReferences={references}

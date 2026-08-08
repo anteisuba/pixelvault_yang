@@ -5,12 +5,12 @@ import { Check, SendHorizontal, SkipForward } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
-import type { ScriptDocClarifyingQuestion } from '@/types/script-doc'
+import type { AssistantClarifyingQuestion } from '@/types/assistant-protocol'
 
 import { IMEAwareInput } from './inspector/IMEAwareField'
 
 interface ClarifyingQuestionCardProps {
-  questions: ScriptDocClarifyingQuestion[]
+  questions: AssistantClarifyingQuestion[]
   isSubmitting: boolean
   /** Receives a human-readable answer summary to fold back into the draft. */
   onSubmit(summary: string): void
@@ -52,7 +52,7 @@ export function ClarifyingQuestionCard({
   )
 
   const toggleOption = useCallback(
-    (question: ScriptDocClarifyingQuestion, optionId: string) => {
+    (question: AssistantClarifyingQuestion, optionId: string) => {
       setAnswers((current) => {
         const prev = current[question.id] ?? EMPTY_ANSWER
         const isSelected = prev.selected.includes(optionId)

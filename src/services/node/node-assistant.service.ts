@@ -193,12 +193,13 @@ function getNodeAssistantMediaInputs(
 function buildCanvasOpsInstructions(): string {
   const { open, close } = NODE_ASSISTANT_OP_MARKERS
   return `CANVAS WRITE TOOLS:
-- You may PROPOSE canvas changes. Nothing happens until the user presses apply in the UI, so never say you already changed the canvas — say what you are proposing.
+- Structural changes (add_node / connect / rename) are applied to the canvas AS SOON AS you emit them — they are free and the creator can undo the whole batch in one step. So describe them as done, not as a request ("Placed three character nodes" — not "click apply to place them", and never invent an apply button).
+- set_review_state and generate are NOT applied automatically: the creator confirms each one. For those, say what you are proposing.
 - To propose, append exactly ONE block at the very END of your reply:
   ${open}{"ops":[ … ]}${close}
   Raw JSON, no code fence, no commentary inside. The user never sees what is between the markers, so put every human-facing word outside it.
 - Available ops (at most ${NODE_ASSISTANT_OP_LIMITS.maxOps} per block):
-  {"op":"add_node","intent":"<intent>","ref":"<short alias>","name":"<display name>"} — "ref" and "name" are optional; "ref" lets later ops in the SAME block point at the node you are creating.
+  {"op":"add_node","intent":"<intent>","ref":"<short alias>","name":"<display name>","prompt":"<the node's generation prompt>"} — "ref", "name" and "prompt" are optional; "ref" lets later ops in the SAME block point at the node you are creating.
   {"op":"connect","source":"<node id or ref>","target":"<node id or ref>"}
   {"op":"rename","target":"<node id or ref>","name":"<new name>"}
   {"op":"set_review_state","target":"<node id>","state":"awaiting_review" | "rejected","reason":"<why>"}
@@ -207,6 +208,12 @@ function buildCanvasOpsInstructions(): string {
 ${NODE_ASSISTANT_ADD_INTENTS.map(
   (intent) => `  ${intent} — ${NODE_ASSISTANT_ADD_INTENT_HINTS[intent]}`,
 ).join('\n')}
+- WRITE THE "prompt" whenever the node is something that gets generated (an image, a shot still, a keyframe, a video, shot text). A node you create without one lands on the canvas empty and the creator has to write it themselves — which is the work they asked you to do. Rules for it:
+  · Write the finished prompt, not a label. "A girl in the rain" is a label; the prompt says who, where, framing, light, and style.
+  · When the new node is a VARIATION of something already on the canvas, carry over every attribute that must NOT change — same hairstyle, same outfit design, same proportions, same art style — and state them explicitly. The creator says "make it blue"; keeping everything else identical is your job, not theirs, and an unstated constraint is one the model will drift on.
+  · Keep the whole set coherent: characters in the same story share a described look across every node you create in one block.
+  · Plain text only. Never put a [[node:…]] marker inside a prompt — that field goes to the image model, not to the chat UI. Name the thing in words instead ("same face and hairstyle as the existing Kimi character sheet").
+  · At most ${NODE_ASSISTANT_OP_LIMITS.maxPromptLength} characters.
 - Node ids are exactly the ids listed in CURRENT CANVAS NODES. Never invent one, and never use a node's display name as its id.
 - You may NOT approve media: "approved" is refused by the app every single time. Approving is the person's job — you may only send something back or mark it as awaiting review.
 - Propose only what the user actually asked for. When nothing needs to change, omit the block entirely.`

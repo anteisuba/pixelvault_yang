@@ -5,11 +5,11 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-import type { ScriptDocClarifyingQuestion } from '@/types/script-doc'
+import type { AssistantClarifyingQuestion } from '@/types/assistant-protocol'
 
 import { ClarifyingQuestionCard } from './ClarifyingQuestionCard'
 
-const QUESTIONS: ScriptDocClarifyingQuestion[] = [
+const QUESTIONS: AssistantClarifyingQuestion[] = [
   {
     id: 'q-1',
     question: 'How long?',

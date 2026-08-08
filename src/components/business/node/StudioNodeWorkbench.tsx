@@ -2970,173 +2970,187 @@ function StudioNodeCanvas() {
   const handleRunAssistantCanvasOps = useCallback(
     async (
       ops: readonly PlannedNodeAssistantOp[],
-    ): Promise<NodeAssistantOpRunResult> => {
-      const { assistantSpawn, topbarAddPosition } = NODE_STUDIO_NODE_PLACEMENT
-      // 整批落在现有图右侧，再按网格铺开：固定落点会直接压在已有节点上。
-      const anchor =
-        workflow.nodes.length === 0
-          ? topbarAddPosition
-          : {
-              x:
-                Math.max(...workflow.nodes.map((node) => node.position.x)) +
-                assistantSpawn.anchorGapX,
-              y: Math.min(...workflow.nodes.map((node) => node.position.y)),
-            }
+    ): Promise<NodeAssistantOpRunResult> =>
+      // B2.5：**整批只占一个撤销步**。实测过改之前的行为：应用「3 项」后按撤销是
+      // 3→2→1→0，一次退一个（`assistant-ab-design-2026-08-08.md` §B2）。一批 op 是
+      // 一次用户决定，退它就该是一次动作。
+      workflow.runAsSingleHistoryStep(async () => {
+        const { assistantSpawn, topbarAddPosition } = NODE_STUDIO_NODE_PLACEMENT
+        // 整批落在现有图右侧，再按网格铺开：固定落点会直接压在已有节点上。
+        const anchor =
+          workflow.nodes.length === 0
+            ? topbarAddPosition
+            : {
+                x:
+                  Math.max(...workflow.nodes.map((node) => node.position.x)) +
+                  assistantSpawn.anchorGapX,
+                y: Math.min(...workflow.nodes.map((node) => node.position.y)),
+              }
 
-      const realIdByRef = new Map<string, string>()
-      const identityById = new Map<
-        string,
-        { role?: NodeImageRole; type: NodeWorkflowNodeType }
-      >()
-      const dataOverrideById = new Map<string, Partial<NodeWorkflowNodeData>>()
-      const createdNodeIds: string[] = []
-      let applied = 0
-      let skipped = 0
-      /** 这一批里真的跑了几次生成 —— 只有它 >0 才值得提示「去审吧」。 */
-      let generated = 0
+        const realIdByRef = new Map<string, string>()
+        const identityById = new Map<
+          string,
+          { role?: NodeImageRole; type: NodeWorkflowNodeType }
+        >()
+        const dataOverrideById = new Map<
+          string,
+          Partial<NodeWorkflowNodeData>
+        >()
+        const createdNodeIds: string[] = []
+        let applied = 0
+        let skipped = 0
+        /** 这一批里真的跑了几次生成 —— 只有它 >0 才值得提示「去审吧」。 */
+        let generated = 0
 
-      const resolveNodeId = (
-        reference: NodeAssistantOpNodeRef | undefined,
-      ): string | undefined => {
-        if (!reference) return undefined
-        return reference.kind === 'existing'
-          ? reference.nodeId
-          : realIdByRef.get(reference.ref)
-      }
-
-      const resolveIdentity = (nodeId: string) => {
-        const created = identityById.get(nodeId)
-        if (created) return created
-        const node = workflow.nodes.find((candidate) => candidate.id === nodeId)
-        return node ? { role: node.data.role, type: node.type } : undefined
-      }
-
-      for (const entry of ops) {
-        // 用户可能只勾了一部分；被剔掉的 add_node 会让引用它的 op 在这里落空。
-        if (entry.status !== 'ready') {
-          skipped += 1
-          continue
-        }
-        const { op } = entry
-
-        if (op.op === NODE_ASSISTANT_OP_IDS.addNode) {
-          const seq = createdNodeIds.length
-          const position = {
-            x:
-              anchor.x +
-              (seq % assistantSpawn.columns) * assistantSpawn.columnOffsetX,
-            y:
-              anchor.y +
-              Math.floor(seq / assistantSpawn.columns) *
-                assistantSpawn.rowOffsetY,
-          }
-          const newId = createCanvasObject(op.intent, position)
-          const item = getCanvasAddCatalogItem(op.intent)
-          identityById.set(newId, { role: item.role, type: item.nodeType })
-          if (op.name) {
-            workflow.updateNodeData(
-              newId,
-              buildDisplayNamePatch(
-                { role: item.role, type: item.nodeType },
-                op.name,
-              ),
-            )
-          }
-          if (op.ref) realIdByRef.set(op.ref, newId)
-          createdNodeIds.push(newId)
-          applied += 1
-          continue
+        const resolveNodeId = (
+          reference: NodeAssistantOpNodeRef | undefined,
+        ): string | undefined => {
+          if (!reference) return undefined
+          return reference.kind === 'existing'
+            ? reference.nodeId
+            : realIdByRef.get(reference.ref)
         }
 
-        if (op.op === NODE_ASSISTANT_OP_IDS.connect) {
-          const sourceId = resolveNodeId(entry.source)
-          const targetId = resolveNodeId(entry.target)
-          if (!sourceId || !targetId) {
-            skipped += 1
-            continue
-          }
-          handleIngestConnect(sourceId, targetId)
-          applied += 1
-          continue
-        }
-
-        if (op.op === NODE_ASSISTANT_OP_IDS.rename) {
-          const targetId = resolveNodeId(entry.target)
-          const identity = targetId ? resolveIdentity(targetId) : undefined
-          if (!targetId || !identity) {
-            skipped += 1
-            continue
-          }
-          // 走包 4.5 的写侧事实源 —— 名字该落 characterName 还是 shotName 只有
-          // 那一处说了算，助手这条路不新开第五份副本。
-          workflow.updateNodeData(
-            targetId,
-            buildDisplayNamePatch(identity, op.name),
+        const resolveIdentity = (nodeId: string) => {
+          const created = identityById.get(nodeId)
+          if (created) return created
+          const node = workflow.nodes.find(
+            (candidate) => candidate.id === nodeId,
           )
-          applied += 1
-          continue
+          return node ? { role: node.data.role, type: node.type } : undefined
         }
 
-        if (op.op === NODE_ASSISTANT_OP_IDS.setReviewState) {
-          const targetId = resolveNodeId(entry.target)
-          const node = targetId
-            ? workflow.nodes.find((candidate) => candidate.id === targetId)
-            : undefined
-          if (!targetId || !node || !entry.mediaUrl) {
+        for (const entry of ops) {
+          // 用户可能只勾了一部分；被剔掉的 add_node 会让引用它的 op 在这里落空。
+          if (entry.status !== 'ready') {
             skipped += 1
             continue
           }
-          // 同一批里对同一节点标两次时，第二次要看得见第一次写的 mediaReview
-          // ——快照读不到，所以补丁在本地累积后再合并。
-          const base: NodeWorkflowNodeData = {
-            ...node.data,
-            ...dataOverrideById.get(targetId),
+          const { op } = entry
+
+          if (op.op === NODE_ASSISTANT_OP_IDS.addNode) {
+            const seq = createdNodeIds.length
+            const position = {
+              x:
+                anchor.x +
+                (seq % assistantSpawn.columns) * assistantSpawn.columnOffsetX,
+              y:
+                anchor.y +
+                Math.floor(seq / assistantSpawn.columns) *
+                  assistantSpawn.rowOffsetY,
+            }
+            const newId = createCanvasObject(op.intent, position)
+            const item = getCanvasAddCatalogItem(op.intent)
+            identityById.set(newId, { role: item.role, type: item.nodeType })
+            if (op.name) {
+              workflow.updateNodeData(
+                newId,
+                buildDisplayNamePatch(
+                  { role: item.role, type: item.nodeType },
+                  op.name,
+                ),
+              )
+            }
+            // B1 / A3：助手写进来的提示词。落的是节点自己的 `prompt` 字段 —— 与人手
+            // 在同一个框里打字完全等价，不另设一套「助手写的提示词」通道。
+            if (op.prompt) {
+              workflow.updateNodeData(newId, { prompt: op.prompt })
+            }
+            if (op.ref) realIdByRef.set(op.ref, newId)
+            createdNodeIds.push(newId)
+            applied += 1
+            continue
           }
-          const reviewedAt = new Date().toISOString()
-          const patch =
-            op.state === NODE_REVIEW_STATE_IDS.rejected
-              ? rejectMedia(base, entry.mediaUrl, {
-                  reviewedAt,
-                  ...(op.reason ? { reason: op.reason } : {}),
-                })
-              : markMediaAwaitingReview(base, entry.mediaUrl, {
-                  markedAt: reviewedAt,
-                })
-          dataOverrideById.set(targetId, {
-            ...dataOverrideById.get(targetId),
-            ...patch,
-          })
-          workflow.updateNodeData(targetId, patch)
+
+          if (op.op === NODE_ASSISTANT_OP_IDS.connect) {
+            const sourceId = resolveNodeId(entry.source)
+            const targetId = resolveNodeId(entry.target)
+            if (!sourceId || !targetId) {
+              skipped += 1
+              continue
+            }
+            handleIngestConnect(sourceId, targetId)
+            applied += 1
+            continue
+          }
+
+          if (op.op === NODE_ASSISTANT_OP_IDS.rename) {
+            const targetId = resolveNodeId(entry.target)
+            const identity = targetId ? resolveIdentity(targetId) : undefined
+            if (!targetId || !identity) {
+              skipped += 1
+              continue
+            }
+            // 走包 4.5 的写侧事实源 —— 名字该落 characterName 还是 shotName 只有
+            // 那一处说了算，助手这条路不新开第五份副本。
+            workflow.updateNodeData(
+              targetId,
+              buildDisplayNamePatch(identity, op.name),
+            )
+            applied += 1
+            continue
+          }
+
+          if (op.op === NODE_ASSISTANT_OP_IDS.setReviewState) {
+            const targetId = resolveNodeId(entry.target)
+            const node = targetId
+              ? workflow.nodes.find((candidate) => candidate.id === targetId)
+              : undefined
+            if (!targetId || !node || !entry.mediaUrl) {
+              skipped += 1
+              continue
+            }
+            // 同一批里对同一节点标两次时，第二次要看得见第一次写的 mediaReview
+            // ——快照读不到，所以补丁在本地累积后再合并。
+            const base: NodeWorkflowNodeData = {
+              ...node.data,
+              ...dataOverrideById.get(targetId),
+            }
+            const reviewedAt = new Date().toISOString()
+            const patch =
+              op.state === NODE_REVIEW_STATE_IDS.rejected
+                ? rejectMedia(base, entry.mediaUrl, {
+                    reviewedAt,
+                    ...(op.reason ? { reason: op.reason } : {}),
+                  })
+                : markMediaAwaitingReview(base, entry.mediaUrl, {
+                    markedAt: reviewedAt,
+                  })
+            dataOverrideById.set(targetId, {
+              ...dataOverrideById.get(targetId),
+              ...patch,
+            })
+            workflow.updateNodeData(targetId, patch)
+            applied += 1
+            continue
+          }
+
+          // generate —— 唯一扣 credit 的 op，UI 已单独确认过一次。规划器保证目标
+          // 是已有节点且选了模型（本批刚建的节点没有模型，一定被判 noModel），
+          // 所以这里不必再对付「快照里没有」的情况。
+          const targetId = resolveNodeId(entry.target)
+          if (!targetId) {
+            skipped += 1
+            continue
+          }
+          // 包 6 ①-bis：**这里是待审队列唯一的入口**。来源显式传，不靠环境推断。
+          await handleGenerateMediaNode(
+            targetId,
+            NODE_GENERATION_SOURCE_IDS.assistant,
+          )
+          generated += 1
           applied += 1
-          continue
         }
 
-        // generate —— 唯一扣 credit 的 op，UI 已单独确认过一次。规划器保证目标
-        // 是已有节点且选了模型（本批刚建的节点没有模型，一定被判 noModel），
-        // 所以这里不必再对付「快照里没有」的情况。
-        const targetId = resolveNodeId(entry.target)
-        if (!targetId) {
-          skipped += 1
-          continue
-        }
-        // 包 6 ①-bis：**这里是待审队列唯一的入口**。来源显式传，不靠环境推断。
-        await handleGenerateMediaNode(
-          targetId,
-          NODE_GENERATION_SOURCE_IDS.assistant,
-        )
-        generated += 1
-        applied += 1
-      }
+        if (createdNodeIds[0]) handleFocusNode(createdNodeIds[0])
 
-      if (createdNodeIds[0]) handleFocusNode(createdNodeIds[0])
+        // 包 6 片 2 进入①：助手铺完一批 → 直接问「要不要现在审」。
+        // 只打个标记、把提示留给下面的 effect：这个闭包里的 `workflow.nodes` 还是
+        // 生成之前的快照，在这儿数待审数量必然读到旧值。
+        if (generated > 0) setAssistantBatchMark((mark) => mark + 1)
 
-      // 包 6 片 2 进入①：助手铺完一批 → 直接问「要不要现在审」。
-      // 只打个标记、把提示留给下面的 effect：这个闭包里的 `workflow.nodes` 还是
-      // 生成之前的快照，在这儿数待审数量必然读到旧值。
-      if (generated > 0) setAssistantBatchMark((mark) => mark + 1)
-
-      return { applied, skipped, createdNodeIds }
-    },
+        return { applied, skipped, createdNodeIds }
+      }),
     [
       createCanvasObject,
       handleFocusNode,
@@ -3751,6 +3765,7 @@ function StudioNodeCanvas() {
       setScriptDocLocks: workflow.setScriptDocLocks,
       setScriptDocShotStills: workflow.setScriptDocShotStills,
       applyScriptDocToGraph: workflow.applyScriptDocToGraph,
+      previewScriptDocProjection: workflow.previewScriptDocProjection,
       deleteNode: workflow.deleteNode,
       // R3-2 §2.7: routed through the reverse-ink-retreat wrapper — every
       // consumer of the shared context action (成分栏 chip ×, ShotInspector
@@ -3846,6 +3861,7 @@ function StudioNodeCanvas() {
       workflow.scriptDocLocks,
       workflow.scriptDocShotStills,
       workflow.applyScriptDocToGraph,
+      workflow.previewScriptDocProjection,
       workflow.undo,
       workflow.updateEdgeData,
       workflow.updateNodeData,

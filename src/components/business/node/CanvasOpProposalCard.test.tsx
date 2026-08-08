@@ -34,6 +34,7 @@ function renderCard(
   batch: NodeAssistantOpBatch,
   nodes: NodeWorkflowNode[] = [],
   edges: NodeWorkflowEdge[] = [],
+  extra: { autoAppliedCount?: number; onUndoAutoApply?: () => void } = {},
 ) {
   const onApply = vi
     .fn()
@@ -43,12 +44,86 @@ function renderCard(
       plan={planNodeAssistantOps(batch, nodes, edges)}
       getNodeLabel={(id) => id}
       onApply={onApply}
+      {...extra}
     />,
   )
   return onApply
 }
 
 describe('CanvasOpProposalCard', () => {
+  // B1：批准一条自己看不到内容的写操作等于没有审批，而提示词是 add_node 里唯一
+  // 有内容的部分。
+  it('把助手写进来的提示词原样显示出来供审阅', () => {
+    const prompt =
+      'Chibi three-view sheet, same hairstyle and outfit as the reference, only the palette becomes navy and sky blue.'
+    renderCard({
+      ops: [
+        {
+          op: 'add_node',
+          intent: 'image.shot',
+          ref: 's1',
+          name: '蓝白配色版',
+          prompt,
+        },
+      ],
+    })
+
+    expect(screen.getByText(prompt)).toBeInTheDocument()
+  })
+
+  // B3：结构 op 已经自动落了 —— 卡这时不是审批入口，是回执 + 后悔药。再留一个
+  // 「应用」按钮，点下去就是把同一批再落一遍。
+  it('自动落之后显示回执与撤销，不再显示应用按钮', () => {
+    const onUndo = vi.fn()
+    renderCard(
+      {
+        ops: [
+          { op: 'add_node', intent: 'organize.character', ref: 'c1' },
+          { op: 'add_node', intent: 'organize.scene', ref: 's1' },
+        ],
+      },
+      [],
+      [],
+      { autoAppliedCount: 2, onUndoAutoApply: onUndo },
+    )
+
+    expect(screen.queryByText('apply')).not.toBeInTheDocument()
+    expect(screen.getByText('autoApplied')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('undoAutoApplied'))
+    expect(onUndo).toHaveBeenCalledTimes(1)
+  })
+
+  // 审核态是「用户对产出的判断」不是结构 —— 助手连自批都被钉死禁止，降级成自动
+  // 落违背同一个意图。所以它跟 generate 一样逐条确认。
+  it('审核态不自动落，走自己的逐条确认', async () => {
+    const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+      mediaUrl: 'https://cdn.example.com/shot.png',
+    })
+    const onApply = renderCard(
+      {
+        ops: [
+          {
+            op: 'set_review_state',
+            target: 'shot-1',
+            state: NODE_REVIEW_STATE_IDS.rejected,
+            reason: '构图偏了',
+          },
+        ],
+      },
+      [shot],
+      [],
+      { autoAppliedCount: 0 },
+    )
+
+    expect(screen.queryByText('apply')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('confirmReview'))
+
+    await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1))
+    expect(onApply.mock.calls[0][0]).toHaveLength(1)
+  })
+
   it('结构操作整批一次应用', async () => {
     const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
       role: NODE_IMAGE_ROLE_IDS.shot,

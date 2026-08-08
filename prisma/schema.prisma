@@ -85,9 +85,15 @@ enum VideoScriptStatus {
   FAILED
 }
 
-/// Surface that owns an assistant chat transcript (Node canvas vs Studio).
+/// Surface that owns an assistant chat transcript — one slot per domain.
+/// Before 2026-08-08 this was STUDIO + NODE_CANVAS, so image / video / LoRA
+/// all shared a single `STUDIO` bucket and their histories were interleaved.
+/// Legacy STUDIO rows were remapped to IMAGE_STUDIO (owner's call: keep them,
+/// image is the primary entry point).
 enum AssistantSurface {
-  STUDIO
+  IMAGE_STUDIO
+  VIDEO_STUDIO
+  LORA
   NODE_CANVAS
 }
 

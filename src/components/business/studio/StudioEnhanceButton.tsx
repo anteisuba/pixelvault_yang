@@ -143,7 +143,11 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
           icon={<Sparkles className="size-3.5 text-primary" />}
         >
           <span className="mr-auto">{t('enhance')}</span>
-          <StudioAssistantHeaderActions mobile onClose={() => setOpen(false)} />
+          <StudioAssistantHeaderActions
+            mobile
+            assistantDomain={assistantDomain}
+            onClose={() => setOpen(false)}
+          />
         </StudioPanelHeader>
         <ResponsiveDialogDescription className="sr-only">
           {t('enhance')}

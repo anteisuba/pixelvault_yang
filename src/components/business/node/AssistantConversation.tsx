@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState, type FormEvent } from 'react'
+import { useCallback, useMemo, useRef, useState, type FormEvent } from 'react'
 import type { Components } from 'react-markdown'
 import {
   ChevronDown,
@@ -17,10 +17,10 @@ import { Button } from '@/components/ui/button'
 import { CodeBlock, CodeBlockCode } from '@/components/ui/code-block'
 import { Markdown } from '@/components/ui/markdown'
 import { Spinner } from '@/components/ui/spinner'
-import { Textarea } from '@/components/ui/textarea'
 import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
 import type { AssistantCapabilityReference } from '@/hooks/use-assistant-conversation'
 import { NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW } from '@/constants/node-studio'
+import { MentionInput, type MentionToken } from './composer/MentionInput'
 import { cn } from '@/lib/utils'
 import type {
   NodeAssistantOpPlan,
@@ -64,6 +64,13 @@ interface AssistantConversationProps {
   onApplyAssistantOps?(
     ops: readonly PlannedNodeAssistantOp[],
   ): Promise<NodeAssistantOpRunResult>
+  /**
+   * B3：哪些消息的结构 op 已经自动落了画布，各落了几条。**由 dock 记账**——
+   * 「恰好一次」的判定要跨流式重渲染与浮卡开关，不能放在按消息渲染的卡里。
+   */
+  autoAppliedByMessageId?: Record<string, number>
+  /** B3：自动落之后那一步「撤销」。B2.5 之后整批只占一个撤销步。 */
+  onUndoAutoApply?(): void
 }
 
 /**
@@ -134,6 +141,8 @@ export function AssistantConversation({
   onRunCapability,
   planAssistantOps,
   onApplyAssistantOps,
+  autoAppliedByMessageId,
+  onUndoAutoApply,
 }: AssistantConversationProps) {
   const t = useTranslations('StudioNode.conversation')
   const tAssistant = useTranslations('PromptAssistant')
@@ -148,13 +157,71 @@ export function AssistantConversation({
     (reference) => !canUseReference(reference),
   )
 
+  // A4：`@` 的三件套 —— 胶囊渲染用的 tokens、把选中素材写进句子、以及 `@`
+  // 这个补充入口。⚠ 选择器仍然是入口本体，`@` 只是「不想翻列表」时的快捷方式
+  // （对标产品那边也是这样：独立的选择按钮一直在）。
+  const [pickerOpen, setPickerOpen] = useState(false)
+  /**
+   * 这次开选择器是不是 `@` 触发的。
+   *
+   * ⚠ **只有 `@` 那条路才把胶囊写进句子。** 第一版是「选中任何素材都插胶囊」，
+   * 结果草稿永远非空，直接砸掉了一条已确认契约：`assistant-shell.md` §4「用户
+   * 可只附附件发送，客户端用本地化的『请分析这些参考素材』作为该轮指令」。
+   * 附件按钮＝挂附件，`@`＝把引用写进句子里，两种意图不该混成一种。
+   */
+  const mentionPendingRef = useRef(false)
+
+  /**
+   * ⚠ **画布节点 + 已选引用，两份都要。** 只喂画布节点的话，从素材库/上传挑来的
+   * 那条 `@名字` 会以纯文本躺在句子里不变成胶囊 —— 真机上就是这么露的：
+   * 「参考 @素材库图片」写进去了，胶囊却没渲染，因为 MentionInput 只认它被告知
+   * 过的名字。按 label 去重，画布节点优先（它有真缩略图）。
+   */
+  const mentionTokens = useMemo<MentionToken[]>(() => {
+    const byName = new Map<string, MentionToken>()
+    for (const reference of [...referenceOptions, ...selectedReferences]) {
+      if (!reference.label || byName.has(reference.label)) continue
+      byName.set(reference.label, {
+        name: reference.label,
+        // kind 只用来给没有缩略图的胶囊挑一个端口色；素材只有 image/video 两态，
+        // 映射到最接近的两个视觉档。
+        kind: reference.kind === 'video' ? 'video' : 'shot',
+        thumbnailUrl: reference.thumbnailUrl,
+      })
+    }
+    return [...byName.values()]
+  }, [referenceOptions, selectedReferences])
+
   const addReference = useCallback((reference: NodeAssistantMediaReference) => {
     setSelectedReferences((current) =>
       current.some((item) => item.id === reference.id)
         ? current
         : [...current, reference].slice(0, 8),
     )
+    if (!mentionPendingRef.current) return
+    mentionPendingRef.current = false
+    // 用户敲的那个 `@` 是触发符，替换成完整的 `@名字 ` —— 直接算出新字符串，
+    // 不去 DOM 里插节点：MentionInput 是半受控的，外部 value 变了它自己会重渲
+    // 成胶囊，省掉一次插入与重渲的先后之争。
+    setDraft((current) => `${current.replace(/@$/, '')}@${reference.label} `)
   }, [])
+
+  /**
+   * 敲出一个新的 `@` 就把选择器打开。判据是**新增了一个 @**，不是「以 @ 结尾」——
+   * 后者会让「删掉一个字又删回来」反复弹窗，也会在粘贴含 @ 的整段文字时误触发。
+   */
+  const handleDraftChange = useCallback(
+    (next: string) => {
+      const added =
+        (next.match(/@/g)?.length ?? 0) - (draft.match(/@/g)?.length ?? 0)
+      setDraft(next)
+      if (added === 1 && next.endsWith('@') && !isLoading) {
+        mentionPendingRef.current = true
+        setPickerOpen(true)
+      }
+    },
+    [draft, isLoading],
+  )
 
   const removeReference = useCallback((referenceId: string) => {
     setSelectedReferences((current) =>
@@ -360,6 +427,8 @@ export function AssistantConversation({
                       plan={planAssistantOps(message.ops)}
                       getNodeLabel={getNodeLabel}
                       onApply={onApplyAssistantOps}
+                      autoAppliedCount={autoAppliedByMessageId?.[message.id]}
+                      onUndoAutoApply={onUndoAutoApply}
                     />
                   ) : null}
                   {message.opsMalformed ? (
@@ -443,11 +512,16 @@ export function AssistantConversation({
                 : tAssistant('imageUnsupported')}
             </p>
           ) : null}
-          <Textarea
+          {/* A4：`@名字` 在句子中间渲染成带缩略图的胶囊 —— 复用节点提示词那台
+              `MentionInput`（cast-redesign §6），不另造一个富文本输入。
+              value 仍是纯文本（`@名字` 内联），所以发送链路一个字节没变。 */}
+          <MentionInput
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onValueChange={handleDraftChange}
+            tokens={mentionTokens}
             placeholder={t('placeholder')}
-            className="min-h-20 resize-none border-0 bg-transparent px-2 py-1.5 text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:ring-0 md:min-h-24"
+            aria-label={t('placeholder')}
+            className="min-h-20 px-2 py-1.5 text-sm leading-6 text-node-foreground md:min-h-24"
           />
           <div className="mt-1 flex items-center justify-between gap-2 px-1">
             <div className="flex min-w-0 items-center gap-0.5">
@@ -456,6 +530,8 @@ export function AssistantConversation({
                 references={referenceOptions}
                 selectedReferences={selectedReferences}
                 onAddReference={addReference}
+                open={pickerOpen}
+                onOpenChange={setPickerOpen}
               />
               <span className="min-w-0 truncate text-2xs font-medium text-node-subtle">
                 {t('modeHint')}

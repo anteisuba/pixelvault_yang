@@ -386,7 +386,10 @@ export function StudioAssistantDock() {
         title={t('dockTitle')}
         leading={<Bot className="size-4 shrink-0 text-primary" />}
         actions={
-          <StudioAssistantHeaderActions onClose={() => setOpen(false)} />
+          <StudioAssistantHeaderActions
+            assistantDomain={assistantDomain}
+            onClose={() => setOpen(false)}
+          />
         }
       />
 

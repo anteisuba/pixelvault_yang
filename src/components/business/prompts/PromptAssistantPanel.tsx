@@ -31,6 +31,8 @@ import { useLocale, useTranslations } from 'next-intl'
 
 import { CanvasAssistantReferencePicker } from '@/components/business/node/CanvasAssistantReferencePicker'
 import type { NodeAssistantRouteSelection } from '@/components/business/node/CanvasAssistantRouteSelector'
+import { AssistantAskedLog } from '@/components/business/prompts/AssistantAskedLog'
+import { AssistantTurnOptions } from '@/components/business/prompts/AssistantTurnOptions'
 import { PromptAssistantLoraResultCard } from '@/components/business/prompts/PromptAssistantLoraResultCard'
 import { Button } from '@/components/ui/button'
 import {
@@ -52,6 +54,8 @@ import {
   usePromptAssistant,
   type PromptAssistantDisplayMessage,
 } from '@/hooks/kernel/use-prompt-assistant'
+import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
+import type { AssistantAskedPair } from '@/types/assistant-protocol'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import type {
@@ -144,6 +148,10 @@ export function PromptAssistantPanel({
   const tModels = useTranslations('Models')
   const locale = useLocale()
   const effectiveDomain = assistantDomain ?? (loraPersona ? 'lora' : 'image')
+  // A1：域决定这段对话存进哪个槽。头部（新对话 / 历史 / 分享）也读同一个槽，
+  // 所以宿主必须把同一个 domain 同时喂给两处 —— 喂错的表现是「历史列表是别的
+  // 域的」。
+  const surface = ASSISTANT_SURFACE_BY_DOMAIN[effectiveDomain]
   const {
     messages,
     sessionId,
@@ -154,7 +162,7 @@ export function PromptAssistantPanel({
     retry,
     applyPreset,
     clear,
-  } = usePromptAssistant()
+  } = usePromptAssistant(surface)
 
   const [inputValue, setInputValue] = useState('')
   const [responseLanguage, setResponseLanguage] =
@@ -274,6 +282,22 @@ export function PromptAssistantPanel({
     void send(content, options)
   }, [canSubmit, inputValue, send, sendOptions, t])
 
+  // A2：反问的答复 / 收敛的「满意」都走同一条 send —— 它们是普通的用户消息，
+  // 只是文本由控件替用户组装好。故意不开第二条指令通道。
+  const handleTurnOptionSend = useCallback(
+    (message: string, askedPairs?: AssistantAskedPair[]) => {
+      if (isLoading) return
+      void send(message, { ...sendOptions(), askedPairs })
+    },
+    [isLoading, send, sendOptions],
+  )
+
+  // A2c：折叠块的内容是从会话里**聚合**出来的，模型侧零成本。
+  const askedPairs = useMemo(
+    () => messages.flatMap((message) => message.askedPairs ?? []),
+    [messages],
+  )
+
   const handlePreset = useCallback(
     (style: keyof typeof STYLE_SHORTCUTS) => {
       if (isLoading || (style === 'imageStyle' && references.length === 0)) {
@@ -345,6 +369,12 @@ export function PromptAssistantPanel({
         ) : null}
       </div>
 
+      {askedPairs.length > 0 ? (
+        <div className="pb-2 pr-1">
+          <AssistantAskedLog pairs={askedPairs} />
+        </div>
+      ) : null}
+
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
         <div className="space-y-3 pb-2">
           {messages.length === 0 && !isLoading ? (
@@ -367,33 +397,50 @@ export function PromptAssistantPanel({
             </div>
           ) : null}
 
-          {messages.map((message, index) =>
-            loraPersona && message.role === 'assistant' && message.lora ? (
-              <PromptAssistantLoraResultCard
-                key={index}
-                positive={message.lora.positive}
-                negative={message.lora.negative}
-                note={message.lora.note}
-                hasMounts={loraPersona.mounts.length > 0}
-                onFillPrompt={onUsePrompt}
-                onAppendPrompt={onAppendPrompt ?? (() => {})}
-                onFillNegativePrompt={loraPersona.onUseNegativePrompt}
-                onAppendNegativePrompt={loraPersona.onAppendNegativePrompt}
-                onStageForReview={loraPersona.onStageForReview}
-              />
-            ) : (
-              <MessageBubble
-                key={index}
-                message={message}
-                onUsePrompt={onUsePrompt}
-                onAppendPrompt={onAppendPrompt}
-                useLabel={t('usePrompt')}
-                appendLabel={t('appendPrompt')}
-                copyLabel={t('copyPrompt')}
-                copiedLabel={t('copied')}
-              />
-            ),
-          )}
+          {messages.map((message, index) => {
+            // A2：协议控件只挂**最后一轮**。往回滚看到三轮前的按钮还亮着、点下去
+            // 发出一句过期答复，比没有按钮更糟。
+            const isLastTurn = index === messages.length - 1
+            const turnOptions =
+              isLastTurn && message.role === 'assistant' ? (
+                <AssistantTurnOptions
+                  ask={message.ask}
+                  next={message.next}
+                  malformed={message.protocolMalformed}
+                  disabled={isLoading}
+                  onSend={handleTurnOptionSend}
+                />
+              ) : null
+
+            return (
+              <div key={index}>
+                {loraPersona && message.role === 'assistant' && message.lora ? (
+                  <PromptAssistantLoraResultCard
+                    positive={message.lora.positive}
+                    negative={message.lora.negative}
+                    note={message.lora.note}
+                    hasMounts={loraPersona.mounts.length > 0}
+                    onFillPrompt={onUsePrompt}
+                    onAppendPrompt={onAppendPrompt ?? (() => {})}
+                    onFillNegativePrompt={loraPersona.onUseNegativePrompt}
+                    onAppendNegativePrompt={loraPersona.onAppendNegativePrompt}
+                    onStageForReview={loraPersona.onStageForReview}
+                  />
+                ) : (
+                  <MessageBubble
+                    message={message}
+                    onUsePrompt={onUsePrompt}
+                    onAppendPrompt={onAppendPrompt}
+                    useLabel={t('usePrompt')}
+                    appendLabel={t('appendPrompt')}
+                    copyLabel={t('copyPrompt')}
+                    copiedLabel={t('copied')}
+                  />
+                )}
+                {turnOptions}
+              </div>
+            )
+          })}
 
           {isLoading ? (
             <Message className="justify-start">
@@ -668,36 +715,47 @@ function MessageBubble({
       <div className="max-w-[95%] space-y-2">
         <div className="flex items-start gap-2">
           <Bot className="mt-1 size-4 shrink-0 text-primary" />
+          {/* `min-w-0`：`ui/code-block` 的 `overflow-x-auto` 只有在能被压窄时才
+              会真的裁剪。作为 flex 子项它默认 `min-width:auto`，于是长提示词把
+              整条浮卡撑到 3370px 宽、整个面板横向滚动（实测 scrollWidth 3412 /
+              clientWidth 318）。修在这里而不是那个共享原语上 —— 它全站在用。 */}
           <MessageContent
             markdown
-            className="bg-secondary/60 text-sm leading-6"
+            className="min-w-0 bg-secondary/60 text-sm leading-6"
           >
             {message.content}
           </MessageContent>
         </div>
         <div className="flex flex-wrap gap-1.5 pl-6">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onUsePrompt(message.content)}
-            className="h-7 gap-1.5 rounded-full px-3 text-xs"
-          >
-            <Check className="size-3" />
-            {useLabel}
-          </Button>
-          {onAppendPrompt ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onAppendPrompt(message.content)}
-              className="h-7 gap-1.5 rounded-full px-3 text-xs"
-            >
-              <Plus className="size-3" />
-              {appendLabel}
-            </Button>
-          ) : null}
+          {/* A2：档 1 的回复是一段提问，不是提示词。「填入/追加」照旧显示的话，
+              点下去会把整段对话灌进提示词框 —— 协议一上线这个按钮就从「总是对」
+              变成了「对话轮次里总是错」。复制保留：复制一段对话文本没有歧义。 */}
+          {message.ask?.length ? null : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onUsePrompt(message.content)}
+                className="h-7 gap-1.5 rounded-full px-3 text-xs"
+              >
+                <Check className="size-3" />
+                {useLabel}
+              </Button>
+              {onAppendPrompt ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAppendPrompt(message.content)}
+                  className="h-7 gap-1.5 rounded-full px-3 text-xs"
+                >
+                  <Plus className="size-3" />
+                  {appendLabel}
+                </Button>
+              ) : null}
+            </>
+          )}
           <Button
             type="button"
             variant="outline"

@@ -2955,6 +2955,17 @@
     "extract": "Extract"
   },
   "PromptAssistant": {
+    "turn": {
+      "answerPrefix": "Here are my answers:",
+      "skipped": "skip this one",
+      "skip": "Skip",
+      "customPlaceholder": "Or answer in your own words",
+      "submitAnswers": "Send answers",
+      "satisfiedPrefix": "Looks good — ",
+      "adjustFallback": "Need a change? Tell me the direction",
+      "askedTitle": "Already answered · {count}",
+      "malformed": "The assistant meant to offer options here but the reply was unreadable. Ask again, or just answer in your own words."
+    },
     "title": "Prompt Assistant",
     "placeholder": "Describe what you want...",
     "send": "Send",
@@ -3254,11 +3265,11 @@
     },
     "seedance25Volcengine": {
       "label": "Seedance 2.5 (VolcEngine)",
-      "description": "ByteDance's 30s single-pass model via VolcEngine direct API. Reserved — VolcEngine has not opened the API yet."
+      "description": "ByteDance's 30s single-pass model via VolcEngine direct API. 480p/720p, 4-30 seconds."
     },
     "seedance25ReferenceVolcengine": {
       "label": "Seedance 2.5 (Reference, VolcEngine)",
-      "description": "Reference-to-video for Seedance 2.5. Reserved — VolcEngine has not opened the API yet."
+      "description": "Reference-to-video for Seedance 2.5. Up to 30 images / 10 videos / 10 audio clips, audio-only references supported."
     },
     "minimaxH3": {
       "label": "MiniMax H3",
@@ -4682,6 +4693,12 @@
       "scriptDocShotsLabel": "Shots · {count}",
       "scriptDocApplyResult": "Canvas synced: {created} new, {updated} updated, {removed} removed, {skipped} reused.",
       "scriptDocApplyNothing": "Canvas already matches the outline — nothing new to generate.",
+      "scriptDocProjectionTitle": "What projecting will change",
+      "scriptDocProjectionCreate": "Create {count} node(s)",
+      "scriptDocProjectionUpdate": "Update {count} node(s)",
+      "scriptDocProjectionRemove": "Remove {count} node(s) and {edges} edge(s) whose role / shot / line you deleted from the script",
+      "scriptDocProjectionCancel": "Cancel",
+      "scriptDocProjectionConfirm": "Project",
       "scriptDocApplyEmpty": "Add roles or shots to the outline first.",
       "scriptDocStepOutline": "Outline",
       "scriptDocStepShots": "Shots",
@@ -4787,7 +4804,7 @@
       "thinking": "Thinking...",
       "retry": "Retry",
       "placeholder": "Ask the canvas assistant...",
-      "modeHint": "Ask before applying",
+      "modeHint": "Structure lands free · generation asks",
       "research": "Reference work",
       "researchHint": "Search the web for a film/anime/short and turn it into original script ideas (Gemini/OpenAI routes)",
       "send": "Send",
@@ -5005,6 +5022,9 @@
       "appliedSummaryWithSkipped": "Applied {applied}, skipped {skipped}",
       "appliedToast": "Applied {count} canvas changes",
       "confirmGenerate": "Confirm generation (uses credits)",
+      "confirmReview": "Confirm review change",
+      "autoApplied": "{count} placed on the canvas — nothing spent yet",
+      "undoAutoApplied": "Undo",
       "generateSeparateHint": "Generation is confirmed separately",
       "rejectedPrefix": "Won't run: {reason}",
       "describe": {

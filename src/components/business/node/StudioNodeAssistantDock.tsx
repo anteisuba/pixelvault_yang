@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bot,
   Globe,
@@ -20,6 +20,7 @@ import {
 import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { assistantAdapterSupportsMedia } from '@/constants/assistant'
+import { isAutoApplyAssistantOp } from '@/constants/node-assistant-ops'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
@@ -190,7 +191,7 @@ export function StudioNodeAssistantDock({
   const tConversation = useTranslations('StudioNode.conversation')
   const tCanvasOps = useTranslations('StudioNode.canvasOps')
   const selection = useNodeSelection()
-  const { placeDerivedImages, focusNode, runAssistantCanvasOps } =
+  const { placeDerivedImages, focusNode, runAssistantCanvasOps, undo } =
     useNodeWorkflowActions()
   const conversation = useAssistantConversation({ projectId, persist: true })
   const [assistantRoute, setAssistantRoute] =
@@ -364,6 +365,62 @@ export function StudioNodeAssistantDock({
     },
     [runAssistantCanvasOps, tCanvasOps],
   )
+
+  // ─── B3 · 结构 op 自动落 ─────────────────────────────────────────────
+  //
+  // 「节点结构立即落画布（免费）；像素等确认（花钱）」。用户不用先读一段文字提案再
+  // 点一下，才看得到 AI 的计划在画布上的空间结构。
+  //
+  // ⚠ **难点全在「恰好一次」**，不在自动本身：
+  //   ① 流式回复每来一个 chunk 就重建一次消息对象，提案卡跟着重渲染 —— 放在卡里做
+  //      会重复建节点。所以做在这里，并按**消息 id**（流内稳定）去重。
+  //   ② 关掉 dock 再打开，最后一条消息**仍然带着 ops**。挂载时先把已有消息全部记成
+  //      「已处理」，只有挂载之后**新到**的才自动落 —— 否则开关一次浮卡就多一批节点。
+  //   ③ 提案本身有意不跨刷新存活（`use-assistant-conversation` 只入库剥干净的正文），
+  //      所以刷新后不存在「几分钟前的旧提案被自动执行」这条路。
+  const autoAppliedRef = useRef<Set<string> | null>(null)
+  const [autoAppliedByMessageId, setAutoAppliedByMessageId] = useState<
+    Record<string, number>
+  >({})
+
+  useEffect(() => {
+    // ② 首次挂载：现有消息一律记成已处理，不回溯执行。
+    if (autoAppliedRef.current === null) {
+      autoAppliedRef.current = new Set(
+        conversation.messages.map((message) => message.id),
+      )
+      return
+    }
+    if (conversation.isLoading) return
+
+    const seen = autoAppliedRef.current
+    const pending = conversation.messages.filter(
+      (message) =>
+        message.role === 'assistant' && message.ops && !seen.has(message.id),
+    )
+    if (pending.length === 0) return
+
+    for (const message of pending) {
+      seen.add(message.id)
+      if (!message.ops) continue
+      const autoOps = planAssistantOps(message.ops).ops.filter(
+        (entry) =>
+          entry.status === 'ready' && isAutoApplyAssistantOp(entry.op.op),
+      )
+      if (autoOps.length === 0) continue
+      void handleApplyAssistantOps(autoOps).then((result) => {
+        setAutoAppliedByMessageId((current) => ({
+          ...current,
+          [message.id]: result.applied,
+        }))
+      })
+    }
+  }, [
+    conversation.isLoading,
+    conversation.messages,
+    handleApplyAssistantOps,
+    planAssistantOps,
+  ])
 
   const handleNewConversation = useCallback(() => {
     conversation.clear()
@@ -616,6 +673,8 @@ export function StudioNodeAssistantDock({
                 onRunCapability={handleRunCapability}
                 planAssistantOps={planAssistantOps}
                 onApplyAssistantOps={handleApplyAssistantOps}
+                autoAppliedByMessageId={autoAppliedByMessageId}
+                onUndoAutoApply={undo}
               />
             </div>
             <div className="flex min-h-0 flex-1 flex-col">
@@ -649,6 +708,8 @@ export function StudioNodeAssistantDock({
               onRunCapability={handleRunCapability}
               planAssistantOps={planAssistantOps}
               onApplyAssistantOps={handleApplyAssistantOps}
+              autoAppliedByMessageId={autoAppliedByMessageId}
+              onUndoAutoApply={undo}
             />
           </div>
         )}

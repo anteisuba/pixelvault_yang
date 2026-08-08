@@ -114,7 +114,9 @@ export type VideoScriptStatus = (typeof VideoScriptStatus)[keyof typeof VideoScr
 
 
 export const AssistantSurface = {
-  STUDIO: 'STUDIO',
+  IMAGE_STUDIO: 'IMAGE_STUDIO',
+  VIDEO_STUDIO: 'VIDEO_STUDIO',
+  LORA: 'LORA',
   NODE_CANVAS: 'NODE_CANVAS'
 } as const
 

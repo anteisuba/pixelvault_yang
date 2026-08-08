@@ -27,6 +27,26 @@ const NodeAssistantOpNameSchema = z
   .min(1)
   .max(NODE_ASSISTANT_OP_LIMITS.maxNameLength)
 
+/**
+ * 剥掉正文里的 `[[node:id]]` 标记。
+ *
+ * ⚠ **真机抓到的**（2026-08-08 第一次跑通 B1）：系统提示词教模型「引用节点时写
+ * `[[node:id]]` 好让 UI 渲染成可点的胶囊」，模型把这条也套用到了 `prompt` 字段
+ * 上，于是生成提示词里出现了一串 uuid —— 那个字段是发给**图像模型**的，不经过
+ * UI 渲染，标记会被当成画面描述的一部分。
+ *
+ * 修成守卫而不是只加一句提示词规则，理由与 `node-assistant-op-plan` 头部那句
+ * 一样：**写进提示词的规则模型总会滑出去；写成守卫的规则不会**。放在 schema 上
+ * 是因为提案卡和执行层读的是同一份解析结果 —— 卡上显示的必须就是最终会落进
+ * 节点的那段字，否则用户审的和实际写的是两个东西。
+ */
+function stripNodeMarkers(value: string): string {
+  return value
+    .replace(/\[\[node:[^\]]+\]\]/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
 export const NodeAssistantAddNodeOpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_IDS.addNode),
   /** ＋添加 菜单的意图 id —— 族与 role 的唯一定义处，见 canvas-add-catalog。 */
@@ -40,6 +60,23 @@ export const NodeAssistantAddNodeOpSchema = z.object({
     .optional(),
   /** 建好就起名。省略则是未命名节点，和人手从菜单建出来的一样。 */
   name: NodeAssistantOpNameSchema.optional(),
+  /**
+   * 建好就把提示词填进去（A3 / B1）。省略则是空节点，和人手从菜单建出来的一样。
+   *
+   * ⚠ **在此之前助手能建节点、能起名、能连线，唯独填不进一个字** —— schema 里
+   * 根本没有这个字段。「助手设计节点时自动填入生成的关键词」这条诉求的全部内容
+   * 就是它。
+   *
+   * 只对**有提示词可言**的族有意义（图片 / 视频 / 镜头文本）；落到身份卡这类节点
+   * 上时执行层照写不误 —— 与人手在同一个字段里打字完全等价，不另设一套规则。
+   */
+  prompt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxPromptLength)
+    .transform(stripNodeMarkers)
+    .optional(),
 })
 
 export const NodeAssistantConnectOpSchema = z.object({

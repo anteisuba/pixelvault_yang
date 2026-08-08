@@ -4,7 +4,10 @@ import { useCallback, useState } from 'react'
 import { Check, Link2, PenLine, Plus, Sparkles, Undo2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { NODE_ASSISTANT_OP_IDS } from '@/constants/node-assistant-ops'
+import {
+  isAutoApplyAssistantOp,
+  NODE_ASSISTANT_OP_IDS,
+} from '@/constants/node-assistant-ops'
 import { getCanvasAddCatalogItem } from '@/constants/canvas-add-catalog'
 import { NODE_REVIEW_STATE_IDS } from '@/constants/node-types'
 import { Button } from '@/components/ui/button'
@@ -23,6 +26,12 @@ interface CanvasOpProposalCardProps {
   /** 已有节点的显示名；节点已被删除时返回 undefined。 */
   getNodeLabel(nodeId: string): string | undefined
   onApply(ops: PlannedNodeAssistantOp[]): Promise<NodeAssistantOpRunResult>
+  /**
+   * B3：结构 op 已经自动落了几条（dock 记的账）。`undefined` = 没自动落，退回
+   * 「点一下应用」那条路 —— 浮卡在提案到达时是关着的就会走到这里。
+   */
+  autoAppliedCount?: number
+  onUndoAutoApply?(): void
 }
 
 const OP_ICONS = {
@@ -52,6 +61,8 @@ export function CanvasOpProposalCard({
   plan: livePlan,
   getNodeLabel,
   onApply,
+  autoAppliedCount,
+  onUndoAutoApply,
 }: CanvasOpProposalCardProps) {
   const t = useTranslations('StudioNode.canvasOps')
   /**
@@ -60,7 +71,18 @@ export function CanvasOpProposalCard({
    * 的那条，读起来像是失败了。
    */
   const [frozenPlan, setFrozenPlan] = useState<NodeAssistantOpPlan | null>(null)
-  const plan = frozenPlan ?? livePlan
+  /**
+   * ⚠ B3 自动落把上面那个「动手之前」压成了不到一帧：effect 在首帧之后就改图了，
+   * 之后每次重算 `livePlan` 都是**对着已经改完的图**算的 —— 刚连上的边会算成
+   * 「重复边」，看起来像失败。所以首帧的 plan 单独留一份，自动落之后按它显示。
+   *
+   * ⚠ 用 `useState` 的惰性初值而不是 `useRef(...).current` —— 后者要在 render 期间
+   * 读 ref，`react-hooks/refs` 会拦（规则是对的，那是 React 反模式）。语义完全一样：
+   * 初值只在首帧取一次，之后再也不变。
+   */
+  const [initialPlan] = useState(livePlan)
+  const plan =
+    frozenPlan ?? (autoAppliedCount === undefined ? livePlan : initialPlan)
   const tAdd = useTranslations('StudioNode.addCatalog.items')
   const tIngest = useTranslations('StudioNode.ingest.reasons')
   const [excluded, setExcluded] = useState<Set<number>>(() => new Set())
@@ -159,18 +181,17 @@ export function CanvasOpProposalCard({
     [t, tIngest],
   )
 
+  // B3 三档：自动落的纯结构 / 要逐条确认的判断与花钱 / 已被规划器拒掉的。
   const structuralOps = plan.ops.filter(
-    (entry) =>
-      entry.status === 'ready' &&
-      entry.op.op !== NODE_ASSISTANT_OP_IDS.generate,
+    (entry) => entry.status === 'ready' && isAutoApplyAssistantOp(entry.op.op),
+  )
+  const selectedStructuralOps = structuralOps.filter(
+    (entry) => !excluded.has(entry.index),
   )
   const generateOps = plan.ops.filter(
     (entry) =>
       entry.status === 'ready' &&
       entry.op.op === NODE_ASSISTANT_OP_IDS.generate,
-  )
-  const selectedStructuralOps = structuralOps.filter(
-    (entry) => !excluded.has(entry.index),
   )
 
   const handleApplyStructural = useCallback(async () => {
@@ -204,11 +225,13 @@ export function CanvasOpProposalCard({
         {plan.ops.map((entry) => {
           const Icon = OP_ICONS[entry.op.op]
           const isRejected = entry.status === 'rejected'
-          const isGenerate = entry.op.op === NODE_ASSISTANT_OP_IDS.generate
+          // B3：判断（审核态）与花钱（生成）都不自动落，各自逐条确认。
+          const needsOwnConfirm = !isAutoApplyAssistantOp(entry.op.op)
           const isExcluded = excluded.has(entry.index)
           const canToggle =
             !isRejected &&
-            !isGenerate &&
+            !needsOwnConfirm &&
+            autoAppliedCount === undefined &&
             !structuralResult &&
             !structuralRunning
 
@@ -236,18 +259,27 @@ export function CanvasOpProposalCard({
                   >
                     {describe(entry)}
                   </span>
+                  {/* B1：助手写进来的提示词要在这里看得见。批准一条自己看不到内容
+                      的写操作，等于没有审批 —— 提示词恰恰是这条 op 里唯一有内容
+                      的部分。 */}
+                  {entry.op.op === NODE_ASSISTANT_OP_IDS.addNode &&
+                  entry.op.prompt ? (
+                    <span className="mt-0.5 block whitespace-pre-wrap break-words text-node-subtle">
+                      {entry.op.prompt}
+                    </span>
+                  ) : null}
                   {isRejected ? (
                     <span className="block text-node-subtle">
                       {t('rejectedPrefix', { reason: explainRejection(entry) })}
                     </span>
                   ) : null}
                 </span>
-                {isGenerate && appliedGenerates.has(entry.index) ? (
+                {needsOwnConfirm && appliedGenerates.has(entry.index) ? (
                   <Check className="mt-0.5 size-3 shrink-0" />
                 ) : null}
               </button>
 
-              {isGenerate &&
+              {needsOwnConfirm &&
               !appliedGenerates.has(entry.index) &&
               !isRejected ? (
                 <div className="px-1.5 pb-1">
@@ -262,7 +294,9 @@ export function CanvasOpProposalCard({
                     {runningIndex === entry.index ? (
                       <Spinner size="sm" />
                     ) : null}
-                    {t('confirmGenerate')}
+                    {entry.op.op === NODE_ASSISTANT_OP_IDS.generate
+                      ? t('confirmGenerate')
+                      : t('confirmReview')}
                   </Button>
                 </div>
               ) : null}
@@ -271,7 +305,27 @@ export function CanvasOpProposalCard({
         })}
       </ul>
 
-      {structuralResult ? (
+      {autoAppliedCount !== undefined && autoAppliedCount > 0 ? (
+        // B3：已经落了。这里不是审批入口，是**回执 + 后悔药** —— B2.5 之后整批
+        // 只占一个撤销步，所以「撤销」按一下就全退。
+        <div className="mt-1.5 flex items-center justify-between gap-2 px-1.5">
+          <span className="text-2xs text-node-subtle">
+            {t('autoApplied', { count: autoAppliedCount })}
+          </span>
+          {onUndoAutoApply ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onUndoAutoApply}
+              className="h-8 shrink-0 rounded-lg border-node-panel-inner bg-node-panel-soft px-2 text-2xs text-node-foreground"
+            >
+              <Undo2 className="size-3" />
+              {t('undoAutoApplied')}
+            </Button>
+          ) : null}
+        </div>
+      ) : structuralResult ? (
         <p className="mt-1.5 px-1.5 text-2xs text-node-subtle">
           {structuralResult.skipped > 0
             ? t('appliedSummaryWithSkipped', {

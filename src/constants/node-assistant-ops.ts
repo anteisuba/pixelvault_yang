@@ -50,6 +50,30 @@ export const NODE_ASSISTANT_OPS = [
 export type NodeAssistantOpId = (typeof NODE_ASSISTANT_OPS)[number]
 
 /**
+ * B3：**不用点就落画布**的那一档（owner 2026-08-08 拍板「自动落」）。
+ *
+ * 分档依据是「错了要付多大代价」，不是「改动大不大」：
+ *   · 这三个是**纯结构、免费、一次撤销能全退**（B2.5 之后）。空节点删掉就是，
+ *     不留半成品像素，撤销栈也不脏。
+ *   · `set_review_state` **不在**这里 —— 审核态是**用户对产出的判断**，不是结构。
+ *     代码里已经钉死助手不得自批（`NODE_ASSISTANT_OP_REJECT_REASON_IDS.approvalForbidden`，
+ *     owner 无开关），既然自批被禁，降级成「自动」也违背同一个意图。
+ *   · `generate` **不在**这里 —— 唯一扣 credit 的 op。
+ *
+ * ⚠ 这条改写了 `unified-ai-assistant-2026-08.md` §1「助手不会未经用户确认修改画布」。
+ * 那份契约已同步作废该半句，别再按旧文档判它是 bug。
+ */
+export const NODE_ASSISTANT_AUTO_APPLY_OPS = [
+  NODE_ASSISTANT_OP_IDS.addNode,
+  NODE_ASSISTANT_OP_IDS.connect,
+  NODE_ASSISTANT_OP_IDS.rename,
+] as const
+
+export function isAutoApplyAssistantOp(op: NodeAssistantOpId): boolean {
+  return (NODE_ASSISTANT_AUTO_APPLY_OPS as readonly string[]).includes(op)
+}
+
+/**
  * `add_node` 能用的意图，逐条对齐 ＋添加 菜单。有测试锁住「菜单里新增的意图
  * 必须同步进这张表」—— 漏了的话助手会安静地少一种能建的节点，而不是报错。
  */
@@ -119,6 +143,15 @@ export const NODE_ASSISTANT_OP_LIMITS = {
    * 名字就有多长，两边用同一个数。
    */
   maxNameLength: NODE_STUDIO_ASSISTANT_LIMITS.maxNodeLabelLength,
+  /**
+   * 提示词长度，同一条对称论据：助手读一个节点时，它的 prompt 按
+   * `maxNodeSummaryLength` 截断后进 payload；那它能写回的也就是这么长。
+   *
+   * ⚠ 这**不是**节点提示词的产品上限 —— `NodeWorkflowNodeDataSchema.prompt` 是
+   * 无界的 `z.string()`，人手输入不受限。这里限的是「一条 op 载荷能有多大」，
+   * 和 `maxOps`「一张卡要看得完」同性质。别把它当成能力承诺往 UI 上印。
+   */
+  maxPromptLength: NODE_STUDIO_ASSISTANT_LIMITS.maxNodeSummaryLength,
   /** 打回理由。与 `NodeMediaReview.reason` 同一个量级。 */
   maxReasonLength: 300,
 } as const

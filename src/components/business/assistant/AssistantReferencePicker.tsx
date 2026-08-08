@@ -1,7 +1,7 @@
 'use client'
 /* eslint-disable @next/next/no-img-element -- assistant references are user-owned remote media. */
 
-import { useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useRef, useState, type ChangeEvent } from 'react'
 import {
   Check,
   Image as ImageIcon,
@@ -65,6 +65,12 @@ interface AssistantReferencePickerProps {
   onPickExisting?(reference: AssistantReferenceOption): void
   triggerClassName?: string
   contentClassName?: string
+  /**
+   * A4：受控开合。省略时组件自己管（原行为逐字不变）；传了就由调用方管 ——
+   * 助手输入框需要在用户敲 `@` 时把同一个选择器打开，而不是另造一份列表。
+   */
+  open?: boolean
+  onOpenChange?(open: boolean): void
 }
 
 const ACCEPTED_VIDEO_MIME = 'video/mp4,video/quicktime,video/webm'
@@ -89,10 +95,20 @@ export function AssistantReferencePicker({
   onPickExisting,
   triggerClassName,
   contentClassName,
+  open: controlledOpen,
+  onOpenChange,
 }: AssistantReferencePickerProps) {
   const imageInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = controlledOpen ?? uncontrolledOpen
+  const setOpen = useCallback(
+    (next: boolean) => {
+      setUncontrolledOpen(next)
+      onOpenChange?.(next)
+    },
+    [onOpenChange],
+  )
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const [assetMediaType, setAssetMediaType] = useState<'image' | 'video'>(
     'image',

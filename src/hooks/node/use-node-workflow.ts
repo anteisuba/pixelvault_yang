@@ -127,6 +127,8 @@ export interface NodeWorkflowActions {
   setScriptDocShotStills(value: boolean): void
   /** Project the current ScriptDoc into character/voice/shot/merge nodes. */
   applyScriptDocToGraph(): ApplyScriptDocResult
+  /** B4：同一套计算但不提交 —— 让「确认镜头」之前能看见将建/将更新/**将移除**。 */
+  previewScriptDocProjection(): ApplyScriptDocResult
   deleteNode(id: string): void
   deleteEdge(id: string): void
   undo(): void
@@ -150,6 +152,14 @@ export interface ApplyScriptDocResult {
 }
 
 interface UseNodeWorkflowValue extends NodeWorkflowActions {
+  /**
+   * B2.5：把一整批写入合并成一个撤销步。见实现处的注释。
+   *
+   * ⚠ **有意只放在这里，不放进 `NodeWorkflowActions`** —— 那个接口是发给节点卡片
+   * 的动作集，卡片不该拿到撤销栈的记账开关。批次的拥有者是 workbench，它直接持有
+   * hook 的返回值。
+   */
+  runAsSingleHistoryStep<T>(run: () => T | Promise<T>): Promise<T>
   /** True only after both local and server hydration finish for this user. */
   isHydrated: boolean
   state: NodeWorkflowState
@@ -686,6 +696,18 @@ export function useNodeWorkflow({
   })
   const historyProjectId = useRef<string | null>(null)
   const isRestoringHistory = useRef(false)
+  /**
+   * B2.5：一批写入正在进行中，撤销栈只在批次开头记一次账。
+   *
+   * ⚠ 实测出来的问题（2026-08-08，`assistant-ab-design-2026-08-08.md` §B2）：助手
+   * 应用「3 项」后按撤销是 3→2→1→0，**一次只退一个节点**。根因是批次里每个
+   * `add_node` 都各自走一遍 `commitCurrentProjectState`，而去重只比引用相等
+   * （`storageRef.current` 同步更新，所以同一 tick 的连续调用不会被折叠）。
+   *
+   * 剧本投影（`applyScriptDocToGraph`）没有这个问题 —— 它先算完再一次性提交。
+   * ops 那条路做不到「先算完」（建节点要先拿到真 id 才能连线），所以改用这个开关。
+   */
+  const historySuppressed = useRef(false)
   const [historyAvailability, setHistoryAvailability] = useState({
     canUndo: false,
     canRedo: false,
@@ -716,6 +738,9 @@ export function useNodeWorkflow({
   )
 
   const recordCurrentProjectHistory = useCallback(() => {
+    // B2.5：批次进行中 —— 开头已经记过一次账，批内其余写入不再各记一笔。
+    if (historySuppressed.current) return
+
     const currentProjectForHistory = getCurrentProject(
       storageRef.current,
       defaultProjectName,
@@ -986,6 +1011,32 @@ export function useNodeWorkflow({
       )
     },
     [defaultProjectName, recordCurrentProjectHistory, setWorkflowStorage],
+  )
+
+  /**
+   * B2.5：把 `run` 里的所有写入合并成**一个**撤销步。
+   *
+   * 用法是包住一整批高层动作（建节点 / 连线 / 改名…），而不是包住某一次
+   * `commitCurrentProjectState` —— 批内那些动作各自调什么、调几次，调用方不需要知道。
+   *
+   * ⚠ **有意跨 await 保持开着**：一批 op 是一次用户决定，中间的异步步骤不该把它
+   * 劈成两个撤销步。批次进行时 UI 的按钮是禁用的（`structuralRunning`），所以
+   * 「批次期间用户又手动改了画布」这种并发在实际路径上够不到。
+   *
+   * 嵌套时内层直接透传：外层已经记过账，内层再记一次就又变成两步了。
+   */
+  const runAsSingleHistoryStep = useCallback(
+    async <T>(run: () => T | Promise<T>): Promise<T> => {
+      if (historySuppressed.current) return run()
+      recordCurrentProjectHistory()
+      historySuppressed.current = true
+      try {
+        return await run()
+      } finally {
+        historySuppressed.current = false
+      }
+    },
+    [recordCurrentProjectHistory],
   )
 
   const addNode = useCallback(
@@ -1501,6 +1552,61 @@ export function useNodeWorkflow({
   )
 
   /**
+   * B4：**投影会删节点** —— 它拥有的节点（带 `scriptRef`）在对应的角色/镜头/台词
+   * 被从剧本里删掉后就成了孤儿，投影会一并移除。改之前用户只能从事后那个 toast
+   * 里读到「移除 N 个」，事前看不见。
+   *
+   * 这里跑与 `applyScriptDocToGraph` 完全相同的计算但**不提交**，让工作区能在按下
+   * 之前把「将建 / 将更新 / 将移除」摆出来。
+   *
+   * ⚠ 预览与随后的实投是**两次独立计算**（`makeId` 每次生成新 id）。计数因此只对
+   * 「预览那一刻的图」成立 —— 确认是紧接着的一下，中间没有别的写入路径，所以够用；
+   * 但别把预览结果缓存起来当成实投的结果用。
+   */
+  const previewScriptDocProjection = useCallback((): ApplyScriptDocResult => {
+    const currentState = getCurrentProject(
+      storageRef.current,
+      defaultProjectName,
+    ).state
+    const scriptDoc = currentState.scriptDoc
+    if (!scriptDoc) {
+      return {
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        removed: 0,
+        removedEdges: 0,
+        refusal: 'noScriptDoc',
+      }
+    }
+    if (scriptDoc.roles.length === 0 && scriptDoc.shots.length === 0) {
+      return {
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        removed: 0,
+        removedEdges: 0,
+        refusal: 'emptyScriptDoc',
+      }
+    }
+
+    const result = projectScriptDocToGraph(scriptDoc, currentState, {
+      makeId: createWorkflowId,
+      anchor: NODE_STUDIO_NODE_PLACEMENT.scriptDocSpawn.origin,
+      shotStills: currentState.scriptDocShotStills,
+    })
+
+    return {
+      created: result.nodesToAdd.length,
+      updated: result.nodesToUpdate.length,
+      skipped: result.skipped,
+      removed: result.nodesToRemove.length,
+      removedEdges: result.edgesToRemove.length,
+      refusal: null,
+    }
+  }, [defaultProjectName])
+
+  /**
    * Project the current project's ScriptDoc into the graph. Reads the latest
    * state off `storageRef` (never a stale closure), runs the pure idempotent
    * projection, and appends only genuinely new nodes/edges inside a single
@@ -1809,12 +1915,14 @@ export function useNodeWorkflow({
       setScriptDocLocks,
       setScriptDocShotStills,
       applyScriptDocToGraph,
+      previewScriptDocProjection,
       deleteNode,
       deleteEdge,
       undo,
       redo,
       canUndo: historyAvailability.canUndo,
       canRedo: historyAvailability.canRedo,
+      runAsSingleHistoryStep,
       getOutgoingTargetByType,
       onNodesChange,
       onEdgesChange,
@@ -1839,6 +1947,8 @@ export function useNodeWorkflow({
       onEdgesChange,
       onNodesChange,
       placeDerivedImages,
+      previewScriptDocProjection,
+      runAsSingleHistoryStep,
       projects,
       redo,
       renameCurrentProject,

@@ -2955,6 +2955,17 @@
     "extract": "提取"
   },
   "PromptAssistant": {
+    "turn": {
+      "answerPrefix": "我的回答：",
+      "skipped": "跳过这条",
+      "skip": "跳过",
+      "customPlaceholder": "或者用你自己的话回答",
+      "submitAnswers": "发送回答",
+      "satisfiedPrefix": "就这个方向 —— ",
+      "adjustFallback": "需要调整？告诉我方向",
+      "askedTitle": "已询问 · {count}",
+      "malformed": "助手本想在这里给你几个选项，但那段回复读不出来。可以再问一次，或者直接用你自己的话回答。"
+    },
     "title": "提示词助手",
     "placeholder": "描述你想要创作的内容...",
     "send": "发送",
@@ -3254,11 +3265,11 @@
     },
     "seedance25Volcengine": {
       "label": "Seedance 2.5（火山方舟）",
-      "description": "字节 30 秒单次直出模型，走火山方舟直连。预留中——火山尚未开放 API"
+      "description": "字节 30 秒单次直出模型，走火山方舟直连。480p/720p，4-30 秒"
     },
     "seedance25ReferenceVolcengine": {
       "label": "Seedance 2.5（参考，火山方舟）",
-      "description": "Seedance 2.5 的参考生视频。预留中——火山尚未开放 API"
+      "description": "Seedance 2.5 的参考生视频。最多 30 图 / 10 视频 / 10 音频，支持纯音频参考"
     },
     "minimaxH3": {
       "label": "MiniMax H3",
@@ -4682,6 +4693,12 @@
       "scriptDocShotsLabel": "镜头 · {count}",
       "scriptDocApplyResult": "画布已同步：新增 {created} 个，更新 {updated} 个，删除 {removed} 个，复用 {skipped} 个。",
       "scriptDocApplyNothing": "画布已与大纲一致，没有新节点要生成。",
+      "scriptDocProjectionTitle": "投影会改动什么",
+      "scriptDocProjectionCreate": "新建 {count} 个节点",
+      "scriptDocProjectionUpdate": "更新 {count} 个节点",
+      "scriptDocProjectionRemove": "移除 {count} 个节点、{edges} 条连线 —— 它们对应的角色 / 镜头 / 台词已被你从剧本里删掉",
+      "scriptDocProjectionCancel": "取消",
+      "scriptDocProjectionConfirm": "投影",
       "scriptDocApplyEmpty": "请先在大纲里添加角色或镜头。",
       "scriptDocStepOutline": "大纲",
       "scriptDocStepShots": "镜头",
@@ -4787,7 +4804,7 @@
       "thinking": "思考中...",
       "retry": "重试",
       "placeholder": "询问画布助手...",
-      "modeHint": "应用前先询问",
+      "modeHint": "结构直接落 · 生成要确认",
       "research": "参考作品",
       "researchHint": "联网查某部电影/动漫/短片，转成原创剧本建议（走 Gemini/OpenAI 路由）",
       "send": "发送",
@@ -5005,6 +5022,9 @@
       "appliedSummaryWithSkipped": "已应用 {applied} 项，跳过 {skipped} 项",
       "appliedToast": "已应用 {count} 项画布改动",
       "confirmGenerate": "确认生成（消耗积分）",
+      "confirmReview": "确认改审核态",
+      "autoApplied": "已落 {count} 个到画布 — 还没花积分",
+      "undoAutoApplied": "撤销",
       "generateSeparateHint": "生成需要单独确认",
       "rejectedPrefix": "不会执行：{reason}",
       "describe": {

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { HOMEPAGE_MODEL_REFERENCE_PRICES } from '@/constants/homepage'
+import {
+  HOMEPAGE_MODEL_REFERENCE_PRICES,
+  resolveHomepageReferencePrice,
+} from '@/constants/homepage'
+import { getModelById } from '@/constants/models'
 import { AI_MODELS } from '@/constants/models/enum'
 import {
   MODEL_UNIT_PRICES,
@@ -62,25 +66,42 @@ describe('model unit prices', () => {
     }
   })
 
-  it('keeps the unit consistent with the homepage table where they overlap', () => {
-    // ⚠ 这条原本断言「两表不得重叠」，2026-08-08 改掉了 —— 那个约束立错了。
-    // 补齐 fal 价格后必然重叠，而重叠本身不是问题：两张表用途和口径都不同
-    // （homepage 是营销展示，可能有意取不含音频的低价；本表是决策比价，钉死
-    // 720p 含音频）。所以**不断言金额一致**，只断言单位一致 —— 单位错配才是
-    // 真 bug（一个按秒一个按张，那是数据填错了行）。
+  it('⚠ 两张表不得重叠 —— 首页存量表只放本表没覆盖的', () => {
+    // 这条断言变过两次，记一下为什么：
     //
-    // ⚠ 金额差异已知且尚未对账，例（2026-08-08 实查 fal 官方标价）：
-    //   SEEDANCE_20      homepage $0.1  vs fal 官方 $0.3034  ← homepage 疑似过时
-    //   SEEDANCE_20_FAST homepage $0.06 vs fal 官方 $0.2419  ← 同上
-    //   KLING_V3_PRO     homepage $0.3  vs fal 官方 $0.168   ← 对不上任何档
-    //   VEO_31           homepage $0.2  vs fal 官方 $0.40    ← homepage 取的是不含音频档
-    // 对账结论见 docs/plans/canvas-video-domain-cleanup-2026-08-08.md §9.7。
+    //  1. 最初「不得重叠」—— 立错了：补齐 fal 价格后必然重叠。
+    //  2. 改成「只比单位不比金额」—— 也不对：它把「首页低报 3 倍」正当化成了
+    //     「两个口径」，于是那个 bug 被测试保护了起来。
+    //  3. 现在（owner 2026-08-08 拍板首页从本表派生）重叠**真的**不该存在了：
+    //     同一个模型两个数字，就是漂移本身。
+    for (const [id] of entries) {
+      expect(
+        HOMEPAGE_MODEL_REFERENCE_PRICES[id],
+        `${id} 在两张表里都有 —— 首页那条要删，取值走 resolveHomepageReferencePrice`,
+      ).toBeUndefined()
+    }
+  })
+
+  it('首页取价走本表；本表没有的才退回存量表', () => {
     for (const [id, price] of entries) {
-      const homepage = HOMEPAGE_MODEL_REFERENCE_PRICES[id]
-      if (!homepage) continue
-      expect(homepage.unit, `${id} unit mismatch between the two tables`).toBe(
-        price.unit,
-      )
+      const resolved = resolveHomepageReferencePrice(id)
+      expect(resolved, `${id} 应当能从本表取到价`).not.toBeNull()
+      expect(resolved?.amount).toBe(price.amount)
+      expect(resolved?.unit).toBe(price.unit)
+    }
+  })
+
+  it('⚠ 口径成立的前提：有价的视频模型全都默认开音频', () => {
+    // owner 选的是「按产品默认档」。当前它恰好等于本表的含音频口径 —— 因为所有
+    // 有价视频模型都 `generateAudio: true`。**这是巧合不是定理**：哪天进来一个
+    // 默认关音频的模型，本表就必须加一列区分，否则首页会高报它的价。
+    for (const [id] of entries) {
+      const model = getModelById(id)
+      if (!model || model.outputType !== 'VIDEO') continue
+      expect(
+        model.videoDefaults?.generateAudio,
+        `${id} 默认不开音频 —— 「按产品默认档」不再等于含音频口径，见本表头部注释`,
+      ).toBe(true)
     }
   })
 })

@@ -14,7 +14,7 @@ import {
 import {
   formatHomepageReferencePriceAmount,
   HOMEPAGE_MODEL_COUNTS,
-  HOMEPAGE_MODEL_REFERENCE_PRICES,
+  resolveHomepageReferencePrice,
 } from '@/constants/homepage'
 import {
   getAvailableModels,
@@ -135,7 +135,8 @@ export function HomeV3Rails() {
   }
 
   const priceLabel = (model: ModelOption) => {
-    const price = HOMEPAGE_MODEL_REFERENCE_PRICES[model.id]
+    // 取价走单一入口：先 unit-prices（一个真相），没有的才退回首页存量表。
+    const price = resolveHomepageReferencePrice(model.id)
     if (!price) return t('priceVaries')
     const amount = formatHomepageReferencePriceAmount(price.amount)
     if (price.unit === 'image') return t('priceImage', { amount })

@@ -3,6 +3,7 @@ import {
   getAvailableModels,
   getProviderGroup,
 } from '@/constants/models'
+import { getModelUnitPrice } from '@/constants/models/unit-prices'
 import { ROUTES } from '@/constants/routes'
 import type { OutputType } from '@/types'
 
@@ -54,8 +55,19 @@ export interface HomepageModelReferencePrice {
 }
 
 /**
- * Best-effort USD reference prices shown on the public homepage. These are
- * display-only and intentionally separate from server-owned credit policy.
+ * 首页展示价 —— **只放 `MODEL_UNIT_PRICES` 没覆盖到的那些**。
+ *
+ * ⚠ 2026-08-08 owner 拍板：首页从 `constants/models/unit-prices.ts` 派生，口径
+ * 「**按产品默认档**」（哪个开关默认开就报哪个价）。当前目录里 12 个有价视频模型
+ * **全部** `generateAudio: true`，所以默认档恰好等于 unit-prices 已有的含音频口径，
+ * 不需要再存第二个数字 —— 哪天出现默认关音频的模型，才需要在那边加一列。
+ *
+ * 起因是这张表在**低报**：Seedance 2.0 标 $0.1/s，火山官方算例换算是 $0.3 档，
+ * 低了 3 倍。一个数字两个来源必然漂，所以重复的那 8 条已经删了，取值统一走
+ * `resolveHomepageReferencePrice`。
+ *
+ * 这里剩下的是 unit-prices 还没核实的模型（图片/音频那批）。**补价格请补到
+ * unit-prices**，别往这张表加新条目 —— 它只是还没搬完的存量。
  */
 export const HOMEPAGE_MODEL_REFERENCE_PRICES: Partial<
   Record<AI_MODELS, HomepageModelReferencePrice>
@@ -74,18 +86,24 @@ export const HOMEPAGE_MODEL_REFERENCE_PRICES: Partial<
   [AI_MODELS.NOVELAI_V45_FULL]: { amount: 0.012, unit: 'image' },
   [AI_MODELS.NOVELAI_V45_CURATED]: { amount: 0.012, unit: 'image' },
   [AI_MODELS.ILLUSTRIOUS_XL]: { amount: 0.003, unit: 'image' },
-  [AI_MODELS.KLING_V3_PRO]: { amount: 0.3, unit: 'second' },
-  [AI_MODELS.KLING_O3_PRO]: { amount: 0.35, unit: 'second' },
   [AI_MODELS.FISH_AUDIO_S2_PRO]: { amount: 0.2, unit: 'kchars' },
   [AI_MODELS.ELEVENLABS_MUSIC_V2]: { amount: 0.15, unit: 'second' },
   [AI_MODELS.FLUX_2_PRO_EDIT]: { amount: 0.05, unit: 'image' },
-  [AI_MODELS.VEO_31]: { amount: 0.2, unit: 'second' },
-  [AI_MODELS.SEEDANCE_20]: { amount: 0.1, unit: 'second' },
-  [AI_MODELS.SEEDANCE_20_FAST]: { amount: 0.06, unit: 'second' },
-  [AI_MODELS.SEEDANCE_20_REFERENCE]: { amount: 0.1, unit: 'second' },
-  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: { amount: 0.06, unit: 'second' },
-  [AI_MODELS.HAPPYHORSE_10]: { amount: 0.14, unit: 'second' },
   [AI_MODELS.LTX_23]: { amount: 0.06, unit: 'second' },
+}
+
+/**
+ * 首页取价的唯一入口：先问 `unit-prices`（一个真相），它没有的才退回上面的存量表。
+ * 两边都没有 → null，调用方显示「价格因型号而异」而不是编一个数。
+ */
+export function resolveHomepageReferencePrice(
+  modelId: AI_MODELS,
+): HomepageModelReferencePrice | null {
+  const authoritative = getModelUnitPrice(modelId)
+  if (authoritative) {
+    return { amount: authoritative.amount, unit: authoritative.unit }
+  }
+  return HOMEPAGE_MODEL_REFERENCE_PRICES[modelId] ?? null
 }
 
 export function formatHomepageReferencePriceAmount(amount: number): string {

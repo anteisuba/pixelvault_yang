@@ -58,10 +58,29 @@ const CIVITAI_MODEL_SEARCH_PUBLIC_KEY =
   '8c46eb2508e21db1e9828a97968d91ab1ca1caa5f70a00e88a2ba1e286603b61'
 const CIVITAI_REQUEST_TIMEOUT_MS = 8000
 
+// Civitai 上游把「没有值」写成 null，而不是省略字段。z.number()/z.string()
+// 拒 null，而 .passthrough() 只放行未声明的字段、不放宽已声明字段的类型
+// ——于是一页 36 条命中里有 1 条 null 就让整份响应 parse 抛错，内容类型筛
+// 选路径（listCivitaiLorasByContentType，故意没有 REST 回落）把整页打成
+// 502「Civitai LoRA 库加载失败」，搜索路径则悄悄回落 REST、丢掉真排序。
+//
+// 实测 2026-08-08，1404 条命中样本（7 个类型 × 3 种排序 × L1/L2 两条子
+// query）里只有两处声明字段带 null：`metrics.downloadCount`（部分模型的
+// 下载数上游就是 null，hit/version 两层同时）与 `user.username`（作者已
+// 注销）。null 与字段缺失同义（都是「这个值不知道」），校验前统一归一成
+// undefined，消费方的 `?? 0` / `?? null` 兜底照旧。真正写错的类型（数字
+// 字段给字符串）仍然照旧报错——这里放宽的只有 null。
+function nullableOptional<T extends z.ZodType>(schema: T) {
+  return z.preprocess(
+    (value) => (value === null ? undefined : value),
+    schema.optional(),
+  )
+}
+
 const CivitaiStatsSchema = z
   .object({
-    downloadCount: z.number().optional(),
-    thumbsUpCount: z.number().optional(),
+    downloadCount: nullableOptional(z.number()),
+    thumbsUpCount: nullableOptional(z.number()),
   })
   .passthrough()
 
@@ -246,7 +265,8 @@ const CivitaiSearchImageSchema = z
 
 const CivitaiSearchUserSchema = z
   .object({
-    username: z.string().optional(),
+    // 作者注销后 username 是 null（不是省略）——见 nullableOptional 注释。
+    username: nullableOptional(z.string()),
     image: z.string().nullable().optional(),
   })
   .passthrough()
@@ -284,12 +304,52 @@ const CivitaiSearchHitSchema = z
   })
   .passthrough()
 
+// 单条命中的形状漂移只损失那一条。上面两个 null 字段是实测抓到的，但
+// search-new.civitai.com 是 civitai 自家搜索 UI 用的非正式端点、没有公开
+// 契约——下一个字段哪天开始回 null，逐字段补类型是追不上的。整份响应因为
+// 一条命中的一个字段而 parse 抛错，就是 owner 报的「类型筛选整页报 Civitai
+// LoRA 库加载失败」（那条路径没有 REST 回落）。这里按条校验：解析不过的条
+// 目丢掉并 warn 出来（漂移在日志里大声，而不是在用户面前把整个库打黑），
+// 响应外层（results 数组本身）仍然硬校验——外层坏了才是「端点坏了」。
+function parseSearchHits(
+  entries: readonly unknown[],
+): z.infer<typeof CivitaiSearchHitSchema>[] {
+  const hits: z.infer<typeof CivitaiSearchHitSchema>[] = []
+  const droppedIssues: string[] = []
+  for (const entry of entries) {
+    const parsed = CivitaiSearchHitSchema.safeParse(entry)
+    if (parsed.success) {
+      hits.push(parsed.data)
+      continue
+    }
+    droppedIssues.push(
+      parsed.error.issues
+        .slice(0, 2)
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join('; '),
+    )
+  }
+  if (droppedIssues.length > 0) {
+    logger.warn('Civitai search hits dropped by shape validation', {
+      dropped: droppedIssues.length,
+      total: entries.length,
+      issues: droppedIssues.slice(0, 3),
+    })
+  }
+  return hits
+}
+
 const CivitaiModelSearchResponseSchema = z
   .object({
     results: z.array(
       z
         .object({
-          hits: z.array(CivitaiSearchHitSchema).optional(),
+          hits: z
+            .array(z.unknown())
+            .optional()
+            .transform((entries) =>
+              entries === undefined ? undefined : parseSearchHits(entries),
+            ),
           estimatedTotalHits: z.number().optional(),
         })
         .passthrough(),

@@ -140,6 +140,52 @@ describe('listCivitaiLoras', () => {
     expect(result.nextCursor).toBe('cursor-3')
   })
 
+  // 与 S2 类型筛选那条 null 计数回归测试同一个根因（CivitaiStatsSchema 共
+  // 用于 REST `stats` 与 meilisearch `metrics` 四处）：REST 浏览路径同样是
+  // 硬 parse、同样没有回落，别只修一条路径。
+  it('keeps a model whose stats counts come back null instead of failing the page', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 557,
+            name: 'Null Counts LoRA',
+            type: 'LORA',
+            tags: ['style'],
+            stats: { downloadCount: null, thumbsUpCount: null },
+            modelVersions: [
+              {
+                id: 1001,
+                name: 'v1',
+                baseModel: 'Illustrious',
+                createdAt: '2025-01-01T00:00:00.000Z',
+                trainedWords: ['trigger'],
+                stats: { downloadCount: null, thumbsUpCount: 7 },
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/1001',
+                  },
+                ],
+                images: [
+                  { url: 'https://image.civitai.com/a.jpeg', nsfwLevel: 1 },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: { totalItems: 1 },
+      }),
+    )
+
+    const result = await listCivitaiLoras()
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]?.downloadCount).toBe(0)
+    expect(result.items[0]?.thumbsUpCount).toBe(7)
+  })
+
   it('promotes an NSFW (XXX) image to the cover in the default unrestricted filter', async () => {
     // hentai LoRA case (ExpressiveH): 示例图全是 XXX（nsfwLevel 16）。默认
     // unrestricted 档天花板放到 16，第一张 XXX 图应成为封面而非退化占位卡。
@@ -3686,6 +3732,89 @@ describe('listCivitaiLoras — S2 content type filter', () => {
     await expect(
       listCivitaiLoras({ contentType: 'clothing' }),
     ).rejects.toThrow()
+  })
+
+  // Bug 修复（owner 2026-08-08 报「类型筛选整页报 Civitai LoRA 库加载失
+  // 败」）：真实响应里部分模型的计数字段是 null（不是省略），旧 schema 的
+  // z.number() 拒 null，整份 multi-search 响应 parse 抛错——这条路径没有
+  // REST 回落，一条命中的 null 就把 35 条正常命中一起打成 502。
+  it('keeps a hit whose download counts come back null instead of failing the whole page', async () => {
+    const nullCountHit = typeHitFixture({
+      id: 500009,
+      metrics: {
+        downloadCount: null,
+        thumbsUpCount: 15,
+        tippedAmountCount: null,
+      },
+      version: {
+        ...baseVersion,
+        id: 600009,
+        metrics: { downloadCount: null, thumbsUpCount: 13 },
+      },
+    })
+    mockContentTypeFetch((url) => {
+      if (!url.includes('search-new.civitai.com')) return null
+      return jsonResponse({
+        results: [
+          { hits: [typeHitFixture(), nullCountHit], estimatedTotalHits: 2 },
+          { hits: [], estimatedTotalHits: 0 },
+        ],
+      })
+    })
+
+    const result = await listCivitaiLoras({ contentType: 'clothing' })
+
+    expect(result.items.map((item) => item.modelId)).toEqual([500001, 500009])
+    // 未知计数按 0 展示（与字段缺失同一套 `?? 0` 兜底），不是 null/NaN。
+    const nullCountItem = result.items.find((item) => item.modelId === 500009)
+    expect(nullCountItem?.downloadCount).toBe(0)
+    expect(nullCountItem?.thumbsUpCount).toBe(13)
+  })
+
+  // 同一根因的第二处实测命中：作者注销后 user.username 是 null。这条是
+  // 「服饰」类型整页 502 的直接原因（第一处 null 修完它还在报）。
+  it('keeps a hit whose creator account was deleted (username null)', async () => {
+    const deletedCreatorHit = typeHitFixture({
+      id: 500010,
+      user: { username: null, image: null },
+      version: { ...baseVersion, id: 600010 },
+    })
+    mockContentTypeFetch((url) => {
+      if (!url.includes('search-new.civitai.com')) return null
+      return jsonResponse({
+        results: [
+          { hits: [deletedCreatorHit], estimatedTotalHits: 1 },
+          { hits: [], estimatedTotalHits: 0 },
+        ],
+      })
+    })
+
+    const result = await listCivitaiLoras({ contentType: 'clothing' })
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]?.creatorName).toBeNull()
+  })
+
+  // 结构性兜底：search-new.civitai.com 没有公开契约，逐字段补类型追不上漂
+  // 移。一条命中的形状异常只该损失那一条，不该把整页打成 502。
+  it('drops only the malformed hit and still returns the rest of the page', async () => {
+    const malformedHit = { ...typeHitFixture({ id: 500011 }), name: 42 }
+    mockContentTypeFetch((url) => {
+      if (!url.includes('search-new.civitai.com')) return null
+      return jsonResponse({
+        results: [
+          {
+            hits: [typeHitFixture(), malformedHit],
+            estimatedTotalHits: 2,
+          },
+          { hits: [], estimatedTotalHits: 0 },
+        ],
+      })
+    })
+
+    const result = await listCivitaiLoras({ contentType: 'clothing' })
+
+    expect(result.items.map((item) => item.modelId)).toEqual([500001])
   })
 
   // Bug 修复（owner 报告：类型筛选后不满 12 张 + 下一页不可点）：L1/L2 两条

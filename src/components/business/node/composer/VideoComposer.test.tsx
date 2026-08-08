@@ -102,8 +102,6 @@ const { composerState } = vi.hoisted(() => ({
       token: string
       mediaUrl?: string
       coverImage?: string
-      imageSlotIndex?: number
-      audioSlotIndex?: number
       edgeId?: string
       boundVoice?: { nodeId: string; label: string; ready: boolean }
     }>,

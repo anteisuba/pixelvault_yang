@@ -62,8 +62,6 @@ export interface BoundVoice {
   label: string
   coverImage?: string
   ready: boolean
-  /** Payload audio_urls index when ready (shared order with 旁白 voices). */
-  audioSlotIndex?: number
   /** The voice→character edge — lets the badge's × detach the voice. */
   edgeId?: string
 }
@@ -91,14 +89,9 @@ export interface ComposerGalleryAssetPreview {
 }
 
 /** A reference token enriched with generate-payload bookkeeping (§7 部门条):
- *  `imageSlotIndex`/`audioSlotIndex`/`videoSlotIndex` tie the slot badge to
- *  the real payload order (image_urls / audio_urls / video_urls); `edgeId` is
- *  the direct edge into this video node (× = delete it). `boundVoice` rides a
+ *  `edgeId` 是直连这个视频节点的那条边（× = 删掉它）。 `boundVoice` rides a
  *  character token as its 音色 facet (cast-redesign 五卡：音色收进角色). */
 export interface ComposerReferenceToken extends ReferenceTokenData {
-  imageSlotIndex?: number
-  audioSlotIndex?: number
-  videoSlotIndex?: number
   edgeId?: string
   boundVoice?: BoundVoice
   /** A standalone voice can reach the video through a non-character visual
@@ -217,14 +210,17 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   // `token` = unnamed → the chip is a non-insertable indicator until the node
   // is named.
   //
-  // `imageSlotIndex` / `audioSlotIndex` are the reference's 0-based position
-  // in the ACTUAL generate payload (harvestUpstreamImageUrls / audio bindings
-  // — same calls StudioNodeWorkbench's generate path makes), so the slot's
-  // 图N/音N corner badge (§4 C3) never lies about what the model receives.
-  // Keyframes occupy image slots but aren't tokens, so 图N may skip numbers —
-  // that's correct, not a bug. `edgeId` is the direct edge feeding this video
-  // node when one exists (§7.1: 删除槽位 = 删连线); voices routed through a
-  // character have no direct edge → no edgeId → no × button.
+  // ⚠ 这里曾经还挂着 `imageSlotIndex` / `audioSlotIndex` / `videoSlotIndex` 三个字段，
+  // 注释说它们喂「图N / 音N 角标」。2026-08-08 实查：**那个角标不存在**，三个字段零
+  // 消费者（`grep SlotIndex src/**/*.tsx` 只命中测试里的类型 stub），已删。
+  //
+  // 但 `payloadImageUrls` 与 `slotIndex` **留着**：它们还喂 `autoName(kind, slotIndex)`
+  // —— 「角色1」「镜头2」这种自动名字是用户可见的，而且会变成 `@token`。
+  // ⚠ 名字里的数字不必等于真实载荷下标：发送时 `filterReferencedImages` 会按真实候选
+  // 表重新解析「名字 → 位置」，那才是权威。这里只负责起一个稳定的名字。
+  //
+  // `edgeId` 是直连这个视频节点的那条边（§7.1: 删除槽位 = 删连线）；经角色中转的
+  // 音色没有直连边 → 没有 edgeId → 没有 × 按钮。
   const referenceTokens = useMemo<ComposerReferenceToken[]>(() => {
     const incoming = getUpstreamNodes(nodeId, edges, nodes)
     // image_urls order = keyframes → main refs → 1-hop closeups, matching the
@@ -282,7 +278,6 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
         label: voiceName,
         coverImage: readVoiceCoverImage(chosen.node),
         ready: Boolean(readVoiceUrl(chosen.node)),
-        audioSlotIndex: audioSlotByVoiceId.get(chosen.node.id),
         edgeId: chosen.edgeId,
       }
     }
@@ -326,7 +321,6 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
         label: resolvedName,
         token: resolvedName ? `@${resolvedName}` : '',
         mediaUrl,
-        imageSlotIndex: slotIndex >= 0 ? slotIndex : undefined,
         edgeId: directEdgeBySource.get(node.id),
         ...(kind === 'character'
           ? { boundVoice: resolveBoundVoice(node.id) }
@@ -396,7 +390,6 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
             label: closeupName,
             token: closeupName ? `@${closeupName}` : '',
             mediaUrl: closeupUrl,
-            imageSlotIndex: closeupSlot >= 0 ? closeupSlot : undefined,
             parentCharacterId: node.id,
             edgeId: closeupEdgeId,
           })
@@ -421,7 +414,6 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
         label: voiceName,
         token: ready && slot !== undefined ? `@Audio${slot + 1}` : '',
         coverImage: readVoiceCoverImage(node),
-        audioSlotIndex: ready ? slot : undefined,
         insertable: ready,
         dimmed: !ready,
         edgeId: directEdgeBySource.get(node.id),
@@ -471,7 +463,6 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
           label: voiceName,
           token: ready && slot !== undefined ? `@Audio${slot + 1}` : '',
           coverImage: readVoiceCoverImage(voiceNode),
-          audioSlotIndex: ready ? slot : undefined,
           insertable: ready,
           dimmed: !ready,
           edgeId: routeEdge.id,
@@ -505,7 +496,6 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
           typeof node.data.videoThumbnailUrl === 'string'
             ? node.data.videoThumbnailUrl
             : undefined,
-        videoSlotIndex: slotIndex >= 0 ? slotIndex : undefined,
         edgeId: directEdgeBySource.get(node.id),
       })
     }
@@ -514,11 +504,10 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     // per harvestUpstreamImageUrls) but have no name-token, so they surface as
     // projection-only slots in the 镜头 card (cast-redesign §3/§4, keyframe→镜头卡).
     // ⚠ 与采集/图例同一个 `orderKeyframes`：素材条上展示的就是首帧与尾帧这两张，
-    // 排列顺序得和真正送出去的顺序一致。（槽位号本来就是从实际载荷反查的，不受影响。）
+    // 排列顺序得和真正送出去的顺序一致。
     for (const node of orderKeyframes(incoming)) {
       const url = getNodeMediaUrl(node.data)
       if (!url) continue
-      const slotIndex = payloadImageUrls.indexOf(url)
       // cleanup §8.6：关键帧档是**两个具名位置**（首帧 / 尾帧），不是两张同名的图。
       // 名字取自节点自己的 `imageCategory` —— 首尾语义的载体本来就是它，这里只是把
       // 它显示出来。没标分类的（存量的旧关键帧节点）仍退回 `refKind.keyframe`。
@@ -534,7 +523,6 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
         token: '',
         insertable: false,
         mediaUrl: url,
-        imageSlotIndex: slotIndex >= 0 ? slotIndex : undefined,
         edgeId: directEdgeBySource.get(node.id),
       })
     }

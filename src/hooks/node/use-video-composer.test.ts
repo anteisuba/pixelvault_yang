@@ -93,21 +93,24 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
         kind: 'shot',
         token: '@autoName.shot1',
         mediaUrl: 'https://cdn.test/loose.png',
-        imageSlotIndex: 0,
         edgeId: 'e-image',
       }),
     ])
   })
 
-  it('ties imageSlotIndex to the real payload order (keyframes occupy slots first)', () => {
-    // Payload order per harvestUpstreamImageUrls: keyframes first, then
-    // visual references — so the character lands at index 1, not 0.
+  it('自动名字跟着载荷顺序走 —— 关键帧先占位，所以没名字的角色是「角色2」', () => {
+    // ⚠ 这条原本断言 `imageSlotIndex: 1 / 0`。那三个 slotIndex 字段 2026-08-08 查实
+    // **零消费者**（没有「图N」角标那回事）已删 —— 但它们背后的顺序事实还活着：
+    // `autoName(kind, slotIndex)` 拿同一个下标生成用户可见的自动名字，而那个名字
+    // 会变成 `@token`。所以断言改到名字上，覆盖的是同一个事实的**活出口**。
+    //
+    // 收割顺序（harvestUpstreamImageUrls）：关键帧在前，其余参考图在后 —— 关键帧
+    // 占了 0 号位，所以角色落在 1 号位 → 「角色2」。跳号是对的，不是 bug。
     graphState.nodes = [
       makeNode('frame1', NODE_TYPE_IDS.frameImage, {
         imageUrl: 'https://cdn.test/frame.png',
       }),
       makeNode('char1', NODE_TYPE_IDS.characterImage, {
-        characterName: '角色A',
         imageUrl: 'https://cdn.test/char.png',
       }),
       makeNode('video1', NODE_TYPE_IDS.seedance),
@@ -118,20 +121,18 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     ]
 
     const tokens = renderComposer().referenceTokens
-    // character token (named) + keyframe token (projection-only 镜头卡).
     const character = tokens.find((token) => token.kind === 'character')
     const keyframe = tokens.find((token) => token.kind === 'keyframe')
     expect(character).toMatchObject({
       id: 'char1',
-      token: '@角色A',
-      imageSlotIndex: 1,
+      token: '@autoName.character2',
       edgeId: 'e-char',
     })
-    // Keyframe rides image_urls first → slot 0.
-    expect(keyframe).toMatchObject({ id: 'frame1', imageSlotIndex: 0 })
+    // 关键帧是投影槽位，不是可插入的 token —— 它占位但没名字。
+    expect(keyframe).toMatchObject({ id: 'frame1', token: '' })
   })
 
-  it('leaves imageSlotIndex unset when the reference has no media yet', () => {
+  it('没有媒体的引用不占位，也不拿到自动名字', () => {
     graphState.nodes = [
       makeNode('char1', NODE_TYPE_IDS.characterImage, {
         characterName: '角色A',
@@ -141,7 +142,7 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     graphState.edges = [makeEdge('e-char', 'char1', 'video1')]
 
     const tokens = renderComposer().referenceTokens
-    expect(tokens[0].imageSlotIndex).toBeUndefined()
+    expect(tokens[0].token).toBe('@角色A')
     expect(tokens[0].edgeId).toBe('e-char')
   })
 
@@ -172,7 +173,6 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
       nodeId: 'voice1',
       label: '卡提希娅',
       ready: true,
-      audioSlotIndex: 0,
       edgeId: 'e-voice',
     })
   })
@@ -199,7 +199,6 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
       nodeId: 'voice1',
       ready: false,
     })
-    expect(character?.boundVoice?.audioSlotIndex).toBeUndefined()
   })
 
   it('surfaces a voice wired DIRECTLY into the video as a 旁白 token', () => {
@@ -215,7 +214,6 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     expect(tokens[0]).toMatchObject({
       kind: 'voice',
       token: '@Audio1',
-      audioSlotIndex: 0,
       insertable: true,
       edgeId: 'e-voice',
     })
@@ -252,7 +250,6 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
           id: 'voice1',
           kind: 'voice',
           token: '@Audio1',
-          audioSlotIndex: 0,
           edgeId: 'e-voice-image',
           routedThroughId: 'image1',
           routedThroughLabel: 'autoName.shot1',
@@ -295,7 +292,6 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
       token: '',
       insertable: false,
       mediaUrl: 'https://cdn.test/kf.png',
-      imageSlotIndex: 0,
       edgeId: 'e-kf',
     })
   })
@@ -317,7 +313,6 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
       token: '@autoName.video1',
       insertable: true,
       mediaUrl: 'https://cdn.test/ref-thumb.webp',
-      videoSlotIndex: 0,
       edgeId: 'e-ref',
     })
   })
@@ -356,7 +351,7 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     graphState.edges = [makeEdge('e-bg', 'bg1', 'video1')]
 
     const tokens = renderComposer().referenceTokens
-    expect(tokens[0]).toMatchObject({ token: '', imageSlotIndex: undefined })
+    expect(tokens[0]).toMatchObject({ token: '' })
   })
 
   it('surfaces a closeup as an insertable @token tagged to its character (§9 B)', () => {
@@ -382,13 +377,12 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     const tokens = renderComposer().referenceTokens
     const character = tokens.find((token) => token.kind === 'character')
     const closeup = tokens.find((token) => token.kind === 'closeup')
-    expect(character).toMatchObject({ token: '@剑修', imageSlotIndex: 0 })
+    expect(character).toMatchObject({ token: '@剑修' })
     // No `insertable: false` → default insertable (it has a @token).
     expect(closeup).toMatchObject({
       id: 'cu1',
       kind: 'closeup',
       token: '@autoName.closeup2', // auto-numbered off its image slot (index 1)
-      imageSlotIndex: 1,
       parentCharacterId: 'char1',
       edgeId: 'e-cu',
     })

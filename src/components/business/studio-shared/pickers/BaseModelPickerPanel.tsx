@@ -27,6 +27,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { getModelFamily, getModelVariant } from '@/constants/models'
+import {
+  MODEL_UNIT_PRICES,
+  type ModelUnitPrice,
+} from '@/constants/models/unit-prices'
 import { getProviderLabel } from '@/constants/providers'
 import { motionTransition } from '@/constants/motion'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
@@ -122,6 +126,17 @@ function familyLabelOf(option: StudioModelOption): string {
  */
 function variantKeyOf(option: StudioModelOption): string {
   return getModelVariant(option.modelId) ?? option.modelId
+}
+
+/**
+ * 按 string 查单价。`StudioModelOption.modelId` 是 string（目录 DB-first，运行时可能
+ * 出现代码里没有的 id），不是 `AI_MODELS`；断言成枚举等于假装它一定在表里。
+ * 查不到返回 undefined —— 调用方隐藏价格，不显示占位。
+ */
+function findModelUnitPrice(modelId: string) {
+  return (MODEL_UNIT_PRICES as Record<string, ModelUnitPrice | undefined>)[
+    modelId
+  ]
 }
 
 /** 结尾的括注（半角/全角都算），如 `Seedance 2.5（火山方舟）` 的那一段。 */
@@ -682,6 +697,9 @@ export function BaseModelPickerPanel({
     // 型号早由返回键交代过，路由细节与一句话介绍都收进悬停层。owner：「只留公司
     // 名字，比如 fal 和火山」。其余层保持原样的路由信息。
     const isChannelRow = labelOverride === providerLabel
+    // 单价只在**第三层**（渠道）露出：同一型号不同渠道价格不同，放在型号层就不知道
+    // 说的是哪家。没有可信数据时 `getModelUnitPrice` 返回 null —— 隐藏，不显示占位。
+    const unitPrice = isChannelRow ? findModelUnitPrice(option.modelId) : null
     const optionMeta = isChannelRow
       ? ''
       : [routeMeta, capabilityDetail].filter(Boolean).join(' · ')
@@ -732,9 +750,17 @@ export function BaseModelPickerPanel({
               猜一个 max-height 要么截断要么留白。
               ⚠ 触屏没有 hover：`group-focus-within` 让键盘/触摸聚焦同样展开，
               不然移动端永远读不到这段。 */}
-          {description && revealedOptionId === option.optionId ? (
+          {revealedOptionId === option.optionId &&
+          (description || unitPrice) ? (
             <span className="mt-1 block text-xs leading-5 text-muted-foreground">
               {description}
+              {unitPrice ? (
+                <span className="mt-0.5 block font-mono text-muted-foreground/75">
+                  {tCommon(`unitPrice.${unitPrice.unit}`, {
+                    amount: unitPrice.amount,
+                  })}
+                </span>
+              ) : null}
             </span>
           ) : null}
         </span>

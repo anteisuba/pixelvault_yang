@@ -230,6 +230,11 @@
     "savedKey": "你的 key",
     "modelCount": "{count, plural, other {# 个模型}}",
     "channelCount": "{count, plural, other {# 个渠道}}",
+    "unitPrice": {
+      "second": "${amount} / 秒",
+      "image": "${amount} / 张",
+      "kchars": "${amount} / 千字"
+    },
     "skipToMainContent": "跳到主内容",
     "requestCount": "{count} 次请求",
     "loading": "加载中"
@@ -3208,7 +3213,7 @@
       "description": "自然语言提示生成影棚级配乐（器乐或人声）"
     },
     "happyhorse10": {
-      "label": "HappyHorse 1.0",
+      "label": "HappyHorse 1.1",
       "description": "通过 fal.ai 提供的 Alibaba 视频模型，支持原生音频、文生视频和图生视频。"
     },
     "klingV3Pro": {
@@ -3749,7 +3754,7 @@
       "voice": "音色",
       "seedance": "视频生成",
       "videoReference": "参考视频",
-      "videoMerge": "视频合并"
+      "videoMerge": "视频合成"
     },
     "addMenuHelpers": {
       "shotText": "整理镜头说明、动作和画面调度。",
@@ -3972,8 +3977,8 @@
           "faceCloseup": "面部特写",
           "costume": "服装造型",
           "prop": "道具",
-          "frameStart": "关键帧首",
-          "frameEnd": "关键帧尾",
+          "frameStart": "首帧",
+          "frameEnd": "尾帧",
           "custom": "自定义"
         },
         "customLabelPlaceholder": "自定义分类名…",
@@ -4314,7 +4319,7 @@
         "shot": "镜头",
         "voice": "声音",
         "video": "参考视频",
-        "keyframe": "首尾帧",
+        "keyframe": "关键帧",
         "closeup": "特写"
       },
       "references": {

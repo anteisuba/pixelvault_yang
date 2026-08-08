@@ -424,8 +424,8 @@ export const NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS: Record<
   faceCloseup: '面部特写',
   costume: '服装造型',
   prop: '道具',
-  frameStart: '关键帧首',
-  frameEnd: '关键帧尾',
+  frameStart: '首帧',
+  frameEnd: '尾帧',
 }
 
 export const NODE_STUDIO_REFERENCE_SOURCE_IDS = {

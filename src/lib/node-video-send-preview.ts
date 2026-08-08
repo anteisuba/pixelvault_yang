@@ -50,6 +50,7 @@ import {
   translatePromptTokensToPositional,
 } from './node-video-prompt-translation'
 import { planVideoKeyframeImages } from './node-video-keyframe-plan'
+import { resolveVideoSendSlotLimits } from './node-video-send-slots'
 import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
 
 export interface VideoSendPreviewImageEntry {
@@ -197,8 +198,18 @@ export function buildVideoSendPreview({
   )
   const videoCandidates = harvestUpstreamVideoUrls(upstreamNodes)
 
-  const audioLimit = legacyMode ? 3 : contract.slots.audio
-  const videoLimit = legacyMode ? 3 : contract.slots.videos
+  // 容量只有一个真相：发送路径（`StudioNodeWorkbench`）调的是**同一个函数**。
+  // 此前这里按 `contract.slots` 算、那边写死 `.slice(0, 3)`，于是预览说「这段视频
+  // 不会发送」而实际发了出去（cleanup §8.7 第 1 条）。
+  const slotLimits = resolveVideoSendSlotLimits({
+    contract,
+    legacyMode,
+    legacyMaxReferenceImages: maxReferenceImages,
+    audioCandidateCount: audioCandidates.length,
+    videoCandidateCount: videoCandidates.length,
+  })
+  const audioLimit = slotLimits.audio
+  const videoLimit = slotLimits.videos
   const upstreamAudioBindings = audioCandidates.slice(0, audioLimit)
   const upstreamVideoUrls = videoCandidates.slice(0, videoLimit)
 
@@ -227,24 +238,7 @@ export function buildVideoSendPreview({
     })),
   ]
 
-  const configuredImageLimit = legacyMode
-    ? maxReferenceImages
-    : contract.slots.images
-  const remainingTotalSlots =
-    typeof contract.slots.total === 'number'
-      ? Math.max(
-          0,
-          contract.slots.total -
-            upstreamAudioBindings.length -
-            upstreamVideoUrls.length,
-        )
-      : Number.POSITIVE_INFINITY
-  const effectiveMax = Math.min(
-    typeof configuredImageLimit === 'number'
-      ? configuredImageLimit
-      : Number.POSITIVE_INFINITY,
-    remainingTotalSlots,
-  )
+  const effectiveMax = slotLimits.images
   const referenceCandidateSources = [
     ...ownReferenceAssetUrls,
     ...upstreamImageUrls,
@@ -358,10 +352,7 @@ export function buildVideoSendPreview({
     dropped.push({
       kind: 'image',
       url,
-      reason:
-        remainingTotalSlots < (configuredImageLimit ?? Number.POSITIVE_INFINITY)
-          ? 'total-limit'
-          : 'model-limit',
+      reason: slotLimits.imagesLimitedByTotal ? 'total-limit' : 'model-limit',
     })
   }
 

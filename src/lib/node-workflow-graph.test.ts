@@ -5,6 +5,7 @@ import {
   NODE_REVIEW_STATE_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
+import { NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS } from '@/constants/node-studio'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
@@ -1582,13 +1583,18 @@ describe('harvestUpstreamVideoImageReferences (§7.2⑦ 视频图例真源)', ()
         makeEdge('e-kf2', 'kf2', 'video1'),
       ]
       const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+      // 断言读常量而不是写死字面量：这条测的是「**选了更具体的那个角色**」，不是
+      // 那个角色当下叫什么字。2026-08-08 按 cleanup §2.2 把「关键帧首/尾」改成
+      // 「首帧/尾帧」时，写死的字面量就是唯一红掉的地方 —— 它锁错了东西。
+      const startLabel = NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS.frameStart
+      const endLabel = NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS.frameEnd
       expect(map.get('https://cdn/kf-start.png')).toEqual({
-        name: '关键帧首1',
-        category: '关键帧首',
+        name: `${startLabel}1`,
+        category: startLabel,
       })
       expect(map.get('https://cdn/kf-end.png')).toEqual({
-        name: '关键帧尾2',
-        category: '关键帧尾',
+        name: `${endLabel}2`,
+        category: endLabel,
       })
     })
   })

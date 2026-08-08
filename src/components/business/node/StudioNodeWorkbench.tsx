@@ -71,6 +71,7 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { NODE_ASSISTANT_OP_IDS } from '@/constants/node-assistant-ops'
+import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
 import { INGEST_MOTION, NODE_EDGE_SIGNING_MOTION } from '@/constants/motion'
 import { DEFAULT_SCRIPT_PLANNER_PROVIDER } from '@/constants/script-breakdown'
@@ -156,6 +157,7 @@ import {
 import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
 import { assembleReferenceImagePayload } from '@/lib/node-reference-payload'
 import { planVideoKeyframeImages } from '@/lib/node-video-keyframe-plan'
+import { resolveVideoSendSlotLimits } from '@/lib/node-video-send-slots'
 import type { AdvancedParams } from '@/types'
 import type {
   NodeWorkflowEdge,
@@ -1301,20 +1303,34 @@ function StudioNodeCanvas() {
       // voice harvest: voices wired through a character node carry that
       // character's name forward, so multi-character scenes can label
       // `@AudioN` tokens with the right speaker in the fal prompt.
-      const upstreamAudioBindings = isVideoMediaNode
-        ? harvestUpstreamAudioBindings(
-            nodeId,
-            workflow.edges,
-            workflow.nodes,
-          ).slice(0, 3)
+      // 只依赖 model，上提到容量计算之前（它是 `legacyMode` 的兜底值）。
+      const maxReferenceImages = getMaxReferenceImages(
+        model.adapterType,
+        model.modelId,
+      )
+      const audioCandidates = isVideoMediaNode
+        ? harvestUpstreamAudioBindings(nodeId, workflow.edges, workflow.nodes)
         : []
+      const videoCandidates = isVideoMediaNode
+        ? harvestUpstreamVideoUrls(upstreamNodes)
+        : []
+      // 容量与预览层调**同一个函数**（`node-video-send-slots.ts`）。这里原本是写死
+      // 的 `.slice(0, 3)`：多图参考档的 `slots.videos` 是 0，照发三条视频 → 火山
+      // 400，而预览早就显示「这段视频不会发送」。界面说的和发出去的是两回事，正是
+      // cleanup §8.7 第 1 条警告的那件事。
+      const slotLimits = resolveVideoSendSlotLimits({
+        contract: getVideoModelSendContract(model.modelId, model.adapterType),
+        legacyMode: !model.modelId,
+        legacyMaxReferenceImages: maxReferenceImages,
+        audioCandidateCount: audioCandidates.length,
+        videoCandidateCount: videoCandidates.length,
+      })
+      const upstreamAudioBindings = audioCandidates.slice(0, slotLimits.audio)
       const upstreamAudioUrls = upstreamAudioBindings.map((b) => b.url)
       // Reference-video clips for Seedance reference-to-video. Each clip
       // contributes towards the cross-modality cap (≤12 files total) which
       // the builder enforces against image_urls.
-      const upstreamVideoUrls = isVideoMediaNode
-        ? harvestUpstreamVideoUrls(upstreamNodes).slice(0, 3)
-        : []
+      const upstreamVideoUrls = videoCandidates.slice(0, slotLimits.videos)
       // Named character/background references for a shot node — URL + subject
       // name, so each can be passed as a reference image AND labeled in the
       // prompt legend below.
@@ -1377,10 +1393,6 @@ function StudioNodeCanvas() {
         status: NODE_STATUS_IDS.running,
       })
 
-      const maxReferenceImages = getMaxReferenceImages(
-        model.adapterType,
-        model.modelId,
-      )
       const existingImageReference =
         isImageMediaNode &&
         node.data.imageSource === NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing
@@ -1481,7 +1493,7 @@ function StudioNodeCanvas() {
       // the model allows).
       const cappedReferenceImages = (
         referencedFilter ? referencedFilter.referenceImages : referenceImages
-      ).slice(0, maxReferenceImages)
+      ).slice(0, slotLimits.images)
       // 切片 6 第 ⑤ 层守卫：关键帧档只有 first_frame / last_frame 两个位置，适配器
       // 按位置取图。而收割顺序是「关键帧在前，其余参考图跟在后面」——「1 张首帧 +
       // 1 张角色卡图」原样送下去，角色图就会被当成尾帧，视频以一张不相干的图结尾。

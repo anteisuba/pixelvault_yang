@@ -230,6 +230,11 @@
     "savedKey": "自分のキー",
     "modelCount": "{count, plural, other {# モデル}}",
     "channelCount": "{count, plural, other {# チャネル}}",
+    "unitPrice": {
+      "second": "${amount} / 秒",
+      "image": "${amount} / 枚",
+      "kchars": "${amount} / 1000文字"
+    },
     "skipToMainContent": "メインコンテンツへ移動",
     "requestCount": "{count} リクエスト",
     "loading": "読み込み中"
@@ -3208,7 +3213,7 @@
       "description": "自然言語プロンプトでスタジオ品質の楽曲を生成（楽器 or ボーカル）"
     },
     "happyhorse10": {
-      "label": "HappyHorse 1.0",
+      "label": "HappyHorse 1.1",
       "description": "fal.ai 経由の Alibaba 動画モデル。ネイティブ音声、テキスト動画、画像動画に対応。"
     },
     "klingV3Pro": {
@@ -3749,7 +3754,7 @@
       "voice": "音色",
       "seedance": "動画生成",
       "videoReference": "参考動画",
-      "videoMerge": "動画結合"
+      "videoMerge": "動画合成"
     },
     "addMenuHelpers": {
       "shotText": "ショット説明、動き、カメラ指示を整理します。",
@@ -3972,8 +3977,8 @@
           "faceCloseup": "顔クローズアップ",
           "costume": "衣装",
           "prop": "小道具",
-          "frameStart": "キーフレーム（開始）",
-          "frameEnd": "キーフレーム（終了）",
+          "frameStart": "開始フレーム",
+          "frameEnd": "終了フレーム",
           "custom": "カスタム"
         },
         "customLabelPlaceholder": "カスタム分類名…",

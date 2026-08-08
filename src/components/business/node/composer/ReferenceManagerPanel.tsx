@@ -190,6 +190,21 @@ interface ReferenceManagerPanelProps {
    *  panel never recomputes truncation with its own (weaker, token-level)
    *  arithmetic. undefined/empty = nothing known to be cut. */
   imageOverflow?: ReadonlyMap<string, string | undefined>
+  /**
+   * cleanup §8.6「靠界面表达，不靠文案」：当前模式**没有**的素材区，添加入口真的
+   * 不渲染，不是禁用后置灰 —— 置灰仍然是在用文案解释「你不能用它」。
+   * 全能参考有视频/音频区，关键帧与多图参考都没有。
+   */
+  availableMediaKinds?: Readonly<Record<'image' | 'voice' | 'video', boolean>>
+  /**
+   * 已经连着、但**当前模式发不出去**的素材（按 url）。§8.7 第三行：切模式不销毁用户
+   * 的劳动，素材留在数据层；那就必须标出来，否则「我明明传了视频」会变成静默的困惑。
+   *
+   * ⚠ 与 `imageOverflow` 分开传：那个是**容量**溢出，驱动面板顶部的容量计数。把模式
+   * 丢弃混进去，容量数字就会开始说谎。两者共用同一个行内徽标（都是「不会发送」），
+   * 但不共用计数。
+   */
+  unsendableUrls?: ReadonlySet<string>
   /** R3-6b §1: post-cap candidate count (`sendPreview.assembledImageCount`)
    *  — the number capacity math compares against `maxReferenceImages`.
    *  Distinct from `referencedTokens.length` (which only counts tokens whose
@@ -231,6 +246,8 @@ export function ReferenceManagerPanel({
   onAddCloseup,
   maxReferenceImages,
   imageOverflow,
+  availableMediaKinds,
+  unsendableUrls,
   assembledImageCount,
   onToggleStage,
   onRestoreDefaultStage,
@@ -476,6 +493,7 @@ export function ReferenceManagerPanel({
                       onAddVoice={onAddVoice}
                       onAddCloseup={onAddCloseup}
                       imageOverflow={imageOverflow}
+                      unsendableUrls={unsendableUrls}
                     />
                   ),
                 )
@@ -483,7 +501,10 @@ export function ReferenceManagerPanel({
             </div>
 
             {onAddReference ? (
-              <PanelAddBar onAddReference={onAddReference} />
+              <PanelAddBar
+                availableMediaKinds={availableMediaKinds}
+                onAddReference={onAddReference}
+              />
             ) : null}
           </motion.div>
         ) : null}
@@ -497,8 +518,10 @@ export function ReferenceManagerPanel({
  *  TabAddButtons：所有＋现在任何 tab 都摸得到，纯呈现层改动，spawnReference /
  *  AssetSelectorDialog 通道不变（VideoComposer 侧 onAddReference 实现不动）。 */
 function PanelAddBar({
+  availableMediaKinds,
   onAddReference,
 }: {
+  availableMediaKinds?: Readonly<Record<'image' | 'voice' | 'video', boolean>>
   onAddReference(request: AddReferenceRequest): void
 }) {
   const tc = useTranslations('StudioNode.videoComposer')
@@ -512,7 +535,9 @@ function PanelAddBar({
 
   return (
     <div className="shrink-0 space-y-1.5 border-t border-node-panel-inner p-2.5">
-      {ADD_GROUPS.map((group) => (
+      {ADD_GROUPS.filter(
+        (group) => availableMediaKinds?.[group.key] ?? true,
+      ).map((group) => (
         <div key={group.key} className="flex flex-wrap items-center gap-1.5">
           <span className="text-3xs font-semibold uppercase tracking-nav-dense text-node-subtle">
             {tc(`references.addGroups.${group.key}`)}
@@ -749,6 +774,7 @@ function ManagerRow({
   onAddVoice,
   onAddCloseup,
   imageOverflow,
+  unsendableUrls,
 }: {
   token: ComposerReferenceToken
   referenced: boolean
@@ -758,11 +784,16 @@ function ManagerRow({
   onAddVoice?(characterNodeId: string): void
   onAddCloseup?(characterNodeId: string): void
   imageOverflow?: ReadonlyMap<string, string | undefined>
+  unsendableUrls?: ReadonlySet<string>
 }) {
   const tc = useTranslations('StudioNode.videoComposer')
   const thumb = tokenThumb(token)
   const displayName = token.label || tc(`refKind.${token.kind}`)
-  const overflowed = isUrlOverflowed(token.mediaUrl, imageOverflow)
+  // 容量溢出与「当前模式发不出去」共用同一个徽标 —— 对用户是同一件事（这条不会发出
+  // 去）。分开传只是为了不污染容量计数，见 prop 注释。
+  const overflowed =
+    isUrlOverflowed(token.mediaUrl, imageOverflow) ||
+    Boolean(token.mediaUrl && unsendableUrls?.has(token.mediaUrl))
 
   return (
     <div className="flex items-center gap-2 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2 py-1.5">

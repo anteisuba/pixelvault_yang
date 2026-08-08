@@ -152,6 +152,8 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
   const tc = useTranslations('StudioNode.videoComposer')
+  // 关键帧槽位名（首帧 / 尾帧）与画布上的角色选择器读同一批键，改一处两处都跟着走。
+  const tRoles = useTranslations('StudioNode.characterImage.reference')
   const { modelOptionsByType, updateNodeData } = useNodeWorkflowActions()
 
   const options = useMemo(
@@ -517,10 +519,18 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       const url = getNodeMediaUrl(node.data)
       if (!url) continue
       const slotIndex = payloadImageUrls.indexOf(url)
+      // cleanup §8.6：关键帧档是**两个具名位置**（首帧 / 尾帧），不是两张同名的图。
+      // 名字取自节点自己的 `imageCategory` —— 首尾语义的载体本来就是它，这里只是把
+      // 它显示出来。没标分类的（存量的旧关键帧节点）仍退回 `refKind.keyframe`。
+      const category = node.data.imageCategory
+      const namedSlot =
+        category === 'frameStart' || category === 'frameEnd'
+          ? tRoles(`roles.${category}`)
+          : ''
       tokens.push({
         id: node.id,
         kind: 'keyframe',
-        label: '',
+        label: namedSlot,
         token: '',
         insertable: false,
         mediaUrl: url,
@@ -530,7 +540,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     }
 
     return tokens
-  }, [edges, nodes, nodeId, tc])
+  }, [edges, nodes, nodeId, tc, tRoles])
 
   // V-3a 管理素材面板（docs/references/pages/canvas-video-card.md
   // §10 V-3 起点）: "已引用" = a token whose `@name` (the SAME name space

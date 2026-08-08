@@ -893,6 +893,24 @@ export function VideoComposer({
     composer.sendPreview.overflow.map((entry) => [entry.url, entry.name]),
   )
 
+  // cleanup §8.6：当前模式**没有**的素材区，添加入口真的不渲染。判据取自发送契约的
+  // 槽位数 —— 与发送路径、预览层同一个真相，不另立一套「哪些模式有视频区」的表。
+  const contractSlots = composer.sendPreview.contract?.slots
+  const availableMediaKinds = {
+    image: true,
+    voice: (contractSlots?.audio ?? 1) > 0,
+    video: (contractSlots?.videos ?? 1) > 0,
+  } as const
+
+  // §8.7 第三行：切模式不销毁素材，那就必须标出来「这条当前发不出去」。
+  // ⚠ 只取容量以外的丢弃理由；容量那部分已经由 `imageOverflow` 驱动，两边都算会让
+  // 面板顶部的容量计数虚高。
+  const unsendableUrls = new Set(
+    composer.sendPreview.dropped
+      .filter((entry) => entry.reason === 'unsupported')
+      .map((entry) => entry.url),
+  )
+
   const handleResolutionToggle = useCallback(
     (value: VideoResolution) => {
       updateNodeData(id, {
@@ -1583,6 +1601,8 @@ export function VideoComposer({
           onAddCloseup={spawnReference ? handleAddCloseup : undefined}
           maxReferenceImages={maxReferenceImages}
           imageOverflow={imageOverflow}
+          availableMediaKinds={availableMediaKinds}
+          unsendableUrls={unsendableUrls}
           assembledImageCount={composer.sendPreview.assembledImageCount}
           onToggleStage={updateEdgeData ? handleToggleStage : undefined}
           onRestoreDefaultStage={

@@ -826,7 +826,46 @@ describe('VideoComposer references row (detail)', () => {
     expect(toastInfo).toHaveBeenCalledWith('references.removedToast')
   })
 
+  /**
+   * cleanup §8.6：素材区的**形态**按模式变——全能参考才有音频/视频区，关键帧与多图
+   * 参考都没有。夹具默认契约是关键帧档（videos:0 / audio:0），所以要音频＋的用例必须
+   * 自己换成全能参考，否则验的是一个设计上不该存在的按钮。
+   */
+  function useMultimodalContract() {
+    composerState.sendPreview = {
+      ...composerState.sendPreview,
+      contract: {
+        ...composerState.sendPreview.contract,
+        referenceMode: 'multimodal-reference' as 'text-or-first-frame',
+        slots: { images: 9, videos: 3, audio: 3 },
+      },
+    }
+  }
+
+  it('关键帧档不渲染音频/视频的添加位（§8.6 靠形态不靠文案）', () => {
+    // 「不存在」是真的不渲染，不是禁用后置灰 —— 置灰仍然是在用文案解释「你不能用」。
+    renderDetail()
+    const dialog = openManager()
+    expect(
+      within(dialog).queryByRole('button', {
+        name: 'references.addButtons.voice',
+      }),
+    ).toBeNull()
+    expect(
+      within(dialog).queryByRole('button', {
+        name: 'references.addButtons.video',
+      }),
+    ).toBeNull()
+    // 图片区任何模式都有。
+    expect(
+      within(dialog).getByRole('button', {
+        name: 'references.addButtons.character',
+      }),
+    ).toBeInTheDocument()
+  })
+
   it('autospawns from the 声音 tab ＋ → library pick → spawnReference (voice→video)', () => {
+    useMultimodalContract()
     renderDetail()
     const dialog = openManager()
     selectTab(dialog, 'references.tabs.voice')

@@ -230,6 +230,11 @@
     "savedKey": "Your key",
     "modelCount": "{count, plural, one {# model} other {# models}}",
     "channelCount": "{count, plural, one {# channel} other {# channels}}",
+    "unitPrice": {
+      "second": "${amount} / second",
+      "image": "${amount} / image",
+      "kchars": "${amount} / 1K chars"
+    },
     "skipToMainContent": "Skip to main content",
     "requestCount": "{count, plural, one {# request} other {# requests}}",
     "loading": "Loading"
@@ -3208,7 +3213,7 @@
       "description": "Studio-grade text-to-music with natural language prompts (instrumental or vocal)"
     },
     "happyhorse10": {
-      "label": "HappyHorse 1.0",
+      "label": "HappyHorse 1.1",
       "description": "Alibaba video model on fal.ai with native audio, text-to-video, and image-to-video support."
     },
     "klingV3Pro": {
@@ -3749,7 +3754,7 @@
       "voice": "Voice Profile",
       "seedance": "Video Generation",
       "videoReference": "Reference Video",
-      "videoMerge": "Merge Videos"
+      "videoMerge": "Compose videos"
     },
     "addMenuHelpers": {
       "shotText": "Draft shot direction, action, and camera notes.",
@@ -3972,8 +3977,8 @@
           "faceCloseup": "Face close-up",
           "costume": "Costume",
           "prop": "Prop",
-          "frameStart": "Keyframe (start)",
-          "frameEnd": "Keyframe (end)",
+          "frameStart": "First frame",
+          "frameEnd": "Last frame",
           "custom": "Custom"
         },
         "customLabelPlaceholder": "Custom category name…",

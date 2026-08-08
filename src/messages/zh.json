@@ -229,7 +229,7 @@
     "noModelsFound": "未找到模型",
     "savedKey": "你的 key",
     "modelCount": "{count, plural, other {# 个模型}}",
-    "backToProviders": "厂商",
+    "channelCount": "{count, plural, other {# 个渠道}}",
     "skipToMainContent": "跳到主内容",
     "requestCount": "{count} 次请求",
     "loading": "加载中"

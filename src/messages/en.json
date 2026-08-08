@@ -229,7 +229,7 @@
     "noModelsFound": "No models found",
     "savedKey": "Your key",
     "modelCount": "{count, plural, one {# model} other {# models}}",
-    "backToProviders": "Providers",
+    "channelCount": "{count, plural, one {# channel} other {# channels}}",
     "skipToMainContent": "Skip to main content",
     "requestCount": "{count, plural, one {# request} other {# requests}}",
     "loading": "Loading"

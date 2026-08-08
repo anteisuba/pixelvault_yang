@@ -135,10 +135,14 @@ curl -s "https://api.github.com/repos/runpod-workers/worker-comfyui/contents/.ch
 
 **第一件事**：`git log --oneline -5` 确认 `0fa75286` 还在、有没有新的并行提交；`git status` 确认工作区只剩 `docs/references/model-pricing.md`（那是别人的格式化改动，别动它）。
 
-**然后开工切片 3**——`BaseModelPickerPanel` 两态机改三态机。三件事必须一起做，缺一个就是半成品：
+~~**然后开工切片 3**~~ —— ✅ **切片 3 已于 2026-08-08 交付**（`BaseModelPickerPanel` 三态机 + 三桶抽成纯函数 + `Common.channelCount`，全量 tsc/eslint/测试绿，studio 视频与图片两条线真机验过）。交付记录与实现时定死的规格空白见 `canvas-video-domain-cleanup-2026-08-08.md` **§9.8**。**下一件是切片 4**（节点模式字段 + `density='card'` 顶部三档 tab）。
 
-1. 状态机 `'providers' | 'models'` → `'families' | 'variants' | 'channels'`，跳过判断从 1 处变 3 处，返回目标从常量变成「最近一个没被跳过的层」
-2. **兜底**：`getModelVariant(id) ?? id` —— `MODEL_VARIANTS` 只填了视频，没登记的模型每个自成一型号 → 第二层只有一项 → 自动跳过 → 图片/音频/3D 退化成两层，行为与现状一致。**不要为「视频三层、其余两层」写分支。**
-3. **8–10 条测试要重写**——它们锁的是两层结构（「step 2 三组」「从 step 1 钻进未配置的 provider」「provider 行计数与 drill-in 一致」）。红了是预期，不是回归。
+⚠ **切片 4 开工前必读 §9.8 的三个发现**，第一个会直接改变做法：
 
-⚠ 这是 studio 与画布**共用**的 624 行组件，四个消费者自己都没测试。dev server 在跑（owner 开的，**别 kill**），改完用 claude-in-chrome 真机验。
+1. **画布视频节点不用那个选择器** —— `VideoComposer` 走的是 `constants/video-brands.ts` 的另一套 brand→variant 分类，且 reference **靠输入自动判**，与「模式归节点」互相矛盾；两处还有同名不同签名的 `resolveVideoModelId`。加 tab 前先决定两套收敛还是并存。
+2. 选择器第三层现在还带端点重复（2 渠道 × 2 端点），**要靠切片 4 的模式过滤消掉** —— 组件故意不自己挑。
+3. 单价没接进第三层，注入点是已有的 `detailForOption`，**排在模式过滤之后**做。
+
+**本轮判错一条留作教训**：交接原本写「8–10 条测试会红」，实际只红了 1 条。→ 「会红几条」是拍脑袋的估计，别当验收基线；红得少要去确认是设计对了还是测试太弱。
+
+⚠ 这是 studio 与画布**共用**的组件，四个消费者自己都没测试。dev server 在跑（owner 开的，**别 kill**），改完用 claude-in-chrome 真机验。

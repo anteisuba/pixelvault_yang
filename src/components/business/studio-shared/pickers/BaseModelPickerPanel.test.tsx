@@ -30,8 +30,12 @@ vi.mock('@/contexts/api-keys-context', () => ({
   })),
 }))
 
-import { BaseModelPickerPanel } from '@/components/business/studio-shared/pickers/BaseModelPickerPanel'
+import {
+  BaseModelPickerPanel,
+  deriveVariantLabel,
+} from '@/components/business/studio-shared/pickers/BaseModelPickerPanel'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
+import { AI_MODELS } from '@/constants/models'
 import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
@@ -55,6 +59,92 @@ function makeOption(over: Partial<StudioModelOption>): StudioModelOption {
     providerKeyId: over.providerKeyId,
   }
 }
+
+/**
+ * Real catalog ids on purpose: the three tiers read `MODEL_FAMILIES` /
+ * `MODEL_VARIANTS`, so synthetic ids would silently exercise only the fallback
+ * path. `displayLabel` stands in for the i18n label (which the next-intl mock
+ * flattens to a message key).
+ *
+ * Shape: Seedance = 2 型号 (2.0 across fal + VolcEngine, 2.0 Fast on fal only),
+ * Kling = 1 model. Reference endpoints are deliberately absent — those are
+ * filtered out by the node's mode, not by this component.
+ */
+const SEEDANCE_FIXTURE: StudioModelOption[] = [
+  {
+    optionId: 'seedance-2.0-fal',
+    modelId: AI_MODELS.SEEDANCE_20,
+    displayLabel: 'Seedance 2.0',
+    adapterType: AI_ADAPTER_TYPES.FAL,
+  },
+  {
+    optionId: 'seedance-2.0-volcengine',
+    modelId: AI_MODELS.SEEDANCE_20_VOLCENGINE,
+    displayLabel: 'Seedance 2.0（火山方舟）',
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+  },
+  {
+    optionId: 'seedance-fast-fal',
+    modelId: AI_MODELS.SEEDANCE_20_FAST,
+    displayLabel: 'Seedance 2.0 Fast',
+    adapterType: AI_ADAPTER_TYPES.FAL,
+  },
+  {
+    optionId: 'kling-fal',
+    modelId: AI_MODELS.KLING_V3_PRO,
+    displayLabel: 'Kling 3.0 Pro',
+    adapterType: AI_ADAPTER_TYPES.FAL,
+  },
+].map((o) =>
+  makeOption({
+    ...o,
+    providerConfig: getDefaultProviderConfig(o.adapterType),
+    sourceType: 'saved',
+    keyId: `key-${o.adapterType}`,
+  }),
+)
+
+describe('deriveVariantLabel', () => {
+  it('hoists the shared product name off a multi-channel 型号', () => {
+    expect(
+      deriveVariantLabel([
+        'Seedance 2.5（火山方舟）',
+        'Seedance 2.5（参考·火山方舟）',
+      ]),
+    ).toBe('Seedance 2.5')
+  })
+
+  it('prefers a member that already carries no qualifier', () => {
+    expect(
+      deriveVariantLabel([
+        'Seedance 2.0（火山方舟）',
+        'Seedance 2.0',
+        'Seedance 2.0（参考端点）',
+      ]),
+    ).toBe('Seedance 2.0')
+  })
+
+  it('keeps the qualifier on a single-member 型号', () => {
+    // Image models are one-model-per-型号: stripping here would make the
+    // VolcEngine row read identically to its fal sibling in the same 系列.
+    expect(deriveVariantLabel(['Seedream 5.0 Pro（火山方舟）'])).toBe(
+      'Seedream 5.0 Pro（火山方舟）',
+    )
+  })
+
+  it('handles half-width parentheses and leaves plain names alone', () => {
+    expect(
+      deriveVariantLabel(['Seedance 2.5 (VolcEngine)', 'Seedance 2.5 (fal)']),
+    ).toBe('Seedance 2.5')
+    expect(deriveVariantLabel(['快手可灵 3.0 Pro'])).toBe('快手可灵 3.0 Pro')
+  })
+
+  it('never returns an empty label', () => {
+    expect(deriveVariantLabel([])).toBe('')
+    // A label that is nothing but a qualifier keeps its original text.
+    expect(deriveVariantLabel(['（火山方舟）', '（fal）'])).toBe('（fal）')
+  })
+})
 
 describe('BaseModelPickerPanel', () => {
   it('uses the Studio scrollbar treatment for the model list', () => {
@@ -272,12 +362,16 @@ describe('BaseModelPickerPanel', () => {
     expect(screen.getByText('QuickSetup.needsKey')).toBeInTheDocument()
   })
 
-  it('drills into an unconfigured (needs-key) provider from step 1, showing its locked models', () => {
-    // Two distinct providers → step 1 (provider list) is shown, not auto-skipped.
-    // The DEEPSEEK provider is entirely unconfigured: its only option is neither
-    // a saved key nor a free-tier platform route, so it renders as "needs key".
-    // Clicking that provider row must drill into step 2 and surface its locked
-    // model — not stay on the provider list or dismiss the popover.
+  it('drills into an unconfigured (needs-key) group from step 1, showing its locked models', () => {
+    // Two distinct providers, neither with a family → step 1 falls back to
+    // provider grouping and is shown, not auto-skipped. The DEEPSEEK provider is
+    // entirely unconfigured: neither a saved key nor a free-tier platform route,
+    // so it renders as "needs key". Clicking that row must drill in and surface
+    // its locked models — not stay on step 1 or dismiss the popover.
+    //
+    // ⚠ DEEPSEEK carries TWO models on purpose: a group that collapses to a
+    // single option renders as that option (see the collapse test below), which
+    // would make this drill unobservable.
     const configured = makeOption({
       optionId: 'opt-openai-saved',
       adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -285,18 +379,20 @@ describe('BaseModelPickerPanel', () => {
       sourceType: 'saved',
       keyId: 'k1',
     })
-    const unconfigured = makeOption({
-      optionId: 'opt-deepseek-locked',
-      modelId: 'deepseek-model',
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.DEEPSEEK),
-      sourceType: 'workspace',
-      freeTier: false,
-    })
+    const unconfigured = ['deepseek-model', 'deepseek-model-2'].map((modelId) =>
+      makeOption({
+        optionId: `opt-locked-${modelId}`,
+        modelId,
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.DEEPSEEK),
+        sourceType: 'workspace',
+        freeTier: false,
+      }),
+    )
 
     render(
       <BaseModelPickerPanel
-        options={[configured, unconfigured]}
+        options={[configured, ...unconfigured]}
         value={null}
         onChange={vi.fn()}
       />,
@@ -304,26 +400,25 @@ describe('BaseModelPickerPanel', () => {
 
     fireEvent.click(screen.getByRole('button'))
 
-    // Step 1: provider rows are shown; the provider's model itself is not yet
-    // listed (the model groups belong to step 2). The provider row carries its
-    // own "needs key" badge, so that text alone doesn't distinguish the steps —
-    // the model id does.
+    // Step 1: group rows are shown; the group's models are not yet listed. The
+    // row carries its own "needs key" badge, so that text alone doesn't
+    // distinguish the steps — the model id does.
     const deepseekRow = screen.getByText(
       getDefaultProviderConfig(AI_ADAPTER_TYPES.DEEPSEEK).label,
     )
     expect(screen.queryByText(/deepseek-model/)).not.toBeInTheDocument()
 
-    // Drill into the unconfigured provider.
+    // Drill into the unconfigured group.
     fireEvent.click(deepseekRow)
 
-    // Step 2: the popover stayed open and now lists the provider's locked model
-    // under the needs-key group (the provider had no usable route). The locked
-    // model id only renders in step 2, so its presence proves the drill-in. The
-    // needs-key *heading* coexists with the exiting step-1 row's own needs-key
-    // badge during the cross-fade (popLayout keeps the outgoing view mounted),
-    // so it can match more than once — assert at least one is present.
+    // Step 2: the popover stayed open and now lists the locked models under the
+    // needs-key group. Those ids only render past step 1, so their presence
+    // proves the drill-in. The needs-key *heading* coexists with the exiting
+    // step-1 row's own needs-key badge during the cross-fade (popLayout keeps
+    // the outgoing view mounted), so it can match more than once — assert at
+    // least one is present.
     expect(screen.getAllByText('QuickSetup.needsKey').length).toBeGreaterThan(0)
-    expect(screen.getByText(/deepseek-model/)).toBeInTheDocument()
+    expect(screen.getAllByText(/deepseek-model/)).toHaveLength(2)
   })
 
   it('omits a group when its bucket is empty', () => {
@@ -513,6 +608,352 @@ describe('BaseModelPickerPanel', () => {
     const rows = screen.getAllByRole('option')
     expect(rows).toHaveLength(1)
     expect(rows[0].querySelector('svg.lucide-check')).toBeTruthy()
+  })
+
+  it('drills 系列 → 型号 → 渠道 for models that carry a 型号 registry', () => {
+    // Seedance holds two 型号 (2.0 with two channels, 2.0 Fast with one); Kling
+    // holds one model. Before this change these four rows sat under TWO provider
+    // headings (fal / VolcEngine) with Seedance split across both.
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    // Tier 1 — 系列. No concrete model label from the multi-model family shows
+    // yet; Kling collapsed to its single model, which is a separate assertion.
+    expect(screen.getByText('Seedance')).toBeInTheDocument()
+    expect(screen.queryByText('Seedance 2.0')).not.toBeInTheDocument()
+
+    // Tier 2 — 型号. "Seedance 2.0 Fast" exists only here (its single channel
+    // makes it a leaf), so it is the marker for this step.
+    fireEvent.click(screen.getByText('Seedance'))
+    expect(screen.getByText('Seedance 2.0 Fast')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Seedance 2.0（火山方舟）'),
+    ).not.toBeInTheDocument()
+
+    // Tier 3 — 渠道. Both channels of 2.0 are now listed; the VolcEngine label
+    // exists only at this depth.
+    fireEvent.click(screen.getByText('Seedance 2.0'))
+    expect(screen.getByText('Seedance 2.0（火山方舟）')).toBeInTheDocument()
+  })
+
+  it('counts 型号 on a 系列 row and 渠道 on a 型号 row', () => {
+    // The count must equal the rows the drill-in renders. Reporting Seedance's
+    // four catalog entries as "4 models" is exactly the endpoint/channel
+    // duplication this redesign removes.
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    // Scope the count to its own row: during the cross-fade the outgoing view
+    // stays mounted, so a bare text match would also see the previous step's
+    // count and pass for the wrong reason.
+    const rowText = (label: string) =>
+      screen.getByText(label).closest('[role="option"]')?.textContent ?? ''
+
+    // 系列 "Seedance" advertises its two 型号 — not its four catalog entries.
+    expect(rowText('Seedance')).toContain('Common.modelCount({"count":2})')
+
+    fireEvent.click(screen.getByText('Seedance'))
+    // 型号 "Seedance 2.0" advertises its two 渠道; the single-channel sibling
+    // collapsed to a leaf and carries no count at all.
+    expect(rowText('Seedance 2.0')).toContain(
+      'Common.channelCount({"count":2})',
+    )
+    expect(rowText('Seedance 2.0 Fast')).not.toContain('Count(')
+  })
+
+  it('counts 渠道 on a 系列 row whose 型号 layer gets skipped', () => {
+    // Caught on the real app: MiniMax has one 型号 across several stations, so
+    // its 系列 row drills PAST 型号 straight into 渠道 — and was advertising
+    // "1 model" above a list of four. The count has to follow the skip chain,
+    // not the next layer down.
+    const minimax = [
+      [AI_MODELS.MINIMAX_H3, 'MiniMax H3', AI_ADAPTER_TYPES.FAL],
+      [
+        AI_MODELS.MINIMAX_H3_CN,
+        'MiniMax H3（国内）',
+        AI_ADAPTER_TYPES.VOLCENGINE,
+      ],
+    ].map(([modelId, displayLabel, adapterType]) =>
+      makeOption({
+        optionId: `mini-${adapterType}`,
+        modelId,
+        displayLabel,
+        adapterType: adapterType as AI_ADAPTER_TYPES,
+        providerConfig: getDefaultProviderConfig(
+          adapterType as AI_ADAPTER_TYPES,
+        ),
+        sourceType: 'saved',
+        keyId: `k-${adapterType}`,
+      }),
+    )
+
+    render(
+      <BaseModelPickerPanel
+        options={[...SEEDANCE_FIXTURE, ...minimax]}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    const miniRow =
+      screen.getByText('MiniMax').closest('[role="option"]')?.textContent ?? ''
+    expect(miniRow).toContain('Common.channelCount({"count":2})')
+    expect(miniRow).not.toContain('modelCount')
+  })
+
+  it('keeps the drilled-in view when the caller rebuilds the options array', () => {
+    // The reset effect must fire only on closed→open. Callers rebuild `options`
+    // on every render, so a naive dependency list would snap the view back to
+    // 系列 mid-interaction — the "clicking a row exits instead of drilling in"
+    // bug. Three layers make that failure worse, so it gets its own guard.
+    const { rerender } = render(
+      <BaseModelPickerPanel
+        options={[...SEEDANCE_FIXTURE]}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByText('Seedance'))
+    expect(screen.getAllByRole('button')).toHaveLength(2)
+
+    // Fresh array identity, same contents.
+    rerender(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE.map((o) => ({ ...o }))}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+
+    // ⚠ Row presence can't decide this: popLayout keeps the outgoing 系列 view
+    // mounted through the cross-fade, so both steps' rows are in the DOM either
+    // way. The back affordance renders outside AnimatePresence and is driven by
+    // `backTarget` alone — trigger + back means we are still one level down.
+    expect(screen.getAllByRole('button')).toHaveLength(2)
+    expect(screen.getByText('Seedance 2.0 Fast')).toBeInTheDocument()
+  })
+
+  it('selects directly when a 型号 has a single 渠道 (tier 3 skipped)', () => {
+    const onChange = vi.fn()
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value={null}
+        onChange={onChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByText('Seedance'))
+    fireEvent.click(screen.getByText('Seedance 2.0 Fast'))
+
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls[0][0].modelId).toBe(AI_MODELS.SEEDANCE_20_FAST)
+  })
+
+  it('selects directly when a 系列 collapses to one model (skips chain all the way)', () => {
+    // Kling contributes a single option → tiers 2 and 3 both have one candidate,
+    // so the tier-1 row IS that model: it shows the model label, not the family
+    // name, and clicking it selects rather than drilling into an empty shell.
+    const onChange = vi.fn()
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value={null}
+        onChange={onChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(screen.queryByText('Kling')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Kling 3.0 Pro'))
+
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls[0][0].modelId).toBe(AI_MODELS.KLING_V3_PRO)
+  })
+
+  it('routes a collapsed row to setup when its single option needs a key', () => {
+    const onRequestSetup = vi.fn()
+    const onChange = vi.fn()
+    render(
+      <BaseModelPickerPanel
+        options={[
+          ...SEEDANCE_FIXTURE,
+          makeOption({
+            optionId: 'locked-veo',
+            modelId: AI_MODELS.VEO_31,
+            displayLabel: 'Veo 3.1',
+            adapterType: AI_ADAPTER_TYPES.FAL,
+            providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+            sourceType: 'workspace',
+            freeTier: false,
+          }),
+        ]}
+        value={null}
+        onChange={onChange}
+        onRequestSetup={onRequestSetup}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByText('Veo 3.1'))
+
+    expect(onRequestSetup).toHaveBeenCalledTimes(1)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('goes back to 型号 from 渠道 when the 型号 layer was not skipped', () => {
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByText('Seedance'))
+    fireEvent.click(screen.getByText('Seedance 2.0'))
+
+    // Trigger + back button.
+    const back = screen.getAllByRole('button')[1]
+    fireEvent.click(back)
+
+    // Landed on 型号, not 系列: the sibling 型号 is listed again.
+    expect(screen.getByText('Seedance 2.0 Fast')).toBeInTheDocument()
+  })
+
+  it('goes back to 系列 from 渠道 when the 型号 layer was skipped', () => {
+    // MiniMax has one 型号 across two stations → tier 2 is skipped on the way
+    // down, so the return target must be tier 1, not a constant "one step up".
+    const minimax = [
+      makeOption({
+        optionId: 'minimax-global',
+        modelId: AI_MODELS.MINIMAX_H3,
+        displayLabel: 'MiniMax H3',
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+        sourceType: 'saved',
+        keyId: 'k-fal',
+      }),
+      makeOption({
+        optionId: 'minimax-cn',
+        modelId: AI_MODELS.MINIMAX_H3_CN,
+        displayLabel: 'MiniMax H3（国内）',
+        adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+        sourceType: 'saved',
+        keyId: 'k-volc',
+      }),
+    ]
+
+    render(
+      <BaseModelPickerPanel
+        options={[...SEEDANCE_FIXTURE, ...minimax]}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByText('MiniMax'))
+
+    // Skipped straight into 渠道 — both stations listed.
+    expect(screen.getByText('MiniMax H3（国内）')).toBeInTheDocument()
+
+    fireEvent.click(screen.getAllByRole('button')[1])
+    // Back at 系列, not at an empty 型号 step.
+    expect(screen.getByText('Seedance')).toBeInTheDocument()
+  })
+
+  it('offers no back affordance when every navigational layer was skipped', () => {
+    // One 系列, one 型号, two 渠道 → the picker opens straight onto the channel
+    // list and there is nowhere to return to.
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE.filter((o) =>
+          o.optionId.startsWith('seedance-2.0-'),
+        )}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(screen.getByText('Seedance 2.0（火山方舟）')).toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+  })
+
+  it('degrades to two layers for models with no 型号 registered', () => {
+    // MODEL_VARIANTS only covers video today. Image models each become their own
+    // 型号 → tier 2 lists them and tier 3 is skipped, which is exactly the
+    // pre-change 厂商 → 模型 depth. There is no "video gets three, others get
+    // two" branch anywhere — the depth falls out of the data.
+    const onChange = vi.fn()
+    const images = [
+      ['flux-pro', AI_MODELS.FLUX_2_PRO, 'FLUX 2 Pro'],
+      ['flux-flash', AI_MODELS.FLUX_2_FLASH, 'FLUX 2 Flash'],
+      ['ideogram', AI_MODELS.IDEOGRAM_3, 'Ideogram 3'],
+    ].map(([optionId, modelId, displayLabel]) =>
+      makeOption({
+        optionId,
+        modelId,
+        displayLabel,
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+        sourceType: 'saved',
+        keyId: 'k-fal',
+      }),
+    )
+
+    render(
+      <BaseModelPickerPanel
+        options={images}
+        value={null}
+        onChange={onChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    // Tier 1: the FLUX family plus Ideogram collapsed to its one model.
+    expect(screen.getByText('FLUX')).toBeInTheDocument()
+    expect(screen.getByText('Ideogram 3')).toBeInTheDocument()
+
+    // Tier 2 is the last stop — clicking a model selects it, no third step.
+    fireEvent.click(screen.getByText('FLUX'))
+    fireEvent.click(screen.getByText('FLUX 2 Flash'))
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls[0][0].modelId).toBe(AI_MODELS.FLUX_2_FLASH)
+  })
+
+  it('flat-searches across every layer', () => {
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value={null}
+        onChange={vi.fn()}
+        searchPlaceholder="Search"
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.change(screen.getByPlaceholderText('Search'), {
+      target: { value: 'seedance 2.0' },
+    })
+
+    // Search bypasses the hierarchy entirely: the VolcEngine channel is three
+    // layers deep, and it shows up without any drilling.
+    expect(screen.getByText('Seedance 2.0（火山方舟）')).toBeInTheDocument()
+    expect(screen.queryByText('Kling 3.0 Pro')).not.toBeInTheDocument()
   })
 
   it('uses the popover content as the scroll container', () => {

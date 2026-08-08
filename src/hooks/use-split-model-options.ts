@@ -36,26 +36,35 @@ export function isRunnableModelOption(option: SplitableModelOption): boolean {
   )
 }
 
+/**
+ * 三桶分法本体。抽成纯函数是因为三层选择器要**按分组**判桶（一个型号底下的几条
+ * 渠道，只要有一条能跑，这个型号就不该落进「需要 API key」），而分组判桶发生在
+ * 一次 render 里的循环中，调不了 hook。两处共用同一份分类，别再手写第三份。
+ */
+export function splitModelOptions<T extends SplitableModelOption>(
+  options: T[],
+): SplitModelOptions<T> {
+  const saved: T[] = []
+  const platform: T[] = []
+  const locked: T[] = []
+  for (const opt of options) {
+    if (opt.sourceType === 'saved') {
+      saved.push(opt)
+    } else if (opt.freeTier) {
+      // Platform quota outranks spending the user's own key.
+      platform.push(opt)
+    } else if (opt.providerKeyId) {
+      // Reachable through an existing provider key — "configured", not locked.
+      saved.push(opt)
+    } else {
+      locked.push(opt)
+    }
+  }
+  return { saved, platform, locked }
+}
+
 export function useSplitModelOptions<T extends SplitableModelOption>(
   options: T[],
 ): SplitModelOptions<T> {
-  return useMemo(() => {
-    const saved: T[] = []
-    const platform: T[] = []
-    const locked: T[] = []
-    for (const opt of options) {
-      if (opt.sourceType === 'saved') {
-        saved.push(opt)
-      } else if (opt.freeTier) {
-        // Platform quota outranks spending the user's own key.
-        platform.push(opt)
-      } else if (opt.providerKeyId) {
-        // Reachable through an existing provider key — "configured", not locked.
-        saved.push(opt)
-      } else {
-        locked.push(opt)
-      }
-    }
-    return { saved, platform, locked }
-  }, [options])
+  return useMemo(() => splitModelOptions(options), [options])
 }

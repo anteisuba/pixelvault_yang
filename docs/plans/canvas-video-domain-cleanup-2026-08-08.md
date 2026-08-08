@@ -273,8 +273,8 @@ owner 拍板：**不符合新模式的模型直接消失，并清空当前选择
 
 1. ✅ **已完成**（2026-08-08）：`MODEL_VARIANTS` 表 + `getModelVariant` + 四条不变量测试。纯 constants，零 UI，零枚举改动。
 2. ✅ **已完成**（2026-08-08）：`unit-prices.ts` + 四条不变量。⬜ 剩两件增量：把 fal / MiniMax / BytePlus 的价格补齐（各自接入时顺手做，别单独立项）；把周检脚本扩到价格核对（`verifiedAt` 超期告警）。
-3. ⬜ `BaseModelPickerPanel` 三层钻取改造（现在是两层：provider → 模型）
-4. ⬜ 节点的模式状态字段 + 三档切换器（放 `density='card'` 面板顶部，见 §9.4）
+3. ✅ **已完成**（2026-08-08，见 §9.8）：`BaseModelPickerPanel` 两态机扩成三态机。四个消费者行为不变，非视频模态自动退化成两层（**没有按模态分支**）。⚠ 第三层仍是过渡态：端点重复要等切片 4 的模式过滤才消掉。
+4. ⬜ 节点的模式状态字段 + 三档切换器（放 `density='card'` 面板顶部，见 §9.4）—— ⚠ **开工前先读 §9.8 的发现 1**：画布视频节点走的是另一套分类，不是这个选择器。
 5. ✅ **已完成**（2026-08-08）：`constants/video-node-modes.ts` —— 三档枚举、模式 ↔ `referenceMode` 双向映射、`resolveVideoModelId` 端点解析、`getModelsForNodeMode` 筛选、`modelSurvivesModeSwitch` 切换判断。纯 constants，零 UI。
    - ⭐ 核心机制已验证：`('seedance-2.0', FAL, keyframe)` → `SEEDANCE_20`，同型号同渠道换成 `multimodal` → `SEEDANCE_20_REFERENCE`。**「用户只看见 Seedance 2.0、端点由模式挑」由此成立。**
    - 解析不到时**返回 null 而非回退**：Kling 没有多模态端点，回退会让用户以为在用全能参考、实际发首帧请求。宁可让该型号从列表消失。
@@ -287,6 +287,8 @@ owner 拍板：**不符合新模式的模型直接消失，并清空当前选择
 ## 9. 关键切片设计（2026-08-08，待 owner 确认后才动 UI 代码）
 
 ### 9.1 切片 3：选择器从两态机扩成三态机
+
+> ✅ **已实现（2026-08-08）。交付记录、实现时定死的三处规格空白、以及三个要带进切片 4 的发现，全在 §9.8。** 本节保留为「当初怎么想的」。
 
 现状（`BaseModelPickerPanel`）：`view: 'providers' | 'models'`，`singleProvider` 时跳过第一层，搜索时走 `searching` 分支绕过分层，返回按钮仅在 `!singleProvider` 时渲染。
 
@@ -343,6 +345,8 @@ updream 选中视频节点后，节点下方浮出一块面板：
 
 **映射到我们**：那块面板 = `VideoComposer` 的 `density='card'`（挂在节点卡上的紧凑侧车，`SeedanceNode.tsx:114`），**不是** ⤢ 展开的 `density='detail'` 详情面板。所以模式 tab 放 `density='card'` 顶部。
 
+> ⚠ **2026-08-08 补**：`VideoComposer` 里已经有一套 brand → variant 的分类 + 「reference 靠输入自动判」的逻辑（`constants/video-brands.ts` / `lib/video-model-resolver.ts`），与本设计的「模式归节点」**互相矛盾**。往这块面板加模式 tab 之前先看 §9.8 发现 1。
+
 ⚠ `density='detail'`（direction E 七槽）也需要模式切换器，放哪个槽要另定 —— 不在本节范围。
 
 **两个产品在同一件事上做了同样选择**（强信号）：**模型选择在节点的面板内，不在全局** —— libtv 是 `General image V2 ▾` 在提示词面板底部，updream 是 `Kling 2.5 ▾` 在参数面板底部。我们现在也是这样（`WorkflowModelPicker` 挂在节点 inspector），**这条不用改**。
@@ -395,6 +399,31 @@ Veo 那条能对上不含音频档，说明 homepage 至少有一部分是按「
 **本轮没有擅自改 homepage**，因为「首页展示含音频还是不含音频的价」是营销决策不是数据修正 —— 前者数字更好看，可能是有意的。**要 owner 定**：① 按含音频口径统一修正 ② 保持不含音频的营销口径但把过时数字更新 ③ 让 homepage 从 `unit-prices` 派生（一个真相，展示层做口径变换）。
 
 相应地，`unit-prices.test.ts` 里那条「两表不得重叠」的断言已改写 —— 那个约束立错了：补齐 fal 价格后必然重叠，而重叠本身不是问题（口径不同），**单位错配**才是。现在只断言 unit 一致，金额差异在测试注释里逐条列出待对账。
+
+### 9.8 ✅ 切片 3 已交付（2026-08-08）
+
+改动落在 4 处：`BaseModelPickerPanel.tsx`（+ 测试从 19 条到 33 条）、`use-split-model-options.ts`（把三桶分法抽成纯函数 `splitModelOptions`，型号层要**按分组**判桶）、`messages/{en,ja,zh}.json`（新增 `Common.channelCount`，删掉零消费的 `backToProviders`）。全量 tsc 0 error · eslint 干净 · 相关 635 测试全绿 · studio 视频/图片两条线真机验过。
+
+**§9.1 的三条规则都按原样实现**，另外定死了三处规格里没写、但不定就没法写代码的判断：
+
+1. **「跳过」在两种时机上是两件事**：打开时跳过 = 落在更深的层；点击时跳过 = **整组只剩一个条目的行，就是那个条目**（有对勾/健康点、无 chevron，点了直接选中或进 QuickSetup）。§8.2「单渠道的型号跳过这一层直接选中」把后者写明了，前者是连锁推出来的。⚠ 打开时**绝不自动触发 `onChange`** —— 那会变成「打开下拉框就改了用户的选择」。§9.1 里「零点击直接选中」按「零点击抵达那一行」实现。
+2. **系列层的兜底是 `adapterType`，不是模型 id**。目录里 57 个模型 100% 有 family，没有 family 的是 LLM 路由和 `EDIT_MODELS` 那类目录外 id。退回 `adapterType` 正好等于改造前的第一层，那些调用方一字不变；退回模型 id 会把助手的路由选择器压成一屏无分组的平铺列表。
+3. **型号名是从 i18n 标签推的，没有新建标签表**：取同组里**最短的那条**再削掉结尾括注（`Seedance 2.5（火山方舟）` → `Seedance 2.5`）。⚠ **只在型号有多个条目时才削** —— 单条目型号（图片/音频/3D 全是）的括注装的是真实差别，`Seedream 5.0 Pro（火山方舟）` 削完与 fal 那条重名。不写死一张英文表是因为 zh 下 `klingV3Pro` 是「快手可灵 3.0 Pro」，写死就把中文标签降级了。
+
+**判错一次**：交接说「8–10 条测试会红」，实际**只红了 1 条**。因为三桶标题被一并搬到了型号层，单 provider 那条退化路径的断言原样通过。→ 「会红几条」是拍的，别当验收基线；红得少要去确认是设计对了还是测试太弱（这里是前者，另补了 14 条锁三层行为的新测试）。
+
+**真机抓到两个静态看不出来的错**（程序化读 DOM 抓的，不是看截图）：
+
+- MiniMax 的系列行写「1 个模型」，点进去是 **4 行**。计数本来报的是「下一层有几项」，但跳过是连锁的：单型号的系列直接跳到渠道层。→ 计数必须沿跳过链算。
+- 型号行的计数写「N 个模型」，可那一层数的是渠道。新增 `Common.channelCount`。
+
+#### 三个要带进切片 4 的发现
+
+1. ⚠ **画布的视频节点根本不用这个选择器。** `VideoComposer` / `SeedanceNode` / `use-video-composer` 走的是 `constants/video-brands.ts` + `lib/video-model-resolver.ts` 那套**另一个**两层分类（brand → variant，provider 是独立控件，reference 靠**输入自动判**）。它有自己的 `resolveVideoModelId`，与 `constants/video-node-modes.ts` 的**同名函数签名不同**，而且 reference 的处理方式与本设计**互相矛盾**（自动 vs 节点模式）。`ALL_VIDEO_VARIANTS` 还进了 `types/node-workflow.ts` 的 Zod 默认值。→ 切片 4 要在 `density='card'` 顶部加模式 tab，会正面撞上它；**先决定这两套是收敛还是并存**，别直接加。
+2. ⚠ **第三层现在是过渡态**：Seedance 2.0 显示 4 条 = 2 渠道 × 2 端点。组件**故意不**自己按模式挑一条 —— 选择器不知道模式（模式归节点），挑了就等于把另一个端点变成用户永远够不着的模型。切片 4 的模式过滤一上，(型号 × 渠道 × 模式) 唯一性保证每个渠道只剩一条，重复自然消失。
+3. ⚠ **没有接单价显示**，虽然 §8.2 说第三层「唯一职责是比价」。`MODEL_UNIT_PRICES` 按 `AI_MODELS` 索引，而这是四个模态共用的组件（LLM 路由的 id 根本不在枚举里）—— 硬塞进去就是把视频域概念塞进壳里，正是这次要避免的按模态分支。注入点用已有的 `detailForOption` prop，由调用方给。**排在模式过滤之后**：现在接，价格会挂在重复的端点行上。
+
+**顺带**：`MODEL_VARIANTS` 里 `HAPPYHORSE_10` 的 slug 是 `'happyhorse-1.1'`，模型名却是 HappyHorse 1.0。slug 不露出，纯内部不一致，改不改都行。
 
 ## Last Verified
 

@@ -26,10 +26,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { getProviderLabel, type AI_ADAPTER_TYPES } from '@/constants/providers'
+import { getModelFamily, getModelVariant } from '@/constants/models'
+import { getProviderLabel } from '@/constants/providers'
 import { motionTransition } from '@/constants/motion'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
-import { useSplitModelOptions } from '@/hooks/use-split-model-options'
+import {
+  isRunnableModelOption,
+  splitModelOptions,
+  useSplitModelOptions,
+} from '@/hooks/use-split-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 
@@ -67,6 +72,81 @@ function dedupeRedundantWorkspaceRoutes(
   )
 }
 
+/** 三层钻取：系列 → 型号 → 渠道。 */
+type PickerView = 'families' | 'variants' | 'channels'
+
+interface VariantGroup {
+  variantKey: string
+  label: string
+  opts: StudioModelOption[]
+}
+
+interface FamilyGroup {
+  familyKey: string
+  label: string
+  opts: StudioModelOption[]
+  variants: VariantGroup[]
+}
+
+/**
+ * 第一层「系列」的分组键。
+ *
+ * 目录里的模型全都有 `MODEL_FAMILIES`（2026-08-08 实测 57/57 覆盖）。**没有** family
+ * 的是不在目录里的 id —— LLM 路由（`routeToStudioOption` 拿 `route.modelId`）、
+ * EDIT_MODELS 那类 `fal-ai/flux-pro/edit`。它们退回 `adapterType`，而那正是本组件
+ * 改造前的第一层，所以这些调用方的分层行为原样不变。
+ */
+function familyKeyOf(option: StudioModelOption): string {
+  const family = getModelFamily(option.modelId)
+  return family ? `family:${family}` : `provider:${option.adapterType}`
+}
+
+function familyLabelOf(option: StudioModelOption): string {
+  return (
+    getModelFamily(option.modelId) ?? getProviderLabel(option.providerConfig)
+  )
+}
+
+/**
+ * 第二层「型号」的分组键。
+ *
+ * `MODEL_VARIANTS` 目前只登记了视频。**没登记的每个模型自成一型号** → 该系列下
+ * 型号数 = 模型数、每个型号只有一条渠道 → 第三层被跳过 → 图片/音频/3D/LLM 自动
+ * 退化成两层，与改造前一致。
+ *
+ * ⚠ 别为「视频三层、其余两层」写分支：**层数是数据推出来的，不是模态判出来的**。
+ * 哪天给图片补了 `MODEL_VARIANTS`，它自己就变三层。
+ */
+function variantKeyOf(option: StudioModelOption): string {
+  return getModelVariant(option.modelId) ?? option.modelId
+}
+
+/** 结尾的括注（半角/全角都算），如 `Seedance 2.5（火山方舟）` 的那一段。 */
+const TRAILING_QUALIFIER = /[（(][^（()）]*[)）]\s*$/
+
+/**
+ * 型号行显示什么名字。
+ *
+ * 一个型号底下的多个条目，差别只有**渠道**和**端点** —— `Seedance 2.0` /
+ * `Seedance 2.0（参考端点）` / `Seedance 2.0（火山方舟）`。这两样分别是第三层和
+ * 节点模式的职责，不该在第二层露出（设计见 cleanup §8.2：「用户只需要看见
+ * Seedance 2.0」）。取**最短的那条标签**再削掉结尾括注，公共产品名就出来了：
+ * `Seedance 2.5（火山方舟）` → `Seedance 2.5`。
+ *
+ * ⚠ **只在型号有多个条目时才削。** 单条目型号（图片/音频/3D/LLM 全是这样）的括注
+ * 装的是真实差别：`Seedream 5.0 Pro（火山方舟）` 削完与 fal 那条同名，同一个系列
+ * 下就出现两行一模一样的字。
+ *
+ * 不做成一张写死的标签表，是因为标签得跟着语言走 —— `klingV3Pro` 在 zh 下是
+ * 「快手可灵 3.0 Pro」，写死英文就把中文用户的标签降级了。
+ */
+export function deriveVariantLabel(labels: string[]): string {
+  if (labels.length === 0) return ''
+  const shortest = labels.reduce((a, b) => (b.length < a.length ? b : a))
+  if (labels.length === 1) return shortest
+  return shortest.replace(TRAILING_QUALIFIER, '').trim() || shortest
+}
+
 export interface BaseModelPickerPanelProps {
   options: StudioModelOption[]
   value: string | null
@@ -94,11 +174,29 @@ export interface BaseModelPickerPanelProps {
 }
 
 /**
- * Two-step model picker: first pick the provider (厂商), then the concrete
- * model id. Provider rows carry a 国内/海外 region tag and a key/quota status;
- * drilling into a provider lists its models grouped by source. Typing in the
- * search box bypasses the two-step and flat-filters across every provider.
- * Region labels are pure display — they do NOT drive any runtime routing.
+ * 三层钻取的模型选择器：**系列 → 型号 → 渠道**（设计见
+ * `docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §8.2 / §9.1）。
+ *
+ * - 第 1 层 系列：`MODEL_FAMILIES`（Seedance / Kling / FLUX …）
+ * - 第 2 层 型号：`MODEL_VARIANTS`（2.5 / 2.0 / 2.0 Fast）
+ * - 第 3 层 渠道：`adapterType`（火山 / fal / BytePlus），**职责是比价**
+ *
+ * 三条贯穿规则：
+ *
+ * 1. **搜索绕过全部分层** —— 平铺过滤，不做三层的搜索。
+ * 2. **跳过要连锁** —— 每层各自判断「只有一个候选就跳过」，可能一路跳到底：
+ *    单系列单型号单渠道时，打开就直接落在那一条上。整组塌成一条的行**就是**那个
+ *    条目（点它即选中 / 缺 key 则进 QuickSetup），不再往下钻一层空壳。
+ * 3. **返回回到「最近一个没被跳过的层」** —— 不是常量，见 `backTarget`。
+ *
+ * ⚠ 改造前第一层是渠道（`adapterType`），那让同一系列裂在 fal / 火山两个标题下。
+ * 目录外的 id（LLM 路由、EDIT_MODELS）没有 family，退回按 `adapterType` 分组 ——
+ * 即改造前的行为，见 `familyKeyOf`。
+ *
+ * ⚠ 端点（`SEEDANCE_20` vs `SEEDANCE_20_REFERENCE`）**不该在任何一层露出**，它由
+ * 节点上的模式决定。但模式过滤是切片 4 的事：在那之前，调用方传进来的仍是全部
+ * 端点，于是第三层会看到同一渠道的两条。这是过渡态，不是本组件的判断错误 ——
+ * 组件按模式挑一条会把另一个端点变成用户永远够不着的模型。
  */
 export function BaseModelPickerPanel({
   options,
@@ -118,10 +216,9 @@ export function BaseModelPickerPanel({
   detailForOption,
 }: BaseModelPickerPanelProps) {
   const [open, setOpen] = useState(false)
-  const [view, setView] = useState<'providers' | 'models'>('providers')
-  const [activeAdapter, setActiveAdapter] = useState<AI_ADAPTER_TYPES | null>(
-    null,
-  )
+  const [view, setView] = useState<PickerView>('families')
+  const [activeFamily, setActiveFamily] = useState<string | null>(null)
+  const [activeVariant, setActiveVariant] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const reducedMotion = useReducedMotion()
 
@@ -157,27 +254,79 @@ export function BaseModelPickerPanel({
     [options],
   )
 
-  // Group options by their provider (adapter). Insertion order follows the
-  // incoming option order, which is already preference-ranked.
-  const providerGroups = useMemo(() => {
-    const map = new Map<AI_ADAPTER_TYPES, StudioModelOption[]>()
+  // Group options into 系列 → 型号. Insertion order follows the incoming option
+  // order, which is already preference-ranked.
+  const familyGroups = useMemo<FamilyGroup[]>(() => {
+    const byFamily = new Map<string, StudioModelOption[]>()
     for (const opt of displayOptions) {
-      const list = map.get(opt.adapterType) ?? []
+      const key = familyKeyOf(opt)
+      const list = byFamily.get(key) ?? []
       list.push(opt)
-      map.set(opt.adapterType, list)
+      byFamily.set(key, list)
     }
-    return Array.from(map, ([adapterType, opts]) => ({ adapterType, opts }))
+    return Array.from(byFamily, ([familyKey, opts]) => {
+      const byVariant = new Map<string, StudioModelOption[]>()
+      for (const opt of opts) {
+        const key = variantKeyOf(opt)
+        const list = byVariant.get(key) ?? []
+        list.push(opt)
+        byVariant.set(key, list)
+      }
+      return {
+        familyKey,
+        label: familyLabelOf(opts[0]),
+        opts,
+        variants: Array.from(byVariant, ([variantKey, variantOpts]) => ({
+          variantKey,
+          label: deriveVariantLabel(variantOpts.map(resolveModelLabel)),
+          opts: variantOpts,
+        })),
+      }
+    })
+    // resolveModelLabel closes over tModels/labelForOption — stable enough for
+    // this grouping, same as the visibleOptions filter below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayOptions])
 
-  // With a single provider the first step is pointless — jump straight to its
-  // model list (and hide the back affordance).
-  const singleProvider = providerGroups.length <= 1
+  const activeFamilyGroup = useMemo(
+    () => familyGroups.find((g) => g.familyKey === activeFamily) ?? null,
+    [familyGroups, activeFamily],
+  )
+  const activeVariantGroup = useMemo(
+    () =>
+      activeFamilyGroup?.variants.find((v) => v.variantKey === activeVariant) ??
+      null,
+    [activeFamilyGroup, activeVariant],
+  )
 
-  // Reset the two-step view ONLY on the closed→open transition. Guarding with
+  // Which layer an open lands on. "只有一个候选就跳过" has to CHAIN: one family
+  // carries you to its 型号 list, one family with one 型号 carries you all the
+  // way to its 渠道 list. Zero families falls through to the empty state.
+  const entryPath = useMemo(() => {
+    if (familyGroups.length !== 1) {
+      return { view: 'families' as const, family: null, variant: null }
+    }
+    const family = familyGroups[0]
+    if (family.variants.length !== 1) {
+      return {
+        view: 'variants' as const,
+        family: family.familyKey,
+        variant: null,
+      }
+    }
+    return {
+      view: 'channels' as const,
+      family: family.familyKey,
+      variant: family.variants[0].variantKey,
+    }
+  }, [familyGroups])
+
+  // Reset the drill state ONLY on the closed→open transition. Guarding with
   // a ref (instead of plain `open` deps) is essential: callers often pass a
   // freshly-built `options` array on every render, which would otherwise make
   // this effect re-run mid-interaction and snap the view back to step 1 — the
-  // bug where clicking a provider "exits" instead of drilling in.
+  // bug where clicking a provider "exits" instead of drilling in. With three
+  // layers that bug would bite harder, so the guard stays exactly as-is.
   const wasOpenRef = useRef(false)
   useEffect(() => {
     if (!open) {
@@ -187,14 +336,10 @@ export function BaseModelPickerPanel({
     if (wasOpenRef.current) return
     wasOpenRef.current = true
     setSearch('')
-    if (singleProvider) {
-      setView('models')
-      setActiveAdapter(providerGroups[0]?.adapterType ?? null)
-    } else {
-      setView('providers')
-      setActiveAdapter(null)
-    }
-  }, [open, singleProvider, providerGroups])
+    setView(entryPath.view)
+    setActiveFamily(entryPath.family)
+    setActiveVariant(entryPath.variant)
+  }, [open, entryPath])
 
   // Resolved against the FULL list so a persisted optionId that dedupe folded
   // away still names the trigger.
@@ -240,20 +385,23 @@ export function BaseModelPickerPanel({
         return hay.includes(searchLower)
       })
     }
-    if (view === 'models' && activeAdapter) {
-      return displayOptions.filter((opt) => opt.adapterType === activeAdapter)
-    }
+    // Only the deepest layer lists concrete options; 系列/型号 rows come off
+    // familyGroups instead.
+    if (view === 'channels') return activeVariantGroup?.opts ?? []
     return []
     // labelForOption/detailForOption/tModels are stable enough for this filter
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayOptions, searching, searchLower, view, activeAdapter])
+  }, [displayOptions, searching, searchLower, view, activeVariantGroup])
 
   const { saved, platform, locked } = useSplitModelOptions(visibleOptions)
 
-  const showingProviders = !searching && view === 'providers'
-  const isEmpty = showingProviders
-    ? providerGroups.length === 0
-    : visibleOptions.length === 0
+  const isEmpty = searching
+    ? visibleOptions.length === 0
+    : view === 'families'
+      ? familyGroups.length === 0
+      : view === 'variants'
+        ? (activeFamilyGroup?.variants.length ?? 0) === 0
+        : visibleOptions.length === 0
 
   // Step 2 used to hide the needs-key models of a provider that already had a
   // usable route ("configuring happens at the provider step"). That silently
@@ -263,10 +411,41 @@ export function BaseModelPickerPanel({
   // QuickSetupDialog rather than take the option away. Every model the count
   // includes is now rendered; locked ones just carry the key affordance.
 
-  const activeProviderLabel = useMemo(() => {
-    const group = providerGroups.find((g) => g.adapterType === activeAdapter)
-    return group ? getProviderLabel(group.opts[0].providerConfig) : ''
-  }, [providerGroups, activeAdapter])
+  /**
+   * 返回按钮回到「最近一个**没被跳过**的层」—— 常量不行：从渠道层退回时，型号层
+   * 可能压根没出现过（单型号系列），那就得一路退到系列层；两层都被跳过时（单系列
+   * 单型号）没有可退之处，按钮不渲染。
+   *
+   * `label` 描述的是**当前所在的上下文**（与改造前一致：models 视图上的返回键写着
+   * 当前 provider 的名字），让人知道这一屏在比的是什么。
+   */
+  const backTarget = useMemo<{ view: PickerView; label: string } | null>(() => {
+    const multiFamily = familyGroups.length > 1
+    if (view === 'channels') {
+      if ((activeFamilyGroup?.variants.length ?? 0) > 1) {
+        return { view: 'variants', label: activeVariantGroup?.label ?? '' }
+      }
+      if (multiFamily) {
+        return { view: 'families', label: activeVariantGroup?.label ?? '' }
+      }
+      return null
+    }
+    if (view === 'variants' && multiFamily) {
+      return { view: 'families', label: activeFamilyGroup?.label ?? '' }
+    }
+    return null
+  }, [view, familyGroups, activeFamilyGroup, activeVariantGroup])
+
+  const handleBack = () => {
+    if (!backTarget) return
+    if (backTarget.view === 'families') {
+      setActiveFamily(null)
+      setActiveVariant(null)
+    } else {
+      setActiveVariant(null)
+    }
+    setView(backTarget.view)
+  }
 
   const handleSelectOption = (option: StudioModelOption) => {
     onChange(option)
@@ -276,19 +455,49 @@ export function BaseModelPickerPanel({
     if (onRequestSetup) onRequestSetup(option)
     setOpen(false)
   }
-  const handleSelectProvider = (adapterType: AI_ADAPTER_TYPES) => {
-    setActiveAdapter(adapterType)
-    setView('models')
+  /** 型号：多渠道就钻进第三层，单渠道直接落到那一条（§8.2）。 */
+  const handleSelectVariant = (family: FamilyGroup, variant: VariantGroup) => {
+    if (variant.opts.length === 1) {
+      const only = variant.opts[0]
+      if (isRunnableModelOption(only)) handleSelectOption(only)
+      else handleSelectLocked(only)
+      return
+    }
+    setActiveFamily(family.familyKey)
+    setActiveVariant(variant.variantKey)
+    setView('channels')
+  }
+  /** 系列：跳过要连锁 —— 单型号的系列直接交给 handleSelectVariant 继续跳。 */
+  const handleSelectFamily = (family: FamilyGroup) => {
+    if (family.variants.length === 1) {
+      handleSelectVariant(family, family.variants[0])
+      return
+    }
+    setActiveFamily(family.familyKey)
+    setActiveVariant(null)
+    setView('variants')
   }
 
-  const renderProviderRow = ({
-    adapterType,
+  /**
+   * 一行代表一个分组（系列或型号）。行上的计数写的是**这一行钻进去会渲染几行**
+   * ——不是数底层条目：把 4 条 Seedance 2.0（两渠道×两端点）报成「4 个模型」，
+   * 正是这次改造要消掉的重复。⚠ 因为跳过要连锁，「钻进去渲染几行」不等于「下一层
+   * 有几项」：单型号的系列会直接跳到渠道层，那时它该报渠道数（真机实测抓到的：
+   * MiniMax 原本写「1 个模型」，点进去是 4 行）。
+   */
+  const renderDrillRow = ({
+    rowKey,
+    label,
+    countText,
     opts,
+    onSelect,
   }: {
-    adapterType: AI_ADAPTER_TYPES
+    rowKey: string
+    label: string
+    countText: string
     opts: StudioModelOption[]
+    onSelect: () => void
   }) => {
-    const label = getProviderLabel(opts[0].providerConfig)
     const detail = detailForOption?.(opts[0])
     // An explicit key row is the best evidence; provider-level coverage counts
     // too — the adapter has a key, it just isn't bound to any model listed here.
@@ -297,14 +506,15 @@ export function BaseModelPickerPanel({
       opts.find((o) => o.providerKeyId)
     const platformOpt = opts.find((o) => o.sourceType !== 'saved' && o.freeTier)
 
-    // Every provider drills into step 2 — even unconfigured ones, which list
-    // their models as "needs key" and route to setup on model click. Keeping
-    // the row enterable matches the 厂商 → 模型 two-step mental model.
+    // Every group drills in — even fully unconfigured ones, which list their
+    // models as "needs key" and route to setup on click. Keeping the row
+    // enterable matches Hard Rule #8 (missing key routes to QuickSetupDialog,
+    // it never takes the option away).
     return (
       <CommandItem
-        key={adapterType}
-        value={`provider ${adapterType} ${label}`}
-        onSelect={() => handleSelectProvider(adapterType)}
+        key={rowKey}
+        value={`${rowKey} ${label}`}
+        onSelect={onSelect}
         className="group min-h-12 gap-3 px-3 py-2.5"
       >
         <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-xs font-semibold text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
@@ -315,7 +525,7 @@ export function BaseModelPickerPanel({
             <span className="truncate text-sm font-semibold">{label}</span>
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
-            {tCommon('modelCount', { count: opts.length })}
+            {countText}
             {detail ? ` · ${detail}` : ''}
           </span>
         </span>
@@ -353,10 +563,18 @@ export function BaseModelPickerPanel({
     )
   }
 
-  const renderAvailableModelOption = (option: StudioModelOption) => {
+  /**
+   * 叶子行 —— 点了就是选中它。除了第三层，**塌成一条的分组行也走这里**：一个分组
+   * 只剩一个条目时，那行就该长得像个可选项（有对勾、有健康点、没有 chevron），
+   * 而不是骗人再钻一层。`labelOverride` 让型号行顶着干净的型号名，把渠道留在副行。
+   */
+  const renderAvailableModelOption = (
+    option: StudioModelOption,
+    labelOverride?: string,
+  ) => {
     const isSelected = option.optionId === checkedOptionId
     const indicatorKeyId = option.keyId ?? option.providerKeyId
-    const optionLabel = resolveLabel(option)
+    const optionLabel = labelOverride ?? resolveLabel(option)
     const optionModelLabel = resolveModelLabel(option)
     const providerLabel = getProviderLabel(option.providerConfig)
     const capabilityDetail = detailForOption?.(option)
@@ -414,13 +632,17 @@ export function BaseModelPickerPanel({
     )
   }
 
-  const renderLockedOption = (option: StudioModelOption) => {
-    const optionModelLabel = resolveModelLabel(option)
+  const renderLockedOption = (
+    option: StudioModelOption,
+    labelOverride?: string,
+  ) => {
+    const optionModelLabel = labelOverride ?? resolveModelLabel(option)
     const providerLabel = getProviderLabel(option.providerConfig)
     const capabilityDetail = detailForOption?.(option)
     const searchValue = [
       option.optionId,
       optionModelLabel,
+      resolveModelLabel(option),
       providerLabel,
       capabilityDetail,
     ]
@@ -450,34 +672,116 @@ export function BaseModelPickerPanel({
     )
   }
 
+  const renderFamilyRow = (family: FamilyGroup) => {
+    // 整族只剩一个条目时不留空壳：这行**就是**那个模型。第一层没有上下文可依，
+    // 所以显示模型自己的完整名字（「GPT Image 2」而不是系列名「GPT Image」）。
+    if (family.opts.length === 1) {
+      const only = family.opts[0]
+      return isRunnableModelOption(only)
+        ? renderAvailableModelOption(only)
+        : renderLockedOption(only)
+    }
+    // 单型号的系列会连锁跳过型号层 → 这一行钻进去看到的是渠道，计数就得报渠道。
+    const soleVariant = family.variants.length === 1 ? family.variants[0] : null
+    return renderDrillRow({
+      rowKey: family.familyKey,
+      label: family.label,
+      countText: soleVariant
+        ? tCommon('channelCount', { count: soleVariant.opts.length })
+        : tCommon('modelCount', { count: family.variants.length }),
+      opts: family.opts,
+      onSelect: () => handleSelectFamily(family),
+    })
+  }
+
+  const renderVariantRow = (family: FamilyGroup, variant: VariantGroup) => {
+    // 单渠道型号同理塌成一条。这里系列已由返回键交代过，所以顶着**型号名**，
+    // 渠道退到副行（`Seedance 2.5` / 副行「火山方舟」，而不是名字里再括一次）。
+    if (variant.opts.length === 1) {
+      const only = variant.opts[0]
+      return isRunnableModelOption(only)
+        ? renderAvailableModelOption(only, variant.label)
+        : renderLockedOption(only, variant.label)
+    }
+    return renderDrillRow({
+      rowKey: `${family.familyKey}::${variant.variantKey}`,
+      label: variant.label,
+      countText: tCommon('channelCount', { count: variant.opts.length }),
+      opts: variant.opts,
+      onSelect: () => handleSelectVariant(family, variant),
+    })
+  }
+
   const triggerHealthIndicator = selectedOption?.keyId ? (
     <ApiKeyHealthDot status={healthMap[selectedOption.keyId]} />
   ) : selectedOption?.freeTier ? (
     <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
   ) : null
 
-  // Shared between the flat search results and the drilled-in models view —
-  // both render the same saved/platform/locked groups, only the underlying
+  // Shared between the flat search results and the drilled-in 渠道 view — both
+  // render the same saved/platform/locked groups, only the underlying
   // visibleOptions differ.
   const modelGroups = (
     <>
       {saved.length > 0 && (
         <CommandGroup heading={tSetup('configuredKeys')}>
-          {saved.map(renderAvailableModelOption)}
+          {saved.map((o) => renderAvailableModelOption(o))}
         </CommandGroup>
       )}
       {platform.length > 0 && (
         <CommandGroup heading={tSetup('platformQuota')}>
-          {platform.map(renderAvailableModelOption)}
+          {platform.map((o) => renderAvailableModelOption(o))}
         </CommandGroup>
       )}
       {locked.length > 0 && (
         <CommandGroup heading={tSetup('needsKey')}>
-          {locked.map(renderLockedOption)}
+          {locked.map((o) => renderLockedOption(o))}
         </CommandGroup>
       )}
     </>
   )
+
+  // 型号层沿用同一套三桶分法（`splitModelOptions`），只是按**分组**判桶：一个型号
+  // 只要有一条渠道能跑，它就不该落进「需要 API key」。改造前单 provider 会直接落到
+  // 模型层，这三个标题正是那一屏的分组 —— 退化成两层时它们必须还在。
+  const variantRows = (() => {
+    const family = activeFamilyGroup
+    if (!family) return null
+    const buckets: Record<'saved' | 'platform' | 'locked', VariantGroup[]> = {
+      saved: [],
+      platform: [],
+      locked: [],
+    }
+    for (const variant of family.variants) {
+      const split = splitModelOptions(variant.opts)
+      buckets[
+        split.saved.length
+          ? 'saved'
+          : split.platform.length
+            ? 'platform'
+            : 'locked'
+      ].push(variant)
+    }
+    return (
+      <>
+        {buckets.saved.length > 0 && (
+          <CommandGroup heading={tSetup('configuredKeys')}>
+            {buckets.saved.map((v) => renderVariantRow(family, v))}
+          </CommandGroup>
+        )}
+        {buckets.platform.length > 0 && (
+          <CommandGroup heading={tSetup('platformQuota')}>
+            {buckets.platform.map((v) => renderVariantRow(family, v))}
+          </CommandGroup>
+        )}
+        {buckets.locked.length > 0 && (
+          <CommandGroup heading={tSetup('needsKey')}>
+            {buckets.locked.map((v) => renderVariantRow(family, v))}
+          </CommandGroup>
+        )}
+      </>
+    )
+  })()
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -552,17 +856,14 @@ export function BaseModelPickerPanel({
               className="h-10 text-sm"
             />
           )}
-          {!searching && view === 'models' && !singleProvider && (
+          {!searching && backTarget && (
             <button
               type="button"
-              onClick={() => {
-                setView('providers')
-                setActiveAdapter(null)
-              }}
+              onClick={handleBack}
               className="flex w-full items-center gap-2 border-b border-border/40 px-3 py-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
             >
               <ArrowLeft className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">{activeProviderLabel}</span>
+              <span className="truncate">{backTarget.label}</span>
             </button>
           )}
           <CommandList className="min-h-0 max-h-none overflow-x-clip overflow-y-visible">
@@ -573,10 +874,10 @@ export function BaseModelPickerPanel({
             ) : searching ? (
               // Flat cross-provider search is a hard swap: there's no coherent
               // drill direction between a flat list and the hierarchical
-              // two-step, so search stays outside the slide animation.
+              // three-step, so search stays outside the slide animation.
               modelGroups
             ) : (
-              // Two-step drill: providers ⇄ models cross-fade in place while the
+              // Three-step drill: 系列 ⇄ 型号 ⇄ 渠道 cross-fade in place while the
               // container's height settles via a layout (FLIP) transition. The
               // incoming view fades in at full size — it never grows from 0 — so
               // there's no "rising from the bottom" feel; the wrapper just glides
@@ -589,11 +890,7 @@ export function BaseModelPickerPanel({
               >
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.div
-                    key={
-                      showingProviders
-                        ? 'providers'
-                        : `models-${activeAdapter ?? 'none'}`
-                    }
+                    key={`${view}-${activeFamily ?? 'none'}-${activeVariant ?? 'none'}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{
@@ -605,10 +902,12 @@ export function BaseModelPickerPanel({
                     }}
                     transition={motionTransition('base', reducedMotion)}
                   >
-                    {showingProviders ? (
+                    {view === 'families' ? (
                       <CommandGroup>
-                        {providerGroups.map(renderProviderRow)}
+                        {familyGroups.map(renderFamilyRow)}
                       </CommandGroup>
+                    ) : view === 'variants' ? (
+                      variantRows
                     ) : (
                       modelGroups
                     )}

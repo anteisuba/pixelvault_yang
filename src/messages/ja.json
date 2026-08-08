@@ -229,7 +229,7 @@
     "noModelsFound": "モデルが見つかりません",
     "savedKey": "自分のキー",
     "modelCount": "{count, plural, other {# モデル}}",
-    "backToProviders": "プロバイダー",
+    "channelCount": "{count, plural, other {# チャネル}}",
     "skipToMainContent": "メインコンテンツへ移動",
     "requestCount": "{count} リクエスト",
     "loading": "読み込み中"

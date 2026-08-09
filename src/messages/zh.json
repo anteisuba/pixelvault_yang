@@ -3959,7 +3959,6 @@
         "pasteEmpty": "剪贴板里没有图片。",
         "selectAsset": "从素材库选择",
         "empty": "还没有参考图。",
-        "maxReached": "参考图已达上限",
         "uploadFailed": "参考图上传失败。",
         "weightLabel": "参考图权重",
         "remove": "移除参考图",

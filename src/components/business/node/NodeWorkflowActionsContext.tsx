@@ -64,11 +64,16 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   listConnectableReferences?(targetNodeId: string): NodeWorkflowNode[]
   /** Revalidate and connect one existing canvas node into a target node. */
   connectReferenceNode?(sourceNodeId: string, targetNodeId: string): void
-  /** Autospawn an upstream reference node from a resolved asset and wire it
-   *  into `targetNodeId` (§7.1 部门条 ＋添加位). Creates the node, stamps its
-   *  role/media, and connects it — one high-level op so the composer never
-   *  touches raw addNode/onConnect. Returns the new node id. */
-  spawnReference?(input: SpawnReferenceInput): string
+  /**
+   * Autospawn an upstream reference node from a resolved asset and wire it
+   * into `targetNodeId` (§7.1 部门条 ＋添加位). Creates the node, stamps its
+   * role/media, and connects it — one high-level op so the composer never
+   * touches raw addNode/onConnect. Returns the new node id.
+   *
+   * 阶段 3 起这是「参考图落地」的**主路**：上传 / 素材库 / 粘贴全走它，`role`
+   * 省略即落一个无角色的散图节点。`null` = 被容量闸拒了（节点没建，图上干净）。
+   */
+  spawnReference?(input: SpawnReferenceInput): string | null
   /**
    * Removes a reference from a character/background node's nested
    * `referenceAssets`. A legacy `source:'canvas'` entry whose origin node

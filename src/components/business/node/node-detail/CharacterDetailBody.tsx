@@ -261,6 +261,10 @@ export function CharacterDetailBody({
             <div className="canvas-detail-character-gallery min-w-0">
               <CharacterImageReferenceControls
                 value={referenceAssets}
+                targetNodeId={nodeId}
+                // 角色卡是收集器：新素材仍进本卡图集，理由见
+                // `ReferenceLandingTabs` 的 `onResolved` 头注。
+                nestedAdd
                 maxItems={maxReferenceImages}
                 onChange={(next) =>
                   updateNodeData(nodeId, { referenceAssets: next })

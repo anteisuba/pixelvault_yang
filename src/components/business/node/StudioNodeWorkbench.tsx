@@ -157,7 +157,11 @@ import {
 import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
 import { assembleReferenceImagePayload } from '@/lib/node-reference-payload'
 import { planVideoKeyframeImages } from '@/lib/node-video-keyframe-plan'
-import { resolveIngestCapacity } from '@/lib/node-ingest-capacity'
+import {
+  resolveIngestCapacity,
+  resolveSpawnCapacity,
+  type IngestCapacityCheck,
+} from '@/lib/node-ingest-capacity'
 import { resolveVideoSendSlotLimits } from '@/lib/node-video-send-slots'
 import type { AdvancedParams } from '@/types'
 import type {
@@ -2266,6 +2270,37 @@ function StudioNodeCanvas() {
     pendingImageEditRequestKeyRef.current = requestKey
   }, [handleFocusNode, imageEditHandoff, isLoaded, userId, workflow])
 
+  /**
+   * 容量红线（契约 §4.5）—— 满了当场拒绝，不是先装进去再标灰。返回 `true` = 已拒。
+   *
+   * 抽出来共用，是因为落点有**两个**：连既有节点（`handleIngestConnect`）与先建
+   * 节点再连（`handleSpawnReference`）。阶段 3 把「上传 / 素材库 / 粘贴」全改成
+   * 后者之后，闸只写在前一个上就等于对新主路完全不设防。
+   *
+   * 拒绝要**说对是哪条限制**：分项满 → 去减这一类；分项没满但跨模态总额尽 →
+   * 去减视频/音频。两者对用户的下一步完全不同。
+   */
+  const rejectWhenCapacityFull = useCallback(
+    (capacity: IngestCapacityCheck | null): boolean => {
+      if (!capacity?.full) return false
+      const zone = tSlotRack(`zoneLabel.${capacity.zone}`)
+      toast.info(
+        capacity.limitedByTotal
+          ? tIngestReasons('capacityFullByTotal', {
+              zone,
+              limit: capacity.limit,
+            })
+          : tIngestReasons('capacityFullIn', {
+              zone,
+              current: capacity.current,
+              limit: capacity.limit,
+            }),
+      )
+      return true
+    },
+    [tIngestReasons, tSlotRack],
+  )
+
   // §7.1 部门条 ＋添加位: create an upstream reference node from an already
   // resolved asset (uploaded or picked from the library) and wire it into the
   // target video node. Reuses createDefaultNodeData (same role-stamp-on-
@@ -2273,10 +2308,24 @@ function StudioNodeCanvas() {
   // mirrors NodeMediaInspector's existing-image field set so the spawned node
   // reads as "已有素材" not a blank generator.
   const handleSpawnReference = useCallback(
-    (input: SpawnReferenceInput): string => {
+    (input: SpawnReferenceInput): string | null => {
       const target = workflow.nodes.find(
         (node) => node.id === input.targetNodeId,
       )
+      // ⚠ 问在 `addNode` **之前**：先建后拒会在画布上留一个连不上的孤儿节点。
+      if (
+        target &&
+        rejectWhenCapacityFull(
+          resolveSpawnCapacity({
+            nodeType: input.nodeType,
+            target,
+            edges: workflow.edges,
+            nodes: workflow.nodes,
+          }),
+        )
+      ) {
+        return null
+      }
       const existingUpstream = getUpstreamNodes(
         input.targetNodeId,
         workflow.edges,
@@ -2295,20 +2344,30 @@ function StudioNodeCanvas() {
       const newId = workflow.addNode(input.nodeType, position)
       const name = input.media.name?.trim()
 
-      if (input.nodeType === NODE_TYPE_IDS.image && input.role) {
+      if (input.nodeType === NODE_TYPE_IDS.image) {
         // Subject-name props are schema fields accessed directly as
         // node.data.characterName/backgroundName/shotName (not in
         // NODE_WORKFLOW_FIELD_IDS, which only covers prompt-builder fields).
-        const roleNameField =
-          input.role === NODE_IMAGE_ROLE_IDS.character ||
-          input.role === NODE_IMAGE_ROLE_IDS.closeup
+        const roleNameField = !input.role
+          ? undefined
+          : input.role === NODE_IMAGE_ROLE_IDS.character ||
+              input.role === NODE_IMAGE_ROLE_IDS.closeup
             ? 'characterName'
             : input.role === NODE_IMAGE_ROLE_IDS.background
               ? 'backgroundName'
               : 'shotName'
         workflow.updateNodeData(newId, {
-          ...createDefaultNodeData(NODE_IMAGE_ROLE_TO_LEGACY_TYPE[input.role]),
-          role: input.role,
+          // 阶段 3：**无 role 的散图**是合法落点（「参考图一律落散图节点」），
+          // 此前这里整块被 `&& input.role` 挡掉 —— 不带 role 调进来会建出一个
+          // 空节点，连图都不写。带 role 的分支一字未改。
+          ...(input.role
+            ? {
+                ...createDefaultNodeData(
+                  NODE_IMAGE_ROLE_TO_LEGACY_TYPE[input.role],
+                ),
+                role: input.role,
+              }
+            : {}),
           imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
           mediaKind: NODE_MEDIA_KIND_IDS.image,
           mediaUrl: input.media.url,
@@ -2318,7 +2377,7 @@ function StudioNodeCanvas() {
           generationId: input.media.generationId,
           generationStatus: NODE_GENERATION_STATUS_IDS.success,
           status: NODE_STATUS_IDS.done,
-          ...(name ? { [roleNameField]: name } : {}),
+          ...(name && roleNameField ? { [roleNameField]: name } : {}),
         })
       } else if (input.nodeType === NODE_TYPE_IDS.voice) {
         workflow.updateNodeData(newId, {
@@ -2344,7 +2403,7 @@ function StudioNodeCanvas() {
 
       return newId
     },
-    [workflow],
+    [workflow, rejectWhenCapacityFull],
   )
 
   // Cast dock "＋新建" (S5a §6.2): character/background spawn a unified
@@ -2948,8 +3007,9 @@ function StudioNodeCanvas() {
   // source→target is rejected before this is ever called, see
   // use-cast-ingest.ts's evaluateCastIngest).
   /**
-   * 连线的**唯一落点** —— 拖边（ReactFlow 的 `onConnect`）、@ 提及、从画布选择、
-   * ＋添加素材全走这里。
+   * 连**既有节点**的唯一落点 —— 拖边（ReactFlow 的 `onConnect`）、@ 提及、
+   * 从画布选择、＋添加素材全走这里。（新建节点再连的那条走
+   * `handleSpawnReference`，两条共用上面那道容量闸。）
    *
    * owner 2026-08-08：连上了也要进输入框。但**只有素材类**才插（图 / 声音 / 视频）——
    * `getSeedanceReferenceKind` 认得出是不是参考。结构类的边（镜头文本 → 视频，它给的
@@ -2965,36 +3025,17 @@ function StudioNodeCanvas() {
       const target = workflow.nodes.find((node) => node.id === targetId)
       if (!source || !target) return
 
-      /**
-       * 容量红线**在入口**（契约 §4.5）—— 满了当场拒绝，不是先装进去再标灰。
-       *
-       * 闸挂在这一个函数上，四条入口（拖边 · `@` 提及 · 从画布选择 · ＋添加素材）
-       * 自动全保。逐个入口各写一遍正是本轮踩过的形状：原型给 `@` 开了新入口就漏
-       * 一道闸，9/9 被塞成 10/9、总额 13/12。
-       *
-       * 拒绝要**说对是哪条限制**：分项满 → 去减这一类；分项没满但跨模态总额尽
-       * → 去减视频/音频。两者对用户的下一步完全不同。
-       */
-      const capacity = resolveIngestCapacity({
-        source,
-        target,
-        edges: workflow.edges,
-        nodes: workflow.nodes,
-      })
-      if (capacity?.full) {
-        const zone = tSlotRack(`zoneLabel.${capacity.zone}`)
-        toast.info(
-          capacity.limitedByTotal
-            ? tIngestReasons('capacityFullByTotal', {
-                zone,
-                limit: capacity.limit,
-              })
-            : tIngestReasons('capacityFullIn', {
-                zone,
-                current: capacity.current,
-                limit: capacity.limit,
-              }),
+      // 容量闸见 `rejectWhenCapacityFull`（与 `handleSpawnReference` 共用）。
+      if (
+        rejectWhenCapacityFull(
+          resolveIngestCapacity({
+            source,
+            target,
+            edges: workflow.edges,
+            nodes: workflow.nodes,
+          }),
         )
+      ) {
         return
       }
 
@@ -3029,7 +3070,7 @@ function StudioNodeCanvas() {
        * 「在槽里就等于会发送」。
        */
     },
-    [workflow, tIngestReasons, tSlotRack],
+    [workflow, rejectWhenCapacityFull],
   )
 
   const listConnectableReferences = useCallback(

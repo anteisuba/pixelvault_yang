@@ -3959,7 +3959,6 @@
         "pasteEmpty": "No image found in the clipboard.",
         "selectAsset": "Select from assets",
         "empty": "No reference images yet.",
-        "maxReached": "Reference limit reached",
         "uploadFailed": "Reference image upload failed.",
         "weightLabel": "Reference weight",
         "remove": "Remove reference image",

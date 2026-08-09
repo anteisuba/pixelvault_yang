@@ -216,7 +216,11 @@ export function isShotTextNode(node: NodeWorkflowNode): boolean {
   return node.type === NODE_TYPE_IDS.shotText
 }
 
-export function isVoiceProfileNode(node: NodeWorkflowNode): boolean {
+export function isVoiceProfileNode(
+  // 只读 `type` —— 放宽成结构子集，好让**还没建出来的**节点也判得了族
+  // （`resolveNodeSlotZone` 的落槽前预检要用，见 node-ingest-capacity 头注）。
+  node: Pick<NodeWorkflowNode, 'type'>,
+): boolean {
   return node.type === NODE_TYPE_IDS.voice
 }
 
@@ -263,7 +267,9 @@ export function getSeedanceReferenceKind(
  * A node that produces video output (currently Seedance variants). Used as a
  * reference video source for downstream Seedance reference-to-video nodes.
  */
-export function isVideoSourceNode(node: NodeWorkflowNode): boolean {
+export function isVideoSourceNode(
+  node: Pick<NodeWorkflowNode, 'type'>,
+): boolean {
   return NODE_MEDIA_KIND_BY_NODE_TYPE[node.type] === NODE_MEDIA_KIND_IDS.video
 }
 

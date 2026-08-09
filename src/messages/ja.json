@@ -3959,7 +3959,6 @@
         "pasteEmpty": "クリップボードに画像がありません。",
         "selectAsset": "素材から選択",
         "empty": "参考画像はまだありません。",
-        "maxReached": "参考画像の上限です",
         "uploadFailed": "参考画像のアップロードに失敗しました。",
         "weightLabel": "参考画像の強度",
         "remove": "参考画像を削除",

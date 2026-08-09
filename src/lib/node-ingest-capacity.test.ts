@@ -18,6 +18,7 @@ import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
   resolveIngestCapacity,
+  resolveSpawnCapacity,
   resolveNodeSlotZone,
 } from './node-ingest-capacity'
 
@@ -214,6 +215,65 @@ describe('resolveIngestCapacity · 无从判断时诚实沉默', () => {
     expect(
       resolveIngestCapacity({
         source: image('a'),
+        target: shot,
+        edges: [],
+        nodes: [shot],
+      }),
+    ).toBeNull()
+  })
+})
+
+/**
+ * 阶段 3「参考图落散图节点 + 自动连线」：新节点还没建出来时的同一道闸。
+ *
+ * ⚠ 这一族守的是一个**此前完全敞开**的口子 —— `handleSpawnReference` 直接调
+ * `workflow.onConnect`，从不经过 `handleIngestConnect` 的容量检查。阶段 3 把
+ * 上传 / 素材库 / 粘贴全改成走它之后，那就是主路无闸。
+ */
+describe('resolveSpawnCapacity · 落地前问，问出来必须和落地时同一个数', () => {
+  it('图片满 9 时，再上传一张被拒（节点不该建出来）', () => {
+    const existing = Array.from({ length: 9 }, (_, i) => image(`i${i}`))
+    const check = resolveSpawnCapacity({
+      nodeType: NODE_TYPE_IDS.image,
+      target: VIDEO,
+      edges: wire(existing),
+      nodes: [VIDEO, ...existing],
+    })
+    expect(check).toMatchObject({ zone: 'images', current: 9, limit: 9 })
+    expect(check?.full).toBe(true)
+  })
+
+  it('与「源节点已在图上」的问法结果一致 —— 两条落点不许各算各的', () => {
+    const existing = Array.from({ length: 8 }, (_, i) => image(`i${i}`))
+    const args = { edges: wire(existing), nodes: [VIDEO, ...existing] }
+    expect(
+      resolveSpawnCapacity({
+        nodeType: NODE_TYPE_IDS.image,
+        target: VIDEO,
+        ...args,
+      }),
+    ).toEqual(
+      resolveIngestCapacity({ source: image('extra'), target: VIDEO, ...args }),
+    )
+  })
+
+  it('音色 / 参考视频同样按各自的区判 —— 不是只有图片有闸', () => {
+    const voices = Array.from({ length: 3 }, (_, i) => voice(`v${i}`))
+    expect(
+      resolveSpawnCapacity({
+        nodeType: NODE_TYPE_IDS.voice,
+        target: VIDEO,
+        edges: wire(voices),
+        nodes: [VIDEO, ...voices],
+      }),
+    ).toMatchObject({ zone: 'audio', limit: 3, full: true })
+  })
+
+  it('目标不是视频节点（比如把参考图落到镜头图上）→ null，不硬造上限', () => {
+    const shot = image('shot-target')
+    expect(
+      resolveSpawnCapacity({
+        nodeType: NODE_TYPE_IDS.image,
         target: shot,
         edges: [],
         nodes: [shot],

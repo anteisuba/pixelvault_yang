@@ -1,50 +1,30 @@
 'use client'
 
 import Image from 'next/image'
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type ClipboardEvent,
-} from 'react'
-import {
-  ArrowUpRight,
-  Clipboard,
-  Flag,
-  ImagePlus,
-  Library,
-  Star,
-  Trash2,
-  Upload,
-} from 'lucide-react'
+import { useCallback, useMemo } from 'react'
+import { ArrowUpRight, Flag, ImagePlus, Star, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
 import {
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
-  NODE_STUDIO_IMAGE_INPUT,
-  NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_REFERENCE_ROLES,
   NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
 } from '@/constants/node-studio'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
-import { Button } from '@/components/ui/button'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Spinner } from '@/components/ui/spinner'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import { cn } from '@/lib/utils'
 import type {
-  GenerationRecord,
   NodeWorkflowReferenceAsset,
   NodeWorkflowReferenceRole,
 } from '@/types'
+
+import {
+  ReferenceLandingTabs,
+  type ResolvedReferenceMedia,
+} from './ReferenceLandingTabs'
 
 /** A closeup (面部特写) image merged read-only into the gallery grid — a
  *  SEPARATE node bound via edge, not a `referenceAssets` entry, so it has no
@@ -64,10 +44,29 @@ export interface CharacterReferenceGalleryExtraItem {
   badge?: string
 }
 
+/**
+ * ⚠ **本组件已不再是「加参考图」的入口**（阶段 3，2026-08-10）。
+ *
+ * 三 Tab 添加面板整体搬去 `ReferenceLandingTabs`，落点从「写进本节点的
+ * `referenceAssets`」改成「建散图节点 + 自动连线」。留在这里的是**存量图集**的
+ * 陈列与善后：改分类/权重、设主图、出场、移除、拆出。
+ *
+ * 为什么不一起删干净：存量项目里 `referenceAssets` 有真数据（还有卡片水合那条
+ * 写路径），删了用户的图就凭空消失。存量数据与收割侧的收敛是独立工程题。
+ */
 interface CharacterImageReferenceControlsProps {
   value: NodeWorkflowReferenceAsset[] | undefined
   maxItems: number
   onChange(value: NodeWorkflowReferenceAsset[]): void
+  /** 新参考图落到哪个宿主的左边 —— 交给 `ReferenceLandingTabs`。 */
+  targetNodeId: string
+  /**
+   * `true` = 新素材仍写进本节点的 `referenceAssets`（旧落点）。
+   * **只有收集器卡（角色 / 背景）该传它** —— 原因与解除条件写在
+   * `ReferenceLandingTabs` 的 `onResolved` 头注：它那份图集还有两条腿踩在
+   * `referenceAssets` 上（卡自己的生成不读上游边 · 下游收割一跳到底）。
+   */
+  nestedAdd?: boolean
   /**
    * `'popover'` (default): the original compact chip + popover — unchanged
    * behavior for every existing caller (shot/frame/background inspectors).
@@ -135,6 +134,8 @@ export function CharacterImageReferenceControls({
   value,
   maxItems,
   onChange,
+  targetNodeId,
+  nestedAdd = false,
   mode = 'popover',
   extraItems,
   onExtract,
@@ -146,15 +147,10 @@ export function CharacterImageReferenceControls({
   // is an existing ns this component only READS from unchanged elsewhere).
   const tDossier = useTranslations('StudioNode.dossier')
   const references = useMemo(() => value ?? [], [value])
-  const [assetDialogOpen, setAssetDialogOpen] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const pasteTargetRef = useRef<HTMLDivElement>(null)
-  const { uploadFile, isUploading } = useNodeReferenceUpload()
   const effectiveMaxItems = Math.min(
     Math.max(maxItems, 0),
     NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems,
   )
-  const isFull = references.length >= effectiveMaxItems
   const disabled = effectiveMaxItems === 0
 
   const updateReference = useCallback(
@@ -214,237 +210,31 @@ export function CharacterImageReferenceControls({
     [onChange, references],
   )
 
-  const appendReferences = useCallback(
-    (nextReferences: NodeWorkflowReferenceAsset[]) => {
-      onChange([...references, ...nextReferences].slice(0, effectiveMaxItems))
+  /** 旧落点（仅收集器卡）：追加进本节点的 `referenceAssets`，并守住卡自己的上限。 */
+  const appendNested = useCallback(
+    (media: ResolvedReferenceMedia) => {
+      if (references.length >= effectiveMaxItems) return
+      onChange([
+        ...references,
+        createReferenceAsset(
+          media.url,
+          media.source,
+          media.generationId,
+          media.name,
+        ),
+      ])
     },
     [effectiveMaxItems, onChange, references],
   )
 
-  const handleFileInputChange = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files ?? [])
-      if (inputRef.current) {
-        inputRef.current.value = ''
-      }
-      if (files.length === 0 || disabled || isFull) {
-        return
-      }
-
-      const slots = effectiveMaxItems - references.length
-      const uploadedReferences: NodeWorkflowReferenceAsset[] = []
-      for (const file of files.slice(0, slots)) {
-        if (!file.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix)) {
-          continue
-        }
-        const result = await uploadFile(
-          file,
-          NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.uploadNote,
-        )
-        if (result.success && result.url) {
-          uploadedReferences.push(
-            createReferenceAsset(
-              result.url,
-              'upload',
-              result.generationId,
-              file.name,
-            ),
-          )
-        } else {
-          toast.error(result.error ?? t('uploadFailed'), {
-            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-          })
-        }
-      }
-
-      if (uploadedReferences.length > 0) {
-        appendReferences(uploadedReferences)
-      }
-    },
-    [
-      appendReferences,
-      disabled,
-      effectiveMaxItems,
-      isFull,
-      references.length,
-      t,
-      uploadFile,
-    ],
-  )
-
-  const handlePaste = useCallback(
-    async (event: ClipboardEvent<HTMLDivElement>) => {
-      if (disabled || isFull) {
-        return
-      }
-
-      const files = Array.from(event.clipboardData.files).filter((file) =>
-        file.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix),
-      )
-      if (files.length === 0) {
-        toast.info(t('pasteEmpty'), {
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        })
-        return
-      }
-
-      event.preventDefault()
-      const slots = effectiveMaxItems - references.length
-      const uploadedReferences: NodeWorkflowReferenceAsset[] = []
-      for (const file of files.slice(0, slots)) {
-        const result = await uploadFile(
-          file,
-          NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.uploadNote,
-        )
-        if (result.success && result.url) {
-          uploadedReferences.push(
-            createReferenceAsset(
-              result.url,
-              'paste',
-              result.generationId,
-              file.name || NODE_STUDIO_IMAGE_INPUT.pastedFileName,
-            ),
-          )
-        } else {
-          toast.error(result.error ?? t('uploadFailed'), {
-            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-          })
-        }
-      }
-
-      if (uploadedReferences.length > 0) {
-        appendReferences(uploadedReferences)
-      }
-    },
-    [
-      appendReferences,
-      disabled,
-      effectiveMaxItems,
-      isFull,
-      references.length,
-      t,
-      uploadFile,
-    ],
-  )
-
-  const handleSelectAssets = useCallback(
-    (generations: GenerationRecord[]) => {
-      const slots = effectiveMaxItems - references.length
-      const nextReferences = generations
-        .filter((generation) => generation.url)
-        .slice(0, slots)
-        .map((generation) =>
-          createReferenceAsset(
-            generation.url,
-            'asset',
-            generation.id,
-            generation.prompt || undefined,
-          ),
-        )
-      if (nextReferences.length > 0) {
-        appendReferences(nextReferences)
-      }
-    },
-    [appendReferences, effectiveMaxItems, references.length],
-  )
-
-  // Shared by both modes' "add a reference" Popover — same tabs, different
-  // trigger chrome around it (compact chip vs a gallery "+" tile).
-  const addPanelTabs = (
-    <Tabs defaultValue="upload" className="p-3">
-      <TabsList className="grid h-9 grid-cols-3 rounded-2xl bg-node-panel-soft p-1">
-        <TabsTrigger
-          value="upload"
-          className="rounded-xl text-xs data-[state=active]:bg-node-foreground data-[state=active]:text-node-canvas"
-        >
-          {t('uploadTab')}
-        </TabsTrigger>
-        <TabsTrigger
-          value="asset"
-          className="rounded-xl text-xs data-[state=active]:bg-node-foreground data-[state=active]:text-node-canvas"
-        >
-          {t('assetTab')}
-        </TabsTrigger>
-        <TabsTrigger
-          value="paste"
-          className="rounded-xl text-xs data-[state=active]:bg-node-foreground data-[state=active]:text-node-canvas"
-        >
-          {t('pasteTab')}
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="upload" className="mt-3">
-        <button
-          type="button"
-          disabled={disabled || isFull || isUploading}
-          onClick={() => inputRef.current?.click()}
-          className="nodrag nopan nowheel flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-4 text-center text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground disabled:cursor-not-allowed disabled:text-node-subtle"
-        >
-          {isUploading ? (
-            <Spinner size="lg" className="text-node-muted" />
-          ) : (
-            <Upload className="size-5 text-node-muted" />
-          )}
-          <span className="text-xs font-semibold">
-            {isFull ? t('maxReached') : t('uploadTitle')}
-          </span>
-          <span className="text-2xs">{t('uploadMeta')}</span>
-        </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept={NODE_STUDIO_IMAGE_INPUT.accept}
-          multiple
-          className="hidden"
-          onChange={handleFileInputChange}
-        />
-      </TabsContent>
-      <TabsContent value="asset" className="mt-3">
-        <Button
-          type="button"
-          disabled={disabled || isFull}
-          onClick={() => setAssetDialogOpen(true)}
-          className="nodrag nopan nowheel h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground hover:border-node-edge hover:bg-node-panel-inner disabled:text-node-subtle"
-        >
-          <Library className="mr-2 size-4 text-node-muted" />
-          {isFull ? t('maxReached') : t('selectAsset')}
-        </Button>
-      </TabsContent>
-      <TabsContent value="paste" className="mt-3">
-        <div
-          ref={pasteTargetRef}
-          role="button"
-          tabIndex={0}
-          onClick={() => pasteTargetRef.current?.focus()}
-          onPaste={handlePaste}
-          className="nodrag nopan nowheel flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-4 text-center text-node-muted outline-none transition-colors hover:border-node-edge hover:text-node-foreground focus-visible:border-node-focus-ring focus-visible:ring-2 focus-visible:ring-node-focus-ring/20"
-        >
-          {isUploading ? (
-            <Spinner size="lg" className="text-node-muted" />
-          ) : (
-            <Clipboard className="size-5 text-node-muted" />
-          )}
-          <span className="text-xs font-semibold">
-            {isFull ? t('maxReached') : t('pasteTitle')}
-          </span>
-          <span className="text-2xs">{t('pasteMeta')}</span>
-        </div>
-      </TabsContent>
-    </Tabs>
-  )
-
-  const assetDialog = (
-    <AssetSelectorDialog
-      open={assetDialogOpen}
-      onOpenChange={setAssetDialogOpen}
-      title={t('assetDialogTitle')}
-      description={t('assetDialogDescription')}
-      mediaType="image"
-      multiSelect
-      maxSelection={Math.max(effectiveMaxItems - references.length, 0)}
-      onConfirmMany={handleSelectAssets}
+  // 两档共用的「加一张」面板。⚠ 默认它**不写本节点的 `referenceAssets`** ——
+  // 落的是宿主左侧的散图节点 + 一条边（阶段 3）。所以主路上也不再有 `isFull`：
+  // 容量闸在落点上（`rejectWhenCapacityFull`），不在这个按钮上。
+  const addPanel = (
+    <ReferenceLandingTabs
+      targetNodeId={targetNodeId}
+      disabled={disabled}
+      onResolved={nestedAdd ? appendNested : undefined}
     />
   )
 
@@ -670,7 +460,7 @@ export function CharacterImageReferenceControls({
               </div>
             ))}
 
-            {!disabled && !isFull ? (
+            {!disabled ? (
               <Popover>
                 <PopoverTrigger asChild>
                   <button
@@ -693,13 +483,12 @@ export function CharacterImageReferenceControls({
                   collisionPadding={12}
                   className="w-80 rounded-2xl border-node-panel-inner bg-node-panel/96 p-0 text-node-foreground shadow-node-panel backdrop-blur-xl"
                 >
-                  {addPanelTabs}
+                  {addPanel}
                 </PopoverContent>
               </Popover>
             ) : null}
           </div>
         )}
-        {assetDialog}
       </div>
     )
   }
@@ -740,7 +529,7 @@ export function CharacterImageReferenceControls({
             </p>
           </div>
 
-          {addPanelTabs}
+          {addPanel}
 
           <div className="space-y-2 border-t border-node-panel-inner p-3">
             {references.length === 0 ? (
@@ -821,8 +610,6 @@ export function CharacterImageReferenceControls({
           </div>
         </PopoverContent>
       </Popover>
-
-      {assetDialog}
     </>
   )
 }

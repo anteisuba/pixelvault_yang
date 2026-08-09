@@ -685,6 +685,9 @@ function CollectorCapability({
     <>
       <CharacterImageReferenceControls
         value={referenceAssets}
+        targetNodeId={nodeId}
+        // 这颗按钮只长在收集器卡（角色/背景）上，落点同 `CharacterDetailBody`。
+        nestedAdd
         maxItems={maxReferenceImages}
         onChange={(next) => updateNodeData(nodeId, { referenceAssets: next })}
         triggerLabel={t('addAsset')}

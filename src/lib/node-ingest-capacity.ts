@@ -7,14 +7,24 @@
  * `node-workflow-graph`。两件事分开，前者才能保持可单测的纯粹。
  *
  * ── 闸为什么设在「落槽」而不是各入口 ────────────────────────────────
- * 素材进槽的入口有四条：拖边 · `@` 提及 · 从画布选择 · ＋添加素材。它们**已经**
- * 汇到 `handleIngestConnect` 那一个落点（那里的注释自称「连线的唯一落点」），
- * 所以闸只要挂在落点上，四条路自动全保。逐个入口各写一遍正是本轮踩过的形状：
- * 原型给 `@` 加了新入口就漏一道闸，9/9 被塞成 10/9、总额 13/12。
+ * 素材进槽的入口有五条：拖边 · `@` 提及 · 从画布选择 · ＋添加素材 · ＋参考／
+ * 上传／素材库（阶段 3 起，参考图一律落散图节点 + 自动连线）。逐个入口各写一遍
+ * 正是本轮踩过的形状：原型给 `@` 加了新入口就漏一道闸，9/9 被塞成 10/9、
+ * 总额 13/12。
+ *
+ * ⚠ 落点其实是**两个**不是一个（2026-08-10 阶段 3 查出来的）：连既有节点走
+ * `handleIngestConnect`，而「先建节点再连」走 `handleSpawnReference` —— 后者
+ * 直接调 `workflow.onConnect`，此前完全绕开了这道闸。所以本模块给出两个问法：
+ *   · `resolveIngestCapacity`  —— 源节点已在图上（拖边 / `@` / 从画布选择）
+ *   · `resolveSpawnCapacity`   —— 源节点**还没建**（上传 / 素材库 / 粘贴）
+ * 两者共用同一个 `computeZoneCapacity` 内核，数出来必然是同一个数。
  */
 
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  NODE_TYPE_IDS,
+  type NodeWorkflowNodeType,
+} from '@/constants/node-types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
@@ -36,13 +46,13 @@ export type SlotZoneId = Exclude<
 >
 
 /** 贡献 image_urls 位的节点族。 */
-function isImageContributingNode(node: NodeWorkflowNode): boolean {
+function isImageContributingType(type: NodeWorkflowNodeType): boolean {
   return (
-    node.type === NODE_TYPE_IDS.characterImage ||
-    node.type === NODE_TYPE_IDS.backgroundImage ||
-    node.type === NODE_TYPE_IDS.frameImage ||
-    node.type === NODE_TYPE_IDS.shot ||
-    node.type === NODE_TYPE_IDS.image
+    type === NODE_TYPE_IDS.characterImage ||
+    type === NODE_TYPE_IDS.backgroundImage ||
+    type === NODE_TYPE_IDS.frameImage ||
+    type === NODE_TYPE_IDS.shot ||
+    type === NODE_TYPE_IDS.image
   )
 }
 
@@ -56,10 +66,16 @@ function isImageContributingNode(node: NodeWorkflowNode): boolean {
  *   · 音频 → `harvestUpstreamAudioBindings` 认音色节点
  *   · 其余图片族 → `assembleReferenceImagePayload` 的图片位
  */
-export function resolveNodeSlotZone(node: NodeWorkflowNode): SlotZoneId | null {
+export function resolveNodeSlotZone(
+  /**
+   * 只读 `type` —— 所以**尚未落到图上的新节点**也判得了区（阶段 3「参考图落散图
+   * 节点」要在建节点**之前**问容量，否则被拒时画布上会留一个孤儿节点）。
+   */
+  node: Pick<NodeWorkflowNode, 'type'>,
+): SlotZoneId | null {
   if (isVoiceProfileNode(node)) return 'audio'
   if (isVideoSourceNode(node)) return 'videos'
-  if (isImageContributingNode(node)) return 'images'
+  if (isImageContributingType(node.type)) return 'images'
   return null
 }
 
@@ -108,9 +124,56 @@ export function resolveIngestCapacity({
   edges: readonly NodeWorkflowEdge[]
   nodes: readonly NodeWorkflowNode[]
 }): IngestCapacityCheck | null {
-  if (target.type !== NODE_TYPE_IDS.seedance) return null
   const zone = resolveNodeSlotZone(source)
   if (!zone) return null
+  return computeZoneCapacity({
+    zone,
+    contribution: countContribution(source, zone),
+    target,
+    edges,
+    nodes,
+  })
+}
+
+/**
+ * 同一道闸的**落地前**问法（阶段 3「参考图落散图节点 + 自动连线」）：新节点还没
+ * 建出来，只知道它将来是什么类型。
+ *
+ * ⚠ 必须问在 `addNode` **之前**。先建后拒会在画布上留一个连不上的孤儿节点 ——
+ * 用户看到的是「加了一张图但它没接上」，比直接拒绝更糟。
+ *
+ * 贡献恒 1：新节点还没有出场组（收集器卡的 onStage 集合要有图才谈得上）。
+ */
+export function resolveSpawnCapacity({
+  nodeType,
+  target,
+  edges,
+  nodes,
+}: {
+  nodeType: NodeWorkflowNodeType
+  target: NodeWorkflowNode
+  edges: readonly NodeWorkflowEdge[]
+  nodes: readonly NodeWorkflowNode[]
+}): IngestCapacityCheck | null {
+  const zone = resolveNodeSlotZone({ type: nodeType })
+  if (!zone) return null
+  return computeZoneCapacity({ zone, contribution: 1, target, edges, nodes })
+}
+
+function computeZoneCapacity({
+  zone,
+  contribution,
+  target,
+  edges,
+  nodes,
+}: {
+  zone: SlotZoneId
+  contribution: number
+  target: NodeWorkflowNode
+  edges: readonly NodeWorkflowEdge[]
+  nodes: readonly NodeWorkflowNode[]
+}): IngestCapacityCheck | null {
+  if (target.type !== NODE_TYPE_IDS.seedance) return null
 
   const model = target.data.model
   if (!model) return null
@@ -138,7 +201,7 @@ export function resolveIngestCapacity({
     zone,
     current,
     limit,
-    full: current + countContribution(source, zone) > limit,
+    full: current + contribution > limit,
     limitedByTotal: zone === 'images' && limits.imagesLimitedByTotal,
   }
 }

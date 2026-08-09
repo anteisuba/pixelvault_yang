@@ -92,6 +92,8 @@ export function BackgroundDetailBody({
       type={type}
       data={data}
       onExtractReference={handleExtractReference}
+      // 背景卡是收集器（下游收割把它展开成 onStage 集合），落点暂留旧通道。
+      nestedReferenceAdd
       relations={
         <RelationsStrip
           uses={uses}

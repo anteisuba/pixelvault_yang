@@ -101,6 +101,13 @@ export interface ImageFamilyBodyProps extends NodeDetailBodyProps {
   referenceExtraItems?: readonly CharacterReferenceGalleryExtraItem[]
   /** 参考图「拆出」为独立节点。不给则该按钮不出现。 */
   onExtractReference?(referenceId: string): void
+  /**
+   * `true` = 新参考图仍写进本节点的 `referenceAssets`（旧落点）。
+   * **只有背景卡该传** —— 它和角色卡一样是收集器，下游收割把它展开成 onStage
+   * 集合；镜头 / 关键帧 / 散图不是，它们走阶段 3 主路（落散图节点 + 自动连线）。
+   * 完整理由与解除条件见 `ReferenceLandingTabs` 的 `onResolved` 头注。
+   */
+  nestedReferenceAdd?: boolean
   children: (slots: NodeDetailSlots) => ReactNode
 }
 
@@ -114,6 +121,7 @@ export function ImageFamilyBody({
   aspect = '16 / 9',
   referenceExtraItems,
   onExtractReference,
+  nestedReferenceAdd = false,
   children,
 }: ImageFamilyBodyProps) {
   const t = useTranslations('StudioNode.mediaNodes')
@@ -430,6 +438,8 @@ export function ImageFamilyBody({
                 popover 把「移除/查看」藏在弹层里，触屏与键盘都够不着。 */}
             <CharacterImageReferenceControls
               value={referenceAssets}
+              targetNodeId={nodeId}
+              nestedAdd={nestedReferenceAdd}
               maxItems={maxReferenceImages}
               onChange={(next) =>
                 updateNodeData(nodeId, { referenceAssets: next })

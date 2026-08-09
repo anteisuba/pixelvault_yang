@@ -81,8 +81,29 @@ export function CanvasOpProposalCard({
    * 初值只在首帧取一次，之后再也不变。
    */
   const [initialPlan] = useState(livePlan)
-  const plan =
-    frozenPlan ?? (autoAppliedCount === undefined ? livePlan : initialPlan)
+  /**
+   * 自动落**真的落下的条数**；`null` = 一条没落。这张卡有三处判断都在问这一个
+   * 问题，共用这一个值。
+   *
+   * ⚠ 判据是 `> 0` 而不是 `!== undefined`：`0` 与 `undefined` 来源不同，但对这三处
+   * 的要求完全一样 ——
+   *   `undefined` = 这批还没走自动落流程；
+   *   `0`         = 走过了，但**一条都没落**。唯一来源是 dock 的
+   *                 `handleApplyAssistantOps`：`runAssistantCanvasOps` 缺席时直接
+   *                 返回 `{applied: 0, skipped: 全部}`（`isLoading` 守卫与 `seen`
+   *                 去重都是提前 return，产生的是 `undefined`，不是 0）。
+   * 两种情况下**图都没被改**，所以：计划要继续跟着画布实时重算、条目要能勾选、
+   * 回执没有可回的东西。
+   *
+   * 早先三处各写各的判据（两处 `=== undefined`、一处 `> 0`），`0` 正好落进裂缝：
+   * 「应用」按钮在，但每一条都是 disabled —— 用户看得见应用，却一条都剔不掉、也
+   * 点不动。现在三处共用这一个值，物理上不可能再不一致。
+   */
+  const landedCount =
+    autoAppliedCount !== undefined && autoAppliedCount > 0
+      ? autoAppliedCount
+      : null
+  const plan = frozenPlan ?? (landedCount ? initialPlan : livePlan)
   const tAdd = useTranslations('StudioNode.addCatalog.items')
   const tIngest = useTranslations('StudioNode.ingest.reasons')
   const [excluded, setExcluded] = useState<Set<number>>(() => new Set())
@@ -231,7 +252,7 @@ export function CanvasOpProposalCard({
           const canToggle =
             !isRejected &&
             !needsOwnConfirm &&
-            autoAppliedCount === undefined &&
+            !landedCount &&
             !structuralResult &&
             !structuralRunning
 
@@ -305,12 +326,12 @@ export function CanvasOpProposalCard({
         })}
       </ul>
 
-      {autoAppliedCount !== undefined && autoAppliedCount > 0 ? (
+      {landedCount ? (
         // B3：已经落了。这里不是审批入口，是**回执 + 后悔药** —— B2.5 之后整批
         // 只占一个撤销步，所以「撤销」按一下就全退。
         <div className="mt-1.5 flex items-center justify-between gap-2 px-1.5">
           <span className="text-2xs text-node-subtle">
-            {t('autoApplied', { count: autoAppliedCount })}
+            {t('autoApplied', { count: landedCount })}
           </span>
           {onUndoAutoApply ? (
             <Button

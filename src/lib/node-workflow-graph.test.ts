@@ -5,7 +5,11 @@ import {
   NODE_REVIEW_STATE_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
-import { NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY,
+  NODE_STUDIO_KEYFRAME_LEGEND_UNCLASSIFIED_CATEGORY,
+  NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS,
+} from '@/constants/node-studio'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
@@ -1597,6 +1601,74 @@ describe('harvestUpstreamVideoImageReferences (§7.2⑦ 视频图例真源)', ()
         category: endLabel,
       })
     })
+
+    // 图例说谎（2026-08-09 修）。三组夹具锁住兜底的全部行为：都没标 / 都标了 /
+    // 混合。⚠ 断言一律读常量，不写字面量 —— 这条测的是「**第二张不再自称首帧**」，
+    // 不是那个角色当下叫什么字（159f0518 就是被写死的字面量绊过一次）。
+    describe('无分类关键帧的兜底分类（不得双双自称首帧）', () => {
+      const looseKeyframe = (id: string) =>
+        makeNode(id, NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.frame,
+          mediaUrl: `https://cdn/${id}.png`,
+        })
+      const wire = [
+        makeEdge('e-a', 'kfA', 'video1'),
+        makeEdge('e-b', 'kfB', 'video1'),
+      ]
+      const frameLabel = NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY.frame
+      const neutralLabel = NODE_STUDIO_KEYFRAME_LEGEND_UNCLASSIFIED_CATEGORY
+
+      it('两个都没标：第一条仍是首帧，第二条走中性文案', () => {
+        const map = harvestUpstreamVideoImageReferences('video1', wire, [
+          looseKeyframe('kfA'),
+          looseKeyframe('kfB'),
+          makeNode('video1', NODE_TYPE_IDS.seedance),
+        ])
+        expect(map.get('https://cdn/kfA.png')).toEqual({
+          name: `${frameLabel}1`,
+          category: frameLabel,
+        })
+        // 缺陷时期这里是 { name: '首帧2', category: '首帧' } —— 名字与分类两处
+        // 都说首帧，模型分不出首尾。
+        expect(map.get('https://cdn/kfB.png')).toEqual({
+          name: `${neutralLabel}2`,
+          category: neutralLabel,
+        })
+      })
+
+      it('两个都标了：各自的具体分类照旧，兜底不介入', () => {
+        const map = harvestUpstreamVideoImageReferences('video1', wire, [
+          makeNode('kfA', NODE_TYPE_IDS.image, {
+            mediaUrl: 'https://cdn/kfA.png',
+            imageCategory: 'frameStart',
+          }),
+          makeNode('kfB', NODE_TYPE_IDS.image, {
+            mediaUrl: 'https://cdn/kfB.png',
+            imageCategory: 'frameEnd',
+          }),
+          makeNode('video1', NODE_TYPE_IDS.seedance),
+        ])
+        const startLabel = NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS.frameStart
+        const endLabel = NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS.frameEnd
+        expect(map.get('https://cdn/kfA.png')?.category).toBe(startLabel)
+        expect(map.get('https://cdn/kfB.png')?.category).toBe(endLabel)
+      })
+
+      it('混合：标了的用自己的分类，没标的按序位兜底', () => {
+        const map = harvestUpstreamVideoImageReferences('video1', wire, [
+          looseKeyframe('kfA'),
+          makeNode('kfB', NODE_TYPE_IDS.image, {
+            mediaUrl: 'https://cdn/kfB.png',
+            imageCategory: 'frameEnd',
+          }),
+          makeNode('video1', NODE_TYPE_IDS.seedance),
+        ])
+        expect(map.get('https://cdn/kfA.png')?.category).toBe(frameLabel)
+        expect(map.get('https://cdn/kfB.png')?.category).toBe(
+          NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS.frameEnd,
+        )
+      })
+    })
   })
 })
 
@@ -2050,7 +2122,11 @@ describe('harvestUpstreamAudioBindings', () => {
     ])
   })
 
-  it('skips voice nodes with no recorded audio URL', () => {
+  // ⚠ 这条锁的是「**一个音频字段都没有**的音色节点」，不是「系统音色」——
+  // 上游账本担心它把缺陷钉成了期望值，实测没有：夹具的 data 里连
+  // `voiceSampleUrl` 都没有，所以接上第 3 档取值后它照样绿。真正没人守的是
+  // 下面两条（系统音色 = 只有 voiceId + voiceSampleUrl），2026-08-09 补。
+  it('skips voice nodes with no audio field at all', () => {
     const nodes = [
       makeNode('voice', NODE_TYPE_IDS.voice),
       makeNode('char', NODE_TYPE_IDS.characterImage, {
@@ -2063,6 +2139,41 @@ describe('harvestUpstreamAudioBindings', () => {
       makeEdge('e2', 'char', 'seedance'),
     ]
     expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([])
+  })
+
+  // 系统音色送不出声（2026-08-09 修）：Fish 音色库选出来的音色只有 `voiceId` +
+  // `voiceSampleUrl`，此前这里回空数组 —— 用户接了音色、界面也显示接上了，
+  // 最终 `audio_urls` 却是空的，且不进任何提示。
+  it('emits a binding for a SYSTEM voice that only carries voiceSampleUrl', () => {
+    const nodes = [
+      makeNode('voice', NODE_TYPE_IDS.voice, {
+        voiceId: 'sys-tender',
+        voiceName: '温柔女声',
+        voiceSampleUrl: 'https://cdn/sample.mp3',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e1', 'voice', 'seedance')]
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      { url: 'https://cdn/sample.mp3', nodeId: 'voice' },
+    ])
+  })
+
+  // 取值顺序：样本是**最后**一档。用户自己上传/生成的参考音频永远优于一段
+  // 固定文本的系统样本 —— 两个字段都有值时不能挑错。
+  it('prefers the user reference audio over the system sample', () => {
+    const nodes = [
+      makeNode('voice', NODE_TYPE_IDS.voice, {
+        voiceId: 'sys-tender',
+        voiceSampleUrl: 'https://cdn/sample.mp3',
+        voiceReferenceAudioUrl: 'https://cdn/mine.mp3',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e1', 'voice', 'seedance')]
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      { url: 'https://cdn/mine.mp3', nodeId: 'voice' },
+    ])
   })
 
   it('uses character.name fallback when characterName is missing', () => {

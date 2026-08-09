@@ -15,10 +15,24 @@ export const CANVAS_ADD_GROUP_IDS = {
 export type CanvasAddGroupId =
   (typeof CANVAS_ADD_GROUP_IDS)[keyof typeof CANVAS_ADD_GROUP_IDS]
 
+/**
+ * ⚠ 这里**没有** `imageKeyframe`（2026-08-09 退役，owner 拍板「连根拔」）。
+ *
+ * 那一项建出来的是 `image` + `role: frame` —— 一个**带不了首/尾语义**的关键帧：
+ * 该族的详情面板没有分类下拉，无媒体时也没有任何 UI 能标，于是两张关键帧接进
+ * 同一个视频时，发给模型的图例双双自称「首帧」（`resolveKeyframeLegendCategory`
+ * 的兜底）。语义的唯一载体是 `imageCategory`（frameStart / frameEnd），所以造得
+ * 出「注定没有分类的关键帧」的入口本身就是双轨的根。
+ *
+ * 替代路径今天就能走：**加一张「图片素材」→ ⤢ 详情面板的分类下拉选「首帧 / 尾帧」**
+ * （`LooseImageDetailBody` 的那颗下拉无媒体也渲染）。
+ *
+ * 存量 `role: frame` / 旧 `frameImage` 节点仍被 `isKeyframeNode` 认作关键帧、
+ * 照旧发送 —— 这一刀只关创建口，不动存量图。
+ */
 export const CANVAS_ADD_INTENT_IDS = {
   imageAsset: 'image.asset',
   imageShot: 'image.shot',
-  imageKeyframe: 'image.keyframe',
   videoGenerate: 'video.generate',
   videoReference: 'video.reference',
   videoMerge: 'video.merge',
@@ -44,7 +58,6 @@ export interface CanvasAddCatalogItem {
   labelKey:
     | 'imageAsset'
     | 'imageShot'
-    | 'imageKeyframe'
     | 'videoGenerate'
     | 'videoReference'
     | 'videoMerge'
@@ -74,13 +87,6 @@ const CATALOG_ITEMS: readonly CanvasAddCatalogItem[] = [
     labelKey: 'imageShot',
     nodeType: NODE_TYPE_IDS.image,
     role: NODE_IMAGE_ROLE_IDS.shot,
-  },
-  {
-    id: CANVAS_ADD_INTENT_IDS.imageKeyframe,
-    group: CANVAS_ADD_GROUP_IDS.image,
-    labelKey: 'imageKeyframe',
-    nodeType: NODE_TYPE_IDS.image,
-    role: NODE_IMAGE_ROLE_IDS.frame,
   },
   {
     id: CANVAS_ADD_INTENT_IDS.videoGenerate,

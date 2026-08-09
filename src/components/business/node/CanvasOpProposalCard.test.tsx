@@ -215,6 +215,114 @@ describe('CanvasOpProposalCard', () => {
     expect(generate[0]?.op.op).toBe('generate')
   })
 
+  /**
+   * 回归用例（任务包 canvas-harvest-fixes §D）：**结构 op 存在，但
+   * `autoAppliedCount` 是 0**。
+   *
+   * 上面那条「审核态不自动落」用的也是 `autoAppliedCount: 0`，但它是**纯
+   * set_review_state 批**——`structuralOps` 为空，应用按钮本来就不渲染，所以
+   * 覆盖不到这个组合。
+   *
+   * 缺陷（2026-08-09 复现，同日修）：`canToggle` 要求 `=== undefined`、回执要求
+   * `> 0`，0 同时落在两边的否定区 → 卡上**有应用按钮、条目却全部 disabled**，
+   * 用户看得见应用却一条都剔不掉、也点不动。
+   *
+   * `0` 的来源只有一条（三条推测里另两条产生的都是 `undefined`）：dock 的
+   * `handleApplyAssistantOps` 在 `runAssistantCanvasOps` 缺席时直接返回
+   * `{applied: 0, skipped: 全部}`。**即「跑过了，一条没落」——图没被改，所以
+   * 条目当然还能编。**
+   */
+  it('结构 op + autoAppliedCount=0 → 一条没落，条目照样可勾选剔除', () => {
+    const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+    })
+    renderCard(
+      {
+        ops: [
+          { op: 'add_node', intent: 'organize.character', ref: 'c1' },
+          { op: 'connect', source: 'c1', target: 'shot-1' },
+        ],
+      },
+      [shot],
+      [],
+      { autoAppliedCount: 0 },
+    )
+
+    // 回执不出现（0 条落了，没什么可回执的）——于是落到应用按钮那一支。
+    expect(screen.queryByText('autoApplied')).not.toBeInTheDocument()
+    expect(screen.getByText('apply')).toBeInTheDocument()
+
+    const row = screen.getByText('describe.connect').closest('button')
+    expect(row).not.toBeDisabled()
+    fireEvent.click(row!)
+    // 剔掉一条后，应用按钮的计数跟着走 —— 勾选真的生效，不是只解了 disabled。
+    expect(screen.getByText('apply')).toBeInTheDocument()
+  })
+
+  /**
+   * 同一个缺陷的第三个面（上游账本没列）：`plan` 的选择也在问「自动落落了没
+   * 有」。0 时图**根本没被改**，计划就该继续跟着画布实时重算 —— 早先它和
+   * `autoAppliedCount !== undefined` 绑在一起，0 会把计划冻在首帧那一份。
+   */
+  it.each([
+    [0, true],
+    [2, false],
+  ])(
+    'autoAppliedCount=%s → 计划跟着画布重算 = %s',
+    (autoAppliedCount, followsLive) => {
+      const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.shot,
+      })
+      const character = makeNode('c1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.character,
+      })
+      const batch: NodeAssistantOpBatch = {
+        ops: [{ op: 'connect', source: 'c1', target: 'shot-1' }],
+      }
+      const card = (nodes: NodeWorkflowNode[]) => (
+        <CanvasOpProposalCard
+          plan={planNodeAssistantOps(batch, nodes, [])}
+          getNodeLabel={(id) => id}
+          onApply={vi.fn()}
+          autoAppliedCount={autoAppliedCount}
+        />
+      )
+
+      const view = render(card([shot, character]))
+      expect(screen.queryByText('rejectedPrefix')).not.toBeInTheDocument()
+
+      // 用户中途把源节点删了 → 父组件重算出的计划变成 rejected。
+      view.rerender(card([shot]))
+      if (followsLive) {
+        expect(screen.getByText('rejectedPrefix')).toBeInTheDocument()
+      } else {
+        // 已经落过了，图确实变了 —— 这时重算出的「不认识这个节点」说的是刚被
+        // 自动落下去的东西，读起来像失败，所以按首帧那份显示。
+        expect(screen.queryByText('rejectedPrefix')).not.toBeInTheDocument()
+      }
+    },
+  )
+
+  it('对照组：autoAppliedCount 缺省时，条目可勾选剔除', () => {
+    const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+    })
+    renderCard(
+      {
+        ops: [
+          { op: 'add_node', intent: 'organize.character', ref: 'c1' },
+          { op: 'connect', source: 'c1', target: 'shot-1' },
+        ],
+      },
+      [shot],
+    )
+
+    expect(screen.getByText('apply')).toBeInTheDocument()
+    expect(
+      screen.getByText('describe.connect').closest('button'),
+    ).not.toBeDisabled()
+  })
+
   it('助手自批的那条永远出现在卡上、永远不可应用', () => {
     const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
       role: NODE_IMAGE_ROLE_IDS.shot,

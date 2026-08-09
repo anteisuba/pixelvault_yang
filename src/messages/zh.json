@@ -1839,6 +1839,7 @@
       "pony": "Pony",
       "sd15": "SD 1.5",
       "anima": "Anima",
+      "krea2": "Krea 2",
       "qwen": "Qwen",
       "zImage": "Z-Image",
       "chroma": "Chroma",
@@ -3783,10 +3784,6 @@
         "imageShot": {
           "label": "镜头图",
           "helper": "用镜头描述和角色、场景参考生成单张画面。"
-        },
-        "imageKeyframe": {
-          "label": "关键帧",
-          "helper": "添加用于约束视频画面与构图的关键图像。"
         },
         "videoGenerate": {
           "label": "视频生成",

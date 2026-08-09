@@ -53,6 +53,39 @@ function collectLiveUrls(data: NodeWorkflowNodeData): Set<string> {
   return urls
 }
 
+/**
+ * 这一次审核动作该落在**哪个 URL** 上。
+ *
+ * 默认是节点主媒体 —— 选中一张卡、处置卡面那张图，这是审核按钮的常态。
+ *
+ * ⚠ 但审阅模式钉住的那一条**可能不是主媒体**：队列同时收 `referenceAssets[].url`
+ * （见 `collectLiveUrls`），助手的 `set_review_state` 能标到收集器里的任意一条。
+ * 两层指向不同 URL 时按钮必须跟着队列走 —— 2026-08-09 复现过不跟会怎样：主媒体
+ * 没有审核记录 → 祖父条款判 `approved` → **连「通过」键都不渲染**，用户从审阅
+ * 队列飞过来要点的那颗键根本不存在；点「打回」则写在主媒体上，待审的那条一个字
+ * 没动，队列的「还剩几张」永远减不下去。
+ *
+ * `current.url` 仍要过一遍 `collectLiveUrls`：钉住的那一条可能已经不在这张卡上
+ * （重做 / 移除素材），那时它是文件头说的幽灵，退回主媒体才对。
+ *
+ * ── 为什么解析在这里，而不是让调用方把 URL 传进来 ────────────────────
+ * 审核动作是**多入口**的（今天生成框，明天详情面板 / 近场工具条）。闸写在它们
+ * 共同经过的那一处才不会漏；逐个入口各传各的，第二个入口出现时就会漏掉这道判断
+ * —— 本轮已经在容量检查上栽过完全同一个形状。
+ */
+export function resolveReviewTargetUrl(
+  data: NodeWorkflowNodeData,
+  nodeId: string,
+  current: ReviewQueueItem | null | undefined,
+): string {
+  if (current?.nodeId === nodeId && collectLiveUrls(data).has(current.url)) {
+    return current.url
+  }
+  const media = data.mediaUrl?.trim()
+  if (media) return media
+  return data.imageUrl?.trim() ?? ''
+}
+
 /** 队列顺序：进队时间 → 节点下标 → URL。全部可比，排序稳定。 */
 export function compareReviewQueueItems(
   a: ReviewQueueItem,

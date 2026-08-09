@@ -294,7 +294,14 @@ Round 2 不能以“重构”为由回退这些已经成立的行为：十族穷
 2. 焦点被写入夺走（链条四环已核实闭合，⬜ 待真机复核）——**它决定实现要不要引入字段草稿态，须先做**
 3. `--node-status-failed` 与 `-fg` 双双映射 `--canvas-danger` → 红底红图标，对比 1:1
 4. 模型 options 为空时 `return null` 静默塌段，违反 Hard Rule 8（应路由 `QuickSetupDialog`）
-5. 系统音色接进视频生成送不出任何音频（`voiceSampleUrl` 不在收割路径），且 `hasVoiceContent` 有 `voiceId` 就判 ready
+5. ~~系统音色接进视频生成送不出任何音频（`voiceSampleUrl` 不在收割路径），且 `hasVoiceContent` 有 `voiceId` 就判 ready~~
+   ✅ **已修（2026-08-09）**：`readVoiceUrl`（`node-workflow-graph.ts`）的取值链追加第 3 档
+   `voiceSampleUrl`（`audioClip.url` > `voiceReferenceAudioUrl` > `voiceSampleUrl`），系统音色
+   现在真的进 `audio_urls`。
+   ⚠ **后半句「`hasVoiceContent` 有 `voiceId` 就判 ready」不再是缺陷**：修完之后，只要有
+   `voiceId` 就通常也有 `voiceSampleUrl`（Fish 音色库选中时一并写入，真机实测），所以「面板说
+   ready」与「真的发得出去」现在是同一个事实。仍然没有任何音频的音色节点走既有的
+   `references.voiceNotReadyHint`（暗芯片 +「本次生成不会发送」），不静默。
 
 **三处跨出设计线冻结范围**（`node-detail/**` · `inspector/**` · `composer/VideoComposer.tsx`）：
 不可执行模型过滤（studio-shared 模型选择器，会同时影响 Studio Video）· 音色接线修复（services 层）·

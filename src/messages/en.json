@@ -1839,6 +1839,7 @@
       "pony": "Pony",
       "sd15": "SD 1.5",
       "anima": "Anima",
+      "krea2": "Krea 2",
       "qwen": "Qwen",
       "zImage": "Z-Image",
       "chroma": "Chroma",
@@ -3783,10 +3784,6 @@
         "imageShot": {
           "label": "Shot image",
           "helper": "Generate a still from shot direction plus character and scene references."
-        },
-        "imageKeyframe": {
-          "label": "Keyframe",
-          "helper": "Add a key image that constrains a video's framing and composition."
         },
         "videoGenerate": {
           "label": "Generate video",

@@ -80,7 +80,6 @@ export function isAutoApplyAssistantOp(op: NodeAssistantOpId): boolean {
 export const NODE_ASSISTANT_ADD_INTENTS = [
   CANVAS_ADD_INTENT_IDS.imageAsset,
   CANVAS_ADD_INTENT_IDS.imageShot,
-  CANVAS_ADD_INTENT_IDS.imageKeyframe,
   CANVAS_ADD_INTENT_IDS.videoGenerate,
   CANVAS_ADD_INTENT_IDS.videoReference,
   CANVAS_ADD_INTENT_IDS.videoShotText,
@@ -108,8 +107,9 @@ export const NODE_ASSISTANT_ADD_INTENT_HINTS: Record<
     'a BACKGROUND / scene identity card — use it for places, environments, locations',
   [CANVAS_ADD_INTENT_IDS.imageShot]:
     'a shot still — one frame generated from shot text plus character / background references',
-  [CANVAS_ADD_INTENT_IDS.imageKeyframe]:
-    'a keyframe image that feeds a video node',
+  // ⚠ 没有 keyframe 这一项：造关键帧的入口 2026-08-09 退役（见
+  // `CANVAS_ADD_INTENT_IDS` 头注）。助手要铺关键帧就铺 `image.asset`，首/尾由
+  // 用户在详情面板的分类下拉里标 —— 助手自己也标不了，它没有写 imageCategory 的 op。
   [CANVAS_ADD_INTENT_IDS.imageAsset]:
     'a loose image with no assigned role — only when none of the roles above fits',
   [CANVAS_ADD_INTENT_IDS.videoShotText]:

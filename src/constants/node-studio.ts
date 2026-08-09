@@ -670,6 +670,22 @@ export const NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY: Record<
   frame: '首帧',
 }
 
+/**
+ * 无分类关键帧**从第二张起**的图例分类（2026-08-09 修「图例说谎」）。
+ *
+ * 上面那个 `.frame = '首帧'` 是 role=frame 这条老轨的兜底文案。两张都没标分类时
+ * （菜单建的关键帧就是这个形状），两条图例会**双双自称「首帧」**，且 `name` 也
+ * 跟着叫「首帧2」—— 名字与分类两处都说首帧，模型完全分不出首尾。
+ *
+ * 第二张起改用这个中性文案：**只说它是关键帧，不谎报是首帧，也不猜它是尾帧**。
+ * 不猜尾帧是有理由的 —— 本函数拿不到 modelId，而首/尾只在火山关键帧端点上成立
+ * （那边由 `role: first_frame / last_frame` 结构承载，图例本来就不负责传首尾）；
+ * 多模态参考端点压根没有首尾概念，标成「尾帧」就是换个方向说谎。
+ *
+ * 真要首尾语义，载体只有一个：`imageCategory`（frameStart / frameEnd）。
+ */
+export const NODE_STUDIO_KEYFRAME_LEGEND_UNCLASSIFIED_CATEGORY = '关键帧'
+
 // ⚠ 这里**没有** maxItems，也不该再加回来（owner 2026-08-07）。
 // 原先的 `maxItems: 5` 是零注释裸数字，唯一读者是 `CharacterImageLoraControls`
 // 的加号闸；而那个组件自 `04f8f6be`（2026-08-05 详情面板七槽改造）起就没有任何

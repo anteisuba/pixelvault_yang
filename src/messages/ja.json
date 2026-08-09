@@ -1839,6 +1839,7 @@
       "pony": "Pony",
       "sd15": "SD 1.5",
       "anima": "Anima",
+      "krea2": "Krea 2",
       "qwen": "Qwen",
       "zImage": "Z-Image",
       "chroma": "Chroma",
@@ -3783,10 +3784,6 @@
         "imageShot": {
           "label": "ショット画像",
           "helper": "ショット指示とキャラクター・シーン参照から静止画を生成します。"
-        },
-        "imageKeyframe": {
-          "label": "キーフレーム",
-          "helper": "動画の画角と構図を制約するキー画像を追加します。"
         },
         "videoGenerate": {
           "label": "動画生成",

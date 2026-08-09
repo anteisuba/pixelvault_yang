@@ -12,7 +12,6 @@ import {
   Clapperboard,
   FileText,
   Film,
-  Frame,
   ImagePlus,
   Layers,
   Mic2,
@@ -57,7 +56,6 @@ const ICON_BY_INTENT: Record<
 > = {
   [CANVAS_ADD_INTENT_IDS.imageAsset]: ImagePlus,
   [CANVAS_ADD_INTENT_IDS.imageShot]: Clapperboard,
-  [CANVAS_ADD_INTENT_IDS.imageKeyframe]: Frame,
   [CANVAS_ADD_INTENT_IDS.videoGenerate]: Video,
   [CANVAS_ADD_INTENT_IDS.videoReference]: Film,
   [CANVAS_ADD_INTENT_IDS.videoShotText]: FileText,

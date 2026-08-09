@@ -7,6 +7,7 @@ import {
   findPrevReviewItem,
   findPreviousVersionUrl,
   isSameReviewItem,
+  resolveReviewTargetUrl,
   type ReviewQueueItem,
 } from '@/lib/node-review-queue'
 import type {
@@ -225,5 +226,64 @@ describe('findPreviousVersionUrl（新旧双联对比）', () => {
     }
     expect(findPreviousVersionUrl(data, 'https://cdn/v2.png')).toBeUndefined()
     expect(findPreviousVersionUrl(base, 'https://cdn/v2.png')).toBeUndefined()
+  })
+})
+
+describe('resolveReviewTargetUrl（审核动作落在哪个 URL 上）', () => {
+  const MAIN = 'https://cdn/main.png'
+  const ASSET = 'https://cdn/asset-2.png'
+  const collector = {
+    prompt: '',
+    status: 'idle',
+    mediaUrl: MAIN,
+    referenceAssets: [
+      {
+        id: 'asset-2',
+        url: ASSET,
+        source: 'canvas',
+        addedAt: '2026-08-09T00:00:00.000Z',
+      },
+    ],
+  } as unknown as NodeWorkflowNodeData
+
+  function item(url: string, nodeId = 'n1'): ReviewQueueItem {
+    return { nodeId, url, nodeIndex: 0 }
+  }
+
+  it('没进审阅模式 → 主媒体', () => {
+    expect(resolveReviewTargetUrl(collector, 'n1', null)).toBe(MAIN)
+    expect(resolveReviewTargetUrl(collector, 'n1', undefined)).toBe(MAIN)
+  })
+
+  it('⚠ 缺陷回归：钉住的是收集器里的一条 referenceAsset → 跟着它，不是主媒体', () => {
+    expect(resolveReviewTargetUrl(collector, 'n1', item(ASSET))).toBe(ASSET)
+  })
+
+  it('钉住的是别的节点 → 不串台，回自己的主媒体', () => {
+    expect(resolveReviewTargetUrl(collector, 'n1', item(ASSET, 'n2'))).toBe(
+      MAIN,
+    )
+  })
+
+  it('钉住的那条已不在这张卡上（幽灵）→ 退回主媒体', () => {
+    expect(
+      resolveReviewTargetUrl(collector, 'n1', item('https://cdn/gone.png')),
+    ).toBe(MAIN)
+  })
+
+  it('legacy `imageUrl` 仍是主媒体的兜底', () => {
+    const legacy = {
+      prompt: '',
+      status: 'idle',
+      imageUrl: MAIN,
+    } as unknown as NodeWorkflowNodeData
+    expect(resolveReviewTargetUrl(legacy, 'n1', null)).toBe(MAIN)
+    // 队列也收 imageUrl，所以钉住它是合法的。
+    expect(resolveReviewTargetUrl(legacy, 'n1', item(MAIN))).toBe(MAIN)
+  })
+
+  it('什么媒体都没有 → 空串（调用方据此整个不渲染）', () => {
+    const empty = { prompt: '', status: 'idle' } as NodeWorkflowNodeData
+    expect(resolveReviewTargetUrl(empty, 'n1', null)).toBe('')
   })
 })

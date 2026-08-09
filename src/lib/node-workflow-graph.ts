@@ -1,5 +1,6 @@
 import {
   NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY,
+  NODE_STUDIO_KEYFRAME_LEGEND_UNCLASSIFIED_CATEGORY,
   NODE_STUDIO_KEYFRAME_REFERENCE_ROLES,
   NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
   NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS,
@@ -722,9 +723,19 @@ export interface VideoLegendImageReference {
  * role-less loose image classified `imageCategory: 'frameStart'|'frameEnd'`).
  * A role-less S5d ③ classification wins when present (more specific —
  * 关键帧首/关键帧尾 vs the generic 首帧); a plain role=frame/frameImage node
- * (no `imageCategory`) falls back to `NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY.frame`.
+ * (no `imageCategory`) falls back by ORDINAL.
+ *
+ * ⚠ 兜底必须看序位（2026-08-09 修）：此前无分类一律回落成「首帧」，于是两张都
+ * 没标分类时图例**双双自称首帧**（`name` 也跟着叫「首帧2」），模型分不出首尾。
+ * 而「两张都没标」正是默认路径 —— 菜单建的关键帧不带 `imageCategory`，且那一族
+ * 的详情面板没有分类下拉。现在只有**第一张**还叫首帧（它在火山关键帧端点上
+ * 确实是 `first_frame`），第二张起走中性文案，见常量本身的注释。
  */
-function resolveKeyframeLegendCategory(node: NodeWorkflowNode): string {
+function resolveKeyframeLegendCategory(
+  node: NodeWorkflowNode,
+  /** 1-based，与图例里的 `${category}${ordinal}` 同一个号。 */
+  ordinal: number,
+): string {
   const nodeCategory = node.data.imageCategory
   if (nodeCategory) {
     const resolved =
@@ -733,7 +744,9 @@ function resolveKeyframeLegendCategory(node: NodeWorkflowNode): string {
         : NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS[nodeCategory]
     if (resolved) return resolved
   }
-  return NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY.frame
+  return ordinal <= 1
+    ? NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY.frame
+    : NODE_STUDIO_KEYFRAME_LEGEND_UNCLASSIFIED_CATEGORY
 }
 
 /**
@@ -789,7 +802,7 @@ export function harvestUpstreamVideoImageReferences(
     const url = getNodeMediaUrl(node.data)
     if (!url || map.has(url)) continue
     keyframeOrdinal += 1
-    const category = resolveKeyframeLegendCategory(node)
+    const category = resolveKeyframeLegendCategory(node, keyframeOrdinal)
     map.set(url, {
       name: readName(node.data.mediaLabel) ?? `${category}${keyframeOrdinal}`,
       category,
@@ -1047,6 +1060,31 @@ function readCharacterName(node: NodeWorkflowNode): string | undefined {
   return undefined
 }
 
+/**
+ * 这个音色节点能拿出来发的那一条音频 URL。
+ *
+ * 取值顺序 = 「谁更像用户要的那段声音」：
+ *   1. `audioClip.url` —— 已经成品的音频片段
+ *   2. `voiceReferenceAudioUrl` —— 用户自己上传/生成的参考音频
+ *   3. `voiceSampleUrl` —— 系统音色的样本
+ *
+ * ⚠ 第 3 档是 2026-08-09 补上的，此前**整条系统音色支线送不出声**：只选了
+ * Fish 音色库里的音色（`voiceId` + `voiceSampleUrl`，没有 `voiceReferenceAudioUrl`）
+ * 的节点接进视频，`harvestUpstreamAudioBindings` 回空数组，最终 `audio_urls` 为空。
+ *
+ * 「样本能不能当配音素材发」不是这里现拍的，三处既有事实早就答了「能」：
+ *   · `NODE_STUDIO_VOICE_PROFILE.referenceSampleText` 的注释写明这段样本按
+ *     ~12-15s 设计，**就是为了卡进 fal Seedance reference-to-video 的 15s 音频上限**
+ *   · 详情面板证据抽屉的标题就是「取样将发送」（`nodeDetail.sampleWillSend`）
+ *   · 卡面（`VoiceNode`）与面板（`VoiceDetailBody`）的试听源解析**都把
+ *     `voiceSampleUrl` 当这个音色的音频**
+ * 于是缺的不是判断，是这一层没跟上 —— 同一个事实两条链，收割层是掉队的那条。
+ *
+ * ⚠ 与卡面的试听源解析**有意不完全一致**：卡面按 `voiceSource` 先取对应档
+ * （它要回答「点播放该响哪一段」），这里按「谁是更好的音色供体」排序 —— 真实
+ * 录制/上传的 clip 永远优于一段固定文本的样本。两者只在「两个字段都有值」时
+ * 才分岔，且各自的取舍都在自己的问题里成立。
+ */
 export function readVoiceUrl(node: NodeWorkflowNode): string | undefined {
   if (!isVoiceProfileNode(node)) return undefined
   const audioClipUrl =
@@ -1056,11 +1094,16 @@ export function readVoiceUrl(node: NodeWorkflowNode): string | undefined {
   if (typeof audioClipUrl === 'string' && audioClipUrl.trim()) {
     return audioClipUrl.trim()
   }
-  const url =
+  const referenceUrl =
     typeof node.data.voiceReferenceAudioUrl === 'string'
       ? node.data.voiceReferenceAudioUrl.trim()
       : ''
-  return url || undefined
+  if (referenceUrl) return referenceUrl
+  const sampleUrl =
+    typeof node.data.voiceSampleUrl === 'string'
+      ? node.data.voiceSampleUrl.trim()
+      : ''
+  return sampleUrl || undefined
 }
 
 function getAudioBindingSourceKind(

@@ -60,6 +60,7 @@ import {
   rejectMedia,
   resolveMediaReviewState,
 } from '@/lib/node-media-review'
+import { resolveReviewTargetUrl } from '@/lib/node-review-queue'
 import {
   getMediaGenerateBlockReason,
   type MediaGenerateBlockReason,
@@ -794,8 +795,11 @@ export function MediaReviewButtons({
   compact?: boolean
 }) {
   const t = useTranslations('StudioNode.review')
-  const { updateNodeData } = useNodeWorkflowActions()
-  const url = getNodeMediaUrl(data)
+  const { updateNodeData, reviewMode } = useNodeWorkflowActions()
+  // ⚠ 不能用 `getNodeMediaUrl` —— 它只回答「主媒体是哪一张」，而待审的那一条
+  // 可能是收集器里的一条 referenceAsset。判据收在 `resolveReviewTargetUrl`
+  // 里（那里写了两层指向不同会怎样）。
+  const url = resolveReviewTargetUrl(data, nodeId, reviewMode?.current)
   if (!url) return null
   const state = resolveMediaReviewState(data, url)
 

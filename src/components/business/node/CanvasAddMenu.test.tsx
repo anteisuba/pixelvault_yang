@@ -45,9 +45,10 @@ describe('CanvasAddMenu', () => {
         screen.getByText(`addCatalog.groups.${groupId}`),
       ).toBeInTheDocument()
     }
-    // 顶部真上传 + 图片 3 + 视频 4 + 声音 1 + 统一收集 1 = 10。
+    // 顶部真上传 + 图片 2 + 视频 4 + 声音 1 + 统一收集 1 = 9。
     // 角色/场景两个兼容 intent 仍留在 catalog，但手工菜单只暴露一个收集入口。
-    expect(screen.getAllByRole('menuitem')).toHaveLength(10)
+    // 图片从 3 降到 2：关键帧 2026-08-09 退役（canvas-add-catalog 头注）。
+    expect(screen.getAllByRole('menuitem')).toHaveLength(9)
     expect(
       screen.getByText('addCatalog.items.collect.label'),
     ).toBeInTheDocument()
@@ -101,13 +102,8 @@ describe('CanvasAddMenu', () => {
     )
     expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageAsset)
 
-    fireEvent.click(
-      screen
-        .getByText('addCatalog.items.imageKeyframe.label')
-        .closest('button') as HTMLElement,
-    )
-    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageKeyframe)
-
+    // 2026-08-09：关键帧那一项已退役（见 canvas-add-catalog 的头注），菜单里
+    // 不再有它，所以这里也不再点它。
     fireEvent.click(
       screen
         .getByText('addCatalog.items.collect.label')

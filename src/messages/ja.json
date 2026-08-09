@@ -4889,7 +4889,9 @@
         "typeMismatch": "このカードはこのターゲットに取り込めません",
         "duplicate": "すでに含まれています",
         "capacityFull": "参照枠が満杯です",
-        "capacityFullWithLimit": "参照枠が満杯です（{current}/{limit}）"
+        "capacityFullWithLimit": "参照枠が満杯です（{current}/{limit}）",
+        "capacityFullIn": "{zone}枠が満杯です（{current}/{limit}）。1 つ外してから追加してください",
+        "capacityFullByTotal": "{zone}枠は残り {limit} 個：素材の総数が上限に達しています。動画か音声を減らすと空きます"
       },
       "preview": {
         "images": "参照×{count}",

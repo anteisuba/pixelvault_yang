@@ -4889,7 +4889,9 @@
         "typeMismatch": "This card can't feed that target",
         "duplicate": "Already included",
         "capacityFull": "Reference slots are full",
-        "capacityFullWithLimit": "Reference slots are full ({current}/{limit})"
+        "capacityFullWithLimit": "Reference slots are full ({current}/{limit})",
+        "capacityFullIn": "{zone} slots are full ({current}/{limit}) — remove one to add another",
+        "capacityFullByTotal": "Only {limit} {zone} slots left: the total asset cap is reached, drop a video or audio to free more"
       },
       "preview": {
         "images": "{count} refs",

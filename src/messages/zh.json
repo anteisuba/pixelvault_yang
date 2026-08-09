@@ -4889,7 +4889,9 @@
         "typeMismatch": "这张卡吃不进这个目标",
         "duplicate": "已经含有这张卡了",
         "capacityFull": "参考位已满",
-        "capacityFullWithLimit": "参考位已满 {current}/{limit}"
+        "capacityFullWithLimit": "参考位已满 {current}/{limit}",
+        "capacityFullIn": "{zone}位已满 {current}/{limit}，移除一条再加",
+        "capacityFullByTotal": "{zone}位只剩 {limit} 个：素材总数已到上限，减掉视频或音频才能再加"
       },
       "preview": {
         "images": "图集×{count}",

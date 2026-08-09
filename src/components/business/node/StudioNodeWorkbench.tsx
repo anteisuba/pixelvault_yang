@@ -157,6 +157,7 @@ import {
 import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
 import { assembleReferenceImagePayload } from '@/lib/node-reference-payload'
 import { planVideoKeyframeImages } from '@/lib/node-video-keyframe-plan'
+import { resolveIngestCapacity } from '@/lib/node-ingest-capacity'
 import { resolveVideoSendSlotLimits } from '@/lib/node-video-send-slots'
 import type { AdvancedParams } from '@/types'
 import type {
@@ -485,6 +486,9 @@ function StudioNodeCanvas() {
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const t = useTranslations('StudioNode')
   const tErrors = useTranslations('Errors')
+  // 落槽容量闸的两句话：区名取槽架那一份（两处显示同一个词），拒绝理由取 ingest。
+  const tSlotRack = useTranslations('StudioNode.videoComposer.slotRack')
+  const tIngestReasons = useTranslations('StudioNode.ingest.reasons')
   const locale = useLocale()
   const searchParams = useSearchParams()
   const imageEditHandoff = useMemo(
@@ -2969,16 +2973,49 @@ function StudioNodeCanvas() {
    */
   const handleIngestConnect = useCallback(
     (sourceId: string, targetId: string) => {
+      const source = workflow.nodes.find((node) => node.id === sourceId)
+      const target = workflow.nodes.find((node) => node.id === targetId)
+      if (!source || !target) return
+
+      /**
+       * 容量红线**在入口**（契约 §4.5）—— 满了当场拒绝，不是先装进去再标灰。
+       *
+       * 闸挂在这一个函数上，四条入口（拖边 · `@` 提及 · 从画布选择 · ＋添加素材）
+       * 自动全保。逐个入口各写一遍正是本轮踩过的形状：原型给 `@` 开了新入口就漏
+       * 一道闸，9/9 被塞成 10/9、总额 13/12。
+       *
+       * 拒绝要**说对是哪条限制**：分项满 → 去减这一类；分项没满但跨模态总额尽
+       * → 去减视频/音频。两者对用户的下一步完全不同。
+       */
+      const capacity = resolveIngestCapacity({
+        source,
+        target,
+        edges: workflow.edges,
+        nodes: workflow.nodes,
+      })
+      if (capacity?.full) {
+        const zone = tSlotRack(`zoneLabel.${capacity.zone}`)
+        toast.info(
+          capacity.limitedByTotal
+            ? tIngestReasons('capacityFullByTotal', {
+                zone,
+                limit: capacity.limit,
+              })
+            : tIngestReasons('capacityFullIn', {
+                zone,
+                current: capacity.current,
+                limit: capacity.limit,
+              }),
+        )
+        return
+      }
+
       workflow.onConnect({
         source: sourceId,
         target: targetId,
         sourceHandle: null,
         targetHandle: null,
       })
-
-      const source = workflow.nodes.find((node) => node.id === sourceId)
-      const target = workflow.nodes.find((node) => node.id === targetId)
-      if (!source || !target) return
       // 素材类才进正文；结构类（镜头文本等）不插。
       if (!getSeedanceReferenceKind(source)) return
 
@@ -2994,18 +3031,36 @@ function StudioNodeCanvas() {
           : `${token} `,
       })
     },
-    [workflow],
+    [workflow, tIngestReasons, tSlotRack],
   )
 
   const listConnectableReferences = useCallback(
     (targetNodeId: string): NodeWorkflowNode[] => {
       const target = workflow.nodes.find((node) => node.id === targetNodeId)
       if (!target) return []
-      return workflow.nodes.filter(
-        (source) =>
-          evaluateCastIngest(source, target, workflow.edges, workflow.nodes)
-            .legal,
-      )
+      return workflow.nodes.filter((source) => {
+        const evaluation = evaluateCastIngest(
+          source,
+          target,
+          workflow.edges,
+          workflow.nodes,
+        )
+        if (evaluation.legal) return true
+        /**
+         * ⚠ **容量满不算「选不了」** —— 它是落槽时的闸，不是候选过滤条件。
+         *
+         * 契约 §4.5：「拒绝要说对是哪条限制 …… 菜单不关，用户能立刻换一个」。
+         * 把容量混进这里的后果真机实拍到了：一个关键帧档节点（图片位 1）存量
+         * 连着 6 张图，菜单于是整个空掉，只说「没有匹配的素材」—— 把「满了」
+         * 伪装成「没有」，用户既不知道原因，也没有下一步。
+         *
+         * 类型不匹配 / 重复连接才是真的选不了：前者是能力边界，后者点了也没用。
+         */
+        return (
+          evaluation.reason ===
+          NODE_STUDIO_INGEST_REJECT_REASON_IDS.capacityFull
+        )
+      })
     },
     [workflow.edges, workflow.nodes],
   )
@@ -3045,7 +3100,18 @@ function StudioNodeCanvas() {
         workflow.edges,
         workflow.nodes,
       )
-      if (!evaluation.legal) {
+      /**
+       * ⚠ **容量满不在这里拦** —— 往下走，由落槽闸（`handleIngestConnect`）统一
+       * 拒绝。否则同一件事有两套话术：这里说的是泛指的「参考位已满 6/1」，既不
+       * 分区（图片 / 音频 / 视频），也不说是分项到顶还是跨模态总额被吃光，而那
+       * 两者对用户的下一步完全不同（契约 §4.5「说对是哪条限制」）。
+       *
+       * 类型不匹配 / 重复连接仍在这里拦：它们是「能不能选」，不是「还塞不塞得下」。
+       */
+      if (
+        !evaluation.legal &&
+        evaluation.reason !== NODE_STUDIO_INGEST_REJECT_REASON_IDS.capacityFull
+      ) {
         toast.error(t('ingest.canvasNodeIngestRejected'), {
           description: translateIngestReason(evaluation),
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,

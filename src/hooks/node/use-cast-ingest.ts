@@ -14,14 +14,8 @@ import {
   NODE_STUDIO_INGEST_REJECT_REASON_IDS,
   type NodeStudioIngestRejectReason,
 } from '@/constants/node-studio'
-import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
+import { resolveIngestCapacity } from '@/lib/node-ingest-capacity'
 import { canConnectNodeTypes } from '@/lib/node-connection-rules'
-import {
-  getNodeStageMediaUrls,
-  getSeedanceReferenceKind,
-  getUpstreamNodes,
-} from '@/lib/node-workflow-graph'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import type { CastSectionId } from '@/components/business/node/CastDock'
 
@@ -70,49 +64,16 @@ export interface CastIngestEvaluation {
   limit?: number
 }
 
-/** Source types that contribute to a target's image_urls payload — the only
- *  pool a numeric capacity check makes sense for (voice/videoReference have no
- *  known per-target cap in this codebase, so capacityFull never fires for
- *  them — honest silence over a guessed number, §6.3 "不可得则只说"). */
-function isImageContributingNode(node: NodeWorkflowNode): boolean {
-  return (
-    node.type === NODE_TYPE_IDS.characterImage ||
-    node.type === NODE_TYPE_IDS.backgroundImage ||
-    node.type === NODE_TYPE_IDS.frameImage ||
-    node.type === NODE_TYPE_IDS.shot ||
-    node.type === NODE_TYPE_IDS.image
-  )
-}
-
 /**
- * R3-6 出场组: how many image_urls SLOTS one upstream node actually occupies
- * — a collector (character/background) contributes its whole onStage set
- * (`getNodeStageMediaUrls`), everything else contributes exactly 1, same as
- * before R3-6. `Math.max(1, …)` keeps a media-less collector counted as 1
- * (matches the pre-R3-6 "count nodes, not images" approximation this preview
- * always used — an edge already committed to the graph still occupies a
- * conceptual slot even before its image loads).
- */
-function countImageContribution(node: NodeWorkflowNode): number {
-  const kind = getSeedanceReferenceKind(node)
-  if (kind === 'character' || kind === 'background') {
-    return Math.max(1, getNodeStageMediaUrls(node.data).length)
-  }
-  return 1
-}
-
-/**
- * §6.3 张口预览 / 咬不动「参考位已满 n/m」的容量来源: only checked when the
- * target is an image-reference consumer (video/shot) AND already has a model
- * selected (an unset model has no knowable cap — the check is skipped
- * entirely rather than guessing, matching the task packet's "上限不可得则
- * 只说「参考位已满」" — here that case simply never raises capacityFull).
- * Exported for the S5f B3 张口预览 mini-list: the preview shows "参考位 n/m"
- * whenever the cap is knowable, NOT only when it's exceeded — so the preview
- * needs the raw numbers even while `evaluateCastIngest` stays legal. Kept
- * OUT of `CastIngestEvaluation`'s legal shape on purpose (existing tests
- * assert `toEqual({ legal: true })`, and "legal + incidental numbers" would
- * be a weaker contract).
+ * §6.3 张口预览「参考位 n/m」的数字来源 —— 薄转接，容量判据在
+ * `node-ingest-capacity.ts`（那里也是落槽闸读的同一份，界面拦的与实际发的从此
+ * 是一回事）。预览要的是**原始数字**：上限可得就显示 n/m，不只在超了才显示，
+ * 所以它与 `evaluateCastIngest` 的 legal 判定分开返回。
+ *
+ * ⚠ 2026-08-09 换源：此前这里自己用 `getMaxReferenceImages` 算，且先用
+ * `isImageContributingNode` 过滤 —— 于是**音频与视频从来没被拦过**（旧注释自陈
+ * 「voice/videoReference 没有已知的 per-target 上限」，而契约里它们一直是 3），
+ * 跨模态总额也算不进去。现在三个区共用一套解算。
  */
 export function previewIngestCapacity(
   sourceNode: NodeWorkflowNode,
@@ -120,26 +81,14 @@ export function previewIngestCapacity(
   edges: readonly NodeWorkflowEdge[],
   nodes: readonly NodeWorkflowNode[],
 ): { current: number; limit: number } | null {
-  if (!isImageContributingNode(sourceNode)) return null
-  const targetIsVideo = targetNode.type === NODE_TYPE_IDS.seedance
-  const targetIsShot =
-    targetNode.type === NODE_TYPE_IDS.shot ||
-    (targetNode.type === NODE_TYPE_IDS.image &&
-      targetNode.data.role === NODE_IMAGE_ROLE_IDS.shot)
-  if (!targetIsVideo && !targetIsShot) return null
-
-  const model = targetNode.data.model
-  if (!model) return null
-  const limit = getMaxReferenceImages(model.adapterType, model.modelId)
-  if (!Number.isFinite(limit) || limit <= 0) return null
-
-  // R3-6 出场组: count SLOTS, not nodes — a collector with several onStage
-  // images occupies that many image_urls positions, so the "参考位 n/m"
-  // preview stays honest once a card curates more than its ★ primary.
-  const current = getUpstreamNodes(targetNode.id, edges, nodes)
-    .filter(isImageContributingNode)
-    .reduce((sum, node) => sum + countImageContribution(node), 0)
-  return { current, limit }
+  const capacity = resolveIngestCapacity({
+    source: sourceNode,
+    target: targetNode,
+    edges,
+    nodes,
+  })
+  if (!capacity) return null
+  return { current: capacity.current, limit: capacity.limit }
 }
 
 /** Pure legality + capacity check — no DOM, no state. Reused by the pointer
@@ -177,8 +126,13 @@ export function evaluateCastIngest(
       reason: NODE_STUDIO_INGEST_REJECT_REASON_IDS.duplicate,
     }
   }
-  const capacity = previewIngestCapacity(sourceNode, targetNode, edges, nodes)
-  if (capacity && capacity.current >= capacity.limit) {
+  const capacity = resolveIngestCapacity({
+    source: sourceNode,
+    target: targetNode,
+    edges,
+    nodes,
+  })
+  if (capacity?.full) {
     return {
       legal: false,
       reason: NODE_STUDIO_INGEST_REJECT_REASON_IDS.capacityFull,

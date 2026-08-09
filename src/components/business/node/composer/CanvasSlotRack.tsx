@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import { ChevronDown, ImageIcon, Link2Off, Music2, Video } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import { motionTransition, staggerDelay } from '@/constants/motion'
 import type { ComposerReferenceToken } from '@/hooks/node/use-video-composer'
 import type { VideoSendSlotLimits } from '@/lib/node-video-send-slots'
 import { cn } from '@/lib/utils'
@@ -28,6 +30,20 @@ import type { ReferenceTokenKind } from './ReferenceTokenChip'
  * `density='card'` 分支自己画了一条 `referenceTokens.slice(0, 5)` 的 strip，
  * 那正是「两档计数框出来不是同一个数」的来源（紧凑档从来只显示 5 个，而契约
  * 上限是 12）。
+ *
+ * ── 结构性动效（阶段 6-C，总包「结构性动效四条」的前三条） ─────────────
+ * ① **折叠**：展开时内容组从上方 4px 淡入落位。
+ * ② **切档掉落**：切模式后新出现的分类区按序掉落（key = 区 id，所以**留下来的
+ *    区不重播** —— 只有真的变了的那一格才动）。
+ * ③ **@落槽飞入**：新槽位以 scale 0.92 → 1 弹入（key = token.id，同理只有新落的
+ *    那一格动）。第四条「取用为文字」依附阶段 4 的正文引用胶囊，胶囊没做之前
+ *    没有可动的东西。
+ *
+ * ⚠ **只动 `transform` / `opacity`**：容器高度**瞬时**，不做补间。height /
+ *   grid-template-rows 的过渡会把整棵子树踢出合成层 —— 那正是详情面板退役六个
+ *   `.node-collapsible` 的原因，别沿着「让折叠更顺滑」的直觉把它请回来。
+ * ⚠ **只做进场，不做退场**（同 `CanvasPopIn` 的取舍）：退场要 `AnimatePresence`
+ *   接管卸载时机，而「折起」这个动作用户要的是**立刻看见结果**。
  */
 
 /**
@@ -155,6 +171,8 @@ export function CanvasSlotRack({
    * 所以退回到族名（「镜头」/「角色」…），至少说清它是哪一类。
    */
   const tKind = useTranslations('StudioNode.videoComposer.refKind')
+  const reducedMotion = useReducedMotion()
+  const enter = motionTransition('base', reducedMotion)
   const [rackOpen, setRackOpen] = useState(defaultExpanded)
   const [openZones, setOpenZones] = useState<ReadonlySet<SlotZoneId>>(() =>
     defaultExpanded ? new Set(ZONE_IDS) : new Set(),
@@ -211,15 +229,30 @@ export function CanvasSlotRack({
       </button>
 
       {rackOpen ? (
-        <ul className="mt-1 space-y-1">
-          {visibleZones.map((entry) => {
+        // ① 折叠：内容组整体淡入落位。高度瞬时（见头注），只有 y/opacity 补间。
+        <motion.ul
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={enter}
+          className="mt-1 space-y-1"
+        >
+          {visibleZones.map((entry, zoneIndex) => {
             const Icon = SLOT_ZONES[entry.zone].icon
             const zoneTokens = tokens.filter(
               (token) => ZONE_BY_KIND[token.kind] === entry.zone,
             )
             const zoneOpen = openZones.has(entry.zone)
             return (
-              <li key={entry.zone}>
+              // ② 切档掉落：key = 区 id，切模式后只有**新出现**的区会重播。
+              <motion.li
+                key={entry.zone}
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  ...enter,
+                  delay: reducedMotion ? 0 : staggerDelay(zoneIndex),
+                }}
+              >
                 {/* 分类行 —— 展开缩略图与否，n/max 都在这里读得到。 */}
                 <button
                   type="button"
@@ -245,7 +278,7 @@ export function CanvasSlotRack({
 
                 {zoneOpen && zoneTokens.length > 0 ? (
                   <ul className="flex flex-wrap gap-1 px-1.5 pb-1 pt-0.5">
-                    {zoneTokens.map((token) => {
+                    {zoneTokens.map((token, slotIdx) => {
                       const unsendable = Boolean(
                         token.mediaUrl && unsendableUrls?.has(token.mediaUrl),
                       )
@@ -260,8 +293,15 @@ export function CanvasSlotRack({
                         ? slotIndexByUrl?.get(token.mediaUrl)
                         : undefined
                       return (
-                        <li
+                        // ③ @落槽飞入：key = token.id，只有**新落的**那一格弹入。
+                        <motion.li
                           key={token.id}
+                          initial={{ opacity: 0, scale: 0.92 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{
+                            ...enter,
+                            delay: reducedMotion ? 0 : staggerDelay(slotIdx),
+                          }}
                           className="flex items-center gap-0.5 rounded-lg border border-node-panel-inner pr-0.5"
                         >
                           <button
@@ -325,15 +365,15 @@ export function CanvasSlotRack({
                               <Link2Off className="size-3" aria-hidden />
                             </button>
                           ) : null}
-                        </li>
+                        </motion.li>
                       )
                     })}
                   </ul>
                 ) : null}
-              </li>
+              </motion.li>
             )
           })}
-        </ul>
+        </motion.ul>
       ) : null}
     </div>
   )

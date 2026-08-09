@@ -278,6 +278,42 @@ describe('CanvasSlotRack · 折缩略图不折账（§4.2）', () => {
   })
 })
 
+describe('CanvasSlotRack · 结构性动效的两条纪律（阶段 6-C）', () => {
+  const tokens = [token('c1', 'character')]
+
+  it('折起是**瞬时**的 —— 只做进场不做退场，收起当帧就看不见', () => {
+    // ⚠ 这条挡的是「让折叠更顺滑」的直觉：给它加 AnimatePresence + exit 之后，
+    // 收起的那一格会在 DOM 里多留一个动画时长，用户点了「收起」却还看得见。
+    render(
+      <CanvasSlotRack
+        tokens={tokens}
+        slotLimits={FULL}
+        defaultExpanded={true}
+      />,
+    )
+    expect(screen.getByTitle('character-c1')).toBeInTheDocument()
+
+    // 展开态下摘要行与三个分类行都是 expanded=true，取第一个（摘要行）。
+    fireEvent.click(screen.getAllByRole('button', { expanded: true })[0])
+    expect(screen.queryByTitle('character-c1')).not.toBeInTheDocument()
+  })
+
+  it('减动偏好下不留位移残影 —— 动效只是进场，内容一开始就在正确位置', () => {
+    // jsdom 里 matchMedia 默认不匹配 reduce，这条守的是**结构**：无论动效开关，
+    // 展开后内容必须已经可读可点，不能依赖动画结束才挂载。
+    render(
+      <CanvasSlotRack
+        tokens={tokens}
+        slotLimits={FULL}
+        defaultExpanded={false}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+    fireEvent.click(screen.getByText('zoneLabel.images').closest('button')!)
+    expect(screen.getByTitle('character-c1')).toBeInTheDocument()
+  })
+})
+
 describe('CanvasSlotRack · 两档密度 = 两个默认折叠深度（§4.3）', () => {
   const tokens = [token('c1', 'character')]
 

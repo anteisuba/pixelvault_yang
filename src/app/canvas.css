@@ -465,13 +465,19 @@
   border-color: var(--node-foreground);
 }
 
-/* Collapsible disclosure (video composer model picker) — animate open/close via
-   grid-template-rows 0fr↔1fr so it eases height without measuring. The child
-   must clip + allow 0 min-height for the 0fr track to actually collapse. */
+/* Collapsible disclosure — grid-template-rows 0fr↔1fr collapses without
+   measuring. The child must clip + allow 0 min-height for the 0fr track to
+   actually collapse.
+
+   ⚠ 阶段 6-C（2026-08-10）**撤掉了这里的 `transition: grid-template-rows`**：
+   高度类属性的补间每帧都要重新布局，整棵子树掉出合成层 —— 这正是契约把六个
+   `.node-collapsible` 退役的原因，剩下这最后一个（composer 的种子披露）漏在
+   网里。规矩是「容器高度**瞬时**，动效只走 transform / opacity」，所以高度
+   直接到位，改由下面那条只动 opacity/translate 的进场动画负责「它出来了」。
+   ⛔ 别把 transition 加回来。 */
 .node-collapsible {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 180ms ease;
 }
 .node-collapsible[data-open] {
   grid-template-rows: 1fr;
@@ -479,6 +485,16 @@
 .node-collapsible > div {
   min-height: 0;
   overflow: hidden;
+}
+.node-collapsible[data-open] > div {
+  animation: canvas-disclosure-in var(--canvas-dur-base, 250ms)
+    var(--canvas-ease-in, cubic-bezier(0.22, 1, 0.36, 1));
+}
+@keyframes canvas-disclosure-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -526,9 +542,13 @@
      槽架三级折叠 + 参数条挤在 320 里，槽位名字几乎全被截断。
      ⚠ 没有直接上契约 §7.1 的 660：那是 LibTV **屏幕固定**提示词面板的宽度，而
      这条侧车是跟着节点走的，660 会挡掉大半画布。660 留给阶段 6 全域形态对齐时
-     连同圆角/字号/间距一起过一遍再定。 */
+     连同圆角/字号/间距一起过一遍再定。
+     ── 阶段 6-A 结论（2026-08-10）：**展开态**上 660，紧凑态留 420。
+     两档分开定是因为上面那条顾虑只对**常驻**的紧凑态成立 —— 展开态是用户主动
+     打开、用完就收的写作面，正是 LibTV 那 660 服务的场景；紧凑态仍跟着节点常
+     驻画布，660 会挡掉大半画布，维持 420。 */
   --canvas-card-w-console: 420px;
-  --canvas-card-w-console-open: 560px; /* 组装台展开态 */
+  --canvas-card-w-console-open: 660px; /* 组装台展开态（560 → 660，度量表 §5 #2） */
 
   /* 3 · 边线与控件填充（对比度纪律见规格 §3.1：可识别性由内容+焦点承担） */
   --canvas-stroke-light: rgba(0, 0, 0, 0.02);
@@ -575,17 +595,23 @@
 
   /* 8 · 连线 —— 关系是一等信息（已确认条款 3），所以已建立档守 ≥3:1；
      未就绪档是弱信息，允许弱。三个维度编码三件事：粗细/虚实/流光 */
+  /* ⚠ 阶段 6-A：连线**细而热区宽**（度量表 §4 规则 9，实测 2px 可见 + 20px
+     透明热区，55 path / 29 edge ≈ 2:1）。视觉轻、可点性反而更高 —— 这两个数
+     是一对，只把 3→2 而不同时把热区 16→20 会让线更难点中。 */
   --canvas-edge: #8a8a8a; /* 3.06 vs 底 */
-  --canvas-edge-w: 3px;
+  --canvas-edge-w: 2px; /* 3 → 2 */
   --canvas-edge-pending: #a3a3a3; /* 2.23 vs 底 —— 配 opacity .6 使用 */
   --canvas-edge-pending-w: 1.5px;
   --canvas-edge-pending-dash: 6 5;
   --canvas-edge-active: #2a2a2a; /* 选中彗星流光，只变明度不换色相 */
-  --canvas-edge-hit-w: 16px;
+  --canvas-edge-hit-w: 20px; /* 16 → 20 */
 
-  /* 9 · 浮层与玻璃容器 */
+  /* 9 · 浮层与玻璃容器
+     ⚠ 圆角阶梯只有三档 + 圆：**控件 8 · 浮层与工具条 12 · 大输入面板 16 ·
+     圆钮 50%**（度量表 §4 规则 1、§5 #5）。旧阶梯 6/8/14/16 里的 14 是唯一的
+     野值，收到 12 —— 三档之外每多一个数，"这里为什么不一样" 就多一次。 */
   --canvas-pop-bg: #ffffff;
-  --canvas-pop-radius: 14px;
+  --canvas-pop-radius: 12px; /* 14 → 12 */
   --canvas-pop-shadow:
     0 4px 12px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
   --canvas-glass: rgba(255, 255, 255, 0.84);
@@ -635,19 +661,24 @@
   --canvas-media-bg: #fafafa;
   --canvas-stripe: rgba(0, 0, 0, 0.055);
 
-  /* 11 · 字号（只三级）与几何 */
-  --canvas-text-body: 14px;
+  /* 11 · 字号（只三级）与几何
+     ── 阶段 6-A 全域形态对齐（2026-08-10，owner 批准度量表 §5 的 #4 #6）──────
+     实测基准 `plans/canvas-libtv-form-metrics-2026-08-09.md` §4 规则 3/6：
+     字号三档 **13 UI · 14 输入 · 11 元信息** · 控件高三档 **24 / 28 / 32**。
+     旧值 15/14/12 与 28/32/36 各自比基准高一档 —— 不是微调，是整条梯子平移，
+     所以**必须整块换**，只改一个会把三档踩成两档。 */
+  --canvas-text-body: 14px; /* 输入档，与基准一致，未动 */
   --canvas-text-body-lh: 1.6;
-  --canvas-text-name: 15px;
-  --canvas-text-name-lh: 24px;
-  --canvas-text-meta: 12px;
-  --canvas-text-meta-lh: 1.35;
+  --canvas-text-name: 13px; /* 15 → 13（§5 #4，实测 13/20.15/400） */
+  --canvas-text-name-lh: 20px; /* 24 → 20；⚠ 有一处当 height 用（.canvas-card-name） */
+  --canvas-text-meta: 11px; /* 12 → 11 */
+  --canvas-text-meta-lh: 1.55; /* 11×1.55 ≈ 17.05，实测行高 */
   --canvas-rail-w: 56px; /* 左侧图标轨 */
   --canvas-panel-w: 240px; /* 左侧内容区（班底架） */
   --canvas-topbar-h: 48px;
-  --canvas-control-h-sm: 28px;
-  --canvas-control-h: 32px;
-  --canvas-control-h-action: 36px;
+  --canvas-control-h-sm: 24px; /* 28 → 24（§5 #6） */
+  --canvas-control-h: 28px; /* 32 → 28 */
+  --canvas-control-h-action: 32px; /* 36 → 32 */
 
   /* 12 · 动效 —— 只三档时长、两条曲线 */
   --canvas-dur-fast: 150ms; /* hover、状态标 */
@@ -1101,7 +1132,7 @@
   padding: 4px;
   background: var(--node-panel);
   border: 1px solid var(--node-card-line);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: var(--shadow-node-panel);
 }
 
@@ -1111,7 +1142,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--node-foreground);
   font-size: 12px;
   text-align: left;
@@ -1200,7 +1231,7 @@
   color: var(--canvas-ink-regular);
   background: var(--canvas-card-bg);
   border: 1px solid var(--canvas-stroke-regular);
-  border-radius: 7px;
+  border-radius: 8px;
   font-weight: 600;
 }
 
@@ -1326,7 +1357,7 @@
   overflow: hidden;
   background: var(--canvas-card-bg);
   border: 1px solid var(--canvas-stroke-regular);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .domain-canvas .canvas-video-composer-prompt-input {
@@ -1380,7 +1411,7 @@
   padding: 0 8px;
   color: var(--canvas-ink-regular);
   background: transparent;
-  border-radius: 7px;
+  border-radius: 8px;
   /* 台账 D2：10px → 12px。这两颗是视频框里仅有的两条参数读数，却比图片框
      同职责的 .canvas-composer-pill（12px）小两档；`480p · 12s · 4:3` 这种
      全是数字和冒号的串在 10px 下最难认。 */
@@ -1469,7 +1500,10 @@
   height: var(--canvas-text-name-lh);
   font-size: var(--canvas-text-name);
   line-height: var(--canvas-text-name-lh);
-  font-weight: 600;
+  /* 阶段 6-A：600 → 400（度量表 §5 #4，实测 13px / 20.15px / **400**）。
+     卡外标签靠**位置**（脱离卡、贴在卡上沿）已经足够被读成标题，再加粗一档是
+     两次强调；而卡名用的 --canvas-ink 是 19.80:1，400 字重照样清楚。 */
+  font-weight: 400;
   color: var(--canvas-ink);
   pointer-events: none;
 }
@@ -1505,6 +1539,11 @@
   transform: translate(-50%, -50%);
   box-shadow: 0 0 0 3px var(--canvas-card-bg);
 }
+/* ⚠ 下面这一小撮 2 / 3 / 4px 圆角**故意留在阶梯之外**（阶段 6-A 2026-08-10）：
+   端口的方 / 圆、标签字形的方 / 圆是**族的编码**（哪个模态），不是控件圆角 ——
+   把它们抬到 8px 会把 10px 见方的端口变成圆点，直接抹掉"方=图片、圆=音频"这条
+   区分。同理 `.canvas-label-input`(4) 与 `.canvas-composer-aspect-box`(2) 是控件
+   **内部**的细节而非控件本体。圆角三档 8/12/16 管的是控件与容器，不管这些。 */
 .domain-canvas .canvas-port[data-family='image']::after {
   background: var(--canvas-port-image);
   border-radius: 2px;
@@ -2456,14 +2495,14 @@
    .domain-canvas 的 DOM 子树内，var(--canvas-*) 在那个位置读不到（自定义
    属性靠 DOM 祖先链继承，传送门跳过了原来的祖先），因此这里不能用
    .domain-canvas 前缀选择器，也不能引用 var(--canvas-*)。改用字面值，逐条
-   对应规格来源：#ffffff = --canvas-pop-bg，14px = --canvas-pop-radius，投影
+   对应规格来源：#ffffff = --canvas-pop-bg，12px = --canvas-pop-radius，投影
    = --canvas-pop-shadow，rgba(0,0,0,.08) = --canvas-stroke-regular，
    #0a0a0a = --canvas-ink，#737373 = --canvas-ink-muted，rgba(0,0,0,.04) =
    --canvas-fill-control——不是新造颜色，是同一批已定值的字面量落地。 */
 .canvas-cast-popover {
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.04),
     0 8px 24px rgba(0, 0, 0, 0.06);
@@ -2548,7 +2587,7 @@
   width: min(1320px, calc(100% - 48px));
   height: min(860px, calc(100% - 32px));
   max-height: calc(100% - 32px);
-  border-radius: 22px;
+  border-radius: 16px;
 }
 
 /* ⚠ 头部原来铺一层 74% 的半透白。半透只在有 blur 时成立 —— 实面之下它会直接
@@ -2654,7 +2693,7 @@
   left: 10px;
   top: 10px;
   border: 1px solid var(--canvas-detail-bd);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 2px 8px;
   background: var(--canvas-detail-s0);
   font-size: 10.5px;
@@ -2730,7 +2769,7 @@
 .domain-canvas .canvas-detail-voice-card {
   position: relative;
   width: min(420px, 100%);
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 14px 16px;
   background: var(--canvas-detail-s0);
   box-shadow: var(--canvas-detail-shadow-card);
@@ -2783,7 +2822,7 @@
   min-width: 0;
   flex: 1;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 8px 10px;
   background: var(--canvas-detail-s0);
   color: var(--canvas-detail-ink);
@@ -2893,7 +2932,7 @@
   max-height: min(480px, 54vh);
   margin-top: 8px;
   border: 1px solid var(--canvas-stroke-regular);
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow: var(--canvas-detail-shadow-card);
 }
 
@@ -2929,7 +2968,7 @@
 }
 .domain-canvas .canvas-detail-primary {
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px 30px;
   background: var(--canvas-detail-ink);
   color: var(--canvas-detail-s0);
@@ -3510,7 +3549,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 /* 助手「历史对话」浮层（CanvasAssistantHistory.tsx）——同 .canvas-cast-
    popover 的处境：Radix Popover 传送门到 document.body，脱离 .domain-canvas
    的 DOM 子树，var(--canvas-*) 够不到，只能用字面值。逐条对应来源：
-   #ffffff = --canvas-card-bg，14px = --canvas-pop-radius，投影 =
+   #ffffff = --canvas-card-bg，12px = --canvas-pop-radius，投影 =
    --canvas-pop-shadow，rgba(0,0,0,.08) = --canvas-stroke-regular，
    rgba(0,0,0,.04) = --canvas-fill-control，rgba(0,0,0,.06) =
    --canvas-fill-control-hover，#0a0a0a/#737373/#8f8f8f =
@@ -3520,7 +3559,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 .canvas-assistant-popover {
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.04),
     0 8px 24px rgba(0, 0, 0, 0.06);
@@ -3570,7 +3609,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* 圆角 + 投影：比节点卡（--canvas-card-radius 8px）大一档，用 §9 已经定义的
-   --canvas-pop-radius（14px）/ --canvas-pop-shadow（浮层 composer 同款配方）
+   --canvas-pop-radius（12px）/ --canvas-pop-shadow（浮层 composer 同款配方）
    ——不新造 token。节点卡是「桌面上的纸」（静态零投影、小圆角），助手是
    「浮在桌面上方的面板」，两者材质纪律故意不同（assistant-shell.md 该节
    ⚠ 段），混同会让浮层读起来像一张巨大的节点卡，层级就没了。
@@ -3697,7 +3736,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   height: 32px;
   flex-shrink: 0;
   overflow: hidden;
-  border-radius: 7px;
+  border-radius: 8px;
   border: 1px solid var(--canvas-stroke-regular);
   background: var(--canvas-fill-control);
 }
@@ -3749,7 +3788,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   border: 1px dashed var(--canvas-stroke-bold);
   color: var(--canvas-ink-muted);
   transition:
@@ -3851,14 +3890,14 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 /* 弹层内容（Popover 通过 Radix Portal 传送到 document.body，脱离
    .domain-canvas 的 DOM 子树，var(--canvas-*) 在那个位置读不到——同
    .canvas-cast-popover 的处境，改用字面值，逐条对应来源：#ffffff =
-   --canvas-pop-bg，14px = --canvas-pop-radius，投影 = --canvas-pop-shadow，
+   --canvas-pop-bg，12px = --canvas-pop-radius，投影 = --canvas-pop-shadow，
    rgba(0,0,0,.08) = --canvas-stroke-regular，#0a0a0a/#525252/#737373 =
    --canvas-ink/-regular/-muted，rgba(0,0,0,.04) = --canvas-fill-control。 */
 .canvas-composer-popover {
   padding: 12px;
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.04),
     0 8px 24px rgba(0, 0, 0, 0.06);
@@ -3986,7 +4025,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   aspect-ratio: 1 / 1;
   overflow: hidden;
   border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(0, 0, 0, 0.04);
 }
 .canvas-composer-template-card-cover img {
@@ -4053,7 +4092,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px dashed var(--canvas-stroke-bold);
   font-size: 12px;
   color: var(--canvas-ink-muted);
@@ -4115,7 +4154,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   align-items: center;
   gap: 6px;
   padding: 14px 20px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid var(--canvas-stroke-regular);
   font-size: 12px;
   font-weight: 600;

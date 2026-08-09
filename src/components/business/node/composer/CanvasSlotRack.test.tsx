@@ -122,6 +122,29 @@ describe('CanvasSlotRack · 分类区从容量契约派生（§4.4）', () => {
   })
 })
 
+describe('CanvasSlotRack · 未命名素材不能渲染成空白格', () => {
+  it('⚠ 真机回归：label 与 token 都空时，退回族名而不是一个没字的灰块', () => {
+    // 画布上「加了但还没命名」的节点是常态（旧件在抽屉里有一句「给该节点命名后
+    // 即可作为标签插入」，槽架没有那个位置）。此前首字兜底 `label.slice(0, 1)`
+    // 对空串取到空串，真机上就是一格无名灰块，用户看不出那是什么。
+    render(
+      <CanvasSlotRack
+        tokens={[
+          {
+            id: 'unnamed1',
+            kind: 'shot',
+            label: '',
+            token: '',
+          } as ComposerReferenceToken,
+        ]}
+        slotLimits={FULL}
+        defaultExpanded={true}
+      />,
+    )
+    expect(screen.getByTitle('shot')).toBeInTheDocument()
+  })
+})
+
 describe('CanvasSlotRack · 折缩略图不折账（§4.2）', () => {
   const tokens = [token('c1', 'character'), token('vo1', 'voice')]
 

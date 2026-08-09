@@ -121,6 +121,13 @@ export function CanvasSlotRack({
   onRemove,
 }: CanvasSlotRackProps) {
   const t = useTranslations('StudioNode.videoComposer.slotRack')
+  /**
+   * ⚠ 名字必须有兜底：未命名的素材（`label` 与 `token` 都是空串）此前会渲染成
+   * 一个**没有字的空灰块** —— 真机实拍到，用户根本看不出那一格是什么。退役的
+   * 旧件在抽屉里有一句「给该节点命名后即可作为标签插入」，槽架没有那个位置，
+   * 所以退回到族名（「镜头」/「角色」…），至少说清它是哪一类。
+   */
+  const tKind = useTranslations('StudioNode.videoComposer.refKind')
   const [rackOpen, setRackOpen] = useState(defaultExpanded)
   const [openZones, setOpenZones] = useState<ReadonlySet<SlotZoneId>>(() =>
     defaultExpanded ? new Set(ZONE_IDS) : new Set(),
@@ -219,6 +226,9 @@ export function CanvasSlotRack({
                         token.kind === 'voice'
                           ? token.coverImage
                           : token.mediaUrl
+                      // 见顶部 `tKind` 的注释：未命名素材不能渲染成空白格。
+                      const displayName =
+                        token.label || token.token || tKind(token.kind)
                       return (
                         <li
                           key={token.id}
@@ -227,7 +237,7 @@ export function CanvasSlotRack({
                           <button
                             type="button"
                             onClick={() => onLocate?.(token.id)}
-                            title={token.label}
+                            title={displayName}
                             className={cn(
                               'flex max-w-[9rem] items-center gap-1 rounded-lg py-1 pl-1 pr-1.5 text-2xs text-node-muted hover:bg-node-panel-inner',
                               unsendable && 'opacity-40',
@@ -249,10 +259,10 @@ export function CanvasSlotRack({
                                 aria-hidden
                                 className="flex size-5 shrink-0 items-center justify-center rounded bg-node-panel-inner"
                               >
-                                {token.label.slice(0, 1)}
+                                {displayName.slice(0, 1)}
                               </span>
                             )}
-                            <span className="truncate">{token.label}</span>
+                            <span className="truncate">{displayName}</span>
                           </button>
                           {/* ⚠ 常显，不藏在 hover 里 —— 契约 §十「触屏无 hover
                               依赖」。旧件的 × 是 `group-hover` 才现形，触屏点不到。 */}
@@ -260,8 +270,8 @@ export function CanvasSlotRack({
                             <button
                               type="button"
                               onClick={() => onRemove(token)}
-                              aria-label={t('remove', { name: token.label })}
-                              title={t('remove', { name: token.label })}
+                              aria-label={t('remove', { name: displayName })}
+                              title={t('remove', { name: displayName })}
                               className="flex size-4 shrink-0 items-center justify-center rounded text-node-subtle hover:bg-node-panel-inner hover:text-node-foreground"
                             >
                               <Link2Off className="size-3" aria-hidden />

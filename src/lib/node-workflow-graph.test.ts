@@ -1329,6 +1329,52 @@ describe('buildReferenceAssetLegendEntries (S5d ③)', () => {
 })
 
 describe('harvestUpstreamVideoImageReferences (§7.2⑦ 视频图例真源)', () => {
+  /**
+   * ⚠ 回归（owner 2026-08-09 真机点出）：一张上传进来的图，卡片标题写着
+   * 「漂泊者_全身_官方_0016」，图例与槽架里却叫「镜头2」。
+   *
+   * 根因是名字解析各写各的 —— 这里原本只读
+   * `characterName` / `backgroundName` / `shotName` 三个字段，够不到
+   * `mediaLabel` / `sourceLabel`，于是退回 autoName 兜底；而卡片标题、候选菜单、
+   * 连线提示走的是全仓唯一的 `resolveNodeDisplayName`（它认那两个字段）。
+   * 同一个节点两个名字，取决于你在哪看，且**用户看到的那个 @ 不出来**。
+   *
+   * ⭐ 同一个文件里当时就不自洽：关键帧那一支早已在读 `mediaLabel`。
+   */
+  it('⚠ 回归：上传图的 mediaLabel 就是它的名字，不该退回 autoName', () => {
+    const nodes = [
+      makeNode('loose1', NODE_TYPE_IDS.image, {
+        mediaUrl: 'https://cdn/loose.png',
+        mediaLabel: '漂泊者_全身_官方_0016',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e-loose', 'loose1', 'video1')]
+    expect(
+      harvestUpstreamVideoImageReferences('video1', edges, nodes).get(
+        'https://cdn/loose.png',
+      )?.name,
+    ).toBe('漂泊者_全身_官方_0016')
+  })
+
+  it('用户起的名字优先于 mediaLabel（shotName 在解析链上更靠前）', () => {
+    const nodes = [
+      makeNode('shot1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.shot,
+        mediaUrl: 'https://cdn/shot.png',
+        mediaLabel: 'IMG_2024_final_v3',
+        shotName: '开场远景',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e-shot', 'shot1', 'video1')]
+    expect(
+      harvestUpstreamVideoImageReferences('video1', edges, nodes).get(
+        'https://cdn/shot.png',
+      )?.name,
+    ).toBe('开场远景')
+  })
+
   it('maps character/background/shot + 1-hop closeup names by URL', () => {
     const nodes = [
       makeNode('cu1', NODE_TYPE_IDS.image, {

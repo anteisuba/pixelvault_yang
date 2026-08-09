@@ -21,6 +21,7 @@ import type {
 } from '@/types/node-workflow'
 import type { SeedancePromptPlanReferences } from '@/types/seedance-prompt-plan'
 
+import { resolveNodeDisplayName } from './node-display-name'
 import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
 import {
   isMediaApprovedForDownstream,
@@ -814,12 +815,16 @@ export function harvestUpstreamVideoImageReferences(
     if (kind !== 'character' && kind !== 'background' && kind !== 'shot') {
       continue
     }
-    const name =
-      kind === 'character'
-        ? readName(node.data.characterName)
-        : kind === 'background'
-          ? readName(node.data.backgroundName)
-          : readName(node.data.shotName)
+    /**
+     * ⚠ 名字走**全仓唯一那个解析器**，不再自己读三个 `*Name` 字段。
+     *
+     * 那三个字段够不到 `mediaLabel` / `sourceLabel`，于是一张上传进来、卡片标题
+     * 明明写着「漂泊者_全身_官方_0016」的图，在图例里叫「镜头2」（autoName 兜底）
+     * —— 同一个节点两个名字，取决于你在哪看。owner 2026-08-09 真机点出来的。
+     *
+     * 同一个文件里本来就不一致：上面关键帧那一支早就在读 `mediaLabel` 了。
+     */
+    const name = resolveNodeDisplayName(node.data)
 
     if (kind === 'character' || kind === 'background') {
       // R3-6b §3 每镜覆写: this legend is always built FOR a specific

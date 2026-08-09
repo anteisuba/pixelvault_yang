@@ -40,6 +40,7 @@ import {
   readVoiceCoverImage,
   readVoiceUrl,
 } from '@/lib/node-workflow-graph'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import {
   pickDefaultVideoModel,
   resolveVideoModelForMode,
@@ -300,13 +301,17 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     for (const node of incoming) {
       const kind = getSeedanceReferenceKind(node)
       if (kind === null || kind === 'voice') continue
-      const nameField =
-        kind === 'character'
-          ? node.data.characterName
-          : kind === 'background'
-            ? node.data.backgroundName
-            : node.data.shotName
-      const name = typeof nameField === 'string' ? nameField.trim() : ''
+      /**
+       * ⚠ 走**全仓唯一那个解析器**，不再自己读三个 `*Name` 字段 —— 它们够不到
+       * `mediaLabel` / `sourceLabel`，于是卡片标题写着「漂泊者_全身_官方_0016」
+       * 的图，在槽架里叫「镜头2」（下面 autoName 的兜底）。同一个节点两个名字，
+       * 取决于你在哪看；而候选菜单用的正是这个解析器，所以菜单里选的和槽里显示
+       * 的对不上。owner 2026-08-09 真机点出来的。
+       *
+       * 收割侧（`harvestUpstreamVideoImageReferences`，图例名字的来源）同批改成
+       * 同一个解析器 —— 两处必须一起动，否则只是把不一致换个地方。
+       */
+      const name = resolveNodeDisplayName(node.data) ?? ''
       // V-2 主图: show/slot-match the ★-starred image (or its fallback — see
       // getNodePrimaryMediaUrl), not the raw mediaUrl, so the token's
       // thumbnail and its 图N badge always agree with what's actually in

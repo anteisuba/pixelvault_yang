@@ -97,7 +97,13 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
       {
         url: 'https://cdn/loose.png',
         index: 1,
-        name: '镜头1',
+        // ⚠ 这里原本期望的是 `'镜头1'`（autoName 兜底）—— 夹具明明给了
+        // `mediaLabel: '甲板静帧'`，图例里却叫「镜头1」。那条期望**锁的是缺陷**：
+        // 名字解析只读 characterName/backgroundName/shotName 三个字段，够不到
+        // mediaLabel，于是同一个节点在卡片标题上叫「甲板静帧」、在图例与槽架里
+        // 叫「镜头1」。2026-08-09 owner 真机点出来，改用全仓唯一的
+        // `resolveNodeDisplayName` 后，用户起的名字终于能一路走到模型那里。
+        name: '甲板静帧',
         kind: 'shot',
         category: '镜头',
       },

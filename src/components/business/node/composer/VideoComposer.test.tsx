@@ -559,12 +559,23 @@ describe('VideoComposer compact sidecar', () => {
     }
   })
 
-  it('uses a native prompt field and opens one compact parameter surface', () => {
+  /**
+   * ⚠ 行为变更（2026-08-09，owner 定「紧凑档和完整档对齐」）：这条原本断言紧凑
+   * 档用**原生 textarea**。两档各用各的编辑器，后果是同一条引用在画布卡上是一串
+   * 裸名字 `@漂泊者_全身_官方_0016`、在详情面板里却是「图 2」胶囊 —— 同一份正文
+   * 两个样子（真机实拍）。
+   *
+   * 换成两档共用 `MentionInput` 之后，胶囊、`@` 候选、IME 处理全都一致，
+   * `insertMentionAtCaret` 里那条「紧凑档自己算 selectionStart」的平行逻辑也整个
+   * 没了 —— 对齐省掉的不只是外观分叉。
+   */
+  it('两档共用同一个编辑器（不再是紧凑档原生 textarea）', () => {
     renderCompact()
 
-    expect(screen.getByRole('textbox', { name: 'prompt.label' }).tagName).toBe(
-      'TEXTAREA',
-    )
+    // contenteditable 的 MentionInput，不是 <textarea>。
+    const editor = screen.getByRole('textbox', { name: 'prompt.label' })
+    expect(editor.tagName).not.toBe('TEXTAREA')
+    expect(editor).toHaveAttribute('contenteditable', 'true')
 
     const parameterButton = screen.getByRole('button', {
       name: 'sidecar.editParameters',

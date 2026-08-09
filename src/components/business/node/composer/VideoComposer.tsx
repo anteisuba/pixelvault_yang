@@ -383,7 +383,6 @@ export function VideoComposer({
   // atomic token chip at the caret (§6 S2). Exposes insertToken / focus /
   // getBoundingClientRect (the flying-animation target).
   const promptRef = useRef<MentionInputHandle>(null)
-  const compactPromptRef = useRef<HTMLTextAreaElement>(null)
   // §8.4 插入动效 — a transient ghost thumbnail flying from the clicked token
   // to the prompt, cleared once its fly+glow finishes. null when idle.
   const [flyingToken, setFlyingToken] = useState<FlyingTokenState | null>(null)
@@ -642,41 +641,34 @@ export function VideoComposer({
     [data, id, updateNodeData],
   )
 
-  // §6 S2: insert the reference as an ATOMIC chip at the caret (MentionInput
-  // owns the DOM + serialization back to plain-text @name). Also records
-  // `insertedReferenceNames` for visual kinds so a later rename can be detected
-  // as drift (§7.2 ⑥) — a stale @oldName degrades to plain text and the drift
-  // affordance offers to replace it. Plus the §8.4 flying-thumbnail overlay.
+  /**
+   * 在光标处插入一个引用。
+   *
+   * ⚠ 走 `insertToken`（`MentionInput` 用 Range 直接改 DOM），**不走「改 value
+   * 再重渲染」** —— 后者会重建整个编辑器内容并把光标扔回开头。
+   *
+   * 曾经这里要分两条路：紧凑档是原生 textarea，得自己算 selectionStart 再用
+   * `setSelectionRange` 把光标放回去。两档统一成同一个编辑器后那一支整个没了 ——
+   * 顺带说明「两档对齐」省掉的不只是外观分叉，还有一整条平行逻辑。
+   */
+  const insertMentionAtCaret = useCallback((name: string) => {
+    if (!name) return
+    promptRef.current?.insertToken(name)
+  }, [])
+
+  // §6 S2 的完整插入：在 `insertMentionAtCaret` 之外还记 `insertedReferenceNames`
+  // （改名漂移检测用）并放一枚 §8.4 飞入替身。
   //
-  // ⚠ 暂时没有调用方（2026-08-09）：「点槽位插入 @token」这个手势随槽架改版退役
-  // 了（正文回纯文本，契约 §5.1）。**但这套飞入替身不是过时资产** —— 契约 §十一-2
-  // 的「@ 落槽：替身飞入 250 + 内嵌环确认闪 420」要复用的正是它，只是落点从「正文
-  // 光标处」变成「槽位」。阶段 4 接 `@` 全局时在这里接回去，别当死代码删掉重写。
+  // ⚠ 暂时没有调用方（2026-08-09）：槽位单击走的是上面那个精简版 —— 引用只标位置，
+  // 不需要 drift 记账。**但这套飞入替身不是过时资产**：契约 §十一-2 的「@ 落槽：
+  // 替身飞入 250 + 内嵌环确认闪 420」要复用的正是它，只是落点从「正文光标处」变成
+  // 「槽位」。阶段 4 接 `@` 全局时在这里接回去，别当死代码删掉重写。
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 见上：阶段 4 的接入点
   const handleTokenInsert = useCallback(
     (refToken: ReferenceTokenData, originEl: HTMLElement) => {
       const name = refToken.token.replace(/^@/, '')
       if (!name) return
-      const compactEditor = compactPromptRef.current
-      if (compactEditor) {
-        const start = compactEditor.selectionStart ?? promptFieldValue.length
-        const end = compactEditor.selectionEnd ?? start
-        const inserted = `@${name} `
-        const next =
-          promptFieldValue.slice(0, start) +
-          inserted +
-          promptFieldValue.slice(end)
-        handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
-        window.requestAnimationFrame(() => {
-          const current = compactPromptRef.current
-          if (!current) return
-          const caret = start + inserted.length
-          current.focus({ preventScroll: true })
-          current.setSelectionRange(caret, caret)
-        })
-      } else {
-        promptRef.current?.insertToken(name)
-      }
+      insertMentionAtCaret(name)
 
       if (refToken.kind !== 'voice') {
         updateNodeData(id, {
@@ -689,9 +681,7 @@ export function VideoComposer({
 
       if (reducedMotion) return
       const fromRect = originEl.getBoundingClientRect()
-      const toRect =
-        compactPromptRef.current?.getBoundingClientRect() ??
-        promptRef.current?.getBoundingClientRect()
+      const toRect = promptRef.current?.getBoundingClientRect()
       setFlyingToken({
         kind: refToken.kind,
         thumbUrl:
@@ -710,9 +700,8 @@ export function VideoComposer({
     },
     [
       data.insertedReferenceNames,
-      handleFieldChange,
       id,
-      promptFieldValue,
+      insertMentionAtCaret,
       reducedMotion,
       updateNodeData,
     ],
@@ -728,11 +717,12 @@ export function VideoComposer({
    * 胶囊存 `@名字`、显示「图 N」（见 `MentionToken.slotLabel`），且**只标位置
    * 不决定发不发** —— 范围归槽架（`filterReferencedImages` 已于同轮退役）。
    */
-  const handleSlotInsert = useCallback((token: ComposerReferenceToken) => {
-    const name = token.token.replace(/^@/, '')
-    if (!name) return
-    promptRef.current?.insertToken(name)
-  }, [])
+  const handleSlotInsert = useCallback(
+    (token: ComposerReferenceToken) => {
+      insertMentionAtCaret(token.token.replace(/^@/, ''))
+    },
+    [insertMentionAtCaret],
+  )
 
   /**
    * URL → 这张图在本次载荷里的位置（1-based）。
@@ -1302,12 +1292,21 @@ export function VideoComposer({
               不像属于这个框。 */}
           <div className="canvas-video-composer-prompt-group">
             <div className="canvas-video-composer-prompt">
-              <IMEAwareTextarea
-                textareaRef={compactPromptRef}
+              {/* ⚠ 两档用**同一个编辑器**（2026-08-09 owner 定「紧凑档和完整档
+                  对齐」）。此前紧凑档是原生 textarea，于是同一条引用在画布卡上
+                  是一串裸名字 `@漂泊者_全身_官方_0016`、在详情面板里却是「图 2」
+                  胶囊 —— 同一份正文两个样子。
+                  换成 `MentionInput` 后胶囊、`@` 候选、IME 处理全都两档一致，
+                  `insertMentionAtCaret` 也不必再分两条路。 */}
+              <MentionInput
+                ref={promptRef}
                 value={promptFieldValue}
                 onValueChange={(next) =>
                   handleFieldChange(NODE_WORKFLOW_FIELD_IDS.prompt, next)
                 }
+                tokens={mentionTokens}
+                mentionCandidates={mentionCandidates}
+                onMentionSelect={handleMentionSelect}
                 aria-label={tFields('prompt.label')}
                 placeholder={tc('sidecar.promptPlaceholder')}
                 className="canvas-video-composer-prompt-input"

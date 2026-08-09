@@ -522,8 +522,13 @@
   --canvas-card-w-min: 180px;
   --canvas-card-w-max: 480px;
   --canvas-card-w-fixed: 240px;
-  --canvas-card-w-console: 320px; /* 组装台紧凑态 */
-  --canvas-card-w-console-open: 440px; /* 组装台展开态 */
+  /* 组装台紧凑态。2026-08-09 从 320 放大到 420（owner「目前看上去有点小了」）——
+     槽架三级折叠 + 参数条挤在 320 里，槽位名字几乎全被截断。
+     ⚠ 没有直接上契约 §7.1 的 660：那是 LibTV **屏幕固定**提示词面板的宽度，而
+     这条侧车是跟着节点走的，660 会挡掉大半画布。660 留给阶段 6 全域形态对齐时
+     连同圆角/字号/间距一起过一遍再定。 */
+  --canvas-card-w-console: 420px;
+  --canvas-card-w-console-open: 560px; /* 组装台展开态 */
 
   /* 3 · 边线与控件填充（对比度纪律见规格 §3.1：可识别性由内容+焦点承担） */
   --canvas-stroke-light: rgba(0, 0, 0, 0.02);

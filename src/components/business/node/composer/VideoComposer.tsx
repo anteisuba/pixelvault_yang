@@ -1214,6 +1214,7 @@ export function VideoComposer({
                 slotLimits={composer.sendPreview.slotLimits}
                 defaultExpanded={false}
                 unsendableUrls={unsendableUrls}
+                slotIndexByUrl={slotIndexByUrl}
                 onLocate={focusNode}
                 onInsert={handleSlotInsert}
                 onRemove={handleRemoveReference}
@@ -1573,6 +1574,7 @@ export function VideoComposer({
           slotLimits={composer.sendPreview.slotLimits}
           defaultExpanded={true}
           unsendableUrls={unsendableUrls}
+          slotIndexByUrl={slotIndexByUrl}
           onLocate={focusNode}
           onInsert={handleSlotInsert}
           onRemove={handleRemoveReference}

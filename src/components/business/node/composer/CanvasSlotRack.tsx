@@ -90,6 +90,16 @@ export interface CanvasSlotRackProps {
   /** 本次不会发送的素材 URL —— 槽位上标出来，**不销毁**（契约 §4.7）。 */
   unsendableUrls?: ReadonlySet<string>
   /**
+   * URL → 这张图在本次载荷里的位置（1-based）。缺席 = 它没进载荷（超出上限那
+   * 几张），那就没有位置可标。
+   *
+   * ⚠ 必须与正文引用胶囊读**同一份**（`sendPreview.images[].index`），否则槽位
+   * 角标说 3、胶囊说 2、模型收到 `@Image2` —— 三处各说各的，正是这一轮在治的
+   * 那件事。契约 §4.6：**序号盖在图上**，与具名槽的「名字戴在位上」是两种长相，
+   * 免得「图1」被读成「第一帧」。
+   */
+  slotIndexByUrl?: ReadonlyMap<string, number>
+  /**
    * **双击**槽位 → 聚焦到画布上的源节点。
    *
    * ⚠ 定位挂在双击上、插入挂在单击上，不是随手定的：写提示词时「引用某张图」是
@@ -132,6 +142,7 @@ export function CanvasSlotRack({
   slotLimits,
   defaultExpanded,
   unsendableUrls,
+  slotIndexByUrl,
   onLocate,
   onInsert,
   onRemove,
@@ -245,6 +256,9 @@ export function CanvasSlotRack({
                       // 见顶部 `tKind` 的注释：未命名素材不能渲染成空白格。
                       const displayName =
                         token.label || token.token || tKind(token.kind)
+                      const slotIndex = token.mediaUrl
+                        ? slotIndexByUrl?.get(token.mediaUrl)
+                        : undefined
                       return (
                         <li
                           key={token.id}
@@ -265,24 +279,37 @@ export function CanvasSlotRack({
                             )}
                           >
                             {/* 折叠的第三级就叫「缩略图」—— 音色用封面，其余用
-                                自己的媒体；都没有时退回首字，不留空洞。 */}
-                            {thumbnailUrl ? (
-                              // 画布素材是用户上传或 R2 生成 URL，不吃 next/image
-                              // 的静态 host 契约。
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={thumbnailUrl}
-                                alt=""
-                                className="size-5 shrink-0 rounded object-cover"
-                              />
-                            ) : (
-                              <span
-                                aria-hidden
-                                className="flex size-5 shrink-0 items-center justify-center rounded bg-node-panel-inner"
-                              >
-                                {displayName.slice(0, 1)}
-                              </span>
-                            )}
+                                自己的媒体；都没有时退回首字，不留空洞。
+                                ⚠ 序号**盖在图上**（契约 §4.6）：它是位置不是名字，
+                                所以压在缩略图角上，而不是排在名字旁边 —— 具名槽
+                                的「帽子」才占名字那个位。 */}
+                            <span className="relative size-5 shrink-0">
+                              {thumbnailUrl ? (
+                                // 画布素材是用户上传或 R2 生成 URL，不吃
+                                // next/image 的静态 host 契约。
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={thumbnailUrl}
+                                  alt=""
+                                  className="size-full rounded object-cover"
+                                />
+                              ) : (
+                                <span
+                                  aria-hidden
+                                  className="flex size-full items-center justify-center rounded bg-node-panel-inner"
+                                >
+                                  {displayName.slice(0, 1)}
+                                </span>
+                              )}
+                              {slotIndex !== undefined ? (
+                                <span
+                                  aria-hidden
+                                  className="absolute -bottom-0.5 -right-0.5 flex min-w-3 items-center justify-center rounded bg-node-canvas/85 px-0.5 text-3xs font-semibold leading-none text-node-foreground"
+                                >
+                                  {slotIndex}
+                                </span>
+                              ) : null}
+                            </span>
                             <span className="truncate">{displayName}</span>
                           </button>
                           {/* ⚠ 常显，不藏在 hover 里 —— 契约 §十「触屏无 hover

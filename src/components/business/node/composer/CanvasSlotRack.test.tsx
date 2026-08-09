@@ -122,6 +122,44 @@ describe('CanvasSlotRack · 分类区从容量契约派生（§4.4）', () => {
   })
 })
 
+describe('CanvasSlotRack · 序号盖在图上（契约 §4.6）', () => {
+  const shot = {
+    id: 's1',
+    kind: 'shot',
+    label: '开场远景',
+    token: '@开场远景',
+    mediaUrl: 'https://cdn/s1.png',
+  } as ComposerReferenceToken
+
+  it('进了载荷的素材，缩略图角上标出它的位置', () => {
+    render(
+      <CanvasSlotRack
+        tokens={[shot]}
+        slotLimits={FULL}
+        defaultExpanded={true}
+        slotIndexByUrl={new Map([['https://cdn/s1.png', 3]])}
+      />,
+    )
+    // ⚠ 这个 3 必须和正文胶囊「图 3」、模型收到的 `@Image3` 是同一个数 ——
+    // 三处共用 `sendPreview.images[].index`，不各算各的。
+    expect(screen.getByText('3')).toBeInTheDocument()
+  })
+
+  it('没进载荷的素材不标序号（超出上限那几张本来就没有位置）', () => {
+    render(
+      <CanvasSlotRack
+        tokens={[shot]}
+        slotLimits={FULL}
+        defaultExpanded={true}
+        slotIndexByUrl={new Map()}
+      />,
+    )
+    expect(screen.queryByText('3')).not.toBeInTheDocument()
+    // 但槽位本身还在 —— 素材不因为发不出去就消失（契约 §4.7）。
+    expect(screen.getByTitle('开场远景')).toBeInTheDocument()
+  })
+})
+
 describe('CanvasSlotRack · 单击引用、双击定位（手势分配）', () => {
   const token = {
     id: 'c1',

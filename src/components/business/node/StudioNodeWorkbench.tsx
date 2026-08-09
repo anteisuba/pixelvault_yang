@@ -3016,20 +3016,30 @@ function StudioNodeCanvas() {
         sourceHandle: null,
         targetHandle: null,
       })
-      // 素材类才进正文；结构类（镜头文本等）不插。
-      if (!getSeedanceReferenceKind(source)) return
 
-      const name = resolveNodeDisplayName(source.data)
-      if (!name) return
-      const prompt =
-        typeof target.data.prompt === 'string' ? target.data.prompt : ''
-      const token = `@${name}`
-      if (prompt.includes(token)) return
-      workflow.updateNodeData(targetId, {
-        prompt: prompt
-          ? `${prompt.replace(/\s*$/, '')} ${token} `
-          : `${token} `,
-      })
+      /**
+       * ⚠ **不再往正文追加 `@token`**（契约 §5.1「正文回纯文本，`@` 只落槽不留
+       * 字」）。素材身份只在槽架里读，发送时由既有的 `buildShotReferenceLegend`
+       * 注图例 —— 发送链路一行未动。
+       *
+       * owner 2026-08-08 那条「连上了也要进输入框」是**槽架落成之前**的权宜：
+       * 那时正文里的 `@名字` 是「这张图会被发出去」的唯一可见证据。现在槽架把
+       * 「挂了什么、满没满、会不会发」全接过去了，正文里那份副本就只剩坏处 ——
+       * 它是四本账里最后一本，而且还在自我复制。
+       *
+       * 删掉它同时修掉两个用户实拍到的 bug：
+       *   ① **一次 `@` 插两遍**：这里追加一次，`VideoComposer` 的 `insertToken`
+       *      再插一次。上面那道 `prompt.includes(token)` 读的是连线前的旧值，
+       *      拦不住同一次操作里的第二次 —— 实拍正文里的 `@镜头1 @镜头1 @镜头1`。
+       *   ② **光标跳回开头**：`MentionInput` 半受控，外部改 `value` 会重建整个
+       *      编辑器内容且不恢复光标。这条 `updateNodeData` 正是那条外部改写路径，
+       *      于是每连一次线、每选一次 `@` 候选，光标就被扔回开头。
+       *
+       * ⚠ **存量正文里已有的 `@名字` 不动** —— 那是用户的字，不是我们的记账。
+       * 它们继续被 `filterReferencedImages` 认成 narrowing；新连的线不再产生
+       * token，正文空了就走那条既有的护栏分支（「一个都没 @ → 全发」），正是
+       * 「在槽里就等于会发送」。
+       */
     },
     [workflow, tIngestReasons, tSlotRack],
   )

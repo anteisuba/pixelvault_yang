@@ -1026,9 +1026,23 @@ export function VideoComposer({
         ),
       )
     }
-    // 先连线再插胶囊：胶囊只是正文里的名字，真正让这张图进请求的是那条边。
+    /**
+     * `@` **只落槽，正文一个字不留**（契约 §5.1）。
+     *
+     * 连线本身就是「这张图进这次请求」的全部 —— 旧注释自己都写着「真正让这张图
+     * 进请求的是那条边」，正文里那个名字从来只是它的影子。影子退役后，素材身份
+     * 只在槽架里读，账就只剩一本。
+     *
+     * ⚠ 删掉 `insertToken` 顺带修掉两个用户实拍到的 bug：
+     *   ① **一次 `@` 插两遍** —— `connectReferenceNode` 会走到
+     *      `handleIngestConnect`，那里已经追加过一次 token，这里再插一次；
+     *      那边的去重 `prompt.includes(token)` 读的是连线前的旧值，拦不住同一次
+     *      操作里的第二次。实拍正文里的 `@镜头1 @镜头1 @镜头1` 就是这么来的。
+     *   ② **光标跳回开头** —— `MentionInput` 是半受控的，外部改 `value` 会
+     *      `renderInto` 重建整个编辑器内容且不恢复光标（该组件 `commitMention`
+     *      的注释明写这一点）。追加 token 正是那条外部改写路径。
+     */
     connectReferenceNode?.(candidate.id, id)
-    promptRef.current?.insertToken(candidate.name)
   }
   const referenceAssetDialog = (
     <AssetSelectorDialog

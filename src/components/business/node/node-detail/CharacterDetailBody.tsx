@@ -6,7 +6,11 @@ import { Mic2, Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_STUDIO_CHARACTER_CARD_UNBOUND_ID } from '@/constants/node-studio'
-import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  NODE_IMAGE_ROLE_IDS,
+  NODE_MEDIA_KIND_IDS,
+  NODE_TYPE_IDS,
+} from '@/constants/node-types'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { NODE_STUDIO_CHARACTER_IMAGE_REFERENCES } from '@/constants/node-studio'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
@@ -68,6 +72,7 @@ export function CharacterDetailBody({
   const { updateNodeData, deleteEdge, spawnReference, extractReference } =
     useNodeWorkflowActions()
   const [voiceDialogOpen, setVoiceDialogOpen] = useState(false)
+  const [closeupDialogOpen, setCloseupDialogOpen] = useState(false)
   const { cards, findCard } = useCharacterCards()
   const boundCard = data.cardId ? findCard(data.cardId) : null
   const uses = useDownstreamUses(nodeId)
@@ -216,6 +221,33 @@ export function CharacterDetailBody({
     [nodeId, spawnReference],
   )
 
+  /**
+   * ＋面部特写（§9 B）：spawn 一张 `closeup → character` 的一跳子参考，骑在本角色
+   * 的 image_urls 后面。
+   *
+   * ⚠ 这个入口原先长在**视频节点的素材面板**里（退役的 `ReferenceManagerPanel`
+   * 行菜单）。那是「在 A 的界面里改 B」—— 素材槽架只回答「这次挂了什么、满没满、
+   * 会不会发」，而特写是**角色身份的一部分**，家在角色卡自己这里，和绑定音色并排。
+   * 搬过来之前它是全仓唯一入口（添加菜单里没有 closeup 项）。
+   */
+  const handleAddCloseup = useCallback(
+    (generation: GenerationRecord) => {
+      if (!generation.url) return
+      spawnReference?.({
+        targetNodeId: nodeId,
+        nodeType: NODE_TYPE_IDS.image,
+        role: NODE_IMAGE_ROLE_IDS.closeup,
+        media: {
+          url: generation.url,
+          generationId: generation.id,
+          name: generation.prompt || generation.model || undefined,
+        },
+      })
+      setCloseupDialogOpen(false)
+    },
+    [nodeId, spawnReference],
+  )
+
   const displayName =
     (typeof data.characterName === 'string' && data.characterName.trim()) ||
     data.character?.name?.trim() ||
@@ -323,6 +355,18 @@ export function CharacterDetailBody({
                     {tDossier('voiceBind')}
                   </button>
                 )}
+
+                {/* ＋面部特写 —— 与绑定音色并排：两者都是「这个角色是谁」的一部分。
+                    特写可以有多张（都并入上方图集陈列），所以按钮常显，不像音色那样
+                    绑定后换成 chip。 */}
+                <button
+                  type="button"
+                  onClick={() => setCloseupDialogOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-node-edge px-3 py-1.5 text-xs font-medium text-node-foreground outline-none transition-colors hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-node-focus-ring/30"
+                >
+                  <Plus aria-hidden className="size-3.5" />
+                  {tDossier('closeupAdd')}
+                </button>
               </div>
             }
           />
@@ -352,14 +396,24 @@ export function CharacterDetailBody({
         ),
         dock: undefined,
         overlays: (
-          <AssetSelectorDialog
-            open={voiceDialogOpen}
-            onOpenChange={setVoiceDialogOpen}
-            title={tDossier('voiceBind')}
-            description={tDossier('voiceBindDialogDescription')}
-            mediaType="audio"
-            onSelect={handleBindVoice}
-          />
+          <>
+            <AssetSelectorDialog
+              open={voiceDialogOpen}
+              onOpenChange={setVoiceDialogOpen}
+              title={tDossier('voiceBind')}
+              description={tDossier('voiceBindDialogDescription')}
+              mediaType="audio"
+              onSelect={handleBindVoice}
+            />
+            <AssetSelectorDialog
+              open={closeupDialogOpen}
+              onOpenChange={setCloseupDialogOpen}
+              title={tDossier('closeupAdd')}
+              description={tDossier('closeupAddDialogDescription')}
+              mediaType="image"
+              onSelect={handleAddCloseup}
+            />
+          </>
         ),
       })}
     </>

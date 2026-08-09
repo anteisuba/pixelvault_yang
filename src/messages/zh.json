@@ -4319,6 +4319,21 @@
         "keyframe": "关键帧",
         "closeup": "特写"
       },
+      "slotRack": {
+        "zones": {
+          "images": "图 {count}",
+          "audio": "音 {count}",
+          "videos": "视频 {count}"
+        },
+        "zoneLabel": {
+          "images": "图片",
+          "audio": "音频",
+          "videos": "视频"
+        },
+        "zoneCount": "{held}/{limit}",
+        "total": "总额 {held}/{total}",
+        "remove": "移除 {name}（断开连线，节点保留）"
+      },
       "references": {
         "label": "已引用",
         "counter": "已引用 {referenced} / 已连接 {connected}",
@@ -4919,6 +4934,8 @@
       "voiceSection": "听觉身份",
       "voiceBind": "绑定音色",
       "voiceBindDialogDescription": "从已生成或已上传的音频里选一段作为这个角色的音色参考。",
+      "closeupAdd": "加面部特写",
+      "closeupAddDialogDescription": "选一张面部特写并入这个角色的图集，随角色一起发给模型。",
       "noVoice": "无音色",
       "identityEmptyHint": "选一张代表图",
       "nodeCountAria": "名下 {count} 个节点",

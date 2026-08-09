@@ -39,6 +39,20 @@ export interface ReferenceTokenData {
   dimmed?: boolean
 }
 
+/** Port-family accent per token kind — the flying-token glyph and any accent
+ *  bar keep the same colors as the node's own port. Lives here with the other
+ *  three per-kind maps (shape / ring / fill) so a new kind fails to compile in
+ *  one place instead of four. */
+export const TOKEN_PORT_COLOR_VAR: Record<ReferenceTokenKind, string> = {
+  character: 'var(--node-port-character)',
+  background: 'var(--node-port-background)',
+  shot: 'var(--node-port-image)',
+  keyframe: 'var(--node-port-image)',
+  closeup: 'var(--node-port-image)',
+  voice: 'var(--node-port-voice)',
+  video: 'var(--node-port-video)',
+}
+
 // 'shot' shares the image-family port color with 'character' (both are part of
 // the unified image node — see --node-port-image's comment in globals.css).
 const SHAPE_CLASS: Record<ReferenceTokenKind, string> = {

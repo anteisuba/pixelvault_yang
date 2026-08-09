@@ -50,7 +50,10 @@ import {
   translatePromptTokensToPositional,
 } from './node-video-prompt-translation'
 import { planVideoKeyframeImages } from './node-video-keyframe-plan'
-import { resolveVideoSendSlotLimits } from './node-video-send-slots'
+import {
+  resolveVideoSendSlotLimits,
+  type VideoSendSlotLimits,
+} from './node-video-send-slots'
 import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
 
 export interface VideoSendPreviewImageEntry {
@@ -120,6 +123,19 @@ export interface VideoSendPreview {
   audioEntries: VideoSendPreviewAudioEntry[]
   dropped: VideoSendPreviewDroppedEntry[]
   contract: VideoModelSendContract
+  /**
+   * 这一档**解算后**的各类容量。
+   *
+   * ⚠ 与 `contract.slots` 不是一回事，别拿后者当上限渲染：`slots.images` 是模型
+   * 自己的图片位，而这里的 `images` 已经扣掉了视频/音频吃掉的**跨模态总额**
+   * （火山「≤12 个文件」那类），`imagesLimitedByTotal` 还告诉你被砍是因为总额
+   * 还是模型自身上限 —— 两者对用户的下一步不同（去减视频 vs 只能换模型）。
+   *
+   * 槽架的分类清单与「满没满」全部读这里，**不许在组件里手写**：本轮原型逐格
+   * 手写分类导致四处漏掉视频区，而契约里 `slots.videos` 一直是 3
+   * （见 `references/pages/canvas-slot-rack.md` §4.4）。
+   */
+  slotLimits: VideoSendSlotLimits
   /** Literal normalized request values consumed by the submit path. */
   request: {
     prompt: string
@@ -400,6 +416,7 @@ export function buildVideoSendPreview({
     audioEntries,
     dropped,
     contract,
+    slotLimits,
     request: {
       prompt: requestPrompt,
       referenceImages:

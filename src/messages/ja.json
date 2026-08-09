@@ -4319,6 +4319,21 @@
         "keyframe": "キーフレーム",
         "closeup": "クローズアップ"
       },
+      "slotRack": {
+        "zones": {
+          "images": "画像 {count}",
+          "audio": "音声 {count}",
+          "videos": "動画 {count}"
+        },
+        "zoneLabel": {
+          "images": "画像",
+          "audio": "音声",
+          "videos": "動画"
+        },
+        "zoneCount": "{held}/{limit}",
+        "total": "合計 {held}/{total}",
+        "remove": "{name} を外す（接続を切断、ノードは残ります）"
+      },
       "references": {
         "label": "引用済み",
         "counter": "引用済み {referenced} / 接続済み {connected}",
@@ -4919,6 +4934,8 @@
       "voiceSection": "ボイス識別",
       "voiceBind": "ボイスを紐付け",
       "voiceBindDialogDescription": "生成済みまたはアップロード済みの音声クリップを、このキャラクターのボイス参照として選択します。",
+      "closeupAdd": "顔のクローズアップを追加",
+      "closeupAddDialogDescription": "顔のクローズアップを選んでこのキャラクターの画像集に加えます。キャラクターと一緒に送信されます。",
       "noVoice": "音色なし",
       "identityEmptyHint": "代表画像を選択",
       "nodeCountAria": "紐づくノード {count} 件",

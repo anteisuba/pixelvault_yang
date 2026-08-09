@@ -4319,6 +4319,21 @@
         "keyframe": "Keyframe",
         "closeup": "Close-up"
       },
+      "slotRack": {
+        "zones": {
+          "images": "{count} img",
+          "audio": "{count} audio",
+          "videos": "{count} video"
+        },
+        "zoneLabel": {
+          "images": "Images",
+          "audio": "Audio",
+          "videos": "Video"
+        },
+        "zoneCount": "{held}/{limit}",
+        "total": "Total {held}/{total}",
+        "remove": "Remove {name} (disconnects the edge, keeps the node)"
+      },
       "references": {
         "label": "Referenced",
         "counter": "{referenced} referenced / {connected} connected",
@@ -4919,6 +4934,8 @@
       "voiceSection": "Voice identity",
       "voiceBind": "Bind voice",
       "voiceBindDialogDescription": "Pick a generated or uploaded audio clip as this character's voice reference.",
+      "closeupAdd": "Add face close-up",
+      "closeupAddDialogDescription": "Pick a face close-up to join this character's gallery — it ships alongside the character.",
       "noVoice": "No voice",
       "identityEmptyHint": "Pick a representative image",
       "nodeCountAria": "{count} nodes under this identity",

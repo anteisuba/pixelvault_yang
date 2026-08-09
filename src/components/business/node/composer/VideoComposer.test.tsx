@@ -7,7 +7,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import {
   afterEach,
   beforeAll,
@@ -141,6 +141,14 @@ const { composerState } = vi.hoisted(() => ({
         execution: 'ready' as const,
         positionalImageTokens: false,
       },
+      // 槽架的分类清单与「满没满」全部读这里（契约 §4.4 契约派生）。与上面的
+      // `contract.slots` **不是**一回事：这是解算后的值，已扣掉跨模态总额。
+      slotLimits: {
+        images: 1,
+        videos: 0,
+        audio: 0,
+        imagesLimitedByTotal: false,
+      },
       request: { prompt: '' },
       canSubmit: true,
       blockers: [],
@@ -175,20 +183,8 @@ vi.mock('@/hooks/node/use-video-composer', async () => {
   }
 })
 
-/** Round 2 A: open the inline 管理素材 region and return its content root. */
-function openManager() {
-  fireEvent.click(
-    screen.getByRole('button', { name: 'references.manageButton' }),
-  )
-  return screen.getByRole('region', { name: 'references.manageTitle' })
-}
-
-/** Radix Tabs' trigger switches value on `onMouseDown`, not `onClick` (see
- *  @radix-ui/react-tabs source) — a plain `fireEvent.click` never fires a
- *  preceding mousedown in jsdom, so the tab silently stays put. */
-function selectTab(container: HTMLElement, name: string) {
-  fireEvent.mouseDown(within(container).getByRole('tab', { name }))
-}
+// ⚠ `openManager` / `selectTab` 两个 helper 随「管理素材抽屉 + Tabs」一并退役
+// （2026-08-09 槽架改版）。素材现在住在三级折叠的槽架里，添加位常驻可见。
 
 const {
   updateNodeData,
@@ -509,7 +505,15 @@ describe('VideoComposer compact sidecar', () => {
     expect(setExpandedNodeId).not.toHaveBeenCalled()
   })
 
-  it('shows real connected references as compact thumbnails', () => {
+  /**
+   * ⚠ 紧凑档用的是**和完整档同一个** `CanvasSlotRack`，只是默认折起
+   * （契约 §4.3「两档密度 = 同一个件的两个默认折叠深度」）。
+   *
+   * 这里原先测的是一条 `referenceTokens.slice(0, 5)` 的独立 strip —— 12 个素材
+   * 只画 5 个 + 一个「+1」，用户在紧凑档看到的从来不是全部。那是「两档的账对不
+   * 上」的根，随本轮一并退役。
+   */
+  it('紧凑档默认折起，但账照样读得到', () => {
     composerState.referenceTokens = [
       {
         id: 'c1',
@@ -522,11 +526,37 @@ describe('VideoComposer compact sidecar', () => {
 
     renderCompact()
 
-    const thumbnail = screen
-      .getByRole('button', { name: '@CharacterA' })
-      .querySelector('img')
-    expect(thumbnail).toHaveAttribute('src', 'https://cdn.test/character-a.png')
-    expect(screen.getByText('@CharacterA')).toBeInTheDocument()
+    // 折起 → 缩略图不在
+    expect(screen.queryByTitle('Character A')).not.toBeInTheDocument()
+    // 但摘要行的账在
+    expect(screen.getByText(/^total$/)).toBeInTheDocument()
+  })
+
+  it('紧凑档展开后拿到的是同一份名单（不再是前 5 个）', () => {
+    composerState.referenceTokens = Array.from({ length: 8 }, (_, i) => ({
+      id: `s${i}`,
+      kind: 'shot' as const,
+      label: `镜头${i}`,
+      token: `@镜头${i}`,
+    }))
+    composerState.sendPreview = {
+      ...composerState.sendPreview,
+      slotLimits: {
+        images: 9,
+        videos: 0,
+        audio: 0,
+        imagesLimitedByTotal: false,
+      },
+    }
+
+    renderCompact()
+    fireEvent.click(screen.getByText(/^total$/))
+    fireEvent.click(screen.getByText('zoneLabel.images'))
+
+    // 8 个全在 —— 旧的 slice(0, 5) 会在这里少 3 个。
+    for (let i = 0; i < 8; i += 1) {
+      expect(screen.getByTitle(`镜头${i}`)).toBeInTheDocument()
+    }
   })
 
   it('uses a native prompt field and opens one compact parameter surface', () => {
@@ -600,6 +630,20 @@ describe('VideoComposer references row (detail)', () => {
       assembledImageCount: 0,
       videoUrls: [],
       audioEntries: [],
+      // ⚠ 契约与容量**也要**重置：`useMultimodalContract()` 会把它们改成全能参考
+      // 档，不还原就会泄漏到后面的用例（「关键帧档不该有音频添加位」那条正是被
+      // 这样污染过 —— 它只是碰巧排在污染源前面才一直是绿的）。
+      contract: {
+        ...composerState.sendPreview.contract,
+        referenceMode: 'text-or-first-frame' as const,
+        slots: { images: 1, videos: 0, audio: 0 },
+      },
+      slotLimits: {
+        images: 1,
+        videos: 0,
+        audio: 0,
+        imagesLimitedByTotal: false,
+      },
     }
     updateNodeData.mockClear()
     updateEdgeData.mockClear()
@@ -655,87 +699,31 @@ describe('VideoComposer references row (detail)', () => {
     expect(screen.queryByText('modelRail.label')).toBeNull()
   })
 
-  it('renders REFERENCED tokens as named @token thumbnail chips in the strip (V-3a §8)', () => {
+  /**
+   * ⚠ 槽架改版换掉了这一族被测的东西（2026-08-09，契约
+   * `references/pages/canvas-slot-rack.md`）。退役的三样连同它们的用例一并撤下：
+   *
+   * - **「已引用 N / 已连接 M」二分** —— 槽架显示全部，账只有一本；在槽里就等于
+   *   会发送（`@` narrowing 退役后走 `filterReferencedImages` 的既有护栏分支）。
+   * - **点槽位插入 `@token`** —— 正文回纯文本（契约 §5.1），插入手势没有了。
+   * - **管理素材抽屉（Tabs + 搜索 + 行状态）** —— 三级折叠取代。
+   *
+   * 下面留下的是**能力仍在、只是形态变了**的那些。
+   */
+  it('槽架显示全部连线素材 —— 不再分「已引用 / 已连接」', () => {
     composerState.referenceTokens = [
       { id: 'c1', kind: 'character', label: '角色A', token: '@角色A' },
-      { id: 'a1', kind: 'voice', label: '角色A', token: '@Audio1' },
-    ]
-    composerState.referencedTokenIds = new Set(['c1', 'a1'])
-    renderDetail()
-    expect(screen.getByText('references.label')).toBeInTheDocument()
-    // character chip's accessible name is its @token; voice chip's is the speaker name
-    expect(screen.getByRole('button', { name: '@角色A' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '角色A' })).toBeInTheDocument()
-  })
-
-  it('a connected-but-not-yet-referenced token does NOT show in the strip', () => {
-    composerState.referenceTokens = [
-      { id: 'c1', kind: 'character', label: '角色A', token: '@角色A' },
-    ]
-    // referencedTokenIds stays empty — nothing has been @-mentioned yet.
-    renderDetail()
-    expect(
-      screen.queryByRole('button', { name: '@角色A' }),
-    ).not.toBeInTheDocument()
-    expect(screen.getByText('references.stripEmptyHint')).toBeInTheDocument()
-  })
-
-  it('inserts a character @token from the manager drawer (first reference, trailing space)', () => {
-    composerState.referenceTokens = [
-      { id: 'c1', kind: 'character', label: '角色A', token: '@角色A' },
-    ]
-    renderDetail()
-    const dialog = openManager()
-    fireEvent.click(
-      within(dialog).getByRole('button', { name: 'references.statusInsert' }),
-    )
-    // MentionInput serializes the chip + trailing space back to plain text.
-    expect(updateNodeData).toHaveBeenCalledWith(
-      'v1',
-      expect.objectContaining({ prompt: '@角色A ' }),
-    )
-    // §7.2 ⑥ drift bookkeeping: records what name was inserted for this ref.
-    expect(updateNodeData).toHaveBeenCalledWith('v1', {
-      insertedReferenceNames: { c1: '角色A' },
-    })
-  })
-
-  it('renders a square thumbnail for a REFERENCED shot token and re-inserts its @token', () => {
-    composerState.referenceTokens = [
       { id: 's1', kind: 'shot', label: '开场远景', token: '@开场远景' },
     ]
-    composerState.referencedTokenIds = new Set(['s1'])
+    // ⚠ 一个都没在正文里 @ 过。旧版这时「已引用条」是空的，只留一句
+    // 「已连接但还没有引用」的提示；槽架一律显示。
+    composerState.referencedTokenIds = new Set()
     renderDetail()
-    const chip = screen.getByRole('button', { name: '@开场远景' })
-    expect(chip.className).toContain('rounded-md')
-    fireEvent.click(chip)
-    expect(updateNodeData).toHaveBeenCalledWith(
-      'v1',
-      expect.objectContaining({ prompt: '@开场远景 ' }),
-    )
+    expect(screen.getByTitle('角色A')).toBeInTheDocument()
+    expect(screen.getByTitle('开场远景')).toBeInTheDocument()
   })
 
-  it('inserts a voice @AudioN chip from the drawer (no drift bookkeeping)', () => {
-    composerState.referenceTokens = [
-      { id: 'a1', kind: 'voice', label: '角色A', token: '@Audio1' },
-    ]
-    renderDetail()
-    const dialog = openManager()
-    fireEvent.click(
-      within(dialog).getByRole('button', { name: 'references.statusInsert' }),
-    )
-    expect(updateNodeData).toHaveBeenCalledWith(
-      'v1',
-      expect.objectContaining({ prompt: '@Audio1 ' }),
-    )
-    // Voice's text anchor is ambiguous — not drift-tracked.
-    expect(updateNodeData).not.toHaveBeenCalledWith(
-      'v1',
-      expect.objectContaining({ insertedReferenceNames: expect.anything() }),
-    )
-  })
-
-  it('shows a real thumbnail image for a referenced strip chip when the reference has media', () => {
+  it('槽位带缩略图（折叠的第三级就叫「缩略图」）', () => {
     composerState.referenceTokens = [
       {
         id: 'c1',
@@ -745,12 +733,25 @@ describe('VideoComposer references row (detail)', () => {
         mediaUrl: 'https://cdn.test/character-a.png',
       },
     ]
-    composerState.referencedTokenIds = new Set(['c1'])
     renderDetail()
-    const img = screen
-      .getByRole('button', { name: '@角色A' })
-      .querySelector('img')
+    const img = screen.getByTitle('角色A').querySelector('img')
     expect(img).toHaveAttribute('src', 'https://cdn.test/character-a.png')
+  })
+
+  it('音色槽用封面而不是 mediaUrl', () => {
+    useMultimodalContract()
+    composerState.referenceTokens = [
+      {
+        id: 'a1',
+        kind: 'voice',
+        label: '角色A音色',
+        token: '@Audio1',
+        coverImage: 'https://cdn.test/voice-cover.png',
+      },
+    ]
+    renderDetail()
+    const img = screen.getByTitle('角色A音色').querySelector('img')
+    expect(img).toHaveAttribute('src', 'https://cdn.test/voice-cover.png')
   })
 
   it('V2-1 silently auto-rewrites a stale @oldName after the node is renamed', () => {
@@ -780,34 +781,25 @@ describe('VideoComposer references row (detail)', () => {
     )
   })
 
-  it('locates a REFERENCED reference node on canvas from the hover preview', () => {
+  it('点槽位定位到画布上的源节点', () => {
     composerState.referenceTokens = [
       { id: 'c1', kind: 'character', label: '角色A', token: '@角色A' },
     ]
-    composerState.referencedTokenIds = new Set(['c1'])
     renderDetail()
-    fireEvent.mouseEnter(screen.getByRole('button', { name: '@角色A' }))
-    fireEvent.click(screen.getByText('references.locate'))
+    // ⚠ 不再走 hover 浮层里的「定位」项 —— 契约 §十「触屏无 hover 依赖」，
+    // 点槽位本身就是定位。
+    fireEvent.click(screen.getByTitle('角色A'))
     expect(focusNode).toHaveBeenCalledWith('c1')
   })
 
-  it('shows a needs-name hint in the manager drawer for an unnamed reference node', () => {
-    composerState.referenceTokens = [
-      { id: 'b1', kind: 'background', label: '', token: '' },
-    ]
+  it('空腰带：账仍然读得到（0 素材也有摘要行）', () => {
     renderDetail()
-    const dialog = openManager()
-    expect(
-      within(dialog).getByText('references.unnamedHint'),
-    ).toBeInTheDocument()
+    // 契约 §三 状态 5「空腰带 …… 占几何不占内容」＋ §4.2「折缩略图不折账」：
+    // 一个素材都没有时，总额那一行仍然在，用户读得到「现在是空的」。
+    expect(screen.getByText(/^total$/)).toBeInTheDocument()
   })
 
-  it('shows the no-connections hint when nothing is bound (V-3a, five cast cards retired)', () => {
-    renderDetail()
-    expect(screen.getByText('references.emptyDept')).toBeInTheDocument()
-  })
-
-  it('deletes the edge (node kept) from a REFERENCED strip chip × and toasts about it', () => {
+  it('槽位的移除键删边、保留节点，并 toast 说清楚', () => {
     composerState.referenceTokens = [
       {
         id: 'c1',
@@ -817,11 +809,21 @@ describe('VideoComposer references row (detail)', () => {
         edgeId: 'e1',
       },
     ]
-    composerState.referencedTokenIds = new Set(['c1'])
     renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: 'references.remove' }))
+    fireEvent.click(screen.getByRole('button', { name: /^remove$/ }))
     expect(deleteEdge).toHaveBeenCalledWith('e1')
     expect(toastInfo).toHaveBeenCalledWith('references.removedToast')
+  })
+
+  it('没有直连边的素材不给移除键 —— 它没有自己的边可删', () => {
+    // 1-hop 路由进来的（voice → character → video）没有 edgeId。
+    composerState.referenceTokens = [
+      { id: 'c1', kind: 'character', label: '角色A', token: '@角色A' },
+    ]
+    renderDetail()
+    expect(
+      screen.queryByRole('button', { name: /^remove$/ }),
+    ).not.toBeInTheDocument()
   })
 
   /**
@@ -837,41 +839,41 @@ describe('VideoComposer references row (detail)', () => {
         referenceMode: 'multimodal-reference' as 'text-or-first-frame',
         slots: { images: 9, videos: 3, audio: 3 },
       },
+      // ⚠ 槽架的分区读的是**解算后**的 slotLimits，不是 contract.slots
+      // （契约 §4.4）。两者要一起改，否则会造出「契约说有视频位、槽架却不渲染
+      // 视频区」的假象 —— 那正是本轮在治的「界面说的和发出去的不是一回事」。
+      slotLimits: {
+        images: 9,
+        videos: 3,
+        audio: 3,
+        imagesLimitedByTotal: false,
+      },
     }
   }
 
   it('关键帧档不渲染音频/视频的添加位（§8.6 靠形态不靠文案）', () => {
     // 「不存在」是真的不渲染，不是禁用后置灰 —— 置灰仍然是在用文案解释「你不能用」。
+    // ⚠ 添加位现在是常驻的 `ReferenceAddBar`（不再藏在管理素材抽屉里），但按模式
+    // 过滤的判据没变：仍取自发送契约的槽位数。
     renderDetail()
-    const dialog = openManager()
     expect(
-      within(dialog).queryByRole('button', {
-        name: 'references.addButtons.voice',
-      }),
+      screen.queryByRole('button', { name: 'references.addButtons.voice' }),
     ).toBeNull()
     expect(
-      within(dialog).queryByRole('button', {
-        name: 'references.addButtons.video',
-      }),
+      screen.queryByRole('button', { name: 'references.addButtons.video' }),
     ).toBeNull()
     // 图片区任何模式都有。
     expect(
-      within(dialog).getByRole('button', {
-        name: 'references.addButtons.character',
-      }),
+      screen.getByRole('button', { name: 'references.addButtons.character' }),
     ).toBeInTheDocument()
   })
 
-  it('autospawns from the 声音 tab ＋ → library pick → spawnReference (voice→video)', () => {
+  it('全能参考档下，音频添加位 → 素材库 → spawnReference（voice→video）', () => {
     useMultimodalContract()
     renderDetail()
-    const dialog = openManager()
-    selectTab(dialog, 'references.tabs.voice')
-    // ＋ opens the audio library (voice → audio mediaType).
+    // ⚠ 不再需要先切 tab —— 添加位全部常驻可见（Tabs 随抽屉一并退役）。
     fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: 'references.addButtons.voice',
-      }),
+      screen.getByRole('button', { name: 'references.addButtons.voice' }),
     )
     const pick = screen.getByTestId('asset-pick')
     expect(pick).toHaveAttribute('data-media-type', 'audio')
@@ -889,14 +891,10 @@ describe('VideoComposer references row (detail)', () => {
     })
   })
 
-  it('角色 tab ＋ autospawns an image role=character directly (no submenu)', () => {
+  it('角色添加位直接 spawn 一个 role=character 的图片（无子菜单）', () => {
     renderDetail()
-    const dialog = openManager()
-    selectTab(dialog, 'references.tabs.character')
     fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: 'references.addButtons.character',
-      }),
+      screen.getByRole('button', { name: 'references.addButtons.character' }),
     )
     const pick = screen.getByTestId('asset-pick')
     expect(pick).toHaveAttribute('data-media-type', 'image')
@@ -910,25 +908,15 @@ describe('VideoComposer references row (detail)', () => {
     )
   })
 
-  it('§音色收进角色: 管理素材抽屉里的 ＋配音 targets the CHARACTER node (voice→character)', () => {
-    composerState.referenceTokens = [
-      { id: 'char9', kind: 'character', label: '角色A', token: '@角色A' },
-    ]
-    renderDetail()
-    const dialog = openManager()
-    fireEvent.click(
-      within(dialog).getByRole('menuitem', { name: /references\.addVoice/ }),
-    )
-    const pick = screen.getByTestId('asset-pick')
-    expect(pick).toHaveAttribute('data-media-type', 'audio')
-    fireEvent.click(pick)
-    expect(spawnReference).toHaveBeenCalledWith(
-      expect.objectContaining({
-        targetNodeId: 'char9',
-        nodeType: 'voice',
-      }),
-    )
-  })
+  /**
+   * ⚠ 「＋配音 / ＋特写」这两条已随本轮**搬到角色卡自己的详情面板**
+   * （`CharacterDetailBody`，与「绑定音色」并排），对应的守卫也搬去了
+   * `CharacterDetailBody.test.tsx`。
+   *
+   * 搬的理由是职责：素材槽架只回答「这次挂了什么、满没满、会不会发」，而「这个
+   * 角色的音色/特写是什么」是**角色身份**——在视频节点的界面里改角色，正是退役
+   * 的那个 1084 行组件的病因。
+   */
 
   it('toggles generate_audio onto node data', () => {
     renderDetail()

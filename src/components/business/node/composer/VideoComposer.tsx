@@ -92,12 +92,12 @@ import type {
 
 import { IMEAwareInput, IMEAwareTextarea } from '../inspector/IMEAwareField'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import { CanvasSlotRack } from './CanvasSlotRack'
+import { ReferenceAddBar, type AddReferenceRequest } from './ReferenceAddBar'
 import {
-  ReferenceManagerPanel,
   TOKEN_PORT_COLOR_VAR,
-  type AddReferenceRequest,
-} from './ReferenceManagerPanel'
-import type { ReferenceTokenData } from './ReferenceTokenChip'
+  type ReferenceTokenData,
+} from './ReferenceTokenChip'
 import {
   MentionInput,
   type MentionInputHandle,
@@ -366,7 +366,6 @@ export function VideoComposer({
   const tc = useTranslations('StudioNode.videoComposer')
   const {
     updateNodeData,
-    updateEdgeData,
     generateMediaNode,
     focusNode,
     deleteEdge,
@@ -596,13 +595,6 @@ export function VideoComposer({
   const aspectRatioLockedByImages =
     Boolean(composer.sendPreview.contract?.imageAspectRatioLock) &&
     composer.sendPreview.images.length > 0
-  // V-3b 容量护栏 (设计稿 §3.6) / R3-6b §1: the manager panel warns when 已引用图
-  // exceeds the CURRENT model's actual cap (Seedance ≤9) rather than a
-  // hardcoded number — undefined model = unknown cap = warning suppressed,
-  // not guessed. Resolved once inside `useVideoComposer` (single source,
-  // also feeds `sendPreview`'s capping) instead of a second independent copy
-  // of the same `getMaxReferenceImages` ternary.
-  const maxReferenceImages = composer.maxReferenceImages
   const resolutionOptions =
     capabilities?.supportedResolutions ?? VIDEO_RESOLUTIONS
   const aspectOptions =
@@ -654,6 +646,12 @@ export function VideoComposer({
   // `insertedReferenceNames` for visual kinds so a later rename can be detected
   // as drift (§7.2 ⑥) — a stale @oldName degrades to plain text and the drift
   // affordance offers to replace it. Plus the §8.4 flying-thumbnail overlay.
+  //
+  // ⚠ 暂时没有调用方（2026-08-09）：「点槽位插入 @token」这个手势随槽架改版退役
+  // 了（正文回纯文本，契约 §5.1）。**但这套飞入替身不是过时资产** —— 契约 §十一-2
+  // 的「@ 落槽：替身飞入 250 + 内嵌环确认闪 420」要复用的正是它，只是落点从「正文
+  // 光标处」变成「槽位」。阶段 4 接 `@` 全局时在这里接回去，别当死代码删掉重写。
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 见上：阶段 4 的接入点
   const handleTokenInsert = useCallback(
     (refToken: ReferenceTokenData, originEl: HTMLElement) => {
       const name = refToken.token.replace(/^@/, '')
@@ -797,28 +795,11 @@ export function VideoComposer({
     setPendingAdd(request)
   }
 
-  // ＋配音 on a character slot: open the audio library, but target the CHARACTER
-  // node so the spawned voice wires `voice → character` (its 音色), not into the
-  // video node.
-  const handleAddVoice = (characterNodeId: string) => {
-    setPendingAdd({
-      nodeType: NODE_TYPE_IDS.voice,
-      mediaType: 'voice',
-      targetNodeId: characterNodeId,
-    })
-  }
-
-  // ＋特写 on a character slot (§9 B): open the image library and target the
-  // CHARACTER so the spawned image wires `closeup → character` — a face-detail
-  // sub-reference that rides image_urls behind its subject (harvest 1-hop).
-  const handleAddCloseup = (characterNodeId: string) => {
-    setPendingAdd({
-      nodeType: NODE_TYPE_IDS.image,
-      role: NODE_IMAGE_ROLE_IDS.closeup,
-      mediaType: 'image',
-      targetNodeId: characterNodeId,
-    })
-  }
+  // ⚠ ＋配音 / ＋特写（原本在退役的 `ReferenceManagerPanel` 行菜单里）已搬到
+  // **角色卡自己的详情面板**（`CharacterDetailBody`，与「绑定音色」并排）。
+  // 理由是职责：素材槽架只回答「这次挂了什么、满没满、会不会发」，而「这个角色
+  // 的音色/特写是什么」是**角色身份**，在 A 的界面里改 B 正是旧件 1084 行的病因。
+  // 搬迁不是删除 —— ＋特写此前是全仓唯一入口（添加菜单里没有 closeup 项）。
 
   const handleSelectAssetForAdd = (generation: GenerationRecord) => {
     if (!pendingAdd || !generation.url) {
@@ -856,42 +837,14 @@ export function VideoComposer({
     [deleteEdge, tc],
   )
 
-  // R3-6b §3 每镜覆写: toggling a gallery thumbnail's checkbox writes the
-  // collector→video edge's `stageOverrideUrls` — the FIRST toggle on an
-  // inherited (no-override) card seeds the override from the CURRENT
-  // effective stage set (`galleryAssets[].stagedForVideo`, already
-  // override-aware) so a single click only changes the one asset the user
-  // touched, not the whole set.
-  const handleToggleStage = useCallback(
-    (token: ComposerReferenceToken, assetUrl: string, checked: boolean) => {
-      if (!token.edgeId || !updateEdgeData) return
-      const effective = new Set(
-        (token.galleryAssets ?? [])
-          .filter((asset) => asset.stagedForVideo)
-          .map((asset) => asset.url),
-      )
-      if (checked) effective.add(assetUrl)
-      else effective.delete(assetUrl)
-      updateEdgeData(token.edgeId, {
-        stageOverrideUrls: Array.from(effective),
-      })
-    },
-    [updateEdgeData],
-  )
-
-  const handleRestoreDefaultStage = useCallback(
-    (token: ComposerReferenceToken) => {
-      if (!token.edgeId || !updateEdgeData) return
-      updateEdgeData(token.edgeId, { stageOverrideUrls: undefined })
-    },
-    [updateEdgeData],
-  )
-
-  // R3-6b §1 容量透明: `imageOverflow` is `sendPreview.overflow` reshaped into
-  // a Map for O(1) per-thumbnail lookups — same fact, no recomputation.
-  const imageOverflow = new Map(
-    composer.sendPreview.overflow.map((entry) => [entry.url, entry.name]),
-  )
+  // ⚠ 出场组覆写（R3-6b §3 `stageOverrideUrls`）与它的「恢复默认」随退役的
+  // `ReferenceManagerPanel` 一并撤下（2026-08-09，owner 拍板）。撤的理由不是职责
+  // ——「这条边带哪几张」确实是槽架该回答的「会发什么」——而是**载体**：它依附
+  // 「收集器卡 = 文件夹」这个模型，而阶段 3「参考图一律落散图节点 + 自动连线」
+  // 正是要拆掉那条隐形附件通道；届时「带哪几张」就等于「连了哪几条边」，用槽位
+  // 的移除即可表达，不需要第二套勾选 UI。
+  // 边上的 `stageOverrideUrls` 数据与读取它的收割链**一行未动**，存量覆写照旧
+  // 生效；撤掉的只是写入它的那个 UI。
 
   // cleanup §8.6：当前模式**没有**的素材区，添加入口真的不渲染。判据取自发送契约的
   // 槽位数 —— 与发送路径、预览层同一个真相，不另立一套「哪些模式有视频区」的表。
@@ -1116,9 +1069,6 @@ export function VideoComposer({
       durationValue ? durationSummary : null,
       typeof data.aspectRatio === 'string' ? data.aspectRatio : null,
     ].filter((part): part is string => Boolean(part))
-    const visibleReferences = composer.referenceTokens.slice(0, 5)
-    const hiddenReferenceCount =
-      composer.referenceTokens.length - visibleReferences.length
 
     return (
       <>
@@ -1207,51 +1157,19 @@ export function VideoComposer({
           </div>
 
           <div className="canvas-video-composer-assets">
-            {visibleReferences.length > 0 ? (
-              <div className="canvas-video-composer-asset-list">
-                {visibleReferences.map((refToken) => {
-                  const thumbnailUrl =
-                    refToken.kind === 'voice'
-                      ? refToken.coverImage
-                      : refToken.mediaUrl
-                  const label =
-                    refToken.label ||
-                    refToken.token ||
-                    tc(`refKind.${refToken.kind}`)
-                  return (
-                    <button
-                      key={`${refToken.kind}:${refToken.id}`}
-                      type="button"
-                      {...KEY_GUARD}
-                      onClick={(event) =>
-                        handleTokenInsert(refToken, event.currentTarget)
-                      }
-                      disabled={!refToken.token}
-                      title={
-                        refToken.token
-                          ? tc('references.insertHint')
-                          : tc('references.unnamedHint')
-                      }
-                      className="canvas-video-composer-asset"
-                    >
-                      {thumbnailUrl ? (
-                        // Canvas references can be user uploads or generated R2
-                        // URLs, so next/image's static host contract does not fit.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={thumbnailUrl} alt="" />
-                      ) : (
-                        <span aria-hidden>{label.slice(0, 1)}</span>
-                      )}
-                      <small>{refToken.token || label}</small>
-                    </button>
-                  )
-                })}
-                {hiddenReferenceCount > 0 ? (
-                  <span className="canvas-video-composer-asset-overflow">
-                    +{hiddenReferenceCount}
-                  </span>
-                ) : null}
-              </div>
+            {composer.referenceTokens.length > 0 ? (
+              /* 紧凑档 = 同一个槽架默认折起（契约 §4.3）。
+                 ⚠ 这里原先是 `referenceTokens.slice(0, 5)` 的一条独立 strip ——
+                 12 个素材只显示 5 个，用户在紧凑档看到的从来不是全部，两档的账
+                 因此永远对不上。那正是本轮要消灭的「第二套渲染」。 */
+              <CanvasSlotRack
+                tokens={composer.referenceTokens}
+                slotLimits={composer.sendPreview.slotLimits}
+                defaultExpanded={false}
+                unsendableUrls={unsendableUrls}
+                onLocate={focusNode}
+                onRemove={handleRemoveReference}
+              />
             ) : (
               <p className="canvas-video-composer-assets-empty">
                 {tc('sidecar.noReferences')}
@@ -1590,25 +1508,23 @@ export function VideoComposer({
 
     rack: (
       <div className="canvas-detail-stack">
-        <ReferenceManagerPanel
+        {/* 完整档 = 同一个槽架默认展开（契约 §4.3）。紧凑档在 density='card'
+            分支里用的是**同一个组件**，只是 defaultExpanded=false —— 此前那边
+            自己画了一条 slice(0,5) 的 strip，正是「两档计数对不上」的来源。 */}
+        <CanvasSlotRack
           tokens={composer.referenceTokens}
-          referencedTokenIds={composer.referencedTokenIds}
-          onInsert={handleTokenInsert}
+          slotLimits={composer.sendPreview.slotLimits}
+          defaultExpanded={true}
+          unsendableUrls={unsendableUrls}
           onLocate={focusNode}
           onRemove={handleRemoveReference}
-          onAddReference={spawnReference ? handleAddReference : undefined}
-          onAddVoice={spawnReference ? handleAddVoice : undefined}
-          onAddCloseup={spawnReference ? handleAddCloseup : undefined}
-          maxReferenceImages={maxReferenceImages}
-          imageOverflow={imageOverflow}
-          availableMediaKinds={availableMediaKinds}
-          unsendableUrls={unsendableUrls}
-          assembledImageCount={composer.sendPreview.assembledImageCount}
-          onToggleStage={updateEdgeData ? handleToggleStage : undefined}
-          onRestoreDefaultStage={
-            updateEdgeData ? handleRestoreDefaultStage : undefined
-          }
         />
+        {spawnReference ? (
+          <ReferenceAddBar
+            availableMediaKinds={availableMediaKinds}
+            onAddReference={handleAddReference}
+          />
+        ) : null}
         {composer.hasReferenceInputs ? (
           <p className="px-0.5 text-2xs leading-4 text-node-subtle">
             {tc('referenceModeOn')}

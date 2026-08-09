@@ -46,7 +46,7 @@ import {
   type VideoLegendImageKind,
 } from './node-workflow-graph'
 import {
-  filterReferencedImages,
+  buildReferenceImageIndexByName,
   translatePromptTokensToPositional,
 } from './node-video-prompt-translation'
 import { planVideoKeyframeImages } from './node-video-keyframe-plan'
@@ -273,26 +273,23 @@ export function buildVideoSendPreview({
     nodes,
   )
 
-  // Bug fix 2026-07-27（@ 过滤顺序）: mirrors the StudioNodeWorkbench.
-  // handleGenerateMediaNode fix this module promises to mirror (see the file
-  // doc comment) — filter against every DEDUPED candidate, not just the ones
-  // that survived the cap, or an @-mentioned image ranked past `effectiveMax`
-  // gets cut before the filter can keep it for being referenced.
+  // 先去重、不设上限地拿到全部候选，再在下面按真实上限截断 —— 顺序不能反
+  // （Bug fix 2026-07-27，与 `StudioNodeWorkbench` 发送路径同构）。
   const dedupedReferenceCandidates = assembleReferenceImagePayload(
     referenceCandidateSources,
     Number.POSITIVE_INFINITY,
   ).imageUrls
 
-  const referencedFilter = filterReferencedImages(
-    mergedPrompt,
+  // ⚠ **不再按 `@` 提及收窄**（2026-08-09 退役，见
+  // `node-video-prompt-translation.ts` 里那段说明）：在槽里就等于会发送，
+  // 「发什么」的唯一真相是槽架。这里只算名字 → 位置的索引，供正文里的引用
+  // 翻译成 `@ImageN` 位置 token 用。
+  const referenceImageIndexByName = buildReferenceImageIndexByName(
     dedupedReferenceCandidates,
     videoImageRefByUrl,
     autoNamePrefix,
   )
-  // Cap re-applied AFTER filtering — the entire fix. `imageIndexByName` is
-  // re-filtered to the positions that survive so a name past the real cap
-  // never resolves to an @ImageN token nothing was actually sent for.
-  const cappedReferenceImages = referencedFilter.referenceImages.slice(
+  const cappedReferenceImages = dedupedReferenceCandidates.slice(
     0,
     effectiveMax,
   )
@@ -314,8 +311,10 @@ export function buildVideoSendPreview({
       reason: 'unsupported' as const,
     })),
   )
+  // 只保留真正发出去的那几位 —— 一个被上限砍掉的名字不该还能翻译成
+  // `@ImageN`，那个 N 在载荷里根本不存在。
   const imageIndexByName = new Map(
-    Array.from(referencedFilter.imageIndexByName).filter(
+    Array.from(referenceImageIndexByName).filter(
       ([, position]) => position <= effectiveReferenceImages.length,
     ),
   )
@@ -364,7 +363,7 @@ export function buildVideoSendPreview({
       name: resolveOverflowName(entry, videoImageRefByUrl),
     }),
   )
-  for (const url of referencedFilter.referenceImages.slice(effectiveMax)) {
+  for (const url of dedupedReferenceCandidates.slice(effectiveMax)) {
     dropped.push({
       kind: 'image',
       url,

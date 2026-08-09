@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import type { VideoLegendImageReference } from './node-workflow-graph'
 import {
   buildReferenceImageIndexByName,
-  filterReferencedImages,
   translatePromptTokensToPositional,
 } from './node-video-prompt-translation'
 
@@ -144,126 +143,64 @@ describe('translatePromptTokensToPositional', () => {
   })
 })
 
-describe('filterReferencedImages (V-3b 只送已引用)', () => {
-  it('narrows referenceImages down to only the @-mentioned ones', () => {
-    const imageRefByUrl = new Map<string, VideoLegendImageReference>([
-      ['https://cdn/floro.png', { kind: 'character', name: '弗洛洛' }],
-      ['https://cdn/tavern.png', { kind: 'background', name: '长麻花馆' }],
-    ])
-    const result = filterReferencedImages(
-      '@弗洛洛 微笑着看向镜头',
-      ['https://cdn/floro.png', 'https://cdn/tavern.png'],
-      imageRefByUrl,
-      AUTO_NAME_PREFIX,
-    )
-    expect(result).toEqual({
-      referenceImages: ['https://cdn/floro.png'],
-      imageIndexByName: new Map([['弗洛洛', 1]]),
-      filtered: true,
-    })
-  })
-
-  it('迁移红线: no @-mention hits any known image name → keeps the full set unfiltered', () => {
-    const imageRefByUrl = new Map<string, VideoLegendImageReference>([
-      ['https://cdn/floro.png', { kind: 'character', name: '弗洛洛' }],
-      ['https://cdn/tavern.png', { kind: 'background', name: '长麻花馆' }],
-    ])
-    const result = filterReferencedImages(
-      '一段完全没有 @ 语法的老项目 prompt',
-      ['https://cdn/floro.png', 'https://cdn/tavern.png'],
-      imageRefByUrl,
-      AUTO_NAME_PREFIX,
-    )
-    expect(result).toEqual({
-      referenceImages: ['https://cdn/floro.png', 'https://cdn/tavern.png'],
-      imageIndexByName: new Map([
-        ['弗洛洛', 1],
-        ['长麻花馆', 2],
-      ]),
-      filtered: false,
-    })
-  })
-
-  it('迁移红线: an empty prompt keeps the full connected set unfiltered', () => {
-    const imageRefByUrl = new Map<string, VideoLegendImageReference>([
-      ['https://cdn/floro.png', { kind: 'character', name: '弗洛洛' }],
-    ])
-    const result = filterReferencedImages(
-      '',
-      ['https://cdn/floro.png'],
-      imageRefByUrl,
-      AUTO_NAME_PREFIX,
-    )
-    expect(result.filtered).toBe(false)
-    expect(result.referenceImages).toEqual(['https://cdn/floro.png'])
-  })
-
-  it('无参考图: an empty legend map keeps the (empty) input unfiltered', () => {
-    const result = filterReferencedImages(
-      '@弗洛洛 说话',
-      [],
-      new Map(),
-      AUTO_NAME_PREFIX,
-    )
-    expect(result).toEqual({
-      referenceImages: [],
-      imageIndexByName: new Map(),
-      filtered: false,
-    })
-  })
-
-  it('preserves original connection order, not prompt-mention order', () => {
+describe('buildReferenceImageIndexByName（名字 → 位置）', () => {
+  /**
+   * ⛔ 这一族原本测的是 `filterReferencedImages`（V-3b「只送已引用」）——
+   * 按正文里的 `@` 提及收窄 image_urls。**它已于 2026-08-09 退役**：槽架落成后
+   * 那道收窄成了第二本账（腰带写着「图 6」，正文插一个引用就只发 1 张）。契约
+   * 定死「在槽里就等于会发送」，范围归槽架，正文只管位置标注。
+   *
+   * 留下来的是索引器本身 —— 名字 → 位置的翻译仍然要，且下面这几条约束一条没变。
+   */
+  it('按连线顺序编号，与名字在正文里出现的先后无关', () => {
     const imageRefByUrl = new Map<string, VideoLegendImageReference>([
       ['https://cdn/a.png', { kind: 'character', name: '甲' }],
       ['https://cdn/b.png', { kind: 'character', name: '乙' }],
       ['https://cdn/c.png', { kind: 'character', name: '丙' }],
     ])
-    // Prompt mentions 丙 before 甲, but the ORIGINAL connection order (a, b, c)
-    // must win — Seedance's @ImageN slots have to stay stable regardless of
-    // where in the prose each name is first typed.
-    const result = filterReferencedImages(
-      '@丙 转身看向 @甲',
-      ['https://cdn/a.png', 'https://cdn/b.png', 'https://cdn/c.png'],
-      imageRefByUrl,
-      AUTO_NAME_PREFIX,
-    )
-    expect(result.referenceImages).toEqual([
-      'https://cdn/a.png',
-      'https://cdn/c.png',
-    ])
-    expect(result.imageIndexByName).toEqual(
+    // 正文里 丙 出现在 甲 之前，但编号必须按连线顺序 —— Seedance 的 @ImageN
+    // 位置得稳定，不能随用户在哪一句先提到谁而变。
+    expect(
+      buildReferenceImageIndexByName(
+        ['https://cdn/a.png', 'https://cdn/b.png', 'https://cdn/c.png'],
+        imageRefByUrl,
+        AUTO_NAME_PREFIX,
+      ),
+    ).toEqual(
       new Map([
         ['甲', 1],
-        ['丙', 2],
+        ['乙', 2],
+        ['丙', 3],
       ]),
     )
   })
 
-  it('auto-named reference keeps matching after narrowing shifts its position', () => {
-    // Composer shows an unnamed background auto-numbered off the FULL list
-    // (index 1 → "场景2"); the user types that exact auto name. After
-    // narrowing drops the first (unreferenced) image, 场景2's ACTUAL sent
-    // position becomes 1 — the returned map must reflect that new position,
-    // not silently recompute a different fallback name that no longer
-    // matches what the user typed.
+  it('⚠ 回归：没被提到的图也占位 —— 它照样会发出去', () => {
+    // 退役前这里会把「路人」挤掉、让「场景2」变成第 1 位。现在两张都发，
+    // 所以 场景2 就是第 2 位，翻译出来必须是 @Image2。
     const imageRefByUrl = new Map<string, VideoLegendImageReference>([
       ['https://cdn/unreferenced.png', { kind: 'character', name: '路人' }],
       ['https://cdn/bg.png', { kind: 'background' }],
     ])
-    const result = filterReferencedImages(
-      '@场景2 的窗外下着雨',
+    const indexByName = buildReferenceImageIndexByName(
       ['https://cdn/unreferenced.png', 'https://cdn/bg.png'],
       imageRefByUrl,
       AUTO_NAME_PREFIX,
     )
-    expect(result.referenceImages).toEqual(['https://cdn/bg.png'])
-    expect(result.imageIndexByName).toEqual(new Map([['场景2', 1]]))
-    // The translation layer must still resolve @场景2 → @Image1 off this map.
+    expect(indexByName).toEqual(
+      new Map([
+        ['路人', 1],
+        ['场景2', 2],
+      ]),
+    )
     expect(
-      translatePromptTokensToPositional(
-        '@场景2 的窗外下着雨',
-        result.imageIndexByName,
-      ),
-    ).toBe('@Image1（场景2） 的窗外下着雨')
+      translatePromptTokensToPositional('@场景2 的窗外下着雨', indexByName),
+    ).toBe('@Image2（场景2） 的窗外下着雨')
+  })
+
+  it('没有参考图时给一张空表', () => {
+    expect(
+      buildReferenceImageIndexByName([], new Map(), AUTO_NAME_PREFIX),
+    ).toEqual(new Map())
   })
 })

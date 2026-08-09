@@ -145,8 +145,7 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
       autoNamePrefix: AUTO_NAME_PREFIX,
     })
 
-    // Migration guard: no @-mention hit → filterReferencedImages keeps the
-    // full (capped) set, so images reflects all 2 that survived the cap.
+    // 槽位顺序即发送顺序，上限之外的进 overflow。
     expect(preview.images.map((image) => image.url)).toEqual([
       'https://cdn/char1.png',
       'https://cdn/char2.png',
@@ -157,7 +156,20 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
     expect(preview.assembledImageCount).toBe(2)
   })
 
-  it('keeps an @-mentioned candidate the raw cap would otherwise cut (Bug 3 regression: filter must run before cap)', () => {
+  /**
+   * ⚠ 行为变更（2026-08-09，`@` narrowing 退役）：这条原本断言「被 `@` 提到的图
+   * 能突破上限被救回来」—— 收窄先于截断跑，于是 C 虽然排第 3、上限是 2，仍然是
+   * 唯一发出去的那张。
+   *
+   * 那等于让「在正文里提一句」变成**优先级机制**，而优先级的真相应该只有一个：
+   * 槽架里的顺序。契约（`canvas-slot-rack.md` §一）把「发什么」判给槽架之后，
+   * 正文只负责位置标注，不该再能改变谁进谁不进。
+   *
+   * 现在：按槽位顺序发 A、B，C 超出上限进 dropped（UI 上标「不会发送」）。用户
+   * 正文里那个 `@C` 因为翻译不到位置而退化成普通文字 —— **诚实**：容量不够就是
+   * 不够，不能因为提到它就凭空多一个位置。
+   */
+  it('超出上限的图不会因为「正文提到了它」而被救回来', () => {
     const nodes = [
       makeNode('char1', NODE_TYPE_IDS.characterImage, {
         mediaUrl: 'https://cdn/char1.png',
@@ -179,10 +191,6 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
       makeEdge('e3', 'char3', 'video1'),
     ]
 
-    // Raw priority order is A, B, C — C is 3rd, past a cap of 2. Capping
-    // before filtering (the bug) would drop C entirely and fall through to
-    // the "nothing matched" migration guard, silently sending A+B instead of
-    // what the user actually asked for.
     const preview = buildVideoSendPreview({
       nodeId: 'video1',
       data: nodes[3].data,
@@ -192,19 +200,13 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
       autoNamePrefix: AUTO_NAME_PREFIX,
     })
 
-    expect(preview.images).toEqual([
-      {
-        url: 'https://cdn/char3.png',
-        index: 1,
-        name: 'C',
-        kind: 'character',
-        category: undefined,
-      },
+    // 按槽位顺序发前两张，与「谁被提到」无关。
+    expect(preview.images.map((image) => image.url)).toEqual([
+      'https://cdn/char1.png',
+      'https://cdn/char2.png',
     ])
-    expect(preview.translatedPrompt).toBe('镜头缓缓推向@Image1（C）')
-    // Cap-only view is unaffected by the @-mention narrowing — still reports
-    // the raw cap truncation (A, B survive the cap; C is "overflow" from the
-    // cap's point of view even though it's the one actually sent).
+    // C 没发出去，所以 @C 不该翻译成一个载荷里不存在的 @ImageN。
+    expect(preview.translatedPrompt).toBe('镜头缓缓推向@C')
     expect(preview.overflow).toEqual([
       { url: 'https://cdn/char3.png', name: 'C' },
     ])

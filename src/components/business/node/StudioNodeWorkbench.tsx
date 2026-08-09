@@ -151,7 +151,7 @@ import {
   type VideoLegendImageReference,
 } from '@/lib/node-workflow-graph'
 import {
-  filterReferencedImages,
+  buildReferenceImageIndexByName,
   translatePromptTokensToPositional,
 } from '@/lib/node-video-prompt-translation'
 import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
@@ -1470,33 +1470,21 @@ function StudioNodeCanvas() {
         closeup: t('videoComposer.autoName.closeup'),
         video: t('videoComposer.autoName.video'),
       }
-      // V-3b 只送已引用（docs/references/pages/canvas-video-card.md
-      // 决策1）: narrow the sent image_urls down to only what `mergedPrompt`
-      // actually `@`-mentions. 迁移红线 lives inside `filterReferencedImages`
-      // itself — a project with connections but no matching @-mention keeps
-      // sending everything (pre-V-3 behaviour), so upgrading never silently
-      // drops a reference. Filters against `dedupedReferenceCandidates` (see
-      // above), NOT the capped `referenceImages` — an @-mentioned image
-      // ranked past the cap must still survive; `effectiveReferenceImages`
-      // below re-applies the real cap AFTER filtering (Bug fix 2026-07-27).
-      // `referenceImages` above stays the raw capped set (still used as-is
-      // by the shot-image branch, which V-3b does not touch — §3 决策8 维持现状).
-      const referencedFilter = isVideoMediaNode
-        ? filterReferencedImages(
-            mergedPrompt,
+      // ⚠ **不再按 `@` 提及收窄发送集合**（2026-08-09 退役，理由见
+      // `node-video-prompt-translation.ts` 顶部那段）：在槽里就等于会发送，
+      // 「发什么」的唯一真相是槽架。这里只算名字 → 位置的索引，供正文里的引用
+      // 翻译成 `@ImageN` 位置 token 用。
+      const referenceImageIndexByName = isVideoMediaNode
+        ? buildReferenceImageIndexByName(
             dedupedReferenceCandidates,
             videoImageRefByUrl,
             videoImageAutoNamePrefix,
           )
         : null
-      // `.slice(0, maxReferenceImages)` on the non-video fallback branch
-      // (`referenceImages`, already capped) is a harmless no-op — it only
-      // does real work on the video branch, where `referencedFilter` may
-      // still exceed the cap (the migration pass-through can return the full
-      // uncapped set, or the user may @-mention more distinct images than
-      // the model allows).
+      // 视频线用未截断的候选（下面按真实上限裁一次）；其余线沿用早已截断好的
+      // `referenceImages`，那一支 V-3b 从来没碰过。
       const cappedReferenceImages = (
-        referencedFilter ? referencedFilter.referenceImages : referenceImages
+        isVideoMediaNode ? dedupedReferenceCandidates : referenceImages
       ).slice(0, slotLimits.images)
       // 切片 6 第 ⑤ 层守卫：关键帧档只有 first_frame / last_frame 两个位置，适配器
       // 按位置取图。而收割顺序是「关键帧在前，其余参考图跟在后面」——「1 张首帧 +
@@ -1550,9 +1538,9 @@ function StudioNodeCanvas() {
       // whose position lands past the real cap must be dropped here too, or
       // it would translate into an @ImageN token nothing was actually sent
       // for (Bug fix 2026-07-27).
-      const imageIndexByName = referencedFilter
+      const imageIndexByName = referenceImageIndexByName
         ? new Map(
-            Array.from(referencedFilter.imageIndexByName).filter(
+            Array.from(referenceImageIndexByName).filter(
               ([, position]) => position <= effectiveReferenceImages.length,
             ),
           )

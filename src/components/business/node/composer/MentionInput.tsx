@@ -237,6 +237,122 @@ export function serializeEditor(el: HTMLElement): string {
   return out
 }
 
+/**
+ * 光标在**序列化文本**里的字符偏移；光标不在编辑器内时返回 null。
+ *
+ * 遍历口径与 `serializeEditor` 逐条对齐（胶囊记 `@名字` 的长度、`<br>` 记一个
+ * 换行、块级包装补换行），否则算出来的偏移会和 `value` 的下标对不上。
+ */
+function getCaretOffset(el: HTMLElement): number | null {
+  const selection = el.ownerDocument.getSelection()
+  if (!selection || selection.rangeCount === 0) return null
+  const range = selection.getRangeAt(0)
+  if (!el.contains(range.endContainer)) return null
+
+  let offset = 0
+  let found = false
+  const walk = (node: Node) => {
+    if (found) return
+    node.childNodes.forEach((child) => {
+      if (found) return
+      if (child === range.endContainer) {
+        offset += range.endOffset
+        found = true
+        return
+      }
+      if (child.nodeType === Node.TEXT_NODE) {
+        offset += child.textContent?.length ?? 0
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        const element = child as HTMLElement
+        if (element.hasAttribute(MENTION_ATTR)) {
+          offset += `@${element.getAttribute(MENTION_ATTR) ?? ''}`.length
+        } else if (element.tagName === 'BR') {
+          offset += 1
+        } else {
+          if (offset > 0) offset += 1
+          walk(element)
+        }
+      }
+    })
+  }
+  walk(el)
+  return found ? offset : null
+}
+
+/**
+ * 把光标放回**序列化文本**里的第 `offset` 个字符处。
+ *
+ * 胶囊是原子的：偏移落在它中间时靠到它后面 —— 光标不能停在一个不可编辑块内部。
+ */
+function setCaretOffset(el: HTMLElement, offset: number): void {
+  const doc = el.ownerDocument
+  const selection = doc.getSelection()
+  if (!selection) return
+  const range = doc.createRange()
+
+  let remaining = offset
+  let placed = false
+  const walk = (node: Node) => {
+    if (placed) return
+    node.childNodes.forEach((child) => {
+      if (placed) return
+      if (child.nodeType === Node.TEXT_NODE) {
+        const length = child.textContent?.length ?? 0
+        if (remaining <= length) {
+          range.setStart(child, remaining)
+          placed = true
+          return
+        }
+        remaining -= length
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        const element = child as HTMLElement
+        if (element.hasAttribute(MENTION_ATTR)) {
+          const length = `@${element.getAttribute(MENTION_ATTR) ?? ''}`.length
+          if (remaining <= length) {
+            range.setStartAfter(element)
+            placed = true
+            return
+          }
+          remaining -= length
+        } else if (element.tagName === 'BR') {
+          if (remaining <= 1) {
+            range.setStartAfter(element)
+            placed = true
+            return
+          }
+          remaining -= 1
+        } else {
+          if (remaining > 0) remaining -= 1
+          walk(element)
+        }
+      }
+    })
+  }
+  walk(el)
+
+  if (!placed) {
+    // 偏移超出了内容（外部把正文改短了）—— 落到末尾，别把光标丢在开头。
+    // ⚠ 优先落在最后一个**文本节点**里：`selectNodeContents` + collapse 会把
+    // 光标停在元素层，那时 `endOffset` 是子节点索引而不是字符偏移，后续任何按
+    // 字符算位置的代码都会读到一个语义不同的数。
+    const lastText = (() => {
+      const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+      let last: Text | null = null
+      while (walker.nextNode()) last = walker.currentNode as Text
+      return last
+    })()
+    if (lastText) {
+      range.setStart(lastText, lastText.length)
+    } else {
+      range.selectNodeContents(el)
+      range.collapse(false)
+    }
+  }
+  range.collapse(true)
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
 function insertNodeAtCaret(el: HTMLElement, node: Node): void {
   const doc = el.ownerDocument
   const selection = doc.getSelection()
@@ -381,12 +497,54 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
 
     // Re-render the DOM from `value` only when it changed externally (not from
     // our own onInput echo) and we're not mid-composition.
+    /**
+     * 外部 `value` 变了就重建内容 —— 而**重建必须保住光标**。
+     *
+     * ⚠ 2026-08-09 根治：此前这里只重建、不管光标，靠
+     * `value === lastValueRef.current` 猜「这次是不是我自己发出去的」来回避。
+     * 那个守卫本身就是错的思路，至少两类情况会穿过去：
+     *
+     *   ① **打字快过回流**：`emit` 只记最后一次发出的值，而 `updateNodeData`
+     *      的回流是异步的。打完 "ab" 时第一次更新才带着 "a" 回来，
+     *      `"a" !== "ab"` → 守卫失效 → 重建 → 光标弹回开头。owner 真机在紧凑档
+     *      和完整档都撞到，正是这一条。
+     *   ② **任何外部改写**：助手 ops、提示词模板、改名漂移回写…… 它们本来就该
+     *      重建，而用户此刻的光标同样不该被扔掉。
+     *
+     * 所以不再猜值的来源，改成「重建前量下光标、重建后放回去」。守卫保留只是
+     * 省掉一次无谓的 DOM 重建（同值直接跳过），不再承担正确性。
+     */
     useEffect(() => {
       if (isComposing) return
-      if (value === lastValueRef.current) return
       const el = editorRef.current
       if (!el) return
+
+      /**
+       * ⭐ **谁是真相**：光标在这个编辑器里 → **DOM 是真相**，外部 `value` 只是
+       * 一份滞后的镜像；光标不在 → `value` 是真相，照它重建。
+       *
+       * ⚠ 这条是 2026-08-09 真机打出来的。受控回流是异步的：连打
+       * `ABCDEFGH`，打到 B 时 A 的那次回流才到，effect 拿着**旧值**重建 DOM，
+       * 把刚打进去的字冲掉 —— 屏幕上出来的是 `BCDEFGHA`，首字符被甩到末尾。
+       * 光标保持救不了这个，因为丢的是内容不是位置。
+       *
+       * 代价（知情选择）：用户正聚焦时，外部改写（助手 ops / 模板 / 改名回写）
+       * 不会即时冲进编辑器，要等失焦后那次同步。相比"打字被吞"，这个代价小得
+       * 多，而且外部改写本来就不该在用户打字中途抢走内容。
+       *
+       * `insertToken` 那条路不受影响 —— 它直接改 DOM 再 `emit`，从不经过这里。
+       */
+      const active = el.ownerDocument.activeElement
+      if (active === el || el.contains(active)) {
+        lastValueRef.current = value
+        return
+      }
+
+      if (value === lastValueRef.current) return
+      // 失焦重建也要保住光标：外部改写完用户点回来时，位置不该回到开头。
+      const caret = getCaretOffset(el)
       renderInto(el, value, knownNames, tokenByName)
+      if (caret !== null) setCaretOffset(el, caret)
       lastValueRef.current = value
     }, [value, isComposing, knownNames, tokenByName])
 

@@ -670,7 +670,7 @@
   --canvas-text-body: 14px; /* 输入档，与基准一致，未动 */
   --canvas-text-body-lh: 1.6;
   --canvas-text-name: 13px; /* 15 → 13（§5 #4，实测 13/20.15/400） */
-  --canvas-text-name-lh: 20px; /* 24 → 20；⚠ 有一处当 height 用（.canvas-card-name） */
+  --canvas-text-name-lh: 20px; /* 24 → 20；⚠ 有一处当 height 用（.canvas-card-label） */
   --canvas-text-meta: 11px; /* 12 → 11 */
   --canvas-text-meta-lh: 1.55; /* 11×1.55 ≈ 17.05，实测行高 */
   --canvas-rail-w: 56px; /* 左侧图标轨 */
@@ -1066,39 +1066,26 @@
   white-space: nowrap;
 }
 
-.domain-canvas .canvas-video-sidecar-quiet-button,
 .domain-canvas .canvas-video-sidecar-icon-button {
+  display: inline-flex;
+  width: var(--canvas-control-h);
   min-height: var(--canvas-control-h);
+  align-items: center;
+  justify-content: center;
   color: var(--canvas-ink-regular);
   background: var(--canvas-card-bg);
   border: 1px solid var(--canvas-stroke-bold);
+  border-radius: 50%;
   transition:
     background var(--canvas-dur-fast) var(--canvas-ease-state),
     border-color var(--canvas-dur-fast) var(--canvas-ease-state);
 }
 
-.domain-canvas .canvas-video-sidecar-quiet-button {
-  padding: 0 10px;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.domain-canvas .canvas-video-sidecar-icon-button {
-  display: inline-flex;
-  width: var(--canvas-control-h);
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-}
-
-.domain-canvas .canvas-video-sidecar-quiet-button:hover,
 .domain-canvas .canvas-video-sidecar-icon-button:hover {
   background: var(--canvas-fill-control-hover);
   border-color: var(--canvas-stroke-focus);
 }
 
-.domain-canvas .canvas-video-sidecar-quiet-button:focus-visible,
 .domain-canvas .canvas-video-sidecar-icon-button:focus-visible {
   outline: 2px solid var(--canvas-stroke-focus);
   outline-offset: 2px;
@@ -1240,79 +1227,6 @@
   min-height: 52px;
   align-items: center;
   gap: 6px;
-}
-
-.domain-canvas .canvas-video-composer-asset-list {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
-}
-
-.domain-canvas .canvas-video-composer-asset {
-  position: relative;
-  display: block;
-  width: 46px;
-  height: 46px;
-  flex: none;
-  overflow: hidden;
-  color: var(--canvas-ink-regular);
-  background: var(--canvas-media-bg);
-  border: 1px solid var(--canvas-stroke-regular);
-  border-radius: 8px;
-}
-
-.domain-canvas .canvas-video-composer-asset:disabled {
-  opacity: 0.55;
-}
-
-.domain-canvas .canvas-video-composer-asset:not(:disabled):hover {
-  border-color: var(--canvas-stroke-focus);
-}
-
-.domain-canvas .canvas-video-composer-asset img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.domain-canvas .canvas-video-composer-asset > span {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.domain-canvas .canvas-video-composer-asset small {
-  position: absolute;
-  right: 2px;
-  bottom: 2px;
-  left: 2px;
-  overflow: hidden;
-  padding: 1px 3px;
-  color: var(--canvas-action-fg);
-  background: color-mix(in oklab, var(--canvas-action) 78%, transparent);
-  border-radius: 3px;
-  font-size: 7px;
-  line-height: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.domain-canvas .canvas-video-composer-asset-overflow {
-  display: inline-flex;
-  min-width: 30px;
-  height: 30px;
-  align-items: center;
-  justify-content: center;
-  color: var(--canvas-ink-muted);
-  background: var(--canvas-fill-control);
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 600;
 }
 
 .domain-canvas .canvas-video-composer-assets-empty {
@@ -2439,27 +2353,9 @@
    施工基准：docs/references/pages/assistant-shell.md 同轮任务书 +
    canvas-skin-spec-2026-07-26.md。CastDock 的 panel 布局挂在 CanvasLeftPanel
    的 .canvas-glass 容器内——大部分残留 node-* 类已经靠那层的 strangler 重
-   映射读到 v0.2 值（见上方"玻璃容器内的前景色重映射"注释）；这里只补三处
-   它没覆盖到的缺口：CastCard 自身的 .node-card-paper 局部覆盖（比 .canvas-
-   glass 更近的祖先，会盖过它）、卡角徽标按钮的语义色 hover、以及 Popover
-   （Radix 传送门到 document.body，脱离 .domain-canvas 的 DOM 子树，
-   var(--canvas-*) 够不到，改用字面值，逐条注明来源）。只换皮，不改结构。
+   映射读到 v0.2 值（见上方"玻璃容器内的前景色重映射"注释）；这里只补一处
+   它没覆盖到的缺口：卡角徽标按钮的语义色 hover。只换皮，不改结构。
    ══════════════════════════════════════════════════════════════════════════ */
-
-/* 卡匣 chrome 里的纯图标 ghost 按钮（折叠把手一类）：默认墨灰图标，hover 靠
-   --canvas-fill-control-hover 填底 + 字色升到 --canvas-ink——「控件被悬停」
-   的通用语义（规格 §3 定义的那个 token 就是给这个场景用的），不是指向/危险
-   这类语义色，所以跟下面的卡角徽标按钮分开一个类。 */
-.domain-canvas .canvas-cast-ghost-btn {
-  color: var(--canvas-ink-muted);
-  transition:
-    background var(--canvas-dur-fast) var(--canvas-ease-state),
-    color var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-cast-ghost-btn:hover {
-  background: var(--canvas-fill-control-hover);
-  color: var(--canvas-ink);
-}
 
 /* CastCard 卡角微按钮（删除/快投）——圆形白底徽标，默认墨灰图标，hover 才提示
    语义色：删除=危险红，快投=强调蓝（§0.6「强调只表指向」——快投正是"把这张卡
@@ -2475,48 +2371,6 @@
 }
 .domain-canvas .canvas-cast-badge-btn--accent:hover {
   color: var(--canvas-accent);
-}
-
-/* 卡匣尾「+新建」拼贴：虚线邀请态，hover 提示强调蓝（同样是"指向即将新建的
-   动作"，非结构色，同上一条理由）。 */
-.domain-canvas .canvas-cast-add-tile {
-  border: 1px dashed var(--canvas-stroke-bold);
-  color: var(--canvas-ink-muted);
-  transition:
-    border-color var(--canvas-dur-fast) var(--canvas-ease-state),
-    color var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-cast-add-tile:hover {
-  border-color: var(--canvas-accent);
-  color: var(--canvas-ink);
-}
-
-/* 「+新建」的类型选择 Popover——Radix Portal 传送到 document.body，不在
-   .domain-canvas 的 DOM 子树内，var(--canvas-*) 在那个位置读不到（自定义
-   属性靠 DOM 祖先链继承，传送门跳过了原来的祖先），因此这里不能用
-   .domain-canvas 前缀选择器，也不能引用 var(--canvas-*)。改用字面值，逐条
-   对应规格来源：#ffffff = --canvas-pop-bg，12px = --canvas-pop-radius，投影
-   = --canvas-pop-shadow，rgba(0,0,0,.08) = --canvas-stroke-regular，
-   #0a0a0a = --canvas-ink，#737373 = --canvas-ink-muted，rgba(0,0,0,.04) =
-   --canvas-fill-control——不是新造颜色，是同一批已定值的字面量落地。 */
-.canvas-cast-popover {
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.06);
-  color: #0a0a0a;
-}
-.canvas-cast-popover-item {
-  color: #0a0a0a;
-  transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.canvas-cast-popover-item:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-.canvas-cast-popover-item-icon {
-  color: #737373;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -2829,12 +2683,6 @@
   font-size: 13px;
   box-shadow: var(--canvas-detail-shadow-card);
 }
-/* 短值只读派生（R6）：不穿控件壳。 */
-.domain-canvas .canvas-detail-krow-plain {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--canvas-detail-ink);
-}
 .domain-canvas .canvas-detail-stack {
   display: flex;
   flex-direction: column;
@@ -2924,16 +2772,6 @@
   width: 100%;
   min-width: 0;
   flex: none;
-}
-
-/* 管理素材只在 source-rack 内原位展开，不再 absolute 覆盖 prompt。列表自己滚，
-   触发按钮仍留在 DOM 中，因此 Esc/关闭后的 focus return 有真实目标。 */
-.domain-canvas .canvas-reference-manager-inline {
-  max-height: min(480px, 54vh);
-  margin-top: 8px;
-  border: 1px solid var(--canvas-stroke-regular);
-  border-radius: 12px;
-  box-shadow: var(--canvas-detail-shadow-card);
 }
 
 /* 槽 5 · 关系带 / 槽 6 · 证据抽屉的一行灰字。 */
@@ -3090,180 +2928,19 @@
   }
 }
 
-/* Shared rail geometry. Image/media inspectors consume it directly; dossier
-   families use the balanced variant outside their existing family content. */
-.domain-canvas .canvas-object-studio-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
-  gap: 40px;
-  align-items: start;
-  min-width: 0;
-}
-
-.domain-canvas .canvas-object-studio-grid--balanced {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.domain-canvas .canvas-object-studio-grid--stack {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-}
-
-.domain-canvas .canvas-object-studio-media-rail,
-.domain-canvas .canvas-object-studio-task-rail {
-  display: grid;
-  min-width: 0;
-  gap: 20px;
-  align-content: start;
-}
-
-/* Generated-video detail is a real Object studio, not the legacy inspector
-   stacked inside a larger modal. The left rail owns the film and the exact
-   assets entering the request; the right rail owns composition, model-aware
-   parameters, send diagnostics, and the primary action. Compact card density
-   never consumes these selectors. */
-.domain-canvas .canvas-video-object-studio {
-  align-items: start;
-}
-
-.domain-canvas .canvas-video-object-studio .canvas-object-studio-media-rail,
-.domain-canvas .canvas-video-object-studio .canvas-object-studio-task-rail {
-  gap: 28px;
-}
-
-.domain-canvas .canvas-video-object-studio-section {
-  display: grid;
-  min-width: 0;
-  gap: 14px;
-}
-
-.domain-canvas .canvas-video-object-studio-section--divided {
-  padding-top: 26px;
-  border-top: 1px solid var(--canvas-stroke-regular);
-}
-
-.domain-canvas .canvas-video-object-studio-section-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  min-width: 0;
-  gap: 16px;
-}
-
-.domain-canvas .canvas-video-object-studio-section-heading h2 {
-  min-width: 0;
-  color: var(--canvas-ink);
-  font-size: 0.875rem;
-  font-weight: 650;
-  line-height: 1.25rem;
-}
-
-.domain-canvas .canvas-video-object-studio-section-heading span {
-  overflow: hidden;
-  color: var(--canvas-ink-subtle);
-  font-size: 0.6875rem;
-  line-height: 1rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.domain-canvas
-  .canvas-video-object-studio
-  .canvas-object-studio-media-rail
-  .node-monitor-matte {
-  width: 100%;
-  max-height: none;
-  border-radius: 16px;
-}
-
-.domain-canvas
-  .canvas-video-object-studio
-  .canvas-object-studio-media-rail
-  .node-monitor-matte[data-empty='true'] {
-  background:
-    radial-gradient(
-      circle at 72% 28%,
-      color-mix(in srgb, var(--canvas-accent) 16%, transparent),
-      transparent 36%
-    ),
-    linear-gradient(
-      145deg,
-      color-mix(in srgb, var(--canvas-fill-control) 92%, transparent),
-      color-mix(in srgb, var(--canvas-card-bg) 60%, transparent)
-    );
-}
-
-.domain-canvas
-  .canvas-video-object-studio
-  .canvas-object-studio-media-rail
-  .node-monitor-matte[data-empty='true']::before,
-.domain-canvas
-  .canvas-video-object-studio
-  .canvas-object-studio-media-rail
-  .node-monitor-matte[data-empty='true']::after {
-  display: none;
-}
-
-.domain-canvas
-  .canvas-video-object-studio
-  .canvas-object-studio-media-rail
-  > .canvas-video-object-studio-section
-  > .flex.h-11 {
-  margin-top: 0;
-  background: color-mix(in srgb, var(--canvas-card-bg) 38%, transparent);
-}
-
-.domain-canvas .canvas-video-object-studio-send-preview {
-  padding-top: 4px;
-}
-
-.domain-canvas .canvas-video-object-studio-dock {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--canvas-stroke-regular);
-}
-
+/* 生成视频详情的主动作按钮。⚠ 只剩这一条：两轨 object studio 版式（grid /
+   media-rail / task-rail / video-object-studio-section 一族）已被七槽骨架取代，
+   随消费组件一起退场；这个类仍挂在 VideoComposer 的生成按钮上。 */
 .domain-canvas .canvas-video-object-studio-generate {
   width: auto;
   min-width: 168px;
   flex: none;
 }
 
-/* ⚠ 断点从视口媒体查询（960/760/420）并轨到**容器查询**（1023/767，全站刻度）。
-   两处理由：① 全站紧凑断点是 1024（use-mobile.ts 的 MOBILE_BREAKPOINT），
-   面板自己用 960/760 会让 961–1023 与 761–767 两段拿到与全站不一致的形态；
-   ② 面板量的应该是**画布 stage 的宽度**而不是视口 —— 左面板展开、助手 dock 打开
-   都会压缩 stage，而视口宽度纹丝不动。stage 已是 inline-size 容器
+/* 断点量的是**画布 stage 的宽度**而不是视口 —— 左面板展开、助手 dock 打开都会
+   压缩 stage，而视口宽度纹丝不动。stage 已是 inline-size 容器
    （CanvasWorkspaceLayout 的 @container），overlay 是它的 absolute inset-0 后代。 */
-@container stage (max-width: 1023px) {
-  .domain-canvas .canvas-object-studio-grid,
-  .domain-canvas .canvas-object-studio-grid--balanced {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 28px;
-  }
-}
-
-@container stage (max-width: 767px) {
-  /* 详情壳的 1120 / 680 响应式由上方视口媒体查询负责；这个容器查询只保留
-     legacy object-studio 子网格的适配，避免两套断点同时改写详情壳几何。 */
-}
-
 @container stage (max-width: 479px) {
-  .domain-canvas .canvas-video-object-studio-section-heading {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .domain-canvas .canvas-video-object-studio-dock {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
-  }
-
   .domain-canvas .canvas-video-object-studio-generate {
     width: 100%;
   }
@@ -3325,9 +3002,8 @@
 }
 
 /* 头部工具条的纯图标 ghost 按钮：默认墨灰，hover 靠 --canvas-fill-control-
-   hover 填底 + 字色升到 --canvas-ink——跟 .canvas-cast-ghost-btn 是同一个
-   语义，换个前缀是为了让两族各自的施工基准（assistant-shell.md /
-   本文件）能独立找到自己名下的类，不是重复造轮子。 */
+   hover 填底 + 字色升到 --canvas-ink——「控件被悬停」的通用语义（规格 §3 定义的
+   那个 token 就是给这个场景用的），不是指向/危险这类语义色。 */
 .domain-canvas .canvas-assistant-ghost-btn {
   color: var(--canvas-ink-muted);
   transition:
@@ -3339,9 +3015,8 @@
   color: var(--canvas-ink);
 }
 
-/* 移动端收起抓手条——同 .canvas-cast 系没有对应件，这里用 --canvas-fill-
-   control（比卡背深一档的中性灰），不用全局 bg-muted（脊柱色，同样会在这
-   个位置解析成暗色）。 */
+/* 移动端收起抓手条——用 --canvas-fill-control（比卡背深一档的中性灰），不用
+   全局 bg-muted（脊柱色，同样会在这个位置解析成暗色）。 */
 .domain-canvas .canvas-assistant-handle {
   background: var(--canvas-fill-control);
 }
@@ -3546,9 +3221,9 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
    一份 .domain-canvas 覆盖——两处同时存在只会制造「改一处漏一处」的风险，
    故整块移除，不留空选择器。 */
 
-/* 助手「历史对话」浮层（CanvasAssistantHistory.tsx）——同 .canvas-cast-
-   popover 的处境：Radix Popover 传送门到 document.body，脱离 .domain-canvas
-   的 DOM 子树，var(--canvas-*) 够不到，只能用字面值。逐条对应来源：
+/* 助手「历史对话」浮层（CanvasAssistantHistory.tsx）——Radix Popover 传送门到
+   document.body，脱离 .domain-canvas 的 DOM 子树，var(--canvas-*) 够不到（自定义
+   属性靠 DOM 祖先链继承，传送门跳过了原来的祖先），只能用字面值。逐条对应来源：
    #ffffff = --canvas-card-bg，12px = --canvas-pop-radius，投影 =
    --canvas-pop-shadow，rgba(0,0,0,.08) = --canvas-stroke-regular，
    rgba(0,0,0,.04) = --canvas-fill-control，rgba(0,0,0,.06) =
@@ -3570,9 +3245,6 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 }
 .canvas-assistant-popover-subtle {
   color: #8f8f8f;
-}
-.canvas-assistant-popover-muted {
-  color: #737373;
 }
 .canvas-assistant-popover-input {
   background: rgba(0, 0, 0, 0.04);
@@ -3888,8 +3560,8 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 }
 
 /* 弹层内容（Popover 通过 Radix Portal 传送到 document.body，脱离
-   .domain-canvas 的 DOM 子树，var(--canvas-*) 在那个位置读不到——同
-   .canvas-cast-popover 的处境，改用字面值，逐条对应来源：#ffffff =
+   .domain-canvas 的 DOM 子树，var(--canvas-*) 在那个位置读不到——改用字面值，
+   逐条对应来源：#ffffff =
    --canvas-pop-bg，12px = --canvas-pop-radius，投影 = --canvas-pop-shadow，
    rgba(0,0,0,.08) = --canvas-stroke-regular，#0a0a0a/#525252/#737373 =
    --canvas-ink/-regular/-muted，rgba(0,0,0,.04) = --canvas-fill-control。 */

@@ -20,6 +20,19 @@ export interface MentionToken {
   /** 16px thumbnail embedded in the chip — the node's image / videoThumbnail,
    *  or the voice cover. Falls back to a flat port-color chip when absent. */
   thumbnailUrl?: string
+  /**
+   * 胶囊上**显示**的文字 —— 位置标注（「图 3」），缺省才退回 `@名字`。
+   *
+   * ⚠ 显示与存储故意分开，两者各司其职：
+   *   · **存储**仍是 `@名字`（序列化读 `data-mention` 属性，不看这里）——
+   *     锚点必须稳，不能随连线增删而变。
+   *   · **显示**用槽位序号 —— 它和发出去的 `@ImageN` 是同一个位置，用户看到的
+   *     和模型收到的对得上；重名素材（三个「镜头1」）在正文里也终于分得清。
+   *
+   * 序号由调用方按当前载荷实时算（`sendPreview.images[].index`），槽位增删后
+   * 下一次渲染自动更新，不会错位。
+   */
+  slotLabel?: string
 }
 
 export interface MentionInputHandle {
@@ -169,7 +182,8 @@ function buildChip(
   if (kind) chip.appendChild(buildThumb(doc, kind, token?.thumbnailUrl))
   const label = doc.createElement('span')
   label.className = 'mention-chip-label leading-none'
-  label.textContent = `@${name}`
+  // 显示位置（「图 3」），存储仍是 `@名字` —— 见 `MentionToken.slotLabel`。
+  label.textContent = token?.slotLabel ?? `@${name}`
   chip.appendChild(label)
   return chip
 }

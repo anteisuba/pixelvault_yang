@@ -4332,12 +4332,14 @@
         },
         "zoneCount": "{held}/{limit}",
         "total": "总额 {held}/{total}",
+        "slotHint": "{name} · 点击引用到提示词，双击可聚焦至节点",
         "remove": "移除 {name}（断开连线，节点保留）"
       },
       "references": {
         "label": "已引用",
         "counter": "已引用 {referenced} / 已连接 {connected}",
         "charCount": "{length}/{max}",
+        "slotLabel": "图 {index}",
         "insertHint": "点击槽位插入到提示词",
         "unnamed": "需命名",
         "unnamedHint": "给该节点命名后即可作为标签插入",

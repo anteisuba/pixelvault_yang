@@ -89,7 +89,22 @@ export interface CanvasSlotRackProps {
   defaultExpanded: boolean
   /** 本次不会发送的素材 URL —— 槽位上标出来，**不销毁**（契约 §4.7）。 */
   unsendableUrls?: ReadonlySet<string>
+  /**
+   * **双击**槽位 → 聚焦到画布上的源节点。
+   *
+   * ⚠ 定位挂在双击上、插入挂在单击上，不是随手定的：写提示词时「引用某张图」是
+   * 高频动作，「看看它在画布哪儿」是低频动作，最轻的手势要给高频的那个。而且
+   * 相机飞走会打断正在组织的句子 —— 单击就飞是 2026-08-09 被 owner 当场否掉的
+   * 第一版。同 LibTV（它的缩略图 tooltip 明写「双击可聚焦至节点」）。
+   */
   onLocate?(nodeId: string): void
+  /**
+   * **单击**槽位 → 在正文光标处插入一个引用胶囊。
+   *
+   * 胶囊显示位置（「图 3」）、存储 `@名字`；它只标位置**不决定发不发** ——
+   * 范围是槽架的事（契约 §一）。缺省则单击不做任何事。
+   */
+  onInsert?(token: ComposerReferenceToken): void
   /**
    * 移除槽位 = **删连线**（节点保留）。只对有直连边的素材提供 —— 经 1-hop 路由
    * 进来的（voice → character → video）没有自己的边可删。
@@ -118,6 +133,7 @@ export function CanvasSlotRack({
   defaultExpanded,
   unsendableUrls,
   onLocate,
+  onInsert,
   onRemove,
 }: CanvasSlotRackProps) {
   const t = useTranslations('StudioNode.videoComposer.slotRack')
@@ -236,8 +252,13 @@ export function CanvasSlotRack({
                         >
                           <button
                             type="button"
-                            onClick={() => onLocate?.(token.id)}
-                            title={displayName}
+                            onClick={() => onInsert?.(token)}
+                            onDoubleClick={() => onLocate?.(token.id)}
+                            title={
+                              onInsert
+                                ? t('slotHint', { name: displayName })
+                                : displayName
+                            }
                             className={cn(
                               'flex max-w-[9rem] items-center gap-1 rounded-lg py-1 pl-1 pr-1.5 text-2xs text-node-muted hover:bg-node-panel-inner',
                               unsendable && 'opacity-40',

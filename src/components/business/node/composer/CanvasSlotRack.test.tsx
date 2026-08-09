@@ -122,6 +122,62 @@ describe('CanvasSlotRack · 分类区从容量契约派生（§4.4）', () => {
   })
 })
 
+describe('CanvasSlotRack · 单击引用、双击定位（手势分配）', () => {
+  const token = {
+    id: 'c1',
+    kind: 'character',
+    label: '小林',
+    token: '@小林',
+    mediaUrl: 'https://cdn/c1.png',
+  } as ComposerReferenceToken
+
+  it('单击 = 引用到正文，不动相机', () => {
+    const onInsert = vi.fn()
+    const onLocate = vi.fn()
+    render(
+      <CanvasSlotRack
+        tokens={[token]}
+        slotLimits={FULL}
+        defaultExpanded={true}
+        onInsert={onInsert}
+        onLocate={onLocate}
+      />,
+    )
+    fireEvent.click(screen.getByTitle(/^slotHint/))
+    expect(onInsert).toHaveBeenCalledWith(token)
+    // ⚠ 关键：单击**不能**飞相机 —— 写提示词时被拽走视野是 2026-08-09 owner
+    // 当场否掉的第一版。
+    expect(onLocate).not.toHaveBeenCalled()
+  })
+
+  it('双击 = 聚焦画布节点', () => {
+    const onLocate = vi.fn()
+    render(
+      <CanvasSlotRack
+        tokens={[token]}
+        slotLimits={FULL}
+        defaultExpanded={true}
+        onInsert={vi.fn()}
+        onLocate={onLocate}
+      />,
+    )
+    fireEvent.doubleClick(screen.getByTitle(/^slotHint/))
+    expect(onLocate).toHaveBeenCalledWith('c1')
+  })
+
+  it('没有插入能力时，提示回落到纯名字（不许说一个做不到的手势）', () => {
+    render(
+      <CanvasSlotRack
+        tokens={[token]}
+        slotLimits={FULL}
+        defaultExpanded={true}
+        onLocate={vi.fn()}
+      />,
+    )
+    expect(screen.getByTitle('小林')).toBeInTheDocument()
+  })
+})
+
 describe('CanvasSlotRack · 未命名素材不能渲染成空白格', () => {
   it('⚠ 真机回归：label 与 token 都空时，退回族名而不是一个没字的灰块', () => {
     // 画布上「加了但还没命名」的节点是常态（旧件在抽屉里有一句「给该节点命名后

@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -717,6 +718,37 @@ export function VideoComposer({
     ],
   )
 
+  /**
+   * 单击槽位 → 在正文光标处插入一个引用胶囊。
+   *
+   * ⚠ 复用 `insertToken`（`MentionInput` 用 Range 直接改 DOM，**不走「改 value
+   * 再重渲染」**）—— 后者会重建整个编辑器内容并把光标扔回开头，正是 1.4 修掉的
+   * 那个 bug。这条路径不碰 `data.prompt` 的外部改写，光标留在原地。
+   *
+   * 胶囊存 `@名字`、显示「图 N」（见 `MentionToken.slotLabel`），且**只标位置
+   * 不决定发不发** —— 范围归槽架（`filterReferencedImages` 已于同轮退役）。
+   */
+  const handleSlotInsert = useCallback((token: ComposerReferenceToken) => {
+    const name = token.token.replace(/^@/, '')
+    if (!name) return
+    promptRef.current?.insertToken(name)
+  }, [])
+
+  /**
+   * URL → 这张图在本次载荷里的位置（1-based）。
+   *
+   * 事实源是 `sendPreview.images` —— 发送预览与真正发出去的载荷同一份（那正是
+   * 这个模块存在的意义），所以胶囊上的「图 3」和模型收到的 `@Image3` 永远是同
+   * 一个位置。
+   */
+  const slotIndexByUrl = useMemo(
+    () =>
+      new Map(
+        composer.sendPreview.images.map((image) => [image.url, image.index]),
+      ),
+    [composer.sendPreview.images],
+  )
+
   // Reference names the prompt editor should render as atomic chips — the
   // insertable tokens (character/background/shot @name, voice @AudioN). Unnamed
   // / projection-only refs (empty token) contribute no chip.
@@ -737,6 +769,17 @@ export function VideoComposer({
       // own image / video frame — same source ReferenceTokenChip picks (§9 V2-2).
       thumbnailUrl:
         refToken.kind === 'voice' ? refToken.coverImage : refToken.mediaUrl,
+      // 位置标注：显示这张图在**本次载荷**里的第几位。序号实时取自
+      // `sendPreview.images`（发送预览与真正发出去的是同一份），所以槽位增删后
+      // 下一次渲染自动更新，不会指错。取不到就退回 `@名字`（还没进载荷的素材，
+      // 比如超出上限那几张 —— 它们本来就没有位置可标）。
+      ...(refToken.mediaUrl && slotIndexByUrl.has(refToken.mediaUrl)
+        ? {
+            slotLabel: tc('references.slotLabel', {
+              index: slotIndexByUrl.get(refToken.mediaUrl) as number,
+            }),
+          }
+        : {}),
     }))
 
   // V2-1 改名静默自动回写: when a referenced node is renamed, its @oldName sits
@@ -1182,6 +1225,7 @@ export function VideoComposer({
                 defaultExpanded={false}
                 unsendableUrls={unsendableUrls}
                 onLocate={focusNode}
+                onInsert={handleSlotInsert}
                 onRemove={handleRemoveReference}
               />
             ) : (
@@ -1531,6 +1575,7 @@ export function VideoComposer({
           defaultExpanded={true}
           unsendableUrls={unsendableUrls}
           onLocate={focusNode}
+          onInsert={handleSlotInsert}
           onRemove={handleRemoveReference}
         />
         {spawnReference ? (

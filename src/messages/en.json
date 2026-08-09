@@ -4332,12 +4332,14 @@
         },
         "zoneCount": "{held}/{limit}",
         "total": "Total {held}/{total}",
+        "slotHint": "{name} · click to reference in the prompt, double-click to focus the node",
         "remove": "Remove {name} (disconnects the edge, keeps the node)"
       },
       "references": {
         "label": "Referenced",
         "counter": "{referenced} referenced / {connected} connected",
         "charCount": "{length}/{max}",
+        "slotLabel": "Image {index}",
         "insertHint": "Click a slot to insert it into the prompt",
         "unnamed": "needs a name",
         "unnamedHint": "Name this node to use it as an insertable tag",

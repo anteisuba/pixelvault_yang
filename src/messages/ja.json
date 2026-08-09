@@ -4332,12 +4332,14 @@
         },
         "zoneCount": "{held}/{limit}",
         "total": "合計 {held}/{total}",
+        "slotHint": "{name} · クリックでプロンプトに引用、ダブルクリックでノードにフォーカス",
         "remove": "{name} を外す（接続を切断、ノードは残ります）"
       },
       "references": {
         "label": "引用済み",
         "counter": "引用済み {referenced} / 接続済み {connected}",
         "charCount": "{length}/{max}",
+        "slotLabel": "画像 {index}",
         "insertHint": "スロットをクリックしてプロンプトに挿入",
         "unnamed": "要命名",
         "unnamedHint": "ノードに名前を付けるとタグとして挿入できます",

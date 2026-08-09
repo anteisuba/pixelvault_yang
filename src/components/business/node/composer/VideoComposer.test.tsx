@@ -527,7 +527,7 @@ describe('VideoComposer compact sidecar', () => {
     renderCompact()
 
     // 折起 → 缩略图不在
-    expect(screen.queryByTitle('Character A')).not.toBeInTheDocument()
+    expect(screen.queryByText('Character A')).not.toBeInTheDocument()
     // 但摘要行的账在
     expect(screen.getByText(/^total$/)).toBeInTheDocument()
   })
@@ -555,7 +555,7 @@ describe('VideoComposer compact sidecar', () => {
 
     // 8 个全在 —— 旧的 slice(0, 5) 会在这里少 3 个。
     for (let i = 0; i < 8; i += 1) {
-      expect(screen.getByTitle(`镜头${i}`)).toBeInTheDocument()
+      expect(screen.getByText(`镜头${i}`)).toBeInTheDocument()
     }
   })
 
@@ -719,8 +719,8 @@ describe('VideoComposer references row (detail)', () => {
     // 「已连接但还没有引用」的提示；槽架一律显示。
     composerState.referencedTokenIds = new Set()
     renderDetail()
-    expect(screen.getByTitle('角色A')).toBeInTheDocument()
-    expect(screen.getByTitle('开场远景')).toBeInTheDocument()
+    expect(screen.getByText('角色A')).toBeInTheDocument()
+    expect(screen.getByText('开场远景')).toBeInTheDocument()
   })
 
   it('槽位带缩略图（折叠的第三级就叫「缩略图」）', () => {
@@ -734,7 +734,10 @@ describe('VideoComposer references row (detail)', () => {
       },
     ]
     renderDetail()
-    const img = screen.getByTitle('角色A').querySelector('img')
+    const img = screen
+      .getByText('角色A')
+      .closest('button')
+      ?.querySelector('img')
     expect(img).toHaveAttribute('src', 'https://cdn.test/character-a.png')
   })
 
@@ -750,7 +753,10 @@ describe('VideoComposer references row (detail)', () => {
       },
     ]
     renderDetail()
-    const img = screen.getByTitle('角色A音色').querySelector('img')
+    const img = screen
+      .getByText('角色A音色')
+      .closest('button')
+      ?.querySelector('img')
     expect(img).toHaveAttribute('src', 'https://cdn.test/voice-cover.png')
   })
 
@@ -781,14 +787,15 @@ describe('VideoComposer references row (detail)', () => {
     )
   })
 
-  it('点槽位定位到画布上的源节点', () => {
+  it('双击槽位定位到画布上的源节点（单击留给引用）', () => {
     composerState.referenceTokens = [
       { id: 'c1', kind: 'character', label: '角色A', token: '@角色A' },
     ]
     renderDetail()
-    // ⚠ 不再走 hover 浮层里的「定位」项 —— 契约 §十「触屏无 hover 依赖」，
-    // 点槽位本身就是定位。
-    fireEvent.click(screen.getByTitle('角色A'))
+    // ⚠ 定位是**双击**：单击留给高频的「引用到正文」，且单击就飞相机会打断
+    // 正在组织的句子（owner 2026-08-09 当场否掉的第一版）。也不走 hover 浮层
+    // —— 契约 §十「触屏无 hover 依赖」。
+    fireEvent.doubleClick(screen.getByText('角色A').closest('button')!)
     expect(focusNode).toHaveBeenCalledWith('c1')
   })
 

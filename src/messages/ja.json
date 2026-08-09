@@ -4268,6 +4268,7 @@
       },
       "referenceModeOn": "参照入力が接続されています — 参照モデルを使用します。",
       "sidecar": {
+        "modeNoModel": "このモードで使えるモデルがまだありません",
         "modeLabel": "動画生成モード",
         "mode": {
           "keyframe": "キーフレーム",

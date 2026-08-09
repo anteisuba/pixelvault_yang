@@ -391,6 +391,7 @@ export function VideoComposer({
   // gives seed its own "另起常驻空间" entry, so it doesn't fight the OSD
   // accordion for the open slot.
   const [seedOpen, setSeedOpen] = useState(false)
+  const [modePickerOpen, setModePickerOpen] = useState(false)
   // The shared picker returns an exact route. Keep the existing rebind preview
   // before committing that route so switching models never silently drops a
   // connected reference capability.
@@ -461,6 +462,34 @@ export function VideoComposer({
       getNodeModeForModel(option.modelId, option.adapterType) === videoMode,
     [videoMode],
   )
+
+  /**
+   * 每一档到底有没有模型可跑。
+   *
+   * ⚠ **这是「不可用档位」在本仓唯一成立的判据**（owner 2026-08-10 拍板）。契约
+   * 里记的两句示范文案 —— 「已连接媒体输入，无法使用纯文生视频」「需要连接图片
+   * 节点（1~2 个）」—— 抄自 LibTV 的**五档**（文生视频 / 全能参考 / 图生视频 /
+   * 首尾帧 / 图片参考）。我们是三档，且直接是端点形态的用户视角命名：
+   *
+   *   keyframe        → text-or-first-frame   （这一档本身就能纯文生）
+   *   image-reference → image-content-array
+   *   multimodal      → multimodal-reference
+   *
+   * 三档都能接素材，区别是端点与容量，不是「能不能用」。所以「连了素材所以某档
+   * 不可用」在我们这儿不成立，照抄那两句会是编一个不存在的约束。
+   *
+   * 真正的不可用只有一种：这一档一个模型都没有 —— 选了也没得跑。
+   */
+  const modeAvailability = useMemo(() => {
+    const available = {} as Record<VideoNodeMode, boolean>
+    for (const mode of VIDEO_NODE_MODES) {
+      available[mode] = composer.options.some(
+        (option) =>
+          getNodeModeForModel(option.modelId, option.adapterType) === mode,
+      )
+    }
+    return available
+  }, [composer.options])
 
   /**
    * 收起态触发器读「型号 · 渠道」，**不带端点**。
@@ -1120,28 +1149,11 @@ export function VideoComposer({
     return (
       <>
         <div className="canvas-video-composer-compact">
-          {/* 模式三档（§9.4 updream 对标：切换器就在参数面板顶部）。这里原先是一个
-              **派生**的只读指示器 —— 「有没有接参考」推出「文生/参考」两档。模式移
-              到节点上之后它变成真控件：档位是用户选的，模型列表、节点形态、走哪个
-              端点都跟着它走。段控皮肤（selected 底 + 描边 + 投影）本来就在 CSS 里。 */}
-          <div
-            className="canvas-video-composer-mode"
-            role="tablist"
-            aria-label={tc('sidecar.modeLabel')}
-          >
-            {VIDEO_NODE_MODES.map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                role="tab"
-                {...KEY_GUARD}
-                aria-selected={mode === videoMode}
-                data-active={mode === videoMode ? 'true' : undefined}
-                onClick={() => selectVideoMode(mode)}
-              >
-                {tc(`sidecar.mode.${mode}`)}
-              </button>
-            ))}
+          {/* ⚠ 顶部三档 tab 已退役（owner 2026-08-09 拍板，report §8.15）——
+              模式改挂底部参数条的下拉，顺序统一为 模型 → 模式 → 参数 → 工具。
+              这里只留「已连接 N」这个读数：它是状态不是控件，和模式挤在一行时
+              会被读成第四个档位。 */}
+          <div className="canvas-video-composer-mode">
             <span className="canvas-video-composer-mode-count">
               {tc('sidecar.connectedCount', {
                 count: composer.referenceTokens.length,
@@ -1344,6 +1356,68 @@ export function VideoComposer({
               triggerLabelForOption={triggerLabelForOption}
               className="canvas-video-composer-model"
             />
+
+            {/* 模式下拉 —— 参数条顺序：模型 → **模式** → 参数 →（工具）→ 用模板
+                （report §8.15 owner 拍板）。
+                ⚠ 不可用档位用**置灰 + 说出原因**，不是让它消失：模式是固定三档的
+                骨架，少一档会让骨架变形、用户不知道自己少了什么。判据取自
+                `modeAvailability`（该档一个模型都没有），不是照抄 LibTV 那两句
+                针对五档写的约束 —— 见它的注释。 */}
+            <ResponsivePopover
+              open={modePickerOpen}
+              onOpenChange={setModePickerOpen}
+            >
+              <ResponsivePopoverTrigger asChild>
+                <button
+                  type="button"
+                  {...KEY_GUARD}
+                  className="canvas-video-composer-summary"
+                  aria-label={tc('sidecar.modeLabel')}
+                >
+                  <span>{tc(`sidecar.mode.${videoMode}`)}</span>
+                  <ChevronDown className="size-3 shrink-0" aria-hidden />
+                </button>
+              </ResponsivePopoverTrigger>
+              <ResponsivePopoverContent
+                label={tc('sidecar.modeLabel')}
+                side="top"
+                align="start"
+                sideOffset={6}
+                className="w-60 space-y-0.5 rounded-xl p-1.5"
+              >
+                {VIDEO_NODE_MODES.map((mode) => {
+                  const usable = modeAvailability[mode]
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      disabled={!usable}
+                      aria-current={mode === videoMode ? 'true' : undefined}
+                      onClick={() => {
+                        selectVideoMode(mode)
+                        setModePickerOpen(false)
+                      }}
+                      className={cn(
+                        'flex w-full flex-col items-start gap-0.5 rounded-lg px-2.5 py-1.5 text-left text-xs',
+                        usable
+                          ? 'text-node-foreground hover:bg-node-panel-soft'
+                          : 'cursor-default text-node-subtle',
+                        mode === videoMode && 'bg-node-panel-soft',
+                      )}
+                    >
+                      <span>{tc(`sidecar.mode.${mode}`)}</span>
+                      {/* 置灰必须给原因 —— 否则用户只知道点不动，不知道为什么。 */}
+                      {usable ? null : (
+                        <span className="text-3xs text-node-subtle">
+                          {tc('sidecar.modeNoModel')}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </ResponsivePopoverContent>
+            </ResponsivePopover>
+
             <ResponsivePopover>
               <ResponsivePopoverTrigger asChild>
                 <button

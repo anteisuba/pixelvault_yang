@@ -106,6 +106,9 @@ const { composerState } = vi.hoisted(() => ({
       boundVoice?: { nodeId: string; label: string; ready: boolean }
     }>,
     referencedTokenIds: new Set<string>(),
+    /** 模式档位的可用性判据 = 这一档有没有模型（owner 2026-08-10）。默认空表
+     *  示三档全无模型 → 全部置灰，正是「无可用模型」那条用例要的状态。 */
+    options: [] as Array<{ modelId: string; adapterType?: string }>,
     // R3-6b: `maxReferenceImages` / `sendPreview` mirror `useVideoComposer`'s
     // real return shape — VideoComposer.tsx reads both unconditionally, so
     // this mock has to supply them (not just the fields these tests assert
@@ -166,7 +169,7 @@ vi.mock('@/hooks/node/use-video-composer', async () => {
     await import('@/constants/video-node-modes')
   return {
     useVideoComposer: (_nodeId: string, data: NodeWorkflowNodeData) => ({
-      options: [],
+      options: composerState.options,
       videoMode:
         data?.videoMode ??
         (data?.model
@@ -185,6 +188,33 @@ vi.mock('@/hooks/node/use-video-composer', async () => {
 
 // ⚠ `openManager` / `selectTab` 两个 helper 随「管理素材抽屉 + Tabs」一并退役
 // （2026-08-09 槽架改版）。素材现在住在三级折叠的槽架里，添加位常驻可见。
+
+/** 覆盖三档各一个模型 —— 让模式下拉的档位真的可选（可用性判据 = 该档有模型）。 */
+const MODE_COVERING_OPTIONS = [
+  { modelId: AI_MODELS.SEEDANCE_20, adapterType: AI_ADAPTER_TYPES.FAL },
+  {
+    modelId: AI_MODELS.SEEDANCE_20_REFERENCE,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+  },
+] as Array<{ modelId: string; adapterType?: string }>
+
+/**
+ * 打开底部参数条的模式下拉，选一档。
+ *
+ * ⚠ 顶部三档 tab 已退役（owner 2026-08-09，report §8.15）—— 模式现在挂在参数条
+ * 上，顺序 模型 → 模式 → 参数 →（工具）→ 用模板。
+ */
+function selectMode(mode: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'sidecar.modeLabel' }))
+  // ⚠ 触发器上也写着当前档名，`getByText` 会撞车 —— 只在下拉的选项里挑
+  //（选项是 flex-col 的按钮，触发器不是）。
+  const option = screen
+    .getAllByText(`sidecar.mode.${mode}`)
+    .map((node) => node.closest('button'))
+    .find((btn) => btn?.className.includes('flex-col'))
+  if (!option) throw new Error(`mode option not found: ${mode}`)
+  fireEvent.click(option)
+}
 
 const {
   updateNodeData,
@@ -367,6 +397,10 @@ describe('VideoComposer compact sidecar', () => {
     composerState.referenceKinds = []
     composerState.referenceTokens = []
     composerState.referencedTokenIds = new Set()
+    // ⚠ 也要还原：切档用例会塞进覆盖三档的模型，不重置就泄漏到「无可用模型 →
+    // 置灰」那条上，让它凭运气绿（本文件已经因为漏还原 contract/slotLimits
+    // 栽过一次，见下面那个 beforeEach）。
+    composerState.options = []
     updateNodeData.mockClear()
     setExpandedNodeId.mockClear()
     listConnectableReferences.mockReset()
@@ -374,18 +408,58 @@ describe('VideoComposer compact sidecar', () => {
     spawnReference.mockClear()
   })
 
-  it('模式三档做成真 tab，当前档由字段决定', () => {
+  /**
+   * ⚠ 行为变更（2026-08-09，report §8.15）：这条原本断言模式是**顶部三档 tab**。
+   * owner 拍板搬到底部参数条下拉，顶部 tab 退役。三档本身与「当前档由字段决定」
+   * 一条没变，变的只是入口。
+   */
+  it('模式三档挂在底部参数条下拉里，当前档由字段决定', () => {
     renderCompact({ videoMode: 'multimodal' } as Partial<NodeWorkflowNodeData>)
 
-    const tabs = screen.getAllByRole('tab')
-    expect(tabs.map((t) => t.textContent)).toEqual([
+    // 收起时触发器直接显示当前档 —— 不用展开就读得到。
+    const trigger = screen.getByRole('button', { name: 'sidecar.modeLabel' })
+    expect(trigger).toHaveTextContent('sidecar.mode.multimodal')
+
+    fireEvent.click(trigger)
+    const optionFor = (mode: string) =>
+      screen
+        .getAllByText(mode)
+        .map((node) => node.closest('button'))
+        .find((btn) => btn?.className.includes('flex-col'))
+    for (const mode of [
       'sidecar.mode.keyframe',
       'sidecar.mode.image-reference',
       'sidecar.mode.multimodal',
-    ])
+    ]) {
+      expect(optionFor(mode)).toBeTruthy()
+    }
+    expect(optionFor('sidecar.mode.multimodal')).toHaveAttribute(
+      'aria-current',
+      'true',
+    )
+  })
+
+  /**
+   * 「不可用档位置灰 + 说出原因」的判据。
+   *
+   * ⚠ 判据是**该档一个模型都没有**，不是契约里记的那两句（「已连接媒体输入，
+   * 无法使用纯文生视频」「需要连接图片节点」）—— 那两句抄自 LibTV 的五档，而
+   * 我们三档都能接素材，区别是端点与容量。owner 2026-08-10 拍板改判据。
+   *
+   * 夹具的 `options` 为空，所以三档全都无模型可跑，全部置灰并给出原因。
+   */
+  it('无可用模型的档位置灰，并说出原因', () => {
+    renderCompact({ videoMode: 'keyframe' } as Partial<NodeWorkflowNodeData>)
+    fireEvent.click(screen.getByRole('button', { name: 'sidecar.modeLabel' }))
+
     expect(
-      tabs.find((t) => t.getAttribute('aria-selected') === 'true')?.textContent,
-    ).toBe('sidecar.mode.multimodal')
+      screen
+        .getAllByText('sidecar.mode.image-reference')
+        .map((node) => node.closest('button'))
+        .find((btn) => btn?.className.includes('flex-col')),
+    ).toBeDisabled()
+    // 置灰必须给原因 —— 只是点不动等于没解释。
+    expect(screen.getAllByText('sidecar.modeNoModel').length).toBeGreaterThan(0)
   })
 
   it('存量节点没有模式字段时，从它当前的模型反推而不是默认成关键帧', () => {
@@ -401,13 +475,12 @@ describe('VideoComposer compact sidecar', () => {
     } as Partial<NodeWorkflowNodeData>)
 
     expect(
-      screen
-        .getAllByRole('tab')
-        .find((t) => t.getAttribute('aria-selected') === 'true')?.textContent,
-    ).toBe('sidecar.mode.multimodal')
+      screen.getByRole('button', { name: 'sidecar.modeLabel' }),
+    ).toHaveTextContent('sidecar.mode.multimodal')
   })
 
   it('切档时清掉不兼容的模型与参数档，但**不动**用户已传的素材', () => {
+    composerState.options = MODE_COVERING_OPTIONS
     renderCompact({
       videoMode: 'multimodal',
       duration: '10',
@@ -420,7 +493,7 @@ describe('VideoComposer compact sidecar', () => {
       },
     } as Partial<NodeWorkflowNodeData>)
 
-    fireEvent.click(screen.getByRole('tab', { name: 'sidecar.mode.keyframe' }))
+    selectMode('keyframe')
 
     const patch = updateNodeData.mock.calls.at(-1)?.[1]
     expect(patch).toEqual({
@@ -441,6 +514,7 @@ describe('VideoComposer compact sidecar', () => {
   })
 
   it('切到该模型仍然支持的档时，保留模型与参数档', () => {
+    composerState.options = MODE_COVERING_OPTIONS
     renderCompact({
       videoMode: 'keyframe',
       duration: '10',
@@ -452,9 +526,7 @@ describe('VideoComposer compact sidecar', () => {
       },
     } as Partial<NodeWorkflowNodeData>)
 
-    fireEvent.click(
-      screen.getByRole('tab', { name: 'sidecar.mode.multimodal' }),
-    )
+    selectMode('multimodal')
 
     expect(updateNodeData.mock.calls.at(-1)?.[1]).toEqual({
       videoMode: 'multimodal',
@@ -463,7 +535,7 @@ describe('VideoComposer compact sidecar', () => {
 
   it('点当前已选中的档不写库', () => {
     renderCompact({ videoMode: 'keyframe' } as Partial<NodeWorkflowNodeData>)
-    fireEvent.click(screen.getByRole('tab', { name: 'sidecar.mode.keyframe' }))
+    selectMode('keyframe')
     expect(updateNodeData).not.toHaveBeenCalled()
   })
 

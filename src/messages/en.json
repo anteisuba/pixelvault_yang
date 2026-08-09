@@ -4268,6 +4268,7 @@
       },
       "referenceModeOn": "Reference inputs connected — using the reference model.",
       "sidecar": {
+        "modeNoModel": "No available model for this mode yet",
         "modeLabel": "Video generation mode",
         "mode": {
           "keyframe": "Keyframe",

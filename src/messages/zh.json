@@ -4268,6 +4268,7 @@
       },
       "referenceModeOn": "已连接参考输入，自动使用参考模型。",
       "sidecar": {
+        "modeNoModel": "这一档暂时没有可用模型",
         "modeLabel": "视频生成模式",
         "mode": {
           "keyframe": "关键帧",

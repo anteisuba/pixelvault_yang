@@ -143,6 +143,7 @@ import {
   harvestUpstreamImageUrls,
   getNodePrimaryMediaUrl,
   harvestUpstreamShotTextPrompt,
+  isIdentityCardNode,
   harvestUpstreamVideoImageReferences,
   harvestUpstreamVideoUrls,
   getSeedanceReferenceKind,
@@ -217,6 +218,7 @@ import {
 } from './CanvasLeftPanel'
 import { CanvasProjectPanel } from './CanvasProjectPanel'
 import { CanvasRosterRail } from './CanvasRosterRail'
+import { createReferenceAsset } from './CharacterImageReferenceControls'
 import { countCanvasNodes } from './CastDock'
 import { GenerateComposer } from './composer/GenerateComposer'
 import { IngestDragProvider, type QuickThrowApi } from './IngestDragLayer'
@@ -361,6 +363,55 @@ interface CanvasDragHit {
  * mirror card (`[data-cast-card-node-id]`), so dropping onto an
  * already-eaten (hence hidden) identity card via the dock keeps working.
  */
+/**
+ * 名册 rail 里那张卡的 DOM 标记 —— 阶段 8-b「拖画布图到名册卡」的落点。
+ * 由 `CanvasRosterRail` 打在每张卡外层，值是**卡节点自己的 id**。
+ */
+const ROSTER_CARD_ATTR = 'data-roster-card-id'
+/** 拖拽悬停时给目标卡加的类（纯视觉，不进 React state —— 与咬合同款纪律）。 */
+const ROSTER_CARD_HOVER_CLASS = 'canvas-roster-card-hover'
+
+/**
+ * 指针下的名册卡 —— 阶段 8-b 的命中检测。
+ *
+ * ⭐ **为什么这条手势可以做，而「吞噬」那条被退役了**（同样是「拖节点到某处 =
+ * 做点什么」，区别不在实现在语义）：
+ *   · 吞噬劫持的是**落在画布上**的拖拽终点，而「节点拖到哪都是合法稳态」——
+ *     那个终点本来就有意义（摆位置），被劫持之后用户实拍报「图片和视频无法
+ *     连线」。见 `handleNodeDragStop` 里那段退役说明。
+ *   · 这里的终点是**左栏面板**，不是画布空间。今天把一个节点拖到面板底下就是
+ *     被挡住看不见，**那个位置本来没有任何意义** —— 给它赋予语义偷不走任何
+ *     现有手势。
+ * ⚠ 所以这条命中检测**必须只认面板里的卡**。哪天有人想把它扩到画布上的卡，
+ * 那就是把退役的东西请回来，先去读那段退役说明。
+ */
+function findRosterCardAt(
+  clientX: number,
+  clientY: number,
+): HTMLElement | null {
+  for (const element of document.elementsFromPoint(clientX, clientY)) {
+    if (!(element instanceof HTMLElement)) continue
+    const hit = element.closest<HTMLElement>(`[${ROSTER_CARD_ATTR}]`)
+    if (hit) return hit
+  }
+  return null
+}
+
+/**
+ * 这个节点能不能被拖进名册卡 —— 能就返回它那张图的 URL。
+ * 判据与「从画布选择」第四源逐字同一条（阶段 8-a）：**只认图**，视频节点的
+ * `mediaUrl` 是 mp4，拖进「参考**图**」集就是错的。
+ * ⚠ 写成模块级纯函数而不是 `useCallback` —— 它不吃任何组件状态，而放在组件里
+ * 就得排在 `handleNodeDrag` 之前才不撞 TDZ，等于让声明顺序去迁就依赖数组。
+ */
+function getRosterDropUrl(node: NodeWorkflowNode): string | undefined {
+  const kind = node.data.mediaKind ?? NODE_MEDIA_KIND_BY_NODE_TYPE[node.type]
+  if (kind !== NODE_MEDIA_KIND_IDS.image) return undefined
+  // 卡拖到卡没有意义（自指的近亲），收集器自己不当素材源。
+  if (isIdentityCardNode(node)) return undefined
+  return getNodePrimaryMediaUrl(node.data)
+}
+
 function findCanvasDragHit(
   event: ReactMouseEvent,
   draggedNodeId: string,
@@ -3596,6 +3647,16 @@ function StudioNodeCanvas() {
       setCanvasNodeDragActive(true)
       workflow.onNodesChange([{ id: node.id, type: 'select', selected: false }])
 
+      // 阶段 8-b：拖到名册卡成功后本体要弹回原位，所以**起点要先记下来**。
+      // ⚠ 记在退役开关**外面** —— 8-b 与吞噬是两条路（落点一个在面板一个在画布，
+      // 边界见 `findRosterCardAt` 头注），不能共用那个开关的生死。
+      if (getRosterDropUrl(node)) {
+        dragStartPositionsRef.current.set(node.id, {
+          x: node.position.x,
+          y: node.position.y,
+        })
+      }
+
       if (
         !CANVAS_INGEST_DRAG_GESTURE_ENABLED ||
         !isCanvasIngestDragSource(node)
@@ -3660,8 +3721,23 @@ function StudioNodeCanvas() {
     [workflow.nodes, workflow.edges],
   )
 
+  /** 拖拽中悬停在名册卡上的高亮 —— 上一张与这一张不同才改 DOM。 */
+  const rosterHoverElRef = useRef<HTMLElement | null>(null)
+
   const handleNodeDrag = useCallback(
     (event: ReactMouseEvent, node: NodeWorkflowNode) => {
+      // 阶段 8-b 的悬停反馈。⚠ 直接改 class 不进 React state —— 与咬合预览同款
+      // 纪律（每帧 setState 会让整棵画布重渲，那正是 2026-07-18「拖动手感钝」
+      // 那次的根因）。
+      if (getRosterDropUrl(node)) {
+        const hit = findRosterCardAt(event.clientX, event.clientY)
+        if (hit !== rosterHoverElRef.current) {
+          rosterHoverElRef.current?.classList.remove(ROSTER_CARD_HOVER_CLASS)
+          hit?.classList.add(ROSTER_CARD_HOVER_CLASS)
+          rosterHoverElRef.current = hit
+        }
+      }
+
       if (!CANVAS_INGEST_DRAG_GESTURE_ENABLED) return
       if (!isCanvasIngestDragSource(node)) return
       if (isLooseImageNode(node)) {
@@ -3716,9 +3792,115 @@ function StudioNodeCanvas() {
   // drag left it, a perfectly legal resting position (§三.1 散图 = 合法稳态,
   // and equally true of a zero-reference collector/voice/videoReference card
   // that was just dragged across open canvas).
+  /**
+   * 本体弹回拖拽起点 —— 复用「墨线签署」那一套（§2.7：源节点从不折叠，所以
+   * 诚实的收尾是让它自己滑回原处，而不是假装被吞掉）。
+   */
+  const bounceNodeBack = useCallback(
+    (node: NodeWorkflowNode) => {
+      const origin = dragStartPositionsRef.current.get(node.id)
+      dragStartPositionsRef.current.delete(node.id)
+      if (!origin) return
+      const commit = () =>
+        workflow.onNodesChange([
+          { id: node.id, type: 'position', position: origin, dragging: false },
+        ])
+      const sourceEl = findNodeCardElement(node.id)
+      const wrapperEl = findNodeWrapperElement(node.id)
+      if (!sourceEl || !wrapperEl) {
+        commit()
+        return
+      }
+      const dropRect = wrapperEl.getBoundingClientRect()
+      const originScreen = flowToScreenPosition(origin)
+      playNodeBounceBack(
+        sourceEl,
+        originScreen.x - dropRect.left,
+        originScreen.y - dropRect.top,
+        commit,
+      )
+    },
+    [flowToScreenPosition, workflow],
+  )
+
+  /**
+   * 阶段 8-b 的落点：把拖进来的这张图并入名册卡的图集。
+   *
+   * 写法与「从画布选择」的卡那条**完全一致**（`source:'canvas'` +
+   * `sourceId=源节点 id`），所以**拆出**零改动就认得出它从哪来 —— 两个入口
+   * 一个落点，不是两套。
+   *
+   * @returns 这一拖是否被名册卡吃掉了（吃掉就不再往下走吞噬那条）。
+   */
+  const handleRosterDrop = useCallback(
+    (event: ReactMouseEvent, node: NodeWorkflowNode): boolean => {
+      const url = getRosterDropUrl(node)
+      if (!url) return false
+      const cardEl = findRosterCardAt(event.clientX, event.clientY)
+      const cardId = cardEl?.getAttribute(ROSTER_CARD_ATTR)
+      if (!cardEl || !cardId) return false
+      cardEl.classList.remove(ROSTER_CARD_HOVER_CLASS)
+
+      const card = workflow.nodes.find((candidate) => candidate.id === cardId)
+      if (!card) return false
+
+      const existing = card.data.referenceAssets ?? []
+      // ⚠ 两道闸都要说话，不许静默：重复了说重复，满了说满了。
+      if (existing.some((asset) => asset.url === url)) {
+        toast.info(t('ingest.reasons.duplicate'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        bounceNodeBack(node)
+        return true
+      }
+      const maxItems = card.data.model
+        ? getMaxReferenceImages(
+            card.data.model.adapterType,
+            card.data.model.modelId,
+          )
+        : NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems
+      if (maxItems !== undefined && existing.length >= maxItems) {
+        toast.error(t('ingest.canvasNodeIngestRejected'), {
+          description: t('ingest.reasons.capacityFullWithLimit', {
+            current: existing.length,
+            limit: maxItems,
+          }),
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        bounceNodeBack(node)
+        return true
+      }
+
+      workflow.updateNodeData(cardId, {
+        referenceAssets: [
+          ...existing,
+          createReferenceAsset(
+            url,
+            NODE_STUDIO_REFERENCE_SOURCE_IDS.canvas,
+            node.id,
+            resolveNodeDisplayName(node.data),
+          ),
+        ],
+      })
+      toast.success(t('ingest.canvasNodeSigned'), {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+      bounceNodeBack(node)
+      return true
+    },
+    [bounceNodeBack, t, workflow],
+  )
+
   const handleNodeDragStop = useCallback(
     (event: ReactMouseEvent, node: NodeWorkflowNode) => {
       workflow.onNodesChange([{ id: node.id, type: 'select', selected: false }])
+      // 拖拽结束，名册卡的悬停高亮无论如何都要摘掉 —— 一个留在原地的高亮框
+      // 会让下一次拖拽看起来「已经命中」。
+      rosterHoverElRef.current?.classList.remove(ROSTER_CARD_HOVER_CLASS)
+      rosterHoverElRef.current = null
       // S5f B4: the drag is over — any auto-expanded dock re-collapses
       // (CastDock watches this flag falling).
       setCanvasNodeDragActive(false)
@@ -3739,6 +3921,15 @@ function StudioNodeCanvas() {
         fuseBiteTargetElRef.current = null
       }
       fuseBiteTargetIdRef.current = null
+
+      // 阶段 8-b：先看这一拖是不是落在**名册卡**上。放在退役开关之前，因为它
+      // 与吞噬是两条不同的路（边界见 `findRosterCardAt` 头注）。
+      if (handleRosterDrop(event, node)) return
+      // 没落在卡上 → 这次拖拽的起点记录再没人要了，当场清掉。
+      // ⚠ 不清的话 `dragStartPositionsRef` 会随着每次普通拖拽只增不减 —— 虽然
+      // 被节点数封顶、且每次 dragStart 都会覆写（不会用到过期坐标），但留着一份
+      // 谁都不读的状态，下一个人得先证明它没用才敢动。
+      dragStartPositionsRef.current.delete(node.id)
 
       // ⛔ 吞噬**拖拽手势**退役（2026-07-28，owner 真机报「图片和视频直接无法
       // 连线，还是吞噬状态」）。
@@ -3870,6 +4061,7 @@ function StudioNodeCanvas() {
     [
       flowToScreenPosition,
       handleIngestConnect,
+      handleRosterDrop,
       scheduleEdgeSigning,
       t,
       translateIngestReason,

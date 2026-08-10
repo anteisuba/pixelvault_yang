@@ -3923,3 +3923,11 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   border-color: var(--canvas-stroke-focus);
   color: var(--canvas-ink);
 }
+
+/* 阶段 8-b：画布图拖到名册卡上的悬停靶。⚠ 只动 outline 不动尺寸/位移 ——
+   卡在一个 240px 的窄栏里两列排布，一放大就把邻居挤走，用户以为自己拖歪了。 */
+.domain-canvas .canvas-roster-card-hover > * {
+  outline: 2px solid var(--canvas-accent);
+  outline-offset: 2px;
+  border-radius: 12px;
+}

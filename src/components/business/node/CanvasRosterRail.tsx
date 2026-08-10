@@ -145,17 +145,23 @@ export function CanvasRosterRail() {
             （试过，`scrollWidth` 一点没变）。列宽窄 16px 是这圈余量的真实代价。 */}
           <div className="grid grid-cols-2 gap-1.5 px-2 pt-1.5">
             {cards.map((card) => (
-              <CastCard
-                key={card.node.id}
-                node={card.node}
-                sectionId={card.section.id}
-                Icon={card.section.Icon}
-                performanceCount={card.performanceCount}
-                referenceCount={card.referenceCount}
-                hasVoice={card.hasVoice}
-                selected={Boolean(card.node.selected)}
-                onSelect={() => focusNode?.(card.node.id)}
-              />
+              /* ⚠ 这一层 wrapper 只为一件事：给阶段 8-b 的命中检测一个标记
+                （`StudioNodeWorkbench` 的 `findRosterCardAt` 按这个属性找落点）。
+                ⚠ 标记打在**外层**不打在 `CastCard` 上 —— 那张卡自己已经是
+                「面板 → 画布」那条手势的**拖拽源**，把落点属性塞进同一个元素，
+                两条方向相反的手势就共用一个 DOM 身份，读代码的人分不清哪条在用它。 */
+              <div key={card.node.id} data-roster-card-id={card.node.id}>
+                <CastCard
+                  node={card.node}
+                  sectionId={card.section.id}
+                  Icon={card.section.Icon}
+                  performanceCount={card.performanceCount}
+                  referenceCount={card.referenceCount}
+                  hasVoice={card.hasVoice}
+                  selected={Boolean(card.node.selected)}
+                  onSelect={() => focusNode?.(card.node.id)}
+                />
+              </div>
             ))}
           </div>
         </section>

@@ -1,0 +1,1232 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>画布 · 素材腰带关键切片 v2（候选稿 2026-08-09）</title>
+<style>
+/* ===== v3 几何：按 LibTV 实测对齐（canvas-libtv-form-metrics-2026-08-09.md），颜色不取 =====
+   圆角 8/12/16+50% · 字号 13/14/11 · 间距 2/4/8/16 · 控件高 24/28/32 · 图标 14
+   卡=直角无边无影 · 面板零投影靠表面等级差 · 唯一投影给真浮层 */
+:root{
+  --page:#FAFAFA; --bg:#F1F1F1;
+  --s0:#FFFFFF; --s1:#EEF1F4; --s2:#DEE1E5;   /* 表面等级，逐级差值 ≥1.05 */
+  --card:#FFFFFF;
+  --ink:#0A0A0A; --ink-reg:#404040; --ink-mut:#737373;
+  --line:rgba(0,0,0,0.08); --line-2:rgba(0,0,0,0.15); --line-3:rgba(0,0,0,0.28);
+  --action:#0A0A0A; --danger:#C0342E;
+  --r-ctl:8px; --r-pop:12px; --r-panel:16px;   /* 三档 + 50% 圆钮 */
+  --r-card:8px; --r-sm:8px;                     /* 旧名保留，值并入控件档 */
+  --fs-ui:13px; --fs-in:14px; --fs-meta:11px;   /* 三档字号 */
+  --lh-ui:20px; --lh-in:25px;
+  --h-s:24px; --h-m:28px; --h-l:32px;           /* 三档控件高 */
+  --sp-1:2px; --sp-2:4px; --sp-3:8px; --sp-4:16px;
+  --sh-float:0 4px 10px rgba(0,0,0,0.10);       /* 全稿唯一投影，只给真浮层 */
+  --sh-card:none; --sh-pop:none; --sh-panel:none;
+  /* 动效：沿用 canvas-skin-spec §9 已拍板的三档 + 两条曲线，不新造 */
+  --dur-fast:150ms; --dur-base:250ms; --dur-slow:420ms;
+  --ease-out:cubic-bezier(0.22,1,0.36,1); --ease-inout:cubic-bezier(0.4,0,0.2,1);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 28px 96px}
+
+.doc-head{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:28px}
+.doc-head h1{font-size:22px;font-weight:600;letter-spacing:-0.01em}
+.doc-head .sub{color:var(--ink-mut);font-size:var(--fs-ui);margin-top:6px}
+.banner{margin-top:16px;padding:12px 14px;border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--card);font-size:var(--fs-ui);color:var(--ink-reg)}
+.banner b{color:var(--ink);font-weight:600}
+.v2{margin-top:12px;padding:12px 14px;border-left:2px solid var(--action);background:var(--card);font-size:var(--fs-ui);color:var(--ink-reg)}
+.v2 b{color:var(--ink);font-weight:600}
+.v2 ol{margin:6px 0 0 18px}
+.v2 li{margin:3px 0}
+.legend{display:flex;flex-wrap:wrap;gap:var(--sp-4);margin-top:16px;font-size:var(--fs-ui);color:var(--ink-mut)}
+.legend span{display:flex;align-items:center;gap:var(--sp-2)}
+.mk{display:inline-block;width:16px;text-align:center;font-size:var(--fs-meta)}
+.mk.now{color:var(--ink)}.mk.goal{color:var(--ink-mut)}.mk.eng{color:var(--danger)}
+
+section.state{margin-top:44px}
+.state-head{display:flex;align-items:baseline;gap:var(--sp-3);margin-bottom:4px}
+.state-no{width:22px;height:22px;border-radius:11px;background:var(--ink);color:#fff;font-size:var(--fs-ui);display:flex;align-items:center;justify-content:center;flex:0 0 auto;position:relative;top:2px}
+.state-head h2{font-size:16px;font-weight:600}
+.state-why{color:var(--ink-mut);font-size:var(--fs-ui);margin:0 0 14px 34px}
+.stage{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-card);padding:28px 24px;position:relative}
+.stage.dots{background-image:radial-gradient(rgba(0,0,0,0.07) 1px, transparent 1px);background-size:18px 18px}
+.stage-row{display:flex;gap:var(--sp-4);align-items:flex-start;flex-wrap:wrap}
+.notes{margin:14px 0 0 34px;font-size:var(--fs-ui);color:var(--ink-reg);list-style:none}
+.notes li{margin:5px 0;padding-left:22px;text-indent:-22px}
+.hint{max-width:250px;font-size:var(--fs-ui);color:var(--ink-reg);padding-top:8px}
+.tagline{font-size:var(--fs-meta);color:var(--ink-mut);margin-bottom:8px;letter-spacing:.02em}
+
+/* 节点卡：直角、无边、无投影、padding 0 —— 卡即媒体；圆角只在媒体窗上 */
+.node{width:230px;background:transparent;border:0;border-radius:0;box-shadow:none;padding:0}
+.node-title{font-size:var(--fs-ui);line-height:var(--lh-ui);color:var(--ink);font-weight:400;margin-bottom:var(--sp-2);display:flex;align-items:center;gap:var(--sp-1)}
+.node-title .dot{width:7px;height:7px;background:#6B7280}
+.node-title .meta{margin-left:auto;font-size:var(--fs-meta);color:var(--ink-mut)}
+.node-body{height:112px;background:var(--s2);border:1px solid var(--line);border-radius:var(--r-pop);display:flex;align-items:center;justify-content:center}
+.node-body svg{width:34px;height:34px;opacity:.4}
+.node-wrap{display:flex;flex-direction:column}
+.node.mini{width:150px}.node.mini .node-body{height:74px}
+
+/* ---------- 腰带 ---------- */
+/* 腰带 = 提示词面板同族：16px 圆角 + 1px 边 + 零投影（层次靠表面等级差） */
+.rack{background:var(--s0);border:1px solid var(--line);border-radius:var(--r-panel);box-shadow:none}
+.rack.inpanel{box-shadow:none;border-radius:0;border:0}
+.modebar{display:flex;gap:var(--sp-2);padding:var(--sp-3) var(--sp-3) var(--sp-2)}
+.tab{height:var(--h-m);padding:0 var(--sp-3);border-radius:var(--r-ctl);border:1px solid transparent;background:transparent;font-size:var(--fs-ui);color:var(--ink-mut);cursor:pointer;font-family:inherit}
+.tab.on{border-color:var(--line-2);background:var(--s1);color:var(--ink)}
+
+/* 摘要行 = 静息态（level 0） */
+.sum{display:flex;align-items:center;gap:var(--sp-3);width:100%;padding:var(--sp-3);background:none;border:0;border-top:1px solid var(--line);font-family:inherit;cursor:pointer;text-align:left}
+.sum:hover{background:rgba(0,0,0,0.015)}
+.sum .lab{font-size:var(--fs-ui);color:var(--ink);flex:0 0 auto}
+.sum .cnt{font-size:var(--fs-meta);color:var(--ink-mut);margin-left:auto;font-variant-numeric:tabular-nums}
+.sum .arrow{font-size:var(--fs-meta);color:var(--ink-mut);width:14px;text-align:center}
+.strip{display:flex;gap:var(--sp-1)}
+.strip i{width:24px;height:24px;border-radius:var(--r-ctl);background:var(--s2);display:block;flex:0 0 auto;border:1px solid var(--line)}
+.strip i.t1{background:#D9DEE3}.strip i.t2{background:#E2DFD9}.strip i.t3{background:#DAE1DD}.strip i.t4{background:#DFDDE4}
+.strip .n{font-size:var(--fs-meta);color:var(--ink-mut);align-self:center;margin-left:var(--sp-1);font-variant-numeric:tabular-nums}
+
+/* 分类层（level 1） */
+.cats{display:none}
+.cats.open{display:block}
+.cat{display:flex;align-items:center;gap:var(--sp-3);width:100%;padding:var(--sp-2) var(--sp-3);min-height:var(--h-l);background:none;border:0;border-top:1px solid var(--line);font-family:inherit;cursor:pointer;text-align:left}
+.cat:hover{background:rgba(0,0,0,0.015)}
+.cat .nm{font-size:var(--fs-ui);color:var(--ink);flex:0 0 auto}
+.cat .c{font-size:var(--fs-meta);color:var(--ink-mut);margin-left:auto;font-variant-numeric:tabular-nums}
+.cat .c.full{color:var(--ink)}
+.cat .arrow{font-size:var(--fs-meta);color:var(--ink-mut);width:14px;text-align:center}
+.catbody{display:none;padding:var(--sp-2) var(--sp-3) var(--sp-4)}
+.catbody.open{display:block}
+.slots{display:flex;flex-wrap:wrap;gap:var(--sp-3)}
+
+.slot{width:80px;flex:0 0 auto;position:relative;cursor:pointer;background:none;border:0;padding:0;font-family:inherit;text-align:left}
+.thumb{width:80px;height:80px;border-radius:var(--r-ctl);border:1px solid var(--line);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--s2)}
+.thumb.t1{background:#D9DEE3}.thumb.t2{background:#E2DFD9}.thumb.t3{background:#DAE1DD}.thumb.t4{background:#DFDDE4}
+.thumb svg{width:32px;height:32px;opacity:.55}
+.ord{position:absolute;left:var(--sp-2);top:var(--sp-2);height:var(--h-s);padding:0 var(--sp-3);border-radius:var(--r-ctl);background:rgba(255,255,255,0.92);border:1px solid var(--line);font-size:var(--fs-meta);line-height:22px;color:var(--ink);font-variant-numeric:tabular-nums}
+.hat{height:var(--h-s);border-radius:var(--r-ctl) var(--r-ctl) 0 0;background:var(--ink);color:#fff;font-size:var(--fs-meta);line-height:24px;text-align:center}
+.hat + .thumb{border-radius:0 0 var(--r-ctl) var(--r-ctl);border-top:0}
+.cap{font-size:var(--fs-meta);color:var(--ink-mut);margin-top:var(--sp-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cap b{font-weight:400;color:var(--ink-reg)}
+.dup{color:var(--ink-mut);font-variant-numeric:tabular-nums}
+.slot .x{position:absolute;right:var(--sp-2);top:var(--sp-2);width:var(--h-s);height:var(--h-s);border-radius:var(--r-ctl);background:rgba(255,255,255,0.92);border:1px solid var(--line);font-size:var(--fs-meta);line-height:22px;text-align:center;color:var(--ink-reg)}
+.slot.hat-on .x{top:28px}
+.slot.flash .thumb,.slot.picked .thumb{box-shadow:0 0 0 4px var(--action) inset}
+
+.add{width:80px;height:80px;border-radius:var(--r-ctl);border:1px dashed var(--line-3);background:transparent;color:var(--ink-mut);font-size:var(--fs-meta);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-2);cursor:pointer;font-family:inherit;flex:0 0 auto}
+.add:hover{border-color:var(--ink-mut);color:var(--ink-reg)}
+.add .plus{font-size:16px;line-height:1}
+.add.dumb{cursor:not-allowed;border-style:solid;border-color:var(--line);color:#A3A3A3}
+.add.dumb:hover{border-color:var(--line);color:#A3A3A3}
+.add.shake{animation:sh .33s}
+@keyframes sh{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+.total{display:flex;align-items:center;justify-content:space-between;padding:var(--sp-3);background:var(--s1);border-top:1px solid var(--line);border-radius:0 0 var(--r-panel) var(--r-panel);font-size:var(--fs-meta);color:var(--ink-mut)}
+.total b{color:var(--ink);font-weight:400;font-variant-numeric:tabular-nums}
+.rack.inpanel .total{border-radius:0}
+
+.quiet{border-top:1px solid var(--line);padding:var(--sp-3)}
+.quiet-bar{display:flex;align-items:center;gap:var(--sp-3);font-size:var(--fs-meta);color:var(--ink-mut);cursor:pointer;background:none;border:0;font-family:inherit;padding:0;width:100%;min-height:var(--h-s)}
+.quiet-bar .arrow{margin-left:auto}
+.quiet-body{margin-top:var(--sp-3);display:none}
+.quiet-body.open{display:block}
+.quiet-body .slots{opacity:.55}
+.nosend{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,0.92);border-top:1px solid var(--line);font-size:var(--fs-meta);line-height:16px;text-align:center;color:var(--ink-reg)}
+
+/* 文本槽 */
+.tslot{width:100%;display:flex;gap:var(--sp-3);align-items:flex-start;border:1px solid var(--line);border-radius:var(--r-ctl);padding:var(--sp-3);background:none;font-family:inherit;text-align:left;cursor:pointer}
+.tslot:hover{border-color:var(--line-2)}
+.tslot .ic{width:var(--h-m);height:var(--h-m);border-radius:var(--r-ctl);background:var(--s2);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.tslot .ic svg{width:14px;height:14px;opacity:.6}
+.tslot .tt{font-size:var(--fs-ui);line-height:var(--lh-ui);color:var(--ink)}
+.tslot .tp{font-size:var(--fs-meta);color:var(--ink-mut)}
+.tslot .tp.clip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tslot-acts{display:flex;gap:var(--sp-3);margin-top:var(--sp-3)}
+.tiny{height:var(--h-s);padding:0 var(--sp-3);border-radius:var(--r-ctl);border:1px solid var(--line-2);background:var(--s0);font-size:var(--fs-meta);color:var(--ink-reg);cursor:pointer;font-family:inherit}
+.tiny:hover{border-color:var(--line-3);color:var(--ink)}
+.tiny.gone{opacity:.4;pointer-events:none}
+
+.prompt{padding:var(--sp-3);border-top:1px solid var(--line)}
+.ta{width:100%;min-height:72px;border:0;outline:0;resize:none;font-family:inherit;font-size:var(--fs-in);line-height:var(--lh-in);color:var(--ink);background:transparent}
+.ta::placeholder{color:#A3A3A3}
+.params{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3);border-top:1px solid var(--line);flex-wrap:wrap}
+.pill{height:var(--h-m);padding:0 var(--sp-3);border-radius:var(--r-ctl);background:var(--s1);border:0;font-size:var(--fs-ui);color:var(--ink-reg);display:flex;align-items:center;gap:var(--sp-1);cursor:pointer;font-family:inherit}
+.pill.tpl{background:transparent;border:1px solid var(--line-2)}
+.pill .cost{color:var(--ink);font-variant-numeric:tabular-nums}
+.send{margin-left:auto;width:var(--h-l);height:var(--h-l);border-radius:50%;background:var(--action);color:#fff;border:0;cursor:pointer;font-size:var(--fs-in)}
+
+/* 能力 chip 行（对齐 LibTV：+参考 · 标记 · 特效 · 角色库 · 运镜） */
+.chips{display:flex;gap:var(--sp-3);padding:var(--sp-3) var(--sp-3) var(--sp-2);flex-wrap:wrap}
+.chip{height:var(--h-s);padding:0 var(--sp-3);border-radius:var(--r-ctl);border:1px solid var(--line);background:transparent;font-size:var(--fs-meta);color:var(--ink-reg);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:var(--sp-1)}
+.chip:hover{border-color:var(--line-2);color:var(--ink)}
+/* 校验徽标：对应我们已有的三态审核 approved */
+.ok{position:absolute;right:var(--sp-2);bottom:var(--sp-2);width:16px;height:16px;border-radius:50%;background:var(--s0);border:1px solid var(--line);font-size:9px;line-height:14px;text-align:center;color:var(--ink)}
+/* 模式下拉（对齐 LibTV：在底部条，不可用档位置灰 + 原因） */
+.modepop{position:absolute;left:var(--sp-3);bottom:52px;width:212px;background:var(--s0);border:1px solid var(--line);border-radius:var(--r-pop);box-shadow:var(--sh-float);padding:var(--sp-2);display:none;z-index:26}
+.modepop.open{display:block}
+.modepop .hd{font-size:var(--fs-meta);color:var(--ink-mut);padding:var(--sp-2) var(--sp-3)}
+.modepop .mo{display:flex;align-items:center;gap:var(--sp-3);width:100%;min-height:var(--h-l);padding:0 var(--sp-3);border:0;border-radius:var(--r-ctl);background:none;font-family:inherit;font-size:var(--fs-ui);color:var(--ink);cursor:pointer;text-align:left;position:relative}
+.modepop .mo:hover{background:var(--s1)}
+.modepop .mo.on{background:var(--s1)}
+.modepop .mo.off{color:#A3A3A3;cursor:not-allowed}
+.modepop .mo.off:hover{background:none}
+.tip{position:absolute;left:100%;margin-left:var(--sp-3);top:50%;transform:translateY(-50%);white-space:nowrap;background:var(--ink);color:#fff;font-size:var(--fs-meta);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-ctl);opacity:0;pointer-events:none;transition:opacity var(--dur-fast) var(--ease-inout)}
+.modepop .mo.off:hover .tip{opacity:1}
+
+/* 文本引用胶囊：嵌在句子里，不复制内容，位置即拼接顺序 */
+.ta[contenteditable]{display:block;white-space:pre-wrap}
+.ta[contenteditable]:empty::before{content:attr(data-ph);color:#A3A3A3}
+.tcap{display:inline-flex;align-items:center;gap:var(--sp-1);height:var(--h-s);padding:0 var(--sp-2);
+  margin:0 var(--sp-1);border-radius:var(--r-ctl);background:var(--s1);border:1px solid var(--line-2);
+  font-size:var(--fs-meta);color:var(--ink);cursor:pointer;vertical-align:middle;user-select:none;white-space:nowrap}
+.tcap:hover{border-color:var(--line-3)}
+.tcap .g{opacity:.55}
+.tcapmenu{position:absolute;background:var(--s0);border:1px solid var(--line);border-radius:var(--r-pop);
+  box-shadow:var(--sh-float);padding:var(--sp-2);display:none;z-index:28;min-width:150px}
+.tcapmenu.open{display:block}
+.tcapmenu button{display:block;width:100%;text-align:left;min-height:var(--h-l);padding:0 var(--sp-3);
+  border:0;border-radius:var(--r-ctl);background:none;font-family:inherit;font-size:var(--fs-ui);color:var(--ink);cursor:pointer}
+.tcapmenu button:hover{background:var(--s1)}
+.tcapmenu .why{font-size:var(--fs-meta);color:var(--ink-mut);padding:var(--sp-2) var(--sp-3) 0}
+/* @ 菜单（对齐 LibTV 解剖：搜索 + 已引用置顶 + 素材引用按模态分组） */
+.atmenu{position:absolute;width:248px;background:var(--s0);border:1px solid var(--line);border-radius:var(--r-pop);
+  box-shadow:var(--sh-float);padding:var(--sp-2);display:none;z-index:40;max-height:320px;overflow:auto}
+.atmenu.open{display:block}
+.atmenu .srch{width:100%;height:var(--h-l);border:1px solid var(--line);border-radius:var(--r-ctl);
+  padding:0 var(--sp-3);font-size:var(--fs-ui);font-family:inherit;color:var(--ink);outline:0;margin-bottom:var(--sp-2)}
+.atmenu .grp{font-size:var(--fs-meta);color:var(--ink-mut);padding:var(--sp-2) var(--sp-3)}
+.atmenu .it{display:flex;align-items:center;gap:var(--sp-3);width:100%;min-height:var(--h-l);
+  padding:0 var(--sp-3);border:0;border-radius:var(--r-ctl);background:none;font-family:inherit;
+  font-size:var(--fs-ui);color:var(--ink);cursor:pointer;text-align:left}
+.atmenu .it:hover,.atmenu .it.cur{background:var(--s1)}
+.atmenu .it .sw{width:var(--h-s);height:var(--h-s);border-radius:var(--r-ctl);background:var(--s2);flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;font-size:var(--fs-meta);color:var(--ink-mut)}
+.atmenu .it .mt{margin-left:auto;font-size:var(--fs-meta);color:var(--ink-mut)}
+.atmenu .empty{font-size:var(--fs-meta);color:var(--ink-mut);padding:var(--sp-3)}
+
+.rel{position:relative}
+/* 真浮层 —— 全稿仅此三类带投影 */
+.ment{position:absolute;left:var(--sp-3);bottom:var(--sp-3);width:240px;background:var(--s0);border:1px solid var(--line);border-radius:var(--r-pop);box-shadow:var(--sh-float);padding:var(--sp-2);display:none;z-index:20}
+.ment.open{display:block}
+.ment .mi{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-2);min-height:var(--h-l);border-radius:var(--r-ctl);cursor:pointer;font-size:var(--fs-ui)}
+.ment .mi:hover{background:var(--s1)}
+.ment .sw{width:var(--h-s);height:var(--h-s);border-radius:var(--r-ctl);background:var(--s2);flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+.ment .sw svg{width:14px;height:14px;opacity:.55}
+.ment .mt{color:var(--ink-mut);font-size:var(--fs-meta);margin-left:auto}
+
+.tplpop{position:absolute;left:var(--sp-3);bottom:56px;width:336px;background:var(--s0);border:1px solid var(--line);border-radius:var(--r-pop);box-shadow:var(--sh-float);padding:var(--sp-3);display:none;z-index:25}
+.tplpop.open{display:block}
+.tplpop .srch{width:100%;height:var(--h-l);border:1px solid var(--line);border-radius:var(--r-ctl);padding:0 var(--sp-3);font-size:var(--fs-ui);font-family:inherit;color:var(--ink);outline:0;margin-bottom:var(--sp-3)}
+.tplgrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3)}
+.tplcard{border:1px solid var(--line);border-radius:var(--r-ctl);overflow:hidden;cursor:pointer;background:none;padding:0;font-family:inherit;text-align:left}
+.tplcard:hover{border-color:var(--line-2)}
+.tplcover{height:56px;background:var(--s2);display:flex;align-items:center;justify-content:center}
+.tplcover svg{width:22px;height:22px;opacity:.4}
+.tplmeta{padding:var(--sp-2) var(--sp-3)}
+.tplmeta .t{font-size:var(--fs-ui);color:var(--ink)}
+.tplmeta .u{font-size:var(--fs-meta);color:var(--ink-mut)}
+
+.locate{position:absolute;background:var(--s0);border:1px solid var(--line-2);border-radius:var(--r-pop);box-shadow:var(--sh-float);padding:var(--sp-3);font-size:var(--fs-ui);color:var(--ink-reg);display:none;z-index:30;white-space:nowrap}
+.locate.on{display:block}
+.locate b{color:var(--ink);font-weight:500}
+
+.panel{width:600px;background:var(--s0);border:1px solid var(--line);border-radius:var(--r-panel);box-shadow:none;overflow:hidden}
+.panel-bar{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3);border-bottom:1px solid var(--line);font-size:var(--fs-ui)}
+.panel-bar .crumb{color:var(--ink-mut);font-size:var(--fs-meta)}
+.panel-bar .st{margin-left:auto;font-size:var(--fs-meta);border:1px solid var(--line-2);border-radius:var(--r-ctl);padding:0 var(--sp-3);line-height:22px;color:var(--ink-reg)}
+.panel-body{display:flex}
+.panel-media{flex:1;background:var(--s1);min-height:240px;display:flex;align-items:center;justify-content:center}
+.panel-media svg{width:40px;height:40px;opacity:.25}
+.panel-edit{width:320px;border-left:1px solid var(--line)}
+.dock{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3);border-top:1px solid var(--line);background:var(--s0)}
+.dock .mode{font-size:var(--fs-meta);color:var(--ink-mut)}
+.dock .go{margin-left:auto;height:var(--h-l);padding:0 var(--sp-4);border-radius:var(--r-ctl);background:var(--action);color:#fff;border:0;font-size:var(--fs-ui);cursor:pointer;font-family:inherit}
+
+.phone{width:336px;background:var(--s0);border:1px solid var(--line-2);border-radius:var(--r-panel);overflow:hidden;box-shadow:none}
+.phone .rack{border:0;border-radius:0;box-shadow:none}
+.phone .slots{gap:var(--sp-3)}
+.phone .slot,.phone .thumb,.phone .add{width:72px}
+.phone .thumb,.phone .add{height:72px}
+
+.mirror{display:flex;gap:var(--sp-4);flex-wrap:wrap;align-items:flex-start}
+.same{border:1px dashed var(--line-3);border-radius:4px;padding:1px 5px;font-size:var(--fs-meta);color:var(--ink);font-variant-numeric:tabular-nums}
+
+.qa{background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:16px 18px;margin-top:14px}
+.qa h4{font-size:var(--fs-ui);font-weight:600;margin-bottom:6px}
+.qa p{font-size:var(--fs-ui);color:var(--ink-reg);margin:6px 0}
+.qa .verdict{display:inline-block;font-size:var(--fs-meta);border:1px solid var(--line-2);border-radius:3px;padding:1px 8px;color:var(--ink);margin-right:6px}
+.qa .verdict.no{border-color:rgba(192,52,46,.4);color:var(--danger)}
+
+/* ===== 结构性动效四条（owner 2026-08-09 定：只做「回答结构对不对」的那几条） =====
+   全部只动 transform / opacity —— 守「合成层只动 transform/opacity」那条纪律。
+   ⚠ 容器高度<b>瞬时到位不做补间</b>（height/grid-template-rows 过渡会掉出合成层，
+     正是详情面板退役六个 .node-collapsible 的原因）；连续性靠内容的入场承担。 */
+.cats.open > .cat, .cats.open > .catbody.open{animation:enter var(--dur-slow) var(--ease-out) both}
+.catbody.open .slots > *{animation:enter var(--dur-base) var(--ease-out) both}
+.catbody.open .slots > *:nth-child(n+6){animation-delay:40ms}
+@keyframes enter{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.arrow{display:inline-block;transition:transform var(--dur-fast) var(--ease-inout)}
+.sum .arrow,.cat .arrow{transform:rotate(-90deg)}
+.sum.on .arrow,.cat.on .arrow{transform:none}
+/* 落槽后的确认闪（内嵌环，不动 layout） */
+.slot.flash .thumb{animation:ring var(--dur-slow) var(--ease-out) both}
+@keyframes ring{from{box-shadow:0 0 0 4px var(--action) inset}to{box-shadow:0 0 0 0 rgba(0,0,0,0) inset}}
+/* 飞入替身 */
+.ghost{position:fixed;z-index:99;border-radius:var(--r-ctl);background:var(--s2);border:1px solid var(--line);pointer-events:none;display:flex;align-items:center;justify-content:center}
+.ghost svg{width:14px;height:14px;opacity:.55}
+/* 退场：切档被丢弃、取用后槽位消失 */
+.leaving{animation:leave var(--dur-base) var(--ease-inout) both}
+@keyframes leave{to{opacity:0;transform:translateY(8px)}}
+.leaving-up{animation:leaveUp var(--dur-base) var(--ease-inout) both}
+@keyframes leaveUp{to{opacity:0;transform:translateY(-4px)}}
+/* 计数跳字 */
+.bump{animation:bump var(--dur-fast) var(--ease-out)}
+@keyframes bump{50%{transform:scale(1.15)}}
+/* 取用后正文的一次高亮扫过 */
+.swept{position:relative}
+.swept::after{content:'';position:absolute;inset:0;background:var(--s2);opacity:0;pointer-events:none;border-radius:var(--r-ctl);animation:sweep var(--dur-slow) var(--ease-inout)}
+@keyframes sweep{0%{opacity:.6}100%{opacity:0}}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}
+}
+
+.foot{margin-top:56px;border-top:1px solid var(--line);padding-top:22px;font-size:var(--fs-ui);color:var(--ink-reg)}
+.foot h3{font-size:var(--fs-ui);font-weight:600;color:var(--ink);margin:16px 0 8px}
+.foot ul{margin-left:18px}.foot li{margin:4px 0}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-meta);background:rgba(0,0,0,0.04);padding:1px 5px;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="doc-head">
+  <h1>画布 · 素材腰带 — 关键切片 v2</h1>
+  <div class="sub">方向 B「槽架当家」· 2026-08-09 · Fable 设计档</div>
+  <div class="banner">
+    <b>候选稿，未拍板。</b>腰带是<b>图 / 音 / 文 / 视频四线共用的通用件</b>，两档密度同一份名单、同一套计数、同一套命名。
+  </div>
+  <div class="v2">
+    <b>v2 按 owner 四条反馈改：</b>
+    <ol>
+      <li><b>腰带改折叠</b>——静息一行摘要，点开出分类，再点分类出全部缩略图（两档密度 = 同一个件的不同默认折叠深度）</li>
+      <li><b>文本槽与输入框的关系</b>——默认不注入正文；给一个显式「取用为文字」，取用即转文本、槽位消失（见状态 2 与末尾问答）</li>
+      <li><b>参数条加「用模板」</b>——画布图片 composer 已有此件，视频线复用同一个，不新造</li>
+      <li><b>全能参考能不能设首尾帧</b>——查了代码：<b>今天不能，是 provider 三场景互斥</b>（见末尾问答，附证据）</li>
+    </ol>
+  </div>
+  <div class="v2" style="border-left-color:var(--ink-mut)">
+    <b>v3 几何已按 LibTV 实测对齐（owner 2026-08-09「除了颜色」）</b> —— 度量见
+    <code>canvas-libtv-form-metrics-2026-08-09.md</code>：圆角 <b>8 / 12 / 16 + 50%</b> · 字号 <b>13 UI / 14 输入 / 11 元信息</b> ·
+    间距 <b>2 / 4 / 8 / 16</b> · 控件高 <b>24 / 28 / 32</b>（圆角一律 8）· 图标 <b>14</b> ·
+    腰带宽 <b>660</b>（= 其提示词面板实测宽）· 输入行高 <b>25px</b> ·
+    <b>节点卡直角、无边、无投影</b>（圆角只在媒体窗 12）· <b>面板零投影</b>，层次靠表面等级 S0/S1/S2 与 1px 发丝边 ·
+    唯一投影 <code>0 4px 10px</code> 只给真浮层（@候选 / 模板 / 反查气泡）。<br>
+    ⚠ 浅底靠底色差分层比暗底难，本稿用既有表面等级（差值 ≥1.05）承接；落地前仍须过 <code>contrast-check</code>。
+  </div>
+  <div class="v2" style="border-left-color:var(--ink)">
+    <b>v4 结构性动效四条</b>（owner 2026-08-09 定：只做「回答结构对不对」的那几条，微观打磨留实现）。
+    时长与曲线<b>沿用已拍板的</b> <code>canvas-skin-spec §9</code>：<b>150 fast / 250 base / 420 slow</b> ·
+    <code>ease-out cubic-bezier(.22,1,.36,1)</code>（进入）· <code>ease-inout cubic-bezier(.4,0,.2,1)</code>（状态过渡）。<b>不新造时长。</b>
+    <ol>
+      <li><b>折叠</b>：腰带展开 420 / 分类展开 250 / 箭头旋转 150。⚠ <b>容器高度瞬时到位不做补间</b> —— height 与 grid-template-rows 过渡会掉出合成层（正是详情面板退役六个 <code>.node-collapsible</code> 的原因），连续性改由内容的 4px 上滑入场承担</li>
+      <li><b>@ 落槽</b>：替身从候选项飞到新槽（250 · ease-out · scale 补差），落定才显形，随后 420 的内嵌环确认闪；分项计数跳字 150</li>
+      <li><b>切档掉落</b>：点状态 1 的「关键帧」页签 —— 装不下的 7 图 + 音 + 视频 250 退场，「本模式不发送」折叠条落位，计数跳字。<b>这条静态图完全说不清，是本轮最需要动效的一件事</b></li>
+      <li><b>取用为文字</b>：槽位 250 上滑退场 → 正文 420 扫过一次，说明「它搬到这儿来了」而不是被删了</li>
+    </ol>
+    全部只动 <code>transform / opacity</code>；<code>prefers-reduced-motion</code> 一律降到 0 并保留终态。
+    <br>⚠ <b>动效我验不了</b>：自动化标签页 <code>visibilityState: hidden</code> 会冻结 rAF 与 WAAPI（实测动画 <code>running</code> 但 <code>currentTime</code> 停在 0）。我只能程序化证明「动画确实挂上了、终态正确」，<b>顺不顺要你亲自看</b>。
+  </div>
+  <div class="legend">
+    <span><i class="mk now">●</i>现状：代码今天就是这样</span>
+    <span><i class="mk goal">○</i>设计目标：本稿新提</span>
+    <span><i class="mk eng">▲</i>待工程：已核实缺陷，实现前必修</span>
+  </div>
+</div>
+
+<!-- ============ 1 ============ -->
+<section class="state">
+  <div class="state-head"><span class="state-no">1</span><h2>全能参考 · 满载 12/12 · 三级折叠</h2></div>
+  <p class="state-why">点摘要行 → 出分类；点分类 → 出缩略图。账（计数）在每一级都在场，被折叠的只是缩略图</p>
+  <div class="stage dots">
+    <div class="stage-row">
+      <div class="node-wrap">
+        <div class="node-title"><span class="dot"></span>视频生成</div>
+        <div class="node"><div class="node-body"><svg viewBox="0 0 40 40" fill="#9CA3AF"><rect x="4" y="9" width="32" height="22" rx="2" fill="none" stroke="#9CA3AF" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg></div></div>
+      </div>
+      <div style="width:660px" class="rel">
+        <div class="rack" id="rack1">
+          <div class="chips">
+            <button class="chip">＋参考</button><button class="chip">标记</button><button class="chip">特效</button><button class="chip">角色库</button><button class="chip">运镜</button>
+          </div>
+
+          <button class="sum" data-t="cats1"><span class="lab">素材</span>
+            <span class="strip"><i class="t1"></i><i class="t2"></i><i class="t4"></i><i class="t3"></i><span class="n">+8</span></span>
+            <span class="cnt">图 9 · 音 1 · 视 2</span><span class="arrow" data-a="cats1">▸</span></button>
+
+          <div class="cats" id="cats1">
+            <button class="cat" data-t="cb1a"><span class="nm">图片</span>
+              <span class="strip"><i class="t1"></i><i class="t2"></i><i class="t4"></i></span>
+              <span class="c full">9/9</span><span class="arrow" data-a="cb1a">▸</span></button>
+            <div class="catbody" id="cb1a">
+              <div class="slots" id="s1img">
+                <button class="slot" data-src="散图节点「小林」" data-pos="左上"><div class="thumb t1"><span class="ord">图1</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#7C8794"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>小林</b></div></button>
+                <button class="slot" data-src="角色卡「老板」" data-pos="左中"><div class="thumb t2"><span class="ord">图2</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#8A8275"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>老板</b></div></button>
+                <button class="slot" data-src="角色卡「常客」" data-pos="左下"><div class="thumb t4"><span class="ord">图3</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#807A8C"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>常客</b></div></button>
+                <button class="slot" data-src="镜头图节点 · 左上" data-pos="上"><div class="thumb t3"><span class="ord">图4</span><svg viewBox="0 0 40 40" fill="#7C8C82"><rect x="5" y="10" width="30" height="20" rx="2" fill="none" stroke="#7C8C82" stroke-width="2"/><circle cx="14" cy="18" r="3"/><path d="M7 28l9-8 7 6 5-4 6 6z"/></svg></div><div class="cap"><b>镜头1</b> <span class="dup">·1</span></div></button>
+                <button class="slot" data-src="镜头图节点 · 中部" data-pos="中"><div class="thumb t3"><span class="ord">图5</span><svg viewBox="0 0 40 40" fill="#7C8C82"><rect x="5" y="10" width="30" height="20" rx="2" fill="none" stroke="#7C8C82" stroke-width="2"/><circle cx="26" cy="18" r="3"/><path d="M7 28l7-6 8 5 4-3 8 6z"/></svg></div><div class="cap"><b>镜头1</b> <span class="dup">·2</span></div></button>
+                <button class="slot" data-src="镜头图节点 · 右下" data-pos="下"><div class="thumb t3"><span class="ord">图6</span><svg viewBox="0 0 40 40" fill="#7C8C82"><rect x="5" y="10" width="30" height="20" rx="2" fill="none" stroke="#7C8C82" stroke-width="2"/><circle cx="20" cy="17" r="3"/><path d="M7 28l6-5 6 4 6-6 8 8z"/></svg></div><div class="cap"><b>镜头1</b> <span class="dup">·3</span></div></button>
+                <button class="slot" data-src="场景卡「茶馆」" data-pos="右"><div class="thumb t3"><span class="ord">图7</span><svg viewBox="0 0 40 40" fill="#7C8C82"><path d="M4 30h32v3H4z"/><path d="M8 30V14l12-7 12 7v16" fill="none" stroke="#7C8C82" stroke-width="2"/></svg></div><div class="cap"><b>茶馆</b></div></button>
+                <button class="slot" data-src="散图节点 · 上传" data-pos="右上"><div class="thumb t2"><span class="ord">图8</span><svg viewBox="0 0 40 40" fill="#8A8275"><rect x="5" y="10" width="30" height="20" rx="2" fill="none" stroke="#8A8275" stroke-width="2"/><path d="M7 28l9-8 7 6 5-4 6 6z"/></svg></div><div class="cap"><b>漂泊者_全身</b></div></button>
+                <button class="slot" data-src="散图节点 · 素材库" data-pos="右下"><div class="thumb t1"><span class="ord">图9</span><svg viewBox="0 0 40 40" fill="#7C8794"><rect x="5" y="10" width="30" height="20" rx="2" fill="none" stroke="#7C8794" stroke-width="2"/><circle cx="15" cy="18" r="3"/><path d="M7 28l8-7 6 5 5-4 7 6z"/></svg></div><div class="cap"><b>吧台近景</b></div></button>
+                <button class="add dumb" id="add1" title="图片已满"><span class="plus">+</span>图片 9/9</button>
+              </div>
+            </div>
+
+            <button class="cat" data-t="cb1b"><span class="nm">音频</span><span class="strip"><i class="t4"></i></span><span class="c">1/3</span><span class="arrow" data-a="cb1b">▸</span></button>
+            <div class="catbody" id="cb1b">
+              <div class="slots">
+                <button class="slot" data-src="角色卡「小林」的绑定音色" data-pos="左上"><div class="thumb t4"><svg viewBox="0 0 40 40" fill="#807A8C"><rect x="7" y="16" width="3" height="8" rx="1.5"/><rect x="14" y="11" width="3" height="18" rx="1.5"/><rect x="21" y="14" width="3" height="12" rx="1.5"/><rect x="28" y="18" width="3" height="4" rx="1.5"/></svg></div><div class="cap"><b>@小林</b></div></button>
+                <button class="add"><span class="plus">+</span>音频</button>
+              </div>
+            </div>
+
+            <button class="cat" data-t="cb1c"><span class="nm">视频</span><span class="strip"><i class="t1"></i><i class="t3"></i></span><span class="c">2/3</span><span class="arrow" data-a="cb1c">▸</span></button>
+            <div class="catbody" id="cb1c">
+              <div class="slots">
+                <button class="slot" data-src="参考视频节点 · 运镜参考" data-pos="下"><div class="thumb t1"><svg viewBox="0 0 40 40" fill="#7C8794"><rect x="5" y="11" width="30" height="18" rx="2" fill="none" stroke="#7C8794" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg></div><div class="cap"><b>运镜参考</b></div></button>
+                <button class="slot" data-src="视频生成节点 · 前一镜" data-pos="左"><div class="thumb t3"><svg viewBox="0 0 40 40" fill="#7C8C82"><rect x="5" y="11" width="30" height="18" rx="2" fill="none" stroke="#7C8C82" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg></div><div class="cap"><b>镜头2 成片</b></div></button>
+                <button class="add dumb" title="总额已满"><span class="plus">+</span>总额 12/12</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="prompt">
+            <div class="ta" id="ta1" contenteditable="true" data-ph="写这一镜要发生什么…（打 @ 引素材）"><span class="tcap" contenteditable="false" data-src="镜头文本节点「深夜便利店-吧台」"><span class="g">▤</span>深夜便利店-吧台</span>二次元画风，镜头从中景拉远到全景两人相拥，夜市暖橙灯光烘托，No BGM</div>
+          </div>
+          <div class="params">
+            <button class="pill">Seedance 2.0 · fal ▾</button>
+            <button class="pill" id="modebtn">全能参考 ▾</button>
+            <button class="pill">9:16 · 720P · 10s · 1个 ▾</button>
+            <button class="pill tpl">▤ 用模板</button>
+            <button class="pill">高级 ▾</button>
+            
+            <button class="send">↑</button>
+          </div>
+          <div class="modepop" id="modepop">
+            <div class="hd">视频生成模式</div>
+            <button class="mo off">文生视频<span class="tip">已连接媒体输入，无法使用纯文生视频</span></button>
+            <button class="mo on" data-m="全能参考">全能参考</button>
+            <button class="mo off">图生视频<span class="tip">需要恰好 1 个图片节点</span></button>
+            <button class="mo" data-m="关键帧">关键帧</button>
+            <button class="mo" data-m="多图参考">多图参考</button>
+          </div>
+          <div class="total"><span>全能参考</span><span>总额 <b>12/12</b></span></div>
+        </div>
+        <div class="locate" id="loc1"></div>
+      </div>
+      <div class="hint">
+        <div class="tagline">试一下</div>
+        点「素材」行 → 三个分类出来；点「图片 9/9」→ 九张图出来。<br><br>
+        <b>被折叠的只有缩略图，账从没被折叠</b>：静息行就带着「图 9 · 音 1 · 视 2」，底部常驻「总额 12/12」。<br><br>
+        点任意槽 → 反查气泡；点两个「+」→ 拒绝理由。
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><i class="mk goal">○</i> <b>折叠的边界：折缩略图，不折账。</b>这是把「一本账」这条底线翻译成折叠规则——任何一级都能读到「有多少、满没满」，要看长什么样才展开。</li>
+    <li><i class="mk goal">○</i> <b>红线在入口</b>：图片区满 → 加号变哑说「图片已满 9/9」；视频 2/3 未满但总额已尽 → 它说的是「总额 12/12」。<b>拒绝要说对是哪一条限制。</b></li>
+    <li><i class="mk goal">○</i> <b>重名</b>三个「镜头1」带序位 ·1 ·2 ·3（按接线顺序），点击定位确认。序位是显示层兜底，<b>默认命名唯一化仍归工程</b>。</li>
+    <li><i class="mk eng">▲</i> 音槽 <code>@小林</code> 走既有 <code>@AudioN</code> 图例；但<b>系统 TTS 音色今天送不出声</b>（<code>voiceSampleUrl</code> 不在收割路径），且不进「不会发送」提示——实现前先修。</li>
+  </ul>
+</section>
+
+<!-- ============ 2 ============ -->
+<section class="state">
+  <div class="state-head"><span class="state-no">2</span><h2>半载 + 文本槽 · @ 落槽 · 用模板</h2></div>
+  <p class="state-why">回答 owner 第二问（文本与输入框的关系）与第三问（模板入口）· @ 落槽正文零残留</p>
+  <div class="stage dots">
+    <div class="stage-row">
+      <div style="width:660px" class="rel">
+        <div class="rack">
+          <button class="sum" data-t="cats2"><span class="lab">素材</span>
+            <span class="strip"><i class="t1"></i><i class="t2"></i><i class="t3"></i><i class="t3"></i></span>
+            <span class="cnt" id="sum2">图 4 · 音 1 · 视 1</span><span class="arrow" data-a="cats2">▾</span></button>
+          <div class="cats open" id="cats2">
+            <button class="cat" data-t="cb2a"><span class="nm">图片</span><span class="strip"><i class="t1"></i><i class="t2"></i><i class="t3"></i></span><span class="c" id="c2img">4/9</span><span class="arrow" data-a="cb2a">▾</span></button>
+            <div class="catbody open" id="cb2a">
+              <div class="slots" id="s2img">
+                <button class="slot" data-src="角色卡「小林」" data-pos="左上"><div class="thumb t1"><span class="ord">图1</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#7C8794"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>小林</b></div></button>
+                <button class="slot" data-src="角色卡「老板」" data-pos="左中"><div class="thumb t2"><span class="ord">图2</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#8A8275"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>老板</b></div></button>
+                <button class="slot" data-src="场景卡「茶馆」" data-pos="右"><div class="thumb t3"><span class="ord">图3</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#7C8C82"><path d="M4 30h32v3H4z"/><path d="M8 30V14l12-7 12 7v16" fill="none" stroke="#7C8C82" stroke-width="2"/></svg></div><div class="cap"><b>茶馆</b></div></button>
+                <button class="slot" data-src="镜头图节点 · 上方" data-pos="上"><div class="thumb t3"><span class="ord">图4</span><svg viewBox="0 0 40 40" fill="#7C8C82"><rect x="5" y="10" width="30" height="20" rx="2" fill="none" stroke="#7C8C82" stroke-width="2"/><circle cx="14" cy="18" r="3"/><path d="M7 28l9-8 7 6 5-4 6 6z"/></svg></div><div class="cap"><b>镜头1</b></div></button>
+                <button class="add" id="add2"><span class="plus">+</span>图片</button>
+              </div>
+            </div>
+            <button class="cat" data-t="cb2b"><span class="nm">音频</span><span class="strip"><i class="t4"></i></span><span class="c">1/3</span><span class="arrow" data-a="cb2b">▸</span></button>
+            <div class="catbody" id="cb2b"><div class="slots">
+              <button class="slot" data-src="角色卡「小林」的绑定音色" data-pos="左上"><div class="thumb t4"><svg viewBox="0 0 40 40" fill="#807A8C"><rect x="7" y="16" width="3" height="8" rx="1.5"/><rect x="14" y="11" width="3" height="18" rx="1.5"/><rect x="21" y="14" width="3" height="12" rx="1.5"/><rect x="28" y="18" width="3" height="4" rx="1.5"/></svg></div><div class="cap"><b>@小林</b></div></button>
+              <button class="add"><span class="plus">+</span>音频</button>
+            </div></div>
+            <button class="cat" data-t="cb2d"><span class="nm">视频</span><span class="strip"><i class="t1"></i></span><span class="c">1/3</span><span class="arrow" data-a="cb2d">▸</span></button>
+            <div class="catbody" id="cb2d"><div class="slots">
+              <button class="slot" data-src="参考视频节点「运镜参考」" data-pos="下"><div class="thumb t1"><svg viewBox="0 0 40 40" fill="#7C8794"><rect x="5" y="11" width="30" height="18" rx="2" fill="none" stroke="#7C8794" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg></div><div class="cap"><b>运镜参考</b></div></button>
+              <button class="add"><span class="plus">+</span>视频</button>
+            </div></div>
+                      </div>
+
+          <div class="prompt">
+            <div class="ta" id="ta2" contenteditable="true" data-ph="写这一镜要发生什么…（打 @ 引素材）"><span class="tcap" contenteditable="false" data-src="镜头文本节点「深夜便利店-吧台」"><span class="g">▤</span>深夜便利店-吧台</span>镜头缓慢推近，霓虹灯牌在雨里散开。</div>
+            
+            </div>
+            <div class="tplpop" id="tplpop">
+              <input class="srch" placeholder="搜名字 / 正文 / 标签">
+              <div class="tplgrid">
+                <button class="tplcard" data-p="夜景霓虹，浅景深，胶片颗粒，冷色调高对比。"><span class="tplcover"><svg viewBox="0 0 40 40" fill="#7C8794"><rect x="5" y="10" width="30" height="20" rx="2" fill="none" stroke="#7C8794" stroke-width="2"/><circle cx="15" cy="18" r="3"/></svg></span><span class="tplmeta"><span class="t">夜景霓虹</span><span class="u">用过 12 次</span></span></button>
+                <button class="tplcard" data-p="缓慢推轨，主体居中，背景虚化，情绪克制。"><span class="tplcover"><svg viewBox="0 0 40 40" fill="#7C8C82"><rect x="5" y="11" width="30" height="18" rx="2" fill="none" stroke="#7C8C82" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg></span><span class="tplmeta"><span class="t">缓慢推轨</span><span class="u">用过 8 次</span></span></button>
+              </div>
+              <div style="font-size:var(--fs-meta);color:var(--ink-mut);margin-top:9px">只取提示词文本 —— 模型与参数不动（已拍板）</div>
+            </div>
+          </div>
+          <div class="params">
+            <button class="pill">Seedance 2.0 Fast · fal ▾</button>
+            <button class="pill">全能参考 ▾</button>
+            <button class="pill">1080P · 5 秒 · 16:9 ▾</button>
+            <button class="pill">运镜语法 ▾</button>
+            <button class="pill tpl" id="tplbtn">▤ 用模板</button>
+            <button class="send">↑</button>
+          </div>
+          <div class="total"><span>全能参考 · 图 4 + 音 1 + 视 1</span><span>总额 <b id="tot2">6/12</b></span></div>
+        </div>
+        <div class="locate" id="loc2"></div>
+      </div>
+      <div class="hint">
+        <div class="tagline">试三样</div>
+        <b>①</b> 提示词末尾打一个 <code>@</code> —— 挑一个，它落进上面的槽，正文<b>不留一个字</b>。<br><br>
+        <b>②</b> 点文本槽 —— 展开全文 + 两个动作。<b>默认不往输入框里塞字</b>；「取用为文字」是显式的一步，而且取用后<b>槽位消失</b>。<br><br>
+        <b>③</b> 点「▤ 用模板」——只取文本，模型与参数不动。
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><i class="mk goal">○</i> <b>文本槽默认不进输入框</b>。理由：复制出来的字与源节点脱钩，同一段话就有了两本账——正是这次要消灭的东西。文本作为槽在<b>发送时</b>拼进最终提示词（今天已经这样，只是 UI 从没说过），输入框只装你自己写的那句。</li>
+    <li><i class="mk goal">○</i> <b>「取用为文字」是唯一的注入口，而且是单向的</b>：取用瞬间槽位消失、内容变成你可编辑的普通文字，从此与源节点无关。<b>任何时刻都只有一本账</b>——要么它是槽，要么它是你的字，不会两者同时。</li>
+    <li><i class="mk goal">○</i> <b>用模板</b>沿用已拍板规格：入口在底部参数条、只取提示词文本、替换 + 一次撤销、封面优先浮层。<i class="mk now">●</i> 画布<b>图片</b> composer 已有此件（<code>GenerateComposerTemplatePicker</code>），视频线<b>复用同一个</b>、只把预筛改成视频类，不新造。</li>
+    <li><i class="mk eng">▲</i> <b>图片生成今天不读上游文本</b>（收割处有显式视频门）——文本槽出现在图片节点上属于新能力，实现要给图片收割加读文本。</li>
+  </ul>
+</section>
+
+<!-- ============ 3 ============ -->
+<section class="state">
+  <div class="state-head"><span class="state-no">3</span><h2>关键帧档 · 具名槽与「不发送」折叠条</h2></div>
+  <p class="state-why">具名槽语法 · 切档不销毁素材 · 装不下的那些去哪了</p>
+  <div class="stage dots">
+    <div class="stage-row">
+      <div style="width:660px">
+        <div class="rack">
+          <button class="sum" data-t="cats3"><span class="lab">关键帧</span><span class="strip"><i class="t3"></i><i class="t3"></i></span><span class="cnt">首帧 · 尾帧</span><span class="arrow" data-a="cats3">▾</span></button>
+          <div class="cats open" id="cats3">
+            <div class="catbody open" style="padding-top:10px">
+              <div class="slots">
+                <button class="slot hat-on"><div class="hat">首帧</div><div class="thumb t3"><svg viewBox="0 0 40 40" fill="#7C8C82"><rect x="5" y="10" width="30" height="20" rx="2" fill="none" stroke="#7C8C82" stroke-width="2"/><circle cx="14" cy="18" r="3"/><path d="M7 28l9-8 7 6 5-4 6 6z"/></svg></div><div class="cap"><b>镜头1</b> <span class="dup">·1</span></div></button>
+                <button class="slot hat-on"><div class="hat">尾帧</div><div class="thumb t3"><svg viewBox="0 0 40 40" fill="#7C8C82"><rect x="5" y="10" width="30" height="20" rx="2" fill="none" stroke="#7C8C82" stroke-width="2"/><circle cx="20" cy="17" r="3"/><path d="M7 28l6-5 6 4 6-6 8 8z"/></svg></div><div class="cap"><b>镜头1</b> <span class="dup">·3</span></div></button>
+              </div>
+            </div>
+          </div>
+          <div class="quiet">
+            <button class="quiet-bar" data-q="qbd3"><span>本模式不发送 · 图 7 · 音 1 · 视频 2</span><span class="arrow" data-a="qbd3">▾</span></button>
+            <div class="quiet-body" id="qbd3">
+              <div class="slots">
+                <div class="slot"><div class="thumb t1"><svg viewBox="0 0 40 40" fill="#7C8794"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg><div class="nosend">不会发送</div></div><div class="cap">小林</div></div>
+                <div class="slot"><div class="thumb t2"><svg viewBox="0 0 40 40" fill="#8A8275"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg><div class="nosend">不会发送</div></div><div class="cap">老板</div></div>
+                <div class="slot"><div class="thumb t3"><svg viewBox="0 0 40 40" fill="#7C8C82"><path d="M4 30h32v3H4z"/><path d="M8 30V14l12-7 12 7v16" fill="none" stroke="#7C8C82" stroke-width="2"/></svg><div class="nosend">不会发送</div></div><div class="cap">茶馆</div></div>
+                <div class="slot"><div class="thumb t4"><svg viewBox="0 0 40 40" fill="#807A8C"><rect x="7" y="16" width="3" height="8" rx="1.5"/><rect x="14" y="11" width="3" height="18" rx="1.5"/><rect x="21" y="14" width="3" height="12" rx="1.5"/><rect x="28" y="18" width="3" height="4" rx="1.5"/></svg><div class="nosend">不会发送</div></div><div class="cap">@小林</div></div>
+                <div class="slot"><div class="thumb t1"><svg viewBox="0 0 40 40" fill="#7C8794"><rect x="5" y="11" width="30" height="18" rx="2" fill="none" stroke="#7C8794" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg><div class="nosend">不会发送</div></div><div class="cap">运镜参考</div></div>
+              </div>
+              <div style="font-size:var(--fs-meta);color:var(--ink-mut);margin-top:8px">切回全能参考即恢复发送 · 数据一直都在</div>
+            </div>
+          </div>
+          <div class="prompt"><div class="ta" style="min-height:56px" contenteditable="true" data-ph="写这一镜要发生什么…（打 @ 引素材）">从首帧的站姿过渡到尾帧的侧身回望，镜头缓慢平移，暖橙灯光。</div></div>
+          <div class="params">
+            <button class="pill">Seedance 2.0 · 火山 ▾</button>
+            <button class="pill">关键帧 ▾</button>
+            <button class="pill">9:16 · 720P · 5s · 1个 ▾</button>
+            <button class="pill tpl">▤ 用模板</button>
+            
+            <button class="send">↑</button>
+          </div>
+          <div class="total"><span>关键帧 · 首帧 + 尾帧</span><span>本次发送 <b>2</b> 项</span></div>
+        </div>
+      </div>
+      <div class="hint">
+        <div class="tagline">具名 vs 匿名，一眼分</div>
+        <b>名字戴在位上</b>（首帧/尾帧是实色帽子，位置先说话）；<br>
+        <b>序号盖在图上</b>（图N 是角上的轻徽标，内容先说话）。<br><br>
+        所以不会有人把「图1」读成「第一帧」——它们连长相都不是一类。
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><i class="mk goal">○</i> <b>「不发送」折叠条</b>解现行契约的一对张力：模式不支持的区「真不渲染」，可素材又「不许销毁、要标出来」。解法是<b>把输入面与留存分开</b>——区作为输入面不渲染（没有加号、没有槽位），保留的素材退到这条安静的折叠条里，展开才见、带既有「不会发送」徽标。</li>
+    <li><i class="mk eng">▲</i> <b>关键帧双轨必须在这一片一起清掉</b>：今天菜单建的关键帧节点没有分类，载荷层当首帧、面板层显无编号「关键帧」、<b>图例层硬写成「首帧」发给模型</b>，且用户在传图之前没有任何 UI 能标首/尾。首尾语义只活在这两个具名槽上，是三层归一的唯一解；菜单的「关键帧」项随之退役。</li>
+  </ul>
+</section>
+
+<!-- ============ 4 ============ -->
+<section class="state">
+  <div class="state-head"><span class="state-no">4</span><h2>两档密度 = 同一个件的两个默认折叠深度</h2></div>
+  <p class="state-why">紧凑档默认折起（静息一行），完整档默认展开到缩略图 —— 但计数处处相同</p>
+  <div class="stage dots">
+    <div class="mirror">
+      <div>
+        <div class="tagline">紧凑档 · 挂节点下方（默认折起）</div>
+        <div class="node-wrap" style="margin-bottom:8px">
+          <div class="node-title"><span class="dot"></span>视频生成</div>
+          <div class="node mini"><div class="node-body"><svg viewBox="0 0 40 40" fill="#9CA3AF"><rect x="4" y="9" width="32" height="22" rx="2" fill="none" stroke="#9CA3AF" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg></div></div>
+        </div>
+        <div class="rack" style="width:660px">
+          <button class="sum" data-t="cats4" style="border-top:0"><span class="lab">素材</span>
+            <span class="strip"><i class="t1"></i><i class="t2"></i><i class="t4"></i><i class="t3"></i><span class="n">+8</span></span>
+            <span class="cnt"><span class="same">12/12</span></span><span class="arrow" data-a="cats4">▸</span></button>
+          <div class="cats" id="cats4">
+            <button class="cat" data-t="cb4a"><span class="nm">图片</span><span class="c full">9/9</span><span class="arrow" data-a="cb4a">▸</span></button>
+            <div class="catbody" id="cb4a"><div class="slots">
+              <button class="slot"><div class="thumb t1"><span class="ord">图1</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#7C8794"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>小林</b></div></button>
+              <button class="slot"><div class="thumb t2"><span class="ord">图2</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#8A8275"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>老板</b></div></button>
+              <button class="slot"><div class="thumb t4"><span class="ord">图3</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#807A8C"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>常客</b></div></button>
+              <div style="width:100%;font-size:var(--fs-meta);color:var(--ink-mut)">…其余 6 张同此</div>
+            </div></div>
+            <button class="cat" data-t="cb4b"><span class="nm">音频</span><span class="c">1/3</span><span class="arrow" data-a="cb4b">▸</span></button>
+            <div class="catbody" id="cb4b"><div class="slots"><button class="slot"><div class="thumb t4"><svg viewBox="0 0 40 40" fill="#807A8C"><rect x="7" y="16" width="3" height="8" rx="1.5"/><rect x="14" y="11" width="3" height="18" rx="1.5"/><rect x="21" y="14" width="3" height="12" rx="1.5"/><rect x="28" y="18" width="3" height="4" rx="1.5"/></svg></div><div class="cap"><b>@小林</b></div></button></div></div>
+            <button class="cat" data-t="cb4c"><span class="nm">视频</span><span class="c">2/3</span><span class="arrow" data-a="cb4c">▸</span></button>
+            <div class="catbody" id="cb4c"><div class="slots"><button class="slot"><div class="thumb t1"><svg viewBox="0 0 40 40" fill="#7C8794"><rect x="5" y="11" width="30" height="18" rx="2" fill="none" stroke="#7C8794" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg></div><div class="cap"><b>运镜参考</b></div></button><button class="slot"><div class="thumb t3"><svg viewBox="0 0 40 40" fill="#7C8C82"><rect x="5" y="11" width="30" height="18" rx="2" fill="none" stroke="#7C8C82" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg></div><div class="cap"><b>镜头2 成片</b></div></button></div></div>
+          </div>
+          <div class="prompt"><div class="ta" style="min-height:44px" contenteditable="true" data-ph="写这一镜要发生什么…（打 @ 引素材）">镜头缓慢推近，霓虹灯牌在雨里散开。</div></div>
+          <div class="params">
+            <button class="pill">Seedance 2.0 Fast ▾</button><button class="pill">全能参考 ▾</button><button class="pill">1080P · 5 秒 ▾</button><button class="pill tpl">▤ 用模板</button><button class="send">↑</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="tagline">完整档 · 详情面板右栏（默认展开）</div>
+        <div class="panel">
+          <div class="panel-bar"><span class="crumb">画布 / 视频生成</span><b style="font-weight:500">视频生成</b><span class="st">就绪</span></div>
+          <div class="panel-body">
+            <div class="panel-media"><svg viewBox="0 0 40 40" fill="#9CA3AF"><rect x="4" y="9" width="32" height="22" rx="2" fill="none" stroke="#9CA3AF" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg></div>
+            <div class="panel-edit">
+              <div class="prompt" style="border-top:0"><div class="ta" style="min-height:48px" contenteditable="true" data-ph="写这一镜要发生什么…（打 @ 引素材）">镜头缓慢推近，霓虹灯牌在雨里散开。</div></div>
+              <div class="params" style="border-top:1px solid var(--line)"><button class="pill">全能参考 ▾</button><button class="pill">1080P · 5 秒 · 16:9 ▾</button><button class="pill tpl">▤ 用模板</button></div>
+              <div class="rack inpanel">
+                <button class="sum" data-t="cats5"><span class="lab">素材</span><span class="cnt"><span class="same">12/12</span></span><span class="arrow" data-a="cats5">▾</span></button>
+                <div class="cats open" id="cats5">
+                  <button class="cat" data-t="cb5a"><span class="nm">图片</span><span class="c full">9/9</span><span class="arrow" data-a="cb5a">▾</span></button>
+                  <div class="catbody open" id="cb5a"><div class="slots">
+                    <button class="slot" style="width:62px"><div class="thumb t1" style="width:62px;height:62px"><span class="ord">图1</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#7C8794"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>小林</b></div></button>
+                    <button class="slot" style="width:62px"><div class="thumb t2" style="width:62px;height:62px"><span class="ord">图2</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#8A8275"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>老板</b></div></button>
+                    <button class="slot" style="width:62px"><div class="thumb t4" style="width:62px;height:62px"><span class="ord">图3</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#807A8C"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>常客</b></div></button>
+                    <div style="width:100%;font-size:var(--fs-meta);color:var(--ink-mut)">…同一份名单，完整档默认摊开</div>
+                  </div></div>
+                  <button class="cat" data-t="cb5b"><span class="nm">音频</span><span class="c">1/3</span><span class="arrow" data-a="cb5b">▾</span></button>
+                  <div class="catbody open" id="cb5b"><div class="slots"><button class="slot" style="width:62px"><div class="thumb t4" style="width:62px;height:62px"><svg viewBox="0 0 40 40" fill="#807A8C"><rect x="7" y="16" width="3" height="8" rx="1.5"/><rect x="14" y="11" width="3" height="18" rx="1.5"/><rect x="21" y="14" width="3" height="12" rx="1.5"/><rect x="28" y="18" width="3" height="4" rx="1.5"/></svg></div><div class="cap"><b>@小林</b></div></button></div></div>
+                  <button class="cat on" data-t="cb5c"><span class="nm">视频</span><span class="c">2/3</span><span class="arrow" data-a="cb5c">▾</span></button>
+                  <div class="catbody open" id="cb5c"><div class="slots"><button class="slot" style="width:62px"><div class="thumb t1" style="width:62px;height:62px"><svg viewBox="0 0 40 40" fill="#7C8794"><rect x="5" y="11" width="30" height="18" rx="2" fill="none" stroke="#7C8794" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg></div><div class="cap"><b>运镜参考</b></div></button><div style="width:100%;font-size:var(--fs-meta);color:var(--ink-mut)">…同一份名单</div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dock"><span class="mode">全能参考 · 12 项已就绪</span><button class="go">生成视频</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><i class="mk goal">○</i> <b>两档不是两个组件，是同一个件的两个默认折叠深度</b>。紧凑档默认折到静息行，完整档默认展开到缩略图；用户在任一档都能自己折/展，状态各自记忆。</li>
+    <li><i class="mk goal">○</i> 两档的<b>计数框出来是同一个数</b>（虚线框）。这是「一本账」最硬的验收点：不会再出现「已引用 3 / 已连接 6 / 6 inputs」各说各的。</li>
+  </ul>
+</section>
+
+<!-- ============ 5 ============ -->
+<section class="state">
+  <div class="state-head"><span class="state-no">5</span><h2>多图参考 · 空腰带 · 移动端</h2></div>
+  <p class="state-why">组级不可用 → 整区不渲染 · 空态占几何不占内容 · 触屏不依赖 hover</p>
+  <div class="stage dots">
+    <div class="stage-row">
+      <div style="width:324px">
+        <div class="tagline">多图参考：没有音频区，也没有视频区</div>
+        <div class="rack">
+          <button class="sum" data-t="cats6"><span class="lab">图片</span><span class="strip"><i class="t1"></i><i class="t2"></i><i class="t3"></i></span><span class="cnt">3/3</span><span class="arrow" data-a="cats6">▾</span></button>
+          <div class="cats open" id="cats6"><div class="catbody open" style="padding-top:10px"><div class="slots">
+            <button class="slot"><div class="thumb t1"><span class="ord">图1</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#7C8794"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>小林</b></div></button>
+            <button class="slot"><div class="thumb t2"><span class="ord">图2</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#8A8275"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>老板</b></div></button>
+            <button class="slot"><div class="thumb t3"><span class="ord">图3</span><span class="ok">✓</span><svg viewBox="0 0 40 40" fill="#7C8C82"><path d="M4 30h32v3H4z"/><path d="M8 30V14l12-7 12 7v16" fill="none" stroke="#7C8C82" stroke-width="2"/></svg></div><div class="cap"><b>茶馆</b></div></button>
+          </div></div></div>
+          <div class="quiet">
+            <button class="quiet-bar" data-q="qbd4"><span>本模式不发送 · 音 1 · 视频 2</span><span class="arrow" data-a="qbd4">▾</span></button>
+            <div class="quiet-body" id="qbd4"><div class="slots">
+              <div class="slot"><div class="thumb t4"><svg viewBox="0 0 40 40" fill="#807A8C"><rect x="7" y="16" width="3" height="8" rx="1.5"/><rect x="14" y="11" width="3" height="18" rx="1.5"/><rect x="21" y="14" width="3" height="12" rx="1.5"/><rect x="28" y="18" width="3" height="4" rx="1.5"/></svg><div class="nosend">不会发送</div></div><div class="cap">@小林</div></div>
+              <div class="slot"><div class="thumb t1"><svg viewBox="0 0 40 40" fill="#7C8794"><rect x="5" y="11" width="30" height="18" rx="2" fill="none" stroke="#7C8794" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg><div class="nosend">不会发送</div></div><div class="cap">运镜参考</div></div>
+            </div></div>
+          </div>
+          <div class="params"><button class="pill">Veo 3 ▾</button><button class="pill">多图参考 ▾</button><button class="send">↑</button></div>
+          <div class="total"><span>多图参考 · 图 3</span><span>本次发送 <b>3</b> 项</span></div>
+        </div>
+      </div>
+      <div style="width:324px">
+        <div class="tagline">空腰带：一个区，零解释文案</div>
+        <div class="rack">
+          <div class="catbody open" style="padding-top:12px;border-top:1px solid var(--line)"><div class="slots">
+            <button class="add"><span class="plus">+</span>图片</button>
+            <button class="add"><span class="plus">+</span>音频</button>
+            <button class="add"><span class="plus">+</span>视频</button>
+          </div></div>
+          <div class="prompt"><div class="ta" contenteditable="true" data-ph="写这一镜要发生什么…（打 @ 引素材）"></div></div>
+          <div class="params"><button class="pill">选个模型 ▾</button><button class="pill">全能参考 ▾</button><button class="pill tpl">▤ 用模板</button><button class="send" style="opacity:.35">↑</button></div>
+          <div class="total"><span>文生 · 还没有素材</span><span>总额 <b>0/12</b></span></div>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="tagline" style="padding:10px 14px 0">移动端 375</div>
+        <div class="rack">
+          <button class="sum" data-t="cats7"><span class="lab">素材</span><span class="cnt">图 3 · 音 1</span><span class="arrow" data-a="cats7">▾</span></button>
+          <div class="cats open" id="cats7">
+            <button class="cat" data-t="cb7a"><span class="nm">图片</span><span class="c">3/9</span><span class="arrow" data-a="cb7a">▾</span></button>
+            <div class="catbody open" id="cb7a"><div class="slots">
+              <button class="slot"><div class="thumb t1"><span class="ord">图1</span><span class="ok">✓</span><span class="x">×</span><svg viewBox="0 0 40 40" fill="#7C8794"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>小林</b></div></button>
+              <button class="slot"><div class="thumb t2"><span class="ord">图2</span><span class="ok">✓</span><span class="x">×</span><svg viewBox="0 0 40 40" fill="#8A8275"><circle cx="20" cy="15" r="7"/><path d="M6 38c0-8 6-13 14-13s14 5 14 13z"/></svg></div><div class="cap"><b>老板</b></div></button>
+              <button class="add"><span class="plus">+</span></button>
+            </div></div>
+            <button class="cat" data-t="cb7b"><span class="nm">音频</span><span class="c">1/3</span><span class="arrow" data-a="cb7b">▸</span></button>
+            <div class="catbody" id="cb7b"><div class="slots"><button class="slot"><div class="thumb t4"><span class="x">×</span><svg viewBox="0 0 40 40" fill="#807A8C"><rect x="7" y="16" width="3" height="8" rx="1.5"/><rect x="14" y="11" width="3" height="18" rx="1.5"/><rect x="21" y="14" width="3" height="12" rx="1.5"/><rect x="28" y="18" width="3" height="4" rx="1.5"/></svg></div><div class="cap"><b>@小林</b></div></button><button class="add"><span class="plus">+</span></button></div></div>
+          </div>
+          <div class="prompt"><div class="ta" style="min-height:52px" contenteditable="true" data-ph="写这一镜要发生什么…（打 @ 引素材）">镜头缓慢推近。</div></div>
+          <div class="params"><button class="pill">Seedance ▾</button><button class="pill">全能参考 ▾</button><button class="pill tpl">▤ 模板</button></div>
+          <div class="total"><span>全能参考</span><span>总额 <b>4/12</b></span></div>
+        </div>
+        <div class="dock" style="border-top:1px solid var(--line)"><span class="mode">4 项已就绪</span><button class="go">生成</button></div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><i class="mk now">●</i> 「不存在 = 真的不渲染」沿用已落地的纪律：置灰仍是在用文案解释「你不能用」。</li>
+    <li><i class="mk goal">○</i> 空态三类加号并成一区——分区是内容的结果，不是预先摆好的空架子。</li>
+    <li><i class="mk goal">○</i> 移动端：移除是常显的一颗 ×，槽 72px 过 44px 命中线，主动作粘底。</li>
+  </ul>
+</section>
+
+<!-- ============ 6 文本节点 ============ -->
+<section class="state">
+  <div class="state-head"><span class="state-no">6</span><h2>文本节点 · @ 分析素材出文字</h2></div>
+  <p class="state-why">回答 owner：文本节点里的 @ 不是间接引用，是<b>给 LLM 的多模态输入</b>——让它看图 / 看视频，写出文字</p>
+  <div class="stage dots">
+    <div class="stage-row">
+      <div class="node-wrap">
+        <div class="node-title"><span class="dot"></span>分镜04-夜市炒饭<span class="meta">文本</span></div>
+        <div class="node" style="width:200px">
+          <div class="node-body" style="height:92px;align-items:flex-start;justify-content:flex-start;padding:var(--sp-3);text-align:left">
+            <span style="font-size:var(--fs-meta);color:var(--ink-reg);line-height:18px">小林把炒饭打包，油烟在霓虹灯下翻涌。中景，手持轻晃。</span>
+          </div>
+        </div>
+      </div>
+      <div style="width:660px" class="rel">
+        <div class="rack" id="rackT">
+          <button class="sum on" data-t="catsT"><span class="lab">给模型看的素材</span>
+            <span class="strip"><i class="t1"></i><i class="t3"></i></span>
+            <span class="cnt" id="cntT">图 1 · 视 1</span><span class="arrow" data-a="catsT">▾</span></button>
+          <div class="cats open" id="catsT">
+            <button class="cat on" data-t="cbTa"><span class="nm">图片</span><span class="c">1/8</span><span class="arrow" data-a="cbTa">▾</span></button>
+            <div class="catbody open" id="cbTa"><div class="slots">
+              <button class="slot" data-src="散图节点「夜市街景」" data-pos="左"><div class="thumb t1"><span class="ord">图1</span><svg viewBox="0 0 40 40" fill="#7C8794"><rect x="5" y="10" width="30" height="20" rx="2" fill="none" stroke="#7C8794" stroke-width="2"/><circle cx="15" cy="18" r="3"/><path d="M7 28l8-7 6 5 5-4 7 6z"/></svg></div><div class="cap"><b>夜市街景</b></div></button>
+              <button class="add"><span class="plus">+</span>图片</button>
+            </div></div>
+            <button class="cat on" data-t="cbTb"><span class="nm">视频</span><span class="c">1/8</span><span class="arrow" data-a="cbTb">▾</span></button>
+            <div class="catbody open" id="cbTb"><div class="slots">
+              <button class="slot" data-src="参考视频节点「运镜参考」" data-pos="下"><div class="thumb t3"><svg viewBox="0 0 40 40" fill="#7C8C82"><rect x="5" y="11" width="30" height="18" rx="2" fill="none" stroke="#7C8C82" stroke-width="2"/><path d="M17 16l8 4-8 4z"/></svg></div><div class="cap"><b>运镜参考</b></div></button>
+              <button class="add"><span class="plus">+</span>视频</button>
+            </div></div>
+          </div>
+          <div class="prompt">
+            <div class="ta" contenteditable="true" data-ph="要它写什么…（打 @ 让它看素材）">看这两个素材，把这一镜改写成 30 字以内，突出油烟和霓虹的对比。</div>
+          </div>
+          <div class="params">
+            <button class="pill" id="tmodel">Gemini 3.5 Flash ▾</button>
+            <button class="pill" id="tcap">可读图与视频</button>
+            <button class="pill tpl">▤ 用模板</button>
+            <button class="send">↑</button>
+          </div>
+          <div class="modepop" id="tmodelpop" style="bottom:52px">
+            <div class="hd">文本模型</div>
+            <button class="mo on" data-m="Gemini 3.5 Flash" data-cap="imageVideo">Gemini 3.5 Flash</button>
+            <button class="mo" data-m="GPT-5.6 Sol" data-cap="imageOnly">GPT-5.6 Sol</button>
+            <button class="mo" data-m="DeepSeek v4 Pro" data-cap="textOnly">DeepSeek v4 Pro</button>
+            <button class="mo" data-m="Claude Sonnet 5" data-cap="textOnly">Claude Sonnet 5</button>
+          </div>
+          <div class="total"><span>产出文字 · 写回本节点</span><span>引用 <b>2/8</b></span></div>
+        </div>
+      </div>
+      <div class="hint">
+        <div class="tagline">换个模型看看</div>
+        点「Gemini 3.5 Flash ▾」换成 <b>DeepSeek</b> —— 图和视频两区会<b>标成读不了</b>并说出原因；换成 <b>GPT</b> —— 只有视频区被标。<br><br>
+        能力不是我编的，是 <code>ASSISTANT_MEDIA_CAPABILITIES</code> 的现成矩阵：<b>只有 Gemini 能吃视频</b>。
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><i class="mk now">●</i> <b>视频分析是真接通的</b>：`toGeminiVideoPart` 完整实现 —— ≤20MB 内联，超过走 Gemini Files API 上传+轮询+用完删除，上限 <b>50MB</b>。不是纸面能力。</li>
+    <li><i class="mk now">●</i> <b>画布节点喂 LLM 的通路类型层已建好</b>：`AssistantMediaReference` 的 `source` 枚举里就有 `'canvas'`（助手会话的图片引用走的就是它）。文本节点 @ 分析是<b>复用</b>，不是新链路。</li>
+    <li><i class="mk goal">○</i> <b>能力闸的表达</b>：模型决定能不能 @。已有 `getAssistantMediaCapabilityLabel` 返回 `imageVideo / imageOnly / textOnly` —— 产品本就打算把「这条线能吃什么」显示出来。本稿把它做成模型旁边的一颗常显标签 + 不可用时素材项就地标注原因（<b>不销毁素材</b>，与切模式同一条纪律）。</li>
+    <li><i class="mk goal">○</i> <b>容量是另一个口径</b>：文本节点引用上限 <b>8</b>（`ASSISTANT_MEDIA_LIMITS.maxReferences`），与视频节点的 12 不同。⚠ 实现时别复用视频那套 `node-video-send-slots`。</li>
+    <li><i class="mk eng">▲</i> 视频 50MB 上限要在 UI 说出来（超了给原因），别静默失败。</li>
+  </ul>
+</section>
+
+<!-- ============ 问答 ============ -->
+<section class="state">
+  <div class="state-head"><span class="state-no">?</span><h2>owner 四问的答复</h2></div>
+  <div class="qa">
+    <h4>① 腰带能不能做成折叠？</h4>
+    <p><span class="verdict">已改</span>三级：静息摘要 → 分类 → 缩略图。<b>折叠的边界是「折缩略图、不折账」</b>——任何一级都能读到有多少、满没满。两档密度因此简化为「同一个件的两个默认折叠深度」，不再是两套渲染。</p>
+  </div>
+  <div class="qa">
+    <h4>② 文本槽点击后要不要把内容加进输入框？</h4>
+    <p><span class="verdict no">默认不</span>复制出来的字会和源节点脱钩，同一段话就有了两本账——正是这轮要消灭的东西。而且文本<b>今天已经会在发送时自动拼进最终提示词</b>（owner 上一轮截图里「查看发送内容」开头那段就是它），再复制一份进输入框会<b>发两遍</b>。</p>
+    <p><span class="verdict">给了一步显式的</span><b>「取用为文字」——单向、且取用即转</b>：内容变成你可编辑的普通文字，<b>槽位同时消失</b>，从此与源节点无关。所以任何时刻都只有一本账：要么它是槽（自动拼），要么它是你的字（你自己管），不会两者同时。</p>
+  </div>
+  <div class="qa">
+    <h4>③ 底部加提示词模板</h4>
+    <p><span class="verdict">已加</span>放在参数条最左，与模型/参数并列（那一行本来就是「点开都是选择器」的地方）。规格沿用 2026-07-27 已拍板的：<b>只取提示词文本</b>，模型与参数不动；替换 + 一次撤销；封面优先的浮层。</p>
+    <p><b>零重造</b>：画布<b>图片</b> composer 已经有这个件（<code>GenerateComposerTemplatePicker</code>），studio 侧是 <code>PromptTemplatePicker</code>。视频线缺的只是<b>把同一个件挂上来</b>并把预筛改成视频类。</p>
+  </div>
+  <div class="qa">
+    <h4>④ 全能参考能不能也设关键帧？</h4>
+    <p><span class="verdict no">今天不能，而且不是 UI 的选择</span>这是 provider 契约：<b>火山三种场景互斥</b>，首尾帧只在关键帧端点成立，参考端点走的是多模态那一档。代码两处把这条钉死了——<code>video-model-send-plan.ts</code> 里 <code>supportsFirstLast = !referenceMode && …</code>（参考模式下 <code>keyframeSlots</code> 直接给 1），<code>node-video-keyframe-plan.ts</code> 里非「关键帧档且双槽」<b>原样返回、不谈首尾</b>。</p>
+    <p>所以全能参考里那些图<b>都是同权参考</b>（@图N 位置 token），没有「第一帧/最后一帧」的角色。若在 UI 上画出首尾帧，就是<b>伪装一个未接通的能力</b>——发出去仍然只是普通参考图，用户会以为控制住了片头片尾。</p>
+    <p><b>本稿的处理</b>：切到全能参考时，原来戴帽子的两张<b>帽子掉下来、变成图4/图5</b>（状态 1 里就是这样），差别一眼看得见，不用文案解释。<b>设计不阻塞未来</b>——具名槽的语法已经在这个件里了，哪天 provider 开了（注释提到 BytePlus 同源、能力表也有首尾帧），把契约打开具名槽自己就长出来，不用重画。</p>
+    <p style="color:var(--ink-mut)">⚠ 顺带一条已核实的同类缺陷：minimax 声明支持关键帧但实际只发 first_frame，用户填的尾帧会被<b>静默丢掉</b>——正是这一轮在治的那类。</p>
+  </div>
+</section>
+
+<div class="foot">
+  <h3>本稿没有回答的</h3>
+  <ul>
+    <li><b>名册 rail 与 CastDock 的职责重划</b> · <b>标注</b> · <b>助手叠加（C 协议）</b> · <b>添加菜单整体改版</b>（文本移出视频组 + 关键帧项退役会一起动）。</li>
+    <li><b>入卡正路的最后一环</b> —— 已核实：今天把画布上一张图并进收集器卡图集的手势<b>不存在</b>（三 Tab 面板只有上传/素材库/粘贴，拖拽融合被总开关关死且已不写图集）。补法两选，归名册片拍板。</li>
+  </ul>
+  <h3>实现前必须先修（已核实）</h3>
+  <ul>
+    <li>系统 TTS 音色送不出声（<code>voiceSampleUrl</code> 不在收割路径），且不进「不会发送」提示 —— 静默。修复要连那条把错行为钉成期望值的回归测试一起改。</li>
+    <li>关键帧图例说谎：无分类的 frame 节点被硬标「首帧」发给模型，哪怕它排第二位。</li>
+    <li>图片收割不读上游文本 —— 文本槽在图片节点上是新能力。</li>
+  </ul>
+  <p style="margin-top:18px;color:var(--ink-mut);font-size:var(--fs-ui)">2026-08-09 v2 · 候选稿 · 经 owner 逐格确认后才升 <code>references/pages/</code>，未修改 <code>src/**</code>。</p>
+</div>
+
+</div>
+
+<script>
+(function(){
+  // 折叠：摘要 / 分类 / 不发送条 —— 一套 data-t / data-q 驱动
+  document.addEventListener('click',function(e){
+    var t=e.target.closest('[data-t]');
+    if(t){
+      var box=document.getElementById(t.dataset.t);
+      if(box){
+        var on=box.classList.toggle('open');
+        t.classList.toggle('on',on);            // 箭头旋转 150ms
+        if(on){ box.querySelectorAll('.slots > *').forEach(function(el){
+          el.style.animation='none'; void el.offsetWidth; el.style.animation=''; }); }
+      }
+      return;
+    }
+    var q=e.target.closest('[data-q]');
+    if(q){
+      var b=document.getElementById(q.dataset.q);
+      var on2=b.classList.toggle('open');
+      q.classList.toggle('on',on2);
+      if(on2) b.querySelectorAll('.slots > *').forEach(function(el){
+        el.style.animation='none'; void el.offsetWidth; el.style.animation=''; });
+    }
+  });
+
+  // 初始化：箭头字形统一为 ▾，靠 rotate 表达开合；已展开的补 .on
+  document.querySelectorAll('[data-a]').forEach(function(a){a.textContent='▾';});
+  document.querySelectorAll('[data-t],[data-q]').forEach(function(b){
+    var id=b.dataset.t||b.dataset.q, box=document.getElementById(id);
+    if(box&&box.classList.contains('open')) b.classList.add('on');
+  });
+
+  // 反查气泡
+  function bindLocate(scopeSel, locSel){
+    var scope=document.querySelector(scopeSel), loc=document.querySelector(locSel);
+    if(!scope||!loc) return;
+    scope.addEventListener('click',function(e){
+      var s=e.target.closest('.slot[data-src]'); if(!s) return;
+      scope.querySelectorAll('.slot').forEach(function(o){o.classList.remove('picked')});
+      s.classList.add('picked');
+      var host=loc.parentElement.getBoundingClientRect(), r=s.getBoundingClientRect();
+      loc.innerHTML='来自 <b>'+s.dataset.src+'</b> · 画布'+s.dataset.pos+'方 &nbsp;<span style="border-bottom:1px solid var(--line-3)">定位</span>';
+      loc.style.left=Math.max(8,r.left-host.left-20)+'px';
+      loc.style.top=(r.bottom-host.top+8)+'px';
+      loc.classList.add('on');
+    });
+  }
+  bindLocate('#rack1','#loc1'); bindLocate('#s2img','#loc2');
+
+  // 满载拒绝
+  document.querySelectorAll('.add.dumb').forEach(function(b){
+    b.addEventListener('click',function(){
+      b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
+      var why=b.title==='总额已满'?'总额已满 12/12 —— 先移除一项，或换用容量更大的模式':'图片已满 9/9 —— 这个模型最多带 9 张参考图';
+      var old=b.parentElement.querySelector('.reject'); if(old) old.remove();
+      var tip=document.createElement('div');
+      tip.className='locate on reject';
+      tip.style.cssText+='position:absolute;left:0;top:86px;white-space:normal;width:210px;color:var(--danger);border-color:rgba(192,52,46,.35)';
+      tip.textContent=why;
+      b.parentElement.style.position='relative';
+      b.parentElement.appendChild(tip);
+      setTimeout(function(){tip.remove()},2800);
+    });
+  });
+
+  // ===== @ 调用画布节点：全局，任何输入框都能用（owner 2026-08-09）=====
+  // 菜单解剖对齐 LibTV：搜索 + 已引用置顶 + 素材引用按模态分组。
+  // ⭐ 落法由<b>物种</b>决定（与文本胶囊同一条判据）：
+  //    图 / 音 / 视频 = 二进制素材 → 落槽，正文一个字不留
+  //    文本 = 与提示词同质        → 落胶囊，留在句子里，位置即拼接顺序
+  //    已引用的再 @ 一次 → 定位高亮，<b>不重复添加</b>（否则会发两遍）
+  (function(){
+    var POOL=[
+      {k:'图片',n:'常客',t:'角色卡'},{k:'图片',n:'吧台近景',t:'散图'},{k:'图片',n:'夜市街景',t:'散图'},
+      {k:'视频',n:'运镜参考',t:'参考视频'},{k:'视频',n:'镜头2 成片',t:'成片'},
+      {k:'音频',n:'环境音·夜市',t:'音频'},{k:'音频',n:'@小林',t:'音色'},
+      {k:'文本',n:'深夜便利店-吧台',t:'镜头文本'},{k:'文本',n:'分镜04-夜市炒饭',t:'镜头文本'}
+    ];
+    var GLY={'图片':'▣','视频':'▶','音频':'∿','文本':'▤'};
+    var menu=document.createElement('div'); menu.className='atmenu';
+    document.body.appendChild(menu);
+    var host=null;
+
+    function usedIn(rack,ta){
+      var u={};
+      if(rack) rack.querySelectorAll('.slot .cap b').forEach(function(b){u[b.textContent.trim()]=1});
+      if(ta) ta.querySelectorAll('.tcap').forEach(function(c){u[c.textContent.replace(/^[▤▣▶∿]/,'').trim()]=1});
+      return u;
+    }
+    function item(x,isCited){
+      return '<button class="it" data-k="'+x.k+'" data-n="'+x.n+'" data-t="'+x.t+'" data-c="'+(isCited?1:0)+'">'+
+        '<span class="sw">'+GLY[x.k]+'</span>'+x.n+'<span class="mt">'+(isCited?'已在本次':x.t)+'</span></button>';
+    }
+    function render(q){
+      var rack=host?host.closest('.rack'):null, used=usedIn(rack,host);
+      var hit=POOL.filter(function(x){return !q||x.n.indexOf(q)>-1||x.t.indexOf(q)>-1});
+      var cited=hit.filter(function(x){return used[x.n]}), rest=hit.filter(function(x){return !used[x.n]});
+      var h='<input class="srch" placeholder="搜索" value="'+(q||'')+'">';
+      if(cited.length){ h+='<div class="grp">已引用</div>'; cited.forEach(function(x){h+=item(x,true)}); }
+      h+='<div class="grp">素材引用</div>';
+      ['图片','视频','音频','文本'].forEach(function(k){
+        rest.filter(function(x){return x.k===k}).forEach(function(x){h+=item(x,false)});
+      });
+      if(!hit.length) h+='<div class="empty">没有匹配的素材</div>';
+      menu.innerHTML=h;
+    }
+    function place(){
+      var r=host.getBoundingClientRect();
+      menu.style.left=(r.left+window.scrollX)+'px';
+      menu.style.top=(r.bottom+window.scrollY+4)+'px';
+    }
+    function open(ta){host=ta;render('');place();menu.classList.add('open');}
+    function close(){menu.classList.remove('open');host=null;}
+
+    document.addEventListener('input',function(e){
+      var ta=e.target.closest?e.target.closest('.ta[contenteditable]'):null; if(!ta) return;
+      var v=ta.textContent, at=v.lastIndexOf('@');
+      if(at>-1 && !/\s/.test(v.slice(at+1))){ if(host!==ta){open(ta);} else {render(v.slice(at+1));place();} }
+      else close();
+    });
+    menu.addEventListener('input',function(e){ if(e.target.classList.contains('srch')) render(e.target.value); });
+
+    function stripAt(ta){
+      var last=ta.lastChild;
+      if(last&&last.nodeType===3){var tv=last.nodeValue,at=tv.lastIndexOf('@');
+        if(at>-1) last.nodeValue=tv.slice(0,at)+tv.slice(at).replace(/^@\S*/,'');}
+    }
+    function slotsFor(rack,kind){
+      var out=null;
+      rack.querySelectorAll('.cat').forEach(function(c){
+        var nm=c.querySelector('.nm'); if(!nm||nm.textContent.trim()!==kind) return;
+        var body=c.nextElementSibling;
+        if(body&&body.classList.contains('catbody')){
+          body.classList.add('open'); c.classList.add('on');
+          var cats=c.closest('.cats');
+          if(cats){ cats.classList.add('open');
+            var sum=cats.previousElementSibling;
+            if(sum&&sum.classList.contains('sum')) sum.classList.add('on'); }
+          out=body.querySelector('.slots');
+        }
+      });
+      return out;
+    }
+    menu.addEventListener('click',function(e){
+      var it=e.target.closest('.it'); if(!it||!host) return;
+      var ta=host, rack=ta.closest('.rack'), kind=it.dataset.k, name=it.dataset.n;
+      stripAt(ta);
+      if(it.dataset.c==='1'){
+        var found=null;
+        if(rack) rack.querySelectorAll('.slot').forEach(function(sl){
+          var b=sl.querySelector('.cap b'); if(b&&b.textContent.trim()===name) found=sl; });
+        if(found){ slotsFor(rack,kind);
+          found.classList.add('flash'); setTimeout(function(){found.classList.remove('flash')},430);
+          found.scrollIntoView({block:'nearest'}); }
+        else { ta.querySelectorAll('.tcap').forEach(function(c){
+          if(c.textContent.indexOf(name)>-1){ c.classList.add('flash');
+            setTimeout(function(){c.classList.remove('flash')},430); } }); }
+        close(); return;
+      }
+      if(kind==='文本'){
+        var cap=document.createElement('span');
+        cap.className='tcap'; cap.setAttribute('contenteditable','false');
+        cap.dataset.src='镜头文本节点「'+name+'」';
+        cap.innerHTML='<span class="g">▤</span>'+name;
+        ta.appendChild(cap); ta.appendChild(document.createTextNode(' '));
+        cap.classList.add('flash'); setTimeout(function(){cap.classList.remove('flash')},430);
+        close(); return;
+      }
+      // ⚠ 容量红线必须在<b>每一个</b>入口生效。这里曾经漏过：加号那条路拦了、@ 这条没拦，
+      // 结果 @ 能把 9/9 的图片区塞成 10/9、总额 13/12。实现时容量检查要收进**落槽那一个
+      // 函数**里（判据取自 node-video-send-slots），不是在每个入口各写一遍。
+      var slots=rack?slotsFor(rack,kind):null;
+      if(!slots){ close(); return; }
+      var capCell=null;
+      if(rack) rack.querySelectorAll('.cat').forEach(function(c){
+        var nm=c.querySelector('.nm'); if(nm&&nm.textContent.trim()===kind) capCell=c.querySelector('.c'); });
+      var totCell=rack?rack.querySelector('.total b'):null;
+      function full(cell){ var m=cell&&cell.textContent.match(/(\d+)\/(\d+)/); return m&&+m[1]>=+m[2]; }
+      if(full(capCell)||full(totCell)){
+        var why=full(capCell)?(kind+'已满 '+capCell.textContent+' —— 先移除一项'):
+          ('总额已满 '+totCell.textContent+' —— 先移除一项，或换用容量更大的模式');
+        it.classList.add('shake'); setTimeout(function(){it.classList.remove('shake')},340);
+        var w=document.createElement('div'); w.className='empty';
+        w.style.color='var(--danger)'; w.textContent=why;
+        menu.insertBefore(w,menu.firstChild.nextSibling);
+        setTimeout(function(){w.remove()},2600);
+        return;                                   // 不落槽、不关菜单，用户能立刻换一个
+      }
+      var add=slots.querySelector('.add');
+      var n=slots.querySelectorAll('.slot').length+1;
+      var b=document.createElement('button');
+      b.className='slot'; b.dataset.src=it.dataset.t+'「'+name+'」'; b.dataset.pos='新落';
+      b.innerHTML='<div class="thumb t'+((n%4)+1)+'">'+(kind==='图片'?'<span class="ord">图'+n+'</span>':'')+
+        '<span style="font-size:22px;opacity:.5">'+GLY[kind]+'</span></div><div class="cap"><b>'+name+'</b></div>';
+      b.style.visibility='hidden';
+      if(add) slots.insertBefore(b,add); else slots.appendChild(b);
+      var from=it.getBoundingClientRect(), to=b.querySelector('.thumb').getBoundingClientRect();
+      var g=document.createElement('div'); g.className='ghost'; g.textContent=GLY[kind];
+      g.style.cssText+='left:'+from.left+'px;top:'+from.top+'px;width:24px;height:24px';
+      document.body.appendChild(g);
+      var anim=g.animate([{transform:'translate(0,0) scale(1)'},
+        {transform:'translate('+(to.left-from.left)+'px,'+(to.top-from.top)+'px) scale('+(to.width/24)+')'}],
+        {duration:250,easing:'cubic-bezier(0.22,1,0.36,1)',fill:'forwards'});
+      var settle=function(){ if(!g.isConnected) return; g.remove(); b.style.visibility='';
+        b.classList.add('flash'); setTimeout(function(){b.classList.remove('flash')},430); };
+      anim.onfinish=settle; setTimeout(settle,300);
+      var cnt=null;
+      if(rack) rack.querySelectorAll('.cat').forEach(function(c){
+        var nm=c.querySelector('.nm'); if(nm&&nm.textContent.trim()===kind) cnt=c.querySelector('.c'); });
+      if(cnt){ var m=cnt.textContent.match(/(\d+)\/(\d+)/);
+        if(m) cnt.textContent=(+m[1]+1)+'/'+m[2];
+        cnt.classList.remove('bump'); void cnt.offsetWidth; cnt.classList.add('bump'); }
+      var tot=rack?rack.querySelector('.total b'):null;
+      if(tot){ var mt=tot.textContent.match(/(\d+)\/(\d+)/);
+        if(mt){ tot.textContent=(+mt[1]+1)+'/'+mt[2];
+          tot.classList.remove('bump'); void tot.offsetWidth; tot.classList.add('bump'); } }
+      close();
+    });
+    document.addEventListener('click',function(e){
+      if(!menu.contains(e.target)&&!(e.target.closest&&e.target.closest('.ta[contenteditable]'))) close();
+    });
+  })();
+
+  // 文本槽：展开 → 两个动作；取用即转、槽位消失
+  var tslot=document.getElementById('tslot2'), tacts=document.getElementById('tacts'), tprev=document.getElementById('tprev');
+  if(tslot){
+    tslot.addEventListener('click',function(){
+      var open=tacts.style.display==='flex';
+      tacts.style.display=open?'none':'flex';
+      tprev.classList.toggle('clip',open);
+      tprev.textContent=open?'小林坐在窗边吧台吃泡面，神情疲惫。常客路过时…'
+        :'小林坐在窗边吧台吃泡面，神情疲惫。常客路过时，将一罐热咖啡轻轻放在他手边。中景，低调光线聚焦在吧台。';
+    });
+    document.getElementById('tuse').addEventListener('click',function(e){
+      e.stopPropagation();
+      var full='小林坐在窗边吧台吃泡面，神情疲惫。常客路过时，将一罐热咖啡轻轻放在他手边。中景，低调光线聚焦在吧台。';
+      var wrap=document.getElementById('txtwrap');
+      // ④ 取用即转：槽位 250ms 退场 → 正文 420ms 扫过一次，说明「它搬到这儿来了」
+      wrap.classList.add('leaving-up');
+      setTimeout(function(){
+        ta.value=full+'\n'+ta.value;
+        ta.parentElement.classList.add('swept');
+        setTimeout(function(){ta.parentElement.classList.remove('swept')},430);
+        wrap.classList.remove('leaving-up');
+        wrap.innerHTML='<div style="font-size:var(--fs-meta);color:var(--ink-mut);padding:2px 0">已取用为文字 —— 槽位已移除，内容现在归你管</div>';
+        document.getElementById('c2txt').textContent='0';
+        document.getElementById('sum2').textContent='图 4 · 音 1 · 视 1';
+        var t=document.getElementById('tot2'); t.textContent=(parseInt(t.textContent)-1)+'/12';
+        t.classList.add('bump');
+      },250);
+    });
+    document.getElementById('tgo').addEventListener('click',function(e){e.stopPropagation();});
+  }
+
+  // ③ 切档：装不下的素材掉进「不发送」折叠条（250ms 退场 → 计数跳字 150ms）
+  (function(){
+    var rack=document.getElementById('rack1'); if(!rack) return;
+    var cats=document.getElementById('cats1'), full=cats.innerHTML, total=rack.querySelector('.total');
+    var totalHTML=total.innerHTML;
+    var mb=document.getElementById('modebtn'), mp=document.getElementById('modepop');
+    var tabs=mp.querySelectorAll('.mo[data-m]');
+    mb.addEventListener('click',function(e){e.stopPropagation();mp.classList.toggle('open');});
+    document.addEventListener('click',function(e){if(!mp.contains(e.target)&&e.target!==mb)mp.classList.remove('open');});
+    function setTab(el){tabs.forEach(function(t){t.classList.toggle('on',t===el)});
+      mb.textContent=el.dataset.m+' ▾'; mp.classList.remove('open');}
+    tabs.forEach(function(tab){
+      tab.addEventListener('click',function(){
+        if(tab.classList.contains('on')) return;
+        setTab(tab);
+        var keyframe=tab.dataset.m==='关键帧';
+        if(!keyframe && cats.dataset.mode!=='kf'){ return; }
+        if(!keyframe){ cats.innerHTML=full; cats.dataset.mode=''; total.innerHTML=totalHTML;
+          var q0=rack.querySelector('.quiet'); if(q0) q0.remove();   // 折叠条随模式一起退场
+          var sc0=rack.querySelector('.sum .cnt'); if(sc0) sc0.textContent='图 9 · 音 1 · 视 2';
+          document.querySelectorAll('[data-a]').forEach(function(a){a.textContent='▾'});
+          cats.querySelectorAll('.slots > *').forEach(function(el){el.style.animation='none';void el.offsetWidth;el.style.animation='';});
+          return; }
+        // → 关键帧：留前两张戴帽子，其余全部退场
+        cats.dataset.mode='kf';
+        var imgSlots=[...document.querySelectorAll('#s1img .slot')];
+        var keep=imgSlots.slice(0,2), drop=imgSlots.slice(2);
+        var otherCats=[...cats.children].filter(function(c){return c.id!=='cb1a'&&!c.dataset.t||['cb1b','cb1c'].includes(c.id)||(c.dataset&&['cb1b','cb1c'].includes(c.dataset.t))});
+        drop.concat(otherCats).forEach(function(el){el.classList.add('leaving')});
+        document.querySelector('#s1img .add').classList.add('leaving');
+        setTimeout(function(){
+          drop.forEach(function(el){el.remove()});
+          document.querySelector('#s1img .add').remove();
+          [...cats.children].forEach(function(c){
+            var id=c.id||c.dataset.t||''; if(['cb1b','cb1c'].includes(id)) c.remove();});
+          keep.forEach(function(s,i){ s.classList.add('hat-on');
+            var h=document.createElement('div'); h.className='hat'; h.textContent=i?'尾帧':'首帧';
+            s.insertBefore(h,s.firstChild);
+            s.style.animation='none'; void s.offsetWidth; s.style.animation='';});
+          var nm=cats.querySelector('.cat .nm'); if(nm) nm.textContent='关键帧';
+          var c=cats.querySelector('.cat .c'); if(c){c.textContent='2/2';c.classList.add('bump');}
+          // 折叠条落位
+          var q=document.createElement('div'); q.className='quiet';
+          q.innerHTML='<button class="quiet-bar" data-q="qbdX"><span>本模式不发送 · 图 7 · 音 1 · 视频 2</span><span class="arrow" data-a="qbdX">▾</span></button>'+
+            '<div class="quiet-body" id="qbdX"><div style="font-size:var(--fs-meta);color:var(--ink-mut)">切回全能参考即恢复发送 · 数据一直都在</div></div>';
+          cats.parentElement.insertBefore(q,total);
+          q.style.animation='enter var(--dur-base) var(--ease-out) both';
+          total.innerHTML='<span>关键帧 · 首帧 + 尾帧</span><span>本次发送 <b>2</b> 项</span>';
+          total.querySelector('b').classList.add('bump');
+          var sc=rack.querySelector('.sum .cnt'); if(sc){sc.textContent='持有 12 · 本次发送 2';sc.classList.add('bump');}
+        },250);
+      });
+    });
+  })();
+
+  // 文本引用胶囊：点它给三个动作。内容始终只有源节点那一份
+  (function(){
+    var menu=document.createElement('div'); menu.className='tcapmenu';
+    menu.innerHTML='<button data-a="go">跳到源节点</button>'+
+      '<button data-a="plain">展开为文字</button>'+
+      '<button data-a="rm">移除引用</button>'+
+      '<div class="why">展开即脱钩：从此是你的字，源节点再改也不跟着变</div>';
+    document.body.appendChild(menu);
+    var cur=null;
+    document.addEventListener('click',function(e){
+      var cap=e.target.closest('.tcap');
+      if(cap){
+        cur=cap; var r=cap.getBoundingClientRect();
+        menu.style.left=(r.left+window.scrollX)+'px';
+        menu.style.top=(r.bottom+window.scrollY+4)+'px';
+        menu.classList.add('open'); e.preventDefault(); return;
+      }
+      if(!menu.contains(e.target)){menu.classList.remove('open');return;}
+      var a=e.target.closest('button'); if(!a||!cur) return;
+      if(a.dataset.a==='rm'){ cur.classList.add('leaving-up');
+        setTimeout(function(){cur&&cur.remove();cur=null;},250); }
+      if(a.dataset.a==='plain'){
+        var t=document.createTextNode('小林坐在窗边吧台吃泡面，神情疲惫。常客路过时，将一罐热咖啡轻轻放在他手边。中景，低调光线聚焦在吧台。');
+        cur.parentNode.replaceChild(t,cur);
+        t.parentElement.classList.add('swept');
+        setTimeout(function(){t.parentElement&&t.parentElement.classList.remove('swept')},430);
+        cur=null;
+      }
+      menu.classList.remove('open');
+    });
+  })();
+
+  // 文本节点：模型决定能不能吃图 / 吃视频（矩阵取自 ASSISTANT_MEDIA_CAPABILITIES）
+  (function(){
+    var btn=document.getElementById('tmodel'), pop=document.getElementById('tmodelpop'),
+        cap=document.getElementById('tcap'), rack=document.getElementById('rackT');
+    if(!btn||!pop||!rack) return;
+    var LABEL={imageVideo:'可读图与视频',imageOnly:'只可读图',textOnly:'纯文本'};
+    var WHY={image:'当前模型读不了图片',video:'当前模型读不了视频'};
+    btn.addEventListener('click',function(e){e.stopPropagation();pop.classList.toggle('open');});
+    document.addEventListener('click',function(e){
+      if(!pop.contains(e.target)&&e.target!==btn) pop.classList.remove('open');
+    });
+    function mark(kind,ok){
+      var cat=null;
+      rack.querySelectorAll('.cat').forEach(function(c){
+        var nm=c.querySelector('.nm');
+        if(nm&&nm.textContent.trim()===(kind==='image'?'图片':'视频')) cat=c;
+      });
+      if(!cat) return;
+      var body=cat.nextElementSibling; if(!body) return;
+      body.querySelectorAll('.slot').forEach(function(sl){
+        var t=sl.querySelector('.thumb'); if(!t) return;
+        var tag=t.querySelector('.nosend');
+        if(ok){ if(tag) tag.remove(); sl.style.opacity=''; }
+        else { sl.style.opacity='.55';
+          if(!tag){ tag=document.createElement('div'); tag.className='nosend';
+            tag.textContent='读不了'; t.appendChild(tag); } }
+      });
+      var addBtn=body.querySelector('.add'); if(addBtn) addBtn.style.display=ok?'':'none';
+      var why=cat.querySelector('.why-inline');
+      if(ok){ if(why) why.remove(); }
+      else if(!why){ why=document.createElement('span'); why.className='why-inline';
+        why.style.cssText='font-size:var(--fs-meta);color:var(--danger);margin-left:var(--sp-3)';
+        why.textContent=WHY[kind]; cat.querySelector('.nm').after(why); }
+    }
+    pop.querySelectorAll('.mo').forEach(function(mo){
+      mo.addEventListener('click',function(){
+        pop.querySelectorAll('.mo').forEach(function(x){x.classList.toggle('on',x===mo)});
+        btn.textContent=mo.dataset.m+' ▾';
+        var c=mo.dataset.cap;
+        cap.textContent=LABEL[c];
+        cap.style.color=c==='imageVideo'?'':'var(--danger)';
+        mark('image', c!=='textOnly');
+        mark('video', c==='imageVideo');
+        var cnt=document.getElementById('cntT');
+        cnt.textContent=c==='imageVideo'?'图 1 · 视 1':(c==='imageOnly'?'图 1 · 视 1（视频读不了）':'图 1 · 视 1（都读不了）');
+        cnt.classList.remove('bump'); void cnt.offsetWidth; cnt.classList.add('bump');
+        pop.classList.remove('open');
+      });
+    });
+  })();
+
+  // 用模板
+  var tb=document.getElementById('tplbtn'), tp=document.getElementById('tplpop');
+  if(tb){
+    tb.addEventListener('click',function(e){e.stopPropagation();tp.classList.toggle('open');});
+    tp.addEventListener('click',function(e){
+      var c=e.target.closest('.tplcard'); if(!c) return;
+      ta.textContent=c.dataset.p; tp.classList.remove('open'); ta.focus();
+    });
+    document.addEventListener('click',function(e){ if(!tp.contains(e.target)&&e.target!==tb) tp.classList.remove('open'); });
+  }
+})();
+</script>
+</body>
+</html>

@@ -126,6 +126,17 @@ export function IdentityCollectorCard({
       status={data.status}
       toolbarData={data}
       isCollector
+      /**
+       * **卡只出不进**（owner 2026-08-10「连线这个可以作废了」）。入卡的边已经
+       * 不画（见 `StudioNodeWorkbench` 的 `renderedEdges`），入端口就必须一起撤 ——
+       * 留着它，用户从别的节点拉一条线过来会**什么都看不到**，落进
+       * `node-connection-rules` 头注点名的那个坑：「静默失败，且和端口坏掉长得
+       * 一模一样」。
+       *
+       * 素材现在靠**拖进卡**（阶段 8-b）与「从画布选择」入卡，两条都有回执。
+       * ⛔ 出端口不动 —— `卡 → 视频/镜头` 是 owner 明确要留的那条。
+       */
+      showTargetHandle={false}
       className={cn(
         'overflow-hidden canvas-card--w-fixed canvas-identity-card',
         isEmpty && 'canvas-card--dashed',

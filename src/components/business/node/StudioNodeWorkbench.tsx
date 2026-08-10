@@ -3053,6 +3053,30 @@ function StudioNodeCanvas() {
         return { ...edge, hidden: true }
       }
 
+      /**
+       * **入卡的线作废**（owner 2026-08-10）。原话：「之前不是通过连线吗，现在
+       * 有了这个功能后，连线这个可以作废了。但是卡片 → 视频这个应该保留。」
+       *
+       * 「这个功能」= 阶段 8-b 的**拖节点进卡**。建立「素材属于这张卡」的手势
+       * 已经从「拉线」换成「拖进卡」，那条线就只剩装饰 —— 而它换来的是每张卡
+       * 左边一把扇形线，正是这一轮要减的噪音。
+       *
+       * ⚠ 停的只是**画**，边照建、收割一个字没改：
+       *   · 音色 → 卡：`harvestUpstreamAudioBindings` 的 Pass 1 走两跳，读的就是
+       *     这条边；8-b 的音色落法建的也是它。
+       *   · 特写 → 卡：`CharacterDetailBody` 的 `closeupItems` 靠它并进图集。
+       * 两者的**可见证据都不在线上**：卡面有 🎙/无音色 chip 与图集计数（都由上游
+       * 边算出，与画不画无关），rail 卡上有 ♪ 与「参考 N」。
+       *
+       * ⚠ 这一句必须排在签署动画（`isSigning` 强制显形）**之前** —— 否则往卡上
+       * 落一个音色会先墨线画出一条线、再让它凭空消失，等于把刚退役的东西演一遍。
+       *
+       * ⛔ 只判 target：`卡 → 视频/镜头` 是出边，owner 明确要留。
+       */
+      if (isIdentityCardNode(targetNode)) {
+        return { ...edge, hidden: true }
+      }
+
       const tier = resolveNodeEdgeTier(edge, sourceNode, targetNode)
       const endpointSelected =
         selectedNodeIds.has(edge.source) || selectedNodeIds.has(edge.target)

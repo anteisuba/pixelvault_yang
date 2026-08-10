@@ -35,6 +35,7 @@ import {
   isKeyframeNode,
   isVideoSourceNode,
   isVisualReferenceNode,
+  isShotTextNode,
   isVoiceProfileNode,
   orderKeyframes,
   readVoiceCoverImage,
@@ -646,9 +647,27 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     ],
   )
 
+  /**
+   * 画布上全部**有名字的文本节点** —— `@` 菜单里的文本候选（阶段 4）。
+   * ⚠ 不过「可连」过滤：胶囊是**引用**不是连线，全图的文本节点都能引，这正是
+   * 「位置即拼接顺序」能成立的前提（连线表达不了「放在句子的哪儿」）。
+   */
+  const textNodes = useMemo(
+    () =>
+      nodes
+        .filter(isShotTextNode)
+        .map((node) => ({
+          id: node.id,
+          name: resolveNodeDisplayName(node.data)?.trim() ?? '',
+        }))
+        .filter((entry) => entry.name.length > 0),
+    [nodes],
+  )
+
   return {
     options,
     videoMode,
+    textNodes,
     hasReferenceInputs,
     hasUpstreamInputs,
     referenceKinds,

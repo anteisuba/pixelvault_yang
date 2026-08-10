@@ -21,8 +21,9 @@ import type {
 } from '@/types/node-workflow'
 import type { SeedancePromptPlanReferences } from '@/types/seedance-prompt-plan'
 
-import { resolveNodeDisplayName } from './node-display-name'
 import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
+import { resolveNodeDisplayName } from './node-display-name'
+import type { TextNodeEntry } from './node-text-capsule'
 import {
   isMediaApprovedForDownstream,
   resolveMediaReviewState,
@@ -1223,6 +1224,29 @@ export function harvestUpstreamShotTextPrompt(
   }
 
   return chunks.join('\n\n')
+}
+
+/**
+ * 把文本节点整理成「名字 → 正文」的条目，供正文引用胶囊解析
+ * （`lib/node-text-capsule` 的 `composePromptWithTextNodes`）。
+ *
+ * ⚠ 名字取 `resolveNodeDisplayName`，与画布上、槽架里、`@` 菜单里显示的**是同
+ * 一个名字** —— 用户在菜单里看到什么就该在正文里写什么，中间不许有第二套命名。
+ * 没名字的节点不进表：一个空名会撞成万能匹配。
+ */
+export function collectTextNodeEntries(
+  nodes: readonly NodeWorkflowNode[],
+): TextNodeEntry[] {
+  const out: TextNodeEntry[] = []
+  for (const node of nodes) {
+    if (!isShotTextNode(node)) continue
+    const name = resolveNodeDisplayName(node.data)?.trim()
+    if (!name) continue
+    const text = buildNodeWorkflowPrompt(node.type, node.data).trim()
+    if (!text) continue
+    out.push({ name, text })
+  }
+  return out
 }
 
 /**

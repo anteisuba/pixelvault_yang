@@ -70,6 +70,7 @@ import {
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
 import { getSeedanceReferenceKind } from '@/lib/node-workflow-graph'
+import { formatTextCapsule } from '@/lib/node-text-capsule'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
 import {
   buildDisplayNamePatch,
@@ -1068,13 +1069,36 @@ export function VideoComposer({
     connectableReferences,
     mentionKindOf,
   )
-  const mentionCandidates = connectableReferences.map((node) => ({
-    id: node.id,
-    name: mentionNames.get(node.id) ?? node.id,
-    groupLabel: mentionKindOf(node),
+  /**
+   * 文本节点也进 `@` 菜单（阶段 4）—— 但**落法按物种**（契约 §5.2）：
+   * 素材落槽（连线，正文不留字），文本落**正文引用胶囊**（`▤名字`，不连线）。
+   * 一个菜单两种落法，而不是给文本再造一个触发字符 —— 用户要找的东西在一处。
+   */
+  const textNodeCandidates = composer.textNodes.map((entry) => ({
+    id: entry.id,
+    name: entry.name,
+    groupLabel: tTypes('shotText'),
   }))
 
+  const mentionCandidates = [
+    ...connectableReferences.map((node) => ({
+      id: node.id,
+      name: mentionNames.get(node.id) ?? node.id,
+      groupLabel: mentionKindOf(node),
+    })),
+    ...textNodeCandidates,
+  ]
+
   const handleMentionSelect = (candidate: { id: string; name: string }) => {
+    // 文本节点 → 插胶囊，**不连线**：引用本身就是关系，位置才是它多出来的信息。
+    const textCandidate = textNodeCandidates.find((c) => c.id === candidate.id)
+    if (textCandidate) {
+      promptRef.current?.insertToken(
+        formatTextCapsule(textCandidate.name),
+        'text',
+      )
+      return
+    }
     const node = connectableReferences.find((n) => n.id === candidate.id)
     // ⚠ 引用即命名：提议名是按列表顺序算的，会随增删重新编号，而 @ 存进 prompt 的是
     // **字面文本** —— 不落库的话，以后 `@参考视频2` 会静默指向另一个节点。所以选中

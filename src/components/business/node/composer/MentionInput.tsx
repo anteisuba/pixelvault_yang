@@ -16,7 +16,19 @@ import { cn } from '@/lib/utils'
  *  driving the chip's port color + thumbnail shape (§9 V2-2). */
 export interface MentionToken {
   name: string
-  kind: 'character' | 'background' | 'shot' | 'closeup' | 'voice' | 'video'
+  /**
+   * `text` 是**第二个物种**（阶段 4，契约 §5.2）：它引用的是一个**文本节点**，
+   * 发送时在胶囊所在位置展开成那段文字；其余六种引用的是二进制素材，只落槽、
+   * 正文里不留字。两者在正文里的前缀也不同（`▤` vs `@`），见 `parseMentions`。
+   */
+  kind:
+    | 'character'
+    | 'background'
+    | 'shot'
+    | 'closeup'
+    | 'voice'
+    | 'video'
+    | 'text'
   /** 16px thumbnail embedded in the chip — the node's image / videoThumbnail,
    *  or the voice cover. Falls back to a flat port-color chip when absent. */
   thumbnailUrl?: string
@@ -36,8 +48,12 @@ export interface MentionToken {
 }
 
 export interface MentionInputHandle {
-  /** Insert `@name` as an atomic chip at the caret (falls back to the end). */
-  insertToken(name: string): void
+  /**
+   * Insert an atomic chip at the caret (falls back to the end).
+   * `kind` 决定前缀：`text` → `▤名字`（文本引用胶囊），其余 → `@名字`（素材引用）。
+   * 省略时按素材处理，既有调用方不受影响。
+   */
+  insertToken(name: string, kind?: MentionToken['kind']): void
   /** Insert plain text at the caret — used by the 运镜语法 chips (§5 L1), which
    *  are film-language phrases, not @tokens. */
   insertText(text: string): void
@@ -45,9 +61,24 @@ export interface MentionInputHandle {
   getBoundingClientRect(): DOMRect | undefined
 }
 
+/** 素材引用的前缀。 */
+const MENTION_PREFIX = '@'
+/** 文本引用胶囊的前缀 —— 与 `lib/node-text-capsule` 的 `TEXT_CAPSULE_PREFIX` 同一个字。 */
+const CAPSULE_PREFIX = '▤'
+
+export type MentionPrefix = typeof MENTION_PREFIX | typeof CAPSULE_PREFIX
+
+/**
+ * 前缀**由 kind 推出**，调用方不自己拼 —— 两处各拼一遍迟早会分岔，而分岔的后果
+ * 是序列化出来的字面量与 `parseMentions` 认的对不上，胶囊就变成一段裸文字。
+ */
+export function mentionPrefixOf(kind: MentionToken['kind']): MentionPrefix {
+  return kind === 'text' ? CAPSULE_PREFIX : MENTION_PREFIX
+}
+
 type MentionSegment =
   | { type: 'text'; text: string }
-  | { type: 'token'; name: string }
+  | { type: 'token'; name: string; prefix: MentionPrefix }
 
 /**
  * Pure: split a plain-text prompt into text / token segments. A token is `@`
@@ -55,20 +86,35 @@ type MentionSegment =
  * works for CJK names with no word boundaries. An `@` not followed by a known
  * name stays as text — this is what lets a renamed reference degrade to plain
  * text instead of a stale chip.
+ *
+ * 阶段 4 起还认第二种前缀 `▤`（`capsuleNames`）—— **文本引用胶囊**。两套分开是
+ * 因为阶段 1 之后正文里的 `@xxx` 已经可能是**用户自己打的字**（素材 `@` 只落槽
+ * 不留字），共用一个前缀会互相误伤。省略 `capsuleNames` 时行为与从前**逐字节
+ * 一致**，所有既有调用方不受影响。
  */
 export function parseMentions(
   value: string,
   knownNames: readonly string[],
+  capsuleNames: readonly string[] = [],
 ): MentionSegment[] {
   // Longest first so "@角色A2" matches before "@角色A".
-  const names = [...knownNames]
-    .filter((name) => name.length > 0)
-    .sort((a, b) => b.length - a.length)
+  const byPrefix: [MentionPrefix, string[]][] = [
+    [
+      MENTION_PREFIX,
+      [...knownNames].filter(Boolean).sort((a, b) => b.length - a.length),
+    ],
+    [
+      CAPSULE_PREFIX,
+      [...capsuleNames].filter(Boolean).sort((a, b) => b.length - a.length),
+    ],
+  ]
   const segments: MentionSegment[] = []
   let text = ''
   let i = 0
   while (i < value.length) {
-    if (value[i] === '@') {
+    const entry = byPrefix.find(([prefix]) => value[i] === prefix)
+    if (entry) {
+      const [prefix, names] = entry
       const match = names.find(
         (name) => value.slice(i + 1, i + 1 + name.length) === name,
       )
@@ -77,7 +123,7 @@ export function parseMentions(
           segments.push({ type: 'text', text })
           text = ''
         }
-        segments.push({ type: 'token', name: match })
+        segments.push({ type: 'token', name: match, prefix })
         i += 1 + match.length
         continue
       }
@@ -96,6 +142,8 @@ const CHIP_FILL: Record<MentionToken['kind'], string> = {
   closeup: 'bg-node-port-image/25',
   voice: 'bg-node-port-voice/25',
   video: 'bg-node-port-video/25',
+  // 文本没有端口色 —— 它不是素材，用中性面，靠 ▤ 字形与其余六种分开。
+  text: 'bg-node-panel-inner',
 }
 // The embedded 16px thumbnail's shape encodes the kind (§9 V2-2 token anatomy):
 // circle = 角色/配音 (identity), square = 图/镜头/场景/视频. Placeholder tint uses
@@ -107,6 +155,7 @@ const THUMB_SHAPE: Record<MentionToken['kind'], string> = {
   closeup: 'rounded-sm',
   voice: 'rounded-full',
   video: 'rounded-sm',
+  text: 'rounded-sm',
 }
 const THUMB_FILL: Record<MentionToken['kind'], string> = {
   character: 'bg-node-port-character/70',
@@ -115,6 +164,7 @@ const THUMB_FILL: Record<MentionToken['kind'], string> = {
   closeup: 'bg-node-port-image/70',
   voice: 'bg-node-port-voice/70',
   video: 'bg-node-port-video/70',
+  text: 'bg-node-subtle/40',
 }
 const CHIP_BASE =
   'mention-chip mx-0.5 inline-flex select-none items-center gap-1 rounded-full py-0.5 align-baseline text-node-foreground'
@@ -168,11 +218,18 @@ function buildThumb(
 function buildChip(
   doc: Document,
   name: string,
+  prefix: MentionPrefix,
   token: MentionToken | undefined,
 ): HTMLSpanElement {
   const kind = token?.kind
   const chip = doc.createElement('span')
-  chip.setAttribute(MENTION_ATTR, name)
+  /**
+   * ⚠ 属性里存的是**完整字面量**（含前缀），不是裸名字。
+   * 阶段 4 加了第二种前缀之后，只存名字就没法还原它是 `@小林` 还是 `▤小林` ——
+   * 而序列化、光标偏移、原子删除三处都靠这个属性算长度，还原错一个字符，
+   * 光标就会错位。
+   */
+  chip.setAttribute(MENTION_ATTR, `${prefix}${name}`)
   chip.setAttribute('contenteditable', 'false')
   chip.className = cn(
     CHIP_BASE,
@@ -182,8 +239,8 @@ function buildChip(
   if (kind) chip.appendChild(buildThumb(doc, kind, token?.thumbnailUrl))
   const label = doc.createElement('span')
   label.className = 'mention-chip-label leading-none'
-  // 显示位置（「图 3」），存储仍是 `@名字` —— 见 `MentionToken.slotLabel`。
-  label.textContent = token?.slotLabel ?? `@${name}`
+  // 显示位置（「图 3」），存储仍是字面量 —— 见 `MentionToken.slotLabel`。
+  label.textContent = token?.slotLabel ?? `${prefix}${name}`
   chip.appendChild(label)
   return chip
 }
@@ -194,16 +251,24 @@ function renderInto(
   el: HTMLElement,
   value: string,
   knownNames: readonly string[],
-  tokenByName: ReadonlyMap<string, MentionToken>,
+  capsuleNames: readonly string[],
+  tokenByLiteral: ReadonlyMap<string, MentionToken>,
 ): void {
   const doc = el.ownerDocument
   el.replaceChildren()
-  for (const segment of parseMentions(value, knownNames)) {
+  for (const segment of parseMentions(value, knownNames, capsuleNames)) {
     if (segment.type === 'text') {
       el.appendChild(doc.createTextNode(segment.text))
     } else {
+      // ⚠ 按**字面量**查而不是按名字：一个文本节点和一个角色可以同名（「小林」），
+      // 只按名字查会把 ▤小林 渲染成角色 chip。
       el.appendChild(
-        buildChip(doc, segment.name, tokenByName.get(segment.name)),
+        buildChip(
+          doc,
+          segment.name,
+          segment.prefix,
+          tokenByLiteral.get(`${segment.prefix}${segment.name}`),
+        ),
       )
     }
   }
@@ -221,7 +286,7 @@ export function serializeEditor(el: HTMLElement): string {
       } else if (child.nodeType === Node.ELEMENT_NODE) {
         const element = child as HTMLElement
         if (element.hasAttribute(MENTION_ATTR)) {
-          out += `@${element.getAttribute(MENTION_ATTR) ?? ''}`
+          out += element.getAttribute(MENTION_ATTR) ?? ''
         } else if (element.tagName === 'BR') {
           out += '\n'
         } else {
@@ -265,7 +330,7 @@ function getCaretOffset(el: HTMLElement): number | null {
       } else if (child.nodeType === Node.ELEMENT_NODE) {
         const element = child as HTMLElement
         if (element.hasAttribute(MENTION_ATTR)) {
-          offset += `@${element.getAttribute(MENTION_ATTR) ?? ''}`.length
+          offset += (element.getAttribute(MENTION_ATTR) ?? '').length
         } else if (element.tagName === 'BR') {
           offset += 1
         } else {
@@ -307,7 +372,7 @@ function setCaretOffset(el: HTMLElement, offset: number): void {
       } else if (child.nodeType === Node.ELEMENT_NODE) {
         const element = child as HTMLElement
         if (element.hasAttribute(MENTION_ATTR)) {
-          const length = `@${element.getAttribute(MENTION_ATTR) ?? ''}`.length
+          const length = (element.getAttribute(MENTION_ATTR) ?? '').length
           if (remaining <= length) {
             range.setStartAfter(element)
             placed = true
@@ -481,18 +546,28 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     // (which would reset the caret) when `value` just echoes our own edit.
     const lastValueRef = useRef<string | null>(null)
 
-    const knownNames = useMemo(
-      () => tokens.map((token) => token.name).filter((name) => name.length > 0),
+    // 两份名单由**同一个 `tokens`** 按 kind 劈开 —— 调用方仍只传一个数组，
+    // 不用自己分类，也就不会漏分。
+    const namedTokens = useMemo(
+      () => tokens.filter((token) => token.name.length > 0),
       [tokens],
     )
-    const tokenByName = useMemo(
+    const knownNames = useMemo(
+      () => namedTokens.filter((t) => t.kind !== 'text').map((t) => t.name),
+      [namedTokens],
+    )
+    const capsuleNames = useMemo(
+      () => namedTokens.filter((t) => t.kind === 'text').map((t) => t.name),
+      [namedTokens],
+    )
+    const tokenByLiteral = useMemo(
       () =>
         new Map(
-          tokens
-            .filter((token) => token.name.length > 0)
-            .map((token) => [token.name, token] as const),
+          namedTokens.map(
+            (t) => [`${mentionPrefixOf(t.kind)}${t.name}`, t] as const,
+          ),
         ),
-      [tokens],
+      [namedTokens],
     )
 
     // Re-render the DOM from `value` only when it changed externally (not from
@@ -543,10 +618,10 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       if (value === lastValueRef.current) return
       // 失焦重建也要保住光标：外部改写完用户点回来时，位置不该回到开头。
       const caret = getCaretOffset(el)
-      renderInto(el, value, knownNames, tokenByName)
+      renderInto(el, value, knownNames, capsuleNames, tokenByLiteral)
       if (caret !== null) setCaretOffset(el, caret)
       lastValueRef.current = value
-    }, [value, isComposing, knownNames, tokenByName])
+    }, [value, isComposing, knownNames, capsuleNames, tokenByLiteral])
 
     /** 候选按当前查询过滤（大小写不敏感，子串匹配即可）。 */
     const matches = useMemo(() => {
@@ -625,13 +700,19 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     useImperativeHandle(
       ref,
       () => ({
-        insertToken(name: string) {
+        insertToken(name: string, kind: MentionToken['kind'] = 'shot') {
           const el = editorRef.current
           if (!el) return
           el.focus()
+          const prefix = mentionPrefixOf(kind)
           insertNodeAtCaret(
             el,
-            buildChip(el.ownerDocument, name, tokenByName.get(name)),
+            buildChip(
+              el.ownerDocument,
+              name,
+              prefix,
+              tokenByLiteral.get(`${prefix}${name}`),
+            ),
           )
           // A trailing space so the caret has a text node to live in after the
           // atomic chip (chips can't hold a caret on their trailing edge alone).
@@ -653,7 +734,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         },
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [tokenByName],
+      [tokenByLiteral],
     )
 
     return (

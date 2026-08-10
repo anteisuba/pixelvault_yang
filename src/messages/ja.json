@@ -4239,7 +4239,8 @@
       "statusPending": "素材を生成中",
       "statusSuccess": "素材を生成しました",
       "statusError": "生成に失敗しました",
-      "statusTextReady": "このテキストは下流ノードの入力になります"
+      "statusTextReady": "このテキストは下流ノードの入力になります",
+      "textCapsuleCycle": "テキスト参照「{name}」が循環しています。今回はそのままの文字として送信します。"
     },
     "videoComposer": {
       "monitor": {

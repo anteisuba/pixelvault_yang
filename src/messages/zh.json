@@ -4239,7 +4239,8 @@
       "statusPending": "正在生成素材",
       "statusSuccess": "素材已生成",
       "statusError": "生成失败",
-      "statusTextReady": "文本会作为下游节点输入"
+      "statusTextReady": "文本会作为下游节点输入",
+      "textCapsuleCycle": "文本引用「{name}」形成了循环，本次按字面文字发送。"
     },
     "videoComposer": {
       "monitor": {

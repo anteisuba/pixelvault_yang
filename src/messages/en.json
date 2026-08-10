@@ -4239,7 +4239,8 @@
       "statusPending": "Generating media",
       "statusSuccess": "Media generated",
       "statusError": "Generation failed",
-      "statusTextReady": "Text will feed downstream nodes"
+      "statusTextReady": "Text will feed downstream nodes",
+      "textCapsuleCycle": "Text reference “{name}” forms a loop — left as plain text this time."
     },
     "videoComposer": {
       "monitor": {

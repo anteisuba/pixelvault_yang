@@ -20,14 +20,14 @@ describe('parseMentions', () => {
   it('splits a known @name into a token segment', () => {
     expect(parseMentions('前 @角色A 后', ['角色A'])).toEqual([
       { type: 'text', text: '前 ' },
-      { type: 'token', name: '角色A' },
+      { type: 'token', name: '角色A', prefix: '@' },
       { type: 'text', text: ' 后' },
     ])
   })
 
   it('prefers the longest matching name', () => {
     const segs = parseMentions('@角色A2 走过', ['角色A', '角色A2'])
-    expect(segs[0]).toEqual({ type: 'token', name: '角色A2' })
+    expect(segs[0]).toEqual({ type: 'token', name: '角色A2', prefix: '@' })
   })
 
   it('leaves an @ that matches no known name as plain text (renamed → degrades)', () => {
@@ -39,8 +39,8 @@ describe('parseMentions', () => {
   it('handles multiple tokens back to back', () => {
     const segs = parseMentions('@A@B', ['A', 'B'])
     expect(segs).toEqual([
-      { type: 'token', name: 'A' },
-      { type: 'token', name: 'B' },
+      { type: 'token', name: 'A', prefix: '@' },
+      { type: 'token', name: 'B', prefix: '@' },
     ])
   })
 })
@@ -50,7 +50,10 @@ describe('serializeEditor', () => {
     const host = document.createElement('div')
     host.appendChild(document.createTextNode('前 '))
     const chip = document.createElement('span')
-    chip.setAttribute('data-mention', '角色A')
+    // ⚠ 属性存**完整字面量**（含前缀）—— 阶段 4 加了第二种前缀 `▤` 之后，
+    // 只存名字就还原不出它是 `@小林` 还是 `▤小林`，而序列化/光标偏移/原子删除
+    // 三处都按这个属性算长度，还原错一个字符光标就错位。
+    chip.setAttribute('data-mention', '@角色A')
     chip.textContent = '@角色A'
     host.appendChild(chip)
     host.appendChild(document.createTextNode(' 后'))
@@ -82,7 +85,7 @@ describe('MentionInput component', () => {
     )
     const chips = container.querySelectorAll('[data-mention]')
     expect(chips).toHaveLength(2)
-    expect(chips[0].getAttribute('data-mention')).toBe('角色A')
+    expect(chips[0].getAttribute('data-mention')).toBe('@角色A')
     expect(chips[0].getAttribute('contenteditable')).toBe('false')
     // The 16px thumb contributes no text, so textContent stays the clean @name.
     expect(chips[0].textContent).toBe('@角色A')
@@ -144,7 +147,7 @@ describe('MentionInput component', () => {
       />,
     )
     ref.current?.insertToken('角色A')
-    const chip = container.querySelector('[data-mention="角色A"]')
+    const chip = container.querySelector('[data-mention="@角色A"]')
     expect(chip).not.toBeNull()
     expect(onValueChange).toHaveBeenCalledWith('@角色A ')
   })
@@ -361,5 +364,58 @@ describe('MentionInput 光标保持（外部改 value 时不许弹回开头）',
     expect(container.querySelector('[contenteditable]')?.textContent).toBe(
       'abcd',
     )
+  })
+})
+
+describe('两个物种共存：素材 @ 与文本胶囊 ▤（阶段 4）', () => {
+  it('两种前缀各认各的名单，互不误伤', () => {
+    // 阶段 1 之后正文里的 `@xxx` 可能只是用户自己打的字（素材 @ 只落槽不留字），
+    // 所以文本胶囊必须换一个前缀，否则两者会互相吃掉。
+    const segs = parseMentions('@小林 和 ▤小林', ['小林'], ['小林'])
+    expect(segs).toEqual([
+      { type: 'token', name: '小林', prefix: '@' },
+      { type: 'text', text: ' 和 ' },
+      { type: 'token', name: '小林', prefix: '▤' },
+    ])
+  })
+
+  it('不传 capsuleNames 时行为与从前完全一致 —— ▤ 只是普通字符', () => {
+    expect(parseMentions('▤小林', ['小林'])).toEqual([
+      { type: 'text', text: '▤小林' },
+    ])
+  })
+
+  it('同名的文本节点与角色渲染成**不同**的 chip（按字面量查，不按名字）', () => {
+    const { container } = render(
+      <MentionInput
+        value="@小林 ▤小林"
+        onValueChange={() => {}}
+        tokens={[
+          { name: '小林', kind: 'character' },
+          { name: '小林', kind: 'text' },
+        ]}
+      />,
+    )
+    const chips = container.querySelectorAll('[data-mention]')
+    expect(chips).toHaveLength(2)
+    expect(chips[0].getAttribute('data-mention')).toBe('@小林')
+    expect(chips[1].getAttribute('data-mention')).toBe('▤小林')
+    // 只按名字查的话，第二颗会拿到角色 token 而渲染成角色 chip。
+    expect(chips[0].className).not.toBe(chips[1].className)
+  })
+
+  it('序列化把两种字面量原样吐回去（发送链路拿到的就是这一串）', () => {
+    const { container } = render(
+      <MentionInput
+        value="前 @角色A 中 ▤开场 后"
+        onValueChange={() => {}}
+        tokens={[
+          { name: '角色A', kind: 'character' },
+          { name: '开场', kind: 'text' },
+        ]}
+      />,
+    )
+    const editor = container.querySelector('[contenteditable="true"]')!
+    expect(serializeEditor(editor as HTMLElement)).toBe('前 @角色A 中 ▤开场 后')
   })
 })

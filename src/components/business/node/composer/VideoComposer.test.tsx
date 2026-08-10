@@ -106,6 +106,8 @@ const { composerState } = vi.hoisted(() => ({
       boundVoice?: { nodeId: string; label: string; ready: boolean }
     }>,
     referencedTokenIds: new Set<string>(),
+    /** 画布上有名字的文本节点 —— `@` 菜单里的文本候选（阶段 4 胶囊）。 */
+    textNodes: [] as Array<{ id: string; name: string }>,
     /** 模式档位的可用性判据 = 这一档有没有模型（owner 2026-08-10）。默认空表
      *  示三档全无模型 → 全部置灰，正是「无可用模型」那条用例要的状态。 */
     options: [] as Array<{ modelId: string; adapterType?: string }>,
@@ -180,6 +182,7 @@ vi.mock('@/hooks/node/use-video-composer', async () => {
       referenceKinds: composerState.referenceKinds,
       referenceTokens: composerState.referenceTokens,
       referencedTokenIds: composerState.referencedTokenIds,
+      textNodes: composerState.textNodes,
       maxReferenceImages: composerState.maxReferenceImages,
       sendPreview: composerState.sendPreview,
     }),
@@ -397,6 +400,7 @@ describe('VideoComposer compact sidecar', () => {
     composerState.referenceKinds = []
     composerState.referenceTokens = []
     composerState.referencedTokenIds = new Set()
+    composerState.textNodes = []
     // ⚠ 也要还原：切档用例会塞进覆盖三档的模型，不重置就泄漏到「无可用模型 →
     // 置灰」那条上，让它凭运气绿（本文件已经因为漏还原 contract/slotLimits
     // 栽过一次，见下面那个 beforeEach）。
@@ -1416,5 +1420,22 @@ describe('VideoComposer 参数能力 gate', () => {
 
     // Seedance 2.0 公布 480p/720p/1080p。
     expect(resolutionOptionButtons(container)).toHaveLength(3)
+  })
+})
+
+describe('VideoComposer · 文本节点进 @ 菜单，落法按物种（阶段 4）', () => {
+  it('选中文本候选 → 插 ▤ 胶囊，**不连线**', () => {
+    composerState.textNodes = [{ id: 'text-1', name: '开场' }]
+    listConnectableReferences.mockReturnValue([])
+    const { container } = renderCompact()
+
+    const editor = container.querySelector('[contenteditable="true"]')
+    expect(editor).not.toBeNull()
+    // 打 `@` 唤出菜单 → 文本节点应该在候选里。
+    fireEvent.input(editor!, { target: { textContent: '@开' } })
+
+    // ⚠ 这条守的是「一个菜单两种落法」：素材连线、文本插胶囊。文本走
+    // connectReferenceNode 的话会凭空多一条边，而胶囊的前提正是**不需要连线**。
+    expect(connectReferenceNode).not.toHaveBeenCalled()
   })
 })

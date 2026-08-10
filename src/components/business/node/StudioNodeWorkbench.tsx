@@ -140,12 +140,11 @@ import {
   harvestUpstreamCloseupUrls,
   harvestUpstreamImageReferences,
   harvestUpstreamImageUrls,
-  harvestUpstreamShotTextPrompt,
+  collectTextNodeEntries,
   harvestUpstreamVideoImageReferences,
   harvestUpstreamVideoUrls,
   getSeedanceReferenceKind,
   isShotNode,
-  mergePromptWithUpstreamText,
   summarizeUpstreamSeedanceReferences,
   type UpstreamImageReference,
   type VideoLegendImageReference,
@@ -157,6 +156,7 @@ import {
 import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
 import { assembleReferenceImagePayload } from '@/lib/node-reference-payload'
 import { planVideoKeyframeImages } from '@/lib/node-video-keyframe-plan'
+import { composePromptWithTextNodes } from '@/lib/node-text-capsule'
 import {
   resolveIngestCapacity,
   resolveSpawnCapacity,
@@ -1284,9 +1284,14 @@ function StudioNodeCanvas() {
         isVideoMediaNode || isShotImageNode
           ? getUpstreamNodes(nodeId, workflow.edges, workflow.nodes)
           : []
-      const upstreamTextPrompt = isVideoMediaNode
-        ? harvestUpstreamShotTextPrompt(upstreamNodes)
-        : ''
+      /**
+       * 阶段 4「位置即拼接顺序」：文本改由**正文里的 `▤` 胶囊**决定落在哪，
+       * 只有没被引用的上游文本才前置。⚠ 门仍只对视频节点开（图片收割读上游
+       * 文本是阶段 4 后半的**新能力**，不在这一片里提前打开）。
+       */
+      const upstreamTexts = isVideoMediaNode
+        ? collectTextNodeEntries(upstreamNodes)
+        : []
       // image_urls = direct visual refs (keyframes → character/background/shot)
       // then 1-hop closeups (§9 B): a character's face-detail images ride behind
       // it. Same order the composer's payloadImageUrls computes, so the 图N /
@@ -1372,10 +1377,19 @@ function StudioNodeCanvas() {
         )
       }
 
-      const mergedPrompt = mergePromptWithUpstreamText(
+      const { prompt: mergedPrompt, cycleNames } = composePromptWithTextNodes({
         ownPrompt,
-        upstreamTextPrompt,
-      )
+        upstreamTexts,
+        allTexts: collectTextNodeEntries(workflow.nodes),
+      })
+      // 成环的引用**说出来**再继续发（契约「不许静默」）：环上那一处在正文里
+      // 保持 `▤名字` 字面量，其余照常展开 —— 用户看得见是哪一个引用没生效。
+      if (cycleNames.length > 0) {
+        toast.info(t('mediaNodes.textCapsuleCycle', { name: cycleNames[0] }), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+      }
 
       if (!mergedPrompt) {
         toast.info(t('mediaNodes.noPrompt'), {

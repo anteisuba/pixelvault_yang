@@ -469,6 +469,23 @@ export interface MentionInputProps {
   onMentionSelect?(candidate: MentionCandidate): void
 }
 
+/**
+ * `@` **前一个字符**长什么样时不算提及 —— 邮箱局部名的字符集（ASCII 字母数字
+ * 与 `._%+-`）。
+ *
+ * ⚠ 判据从「前面必须是行首或空白」改成这个（owner 2026-08-10 拍板修）。旧写法
+ * 在中文里几乎等于关掉了 `@`：`前半句。@开` **一声不响什么都不弹**，因为句号
+ * 不是空白 —— 而中文本来就不在标点后打空格。实拍撞到过，用户的判断是「这边似乎
+ * 还无法引用」。
+ *
+ * 那条守卫真正想挡的只有一样东西：`xiuruisu@gmail.com` 里的 `@` 别被当成提及。
+ * 邮箱局部名只由 ASCII 字母数字与 `._%+-` 组成，所以**直接照这个集合判**比「必须
+ * 是空白」精确得多：中文、中文标点、括号、引号后面全部放行，邮箱照样挡住。
+ *
+ * ⚠ 放宽的成本本来就很低：菜单只在**有匹配候选**时才渲染，误触发一次是看不见的。
+ */
+const EMAIL_LOCAL_PART_CHAR = /[A-Za-z0-9._%+-]/
+
 /** 光标所在文本节点上、紧邻光标的 `@查询`。不在写 @ 时返回 null。 */
 function readMentionQuery(editor: HTMLElement): MentionQuery | null {
   const selection = editor.ownerDocument.getSelection()
@@ -478,10 +495,15 @@ function readMentionQuery(editor: HTMLElement): MentionQuery | null {
     return null
   }
   const before = (node.textContent ?? '').slice(0, selection.anchorOffset)
-  // `@` 后不允许空格与第二个 `@`；`@` 前必须是行首或空白，免得把邮箱之类误判成提及。
-  const match = /(^|\s)@([^\s@]*)$/.exec(before)
-  if (!match) return null
-  return { text: match[2], length: match[2].length + 1 }
+  const at = before.lastIndexOf(MENTION_PREFIX)
+  if (at === -1) return null
+  // `@` 后不允许空格与第二个 `@` —— 有了就说明用户已经写完这一段，不是在挑候选。
+  const query = before.slice(at + 1)
+  if (/[\s@]/.test(query)) return null
+  // 行首恒可；否则看前一个字符是不是「邮箱局部名」的一员。
+  const prev = at > 0 ? before[at - 1] : ''
+  if (prev && EMAIL_LOCAL_PART_CHAR.test(prev)) return null
+  return { text: query, length: query.length + 1 }
 }
 
 /**

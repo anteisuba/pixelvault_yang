@@ -396,3 +396,85 @@ describe('文本胶囊 ▤ 已整套退役（owner 2026-08-10）', () => {
     expect(serializeEditor(editor as HTMLElement)).toBe('前 @角色A 中 ▤开场 后')
   })
 })
+
+/**
+ * `@` 的合法起点（owner 2026-08-10 拍板改判据）。
+ *
+ * ⚠ 旧规则「`@` 前必须是行首或空白」在中文里几乎等于关掉了这个功能：
+ * `前半句。@开` 一声不响什么都不弹，因为句号不是空白 —— 而中文本来就不在标点后
+ * 打空格。新判据只挡**邮箱局部名**的字符（ASCII 字母数字与 `._%+-`）。
+ *
+ * 这一族直接驱动真实编辑器（`readMentionQuery` 读的是 selection，不是纯函数），
+ * 所以断言的是「菜单开没开」。
+ */
+describe('MentionInput · `@` 在什么字符后面才算提及', () => {
+  if (!Range.prototype.getBoundingClientRect) {
+    // jsdom 不排版，缺它会让 syncMention 抛异常、菜单永远打不开（见 VideoComposer.test）。
+    Range.prototype.getBoundingClientRect = (): DOMRect => ({
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      toJSON: () => ({}),
+    })
+  }
+
+  const CANDIDATES = [{ id: 'n1', name: '开场设定' }]
+
+  /** 在编辑器里打出 `text`（光标停在末尾），返回菜单里的候选条数。 */
+  function optionCountAfterTyping(text: string): number {
+    const { container } = render(
+      <MentionInput
+        value=""
+        onValueChange={() => {}}
+        tokens={[]}
+        mentionCandidates={CANDIDATES}
+        onMentionSelect={() => {}}
+      />,
+    )
+    const editor = container.querySelector('[role="textbox"]') as HTMLElement
+    const textNode = document.createTextNode('')
+    editor.appendChild(textNode)
+    editor.focus()
+    const selection = document.getSelection()
+    const range = document.createRange()
+    range.setStart(textNode, 0)
+    range.collapse(true)
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    textNode.data = text
+    selection?.collapse(textNode, textNode.data.length)
+    fireEvent.input(editor)
+    return document.querySelectorAll('[role="option"]').length
+  }
+
+  it.each([
+    ['行首', '@开'],
+    ['空格后', '前半句 @开'],
+    ['中文句号后（旧规则下这条是死的）', '前半句。@开'],
+    ['中文逗号后', '前半句，@开'],
+    ['汉字后', '前半句@开'],
+    ['右括号后', '（旁白）@开'],
+    ['换行后', '第一行\n@开'],
+  ])('%s → 弹菜单', (_label, typed) => {
+    expect(optionCountAfterTyping(typed)).toBe(1)
+  })
+
+  it.each([
+    ['邮箱：字母后', 'xiuruisu@开'],
+    ['邮箱：数字后', 'user123@开'],
+    ['邮箱：点后', 'first.last@开'],
+    ['邮箱：下划线后', 'a_b@开'],
+    ['邮箱：加号后', 'a+tag@开'],
+  ])('%s → 不弹（这正是那条守卫要挡的）', (_label, typed) => {
+    expect(optionCountAfterTyping(typed)).toBe(0)
+  })
+
+  it('`@` 后打了空格就不再是提及（用户已经写完这一段）', () => {
+    expect(optionCountAfterTyping('@开 场')).toBe(0)
+  })
+})

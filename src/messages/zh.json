@@ -3953,6 +3953,8 @@
         "uploadTab": "上传",
         "assetTab": "素材库",
         "pasteTab": "粘贴",
+        "canvasTab": "从画布",
+        "canvasEmpty": "画布上还没有可用的图",
         "uploadTitle": "点击上传参考图",
         "uploadMeta": "JPG / PNG / WebP",
         "pasteTitle": "粘贴参考图",

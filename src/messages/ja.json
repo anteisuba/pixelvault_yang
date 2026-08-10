@@ -3953,6 +3953,8 @@
         "uploadTab": "アップロード",
         "assetTab": "素材",
         "pasteTab": "貼り付け",
+        "canvasTab": "キャンバス",
+        "canvasEmpty": "キャンバスにまだ画像がありません",
         "uploadTitle": "参考画像をアップロード",
         "uploadMeta": "JPG / PNG / WebP",
         "pasteTitle": "参考画像を貼り付け",

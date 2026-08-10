@@ -3953,6 +3953,8 @@
         "uploadTab": "Upload",
         "assetTab": "Assets",
         "pasteTab": "Paste",
+        "canvasTab": "Canvas",
+        "canvasEmpty": "No images on the canvas yet",
         "uploadTitle": "Upload reference images",
         "uploadMeta": "JPG / PNG / WebP",
         "pasteTitle": "Paste reference images",

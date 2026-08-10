@@ -41,6 +41,23 @@ export interface SpawnReferenceInput {
   }
 }
 
+/**
+ * 画布上一张**可取的图**（阶段 8-a 第四源「从画布选择」）。
+ *
+ * 只带渲染这一格需要的三样：图、名字、类型。⚠ 刻意**不返回整个节点** —— 返回
+ * `NodeWorkflowNode[]` 的话，调用方就得自己再解一次「主图是哪张、名字取哪个字段」，
+ * 而那两件事各有一条既定链路（`getNodePrimaryMediaUrl` / `resolveNodeDisplayName`）。
+ * 解两遍迟早分岔，卡里显示的名字与画布上那张卡的名字就会对不上。
+ */
+export interface CanvasImageSource {
+  nodeId: string
+  url: string
+  /** 用户起过的名字；没起过就没有，由调用方按 `type` 兜底成类型名。 */
+  name?: string
+  /** 已解析的**呈现类型**（统一 image 节点按 role 映射回 legacy type），给类型标签用。 */
+  type: NodeWorkflowNodeType
+}
+
 export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   /** Persist a media-owned node size through the same React Flow change path
    * used by manual resize gestures. Kept narrow so node components never get
@@ -62,6 +79,17 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   focusNode?(nodeId: string): void
   /** Existing canvas nodes that can legally connect into `targetNodeId`. */
   listConnectableReferences?(targetNodeId: string): NodeWorkflowNode[]
+  /**
+   * 画布上**已经有图可取**的节点 —— 阶段 8-a「图入卡」第四源「从画布选择」。
+   *
+   * ⚠ 与 `listConnectableReferences` 是两个问题，所以是两份名单：
+   *   · 那个问「谁能**连**进来」——按 `evaluateCastIngest` 判合法性，包含没有图的
+   *     节点（音色、文本…），也会把已连的过滤掉；
+   *   · 这个问「画布上有哪些**图**可以拿」——判据只有一条：它自己有没有主图
+   *     （`getNodePrimaryMediaUrl`）。收集器卡要的是一张 URL，不是一条边。
+   * 硬拿前者当后者用，卡里会列出一堆点了没反应的音色和文本节点。
+   */
+  listCanvasImageSources?(excludeNodeId: string): CanvasImageSource[]
   /**
    * Revalidate and connect one existing canvas node into a target node.
    *

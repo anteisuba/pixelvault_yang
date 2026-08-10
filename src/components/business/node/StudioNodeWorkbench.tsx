@@ -141,6 +141,7 @@ import {
   harvestUpstreamCloseupUrls,
   harvestUpstreamImageReferences,
   harvestUpstreamImageUrls,
+  getNodePrimaryMediaUrl,
   harvestUpstreamShotTextPrompt,
   harvestUpstreamVideoImageReferences,
   harvestUpstreamVideoUrls,
@@ -158,6 +159,7 @@ import {
 import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
 import { assembleReferenceImagePayload } from '@/lib/node-reference-payload'
 import { planVideoKeyframeImages } from '@/lib/node-video-keyframe-plan'
+import { resolveNodePresentationType } from '@/lib/node-presentation'
 import {
   resolveIngestCapacity,
   resolveSpawnCapacity,
@@ -220,6 +222,7 @@ import { IngestDragProvider, type QuickThrowApi } from './IngestDragLayer'
 import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
 import {
   NodeWorkflowActionsProvider,
+  type CanvasImageSource,
   type NodeAssistantOpRunResult,
   type SpawnReferenceInput,
 } from './NodeWorkflowActionsContext'
@@ -3111,6 +3114,48 @@ function StudioNodeCanvas() {
     [workflow.edges, workflow.nodes],
   )
 
+  /**
+   * 阶段 8-a「图入卡」第四源：画布上**已经有图可取**的节点。
+   *
+   * 判据只有一条 —— 它自己有没有主图。不看能不能连、不看连没连过：
+   *   · 收集器卡拿的是一张 **URL**（写进 `referenceAssets`），根本不建边；
+   *   · 已经连过的也照列 —— 同一张图既可以喂这张卡、也可以喂那张卡，
+   *     「连过一次」不构成「不能再取」。
+   *
+   * ⚠ 排除宿主自己：让一张卡把自己的图收进自己的图集是纯粹的自指，没有意义。
+   */
+  const listCanvasImageSources = useCallback(
+    (excludeNodeId: string): CanvasImageSource[] => {
+      const out: CanvasImageSource[] = []
+      for (const node of workflow.nodes) {
+        if (node.id === excludeNodeId) continue
+        /**
+         * ⚠ **先按媒体种类挡一道，再取 url。** `getNodePrimaryMediaUrl` 读的是
+         * `imageUrl ?? mediaUrl` —— 一个出过片的视频节点，它返回的是 **mp4 地址**。
+         * 不挡的话网格里会出现一张裂图，点下去还会把视频 URL 塞进「参考**图**」集。
+         * 判据用节点类型映射（`NODE_MEDIA_KIND_BY_NODE_TYPE`）而不是「url 后缀像不
+         * 像图片」—— 后者是猜，前者是契约。
+         */
+        if (
+          (node.data.mediaKind ?? NODE_MEDIA_KIND_BY_NODE_TYPE[node.type]) !==
+          NODE_MEDIA_KIND_IDS.image
+        ) {
+          continue
+        }
+        const url = getNodePrimaryMediaUrl(node.data)
+        if (!url) continue
+        out.push({
+          nodeId: node.id,
+          url,
+          name: resolveNodeDisplayName(node.data)?.trim() || undefined,
+          type: resolveNodePresentationType(node),
+        })
+      }
+      return out
+    },
+    [workflow.nodes],
+  )
+
   // S5f A: same wording table `IngestDragLayer`'s Cast-dock pointer engine
   // uses (`StudioNode.ingest.reasons.*`) — reused here (not re-worded) so a
   // 咬不动 rejection reads identically whether the drag started from the Cast
@@ -4034,6 +4079,7 @@ function StudioNodeCanvas() {
       focusGeneratedNodes: handleFocusGeneratedNodes,
       focusNode: handleFocusNode,
       listConnectableReferences,
+      listCanvasImageSources,
       connectReferenceNode,
       spawnReference: handleSpawnReference,
       extractReference: handleExtractReference,
@@ -4075,6 +4121,7 @@ function StudioNodeCanvas() {
       handleFocusGeneratedNodes,
       handleFocusNode,
       listConnectableReferences,
+      listCanvasImageSources,
       connectReferenceNode,
       handleSpawnReference,
       handleExtractReference,

@@ -216,10 +216,13 @@ export function CharacterImageReferenceControls({
       if (references.length >= effectiveMaxItems) return
       onChange([
         ...references,
+        // ⚠ 第三个位置是 `sourceId` —— **来源命名空间里的 id**：素材库来的是
+        // generation id，「从画布选择」来的是**源节点 id**（阶段 8-a）。后者正是
+        // 拆出（`extractReference`）判断「源节点还在不在」的依据。
         createReferenceAsset(
           media.url,
           media.source,
-          media.generationId,
+          media.sourceId,
           media.name,
         ),
       ])

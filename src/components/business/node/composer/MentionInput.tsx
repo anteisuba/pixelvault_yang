@@ -9,6 +9,7 @@ import {
   useState,
   type KeyboardEventHandler,
 } from 'react'
+import { createPortal } from 'react-dom'
 
 import { cn } from '@/lib/utils'
 
@@ -535,6 +536,10 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
   ) {
     const editorRef = useRef<HTMLDivElement>(null)
     const [isComposing, setIsComposing] = useState(false)
+    // 浮层的 portal 宿主。挂在 state 上而不是直接读 `document.body`，是因为这个
+    // 组件也走 SSR —— 首帧没有 document，effect 之后才有。
+    const [portalHost, setPortalHost] = useState<HTMLElement | null>(null)
+    useEffect(() => setPortalHost(document.body), [])
     // @ 下拉：查询串 + 光标处的屏幕坐标（浮层用 fixed 定位，画布有 transform，
     // 只能用视口坐标）。null = 没在写 @。
     const [mention, setMention] = useState<{
@@ -814,38 +819,48 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
             className,
           )}
         />
-        {/* @ 候选浮层。fixed + 视口坐标：编辑器活在画布的 transform 里，用绝对定位
-          会被父级的缩放/平移带跑。
+        {/* @ 候选浮层。
+          ⚠ **必须 portal 到 body** —— `position: fixed` 只在没有 transform 祖先时
+          才以视口为参照。紧凑侧车挂在 `.react-flow__node-toolbar` 上，那个元素
+          带 `transform: translate(...)`，于是 fixed 被它接管：2026-08-10 真机量到
+          浮层落在 x=2334（视口只有 1568 宽），整个菜单**在默认档看不见**。
+          原注释「fixed + 视口坐标，所以不会被父级带跑」正是这条错判，就地改掉。
           ⚠ `onMouseDown` 必须 preventDefault —— 否则点击先让编辑器失焦，onBlur 把
           浮层关掉，click 永远等不到。 */}
-        {mention && matches.length > 0 ? (
-          <div
-            role="listbox"
-            aria-label={rest['aria-label']}
-            className="canvas-mention-popover"
-            style={{ left: mention.rect.left, top: mention.rect.bottom + 6 }}
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            {matches.map((candidate, index) => (
-              <button
-                key={candidate.id}
-                type="button"
-                role="option"
-                aria-selected={index === activeIndex}
-                data-active={index === activeIndex ? 'true' : undefined}
-                onMouseEnter={() => setActiveIndex(index)}
-                onClick={() => commitMention(candidate)}
+        {portalHost && mention && matches.length > 0
+          ? createPortal(
+              <div
+                role="listbox"
+                aria-label={rest['aria-label']}
+                className="canvas-mention-popover"
+                style={{
+                  left: mention.rect.left,
+                  top: mention.rect.bottom + 6,
+                }}
+                onMouseDown={(event) => event.preventDefault()}
               >
-                <span className="truncate">{candidate.name}</span>
-                {candidate.groupLabel ? (
-                  <span className="canvas-mention-popover-kind">
-                    {candidate.groupLabel}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
-        ) : null}
+                {matches.map((candidate, index) => (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    data-active={index === activeIndex ? 'true' : undefined}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onClick={() => commitMention(candidate)}
+                  >
+                    <span className="truncate">{candidate.name}</span>
+                    {candidate.groupLabel ? (
+                      <span className="canvas-mention-popover-kind">
+                        {candidate.groupLabel}
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>,
+              portalHost,
+            )
+          : null}
       </>
     )
   },

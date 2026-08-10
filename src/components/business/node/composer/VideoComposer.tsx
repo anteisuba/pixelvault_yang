@@ -70,7 +70,7 @@ import {
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
 import { getSeedanceReferenceKind } from '@/lib/node-workflow-graph'
-import { formatTextCapsule } from '@/lib/node-text-capsule'
+import { normalizeTextCapsuleName } from '@/lib/node-text-capsule'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
 import {
   buildDisplayNamePatch,
@@ -772,7 +772,23 @@ export function VideoComposer({
   // Reference names the prompt editor should render as atomic chips — the
   // insertable tokens (character/background/shot @name, voice @AudioN). Unnamed
   // / projection-only refs (empty token) contribute no chip.
-  const mentionTokens: MentionToken[] = composer.referenceTokens
+  /**
+   * 文本节点也要进 `tokens` —— 否则 `MentionInput` 的 `capsuleNames` **恒空**，
+   * `▤名字` 就永远不会被认成胶囊。
+   *
+   * ⚠ 2026-08-10 真机撞到过这个「零输入」：插入那一刻胶囊是个 chip（`insertToken`
+   * 直接建 DOM），但**下一次从 `value` 重渲染就退化成一串裸文字** —— 不再原子、
+   * 退格能把它劈成半个名字。4-A 的单测全绿也没拦住，因为夹具直接喂 tokens。
+   *
+   * 名字过 `normalizeTextCapsuleName`：写字面量、认字面量、发送时查表必须是同一
+   * 个规范形，否则「开场 设定」这种带空格的名字会在某一处对不上。
+   */
+  const textMentionTokens: MentionToken[] = composer.textNodes.map((entry) => ({
+    name: normalizeTextCapsuleName(entry.name),
+    kind: 'text',
+  }))
+
+  const slotMentionTokens = composer.referenceTokens
     .filter(
       // keyframe is projection-only (empty token) — never an insertable mention,
       // so excluding it also narrows kind to MentionToken's insertable union.
@@ -801,6 +817,11 @@ export function VideoComposer({
           }
         : {}),
     }))
+
+  const mentionTokens: MentionToken[] = [
+    ...slotMentionTokens,
+    ...textMentionTokens,
+  ]
 
   // V2-1 改名静默自动回写: when a referenced node is renamed, its @oldName sits
   // stale in the prompt. Rather than surface a manual "replace" affordance
@@ -1079,22 +1100,74 @@ export function VideoComposer({
     name: entry.name,
     groupLabel: tTypes('shotText'),
   }))
+  const textCandidateIds = new Set(textNodeCandidates.map((c) => c.id))
+
+  /**
+   * **已经在槽里的素材也要能 `@`**（owner 2026-08-10，交接 §0-2「已有则不重复加，
+   * 且不报错」；契约 §5.4 的「已引用置顶」也一直是这么写的）。
+   *
+   * ⚠ 它们**不在** `listConnectableReferences` 里 —— 那个函数把 duplicate 过滤
+   * 掉了，理由写在它自己的注释里：「重复连接才是真的选不了：点了也没用」。那句话
+   * 在「`@` 只落槽不留字」的时代成立；现在选中它会**在正文插字**，就不再是没用。
+   * 2026-08-10 真机撞到这条：刚 `@` 进来的素材，第二次 `@` 它菜单直接空掉 ——
+   * 用户没法在句子里再提它一次。
+   *
+   * 两份名单回答的是两个问题，所以不去改那个函数：菜单问「我能提谁」，
+   * 「从画布选择」问「我能加谁」。已在槽里的素材属于前者不属于后者。
+   */
+  const referencedCandidates = composer.referenceTokens
+    .filter(
+      (refToken) =>
+        Boolean(refToken.token) &&
+        refToken.kind !== 'keyframe' &&
+        refToken.insertable !== false,
+    )
+    .map((refToken) => ({
+      id: refToken.id,
+      name: refToken.token.replace(/^@/, ''),
+      groupLabel: tc(`refKind.${refToken.kind}`),
+    }))
 
   const mentionCandidates = [
-    ...connectableReferences.map((node) => ({
-      id: node.id,
-      name: mentionNames.get(node.id) ?? node.id,
-      groupLabel: mentionKindOf(node),
-    })),
+    // 已引用置顶（契约 §5.4）—— 用户找「刚才那张」时不该翻到列表底下。
+    ...referencedCandidates,
+    /**
+     * ⚠ **文本节点要从可连那半里剔掉**，否则它在菜单里出现**两次** ——
+     * 它既是 `listConnectableReferences` 的合法上游（连线喂 upstreamText 这条
+     * 老机制还在），又是这里的文本候选。2026-08-10 真机撞到：菜单里两行一模一样
+     * 的「开场设定 / 镜头文本」，控制台一条 React duplicate key。
+     *
+     * 剔的是**菜单**不是能力：文本节点照样可以在画布上拉一条边进来。菜单里只留
+     * 一种落法，是因为契约 §5.2 的「落法按物种」要求一个候选只有一个归宿。
+     */
+    ...connectableReferences
+      .filter((node) => !textCandidateIds.has(node.id))
+      .map((node) => ({
+        id: node.id,
+        name: mentionNames.get(node.id) ?? node.id,
+        groupLabel: mentionKindOf(node),
+      })),
     ...textNodeCandidates,
-  ]
+  ].filter(
+    // 三份名单合流，**按 id 去重收在一处**（保留先出现的，所以「已引用」的口径赢）。
+    // ⚠ 不靠「三份互不相交」这个当下成立的巧合：`key={candidate.id}` 一旦撞上就是
+    // 一条 React duplicate key + 一行看起来重复的候选，而那正是本轮真机抓到的缺陷。
+    (candidate, index, all) =>
+      all.findIndex((other) => other.id === candidate.id) === index,
+  )
 
   const handleMentionSelect = (candidate: { id: string; name: string }) => {
     // 文本节点 → 插胶囊，**不连线**：引用本身就是关系，位置才是它多出来的信息。
     const textCandidate = textNodeCandidates.find((c) => c.id === candidate.id)
     if (textCandidate) {
+      /**
+       * ⚠ 给 `insertToken` 的是**裸名字**，不是 `formatTextCapsule()` 的结果 ——
+       * `insertToken` 自己按 kind 拼前缀。喂带前缀的进去会得到 `▤▤名字`
+       * （2026-08-10 真机实测：正文里多一个裸 `▤`，且这个字面量与编辑器认的
+       * `capsuleNames` 对不上，胶囊当场退化成纯文字）。
+       */
       promptRef.current?.insertToken(
-        formatTextCapsule(textCandidate.name),
+        normalizeTextCapsuleName(textCandidate.name),
         'text',
       )
       return
@@ -1113,22 +1186,28 @@ export function VideoComposer({
       )
     }
     /**
-     * `@` **只落槽，正文一个字不留**（契约 §5.1）。
+     * **落槽 + 正文留字**（owner 2026-08-10 拍板，交接 §0-1，就地推翻契约 §5.1
+     * 的「`@` 只落槽不留字」）。
      *
-     * 连线本身就是「这张图进这次请求」的全部 —— 旧注释自己都写着「真正让这张图
-     * 进请求的是那条边」，正文里那个名字从来只是它的影子。影子退役后，素材身份
-     * 只在槽架里读，账就只剩一本。
+     * ── 为什么现在加回 `insertToken` 是安全的 ────────────────────────────
+     * 阶段 1 删它，是因为当时**两条路都在插**：`handleIngestConnect` 往
+     * `data.prompt` 追加一次、这里再插一次，而那边的去重 `prompt.includes(token)`
+     * 读的是连线前的旧值，拦不住同一次操作里的第二次 —— 实拍正文里的
+     * `@镜头1 @镜头1 @镜头1` 就是这么来的。那条追加路**已经整个删掉**，现在只剩
+     * 这一处在插。⛔ 别把 `handleIngestConnect` 里的追加也一并加回来，那才是根因。
      *
-     * ⚠ 删掉 `insertToken` 顺带修掉两个用户实拍到的 bug：
-     *   ① **一次 `@` 插两遍** —— `connectReferenceNode` 会走到
-     *      `handleIngestConnect`，那里已经追加过一次 token，这里再插一次；
-     *      那边的去重 `prompt.includes(token)` 读的是连线前的旧值，拦不住同一次
-     *      操作里的第二次。实拍正文里的 `@镜头1 @镜头1 @镜头1` 就是这么来的。
-     *   ② **光标跳回开头** —— `MentionInput` 是半受控的，外部改 `value` 会
-     *      `renderInto` 重建整个编辑器内容且不恢复光标（该组件 `commitMention`
-     *      的注释明写这一点）。追加 token 正是那条外部改写路径。
+     * 第二个旧 bug「光标跳回开头」也不会回来：`insertToken` 走
+     * `insertNodeAtCaret`（Range 直插 DOM）**不改 `value`**，不触发
+     * `MentionInput` 那次重建。
+     *
+     * ── 为什么要看返回值 ────────────────────────────────────────────────
+     * 只在**素材确实在槽里**时才留字。重复引用返回 `true`（它本来就在，
+     * §0-2「已有则不重复加、且不报错」）；被容量闸或类型闸拒掉返回 `false` ——
+     * 那时候插 `@名字` 就是在正文里写一句载荷里不存在的引用，又回到几本账
+     * 对不齐（横切纪律 3「不许静默」的反面：也不许谎报成功）。
      */
-    connectReferenceNode?.(candidate.id, id)
+    const landedInRack = connectReferenceNode?.(candidate.id, id) ?? false
+    if (landedInRack) insertMentionAtCaret(candidate.name)
   }
   const referenceAssetDialog = (
     <AssetSelectorDialog

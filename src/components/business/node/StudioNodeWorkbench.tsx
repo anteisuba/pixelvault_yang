@@ -3033,11 +3033,12 @@ function StudioNodeCanvas() {
    * ⚠ 已经提过的不再重复插一遍 —— 同一个素材连两次（比如断开再连）不该出现两个
    *   `@名字`。
    */
+  /** @returns 连上了没有 —— `false` = 被容量闸拒了（调用方据此决定要不要在正文留字）。 */
   const handleIngestConnect = useCallback(
-    (sourceId: string, targetId: string) => {
+    (sourceId: string, targetId: string): boolean => {
       const source = workflow.nodes.find((node) => node.id === sourceId)
       const target = workflow.nodes.find((node) => node.id === targetId)
-      if (!source || !target) return
+      if (!source || !target) return false
 
       // 容量闸见 `rejectWhenCapacityFull`（与 `handleSpawnReference` 共用）。
       if (
@@ -3050,7 +3051,7 @@ function StudioNodeCanvas() {
           }),
         )
       ) {
-        return
+        return false
       }
 
       workflow.onConnect({
@@ -3061,28 +3062,22 @@ function StudioNodeCanvas() {
       })
 
       /**
-       * ⚠ **不再往正文追加 `@token`**（契约 §5.1「正文回纯文本，`@` 只落槽不留
-       * 字」）。素材身份只在槽架里读，发送时由既有的 `buildShotReferenceLegend`
-       * 注图例 —— 发送链路一行未动。
+       * ⛔ **这里永远不要再往正文追加 `@token`** —— 即便 owner 2026-08-10 把
+       * 「选中候选要同时插进文本框」加了回来（交接 §0-1），插字的活也**只归
+       * `VideoComposer` / `GenerateComposer` 的 `handleMentionSelect` 一处**。
        *
-       * owner 2026-08-08 那条「连上了也要进输入框」是**槽架落成之前**的权宜：
-       * 那时正文里的 `@名字` 是「这张图会被发出去」的唯一可见证据。现在槽架把
-       * 「挂了什么、满没满、会不会发」全接过去了，正文里那份副本就只剩坏处 ——
-       * 它是四本账里最后一本，而且还在自我复制。
+       * 理由是这里曾经是那个「一次 `@` 插两遍」的根因：两条路都在追加 ——
+       * 这里追一次、composer 的 `insertToken` 再插一次，而这里的去重
+       * `prompt.includes(token)` 读的是**连线前的旧值**，拦不住同一次操作里的
+       * 第二次。实拍正文里的 `@镜头1 @镜头1 @镜头1` 就是这么来的。
        *
-       * 删掉它同时修掉两个用户实拍到的 bug：
-       *   ① **一次 `@` 插两遍**：这里追加一次，`VideoComposer` 的 `insertToken`
-       *      再插一次。上面那道 `prompt.includes(token)` 读的是连线前的旧值，
-       *      拦不住同一次操作里的第二次 —— 实拍正文里的 `@镜头1 @镜头1 @镜头1`。
-       *   ② **光标跳回开头**：`MentionInput` 半受控，外部改 `value` 会重建整个
-       *      编辑器内容且不恢复光标。这条 `updateNodeData` 正是那条外部改写路径，
-       *      于是每连一次线、每选一次 `@` 候选，光标就被扔回开头。
+       * 第二个理由是路径性质不同：这里改的是 `data.prompt`（外部改写），会让
+       * 半受控的 `MentionInput` 重建内容、把光标扔回开头；composer 那条走的是
+       * `insertNodeAtCaret`（DOM 直插，不碰 `value`），光标留在原地。
        *
        * ⚠ **存量正文里已有的 `@名字` 不动** —— 那是用户的字，不是我们的记账。
-       * 它们继续被 `filterReferencedImages` 认成 narrowing；新连的线不再产生
-       * token，正文空了就走那条既有的护栏分支（「一个都没 @ → 全发」），正是
-       * 「在槽里就等于会发送」。
        */
+      return true
     },
     [workflow, rejectWhenCapacityFull],
   )
@@ -3142,17 +3137,36 @@ function StudioNodeCanvas() {
     [t],
   )
 
+  /**
+   * @returns 这个素材现在**在不在**目标的槽里（不是「有没有新建边」）。
+   * 见 `NodeWorkflowActionsContext.connectReferenceNode` 的口径说明。
+   */
   const connectReferenceNode = useCallback(
-    (sourceNodeId: string, targetNodeId: string) => {
+    (sourceNodeId: string, targetNodeId: string): boolean => {
       const source = workflow.nodes.find((node) => node.id === sourceNodeId)
       const target = workflow.nodes.find((node) => node.id === targetNodeId)
-      if (!source || !target) return
+      if (!source || !target) return false
       const evaluation = evaluateCastIngest(
         source,
         target,
         workflow.edges,
         workflow.nodes,
       )
+      /**
+       * **重复不是错误**（owner 2026-08-10，交接 §0-2：「槽里没有则加入，已有
+       * 则不重复加」）。重复只说明「它已经在槽里了」—— 用户这次 `@` 想要的结果
+       * 已经成立，弹一个红条等于把「成功」报成「失败」。
+       *
+       * 所以这里静默返回 `true`：不建第二条边，但对调用方而言引用成立，正文照插。
+       * ⚠ `true` 的含义是「在槽里」而不是「新连了一条」，这条分支就是那个区别
+       * 存在的理由。
+       */
+      if (
+        !evaluation.legal &&
+        evaluation.reason === NODE_STUDIO_INGEST_REJECT_REASON_IDS.duplicate
+      ) {
+        return true
+      }
       /**
        * ⚠ **容量满不在这里拦** —— 往下走，由落槽闸（`handleIngestConnect`）统一
        * 拒绝。否则同一件事有两套话术：这里说的是泛指的「参考位已满 6/1」，既不
@@ -3170,13 +3184,17 @@ function StudioNodeCanvas() {
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
           position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
         })
-        return
+        return false
       }
-      handleIngestConnect(sourceNodeId, targetNodeId)
-      handleFocusNode(sourceNodeId)
+      /**
+       * ⚠ 这里**不再 `handleFocusNode(sourceNodeId)`**（owner 2026-08-10 拍板取
+       * 消，交接 §0-3）。原意是「让用户看见引用了谁」，代价是每选一次候选画布就
+       * 整个飞走一次 —— 而用户此刻的注意力在提示词框里，把视口从他脚下抽走比
+       * 「看见那个节点」贵得多。引用的可见证据现在归槽架与正文里的 `@名字`。
+       */
+      return handleIngestConnect(sourceNodeId, targetNodeId)
     },
     [
-      handleFocusNode,
       handleIngestConnect,
       t,
       translateIngestReason,

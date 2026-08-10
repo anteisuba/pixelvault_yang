@@ -62,8 +62,16 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   focusNode?(nodeId: string): void
   /** Existing canvas nodes that can legally connect into `targetNodeId`. */
   listConnectableReferences?(targetNodeId: string): NodeWorkflowNode[]
-  /** Revalidate and connect one existing canvas node into a target node. */
-  connectReferenceNode?(sourceNodeId: string, targetNodeId: string): void
+  /**
+   * Revalidate and connect one existing canvas node into a target node.
+   *
+   * 返回 **「这个素材现在在不在目标的槽里」**，而不是「有没有新建边」——
+   * 重复引用（本来就连着）同样返回 `true`。调用方靠它决定要不要在正文里留字：
+   * 被容量闸/类型闸拒掉时不能插 `@名字`，否则正文写着引用、载荷里却没有，
+   * 又回到「几本账对不齐」（owner 2026-08-10 定「选中候选要同时插进文本框」，
+   * 交接 §0）。
+   */
+  connectReferenceNode?(sourceNodeId: string, targetNodeId: string): boolean
   /**
    * Autospawn an upstream reference node from a resolved asset and wire it
    * into `targetNodeId` (§7.1 部门条 ＋添加位). Creates the node, stamps its

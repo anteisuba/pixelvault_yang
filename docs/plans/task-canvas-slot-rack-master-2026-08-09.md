@@ -143,13 +143,34 @@
 
 ⚠ 另修：`handleSpawnReference` 此前整块被 `&& input.role` 挡掉，**不带 role 调进来会建出一个连图都不写的空节点**。散图落点正好不带 role。
 
-### 阶段 4 · 文本 🟡 **4-A 正文引用胶囊已落（2026-08-10）**
+### 阶段 4 · 文本 🟡 **4-A 已落并真机验过（2026-08-10）；owner 同日追加三条已一并落地**
+
+> ⭐ **owner 2026-08-10 末追加的三条（部分推翻阶段 1 的「正文回纯文本」）—— 已实现，两档真机验过**：
+>
+> 1. **选中候选要同时插进文本框** —— 正文里要留字。落点 `VideoComposer.handleMentionSelect` + `GenerateComposer.handleMentionSelect`（同一条政策，两个 composer 不许分岔）。
+> 2. **槽里没有则加入，已有则不重复加，且不报错** —— `connectReferenceNode` 的 duplicate 分支改成静默返回「在槽里」。
+> 3. **取消「跳到对应节点位置」** —— 删掉 `connectReferenceNode` 尾部的 `handleFocusNode(sourceNodeId)`。
+>
+> **⚠ 落点表漏了第四处**：第 2 条在真机上**根本走不到** —— `listConnectableReferences` 把 duplicate 过滤掉了，已在槽里的素材第二次 `@` 时菜单直接空掉。修法是给 `@` 候选表并上「已在槽里的」那一份（置顶，即契约 §5.4 一直写着的「已引用置顶」），**不动** `listConnectableReferences`（那份名单服务的是「从画布选择」，问的是另一个问题）。
+>
+> **⚠ 为什么加回 `insertToken` 是安全的**（阶段 1 删它的两个理由都已失效，详见契约 §5.1 的留档）：追加正文那条路只剩一处；`insertToken` 走 DOM 直插不改 `value`，不触发重建。⛔ 别把 `handleIngestConnect` 里的追加加回来。
+>
+> **⚠ 真机验 4-A 掉出四个缺陷（全部已修）**，四条都是「单测绿但画面错」的同一形状：
+>
+> | 缺陷                                                    | 根因                                                                                                   |
+> | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+> | 胶囊字面量是 `▤▤名字`（双前缀）                         | 把 `formatTextCapsule()`（已带前缀）喂给同样会按 kind 拼前缀的 `insertToken`                           |
+> | 文本节点在 `@` 菜单里**出现两次** + React 重复 key      | 它既是文本候选，又是 `listConnectableReferences` 的合法上游                                            |
+> | `@` 浮层在**紧凑档**飞出视口（实测 x=2334 / 视口 1568） | `position: fixed` 被带 `transform` 的 `.react-flow__node-toolbar` 祖先接管。已改 portal 到 body        |
+> | 胶囊重渲染后退化成**纯文字**                            | `MentionInput` 的 `capsuleNames` 恒空 —— `mentionTokens` 只由 `referenceTokens` 派生，从来不含文本节点 |
+>
+> ⭐ **为什么单测一个都没拦住**：那条用例**从未真正打开过菜单**。jsdom 不实现 `Range.getBoundingClientRect`，`syncMention` 一调就抛，`fireEvent.input` 之后浮层根本不存在，于是「没连线」这个断言恒真。补上 polyfill + 真放光标之后，同一批用例才拦得住四条中的三条（浮层坐标只能真机验）。
 
 > ✅ **两处正式未决已关**（owner 2026-08-10）：**文本可以 `@` 另一个文本节点**，与生成节点正文里的胶囊**同一套机制**；随之必须有**循环引用检测**。
 >
 > **4-A 落地**（`8c6c0002`）：`lib/node-text-capsule`（解析 / 按位置展开 / 环停在环上 / 查不到降级成字面文字）· `MentionInput` 认两种前缀（`@` 素材 / `▤` 文本）· `@` 菜单收文本候选且**落法按物种**（素材连线、文本插胶囊不连线）· 发送路径两个调用点接上，成环 toast 报名字。
 > ⭐ `mergePromptWithUpstreamText` 被 `composePromptWithTextNodes` 上位替代后**零消费者**，已删。
-> ⚠ **4-A 全程没做真机验证** —— 胶囊插入 / 菜单里的文本候选 / 成环 toast 只有单测。
+> ✅ **真机验证已补（2026-08-10，两档）**：胶囊插入 / 菜单里的文本候选 / 不多一条边全部实测过。**成环 toast 仍只有单测** —— 要两个互相 `@` 的文本节点才触发，本轮没造这个局。
 >
 > **剩余五条，建议序 1 → 2**：
 >

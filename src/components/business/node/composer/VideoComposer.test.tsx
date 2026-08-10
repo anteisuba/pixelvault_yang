@@ -238,7 +238,11 @@ const {
   spawnReference: vi.fn(),
   setExpandedNodeId: vi.fn(),
   listConnectableReferences: vi.fn(),
-  connectReferenceNode: vi.fn(),
+  // ⚠ 默认返回 `true` —— 真实实现返回的是「这个素材现在在不在槽里」，而
+  // `handleMentionSelect` 靠这个返回值决定要不要在正文留字（交接 §0-1）。
+  // `vi.fn()` 默认返回 undefined，会让插字那一支在所有用例里静默走不到，
+  // 于是「测试绿」只证明了拒绝路径。
+  connectReferenceNode: vi.fn(() => true),
 }))
 
 vi.mock('../NodeWorkflowActionsContext', () => ({
@@ -409,6 +413,7 @@ describe('VideoComposer compact sidecar', () => {
     setExpandedNodeId.mockClear()
     listConnectableReferences.mockReset()
     connectReferenceNode.mockClear()
+    connectReferenceNode.mockReturnValue(true)
     spawnReference.mockClear()
   })
 
@@ -1423,19 +1428,180 @@ describe('VideoComposer 参数能力 gate', () => {
   })
 })
 
+/**
+ * jsdom 不实现 `Range.prototype.getBoundingClientRect`（它不排版）。
+ *
+ * ⚠ 缺它不是「量不到坐标」这么轻 —— 调用处直接抛 `TypeError`，把整个 `onInput`
+ * 打断，于是 `@` 候选浮层**在测试里永远打不开**。这正是下面那批用例此前只能写成
+ * 恒绿空壳的原因。
+ * ⚠ 不在组件里加兜底：那是浏览器一定有的 API，为测试环境往产品代码塞防御，等于
+ * 把「测试跑在一个残缺 DOM 上」藏得更远。等第二个测试文件也要驱动这个菜单时，
+ * 这段应当上移到 `vitest.setup.ts`。
+ */
+if (!Range.prototype.getBoundingClientRect) {
+  Range.prototype.getBoundingClientRect = (): DOMRect => ({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    toJSON: () => ({}),
+  })
+}
+
+/**
+ * 真把 `@` 菜单唤起来 —— 光标必须落在编辑器的文本节点里，否则
+ * `readMentionQuery` 读不到查询串，菜单根本不渲染。
+ *
+ * ⚠ 这个 helper 是 2026-08-10 补的，起因是原来那条用例只 `fireEvent.input` 不放
+ * 光标：菜单**从未打开过**，它断言的「没连线」于是永远为真 —— 一条恒绿的用例。
+ * 真机一试就掉出来三个它拦不住的缺陷（双前缀 / 候选重复 / 浮层飞出视口）。
+ */
+function typeMention(editor: HTMLElement, value: string) {
+  // ⚠ 顺序照抄 `MentionInput.test.tsx` 那条已验证的：**先 focus 再放光标**，
+  // 且改的是文本节点的 `data` 而不是 `textContent`（后者换掉整个子节点，
+  // 光标随之失效）。
+  editor.textContent = ''
+  const textNode = editor.ownerDocument.createTextNode('')
+  editor.appendChild(textNode)
+  editor.focus()
+  const selection = document.getSelection()
+  const range = document.createRange()
+  range.setStart(textNode, 0)
+  range.collapse(true)
+  selection?.removeAllRanges()
+  selection?.addRange(range)
+
+  textNode.data = value
+  selection?.collapse(textNode, textNode.data.length)
+  fireEvent.input(editor)
+}
+
+const mentionOptions = () => screen.queryAllByRole('option')
+
 describe('VideoComposer · 文本节点进 @ 菜单，落法按物种（阶段 4）', () => {
-  it('选中文本候选 → 插 ▤ 胶囊，**不连线**', () => {
-    composerState.textNodes = [{ id: 'text-1', name: '开场' }]
+  const textNode = {
+    id: 'text-1',
+    type: 'shotText',
+    position: { x: 0, y: 0 },
+    data: {},
+  }
+
+  it('选中文本候选 → 插 ▤ 胶囊（**单前缀**），且不连线', () => {
+    composerState.textNodes = [{ id: 'text-1', name: '开场设定' }]
     listConnectableReferences.mockReturnValue([])
     const { container } = renderCompact()
 
-    const editor = container.querySelector('[contenteditable="true"]')
-    expect(editor).not.toBeNull()
-    // 打 `@` 唤出菜单 → 文本节点应该在候选里。
-    fireEvent.input(editor!, { target: { textContent: '@开' } })
+    const editor = container.querySelector<HTMLElement>(
+      '[contenteditable="true"]',
+    )!
+    typeMention(editor, '@开')
+    fireEvent.click(screen.getByRole('option', { name: /开场设定/ }))
 
-    // ⚠ 这条守的是「一个菜单两种落法」：素材连线、文本插胶囊。文本走
-    // connectReferenceNode 的话会凭空多一条边，而胶囊的前提正是**不需要连线**。
+    /**
+     * ⚠ 守的是**单前缀**。此前这里传的是 `formatTextCapsule(name)`（已带 `▤`）
+     * 给同样会拼前缀的 `insertToken`，真机得到 `▤▤开场设定` —— 发送时展开后正文
+     * 残留一个裸 `▤`，编辑器也不再认它是胶囊。
+     */
+    expect(editor.textContent).toContain('▤开场设定')
+    expect(editor.textContent).not.toContain('▤▤')
+    // 「一个菜单两种落法」：素材连线、文本插胶囊。文本走 connectReferenceNode
+    // 的话会凭空多一条边，而胶囊的前提正是**不需要连线**。
     expect(connectReferenceNode).not.toHaveBeenCalled()
+  })
+
+  it('同一个文本节点在菜单里只出现一次（它也是合法上游）', () => {
+    composerState.textNodes = [{ id: 'text-1', name: '开场设定' }]
+    // 文本节点同时是 `listConnectableReferences` 的合法上游（连线喂 upstreamText
+    // 那条老机制还在）—— 不去重就会出现两行一样的候选 + React duplicate key。
+    listConnectableReferences.mockReturnValue([textNode])
+    const { container } = renderCompact()
+
+    const editor = container.querySelector<HTMLElement>(
+      '[contenteditable="true"]',
+    )!
+    typeMention(editor, '@开')
+
+    expect(mentionOptions()).toHaveLength(1)
+  })
+})
+
+describe('VideoComposer · 选中素材候选 = 落槽 + 正文留字（owner 2026-08-10）', () => {
+  const characterNode = {
+    id: 'character-1',
+    type: 'image',
+    position: { x: 0, y: 0 },
+    data: { role: 'character', characterName: '角色 A' },
+  }
+
+  /**
+   * ⚠ **策略反转，不是测试坏了**。阶段 1 这里断言的是「选中候选后 `insertToken`
+   * 不被调用、正文一个字不留」（契约 §5.1）。owner 2026-08-10 真机试完 `@` 当场
+   * 推翻：正文要留字。留档两条历史，免得下一轮把旧断言捡回来：
+   *   · 当初删插字，是因为**两条路都在插**（`handleIngestConnect` 追加一次 +
+   *     这里插一次），实拍出 `@镜头1 @镜头1 @镜头1`。那条追加路已整个删掉。
+   *   · 光标跳回开头那条也不会回来：`insertToken` 走 Range 直插 DOM，不改 `value`。
+   */
+  it('落槽成功 → 正文出现 @名字', () => {
+    listConnectableReferences.mockReturnValue([characterNode])
+    const { container } = renderCompact()
+
+    const editor = container.querySelector<HTMLElement>(
+      '[contenteditable="true"]',
+    )!
+    typeMention(editor, '@角')
+    fireEvent.click(screen.getByRole('option', { name: /角色 A/ }))
+
+    expect(connectReferenceNode).toHaveBeenCalledWith('character-1', 'v1')
+    expect(editor.textContent).toContain('@角色 A')
+  })
+
+  /**
+   * ⚠ 这条守的是一个**只有真机能发现**的洞。owner 的原话是「已有则不重复加、
+   * 不该报错」，落点分析据此指向 `connectReferenceNode` 的 duplicate 分支 ——
+   * 但真机一试：已经在槽里的素材**根本不在菜单里**（`listConnectableReferences`
+   * 把 duplicate 过滤掉了），那条分支从 `@` 根本走不到，用户连「再提一次」的
+   * 机会都没有。所以候选表要另外并上「已在槽里的」那一份。
+   */
+  it('已经在槽里的素材仍然可以 @（不是从菜单里消失）', () => {
+    composerState.referenceTokens = [
+      {
+        id: 'character-1',
+        kind: 'character',
+        label: '角色 A',
+        token: '@角色 A',
+      },
+    ] as typeof composerState.referenceTokens
+    // 已连上的素材不再出现在「可连」名单里 —— 这正是真机撞到的前提。
+    listConnectableReferences.mockReturnValue([])
+    const { container } = renderCompact()
+
+    const editor = container.querySelector<HTMLElement>(
+      '[contenteditable="true"]',
+    )!
+    typeMention(editor, '@角')
+
+    expect(mentionOptions()).toHaveLength(1)
+    fireEvent.click(screen.getByRole('option', { name: /角色 A/ }))
+    expect(editor.textContent).toContain('@角色 A')
+  })
+
+  it('落槽被拒（容量满/类型不合）→ 正文**不**留字', () => {
+    // 返回 false = 它没进槽。这时插 `@名字` 就是在正文里写一句载荷里不存在的
+    // 引用 —— 谎报成功比静默更糟。
+    connectReferenceNode.mockReturnValue(false)
+    listConnectableReferences.mockReturnValue([characterNode])
+    const { container } = renderCompact()
+
+    const editor = container.querySelector<HTMLElement>(
+      '[contenteditable="true"]',
+    )!
+    typeMention(editor, '@角')
+    fireEvent.click(screen.getByRole('option', { name: /角色 A/ }))
+
+    expect(editor.textContent).not.toContain('@角色 A')
   })
 })

@@ -46,7 +46,7 @@ import { resolveNodePresentationType } from '@/lib/node-presentation'
 
 import { aspectBoxStyle } from './VideoComposer'
 import { GenerateComposerTemplatePicker } from './GenerateComposerTemplatePicker'
-import { MentionInput } from './MentionInput'
+import { MentionInput, type MentionInputHandle } from './MentionInput'
 import { WorkflowModelPicker } from '../WorkflowModelPicker'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { MediaReviewButtons } from '../CanvasImageSelectionToolbar'
@@ -296,6 +296,9 @@ function ComposerCore({ composer }: ComposerCoreProps) {
       : null
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const promptRef = useRef<HTMLDivElement>(null)
+  /** 插字用的编辑器把手 —— `promptRef` 是外层 div（聚焦用），插入要的是组件自己
+   *  的 `insertToken`（Range 直插 DOM，不改 `value`、不弹光标）。 */
+  const mentionRef = useRef<MentionInputHandle>(null)
 
   // §2 起手势「新建节点 → 自动出现并聚焦输入框」+ §7「可以立刻接着改下一
   // 版」— focus follows `focusToken`, never a plain mount/selection change
@@ -390,7 +393,15 @@ function ComposerCore({ composer }: ComposerCoreProps) {
         ),
       )
     }
-    connectReferenceNode?.(candidate.id, host.nodeId)
+    /**
+     * 落槽 + 正文留字 —— 与 `VideoComposer.handleMentionSelect` **同一条政策**
+     * （owner 2026-08-10，交接 §0-1）。同一个手势在两个 composer 里不能有两种
+     * 结果；那边的完整推理（为什么现在加回 `insertToken` 安全、为什么要看返回值）
+     * 写在那里，这里不复述第二遍。
+     */
+    const landedInRack =
+      connectReferenceNode?.(candidate.id, host.nodeId) ?? false
+    if (landedInRack) mentionRef.current?.insertToken(candidate.name)
   }
 
   const handleSelectAsset = (generation: GenerationRecord) => {
@@ -445,6 +456,7 @@ function ComposerCore({ composer }: ComposerCoreProps) {
 
       <div ref={promptRef}>
         <MentionInput
+          ref={mentionRef}
           value={composer.promptDraft}
           onValueChange={composer.setPromptDraft}
           tokens={[]}

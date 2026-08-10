@@ -54,9 +54,30 @@ export function parseTextCapsules(prompt: string): TextCapsuleRef[] {
   return out
 }
 
-/** 把一个名字写成胶囊字面量（插入时用，调用方不要自己拼前缀）。 */
+/**
+ * 名字在胶囊里的规范形 —— **去掉全部空白**。
+ *
+ * ⚠ 这是唯一的规范化处，四处必须问同一个函数：写字面量（`formatTextCapsule`）、
+ * 建查找表（`composePromptWithTextNodes`）、编辑器认字面量的名单（`capsuleNames`）、
+ * 插入时给 `insertToken` 的名字。任一处自己写一遍 `replace(/\s+/g,'')`，
+ * 「开场 设定」这种带空格的名字就会在某一处对不上 —— 表现是胶囊变成一段裸文字，
+ * 或者发送时展不开。
+ */
+export function normalizeTextCapsuleName(name: string): string {
+  return name.trim().replace(/\s+/g, '')
+}
+
+/**
+ * 把一个名字写成胶囊字面量。
+ *
+ * ⚠ **调用方不要自己拼前缀，也不要把它的返回值再交给会拼前缀的 API**。
+ * `MentionInput.insertToken(name, kind)` 就是按 kind 自己拼前缀的那种 ——
+ * 把这里的返回值喂给它会得到 `▤▤名字`（2026-08-10 真机撞到过：正文里多一个裸
+ * `▤`，编辑器也不再认它是胶囊）。给 `insertToken` 的应当是
+ * `normalizeTextCapsuleName(name)`。
+ */
 export function formatTextCapsule(name: string): string {
-  return `${TEXT_CAPSULE_PREFIX}${name.replace(/\s+/g, '')}`
+  return `${TEXT_CAPSULE_PREFIX}${normalizeTextCapsuleName(name)}`
 }
 
 export interface TextCapsuleExpansion {
@@ -163,7 +184,7 @@ export function composePromptWithTextNodes({
 }): ComposedPrompt {
   const byName = new Map<string, string>()
   for (const entry of allTexts) {
-    const name = entry.name.trim().replace(/\s+/g, '')
+    const name = normalizeTextCapsuleName(entry.name)
     if (!name || byName.has(name)) continue
     byName.set(name, entry.text)
   }

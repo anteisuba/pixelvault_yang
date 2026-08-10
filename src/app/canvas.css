@@ -595,16 +595,15 @@
 
   /* 8 · 连线 —— 关系是一等信息（已确认条款 3），所以已建立档守 ≥3:1；
      未就绪档是弱信息，允许弱。三个维度编码三件事：粗细/虚实/流光 */
-  /* ⚠ 阶段 6-A：连线**细而热区宽**（度量表 §4 规则 9，实测 2px 可见 + 20px
-     透明热区，55 path / 29 edge ≈ 2:1）。视觉轻、可点性反而更高 —— 这两个数
-     是一对，只把 3→2 而不同时把热区 16→20 会让线更难点中。 */
+  /* ⚠ **连线的粗细与热区不在这里**（2026-08-10 真机验出来的）：边的 style 由
+     `StudioNodeWorkbench` 从 `NODE_STUDIO_EDGE_VISUALS` 内联写死，本节曾经的
+     `--canvas-edge-w` / `--canvas-edge-hit-w` **零消费者**，改它们画面纹丝不动。
+     两个 token 已删；粗细 2px / 热区 20px 改在 `constants/node-studio.ts`。 */
   --canvas-edge: #8a8a8a; /* 3.06 vs 底 */
-  --canvas-edge-w: 2px; /* 3 → 2 */
   --canvas-edge-pending: #a3a3a3; /* 2.23 vs 底 —— 配 opacity .6 使用 */
   --canvas-edge-pending-w: 1.5px;
   --canvas-edge-pending-dash: 6 5;
   --canvas-edge-active: #2a2a2a; /* 选中彗星流光，只变明度不换色相 */
-  --canvas-edge-hit-w: 20px; /* 16 → 20 */
 
   /* 9 · 浮层与玻璃容器
      ⚠ 圆角阶梯只有三档 + 圆：**控件 8 · 浮层与工具条 12 · 大输入面板 16 ·
@@ -727,6 +726,41 @@
   --border: var(--canvas-stroke-regular);
   --input: var(--canvas-stroke-regular);
   --ring: var(--canvas-stroke-focus);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   圆角三档：把 shadcn 的刻度也拉进梯子（2026-08-10，真机验出来的）
+   ──────────────────────────────────────────────────────────────────────────
+   ⚠ 6-A 第一版只改了本文件里的 `border-radius` 字面量，**真机一量画布上大量圆角
+   还是野值**：6px×4 · 10px×42 · 14px×29 · 18px×11 · 22px×1。来源不在 CSS 里，
+   在**组件的 Tailwind 类**上 —— 每个 shadcn 原语（Popover / Button / Tabs …）
+   一进画布就把 `rounded-sm/md/lg/xl/2xl` 带进来，而它们从 `--radius: .625rem`
+   （10px）派生：sm=r−4=6 · md=r−2=8 · lg=r=10 · xl=r+4=14 · 2xl=r+8=18。
+
+   ⛔ **改 `--radius-*` 没用，试过了。** `globals.css` 用的是 `@theme inline`，
+   Tailwind 会把**定义**内联进工具类（`rounded-lg` 编译成 `border-radius:
+   var(--radius)`），所以域内覆盖 `--radius-lg` 一点效果都没有。唯一还起作用的
+   杠杆是 `--radius` 本身，但它是等差派生的，**没有任何一个 r 能同时给出
+   8 / 8 / 8 / 12 / 16**（r=12 时 md 变 10、2xl 变 20）。
+
+   所以直接在域内覆盖工具类。这不是绕过 token 体系，正是它说的那条路：
+   **薄脊柱 + 域皮肤，原语零改换皮**（`project-token-minimal-unification`）。
+   特异度 `.domain-canvas .rounded-lg`(0,2,0) 稳压 `.rounded-lg`(0,1,0)，
+   且只在画布域内生效，域外一点不动。
+   真机复验：野值从 87 处降到 5 处（其中 7px×2 是下面 `calc(--canvas-card-radius
+   - 1px)` 的媒体窗内缩，**有意为之**）。
+   ══════════════════════════════════════════════════════════════════════════ */
+.domain-canvas .rounded-sm,
+.domain-canvas .rounded-md,
+.domain-canvas .rounded-lg {
+  border-radius: 8px; /* 控件档 */
+}
+.domain-canvas .rounded-xl {
+  border-radius: 12px; /* 浮层与工具条档 */
+}
+.domain-canvas .rounded-2xl,
+.domain-canvas .rounded-3xl {
+  border-radius: 16px; /* 大输入面板档 */
 }
 
 /* 深色档 —— 不是浅色反相：卡背比底亮，投影靠加深不靠发光。

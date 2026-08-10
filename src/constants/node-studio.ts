@@ -848,10 +848,15 @@ export const NODE_STUDIO_EDGE_VISUALS = {
   // 粗细 = 建立与否，虚实 = 就绪与否，流光 = 当前焦点。颜色只有两档，
   // 且选中/生成中靠**明度**变化不换色相（域内 --node-edge* 已被 .domain-canvas
   // 重映射成 v0.2 的中性值，石绿不再进入连线）。
-  strokeWidth: 3,
-  hoverStrokeWidth: 3,
-  selectedStrokeWidth: 3,
-  revealedStrokeWidth: 3,
+  // ⚠ 阶段 6-A（2026-08-10 真机验出来的）：**连线的粗细与热区在这里，不在
+  // canvas.css**。当时我改的是 `--canvas-edge-w` / `--canvas-edge-hit-w`，
+  // 真机实测渲染出来仍是旧值 —— 因为那两个 token **零消费者**（边的 style 由
+  // `StudioNodeWorkbench` 从本表内联写死）。两个 token 已随本次删除。
+  // 度量表 §4 规则 9：可见 2px + 20px 透明热区，视觉更轻、可点性反而更高。
+  strokeWidth: 2,
+  hoverStrokeWidth: 2,
+  selectedStrokeWidth: 2,
+  revealedStrokeWidth: 2,
   /** 未就绪 / 占位关系：细虚线 + 降透明，是弱信息，允许弱。 */
   pendingStrokeWidth: 1.5,
   pendingDashArray: '6 5',
@@ -859,9 +864,10 @@ export const NODE_STUDIO_EDGE_VISUALS = {
   /** 已建立边用圆头端点（实测参考站同款，收口更干净）。 */
   lineCap: 'round',
   previewStrokeWidth: 2.5,
-  // S3：命中区收到 16px（规格 §7.1 实测参考站同款）。28 是旧皮为细线补的
-  // 过量热区，连线加粗到 3px 后不再需要那么宽，反而会抢节点的点击。
-  interactionWidth: 16,
+  // S3：命中区曾收到 16px（连线粗到 3px 时不需要更宽，反而抢节点的点击）。
+  // 阶段 6-A 把线改回 2px，热区随之回到 20 —— 这两个数是一对，只改粗细会让
+  // 线更难点中。20 是度量表实测值（55 path / 29 edge ≈ 2:1）。
+  interactionWidth: 20,
   // 端标墨点半径（替代箭头 markerEnd）。
   endDotRadius: 3.5,
   markerSize: 20,

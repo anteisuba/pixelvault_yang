@@ -27,11 +27,16 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_WORKFLOW_FIELDS_BY_NODE_TYPE,
+  NODE_TYPE_IDS,
   NODE_WORKFLOW_FIELD_IDS,
   type NodeWorkflowFieldId,
 } from '@/constants/node-types'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
-import { stripFileExtension } from '@/lib/node-display-name'
+import {
+  resolveNodeDisplayName,
+  stripFileExtension,
+} from '@/lib/node-display-name'
+import { resolveNodePresentationType } from '@/lib/node-presentation'
 import {
   buildNodeWorkflowPrompt,
   getNodeWorkflowFieldValue,
@@ -49,6 +54,7 @@ import {
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import type { GenerationRecord } from '@/types'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import { MentionInput, type MentionInputHandle } from '../composer/MentionInput'
 import { IMEAwareInput, IMEAwareTextarea } from '../inspector/IMEAwareField'
 import { NodeProgressState } from '../nodes/NodeProgressState'
 import { DetailModelPicker } from './DetailModelPicker'
@@ -127,8 +133,15 @@ export function ImageFamilyBody({
   const t = useTranslations('StudioNode.mediaNodes')
   const tDetail = useTranslations('StudioNode.nodeDetail')
   const tFields = useTranslations('StudioNode.workflowFields')
-  const { generateMediaNode, modelOptionsByType, updateNodeData } =
-    useNodeWorkflowActions()
+  const tTypes = useTranslations('StudioNode.nodeTypes')
+  const {
+    generateMediaNode,
+    modelOptionsByType,
+    updateNodeData,
+    listConnectableReferences,
+    connectReferenceNode,
+  } = useNodeWorkflowActions()
+  const mentionRef = useRef<MentionInputHandle>(null)
   const { uploadFile } = useNodeReferenceUpload()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -270,6 +283,30 @@ export function ImageFamilyBody({
       setAssetDialogOpen(false)
     },
     [applyExistingImage, t],
+  )
+
+  /**
+   * 镜头图才读上游图 —— `@` 候选与落法都与 `VideoComposer` 同一条政策：
+   * **落槽 + 正文留字**，且只在真进了槽时才留字（owner 2026-08-10，契约 §5.1）。
+   * ⚠ 不在这里复述那边的完整推理，改动前去读 `VideoComposer.handleMentionSelect`
+   * 的头注 —— 两处若各写一份，迟早只改一处。
+   */
+  const isShotImageNode = type === NODE_TYPE_IDS.shot
+  const connectableReferences = isShotImageNode
+    ? (listConnectableReferences?.(nodeId) ?? [])
+    : []
+  const mentionCandidates = connectableReferences.map((node) => ({
+    id: node.id,
+    name: resolveNodeDisplayName(node.data) ?? node.id,
+    groupLabel: tTypes(resolveNodePresentationType(node)),
+  }))
+
+  const handleMentionSelect = useCallback(
+    (candidate: { id: string; name: string }) => {
+      const landed = connectReferenceNode?.(candidate.id, nodeId) ?? false
+      if (landed) mentionRef.current?.insertToken(candidate.name)
+    },
+    [connectReferenceNode, nodeId],
   )
 
   const handleFieldChange = useCallback(
@@ -471,7 +508,40 @@ export function ImageFamilyBody({
               // R7：一栏内只有两类排法。长文本整宽无标签无边框（标签靠
               // placeholder 与 aria-label 承担，**prompt 不配独立标签行**）；
               // 短值标签左、值右、一行。
-              return isLong ? (
+              /**
+               * 正文（`prompt`）在**镜头图**上换成 `MentionInput` —— 契约 §5.4
+               * 落点清单里的「详情面板 prompt」。
+               *
+               * ⚠ **只给镜头图开**，不是嫌麻烦而是「形态即说明」：镜头图是
+               * `isShotImageNode`，**唯一会读上游图的图片族**（收割上游角色/背景
+               * 图并给它们注图例）。散图 / 关键帧 / 背景卡的生成只读自己的
+               * Inspector，给它们一个 `@` 就是画一条连了也不进请求的边 —— 伪装
+               * 能力。哪天图片收割扩到别的族，把这个判据跟着扩，别在这里手写第
+               * 二套名单。
+               * ⚠ 其余长字段（动作 / 构图 / 台词 / 运镜）维持 textarea：它们是
+               * 结构化子字段，不是「你写给模型的那段话」。
+               */
+              const isMentionablePrompt =
+                fieldId === NODE_WORKFLOW_FIELD_IDS.prompt && isShotImageNode
+
+              return isMentionablePrompt ? (
+                <div key={fieldId} className="canvas-detail-prompt-block">
+                  <MentionInput
+                    ref={mentionRef}
+                    value={value}
+                    onValueChange={(next) => handleFieldChange(fieldId, next)}
+                    // 上游引用的 chip 化留给日后：图片族今天没有算好的
+                    // `referenceTokens`，传空名单 = 插进去的 `@名字` 是纯文本，
+                    // 值本身正确（与 `GenerateComposer` 同一档取舍）。
+                    tokens={[]}
+                    mentionCandidates={mentionCandidates}
+                    onMentionSelect={handleMentionSelect}
+                    aria-label={label}
+                    placeholder={placeholder}
+                    className="canvas-detail-prompt-input"
+                  />
+                </div>
+              ) : isLong ? (
                 <div key={fieldId} className="canvas-detail-prompt-block">
                   <IMEAwareTextarea
                     value={value}

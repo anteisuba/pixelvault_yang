@@ -2724,6 +2724,20 @@
 .domain-canvas .canvas-detail-prompt-block textarea:disabled {
   color: var(--canvas-detail-ink-2);
 }
+/* 镜头图的正文换成了 contenteditable 的 `MentionInput`（契约 §5.4 落点）——
+   与上面那条 textarea 规则**逐条对齐**，两种输入在同一个面板里必须长得一样。
+   ⚠ 少的只有 `resize`：contenteditable 本来就随内容长高，给它 resize 手柄会出现
+   一个拖了没反应的角。 */
+.domain-canvas .canvas-detail-prompt-input {
+  display: block;
+  width: 100%;
+  min-height: 92px;
+  padding: 9px 10px;
+  color: var(--canvas-detail-ink);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+}
 .domain-canvas .canvas-detail-krow {
   display: flex;
   align-items: center;

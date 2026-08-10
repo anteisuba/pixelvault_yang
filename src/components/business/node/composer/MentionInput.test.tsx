@@ -20,14 +20,14 @@ describe('parseMentions', () => {
   it('splits a known @name into a token segment', () => {
     expect(parseMentions('前 @角色A 后', ['角色A'])).toEqual([
       { type: 'text', text: '前 ' },
-      { type: 'token', name: '角色A', prefix: '@' },
+      { type: 'token', name: '角色A' },
       { type: 'text', text: ' 后' },
     ])
   })
 
   it('prefers the longest matching name', () => {
     const segs = parseMentions('@角色A2 走过', ['角色A', '角色A2'])
-    expect(segs[0]).toEqual({ type: 'token', name: '角色A2', prefix: '@' })
+    expect(segs[0]).toEqual({ type: 'token', name: '角色A2' })
   })
 
   it('leaves an @ that matches no known name as plain text (renamed → degrades)', () => {
@@ -39,8 +39,8 @@ describe('parseMentions', () => {
   it('handles multiple tokens back to back', () => {
     const segs = parseMentions('@A@B', ['A', 'B'])
     expect(segs).toEqual([
-      { type: 'token', name: 'A', prefix: '@' },
-      { type: 'token', name: 'B', prefix: '@' },
+      { type: 'token', name: 'A' },
+      { type: 'token', name: 'B' },
     ])
   })
 })
@@ -367,52 +367,29 @@ describe('MentionInput 光标保持（外部改 value 时不许弹回开头）',
   })
 })
 
-describe('两个物种共存：素材 @ 与文本胶囊 ▤（阶段 4）', () => {
-  it('两种前缀各认各的名单，互不误伤', () => {
-    // 阶段 1 之后正文里的 `@xxx` 可能只是用户自己打的字（素材 @ 只落槽不留字），
-    // 所以文本胶囊必须换一个前缀，否则两者会互相吃掉。
-    const segs = parseMentions('@小林 和 ▤小林', ['小林'], ['小林'])
-    expect(segs).toEqual([
-      { type: 'token', name: '小林', prefix: '@' },
-      { type: 'text', text: ' 和 ' },
-      { type: 'token', name: '小林', prefix: '▤' },
+describe('文本胶囊 ▤ 已整套退役（owner 2026-08-10）', () => {
+  /**
+   * ⚠ **策略反转，不是测试坏了。** 这一族原本有四条，守的是「素材 `@` 与文本
+   * 胶囊 `▤` 两个前缀各认各的名单」。owner 真机试完当场推翻：文本改成「点一下
+   * 把内容原文粘进输入框」，正文里不再有任何文本占位符 —— `▤`、`capsuleNames`、
+   * `mentionPrefixOf`、`kind: 'text'` 一起删掉。
+   *
+   * 留这一条反向断言，是因为删掉的代码不会报警：如果哪天有人凭直觉再把 `▤`
+   * 当成特殊字符处理，这里会红。
+   */
+  it('▤ 在正文里就是一个普通字符，不再被认成任何引用', () => {
+    expect(parseMentions('▤小林 和 @小林', ['小林'])).toEqual([
+      { type: 'text', text: '▤小林 和 ' },
+      { type: 'token', name: '小林' },
     ])
   })
 
-  it('不传 capsuleNames 时行为与从前完全一致 —— ▤ 只是普通字符', () => {
-    expect(parseMentions('▤小林', ['小林'])).toEqual([
-      { type: 'text', text: '▤小林' },
-    ])
-  })
-
-  it('同名的文本节点与角色渲染成**不同**的 chip（按字面量查，不按名字）', () => {
-    const { container } = render(
-      <MentionInput
-        value="@小林 ▤小林"
-        onValueChange={() => {}}
-        tokens={[
-          { name: '小林', kind: 'character' },
-          { name: '小林', kind: 'text' },
-        ]}
-      />,
-    )
-    const chips = container.querySelectorAll('[data-mention]')
-    expect(chips).toHaveLength(2)
-    expect(chips[0].getAttribute('data-mention')).toBe('@小林')
-    expect(chips[1].getAttribute('data-mention')).toBe('▤小林')
-    // 只按名字查的话，第二颗会拿到角色 token 而渲染成角色 chip。
-    expect(chips[0].className).not.toBe(chips[1].className)
-  })
-
-  it('序列化把两种字面量原样吐回去（发送链路拿到的就是这一串）', () => {
+  it('序列化只吐 @ 一种字面量（发送链路拿到的就是这一串）', () => {
     const { container } = render(
       <MentionInput
         value="前 @角色A 中 ▤开场 后"
         onValueChange={() => {}}
-        tokens={[
-          { name: '角色A', kind: 'character' },
-          { name: '开场', kind: 'text' },
-        ]}
+        tokens={[{ name: '角色A', kind: 'character' }]}
       />,
     )
     const editor = container.querySelector('[contenteditable="true"]')!

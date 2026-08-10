@@ -4239,8 +4239,7 @@
       "statusPending": "Generating media",
       "statusSuccess": "Media generated",
       "statusError": "Generation failed",
-      "statusTextReady": "Text will feed downstream nodes",
-      "textCapsuleCycle": "Text reference “{name}” forms a loop — left as plain text this time."
+      "statusTextReady": "Text will feed downstream nodes"
     },
     "videoComposer": {
       "monitor": {
@@ -4513,7 +4512,7 @@
         "surprised": "Surprised"
       },
       "sampleLabel": "Voice sample",
-      "generateSample": "Generate sample",
+      "generateSample": "Get sample",
       "coverAlt": "Voice cover",
       "coverChange": "Change cover",
       "coverUpload": "Upload voice cover",

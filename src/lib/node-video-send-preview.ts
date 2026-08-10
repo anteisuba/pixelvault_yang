@@ -16,7 +16,6 @@
  * node" utility.
  */
 import { NODE_STUDIO_VIDEO_REFERENCE_LEGEND } from '@/constants/node-studio'
-import { composePromptWithTextNodes } from './node-text-capsule'
 import { NODE_REVIEW_STATE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -39,9 +38,10 @@ import {
   harvestUpstreamAudioBindings,
   harvestUpstreamCloseupUrls,
   harvestUpstreamImageUrls,
-  collectTextNodeEntries,
+  harvestUpstreamShotTextPrompt,
   harvestUpstreamVideoImageReferences,
   harvestUpstreamVideoUrls,
+  mergePromptWithUpstreamText,
   type AudioBinding,
   type VideoLegendImageKind,
 } from './node-workflow-graph'
@@ -186,16 +186,17 @@ export function buildVideoSendPreview({
   const upstreamNodes = getUpstreamNodes(nodeId, edges, nodes)
   const ownPrompt = buildNodeWorkflowPrompt(NODE_TYPE_IDS.seedance, data)
   /**
-   * 阶段 4「位置即拼接顺序」：正文里被 `▤` 引用到的文本在**胶囊所在位置**展开，
-   * 只有没被引用的上游文本才前置。旧的 `mergePromptWithUpstreamText` 把顺序写死
-   * 成「上游永远在前」，用户无从决定「我的话在前还是分镜文本在前」。
-   * ⚠ 已展开的必须从前置里排除，否则同一段文字发两遍 —— 见 `expandedNames`。
+   * 上游文本前置。
+   *
+   * ⚠ 2026-08-10 **胶囊整套退役**（owner 拍板，契约 §5.2）：文本改成「`@` 菜单里
+   * 点一下，把内容原文粘进输入框」。位置由用户粘在哪决定 —— 原文就在正文里，
+   * 发送预览拿到的 `ownPrompt` 已经含着它，不需要再展开任何占位符。
+   * 「连了边但没粘进正文」的文本仍按老规矩前置，存量图零改动照常跑。
    */
-  const { prompt: mergedPrompt } = composePromptWithTextNodes({
+  const mergedPrompt = mergePromptWithUpstreamText(
     ownPrompt,
-    upstreamTexts: collectTextNodeEntries(upstreamNodes),
-    allTexts: collectTextNodeEntries(nodes),
-  })
+    harvestUpstreamShotTextPrompt(upstreamNodes, ownPrompt),
+  )
 
   // Video nodes never carry `existingImageReference` (that source only
   // applies to isImageMediaNode in handleGenerateMediaNode) — own

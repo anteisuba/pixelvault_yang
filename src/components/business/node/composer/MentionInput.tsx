@@ -18,18 +18,11 @@ import { cn } from '@/lib/utils'
 export interface MentionToken {
   name: string
   /**
-   * `text` 是**第二个物种**（阶段 4，契约 §5.2）：它引用的是一个**文本节点**，
-   * 发送时在胶囊所在位置展开成那段文字；其余六种引用的是二进制素材，只落槽、
-   * 正文里不留字。两者在正文里的前缀也不同（`▤` vs `@`），见 `parseMentions`。
+   * ⚠ 这里**没有 `text`**：文本不是一个引用物种。2026-08-10 owner 拍板胶囊整套
+   * 退役 —— `@` 菜单里点一个文本节点是把它的**内容原文粘进正文**（走
+   * `insertText`），粘完就是普通文字，没有 token、没有前缀、没有可渲染的 chip。
    */
-  kind:
-    | 'character'
-    | 'background'
-    | 'shot'
-    | 'closeup'
-    | 'voice'
-    | 'video'
-    | 'text'
+  kind: 'character' | 'background' | 'shot' | 'closeup' | 'voice' | 'video'
   /** 16px thumbnail embedded in the chip — the node's image / videoThumbnail,
    *  or the voice cover. Falls back to a flat port-color chip when absent. */
   thumbnailUrl?: string
@@ -49,37 +42,23 @@ export interface MentionToken {
 }
 
 export interface MentionInputHandle {
+  /** Insert an atomic `@名字` chip at the caret (falls back to the end). */
+  insertToken(name: string): void
   /**
-   * Insert an atomic chip at the caret (falls back to the end).
-   * `kind` 决定前缀：`text` → `▤名字`（文本引用胶囊），其余 → `@名字`（素材引用）。
-   * 省略时按素材处理，既有调用方不受影响。
+   * Insert plain text at the caret — 运镜语法 chips（§5 L1，影视语汇不是 @token）
+   * 与**文本节点粘原文**（契约 §5.2）都走这条。
    */
-  insertToken(name: string, kind?: MentionToken['kind']): void
-  /** Insert plain text at the caret — used by the 运镜语法 chips (§5 L1), which
-   *  are film-language phrases, not @tokens. */
   insertText(text: string): void
   focus(): void
   getBoundingClientRect(): DOMRect | undefined
 }
 
-/** 素材引用的前缀。 */
+/** 素材引用的前缀 —— 全仓只有这一个。 */
 const MENTION_PREFIX = '@'
-/** 文本引用胶囊的前缀 —— 与 `lib/node-text-capsule` 的 `TEXT_CAPSULE_PREFIX` 同一个字。 */
-const CAPSULE_PREFIX = '▤'
-
-export type MentionPrefix = typeof MENTION_PREFIX | typeof CAPSULE_PREFIX
-
-/**
- * 前缀**由 kind 推出**，调用方不自己拼 —— 两处各拼一遍迟早会分岔，而分岔的后果
- * 是序列化出来的字面量与 `parseMentions` 认的对不上，胶囊就变成一段裸文字。
- */
-export function mentionPrefixOf(kind: MentionToken['kind']): MentionPrefix {
-  return kind === 'text' ? CAPSULE_PREFIX : MENTION_PREFIX
-}
 
 type MentionSegment =
   | { type: 'text'; text: string }
-  | { type: 'token'; name: string; prefix: MentionPrefix }
+  | { type: 'token'; name: string }
 
 /**
  * Pure: split a plain-text prompt into text / token segments. A token is `@`
@@ -88,34 +67,23 @@ type MentionSegment =
  * name stays as text — this is what lets a renamed reference degrade to plain
  * text instead of a stale chip.
  *
- * 阶段 4 起还认第二种前缀 `▤`（`capsuleNames`）—— **文本引用胶囊**。两套分开是
- * 因为阶段 1 之后正文里的 `@xxx` 已经可能是**用户自己打的字**（素材 `@` 只落槽
- * 不留字），共用一个前缀会互相误伤。省略 `capsuleNames` 时行为与从前**逐字节
- * 一致**，所有既有调用方不受影响。
+ * ⚠ 2026-08-10 **第二个前缀 `▤` 整套删掉**（owner 拍板，契约 §5.2）：文本节点
+ * 不再在正文里留占位符，点一下就把内容原文粘进来，粘完是普通文字。少一个前缀
+ * 就少一整条「字面量 / 规范化 / 展开 / 成环」的链路。
  */
 export function parseMentions(
   value: string,
   knownNames: readonly string[],
-  capsuleNames: readonly string[] = [],
 ): MentionSegment[] {
   // Longest first so "@角色A2" matches before "@角色A".
-  const byPrefix: [MentionPrefix, string[]][] = [
-    [
-      MENTION_PREFIX,
-      [...knownNames].filter(Boolean).sort((a, b) => b.length - a.length),
-    ],
-    [
-      CAPSULE_PREFIX,
-      [...capsuleNames].filter(Boolean).sort((a, b) => b.length - a.length),
-    ],
-  ]
+  const names = [...knownNames]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
   const segments: MentionSegment[] = []
   let text = ''
   let i = 0
   while (i < value.length) {
-    const entry = byPrefix.find(([prefix]) => value[i] === prefix)
-    if (entry) {
-      const [prefix, names] = entry
+    if (value[i] === MENTION_PREFIX) {
       const match = names.find(
         (name) => value.slice(i + 1, i + 1 + name.length) === name,
       )
@@ -124,7 +92,7 @@ export function parseMentions(
           segments.push({ type: 'text', text })
           text = ''
         }
-        segments.push({ type: 'token', name: match, prefix })
+        segments.push({ type: 'token', name: match })
         i += 1 + match.length
         continue
       }
@@ -143,8 +111,6 @@ const CHIP_FILL: Record<MentionToken['kind'], string> = {
   closeup: 'bg-node-port-image/25',
   voice: 'bg-node-port-voice/25',
   video: 'bg-node-port-video/25',
-  // 文本没有端口色 —— 它不是素材，用中性面，靠 ▤ 字形与其余六种分开。
-  text: 'bg-node-panel-inner',
 }
 // The embedded 16px thumbnail's shape encodes the kind (§9 V2-2 token anatomy):
 // circle = 角色/配音 (identity), square = 图/镜头/场景/视频. Placeholder tint uses
@@ -156,7 +122,6 @@ const THUMB_SHAPE: Record<MentionToken['kind'], string> = {
   closeup: 'rounded-sm',
   voice: 'rounded-full',
   video: 'rounded-sm',
-  text: 'rounded-sm',
 }
 const THUMB_FILL: Record<MentionToken['kind'], string> = {
   character: 'bg-node-port-character/70',
@@ -165,13 +130,19 @@ const THUMB_FILL: Record<MentionToken['kind'], string> = {
   closeup: 'bg-node-port-image/70',
   voice: 'bg-node-port-voice/70',
   video: 'bg-node-port-video/70',
-  text: 'bg-node-subtle/40',
 }
 const CHIP_BASE =
   'mention-chip mx-0.5 inline-flex select-none items-center gap-1 rounded-full py-0.5 align-baseline text-node-foreground'
 const MENTION_ATTR = 'data-mention'
 /** @ 下拉一次最多列几条 —— 再多就该靠打字收窄，滚动一长列比重打两个字慢。 */
 const MENTION_MAX_VISIBLE = 8
+/**
+ * 浮层最大宽 —— **必须与 `canvas.css` 的 `.canvas-mention-popover { max-width }`
+ * 一致**（那边是渲染宽度，这边是靠边夹紧时的算式输入，对不上就会夹过头或夹不住）。
+ */
+const MENTION_POPOVER_MAX_W = 280
+/** 夹紧后与视口边缘留的余量。 */
+const MENTION_POPOVER_EDGE_GAP = 8
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
 /** A centered ▶ overlay — the shape language marks a video reference apart from
@@ -219,18 +190,15 @@ function buildThumb(
 function buildChip(
   doc: Document,
   name: string,
-  prefix: MentionPrefix,
   token: MentionToken | undefined,
 ): HTMLSpanElement {
   const kind = token?.kind
   const chip = doc.createElement('span')
   /**
-   * ⚠ 属性里存的是**完整字面量**（含前缀），不是裸名字。
-   * 阶段 4 加了第二种前缀之后，只存名字就没法还原它是 `@小林` 还是 `▤小林` ——
-   * 而序列化、光标偏移、原子删除三处都靠这个属性算长度，还原错一个字符，
-   * 光标就会错位。
+   * ⚠ 属性里存的是**完整字面量**（含 `@`），不是裸名字 —— 序列化、光标偏移、
+   * 原子删除三处都靠这个属性算长度，少一个字符光标就会错位。
    */
-  chip.setAttribute(MENTION_ATTR, `${prefix}${name}`)
+  chip.setAttribute(MENTION_ATTR, `${MENTION_PREFIX}${name}`)
   chip.setAttribute('contenteditable', 'false')
   chip.className = cn(
     CHIP_BASE,
@@ -241,7 +209,7 @@ function buildChip(
   const label = doc.createElement('span')
   label.className = 'mention-chip-label leading-none'
   // 显示位置（「图 3」），存储仍是字面量 —— 见 `MentionToken.slotLabel`。
-  label.textContent = token?.slotLabel ?? `${prefix}${name}`
+  label.textContent = token?.slotLabel ?? `${MENTION_PREFIX}${name}`
   chip.appendChild(label)
   return chip
 }
@@ -252,24 +220,16 @@ function renderInto(
   el: HTMLElement,
   value: string,
   knownNames: readonly string[],
-  capsuleNames: readonly string[],
-  tokenByLiteral: ReadonlyMap<string, MentionToken>,
+  tokenByName: ReadonlyMap<string, MentionToken>,
 ): void {
   const doc = el.ownerDocument
   el.replaceChildren()
-  for (const segment of parseMentions(value, knownNames, capsuleNames)) {
+  for (const segment of parseMentions(value, knownNames)) {
     if (segment.type === 'text') {
       el.appendChild(doc.createTextNode(segment.text))
     } else {
-      // ⚠ 按**字面量**查而不是按名字：一个文本节点和一个角色可以同名（「小林」），
-      // 只按名字查会把 ▤小林 渲染成角色 chip。
       el.appendChild(
-        buildChip(
-          doc,
-          segment.name,
-          segment.prefix,
-          tokenByLiteral.get(`${segment.prefix}${segment.name}`),
-        ),
+        buildChip(doc, segment.name, tokenByName.get(segment.name)),
       )
     }
   }
@@ -456,6 +416,26 @@ export interface MentionCandidate {
   name: string
   /** 分组用的类型名，已本地化；不给则不分组。 */
   groupLabel?: string
+  /**
+   * **配额分组键**（不显示，只用来分名额）。同一个键的候选算一族。
+   *
+   * ⚠ 与 `groupLabel` 是两回事：那个是给人看的类型名（角色 / 镜头 / 镜头文本），
+   * 这个是「谁跟谁抢名额」。2026-08-10 真机实拍到为什么需要它：槽里 8 个素材
+   * 时，「已引用」那一族**把 8 个名额全占了**，文本候选一条都露不出来 ——
+   * 空 `@` 查不到，必须先猜到名字打两个字才行。名额按族分之后不会再饿死。
+   *
+   * 不给就是全部同族，行为与从前逐字节一致。
+   */
+  group?: string
+  /**
+   * 悬停 / 高亮这一条时展开的**内容预览**（owner 2026-08-10 定的手势：
+   * 「鼠标放上去出现文本内容，点击后文本直接粘贴到输入框」）。
+   *
+   * ⚠ 只给**文本节点**用。素材靠名字 + 类型就认得出来，文本节点的名字（「开场
+   * 设定」）却完全说不出它里面写了什么 —— 不先看一眼就点，等于闭着眼往正文里
+   * 倒一段字。给了才渲染，所以素材那几族不受影响。
+   */
+  preview?: string
 }
 
 /** 光标前的 `@查询` —— 没在写 @ 时为 null。 */
@@ -484,7 +464,7 @@ export interface MentionInputProps {
   mentionCandidates?: readonly MentionCandidate[]
   /**
    * 选中候选。组件已经把用户打的 `@查询` 从正文里删掉了，父级只需要**连线**，
-   * 再通过 ref 的 `insertToken(name)` 把胶囊插进去 —— 插入走的还是既有那条路。
+   * 再通过 ref 的 `insertToken(name)` / `insertText(原文)` 把内容放进去。
    */
   onMentionSelect?(candidate: MentionCandidate): void
 }
@@ -551,27 +531,16 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     // (which would reset the caret) when `value` just echoes our own edit.
     const lastValueRef = useRef<string | null>(null)
 
-    // 两份名单由**同一个 `tokens`** 按 kind 劈开 —— 调用方仍只传一个数组，
-    // 不用自己分类，也就不会漏分。
     const namedTokens = useMemo(
       () => tokens.filter((token) => token.name.length > 0),
       [tokens],
     )
     const knownNames = useMemo(
-      () => namedTokens.filter((t) => t.kind !== 'text').map((t) => t.name),
+      () => namedTokens.map((t) => t.name),
       [namedTokens],
     )
-    const capsuleNames = useMemo(
-      () => namedTokens.filter((t) => t.kind === 'text').map((t) => t.name),
-      [namedTokens],
-    )
-    const tokenByLiteral = useMemo(
-      () =>
-        new Map(
-          namedTokens.map(
-            (t) => [`${mentionPrefixOf(t.kind)}${t.name}`, t] as const,
-          ),
-        ),
+    const tokenByName = useMemo(
+      () => new Map(namedTokens.map((t) => [t.name, t] as const)),
       [namedTokens],
     )
 
@@ -623,19 +592,56 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       if (value === lastValueRef.current) return
       // 失焦重建也要保住光标：外部改写完用户点回来时，位置不该回到开头。
       const caret = getCaretOffset(el)
-      renderInto(el, value, knownNames, capsuleNames, tokenByLiteral)
+      renderInto(el, value, knownNames, tokenByName)
       if (caret !== null) setCaretOffset(el, caret)
       lastValueRef.current = value
-    }, [value, isComposing, knownNames, capsuleNames, tokenByLiteral])
+    }, [value, isComposing, knownNames, tokenByName])
 
-    /** 候选按当前查询过滤（大小写不敏感，子串匹配即可）。 */
+    /**
+     * 候选按当前查询过滤（大小写不敏感，子串匹配即可），再**按族分名额**截断。
+     *
+     * ⚠ 不能直接 `slice(0, MENTION_MAX_VISIBLE)`：候选是几族拼起来的，靠前的那族
+     * 一多就把名额吃光。2026-08-10 owner 实拍：槽里 8 个素材 = 名额刚好 8 个，
+     * 「已引用」占满整张表，**文本候选一条都不出现**，空 `@` 根本发现不了它。
+     * 「靠打字收窄」在这里不成立 —— 那要求用户**先知道有这个东西**。
+     *
+     * 规则：名额在**非空的族之间均分**（余数给靠前的族），某族没用完的名额回收给
+     * 其它族。族内与族间都保持原顺序，所以「已引用置顶」照旧成立，只是它不再独吞。
+     */
     const matches = useMemo(() => {
       if (!mention || !mentionCandidates?.length) return []
       const q = mention.query.text.toLowerCase()
       const hit = q
         ? mentionCandidates.filter((c) => c.name.toLowerCase().includes(q))
         : [...mentionCandidates]
-      return hit.slice(0, MENTION_MAX_VISIBLE)
+      if (hit.length <= MENTION_MAX_VISIBLE) return hit
+
+      // 按族收拢，保持族的首次出现顺序。
+      const byGroup = new Map<string, MentionCandidate[]>()
+      for (const candidate of hit) {
+        const key = candidate.group ?? ''
+        const bucket = byGroup.get(key)
+        if (bucket) bucket.push(candidate)
+        else byGroup.set(key, [candidate])
+      }
+      if (byGroup.size === 1) return hit.slice(0, MENTION_MAX_VISIBLE)
+
+      const buckets = [...byGroup.values()]
+      const quota = buckets.map(() => 0)
+      // 一轮一轮地发名额：每族每轮拿一个，发完为止。没东西可拿的族自动跳过，
+      // 于是它的名额自然流向别的族 —— 不用单独写「回收」那一支。
+      let left = MENTION_MAX_VISIBLE
+      while (left > 0) {
+        const before = left
+        for (let i = 0; i < buckets.length && left > 0; i += 1) {
+          if (quota[i] < buckets[i].length) {
+            quota[i] += 1
+            left -= 1
+          }
+        }
+        if (left === before) break // 所有族都发完了
+      }
+      return buckets.flatMap((bucket, i) => bucket.slice(0, quota[i]))
     }, [mention, mentionCandidates])
 
     /** 光标动了就重算查询 —— 输入、点击、方向键都要走这里。 */
@@ -705,19 +711,13 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     useImperativeHandle(
       ref,
       () => ({
-        insertToken(name: string, kind: MentionToken['kind'] = 'shot') {
+        insertToken(name: string) {
           const el = editorRef.current
           if (!el) return
           el.focus()
-          const prefix = mentionPrefixOf(kind)
           insertNodeAtCaret(
             el,
-            buildChip(
-              el.ownerDocument,
-              name,
-              prefix,
-              tokenByLiteral.get(`${prefix}${name}`),
-            ),
+            buildChip(el.ownerDocument, name, tokenByName.get(name)),
           )
           // A trailing space so the caret has a text node to live in after the
           // atomic chip (chips can't hold a caret on their trailing edge alone).
@@ -739,7 +739,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         },
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [tokenByLiteral],
+      [tokenByName],
     )
 
     return (
@@ -834,7 +834,20 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
                 aria-label={rest['aria-label']}
                 className="canvas-mention-popover"
                 style={{
-                  left: mention.rect.left,
+                  /**
+                   * ⚠ 靠视口右缘夹紧。光标打到行尾时 `rect.left` 会让整张浮层
+                   * 溢出屏幕 —— 2026-08-10 实拍：⤢ 完整档里内容预览被右边缘切掉
+                   * 半句。夹的是**位置**不是宽度：压窄成一条会让预览彻底没法读。
+                   */
+                  left: Math.max(
+                    MENTION_POPOVER_EDGE_GAP,
+                    Math.min(
+                      mention.rect.left,
+                      window.innerWidth -
+                        MENTION_POPOVER_MAX_W -
+                        MENTION_POPOVER_EDGE_GAP,
+                    ),
+                  ),
                   top: mention.rect.bottom + 6,
                 }}
                 onMouseDown={(event) => event.preventDefault()}
@@ -849,10 +862,21 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
                     onMouseEnter={() => setActiveIndex(index)}
                     onClick={() => commitMention(candidate)}
                   >
-                    <span className="truncate">{candidate.name}</span>
-                    {candidate.groupLabel ? (
-                      <span className="canvas-mention-popover-kind">
-                        {candidate.groupLabel}
+                    <span className="flex min-w-0 items-center justify-between gap-2">
+                      <span className="truncate">{candidate.name}</span>
+                      {candidate.groupLabel ? (
+                        <span className="canvas-mention-popover-kind">
+                          {candidate.groupLabel}
+                        </span>
+                      ) : null}
+                    </span>
+                    {/* 内容预览。**只在高亮那一条上展开**（hover 或方向键选到），
+                      而不是每条都常驻 —— 常驻会把 8 条候选撑成一屏，反而找不到东西。
+                      鼠标走 `onMouseEnter`（它已经在设 activeIndex），键盘走方向键，
+                      两条通路共用同一个 `activeIndex`，不用各写一套。 */}
+                    {candidate.preview && index === activeIndex ? (
+                      <span className="canvas-mention-popover-preview">
+                        {candidate.preview}
                       </span>
                     ) : null}
                   </button>

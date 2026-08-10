@@ -70,7 +70,6 @@ import {
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
 import { getSeedanceReferenceKind } from '@/lib/node-workflow-graph'
-import { normalizeTextCapsuleName } from '@/lib/node-text-capsule'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
 import {
   buildDisplayNamePatch,
@@ -772,23 +771,8 @@ export function VideoComposer({
   // Reference names the prompt editor should render as atomic chips — the
   // insertable tokens (character/background/shot @name, voice @AudioN). Unnamed
   // / projection-only refs (empty token) contribute no chip.
-  /**
-   * 文本节点也要进 `tokens` —— 否则 `MentionInput` 的 `capsuleNames` **恒空**，
-   * `▤名字` 就永远不会被认成胶囊。
-   *
-   * ⚠ 2026-08-10 真机撞到过这个「零输入」：插入那一刻胶囊是个 chip（`insertToken`
-   * 直接建 DOM），但**下一次从 `value` 重渲染就退化成一串裸文字** —— 不再原子、
-   * 退格能把它劈成半个名字。4-A 的单测全绿也没拦住，因为夹具直接喂 tokens。
-   *
-   * 名字过 `normalizeTextCapsuleName`：写字面量、认字面量、发送时查表必须是同一
-   * 个规范形，否则「开场 设定」这种带空格的名字会在某一处对不上。
-   */
-  const textMentionTokens: MentionToken[] = composer.textNodes.map((entry) => ({
-    name: normalizeTextCapsuleName(entry.name),
-    kind: 'text',
-  }))
-
-  const slotMentionTokens = composer.referenceTokens
+  // ⚠ 文本节点**不在这里** —— 它粘的是原文，正文里没有可渲染成 chip 的东西。
+  const mentionTokens: MentionToken[] = composer.referenceTokens
     .filter(
       // keyframe is projection-only (empty token) — never an insertable mention,
       // so excluding it also narrows kind to MentionToken's insertable union.
@@ -817,11 +801,6 @@ export function VideoComposer({
           }
         : {}),
     }))
-
-  const mentionTokens: MentionToken[] = [
-    ...slotMentionTokens,
-    ...textMentionTokens,
-  ]
 
   // V2-1 改名静默自动回写: when a referenced node is renamed, its @oldName sits
   // stale in the prompt. Rather than surface a manual "replace" affordance
@@ -1091,14 +1070,23 @@ export function VideoComposer({
     mentionKindOf,
   )
   /**
-   * 文本节点也进 `@` 菜单（阶段 4）—— 但**落法按物种**（契约 §5.2）：
-   * 素材落槽（连线，正文不留字），文本落**正文引用胶囊**（`▤名字`，不连线）。
+   * 文本节点也进 `@` 菜单 —— 但**落法按物种**（契约 §5.2）：素材落槽（连线，
+   * 正文里留 `@名字`），文本**把内容原文粘进正文**（不连线、不留占位符）。
    * 一个菜单两种落法，而不是给文本再造一个触发字符 —— 用户要找的东西在一处。
+   *
+   * ⚠ 2026-08-10 owner 拍板从「插 `▤` 胶囊」改成「粘原文」。理由是他一直想的就
+   * 是「文本自动放到输入框中」，而胶囊是**引用**：多一层间接、多一套字面量、多
+   * 一条成环检测，换来的「改源节点跟着变」他并不需要。粘进来之后就是普通文字，
+   * 可以直接接着改 —— 这也是原来那三个胶囊动作（跳源/展开/移除）一起消失的原因。
    */
   const textNodeCandidates = composer.textNodes.map((entry) => ({
     id: entry.id,
     name: entry.name,
     groupLabel: tTypes('shotText'),
+    group: 'text',
+    // hover 到这一条就把内容摊开给用户看 —— 名字（「开场设定」）说不出里面写了
+    // 什么，而点下去是**不可撤销地往正文里倒一段字**，看一眼再点是最低成本的闸。
+    preview: entry.text,
   }))
   const textCandidateIds = new Set(textNodeCandidates.map((c) => c.id))
 
@@ -1126,10 +1114,18 @@ export function VideoComposer({
       id: refToken.id,
       name: refToken.token.replace(/^@/, ''),
       groupLabel: tc(`refKind.${refToken.kind}`),
+      group: 'referenced',
     }))
 
   const mentionCandidates = [
-    // 已引用置顶（契约 §5.4）—— 用户找「刚才那张」时不该翻到列表底下。
+    /**
+     * 已引用置顶（契约 §5.4）—— 用户找「刚才那张」时不该翻到列表底下。
+     *
+     * ⚠ **置顶 ≠ 独占**。这一族可以有十几条（槽架上限 15），而菜单一次只显示 8
+     * 条：不分名额的话它会把整张表吃光，下面两族一条都露不出来。owner 2026-08-10
+     * 实拍到的正是这一幕 —— 槽里 8 个素材，文本候选彻底消失。名额按族分的逻辑在
+     * `MentionInput.matches`，这里只负责给每条打上族标。
+     */
     ...referencedCandidates,
     /**
      * ⚠ **文本节点要从可连那半里剔掉**，否则它在菜单里出现**两次** ——
@@ -1146,6 +1142,7 @@ export function VideoComposer({
         id: node.id,
         name: mentionNames.get(node.id) ?? node.id,
         groupLabel: mentionKindOf(node),
+        group: 'connectable',
       })),
     ...textNodeCandidates,
   ].filter(
@@ -1157,19 +1154,20 @@ export function VideoComposer({
   )
 
   const handleMentionSelect = (candidate: { id: string; name: string }) => {
-    // 文本节点 → 插胶囊，**不连线**：引用本身就是关系，位置才是它多出来的信息。
+    /**
+     * 文本节点 → **把内容原文粘进光标处**，不连线、不留占位符（契约 §5.2）。
+     *
+     * 粘完它就是普通文字：用户可以就地改、可以拆开、可以只留半句 —— 这正是
+     * owner 要的（「文本自动放到输入框中」）。代价是**副本**，源节点之后再改
+     * 不会跟着变；换来的是没有第二套字面量语法要学、要维护。
+     *
+     * ⚠ 走 `insertText` 不是 `insertToken`：后者建的是原子 chip，而这里落的
+     * 就是一段可编辑的字。两者都用 `insertNodeAtCaret`（Range 直插 DOM，不改
+     * `value`），所以光标不会被扔回开头。
+     */
     const textCandidate = textNodeCandidates.find((c) => c.id === candidate.id)
     if (textCandidate) {
-      /**
-       * ⚠ 给 `insertToken` 的是**裸名字**，不是 `formatTextCapsule()` 的结果 ——
-       * `insertToken` 自己按 kind 拼前缀。喂带前缀的进去会得到 `▤▤名字`
-       * （2026-08-10 真机实测：正文里多一个裸 `▤`，且这个字面量与编辑器认的
-       * `capsuleNames` 对不上，胶囊当场退化成纯文字）。
-       */
-      promptRef.current?.insertToken(
-        normalizeTextCapsuleName(textCandidate.name),
-        'text',
-      )
+      promptRef.current?.insertText(textCandidate.preview)
       return
     }
     const node = connectableReferences.find((n) => n.id === candidate.id)

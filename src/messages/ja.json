@@ -4015,7 +4015,7 @@
         "referenceGenerateFailed": "参考音声の生成に失敗しました。再度お試しください。",
         "unsupportedAudio": "音声ファイルをアップロードしてください。",
         "uploadFailed": "参考音声のアップロードに失敗しました。",
-        "sampleGenerated": "音声サンプルを生成しました。"
+        "sampleGenerated": "音声サンプルを準備しました。"
       },
       "referenceFromAssets": "素材から選択",
       "referenceDialogTitle": "参考音声を選択",
@@ -4239,8 +4239,7 @@
       "statusPending": "素材を生成中",
       "statusSuccess": "素材を生成しました",
       "statusError": "生成に失敗しました",
-      "statusTextReady": "このテキストは下流ノードの入力になります",
-      "textCapsuleCycle": "テキスト参照「{name}」が循環しています。今回はそのままの文字として送信します。"
+      "statusTextReady": "このテキストは下流ノードの入力になります"
     },
     "videoComposer": {
       "monitor": {
@@ -4513,7 +4512,7 @@
         "surprised": "驚き"
       },
       "sampleLabel": "音声サンプル",
-      "generateSample": "サンプルを生成",
+      "generateSample": "サンプルを取得",
       "coverAlt": "音色カバー",
       "coverChange": "カバーを変更",
       "coverUpload": "音色カバーをアップロード",

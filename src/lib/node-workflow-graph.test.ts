@@ -29,7 +29,6 @@ import {
   harvestUpstreamShotTextPrompt,
   harvestUpstreamVideoImageReferences,
   harvestUpstreamVideoUrls,
-  harvestUpstreamVoiceAudioUrls,
   isKeyframeNode,
   isShotNode,
   isShotTextNode,
@@ -1120,7 +1119,7 @@ describe('harvestUpstreamImageReferences', () => {
         mediaUrl: 'https://cdn/frame.png',
       }),
       makeNode('voice', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/v.mp3',
+        voiceClipUrl: 'https://cdn/v.mp3',
       }),
       makeNode('charNoMedia', NODE_TYPE_IDS.characterImage, {
         characterName: 'NoPic',
@@ -1937,56 +1936,10 @@ describe('harvestUpstreamVideoUrls', () => {
         mediaUrl: 'https://cdn/x.png',
       }),
       makeNode('v', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/v.mp3',
+        voiceClipUrl: 'https://cdn/v.mp3',
       }),
     ]
     expect(harvestUpstreamVideoUrls(upstream)).toEqual([])
-  })
-})
-
-describe('harvestUpstreamVoiceAudioUrls', () => {
-  it('collects voiceReferenceAudioUrl from upstream voice nodes', () => {
-    const upstream = [
-      makeNode('v1', NODE_TYPE_IDS.voice, {
-        status: 'idle',
-        voiceReferenceAudioUrl: 'https://cdn/a.mp3',
-      }),
-      makeNode('v2', NODE_TYPE_IDS.voice, {
-        status: 'idle',
-        voiceReferenceAudioUrl: 'https://cdn/b.mp3',
-      }),
-    ]
-    expect(harvestUpstreamVoiceAudioUrls(upstream)).toEqual([
-      'https://cdn/a.mp3',
-      'https://cdn/b.mp3',
-    ])
-  })
-
-  it('skips voice nodes without an audio URL and deduplicates', () => {
-    const upstream = [
-      makeNode('v1', NODE_TYPE_IDS.voice, { status: 'idle' }),
-      makeNode('v2', NODE_TYPE_IDS.voice, {
-        status: 'idle',
-        voiceReferenceAudioUrl: '  https://cdn/a.mp3  ',
-      }),
-      makeNode('v3', NODE_TYPE_IDS.voice, {
-        status: 'idle',
-        voiceReferenceAudioUrl: 'https://cdn/a.mp3',
-      }),
-    ]
-    expect(harvestUpstreamVoiceAudioUrls(upstream)).toEqual([
-      'https://cdn/a.mp3',
-    ])
-  })
-
-  it('ignores non-voice upstream', () => {
-    const upstream = [
-      makeNode('img', NODE_TYPE_IDS.frameImage, {
-        status: 'idle',
-        mediaUrl: 'https://cdn/x.png',
-      }),
-    ]
-    expect(harvestUpstreamVoiceAudioUrls(upstream)).toEqual([])
   })
 })
 
@@ -2024,10 +1977,45 @@ describe('harvestUpstreamShotTextPrompt', () => {
     const upstream = [
       makeNode('v', NODE_TYPE_IDS.voice, {
         status: 'idle',
-        voiceReferenceAudioUrl: 'https://cdn/v.mp3',
+        voiceClipUrl: 'https://cdn/v.mp3',
       }),
     ]
     expect(harvestUpstreamShotTextPrompt(upstream)).toBe('')
+  })
+
+  /**
+   * ⚠ 2026-08-10 真机实拍：同一段话在最终提示词里出现了**两遍**。文本引用改成
+   * 「把内容原文粘进输入框」之后，一个文本节点可以同时以两种方式进请求 ——
+   * 一条边（自动前置）+ 用户手动粘进去的那一段。胶囊时代挡这件事的是
+   * `expandedNames`，胶囊退役后换成这条「正文里已经有就不再前置」。
+   */
+  it('正文里已经逐字含着这一段时，不再前置（否则同一段发两遍）', () => {
+    const upstream = [
+      makeNode('s1', NODE_TYPE_IDS.shotText, {
+        status: 'idle',
+        scene: 'rooftop, dusk',
+      }),
+      makeNode('s2', NODE_TYPE_IDS.shotText, {
+        status: 'idle',
+        scene: 'forest',
+      }),
+    ]
+
+    // 用户把第一段粘进了正文 —— 它不该再被前置一次；没粘的第二段照旧前置。
+    expect(
+      harvestUpstreamShotTextPrompt(upstream, '前半句。rooftop, dusk 后半句。'),
+    ).toBe('forest')
+  })
+
+  it('没给正文时行为与从前逐字一致（既有调用方零影响）', () => {
+    const upstream = [
+      makeNode('s1', NODE_TYPE_IDS.shotText, {
+        status: 'idle',
+        scene: 'rooftop, dusk',
+      }),
+    ]
+    expect(harvestUpstreamShotTextPrompt(upstream)).toBe('rooftop, dusk')
+    expect(harvestUpstreamShotTextPrompt(upstream, '')).toBe('rooftop, dusk')
   })
 })
 
@@ -2059,7 +2047,7 @@ describe('harvestUpstreamAudioBindings', () => {
           generationId: 'audio-generation-1',
           role: 'speech',
         },
-        voiceReferenceAudioUrl: 'https://cdn/donor.mp3',
+        voiceClipUrl: 'https://cdn/donor.mp3',
       }),
       makeNode('seedance', NODE_TYPE_IDS.seedance),
     ]
@@ -2077,7 +2065,7 @@ describe('harvestUpstreamAudioBindings', () => {
   it('attaches character names to voices routed through a character node', () => {
     const nodes = [
       makeNode('voiceA', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/voice-a.mp3',
+        voiceClipUrl: 'https://cdn/voice-a.mp3',
       }),
       makeNode('charA', NODE_TYPE_IDS.characterImage, {
         characterName: 'Alice',
@@ -2100,7 +2088,7 @@ describe('harvestUpstreamAudioBindings', () => {
   it('emits unbound voices when wired directly to the focal node', () => {
     const nodes = [
       makeNode('voiceA', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/voice-a.mp3',
+        voiceClipUrl: 'https://cdn/voice-a.mp3',
       }),
       makeNode('seedance', NODE_TYPE_IDS.seedance),
     ]
@@ -2113,10 +2101,10 @@ describe('harvestUpstreamAudioBindings', () => {
   it('binds multiple characters to their respective voices', () => {
     const nodes = [
       makeNode('voiceA', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/voice-a.mp3',
+        voiceClipUrl: 'https://cdn/voice-a.mp3',
       }),
       makeNode('voiceB', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/voice-b.mp3',
+        voiceClipUrl: 'https://cdn/voice-b.mp3',
       }),
       makeNode('charA', NODE_TYPE_IDS.characterImage, {
         characterName: 'Alice',
@@ -2149,7 +2137,7 @@ describe('harvestUpstreamAudioBindings', () => {
   it('deduplicates the same voice URL appearing on multiple paths', () => {
     const nodes = [
       makeNode('voice', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+        voiceClipUrl: 'https://cdn/voice.mp3',
       }),
       makeNode('char', NODE_TYPE_IDS.characterImage, {
         characterName: 'Alice',
@@ -2190,12 +2178,12 @@ describe('harvestUpstreamAudioBindings', () => {
   // 系统音色送不出声（2026-08-09 修）：Fish 音色库选出来的音色只有 `voiceId` +
   // `voiceSampleUrl`，此前这里回空数组 —— 用户接了音色、界面也显示接上了，
   // 最终 `audio_urls` 却是空的，且不进任何提示。
-  it('emits a binding for a SYSTEM voice that only carries voiceSampleUrl', () => {
+  it('emits a binding for a SYSTEM voice that only carries a library clip', () => {
     const nodes = [
       makeNode('voice', NODE_TYPE_IDS.voice, {
         voiceId: 'sys-tender',
         voiceName: '温柔女声',
-        voiceSampleUrl: 'https://cdn/sample.mp3',
+        voiceClipUrl: 'https://cdn/sample.mp3',
       }),
       makeNode('seedance', NODE_TYPE_IDS.seedance),
     ]
@@ -2205,27 +2193,15 @@ describe('harvestUpstreamAudioBindings', () => {
     ])
   })
 
-  // 取值顺序：样本是**最后**一档。用户自己上传/生成的参考音频永远优于一段
-  // 固定文本的系统样本 —— 两个字段都有值时不能挑错。
-  it('prefers the user reference audio over the system sample', () => {
-    const nodes = [
-      makeNode('voice', NODE_TYPE_IDS.voice, {
-        voiceId: 'sys-tender',
-        voiceSampleUrl: 'https://cdn/sample.mp3',
-        voiceReferenceAudioUrl: 'https://cdn/mine.mp3',
-      }),
-      makeNode('seedance', NODE_TYPE_IDS.seedance),
-    ]
-    const edges = [makeEdge('e1', 'voice', 'seedance')]
-    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
-      { url: 'https://cdn/mine.mp3', nodeId: 'voice' },
-    ])
-  })
+  // ⚠ 这里原本有一条「上传的参考音频优先于系统样本」—— 2026-08-10 字段收敛后
+  // 那两个字段合成了一个 `voiceClipUrl`，收割层已经无从「挑错」，这条测试的前提
+  // 不存在了。优先级问题整体搬进了迁移（老节点两个字段都有值时取哪个），
+  // 由 `node-workflow-migrate-voice-clip.test.ts` 守着。
 
   it('uses character.name fallback when characterName is missing', () => {
     const nodes = [
       makeNode('voice', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/v.mp3',
+        voiceClipUrl: 'https://cdn/v.mp3',
       }),
       makeNode('char', NODE_TYPE_IDS.characterImage, {
         character: {
@@ -2248,7 +2224,7 @@ describe('harvestUpstreamAudioBindings', () => {
   it('carries the voice cover image through for the token thumbnail (§8.2)', () => {
     const nodes = [
       makeNode('voice', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/v.mp3',
+        voiceClipUrl: 'https://cdn/v.mp3',
         voiceCoverImage: 'https://cdn/voice-cover.png',
       }),
       makeNode('seedance', NODE_TYPE_IDS.seedance),
@@ -2266,7 +2242,7 @@ describe('harvestUpstreamAudioBindings', () => {
   it('prefers the reference-audio cover over the system voice cover', () => {
     const nodes = [
       makeNode('voice', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/v.mp3',
+        voiceClipUrl: 'https://cdn/v.mp3',
         voiceCoverImage: 'https://cdn/system-cover.png',
         voiceReferenceCoverImage: 'https://cdn/reference-cover.png',
       }),
@@ -2298,7 +2274,7 @@ describe('summarizeUpstreamSeedanceReferences', () => {
         mediaUrl: 'https://cdn/clip.mp4',
       }),
       makeNode('voice', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+        voiceClipUrl: 'https://cdn/voice.mp3',
       }),
     ]
     const edges = [
@@ -2330,7 +2306,7 @@ describe('summarizeUpstreamSeedanceReferences', () => {
     const nodes = [
       makeNode('seedance', NODE_TYPE_IDS.seedance),
       makeNode('voice', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+        voiceClipUrl: 'https://cdn/voice.mp3',
       }),
     ]
     const edges = [makeEdge('e1', 'voice', 'seedance')]

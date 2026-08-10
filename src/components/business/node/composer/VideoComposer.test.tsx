@@ -107,7 +107,10 @@ const { composerState } = vi.hoisted(() => ({
     }>,
     referencedTokenIds: new Set<string>(),
     /** 画布上有名字的文本节点 —— `@` 菜单里的文本候选（阶段 4 胶囊）。 */
-    textNodes: [] as Array<{ id: string; name: string }>,
+    // ⚠ 形状要跟 `use-video-composer` 的返回**逐字段对齐**：漏一个字段整文件
+    // 40+ 条会集体崩（本会话已栽过三次）。`text` 是 2026-08-10 加的 —— 文本候选
+    // 点下去粘的就是它。
+    textNodes: [] as Array<{ id: string; name: string; text: string }>,
     /** 模式档位的可用性判据 = 这一档有没有模型（owner 2026-08-10）。默认空表
      *  示三档全无模型 → 全部置灰，正是「无可用模型」那条用例要的状态。 */
     options: [] as Array<{ modelId: string; adapterType?: string }>,
@@ -515,7 +518,7 @@ describe('VideoComposer compact sidecar', () => {
     for (const assetField of [
       'referenceImages',
       'referenceVideoUrl',
-      'voiceReferenceAudioUrl',
+      'voiceClipUrl',
       'audioClip',
     ]) {
       expect(patch).not.toHaveProperty(assetField)
@@ -1490,8 +1493,16 @@ describe('VideoComposer · 文本节点进 @ 菜单，落法按物种（阶段 4
     data: {},
   }
 
-  it('选中文本候选 → 插 ▤ 胶囊（**单前缀**），且不连线', () => {
-    composerState.textNodes = [{ id: 'text-1', name: '开场设定' }]
+  /**
+   * ⚠ **策略反转，不是测试坏了。** 这条原本断言「插 `▤开场设定` 胶囊」。
+   * owner 2026-08-10 真机试完当场推翻：他要的一直是「文本自动放到输入框中」，
+   * 胶囊那层间接（引用 + 字面量 + 展开 + 成环检测）他不需要。现在是**粘原文**，
+   * 粘完就是可以接着改的普通文字，`▤` 整套已从仓库删除。
+   */
+  it('选中文本候选 → 把**内容原文**粘进正文，不留占位符、不连线', () => {
+    composerState.textNodes = [
+      { id: 'text-1', name: '开场设定', text: '深夜便利店的吧台，凌晨1点' },
+    ]
     listConnectableReferences.mockReturnValue([])
     const { container } = renderCompact()
 
@@ -1501,20 +1512,65 @@ describe('VideoComposer · 文本节点进 @ 菜单，落法按物种（阶段 4
     typeMention(editor, '@开')
     fireEvent.click(screen.getByRole('option', { name: /开场设定/ }))
 
-    /**
-     * ⚠ 守的是**单前缀**。此前这里传的是 `formatTextCapsule(name)`（已带 `▤`）
-     * 给同样会拼前缀的 `insertToken`，真机得到 `▤▤开场设定` —— 发送时展开后正文
-     * 残留一个裸 `▤`，编辑器也不再认它是胶囊。
-     */
-    expect(editor.textContent).toContain('▤开场设定')
-    expect(editor.textContent).not.toContain('▤▤')
-    // 「一个菜单两种落法」：素材连线、文本插胶囊。文本走 connectReferenceNode
-    // 的话会凭空多一条边，而胶囊的前提正是**不需要连线**。
+    expect(editor.textContent).toContain('深夜便利店的吧台，凌晨1点')
+    // 粘的是原文，不是名字、也不是任何前缀形式。
+    expect(editor.textContent).not.toContain('开场设定▤')
+    expect(editor.textContent).not.toContain('▤')
+    expect(editor.textContent).not.toContain('@开场设定')
+    // 「一个菜单两种落法」：素材连线，文本粘字。文本走 connectReferenceNode
+    // 的话会凭空多一条边 —— 而粘一段字根本不需要关系。
     expect(connectReferenceNode).not.toHaveBeenCalled()
   })
 
+  it('hover / 高亮到文本候选时摊开内容预览（点之前先看得见倒进来的是什么）', () => {
+    composerState.textNodes = [
+      { id: 'text-1', name: '开场设定', text: '深夜便利店的吧台，凌晨1点' },
+    ]
+    listConnectableReferences.mockReturnValue([])
+    const { container } = renderCompact()
+
+    const editor = container.querySelector<HTMLElement>(
+      '[contenteditable="true"]',
+    )!
+    typeMention(editor, '@开')
+
+    // 第一条默认高亮 —— 预览就在它自己那一行里，不另开浮层。
+    expect(
+      screen.getByRole('option', { name: /深夜便利店的吧台/ }),
+    ).toBeInTheDocument()
+  })
+
+  /**
+   * ⚠ owner 2026-08-10 实拍：槽里正好 8 个素材（= 菜单一次显示的上限），空 `@`
+   * 打开菜单**八条全是已引用的素材，文本候选一条不见**。当时的回答是「靠打字收窄」
+   * —— 那句话在这里不成立，因为它要求用户**先知道有这个东西**。
+   * 名额改成按族分之后，文本这一族至少保得住一个位。
+   */
+  it('槽里素材占满菜单上限时，文本候选仍然露得出来', () => {
+    composerState.textNodes = [
+      { id: 'text-1', name: '开场设定', text: '深夜便利店的吧台，凌晨1点' },
+    ]
+    composerState.referenceTokens = Array.from({ length: 8 }, (_, i) => ({
+      id: `ref-${i}`,
+      kind: 'shot',
+      label: `镜头${i}`,
+      token: `@镜头${i}`,
+    })) as typeof composerState.referenceTokens
+    listConnectableReferences.mockReturnValue([])
+    const { container } = renderCompact()
+
+    const editor = container.querySelector<HTMLElement>(
+      '[contenteditable="true"]',
+    )!
+    typeMention(editor, '@')
+
+    expect(screen.getByRole('option', { name: /开场设定/ })).toBeInTheDocument()
+  })
+
   it('同一个文本节点在菜单里只出现一次（它也是合法上游）', () => {
-    composerState.textNodes = [{ id: 'text-1', name: '开场设定' }]
+    composerState.textNodes = [
+      { id: 'text-1', name: '开场设定', text: '深夜便利店的吧台，凌晨1点' },
+    ]
     // 文本节点同时是 `listConnectableReferences` 的合法上游（连线喂 upstreamText
     // 那条老机制还在）—— 不去重就会出现两行一样的候选 + React duplicate key。
     listConnectableReferences.mockReturnValue([textNode])

@@ -19,7 +19,10 @@ import {
   buildVideoSendPreview,
   type VideoSendPreview,
 } from '@/lib/node-video-send-preview'
-import { getNodeWorkflowFieldValue } from '@/lib/node-workflow-prompt'
+import {
+  buildNodeWorkflowPrompt,
+  getNodeWorkflowFieldValue,
+} from '@/lib/node-workflow-prompt'
 import {
   getEdgeStageOverrideUrls,
   getNodeMediaUrl,
@@ -648,9 +651,15 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   )
 
   /**
-   * 画布上全部**有名字的文本节点** —— `@` 菜单里的文本候选（阶段 4）。
-   * ⚠ 不过「可连」过滤：胶囊是**引用**不是连线，全图的文本节点都能引，这正是
-   * 「位置即拼接顺序」能成立的前提（连线表达不了「放在句子的哪儿」）。
+   * 画布上全部**有名字、有内容**的文本节点 —— `@` 菜单里的文本候选。
+   *
+   * ⚠ 不过「可连」过滤：菜单问的是「我能把谁的文字粘进来」，不是「我能连谁」。
+   * 全图的文本节点都能粘，连不连线是另一回事。
+   *
+   * `text` 是四字段（场景/动作/镜头/构图）拼成的那一段 —— 与发送时前置进提示词的
+   * 是**同一个 `buildNodeWorkflowPrompt`**，所以「预览里看到的」「粘进去的」
+   * 「模型收到的」是同一份字，中间没有第二套拼法。
+   * ⚠ 没内容的不进表：粘一段空字符串是纯噪音，菜单里也没什么可预览。
    */
   const textNodes = useMemo(
     () =>
@@ -659,8 +668,9 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
         .map((node) => ({
           id: node.id,
           name: resolveNodeDisplayName(node.data)?.trim() ?? '',
+          text: buildNodeWorkflowPrompt(node.type, node.data).trim(),
         }))
-        .filter((entry) => entry.name.length > 0),
+        .filter((entry) => entry.name.length > 0 && entry.text.length > 0),
     [nodes],
   )
 

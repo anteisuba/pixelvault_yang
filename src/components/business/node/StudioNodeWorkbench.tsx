@@ -53,6 +53,7 @@ import {
   NODE_STUDIO_REFERENCE_SOURCE_IDS,
   NODE_STUDIO_TOOL_MODE_IDS,
   NODE_STUDIO_VIDEO_REFERENCE_LEGEND,
+  NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
 import {
@@ -140,11 +141,12 @@ import {
   harvestUpstreamCloseupUrls,
   harvestUpstreamImageReferences,
   harvestUpstreamImageUrls,
-  collectTextNodeEntries,
+  harvestUpstreamShotTextPrompt,
   harvestUpstreamVideoImageReferences,
   harvestUpstreamVideoUrls,
   getSeedanceReferenceKind,
   isShotNode,
+  mergePromptWithUpstreamText,
   summarizeUpstreamSeedanceReferences,
   type UpstreamImageReference,
   type VideoLegendImageReference,
@@ -156,7 +158,6 @@ import {
 import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
 import { assembleReferenceImagePayload } from '@/lib/node-reference-payload'
 import { planVideoKeyframeImages } from '@/lib/node-video-keyframe-plan'
-import { composePromptWithTextNodes } from '@/lib/node-text-capsule'
 import {
   resolveIngestCapacity,
   resolveSpawnCapacity,
@@ -1285,13 +1286,18 @@ function StudioNodeCanvas() {
           ? getUpstreamNodes(nodeId, workflow.edges, workflow.nodes)
           : []
       /**
-       * 阶段 4「位置即拼接顺序」：文本改由**正文里的 `▤` 胶囊**决定落在哪，
-       * 只有没被引用的上游文本才前置。⚠ 门仍只对视频节点开（图片收割读上游
-       * 文本是阶段 4 后半的**新能力**，不在这一片里提前打开）。
+       * 上游文本前置。⚠ 门仍只对视频节点开（图片收割读上游文本是阶段 4 后半的
+       * **新能力**，不在这一片里提前打开）。
+       *
+       * ⚠ 2026-08-10 **胶囊整套退役**（owner 拍板，见契约 §5.2）：文本改成
+       * 「`@` 菜单里点一下，把内容原文粘进输入框」—— 位置由用户粘在哪决定，
+       * 不再需要一个引用占位符，也就不再需要「按位置展开」这条链路。
+       * 这里回到既有的 `harvestUpstreamShotTextPrompt` + `mergePromptWithUpstreamText`，
+       * 那两个函数一直都在（当初被上位替代时**没删**），所以是回位不是重写。
        */
-      const upstreamTexts = isVideoMediaNode
-        ? collectTextNodeEntries(upstreamNodes)
-        : []
+      const upstreamTextPrompt = isVideoMediaNode
+        ? harvestUpstreamShotTextPrompt(upstreamNodes, ownPrompt)
+        : ''
       // image_urls = direct visual refs (keyframes → character/background/shot)
       // then 1-hop closeups (§9 B): a character's face-detail images ride behind
       // it. Same order the composer's payloadImageUrls computes, so the 图N /
@@ -1377,19 +1383,10 @@ function StudioNodeCanvas() {
         )
       }
 
-      const { prompt: mergedPrompt, cycleNames } = composePromptWithTextNodes({
+      const mergedPrompt = mergePromptWithUpstreamText(
         ownPrompt,
-        upstreamTexts,
-        allTexts: collectTextNodeEntries(workflow.nodes),
-      })
-      // 成环的引用**说出来**再继续发（契约「不许静默」）：环上那一处在正文里
-      // 保持 `▤名字` 字面量，其余照常展开 —— 用户看得见是哪一个引用没生效。
-      if (cycleNames.length > 0) {
-        toast.info(t('mediaNodes.textCapsuleCycle', { name: cycleNames[0] }), {
-          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
-          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
-        })
-      }
+        upstreamTextPrompt,
+      )
 
       if (!mergedPrompt) {
         toast.info(t('mediaNodes.noPrompt'), {
@@ -2395,7 +2392,8 @@ function StudioNodeCanvas() {
         })
       } else if (input.nodeType === NODE_TYPE_IDS.voice) {
         workflow.updateNodeData(newId, {
-          voiceReferenceAudioUrl: input.media.url,
+          voiceClipUrl: input.media.url,
+          voiceClipSource: NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.uploaded,
           status: NODE_STATUS_IDS.done,
           ...(name ? { [NODE_WORKFLOW_FIELD_IDS.voiceName]: name } : {}),
         })

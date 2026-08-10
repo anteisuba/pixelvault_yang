@@ -4015,7 +4015,7 @@
         "referenceGenerateFailed": "参考音频生成失败，请稍后重试。",
         "unsupportedAudio": "请上传音频文件。",
         "uploadFailed": "参考音频上传失败。",
-        "sampleGenerated": "代表音频已生成。"
+        "sampleGenerated": "试听音频已就绪。"
       },
       "referenceFromAssets": "从素材选择",
       "referenceDialogTitle": "选择参考音频",
@@ -4239,8 +4239,7 @@
       "statusPending": "正在生成素材",
       "statusSuccess": "素材已生成",
       "statusError": "生成失败",
-      "statusTextReady": "文本会作为下游节点输入",
-      "textCapsuleCycle": "文本引用「{name}」形成了循环，本次按字面文字发送。"
+      "statusTextReady": "文本会作为下游节点输入"
     },
     "videoComposer": {
       "monitor": {
@@ -4513,7 +4512,7 @@
         "surprised": "惊讶"
       },
       "sampleLabel": "代表音频",
-      "generateSample": "生成试听",
+      "generateSample": "获取试听",
       "coverAlt": "音色封面",
       "coverChange": "更换封面",
       "coverUpload": "上传音色封面",

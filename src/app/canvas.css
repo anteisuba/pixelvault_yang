@@ -1159,6 +1159,8 @@
   z-index: var(--z-index-canvas-transient);
   display: flex;
   min-width: 180px;
+  /* ⚠ 改这个数要同步 `MentionInput.tsx` 的 `MENTION_POPOVER_MAX_W` —— 那边靠它
+     把浮层夹回视口内，对不上就会夹过头或夹不住。 */
   max-width: 280px;
   flex-direction: column;
   gap: 2px;
@@ -1169,11 +1171,13 @@
   box-shadow: var(--shadow-node-panel);
 }
 
+/* ⚠ 行内从 flex-row 改成 column：高亮那一条要在名字下面再展开一段内容预览
+   （文本节点点下去是把原文倒进正文，不先看一眼等于闭着眼倒）。名字与类型标签
+   自己在一个 row 里，所以横向排布没变。 */
 .canvas-mention-popover button {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
   padding: 6px 8px;
   border-radius: 8px;
   color: var(--node-foreground);
@@ -1190,6 +1194,19 @@
   flex-shrink: 0;
   color: var(--node-muted);
   font-size: 11px;
+}
+
+/* 内容预览：最多三行，超出省略。**不做滚动** —— 这里是「够不够我判断要不要点」，
+   不是阅读器；真要通读该去那个节点自己的卡面。 */
+.canvas-mention-popover-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--node-muted);
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .domain-canvas .canvas-video-composer-mode {

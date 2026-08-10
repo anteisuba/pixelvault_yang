@@ -23,7 +23,6 @@ import type { SeedancePromptPlanReferences } from '@/types/seedance-prompt-plan'
 
 import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
 import { resolveNodeDisplayName } from './node-display-name'
-import type { TextNodeEntry } from './node-text-capsule'
 import {
   isMediaApprovedForDownstream,
   resolveMediaReviewState,
@@ -1008,29 +1007,6 @@ export function harvestUpstreamVideoUrls(
 }
 
 /**
- * Harvest reference-audio URLs from upstream voice nodes. Voice nodes provide
- * a `voiceReferenceAudioUrl` once the user generates a TTS sample (or uploads
- * one). Empty entries are dropped, duplicates collapsed.
- */
-export function harvestUpstreamVoiceAudioUrls(
-  upstreamNodes: readonly NodeWorkflowNode[],
-): string[] {
-  const result: string[] = []
-
-  for (const node of upstreamNodes) {
-    if (!isVoiceProfileNode(node)) continue
-    const url =
-      typeof node.data.voiceReferenceAudioUrl === 'string'
-        ? node.data.voiceReferenceAudioUrl.trim()
-        : ''
-    if (!url) continue
-    pushUnique(result, url)
-  }
-
-  return result
-}
-
-/**
  * A reference-audio clip plus optional binding info — the character name
  * the voice belongs to, when the user wired the voice node through a
  * character node instead of directly into Seedance. The Seedance Reference
@@ -1075,14 +1051,16 @@ function readCharacterName(node: NodeWorkflowNode): string | undefined {
 /**
  * 这个音色节点能拿出来发的那一条音频 URL。
  *
- * 取值顺序 = 「谁更像用户要的那段声音」：
- *   1. `audioClip.url` —— 已经成品的音频片段
- *   2. `voiceReferenceAudioUrl` —— 用户自己上传/生成的参考音频
- *   3. `voiceSampleUrl` —— 系统音色的样本
+ * 取值顺序（2026-08-10 字段收敛后只剩两档）：
+ *   1. `audioClip.url` —— 音频族的成品片段（`isAudioMediaNode` 的产出，不是音色节点
+ *      自己的字段，所以它单独一档）
+ *   2. `voiceClipUrl` —— **这个节点交付的那段参考语音**，三种来源共用一个字段
  *
- * ⚠ 第 3 档是 2026-08-09 补上的，此前**整条系统音色支线送不出声**：只选了
- * Fish 音色库里的音色（`voiceId` + `voiceSampleUrl`，没有 `voiceReferenceAudioUrl`）
- * 的节点接进视频，`harvestUpstreamAudioBindings` 回空数组，最终 `audio_urls` 为空。
+ * ⚠ 收敛之前这里是三档（`audioClip` > `voiceReferenceAudioUrl` > `voiceSampleUrl`），
+ * 同一个事实分散在两个字段上，每个读的地方各写各的链 —— 收割层就漏了系统音色那一档，
+ * 导致整条支线送不出声（2026-08-09 补的第 3 档）；卡面又另写一条「有 voiceId 就 ready」，
+ * 导致绿灯却发不出去（2026-08-10）。域定义见
+ * `docs/references/pages/canvas-voice-card.md` §0.5：一个产物、一个字段、一个判据。
  *
  * 「样本能不能当配音素材发」不是这里现拍的，三处既有事实早就答了「能」：
  *   · `NODE_STUDIO_VOICE_PROFILE.referenceSampleText` 的注释写明这段样本按
@@ -1099,31 +1077,41 @@ function readCharacterName(node: NodeWorkflowNode): string | undefined {
  */
 export function readVoiceUrl(node: NodeWorkflowNode): string | undefined {
   if (!isVoiceProfileNode(node)) return undefined
+  return readVoiceUrlFromData(node.data)
+}
+
+/**
+ * 同一条取值链的 data 版本。给「手上只有 `data`、没有整个 node」的 UI 用
+ * （卡面 `VoiceNode` 的 status、详情面板 `VoiceDetailBody` 的 status）。
+ *
+ * ⚠ 存在的理由就是**不许再出现第二条链**：这个域反复栽在「同一个事实各写各的」
+ * 上 —— 收割层曾漏掉 `voiceSampleUrl` 整条系统音色支线送不出声（2026-08-09 才
+ * 补上第 3 档），卡面又用「有 voiceId 就算 ready」自成一套，于是卡面说 ready、
+ * 实际发不出去。判「能不能发」的地方一律走这里。
+ */
+export function readVoiceUrlFromData(
+  data: NodeWorkflowNodeData,
+): string | undefined {
   const audioClipUrl =
-    node.data.audioClip && typeof node.data.audioClip === 'object'
-      ? (node.data.audioClip as { url?: unknown }).url
+    data.audioClip && typeof data.audioClip === 'object'
+      ? (data.audioClip as { url?: unknown }).url
       : undefined
   if (typeof audioClipUrl === 'string' && audioClipUrl.trim()) {
     return audioClipUrl.trim()
   }
-  const referenceUrl =
-    typeof node.data.voiceReferenceAudioUrl === 'string'
-      ? node.data.voiceReferenceAudioUrl.trim()
-      : ''
-  if (referenceUrl) return referenceUrl
-  const sampleUrl =
-    typeof node.data.voiceSampleUrl === 'string'
-      ? node.data.voiceSampleUrl.trim()
-      : ''
-  return sampleUrl || undefined
+  const clipUrl =
+    typeof data.voiceClipUrl === 'string' ? data.voiceClipUrl.trim() : ''
+  return clipUrl || undefined
 }
 
 function getAudioBindingSourceKind(
   node: NodeWorkflowNode,
 ): AudioBinding['sourceKind'] {
+  // ⚠ 判据必须与 `readVoiceUrlFromData` 的两档一一对应 —— 它取哪一档，这里就报哪一种。
+  // 此前这里只认 `voiceReferenceAudioUrl`，于是能发声的系统音色被标成 undefined。
   return node.data.audioClip && typeof node.data.audioClip === 'object'
     ? 'audio-clip'
-    : node.data.voiceReferenceAudioUrl
+    : node.data.voiceClipUrl
       ? 'voice-profile'
       : undefined
 }
@@ -1210,43 +1198,32 @@ export function harvestUpstreamAudioBindings(
  * Each shotText contributes its own scene/action/camera/composition stack via
  * `buildNodeWorkflowPrompt`. Multiple shotTexts are separated by a blank line
  * so downstream models see them as distinct beats.
+ *
+ * ⚠ **正文里已经有的那一段就不再前置**（`ownPrompt`）。2026-08-10 owner 把文本
+ * 引用定成「`@` 菜单点一下，把内容原文粘进输入框」之后，同一个文本节点可以同时
+ * 以两种方式进请求：一条边（自动前置）+ 一段用户手动粘进去的原文。真机实拍到
+ * 的后果是**最终提示词里同一段话出现两遍**。
+ *
+ * 判据是「正文里逐字包含这一段」而不是「有没有连线」—— 连线仍然是有意义的
+ * （用户没粘的时候它照旧供文本），只有**重复**才该压掉。胶囊时代这道闸叫
+ * `expandedNames`，粘原文之后换成这条。
  */
 export function harvestUpstreamShotTextPrompt(
   upstreamNodes: readonly NodeWorkflowNode[],
+  ownPrompt = '',
 ): string {
   const chunks: string[] = []
+  const body = ownPrompt.trim()
 
   for (const node of upstreamNodes) {
     if (!isShotTextNode(node)) continue
     const chunk = buildNodeWorkflowPrompt(node.type, node.data).trim()
     if (!chunk) continue
+    if (body && body.includes(chunk)) continue
     chunks.push(chunk)
   }
 
   return chunks.join('\n\n')
-}
-
-/**
- * 把文本节点整理成「名字 → 正文」的条目，供正文引用胶囊解析
- * （`lib/node-text-capsule` 的 `composePromptWithTextNodes`）。
- *
- * ⚠ 名字取 `resolveNodeDisplayName`，与画布上、槽架里、`@` 菜单里显示的**是同
- * 一个名字** —— 用户在菜单里看到什么就该在正文里写什么，中间不许有第二套命名。
- * 没名字的节点不进表：一个空名会撞成万能匹配。
- */
-export function collectTextNodeEntries(
-  nodes: readonly NodeWorkflowNode[],
-): TextNodeEntry[] {
-  const out: TextNodeEntry[] = []
-  for (const node of nodes) {
-    if (!isShotTextNode(node)) continue
-    const name = resolveNodeDisplayName(node.data)?.trim()
-    if (!name) continue
-    const text = buildNodeWorkflowPrompt(node.type, node.data).trim()
-    if (!text) continue
-    out.push({ name, text })
-  }
-  return out
 }
 
 /**

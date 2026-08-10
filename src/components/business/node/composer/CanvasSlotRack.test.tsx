@@ -411,3 +411,45 @@ describe('CanvasSlotRack · 发不出去要说为什么（阶段 5）', () => {
     expect(screen.getByTitle(/^notSendingOverflow/)).toBeInTheDocument()
   })
 })
+
+describe('CanvasSlotRack · 持有 ≠ 本次发送时两个口径都说（契约 §4.8）', () => {
+  it('⚠ 真机回归：挂了一条发不出去的，折起时不能只显示「持有」那个数', () => {
+    /**
+     * 阶段 5 真机抓到的：连了一个还没配音频的音色节点，摘要行显示「音 1」、
+     * 槽位淡出、实际发送 0 条。淡出只在**展开到第三级**才看得见 —— 折起时
+     * 用户读到的只有那个 1，于是「挂了 = 会发」这个误解在最外层原样成立。
+     */
+    render(
+      <CanvasSlotRack
+        tokens={[
+          token('c1', 'character'),
+          {
+            id: 'v1',
+            kind: 'voice',
+            label: '旁白',
+            token: '',
+            dimmed: true,
+          } as ComposerReferenceToken,
+        ]}
+        slotLimits={FULL}
+        defaultExpanded={false}
+      />,
+    )
+    expect(
+      screen.getByText('heldVsSending:{"held":2,"sending":1}'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^total:/)).not.toBeInTheDocument()
+  })
+
+  it('全都发得出去时只说一个数 —— 多说一遍就是噪音', () => {
+    render(
+      <CanvasSlotRack
+        tokens={[token('c1', 'character')]}
+        slotLimits={FULL}
+        defaultExpanded={false}
+      />,
+    )
+    expect(screen.getByText('total:{"held":1,"total":15}')).toBeInTheDocument()
+    expect(screen.queryByText(/^heldVsSending:/)).not.toBeInTheDocument()
+  })
+})

@@ -3879,7 +3879,8 @@
       "voiceBound": {
         "namedVoice": "🎙 音色をバインド：{voiceName}（動画生成時に @AudioN にキャラクター名が付きます）",
         "unnamed": "🎙 上流から音色をバインド（動画生成時に @AudioN にキャラクター名が付きます）",
-        "remove": "音色のバインドを解除"
+        "remove": "音色のバインドを解除",
+        "notReady": "🎙 {voiceName} をバインド済み · 送信できる音声がまだありません"
       },
       "promptLabel": "キャラクター画像プロンプト",
       "promptPlaceholder": "外見、衣装、ムード、スタイルを記述...",
@@ -4335,7 +4336,8 @@
         "slotHint": "{name} · クリックでプロンプトに引用、ダブルクリックでノードにフォーカス",
         "remove": "{name} を外す（接続を切断、ノードは残ります）",
         "notSendingOverflow": "{name} · 今回は送信されません（上限超過）",
-        "notSendingUnready": "{name} · 今回は送信されません（音声が未設定）"
+        "notSendingUnready": "{name} · 今回は送信されません（音声が未設定）",
+        "heldVsSending": "保持 {held} · 送信 {sending}"
       },
       "references": {
         "label": "引用済み",
@@ -4491,7 +4493,8 @@
       "fieldTrim": "トリム",
       "fieldRoute": "ルート",
       "fieldFile": "ファイル",
-      "fieldConstraints": "フォーマット制限"
+      "fieldConstraints": "フォーマット制限",
+      "valueBoundNotReady": "バインド済み · 送信可能な音声なし"
     },
     "voiceDetail": {
       "paramsLabel": "基本調整",

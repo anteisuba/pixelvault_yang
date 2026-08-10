@@ -195,6 +195,20 @@ export function CanvasSlotRack({
   const visibleZones = counts.filter((entry) => entry.limit > 0)
   const held = tokens.length
   const total = slotLimits.images + slotLimits.videos + slotLimits.audio
+  /**
+   * 契约 §4.8「**两个口径在同一行说清**」—— 挂着的条数与这次真会发出去的条数
+   * 不是一回事，不一致时摘要行必须两个都说。
+   *
+   * ⚠ 这是阶段 5 真机验出来的：连了一个还没配音频的音色节点，摘要行显示
+   * 「音 1」、槽位淡出、而实际发送 0 条。淡出只在**展开到第三级**才看得见，
+   * 折起时用户读到的只有那个 1 —— 于是「挂了 = 会发」这个误解在最外层原样成立。
+   * 契约里这条本来就写着（原文举的是切到关键帧后「持有 12 · 本次发送 2」），
+   * 只是一直没实现。
+   */
+  const sending = tokens.filter(
+    (token) =>
+      !token.dimmed && !(token.mediaUrl && unsendableUrls?.has(token.mediaUrl)),
+  ).length
 
   function toggleZone(zone: SlotZoneId) {
     setOpenZones((current) => {
@@ -223,7 +237,10 @@ export function CanvasSlotRack({
             .join(' · ')}
         </span>
         <span className="shrink-0 tabular-nums text-node-subtle">
-          {t('total', { held, total })}
+          {/* 一致时只说一个数（多说一遍就是噪音）；不一致时两个口径都说。 */}
+          {sending === held
+            ? t('total', { held, total })
+            : t('heldVsSending', { held, sending })}
         </span>
         <ChevronDown
           className={cn(

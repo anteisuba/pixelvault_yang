@@ -3879,7 +3879,8 @@
       "voiceBound": {
         "namedVoice": "🎙 Voice bound: {voiceName} (will label the @AudioN slot in the video prompt)",
         "unnamed": "🎙 Voice bound from upstream (will label the @AudioN slot in the video prompt)",
-        "remove": "Unbind voice"
+        "remove": "Unbind voice",
+        "notReady": "🎙 {voiceName} bound · no sendable audio yet"
       },
       "promptLabel": "Character image prompt",
       "promptPlaceholder": "Describe the character appearance, wardrobe, mood, and style...",
@@ -4335,7 +4336,8 @@
         "slotHint": "{name} · click to reference in the prompt, double-click to focus the node",
         "remove": "Remove {name} (disconnects the edge, keeps the node)",
         "notSendingOverflow": "{name} · not sent this time (over the limit)",
-        "notSendingUnready": "{name} · not sent this time (no audio yet)"
+        "notSendingUnready": "{name} · not sent this time (no audio yet)",
+        "heldVsSending": "held {held} · sending {sending}"
       },
       "references": {
         "label": "Referenced",
@@ -4491,7 +4493,8 @@
       "fieldTrim": "Trim",
       "fieldRoute": "Route",
       "fieldFile": "File",
-      "fieldConstraints": "Format limits"
+      "fieldConstraints": "Format limits",
+      "valueBoundNotReady": "bound · no sendable audio"
     },
     "voiceDetail": {
       "paramsLabel": "Adjustments",

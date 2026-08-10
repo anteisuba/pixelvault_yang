@@ -3879,7 +3879,8 @@
       "voiceBound": {
         "namedVoice": "🎙 已绑定音色：{voiceName}（视频生成时会标注角色名）",
         "unnamed": "🎙 已绑定上游音色（视频生成时会标注角色名）",
-        "remove": "解除音色绑定"
+        "remove": "解除音色绑定",
+        "notReady": "🎙 已绑定 {voiceName} · 还没有可发送的音频"
       },
       "promptLabel": "角色图提示词",
       "promptPlaceholder": "描述角色外观、服装、情绪和画面风格...",
@@ -4335,7 +4336,8 @@
         "slotHint": "{name} · 点击引用到提示词，双击可聚焦至节点",
         "remove": "移除 {name}（断开连线，节点保留）",
         "notSendingOverflow": "{name} · 本次不会发送（超出上限）",
-        "notSendingUnready": "{name} · 本次不会发送（还没有可用音频）"
+        "notSendingUnready": "{name} · 本次不会发送（还没有可用音频）",
+        "heldVsSending": "持有 {held} · 本次发送 {sending}"
       },
       "references": {
         "label": "已引用",
@@ -4491,7 +4493,8 @@
       "fieldTrim": "裁剪",
       "fieldRoute": "路由",
       "fieldFile": "文件",
-      "fieldConstraints": "格式约束"
+      "fieldConstraints": "格式约束",
+      "valueBoundNotReady": "已绑定 · 无可发送音频"
     },
     "voiceDetail": {
       "paramsLabel": "基础调节",

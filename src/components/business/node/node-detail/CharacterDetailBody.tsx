@@ -20,6 +20,7 @@ import {
   getUpstreamNodes,
   isCloseupNode,
   isVoiceProfileNode,
+  readVoiceUrl,
 } from '@/lib/node-workflow-graph'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import {
@@ -128,33 +129,49 @@ export function CharacterDetailBody({
 
   // 上游音色。⚠ 这条绑定走的是**边**不是字段，所以能用图判定；反过来
   // 「哪个角色绑了这个音色」在音色族那边要用字段反查（见 use-downstream-uses 头注）。
-  const boundVoice: { voiceName: string | null; edgeId: string } | null =
-    (() => {
-      for (const candidate of getUpstreamNodes(nodeId, edges, allNodes)) {
-        if (!isVoiceProfileNode(candidate)) continue
-        const url =
-          typeof candidate.data.voiceReferenceAudioUrl === 'string'
-            ? candidate.data.voiceReferenceAudioUrl.trim()
-            : ''
-        if (!url) continue
-        const edge = edges.find(
-          (candidateEdge) =>
-            candidateEdge.source === candidate.id &&
-            candidateEdge.target === nodeId,
-        )
-        if (!edge) continue
-        const voiceName =
-          (typeof candidate.data.voiceName === 'string' &&
-            candidate.data.voiceName.trim()) ||
-          (typeof candidate.data.voiceId === 'string' &&
-            candidate.data.voiceId.trim()) ||
-          (typeof candidate.data.voiceReferenceAudioName === 'string' &&
-            candidate.data.voiceReferenceAudioName.trim()) ||
-          null
-        return { voiceName, edgeId: edge.id }
+  /**
+   * ⚠ **绑定 = 连线，不是「有没有可发送的音频」**（2026-08-10 owner 真机撞到）。
+   *
+   * 这里原本只认 `voiceReferenceAudioUrl` 一个字段，于是两处判据分岔：
+   *   · 收割侧 `readVoiceUrl` 有**三档**（audioClip → voiceReferenceAudioUrl →
+   *     voiceSampleUrl，第三档是阶段 0-A 为「系统 TTS 音色送不出声」补的）
+   *   · 角色卡只读第二档 → 一个已经连上、且能发声的系统音色，卡上照样写「未绑定」
+   * 更糟的是**连了但没有任何可用音频**的那种：边真实存在、用户看得见那条线，
+   * 卡上却说「未绑定」——等于告诉用户「你没连」，而他明明连了。
+   *
+   * 改成：**有边就是绑定**，能不能发单独用 `ready` 表达（与 composer 的
+   * `BoundVoice.ready` 同一套语义）。
+   */
+  const boundVoice: {
+    voiceName: string | null
+    edgeId: string
+    ready: boolean
+  } | null = (() => {
+    for (const candidate of getUpstreamNodes(nodeId, edges, allNodes)) {
+      if (!isVoiceProfileNode(candidate)) continue
+      const edge = edges.find(
+        (candidateEdge) =>
+          candidateEdge.source === candidate.id &&
+          candidateEdge.target === nodeId,
+      )
+      if (!edge) continue
+      const voiceName =
+        (typeof candidate.data.voiceName === 'string' &&
+          candidate.data.voiceName.trim()) ||
+        (typeof candidate.data.voiceId === 'string' &&
+          candidate.data.voiceId.trim()) ||
+        (typeof candidate.data.voiceReferenceAudioName === 'string' &&
+          candidate.data.voiceReferenceAudioName.trim()) ||
+        null
+      return {
+        voiceName,
+        edgeId: edge.id,
+        // 三档判据与收割侧同一个函数 —— 卡上说「能发」和实际发得出去必须是一回事。
+        ready: Boolean(readVoiceUrl(candidate)),
       }
-      return null
-    })()
+    }
+    return null
+  })()
 
   // 特写并入图集（§二.2「吃进的 closeup 图并入陈列，标来源」）—— closeup 是
   // **另一个绑定节点**（closeup → character 一跳，cast-redesign §9 B），不是本节点
@@ -332,12 +349,19 @@ export function CharacterDetailBody({
                 {boundVoice ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-node-edge px-3 py-1.5 text-xs text-node-foreground">
                     <Mic2 aria-hidden className="size-3.5 shrink-0" />
+                    {/* 绑上了但发不出去，要当场说明白 —— 不然用户只看到「已绑定」，
+                        到生成时才发现配音是空的（契约「不许静默」）。 */}
                     <span className="max-w-40 truncate">
-                      {boundVoice.voiceName
-                        ? t('voiceBound.namedVoice', {
-                            voiceName: boundVoice.voiceName,
+                      {!boundVoice.ready
+                        ? t('voiceBound.notReady', {
+                            voiceName:
+                              boundVoice.voiceName ?? t('voiceBound.unnamed'),
                           })
-                        : t('voiceBound.unnamed')}
+                        : boundVoice.voiceName
+                          ? t('voiceBound.namedVoice', {
+                              voiceName: boundVoice.voiceName,
+                            })
+                          : t('voiceBound.unnamed')}
                     </span>
                     <button
                       type="button"
@@ -390,10 +414,13 @@ export function CharacterDetailBody({
             <EvidenceRow
               label={tDetail('fieldBoundVoice')}
               value={
-                boundVoice
-                  ? (boundVoice.voiceName ?? t('voiceBound.unnamed'))
-                  : tDetail('valueUnbound')
+                !boundVoice
+                  ? tDetail('valueUnbound')
+                  : boundVoice.ready
+                    ? (boundVoice.voiceName ?? t('voiceBound.unnamed'))
+                    : tDetail('valueBoundNotReady')
               }
+              // 未就绪也算「有内容」——它不是空，是有问题，两者不该长一样。
               dim={!boundVoice}
             />
           </EvidenceDrawer>

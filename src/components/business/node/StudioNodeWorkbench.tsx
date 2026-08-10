@@ -411,7 +411,7 @@ function findRosterCardAt(
  */
 const ROSTER_GHOST_SIZE_PX = 72
 
-function createRosterDragGhost(url: string): HTMLElement {
+function createRosterDragGhost(url: string | undefined): HTMLElement {
   const ghost = document.createElement('div')
   ghost.style.cssText = [
     'position:fixed',
@@ -426,11 +426,16 @@ function createRosterDragGhost(url: string): HTMLElement {
     'box-shadow:var(--shadow-node-panel)',
     'z-index:var(--z-index-canvas-drag)',
   ].join(';')
-  const img = document.createElement('img')
-  img.src = url
-  img.alt = ''
-  img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block'
-  ghost.appendChild(img)
+  if (url) {
+    const img = document.createElement('img')
+    img.src = url
+    img.alt = ''
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block'
+    ghost.appendChild(img)
+  } else {
+    // 没有封面的音色 —— 给一块中性面而不是一个破图框（音色本来就不一定有脸）。
+    ghost.style.background = 'var(--node-panel-inner)'
+  }
   document.body.appendChild(ghost)
   return ghost
 }
@@ -446,18 +451,52 @@ function moveRosterDragGhost(
 }
 
 /**
- * 这个节点能不能被拖进名册卡 —— 能就返回它那张图的 URL。
- * 判据与「从画布选择」第四源逐字同一条（阶段 8-a）：**只认图**，视频节点的
- * `mediaUrl` 是 mp4，拖进「参考**图**」集就是错的。
+ * 这个节点能不能被拖进名册卡 —— 能就说清它是**哪一种**落法。
+ *
+ * ⭐ 两种，因为卡上本来就有两种身份（owner 2026-08-10 实拍「音频还不能放上去」）：
+ *   · `image` → 并进卡的**图集**（`referenceAssets`），与「从画布选择」第四源
+ *     逐字同一条落法（阶段 8-a）；
+ *   · `voice` → **连一条边**（音色 → 卡）。音色绑卡的载体从来就是边：
+ *     `harvestUpstreamAudioBindings` 的 Pass 1 走的正是「音色 → 角色卡 → 视频」
+ *     这两跳。所以这里不发明第二套绑定，只是把那条边的**入口**补上 —— 交接里
+ *     记着的那个产品缺口（「详情面板的绑定音色只会**新建**音色节点，画布上已有
+ *     的接不进去」）就是它。
+ *
+ * ⚠ 视频不在其中：`mediaUrl` 是 mp4，进「参考**图**」集是错的，而卡也没有
+ * 「视觉身份 = 一段视频」这回事。
+ * ⚠ 卡拖到卡挡掉（自指），收集器自己不当素材源。
  * ⚠ 写成模块级纯函数而不是 `useCallback` —— 它不吃任何组件状态，而放在组件里
  * 就得排在 `handleNodeDrag` 之前才不撞 TDZ，等于让声明顺序去迁就依赖数组。
  */
-function getRosterDropUrl(node: NodeWorkflowNode): string | undefined {
-  const kind = node.data.mediaKind ?? NODE_MEDIA_KIND_BY_NODE_TYPE[node.type]
-  if (kind !== NODE_MEDIA_KIND_IDS.image) return undefined
-  // 卡拖到卡没有意义（自指的近亲），收集器自己不当素材源。
+interface RosterDropIntent {
+  kind: 'image' | 'voice'
+  /** 图：并进图集的那张图。音色：只用来给拖拽替身找张脸，可以没有。 */
+  previewUrl?: string
+  /** 图专用 —— 音色走连边，不写 URL。 */
+  imageUrl?: string
+}
+
+function resolveRosterDropIntent(
+  node: NodeWorkflowNode,
+): RosterDropIntent | undefined {
   if (isIdentityCardNode(node)) return undefined
-  return getNodePrimaryMediaUrl(node.data)
+  const kind = node.data.mediaKind ?? NODE_MEDIA_KIND_BY_NODE_TYPE[node.type]
+  if (kind === NODE_MEDIA_KIND_IDS.image) {
+    const imageUrl = getNodePrimaryMediaUrl(node.data)
+    if (!imageUrl) return undefined
+    return { kind: 'image', imageUrl, previewUrl: imageUrl }
+  }
+  if (kind === NODE_MEDIA_KIND_IDS.audio) {
+    // 封面只是替身的脸，没有也照样能拖 —— 音色的价值不在有没有图。
+    const cover =
+      typeof node.data.voiceCoverImage === 'string'
+        ? node.data.voiceCoverImage.trim()
+        : typeof node.data.voiceReferenceCoverImage === 'string'
+          ? node.data.voiceReferenceCoverImage.trim()
+          : ''
+    return { kind: 'voice', previewUrl: cover || undefined }
+  }
+  return undefined
 }
 
 function findCanvasDragHit(
@@ -3698,14 +3737,16 @@ function StudioNodeCanvas() {
       // 阶段 8-b：拖到名册卡成功后本体要弹回原位，所以**起点要先记下来**。
       // ⚠ 记在退役开关**外面** —— 8-b 与吞噬是两条路（落点一个在面板一个在画布，
       // 边界见 `findRosterCardAt` 头注），不能共用那个开关的生死。
-      const rosterUrl = getRosterDropUrl(node)
-      if (rosterUrl) {
+      const rosterIntent = resolveRosterDropIntent(node)
+      if (rosterIntent) {
         dragStartPositionsRef.current.set(node.id, {
           x: node.position.x,
           y: node.position.y,
         })
         rosterGhostElRef.current?.remove()
-        rosterGhostElRef.current = createRosterDragGhost(rosterUrl)
+        rosterGhostElRef.current = createRosterDragGhost(
+          rosterIntent.previewUrl,
+        )
       }
 
       if (
@@ -3782,7 +3823,7 @@ function StudioNodeCanvas() {
       // 阶段 8-b 的悬停反馈。⚠ 直接改 class 不进 React state —— 与咬合预览同款
       // 纪律（每帧 setState 会让整棵画布重渲，那正是 2026-07-18「拖动手感钝」
       // 那次的根因）。
-      if (getRosterDropUrl(node)) {
+      if (resolveRosterDropIntent(node)) {
         moveRosterDragGhost(
           rosterGhostElRef.current,
           event.clientX,
@@ -3886,8 +3927,8 @@ function StudioNodeCanvas() {
    */
   const handleRosterDrop = useCallback(
     (event: ReactMouseEvent, node: NodeWorkflowNode): boolean => {
-      const url = getRosterDropUrl(node)
-      if (!url) return false
+      const intent = resolveRosterDropIntent(node)
+      if (!intent) return false
       const cardEl = findRosterCardAt(event.clientX, event.clientY)
       const cardId = cardEl?.getAttribute(ROSTER_CARD_ATTR)
       if (!cardEl || !cardId) return false
@@ -3896,6 +3937,25 @@ function StudioNodeCanvas() {
       const card = workflow.nodes.find((candidate) => candidate.id === cardId)
       if (!card) return false
 
+      /**
+       * 音色 → **连一条边**，不写图集。合法性/重复/容量三道闸都在
+       * `connectReferenceNode` 里，与 `@` 菜单、「从画布选择」共用同一处 ——
+       * 这里一个字都不重判。
+       */
+      if (intent.kind === 'voice') {
+        const landed = connectReferenceNode(node.id, cardId)
+        if (landed) {
+          toast.success(t('ingest.canvasNodeSigned'), {
+            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+          })
+        }
+        bounceNodeBack(node)
+        return true
+      }
+
+      const url = intent.imageUrl
+      if (!url) return false
       const existing = card.data.referenceAssets ?? []
       // ⚠ 两道闸都要说话，不许静默：重复了说重复，满了说满了。
       if (existing.some((asset) => asset.url === url)) {
@@ -3943,7 +4003,7 @@ function StudioNodeCanvas() {
       bounceNodeBack(node)
       return true
     },
-    [bounceNodeBack, t, workflow],
+    [bounceNodeBack, connectReferenceNode, t, workflow],
   )
 
   const handleNodeDragStop = useCallback(

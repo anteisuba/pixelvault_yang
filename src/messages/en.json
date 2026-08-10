@@ -4333,7 +4333,9 @@
         "zoneCount": "{held}/{limit}",
         "total": "Total {held}/{total}",
         "slotHint": "{name} · click to reference in the prompt, double-click to focus the node",
-        "remove": "Remove {name} (disconnects the edge, keeps the node)"
+        "remove": "Remove {name} (disconnects the edge, keeps the node)",
+        "notSendingOverflow": "{name} · not sent this time (over the limit)",
+        "notSendingUnready": "{name} · not sent this time (no audio yet)"
       },
       "references": {
         "label": "Referenced",

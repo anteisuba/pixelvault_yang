@@ -31,6 +31,7 @@ import {
   getNodeStageMediaUrls,
   getSeedanceReferenceKind,
   getUpstreamNodes,
+  harvestUpstreamAudioBindings,
   isVideoSourceNode,
   isVoiceProfileNode,
 } from './node-workflow-graph'
@@ -179,10 +180,24 @@ function computeZoneCapacity({
   if (!model) return null
 
   const upstream = getUpstreamNodes(target.id, edges, nodes)
-  const countIn = (target_: SlotZoneId) =>
-    upstream
+  const countIn = (target_: SlotZoneId) => {
+    /**
+     * ⚠ 音频**必须问收割函数**，不能数直连上游（阶段 5 修）。
+     *
+     * `harvestUpstreamAudioBindings` 走**两跳**：`音色 → 角色卡 → 视频` 那一路
+     * 照发不误，而它在直连上游里根本不存在。旧算法只数直连，于是一个绑了音色的
+     * 角色卡在闸这里算 0 条音频 —— 角色卡 + 3 个散件音色 = 实际发 4 条，闸却以为
+     * 才 3 条，跨模态总额也跟着少扣。
+     *
+     * 用同一个函数问，界面拦的与实际发的就不可能分岔。
+     */
+    if (target_ === 'audio') {
+      return harvestUpstreamAudioBindings(target.id, edges, nodes).length
+    }
+    return upstream
       .filter((node) => resolveNodeSlotZone(node) === target_)
       .reduce((sum, node) => sum + countContribution(node, target_), 0)
+  }
 
   // ⚠ 跨模态总额要用**实际候选数**扣减，与发送路径同一个函数、同一套入参。
   const limits = resolveVideoSendSlotLimits({

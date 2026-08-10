@@ -4333,7 +4333,9 @@
         "zoneCount": "{held}/{limit}",
         "total": "总额 {held}/{total}",
         "slotHint": "{name} · 点击引用到提示词，双击可聚焦至节点",
-        "remove": "移除 {name}（断开连线，节点保留）"
+        "remove": "移除 {name}（断开连线，节点保留）",
+        "notSendingOverflow": "{name} · 本次不会发送（超出上限）",
+        "notSendingUnready": "{name} · 本次不会发送（还没有可用音频）"
       },
       "references": {
         "label": "已引用",

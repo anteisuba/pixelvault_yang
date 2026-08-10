@@ -4333,7 +4333,9 @@
         "zoneCount": "{held}/{limit}",
         "total": "合計 {held}/{total}",
         "slotHint": "{name} · クリックでプロンプトに引用、ダブルクリックでノードにフォーカス",
-        "remove": "{name} を外す（接続を切断、ノードは残ります）"
+        "remove": "{name} を外す（接続を切断、ノードは残ります）",
+        "notSendingOverflow": "{name} · 今回は送信されません（上限超過）",
+        "notSendingUnready": "{name} · 今回は送信されません（音声が未設定）"
       },
       "references": {
         "label": "引用済み",

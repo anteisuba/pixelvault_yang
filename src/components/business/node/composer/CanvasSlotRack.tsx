@@ -298,10 +298,20 @@ export function CanvasSlotRack({
                         className="flex flex-wrap gap-1 px-1.5 pb-1 pt-0.5"
                       >
                         {zoneTokens.map((token, slotIdx) => {
-                          const unsendable = Boolean(
+                          /**
+                           * 「这一条这次发不出去」有**两个来源**，槽架都得标
+                           * （契约 §4.7「素材不因为发不出去就消失」）：
+                           *   · 超出上限被截掉 → `unsendableUrls`
+                           *   · 素材本身还没就绪 → `token.dimmed`（阶段 5 接上）
+                           * 后者典型是一个连着的音色节点还没录、也没选到任何音频。
+                           * 此前它在槽架里长得和正常槽位**一模一样**，用户只会
+                           * 以为配音会发出去 —— 这正是「不许静默」那条纪律。
+                           */
+                          const overflow = Boolean(
                             token.mediaUrl &&
                             unsendableUrls?.has(token.mediaUrl),
                           )
+                          const unsendable = overflow || Boolean(token.dimmed)
                           const thumbnailUrl =
                             token.kind === 'voice'
                               ? token.coverImage
@@ -339,9 +349,20 @@ export function CanvasSlotRack({
                                 onClick={() => onInsert?.(token)}
                                 onDoubleClick={() => onLocate?.(token.id)}
                                 title={
-                                  onInsert
-                                    ? t('slotHint', { name: displayName })
-                                    : displayName
+                                  // ⚠ 发不出去时先说**为什么** —— 淡出只表达
+                                  // 「有问题」，不表达是哪一种问题，而两种的
+                                  // 下一步完全不同（去减素材 vs 去把音色配上）。
+                                  overflow
+                                    ? t('notSendingOverflow', {
+                                        name: displayName,
+                                      })
+                                    : token.dimmed
+                                      ? t('notSendingUnready', {
+                                          name: displayName,
+                                        })
+                                      : onInsert
+                                        ? t('slotHint', { name: displayName })
+                                        : displayName
                                 }
                                 className={cn(
                                   'flex max-w-[9rem] items-center gap-1 rounded-lg py-1 pl-1 pr-1.5 text-2xs text-node-muted hover:bg-node-panel-inner',

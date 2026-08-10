@@ -366,3 +366,48 @@ describe('CanvasSlotRack · 两档密度 = 两个默认折叠深度（§4.3）',
     expect(screen.getByText(/^total:/).textContent).toBe(compactTotal)
   })
 })
+
+describe('CanvasSlotRack · 发不出去要说为什么（阶段 5）', () => {
+  const unreadyVoice = {
+    id: 'v1',
+    kind: 'voice',
+    label: '旁白',
+    token: '',
+    dimmed: true,
+  } as ComposerReferenceToken
+
+  it('未就绪的音色标出来并给原因 —— 不能长得和会发送的槽位一样', () => {
+    // ⚠ 真机口径：一个连着但还没录/没选到音频的音色节点，此前在槽架里与正常
+    // 槽位**一模一样**，用户只会以为配音会发出去。
+    render(
+      <CanvasSlotRack
+        tokens={[unreadyVoice]}
+        slotLimits={FULL}
+        defaultExpanded={true}
+        onInsert={vi.fn()}
+      />,
+    )
+    expect(screen.getByTitle(/^notSendingUnready/)).toBeInTheDocument()
+  })
+
+  it('超出上限与未就绪给的是**两条不同**的原因（下一步不一样）', () => {
+    const overflowShot = {
+      id: 's1',
+      kind: 'shot',
+      label: '开场远景',
+      token: '@开场远景',
+      mediaUrl: 'https://cdn/s1.png',
+    } as ComposerReferenceToken
+    render(
+      <CanvasSlotRack
+        tokens={[overflowShot]}
+        slotLimits={FULL}
+        defaultExpanded={true}
+        onInsert={vi.fn()}
+        unsendableUrls={new Set(['https://cdn/s1.png'])}
+      />,
+    )
+    // 去减素材 ≠ 去把音色配上，所以文案不能合并成一句「不会发送」。
+    expect(screen.getByTitle(/^notSendingOverflow/)).toBeInTheDocument()
+  })
+})

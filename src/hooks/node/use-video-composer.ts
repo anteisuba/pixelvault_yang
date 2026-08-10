@@ -95,13 +95,10 @@ export interface ComposerGalleryAssetPreview {
 export interface ComposerReferenceToken extends ReferenceTokenData {
   edgeId?: string
   boundVoice?: BoundVoice
-  /** A standalone voice can reach the video through a non-character visual
-   *  node (`voice -> image/shot -> video`). The generate payload already
-   *  follows that route; keep the intermediate node visible so the UI can
-   *  explain why the audio is included instead of presenting it as a direct
-   *  video input. */
-  routedThroughId?: string
-  routedThroughLabel?: string
+  /* ⚠ `routedThroughId` / `routedThroughLabel` 已于阶段 5 删除：音频区改成直接
+     由 `audioBindings` 派生之后，「经某个视觉节点绕进来的音色」那一趟单独扫描
+     整个成了重复（`harvestUpstreamAudioBindings` 本来就走那条路），而这两个字段
+     自始至终**没有任何渲染方**——只写不读。 */
   /** For a closeup token (§9 B): the character node it wires into, so the strip
    *  can group it under that character's identity unit. */
   parentCharacterId?: string
@@ -402,80 +399,72 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       }
     }
 
-    // 旁白 — voices wired DIRECTLY into the video node (no character). Ready →
-    // @AudioN insertable token; unready → dimmed non-insertable slot (不静默丢).
-    // Character-routed voices are absorbed above and skipped here.
+    /**
+     * 音频区 —— **直接由 `audioBindings` 派生**（阶段 5「声音三形态对称」）。
+     *
+     * ⚠ 这里以前只扫**直连**视频节点的音色，于是「音色绑角色卡」那一路
+     * （`voice → character → video`）在槽架里**完全不存在** —— 而
+     * `harvestUpstreamAudioBindings` 走两跳，它照发不误。结果就是槽架说
+     * 「音频 0/3」、载荷里却有一条音频：本轮要治的「账对不齐」又长回来一处，
+     * 只不过这次藏在两跳后面。
+     *
+     * 改成直接遍历 `audioBindings`，音频区与 `audio_urls` 就是同一份名单、
+     * 同一个顺序、同一个 `@AudioN` 序号 —— 不再有第二次推导可以走偏。
+     * 角色绑定的那条按拍板显示 **@角色名**（report §8「音槽显 @角色名」），
+     * 因为用户认的是「谁在说话」，不是音色文件叫什么。
+     */
+    const nodeById = new Map(nodes.map((node) => [node.id, node]))
+    for (const [index, binding] of audioBindings.entries()) {
+      const voiceNode = binding.nodeId
+        ? nodeById.get(binding.nodeId)
+        : undefined
+      const voiceName =
+        voiceNode && typeof voiceNode.data.voiceName === 'string'
+          ? voiceNode.data.voiceName.trim()
+          : ''
+      tokens.push({
+        id: binding.nodeId ?? `audio-${index}`,
+        kind: 'voice',
+        // 角色绑定的显角色名；散件音色显自己的名字。
+        label: binding.characterName || voiceName,
+        token: `@Audio${index + 1}`,
+        coverImage: binding.coverImage,
+        insertable: true,
+        mediaUrl: binding.url,
+        /**
+         * 移除槽位 = 删连线。直连的删「音色 → 视频」那条；绑在角色卡上的删
+         * 「音色 → 角色」那条 —— 与详情面板的「解绑音色」是同一条边，两处
+         * 不会各删各的。
+         */
+        edgeId:
+          directEdgeBySource.get(binding.nodeId ?? '') ??
+          edges.find((edge) => edge.source === binding.nodeId)?.id,
+      })
+    }
+
+    /**
+     * 挂上了但**发不出去**的音色：直连视频、却没有任何可用音频（既没录制/上传
+     * 的 clip，也没有系统音色的样本）。`harvestUpstreamAudioBindings` 只收有 URL
+     * 的，所以这一类不在上面那份名单里 —— 但它确实占着画布上的一条边，静默不
+     * 显示等于「我连了却什么都没发生」。标出来，并说明原因（契约 §4.7）。
+     */
     for (const node of incoming) {
       if (!isVoiceProfileNode(node)) continue
+      if (readVoiceUrl(node)) continue
       const voiceName =
         typeof node.data.voiceName === 'string'
           ? node.data.voiceName.trim()
           : ''
-      const ready = Boolean(readVoiceUrl(node))
-      const slot = audioSlotByVoiceId.get(node.id)
       tokens.push({
         id: node.id,
         kind: 'voice',
         label: voiceName,
-        token: ready && slot !== undefined ? `@Audio${slot + 1}` : '',
+        token: '',
         coverImage: readVoiceCoverImage(node),
-        insertable: ready,
-        dimmed: !ready,
+        insertable: false,
+        dimmed: true,
         edgeId: directEdgeBySource.get(node.id),
       })
-    }
-
-    // Voices can also be wired through a non-character visual node
-    // (`voice -> shot/image -> video`). The request harvester already follows
-    // this route, but the reference UI used to omit the voice because it only
-    // inspected direct video inputs. Surface it as its own audio token and
-    // retain the route edge so disconnect/locate actions operate on the real
-    // binding. Character-routed voices remain absorbed into `boundVoice`.
-    const representedVoiceIds = new Set<string>()
-    for (const token of tokens) {
-      if (token.kind === 'voice') representedVoiceIds.add(token.id)
-      if (token.boundVoice) representedVoiceIds.add(token.boundVoice.nodeId)
-    }
-    for (const visualNode of incoming) {
-      const visualKind = getSeedanceReferenceKind(visualNode)
-      if (
-        visualKind === null ||
-        visualKind === 'voice' ||
-        visualKind === 'character'
-      ) {
-        continue
-      }
-      const routeToken = tokens.find((token) => token.id === visualNode.id)
-      for (const routeEdge of edges) {
-        if (routeEdge.target !== visualNode.id) continue
-        const voiceNode = nodes.find((node) => node.id === routeEdge.source)
-        if (
-          !voiceNode ||
-          !isVoiceProfileNode(voiceNode) ||
-          representedVoiceIds.has(voiceNode.id)
-        ) {
-          continue
-        }
-        const voiceName =
-          typeof voiceNode.data.voiceName === 'string'
-            ? voiceNode.data.voiceName.trim()
-            : ''
-        const ready = Boolean(readVoiceUrl(voiceNode))
-        const slot = audioSlotByVoiceId.get(voiceNode.id)
-        tokens.push({
-          id: voiceNode.id,
-          kind: 'voice',
-          label: voiceName,
-          token: ready && slot !== undefined ? `@Audio${slot + 1}` : '',
-          coverImage: readVoiceCoverImage(voiceNode),
-          insertable: ready,
-          dimmed: !ready,
-          edgeId: routeEdge.id,
-          routedThroughId: visualNode.id,
-          routedThroughLabel: routeToken?.label,
-        })
-        representedVoiceIds.add(voiceNode.id)
-      }
     }
 
     // Video references (uploaded videoReference nodes or upstream generated

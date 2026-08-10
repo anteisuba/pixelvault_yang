@@ -146,10 +146,20 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     expect(tokens[0].edgeId).toBe('e-char')
   })
 
-  it('absorbs a routed voice as the character boundVoice, not a standalone token (音色收进角色)', () => {
-    // cast-redesign: voice → character → video means the voice IS the
-    // character's 音色 — it rides the character token as boundVoice, and there
-    // is NO separate voice token (音色收进角色，不单列).
+  it('角色绑定的音色**要在音频区单列**，槽位名显角色名（阶段 5 推翻「不单列」）', () => {
+    /**
+     * ⚠ 这条 2026-08-10 **反过来写过一次**。原文断言的是 cast-redesign 的
+     * 「音色收进角色，不单列」——voice → character → video 只在角色 token 上挂
+     * 一个 `boundVoice` 徽标，音频区没有它。
+     *
+     * 但 `harvestUpstreamAudioBindings` 走**两跳**，这条音色**照发不误**。于是
+     * 槽架说「音频 0/3」、载荷里却有一条音频 —— 本轮要治的「账对不齐」在两跳
+     * 后面又长了一处。owner 拍板：**音槽显 @角色名**（report §8 声音三形态）。
+     *
+     * 现在音频区直接由 `audioBindings` 派生，名单/顺序/`@AudioN` 序号与
+     * `audio_urls` 是同一份。角色 token 仍保留 `boundVoice`——那是**身份**
+     * （这个角色的声音是谁），详情面板在用，与「这次发几条音频」是两个问题。
+     */
     graphState.nodes = [
       makeNode('voice1', NODE_TYPE_IDS.voice, {
         voiceName: '卡提希娅',
@@ -167,7 +177,17 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     ]
 
     const tokens = renderComposer().referenceTokens
-    expect(tokens.some((token) => token.kind === 'voice')).toBe(false)
+    const voice = tokens.find((token) => token.kind === 'voice')
+    expect(voice).toMatchObject({
+      id: 'voice1',
+      // 用户认的是「谁在说话」，不是音色文件叫什么 —— 所以是角色名不是「卡提希娅」。
+      label: '角色A',
+      token: '@Audio1',
+      insertable: true,
+      // 移除 = 删「音色 → 角色」那条边，与详情面板的「解绑音色」是同一条。
+      edgeId: 'e-voice',
+    })
+    // 身份那一面不受影响：角色 token 仍知道自己的音色是谁。
     const character = tokens.find((token) => token.kind === 'character')
     expect(character?.boundVoice).toMatchObject({
       nodeId: 'voice1',
@@ -246,13 +266,15 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
           token: '@autoName.shot1',
           edgeId: 'e-image-video',
         }),
+        // ⚠ 这条曾额外断言 `routedThroughId` / `routedThroughLabel`（「它是绕
+        // 着某个视觉节点进来的」）。两个字段**自始至终没有渲染方**，音频区
+        // 改由 `audioBindings` 派生之后连写入方也没了，已随阶段 5 删除。
+        // 这条用例真正守的是**这条音色没被漏掉**，那部分原样保留。
         expect.objectContaining({
           id: 'voice1',
           kind: 'voice',
           token: '@Audio1',
           edgeId: 'e-voice-image',
-          routedThroughId: 'image1',
-          routedThroughLabel: 'autoName.shot1',
         }),
       ]),
     )

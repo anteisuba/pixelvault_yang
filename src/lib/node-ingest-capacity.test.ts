@@ -281,3 +281,67 @@ describe('resolveSpawnCapacity · 落地前问，问出来必须和落地时同�
     ).toBeNull()
   })
 })
+
+/**
+ * 阶段 5「声音三形态对称」：音频必须问收割函数，不能数直连上游。
+ *
+ * ⚠ 这一条守的是一个**会静默超发**的口子：`音色 → 角色卡 → 视频` 是两跳，
+ * `harvestUpstreamAudioBindings` 照发，而闸原本只数直连上游 —— 于是一张绑了
+ * 音色的角色卡在闸这里算 0 条音频。角色卡 + 3 个散件音色 = 实际发 4 条，闸却
+ * 以为才 3 条，跨模态总额也跟着少扣。
+ */
+describe('resolveIngestCapacity · 音频要数到两跳（绑在角色卡上的音色）', () => {
+  function character(id: string): NodeWorkflowNode {
+    return {
+      id,
+      type: NODE_TYPE_IDS.characterImage,
+      position: { x: 0, y: 0 },
+      data: {
+        prompt: '',
+        status: 'idle',
+        characterName: '角色A',
+        imageUrl: `https://cdn/${id}.png`,
+      },
+    } as unknown as NodeWorkflowNode
+  }
+
+  it('绑在角色卡上的音色计入音频区 —— 不是「直连才算」', () => {
+    const char = character('c1')
+    const boundVoice = voice('v-bound')
+    const nodes = [VIDEO, char, boundVoice]
+    const edges = [
+      { id: 'e1', source: char.id, target: 'vid' },
+      { id: 'e2', source: boundVoice.id, target: char.id },
+    ] as NodeWorkflowEdge[]
+
+    const check = resolveIngestCapacity({
+      source: voice('v-new'),
+      target: VIDEO,
+      edges,
+      nodes,
+    })
+    // 关键：current 是 1 不是 0。旧算法在这里返回 0，于是音频区能被塞到 4 条。
+    expect(check).toMatchObject({ zone: 'audio', current: 1, limit: 3 })
+  })
+
+  it('两跳 + 直连一起数满 3 条时，第 4 条被拒', () => {
+    const char = character('c1')
+    const bound = voice('v-bound')
+    const direct = [voice('v1'), voice('v2')]
+    const nodes = [VIDEO, char, bound, ...direct]
+    const edges = [
+      { id: 'e1', source: char.id, target: 'vid' },
+      { id: 'e2', source: bound.id, target: char.id },
+      ...wire(direct),
+    ] as NodeWorkflowEdge[]
+
+    const check = resolveIngestCapacity({
+      source: voice('v-extra'),
+      target: VIDEO,
+      edges,
+      nodes,
+    })
+    expect(check).toMatchObject({ zone: 'audio', current: 3, limit: 3 })
+    expect(check?.full).toBe(true)
+  })
+})

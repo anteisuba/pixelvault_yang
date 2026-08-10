@@ -299,7 +299,7 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
         mediaUrl: 'https://cdn/clip.mp4',
       }),
       makeNode('voice1', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+        voiceClipUrl: 'https://cdn/voice.mp3',
       }),
       makeNode('video1', NODE_TYPE_IDS.seedance),
     ]
@@ -363,7 +363,7 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
         mediaUrl: 'https://cdn/clip.mp4',
       }),
       makeNode('voice1', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+        voiceClipUrl: 'https://cdn/voice.mp3',
       }),
       makeNode('video1', NODE_TYPE_IDS.seedance, { prompt: '雨夜前行' }),
     ]
@@ -416,7 +416,7 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
   it('blocks Seedance Reference audio-only input instead of emitting an invalid request', () => {
     const nodes = [
       makeNode('voice1', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+        voiceClipUrl: 'https://cdn/voice.mp3',
       }),
       makeNode('video1', NODE_TYPE_IDS.seedance, { prompt: '说出台词' }),
     ]
@@ -443,7 +443,7 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
         mediaUrl: 'https://cdn/char.png',
       }),
       makeNode('voice1', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+        voiceClipUrl: 'https://cdn/voice.mp3',
       }),
       makeNode('video1', NODE_TYPE_IDS.seedance, { prompt: '向镜头挥手' }),
     ]

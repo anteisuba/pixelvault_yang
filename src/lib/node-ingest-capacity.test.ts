@@ -59,7 +59,7 @@ function voice(id: string): NodeWorkflowNode {
     data: {
       prompt: '',
       status: 'idle',
-      voiceReferenceAudioUrl: `https://cdn/${id}.mp3`,
+      voiceClipUrl: `https://cdn/${id}.mp3`,
     },
   } as unknown as NodeWorkflowNode
 }

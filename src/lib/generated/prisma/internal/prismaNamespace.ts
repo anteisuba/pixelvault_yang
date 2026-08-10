@@ -3551,6 +3551,7 @@ export const VoiceCardScalarFieldEnum = {
   pace: 'pace',
   pitch: 'pitch',
   pronunciationDictionary: 'pronunciationDictionary',
+  sampleAudioUrl: 'sampleAudioUrl',
   sampleText: 'sampleText',
   isDeleted: 'isDeleted',
   createdAt: 'createdAt',

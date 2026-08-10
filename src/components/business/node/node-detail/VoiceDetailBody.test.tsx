@@ -2,7 +2,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-import { NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
+  NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
+} from '@/constants/node-studio'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
 vi.mock('next-intl', () => ({
@@ -13,17 +16,23 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }))
 
-const { uploadReferenceAudioAPI, generateAudioAPI, checkAudioStatusAPI } =
-  vi.hoisted(() => ({
-    uploadReferenceAudioAPI: vi.fn(),
-    generateAudioAPI: vi.fn(),
-    checkAudioStatusAPI: vi.fn(),
-  }))
+const {
+  uploadReferenceAudioAPI,
+  generateAudioAPI,
+  checkAudioStatusAPI,
+  getVoiceAPI,
+} = vi.hoisted(() => ({
+  uploadReferenceAudioAPI: vi.fn(),
+  generateAudioAPI: vi.fn(),
+  checkAudioStatusAPI: vi.fn(),
+  getVoiceAPI: vi.fn(),
+}))
 
 vi.mock('@/lib/api-client', () => ({
   uploadReferenceAudioAPI,
   generateAudioAPI,
   checkAudioStatusAPI,
+  getVoiceAPI,
 }))
 
 const { uploadCover } = vi.hoisted(() => ({ uploadCover: vi.fn() }))
@@ -92,20 +101,37 @@ vi.mock('../FishVoiceLibraryDialog', () => ({
     }) => void
   }) =>
     open ? (
-      <button
-        type="button"
-        data-testid="pick-voice"
-        onClick={() =>
-          onSelectVoiceId({
-            voiceId: 'voice-123',
-            name: 'Narrator One',
-            coverImage: 'https://cdn.example.com/cover.png',
-            sampleUrl: 'https://cdn.example.com/narrator-one.mp3',
-          })
-        }
-      >
-        pick
-      </button>
+      <>
+        <button
+          type="button"
+          data-testid="pick-voice"
+          onClick={() =>
+            onSelectVoiceId({
+              voiceId: 'voice-123',
+              name: 'Narrator One',
+              coverImage: 'https://cdn.example.com/cover.png',
+              sampleUrl: 'https://cdn.example.com/narrator-one.mp3',
+            })
+          }
+        >
+          pick
+        </button>
+        {/* 收藏来的系统音色就是这个形状：有 voiceId，没有任何示例音频。 */}
+        <button
+          type="button"
+          data-testid="pick-voice-without-sample"
+          onClick={() =>
+            onSelectVoiceId({
+              voiceId: 'voice-456',
+              name: 'Sampleless One',
+              coverImage: null,
+              sampleUrl: null,
+            })
+          }
+        >
+          pick without sample
+        </button>
+      </>
     ) : null,
 }))
 
@@ -172,6 +198,8 @@ function renderBody(data: NodeWorkflowNodeData) {
 describe('VoiceDetailBody', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // 默认：库里没有现成样本 → 才轮到真正的合成。有样本的那条路单独有测。
+    getVoiceAPI.mockResolvedValue({ success: true, data: { samples: [] } })
     generateAudioAPI.mockResolvedValue({
       success: true,
       data: { jobId: 'job-1' },
@@ -219,12 +247,15 @@ describe('VoiceDetailBody', () => {
     expect(screen.queryByLabelText('dialogue.label')).not.toBeInTheDocument()
   })
 
+  // ⚠ 这里的 status 曾经是 ready —— 旧判据 `hasVoiceContent` 把「选了个情绪」
+  // 也算成 ready，而一个只有情绪、没有任何音频的节点根本发不出参考音频。
+  // 现在 ready 只表示「真的发得出去」，所以空节点加个情绪仍然是 idle。
   it('stores a selected emotion code and clears it on 无', () => {
     renderBody(makeData())
     fireEvent.click(screen.getByRole('button', { name: 'emotions.calm' }))
     expect(updateNodeData).toHaveBeenLastCalledWith('voice-1', {
       voiceEmotion: 'calm',
-      status: NODE_STATUS_IDS.ready,
+      status: NODE_STATUS_IDS.idle,
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'emotions.none' }))
@@ -232,6 +263,70 @@ describe('VoiceDetailBody', () => {
       voiceEmotion: '',
       status: NODE_STATUS_IDS.idle,
     })
+  })
+
+  it('keeps a voice WITH audio ready when only the emotion changes', () => {
+    renderBody(makeData({ voiceClipUrl: 'https://cdn.example.com/s.mp3' }))
+    fireEvent.click(screen.getByRole('button', { name: 'emotions.calm' }))
+    expect(updateNodeData).toHaveBeenLastCalledWith('voice-1', {
+      voiceEmotion: 'calm',
+      status: NODE_STATUS_IDS.ready,
+    })
+  })
+
+  /**
+   * 真机 2026-08-10：收藏来的系统音色只有 voiceId，一个音频 url 都没有，却被
+   * 盖成 ready —— 卡面绿灯，接进视频却静默发不出去，真相只在视频节点的槽架里。
+   */
+  it('does NOT mark a voice ready when the library returns no sample', () => {
+    renderBody(makeData())
+    fireEvent.click(screen.getByRole('button', { name: 'chooseVoice' }))
+    fireEvent.click(screen.getByTestId('pick-voice-without-sample'))
+    expect(updateNodeData).toHaveBeenCalledWith(
+      'voice-1',
+      expect.objectContaining({
+        voiceId: 'voice-456',
+        voiceClipUrl: undefined,
+        status: NODE_STATUS_IDS.idle,
+      }),
+    )
+  })
+
+  /**
+   * owner 2026-08-10：「声音库的音频可以直接拿来用无需再生成一次」。
+   * 系统音色在库里本来就有示例音频，合成一次要花用户的 key、要等，产出的还是同
+   * 一个音色念同一段固定文本 —— 所以有现成的就直接用，不碰 generateAudioAPI。
+   */
+  it('adopts the library sample instead of synthesizing one', async () => {
+    getVoiceAPI.mockResolvedValue({
+      success: true,
+      data: {
+        samples: [{ audio: 'https://cdn.example.com/library-sample.mp3' }],
+      },
+    })
+    renderBody(makeData({ voiceId: 'voice-123', voiceName: '小爱弥斯' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'generateSample' }))
+
+    await waitFor(() => {
+      expect(updateNodeData).toHaveBeenCalledWith(
+        'voice-1',
+        expect.objectContaining({
+          voiceClipUrl: 'https://cdn.example.com/library-sample.mp3',
+          status: NODE_STATUS_IDS.ready,
+        }),
+      )
+    })
+    expect(getVoiceAPI).toHaveBeenCalledWith('voice-123')
+    expect(generateAudioAPI).not.toHaveBeenCalled()
+  })
+
+  it('falls back to synthesis only when the library has no sample', async () => {
+    renderBody(makeData({ voiceId: 'voice-123', voiceName: '小爱弥斯' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'generateSample' }))
+
+    await waitFor(() => expect(generateAudioAPI).toHaveBeenCalled())
   })
 
   it('selects a system voice through the library dialog', () => {
@@ -244,7 +339,8 @@ describe('VoiceDetailBody', () => {
       voiceCoverImage: 'https://cdn.example.com/cover.png',
       voiceProvider: expect.any(String),
       voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
-      voiceSampleUrl: 'https://cdn.example.com/narrator-one.mp3',
+      voiceClipUrl: 'https://cdn.example.com/narrator-one.mp3',
+      voiceClipSource: NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.library,
       status: NODE_STATUS_IDS.ready,
     })
   })
@@ -297,7 +393,7 @@ describe('VoiceDetailBody', () => {
       expect(updateNodeData).toHaveBeenCalledWith(
         'voice-1',
         expect.objectContaining({
-          voiceSampleUrl: 'https://cdn.example.com/sample.mp3',
+          voiceClipUrl: 'https://cdn.example.com/sample.mp3',
         }),
       )
     })
@@ -337,7 +433,7 @@ describe('VoiceDetailBody', () => {
     expect(updateNodeData).not.toHaveBeenCalledWith(
       'voice-1',
       expect.objectContaining({
-        voiceSampleUrl: 'https://cdn.example.com/stale-A.mp3',
+        voiceClipUrl: 'https://cdn.example.com/stale-A.mp3',
       }),
     )
   })
@@ -360,7 +456,7 @@ describe('VoiceDetailBody', () => {
     expect(updateNodeData).toHaveBeenCalledWith(
       'voice-1',
       expect.objectContaining({
-        voiceReferenceAudioUrl: 'https://cdn.example.com/asset.mp3',
+        voiceClipUrl: 'https://cdn.example.com/asset.mp3',
         voiceReferenceCoverImage: 'https://cdn.example.com/asset-cover.png',
         voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
       }),
@@ -384,7 +480,7 @@ describe('VoiceDetailBody', () => {
       makeData({
         voiceId: 'voice-123',
         voiceCoverImage: 'https://cdn.example.com/system-cover.png',
-        voiceReferenceAudioUrl: 'https://cdn.example.com/mine.mp3',
+        voiceClipUrl: 'https://cdn.example.com/mine.mp3',
         voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
       }),
     )

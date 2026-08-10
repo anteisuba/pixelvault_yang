@@ -17,6 +17,7 @@ import {
   NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_VOICE_EMOTION_IDS,
   NODE_STUDIO_VOICE_EMOTIONS,
+  NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
   NODE_STUDIO_VOICE_PROFILE,
   NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
 } from '@/constants/node-studio'
@@ -27,8 +28,10 @@ import { NODE_MEDIA_KIND_IDS, NODE_STATUS_IDS } from '@/constants/node-types'
 import {
   checkAudioStatusAPI,
   generateAudioAPI,
+  getVoiceAPI,
   uploadReferenceAudioAPI,
 } from '@/lib/api-client'
+import { readVoiceUrlFromData } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ParamSlider } from '@/components/ui/param-slider'
@@ -52,13 +55,14 @@ function stopCanvasKeyboardEvent(event: ReactKeyboardEvent<HTMLElement>): void {
   event.stopPropagation()
 }
 
-function hasVoiceContent(data: NodeWorkflowNodeData): boolean {
-  return Boolean(
-    data.voiceName ||
-    data.voiceId ||
-    data.voiceReferenceAudioUrl ||
-    data.voiceEmotion,
-  )
+/**
+ * ⚠ 这里曾经是 `hasVoiceContent`（voiceName || voiceId || 参考音频 || 情绪），
+ * 只要选了个音色就盖 ready —— 而收藏来的系统音色只有 `voiceId`、一个音频 url
+ * 都没有，当视频参考音频时发不出去，面板却说 ready。改成与收割层同一个判据：
+ * ready 只表示「真的发得出去」，「选没选过音色」由 voiceId 自己表达。
+ */
+function hasSendableVoiceAudio(data: NodeWorkflowNodeData): boolean {
+  return Boolean(readVoiceUrlFromData(data))
 }
 
 function isSupportedAudioFile(file: File): boolean {
@@ -157,7 +161,7 @@ export function VoiceDetailBody({
       const next = { ...data, ...patch }
       updateNodeData(nodeId, {
         ...patch,
-        status: hasVoiceContent(next)
+        status: hasSendableVoiceAudio(next)
           ? NODE_STATUS_IDS.ready
           : NODE_STATUS_IDS.idle,
       })
@@ -174,9 +178,12 @@ export function VoiceDetailBody({
         voiceProvider:
           data.voiceProvider || NODE_STUDIO_VOICE_PROFILE.providerDefault,
         voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
-        // 选择器已拿到声音库的真实示例音频；跟着音色一起写入，选择后即可
-        // 播放。没有示例时才清掉上一个音色的旧样本。
-        voiceSampleUrl: voice.sampleUrl ?? undefined,
+        // 选择器已经把声音库那段自带试听取来了 —— 直接当作这个节点的产物。
+        // 没有试听时清掉上一个音色的旧片段，绝不留着假装还能发。
+        voiceClipUrl: voice.sampleUrl ?? undefined,
+        voiceClipSource: voice.sampleUrl
+          ? NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.library
+          : undefined,
       })
       setErroredCover(null)
       setLibraryOpen(false)
@@ -204,7 +211,8 @@ export function VoiceDetailBody({
         return
       }
       applyPatch({
-        voiceReferenceAudioUrl: result.data.url,
+        voiceClipUrl: result.data.url,
+        voiceClipSource: NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.uploaded,
         voiceReferenceAudioName: result.data.fileName.slice(
           0,
           NODE_STUDIO_VOICE_PROFILE.maxAudioNameLength,
@@ -227,7 +235,8 @@ export function VoiceDetailBody({
 
   const handleClearReferenceAudio = useCallback(() => {
     applyPatch({
-      voiceReferenceAudioUrl: undefined,
+      voiceClipUrl: undefined,
+      voiceClipSource: undefined,
       voiceReferenceAudioName: undefined,
       voiceReferenceAudioMimeType: undefined,
       voiceReferenceCoverImage: undefined,
@@ -241,7 +250,8 @@ export function VoiceDetailBody({
     (generation: GenerationRecord) => {
       setErroredCover(null)
       applyPatch({
-        voiceReferenceAudioUrl: generation.url,
+        voiceClipUrl: generation.url,
+        voiceClipSource: NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.uploaded,
         voiceReferenceAudioName: tVoice('referenceAudioFallback'),
         voiceReferenceAudioMimeType: NODE_STUDIO_AUDIO_INPUT.assetMimeType,
         // 节点只**跟随**素材的封面（在素材库里配的）。存自己的字段里，
@@ -304,6 +314,29 @@ export function VoiceDetailBody({
     }
     const requestedVoiceId = data.voiceId
     setIsGeneratingSample(true)
+
+    // 声音库自带的试听直接拿来用 —— 系统音色在库里本来就有示例音频（抽查 300 个
+    // 只有 ~2% 没有），没有理由再花用户的 key、再等一次合成，去得到同一个音色念
+    // 同一段固定文本。只有库里确实没有样本时才往下走真正的合成。
+    const libraryVoice = await getVoiceAPI(requestedVoiceId)
+    const librarySample =
+      (libraryVoice.success &&
+        libraryVoice.data?.samples.find((sample) => sample.audio)?.audio) ||
+      null
+    if (librarySample) {
+      setIsGeneratingSample(false)
+      if (activeVoiceIdRef.current !== requestedVoiceId) return
+      applyPatch({
+        voiceClipUrl: librarySample,
+        voiceClipSource: NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.library,
+      })
+      toast.success(tVoice('toasts.sampleGenerated'), {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+      return
+    }
+
     const response = await generateAudioAPI({
       prompt: NODE_STUDIO_VOICE_PROFILE.referenceSampleText,
       modelId: data.model?.modelId ?? AI_MODELS.FISH_AUDIO_S2_PRO,
@@ -336,7 +369,10 @@ export function VoiceDetailBody({
       })
       return
     }
-    applyPatch({ voiceSampleUrl: generation.url })
+    applyPatch({
+      voiceClipUrl: generation.url,
+      voiceClipSource: NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.synthesized,
+    })
     toast.success(tVoice('toasts.sampleGenerated'), {
       duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
       position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
@@ -361,16 +397,15 @@ export function VoiceDetailBody({
     ? data.voiceCoverImage
     : data.voiceReferenceCoverImage
   const showVoiceCover = Boolean(activeCover) && erroredCover !== activeCover
-  // 试听源：与卡面（`VoiceNode`）同一套解析 —— 按来源取对应 clip，但只要有一个
-  // 实际存在的 url 就兜底可播，杜绝「有音频却不能播」。
-  const playableUrl =
-    (isFishSource ? data.voiceSampleUrl : data.voiceReferenceAudioUrl) ||
-    data.voiceReferenceAudioUrl ||
-    data.voiceSampleUrl ||
-    null
-  const hasVoice = Boolean(
-    isFishSource ? data.voiceId : data.voiceReferenceAudioUrl,
-  )
+  // 试听源 = 那段参考语音本身。收敛之前这里是「按来源取对应字段 + 两层兜底」的
+  // 三行解析，那是两个字段并存时代的产物；现在只有一个产物字段，一行就够。
+  const playableUrl = readVoiceUrlFromData(data) ?? null
+  const hasVoice = Boolean(isFishSource ? data.voiceId : playableUrl)
+  // 合成参数（语速/音量/情绪）只作用于**合成**。库里取来的片段已经录成那样了，
+  // 调不动 —— 显示就是在暗示可以调（owner 2026-08-10 拍板：只在合成路径上露出）。
+  const showSynthesisParams =
+    data.voiceClipSource !== NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.library &&
+    data.voiceClipSource !== NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.uploaded
 
   const coverThumbnail = (
     <button
@@ -438,7 +473,7 @@ export function VoiceDetailBody({
                 >
                   <ImagePlus className="size-4" />
                 </button>
-                {!isFishSource && data.voiceReferenceAudioUrl ? (
+                {!isFishSource && playableUrl ? (
                   <button
                     type="button"
                     onClick={handleClearReferenceAudio}
@@ -557,55 +592,62 @@ export function VoiceDetailBody({
               onChange={(model) => updateNodeData(nodeId, { model })}
               kind={NODE_MEDIA_KIND_IDS.audio}
             />
-            <ParamSlider
-              label={t('speedLabel')}
-              value={data.voiceSpeed ?? TTS_SPEED_RANGE.default}
-              onChange={(value) => applyPatch({ voiceSpeed: value })}
-              min={TTS_SPEED_RANGE.min}
-              max={TTS_SPEED_RANGE.max}
-              step={TTS_SPEED_RANGE.step}
-              formatValue={(value) => `${value.toFixed(1)}×`}
-            />
-            <ParamSlider
-              label={t('volumeLabel')}
-              value={data.voiceVolume ?? TTS_VOLUME_RANGE.default}
-              onChange={(value) => applyPatch({ voiceVolume: value })}
-              min={TTS_VOLUME_RANGE.min}
-              max={TTS_VOLUME_RANGE.max}
-              step={TTS_VOLUME_RANGE.step}
-              formatValue={(value) => `${value > 0 ? '+' : ''}${value}`}
-            />
-            <div className="canvas-detail-krow">
-              <span className="canvas-detail-krow-key">
-                {t('emotionLabel')}
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {NODE_STUDIO_VOICE_EMOTIONS.map((emotion) => (
-                  <button
-                    key={emotion}
-                    type="button"
-                    onClick={() =>
-                      applyPatch({
-                        voiceEmotion:
-                          emotion === NODE_STUDIO_VOICE_EMOTION_IDS.none
-                            ? ''
-                            : emotion,
-                      })
-                    }
-                    onKeyDownCapture={stopCanvasKeyboardEvent}
-                    aria-pressed={selectedEmotion === emotion}
-                    className={cn(
-                      'nodrag rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
-                      selectedEmotion === emotion
-                        ? 'border-node-foreground text-node-foreground'
-                        : 'border-node-edge text-node-muted hover:text-node-foreground',
-                    )}
-                  >
-                    {t(`emotions.${emotion}`)}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* 合成参数只在**合成**这条路上露出。取用库里的片段 / 用户上传的音频时，
+                那段音频已经录成那样了，这三个控件对它一点作用都没有 —— 显示就是在
+                暗示可以调（owner 2026-08-10）。域定义见 canvas-voice-card.md §0.5。 */}
+            {showSynthesisParams ? (
+              <>
+                <ParamSlider
+                  label={t('speedLabel')}
+                  value={data.voiceSpeed ?? TTS_SPEED_RANGE.default}
+                  onChange={(value) => applyPatch({ voiceSpeed: value })}
+                  min={TTS_SPEED_RANGE.min}
+                  max={TTS_SPEED_RANGE.max}
+                  step={TTS_SPEED_RANGE.step}
+                  formatValue={(value) => `${value.toFixed(1)}×`}
+                />
+                <ParamSlider
+                  label={t('volumeLabel')}
+                  value={data.voiceVolume ?? TTS_VOLUME_RANGE.default}
+                  onChange={(value) => applyPatch({ voiceVolume: value })}
+                  min={TTS_VOLUME_RANGE.min}
+                  max={TTS_VOLUME_RANGE.max}
+                  step={TTS_VOLUME_RANGE.step}
+                  formatValue={(value) => `${value > 0 ? '+' : ''}${value}`}
+                />
+                <div className="canvas-detail-krow">
+                  <span className="canvas-detail-krow-key">
+                    {t('emotionLabel')}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {NODE_STUDIO_VOICE_EMOTIONS.map((emotion) => (
+                      <button
+                        key={emotion}
+                        type="button"
+                        onClick={() =>
+                          applyPatch({
+                            voiceEmotion:
+                              emotion === NODE_STUDIO_VOICE_EMOTION_IDS.none
+                                ? ''
+                                : emotion,
+                          })
+                        }
+                        onKeyDownCapture={stopCanvasKeyboardEvent}
+                        aria-pressed={selectedEmotion === emotion}
+                        className={cn(
+                          'nodrag rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+                          selectedEmotion === emotion
+                            ? 'border-node-foreground text-node-foreground'
+                            : 'border-node-edge text-node-muted hover:text-node-foreground',
+                        )}
+                      >
+                        {t(`emotions.${emotion}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
         ),
 

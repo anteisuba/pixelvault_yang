@@ -302,10 +302,19 @@ Round 2 不能以“重构”为由回退这些已经成立的行为：十族穷
    ✅ **已修（2026-08-09）**：`readVoiceUrl`（`node-workflow-graph.ts`）的取值链追加第 3 档
    `voiceSampleUrl`（`audioClip.url` > `voiceReferenceAudioUrl` > `voiceSampleUrl`），系统音色
    现在真的进 `audio_urls`。
-   ⚠ **后半句「`hasVoiceContent` 有 `voiceId` 就判 ready」不再是缺陷**：修完之后，只要有
-   `voiceId` 就通常也有 `voiceSampleUrl`（Fish 音色库选中时一并写入，真机实测），所以「面板说
-   ready」与「真的发得出去」现在是同一个事实。仍然没有任何音频的音色节点走既有的
-   `references.voiceNotReadyHint`（暗芯片 +「本次生成不会发送」），不静默。
+   ⚠ **后半句于 2026-08-10 一并修掉**。此前这里写着「有 `voiceId` 就通常也有 `voiceSampleUrl`
+   （Fish 音色库选中时一并写入，真机实测），所以 ready 与发得出去是同一个事实」——**这句话是错的**，
+   真机当天就有两个音色节点（小爱弥斯 / 元気な女性）是 `voiceId` + 零音频 + 绿灯 ready。
+   漏判的路径是**收藏**：`handleToggleFavorite` 建卡时只带走 `sampleText`，把音频丢了
+   （owner 四张卡 `referenceAudioUrl` 全 NULL、`sampleText` 全有，指纹一致），于是
+   「收藏 → 从收藏 tab 选中」必定得到没有音频的节点。公开库本身是好的（抽查 300 个只有
+   ~2% 没样本）。两处已改：
+   · 收藏时把示例音频存进新字段 `VoiceCard.sampleAudioUrl`（**不能写 `referenceAudioUrl`**——
+   那是声音库「克隆 tab / 收藏 tab」的分流判据，写进去会把收藏卡错分到克隆 tab）
+   · ready 的判据统一到 `readVoiceUrlFromData`（`readVoiceUrl` 的 data 版，同一条取值链），
+   卡面与面板都用它；没有任何音频时卡面直接显示既有文案 `voiceProfile.noSample`
+   ⚠ 卡面 `VoiceNode` **自己重算 status**（旧写法「有 `voiceId` 就盖 ready」），所以只改写入点
+   的 `status` 是一个渲染上完全看不见的空改——`VoiceNode.test.tsx` 锁的就是这一步。
 
 **三处跨出设计线冻结范围**（`node-detail/**` · `inspector/**` · `composer/VideoComposer.tsx`）：
 不可执行模型过滤（studio-shared 模型选择器，会同时影响 Studio Video）· 音色接线修复（services 层）·

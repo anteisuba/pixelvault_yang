@@ -38,6 +38,7 @@ export type VoiceCardMinAggregateOutputType = {
   age: string | null
   pace: string | null
   pitch: string | null
+  sampleAudioUrl: string | null
   sampleText: string | null
   isDeleted: boolean | null
   createdAt: Date | null
@@ -58,6 +59,7 @@ export type VoiceCardMaxAggregateOutputType = {
   age: string | null
   pace: string | null
   pitch: string | null
+  sampleAudioUrl: string | null
   sampleText: string | null
   isDeleted: boolean | null
   createdAt: Date | null
@@ -80,6 +82,7 @@ export type VoiceCardCountAggregateOutputType = {
   pace: number
   pitch: number
   pronunciationDictionary: number
+  sampleAudioUrl: number
   sampleText: number
   isDeleted: number
   createdAt: number
@@ -102,6 +105,7 @@ export type VoiceCardMinAggregateInputType = {
   age?: true
   pace?: true
   pitch?: true
+  sampleAudioUrl?: true
   sampleText?: true
   isDeleted?: true
   createdAt?: true
@@ -122,6 +126,7 @@ export type VoiceCardMaxAggregateInputType = {
   age?: true
   pace?: true
   pitch?: true
+  sampleAudioUrl?: true
   sampleText?: true
   isDeleted?: true
   createdAt?: true
@@ -144,6 +149,7 @@ export type VoiceCardCountAggregateInputType = {
   pace?: true
   pitch?: true
   pronunciationDictionary?: true
+  sampleAudioUrl?: true
   sampleText?: true
   isDeleted?: true
   createdAt?: true
@@ -239,6 +245,7 @@ export type VoiceCardGroupByOutputType = {
   pace: string
   pitch: string | null
   pronunciationDictionary: runtime.JsonValue
+  sampleAudioUrl: string | null
   sampleText: string | null
   isDeleted: boolean
   createdAt: Date
@@ -282,6 +289,7 @@ export type VoiceCardWhereInput = {
   pace?: Prisma.StringFilter<"VoiceCard"> | string
   pitch?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   pronunciationDictionary?: Prisma.JsonFilter<"VoiceCard">
+  sampleAudioUrl?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   sampleText?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   isDeleted?: Prisma.BoolFilter<"VoiceCard"> | boolean
   createdAt?: Prisma.DateTimeFilter<"VoiceCard"> | Date | string
@@ -305,6 +313,7 @@ export type VoiceCardOrderByWithRelationInput = {
   pace?: Prisma.SortOrder
   pitch?: Prisma.SortOrderInput | Prisma.SortOrder
   pronunciationDictionary?: Prisma.SortOrder
+  sampleAudioUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   sampleText?: Prisma.SortOrderInput | Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -331,6 +340,7 @@ export type VoiceCardWhereUniqueInput = Prisma.AtLeast<{
   pace?: Prisma.StringFilter<"VoiceCard"> | string
   pitch?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   pronunciationDictionary?: Prisma.JsonFilter<"VoiceCard">
+  sampleAudioUrl?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   sampleText?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   isDeleted?: Prisma.BoolFilter<"VoiceCard"> | boolean
   createdAt?: Prisma.DateTimeFilter<"VoiceCard"> | Date | string
@@ -354,6 +364,7 @@ export type VoiceCardOrderByWithAggregationInput = {
   pace?: Prisma.SortOrder
   pitch?: Prisma.SortOrderInput | Prisma.SortOrder
   pronunciationDictionary?: Prisma.SortOrder
+  sampleAudioUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   sampleText?: Prisma.SortOrderInput | Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -382,6 +393,7 @@ export type VoiceCardScalarWhereWithAggregatesInput = {
   pace?: Prisma.StringWithAggregatesFilter<"VoiceCard"> | string
   pitch?: Prisma.StringNullableWithAggregatesFilter<"VoiceCard"> | string | null
   pronunciationDictionary?: Prisma.JsonWithAggregatesFilter<"VoiceCard">
+  sampleAudioUrl?: Prisma.StringNullableWithAggregatesFilter<"VoiceCard"> | string | null
   sampleText?: Prisma.StringNullableWithAggregatesFilter<"VoiceCard"> | string | null
   isDeleted?: Prisma.BoolWithAggregatesFilter<"VoiceCard"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"VoiceCard"> | Date | string
@@ -403,6 +415,7 @@ export type VoiceCardCreateInput = {
   pace?: string
   pitch?: string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: string | null
   sampleText?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -426,6 +439,7 @@ export type VoiceCardUncheckedCreateInput = {
   pace?: string
   pitch?: string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: string | null
   sampleText?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -447,6 +461,7 @@ export type VoiceCardUpdateInput = {
   pace?: Prisma.StringFieldUpdateOperationsInput | string
   pitch?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sampleText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -470,6 +485,7 @@ export type VoiceCardUncheckedUpdateInput = {
   pace?: Prisma.StringFieldUpdateOperationsInput | string
   pitch?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sampleText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -492,6 +508,7 @@ export type VoiceCardCreateManyInput = {
   pace?: string
   pitch?: string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: string | null
   sampleText?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -513,6 +530,7 @@ export type VoiceCardUpdateManyMutationInput = {
   pace?: Prisma.StringFieldUpdateOperationsInput | string
   pitch?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sampleText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -535,6 +553,7 @@ export type VoiceCardUncheckedUpdateManyInput = {
   pace?: Prisma.StringFieldUpdateOperationsInput | string
   pitch?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sampleText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -567,6 +586,7 @@ export type VoiceCardCountOrderByAggregateInput = {
   pace?: Prisma.SortOrder
   pitch?: Prisma.SortOrder
   pronunciationDictionary?: Prisma.SortOrder
+  sampleAudioUrl?: Prisma.SortOrder
   sampleText?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -587,6 +607,7 @@ export type VoiceCardMaxOrderByAggregateInput = {
   age?: Prisma.SortOrder
   pace?: Prisma.SortOrder
   pitch?: Prisma.SortOrder
+  sampleAudioUrl?: Prisma.SortOrder
   sampleText?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -607,6 +628,7 @@ export type VoiceCardMinOrderByAggregateInput = {
   age?: Prisma.SortOrder
   pace?: Prisma.SortOrder
   pitch?: Prisma.SortOrder
+  sampleAudioUrl?: Prisma.SortOrder
   sampleText?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -670,6 +692,7 @@ export type VoiceCardCreateWithoutUserInput = {
   pace?: string
   pitch?: string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: string | null
   sampleText?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -691,6 +714,7 @@ export type VoiceCardUncheckedCreateWithoutUserInput = {
   pace?: string
   pitch?: string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: string | null
   sampleText?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -742,6 +766,7 @@ export type VoiceCardScalarWhereInput = {
   pace?: Prisma.StringFilter<"VoiceCard"> | string
   pitch?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   pronunciationDictionary?: Prisma.JsonFilter<"VoiceCard">
+  sampleAudioUrl?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   sampleText?: Prisma.StringNullableFilter<"VoiceCard"> | string | null
   isDeleted?: Prisma.BoolFilter<"VoiceCard"> | boolean
   createdAt?: Prisma.DateTimeFilter<"VoiceCard"> | Date | string
@@ -763,6 +788,7 @@ export type VoiceCardCreateManyUserInput = {
   pace?: string
   pitch?: string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: string | null
   sampleText?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -784,6 +810,7 @@ export type VoiceCardUpdateWithoutUserInput = {
   pace?: Prisma.StringFieldUpdateOperationsInput | string
   pitch?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sampleText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -805,6 +832,7 @@ export type VoiceCardUncheckedUpdateWithoutUserInput = {
   pace?: Prisma.StringFieldUpdateOperationsInput | string
   pitch?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sampleText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -826,6 +854,7 @@ export type VoiceCardUncheckedUpdateManyWithoutUserInput = {
   pace?: Prisma.StringFieldUpdateOperationsInput | string
   pitch?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sampleText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -850,6 +879,7 @@ export type VoiceCardSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   pace?: boolean
   pitch?: boolean
   pronunciationDictionary?: boolean
+  sampleAudioUrl?: boolean
   sampleText?: boolean
   isDeleted?: boolean
   createdAt?: boolean
@@ -873,6 +903,7 @@ export type VoiceCardSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   pace?: boolean
   pitch?: boolean
   pronunciationDictionary?: boolean
+  sampleAudioUrl?: boolean
   sampleText?: boolean
   isDeleted?: boolean
   createdAt?: boolean
@@ -896,6 +927,7 @@ export type VoiceCardSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   pace?: boolean
   pitch?: boolean
   pronunciationDictionary?: boolean
+  sampleAudioUrl?: boolean
   sampleText?: boolean
   isDeleted?: boolean
   createdAt?: boolean
@@ -919,13 +951,14 @@ export type VoiceCardSelectScalar = {
   pace?: boolean
   pitch?: boolean
   pronunciationDictionary?: boolean
+  sampleAudioUrl?: boolean
   sampleText?: boolean
   isDeleted?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type VoiceCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "provider" | "modelId" | "voiceId" | "coverImage" | "referenceAudioUrl" | "referenceAudioStorageKey" | "gender" | "age" | "tone" | "pace" | "pitch" | "pronunciationDictionary" | "sampleText" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["voiceCard"]>
+export type VoiceCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "provider" | "modelId" | "voiceId" | "coverImage" | "referenceAudioUrl" | "referenceAudioStorageKey" | "gender" | "age" | "tone" | "pace" | "pitch" | "pronunciationDictionary" | "sampleAudioUrl" | "sampleText" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["voiceCard"]>
 export type VoiceCardInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -957,6 +990,12 @@ export type $VoiceCardPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     pace: string
     pitch: string | null
     pronunciationDictionary: runtime.JsonValue
+    /**
+     * 收藏公开音色时一并存下的示例音频。与 referenceAudioUrl 严格分开：后者只有
+     * 克隆音色才有，并且被当作「这是不是克隆卡」的判据（声音库的两个 tab 靠它分流），
+     * 往里写公开音色的试听会把收藏卡错分到克隆 tab。
+     */
+    sampleAudioUrl: string | null
     sampleText: string | null
     isDeleted: boolean
     createdAt: Date
@@ -1400,6 +1439,7 @@ export interface VoiceCardFieldRefs {
   readonly pace: Prisma.FieldRef<"VoiceCard", 'String'>
   readonly pitch: Prisma.FieldRef<"VoiceCard", 'String'>
   readonly pronunciationDictionary: Prisma.FieldRef<"VoiceCard", 'Json'>
+  readonly sampleAudioUrl: Prisma.FieldRef<"VoiceCard", 'String'>
   readonly sampleText: Prisma.FieldRef<"VoiceCard", 'String'>
   readonly isDeleted: Prisma.FieldRef<"VoiceCard", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"VoiceCard", 'DateTime'>

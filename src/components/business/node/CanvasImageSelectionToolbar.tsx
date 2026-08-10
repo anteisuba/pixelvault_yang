@@ -45,6 +45,7 @@ import {
   NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
   NODE_STUDIO_REFERENCE_ROLES,
   NODE_STUDIO_VIDEO_INPUT,
+  NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
   NODE_STUDIO_VOICE_PROFILE,
   NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
 } from '@/constants/node-studio'
@@ -1052,8 +1053,8 @@ function VideoMergeCapability({
  *  library as reference audio. Reuses the EXACT channel `VoiceDetailBody`'s
  *  own "从素材选择" entry already established — `AssetSelectorDialog`
  *  `mediaType="audio"` + the same field set its `handleSelectReferenceAsset`
- *  writes (voiceReferenceAudioUrl/Name/MimeType + voiceReferenceCoverImage +
- *  voiceSource=referenceAudio) — no new audio channel introduced. */
+ *  writes (voiceClipUrl/Source + Name/MimeType + voiceReferenceCoverImage) —
+ *  no new audio channel introduced. */
 function VoiceCapability({
   nodeId,
   data,
@@ -1106,7 +1107,8 @@ function VoiceCapability({
         mediaType="audio"
         onSelect={(generation: GenerationRecord) => {
           updateNodeData(nodeId, {
-            voiceReferenceAudioUrl: generation.url,
+            voiceClipUrl: generation.url,
+            voiceClipSource: NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.uploaded,
             voiceReferenceAudioName: t('referenceAudioFallback'),
             voiceReferenceAudioMimeType: NODE_STUDIO_AUDIO_INPUT.assetMimeType,
             voiceReferenceCoverImage:

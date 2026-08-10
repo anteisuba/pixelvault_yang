@@ -492,6 +492,10 @@ model VoiceCard {
   pace                     String   @default("normal")
   pitch                    String?
   pronunciationDictionary  Json     @default("{}")
+  /// 收藏公开音色时一并存下的示例音频。与 referenceAudioUrl 严格分开：后者只有
+  /// 克隆音色才有，并且被当作「这是不是克隆卡」的判据（声音库的两个 tab 靠它分流），
+  /// 往里写公开音色的试听会把收藏卡错分到克隆 tab。
+  sampleAudioUrl           String?  @db.Text
   sampleText               String?  @db.Text
   isDeleted                Boolean  @default(false)
   createdAt                DateTime @default(now())

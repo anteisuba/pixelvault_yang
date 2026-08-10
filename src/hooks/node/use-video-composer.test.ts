@@ -163,7 +163,7 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     graphState.nodes = [
       makeNode('voice1', NODE_TYPE_IDS.voice, {
         voiceName: '卡提希娅',
-        voiceReferenceAudioUrl: 'https://cdn.test/voice.mp3',
+        voiceClipUrl: 'https://cdn.test/voice.mp3',
       }),
       makeNode('char1', NODE_TYPE_IDS.characterImage, {
         characterName: '角色A',
@@ -224,7 +224,7 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
   it('surfaces a voice wired DIRECTLY into the video as a 旁白 token', () => {
     graphState.nodes = [
       makeNode('voice1', NODE_TYPE_IDS.voice, {
-        voiceReferenceAudioUrl: 'https://cdn.test/voice.mp3',
+        voiceClipUrl: 'https://cdn.test/voice.mp3',
       }),
       makeNode('video1', NODE_TYPE_IDS.seedance),
     ]
@@ -243,7 +243,7 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     graphState.nodes = [
       makeNode('voice1', NODE_TYPE_IDS.voice, {
         voiceName: '旁白',
-        voiceReferenceAudioUrl: 'https://cdn.test/voice.mp3',
+        voiceClipUrl: 'https://cdn.test/voice.mp3',
       }),
       makeNode('image1', NODE_TYPE_IDS.image, {
         mediaUrl: 'https://cdn.test/loose.png',
@@ -480,7 +480,7 @@ describe('useVideoComposer referencedTokenIds (V-3a 管理素材面板)', () => 
     graphState.nodes = [
       makeNode('voice1', NODE_TYPE_IDS.voice, {
         voiceName: '旁白甲',
-        voiceReferenceAudioUrl: 'https://cdn.test/voice.mp3',
+        voiceClipUrl: 'https://cdn.test/voice.mp3',
       }),
       makeNode('video1', NODE_TYPE_IDS.seedance),
     ]

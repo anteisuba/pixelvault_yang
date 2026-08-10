@@ -13,6 +13,7 @@ import {
   NODE_STUDIO_IMAGE_OUTPUT_SOURCES,
   NODE_STUDIO_REFERENCE_ROLES,
   NODE_STUDIO_REFERENCE_SOURCES,
+  NODE_STUDIO_VOICE_CLIP_SOURCES,
   NODE_STUDIO_VOICE_PROFILE_SOURCES,
   NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
@@ -217,12 +218,28 @@ export const NodeWorkflowNodeDataSchema = z
     // system-voice `voiceCoverImage` so switching sources doesn't clobber the
     // other's cover. Follows the picked audio asset's cover (set in the library).
     voiceReferenceCoverImage: z.string().trim().min(1).optional(),
+    /**
+     * 这个节点交付的那段参考语音 —— **唯一产物**。域定义见
+     * `docs/references/pages/canvas-voice-card.md` §0.5。
+     * 判「发不发得出去」一律走 `readVoiceUrlFromData`，别再自己写取值链。
+     */
+    voiceClipUrl: z.string().trim().min(1).optional(),
+    voiceClipSource: z.enum(NODE_STUDIO_VOICE_CLIP_SOURCES).optional(),
+    /**
+     * @deprecated 已被 `voiceClipUrl` 取代（2026-08-10 字段收敛）。
+     * ⛔ **不许从 schema 删**：水化是先 parse 再 migrate，删了它 parse 阶段就会把
+     * 存量项目里的这段音频 strip 掉，迁移再也看不到 —— 用户的声音静默清零。
+     * 只有 `node-workflow-migrate-voice-clip.ts` 读它。
+     */
     voiceSampleUrl: z.string().trim().min(1).optional(),
     voiceStyle: z.string().optional(),
     voiceEmotion: z.string().optional(),
     voiceSpeed: z.number().min(0.5).max(2).optional(),
     voiceVolume: z.number().min(-20).max(20).optional(),
     voiceSource: z.enum(NODE_STUDIO_VOICE_PROFILE_SOURCES).optional(),
+    /**
+     * @deprecated 同上，已被 `voiceClipUrl` 取代。⛔ 同样不许从 schema 删。
+     */
     voiceReferenceAudioUrl: z.string().trim().min(1).optional(),
     voiceReferenceAudioName: z.string().trim().min(1).max(160).optional(),
     voiceReferenceAudioMimeType: z.string().trim().min(1).max(120).optional(),

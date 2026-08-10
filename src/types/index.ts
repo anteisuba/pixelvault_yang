@@ -4597,6 +4597,7 @@ const VoiceCardRequestShape = {
   pace: z.enum(VOICE_CARD_PACES),
   pitch: z.enum(VOICE_CARD_PITCHES).optional(),
   pronunciationDictionary: z.record(z.string(), z.string()),
+  sampleAudioUrl: z.string().url().optional(),
   sampleText: z.string().max(500).optional(),
 }
 
@@ -4644,6 +4645,7 @@ export type VoiceCardRecord = {
   pace: (typeof VOICE_CARD_PACES)[number]
   pitch: (typeof VOICE_CARD_PITCHES)[number] | null
   pronunciationDictionary: Record<string, string>
+  sampleAudioUrl: string | null
   sampleText: string | null
   isDeleted: boolean
   createdAt: string

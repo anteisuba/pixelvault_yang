@@ -480,6 +480,32 @@ export const NODE_STUDIO_VOICE_PROFILE_SOURCES = [
   NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
 ] as const
 
+/**
+ * 那段参考语音是怎么来的。域定义见 `docs/references/pages/canvas-voice-card.md` §0.5。
+ *
+ * ⚠ 与上面的 `NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS` 不是一回事，别混：那个混了
+ * 「身份从哪来」与「音频从哪来」两件事（`fishAudio` 说的是身份、`referenceAudio`
+ * 说的是音频），正是 2026-08-10 那轮错位的来源之一。这个 enum 只回答一件事 ——
+ * **手上这段音频是怎么得到的**。
+ *
+ * `library` 是常态：公开库抽查 300 个音色只有 ~2% 没有自带试听，所以 `synthesized`
+ * 是那 2% 的兜底，不是主路径。
+ */
+export const NODE_STUDIO_VOICE_CLIP_SOURCE_IDS = {
+  library: 'library',
+  synthesized: 'synthesized',
+  uploaded: 'uploaded',
+} as const
+
+export const NODE_STUDIO_VOICE_CLIP_SOURCES = [
+  NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.library,
+  NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.synthesized,
+  NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.uploaded,
+] as const
+
+export type NodeStudioVoiceClipSource =
+  (typeof NODE_STUDIO_VOICE_CLIP_SOURCES)[number]
+
 export const NODE_STUDIO_VOICE_PROFILE = {
   providerDefault: 'Fish Audio',
   idPreviewLength: 48,

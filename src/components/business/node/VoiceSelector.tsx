@@ -37,7 +37,9 @@ import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import {
   createVoiceCardAPI,
   deleteVoiceCardAPI,
+  getVoiceAPI,
   listVoicesAPI,
+  updateVoiceCardAPI,
 } from '@/lib/api-client'
 import { filterByQuery } from '@/lib/search-utils'
 import { cn } from '@/lib/utils'
@@ -297,6 +299,11 @@ export const VoiceSelector = memo(function VoiceSelector({
           tone: [],
           pace: VOICE_CARD_DEFAULT_PACE,
           pronunciationDictionary: {},
+          // 收藏必须把示例音频一起带走。此前只存了 sampleText，音频当场丢掉，
+          // 于是「收藏 → 从收藏 tab 选中」得到的节点只有 voiceId、没有任何音频，
+          // 拿它当视频的参考音频时静默发不出去（真机四张卡全中）。
+          // ⚠ 不能写进 referenceAudioUrl —— 那是克隆 tab 的分流判据。
+          sampleAudioUrl: asset.sampleUrl ?? undefined,
           sampleText: asset.sampleText ?? undefined,
         })
 
@@ -312,14 +319,34 @@ export const VoiceSelector = memo(function VoiceSelector({
     setFavoritePendingVoiceId(null)
   }
 
-  const handleSelectVoiceCard = (card: VoiceCardRecord) => {
+  const handleSelectVoiceCard = async (card: VoiceCardRecord) => {
     if (onSelectVoiceId) {
       if (!card.voiceId) return
+      // 克隆卡的音频在 referenceAudioUrl，收藏卡的在 sampleAudioUrl。
+      let sampleUrl = card.referenceAudioUrl ?? card.sampleAudioUrl
+      // 存量收藏卡是在「收藏只存文本」的年代建的，音频位是空的。**直接去声音库
+      // 取它自带的试听**——不要再合成一次：合成花用户的 key、要等，产出的还是同
+      // 一个音色念同一段固定文本。取到后顺手补回卡上，下次就不用再查。
+      if (!sampleUrl && card.provider === VOICE_CARD_PROVIDER.FISH_AUDIO) {
+        setPendingVoiceCardId(card.id)
+        const resolved = await getVoiceAPI(card.voiceId)
+        setPendingVoiceCardId(null)
+        sampleUrl =
+          (resolved.success &&
+            resolved.data?.samples.find((sample) => sample.audio)?.audio) ||
+          null
+        if (sampleUrl) {
+          const backfilled = await updateVoiceCardAPI(card.id, {
+            sampleAudioUrl: sampleUrl,
+          })
+          if (backfilled.success) await voiceCards.refresh()
+        }
+      }
       onSelectVoiceId({
         voiceId: card.voiceId,
         name: card.name,
         coverImage: card.coverImage,
-        sampleUrl: card.referenceAudioUrl,
+        sampleUrl,
       })
       onSelectComplete?.()
       return

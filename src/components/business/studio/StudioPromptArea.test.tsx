@@ -479,6 +479,7 @@ describe('StudioPromptArea', () => {
       pace: 'normal',
       pitch: null,
       pronunciationDictionary: { AI: 'ay eye' },
+      sampleAudioUrl: null,
       sampleText: null,
       isDeleted: false,
       createdAt: '2026-05-04T00:00:00.000Z',

@@ -115,6 +115,7 @@ export async function createVoiceCard(
       pace: data.pace,
       pitch: data.pitch ?? null,
       pronunciationDictionary: toPrismaJson(data.pronunciationDictionary),
+      sampleAudioUrl: data.sampleAudioUrl ?? null,
       sampleText: data.sampleText ?? null,
     },
   })
@@ -229,6 +230,8 @@ export async function updateVoiceCard(
       data.pronunciationDictionary,
     )
   }
+  if (data.sampleAudioUrl !== undefined)
+    updateData.sampleAudioUrl = data.sampleAudioUrl
   if (data.sampleText !== undefined) updateData.sampleText = data.sampleText
 
   return db.voiceCard.update({

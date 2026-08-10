@@ -22,6 +22,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import {
+  NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
   NODE_STUDIO_VOICE_PROFILE,
   NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
 } from '@/constants/node-studio'
@@ -29,6 +30,7 @@ import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import {
   getNodePrimaryMediaUrl,
   getSeedanceReferenceKind,
+  readVoiceUrlFromData,
 } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
@@ -101,10 +103,13 @@ export const VoiceNode = memo(function VoiceNode(
 
   const isFailed = data.status === NODE_STATUS_IDS.failed
   const isGenerating = data.status === NODE_STATUS_IDS.running
+  // 「这张卡配置过没有」——只管**空态 vs 非空态**，不回答「发不发得出去」
+  // （那是 status 的事，判据是 readVoiceUrlFromData）。两件事分开之后，
+  // 「选了音色但还没有语音」既不是空卡、也不是 ready，正是它该在的位置。
   const hasVoiceIdentity = Boolean(
     data.voiceName ||
     data.voiceId ||
-    data.voiceReferenceAudioUrl ||
+    data.voiceClipUrl ||
     data.voiceStyle ||
     data.voiceEmotion,
   )
@@ -115,15 +120,6 @@ export const VoiceNode = memo(function VoiceNode(
       : hasVoiceIdentity
         ? 'ready'
         : 'empty'
-  // 卡外头需要一个 status——真的 failed/running 就如实传，否则配置完就是
-  // ready（镜像旧逻辑 hasVoiceProfile ? ready : data.status），只是徽标本身
-  // 被 hideStatusBadge 关掉，这里只用来喂 .canvas-card[data-status] 的红边。
-  const status =
-    isFailed || isGenerating
-      ? data.status
-      : hasVoiceIdentity
-        ? NODE_STATUS_IDS.ready
-        : data.status
   // Never fall back to the raw voiceId — it reads as gibberish.
   const voiceTitle = data.voiceName?.trim()
   const providerLabel = data.voiceProvider || t('providerFallback')
@@ -135,25 +131,34 @@ export const VoiceNode = memo(function VoiceNode(
       : data.voiceCoverImage
   const showCover = Boolean(cover) && erroredCover !== cover
 
-  // 试听源选择: mirrors VoiceDetailBody's own `activeSource` default-init
-  // ternary (`data.voiceSource === referenceAudio ? referenceAudio :
-  // fishAudio`) — the persisted field decides which clip is "the" audition
-  // clip instead of a second, disconnected notion of "playable". No new
-  // audio channel: same `voiceSampleUrl` / `voiceReferenceAudioUrl` fields,
-  // same plain <audio> element pattern used everywhere else in this domain.
-  // 播放源解析（owner 真机 bug 修复 2026-07-19）: 先按 voiceSource 取对应 clip，
-  // 但**只要有一个实际存在的音频 url 就兜底可播**——之前 source='manual'（既非
-  // referenceAudio 也非 fishAudio）会落进取 voiceSampleUrl 的分支拿到 null 而禁用，
-  // 哪怕 voiceReferenceAudioUrl 明明有有效音频（node-518 就是这情况）。现在两个
-  // url 谁有取谁（referenceAudio 优先，它是真正上传/生成的 clip），彻底消除"有音频
-  // 却不能播"。
-  const isFishAudioSource =
-    data.voiceSource !== NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio
-  const playableAudioUrl =
-    (isFishAudioSource ? data.voiceSampleUrl : data.voiceReferenceAudioUrl) ||
-    data.voiceReferenceAudioUrl ||
-    data.voiceSampleUrl ||
-    null
+  // 试听源 = 那段参考语音本身（`readVoiceUrlFromData`，与收割层同一个判据）。
+  // ⚠ 收敛之前这里是「按 voiceSource 取对应字段 + 两层兜底」的五行解析，那是
+  // `voiceSampleUrl` / `voiceReferenceAudioUrl` 两个字段并存时代的产物，也正是
+  // 2026-07-19 那个「有音频却不能播」的来源（source='manual' 落进错的分支）。
+  // 一个产物一个字段之后，兜底本身就没有存在的理由了。
+  // 卡外头需要一个 status——真的 failed/running 就如实传，否则**有音频才算 ready**，
+  // 只是徽标本身被 hideStatusBadge 关掉，这里只用来喂 .canvas-card[data-status]。
+  // ⚠ 这里曾经是 `hasVoiceIdentity ? ready : data.status`——只要有 voiceId 就盖
+  // ready，而 voiceId 单独存在时一个音频 url 都没有（收藏卡那条路，见 VoiceSelector
+  // 的 handleToggleFavorite）。那种节点当视频参考音频是发不出去的，卡面却是绿的，
+  // 真相只在下游视频节点的槽架里出现。按 2026-08-10「边存在即绑定，能不能发单独用
+  // ready 表达」：绑定关系照旧由连线表达，ready 只表示「真的发得出去」。
+  // ⚠ 单靠不写 status 改不动这里——本组件**自己重算** status，所以只改两个写入点
+  // 是一个渲染上完全看不见的空改。
+  // 「发得出去吗」只有一个判据，与收割层同一个函数——不再自己写一条链。
+  const sendableAudioUrl = readVoiceUrlFromData(data)
+  // ⚠ 没有音频时**不能**直接把 data.status 透传出去：存量节点里躺着的正是旧代码
+  // 写死的 `ready`（真机 2026-08-10：元気な女性 / 小爱弥斯 两张卡就是这样，改完
+  // 摘要行已说「暂无试听样本」，卡的 data-status 却还是绿的 ready）。发不出去就
+  // 不许显示 ready，陈旧的 ready 一律降回 idle。
+  const status =
+    isFailed || isGenerating
+      ? data.status
+      : sendableAudioUrl
+        ? NODE_STATUS_IDS.ready
+        : data.status === NODE_STATUS_IDS.ready
+          ? NODE_STATUS_IDS.idle
+          : data.status
 
   // 角色绑定反向查找: a voice node never receives inbound edges (leaf
   // source, see node-connection-rules.ts), but it can feed a character node
@@ -185,7 +190,7 @@ export const VoiceNode = memo(function VoiceNode(
     // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
     setIsPlaying(false)
     setProgress(0)
-  }, [playableAudioUrl])
+  }, [sendableAudioUrl])
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current
@@ -264,10 +269,10 @@ export const VoiceNode = memo(function VoiceNode(
             </span>
           ) : null}
 
-          {playableAudioUrl ? (
+          {sendableAudioUrl ? (
             <audio
               ref={audioRef}
-              src={playableAudioUrl}
+              src={sendableAudioUrl}
               preload="metadata"
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
@@ -287,17 +292,17 @@ export const VoiceNode = memo(function VoiceNode(
           {cardState === 'ready' ? (
             <button
               type="button"
-              onClick={playableAudioUrl ? togglePlay : undefined}
-              disabled={!playableAudioUrl}
+              onClick={sendableAudioUrl ? togglePlay : undefined}
+              disabled={!sendableAudioUrl}
               aria-label={
-                playableAudioUrl
+                sendableAudioUrl
                   ? isPlaying
                     ? tPlayer('pause')
                     : tPlayer('play')
                   : t('noSample')
               }
               title={
-                playableAudioUrl
+                sendableAudioUrl
                   ? isPlaying
                     ? tPlayer('pause')
                     : tPlayer('play')
@@ -400,8 +405,12 @@ export const VoiceNode = memo(function VoiceNode(
                   </>
                 ) : null}
               </svg>
+              {/* 没有任何音频时，这一行是卡面上唯一说实话的地方——播放键虽然已经
+                  disabled，但它的 noSample 只挂在 title/aria-label 上，不悬停永远
+                  看不见。复用同一个既有文案，不新增 i18n 键。 */}
               <p className="canvas-voice-meta" title={providerLabel}>
-                {providerLabel} · {t('kindSpeech')}
+                {providerLabel} ·{' '}
+                {sendableAudioUrl ? t('kindSpeech') : t('noSample')}
               </p>
             </>
           )}
@@ -420,8 +429,14 @@ export const VoiceNode = memo(function VoiceNode(
             voiceProvider:
               data.voiceProvider || NODE_STUDIO_VOICE_PROFILE.providerDefault,
             voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
-            voiceSampleUrl: voice.sampleUrl ?? undefined,
-            status: NODE_STATUS_IDS.ready,
+            voiceClipUrl: voice.sampleUrl ?? undefined,
+            voiceClipSource: voice.sampleUrl
+              ? NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.library
+              : undefined,
+            // 没拿到那段语音就不能盖 ready —— 那种节点当参考音频发不出去。
+            status: voice.sampleUrl
+              ? NODE_STATUS_IDS.ready
+              : NODE_STATUS_IDS.idle,
           })
           setLibraryOpen(false)
         }}

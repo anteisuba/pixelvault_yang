@@ -64,6 +64,7 @@ import { applyDagreLayout } from '@/lib/node-workflow-layout'
 import { migrateRetireFusedNodes } from '@/lib/node-workflow-migrate-fused-nodes'
 import { migrateRetirePlanner } from '@/lib/node-workflow-migrate-planner'
 import { migrateImageRoles } from '@/lib/node-workflow-migrate-image-roles'
+import { migrateVoiceClip } from '@/lib/node-workflow-migrate-voice-clip'
 import {
   projectScriptDocToGraph,
   syncShotTextPatchToScriptDoc,
@@ -573,7 +574,9 @@ function projectFromServerRecord(
  * function then converts their data to the current runtime model.
  */
 function migrateWorkflowState(state: NodeWorkflowState): NodeWorkflowState {
-  return migrateRetireFusedNodes(migrateImageRoles(migrateRetirePlanner(state)))
+  return migrateVoiceClip(
+    migrateRetireFusedNodes(migrateImageRoles(migrateRetirePlanner(state))),
+  )
 }
 
 /**

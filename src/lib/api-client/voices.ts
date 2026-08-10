@@ -42,6 +42,36 @@ interface ReferenceAudioUploadResponse {
   errorCode?: string
 }
 
+/**
+ * 取单个公开音色的详情——**要的是它自带的示例音频**。
+ *
+ * 系统音色的试听在声音库里本来就有（抽查 300 个只有 ~2% 没有），拿来直接用即可，
+ * 不必再跑一次 TTS 合成：合成要花用户的 key、要等，而且产出的还是同一个音色念一段
+ * 固定文本。这条路由用的是平台 key、无需登录、服务端缓存 5 分钟。
+ */
+export async function getVoiceAPI(voiceId: string): Promise<VoiceResponse> {
+  try {
+    const response = await fetch(`/api/voices/${encodeURIComponent(voiceId)}`)
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        errorCode: (payload as { errorCode?: string }).errorCode,
+        error:
+          (payload as { error?: string }).error ??
+          `Failed with status ${response.status}`,
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
 export async function listVoicesAPI(params: {
   self?: boolean
   page?: number

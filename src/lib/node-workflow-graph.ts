@@ -1133,7 +1133,7 @@ export function readVoiceCoverImage(
 
 /**
  * Harvest reference-audio bindings (URL + optional character name) for a
- * focal node. Walks one hop further than `harvestUpstreamVoiceAudioUrls`:
+ * focal node. Walks one hop further than a direct-only sweep:
  * voice nodes connected directly are emitted as unbound clips, voice nodes
  * connected to an upstream character node are emitted with that character's
  * name attached. The grand-upstream character chain is intentionally

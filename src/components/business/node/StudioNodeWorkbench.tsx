@@ -398,6 +398,54 @@ function findRosterCardAt(
 }
 
 /**
+ * 拖拽替身（L8「拖拽 ghost」那一档，z 阶梯里早就给它留了位）。
+ *
+ * ⚠ **为什么必须是 portal 到 body 的替身，而不是把被拖的节点提上来**：节点住在
+ * `.react-flow__viewport` 里，那个元素带 `transform` —— **它是一个独立层叠上下文**，
+ * 里面的任何 z-index 都翻不出去。而左栏面板在它外面（L4，z 40）。所以只要落点在
+ * 面板上，被拖的图**必然被面板盖住**：owner 2026-08-10 实拍「图片在下层」就是这个。
+ * 替身活在 body 上，不受那个上下文管辖。
+ *
+ * ⚠ 用命令式 DOM 而不是 React state：拖拽每帧都要挪它，而每帧 setState 会重渲整棵
+ * 画布 —— 那正是 2026-07-18「拖动手感钝」那次的根因。
+ */
+const ROSTER_GHOST_SIZE_PX = 72
+
+function createRosterDragGhost(url: string): HTMLElement {
+  const ghost = document.createElement('div')
+  ghost.style.cssText = [
+    'position:fixed',
+    'left:0',
+    'top:0',
+    `width:${ROSTER_GHOST_SIZE_PX}px`,
+    `height:${ROSTER_GHOST_SIZE_PX}px`,
+    'border-radius:12px',
+    'overflow:hidden',
+    'pointer-events:none',
+    'opacity:0.92',
+    'box-shadow:var(--shadow-node-panel)',
+    'z-index:var(--z-index-canvas-drag)',
+  ].join(';')
+  const img = document.createElement('img')
+  img.src = url
+  img.alt = ''
+  img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block'
+  ghost.appendChild(img)
+  document.body.appendChild(ghost)
+  return ghost
+}
+
+function moveRosterDragGhost(
+  ghost: HTMLElement | null,
+  clientX: number,
+  clientY: number,
+): void {
+  if (!ghost) return
+  const half = ROSTER_GHOST_SIZE_PX / 2
+  ghost.style.transform = `translate(${clientX - half}px, ${clientY - half}px)`
+}
+
+/**
  * 这个节点能不能被拖进名册卡 —— 能就返回它那张图的 URL。
  * 判据与「从画布选择」第四源逐字同一条（阶段 8-a）：**只认图**，视频节点的
  * `mediaUrl` 是 mp4，拖进「参考**图**」集就是错的。
@@ -3650,11 +3698,14 @@ function StudioNodeCanvas() {
       // 阶段 8-b：拖到名册卡成功后本体要弹回原位，所以**起点要先记下来**。
       // ⚠ 记在退役开关**外面** —— 8-b 与吞噬是两条路（落点一个在面板一个在画布，
       // 边界见 `findRosterCardAt` 头注），不能共用那个开关的生死。
-      if (getRosterDropUrl(node)) {
+      const rosterUrl = getRosterDropUrl(node)
+      if (rosterUrl) {
         dragStartPositionsRef.current.set(node.id, {
           x: node.position.x,
           y: node.position.y,
         })
+        rosterGhostElRef.current?.remove()
+        rosterGhostElRef.current = createRosterDragGhost(rosterUrl)
       }
 
       if (
@@ -3723,6 +3774,8 @@ function StudioNodeCanvas() {
 
   /** 拖拽中悬停在名册卡上的高亮 —— 上一张与这一张不同才改 DOM。 */
   const rosterHoverElRef = useRef<HTMLElement | null>(null)
+  /** 跟手的拖拽替身（见 `createRosterDragGhost` 头注）。 */
+  const rosterGhostElRef = useRef<HTMLElement | null>(null)
 
   const handleNodeDrag = useCallback(
     (event: ReactMouseEvent, node: NodeWorkflowNode) => {
@@ -3730,6 +3783,11 @@ function StudioNodeCanvas() {
       // 纪律（每帧 setState 会让整棵画布重渲，那正是 2026-07-18「拖动手感钝」
       // 那次的根因）。
       if (getRosterDropUrl(node)) {
+        moveRosterDragGhost(
+          rosterGhostElRef.current,
+          event.clientX,
+          event.clientY,
+        )
         const hit = findRosterCardAt(event.clientX, event.clientY)
         if (hit !== rosterHoverElRef.current) {
           rosterHoverElRef.current?.classList.remove(ROSTER_CARD_HOVER_CLASS)
@@ -3793,34 +3851,28 @@ function StudioNodeCanvas() {
   // and equally true of a zero-reference collector/voice/videoReference card
   // that was just dragged across open canvas).
   /**
-   * 本体弹回拖拽起点 —— 复用「墨线签署」那一套（§2.7：源节点从不折叠，所以
-   * 诚实的收尾是让它自己滑回原处，而不是假装被吞掉）。
+   * 本体弹回拖拽起点。
+   *
+   * ⚠ **不用 `playNodeBounceBack` 的 WAAPI 飞行**（吞噬那条用的是它）。owner
+   * 2026-08-10 实拍：松手后「图片和线分离」—— 卡片元素带着 `fill:forwards` 的
+   * transform 飞回起点，而 React Flow 的 wrapper（handle 与边的锚点）还留在落点，
+   * 且位置提交是在动画 `finally` 里做的。这一路上只要有一次重渲把被动画的元素换
+   * 掉，`finished` 就再也不 settle —— transform 永久留着、位置永远不提交，画面就
+   * 卡在「图在这、线在那」。
+   * 这里改成**同步提交**：没有中间态，卡与它的边一帧之内一起回到原位。丢掉的只是
+   * 一段 300ms 的滑行 —— 而它服务的是「拖到另一张卡上」那个场景，这里的落点根本
+   * 不在画布上，本来也没有「从哪滑回来」可言。
    */
   const bounceNodeBack = useCallback(
     (node: NodeWorkflowNode) => {
       const origin = dragStartPositionsRef.current.get(node.id)
       dragStartPositionsRef.current.delete(node.id)
       if (!origin) return
-      const commit = () =>
-        workflow.onNodesChange([
-          { id: node.id, type: 'position', position: origin, dragging: false },
-        ])
-      const sourceEl = findNodeCardElement(node.id)
-      const wrapperEl = findNodeWrapperElement(node.id)
-      if (!sourceEl || !wrapperEl) {
-        commit()
-        return
-      }
-      const dropRect = wrapperEl.getBoundingClientRect()
-      const originScreen = flowToScreenPosition(origin)
-      playNodeBounceBack(
-        sourceEl,
-        originScreen.x - dropRect.left,
-        originScreen.y - dropRect.top,
-        commit,
-      )
+      workflow.onNodesChange([
+        { id: node.id, type: 'position', position: origin, dragging: false },
+      ])
     },
-    [flowToScreenPosition, workflow],
+    [workflow],
   )
 
   /**
@@ -3901,6 +3953,8 @@ function StudioNodeCanvas() {
       // 会让下一次拖拽看起来「已经命中」。
       rosterHoverElRef.current?.classList.remove(ROSTER_CARD_HOVER_CLASS)
       rosterHoverElRef.current = null
+      rosterGhostElRef.current?.remove()
+      rosterGhostElRef.current = null
       // S5f B4: the drag is over — any auto-expanded dock re-collapses
       // (CastDock watches this flag falling).
       setCanvasNodeDragActive(false)

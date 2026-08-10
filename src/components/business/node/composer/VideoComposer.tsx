@@ -1121,6 +1121,74 @@ export function VideoComposer({
     />
   )
 
+  /**
+   * 模式下拉 —— 参数条顺序：模型 → **模式** → 参数 →（工具）→ 用模板
+   * （report §8.15 owner 拍板）。
+   *
+   * ⚠ **两档都要有**（2026-08-10 owner 真机发现「展开态没有关键帧 ↔ 全能参考
+   * 的切换」）：阶段 2 第一版只做了紧凑档，完整档的编排台仍只有 模型 / 参数 /
+   * 运镜语法 三颗 chip，模式在左下角只是一行**只读状态字**。于是同一个节点，
+   * 收起来能切档、展开反而切不了 —— 展开本该是「同一件事的更全形态」。
+   * 抽成函数而不是复制一遍：两档的可用性判据与置灰理由必须是同一份。
+   *
+   * ⚠ 不可用档位用**置灰 + 说出原因**，不是让它消失：模式是固定三档的骨架，
+   * 少一档会让骨架变形、用户不知道自己少了什么。判据取自 `modeAvailability`
+   * （该档一个模型都没有），不是照抄 LibTV 那两句针对五档写的约束。
+   */
+  const renderModePicker = (triggerClassName: string) => (
+    <ResponsivePopover open={modePickerOpen} onOpenChange={setModePickerOpen}>
+      <ResponsivePopoverTrigger asChild>
+        <button
+          type="button"
+          {...KEY_GUARD}
+          className={triggerClassName}
+          aria-label={tc('sidecar.modeLabel')}
+        >
+          <span>{tc(`sidecar.mode.${videoMode}`)}</span>
+          <ChevronDown className="size-3 shrink-0" aria-hidden />
+        </button>
+      </ResponsivePopoverTrigger>
+      <ResponsivePopoverContent
+        label={tc('sidecar.modeLabel')}
+        side="top"
+        align="start"
+        sideOffset={6}
+        className="w-60 space-y-0.5 rounded-xl p-1.5"
+      >
+        {VIDEO_NODE_MODES.map((mode) => {
+          const usable = modeAvailability[mode]
+          return (
+            <button
+              key={mode}
+              type="button"
+              disabled={!usable}
+              aria-current={mode === videoMode ? 'true' : undefined}
+              onClick={() => {
+                selectVideoMode(mode)
+                setModePickerOpen(false)
+              }}
+              className={cn(
+                'flex w-full flex-col items-start gap-0.5 rounded-lg px-2.5 py-1.5 text-left text-xs',
+                usable
+                  ? 'text-node-foreground hover:bg-node-panel-soft'
+                  : 'cursor-default text-node-subtle',
+                mode === videoMode && 'bg-node-panel-soft',
+              )}
+            >
+              <span>{tc(`sidecar.mode.${mode}`)}</span>
+              {/* 置灰必须给原因 —— 否则用户只知道点不动，不知道为什么。 */}
+              {usable ? null : (
+                <span className="text-3xs text-node-subtle">
+                  {tc('sidecar.modeNoModel')}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </ResponsivePopoverContent>
+    </ResponsivePopover>
+  )
+
   // Compact right-sidecar: a spacious prompt surface with a truthful connected
   // reference strip and a single bottom dock. Editing model-specific details
   // expands this same sidecar; it no longer lives inside the video card.
@@ -1357,66 +1425,8 @@ export function VideoComposer({
               className="canvas-video-composer-model"
             />
 
-            {/* 模式下拉 —— 参数条顺序：模型 → **模式** → 参数 →（工具）→ 用模板
-                （report §8.15 owner 拍板）。
-                ⚠ 不可用档位用**置灰 + 说出原因**，不是让它消失：模式是固定三档的
-                骨架，少一档会让骨架变形、用户不知道自己少了什么。判据取自
-                `modeAvailability`（该档一个模型都没有），不是照抄 LibTV 那两句
-                针对五档写的约束 —— 见它的注释。 */}
-            <ResponsivePopover
-              open={modePickerOpen}
-              onOpenChange={setModePickerOpen}
-            >
-              <ResponsivePopoverTrigger asChild>
-                <button
-                  type="button"
-                  {...KEY_GUARD}
-                  className="canvas-video-composer-summary"
-                  aria-label={tc('sidecar.modeLabel')}
-                >
-                  <span>{tc(`sidecar.mode.${videoMode}`)}</span>
-                  <ChevronDown className="size-3 shrink-0" aria-hidden />
-                </button>
-              </ResponsivePopoverTrigger>
-              <ResponsivePopoverContent
-                label={tc('sidecar.modeLabel')}
-                side="top"
-                align="start"
-                sideOffset={6}
-                className="w-60 space-y-0.5 rounded-xl p-1.5"
-              >
-                {VIDEO_NODE_MODES.map((mode) => {
-                  const usable = modeAvailability[mode]
-                  return (
-                    <button
-                      key={mode}
-                      type="button"
-                      disabled={!usable}
-                      aria-current={mode === videoMode ? 'true' : undefined}
-                      onClick={() => {
-                        selectVideoMode(mode)
-                        setModePickerOpen(false)
-                      }}
-                      className={cn(
-                        'flex w-full flex-col items-start gap-0.5 rounded-lg px-2.5 py-1.5 text-left text-xs',
-                        usable
-                          ? 'text-node-foreground hover:bg-node-panel-soft'
-                          : 'cursor-default text-node-subtle',
-                        mode === videoMode && 'bg-node-panel-soft',
-                      )}
-                    >
-                      <span>{tc(`sidecar.mode.${mode}`)}</span>
-                      {/* 置灰必须给原因 —— 否则用户只知道点不动，不知道为什么。 */}
-                      {usable ? null : (
-                        <span className="text-3xs text-node-subtle">
-                          {tc('sidecar.modeNoModel')}
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </ResponsivePopoverContent>
-            </ResponsivePopover>
+            {/* 模式下拉（两档共用同一个 `renderModePicker`，见它的头注）。 */}
+            {renderModePicker('canvas-video-composer-summary')}
 
             <ResponsivePopover>
               <ResponsivePopoverTrigger asChild>
@@ -1721,7 +1731,9 @@ export function VideoComposer({
           </div>
         ) : null}
 
-        {/* R1 表：编排台 = 整宽 prompt 块 + 一行 chip（模型 / 参数 / 运镜语法）。 */}
+        {/* R1 表：编排台 = 整宽 prompt 块 + 一行 chip（模型 / **模式** / 参数 /
+            运镜语法）。模式 2026-08-10 补进来 —— 此前完整档只有三颗 chip，模式
+            在左下角是只读状态字，于是**收起来能切档、展开反而切不了**。 */}
         <div className="flex flex-wrap items-center gap-2">
           <CanvasRoutePicker
             variant="media"
@@ -1734,6 +1746,10 @@ export function VideoComposer({
             triggerLabelForOption={triggerLabelForOption}
             className="canvas-detail-model-picker h-10 w-full rounded-xl"
           />
+
+          {/* 与旁边的「编辑参数 / 运镜语法」同一颗 chip 形态（`canvas-detail-chip`
+              是 `SpecSummaryButton` 用的那一个），不给模式发明第二种长相。 */}
+          {renderModePicker('canvas-detail-chip')}
 
           {pendingSharedModel ? (
             <div className="space-y-2 rounded-xl border border-node-muted/50 bg-node-panel-soft p-3">
@@ -2162,13 +2178,11 @@ export function VideoComposer({
 
     dock: (
       <div className="canvas-detail-dock-bar">
-        {/* 模式名。⚠ 这里读的是**节点上的模式字段**，不再是「接了没有」推出来的 —— 两
-            处显示同一个事实。R6：派生值不穿控件壳，所以这里仍是纯文本。
-            `density='detail'`（七槽）的模式**切换器**放哪个槽还没定（cleanup §9.4 末），
-            定了之前这里只显示不可改。 */}
-        <span className="text-xs font-semibold text-node-foreground">
-          {tc(`sidecar.mode.${videoMode}`)}
-        </span>
+        {/* ⚠ **模式名从这里撤了**（2026-08-10）。原注释写着「切换器放哪个槽还没定，
+            定了之前这里只显示不可改」—— 现在定了：模式是编排台那行 chip 的第二颗
+            （模型 → 模式 → 参数 → 运镜语法）。控件落位之后这行纯文本就成了同一
+            句话的第二遍，正是本页契约点名要删的那类重复（实拍抓到过 7 处）。
+            坞里留「N 个输入 · M 个丢弃」与失败原因即可 —— 那是这一屏别处没有的话。 */}
         <p
           className="canvas-detail-dock-reason"
           data-tone={!isPending && disabledReason ? 'error' : undefined}

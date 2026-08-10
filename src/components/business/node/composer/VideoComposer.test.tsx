@@ -751,9 +751,15 @@ describe('VideoComposer references row (detail)', () => {
     expect(
       screen.getByRole('textbox', { name: 'prompt.label' }),
     ).toBeInTheDocument()
-    // 动作坞：模式名（读节点上的模式字段，纯文本无控件壳）。夹具节点没有
-    // `videoMode` 也没有 model → 反推不出来，落到默认档「关键帧」。
+    // 编排台：模式**切换器**（2026-08-10 owner 真机发现完整档切不了档才补的；
+    // 此前这里是动作坞里一行只读文本）。夹具节点没有 `videoMode` 也没有 model
+    // → 反推不出来，落到默认档「关键帧」。
+    // ⚠ `getByText` 单数是**有意的**：它同时守住「同一句话不许一屏两遍」——
+    // 控件落位之后动作坞那行纯文本必须撤掉，留着这条断言就会因为两处命中而红。
     expect(screen.getByText('sidecar.mode.keyframe')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'sidecar.modeLabel' }),
+    ).toBeInTheDocument()
     // R1：四个槽标题全不出现
     for (const heading of [
       'studio.currentFilm',

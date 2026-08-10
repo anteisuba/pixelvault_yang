@@ -6,7 +6,7 @@
  *    戳穿「两档同一份名单」的论点）。
  * 2. **折缩略图，不折账** —— 折起时摘要行仍要读得到「有多少、满没满」。
  */
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { ComposerReferenceToken } from '@/hooks/node/use-video-composer'
@@ -281,9 +281,17 @@ describe('CanvasSlotRack · 折缩略图不折账（§4.2）', () => {
 describe('CanvasSlotRack · 结构性动效的两条纪律（阶段 6-C）', () => {
   const tokens = [token('c1', 'character')]
 
-  it('折起是**瞬时**的 —— 只做进场不做退场，收起当帧就看不见', () => {
-    // ⚠ 这条挡的是「让折叠更顺滑」的直觉：给它加 AnimatePresence + exit 之后，
-    // 收起的那一格会在 DOM 里多留一个动画时长，用户点了「收起」却还看得见。
+  it('折起走退场动画，且**最终真的收干净**（不留常驻残影）', async () => {
+    /**
+     * ⚠ 这条断言 2026-08-10 **反过来写过一次**。原文是「折起是瞬时的」，理由是
+     * 「收起用户要的是立刻看见结果」—— owner 真机看过后拍板要对称（两头都做），
+     * 所以现在有 exit。留着这段历史是因为两种做法各有硬理由，下一个人改回去
+     * 之前应该知道这不是随手定的。
+     *
+     * 现在守的是退场的**下限**：可以慢一点，但不能永远不卸载。`AnimatePresence`
+     * 接管卸载时机之后，一旦 exit 卡住（比如 key 不稳导致 presence 状态错乱），
+     * 收起的那一格会永久留在 DOM 里 —— 用户点了「收起」却还看得见。
+     */
     render(
       <CanvasSlotRack
         tokens={tokens}
@@ -295,10 +303,14 @@ describe('CanvasSlotRack · 结构性动效的两条纪律（阶段 6-C）', () 
 
     // 展开态下摘要行与三个分类行都是 expanded=true，取第一个（摘要行）。
     fireEvent.click(screen.getAllByRole('button', { expanded: true })[0])
-    expect(screen.queryByTitle('character-c1')).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByTitle('character-c1')).not.toBeInTheDocument(),
+    )
+    // 账仍在（折缩略图不折账 §4.2）—— 退场只带走缩略图，不带走摘要。
+    expect(screen.getByText(/^total:/)).toBeInTheDocument()
   })
 
-  it('减动偏好下不留位移残影 —— 动效只是进场，内容一开始就在正确位置', () => {
+  it('展开后内容立刻可读可点 —— 不能依赖动画结束才挂载', () => {
     // jsdom 里 matchMedia 默认不匹配 reduce，这条守的是**结构**：无论动效开关，
     // 展开后内容必须已经可读可点，不能依赖动画结束才挂载。
     render(

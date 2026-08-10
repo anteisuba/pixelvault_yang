@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ChevronDown, ImageIcon, Link2Off, Music2, Video } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { motionTransition, staggerDelay } from '@/constants/motion'
@@ -42,8 +42,12 @@ import type { ReferenceTokenKind } from './ReferenceTokenChip'
  * ⚠ **只动 `transform` / `opacity`**：容器高度**瞬时**，不做补间。height /
  *   grid-template-rows 的过渡会把整棵子树踢出合成层 —— 那正是详情面板退役六个
  *   `.node-collapsible` 的原因，别沿着「让折叠更顺滑」的直觉把它请回来。
- * ⚠ **只做进场，不做退场**（同 `CanvasPopIn` 的取舍）：退场要 `AnimatePresence`
- *   接管卸载时机，而「折起」这个动作用户要的是**立刻看见结果**。
+ * ⚠ **进场退场都做**（owner 2026-08-10 真机后拍板，推翻了我原本的「只做进场」）。
+ *   我当时的理由是「折起用户要的是立刻看见结果」，并援引 `CanvasPopIn` 的同款
+ *   取舍；owner 看过真机后选了对称。退场时长走 `fast` 档（比进场短，canon 的
+ *   「退出用更短时长、不换曲线」），把「等一下才收完」的代价压到最小。
+ *   ⚠ 退场期间容器**仍占着高度**（`AnimatePresence` 要等 exit 跑完才卸载）——
+ *   这不是高度补间，是一次延后的瞬时收合，仍然守着上面那条纪律。
  */
 
 /**
@@ -173,6 +177,8 @@ export function CanvasSlotRack({
   const tKind = useTranslations('StudioNode.videoComposer.refKind')
   const reducedMotion = useReducedMotion()
   const enter = motionTransition('base', reducedMotion)
+  /** 退场比进场短一档（canon：退出用更短时长，不换曲线）。 */
+  const leave = motionTransition('fast', reducedMotion)
   const [rackOpen, setRackOpen] = useState(defaultExpanded)
   const [openZones, setOpenZones] = useState<ReadonlySet<SlotZoneId>>(() =>
     defaultExpanded ? new Set(ZONE_IDS) : new Set(),
@@ -228,153 +234,181 @@ export function CanvasSlotRack({
         />
       </button>
 
-      {rackOpen ? (
-        // ① 折叠：内容组整体淡入落位。高度瞬时（见头注），只有 y/opacity 补间。
-        <motion.ul
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={enter}
-          className="mt-1 space-y-1"
-        >
-          {visibleZones.map((entry, zoneIndex) => {
-            const Icon = SLOT_ZONES[entry.zone].icon
-            const zoneTokens = tokens.filter(
-              (token) => ZONE_BY_KIND[token.kind] === entry.zone,
-            )
-            const zoneOpen = openZones.has(entry.zone)
-            return (
-              // ② 切档掉落：key = 区 id，切模式后只有**新出现**的区会重播。
-              <motion.li
-                key={entry.zone}
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  ...enter,
-                  delay: reducedMotion ? 0 : staggerDelay(zoneIndex),
-                }}
-              >
-                {/* 分类行 —— 展开缩略图与否，n/max 都在这里读得到。 */}
-                <button
-                  type="button"
-                  onClick={() => toggleZone(entry.zone)}
-                  aria-expanded={zoneOpen}
-                  className="flex w-full items-center gap-1.5 rounded-lg px-1.5 py-1 text-left text-2xs text-node-muted hover:bg-node-panel-inner"
+      {/* ① 折叠：内容组整体淡入落位、淡出收起。只有 y/opacity 补间（见头注）。 */}
+      <AnimatePresence initial={false}>
+        {rackOpen ? (
+          <motion.ul
+            key="zones"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0, transition: enter }}
+            exit={{ opacity: 0, y: -4, transition: leave }}
+            className="mt-1 space-y-1"
+          >
+            {visibleZones.map((entry, zoneIndex) => {
+              const Icon = SLOT_ZONES[entry.zone].icon
+              const zoneTokens = tokens.filter(
+                (token) => ZONE_BY_KIND[token.kind] === entry.zone,
+              )
+              const zoneOpen = openZones.has(entry.zone)
+              return (
+                // ② 切档掉落：key = 区 id，切模式后只有**新出现**的区会重播。
+                <motion.li
+                  key={entry.zone}
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    transition: {
+                      ...enter,
+                      delay: reducedMotion ? 0 : staggerDelay(zoneIndex),
+                    },
+                  }}
+                  exit={{ opacity: 0, y: -6, transition: leave }}
                 >
-                  <Icon className="size-3 shrink-0" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate">
-                    {t(`zoneLabel.${entry.zone}`)}
-                  </span>
-                  <span className="shrink-0 tabular-nums text-node-subtle">
-                    {t('zoneCount', { held: entry.held, limit: entry.limit })}
-                  </span>
-                  <ChevronDown
-                    className={cn(
-                      'size-3 shrink-0 transition-transform',
-                      zoneOpen && 'rotate-180',
-                    )}
-                    aria-hidden
-                  />
-                </button>
+                  {/* 分类行 —— 展开缩略图与否，n/max 都在这里读得到。 */}
+                  <button
+                    type="button"
+                    onClick={() => toggleZone(entry.zone)}
+                    aria-expanded={zoneOpen}
+                    className="flex w-full items-center gap-1.5 rounded-lg px-1.5 py-1 text-left text-2xs text-node-muted hover:bg-node-panel-inner"
+                  >
+                    <Icon className="size-3 shrink-0" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate">
+                      {t(`zoneLabel.${entry.zone}`)}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-node-subtle">
+                      {t('zoneCount', { held: entry.held, limit: entry.limit })}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        'size-3 shrink-0 transition-transform',
+                        zoneOpen && 'rotate-180',
+                      )}
+                      aria-hidden
+                    />
+                  </button>
 
-                {zoneOpen && zoneTokens.length > 0 ? (
-                  <ul className="flex flex-wrap gap-1 px-1.5 pb-1 pt-0.5">
-                    {zoneTokens.map((token, slotIdx) => {
-                      const unsendable = Boolean(
-                        token.mediaUrl && unsendableUrls?.has(token.mediaUrl),
-                      )
-                      const thumbnailUrl =
-                        token.kind === 'voice'
-                          ? token.coverImage
-                          : token.mediaUrl
-                      // 见顶部 `tKind` 的注释：未命名素材不能渲染成空白格。
-                      const displayName =
-                        token.label || token.token || tKind(token.kind)
-                      const slotIndex = token.mediaUrl
-                        ? slotIndexByUrl?.get(token.mediaUrl)
-                        : undefined
-                      return (
-                        // ③ @落槽飞入：key = token.id，只有**新落的**那一格弹入。
-                        <motion.li
-                          key={token.id}
-                          initial={{ opacity: 0, scale: 0.92 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{
-                            ...enter,
-                            delay: reducedMotion ? 0 : staggerDelay(slotIdx),
-                          }}
-                          className="flex items-center gap-0.5 rounded-lg border border-node-panel-inner pr-0.5"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => onInsert?.(token)}
-                            onDoubleClick={() => onLocate?.(token.id)}
-                            title={
-                              onInsert
-                                ? t('slotHint', { name: displayName })
-                                : displayName
-                            }
-                            className={cn(
-                              'flex max-w-[9rem] items-center gap-1 rounded-lg py-1 pl-1 pr-1.5 text-2xs text-node-muted hover:bg-node-panel-inner',
-                              unsendable && 'opacity-40',
-                            )}
-                          >
-                            {/* 折叠的第三级就叫「缩略图」—— 音色用封面，其余用
+                  <AnimatePresence initial={false}>
+                    {zoneOpen && zoneTokens.length > 0 ? (
+                      <motion.ul
+                        key="slots"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0, transition: enter }}
+                        exit={{ opacity: 0, y: -4, transition: leave }}
+                        className="flex flex-wrap gap-1 px-1.5 pb-1 pt-0.5"
+                      >
+                        {zoneTokens.map((token, slotIdx) => {
+                          const unsendable = Boolean(
+                            token.mediaUrl &&
+                            unsendableUrls?.has(token.mediaUrl),
+                          )
+                          const thumbnailUrl =
+                            token.kind === 'voice'
+                              ? token.coverImage
+                              : token.mediaUrl
+                          // 见顶部 `tKind` 的注释：未命名素材不能渲染成空白格。
+                          const displayName =
+                            token.label || token.token || tKind(token.kind)
+                          const slotIndex = token.mediaUrl
+                            ? slotIndexByUrl?.get(token.mediaUrl)
+                            : undefined
+                          return (
+                            // ③ @落槽飞入：key = token.id，只有**新落的**那一格弹入。
+                            <motion.li
+                              key={token.id}
+                              initial={{ opacity: 0, scale: 0.92 }}
+                              animate={{
+                                opacity: 1,
+                                scale: 1,
+                                transition: {
+                                  ...enter,
+                                  delay: reducedMotion
+                                    ? 0
+                                    : staggerDelay(slotIdx),
+                                },
+                              }}
+                              exit={{
+                                opacity: 0,
+                                scale: 0.92,
+                                transition: leave,
+                              }}
+                              className="flex items-center gap-0.5 rounded-lg border border-node-panel-inner pr-0.5"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => onInsert?.(token)}
+                                onDoubleClick={() => onLocate?.(token.id)}
+                                title={
+                                  onInsert
+                                    ? t('slotHint', { name: displayName })
+                                    : displayName
+                                }
+                                className={cn(
+                                  'flex max-w-[9rem] items-center gap-1 rounded-lg py-1 pl-1 pr-1.5 text-2xs text-node-muted hover:bg-node-panel-inner',
+                                  unsendable && 'opacity-40',
+                                )}
+                              >
+                                {/* 折叠的第三级就叫「缩略图」—— 音色用封面，其余用
                                 自己的媒体；都没有时退回首字，不留空洞。
                                 ⚠ 序号**盖在图上**（契约 §4.6）：它是位置不是名字，
                                 所以压在缩略图角上，而不是排在名字旁边 —— 具名槽
                                 的「帽子」才占名字那个位。 */}
-                            <span className="relative size-5 shrink-0">
-                              {thumbnailUrl ? (
-                                // 画布素材是用户上传或 R2 生成 URL，不吃
-                                // next/image 的静态 host 契约。
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={thumbnailUrl}
-                                  alt=""
-                                  className="size-full rounded object-cover"
-                                />
-                              ) : (
-                                <span
-                                  aria-hidden
-                                  className="flex size-full items-center justify-center rounded bg-node-panel-inner"
-                                >
-                                  {displayName.slice(0, 1)}
+                                <span className="relative size-5 shrink-0">
+                                  {thumbnailUrl ? (
+                                    // 画布素材是用户上传或 R2 生成 URL，不吃
+                                    // next/image 的静态 host 契约。
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={thumbnailUrl}
+                                      alt=""
+                                      className="size-full rounded object-cover"
+                                    />
+                                  ) : (
+                                    <span
+                                      aria-hidden
+                                      className="flex size-full items-center justify-center rounded bg-node-panel-inner"
+                                    >
+                                      {displayName.slice(0, 1)}
+                                    </span>
+                                  )}
+                                  {slotIndex !== undefined ? (
+                                    <span
+                                      aria-hidden
+                                      className="absolute -bottom-0.5 -right-0.5 flex min-w-3 items-center justify-center rounded bg-node-canvas/85 px-0.5 text-3xs font-semibold leading-none text-node-foreground"
+                                    >
+                                      {slotIndex}
+                                    </span>
+                                  ) : null}
                                 </span>
-                              )}
-                              {slotIndex !== undefined ? (
-                                <span
-                                  aria-hidden
-                                  className="absolute -bottom-0.5 -right-0.5 flex min-w-3 items-center justify-center rounded bg-node-canvas/85 px-0.5 text-3xs font-semibold leading-none text-node-foreground"
-                                >
-                                  {slotIndex}
-                                </span>
-                              ) : null}
-                            </span>
-                            <span className="truncate">{displayName}</span>
-                          </button>
-                          {/* ⚠ 常显，不藏在 hover 里 —— 契约 §十「触屏无 hover
+                                <span className="truncate">{displayName}</span>
+                              </button>
+                              {/* ⚠ 常显，不藏在 hover 里 —— 契约 §十「触屏无 hover
                               依赖」。旧件的 × 是 `group-hover` 才现形，触屏点不到。 */}
-                          {onRemove && token.edgeId ? (
-                            <button
-                              type="button"
-                              onClick={() => onRemove(token)}
-                              aria-label={t('remove', { name: displayName })}
-                              title={t('remove', { name: displayName })}
-                              className="flex size-4 shrink-0 items-center justify-center rounded text-node-subtle hover:bg-node-panel-inner hover:text-node-foreground"
-                            >
-                              <Link2Off className="size-3" aria-hidden />
-                            </button>
-                          ) : null}
-                        </motion.li>
-                      )
-                    })}
-                  </ul>
-                ) : null}
-              </motion.li>
-            )
-          })}
-        </motion.ul>
-      ) : null}
+                              {onRemove && token.edgeId ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onRemove(token)}
+                                  aria-label={t('remove', {
+                                    name: displayName,
+                                  })}
+                                  title={t('remove', { name: displayName })}
+                                  className="flex size-4 shrink-0 items-center justify-center rounded text-node-subtle hover:bg-node-panel-inner hover:text-node-foreground"
+                                >
+                                  <Link2Off className="size-3" aria-hidden />
+                                </button>
+                              ) : null}
+                            </motion.li>
+                          )
+                        })}
+                      </motion.ul>
+                    ) : null}
+                  </AnimatePresence>
+                </motion.li>
+              )
+            })}
+          </motion.ul>
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }

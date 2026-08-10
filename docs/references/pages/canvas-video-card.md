@@ -67,7 +67,12 @@
 - 不造假模型、素材、容量、生成进度或请求预览。
 - 素材缩略与连接计数来自 `useVideoComposer.referenceTokens`；详细态的
   发送预览与溢出继续来自 `useVideoComposer.sendPreview` 和
-  `ReferenceManagerPanel`。
+  **`CanvasSlotRack`**。
+  ⚠ **2026-08-10 校正死指针**：这里原本写 `ReferenceManagerPanel`，而那个组件
+  已在 2026-08-09 阶段 1 整个删除。槽架契约见
+  [`canvas-slot-rack.md`](canvas-slot-rack.md) —— 顺带一提，「紧凑态只显缩略、
+  详细态才有完整账」那套**也已作废**：两档密度现在是同一个件的两个**默认折叠
+  深度**，计数框出来必须是同一个数。
 - 无角色标签的直连图片按镜头参考收割；`声音 → 非角色图片 → 视频` 保留
   画布边作为绑定关系，声音以“随图片发送”的路由引用显示，并进入同一份
   实际发送计划。它不是复制素材，也不需要新增数据库归属字段。

@@ -4865,6 +4865,8 @@
     "minimapTitle": "小地图",
     "castDock": {
       "title": "节点",
+      "rosterTitle": "卡片",
+      "rosterHint": "拖到节点上即喂入 —— 长按可挑目标",
       "searchLabel": "搜索画布节点",
       "searchPlaceholder": "搜索节点…",
       "groups": {

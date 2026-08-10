@@ -216,7 +216,8 @@ import {
   type CanvasLeftPanelView,
 } from './CanvasLeftPanel'
 import { CanvasProjectPanel } from './CanvasProjectPanel'
-import { CastDock, countCanvasNodes } from './CastDock'
+import { CanvasRosterRail } from './CanvasRosterRail'
+import { countCanvasNodes } from './CastDock'
 import { GenerateComposer } from './composer/GenerateComposer'
 import { IngestDragProvider, type QuickThrowApi } from './IngestDragLayer'
 import { NodeCanvasEmptyGuide } from './NodeCanvasEmptyGuide'
@@ -4400,7 +4401,7 @@ function StudioNodeCanvas() {
                 />
               }
             >
-              <CastDock />
+              <CanvasRosterRail />
             </CanvasLeftPanel>
             <CanvasAddMenu
               open={Boolean(addMenu)}

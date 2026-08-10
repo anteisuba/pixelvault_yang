@@ -4865,6 +4865,8 @@
     "minimapTitle": "Minimap",
     "castDock": {
       "title": "Nodes",
+      "rosterTitle": "Cards",
+      "rosterHint": "Drag onto a node to feed it — or long-press to pick targets",
       "searchLabel": "Search canvas nodes",
       "searchPlaceholder": "Search nodes…",
       "groups": {

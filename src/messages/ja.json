@@ -4865,6 +4865,8 @@
     "minimapTitle": "ミニマップ",
     "castDock": {
       "title": "ノード",
+      "rosterTitle": "カード",
+      "rosterHint": "ノードにドラッグして投入 — 長押しで対象を選択",
       "searchLabel": "キャンバスのノードを検索",
       "searchPlaceholder": "ノードを検索…",
       "groups": {

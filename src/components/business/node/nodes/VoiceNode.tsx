@@ -1,14 +1,6 @@
 'use client'
 
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { memo, useCallback, useId, useMemo, useRef, useState } from 'react'
 import { useEdges, useNodes, type NodeProps } from '@xyflow/react'
 import {
   AudioWaveform,
@@ -183,14 +175,20 @@ export const VoiceNode = memo(function VoiceNode(
   const coverUrl = boundCharacterFaceUrl ?? (showCover ? cover : undefined)
 
   // A new pick (or a re-bound character) invalidates whatever the <audio>
-  // element was mid-way through reporting — syncing to an external signal
-  // (the <audio> element's own src just changed, resetting ITS playback
-  // state outside React), not derivable from this component's render inputs.
-  useEffect(() => {
-     
+  // element was mid-way through reporting — the element's own src just
+  // changed, resetting ITS playback state outside React.
+  //
+  // 用 React 官方的「渲染期调整 state」而不是 effect：条件写、只在 url 真的
+  // 变了时写一次，React 立刻带新 state 重跑本次渲染，比 effect 版少一帧
+  // （effect 版会让进度条用旧值先画一帧）。这里原本挂着一条
+  // `eslint-disable-next-line react-hooks/set-state-in-effect`，改成这个写法
+  // 之后两个插件版本都不用再豁免。
+  const [playbackSourceUrl, setPlaybackSourceUrl] = useState(sendableAudioUrl)
+  if (playbackSourceUrl !== sendableAudioUrl) {
+    setPlaybackSourceUrl(sendableAudioUrl)
     setIsPlaying(false)
     setProgress(0)
-  }, [sendableAudioUrl])
+  }
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current

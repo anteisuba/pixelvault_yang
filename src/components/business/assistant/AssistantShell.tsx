@@ -8,7 +8,10 @@ import {
 
 import { cn } from '@/lib/utils'
 
-interface AssistantShellHeaderProps {
+interface AssistantShellHeaderProps extends Omit<
+  ComponentPropsWithoutRef<'header'>,
+  'children' | 'className' | 'title'
+> {
   title: string
   subtitle?: string
   leading?: ReactNode
@@ -23,9 +26,11 @@ export function AssistantShellHeader({
   leading,
   actions,
   className,
+  ...headerProps
 }: AssistantShellHeaderProps) {
   return (
     <header
+      {...headerProps}
       data-assistant-shell-header
       className={cn(
         'flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-3',

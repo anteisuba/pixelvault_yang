@@ -32,6 +32,9 @@ function renderPanel(overrides?: {
       nodeCount={3}
       onAddClick={onAddClick}
       projectPanel={<div data-testid="project-content">项目管理</div>}
+      assistantHistoryPanel={
+        <div data-testid="assistant-history-content">助手历史</div>
+      }
     >
       <div data-testid="panel-content">卡匣内容</div>
     </CanvasLeftPanel>,
@@ -68,7 +71,7 @@ describe('CanvasLeftPanel', () => {
     const onExpandedChange = vi.fn()
     renderPanel({ expanded: true, onExpandedChange })
 
-    fireEvent.click(screen.getByRole('button', { name: 'collapse' }))
+    fireEvent.click(screen.getByRole('button', { name: 'collapsePanel' }))
     expect(onExpandedChange).toHaveBeenLastCalledWith(false)
 
     // 图标轨上的班底按钮是同一个开关的另一端（aria-pressed 反映当前态）。
@@ -91,7 +94,7 @@ describe('CanvasLeftPanel', () => {
   })
 
   // 2026-08-02（owner 拍板）：项目管理从顶栏下拉搬进这里，成为第二个视图。
-  describe('两个视图', () => {
+  describe('三个视图', () => {
     it('按 view 渲染对应内容', () => {
       renderPanel({ view: CANVAS_LEFT_PANEL_VIEW_IDS.cast })
       expect(screen.getByTestId('panel-content')).toBeInTheDocument()
@@ -102,6 +105,18 @@ describe('CanvasLeftPanel', () => {
       renderPanel({ view: CANVAS_LEFT_PANEL_VIEW_IDS.projects })
       expect(screen.getByTestId('project-content')).toBeInTheDocument()
       expect(screen.queryByTestId('panel-content')).not.toBeInTheDocument()
+    })
+
+    it('把助手历史作为左侧轨道的第三个视图', () => {
+      renderPanel({ view: CANVAS_LEFT_PANEL_VIEW_IDS.assistantHistory })
+
+      expect(
+        screen.getByTestId('assistant-history-content'),
+      ).toBeInTheDocument()
+      expect(screen.queryByTestId('panel-content')).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'title', pressed: true }),
+      ).toBeInTheDocument()
     })
 
     it('点另一个视图的图标：切过去并保持展开', () => {
@@ -126,7 +141,9 @@ describe('CanvasLeftPanel', () => {
         view: CANVAS_LEFT_PANEL_VIEW_IDS.cast,
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'title' }))
+      fireEvent.click(
+        screen.getByRole('button', { name: 'title', pressed: true }),
+      )
       expect(onExpandedChange).toHaveBeenCalledWith(false)
       expect(onViewChange).not.toHaveBeenCalled()
     })

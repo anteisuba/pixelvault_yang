@@ -4,8 +4,8 @@
  * 物理成因。新版让 .stage 彻底不参与任何跟助手宽度相关的布局算法：不管助手
  * 开合/多宽，.stage 恒为 .workspace 的 100%。--canvas-assistant-width 现在
  * 只回答「这张浮动卡多宽」，不再回答「画布该让出多少」。
- * 桌面档四边留白（16px）直接写在 CanvasWorkspaceLayout.tsx 的 Tailwind
- * className 里（lg:top-4/right-4/bottom-4，z-index 复用 mobile 起就有的
+ * 桌面档顶部 64px、右下 16px 的留白直接写在 CanvasWorkspaceLayout.tsx 的 Tailwind
+ * className 里（lg:top-16/right-4/bottom-4，z-index 复用 mobile 起就有的
  * z-20，理由见该文件注释）——这里只留“宽度随 data-assistant-mode 变化 +
  * 过渡”这一件用 CSS 变量才写得干净
  * 的事，供 .rail 的 width 消费，也供 canvas.css / StudioNodeWorkbench.tsx
@@ -30,7 +30,7 @@
   }
 
   .workspace[data-assistant-mode='script'] {
-    --canvas-assistant-width: min(51.25rem, 56vw);
+    --canvas-assistant-width: min(64rem, 72vw);
   }
 
   .rail {

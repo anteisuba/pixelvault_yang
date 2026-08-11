@@ -1,7 +1,13 @@
 'use client'
 
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
-import { FolderTree, ListTree, PanelLeftClose, Plus } from 'lucide-react'
+import {
+  FolderTree,
+  History,
+  ListTree,
+  PanelLeftClose,
+  Plus,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
@@ -21,6 +27,8 @@ import { cn } from '@/lib/utils'
  * 2026-08-02（owner 拍板）：项目管理从顶栏的下拉搬进来，成为第二个视图。理由
  * 是 owner 给的——项目列表本来就需要列表空间，塞在下拉里反而挤；而收起态这根
  * 56px 的柱子当时是空的（台账 E4「与其把空柱子缩小，不如给它内容」）。
+ * 2026-08-11：助手历史从助手头部迁入这里，成为第三个视图；会话引擎仍由助手
+ * 宿主持有，左栏只承担导航和列表落点。
  */
 
 /** 展开态总宽 = 图标轨 56 + 内容区 240（规格 §8）。 */
@@ -31,6 +39,7 @@ export const CANVAS_LEFT_PANEL_RAIL_PX = 56
 export const CANVAS_LEFT_PANEL_VIEW_IDS = {
   cast: 'cast',
   projects: 'projects',
+  assistantHistory: 'assistantHistory',
 } as const
 export type CanvasLeftPanelView =
   (typeof CANVAS_LEFT_PANEL_VIEW_IDS)[keyof typeof CANVAS_LEFT_PANEL_VIEW_IDS]
@@ -53,6 +62,8 @@ interface CanvasLeftPanelProps {
   children: ReactNode
   /** 项目管理视图的内容。 */
   projectPanel: ReactNode
+  /** 助手历史视图。会话状态仍由助手宿主持有，这里只提供侧栏落点。 */
+  assistantHistoryPanel: ReactNode
 }
 
 export function CanvasLeftPanel({
@@ -64,6 +75,7 @@ export function CanvasLeftPanel({
   onAddClick,
   children,
   projectPanel,
+  assistantHistoryPanel,
 }: CanvasLeftPanelProps) {
   const t = useTranslations('StudioNode.castDock')
   // 复用已有文案，不新建三语键 —— ＋添加与顶栏原来那颗是同一个动作，项目视图
@@ -72,6 +84,14 @@ export function CanvasLeftPanel({
   // `StudioNode` 下（顶栏原实现就是用两个 t 拿的）。
   const tTopbar = useTranslations('StudioNode.topbar')
   const tNode = useTranslations('StudioNode')
+  const tHistory = useTranslations('StudioNode.history')
+
+  const viewTitle =
+    view === CANVAS_LEFT_PANEL_VIEW_IDS.cast
+      ? t('title')
+      : view === CANVAS_LEFT_PANEL_VIEW_IDS.projects
+        ? tNode('projectMenu.current')
+        : tHistory('title')
 
   // 点图标轨：已经在这个视图就折叠/展开，否则切过去并保证展开 —— 与 VS Code
   // 的 activity bar 同一套手感。
@@ -154,6 +174,25 @@ export function CanvasLeftPanel({
           >
             <FolderTree className="size-4" aria-hidden />
           </button>
+          <button
+            type="button"
+            aria-label={tHistory('title')}
+            title={tHistory('title')}
+            aria-pressed={
+              expanded && view === CANVAS_LEFT_PANEL_VIEW_IDS.assistantHistory
+            }
+            onClick={() =>
+              handleViewClick(CANVAS_LEFT_PANEL_VIEW_IDS.assistantHistory)
+            }
+            className={cn(
+              'flex size-8 items-center justify-center rounded-lg text-node-muted transition-colors hover:text-node-foreground',
+              expanded &&
+                view === CANVAS_LEFT_PANEL_VIEW_IDS.assistantHistory &&
+                'bg-node-panel-inner text-node-foreground',
+            )}
+          >
+            <History className="size-4" aria-hidden />
+          </button>
         </div>
 
         {/* 内容区：展开才渲染，收起时整块不占宽（不是 hidden，是不存在，
@@ -162,9 +201,7 @@ export function CanvasLeftPanel({
           <div className="canvas-left-panel-body flex min-w-0 flex-1 flex-col">
             <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-node-panel-inner px-3">
               <span className="truncate text-node-foreground canvas-panel-title">
-                {view === CANVAS_LEFT_PANEL_VIEW_IDS.cast
-                  ? t('title')
-                  : tNode('projectMenu.current')}
+                {viewTitle}
               </span>
               <div className="flex shrink-0 items-center gap-1">
                 {/* 节点数只对班底架有意义 —— 项目视图里每个项目各有自己的计数 */}
@@ -175,8 +212,8 @@ export function CanvasLeftPanel({
                 ) : null}
                 <button
                   type="button"
-                  aria-label={t('collapse')}
-                  title={t('collapse')}
+                  aria-label={t('collapsePanel')}
+                  title={t('collapsePanel')}
                   onClick={() => onExpandedChange(false)}
                   className="flex size-6 items-center justify-center rounded-md text-node-muted transition-colors hover:text-node-foreground"
                 >
@@ -187,7 +224,9 @@ export function CanvasLeftPanel({
             <div className="min-h-0 flex-1 overflow-y-auto">
               {view === CANVAS_LEFT_PANEL_VIEW_IDS.cast
                 ? children
-                : projectPanel}
+                : view === CANVAS_LEFT_PANEL_VIEW_IDS.projects
+                  ? projectPanel
+                  : assistantHistoryPanel}
             </div>
           </div>
         ) : null}

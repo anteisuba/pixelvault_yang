@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Bot,
   Globe,
@@ -28,6 +29,7 @@ import {
   type AssistantCapabilityReference,
 } from '@/hooks/use-assistant-conversation'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useCanvasAssistantDrag } from '@/hooks/node/use-canvas-assistant-drag'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
@@ -46,7 +48,10 @@ import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
 import { AssistantConversation } from './AssistantConversation'
-import { CanvasAssistantHistory } from './CanvasAssistantHistory'
+import {
+  CanvasAssistantHistory,
+  CanvasAssistantHistoryPanel,
+} from './CanvasAssistantHistory'
 import {
   CanvasAssistantRouteSelector,
   type NodeAssistantRouteSelection,
@@ -71,6 +76,7 @@ interface StudioNodeAssistantDockProps {
   onOpenChange(open: boolean): void
   onExpandedChange(expanded: boolean): void
   onFocusNode(nodeId: string): void
+  historyPortalTarget?: HTMLElement | null
 }
 
 function truncateNodeText(value: string, maxLength: number): string {
@@ -183,6 +189,7 @@ export function StudioNodeAssistantDock({
   onOpenChange,
   onExpandedChange,
   onFocusNode,
+  historyPortalTarget,
 }: StudioNodeAssistantDockProps) {
   const t = useTranslations('StudioNode.dock')
   const tAssistant = useTranslations('StudioNode.assistant')
@@ -204,6 +211,8 @@ export function StudioNodeAssistantDock({
     NodeAssistantMediaReference[]
   >([])
   const isMobile = useIsMobile()
+  const dockRef = useRef<HTMLElement>(null)
+  const dockDrag = useCanvasAssistantDrag(dockRef, open && !isMobile)
 
   const dockStyle = isMobile
     ? {
@@ -429,8 +438,9 @@ export function StudioNodeAssistantDock({
   const handleSelectHistory = useCallback(
     (id: string) => {
       void conversation.selectSession(id)
+      onOpenChange(true)
     },
-    [conversation],
+    [conversation, onOpenChange],
   )
 
   const handleShareConversation = useCallback(async () => {
@@ -507,6 +517,17 @@ export function StudioNodeAssistantDock({
 
   return (
     <>
+      {historyPortalTarget
+        ? createPortal(
+            <CanvasAssistantHistoryPanel
+              sessions={historySessions}
+              activeSessionId={conversation.sessionId}
+              onSelect={handleSelectHistory}
+              fill
+            />,
+            historyPortalTarget,
+          )
+        : null}
       {!open ? (
         <button
           type="button"
@@ -536,6 +557,7 @@ export function StudioNodeAssistantDock({
       ) : null}
 
       <AssistantShell
+        ref={dockRef}
         style={dockStyle}
         inert={!open}
         aria-hidden={!open}
@@ -555,7 +577,7 @@ export function StudioNodeAssistantDock({
           // v0.2（2026-07-27）：canvas-assistant-surface 覆盖 AssistantShell
           // 默认的 bg-card（未分层类恒压过 Tailwind 分层 utility，见
           // canvas.css S8 头注），LoRA/Studio 两个消费者不挂这个类不受影响。
-          'canvas-assistant-surface pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] animate-in flex-col overflow-hidden rounded-t-2xl border border-b-0 shadow-sm fade-in slide-in-from-bottom-4 duration-300 lg:relative lg:inset-auto lg:h-full lg:w-full lg:animate-none lg:border-b',
+          'canvas-assistant-surface pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] animate-in flex-col overflow-hidden rounded-t-2xl border border-b-0 shadow-sm fade-in slide-in-from-bottom-4 duration-300 lg:relative lg:inset-auto lg:h-full lg:w-full lg:animate-none lg:border-b lg:transition-none',
           !open && 'hidden lg:flex lg:pointer-events-none lg:opacity-0',
         )}
       >
@@ -574,7 +596,10 @@ export function StudioNodeAssistantDock({
         <AssistantShellHeader
           title={tHistory('new')}
           subtitle={projectName}
-          className="canvas-assistant-divider canvas-assistant-header-text px-3 py-2.5 lg:px-4 lg:py-3"
+          aria-label={t('drag')}
+          tabIndex={0}
+          {...dockDrag.handleProps}
+          className="canvas-assistant-divider canvas-assistant-header-text cursor-grab touch-none select-none px-3 py-2.5 active:cursor-grabbing lg:px-4 lg:py-3"
           actions={
             <>
               <Button
@@ -606,11 +631,13 @@ export function StudioNodeAssistantDock({
                 value={assistantRoute}
                 onChange={setAssistantRoute}
               />
-              <CanvasAssistantHistory
-                sessions={historySessions}
-                activeSessionId={conversation.sessionId}
-                onSelect={handleSelectHistory}
-              />
+              {isMobile ? (
+                <CanvasAssistantHistory
+                  sessions={historySessions}
+                  activeSessionId={conversation.sessionId}
+                  onSelect={handleSelectHistory}
+                />
+              ) : null}
               <Button
                 type="button"
                 size="icon-sm"

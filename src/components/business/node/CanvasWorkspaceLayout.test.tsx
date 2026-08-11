@@ -22,10 +22,13 @@ describe('CanvasWorkspaceLayout', () => {
     const rail = screen.getByTestId('canvas-assistant-rail')
 
     expect(workspace).toHaveAttribute('data-assistant-mode', 'chat')
+    expect(workspace).toHaveAttribute('data-canvas-workspace')
     expect(stageRef.current).toBe(stage)
     expect(stage.parentElement).toBe(workspace)
     expect(rail.parentElement).toBe(workspace)
     expect(rail).toHaveClass('pointer-events-none')
+    expect(rail).toHaveClass('lg:top-16', 'lg:right-4', 'lg:bottom-4')
+    expect(rail).not.toHaveClass('lg:pointer-events-auto')
 
     // S0 画布域皮肤作用域：.domain-canvas 声明 color-scheme:light + 全部
     // --canvas-* token。v0.2（2026-07-27，owner 拍板）之前它只包 stage——

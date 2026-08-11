@@ -45,6 +45,7 @@ export function CanvasWorkspaceLayout({
   return (
     <div
       data-testid="canvas-workspace-layout"
+      data-canvas-workspace
       data-assistant-mode={assistantMode}
       className={styles.workspace}
     >
@@ -75,8 +76,9 @@ export function CanvasWorkspaceLayout({
       {/* 浮动卡改造（2026-07-27，施工基准 assistant-shell.md §1 推翻节）：
           desktop 档从「grid 里的第二列」改成 position:absolute 浮层——
           absolute 从 mobile 起就有（下面 inset-0），这里只在 lg: 把它从
-          贴边满铺（inset-0）收成四边留白的卡：top/right/bottom 各 16px
-          （Tailwind 标准刻度 `4` = 1rem，非 arbitrary value），left 留 auto
+          贴边满铺（inset-0）收成右下各留 16px、顶部留 64px 的卡；顶部空出
+          顶栏高度与 16px 间距，让右侧的画布外观入口固定在顶栏最右侧。
+          left 留 auto
           让宽度（.module.css 的 --canvas-assistant-width，随
           data-assistant-mode 变）决定卡的左边界。.stage 不读这个变量、也
           不再被 grid 列挤——不管助手开合，它的宽高恒为 .workspace 的
@@ -95,7 +97,7 @@ export function CanvasWorkspaceLayout({
         data-testid="canvas-assistant-rail"
         className={cn(
           'domain-canvas pointer-events-none absolute inset-0 z-20 min-h-0 min-w-0',
-          'lg:pointer-events-auto lg:left-auto lg:top-4 lg:right-4 lg:bottom-4',
+          'lg:left-auto lg:top-16 lg:right-4 lg:bottom-4',
           styles.rail,
         )}
       >

@@ -4804,6 +4804,7 @@
       "newConversation": "新しい会話",
       "assistantCanvas": "キャンバス助手",
       "collapse": "アシスタントドックを閉じる",
+      "drag": "アシスタントパネルを移動",
       "resize": {
         "widthLabel": "ドック幅を調整",
         "splitLabel": "インスペクタとアシスタントの分割比率を調整"
@@ -4881,6 +4882,7 @@
       "locateNode": "{name}を表示",
       "expand": "キャストドックを展開",
       "collapse": "キャストドックを折りたたむ",
+      "collapsePanel": "左パネルを折りたたむ",
       "handle": "Cast · {count}",
       "sections": {
         "character": "キャラクター",

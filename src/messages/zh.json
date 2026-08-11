@@ -4804,6 +4804,7 @@
       "newConversation": "新建对话",
       "assistantCanvas": "画布助手",
       "collapse": "收起助手面板",
+      "drag": "移动助手面板",
       "resize": {
         "widthLabel": "拖动调整面板宽度",
         "splitLabel": "拖动调整检查器与助手对话的比例"
@@ -4881,6 +4882,7 @@
       "locateNode": "定位{name}",
       "expand": "展开 Cast 卡匣",
       "collapse": "折叠 Cast 卡匣",
+      "collapsePanel": "收起左侧面板",
       "handle": "Cast · {count}",
       "sections": {
         "character": "角色",

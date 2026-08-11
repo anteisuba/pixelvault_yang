@@ -3053,8 +3053,8 @@
   border-color: var(--canvas-stroke-regular);
 }
 
-/* 浮动卡材质（lg: 起）。四边 16px 留白由 CanvasWorkspaceLayout 的
-   lg:top-4/right-4/bottom-4 负责，这里只给「浮层」该有的两件：
+/* 浮动卡材质（lg: 起）。顶部 64px、右下 16px 留白由 CanvasWorkspaceLayout 的
+   lg:top-16/right-4/bottom-4 负责，这里只给「浮层」该有的两件：
    圆角比节点卡**大一档**（14px vs 8px）+ **必须有投影**。
 
    ⚠ 这两条与节点卡的材质纪律**故意相反**（assistant-shell.md §1 几何表）：
@@ -3379,34 +3379,8 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   }
 }
 
-/* 连带条款「控件让位，内容不让位」①：顶栏右侧按钮簇。
-   顶栏本身仍然贴边通栏（它是"这一屏的框"，S2a 原话，不跟着收窄）——但助手
-   卡上留白只有 16px（< 顶栏自身高度 --canvas-topbar-h 48px），两者在
-   y:[16,48] 这一段天然重叠，顶栏右侧的项目管理/加节点/整理/保存按钮簇必须
-   让位，否则会被浮层永久盖住等于没有。
-   算法：padding-right = 16px（助手卡自己的右留白）+ 助手卡当前宽度，让按钮
-   簇的最右边界正好卡在助手卡左边界，不多不少（同下面 bottomRowInsetPx 的
-   算法，两处故意保持一致）。
-   --canvas-assistant-width 定义在 CanvasWorkspaceLayout.module.css 的
-   .workspace 上——那个类名会被 CSS Modules 哈希，这里的选择器够不着，但
-   自定义属性的继承认的是 DOM 祖先链、不认类名哈希，所以改用全局都读得到的
-   data-assistant-mode 属性选择器（哈希只作用于类选择器，不作用于 data-*
-   属性）。两条选择器在闭合态都不命中，padding-right 完全不变（仍是
-   header 自己 px-3 给的 12px）——闭合态零回归。 */
-/* ⚠ 过渡写在**无条件**规则上，不能写进下面那条带 `[data-assistant-mode]` 的
-   规则里（批 4 修）。写进去的话：助手一关，`data-assistant-mode` 变了 → 那条
-   规则整个不再命中 → `padding-right` 与 `transition` **一起**消失 → padding
-   瞬间弹回。结果是「开」有 320ms、「关」是硬跳，同一件事两种手感。
-   放在这里，两个方向都走同一条过渡。 */
-.domain-canvas .canvas-topbar {
-  transition: padding-right var(--duration-slow) var(--ease-standard);
-}
-@media (min-width: 1024px) {
-  [data-assistant-mode='chat'] .domain-canvas .canvas-topbar,
-  [data-assistant-mode='script'] .domain-canvas .canvas-topbar {
-    padding-right: calc(1rem + var(--canvas-assistant-width, 0px));
-  }
-}
+/* 顶栏始终铺满画布，右侧外观入口固定在最右侧。助手从顶栏下方开始，
+   因此不再按助手宽度动态挪动顶栏控件。 */
 
 /* 底部胶囊行给助手让位 —— 与顶栏 padding、左轨宽度由**同一个**
    `--canvas-assistant-width` 驱动，此前却只有那两层有过渡，这一层是硬跳的：

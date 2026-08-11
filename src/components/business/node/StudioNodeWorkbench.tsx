@@ -724,6 +724,8 @@ function StudioNodeCanvas() {
   const [leftPanelView, setLeftPanelView] = useState<CanvasLeftPanelView>(
     CANVAS_LEFT_PANEL_VIEW_IDS.cast,
   )
+  const [assistantHistoryHost, setAssistantHistoryHost] =
+    useState<HTMLDivElement | null>(null)
   const [imageEditWorkspaceOpen, setImageEditWorkspaceOpen] = useState(false)
   const imageEditNodeByRequestRef = useRef(new Map<string, string>())
   const activeImageEditRequestKeyRef = useRef<string | null>(null)
@@ -4555,6 +4557,7 @@ function StudioNodeCanvas() {
             onOpenChange={setAssistantDockOpen}
             onExpandedChange={setAssistantExpanded}
             onFocusNode={handleFocusNode}
+            historyPortalTarget={assistantHistoryHost}
           />
         }
       >
@@ -4729,6 +4732,9 @@ function StudioNodeCanvas() {
                   onDeleteProject={handleDeleteProject}
                   onSwitchProject={handleSwitchProject}
                 />
+              }
+              assistantHistoryPanel={
+                <div ref={setAssistantHistoryHost} className="h-full" />
               }
             >
               <CanvasRosterRail />

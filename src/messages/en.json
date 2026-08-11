@@ -4804,6 +4804,7 @@
       "newConversation": "New conversation",
       "assistantCanvas": "Canvas assistant",
       "collapse": "Collapse assistant dock",
+      "drag": "Move assistant panel",
       "resize": {
         "widthLabel": "Resize dock width",
         "splitLabel": "Resize inspector and assistant split"
@@ -4881,6 +4882,7 @@
       "locateNode": "Locate {name}",
       "expand": "Expand Cast dock",
       "collapse": "Collapse Cast dock",
+      "collapsePanel": "Collapse left panel",
       "handle": "Cast · {count}",
       "sections": {
         "character": "Characters",

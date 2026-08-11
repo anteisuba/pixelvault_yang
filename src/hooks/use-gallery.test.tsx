@@ -16,9 +16,9 @@ const mockFetchGalleryImages = vi.mocked(fetchGalleryImages)
 
 const DEFAULT_FILTERS: GalleryFilters = {
   search: '',
-  model: '',
+  models: [],
   sort: 'newest',
-  type: 'all',
+  types: [],
   timeRange: 'all',
   liked: false,
   published: false,

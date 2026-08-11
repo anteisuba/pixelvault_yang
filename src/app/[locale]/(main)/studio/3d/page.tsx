@@ -43,7 +43,7 @@ export default async function Studio3DPage() {
   const initialPage = await getPublicGenerationPage({
     page: PAGINATION.DEFAULT_PAGE,
     limit: PAGINATION.DEFAULT_LIMIT,
-    type: 'image',
+    type: ['image'],
     sort: 'newest',
     userId: user.id,
   })

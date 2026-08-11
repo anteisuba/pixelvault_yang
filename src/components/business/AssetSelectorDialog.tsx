@@ -8,8 +8,8 @@ import {
   ResponsiveDialogDescription,
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
-import { KreaAssetBrowser } from '@/components/business/KreaAssetBrowser'
-import type { GenerationRecord } from '@/types'
+import { AssetPickerBrowser } from '@/components/business/assets/AssetPickerBrowser'
+import type { GenerationRecord, OutputTypeValue } from '@/types'
 
 interface AssetSelectorDialogProps {
   open: boolean
@@ -27,42 +27,30 @@ interface AssetSelectorDialogProps {
   /** Visually-hidden description for screen readers. */
   description: string
   /**
-   * Restrict the picker to a single media type. Forwarded to KreaAssetBrowser
-   * which hides the Tools sidebar group and locks the type filter so callers
-   * (e.g. the Image reference chip) can never receive a video/audio asset.
+   * 把 picker 锁到单一媒体类型。⚠ **锁 = 不渲染，不是灰掉**（page §8.2）——
+   * 灰掉等于承诺「可选」，会误导。
    */
-  mediaType?: 'image' | 'video' | 'audio' | 'model_3d'
-  /** Multi-select mode — tiles toggle a selection set, a confirmation bar
-   *  at the bottom commits the batch via `onConfirmMany`. Single-select
-   *  `onSelect` is ignored in this mode. Used by LoRA training to pick
-   *  many existing assets in one go. */
+  mediaType?: OutputTypeValue
+  /**
+   * 多选模式。判据是**消费端是槽还是集合**（page §8.3）：填一个槽（替换）用
+   * 单选，往集合里加（追加 + 有容量）才用多选。⛔ 不要为了「统一」把所有入口
+   * 改成多选 —— 17 个高频入口会从 1 击变 2 击。
+   */
   multiSelect?: boolean
   /** Fires when the user clicks "Add N" in multi-select mode. The dialog
    *  closes itself afterwards. */
   onConfirmMany?: (generations: GenerationRecord[]) => void
-  /** Hard cap for multi-select mode. Picker rejects toggles past this
-   *  limit with a toast. */
+  /** 多选容量。传**剩余容量**（`上限 - 已有`），picker 据此就地红字拒绝。 */
   maxSelection?: number
 }
 
 /**
- * AssetSelectorDialog — responsive Krea Overlay browser that wraps
- * KreaAssetBrowser. Desktop uses a centred Dialog; mobile/tablet uses a
- * bottom Drawer through ResponsiveDialog. The inner wrapper keeps the `dark`
- * className to
- * flip --sidebar / --background / --foreground tokens to their dark
- * variants (see docs/references/frontend.md §Token 与组件治理);
- * the editorial canvas behind the dimmed overlay stays warm off-white so the
- * user keeps their bearings inside the studio.
+ * AssetSelectorDialog —— 任务型素材选择器的外壳（响应式 Dialog / Drawer）。
  *
- * Sized to leave the studio chrome visible — Krea-style — rather than
- * taking over the viewport. The `!` overrides on DialogContent unset
- * shadcn's default `sm:max-w-lg`/`p-6`/`gap-4`/`bg-background` so the
- * dark inner surface owns the full content area.
- *
- * The default close button is suppressed because its black-on-white styling
- * disappears against the dark interior; a dark-themed X closes through
- * onOpenChange so the same control works for both Dialog and Drawer.
+ * ⭐ 内部是 `AssetPickerBrowser`（page §8 的任务型 shell），**不再**把整个
+ * `/assets` 页缩进弹窗：没有文件夹门牌墙、没有密度控制、没有批量管理动作。
+ * 单选/多选**只差 checkbox 与底部条**，所以这里只渲染一次，用 `mode` 区分
+ * （以前是两整棵 `<KreaAssetBrowser>`，两套 props 两条路径）。
  */
 export function AssetSelectorDialog({
   open,
@@ -83,7 +71,7 @@ export function AssetSelectorDialog({
     <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
       <ResponsiveDialogContent
         showCloseButton={false}
-        className="h-[min(88svh,760px)] !max-w-none !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl lg:h-[min(65vh,600px)] lg:w-[calc(100%-2rem)] lg:!max-w-3xl"
+        className="h-[min(88svh,760px)] !max-w-none !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl lg:h-[min(65vh,600px)] lg:w-[calc(100%-2rem)] lg:!max-w-4xl"
         mobileBodyClassName="px-0 pt-0"
       >
         <ResponsiveDialogTitle className="sr-only">
@@ -92,44 +80,34 @@ export function AssetSelectorDialog({
         <ResponsiveDialogDescription className="sr-only">
           {description}
         </ResponsiveDialogDescription>
-        <div className="dark relative flex size-full flex-col overflow-hidden rounded-xl bg-sidebar text-sidebar-foreground ring-1 ring-border/40">
+        <div className="relative flex size-full flex-col overflow-hidden rounded-xl border border-border bg-background">
           <button
             type="button"
             aria-label={title}
             onClick={() => onOpenChange(false)}
-            className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="absolute right-2 top-2 z-10 flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
-            <X className="size-4" />
+            <X className="size-3.5" />
           </button>
-          {multiSelect ? (
-            <KreaAssetBrowser
-              pickerMultiSelect
-              onPickerConfirmMany={(gens) => {
-                onConfirmMany?.(gens)
-                onOpenChange(false)
-              }}
-              pickerMaxSelection={maxSelection}
-              initialGenerations={initialGenerations}
-              initialTotal={initialTotal}
-              initialHasMore={initialHasMore}
-              initialNextCursor={initialNextCursor}
-              mediaType={mediaType}
-              className="!h-full !bg-transparent"
-            />
-          ) : (
-            <KreaAssetBrowser
-              onSelect={(gen) => {
-                onSelect?.(gen)
-                onOpenChange(false)
-              }}
-              initialGenerations={initialGenerations}
-              initialTotal={initialTotal}
-              initialHasMore={initialHasMore}
-              initialNextCursor={initialNextCursor}
-              mediaType={mediaType}
-              className="!h-full !bg-transparent"
-            />
-          )}
+          <AssetPickerBrowser
+            mode={multiSelect ? 'multi' : 'single'}
+            mediaType={mediaType}
+            maxSelection={maxSelection}
+            initialGenerations={initialGenerations}
+            initialTotal={initialTotal}
+            initialHasMore={initialHasMore}
+            initialNextCursor={initialNextCursor}
+            title={title}
+            onSelect={(generation) => {
+              onSelect?.(generation)
+              onOpenChange(false)
+            }}
+            onConfirmMany={(generations) => {
+              onConfirmMany?.(generations)
+              onOpenChange(false)
+            }}
+            onCancel={() => onOpenChange(false)}
+          />
         </div>
       </ResponsiveDialogContent>
     </ResponsiveDialog>

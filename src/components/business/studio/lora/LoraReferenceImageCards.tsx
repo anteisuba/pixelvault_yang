@@ -60,6 +60,17 @@ export function LoraReferenceImageCards({
   const previewEntry =
     previewIndex === null ? null : (entries[previewIndex] ?? null)
 
+  /** 同 `ReferenceImageChip`：`addFromUrl` = 追加语义 → 多选 + 剩余容量。 */
+  const remainingReferenceSlots = Number.isFinite(imageUpload.maxImages)
+    ? Math.max(0, imageUpload.maxImages - imageUpload.referenceEntries.length)
+    : undefined
+
+  const handleSelectAssets = async (gens: GenerationRecord[]) => {
+    for (const gen of gens) {
+      await handleSelectAsset(gen)
+    }
+  }
+
   const handleSelectAsset = async (gen: GenerationRecord) => {
     // AssetSelectorDialog is locked to image, but guard so a non-image asset
     // never gets attached as a reference.
@@ -253,7 +264,9 @@ export function LoraReferenceImageCards({
       <AssetSelectorDialog
         open={assetDialogOpen}
         onOpenChange={setAssetDialogOpen}
-        onSelect={handleSelectAsset}
+        multiSelect
+        maxSelection={remainingReferenceSlots}
+        onConfirmMany={(gens) => void handleSelectAssets(gens)}
         title={t('selectAsset')}
         description={t('description')}
         mediaType="image"

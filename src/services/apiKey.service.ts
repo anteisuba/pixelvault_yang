@@ -402,7 +402,8 @@ async function verifyAdapterKey(
         })
         break
       }
-      case AI_ADAPTER_TYPES.VOLCENGINE: {
+      case AI_ADAPTER_TYPES.VOLCENGINE:
+      case AI_ADAPTER_TYPES.BYTEPLUS: {
         // GET /models — lightweight auth check (same as OpenAI pattern)
         const url = `${baseUrl.replace(/\/$/, '')}/models`
         response = await safeFetch(url, {

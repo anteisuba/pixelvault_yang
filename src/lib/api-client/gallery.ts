@@ -2,7 +2,7 @@ import type {
   AssetSectionCounts,
   GalleryResponse,
   GenerationRecord,
-  OutputTypeFilter,
+  OutputTypeValue,
 } from '@/types'
 import { API_ENDPOINTS, CLIENT_API, PAGINATION } from '@/constants/config'
 
@@ -13,9 +13,11 @@ export async function fetchGalleryImages(
   limit: number = PAGINATION.DEFAULT_LIMIT,
   filters?: {
     search?: string
-    model?: string
+    /** 可叠加分面：多个模型 id，空 = 不限。 */
+    model?: string[]
     sort?: string
-    type?: string
+    /** 可叠加分面：多个媒体类型，空 = 不限。 */
+    type?: OutputTypeValue[]
     timeRange?: string
     liked?: boolean
     published?: boolean
@@ -37,11 +39,9 @@ export async function fetchGalleryImages(
     })
     if (cursor) params.set('cursor', cursor)
     if (filters?.search) params.set('search', filters.search)
-    if (filters?.model) params.set('model', filters.model)
+    if (filters?.model?.length) params.set('model', filters.model.join(','))
     if (filters?.sort) params.set('sort', filters.sort)
-    if (filters?.type && filters.type !== 'all') {
-      params.set('type', filters.type)
-    }
+    if (filters?.type?.length) params.set('type', filters.type.join(','))
     if (filters?.timeRange && filters.timeRange !== 'all') {
       params.set('timeRange', filters.timeRange)
     }
@@ -209,13 +209,12 @@ export type AssetSectionCountsResponse =
  * the grid (which the type tab filters).
  */
 export async function fetchAssetSectionCounts(
-  type?: OutputTypeFilter,
+  type?: OutputTypeValue[],
 ): Promise<AssetSectionCountsResponse> {
   try {
-    const url =
-      type && type !== 'all'
-        ? `${API_ENDPOINTS.ASSET_SECTION_COUNTS}?type=${type}`
-        : API_ENDPOINTS.ASSET_SECTION_COUNTS
+    const url = type?.length
+      ? `${API_ENDPOINTS.ASSET_SECTION_COUNTS}?type=${type.join(',')}`
+      : API_ENDPOINTS.ASSET_SECTION_COUNTS
     const response = await fetch(url, {
       cache: 'no-store',
     })

@@ -15,14 +15,14 @@ import type {
   GallerySortOption,
   GalleryTimeRange,
   GenerationRecord,
-  OutputTypeFilter,
+  OutputTypeValue,
 } from '@/types'
 
 export interface GalleryFilterShape {
   search: string
-  model: string
+  models: string[]
   sort: GallerySortOption
-  type: OutputTypeFilter
+  types: OutputTypeValue[]
   timeRange: GalleryTimeRange
   liked: boolean
   published: boolean
@@ -46,11 +46,13 @@ export function makeGalleryCacheKey(
   limit: number,
 ): string {
   // Explicit field order so JSON.stringify is stable across callers.
+  // 多选分面先排序再入键 —— 勾选顺序不同但集合相同的两次筛选，必须命中
+  // 同一个缓存条目，否则「图片+视频」和「视频+图片」会各占一格。
   return JSON.stringify({
     s: filters.search,
-    m: filters.model,
+    m: [...filters.models].sort(),
     sort: filters.sort,
-    t: filters.type,
+    t: [...filters.types].sort(),
     r: filters.timeRange,
     l: filters.liked,
     published: filters.published,

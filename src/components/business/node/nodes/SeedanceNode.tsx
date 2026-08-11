@@ -57,11 +57,9 @@ export const SeedanceNode = memo(function SeedanceNode(
 
   return (
     <NodeShell
-      nodeId={id}
       type={NODE_TYPE_IDS.seedance}
       selected={selected}
       status={data.status}
-      toolbarData={data}
       className="canvas-video-card"
     >
       <NodeToolbar

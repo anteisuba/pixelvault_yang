@@ -36,6 +36,7 @@ describe('CanvasAddMenu', () => {
         screenPosition={{ x: 24, y: 24 }}
         onSelect={vi.fn()}
         onUpload={vi.fn()}
+        onPickFromLibrary={vi.fn()}
         onClose={vi.fn()}
       />,
     )
@@ -48,7 +49,9 @@ describe('CanvasAddMenu', () => {
     // 顶部真上传 + 图片 2 + 视频 4 + 声音 1 + 统一收集 1 = 9。
     // 角色/场景两个兼容 intent 仍留在 catalog，但手工菜单只暴露一个收集入口。
     // 图片从 3 降到 2：关键帧 2026-08-09 退役（canvas-add-catalog 头注）。
-    expect(screen.getAllByRole('menuitem')).toHaveLength(9)
+    // 顶部主行现在有两条：上传图片 + 从素材库选择（owner 2026-08-11）。
+    expect(screen.getAllByRole('menuitem')).toHaveLength(10)
+    expect(screen.getByText('addCatalog.pickFromLibrary')).toBeInTheDocument()
     expect(
       screen.getByText('addCatalog.items.collect.label'),
     ).toBeInTheDocument()
@@ -72,6 +75,7 @@ describe('CanvasAddMenu', () => {
         screenPosition={{ x: 24, y: 24 }}
         onSelect={onSelect}
         onUpload={onUpload}
+        onPickFromLibrary={vi.fn()}
         onClose={vi.fn()}
       />,
     )
@@ -91,6 +95,7 @@ describe('CanvasAddMenu', () => {
         screenPosition={{ x: 24, y: 24 }}
         onSelect={onSelect}
         onUpload={vi.fn()}
+        onPickFromLibrary={vi.fn()}
         onClose={vi.fn()}
       />,
     )
@@ -135,6 +140,7 @@ describe('CanvasAddMenu', () => {
           screenPosition={{ x: 24, y: 24 }}
           onSelect={vi.fn()}
           onUpload={vi.fn()}
+          onPickFromLibrary={vi.fn()}
           onClose={onClose}
         />,
       )
@@ -160,6 +166,7 @@ describe('CanvasAddMenu', () => {
           screenPosition={{ x: 24, y: 24 }}
           onSelect={vi.fn()}
           onUpload={vi.fn()}
+          onPickFromLibrary={vi.fn()}
           onClose={vi.fn()}
         />,
       )

@@ -17,7 +17,7 @@ import { isTouchPrimary } from '@/lib/touch'
 import type { GalleryFilters } from '@/hooks/use-gallery'
 import type {
   GallerySortOption,
-  OutputTypeFilter,
+  OutputTypeValue,
   GalleryTimeRange,
 } from '@/types'
 
@@ -93,7 +93,8 @@ export const GalleryHeader = memo(function GalleryHeader({
   ]
 
   // ─── Type pill ────────────────────────────────────────────────
-  const typeOptions: PillOption<OutputTypeFilter>[] = [
+  // 单选 pill 组：'all' 是 UI 的哨兵值，落到 filters 上是空数组。
+  const typeOptions: PillOption<OutputTypeValue | 'all'>[] = [
     { value: 'all', label: t('type.all') },
     { value: 'image', label: t('type.image') },
     { value: 'video', label: t('type.video') },
@@ -126,7 +127,7 @@ export const GalleryHeader = memo(function GalleryHeader({
   }, [filters, onFiltersChange])
 
   // ─── Advanced filters ─────────────────────────────────────────
-  const hasAdvancedFilters = filters.model || filters.liked
+  const hasAdvancedFilters = filters.models.length > 0 || filters.liked
 
   const handleAdvancedChange = useCallback(
     (patch: Partial<GalleryFilters>) => {
@@ -138,8 +139,8 @@ export const GalleryHeader = memo(function GalleryHeader({
   // ─── Clear all ────────────────────────────────────────────────
   const hasActiveFilters =
     filters.search ||
-    filters.model ||
-    filters.type !== 'all' ||
+    filters.models.length > 0 ||
+    filters.types.length > 0 ||
     filters.timeRange !== 'all' ||
     filters.liked ||
     filters.published
@@ -150,9 +151,9 @@ export const GalleryHeader = memo(function GalleryHeader({
     setAdvancedOpen(false)
     onFiltersChange({
       search: '',
-      model: '',
+      models: [],
       sort: filters.sort,
-      type: 'all',
+      types: [],
       timeRange: 'all',
       projectId: filters.projectId,
       liked: false,
@@ -179,8 +180,14 @@ export const GalleryHeader = memo(function GalleryHeader({
         {/* Group 2: content filters (what + when) */}
         <PillGroup
           options={typeOptions}
-          value={filters.type}
-          onChange={(v) => onFiltersChange({ ...filters, type: v, model: '' })}
+          value={filters.types[0] ?? 'all'}
+          onChange={(v) =>
+            onFiltersChange({
+              ...filters,
+              types: v === 'all' ? [] : [v],
+              models: [],
+            })
+          }
         />
         <PillGroup
           options={timeOptions}
@@ -265,7 +272,7 @@ export const GalleryHeader = memo(function GalleryHeader({
           filters={filters}
           onChange={handleAdvancedChange}
           onClose={() => setAdvancedOpen(false)}
-          type={filters.type}
+          type={filters.types[0] ?? 'all'}
         />
       )}
     </div>

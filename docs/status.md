@@ -1,11 +1,12 @@
 # 项目状态
 
-最后更新：2026-08-07
+最后更新：2026-08-11
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
 ## Current Focus
 
+- **C+F 素材页与选择器 UI 正在做 Codex / Claude 设计对比**：域要求与 shared/dedicated shell 边界已确认；右侧 Dock 是当前工作方向。Owner 2026-08-11 否决 V1 视觉，Codex 已重做“编辑型私人档案馆”V2（文件夹/详情两态），并准备独立的 [`Claude 设计简报`](plans/assets-claude-design-brief-2026-08-11.md)。完整账本见 [`docs/plans/assets-cf-design-2026-08-09.md`](plans/assets-cf-design-2026-08-09.md)；`src/**` 继续冻结，待 owner 对比后选向。
 - **本周十条待办**（owner 2026-08-07 口述），索引 =
   [`docs/plans/week-2026-08-07-backlog.md`](plans/week-2026-08-07-backlog.md)，交接 = 同目录
   `week-backlog-session-handoff-2026-08-07.md`。
@@ -13,7 +14,7 @@
   **J4** 无依据常量普查（`f9522e44`）· **K** LoRA 库重构（`a77901db`）· **L** TTS 上限按 provider
   拆分（`1cf1fe2a`）· **M** 角色图 LoRA 加号闸退役（`dafa2898`）· **E** 文档清理 + **J3** 悬空引用（`c2729530`，
   见 `plans/docs-cleanup-2026-08-07.md`）。
-  未开工：A 助手分域回复 · B 画布助手→节点 · C+F 素材页与选择器 UI · D 图像优化 ·
+  C+F 已进入设计治理；其余并行条目的实时状态以各自 active plan 与代码为准：A 助手分域回复 · B 画布助手→节点 · D 图像优化 ·
   G 首页 UI · I 侧边栏 UI（前置 = J1 补视觉基线）· J1/J2。
 - **调研落地路线图主链 7 / 10 已交付**，入口 =
   [`docs/plans/research-landing-plan-2026-07-30.md`](plans/research-landing-plan-2026-07-30.md) §6。
@@ -43,6 +44,13 @@
 - 助手拿到的是**真实显示名**，不再是本地化类型标签。
 - **助手能写画布**：建节点 / 连线 / 改名 / 标审核态 / 触发生成五种 op，
   全部经「提案 → 用户点 → 才发生」；助手**不得自批** `approved`。
+- 2026-08-10 owner 真机反馈已收口：删除视频节点重复工具条及文本/图片状态脚；镜头文本改白色纸面；
+  身份代表图按原图比例展示并恢复卡外名字；声音节点恢复卡外名字；MiniMap 可直接拖动画布；
+  节点拖动不再叠两张图；模型选择行悬停不改变高度。Seedance 2.0 选择器现明确区分
+  fal.ai、火山方舟（国内）与 BytePlus ModelArk（国际）三条独立通道；2026-08-11 Seedance 2.5
+  也已补齐同样三渠道，并按官方 schema 分开 fal 与 Ark 的参考音频约束。桌面画布助手现可直接拖动
+  标题栏空白区且保持原尺寸，按钮不会误触拖动；历史记录迁入左侧第三视图；Script 展开态由约 627px
+  提升到约 811px（当前 1127px 视口），仍限制在画布工作区内；助手默认顶部改为 64px，画布外观入口固定在顶栏最右侧。
 
 ### 早前已稳定
 
@@ -79,6 +87,27 @@
 
 ## Validation
 
+- 2026-08-11 画布助手顶部避让：`CanvasWorkspaceLayout` Vitest 1/1、目标 ESLint 与 `git diff --check` 通过；现有 3000 页面在 1127px 视口实测“桌面”按钮右边缘为 1115px，助手为 `360×832`、顶部 64px、右/下各 16px。全量 TypeScript 被工作区另一项未完成的 `KreaAssetBrowser.tsx` 密度常量/类型缺失阻断，与本次几何改动无关。
+- 2026-08-11 画布助手交互：定向 Vitest 4 files / 14 tests、TypeScript、目标 ESLint、目标源码
+  Prettier 与 `git diff --check` 通过；现有 3000 页面实测标题栏方向键移动 `-24px`、模型按钮点击后
+  位移仍为 `0px`，左栏展示 2 条真实历史会话；Script 展开态由约 `627px` 增至 `811px`，最后恢复
+  `360×880` 默认右上位置。`StudioNodeWorkbench.tsx` 全文件 ESLint 仍只有本次前已有的 5 条 React
+  Compiler 债务，本次触及文件的其余目标 ESLint 为 0 error。
+- 2026-08-11 Seedance 2.5 三渠道：fal.ai、火山方舟国内与 BytePlus 国际均进入同一型号；fal
+  text/image/reference 三端点与两条 Ark 带日期 model id 已写入目录，应用侧与 execution Worker
+  请求构造器同步支持 4–30 秒、480p/720p、30/10/10/50 参考上限与 2.5 首尾帧。根目录定向
+  Vitest 6 files / 139 tests、execution Worker 1 file / 12 tests 通过，`npm run typecheck` 与目标 ESLint 通过；
+  真机确认 Seedance 2.5 型号显示 3 个渠道且第三层为 fal.ai / VolcEngine / BytePlus，验证后已恢复原选择；
+  官方公开索引/OpenAPI 已核对，未执行新的付费生成。
+- 2026-08-11 身份卡空态崩溃回归：修正 `naturalSize` 尚未建立时的空值解引用；复现测试先红后连续
+  两次转绿，TypeScript 与目标 ESLint 通过；现有 3000 页面刷新后 React Flow 恢复为 12 个节点，
+  空身份卡正常显示且 Next.js 运行时错误覆盖层消失。
+- 2026-08-11 视频紧凑编排器补齐缺 Key 路由：未配置的 BytePlus 通道仍可点击，但只打开
+  `QuickSetupDialog`，不会更改当前模型或发起生成。回归测试先红后连续两次转绿；`VideoComposer`
+  53/53、TypeScript、目标 ESLint 通过；真机确认配置窗出现、关闭后原 VolcEngine 选择保持不变。
+- 2026-08-10 画布反馈与 Seedance 2.0 国际通道定向验证：全量 TypeScript 通过；根目录相关
+  Vitest 14 files / 108 tests、worker Vitest 1 file / 9 tests 通过；目标 ESLint 通过
+  （`StudioNodeWorkbench.tsx` 仍保留本次变更前已有的 React Compiler lint 债务，未在本片扩修）。
 - 2026-08-05 统一 AI 对话助手实现切片：Image / Video Studio、LoRA 与节点画布共用 `360px`
   overlay 浮卡头部、同一模型注册表、历史/分享/研究与最多 8 个图片/视频附件契约；助手默认
   OpenAI 路由升级为 `OpenAI GPT-5.6 Sol`，Gemini 接收真实视频输入，其他不兼容路由在发送前阻断。

@@ -1315,9 +1315,7 @@ export type MultiViewGenerateRequest = z.infer<
 export type MultiViewGeneratedAngle = 'back' | 'left' | 'right'
 
 export type MultiViewImageView =
-  | MultiViewGeneratedAngle
-  | 'leftFront'
-  | 'rightFront'
+  MultiViewGeneratedAngle | 'leftFront' | 'rightFront'
 
 export interface MultiViewImageRecord {
   id: string
@@ -1844,18 +1842,10 @@ export type LongVideoPipelineAdvanceRequest = z.infer<
 >
 
 export type PipelineClipStatus =
-  | 'PENDING'
-  | 'QUEUED'
-  | 'RUNNING'
-  | 'COMPLETED'
-  | 'FAILED'
+  'PENDING' | 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED'
 
 export type VideoPipelineStatus =
-  | 'RUNNING'
-  | 'PAUSED'
-  | 'COMPLETED'
-  | 'FAILED'
-  | 'CANCELLED'
+  'RUNNING' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
 
 export interface PipelineClipRecord {
   clipIndex: number
@@ -2048,28 +2038,71 @@ export interface ToggleVisibilityResponse {
 export const GALLERY_SORT_OPTIONS = ['newest', 'oldest'] as const
 export type GallerySortOption = (typeof GALLERY_SORT_OPTIONS)[number]
 
-export const OUTPUT_TYPE_FILTER_OPTIONS = [
-  'all',
+/**
+ * 媒体类型分面的取值。⛔ **没有 `'all'` 这一档** —— 「不选就是全部」，
+ * 空数组即不限类型（`docs/references/pages/assets.md` §3.1）。多选可叠加，
+ * 所以它在链路上一律是数组，不是单值。
+ */
+export const OUTPUT_TYPE_VALUES = [
   'image',
   'video',
   'audio',
   'model_3d',
 ] as const
-export type OutputTypeFilter = (typeof OUTPUT_TYPE_FILTER_OPTIONS)[number]
+export type OutputTypeValue = (typeof OUTPUT_TYPE_VALUES)[number]
 
-export const GALLERY_TIME_RANGE_OPTIONS = ['all', 'today', 'week'] as const
+export const GALLERY_TIME_RANGE_OPTIONS = [
+  'all',
+  'today',
+  'week',
+  'month',
+  'year',
+] as const
 export type GalleryTimeRange = (typeof GALLERY_TIME_RANGE_OPTIONS)[number]
+
+/** `a,b,c` → `['a','b','c']`，用于可叠加分面的 URL 参数。 */
+function parseCsvParam(value: string | undefined): string[] {
+  if (!value) return []
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+/**
+ * 解析 `type=image,video`。旧的 `type=all` 深链接落到空数组 = 不限类型，
+ * 语义不变。
+ */
+export function parseOutputTypeList(
+  value: string | undefined,
+): OutputTypeValue[] {
+  const known = new Set<string>(OUTPUT_TYPE_VALUES)
+  return [
+    ...new Set(
+      parseCsvParam(value).filter((item): item is OutputTypeValue =>
+        known.has(item),
+      ),
+    ),
+  ]
+}
+
+/** 解析 `model=a,b`，逐个过模型目录，未知 id 直接丢弃。 */
+export function parseModelIdList(value: string | undefined): string[] {
+  const ids: string[] = []
+  for (const raw of parseCsvParam(value)) {
+    const id = getModelById(raw)?.id
+    if (id) ids.push(id)
+  }
+  return [...new Set(ids)]
+}
 
 export const GallerySearchSchema = z.object({
   search: z.string().trim().max(200).optional(),
-  model: z
-    .string()
-    .trim()
-    .max(100)
-    .optional()
-    .transform((model) => (model ? getModelById(model)?.id : undefined)),
+  /** 逗号分隔的模型 id（`model=a,b`）。空 = 不限模型。 */
+  model: z.string().trim().max(400).optional().transform(parseModelIdList),
   sort: z.enum(GALLERY_SORT_OPTIONS).default('newest'),
-  type: z.enum(OUTPUT_TYPE_FILTER_OPTIONS).default('all'),
+  /** 逗号分隔的媒体类型（`type=image,video`）。空 = 不限类型。 */
+  type: z.string().trim().max(80).optional().transform(parseOutputTypeList),
   timeRange: z.enum(GALLERY_TIME_RANGE_OPTIONS).default('all'),
   liked: z.enum(['1']).optional(),
   /**
@@ -2120,6 +2153,12 @@ export interface AssetSectionCounts {
   unassigned: number
   /** Keyed by project UUID. */
   byProject: Record<string, number>
+  /**
+   * Keyed by `Generation.model` —— 「模型」分面的选项表就是它。
+   * ⚠ 必须来自库存聚合，不能拿模型目录充数：目录里有几十个模型，
+   * 用户库里实际只出现其中一小部分（实测 23 种）。
+   */
+  byModel: Record<string, number>
 }
 
 export interface GalleryResponse {
@@ -2671,7 +2710,11 @@ export interface ProjectRecord {
   description: string | null
   parentId: string | null
   generationCount: number
-  latestGenerationUrl: string | null
+  /**
+   * 门牌卡的 2×2 拼贴用的最近素材封面（最多 4 张，按新→旧）。
+   * ⚠ 缺派生图的视频/音频不会出现在这里 —— 见 `toCoverUrl`。
+   */
+  coverUrls: string[]
   createdAt: Date
   updatedAt: Date
 }

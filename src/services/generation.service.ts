@@ -16,7 +16,7 @@ import type {
   GalleryTimeRange,
   GenerationSourceSurface,
   OutputType,
-  OutputTypeFilter,
+  OutputTypeValue,
 } from '@/types'
 import { PAGINATION } from '@/constants/config'
 import { updatePreferenceOnDeleted } from '@/services/user-preference.service'
@@ -106,9 +106,9 @@ export interface GalleryQueryOptions {
   limit?: number
   cursor?: string
   search?: string
-  model?: string
+  model?: string[]
   sort?: GallerySortOption
-  type?: OutputTypeFilter
+  type?: OutputTypeValue[]
   timeRange?: GalleryTimeRange
   /** When set, query this user's own generations (including private) */
   userId?: string
@@ -186,12 +186,38 @@ export const LIST_GENERATION_SELECT = {
   seed: true,
 } as const satisfies Prisma.GenerationSelect
 
-function outputTypeToEnum(type?: OutputTypeFilter): OutputType | undefined {
-  if (type === 'image') return 'IMAGE'
-  if (type === 'video') return 'VIDEO'
-  if (type === 'audio') return 'AUDIO'
-  if (type === 'model_3d') return 'MODEL_3D'
-  return undefined
+const OUTPUT_TYPE_ENUM_BY_VALUE: Record<OutputTypeValue, OutputType> = {
+  image: 'IMAGE',
+  video: 'VIDEO',
+  audio: 'AUDIO',
+  model_3d: 'MODEL_3D',
+}
+
+/** 空数组 = 不限类型（分面「不选就是全部」）。 */
+function outputTypesToEnums(types?: OutputTypeValue[]): OutputType[] {
+  if (!types?.length) return []
+  return types.map((type) => OUTPUT_TYPE_ENUM_BY_VALUE[type])
+}
+
+/**
+ * 时间分面 → 起点。契约 §3.1 的四档：今天 / 7 天 / 30 天 / 今年。
+ * 「今年」是自然年（1 月 1 日起），不是「过去 365 天」。
+ */
+function getTimeRangeStart(timeRange?: GalleryTimeRange): Date | null {
+  if (!timeRange || timeRange === 'all') return null
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  if (timeRange === 'today') return start
+  if (timeRange === 'week') {
+    start.setDate(start.getDate() - 7)
+    return start
+  }
+  if (timeRange === 'month') {
+    start.setDate(start.getDate() - 30)
+    return start
+  }
+  start.setMonth(0, 1)
+  return start
 }
 
 /** Redact prompt fields for generations where isPromptPublic is false. */
@@ -203,8 +229,8 @@ function redactPrompts(generations: GenerationRecord[]): GenerationRecord[] {
 
 function buildGalleryWhere(options: {
   search?: string
-  model?: string
-  type?: OutputTypeFilter
+  model?: string[]
+  type?: OutputTypeValue[]
   timeRange?: GalleryTimeRange
   userId?: string
   likedByUserId?: string
@@ -244,27 +270,22 @@ function buildGalleryWhere(options: {
       ]
     }
   }
-  if (options.model) {
-    where.model = options.model
+  // 模型 / 类型都是可叠加分面：多选 = 组内 OR（`in`），空 = 不限。
+  if (options.model?.length) {
+    where.model = { in: options.model }
   }
   if (options.provider) {
     where.provider = options.provider
   }
-  const outputType = outputTypeToEnum(options.type)
-  if (outputType) {
-    where.outputType = outputType
+  const outputTypes = outputTypesToEnums(options.type)
+  if (outputTypes.length) {
+    where.outputType = { in: outputTypes }
   }
 
   // Time range filter
-  if (options.timeRange === 'today') {
-    const startOfDay = new Date()
-    startOfDay.setHours(0, 0, 0, 0)
-    where.createdAt = { gte: startOfDay }
-  } else if (options.timeRange === 'week') {
-    const weekAgo = new Date()
-    weekAgo.setDate(weekAgo.getDate() - 7)
-    weekAgo.setHours(0, 0, 0, 0)
-    where.createdAt = { gte: weekAgo }
+  const since = getTimeRangeStart(options.timeRange)
+  if (since) {
+    where.createdAt = { gte: since }
   }
 
   // Liked-by filter
@@ -965,9 +986,9 @@ type PublicGalleryCacheKey = {
   limit: number
   cursor?: string
   search?: string
-  model?: string
+  model?: string[]
   sort: GallerySortOption
-  type?: OutputTypeFilter
+  type?: OutputTypeValue[]
   timeRange?: GalleryTimeRange
   published?: boolean
   projectId?: string
@@ -1014,18 +1035,18 @@ export async function countUserGenerationsByType(
  */
 export async function getAssetSectionCounts(
   userId: string,
-  type?: OutputTypeFilter,
+  type?: OutputTypeValue[],
 ): Promise<AssetSectionCounts> {
-  // The grid is filtered by the active type tab, so the view + folder badges
-  // must be scoped to the same type or they over-count (e.g. "Favorites 3"
+  // The grid is filtered by the active type facet, so the view + folder badges
+  // must be scoped to the same types or they over-count (e.g. "Favorites 3"
   // while the image grid shows 2 because one favorite is a video). byType
-  // stays unscoped — it powers the type toggle's own per-type counts.
-  const outputType = outputTypeToEnum(type)
-  const typeScope: { outputType?: OutputType } = outputType
-    ? { outputType }
+  // stays unscoped — it powers the type facet's own per-type counts.
+  const outputTypes = outputTypesToEnums(type)
+  const typeScope: { outputType?: { in: OutputType[] } } = outputTypes.length
+    ? { outputType: { in: outputTypes } }
     : {}
 
-  const [byType, byProject, favorites, published] = await Promise.all([
+  const [byType, byProject, byModel, favorites, published] = await Promise.all([
     db.generation.groupBy({
       by: ['outputType'],
       where: { userId },
@@ -1033,6 +1054,14 @@ export async function getAssetSectionCounts(
     }),
     db.generation.groupBy({
       by: ['projectId'],
+      where: { userId, ...typeScope },
+      _count: { _all: true },
+    }),
+    // 「模型」分面的选项表 —— 只有库存聚合知道用户实际用过哪些模型
+    // （模型目录里有几十个，库里实测只出现 23 种）。跟着类型口径走，
+    // 这样切到「只看视频」时模型下拉里不会还挂着一堆图像模型。
+    db.generation.groupBy({
+      by: ['model'],
       where: { userId, ...typeScope },
       _count: { _all: true },
     }),
@@ -1054,6 +1083,7 @@ export async function getAssetSectionCounts(
     model_3d: 0,
     unassigned: 0,
     byProject: {},
+    byModel: {},
   }
 
   for (const row of byType) {
@@ -1064,16 +1094,22 @@ export async function getAssetSectionCounts(
     else if (row.outputType === 'MODEL_3D') counts.model_3d = n
   }
 
-  // "All" reflects the active type scope: the scoped type's total, or the
+  // "All" reflects the active type scope: the selected types' total, or the
   // grand total across every type when unscoped.
-  counts.all = outputType
-    ? (byType.find((row) => row.outputType === outputType)?._count._all ?? 0)
+  counts.all = outputTypes.length
+    ? byType
+        .filter((row) => outputTypes.includes(row.outputType))
+        .reduce((sum, row) => sum + row._count._all, 0)
     : counts.image + counts.video + counts.audio + (counts.model_3d ?? 0)
 
   for (const row of byProject) {
     const n = row._count._all
     if (row.projectId === null) counts.unassigned = n
     else counts.byProject[row.projectId] = n
+  }
+
+  for (const row of byModel) {
+    if (row.model) counts.byModel[row.model] = row._count._all
   }
 
   return counts

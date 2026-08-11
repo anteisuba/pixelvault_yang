@@ -28,6 +28,8 @@ export function getSystemApiKey(adapterType: string): string | null {
       return process.env.NOVELAI_API_TOKEN ?? null
     case AI_ADAPTER_TYPES.VOLCENGINE:
       return process.env.VOLCENGINE_API_KEY ?? null
+    case AI_ADAPTER_TYPES.BYTEPLUS:
+      return process.env.BYTEPLUS_API_KEY ?? null
     // Separate env vars, not one with a region flag: the two MiniMax stations
     // issue keys that are rejected by the other host.
     case AI_ADAPTER_TYPES.MINIMAX:

@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PixelVault Assets — V2 Editorial Archive</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+        --ink: #191917;
+        --ink-soft: #54534f;
+        --muted: #929087;
+        --line: #deddd7;
+        --line-soft: #e9e8e3;
+        --paper: #f4f3ef;
+        --surface: #fbfaf7;
+        --dock-surface: #efeee9;
+        --accent: #ef623c;
+        --accent-soft: #f9d9cf;
+        --rail: 56px;
+        --dock: 328px;
+        --source: url("file:///C:/Users/15620/AppData/Local/Temp/codex-clipboard-32dd35ec-8692-44a4-a680-31263cb852d1.png");
+      }
+
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--paper); color: var(--ink); }
+      button, input { font: inherit; }
+      button { color: inherit; }
+      svg { display: block; width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.7; }
+
+      .app {
+        display: grid;
+        grid-template-columns: var(--rail) minmax(0, 1fr) var(--dock);
+        width: 100vw;
+        height: 100vh;
+        background: var(--paper);
+        transition: grid-template-columns 240ms cubic-bezier(.2,.8,.2,1);
+      }
+      .app[data-dock="closed"] { grid-template-columns: var(--rail) minmax(0, 1fr) 0; }
+
+      .global-rail {
+        position: relative;
+        z-index: 4;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 12px 0 10px;
+        border-right: 1px solid var(--line);
+        background: #f9f8f4;
+      }
+      .brand {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        margin-bottom: 12px;
+        border: 1px solid #cfcec7;
+        border-radius: 50%;
+        font-family: ui-monospace, "Cascadia Mono", monospace;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: -.06em;
+      }
+      .rail-action {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border: 0;
+        border-radius: 11px;
+        background: transparent;
+        color: #6e6c65;
+        font-size: 17px;
+        transition: background 140ms ease, color 140ms ease;
+      }
+      .rail-action:hover { background: #ecebe5; color: #181816; }
+      .rail-action.active { background: #20201e; color: #fff; }
+      .rail-spacer { flex: 1; }
+      .rail-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(150deg, #8bb5c6, #c8b0c4 55%, #e4b678); box-shadow: inset 0 0 0 1px rgba(0,0,0,.07); }
+
+      .workspace { min-width: 0; display: grid; grid-template-rows: 76px 46px minmax(0, 1fr); overflow: hidden; }
+
+      .masthead {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 0 22px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(251,250,247,.9);
+      }
+      .title-lockup { display: flex; align-items: baseline; gap: 9px; min-width: 150px; }
+      .title { font-size: 20px; font-weight: 700; letter-spacing: -.045em; }
+      .total { color: var(--muted); font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 10px; letter-spacing: .02em; }
+      .scope {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+        padding: 0 2px 0 0;
+        border: 0;
+        border-bottom: 1px solid transparent;
+        background: transparent;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .scope:hover { border-bottom-color: #aaa89f; }
+      .scope svg { color: var(--accent); font-size: 16px; }
+      .chev { color: #908e86; font-size: 10px; }
+
+      .search {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        width: min(360px, 30vw);
+        height: 38px;
+        padding: 0 11px;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        background: #ecebe6;
+        color: #7b7971;
+        transition: border-color 140ms ease, background 140ms ease;
+      }
+      .search:focus-within { border-color: #bdbbb2; background: #fff; }
+      .search svg { flex: 0 0 auto; font-size: 15px; }
+      .search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 11px; }
+      .search input::placeholder { color: #95938b; }
+      .key { padding: 2px 5px; border: 1px solid #d3d1ca; border-radius: 4px; background: rgba(255,255,255,.6); color: #99978f; font-family: ui-monospace, monospace; font-size: 9px; }
+
+      .spacer { flex: 1; }
+      .quiet-action, .primary-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 650;
+        transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+      }
+      .quiet-action { border: 1px solid transparent; background: transparent; }
+      .quiet-action:hover { border-color: #d4d2cb; background: #f7f6f2; }
+      .quiet-action[aria-pressed="true"] { border-color: #c8c6be; background: #e8e7e1; }
+      .primary-action { border: 1px solid #1b1b19; background: #1b1b19; color: #fff; box-shadow: 0 1px 0 rgba(255,255,255,.12) inset; }
+      .primary-action:hover { transform: translateY(-1px); background: #000; }
+      .quiet-action svg, .primary-action svg { font-size: 15px; }
+
+      .filterbar {
+        display: flex;
+        align-items: stretch;
+        gap: 20px;
+        padding: 0 22px;
+        border-bottom: 1px solid var(--line-soft);
+        background: var(--surface);
+      }
+      .media-tabs { display: flex; align-items: stretch; gap: 19px; }
+      .media-tab {
+        position: relative;
+        border: 0;
+        background: transparent;
+        color: #7a7870;
+        font-size: 11px;
+      }
+      .media-tab.active { color: #171715; font-weight: 650; }
+      .media-tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); }
+      .filter-group { display: flex; align-items: center; gap: 16px; padding-left: 20px; border-left: 1px solid var(--line-soft); }
+      .text-filter { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: #68665f; font-size: 10px; }
+      .text-filter:hover { color: #181816; }
+      .filter-end { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+      .fresh { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: #5d5b55; font-size: 10px; }
+      .fresh-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+      .density { display: flex; align-items: flex-end; gap: 2px; height: 28px; padding: 7px 1px; border: 0; background: transparent; color: #76746d; }
+      .density i { display: block; width: 2px; background: currentColor; }
+      .density i:nth-child(1) { height: 7px; }
+      .density i:nth-child(2) { height: 11px; }
+      .density i:nth-child(3) { height: 15px; color: var(--ink); }
+
+      .library { overflow: auto; padding: 18px 18px 44px; background: var(--paper); scrollbar-width: thin; scrollbar-color: #c9c7bf transparent; }
+      .section-head { display: flex; align-items: flex-end; margin: 0 2px 13px; }
+      .section-kicker { color: #9a978e; font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+      .section-name { margin-top: 3px; font-size: 13px; font-weight: 650; letter-spacing: -.02em; }
+      .section-meta { margin-left: auto; color: #9a978e; font-size: 9px; }
+
+      .media-grid { display: flex; flex-direction: column; gap: 8px; }
+      .media-row { display: flex; gap: 8px; height: 218px; transition: height 240ms cubic-bezier(.2,.8,.2,1); }
+      .app[data-dock="closed"] .media-row { height: 276px; }
+      .asset {
+        position: relative;
+        min-width: 0;
+        flex: var(--ratio) 1 0;
+        overflow: hidden;
+        border: 0;
+        border-radius: 5px;
+        background-color: #e8e6df;
+        background-image: var(--source);
+        background-repeat: no-repeat;
+        cursor: pointer;
+        isolation: isolate;
+        box-shadow: 0 0 0 1px rgba(35,35,31,.08) inset;
+        transition: transform 170ms ease, box-shadow 170ms ease;
+      }
+      .asset::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(to top, rgba(15,15,13,.58), transparent 34%); opacity: 0; transition: opacity 160ms ease; }
+      .asset:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(28,27,23,.13), 0 0 0 1px rgba(35,35,31,.14) inset; }
+      .asset:hover::before, .asset:focus-visible::before { opacity: 1; }
+      .asset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .asset-meta { position: absolute; z-index: 2; left: 10px; right: 10px; bottom: 9px; display: flex; align-items: flex-end; gap: 8px; color: #fff; opacity: 0; transform: translateY(4px); transition: opacity 160ms ease, transform 160ms ease; }
+      .asset:hover .asset-meta, .asset:focus-visible .asset-meta { opacity: 1; transform: translateY(0); }
+      .asset-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 600; text-align: left; }
+      .asset-dim { flex: 0 0 auto; color: rgba(255,255,255,.76); font-family: ui-monospace, monospace; font-size: 8px; }
+      .type-mark { position: absolute; z-index: 3; left: 9px; top: 9px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(249,248,244,.9); color: #1b1b19; backdrop-filter: blur(8px); font-size: 12px; }
+
+      .audio-card { background-image: radial-gradient(circle at 76% 18%, rgba(239,98,60,.46), transparent 26%), linear-gradient(145deg, #201b1c, #473038 58%, #8f554c); color: #fff; }
+      .audio-card::before { opacity: 1; background: linear-gradient(to top, rgba(10,8,8,.64), transparent 52%); }
+      .audio-inner { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; padding: 15px; }
+      .audio-index { font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: .12em; color: rgba(255,255,255,.62); }
+      .wave { display: flex; align-items: center; gap: 3px; height: 42px; margin: auto 0 16px; }
+      .wave i { display: block; width: 2px; border-radius: 2px; background: rgba(255,255,255,.82); }
+      .wave i:nth-child(1) { height: 8px; } .wave i:nth-child(2) { height: 18px; } .wave i:nth-child(3) { height: 30px; } .wave i:nth-child(4) { height: 14px; } .wave i:nth-child(5) { height: 36px; } .wave i:nth-child(6) { height: 24px; } .wave i:nth-child(7) { height: 12px; } .wave i:nth-child(8) { height: 28px; } .wave i:nth-child(9) { height: 17px; } .wave i:nth-child(10) { height: 8px; }
+      .audio-title { font-size: 13px; font-weight: 650; letter-spacing: -.02em; }
+      .audio-sub { display: flex; justify-content: space-between; margin-top: 4px; color: rgba(255,255,255,.62); font-size: 9px; }
+
+      .dock {
+        position: relative;
+        z-index: 5;
+        min-width: 0;
+        overflow: hidden;
+        border-left: 1px solid #d4d2cb;
+        background: var(--dock-surface);
+        opacity: 1;
+        transition: opacity 150ms ease, transform 240ms cubic-bezier(.2,.8,.2,1);
+      }
+      .app[data-dock="closed"] .dock { opacity: 0; pointer-events: none; }
+      .dock-header { display: flex; align-items: center; height: 64px; padding: 0 18px; border-bottom: 1px solid #d8d6cf; }
+      .dock-title { font-size: 14px; font-weight: 700; letter-spacing: -.025em; }
+      .dock-tools { display: flex; gap: 3px; margin-left: auto; }
+      .icon-button { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: #6f6d65; font-size: 15px; }
+      .icon-button:hover { background: rgba(255,255,255,.54); color: #171715; }
+      .dock-tabs { display: flex; gap: 22px; height: 43px; padding: 0 18px; border-bottom: 1px solid #dcdbd4; }
+      .dock-tab { position: relative; border: 0; background: transparent; color: #8b8981; font-size: 10px; font-weight: 650; }
+      .dock-tab.active { color: #171715; }
+      .dock-tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); }
+      .panel { display: none; height: calc(100vh - 107px); overflow: auto; padding: 15px 14px 24px; }
+      .panel.active { display: block; }
+
+      .folder-search { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 9px; border-bottom: 1px solid #cfcdc5; color: #8f8d84; }
+      .folder-search svg { font-size: 14px; }
+      .folder-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 10px; }
+      .folder-search input::placeholder { color: #929087; }
+      .panel-label { margin: 21px 8px 7px; color: #9b988f; font-family: ui-monospace, monospace; font-size: 8px; letter-spacing: .12em; text-transform: uppercase; }
+      .folder-row { position: relative; display: grid; grid-template-columns: 16px minmax(0,1fr) auto; align-items: center; gap: 7px; min-height: 34px; padding: 0 9px; border-radius: 7px; color: #54524c; font-size: 10px; }
+      .folder-row:hover { background: rgba(255,255,255,.46); color: #1d1d1a; }
+      .folder-row.active { background: #deddd6; color: #171715; font-weight: 650; }
+      .folder-row.active::before { content: ""; position: absolute; left: -14px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
+      .folder-row.child { margin-left: 18px; }
+      .folder-row.child::after { content: ""; position: absolute; left: -7px; top: -7px; bottom: -7px; width: 1px; background: #d7d5ce; }
+      .folder-row .count { color: #9c9991; font-family: ui-monospace, monospace; font-size: 8px; }
+      .row-icon { color: #89877f; font-size: 12px; }
+      .folder-hint { display: flex; gap: 8px; margin: 22px 5px 0; padding-top: 14px; border-top: 1px solid #d9d7d0; color: #99968e; font-size: 9px; line-height: 1.55; }
+      .folder-hint svg { flex: 0 0 auto; margin-top: 1px; }
+
+      .detail-preview { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 6px; background-color: #dedbd3; background-image: var(--source); background-repeat: no-repeat; box-shadow: 0 0 0 1px rgba(0,0,0,.08) inset; }
+      .detail-index { margin-top: 14px; color: var(--accent); font-family: ui-monospace, monospace; font-size: 8px; letter-spacing: .1em; }
+      .detail-name { margin-top: 4px; font-size: 15px; font-weight: 700; letter-spacing: -.025em; }
+      .detail-origin { margin-top: 4px; color: #8b8981; font-size: 9px; }
+      .detail-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 15px; }
+      .detail-action { height: 34px; border: 1px solid #cfcdc5; border-radius: 7px; background: rgba(255,255,255,.42); font-size: 9px; font-weight: 600; }
+      .detail-action:hover { background: rgba(255,255,255,.75); }
+      .facts { display: grid; grid-template-columns: 72px 1fr; gap: 10px; margin: 22px 3px 0; font-size: 9px; }
+      .facts dt { color: #9a978f; }
+      .facts dd { margin: 0; color: #3f3e39; }
+
+      @media (max-width: 1360px) {
+        .app { grid-template-columns: var(--rail) minmax(0, 1fr); }
+        .app[data-dock="closed"] { grid-template-columns: var(--rail) minmax(0, 1fr); }
+        .dock { position: fixed; top: 0; right: 0; bottom: 0; width: min(340px, calc(100vw - var(--rail))); box-shadow: -24px 0 60px rgba(24,23,20,.15); }
+        .app[data-dock="closed"] .dock { transform: translateX(100%); }
+        .app[data-dock="closed"] .media-row, .media-row { height: 236px; }
+        .search { width: 280px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" aria-hidden="true" style="position:absolute">
+      <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8v9a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
+      <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+      <symbol id="i-library" viewBox="0 0 24 24"><path d="M4 19V5m5 14V8m5 11V3m5 16v-9"/></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-5L5 20"/></symbol>
+      <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5M5 15v4h14v-4"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+      <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16M18 8h.01M18 12h.01"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="m14 4 6 6-3 2-4 4-1 5-2-2 1-5 4-4zM4 20l6-6"/></symbol>
+      <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 5.7a5.5 5.5 0 0 0-7.8 0L12 6.8l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.5a5.5 5.5 0 0 0 0-7.8z"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 14h5l2 2h2l2-2h5"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="m9 7 8 5-8 5z"/></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+    </svg>
+
+    <div class="app" data-dock="folders">
+      <nav class="global-rail" aria-label="全局导航">
+        <div class="brand">PV</div>
+        <button class="rail-action" aria-label="首页"><svg><use href="#i-home"/></svg></button>
+        <button class="rail-action" aria-label="探索"><svg><use href="#i-grid"/></svg></button>
+        <button class="rail-action active" aria-label="素材" aria-current="page"><svg><use href="#i-library"/></svg></button>
+        <button class="rail-action" aria-label="图片工作台"><svg><use href="#i-image"/></svg></button>
+        <button class="rail-action" aria-label="3D 工作台"><svg><use href="#i-box"/></svg></button>
+        <div class="rail-spacer"></div>
+        <button class="rail-action" aria-label="帮助"><svg><use href="#i-info"/></svg></button>
+        <div class="rail-avatar" aria-label="用户头像"></div>
+      </nav>
+
+      <section class="workspace">
+        <header class="masthead">
+          <div class="title-lockup"><span class="title">素材库</span><span class="total">496</span></div>
+          <button class="scope"><svg><use href="#i-folder"/></svg><span>全部素材</span><span class="chev">⌄</span></button>
+          <label class="search"><svg><use href="#i-search"/></svg><input aria-label="搜索素材" placeholder="搜索画面、模型或来源"/><span class="key">⌘K</span></label>
+          <div class="spacer"></div>
+          <button class="quiet-action"><svg><use href="#i-check"/></svg><span>选择</span></button>
+          <button id="dockToggle" class="quiet-action" aria-pressed="true"><svg><use href="#i-panel"/></svg><span>整理</span></button>
+          <button class="primary-action"><svg><use href="#i-upload"/></svg><span>上传</span></button>
+        </header>
+
+        <div class="filterbar">
+          <div class="media-tabs" aria-label="媒体类型">
+            <button class="media-tab active">全部</button>
+            <button class="media-tab">图片</button>
+            <button class="media-tab">视频</button>
+            <button class="media-tab">声音</button>
+            <button class="media-tab">3D</button>
+          </div>
+          <div class="filter-group">
+            <button class="text-filter">来源 <span>⌄</span></button>
+            <button class="text-filter">模型 <span>⌄</span></button>
+            <button class="text-filter">日期 <span>⌄</span></button>
+          </div>
+          <div class="filter-end">
+            <button class="fresh"><span class="fresh-dot"></span><span>3 个新生成</span></button>
+            <button class="text-filter">最新优先 <span>⌄</span></button>
+            <button class="density" aria-label="网格密度"><i></i><i></i><i></i></button>
+          </div>
+        </div>
+
+        <main class="library">
+          <div class="section-head">
+            <div><div class="section-kicker">Today · Aug 11</div><div class="section-name">今天生成</div></div>
+            <div class="section-meta">48 项 · 自动回流</div>
+          </div>
+
+          <div class="media-grid">
+            <div class="media-row">
+              <button class="asset" style="--ratio:.72" data-x="72" data-y="82"><span class="asset-meta"><span class="asset-label">角色设定 · 正面</span><span class="asset-dim">832×1216</span></span></button>
+              <button class="asset" style="--ratio:1.25" data-x="324" data-y="82"><span class="asset-meta"><span class="asset-label">夜景人物 · 变体 04</span><span class="asset-dim">1536×1024</span></span></button>
+              <button class="asset" style="--ratio:1" data-x="578" data-y="82"><span class="asset-meta"><span class="asset-label">角色背面参考</span><span class="asset-dim">1024×1024</span></span></button>
+              <button class="asset" style="--ratio:.86" data-x="830" data-y="82"><span class="asset-meta"><span class="asset-label">发型拆解</span><span class="asset-dim">1024×1216</span></span></button>
+              <button class="asset video" style="--ratio:1.07" data-x="1083" data-y="82"><span class="type-mark"><svg><use href="#i-play"/></svg></span><span class="asset-meta"><span class="asset-label">角色旋转预览</span><span class="asset-dim">06s</span></span></button>
+            </div>
+            <div class="media-row">
+              <button class="asset" style="--ratio:1.38" data-x="72" data-y="334"><span class="asset-meta"><span class="asset-label">服装参考 · Navy</span><span class="asset-dim">1536×1024</span></span></button>
+              <button class="asset" style="--ratio:.78" data-x="324" data-y="334"><span class="asset-meta"><span class="asset-label">蓝色假发试装</span><span class="asset-dim">832×1216</span></span></button>
+              <button class="asset" style="--ratio:1.05" data-x="578" data-y="334"><span class="asset-meta"><span class="asset-label">Q版角色三视图</span><span class="asset-dim">1024×1024</span></span></button>
+              <button class="asset" style="--ratio:1" data-x="830" data-y="334"><span class="asset-meta"><span class="asset-label">动作参考</span><span class="asset-dim">1024×1024</span></span></button>
+              <button class="asset" style="--ratio:.69" data-x="1083" data-y="334"><span class="asset-meta"><span class="asset-label">角色资料页</span><span class="asset-dim">832×1216</span></span></button>
+            </div>
+            <div class="media-row">
+              <button class="asset audio-card" style="--ratio:1">
+                <span class="type-mark"><svg><use href="#i-play"/></svg></span>
+                <span class="audio-inner"><span class="audio-index">VOICE / 014</span><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="audio-title">潮汐之后</span><span class="audio-sub"><span>Fish Audio</span><span>03:24</span></span></span>
+              </button>
+              <button class="asset video" style="--ratio:1.55" data-x="72" data-y="588"><span class="type-mark"><svg><use href="#i-play"/></svg></span><span class="asset-meta"><span class="asset-label">森林漫游 · 镜头 02</span><span class="asset-dim">16:9 · 10s</span></span></button>
+              <button class="asset" style="--ratio:.72" data-x="324" data-y="588"><span class="asset-meta"><span class="asset-label">姿态研究</span><span class="asset-dim">832×1216</span></span></button>
+              <button class="asset" style="--ratio:1.63" data-x="1083" data-y="334"><span class="asset-meta"><span class="asset-label">服装与配件合集</span><span class="asset-dim">1792×1024</span></span></button>
+            </div>
+          </div>
+        </main>
+      </section>
+
+      <aside class="dock" aria-label="素材上下文面板">
+        <div class="dock-header">
+          <div class="dock-title">整理</div>
+          <div class="dock-tools">
+            <button class="icon-button" aria-label="固定面板"><svg><use href="#i-pin"/></svg></button>
+            <button id="dockClose" class="icon-button" aria-label="关闭面板"><svg><use href="#i-x"/></svg></button>
+          </div>
+        </div>
+        <div class="dock-tabs">
+          <button class="dock-tab active" data-panel="folders">文件夹</button>
+          <button class="dock-tab" data-panel="details">详情</button>
+        </div>
+
+        <div id="foldersPanel" class="panel active">
+          <div class="folder-search"><svg><use href="#i-search"/></svg><input aria-label="搜索文件夹" placeholder="搜索文件夹"/><button class="icon-button" aria-label="新建文件夹"><svg><use href="#i-plus"/></svg></button></div>
+          <div class="panel-label">Smart views</div>
+          <div class="folder-row active"><svg class="row-icon"><use href="#i-inbox"/></svg><span>未分类</span><span class="count">150</span></div>
+          <div class="folder-row"><svg class="row-icon"><use href="#i-clock"/></svg><span>最近生成</span><span class="count">48</span></div>
+          <div class="folder-row"><svg class="row-icon"><use href="#i-heart"/></svg><span>收藏</span><span class="count">32</span></div>
+          <div class="panel-label">Folders</div>
+          <div class="folder-row"><span class="row-icon">›</span><span>米诺</span><span class="count">4</span></div>
+          <div class="folder-row"><span class="row-icon">›</span><span>群星璀璨 PV</span><span class="count">7</span></div>
+          <div class="folder-row"><span class="row-icon">⌄</span><span>ba</span><span class="count">55</span></div>
+          <div class="folder-row child"><span></span><span>キサキ</span><span class="count">5</span></div>
+          <div class="folder-row"><span class="row-icon">›</span><span>姿势参照图</span><span class="count">12</span></div>
+          <div class="folder-row"><span class="row-icon">›</span><span>ootd</span><span class="count">10</span></div>
+          <div class="folder-row"><span class="row-icon">⌄</span><span>AI 拟人化工程</span><span class="count">15</span></div>
+          <div class="folder-row child"><span></span><span>kimi</span><span class="count">2</span></div>
+          <div class="folder-row child"><span></span><span>grok</span><span class="count">2</span></div>
+          <div class="folder-row child"><span></span><span>claude</span><span class="count">4</span></div>
+          <div class="folder-row child"><span></span><span>openai</span><span class="count">4</span></div>
+          <div class="folder-row"><span class="row-icon">›</span><span>测试</span><span class="count">38</span></div>
+          <div class="folder-hint"><svg><use href="#i-info"/></svg><span>选择资源后可拖入文件夹；批量移动也可从底部操作条打开“移动到…”。</span></div>
+        </div>
+
+        <div id="detailsPanel" class="panel">
+          <div class="detail-preview" data-x="324" data-y="82"></div>
+          <div class="detail-index">ASSET 03 / IMAGE</div>
+          <div class="detail-name">夜景人物 · 变体 04</div>
+          <div class="detail-origin">今天 14:32 · Image Studio</div>
+          <div class="detail-actions"><button class="detail-action">在工作台复用</button><button class="detail-action">下载原件</button></div>
+          <dl class="facts"><dt>尺寸</dt><dd>1536 × 1024</dd><dt>模型</dt><dd>Seedream 5.0</dd><dt>来源</dt><dd>Image Studio</dd><dt>文件夹</dt><dd>未分类</dd><dt>格式</dt><dd>PNG · 4.8 MB</dd></dl>
+        </div>
+      </aside>
+    </div>
+
+    <script>
+      const app = document.querySelector('.app')
+      const dockToggle = document.querySelector('#dockToggle')
+      const dockClose = document.querySelector('#dockClose')
+      const tabs = [...document.querySelectorAll('.dock-tab')]
+      const panels = { folders: document.querySelector('#foldersPanel'), details: document.querySelector('#detailsPanel') }
+      const spriteTargets = [...document.querySelectorAll('[data-x][data-y]')]
+      const sourceWidth = 1912
+      const sourceHeight = 920
+      const cropSize = 244
+
+      function fitSprite(el) {
+        const box = el.getBoundingClientRect()
+        const scale = Math.max(box.width / cropSize, box.height / cropSize)
+        const x = Number(el.dataset.x)
+        const y = Number(el.dataset.y)
+        el.style.backgroundSize = `${sourceWidth * scale}px ${sourceHeight * scale}px`
+        el.style.backgroundPosition = `${-x * scale}px ${-y * scale}px`
+      }
+
+      function fitAllSprites() { spriteTargets.forEach(fitSprite) }
+
+      function setPanel(name) {
+        app.dataset.dock = name
+        dockToggle.setAttribute('aria-pressed', 'true')
+        tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.panel === name))
+        Object.entries(panels).forEach(([key, panel]) => panel.classList.toggle('active', key === name))
+        requestAnimationFrame(fitAllSprites)
+      }
+
+      function closeDock() {
+        app.dataset.dock = 'closed'
+        dockToggle.setAttribute('aria-pressed', 'false')
+        setTimeout(fitAllSprites, 260)
+      }
+
+      dockToggle.addEventListener('click', () => app.dataset.dock === 'closed' ? setPanel('folders') : closeDock())
+      dockClose.addEventListener('click', closeDock)
+      tabs.forEach((tab) => tab.addEventListener('click', () => setPanel(tab.dataset.panel)))
+      document.querySelectorAll('.asset:not(.audio-card)').forEach((asset) => asset.addEventListener('click', () => setPanel('details')))
+      window.addEventListener('resize', fitAllSprites)
+      if (document.fonts?.ready) document.fonts.ready.then(fitAllSprites)
+      fitAllSprites()
+    </script>
+  </body>
+</html>

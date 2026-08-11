@@ -341,11 +341,24 @@ const HOME_V3_MODEL_BRAND_COVERS: Readonly<Record<string, string>> = {
     '/homepage/production/models/brand/bytedance.svg',
   'seedance-2.0-reference-volcengine':
     '/homepage/production/models/brand/bytedance.svg',
+  // BytePlus is the overseas station for the same ByteDance models — same mark.
+  'seedance-2.0-fast-byteplus':
+    '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.0-byteplus': '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.0-fast-reference-byteplus':
+    '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.0-reference-byteplus':
+    '/homepage/production/models/brand/bytedance.svg',
   'happyhorse-1.0': '/homepage/production/models/brand/alibaba-cloud.svg',
   // Reserved (available: false) so it never reaches the rail today, but mapped
   // now so flipping 2.5 on at GA doesn't leave the homepage without art.
   'seedance-2.5-volcengine': '/homepage/production/models/brand/bytedance.svg',
   'seedance-2.5-reference-volcengine':
+    '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.5': '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.5-reference': '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.5-byteplus': '/homepage/production/models/brand/bytedance.svg',
+  'seedance-2.5-reference-byteplus':
     '/homepage/production/models/brand/bytedance.svg',
   // Both MiniMax stations show the same mark — the station is an execution
   // detail, not a different model owner.

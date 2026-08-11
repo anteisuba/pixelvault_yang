@@ -53,7 +53,28 @@ const FAKE_PROJECT_ROW = {
   createdAt: new Date(),
   updatedAt: new Date(),
   _count: { generations: 3 },
-  generations: [{ url: 'https://example.com/thumb.png' }],
+  generations: [
+    {
+      url: 'https://example.com/a.png',
+      thumbnailUrl: 'https://example.com/a.thumb.webp',
+      previewUrl: null,
+      outputType: 'IMAGE',
+    },
+    // 图片缺派生图 → 回落到原图
+    {
+      url: 'https://example.com/b.png',
+      thumbnailUrl: null,
+      previewUrl: null,
+      outputType: 'IMAGE',
+    },
+    // ⚠ 视频缺派生图 → 整条跳过（`.mp4` 塞进 <img> 画不出来）
+    {
+      url: 'https://example.com/c.mp4',
+      thumbnailUrl: null,
+      previewUrl: null,
+      outputType: 'VIDEO',
+    },
+  ],
 }
 const FAKE_GENERATION_ROW = {
   id: 'gen_1',
@@ -92,7 +113,11 @@ describe('listProjects', () => {
     expect(result[0].name).toBe('Design Sprint')
     expect(result[0].parentId).toBeNull()
     expect(result[0].generationCount).toBe(3)
-    expect(result[0].latestGenerationUrl).toBe('https://example.com/thumb.png')
+    // 门牌卡拼贴：缩略图优先、图片可回落原图、缺派生图的视频被跳过
+    expect(result[0].coverUrls).toEqual([
+      'https://example.com/a.thumb.webp',
+      'https://example.com/b.png',
+    ])
   })
 })
 

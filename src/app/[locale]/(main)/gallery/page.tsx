@@ -38,9 +38,9 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
   const initialFilters = filterResult.success
     ? {
         search: filterResult.data.search ?? '',
-        model: filterResult.data.model ?? '',
+        models: filterResult.data.model,
         sort: filterResult.data.sort,
-        type: filterResult.data.type,
+        types: filterResult.data.type,
         timeRange: filterResult.data.timeRange,
         liked: filterResult.data.liked === '1',
         published: filterResult.data.published === '1',
@@ -48,9 +48,9 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
       }
     : {
         search: '',
-        model: '',
+        models: [],
         sort: 'newest' as const,
-        type: 'all' as const,
+        types: [],
         timeRange: 'all' as const,
         liked: false,
         published: false,
@@ -60,9 +60,9 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
     page: PAGINATION.DEFAULT_PAGE,
     limit: PAGINATION.DEFAULT_LIMIT,
     search: initialFilters.search || undefined,
-    model: initialFilters.model || undefined,
+    model: initialFilters.models,
     sort: initialFilters.sort,
-    type: initialFilters.type,
+    type: initialFilters.types,
     timeRange: initialFilters.timeRange,
     published: initialFilters.published,
   })

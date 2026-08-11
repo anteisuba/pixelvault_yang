@@ -81,6 +81,12 @@ const VOLCENGINE_MAX_SEED = 2_147_483_647
 /** Seedance 2.0 series duration window per 火山's model list (时长: 4~15 秒). */
 const VOLCENGINE_SEEDANCE_MIN_DURATION = 4
 const VOLCENGINE_SEEDANCE_MAX_DURATION = 15
+const SEEDANCE_25_MODEL_IDS = new Set<string>([
+  AI_MODELS.SEEDANCE_25_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_BYTEPLUS,
+  AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS,
+])
 /**
  * 2.0 Fast 不支持 1080p，请求要压回 720p。
  *
@@ -93,6 +99,8 @@ const VOLCENGINE_SEEDANCE_MAX_DURATION = 15
 const VOLCENGINE_SEEDANCE_20_FAST_MODEL_IDS = new Set<string>([
   AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+  AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS,
+  AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS,
 ])
 
 // ─── Response Schemas ────────────────────────────────────────────
@@ -176,6 +184,10 @@ export function buildVolcEngineVideoQueueBody({
   seed,
 }: ProviderQueueSubmitInput): Record<string, unknown> {
   const externalModelId = getExecutionModelId(modelId)
+  const isSeedance25 = SEEDANCE_25_MODEL_IDS.has(modelId)
+  const maxReferenceImages = isSeedance25 ? 30 : 9
+  const maxReferenceVideos = isSeedance25 ? 10 : 3
+  const maxReferenceAudio = isSeedance25 ? 10 : 3
 
   const content: Record<string, unknown>[] = [{ type: 'text', text: prompt }]
 
@@ -188,8 +200,8 @@ export function buildVolcEngineVideoQueueBody({
       : referenceImage
         ? [referenceImage]
         : []
-  const referenceVideoUrls = (videoUrls ?? []).slice(0, 3)
-  const referenceAudioUrls = (audioUrls ?? []).slice(0, 3)
+  const referenceVideoUrls = (videoUrls ?? []).slice(0, maxReferenceVideos)
+  const referenceAudioUrls = (audioUrls ?? []).slice(0, maxReferenceAudio)
 
   // ark 的三个场景互斥：first-frame i2v / first+last frame / multimodal reference。
   //
@@ -211,7 +223,7 @@ export function buildVolcEngineVideoQueueBody({
     referenceAudioUrls.length > 0
 
   if (useReferenceMode) {
-    for (const url of referenceImageUrls.slice(0, 9)) {
+    for (const url of referenceImageUrls.slice(0, maxReferenceImages)) {
       content.push({
         type: 'image_url',
         image_url: { url },
@@ -225,9 +237,11 @@ export function buildVolcEngineVideoQueueBody({
         role: 'reference_video',
       })
     }
-    // ark rule: reference audio cannot be the sole input — it must accompany at
-    // least one reference image or video, otherwise the request is rejected.
-    if (referenceImageUrls.length > 0 || referenceVideoUrls.length > 0) {
+    if (
+      isSeedance25 ||
+      referenceImageUrls.length > 0 ||
+      referenceVideoUrls.length > 0
+    ) {
       for (const url of referenceAudioUrls) {
         content.push({
           type: 'audio_url',
@@ -279,9 +293,10 @@ export function buildVolcEngineVideoQueueBody({
   // to 2~12 — the 1.0-pro window — which silently truncated a 15s request to
   // 12s even though the capability matrix offers 15. Keep this in step with
   // `buildVolcEngineVideoRequest` in the execution worker.
+  const maxDuration = isSeedance25 ? 30 : VOLCENGINE_SEEDANCE_MAX_DURATION
   if (typeof duration === 'number') {
     body.duration = Math.min(
-      VOLCENGINE_SEEDANCE_MAX_DURATION,
+      maxDuration,
       Math.max(VOLCENGINE_SEEDANCE_MIN_DURATION, Math.round(duration)),
     )
   } else {
@@ -593,4 +608,9 @@ export const volcengineAdapter: ProviderAdapter = {
       }
     }
   },
+}
+
+export const byteplusAdapter: ProviderAdapter = {
+  ...volcengineAdapter,
+  adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
 }

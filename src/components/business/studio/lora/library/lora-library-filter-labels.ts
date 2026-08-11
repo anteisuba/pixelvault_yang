@@ -25,6 +25,7 @@ export const LORA_LIBRARY_FAMILY_LABEL_KEYS: Record<LoraLibraryFamily, string> =
     pony: 'familyLabel.pony',
     sd15: 'familyLabel.sd15',
     anima: 'familyLabel.anima',
+    krea2: 'familyLabel.krea2',
     qwen: 'familyLabel.qwen',
     'z-image': 'familyLabel.zImage',
     chroma: 'familyLabel.chroma',

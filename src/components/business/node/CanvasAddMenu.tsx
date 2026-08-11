@@ -13,6 +13,7 @@ import {
   FileText,
   Film,
   ImagePlus,
+  Images,
   Layers,
   Mic2,
   Mountain,
@@ -39,6 +40,12 @@ interface CanvasAddMenuProps {
   /** 台账 #26（owner 2026-08-02 拍板）：顶部主行是真上传——点击直接弹系统
    *  文件选择器（宿主负责隐藏 input 与建节点），不再只是建一张空起步卡。 */
   onUpload(): void
+  /**
+   * 上传下面那一行：**从素材库选**（owner 2026-08-11）。与上传并列而不是塞进
+   * 「图片」分组 —— 它俩是同一件事的两个来源（本地文件 / 已有素材），分组里
+   * 那些是「建什么类型的节点」。**多选**，一次能落一批。
+   */
+  onPickFromLibrary(): void
   onClose(): void
 }
 
@@ -74,6 +81,7 @@ export function CanvasAddMenu({
   screenPosition,
   onSelect,
   onUpload,
+  onPickFromLibrary,
   onClose,
 }: CanvasAddMenuProps) {
   const t = useTranslations('StudioNode')
@@ -215,6 +223,15 @@ export function CanvasAddMenu({
         >
           <Upload className="size-4 shrink-0 text-node-muted" />
           <span className="font-medium">{t('addCatalog.upload')}</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={onPickFromLibrary}
+          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-node-foreground transition-colors hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none"
+        >
+          <Images className="size-4 shrink-0 text-node-muted" />
+          <span className="font-medium">{t('addCatalog.pickFromLibrary')}</span>
         </button>
       </div>
 

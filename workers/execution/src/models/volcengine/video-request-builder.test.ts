@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildVolcEngineVideoRequest } from './video-request-builder'
+import {
+  buildVolcEngineVideoRequest,
+  isVolcEngineProviderId,
+} from './video-request-builder'
 
 /**
  * 首尾帧的最后一层（cleanup §1 第 ⑤ 层）。
@@ -32,6 +35,12 @@ const A = 'https://cdn.test/a.png'
 const B = 'https://cdn.test/b.png'
 
 describe('volcengine 视频请求 · 首尾帧', () => {
+  it('同时接受火山国内站和 BytePlus 国际站的 provider id', () => {
+    expect(isVolcEngineProviderId('volcengine')).toBe(true)
+    expect(isVolcEngineProviderId('byteplus')).toBe(true)
+    expect(isVolcEngineProviderId('fal')).toBe(false)
+  })
+
   it('普通端点 + 两张图 → first_frame + last_frame（并列两条 image_url）', () => {
     const content = contentOf(
       build({
@@ -94,6 +103,66 @@ describe('volcengine 视频请求 · 首尾帧', () => {
       aspectRatio: '16:9',
     })
     expect(body.ratio).toBe('adaptive')
+  })
+
+  it('BytePlus 2.5 关键帧档使用相同的 adaptive 约束', () => {
+    const body = buildVolcEngineVideoRequest({
+      prompt: '一个镜头',
+      externalModelId: 'dreamina-seedance-2-5-260628',
+      modelId: 'seedance-2.5-byteplus',
+      referenceImages: [A],
+      aspectRatio: '16:9',
+    })
+    expect(body.ratio).toBe('adaptive')
+  })
+
+  it('2.5 原生双站都保留 30 秒与 30/10/10 参考上限', () => {
+    for (const modelId of [
+      'seedance-2.5-reference-volcengine',
+      'seedance-2.5-reference-byteplus',
+    ]) {
+      const body = buildVolcEngineVideoRequest({
+        prompt: '一个镜头',
+        externalModelId:
+          modelId === 'seedance-2.5-reference-byteplus'
+            ? 'dreamina-seedance-2-5-260628'
+            : 'doubao-seedance-2-5-260628',
+        modelId,
+        duration: 30,
+        referenceImages: Array.from({ length: 35 }, (_, i) => `${A}?i=${i}`),
+        videoUrls: Array.from(
+          { length: 12 },
+          (_, i) => `https://cdn.test/video-${i}.mp4`,
+        ),
+        audioUrls: Array.from(
+          { length: 12 },
+          (_, i) => `https://cdn.test/audio-${i}.mp3`,
+        ),
+      })
+      const content = contentOf(body)
+      expect(body.duration).toBe(30)
+      expect(
+        content.filter((item) => item.role === 'reference_image'),
+      ).toHaveLength(30)
+      expect(
+        content.filter((item) => item.role === 'reference_video'),
+      ).toHaveLength(10)
+      expect(
+        content.filter((item) => item.role === 'reference_audio'),
+      ).toHaveLength(10)
+    }
+  })
+
+  it('2.5 Ark 参考端点允许纯音频输入', () => {
+    const body = buildVolcEngineVideoRequest({
+      prompt: '跟随音频节奏',
+      externalModelId: 'dreamina-seedance-2-5-260628',
+      modelId: 'seedance-2.5-reference-byteplus',
+      audioUrls: ['https://cdn.test/audio.mp3'],
+    })
+    expect(
+      contentOf(body).filter((item) => item.role === 'reference_audio'),
+    ).toHaveLength(1)
   })
 
   it('⚠ 2.5 纯文生视频 → 比例照发，不受首帧那条约束', () => {

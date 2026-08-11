@@ -75,6 +75,21 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
     closePopover()
   }
 
+  /**
+   * ⚠ 消费端是 `imageUpload.addFromUrl` —— **追加**语义、且有容量
+   * （`useImageUpload.maxImages`）。按 page §8.3 的判据，这种入口应当是
+   * **多选**：以前挂成单选，放 4 张参考图要开 4 次弹窗。
+   */
+  const remainingReferenceSlots = Number.isFinite(imageUpload.maxImages)
+    ? Math.max(0, imageUpload.maxImages - imageUpload.referenceEntries.length)
+    : undefined
+
+  const handleSelectAssets = async (gens: GenerationRecord[]) => {
+    for (const gen of gens) {
+      await handleSelectAsset(gen)
+    }
+  }
+
   const handleSelectAsset = async (gen: GenerationRecord) => {
     // Defensive guard: even though AssetSelectorDialog is locked to
     // mediaType="image", a future caller wiring this chip up differently
@@ -196,7 +211,9 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
       <AssetSelectorDialog
         open={assetDialogOpen}
         onOpenChange={setAssetDialogOpen}
-        onSelect={handleSelectAsset}
+        multiSelect
+        maxSelection={remainingReferenceSlots}
+        onConfirmMany={(gens) => void handleSelectAssets(gens)}
         title={t('selectAsset')}
         description={t('description')}
         mediaType="image"

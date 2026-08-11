@@ -357,6 +357,19 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
 
 ⚠ **顺带暴露一个比 2.5 大的问题**：项目现接的四个火山 Seedance 2.0 变体全部指向 `ark.cn-beijing.volces.com`，**海外用户现在用的就是国内线**。BytePlus 侧 2.0 全系也在（`dreamina-seedance-2-0-260128` / `-fast-` / `-mini-`）。所以真正的问题是「整条火山线要不要开国际站」，2.5 只是让它显形。
 
+> **2026-08-10 已补齐 Seedance 2.0 国际线**：Base / Fast 及各自 reference 形态已注册为独立
+> BytePlus 模型，使用独立 `BYTEPLUS_API_KEY` 与 `https://ark.ap-southeast.bytepluses.com/api/v3`；
+> 请求/轮询复用已由 2.5 真机证明同构的 Ark builder，但 adapter、provider 配置和 Key 槽不与国内火山混用。
+> 因此模型选择器同一型号下稳定显示 fal.ai、火山方舟（国内）、BytePlus ModelArk（国际）三条通道。
+> 本轮只做契约测试，未新增真实扣费 smoke；上方 2026-08-08 的 BytePlus 2.5 smoke 仍是当前真实链路证据。
+
+> **2026-08-11 已将同一三渠道结构扩展到 Seedance 2.5**：fal 使用公开的
+> `bytedance/seedance-2.5/{text,image,reference}-to-video` 三端点；火山国内继续使用
+> `doubao-seedance-2-5-260628`；BytePlus 国际使用 `dreamina-seedance-2-5-260628`。
+> fal 与 Ark 的 2.5 均为 4–30 秒、480p/720p、参考素材 30 图 / 10 视频 / 10 音频 / 合计 50；
+> 但 fal 公开 OpenAPI 要求参考音频必须搭配图片或视频，Ark 原生线允许纯音频参考，发送契约已分开表达。
+> 目录、模式解析、应用/Worker fal builder 与 Ark builder 均有回归测试；本轮未执行新的付费生成。
+
 **接入任务包**：`docs/plans/seedance-25-ga-integration-2026-08.md`（已按三站扩容）。⚠ §⑫ 说「GA 时要改三件事」实际是**五件**——漏了 `video-model-send-plan.ts` 的 slots 按代分叉（2.0/2.5 现共用一个分支）和 tripwire 测试自身的改写（它第 79-85 行把 2.0 的 slots 钉死了，分叉后必挂，那是预期行为）。另有一个**待 owner 定的设计问题**：2.5 选了首帧图之后宽高比只能是 `adaptive`，UI 是锁死还是按 Hard Rule 8 给提示不禁用。
 
 ## 接入执行规范（指针）

@@ -5,11 +5,14 @@ import { ApiRequestError, AuthError } from '@/lib/errors'
 import { getAssetSectionCounts } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
-import type { AssetSectionCounts } from '@/types'
+import { parseOutputTypeList, type AssetSectionCounts } from '@/types'
 
 const SectionCountsQuerySchema = z.object({
-  /** Active type tab — scopes view/folder counts so badges match the grid. */
-  type: z.enum(['all', 'image', 'video', 'audio', 'model_3d']).optional(),
+  /**
+   * 生效的类型分面（逗号分隔，`type=image,video`）—— 把视图/文件夹计数
+   * 缩到和网格同一口径。空 = 不限类型。
+   */
+  type: z.string().trim().max(80).optional().transform(parseOutputTypeList),
 })
 
 /**

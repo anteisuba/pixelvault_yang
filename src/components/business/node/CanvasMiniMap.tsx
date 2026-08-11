@@ -44,7 +44,7 @@ export function CanvasMiniMap() {
         left: 'var(--canvas-minimap-left, 1rem)',
         border: '1px solid var(--canvas-stroke-regular)',
       }}
-      className="canvas-glass !bottom-24 !m-0 !h-32 !w-48 overflow-hidden rounded-2xl md:!bottom-28"
+      className="canvas-glass pointer-events-auto !bottom-24 !m-0 !h-32 !w-48 cursor-grab overflow-hidden rounded-2xl active:cursor-grabbing md:!bottom-28"
     />
   )
 }

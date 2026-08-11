@@ -139,6 +139,20 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     defaultRole: 'subject',
     mode: 'native',
   },
+  [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: {
+    kind: 'flexible',
+    min: 1,
+    max: 9,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]: {
+    kind: 'flexible',
+    min: 1,
+    max: 9,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
   // Seedance 2.5：图片上限 30（官方「使用限制」段：「seedance 2.5 多模态参考生
   // 视频：1~30 张」，2.0 系列才是 1~9）。
   //
@@ -152,6 +166,20 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
   // 为 false。两者都还没动 —— 纯音频参考需要 UI 先支持「不传图只传音频」，不是
   // 改个数字的事。见 docs/plans/seedance-25-ga-integration-2026-08.md §3.3。
   [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: {
+    kind: 'flexible',
+    min: 1,
+    max: 30,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
+  [AI_MODELS.SEEDANCE_25_REFERENCE]: {
+    kind: 'flexible',
+    min: 1,
+    max: 30,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
+  [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: {
     kind: 'flexible',
     min: 1,
     max: 30,

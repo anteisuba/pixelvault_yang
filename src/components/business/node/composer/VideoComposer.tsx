@@ -573,6 +573,23 @@ export function VideoComposer({
     [],
   )
 
+  const quickSetupDialog = quickSetup ? (
+    <QuickSetupDialog
+      open={quickSetup.open}
+      onOpenChange={(open) =>
+        setQuickSetup((prev) => (prev ? { ...prev, open } : prev))
+      }
+      modelId={quickSetup.option.modelId}
+      modelLabel={quickSetup.label}
+      adapterType={quickSetup.option.adapterType as AI_ADAPTER_TYPES}
+      optionId={quickSetup.option.optionId}
+      onVerified={() => {
+        setPendingSetupOptionId(quickSetup.option.optionId)
+        setQuickSetup((prev) => (prev ? { ...prev, open: false } : prev))
+      }}
+    />
+  ) : null
+
   // After QuickSetupDialog verifies a key, the option list refreshes a tick
   // later; apply the model once it shows up as runnable.
   const { options: composerOptions } = composer
@@ -1687,6 +1704,7 @@ export function VideoComposer({
           ) : null}
         </div>
         {referenceAssetDialog}
+        {quickSetupDialog}
       </>
     )
   }
@@ -2300,22 +2318,7 @@ export function VideoComposer({
 
     overlays: (
       <>
-        {quickSetup ? (
-          <QuickSetupDialog
-            open={quickSetup.open}
-            onOpenChange={(open) =>
-              setQuickSetup((prev) => (prev ? { ...prev, open } : prev))
-            }
-            modelId={quickSetup.option.modelId}
-            modelLabel={quickSetup.label}
-            adapterType={quickSetup.option.adapterType as AI_ADAPTER_TYPES}
-            optionId={quickSetup.option.optionId}
-            onVerified={() => {
-              setPendingSetupOptionId(quickSetup.option.optionId)
-              setQuickSetup((prev) => (prev ? { ...prev, open: false } : prev))
-            }}
-          />
-        ) : null}
+        {quickSetupDialog}
 
         {/* §7.1 ＋添加位 asset library — one dialog for all three cards; the
           pending request's mediaType picks the library (voice → audio). */}

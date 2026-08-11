@@ -211,12 +211,14 @@ export function NodeMediaPreview({
             'relative aspect-video overflow-hidden rounded-sm border',
             isImageKind
               ? 'canvas-image-preview-window'
-              : cn(
-                  'node-card-window border-node-panel-inner',
-                  isVideoKind && !mediaUrl
-                    ? 'canvas-video-empty-surface'
-                    : 'bg-node-card-window',
-                ),
+              : isTextKind
+                ? 'canvas-text-preview-surface'
+                : cn(
+                    'node-card-window border-node-panel-inner',
+                    isVideoKind && !mediaUrl
+                      ? 'canvas-video-empty-surface'
+                      : 'bg-node-card-window',
+                  ),
           )}
           style={
             kind === NODE_MEDIA_KIND_IDS.video && videoAspect
@@ -246,6 +248,7 @@ export function NodeMediaPreview({
                 sizes="320px"
                 className="object-cover"
                 unoptimized
+                draggable={false}
               />
               <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
                 {data.imageSource ===
@@ -332,20 +335,22 @@ export function NodeMediaPreview({
           </div>
         ) : null}
       </NodeShell.Body>
-      <NodeShell.Footer>
-        {/* ⚠ text-node-**muted** 不是 subtle：subtle 是 #8a8070，对白卡背
+      {!isImageKind && !isTextKind ? (
+        <NodeShell.Footer>
+          {/* ⚠ text-node-**muted** 不是 subtle：subtle 是 #8a8070，对白卡背
             **3.89**，够不到 11px 文字的 4.5（同 A7 里判掉的那一档）。卡背早在
             S1 就被 `.canvas-card` 刷成 #ffffff，而这套墨色是按纸面 #ebe5d8 算
             的 —— 又一处「颜色按纸背算、实际压白卡」的错位。muted 是 6.94。 */}
-        <p className="truncate text-2xs font-medium text-node-muted">
-          {hasWorkflowPrompt
-            ? t(getMediaStatusLabelKey(Boolean(mediaUrl), kind))
-            : tWorkflows(`${type}.footerEmpty`)}
-        </p>
-        <span className="flex size-8 items-center justify-center rounded-2xl bg-node-panel-inner text-node-foreground">
-          <WandSparkles className="size-4" />
-        </span>
-      </NodeShell.Footer>
+          <p className="truncate text-2xs font-medium text-node-muted">
+            {hasWorkflowPrompt
+              ? t(getMediaStatusLabelKey(Boolean(mediaUrl), kind))
+              : tWorkflows(`${type}.footerEmpty`)}
+          </p>
+          <span className="flex size-8 items-center justify-center rounded-2xl bg-node-panel-inner text-node-foreground">
+            <WandSparkles className="size-4" />
+          </span>
+        </NodeShell.Footer>
+      ) : null}
     </NodeShell>
   )
 }

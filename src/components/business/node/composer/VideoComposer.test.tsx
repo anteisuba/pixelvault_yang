@@ -49,16 +49,40 @@ vi.mock(
       triggerLabel,
       variant,
       mediaModality,
+      onRequestSetup,
     }: {
       triggerLabel?: string
       variant?: string
       mediaModality?: string
+      onRequestSetup?: (option: {
+        optionId: string
+        modelId: string
+        adapterType: string
+        providerConfig: { label: string; baseUrl: string }
+        requestCount: number
+        sourceType: 'workspace'
+        freeTier: false
+      }) => void
     }) => (
       <button
         type="button"
         data-testid="shared-model-picker"
         data-variant={variant}
         data-modality={mediaModality}
+        onClick={() =>
+          onRequestSetup?.({
+            optionId: 'workspace:seedance-2.0-fast-byteplus',
+            modelId: 'seedance-2.0-fast-byteplus',
+            adapterType: 'byteplus',
+            providerConfig: {
+              label: 'BytePlus',
+              baseUrl: 'https://ark.ap-southeast.bytepluses.com/api/v3',
+            },
+            requestCount: 1,
+            sourceType: 'workspace',
+            freeTier: false,
+          })
+        }
       >
         {triggerLabel}
       </button>
@@ -300,7 +324,18 @@ vi.mock('sonner', () => ({
 }))
 
 vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: () => null,
+  QuickSetupDialog: ({
+    open,
+    adapterType,
+  }: {
+    open: boolean
+    adapterType: string
+  }) =>
+    open ? (
+      <div role="dialog" data-adapter-type={adapterType}>
+        quick-setup
+      </div>
+    ) : null,
 }))
 
 // ⚠ S7 起 detail 分支通过 `useDownstreamUses` 直接读 React Flow 的 store
@@ -449,6 +484,18 @@ describe('VideoComposer compact sidecar', () => {
       'aria-current',
       'true',
     )
+  })
+
+  it('未配置的模型渠道从紧凑侧栏打开 QuickSetup，而不是吞掉点击', () => {
+    renderCompact()
+
+    fireEvent.click(screen.getByTestId('shared-model-picker'))
+
+    expect(screen.getByRole('dialog')).toHaveAttribute(
+      'data-adapter-type',
+      AI_ADAPTER_TYPES.BYTEPLUS,
+    )
+    expect(updateNodeData).not.toHaveBeenCalled()
   })
 
   /**

@@ -64,6 +64,7 @@ const WORKER_CAPABLE_VIDEO_ADAPTERS: ReadonlySet<string> = new Set([
   AI_ADAPTER_TYPES.MINIMAX_CN,
   // Ark direct — the same Seedance models fal resells at ~2.2×.
   AI_ADAPTER_TYPES.VOLCENGINE,
+  AI_ADAPTER_TYPES.BYTEPLUS,
 ])
 
 function canSubmitVideoViaExecutionWorker(route: {

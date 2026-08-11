@@ -272,7 +272,122 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
       resolution: '720p',
     },
   },
-  // ─── Seedance 2.5 (VolcEngine) — GA 2026-08-07 ──────────────────────────
+  // BytePlus ModelArk is the international Seedance station. It shares the
+  // Ark request shape with VolcEngine, but owns a separate host and key slot.
+  {
+    id: AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS,
+    cost: 4,
+    adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.BYTEPLUS),
+    externalModelId: 'dreamina-seedance-2-0-fast-260128',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1520757',
+    timeoutMs: 300_000,
+    qualityTier: 'standard',
+    videoDefaults: { generateAudio: true, resolution: '720p' },
+  },
+  {
+    id: AI_MODELS.SEEDANCE_20_BYTEPLUS,
+    cost: 6,
+    adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.BYTEPLUS),
+    externalModelId: 'dreamina-seedance-2-0-260128',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1520757',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    videoDefaults: { generateAudio: true, resolution: '720p' },
+  },
+  {
+    id: AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS,
+    cost: 4,
+    adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.BYTEPLUS),
+    externalModelId: 'dreamina-seedance-2-0-fast-260128',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1520757',
+    timeoutMs: 300_000,
+    qualityTier: 'standard',
+    requiresReferenceImage: true,
+    videoDefaults: { generateAudio: true, resolution: '720p' },
+  },
+  {
+    id: AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS,
+    cost: 6,
+    adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.BYTEPLUS),
+    externalModelId: 'dreamina-seedance-2-0-260128',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1520757',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    requiresReferenceImage: true,
+    videoDefaults: { generateAudio: true, resolution: '720p' },
+  },
+  // ─── Seedance 2.5 — fal + VolcEngine China + BytePlus international ─────
+  // fal's public model index and OpenAPI expose separate text/image/reference
+  // endpoints. Ark uses one execution id and distinguishes modes in `content`.
+  {
+    id: AI_MODELS.SEEDANCE_25,
+    cost: 8,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'bytedance/seedance-2.5/text-to-video',
+    i2vModelId: 'bytedance/seedance-2.5/image-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://fal.ai/models/bytedance/seedance-2.5/text-to-video',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    videoDefaults: { generateAudio: true, resolution: '720p' },
+  },
+  {
+    id: AI_MODELS.SEEDANCE_25_REFERENCE,
+    cost: 8,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'bytedance/seedance-2.5/reference-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl:
+      'https://fal.ai/models/bytedance/seedance-2.5/reference-to-video',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    requiresReferenceImage: true,
+    videoDefaults: { generateAudio: true, resolution: '720p' },
+  },
+  {
+    id: AI_MODELS.SEEDANCE_25_BYTEPLUS,
+    cost: 8,
+    adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.BYTEPLUS),
+    externalModelId: 'dreamina-seedance-2-5-260628',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1330310',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    videoDefaults: { generateAudio: true, resolution: '720p' },
+  },
+  {
+    id: AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS,
+    cost: 8,
+    adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.BYTEPLUS),
+    externalModelId: 'dreamina-seedance-2-5-260628',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1330310',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    requiresReferenceImage: true,
+    videoDefaults: { generateAudio: true, resolution: '720p' },
+  },
+  // VolcEngine China GA'd on 2026-08-07.
   // 火山方舟 2026-08-07 上线 API。带日期 model id 取自官方「视频生成教程」的
   // 模型能力表（docs.volcengine.com/docs/82379/2298881，页脚更新 08-07 13:46）。
   // ⚠ 该文档站是 SPA，curl 只抓得到侧边栏，正文必须真浏览器打开。
@@ -286,8 +401,6 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
   // 仅接受 `adaptive`，传具体宽高比会 400。我们目前没有 adaptive 这个选项，
   // 首帧场景撞得上 —— 见 docs/plans/seedance-25-ga-integration-2026-08.md §3.3b。
   //
-  // 另两站（BytePlus 国际 / fal）不在本次范围：BytePlus 需新开 adapter type
-  // （key 与火山不通用），fal 的 B2B only 准入尚未澄清。见任务包 §3.9 / §3.10。
   {
     id: AI_MODELS.SEEDANCE_25_VOLCENGINE,
     cost: 8,

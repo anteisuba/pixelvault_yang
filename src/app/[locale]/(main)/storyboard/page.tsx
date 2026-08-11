@@ -25,12 +25,19 @@ export default function StoryboardPage() {
   >([])
   const [isCreating, setIsCreating] = useState(false)
 
-  const handleSelectGeneration = (generation: GenerationRecord) => {
-    setSelectedGenerations((prev) =>
-      prev.some((item) => item.id === generation.id)
-        ? prev
-        : [...prev, generation],
-    )
+  /**
+   * ⚠ 消费端是**追加**（往 `selectedGenerations` 集合里加，且无容量上限）——
+   * 按 page §8.3 的判据，这种入口应当是**多选**：以前挂成单选，选 6 张分镜
+   * 要开 6 次弹窗。
+   */
+  const handleSelectGenerations = (generations: GenerationRecord[]) => {
+    setSelectedGenerations((prev) => {
+      const known = new Set(prev.map((item) => item.id))
+      return [
+        ...prev,
+        ...generations.filter((generation) => !known.has(generation.id)),
+      ]
+    })
   }
 
   const handleRemoveGeneration = (generationId: string) => {
@@ -189,7 +196,8 @@ export default function StoryboardPage() {
           <AssetSelectorDialog
             open={assetPickerOpen}
             onOpenChange={setAssetPickerOpen}
-            onSelect={handleSelectGeneration}
+            multiSelect
+            onConfirmMany={handleSelectGenerations}
             title={t('assetPickerTitle')}
             description={t('assetPickerDescription')}
             mediaType="image"

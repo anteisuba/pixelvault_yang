@@ -355,6 +355,13 @@ export const CIVITAI_LORA_SORT_OPTIONS = [
 // Illustrious 桶）· Qwen 1.7k · Chroma 1.1k；Flux.2 D 111 / Pony V7 65 /
 // HiDream 65 / SD 3.5 ≈0 → 'other'。视频家族（Wan/Hunyuan Video 等）也归
 // 'other'——本库是图像 LoRA 场景，不为视频家族占 chip 位。
+//
+// 2026-08-09 补 'Krea 2'（同法 meilisearch estimatedTotalHits 实测）：
+// Krea 2 **4376**，是当时所有已配 chip 家族之外的最大缺口，排在 Z-Image
+// (9324) 之后、Qwen (1649) / Chroma (1122) 之前。
+// ⚠ 别与 'Flux.1 Krea' 混：那是 Krea **1**（Flux.1 dev 的同架构 drop-in
+// 变体，实测仅 314 条），已并在 'Flux.1 D' 桶里；Krea 2 是 from-scratch
+// 训练的 12.9B DiT，两者权重结构无关。
 export const CIVITAI_LORA_BASE_MODEL_VALUES = [
   'all',
   'Illustrious',
@@ -363,6 +370,7 @@ export const CIVITAI_LORA_BASE_MODEL_VALUES = [
   'Pony',
   'SD 1.5',
   'Anima',
+  'Krea 2',
   'Qwen',
   'Z-Image',
   'Chroma',
@@ -398,6 +406,10 @@ export const CIVITAI_BASE_MODEL_FAMILY_MEMBERS = {
   Pony: ['Pony'],
   'SD 1.5': ['SD 1.5', 'SD 1.5 LCM', 'SD 1.5 Hyper', 'SD 1.4'],
   Anima: ['Anima'],
+  // 单成员：Civitai 只有 "Krea 2" 这一个值（2026-08-09 实测 `baseModels=Krea 2
+  // Turbo` 返回 0 条，官方 Raw/Turbo 两个形态在 Civitai 不分值，与 Z-Image 的
+  // ZImageBase/ZImageTurbo 双值不同）。
+  'Krea 2': ['Krea 2'],
   Qwen: ['Qwen'],
   // Turbo 是 Z-Image 的蒸馏版，浏览归同一家族桶（Civitai 上供给以 Turbo 为主）。
   'Z-Image': ['ZImageBase', 'ZImageTurbo'],
@@ -464,6 +476,11 @@ export const CIVITAI_BASE_MODEL_GENERATABILITY = {
   Pony: 'native',
   'SD 1.5': 'external',
   Anima: 'native',
+  // Krea 2 原生支持需要 ComfyUI ≥0.27，runner 基础镜像 worker-comfyui 5.8.6
+  // 内置 0.25.0（upstream main 已钉 0.29.0 但未发版）→ 现在没有可用端点，
+  // 引导去 Civitai。发版接通 r4b 管线后翻 'native'，见
+  // docs/plans/runner-r4-krea2-multiref-2026-07.md §2.5。
+  'Krea 2': 'external',
   Qwen: 'external',
   'Z-Image': 'external',
   Chroma: 'external',
@@ -520,6 +537,7 @@ export const LORA_LIBRARY_FAMILY_VALUES = [
   'pony',
   'sd15',
   'anima',
+  'krea2',
   'qwen',
   'z-image',
   'chroma',
@@ -543,6 +561,7 @@ const CIVITAI_BASE_MODEL_TO_FAMILY_SLUG: Record<
   Pony: 'pony',
   'SD 1.5': 'sd15',
   Anima: 'anima',
+  'Krea 2': 'krea2',
   Qwen: 'qwen',
   'Z-Image': 'z-image',
   Chroma: 'chroma',
@@ -566,6 +585,7 @@ const FAMILY_SLUG_TO_CIVITAI_BASE_MODEL: Record<
   pony: 'Pony',
   sd15: 'SD 1.5',
   anima: 'Anima',
+  krea2: 'Krea 2',
   qwen: 'Qwen',
   'z-image': 'Z-Image',
   chroma: 'Chroma',
@@ -626,14 +646,17 @@ export function familySlugToHuggingFaceFamily(
 }
 
 // 每源在 chip 行里实际能筛的 slug 子集——§2.1「某源不支持的 family chip 在
-// 该源下隐藏」。civitai 覆盖全集；HF 没有 chroma 供给。
+// 该源下隐藏」。civitai 覆盖全集；HF 没有 chroma 与 krea2 供给。
+// ⚠ 隐藏是必须的，不是美化：这两个 slug 在 FAMILY_SLUG_TO_HUGGINGFACE_FAMILY
+// 里没有条目，点中会被 `?? HUGGINGFACE_LORA_DEFAULT_FAMILY` 静默回落成「全部」
+// ——chip 显示选中、结果却是全集，比不给 chip 更糟。
 export const LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE: Record<
   LoraLibrarySource,
   readonly LoraLibraryFamily[]
 > = {
   [LORA_LIBRARY_SOURCES.CIVITAI]: LORA_LIBRARY_FAMILY_VALUES,
   [LORA_LIBRARY_SOURCES.HUGGINGFACE]: LORA_LIBRARY_FAMILY_VALUES.filter(
-    (slug) => slug !== 'chroma',
+    (slug) => slug !== 'chroma' && slug !== 'krea2',
   ),
 }
 

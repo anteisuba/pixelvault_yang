@@ -22,14 +22,18 @@ import type {
   GallerySortOption,
   GalleryTimeRange,
   GenerationRecord,
-  OutputTypeFilter,
+  OutputTypeValue,
 } from '@/types'
 
 export interface GalleryFilters {
   search: string
-  model: string
+  /**
+   * 可叠加分面（`docs/references/pages/assets.md` §3.1）：
+   * **空数组 = 全部**，不需要一个「全部」档。
+   */
+  models: string[]
   sort: GallerySortOption
-  type: OutputTypeFilter
+  types: OutputTypeValue[]
   timeRange: GalleryTimeRange
   liked: boolean
   published: boolean
@@ -68,7 +72,17 @@ export interface UseGalleryReturn {
   total: number
   isLoading: boolean
   hasMore: boolean
+  /** 首屏/换筛选失败 —— 整页错误态。 */
   error: string | null
+  /**
+   * **翻页**失败 —— 与 `error` 分开，因为契约要求「只挡这一段，已加载内容
+   * 不动」（`docs/references/pages/assets.md` §7 分页失败）。
+   */
+  appendError: string | null
+  /** 重试当前筛选的第一页（整页错误态用）。 */
+  retry: () => void
+  /** 重试上一次失败的翻页（网格末尾那条错误条用）。 */
+  retryLoadMore: () => void
   filters: GalleryFilters
   setFilters: (filters: GalleryFilters) => void
   loadMore: () => void
@@ -85,9 +99,9 @@ export interface UseGalleryReturn {
 
 const DEFAULT_FILTERS: GalleryFilters = {
   search: '',
-  model: '',
+  models: [],
   sort: 'newest',
-  type: 'all',
+  types: [],
   timeRange: 'all',
   liked: false,
   published: false,
@@ -124,6 +138,7 @@ export function useGallery({
   const [hasMore, setHasMore] = useState(initialHasMore)
   const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor)
   const [error, setError] = useState<string | null>(null)
+  const [appendError, setAppendError] = useState<string | null>(null)
   const [isFetching, setIsFetching] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [filters, setFiltersState] = useState<GalleryFilters>({
@@ -216,9 +231,9 @@ export function useGallery({
         const f = filtersRef.current
         const filterParams = {
           search: f.search || undefined,
-          model: f.model || undefined,
+          model: f.models,
           sort: f.sort,
-          type: f.type || undefined,
+          type: f.types,
           timeRange: f.timeRange || undefined,
           liked: f.liked || undefined,
           published: f.published || undefined,
@@ -256,6 +271,7 @@ export function useGallery({
             )
           }
 
+          if (append) setAppendError(null)
           if (opts?.silent) {
             // Silent revalidate: keep React state untouched so we don't
             // interrupt scrolling / load-more in progress. Cache is the
@@ -281,22 +297,24 @@ export function useGallery({
           }
         } else {
           if (!opts?.silent) {
-            setError(
-              getApiErrorMessage(
-                tErrors,
-                response,
-                tErrors('gallery.loadFailed'),
-              ),
+            const message = getApiErrorMessage(
+              tErrors,
+              response,
+              tErrors('gallery.loadFailed'),
             )
+            // 翻页失败只写 appendError —— 已经在屏上的内容一个都不能动。
+            if (append) setAppendError(message)
+            else setError(message)
           }
         }
       } catch (error) {
         if (requestId === requestIdRef.current && !opts?.silent) {
-          setError(
+          const message =
             error instanceof Error
               ? error.message
-              : tErrors('gallery.loadFailed'),
-          )
+              : tErrors('gallery.loadFailed')
+          if (append) setAppendError(message)
+          else setError(message)
         }
       } finally {
         if (requestId === requestIdRef.current) {
@@ -316,6 +334,7 @@ export function useGallery({
       tErrors,
       setIsFetching,
       setError,
+      setAppendError,
       setGenerations,
       setPage,
       setTotal,
@@ -327,6 +346,16 @@ export function useGallery({
   const loadMore = useCallback(() => {
     void fetchPage(pageRef.current + 1, true)
   }, [fetchPage])
+
+  const retry = useCallback(() => {
+    setError(null)
+    void fetchPage(1, false)
+  }, [fetchPage, setError])
+
+  const retryLoadMore = useCallback(() => {
+    setAppendError(null)
+    void fetchPage(pageRef.current + 1, true)
+  }, [fetchPage, setAppendError])
 
   const setFilters = useCallback(
     (newFilters: GalleryFilters) => {
@@ -395,7 +424,9 @@ export function useGallery({
   useEffect(() => {
     const target = sentinelRef.current
 
-    if (!target || !hasMore) {
+    // ⚠ 翻页失败后不再自动重试：哨兵还在视口里，自动重试会变成死循环打接口。
+    // 由用户点那条错误条上的「重试」再继续。
+    if (!target || !hasMore || appendError) {
       return
     }
 
@@ -415,7 +446,7 @@ export function useGallery({
     return () => {
       observer.disconnect()
     }
-  }, [hasMore, fetchPage])
+  }, [hasMore, appendError, fetchPage])
 
   const removeGeneration = useCallback(
     (id: string) => {
@@ -488,6 +519,9 @@ export function useGallery({
     isLoading: isFetching || isPending,
     hasMore,
     error,
+    appendError,
+    retry,
+    retryLoadMore,
     filters,
     setFilters,
     loadMore,

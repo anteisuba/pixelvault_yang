@@ -336,12 +336,14 @@ function buildLtx23(
 
 /**
  * Seedance is the only fal video endpoint that understands the literal
- * 'auto' token for duration — let it pass through verbatim. Everything else
- * gets clamped to 4-15 seconds.
+ * 'auto' token for duration. The two generations have different ceilings.
  */
-function pickSeedanceDuration(duration: number | 'auto' | undefined): string {
+function pickSeedanceDuration(
+  duration: number | 'auto' | undefined,
+  maxDuration = 15,
+): string {
   if (duration === 'auto') return 'auto'
-  return pickClampedStringDuration(asNumericDuration(duration), 4, 15)
+  return pickClampedStringDuration(asNumericDuration(duration), 4, maxDuration)
 }
 
 function buildSeedance20(
@@ -375,17 +377,52 @@ function buildSeedance20(
   return body
 }
 
+function buildSeedance25(
+  input: FalVideoRequestBuilderInput,
+  mode: FalVideoMode,
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    prompt: input.prompt,
+    resolution:
+      pickResolution(
+        input.resolution,
+        input.videoDefaults,
+        ['480p', '720p'],
+        '720p',
+      ) ?? '720p',
+    duration: pickSeedanceDuration(input.duration, 30),
+    generate_audio:
+      input.generateAudio ?? input.videoDefaults?.generateAudio ?? true,
+  }
+
+  if (mode === 'image-to-video') {
+    body.image_url = requireReferenceImage(input)
+    const endImage = input.referenceImages?.[1]
+    if (endImage) body.end_image_url = endImage
+    // The 2.5 I2V schema declares this as a const, not a user choice.
+    body.aspect_ratio = 'auto'
+  } else {
+    body.aspect_ratio = pickString(
+      input.aspectRatio,
+      FAL_EXTENDED_ASPECT_RATIOS,
+      '16:9',
+    )
+  }
+
+  return body
+}
+
 /**
  * Detects whether a prompt already references reference audio via the fal
  * `@AudioN` token convention. Case-sensitive per fal docs (`@Audio1`, not
  * `@audio1`). Matches @Audio1 through @Audio9.
  */
 function promptReferencesAudio(prompt: string): boolean {
-  return /@Audio[1-9]\b/.test(prompt)
+  return /@Audio(?:[1-9]|10)\b/.test(prompt)
 }
 
 function promptReferencesVideo(prompt: string): boolean {
-  return /@Video[1-9]\b/.test(prompt)
+  return /@Video(?:[1-9]|10)\b/.test(prompt)
 }
 
 interface AudioPrefixBinding {
@@ -403,9 +440,10 @@ interface AudioPrefixBinding {
  */
 function buildAudioReferencePrefix(
   bindings: readonly AudioPrefixBinding[],
+  maxReferences: number,
 ): string {
   const tokens: string[] = []
-  for (let i = 0; i < bindings.length && i < 3; i += 1) {
+  for (let i = 0; i < bindings.length && i < maxReferences; i += 1) {
     const slot = `@Audio${i + 1}`
     const name = bindings[i]?.characterName?.trim()
     tokens.push(name ? `${name} (${slot})` : slot)
@@ -413,9 +451,12 @@ function buildAudioReferencePrefix(
   return tokens.join(' ')
 }
 
-function buildVideoReferencePrefix(videoCount: number): string {
+function buildVideoReferencePrefix(
+  videoCount: number,
+  maxReferences: number,
+): string {
   const refs: string[] = []
-  for (let i = 1; i <= videoCount && i <= 3; i += 1) {
+  for (let i = 1; i <= videoCount && i <= maxReferences; i += 1) {
     refs.push(`@Video${i}`)
   }
   return refs.join(' ')
@@ -439,20 +480,27 @@ function buildVideoReferencePrefix(videoCount: number): string {
 function buildSeedanceReference(
   input: FalVideoRequestBuilderInput,
   allowedResolutions: readonly string[],
+  limits: {
+    images: number
+    videos: number
+    audio: number
+    total: number
+    maxDuration: number
+  } = { images: 9, videos: 3, audio: 3, total: 12, maxDuration: 15 },
 ): Record<string, unknown> {
   // Prefer audioBindings when available (carry character names from the
   // Workbench harvest). Fall back to audioUrls verbatim for callers that
   // don't know about bindings (smoke tests, video-pipeline service, etc.).
   const audioBindings =
     input.audioBindings && input.audioBindings.length > 0
-      ? input.audioBindings.slice(0, 3)
+      ? input.audioBindings.slice(0, limits.audio)
       : input.audioUrls && input.audioUrls.length > 0
-        ? input.audioUrls.slice(0, 3).map((url) => ({ url }))
+        ? input.audioUrls.slice(0, limits.audio).map((url) => ({ url }))
         : []
   const audioUrls = audioBindings.map((binding) => binding.url)
   const videoUrls =
     input.videoUrls && input.videoUrls.length > 0
-      ? input.videoUrls.slice(0, 3)
+      ? input.videoUrls.slice(0, limits.videos)
       : []
 
   // Reference input may be image(s), video(s), or both. Audio cannot be the
@@ -473,15 +521,20 @@ function buildSeedanceReference(
   // fal cap: image_urls + video_urls + audio_urls ≤ 12 total. Trim images
   // first since the audio + video references are deliberately user-supplied
   // and shouldn't be silently dropped.
-  const maxImages = Math.max(0, 12 - videoUrls.length - audioUrls.length)
-  const imageUrls = imageRefs.slice(0, Math.min(9, maxImages))
+  const maxImages = Math.max(
+    0,
+    limits.total - videoUrls.length - audioUrls.length,
+  )
+  const imageUrls = imageRefs.slice(0, Math.min(limits.images, maxImages))
 
   let prompt = input.prompt
   if (audioBindings.length > 0 && !promptReferencesAudio(prompt)) {
-    prompt = `${buildAudioReferencePrefix(audioBindings)} ${prompt}`.trim()
+    prompt =
+      `${buildAudioReferencePrefix(audioBindings, limits.audio)} ${prompt}`.trim()
   }
   if (videoUrls.length > 0 && !promptReferencesVideo(prompt)) {
-    prompt = `${buildVideoReferencePrefix(videoUrls.length)} ${prompt}`.trim()
+    prompt =
+      `${buildVideoReferencePrefix(videoUrls.length, limits.videos)} ${prompt}`.trim()
   }
 
   const body: Record<string, unknown> = {
@@ -493,7 +546,7 @@ function buildSeedanceReference(
         allowedResolutions,
         '720p',
       ) ?? '720p',
-    duration: pickSeedanceDuration(input.duration),
+    duration: pickSeedanceDuration(input.duration, limits.maxDuration),
     aspect_ratio: pickString(
       input.aspectRatio,
       FAL_EXTENDED_ASPECT_RATIOS,
@@ -537,6 +590,16 @@ function buildBody(
       return buildSeedanceReference(input, ['480p', '720p', '1080p'])
     case AI_MODELS.SEEDANCE_20_FAST_REFERENCE:
       return buildSeedanceReference(input, ['480p', '720p'])
+    case AI_MODELS.SEEDANCE_25:
+      return buildSeedance25(input, mode)
+    case AI_MODELS.SEEDANCE_25_REFERENCE:
+      return buildSeedanceReference(input, ['480p', '720p'], {
+        images: 30,
+        videos: 10,
+        audio: 10,
+        total: 50,
+        maxDuration: 30,
+      })
     default:
       throw new ProviderError(
         'fal.ai',

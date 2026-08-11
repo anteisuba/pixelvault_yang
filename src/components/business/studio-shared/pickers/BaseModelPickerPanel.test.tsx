@@ -66,7 +66,7 @@ function makeOption(over: Partial<StudioModelOption>): StudioModelOption {
  * path. `displayLabel` stands in for the i18n label (which the next-intl mock
  * flattens to a message key).
  *
- * Shape: Seedance = 2 型号 (2.0 across fal + VolcEngine, 2.0 Fast on fal only),
+ * Shape: Seedance = 2 型号 (2.0 across fal + VolcEngine + BytePlus, 2.0 Fast on fal only),
  * Kling = 1 model. Reference endpoints are deliberately absent — those are
  * filtered out by the node's mode, not by this component.
  */
@@ -82,6 +82,12 @@ const SEEDANCE_FIXTURE: StudioModelOption[] = [
     modelId: AI_MODELS.SEEDANCE_20_VOLCENGINE,
     displayLabel: 'Seedance 2.0（火山方舟）',
     adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+  },
+  {
+    optionId: 'seedance-2.0-byteplus',
+    modelId: AI_MODELS.SEEDANCE_20_BYTEPLUS,
+    displayLabel: 'Seedance 2.0（BytePlus）',
+    adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
   },
   {
     optionId: 'seedance-fast-fal',
@@ -189,6 +195,32 @@ describe('deriveVariantLabels', () => {
 })
 
 describe('BaseModelPickerPanel', () => {
+  it('悬停模型行时不把说明文字插入行内', () => {
+    const option = makeOption({
+      optionId: 'stable-hover',
+      modelId: AI_MODELS.SEEDANCE_20,
+      displayLabel: 'Seedance 2.0',
+      adapterType: AI_ADAPTER_TYPES.FAL,
+      providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+      sourceType: 'saved',
+      keyId: 'fal-key',
+    })
+    render(
+      <BaseModelPickerPanel
+        options={[option]}
+        value={null}
+        onChange={vi.fn()}
+        triggerEmptyLabel="Pick a model"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a model' }))
+    const row = screen.getByRole('option')
+    const before = row.textContent
+    fireEvent.mouseEnter(row)
+    expect(row.textContent).toBe(before)
+  })
+
   it('uses the Studio scrollbar treatment for the model list', () => {
     render(
       <BaseModelPickerPanel
@@ -691,6 +723,56 @@ describe('BaseModelPickerPanel', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('shows Seedance 2.5 on fal, VolcEngine China, and BytePlus international', () => {
+    const seedance25 = [
+      [AI_MODELS.SEEDANCE_25, AI_ADAPTER_TYPES.FAL],
+      [AI_MODELS.SEEDANCE_25_VOLCENGINE, AI_ADAPTER_TYPES.VOLCENGINE],
+      [AI_MODELS.SEEDANCE_25_BYTEPLUS, AI_ADAPTER_TYPES.BYTEPLUS],
+    ] as const
+    const options = [
+      ...SEEDANCE_FIXTURE,
+      ...seedance25.map(([modelId, adapterType]) =>
+        makeOption({
+          optionId: `${modelId}-${adapterType}`,
+          modelId,
+          displayLabel: `Seedance 2.5 (${adapterType})`,
+          adapterType,
+          providerConfig: getDefaultProviderConfig(adapterType),
+          sourceType: 'saved',
+          keyId: `key-${adapterType}`,
+        }),
+      ),
+    ]
+
+    render(
+      <BaseModelPickerPanel
+        options={options}
+        value={null}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByText('Seedance'))
+    fireEvent.click(screen.getByText('Seedance 2.5'))
+
+    const expectedLabels = seedance25.map(
+      ([, adapterType]) => getDefaultProviderConfig(adapterType).label,
+    )
+    const channelRows = screen
+      .getAllByRole('option')
+      .filter((row) =>
+        expectedLabels.includes(
+          row.querySelector('.font-semibold')?.textContent ?? '',
+        ),
+      )
+    expect(channelRows).toHaveLength(3)
+    for (const label of expectedLabels) {
+      expect(channelRows.some((row) => row.textContent?.includes(label))).toBe(
+        true,
+      )
+    }
+  })
+
   it('counts 型号 on a 系列 row and 渠道 on a 型号 row', () => {
     // The count must equal the rows the drill-in renders. Reporting Seedance's
     // four catalog entries as "4 models" is exactly the endpoint/channel
@@ -717,7 +799,7 @@ describe('BaseModelPickerPanel', () => {
     // 型号 "Seedance 2.0" advertises its two 渠道; the single-channel sibling
     // collapsed to a leaf and carries no count at all.
     expect(rowText('Seedance 2.0')).toContain(
-      'Common.channelCount({"count":2})',
+      'Common.channelCount({"count":3})',
     )
     expect(rowText('Seedance 2.0 Fast')).not.toContain('Count(')
   })

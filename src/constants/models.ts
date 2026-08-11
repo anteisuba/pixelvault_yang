@@ -67,10 +67,19 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE]: 'seedance20ReferenceVolcengine',
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]:
     'seedance20FastReferenceVolcengine',
+  [AI_MODELS.SEEDANCE_20_BYTEPLUS]: 'seedance20Byteplus',
+  [AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS]: 'seedance20FastByteplus',
+  [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: 'seedance20ReferenceByteplus',
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]:
+    'seedance20FastReferenceByteplus',
   [AI_MODELS.VEO_31]: 'veo31',
   [AI_MODELS.GEMINI_OMNI_FLASH]: 'geminiOmniFlash',
+  [AI_MODELS.SEEDANCE_25]: 'seedance25',
+  [AI_MODELS.SEEDANCE_25_REFERENCE]: 'seedance25Reference',
   [AI_MODELS.SEEDANCE_25_VOLCENGINE]: 'seedance25Volcengine',
   [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: 'seedance25ReferenceVolcengine',
+  [AI_MODELS.SEEDANCE_25_BYTEPLUS]: 'seedance25Byteplus',
+  [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: 'seedance25ReferenceByteplus',
   [AI_MODELS.MINIMAX_H3]: 'minimaxH3',
   [AI_MODELS.MINIMAX_H3_REFERENCE]: 'minimaxH3Reference',
   [AI_MODELS.MINIMAX_H3_CN]: 'minimaxH3Cn',
@@ -183,8 +192,12 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.KLING_O3_PRO]: 'Kling',
   [AI_MODELS.VEO_31]: 'Veo',
   [AI_MODELS.GEMINI_OMNI_FLASH]: 'Gemini',
+  [AI_MODELS.SEEDANCE_25]: 'Seedance',
+  [AI_MODELS.SEEDANCE_25_REFERENCE]: 'Seedance',
   [AI_MODELS.SEEDANCE_25_VOLCENGINE]: 'Seedance',
   [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: 'Seedance',
+  [AI_MODELS.SEEDANCE_25_BYTEPLUS]: 'Seedance',
+  [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: 'Seedance',
   [AI_MODELS.MINIMAX_H3]: 'MiniMax',
   [AI_MODELS.MINIMAX_H3_REFERENCE]: 'MiniMax',
   [AI_MODELS.MINIMAX_H3_CN]: 'MiniMax',
@@ -197,6 +210,10 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE]: 'Seedance',
   [AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE]: 'Seedance',
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]: 'Seedance',
+  [AI_MODELS.SEEDANCE_20_BYTEPLUS]: 'Seedance',
+  [AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS]: 'Seedance',
+  [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: 'Seedance',
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]: 'Seedance',
   [AI_MODELS.HAPPYHORSE_10]: 'HappyHorse',
   [AI_MODELS.LTX_23]: 'LTX',
   [AI_MODELS.FISH_AUDIO_S2_PRO]: 'Fish Audio',
@@ -247,17 +264,25 @@ export const getModelFamily = (modelId: string): string | null =>
  * 设计出处：`docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §8。
  */
 export const MODEL_VARIANTS: Record<string, string> = {
-  // Seedance：10 个条目 = 3 型号 × 渠道 × 端点
+  // Seedance：型号 × 渠道 × 隐藏端点；2.0/2.5 均有三条渠道。
   [AI_MODELS.SEEDANCE_20]: 'seedance-2.0',
   [AI_MODELS.SEEDANCE_20_REFERENCE]: 'seedance-2.0',
   [AI_MODELS.SEEDANCE_20_VOLCENGINE]: 'seedance-2.0',
   [AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE]: 'seedance-2.0',
+  [AI_MODELS.SEEDANCE_20_BYTEPLUS]: 'seedance-2.0',
+  [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: 'seedance-2.0',
   [AI_MODELS.SEEDANCE_20_FAST]: 'seedance-2.0-fast',
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: 'seedance-2.0-fast',
   [AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE]: 'seedance-2.0-fast',
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]: 'seedance-2.0-fast',
+  [AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS]: 'seedance-2.0-fast',
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]: 'seedance-2.0-fast',
+  [AI_MODELS.SEEDANCE_25]: 'seedance-2.5',
+  [AI_MODELS.SEEDANCE_25_REFERENCE]: 'seedance-2.5',
   [AI_MODELS.SEEDANCE_25_VOLCENGINE]: 'seedance-2.5',
   [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: 'seedance-2.5',
+  [AI_MODELS.SEEDANCE_25_BYTEPLUS]: 'seedance-2.5',
+  [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: 'seedance-2.5',
   // Kling：两个型号各一条
   [AI_MODELS.KLING_V3_PRO]: 'kling-v3-pro',
   [AI_MODELS.KLING_O3_PRO]: 'kling-o3-pro',
@@ -312,17 +337,27 @@ const VIDEO_MODEL_PRIORITY: Partial<Record<AI_MODELS, number>> = {
   [AI_MODELS.SEEDANCE_20_FAST]: 1,
   // VolcEngine (cn) variant sits right after its fal counterpart.
   [AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE]: 1.5,
+  [AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS]: 1.75,
   [AI_MODELS.SEEDANCE_20]: 2,
   [AI_MODELS.SEEDANCE_20_VOLCENGINE]: 2.5,
+  [AI_MODELS.SEEDANCE_20_BYTEPLUS]: 2.75,
   [AI_MODELS.HAPPYHORSE_10]: 3,
   [AI_MODELS.VEO_31]: 4,
   [AI_MODELS.KLING_V3_PRO]: 5,
   [AI_MODELS.KLING_O3_PRO]: 5.5,
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: 6,
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]: 6.5,
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]: 6.75,
   [AI_MODELS.SEEDANCE_20_REFERENCE]: 7,
   [AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE]: 7.5,
-  [AI_MODELS.LTX_23]: 8,
+  [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: 7.75,
+  [AI_MODELS.SEEDANCE_25]: 8,
+  [AI_MODELS.SEEDANCE_25_VOLCENGINE]: 8.25,
+  [AI_MODELS.SEEDANCE_25_BYTEPLUS]: 8.5,
+  [AI_MODELS.SEEDANCE_25_REFERENCE]: 8.75,
+  [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: 9,
+  [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: 9.25,
+  [AI_MODELS.LTX_23]: 10,
 }
 
 /** Get only the currently available video models, sorted by recommendation. */
@@ -372,6 +407,7 @@ export type ProviderGroup =
   | 'fal'
   | 'runway'
   | 'volcengine'
+  | 'byteplus'
   | 'opensource'
   | 'replicate'
   | 'fish_audio'
@@ -391,6 +427,7 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'fal',
   'runway',
   'volcengine',
+  'byteplus',
   'minimax',
   'fish_audio',
   'elevenlabs',
@@ -420,6 +457,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'runway'
     case AI_ADAPTER_TYPES.VOLCENGINE:
       return 'volcengine'
+    case AI_ADAPTER_TYPES.BYTEPLUS:
+      return 'byteplus'
     case AI_ADAPTER_TYPES.HUGGINGFACE:
       return 'opensource'
     case AI_ADAPTER_TYPES.REPLICATE:

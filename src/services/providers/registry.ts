@@ -16,7 +16,10 @@ import { openAiAdapter } from '@/services/providers/openai.adapter'
 import { replicateAdapter } from '@/services/providers/replicate.adapter'
 import { runnerAdapter } from '@/services/providers/runner.adapter'
 import { runwayAdapter } from '@/services/providers/runway.adapter'
-import { volcengineAdapter } from '@/services/providers/volcengine.adapter'
+import {
+  byteplusAdapter,
+  volcengineAdapter,
+} from '@/services/providers/volcengine.adapter'
 import type { ProviderAdapter } from '@/services/providers/types'
 
 const PROVIDER_ADAPTERS: Partial<Record<AI_ADAPTER_TYPES, ProviderAdapter>> = {
@@ -28,6 +31,7 @@ const PROVIDER_ADAPTERS: Partial<Record<AI_ADAPTER_TYPES, ProviderAdapter>> = {
   [AI_ADAPTER_TYPES.REPLICATE]: replicateAdapter,
   [AI_ADAPTER_TYPES.NOVELAI]: novelAiAdapter,
   [AI_ADAPTER_TYPES.VOLCENGINE]: volcengineAdapter,
+  [AI_ADAPTER_TYPES.BYTEPLUS]: byteplusAdapter,
   [AI_ADAPTER_TYPES.FISH_AUDIO]: fishAudioAdapter,
   [AI_ADAPTER_TYPES.ELEVENLABS]: elevenLabsAdapter,
   // Two entries, one implementation — the stations differ only by base URL and

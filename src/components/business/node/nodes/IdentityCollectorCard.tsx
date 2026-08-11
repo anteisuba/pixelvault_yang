@@ -1,8 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { useMemo } from 'react'
-import { useEdges, useNodes } from '@xyflow/react'
+import { useEffect, useMemo, useState } from 'react'
+import { useEdges, useNodes, useUpdateNodeInternals } from '@xyflow/react'
 import { Grid2x2, Mic2, UserRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -29,6 +29,24 @@ interface IdentityCollectorCardProps {
   legacyType: NodeWorkflowNodeType
   data: NodeWorkflowNode['data']
   selected?: boolean
+}
+
+const IDENTITY_CARD_SIZE = {
+  minWidth: 240,
+  maxWidth: 480,
+  referenceHeight: 240,
+} as const
+
+function computeIdentityCardSize(aspectRatio: number) {
+  const naturalWidth = IDENTITY_CARD_SIZE.referenceHeight * aspectRatio
+  const width = Math.min(
+    IDENTITY_CARD_SIZE.maxWidth,
+    Math.max(IDENTITY_CARD_SIZE.minWidth, naturalWidth),
+  )
+  return {
+    width: Math.round(width),
+    height: Math.round(width / aspectRatio),
+  }
 }
 
 function getName(
@@ -87,6 +105,12 @@ export function IdentityCollectorCard({
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
   const { updateNodeData } = useNodeWorkflowActions()
+  const updateNodeInternals = useUpdateNodeInternals()
+  const [naturalSize, setNaturalSize] = useState<{
+    url: string
+    width: number
+    height: number
+  } | null>(null)
   const name = getName(legacyType, data)
   const referenceAssets = useMemo(
     () => data.referenceAssets ?? [],
@@ -117,6 +141,26 @@ export function IdentityCollectorCard({
   const nodeCount = galleryUrls.length
   const representativeUrl = getNodePrimaryMediaUrl(data) || galleryUrls[0]
   const isEmpty = !representativeUrl
+  const mediaWidth =
+    typeof data.mediaWidth === 'number' && data.mediaWidth > 0
+      ? data.mediaWidth
+      : naturalSize && naturalSize.url === representativeUrl
+        ? naturalSize.width
+        : null
+  const mediaHeight =
+    typeof data.mediaHeight === 'number' && data.mediaHeight > 0
+      ? data.mediaHeight
+      : naturalSize && naturalSize.url === representativeUrl
+        ? naturalSize.height
+        : null
+  const cardSize =
+    mediaWidth && mediaHeight
+      ? computeIdentityCardSize(mediaWidth / mediaHeight)
+      : null
+
+  useEffect(() => {
+    updateNodeInternals(id)
+  }, [cardSize?.height, cardSize?.width, id, updateNodeInternals])
 
   return (
     <NodeShell
@@ -138,9 +182,10 @@ export function IdentityCollectorCard({
        */
       showTargetHandle={false}
       className={cn(
-        'overflow-hidden canvas-card--w-fixed canvas-identity-card',
+        'canvas-card--w-fixed canvas-identity-card',
         isEmpty && 'canvas-card--dashed',
       )}
+      style={cardSize ?? undefined}
     >
       <NodeShell.Header
         type={legacyType}
@@ -164,8 +209,24 @@ export function IdentityCollectorCard({
             alt=""
             fill
             sizes="240px"
-            className="object-cover"
+            className="object-contain"
             unoptimized
+            draggable={false}
+            onLoad={(event) => {
+              const image = event.currentTarget
+              if (
+                !representativeUrl ||
+                !image.naturalWidth ||
+                !image.naturalHeight
+              ) {
+                return
+              }
+              setNaturalSize({
+                url: representativeUrl,
+                width: image.naturalWidth,
+                height: image.naturalHeight,
+              })
+            }}
           />
         ) : (
           <div className="canvas-identity-empty">

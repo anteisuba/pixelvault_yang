@@ -3,9 +3,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 
 export type VideoReferenceMode =
-  | 'text-or-first-frame'
-  | 'multimodal-reference'
-  | 'image-content-array'
+  'text-or-first-frame' | 'multimodal-reference' | 'image-content-array'
 
 export type VideoExecutionStatus = 'ready' | 'execution-not-migrated'
 
@@ -83,16 +81,18 @@ const FIRST_LAST_FRAME_SLOTS: VideoReferenceSlots = {
 }
 
 /**
- * 能发出 `role:'last_frame'` 的模型 —— 即支持首尾帧的那批。
- *
- * 只有火山线：`workers/execution/src/models/volcengine/video-request-builder.ts`
- * 是唯一带帧角色的 builder。fal 的没有帧角色，minimax 的只发 first_frame。
- * ⚠ 接 BytePlus 时要一并加进来（它与火山同源，能力表也有首尾帧）。
+ * 真正能发送首尾帧的模型。Ark 使用 `first_frame` / `last_frame` role；fal
+ * Seedance 2.5 的公开 I2V schema 使用 `image_url` / `end_image_url`。2.0 fal
+ * 没有尾帧字段，MiniMax 当前也只发送首帧，所以都不在表内。
  */
 const FIRST_LAST_FRAME_MODEL_IDS = new Set<string>([
   AI_MODELS.SEEDANCE_20_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+  AI_MODELS.SEEDANCE_20_BYTEPLUS,
+  AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS,
+  AI_MODELS.SEEDANCE_25,
   AI_MODELS.SEEDANCE_25_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_BYTEPLUS,
 ])
 
 /** Seedance 2.0 系列：图 0-9 + 视频 0-3 + 音频 0-3，音频必须搭配图或视频。 */
@@ -120,6 +120,14 @@ const SEEDANCE_25_REFERENCE_SLOTS: VideoReferenceSlots = {
   audioRequiresVisual: false,
 }
 
+// fal's public 2.5 OpenAPI keeps the same 30/10/10/50 limits but requires
+// audio to accompany at least one image or video. Ark's native line permits
+// audio-only reference, so this cannot be folded into the shared contract.
+const SEEDANCE_25_FAL_REFERENCE_SLOTS: VideoReferenceSlots = {
+  ...SEEDANCE_25_REFERENCE_SLOTS,
+  audioRequiresVisual: true,
+}
+
 const FALLBACK_CONTRACT: VideoModelSendContract = {
   family: 'fallback',
   referenceMode: 'text-or-first-frame',
@@ -144,7 +152,11 @@ const SEEDANCE_REFERENCE_IDS = new Set<string>([
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
   AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+  AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS,
+  AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS,
+  AI_MODELS.SEEDANCE_25_REFERENCE,
   AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS,
 ])
 
 /**
@@ -163,8 +175,12 @@ const SEEDANCE_REFERENCE_IDS = new Set<string>([
 export const VOLCENGINE_ADAPTIVE_RATIO = 'adaptive'
 
 const SEEDANCE_25_IDS = new Set<string>([
+  AI_MODELS.SEEDANCE_25,
+  AI_MODELS.SEEDANCE_25_REFERENCE,
   AI_MODELS.SEEDANCE_25_VOLCENGINE,
   AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_BYTEPLUS,
+  AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS,
 ])
 
 const SEEDANCE_IDS = new Set<string>([
@@ -172,7 +188,11 @@ const SEEDANCE_IDS = new Set<string>([
   AI_MODELS.SEEDANCE_20_FAST,
   AI_MODELS.SEEDANCE_20_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+  AI_MODELS.SEEDANCE_20_BYTEPLUS,
+  AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS,
+  AI_MODELS.SEEDANCE_25,
   AI_MODELS.SEEDANCE_25_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_BYTEPLUS,
   ...SEEDANCE_REFERENCE_IDS,
 ])
 
@@ -201,6 +221,7 @@ const WORKER_READY_VIDEO_ADAPTERS: ReadonlySet<string> = new Set([
   AI_ADAPTER_TYPES.MINIMAX,
   AI_ADAPTER_TYPES.MINIMAX_CN,
   AI_ADAPTER_TYPES.VOLCENGINE,
+  AI_ADAPTER_TYPES.BYTEPLUS,
 ])
 
 function executionStatus(
@@ -232,7 +253,9 @@ export function getVideoModelSendContract(
         : 'text-or-first-frame',
       slots: referenceMode
         ? isGen25
-          ? SEEDANCE_25_REFERENCE_SLOTS
+          ? normalized === AI_MODELS.SEEDANCE_25_REFERENCE
+            ? SEEDANCE_25_FAL_REFERENCE_SLOTS
+            : SEEDANCE_25_REFERENCE_SLOTS
           : SEEDANCE_20_REFERENCE_SLOTS
         : supportsFirstLast
           ? FIRST_LAST_FRAME_SLOTS

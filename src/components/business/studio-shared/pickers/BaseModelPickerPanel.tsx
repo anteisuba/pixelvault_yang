@@ -279,16 +279,6 @@ export function BaseModelPickerPanel({
   const [activeFamily, setActiveFamily] = useState<string | null>(null)
   const [activeVariant, setActiveVariant] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  /**
-   * 悬停/聚焦到哪一行 —— 那一行才渲染它的一句话介绍（行内默认只留身份）。
-   *
-   * ⚠ 先前用的是 CSS `grid-template-rows: 0fr → 1fr` 的手风琴手法，**在这个布局里
-   * 不成立**：揭示层的子项带 `overflow:hidden`（最小尺寸 0）、容器高度又不定，`1fr`
-   * 被解析成 0，连内联 `!important` 都量到 0px。实测过才换掉的，别改回去。
-   *
-   * 记 optionId 而不是每行各自 useState：行是在 map 里生成的，不能带 hook。
-   */
-  const [revealedOptionId, setRevealedOptionId] = useState<string | null>(null)
   const reducedMotion = useReducedMotion()
 
   const tCommon = useTranslations('Common')
@@ -720,9 +710,18 @@ export function BaseModelPickerPanel({
         key={option.optionId}
         value={searchValue}
         onSelect={() => handleSelectOption(option)}
-        onMouseEnter={() => setRevealedOptionId(option.optionId)}
-        onMouseLeave={() => setRevealedOptionId(null)}
-        onFocus={() => setRevealedOptionId(option.optionId)}
+        title={
+          [
+            description,
+            unitPrice
+              ? tCommon(`unitPrice.${unitPrice.unit}`, {
+                  amount: unitPrice.amount,
+                })
+              : undefined,
+          ]
+            .filter(Boolean)
+            .join('\n') || undefined
+        }
         className="group min-h-12 gap-3 px-3 py-2.5"
       >
         <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
@@ -742,25 +741,6 @@ export function BaseModelPickerPanel({
           {optionMeta ? (
             <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
               {optionMeta}
-            </span>
-          ) : null}
-          {/* 行内只留身份（型号 / 渠道）与路由，一句话介绍收进悬停展开层 ——
-              对标 libtv：默认极简，鼠标停上去行本身长高露出详情。
-              ⚠ 用 grid-rows 0fr→1fr 做展开而不是 max-height：文案长度不定，
-              猜一个 max-height 要么截断要么留白。
-              ⚠ 触屏没有 hover：`group-focus-within` 让键盘/触摸聚焦同样展开，
-              不然移动端永远读不到这段。 */}
-          {revealedOptionId === option.optionId &&
-          (description || unitPrice) ? (
-            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-              {description}
-              {unitPrice ? (
-                <span className="mt-0.5 block font-mono text-muted-foreground/75">
-                  {tCommon(`unitPrice.${unitPrice.unit}`, {
-                    amount: unitPrice.amount,
-                  })}
-                </span>
-              ) : null}
             </span>
           ) : null}
         </span>
@@ -794,9 +774,7 @@ export function BaseModelPickerPanel({
         key={option.optionId}
         value={searchValue}
         onSelect={() => handleSelectLocked(option)}
-        onMouseEnter={() => setRevealedOptionId(option.optionId)}
-        onMouseLeave={() => setRevealedOptionId(null)}
-        onFocus={() => setRevealedOptionId(option.optionId)}
+        title={description || undefined}
         className="group min-h-12 gap-3 px-3 py-2.5 text-muted-foreground/65"
       >
         <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
@@ -812,13 +790,6 @@ export function BaseModelPickerPanel({
               ? `${labelOverride === providerLabel ? '' : ' · '}${capabilityDetail}`
               : ''}
           </span>
-          {/* 缺 key 的行同样给介绍 —— 用户正是要靠它判断「值不值得为这个模型配一把
-              key」。同款悬停展开，见上方注释。 */}
-          {description && revealedOptionId === option.optionId ? (
-            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-              {description}
-            </span>
-          ) : null}
         </span>
       </CommandItem>
     )

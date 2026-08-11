@@ -66,6 +66,16 @@ describe('video node modes', () => {
         'multimodal',
       ),
     ).toBe(AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE)
+    expect(
+      resolveVideoModelId('seedance-2.5', AI_ADAPTER_TYPES.FAL, 'keyframe'),
+    ).toBe(AI_MODELS.SEEDANCE_25)
+    expect(
+      resolveVideoModelId(
+        'seedance-2.5',
+        AI_ADAPTER_TYPES.BYTEPLUS,
+        'multimodal',
+      ),
+    ).toBe(AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS)
   })
 
   it('returns null instead of falling back to a wrong endpoint', () => {

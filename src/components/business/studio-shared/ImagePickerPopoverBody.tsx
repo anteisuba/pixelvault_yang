@@ -56,7 +56,7 @@ export function ImagePickerPopoverBody({
     let cancelled = false
     void fetchGalleryImages(1, STUDIO_ASSISTANT_RECENT_ASSETS, {
       mine: true,
-      type: 'image',
+      type: ['image'],
       sort: 'newest',
     }).then((result) => {
       if (cancelled) return

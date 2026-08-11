@@ -203,7 +203,8 @@
       "opensource": "Open Source",
       "replicate": "Replicate",
       "runner": "PixelVault Runner",
-      "hyper3d": "Hyper3D"
+      "hyper3d": "Hyper3D",
+      "byteplus": "BytePlus"
     },
     "styleGroups": {
       "photorealistic": "Photorealistic",
@@ -2202,9 +2203,56 @@
     "detailDeleted": "Asset deleted",
     "detailDeleteFailed": "Failed to delete this asset",
     "densityLabel": "Grid density",
-    "densityComfortable": "Comfortable",
-    "densityNormal": "Normal",
-    "densityCompact": "Compact",
+    "densitySmall": "Small rows",
+    "densityMedium": "Medium rows",
+    "densityLarge": "Large rows",
+    "sectionAllAssets": "All assets",
+    "facetType": "Type",
+    "facetStatus": "Status",
+    "facetModel": "Model",
+    "facetTime": "Time",
+    "facetSort": "Sort",
+    "facetSelectedCount": "{name} {count}",
+    "facetClearAll": "Clear all filters",
+    "facetRemove": "Remove filter “{name}”",
+    "facetModelSearch": "Search models",
+    "facetModelEmpty": "No matching model",
+    "facetTimeToday": "Today",
+    "facetTimeWeek": "7 days",
+    "facetTimeMonth": "30 days",
+    "facetTimeYear": "This year",
+    "facetSortNewest": "Newest",
+    "facetSortOldest": "Oldest",
+    "searchAssetsFor": "Search assets: {query}",
+    "badge3D": "3D",
+    "folderMoreCount": "+{count}",
+    "folderViewAll": "View all",
+    "uploadQueueTitle": "Upload queue",
+    "uploadQueueSummary": "{total} items · {done} done · {failed} failed",
+    "uploadQueueTarget": "Upload to “{folder}”",
+    "uploadQueueReveal": "View",
+    "uploadQueueRetry": "Retry",
+    "uploadQueueRemove": "Remove",
+    "uploadQueueRetryAll": "Retry all",
+    "uploadQueueClearDone": "Clear completed",
+    "uploadQueueProgress": "Uploaded {percent}%",
+    "uploadDropHintSub": "You can change the target folder later in the queue",
+    "emptyFolderTitle": "Nothing in “{folder}” yet",
+    "emptyFolderHint": "Drag assets onto its plaque, or move them in from selection mode.",
+    "emptyFolderUpload": "Upload to this folder",
+    "emptySearchTitle": "No assets match the current filters",
+    "errorKeepsLoaded": "Loaded assets stay put — retrying resumes where it stopped.",
+    "errorRetry": "Retry",
+    "pickerNavViews": "Views",
+    "pickerNavRecent": "Recently used",
+    "pickerNavToggle": "Toggle folder rail",
+    "pickerMaxReachedInline": "Up to {max} — deselect one first",
+    "selectHint": "Pick assets · Shift-click selects a range",
+    "bulkMoveUndo": "Undo",
+    "bulkMoveUndone": "Move undone",
+    "moveRecentGroup": "Recently moved into",
+    "moveOutGroup": "Move out",
+    "moveCreateAndMove": "New folder and move in…",
     "detailSetCover": "Set cover",
     "detailCoverDialogTitle": "Choose cover image",
     "detailCoverDialogDescription": "Pick an image from your library to use as this audio cover.",
@@ -2534,6 +2582,10 @@
       "runner": {
         "label": "PixelVault Runner",
         "description": "Self-hosted RunPod ComfyUI runner for faithful Civitai recipe clones. Platform-managed — not user-configurable."
+      },
+      "byteplus": {
+        "label": "BytePlus",
+        "description": "Use the BytePlus ModelArk international station for Seedance video. Keys are separate from VolcEngine China."
       }
     },
     "summary": {
@@ -3332,6 +3384,38 @@
     "qwen3VlPlus": {
       "label": "Qwen3 VL Plus",
       "description": "Vision-capable Qwen model for image analysis and text-in-image, with strong Chinese understanding."
+    },
+    "seedance20Byteplus": {
+      "label": "Seedance 2.0 (BytePlus)",
+      "description": "Seedance 2.0 via BytePlus ModelArk — international region, native audio, 4–15 seconds."
+    },
+    "seedance20FastByteplus": {
+      "label": "Seedance 2.0 Fast (BytePlus)",
+      "description": "Faster Seedance 2.0 via BytePlus ModelArk — international region with native audio."
+    },
+    "seedance20ReferenceByteplus": {
+      "label": "Seedance 2.0 (Reference, BytePlus)",
+      "description": "Reference-to-video via BytePlus ModelArk with voice-reference support."
+    },
+    "seedance20FastReferenceByteplus": {
+      "label": "Seedance 2.0 Fast (Reference, BytePlus)",
+      "description": "Faster reference-to-video via BytePlus ModelArk."
+    },
+    "seedance25": {
+      "label": "Seedance 2.5 (fal.ai)",
+      "description": "Seedance 2.5 through fal.ai, with 480p/720p output and 4–30 second clips."
+    },
+    "seedance25Reference": {
+      "label": "Seedance 2.5 (Reference, fal.ai)",
+      "description": "fal.ai multimodal reference endpoint with up to 30 images, 10 videos, and 10 audio clips."
+    },
+    "seedance25Byteplus": {
+      "label": "Seedance 2.5 (BytePlus)",
+      "description": "Seedance 2.5 through the BytePlus ModelArk international station, with 480p/720p output and 4–30 second clips."
+    },
+    "seedance25ReferenceByteplus": {
+      "label": "Seedance 2.5 (Reference, BytePlus)",
+      "description": "BytePlus international multimodal reference generation with up to 30 images, 10 videos, and 10 audio clips."
     }
   },
   "PromptPresets": {
@@ -3819,7 +3903,10 @@
         }
       },
       "cast": "Cast tray",
-      "upload": "Upload image"
+      "upload": "Upload image",
+      "pickFromLibrary": "Pick from library",
+      "pickFromLibraryTitle": "Pick images from your library",
+      "pickFromLibraryDescription": "Drop images from your asset library onto the canvas. Multiple selection allowed."
     },
     "statuses": {
       "idle": "Idle",
@@ -4266,7 +4353,8 @@
       },
       "provider": {
         "fal": "fal",
-        "volcengine": "VolcEngine"
+        "volcengine": "VolcEngine",
+        "byteplus": "BytePlus"
       },
       "referenceModeOn": "Reference inputs connected — using the reference model.",
       "sidecar": {

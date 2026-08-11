@@ -20,25 +20,51 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
  */
 
 const SEEDANCE_25_IDS = [
+  AI_MODELS.SEEDANCE_25,
+  AI_MODELS.SEEDANCE_25_REFERENCE,
   AI_MODELS.SEEDANCE_25_VOLCENGINE,
   AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_BYTEPLUS,
+  AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS,
 ] as const
 
-/** 官方带日期 id，取自方舟「视频生成教程」的模型能力表（08-07 更新）。 */
-const DATED_EXTERNAL_ID = 'doubao-seedance-2-5-260628'
-
-/** 已发布的族 id —— 是个标识符，不是可调用的执行 id。 */
-const FAMILY_ID_NOT_CALLABLE = 'doubao-seedance-2-5'
+const CHANNELS = [
+  {
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    ids: [AI_MODELS.SEEDANCE_25, AI_MODELS.SEEDANCE_25_REFERENCE],
+    externalIds: [
+      'bytedance/seedance-2.5/text-to-video',
+      'bytedance/seedance-2.5/reference-to-video',
+    ],
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    ids: [
+      AI_MODELS.SEEDANCE_25_VOLCENGINE,
+      AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+    ],
+    externalIds: ['doubao-seedance-2-5-260628'],
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    ids: [
+      AI_MODELS.SEEDANCE_25_BYTEPLUS,
+      AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS,
+    ],
+    externalIds: ['dreamina-seedance-2-5-260628'],
+  },
+] as const
 
 const byId = new Map(MODEL_OPTIONS.map((model) => [model.id, model]))
 
 describe('Seedance 2.5 contract', () => {
-  it('points at the dated model id, never the family id', () => {
-    for (const id of SEEDANCE_25_IDS) {
-      const model = byId.get(id)
-      expect(model, `${id} missing from MODEL_OPTIONS`).toBeDefined()
-      expect(model?.externalModelId).toBe(DATED_EXTERNAL_ID)
-      expect(model?.externalModelId).not.toBe(FAMILY_ID_NOT_CALLABLE)
+  it('uses the official callable ids on all three channels', () => {
+    for (const channel of CHANNELS) {
+      for (const id of channel.ids) {
+        const model = byId.get(id)
+        expect(model, `${id} missing from MODEL_OPTIONS`).toBeDefined()
+        expect(channel.externalIds).toContain(model?.externalModelId)
+      }
     }
   })
 
@@ -48,11 +74,11 @@ describe('Seedance 2.5 contract', () => {
     }
   })
 
-  it('routes to VolcEngine', () => {
-    // BytePlus 国际站与 fal 将来各自是独立条目（前者要新 adapter type，因为 key
-    // 与火山不通用；后者准入未澄清），不会复用这两个 id。
-    for (const id of SEEDANCE_25_IDS) {
-      expect(byId.get(id)?.adapterType).toBe(AI_ADAPTER_TYPES.VOLCENGINE)
+  it('exposes fal, VolcEngine China, and BytePlus international as three channels', () => {
+    for (const channel of CHANNELS) {
+      for (const id of channel.ids) {
+        expect(byId.get(id)?.adapterType).toBe(channel.adapterType)
+      }
     }
   })
 
@@ -75,20 +101,33 @@ describe('Seedance 2.5 contract', () => {
   })
 
   it('carries the 2.5 multimodal caps, not the 2.0 ones', () => {
-    const contract = getVideoModelSendContract(
-      AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
-      AI_ADAPTER_TYPES.VOLCENGINE,
-    )
-    expect(contract.family).toBe('seedance')
-    expect(contract.referenceMode).toBe('multimodal-reference')
-    expect(contract.slots).toMatchObject({
-      images: 30,
-      videos: 10,
-      audio: 10,
-      total: 50,
-      // 官方模型能力表「音频参考」行：只有 2.5 打 ✓，2.0 三档都写「需搭配图片/视频」。
-      audioRequiresVisual: false,
-    })
+    for (const [id, adapterType] of [
+      [AI_MODELS.SEEDANCE_25_REFERENCE, AI_ADAPTER_TYPES.FAL],
+      [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE, AI_ADAPTER_TYPES.VOLCENGINE],
+      [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS, AI_ADAPTER_TYPES.BYTEPLUS],
+    ] as const) {
+      const contract = getVideoModelSendContract(id, adapterType)
+      expect(contract.family).toBe('seedance')
+      expect(contract.referenceMode).toBe('multimodal-reference')
+      expect(contract.slots).toMatchObject({
+        images: 30,
+        videos: 10,
+        audio: 10,
+        total: 50,
+      })
+    }
+    expect(
+      getVideoModelSendContract(
+        AI_MODELS.SEEDANCE_25_REFERENCE,
+        AI_ADAPTER_TYPES.FAL,
+      ).slots.audioRequiresVisual,
+    ).toBe(true)
+    expect(
+      getVideoModelSendContract(
+        AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS,
+        AI_ADAPTER_TYPES.BYTEPLUS,
+      ).slots.audioRequiresVisual,
+    ).toBe(false)
   })
 
   it('leaves the 2.0 caps untouched', () => {
@@ -145,9 +184,8 @@ describe('Seedance 2.5 contract', () => {
     // 2026-08-01 `b4ecf638` 把火山 Seedance 迁进 execution worker 之后，这条断言
     // 从 'execution-not-migrated' 翻成 'ready'。
     for (const id of SEEDANCE_25_IDS) {
-      expect(
-        getVideoModelSendContract(id, AI_ADAPTER_TYPES.VOLCENGINE).execution,
-      ).toBe('ready')
+      const adapterType = byId.get(id)?.adapterType
+      expect(getVideoModelSendContract(id, adapterType).execution).toBe('ready')
     }
   })
 })

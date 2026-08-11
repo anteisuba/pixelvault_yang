@@ -20,9 +20,13 @@ vi.mock('../NodeWorkflowActionsContext', () => ({
 // NodeShell 是纯外壳（工具条 / 选中态 / 端口），与本文件要守的「窗内渲染什么」
 // 无关，整体替身以免把它的 context 依赖一并拖进来。
 vi.mock('./NodeShell', () => {
-  const Pass = ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  )
+  const Pass = ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode
+    className?: string
+  }) => <div className={className}>{children}</div>
   Pass.displayName = 'ShellPart'
   const Nothing = () => null
   Nothing.displayName = 'ShellNoop'
@@ -30,7 +34,9 @@ vi.mock('./NodeShell', () => {
     Header: Nothing,
     Ingredients: Nothing,
     Body: Pass,
-    Footer: Pass,
+    Footer: ({ children }: { children: React.ReactNode }) => (
+      <footer data-testid="node-footer">{children}</footer>
+    ),
   })
   return { NodeShell: Shell }
 })
@@ -88,5 +94,25 @@ describe('NodeMediaPreview — 文本族卡面', () => {
     expect(
       screen.getByText('StudioNode.workflowNodes.shotText.emptyPreview'),
     ).toBeInTheDocument()
+  })
+
+  it('文本节点使用白色纸面且不渲染状态底栏', () => {
+    render(<NodeMediaPreview {...makeProps({ scene: '白色文本框' })} />)
+
+    const text = screen.getByText('白色文本框')
+    expect(text.closest('.canvas-text-preview-surface')).not.toBeNull()
+    expect(screen.queryByTestId('node-footer')).not.toBeInTheDocument()
+  })
+
+  it('图片节点不渲染状态底栏', () => {
+    render(
+      <NodeMediaPreview
+        {...makeProps({})}
+        type={NODE_TYPE_IDS.shot}
+        kind={NODE_MEDIA_KIND_IDS.image}
+      />,
+    )
+
+    expect(screen.queryByTestId('node-footer')).not.toBeInTheDocument()
   })
 })

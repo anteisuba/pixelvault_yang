@@ -14,9 +14,9 @@ import {
 import type { GalleryFilters } from '@/hooks/use-gallery'
 import {
   GALLERY_SORT_OPTIONS,
-  OUTPUT_TYPE_FILTER_OPTIONS,
+  OUTPUT_TYPE_VALUES,
   type GallerySortOption,
-  type OutputTypeFilter,
+  type OutputTypeValue,
 } from '@/types'
 
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,12 @@ interface GalleryFilterBarProps {
 }
 
 const ALL_MODELS_VALUE = '__all__'
+/**
+ * 公共画廊这一条仍是单选下拉，所以要一个「全部」哨兵值把空数组表示出来。
+ * ⚠ 别把它当成 `GalleryFilters.types` 的合法成员 —— 那边空数组才是「全部」
+ * （`docs/references/pages/assets.md` §3.1）。
+ */
+const ALL_TYPES_VALUE = 'all'
 const imageModels = getAvailableImageModels()
 const videoModels = getAvailableVideoModels()
 
@@ -96,7 +102,7 @@ export function GalleryFilterBar({
     (value: string) => {
       onFiltersChange({
         ...filters,
-        model: value === ALL_MODELS_VALUE ? '' : value,
+        models: value === ALL_MODELS_VALUE ? [] : [value],
       })
     },
     [filters, onFiltersChange],
@@ -106,8 +112,8 @@ export function GalleryFilterBar({
     (value: string) => {
       onFiltersChange({
         ...filters,
-        type: value as OutputTypeFilter,
-        model: '',
+        types: value === ALL_TYPES_VALUE ? [] : [value as OutputTypeValue],
+        models: [],
       })
     },
     [filters, onFiltersChange],
@@ -122,16 +128,17 @@ export function GalleryFilterBar({
 
   const hasActiveFilters =
     filters.search ||
-    filters.model ||
-    filters.type !== 'all' ||
+    filters.models.length > 0 ||
+    filters.types.length > 0 ||
     filters.timeRange !== 'all' ||
     filters.liked ||
     filters.published
 
+  const selectedType = filters.types[0] ?? ALL_TYPES_VALUE
   const modelsForType =
-    filters.type === 'video'
+    selectedType === 'video'
       ? videoModels
-      : filters.type === 'image'
+      : selectedType === 'image'
         ? imageModels
         : [...imageModels, ...videoModels]
 
@@ -199,7 +206,7 @@ export function GalleryFilterBar({
 
         <div className="flex flex-wrap gap-2">
           <Select
-            value={filters.type}
+            value={selectedType}
             onValueChange={handleTypeChange}
             disabled={isLoading}
           >
@@ -207,7 +214,7 @@ export function GalleryFilterBar({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {OUTPUT_TYPE_FILTER_OPTIONS.map((option) => (
+              {[ALL_TYPES_VALUE, ...OUTPUT_TYPE_VALUES].map((option) => (
                 <SelectItem key={option} value={option}>
                   {t(`type.${option}`)}
                 </SelectItem>
@@ -216,7 +223,7 @@ export function GalleryFilterBar({
           </Select>
 
           <Select
-            value={filters.model || ALL_MODELS_VALUE}
+            value={filters.models[0] ?? ALL_MODELS_VALUE}
             onValueChange={handleModelChange}
             disabled={isLoading}
           >
@@ -259,9 +266,9 @@ export function GalleryFilterBar({
             onClick={() =>
               onFiltersChange({
                 search: '',
-                model: '',
+                models: [],
                 sort: filters.sort,
-                type: 'all',
+                types: [],
                 timeRange: 'all',
                 liked: false,
                 published: false,

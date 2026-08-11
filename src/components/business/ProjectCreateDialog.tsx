@@ -21,8 +21,15 @@ import { createProjectAPI } from '@/lib/api-client'
 import type { ProjectRecord } from '@/types'
 
 interface ProjectCreateDialogProps {
-  /** Custom trigger element (rendered as the DialogTrigger child). */
-  trigger: React.ReactNode
+  /**
+   * Custom trigger element (rendered as the DialogTrigger child).
+   * 受控用法（传 `open`）下可以省略 —— 门牌行/总览页的「新建文件夹」卡是自己
+   * 布局里的一格，塞不进 `DialogTrigger`，改由调用方直接开。
+   */
+  trigger?: React.ReactNode
+  /** 受控开关；不传就走内部状态（trigger 用法）。 */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   /** Optional parent folder for nested asset folders. */
   parentId?: string | null
   /** Optional callback fired with the created project after a successful create. */
@@ -40,11 +47,18 @@ interface ProjectCreateDialogProps {
  */
 export function ProjectCreateDialog({
   trigger,
+  open: controlledOpen,
+  onOpenChange,
   parentId = null,
   onCreated,
 }: ProjectCreateDialogProps) {
   const t = useTranslations('LibraryPage')
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = controlledOpen ?? uncontrolledOpen
+  const setOpen = (next: boolean) => {
+    setUncontrolledOpen(next)
+    onOpenChange?.(next)
+  }
   const [name, setName] = useState('')
   const [isCreating, setIsCreating] = useState(false)
 
@@ -82,7 +96,7 @@ export function ProjectCreateDialog({
         if (!next) reset()
       }}
     >
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('projectCreateTitle')}</DialogTitle>

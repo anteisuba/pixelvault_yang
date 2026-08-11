@@ -90,6 +90,11 @@ export enum AI_MODELS {
   SEEDANCE_20_FAST_VOLCENGINE = 'seedance-2.0-fast-volcengine',
   SEEDANCE_20_REFERENCE_VOLCENGINE = 'seedance-2.0-reference-volcengine',
   SEEDANCE_20_FAST_REFERENCE_VOLCENGINE = 'seedance-2.0-fast-reference-volcengine',
+  /** Seedance 2.0 variants via BytePlus ModelArk — international station. */
+  SEEDANCE_20_BYTEPLUS = 'seedance-2.0-byteplus',
+  SEEDANCE_20_FAST_BYTEPLUS = 'seedance-2.0-fast-byteplus',
+  SEEDANCE_20_REFERENCE_BYTEPLUS = 'seedance-2.0-reference-byteplus',
+  SEEDANCE_20_FAST_REFERENCE_BYTEPLUS = 'seedance-2.0-fast-reference-byteplus',
   VEO_31 = 'veo-3.1',
   /**
    * Gemini Omni Flash — video via the Interactions API, not generateContent.
@@ -108,15 +113,13 @@ export enum AI_MODELS {
    * execution id `MiniMax-H3`; only the `content` array differs, exactly like
    * the Seedance VolcEngine variants.
    */
-  /**
-   * Seedance 2.5 via VolcEngine. **Reserved, not yet callable** (2026-08-01):
-   * 火山 has published pricing and the model detail page, but the API doc says
-   * 在线体验与 API 调用即将上线 and the model list carries no dated id yet.
-   * Entries ship `available: false`; GA is a one-line externalModelId swap —
-   * the same trick the GEMINI_OMNI_FLASH enum value above exists for.
-   */
+  /** Seedance 2.5 via fal.ai, VolcEngine China, and BytePlus international. */
+  SEEDANCE_25 = 'seedance-2.5',
+  SEEDANCE_25_REFERENCE = 'seedance-2.5-reference',
   SEEDANCE_25_VOLCENGINE = 'seedance-2.5-volcengine',
   SEEDANCE_25_REFERENCE_VOLCENGINE = 'seedance-2.5-reference-volcengine',
+  SEEDANCE_25_BYTEPLUS = 'seedance-2.5-byteplus',
+  SEEDANCE_25_REFERENCE_BYTEPLUS = 'seedance-2.5-reference-byteplus',
   MINIMAX_H3 = 'minimax-h3',
   MINIMAX_H3_REFERENCE = 'minimax-h3-reference',
   MINIMAX_H3_CN = 'minimax-h3-cn',

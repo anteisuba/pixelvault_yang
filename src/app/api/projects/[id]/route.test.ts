@@ -29,7 +29,7 @@ const FAKE_PROJECT = {
   description: null,
   parentId: null,
   generationCount: 5,
-  latestGenerationUrl: null,
+  coverUrls: [],
   createdAt: new Date(),
   updatedAt: new Date(),
 }

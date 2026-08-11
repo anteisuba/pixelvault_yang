@@ -7,16 +7,16 @@ export function buildGalleryQueryString(filters: GalleryFilters): string {
     params.set('search', filters.search.trim())
   }
 
-  if (filters.model) {
-    params.set('model', filters.model)
+  if (filters.models.length) {
+    params.set('model', filters.models.join(','))
   }
 
   if (filters.sort !== 'newest') {
     params.set('sort', filters.sort)
   }
 
-  if (filters.type !== 'all') {
-    params.set('type', filters.type)
+  if (filters.types.length) {
+    params.set('type', filters.types.join(','))
   }
 
   if (filters.timeRange && filters.timeRange !== 'all') {

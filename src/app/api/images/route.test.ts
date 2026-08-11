@@ -97,8 +97,9 @@ describe('GET /api/images', () => {
     expect(mockGetAnonPage).toHaveBeenCalledWith(
       expect.objectContaining({
         search: 'sunset',
-        model: 'gemini-3.1-flash-image-preview',
-        type: 'image',
+        // 可叠加分面：wire 上是逗号分隔，落到 service 一律是数组。
+        model: ['gemini-3.1-flash-image-preview'],
+        type: ['image'],
         sort: 'oldest',
         page: 2,
         limit: 10,

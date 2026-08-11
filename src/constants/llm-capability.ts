@@ -42,6 +42,7 @@ const ADAPTER_CAPABILITIES: Record<
   // docs/references/pages/assistant-shell.md note).
   [AI_ADAPTER_TYPES.ANTHROPIC]: ['assistant'],
   [AI_ADAPTER_TYPES.VOLCENGINE]: [],
+  [AI_ADAPTER_TYPES.BYTEPLUS]: [],
   // MiniMax has text models, but this route is video-only here — H3 is the
   // only reason the adapter exists.
   [AI_ADAPTER_TYPES.MINIMAX]: [],

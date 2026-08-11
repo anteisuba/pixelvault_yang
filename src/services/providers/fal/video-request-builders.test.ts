@@ -279,6 +279,35 @@ const falBodyCases: FalBodyCase[] = [
     absentFields: ['image_url'],
   },
   {
+    label: 'Seedance 2.5 T2V',
+    modelId: AI_MODELS.SEEDANCE_25,
+    expectedEndpoint: 'bytedance/seedance-2.5/text-to-video',
+    expectedMode: 'text-to-video',
+    expectedBody: {
+      prompt: PROMPT,
+      resolution: '720p',
+      duration: '5',
+      aspect_ratio: '16:9',
+      generate_audio: true,
+    },
+  },
+  {
+    label: 'Seedance 2.5 Reference',
+    modelId: AI_MODELS.SEEDANCE_25_REFERENCE,
+    referenceImage: REF,
+    expectedEndpoint: 'bytedance/seedance-2.5/reference-to-video',
+    expectedMode: 'text-to-video',
+    expectedBody: {
+      prompt: PROMPT,
+      image_urls: [REF],
+      resolution: '720p',
+      duration: '5',
+      aspect_ratio: '16:9',
+      generate_audio: true,
+    },
+    absentFields: ['image_url'],
+  },
+  {
     label: 'LTX 2.3 T2V',
     modelId: AI_MODELS.LTX_23,
     expectedEndpoint: 'fal-ai/ltx-2.3/text-to-video',
@@ -349,6 +378,62 @@ describe('buildFalVideoQueueRequest', () => {
     })
 
     expect(request.input).toMatchObject({ resolution: '720p' })
+  })
+
+  it('uses the public Seedance 2.5 I2V schema, including an optional end frame', () => {
+    const endFrame = 'https://example.com/end.png'
+    const result = buildFalVideoQueueRequest({
+      ...buildInput(AI_MODELS.SEEDANCE_25, REF),
+      duration: 30,
+      referenceImages: [REF, endFrame],
+    })
+
+    expect(result.endpointModelId).toBe('bytedance/seedance-2.5/image-to-video')
+    expect(result.input).toMatchObject({
+      image_url: REF,
+      end_image_url: endFrame,
+      aspect_ratio: 'auto',
+      duration: '30',
+      resolution: '720p',
+    })
+    expect(
+      buildFalWorkerQueueRequest({
+        providerInput: {
+          ...buildWorkerInput(AI_MODELS.SEEDANCE_25, REF).providerInput,
+          duration: 30,
+          referenceImages: [REF, endFrame],
+        },
+      }),
+    ).toEqual(result)
+  })
+
+  it('keeps Seedance 2.5 reference limits at 30/10/10 with a 50-file cap', () => {
+    const images = Array.from(
+      { length: 35 },
+      (_, i) => `https://example.com/image-${i}.png`,
+    )
+    const videos = Array.from(
+      { length: 12 },
+      (_, i) => `https://example.com/video-${i}.mp4`,
+    )
+    const audio = Array.from(
+      { length: 12 },
+      (_, i) => `https://example.com/audio-${i}.mp3`,
+    )
+    const input = {
+      ...buildInput(AI_MODELS.SEEDANCE_25_REFERENCE, REF),
+      duration: 30 as const,
+      referenceImages: images,
+      videoUrls: videos,
+      audioUrls: audio,
+    }
+    const result = buildFalVideoQueueRequest(input)
+
+    expect(result.input.duration).toBe('30')
+    expect(result.input.image_urls).toHaveLength(30)
+    expect(result.input.video_urls).toHaveLength(10)
+    expect(result.input.audio_urls).toHaveLength(10)
+    expect(buildFalWorkerQueueRequest({ providerInput: input })).toEqual(result)
   })
 
   it('normalizes legacy Veo public ID before building queue requests', () => {

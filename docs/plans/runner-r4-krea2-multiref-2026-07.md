@@ -66,6 +66,8 @@
 
 → **07-12 那条搁置理由今天依然成立**:Anima 是已建成的动漫向管线,Krea2 补的是**写实向**空白。捡回 Krea2 的真触发条件不是热度数字,是**产品要不要进军写实** —— 这是 owner 的产品决策,不是 runner 的技术判断。
 
+> **✅ 已于 2026-08-09 决:owner 拍板「Krea 值得进」,本节这个悬案关闭。** 但本轮范围收窄成「先在 LoRA 库能看见 Krea2 素材」,不是建管线 —— 见 §2.5.5 / §2.6。
+
 ### 2.5.3 容量复核 —— 官方一套够,社区底模一开就不够
 
 Krea2 官方档三件(体积为 07-18 P1 实测,本次未重测):UNET `krea2_turbo_fp8_scaled` 12.238GiB + 文本编码器 `qwen3vl_4b_fp8_scaled` 4.882GiB + VAE **复用现有 0 新增** = **17.12GiB**。
@@ -84,6 +86,48 @@ Krea2 官方档三件(体积为 07-18 P1 实测,本次未重测):UNET `krea2_tur
 - Seedance 2.5 → 独立任务包 `docs/plans/seedance-25-ga-integration-2026-08.md`
 - LRU 转正 → 归 r4a phase-2,**不新建文档**(见 §3 与 Last Verified 的 phase-2 清单)
 - Krea2 → 留在本文档作 r4b,下次复查随 2026-09 月审,或 worker-comfyui 发版当天提前触发
+
+### 2.5.5 owner 拍板(2026-08-09)——产品前置已解,范围收窄成「先看见」
+
+**① 版本闸复查(当日实读,三处口径同 §2.5.1):无变化。** Docker Hub / GitHub releases 仍是 **5.8.6**(2026-06-17);main 的 `ARG COMFYUI_VERSION` 仍是 **0.29.0**;`.changeset/` 仍只有 `pin-comfyui-cuda-12-8.md` 一个未发布条目。main 最后一次提交 08-05(PR #235,改测试文件名)。
+
+> ⚠ **修正一个会误导判断的日期**:钉 0.29.0 的 PR #231 是 **2026-08-05 才合入 main**,§2.5.1 表格里的 07-30 是它在分支上的提交日。合进 main 只有四天,「上游拖很久了」的印象是假的,不构成走路线 (b) 的理由。
+
+**② owner 拍板「Krea 值得进」** —— §2.5.2 结尾那个「捡回 Krea2 的真触发条件是产品要不要进军写实,这是 owner 的产品决策」**已兑现,不再是悬案**。
+
+**③ 版本闸选路线 (a) 等发版,并在等待期做准备。** 路线 (b) 自升 ComfyUI 被否——代价(三条生产 workflow 全量回归 + torch 跳 2.11.0+cu128)对着「只差发版」的现状不划算。等待期四件,均不依赖 ComfyUI 版本:
+
+1. 卷容量 **S3 SigV4 实测**(§2.5.3 的 50.5GiB 是推算,灌权重前必须落实)
+2. 卷 80→120GB 扩容(真触发点是社区 Krea2 checkpoint 各 11.9–13.2GiB,不是官方那套)
+3. **LRU 水位从 dry-run 转正**(本就是 08-08 排的第二优先,与 Krea2 无关也该做)
+4. Krea2 官方档三件预灌 17.12GiB(文件躺卷里等发版,不碰现有链路)
+
+**④ ⭐ 但本轮范围不是建管线** —— owner 原话:「**lora 库那边加一个 krea2 的分类,我先看下**」。先给一个能亲眼看见 Krea2 LoRA 实际长相的最小窗口,再决定往下走多远。**这一件已于当日落地**(见 §2.6),r4b 管线本身仍未开工。
+
+## 2.6 LoRA 库 `Krea 2` 分类(2026-08-09 已落地)
+
+**实测事实(改动的前提,都用项目自己的数据路径取的):**
+
+| 查什么                     | 结果                                                                                                                        |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Civitai `baseModel` 精确值 | **`"Krea 2"`**(带空格、K 大写)。`baseModels=Krea 2` 这个 REST 过滤参数实测有效                                              |
+| 有无 Turbo/Raw 变体值      | **没有**。`baseModels=Krea 2 Turbo` 返回 0 条——官方 Raw/Turbo 两形态在 Civitai 不分值,与 Z-Image 的双值模式不同             |
+| 供给量(meilisearch 实测)   | **4376**。对照:Illustrious+NoobAI 100000(索引封顶)· Anima 28294 · Z-Image 9324 · **Krea 2 4376** · Qwen 1649 · Chroma 1122  |
+| `Flux.1 Krea`(=Krea **1**) | 仅 **314** 条,已并在 `Flux.1 D` 桶里且**保持不动**——Flux dev 的同架构 drop-in 变体,与 12.9B from-scratch DiT 的 Krea 2 无关 |
+
+供给 4376 远超本文件既有的「≥1000 才配 named chip」门槛,且是当时所有已配 chip 家族之外的最大缺口。
+
+**改动(10 处,纯加法):**
+
+- `src/constants/lora.ts` 七处穷举表:`CIVITAI_LORA_BASE_MODEL_VALUES` · `CIVITAI_BASE_MODEL_FAMILY_MEMBERS`(单成员)· `CIVITAI_BASE_MODEL_GENERATABILITY`(**`external`**)· `LORA_LIBRARY_FAMILY_VALUES`(slug `krea2`)· `CIVITAI_BASE_MODEL_TO_FAMILY_SLUG` · `FAMILY_SLUG_TO_CIVITAI_BASE_MODEL` · `LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE`(HF 侧排除)
+- `lora-library-filter-labels.ts` 的 `LORA_LIBRARY_FAMILY_LABEL_KEYS` + 三语 `familyLabel.krea2`
+
+**两条设计判断,别在后续改动里推翻:**
+
+1. **`generatability = 'external'`,且 `normalizeToLoraBaseFamily` 故意不动**(仍对 "Krea 2" 返回 null)。加分类只开**浏览**,不开出图——现在没有可用端点,让「使用」按钮跳 Civitai 是诚实行为。这与 Qwen / Z-Image / Chroma 三个既有 chip 完全同构,不引入新的不一致。发版接通 r4b 管线后才翻 `native`。
+2. **HF tab 隐藏 `krea2` chip**(与 `chroma` 同处置)。HF 侧 `HUGGINGFACE_LORA_FAMILY_VALUES` 没有对应家族值域,`familySlugToHuggingFaceFamily` 会 `?? 'all'` 静默回落 —— chip 显示选中、结果却是全集,比不给 chip 更糟。
+
+**顺带一处成本**:`prewarmCivitaiLoraLibrary` 按 family × sort 预热,多一个 family = 多 3 个预热请求(测试里的 `expectedTotal` 从常量派生,自动跟上)。
 
 ## 3. 顺路件(r4 一并)
 
@@ -113,6 +157,8 @@ P1–P3 实证(半天,dev pod)→ 回写本文档 §2 结论 → fork r4 构建+
 - Anima DiT img2img(需求信号弱,等用户要)。
 
 ## Last Verified
+
+2026-08-09 · **版本闸三处复查(§2.5.5①)全为 GitHub / Docker Hub API 实读,结论「无变化」**;PR #231 的 main 合入日 08-05 为 commits API 实读(修正 §2.5.1 表里易误读的 07-30)。**§2.6 的四条 Civitai 事实全部当日实测**:baseModel 精确值与 Turbo 变体缺席走 REST `baseModels=` 探针,四组供给量走项目自己那条 meilisearch 路径(`search-new.civitai.com/multi-search`,index `models_v9`,filter `versions.baseModel IN [...]`,`limit:0` 取 `estimatedTotalHits`)。改动闸门:全量 `tsc --noEmit` 零错误 · 相关 29 个测试文件 295 用例全绿 · 三语 i18n 4600 键三方一致(逐键脚本对比,非 diff 目测)。⚠ **未做**:全量 vitest(按纪律留到 commit 前)。
 
 2026-08-08 · **月审复核(§2.5)**:worker-comfyui tag / upstream main Dockerfile / changeset 为 GitHub + Docker Hub API 实读;Krea2 与 Anima 的四组占比、Krea2 社区 checkpoint 体积为 Civitai API 实测;fork HEAD 为 `gh api` 实读。⚠ **未实测项**:卷现用量 50.5GiB 是推算(47.40 实测 + 3.14 播种),Krea2 官方档三件体积沿用 07-18 P1 数字,hires-fix bug 未重测。owner 当日拍板优先级见 §2.5.4。
 

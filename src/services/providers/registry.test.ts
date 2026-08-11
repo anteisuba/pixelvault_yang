@@ -25,6 +25,7 @@ vi.mock('./runway.adapter', () => ({
 }))
 vi.mock('./volcengine.adapter', () => ({
   volcengineAdapter: { adapterType: 'volcengine' },
+  byteplusAdapter: { adapterType: 'byteplus' },
 }))
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -53,6 +54,12 @@ describe('getProviderAdapter', () => {
     const adapter = getProviderAdapter(AI_ADAPTER_TYPES.RUNWAY)
 
     expect(adapter.adapterType).toBe('runway')
+  })
+
+  it('returns the BytePlus adapter for the international Ark station', () => {
+    const adapter = getProviderAdapter(AI_ADAPTER_TYPES.BYTEPLUS)
+
+    expect(adapter.adapterType).toBe('byteplus')
   })
 
   it('throws for text-only providers without media adapters', () => {

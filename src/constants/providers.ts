@@ -10,6 +10,8 @@ export enum AI_ADAPTER_TYPES {
   REPLICATE = 'replicate',
   NOVELAI = 'novelai',
   VOLCENGINE = 'volcengine',
+  /** BytePlus ModelArk international station; accounts and keys are separate from VolcEngine China. */
+  BYTEPLUS = 'byteplus',
   FISH_AUDIO = 'fish_audio',
   HYPER3D_RODIN = 'hyper3d_rodin',
   DASHSCOPE = 'dashscope',
@@ -61,6 +63,7 @@ export const AI_ADAPTER_TYPE_OPTIONS = [
   AI_ADAPTER_TYPES.REPLICATE,
   AI_ADAPTER_TYPES.NOVELAI,
   AI_ADAPTER_TYPES.VOLCENGINE,
+  AI_ADAPTER_TYPES.BYTEPLUS,
   AI_ADAPTER_TYPES.FISH_AUDIO,
   AI_ADAPTER_TYPES.HYPER3D_RODIN,
   AI_ADAPTER_TYPES.DASHSCOPE,
@@ -109,6 +112,10 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
   [AI_ADAPTER_TYPES.VOLCENGINE]: {
     label: 'VolcEngine',
     baseUrl: AI_PROVIDER_ENDPOINTS.VOLCENGINE,
+  },
+  [AI_ADAPTER_TYPES.BYTEPLUS]: {
+    label: 'BytePlus',
+    baseUrl: AI_PROVIDER_ENDPOINTS.BYTEPLUS,
   },
   [AI_ADAPTER_TYPES.FISH_AUDIO]: {
     label: 'Fish Audio',
@@ -159,6 +166,7 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.REPLICATE]: 'r8_...',
   [AI_ADAPTER_TYPES.NOVELAI]: 'pst-...',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'ark-...',
+  [AI_ADAPTER_TYPES.BYTEPLUS]: 'ark-...',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 'aaf42ad8...',
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'sk-...',
   [AI_ADAPTER_TYPES.DASHSCOPE]: 'sk-...',
@@ -181,6 +189,7 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   [AI_ADAPTER_TYPES.REPLICATE]: 2,
   [AI_ADAPTER_TYPES.NOVELAI]: 2,
   [AI_ADAPTER_TYPES.VOLCENGINE]: 4,
+  [AI_ADAPTER_TYPES.BYTEPLUS]: 4,
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 2,
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 3,
   [AI_ADAPTER_TYPES.DASHSCOPE]: 2,
@@ -206,6 +215,7 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.REPLICATE]: 'ideogram-ai/ideogram-v2',
   [AI_ADAPTER_TYPES.NOVELAI]: 'nai-diffusion-4-5-full',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'doubao-seedream-5-0-260128',
+  [AI_ADAPTER_TYPES.BYTEPLUS]: 'dreamina-seedance-2-0-260128',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 's2-pro',
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'rodin-gen-2.5',
   [AI_ADAPTER_TYPES.DASHSCOPE]: 'qwen-plus',
@@ -271,6 +281,11 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
     url: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
     steps:
       'Sign in → 火山方舟控制台 → API Key 管理 → Create API Key. 模型需要创建推理接入点 (endpoint), 将 endpoint ID (ep-xxx) 作为自定义模型 ID 使用。',
+  },
+  [AI_ADAPTER_TYPES.BYTEPLUS]: {
+    url: 'https://docs.byteplus.com/en/docs/ModelArk/1520757',
+    steps:
+      'Sign in to BytePlus ModelArk → API Key management → Create API Key. BytePlus keys are not interchangeable with VolcEngine China keys.',
   },
   [AI_ADAPTER_TYPES.FISH_AUDIO]: {
     url: 'https://fish.audio/zh-CN/app/api-keys/',

@@ -834,6 +834,42 @@ html:lang(zh) {
       padding-box;
   }
 
+  /* /assets justified 网格的滚动容器 —— 滚动条出现会让容器缩水，把已经按旧
+     宽度排好的行挤出横向溢出（docs/references/pages/assets.md §5.7）。
+     常留 gutter，容器宽从头到尾是同一个数。 */
+  .assets-scroll-gutter {
+    scrollbar-gutter: stable;
+  }
+
+  /* 次级数字（分面下拉行右侧的计数）——⚠ `text-muted-foreground` 压在
+     `bg-muted` 上只有 **4.35:1**，不到 4.5（同一个坑见 memory
+     `reference-muted-foreground-fails-on-secondary`）。改用父级墨色降调：
+     74% foreground 实测 —— 白底 **8.86:1**、`bg-muted` hover 底 **8.52:1**、
+     `bg-muted/40` chip 底 **8.70:1**。
+     ⚠ 降调只放子元素，别放在同时用 currentColor 推边框的元素上（会复利）。 */
+  .text-soft-count {
+    color: color-mix(in oklab, currentColor 74%, transparent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* /assets 瓦片的媒体表达（docs/references/pages/assets.md §6）。
+     ⚠ 这两层压的是**任意作品图**，不是可主题化的表面，所以对比度必须按
+     「最坏底 = 纯白图」算：`rgba(12,12,12,.72)` 合成后是 rgb(81,81,81)，
+     其上白字 **7.9:1**、次级 `#e8e8e6` **6.4:1**，都过 4.5。 */
+  .asset-tile-veil {
+    background: linear-gradient(to top, rgba(12, 12, 12, 0.72), transparent);
+  }
+
+  .asset-tile-veil-sub {
+    color: #e8e8e6;
+  }
+
+  .asset-tile-badge {
+    background: rgba(12, 12, 12, 0.72);
+    color: #fff;
+    backdrop-filter: blur(4px);
+  }
+
   /* Bottom dock — fixed at bottom, always visible */
   .studio-dock {
     border-top: 1px solid color-mix(in oklab, var(--border) 50%, transparent);

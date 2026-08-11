@@ -62,6 +62,8 @@ interface UseImageUploadReturn {
    * so switching back to a higher-capacity model restores them automatically.
    */
   setMaxImages: (max: number) => void
+  /** 当前容量上限（`Infinity` = 未配置/不限）。素材选择器用它算剩余容量。 */
+  maxImages: number
   isDragging: boolean
   setIsDragging: (dragging: boolean) => void
   fileInputRef: React.RefObject<HTMLInputElement | null>
@@ -110,6 +112,12 @@ export function useImageUpload(): UseImageUploadReturn {
   // "Unlimited until configured" — protects first-mount additions from
   // getting auto-disabled before StudioDockPanelArea runs its effect.
   const maxImagesRef = useRef<number>(Infinity)
+  /**
+   * 同一个容量的**可渲染副本** —— ref 改了不会触发重渲染，而素材选择器要拿
+   * 「剩余容量」当 `maxSelection`（`docs/references/pages/assets.md` §8.3：
+   * 追加语义的入口一律多选，并把剩余容量传下去）。
+   */
+  const [maxImages, setMaxImagesState] = useState<number>(Infinity)
   const [isUploading, setIsUploading] = useState(false)
   const t = useTranslations('ImageUpload')
   const tErrors = useTranslations('Errors')
@@ -125,6 +133,7 @@ export function useImageUpload(): UseImageUploadReturn {
 
   const setMaxImages = useCallback((max: number) => {
     maxImagesRef.current = max
+    setMaxImagesState(max)
     setReferenceEntries((prev) => {
       const recomputed = prev.map((entry, idx) => {
         const reason = computeDisabledReason(idx, max)
@@ -311,6 +320,7 @@ export function useImageUpload(): UseImageUploadReturn {
     clearAllImages,
     addFromUrl,
     setMaxImages,
+    maxImages,
     isDragging,
     setIsDragging: setDragging,
     fileInputRef,

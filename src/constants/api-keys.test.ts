@@ -22,6 +22,7 @@ describe('api key adapter options', () => {
       // VolcEngine (火山方舟) became active once the direct-API Seedance/Seedream
       // variants shipped as available models — users need to configure its key.
       AI_ADAPTER_TYPES.VOLCENGINE,
+      AI_ADAPTER_TYPES.BYTEPLUS,
       AI_ADAPTER_TYPES.FISH_AUDIO,
       AI_ADAPTER_TYPES.HYPER3D_RODIN,
       // DashScope (Qwen) is active as an LLM text/vision route; ElevenLabs

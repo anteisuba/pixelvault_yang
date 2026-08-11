@@ -167,7 +167,8 @@ import {
   type IngestCapacityCheck,
 } from '@/lib/node-ingest-capacity'
 import { resolveVideoSendSlotLimits } from '@/lib/node-video-send-slots'
-import type { AdvancedParams } from '@/types'
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import type { AdvancedParams, GenerationRecord } from '@/types'
 import type {
   NodeWorkflowEdge,
   NodeWorkflowNode,
@@ -499,14 +500,29 @@ function resolveRosterDropIntent(
   return undefined
 }
 
+/**
+ * React Flow v12 的 `onNodeDrag*` 回调收到的是**原生** `MouseEvent | TouchEvent`
+ * （d3-drag 发出的），不是 React 合成事件 —— 直接标成 `React.MouseEvent` 过不了
+ * 类型（`OnNodeDrag` 不兼容），而触摸事件也根本没有 `clientX`。
+ * 这里统一取一次坐标：鼠标直接读，触摸读第一个触点。
+ */
+function getDragEventClientPoint(event: MouseEvent | TouchEvent): {
+  clientX: number
+  clientY: number
+} {
+  if ('touches' in event) {
+    const touch = event.touches[0] ?? event.changedTouches[0]
+    return { clientX: touch?.clientX ?? 0, clientY: touch?.clientY ?? 0 }
+  }
+  return { clientX: event.clientX, clientY: event.clientY }
+}
+
 function findCanvasDragHit(
-  event: ReactMouseEvent,
+  event: MouseEvent | TouchEvent,
   draggedNodeId: string,
 ): CanvasDragHit | null {
-  const stackedElements = document.elementsFromPoint(
-    event.clientX,
-    event.clientY,
-  )
+  const { clientX, clientY } = getDragEventClientPoint(event)
+  const stackedElements = document.elementsFromPoint(clientX, clientY)
   for (const candidate of stackedElements) {
     if (!(candidate instanceof Element)) continue
     const canvasNode = candidate.closest<HTMLElement>(
@@ -738,16 +754,10 @@ function StudioNodeCanvas() {
   >(null)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
-  // Below the desktop rail breakpoint the assistant is an overlay. Start it
-  // closed so tablet and phone users land on the canvas instead of a sheet.
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (window.matchMedia('(max-width: 1023px)').matches) {
-      setAssistantDockOpen(false)
-      setAssistantExpanded(false)
-    }
-  }, [])
-
+  // ⚠ 这里原来有个「窄屏挂载时把助手关掉」的 effect —— 已删，因为它是空转：
+  // 上面两个 state 的初值本来就是 false（助手默认关着，宽窄屏都一样），
+  // effect 里再 setState(false) 什么都没改。真正的窄屏行为在 4500+ 那个
+  // matchMedia effect 里（左面板收成图标轨），那份还在。
   const appLocale = isAppLocale(locale) ? locale : DEFAULT_LOCALE
 
   const closeAddMenu = useCallback(() => {
@@ -766,37 +776,40 @@ function StudioNodeCanvas() {
    * 下面那个 effect 会把悬空的 id 清掉，本行是同一件事的即时版 —— 两者都要：
    * effect 有一帧延迟，而这一帧里粘贴/Esc 就可能发生。
    */
-  const detailPanelOpen =
+  /**
+   * 所以对外**只发这个派生 id**：悬空的 `expandedNodeId` 到这里就归零，下游
+   * （Esc 链 / context / 面板本身）读到的永远是「真在渲染的那一个」。
+   *
+   * ⚠ 原先这下面还有一个 effect 追着把悬空 id `setState` 回 null —— 已删。
+   * 它比派生值晚一帧，而上面那段注释担心的正是那一帧里的粘贴/Esc；改成派生
+   * 之后那一帧根本不存在。id 本身留着悬空无害：没有任何消费者再直接读它。
+   */
+  const openNodeId =
     expandedNodeId !== null &&
     workflow.nodes.some((node) => node.id === expandedNodeId)
+      ? expandedNodeId
+      : null
+  const detailPanelOpen = openNodeId !== null
 
   const heavyOverlayOpen =
     detailPanelOpen ||
     imageEditWorkspaceOpen ||
     (assistantDockOpen && assistantExpanded)
 
-  /**
-   * 悬空 id 清理：删节点、切项目、以及任何让该节点从图里消失的路径。
-   * ⚠ 此前全仓 `setExpandedNodeId(null)` 只有三处生产调用（面板 onClose 与两个
-   * inspector 的「跳到下游节点」），**没有任何一处覆盖节点消失**。
-   */
-  useEffect(() => {
-    if (expandedNodeId === null) return
-    if (workflow.nodes.some((node) => node.id === expandedNodeId)) return
-    setExpandedNodeId(null)
-  }, [expandedNodeId, workflow.nodes])
-
-  useEffect(() => {
-    if (!heavyOverlayOpen) return
+  // 重浮层接管时 L5 的添加菜单要让位，而且不能在浮层关掉之后自己冒回来。
+  // 用 React 官方的「渲染期调整 state」写法：有条件、只在它确实还开着时写一次，
+  // React 会立刻带着新 state 重跑这次渲染，比 effect 版少一帧（effect 版还会
+  // 让菜单在浮层出现的那一帧里跟浮层同框闪一下）。
+  if (heavyOverlayOpen && addMenu !== null) {
     setAddMenu(null)
-  }, [heavyOverlayOpen])
+  }
 
   // The locator is persistent L4 chrome. The add menu is now the only L5
   // citizen mirrored into node-local quick-edit dismissal.
   const transientLayerOpen = Boolean(addMenu)
 
   useOverlayFocusReturn(Boolean(addMenu))
-  useOverlayFocusReturn(Boolean(expandedNodeId))
+  useOverlayFocusReturn(detailPanelOpen)
   // R3-4 §4.2 rule 3 (焦点还原覆盖 L5/L6/L7): 档3-script（剧本笺展开）不是
   // Radix Dialog，没有 Radix 自带的关闭时焦点回归，需要这里手动补一份——
   // 档3-image（CanvasImageEditWorkspace）走 Radix ResponsiveDialog，那份由
@@ -821,7 +834,7 @@ function StudioNodeCanvas() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.isComposing) return
-      if (expandedNodeId || imageEditWorkspaceOpen) return
+      if (openNodeId || imageEditWorkspaceOpen) return
 
       if (assistantDockOpen && assistantExpanded) {
         setAssistantExpanded(false)
@@ -857,7 +870,7 @@ function StudioNodeCanvas() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [
-    expandedNodeId,
+    openNodeId,
     imageEditWorkspaceOpen,
     assistantDockOpen,
     assistantExpanded,
@@ -1042,6 +1055,61 @@ function StudioNodeCanvas() {
     closeAddMenu()
     addUploadInputRef.current?.click()
   }, [addMenu, closeAddMenu])
+  /**
+   * 右键菜单「从素材库选择」（owner 2026-08-11）。与上传共用同一个落点锚点：
+   * 用户在哪儿右键，这一批就落在哪儿。
+   */
+  const [libraryPickerAnchor, setLibraryPickerAnchor] =
+    useState<XYPosition | null>(null)
+  const handleAddMenuPickFromLibrary = useCallback(() => {
+    if (!addMenu) {
+      return
+    }
+    setLibraryPickerAnchor(addMenu.flowPosition)
+    closeAddMenu()
+  }, [addMenu, closeAddMenu])
+
+  /**
+   * 一批素材落成一批图片节点。
+   *
+   * ⚠ 两条硬纪律（交接 §六 的落位约束）：
+   * 1. **按批内序号排格子**，不去读「已有上游数」——`workflow.nodes` 是本次
+   *    渲染的快照，同一批里连建 N 个时它一直是旧值，N 个节点会算出完全相同的
+   *    坐标、精确重叠。
+   * 2. **整批一个撤销步**：选了 5 张后按一次撤销要退干净，而不是退 5 次。
+   */
+  const handlePickAssetsFromLibrary = useCallback(
+    (generations: GenerationRecord[]) => {
+      const anchor = libraryPickerAnchor
+      setLibraryPickerAnchor(null)
+      if (!anchor || generations.length === 0) {
+        return
+      }
+      const { columnOffsetX, rowOffsetY, columns } =
+        NODE_STUDIO_NODE_PLACEMENT.libraryPick
+      void workflow.runAsSingleHistoryStep(() => {
+        generations.forEach((generation, index) => {
+          const position = {
+            x: anchor.x + (index % columns) * columnOffsetX,
+            y: anchor.y + Math.floor(index / columns) * rowOffsetY,
+          }
+          const label = generation.prompt?.trim() || generation.model
+          const newNodeId = workflow.addNode(NODE_TYPE_IDS.image, position)
+          workflow.updateNodeData(newNodeId, {
+            imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+            mediaKind: NODE_MEDIA_KIND_IDS.image,
+            mediaUrl: generation.url,
+            mediaLabel: label,
+            sourceLabel: label,
+            generationStatus: NODE_GENERATION_STATUS_IDS.success,
+            status: NODE_STATUS_IDS.done,
+          })
+        })
+      })
+    },
+    [libraryPickerAnchor, workflow],
+  )
+
   const handleAddUploadChange = useCallback(
     (event: ReactChangeEvent<HTMLInputElement>) => {
       const input = event.currentTarget
@@ -1748,21 +1816,12 @@ function StudioNodeCanvas() {
       const videoResolution =
         isVideoMediaNode && typeof node.data.resolution === 'string'
           ? (node.data.resolution as
-              | '480p'
-              | '540p'
-              | '720p'
-              | '1080p'
-              | undefined)
+              '480p' | '540p' | '720p' | '1080p' | undefined)
           : undefined
       const videoAspectRatio =
         isVideoMediaNode && typeof node.data.aspectRatio === 'string'
           ? (node.data.aspectRatio as
-              | '1:1'
-              | '16:9'
-              | '9:16'
-              | '4:3'
-              | '3:4'
-              | undefined)
+              '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | undefined)
           : undefined
       const audioVoiceId =
         isAudioMediaNode && typeof node.data.voiceId === 'string'
@@ -2304,7 +2363,13 @@ function StudioNodeCanvas() {
     nodes: workflow.nodes,
     focusNode: handleFocusNode,
   })
-  reviewModeRef.current = reviewMode
+  // ⚠ 写在 effect 里而不是渲染期：渲染期改 ref 会被 react-hooks/refs 拦，
+  // 而且确实不安全 —— 并发/Strict 下这次渲染可能整个被丢弃，ref 却已经被改脏。
+  // 两个读者（下方 Esc 链、快捷键）都是事件回调，事件必定发生在本次渲染提交
+  // 之后，所以读到的新鲜度和渲染期赋值时一模一样。
+  useEffect(() => {
+    reviewModeRef.current = reviewMode
+  }, [reviewMode])
 
   // 进入①：助手铺完一批之后的提示行。`assistantBatchMark` 由
   // `handleRunAssistantCanvasOps` 递增（那里读不到新鲜的待审数，见那边的说明），
@@ -3755,8 +3820,19 @@ function StudioNodeCanvas() {
   // once per drag stop, never rendered.
   const dragStartPositionsRef = useRef<Map<string, XYPosition>>(new Map())
 
+  /** 拖拽中悬停在名册卡上的高亮 —— 上一张与这一张不同才改 DOM。 */
+  const rosterHoverElRef = useRef<HTMLElement | null>(null)
+  /**
+   * 跟手的拖拽替身（见 `createRosterDragGhost` 头注）。
+   *
+   * ⚠ 这两行必须排在 `handleNodeDragStart` **前面**：替身在那个回调里就被赋值了，
+   * 声明却排在几十行之后时，react-hooks/immutability 会把 `handleNodeDragStop`
+   * 里的 `.current = null` 判成「改一个已经传进 hook 的值」而报错。
+   */
+  const rosterGhostElRef = useRef<HTMLElement | null>(null)
+
   const handleNodeDragStart = useCallback(
-    (_event: ReactMouseEvent, node: NodeWorkflowNode) => {
+    (_event: MouseEvent | TouchEvent, node: NodeWorkflowNode) => {
       setCanvasNodeDragActive(true)
       workflow.onNodesChange([{ id: node.id, type: 'select', selected: false }])
 
@@ -3839,23 +3915,16 @@ function StudioNodeCanvas() {
     [workflow.nodes, workflow.edges],
   )
 
-  /** 拖拽中悬停在名册卡上的高亮 —— 上一张与这一张不同才改 DOM。 */
-  const rosterHoverElRef = useRef<HTMLElement | null>(null)
-  /** 跟手的拖拽替身（见 `createRosterDragGhost` 头注）。 */
-  const rosterGhostElRef = useRef<HTMLElement | null>(null)
-
   const handleNodeDrag = useCallback(
-    (event: ReactMouseEvent, node: NodeWorkflowNode) => {
+    (event: MouseEvent | TouchEvent, node: NodeWorkflowNode) => {
+      const { clientX: dragClientX, clientY: dragClientY } =
+        getDragEventClientPoint(event)
       // 阶段 8-b 的悬停反馈。⚠ 直接改 class 不进 React state —— 与咬合预览同款
       // 纪律（每帧 setState 会让整棵画布重渲，那正是 2026-07-18「拖动手感钝」
       // 那次的根因）。
       if (resolveRosterDropIntent(node)) {
-        moveRosterDragGhost(
-          rosterGhostElRef.current,
-          event.clientX,
-          event.clientY,
-        )
-        const hit = findRosterCardAt(event.clientX, event.clientY)
+        moveRosterDragGhost(rosterGhostElRef.current, dragClientX, dragClientY)
+        const hit = findRosterCardAt(dragClientX, dragClientY)
         if (hit !== rosterHoverElRef.current) {
           rosterHoverElRef.current?.classList.remove(ROSTER_CARD_HOVER_CLASS)
           hit?.classList.add(ROSTER_CARD_HOVER_CLASS)
@@ -3881,8 +3950,8 @@ function StudioNodeCanvas() {
       // stashed synchronously here; the actual hit-test (cache-only, see
       // `processCanvasDragHoverPreview`) runs at most once per frame.
       pendingDragPointerRef.current = {
-        clientX: event.clientX,
-        clientY: event.clientY,
+        clientX: dragClientX,
+        clientY: dragClientY,
         node,
       }
       if (dragRafIdRef.current !== null) return
@@ -3952,10 +4021,11 @@ function StudioNodeCanvas() {
    * @returns 这一拖是否被名册卡吃掉了（吃掉就不再往下走吞噬那条）。
    */
   const handleRosterDrop = useCallback(
-    (event: ReactMouseEvent, node: NodeWorkflowNode): boolean => {
+    (event: MouseEvent | TouchEvent, node: NodeWorkflowNode): boolean => {
       const intent = resolveRosterDropIntent(node)
       if (!intent) return false
-      const cardEl = findRosterCardAt(event.clientX, event.clientY)
+      const { clientX, clientY } = getDragEventClientPoint(event)
+      const cardEl = findRosterCardAt(clientX, clientY)
       const cardId = cardEl?.getAttribute(ROSTER_CARD_ATTR)
       if (!cardEl || !cardId) return false
       cardEl.classList.remove(ROSTER_CARD_HOVER_CLASS)
@@ -4033,7 +4103,7 @@ function StudioNodeCanvas() {
   )
 
   const handleNodeDragStop = useCallback(
-    (event: ReactMouseEvent, node: NodeWorkflowNode) => {
+    (event: MouseEvent | TouchEvent, node: NodeWorkflowNode) => {
       workflow.onNodesChange([{ id: node.id, type: 'select', selected: false }])
       // 拖拽结束，名册卡的悬停高亮无论如何都要摘掉 —— 一个留在原地的高亮框
       // 会让下一次拖拽看起来「已经命中」。
@@ -4424,7 +4494,8 @@ function StudioNodeCanvas() {
       setQuickEditNodeId,
       toolMode,
       setToolMode,
-      expandedNodeId,
+      // 派生值：节点没了就发 null，下游不会拿着悬空 id 以为面板还开着。
+      expandedNodeId: openNodeId,
       setExpandedNodeId,
       heavyOverlayOpen,
       setImageEditWorkspaceOpen,
@@ -4442,7 +4513,7 @@ function StudioNodeCanvas() {
       consumePendingPasteFile,
     }),
     [
-      expandedNodeId,
+      openNodeId,
       heavyOverlayOpen,
       setImageEditWorkspaceOpen,
       transientLayerOpen,
@@ -4744,7 +4815,22 @@ function StudioNodeCanvas() {
               screenPosition={addMenu?.menuPosition ?? null}
               onSelect={handleAddNode}
               onUpload={handleAddMenuUpload}
+              onPickFromLibrary={handleAddMenuPickFromLibrary}
               onClose={closeAddMenu}
+            />
+            {/* 「从素材库选择」——多选，一次落一批（成批落位见
+                `handlePickAssetsFromLibrary` 头注）。 */}
+            <AssetSelectorDialog
+              open={libraryPickerAnchor !== null}
+              onOpenChange={(next) => {
+                if (!next) setLibraryPickerAnchor(null)
+              }}
+              multiSelect
+              mediaType="image"
+              maxSelection={NODE_STUDIO_NODE_PLACEMENT.libraryPick.maxSelection}
+              onConfirmMany={handlePickAssetsFromLibrary}
+              title={t('addCatalog.pickFromLibraryTitle')}
+              description={t('addCatalog.pickFromLibraryDescription')}
             />
             {/* 台账 #26：添加菜单「上传图片」主行的隐藏 file input——菜单
                 关掉后仍要在场接住系统对话框的 change，所以挂宿主不挂菜单。 */}
@@ -4757,7 +4843,7 @@ function StudioNodeCanvas() {
               onChange={handleAddUploadChange}
             />
             <NodeDetailPanel
-              expandedNodeId={expandedNodeId}
+              expandedNodeId={openNodeId}
               onClose={() => setExpandedNodeId(null)}
             />
           </div>

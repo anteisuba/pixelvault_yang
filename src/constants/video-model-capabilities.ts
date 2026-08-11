@@ -33,6 +33,14 @@ const SEED_CAPABLE_SEEDANCE: ReadonlySet<string> = new Set([
   AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+  AI_MODELS.SEEDANCE_20_BYTEPLUS,
+  AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS,
+  AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS,
+  AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS,
+  AI_MODELS.SEEDANCE_25_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25_BYTEPLUS,
+  AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS,
 ])
 
 export function videoModelSupportsSeed(
@@ -124,6 +132,28 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
     audio: { mode: 'reference', maxReferences: 3 },
   },
+  [AI_MODELS.SEEDANCE_20_BYTEPLUS]: {
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: ['480p', '720p', '1080p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
+  [AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS]: {
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
+  [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: {
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: ['480p', '720p', '1080p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    audio: { mode: 'reference', maxReferences: 3 },
+  },
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]: {
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    audio: { mode: 'reference', maxReferences: 3 },
+  },
   [AI_MODELS.HAPPYHORSE_10]: {
     supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     supportedResolutions: ['720p', '1080p'],
@@ -167,6 +197,11 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
   // 「Seedance 2.0 系列: [4,15] 或设置为 -1 / **Seedance 2.5: [4,30] 或 -1**」。
   // 480p/720p 是全部档位，2.5 没有 1080p/4k（4k 仅 2.0 独有）。
   // ⚠ 时长比 2.0 长一倍，别把这份数组和 2.0 那几行合并去重。
+  [AI_MODELS.SEEDANCE_25]: {
+    supportedDurations: SEEDANCE_25_DURATIONS,
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
   [AI_MODELS.SEEDANCE_25_VOLCENGINE]: {
     supportedDurations: SEEDANCE_25_DURATIONS,
     supportedResolutions: ['480p', '720p'],
@@ -175,6 +210,23 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
   // maxReferences 10（不是 2.0 的 3）：官方「使用限制」段写明 2.5 最多传入 10
   // 段参考音频、总时长 ≤30s，而 2.0 系列是 3 段 / ≤15s。
   [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: {
+    supportedDurations: SEEDANCE_25_DURATIONS,
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    audio: { mode: 'reference', maxReferences: 10 },
+  },
+  [AI_MODELS.SEEDANCE_25_REFERENCE]: {
+    supportedDurations: SEEDANCE_25_DURATIONS,
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    audio: { mode: 'reference', maxReferences: 10 },
+  },
+  [AI_MODELS.SEEDANCE_25_BYTEPLUS]: {
+    supportedDurations: SEEDANCE_25_DURATIONS,
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
+  [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: {
     supportedDurations: SEEDANCE_25_DURATIONS,
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],

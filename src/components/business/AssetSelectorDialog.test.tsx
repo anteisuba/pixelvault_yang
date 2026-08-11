@@ -12,9 +12,20 @@ vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: vi.fn(() => false),
 }))
 
-vi.mock('@/components/business/KreaAssetBrowser', () => ({
-  KreaAssetBrowser: ({ mediaType }: { mediaType?: string }) => (
-    <div data-testid="asset-browser" data-media-type={mediaType} />
+// picker 现在是自己的任务型 shell（page §8），不再复用整个素材页组件。
+vi.mock('@/components/business/assets/AssetPickerBrowser', () => ({
+  AssetPickerBrowser: ({
+    mediaType,
+    mode,
+  }: {
+    mediaType?: string
+    mode?: string
+  }) => (
+    <div
+      data-testid="asset-browser"
+      data-media-type={mediaType}
+      data-mode={mode}
+    />
   ),
 }))
 

@@ -203,7 +203,8 @@
       "opensource": "开源",
       "replicate": "Replicate",
       "runner": "PixelVault Runner",
-      "hyper3d": "Hyper3D"
+      "hyper3d": "Hyper3D",
+      "byteplus": "BytePlus"
     },
     "styleGroups": {
       "photorealistic": "写实摄影",
@@ -2202,9 +2203,56 @@
     "detailDeleted": "已删除",
     "detailDeleteFailed": "删除失败",
     "densityLabel": "网格密度",
-    "densityComfortable": "宽松",
-    "densityNormal": "标准",
-    "densityCompact": "紧凑",
+    "densitySmall": "小行高",
+    "densityMedium": "中行高",
+    "densityLarge": "大行高",
+    "sectionAllAssets": "全部素材",
+    "facetType": "类型",
+    "facetStatus": "状态",
+    "facetModel": "模型",
+    "facetTime": "时间",
+    "facetSort": "排序",
+    "facetSelectedCount": "{name} {count}",
+    "facetClearAll": "清除全部筛选",
+    "facetRemove": "移除筛选「{name}」",
+    "facetModelSearch": "搜索模型",
+    "facetModelEmpty": "没有匹配的模型",
+    "facetTimeToday": "今天",
+    "facetTimeWeek": "7 天",
+    "facetTimeMonth": "30 天",
+    "facetTimeYear": "今年",
+    "facetSortNewest": "最新",
+    "facetSortOldest": "最早",
+    "searchAssetsFor": "搜索素材：{query}",
+    "badge3D": "3D",
+    "folderMoreCount": "+{count}",
+    "folderViewAll": "查看全部",
+    "uploadQueueTitle": "上传队列",
+    "uploadQueueSummary": "{total} 项 · {done} 完成 · {failed} 失败",
+    "uploadQueueTarget": "上传到「{folder}」",
+    "uploadQueueReveal": "查看",
+    "uploadQueueRetry": "重试",
+    "uploadQueueRemove": "移除",
+    "uploadQueueRetryAll": "全部重试",
+    "uploadQueueClearDone": "清除已完成",
+    "uploadQueueProgress": "已上传 {percent}%",
+    "uploadDropHintSub": "之后还能在队列里改落夹目标",
+    "emptyFolderTitle": "「{folder}」里还没有素材",
+    "emptyFolderHint": "把素材拖到门牌上，或在选择模式里批量移动进来。",
+    "emptyFolderUpload": "上传到此文件夹",
+    "emptySearchTitle": "当前口径下没有素材",
+    "errorKeepsLoaded": "已加载的内容不会丢失，重试后从中断处继续。",
+    "errorRetry": "重试",
+    "pickerNavViews": "智能视图",
+    "pickerNavRecent": "最近用过",
+    "pickerNavToggle": "切换文件夹栏",
+    "pickerMaxReachedInline": "最多只能选 {max} 张，先取消一张再选",
+    "selectHint": "先选择素材 · Shift 点击可选一段",
+    "bulkMoveUndo": "撤销",
+    "bulkMoveUndone": "已撤销移动",
+    "moveRecentGroup": "最近移入过",
+    "moveOutGroup": "移出",
+    "moveCreateAndMove": "新建文件夹并移入…",
     "detailSetCover": "设封面",
     "detailCoverDialogTitle": "选择封面图片",
     "detailCoverDialogDescription": "从素材库中选择一张图片作为该音频的封面。",
@@ -2534,6 +2582,10 @@
       "runner": {
         "label": "PixelVault Runner",
         "description": "自建 RunPod ComfyUI runner，用于忠实复刻 Civitai 来源图配方。平台托管，用户不可配置。"
+      },
+      "byteplus": {
+        "label": "BytePlus",
+        "description": "使用 BytePlus ModelArk 国际站的 Seedance 视频模型；API Key 与火山方舟国内站不通用。"
       }
     },
     "summary": {
@@ -3332,6 +3384,38 @@
     "qwen3VlPlus": {
       "label": "通义千问3 VL Plus",
       "description": "支持视觉的通义千问模型，适合图片反推与图内文字识别，中文理解强。"
+    },
+    "seedance20Byteplus": {
+      "label": "Seedance 2.0（BytePlus）",
+      "description": "通过 BytePlus ModelArk 国际站调用 Seedance 2.0，支持原生音频，时长 4–15 秒。"
+    },
+    "seedance20FastByteplus": {
+      "label": "Seedance 2.0 Fast（BytePlus）",
+      "description": "通过 BytePlus ModelArk 国际站调用的 Seedance 2.0 快速版，支持原生音频。"
+    },
+    "seedance20ReferenceByteplus": {
+      "label": "Seedance 2.0 参考（BytePlus）",
+      "description": "通过 BytePlus ModelArk 国际站进行多模态参考视频生成，支持声音参考。"
+    },
+    "seedance20FastReferenceByteplus": {
+      "label": "Seedance 2.0 Fast 参考（BytePlus）",
+      "description": "通过 BytePlus ModelArk 国际站进行快速多模态参考视频生成。"
+    },
+    "seedance25": {
+      "label": "Seedance 2.5（fal.ai）",
+      "description": "通过 fal.ai 调用 Seedance 2.5，支持 480p/720p 与 4–30 秒视频。"
+    },
+    "seedance25Reference": {
+      "label": "Seedance 2.5 参考（fal.ai）",
+      "description": "fal.ai 的多模态参考端点，最多 30 图 / 10 视频 / 10 音频。"
+    },
+    "seedance25Byteplus": {
+      "label": "Seedance 2.5（BytePlus）",
+      "description": "通过 BytePlus ModelArk 国际站调用 Seedance 2.5，支持 480p/720p 与 4–30 秒视频。"
+    },
+    "seedance25ReferenceByteplus": {
+      "label": "Seedance 2.5 参考（BytePlus）",
+      "description": "BytePlus 国际站的多模态参考视频生成，最多 30 图 / 10 视频 / 10 音频。"
     }
   },
   "PromptPresets": {
@@ -3819,7 +3903,10 @@
         }
       },
       "cast": "卡匣",
-      "upload": "上传图片"
+      "upload": "上传图片",
+      "pickFromLibrary": "从素材库选择",
+      "pickFromLibraryTitle": "从素材库选择图片",
+      "pickFromLibraryDescription": "从你的素材库里挑图片放到画布上，可多选。"
     },
     "statuses": {
       "idle": "空闲",
@@ -4266,7 +4353,8 @@
       },
       "provider": {
         "fal": "fal",
-        "volcengine": "火山方舟"
+        "volcengine": "火山方舟",
+        "byteplus": "BytePlus"
       },
       "referenceModeOn": "已连接参考输入，自动使用参考模型。",
       "sidecar": {

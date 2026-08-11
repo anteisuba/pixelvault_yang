@@ -187,7 +187,7 @@ export const VoiceNode = memo(function VoiceNode(
   // (the <audio> element's own src just changed, resetting ITS playback
   // state outside React), not derivable from this component's render inputs.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
+     
     setIsPlaying(false)
     setProgress(0)
   }, [sendableAudioUrl])
@@ -215,7 +215,7 @@ export const VoiceNode = memo(function VoiceNode(
       showTargetHandle={false}
       toolbarData={data}
       className={cn(
-        'overflow-hidden canvas-card--w-fixed canvas-voice-card',
+        'canvas-card--w-fixed canvas-voice-card',
         cardState === 'empty' && 'canvas-card--dashed',
       )}
     >
@@ -228,7 +228,7 @@ export const VoiceNode = memo(function VoiceNode(
         hideStatusBadge
       />
 
-      <div className="flex">
+      <div className="flex overflow-hidden rounded-[inherit]">
         <div
           className="canvas-voice-cover"
           data-scrim={cardState === 'empty' ? undefined : 'true'}
@@ -242,6 +242,7 @@ export const VoiceNode = memo(function VoiceNode(
               src={coverUrl}
               alt=""
               className="size-full object-cover"
+              draggable={false}
               onError={() => setErroredCover(cover ?? null)}
             />
           ) : (

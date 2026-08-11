@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type CSSProperties,
   type ReactNode,
 } from 'react'
 import {
@@ -79,6 +80,7 @@ interface NodeShellRootProps {
   isCollector?: boolean
   /** Extra classes on the card root — e.g. an override width when expanded. */
   className?: string
+  style?: CSSProperties
 }
 
 interface NodeShellHeaderProps {
@@ -392,6 +394,7 @@ function NodeShellRoot({
   showTargetHandle = true,
   isCollector,
   className,
+  style,
 }: NodeShellRootProps) {
   // R3-7 §7 red line: suppress this card's own single-node toolbar while a
   // multi-select is active, so it can never overlap the selection-bounding-
@@ -415,6 +418,7 @@ function NodeShellRoot({
       data-node-type={type}
       data-selected={selected ? 'true' : undefined}
       data-status={status}
+      style={style}
       className={cn(
         // S1（2026-07-26）：`canvas-card` 是画布域皮肤 v0.2 的卡框（canvas.css），
         // 特异度 0,2,0 高于下面的 Tailwind 工具类，所以背景/圆角/边/投影由它接管。

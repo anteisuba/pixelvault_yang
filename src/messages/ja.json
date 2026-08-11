@@ -203,7 +203,8 @@
       "opensource": "オープンソース",
       "replicate": "Replicate",
       "runner": "PixelVault Runner",
-      "hyper3d": "Hyper3D"
+      "hyper3d": "Hyper3D",
+      "byteplus": "BytePlus"
     },
     "styleGroups": {
       "photorealistic": "フォトリアル",
@@ -2202,9 +2203,56 @@
     "detailDeleted": "削除しました",
     "detailDeleteFailed": "削除に失敗しました",
     "densityLabel": "グリッド密度",
-    "densityComfortable": "ゆったり",
-    "densityNormal": "標準",
-    "densityCompact": "コンパクト",
+    "densitySmall": "小さい行",
+    "densityMedium": "標準の行",
+    "densityLarge": "大きい行",
+    "sectionAllAssets": "すべての素材",
+    "facetType": "種類",
+    "facetStatus": "状態",
+    "facetModel": "モデル",
+    "facetTime": "期間",
+    "facetSort": "並び替え",
+    "facetSelectedCount": "{name} {count}",
+    "facetClearAll": "すべての絞り込みを解除",
+    "facetRemove": "絞り込み「{name}」を解除",
+    "facetModelSearch": "モデルを検索",
+    "facetModelEmpty": "一致するモデルがありません",
+    "facetTimeToday": "今日",
+    "facetTimeWeek": "7日間",
+    "facetTimeMonth": "30日間",
+    "facetTimeYear": "今年",
+    "facetSortNewest": "新しい順",
+    "facetSortOldest": "古い順",
+    "searchAssetsFor": "素材を検索：{query}",
+    "badge3D": "3D",
+    "folderMoreCount": "+{count}",
+    "folderViewAll": "すべて表示",
+    "uploadQueueTitle": "アップロードキュー",
+    "uploadQueueSummary": "{total} 件 · {done} 完了 · {failed} 失敗",
+    "uploadQueueTarget": "「{folder}」にアップロード",
+    "uploadQueueReveal": "表示",
+    "uploadQueueRetry": "再試行",
+    "uploadQueueRemove": "削除",
+    "uploadQueueRetryAll": "すべて再試行",
+    "uploadQueueClearDone": "完了分を消す",
+    "uploadQueueProgress": "アップロード {percent}%",
+    "uploadDropHintSub": "保存先フォルダはあとでキューから変更できます",
+    "emptyFolderTitle": "「{folder}」にはまだ素材がありません",
+    "emptyFolderHint": "素材をプレートにドラッグするか、選択モードからまとめて移動してください。",
+    "emptyFolderUpload": "このフォルダにアップロード",
+    "emptySearchTitle": "この条件に一致する素材はありません",
+    "errorKeepsLoaded": "読み込み済みの内容は失われません。再試行すると続きから読み込みます。",
+    "errorRetry": "再試行",
+    "pickerNavViews": "ビュー",
+    "pickerNavRecent": "最近使った",
+    "pickerNavToggle": "フォルダ欄の表示切替",
+    "pickerMaxReachedInline": "最大 {max} 枚です。1 枚外してください",
+    "selectHint": "素材を選択 · Shift クリックで範囲選択",
+    "bulkMoveUndo": "元に戻す",
+    "bulkMoveUndone": "移動を元に戻しました",
+    "moveRecentGroup": "最近移動したフォルダ",
+    "moveOutGroup": "取り出す",
+    "moveCreateAndMove": "新しいフォルダを作って移動…",
     "detailSetCover": "カバーを設定",
     "detailCoverDialogTitle": "カバー画像を選択",
     "detailCoverDialogDescription": "素材ライブラリから画像を選んでこの音声のカバーにします。",
@@ -2534,6 +2582,10 @@
       "runner": {
         "label": "PixelVault Runner",
         "description": "忠実な Civitai レシピ複製のための自己ホスト型 RunPod ComfyUI ランナー。プラットフォーム管理型で、ユーザー設定はできません。"
+      },
+      "byteplus": {
+        "label": "BytePlus",
+        "description": "Seedance 動画向けの BytePlus ModelArk 国際リージョン。API キーは中国版 VolcEngine と共有されません。"
       }
     },
     "summary": {
@@ -3332,6 +3384,38 @@
     "qwen3VlPlus": {
       "label": "Qwen3 VL Plus",
       "description": "画像解析や画像内テキストに対応するビジョン対応 Qwen モデル。中国語理解が強力。"
+    },
+    "seedance20Byteplus": {
+      "label": "Seedance 2.0（BytePlus）",
+      "description": "BytePlus ModelArk 国際リージョン経由の Seedance 2.0。ネイティブ音声、4～15秒に対応。"
+    },
+    "seedance20FastByteplus": {
+      "label": "Seedance 2.0 Fast（BytePlus）",
+      "description": "BytePlus ModelArk 国際リージョン経由の高速版。ネイティブ音声に対応。"
+    },
+    "seedance20ReferenceByteplus": {
+      "label": "Seedance 2.0（参照・BytePlus）",
+      "description": "BytePlus ModelArk 経由の参照動画生成。音声参照に対応。"
+    },
+    "seedance20FastReferenceByteplus": {
+      "label": "Seedance 2.0 Fast（参照・BytePlus）",
+      "description": "BytePlus ModelArk 経由の高速な参照動画生成。"
+    },
+    "seedance25": {
+      "label": "Seedance 2.5（fal.ai）",
+      "description": "fal.ai 経由の Seedance 2.5。480p/720p、4〜30 秒に対応。"
+    },
+    "seedance25Reference": {
+      "label": "Seedance 2.5（参照・fal.ai）",
+      "description": "fal.ai のマルチモーダル参照エンドポイント。最大 30 画像 / 10 動画 / 10 音声。"
+    },
+    "seedance25Byteplus": {
+      "label": "Seedance 2.5（BytePlus）",
+      "description": "BytePlus ModelArk 国際リージョン経由の Seedance 2.5。480p/720p、4〜30 秒に対応。"
+    },
+    "seedance25ReferenceByteplus": {
+      "label": "Seedance 2.5（参照・BytePlus）",
+      "description": "BytePlus 国際リージョンのマルチモーダル参照生成。最大 30 画像 / 10 動画 / 10 音声。"
     }
   },
   "PromptPresets": {
@@ -3819,7 +3903,10 @@
         }
       },
       "cast": "キャスト匣",
-      "upload": "画像をアップロード"
+      "upload": "画像をアップロード",
+      "pickFromLibrary": "素材ライブラリから選ぶ",
+      "pickFromLibraryTitle": "ライブラリから画像を選ぶ",
+      "pickFromLibraryDescription": "素材ライブラリの画像をキャンバスに配置します。複数選択できます。"
     },
     "statuses": {
       "idle": "待機中",
@@ -4266,7 +4353,8 @@
       },
       "provider": {
         "fal": "fal",
-        "volcengine": "VolcEngine"
+        "volcengine": "VolcEngine",
+        "byteplus": "BytePlus"
       },
       "referenceModeOn": "参照入力が接続されています — 参照モデルを使用します。",
       "sidecar": {

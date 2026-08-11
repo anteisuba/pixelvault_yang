@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { toastError } from '@/lib/toast'
 import type { GalleryFilters } from '@/hooks/use-gallery'
-import type { OutputTypeFilter } from '@/types'
+import type { OutputTypeValue } from '@/types'
 
 const ALL_MODELS_VALUE = '__all__'
 
@@ -35,7 +35,7 @@ interface GalleryAdvancedFiltersProps {
   filters: GalleryFilters
   onChange: (patch: Partial<GalleryFilters>) => void
   onClose: () => void
-  type: OutputTypeFilter
+  type: OutputTypeValue | 'all'
 }
 
 export const GalleryAdvancedFilters = memo(function GalleryAdvancedFilters({
@@ -60,9 +60,9 @@ export const GalleryAdvancedFilters = memo(function GalleryAdvancedFilters({
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/40 bg-muted/20 px-4 py-3">
       {/* Model filter */}
       <Select
-        value={filters.model || ALL_MODELS_VALUE}
+        value={filters.models[0] ?? ALL_MODELS_VALUE}
         onValueChange={(v) =>
-          onChange({ model: v === ALL_MODELS_VALUE ? '' : v })
+          onChange({ models: v === ALL_MODELS_VALUE ? [] : [v] })
         }
       >
         <SelectTrigger className="h-8 w-44 text-xs">

@@ -19,6 +19,8 @@ import { ensureUser } from '@/services/user.service'
 
 const AssetsPageSearchSchema = GallerySearchSchema.extend({
   generationId: z.string().trim().max(64).optional(),
+  /** `?view=folders` = 文件夹总览页（治理 2）。刷新/分享都落回同一页。 */
+  view: z.enum(['library', 'folders']).optional(),
 })
 
 interface AssetsPageProps {
@@ -31,6 +33,7 @@ interface AssetsPageProps {
     projectId?: string
     published?: string
     generationId?: string
+    view?: string
   }>
 }
 
@@ -59,19 +62,15 @@ export default async function AssetsPage({
   void _locale
   const rawSearchParams = await searchParams
   const filterResult = AssetsPageSearchSchema.safeParse(rawSearchParams)
-  const shouldDefaultToImages =
-    !rawSearchParams.type &&
-    !rawSearchParams.search &&
-    !rawSearchParams.model &&
-    !rawSearchParams.projectId &&
-    !rawSearchParams.published &&
-    !rawSearchParams.generationId
+  // ⭐ 初始状态 = 全部素材、不限类型（page §3.1：「不选就是全部」，
+  // 图片默认不点击）。以前这里会在无参时强制 type=image，等于替用户
+  // 先按了一个分面。
   const initialFilters = filterResult.success
     ? {
         search: filterResult.data.search ?? '',
-        model: filterResult.data.model ?? '',
+        models: filterResult.data.model,
         sort: filterResult.data.sort,
-        type: shouldDefaultToImages ? 'image' : filterResult.data.type,
+        types: filterResult.data.type,
         timeRange: filterResult.data.timeRange,
         liked: false,
         published: filterResult.data.published === '1',
@@ -79,9 +78,9 @@ export default async function AssetsPage({
       }
     : {
         search: '',
-        model: '',
+        models: [],
         sort: 'newest' as const,
-        type: 'image' as const,
+        types: [],
         timeRange: 'all' as const,
         liked: false,
         published: false,
@@ -254,9 +253,9 @@ export default async function AssetsPage({
     page: PAGINATION.DEFAULT_PAGE,
     limit: PAGINATION.DEFAULT_LIMIT,
     search: initialFilters.search || undefined,
-    model: initialFilters.model || undefined,
+    model: initialFilters.models,
     sort: initialFilters.sort,
-    type: initialFilters.type,
+    type: initialFilters.types,
     published: initialFilters.published,
     userId: user.id,
     projectId: initialFilters.projectId || undefined,
@@ -272,6 +271,11 @@ export default async function AssetsPage({
       initialTotal={filteredTotal}
       initialFilters={initialFilters}
       initialSelectedGeneration={initialSelectedGeneration}
+      initialView={
+        filterResult.success && filterResult.data.view === 'folders'
+          ? 'folders'
+          : 'library'
+      }
     />
   )
 }

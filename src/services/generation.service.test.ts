@@ -787,8 +787,8 @@ describe('generation.service', () => {
       mockGenerationCount.mockResolvedValue(4)
 
       const result = await countPublicGenerations({
-        model: 'sdxl',
-        type: 'image',
+        model: ['sdxl'],
+        type: ['image'],
         likedByUserId: 'viewer-1',
         published: true,
       })
@@ -797,8 +797,8 @@ describe('generation.service', () => {
       expect(mockGenerationCount).toHaveBeenCalledWith({
         where: {
           isPublic: true,
-          model: 'sdxl',
-          outputType: 'IMAGE',
+          model: { in: ['sdxl'] },
+          outputType: { in: ['IMAGE'] },
           likes: { some: { userId: 'viewer-1' } },
         },
       })
@@ -827,6 +827,11 @@ describe('generation.service', () => {
           { projectId: 'proj-a', _count: { _all: 5 } },
           { projectId: 'proj-b', _count: { _all: 3 } },
         ])
+        // byModel —— 「模型」分面的选项表
+        .mockResolvedValueOnce([
+          { model: 'sdxl', _count: { _all: 9 } },
+          { model: 'seedream-4', _count: { _all: 3 } },
+        ])
       mockGenerationCount.mockResolvedValueOnce(6)
       mockGenerationCount.mockResolvedValueOnce(8)
 
@@ -844,6 +849,10 @@ describe('generation.service', () => {
         byProject: {
           'proj-a': 5,
           'proj-b': 3,
+        },
+        byModel: {
+          sdxl: 9,
+          'seedream-4': 3,
         },
       })
       expect(mockGenerationGroupBy).toHaveBeenNthCalledWith(1, {
@@ -865,7 +874,10 @@ describe('generation.service', () => {
     })
 
     it('returns zeroed buckets when the user has no generations', async () => {
-      mockGenerationGroupBy.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+      mockGenerationGroupBy
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
       mockGenerationCount.mockResolvedValueOnce(0)
       mockGenerationCount.mockResolvedValueOnce(0)
 
@@ -879,6 +891,7 @@ describe('generation.service', () => {
         model_3d: 0,
         unassigned: 0,
         byProject: {},
+        byModel: {},
       })
     })
 
@@ -894,10 +907,12 @@ describe('generation.service', () => {
           { projectId: null, _count: { _all: 2 } },
           { projectId: 'proj-a', _count: { _all: 5 } },
         ])
+        // byModel 同样跟着类型口径走
+        .mockResolvedValueOnce([{ model: 'sdxl', _count: { _all: 7 } }])
       mockGenerationCount.mockResolvedValueOnce(2) // favorites ∩ image
       mockGenerationCount.mockResolvedValueOnce(3) // published ∩ image
 
-      const counts = await getAssetSectionCounts('user-1', 'image')
+      const counts = await getAssetSectionCounts('user-1', ['image'])
 
       expect(counts).toEqual({
         all: 7, // image total, not the grand total across types
@@ -909,22 +924,32 @@ describe('generation.service', () => {
         model_3d: 0,
         unassigned: 2,
         byProject: { 'proj-a': 5 },
+        byModel: { sdxl: 7 },
       })
-      // byProject / favorites / published carry the type scope
+      // byProject / byModel / favorites / published carry the type scope
       expect(mockGenerationGroupBy).toHaveBeenNthCalledWith(2, {
         by: ['projectId'],
-        where: { userId: 'user-1', outputType: 'IMAGE' },
+        where: { userId: 'user-1', outputType: { in: ['IMAGE'] } },
+        _count: { _all: true },
+      })
+      expect(mockGenerationGroupBy).toHaveBeenNthCalledWith(3, {
+        by: ['model'],
+        where: { userId: 'user-1', outputType: { in: ['IMAGE'] } },
         _count: { _all: true },
       })
       expect(mockGenerationCount).toHaveBeenCalledWith({
         where: {
           userId: 'user-1',
           likes: { some: { userId: 'user-1' } },
-          outputType: 'IMAGE',
+          outputType: { in: ['IMAGE'] },
         },
       })
       expect(mockGenerationCount).toHaveBeenCalledWith({
-        where: { userId: 'user-1', isPublic: true, outputType: 'IMAGE' },
+        where: {
+          userId: 'user-1',
+          isPublic: true,
+          outputType: { in: ['IMAGE'] },
+        },
       })
     })
   })

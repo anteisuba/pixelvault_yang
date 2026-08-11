@@ -25,9 +25,9 @@ const mockUseGallery = vi.mocked(useGallery)
 
 const DEFAULT_FILTERS: GalleryFilters = {
   search: '',
-  model: '',
+  models: [],
   sort: 'newest',
-  type: 'all',
+  types: [],
   timeRange: 'all',
   liked: false,
   published: false,
@@ -101,6 +101,9 @@ function mockGalleryState(
     isLoading: false,
     hasMore: false,
     error: null,
+    appendError: null,
+    retry: vi.fn(),
+    retryLoadMore: vi.fn(),
     filters: DEFAULT_FILTERS,
     setFilters,
     loadMore: vi.fn(),
@@ -149,8 +152,8 @@ describe('GalleryFeed', () => {
     )
     expect(setFilters).toHaveBeenCalledWith({
       ...DEFAULT_FILTERS,
-      type: 'video',
-      model: '',
+      types: ['video'],
+      models: [],
     })
   })
 
@@ -174,9 +177,9 @@ describe('GalleryFeed', () => {
     )
     expect(setFilters).toHaveBeenCalledWith({
       search: '',
-      model: '',
+      models: [],
       sort: 'newest',
-      type: 'all',
+      types: [],
       timeRange: 'all',
       liked: false,
       published: false,

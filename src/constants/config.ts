@@ -430,6 +430,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   REPLICATE: 'https://api.replicate.com/v1',
   NOVELAI: 'https://image.novelai.net',
   VOLCENGINE: 'https://ark.cn-beijing.volces.com/api/v3',
+  BYTEPLUS: 'https://ark.ap-southeast.bytepluses.com/api/v3',
   FISH_AUDIO: 'https://api.fish.audio',
   FISH_AUDIO_ASSETS: 'https://public-platform.r2.fish.audio',
   HYPER3D: 'https://api.hyper3d.com',

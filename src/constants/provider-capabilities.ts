@@ -210,6 +210,10 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       referenceImageMode: 'native',
     },
 
+    [AI_ADAPTER_TYPES.BYTEPLUS]: {
+      capabilities: [],
+    },
+
     // Video-only route. This table drives the **image** parameter controls, and
     // H3 generates no images — hence empty, same as the LLM-only lines below.
     [AI_ADAPTER_TYPES.MINIMAX]: {
@@ -441,11 +445,7 @@ export function getReferenceImageMode(
 }
 
 export type CapabilityFieldType =
-  | 'slider'
-  | 'select'
-  | 'textarea'
-  | 'seed'
-  | 'lora'
+  'slider' | 'select' | 'textarea' | 'seed' | 'lora'
 
 /** Map a user-configurable capability to its field type for data-driven rendering */
 export function getCapabilityFieldType(

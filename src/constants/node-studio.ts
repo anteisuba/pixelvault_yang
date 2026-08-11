@@ -784,6 +784,17 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     rowOffsetY: 440,
     columns: 3,
   },
+  // 右键菜单「从素材库选择」一次可落一批（owner 2026-08-11）。⚠ **必须成批
+  // 落位**：按序号算格子，而不是每次去读「已有上游数」——`workflow.nodes` 是
+  // 本次渲染的快照，同一批里连着建 N 个时它一直是旧值，N 个节点会算出**完全
+  // 相同的坐标、精确重叠**（用户看到的是「我明明选了 3 张，怎么只多了 1 个」）。
+  // 与助手批量/图像派生同一套网格尺度；上限 = 一整屏 3×3。
+  libraryPick: {
+    columnOffsetX: 440,
+    rowOffsetY: 440,
+    columns: 3,
+    maxSelection: 9,
+  },
   // Image edits never replace their source. A single result lands to the
   // source's right; multi-output edits (for example decompose) fan out into a
   // compact grid so the entire batch remains one spatial/undo operation.

@@ -3,30 +3,40 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CheckCircle2,
-  ChevronDown,
-  Circle,
-  Folder,
   FolderInput,
-  FolderOpen,
-  FolderX,
   Globe,
   Heart,
   Image as ImageIcon,
-  Lock,
-  Mic,
-  Plus,
-  Box,
   Trash2,
   UploadCloud,
-  Video,
   X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import NextImage from 'next/image'
 import { toast } from 'sonner'
 
 import { AssetDetailSheet } from '@/components/business/AssetDetailSheet'
-import { AssetFolderTree } from '@/components/business/AssetFolderTree'
+import { AssetFacetBar } from '@/components/business/assets/AssetFacetBar'
+import {
+  AssetFolderBreadcrumb,
+  type BreadcrumbCrumb,
+} from '@/components/business/assets/AssetFolderBreadcrumb'
+import { AssetFolderOverview } from '@/components/business/assets/AssetFolderOverview'
+import { AssetFolderRail } from '@/components/business/assets/AssetFolderRail'
+import {
+  AssetMoveTargetPicker,
+  rememberMoveTarget,
+} from '@/components/business/assets/AssetMoveTargetPicker'
+import { AssetTile } from '@/components/business/assets/AssetTile'
+import {
+  AssetEmptyFolder,
+  AssetEmptyLibrary,
+  AssetEmptySearch,
+  AssetPageError,
+  AssetPaginationError,
+} from '@/components/business/assets/AssetStateBlocks'
+import { AssetUploadQueuePanel } from '@/components/business/assets/AssetUploadQueuePanel'
+import { AssetUploadTile } from '@/components/business/assets/AssetUploadTile'
+import { AssetSearchBox } from '@/components/business/assets/AssetSearchBox'
 import { toMediaTransitionOrigin } from '@/components/business/MediaDetailViewer'
 import {
   AlertDialog,
@@ -38,19 +48,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Spinner } from '@/components/ui/spinner'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
+import { useLocalPreference } from '@/hooks/use-local-preference'
+import {
+  useAssetUploadQueue,
+  type UploadQueueItem,
+  type UploadResult,
+} from '@/hooks/use-asset-upload-queue'
+import {
+  useAssetGridViewport,
+  useJustifiedGrid,
+} from '@/hooks/use-justified-grid'
 import { useProjects } from '@/hooks/use-projects'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
 import { ROUTES } from '@/constants/routes'
@@ -59,6 +71,19 @@ import {
   DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE,
   getAudioAssetPreviewImage,
 } from '@/constants/asset-previews'
+import {
+  ASSET_GRID_AUDIO_ASPECT_RATIO,
+  BULK_MOVE_UNDO_DURATION_MS,
+  ASSET_GRID_DEFAULT_DENSITY,
+  ASSET_GRID_DENSITIES,
+  ASSET_GRID_DENSITY_STORAGE_KEY,
+  ASSET_GRID_GAP,
+  ASSET_GRID_SKELETON_ASPECT_RATIOS,
+  ASSET_GRID_TARGET_ROW_HEIGHT,
+  ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO,
+  PROJECT_COVER_TILE_COUNT,
+  type AssetGridDensity,
+} from '@/constants/assets-grid'
 import {
   USER_UPLOAD_ACCEPTED_MIME_TYPES,
   CLIENT_UPLOAD_MAX_BYTES,
@@ -71,18 +96,20 @@ import {
   batchSetLikeAPI,
   batchUpdateVisibilityAPI,
   fetchAssetSectionCounts,
-  fetchGalleryImages,
 } from '@/lib/api-client/gallery'
 import { uploadImageFileAPI } from '@/lib/api-client/generation'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
+import { clearGalleryCache } from '@/lib/gallery-cache'
 import {
-  clearGalleryCache,
-  makeGalleryCacheKey,
-  readGalleryCache,
-  writeGalleryCache,
-} from '@/lib/gallery-cache'
-import { getGenerationThumbnailUrl } from '@/lib/generation-media'
+  DEFAULT_FOLDER_SORT_MODE,
+  FOLDER_SORT_STORAGE_KEY,
+  getChildFolders,
+  getFolderPath,
+  isFolderSortMode,
+  type FolderSortMode,
+} from '@/lib/folder-tree'
+import { toLayoutAspectRatio } from '@/lib/justified-layout'
 import { cn } from '@/lib/utils'
 import { isTouchPrimary } from '@/lib/touch'
 import type {
@@ -101,42 +128,19 @@ interface KreaAssetBrowserProps {
   initialNextCursor?: string | null
   initialTotal?: number
   initialFilters?: GalleryFilters
-  /**
-   * When provided, thumbnails become buttons that call onSelect instead of
-   * links into the gallery — used by AssetSelectorDialog so the Studio Image
-   * chip can pick a reference asset without navigating away.
-   */
-  onSelect?: (generation: GenerationRecord) => void
-  /**
-   * Picker multi-select mode (independent of the gallery's own bulk-ops
-   * selectionMode). When true: tile clicks toggle a selection set, bulk-op
-   * action bars (delete/publish/favorite/move) stay hidden, and a dedicated
-   * "Add N" confirmation bar appears at the bottom. Used by LoRA training
-   * to let users grab multiple assets in one go.
-   */
-  pickerMultiSelect?: boolean
-  /** Confirmation callback for picker multi-select. Receives the full
-   *  selected generations in click order. */
-  onPickerConfirmMany?: (generations: GenerationRecord[]) => void
-  /** Optional hard cap on the picker selection. Toggling beyond this limit
-   *  is rejected with a toast. Default: no limit. */
-  pickerMaxSelection?: number
-  /**
-   * Lock the browser to a single media type. The Tools sidebar group is
-   * hidden, sections always reset to this type instead of 'all', and
-   * initialFilters.type is overridden. Used by ReferenceImageChip so a
-   * caller asking for an *image* reference can never receive a video/audio
-   * asset (which would be silently dropped downstream by addFromUrl).
-   */
-  mediaType?: LockedMediaType
+  /** 首屏落在哪个视图 —— 由 `?view=folders` 决定（刷新不丢位置）。 */
+  initialView?: AssetsView
   className?: string
 }
 
+/** `library` = 大厅/夹内页（有网格）；`folders` = 文件夹总览页（只有门牌）。 */
+export type AssetsView = 'library' | 'folders'
+
 const DEFAULT_FILTERS: GalleryFilters = {
   search: '',
-  model: '',
+  models: [],
   sort: 'newest',
-  type: 'all',
+  types: [],
   timeRange: 'all',
   liked: false,
   published: false,
@@ -152,25 +156,13 @@ type Section =
   | { kind: 'unassigned' }
   | { kind: 'project'; id: string }
 
-type Density = 'comfortable' | 'normal' | 'compact'
-const DENSITIES: readonly Density[] = ['comfortable', 'normal', 'compact']
-const DENSITY_STORAGE_KEY = 'pv:assets:density'
-const DENSITY_GRID_CLASS: Record<Density, string> = {
-  comfortable: 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4',
-  normal: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6',
-  compact: 'grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8',
-}
-const DENSITY_IMAGE_SIZES: Record<Density, string> = {
-  comfortable: '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw',
-  normal: '(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw',
-  compact: '(max-width: 640px) 33vw, (max-width: 1024px) 16vw, 12vw',
-}
 const USER_UPLOAD_ACCEPT = USER_UPLOAD_ACCEPTED_MIME_TYPES.join(',')
-const DENSITY_XL_COLS: Record<Density, number> = {
-  comfortable: 4,
-  normal: 6,
-  compact: 8,
-}
+
+/** 网格里排的一格：素材瓦片，或 picker 首格的内联上传格。 */
+type GridItem =
+  | { kind: 'upload' }
+  | { kind: 'pending'; item: UploadQueueItem }
+  | { kind: 'asset'; generation: GenerationRecord }
 
 function getAudioPreviewCandidates(generation: GenerationRecord): string[] {
   const snapshot = isPlainObject(generation.snapshot)
@@ -203,27 +195,17 @@ function getSnapshotString(
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
-function isDensity(value: string | null): value is Density {
-  return value === 'comfortable' || value === 'normal' || value === 'compact'
+function isDensity(value: string | null): value is AssetGridDensity {
+  return (ASSET_GRID_DENSITIES as readonly string[]).includes(value ?? '')
 }
 
-function isMediaTypeFilter(
-  value: GalleryFilters['type'],
-): value is LockedMediaType {
-  return (
-    value === 'image' ||
-    value === 'video' ||
-    value === 'audio' ||
-    value === 'model_3d'
-  )
-}
-
-function getActiveMediaType(
-  filters: GalleryFilters,
-  lockedMediaType?: LockedMediaType,
-): LockedMediaType | null {
-  if (lockedMediaType) return lockedMediaType
-  return isMediaTypeFilter(filters.type) ? filters.type : null
+/**
+ * 用来判断「新素材还属不属于当前视图」的单一媒体类型。
+ * ⚠ 类型分面是可叠加的，选了两种以上就没有「唯一类型」可言 —— 那种情况下
+ * 返回 null，由 `shouldKeepAssetAfterPatch` 走 `types` 数组自己判。
+ */
+function getActiveMediaType(filters: GalleryFilters): LockedMediaType | null {
+  return filters.types.length === 1 ? filters.types[0] : null
 }
 
 function sectionFromFilters(filters: GalleryFilters): Section {
@@ -249,11 +231,14 @@ function outputTypeMatchesMediaType(
 function shouldKeepAssetAfterPatch(
   section: Section,
   generation: GenerationRecord,
-  activeMediaType: LockedMediaType | null,
+  /** 生效的类型分面；空数组 = 不限类型，什么都留得住。 */
+  allowedTypes: readonly LockedMediaType[],
 ): boolean {
   if (
-    activeMediaType &&
-    !outputTypeMatchesMediaType(generation.outputType, activeMediaType)
+    allowedTypes.length > 0 &&
+    !allowedTypes.some((type) =>
+      outputTypeMatchesMediaType(generation.outputType, type),
+    )
   ) {
     return false
   }
@@ -336,26 +321,22 @@ export function KreaAssetBrowser({
   initialNextCursor = null,
   initialTotal = 0,
   initialFilters = DEFAULT_FILTERS,
-  onSelect,
-  mediaType,
-  pickerMultiSelect = false,
-  onPickerConfirmMany,
-  pickerMaxSelection,
+  initialView = 'library',
   className,
 }: KreaAssetBrowserProps) {
   const t = useTranslations('AssetsPage')
   const tErrors = useTranslations('Errors')
 
-  const effectiveInitialFilters: GalleryFilters = mediaType
-    ? { ...initialFilters, type: mediaType }
-    : initialFilters
-
-  const isPickerMode = !!onSelect || pickerMultiSelect
+  const effectiveInitialFilters: GalleryFilters = initialFilters
   const {
     generations,
     total,
     isLoading,
     hasMore,
+    error: galleryError,
+    appendError,
+    retry: retryGallery,
+    retryLoadMore,
     sentinelRef,
     filters,
     setFilters,
@@ -405,28 +386,37 @@ export function KreaAssetBrowser({
     remove: removeProject,
   } = useProjects({ loadHistoryOnMount: false })
   const section = useMemo(() => sectionFromFilters(filters), [filters])
-  const activeMediaType = getActiveMediaType(filters, mediaType)
+  const activeMediaType = getActiveMediaType(filters)
+  /** 生效的类型口径 = 类型分面本身（空 = 不限）。 */
+  const scopedTypes: LockedMediaType[] = filters.types
 
   // Aggregate sidebar counts. One request per page load instead of one
   // per item — and the All count stays stable as the user filters down.
   const [counts, setCounts] = useState<AssetSectionCounts | null>(null)
   const refreshCounts = useCallback(async () => {
-    // Scope counts to the active type tab so the badges match the grid.
-    // Changing the type tab re-runs this via the effect below.
-    const response = await fetchAssetSectionCounts(filters.type)
+    // Scope counts to the active type facet so the badges match the grid.
+    // Changing the facet re-runs this via the effect below.
+    const response = await fetchAssetSectionCounts(scopedTypes)
     if (response.success) setCounts(response.data)
-  }, [filters.type])
+  }, [scopedTypes])
   useEffect(() => {
-    void refreshCounts()
-  }, [refreshCounts])
+    // ⚠ setState 必须待在 async 闭包里（await 之后），否则就是「effect 里同步
+    // setState」；顺带加了取消位 —— 快速切分面时旧响应不该盖掉新计数。
+    let cancelled = false
+    void (async () => {
+      const response = await fetchAssetSectionCounts(scopedTypes)
+      if (!cancelled && response.success) setCounts(response.data)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [scopedTypes])
 
   // Detail sheet — only used outside picker mode. In picker mode the
   // tile click resolves the asset picker via onSelect, so a detail
   // sheet would steal the click target.
   const [selectedGeneration, setSelectedGeneration] =
-    useState<GenerationRecord | null>(
-      isPickerMode ? null : initialSelectedGeneration,
-    )
+    useState<GenerationRecord | null>(initialSelectedGeneration)
   const [selectedOriginRect, setSelectedOriginRect] = useState<{
     x: number
     y: number
@@ -444,12 +434,17 @@ export function KreaAssetBrowser({
       return next
     })
   }, [])
-  useEffect(() => {
-    if (!isPickerMode) {
-      setSelectedGeneration(initialSelectedGeneration)
-      setSelectedOriginRect(null)
-    }
-  }, [initialSelectedGeneration, isPickerMode])
+  // deeplink（`?generationId=`）换了才重置详情面板。⚠ 用**渲染期调整**而不是
+  // effect：effect 里同步 setState 会多跑一轮渲染，React 文档对「prop 变了要
+  // 重置 state」给的正是这个写法。
+  const [lastDeeplinkGeneration, setLastDeeplinkGeneration] = useState(
+    initialSelectedGeneration,
+  )
+  if (lastDeeplinkGeneration !== initialSelectedGeneration) {
+    setLastDeeplinkGeneration(initialSelectedGeneration)
+    setSelectedGeneration(initialSelectedGeneration)
+    setSelectedOriginRect(null)
+  }
 
   // ── Multi-select state ────────────────────────────────────────
   // Single-select picker mode (onSelect callback only) intentionally does
@@ -457,20 +452,22 @@ export function KreaAssetBrowser({
   // onSelect. Multi-select picker mode (`pickerMultiSelect`) reuses this
   // state but keeps bulk-op action bars hidden; see the effect below.
   const [selectionMode, setSelectionMode] = useState(false)
-  const [mobileSectionPickerOpen, setMobileSectionPickerOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
-
-  // Picker multi-select keeps selectionMode latched on so checkboxes stay
-  // visible. There's no "exit selection" UI in picker mode — the user
-  // either confirms (and we close) or cancels (and we drop the set).
+  /** Shift 范围选的锚点（上一次单击的那张）。 */
+  const selectionAnchorRef = useRef<string | null>(null)
+  /**
+   * 当前列表的镜像 —— Shift 范围选要按**屏上顺序**取区间，撤销要取每一项
+   * **移动前的原夹**。两处都在事件回调里跑，不能读渲染期的闭包快照。
+   */
+  const generationsRef = useRef(generations)
   useEffect(() => {
-    if (pickerMultiSelect) setSelectionMode(true)
-  }, [pickerMultiSelect])
+    generationsRef.current = generations
+  }, [generations])
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Off-screen element used as a custom drag image when dragging a multi-select
   // batch onto a folder — shows the count instead of a lone thumbnail ghost.
   const dragGhostRef = useRef<HTMLDivElement>(null)
-  const [isUploading, setIsUploading] = useState(false)
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const [isBulkPublishing, setIsBulkPublishing] = useState(false)
   const [isBulkFavoriting, setIsBulkFavoriting] = useState(false)
@@ -487,34 +484,48 @@ export function KreaAssetBrowser({
     | { kind: 'delete-folder'; id: string; name: string }
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
 
-  const toggleSelection = useCallback(
-    (id: string) => {
-      setSelectedIds((prev) => {
-        const next = new Set(prev)
-        if (next.has(id)) {
-          next.delete(id)
-        } else {
-          // Picker multi-select can cap selection (e.g. LoRA training tops out
-          // at 50 images). Adding past the limit no-ops + toasts so the user
-          // sees why nothing happened.
-          if (
-            pickerMultiSelect &&
-            pickerMaxSelection != null &&
-            next.size >= pickerMaxSelection
-          ) {
-            toast.warning(t('pickerMaxReached', { max: pickerMaxSelection }))
-            return prev
-          }
-          next.add(id)
-        }
-        return next
-      })
-    },
-    [pickerMultiSelect, pickerMaxSelection, t],
-  )
+  const toggleSelection = useCallback((id: string) => {
+    // 每次单击都把锚点挪到这里 —— 下一次 Shift 点就从这张开始选。
+    selectionAnchorRef.current = id
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set())
+    selectionAnchorRef.current = null
+  }, [])
+
+  /**
+   * Shift 范围选（§7.1）—— 全仓此前**零 `shiftKey`**，只能一张张点。
+   * 点第一张设锚点，Shift 点最后一张把整段**一律置为选中**（不反选，符合
+   * 文件管理器直觉）。
+   */
+  const selectRangeTo = useCallback((id: string) => {
+    const order = generationsRef.current.map((generation) => generation.id)
+    const anchor = selectionAnchorRef.current
+    const to = order.indexOf(id)
+    const from = anchor ? order.indexOf(anchor) : -1
+    if (to < 0 || from < 0) {
+      setSelectedIds((prev) => new Set(prev).add(id))
+      selectionAnchorRef.current = id
+      return
+    }
+    const [start, end] = from <= to ? [from, to] : [to, from]
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (let index = start; index <= end; index += 1) {
+        next.add(order[index])
+      }
+      return next
+    })
   }, [])
 
   const exitSelectionMode = useCallback(() => {
@@ -539,11 +550,11 @@ export function KreaAssetBrowser({
     setSelectedIds(new Set(generations.map((g) => g.id)))
   }, [generations])
 
-  const requestBulkDelete = useCallback(() => {
+  const requestBulkDelete = () => {
     const count = selectedIds.size
     if (count === 0) return
     setConfirmAction({ kind: 'delete-bulk', count })
-  }, [selectedIds])
+  }
 
   const performBulkDelete = useCallback(async () => {
     const ids = Array.from(selectedIds)
@@ -567,11 +578,11 @@ export function KreaAssetBrowser({
     }
   }, [selectedIds, t, removeGeneration, refreshCounts, exitSelectionMode])
 
-  const requestBulkPublish = useCallback(() => {
+  const requestBulkPublish = () => {
     const count = selectedIds.size
     if (count === 0) return
     setConfirmAction({ kind: 'publish-bulk', count })
-  }, [selectedIds])
+  }
 
   const performBulkPublish = useCallback(async () => {
     const ids = Array.from(selectedIds)
@@ -594,11 +605,11 @@ export function KreaAssetBrowser({
     }
   }, [selectedIds, t, updateGeneration, refreshCounts, exitSelectionMode])
 
-  const requestBulkFavorite = useCallback(() => {
+  const requestBulkFavorite = () => {
     const count = selectedIds.size
     if (count === 0) return
     setConfirmAction({ kind: 'favorite-bulk', count })
-  }, [selectedIds])
+  }
 
   const performBulkFavorite = useCallback(async () => {
     const ids = Array.from(selectedIds)
@@ -632,6 +643,15 @@ export function KreaAssetBrowser({
   const moveAssets = useCallback(
     async (ids: string[], projectId: string | null) => {
       if (ids.length === 0) return
+      // ⛔ 撤销**必须按每一项原来的 projectId 分别回写**（§7.2）：选中的 4 项
+      // 可能来自 4 个不同的夹，写成「全部丢回未分类」就是数据损坏。
+      const originById = new Map(
+        ids.map((id) => [
+          id,
+          generationsRef.current.find((generation) => generation.id === id)
+            ?.projectId ?? null,
+        ]),
+      )
       const result = await batchAssignProjectAPI(ids, projectId)
       if (!result.success) {
         toast.error(result.error ?? t('bulkMoveFailed'))
@@ -645,9 +665,37 @@ export function KreaAssetBrowser({
         else removeGeneration(id)
       })
       void refreshCounts()
-      toast.success(t('bulkMoveSuccess', { count: updatedCount }))
+      rememberMoveTarget(projectId)
+
+      const undo = async () => {
+        // 按「原夹」分组，一组一次请求。
+        const byOrigin = new Map<string | null, string[]>()
+        originById.forEach((origin, id) => {
+          const bucket = byOrigin.get(origin) ?? []
+          bucket.push(id)
+          byOrigin.set(origin, bucket)
+        })
+        for (const [origin, groupIds] of byOrigin) {
+          await batchAssignProjectAPI(groupIds, origin)
+        }
+        clearGalleryCache()
+        void refreshCounts()
+        retryGallery()
+        toast.success(t('bulkMoveUndone'))
+      }
+      toast.success(t('bulkMoveSuccess', { count: updatedCount }), {
+        duration: BULK_MOVE_UNDO_DURATION_MS,
+        action: { label: t('bulkMoveUndo'), onClick: () => void undo() },
+      })
     },
-    [section, t, updateGeneration, removeGeneration, refreshCounts],
+    [
+      section,
+      t,
+      updateGeneration,
+      removeGeneration,
+      refreshCounts,
+      retryGallery,
+    ],
   )
 
   const performBulkMove = useCallback(
@@ -712,9 +760,7 @@ export function KreaAssetBrowser({
         )
       }
 
-      if (
-        !shouldKeepAssetAfterPatch(section, nextGeneration, activeMediaType)
-      ) {
+      if (!shouldKeepAssetAfterPatch(section, nextGeneration, scopedTypes)) {
         removeGeneration(id)
         setSelectedGeneration((prev) => (prev?.id === id ? null : prev))
         void refreshCounts()
@@ -734,46 +780,34 @@ export function KreaAssetBrowser({
       generations,
       selectedGeneration,
       section,
-      activeMediaType,
+      scopedTypes,
       updateGeneration,
       removeGeneration,
       refreshCounts,
     ],
   )
 
-  // Grid density — persisted per device. SSR renders the default
-  // ('normal') so we don't mismatch hydration; the stored preference
-  // is applied in an effect after mount.
-  const [density, setDensity] = useState<Density>('normal')
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(DENSITY_STORAGE_KEY)
-      if (isDensity(stored)) setDensity(stored)
-    } catch {
-      // localStorage unavailable (e.g. Safari private mode) — keep default.
-    }
-  }, [])
-  const changeDensity = useCallback((next: Density) => {
-    setDensity(next)
-    try {
-      window.localStorage.setItem(DENSITY_STORAGE_KEY, next)
-    } catch {
-      // ignore
-    }
-  }, [])
+  // Grid density = 目标行高（page §5.6），不再是固定列数。SSR 渲染默认档
+  // 以免 hydration mismatch；存储的偏好在挂载后的 effect 里应用。
+  const [storedDensity, setStoredDensity] = useLocalPreference(
+    ASSET_GRID_DENSITY_STORAGE_KEY,
+  )
+  const density: AssetGridDensity = isDensity(storedDensity)
+    ? storedDensity
+    : ASSET_GRID_DEFAULT_DENSITY
+  const changeDensity = setStoredDensity
 
   const filtersForSection = useCallback(
     (next: Section): GalleryFilters => {
       const base: GalleryFilters = {
         ...filters,
-        // The right sidebar changes the asset scope only. The top media
-        // switcher remains an independent dimension, so users can browse
-        // "Favorites + Video" or "Folder + Image" without losing context.
+        // 文件夹范围只改范围。类型是独立的可叠加维度，切范围不该把它清掉
+        // ——「收藏 + 视频」「某个夹 + 图片」都要能同时成立。
         liked: false,
         published: false,
         projectId: '',
         provider: '',
-        type: mediaType ?? filters.type,
+        types: filters.types,
       }
       switch (next.kind) {
         case 'all':
@@ -790,15 +824,7 @@ export function KreaAssetBrowser({
           return { ...base, projectId: next.id }
       }
     },
-    [filters, mediaType],
-  )
-
-  const filtersForMediaType = useCallback(
-    (next: LockedMediaType): GalleryFilters => ({
-      ...filters,
-      type: mediaType ?? next,
-    }),
-    [filters, mediaType],
+    [filters],
   )
 
   const setSection = useCallback(
@@ -808,83 +834,108 @@ export function KreaAssetBrowser({
     [filtersForSection, setFilters],
   )
 
-  const setMediaTypeFilter = useCallback(
-    (next: LockedMediaType) => {
-      setFilters(filtersForMediaType(next))
+  // ── 文件夹体系：门牌行 / 夹内页 / 总览页（page §3 末 + §4）──────
+  // ⚠ 夹内页与总览页是**路由**，不是 overlay：全局左侧导航始终可见，
+  // 浏览器后退可用、URL 可分享、刷新不丢位置。
+  const [view, setView] = useState<AssetsView>(initialView)
+  const [storedFolderSort, setStoredFolderSort] = useLocalPreference(
+    FOLDER_SORT_STORAGE_KEY,
+  )
+  const folderSortMode: FolderSortMode = isFolderSortMode(storedFolderSort)
+    ? storedFolderSort
+    : DEFAULT_FOLDER_SORT_MODE
+  // `undefined` = 弹窗关着；`null`/id = 开着并指定父夹。
+  const [createFolderParentId, setCreateFolderParentId] = useState<
+    string | null | undefined
+  >(undefined)
+  const isFolderScoped =
+    section.kind === 'project' || section.kind === 'unassigned'
+
+  // ⚠ 排序档以前是纯 useState，刷新就掉回默认（page §4.1 的「另一处小缺陷」）。
+  const changeFolderSortMode = setStoredFolderSort
+
+  /** 把当前范围写进地址栏（用户点出来的都 push，后退才有东西可回）。 */
+  const pushAssetsUrl = useCallback(
+    (next: { projectId?: string; view?: AssetsView }) => {
+      const params = new URLSearchParams(window.location.search)
+      if (next.projectId) params.set('projectId', next.projectId)
+      else params.delete('projectId')
+      if (next.view === 'folders') params.set('view', 'folders')
+      else params.delete('view')
+      const query = params.toString()
+      window.history.pushState(
+        null,
+        '',
+        query
+          ? `${window.location.pathname}?${query}`
+          : window.location.pathname,
+      )
     },
-    [filtersForMediaType, setFilters],
+    [],
   )
 
-  const prefetchingCacheKeysRef = useRef<Set<string>>(new Set())
+  const openFolder = useCallback(
+    (projectId: string) => {
+      setView('library')
+      setSection({ kind: 'project', id: projectId })
+      pushAssetsUrl({ projectId })
+    },
+    [setSection, pushAssetsUrl],
+  )
+  const openUnassigned = useCallback(() => {
+    setView('library')
+    setSection({ kind: 'unassigned' })
+    pushAssetsUrl({ projectId: 'none' })
+  }, [setSection, pushAssetsUrl])
+  const openFolderOverview = useCallback(() => {
+    setView('folders')
+    pushAssetsUrl({ view: 'folders' })
+  }, [pushAssetsUrl])
+  const openLibrary = useCallback(() => {
+    setView('library')
+    setSection({ kind: 'all' })
+    pushAssetsUrl({})
+  }, [setSection, pushAssetsUrl])
 
-  // Warm the module-level gallery cache for filters the cursor is
-  // about to click. By the time setFilters runs there's a cache hit,
-  // turning the click → render into a 0ms transition. In-flight keys
-  // are tracked outside the cache so a hover cannot poison the real
-  // cache with an empty placeholder.
-  const prefetchFilters = useCallback((targetFilters: GalleryFilters) => {
-    const key = makeGalleryCacheKey(targetFilters, true, 24)
-    if (readGalleryCache(key) || prefetchingCacheKeysRef.current.has(key)) {
-      return
+  // 后退/前进：从地址栏读回范围，⛔ 不再 push（否则历史会自乘）。
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search)
+      const projectId = params.get('projectId')
+      setView(params.get('view') === 'folders' ? 'folders' : 'library')
+      if (projectId === 'none') setSection({ kind: 'unassigned' })
+      else if (projectId) setSection({ kind: 'project', id: projectId })
+      else setSection({ kind: 'all' })
     }
-    prefetchingCacheKeysRef.current.add(key)
-    const filterParams = {
-      search: targetFilters.search || undefined,
-      model: targetFilters.model || undefined,
-      sort: targetFilters.sort,
-      type: targetFilters.type || undefined,
-      timeRange: targetFilters.timeRange || undefined,
-      liked: targetFilters.liked || undefined,
-      published: targetFilters.published || undefined,
-      mine: true,
-      projectId: targetFilters.projectId || undefined,
-      provider: targetFilters.provider || undefined,
-    }
-    void fetchGalleryImages(1, 24, filterParams)
-      .then((response) => {
-        if (response.success && response.data) {
-          writeGalleryCache(key, {
-            generations: response.data.generations ?? [],
-            total: response.data.total ?? 0,
-            hasMore: response.data.hasMore ?? false,
-            nextCursor: response.data.nextCursor ?? null,
-          })
-        }
-      })
-      .finally(() => {
-        prefetchingCacheKeysRef.current.delete(key)
-      })
-  }, [])
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [setSection])
 
-  const prefetchSection = useCallback(
-    (next: Section) => {
-      prefetchFilters(filtersForSection(next))
-    },
-    [filtersForSection, prefetchFilters],
-  )
-
-  const prefetchMediaType = useCallback(
-    (next: LockedMediaType) => {
-      prefetchFilters(filtersForMediaType(next))
-    },
-    [filtersForMediaType, prefetchFilters],
-  )
-
+  // ⛔ hover 预取随移动分组 chips 一起退役：门牌行/分面栏都是点了才切范围，
+  // 没有「鼠标悬停在候选上」这个前置动作可用来预热缓存了。
   const handleUploadClick = () => {
     fileInputRef.current?.click()
   }
 
-  const processUploadFile = useCallback(
-    async (file: File): Promise<GenerationRecord | null> => {
+  /**
+   * 单个文件的上传动作 —— 队列注入它，队列只管调度与状态。
+   * ⚠ 压缩规则与文案留在这里：它们跟页面绑定，不该被 hook 复制一份。
+   */
+  const uploadOneFile = useCallback(
+    async (
+      file: File,
+      options: {
+        projectId: string | null
+        onProgress: (percent: number) => void
+      },
+    ): Promise<UploadResult> => {
       const isAcceptedType = (
         USER_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]
       ).includes(file.type)
       if (!isAcceptedType) {
-        toast.error(t('uploadUnsupportedFile'))
-        return null
+        return { ok: false, error: t('uploadUnsupportedFile') }
       }
 
-      setIsUploading(true)
       try {
         // Over-cap files get squeezed client-side instead of bouncing, so
         // pasting a Retina screenshot or dragging in a phone photo just
@@ -899,81 +950,64 @@ export function KreaAssetBrowser({
             tooLarge: t('uploadFileTooLarge', { maxMb }),
           },
         })
-        if (!uploadFile) return null // helper already toasted the error
+        if (!uploadFile) return { ok: false, error: t('uploadFailed') }
 
-        // Upload-into-folder: viewing a project uploads straight into it;
-        // any other view uploads to the unassigned bucket.
-        const targetProjectId =
-          section.kind === 'project' ? section.id : undefined
         const response = await uploadImageFileAPI(uploadFile, {
-          projectId: targetProjectId,
+          projectId: options.projectId ?? undefined,
+          onProgress: options.onProgress,
         })
         if (!response.success || !response.data) {
-          toast.error(getApiErrorMessage(tErrors, response, t('uploadFailed')))
-          return null
+          return {
+            ok: false,
+            error: getApiErrorMessage(tErrors, response, t('uploadFailed')),
+          }
         }
-        clearGalleryCache()
-        // Only surface the upload in the grid if it belongs in the current
-        // view (e.g. don't inject it into Favorites or the wrong type tab).
-        if (
-          shouldKeepAssetAfterPatch(
-            section,
-            response.data.generation,
-            activeMediaType,
-          )
-        ) {
-          prependGeneration(response.data.generation)
-        }
-        void refreshCounts()
-        toast.success(t('uploadSuccess'))
-        return response.data.generation
+        return { ok: true, generation: response.data.generation }
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : t('uploadFailed'))
-        return null
-      } finally {
-        setIsUploading(false)
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : t('uploadFailed'),
+        }
       }
     },
-    [t, tErrors, prependGeneration, refreshCounts, section, activeMediaType],
+    [t, tErrors],
   )
 
-  // Sequential multi-file upload — dropping or picking several images uploads
-  // them one after another into the current folder. Returns the successfully
-  // uploaded generations so the picker can select them.
+  const handleUploaded = useCallback(
+    (generation: GenerationRecord) => {
+      clearGalleryCache()
+      // 只有属于当前视图的才插网格（§7.3.5）；不属于的由队列项给「查看」跳过去。
+      if (shouldKeepAssetAfterPatch(section, generation, scopedTypes)) {
+        prependGeneration(generation)
+      }
+      void refreshCounts()
+    },
+    [section, scopedTypes, prependGeneration, refreshCounts],
+  )
+
+  const uploadQueue = useAssetUploadQueue({
+    upload: uploadOneFile,
+    onUploaded: handleUploaded,
+  })
+  const isUploading = uploadQueue.isUploading
+
+  /** 上传落夹目标 = 当前范围（§7.3.4）。 */
+  const uploadTargetProjectId = section.kind === 'project' ? section.id : null
+
   const processUploadFiles = useCallback(
-    async (files: File[]): Promise<GenerationRecord[]> => {
+    (files: File[]) => {
       const images = files.filter((file) => file.type.startsWith('image/'))
-      const uploaded: GenerationRecord[] = []
-      for (const image of images) {
-        const gen = await processUploadFile(image)
-        if (gen) uploaded.push(gen)
-      }
-      return uploaded
+      if (images.length === 0) return
+      uploadQueue.enqueue(images, uploadTargetProjectId)
     },
-    [processUploadFile],
+    [uploadQueue, uploadTargetProjectId],
   )
 
-  // Picker inline upload: after uploading, resolve the picker with the new
-  // asset(s) — single-select picks the last one, multi-select toggles each in.
-  const selectUploadedInPicker = useCallback(
-    (uploaded: GenerationRecord[]) => {
-      if (!isPickerMode || uploaded.length === 0) return
-      if (pickerMultiSelect) {
-        uploaded.forEach((gen) => toggleSelection(gen.id))
-      } else if (onSelect) {
-        onSelect(uploaded[uploaded.length - 1])
-      }
-    },
-    [isPickerMode, pickerMultiSelect, toggleSelection, onSelect],
-  )
-
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
     if (files.length === 0) return
-    selectUploadedInPicker(await processUploadFiles(files))
+    processUploadFiles(files)
   }
 
   // ── Global drag-to-upload ─────────────────────────────────────
@@ -988,9 +1022,9 @@ export function KreaAssetBrowser({
     handleDragLeave: markFileDragLeave,
   } = useStableDragState()
 
-  // Global drag-upload is on for the main page, and inside image pickers
-  // (uploads are always images — an audio/3d picker can't use them).
-  const uploadDropEnabled = !isPickerMode || mediaType === 'image' || !mediaType
+  const uploadDropEnabled = true
+  /** picker 已迁去 `AssetPickerBrowser`（page §8 任务型 shell），这里恒为假。 */
+  const isPickerMode = false
   const hasFilePayload = (dataTransfer: DataTransfer) =>
     Array.from(dataTransfer.types).includes('Files')
   const uploadTargetLabel =
@@ -1016,9 +1050,7 @@ export function KreaAssetBrowser({
     event.preventDefault()
     resetFileDragging()
     const files = Array.from(event.dataTransfer.files)
-    if (files.length > 0) {
-      void processUploadFiles(files).then(selectUploadedInPicker)
-    }
+    if (files.length > 0) processUploadFiles(files)
   }
 
   // Paste-to-upload: ⌘V / Ctrl+V uploads a clipboard image into the current
@@ -1042,14 +1074,12 @@ export function KreaAssetBrowser({
       )
       if (!imageFile) return
       event.preventDefault()
-      void processUploadFile(imageFile).then((gen) => {
-        if (gen) selectUploadedInPicker([gen])
-      })
+      processUploadFiles([imageFile])
     }
 
     window.addEventListener('paste', handlePaste)
     return () => window.removeEventListener('paste', handlePaste)
-  }, [uploadDropEnabled, processUploadFile, selectUploadedInPicker])
+  }, [uploadDropEnabled, processUploadFiles])
 
   const handleRenameProject = useCallback(
     async (id: string, newName: string) => {
@@ -1064,14 +1094,13 @@ export function KreaAssetBrowser({
     setConfirmAction({ kind: 'delete-folder', id, name })
   }
 
-  const handleProjectCreated = useCallback(
-    (project: ProjectRecord) => {
-      void refreshProjects()
-      void refreshCounts()
-      setSection({ kind: 'project', id: project.id })
-    },
-    [refreshProjects, refreshCounts, setSection],
-  )
+  const handleProjectCreated = (project: ProjectRecord) => {
+    void refreshProjects()
+    void refreshCounts()
+    setCreateFolderParentId(undefined)
+    // 新建完直接进这个夹 —— 用户下一步多半就是往里放东西。
+    openFolder(project.id)
+  }
 
   const performDeleteProject = async (id: string) => {
     const ok = await removeProject(id)
@@ -1084,13 +1113,76 @@ export function KreaAssetBrowser({
   }
 
   const isEmpty = !isLoading && generations.length === 0
+  /**
+   * 空库 = 没有任何筛选、也不在某个夹里，却还是零素材。
+   * §7 明写这种情况下**文件夹段一并隐藏** —— 一个新用户不该先看见一排空门牌。
+   */
+  const isLibraryEmpty =
+    isEmpty && section.kind === 'all' && projects.length === 0
   const isBulkActionPending =
     isBulkDeleting || isBulkPublishing || isBulkFavoriting || isBulkMoving
+
+  // ── justified 真实比例网格（page §5）────────────────────────────
+  // 密度控制的是目标行高，行高刻度按视口断点各有一套。picker 的小网格自成
+  // 一档（§8.2 桌面 132 / 移动 104），不吃密度控制。
+  const gridViewport = useAssetGridViewport()
+  const targetRowHeight = ASSET_GRID_TARGET_ROW_HEIGHT[gridViewport][density]
+
+  // picker 的内联上传格是网格的第一格，所以它得跟着一起排 —— 否则它
+  // 会被挤出行外，第一行就铺不满。
+  const showUploadCell = false
+  const gridItems = useMemo<GridItem[]>(() => {
+    const items: GridItem[] = showUploadCell ? [{ kind: 'upload' }] : []
+    uploadQueue.pendingItems.forEach((item) => {
+      items.push({ kind: 'pending', item })
+    })
+    generations.forEach((generation) => {
+      items.push({ kind: 'asset', generation })
+    })
+    return items
+  }, [showUploadCell, uploadQueue.pendingItems, generations])
+
+  const showSkeleton = generations.length === 0 && isLoading
+  const gridAspectRatios = useMemo(
+    () =>
+      showSkeleton
+        ? ASSET_GRID_SKELETON_ASPECT_RATIOS
+        : gridItems.map((item) => {
+            if (item.kind === 'upload') {
+              return ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO
+            }
+            // 占位瓦片按**文件本地读到的真实比例**参与排版（§7.3.6），
+            // 拿到真图后这一行自然会重排。
+            if (item.kind === 'pending') return item.item.aspectRatio
+            // 音频恒 1:1 封面卡（page §6）—— 显式锁死，不靠「音频行的
+            // width/height 恰好是 0，兜底成 1:1」这种巧合。
+            if (item.generation.outputType === 'AUDIO') {
+              return ASSET_GRID_AUDIO_ASPECT_RATIO
+            }
+            return toLayoutAspectRatio(
+              item.generation.width,
+              item.generation.height,
+            )
+          }),
+    [showSkeleton, gridItems],
+  )
+  const { containerRef: gridContainerRef, rows: gridRows } = useJustifiedGrid({
+    aspectRatios: gridAspectRatios,
+    targetRowHeight,
+  })
 
   // Per-section counts — fall back to live `total` only for the bucket the
   // user is currently viewing so the sidebar still moves on add/delete
   // before the next refreshCounts() lands.
-  const allCount = counts?.all ?? (section.kind === 'all' ? total : undefined)
+  /**
+   * 顶栏那个数 = **整库大小**，不随筛选变；`byType` 是唯一不吃类型口径的
+   * 聚合，所以从它加起来。段头那个数则是**当前口径的命中数**（live `total`）
+   * —— 两个数各自诚实。⚠ 别把 `counts.all` 放到段头：它只跟类型口径走，
+   * 时间/模型分面一生效就会出现「全部素材 129」压着一张瓦片的画面。
+   */
+  const libraryTotal = counts
+    ? counts.image + counts.video + counts.audio + (counts.model_3d ?? 0)
+    : total
   const favoritesCount =
     counts?.favorites ?? (section.kind === 'favorites' ? total : undefined)
   const publishedCount =
@@ -1105,152 +1197,139 @@ export function KreaAssetBrowser({
     counts?.model_3d ?? (activeMediaType === 'model_3d' ? total : undefined)
   const unassignedCount =
     counts?.unassigned ?? (section.kind === 'unassigned' ? total : undefined)
-  const projectCount = (id: string): number | undefined =>
-    counts?.byProject[id] ??
-    (section.kind === 'project' && section.id === id ? total : undefined)
-
-  const primaryMobileSections: MobileSectionOption[] = [
-    {
-      key: 'all',
-      active: section.kind === 'all',
-      icon: <FolderOpen className="size-3.5" />,
-      label: t('sidebarAll'),
-      count: allCount,
-      onClick: () => setSection({ kind: 'all' }),
-      onPrefetch: () => prefetchSection({ kind: 'all' }),
-    },
-    {
-      key: 'favorites',
-      active: section.kind === 'favorites',
-      icon: <Heart className="size-3.5" />,
-      label: t('sidebarFavorites'),
-      count: favoritesCount,
-      onClick: () => setSection({ kind: 'favorites' }),
-      onPrefetch: () => prefetchSection({ kind: 'favorites' }),
-    },
-    {
-      key: 'published',
-      active: section.kind === 'published',
-      icon: <Globe className="size-3.5" />,
-      label: t('sidebarPublished'),
-      count: publishedCount,
-      onClick: () => setSection({ kind: 'published' }),
-      onPrefetch: () => prefetchSection({ kind: 'published' }),
-    },
-    {
-      key: 'uploads',
-      active: section.kind === 'uploads',
-      icon: <UploadCloud className="size-3.5" />,
-      label: t('sidebarUploads'),
-      onClick: () => setSection({ kind: 'uploads' }),
-      onPrefetch: () => prefetchSection({ kind: 'uploads' }),
-    },
-  ]
-
-  const toolMobileSections: MobileSectionOption[] = mediaType
-    ? []
-    : [
-        {
-          key: 'image',
-          active: activeMediaType === 'image',
-          icon: <ImageIcon className="size-3.5" />,
-          label: t('sidebarImages'),
-          count: imageCount,
-          onClick: () => setMediaTypeFilter('image'),
-          onPrefetch: () => prefetchMediaType('image'),
-        },
-        {
-          key: 'video',
-          active: activeMediaType === 'video',
-          icon: <Video className="size-3.5" />,
-          label: t('sidebarVideos'),
-          count: videoCount,
-          onClick: () => setMediaTypeFilter('video'),
-          onPrefetch: () => prefetchMediaType('video'),
-        },
-        {
-          key: 'audio',
-          active: activeMediaType === 'audio',
-          icon: <Mic className="size-3.5" />,
-          label: t('sidebarAudio'),
-          count: audioCount,
-          onClick: () => setMediaTypeFilter('audio'),
-          onPrefetch: () => prefetchMediaType('audio'),
-        },
-        {
-          key: 'model_3d',
-          active: activeMediaType === 'model_3d',
-          icon: <Box className="size-3.5" />,
-          label: t('sidebarModel3D'),
-          count: model3DCount,
-          onClick: () => setMediaTypeFilter('model_3d'),
-          onPrefetch: () => prefetchMediaType('model_3d'),
-        },
-      ]
-
-  const folderMobileSections: MobileSectionOption[] = [
-    {
-      key: 'unassigned',
-      active: section.kind === 'unassigned',
-      icon: <FolderX className="size-3.5" />,
-      label: t('sidebarUnassigned'),
-      count: unassignedCount,
-      onClick: () => setSection({ kind: 'unassigned' }),
-      onPrefetch: () => prefetchSection({ kind: 'unassigned' }),
-    },
-    ...projects.map((project) => ({
-      key: project.id,
-      active: section.kind === 'project' && section.id === project.id,
-      icon: <Folder className="size-3.5" />,
-      label: project.name,
-      count: projectCount(project.id),
-      onClick: () => setSection({ kind: 'project', id: project.id }),
-      onPrefetch: () => prefetchSection({ kind: 'project', id: project.id }),
-    })),
-  ]
-  const mobileFolderAction = (
-    <ProjectCreateDialog
-      onCreated={handleProjectCreated}
-      trigger={
-        <button
-          type="button"
-          aria-label={t('folderCreate')}
-          className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-border/70 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-        >
-          <Plus className="size-3.5" />
-        </button>
-      }
-    />
+  const projectCount = useCallback(
+    (id: string): number | undefined =>
+      counts?.byProject[id] ??
+      (section.kind === 'project' && section.id === id ? total : undefined),
+    [counts, section, total],
   )
-  const mobileSectionGroups: MobileSectionGroup[] = [
-    {
-      key: 'primary',
-      label: t('mobileSections'),
-      options: primaryMobileSections,
-    },
-    {
-      key: 'folders',
-      label: t('sidebarFolders'),
-      options: folderMobileSections,
-      action: mobileFolderAction,
-    },
+
+  /**
+   * 「未分类」不是 Project，服务端不会给它 `coverUrls` —— 用当前列表里
+   * 未归夹的素材凑 2×2（它们本来就在屏上，零额外请求）。
+   */
+  const unassignedCovers = useMemo(
+    () =>
+      generations
+        .filter((generation) => generation.projectId == null)
+        .map(
+          (generation) =>
+            generation.thumbnailUrl ??
+            generation.previewUrl ??
+            (generation.outputType === 'IMAGE' ? generation.url : null),
+        )
+        .filter((url): url is string => Boolean(url))
+        .slice(0, PROJECT_COVER_TILE_COUNT),
+    [generations],
+  )
+
+  // ── 面包屑 `素材 › 鸣潮 › 弗洛洛`（page §3 末）───────────────────
+  const currentFolderPath = useMemo(
+    () =>
+      section.kind === 'project' ? getFolderPath(projects, section.id) : [],
+    [projects, section],
+  )
+  const currentFolderChildren = useMemo(
+    () =>
+      section.kind === 'project' ? getChildFolders(projects, section.id) : [],
+    [projects, section],
+  )
+  const breadcrumbCrumbs: BreadcrumbCrumb[] = [
+    { key: 'library', label: t('title'), onClick: openLibrary },
+    ...(view === 'folders'
+      ? []
+      : currentFolderPath.slice(0, -1).map((folder) => ({
+          key: folder.id,
+          label: folder.name,
+          onClick: () => openFolder(folder.id),
+        }))),
   ]
-  const activeSection =
-    [...primaryMobileSections, ...folderMobileSections].find(
-      (option) => option.active,
-    ) ?? primaryMobileSections[0]
-  const activeSectionCount = activeSection.count
-  // Read-only "locked to X" label for pickers scoped to a single media type.
-  const lockedMediaTypeLabel = mediaType
-    ? t('pickerLocked', {
-        type: {
+  const breadcrumbCurrent =
+    view === 'folders'
+      ? t('sidebarFolders')
+      : section.kind === 'unassigned'
+        ? t('sidebarUnassigned')
+        : (currentFolderPath[currentFolderPath.length - 1]?.name ?? t('title'))
+
+  /** 「搜索无结果」要回显当前全部生效筛选（§7）。 */
+  const activeFilterLabels = useMemo(() => {
+    const labels: string[] = []
+    if (filters.search) labels.push(`“${filters.search}”`)
+    filters.types.forEach((type) =>
+      labels.push(
+        {
           image: t('sidebarImages'),
           video: t('sidebarVideos'),
           audio: t('sidebarAudio'),
           model_3d: t('sidebarModel3D'),
-        }[mediaType],
-      })
-    : null
+        }[type],
+      ),
+    )
+    if (filters.liked) labels.push(t('sidebarFavorites'))
+    if (filters.published) labels.push(t('sidebarPublished'))
+    if (filters.provider === USER_UPLOAD_PROVIDER) {
+      labels.push(t('sidebarUploads'))
+    }
+    filters.models.forEach((model) => labels.push(model))
+    if (filters.timeRange !== 'all') labels.push(filters.timeRange)
+    return labels
+  }, [filters, t])
+  const hasActiveFilters = activeFilterLabels.length > 0
+
+  const clearAllFilters = useCallback(() => {
+    setFilters({
+      ...filters,
+      search: '',
+      types: [],
+      models: [],
+      timeRange: 'all',
+      liked: false,
+      published: false,
+      provider: '',
+    })
+  }, [filters, setFilters])
+
+  /** `Esc` = 返回上一级（子夹 → 父夹 → 素材大厅）。 */
+  useEffect(() => {
+    if (isPickerMode) return
+    if (view !== 'folders' && !isFolderScoped) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      const target = event.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+      const parent = currentFolderPath[currentFolderPath.length - 2]
+      if (view === 'library' && parent) openFolder(parent.id)
+      else openLibrary()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [
+    isPickerMode,
+    view,
+    isFolderScoped,
+    currentFolderPath,
+    openFolder,
+    openLibrary,
+  ])
+
+  /** 拖门牌进门牌 = 变子夹（环形父子由 service 兜底拒绝）。 */
+  const handleMoveFolder = useCallback(
+    async (folderId: string, parentId: string | null) => {
+      const ok = await updateProject(folderId, { parentId })
+      if (ok) {
+        void refreshProjects()
+        void refreshCounts()
+      }
+    },
+    [updateProject, refreshProjects, refreshCounts],
+  )
 
   return (
     <div
@@ -1270,138 +1349,202 @@ export function KreaAssetBrowser({
             <p className="text-sm font-medium text-foreground">
               {t('uploadDropHint', { folder: uploadTargetLabel })}
             </p>
+            <p className="text-xs text-muted-foreground">
+              {t('uploadDropHintSub')}
+            </p>
           </div>
         </div>
       )}
       <div className="flex flex-1 min-h-0 gap-4 px-2 sm:px-6">
         {/* ─── Main grid area ────────────────────────────────────── */}
-        <main className="studio-scrollbar flex-1 min-w-0 overflow-x-hidden overflow-y-auto py-4">
-          <div className="mb-4 rounded-xl border border-border/70 bg-card/75 p-1.5 shadow-sm">
-            <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-                <div className="flex min-w-0 items-center px-1.5">
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <h1 className="truncate text-base font-semibold text-foreground">
-                      {t('title')}
-                    </h1>
-                    <Badge
-                      variant="secondary"
-                      className="max-w-36 truncate px-2 py-0.5 text-2xs font-medium text-muted-foreground"
-                    >
-                      {activeSection.label}
-                    </Badge>
-                    {typeof activeSectionCount === 'number' && (
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {activeSectionCount}
-                      </span>
-                    )}
-                    {/* Read-only lock badge: every picker is scoped to one
-                        media type. Shows the type as context, never a toggle. */}
-                    {isPickerMode && lockedMediaTypeLabel && (
-                      <Badge
-                        variant="outline"
-                        className="shrink-0 gap-1 px-2 py-0.5 text-2xs font-medium text-muted-foreground"
-                      >
-                        <Lock className="size-2.5" />
-                        {lockedMediaTypeLabel}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                {/* Main page: view + type toggles live in the top bar.
-                    Picker mode moves both into the horizontal section rail
-                    below the grid, so hide them here to avoid duplication. */}
-                {!isPickerMode && (
-                  <IconSegmentedToggle
-                    label={t('sidebarViews')}
-                    options={primaryMobileSections}
-                  />
-                )}
-                {!isPickerMode && !mediaType && (
-                  <IconSegmentedToggle
-                    label={t('sidebarTools')}
-                    options={toolMobileSections}
-                  />
-                )}
-              </div>
-
-              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end xl:shrink-0">
-                {!isPickerMode && (
-                  <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleUploadClick}
-                      disabled={isUploading}
-                      className="h-10 rounded-lg px-3.5"
-                    >
-                      {isUploading ? (
-                        <Spinner size="sm" />
-                      ) : (
-                        <UploadCloud className="size-3.5" />
-                      )}
-                      <span>
-                        {isUploading ? t('uploading') : t('uploadButton')}
-                      </span>
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={selectionMode ? 'secondary' : 'outline'}
-                      aria-pressed={selectionMode}
-                      onClick={() => {
-                        if (selectionMode) exitSelectionMode()
-                        else setSelectionMode(true)
-                      }}
-                      className={cn(
-                        'h-10 rounded-lg px-3.5',
-                        selectionMode &&
-                          'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15',
-                      )}
-                    >
-                      {selectionMode ? (
-                        <>
-                          <X className="size-3.5" />
-                          {t('selectExit')}
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="size-3.5" />
-                          {t('selectMode')}
-                        </>
-                      )}
-                    </Button>
-                    <DensityToggle density={density} onChange={changeDensity} />
-                  </div>
-                )}
-              </div>
+        {/* `assets-scroll-gutter`：滚动条一出现容器就缩水，会把按旧宽度排好
+            的 justified 行挤成横向溢出（page §5.7）。 */}
+        <main className="studio-scrollbar assets-scroll-gutter flex-1 min-w-0 overflow-x-hidden overflow-y-auto py-4">
+          {/* ─── 顶栏（单行）──────────────────────────────────────
+              page §3：`素材 + 总数` · 搜索 · ——弹性—— · 上传 · 选择 · 密度。
+              ⛔ 这里不再放两组图标 segmented —— 筛选整体迁到内容区的分面栏
+              （§3.1）。 */}
+          <div className="mb-3 flex min-h-12 flex-wrap items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h1 className="truncate text-base font-semibold text-foreground">
+                {t('title')}
+              </h1>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {libraryTotal}
+              </span>
             </div>
+
+            {!isPickerMode && (
+              <AssetSearchBox
+                value={filters.search}
+                onSearch={(next) => setFilters({ ...filters, search: next })}
+                projects={projects}
+                onSelectFolder={(id) => setSection({ kind: 'project', id })}
+                className="w-full max-w-72 sm:w-64"
+              />
+            )}
+
+            {!isPickerMode && (
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleUploadClick}
+                  disabled={isUploading}
+                  className="h-8 rounded-lg px-3"
+                >
+                  {isUploading ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <UploadCloud className="size-3.5" />
+                  )}
+                  <span>
+                    {isUploading ? t('uploading') : t('uploadButton')}
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={selectionMode ? 'secondary' : 'outline'}
+                  aria-pressed={selectionMode}
+                  onClick={() => {
+                    if (selectionMode) exitSelectionMode()
+                    else setSelectionMode(true)
+                  }}
+                  className={cn(
+                    'h-8 rounded-lg px-3',
+                    selectionMode &&
+                      'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15',
+                  )}
+                >
+                  {selectionMode ? (
+                    <>
+                      <X className="size-3.5" />
+                      {t('selectExit')}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="size-3.5" />
+                      {t('selectMode')}
+                    </>
+                  )}
+                </Button>
+                <DensityToggle density={density} onChange={changeDensity} />
+              </div>
+            )}
           </div>
 
-          {/* Scenized picker: one horizontal section rail replaces the hidden
-              folder tree so folders don't eat the dialog width. No type rail —
-              every picker locks a single media type (see the locked badge in
-              the header); a switchable type toggle would only mislead. */}
-          {isPickerMode && (
-            <div className="mb-3 hidden lg:block">
-              <MobileSectionRail
-                label={t('sidebarViews')}
-                options={[...primaryMobileSections, ...folderMobileSections]}
+          {/* ─── 段一 · 文件夹门牌行（page §3 / §4）──────────────────
+              ⚠ 夹内页/总览页**不是全屏 overlay** —— 它们就在这块内容区里换一段，
+              全局左侧导航始终可见；URL 跟着走，后退可用、刷新不丢位置。 */}
+          {!isPickerMode &&
+            !isFolderScoped &&
+            view === 'library' &&
+            !isLibraryEmpty && (
+              <AssetFolderRail
+                projects={projects}
+                sortMode={folderSortMode}
+                unassignedCount={unassignedCount}
+                unassignedCovers={unassignedCovers}
+                countFor={projectCount}
+                activeProjectId={null}
+                isUnassignedActive={false}
+                onOpenFolder={(id) => openFolder(id)}
+                onOpenUnassigned={openUnassigned}
+                onOpenOverview={openFolderOverview}
+                onCreateFolder={() => setCreateFolderParentId(null)}
+                onDropAssets={handleDropAssetsOnFolder}
+                className="mb-3"
+              />
+            )}
+
+          {/* 夹内页 / 总览页的面包屑（每级可点回；`Esc` 等价于返回上一级）。 */}
+          {!isPickerMode && (view === 'folders' || isFolderScoped) && (
+            <div className="mb-3 grid gap-3">
+              <AssetFolderBreadcrumb
+                crumbs={breadcrumbCrumbs}
+                current={breadcrumbCurrent}
+                count={view === 'folders' ? projects.length : total}
+              />
+              {/* 路径二：子夹小门牌置顶。 */}
+              {view === 'library' && currentFolderChildren.length > 0 && (
+                <AssetFolderRail
+                  projects={projects}
+                  folders={currentFolderChildren}
+                  sortMode={folderSortMode}
+                  showUnassigned={false}
+                  showViewAll={false}
+                  countFor={projectCount}
+                  activeProjectId={
+                    section.kind === 'project' ? section.id : null
+                  }
+                  onOpenFolder={(id) => openFolder(id)}
+                  onCreateFolder={() =>
+                    setCreateFolderParentId(
+                      section.kind === 'project' ? section.id : null,
+                    )
+                  }
+                  onDropAssets={handleDropAssetsOnFolder}
+                />
+              )}
+            </div>
+          )}
+
+          {/* 文件夹总览页（治理 2）—— 全部夹的门牌网格，夹的专属管理页。 */}
+          {!isPickerMode && view === 'folders' && (
+            <AssetFolderOverview
+              projects={projects}
+              sortMode={folderSortMode}
+              onSortModeChange={changeFolderSortMode}
+              countFor={projectCount}
+              unassignedCount={unassignedCount}
+              activeProjectId={section.kind === 'project' ? section.id : null}
+              onOpenFolder={(id) => openFolder(id)}
+              onOpenUnassigned={openUnassigned}
+              onCreateFolder={() => setCreateFolderParentId(null)}
+              onDropAssets={handleDropAssetsOnFolder}
+              onMoveFolder={handleMoveFolder}
+              onRenameFolder={handleRenameProject}
+              onRequestDeleteFolder={requestDeleteProject}
+            />
+          )}
+
+          {/* ─── 段二段头 + 分面筛选栏（page §3.1）──────────────────
+              分面属于内容区不属于顶栏；手机上整行横滚，不另做一套移动 chips。 */}
+          {!isPickerMode && view === 'library' && (
+            <div className="mb-3 grid gap-2">
+              {!isFolderScoped && (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <h2 className="text-sm font-medium text-foreground">
+                    {t('sectionAllAssets')}
+                  </h2>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {total}
+                  </span>
+                </div>
+              )}
+              <AssetFacetBar
+                filters={filters}
+                onFiltersChange={setFilters}
+                typeCounts={{
+                  image: imageCount,
+                  video: videoCount,
+                  audio: audioCount,
+                  model_3d: model3DCount,
+                }}
+                statusCounts={{
+                  favorites: favoritesCount,
+                  published: publishedCount,
+                }}
+                modelCounts={counts?.byModel ?? {}}
+                className="-mx-2 overflow-x-auto px-2"
               />
             </div>
           )}
-          <div className="mb-4 lg:hidden">
-            <MobileSectionPicker
-              label={t('mobileSections')}
-              activeOption={activeSection}
-              groups={mobileSectionGroups}
-              expanded={mobileSectionPickerOpen}
-              openLabel={t('mobileSectionPickerOpen')}
-              closeLabel={t('mobileSectionPickerClose')}
-              onExpandedChange={setMobileSectionPickerOpen}
-            />
-          </div>
 
+          {/* ⛔ 移动端那个「分组」折叠器已退役：视图那组并进了分面栏（§3.1
+              「不另做一套移动 chips」），文件夹那组由门牌行承担（它在 <768
+              本来就是固定宽横滚）。 */}
           {/* Hidden upload input — rendered wherever uploading is allowed
               (main page always, image picker) so both the top-bar upload
               button and the picker's inline dashed cell can trigger it. */}
@@ -1413,9 +1556,7 @@ export function KreaAssetBrowser({
               multiple
               className="sr-only"
               aria-label={t('uploadInputLabel')}
-              onChange={(event) => {
-                void handleFileChange(event)
-              }}
+              onChange={handleFileChange}
             />
           )}
 
@@ -1423,128 +1564,107 @@ export function KreaAssetBrowser({
               instantly (0ms) and falls through to the grid skeleton on
               the genuinely-uncached miss. No top banner / pill — the
               skeleton is the feedback. Errored fetches still show via
-              the existing error path below. */}
-          {isEmpty ? (
-            <EmptyState />
+              the existing error path below.
+              ⚠ 总览页是「夹的管理页」，本来就没有素材网格。 */}
+          {/* 整页加载失败 —— 弱化面 + 重试，已加载内容不丢（§7）。 */}
+          {galleryError && !isPickerMode && (
+            <AssetPageError
+              message={galleryError}
+              onRetry={retryGallery}
+              className="mb-3"
+            />
+          )}
+          {view === 'folders' ? null : isEmpty ? (
+            isPickerMode ? (
+              <EmptyState />
+            ) : hasActiveFilters ? (
+              <AssetEmptySearch
+                activeFilterLabels={activeFilterLabels}
+                onClearFilters={clearAllFilters}
+              />
+            ) : section.kind === 'project' ? (
+              <AssetEmptyFolder
+                folderName={breadcrumbCurrent}
+                onUpload={handleUploadClick}
+              />
+            ) : (
+              <AssetEmptyLibrary onUpload={handleUploadClick} />
+            )
           ) : (
-            <div className={cn('grid gap-2', DENSITY_GRID_CLASS[density])}>
-              {/* Picker inline upload: drop/click uploads an image and selects
-                  it, so users don't have to leave the dialog to add one. */}
-              {isPickerMode && uploadDropEnabled && (
-                <button
-                  type="button"
-                  onClick={handleUploadClick}
-                  disabled={isUploading}
-                  aria-label={t('uploadButton')}
-                  className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+            <div
+              ref={gridContainerRef}
+              className="flex flex-col"
+              style={{ gap: ASSET_GRID_GAP }}
+            >
+              {gridRows.map((row, rowIndex) => (
+                <div
+                  key={rowIndex}
+                  className="flex"
+                  style={{ gap: ASSET_GRID_GAP }}
                 >
-                  {isUploading ? (
-                    <Spinner size="lg" />
-                  ) : (
-                    <UploadCloud className="size-5" />
-                  )}
-                  <span className="text-2xs font-medium">
-                    {t('uploadButton')}
-                  </span>
-                </button>
-              )}
-              {generations.length === 0 && isLoading
-                ? Array.from({ length: 12 }).map((_, idx) => (
-                    <div
-                      key={`s-${idx}`}
-                      className="aspect-square animate-pulse rounded-md bg-muted/40"
-                    />
-                  ))
-                : generations.map((gen) => {
-                    const isSelected = selectedIds.has(gen.id)
-                    const videoPoster =
-                      gen.thumbnailUrl ?? gen.previewUrl ?? undefined
-                    const audioPreviewImage = getAudioPreviewCandidates(
-                      gen,
-                    ).find((url) => !failedAudioPreviewUrls.has(url))
-                    const tileClass = cn(
-                      'group relative aspect-square overflow-hidden rounded-lg border bg-muted/40 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
-                      isSelected
-                        ? 'border-primary ring-2 ring-primary/40'
-                        : 'border-border/60 hover:border-primary/40',
-                    )
-                    const tileChildren =
-                      gen.outputType === 'VIDEO' ? (
-                        <>
-                          <video
-                            src={gen.url}
-                            poster={videoPoster}
-                            muted
-                            playsInline
-                            preload={videoPoster ? 'none' : 'metadata'}
-                            onLoadedMetadata={(event) => {
-                              if (videoPoster) return
-                              const video = event.currentTarget
-                              if (
-                                !Number.isFinite(video.duration) ||
-                                video.duration <= 0
-                              ) {
-                                return
-                              }
-                              video.currentTime = Math.min(
-                                0.12,
-                                video.duration / 2,
-                              )
-                            }}
-                            className="absolute inset-0 size-full bg-muted/40 object-cover"
-                          />
-                          <span className="pointer-events-none absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground/70 shadow-sm backdrop-blur-sm">
-                            <Video className="size-3.5" />
-                          </span>
-                        </>
-                      ) : gen.outputType === 'AUDIO' ? (
-                        <div className="absolute inset-0 bg-muted/40">
-                          {audioPreviewImage ? (
-                            // eslint-disable-next-line @next/next/no-img-element -- Audio cover URLs can be provider/model configured.
-                            <img
-                              src={audioPreviewImage}
-                              alt=""
-                              loading="lazy"
-                              className="size-full object-cover"
-                              onError={() =>
-                                handleAudioPreviewError(audioPreviewImage)
-                              }
-                            />
-                          ) : (
-                            <div className="flex size-full items-center justify-center text-muted-foreground">
-                              <Mic className="size-8" />
-                            </div>
-                          )}
-                          <span className="pointer-events-none absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground/70 shadow-sm backdrop-blur-sm">
-                            <Mic className="size-3.5" />
-                          </span>
-                        </div>
-                      ) : (
-                        <NextImage
-                          src={getGenerationThumbnailUrl(gen)}
-                          alt={gen.prompt || ''}
-                          fill
-                          sizes={DENSITY_IMAGE_SIZES[density]}
-                          className="object-cover"
-                          loading="lazy"
+                  {row.boxes.map((box) => {
+                    // 行内每格的尺寸由 justified 排版算出来，瓦片按它自己的
+                    // 真实比例占位 —— 所以 object-cover 在这里不裁任何东西。
+                    const boxStyle = { width: box.width, height: box.height }
+                    if (showSkeleton) {
+                      return (
+                        <div
+                          key={`skeleton-${box.index}`}
+                          style={boxStyle}
+                          className="shrink-0 animate-pulse rounded-lg bg-muted/40"
                         />
                       )
+                    }
+                    const item = gridItems[box.index]
+                    if (!item) return null
+                    if (item.kind === 'pending') {
+                      return (
+                        <AssetUploadTile
+                          key={item.item.id}
+                          item={item.item}
+                          width={box.width}
+                          height={box.height}
+                          onRetry={uploadQueue.retry}
+                          onRemove={uploadQueue.remove}
+                        />
+                      )
+                    }
+                    // Picker inline upload: drop/click uploads an image and
+                    // selects it, so users don't have to leave the dialog.
+                    if (item.kind === 'upload') {
+                      return (
+                        <button
+                          key="upload-cell"
+                          type="button"
+                          onClick={handleUploadClick}
+                          disabled={isUploading}
+                          aria-label={t('uploadButton')}
+                          style={boxStyle}
+                          className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                        >
+                          {isUploading ? (
+                            <Spinner size="lg" />
+                          ) : (
+                            <UploadCloud className="size-5" />
+                          )}
+                          <span className="text-2xs font-medium">
+                            {t('uploadButton')}
+                          </span>
+                        </button>
+                      )
+                    }
+                    const gen = item.generation
+                    const isSelected = selectedIds.has(gen.id)
+                    const audioCoverUrl = getAudioPreviewCandidates(gen).find(
+                      (url) => !failedAudioPreviewUrls.has(url),
+                    )
                     const handleTileClick = (
                       event: React.MouseEvent<HTMLButtonElement>,
                     ) => {
-                      // Picker multi-select wins over single-select onSelect:
-                      // tile click toggles membership in the selection set
-                      // instead of immediately resolving the picker.
-                      if (pickerMultiSelect) {
-                        toggleSelection(gen.id)
-                        return
-                      }
-                      if (onSelect) {
-                        onSelect(gen)
-                        return
-                      }
                       if (selectionMode) {
-                        toggleSelection(gen.id)
+                        // Shift 点 = 从锚点到这里整段选中（§7.1）。
+                        if (event.shiftKey) selectRangeTo(gen.id)
+                        else toggleSelection(gen.id)
                         return
                       }
                       setSelectedOriginRect(
@@ -1557,7 +1677,6 @@ export function KreaAssetBrowser({
                     const handleTileContextMenu = (
                       e: React.MouseEvent<HTMLButtonElement>,
                     ) => {
-                      if (onSelect || pickerMultiSelect) return
                       e.preventDefault()
                       if (selectionMode) toggleSelection(gen.id)
                       else enterSelectionWith(gen.id)
@@ -1592,53 +1711,39 @@ export function KreaAssetBrowser({
                       }
                     }
                     return (
-                      <button
+                      <AssetTile
                         key={gen.id}
-                        type="button"
+                        generation={gen}
+                        width={box.width}
+                        height={box.height}
+                        selected={isSelected}
+                        showSelectionMark={selectionMode}
+                        selectionMode={selectionMode}
                         draggable={!isPickerMode && !isTouchPrimary()}
+                        audioCoverUrl={audioCoverUrl}
+                        onAudioCoverError={handleAudioPreviewError}
+                        onClick={handleTileClick}
+                        onContextMenu={handleTileContextMenu}
                         onDragStart={
                           isPickerMode ? undefined : handleTileDragStart
                         }
-                        onClick={handleTileClick}
-                        onContextMenu={handleTileContextMenu}
-                        className={tileClass}
-                        aria-label={gen.prompt || gen.id}
-                        aria-pressed={selectionMode ? isSelected : undefined}
-                        title={gen.prompt || undefined}
-                      >
-                        {tileChildren}
-                        {(pickerMultiSelect ||
-                          (!isPickerMode && selectionMode)) && (
-                          <span
-                            className={cn(
-                              'pointer-events-none absolute left-1.5 top-1.5 flex size-5 items-center justify-center rounded-full',
-                              isSelected
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-background/90 text-foreground/70',
-                            )}
-                          >
-                            {isSelected ? (
-                              <CheckCircle2 className="size-3.5" />
-                            ) : (
-                              <Circle className="size-3.5" />
-                            )}
-                          </span>
-                        )}
-                        {gen.isLiked && !selectionMode && (
-                          <span
-                            className="pointer-events-none absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-background/80 text-rose-500 shadow-sm backdrop-blur-sm"
-                            aria-hidden
-                          >
-                            <Heart className="size-3 fill-current" />
-                          </span>
-                        )}
-                      </button>
+                      />
                     )
                   })}
-              {hasMore && (
-                <div ref={sentinelRef} className="col-span-full h-2" />
-              )}
+                </div>
+              ))}
             </div>
+          )}
+          {/* ⭐ 分页失败只挡这一段：已加载的内容一个都不动。 */}
+          {view === 'library' && appendError && (
+            <AssetPaginationError
+              message={appendError}
+              onRetry={retryLoadMore}
+              className="mt-3"
+            />
+          )}
+          {view === 'library' && hasMore && !appendError && (
+            <div ref={sentinelRef} className="h-2" />
           )}
 
           {isLoading && generations.length > 0 && (
@@ -1648,32 +1753,9 @@ export function KreaAssetBrowser({
           )}
         </main>
 
-        {/* ─── Right sidebar ─────────────────────────────────────── */}
-        {/* Hidden in picker mode — the folder tree would eat ~40% of the
-            dialog width. The scenized picker uses a horizontal section rail
-            above the grid instead (see below). */}
-        {!isPickerMode && (
-          <aside className="studio-scrollbar hidden min-w-0 w-72 shrink-0 overflow-x-hidden overflow-y-auto py-4 lg:block">
-            <div className="grid min-w-0 gap-4 overflow-hidden rounded-xl border border-border/70 bg-card/60 p-2 shadow-sm">
-              <AssetFolderTree
-                projects={projects}
-                byProjectCounts={counts?.byProject}
-                activeProjectTotal={
-                  section.kind === 'project' ? total : undefined
-                }
-                unassignedCount={unassignedCount}
-                activeProjectId={section.kind === 'project' ? section.id : null}
-                isUnassignedActive={section.kind === 'unassigned'}
-                onSelectUnassigned={() => setSection({ kind: 'unassigned' })}
-                onSelectProject={(id) => setSection({ kind: 'project', id })}
-                onProjectCreated={handleProjectCreated}
-                onRenameProject={handleRenameProject}
-                onRequestDeleteProject={requestDeleteProject}
-                onDropAssets={handleDropAssetsOnFolder}
-              />
-            </div>
-          </aside>
-        )}
+        {/* ⛔ 常驻右栏文件夹树已退役（page §2：不增加第二个永久左/右栏）。
+            文件夹现在走「段一门牌行 → 夹内页 → 总览页」三段式，CRUD 收进
+            总览页。picker 的文件夹导航栏是另一件事，见切片 6b。 */}
       </div>
       {!isPickerMode && (
         <AssetDetailSheet
@@ -1691,6 +1773,39 @@ export function KreaAssetBrowser({
           transitionOrigin={selectedOriginRect}
         />
       )}
+      {!isPickerMode && (
+        <AssetUploadQueuePanel
+          items={uploadQueue.items}
+          doneCount={uploadQueue.doneCount}
+          errorCount={uploadQueue.errorCount}
+          projects={projects}
+          targetProjectId={
+            uploadQueue.pendingItems[0]?.targetProjectId ??
+            uploadTargetProjectId
+          }
+          onChangeTarget={uploadQueue.changeTarget}
+          onRetry={uploadQueue.retry}
+          onRetryAll={uploadQueue.retryAll}
+          onRemove={uploadQueue.remove}
+          onClearCompleted={uploadQueue.clearCompleted}
+          onReveal={(item) => {
+            if (item.targetProjectId) openFolder(item.targetProjectId)
+            else openUnassigned()
+          }}
+        />
+      )}
+      {/* 门牌行 / 总览页的「新建文件夹」卡是布局里的一格，塞不进
+          DialogTrigger，所以这里用受控实例，由那两处直接开。 */}
+      {!isPickerMode && (
+        <ProjectCreateDialog
+          open={createFolderParentId !== undefined}
+          onOpenChange={(next) => {
+            if (!next) setCreateFolderParentId(undefined)
+          }}
+          parentId={createFolderParentId ?? null}
+          onCreated={handleProjectCreated}
+        />
+      )}
       {/* Off-screen custom drag image for multi-select folder drags. */}
       <div
         ref={dragGhostRef}
@@ -1698,60 +1813,10 @@ export function KreaAssetBrowser({
         style={{ position: 'fixed', left: '-9999px', top: '-9999px' }}
         className="pointer-events-none rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-lg"
       />
-      {/* ─── Picker confirmation bar (multi-select picker mode) ── */}
-      {pickerMultiSelect && (
-        <div
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 md:pb-6"
-          style={{
-            paddingBottom:
-              'calc(max(var(--keyboard-safe-area-bottom, 0px), 1rem) + var(--keyboard-inset, 0px))',
-          }}
-        >
-          <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
-            <span className="px-2 text-xs font-medium tabular-nums">
-              {pickerMaxSelection != null
-                ? t('pickerSelectedWithMax', {
-                    count: selectedIds.size,
-                    max: pickerMaxSelection,
-                  })
-                : t('selectedCount', { count: selectedIds.size })}
-            </span>
-            {selectedIds.size > 0 && (
-              <>
-                <span className="h-4 w-px bg-border/60" />
-                <button
-                  type="button"
-                  onClick={clearSelection}
-                  className="rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                >
-                  {t('selectClear')}
-                </button>
-              </>
-            )}
-            <span className="h-4 w-px bg-border/60" />
-            <button
-              type="button"
-              disabled={selectedIds.size === 0}
-              onClick={() => {
-                const picked: GenerationRecord[] = []
-                for (const id of selectedIds) {
-                  const found = generations.find((g) => g.id === id)
-                  if (found) picked.push(found)
-                }
-                onPickerConfirmMany?.(picked)
-                clearSelection()
-              }}
-              className="flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
-            >
-              <CheckCircle2 className="size-3.5" />
-              {t('pickerConfirmAdd', { count: selectedIds.size })}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ─── Bulk selection action bar ─────────────────────────── */}
-      {!isPickerMode && selectionMode && selectedIds.size > 0 && (
+      {/* ⭐ **进入选择模式即出现**（§7.1）：以前要 `selectedIds.size > 0` 才渲染，
+          于是「点了『选择』什么都没发生」，用户不知道进没进选择模式。 */}
+      {!isPickerMode && selectionMode && (
         <div
           className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 md:pb-6"
           style={{
@@ -1763,6 +1828,11 @@ export function KreaAssetBrowser({
             <span className="px-2 text-xs font-medium tabular-nums">
               {t('selectedCount', { count: selectedIds.size })}
             </span>
+            {selectedIds.size === 0 && (
+              <span className="hidden px-1 text-2xs text-muted-foreground sm:inline">
+                {t('selectHint')}
+              </span>
+            )}
             <span className="h-4 w-px bg-border/60" />
             <button
               type="button"
@@ -1774,17 +1844,23 @@ export function KreaAssetBrowser({
             <button
               type="button"
               onClick={clearSelection}
-              className="rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+              disabled={selectedIds.size === 0}
+              className="rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:opacity-40"
             >
               {t('selectClear')}
             </button>
             <span className="h-4 w-px bg-border/60" />
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
+            {/* §7.2：扁平下拉 → 可搜索目标选择器（搜索 / 最近移入过 / 移出 /
+                全部文件夹 / 新建并移入）。 */}
+            <AssetMoveTargetPicker
+              projects={projects}
+              onMove={(projectId) => void performBulkMove(projectId)}
+              onCreateAndMove={() => setCreateFolderParentId(null)}
+              trigger={
                 <button
                   type="button"
-                  disabled={isBulkActionPending}
-                  className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:opacity-50"
+                  disabled={isBulkActionPending || selectedIds.size === 0}
+                  className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:opacity-40"
                 >
                   {isBulkMoving ? (
                     <Spinner size="sm" />
@@ -1793,32 +1869,12 @@ export function KreaAssetBrowser({
                   )}
                   {t('bulkMove')}
                 </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                side="top"
-                align="center"
-                className="max-h-72 w-56 overflow-y-auto"
-              >
-                <DropdownMenuItem onClick={() => void performBulkMove(null)}>
-                  <FolderX className="size-4" />
-                  {t('bulkMoveUnassigned')}
-                </DropdownMenuItem>
-                {projects.length > 0 && <DropdownMenuSeparator />}
-                {projects.map((project) => (
-                  <DropdownMenuItem
-                    key={project.id}
-                    onClick={() => void performBulkMove(project.id)}
-                  >
-                    <Folder className="size-4" />
-                    <span className="truncate">{project.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              }
+            />
             <button
               type="button"
               onClick={requestBulkFavorite}
-              disabled={isBulkActionPending}
+              disabled={isBulkActionPending || selectedIds.size === 0}
               className="flex items-center gap-1.5 rounded-full border border-rose-500/40 px-3 py-1.5 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10 disabled:opacity-50"
             >
               {isBulkFavoriting ? (
@@ -1831,7 +1887,7 @@ export function KreaAssetBrowser({
             <button
               type="button"
               onClick={requestBulkPublish}
-              disabled={isBulkActionPending}
+              disabled={isBulkActionPending || selectedIds.size === 0}
               className="flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {isBulkPublishing ? (
@@ -1844,7 +1900,7 @@ export function KreaAssetBrowser({
             <button
               type="button"
               onClick={requestBulkDelete}
-              disabled={isBulkActionPending}
+              disabled={isBulkActionPending || selectedIds.size === 0}
               className="flex items-center gap-1.5 rounded-full border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
             >
               {isBulkDeleting ? (
@@ -1929,16 +1985,16 @@ export function KreaAssetBrowser({
 }
 
 interface DensityToggleProps {
-  density: Density
-  onChange: (next: Density) => void
+  density: AssetGridDensity
+  onChange: (next: AssetGridDensity) => void
 }
 
 function DensityToggle({ density, onChange }: DensityToggleProps) {
   const t = useTranslations('AssetsPage')
-  const labels: Record<Density, string> = {
-    comfortable: t('densityComfortable'),
-    normal: t('densityNormal'),
-    compact: t('densityCompact'),
+  const labels: Record<AssetGridDensity, string> = {
+    s: t('densitySmall'),
+    m: t('densityMedium'),
+    l: t('densityLarge'),
   }
   return (
     <div className="hidden shrink-0 items-center gap-2 sm:inline-flex">
@@ -1954,225 +2010,19 @@ function DensityToggle({ density, onChange }: DensityToggleProps) {
         className="rounded-lg bg-background/80 p-0.5 shadow-inner"
         aria-label={t('densityLabel')}
       >
-        {DENSITIES.map((d) => (
+        {ASSET_GRID_DENSITIES.map((d) => (
           <ToggleGroupItem
             key={d}
             value={d}
             aria-label={labels[d]}
             title={labels[d]}
-            className="h-9 w-10 rounded-md px-0 text-sm tabular-nums data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:shadow-sm"
+            className="h-9 w-10 rounded-md px-0 text-sm font-medium uppercase data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:shadow-sm"
           >
-            {DENSITY_XL_COLS[d]}
+            {d}
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
     </div>
-  )
-}
-
-interface MobileSectionOption {
-  key: string
-  active: boolean
-  icon: React.ReactNode
-  label: string
-  count?: number
-  onClick: () => void
-  onPrefetch?: () => void
-}
-
-interface IconSegmentedToggleProps {
-  label: string
-  options: MobileSectionOption[]
-}
-
-function IconSegmentedToggle({ label, options }: IconSegmentedToggleProps) {
-  const activeKey = options.find((option) => option.active)?.key ?? ''
-
-  return (
-    <ToggleGroup
-      type="single"
-      value={activeKey}
-      onValueChange={(value) => {
-        const nextOption = options.find((option) => option.key === value)
-        nextOption?.onClick()
-      }}
-      aria-label={label}
-      className="max-w-full flex-nowrap gap-0 overflow-hidden rounded-xl border-border/70 bg-background/80 p-0 shadow-sm"
-    >
-      {options.map((option, index) => (
-        <ToggleGroupItem
-          key={option.key}
-          value={option.key}
-          aria-label={option.label}
-          title={option.label}
-          onMouseEnter={option.onPrefetch}
-          onFocus={option.onPrefetch}
-          className={cn(
-            'inline-flex h-10 w-11 shrink-0 items-center justify-center rounded-none border-r border-border/70 px-0 text-sm first:rounded-l-xl last:rounded-r-xl last:border-r-0',
-            'hover:bg-muted/50 hover:text-foreground',
-            'data-[state=on]:z-10 data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:shadow-sm',
-            index > 0 && '-ml-px',
-          )}
-        >
-          <span
-            className={cn(
-              'flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors',
-              option.active && 'text-background',
-            )}
-          >
-            {option.icon}
-          </span>
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
-  )
-}
-
-interface MobileSectionGroup {
-  key: string
-  label: string
-  options: MobileSectionOption[]
-  action?: React.ReactNode
-}
-
-interface MobileSectionPickerProps {
-  label: string
-  activeOption: MobileSectionOption
-  groups: MobileSectionGroup[]
-  expanded: boolean
-  openLabel: string
-  closeLabel: string
-  onExpandedChange: (expanded: boolean) => void
-}
-
-function MobileSectionPicker({
-  label,
-  activeOption,
-  groups,
-  expanded,
-  openLabel,
-  closeLabel,
-  onExpandedChange,
-}: MobileSectionPickerProps) {
-  return (
-    <section
-      aria-label={label}
-      className="rounded-2xl border border-border/70 bg-card/80 p-2 shadow-sm"
-    >
-      <button
-        type="button"
-        onClick={() => onExpandedChange(!expanded)}
-        aria-expanded={expanded}
-        className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-2 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-      >
-        <span className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
-            {activeOption.icon}
-          </span>
-          <span className="grid min-w-0 gap-0.5">
-            <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground/70">
-              {label}
-            </span>
-            <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-foreground">
-              <span className="truncate">{activeOption.label}</span>
-              {typeof activeOption.count === 'number' && (
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                  {activeOption.count}
-                </span>
-              )}
-            </span>
-          </span>
-        </span>
-        <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-          {expanded ? closeLabel : openLabel}
-          <ChevronDown
-            className={cn(
-              'size-3.5 transition-transform',
-              expanded && 'rotate-180',
-            )}
-          />
-        </span>
-      </button>
-
-      {expanded && (
-        <div className="mt-2 grid gap-3 border-t border-border/60 pt-3">
-          {groups.map((group) => (
-            <MobileSectionRail
-              key={group.key}
-              label={group.label}
-              options={group.options}
-              action={group.action}
-              onOptionSelected={() => onExpandedChange(false)}
-            />
-          ))}
-        </div>
-      )}
-    </section>
-  )
-}
-
-interface MobileSectionRailProps {
-  label: string
-  options: MobileSectionOption[]
-  action?: React.ReactNode
-  onOptionSelected?: () => void
-}
-
-function MobileSectionRail({
-  label,
-  options,
-  action,
-  onOptionSelected,
-}: MobileSectionRailProps) {
-  return (
-    <section className="grid gap-1.5" aria-label={label}>
-      <div className="flex min-h-7 items-center justify-between gap-2">
-        <span className="px-0.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground/70">
-          {label}
-        </span>
-        {action}
-      </div>
-      <div
-        role="group"
-        aria-label={label}
-        className="-mx-2 flex gap-1.5 overflow-x-auto px-2 pb-1"
-      >
-        {options.map((option) => (
-          <button
-            key={option.key}
-            type="button"
-            onClick={() => {
-              option.onClick()
-              onOptionSelected?.()
-            }}
-            onMouseEnter={option.onPrefetch}
-            onFocus={option.onPrefetch}
-            aria-pressed={option.active}
-            className={cn(
-              'inline-flex h-8 max-w-44 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors',
-              option.active
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
-            )}
-          >
-            <span
-              className={cn(
-                'shrink-0',
-                option.active ? 'text-primary' : 'text-muted-foreground/70',
-              )}
-            >
-              {option.icon}
-            </span>
-            <span className="truncate">{option.label}</span>
-            {typeof option.count === 'number' && (
-              <span className="shrink-0 text-3xs text-muted-foreground/70 tabular-nums">
-                {option.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-    </section>
   )
 }
 

@@ -1,37 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="">
+  <!--
+    音频素材的系统默认封面（回退链最后一级）。
+    ⛔ 这里**故意不画波形**：`docs/references/pages/assets.md` §6 明写
+    「没有真实波形数据时不画伪波形」—— 旧版画了 10 根等间距柱状条 + 一条起伏
+    曲线，看着像波形，实际跟这段音频毫无关系，是假信息。
+    改成抽象同心环（唱片/共振的语义），与瓦片内 CSS 兜底封面同一套语言。
+    浅色中性场，配合 Assets 的白底与暗色药丸角标。
+  -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#202020" />
-      <stop offset="0.52" stop-color="#111111" />
-      <stop offset="1" stop-color="#262626" />
-    </linearGradient>
-    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#f8fafc" stop-opacity="0.28" />
-      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.78" />
-      <stop offset="1" stop-color="#f8fafc" stop-opacity="0.28" />
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f7f8" />
+      <stop offset="0.55" stop-color="#efeff1" />
+      <stop offset="1" stop-color="#e6e6e9" />
     </linearGradient>
   </defs>
-  <rect width="640" height="640" fill="url(#bg)" />
-  <circle cx="500" cy="128" r="132" fill="#ffffff" opacity="0.06" />
-  <circle cx="144" cy="492" r="188" fill="#ffffff" opacity="0.04" />
-  <g fill="url(#wave)">
-    <rect x="116" y="270" width="22" height="100" rx="11" />
-    <rect x="158" y="226" width="22" height="188" rx="11" />
-    <rect x="200" y="186" width="22" height="268" rx="11" />
-    <rect x="242" y="236" width="22" height="168" rx="11" />
-    <rect x="284" y="148" width="22" height="344" rx="11" />
-    <rect x="326" y="212" width="22" height="216" rx="11" />
-    <rect x="368" y="180" width="22" height="280" rx="11" />
-    <rect x="410" y="252" width="22" height="136" rx="11" />
-    <rect x="452" y="218" width="22" height="204" rx="11" />
-    <rect x="494" y="278" width="22" height="84" rx="11" />
+  <rect width="640" height="640" fill="url(#field)" />
+  <g fill="none" stroke="#0c0c0c" stroke-opacity="0.14">
+    <circle cx="320" cy="320" r="148" stroke-width="2" />
+    <circle cx="320" cy="320" r="92" stroke-width="2" />
+    <circle cx="320" cy="320" r="46" stroke-width="2" />
   </g>
-  <path
-    d="M88 508c96-58 180-71 252-38 80 37 145 18 212-49"
-    fill="none"
-    stroke="#ffffff"
-    stroke-opacity="0.12"
-    stroke-width="18"
-    stroke-linecap="round"
-  />
+  <circle cx="320" cy="320" r="12" fill="#0c0c0c" fill-opacity="0.18" />
+  <circle cx="512" cy="120" r="120" fill="#0c0c0c" fill-opacity="0.03" />
+  <circle cx="132" cy="500" r="164" fill="#0c0c0c" fill-opacity="0.025" />
 </svg>

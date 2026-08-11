@@ -12,13 +12,16 @@
  */
 
 export const VOLCENGINE_PROVIDER_ID = 'volcengine'
+export const BYTEPLUS_PROVIDER_ID = 'byteplus'
 
 /** Ark, cn-beijing. Overridden by `providerInput.providerBaseUrl` when present. */
 export const VOLCENGINE_DEFAULT_BASE_URL =
   'https://ark.cn-beijing.volces.com/api/v3'
 
 export function isVolcEngineProviderId(providerId: string): boolean {
-  return providerId === VOLCENGINE_PROVIDER_ID
+  return (
+    providerId === VOLCENGINE_PROVIDER_ID || providerId === BYTEPLUS_PROVIDER_ID
+  )
 }
 
 const MAX_SEED = 2_147_483_647
@@ -43,11 +46,17 @@ const REFERENCE_ENDPOINT_MODEL_IDS = new Set<string>([
   'seedance-2.0-reference-volcengine',
   'seedance-2.0-fast-reference-volcengine',
   'seedance-2.5-reference-volcengine',
+  'seedance-2.0-reference-byteplus',
+  'seedance-2.0-fast-reference-byteplus',
+  'seedance-2.5-reference-byteplus',
 ])
 
-const MAX_REFERENCE_IMAGES = 9
-const MAX_REFERENCE_VIDEOS = 3
-const MAX_REFERENCE_AUDIO = 3
+const SEEDANCE_25_MODEL_IDS = new Set<string>([
+  'seedance-2.5-volcengine',
+  'seedance-2.5-reference-volcengine',
+  'seedance-2.5-byteplus',
+  'seedance-2.5-reference-byteplus',
+])
 
 /**
  * The fast tier tops out at 720p; asking for 1080p there is a 400.
@@ -56,7 +65,10 @@ const MAX_REFERENCE_AUDIO = 3
  * 那份镜像键的维度不同 —— src 侧键内部 id。两边都对，但**别把值互相抄过去**。
  * 普通 fast 与 fast-reference 共用同一个外部 id，一条就够。
  */
-const FAST_MODEL_IDS = new Set(['doubao-seedance-2-0-fast-260128'])
+const FAST_MODEL_IDS = new Set([
+  'doubao-seedance-2-0-fast-260128',
+  'dreamina-seedance-2-0-fast-260128',
+])
 
 const ADAPTIVE_RATIO = 'adaptive'
 
@@ -65,7 +77,10 @@ const ADAPTIVE_RATIO = 'adaptive'
  * 键的是**内部** modelId —— 2.5 的参考端点与关键帧端点共用同一个 externalModelId，
  * 拿外部 id 分不开这两个场景。
  */
-const ADAPTIVE_RATIO_MODEL_IDS = new Set<string>(['seedance-2.5-volcengine'])
+const ADAPTIVE_RATIO_MODEL_IDS = new Set<string>([
+  'seedance-2.5-volcengine',
+  'seedance-2.5-byteplus',
+])
 
 export interface VolcEngineVideoBuilderInput {
   prompt: string
@@ -103,6 +118,10 @@ function resolveResolution(
 export function buildVolcEngineVideoRequest(
   input: VolcEngineVideoBuilderInput,
 ): Record<string, unknown> {
+  const isSeedance25 = SEEDANCE_25_MODEL_IDS.has(input.modelId)
+  const maxReferenceImages = isSeedance25 ? 30 : 9
+  const maxReferenceVideos = isSeedance25 ? 10 : 3
+  const maxReferenceAudio = isSeedance25 ? 10 : 3
   const content: Record<string, unknown>[] = [
     { type: 'text', text: input.prompt },
   ]
@@ -115,12 +134,9 @@ export function buildVolcEngineVideoRequest(
         : []
   const referenceVideoUrls = (input.videoUrls ?? []).slice(
     0,
-    MAX_REFERENCE_VIDEOS,
+    maxReferenceVideos,
   )
-  const referenceAudioUrls = (input.audioUrls ?? []).slice(
-    0,
-    MAX_REFERENCE_AUDIO,
-  )
+  const referenceAudioUrls = (input.audioUrls ?? []).slice(0, maxReferenceAudio)
 
   // ark 的三个场景互斥：first-frame i2v / first+last frame / multimodal reference。
   //
@@ -145,7 +161,7 @@ export function buildVolcEngineVideoRequest(
     referenceAudioUrls.length > 0
 
   if (useReferenceMode) {
-    for (const url of referenceImageUrls.slice(0, MAX_REFERENCE_IMAGES)) {
+    for (const url of referenceImageUrls.slice(0, maxReferenceImages)) {
       content.push({
         type: 'image_url',
         image_url: { url },
@@ -159,9 +175,13 @@ export function buildVolcEngineVideoRequest(
         role: 'reference_video',
       })
     }
-    // ark rule: reference audio cannot be the sole input — it must accompany at
-    // least one reference image or video, otherwise the request is rejected.
-    if (referenceImageUrls.length > 0 || referenceVideoUrls.length > 0) {
+    // Seedance 2.0 requires a visual reference alongside audio; 2.5 permits
+    // audio-only reference on the native Ark line.
+    if (
+      isSeedance25 ||
+      referenceImageUrls.length > 0 ||
+      referenceVideoUrls.length > 0
+    ) {
       for (const url of referenceAudioUrls) {
         content.push({
           type: 'audio_url',
@@ -212,10 +232,11 @@ export function buildVolcEngineVideoRequest(
   }
 
   // ark has no 'auto' literal — coerce it to the default.
+  const maxDuration = isSeedance25 ? 30 : MAX_DURATION
   body.duration =
     typeof input.duration === 'number'
       ? Math.min(
-          MAX_DURATION,
+          maxDuration,
           Math.max(MIN_DURATION, Math.round(input.duration)),
         )
       : DEFAULT_DURATION
@@ -234,8 +255,7 @@ export function buildVolcEngineVideoRequest(
   const generateAudio =
     input.generateAudio ??
     (readVideoDefault(input.videoDefaults, 'generateAudio') as
-      | boolean
-      | undefined)
+      boolean | undefined)
   if (generateAudio != null) {
     body.generate_audio = generateAudio
   }

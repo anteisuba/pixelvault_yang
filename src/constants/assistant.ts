@@ -20,6 +20,7 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
   [AI_ADAPTER_TYPES.ANTHROPIC]: { image: false, video: false },
   [AI_ADAPTER_TYPES.DASHSCOPE]: { image: false, video: false },
   [AI_ADAPTER_TYPES.VOLCENGINE]: { image: false, video: false },
+  [AI_ADAPTER_TYPES.BYTEPLUS]: { image: false, video: false },
   [AI_ADAPTER_TYPES.MINIMAX]: { image: false, video: false },
   [AI_ADAPTER_TYPES.MINIMAX_CN]: { image: false, video: false },
   [AI_ADAPTER_TYPES.HUGGINGFACE]: { image: false, video: false },
@@ -41,9 +42,7 @@ export function assistantAdapterSupportsMedia(
 }
 
 export type AssistantMediaCapabilityLabel =
-  | 'imageVideo'
-  | 'imageOnly'
-  | 'textOnly'
+  'imageVideo' | 'imageOnly' | 'textOnly'
 
 export function getAssistantMediaCapabilityLabel(
   adapterType: AI_ADAPTER_TYPES,

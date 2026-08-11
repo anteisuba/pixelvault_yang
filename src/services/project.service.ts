@@ -2,6 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { PROJECT } from '@/constants/config'
+import { PROJECT_COVER_TILE_COUNT } from '@/constants/assets-grid'
 import type {
   CreateProjectRequest,
   UpdateProjectRequest,
@@ -12,6 +13,25 @@ import { ensureUser } from '@/services/user.service'
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
+/**
+ * 门牌卡要的是**最近 4 张真实素材**拼出 2×2 的贴片
+ * （`docs/references/pages/assets.md` §3 段一）。
+ *
+ * ⚠ 视频/音频/3D 的 `url` 是媒体文件，塞进 `<img>` 什么也画不出来 —— 只有
+ * 派生图能当封面。所以非图片类型缺派生图时**直接跳过**，宁可拼贴少一格，
+ * 也不放一个永远加载失败的地址。
+ */
+function toCoverUrl(generation: {
+  url: string
+  thumbnailUrl: string | null
+  previewUrl: string | null
+  outputType: string
+}): string | null {
+  if (generation.thumbnailUrl) return generation.thumbnailUrl
+  if (generation.previewUrl) return generation.previewUrl
+  return generation.outputType === 'IMAGE' ? generation.url : null
+}
+
 function toProjectRecord(project: {
   id: string
   name: string
@@ -20,7 +40,12 @@ function toProjectRecord(project: {
   createdAt: Date
   updatedAt: Date
   _count: { generations: number }
-  generations: { url: string }[]
+  generations: {
+    url: string
+    thumbnailUrl: string | null
+    previewUrl: string | null
+    outputType: string
+  }[]
 }): ProjectRecord {
   return {
     id: project.id,
@@ -28,7 +53,9 @@ function toProjectRecord(project: {
     description: project.description,
     parentId: project.parentId,
     generationCount: project._count.generations,
-    latestGenerationUrl: project.generations[0]?.url ?? null,
+    coverUrls: project.generations
+      .map(toCoverUrl)
+      .filter((url): url is string => Boolean(url)),
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
   }
@@ -43,9 +70,15 @@ const projectSelect = {
   updatedAt: true,
   _count: { select: { generations: true } },
   generations: {
-    select: { url: true },
+    select: {
+      url: true,
+      thumbnailUrl: true,
+      previewUrl: true,
+      outputType: true,
+    },
     orderBy: { createdAt: 'desc' as const },
-    take: 1,
+    // 门牌卡的 2×2 拼贴要 4 张。
+    take: PROJECT_COVER_TILE_COUNT,
   },
 } as const
 

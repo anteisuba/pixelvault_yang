@@ -500,29 +500,14 @@ function resolveRosterDropIntent(
   return undefined
 }
 
-/**
- * React Flow v12 的 `onNodeDrag*` 回调收到的是**原生** `MouseEvent | TouchEvent`
- * （d3-drag 发出的），不是 React 合成事件 —— 直接标成 `React.MouseEvent` 过不了
- * 类型（`OnNodeDrag` 不兼容），而触摸事件也根本没有 `clientX`。
- * 这里统一取一次坐标：鼠标直接读，触摸读第一个触点。
- */
-function getDragEventClientPoint(event: MouseEvent | TouchEvent): {
-  clientX: number
-  clientY: number
-} {
-  if ('touches' in event) {
-    const touch = event.touches[0] ?? event.changedTouches[0]
-    return { clientX: touch?.clientX ?? 0, clientY: touch?.clientY ?? 0 }
-  }
-  return { clientX: event.clientX, clientY: event.clientY }
-}
-
 function findCanvasDragHit(
-  event: MouseEvent | TouchEvent,
+  event: ReactMouseEvent,
   draggedNodeId: string,
 ): CanvasDragHit | null {
-  const { clientX, clientY } = getDragEventClientPoint(event)
-  const stackedElements = document.elementsFromPoint(clientX, clientY)
+  const stackedElements = document.elementsFromPoint(
+    event.clientX,
+    event.clientY,
+  )
   for (const candidate of stackedElements) {
     if (!(candidate instanceof Element)) continue
     const canvasNode = candidate.closest<HTMLElement>(
@@ -1816,12 +1801,21 @@ function StudioNodeCanvas() {
       const videoResolution =
         isVideoMediaNode && typeof node.data.resolution === 'string'
           ? (node.data.resolution as
-              '480p' | '540p' | '720p' | '1080p' | undefined)
+              | '480p'
+              | '540p'
+              | '720p'
+              | '1080p'
+              | undefined)
           : undefined
       const videoAspectRatio =
         isVideoMediaNode && typeof node.data.aspectRatio === 'string'
           ? (node.data.aspectRatio as
-              '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | undefined)
+              | '1:1'
+              | '16:9'
+              | '9:16'
+              | '4:3'
+              | '3:4'
+              | undefined)
           : undefined
       const audioVoiceId =
         isAudioMediaNode && typeof node.data.voiceId === 'string'
@@ -3832,7 +3826,7 @@ function StudioNodeCanvas() {
   const rosterGhostElRef = useRef<HTMLElement | null>(null)
 
   const handleNodeDragStart = useCallback(
-    (_event: MouseEvent | TouchEvent, node: NodeWorkflowNode) => {
+    (_event: ReactMouseEvent, node: NodeWorkflowNode) => {
       setCanvasNodeDragActive(true)
       workflow.onNodesChange([{ id: node.id, type: 'select', selected: false }])
 
@@ -3916,9 +3910,8 @@ function StudioNodeCanvas() {
   )
 
   const handleNodeDrag = useCallback(
-    (event: MouseEvent | TouchEvent, node: NodeWorkflowNode) => {
-      const { clientX: dragClientX, clientY: dragClientY } =
-        getDragEventClientPoint(event)
+    (event: ReactMouseEvent, node: NodeWorkflowNode) => {
+      const { clientX: dragClientX, clientY: dragClientY } = event
       // 阶段 8-b 的悬停反馈。⚠ 直接改 class 不进 React state —— 与咬合预览同款
       // 纪律（每帧 setState 会让整棵画布重渲，那正是 2026-07-18「拖动手感钝」
       // 那次的根因）。
@@ -4021,10 +4014,10 @@ function StudioNodeCanvas() {
    * @returns 这一拖是否被名册卡吃掉了（吃掉就不再往下走吞噬那条）。
    */
   const handleRosterDrop = useCallback(
-    (event: MouseEvent | TouchEvent, node: NodeWorkflowNode): boolean => {
+    (event: ReactMouseEvent, node: NodeWorkflowNode): boolean => {
       const intent = resolveRosterDropIntent(node)
       if (!intent) return false
-      const { clientX, clientY } = getDragEventClientPoint(event)
+      const { clientX, clientY } = event
       const cardEl = findRosterCardAt(clientX, clientY)
       const cardId = cardEl?.getAttribute(ROSTER_CARD_ATTR)
       if (!cardEl || !cardId) return false
@@ -4103,7 +4096,7 @@ function StudioNodeCanvas() {
   )
 
   const handleNodeDragStop = useCallback(
-    (event: MouseEvent | TouchEvent, node: NodeWorkflowNode) => {
+    (event: ReactMouseEvent, node: NodeWorkflowNode) => {
       workflow.onNodesChange([{ id: node.id, type: 'select', selected: false }])
       // 拖拽结束，名册卡的悬停高亮无论如何都要摘掉 —— 一个留在原地的高亮框
       // 会让下一次拖拽看起来「已经命中」。

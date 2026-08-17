@@ -70,6 +70,13 @@ const HUGGINGFACE_IMAGE_BASE_URL =
   'https://router.huggingface.co/hf-inference/models'
 const REPLICATE_BASE_URL = 'https://api.replicate.com/v1'
 const RUNPOD_BASE_URL = 'https://api.runpod.ai/v2'
+// Runner 队列卫生（2026-08-18，起因：EXITED worker 仍被计为 ready，占住
+// workersMax=1 名额 → job 排满 10 分钟窗口，孤儿 job 又永久堵队列）：
+// - TTL 略长于轮询窗口（200×3s），窗口外没人再管的 job 由 RunPod 自动过期出队；
+// - 僵死探测按攻数取模触发（60 攻 ≈ 3 分钟），健康冷启动几秒内就有
+//   initializing/throttled worker，全零 + 从未离开 IN_QUEUE = 等满窗口也没人接单。
+const RUNNER_JOB_TTL_MS = 660_000
+const RUNNER_QUEUE_WEDGE_CHECK_EVERY_ATTEMPTS = 60
 const NOVELAI_IMAGE_BASE_URL = 'https://image.novelai.net'
 const VOLCENGINE_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const OLD_R2_DEV_PATTERN = /^https:\/\/pub-[a-f0-9]+\.r2\.dev\//
@@ -5780,7 +5787,11 @@ async function submitRunnerImageJob(
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': JSON_CONTENT_TYPE,
       },
-      body: JSON.stringify({ input: runpodInput }),
+      body: JSON.stringify({
+        input: runpodInput,
+        // 孤儿闸：轮询窗口耗尽/工作流被杀后没人再管的 job，到 TTL 自动出队。
+        policy: { ttl: RUNNER_JOB_TTL_MS },
+      }),
     },
   )
 
@@ -5892,6 +5903,52 @@ async function pollRunnerImageJob(
   }
 
   return { status: 'COMPLETED', imageBase64 }
+}
+
+/**
+ * Best-effort cancel：工作流停止轮询（窗口耗尽或僵死快败）时把 RunPod 侧
+ * job 撤出队列，不留孤儿。失败静默——调用方正在抛真正的错误，取消失败
+ * 还有 TTL 兜底。
+ */
+async function cancelRunnerImageJob(
+  jobId: string,
+  env: ExecutionEnv,
+  apiKey: string,
+): Promise<void> {
+  try {
+    await fetch(`${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/cancel/${jobId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+    })
+  } catch {
+    // 主错误由调用方抛出；这里只是队列卫生。
+  }
+}
+
+/**
+ * 队列僵死签名：端点没有任何 worker 活动（running/initializing/throttled
+ * 全 0）。健康冷启动几秒内就会出现 initializing（含拉镜像），GPU 缺货显示
+ * throttled——这两种都该继续等；全零 + job 长时间没离开 IN_QUEUE，说明调度
+ * 器僵死（实测过一次：EXITED worker 仍被计为 ready，占住 workersMax 名额），
+ * 等满窗口也不会有人接单。health 读不到时按「未僵死」处理，交给正常轮询。
+ */
+async function isRunnerQueueWedged(
+  env: ExecutionEnv,
+  apiKey: string,
+): Promise<boolean> {
+  const response = await fetch(
+    `${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/health`,
+    { headers: { Authorization: `Bearer ${apiKey}` } },
+  )
+  if (!response.ok) return false
+  const data = (await response.json()) as Record<string, unknown>
+  const workers = isRecord(data.workers) ? data.workers : null
+  if (!workers) return false
+  const activeWorkers =
+    (readNumberField(workers, 'running') ?? 0) +
+    (readNumberField(workers, 'initializing') ?? 0) +
+    (readNumberField(workers, 'throttled') ?? 0)
+  return activeWorkers === 0
 }
 
 export async function pollAndPersistRunnerImageJob(
@@ -6406,6 +6463,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
         )
 
         let completed: CompletedPersistedRunnerPollResult | undefined
+        let leftQueue = false
         for (
           let attempt = 1;
           !completed && attempt <= context.maxAttempts;
@@ -6447,10 +6505,67 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
 
           if (pollResult.status === 'COMPLETED') {
             completed = pollResult
+          } else if (pollResult.status === 'IN_PROGRESS') {
+            leftQueue = true
+          }
+
+          // 僵死快败：从未离开 IN_QUEUE 的 job 每 60 攻（≈3 分钟）核对一次端点
+          // 健康；确认僵死就取消 + 明确报错，不再让用户等满 10 分钟窗口。
+          if (
+            !completed &&
+            !leftQueue &&
+            attempt % RUNNER_QUEUE_WEDGE_CHECK_EVERY_ATTEMPTS === 0
+          ) {
+            const wedged = await step.do(
+              `check-runner-queue-wedged-${attempt}`,
+              {
+                retries: {
+                  limit: 1,
+                  delay: '5 seconds',
+                  backoff: 'exponential',
+                },
+                timeout: '30 seconds',
+              },
+              async () => {
+                const apiKey = await decryptStateString(
+                  encryptedApiKey,
+                  this.env,
+                )
+                return isRunnerQueueWedged(this.env, apiKey)
+              },
+            )
+            if (wedged) {
+              await step.do(
+                'cancel-runner-image-wedged',
+                { timeout: '30 seconds' },
+                async () => {
+                  const apiKey = await decryptStateString(
+                    encryptedApiKey,
+                    this.env,
+                  )
+                  await cancelRunnerImageJob(submitted.id, this.env, apiKey)
+                },
+              )
+              throw new WorkerProviderError({
+                message:
+                  'Runner queue is stuck: the endpoint has zero active workers and the job never left the queue. The job was cancelled — the endpoint needs attention (stale worker or no GPU capacity).',
+                provider: context.providerId,
+                phase: 'status_poll',
+                requestId: submitted.id,
+              })
+            }
           }
         }
 
         if (!completed) {
+          await step.do(
+            'cancel-runner-image-timeout',
+            { timeout: '30 seconds' },
+            async () => {
+              const apiKey = await decryptStateString(encryptedApiKey, this.env)
+              await cancelRunnerImageJob(submitted.id, this.env, apiKey)
+            },
+          )
           throw new Error(
             'Runner image generation timed out (cold start can take 150s+ on the first request after idle — try again).',
           )

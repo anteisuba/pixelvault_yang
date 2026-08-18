@@ -5,32 +5,24 @@ import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import {
-  BookOpen,
   ChevronDown,
   Coins,
-  FileText,
-  Image as ImageIcon,
   KeyRound,
-  Layers,
-  LayoutGrid,
-  Library,
-  LogOut,
-  Box,
   Lock,
-  Mic,
-  Palette,
-  ScanSearch,
-  Sparkles,
-  Swords,
+  LogOut,
   User,
   UserCircle,
-  Video,
-  Workflow,
 } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { motionTransition } from '@/constants/motion'
+import {
+  SHELL_NAV_LOCKED,
+  SHELL_NAV_SECTIONS,
+  isShellNavItemActive,
+  type ShellNavItem,
+} from '@/constants/navigation'
 import { ROUTES, creatorProfilePath } from '@/constants/routes'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
@@ -44,7 +36,6 @@ const ApiKeyManager = dynamic(
   { ssr: false },
 )
 import { Button } from '@/components/ui/button'
-import { HyperText } from '@/components/ui/hyper-text'
 import { NumberTicker } from '@/components/ui/number-ticker'
 import { Spinner } from '@/components/ui/spinner'
 import {
@@ -66,6 +57,7 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSlider,
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
@@ -76,33 +68,39 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useHasHydrated } from '@/hooks/use-has-hydrated'
+import { useNavIndicator } from '@/hooks/use-nav-indicator'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { cn } from '@/lib/utils'
 
 const SIDEBAR_FOOTER_CLASS =
-  'gap-2 border-t border-sidebar-border/40 p-3 group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:p-1 md:p-2'
+  'gap-1 p-1.5 group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:p-1'
 
 /**
- * AppSidebar — global navigation sidebar (replaces top Navbar).
+ * AppSidebar — 全局导航轨。施工基准：`docs/references/pages/app-shell.md`。
  *
- * Architecture (Krea-aligned):
- * - Header: brand + sidebar toggle
- * - Main nav: Gallery / Prompt library / Assets / Cards
- * - Footer: credit badge / avatar dropdown / LocaleSwitcher
+ * 形态「分段浮岛」（2026-08-18 owner 拍板）：壳底浅灰，轨坐在灰底上，主区是
+ * 一张左缘浮起的白卡。轨宽 144 展开 / 44 收起。
  *
- * Visual: inherits the app's light shell. Until 2026-07-31 this carried its own
- * `dark` class so a dark rail could sit on a light main surface — but the app
- * root also forced `.dark`, so both halves rendered dark and the intent never
- * showed. Owner chose the all-light A' shell, so the local override is gone and
- * the rail now reads the same `:root` sidebar slots as everything else.
+ * 结构：品牌 + 折叠钮 · 去处段 · 工具段（末尾折叠「敬请期待」）· 账户一行。
+ * 条目清单**只在** `src/constants/navigation.ts`，任何断点都从那里取。
+ *
+ * ⚠ 三条别退回去的东西（都是改版前真机量出来的问题）：
+ * 1. 菜单项的 `transition-property` **必须含 color** —— 改版前只有
+ *    `width,height,padding`，所以切工具时颜色是瞬时跳变的。
+ * 2. 激活与 hover **反极性**：hover 往暗、active 往亮。同向时只有 1.1:1。
+ * 3. 激活态靠**墨竖条 + 字重墨色跃迁**承重，白浮片只是材质（对壳底 1.24:1）。
  */
 export function AppSidebar() {
+  const { isMobile } = useSidebar()
+
+  // <1024 **完全没有侧栏**（方向 M2「顶栏当切换器」）——由 MobileShell 接管。
+  // 不挡的话，原语的移动分支会挂一个永远打不开的 Sheet 在 DOM 里。
+  // 首帧 useIsMobile 返回 false，与 SSR 一致，不会水合不匹配。
+  if (isMobile) return null
+
   return (
-    <Sidebar
-      collapsible="icon"
-      className="z-40 border-r border-sidebar-border text-sidebar-foreground"
-    >
+    <Sidebar collapsible="icon" className="z-40 text-sidebar-foreground">
       <AppSidebarHeader />
       <AppSidebarContent />
       <AppSidebarFooter />
@@ -126,31 +124,28 @@ function AppSidebarHeader() {
   // brand at /studio works for both states: signed-in users land in their
   // workspace; signed-out users hit the protected-route redirect to sign-in.
   return (
-    <SidebarHeader className="border-b border-sidebar-border/40 p-2 md:p-2">
+    <SidebarHeader className="p-1.5">
       <div
         className={cn(
-          'flex min-h-11 items-center justify-between gap-2 px-1',
-          isCollapsed && 'justify-center px-0',
+          'flex min-h-9 items-center justify-between gap-1',
+          isCollapsed && 'justify-center',
         )}
       >
         <Link
           href={ROUTES.STUDIO}
           className={cn(
-            'flex min-w-0 shrink-0 items-center px-1 py-1.5',
+            'flex min-w-0 shrink-0 items-center rounded-md px-2 py-1 text-sidebar-accent-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-sidebar-accent',
             isCollapsed && 'hidden',
           )}
         >
-          <HyperText
-            as="span"
-            duration={600}
-            animateOnHover
-            animateOnMount={false}
-            className="font-display text-lg font-bold leading-none tracking-brand text-sidebar-foreground !py-0 md:text-brand"
-          >
+          {/* 静态字。改版前这里挂着 HyperText 的逐字乱码 hover 动画 ——
+              一个每天要看几百次的导航元素上放炫技动画，与
+              `interaction.md §5`「动效只服务状态 / 连续性 / 反馈」冲突。 */}
+          <span className="font-display text-base font-bold leading-none tracking-brand">
             {t('brand')}
-          </HyperText>
+          </span>
         </Link>
-        <SidebarTrigger className="size-11 rounded-full border border-sidebar-border/60 bg-sidebar-accent/35 text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground md:size-8 md:border-0 md:bg-transparent" />
+        <SidebarTrigger className="size-11 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:size-8" />
       </div>
     </SidebarHeader>
   )
@@ -162,268 +157,119 @@ function AppSidebarHeader() {
 
 function AppSidebarContent() {
   const pathname = usePathname()
-  const t = useTranslations('Navbar')
+  const t = useTranslations()
   const tTools = useTranslations('StudioTools')
-  const { isMobile, setOpenMobile } = useSidebar()
-  const [showComingSoon, setShowComingSoon] = useState(false)
+  const { isMobile, setOpenMobile, state } = useSidebar()
+  const [showLocked, setShowLocked] = useState(false)
+  const navScopeRef = useRef<HTMLDivElement>(null)
+
+  const hasActiveLockedItem = SHELL_NAV_LOCKED.some((item) =>
+    isShellNavItemActive(item, pathname),
+  )
+  const isLockedOpen = showLocked || hasActiveLockedItem
+  const isCollapsed = !isMobile && state === 'collapsed'
+
+  // 收展改宽度、展开「敬请期待」改纵向位置 —— 两者都要让滑片重量。
+  const indicator = useNavIndicator(navScopeRef, pathname, state, isLockedOpen)
+
   const closeMobileSidebar = useCallback(() => {
     if (isMobile) setOpenMobile(false)
   }, [isMobile, setOpenMobile])
-  // The nav links don't depend on auth state — they render identically for
-  // signed-in and signed-out visitors. Anything protected (Prompts / Assets /
-  // Studio / Cards) is gated by Clerk middleware on click, so we can render
-  // SSR-first and skip the Clerk hydration wait that used to leave the
-  // sidebar empty (the previous `useUser().isLoaded` gate would never flip
-  // true for visitors with `Clerk.loaded === false`, e.g. when the Clerk
-  // session probe is still in flight on first paint of a public page).
-  // Active state comes from `pathname`, which is known both on the server
-  // and on the client, so there's no hydration mismatch.
 
-  const signedInLinks = [
-    {
-      href: ROUTES.GALLERY,
-      label: t('links.gallery'),
-      icon: LayoutGrid,
-    },
-    {
-      href: ROUTES.PROMPTS,
-      label: t('links.prompts'),
-      icon: FileText,
-    },
-    {
-      // Krea-style asset browser. This is the private asset-management surface.
-      href: ROUTES.ASSETS,
-      label: t('links.assets'),
-      icon: Library,
-    },
-    {
-      href: ROUTES.CARDS,
-      label: t('links.cards'),
-      icon: Layers,
-    },
-  ] as const
+  // 导航不依赖登录态：登入与未登入渲染完全一致。受保护的路由（提示词 / 素材 /
+  // 工作台 / 卡片）由 Clerk 中间件在点击时拦截，所以这里可以 SSR 优先，不必等
+  // Clerk 水合 —— 之前那个 `useUser().isLoaded` 闸门对 `Clerk.loaded === false`
+  // 的访客永远不会翻 true，会把整条侧栏留空。激活态来自 pathname，服务端与
+  // 客户端都算得出，不存在水合不一致。
+  const renderItem = (item: ShellNavItem, locked = false) => {
+    const Icon = item.icon
+    const label = t(item.labelKey)
+    return (
+      <SidebarMenuItem key={item.id}>
+        <SidebarMenuButton
+          asChild
+          isActive={isShellNavItemActive(item, pathname)}
+          tooltip={label}
+        >
+          <Link href={item.href} onClick={closeMobileSidebar}>
+            <Icon />
+            <span>{label}</span>
+          </Link>
+        </SidebarMenuButton>
+        {locked && (
+          <SidebarMenuBadge className="text-sidebar-subtle">
+            <Lock className="size-3" />
+          </SidebarMenuBadge>
+        )}
+      </SidebarMenuItem>
+    )
+  }
 
-  const pinnedToolLinks = [
-    {
-      href: ROUTES.ARENA,
-      label: t('links.arena'),
-      icon: Swords,
-      activePaths: [
-        ROUTES.ARENA,
-        ROUTES.ARENA_HISTORY,
-        ROUTES.ARENA_LEADERBOARD,
-      ],
-    },
-  ] as const
-
-  // Tools group — Krea-aligned per-tool entries. Image / Video / Audio map to
-  // their per-media-type routes. Image edit lives on Canvas (legacy /studio/edit
-  // deep links redirect there). Enhance / Analyze / LoRA / Node stay discoverable.
-  const toolLinks = [
-    {
-      href: ROUTES.STUDIO_IMAGE,
-      label: tTools('tools.image.label'),
-      icon: ImageIcon,
-      comingSoon: false,
-      activePaths: [ROUTES.STUDIO, ROUTES.STUDIO_IMAGE],
-    },
-    {
-      href: ROUTES.STUDIO_VIDEO,
-      label: tTools('tools.video.label'),
-      icon: Video,
-      comingSoon: false,
-      activePaths: [ROUTES.STUDIO_VIDEO],
-    },
-    {
-      href: ROUTES.STUDIO_AUDIO,
-      label: tTools('tools.audio.label'),
-      icon: Mic,
-      comingSoon: false,
-      activePaths: [ROUTES.STUDIO_AUDIO],
-    },
-    {
-      href: ROUTES.STUDIO_3D,
-      label: tTools('tools.model3d.label'),
-      icon: Box,
-      comingSoon: false,
-      activePaths: [ROUTES.STUDIO_3D],
-    },
-    {
-      href: ROUTES.STUDIO_ENHANCE,
-      label: tTools('tools.enhance.label'),
-      icon: Sparkles,
-      comingSoon: true,
-      activePaths: [ROUTES.STUDIO_ENHANCE],
-    },
-    {
-      href: ROUTES.STUDIO_ANALYZE,
-      label: tTools('tools.analyze.label'),
-      icon: ScanSearch,
-      comingSoon: true,
-      activePaths: [ROUTES.STUDIO_ANALYZE],
-    },
-    {
-      href: ROUTES.STUDIO_LORA,
-      label: tTools('tools.lora.label'),
-      icon: Palette,
-      comingSoon: false,
-      activePaths: [ROUTES.STUDIO_LORA],
-    },
-    {
-      href: ROUTES.STUDIO_NODE,
-      label: tTools('tools.node.label'),
-      icon: Workflow,
-      comingSoon: false,
-      activePaths: [ROUTES.STUDIO_NODE],
-    },
-  ] as const
-
-  const comingSoonToolLinks = [
-    ...toolLinks.filter((tool) => tool.comingSoon),
-    {
-      href: ROUTES.STORYBOARD,
-      label: t('links.storyboard'),
-      icon: BookOpen,
-      activePaths: [ROUTES.STORYBOARD],
-    },
-  ] as const
-
-  const hasActiveComingSoonLink = comingSoonToolLinks.some((tool) =>
-    tool.activePaths.some(
-      (path) => pathname === path || pathname.startsWith(`${path}/`),
-    ),
-  )
-
-  const isComingSoonOpen = showComingSoon || hasActiveComingSoonLink
-
-  // Render the full nav regardless of auth state so a signed-out visitor
-  // landing on /gallery still sees Krea-style discovery (Gallery / Prompts /
-  // Assets / Cards + Tools). Clicking a protected link triggers the standard
-  // Clerk middleware sign-in redirect — no special handling needed here.
   return (
-    <SidebarContent className="gap-1 py-2 md:gap-2 md:py-0">
-      <SidebarGroup className="px-2 py-1.5 md:p-2">
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {signedInLinks.map((link) => {
-              const isActive = pathname === link.href
-              const Icon = link.icon
-              return (
-                <SidebarMenuItem key={link.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive}
-                    tooltip={link.label}
-                  >
-                    <Link href={link.href} onClick={closeMobileSidebar}>
-                      <Icon className="size-4 shrink-0" />
-                      <span>{link.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )
-            })}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+    <SidebarContent
+      ref={navScopeRef}
+      onPointerOver={indicator.onPointerOver}
+      onPointerLeave={indicator.onPointerLeave}
+      className="relative gap-1 py-1 md:gap-1"
+    >
+      {/* 整栏唯一的两个运动主体（app-shell.md §5.1）。DOM 上排在菜单之前，
+          所以画在项的下面；两块都只动 transform。 */}
+      <SidebarMenuSlider
+        rect={indicator.hover}
+        tone="hover"
+        visible={indicator.hoverVisible}
+        jumped={indicator.hoverJumped}
+      />
+      <SidebarMenuSlider
+        rect={indicator.active}
+        tone="active"
+        visible={indicator.active !== null}
+      />
 
-      <SidebarGroup className="px-2 py-1.5 md:p-2">
-        <SidebarGroupLabel className="h-7 px-2.5 text-sidebar-foreground/55 md:h-8 md:px-2 md:text-sidebar-foreground/60">
-          {tTools('groupLabel')}
-        </SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {toolLinks
-              .filter((tool) => !tool.comingSoon)
-              .map((tool) => {
-                const isActive = tool.activePaths.some((p) => pathname === p)
-                const Icon = tool.icon
-                return (
-                  <SidebarMenuItem key={tool.href}>
+      {SHELL_NAV_SECTIONS.map((section) => (
+        <SidebarGroup
+          key={section.id}
+          className="px-1.5 py-1 group-data-[collapsible=icon]:px-1 md:p-1.5 md:group-data-[collapsible=icon]:p-1"
+        >
+          <SidebarGroupLabel className="h-7 px-2 text-sidebar-subtle">
+            {t(section.labelKey)}
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {section.items.map((item) => renderItem(item))}
+
+              {/* 「敬请期待」展开器只挂在工具组末尾。
+                  ⚠ 收起态整行不渲染 —— 44px 轨里点开无处显示标签，
+                  badge 也被藏，缩成一个箭头没有意义（app-shell.md §6）。 */}
+              {section.id === 'tools' && !isCollapsed && (
+                <>
+                  <SidebarMenuItem>
                     <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={tool.label}
+                      onClick={() => setShowLocked((value) => !value)}
+                      aria-expanded={isLockedOpen}
+                      className="text-sidebar-subtle"
                     >
-                      <Link href={tool.href} onClick={closeMobileSidebar}>
-                        <Icon className="size-4 shrink-0" />
-                        <span>{tool.label}</span>
-                      </Link>
+                      <ChevronDown
+                        className={cn(
+                          'transition-transform duration-(--duration-fast) ease-standard',
+                          !isLockedOpen && '-rotate-90',
+                        )}
+                      />
+                      <span>{tTools('comingSoon')}</span>
                     </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-
-            {pinnedToolLinks.map((tool) => {
-              const isActive = tool.activePaths.some(
-                (p) => pathname === p || pathname.startsWith(`${p}/`),
-              )
-              const Icon = tool.icon
-              return (
-                <SidebarMenuItem key={tool.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive}
-                    tooltip={tool.label}
-                  >
-                    <Link href={tool.href} onClick={closeMobileSidebar}>
-                      <Icon className="size-4 shrink-0" />
-                      <span>{tool.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )
-            })}
-
-            {/* Coming Soon expander — keeps locked tools out of the
-                default fold while staying discoverable. */}
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => setShowComingSoon((v) => !v)}
-                tooltip={tTools('comingSoon')}
-                aria-expanded={isComingSoonOpen}
-                className="text-sidebar-foreground/60"
-              >
-                <ChevronDown
-                  className={cn(
-                    'size-4 shrink-0 transition-transform duration-200',
-                    !isComingSoonOpen && '-rotate-90',
-                  )}
-                />
-                <span>{tTools('comingSoon')}</span>
-              </SidebarMenuButton>
-              <SidebarMenuBadge className="text-sidebar-foreground/40">
-                {comingSoonToolLinks.length}
-              </SidebarMenuBadge>
-            </SidebarMenuItem>
-
-            {isComingSoonOpen &&
-              comingSoonToolLinks.map((tool) => {
-                const isActive = tool.activePaths.some(
-                  (p) => pathname === p || pathname.startsWith(`${p}/`),
-                )
-                const Icon = tool.icon
-                return (
-                  <SidebarMenuItem key={tool.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={tool.label}
-                    >
-                      <Link href={tool.href} onClick={closeMobileSidebar}>
-                        <Icon className="size-4 shrink-0" />
-                        <span>{tool.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuBadge className="text-sidebar-foreground/50">
-                      <Lock className="size-3" />
+                    <SidebarMenuBadge className="text-sidebar-subtle">
+                      {SHELL_NAV_LOCKED.length}
                     </SidebarMenuBadge>
                   </SidebarMenuItem>
-                )
-              })}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+
+                  {isLockedOpen &&
+                    SHELL_NAV_LOCKED.map((item) => renderItem(item, true))}
+                </>
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ))}
     </SidebarContent>
   )
 }
@@ -435,46 +281,20 @@ function AppSidebarContent() {
 function AppSidebarFooter() {
   const t = useTranslations('Navbar')
   const { isLoaded } = useUser()
-  const { isMobile } = useSidebar()
   const hasHydrated = useHasHydrated()
 
+  // 账户区收成**一行**（app-shell.md §8）。改版前是四行、竖向 167.5px（占 18%），
+  // 而它们是读数不是去处，不该和导航抢层级。
+  // 免费额度 → 头像上的一个点；语言与显示名 → 头像菜单里。
   return (
     <SidebarFooter className={SIDEBAR_FOOTER_CLASS}>
       {hasHydrated && isLoaded ? (
         <>
           <SignedIn>
-            {isMobile ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <SidebarFooterCreditBadge />
-                  <div className="min-w-0 flex-1">
-                    <SidebarFooterFreeQuotaBar />
-                  </div>
-                  <SidebarFooterUserMenu />
-                </div>
-                <LocaleSwitcher
-                  tone="sidebar"
-                  size="compact"
-                  className="w-full"
-                />
-              </>
-            ) : (
-              <>
-                <div className="sidebar-collapsed-locale hidden justify-center group-data-[collapsible=icon]:flex">
-                  <LocaleSwitcher tone="sidebar" orientation="vertical" />
-                </div>
-                <SidebarFooterCreditBadge />
-                <SidebarFooterFreeQuotaBar />
-                <SidebarFooterUserMenu />
-                <div className="flex px-1 group-data-[collapsible=icon]:hidden">
-                  <LocaleSwitcher
-                    tone="sidebar"
-                    size="compact"
-                    className="w-full"
-                  />
-                </div>
-              </>
-            )}
+            <div className="flex items-center justify-between gap-1 group-data-[collapsible=icon]:justify-center">
+              <SidebarFooterCreditBadge />
+              <SidebarFooterUserMenu />
+            </div>
           </SignedIn>
 
           <SignedOut>
@@ -482,7 +302,7 @@ function AppSidebarFooter() {
               asChild
               size="sm"
               variant="outline"
-              className="w-full rounded-full border-sidebar-border bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 group-data-[collapsible=icon]:px-0"
+              className="w-full rounded-full border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:px-0"
             >
               <Link href={ROUTES.SIGN_IN}>
                 <span className="group-data-[collapsible=icon]:hidden">
@@ -502,130 +322,71 @@ function AppSidebarFooter() {
 
 function SidebarFooterLoadingState() {
   return (
-    <div className="flex flex-col gap-2 group-data-[collapsible=icon]:items-center">
-      <div className="h-8 rounded-md bg-sidebar-accent/35 group-data-[collapsible=icon]:size-8" />
-      <div className="h-6 rounded-md bg-sidebar-accent/25 group-data-[collapsible=icon]:hidden" />
-      <div className="h-8 rounded-md bg-sidebar-accent/35 group-data-[collapsible=icon]:size-8" />
+    <div className="flex items-center justify-between gap-1 group-data-[collapsible=icon]:justify-center">
+      <div className="h-7 w-16 rounded-md bg-sidebar-accent group-data-[collapsible=icon]:hidden" />
+      <div className="size-7 rounded-full bg-sidebar-accent" />
     </div>
   )
 }
 
 /**
- * SidebarFooterFreeQuotaBar — Krea-style daily free-quota indicator.
- * Used to live in the Studio top bar as a bright orange "🎁 today free 20/20"
- * chip, which fought every other dark-workspace pixel for attention.
- * Now it's a quiet hairline progress bar plus `remaining/limit` text under
- * the credits badge, where every other persistent account indicator lives.
+ * 免费额度 —— 头像右下角的一个点（app-shell.md §8）。
  *
- * Collapsed-rail behaviour: only show a 1.5px hue-coded dot (green/amber/red)
- * so the sidebar can shrink to icon mode without losing the signal.
+ * 改版前它是独立一行：「今日免费 20/20」+ 一条发丝进度条。在 144px 的轨里，
+ * 那是账户区三个读数中最占地方、又最不需要精确到个位的一个。降级成点：
+ * 绿=充足 / 琥珀=快用完 / 红=用尽，确切数字进 tooltip 与头像菜单。
+ * ⚠ 状态不能只靠颜色 —— tooltip 里始终带文字读数。
  */
-function SidebarFooterFreeQuotaBar() {
+function SidebarFooterQuotaDot() {
   const { summary, isLoading } = useUsageSummary()
-  const tStudio = useTranslations('StudioPage')
-  const { state } = useSidebar()
-  const isCollapsed = state === 'collapsed'
-
   const limit = summary.freeGenerationLimit
   const used = Math.min(summary.freeGenerationsToday, limit)
   const remaining = Math.max(0, limit - used)
-  const usedPct = limit > 0 ? (used / limit) * 100 : 0
   const isLow = remaining > 0 && remaining <= Math.max(1, Math.floor(limit / 5))
   const isOut = remaining === 0
-  const dotClass = isOut
-    ? 'bg-destructive'
-    : isLow
-      ? 'bg-amber-500'
-      : 'bg-emerald-500'
 
-  if (isLoading) {
-    return (
-      <div
-        className={cn(
-          'h-1 rounded-full bg-sidebar-accent/40',
-          isCollapsed && 'mx-2 h-1.5 w-1.5 rounded-full',
-        )}
-      />
-    )
-  }
-
-  if (isCollapsed) {
-    return (
-      <TooltipProvider delayDuration={300}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="mx-auto my-0.5 size-1.5 rounded-full ring-1 ring-sidebar-border/60">
-              <span className={cn('block size-full rounded-full', dotClass)} />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            <p>{tStudio('freeQuota', { remaining, limit })}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    )
-  }
+  if (isLoading) return null
 
   return (
-    <div className="flex flex-col gap-1 px-1">
-      <div className="flex items-baseline justify-between text-2xs text-sidebar-foreground/70">
-        <span className="tracking-nav-dense uppercase">
-          {tStudio('freeQuota', { remaining, limit }).replace(
-            ` ${remaining}/${limit}`,
-            '',
-          )}
-        </span>
-        <span className="font-semibold tabular-nums text-sidebar-foreground">
-          {remaining}
-          <span className="text-sidebar-foreground/50">/{limit}</span>
-        </span>
-      </div>
-      <div
-        className="h-1 overflow-hidden rounded-full bg-sidebar-accent/40"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={limit}
-        aria-valuenow={used}
-        aria-label={tStudio('freeQuota', { remaining, limit })}
-      >
-        <span
-          className={cn('block h-full rounded-full transition-all', dotClass)}
-          style={{ width: `${usedPct}%` }}
-        />
-      </div>
-    </div>
+    <span
+      aria-hidden
+      className={cn(
+        'absolute -bottom-px -right-px size-2.5 rounded-full ring-2 ring-sidebar',
+        isOut ? 'bg-destructive' : isLow ? 'bg-amber-500' : 'bg-emerald-500',
+      )}
+    />
   )
 }
 
+function useFreeQuotaLabel() {
+  const { summary } = useUsageSummary()
+  const tStudio = useTranslations('StudioPage')
+  const limit = summary.freeGenerationLimit
+  const remaining = Math.max(
+    0,
+    limit - Math.min(summary.freeGenerationsToday, limit),
+  )
+  return tStudio('freeQuota', { remaining, limit })
+}
+
+/** 积分读数。改版前是个带边框的盒子，和导航项抢重量 —— 现在只剩图标 + 数字。 */
 function SidebarFooterCreditBadge() {
   const { summary, isLoading } = useUsageSummary()
   const t = useTranslations('Navbar')
-  const { state } = useSidebar()
-  const isCollapsed = state === 'collapsed'
 
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div
-            className={cn(
-              'flex items-center gap-2 rounded-md border border-sidebar-border/50 bg-sidebar-accent/40 px-2 py-1.5 text-xs',
-              isCollapsed && 'size-8 justify-center p-0',
-            )}
-          >
+          <div className="flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden">
             <Coins className="size-3.5 shrink-0 text-sidebar-primary" />
-            <span
-              className={cn(
-                'font-semibold tracking-nav-dense uppercase text-sidebar-foreground',
-                isCollapsed && 'hidden',
-              )}
-            >
+            <span className="truncate font-semibold tabular-nums">
               {isLoading ? (
                 t('requestsLoading')
               ) : (
                 <NumberTicker
                   value={summary.totalRequests}
-                  className="text-xs font-semibold text-sidebar-foreground"
+                  className="text-xs font-semibold text-sidebar-accent-foreground"
                 />
               )}
             </span>
@@ -650,6 +411,9 @@ function SidebarFooterUserMenu() {
   const reducedMotion = useReducedMotion()
   const isCollapsed = state === 'collapsed'
   const isCompact = isCollapsed || isMobile
+
+  const freeQuotaLabel = useFreeQuotaLabel()
+  const accountLabel = myProfile?.displayName ?? t('viewProfile')
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuPathname, setMenuPathname] = useState<string | null>(null)
@@ -706,15 +470,12 @@ function SidebarFooterUserMenu() {
           setMenuPathname(pathname)
           setMenuOpen((value) => !value)
         }}
-        className={cn(
-          'flex w-full items-center gap-2 rounded-md p-1.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent',
-          isCompact && 'mx-auto size-8 shrink-0 justify-center p-0',
-        )}
-        aria-label={t('viewProfile')}
+        className="relative flex size-8 shrink-0 items-center justify-center rounded-full text-sidebar-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-sidebar-accent"
+        aria-label={accountLabel}
         aria-expanded={isMenuOpen}
         aria-haspopup="true"
       >
-        <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-sidebar-border/60 bg-sidebar-accent text-sidebar-foreground/80">
+        <span className="relative flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground">
           {myProfile?.avatarUrl ? (
             <Image
               src={myProfile.avatarUrl}
@@ -728,14 +489,10 @@ function SidebarFooterUserMenu() {
             <UserCircle className="size-4" />
           )}
         </span>
-        <span
-          className={cn(
-            'min-w-0 flex-1 truncate text-xs font-medium',
-            isCompact && 'hidden',
-          )}
-        >
-          {myProfile?.displayName ?? t('viewProfile')}
-        </span>
+        {/* 免费额度：整整一行读数降级成头像上的一个点。overflow-hidden 在上面
+            那层，所以点要挂在按钮上，不然会被圆形头像裁掉。 */}
+        <SidebarFooterQuotaDot />
+        <span className="sr-only">{accountLabel}</span>
       </button>
 
       <AnimatePresence>
@@ -752,6 +509,15 @@ function SidebarFooterUserMenu() {
                 : 'bottom-full left-0 right-0 mb-2 origin-bottom',
             )}
           >
+            {/* 从轨里撤下来的两样东西在这里落地：显示名与免费额度读数。 */}
+            <div className="border-b border-sidebar-border px-3 pb-2 pt-2">
+              <p className="truncate text-sm font-semibold text-sidebar-accent-foreground">
+                {myProfile?.displayName ?? t('viewProfile')}
+              </p>
+              <p className="truncate text-xs text-sidebar-subtle">
+                {freeQuotaLabel}
+              </p>
+            </div>
             <button
               type="button"
               onClick={handleViewProfile}
@@ -783,6 +549,17 @@ function SidebarFooterUserMenu() {
               <LogOut className="size-4" />
               {t('signOut')}
             </button>
+            {/* 语言从常驻一行搬进来。⚠ 它在轨里时未选中态只有 3.14:1
+                （app-shell.md §8 记了 18 天没修）；菜单里走的是原语自己的
+                墨阶，不再叠 alpha。 */}
+            <div className="mx-2 my-1 border-t border-sidebar-border" />
+            <div className="px-2 pb-1">
+              <LocaleSwitcher
+                tone="sidebar"
+                size="compact"
+                className="w-full"
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

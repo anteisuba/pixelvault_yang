@@ -9,7 +9,7 @@ import { KeyboardInsetBridge } from '@/components/layout/KeyboardInsetBridge'
 
 /**
  * MainProviders — client-side providers shared across all `(main)` pages.
- * Placed at MainLayout level so Navbar / MobileTabBar / CardDrawer can
+ * Placed at MainLayout level so Navbar / MobileShell / CardDrawer can
  * consume ApiKeysContext without each page having to re-wrap it.
  */
 export function MainProviders({ children }: { children: ReactNode }) {

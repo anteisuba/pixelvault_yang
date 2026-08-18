@@ -126,7 +126,10 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent-strong: var(--sidebar-accent-strong);
   --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-active-surface: var(--sidebar-active-surface);
+  --color-sidebar-subtle: var(--sidebar-subtle);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -160,6 +163,16 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
   /* Motion canon — 唯一来源见 src/constants/motion.ts，两处必须同步改 */
+  /* 应用壳主卡：灰底上的白卡（app-shell.md §2 材质）。
+     只做左缘浮起、上右下贴边 —— 四面留边会让任何用 `100svh` 的子页面
+     溢出 20px（gallery 就是），而那属于页面高度契约，不该被壳的材质改动牵动。 */
+  --radius-shell-card: 1rem;
+  --shadow-shell-card:
+    -1px 0 2px rgb(11 14 18 / 0.04), -14px 0 34px -26px rgb(11 14 18 / 0.4);
+  /* 激活浮片的投影。它连同圆角一起承担「浮」的观感 —— 面色差只有 1.24:1。 */
+  --shadow-sidebar-chip:
+    0 1px 2px rgb(11 14 18 / 0.09), 0 6px 16px -12px rgb(11 14 18 / 0.5);
+
   --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 120ms;
   --duration-base: 200ms;
@@ -265,12 +278,6 @@
   }
 }
 
-@media (max-height: 560px) and (min-width: 768px) {
-  .group[data-collapsible='icon'] .sidebar-collapsed-locale {
-    display: none;
-  }
-}
-
 :root {
   --font-app-sans:
     var(--font-app-sans), 'Geist', ui-sans-serif, system-ui, sans-serif;
@@ -317,14 +324,29 @@
   --chart-4: oklch(82.8% 0.189 84.429);
   --chart-5: oklch(76.9% 0.188 70.08);
 
-  --sidebar: oklch(98.5% 0 0);
-  --sidebar-foreground: oklch(14.5% 0 0);
-  --sidebar-primary: oklch(20.5% 0 0);
-  --sidebar-primary-foreground: oklch(98.5% 0 0);
-  --sidebar-accent: oklch(92.2% 0 0);
-  --sidebar-accent-foreground: oklch(20.5% 0 0);
-  --sidebar-border: oklch(92.2% 0 0);
-  --sidebar-ring: oklch(70.8% 0 0);
+  /* ── 应用壳「分段浮岛」— 施工基准 docs/references/pages/app-shell.md §4 ──
+     值写 sRGB 十六进制而不是 oklch：§4 的对比度表就是在这些精确值上算的，
+     换算成 oklch 会引入舍入，验收复算时对不上。
+     ⚠ hover 与 active 必须反极性 —— accent 往暗走、active-surface 往亮走。
+     两者同向时只有 1.1:1（算过），等于把「hover 任一项都长得像当前项」
+     这个 bug 换身浅色衣服重犯一遍。 */
+  --sidebar: #e4e7ec; /* 壳底，主卡浮在它上面 */
+  --sidebar-foreground: #454c55; /* 未选中标签 7.01:1 */
+  --sidebar-subtle: #555d67; /* 段标题 11px 大写 5.38:1 */
+  --sidebar-primary: #0b0e12; /* 激活墨 / 竖条 / focus 环 15.60:1 */
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(11 14 18 / 0.055); /* hover：往暗 */
+  --sidebar-accent-strong: rgb(11 14 18 / 0.09); /* pressed */
+  --sidebar-accent-foreground: #0b0e12;
+  /* 激活浮片。⚠ 对壳底只有 1.24:1 —— 浅壳里「面对面」物理上到不了 3:1
+     （试到 #dce1e8 也只有 1.31），所以它只做材质、不承重状态语义。
+     承重的是 --sidebar-primary 的竖条与墨色跃迁。 */
+  --sidebar-active-surface: #ffffff;
+  --sidebar-border: rgb(11 14 18 / 0.08); /* 卡描边，材质用，不是功能边界 */
+  --sidebar-ring: #0b0e12;
+  /* 菜单项到分组边缘的内沟。激活竖条贴在这条沟的外侧，所以两处必须同源。 */
+  --sidebar-rail-gutter: 0.375rem;
+  --sidebar-rail-gutter-icon: 0.25rem;
 
   --overlay-chip: oklch(100% 0 0 / 0.1);
   --overlay-chip-foreground: oklch(100% 0 0 / 0.7);
@@ -491,6 +513,67 @@ html:lang(zh) {
 }
 
 @layer components {
+  /* ── 应用壳导航的两块滑片 —— docs/references/pages/app-shell.md §4.1 / §5.1 ──
+     几何写在这里而不是 Tailwind 类里：3px 竖条不在间距刻度上，而这两块是壳
+     独占的构件，没有第二个消费者。位置由 use-nav-indicator 量出来后经内联
+     custom property 传进来，只动 transform。 */
+  .shell-nav-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--slider-w);
+    height: var(--slider-h);
+    transform: translate3d(var(--slider-x), var(--slider-y), 0);
+    border-radius: calc(var(--radius) - 2px);
+    pointer-events: none;
+    transition:
+      transform var(--duration-slow) var(--ease-standard),
+      width var(--duration-base) var(--ease-standard),
+      height var(--duration-base) var(--ease-standard),
+      opacity var(--duration-fast) var(--ease-standard);
+  }
+
+  /* 激活浮片：白面只是材质。承重的是下面那条 15.60:1 的墨竖条，
+     以及标签自身的字重与墨色跃迁 —— 白面对壳底只有 1.24:1，撑不住状态语义。 */
+  .shell-nav-slider--active {
+    z-index: 0;
+    background: var(--sidebar-active-surface);
+    box-shadow: var(--shadow-sidebar-chip);
+  }
+
+  .shell-nav-slider--active::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--sidebar-rail-gutter) * -1);
+    top: 50%;
+    width: 3px;
+    height: 18px;
+    margin-top: -9px;
+    border-radius: 0 999px 999px 0;
+    background: var(--sidebar-primary);
+  }
+
+  /* 收缩态：分组内沟从 6 收到 4，滑片与竖条一起跟上，否则竖条会探出轨外。 */
+  .group[data-collapsible='icon'] .shell-nav-slider--active::before {
+    left: calc(var(--sidebar-rail-gutter-icon) * -1);
+    height: 16px;
+    margin-top: -8px;
+  }
+
+  /* hover 幽灵块：往「暗」走。和白浮片反极性才分得开。 */
+  .shell-nav-slider--hover {
+    z-index: 0;
+    background: var(--sidebar-accent);
+  }
+
+  /* 刚进入列表时不该从上一个位置滑过来 —— 先就位再淡入。 */
+  .shell-nav-slider--jumped {
+    transition:
+      opacity var(--duration-fast) var(--ease-standard),
+      width var(--duration-base) var(--ease-standard),
+      height var(--duration-base) var(--ease-standard);
+  }
+
   .keyboard-aware-bottom-padding {
     padding-bottom: calc(
       max(var(--keyboard-safe-area-bottom, 0px), 1rem) +

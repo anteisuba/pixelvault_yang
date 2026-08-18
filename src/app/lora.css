@@ -111,12 +111,14 @@
 
 /* 移动端出图条（域内接管）：
  * ① 断点统一到 1024——globals 的出图条 768 就退回内联，但本域的「移动端形态」
- *    （装配 sheet / 紧凑摘要条 / MobileTabBar / useIsMobile）全部以 1024 为界；
+ *    （装配 sheet / 紧凑摘要条 / MobileShell / useIsMobile）全部以 1024 为界；
  *    768–1023 的平板带里装配栏已经进 sheet、出图条却提前内联，两个边界对不上。
  *    这里把 fixed 形态延到 1023，JSX 就只需按 useIsMobile 一个条件分支。
- * ② bottom / left 让开 app 的 MobileTabBar（fixed bottom-0 left-11 z-40 h-12）——
- *    否则出图条整条被它盖住、左端还压在 44px 竖导航下（owner 2026-07-25
- *    「手机端没有出图的按钮」）。tab bar 自带安全区，故这里不再重复加。 */
+ * ② 2026-08-18：这里原本给两块 app chrome 让位，两块**都已不存在**——
+ *    底部 TabBar 在 2026-08-07 删了（那条 3rem 从那天起就是空的），
+ *    44px 常驻左轨在本次壳改版（方向 M2「顶栏当切换器」）里删了。
+ *    现在出图条直接贴底贴左，只留自己的安全区。⚠ 这不是改 LoRA 的视觉答案，
+ *    是拆掉对已删壳构件的悬空引用。 */
 @media (max-width: 1023px) {
   .domain-lora .lora-mobile-actionbar {
     position: fixed;
@@ -126,8 +128,7 @@
     background: color-mix(in oklab, var(--background) 90%, transparent);
     backdrop-filter: blur(12px);
     padding: 0.75rem 1rem;
-    /* 3rem = tab bar 的 h-12；再跟随它自己的安全区变量，刘海屏上不压住它。 */
-    bottom: calc(3rem + var(--keyboard-safe-area-bottom, 0px));
-    left: 2.75rem; /* = tab bar / 侧栏的 left-11 */
+    bottom: var(--keyboard-safe-area-bottom, 0px);
+    left: 0;
   }
 }

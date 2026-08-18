@@ -1,0 +1,1855 @@
+<title>分段浮岛 · 关键切片</title>
+
+<style>
+  :root {
+    --ground: #eef1f4;
+    --surface: #ffffff;
+    --ink: #0f1519;
+    --muted: #5f6b76;
+    --rule: #dce2e8;
+    --flag: #b0392a;
+    --flag-bg: #f9ebe9;
+    --signal: #0c6f6a;
+    --signal-bg: #e3f1f0;
+    --shadow: 0 1px 2px rgba(15, 21, 25, .05), 0 8px 24px -14px rgba(15, 21, 25, .22);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e1316;
+      --surface: #161d22;
+      --ink: #e7edf2;
+      --muted: #909daa;
+      --rule: #27313a;
+      --flag: #e5796a;
+      --flag-bg: #2a1a18;
+      --signal: #48bab1;
+      --signal-bg: #10262a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px -14px rgba(0, 0, 0, .8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0e1316;
+    --surface: #161d22;
+    --ink: #e7edf2;
+    --muted: #909daa;
+    --rule: #27313a;
+    --flag: #e5796a;
+    --flag-bg: #2a1a18;
+    --signal: #48bab1;
+    --signal-bg: #10262a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px -14px rgba(0, 0, 0, .8);
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 52px 24px 90px;
+    display: flex;
+    flex-direction: column;
+    gap: 52px;
+  }
+
+  .eyebrow {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 4vw, 42px);
+    line-height: 1.2;
+    letter-spacing: -.02em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+    font-weight: 700;
+  }
+
+  .lede {
+    margin: 0;
+    max-width: 64ch;
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    color: var(--muted);
+    margin: 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  h2 em {
+    font-style: normal;
+    color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 19px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 700;
+  }
+
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  p {
+    margin: 0;
+    max-width: 68ch;
+  }
+
+  p.note {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  code {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: .88em;
+    background: color-mix(in oklab, var(--ink) 7%, transparent);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .claims {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .claim {
+    background: var(--surface);
+    padding: 16px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .claim b {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--signal);
+  }
+
+  .claim h3 {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  .claim p {
+    font-size: 13.5px;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  /* ─── 断点台 ─── */
+  .bench {
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .bench-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+    background: color-mix(in oklab, var(--ink) 3%, var(--surface));
+  }
+
+  .bar-label {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-right: -12px;
+  }
+
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  .seg button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 7px 12px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    border-right: 1px solid var(--rule);
+    transition: background .14s ease, color .14s ease;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .seg button:last-child {
+    border-right: 0;
+  }
+
+  .seg button:hover {
+    background: color-mix(in oklab, var(--ink) 5%, transparent);
+    color: var(--ink);
+  }
+
+  .seg button[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--surface);
+  }
+
+  .seg button:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: -2px;
+  }
+
+  .stagearea {
+    padding: 22px;
+    background:
+      repeating-linear-gradient(45deg, color-mix(in oklab, var(--ink) 3%, transparent) 0 1px, transparent 1px 9px),
+      var(--surface);
+    overflow: hidden;
+  }
+
+  .frame {
+    margin: 0 auto;
+    overflow: hidden;
+  }
+
+  .scaler {
+    transform-origin: top left;
+  }
+
+  .frame-cap {
+    text-align: center;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11.5px;
+    color: var(--muted);
+    padding: 12px 16px 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .frame-cap b {
+    color: var(--ink);
+  }
+
+  /* ══════════ 分段浮岛 · 壳 ══════════ */
+  .shell {
+    --g: #e4e7ec;
+    --card: #ffffff;
+    --ink1: #0b0e12;
+    --ink2: #454c55;
+    --ink3: #555d67;
+    --bar: #0b0e12;
+    --hair: rgba(11, 14, 18, .08);
+    --hover: rgba(11, 14, 18, .055);
+    --press: rgba(11, 14, 18, .09);
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    --sp: 1;
+    --t-fast: calc(120ms * var(--sp));
+    --t-base: calc(200ms * var(--sp));
+    --t-slow: calc(320ms * var(--sp));
+    --railmax: 144px;
+    --railmin: 44px;
+    color-scheme: light;
+    position: relative;
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    background: var(--g);
+    color: var(--ink1);
+    font-size: 14px;
+    height: 660px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .shell * {
+    box-sizing: border-box;
+  }
+
+  /* 平板 / 手机：轨脱离流，展开时覆盖主卡（宽度不够推挤） */
+  .shell[data-bp="tab"],
+  .shell[data-bp="phone"] {
+    padding-left: calc(var(--railmin) + 20px);
+  }
+
+  /* 触屏档的收起宽度有硬地板：44px 触摸目标 + 两侧 4px = 52，不能再窄 */
+  .shell[data-bp="tab"],
+  .shell[data-bp="phone"] {
+    --railmin: 52px;
+  }
+
+  .shell[data-bp="tab"] .rail,
+  .shell[data-bp="phone"] .rail {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    bottom: 10px;
+    z-index: 3;
+  }
+
+  .scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(11, 14, 18, .28);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 2;
+    transition: opacity var(--t-base) var(--ease);
+  }
+
+  .shell[data-bp="tab"][data-collapsed="false"] .scrim,
+  .shell[data-bp="phone"][data-collapsed="false"] .scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* 轨 */
+  .rail {
+    flex: 0 0 auto;
+    width: var(--railmax);
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    transition: width var(--t-slow) var(--ease);
+  }
+
+  .shell[data-bp="tab"] .rail,
+  .shell[data-bp="phone"] .rail {
+    background: var(--g);
+    border-radius: 14px;
+  }
+
+  .shell[data-bp="tab"][data-collapsed="false"] .rail,
+  .shell[data-bp="phone"][data-collapsed="false"] .rail {
+    box-shadow: 10px 0 34px -18px rgba(11, 14, 18, .55);
+  }
+
+  .rail-head {
+    flex: 0 0 auto;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 6px;
+    overflow: hidden;
+  }
+
+  .brand {
+    font-weight: 800;
+    letter-spacing: .07em;
+    font-size: 15px;
+    white-space: nowrap;
+    padding-left: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--ink1);
+    transition: opacity var(--t-fast) var(--ease), transform var(--t-base) var(--ease);
+  }
+
+  .burger {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--ink2);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  }
+
+  .burger:hover {
+    background: var(--hover);
+    color: var(--ink1);
+  }
+
+  .burger:active {
+    background: var(--press);
+  }
+
+  .burger:focus-visible {
+    outline: 2px solid var(--ink1);
+    outline-offset: 1px;
+  }
+
+  .rail-nav {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 6px 8px;
+    scrollbar-width: none;
+  }
+
+  .rail-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .grp {
+    height: 26px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    margin-top: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink3);
+    white-space: nowrap;
+    transition: opacity var(--t-fast) var(--ease);
+  }
+
+  .grp:first-child {
+    margin-top: 0;
+  }
+
+  .item {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 8px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--ink2);
+    font: inherit;
+    text-align: left;
+    border-radius: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  }
+
+  /* hover 往「暗」走，active 往「亮」走 —— 方向相反才分得开。
+     算过：两者都用浅底的话只有 1.1:1，等于把现状的 bug 换身衣服。
+     底色交给下面那块会滑的 .hov，item 自己只换墨色（触屏没有 hover，留作兜底）。 */
+  .item:hover {
+    color: var(--ink1);
+  }
+
+  .item:hover .ic {
+    transform: scale(1.08);
+  }
+
+  .item .ic {
+    transition: transform var(--t-fast) var(--ease);
+  }
+
+  .item:active {
+    background: var(--press);
+  }
+
+  .item:focus-visible {
+    outline: 2px solid var(--ink1);
+    outline-offset: -2px;
+  }
+
+  .item.is-active {
+    color: var(--ink1);
+    font-weight: 600;
+    background: transparent;
+  }
+
+  .item.is-active:hover {
+    background: transparent;
+  }
+
+  .item .ic {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+  }
+
+  .item .lb {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity var(--t-fast) var(--ease), transform var(--t-base) var(--ease);
+  }
+
+  .item .badge {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--ink3);
+    font-variant-numeric: tabular-nums;
+    transition: opacity var(--t-fast) var(--ease);
+  }
+
+  /* hover 幽灵块 —— 光标上下移动时它跟着滑，而不是每行各自开关底色。
+     这就是「上下移动有移动的特效」。 */
+  .hov {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    top: 0;
+    height: var(--hh, 36px);
+    transform: translateY(var(--hy, 0px));
+    border-radius: 10px;
+    background: var(--hover);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+    transition: transform var(--t-base) var(--ease), height var(--t-base) var(--ease), opacity var(--t-fast) var(--ease);
+  }
+
+  /* 刚进入列表时不该从上一个位置滑过来，先就位再淡入 */
+  .hov[data-jump="true"] {
+    transition: opacity var(--t-fast) var(--ease);
+  }
+
+
+
+  /* 活动指示器：白浮片（C 的材质）+ 墨竖条（B 的结构）。
+     白片对灰底只有 1.24:1，不能承重；竖条 15.6:1 才是真信号。 */
+  .ind {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    top: 0;
+    height: var(--h, 36px);
+    transform: translateY(var(--y, 0px));
+    border-radius: 10px;
+    background: var(--card);
+    box-shadow: 0 1px 2px rgba(11, 14, 18, .09), 0 6px 16px -12px rgba(11, 14, 18, .5);
+    pointer-events: none;
+    z-index: 0;
+    transition: transform var(--t-slow) var(--ease), height var(--t-base) var(--ease), opacity var(--t-fast) var(--ease);
+  }
+
+  .ind::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    width: 3px;
+    height: 18px;
+    margin-top: -9px;
+    border-radius: 0 99px 99px 0;
+    background: var(--bar);
+    transition: opacity var(--t-fast) var(--ease);
+  }
+
+  .rail-foot {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 6px 6px 4px;
+    overflow: hidden;
+  }
+
+  .credit {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--ink1);
+    flex: 0 0 auto;
+    background: transparent;
+    border: 0;
+    font-family: inherit;
+    cursor: default;
+  }
+
+  .who {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px;
+    border-radius: 99px;
+    font-size: 12.5px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink2);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  }
+
+  .who:hover {
+    background: var(--hover);
+    color: var(--ink1);
+  }
+
+  .who:focus-visible {
+    outline: 2px solid var(--ink1);
+    outline-offset: 1px;
+  }
+
+  .who .av {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    border-radius: 99px;
+    background: linear-gradient(140deg, #b9c6d6, #7d8fa6);
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    position: relative;
+  }
+
+  /* 免费额度：从独立一行降级成头像上的一个点（读数不该和导航抢层级） */
+  .av .dot {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 9px;
+    height: 9px;
+    border-radius: 99px;
+    background: #10a154;
+    box-shadow: 0 0 0 2px var(--g);
+  }
+
+  /* 显示名只留给读屏，不占轨宽 */
+  .who .nm {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .shell[data-collapsed="true"] .rail {
+    width: var(--railmin);
+  }
+
+  /* 收起态 */
+  .shell[data-collapsed="true"] .brand,
+  .shell[data-collapsed="true"] .item .lb,
+  .shell[data-collapsed="true"] .item .badge,
+  .shell[data-collapsed="true"] .grp,
+  .shell[data-collapsed="true"] .credit {
+    opacity: 0;
+    transform: translateX(-6px);
+    pointer-events: none;
+  }
+
+  .shell[data-collapsed="true"] .rail-head {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .shell[data-collapsed="true"] .brand {
+    position: absolute;
+    left: -9999px;
+  }
+
+  .shell[data-collapsed="true"] .rail-nav {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  .shell[data-collapsed="true"] .item {
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .shell[data-collapsed="true"] .hov,
+  .shell[data-collapsed="true"] .ind {
+    left: 4px;
+    right: 4px;
+  }
+
+  .shell[data-collapsed="true"] .rail-foot {
+    justify-content: center;
+    padding: 6px 4px 4px;
+  }
+
+  .shell[data-collapsed="true"] .credit {
+    position: absolute;
+    left: -9999px;
+  }
+
+  .shell[data-collapsed="true"] .rail-foot {
+    padding: 6px 4px 4px;
+  }
+
+  /* 诊断 09：收起态直接不渲染「敬请期待」，不是缩成一个箭头 */
+  .shell[data-collapsed="true"] .item[data-soon] {
+    display: none;
+  }
+
+  /* 手机：收起态只留工具段（最高频任务一次点击），去处段进抽屉 */
+  .shell[data-bp="phone"][data-collapsed="true"] .grp[data-g="nav"],
+  .shell[data-bp="phone"][data-collapsed="true"] .item[data-sec="nav"] {
+    display: none;
+  }
+
+  .shell[data-bp="phone"] .item {
+    height: 44px;
+  }
+
+  .shell[data-bp="phone"] .rail-foot,
+  .shell[data-bp="tab"] .rail-foot {
+    justify-content: center;
+  }
+
+
+
+
+
+  .shell[data-bp="tab"] .item {
+    height: 40px;
+  }
+
+  /* 主卡 */
+  .stage {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(11, 14, 18, .06), 0 20px 44px -30px rgba(11, 14, 18, .55);
+    border: 1px solid var(--hair);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: hidden;
+  }
+
+  .topbar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin: -18px -18px 0;
+    padding: 0 16px;
+    height: 46px;
+    border-bottom: 1px solid var(--hair);
+    flex: 0 0 auto;
+  }
+
+  .shell[data-bp="phone"] .topbar,
+  .shell[data-bp="tab"] .topbar {
+    display: flex;
+  }
+
+  .topbar .tt {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ink1);
+  }
+
+  .stage-title {
+    font-size: 13px;
+    color: var(--ink3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+
+  .stage-title b {
+    color: var(--ink1);
+    font-size: 17px;
+  }
+
+  .shell[data-bp="phone"] .stage-title,
+  .shell[data-bp="tab"] .stage-title {
+    display: none;
+  }
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 10px;
+    flex: 0 0 auto;
+  }
+
+  .tile {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    background: repeating-linear-gradient(135deg, #f3f4f6 0 8px, #f8f9fa 8px 16px);
+    border: 1px solid #eef0f2;
+  }
+
+  .ruler {
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    align-items: center;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    color: var(--ink3);
+    border-top: 1px dashed #e7eaee;
+    padding-top: 10px;
+    font-variant-numeric: tabular-nums;
+    flex: 0 0 auto;
+  }
+
+  .ruler b {
+    color: var(--ink1);
+  }
+
+  .shell[data-motion="off"],
+  .shell[data-motion="off"] * {
+    transition-duration: 0s !important;
+  }
+
+  /* ─── 交互态矩阵 ─── */
+  .states {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(184px, 1fr));
+    gap: 14px;
+  }
+
+  .statecard {
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  .statecard .demo {
+    background: #e4e7ec;
+    padding: 12px 10px;
+  }
+
+  .statecard .cap {
+    padding: 10px 12px 12px;
+    border-top: 1px solid var(--rule);
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .statecard .cap b {
+    display: block;
+    color: var(--ink);
+    font-size: 13.5px;
+    margin-bottom: 2px;
+  }
+
+  .statecard .cap span {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    color: var(--signal);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .srow {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #454c55;
+    white-space: nowrap;
+  }
+
+  .srow.rest {
+    background: transparent;
+  }
+
+  .srow.hover {
+    background: rgba(11, 14, 18, .055);
+    color: #0b0e12;
+  }
+
+  .srow.focus {
+    outline: 2px solid #0b0e12;
+    outline-offset: -2px;
+  }
+
+  .srow.act {
+    background: #fff;
+    color: #0b0e12;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(11, 14, 18, .09), 0 6px 16px -12px rgba(11, 14, 18, .5);
+  }
+
+  .srow.act::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    top: 50%;
+    width: 3px;
+    height: 18px;
+    margin-top: -9px;
+    border-radius: 0 99px 99px 0;
+    background: #0b0e12;
+  }
+
+  .srow svg {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 auto;
+  }
+
+
+  /* ─── 图标对照 ─── */
+  .ico {
+    white-space: nowrap;
+  }
+
+  .ico .r {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .ico svg {
+    color: var(--ink);
+    flex: 0 0 auto;
+  }
+
+  .ico i {
+    display: block;
+    font-style: normal;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .ico.old svg {
+    color: var(--flag);
+  }
+
+  .ico.new svg {
+    color: var(--signal);
+  }
+
+  .keep {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 1px 6px;
+  }
+
+  .altgrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .altcell {
+    background: var(--surface);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .altcell .hd {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .altcell .opts {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .altcell .opt {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .altcell .opt svg {
+    color: var(--ink);
+  }
+
+  /* ─── 表 ─── */
+  .scroller {
+    overflow-x: auto;
+  }
+
+  table.t {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+  }
+
+  table.t th,
+  table.t td {
+    border: 1px solid var(--rule);
+    padding: 9px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  table.t thead th {
+    background: color-mix(in oklab, var(--ink) 4%, var(--surface));
+    font-size: 11.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  table.t tbody th {
+    font-weight: 600;
+    white-space: nowrap;
+    background: color-mix(in oklab, var(--ink) 2%, var(--surface));
+  }
+
+  table.t td.n,
+  table.t td.mono {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  .ok {
+    color: var(--signal);
+    font-weight: 600;
+  }
+
+  .bad {
+    color: var(--flag);
+    font-weight: 600;
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+    border: 1px solid var(--rule);
+    vertical-align: -2px;
+    margin-right: 6px;
+  }
+
+  .callout {
+    border-left: 3px solid var(--flag);
+    background: var(--flag-bg);
+    padding: 14px 18px;
+    border-radius: 0 3px 3px 0;
+    font-size: 14px;
+  }
+
+  .callout b {
+    color: var(--flag);
+  }
+
+  .callout.good {
+    border-left-color: var(--signal);
+    background: var(--signal-bg);
+  }
+
+  .callout.good b {
+    color: var(--signal);
+  }
+
+  footer.foot {
+    border-top: 1px solid var(--rule);
+    padding-top: 18px;
+    font-size: 12.5px;
+    color: var(--muted);
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    line-height: 1.9;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: .001ms !important;
+      transition-duration: .001ms !important;
+    }
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="ic-gallery"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></g>
+    <g id="ic-prompt"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></g>
+    <g id="ic-assets"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></g>
+    <g id="ic-cards"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></g>
+    <g id="ic-image"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></g>
+    <g id="ic-video"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></g>
+    <g id="ic-audio"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></g>
+    <g id="ic-3d"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></g>
+    <g id="ic-lora"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".6" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".6" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".6" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".6" fill="currentColor"/></g>
+    <g id="ic-canvas"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></g>
+    <g id="ic-arena"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></g>
+    <g id="ic-soon"><path d="m9 6 6 6-6 6"/></g>
+    <g id="ic-panel"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></g>
+    <g id="ic-images"><path d="m22 11-1.296-1.296a2.4 2.4 0 0 0-3.408 0L11 16"/><path d="M4 8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2"/><circle cx="13" cy="7" r="1" fill="currentColor"/><rect x="8" y="2" width="14" height="14" rx="2"/></g>
+    <g id="ic-archive"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></g>
+    <g id="ic-id-card"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></g>
+    <g id="ic-audio-lines"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></g>
+    <g id="ic-swatch-book"><path d="M11 17a4 4 0 0 1-8 0V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2Z"/><path d="M16.7 13H19a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H7"/><path d="M 7 17h.01"/><path d="m11 8 2.3-2.3a2.4 2.4 0 0 1 3.404.004L18.6 7.6a2.4 2.4 0 0 1 .026 3.434L9.9 19.8"/></g>
+    <g id="ic-waypoints"><path d="m10.586 5.414-5.172 5.172"/><path d="m18.586 13.414-5.172 5.172"/><path d="M6 12h12"/><circle cx="12" cy="20" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="4" cy="12" r="2"/></g>
+    <g id="ic-trophy"><path d="M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21.978"/><path d="M14 14.66v1.626a2 2 0 0 0 .976 1.696A5 5 0 0 1 17 21.978"/><path d="M18 9h1.5a1 1 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6 9H4.5a1 1 0 0 1 0-5H6"/></g>
+    <g id="ic-folder-open"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></g>
+    <g id="ic-package"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/></g>
+    <g id="ic-wallet-cards"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2"/><path d="M3 11h3c.8 0 1.6.3 2.1.9l1.1.9c1.6 1.6 4.1 1.6 5.7 0l1.1-.9c.5-.5 1.3-.9 2.1-.9H21"/></g>
+    <g id="ic-blend"><circle cx="9" cy="9" r="7"/><circle cx="15" cy="15" r="7"/></g>
+    <g id="ic-network"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></g>
+    <g id="ic-gavel"><path d="m14 13-8.381 8.38a1 1 0 0 1-3.001-3l8.384-8.381"/><path d="m16 16 6-6"/><path d="m21.5 10.5-8-8"/><path d="m8 8 6-6"/><path d="m8.5 7.5 8 8"/></g>
+    <g id="ic-film"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h4"/><path d="M3 12h18"/><path d="M3 16.5h4"/><path d="M17 3v18"/><path d="M17 7.5h4"/><path d="M17 16.5h4"/></g>
+    <g id="ic-coins"><path d="M13.744 17.736a6 6 0 1 1-7.48-7.48"/><path d="M15 6h1v4"/><path d="m6.134 14.768.866-.5 2 3.464"/><circle cx="16" cy="8" r="6"/></g>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">PixelVault · 全局应用壳 · 关键切片 · 2026-08-18</p>
+    <h1>分段浮岛</h1>
+    <p class="lede">
+      按你的选择做的：<strong>B 的结构</strong>（推挤式分段面板 + 单一滑动指示器 + 单行账户）
+      叠 <strong>C 的材质</strong>（灰底 + 圆角浮卡 + 白色浮片）。四个断点和五个交互态都在下面，可以直接点。
+    </p>
+
+    <div class="claims" style="margin-top:30px">
+      <div class="claim">
+        <b>主张 01</b>
+        <h3>整栏只有一个东西在动</h3>
+        <p>切工具时，只有那块白浮片在滑。其余全是 120ms 的墨色渐变，不再有「灰底啪地开关」。</p>
+      </div>
+      <div class="claim">
+        <b>主张 02</b>
+        <h3>激活态不靠面色差承重</h3>
+        <p>白浮片对灰底只有 1.24:1，撑不住。真信号是那条 15.6:1 的墨竖条 + 字重墨色的 2.7 倍跃迁。</p>
+      </div>
+      <div class="claim">
+        <b>主张 03</b>
+        <h3>三个断点，一套组件</h3>
+        <p>桌面推挤、平板覆盖、手机工具优先 —— 同一份 DOM，只换 <code>data-bp</code>。两套导航手工同步的账就此还清。</p>
+      </div>
+      <div class="claim">
+        <b>主张 04</b>
+        <h3>144 / 44，比现在还窄</h3>
+        <p>展开 192→144（−25%），收起 48→44。撑宽轨的其实是一个英文标签，不是布局 —— 改标签比加宽轨便宜。</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════ 断点台 ══════════ -->
+  <section>
+    <h2>四个断点 <em>同一套组件，实时切</em></h2>
+    <p class="note">
+      下面是真实布局：切宽度会真的改变 CSS 宽度再等比缩放显示，不是贴图。
+      <strong>⚠ 但这不等于真机验证</strong> —— 本机 <code>resize_window</code> 对视口无效，
+      平板与手机档要等实现时在真设备上复验。
+    </p>
+
+    <div class="bench">
+      <div class="bench-bar">
+        <span class="bar-label">视口</span>
+        <div class="seg" id="vwSeg" role="group" aria-label="视口宽度">
+          <button type="button" data-vw="1440" aria-pressed="true">1440</button>
+          <button type="button" data-vw="1024" aria-pressed="false">1024</button>
+          <button type="button" data-vw="900" aria-pressed="false">900</button>
+          <button type="button" data-vw="768" aria-pressed="false">768</button>
+          <button type="button" data-vw="430" aria-pressed="false">430</button>
+          <button type="button" data-vw="375" aria-pressed="false">375</button>
+        </div>
+        <span class="bar-label">轨宽</span>
+        <div class="seg" id="wSeg" role="group" aria-label="展开态轨宽">
+          <button type="button" data-w="132" aria-pressed="false">132</button>
+          <button type="button" data-w="144" aria-pressed="true">144</button>
+          <button type="button" data-w="156" aria-pressed="false">156</button>
+          <button type="button" data-w="168" aria-pressed="false">168</button>
+          <button type="button" data-w="192" aria-pressed="false">192 现状</button>
+        </div>
+        <span class="bar-label">语言</span>
+        <div class="seg" id="locSeg" role="group" aria-label="语言">
+          <button type="button" data-loc="zh" aria-pressed="true">ZH</button>
+          <button type="button" data-loc="ja" aria-pressed="false">JA</button>
+          <button type="button" data-loc="en" aria-pressed="false">EN</button>
+        </div>
+        <span class="bar-label">速度</span>
+        <div class="seg" id="spSeg" role="group" aria-label="播放速度">
+          <button type="button" data-sp="1" aria-pressed="true">1×</button>
+          <button type="button" data-sp="4" aria-pressed="false">0.25×</button>
+          <button type="button" data-sp="0" aria-pressed="false">关动画</button>
+        </div>
+        <div class="seg">
+          <button type="button" id="colBtn" aria-pressed="false">收起 / 展开</button>
+        </div>
+      </div>
+
+      <div class="frame-cap" id="frameCap">—</div>
+
+      <div class="stagearea">
+        <div class="frame" id="frame">
+          <div class="scaler" id="scaler">
+            <div class="shell" id="shell" data-bp="desk" data-collapsed="false" data-motion="on">
+              <div class="scrim" id="scrim"></div>
+              <aside class="rail">
+                <div class="rail-head">
+                  <span class="brand">ANTEI</span>
+                  <button class="burger" type="button" id="burger" aria-label="收起或展开侧边栏">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-panel"/></svg>
+                  </button>
+                </div>
+                <nav class="rail-nav" id="railNav">
+                  <div class="hov" id="hov" aria-hidden="true"></div>
+                  <div class="ind" id="ind" aria-hidden="true"></div>
+                </nav>
+                <div class="rail-foot">
+                  <span class="credit">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-coins"/></svg>
+                    919
+                  </span>
+                  <button class="who" type="button" aria-label="账户与设置">
+                    <span class="av">Y<span class="dot" title="今日免费 20/20"></span></span>
+                    <span class="nm">YINIG</span>
+                  </button>
+                </div>
+              </aside>
+
+              <div class="stage">
+                <div class="topbar"><span class="tt" id="topTitle">图像</span></div>
+                <div class="stage-title"><b id="stageName">图像</b><span>工作台</span></div>
+                <div class="tiles" id="tiles"></div>
+                <div class="ruler">
+                  <span>断点 <b id="rdBp">desk</b></span>
+                  <span>轨宽 <b id="rdRail">144</b> px</span>
+                  <span>主卡 <b id="rdStage">—</b> px</span>
+                  <span id="rdTrunc"></span>
+                  <span id="rdReflow"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scroller">
+      <table class="t">
+        <thead>
+          <tr>
+            <th>断点</th>
+            <th>轨的行为</th>
+            <th>展开时</th>
+            <th>为什么这么定</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>≥1024 桌面</th>
+            <td class="mono">144 ↔ 44px</td>
+            <td>推挤主卡</td>
+            <td>宽度充裕，常驻标签的认路价值大于那点回流成本。</td>
+          </tr>
+          <tr>
+            <th>768–1023 平板</th>
+            <td class="mono">默认 52px</td>
+            <td><strong>覆盖</strong>主卡 + 遮罩</td>
+            <td><strong>第 11 条的正面回答</strong>：平板终于拿到真侧栏（同一套材质与指示器），而不是现在的「44px 死轨 + 顶栏 + 抽屉」手机形态。宽度不够推挤，所以展开走覆盖。</td>
+          </tr>
+          <tr>
+            <th>&lt;768 手机</th>
+            <td class="mono">52px · 只放工具</td>
+            <td><strong>覆盖</strong>全部两段</td>
+            <td>工具切换是最高频任务，值得留一次点击。「去处」四项进抽屉 —— 它们是低频跳转。<strong>不再有第二套组件</strong>，第 10 条的漂移根除。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+    <div class="callout good">
+      <b>宽度是被一个英文字符串撑起来的。</b>三语标签实测（14px Geist）：
+      中文最长「卡片管理 / 敬请期待」<span class="mono">56px</span>，
+      日文最长「ギャラリー / プロンプト」<span class="mono">70px</span>，
+      而英文 <span class="mono">Card Management</span> 一个人就要 <span class="mono">119px</span>（加粗态 124）。
+      正确的收法不是压别的，是<strong>先把那个标签改掉</strong> ——
+      路由本来就叫 <code>/cards</code>，中文也只是「卡片管理」，<strong>en 改 “Cards”</strong>；
+      同理 <span class="mono">Coming Soon</span>（87px，全列第二长，而它是最不重要的一行）<strong>改 “Soon”</strong>。
+      两处一改，<strong>132 / 144 / 156 三档在三语下都是零截断</strong>（实测，不是估算）。
+      默认给 <strong>144</strong>：比日文地板（约 122px）留约 20px 余量，不至于以后加一个稍长的标签就崩。
+      想更紧可以拨到 132，那是真正的地板、零余量。
+    </div>
+
+    <p class="note">
+      收起态 <strong>44px</strong>：图标块 36×36，压在 brand-dna「常规控件不小于 36px」上。
+      平板与手机不能跟着收到 44 —— 触屏要求 44px 触摸目标，<strong>52px 是硬地板</strong>（44 + 两侧 4）。
+      另外底部那行的<strong>显示名撤了</strong>：144px 下它必然被压成「Y…」，而三个读数里它最没用（你知道自己是谁）。
+      名字进头像菜单，读屏仍可读到。
+    </p>
+
+  <!-- ══════════ 交互态 ══════════ -->
+  <section>
+    <h2>交互态 <em>五个，都不靠颜色单打独斗</em></h2>
+
+    <div class="callout">
+      <b>这一版推翻了我自己的初稿。</b>原本 hover 打算用「更白的底」、active 用纯白浮片 —— 算完是
+      <span class="mono">1.1:1</span>，和现状第 6 条是同一个 bug 换身浅色衣服。
+      改法：<strong>hover 往暗走、active 往亮走</strong>，方向相反就一定分得开；再叠竖条与字重，激活态一共三个信号。
+    </div>
+
+    <div class="states">
+      <div class="statecard">
+        <div class="demo">
+          <div class="srow rest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-video"/></svg>视频</div>
+        </div>
+        <div class="cap"><b>静息</b>墨色 <span>#454c55 · 7.01:1</span></div>
+      </div>
+      <div class="statecard">
+        <div class="demo">
+          <div class="srow hover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-video"/></svg>视频</div>
+        </div>
+        <div class="cap"><b>Hover</b>底色<strong>变暗</strong> 5.5% + 墨色加深<span>120ms · ease-standard</span></div>
+      </div>
+      <div class="statecard">
+        <div class="demo">
+          <div class="srow focus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-video"/></svg>视频</div>
+        </div>
+        <div class="cap"><b>Focus-visible</b>2px 墨环，inset<span>#0b0e12 · 15.6:1</span></div>
+      </div>
+      <div class="statecard">
+        <div class="demo">
+          <div class="srow act"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-image"/></svg>图像</div>
+        </div>
+        <div class="cap"><b>激活</b>白浮片 + 墨竖条 + 加粗<span>三个信号叠加</span></div>
+      </div>
+      <div class="statecard">
+        <div class="demo" style="position:relative;height:64px">
+          <div class="srow rest" style="opacity:.45"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-image"/></svg>图像</div>
+          <div class="srow act" style="position:absolute;left:10px;right:10px;top:26px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-video"/></svg>视频</div>
+        </div>
+        <div class="cap"><b>切换中</b>浮片滑向新目标<span>transform 320ms</span></div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════ 图标 ══════════ -->
+  <section>
+    <h2>图标 <em>11 个里换 7 个，全部来自已装的 lucide</em></h2>
+    <p>
+      你在评论里点名要换图标 —— 这正好和我在方向 A 的代价里写过的那条是同一件事：
+      <strong>3D / 画布 / LoRA 在 16px 下不好分</strong>。核实过了，下面每一个候选都在项目已装的
+      <code>lucide-react</code> 里，<strong>不加新依赖</strong>。
+    </p>
+
+    <div class="callout good">
+      <b>换的三条依据（不是「换个好看的」）。</b>
+      ①&nbsp;<strong>拆散方块系</strong>：现状 11 个里有 4 个由方块构成（LayoutGrid / Layers / Box / Workflow），
+      16px 下轮廓互相撞；提案只留 Box 一个（3D 必须是立方体）。
+      ②&nbsp;<strong>拉平笔画密度</strong>：Swords 有 8 条线段、Palette 有 4 个 0.6 半径的点，
+      而 Mic 只有 3 个形状 —— 同一列里视觉重量差太多；提案把笔画数收进 3–6 一档。
+      ③&nbsp;<strong>语义直给</strong>：Library（书脊）、Mic（录音）在中文标签下都不达意。
+    </div>
+
+    <div class="scroller">
+      <table class="t">
+        <thead>
+          <tr><th>条目</th><th>现状 16 / 28px</th><th>提案 16 / 28px</th><th>为什么</th></tr>
+        </thead>
+        <tbody>
+          <tr><th>画廊</th><td class="ico old"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-gallery"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-gallery"/></svg></div><i>LayoutGrid</i></td><td class="ico new"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-images"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-images"/></svg></div><i>Images</i></td><td>四个方块在 16px 下和「卡片管理」「画布」撞轮廓。画廊就是一堆图，叠图直给。</td></tr>
+          <tr><th>提示词</th><td class="ico old"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-prompt"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-prompt"/></svg></div><i>FileText</i></td><td class="ico new"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-prompt"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-prompt"/></svg><span class="keep">不换</span></div><i>FileText</i></td><td>语义清楚、笔画少，本来就没问题。</td></tr>
+          <tr><th>素材</th><td class="ico old"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-assets"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-assets"/></svg></div><i>Library</i></td><td class="ico new"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-archive"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-archive"/></svg></div><i>Archive</i></td><td>那四条竖线原意是书脊，中文「素材」下认不出，16px 像个音量条。</td></tr>
+          <tr><th>卡片管理</th><td class="ico old"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-cards"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-cards"/></svg></div><i>Layers</i></td><td class="ico new"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-id-card"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-id-card"/></svg></div><i>IdCard</i></td><td>Layers 和 3D 的 Box 同属方块堆叠。换成横向矩形，两者轮廓立刻分开。</td></tr>
+          <tr><th>图像</th><td class="ico old"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-image"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-image"/></svg></div><i>Image</i></td><td class="ico new"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-image"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-image"/></svg><span class="keep">不换</span></div><i>Image</i></td><td>最标准的图像符号。</td></tr>
+          <tr><th>视频</th><td class="ico old"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-video"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-video"/></svg></div><i>Video</i></td><td class="ico new"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-video"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-video"/></svg><span class="keep">不换</span></div><i>Video</i></td><td>同上，摄像机轮廓独一份。</td></tr>
+          <tr><th>音频</th><td class="ico old"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-audio"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-audio"/></svg></div><i>Mic</i></td><td class="ico new"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-audio-lines"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-audio-lines"/></svg></div><i>AudioLines</i></td><td>麦克风是「录音」，但这个域还包含 TTS 和音乐。波形三类都盖得住。</td></tr>
+          <tr><th>3D</th><td class="ico old"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-3d"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-3d"/></svg></div><i>Box</i></td><td class="ico new"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-3d"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-3d"/></svg><span class="keep">不换</span></div><i>Box</i></td><td>立方体是 3D 的通用符号 —— 前提是「卡片管理」先让出方块，否则两个撞。</td></tr>
+          <tr><th>LoRA</th><td class="ico old"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-lora"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-lora"/></svg></div><i>Palette</i></td><td class="ico new"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-swatch-book"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-swatch-book"/></svg></div><i>SwatchBook</i></td><td>Palette 的四个点半径只有 0.6，16px 下糊成一坨。色卡本轮廓独特，语义仍然是「风格」。</td></tr>
+          <tr><th>画布</th><td class="ico old"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-canvas"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-canvas"/></svg></div><i>Workflow</i></td><td class="ico new"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-waypoints"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-waypoints"/></svg></div><i>Waypoints</i></td><td>Workflow 又是两个方块。节点图用「点 + 连线」更准，笔画也更轻。</td></tr>
+          <tr><th>竞技场</th><td class="ico old"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-arena"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-arena"/></svg></div><i>Swords</i></td><td class="ico new"><div class="r"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trophy"/></svg><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-trophy"/></svg></div><i>Trophy</i></td><td>交叉双剑有 8 条线段，是全列最糊的一个。竞技场自带排行榜，奖杯语义也对得上。</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">
+      上面的 16px 是<strong>真实渲染尺寸</strong>，描边宽度和实验台里一致（<code>stroke-width: 1.9</code>），
+      不是缩略图。左边一列刻意用砖红、右边用深青，只为对照时好找，<strong>不是提案配色</strong> —— 实际图标继承墨色。
+    </p>
+
+    <h3 style="margin:0;font-size:15px">拿不准的几个，备选摆这里</h3>
+    <div class="altgrid">
+        <div class="altcell"><span class="hd">素材</span><div class="opts"><span class="opt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-folder-open"/></svg>FolderOpen</span><span class="opt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-package"/></svg>Package</span></div></div>
+        <div class="altcell"><span class="hd">卡片管理</span><div class="opts"><span class="opt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-wallet-cards"/></svg>WalletCards</span></div></div>
+        <div class="altcell"><span class="hd">LoRA</span><div class="opts"><span class="opt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-blend"/></svg>Blend</span></div></div>
+        <div class="altcell"><span class="hd">画布</span><div class="opts"><span class="opt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-network"/></svg>Network</span></div></div>
+        <div class="altcell"><span class="hd">竞技场</span><div class="opts"><span class="opt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-gavel"/></svg>Gavel</span></div></div>
+        <div class="altcell"><span class="hd">视频</span><div class="opts"><span class="opt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-film"/></svg>Film</span></div></div>
+    </div>
+    <p class="note">
+      我拿不准的主要是<strong>竞技场</strong>：Trophy 的语义偏「排行榜」，而竞技场其实是模型两两对战投票。
+      Gavel（法槌 = 裁决）更贴投票这件事，但在 16px 下斜线多、辨识度不如奖杯。倾向 Trophy，你定。
+    </p>
+  </section>
+
+  <!-- ══════════ 令牌 ══════════ -->
+  <section>
+    <h2>令牌 <em>颜色全部算过，不是目测</em></h2>
+
+    <div class="scroller">
+      <table class="t">
+        <thead>
+          <tr><th>用途</th><th>值</th><th>底</th><th>对比度</th><th>判定</th></tr>
+        </thead>
+        <tbody>
+          <tr><th>壳底 ground</th><td class="mono"><span class="swatch" style="background:#e4e7ec"></span>#e4e7ec</td><td>—</td><td class="n">—</td><td>面</td></tr>
+          <tr><th>浮卡 / 浮片</th><td class="mono"><span class="swatch" style="background:#fff"></span>#ffffff</td><td class="mono">#e4e7ec</td><td class="n">1.24</td><td class="bad">不承重 ⚠</td></tr>
+          <tr><th>未选中标签 14px</th><td class="mono"><span class="swatch" style="background:#454c55"></span>#454c55</td><td class="mono">#e4e7ec</td><td class="n">7.01</td><td class="ok">✅ ≥4.5</td></tr>
+          <tr><th>激活标签 14px/600</th><td class="mono"><span class="swatch" style="background:#0b0e12"></span>#0b0e12</td><td class="mono">#ffffff</td><td class="n">19.34</td><td class="ok">✅ ≥4.5</td></tr>
+          <tr><th>段标题 11px 大写</th><td class="mono"><span class="swatch" style="background:#555d67"></span>#555d67</td><td class="mono">#e4e7ec</td><td class="n">5.38</td><td class="ok">✅ ≥4.5</td></tr>
+          <tr><th>激活竖条 3×18</th><td class="mono"><span class="swatch" style="background:#0b0e12"></span>#0b0e12</td><td class="mono">#e4e7ec</td><td class="n">15.60</td><td class="ok">✅ ≥3</td></tr>
+          <tr><th>Focus 环 2px</th><td class="mono"><span class="swatch" style="background:#0b0e12"></span>#0b0e12</td><td class="mono">#e4e7ec</td><td class="n">15.60</td><td class="ok">✅ ≥3</td></tr>
+          <tr><th>Hover 底</th><td class="mono">rgba(11,14,18,.055)</td><td class="mono">#e4e7ec</td><td class="n">—</td><td>与 active <strong>反向</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout good">
+      <b>关于那条 1.24:1。</b>浅壳里「面对面」物理上到不了 3:1（我试到 <span class="mono">#dce1e8</span> 也只有 1.31）。
+      所以这版<strong>不把任何状态语义压在面色差上</strong>：壳与内容的分离交给<strong>几何</strong>（10px 缝 + 14px 圆角 + 投影），
+      几何没有对比度阈值；状态语义交给竖条（15.6:1）、墨色跃迁（7.01→19.34）和字重。
+      面色差只做材质，不做信号。
+    </div>
+
+    <div class="scroller">
+      <table class="t">
+        <thead><tr><th>尺寸</th><th>桌面 ≥1024</th><th>平板 768–1023</th><th>手机 &lt;768</th></tr></thead>
+        <tbody>
+          <tr><th>轨宽 · 展开</th><td class="mono">144</td><td class="mono">144（覆盖）</td><td class="mono">144（覆盖）</td></tr>
+          <tr><th>轨宽 · 收起</th><td class="mono">44</td><td class="mono">52</td><td class="mono">52</td></tr>
+          <tr><th>行高</th><td class="mono">36</td><td class="mono">40</td><td class="mono">44</td></tr>
+          <tr><th>图标</th><td class="mono">16</td><td class="mono">16</td><td class="mono">16</td></tr>
+          <tr><th>收起态点击目标</th><td class="mono ok">36 × 36</td><td class="mono ok">44 × 40</td><td class="mono ok">44 × 44</td></tr>
+          <tr><th>对比现状</th><td class="mono ok">192 / 48 → 144 / 44</td><td class="mono ok">44 死轨 → 52 真侧栏</td><td class="mono">44 → 52（换到触屏地板）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="scroller">
+      <table class="t">
+        <thead><tr><th>动效</th><th>时长</th><th>曲线</th><th>动的属性</th></tr></thead>
+        <tbody>
+          <tr><th>指示器滑动（切工具）</th><td class="mono">320ms</td><td class="mono">cubic-bezier(.22,1,.36,1)</td><td class="mono ok">transform</td></tr>
+          <tr><th>墨色 / 底色变化</th><td class="mono">120ms</td><td class="mono">同上</td><td class="mono">color · background</td></tr>
+          <tr><th>收展（桌面推挤）</th><td class="mono">320ms</td><td class="mono">同上</td><td class="mono bad">width ⚠</td></tr>
+          <tr><th>收展（平板/手机覆盖）</th><td class="mono">320ms</td><td class="mono">同上</td><td class="mono ok">transform · opacity</td></tr>
+          <tr><th>标签淡出 + 位移</th><td class="mono">120 / 200ms</td><td class="mono">同上</td><td class="mono ok">opacity · transform</td></tr>
+          <tr><th>reduced-motion</th><td class="mono">0ms</td><td>—</td><td>全部瞬时</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">
+      桌面收展仍然动 <code>width</code> —— 这是选 B 结构的已知代价（A 才能消掉它）。
+      缓解：只在收展这一个动作上发生，切工具时不触发；曲线换成 canon；<code>will-change</code> 只在过渡期间挂。
+    </p>
+  </section>
+
+  <!-- ══════════ 对账 ══════════ -->
+  <section>
+    <h2>对账 <em>上一轮 13 条，这版解决了几条</em></h2>
+    <div class="scroller">
+      <table class="t">
+        <thead><tr><th>#</th><th>诊断</th><th>这版</th><th>怎么解的</th></tr></thead>
+        <tbody>
+          <tr><td class="n">01</td><td>linear + 动布局属性</td><td class="ok">部分</td><td>曲线换 canon；切工具不再动布局，只剩收展动 width</td></tr>
+          <tr><td class="n">02</td><td>两条 transition 赛跑</td><td class="ok">✅</td><td>浮岛结构里主卡是 flex 兄弟，只有一条宽度过渡</td></tr>
+          <tr><td class="n">03</td><td>颜色瞬时切换</td><td class="ok">✅</td><td><code>color</code> / <code>background</code> 进过渡属性，120ms 同曲线</td></tr>
+          <tr><td class="n">04</td><td>标签被硬裁</td><td class="ok">✅</td><td>opacity + translateX 淡出</td></tr>
+          <tr><td class="n">05</td><td>激活块与分割线同色</td><td class="ok">✅</td><td>浮岛没有分割线；激活是白片 + 墨竖条</td></tr>
+          <tr><td class="n">06</td><td>hover 与 active 同形</td><td class="ok">✅</td><td>反向：hover 变暗、active 变亮 + 竖条 + 加粗</td></tr>
+          <tr><td class="n">07</td><td>轨面与主区 1.04:1</td><td class="ok">✅</td><td>改由几何分离（缝 + 圆角 + 投影），不再靠色差</td></tr>
+          <tr><td class="n">08</td><td>底部 167.5px 四行</td><td class="ok">✅</td><td>收成一行 46px：积分 + 头像；额度变头像上的点，显示名与语言进头像菜单</td></tr>
+          <tr><td class="n">09</td><td>收起态的无意义箭头</td><td class="ok">✅</td><td>收起态不渲染「敬请期待」整行</td></tr>
+          <tr><td class="n">10</td><td>两套导航手工同步</td><td class="ok">✅</td><td>一套 DOM，三档只换 <code>data-bp</code></td></tr>
+          <tr><td class="n">11</td><td>平板拿手机形态</td><td class="ok">✅</td><td>768–1023 拿到 52px 真侧栏 + 覆盖式展开</td></tr>
+          <tr><td class="n">12</td><td>品牌 hover 乱码动画</td><td class="ok">✅</td><td>撤掉 HyperText，静态字</td></tr>
+          <tr><td class="n">13</td><td>EN/JA 3.14:1</td><td class="ok">✅</td><td>语言从常驻行移进头像菜单，选中/未选中都用 ≥5:1 的墨阶</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">
+      只有第 01 条是「部分」，因为桌面推挤是 B 结构的定义特征。要 100% 消掉它必须换 A。
+    </p>
+  </section>
+
+  <!-- ══════════ 施工 ══════════ -->
+  <section>
+    <h2>施工切片 <em>确认后按这个顺序</em></h2>
+    <div class="scroller">
+      <table class="t">
+        <thead><tr><th>切片</th><th>做什么</th><th>落点</th><th>验收</th></tr></thead>
+        <tbody>
+          <tr>
+            <th>S1 材质与令牌</th>
+            <td>灰底 + 浮卡 + 令牌表落地；壳组件零硬编码颜色（现状已满足）</td>
+            <td class="mono">globals.css · app-shell 槽</td>
+            <td>真机 canvas 解析复算令牌表全部数值</td>
+          </tr>
+          <tr>
+            <th>S2 指示器与交互态</th>
+            <td>单一滑动指示器；hover/focus/active 三态按上表；颜色进过渡属性</td>
+            <td class="mono">ui/sidebar.tsx</td>
+            <td>切工具录屏；<code>getComputedStyle</code> 确认 transition-property 含 color/background</td>
+          </tr>
+          <tr>
+            <th>S3 分段与账户行</th>
+            <td>三段重排；账户四行收成一行；收起态撤「敬请期待」</td>
+            <td class="mono">layout/AppSidebar.tsx</td>
+            <td>footer 高度从 167.5 → ≤48px</td>
+          </tr>
+          <tr>
+            <th>S4 断点合并</th>
+            <td><strong>删掉 MobileCollapsedRail</strong>，三档共用一套组件</td>
+            <td class="mono">layout/MobileTabBar.tsx</td>
+            <td><strong>真机</strong> 768 / 430 / 375 逐档目检 —— 这一步不能省，本机视口切不过去</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <b>禁改红线。</b>不动各业务域皮肤（<code>canvas.css</code> / <code>lora.css</code> / <code>home-v3.css</code> / <code>legal.css</code>）——
+      壳换材质<strong>不构成</strong>任何域返工的理由；改完这四张皮肤的外观必须零变化，变了就说明脊柱漏进域里了。
+      S4 删组件前先 <code>grep</code> 全部调用方，一次改完，不留兼容层。
+    </div>
+  </section>
+
+  <footer class="foot">
+    对比度：WCAG 2.x 相对亮度，node 确定性计算，非目测、非 review agent 算术<br>
+    未验：768–1023 与 &lt;768 的真机渲染（本机 resize_window 对视口无效）<br>
+    上一轮：侧边栏动效实验台（现状诊断 13 条 + 三方向对照）
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    // 三语标签取自 src/messages/{zh,ja,en}.json；en.cards 用「提案后」的短名，
+    // 括注里是现状原文 —— 撑宽整条轨的就是它。
+    var TEXT = {
+      zh: { gnav: '去处', gtool: '工具', gallery: '画廊', prompt: '提示词', assets: '素材', cards: '卡片管理',
+            image: '图像', video: '视频', audio: '音频', m3d: '3D', lora: 'LoRA', canvas: '画布', arena: '竞技场', soon: '敬请期待' },
+      ja: { gnav: '移動先', gtool: 'ツール', gallery: 'ギャラリー', prompt: 'プロンプト', assets: 'アセット', cards: 'カード管理',
+            image: '画像', video: '動画', audio: '音声', m3d: '3D', lora: 'LoRA', canvas: 'キャンバス', arena: 'アリーナ', soon: '近日公開' },
+      en: { gnav: 'Go to', gtool: 'Tools', gallery: 'Gallery', prompt: 'Prompts', assets: 'Assets', cards: 'Cards',
+            image: 'Image', video: 'Video', audio: 'Audio', m3d: '3D', lora: 'LoRA', canvas: 'Canvas', arena: 'Arena', soon: 'Soon' }
+    };
+    var loc = 'zh';
+
+    var NAV = [
+      { g: 'gnav', sec: 'nav' },
+      { id: 'gallery', icon: 'ic-images', sec: 'nav' },
+      { id: 'prompt', icon: 'ic-prompt', sec: 'nav' },
+      { id: 'assets', icon: 'ic-archive', sec: 'nav' },
+      { id: 'cards', icon: 'ic-id-card', sec: 'nav' },
+      { g: 'gtool', sec: 'tool' },
+      { id: 'image', icon: 'ic-image', sec: 'tool', active: true },
+      { id: 'video', icon: 'ic-video', sec: 'tool' },
+      { id: 'audio', icon: 'ic-audio-lines', sec: 'tool' },
+      { id: 'm3d', icon: 'ic-3d', sec: 'tool' },
+      { id: 'lora', icon: 'ic-swatch-book', sec: 'tool' },
+      { id: 'canvas', icon: 'ic-waypoints', sec: 'tool' },
+      { id: 'arena', icon: 'ic-trophy', sec: 'tool' },
+      { id: 'soon', icon: 'ic-soon', sec: 'tool', badge: '3', soon: true }
+    ];
+
+    var shell = document.getElementById('shell');
+    var nav = document.getElementById('railNav');
+    var ind = document.getElementById('ind');
+    var frame = document.getElementById('frame');
+    var scaler = document.getElementById('scaler');
+    var frameCap = document.getElementById('frameCap');
+    var vw = 1440;
+
+    NAV.forEach(function (n) {
+      if (n.g) {
+        var g = document.createElement('div');
+        g.className = 'grp';
+        g.dataset.g = n.sec;
+        g.dataset.key = n.g;
+        g.textContent = TEXT[loc][n.g];
+        nav.appendChild(g);
+        return;
+      }
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'item' + (n.active ? ' is-active' : '');
+      b.dataset.id = n.id;
+      b.dataset.label = TEXT[loc][n.id];
+      b.dataset.sec = n.sec;
+      if (n.soon) b.dataset.soon = 'true';
+      b.innerHTML =
+        '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#' + n.icon + '"/></svg>' +
+        '<span class="lb">' + TEXT[loc][n.id] + '</span>' +
+        (n.badge ? '<span class="badge">' + n.badge + '</span>' : '');
+      nav.appendChild(b);
+    });
+
+    var tiles = document.getElementById('tiles');
+    for (var i = 0; i < 8; i++) tiles.appendChild(Object.assign(document.createElement('div'), { className: 'tile' }));
+
+    function bpOf(w) { return w >= 1024 ? 'desk' : (w >= 768 ? 'tab' : 'phone'); }
+
+    var railMax = 144;
+
+    // 截断检测：哪些标签在当前轨宽下被 ellipsis 掉了。这是「能收多窄」的地板。
+    function checkTrunc() {
+      var el = document.getElementById('rdTrunc');
+      if (shell.dataset.collapsed === 'true') { el.textContent = ''; return; }
+      var cut = [...nav.querySelectorAll('.item')]
+        .filter(function (i) { return i.offsetParent !== null; })
+        .map(function (i) { return i.querySelector('.lb'); })
+        .filter(function (l) { return l && l.scrollWidth > l.clientWidth + 1; })
+        .map(function (l) { return l.textContent; });
+      el.innerHTML = cut.length
+        ? '截断 <b style="color:#b0392a">' + cut.length + '</b> 个：' + cut.join('、')
+        : '无截断 ✓';
+    }
+
+    function relabel() {
+      [...nav.querySelectorAll('.item')].forEach(function (b) {
+        var t = TEXT[loc][b.dataset.id];
+        b.dataset.label = t;
+        b.querySelector('.lb').textContent = t;
+      });
+      [...nav.querySelectorAll('.grp')].forEach(function (g) {
+        g.textContent = TEXT[loc][g.dataset.key];
+      });
+      var a = nav.querySelector('.item.is-active');
+      if (a) {
+        document.getElementById('stageName').textContent = a.dataset.label;
+        document.getElementById('topTitle').textContent = a.dataset.label;
+      }
+    }
+
+    function moveInd() {
+      var a = nav.querySelector('.item.is-active');
+      if (!a || a.offsetParent === null) { ind.style.opacity = '0'; return; }
+      ind.style.opacity = '1';
+      ind.style.setProperty('--y', a.offsetTop + 'px');
+      ind.style.setProperty('--h', a.offsetHeight + 'px');
+    }
+
+    function readout() {
+      document.getElementById('rdBp').textContent = shell.dataset.bp;
+      document.getElementById('rdRail').textContent = Math.round(shell.querySelector('.rail').getBoundingClientRect().width / getScale());
+      document.getElementById('rdStage').textContent = Math.round(shell.querySelector('.stage').getBoundingClientRect().width / getScale());
+    }
+
+    function getScale() {
+      var m = scaler.style.transform.match(/scale\(([\d.]+)\)/);
+      return m ? Number(m[1]) : 1;
+    }
+
+    function layout() {
+      var avail = frame.parentElement.clientWidth - 44;
+      var scale = Math.min(1, avail / vw);
+      shell.style.width = vw + 'px';
+      scaler.style.transform = 'scale(' + scale + ')';
+      frame.style.width = Math.round(vw * scale) + 'px';
+      frame.style.height = Math.round(660 * scale) + 'px';
+      var bp = bpOf(vw);
+      shell.dataset.bp = bp;
+      shell.style.setProperty('--railmax', railMax + 'px');
+      frameCap.innerHTML = '视口 <b>' + vw + '</b> px　·　断点 <b>' + bp + '</b>　·　显示缩放 <b>' + Math.round(scale * 100) + '%</b>';
+      // ⚠ 后台标签页会冻结 rAF —— 同步跑一次，rAF 只做二次校正
+      moveInd(); readout(); checkTrunc();
+      requestAnimationFrame(function () { moveInd(); readout(); checkTrunc(); });
+    }
+
+    document.getElementById('vwSeg').addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (!b) return;
+      vw = Number(b.dataset.vw);
+      document.querySelectorAll('#vwSeg button').forEach(function (x) {
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+      // 小屏默认收起 —— 那是它真实的常态
+      var want = bpOf(vw) !== 'desk';
+      shell.dataset.collapsed = String(want);
+      document.getElementById('colBtn').setAttribute('aria-pressed', String(want));
+      document.getElementById('rdReflow').textContent = '';
+      layout();
+    });
+
+    document.getElementById('wSeg').addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (!b) return;
+      railMax = Number(b.dataset.w);
+      document.querySelectorAll('#wSeg button').forEach(function (x) {
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+      layout();
+    });
+
+    document.getElementById('locSeg').addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (!b) return;
+      loc = b.dataset.loc;
+      document.querySelectorAll('#locSeg button').forEach(function (x) {
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+      relabel();
+      layout();
+    });
+
+    document.getElementById('spSeg').addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (!b) return;
+      var v = Number(b.dataset.sp);
+      document.querySelectorAll('#spSeg button').forEach(function (x) {
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+      if (v === 0) shell.dataset.motion = 'off';
+      else { shell.dataset.motion = 'on'; shell.style.setProperty('--sp', String(v)); }
+    });
+
+    function toggle() {
+      var next = shell.dataset.collapsed !== 'true';
+      shell.dataset.collapsed = String(next);
+      document.getElementById('colBtn').setAttribute('aria-pressed', String(next));
+      var sc = getScale();
+      var before = Math.round(shell.querySelector('.stage').getBoundingClientRect().width / sc);
+      var sp = shell.dataset.motion === 'off' ? 0.2 : (Number(getComputedStyle(shell).getPropertyValue('--sp')) || 1);
+      setTimeout(function () {
+        var after = Math.round(shell.querySelector('.stage').getBoundingClientRect().width / getScale());
+        document.getElementById('rdReflow').textContent =
+          after === before ? '主卡没动 ✓（覆盖式）' : '主卡变了 ' + Math.abs(after - before) + 'px（推挤式）';
+        moveInd(); readout(); checkTrunc();
+      }, Math.round(430 * sp));
+    }
+
+    document.getElementById('colBtn').addEventListener('click', toggle);
+    document.getElementById('burger').addEventListener('click', toggle);
+    document.getElementById('scrim').addEventListener('click', toggle);
+
+    // ── hover 幽灵块 ──
+    var hov = document.getElementById('hov');
+    var hovOn = false;
+
+    function placeHov(el) {
+      var jump = !hovOn;
+      hov.dataset.jump = String(jump);
+      hov.style.setProperty('--hy', el.offsetTop + 'px');
+      hov.style.setProperty('--hh', el.offsetHeight + 'px');
+      hov.style.opacity = '1';
+      hovOn = true;
+    }
+
+    function hideHov() {
+      hov.style.opacity = '0';
+      hovOn = false;
+    }
+
+    nav.addEventListener('pointerover', function (e) {
+      if (e.pointerType !== 'mouse') return;      // 触屏没有 hover，别留下一块糊在那
+      var b = e.target.closest('.item');
+      if (!b || b.offsetParent === null) return;
+      if (b.classList.contains('is-active')) { hideHov(); return; }  // 白浮片赢，别在它下面压一块暗的
+      placeHov(b);
+    });
+
+    nav.addEventListener('pointerleave', hideHov);
+    nav.addEventListener('pointerdown', function (e) {
+      if (e.pointerType !== 'mouse') hideHov();
+    });
+
+    nav.addEventListener('click', function (e) {
+      var b = e.target.closest('.item');
+      if (!b) return;
+      nav.querySelectorAll('.item').forEach(function (x) { x.classList.remove('is-active'); });
+      b.classList.add('is-active');
+      if (!b.dataset.soon) hideHov();
+      if (!b.dataset.soon) {
+        document.getElementById('stageName').textContent = b.dataset.label;
+        document.getElementById('topTitle').textContent = b.dataset.label;
+      }
+      moveInd();
+      if (shell.dataset.bp !== 'desk' && shell.dataset.collapsed === 'false') setTimeout(toggle, 160);
+    });
+
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      shell.dataset.motion = 'off';
+      document.querySelectorAll('#spSeg button').forEach(function (x) {
+        x.setAttribute('aria-pressed', String(x.dataset.sp === '0'));
+      });
+    }
+
+    window.addEventListener('resize', layout);
+    layout();
+  })();
+</script>

@@ -1,0 +1,972 @@
+<title>手机端导航三向</title>
+
+<style>
+  :root {
+    --ground: #eef1f4;
+    --surface: #ffffff;
+    --ink: #0f1519;
+    --muted: #5f6b76;
+    --rule: #dce2e8;
+    --flag: #b0392a;
+    --flag-bg: #f9ebe9;
+    --signal: #0c6f6a;
+    --signal-bg: #e3f1f0;
+    --shadow: 0 1px 2px rgba(15, 21, 25, .05), 0 8px 24px -14px rgba(15, 21, 25, .22);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e1316;
+      --surface: #161d22;
+      --ink: #e7edf2;
+      --muted: #909daa;
+      --rule: #27313a;
+      --flag: #e5796a;
+      --flag-bg: #2a1a18;
+      --signal: #48bab1;
+      --signal-bg: #10262a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px -14px rgba(0, 0, 0, .8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0e1316;
+    --surface: #161d22;
+    --ink: #e7edf2;
+    --muted: #909daa;
+    --rule: #27313a;
+    --flag: #e5796a;
+    --flag-bg: #2a1a18;
+    --signal: #48bab1;
+    --signal-bg: #10262a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px -14px rgba(0, 0, 0, .8);
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 52px 24px 90px;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .eyebrow {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 4vw, 42px);
+    line-height: 1.2;
+    letter-spacing: -.02em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+    font-weight: 700;
+  }
+
+  .lede {
+    margin: 0;
+    max-width: 64ch;
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    color: var(--muted);
+    margin: 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  h2 em {
+    font-style: normal;
+    color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 19px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 700;
+  }
+
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  p {
+    margin: 0;
+    max-width: 68ch;
+  }
+
+  p.note {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  code {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: .88em;
+    background: color-mix(in oklab, var(--ink) 7%, transparent);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* 为什么不能照搬 */
+  .whys {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .why {
+    background: var(--surface);
+    padding: 15px 17px 17px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .why b {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--flag);
+    line-height: 1.1;
+  }
+
+  .why h3 {
+    margin: 0;
+    font-size: 14.5px;
+  }
+
+  .why p {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  /* 三个手机 */
+  .phones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 26px;
+    align-items: start;
+  }
+
+  .phonecard {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .phonehead {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .phonehead .tag {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--signal);
+  }
+
+  .phonehead h3 {
+    margin: 0;
+    font-size: 19px;
+  }
+
+  .phonehead p {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+
+  .device {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    border: 8px solid #1b2126;
+    border-radius: 30px;
+    overflow: hidden;
+    box-shadow: 0 18px 40px -26px rgba(11, 14, 18, .7);
+    background: #1b2126;
+  }
+
+  /* ── 手机壳内部 ── */
+  .m {
+    --g: #e4e7ec;
+    --card: #ffffff;
+    --ink1: #0b0e12;
+    --ink2: #454c55;
+    --ink3: #555d67;
+    --hair: rgba(11, 14, 18, .08);
+    --hover: rgba(11, 14, 18, .055);
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    color-scheme: light;
+    position: relative;
+    width: 100%;
+    height: 500px;
+    background: var(--g);
+    color: var(--ink1);
+    font-size: 13px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+
+  .m * {
+    box-sizing: border-box;
+  }
+
+  .m .bar {
+    flex: 0 0 auto;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px;
+  }
+
+  .m .iconbtn {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--ink2);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+
+  .m .iconbtn:active {
+    background: var(--hover);
+  }
+
+  .m .title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 600;
+    font-size: 15px;
+    text-align: center;
+    color: var(--ink1);
+  }
+
+  .m .body {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0 8px 8px;
+    background: var(--card);
+    border: 1px solid var(--hair);
+    border-radius: 14px;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  .m .tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .m .tile {
+    aspect-ratio: 1;
+    border-radius: 9px;
+    background: repeating-linear-gradient(135deg, #f3f4f6 0 8px, #f8f9fa 8px 16px);
+    border: 1px solid #eef0f2;
+  }
+
+  .m .hint {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--ink3);
+    text-align: center;
+  }
+
+  svg.ic {
+    width: 19px;
+    height: 19px;
+  }
+
+  /* ── M1 底部工具坞 ── */
+  .dock {
+    flex: 0 0 auto;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .dock::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dock button {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--ink2);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: background 160ms var(--ease), color 160ms var(--ease);
+  }
+
+  .dock button[aria-current="true"] {
+    background: var(--ink1);
+    color: #fff;
+  }
+
+  .dock button:active {
+    background: var(--hover);
+  }
+
+  /* ── M2 顶栏切换器 ── */
+  .switcher {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--card);
+    box-shadow: 0 1px 2px rgba(11, 14, 18, .09);
+    font: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink1);
+    cursor: pointer;
+  }
+
+  .sheet {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 48px;
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: 0 20px 44px -22px rgba(11, 14, 18, .55);
+    padding: 8px;
+    transform: translateY(-8px) scale(.98);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 220ms var(--ease), opacity 160ms var(--ease);
+    z-index: 3;
+  }
+
+  .m[data-open="true"] .sheet {
+    transform: none;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sheet .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+
+  .sheet .cell {
+    height: 62px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font: inherit;
+    font-size: 11px;
+    color: var(--ink2);
+    cursor: pointer;
+  }
+
+  .sheet .cell[aria-current="true"] {
+    background: var(--ink1);
+    color: #fff;
+  }
+
+  .sheet .sec {
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink3);
+    padding: 8px 8px 4px;
+  }
+
+  .scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(11, 14, 18, .3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms var(--ease);
+    z-index: 2;
+  }
+
+  .m[data-open="true"] .scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* ── M3 边缘手势 ── */
+  .edge {
+    position: absolute;
+    left: 0;
+    top: 44px;
+    bottom: 0;
+    width: 14px;
+    background: linear-gradient(90deg, rgba(11, 14, 18, .10), transparent);
+    z-index: 1;
+  }
+
+  .drawer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 208px;
+    background: var(--g);
+    box-shadow: 12px 0 40px -18px rgba(11, 14, 18, .6);
+    transform: translateX(-100%);
+    transition: transform 260ms var(--ease);
+    z-index: 3;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .m[data-open="true"] .drawer {
+    transform: none;
+  }
+
+  .drawer .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 44px;
+    padding: 0 10px;
+    border-radius: 11px;
+    font-size: 14px;
+    color: var(--ink2);
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .drawer .row[aria-current="true"] {
+    background: var(--card);
+    color: var(--ink1);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(11, 14, 18, .09);
+  }
+
+  .drawer .sec {
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink3);
+    padding: 10px 10px 2px;
+  }
+
+  /* 表 */
+  .scroller {
+    overflow-x: auto;
+  }
+
+  table.t {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+  }
+
+  table.t th,
+  table.t td {
+    border: 1px solid var(--rule);
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  table.t thead th {
+    background: color-mix(in oklab, var(--ink) 4%, var(--surface));
+    font-size: 11.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  table.t tbody th {
+    font-weight: 600;
+    white-space: nowrap;
+    background: color-mix(in oklab, var(--ink) 2%, var(--surface));
+  }
+
+  .ok {
+    color: var(--signal);
+    font-weight: 600;
+  }
+
+  .bad {
+    color: var(--flag);
+    font-weight: 600;
+  }
+
+  .callout {
+    border-left: 3px solid var(--flag);
+    background: var(--flag-bg);
+    padding: 14px 18px;
+    border-radius: 0 3px 3px 0;
+    font-size: 14px;
+  }
+
+  .callout b {
+    color: var(--flag);
+  }
+
+  .callout.good {
+    border-left-color: var(--signal);
+    background: var(--signal-bg);
+  }
+
+  .callout.good b {
+    color: var(--signal);
+  }
+
+  footer.foot {
+    border-top: 1px solid var(--rule);
+    padding-top: 18px;
+    font-size: 12.5px;
+    color: var(--muted);
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    line-height: 1.9;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: .001ms !important;
+      transition-duration: .001ms !important;
+    }
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="i-gallery"><path d="m22 11-1.296-1.296a2.4 2.4 0 0 0-3.408 0L11 16"/><path d="M4 8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2"/><circle cx="13" cy="7" r="1" fill="currentColor"/><rect x="8" y="2" width="14" height="14" rx="2"/></g>
+    <g id="i-prompt"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></g>
+    <g id="i-assets"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></g>
+    <g id="i-cards"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></g>
+    <g id="i-image"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></g>
+    <g id="i-video"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></g>
+    <g id="i-audio"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></g>
+    <g id="i-3d"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></g>
+    <g id="i-lora"><path d="M11 17a4 4 0 0 1-8 0V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2Z"/><path d="M16.7 13H19a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H7"/><path d="M 7 17h.01"/><path d="m11 8 2.3-2.3a2.4 2.4 0 0 1 3.404.004L18.6 7.6a2.4 2.4 0 0 1 .026 3.434L9.9 19.8"/></g>
+    <g id="i-canvas"><path d="m10.586 5.414-5.172 5.172"/><path d="m18.586 13.414-5.172 5.172"/><path d="M6 12h12"/><circle cx="12" cy="20" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="4" cy="12" r="2"/></g>
+    <g id="i-arena"><path d="M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21.978"/><path d="M14 14.66v1.626a2 2 0 0 0 .976 1.696A5 5 0 0 1 17 21.978"/><path d="M18 9h1.5a1 1 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6 9H4.5a1 1 0 0 1 0-5H6"/></g>
+    <g id="i-menu"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></g>
+    <g id="i-chevron"><path d="m6 9 6 6 6-6"/></g>
+    <g id="i-user"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.2 18.6a6 6 0 0 1 11.6 0"/></g>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">PixelVault · 全局应用壳 · 手机档 · 2026-08-18</p>
+    <h1>手机上不该有一条竖轨</h1>
+    <p class="lede">
+      桌面那套「灰底浮岛 + 滑片指示器」是为鼠标和宽屏设计的。照搬到 375px 上，
+      有五条会直接失效或反效果。下面三个方向都是从手机自己的约束长出来的，可以直接点。
+    </p>
+  </header>
+
+  <section>
+    <h2>为什么不能照搬 <em>五条，都不是审美问题</em></h2>
+    <div class="whys">
+      <div class="why">
+        <b>01</b>
+        <h3>没有 hover</h3>
+        <p>桌面版一半的交互设计是那块跟着光标滑的幽灵块。触屏上它不存在 —— 硬留着只会在点完之后糊一块在那儿。</p>
+      </div>
+      <div class="why">
+        <b>02</b>
+        <h3>左上是拇指最差区</h3>
+        <p>右手持机时，左侧竖轨落在够不着的角落。最高频的「切工具」被放在了最难够的地方。</p>
+      </div>
+      <div class="why">
+        <b>03</b>
+        <h3>宽度比高度贵</h3>
+        <p>44px 竖轨吃掉 375 的 <span class="mono">12%</span> 宽度，而且是永久的。同样面积换成底部一条，占的是更便宜的高度。</p>
+      </div>
+      <div class="why">
+        <b>04</b>
+        <h3>触摸目标要 44px</h3>
+        <p>桌面收起态刚收到 40px 轨 / 32px 图标块。手机反而必须回到 52 / 44 —— <strong>越小的屏，轨越宽</strong>，这本身就说明形态不对。</p>
+      </div>
+      <div class="why">
+        <b>05</b>
+        <h3>导航层级不一样</h3>
+        <p>手机上几乎只有「切工具」是高频，「去处」四项是偶尔一次。桌面那种两段平铺在手机上是把低频项和高频项按同一权重摆着。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>三个方向 <em>点一点，都是活的</em></h2>
+
+    <div class="phones">
+
+      <!-- ── M1 ── -->
+      <div class="phonecard">
+        <div class="phonehead">
+          <span class="tag">M1 · 推荐</span>
+          <h3>底部工具坞</h3>
+          <p>7 个工具横排在拇指区，可横滑。「去处」与账户进左上菜单。内容拿回整个宽度。</p>
+        </div>
+        <div class="device">
+          <div class="m" id="m1" data-open="false">
+            <div class="scrim" data-close></div>
+            <div class="drawer" id="m1drawer">
+              <div class="sec">去处</div>
+              <button class="row" data-close><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-gallery"/></svg>画廊</button>
+              <button class="row" data-close><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-prompt"/></svg>提示词</button>
+              <button class="row" data-close><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-assets"/></svg>素材</button>
+              <button class="row" data-close><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-cards"/></svg>卡片管理</button>
+              <div class="sec">账户</div>
+              <button class="row" data-close><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-user"/></svg>YINIG · 919</button>
+            </div>
+            <div class="bar">
+              <button class="iconbtn" data-openmenu aria-label="打开菜单"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-menu"/></svg></button>
+              <span class="title" data-title>图像</span>
+              <span class="iconbtn" aria-hidden="true"></span>
+            </div>
+            <div class="body">
+              <div class="tiles"><div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div></div>
+              <p class="hint">内容区宽度 <b data-w>—</b> px　·　无常驻竖轨</p>
+            </div>
+            <div class="dock" data-dock></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── M2 ── -->
+      <div class="phonecard">
+        <div class="phonehead">
+          <span class="tag">M2</span>
+          <h3>顶栏当切换器</h3>
+          <p>标题升级成「当前工具」按钮，点开落下一张全部入口的面板。零常驻导航 chrome。</p>
+        </div>
+        <div class="device">
+          <div class="m" id="m2" data-open="false">
+            <div class="scrim" data-close></div>
+            <div class="bar">
+              <span class="iconbtn" aria-hidden="true"></span>
+              <button class="switcher" data-openmenu>
+                <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-image" data-titleicon/></svg>
+                <span data-title>图像</span>
+                <svg class="ic" style="width:15px;height:15px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+              </button>
+              <button class="iconbtn" aria-label="账户"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-user"/></svg></button>
+            </div>
+            <div class="sheet">
+              <div class="sec">工具</div>
+              <div class="grid" data-grid></div>
+              <div class="sec">去处</div>
+              <div class="grid" data-grid2></div>
+            </div>
+            <div class="body">
+              <div class="tiles"><div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div></div>
+              <p class="hint">内容区宽度 <b data-w>—</b> px　·　只有 44px 顶栏</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── M3 ── -->
+      <div class="phonecard">
+        <div class="phonehead">
+          <span class="tag">M3</span>
+          <h3>边缘手势抽屉</h3>
+          <p>完全没有常驻导航，从左边缘右滑唤出全高面板。内容最大化，但手势会和页面自身冲突。</p>
+        </div>
+        <div class="device">
+          <div class="m" id="m3" data-open="false">
+            <div class="scrim" data-close></div>
+            <div class="edge" data-openmenu title="从这里右滑"></div>
+            <div class="drawer">
+              <div class="sec">工具</div>
+              <div data-tools></div>
+              <div class="sec">去处</div>
+              <button class="row" data-close><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-gallery"/></svg>画廊</button>
+              <button class="row" data-close><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-assets"/></svg>素材</button>
+            </div>
+            <div class="bar">
+              <button class="iconbtn" data-openmenu aria-label="打开菜单"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-menu"/></svg></button>
+              <span class="title" data-title>图像</span>
+              <span class="iconbtn" aria-hidden="true"></span>
+            </div>
+            <div class="body">
+              <div class="tiles"><div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div></div>
+              <p class="hint">内容区宽度 <b data-w>—</b> px　·　零常驻导航</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>对照 <em>切工具要几次点击，是这里最重要的一列</em></h2>
+    <div class="scroller">
+      <table class="t">
+        <thead>
+          <tr><th></th><th>M1 底部工具坞</th><th>M2 顶栏切换器</th><th>M3 边缘手势</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>切工具（最高频）</th>
+            <td class="ok">1 次点击</td>
+            <td class="bad">2 次（开面板 → 选）</td>
+            <td class="bad">1 次手势 + 1 次点击</td>
+          </tr>
+          <tr>
+            <th>常驻 chrome</th>
+            <td>顶 44 + 底 60</td>
+            <td class="ok">仅顶 44</td>
+            <td class="ok">仅顶 44</td>
+          </tr>
+          <tr>
+            <th>内容区宽度</th>
+            <td class="ok">满宽</td>
+            <td class="ok">满宽</td>
+            <td class="ok">满宽</td>
+          </tr>
+          <tr>
+            <th>拇指可达</th>
+            <td class="ok">最佳（底部中段）</td>
+            <td>中（顶部要够）</td>
+            <td>中（边缘手势可单手）</td>
+          </tr>
+          <tr>
+            <th>可发现性</th>
+            <td class="ok">全部可见</td>
+            <td class="ok">当前工具直接写在顶栏</td>
+            <td class="bad">手势不可见，要靠菜单钮兜底</td>
+          </tr>
+          <tr>
+            <th>风险</th>
+            <td>owner 2026-08-07 删过底部 TabBar；iOS home indicator 安全区要处理</td>
+            <td>给最高频任务多加一拍</td>
+            <td class="bad">与画布 pan、画廊/素材横滑<strong>直接冲突</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <b>M1 有一条必须先说清的历史。</b>你在 2026-08-07 删掉过底部 TabBar，理由记在
+      <code>(main)/layout.tsx</code> 的注释里：「它只有『创作 / 画廊』两个入口，而两者都在常驻左 rail 里 —— 纯冗余，
+      占着 48px 还挡内容」。<strong>M1 不是把它恢复回来</strong>：那次删的是一个与左轨重复的两项入口，
+      这次是把 7 个工具的<strong>主切换器</strong>放下去，同时<strong>左轨整个消失</strong>。不再有重复关系。
+      但这条得你点头 —— 我不想在你明确删过的东西上自作主张。
+    </div>
+
+    <div class="callout good">
+      <b>我推荐 M1。</b>它是三个里唯一让「切工具」保持一次点击、又落在拇指区的。
+      M2 最省空间，如果你认为手机上根本不该频繁切工具（手机更多是看作品、而不是生产），那 M2 才是对的 ——
+      <strong>这一条取决于你怎么定位手机端的角色，我给不了答案</strong>。
+      M3 我不建议：画布域已经在用 pan 手势，画廊与素材是横滑网格，边缘手势会和它们打架。
+    </div>
+  </section>
+
+  <section>
+    <h2>还没定的 <em>选完之后才轮到这些</em></h2>
+    <p class="note">
+      ① 平板 768–1023 跟哪边？我倾向跟<strong>桌面</strong>（它有宽度，竖轨成立），但如果 M1 中选，
+      平板可能更适合「桌面轨 + 底部坞都不要」的第三种形态 ——
+      ② 手机上的激活态用什么？坞里我先用了<strong>墨色填充胶囊</strong>而不是桌面的白浮片：小尺寸下深色更易辨，
+      而且没有 hover 就不需要反极性那套。③ iOS 安全区与横屏还没设计。
+    </p>
+    <p class="note">
+      ⚠ 这三个都是<strong>原型里的模拟</strong>。本机 <code>resize_window</code> 对视口无效，
+      真机手机档我一次都没验过 —— 选定之后仍要在真设备上过一遍。
+    </p>
+  </section>
+
+  <footer class="foot">
+    桌面档已实现并真机验过：轨 144 / 40 · 令牌表逐项对上 · 切工具颜色过渡 120ms<br>
+    本页只讨论 &lt;768 手机档；平板 768–1023 待定
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var TOOLS = [
+      { id: 'image', label: '图像', icon: 'i-image' },
+      { id: 'video', label: '视频', icon: 'i-video' },
+      { id: 'audio', label: '音频', icon: 'i-audio' },
+      { id: 'm3d', label: '3D', icon: 'i-3d' },
+      { id: 'lora', label: 'LoRA', icon: 'i-lora' },
+      { id: 'canvas', label: '画布', icon: 'i-canvas' },
+      { id: 'arena', label: '竞技场', icon: 'i-arena' }
+    ];
+    var GO = [
+      { id: 'gallery', label: '画廊', icon: 'i-gallery' },
+      { id: 'prompts', label: '提示词', icon: 'i-prompt' },
+      { id: 'assets', label: '素材', icon: 'i-assets' },
+      { id: 'cards', label: '卡片', icon: 'i-cards' }
+    ];
+    var SW = 'fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"';
+
+    function icon(ref, size) {
+      return '<svg class="ic" ' + (size ? 'style="width:' + size + 'px;height:' + size + 'px"' : '') +
+        ' viewBox="0 0 24 24" ' + SW + ' aria-hidden="true"><use href="#' + ref + '"/></svg>';
+    }
+
+    // M1 底部坞
+    var dock = document.querySelector('#m1 [data-dock]');
+    TOOLS.forEach(function (tool, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-current', String(i === 0));
+      b.setAttribute('aria-label', tool.label);
+      b.dataset.label = tool.label;
+      b.innerHTML = icon(tool.icon, 21);
+      dock.appendChild(b);
+    });
+    dock.addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (!b) return;
+      dock.querySelectorAll('button').forEach(function (x) {
+        x.setAttribute('aria-current', String(x === b));
+      });
+      document.querySelector('#m1 [data-title]').textContent = b.dataset.label;
+    });
+
+    // M2 面板
+    function fillGrid(host, items, isTool) {
+      items.forEach(function (item, i) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'cell';
+        b.dataset.label = item.label;
+        if (isTool) b.setAttribute('aria-current', String(i === 0));
+        b.dataset.icon = item.icon;
+      b.innerHTML = icon(item.icon, 20) + '<span>' + item.label + '</span>';
+        host.appendChild(b);
+      });
+    }
+    fillGrid(document.querySelector('#m2 [data-grid]'), TOOLS, true);
+    fillGrid(document.querySelector('#m2 [data-grid2]'), GO, false);
+
+    // M3 抽屉里的工具行
+    var m3tools = document.querySelector('#m3 [data-tools]');
+    TOOLS.forEach(function (tool, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'row';
+      b.dataset.label = tool.label;
+      b.dataset.icon = tool.icon;
+      b.setAttribute('aria-current', String(i === 0));
+      b.innerHTML = icon(tool.icon) + tool.label;
+      m3tools.appendChild(b);
+    });
+
+    // 三台机器共用的开关与选中逻辑
+    ['m1', 'm2', 'm3'].forEach(function (id) {
+      var m = document.getElementById(id);
+      m.addEventListener('click', function (e) {
+        if (e.target.closest('[data-openmenu]')) { m.dataset.open = 'true'; return; }
+        if (e.target.closest('.scrim')) { m.dataset.open = 'false'; return; }
+        var pick = e.target.closest('.cell, .drawer .row');
+        if (!pick) return;
+        var scope = pick.closest('.grid, [data-tools]');
+        if (scope) {
+          scope.querySelectorAll('[aria-current]').forEach(function (x) {
+            x.setAttribute('aria-current', String(x === pick));
+          });
+        }
+        if (pick.dataset.label) {
+          var title = m.querySelector('[data-title]');
+          if (title) title.textContent = pick.dataset.label;
+          var titleIcon = m.querySelector('[data-titleicon]');
+          if (titleIcon && pick.dataset.icon) {
+            titleIcon.setAttribute('href', '#' + pick.dataset.icon);
+          }
+        }
+        m.dataset.open = 'false';
+      });
+    });
+
+    // 内容区实际宽度读数
+    function measure() {
+      ['m1', 'm2', 'm3'].forEach(function (id) {
+        var body = document.querySelector('#' + id + ' .body');
+        var out = document.querySelector('#' + id + ' [data-w]');
+        if (body && out) out.textContent = Math.round(body.getBoundingClientRect().width);
+      });
+    }
+    measure();
+    requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+  })();
+</script>

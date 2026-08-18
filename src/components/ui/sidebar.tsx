@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { Slot } from 'radix-ui'
 
 import { useIsMobile } from '@/hooks/use-mobile'
+import type { NavRect } from '@/hooks/use-nav-indicator'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,9 +29,17 @@ import {
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state'
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = '12rem'
-const SIDEBAR_WIDTH_MOBILE = 'min(13rem, calc(100vw - 8rem))'
-const SIDEBAR_WIDTH_ICON = '3rem'
+/**
+ * 轨宽（app-shell.md §3）。**这两个值含 10px 的左右外沟** —— 浮岛的轨不贴边，
+ * 容器用 `p-2` 把内容推进来，所以 `可见轨宽 = 常量 − 16`：
+ *   展开 160 − 16 = **144** · 收起 56 − 16 = **40**
+ * 144 是「三语零截断 + 约 20px 余量」算出来的：日文最长标签 70px、
+ * 中文 56px，而英文原本的 `Card Management` 要 119px —— 那个标签已在
+ * messages 里改成 `Cards`，否则轨得留到 190+。改这两个数前先读 app-shell.md §3。
+ */
+const SIDEBAR_WIDTH = '10rem'
+const SIDEBAR_WIDTH_MOBILE = 'min(10rem, calc(100vw - 5rem))'
+const SIDEBAR_WIDTH_ICON = '3.5rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
 
 type SidebarContextProps = {
@@ -140,7 +149,8 @@ function SidebarProvider({
             } as React.CSSProperties
           }
           className={cn(
-            'group/sidebar-wrapper flex min-h-svh w-full has-data-[variant=inset]:bg-sidebar',
+            // 壳底。主卡（SidebarInset）浮在它上面，轨坐在它上面。
+            'group/sidebar-wrapper flex min-h-svh w-full bg-sidebar',
             className,
           )}
           {...props}
@@ -221,7 +231,7 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          'relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear',
+          'relative w-(--sidebar-width) bg-transparent transition-[width] duration-(--duration-slow) ease-standard',
           'group-data-[collapsible=offcanvas]:w-0',
           'group-data-[side=right]:rotate-180',
           variant === 'floating' || variant === 'inset'
@@ -232,14 +242,15 @@ function Sidebar({
       <div
         data-slot="sidebar-container"
         className={cn(
-          'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear lg:flex',
+          'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-(--duration-slow) ease-standard lg:flex',
           side === 'left'
             ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
             : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
-          // Adjust the padding for floating and inset variants.
+          // 浮岛：轨不贴边也不描边，靠 10px 外沟 + 壳底色和主卡分开
+          // （app-shell.md §4.1 —— 浅壳里「面对面」到不了 3:1，分离交给几何）。
           variant === 'floating' || variant === 'inset'
             ? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]'
-            : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l',
+            : 'p-2 group-data-[collapsible=icon]:w-(--sidebar-width-icon)',
           className,
         )}
         {...props}
@@ -247,7 +258,9 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow-sm"
+          // 轨自己不上底色 —— 壳底（wrapper 的 bg-sidebar）直接透上来，
+          // 视觉上轨是「坐在灰底上」而不是「另一张面」。
+          className="flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:bg-sidebar group-data-[variant=floating]:shadow-sm"
         >
           {children}
         </div>
@@ -315,6 +328,9 @@ function SidebarInset({ className, ...props }: React.ComponentProps<'main'>) {
       data-slot="sidebar-inset"
       className={cn(
         'relative flex w-full flex-1 flex-col bg-background',
+        // 浮岛主卡：只做左缘浮起，上右下贴边。四面留边会让任何用 `100svh`
+        // 的子页面（gallery 等）溢出，那是页面的高度契约，不该被壳的材质牵动。
+        'lg:rounded-l-shell-card lg:border-l lg:border-sidebar-border lg:shadow-shell-card',
         'lg:peer-data-[variant=inset]:m-2 lg:peer-data-[variant=inset]:ml-0 lg:peer-data-[variant=inset]:rounded-xl lg:peer-data-[variant=inset]:shadow-sm lg:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2',
         className,
       )}
@@ -481,17 +497,28 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
   )
 }
 
+/**
+ * 菜单项（app-shell.md §5.1）。
+ *
+ * ⚠ **底色不在这里**。激活与 hover 都由 `SidebarMenuSlider` 那两块会滑的
+ * 片子承担 —— 每项各自开关背景就没有「从这里去了那里」的连续性，那正是
+ * 改版前「切工具不丝滑」的第一现场。这里只负责墨色、字重和图标的微反馈。
+ *
+ * ⚠ `transition-property` **必须包含 color**。改版前它只列了
+ * `width,height,padding`，所以颜色是瞬时跳变的 —— 真机 `getComputedStyle`
+ * 量到过，别再退回去。
+ */
 const sidebarMenuButtonVariants = cva(
-  'peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0',
+  'peer/menu-button relative flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[color,background-color,width,height,padding] duration-(--duration-fast) ease-standard group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>span:last-child]:hidden hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent-strong disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-semibold data-[active=true]:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:transition-transform [&>svg]:duration-(--duration-fast) [&>svg]:ease-standard hover:[&>svg]:scale-105',
   {
     variants: {
       variant: {
-        default: 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+        default: '',
         outline:
           'bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]',
       },
       size: {
-        default: 'h-8 text-sm',
+        default: 'h-9 text-sm',
         sm: 'h-7 text-xs',
         lg: 'h-12 text-sm group-data-[collapsible=icon]:p-0!',
       },
@@ -554,6 +581,56 @@ function SidebarMenuButton({
         {...tooltip}
       />
     </Tooltip>
+  )
+}
+
+/**
+ * 会滑的那两块片子（app-shell.md §5.1）。放在滚动容器里、菜单项之前，
+ * 由 `useNavIndicator` 量出位置喂进来。
+ *
+ * 位置全部走 transform，不动布局属性。`rect` 变 null 时**保留上一次的位置**
+ * 再淡出 —— 否则会先弹回 (0,0) 再消失。
+ */
+function SidebarMenuSlider({
+  rect,
+  tone,
+  visible,
+  jumped = false,
+  className,
+  ...props
+}: Omit<React.ComponentProps<'div'>, 'style'> & {
+  rect: NavRect | null
+  tone: 'active' | 'hover'
+  /** 隐藏时 `rect` 仍保留最后位置，只淡出，不弹回 (0,0)。 */
+  visible: boolean
+  jumped?: boolean
+}) {
+  return (
+    <div
+      aria-hidden
+      data-slot="sidebar-menu-slider"
+      data-tone={tone}
+      className={cn(
+        'shell-nav-slider',
+        tone === 'active'
+          ? 'shell-nav-slider--active'
+          : 'shell-nav-slider--hover',
+        jumped && 'shell-nav-slider--jumped',
+        !visible && 'opacity-0',
+        className,
+      )}
+      style={
+        rect
+          ? ({
+              '--slider-x': `${rect.left}px`,
+              '--slider-y': `${rect.top}px`,
+              '--slider-w': `${rect.width}px`,
+              '--slider-h': `${rect.height}px`,
+            } as React.CSSProperties)
+          : undefined
+      }
+      {...props}
+    />
   )
 }
 
@@ -727,6 +804,7 @@ export {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
+  SidebarMenuSlider,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,

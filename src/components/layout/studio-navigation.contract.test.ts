@@ -2,10 +2,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const NAVIGATION_SOURCES = [
-  'src/components/layout/AppSidebar.tsx',
-  'src/components/layout/MobileTabBar.tsx',
-] as const
+// 2026-08-18：导航条目已收敛成单一来源。桌面与移动曾各抄一份，结果漂了
+// （「敬请期待」三项在小屏不可达）—— 现在只有这一个文件能定义条目。
+const NAVIGATION_SOURCES = ['src/constants/navigation.ts'] as const
 
 const EXPECTED_COPY = {
   en: {

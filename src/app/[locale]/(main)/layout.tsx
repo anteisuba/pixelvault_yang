@@ -4,10 +4,7 @@ import { getMessages, getTranslations } from 'next-intl/server'
 
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { MainProviders } from '@/components/layout/MainProviders'
-import {
-  MobileCollapsedRail,
-  MobileHeader,
-} from '@/components/layout/MobileTabBar'
+import { MobileShell } from '@/components/layout/MobileShell'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
@@ -48,16 +45,12 @@ export default async function MainLayout({
         <MainProviders>
           <SidebarProvider defaultOpen={defaultSidebarOpen}>
             <AppSidebar />
-            <MobileCollapsedRail />
-            <MobileHeader />
-            {/* owner 2026-08-07：底部 MobileTabBar 已删——它只有「创作 / 画廊」
-                两个入口，而两者都在常驻左 rail（MobileCollapsedRail）里，纯冗余。
-                ⚠ `pb-12` 是当初专门给它让位的 48px，必须一起去掉，否则每个移动端
-                页面底部会留一条死白。 */}
-            <SidebarInset
-              id="main-content"
-              className="pt-11 pl-11 lg:pt-0 lg:pl-0"
-            >
+            {/* <1024 走方向 M2「顶栏当切换器」：没有竖轨，导航收进顶栏中间那颗
+                按钮（app-shell.md §6）。所以下面只给顶栏让位 44px，
+                ⚠ 原来的 `pl-11` 是给已删除的左轨让的，必须一起去掉，
+                否则每个移动端页面左边会留一条死白。 */}
+            <MobileShell />
+            <SidebarInset id="main-content" className="pt-11 lg:pt-0">
               {children}
             </SidebarInset>
           </SidebarProvider>

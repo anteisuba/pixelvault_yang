@@ -1,0 +1,1946 @@
+<title>侧边栏动效实验台</title>
+
+<style>
+  /* ─────────── 页面令牌（仪表/量测气质：冷纸底 + 砖红=失败 + 深青=提案） ─────────── */
+  :root {
+    --ground: #eef1f4;
+    --surface: #ffffff;
+    --ink: #0f1519;
+    --muted: #5f6b76;
+    --rule: #dce2e8;
+    --flag: #b0392a;
+    --flag-bg: #f9ebe9;
+    --signal: #0c6f6a;
+    --signal-bg: #e3f1f0;
+    --shadow: 0 1px 2px rgba(15, 21, 25, .05), 0 8px 24px -14px rgba(15, 21, 25, .22);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e1316;
+      --surface: #161d22;
+      --ink: #e7edf2;
+      --muted: #909daa;
+      --rule: #27313a;
+      --flag: #e5796a;
+      --flag-bg: #2a1a18;
+      --signal: #48bab1;
+      --signal-bg: #10262a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px -14px rgba(0, 0, 0, .8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0e1316;
+    --surface: #161d22;
+    --ink: #e7edf2;
+    --muted: #909daa;
+    --rule: #27313a;
+    --flag: #e5796a;
+    --flag-bg: #2a1a18;
+    --signal: #48bab1;
+    --signal-bg: #10262a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px -14px rgba(0, 0, 0, .8);
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono,
+  .num {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 56px 28px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  /* ─────────── masthead ─────────── */
+  .eyebrow {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+
+  h1 {
+    font-size: clamp(30px, 4.2vw, 46px);
+    line-height: 1.18;
+    letter-spacing: -.02em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+    font-weight: 700;
+  }
+
+  .lede {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 32px;
+  }
+
+  .metric {
+    background: var(--surface);
+    padding: 16px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .metric b {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -.02em;
+  }
+
+  .metric.bad b {
+    color: var(--flag);
+  }
+
+  .metric span {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ─────────── 通用区块 ─────────── */
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    color: var(--muted);
+    margin: 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  h2 em {
+    font-style: normal;
+    color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 19px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 0;
+    max-width: 68ch;
+  }
+
+  p.note {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  code {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: .88em;
+    background: color-mix(in oklab, var(--ink) 7%, transparent);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* ─────────── 诊断清单 ─────────── */
+  .findings {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .fgroup {
+    background: color-mix(in oklab, var(--ink) 4%, var(--surface));
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .finding {
+    background: var(--surface);
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    gap: 4px 14px;
+    align-items: start;
+  }
+
+  .fno {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    color: var(--muted);
+    padding-top: 2px;
+  }
+
+  .ftitle {
+    font-weight: 600;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.5;
+  }
+
+  .fbody {
+    grid-column: 2;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .fbody strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .tag {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .tag.own {
+    background: var(--flag-bg);
+    color: var(--flag);
+  }
+
+  .tag.mine {
+    background: var(--signal-bg);
+    color: var(--signal);
+  }
+
+  .ev {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 12.5px;
+    color: var(--ink);
+    background: color-mix(in oklab, var(--ink) 6%, transparent);
+    border-left: 2px solid var(--rule);
+    padding: 6px 10px;
+    margin-top: 8px;
+    display: block;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* ─────────── 实验台 ─────────── */
+  .bench {
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .bench-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+    background: color-mix(in oklab, var(--ink) 3%, var(--surface));
+  }
+
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  .seg button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 7px 13px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    border-right: 1px solid var(--rule);
+    transition: background .14s ease, color .14s ease;
+  }
+
+  .seg button:last-child {
+    border-right: 0;
+  }
+
+  .seg button:hover {
+    background: color-mix(in oklab, var(--ink) 5%, transparent);
+    color: var(--ink);
+  }
+
+  .seg button[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--surface);
+  }
+
+  .seg button:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: -2px;
+  }
+
+  .bar-label {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-right: -14px;
+  }
+
+  .bench-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 268px;
+  }
+
+  @media (max-width: 860px) {
+    .bench-body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  .readout {
+    border-left: 1px solid var(--rule);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: color-mix(in oklab, var(--ink) 3%, var(--surface));
+  }
+
+  @media (max-width: 860px) {
+    .readout {
+      border-left: 0;
+      border-top: 1px solid var(--rule);
+    }
+  }
+
+  .rd-title {
+    font-weight: 700;
+    font-size: 16px;
+    margin: 0;
+  }
+
+  .rd-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 4px 0 0;
+    line-height: 1.6;
+  }
+
+  .rd-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .rd-row {
+    background: var(--surface);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .rd-row span:first-child {
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .rd-row span:last-child {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    font-size: 11.5px;
+  }
+
+  .rd-row.is-bad span:last-child {
+    color: var(--flag);
+  }
+
+  .rd-row.is-good span:last-child {
+    color: var(--signal);
+  }
+
+  .curve {
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: var(--surface);
+    padding: 10px;
+  }
+
+  .curve svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .curve figcaption {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  /* ─────────── 演示壳：固定浅色，复刻真机取值，不随页面主题变 ─────────── */
+  .lab {
+    color-scheme: light;
+    --app-rail: #fafafa;
+    --app-stage: #ffffff;
+    --app-chip: #e5e5e5;
+    --app-ink: #0a0a0a;
+    --app-ink-2: #6a6a6a;
+    --app-line: #e5e5e5;
+    --app-accent: #0a0a0a;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    --speed: 1;
+    --t-fast: calc(120ms * var(--speed));
+    --t-base: calc(200ms * var(--speed));
+    --t-slow: calc(320ms * var(--speed));
+    position: relative;
+    height: 680px;
+    background: var(--app-stage);
+    color: var(--app-ink);
+    font-size: 14px;
+    overflow: hidden;
+    display: flex;
+    isolation: isolate;
+  }
+
+  .lab * {
+    box-sizing: border-box;
+  }
+
+  /* 轨 */
+  .rail {
+    position: relative;
+    flex: 0 0 auto;
+    width: 192px;
+    background: var(--app-rail);
+    border-right: 1px solid var(--app-line);
+    display: flex;
+    flex-direction: column;
+    z-index: 2;
+  }
+
+  .rail-head {
+    height: 52px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    border-bottom: 1px solid color-mix(in oklab, var(--app-line) 60%, transparent);
+  }
+
+  .brand {
+    font-weight: 800;
+    letter-spacing: .06em;
+    font-size: 16px;
+    white-space: nowrap;
+  }
+
+  .burger {
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--app-ink-2);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    flex: 0 0 auto;
+    transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  }
+
+  .burger:hover {
+    background: color-mix(in oklab, var(--app-ink) 7%, transparent);
+    color: var(--app-ink);
+  }
+
+  .burger:focus-visible {
+    outline: 2px solid var(--app-ink);
+    outline-offset: 1px;
+  }
+
+  .rail-nav {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px;
+    scrollbar-width: thin;
+  }
+
+  .grp {
+    height: 26px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 11.5px;
+    color: var(--app-ink-2);
+    white-space: nowrap;
+  }
+
+  .item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    height: 32px;
+    padding: 0 8px;
+    border: 0;
+    width: 100%;
+    background: transparent;
+    color: var(--app-ink);
+    font: inherit;
+    text-align: left;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .item:focus-visible {
+    outline: 2px solid var(--app-ink);
+    outline-offset: -2px;
+  }
+
+  .item .ic {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
+
+  .item .lb {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item .badge {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--app-ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .rail-foot {
+    flex: 0 0 auto;
+    border-top: 1px solid color-mix(in oklab, var(--app-line) 60%, transparent);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .credit {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid color-mix(in oklab, var(--app-line) 80%, transparent);
+    background: color-mix(in oklab, var(--app-chip) 45%, transparent);
+    border-radius: 7px;
+    padding: 5px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .quota {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 3px;
+  }
+
+  .quota-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: var(--app-ink-2);
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
+
+  .quota-top b {
+    color: var(--app-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .quota-bar {
+    height: 4px;
+    border-radius: 99px;
+    background: color-mix(in oklab, var(--app-chip) 60%, transparent);
+    overflow: hidden;
+  }
+
+  .quota-bar i {
+    display: block;
+    height: 100%;
+    width: 100%;
+    background: #10a154;
+    border-radius: 99px;
+  }
+
+  .who {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 3px;
+    border-radius: 7px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .who .av {
+    width: 26px;
+    height: 26px;
+    flex: 0 0 auto;
+    border-radius: 99px;
+    background: linear-gradient(140deg, #b9c6d6, #7d8fa6);
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .langs {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 7px;
+  }
+
+  .langs button {
+    flex: 1 1 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    padding: 4px 0;
+    border-radius: 5px;
+    cursor: pointer;
+    color: #8e8e8e;
+  }
+
+  .langs button[aria-pressed="true"] {
+    background: var(--app-chip);
+    color: var(--app-ink);
+  }
+
+  /* 舞台（假的主内容，只为看回流） */
+  .stage {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: var(--app-stage);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: hidden;
+  }
+
+  .stage-title {
+    font-size: 13px;
+    color: var(--app-ink-2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .stage-title b {
+    color: var(--app-ink);
+    font-size: 16px;
+  }
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 10px;
+  }
+
+  .tile {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    background: repeating-linear-gradient(135deg, #f4f4f4 0 8px, #f8f8f8 8px 16px);
+    border: 1px solid #efefef;
+  }
+
+  .ruler {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    color: var(--app-ink-2);
+    border-top: 1px dashed #e8e8e8;
+    padding-top: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ruler b {
+    color: var(--app-ink);
+  }
+
+  /* 活动指示器（A / B / C 共用一个滑块，现状没有） */
+  .ind {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 0;
+    height: var(--h, 32px);
+    transform: translateY(var(--y, 0px));
+    border-radius: 8px;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 0;
+  }
+
+  /* ══════════ 对照组：现状复刻 ══════════ */
+  .lab[data-dir="now"] .rail {
+    transition: width var(--t-base) linear;
+  }
+
+  .lab[data-dir="now"][data-collapsed="true"] .rail {
+    width: 48px;
+  }
+
+  .lab[data-dir="now"] .item {
+    transition: none;
+  }
+
+  .lab[data-dir="now"] .item:hover,
+  .lab[data-dir="now"] .item.is-active {
+    background: var(--app-chip);
+  }
+
+  .lab[data-dir="now"] .item.is-active {
+    font-weight: 500;
+  }
+
+  .lab[data-dir="now"][data-collapsed="true"] .brand,
+  .lab[data-dir="now"][data-collapsed="true"] .grp,
+  .lab[data-dir="now"][data-collapsed="true"] .credit span,
+  .lab[data-dir="now"][data-collapsed="true"] .quota-top,
+  .lab[data-dir="now"][data-collapsed="true"] .who .nm {
+    display: none;
+  }
+
+  .lab[data-dir="now"][data-collapsed="true"] .rail-head {
+    justify-content: center;
+  }
+
+  .lab[data-dir="now"][data-collapsed="true"] .langs {
+    flex-direction: column;
+  }
+
+  .lab[data-dir="now"][data-collapsed="true"] .credit,
+  .lab[data-dir="now"][data-collapsed="true"] .who {
+    justify-content: center;
+  }
+
+  .lab[data-dir="now"][data-collapsed="true"] .quota-bar {
+    width: 6px;
+    height: 6px;
+    margin: 0 auto;
+    background: #10a154;
+  }
+
+  /* ══════════ A 静轨 ══════════ */
+  .lab[data-dir="a"] .rail {
+    width: 56px;
+    border-right: 1px solid var(--app-line);
+    overflow: visible;
+  }
+
+  .lab[data-dir="a"] .rail-nav {
+    overflow: visible;
+    padding: 8px 10px;
+  }
+
+  .lab[data-dir="a"] .item {
+    padding: 0 10px;
+    gap: 0;
+    overflow: visible;
+    border-radius: 9px;
+    transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+    color: #6f6f6f;
+  }
+
+  .lab[data-dir="a"] .item:hover {
+    background: color-mix(in oklab, var(--app-ink) 5%, transparent);
+    color: var(--app-ink);
+  }
+
+  .lab[data-dir="a"] .item.is-active {
+    color: #fff;
+  }
+
+  .lab[data-dir="a"] .item.is-active .lb {
+    color: var(--app-ink);
+    font-weight: 600;
+  }
+
+  .lab[data-dir="a"] .item .badge {
+    position: absolute;
+    left: 186px;
+    margin-left: 0;
+  }
+
+  .lab[data-dir="a"] .item .lb {
+    position: absolute;
+    left: 46px;
+    top: 0;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    width: 132px;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: opacity calc(var(--t-fast) * 1.2) var(--ease), transform var(--t-base) var(--ease);
+    pointer-events: none;
+  }
+
+  .lab[data-dir="a"] .item .badge,
+  .lab[data-dir="a"] .grp,
+  .lab[data-dir="a"] .brand {
+    opacity: 0;
+    transition: opacity var(--t-fast) var(--ease);
+  }
+
+  .lab[data-dir="a"] .ind {
+    left: 10px;
+    width: 36px;
+    right: auto;
+    opacity: 1;
+    background: var(--app-accent);
+    transition: transform var(--t-slow) var(--ease), height var(--t-base) var(--ease);
+  }
+
+  /* A 的抽屉：覆盖在舞台之上，舞台宽度恒定不动 */
+  .lab[data-dir="a"] .drawer {
+    position: absolute;
+    left: 56px;
+    top: 0;
+    bottom: 0;
+    width: 156px;
+    background: var(--app-rail);
+    border-right: 1px solid var(--app-line);
+    box-shadow: 6px 0 22px -12px rgba(0, 0, 0, .28);
+    transform: translateX(-100%);
+    opacity: 0;
+    transition: transform var(--t-slow) var(--ease), opacity var(--t-base) var(--ease);
+    z-index: 1;
+  }
+
+  .lab[data-dir="a"][data-collapsed="false"] .drawer {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  .lab[data-dir="a"][data-collapsed="false"] .item .lb {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .lab[data-dir="a"][data-collapsed="false"] .grp,
+  .lab[data-dir="a"][data-collapsed="false"] .brand,
+  .lab[data-dir="a"][data-collapsed="false"] .item .badge {
+    opacity: 1;
+  }
+
+  .lab[data-dir="b"][data-collapsed="true"] .rail-nav,
+  .lab[data-dir="c"][data-collapsed="true"] .rail-nav {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .lab[data-dir="b"][data-collapsed="true"] .item,
+  .lab[data-dir="c"][data-collapsed="true"] .item,
+  .lab[data-dir="now"][data-collapsed="true"] .item {
+    padding: 0 12px;
+  }
+
+  /* 诊断 09 的修法：收起态直接不渲染「敬请期待」，而不是缩成一个箭头 */
+  .lab[data-dir="a"][data-collapsed="true"] .item[data-soon],
+  .lab[data-dir="b"][data-collapsed="true"] .item[data-soon],
+  .lab[data-dir="c"][data-collapsed="true"] .item[data-soon] {
+    display: none;
+  }
+
+  .lab[data-dir="a"] .grp {
+    padding-left: 46px;
+    height: 26px;
+  }
+
+  .lab[data-dir="a"] .rail-head {
+    padding: 0 12px;
+    justify-content: center;
+    position: relative;
+  }
+
+  .lab[data-dir="a"] .brand {
+    position: absolute;
+    left: 66px;
+    font-size: 14px;
+  }
+
+  .lab[data-dir="a"] .rail-foot {
+    padding: 8px 10px;
+    gap: 4px;
+    position: relative;
+  }
+
+  .lab[data-dir="a"] .credit,
+  .lab[data-dir="a"] .quota,
+  .lab[data-dir="a"] .langs {
+    display: none;
+  }
+
+  .lab[data-dir="a"] .who {
+    padding: 3px;
+    justify-content: center;
+  }
+
+  .lab[data-dir="a"] .who .nm {
+    position: absolute;
+    left: 56px;
+    opacity: 0;
+    transition: opacity var(--t-fast) var(--ease);
+  }
+
+  .lab[data-dir="a"][data-collapsed="false"] .who .nm {
+    opacity: 1;
+  }
+
+  /* ══════════ B 分段板 ══════════ */
+  .lab[data-dir="b"] .rail {
+    width: 200px;
+    transition: width var(--t-slow) var(--ease);
+    border-right: 1px solid var(--app-line);
+  }
+
+  .lab[data-dir="b"][data-collapsed="true"] .rail {
+    width: 56px;
+  }
+
+  .lab[data-dir="b"] .rail-nav {
+    padding: 10px 10px 14px;
+  }
+
+  .lab[data-dir="b"] .item {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 9px;
+    color: #4a4a4a;
+    transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+  }
+
+  .lab[data-dir="b"] .item:hover {
+    background: color-mix(in oklab, var(--app-ink) 4%, transparent);
+    color: var(--app-ink);
+  }
+
+  .lab[data-dir="b"] .item.is-active {
+    color: var(--app-ink);
+    font-weight: 600;
+  }
+
+  .lab[data-dir="b"] .item .lb,
+  .lab[data-dir="b"] .item .badge,
+  .lab[data-dir="b"] .grp,
+  .lab[data-dir="b"] .brand,
+  .lab[data-dir="b"] .who .nm,
+  .lab[data-dir="b"] .credit span {
+    transition: opacity var(--t-fast) var(--ease), transform var(--t-base) var(--ease);
+  }
+
+  .lab[data-dir="b"][data-collapsed="true"] .item .lb,
+  .lab[data-dir="b"][data-collapsed="true"] .item .badge,
+  .lab[data-dir="b"][data-collapsed="true"] .grp,
+  .lab[data-dir="b"][data-collapsed="true"] .brand,
+  .lab[data-dir="b"][data-collapsed="true"] .who .nm,
+  .lab[data-dir="b"][data-collapsed="true"] .credit span {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+
+  .lab[data-dir="b"] .ind {
+    left: 10px;
+    right: 10px;
+    height: var(--h, 34px);
+    opacity: 1;
+    background: color-mix(in oklab, var(--app-ink) 6%, transparent);
+    transition: transform var(--t-slow) var(--ease), height var(--t-base) var(--ease);
+  }
+
+  .lab[data-dir="b"] .ind::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    width: 3px;
+    height: 16px;
+    margin-top: -8px;
+    border-radius: 99px;
+    background: var(--app-accent);
+  }
+
+  .lab[data-dir="b"][data-collapsed="true"] .ind::before {
+    opacity: 0;
+  }
+
+  .lab[data-dir="b"] .grp {
+    height: 30px;
+    margin-top: 6px;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #8a8a8a;
+  }
+
+  .lab[data-dir="b"] .rail-head {
+    height: 56px;
+    border-bottom: 0;
+  }
+
+  .lab[data-dir="b"] .rail-foot {
+    border-top: 0;
+    padding: 6px 10px 10px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .lab[data-dir="b"] .quota,
+  .lab[data-dir="b"] .langs {
+    display: none;
+  }
+
+  .lab[data-dir="b"] .who {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .lab[data-dir="b"] .credit {
+    border: 0;
+    background: transparent;
+    padding: 4px 6px;
+    flex: 0 0 auto;
+  }
+
+  .lab[data-dir="b"][data-collapsed="true"] .rail-foot {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* ══════════ C 浮岛 ══════════ */
+  .lab[data-dir="c"] {
+    background: #e9ebee;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .lab[data-dir="c"] .rail {
+    width: 196px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    transition: width var(--t-slow) var(--ease);
+  }
+
+  .lab[data-dir="c"][data-collapsed="true"] .rail {
+    width: 58px;
+  }
+
+  .lab[data-dir="c"] .rail-head,
+  .lab[data-dir="c"] .rail-foot {
+    border: 0;
+  }
+
+  .lab[data-dir="c"] .rail-nav {
+    padding: 4px 8px;
+  }
+
+  .lab[data-dir="c"] .item {
+    height: 34px;
+    padding: 0 9px;
+    border-radius: 9px;
+    color: #5a5f66;
+    transition: color var(--t-fast) var(--ease);
+  }
+
+  .lab[data-dir="c"] .item:hover {
+    color: var(--app-ink);
+  }
+
+  .lab[data-dir="c"] .item.is-active {
+    color: var(--app-ink);
+    font-weight: 600;
+  }
+
+  .lab[data-dir="c"] .ind {
+    left: 8px;
+    right: 8px;
+    height: var(--h, 34px);
+    opacity: 1;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(16, 22, 28, .10), 0 6px 14px -10px rgba(16, 22, 28, .35);
+    transition: transform var(--t-slow) var(--ease), height var(--t-base) var(--ease);
+  }
+
+  .lab[data-dir="c"] .item .lb,
+  .lab[data-dir="c"] .item .badge,
+  .lab[data-dir="c"] .grp,
+  .lab[data-dir="c"] .brand,
+  .lab[data-dir="c"] .who .nm,
+  .lab[data-dir="c"] .credit span {
+    transition: opacity var(--t-fast) var(--ease);
+  }
+
+  .lab[data-dir="c"][data-collapsed="true"] .item .lb,
+  .lab[data-dir="c"][data-collapsed="true"] .item .badge,
+  .lab[data-dir="c"][data-collapsed="true"] .grp,
+  .lab[data-dir="c"][data-collapsed="true"] .brand,
+  .lab[data-dir="c"][data-collapsed="true"] .who .nm,
+  .lab[data-dir="c"][data-collapsed="true"] .credit span {
+    opacity: 0;
+  }
+
+  .lab[data-dir="c"] .grp {
+    height: 28px;
+    margin-top: 8px;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #8b9099;
+  }
+
+  .lab[data-dir="c"] .stage {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(16, 22, 28, .06), 0 18px 40px -28px rgba(16, 22, 28, .5);
+  }
+
+  .lab[data-dir="c"] .rail-foot {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px 4px;
+  }
+
+  .lab[data-dir="c"] .quota,
+  .lab[data-dir="c"] .langs {
+    display: none;
+  }
+
+  .lab[data-dir="c"] .credit {
+    border: 0;
+    background: transparent;
+    padding: 4px 6px;
+  }
+
+  .lab[data-dir="c"] .who {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .lab[data-dir="c"][data-collapsed="true"] .rail-foot {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* 动画全关（reduced-motion 或用户手动关） */
+  .lab[data-motion="off"],
+  .lab[data-motion="off"] * {
+    transition-duration: 0s !important;
+  }
+
+  /* ─────────── 方向对照表 ─────────── */
+  .cmp {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+  }
+
+  .cmp th,
+  .cmp td {
+    border: 1px solid var(--rule);
+    padding: 11px 13px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .cmp thead th {
+    background: color-mix(in oklab, var(--ink) 4%, var(--surface));
+    font-size: 12px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .cmp tbody th {
+    font-weight: 600;
+    white-space: nowrap;
+    background: color-mix(in oklab, var(--ink) 2%, var(--surface));
+  }
+
+  .cmp .yes {
+    color: var(--signal);
+    font-weight: 600;
+  }
+
+  .cmp .no {
+    color: var(--flag);
+    font-weight: 600;
+  }
+
+  .scroller {
+    overflow-x: auto;
+  }
+
+  /* ─────────── 下一步 ─────────── */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+    gap: 14px;
+  }
+
+  .step {
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: var(--surface);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .step b {
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--signal);
+  }
+
+  .step p {
+    font-size: 13.5px;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .step h3 {
+    margin: 0;
+    font-size: 15px;
+  }
+
+  footer.foot {
+    border-top: 1px solid var(--rule);
+    padding-top: 20px;
+    font-size: 12.5px;
+    color: var(--muted);
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", monospace;
+    line-height: 1.9;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: .001ms !important;
+      transition-duration: .001ms !important;
+    }
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="ic-gallery"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></g>
+    <g id="ic-prompt"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></g>
+    <g id="ic-assets"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></g>
+    <g id="ic-cards"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></g>
+    <g id="ic-image"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></g>
+    <g id="ic-video"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></g>
+    <g id="ic-audio"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></g>
+    <g id="ic-3d"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></g>
+    <g id="ic-lora"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".6" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".6" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".6" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".6" fill="currentColor"/></g>
+    <g id="ic-canvas"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></g>
+    <g id="ic-arena"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></g>
+    <g id="ic-soon"><path d="m9 6 6 6-6 6"/></g>
+    <g id="ic-panel"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></g>
+    <g id="ic-coins"><path d="M13.744 17.736a6 6 0 1 1-7.48-7.48"/><path d="M15 6h1v4"/><path d="m6.134 14.768.866-.5 2 3.464"/><circle cx="16" cy="8" r="6"/></g>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">PixelVault · 全局应用壳 · 2026-08-18</p>
+    <h1>侧边栏：切工具为什么不丝滑，以及三个改法</h1>
+    <p class="lede">
+      本页只讨论左侧全局导航。所有「现状」数字都是 2026-08-18 在 <span class="mono">localhost:3000/zh/studio/image</span>
+      真机上 <span class="mono">getComputedStyle</span> + canvas 合成解析取到的，不是推演。下面的实验台里，「现状」一栏是按这些取值逐条复刻的对照组——
+      你可以直接和另外三个方向对着点。
+    </p>
+
+    <div class="metrics">
+      <div class="metric bad">
+        <b>linear</b>
+        <span>收展宽度动画的缓动曲线。项目 canon 是 <span class="mono">cubic-bezier(.22,1,.36,1)</span></span>
+      </div>
+      <div class="metric bad">
+        <b>0</b>
+        <span>菜单项过渡属性里包含颜色的数量——<span class="mono">width,height,padding</span> 三个，没有 background</span>
+      </div>
+      <div class="metric bad">
+        <b>1.21</b>
+        <span>激活块 <span class="mono">rgb(229,229,229)</span> 相对轨面 <span class="mono">rgb(250,250,250)</span> 的对比度</span>
+      </div>
+      <div class="metric bad">
+        <b>1.04</b>
+        <span>轨面对主区面的对比度。两个面基本融成一片</span>
+      </div>
+      <div class="metric bad">
+        <b>3.14</b>
+        <span>底部 EN / JA 未选中态对比度，11px 需要 ≥4.5。这条 2026-07-31 就记录在案</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════ 实验台 ══════════ -->
+  <section>
+    <h2>实验台 <em>点一点，感受差别</em></h2>
+    <p class="note">
+      左边是可交互的导航壳：切换方向、点工具项、收起展开。右边读数会跟着换成该方向真正在动的属性。
+      「0.25×」把所有时长拉长四倍，肉眼就能看清曲线差别。
+    </p>
+
+    <div class="bench">
+      <div class="bench-bar">
+        <span class="bar-label">方向</span>
+        <div class="seg" id="dirSeg" role="group" aria-label="设计方向">
+          <button type="button" data-dir="now" aria-pressed="true">现状（对照组）</button>
+          <button type="button" data-dir="a" aria-pressed="false">A 静轨</button>
+          <button type="button" data-dir="b" aria-pressed="false">B 分段板</button>
+          <button type="button" data-dir="c" aria-pressed="false">C 浮岛</button>
+        </div>
+        <span class="bar-label">速度</span>
+        <div class="seg" id="speedSeg" role="group" aria-label="播放速度">
+          <button type="button" data-speed="1" aria-pressed="true">1×</button>
+          <button type="button" data-speed="4" aria-pressed="false">0.25×</button>
+          <button type="button" data-speed="0" aria-pressed="false">关动画</button>
+        </div>
+        <div class="seg">
+          <button type="button" id="collapseBtn" aria-pressed="false">收起 / 展开</button>
+        </div>
+      </div>
+
+      <div class="bench-body">
+        <div class="lab" id="lab" data-dir="now" data-collapsed="false" data-motion="on">
+          <div class="drawer" aria-hidden="true"></div>
+          <aside class="rail">
+            <div class="rail-head">
+              <span class="brand">ANTEI</span>
+              <button class="burger" type="button" id="burger" aria-label="收起或展开侧边栏">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-panel"/></svg>
+              </button>
+            </div>
+            <nav class="rail-nav" id="railNav">
+              <div class="ind" id="ind" aria-hidden="true"></div>
+            </nav>
+            <div class="rail-foot">
+              <div class="credit">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ic-coins"/></svg>
+                <span>919</span>
+              </div>
+              <div class="quota">
+                <div class="quota-top"><span>今日免费</span><b>20/20</b></div>
+                <div class="quota-bar"><i></i></div>
+              </div>
+              <div class="who">
+                <span class="av">Y</span>
+                <span class="nm">YINIG</span>
+              </div>
+              <div class="langs">
+                <button type="button" aria-pressed="false">EN</button>
+                <button type="button" aria-pressed="false">JA</button>
+                <button type="button" aria-pressed="true">ZH</button>
+              </div>
+            </div>
+          </aside>
+
+          <div class="stage">
+            <div class="stage-title"><b id="stageName">图像</b><span>工作台</span></div>
+            <div class="tiles">
+              <div class="tile"></div><div class="tile"></div><div class="tile"></div>
+              <div class="tile"></div><div class="tile"></div><div class="tile"></div>
+            </div>
+            <div class="ruler">主区宽度 <b id="stageW">—</b> px<span id="reflow"></span></div>
+          </div>
+        </div>
+
+        <div class="readout">
+          <div>
+            <p class="rd-title" id="rdTitle">现状（对照组）</p>
+            <p class="rd-sub" id="rdSub">按真机取值逐条复刻。</p>
+          </div>
+          <div class="rd-rows" id="rdRows"></div>
+          <figure class="curve">
+            <svg viewBox="0 0 120 80" aria-label="缓动曲线对照">
+              <rect x="10" y="6" width="100" height="64" fill="none" stroke="var(--rule)" stroke-width="1"/>
+              <line x1="10" y1="70" x2="110" y2="6" stroke="var(--flag)" stroke-width="1.5" stroke-dasharray="3 3"/>
+              <path d="M10 70 C 32 12, 62 8, 110 6" fill="none" stroke="var(--signal)" stroke-width="2"/>
+            </svg>
+            <figcaption>虚线 linear（现状）· 实线 ease-standard（canon）</figcaption>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 诊断 ══════════ -->
+  <section>
+    <h2>诊断 <em>12 条，全部有真机或代码位置佐证</em></h2>
+    <p class="note">
+      <span class="tag own">你点名的</span> = 直接对应「更好看 / 更丝滑」；
+      <span class="tag mine">我加的</span> = 你没点名、但我认为该一起改的，每条都写了理由，可以否。
+    </p>
+
+    <div class="findings">
+
+      <div class="fgroup"><span>丝滑 · 根因</span><span>4 条</span></div>
+
+      <div class="finding">
+        <div class="fno">01</div>
+        <div class="ftitle">宽度动画是 <code>linear</code>，而且动的是布局属性 <span class="tag own">你点名的</span></div>
+        <div class="fbody">
+          机械感的第一来源：匀速曲线没有起停。更重的问题是它动的是 <code>width</code> / <code>left</code>——主内容整棵树每帧跟着回流。
+          项目自己的 <span class="mono">interaction.md §2</span> 硬原则 2 写着「禁止用 top/left/width 做高频动画」，壳在违反自己的规矩。
+          <span class="ev">sidebar.tsx:224  transition-[width]              200ms linear
+sidebar.tsx:235  transition-[left,right,width]   200ms linear</span>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="fno">02</div>
+        <div class="ftitle">两条独立的 transition 在赛跑 <span class="tag own">你点名的</span></div>
+        <div class="fbody">
+          占位元素（推开主区的 <code>sidebar-gap</code>）和真身（<code>fixed</code> 的 <code>sidebar-container</code>）各跑一条过渡，属性集还不一样。
+          理论同步，实际容易半帧错位——观感就是「侧栏和内容没黏在一起」。
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="fno">03</div>
+        <div class="ftitle">切工具时，颜色是<strong>瞬时</strong>换的——没有任何过渡 <span class="tag own">你点名的</span></div>
+        <div class="fbody">
+          这是「切换工具不丝滑」的第一现场。菜单项的过渡属性只列了三个，<strong>背景色和文字色都不在里面</strong>：点一下，旧格子的灰底啪地消失、新格子的灰底啪地出现。
+          顺带，它的曲线/时长也不是项目 canon 的那一套。
+          <span class="ev">真机 getComputedStyle（激活项 · 图像）
+transition-property : width, height, padding
+transition-duration : 0.15s
+transition-timing   : cubic-bezier(.4, 0, .2, 1)   ← Tailwind 默认
+canon 应为           : 120ms / cubic-bezier(.22, 1, .36, 1)</span>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="fno">04</div>
+        <div class="ftitle">收起时标签是被硬裁的，不是淡出的 <span class="tag own">你点名的</span></div>
+        <div class="fbody">
+          只有 <code>overflow:hidden</code> + <code>truncate</code>，没有 opacity 过渡。192→48px 的过程里文字像被门夹住。
+        </div>
+      </div>
+
+      <div class="fgroup"><span>好看 · 层次</span><span>4 条</span></div>
+
+      <div class="finding">
+        <div class="fno">05</div>
+        <div class="ftitle">激活块和分割线是<strong>同一个灰</strong> <span class="tag own">你点名的</span></div>
+        <div class="fbody">
+          <code>--sidebar-accent</code> 与 <code>--sidebar-border</code> 解析出来是同一个值。所以「你在哪」这个最重要的信号，
+          用的是和分隔线一样的墨水，对轨面只有 1.21:1。
+          <span class="ev">激活块  rgb(229,229,229)
+轨面    rgb(250,250,250)   → 1.21 : 1
+右边框  rgb(229,229,229)   ← 与激活块同值</span>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="fno">06</div>
+        <div class="ftitle">hover 和 active 共用一个 token，悬停任一项都长得像「当前项」 <span class="tag mine">我加的</span></div>
+        <div class="fbody">
+          <code>hover:bg-sidebar-accent</code> 和 <code>data-[active=true]:bg-sidebar-accent</code> 是同一个颜色。
+          鼠标扫过列表时，每一项都短暂地伪装成当前工具。这不是审美问题，是<strong>可用性 bug</strong>——
+          所以三个方向里我都把 active 换成了「指示器 + 墨色加深」，hover 只留极轻的底色，两者不再同形。
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="fno">07</div>
+        <div class="ftitle">轨面和主区面 1.04:1，分区全靠一条发丝线 <span class="tag mine">我加的</span></div>
+        <div class="fbody">
+          <span class="mono">rgb(250,250,250)</span> 贴着 <span class="mono">rgb(255,255,255)</span>，肉眼近乎同一张纸。
+          现在唯一的分界是那条 1.21:1 的右边框。方向 C 就是冲这条来的：改用「底色 vs 卡片」的天然层次，边界不再需要线。
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="fno">08</div>
+        <div class="ftitle">底部账户区占了 167.5px，四行各自带框 <span class="tag mine">我加的</span></div>
+        <div class="fbody">
+          真机量到 header 61 / 导航 682.5 / <strong>footer 167.5</strong>——账户区吃掉竖向 18%，而且积分盒、额度条、头像行、语言行
+          四行各有边框或底色，视觉重量比上面真正的导航还大。理由很简单：<strong>它们是读数，不是去处</strong>，
+          不该和导航抢层级。三个方向里我都把它收成一行（积分 + 头像），额度和语言进头像菜单。
+        </div>
+      </div>
+
+      <div class="fgroup"><span>结构与响应式 · 你没点名</span><span>4 条</span></div>
+
+      <div class="finding">
+        <div class="fno">09</div>
+        <div class="ftitle">「敬请期待」在收起态变成一个没有意义的箭头 <span class="tag mine">我加的</span></div>
+        <div class="fbody">
+          你第一张截图里工具组下面那个孤零零的 <code>&gt;</code> 就是它。展开器在 48px 轨里点开也无处显示标签，
+          badge「3」本身也被 <code>group-data-[collapsible=icon]:hidden</code> 藏了。<strong>删得掉</strong>——
+          收起态直接不渲染这一行，而不是把它缩成一个箭头。
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="fno">10</div>
+        <div class="ftitle">桌面侧栏和移动轨是两套组件手工同步，已经漂了 <span class="tag mine">我加的</span></div>
+        <div class="fbody">
+          <code>AppSidebar</code> 和 <code>MobileCollapsedRail</code> 各维护一份图标清单。桌面工具组有「敬请期待」（增强 / 解析 / 故事），
+          移动轨完全没有——<strong>那三个入口在小屏不可达</strong>。真机数了一下：移动轨 16 个可点元素 vs 桌面 12 个，构成不同。
+          方向 A 顺手解决它：两个断点收敛成同一个形态、同一套组件。
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="fno">11</div>
+        <div class="ftitle">断点是 1024，平板拿到的是手机形态 <span class="tag mine">我加的</span></div>
+        <div class="fbody">
+          桌面侧栏是 <code>lg:</code>（1024）才出现。768–1023 的平板明明放得下 192px 侧栏，却只能拿到
+          「44px 死轨 + 44px 顶栏 + 抽屉」。
+          <strong>⚠ 这条是代码事实，不是渲染实测</strong>——本机 <code>resize_window</code> 调用返回成功但 <code>innerWidth</code> 恒为 1920，
+          视口切不过去，平板与手机档我这次<strong>没验过</strong>，不能按已验处理。
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="fno">12</div>
+        <div class="ftitle">品牌名挂着逐字乱码的 hover 动画 <span class="tag mine">我加的</span></div>
+        <div class="fbody">
+          <code>HyperText animateOnHover duration={600}</code>。一个每天要看几百次的导航元素上放炫技动画，
+          和 <span class="mono">interaction.md §5</span>「动效只服务状态 / 连续性 / 反馈，禁止无信息的装饰」直接冲突。
+          建议撤掉——品牌感应该来自字形和留白，不是来自它会抖。
+        </div>
+      </div>
+
+      <div class="fgroup"><span>顺带记录 · 不在本轮范围</span><span>1 条</span></div>
+
+      <div class="finding">
+        <div class="fno">13</div>
+        <div class="ftitle">EN / JA 未选中态 3.14:1，欠了 18 天</div>
+        <div class="fbody">
+          <span class="mono">app-shell.md §3</span> 在 2026-07-31 就记了这条失败（当时也是 3.14），今天真机复测<strong>一模一样</strong>，说明从没修过。
+          原文的修法也写好了：消掉 alpha 用法，别整体调暗 <code>--muted-foreground</code>。三个方向都会碰到这块，正好一起收掉。
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════ 方向 ══════════ -->
+  <section>
+    <h2>三个方向 <em>结构不同，不是换色</em></h2>
+    <p>
+      门禁要求三个「结构明显不同」的方向。下面三个的区别在于<strong>展开这件事对主区做了什么</strong>——
+      A 不碰主区，B 推挤主区，C 让两者都变成浮在底色上的面。你的两个诉求（好看 / 丝滑）在三个里都能满足，
+      差别在代价落在哪里。
+    </p>
+
+    <div class="scroller">
+      <table class="cmp">
+        <thead>
+          <tr>
+            <th></th>
+            <th>A 静轨</th>
+            <th>B 分段板</th>
+            <th>C 浮岛</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>结构</th>
+            <td>56px 图标轨<strong>永远在</strong>。展开=标签层<strong>覆盖</strong>在主区上滑出，主区宽度恒定。</td>
+            <td>保留推挤式 200px 面板，把 12 行重排成「去处 / 工具 / 账户」三段，段间用留白分不用线。</td>
+            <td>壳底变浅灰，侧栏和主区各成一张圆角卡浮在上面，中间留 10px 缝。</td>
+          </tr>
+          <tr>
+            <th>切工具时在动什么</th>
+            <td class="yes">transform + opacity（指示器滑动、图标变色）</td>
+            <td class="yes">transform + opacity（单一指示器滑动）</td>
+            <td class="yes">transform + opacity（白色浮片滑动）</td>
+          </tr>
+          <tr>
+            <th>收展时主区回流</th>
+            <td class="yes">没有——抽屉是覆盖层</td>
+            <td class="no">有，但曲线换成 canon 的 320ms</td>
+            <td class="no">有，10px 缝把半帧错位吸掉</td>
+          </tr>
+          <tr>
+            <th>顺手解决</th>
+            <td>01·02·03·04·06·09·<strong>10·11</strong>（两套导航合一）</td>
+            <td>01·03·04·05·06·08·09</td>
+            <td>03·04·05·06·<strong>07</strong>（两个白面的问题）·08</td>
+          </tr>
+          <tr>
+            <th>代价</th>
+            <td>常驻标签消失，靠图标认路。现在 3D / 画布 / LoRA 三个图标在 16px 下不好分，得先换。</td>
+            <td>宽度动画还在，只是曲线正确了。移动端仍是另一套。</td>
+            <td>主区可用宽度少 16px；画布是全屏工作面，被圆角卡框住可能不接受，需要逐域逃逸口。</td>
+          </tr>
+          <tr>
+            <th>改动量</th>
+            <td>大（要重写 <code>ui/sidebar.tsx</code> 的收展模型 + 合并移动轨）</td>
+            <td>小（改 token、加指示器、重排分组，primitive 基本不动）</td>
+            <td>中（shadcn 已有 <code>variant="inset"</code>，主要成本在逐域验证）</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      <strong>我推荐 A。</strong>理由是它同时命中你说的两件事而且没有折中：主区宽度恒定 = 收展和切换全程零回流，
+      这是「丝滑」的物理上限；同时它把桌面和移动收敛成一套组件，第 10 条那种「两边手工同步然后漂掉」的账以后不会再欠。
+      <strong>B 是最省的增量</strong>——如果你只想要立刻好起来、不想动 primitive，选它，一天能落完。
+      <strong>C 视觉收益最大</strong>（第 07 条只有它真正解决），但画布域要单独谈。
+    </p>
+  </section>
+
+  <!-- ══════════ 下一步 ══════════ -->
+  <section>
+    <h2>下一步 <em>按治理门禁，这轮不改代码</em></h2>
+    <p class="note">
+      <span class="mono">brand-dna.md</span> 的域级流程要求：方向 → 你选 → 只做一个关键切片 → 你再确认 → 才写
+      <span class="mono">references/pages/app-shell.md</span> → 才动 TSX。所以本页停在「方向」这一步，一行 <code>src/</code> 都没改。
+    </p>
+    <div class="steps">
+      <div class="step">
+        <b>Step 1 · 现在</b>
+        <h3>你选一个方向</h3>
+        <p>A / B / C，或者说「A 的结构 + C 的材质」这种混搭也行——只要主结构定下来。</p>
+      </div>
+      <div class="step">
+        <b>Step 2 · 选完</b>
+        <h3>我做一个关键切片</h3>
+        <p>桌面展开 / 桌面收起 / 平板 / 手机 四态，加 hover、focus、切换中三个交互态，全部真机可点。</p>
+      </div>
+      <div class="step">
+        <b>Step 3 · 确认后</b>
+        <h3>写进 app-shell.md 再实现</h3>
+        <p>连带把第 13 条（EN/JA 3.14:1）和第 10 条（两套导航）一起收掉，改完跑 contrast-check + full-gate。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    证据来源：真机 localhost:3000/zh/studio/image · 1920×911 · 2026-08-18<br>
+    代码位置：src/components/ui/sidebar.tsx · src/components/layout/AppSidebar.tsx · src/components/layout/MobileTabBar.tsx<br>
+    未验项：768–1023 平板档与 &lt;768 手机档的渲染（本机 resize_window 对视口无效，不得按已验处理）
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var NAV = [
+      { g: '去处' },
+      { id: 'gallery', label: '画廊', icon: 'ic-gallery' },
+      { id: 'prompt', label: '提示词', icon: 'ic-prompt' },
+      { id: 'assets', label: '素材', icon: 'ic-assets' },
+      { id: 'cards', label: '卡片管理', icon: 'ic-cards' },
+      { g: '工具' },
+      { id: 'image', label: '图像', icon: 'ic-image', active: true },
+      { id: 'video', label: '视频', icon: 'ic-video' },
+      { id: 'audio', label: '音频', icon: 'ic-audio' },
+      { id: 'm3d', label: '3D', icon: 'ic-3d' },
+      { id: 'lora', label: 'LoRA', icon: 'ic-lora' },
+      { id: 'canvas', label: '画布', icon: 'ic-canvas' },
+      { id: 'arena', label: '竞技场', icon: 'ic-arena' },
+      { id: 'soon', label: '敬请期待', icon: 'ic-soon', badge: '3', soon: true }
+    ];
+
+    var SPECS = {
+      now: {
+        title: '现状（对照组）',
+        sub: '按 2026-08-18 真机取值逐条复刻，包括不动的那些。',
+        rows: [
+          ['收展曲线', 'linear', 'bad'],
+          ['收展时长', '200ms', ''],
+          ['动画属性', 'width / left', 'bad'],
+          ['主区回流', '每帧', 'bad'],
+          ['颜色过渡', '无', 'bad'],
+          ['活动指示器', '无', 'bad'],
+          ['hover vs active', '同一个灰', 'bad'],
+          ['底部行数', '4 行 · 167.5px', 'bad']
+        ]
+      },
+      a: {
+        title: 'A 静轨',
+        sub: '56px 轨永远在；展开是覆盖式抽屉，主区宽度一格都不动。',
+        rows: [
+          ['收展曲线', 'cubic-bezier(.22,1,.36,1)', 'good'],
+          ['收展时长', '320ms', ''],
+          ['动画属性', 'transform / opacity', 'good'],
+          ['主区回流', '零', 'good'],
+          ['颜色过渡', '120ms 同曲线', 'good'],
+          ['活动指示器', '墨块 · 滑动 320ms', 'good'],
+          ['hover vs active', '轻底色 vs 墨块', 'good'],
+          ['底部行数', '1 行 · 头像菜单', 'good']
+        ]
+      },
+      b: {
+        title: 'B 分段板',
+        sub: '仍然推挤主区，但整栏只有一个运动主体：那条会滑的指示器。',
+        rows: [
+          ['收展曲线', 'cubic-bezier(.22,1,.36,1)', 'good'],
+          ['收展时长', '320ms', ''],
+          ['动画属性', 'width + opacity', 'bad'],
+          ['主区回流', '有（曲线已修）', 'bad'],
+          ['颜色过渡', '120ms 同曲线', 'good'],
+          ['活动指示器', '竖条 + 底片 · 滑动', 'good'],
+          ['hover vs active', '4% 底 vs 竖条+加粗', 'good'],
+          ['底部行数', '1 行 · 头像菜单', 'good']
+        ]
+      },
+      c: {
+        title: 'C 浮岛',
+        sub: '壳底变灰，侧栏与主区各成一张浮卡；层次不再依赖发丝线。',
+        rows: [
+          ['收展曲线', 'cubic-bezier(.22,1,.36,1)', 'good'],
+          ['收展时长', '320ms', ''],
+          ['动画属性', 'width + opacity', 'bad'],
+          ['主区回流', '有（10px 缝吸收）', 'bad'],
+          ['颜色过渡', '120ms 同曲线', 'good'],
+          ['活动指示器', '白色浮片 · 滑动', 'good'],
+          ['轨面 vs 主区', '1.13:1（底色分层）', 'good'],
+          ['底部行数', '1 行 · 头像菜单', 'good']
+        ]
+      }
+    };
+
+    var lab = document.getElementById('lab');
+    var nav = document.getElementById('railNav');
+    var ind = document.getElementById('ind');
+    var stageName = document.getElementById('stageName');
+    var stageW = document.getElementById('stageW');
+    var reflow = document.getElementById('reflow');
+    var rdTitle = document.getElementById('rdTitle');
+    var rdSub = document.getElementById('rdSub');
+    var rdRows = document.getElementById('rdRows');
+
+    // 建导航
+    NAV.forEach(function (n) {
+      if (n.g) {
+        var g = document.createElement('div');
+        g.className = 'grp';
+        g.textContent = n.g;
+        nav.appendChild(g);
+        return;
+      }
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'item' + (n.active ? ' is-active' : '');
+      b.dataset.id = n.id;
+      b.dataset.label = n.label;
+      if (n.soon) b.dataset.soon = 'true';
+      b.innerHTML =
+        '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#' + n.icon + '"/></svg>' +
+        '<span class="lb">' + n.label + '</span>' +
+        (n.badge ? '<span class="badge">' + n.badge + '</span>' : '');
+      nav.appendChild(b);
+    });
+
+    function moveInd() {
+      var a = nav.querySelector('.item.is-active');
+      if (!a) return;
+      ind.style.setProperty('--y', a.offsetTop + 'px');
+      ind.style.setProperty('--h', a.offsetHeight + 'px');
+    }
+
+    function readStage() {
+      var s = lab.querySelector('.stage');
+      stageW.textContent = Math.round(s.getBoundingClientRect().width);
+    }
+
+    function renderReadout(dir) {
+      var s = SPECS[dir];
+      rdTitle.textContent = s.title;
+      rdSub.textContent = s.sub;
+      rdRows.innerHTML = s.rows.map(function (r) {
+        return '<div class="rd-row' + (r[2] ? ' is-' + r[2] : '') + '"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>';
+      }).join('');
+    }
+
+    function setDir(dir) {
+      lab.dataset.dir = dir;
+      // A 的抽屉是临时覆盖层，默认收起才是它真实的常态；其余方向默认展开
+      var wantCollapsed = dir === 'a';
+      lab.dataset.collapsed = String(wantCollapsed);
+      document.getElementById('collapseBtn').setAttribute('aria-pressed', String(wantCollapsed));
+      document.querySelectorAll('#dirSeg button').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b.dataset.dir === dir));
+      });
+      renderReadout(dir);
+      reflow.textContent = '';
+      requestAnimationFrame(function () {
+        moveInd();
+        readStage();
+      });
+    }
+
+    document.getElementById('dirSeg').addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (b) setDir(b.dataset.dir);
+    });
+
+    document.getElementById('speedSeg').addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (!b) return;
+      var v = Number(b.dataset.speed);
+      document.querySelectorAll('#speedSeg button').forEach(function (x) {
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+      if (v === 0) {
+        lab.dataset.motion = 'off';
+      } else {
+        lab.dataset.motion = 'on';
+        lab.style.setProperty('--speed', String(v));
+      }
+    });
+
+    function toggleCollapse() {
+      var next = lab.dataset.collapsed !== 'true';
+      lab.dataset.collapsed = String(next);
+      document.getElementById('collapseBtn').setAttribute('aria-pressed', String(next));
+      reflow.textContent = '';
+      var before = Math.round(lab.querySelector('.stage').getBoundingClientRect().width);
+      var speed = lab.dataset.motion === 'off'
+        ? 0.2
+        : Number(getComputedStyle(lab).getPropertyValue('--speed')) || 1;
+      setTimeout(function () {
+        var after = Math.round(lab.querySelector('.stage').getBoundingClientRect().width);
+        stageW.textContent = after;
+        reflow.textContent = after === before
+          ? '　·　主区没动 ✓'
+          : '　·　主区变了 ' + Math.abs(after - before) + 'px';
+        moveInd();
+      }, Math.round(420 * speed));
+    }
+
+    document.getElementById('collapseBtn').addEventListener('click', toggleCollapse);
+    document.getElementById('burger').addEventListener('click', toggleCollapse);
+
+    nav.addEventListener('click', function (e) {
+      var b = e.target.closest('.item');
+      if (!b) return;
+      nav.querySelectorAll('.item').forEach(function (x) { x.classList.remove('is-active'); });
+      b.classList.add('is-active');
+      if (!b.dataset.soon) stageName.textContent = b.dataset.label;
+      moveInd();
+    });
+
+    // reduced-motion：默认关掉演示动画，并把控件同步过去
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      lab.dataset.motion = 'off';
+      document.querySelectorAll('#speedSeg button').forEach(function (x) {
+        x.setAttribute('aria-pressed', String(x.dataset.speed === '0'));
+      });
+    }
+
+    window.addEventListener('resize', function () { moveInd(); readStage(); });
+
+    setDir('now');
+    moveInd();
+    readStage();
+  })();
+</script>

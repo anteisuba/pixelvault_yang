@@ -327,9 +327,14 @@ UI 页面任务 → ⚠ **走设计治理**（域定义 → 三方向 → 关键
 
 ⚠ **开工前先核 C+F 做掉了多少**：`a1be430e` 的切片 1（justified 真实比例网格）与切片 5（选中即插占位瓦片、本地比例参与排版、真实字节进度）很可能已覆盖这里的一部分。**先看现状再定范围**，别重做。与 C4 同源（派生图那条链）。
 
-### D4 · 编辑能力
+### D4 · 编辑能力 → ⭐ **2026-08-18 owner 新开独立任务包，本条只留指针**
 
-多图编辑 P0 / 标注层 P1（= **框选挂注释，不是手绘箭头**）。已有构想记录，见 memory `project-image-edit-extensions-ideation`。
+owner：「图片编辑那一片还没做呢。新开一个专门做这个。」
+
+→ **入口 = [`image-edit-line-2026-08-18.md`](image-edit-line-2026-08-18.md)**（现状核实 + 范围待定 + 硬前置），施工图是 [`studio-workbench-redesign-2026-08-14.md`](studio-workbench-redesign-2026-08-14.md) §4.6–4.8 的 E0–E5。
+
+⚠ 开工前两条已核实的更正：**ready 能力是 7 条不是 8 条**（`decompose` 已被 `cdab2274` 删）；**`NEXT_PUBLIC_FF_IMAGE_EDITING` 零功能消费者，功能常开，不用开 flag**。
+⛔ **E0 真机验底是硬前置**——owner 明说画布这边没测过，`availability: 'ready'` 是字段值不是证据。
 
 ---
 

@@ -7,9 +7,12 @@ import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { ROUTES } from '@/constants/routes'
 import {
   StudioAssistantDock,
+  StudioAssistantFab,
   StudioCanvas,
   StudioBottomDock,
   StudioFlowLayout,
+  StudioWorkbenchLayout,
+  StudioPromptArea,
   StudioCommandPalette,
 } from '@/components/business/studio'
 import { Button } from '@/components/ui/button'
@@ -191,12 +194,25 @@ export function StudioWorkspaceUI() {
          * of the vertical canvas/dock rhythm.
          */}
         <div className="studio-layout-v2 min-w-0 flex-1">
-          <StudioFlowLayout
-            canvas={<StudioCanvas />}
-            dock={<StudioBottomDock />}
-          />
+          {/* 图片模态走横向工作台（左参数栏 + 右结果区）；视频 / 音频维持纵向
+              canvas + 底部 dock，直到它们各自的参数也设计完（owner 2026-08-14：
+              先只换图片模态，端到端打穿一条再说）。 */}
+          {state.outputType === 'image' ? (
+            <StudioWorkbenchLayout
+              params={<StudioPromptArea layout="panel" />}
+              stage={<StudioCanvas />}
+            />
+          ) : (
+            <StudioFlowLayout
+              canvas={<StudioCanvas />}
+              dock={<StudioBottomDock />}
+            />
+          )}
         </div>
         <StudioAssistantDock />
+        {/* 右上角助手浮标 —— 只在图片模态（工作台重设计的范围）。视频/音频仍
+            从底部 dock 的助手丸进，那条路没动。 */}
+        {state.outputType === 'image' ? <StudioAssistantFab /> : null}
       </div>
 
       <StudioCommandPalette />

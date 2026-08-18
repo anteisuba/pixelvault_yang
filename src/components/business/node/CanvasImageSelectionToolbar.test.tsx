@@ -215,7 +215,6 @@ describe('CanvasImageSelectionToolbar', () => {
         'remove-background',
         'inpaint',
         'outpaint',
-        'decompose',
         'extract-element',
         'object-replace',
         'style-transfer',

@@ -30,7 +30,7 @@ interface StudioToolbarPanelsProps {
  * StudioToolbarRow — renders ONLY the toolbar button row. Each interactive
  * tool (enhance, reverse, cards, refImage, style, aspect ratio)
  * is now a self-contained Krea-style popover button anchored to its own
- * trigger; only inline panels (advanced, civitai, layer decompose)
+ * trigger; only inline panels (advanced, civitai)
  * are still routed via dispatch + StudioDockPanelArea.
  */
 export const StudioToolbarPanels = memo(function StudioToolbarPanels({

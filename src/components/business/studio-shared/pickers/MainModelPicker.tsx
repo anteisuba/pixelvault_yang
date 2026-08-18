@@ -55,6 +55,15 @@ interface CommonProps {
    * 像 `filterOption` 一样在这里消化）。契约见该组件的 prop 注释。
    */
   triggerLabelForOption?: BaseModelPickerPanelProps['triggerLabelForOption']
+  /**
+   * 呈现方式，原样透传。⚠ **判据是触发器所在的容器有多宽**：Studio 底部 dock 是
+   * 整宽的，`columns` 的 44rem 面板放得下；画布节点上的 composer 丸放不下，保持
+   * 默认的 `drill`。契约见 `BaseModelPickerPanel` 的 prop 注释。
+   */
+  layout?: BaseModelPickerPanelProps['layout']
+  /** 多选，原样透传（两个要一起给才生效）。契约见 BaseModelPickerPanel。 */
+  selectedOptionIds?: BaseModelPickerPanelProps['selectedOptionIds']
+  onToggleOption?: BaseModelPickerPanelProps['onToggleOption']
 }
 
 export type MainModelPickerProps = CommonProps &

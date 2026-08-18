@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Eraser,
   Expand,
-  Layers3,
   Palette,
   Paintbrush,
   Replace,
@@ -61,7 +60,6 @@ const TASK_ICONS = {
   'remove-background': Eraser,
   inpaint: Paintbrush,
   outpaint: Expand,
-  decompose: Layers3,
   'extract-element': Scissors,
   'object-replace': Replace,
   'style-transfer': Palette,
@@ -113,10 +111,6 @@ export function CanvasImageEditWorkspace({
   const [extractPrompt, setExtractPrompt] = useState('clothing')
   const [extractInvert, setExtractInvert] = useState(false)
   const [extractPreset, setExtractPreset] = useState<string | null>('clothing')
-  const [decomposePreview, setDecomposePreview] = useState<{
-    outputs: CanvasDerivedImageOutput[]
-    selected: Set<string>
-  } | null>(null)
   const runningRef = useRef(false)
 
   const dialogOpen = open ?? uncontrolledOpen
@@ -133,7 +127,6 @@ export function CanvasImageEditWorkspace({
 
   useEffect(() => {
     setActiveTask(defaultTask)
-    setDecomposePreview(null)
   }, [defaultTask])
 
   const handleOpenChange = useCallback(
@@ -285,32 +278,6 @@ export function CanvasImageEditWorkspace({
     t,
   ])
 
-  const runDecompose = useCallback(() => {
-    void runExclusive('decompose', t('decomposeFailed'), async () => {
-      const response = await canvasCapabilityRuntime.run({
-        capability: 'decompose',
-        target: { sourceUrl, sourceGenerationId, sourceWidth, sourceHeight },
-        modelId: getDefaultModelId('decompose'),
-      })
-      if (!response.success || response.outputs.length === 0) {
-        toast.error(response.error || t('decomposeFailed'))
-        return false
-      }
-      setDecomposePreview({
-        outputs: response.outputs,
-        selected: new Set(response.outputs.map((output) => output.imageUrl)),
-      })
-      return true
-    })
-  }, [
-    runExclusive,
-    sourceGenerationId,
-    sourceHeight,
-    sourceUrl,
-    sourceWidth,
-    t,
-  ])
-
   const runExtractElement = useCallback(() => {
     const prompt = extractPrompt.trim()
     if (!prompt) return
@@ -352,20 +319,6 @@ export function CanvasImageEditWorkspace({
     sourceWidth,
     t,
   ])
-
-  const placeSelectedLayers = useCallback(() => {
-    if (!decomposePreview) return
-    const outputs = decomposePreview.outputs.filter((output) =>
-      decomposePreview.selected.has(output.imageUrl),
-    )
-    if (outputs.length === 0) {
-      toast.error(t('decomposeFailed'))
-      return
-    }
-    if (!placeOutputs(outputs, t('decomposeFailed'))) return
-    toast.success(t('decomposeDone', { count: outputs.length }))
-    setDecomposePreview(null)
-  }, [decomposePreview, placeOutputs, t])
 
   const applyInpaint = useCallback(
     (maskDataUrl: string, prompt: string) => {
@@ -501,127 +454,6 @@ export function CanvasImageEditWorkspace({
               <Eraser className="size-4" />
             )}
             {t('actions.removeBg')}
-          </Button>
-        )
-      case 'decompose':
-        if (decomposePreview) {
-          return (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-node-foreground">
-                    {t('decomposePreviewTitle')}
-                  </h3>
-                  <p className="mt-1 text-xs text-node-muted">
-                    {t('layerCount', {
-                      count: decomposePreview.outputs.length,
-                    })}
-                  </p>
-                </div>
-                <div className="flex gap-1.5">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      setDecomposePreview((current) =>
-                        current
-                          ? {
-                              ...current,
-                              selected: new Set(
-                                current.outputs.map(
-                                  (output) => output.imageUrl,
-                                ),
-                              ),
-                            }
-                          : current,
-                      )
-                    }
-                  >
-                    {t('decomposeSelectAll')}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      setDecomposePreview((current) =>
-                        current ? { ...current, selected: new Set() } : current,
-                      )
-                    }
-                  >
-                    {t('decomposeClear')}
-                  </Button>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {decomposePreview.outputs.map((output) => {
-                  const selected = decomposePreview.selected.has(
-                    output.imageUrl,
-                  )
-                  return (
-                    <button
-                      key={output.imageUrl}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() =>
-                        setDecomposePreview((current) => {
-                          if (!current) return current
-                          const next = new Set(current.selected)
-                          if (next.has(output.imageUrl))
-                            next.delete(output.imageUrl)
-                          else next.add(output.imageUrl)
-                          return { ...current, selected: next }
-                        })
-                      }
-                      className={cn(
-                        'group overflow-hidden rounded-xl border text-left transition-colors',
-                        selected
-                          ? 'border-node-edge bg-node-panel-inner'
-                          : 'border-node-panel-inner/60 bg-node-panel-soft/40 opacity-60 hover:opacity-100',
-                      )}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={output.imageUrl}
-                        alt={output.label ?? ''}
-                        className="aspect-square w-full object-contain"
-                      />
-                      <span className="block truncate px-2 py-1.5 text-2xs font-medium text-node-muted">
-                        {output.label ?? t('layersTitle')}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setDecomposePreview(null)}
-                >
-                  {t('decomposeClear')}
-                </Button>
-                <Button
-                  type="button"
-                  disabled={decomposePreview.selected.size === 0}
-                  onClick={placeSelectedLayers}
-                >
-                  <Layers3 className="size-4" />
-                  {t('decomposePlace')}
-                </Button>
-              </div>
-            </div>
-          )
-        }
-        return (
-          <Button type="button" disabled={isRunning} onClick={runDecompose}>
-            {runningTask === 'decompose' ? (
-              <Spinner size="md" />
-            ) : (
-              <Layers3 className="size-4" />
-            )}
-            {t('actions.decompose')}
           </Button>
         )
       case 'extract-element':

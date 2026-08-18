@@ -10,6 +10,14 @@ export const WORKER_GENERATION_ERROR_CODES = {
   PROVIDER_NO_OUTPUT: 'provider_no_output',
   PROVIDER_INSUFFICIENT_BALANCE: 'provider_insufficient_balance',
   REFERENCE_IMAGE_UNREACHABLE: 'reference_image_unreachable',
+  /**
+   * RunPod 接了作业却没有任何 worker 来跑：端点零活跃 worker 且作业从未离开
+   * IN_QUEUE。是端点侧的状态（幻影 ready 名额 / 抢不到 GPU），不是 provider
+   * 报错，也不是超时 —— 重试只会再排一次队，所以单列一个码，好让 UI 说清
+   * 「不是你的问题、重试也没用」。classifyProviderFailure 永不返回它（没有
+   * 对应的 provider 响应），只由轮询循环的僵死探测显式设置。
+   */
+  RUNNER_QUEUE_STUCK: 'runner_queue_stuck',
   UNKNOWN: 'unknown',
 } as const
 

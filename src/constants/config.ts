@@ -135,9 +135,6 @@ export const API_ENDPOINTS = {
   /** Image outpainting */
   IMAGE_OUTPAINT: '/api/image/outpaint',
 
-  /** Image layer decomposition (See-Through) */
-  IMAGE_DECOMPOSE: '/api/image/decompose',
-
   /** Element extraction (text-guided cutout via lang-SAM) */
   IMAGE_EXTRACT: '/api/image/extract',
 
@@ -722,7 +719,6 @@ export const RATE_LIMIT_CONFIGS = {
   longVideoRetry: { limit: 5, windowSeconds: 60 },
   longVideoStatus: { limit: 30, windowSeconds: 60 },
   imageEdit: { limit: 10, windowSeconds: 60 },
-  imageDecompose: { limit: 5, windowSeconds: 120 },
   imageAnalyze: { limit: 10, windowSeconds: 60 },
   promptEnhance: { limit: 20, windowSeconds: 60 },
   promptAssistant: { limit: 30, windowSeconds: 60 },
@@ -756,8 +752,6 @@ export const MAX_DURATION_CONFIGS = {
   imageAnalyze: 30,
   /** Image edit (upscale/remove-bg) — 2 min */
   imageEdit: 120,
-  /** Image layer decomposition (See-Through) — 5 min (GPU inference) */
-  imageDecompose: 300,
   /** Image analysis variations — 55s (multi-model parallel) */
   imageAnalyzeVariations: 55,
   /** Audio generation — 2 min */

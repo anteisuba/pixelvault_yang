@@ -97,7 +97,7 @@ flowchart LR
 ### 🖼 图片　🔧（后端比你以为的多）
 
 - 🎯 你想做：升级 UI（方向未定）；服装迁移 / 动作复刻 / 图片设计 / 画风迁移；图片标注（框选标注改哪里，精确修改）。原话："这些目前还想不到怎么去设计"。
-- 📍 现状：**迁移套件后端已建骨架**——`image-transform.service.ts` 是 5 维度策略：**画风迁移(style) ✅、动作复刻(pose) ✅ 已实现**；服装迁移(garment)/背景/细节 = schema 已预留、目前返回 501 待实现。另有 inpaint/outpaint 编辑器、**元素拆分**（`LayerDecomposePanel` + `extracted-element` service）、KeepChange、变体网格。constants `transform-dimensions` / `style-presets` / `edit-tasks`。
+- 📍 现状：**迁移套件后端已建骨架**——`image-transform.service.ts` 是 5 维度策略：**画风迁移(style) ✅、动作复刻(pose) ✅ 已实现**；服装迁移(garment)/背景/细节 = schema 已预留、目前返回 501 待实现。另有 inpaint/outpaint 编辑器、**元素拆分**（`extracted-element` service）、KeepChange、变体网格。⚠ 图层分解（See-Through / `LayerDecomposePanel`）已于 2026-08-18 整条删除（owner：功能废弃），Studio 入口、画布能力、service、API 全部不在了。constants `transform-dimensions` / `style-presets` / `edit-tasks`。
 - 💡 衔接：所以动作复刻/画风迁移**不用从零设计，后端已通、缺入口 UI**；服装迁移只差实现一个 handler（架构位已留）。"图片标注"你之前设想过（框选区域+挂注释·DevTools 检查器式·编号框上图+指令进 prompt），可直接从那个设想起步——正好呼应 haivis"图上叠交互证据"。
 
 ### 🎙 声音　🔧

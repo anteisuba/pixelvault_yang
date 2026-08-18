@@ -5,7 +5,6 @@ export const READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS = [
   'remove-background',
   'inpaint',
   'outpaint',
-  'decompose',
   'extract-element',
   'object-replace',
   'style-transfer',
@@ -25,13 +24,9 @@ export const CANVAS_IMAGE_EDIT_INTERACTIONS = [
   'prompt',
   'mask',
   'outpaint',
-  'layers',
 ] as const
 
-export const CANVAS_IMAGE_EDIT_OUTPUT_KINDS = [
-  'single-image',
-  'image-layers',
-] as const
+export const CANVAS_IMAGE_EDIT_OUTPUT_KINDS = ['single-image'] as const
 
 export const EditTaskKindSchema = z.enum(CANVAS_IMAGE_EDIT_CAPABILITY_IDS)
 export const ReadyCanvasImageEditCapabilityIdSchema = z.enum(
@@ -63,8 +58,6 @@ export const CanvasDerivedImageOutputSchema = z.object({
   generationId: z.string().trim().min(1).max(160).optional(),
   label: z.string().trim().min(1).max(160).optional(),
   editCapability: ReadyCanvasImageEditCapabilityIdSchema,
-  /** One operation id for a multi-layer result. Used for atomic placement and undo. */
-  batchId: z.string().trim().min(1).max(160).optional(),
   /** The source generation that produced this derived result, when known. */
   sourceGenerationId: z.string().trim().min(1).max(160).optional(),
 })

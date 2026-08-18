@@ -2,7 +2,6 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Eraser,
   Expand,
-  Layers,
   Palette,
   Replace,
   Scissors,
@@ -49,11 +48,6 @@ export const EDIT_MODELS: Record<string, EditModelOption> = {
     id: 'fal-ai/image-apps-v2/outpaint',
     provider: 'fal',
     displayName: 'Image Apps Outpaint',
-  },
-  'xiuruisu/see-through': {
-    id: 'xiuruisu/see-through',
-    provider: 'fal',
-    displayName: 'See-Through (HF)',
   },
   'fal-ai/lang-segment-anything': {
     id: 'fal-ai/lang-segment-anything',
@@ -152,12 +146,6 @@ export const EDIT_TASKS: readonly EditTaskMetadata[] = [
     icon: Type,
     providers: ['openai'],
     ...getCapabilityModelConfig('text-render'),
-  },
-  {
-    task: 'decompose',
-    icon: Layers,
-    providers: ['fal'],
-    ...getCapabilityModelConfig('decompose'),
   },
   {
     task: 'extract-element',

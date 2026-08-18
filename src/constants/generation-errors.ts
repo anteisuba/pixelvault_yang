@@ -28,6 +28,23 @@ export const GENERATION_ERROR_CODES = {
   RUNNER_MONTHLY_LIMIT_EXCEEDED: 'runner_monthly_limit_exceeded',
   /** A requested LoRA isn't pre-baked on the runner's Network Volume yet. */
   RUNNER_LORA_UNAVAILABLE: 'runner_lora_unavailable',
+  /**
+   * RunPod 收下了作业，但没有任何 worker 来跑它 —— 端点零活跃 worker 且作业
+   * 从未离开 IN_QUEUE（实测成因：已退出的 worker 仍被计为 ready，占住
+   * workersMax 名额；也可能是长时间抢不到 GPU）。
+   *
+   * 单列一个码而不是复用 PROVIDER_TIMEOUT，是因为这两件事对用户的含义完全
+   * 相反：超时值得重试，这个**重试只会再排一次队**，得先有人去看端点。
+   * 由 Worker 的轮询僵死探测显式设置（约 3 分钟即判定，不再拖满整个轮询
+   * 窗口）。
+   */
+  RUNNER_QUEUE_STUCK: 'runner_queue_stuck',
+  /**
+   * 派发不到执行 worker（本地没起 `npm --prefix workers/execution run dev`，
+   * 或生产端点不可达）。**跟 provider 无关，也跟参考图无关** —— 请求根本没
+   * 离开我们自己的机器。单列一个码，是因为它此前一直被参考图那条规则吃掉。
+   */
+  EXECUTION_WORKER_UNAVAILABLE: 'execution_worker_unavailable',
   UNKNOWN: 'unknown',
 } as const
 
@@ -91,6 +108,15 @@ const ERROR_PATTERNS: Array<{ pattern: RegExp; code: GenerationErrorCode }> = [
     pattern:
       /layer\s+\S*\s*not\s+supported|not in the list of present adapters/i,
     code: GENERATION_ERROR_CODES.LORA_INCOMPATIBLE_HOSTED,
+  },
+  // ⚠ 必须排在所有参考图规则**之前**：本地/生产的执行 worker 派发失败原文是
+  // `Execution worker dispatch failed: fetch failed`，尾部的 `fetch failed` 会被
+  // UNREACHABLE 的 `fetch.*failed` 吃掉，于是「worker 没起」被显示成「服务商无法
+  // 下载这张参考图」—— 一张参考图都没有的时候也照报，把人往完全错误的方向带
+  // （owner 2026-08-14 真机撞上；此前已在 memory 里记过一次「文案是假线索」）。
+  {
+    pattern: /execution worker|worker dispatch/i,
+    code: GENERATION_ERROR_CODES.EXECUTION_WORKER_UNAVAILABLE,
   },
   {
     pattern: REFERENCE_IMAGE_ERROR_PATTERNS.UNSUPPORTED_FORMAT,

@@ -3,6 +3,7 @@
 import * as React from 'react'
 
 import { useIsMobile } from '@/hooks/use-mobile'
+import { isTouchPrimary } from '@/lib/touch'
 import { cn } from '@/lib/utils'
 import {
   Drawer,
@@ -17,25 +18,26 @@ import {
 } from '@/components/ui/popover'
 
 /**
- * ResponsivePopover — Popover on desktop, vaul Drawer (bottom sheet) on mobile.
+ * ResponsivePopover — anchored Popover for fine pointers, vaul Drawer (bottom
+ * sheet) for touch-primary compact viewports.
  *
  * 统一披露原语（docs/references/frontend.md §覆层行为矩阵）：工具栏 chip 与
  * 快速配置面板一律用它——不要手写 Popover/Drawer 分支，也不要在手机上裸用
  * Popover（窄视口会裁切）。表单、多步流程、可浏览的库用 ResponsiveDialog。
  *
  * API 差异说明：
- * - `label` 必填：移动端渲染为视觉隐藏的 DrawerTitle（Radix a11y 要求），
+ * - `label` 必填：触屏紧凑态渲染为视觉隐藏的 DrawerTitle（Radix a11y 要求），
  *   桌面端作为 PopoverContent 的 aria-label。
  * - `className` 只作用于桌面 Popover（宽度类在全宽抽屉上无意义）；移动端
  *   内容容器样式用 `mobileClassName`。
- * - align/side/sideOffset 等锚定 props 在移动端被忽略。
+ * - align/side/sideOffset 等锚定 props 在触屏 Drawer 路径被忽略。
  *
  * Hydration 说明与 ResponsiveDialog 相同：useIsMobile() 服务端为 false，浮层
  * 由用户交互打开，水合时必然处于关闭态，原语切换不可见。不要传 defaultOpen。
  */
 
-const ResponsivePopoverContext = React.createContext<{ isMobile: boolean }>({
-  isMobile: false,
+const ResponsivePopoverContext = React.createContext<{ useDrawer: boolean }>({
+  useDrawer: false,
 })
 
 function ResponsivePopover({
@@ -43,9 +45,15 @@ function ResponsivePopover({
   ...props
 }: React.ComponentProps<typeof Popover>) {
   const isMobile = useIsMobile()
-  const Component = isMobile ? Drawer : Popover
+  // Width decides the compact layout, but input capability decides whether a
+  // disclosure should become modal. A narrow desktop window still has a fine
+  // pointer and must keep the anchored trigger interactive so clicking it a
+  // second time can close the surface. Touch-primary compact viewports use the
+  // bottom drawer as before.
+  const useDrawer = isMobile && isTouchPrimary()
+  const Component = useDrawer ? Drawer : Popover
   return (
-    <ResponsivePopoverContext.Provider value={{ isMobile }}>
+    <ResponsivePopoverContext.Provider value={{ useDrawer }}>
       <Component {...props}>{children}</Component>
     </ResponsivePopoverContext.Provider>
   )
@@ -54,8 +62,8 @@ function ResponsivePopover({
 function ResponsivePopoverTrigger({
   ...props
 }: React.ComponentProps<typeof PopoverTrigger>) {
-  const { isMobile } = React.useContext(ResponsivePopoverContext)
-  const Component = isMobile ? DrawerTrigger : PopoverTrigger
+  const { useDrawer } = React.useContext(ResponsivePopoverContext)
+  const Component = useDrawer ? DrawerTrigger : PopoverTrigger
   return <Component {...props} />
 }
 
@@ -76,8 +84,8 @@ function ResponsivePopoverContent({
   style,
   ...props
 }: ResponsivePopoverContentProps) {
-  const { isMobile } = React.useContext(ResponsivePopoverContext)
-  if (isMobile) {
+  const { useDrawer } = React.useContext(ResponsivePopoverContext)
+  if (useDrawer) {
     return (
       <DrawerContent
         className="max-h-[85svh]"

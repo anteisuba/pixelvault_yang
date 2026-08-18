@@ -68,7 +68,24 @@ export const STUDIO_REFERENCE_DRAG_TYPE = 'studio-reference-image' as const
 export const STUDIO_ASSISTANT_RECENT_ASSETS = 8
 
 // ── B5: Batch Variants ──────────────────────────────────────────
-export const VARIANT_COUNT = 4
+/**
+ * 一次生成几张。三档 1 / 2 / 4 与画布
+ * (`NODE_STUDIO_GENERATE_COMPOSER.batchCounts`) 及音效
+ * (`SFX_VARIANT_COUNTS`) 逐字相同 —— 同一个「一次出几个」的问题，三个界面
+ * 不给三种答案。
+ *
+ * ⚠ 上限 4 的依据**不是** provider 的单请求出图数：本项目没有「一次请求出
+ * N 张」这条路，每一张都是一次独立请求配一个独立 seed（见
+ * `use-unified-generate.ts` 的 `generateVariants`；画布 07-28 的注释也记了
+ * 同一件事）。真正的天花板是 `PLATFORM_GENERATION_GUARD
+ * .MAX_ACTIVE_JOBS_PER_USER`（4，且只管平台出资的请求，BYOK 不受限）。
+ * 平台出资时 ×4 正好顶满，用户在别处已有在跑的任务会让其中几张吃 429 ——
+ * 变体网格逐格显示失败，不静默吞。
+ * → 想加第四档先量那个数，两者必须一起动；单独放宽这里只会多出必失败的格子。
+ */
+export const IMAGE_BATCH_COUNTS = [1, 2, 4] as const
+export type ImageBatchCount = (typeof IMAGE_BATCH_COUNTS)[number]
+export const DEFAULT_IMAGE_BATCH_COUNT: ImageBatchCount = 1
 export const VARIANT_GRID_COLS = 2
 export const VARIANT_MAX_SEED = 4294967295
 

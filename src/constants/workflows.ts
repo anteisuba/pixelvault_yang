@@ -46,7 +46,6 @@ export type WorkflowDefaultOpenPanel =
   | 'reverse'
   | 'advanced'
   | 'refImage'
-  | 'layerDecompose'
   | 'aspectRatio'
   | 'voiceSelector'
   | 'voiceTrainer'

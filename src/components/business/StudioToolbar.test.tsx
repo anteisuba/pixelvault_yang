@@ -29,14 +29,20 @@ vi.mock('@/components/business/studio/StudioResolutionPopover', () => ({
   StudioResolutionPopover: () => null,
 }))
 
+vi.mock('@/components/business/studio/StudioBatchCountPopover', () => ({
+  // Unlike resolution, this chip has no capability gate — every image model
+  // can be asked for more than one image, so it is always in the row.
+  StudioBatchCountPopover: () => <button type="button">batch</button>,
+}))
+
 describe('StudioToolbar', () => {
-  it('renders the fixed four-chip image toolbar without separators', () => {
+  it('renders the fixed five-chip image toolbar without separators', () => {
     render(<StudioToolbar />)
 
-    expect(screen.getAllByRole('button')).toHaveLength(4)
+    expect(screen.getAllByRole('button')).toHaveLength(5)
     expect(screen.queryAllByRole('separator')).toHaveLength(0)
     expect(
       screen.getAllByRole('button').map((button) => button.textContent),
-    ).toEqual(['assistant', 'image', 'cards', 'aspect'])
+    ).toEqual(['assistant', 'image', 'cards', 'aspect', 'batch'])
   })
 })

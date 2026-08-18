@@ -19,7 +19,6 @@ import {
   FileText,
   Film,
   IdCard,
-  Layers3,
   Library,
   Maximize2,
   MoreHorizontal,
@@ -123,7 +122,6 @@ const TASK_ICONS = {
   'remove-background': Eraser,
   inpaint: Paintbrush,
   outpaint: Expand,
-  decompose: Layers3,
   'extract-element': Scissors,
   'object-replace': Replace,
   'style-transfer': Palette,
@@ -134,7 +132,6 @@ const MORE_EDIT_TASKS = [
   'remove-background',
   'inpaint',
   'outpaint',
-  'decompose',
   'extract-element',
   'object-replace',
   'style-transfer',
@@ -156,7 +153,7 @@ const MORE_EDIT_GROUPS: readonly {
   labelKey: string
   interactions: readonly CanvasImageEditInteraction[]
 }[] = [
-  { labelKey: 'moreEditsInstant', interactions: ['instant', 'layers'] },
+  { labelKey: 'moreEditsInstant', interactions: ['instant'] },
   { labelKey: 'moreEditsRegion', interactions: ['mask', 'outpaint'] },
   { labelKey: 'moreEditsDescribe', interactions: ['prompt'] },
 ]

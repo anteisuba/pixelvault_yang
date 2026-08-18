@@ -204,14 +204,13 @@
 
 ### 3.2 能力映射（以 `canvas-image-edit-capabilities.ts` 为准）
 
-| 首页章节（建议 id）     | Haivis 对位语法                    | 真能力                                                                                          | Demo 做法（前端）                                                    | CTA 去向（登录后）          |
-| ----------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | --------------------------- |
-| `demo-decompose`        | 元素拆分：对象轮廓/层浮出          | `decompose` ready                                                                               | 一张成图 → 预烘焙多图层依次浮起/可 hover 高亮；元数据条 Image · 尺寸 | 画布/图层分解工作流         |
-| `demo-compare`          | 同位 before/after 滑杆             | 用 **ready** 结果对：优先 `remove-background` 或 `upscale`（**不用** hidden 的 object-replace） | 单图坐标内拖动分隔线；左右为 before/after 资产                       | 去背景或超分任务页/画布工具 |
-| `demo-extract`          | 近场「点选/抽出」感                | `extract-element` ready                                                                         | 成图上高亮一主体 → 侧出透明抠图缩略（预烘焙）                        | 元素提取                    |
-| `demo-inpaint`          | 魔法擦除：笔迹叠在作品上           | `inpaint` ready                                                                                 | 循环：笔刷蒙版轨迹 → 切到擦除后帧（或短 loop 视频）                  | 局部重绘                    |
-| （可选）`demo-outpaint` | 画布外扩                           | `outpaint` ready                                                                                | 画框外扩动画                                                         | 扩图                        |
-| （可选）多模型图墙      | 证据墙（非 Haivis 四段，属本产品） | 多模型生成                                                                                      | 现有 contact + model chip                                            | Studio 出图                 |
+| 首页章节（建议 id）     | Haivis 对位语法                    | 真能力                                                                                          | Demo 做法（前端）                                   | CTA 去向（登录后）          |
+| ----------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------- | --------------------------- |
+| `demo-compare`          | 同位 before/after 滑杆             | 用 **ready** 结果对：优先 `remove-background` 或 `upscale`（**不用** hidden 的 object-replace） | 单图坐标内拖动分隔线；左右为 before/after 资产      | 去背景或超分任务页/画布工具 |
+| `demo-extract`          | 近场「点选/抽出」感                | `extract-element` ready                                                                         | 成图上高亮一主体 → 侧出透明抠图缩略（预烘焙）       | 元素提取                    |
+| `demo-inpaint`          | 魔法擦除：笔迹叠在作品上           | `inpaint` ready                                                                                 | 循环：笔刷蒙版轨迹 → 切到擦除后帧（或短 loop 视频） | 局部重绘                    |
+| （可选）`demo-outpaint` | 画布外扩                           | `outpaint` ready                                                                                | 画框外扩动画                                        | 扩图                        |
+| （可选）多模型图墙      | 证据墙（非 Haivis 四段，属本产品） | 多模型生成                                                                                      | 现有 contact + model chip                           | Studio 出图                 |
 
 **明确不上首页演示（hidden）**
 
@@ -232,8 +231,6 @@ demo-compare     （滑杆 · 最易懂 · 先做）
   ↓
 demo-inpaint     （笔刷擦除）
   ↓
-demo-decompose   （图层浮出）
-  ↓
 demo-extract     （抽出元素）
   ↓
 多模型 / 视频 / 音频 / 画布 / 模型阵容（现有段可收敛，避免再堆半成品条）
@@ -249,7 +246,6 @@ Bottom CTA → modal
 public/homepage/demos/
   compare/{before,after}.webp
   inpaint/{source,mask-preview,result}.webp  或 short.webm
-  decompose/{base,layer-1..n}.webp
   extract/{source,cutout}.webp
 ```
 
@@ -273,7 +269,7 @@ public/homepage/demos/
 | **P0** | 登录一律 modal：共享 `AuthModal` / Clerk modal 入口；改 Homepage/Header/Sidebar 等用户入口 | Clerk appearance modal 变体 |
 | **P1** | `HomepageBeforeAfter` 滑杆组件 + compare 段（去背或超分资产）                              | 一对 webp                   |
 | **P2** | inpaint 笔刷/循环 demo 段                                                                  | 源+结果帧                   |
-| **P3** | decompose 层浮出 + extract 抽出                                                            | 多层资产                    |
+| **P3** | extract 抽出                                                                               | 抠图资产                    |
 | **P4** | 收敛旧段节奏、可选产品全景、三语 copy、e2e/visual                                          | P0–P3 稳                    |
 
 每次只交一个 Phase；禁止再「整页 moodboard 一次改完」。
@@ -281,7 +277,8 @@ public/homepage/demos/
 ## 6. 禁改范围
 
 - 默认不动 `src/app/api/**` / `prisma/**` / `src/services/**` / credit 政策。
-- 首页 demo **禁止**为演示调用真实 decompose/inpaint（成本与稳定性）。
+- 首页 demo **禁止**为演示调用真实 inpaint 等付费能力（成本与稳定性）。
+- ⚠ `demo-decompose` 段已于 2026-08-18 删除：图层分解整条功能被砍（owner 定），首页不能演示一个产品里没有的能力。
 - 画布近场工具条改造走 canvas 施工图，不与本页绑成一次 PR。
 
 ## 7. 验收清单

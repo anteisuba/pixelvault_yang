@@ -28,7 +28,6 @@ import type {
   LongVideoSubmitResponse,
   PromptFeedbackRequest,
   PromptFeedbackResponse,
-  ImageDecomposeResult,
   RetryMesh3DRequest,
   ImageStatusResponse,
   StudioGenerateRequest,
@@ -911,60 +910,6 @@ export async function editImageAPI(
         ...(options?.generationId && { generationId: options.generationId }),
         ...(options?.modelId && { modelId: options.modelId }),
         ...(options?.targetScale && { targetScale: options.targetScale }),
-      }),
-    })
-    if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
-      return {
-        success: false,
-        error: payload.error,
-        errorCode: payload.errorCode,
-        i18nKey: payload.i18nKey,
-      }
-    }
-    return await response.json()
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
-    }
-  }
-}
-
-export async function decomposeImageAPI(
-  imageUrl: string,
-  options?: {
-    resolution?: number
-    seed?: number
-    persist?: boolean
-    generationId?: string
-    /** HuggingFace Space override; server falls back to task default. */
-    modelId?: string
-  },
-): Promise<{
-  success: boolean
-  data?: ImageDecomposeResult
-  error?: string
-  errorCode?: string
-  i18nKey?: string
-}> {
-  try {
-    const response = await fetch(API_ENDPOINTS.IMAGE_DECOMPOSE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        imageUrl,
-        ...(options?.resolution && { resolution: options.resolution }),
-        ...(options?.seed !== undefined && { seed: options.seed }),
-        ...(options?.persist && {
-          persist: true,
-          generationId: options.generationId,
-        }),
-        ...(options?.modelId && { modelId: options.modelId }),
       }),
     })
     if (!response.ok) {

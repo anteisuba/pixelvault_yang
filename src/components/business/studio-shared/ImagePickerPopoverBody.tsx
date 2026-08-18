@@ -23,7 +23,7 @@ interface ImagePickerPopoverBodyProps {
   onOpenLibrary: () => void
   /** Rendered above the dropzone — e.g. a multi-image preview strip. */
   headerSlot?: ReactNode
-  /** Rendered below the "open library" row — e.g. a layer-decompose entry. */
+  /** Rendered below the "open library" row — e.g. the assistant's video slot. */
   footerSlot?: ReactNode
   className?: string
 }

@@ -113,6 +113,12 @@ const ERROR_ACTIONS_BY_CODE: Partial<
     primary: 'switchModel',
     secondary: 'retry',
   },
+  // 端点没人接单：重试只会再排一次队，所以主按钮给「换模型」而不是默认的
+  // 「重试」（重试仍留作次选，端点恢复后一点就能继续）。
+  [GENERATION_ERROR_CODES.RUNNER_QUEUE_STUCK]: {
+    primary: 'switchModel',
+    secondary: 'retry',
+  },
   [GENERATION_ERROR_CODES.PROVIDER_TIMEOUT]: DEFAULT_ERROR_ACTIONS,
   [GENERATION_ERROR_CODES.CALLBACK_TIMEOUT]: DEFAULT_ERROR_ACTIONS,
   [GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT]: DEFAULT_ERROR_ACTIONS,

@@ -136,6 +136,10 @@ export function CanvasAssistantRouteSelector({
     <>
       <MainModelPicker
         modality="llm_assist"
+        // 与图片/视频/音频同一套三栏（居中 modal，不受这个窄面板的宽度约束）。
+        // LLM 路由没有 MODEL_FAMILIES，会退回按 adapterType 分组 —— 第一栏正好
+        // 是厂商，第二栏是模型，语义仍然成立。
+        layout="columns"
         llmCapability="assistant"
         value={
           value.apiKeyId ? `llm-route:assistant:key:${value.apiKeyId}` : null

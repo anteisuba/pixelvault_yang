@@ -52,15 +52,6 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     defaultModelId: 'fal-ai/image-apps-v2/outpaint',
   },
   {
-    id: 'decompose',
-    availability: 'ready',
-    interaction: 'layers',
-    input: SINGLE_IMAGE_INPUT,
-    output: 'image-layers',
-    models: ['xiuruisu/see-through'],
-    defaultModelId: 'xiuruisu/see-through',
-  },
-  {
     id: 'extract-element',
     availability: 'ready',
     interaction: 'prompt',

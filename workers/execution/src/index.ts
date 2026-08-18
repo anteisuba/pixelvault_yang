@@ -2,6 +2,7 @@ import { WorkflowEntrypoint } from 'cloudflare:workers'
 import type { Workflow, WorkflowEvent, WorkflowStep } from 'cloudflare:workers'
 
 import {
+  WORKER_GENERATION_ERROR_CODES,
   WorkerProviderError,
   buildWorkerFailureCallbackData,
   createGeminiNoImageError,
@@ -6551,6 +6552,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
                   'Runner queue is stuck: the endpoint has zero active workers and the job never left the queue. The job was cancelled — the endpoint needs attention (stale worker or no GPU capacity).',
                 provider: context.providerId,
                 phase: 'status_poll',
+                errorCode: WORKER_GENERATION_ERROR_CODES.RUNNER_QUEUE_STUCK,
                 requestId: submitted.id,
               })
             }

@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
@@ -43,7 +44,21 @@ beforeAll(() => {
 
 beforeEach(() => {
   mockUseIsMobile.mockReturnValue(false)
+  mockTouchPrimary(false)
 })
+
+function mockTouchPrimary(isTouch: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(hover: none)' ? isTouch : false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }))
+}
 
 function renderSubject(open?: boolean) {
   return render(
@@ -53,6 +68,19 @@ function renderSubject(open?: boolean) {
         <p>面板内容</p>
       </ResponsivePopoverContent>
     </ResponsivePopover>,
+  )
+}
+
+function ToggleSubject() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <ResponsivePopover open={open} onOpenChange={setOpen}>
+      <ResponsivePopoverTrigger>打开设置</ResponsivePopoverTrigger>
+      <ResponsivePopoverContent label="快速设置">
+        <p>面板内容</p>
+      </ResponsivePopoverContent>
+    </ResponsivePopover>
   )
 }
 
@@ -72,6 +100,7 @@ describe('ResponsivePopover', () => {
 
   it('renders a Drawer with an accessible title on mobile', async () => {
     mockUseIsMobile.mockReturnValue(true)
+    mockTouchPrimary(true)
     renderSubject(true)
 
     expect(await screen.findByText('面板内容')).toBeInTheDocument()
@@ -79,5 +108,25 @@ describe('ResponsivePopover', () => {
     // must be present so the dialog has an accessible name.
     expect(screen.getByText('快速设置')).toBeInTheDocument()
     expect(document.querySelector('[data-slot="popover-content"]')).toBeNull()
+  })
+
+  it('keeps a compact fine-pointer viewport on the anchored popover path so the trigger can close it', async () => {
+    mockUseIsMobile.mockReturnValue(true)
+    mockTouchPrimary(false)
+    render(<ToggleSubject />)
+
+    const trigger = screen.getByText('打开设置')
+    fireEvent.click(trigger)
+
+    expect(await screen.findByText('面板内容')).toBeInTheDocument()
+    expect(
+      document.querySelector('[data-slot="popover-content"]'),
+    ).not.toBeNull()
+
+    fireEvent.click(trigger)
+
+    await waitFor(() =>
+      expect(screen.queryByText('面板内容')).not.toBeInTheDocument(),
+    )
   })
 })

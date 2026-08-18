@@ -482,7 +482,7 @@ describe('useNodeWorkflow', () => {
         Array.from({ length: 4 }, (_, index) => ({
           imageUrl: `https://cdn.example.com/layer-${index + 1}.png`,
           label: `Layer ${index + 1}`,
-          editCapability: 'decompose' as const,
+          editCapability: 'extract-element' as const,
         })),
       )
     })

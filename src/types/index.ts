@@ -863,53 +863,6 @@ export const ImageExtractSchema = z.object({
 
 export type ImageExtractRequest = z.infer<typeof ImageExtractSchema>
 
-// ─── Image Layer Decomposition (See-Through) ────────────────────
-
-export const ImageDecomposeSchema = z.object({
-  imageUrl: z.string().url(),
-  /** Inference resolution (768–1536, step 64). Default: 1280 (trained resolution). */
-  resolution: z
-    .number()
-    .int()
-    .min(768)
-    .max(1536)
-    .refine((v) => v % 64 === 0, {
-      message: 'Resolution must be a multiple of 64',
-    })
-    .optional()
-    .default(1280),
-  /** Reproducibility seed (0–9999). Default: 42. */
-  seed: z.number().int().min(0).max(9999).optional().default(42),
-  /** When true, persist PSD and layer PNGs to R2 */
-  persist: z.boolean().optional(),
-  /** Source generation ID (required when persist is true) */
-  generationId: z.string().optional(),
-  /** Optional model override (e.g. a different HF Space). Default in service. */
-  modelId: EditModelIdSchema.optional(),
-})
-
-export type ImageDecomposeRequest = z.infer<typeof ImageDecomposeSchema>
-
-/** A single decomposed layer from See-Through */
-export interface DecomposedLayer {
-  /** Semantic label (e.g. "front_hair", "left_eye", "upper_body") */
-  name: string
-  /** URL to the layer PNG */
-  imageUrl: string
-}
-
-/** Full result of image layer decomposition */
-export interface ImageDecomposeResult {
-  /** Individual layer images */
-  layers: DecomposedLayer[]
-  /** URL to download the layered PSD file */
-  psdUrl: string
-  /** Total number of layers extracted */
-  layerCount: number
-  /** Generation record for the persisted PSD/batch lineage */
-  generationId?: string
-}
-
 // ─── Video Queue (submit + poll) ─────────────────────────────────
 
 export const VideoJobStatusSchema = AsyncJobStatusSchema
@@ -1315,7 +1268,9 @@ export type MultiViewGenerateRequest = z.infer<
 export type MultiViewGeneratedAngle = 'back' | 'left' | 'right'
 
 export type MultiViewImageView =
-  MultiViewGeneratedAngle | 'leftFront' | 'rightFront'
+  | MultiViewGeneratedAngle
+  | 'leftFront'
+  | 'rightFront'
 
 export interface MultiViewImageRecord {
   id: string
@@ -1842,10 +1797,18 @@ export type LongVideoPipelineAdvanceRequest = z.infer<
 >
 
 export type PipelineClipStatus =
-  'PENDING' | 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+  | 'PENDING'
+  | 'QUEUED'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
 
 export type VideoPipelineStatus =
-  'RUNNING' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
+  | 'RUNNING'
+  | 'PAUSED'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED'
 
 export interface PipelineClipRecord {
   clipIndex: number

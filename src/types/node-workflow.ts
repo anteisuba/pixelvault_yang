@@ -389,14 +389,6 @@ export const NodeWorkflowNodeDataSchema = z
       .max(160)
       .optional()
       .catch(undefined),
-    /** Operation id shared by a multi-output edit such as layer decomposition. */
-    derivedBatchId: z
-      .string()
-      .trim()
-      .min(1)
-      .max(160)
-      .optional()
-      .catch(undefined),
     editCapability:
       ReadyCanvasImageEditCapabilityIdSchema.optional().catch(undefined),
     characterName: z.string().trim().min(1).max(160).optional(),

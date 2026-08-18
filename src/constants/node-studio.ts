@@ -796,7 +796,7 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     maxSelection: 9,
   },
   // Image edits never replace their source. A single result lands to the
-  // source's right; multi-output edits (for example decompose) fan out into a
+  // source's right; multi-output edits fan out into a
   // compact grid so the entire batch remains one spatial/undo operation.
   derivedImage: {
     offsetX: 460,

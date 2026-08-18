@@ -55,7 +55,6 @@ All hooks use `'use client'`. Test coverage is partial (~22 of 70 hooks have `.t
 - `use-usage-summary.ts` — Credit usage display
 - `use-audio-model-options.ts` / `use-image-model-options.ts` — Model option lists
 - `use-lora-training.ts` — LoRA training jobs
-- `use-layer-decompose.ts` — Image layer decomposition
 - `use-my-profile.ts` / `use-creator-profile.ts` — Profile data
 
 ## Critical Hook: useUnifiedGenerate

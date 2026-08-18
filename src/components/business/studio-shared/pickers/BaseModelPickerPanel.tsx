@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
@@ -22,10 +23,21 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  getModelFamilyVisual,
+  type ModelVisual,
+} from '@/constants/model-visuals'
 import { getModelFamily, getModelVariant } from '@/constants/models'
 import {
   MODEL_UNIT_PRICES,
@@ -139,6 +151,65 @@ function findModelUnitPrice(modelId: string) {
   ]
 }
 
+/**
+ * 图片加载失败或尚无素材时的字标配色 —— 从行键确定性散列，同一行永远同一色。
+ *
+ * 配色用 15% 透明度的浅底 + 同色系深字，避免在浅面上撞对比度下限
+ * （memory: muted-foreground 在浅色面上不合格那条）。
+ */
+const FAMILY_SWATCHES = [
+  'bg-blue-500/15 text-blue-700 dark:text-blue-300',
+  'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+  'bg-violet-500/15 text-violet-700 dark:text-violet-300',
+  'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+  'bg-rose-500/15 text-rose-700 dark:text-rose-300',
+  'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300',
+] as const
+
+function familySwatch(key: string): string {
+  let hash = 0
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0
+  }
+  return FAMILY_SWATCHES[hash % FAMILY_SWATCHES.length]
+}
+
+function PickerModelVisual({
+  visual,
+  fallbackLabel,
+  fallbackClassName,
+}: {
+  visual: ModelVisual | null
+  fallbackLabel: string
+  fallbackClassName: string
+}) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  const showImage = visual && failedSrc !== visual.src
+
+  return (
+    <span
+      className={cn(
+        'relative flex h-5 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/55 bg-background text-[10px] font-semibold',
+        visual?.wide ? 'w-7' : 'w-5',
+        fallbackClassName,
+      )}
+      aria-hidden
+    >
+      {fallbackLabel.charAt(0).toUpperCase()}
+      {showImage ? (
+        <Image
+          src={visual.src}
+          alt=""
+          width={visual.wide ? 28 : 20}
+          height={20}
+          className="absolute inset-0 size-full bg-white object-contain p-0.5"
+          onError={() => setFailedSrc(visual.src)}
+        />
+      ) : null}
+    </span>
+  )
+}
+
 /** 结尾的括注（半角/全角都算），如 `Seedance 2.5（火山方舟）` 的那一段。 */
 const TRAILING_QUALIFIER = /[（(][^（()）]*[)）]\s*$/
 
@@ -229,6 +300,21 @@ export interface BaseModelPickerPanelProps {
   }) => string
   /** Optional secondary metadata shown on provider and model rows. */
   detailForOption?: (option: StudioModelOption) => string | undefined
+  /**
+   * 呈现方式。`'drill'`（默认）= 一次一层 + 返回键，给窄容器与移动端；
+   * `'columns'` = 系列/型号/渠道三栏并列，给有空间的面板（工作台参数栏）。
+   *
+   * ⚠ **判据是容器有多宽，不是模态**。层数照旧由数据推出来（见 `variantKeyOf`）——
+   * 图片/音频今天没登记 `MODEL_VARIANTS`，三栏里第三栏就只有一行，那是数据没铺到，
+   * 不是布局判断错。owner 2026-08-14 选 A：先上布局，第三栏照实显示。
+   */
+  layout?: 'drill' | 'columns'
+  /**
+   * 多选（opt-in）。**同时**给这两个才进多选：渠道行变成可勾选、选完面板不关。
+   * 不给则维持单选的 `value` / `onChange`，四个现有调用方零改动。
+   */
+  selectedOptionIds?: ReadonlySet<string>
+  onToggleOption?: (option: StudioModelOption) => void
 }
 
 /**
@@ -264,7 +350,7 @@ export function BaseModelPickerPanel({
   triggerEmptyLabel,
   searchPlaceholder,
   emptySearchText,
-  enableSearch = true,
+  enableSearch,
   size = 'default',
   popoverSide = 'top',
   className,
@@ -273,7 +359,15 @@ export function BaseModelPickerPanel({
   labelForOption,
   triggerLabelForOption,
   detailForOption,
+  layout = 'drill',
+  selectedOptionIds,
+  onToggleOption,
 }: BaseModelPickerPanelProps) {
+  const columns = layout === 'columns'
+  // 三栏默认不给搜索框：三层同屏本来就一览无余，模型总数也不到需要检索的量级
+  // （owner 2026-08-14）。钻取维持原来的默认开——它一次只看得到一层。
+  const searchEnabled = enableSearch ?? !columns
+  const multi = Boolean(selectedOptionIds && onToggleOption)
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<PickerView>('families')
   const [activeFamily, setActiveFamily] = useState<string | null>(null)
@@ -402,10 +496,33 @@ export function BaseModelPickerPanel({
     if (wasOpenRef.current) return
     wasOpenRef.current = true
     setSearch('')
+    if (columns) {
+      // 三栏同屏没有「跳过」可言 —— 打开就把后两栏落在有内容的位置：优先跟着当前
+      // 选中项，否则第一族的第一型号。否则右两栏开局是空的，看着像坏了。
+      const selected = options.find((o) => o.optionId === value) ?? null
+      const family =
+        (selected
+          ? familyGroups.find((g) => g.familyKey === familyKeyOf(selected))
+          : null) ??
+        familyGroups[0] ??
+        null
+      const variant =
+        (selected
+          ? family?.variants.find(
+              (v) => v.variantKey === variantKeyOf(selected),
+            )
+          : null) ??
+        family?.variants[0] ??
+        null
+      setView('channels')
+      setActiveFamily(family?.familyKey ?? null)
+      setActiveVariant(variant?.variantKey ?? null)
+      return
+    }
     setView(entryPath.view)
     setActiveFamily(entryPath.family)
     setActiveVariant(entryPath.variant)
-  }, [open, entryPath])
+  }, [open, entryPath, columns, familyGroups, options, value])
 
   // Resolved against the FULL list so a persisted optionId that dedupe folded
   // away still names the trigger.
@@ -480,23 +597,35 @@ export function BaseModelPickerPanel({
         return hay.includes(searchLower)
       })
     }
+    // 三栏并列时第三栏恒定渲染当前型号的渠道，与 `view` 无关（那是钻取的状态）。
+    if (columns) return activeVariantGroup?.opts ?? []
     // Only the deepest layer lists concrete options; 系列/型号 rows come off
     // familyGroups instead.
     if (view === 'channels') return activeVariantGroup?.opts ?? []
     return []
     // labelForOption/detailForOption/tModels are stable enough for this filter
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayOptions, searching, searchLower, view, activeVariantGroup])
+  }, [
+    displayOptions,
+    searching,
+    searchLower,
+    view,
+    activeVariantGroup,
+    columns,
+  ])
 
   const { saved, platform, locked } = useSplitModelOptions(visibleOptions)
 
   const isEmpty = searching
     ? visibleOptions.length === 0
-    : view === 'families'
-      ? familyGroups.length === 0
-      : view === 'variants'
-        ? (activeFamilyGroup?.variants.length ?? 0) === 0
-        : visibleOptions.length === 0
+    : columns
+      ? // 三栏同屏：只要第一栏有东西就不是空态，后两栏各自可以是空的
+        familyGroups.length === 0
+      : view === 'families'
+        ? familyGroups.length === 0
+        : view === 'variants'
+          ? (activeFamilyGroup?.variants.length ?? 0) === 0
+          : visibleOptions.length === 0
 
   // Step 2 used to hide the needs-key models of a provider that already had a
   // usable route ("configuring happens at the provider step"). That silently
@@ -543,6 +672,11 @@ export function BaseModelPickerPanel({
   }
 
   const handleSelectOption = (option: StudioModelOption) => {
+    // 多选：点一下是加/减一条，面板不关 —— 攒一份名单本来就要连点好几次。
+    if (multi) {
+      onToggleOption?.(option)
+      return
+    }
     onChange(option)
     setOpen(false)
   }
@@ -586,12 +720,37 @@ export function BaseModelPickerPanel({
     countText,
     opts,
     onSelect,
+    active = false,
+    showChevron = true,
+    showMeta = true,
+    compact = false,
+    visual,
+    visualLabel,
   }: {
     rowKey: string
     label: string
     countText: string
     opts: StudioModelOption[]
     onSelect: () => void
+    /** 三栏并列专用：这一行是当前栏的落点。钻取模式没有"停留"的概念。 */
+    active?: boolean
+    /** 三栏并列时不画 chevron —— 下一层就在右边，不是"钻进去"。 */
+    showChevron?: boolean
+    /**
+     * 右侧那簇 key/额度状态。钻取里**必须有**（钻进去之前没别的地方看得到），
+     * 三栏里**必须没有**：第三栏一直摆在旁边、状态在那儿看得见，这里重复一遍
+     * 只会把 ~210px 的栏挤到只剩「F…」。真机实测抓到的。
+     */
+    showMeta?: boolean
+    /**
+     * 精简行：去掉首字母头像与「N 个模型 / N 个渠道」副行，只留名字。
+     * owner 2026-08-14 对着原型定的 —— 三栏各自的身份已经由栏标题交代过，
+     * 逐行再挂一个圆圈和一个计数是噪音；名字才是要扫的东西。
+     */
+    compact?: boolean
+    /** 三栏前两列的模型视觉；没有素材或加载失败时自动退回彩色首字母。 */
+    visual?: ModelVisual | null
+    visualLabel?: string
   }) => {
     const detail = detailForOption?.(opts[0])
     // An explicit key row is the best evidence; provider-level coverage counts
@@ -610,19 +769,43 @@ export function BaseModelPickerPanel({
         key={rowKey}
         value={`${rowKey} ${label}`}
         onSelect={onSelect}
-        className="group min-h-12 gap-3 px-3 py-2.5"
+        className={cn(
+          'group px-3',
+          compact ? 'gap-2' : 'gap-3',
+          compact ? 'min-h-9 py-1.5' : 'min-h-12 py-2.5',
+          active && 'bg-muted/60',
+        )}
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-xs font-semibold text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
-          {label.charAt(0).toUpperCase()}
-        </span>
+        {compact ? (
+          visualLabel ? (
+            <PickerModelVisual
+              visual={visual ?? null}
+              fallbackLabel={visualLabel}
+              fallbackClassName={familySwatch(rowKey)}
+            />
+          ) : null
+        ) : (
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-xs font-semibold text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
+            {label.charAt(0).toUpperCase()}
+          </span>
+        )}
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-sm font-semibold">{label}</span>
+            <span
+              className={cn(
+                'truncate text-sm',
+                compact ? 'font-medium' : 'font-semibold',
+              )}
+            >
+              {label}
+            </span>
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
-            {countText}
-            {detail ? ` · ${detail}` : ''}
-          </span>
+          {compact ? null : (
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
+              {countText}
+              {detail ? ` · ${detail}` : ''}
+            </span>
+          )}
         </span>
         {/* 台账 D7 发现 #8（2026-08-02）：编码强度原先是**反的** —— 五个用
             不了的厂商各占一整行「需要 API key」，而唯一能直接跑的免费额度项
@@ -632,7 +815,12 @@ export function BaseModelPickerPanel({
             逐行重复一遍是噪音不是信息。
             ⚠ 缺 key 侧只做「减法」不再调淡：muted-foreground/75 在浅色面上
             本就贴线（memory: muted-foreground 浅面不合格）。 */}
-        <span className="flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground/75">
+        <span
+          className={cn(
+            'flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground/75',
+            !showMeta && 'hidden',
+          )}
+        >
           {savedOpt ? (
             <>
               <ApiKeyHealthDot
@@ -653,7 +841,9 @@ export function BaseModelPickerPanel({
             <Key className="size-3" aria-label={tSetup('needsKey')} />
           )}
         </span>
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground/55" />
+        {showChevron ? (
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground/55" />
+        ) : null}
       </CommandItem>
     )
   }
@@ -667,7 +857,9 @@ export function BaseModelPickerPanel({
     option: StudioModelOption,
     labelOverride?: string,
   ) => {
-    const isSelected = option.optionId === checkedOptionId
+    const isSelected = multi
+      ? (selectedOptionIds?.has(option.optionId) ?? false)
+      : option.optionId === checkedOptionId
     const indicatorKeyId = option.keyId ?? option.providerKeyId
     const optionLabel = labelOverride ?? resolveLabel(option)
     const optionModelLabel = resolveModelLabel(option)
@@ -722,29 +914,55 @@ export function BaseModelPickerPanel({
             .filter(Boolean)
             .join('\n') || undefined
         }
-        className="group min-h-12 gap-3 px-3 py-2.5"
+        className={cn(
+          'group gap-3 px-3',
+          // 三栏里第三栏与前两栏同一套精简行距；钻取维持原样
+          columns ? 'min-h-9 py-1.5' : 'min-h-12 py-2.5',
+        )}
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
-          <Sparkles className="size-3.5" />
-        </span>
+        {columns ? null : (
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
+            <Sparkles className="size-3.5" />
+          </span>
+        )}
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-2">
-            {indicatorKeyId ? (
+            {/* 三栏里健康点去掉：颜色点要配文字才读得懂，而那句文字在这么窄的
+                栏里放不下；缺 key 的路由本来就走 renderLockedOption 那条分支，
+                身份靠分组标题交代。 */}
+            {columns ? null : indicatorKeyId ? (
               <ApiKeyHealthDot status={healthMap[indicatorKeyId]} />
             ) : option.freeTier ? (
               <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
             ) : null}
-            <span className="truncate text-sm font-semibold">
+            <span
+              className={cn(
+                'truncate text-sm',
+                columns ? 'font-medium' : 'font-semibold',
+              )}
+            >
               {optionLabel}
             </span>
+            {isSelected && columns ? (
+              <Check className="size-3.5 shrink-0 text-foreground" />
+            ) : null}
           </span>
-          {optionMeta ? (
+          {optionMeta && !columns ? (
             <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
               {optionMeta}
             </span>
           ) : null}
         </span>
-        {isSelected ? (
+        {/* 单价直接印在行上（不再只挂 title）——「渠道比价」这一层的全部价值就是
+            让人一眼看出哪家便宜，藏进悬停层等于没有。没有可信数据就不显示。 */}
+        {columns && unitPrice ? (
+          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            {tCommon(`unitPrice.${unitPrice.unit}`, {
+              amount: unitPrice.amount,
+            })}
+          </span>
+        ) : null}
+        {isSelected && !columns ? (
           <Check className="size-4 shrink-0 text-foreground" />
         ) : null}
       </CommandItem>
@@ -775,22 +993,39 @@ export function BaseModelPickerPanel({
         value={searchValue}
         onSelect={() => handleSelectLocked(option)}
         title={description || undefined}
-        className="group min-h-12 gap-3 px-3 py-2.5 text-muted-foreground/65"
+        className={cn(
+          'group gap-3 px-3 text-muted-foreground/65',
+          columns ? 'min-h-9 py-1.5' : 'min-h-12 py-2.5',
+        )}
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
-          <Key className="size-3.5" />
-        </span>
+        {columns ? null : (
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
+            <Key className="size-3.5" />
+          </span>
+        )}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold">
+          <span
+            className={cn(
+              'block truncate text-sm',
+              columns ? 'font-medium' : 'font-semibold',
+            )}
+          >
             {optionModelLabel}
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
-            {labelOverride === providerLabel ? '' : providerLabel}
-            {capabilityDetail
-              ? `${labelOverride === providerLabel ? '' : ' · '}${capabilityDetail}`
-              : ''}
-          </span>
+          {columns ? null : (
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
+              {labelOverride === providerLabel ? '' : providerLabel}
+              {capabilityDetail
+                ? `${labelOverride === providerLabel ? '' : ' · '}${capabilityDetail}`
+                : ''}
+            </span>
+          )}
         </span>
+        {/* 缺 key 的行在三栏里只留一枚钥匙图标：文字由分组标题「需要 API key」
+            承担，逐行重复一遍是噪音（同 D7 发现 #8 的减法思路）。 */}
+        {columns ? (
+          <Key className="size-3.5 shrink-0" aria-label={tSetup('needsKey')} />
+        ) : null}
       </CommandItem>
     )
   }
@@ -835,6 +1070,48 @@ export function BaseModelPickerPanel({
     })
   }
 
+  /**
+   * 三栏并列的第一、二栏 —— **只导航，不选中**。
+   *
+   * 与钻取的关键差别：钻取里「一个分组只剩一条」要塌成可选项（不然是骗人再钻一层
+   * 空壳）；三栏里下一层就在右边，塌不塌都看得见，所以前两栏一律保持导航语义。
+   * 三栏各司其职：选系列 / 选型号 / 选具体那条 —— 只有第三栏可勾选。
+   */
+  const renderColumnFamilyRow = (family: FamilyGroup) =>
+    renderDrillRow({
+      rowKey: family.familyKey,
+      label: family.label,
+      // ⚠ 计数报的永远是**型号数**，不像钻取那样跟着跳过链走 —— 三栏里点系列
+      // 必定显示型号栏，不会跳过。真机抓到的：单型号的 GPT Image 原本写「1 个
+      // 渠道」，点开却是型号栏，说的和看到的对不上。
+      countText: tCommon('modelCount', { count: family.variants.length }),
+      opts: family.opts,
+      active: family.familyKey === activeFamily,
+      showChevron: false,
+      showMeta: false,
+      compact: true,
+      visual: getModelFamilyVisual(family.label),
+      visualLabel: family.label,
+      onSelect: () => {
+        setActiveFamily(family.familyKey)
+        // 换系列时第二栏跟着落到第一个型号，第三栏才不会空着。
+        setActiveVariant(family.variants[0]?.variantKey ?? null)
+      },
+    })
+
+  const renderColumnVariantRow = (family: FamilyGroup, variant: VariantGroup) =>
+    renderDrillRow({
+      rowKey: `${family.familyKey}::${variant.variantKey}`,
+      label: variant.label,
+      countText: tCommon('channelCount', { count: variant.opts.length }),
+      opts: variant.opts,
+      active: variant.variantKey === activeVariant,
+      showChevron: false,
+      showMeta: false,
+      compact: true,
+      onSelect: () => setActiveVariant(variant.variantKey),
+    })
+
   const triggerHealthIndicator = selectedOption?.keyId ? (
     <ApiKeyHealthDot status={healthMap[selectedOption.keyId]} />
   ) : selectedOption?.freeTier ? (
@@ -854,9 +1131,13 @@ export function BaseModelPickerPanel({
   //   直接落在渠道层（LLM 路由选择器就是这样：一系列一型号）。那时没有返回键、
   //   没有面包屑，行里只写「OpenAI」就把模型身份丢了。
   const channelLabelOf = (option: StudioModelOption) =>
-    !searching && view === 'channels' && entryPath.view !== 'channels'
+    // 三栏并列时型号一直摆在第二栏里，所以第三栏永远只写渠道名 —— 不像钻取那样
+    // 依赖「返回键交代过型号」这个前提。
+    columns
       ? getProviderLabel(option.providerConfig)
-      : undefined
+      : !searching && view === 'channels' && entryPath.view !== 'channels'
+        ? getProviderLabel(option.providerConfig)
+        : undefined
 
   const modelGroups = (
     <>
@@ -922,42 +1203,161 @@ export function BaseModelPickerPanel({
     )
   })()
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+  const panelBody = (
+    <Command
+      shouldFilter={false}
+      className="h-auto min-h-0 overflow-visible bg-transparent"
+    >
+      {searchEnabled && (
+        <CommandInput
+          value={search}
+          onValueChange={setSearch}
+          placeholder={resolvedSearchPlaceholder}
+          className="h-10 text-sm"
+        />
+      )}
+      {!searching && !columns && backTarget && (
         <button
           type="button"
-          disabled={disabled}
-          aria-expanded={open}
-          aria-label={resolvedTriggerEmptyLabel}
-          className={cn(
-            'flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 text-xs text-muted-foreground shadow-sm',
-            'transition-[color,background-color,border-color,box-shadow] duration-200',
-            'hover:border-primary/20 hover:bg-muted/45 hover:text-foreground',
-            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20',
-            'data-[state=open]:border-primary/30 data-[state=open]:bg-muted/55 data-[state=open]:text-foreground data-[state=open]:shadow-md',
-            'disabled:pointer-events-none disabled:opacity-50',
-            size === 'compact' && 'h-7 px-2',
-            className,
-          )}
+          onClick={handleBack}
+          className="flex w-full items-center gap-2 border-b border-border/40 px-3 py-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
         >
-          {triggerHealthIndicator}
-          <span
-            className={cn(
-              'max-w-[7.5rem] truncate font-medium text-foreground sm:max-w-[10rem]',
-              size === 'compact' && 'max-w-[6rem] sm:max-w-[8rem]',
-            )}
-          >
-            {selectedLabel}
-          </span>
-          <ChevronDown
-            className={cn(
-              'size-3 shrink-0 transition-transform duration-300 ease-out',
-              open && 'rotate-180',
-            )}
-          />
+          <ArrowLeft className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="truncate">{backTarget.label}</span>
         </button>
-      </PopoverTrigger>
+      )}
+      <CommandList className="min-h-0 max-h-none overflow-x-clip overflow-y-visible">
+        {isEmpty ? (
+          <div className="py-6 text-center text-sm text-muted-foreground">
+            {resolvedEmptySearchText}
+          </div>
+        ) : searching ? (
+          // Flat cross-provider search is a hard swap: there's no coherent
+          // drill direction between a flat list and the hierarchical
+          // three-step, so search stays outside the slide animation.
+          modelGroups
+        ) : columns ? (
+          // 三栏并列：三层同屏，所以没有钻取那套 view 切换与淡入淡出 ——
+          // 换栏只改选中行，右边两栏原地更新。每栏各自滚动。
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)] divide-x divide-border/50">
+            <div className="studio-scrollbar max-h-80 min-w-0 overflow-y-auto">
+              <CommandGroup heading={tCommon('modelFamily')}>
+                {familyGroups.map(renderColumnFamilyRow)}
+              </CommandGroup>
+            </div>
+            <div className="studio-scrollbar max-h-80 min-w-0 overflow-y-auto">
+              <CommandGroup heading={tCommon('modelVariant')}>
+                {activeFamilyGroup
+                  ? activeFamilyGroup.variants.map((v) =>
+                      renderColumnVariantRow(activeFamilyGroup, v),
+                    )
+                  : null}
+              </CommandGroup>
+            </div>
+            <div className="studio-scrollbar max-h-80 min-w-0 overflow-y-auto">
+              {modelGroups}
+            </div>
+          </div>
+        ) : (
+          // Three-step drill: 系列 ⇄ 型号 ⇄ 渠道 cross-fade in place while the
+          // container's height settles via a layout (FLIP) transition. The
+          // incoming view fades in at full size — it never grows from 0 — so
+          // there's no "rising from the bottom" feel; the wrapper just glides
+          // to the new height. popLayout pops the exiting (absolute) view out
+          // of flow so only the incoming view drives that height.
+          <motion.div
+            layout
+            className="relative overflow-hidden"
+            transition={motionTransition('base', reducedMotion)}
+          >
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.div
+                key={`${view}-${activeFamily ?? 'none'}-${activeVariant ?? 'none'}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{
+                  // The exiting view is position:absolute (popLayout) and
+                  // overlays the incoming one — drop its pointer events so it
+                  // can't swallow a click on the new view.
+                  opacity: 0,
+                  pointerEvents: 'none',
+                }}
+                transition={motionTransition('base', reducedMotion)}
+              >
+                {view === 'families' ? (
+                  <CommandGroup>
+                    {familyGroups.map(renderFamilyRow)}
+                  </CommandGroup>
+                ) : view === 'variants' ? (
+                  variantRows
+                ) : (
+                  modelGroups
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </CommandList>
+    </Command>
+  )
+
+  const trigger = (
+    <button
+      type="button"
+      disabled={disabled}
+      aria-expanded={open}
+      aria-label={resolvedTriggerEmptyLabel}
+      className={cn(
+        'flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 text-xs text-muted-foreground shadow-sm',
+        'transition-[color,background-color,border-color,box-shadow] duration-200',
+        'hover:border-primary/20 hover:bg-muted/45 hover:text-foreground',
+        'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20',
+        'data-[state=open]:border-primary/30 data-[state=open]:bg-muted/55 data-[state=open]:text-foreground data-[state=open]:shadow-md',
+        'disabled:pointer-events-none disabled:opacity-50',
+        size === 'compact' && 'h-7 px-2',
+        className,
+      )}
+    >
+      {triggerHealthIndicator}
+      <span
+        className={cn(
+          'max-w-[7.5rem] truncate font-medium text-foreground sm:max-w-[10rem]',
+          size === 'compact' && 'max-w-[6rem] sm:max-w-[8rem]',
+        )}
+      >
+        {selectedLabel}
+      </span>
+      <ChevronDown
+        className={cn(
+          'size-3 shrink-0 transition-transform duration-300 ease-out',
+          open && 'rotate-180',
+        )}
+      />
+    </button>
+  )
+
+  // 三栏走**居中 modal**，不锚在触发器上：44rem 是硬撑出来的宽度，锚定的 popover
+  // 天生要跟容器抢地方（真机上参数栏那种 overflow:auto 容器还会把它裁掉）。居中之后
+  // 与容器宽度、滚动、锚点全部无关，任何调用点传 columns 都安全。
+  if (columns) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+        <DialogContent className="w-[min(44rem,calc(100vw-2rem))] max-w-none gap-0 overflow-hidden p-0 sm:max-w-none">
+          <DialogHeader className="border-b border-border/60 px-4 py-3">
+            <DialogTitle className="text-sm font-medium">
+              {resolvedTriggerEmptyLabel}
+            </DialogTitle>
+          </DialogHeader>
+          {panelBody}
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
         align="start"
         side={popoverSide}
@@ -983,79 +1383,7 @@ export function BaseModelPickerPanel({
             : 'origin-top data-[side=bottom]:slide-in-from-top-2',
         )}
       >
-        <Command
-          shouldFilter={false}
-          className="h-auto min-h-0 overflow-visible bg-transparent"
-        >
-          {enableSearch && (
-            <CommandInput
-              value={search}
-              onValueChange={setSearch}
-              placeholder={resolvedSearchPlaceholder}
-              className="h-10 text-sm"
-            />
-          )}
-          {!searching && backTarget && (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="flex w-full items-center gap-2 border-b border-border/40 px-3 py-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted/40"
-            >
-              <ArrowLeft className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">{backTarget.label}</span>
-            </button>
-          )}
-          <CommandList className="min-h-0 max-h-none overflow-x-clip overflow-y-visible">
-            {isEmpty ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                {resolvedEmptySearchText}
-              </div>
-            ) : searching ? (
-              // Flat cross-provider search is a hard swap: there's no coherent
-              // drill direction between a flat list and the hierarchical
-              // three-step, so search stays outside the slide animation.
-              modelGroups
-            ) : (
-              // Three-step drill: 系列 ⇄ 型号 ⇄ 渠道 cross-fade in place while the
-              // container's height settles via a layout (FLIP) transition. The
-              // incoming view fades in at full size — it never grows from 0 — so
-              // there's no "rising from the bottom" feel; the wrapper just glides
-              // to the new height. popLayout pops the exiting (absolute) view out
-              // of flow so only the incoming view drives that height.
-              <motion.div
-                layout
-                className="relative overflow-hidden"
-                transition={motionTransition('base', reducedMotion)}
-              >
-                <AnimatePresence mode="popLayout" initial={false}>
-                  <motion.div
-                    key={`${view}-${activeFamily ?? 'none'}-${activeVariant ?? 'none'}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{
-                      opacity: 0,
-                      // The exiting view is position:absolute (popLayout) and
-                      // overlays the incoming one — drop its pointer events so it
-                      // can't swallow a click on the new view.
-                      pointerEvents: 'none',
-                    }}
-                    transition={motionTransition('base', reducedMotion)}
-                  >
-                    {view === 'families' ? (
-                      <CommandGroup>
-                        {familyGroups.map(renderFamilyRow)}
-                      </CommandGroup>
-                    ) : view === 'variants' ? (
-                      variantRows
-                    ) : (
-                      modelGroups
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </motion.div>
-            )}
-          </CommandList>
-        </Command>
+        {panelBody}
       </PopoverContent>
     </Popover>
   )

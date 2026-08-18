@@ -9,12 +9,14 @@ export { StudioApiRoutesSection } from '@/components/business/studio-shared/setu
 export { StudioCanvas } from '@/components/business/studio-shared/chrome/StudioCanvas'
 export { StudioBottomDock } from '@/components/business/studio-shared/chrome/StudioBottomDock'
 export { StudioFlowLayout } from '@/components/business/studio-shared/chrome/StudioResizableLayout'
+export { StudioWorkbenchLayout } from '@/components/business/studio-shared/chrome/StudioWorkbenchLayout'
 export { StudioWorkflowGroupTabs } from '@/components/business/studio-shared/workflow/StudioWorkflowGroupTabs'
 export { StudioWorkflowPicker } from '@/components/business/studio-shared/workflow/StudioWorkflowPicker'
 export { StudioWorkflowSummary } from '@/components/business/studio-shared/workflow/StudioWorkflowSummary'
 export { StudioLightbox } from '@/components/business/studio-shared/chrome/StudioLightbox'
 export { StudioCommandPalette } from '@/components/business/studio-shared/chrome/StudioCommandPalette'
 export { StudioAssistantDock } from '@/components/business/studio-shared/chrome/StudioAssistantDock'
+export { StudioAssistantFab } from './StudioAssistantFab'
 
 // Still flat — to be relocated by Spec 6 (4 giants + 24 remaining SHARED)
 // or by individual L2 module specs.

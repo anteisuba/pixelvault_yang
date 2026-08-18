@@ -63,16 +63,16 @@ primitive → semantic → domain/component → page
 
 ### 覆层行为矩阵 — 强约定
 
-| 场景                        | 用什么                                                                                  |
-| --------------------------- | --------------------------------------------------------------------------------------- |
-| 桌面居中弹窗 ↔ 手机底部抽屉 | **ResponsiveDialog**（勿 `defaultOpen`）                                                |
-| 桌面 Popover ↔ 手机抽屉     | **ResponsivePopover**                                                                   |
-| Studio 当前工具面板         | `studio-shared/primitives/tool-surface`；只作为 Studio 现有行为/实现，不是跨域外观模板  |
-| 选素材                      | `AssetSelectorDialog`（约 39 处引用；单/多选、mediaType、上限）                         |
-| 选模型                      | `MainModelPicker`（约 44 处）/ `BaseModelPickerPanel`（约 29 处）                       |
-| 缺 API key                  | **QuickSetupDialog**（Hard Rule 8：不禁用 UI，内联配置）                                |
-| 确认 / 危险操作             | `confirm-dialog` / `alert-dialog`                                                       |
-| Toast                       | sonner（`Toaster` 已挂主布局 top-right，业务代码直接 `import { toast } from 'sonner'`） |
+| 场景                          | 用什么                                                                                                                                                                              |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 桌面居中弹窗 ↔ 手机底部抽屉   | **ResponsiveDialog**（勿 `defaultOpen`）                                                                                                                                            |
+| 锚定 Popover ↔ 触屏紧凑态抽屉 | **ResponsivePopover**；窄视口 + fine pointer 仍走 Popover，保持触发器可重复关闭                                                                                                     |
+| Studio 当前工具面板           | `studio-shared/primitives/tool-surface`；只作为 Studio 现有行为/实现，不是跨域外观模板                                                                                              |
+| 选素材                        | `AssetSelectorDialog`（约 39 处引用；单/多选、mediaType、上限）                                                                                                                     |
+| 选模型                        | `MainModelPicker`（约 44 处）/ `BaseModelPickerPanel`（约 29 处）；`layout="columns"` = 三列居中 Dialog（系列 / 型号 / 渠道，支持多选），`"drill"` = 原逐级下钻，移动端只能用 drill |
+| 缺 API key                    | **QuickSetupDialog**（Hard Rule 8：不禁用 UI，内联配置）                                                                                                                            |
+| 确认 / 危险操作               | `confirm-dialog` / `alert-dialog`                                                                                                                                                   |
+| Toast                         | sonner（`Toaster` 已挂主布局 top-right，业务代码直接 `import { toast } from 'sonner'`）                                                                                             |
 
 ### `ui/` 原语分类（58 文件，2026-07-10 清点）
 
@@ -85,7 +85,18 @@ primitive → semantic → domain/component → page
 
 ### Studio 共享 chrome（`studio-shared/chrome`）
 
-StudioBottomDock · StudioCanvas · **StudioResizableLayout（Studio 垂直间距唯一负责人）** · StudioAssistantDock · StudioCommandPalette · StudioLightbox · StudioErrorBoundary；教程载体 XiaoheiGuideCarousel。
+StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlowLayout`；Studio 垂直间距唯一负责人）** · **StudioWorkbenchLayout** · StudioAssistantDock · StudioCommandPalette · StudioLightbox · StudioErrorBoundary；教程载体 XiaoheiGuideCarousel。
+
+⚠ **两套外壳并列，不是替代**（2026-08-18）：
+
+| 外壳                    | 谁用         | 形状                                                                                                                                               |
+| ----------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `StudioWorkbenchLayout` | **图片模态** | 横向：`lg:w-72` 常驻参数栏 + 结果区。断点 **lg(1024)**，与 `useIsMobile` 对齐——用 md 会在 768–1023 留「列位按 768 预留但内容到 1024 才渲染」的空沟 |
+| `StudioFlowLayout`      | 视频 / 音频  | 纵向 canvas + 底部 dock（原样，未动）                                                                                                              |
+
+分工沿用画布 07-31 那条已验证的分界线：**参数回答「下一版长什么样」，动作回答「我现在要做什么」**——参数栏只放参数，结果区上方不再有横带，每张图自己报状态。
+
+助手（`StudioAssistantDock`）对两套外壳都无感知：它本来就是 `fixed top-4 right-4 bottom-4` 的浮层，开合只改自身宽度，**覆盖不挤压**。桌面入口是右上角的 `StudioAssistantFab`；小屏 dock 是 `lg:flex` 不出现，入口留在参数栏那颗 `StudioEnhanceButton`（抽屉宿主长在它里面，**别顺手删**）。
 
 ### 画布域（`business/node/`）要点
 
@@ -94,7 +105,7 @@ StudioNodeWorkbench（主工作台）· CanvasTopBar / CanvasBottomDock / Canvas
 ## 移动端范式
 
 - 断点体系：<1024 移动 chrome（左侧 44px 竖 rail + 顶部 header + 底部 tab bar）；测试视口集 375 / 390 / 430 / 768 / 1024 / 1440。
-- 披露一律 ResponsiveDialog / ResponsivePopover；侧栏移动 Sheet 宽 `min(13rem, calc(100vw - 8rem))`。
+- 披露一律 ResponsiveDialog / ResponsivePopover；ResponsivePopover 仅在 `<1024px` 且 touch-primary 时切 Drawer，fine pointer 的窄窗口仍保留锚定 Popover；侧栏移动 Sheet 宽 `min(13rem, calc(100vw - 8rem))`。
 - 自适应命中区：fine pointer 紧凑控件 ≥32px / 常规控件 ≥36px，coarse pointer/touch ≥44px；底线为 WCAG 2.2 AA 24px（小于时必须满足 spacing/equivalent 例外并断言）。软键盘双保险：visualViewport（KeyboardInsetBridge）+ 触屏键盘策略（isTouchPrimary / focusUnlessTouch——软键盘只在用户直接点输入框时弹）。
 - 移动主路径回归：`npx playwright test e2e/mobile.spec.ts --project=mobile`。
 
@@ -118,3 +129,4 @@ StudioNodeWorkbench（主工作台）· CanvasTopBar / CanvasBottomDock / Canvas
 - 引用计数（39/44/29/41 处等）与弱 token 清单沿用 2026-06-02 系统审计口径；据此新建 UI 前遇疑先对代码。
 - 2026-07-13：owner 授权调整旧 UI 硬规则；依据 WCAG 2.2 / Apple 触屏基准，把一刀切 44px 同步为 fine 32/36px、coarse 44px、AA 24px 底线。其余组件清点事实未重跑。
 - 2026-07-19：重写 token 与组件治理口径；共享组件固定行为/API/状态/a11y，外观由 domain/page variant 与 token 覆盖。现状组件与 token 数值不再构成跨域视觉模板。
+- 2026-08-18：图片模态换 `StudioWorkbenchLayout` 横向外壳（视频/音频未动）；`BaseModelPickerPanel` 加 `layout="columns"`；`VariantGrid` 退役，图墙统一到 `CompareGrid`。真机 1920 实测助手浮标开 720px / 关 0px、参数栏坐标全程不动。**图层分解（See-Through）整条删除**——Studio 入口、画布能力、service、API、三语 i18n 全部不在了，别再按「八条编辑能力」找它。

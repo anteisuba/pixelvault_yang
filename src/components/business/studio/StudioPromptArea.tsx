@@ -12,7 +12,8 @@ import {
 } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
-import { Send } from 'lucide-react'
+import { Loader2, Send, X } from 'lucide-react'
+import * as Toolbar from '@radix-ui/react-toolbar'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { motionTransition } from '@/constants/motion'
@@ -64,6 +65,13 @@ import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachme
 import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
 import { PlaceholderFillDialog } from '@/components/business/prompts/inspiration/PlaceholderFillDialog'
 import { StudioToolbarPanels } from '@/components/business/studio/StudioToolbarPanels'
+// 参数栏（layout='panel'）直接组合这几颗 —— 它们本来就是独立组件，不用经过
+// StudioToolbarPanels 那层横向工具条。
+import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
+import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
+// 规格三档（比例 · 清晰度 · 张数）在参数栏里收进一个触发器；dock 那三颗独立的
+// chip 仍归视频 / 音频用，两套并存不互相替代。
+import { StudioSpecPopover } from '@/components/business/studio/StudioSpecPopover'
 import { StudioAudioKindSwitcher } from '@/components/business/studio/StudioAudioKindSwitcher'
 import { cn } from '@/lib/utils'
 import { composeCharacterInjection } from '@/lib/character-card-injection'
@@ -96,7 +104,23 @@ const STUDIO_FLOATING_SURFACE_SELECTOR = [
  * StudioPromptArea — Prompt textarea with embedded Generate button.
  * Uses prompt-kit PromptInput compound component.
  */
-export const StudioPromptArea = memo(function StudioPromptArea() {
+interface StudioPromptAreaProps {
+  /**
+   * 排布方式。`'dock'`（默认）= 底部整宽 composer，视频 / 音频仍走这套；
+   * `'panel'` = 左侧参数栏的纵向堆叠（提示词 → 模板/参考图 → 模型 → 规格 →
+   * 生成），工作台重设计用。
+   *
+   * ⚠ 两个分支**共用同一套 handler**（`handleGenerate` / `buildImageInput` /
+   * quick setup …）—— 变的只有 JSX 排布。提示词输入与 `executeGenerate` 绑在
+   * 一起，是这个组件不能按"参数/动作"拆开的唯一原因。
+   */
+  layout?: 'dock' | 'panel'
+}
+
+export const StudioPromptArea = memo(function StudioPromptArea({
+  layout = 'dock',
+}: StudioPromptAreaProps = {}) {
+  const isPanel = layout === 'panel'
   const { state, dispatch } = useStudioForm()
   const { styles, characters, backgrounds, imageUpload, projects } =
     useStudioData()
@@ -494,11 +518,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       const isInsideComposer = Boolean(
         composerContainerRef.current?.contains(target),
       )
-      const isToolbarTrigger = Boolean(
-        targetElement?.closest('[role="toolbar"] button'),
+      const isToolSurfaceTrigger = Boolean(
+        targetElement?.closest(
+          '[data-slot="popover-trigger"], [role="toolbar"] button',
+        ),
       )
 
-      if (hasOpenToolPanel && (!isInsideComposer || !isToolbarTrigger)) {
+      if (hasOpenToolPanel && (!isInsideComposer || !isToolSurfaceTrigger)) {
         dispatch({ type: 'CLOSE_TOOL_PANELS' })
       }
 
@@ -624,6 +650,56 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     composePrompt,
     imageUpload.referenceImages,
   ])
+
+  /**
+   * 这一轮要跑的模型名单 = 主模型 + 额外模型，按名单顺序去重。
+   * 额外模型里可能有已经不在当前 options 里的（切模态、key 被删），过滤掉 ——
+   * 名单上留一条点不动也发不出的行，比少一行更糟。
+   */
+  const runModels = useMemo(() => {
+    const byId = new Map(imageModelOptions.map((o) => [o.optionId, o]))
+    const ids = [
+      ...(state.selectedOptionId ? [state.selectedOptionId] : []),
+      ...state.extraModelOptionIds,
+    ]
+    const seen = new Set<string>()
+    return ids
+      .filter((id) => (seen.has(id) ? false : (seen.add(id), true)))
+      .map((id) => byId.get(id))
+      .filter((o): o is NonNullable<typeof o> => Boolean(o))
+  }, [imageModelOptions, state.selectedOptionId, state.extraModelOptionIds])
+
+  const runModelIds = useMemo(
+    () => new Set(runModels.map((o) => o.optionId)),
+    [runModels],
+  )
+
+  const handleToggleRunModel = useCallback(
+    (option: SelectedModelOption) => {
+      // 还没有主模型时，第一次点选就当选主模型 —— 否则名单有条目却没有主模型，
+      // 清晰度/字数上限这些按主模型算的能力就无从取值。
+      if (!state.selectedOptionId) {
+        dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
+        return
+      }
+      dispatch({ type: 'TOGGLE_EXTRA_MODEL', payload: option.optionId })
+    },
+    [dispatch, state.selectedOptionId],
+  )
+
+  const handleRemoveRunModel = useCallback(
+    (optionId: string) => {
+      if (optionId !== state.selectedOptionId) {
+        dispatch({ type: 'REMOVE_EXTRA_MODEL', payload: optionId })
+        return
+      }
+      // 移除主模型：把名单里下一条顶上来，别让主模型变空。
+      const next = state.extraModelOptionIds[0] ?? null
+      dispatch({ type: 'SET_OPTION_ID', payload: next })
+      if (next) dispatch({ type: 'REMOVE_EXTRA_MODEL', payload: next })
+    },
+    [dispatch, state.selectedOptionId, state.extraModelOptionIds],
+  )
 
   const buildImageInput = useCallback(
     (overrides?: {
@@ -773,7 +849,16 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     }
     const image = buildImageInput()
     if (!image) return
-    const result = await generate({ mode: 'image', image })
+    const result = await generate({
+      mode: 'image',
+      image,
+      variantCount: state.imageBatchCount,
+      // 只有一条时不送名单 —— 让它走原来的单模型路径，请求逐字节不变。
+      compareModels:
+        runModels.length > 1
+          ? runModels.map((o) => ({ modelId: o.modelId, apiKeyId: o.keyId }))
+          : undefined,
+    })
 
     // Nudge: after 3 successful quick-mode generations, suggest Pro mode
     if (result && state.workflowMode === 'quick') {
@@ -803,6 +888,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     isVideoMode,
     selectedModel,
     state.prompt,
+    state.imageBatchCount,
+    runModels,
     state.voiceId,
     state.audioKind,
     state.audioEmotion,
@@ -844,51 +931,64 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     tV3,
   ])
 
-  const handleGenerate = useCallback(async () => {
-    if (isGenerating) return
-    if (!canGenerate) {
-      // Krea-style: button stays clickable; click surfaces the missing piece
-      // instead of silently doing nothing.
-      if (usesStyleCardForModel && !styles.activeCardId) {
-        toast.info(tPromptArea('blocked.styleCardRequired'))
-      } else if (!usesStyleCardForModel && !selectedModel?.modelId) {
-        toast.info(tPromptArea('blocked.modelRequired'))
-      } else if (
-        !usesStyleCardForModel &&
-        !(isAudioMode || isVideoMode ? trimmedPrompt : hasPromptForImage)
-      ) {
-        toast.info(tPromptArea('blocked.promptRequired'))
-        focusStudioPrompt()
-      } else if (isAudioPromptOverLimit) {
-        toast.info(
-          tPromptArea('blocked.audioPromptTooLong', {
-            max: audioTextLimit.enforced,
-          }),
-        )
-        focusStudioPrompt()
-      } else if (isImagePromptOverLimit) {
-        toast.info(
-          tPromptArea('blocked.promptTooLong', {
-            max: imagePromptMaxChars,
-          }),
-        )
-        focusStudioPrompt()
-      } else if (isAudioReferenceIncomplete) {
-        toast.info(tPromptArea('blocked.audioReferenceTextRequired'))
-      } else if (modelRequiresRef && !hasRefImage) {
-        toast.info(tPromptArea('blocked.referenceRequired'))
-        requestAnimationFrame(() => {
-          focusStudioPrompt()
-        })
-      } else if (modelRejectsRefImages) {
-        toast.info(tPromptArea('blocked.referenceUnsupported'))
-      }
-      return
+  /**
+   * 挡住生成的那一条原因（`canGenerate` 为假时必有一条）。
+   *
+   * 抽出来是因为它有**两个**消费者：点击时的 toast，和参数栏生成按钮上的
+   * 文案。两边各写一串 if/else 必然漂 —— 改了一处忘了另一处，用户看到的
+   * 按钮和点出来的提示就会说两件事。
+   */
+  const blockedReason = useMemo((): {
+    message: string
+    focusPrompt?: 'now' | 'nextFrame'
+  } | null => {
+    if (canGenerate) return null
+    if (usesStyleCardForModel && !styles.activeCardId) {
+      return { message: tPromptArea('blocked.styleCardRequired') }
     }
-    await executeGenerate()
+    if (!usesStyleCardForModel && !selectedModel?.modelId) {
+      return { message: tPromptArea('blocked.modelRequired') }
+    }
+    if (
+      !usesStyleCardForModel &&
+      !(isAudioMode || isVideoMode ? trimmedPrompt : hasPromptForImage)
+    ) {
+      return {
+        message: tPromptArea('blocked.promptRequired'),
+        focusPrompt: 'now',
+      }
+    }
+    if (isAudioPromptOverLimit) {
+      return {
+        message: tPromptArea('blocked.audioPromptTooLong', {
+          max: audioTextLimit.enforced,
+        }),
+        focusPrompt: 'now',
+      }
+    }
+    if (isImagePromptOverLimit) {
+      return {
+        message: tPromptArea('blocked.promptTooLong', {
+          max: imagePromptMaxChars,
+        }),
+        focusPrompt: 'now',
+      }
+    }
+    if (isAudioReferenceIncomplete) {
+      return { message: tPromptArea('blocked.audioReferenceTextRequired') }
+    }
+    if (modelRequiresRef && !hasRefImage) {
+      return {
+        message: tPromptArea('blocked.referenceRequired'),
+        focusPrompt: 'nextFrame',
+      }
+    }
+    if (modelRejectsRefImages) {
+      return { message: tPromptArea('blocked.referenceUnsupported') }
+    }
+    return null
   }, [
     canGenerate,
-    isGenerating,
     usesStyleCardForModel,
     styles.activeCardId,
     selectedModel?.modelId,
@@ -904,9 +1004,26 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     hasPromptForImage,
     isAudioMode,
     isVideoMode,
-    executeGenerate,
     tPromptArea,
   ])
+
+  const handleGenerate = useCallback(async () => {
+    if (isGenerating) return
+    if (blockedReason) {
+      // Krea-style: button stays clickable; click surfaces the missing piece
+      // instead of silently doing nothing.
+      toast.info(blockedReason.message)
+      if (blockedReason.focusPrompt === 'now') {
+        focusStudioPrompt()
+      } else if (blockedReason.focusPrompt === 'nextFrame') {
+        requestAnimationFrame(() => {
+          focusStudioPrompt()
+        })
+      }
+      return
+    }
+    await executeGenerate()
+  }, [blockedReason, isGenerating, executeGenerate])
 
   const handledGenerateRequestRef = useRef(state.generateRequestId)
   useEffect(() => {
@@ -1001,233 +1118,440 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         />
       )}
 
-      <div ref={composerContainerRef}>
+      {isPanel ? (
         <PromptInput
+          ref={composerContainerRef}
           id="studio-prompt"
           isLoading={isGenerating}
           value={state.prompt}
           onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
-          maxHeight="var(--studio-prompt-max-h)"
+          maxHeight="14rem"
           onSubmit={handleGenerate}
           onDragEnter={handlePromptDragEnter}
           onDragOver={handlePromptDragOver}
           onDragLeave={handlePromptDragLeave}
           onDrop={handlePromptDrop}
-          data-slot="input-group"
-          data-expanded={isComposerExpanded}
           role="group"
           disabled={isGenerating}
           className={cn(
-            'group/input-group relative mx-auto w-full max-w-7xl 2xl:max-w-[88rem] rounded-none border-0 bg-transparent p-0 shadow-none outline-none [--studio-prompt-max-h:160px] md:[--studio-prompt-max-h:320px]',
-            isGenerating && 'opacity-100',
+            'flex min-h-0 flex-1 flex-col gap-3 rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
             imageUpload.isDragging &&
-              'rounded-3xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
+              'rounded-xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
           )}
         >
-          <AnimatePresence initial={false}>
-            {isComposerExpanded && (
-              <motion.div
-                key="composer-dock-controls"
-                className="overflow-hidden"
-                initial={{ height: 0, opacity: 0, y: 8, marginBottom: 0 }}
-                animate={{ height: 'auto', opacity: 1, y: 0, marginBottom: 8 }}
-                exit={{ height: 0, opacity: 0, y: 6, marginBottom: 0 }}
-                transition={motionTransition('slow', reducedMotion)}
-              >
-                <div className="studio-dock-control-row flex flex-col gap-2 px-1 md:flex-row md:items-center md:gap-3">
-                  <div className="flex min-w-0 shrink-0 items-center gap-1.5">
-                    {isAudioMode && <StudioAudioKindSwitcher />}
-                    {state.workflowMode === 'quick' && (
-                      <MainModelPicker
-                        modality={
-                          isAudioMode
-                            ? 'audio'
-                            : isVideoMode
-                              ? 'video'
-                              : 'image'
-                        }
-                        value={state.selectedOptionId ?? null}
-                        onChange={(option) =>
-                          dispatch({
-                            type: 'SET_OPTION_ID',
-                            payload: option.optionId,
-                          })
-                        }
-                        onRequestSetup={handleOpenQuickSetup}
-                        triggerEmptyLabel={t('noModelHint')}
-                        searchPlaceholder={tForm(
-                          'modelSelector.searchPlaceholder',
-                        )}
-                        emptySearchText={tForm('modelSelector.emptySearch')}
-                      />
-                    )}
-                    <PromptTemplatePicker
-                      currentModelId={selectedModel?.modelId}
-                      currentOutputType={currentTemplateOutputType}
-                      currentParams={currentTemplateParams}
-                      currentPrompt={state.prompt}
-                      currentProvider={
-                        selectedModel
-                          ? getProviderLabel(selectedModel.providerConfig)
-                          : undefined
-                      }
-                      onApply={handleApplyRecipe}
-                      onApplyInspiration={handleApplyInspiration}
-                    />
-                    <PlaceholderFillDialog
-                      open={placeholderDialog.open}
-                      onOpenChange={(open) =>
-                        setPlaceholderDialog((prev) => ({ ...prev, open }))
-                      }
-                      prompt={placeholderDialog.prompt}
-                      onApply={applyInspirationPrompt}
-                    />
-                  </div>
-                  <div
-                    aria-hidden="true"
-                    className="hidden h-4 w-px shrink-0 bg-border/60 md:block"
-                  />
-                  <div className="relative min-w-0 md:flex-1">
-                    <div className="overflow-x-auto">
-                      <div className="flex min-w-max items-center">
-                        <StudioToolbarPanels compact />
-                      </div>
-                    </div>
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-background to-transparent md:hidden"
-                    />
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-background to-transparent md:hidden"
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <motion.div
-            layout
-            animate={{
-              borderRadius: isComposerExpanded ? 24 : 999,
-              paddingTop: isComposerExpanded ? 8 : 6,
-              paddingBottom: isComposerExpanded ? 8 : 6,
-              paddingLeft: 8,
-              paddingRight: 8,
-            }}
-            className={cn(
-              'studio-composer overflow-hidden border border-black/5 shadow-2xl shadow-black/20 ring-1 ring-black/5',
-              'has-[textarea:focus-visible]:border-black/10 has-[textarea:focus-visible]:shadow-black/30 has-[textarea:focus-visible]:ring-black/10',
-            )}
-            transition={motionTransition('slow', reducedMotion)}
-          >
-            <ImageAttachmentPreviewStrip
-              entries={imageUpload.referenceEntries}
-              previewAlt={tImageChip('label')}
-              previewLabel={(index) =>
-                tImageChip('previewReferenceImage', { index })
-              }
-              previewDescription={tImageChip('previewReferenceDescription')}
-              previewCloseLabel={tImageChip('closeReferencePreview')}
-              removeLabel={(index) =>
-                tImageChip('removeReferenceImage', { index })
-              }
-              onRemove={imageUpload.removeReferenceImage}
-              overLimitTooltip={tImageChip('disabledOverLimit')}
-              unsupportedTooltip={tImageChip('disabledUnsupported')}
-              variant="composer"
-              dragType={STUDIO_REFERENCE_DRAG_TYPE}
-            />
-            <div className="flex min-h-11 items-center gap-2">
+          {/* 提示词 —— 参数栏里它是一块独立的输入区，不再和发送键挤一行 */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-2xs font-medium text-muted-foreground/70">
+              {tForm('promptLabel')}
+            </span>
+            <div className="studio-composer rounded-xl border border-border/60 px-2 py-1.5">
+              <ImageAttachmentPreviewStrip
+                entries={imageUpload.referenceEntries}
+                previewAlt={tImageChip('label')}
+                previewLabel={(index) =>
+                  tImageChip('previewReferenceImage', { index })
+                }
+                previewDescription={tImageChip('previewReferenceDescription')}
+                previewCloseLabel={tImageChip('closeReferencePreview')}
+                removeLabel={(index) =>
+                  tImageChip('removeReferenceImage', { index })
+                }
+                onRemove={imageUpload.removeReferenceImage}
+                overLimitTooltip={tImageChip('disabledOverLimit')}
+                unsupportedTooltip={tImageChip('disabledUnsupported')}
+                variant="composer"
+                dragType={STUDIO_REFERENCE_DRAG_TYPE}
+              />
               <PromptInputTextarea
                 id={STUDIO_PROMPT_TEXTAREA_ID}
                 aria-label={tForm('promptLabel')}
                 placeholder={placeholder}
                 onPaste={handlePromptPaste}
-                className="min-h-8 flex-1 px-3 py-1 font-sans text-sm leading-5 selection:bg-neutral-950 selection:text-white placeholder:text-neutral-400 disabled:opacity-100"
+                className="min-h-20 px-1 py-1 font-sans text-sm leading-5 disabled:opacity-100"
               />
-              <PromptInputActions className="shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    void handleGenerate()
-                  }}
-                  disabled={
-                    isGenerating ||
-                    isAudioPromptOverLimit ||
-                    isImagePromptOverLimit
-                  }
-                  aria-label={t('generate')}
-                  aria-busy={isGenerating}
-                  aria-disabled={!canGenerate}
-                  className={cn(
-                    'flex size-10 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white shadow-sm transition-[background-color,transform,box-shadow]',
-                    'hover:bg-neutral-800 hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400',
-                    (isGenerating ||
-                      isAudioPromptOverLimit ||
-                      isImagePromptOverLimit) &&
-                      'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:bg-muted hover:shadow-none',
-                  )}
-                  style={{
-                    transitionTimingFunction: 'var(--ease-standard)',
-                  }}
+            </div>
+            {isImagePromptOverLimit && (
+              <span className="text-2xs tabular-nums text-destructive">
+                {`${imagePromptLength}/${imagePromptMaxChars}`}
+              </span>
+            )}
+          </div>
+
+          {/* 往提示词里加东西的两个动作：模板 / 参考图。紧贴输入框，不进「参数」。
+              ⚠ 必须裹 Toolbar.Root —— 这几颗 chip 底下是 Radix `Toolbar.Button`，
+              没有 roving-focus context 会直接抛 `RovingFocusGroupItem must be used
+              within RovingFocusGroup`。dock 那边由 StudioToolbar 提供，参数栏得自己给。 */}
+          <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
+            <PromptTemplatePicker
+              currentModelId={selectedModel?.modelId}
+              currentOutputType={currentTemplateOutputType}
+              currentParams={currentTemplateParams}
+              currentPrompt={state.prompt}
+              currentProvider={
+                selectedModel
+                  ? getProviderLabel(selectedModel.providerConfig)
+                  : undefined
+              }
+              onApply={handleApplyRecipe}
+              onApplyInspiration={handleApplyInspiration}
+            />
+            <ReferenceImageChip disabled={isGenerating} />
+            {/* 助手在 lg 以上由右上角的 StudioAssistantFab 承担（owner
+                2026-08-14），这里只留小屏那份 —— 不是重复：dock 是 lg:flex，
+                小屏的抽屉宿主就长在这颗丸里面，删了小屏就没有助手入口了。 */}
+            <span className="contents lg:hidden">
+              <StudioEnhanceButton disabled={isGenerating} />
+            </span>
+          </Toolbar.Root>
+
+          {/* 模型 —— 这一轮的名单。行不是丸：行能装下单价，缺价一眼看得出来。
+              主模型 + 额外模型都在这里，选择器是多选的（三栏居中 modal，不受
+              这 288px 的栏宽约束）。 */}
+          {state.workflowMode === 'quick' && (
+            <div className="flex flex-col gap-1.5">
+              <span className="flex items-center text-2xs font-medium text-muted-foreground/70">
+                {tForm('modelLabel')}
+                {runModels.length > 1 ? (
+                  <span className="ml-auto font-normal tabular-nums">
+                    {t('modelCountSelected', { count: runModels.length })}
+                  </span>
+                ) : null}
+              </span>
+              {runModels.map((option) => (
+                <div
+                  key={option.optionId}
+                  className="flex h-8 items-center gap-2 rounded-md border border-border/60 bg-background pl-2.5 pr-1.5 text-xs"
                 >
-                  <AnimatePresence initial={false} mode="wait">
-                    {isGenerating ? (
-                      <motion.span
-                        key="generating"
-                        className="flex items-center justify-center"
-                        initial={{ opacity: 0, scale: 0.92 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.92 }}
-                        transition={motionTransition('fast', reducedMotion)}
-                      >
-                        <Spinner size="md" />
-                        {elapsedSeconds > 0 && (
-                          <span className="sr-only">
-                            {t('generating')} {elapsedSeconds}s
-                          </span>
-                        )}
-                      </motion.span>
-                    ) : (
-                      <motion.span
-                        key="idle"
-                        className="flex items-center justify-center"
-                        initial={{ opacity: 0, scale: 0.92 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.92 }}
-                        transition={motionTransition('fast', reducedMotion)}
-                      >
-                        <Send className="size-4 -rotate-12" />
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </button>
-              </PromptInputActions>
-            </div>
-          </motion.div>
-          {isAudioMode && state.audioKind !== AUDIO_KIND.SFX && (
-            <div
-              className={cn(
-                'flex justify-end px-3 pt-1 text-2xs tabular-nums',
-                isAudioPromptOverLimit
-                  ? 'text-destructive'
-                  : isAudioPromptNearLimit
-                    ? 'text-amber-600'
-                    : 'text-muted-foreground/70',
-              )}
-            >
-              {audioPromptMeta}
+                  <span className="min-w-0 flex-1 truncate">
+                    {getTranslatedModelLabel(tModels, option.modelId)}
+                  </span>
+                  {/* 每一行都能删，包括最后一条 —— 删空了就回到「请先选择模型」，
+                      那本来就是个合法状态（发送时会拦并提示）。留一条删不掉的
+                      行反而让「怎么换掉它」没有出口。 */}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveRunModel(option.optionId)}
+                    aria-label={t('modelRemove')}
+                    className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+              <MainModelPicker
+                modality="image"
+                layout="columns"
+                // ⚠ 恒为 null：这里是纯粹的「添加」入口，不是「当前选中什么」的
+                // 显示位。传选中值会让触发器和名单第一行写着同一个名字（真机
+                // 抓到：名单 `FLUX LoRA` + 触发器 `FLUX LoRA ⌄`，同一条信息两遍）。
+                // 选中状态由名单承担；面板里的勾选走 selectedOptionIds。
+                value={null}
+                onChange={(option) =>
+                  dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
+                }
+                selectedOptionIds={runModelIds}
+                onToggleOption={handleToggleRunModel}
+                onRequestSetup={handleOpenQuickSetup}
+                triggerEmptyLabel={
+                  runModels.length > 0 ? t('modelAdd') : t('noModelHint')
+                }
+                searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+                emptySearchText={tForm('modelSelector.emptySearch')}
+                className="w-full justify-start border-dashed"
+              />
             </div>
           )}
-          {isImagePromptOverLimit && (
-            <div className="flex justify-end px-3 pt-1 text-2xs tabular-nums text-destructive">
-              {`${imagePromptLength}/${imagePromptMaxChars}`}
-            </div>
-          )}
+
+          {/* 规格 —— 比例 / 清晰度 / 张数。回答「下一版长什么样」 */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-2xs font-medium text-muted-foreground/70">
+              {t('specLabel')}
+            </span>
+            <StudioSpecPopover disabled={isGenerating} />
+          </div>
+
+          {/* 生成 —— 参数栏底部，按钮上写清这一次会出几张 */}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              void handleGenerate()
+            }}
+            disabled={isGenerating || isImagePromptOverLimit}
+            aria-label={t('generate')}
+            aria-busy={isGenerating}
+            aria-disabled={!canGenerate}
+            className={cn(
+              'mt-auto flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-sm',
+              'transition-[background-color,transform,box-shadow] duration-fast ease-standard',
+              'hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              // 挡住时降到次级填充。现在按钮上写着缺什么，就没有「点一下才知道」
+              // 这层信息了，所以不必再用满强度的实心黑去引诱点击 —— 整屏唯一的
+              // 最高强调留给真正能出图的那一刻。文字仍用 foreground 满强度：
+              // 降的是底不是字，`muted-foreground` 落在浅底上过不了对比度。
+              !isGenerating &&
+                blockedReason &&
+                'bg-muted text-foreground shadow-none hover:shadow-none',
+              (isGenerating || isImagePromptOverLimit) &&
+                'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:shadow-none',
+            )}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                {elapsedSeconds > 0
+                  ? `${t('generating')} ${elapsedSeconds}s`
+                  : t('generating')}
+              </>
+            ) : (
+              // 缺什么就写在按钮上。按钮**保持可点**（Krea 式，点了还会 toast
+              // 并把焦点送到该补的地方），但没必要让人点一下才知道缺模型 ——
+              // 「模型：请先选择模型」就在同一栏上面两行，按钮再说一句
+              // 「生成 1 张」等于跟旁边的事实对着干。
+              (blockedReason?.message ??
+              t('generateCount', {
+                count: Math.max(1, runModels.length) * state.imageBatchCount,
+              }))
+            )}
+          </button>
         </PromptInput>
-      </div>
+      ) : (
+        <div ref={composerContainerRef}>
+          <PromptInput
+            id="studio-prompt"
+            isLoading={isGenerating}
+            value={state.prompt}
+            onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
+            maxHeight="var(--studio-prompt-max-h)"
+            onSubmit={handleGenerate}
+            onDragEnter={handlePromptDragEnter}
+            onDragOver={handlePromptDragOver}
+            onDragLeave={handlePromptDragLeave}
+            onDrop={handlePromptDrop}
+            data-slot="input-group"
+            data-expanded={isComposerExpanded}
+            role="group"
+            disabled={isGenerating}
+            className={cn(
+              'group/input-group relative mx-auto w-full max-w-7xl 2xl:max-w-[88rem] rounded-none border-0 bg-transparent p-0 shadow-none outline-none [--studio-prompt-max-h:160px] md:[--studio-prompt-max-h:320px]',
+              isGenerating && 'opacity-100',
+              imageUpload.isDragging &&
+                'rounded-3xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
+            )}
+          >
+            <AnimatePresence initial={false}>
+              {isComposerExpanded && (
+                <motion.div
+                  key="composer-dock-controls"
+                  className="overflow-hidden"
+                  initial={{ height: 0, opacity: 0, y: 8, marginBottom: 0 }}
+                  animate={{
+                    height: 'auto',
+                    opacity: 1,
+                    y: 0,
+                    marginBottom: 8,
+                  }}
+                  exit={{ height: 0, opacity: 0, y: 6, marginBottom: 0 }}
+                  transition={motionTransition('slow', reducedMotion)}
+                >
+                  <div className="studio-dock-control-row flex flex-col gap-2 px-1 md:flex-row md:items-center md:gap-3">
+                    <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+                      {isAudioMode && <StudioAudioKindSwitcher />}
+                      {state.workflowMode === 'quick' && (
+                        <MainModelPicker
+                          modality={
+                            isAudioMode
+                              ? 'audio'
+                              : isVideoMode
+                                ? 'video'
+                                : 'image'
+                          }
+                          value={state.selectedOptionId ?? null}
+                          onChange={(option) =>
+                            dispatch({
+                              type: 'SET_OPTION_ID',
+                              payload: option.optionId,
+                            })
+                          }
+                          onRequestSetup={handleOpenQuickSetup}
+                          // dock 是整宽容器，装得下三栏并列；画布节点上的 composer
+                          // 丸装不下，那边保持默认的 drill。见 layout 的 prop 注释。
+                          layout="columns"
+                          triggerEmptyLabel={t('noModelHint')}
+                          searchPlaceholder={tForm(
+                            'modelSelector.searchPlaceholder',
+                          )}
+                          emptySearchText={tForm('modelSelector.emptySearch')}
+                        />
+                      )}
+                      <PromptTemplatePicker
+                        currentModelId={selectedModel?.modelId}
+                        currentOutputType={currentTemplateOutputType}
+                        currentParams={currentTemplateParams}
+                        currentPrompt={state.prompt}
+                        currentProvider={
+                          selectedModel
+                            ? getProviderLabel(selectedModel.providerConfig)
+                            : undefined
+                        }
+                        onApply={handleApplyRecipe}
+                        onApplyInspiration={handleApplyInspiration}
+                      />
+                      <PlaceholderFillDialog
+                        open={placeholderDialog.open}
+                        onOpenChange={(open) =>
+                          setPlaceholderDialog((prev) => ({ ...prev, open }))
+                        }
+                        prompt={placeholderDialog.prompt}
+                        onApply={applyInspirationPrompt}
+                      />
+                    </div>
+                    <div
+                      aria-hidden="true"
+                      className="hidden h-4 w-px shrink-0 bg-border/60 md:block"
+                    />
+                    <div className="relative min-w-0 md:flex-1">
+                      <div className="overflow-x-auto">
+                        <div className="flex min-w-max items-center">
+                          <StudioToolbarPanels compact />
+                        </div>
+                      </div>
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-background to-transparent md:hidden"
+                      />
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-background to-transparent md:hidden"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <motion.div
+              layout
+              animate={{
+                borderRadius: isComposerExpanded ? 24 : 999,
+                paddingTop: isComposerExpanded ? 8 : 6,
+                paddingBottom: isComposerExpanded ? 8 : 6,
+                paddingLeft: 8,
+                paddingRight: 8,
+              }}
+              className={cn(
+                'studio-composer overflow-hidden border border-black/5 shadow-2xl shadow-black/20 ring-1 ring-black/5',
+                'has-[textarea:focus-visible]:border-black/10 has-[textarea:focus-visible]:shadow-black/30 has-[textarea:focus-visible]:ring-black/10',
+              )}
+              transition={motionTransition('slow', reducedMotion)}
+            >
+              <ImageAttachmentPreviewStrip
+                entries={imageUpload.referenceEntries}
+                previewAlt={tImageChip('label')}
+                previewLabel={(index) =>
+                  tImageChip('previewReferenceImage', { index })
+                }
+                previewDescription={tImageChip('previewReferenceDescription')}
+                previewCloseLabel={tImageChip('closeReferencePreview')}
+                removeLabel={(index) =>
+                  tImageChip('removeReferenceImage', { index })
+                }
+                onRemove={imageUpload.removeReferenceImage}
+                overLimitTooltip={tImageChip('disabledOverLimit')}
+                unsupportedTooltip={tImageChip('disabledUnsupported')}
+                variant="composer"
+                dragType={STUDIO_REFERENCE_DRAG_TYPE}
+              />
+              <div className="flex min-h-11 items-center gap-2">
+                <PromptInputTextarea
+                  id={STUDIO_PROMPT_TEXTAREA_ID}
+                  aria-label={tForm('promptLabel')}
+                  placeholder={placeholder}
+                  onPaste={handlePromptPaste}
+                  className="min-h-8 flex-1 px-3 py-1 font-sans text-sm leading-5 selection:bg-neutral-950 selection:text-white placeholder:text-neutral-400 disabled:opacity-100"
+                />
+                <PromptInputActions className="shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      void handleGenerate()
+                    }}
+                    disabled={
+                      isGenerating ||
+                      isAudioPromptOverLimit ||
+                      isImagePromptOverLimit
+                    }
+                    aria-label={t('generate')}
+                    aria-busy={isGenerating}
+                    aria-disabled={!canGenerate}
+                    className={cn(
+                      'flex size-10 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white shadow-sm transition-[background-color,transform,box-shadow]',
+                      'hover:bg-neutral-800 hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400',
+                      (isGenerating ||
+                        isAudioPromptOverLimit ||
+                        isImagePromptOverLimit) &&
+                        'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:bg-muted hover:shadow-none',
+                    )}
+                    style={{
+                      transitionTimingFunction: 'var(--ease-standard)',
+                    }}
+                  >
+                    <AnimatePresence initial={false} mode="wait">
+                      {isGenerating ? (
+                        <motion.span
+                          key="generating"
+                          className="flex items-center justify-center"
+                          initial={{ opacity: 0, scale: 0.92 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.92 }}
+                          transition={motionTransition('fast', reducedMotion)}
+                        >
+                          <Spinner size="md" />
+                          {elapsedSeconds > 0 && (
+                            <span className="sr-only">
+                              {t('generating')} {elapsedSeconds}s
+                            </span>
+                          )}
+                        </motion.span>
+                      ) : (
+                        <motion.span
+                          key="idle"
+                          className="flex items-center justify-center"
+                          initial={{ opacity: 0, scale: 0.92 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.92 }}
+                          transition={motionTransition('fast', reducedMotion)}
+                        >
+                          <Send className="size-4 -rotate-12" />
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                </PromptInputActions>
+              </div>
+            </motion.div>
+            {isAudioMode && state.audioKind !== AUDIO_KIND.SFX && (
+              <div
+                className={cn(
+                  'flex justify-end px-3 pt-1 text-2xs tabular-nums',
+                  isAudioPromptOverLimit
+                    ? 'text-destructive'
+                    : isAudioPromptNearLimit
+                      ? 'text-amber-600'
+                      : 'text-muted-foreground/70',
+                )}
+              >
+                {audioPromptMeta}
+              </div>
+            )}
+            {isImagePromptOverLimit && (
+              <div className="flex justify-end px-3 pt-1 text-2xs tabular-nums text-destructive">
+                {`${imagePromptLength}/${imagePromptMaxChars}`}
+              </div>
+            )}
+          </PromptInput>
+        </div>
+      )}
     </>
   )
 })

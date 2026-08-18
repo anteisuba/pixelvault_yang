@@ -1138,7 +1138,6 @@ export function useNodeWorkflow({
           ...(output.sourceGenerationId
             ? { derivedFromGenerationId: output.sourceGenerationId }
             : {}),
-          ...(output.batchId ? { derivedBatchId: output.batchId } : {}),
           ...(output.label
             ? { mediaLabel: output.label, sourceLabel: output.label }
             : {}),

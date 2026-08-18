@@ -53,7 +53,7 @@ const EXPECTED_OUTPUT_TYPE: Record<StudioEmptyMode, string> = {
 export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   const t = useTranslations('StudioEmptyState')
   const { state, dispatch } = useStudioForm()
-  const { projects } = useStudioData()
+  const { projects, imageUpload } = useStudioData()
   const [guideOpen, setGuideOpen] = useState(false)
 
   // Audio splits into speech / sfx: swap the copy + example chips for sound
@@ -112,6 +112,22 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
     focusStudioPrompt()
   }
 
+  /**
+   * 点「继续创作」的缩略图 —— 除了照旧走 remix（把提示词/参数填回去），
+   * **图本身也进输入框**当参考图（owner 2026-08-14）。少一步「再去挑一次刚
+   * 才那张」的往返。
+   *
+   * ⚠ 只对图片模态做：视频/音频的产物挂成图片参考没有意义，那两个模态的
+   * remix 行为保持原样。
+   */
+  const handleRecent = (gen: GenerationRecord) => {
+    onRemix?.(gen)
+    if (mode === 'image' && gen.url) {
+      void imageUpload.addFromUrl(gen.url)
+    }
+    focusStudioPrompt()
+  }
+
   return (
     <div className="studio-empty-state flex w-full grow flex-col items-center justify-center gap-8 px-4 py-6 sm:gap-10">
       <div className="flex max-w-2xl flex-col items-center gap-4 text-center sm:gap-5">
@@ -147,7 +163,7 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
               <RecentTile
                 key={gen.id}
                 gen={gen}
-                onRemix={onRemix}
+                onSelect={handleRecent}
                 label={t('recentRemixHint')}
               />
             ))}
@@ -182,16 +198,16 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
 
 interface RecentTileProps {
   gen: GenerationRecord
-  onRemix?: (generation: GenerationRecord) => void
+  onSelect: (generation: GenerationRecord) => void
   label: string
 }
 
-function RecentTile({ gen, onRemix, label }: RecentTileProps) {
+function RecentTile({ gen, onSelect, label }: RecentTileProps) {
   const promptExcerpt = gen.prompt?.slice(0, 50) ?? ''
   return (
     <button
       type="button"
-      onClick={() => onRemix?.(gen)}
+      onClick={() => onSelect(gen)}
       title={label}
       aria-label={`${label} ${promptExcerpt}`.trim()}
       className="group relative size-20 shrink-0 overflow-hidden rounded-lg border border-border/50 transition-transform duration-200 hover:-translate-y-0.5 sm:size-24"

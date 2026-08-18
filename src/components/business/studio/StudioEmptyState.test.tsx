@@ -13,6 +13,7 @@ vi.mock('next-intl', () => ({
 }))
 
 const dispatchMock = vi.fn()
+const addFromUrlMock = vi.fn(() => Promise.resolve())
 let historyMock: GenerationRecord[] = []
 
 vi.mock('@/contexts/studio-context', () => ({
@@ -20,7 +21,13 @@ vi.mock('@/contexts/studio-context', () => ({
     state: { audioKind: 'speech' },
     dispatch: dispatchMock,
   }),
-  useStudioData: () => ({ projects: { history: historyMock } }),
+  // ⚠ 手写镜像：组件消费到哪些字段这里就得有哪些。缺 `imageUpload` 时点缩略图
+  // 会在事件处理里抛（测试仍报 pass，只多一条 unhandled error）——
+  // 同 VideoComposer 夹具脱节那一类，别只看 pass 数。
+  useStudioData: () => ({
+    projects: { history: historyMock },
+    imageUpload: { addFromUrl: addFromUrlMock },
+  }),
 }))
 
 const focusMock = vi.fn()
@@ -127,6 +134,33 @@ describe('StudioEmptyState', () => {
     expect(onRemix).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'img-1' }),
     )
+  })
+
+  it('点缩略图时图片模态还会把图挂进输入框，视频模态不会', () => {
+    localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
+    historyMock = [
+      makeGeneration({ id: 'img-1', url: 'https://cdn/img-1.png' }),
+      makeGeneration({
+        id: 'vid-1',
+        outputType: 'VIDEO',
+        url: 'https://cdn/vid-1.mp4',
+      }),
+    ]
+
+    const { unmount } = render(<StudioEmptyState mode="image" />)
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /recentRemixHint/ })[0],
+    )
+    expect(addFromUrlMock).toHaveBeenCalledWith('https://cdn/img-1.png')
+    unmount()
+
+    // 视频产物挂成图片参考没有意义 —— 那两个模态维持原来的 remix 行为。
+    addFromUrlMock.mockClear()
+    render(<StudioEmptyState mode="video" />)
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /recentRemixHint/ })[0],
+    )
+    expect(addFromUrlMock).not.toHaveBeenCalled()
   })
 
   it('hides the recent row when no history matches the mode', () => {

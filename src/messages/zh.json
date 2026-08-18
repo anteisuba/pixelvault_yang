@@ -231,6 +231,8 @@
     "savedKey": "你的 key",
     "modelCount": "{count, plural, other {# 个模型}}",
     "channelCount": "{count, plural, other {# 个渠道}}",
+    "modelFamily": "系列",
+    "modelVariant": "型号",
     "unitPrice": {
       "second": "${amount} / 秒",
       "image": "${amount} / 张",
@@ -2055,7 +2057,6 @@
     "recentAssets": "最近素材",
     "recentAssetsEmpty": "暂无素材",
     "openLibrary": "素材库",
-    "layerDecompose": "从图片拆层",
     "dropComposerHint": "松开即可添加图片",
     "previewReferenceImage": "放大查看第 {index} 张参考图",
     "referenceLabel": "参考图",
@@ -2423,6 +2424,7 @@
     "modelIdLabel": "模型 ID",
     "modelCustomDescription": "通过你保存的 provider 路由调用的自定义 {provider} 模型。",
     "customModelBadge": "自定义模型",
+    "modelLabel": "模型",
     "promptLabel": "提示词",
     "promptHint": "描述主体、场景、光线、风格。",
     "promptPlaceholder": "描述你想生成的图像...",
@@ -2614,6 +2616,7 @@
       "available": "可用",
       "noKey": "无 API 密钥",
       "failed": "不可用",
+      "execution_worker_unavailable": "本地执行服务未启动",
       "unknown": "未验证"
     },
     "collapse": {
@@ -2700,15 +2703,7 @@
     "editFailed": "编辑失败",
     "saveUpscaleToGallery": "保存超分结果到画廊",
     "editSavedToGallery": "已保存到画廊！",
-    "decompose": "图层分解",
     "decomposing": "正在分解图层...",
-    "decomposeSuccess": "完成！正在下载 PSD 文件。",
-    "decomposeFailed": "图层分解失败",
-    "decomposeDescription": "将角色拆解为语义图层（头发、眼睛、服装等），输出为分层 PSD。最适合动漫风格插画。",
-    "downloadPsd": "下载 PSD",
-    "layerPreview": "图层预览",
-    "layerCount": "已提取 {count} 个图层",
-    "saveDecomposeToGallery": "保存图层到画廊",
     "downloadFailed": "下载失败，正在打开原图。",
     "shareFailed": "复制分享链接失败。"
   },
@@ -3096,21 +3091,6 @@
     "referenceOnlyPrompt": "分析已添加的参考素材，并帮我继续完善这个想法。",
     "videoUnsupported": "当前模型无法分析视频。请选择 Gemini，或移除视频参考。",
     "imageUnsupported": "当前模型无法分析图片。请选择 OpenAI 或 Gemini，或移除图片参考。"
-  },
-  "LayerDecompose": {
-    "title": "图层分解",
-    "animeOnly": "最适合动漫风格插画。将角色拆解为语义图层（头发、眼睛、服装等）。",
-    "uploadPrompt": "拖放图片或点击上传",
-    "uploadHint": "JPG、PNG、WebP — 推荐动漫角色图片",
-    "decomposing": "正在分解图层...",
-    "decomposingHint": "可能需要 1-3 分钟（GPU 推理）",
-    "layerCount": "已提取 {count} 个图层",
-    "useAsReference": "用作参考图",
-    "addedAsReference": "已将「{name}」添加为参考图",
-    "downloadPsd": "下载 PSD",
-    "downloadLayer": "下载图层",
-    "reset": "重置",
-    "error": "图层分解失败"
   },
   "Onboarding": {
     "next": "下一步",
@@ -5217,6 +5197,14 @@
     "compareGenerate": "对比模型",
     "compareSuccess": "对比已生成！",
     "compareSelectModels": "选择 2-3 个模型进行对比",
+    "modelAdd": "添加模型",
+    "modelRemove": "移除",
+    "modelCountSelected": "{count, plural, other {已选 # 个}}",
+    "specLabel": "规格",
+    "batchCountSummary": "{count, plural, other {每模型 # 张}}",
+    "generateCount": "{count, plural, other {生成 # 张}}",
+    "batchCountLabel": "生成数量",
+    "batchCountHint": "每一张都是一次独立生成，积分按张计。",
     "aspectRatioLabel": "宽高比",
     "resolutionQualityLabel": "分辨率与质量",
     "resolutionLabel": "分辨率",
@@ -5233,7 +5221,6 @@
     "advanced": "高级",
     "referenceImage": "参考图",
     "referenceFormats": "JPG、PNG、WebP",
-    "layerDecompose": "图层分解",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token 已保存",
     "selectModelFirst": "请先选择模型以配置高级设置",
@@ -5262,7 +5249,6 @@
     "referenceDisabledOverLimit": "超出当前模型最多 {max} 张参考图的限制",
     "referenceDisabledUnsupported": "当前模型不支持参考图",
     "reverse": "图片反向工程",
-    "layers": "图层分解",
     "script": "视频剧本",
     "advanced": "高级设置",
     "enhance": "提示词助手",
@@ -5370,7 +5356,6 @@
     "toolSaveSuperRes": "保存超分结果",
     "upscaling": "超分中...",
     "removingBg": "去背景中...",
-    "toolLayers": "图层分解",
     "linkCopied": "链接已复制",
     "toolRemix": "重混",
     "toolEdit": "AI 编辑",
@@ -5447,8 +5432,6 @@
     "importSuccess": "图片已导入到画廊。",
     "importFailed": "无法从该 URL 导入图片。",
     "dismissError": "关闭",
-    "decomposeQueued": "排队中 — 模型可能正在冷启动。",
-    "decomposeRunning": "正在分解图层…",
     "toolsTitle": "编辑工具",
     "groups": {
       "auto": "一键操作",
@@ -5459,8 +5442,7 @@
       "upscale": "超分辨率",
       "removeBg": "去背景",
       "inpaint": "局部重绘",
-      "outpaint": "扩展画布",
-      "decompose": "图层分解"
+      "outpaint": "扩展画布"
     },
     "taskGrid": {
       "title": "选择一个任务",
@@ -5495,10 +5477,6 @@
       "text-render": {
         "label": "文本/海报",
         "description": "高保真文字渲染与海报排版。"
-      },
-      "decompose": {
-        "label": "图层分解",
-        "description": "拆成可编辑的 PSD 图层。"
       },
       "extract-element": {
         "label": "提取元素",
@@ -5547,23 +5525,14 @@
     "saveResult": "保存到画廊",
     "useResultAsSource": "将结果作为源图",
     "openSavedGeneration": "打开已保存作品",
-    "downloadPsd": "下载 PSD",
-    "layersTitle": "图层",
-    "decomposePreviewTitle": "选择要放置的图层",
-    "decomposeSelectAll": "全选",
-    "decomposeClear": "清除选择",
-    "decomposePlace": "放置选中图层",
-    "layerCount": "已提取 {count} 个图层",
     "success": {
       "upscale": "超分完成。",
       "removeBg": "背景已移除。"
     },
     "savedToGallery": "已保存到画廊。",
-    "decomposeDone": "已提取 {count} 个图层。",
     "editFailed": "图片编辑失败。",
     "saveFailed": "无法保存结果。",
-    "downloadFailed": "下载失败。",
-    "decomposeFailed": "图层分解失败。"
+    "downloadFailed": "下载失败。"
   },
   "sceneFeedback": {
     "keepCharacter": "保持角色",
@@ -5673,6 +5642,7 @@
       "unsupportedVolcengineReferenceImage": "Seedream 无法读取这张参考图。请使用 JPEG、PNG 或 WebP 等通用格式，并确认图片链接可被服务端直接访问。",
       "unsupportedReferenceImage": "该模型无法读取当前参考图格式。请改用 JPEG、PNG 或 WebP 后再生成。",
       "referenceImageTooLarge": "参考图文件过大，超出该模型限制。请压缩图片或换一张更小的图片后再试。",
+      "executionWorkerUnavailable": "生成请求没能送到执行服务。本地开发请先启动 workers/execution（等它打出 Ready on 8787）；线上请检查执行服务是否可达。",
       "referenceImageUnreachable": "服务商无法下载这张参考图。请使用可直接访问的公开图片链接，或重新上传图片。",
       "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",
       "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。",
@@ -5702,6 +5672,7 @@
       "reference_image_unreachable": "服务商无法下载这张参考图",
       "reference_image_limit_exceeded": "参考图数量超过该模型限制",
       "invalid_reference_image_dimensions": "参考图尺寸或比例不符合该模型要求",
+      "runner_queue_stuck": "Runner 收下了这次出图，但没有 GPU worker 来跑，已自动取消。重试只会再排一次队——先换用托管模型，或让站点管理员检查 Runner 端点。",
       "unknown": "发生了未知错误"
     },
     "validation": {

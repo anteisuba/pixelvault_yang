@@ -180,9 +180,6 @@ export function StudioToolPopoverContent({
   label,
   className,
   mobileClassName,
-  onFocusOutside,
-  onInteractOutside,
-  onPointerDownOutside,
   ...props
 }: StudioToolPopoverContentProps) {
   return (
@@ -199,18 +196,6 @@ export function StudioToolPopoverContent({
         className,
       )}
       mobileClassName={cn(studioToolSurfaceMobileClass[size], mobileClassName)}
-      onFocusOutside={(event) => {
-        event.preventDefault()
-        onFocusOutside?.(event)
-      }}
-      onInteractOutside={(event) => {
-        event.preventDefault()
-        onInteractOutside?.(event)
-      }}
-      onPointerDownOutside={(event) => {
-        event.preventDefault()
-        onPointerDownOutside?.(event)
-      }}
       {...props}
     />
   )

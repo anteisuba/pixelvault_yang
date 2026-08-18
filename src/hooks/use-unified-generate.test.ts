@@ -168,6 +168,132 @@ describe('useUnifiedGenerate', () => {
     )
   })
 
+  it('routes variantCount > 1 to N independent seeded requests', async () => {
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+    let generationPromise: Promise<GenerationRecord | null>
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+        variantCount: 4,
+      })
+      await Promise.resolve()
+    })
+
+    // There is no "N images per request" path at any provider we call, so the
+    // count must fan out into N submissions, each carrying its own seed.
+    expect(mockStudioGenerate).toHaveBeenCalledTimes(4)
+    const seeds = mockStudioGenerate.mock.calls.map(([arg]) => arg.seed)
+    expect(new Set(seeds).size).toBe(4)
+    for (const [arg] of mockStudioGenerate.mock.calls) {
+      expect(arg).toEqual(
+        expect.objectContaining({ ...IMAGE_INPUT, runGroupType: 'variant' }),
+      )
+    }
+    expect(result.current.activeRun?.mode).toBe('variant')
+    expect(result.current.activeRun?.items).toHaveLength(4)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await generationPromise!
+  })
+
+  it('多模型 × 多张 = 矩阵：每个模型各发 N 次，同模型的 seed 互不相同', async () => {
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+    let generationPromise: Promise<GenerationRecord | null>
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+        variantCount: 2,
+        compareModels: [
+          { modelId: 'model-a', apiKeyId: 'key-a' },
+          { modelId: 'model-b' },
+        ],
+      })
+      await Promise.resolve()
+    })
+
+    // 2 模型 × 2 张 = 4 次请求。这正是拆掉 mode 二选一之前表达不了的那种组合。
+    expect(mockStudioGenerate).toHaveBeenCalledTimes(4)
+    const calls = mockStudioGenerate.mock.calls.map(([arg]) => arg)
+    expect(calls.filter((c) => c.modelId === 'model-a')).toHaveLength(2)
+    expect(calls.filter((c) => c.modelId === 'model-b')).toHaveLength(2)
+    expect(new Set(calls.map((c) => c.seed)).size).toBe(4)
+    expect(result.current.activeRun?.items).toHaveLength(4)
+    expect(result.current.activeRun?.mode).toBe('compare')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await generationPromise!
+  })
+
+  it('多模型各一张时不发 seed —— 与单模型单张的请求保持同构', async () => {
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+    let generationPromise: Promise<GenerationRecord | null>
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+        variantCount: 1,
+        compareModels: [{ modelId: 'model-a' }, { modelId: 'model-b' }],
+      })
+      await Promise.resolve()
+    })
+
+    expect(mockStudioGenerate).toHaveBeenCalledTimes(2)
+    for (const [arg] of mockStudioGenerate.mock.calls) {
+      expect(arg).not.toHaveProperty('seed')
+    }
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await generationPromise!
+  })
+
+  it('keeps variantCount 1 on the plain single-image path', async () => {
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+    let generationPromise: Promise<GenerationRecord | null>
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+        variantCount: 1,
+      })
+      await Promise.resolve()
+    })
+
+    // ×1 must stay byte-identical to a no-count call — no seed, no run group
+    // metadata — and keep the plain single-run tracking, not a variant grid.
+    expect(mockStudioGenerate).toHaveBeenCalledTimes(1)
+    expect(mockStudioGenerate).toHaveBeenCalledWith(IMAGE_INPUT)
+    expect(result.current.activeRun?.mode).toBe('single')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await generationPromise!
+  })
+
   it('dedupes concurrent single image generate calls', async () => {
     vi.useFakeTimers()
     let resolveGeneration!: (

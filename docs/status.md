@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-08-11
+最后更新：2026-08-18
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
@@ -87,6 +87,26 @@
 
 ## Validation
 
+- 2026-08-18 图层分解整条删除（owner：功能废弃）：`LayerDecomposePanel` / `use-layer-decompose` /
+  `image-decompose.service` / `/api/image/decompose` 四个文件删除；画布 `decompose` 能力与工作区那整段
+  （预览 / 全选 / 放置图层）删除，ready 能力 8 → 7；`'layers'` 交互、`'image-layers'` 输出、
+  `'derive-layers'` 策略、`derivedBatchId`（全仓只写不读）一并清掉；三语各删 39 个叶子，**删完重新 parse
+  比对前后叶子集合，新增 0 / 意外删除 0**（禁正则改 messages JSON）。跑的是 HF Space `xiuruisu/see-through`。
+  TypeScript 0 错 · 全量 Vitest 485 files / 4409 tests 绿 · 目标 ESLint 0 warning。真机 `/zh/studio/image`
+  确认「图像」弹层只剩 上传 / 最近素材 / 素材库。
+- 2026-08-18 图片工作台重设计（D1 切片 0–3）：图片模态换横向外壳 `StudioWorkbenchLayout`（`lg:w-72`
+  参数栏 + 结果区，断点 lg 与 `useIsMobile` 对齐），视频 / 音频维持 `StudioFlowLayout` 不动；
+  `generateCompare(input, models, perModelCount)` 收敛成矩阵入口（模型集 × 张数），`VariantGrid` 退役、
+  图墙统一到 `CompareGrid`；`BaseModelPickerPanel` 加 `layout="columns"` 三列居中 Dialog + 多选 + 品牌图，
+  搜索框按 owner 删；规格三档合成 `StudioSpecPopover`；助手改右上角浮标 `StudioAssistantFab`。
+  真机 1920 实测：浮标开 720px / 关 0px、参数栏坐标全程不动；生成按钮阻塞态文案 18.15:1（`color(srgb …)`
+  分量是 0–1，按 0–255 读会算出 1.50 的假值）。TypeScript 0 错 · 全量 Vitest 绿 · 目标 ESLint 0 warning。
+  ⛔ 切片 4（成本预览）/ 5（平台出资降档）未做，卡 owner 一句话；编辑线 E0–E5 一条未开工。
+- 2026-08-17 Studio Image 参数栏弹层回归：`ResponsivePopover` 在窄视口 + fine pointer 时保留锚定 Popover，
+  touch-primary 紧凑态仍走 Drawer；`StudioPromptArea` 的 document pointer handler 不再抢先关闭当前
+  `图像` / `规格` 触发器。定向 Vitest 3 files / 25 tests、全量 Vitest 485 files / 4409 tests、
+  TypeScript、目标 ESLint 与 `git diff --check` 通过；现有 3000 页面实测两个入口均可“打开 → 再点同一按钮关闭”，
+  点击提示词区域关闭仍正常，控制台无新增 error。
 - 2026-08-11 画布助手顶部避让：`CanvasWorkspaceLayout` Vitest 1/1、目标 ESLint 与 `git diff --check` 通过；现有 3000 页面在 1127px 视口实测“桌面”按钮右边缘为 1115px，助手为 `360×832`、顶部 64px、右/下各 16px。全量 TypeScript 被工作区另一项未完成的 `KreaAssetBrowser.tsx` 密度常量/类型缺失阻断，与本次几何改动无关。
 - 2026-08-11 画布助手交互：定向 Vitest 4 files / 14 tests、TypeScript、目标 ESLint、目标源码
   Prettier 与 `git diff --check` 通过；现有 3000 页面实测标题栏方向键移动 `-24px`、模型按钮点击后

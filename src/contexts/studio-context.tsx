@@ -57,6 +57,10 @@ import {
   AUDIO_DEFAULT_EMOTION,
   AUDIO_DEFAULT_PACE,
 } from '@/constants/voice-cards'
+import {
+  DEFAULT_IMAGE_BATCH_COUNT,
+  type ImageBatchCount,
+} from '@/constants/studio'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useBackgroundCards } from '@/hooks/cards/use-background-cards'
 import { useStyleCards } from '@/hooks/cards/use-style-cards'
@@ -86,9 +90,10 @@ export type PanelName =
   | 'reverse'
   | 'advanced'
   | 'refImage'
-  | 'layerDecompose'
   | 'aspectRatio'
   | 'resolution'
+  | 'batchCount'
+  | 'spec'
   | 'loraSelector'
   | 'voiceSelector'
   | 'voiceTrainer'
@@ -110,11 +115,21 @@ export interface StudioFormState {
   recipeUsage: RecipeUsage | null
   aspectRatio: AspectRatio
   advancedParams: AdvancedParams
+  /** Image-specific — how many images one send produces (1 / 2 / 4). */
+  imageBatchCount: ImageBatchCount
   tokenInput: string
   /** Fish Audio voice model ID for TTS */
   voiceId: string | null
   /** Persisted VoiceCard ID for TTS */
   voiceCardId: string | null
+  /**
+   * 这一轮除主模型之外**额外**要跑的模型（optionId）。空数组 = 只跑主模型。
+   *
+   * 为什么不是「一个名单取代 selectedOptionId」：主模型还要负责别的事 ——
+   * 清晰度候选、提示词字数上限、参考图槽位数都按它的能力算。让它继续存在、
+   * 额外的挂在旁边，是改动面最小且不牺牲那些能力判定的做法。
+   */
+  extraModelOptionIds: string[]
   /** Audio-specific — active kind (speech / sfx / music) */
   audioKind: string
   /** Audio-specific — user-facing emotion control */
@@ -205,6 +220,9 @@ export type StudioAction =
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
   | { type: 'SET_ADVANCED_PARAMS'; payload: AdvancedParams }
   | { type: 'RESET_ADVANCED_PARAMS' }
+  | { type: 'SET_IMAGE_BATCH_COUNT'; payload: ImageBatchCount }
+  | { type: 'TOGGLE_EXTRA_MODEL'; payload: string }
+  | { type: 'REMOVE_EXTRA_MODEL'; payload: string }
   | { type: 'SET_TOKEN_INPUT'; payload: string }
   | { type: 'SET_VOICE_ID'; payload: string | null }
   | { type: 'SET_VOICE_CARD_ID'; payload: string | null }
@@ -264,9 +282,10 @@ const initialPanels: Record<PanelName, boolean> = {
   reverse: false,
   advanced: false,
   refImage: false,
-  layerDecompose: false,
   aspectRatio: false,
   resolution: false,
+  batchCount: false,
+  spec: false,
   loraSelector: false,
   voiceSelector: false,
   voiceTrainer: false,
@@ -287,10 +306,11 @@ export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
   'stylePreset',
   'refImage',
   'loraSelector',
-  'layerDecompose',
   'civitai',
   'aspectRatio',
   'resolution',
+  'batchCount',
+  'spec',
   'videoParams',
   'script',
   'voiceSelector',
@@ -327,6 +347,8 @@ const initialFormState: StudioFormState = {
   recipeUsage: null,
   aspectRatio: '1:1',
   advancedParams: {},
+  imageBatchCount: DEFAULT_IMAGE_BATCH_COUNT,
+  extraModelOptionIds: [],
   tokenInput: '',
   voiceId: null,
   voiceCardId: null,
@@ -478,6 +500,26 @@ export function studioFormReducer(
       return { ...state, advancedParams: action.payload }
     case 'RESET_ADVANCED_PARAMS':
       return { ...state, advancedParams: {} }
+    case 'SET_IMAGE_BATCH_COUNT':
+      return { ...state, imageBatchCount: action.payload }
+    case 'TOGGLE_EXTRA_MODEL': {
+      // 主模型不进额外名单 —— 它已经在跑了，重复挂一条等于同一个模型发两次。
+      if (action.payload === state.selectedOptionId) return state
+      const has = state.extraModelOptionIds.includes(action.payload)
+      return {
+        ...state,
+        extraModelOptionIds: has
+          ? state.extraModelOptionIds.filter((id) => id !== action.payload)
+          : [...state.extraModelOptionIds, action.payload],
+      }
+    }
+    case 'REMOVE_EXTRA_MODEL':
+      return {
+        ...state,
+        extraModelOptionIds: state.extraModelOptionIds.filter(
+          (id) => id !== action.payload,
+        ),
+      }
     case 'SET_TOKEN_INPUT':
       return { ...state, tokenInput: action.payload }
     case 'SET_VIDEO_DURATION':
@@ -527,6 +569,8 @@ export function studioFormReducer(
         recipeUsage: null,
         aspectRatio: '1:1',
         advancedParams: {},
+        imageBatchCount: DEFAULT_IMAGE_BATCH_COUNT,
+        extraModelOptionIds: [],
         selectedOptionId: null,
         voiceId: null,
         voiceCardId: null,

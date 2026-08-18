@@ -33,9 +33,10 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   reverse: false,
   advanced: false,
   refImage: false,
-  layerDecompose: false,
   aspectRatio: false,
   resolution: false,
+  batchCount: false,
+  spec: false,
   loraSelector: false,
   voiceSelector: false,
   voiceTrainer: false,
@@ -64,9 +65,11 @@ vi.mock('@/contexts/studio-context', () => ({
     'stylePreset',
     'refImage',
     'loraSelector',
-    'layerDecompose',
     'civitai',
     'aspectRatio',
+    'resolution',
+    'batchCount',
+    'spec',
     'videoParams',
     'script',
     'voiceSelector',
@@ -149,6 +152,7 @@ vi.mock('@/hooks/cards/use-voice-cards', () => ({
 
 vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: () => ({
+    keys: [],
     healthMap: {},
   }),
 }))
@@ -171,6 +175,10 @@ vi.mock('@/components/business/studio/PromptTemplatePicker', () => ({
       templatePicker
     </button>
   ),
+}))
+
+vi.mock('@/components/business/studio/StudioEnhanceButton', () => ({
+  StudioEnhanceButton: () => <button type="button">enhance</button>,
 }))
 
 vi.mock('@/components/business/studio/StudioToolbarPanels', () => ({
@@ -232,6 +240,8 @@ function setupStudioForm(
     recipeUsage: null,
     aspectRatio: '16:9',
     advancedParams: {},
+    imageBatchCount: 1,
+    extraModelOptionIds: [],
     tokenInput: '',
     voiceId: null,
     voiceCardId: null,
@@ -397,6 +407,40 @@ describe('StudioPromptArea', () => {
     )
 
     expect(promptGroup).toHaveAttribute('data-expanded', 'true')
+  })
+
+  it('does not pre-close the open image surface when its panel trigger is pressed', () => {
+    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
+      outputType: 'image',
+      selectedOptionId: null,
+      panels: { ...EMPTY_PANELS, refImage: true },
+    })
+
+    render(<StudioPromptArea layout="panel" />)
+    mockDispatch.mockClear()
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'label' }))
+
+    expect(mockDispatch).not.toHaveBeenCalledWith({
+      type: 'CLOSE_TOOL_PANELS',
+    })
+  })
+
+  it('does not pre-close the open spec surface when its panel trigger is pressed', () => {
+    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
+      outputType: 'image',
+      selectedOptionId: null,
+      panels: { ...EMPTY_PANELS, spec: true },
+    })
+
+    render(<StudioPromptArea layout="panel" />)
+    mockDispatch.mockClear()
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'specLabel' }))
+
+    expect(mockDispatch).not.toHaveBeenCalledWith({
+      type: 'CLOSE_TOOL_PANELS',
+    })
   })
 
   it('routes dropped reference images through the prompt box', async () => {

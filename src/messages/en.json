@@ -231,6 +231,8 @@
     "savedKey": "Your key",
     "modelCount": "{count, plural, one {# model} other {# models}}",
     "channelCount": "{count, plural, one {# channel} other {# channels}}",
+    "modelFamily": "Family",
+    "modelVariant": "Model",
     "unitPrice": {
       "second": "${amount} / second",
       "image": "${amount} / image",
@@ -2055,7 +2057,6 @@
     "recentAssets": "Recent assets",
     "recentAssetsEmpty": "No assets yet",
     "openLibrary": "Asset library",
-    "layerDecompose": "Split into layers",
     "dropComposerHint": "Drop to attach image",
     "previewReferenceImage": "Preview reference image {index}",
     "referenceLabel": "Reference images",
@@ -2423,6 +2424,7 @@
     "modelIdLabel": "Model ID",
     "modelCustomDescription": "Custom {provider} model routed through your saved provider route.",
     "customModelBadge": "Custom model",
+    "modelLabel": "Model",
     "promptLabel": "Prompt",
     "promptHint": "Describe the subject, setting, light, composition, or style as clearly as you can.",
     "promptPlaceholder": "Describe the image you want to generate...",
@@ -2614,6 +2616,7 @@
       "available": "Available",
       "noKey": "No API key",
       "failed": "Unavailable",
+      "execution_worker_unavailable": "Execution service unavailable",
       "unknown": "Not verified"
     },
     "collapse": {
@@ -2700,15 +2703,7 @@
     "editFailed": "Editing failed",
     "saveUpscaleToGallery": "Save upscaled to gallery",
     "editSavedToGallery": "Saved to gallery!",
-    "decompose": "Layer Decompose",
     "decomposing": "Decomposing layers...",
-    "decomposeSuccess": "Done! Downloading the PSD file.",
-    "decomposeFailed": "Layer decomposition failed",
-    "decomposeDescription": "Split into semantic layers (hair, eyes, clothes, etc.) as a layered PSD. Best for anime-style illustrations.",
-    "downloadPsd": "Download PSD",
-    "layerPreview": "Layer Preview",
-    "layerCount": "{count} layers extracted",
-    "saveDecomposeToGallery": "Save layers to gallery",
     "downloadFailed": "Download failed. Opening the original instead.",
     "shareFailed": "Failed to copy the share link."
   },
@@ -3096,21 +3091,6 @@
     "referenceOnlyPrompt": "Analyze the attached reference and help me develop the idea.",
     "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
     "imageUnsupported": "This model cannot analyze images. Choose OpenAI or Gemini, or remove the image reference."
-  },
-  "LayerDecompose": {
-    "title": "Layer Decompose",
-    "animeOnly": "Best for anime-style illustrations. Splits into semantic layers (hair, eyes, clothes, etc.).",
-    "uploadPrompt": "Drop an image or click to upload",
-    "uploadHint": "JPG, PNG, WebP — anime characters recommended",
-    "decomposing": "Decomposing into layers...",
-    "decomposingHint": "This may take 1-3 minutes (GPU inference)",
-    "layerCount": "{count} layers extracted",
-    "useAsReference": "Use as reference",
-    "addedAsReference": "Added \"{name}\" as reference image",
-    "downloadPsd": "Download PSD",
-    "downloadLayer": "Download layer",
-    "reset": "Reset",
-    "error": "Layer decomposition failed"
   },
   "Onboarding": {
     "next": "Next",
@@ -5217,6 +5197,14 @@
     "compareGenerate": "Compare Models",
     "compareSuccess": "Comparison generated!",
     "compareSelectModels": "Select 2-3 models to compare",
+    "modelAdd": "Add model",
+    "modelRemove": "Remove",
+    "modelCountSelected": "{count, plural, one {# selected} other {# selected}}",
+    "specLabel": "Spec",
+    "batchCountSummary": "{count, plural, one {# per model} other {# per model}}",
+    "generateCount": "{count, plural, one {Generate # image} other {Generate # images}}",
+    "batchCountLabel": "Images per run",
+    "batchCountHint": "Each image is its own generation — credits are charged per image.",
     "aspectRatioLabel": "Aspect Ratio",
     "resolutionQualityLabel": "Resolution & quality",
     "resolutionLabel": "Resolution",
@@ -5233,7 +5221,6 @@
     "advanced": "Advanced",
     "referenceImage": "Reference",
     "referenceFormats": "JPG, PNG, WebP",
-    "layerDecompose": "Layers",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token saved",
     "selectModelFirst": "Select a model to configure advanced settings",
@@ -5262,7 +5249,6 @@
     "referenceDisabledOverLimit": "Exceeds the current model's {max}-image limit",
     "referenceDisabledUnsupported": "Current model doesn't accept reference images",
     "reverse": "Image Reverse Engineer",
-    "layers": "Layer Decompose",
     "script": "Video Script",
     "advanced": "Advanced Settings",
     "enhance": "Prompt Assistant",
@@ -5370,7 +5356,6 @@
     "toolSaveSuperRes": "Save super-res",
     "upscaling": "Upscaling...",
     "removingBg": "Removing...",
-    "toolLayers": "Layer decompose",
     "linkCopied": "Link copied",
     "toolRemix": "Remix",
     "toolEdit": "Edit with AI",
@@ -5447,8 +5432,6 @@
     "importSuccess": "Image imported into your gallery.",
     "importFailed": "Could not import that URL.",
     "dismissError": "Dismiss",
-    "decomposeQueued": "Queued — the model may be cold-starting.",
-    "decomposeRunning": "Decomposing layers…",
     "toolsTitle": "Edit tools",
     "groups": {
       "auto": "One-click",
@@ -5459,8 +5442,7 @@
       "upscale": "Super resolution",
       "removeBg": "Remove background",
       "inpaint": "Inpaint",
-      "outpaint": "Outpaint",
-      "decompose": "Layer decompose"
+      "outpaint": "Outpaint"
     },
     "taskGrid": {
       "title": "Choose a task",
@@ -5495,10 +5477,6 @@
       "text-render": {
         "label": "Text & posters",
         "description": "High-fidelity typography and layout."
-      },
-      "decompose": {
-        "label": "Layer decompose",
-        "description": "Split into editable PSD layers."
       },
       "extract-element": {
         "label": "Extract element",
@@ -5547,23 +5525,14 @@
     "saveResult": "Save to gallery",
     "useResultAsSource": "Use result as source",
     "openSavedGeneration": "Open saved generation",
-    "downloadPsd": "Download PSD",
-    "layersTitle": "Layers",
-    "decomposePreviewTitle": "Choose layers to place",
-    "decomposeSelectAll": "Select all",
-    "decomposeClear": "Clear",
-    "decomposePlace": "Place selected layers",
-    "layerCount": "{count} layers extracted",
     "success": {
       "upscale": "Super resolution complete.",
       "removeBg": "Background removed."
     },
     "savedToGallery": "Saved to gallery.",
-    "decomposeDone": "{count} layers extracted.",
     "editFailed": "Image edit failed.",
     "saveFailed": "Could not save the result.",
-    "downloadFailed": "Download failed.",
-    "decomposeFailed": "Layer decomposition failed."
+    "downloadFailed": "Download failed."
   },
   "sceneFeedback": {
     "keepCharacter": "Keep character",
@@ -5673,6 +5642,7 @@
       "unsupportedVolcengineReferenceImage": "Seedream could not read this reference image. Use a common format such as JPEG, PNG, or WebP, and make sure the URL is directly accessible.",
       "unsupportedReferenceImage": "This model could not read the reference image format. Use JPEG, PNG, or WebP, then try again.",
       "referenceImageTooLarge": "The reference image is too large for this model. Compress it or use a smaller image, then try again.",
+      "executionWorkerUnavailable": "The request never reached the execution service. In local dev, start workers/execution and wait for “Ready on 8787”; in production, check that the execution service is reachable.",
       "referenceImageUnreachable": "The provider could not download the reference image. Use a direct public image URL or upload the image again.",
       "referenceImageLimitExceeded": "This model received too many reference images. Remove some reference images and try again.",
       "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again.",
@@ -5702,6 +5672,7 @@
       "reference_image_unreachable": "The provider could not download the reference image",
       "reference_image_limit_exceeded": "This model received too many reference images",
       "invalid_reference_image_dimensions": "The reference image size or aspect ratio is not supported",
+      "runner_queue_stuck": "PixelVault Runner accepted the job but no GPU worker picked it up, so it was cancelled. Retrying will just queue again — use a hosted model for now, or ask the site admin to check the Runner endpoint.",
       "unknown": "An unexpected error occurred"
     },
     "validation": {

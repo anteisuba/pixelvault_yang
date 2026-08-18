@@ -231,6 +231,8 @@
     "savedKey": "自分のキー",
     "modelCount": "{count, plural, other {# モデル}}",
     "channelCount": "{count, plural, other {# チャネル}}",
+    "modelFamily": "シリーズ",
+    "modelVariant": "モデル",
     "unitPrice": {
       "second": "${amount} / 秒",
       "image": "${amount} / 枚",
@@ -2055,7 +2057,6 @@
     "recentAssets": "最近の素材",
     "recentAssetsEmpty": "素材がありません",
     "openLibrary": "素材ライブラリ",
-    "layerDecompose": "画像をレイヤー分解",
     "dropComposerHint": "離すと画像を添付します",
     "previewReferenceImage": "参照画像 {index} を拡大表示",
     "referenceLabel": "参照画像",
@@ -2423,6 +2424,7 @@
     "modelIdLabel": "モデル ID",
     "modelCustomDescription": "保存済みプロバイダールート経由で呼び出すカスタム {provider} モデルです。",
     "customModelBadge": "カスタムモデル",
+    "modelLabel": "モデル",
     "promptLabel": "プロンプト",
     "promptHint": "被写体、場面、ライティング、構図、スタイルなどをできるだけ明確に書いてください。",
     "promptPlaceholder": "生成したい画像を説明してください...",
@@ -2614,6 +2616,7 @@
       "available": "利用可能",
       "noKey": "API キーなし",
       "failed": "利用不可",
+      "execution_worker_unavailable": "実行サービスに接続できません",
       "unknown": "未検証"
     },
     "collapse": {
@@ -2700,15 +2703,7 @@
     "editFailed": "編集に失敗しました",
     "saveUpscaleToGallery": "高解像度化をギャラリーに保存",
     "editSavedToGallery": "ギャラリーに保存しました！",
-    "decompose": "レイヤー分解",
     "decomposing": "レイヤー分解中...",
-    "decomposeSuccess": "完了！PSDファイルをダウンロードしています。",
-    "decomposeFailed": "レイヤー分解に失敗しました",
-    "decomposeDescription": "髪、目、服などのセマンティックレイヤーに分解し、レイヤー付きPSDとして出力します。アニメ調イラストに最適です。",
-    "downloadPsd": "PSDダウンロード",
-    "layerPreview": "レイヤープレビュー",
-    "layerCount": "{count}個のレイヤーを抽出",
-    "saveDecomposeToGallery": "レイヤーをギャラリーに保存",
     "downloadFailed": "ダウンロードに失敗しました。元画像を開きます。",
     "shareFailed": "共有リンクのコピーに失敗しました。"
   },
@@ -3096,21 +3091,6 @@
     "referenceOnlyPrompt": "添付した参考素材を分析し、アイデアを発展させてください。",
     "videoUnsupported": "このモデルは動画を分析できません。Geminiを選ぶか、動画の参考素材を削除してください。",
     "imageUnsupported": "このモデルは画像を分析できません。OpenAIまたはGeminiを選ぶか、画像の参考素材を削除してください。"
-  },
-  "LayerDecompose": {
-    "title": "レイヤー分解",
-    "animeOnly": "アニメ調イラストに最適です。キャラクターを意味レイヤー（髪、目、服など）に分解します。",
-    "uploadPrompt": "画像をドロップまたはクリックしてアップロード",
-    "uploadHint": "JPG、PNG、WebP — アニメキャラ画像推奨",
-    "decomposing": "レイヤーを分解中...",
-    "decomposingHint": "1〜3分かかる場合があります（GPU推論）",
-    "layerCount": "{count}個のレイヤーを抽出",
-    "useAsReference": "参照画像として使用",
-    "addedAsReference": "「{name}」を参照画像に追加しました",
-    "downloadPsd": "PSDダウンロード",
-    "downloadLayer": "レイヤーをダウンロード",
-    "reset": "リセット",
-    "error": "レイヤー分解に失敗しました"
   },
   "Onboarding": {
     "next": "次へ",
@@ -5209,6 +5189,14 @@
     "compareGenerate": "モデル比較",
     "compareSuccess": "比較が生成されました！",
     "compareSelectModels": "比較する2〜3つのモデルを選択",
+    "modelAdd": "モデルを追加",
+    "modelRemove": "削除",
+    "modelCountSelected": "{count, plural, other {# 件選択}}",
+    "specLabel": "仕様",
+    "batchCountSummary": "{count, plural, other {モデルごと # 枚}}",
+    "generateCount": "{count, plural, other {# 枚生成}}",
+    "batchCountLabel": "生成枚数",
+    "batchCountHint": "1枚ごとに独立した生成です。クレジットは枚数分かかります。",
     "aspectRatioLabel": "アスペクト比",
     "resolutionQualityLabel": "解像度と品質",
     "resolutionLabel": "解像度",
@@ -5225,7 +5213,6 @@
     "advanced": "詳細",
     "referenceImage": "参照画像",
     "referenceFormats": "JPG、PNG、WebP",
-    "layerDecompose": "レイヤー分解",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token保存済み",
     "selectModelFirst": "詳細設定を行うにはモデルを選択してください",
@@ -5262,7 +5249,6 @@
     "referenceDisabledOverLimit": "このモデルの最大 {max} 枚を超えています",
     "referenceDisabledUnsupported": "現在のモデルは参照画像を受け付けません",
     "reverse": "画像リバースエンジニア",
-    "layers": "レイヤー分解",
     "script": "動画脚本",
     "advanced": "詳細設定",
     "enhance": "プロンプトアシスタント",
@@ -5370,7 +5356,6 @@
     "toolSaveSuperRes": "超解像を保存",
     "upscaling": "処理中...",
     "removingBg": "背景除去中...",
-    "toolLayers": "レイヤー分解",
     "linkCopied": "リンクをコピーしました",
     "toolRemix": "リミックス",
     "toolEdit": "AIで編集",
@@ -5447,8 +5432,6 @@
     "importSuccess": "画像をギャラリーに取り込みました。",
     "importFailed": "その URL から画像を取り込めませんでした。",
     "dismissError": "閉じる",
-    "decomposeQueued": "キュー待機中 — モデルがコールドスタートの可能性があります。",
-    "decomposeRunning": "レイヤーを分解中…",
     "toolsTitle": "編集ツール",
     "groups": {
       "auto": "ワンクリック",
@@ -5459,8 +5442,7 @@
       "upscale": "超解像",
       "removeBg": "背景除去",
       "inpaint": "インペイント",
-      "outpaint": "アウトペイント",
-      "decompose": "レイヤー分解"
+      "outpaint": "アウトペイント"
     },
     "taskGrid": {
       "title": "タスクを選択",
@@ -5495,10 +5477,6 @@
       "text-render": {
         "label": "テキスト/ポスター",
         "description": "高精度な文字レンダリングとレイアウト。"
-      },
-      "decompose": {
-        "label": "レイヤー分解",
-        "description": "編集可能な PSD レイヤーに分解。"
       },
       "extract-element": {
         "label": "要素を抽出",
@@ -5547,23 +5525,14 @@
     "saveResult": "ギャラリーに保存",
     "useResultAsSource": "結果を元画像にする",
     "openSavedGeneration": "保存した作品を開く",
-    "downloadPsd": "PSDをダウンロード",
-    "layersTitle": "レイヤー",
-    "decomposePreviewTitle": "配置するレイヤーを選択",
-    "decomposeSelectAll": "すべて選択",
-    "decomposeClear": "選択を解除",
-    "decomposePlace": "選択したレイヤーを配置",
-    "layerCount": "{count} レイヤーを抽出",
     "success": {
       "upscale": "超解像が完了しました。",
       "removeBg": "背景を除去しました。"
     },
     "savedToGallery": "ギャラリーに保存しました。",
-    "decomposeDone": "{count} レイヤーを抽出しました。",
     "editFailed": "画像編集に失敗しました。",
     "saveFailed": "結果を保存できませんでした。",
-    "downloadFailed": "ダウンロードに失敗しました。",
-    "decomposeFailed": "レイヤー分解に失敗しました。"
+    "downloadFailed": "ダウンロードに失敗しました。"
   },
   "sceneFeedback": {
     "keepCharacter": "キャラクターを維持",
@@ -5673,6 +5642,7 @@
       "unsupportedVolcengineReferenceImage": "Seedream がこの参照画像を読み取れませんでした。JPEG、PNG、WebP など一般的な形式を使い、画像URLがサーバーから直接アクセスできることを確認してください。",
       "unsupportedReferenceImage": "このモデルは現在の参照画像形式を読み取れません。JPEG、PNG、WebP のいずれかに変更してから再生成してください。",
       "referenceImageTooLarge": "参照画像がこのモデルの上限を超えています。画像を圧縮するか、より小さい画像に変更してから再試行してください。",
+      "executionWorkerUnavailable": "生成リクエストが実行サービスに届きませんでした。ローカル開発では workers/execution を起動し「Ready on 8787」を待ってください。",
       "referenceImageUnreachable": "プロバイダーが参照画像をダウンロードできませんでした。直接アクセスできる公開画像URLを使うか、画像を再アップロードしてください。",
       "referenceImageLimitExceeded": "参照画像の数がこのモデルの上限を超えています。参照画像を減らしてから再試行してください。",
       "invalidReferenceImageDimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません。別のサイズの画像で再試行してください。",
@@ -5702,6 +5672,7 @@
       "reference_image_unreachable": "プロバイダーが参照画像をダウンロードできませんでした",
       "reference_image_limit_exceeded": "参照画像の数がこのモデルの上限を超えています",
       "invalid_reference_image_dimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません",
+      "runner_queue_stuck": "Runner はジョブを受け付けましたが、実行する GPU ワーカーがいなかったため自動的にキャンセルされました。再試行しても再びキューに並ぶだけです。当面はホスト型モデルをご利用いただくか、サイト管理者に Runner エンドポイントの確認をご依頼ください。",
       "unknown": "予期しないエラーが発生しました"
     },
     "validation": {

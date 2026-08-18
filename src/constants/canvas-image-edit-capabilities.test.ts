@@ -21,7 +21,8 @@ describe('canvas image edit capability registry', () => {
     expect(HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id }) => id)).toEqual([
       ...HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITY_IDS,
     ])
-    expect(READY_CANVAS_IMAGE_EDIT_CAPABILITIES).toHaveLength(8)
+    // 七条：2026-08-18 `decompose`（See-Through）整条删除，owner 定功能废弃。
+    expect(READY_CANVAS_IMAGE_EDIT_CAPABILITIES).toHaveLength(7)
     expect(HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITIES).toHaveLength(1)
     expect(
       new Set(CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id }) => id)).size,

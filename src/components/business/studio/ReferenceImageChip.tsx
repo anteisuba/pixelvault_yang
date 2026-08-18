@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, type ChangeEvent } from 'react'
-import { ChevronRight, Image as ImageIcon, Layers } from 'lucide-react'
+import { Image as ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
@@ -104,11 +104,6 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
     setAssetDialogOpen(true)
   }
 
-  const handleRequestLayerDecompose = () => {
-    closePopover()
-    dispatch({ type: 'OPEN_PANEL', payload: 'layerDecompose' })
-  }
-
   return (
     <>
       <StudioToolSurface
@@ -181,28 +176,6 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
                   unsupportedTooltip={t('disabledUnsupported')}
                 />
               ) : null
-            }
-            footerSlot={
-              <div className="border-t border-border/40 pt-2.5">
-                <button
-                  type="button"
-                  title={t('layerDecompose')}
-                  disabled={disabled}
-                  onClick={handleRequestLayerDecompose}
-                  className="group/row flex min-h-11 w-full items-center justify-start gap-3 rounded-xl px-2.5 py-2 text-left text-sm font-medium leading-5 text-foreground transition-colors duration-base ease-standard hover:bg-muted/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
-                >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground ring-1 ring-inset ring-border/40 transition-colors duration-base ease-standard group-hover/row:bg-muted group-hover/row:text-foreground group-hover/row:ring-border">
-                    <Layers className="size-4 shrink-0" aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1 text-left">
-                    {t('layerDecompose')}
-                  </span>
-                  <ChevronRight
-                    className="size-4 shrink-0 text-muted-foreground/50 transition-[color,transform] duration-base ease-standard group-hover/row:translate-x-0.5 group-hover/row:text-muted-foreground"
-                    aria-hidden
-                  />
-                </button>
-              </div>
             }
           />
         </StudioToolPopoverContent>

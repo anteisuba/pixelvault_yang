@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
@@ -85,26 +85,7 @@ describe('ReferenceImageChip', () => {
     mockImageUpload.referenceImages = ['data:image/png;base64,reference']
   })
 
-  it('opens layer decomposition from the image panel', () => {
-    render(
-      <Toolbar.Root>
-        <ReferenceImageChip />
-      </Toolbar.Root>,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'layerDecompose' }))
-
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'CLOSE_PANEL',
-      payload: 'refImage',
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'OPEN_PANEL',
-      payload: 'layerDecompose',
-    })
-  })
-
-  it('renders the shared image picker and keeps layer decomposition visible while empty', () => {
+  it('renders the shared image picker while empty', () => {
     mockImageUpload.referenceEntries = []
     mockImageUpload.referenceImages = []
 
@@ -115,10 +96,5 @@ describe('ReferenceImageChip', () => {
     )
 
     expect(screen.getByTestId('image-picker-popover-body')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'layerDecompose' })).toHaveClass(
-      'min-h-11',
-      'w-full',
-      'justify-start',
-    )
   })
 })

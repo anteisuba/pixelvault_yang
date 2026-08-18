@@ -38,7 +38,6 @@ import { GenerationPreview } from '@/components/business/studio/GenerationPrevie
 import { StudioAudioFeedback } from '@/components/business/studio/StudioAudioFeedback'
 import { StudioGenerationErrorDialog } from '@/components/business/image/StudioGenerationErrorDialog'
 import { StudioResultFeedback } from '@/components/business/image/StudioResultFeedback'
-import { VariantGrid } from '@/components/business/image/VariantGrid'
 import { AudioVariantGrid } from '@/components/business/studio/AudioVariantGrid'
 
 /**
@@ -60,6 +59,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
     lastEvaluation,
     setLastEvaluation,
     isGenerating,
+    elapsedSeconds,
   } = useStudioGen()
   const tAudioFeedback = useTranslations('audioFeedback')
   const [errorDismissed, setErrorDismissed] = useState<string | null>(null)
@@ -283,20 +283,22 @@ export const StudioCanvas = memo(function StudioCanvas() {
           without overflowing the viewport vertically, so it stays framed
           and centred rather than stranded in full-bleed dead space. */}
       <div className="mx-auto w-full">
-        {activeRun?.mode === 'compare' ? (
-          <CompareGrid
-            items={activeRun.items}
-            selectedItemId={activeRun.selectedItemId}
-            onSelect={selectWinner}
-          />
-        ) : activeRun?.mode === 'variant' ? (
+        {/* 图墙：多模型与单模型多张走**同一片**栅格 —— 它们本来就是同一个矩阵
+            的两端（1 模型 × N 张 / N 模型 × 1 张 / N × M）。每格自己标模型名，
+            同模型多张时带 `1/2` 序号，各自报生成中 / 失败。
+            ⚠ 音频仍走 AudioVariantGrid：它的格子是内联播放器，不是图。 */}
+        {/* ⚠ 只接 compare / variant。`mode: 'single'` 的 activeRun 也存在（单张
+            路径也建 run 做逐项追踪），它必须继续走 GenerationPreview —— 一张图
+            掉进栅格里会从「读图」降级成「扫缩略图」。 */}
+        {activeRun?.mode === 'compare' || activeRun?.mode === 'variant' ? (
           state.outputType === 'audio' ? (
             <AudioVariantGrid items={activeRun.items} />
           ) : (
-            <VariantGrid
+            <CompareGrid
               items={activeRun.items}
               selectedItemId={activeRun.selectedItemId}
               onSelect={selectWinner}
+              elapsedSeconds={elapsedSeconds}
             />
           )
         ) : (

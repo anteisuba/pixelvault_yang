@@ -1,5 +1,13 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import type { ImgHTMLAttributes } from 'react'
+
+vi.mock('next/image', () => ({
+  default: ({ src, alt, ...props }: ImgHTMLAttributes<HTMLImageElement>) => (
+    // eslint-disable-next-line @next/next/no-img-element -- test substitute for next/image
+    <img src={String(src)} alt={alt} {...props} />
+  ),
+}))
 
 // jsdom doesn't ship ResizeObserver or Element.scrollIntoView;
 // cmdk (used by <Command/>) needs both.
@@ -802,6 +810,178 @@ describe('BaseModelPickerPanel', () => {
       'Common.channelCount({"count":3})',
     )
     expect(rowText('Seedance 2.0 Fast')).not.toContain('Count(')
+  })
+
+  it('三栏并列时三层同屏，不需要逐层钻进去', () => {
+    // drill 下「Seedance 2.0（火山方舟）」这条渠道要点两次才看得到；columns 下
+    // 打开即三栏齐备，第三栏直接是渠道。
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value={null}
+        onChange={vi.fn()}
+        layout="columns"
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(screen.getByText('Common.modelFamily')).toBeInTheDocument()
+    expect(screen.getByText('Common.modelVariant')).toBeInTheDocument()
+    // 第一栏系列、第二栏型号、第三栏渠道 —— 一次点击都不用
+    expect(screen.getByText('Seedance')).toBeInTheDocument()
+    expect(screen.getByText('Seedance 2.0')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE).label,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('三栏并列时系列只显示官方品牌图，型号不显示图片', () => {
+    const options = [
+      makeOption({
+        optionId: 'gpt-image',
+        modelId: AI_MODELS.OPENAI_GPT_IMAGE_2,
+        displayLabel: 'OpenAI GPT Image 2',
+        sourceType: 'saved',
+        keyId: 'openai-key',
+      }),
+      makeOption({
+        optionId: 'gemini-image',
+        modelId: AI_MODELS.GEMINI_PRO_IMAGE,
+        displayLabel: 'Gemini 3 Pro Image',
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
+        sourceType: 'saved',
+        keyId: 'gemini-key',
+      }),
+      makeOption({
+        optionId: 'flux-image',
+        modelId: AI_MODELS.FLUX_2_PRO,
+        displayLabel: 'FLUX 2 Pro',
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+        sourceType: 'saved',
+        keyId: 'fal-key',
+      }),
+      makeOption({
+        optionId: 'seedream-image',
+        modelId: AI_MODELS.SEEDREAM_50_PRO,
+        displayLabel: 'Seedream 5.0 Pro',
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+        sourceType: 'saved',
+        keyId: 'fal-key',
+      }),
+    ]
+
+    render(
+      <BaseModelPickerPanel
+        options={options}
+        value={null}
+        onChange={vi.fn()}
+        layout="columns"
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    const familyRow = screen.getByText('GPT Image').closest('[role="option"]')
+    const variantRow = screen
+      .getByText('OpenAI GPT Image 2')
+      .closest('[role="option"]')
+
+    const familyImage = familyRow?.querySelector('img')
+    expect(familyImage).toHaveAttribute(
+      'src',
+      '/homepage/production/models/brand/openai.svg',
+    )
+    expect(
+      screen.getByText('FLUX').closest('[role="option"]')?.querySelector('img'),
+    ).toHaveAttribute('src', '/homepage/production/models/brand/flux.svg')
+    expect(
+      screen
+        .getByText('Seedream')
+        .closest('[role="option"]')
+        ?.querySelector('img'),
+    ).toHaveAttribute('src', '/homepage/production/models/brand/bytedance.svg')
+    expect(variantRow?.querySelector('img')).not.toBeInTheDocument()
+
+    fireEvent.error(familyImage!)
+    expect(familyRow?.querySelector('img')).not.toBeInTheDocument()
+    expect(familyRow?.querySelector('[aria-hidden="true"]')).toHaveTextContent(
+      'G',
+    )
+  })
+
+  it('三栏并列时前两栏只导航，选中只发生在第三栏', () => {
+    // 与 drill 的关键差别：drill 里「只剩一条」的分组要塌成可选项，columns 里
+    // 下一层就在右边，所以前两栏一律保持导航语义，点了不触发 onChange。
+    const onChange = vi.fn()
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value={null}
+        onChange={onChange}
+        layout="columns"
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    fireEvent.click(screen.getByText('Kling')) // 单型号单渠道的系列
+    expect(onChange).not.toHaveBeenCalled()
+
+    fireEvent.click(
+      screen.getByText(getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL).label),
+    )
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls[0][0].optionId).toBe('kling-fal')
+  })
+
+  it('多选时点渠道是加/减一条，且面板不关', () => {
+    const onToggleOption = vi.fn()
+    const onChange = vi.fn()
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value={null}
+        onChange={onChange}
+        layout="columns"
+        selectedOptionIds={new Set(['seedance-2.0-fal'])}
+        onToggleOption={onToggleOption}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+
+    fireEvent.click(
+      screen.getByText(
+        getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE).label,
+      ),
+    )
+    // 多选走 onToggleOption，绝不落到单选的 onChange 上
+    expect(onToggleOption).toHaveBeenCalledTimes(1)
+    expect(onToggleOption.mock.calls[0][0].optionId).toBe(
+      'seedance-2.0-volcengine',
+    )
+    expect(onChange).not.toHaveBeenCalled()
+    // 攒名单要连点好几次，面板必须留着
+    expect(screen.getByText('Common.modelFamily')).toBeInTheDocument()
+  })
+
+  it('不传多选两件套时维持单选，四个现有调用方零改动', () => {
+    const onChange = vi.fn()
+    render(
+      <BaseModelPickerPanel
+        options={SEEDANCE_FIXTURE}
+        value={null}
+        onChange={onChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+    // drill 默认路径：单型号单渠道的系列**塌成一条**，所以第一层写的是模型全名
+    // 而不是系列名 'Kling'（columns 下不塌，那里才是 'Kling'）——点了直接选中并关闭。
+    fireEvent.click(screen.getByText('Kling 3.0 Pro'))
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Seedance')).not.toBeInTheDocument()
   })
 
   it('counts 渠道 on a 系列 row whose 型号 layer gets skipped', () => {

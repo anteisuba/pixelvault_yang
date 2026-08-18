@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/api-client', () => ({
   editImageAPI: vi.fn(),
-  decomposeImageAPI: vi.fn(),
   extractElementAPI: vi.fn(),
   createExtractedElementAPI: vi.fn(),
   inpaintImageAPI: vi.fn(),
@@ -11,7 +10,6 @@ vi.mock('@/lib/api-client', () => ({
 
 import {
   createExtractedElementAPI,
-  decomposeImageAPI,
   editImageAPI,
   extractElementAPI,
 } from '@/lib/api-client'
@@ -31,10 +29,6 @@ describe('runCanvasCapability', () => {
   it('exposes the typed capability registry and result strategy', () => {
     expect(canvasCapabilityRuntime.listFor()).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          id: 'decompose',
-          resultStrategy: 'derive-layers',
-        }),
         expect.objectContaining({
           id: 'upscale',
           resultStrategy: 'derive-right',
@@ -75,35 +69,6 @@ describe('runCanvasCapability', () => {
         }),
       ],
     })
-  })
-
-  it('preserves decomposed layer labels and dimensions', async () => {
-    vi.mocked(decomposeImageAPI).mockResolvedValue({
-      success: true,
-      data: {
-        generationId: 'generation-decompose',
-        layers: [
-          { name: 'Subject', imageUrl: 'https://cdn.example.com/subject.png' },
-          { name: 'Mask', imageUrl: 'data:image/png;base64,invalid' },
-        ],
-      },
-    } as never)
-
-    const result = await runCanvasCapability({
-      capability: 'decompose',
-      target,
-      modelId: 'model-1',
-    })
-
-    expect(result.outputs).toEqual([
-      expect.objectContaining({
-        label: 'Subject',
-        width: 1024,
-        height: 768,
-        generationId: 'generation-decompose',
-      }),
-    ])
-    expect(result.batchId).toBe(result.outputs[0]?.batchId)
   })
 
   it('keeps extraction usable when gallery persistence fails', async () => {

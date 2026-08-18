@@ -46,13 +46,6 @@ function PanelLoadingFallback() {
   )
 }
 
-const LayerDecomposePanel = dynamic(
-  () =>
-    import('@/components/business/LayerDecomposePanel').then(
-      (mod) => mod.LayerDecomposePanel,
-    ),
-  { loading: () => <PanelLoadingFallback /> },
-)
 const FishVoiceLibraryDialog = dynamic(
   () =>
     import('@/components/business/node/FishVoiceLibraryDialog').then(
@@ -283,24 +276,6 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                 )}
               </div>
             </div>
-          </div>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
-
-      {/* ── Layer Decompose ───────────────────────────────────── */}
-      <ResponsiveDialog
-        open={state.panels.layerDecompose}
-        onOpenChange={(open) => {
-          if (!open) closePanel('layerDecompose')
-        }}
-      >
-        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <StudioPanelHeader>{tPanels('layers')}</StudioPanelHeader>
-          <ResponsiveDialogDescription className="sr-only">
-            {tPanels('layers')}
-          </ResponsiveDialogDescription>
-          <div className={DIALOG_BODY}>
-            <LayerDecomposePanel onAddAsReference={imageUpload.addFromUrl} />
           </div>
         </ResponsiveDialogContent>
       </ResponsiveDialog>

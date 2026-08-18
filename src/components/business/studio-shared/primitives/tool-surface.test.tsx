@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Popover, PopoverTrigger } from '@/components/ui/popover'
@@ -47,7 +48,21 @@ beforeAll(() => {
 
 beforeEach(() => {
   mockUseIsMobile.mockReturnValue(false)
+  mockTouchPrimary(false)
 })
+
+function mockTouchPrimary(isTouch: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(hover: none)' ? isTouch : false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }))
+}
 
 function renderChip(open?: boolean) {
   return render(
@@ -57,6 +72,22 @@ function renderChip(open?: boolean) {
         <p>面板内容</p>
       </StudioToolPopoverContent>
     </StudioToolSurface>,
+  )
+}
+
+function ToggleChip() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <StudioToolSurface open={open} onOpenChange={setOpen}>
+        <StudioToolSurfaceTrigger>比例</StudioToolSurfaceTrigger>
+        <StudioToolPopoverContent label="宽高比" size="small">
+          <p>面板内容</p>
+        </StudioToolPopoverContent>
+      </StudioToolSurface>
+      <button type="button">外部区域</button>
+    </>
   )
 }
 
@@ -97,8 +128,36 @@ describe('StudioToolSurface', () => {
     expect(popover).toHaveAttribute('aria-label', '宽高比')
   })
 
+  it('closes the anchored popover when its trigger is clicked again', async () => {
+    render(<ToggleChip />)
+
+    const trigger = screen.getByText('比例')
+    fireEvent.click(trigger)
+    expect(await screen.findByText('面板内容')).toBeInTheDocument()
+
+    fireEvent.click(trigger)
+
+    await waitFor(() =>
+      expect(screen.queryByText('面板内容')).not.toBeInTheDocument(),
+    )
+  })
+
+  it('closes the anchored popover when a pointer press happens outside', async () => {
+    render(<ToggleChip />)
+
+    fireEvent.click(screen.getByText('比例'))
+    expect(await screen.findByText('面板内容')).toBeInTheDocument()
+
+    fireEvent.pointerDown(screen.getByText('外部区域'))
+
+    await waitFor(() =>
+      expect(screen.queryByText('面板内容')).not.toBeInTheDocument(),
+    )
+  })
+
   it('opens a bottom drawer with an accessible title on mobile', async () => {
     mockUseIsMobile.mockReturnValue(true)
+    mockTouchPrimary(true)
     renderChip(true)
 
     expect(await screen.findByText('面板内容')).toBeInTheDocument()

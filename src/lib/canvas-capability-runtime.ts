@@ -1,12 +1,10 @@
 import {
   createExtractedElementAPI,
-  decomposeImageAPI,
   editImageAPI,
   extractElementAPI,
   inpaintImageAPI,
   outpaintImageAPI,
 } from '@/lib/api-client'
-import { isRemoteImageUrl } from '@/lib/image-input'
 import type { CanvasDerivedImageOutput } from '@/types/canvas-image-edit'
 import type { OutpaintPadding } from '@/types'
 
@@ -26,11 +24,6 @@ export type CanvasCapabilityRequest =
     }
   | {
       capability: 'remove-background'
-      target: CanvasCapabilityTarget
-      modelId: string
-    }
-  | {
-      capability: 'decompose'
       target: CanvasCapabilityTarget
       modelId: string
     }
@@ -61,21 +54,18 @@ export interface CanvasCapabilityResult {
   outputs: CanvasDerivedImageOutput[]
   error?: string
   saveWarning?: boolean
-  /** Stable id for an operation that may yield multiple placed objects. */
-  batchId?: string
 }
 
 export type CanvasCapabilityResultStrategy =
   | 'update-output-slot'
   | 'derive-right'
-  | 'derive-layers'
   | 'append-sequence'
   | 'bind-only'
 
 export interface CanvasCapabilityDescriptor {
   id: CanvasCapabilityRequest['capability']
-  interaction: 'instant' | 'prompt' | 'mask' | 'outpaint' | 'layers'
-  output: 'single-image' | 'image-layers'
+  interaction: 'instant' | 'prompt' | 'mask' | 'outpaint'
+  output: 'single-image'
   resultStrategy: CanvasCapabilityResultStrategy
   defaultModelId?: string
 }
@@ -111,13 +101,6 @@ export const CANVAS_CAPABILITY_DESCRIPTORS: readonly CanvasCapabilityDescriptor[
       defaultModelId: 'fal-ai/image-apps-v2/outpaint',
     },
     {
-      id: 'decompose',
-      interaction: 'layers',
-      output: 'image-layers',
-      resultStrategy: 'derive-layers',
-      defaultModelId: 'xiuruisu/see-through',
-    },
-    {
       id: 'extract-element',
       interaction: 'prompt',
       output: 'single-image',
@@ -132,11 +115,6 @@ const CAPABILITY_DESCRIPTOR_BY_ID = new Map(
     descriptor,
   ]),
 )
-
-function createCapabilityBatchId(): string {
-  const uuid = globalThis.crypto?.randomUUID?.()
-  return uuid ? `canvas-capability-${uuid}` : `canvas-capability-${Date.now()}`
-}
 
 /** Typed seam consumed by object tools and assistant adapters. */
 export const canvasCapabilityRuntime = {
@@ -223,37 +201,6 @@ async function executeCanvasCapability(
           generationId: response.data.generation?.id,
         }),
       }
-    }
-    case 'decompose': {
-      const response = await decomposeImageAPI(target.sourceUrl, {
-        modelId: request.modelId,
-        ...(target.sourceGenerationId && {
-          persist: true,
-          generationId: target.sourceGenerationId,
-        }),
-      })
-      if (!response.success || !response.data) {
-        return { success: false, outputs: [], error: response.error }
-      }
-      const decomposeData = response.data
-      const batchId = createCapabilityBatchId()
-      const outputs = decomposeData.layers
-        .filter((layer) => isRemoteImageUrl(layer.imageUrl))
-        .map(
-          (layer): CanvasDerivedImageOutput => ({
-            imageUrl: layer.imageUrl,
-            width: target.sourceWidth,
-            height: target.sourceHeight,
-            generationId: decomposeData.generationId,
-            label: layer.name,
-            editCapability: 'decompose',
-            batchId,
-            ...(target.sourceGenerationId
-              ? { sourceGenerationId: target.sourceGenerationId }
-              : {}),
-          }),
-        )
-      return { success: outputs.length > 0, outputs, batchId }
     }
     case 'extract-element': {
       const response = await extractElementAPI({

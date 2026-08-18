@@ -7,7 +7,6 @@ import { CanvasImageEditWorkspace } from './CanvasImageEditWorkspace'
 
 const mocks = vi.hoisted(() => ({
   createExtractedElementAPI: vi.fn(),
-  decomposeImageAPI: vi.fn(),
   editImageAPI: vi.fn(),
   extractElementAPI: vi.fn(),
   focusNode: vi.fn(),
@@ -41,7 +40,6 @@ vi.mock('@/lib/logger', () => ({
 
 vi.mock('@/lib/api-client', () => ({
   createExtractedElementAPI: mocks.createExtractedElementAPI,
-  decomposeImageAPI: mocks.decomposeImageAPI,
   editImageAPI: mocks.editImageAPI,
   extractElementAPI: mocks.extractElementAPI,
   inpaintImageAPI: mocks.inpaintImageAPI,
@@ -134,7 +132,6 @@ describe('CanvasImageEditWorkspace', () => {
       'remove-background',
       'inpaint',
       'outpaint',
-      'decompose',
       'extract-element',
       'object-replace',
       'style-transfer',
@@ -187,69 +184,6 @@ describe('CanvasImageEditWorkspace', () => {
         modelId: 'fal-ai/aura-sr',
       },
     )
-  })
-
-  it('batches only persistable decomposed layers into one placement', async () => {
-    mocks.decomposeImageAPI.mockResolvedValue({
-      success: true,
-      data: {
-        layers: [
-          {
-            name: 'front hair',
-            imageUrl: 'https://cdn.example.com/front-hair.png',
-          },
-          {
-            name: 'body',
-            imageUrl: 'https://cdn.example.com/body.png',
-          },
-          {
-            name: 'temporary',
-            imageUrl: 'data:image/png;base64,temporary',
-          },
-        ],
-        psdUrl: 'https://cdn.example.com/layers.psd',
-        layerCount: 3,
-      },
-    })
-    mocks.placeDerivedImages.mockReturnValue(['layer-1', 'layer-2'])
-    renderWorkspace('decompose')
-
-    fireEvent.click(screen.getByRole('button', { name: 'actions.decompose' }))
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: 'decomposePlace' }),
-      ).toBeTruthy()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'decomposePlace' }))
-
-    expect(mocks.placeDerivedImages).toHaveBeenCalledWith('source-node', [
-      {
-        imageUrl: 'https://cdn.example.com/front-hair.png',
-        width: 640,
-        height: 480,
-        label: 'front hair',
-        editCapability: 'decompose',
-        batchId: expect.any(String),
-        sourceGenerationId: 'source-generation',
-      },
-      {
-        imageUrl: 'https://cdn.example.com/body.png',
-        width: 640,
-        height: 480,
-        label: 'body',
-        editCapability: 'decompose',
-        batchId: expect.any(String),
-        sourceGenerationId: 'source-generation',
-      },
-    ])
-    expect(mocks.focusNode).toHaveBeenCalledWith('layer-1')
-    expect(mocks.decomposeImageAPI).toHaveBeenCalledWith(SOURCE_DATA.mediaUrl, {
-      modelId: 'xiuruisu/see-through',
-      persist: true,
-      generationId: 'source-generation',
-    })
   })
 
   it('does not place an output when the edit request fails', async () => {

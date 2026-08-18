@@ -18,7 +18,7 @@ import {
   type AudioEmotion,
   type AudioPace,
 } from '@/constants/voice-cards'
-import { VARIANT_COUNT, VARIANT_MAX_SEED } from '@/constants/studio'
+import { VARIANT_MAX_SEED } from '@/constants/studio'
 import {
   GENERATION_ERROR_CODES,
   type GenerationErrorCode,
@@ -32,7 +32,6 @@ import type {
   GenerateAudioRequest,
   GenerateAudioResponseData,
   GenerationRecord,
-  RunGroupMode,
   RunItem,
   StudioGenerateRequest,
   StudioGenerateResponseData,
@@ -107,9 +106,14 @@ export interface UnifiedGenerateInput {
   image?: StudioGenerateRequest
   video?: GenerateVideoRequest
   audio?: AudioGenerateInput
-  /** B5: Run group mode — 'variant' triggers 4-seed parallel generation */
-  runMode?: RunGroupMode
-  /** B4: Models to compare (used when runMode === 'compare') */
+  /**
+   * B5: >1 issues N independent generations (one random seed each) shown as a
+   * variant grid — same shape as `audio.variantCount`. There is no
+   * "N images per request" path at any provider we call, so N images is
+   * always N requests.
+   */
+  variantCount?: number
+  /** B4: Models to compare — non-empty routes the run to compare mode. */
   compareModels?: CompareModelSelection[]
 }
 
@@ -733,7 +737,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   // ── B5: Variant generation (parallel seeds) ───────────────────
 
   const generateVariants = useCallback(
-    async (input: StudioGenerateRequest): Promise<GenerationRecord | null> => {
+    async (
+      input: StudioGenerateRequest,
+      count: number,
+    ): Promise<GenerationRecord | null> => {
       setIsGenerating(true)
       setStage('generating')
       setError(null)
@@ -741,7 +748,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       startTimer()
 
       const runGroupId = crypto.randomUUID()
-      const seeds = Array.from({ length: VARIANT_COUNT }, () =>
+      const seeds = Array.from({ length: count }, () =>
         Math.floor(Math.random() * VARIANT_MAX_SEED),
       )
       const items = seeds.map((seed, idx) => ({
@@ -897,6 +904,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     async (
       input: StudioGenerateRequest,
       models: CompareModelSelection[],
+      perModelCount = 1,
     ): Promise<GenerationRecord | null> => {
       setIsGenerating(true)
       setStage('generating')
@@ -905,19 +913,32 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       startTimer()
 
       const runGroupId = crypto.randomUUID()
-      const items = models.map((model, idx) => ({
-        id: crypto.randomUUID(),
-        modelId: model.modelId,
-        status: 'generating' as const,
-        generation: null,
-        error: null,
-        apiKeyId: model.apiKeyId,
-        index: idx,
-      }))
+      // 矩阵：模型 × 每模型张数。两个轴同时展开，而不是二选一 ——
+      // 「一次多张」和「多模型各一张」本来就是同一个控件的两个轴，
+      // 分成两条路径就永远表达不了「4 个模型各 2 张」。
+      // 同模型的多张各配一个随机 seed（张数=1 时不发 seed，保持与
+      // 单模型单张的请求逐字节一致）。
+      const items = models.flatMap((model, modelIdx) =>
+        Array.from({ length: perModelCount }, (_, takeIdx) => ({
+          id: crypto.randomUUID(),
+          modelId: model.modelId,
+          status: 'generating' as const,
+          generation: null,
+          error: null,
+          apiKeyId: model.apiKeyId,
+          index: modelIdx * perModelCount + takeIdx,
+          seed:
+            perModelCount > 1
+              ? Math.floor(Math.random() * VARIANT_MAX_SEED)
+              : undefined,
+        })),
+      )
 
       setActiveRun({
         id: runGroupId,
-        mode: 'compare',
+        // 两种 mode 都渲染同一片图墙（CompareGrid）；mode 只用来区分
+        // 「这一轮是不是矩阵」，与渲染选择无关。
+        mode: models.length > 1 ? 'compare' : 'variant',
         items,
         selectedItemId: null,
         prompt: input.freePrompt ?? '',
@@ -943,6 +964,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               ...input,
               modelId: item.modelId,
               apiKeyId: item.apiKeyId,
+              ...(item.seed === undefined ? {} : { seed: item.seed }),
               runGroupId,
               runGroupType: 'compare',
               runGroupIndex: item.index,
@@ -1295,11 +1317,14 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         // generation surface and injects loras there (see lora-domain-split).
         const image = input.image
 
-        if (input.runMode === 'variant') {
-          return generateVariants(image)
+        const count = input.variantCount ?? 1
+        // 有额外模型 → 走矩阵（模型 × 张数）。单模型多张仍走 generateVariants，
+        // 两者的 item 形状一致，图墙那一片会把它们合成同一个渲染。
+        if (input.compareModels?.length) {
+          return generateCompare(image, input.compareModels, count)
         }
-        if (input.runMode === 'compare' && input.compareModels?.length) {
-          return generateCompare(image, input.compareModels)
+        if (count > 1) {
+          return generateVariants(image, count)
         }
         return generateImage(image)
       }

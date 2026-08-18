@@ -291,6 +291,17 @@ export const MODEL_VARIANTS: Record<string, string> = {
   [AI_MODELS.MINIMAX_H3_REFERENCE]: 'minimax-h3',
   [AI_MODELS.MINIMAX_H3_CN]: 'minimax-h3',
   [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: 'minimax-h3',
+  // Seedream（图片）：与 Seedance 同构 —— 同一型号在 fal 与火山各一条。
+  // 不登记的话每个 id 自成型号，型号栏会并排出现「Seedream 5.0 Pro」与
+  // 「Seedream 5.0 Pro（火山方舟）」两行（`deriveVariantLabels` 这时必须保留
+  // 括注，否则一族里两行同名）—— 真机抓到的「相同模型跑了两遍」就是这个。
+  [AI_MODELS.SEEDREAM_45]: 'seedream-4.5',
+  [AI_MODELS.SEEDREAM_45_VOLCENGINE]: 'seedream-4.5',
+  [AI_MODELS.SEEDREAM_50_PRO]: 'seedream-5.0-pro',
+  [AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE]: 'seedream-5.0-pro',
+  [AI_MODELS.SEEDREAM_50_LITE]: 'seedream-5.0-lite',
+  [AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE]: 'seedream-5.0-lite',
+  [AI_MODELS.SEEDREAM_50_VOLCENGINE]: 'seedream-5.0',
   // 单型号系列 —— 第二层会被跳过
   [AI_MODELS.VEO_31]: 'veo-3.1',
   [AI_MODELS.GEMINI_OMNI_FLASH]: 'gemini-omni-flash',

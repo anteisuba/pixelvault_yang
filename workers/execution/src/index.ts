@@ -74,10 +74,12 @@ const RUNPOD_BASE_URL = 'https://api.runpod.ai/v2'
 // Runner 队列卫生（2026-08-18，起因：EXITED worker 仍被计为 ready，占住
 // workersMax=1 名额 → job 排满 10 分钟窗口，孤儿 job 又永久堵队列）：
 // - TTL 略长于轮询窗口（200×3s），窗口外没人再管的 job 由 RunPod 自动过期出队；
-// - 僵死探测按攻数取模触发（60 攻 ≈ 3 分钟），健康冷启动几秒内就有
-//   initializing/throttled worker，全零 + 从未离开 IN_QUEUE = 等满窗口也没人接单。
+// - 幻影名额探测按攻数取模触发（60 攻 ≈ 3 分钟），连续 2 次命中才取消（≈6 分钟）。
+//   判据见 isRunnerQueuePhantomWedge —— 只有「声称有 worker 却零活跃」才算，
+//   全零是 scale-to-zero 的正常态。
 const RUNNER_JOB_TTL_MS = 660_000
 const RUNNER_QUEUE_WEDGE_CHECK_EVERY_ATTEMPTS = 60
+const RUNNER_QUEUE_WEDGE_CONFIRMATIONS = 2
 const NOVELAI_IMAGE_BASE_URL = 'https://image.novelai.net'
 const VOLCENGINE_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const OLD_R2_DEV_PATTERN = /^https:\/\/pub-[a-f0-9]+\.r2\.dev\//
@@ -5926,30 +5928,55 @@ async function cancelRunnerImageJob(
   }
 }
 
+interface RunnerWorkerCounts {
+  idle: number
+  ready: number
+  running: number
+  initializing: number
+  throttled: number
+}
+
 /**
- * 队列僵死签名：端点没有任何 worker 活动（running/initializing/throttled
- * 全 0）。健康冷启动几秒内就会出现 initializing（含拉镜像），GPU 缺货显示
- * throttled——这两种都该继续等；全零 + job 长时间没离开 IN_QUEUE，说明调度
- * 器僵死（实测过一次：EXITED worker 仍被计为 ready，占住 workersMax 名额），
- * 等满窗口也不会有人接单。health 读不到时按「未僵死」处理，交给正常轮询。
+ * 读端点 worker 计数。读不到（网络/非 200/字段缺）返回 null —— 调用方一律按
+ * 「不判僵死」处理，宁可等满轮询窗口也不误杀。
  */
-async function isRunnerQueueWedged(
+async function readRunnerWorkerCounts(
   env: ExecutionEnv,
   apiKey: string,
-): Promise<boolean> {
+): Promise<RunnerWorkerCounts | null> {
   const response = await fetch(
     `${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/health`,
     { headers: { Authorization: `Bearer ${apiKey}` } },
   )
-  if (!response.ok) return false
+  if (!response.ok) return null
   const data = (await response.json()) as Record<string, unknown>
   const workers = isRecord(data.workers) ? data.workers : null
-  if (!workers) return false
-  const activeWorkers =
-    (readNumberField(workers, 'running') ?? 0) +
-    (readNumberField(workers, 'initializing') ?? 0) +
-    (readNumberField(workers, 'throttled') ?? 0)
-  return activeWorkers === 0
+  if (!workers) return null
+  return {
+    idle: readNumberField(workers, 'idle') ?? 0,
+    ready: readNumberField(workers, 'ready') ?? 0,
+    running: readNumberField(workers, 'running') ?? 0,
+    initializing: readNumberField(workers, 'initializing') ?? 0,
+    throttled: readNumberField(workers, 'throttled') ?? 0,
+  }
+}
+
+/**
+ * 幻影名额签名：端点**声称**有可用 worker（idle/ready ≥ 1）却零活跃
+ * （running/initializing/throttled 全 0）。实测成因是已退出的 worker 仍被
+ * 计为 ready，占住 workersMax 名额 → 调度器认为「已有人待命」不再起新的，
+ * 作业永远排队。
+ *
+ * ⚠ 必须要求「声称有 worker」这一半。只看「零活跃」会把 scale-to-zero 下
+ * 「还没起 worker」的正常冷启动判成僵死 —— 2026-08-18 就是这么误杀了两次
+ * 用户出图（作业排队 3 分钟被取消，而端点只是还没拉起 worker）。全零 = 没
+ * 人待命也没人在跑 = 正常等调度，绝不在这里下判断，交给轮询窗口兜底。
+ */
+function isRunnerQueuePhantomWedge(counts: RunnerWorkerCounts | null): boolean {
+  if (!counts) return false
+  const claimsAvailableWorker = counts.idle + counts.ready > 0
+  const activeWorkers = counts.running + counts.initializing + counts.throttled
+  return claimsAvailableWorker && activeWorkers === 0
 }
 
 export async function pollAndPersistRunnerImageJob(
@@ -6465,6 +6492,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
 
         let completed: CompletedPersistedRunnerPollResult | undefined
         let leftQueue = false
+        let phantomWedgeStreak = 0
         for (
           let attempt = 1;
           !completed && attempt <= context.maxAttempts;
@@ -6510,14 +6538,18 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
             leftQueue = true
           }
 
-          // 僵死快败：从未离开 IN_QUEUE 的 job 每 60 攻（≈3 分钟）核对一次端点
-          // 健康；确认僵死就取消 + 明确报错，不再让用户等满 10 分钟窗口。
+          // 幻影名额快败：从未离开 IN_QUEUE 的 job 每 60 攻（≈3 分钟）核对一次
+          // 端点计数，连续两次都是幻影签名才取消（≈6 分钟，仍早于 10 分钟窗口）。
+          // ⚠ 要求连续两次，是因为单次采样可能撞上 worker 状态切换的空档；
+          // 误杀一次正在正常冷启动的作业，比等满窗口糟得多。
           if (
             !completed &&
             !leftQueue &&
             attempt % RUNNER_QUEUE_WEDGE_CHECK_EVERY_ATTEMPTS === 0
           ) {
-            const wedged = await step.do(
+            // 步骤返回计数本身（不是布尔）：判据留在工作流日志里，事后能直接
+            // 区分「幻影占位」和「压根还没起 worker」。
+            const counts = await step.do(
               `check-runner-queue-wedged-${attempt}`,
               {
                 retries: {
@@ -6532,10 +6564,13 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
                   encryptedApiKey,
                   this.env,
                 )
-                return isRunnerQueueWedged(this.env, apiKey)
+                return readRunnerWorkerCounts(this.env, apiKey)
               },
             )
-            if (wedged) {
+            phantomWedgeStreak = isRunnerQueuePhantomWedge(counts)
+              ? phantomWedgeStreak + 1
+              : 0
+            if (phantomWedgeStreak >= RUNNER_QUEUE_WEDGE_CONFIRMATIONS) {
               await step.do(
                 'cancel-runner-image-wedged',
                 { timeout: '30 seconds' },
@@ -6549,7 +6584,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
               )
               throw new WorkerProviderError({
                 message:
-                  'Runner queue is stuck: the endpoint has zero active workers and the job never left the queue. The job was cancelled — the endpoint needs attention (stale worker or no GPU capacity).',
+                  'Runner queue is stuck: the endpoint reports an available worker that never picks anything up, and the job never left the queue. The job was cancelled — the endpoint needs attention (stale worker holding the slot).',
                 provider: context.providerId,
                 phase: 'status_poll',
                 errorCode: WORKER_GENERATION_ERROR_CODES.RUNNER_QUEUE_STUCK,

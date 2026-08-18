@@ -599,7 +599,8 @@
       "cards": "卡片管理"
     },
     "requestsLoading": "...",
-    "requestsTooltip": "已使用的 API 请求数"
+    "requestsTooltip": "已使用的 API 请求数",
+    "groupLabel": "去处"
   },
   "LocaleSwitcher": {
     "label": "语言",
@@ -5201,6 +5202,10 @@
     "modelRemove": "移除",
     "modelCountSelected": "{count, plural, other {已选 # 个}}",
     "specLabel": "规格",
+    "costLabel": "预计费用",
+    "costApprox": "约 {amount}",
+    "costApproxFrom": "约 {amount} 起",
+    "costUnpriced": "{count, plural, other {# 个模型未标价}}",
     "batchCountSummary": "{count, plural, other {每模型 # 张}}",
     "generateCount": "{count, plural, other {生成 # 张}}",
     "batchCountLabel": "生成数量",

@@ -596,10 +596,11 @@
       "storyboard": "Stories",
       "library": "Archive",
       "assets": "Assets",
-      "cards": "Card Management"
+      "cards": "Cards"
     },
     "requestsLoading": "...",
-    "requestsTooltip": "Total API requests used"
+    "requestsTooltip": "Total API requests used",
+    "groupLabel": "Go to"
   },
   "LocaleSwitcher": {
     "label": "Language",
@@ -3732,7 +3733,7 @@
   },
   "StudioTools": {
     "groupLabel": "Tools",
-    "comingSoon": "Coming Soon",
+    "comingSoon": "Soon",
     "backToImage": "Back to image studio",
     "tools": {
       "image": {
@@ -5201,6 +5202,10 @@
     "modelRemove": "Remove",
     "modelCountSelected": "{count, plural, one {# selected} other {# selected}}",
     "specLabel": "Spec",
+    "costLabel": "Est. cost",
+    "costApprox": "≈ {amount}",
+    "costApproxFrom": "≈ {amount}+",
+    "costUnpriced": "{count, plural, one {# model has no listed price} other {# models have no listed price}}",
     "batchCountSummary": "{count, plural, one {# per model} other {# per model}}",
     "generateCount": "{count, plural, one {Generate # image} other {Generate # images}}",
     "batchCountLabel": "Images per run",

@@ -39,10 +39,7 @@ import {
   type ModelVisual,
 } from '@/constants/model-visuals'
 import { getModelFamily, getModelVariant } from '@/constants/models'
-import {
-  MODEL_UNIT_PRICES,
-  type ModelUnitPrice,
-} from '@/constants/models/unit-prices'
+import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
 import { getProviderLabel } from '@/constants/providers'
 import { motionTransition } from '@/constants/motion'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
@@ -138,17 +135,6 @@ function familyLabelOf(option: StudioModelOption): string {
  */
 function variantKeyOf(option: StudioModelOption): string {
   return getModelVariant(option.modelId) ?? option.modelId
-}
-
-/**
- * 按 string 查单价。`StudioModelOption.modelId` 是 string（目录 DB-first，运行时可能
- * 出现代码里没有的 id），不是 `AI_MODELS`；断言成枚举等于假装它一定在表里。
- * 查不到返回 undefined —— 调用方隐藏价格，不显示占位。
- */
-function findModelUnitPrice(modelId: string) {
-  return (MODEL_UNIT_PRICES as Record<string, ModelUnitPrice | undefined>)[
-    modelId
-  ]
 }
 
 /**
@@ -881,7 +867,9 @@ export function BaseModelPickerPanel({
     const isChannelRow = labelOverride === providerLabel
     // 单价只在**第三层**（渠道）露出：同一型号不同渠道价格不同，放在型号层就不知道
     // 说的是哪家。没有可信数据时 `getModelUnitPrice` 返回 null —— 隐藏，不显示占位。
-    const unitPrice = isChannelRow ? findModelUnitPrice(option.modelId) : null
+    const unitPrice = isChannelRow
+      ? getModelUnitPriceByStringId(option.modelId)
+      : null
     const optionMeta = isChannelRow
       ? ''
       : [routeMeta, capabilityDetail].filter(Boolean).join(' · ')

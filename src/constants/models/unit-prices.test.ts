@@ -8,6 +8,7 @@ import { getModelById } from '@/constants/models'
 import { AI_MODELS } from '@/constants/models/enum'
 import {
   MODEL_UNIT_PRICES,
+  formatUnitPriceAmount,
   getModelUnitPrice,
 } from '@/constants/models/unit-prices'
 
@@ -103,5 +104,16 @@ describe('model unit prices', () => {
         `${id} 默认不开音频 —— 「按产品默认档」不再等于含音频口径，见本表头部注释`,
       ).toBe(true)
     }
+  })
+
+  it('金额格式：不足 1 分的不许被四舍五入到 $0.01', () => {
+    // FLUX 2 Flash 是 $0.005/张。两位小数会印成 `$0.01` —— 把最便宜那档说贵一倍，
+    // 而它的卖点就是便宜。这条守的是那个退到三位的分支。
+    expect(formatUnitPriceAmount(0.005)).toBe('$0.005')
+    expect(formatUnitPriceAmount(0.0336)).toBe('$0.03')
+    expect(formatUnitPriceAmount(0.03)).toBe('$0.03')
+    expect(formatUnitPriceAmount(1.072)).toBe('$1.07')
+    // 尾随 0 去掉：`$0.003` 而不是 `$0.0030`
+    expect(formatUnitPriceAmount(0.003)).toBe('$0.003')
   })
 })

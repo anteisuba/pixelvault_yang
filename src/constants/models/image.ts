@@ -119,9 +119,13 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     styleTag: 'artistic',
   },
   {
-    // Native counterpart to the fal-routed SEEDREAM_50_PRO. fal charges $0.0675
-    // per image at the ≤1536² tier against 火山's 0.30 元 (~$0.042) for the same
-    // ≤236万像素 tier — the two boundaries are the same 2.36M-pixel line.
+    // Native counterpart to the fal-routed SEEDREAM_50_PRO.
+    // ⚠ 2026-08-18 更正：这里原本写「fal $0.0675 贵过火山 0.30 元 (~$0.042)」——
+    // **反了**。那是拿 fal 的低档位比火山的低档位，可火山 adapter 恒发 2K 档
+    // 2048×2048 = 419 万像素，落在官方「> 261 万像素 = 0.60 元」的**高档位**
+    // (~$0.085)，而 fal 恒发 1024² 落在 $0.0675 的低档位。**按产品实际发的尺寸，
+    // 火山这条比 fal 贵。** 数字与出处见 `unit-prices.ts`（那里也是选择器第三层
+    // 比价的唯一来源，别在这儿另记一份）。
     // ⚠ Separate entry, not a replacement for SEEDREAM_50_VOLCENGINE: Pro is
     // 单图生成 only (文生图 / 单张图生图 / 多参考图生图) and drops the base
     // entry's 组图生成, so neither id supersedes the other.

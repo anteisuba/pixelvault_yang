@@ -72,6 +72,7 @@ import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceB
 // 规格三档（比例 · 清晰度 · 张数）在参数栏里收进一个触发器；dock 那三颗独立的
 // chip 仍归视频 / 音频用，两套并存不互相替代。
 import { StudioSpecPopover } from '@/components/business/studio/StudioSpecPopover'
+import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioAudioKindSwitcher } from '@/components/business/studio/StudioAudioKindSwitcher'
 import { cn } from '@/lib/utils'
 import { composeCharacterInjection } from '@/lib/character-card-injection'
@@ -1270,50 +1271,58 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             <StudioSpecPopover disabled={isGenerating} />
           </div>
 
-          {/* 生成 —— 参数栏底部，按钮上写清这一次会出几张 */}
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              void handleGenerate()
-            }}
-            disabled={isGenerating || isImagePromptOverLimit}
-            aria-label={t('generate')}
-            aria-busy={isGenerating}
-            aria-disabled={!canGenerate}
-            className={cn(
-              'mt-auto flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-sm',
-              'transition-[background-color,transform,box-shadow] duration-fast ease-standard',
-              'hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              // 挡住时降到次级填充。现在按钮上写着缺什么，就没有「点一下才知道」
-              // 这层信息了，所以不必再用满强度的实心黑去引诱点击 —— 整屏唯一的
-              // 最高强调留给真正能出图的那一刻。文字仍用 foreground 满强度：
-              // 降的是底不是字，`muted-foreground` 落在浅底上过不了对比度。
-              !isGenerating &&
-                blockedReason &&
-                'bg-muted text-foreground shadow-none hover:shadow-none',
-              (isGenerating || isImagePromptOverLimit) &&
-                'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:shadow-none',
-            )}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                {elapsedSeconds > 0
-                  ? `${t('generating')} ${elapsedSeconds}s`
-                  : t('generating')}
-              </>
-            ) : (
-              // 缺什么就写在按钮上。按钮**保持可点**（Krea 式，点了还会 toast
-              // 并把焦点送到该补的地方），但没必要让人点一下才知道缺模型 ——
-              // 「模型：请先选择模型」就在同一栏上面两行，按钮再说一句
-              // 「生成 1 张」等于跟旁边的事实对着干。
-              (blockedReason?.message ??
-              t('generateCount', {
-                count: Math.max(1, runModels.length) * state.imageBatchCount,
-              }))
-            )}
-          </button>
+          {/* 成本 + 生成 —— 一起沉到参数栏底部（`mt-auto` 挂在这层，不挂按钮，
+              否则成本行会被留在上面、跟它解释的那个按钮隔开半栏）。 */}
+          <div className="mt-auto flex shrink-0 flex-col gap-2">
+            <StudioCostPreview
+              models={runModels}
+              perModelCount={state.imageBatchCount}
+            />
+            {/* 生成 —— 按钮上写清这一次会出几张 */}
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                void handleGenerate()
+              }}
+              disabled={isGenerating || isImagePromptOverLimit}
+              aria-label={t('generate')}
+              aria-busy={isGenerating}
+              aria-disabled={!canGenerate}
+              className={cn(
+                'flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-sm',
+                'transition-[background-color,transform,box-shadow] duration-fast ease-standard',
+                'hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                // 挡住时降到次级填充。现在按钮上写着缺什么，就没有「点一下才知道」
+                // 这层信息了，所以不必再用满强度的实心黑去引诱点击 —— 整屏唯一的
+                // 最高强调留给真正能出图的那一刻。文字仍用 foreground 满强度：
+                // 降的是底不是字，`muted-foreground` 落在浅底上过不了对比度。
+                !isGenerating &&
+                  blockedReason &&
+                  'bg-muted text-foreground shadow-none hover:shadow-none',
+                (isGenerating || isImagePromptOverLimit) &&
+                  'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:shadow-none',
+              )}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  {elapsedSeconds > 0
+                    ? `${t('generating')} ${elapsedSeconds}s`
+                    : t('generating')}
+                </>
+              ) : (
+                // 缺什么就写在按钮上。按钮**保持可点**（Krea 式，点了还会 toast
+                // 并把焦点送到该补的地方），但没必要让人点一下才知道缺模型 ——
+                // 「模型：请先选择模型」就在同一栏上面两行，按钮再说一句
+                // 「生成 1 张」等于跟旁边的事实对着干。
+                (blockedReason?.message ??
+                t('generateCount', {
+                  count: Math.max(1, runModels.length) * state.imageBatchCount,
+                }))
+              )}
+            </button>
+          </div>
         </PromptInput>
       ) : (
         <div ref={composerContainerRef}>

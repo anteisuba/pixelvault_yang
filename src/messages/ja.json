@@ -599,7 +599,8 @@
       "cards": "カード管理"
     },
     "requestsLoading": "...",
-    "requestsTooltip": "使用したAPIリクエスト数"
+    "requestsTooltip": "使用したAPIリクエスト数",
+    "groupLabel": "移動先"
   },
   "LocaleSwitcher": {
     "label": "言語",
@@ -5193,6 +5194,10 @@
     "modelRemove": "削除",
     "modelCountSelected": "{count, plural, other {# 件選択}}",
     "specLabel": "仕様",
+    "costLabel": "概算コスト",
+    "costApprox": "約 {amount}",
+    "costApproxFrom": "約 {amount}〜",
+    "costUnpriced": "{count, plural, other {# 件のモデルは価格未掲載}}",
     "batchCountSummary": "{count, plural, other {モデルごと # 枚}}",
     "generateCount": "{count, plural, other {# 枚生成}}",
     "batchCountLabel": "生成枚数",

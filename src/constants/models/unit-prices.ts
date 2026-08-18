@@ -11,8 +11,21 @@ import { AI_MODELS } from '@/constants/models/enum'
  *
  * - **视频 = 720p、每秒、含音频、无视频输入**。分辨率和有无视频输入都影响单价，
  *   必须钉死一个基准档才能横向比。
+ * - **图片 = 单张、1:1、不含参考图**（模型强制要参考图的除外，那种在 `source`
+ *   里写清算了几张输入）。⚠ **不是「1024² 一刀切」** —— 图片按输出像素分档，而
+ *   各家 adapter 发出去的尺寸并不一样，口径必须跟着**产品实际发的那个尺寸**走：
+ *   · fal 恒发 `image_size: square_hd` = 1024×1024（1MP）
+ *   · OpenAI 恒发 `size: 1024x1024`
+ *   · Gemini 不发 imageSize，走官方默认 1K
+ *   · **火山发的是 2K 档 2048×2048**（`VOLCENGINE_IMAGE_SIZES`）= 419 万像素
+ *   所以火山 Seedream Pro 落在官方「> 261 万像素」的**高档位 0.60 元**，不是低档位
+ *   的 0.30 元。按低档位标价会把它腰斩，正是首页那张表犯过的错。
+ *   ⛔ **别按 UI 上的「清晰度」推算**：四个图片 adapter（fal / openai / gemini /
+ *   volcengine）的图片路径**都只读 `aspectRatio`，一个都不读 `advancedParams.resolution`**
+ *   （2026-08-18 逐个查实）。那个选项对图片是空转，拿它算价会算出一个产品根本发不出去的档。
  * - 一律 **USD**。人民币计价的渠道在 `source` 里注明原始金额与换算汇率 ——
- *   ⚠ 汇率会漂，复核时连同 `verifiedAt` 一起更新。
+ *   ⚠ 汇率会漂，复核时连同 `verifiedAt` 一起更新。**换算汇率统一 7.1**，与既有
+ *   视频条目同口径；要改就整表一起改，不许新旧两个汇率并存。
  * - 这是**给用户看的参考价，不是计费依据**。计费走服务端 credit policy，两者
  *   不可互相推导。
  *
@@ -136,15 +149,173 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
     verifiedAt: '2026-08-08',
   },
 
+  // ══ 图片 ══════════════════════════════════════════════════════════════════
+  // 2026-08-18 补（任务包 studio-workbench-redesign-2026-08-14 §4.11 切片 4：
+  // owner 拍板「先把单价表补齐」再做成本预览）。口径见文件头「图片」那条 ——
+  // 每条都按**产品实际发出去的尺寸**取档，不是按 UI 上的清晰度选项。
+
+  // ── fal ────────────────────────────────────────────────────────────────
+  // 有 pricingInfoOverride 的从 `fal.ai/api/models` 索引取（可脚本复核）；没有
+  // 那段文本的从模型页正文取。两种来源在 source 里分别注明。
+  [AI_MODELS.FLUX_2_PRO]: {
+    amount: 0.03,
+    unit: 'image',
+    source:
+      'fal pricingInfoOverride：$0.03 首个输出百万像素（+$0.015/额外百万像素，输入输出都算）。产品恒发 1024×1024=1MP → $0.03',
+    verifiedAt: '2026-08-18',
+  },
+  [AI_MODELS.FLUX_2_PRO_EDIT]: {
+    amount: 0.045,
+    unit: 'image',
+    source:
+      'fal pricingInfoOverride（与 flux-2-pro 同一段文本）：$0.03 首个输出百万像素 + $0.015/额外百万像素。⚠ 本条 requiresReferenceImage，$0.03 那个下限实际取不到 —— 基准取「1MP 输出 + 1 张 ≤1MP 参考图」= $0.045；参考图更大时按 $0.015/百万像素递增',
+    verifiedAt: '2026-08-18',
+  },
+  [AI_MODELS.FLUX_2_FLASH]: {
+    amount: 0.005,
+    unit: 'image',
+    source:
+      'fal 模型页：「Your request will cost $0.005 per megapixel」。产品恒发 1MP → $0.005',
+    verifiedAt: '2026-08-18',
+  },
+  [AI_MODELS.FLUX_LORA]: {
+    amount: 0.035,
+    unit: 'image',
+    source:
+      'fal 模型页：「$0.035 per megapixel. Images are billed by rounding up to the nearest megapixel」。产品恒发 1MP → $0.035',
+    verifiedAt: '2026-08-18',
+  },
+  [AI_MODELS.FLUX_KONTEXT_MAX]: {
+    amount: 0.08,
+    unit: 'image',
+    source:
+      'fal 模型页：「Your request will cost $0.08 per image」（无分辨率档位）',
+    verifiedAt: '2026-08-18',
+  },
+  [AI_MODELS.RECRAFT_V4_PRO]: {
+    amount: 0.21,
+    unit: 'image',
+    source:
+      'fal 模型页：「Your request will cost $0.21 per image」（无分辨率档位）',
+    verifiedAt: '2026-08-18',
+  },
+  [AI_MODELS.SEEDREAM_50_PRO]: {
+    amount: 0.0675,
+    unit: 'image',
+    source:
+      'fal pricingInfoOverride：「$0.0675 per image for images of total area ≤ 1536x1536」（1536²–2048² 档是 $0.135）。产品恒发 1024² → 低档位',
+    verifiedAt: '2026-08-18',
+  },
+  [AI_MODELS.SEEDREAM_50_LITE]: {
+    amount: 0.035,
+    unit: 'image',
+    source:
+      'fal 模型页：「Your request will cost $0.035 per image」（无分辨率档位）',
+    verifiedAt: '2026-08-18',
+  },
+
+  // ── 火山方舟（cn）· Seedream 5.0 ───────────────────────────────────────
+  // 官方「模型价格」页 图片生成模型 表（页面自报更新时间 2026.08.17）。
+  // ⚠ 火山 adapter 发 2K 档 2048×2048 = 419 万像素，落 Pro 的「> 261 万像素」高档。
+  [AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE]: {
+    amount: 0.085,
+    unit: 'image',
+    source:
+      '火山方舟模型价格页 图片生成模型表：doubao-seedream-5-0-pro 单图生成 > 261 万像素（1.5K 以上）0.60 元/张 ÷ 7.1 ≈ $0.0845。⚠ 取高档位因为 adapter 恒发 2048×2048=419 万像素；低档位 0.30 元产品发不出去',
+    verifiedAt: '2026-08-18',
+  },
+  [AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE]: {
+    amount: 0.031,
+    unit: 'image',
+    source:
+      '火山方舟模型价格页 图片生成模型表：doubao-seedream-5-0-lite 输出图 0.22 元/张（无像素分档，输入图免费）÷ 7.1 ≈ $0.0310',
+    verifiedAt: '2026-08-18',
+  },
+
+  // ── Gemini（Google AI）─────────────────────────────────────────────────
+  // 官方 pricing 页。三条互相校验：同一张 1K 图都是 1120 output tokens，
+  // 乘各自的图片输出费率正好对上官方自己给的每张价 —— $120/$60/$30 每百万 token。
+  // adapter 不发 imageSize，走官方默认 1K。
+  [AI_MODELS.GEMINI_PRO_IMAGE]: {
+    amount: 0.134,
+    unit: 'image',
+    source:
+      'Gemini API pricing：「Output images from 1024x1024px (1K) and up to 2048x2048px (2K) consume 1120 tokens and are equivalent to $0.134 per image」（4K 档 $0.24）',
+    verifiedAt: '2026-08-18',
+  },
+  [AI_MODELS.GEMINI_FLASH_IMAGE]: {
+    amount: 0.067,
+    unit: 'image',
+    source:
+      'Gemini API pricing：「$0.045 per 0.5K image, $0.067 per 1K image, $0.101 per 2K image, $0.151 per 4K image」→ 默认 1K 档',
+    verifiedAt: '2026-08-18',
+  },
+  [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: {
+    amount: 0.0336,
+    unit: 'image',
+    source:
+      'Gemini API pricing：「Equivalent to $0.0336 per 1K resolution image」（Standard 档；Batch 档 $0.0168）',
+    verifiedAt: '2026-08-18',
+  },
+
+  // ── Replicate ──────────────────────────────────────────────────────────
+  [AI_MODELS.ILLUSTRIOUS_XL]: {
+    amount: 0.14,
+    unit: 'image',
+    source:
+      'Replicate 模型页 delta-lock/noobai-xl：「This model costs approximately $0.14 to run on Replicate, or 7 runs per $1」（H100）。⚠ Replicate 按 GPU 秒计费，**不存在**固定单张价 —— 这是官方按实测耗时给的每次估算，不是我们算的近似值；实际会随出图耗时浮动',
+    verifiedAt: '2026-08-18',
+  },
+
   // ── ⬜ 待补 ───────────────────────────────────────────────────────────────
+  //   【视频】
   //   · LTX 2.3 —— fal 索引里这条没有 pricingInfoOverride 文本，要开页面看
   //   · 火山的 2.0 fast 双条 —— 火山定价页只给了 2.0 的算例，fast 档单价未取到
+  //     ⚠ 2026-08-18 顺带看到：火山页面现在同时挂着 fast / mini 的**限时折扣**
+  //     （2.0-fast 75 折、2.0-mini 4 折，均至 9 月 7 日）。补这两条时要决定标刊例价
+  //     还是折后价 —— 本表现有条目全是刊例价口径。
   //   · MiniMax H3 四条 / Gemini Omni —— 都不按 token 计费，得逐个抄官网标价，
   //     §9.6 的 token 推算法对它们不适用
   //   · BytePlus 全部 —— adapter 尚未接入（任务包 §3.9）。届时按 §9.6 推算：
   //     720p ≈ 21,600 tokens/秒 × $10.70/M = $0.231/s
+  //
+  //   【图片 · 2026-08-18 查过但**故意留空**，不是漏了】
+  //   · OPENAI_GPT_IMAGE_2 —— 官方按 quality 分三档，1024²：low $0.006 /
+  //     medium $0.053 / high $0.211（developers.openai.com 生图指南的算价表）。
+  //     ⚠ **35 倍价差**，而我们的 adapter **不发 quality**（只有 advancedParams
+  //     给了才发，Studio 图片面板不给）→ 落到 OpenAI 的 `auto`，官方没写 auto
+  //     映射到哪一档。三个数里挑一个就是猜。**解锁条件**：产品把 quality 钉死
+  //     一档（那时按对应档填），或 OpenAI 文档写明 auto 的映射。
+  //   · SEEDREAM_50_VOLCENGINE（基础款 `doubao-seedream-5-0-260128`）——
+  //     火山模型价格页的图片表只列了 `-pro` / `-lite` / 4-5 / 4-0 **四条，没有
+  //     不带后缀的 5-0**。基础款按哪档计费官方未公开 → 留空。pro / lite 两条已补。
+  //   · 五个 runner 模型（RunPod Serverless ComfyUI）—— 自托管按 GPU 秒计费，
+  //     没有「每张多少钱」这种东西；要报价得先定义一个平均出图耗时，那就是猜。
 }
 
 /** 取模型单价；没有可信数据时返回 null，调用方应当隐藏价格而非显示占位。 */
 export const getModelUnitPrice = (modelId: AI_MODELS): ModelUnitPrice | null =>
   MODEL_UNIT_PRICES[modelId] ?? null
+
+/**
+ * 同上，但按 string 查。
+ *
+ * 目录是 **DB-first**（`ModelConfig` 命中即覆盖代码常量），所以运行时会出现代码
+ * 枚举里没有的 id —— `StudioModelOption.modelId` 因此是 string 而不是 `AI_MODELS`。
+ * 断言成枚举等于假装它一定在表里。查不到返回 null，调用方隐藏价格。
+ */
+export const getModelUnitPriceByStringId = (
+  modelId: string,
+): ModelUnitPrice | null =>
+  (MODEL_UNIT_PRICES as Record<string, ModelUnitPrice | undefined>)[modelId] ??
+  null
+
+/**
+ * 金额显示格式。两位小数为主；小于 1 分的（如 FLUX 2 Flash 的 $0.005）退到三位，
+ * 否则会被四舍五入成 `$0.01` —— 那是**翻倍**，正好把最便宜那档说贵一倍。
+ * 尾随 0 去掉，`$0.030` 显示成 `$0.03`。
+ */
+export function formatUnitPriceAmount(amount: number): string {
+  if (amount >= 0.01) return `$${amount.toFixed(2)}`
+  return `$${amount.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}`
+}

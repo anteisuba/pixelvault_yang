@@ -72,25 +72,39 @@ export interface HomepageModelReferencePrice {
 export const HOMEPAGE_MODEL_REFERENCE_PRICES: Partial<
   Record<AI_MODELS, HomepageModelReferencePrice>
 > = {
-  [AI_MODELS.OPENAI_GPT_IMAGE_2]: { amount: 0.04, unit: 'image' },
-  [AI_MODELS.GEMINI_PRO_IMAGE]: { amount: 0.039, unit: 'image' },
-  [AI_MODELS.GEMINI_FLASH_IMAGE]: { amount: 0.039, unit: 'image' },
-  [AI_MODELS.FLUX_2_PRO]: { amount: 0.04, unit: 'image' },
-  [AI_MODELS.FLUX_2_FLASH]: { amount: 0.005, unit: 'image' },
-  [AI_MODELS.FLUX_KONTEXT_MAX]: { amount: 0.08, unit: 'image' },
+  // ⚠ 2026-08-18 又搬走一批（图片那 11 条）—— 见下方「已搬走」注记。这里只剩
+  // 退役模型与音频那两条。
   [AI_MODELS.IDEOGRAM_3]: { amount: 0.06, unit: 'image' },
-  [AI_MODELS.RECRAFT_V4_PRO]: { amount: 0.21, unit: 'image' },
   [AI_MODELS.SEEDREAM_45]: { amount: 0.04, unit: 'image' },
-  [AI_MODELS.SEEDREAM_50_PRO]: { amount: 0.0675, unit: 'image' },
-  [AI_MODELS.SEEDREAM_50_LITE]: { amount: 0.035, unit: 'image' },
   [AI_MODELS.NOVELAI_V45_FULL]: { amount: 0.012, unit: 'image' },
   [AI_MODELS.NOVELAI_V45_CURATED]: { amount: 0.012, unit: 'image' },
-  [AI_MODELS.ILLUSTRIOUS_XL]: { amount: 0.003, unit: 'image' },
   [AI_MODELS.FISH_AUDIO_S2_PRO]: { amount: 0.2, unit: 'kchars' },
   [AI_MODELS.ELEVENLABS_MUSIC_V2]: { amount: 0.15, unit: 'second' },
-  [AI_MODELS.FLUX_2_PRO_EDIT]: { amount: 0.05, unit: 'image' },
   [AI_MODELS.LTX_23]: { amount: 0.06, unit: 'second' },
 }
+
+/**
+ * 2026-08-18 从本表**删掉**的条目，记在这里免得有人以为是误删又加回来。
+ *
+ * 十一条已核实并搬进 `unit-prices.ts`（本表与那张表不许重叠，有单测守着）。搬的
+ * 时候发现存量数字有一半是错的 —— 这正是那条单测想拦的漂移：
+ *
+ * | 模型                  | 本表旧值 | 核实值   | 差                      |
+ * | --------------------- | -------- | -------- | ----------------------- |
+ * | GEMINI_PRO_IMAGE      | $0.039   | $0.134   | **低报 3.4 倍**         |
+ * | GEMINI_FLASH_IMAGE    | $0.039   | $0.067   | 低报 1.7 倍             |
+ * | ILLUSTRIOUS_XL        | $0.003   | ~$0.14   | **低报 47 倍**          |
+ * | FLUX_2_PRO            | $0.04    | $0.03    | 高报                    |
+ * | FLUX_2_PRO_EDIT       | $0.05    | $0.045   | 高报                    |
+ * | 其余 6 条             | —        | —        | 对上了                  |
+ *
+ * 另有一条**删了但没有替代值**：`OPENAI_GPT_IMAGE_2` 旧值 $0.04。它对不上官方
+ * 任何一档（1024² 是 low $0.006 / medium $0.053 / high $0.211），而我们的 adapter
+ * 不发 quality、落到官方 `auto`，官方又没写 auto 映射到哪档 —— 三个数里挑一个
+ * 就是猜。按本表自己的规矩（一个错的数比没有数更糟）删掉，首页对它显示
+ * 「价格因型号而异」。**这条是我删的，不是 owner 拍的**：要恢复就把
+ * `[AI_MODELS.OPENAI_GPT_IMAGE_2]: { amount: 0.04, unit: 'image' }` 加回上表。
+ */
 
 /**
  * 首页取价的唯一入口：先问 `unit-prices`（一个真相），它没有的才退回上面的存量表。
@@ -104,12 +118,6 @@ export function resolveHomepageReferencePrice(
     return { amount: authoritative.amount, unit: authoritative.unit }
   }
   return HOMEPAGE_MODEL_REFERENCE_PRICES[modelId] ?? null
-}
-
-export function formatHomepageReferencePriceAmount(amount: number): string {
-  if (amount >= 1) return `$${amount.toFixed(2)}`
-  if (amount >= 0.01) return `$${amount.toFixed(2)}`
-  return `$${amount.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}`
 }
 
 export const HOMEPAGE_METADATA = {

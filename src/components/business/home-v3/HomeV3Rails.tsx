@@ -12,10 +12,10 @@ import {
   isHomeV3ModelBrandCover,
 } from '@/constants/home-v3'
 import {
-  formatHomepageReferencePriceAmount,
   HOMEPAGE_MODEL_COUNTS,
   resolveHomepageReferencePrice,
 } from '@/constants/homepage'
+import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import {
   getAvailableModels,
   MODEL_MESSAGE_KEYS,
@@ -138,7 +138,7 @@ export function HomeV3Rails() {
     // 取价走单一入口：先 unit-prices（一个真相），没有的才退回首页存量表。
     const price = resolveHomepageReferencePrice(model.id)
     if (!price) return t('priceVaries')
-    const amount = formatHomepageReferencePriceAmount(price.amount)
+    const amount = formatUnitPriceAmount(price.amount)
     if (price.unit === 'image') return t('priceImage', { amount })
     if (price.unit === 'second') return t('priceSecond', { amount })
     return t('priceKChars', { amount })

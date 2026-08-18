@@ -11,5 +11,20 @@ updates:
         update-types:
           - minor
           - patch
+    # three 与 @google/model-viewer 必须成对升级，交给人工。
+    #
+    # model-viewer 的 peer 是 `three@^0.18x.0`，而 0.x 版本号下 caret 锁死小
+    # 版本（^0.183.0 只接受 0.183.x）。dependabot 分组升级不看 peer 约束，会
+    # 给出内部矛盾的组合：2026-08-17 的 #210 把 model-viewer 升到 4.3.1（要
+    # three ^0.183.0）却同时把 three 升到 0.185.1 → `npm ci` 直接 ERESOLVE，
+    # 装都装不上，于是那个 PR 里另外 40 个包（aws-sdk / prisma 等）也跟着全红
+    # 打不进来。package.json 里 three 被精确钉在 0.182.0（没有 caret）就是这个
+    # 耦合的痕迹。
+    #
+    # 两个都是直接依赖（three → WireframeModelPreview.tsx，model-viewer →
+    # ModelViewerInner.tsx），要升就一起升并真机验 3D 预览，不适合自动化。
+    ignore:
+      - dependency-name: three
+      - dependency-name: '@google/model-viewer'
     labels:
       - dependencies

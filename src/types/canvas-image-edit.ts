@@ -4,13 +4,24 @@ export const READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS = [
   'upscale',
   'remove-background',
   'inpaint',
-  'outpaint',
   'extract-element',
   'object-replace',
-  'style-transfer',
 ] as const
 
-export const HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITY_IDS = ['text-render'] as const
+/**
+ * Declared but not executable. `ready` is a promise to the user — the menu
+ * shows it, the workspace opens a panel for it, so anything listed there must
+ * reach a runtime case.
+ *
+ * ⚠ 2026-08-18 `object-replace` / `style-transfer` 都因「全仓零执行路径」退到
+ * 这里（点开是空面板，E0 真机验底见 `docs/plans/image-edit-line-2026-08-18.md`
+ * §3.1）。2026-08-19 E3 把 `object-replace` 连同注释层一起建出来了，已提回
+ * `ready`；`style-transfer` 仍然没有执行路径，留在这里。
+ */
+export const HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITY_IDS = [
+  'style-transfer',
+  'text-render',
+] as const
 
 export const CANVAS_IMAGE_EDIT_CAPABILITY_IDS = [
   ...READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS,
@@ -23,7 +34,8 @@ export const CANVAS_IMAGE_EDIT_INTERACTIONS = [
   'instant',
   'prompt',
   'mask',
-  'outpaint',
+  /** 多框编号 + 注释清单（E3）——点开要你在图上圈几处并逐条写一句话。 */
+  'annotate',
 ] as const
 
 export const CANVAS_IMAGE_EDIT_OUTPUT_KINDS = ['single-image'] as const

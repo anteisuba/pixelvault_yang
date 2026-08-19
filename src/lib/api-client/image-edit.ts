@@ -1,5 +1,9 @@
 import { API_ENDPOINTS } from '@/constants/config'
-import type { GenerationRecord, InpaintRequest, OutpaintRequest } from '@/types'
+import type {
+  GenerationRecord,
+  InpaintRequest,
+  ObjectReplaceRequest,
+} from '@/types'
 
 import { getErrorPayload } from './shared'
 
@@ -20,7 +24,7 @@ export interface ImageEditApiResponse {
 
 async function postImageEdit(
   endpoint: string,
-  params: InpaintRequest | OutpaintRequest,
+  params: InpaintRequest | ObjectReplaceRequest,
 ): Promise<ImageEditApiResponse> {
   try {
     const response = await fetch(endpoint, {
@@ -58,8 +62,8 @@ export async function inpaintImageAPI(
   return await postImageEdit(API_ENDPOINTS.IMAGE_INPAINT, params)
 }
 
-export async function outpaintImageAPI(
-  params: OutpaintRequest,
+export async function objectReplaceAPI(
+  params: ObjectReplaceRequest,
 ): Promise<ImageEditApiResponse> {
-  return await postImageEdit(API_ENDPOINTS.IMAGE_OUTPAINT, params)
+  return await postImageEdit(API_ENDPOINTS.IMAGE_OBJECT_REPLACE, params)
 }

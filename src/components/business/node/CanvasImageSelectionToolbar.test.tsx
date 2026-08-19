@@ -200,10 +200,10 @@ describe('CanvasImageSelectionToolbar', () => {
       })
     })
 
-    it('八条编辑能力按「点下去还要你干什么」分三段', () => {
+    it('五条编辑能力按「点下去还要你干什么」分三段', () => {
       render(<CanvasImageSelectionToolbar nodeId="node-1" data={IMAGE_DATA} />)
 
-      // 段标题按 interaction 推导：instant+layers / mask+outpaint / prompt
+      // 段标题按 interaction 推导：instant / mask / prompt
       expect(screen.getByText('moreEditsInstant')).toBeInTheDocument()
       expect(screen.getByText('moreEditsRegion')).toBeInTheDocument()
       expect(screen.getByText('moreEditsDescribe')).toBeInTheDocument()
@@ -214,14 +214,21 @@ describe('CanvasImageSelectionToolbar', () => {
         'upscale',
         'remove-background',
         'inpaint',
-        'outpaint',
         'extract-element',
-        'object-replace',
-        'style-transfer',
       ]) {
         expect(
           screen.getByRole('button', { name: new RegExp(`${taskId}\\.label`) }),
         ).toBeInTheDocument()
+      }
+
+      // ⚠ 菜单只放真能跑的。style-transfer 至今零执行路径，所以它不许出现；
+      // object-replace 2026-08-19 建成后才提回来（E0 那次退回的理由已消失）。
+      for (const hidden of ['style-transfer']) {
+        expect(
+          screen.queryByRole('button', {
+            name: new RegExp(`${hidden}\\.label`),
+          }),
+        ).toBeNull()
       }
     })
 

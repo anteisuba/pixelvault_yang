@@ -51,7 +51,7 @@ describe('legacy Studio edit compatibility redirect', () => {
   it('redirects the locale-prefixed route to Canvas', async () => {
     await expect(
       LegacyStudioEditPage({
-        params: Promise.resolve({ locale: 'zh', legacyTask: ['outpaint'] }),
+        params: Promise.resolve({ locale: 'zh', legacyTask: ['inpaint'] }),
         searchParams: Promise.resolve({
           sourceUrl: 'https://cdn.example/source.png',
           extra: 'drop-me',
@@ -66,7 +66,7 @@ describe('legacy Studio edit compatibility redirect', () => {
         query: {
           canvasTool: 'image-edit',
           sourceUrl: 'https://cdn.example/source.png',
-          editTask: 'outpaint',
+          editTask: 'inpaint',
         },
       },
     })

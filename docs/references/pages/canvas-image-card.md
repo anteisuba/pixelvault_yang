@@ -133,11 +133,20 @@ owner 原话：「**画布级粘贴做。并且有上传中的 UI。上传后直
 
 ## 6 · 「编辑」= 全屏编辑器
 
+> ⚠ **本节 2026-08-19 降为历史证据。** owner 2026-08-18 拍板「**让画布对齐 studio/image**」——
+> 编辑的施工基准改为 [`studio-image-edit.md`](studio-image-edit.md)，画布按它对齐（E5）。
+> 下面两小节保留是因为 P2 的机理（编号框 + 指令列表）仍然成立且已被新基准继承；
+> **外壳造型（左竖工具轨等）不再作为造型依据**。
+
 **外壳**：全屏 · 顶部标题 + `重置` + 关闭 · **左竖工具轨** · 底部缩放控件 + 快捷键提示 + `取消` / `确认`（`--canvas-action` 墨底）。
 
 ### P1 · 装现有 AI 能力
 
-消除 / 扩图 / 重绘 / 超分 —— 即 `CanvasImageEditWorkspace.tsx`（816 行）现有能力，走 `canvas-image-edit-capabilities`。**逻辑不重写，重新排进此外壳 + 换 v0.2 皮。**
+⚠ **2026-08-18 实况已变，本行原文（「消除 / 扩图 / 重绘 / 超分」，816 行）已过期**：`decompose` 与
+`outpaint`（扩图）**整条删除**，`object-replace` / `style-transfer` 因零实现退回 hidden。
+`canvas-image-edit-capabilities` 现在是**四条 ready**：超分辨率 · 去背景 · 局部重绘 · 提取元素。
+证据见 [`plans/image-edit-line-2026-08-18.md`](../../plans/image-edit-line-2026-08-18.md) §3.1。
+**逻辑不重写，重新排进新基准的外壳。**
 
 ### P2 · 区域标注 + 指令
 

@@ -1,21 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  Eraser,
-  Expand,
-  Palette,
-  Paintbrush,
-  Replace,
-  Scissors,
-  Sparkles,
-} from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
-import { StudioInpaintEditor } from '@/components/business/studio/StudioInpaintEditor'
-import { StudioOutpaintEditor } from '@/components/business/studio/StudioOutpaintEditor'
-import { Button } from '@/components/ui/button'
+import { ImageEditSurface } from '@/components/business/studio-shared/editor/ImageEditSurface'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -23,27 +11,26 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
-import { Spinner } from '@/components/ui/spinner'
-import { Textarea } from '@/components/ui/textarea'
-import {
-  getCanvasImageEditCapability,
-  READY_CANVAS_IMAGE_EDIT_CAPABILITIES,
-} from '@/constants/canvas-image-edit-capabilities'
 import {
   NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
 } from '@/constants/node-types'
-import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
-import { logger } from '@/lib/logger'
-import { cn } from '@/lib/utils'
 import type {
   CanvasDerivedImageOutput,
   ReadyCanvasImageEditCapabilityId,
 } from '@/types/canvas-image-edit'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
-import type { OutpaintPadding } from '@/types'
 
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
+
+/**
+ * 画布侧的编辑宿主 —— 只负责三件事：**弹窗外壳**、把节点数据翻成源图、把结果
+ * 落成派生节点。能力怎么跑、面板长什么样，全在共用躯干
+ * `studio-shared/editor/ImageEditSurface` 里（工作台舞台共用同一份）。
+ *
+ * ⚠ 2026-08-19 拆分。拆之前这些逻辑和画布节点是长在一起的，工作台要用就只能
+ * 复制一份 —— 那是 E5「画布对齐工作台」最不该留下的东西。
+ */
 
 interface CanvasImageEditWorkspaceProps {
   nodeId: string
@@ -53,42 +40,16 @@ interface CanvasImageEditWorkspaceProps {
   onOpenChange?: (open: boolean) => void
 }
 
-type TargetScale = '2x' | '4x'
-
-const TASK_ICONS = {
-  upscale: Sparkles,
-  'remove-background': Eraser,
-  inpaint: Paintbrush,
-  outpaint: Expand,
-  'extract-element': Scissors,
-  'object-replace': Replace,
-  'style-transfer': Palette,
-} as const satisfies Record<ReadyCanvasImageEditCapabilityId, typeof Sparkles>
-
-const EXTRACT_PRESETS = [
-  { key: 'clothing', prompt: 'clothing', invert: false },
-  { key: 'person', prompt: 'person', invert: false },
-  { key: 'hair', prompt: 'hair', invert: false },
-  { key: 'accessory', prompt: 'accessories', invert: false },
-  { key: 'background', prompt: 'person', invert: true },
-] as const
-
 function getSourceUrl(data: NodeWorkflowNodeData): string {
   if (typeof data.mediaUrl === 'string') return data.mediaUrl
   if (typeof data.imageUrl === 'string') return data.imageUrl
   return ''
 }
 
-function getPositiveDimension(value: unknown): number {
+function getDeclaredDimension(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? Math.round(value)
-    : 1024
-}
-
-function getDefaultModelId(
-  capabilityId: ReadyCanvasImageEditCapabilityId,
-): string {
-  return getCanvasImageEditCapability(capabilityId).defaultModelId ?? ''
+    ? value
+    : undefined
 }
 
 export function CanvasImageEditWorkspace({
@@ -103,15 +64,6 @@ export function CanvasImageEditWorkspace({
   const { placeDerivedImages, focusNode, updateNodeData } =
     useNodeWorkflowActions()
   const [uncontrolledOpen, setUncontrolledOpen] = useState(true)
-  const [activeTask, setActiveTask] =
-    useState<ReadyCanvasImageEditCapabilityId>(defaultTask)
-  const [runningTask, setRunningTask] =
-    useState<ReadyCanvasImageEditCapabilityId | null>(null)
-  const [targetScale, setTargetScale] = useState<TargetScale>('4x')
-  const [extractPrompt, setExtractPrompt] = useState('clothing')
-  const [extractInvert, setExtractInvert] = useState(false)
-  const [extractPreset, setExtractPreset] = useState<string | null>('clothing')
-  const runningRef = useRef(false)
 
   const dialogOpen = open ?? uncontrolledOpen
   const sourceUrl = useMemo(() => getSourceUrl(data), [data])
@@ -121,13 +73,6 @@ export function CanvasImageEditWorkspace({
       : typeof data.sourceGenerationId === 'string'
         ? data.sourceGenerationId
         : undefined
-  const sourceWidth = getPositiveDimension(data.mediaWidth ?? data.width)
-  const sourceHeight = getPositiveDimension(data.mediaHeight ?? data.height)
-  const isRunning = runningTask !== null
-
-  useEffect(() => {
-    setActiveTask(defaultTask)
-  }, [defaultTask])
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -137,51 +82,12 @@ export function CanvasImageEditWorkspace({
     [onOpenChange, open],
   )
 
-  const runExclusive = useCallback(
-    async (
-      task: ReadyCanvasImageEditCapabilityId,
-      fallbackMessage: string,
-      operation: () => Promise<boolean>,
-    ) => {
-      if (runningRef.current || !sourceUrl) return
-
-      runningRef.current = true
-      setRunningTask(task)
-      // C2: surface running progress on the source object (not only the dialog).
-      updateNodeData(nodeId, {
-        generationStatus: NODE_GENERATION_STATUS_IDS.pending,
-        status: NODE_STATUS_IDS.running,
-      })
-      try {
-        const succeeded = await operation()
-        updateNodeData(nodeId, {
-          generationStatus: succeeded
-            ? NODE_GENERATION_STATUS_IDS.success
-            : NODE_GENERATION_STATUS_IDS.error,
-          status: succeeded ? NODE_STATUS_IDS.done : NODE_STATUS_IDS.failed,
-        })
-      } catch (error) {
-        logger.error('[canvas-image-edit] task failed', { task, error })
-        toast.error(fallbackMessage)
-        updateNodeData(nodeId, {
-          generationStatus: NODE_GENERATION_STATUS_IDS.error,
-          status: NODE_STATUS_IDS.failed,
-        })
-      } finally {
-        runningRef.current = false
-        setRunningTask(null)
-      }
-    },
-    [nodeId, sourceUrl, updateNodeData],
-  )
-
+  // ⚠ 躯干还会传一个 `summary`（这一步做了什么）—— 那是工作台编辑历史用的，
+  // 画布落派生节点用不上，这里故意不接。
   const placeOutputs = useCallback(
-    (outputs: CanvasDerivedImageOutput[], fallbackMessage: string): boolean => {
+    (outputs: CanvasDerivedImageOutput[]): boolean => {
       const derivedNodeIds = placeDerivedImages?.(nodeId, outputs) ?? []
-      if (derivedNodeIds.length === 0) {
-        toast.error(fallbackMessage)
-        return false
-      }
+      if (derivedNodeIds.length === 0) return false
 
       focusNode?.(derivedNodeIds[0])
       return true
@@ -189,381 +95,44 @@ export function CanvasImageEditWorkspace({
     [focusNode, nodeId, placeDerivedImages],
   )
 
-  const runCapability = useCallback(
-    async (
-      request: Parameters<typeof canvasCapabilityRuntime.run>[0],
-      fallbackMessage: string,
-    ): Promise<boolean> => {
-      const response = await canvasCapabilityRuntime.run(request)
-      if (!response.success || response.outputs.length === 0) {
-        toast.error(response.error || fallbackMessage)
-        return false
-      }
-      const outputs = response.outputs.map((output) => ({
-        ...output,
-        label: output.label ?? t(`tasks.${request.capability}.label`),
-      }))
-      if (!placeOutputs(outputs, fallbackMessage)) return false
-      if (response.saveWarning) {
-        toast.warning(t('extract.success'), {
-          description: t('extract.saveFailed'),
-        })
-      }
-      return true
-    },
-    [placeOutputs, t],
-  )
-
-  const runUpscale = useCallback(() => {
-    void runExclusive('upscale', t('editFailed'), async () => {
-      if (
-        !(await runCapability(
-          {
-            capability: 'upscale',
-            target: {
-              sourceUrl,
-              sourceGenerationId,
-              sourceWidth,
-              sourceHeight,
-            },
-            targetScale,
-            modelId: getDefaultModelId('upscale'),
-          },
-          t('editFailed'),
-        ))
-      )
-        return false
-      toast.success(t('success.upscale'))
-      return true
-    })
-  }, [
-    runCapability,
-    runExclusive,
-    sourceGenerationId,
-    sourceHeight,
-    sourceUrl,
-    sourceWidth,
-    t,
-    targetScale,
-  ])
-
-  const runRemoveBackground = useCallback(() => {
-    void runExclusive('remove-background', t('editFailed'), async () => {
-      if (
-        !(await runCapability(
-          {
-            capability: 'remove-background',
-            target: {
-              sourceUrl,
-              sourceGenerationId,
-              sourceWidth,
-              sourceHeight,
-            },
-            modelId: getDefaultModelId('remove-background'),
-          },
-          t('editFailed'),
-        ))
-      )
-        return false
-      toast.success(t('success.removeBg'))
-      return true
-    })
-  }, [
-    runCapability,
-    runExclusive,
-    sourceGenerationId,
-    sourceHeight,
-    sourceUrl,
-    sourceWidth,
-    t,
-  ])
-
-  const runExtractElement = useCallback(() => {
-    const prompt = extractPrompt.trim()
-    if (!prompt) return
-
-    void runExclusive('extract-element', t('extractFailed'), async () => {
-      const modelId = getDefaultModelId('extract-element')
-      const response = await canvasCapabilityRuntime.run({
-        capability: 'extract-element',
-        target: { sourceUrl, sourceGenerationId, sourceWidth, sourceHeight },
-        prompt,
-        invert: extractInvert,
-        modelId,
-      })
-      if (!response.success || response.outputs.length === 0) {
-        toast.error(response.error || t('extractFailed'))
-        return false
-      }
-      if (!placeOutputs(response.outputs, t('extractFailed'))) return false
-
-      if (response.saveWarning) {
-        logger.warn('[canvas-image-edit] extracted element save failed')
-        toast.warning(t('extract.success'), {
-          description: t('extract.saveFailed'),
-        })
-        // Placement already succeeded — treat as overall success for canvas.
-        return true
-      }
-      toast.success(t('extract.success'))
-      return true
-    })
-  }, [
-    extractInvert,
-    extractPrompt,
-    placeOutputs,
-    runExclusive,
-    sourceGenerationId,
-    sourceHeight,
-    sourceUrl,
-    sourceWidth,
-    t,
-  ])
-
-  const applyInpaint = useCallback(
-    (maskDataUrl: string, prompt: string) => {
-      void runExclusive('inpaint', t('editFailed'), async () => {
-        if (
-          !(await runCapability(
-            {
-              capability: 'inpaint',
-              target: {
-                sourceUrl,
-                sourceGenerationId,
-                sourceWidth,
-                sourceHeight,
-              },
-              maskImageUrl: maskDataUrl,
-              prompt,
-              modelId: getDefaultModelId('inpaint'),
-            },
-            t('editFailed'),
-          ))
-        )
-          return false
-        toast.success(t('savedToGallery'))
-        return true
+  // C2: 进度要长在源对象上，不只在弹窗里。⚠ 三态各写各的 —— 失败必须写成
+  // failed，否则节点会在编辑失败后显示成功。
+  const handleRunStateChange = useCallback(
+    (state: 'running' | 'success' | 'error') => {
+      updateNodeData(nodeId, {
+        generationStatus:
+          state === 'running'
+            ? NODE_GENERATION_STATUS_IDS.pending
+            : state === 'success'
+              ? NODE_GENERATION_STATUS_IDS.success
+              : NODE_GENERATION_STATUS_IDS.error,
+        status:
+          state === 'running'
+            ? NODE_STATUS_IDS.running
+            : state === 'success'
+              ? NODE_STATUS_IDS.done
+              : NODE_STATUS_IDS.failed,
       })
     },
-    [
-      runCapability,
-      runExclusive,
-      sourceGenerationId,
-      sourceHeight,
-      sourceUrl,
-      sourceWidth,
-      t,
-    ],
+    [nodeId, updateNodeData],
   )
-
-  const applyOutpaint = useCallback(
-    (padding: OutpaintPadding, prompt: string) => {
-      void runExclusive('outpaint', t('editFailed'), async () => {
-        if (
-          !(await runCapability(
-            {
-              capability: 'outpaint',
-              target: {
-                sourceUrl,
-                sourceGenerationId,
-                sourceWidth,
-                sourceHeight,
-              },
-              padding,
-              prompt,
-              modelId: getDefaultModelId('outpaint'),
-            },
-            t('editFailed'),
-          ))
-        )
-          return false
-        toast.success(t('savedToGallery'))
-        return true
-      })
-    },
-    [
-      runCapability,
-      runExclusive,
-      sourceGenerationId,
-      sourceHeight,
-      sourceUrl,
-      sourceWidth,
-      t,
-    ],
-  )
-
-  const renderTaskControls = () => {
-    if (!sourceUrl) {
-      return (
-        <p className="text-sm text-muted-foreground">{t('emptySourceTitle')}</p>
-      )
-    }
-
-    switch (activeTask) {
-      case 'upscale':
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                {t('upscale.scaleLabel')}
-              </p>
-              <div
-                className="inline-flex rounded-lg border border-border/70 bg-muted/30 p-0.5"
-                role="group"
-                aria-label={t('upscale.scaleLabel')}
-              >
-                {(['2x', '4x'] as const).map((scale) => (
-                  <button
-                    key={scale}
-                    type="button"
-                    disabled={isRunning}
-                    aria-pressed={targetScale === scale}
-                    onClick={() => setTargetScale(scale)}
-                    className={cn(
-                      'min-h-8 rounded-md px-3 text-xs font-medium transition-colors',
-                      targetScale === scale
-                        ? 'bg-background text-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {t(`upscale.scale${scale}`)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <Button type="button" disabled={isRunning} onClick={runUpscale}>
-              {runningTask === 'upscale' ? (
-                <Spinner size="md" />
-              ) : (
-                <Sparkles className="size-4" />
-              )}
-              {t('actions.upscale')}
-            </Button>
-          </div>
-        )
-      case 'remove-background':
-        return (
-          <Button
-            type="button"
-            disabled={isRunning}
-            onClick={runRemoveBackground}
-          >
-            {runningTask === 'remove-background' ? (
-              <Spinner size="md" />
-            ) : (
-              <Eraser className="size-4" />
-            )}
-            {t('actions.removeBg')}
-          </Button>
-        )
-      case 'extract-element':
-        return (
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-1.5">
-              {EXTRACT_PRESETS.map((preset) => (
-                <button
-                  key={preset.key}
-                  type="button"
-                  disabled={isRunning}
-                  aria-pressed={extractPreset === preset.key}
-                  onClick={() => {
-                    setExtractPrompt(preset.prompt)
-                    setExtractInvert(preset.invert)
-                    setExtractPreset(preset.key)
-                  }}
-                  className={cn(
-                    'min-h-8 rounded-full border px-3 text-xs font-medium transition-colors',
-                    extractPreset === preset.key
-                      ? 'border-foreground/20 bg-foreground text-background'
-                      : 'border-border/70 text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {t(`extract.presets.${preset.key}`)}
-                </button>
-              ))}
-            </div>
-            <div className="space-y-2">
-              <label
-                htmlFor="canvas-extract-prompt"
-                className="text-xs font-medium text-muted-foreground"
-              >
-                {t('extract.promptLabel')}
-              </label>
-              <Textarea
-                id="canvas-extract-prompt"
-                value={extractPrompt}
-                disabled={isRunning}
-                placeholder={t('extract.promptPlaceholder')}
-                className="min-h-24 resize-none"
-                onChange={(event) => {
-                  setExtractPrompt(event.target.value)
-                  setExtractPreset(null)
-                }}
-              />
-              <p className="text-xs text-muted-foreground/80">
-                {t('extract.promptHint')}
-              </p>
-            </div>
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={extractInvert}
-                disabled={isRunning}
-                onChange={(event) => {
-                  setExtractInvert(event.target.checked)
-                  setExtractPreset(null)
-                }}
-                className="size-4 rounded border-border"
-              />
-              {t('extract.invertLabel')}
-            </label>
-            <Button
-              type="button"
-              disabled={isRunning || !extractPrompt.trim()}
-              onClick={runExtractElement}
-            >
-              {runningTask === 'extract-element' ? (
-                <Spinner size="md" />
-              ) : (
-                <Scissors className="size-4" />
-              )}
-              {t('extract.run')}
-            </Button>
-          </div>
-        )
-      case 'inpaint':
-        return (
-          <StudioInpaintEditor
-            imageUrl={sourceUrl}
-            imageWidth={sourceWidth}
-            imageHeight={sourceHeight}
-            onApply={applyInpaint}
-            onCancel={() => handleOpenChange(false)}
-            isLoading={runningTask === 'inpaint'}
-          />
-        )
-      case 'outpaint':
-        return (
-          <StudioOutpaintEditor
-            imageUrl={sourceUrl}
-            imageWidth={sourceWidth}
-            imageHeight={sourceHeight}
-            onApply={applyOutpaint}
-            onCancel={() => handleOpenChange(false)}
-            isLoading={runningTask === 'outpaint'}
-          />
-        )
-    }
-  }
 
   return (
     <ResponsiveDialog open={dialogOpen} onOpenChange={handleOpenChange}>
       <ResponsiveDialogContent
         closeLabel={tCommon('close')}
-        className="dark h-[min(760px,calc(100svh-2rem))] w-[min(1120px,calc(100vw-2rem))] max-w-none gap-0 overflow-hidden border-node-panel-inner bg-node-panel p-0 text-node-foreground shadow-node-panel"
+        // ⚠ 两个都是必须的，2026-08-18 真机量出来的：
+        // ① `sm:max-w-none` —— `DialogContent` 基类尾巴是 `sm:max-w-lg`(32rem)，
+        //    不带 `sm:` 前缀的 `max-w-none` 压不住它，于是 1920 的窗口上这个
+        //    弹窗实际只有 512px 宽，右栏可用 262px：蒙版编辑器被挤到横向滚动、
+        //    提示词输入框窄成一个字一行的竖条。
+        // ② `flex flex-col` —— 基类是 `display: grid`，而正文写的是 flex
+        //    语汇（`flex-1` / `min-h-0`）。grid 不认 `flex-1`，两行 auto 轨道被
+        //    拉伸平分高度，标题条因此从 44px 涨到 149px。
+        className="dark flex h-[min(760px,calc(100svh-2rem))] w-[min(1120px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden border-node-panel-inner bg-node-panel p-0 text-node-foreground shadow-node-panel sm:max-w-none"
         mobileBodyClassName="px-0 pt-0"
         // R3-4 §4.2 rule 4: 档3 重编辑工作区只认显式关闭（Esc / X / 取消按
-        // 钮）——防止误触画布空白区把重绘/扩图/图层进度点没了。
+        // 钮）——防止误触画布空白区把重绘进度点没了。
         preventOutsideDismiss
       >
         <ResponsiveDialogHeader className="min-h-11 justify-center border-b border-node-panel-inner px-4 py-2.5 text-left">
@@ -571,81 +140,20 @@ export function CanvasImageEditWorkspace({
             {t('title')}
           </ResponsiveDialogTitle>
           <ResponsiveDialogDescription className="sr-only">
-            {t(`tasks.${activeTask}.description`)}
+            {t('title')}
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
 
-        <div className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[248px_minmax(0,1fr)] md:overflow-hidden">
-          <aside className="border-b border-node-panel-inner bg-node-panel-soft/40 p-3 md:overflow-y-auto md:border-r md:border-b-0">
-            <div className="overflow-hidden rounded-xl border border-node-panel-inner bg-node-panel-soft">
-              {sourceUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={sourceUrl}
-                  alt={t('sourceAlt')}
-                  className="aspect-[4/3] size-full object-contain"
-                />
-              ) : (
-                <div className="flex aspect-[4/3] items-center justify-center px-4 text-center text-xs text-node-muted">
-                  {t('emptySourceTitle')}
-                </div>
-              )}
-              <div className="flex items-center justify-between gap-3 border-t border-node-panel-inner px-3 py-2">
-                <span className="truncate text-xs font-medium text-node-foreground">
-                  {t('sourceTitle')}
-                </span>
-                <span className="shrink-0 text-2xs tabular-nums text-node-muted">
-                  {sourceWidth} × {sourceHeight}
-                </span>
-              </div>
-            </div>
-
-            <nav className="mt-3 space-y-1" aria-label={t('toolsTitle')}>
-              {READY_CANVAS_IMAGE_EDIT_CAPABILITIES.map((capability) => {
-                const Icon = TASK_ICONS[capability.id]
-                const selected = activeTask === capability.id
-                return (
-                  <button
-                    key={capability.id}
-                    type="button"
-                    disabled={isRunning}
-                    aria-pressed={selected}
-                    onClick={() => setActiveTask(capability.id)}
-                    className={cn(
-                      'flex min-h-11 w-full items-start gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors md:min-h-9',
-                      selected
-                        ? 'bg-node-panel-inner text-node-foreground'
-                        : 'text-node-muted hover:bg-node-panel-inner/70 hover:text-node-foreground',
-                      isRunning && 'cursor-not-allowed opacity-60',
-                    )}
-                  >
-                    <Icon className="mt-0.5 size-4 shrink-0" />
-                    <span className="min-w-0">
-                      <span className="block text-xs font-medium">
-                        {t(`tasks.${capability.id}.label`)}
-                      </span>
-                      <span className="mt-0.5 hidden text-2xs leading-4 text-node-muted md:block">
-                        {t(`tasks.${capability.id}.description`)}
-                      </span>
-                    </span>
-                  </button>
-                )
-              })}
-            </nav>
-          </aside>
-
-          <main className="min-w-0 overflow-y-auto p-4 sm:p-5">
-            <div className="mb-5 border-b border-node-panel-inner pb-4">
-              <h2 className="text-sm font-semibold text-node-foreground">
-                {t(`tasks.${activeTask}.label`)}
-              </h2>
-              <p className="mt-1 text-xs leading-5 text-node-muted">
-                {t(`tasks.${activeTask}.description`)}
-              </p>
-            </div>
-            {renderTaskControls()}
-          </main>
-        </div>
+        <ImageEditSurface
+          sourceUrl={sourceUrl}
+          sourceGenerationId={sourceGenerationId}
+          declaredWidth={getDeclaredDimension(data.mediaWidth ?? data.width)}
+          declaredHeight={getDeclaredDimension(data.mediaHeight ?? data.height)}
+          defaultTask={defaultTask}
+          onApplied={placeOutputs}
+          onRunStateChange={handleRunStateChange}
+          onCancel={() => handleOpenChange(false)}
+        />
       </ResponsiveDialogContent>
     </ResponsiveDialog>
   )

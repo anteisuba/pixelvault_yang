@@ -147,7 +147,7 @@ describe('canvas image edit handoff', () => {
       new URLSearchParams({
         canvasTool: 'image-edit',
         sourceUrl: SOURCE_URL,
-        editTask: 'outpaint',
+        editTask: 'inpaint',
       }),
     )
     expect(request).not.toBeNull()

@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
   extractElementAPI: vi.fn(),
   focusNode: vi.fn(),
   inpaintImageAPI: vi.fn(),
-  outpaintImageAPI: vi.fn(),
   placeDerivedImages: vi.fn(),
   updateNodeData: vi.fn(),
   toastError: vi.fn(),
@@ -43,7 +42,6 @@ vi.mock('@/lib/api-client', () => ({
   editImageAPI: mocks.editImageAPI,
   extractElementAPI: mocks.extractElementAPI,
   inpaintImageAPI: mocks.inpaintImageAPI,
-  outpaintImageAPI: mocks.outpaintImageAPI,
 }))
 
 vi.mock('./NodeWorkflowActionsContext', () => ({
@@ -57,35 +55,23 @@ vi.mock('./NodeWorkflowActionsContext', () => ({
 vi.mock('@/components/business/studio/StudioInpaintEditor', () => ({
   StudioInpaintEditor: ({
     onApply,
+    imageWidth,
+    imageHeight,
   }: {
     onApply: (maskDataUrl: string, prompt: string) => void
+    imageWidth: number
+    imageHeight: number
   }) => (
-    <button
-      type="button"
-      onClick={() => onApply('data:image/png;base64,mask', 'repair face')}
-    >
-      editor.inpaint.apply
-    </button>
-  ),
-}))
-
-vi.mock('@/components/business/studio/StudioOutpaintEditor', () => ({
-  StudioOutpaintEditor: ({
-    onApply,
-  }: {
-    onApply: (
-      padding: { top: number; right: number; bottom: number; left: number },
-      prompt: string,
-    ) => void
-  }) => (
-    <button
-      type="button"
-      onClick={() =>
-        onApply({ top: 32, right: 64, bottom: 32, left: 64 }, 'continue scene')
-      }
-    >
-      editor.outpaint.apply
-    </button>
+    <>
+      {/* 蒙版画布就是按这两个数建的 —— 它们错了，蒙版尺寸就和源图对不上。 */}
+      <span data-testid="inpaint-canvas-size">{`${imageWidth}x${imageHeight}`}</span>
+      <button
+        type="button"
+        onClick={() => onApply('data:image/png;base64,mask', 'repair face')}
+      >
+        editor.inpaint.apply
+      </button>
+    </>
   ),
 }))
 
@@ -110,6 +96,27 @@ function renderWorkspace(
   )
 }
 
+/**
+ * jsdom 不会真去取图，`new Image()` 永远不 onload。这个替身让它立刻报出一个
+ * 与 `SOURCE_DATA` 声明值**不同**的真实边长，好让「量到的赢过字段」这条断言
+ * 有意义。
+ */
+function stubImageProbe(naturalWidth: number, naturalHeight: number) {
+  const original = globalThis.Image
+  class ProbeImage {
+    onload: (() => void) | null = null
+    naturalWidth = naturalWidth
+    naturalHeight = naturalHeight
+    set src(_value: string) {
+      queueMicrotask(() => this.onload?.())
+    }
+  }
+  globalThis.Image = ProbeImage as unknown as typeof Image
+  return () => {
+    globalThis.Image = original
+  }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.placeDerivedImages.mockReturnValue(['derived-node'])
@@ -120,28 +127,31 @@ beforeEach(() => {
 })
 
 describe('CanvasImageEditWorkspace', () => {
-  // 2e783d5b 把 object-replace / style-transfer 从 hidden 提级到 ready（并各自
-  // 配了图标），ready 6 → 8，hidden 只剩 text-render。清单在这里照抄一份而不是
-  // 直接 import READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS：后者会让断言变成同义
-  // 反复，提级/降级就再也不会被这条测试拦下来。
-  it('renders the eight ready capabilities and omits hidden placeholders', () => {
+  // 清单在这里照抄一份而不是直接 import READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS：
+  // 后者会让断言变成同义反复，提级/降级就再也不会被这条测试拦下来。
+  //
+  // 沿革：2026-08-18 `decompose` / `outpaint` 整条删除，object-replace 与
+  // style-transfer 因「全仓零执行路径」退回 hidden；2026-08-19 E3 把
+  // object-replace 建出来并提回 ready。ready 现在五条，且每条都在
+  // `CANVAS_CAPABILITY_DESCRIPTORS` 里有对应实现。
+  it('renders the five ready capabilities and omits hidden placeholders', () => {
     renderWorkspace()
 
     for (const task of [
       'upscale',
       'remove-background',
       'inpaint',
-      'outpaint',
       'extract-element',
       'object-replace',
-      'style-transfer',
     ]) {
       expect(screen.getAllByText(`tasks.${task}.label`).length).toBeGreaterThan(
         0,
       )
     }
 
-    expect(screen.queryByText('tasks.text-render.label')).toBeNull()
+    for (const hidden of ['style-transfer', 'text-render']) {
+      expect(screen.queryByText(`tasks.${hidden}.label`)).toBeNull()
+    }
     expect(screen.getByAltText('sourceAlt')).toHaveAttribute(
       'src',
       SOURCE_DATA.mediaUrl,
@@ -221,6 +231,38 @@ describe('CanvasImageEditWorkspace', () => {
     await waitFor(() => expect(mocks.toastError).toHaveBeenCalled())
   })
 
+  // ⚠ 2026-08-18 E0：画布 `inpaint` 一提交就 500，根因就在这两个数。源图真实
+  // 1672×941，而工作区只读 `data.mediaWidth`、读不到就兜底 1024×1024 —— 导入
+  // 进来的节点恰恰没有这个字段。蒙版按 1024 建、图是 1672 宽，FLUX Fill 直接
+  // 拒绝。换成原尺寸蒙版重放同一个端点就成功，根因已证死。
+  it('sizes the mask canvas from the measured bitmap, not the declared metadata', async () => {
+    const restoreImage = stubImageProbe(1672, 941)
+    try {
+      renderWorkspace('inpaint')
+
+      await waitFor(() => {
+        expect(screen.getByTestId('inpaint-canvas-size')).toHaveTextContent(
+          '1672x941',
+        )
+      })
+      // 声明值（640×480）没赢 —— 它只是备份，位图才是事实源。
+      expect(screen.getByTestId('inpaint-canvas-size')).not.toHaveTextContent(
+        '640x480',
+      )
+    } finally {
+      restoreImage()
+    }
+  })
+
+  it('falls back to the declared metadata when the bitmap never loads', () => {
+    // 替身不装 onload，模拟图取不到：此时只能退回 `data.mediaWidth`。
+    renderWorkspace('inpaint')
+
+    expect(screen.getByTestId('inpaint-canvas-size')).toHaveTextContent(
+      '640x480',
+    )
+  })
+
   it('connects the inpaint editor callback to the API and placement', async () => {
     mocks.inpaintImageAPI.mockResolvedValue({
       success: true,
@@ -252,42 +294,6 @@ describe('CanvasImageEditWorkspace', () => {
         expect.objectContaining({
           imageUrl: 'https://cdn.example.com/inpaint.png',
           editCapability: 'inpaint',
-        }),
-      ]),
-    )
-  })
-
-  it('connects the outpaint editor callback to the API and placement', async () => {
-    mocks.outpaintImageAPI.mockResolvedValue({
-      success: true,
-      data: {
-        imageUrl: 'https://cdn.example.com/outpaint.png',
-        width: 768,
-        height: 544,
-        generation: { id: 'outpaint-generation' },
-      },
-    })
-    renderWorkspace('outpaint')
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'editor.outpaint.apply' }),
-    )
-
-    await waitFor(() => {
-      expect(mocks.outpaintImageAPI).toHaveBeenCalledWith({
-        imageUrl: SOURCE_DATA.mediaUrl,
-        padding: { top: 32, right: 64, bottom: 32, left: 64 },
-        prompt: 'continue scene',
-        sourceGenerationId: 'source-generation',
-        modelId: 'fal-ai/image-apps-v2/outpaint',
-      })
-    })
-    expect(mocks.placeDerivedImages).toHaveBeenCalledWith(
-      'source-node',
-      expect.arrayContaining([
-        expect.objectContaining({
-          imageUrl: 'https://cdn.example.com/outpaint.png',
-          editCapability: 'outpaint',
         }),
       ]),
     )

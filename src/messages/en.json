@@ -222,6 +222,7 @@
     "cost": "Cost",
     "capabilities": "Capabilities",
     "close": "Close",
+    "cancel": "Cancel",
     "sidebar": "Sidebar",
     "sidebarDescription": "Displays the mobile sidebar.",
     "toggleSidebar": "Toggle sidebar",
@@ -530,7 +531,7 @@
       },
       "edit": {
         "title": "Image Edit — PixelVault",
-        "description": "Edit generated images with inpaint, outpaint, super resolution, background removal, and layer tools."
+        "description": "Edit generated images with inpaint, super resolution, background removal, and element extraction."
       },
       "node": {
         "title": "Canvas — PixelVault",
@@ -3751,7 +3752,7 @@
       "edit": {
         "label": "Edit",
         "title": "Edit",
-        "description": "Inpaint, outpaint, and rearrange objects across your images."
+        "description": "Inpaint, upscale, and cut elements out of your images."
       },
       "enhance": {
         "label": "Enhance",
@@ -5366,7 +5367,6 @@
     "toolEdit": "Edit with AI",
     "toolSaveRecipe": "Save as recipe",
     "toolInpaint": "Inpaint",
-    "toolOutpaint": "Outpaint",
     "inpaintEditor": {
       "title": "Inpaint",
       "canvasLabel": "Paint the area to regenerate",
@@ -5378,24 +5378,10 @@
       "promptPlaceholder": "Describe what should replace the painted area...",
       "cancel": "Cancel",
       "apply": "Apply inpaint",
-      "failed": "Inpaint failed"
-    },
-    "outpaintEditor": {
-      "title": "Outpaint",
-      "padding": "Canvas padding",
-      "presetUniform64": "64px",
-      "presetUniform128": "128px",
-      "presetUniform256": "256px",
-      "top": "Top",
-      "right": "Right",
-      "bottom": "Bottom",
-      "left": "Left",
-      "prompt": "Prompt",
-      "promptPlaceholder": "Describe how the expanded area should continue...",
-      "cancel": "Cancel",
-      "apply": "Apply outpaint",
-      "finalSize": "Final size {width} × {height}",
-      "failed": "Outpaint failed"
+      "failed": "Inpaint failed",
+      "toolBrush": "Brush",
+      "toolBox": "Box select",
+      "boxHint": "Drag a box over the area to regenerate"
     },
     "toolDrawerTitle": "Tools",
     "toolMore": "More tools",
@@ -5446,8 +5432,7 @@
     "actions": {
       "upscale": "Super resolution",
       "removeBg": "Remove background",
-      "inpaint": "Inpaint",
-      "outpaint": "Outpaint"
+      "inpaint": "Inpaint"
     },
     "taskGrid": {
       "title": "Choose a task",
@@ -5466,10 +5451,6 @@
       "inpaint": {
         "label": "Inpaint",
         "description": "Replace a region with a mask or a prompt."
-      },
-      "outpaint": {
-        "label": "Outpaint",
-        "description": "Extend the canvas; AI fills new pixels."
       },
       "object-replace": {
         "label": "Object replace",
@@ -5537,7 +5518,22 @@
     "savedToGallery": "Saved to gallery.",
     "editFailed": "Image edit failed.",
     "saveFailed": "Could not save the result.",
-    "downloadFailed": "Download failed."
+    "downloadFailed": "Download failed.",
+    "stageEditThis": "Edit this",
+    "stageBack": "Back to workbench",
+    "stageReferenceCaption": "Reference {index} / {total}",
+    "stageEditingReference": "Editing · reference {index} / {total}",
+    "annotate": {
+      "hint": "Drag a box over each spot you want changed, then write one line per box.",
+      "listTitle": "Annotations (sent as prompt, never painted onto the image)",
+      "placeholder": "What should this area become…",
+      "apply": "Apply {count} edits at once",
+      "empty": "No boxes yet. Drag one on the image to start.",
+      "remove": "Remove annotation {index}"
+    },
+    "stageHistory": "Edit history",
+    "stageHistoryOriginal": "Original",
+    "stageHistoryStep": "Edit {index}"
   },
   "sceneFeedback": {
     "keepCharacter": "Keep character",

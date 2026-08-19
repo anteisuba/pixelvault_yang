@@ -1,7 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Eraser,
-  Expand,
   Palette,
   Replace,
   Scissors,
@@ -43,11 +42,6 @@ export const EDIT_MODELS: Record<string, EditModelOption> = {
     id: 'fal-ai/flux-pro/v1/fill',
     provider: 'fal',
     displayName: 'FLUX Pro Fill',
-  },
-  'fal-ai/image-apps-v2/outpaint': {
-    id: 'fal-ai/image-apps-v2/outpaint',
-    provider: 'fal',
-    displayName: 'Image Apps Outpaint',
   },
   'fal-ai/lang-segment-anything': {
     id: 'fal-ai/lang-segment-anything',
@@ -122,12 +116,6 @@ export const EDIT_TASKS: readonly EditTaskMetadata[] = [
     icon: Sparkles,
     providers: ['fal', 'gemini', 'openai'],
     ...getCapabilityModelConfig('inpaint'),
-  },
-  {
-    task: 'outpaint',
-    icon: Expand,
-    providers: ['fal', 'gemini'],
-    ...getCapabilityModelConfig('outpaint'),
   },
   {
     task: 'object-replace',

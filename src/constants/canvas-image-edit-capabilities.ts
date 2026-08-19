@@ -43,15 +43,6 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     defaultModelId: 'fal-ai/flux-pro/v1/fill',
   },
   {
-    id: 'outpaint',
-    availability: 'ready',
-    interaction: 'outpaint',
-    input: SINGLE_IMAGE_INPUT,
-    output: 'single-image',
-    models: ['fal-ai/image-apps-v2/outpaint', 'gemini-3-pro-image'],
-    defaultModelId: 'fal-ai/image-apps-v2/outpaint',
-  },
-  {
     id: 'extract-element',
     availability: 'ready',
     interaction: 'prompt',
@@ -67,23 +58,27 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     ],
     defaultModelId: 'gpt-image-2',
   },
+  // ⭐ 2026-08-19 E3 建成并提回 ready。默认模型是**实测选出来的**：同一张三
+  // 视图 + 同样三条注释，Gemini 与 GPT 都一次改全且无标注痕，但 GPT 把
+  // 1672×941 强制成方形并重排了三视图（任务包 §7.11）。
   {
     id: 'object-replace',
     availability: 'ready',
-    interaction: 'prompt',
+    interaction: 'annotate',
     input: SINGLE_IMAGE_INPUT,
     output: 'single-image',
-    models: ['fal-ai/flux-2-pro/edit', 'gemini-3-pro-image', 'gpt-image-2'],
-    defaultModelId: 'fal-ai/flux-2-pro/edit',
+    models: ['gemini-3-pro-image', 'gpt-image-2'],
+    defaultModelId: 'gemini-3-pro-image',
   },
+  // ⚠ 仍然零执行路径 —— 别只改这一行就以为它能用（2026-08-18 E0 的教训）。
   {
     id: 'style-transfer',
-    availability: 'ready',
+    availability: 'hidden',
     interaction: 'prompt',
     input: SINGLE_IMAGE_INPUT,
     output: 'single-image',
-    models: ['fal-ai/flux-2-pro/edit', 'gemini-3-pro-image', 'gpt-image-2'],
-    defaultModelId: 'fal-ai/flux-2-pro/edit',
+    models: [],
+    defaultModelId: null,
   },
   {
     id: 'text-render',

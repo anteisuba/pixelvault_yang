@@ -3,10 +3,10 @@ import {
   editImageAPI,
   extractElementAPI,
   inpaintImageAPI,
-  outpaintImageAPI,
+  objectReplaceAPI,
 } from '@/lib/api-client'
 import type { CanvasDerivedImageOutput } from '@/types/canvas-image-edit'
-import type { OutpaintPadding } from '@/types'
+import type { GenerationRecord, ObjectReplaceAnnotation } from '@/types'
 
 export interface CanvasCapabilityTarget {
   sourceUrl: string
@@ -42,10 +42,10 @@ export type CanvasCapabilityRequest =
       modelId: string
     }
   | {
-      capability: 'outpaint'
+      capability: 'object-replace'
       target: CanvasCapabilityTarget
-      padding: OutpaintPadding
-      prompt: string
+      /** ⚠ 注释清单，不是 mask —— 图上那些编号不落像素。 */
+      annotations: readonly ObjectReplaceAnnotation[]
       modelId: string
     }
 
@@ -64,7 +64,7 @@ export type CanvasCapabilityResultStrategy =
 
 export interface CanvasCapabilityDescriptor {
   id: CanvasCapabilityRequest['capability']
-  interaction: 'instant' | 'prompt' | 'mask' | 'outpaint'
+  interaction: 'instant' | 'prompt' | 'mask' | 'annotate'
   output: 'single-image'
   resultStrategy: CanvasCapabilityResultStrategy
   defaultModelId?: string
@@ -94,18 +94,18 @@ export const CANVAS_CAPABILITY_DESCRIPTORS: readonly CanvasCapabilityDescriptor[
       defaultModelId: 'fal-ai/flux-pro/v1/fill',
     },
     {
-      id: 'outpaint',
-      interaction: 'outpaint',
-      output: 'single-image',
-      resultStrategy: 'derive-right',
-      defaultModelId: 'fal-ai/image-apps-v2/outpaint',
-    },
-    {
       id: 'extract-element',
       interaction: 'prompt',
       output: 'single-image',
       resultStrategy: 'derive-right',
       defaultModelId: 'gpt-image-2',
+    },
+    {
+      id: 'object-replace',
+      interaction: 'annotate',
+      output: 'single-image',
+      resultStrategy: 'derive-right',
+      defaultModelId: 'gemini-3-pro-image',
     },
   ] as const
 
@@ -134,10 +134,12 @@ export const canvasCapabilityRuntime = {
 }
 
 interface SingleImageData {
+  /** Raw provider URL. Only a fallback — see `oneOutput`. */
   imageUrl: string
   width?: number
   height?: number
-  generationId?: string
+  /** The R2-persisted row the edit routes always create. */
+  generation?: GenerationRecord
 }
 
 function oneOutput(
@@ -146,10 +148,17 @@ function oneOutput(
 ): CanvasDerivedImageOutput[] {
   return [
     {
-      imageUrl: result.imageUrl,
+      // ⚠ 派生节点存的必须是 R2 持久副本，不是 provider 那条 —— fal 的
+      // `v3b.fal.media` 链接会过期（编辑路由自己的注释就是这么写的，持久化
+      // 也正是为此），存进节点等于给画布埋裂图。
+      // 更狠的一种见于已删除的 outpaint：它给 fal 传 `sync_mode: true`，拿回
+      // 来的是 2MB 级的 `data:` URI，直接撞穿 `CanvasDerivedImageOutputSchema`
+      // 的 `imageUrl.max(4000)`，于是 `placeDerivedImages()` 静默返回 `[]` ——
+      // 图生成了、也落库了，画布上却什么都不长（2026-08-18 E0 实测）。
+      imageUrl: result.generation?.url ?? result.imageUrl,
       width: result.width,
       height: result.height,
-      generationId: result.generationId,
+      generationId: result.generation?.id,
       editCapability: capability,
     },
   ]
@@ -176,7 +185,7 @@ async function executeCanvasCapability(
           imageUrl: response.data.imageUrl,
           width: response.data.width,
           height: response.data.height,
-          generationId: response.data.generation?.id,
+          generation: response.data.generation,
         }),
       }
     }
@@ -198,7 +207,7 @@ async function executeCanvasCapability(
           imageUrl: response.data.imageUrl,
           width: response.data.width,
           height: response.data.height,
-          generationId: response.data.generation?.id,
+          generation: response.data.generation,
         }),
       }
     }
@@ -227,7 +236,7 @@ async function executeCanvasCapability(
           imageUrl: response.data.imageUrl,
           width: response.data.width,
           height: response.data.height,
-          generationId: response.data.generation?.id,
+          generation: response.data.generation,
         }),
         saveWarning: !saveResponse.success || !saveResponse.data,
       }
@@ -249,15 +258,14 @@ async function executeCanvasCapability(
           imageUrl: response.data.imageUrl,
           width: response.data.width,
           height: response.data.height,
-          generationId: response.data.generation?.id,
+          generation: response.data.generation,
         }),
       }
     }
-    case 'outpaint': {
-      const response = await outpaintImageAPI({
+    case 'object-replace': {
+      const response = await objectReplaceAPI({
         imageUrl: target.sourceUrl,
-        padding: request.padding,
-        prompt: request.prompt,
+        annotations: [...request.annotations],
         sourceGenerationId: target.sourceGenerationId,
         modelId: request.modelId,
       })
@@ -266,11 +274,11 @@ async function executeCanvasCapability(
       }
       return {
         success: true,
-        outputs: oneOutput('outpaint', {
+        outputs: oneOutput('object-replace', {
           imageUrl: response.data.imageUrl,
           width: response.data.width,
           height: response.data.height,
-          generationId: response.data.generation?.id,
+          generation: response.data.generation,
         }),
       }
     }

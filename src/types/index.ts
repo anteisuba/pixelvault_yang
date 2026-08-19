@@ -822,25 +822,43 @@ export const InpaintRequestSchema = z.object({
 
 export type InpaintRequest = z.infer<typeof InpaintRequestSchema>
 
-export const OutpaintPaddingSchema = z.object({
-  top: z.number().int().min(0).max(512),
-  right: z.number().int().min(0).max(512),
-  bottom: z.number().int().min(0).max(512),
-  left: z.number().int().min(0).max(512),
+// ─── Object Replace (多框编号 + 注释清单，一次全改) ──────────────
+
+/**
+ * 一条注释 = 图上的一个编号框 + 用户对它写的一句话。
+ *
+ * ⚠ **`area` 不是 mask**。2026-08-19 实测（任务包 §7.11）：干净原图 + 文字
+ * 清单就能让模型一次改对三处，把编号框烧进像素反而要承担「成品留标注痕」的
+ * 风险。所以框只做两件事 —— 让用户看见自己圈了哪儿，以及在对象名不足以指认
+ * 时给一个粗略方位。
+ */
+export const ObjectReplaceAnnotationSchema = z.object({
+  /** 1-based，就是图上画的 ①②③。 */
+  index: z.number().int().positive().max(20),
+  instruction: z.string().trim().min(1).max(500),
+  /** 框在图上的相对位置（0–1），可缺省。 */
+  area: z
+    .object({
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+      width: z.number().min(0).max(1),
+      height: z.number().min(0).max(1),
+    })
+    .optional(),
 })
 
-export const OutpaintRequestSchema = z.object({
+export const ObjectReplaceRequestSchema = z.object({
   imageUrl: z.string().url(),
-  padding: OutpaintPaddingSchema,
-  prompt: z.string().trim().min(1).max(1000),
-  negativePrompt: z.string().max(500).optional(),
+  annotations: z.array(ObjectReplaceAnnotationSchema).min(1).max(20),
   apiKeyId: z.string().trim().min(1).optional(),
   sourceGenerationId: z.string().trim().min(1).optional(),
   modelId: EditModelIdSchema.optional(),
 })
 
-export type OutpaintRequest = z.infer<typeof OutpaintRequestSchema>
-export type OutpaintPadding = z.infer<typeof OutpaintPaddingSchema>
+export type ObjectReplaceAnnotation = z.infer<
+  typeof ObjectReplaceAnnotationSchema
+>
+export type ObjectReplaceRequest = z.infer<typeof ObjectReplaceRequestSchema>
 
 // ─── Element Extraction (text-guided cutout) ────────────────────
 

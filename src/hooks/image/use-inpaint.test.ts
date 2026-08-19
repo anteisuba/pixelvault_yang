@@ -5,7 +5,6 @@ import { FAKE_GENERATION } from '@/test/api-helpers'
 
 vi.mock('@/lib/api-client/image-edit', () => ({
   inpaintImageAPI: vi.fn(),
-  outpaintImageAPI: vi.fn(),
 }))
 
 vi.mock('next-intl', () => {
@@ -18,7 +17,6 @@ vi.mock('next-intl', () => {
 
 import {
   inpaintImageAPI,
-  outpaintImageAPI,
   type ImageEditApiResult,
 } from '@/lib/api-client/image-edit'
 import { useInpaint } from './use-inpaint'
@@ -61,30 +59,6 @@ describe('useInpaint', () => {
     expect(result.current.result).toEqual(EDIT_RESULT)
     expect(result.current.error).toBeNull()
     expect(result.current.isLoading).toBe(false)
-  })
-
-  it('calls outpaint API and stores the result', async () => {
-    vi.mocked(outpaintImageAPI).mockResolvedValue({
-      success: true,
-      data: EDIT_RESULT,
-    })
-
-    const { result } = renderHook(() => useInpaint())
-
-    await act(async () => {
-      await result.current.outpaint({
-        imageUrl: 'https://example.com/source.png',
-        padding: { top: 64, right: 64, bottom: 64, left: 64 },
-        prompt: 'Extend the landscape',
-      })
-    })
-
-    expect(outpaintImageAPI).toHaveBeenCalledWith({
-      imageUrl: 'https://example.com/source.png',
-      padding: { top: 64, right: 64, bottom: 64, left: 64 },
-      prompt: 'Extend the landscape',
-    })
-    expect(result.current.result).toEqual(EDIT_RESULT)
   })
 
   it('stores error state when the API returns an error response', async () => {

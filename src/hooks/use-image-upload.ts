@@ -46,6 +46,15 @@ interface UseImageUploadReturn {
    * `referenceImages` would need to translate first.
    */
   removeReferenceImage: (index: number) => void
+  /**
+   * 把第 `index` 槽的图换成 `image`，**位置不动**。
+   *
+   * 编辑参考图的落点（`references/pages/studio-image-edit.md` §6，owner
+   * 2026-08-18 拍板「就地替换该槽位」）：用户的意图是「把要参考的这张改好再拿
+   * 去生成」，不是「多一张参考图」——所以既不是 `addReferenceImage`，也不是
+   * 先删后加（那会让它掉到队尾、并且在 3 槽满时被判 `over_limit`）。
+   */
+  replaceReferenceImage: (index: number, image: string) => void
   clearAllImages: () => void
   /**
    * Add a reference image from an http(s) URL. Stores the URL as-is — the
@@ -178,6 +187,17 @@ export function useImageUpload(): UseImageUploadReturn {
           ? entry
           : { ...entry, disabledReason: reason }
       })
+    })
+  }, [])
+
+  const replaceReferenceImage = useCallback((index: number, image: string) => {
+    setReferenceEntries((prev) => {
+      if (index < 0 || index >= prev.length) return prev
+      if (prev[index].url === image) return prev
+      // 槽位没动，所以 `disabledReason` 也不用重算 —— 它只由 index 与容量决定。
+      return prev.map((entry, i) =>
+        i === index ? { ...entry, url: image } : entry,
+      )
     })
   }, [])
 
@@ -317,6 +337,7 @@ export function useImageUpload(): UseImageUploadReturn {
     referenceEntries,
     addReferenceImage,
     removeReferenceImage,
+    replaceReferenceImage,
     clearAllImages,
     addFromUrl,
     setMaxImages,

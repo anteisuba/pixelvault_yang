@@ -5,10 +5,9 @@ import { useTranslations } from 'next-intl'
 
 import {
   inpaintImageAPI,
-  outpaintImageAPI,
   type ImageEditApiResult,
 } from '@/lib/api-client/image-edit'
-import type { InpaintRequest, OutpaintRequest } from '@/types'
+import type { InpaintRequest } from '@/types'
 
 export function useInpaint() {
   const t = useTranslations('StudioV3')
@@ -44,37 +43,8 @@ export function useInpaint() {
     [t],
   )
 
-  const outpaint = useCallback(
-    async (params: OutpaintRequest): Promise<ImageEditApiResult | null> => {
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const response = await outpaintImageAPI(params)
-        if (!response.success || !response.data) {
-          setError(response.error ?? t('outpaintEditor.failed'))
-          return null
-        }
-
-        setResult(response.data)
-        return response.data
-      } catch (caughtError) {
-        const message =
-          caughtError instanceof Error
-            ? caughtError.message
-            : t('outpaintEditor.failed')
-        setError(message)
-        return null
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [t],
-  )
-
   return {
     inpaint,
-    outpaint,
     isLoading,
     error,
     result,

@@ -4,9 +4,9 @@ import { SafetyFilterError } from '@/lib/errors'
 import { ProviderError } from '@/services/providers/types'
 
 import {
+  compileAnnotationPrompt,
   extractElement,
   inpaintImage,
-  outpaintImage,
   removeBackground,
   upscaleImage,
 } from './image-edit.service'
@@ -136,88 +136,62 @@ describe('image-edit.service', () => {
     ).rejects.toBeInstanceOf(ProviderError)
   })
 
-  it('outpaints images with directional padding', async () => {
-    mockFetchJson({
-      images: [
-        {
-          url: 'https://cdn.example.com/outpainted.png',
-          width: 1408,
-          height: 1152,
-        },
-      ],
-    })
-
-    const result = await outpaintImage({
-      imageUrl: 'https://example.com/source.png',
-      padding: { top: 64, right: 128, bottom: 32, left: 16 },
-      prompt: 'extend the landscape',
-      apiKey: 'key',
-    })
-
-    expect(result).toEqual({
-      imageUrl: 'https://cdn.example.com/outpainted.png',
-      width: 1408,
-      height: 1152,
-    })
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://fal.run/fal-ai/image-apps-v2/outpaint',
-      expect.objectContaining({
-        body: JSON.stringify({
-          image_url: 'https://example.com/source.png',
-          expand_top: 64,
-          expand_right: 128,
-          expand_bottom: 32,
-          expand_left: 16,
-          prompt: 'extend the landscape',
-          num_images: 1,
-          output_format: 'png',
-          sync_mode: true,
-        }),
-      }),
-    )
-  })
-
-  it('passes zero padding through outpaint unchanged', async () => {
-    mockFetchJson({
-      images: [
-        {
-          url: 'https://cdn.example.com/outpainted.png',
-          width: 1024,
-          height: 1024,
-        },
-      ],
-    })
-
-    await outpaintImage({
-      imageUrl: 'https://example.com/source.png',
-      padding: { top: 0, right: 0, bottom: 0, left: 0 },
-      prompt: 'keep the image',
-      apiKey: 'key',
-    })
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://fal.run/fal-ai/image-apps-v2/outpaint',
-      expect.objectContaining({
-        body: JSON.stringify({
-          image_url: 'https://example.com/source.png',
-          expand_top: 0,
-          expand_right: 0,
-          expand_bottom: 0,
-          expand_left: 0,
-          prompt: 'keep the image',
-          num_images: 1,
-          output_format: 'png',
-          sync_mode: true,
-        }),
-      }),
-    )
-  })
-
   // 1x1 transparent PNG. Tiny but a real decodable PNG so sharp can read
   // its metadata, which is what readBufferDimensions does at the end of the
   // Gemini path (and what we'd otherwise have to mock out).
   const TINY_PNG_BASE64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+
+  // ⚠ 这段措辞不是随手写的，是 2026-08-19 三选一实测跑通的那一版（任务包
+  // §7.11）：「一次全改」「其余不动」「输出不带任何标注」三句缺一不可 ——
+  // 少了最后一句，模型有可能把编号画进成品，而「成品无标注痕」正是 owner
+  // 07-10 那个验收场景的硬要求。
+  describe('compileAnnotationPrompt', () => {
+    it('keeps the three clauses the bake-off validated', () => {
+      const prompt = compileAnnotationPrompt([
+        { index: 1, instruction: 'change the jacket to red' },
+      ])
+
+      expect(prompt).toContain('in a single pass')
+      expect(prompt).toContain('keep every other part of the image unchanged')
+      expect(prompt).toContain('no annotations, numbers, boxes or markings')
+    })
+
+    it('numbers the list in ①②③ order regardless of input order', () => {
+      const prompt = compileAnnotationPrompt([
+        { index: 3, instruction: 'remove the necklace' },
+        { index: 1, instruction: 'change the jacket to red' },
+        { index: 2, instruction: 'bare feet' },
+      ])
+      const body = prompt.split('\n').filter((line) => /^\d\./.test(line))
+
+      expect(body).toEqual([
+        '1. change the jacket to red',
+        '2. bare feet',
+        '3. remove the necklace',
+      ])
+    })
+
+    it('turns a box into a coarse bearing, never coordinates', () => {
+      const prompt = compileAnnotationPrompt([
+        {
+          index: 1,
+          instruction: 'change the jacket to red',
+          area: { x: 0.05, y: 0.05, width: 0.2, height: 0.2 },
+        },
+        {
+          index: 2,
+          instruction: 'bare feet',
+          area: { x: 0.7, y: 0.8, width: 0.2, height: 0.15 },
+        },
+      ])
+
+      expect(prompt).toContain('1. (upper-left area) change the jacket to red')
+      expect(prompt).toContain('2. (lower-right area) bare feet')
+      // 框不是 mask，像素坐标不该出现在 prompt 里。
+      expect(prompt).not.toMatch(/\d{3,}/)
+    })
+  })
 
   it('routes GPT extract requests to the OpenAI /edits endpoint with a transparent-output prompt', async () => {
     const fetchSpy = vi.fn().mockResolvedValue({

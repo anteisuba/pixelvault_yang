@@ -21,7 +21,7 @@ import {
   uploadToR2,
 } from '@/services/storage/r2'
 import { createGeneration } from '@/services/generation.service'
-import type { GenerationRecord } from '@/types'
+import type { GenerationRecord, ObjectReplaceAnnotation } from '@/types'
 
 // ─── fal.ai image editing endpoints ──────────────────────────────
 
@@ -34,7 +34,14 @@ const FAL_DEFAULT_UPSCALE_MODEL = 'fal-ai/aura-sr'
 const FAL_CLARITY_UPSCALER_MODEL = 'fal-ai/clarity-upscaler'
 const FAL_DEFAULT_REMOVE_BG_MODEL = 'fal-ai/birefnet/v2'
 const FAL_DEFAULT_INPAINT_MODEL = 'fal-ai/flux-pro/v1/fill'
-const FAL_DEFAULT_OUTPAINT_MODEL = 'fal-ai/image-apps-v2/outpaint'
+/**
+ * 多框注释一次全改的默认模型。2026-08-19 三选一实测（任务包 §7.11）：同一张
+ * 三视图 + 同样三条注释，Gemini 与 GPT 都一次改全且无标注痕，但 **GPT 把
+ * 1672×941 强制成 1024×1024 并重排了三视图** —— 设定图必须保住版式，所以选
+ * Gemini。`flux-2-pro/edit` 当时没被公平测到（旧路由往 fal 传了它不认的
+ * `mask_url`），要换回它得先按 edit 端点的正确载荷重测。
+ */
+const DEFAULT_OBJECT_REPLACE_MODEL = 'gemini-3-pro-image'
 
 export type UpscaleTargetScale = '2x' | '4x'
 
@@ -472,7 +479,7 @@ async function editImageWithOpenAI(params: {
   throw new ProviderError('OpenAI', 502, 'No image data returned')
 }
 
-// ─── Inpaint / Outpaint dispatchers ─────────────────────────────
+// ─── Inpaint dispatcher ─────────────────────────────────────────
 
 /**
  * Inpaint dispatcher. Routes to fal (mask-based), Gemini (prompt-only,
@@ -522,73 +529,79 @@ export async function inpaintImage(params: {
   )
 }
 
-function describeOutpaintDirections(padding: {
-  top: number
-  right: number
-  bottom: number
-  left: number
-}): string {
-  const parts: string[] = []
-  if (padding.top > 0) parts.push(`${padding.top}px upward`)
-  if (padding.right > 0) parts.push(`${padding.right}px to the right`)
-  if (padding.bottom > 0) parts.push(`${padding.bottom}px downward`)
-  if (padding.left > 0) parts.push(`${padding.left}px to the left`)
-  return parts.length > 0 ? parts.join(', ') : 'on every side'
+// ─── Object Replace (多框编号 + 注释清单) ───────────────────────
+
+/** 把框心落在九宫格的哪一格 —— 只给粗略方位，不是坐标。 */
+function describeArea(area: NonNullable<ObjectReplaceAnnotation['area']>) {
+  const cx = area.x + area.width / 2
+  const cy = area.y + area.height / 2
+  const col = cx < 1 / 3 ? 'left' : cx < 2 / 3 ? 'center' : 'right'
+  const row = cy < 1 / 3 ? 'upper' : cy < 2 / 3 ? 'middle' : 'lower'
+  return row === 'middle' && col === 'center' ? 'center' : `${row}-${col}`
 }
 
 /**
- * Outpaint dispatcher. fal owns the precise per-edge expansion; Gemini gets a
- * prompt-rewrite (its native API has no padding concept) so the model
- * extends the scene as instructed.
+ * 注释清单 → 一条 prompt。
+ *
+ * ⚠ 这段措辞不是随手写的，是 2026-08-19 实测跑通的那一版（任务包 §7.11）：
+ * 「一次全改 + 其余不动 + 输出不带任何标注」三句缺一不可 —— 少了最后一句，
+ * 模型有可能把编号画进成品。
  */
-export async function outpaintImage(params: {
+export function compileAnnotationPrompt(
+  annotations: readonly ObjectReplaceAnnotation[],
+): string {
+  const lines = [...annotations]
+    .sort((a, b) => a.index - b.index)
+    .map((annotation) => {
+      const where = annotation.area
+        ? ` (${describeArea(annotation.area)} area)`
+        : ''
+      return `${annotation.index}.${where} ${annotation.instruction}`
+    })
+
+  return [
+    'Apply ALL of the following edits to this image in a single pass, and keep every other part of the image unchanged:',
+    ...lines,
+    'Output a clean image with no annotations, numbers, boxes or markings.',
+  ].join('\n')
+}
+
+/**
+ * 多框注释一次全改。⚠ 喂给模型的是**干净原图**，编号只存在于 UI 与这段
+ * prompt 里 —— 不落像素，所以成品不可能带标注痕。
+ */
+export async function replaceObjects(params: {
   imageUrl: string
-  padding: { top: number; right: number; bottom: number; left: number }
-  prompt: string
+  annotations: readonly ObjectReplaceAnnotation[]
   apiKey: string
-  negativePrompt?: string
   modelId?: string
 }): Promise<ImageEditResult> {
-  const modelId = params.modelId ?? FAL_DEFAULT_OUTPAINT_MODEL
+  const modelId = params.modelId ?? DEFAULT_OBJECT_REPLACE_MODEL
   const provider = providerForModel(modelId)
-  const prompt = params.negativePrompt
-    ? `${params.prompt}. Avoid: ${params.negativePrompt}`
-    : params.prompt
+  const prompt = compileAnnotationPrompt(params.annotations)
 
   if (provider === 'gemini') {
-    const directions = describeOutpaintDirections(params.padding)
     return editImageWithGemini({
       modelId,
       apiKey: params.apiKey,
       imageUrl: params.imageUrl,
-      prompt: `Extend this image ${directions}. ${prompt}`.trim(),
+      prompt,
     })
   }
-  // OpenAI has no native outpaint endpoint — picker hides this combo, so
-  // hitting it is a programming error, not a user error.
   if (provider === 'openai') {
-    throw new ProviderError(
-      'OpenAI',
-      400,
-      'OpenAI does not support outpaint. Pick fal or Gemini.',
-    )
+    return editImageWithOpenAI({
+      modelId,
+      apiKey: params.apiKey,
+      imageUrl: params.imageUrl,
+      prompt,
+    })
   }
 
   return await postFalImageEdit(
     modelId,
     params.apiKey,
-    {
-      image_url: params.imageUrl,
-      expand_top: params.padding.top,
-      expand_right: params.padding.right,
-      expand_bottom: params.padding.bottom,
-      expand_left: params.padding.left,
-      prompt,
-      num_images: 1,
-      output_format: 'png',
-      sync_mode: true,
-    },
-    'fal.outpaintImage',
+    { image_url: params.imageUrl, prompt },
+    'fal.replaceObjects',
   )
 }
 
@@ -943,7 +956,7 @@ export async function resolveEditApiKey(
   // The cost would silently land on the project owner — surface a clear
   // "go configure your key" error instead. fal keeps the platform fallback
   // for backwards compatibility with the existing upscale / remove-bg /
-  // inpaint / outpaint flows that shipped before Phase 4.
+  // inpaint flows that shipped before Phase 4.
   if (provider === 'fal') {
     const platformKey = getSystemApiKey(adapterType)
     if (platformKey) return platformKey
@@ -970,7 +983,7 @@ export async function persistEditedImage(params: {
   userId: string
   resultUrl: string
   sourceGenerationId?: string | null
-  action: 'upscale' | 'remove-bg' | 'inpaint' | 'outpaint' | 'extract'
+  action: 'upscale' | 'remove-bg' | 'inpaint' | 'extract' | 'object-replace'
   width: number
   height: number
 }): Promise<GenerationRecord> {

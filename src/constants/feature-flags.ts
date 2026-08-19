@@ -19,7 +19,7 @@ export const FEATURE_FLAGS = {
   /** B4: Side-by-side multi-model comparison generation */
   multiModelCompare: process.env.NEXT_PUBLIC_FF_MULTI_COMPARE === 'true',
 
-  /** C3: Instruction-based image editing (inpaint / outpaint / Kontext edit) */
+  /** C3: Instruction-based image editing (inpaint / Kontext edit) */
   imageEditing: process.env.NEXT_PUBLIC_FF_IMAGE_EDITING === 'true',
 
   /** C2: Series mode with character consistency chaining */

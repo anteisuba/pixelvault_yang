@@ -222,6 +222,7 @@
     "cost": "コスト",
     "capabilities": "機能",
     "close": "閉じる",
+    "cancel": "キャンセル",
     "sidebar": "サイドバー",
     "sidebarDescription": "モバイル用サイドバーを表示します。",
     "toggleSidebar": "サイドバーを切り替え",
@@ -530,7 +531,7 @@
       },
       "edit": {
         "title": "画像編集 — PixelVault",
-        "description": "インペイント、アウトペイント、超解像、背景除去、レイヤー機能で生成画像を編集。"
+        "description": "インペイント、超解像、背景除去、要素抽出で生成画像を編集。"
       },
       "node": {
         "title": "キャンバス — PixelVault",
@@ -3751,7 +3752,7 @@
       "edit": {
         "label": "編集",
         "title": "編集",
-        "description": "インペイントとアウトペイント、オブジェクトの再配置で画像を編集。"
+        "description": "インペイント、超解像、要素の切り抜きで画像を編集。"
       },
       "enhance": {
         "label": "エンハンサー",
@@ -5366,7 +5367,6 @@
     "toolEdit": "AIで編集",
     "toolSaveRecipe": "レシピとして保存",
     "toolInpaint": "部分修復",
-    "toolOutpaint": "キャンバス拡張",
     "inpaintEditor": {
       "title": "部分修復",
       "canvasLabel": "再生成したい範囲を塗る",
@@ -5378,24 +5378,10 @@
       "promptPlaceholder": "塗った範囲を何に置き換えるか説明してください...",
       "cancel": "キャンセル",
       "apply": "部分修復を適用",
-      "failed": "部分修復に失敗しました"
-    },
-    "outpaintEditor": {
-      "title": "キャンバス拡張",
-      "padding": "キャンバス余白",
-      "presetUniform64": "64px",
-      "presetUniform128": "128px",
-      "presetUniform256": "256px",
-      "top": "上",
-      "right": "右",
-      "bottom": "下",
-      "left": "左",
-      "prompt": "プロンプト",
-      "promptPlaceholder": "拡張部分をどう続けるか説明してください...",
-      "cancel": "キャンセル",
-      "apply": "拡張を適用",
-      "finalSize": "最終サイズ {width} × {height}",
-      "failed": "キャンバス拡張に失敗しました"
+      "failed": "部分修復に失敗しました",
+      "toolBrush": "ブラシ",
+      "toolBox": "矩形選択",
+      "boxHint": "再生成したい範囲をドラッグで囲む"
     },
     "toolDrawerTitle": "ツール",
     "toolMore": "その他のツール",
@@ -5446,8 +5432,7 @@
     "actions": {
       "upscale": "超解像",
       "removeBg": "背景除去",
-      "inpaint": "インペイント",
-      "outpaint": "アウトペイント"
+      "inpaint": "インペイント"
     },
     "taskGrid": {
       "title": "タスクを選択",
@@ -5466,10 +5451,6 @@
       "inpaint": {
         "label": "インペイント",
         "description": "マスクやプロンプトで部分を差し替え。"
-      },
-      "outpaint": {
-        "label": "キャンバス拡張",
-        "description": "周囲を拡張し、AI が新しい領域を補完。"
       },
       "object-replace": {
         "label": "オブジェクト差し替え",
@@ -5537,7 +5518,22 @@
     "savedToGallery": "ギャラリーに保存しました。",
     "editFailed": "画像編集に失敗しました。",
     "saveFailed": "結果を保存できませんでした。",
-    "downloadFailed": "ダウンロードに失敗しました。"
+    "downloadFailed": "ダウンロードに失敗しました。",
+    "stageEditThis": "この画像を編集",
+    "stageBack": "ワークベンチに戻る",
+    "stageReferenceCaption": "参照画像 {index} / {total}",
+    "stageEditingReference": "編集中 · 参照画像 {index} / {total}",
+    "annotate": {
+      "hint": "変更したい箇所をドラッグで囲み、枠ごとに一文を書く。",
+      "listTitle": "注釈リスト（プロンプトとして送信・画像には描き込まない）",
+      "placeholder": "この範囲をどう変えるか…",
+      "apply": "{count} 件をまとめて適用",
+      "empty": "まだ枠がありません。画像上をドラッグしてください。",
+      "remove": "注釈 {index} を削除"
+    },
+    "stageHistory": "編集履歴",
+    "stageHistoryOriginal": "元画像",
+    "stageHistoryStep": "編集 {index}"
   },
   "sceneFeedback": {
     "keepCharacter": "キャラクターを維持",

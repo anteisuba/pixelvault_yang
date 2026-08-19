@@ -222,6 +222,7 @@
     "cost": "消费",
     "capabilities": "功能",
     "close": "关闭",
+    "cancel": "取消",
     "sidebar": "侧边栏",
     "sidebarDescription": "显示移动端侧边栏。",
     "toggleSidebar": "切换侧边栏",
@@ -530,7 +531,7 @@
       },
       "edit": {
         "title": "图片编辑 — PixelVault",
-        "description": "使用局部重绘、扩图、超分、去背景和图层工具编辑生成图片。"
+        "description": "使用局部重绘、超分、去背景和提取元素编辑生成图片。"
       },
       "node": {
         "title": "画布 — PixelVault",
@@ -3751,7 +3752,7 @@
       "edit": {
         "label": "编辑",
         "title": "编辑",
-        "description": "局部重绘、画面扩展、对象重排，一站式编辑你的图像。"
+        "description": "局部重绘、超分辨率、提取元素，一站式编辑你的图像。"
       },
       "enhance": {
         "label": "增强",
@@ -5366,7 +5367,6 @@
     "toolEdit": "AI 编辑",
     "toolSaveRecipe": "存为配方",
     "toolInpaint": "局部重绘",
-    "toolOutpaint": "扩展画布",
     "inpaintEditor": {
       "title": "局部重绘",
       "canvasLabel": "涂抹需要重绘的区域",
@@ -5378,24 +5378,10 @@
       "promptPlaceholder": "描述要替换涂抹区域的内容...",
       "cancel": "取消",
       "apply": "应用局部重绘",
-      "failed": "局部重绘失败"
-    },
-    "outpaintEditor": {
-      "title": "扩展画布",
-      "padding": "画布扩展",
-      "presetUniform64": "64px",
-      "presetUniform128": "128px",
-      "presetUniform256": "256px",
-      "top": "上",
-      "right": "右",
-      "bottom": "下",
-      "left": "左",
-      "prompt": "提示词",
-      "promptPlaceholder": "描述扩展区域应该如何延续...",
-      "cancel": "取消",
-      "apply": "应用扩图",
-      "finalSize": "最终尺寸 {width} × {height}",
-      "failed": "扩图失败"
+      "failed": "局部重绘失败",
+      "toolBrush": "画笔",
+      "toolBox": "拉框",
+      "boxHint": "在图上拖一个框圈出要重绘的区域"
     },
     "toolDrawerTitle": "工具",
     "toolMore": "更多工具",
@@ -5446,8 +5432,7 @@
     "actions": {
       "upscale": "超分辨率",
       "removeBg": "去背景",
-      "inpaint": "局部重绘",
-      "outpaint": "扩展画布"
+      "inpaint": "局部重绘"
     },
     "taskGrid": {
       "title": "选择一个任务",
@@ -5466,10 +5451,6 @@
       "inpaint": {
         "label": "局部重绘",
         "description": "用蒙版或描述替换图片局部。"
-      },
-      "outpaint": {
-        "label": "扩展画布",
-        "description": "向四周延展画面，AI 补全新区域。"
       },
       "object-replace": {
         "label": "物体替换",
@@ -5537,7 +5518,22 @@
     "savedToGallery": "已保存到画廊。",
     "editFailed": "图片编辑失败。",
     "saveFailed": "无法保存结果。",
-    "downloadFailed": "下载失败。"
+    "downloadFailed": "下载失败。",
+    "stageEditThis": "编辑这张",
+    "stageBack": "回到工作台",
+    "stageReferenceCaption": "参考图 {index} / {total}",
+    "stageEditingReference": "正在编辑 · 参考图 {index} / {total}",
+    "annotate": {
+      "hint": "在图上拖框圈出要改的地方，每个框写一句话。",
+      "listTitle": "注释清单（进提示词，不落像素）",
+      "placeholder": "这一块要改成什么…",
+      "apply": "一次应用 {count} 条修改",
+      "empty": "还没有框。在图上拖一个试试。",
+      "remove": "删除第 {index} 条"
+    },
+    "stageHistory": "编辑历史",
+    "stageHistoryOriginal": "原图",
+    "stageHistoryStep": "第 {index} 次"
   },
   "sceneFeedback": {
     "keepCharacter": "保持角色",

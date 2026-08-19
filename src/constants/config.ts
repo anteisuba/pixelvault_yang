@@ -130,10 +130,10 @@ export const API_ENDPOINTS = {
   ANALYZE_IMAGE: '/api/image/analyze',
   /** Image editing (upscale, remove background) */
   IMAGE_EDIT: '/api/image/edit',
+  /** 多框注释一次全改 */
+  IMAGE_OBJECT_REPLACE: '/api/image/object-replace',
   /** Image inpainting */
   IMAGE_INPAINT: '/api/image/inpaint',
-  /** Image outpainting */
-  IMAGE_OUTPAINT: '/api/image/outpaint',
 
   /** Element extraction (text-guided cutout via lang-SAM) */
   IMAGE_EXTRACT: '/api/image/extract',

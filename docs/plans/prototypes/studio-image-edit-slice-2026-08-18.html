@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>关键切片原型 · 参考图 → 放大即编辑</title>
+<style>
+  :root {
+    --bg: #f6f6f5;
+    --panel: #ffffff;
+    --ink: #1c1c1a;
+    --ink-2: #6b6b66;
+    --ink-3: #9a9a94;
+    --line: #e4e3e0;
+    --line-2: #d3d2ce;
+    --accent: #1c1c1a;
+    --danger: #b3261e;
+    --danger-bg: #fdeceb;
+    --box: #2f6df6;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font: 400 14px/1.5 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── 原型自带的外壳，不是设计的一部分 ───────────────── */
+  .proto-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 14px; background: #101010; color: #f2f2f0; font-size: 12px;
+  }
+  .proto-bar b { font-weight: 500; }
+  .proto-bar .sp { flex: 1; }
+  .proto-bar button {
+    font: inherit; color: #f2f2f0; background: #2a2a28;
+    border: 1px solid #3d3d3a; border-radius: 999px; padding: 4px 12px; cursor: pointer;
+  }
+  .proto-bar button[aria-pressed="true"] { background: #f2f2f0; color: #101010; border-color: #f2f2f0; }
+  .proto-note { padding: 6px 14px; background: #fff8e1; color: #6b5a12; font-size: 12px; border-bottom: 1px solid #f0e4b8; }
+
+  /* ── 工作台外壳 ────────────────────────────────────── */
+  .app { display: flex; height: calc(100vh - 66px); min-height: 520px; }
+  .params {
+    width: 288px; flex: none; background: var(--panel);
+    border-right: 1px solid var(--line); padding: 16px; overflow-y: auto;
+  }
+  .params h3 { margin: 0 0 6px; font-size: 11px; font-weight: 500; color: var(--ink-3); letter-spacing: .02em; }
+  .composer { border: 1px solid var(--line-2); border-radius: 12px; padding: 8px; background: #faf9f7; }
+  .composer .ph { color: var(--ink-3); font-size: 13px; padding: 2px 2px 22px; }
+  .refstrip { display: flex; gap: 6px; margin-bottom: 8px; }
+  .refthumb {
+    width: 34px; height: 34px; border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--line-2); cursor: pointer; background: #fff; padding: 0;
+  }
+  .refthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .refthumb[aria-current="true"] { outline: 2px solid var(--box); outline-offset: 1px; }
+  .chips { display: flex; gap: 8px; margin: 10px 0 18px; }
+  .chip {
+    font: inherit; font-size: 12px; background: #fff; border: 1px solid var(--line-2);
+    border-radius: 999px; padding: 5px 11px; cursor: pointer; position: relative;
+  }
+  .chip .badge {
+    position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px;
+    border-radius: 999px; background: var(--accent); color: #fff;
+    font-size: 10px; line-height: 16px; text-align: center; padding: 0 4px;
+  }
+  .field { margin-bottom: 16px; }
+  .select {
+    width: 100%; border: 1px solid var(--line-2); border-radius: 10px;
+    padding: 9px 11px; font-size: 13px; background: #fff; color: var(--ink-2);
+  }
+  .cta {
+    width: 100%; margin-top: 8px; border: 0; border-radius: 10px; padding: 12px;
+    background: var(--accent); color: #fff; font: inherit; font-weight: 500; cursor: pointer;
+  }
+
+  .stage { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 24px; overflow: hidden; }
+
+  /* ── 态 1：空 ─────────────────────────────────────── */
+  .empty { margin: auto; text-align: center; }
+  .empty .eyebrow { font-size: 11px; color: var(--ink-3); }
+  .empty .title { font-size: 20px; margin: 8px 0 18px; }
+  .empty .row { display: flex; gap: 10px; justify-content: center; }
+  .empty .strip { display: flex; gap: 8px; justify-content: center; margin-top: 30px; }
+  .empty .strip div { width: 84px; height: 62px; border-radius: 8px; background: #ececea; }
+
+  /* ── 态 2：参考图占舞台 ───────────────────────────── */
+  .viewer { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 12px; max-height: 100%; }
+  .viewer .frame {
+    position: relative; border: 1px solid var(--line); border-radius: 12px;
+    background: #fff; overflow: hidden; max-height: 62vh;
+  }
+  .viewer .frame img { display: block; max-width: 100%; max-height: 62vh; }
+  .viewer .cap { font-size: 12px; color: var(--ink-2); display: flex; gap: 14px; align-items: center; }
+  .editbtn {
+    font: inherit; font-size: 13px; border: 1px solid var(--line-2); background: #fff;
+    border-radius: 999px; padding: 7px 16px; cursor: pointer;
+  }
+
+  /* ── 态 3 / 4：编辑态 ─────────────────────────────── */
+  .editor { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .backbar {
+    display: flex; align-items: center; gap: 12px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--line); margin-bottom: 14px; font-size: 13px;
+  }
+  .backbar button {
+    font: inherit; font-size: 13px; border: 0; background: none; cursor: pointer;
+    color: var(--ink); padding: 0;
+  }
+  .backbar .which { color: var(--ink-3); font-size: 12px; }
+  .editbody { display: flex; gap: 18px; flex: 1; min-height: 0; }
+  .canvaswrap {
+    flex: 1; min-width: 0; display: flex; align-items: flex-start; justify-content: center;
+  }
+  .canvas {
+    position: relative; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; overflow: hidden; cursor: crosshair; user-select: none;
+  }
+  .canvas img { display: block; max-width: 100%; max-height: 60vh; pointer-events: none; }
+  .mark {
+    position: absolute; border: 2px solid var(--box);
+    background: rgba(47,109,246,.10);
+  }
+  .mark span {
+    position: absolute; top: -1px; left: -1px; min-width: 20px; height: 20px;
+    background: var(--box); color: #fff; font-size: 12px; line-height: 20px;
+    text-align: center; border-radius: 0 0 6px 0;
+  }
+  .tools { width: 320px; flex: none; display: flex; flex-direction: column; min-height: 0; }
+  .toolrow { display: flex; gap: 6px; margin-bottom: 14px; }
+  .toolrow button {
+    flex: 1; font: inherit; font-size: 12px; padding: 7px 0; cursor: pointer;
+    border: 1px solid var(--line-2); background: #fff; border-radius: 8px;
+  }
+  .toolrow button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tools h4 { margin: 0 0 8px; font-size: 11px; font-weight: 500; color: var(--ink-3); }
+  .list { flex: 1; overflow-y: auto; min-height: 0; margin-bottom: 12px; }
+  .item {
+    display: flex; gap: 8px; align-items: flex-start; padding: 8px;
+    border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; background: #fff;
+  }
+  .item .n {
+    width: 20px; height: 20px; flex: none; border-radius: 5px; background: var(--box);
+    color: #fff; font-size: 12px; line-height: 20px; text-align: center;
+  }
+  .item input {
+    flex: 1; min-width: 0; border: 0; border-bottom: 1px dashed var(--line-2);
+    font: inherit; font-size: 13px; padding: 1px 0; background: none; outline: none;
+  }
+  .item input:focus { border-bottom-color: var(--box); }
+  .item .del {
+    border: 0; background: none; color: var(--ink-3); cursor: pointer; font-size: 15px; padding: 0 2px;
+  }
+  .item.failed { border-color: #f0c8c5; background: var(--danger-bg); }
+  .item.failed .n { background: var(--danger); }
+  .item .retry {
+    border: 1px solid #e3b4b0; background: #fff; color: var(--danger);
+    border-radius: 999px; font: inherit; font-size: 11px; padding: 3px 9px; cursor: pointer;
+  }
+  .hint { font-size: 12px; color: var(--ink-3); margin-bottom: 12px; }
+  .apply {
+    border: 0; border-radius: 10px; padding: 12px; background: var(--accent); color: #fff;
+    font: inherit; font-weight: 500; cursor: pointer; width: 100%;
+  }
+  .apply[disabled] { opacity: .38; cursor: not-allowed; }
+  .history { margin-top: 10px; font-size: 12px; color: var(--ink-3); text-align: center; }
+  .toast {
+    position: fixed; right: 20px; top: 78px; background: #101010; color: #fff;
+    padding: 10px 14px; border-radius: 10px; font-size: 13px; opacity: 0;
+    transition: opacity .18s; pointer-events: none;
+  }
+  .toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="proto-bar">
+  <b>关键切片原型</b> · 参考图 → 放大即编辑
+  <span class="sp"></span>
+  <span style="color:#9a9a94">切态：</span>
+  <button data-state="empty" aria-pressed="false">① 空</button>
+  <button data-state="viewer" aria-pressed="true">② 参考图占舞台</button>
+  <button data-state="editor" aria-pressed="false">③ 编辑中</button>
+  <button data-state="failed" aria-pressed="false">④ 单条失败</button>
+</div>
+<div class="proto-note">
+  ⚠ 这是<b>方向证据，不是可合入代码</b>。左侧参数栏是静态占位（并行会话在飞，本轮不碰）。
+  在图上<b>按住拖动</b>即可画一个编号框，右侧清单会同步长出一条注释。
+</div>
+
+<div class="app">
+  <aside class="params">
+    <h3>提示词</h3>
+    <div class="composer">
+      <div class="refstrip">
+        <button class="refthumb" aria-current="true" title="参考图 1 · 点击进入编辑">
+          <img alt="参考图 1" src="https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-08-08_fe97b7a224f43eb811f7f9d5.png" />
+        </button>
+      </div>
+      <div class="ph">描述动作、场景或表情…</div>
+    </div>
+    <div class="chips">
+      <button class="chip">模板</button>
+      <button class="chip">图像<span class="badge">1</span></button>
+    </div>
+    <div class="field">
+      <h3>模型</h3>
+      <div class="select">请先选择模型</div>
+    </div>
+    <div class="field">
+      <h3>规格</h3>
+      <div class="select">1:1 · 每模型 1 张</div>
+    </div>
+    <button class="cta">请先选择模型</button>
+  </aside>
+
+  <main class="stage" id="stage"></main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SRC = "https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-08-08_fe97b7a224f43eb811f7f9d5.png";
+const stage = document.getElementById('stage');
+const toastEl = document.getElementById('toast');
+let marks = [];        // {x,y,w,h,text,failed}
+let tool = 'box';
+let historyDepth = 0;
+
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('on');
+  setTimeout(() => toastEl.classList.remove('on'), 1800);
+}
+
+function setState(name) {
+  document.querySelectorAll('.proto-bar button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.state === name)));
+  if (name === 'empty') return renderEmpty();
+  if (name === 'viewer') return renderViewer();
+  if (name === 'failed') { seed(true); return renderEditor(); }
+  seed(false); renderEditor();
+}
+
+function seed(withFailure) {
+  if (marks.length === 0) {
+    marks = [
+      { x: .07, y: .30, w: .15, h: .22, text: '这件外套换成红色皮衣' },
+      { x: .38, y: .55, w: .13, h: .18, text: '去掉鞋子，改成光脚' },
+    ];
+  }
+  marks.forEach(m => m.failed = false);
+  if (withFailure && marks[1]) marks[1].failed = true;
+}
+
+function renderEmpty() {
+  stage.innerHTML = `
+    <div class="empty">
+      <div class="eyebrow">图片工作台</div>
+      <div class="title">描述你想要的画面，或从一个示例开始</div>
+      <div class="row">
+        <button class="chip">胶片人像</button>
+        <button class="chip">清晨街景</button>
+        <button class="chip">水彩小猫</button>
+      </div>
+      <div class="strip"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+    </div>`;
+}
+
+function renderViewer() {
+  stage.innerHTML = `
+    <div class="viewer">
+      <div class="frame"><img alt="当前参考图" src="${SRC}" /></div>
+      <div class="cap">
+        <span>参考图 1 / 3 · 1672 × 941</span>
+        <button class="editbtn" id="toEdit">编辑这张</button>
+      </div>
+    </div>`;
+  stage.querySelector('#toEdit').onclick = () => setState('editor');
+  stage.querySelector('.frame').onclick = () => setState('editor');
+  stage.querySelector('.frame').style.cursor = 'zoom-in';
+}
+
+function renderEditor() {
+  const failedCount = marks.filter(m => m.failed).length;
+  stage.innerHTML = `
+    <div class="editor">
+      <div class="backbar">
+        <button id="back">← 回到工作台</button>
+        <span class="which">正在编辑 · 参考图 1 / 3 · 1672 × 941</span>
+      </div>
+      <div class="editbody">
+        <div class="canvaswrap">
+          <div class="canvas" id="cv"><img alt="编辑中的参考图" src="${SRC}" /></div>
+        </div>
+        <div class="tools">
+          <div class="toolrow">
+            <button data-tool="box" aria-pressed="${tool==='box'}">拉框</button>
+            <button data-tool="brush" aria-pressed="${tool==='brush'}">笔刷</button>
+            <button data-tool="eraser" aria-pressed="${tool==='eraser'}">橡皮</button>
+            <button id="clear">清空</button>
+          </div>
+          <h4>注释清单（进提示词，不落像素）</h4>
+          <div class="hint">图上只画编号 ①②③，文字以清单送进模型，一次全改。</div>
+          <div class="list" id="list"></div>
+          <button class="apply" id="apply" ${marks.length ? '' : 'disabled'}>
+            ${failedCount ? '重试失败的 ' + failedCount + ' 条' : '一次应用 ' + marks.length + ' 条修改'}
+          </button>
+          <div class="history">已编辑 ${historyDepth} 次 · 可回退到任意一次</div>
+        </div>
+      </div>
+    </div>`;
+
+  stage.querySelector('#back').onclick = () => setState('viewer');
+  stage.querySelector('#clear').onclick = () => { marks = []; renderEditor(); };
+  stage.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => {
+    tool = b.dataset.tool;
+    if (tool !== 'box') toast('原型只演示拉框；笔刷/橡皮走已实现的 StudioInpaintEditor');
+    renderEditor();
+  });
+  stage.querySelector('#apply').onclick = () => {
+    historyDepth += 1;
+    marks.forEach(m => m.failed = false);
+    toast('已就地替换参考图 1，并留下第 ' + historyDepth + ' 次编辑记录');
+    renderEditor();
+  };
+  drawMarks();
+  bindDraw();
+  renderList();
+}
+
+function drawMarks() {
+  const cv = stage.querySelector('#cv');
+  if (!cv) return;
+  cv.querySelectorAll('.mark').forEach(n => n.remove());
+  marks.forEach((m, i) => {
+    const el = document.createElement('div');
+    el.className = 'mark';
+    el.style.left = (m.x * 100) + '%';
+    el.style.top = (m.y * 100) + '%';
+    el.style.width = (m.w * 100) + '%';
+    el.style.height = (m.h * 100) + '%';
+    if (m.failed) el.style.borderColor = '#b3261e';
+    const tag = document.createElement('span');
+    if (m.failed) tag.style.background = '#b3261e';
+    tag.textContent = ['①','②','③','④','⑤','⑥','⑦','⑧'][i] || (i + 1);
+    el.appendChild(tag);
+    cv.appendChild(el);
+  });
+}
+
+function renderList() {
+  const list = stage.querySelector('#list');
+  if (!list) return;
+  list.innerHTML = marks.length ? '' : '<div class="hint">还没有框。在左边图上按住拖一个框试试。</div>';
+  marks.forEach((m, i) => {
+    const row = document.createElement('div');
+    row.className = 'item' + (m.failed ? ' failed' : '');
+    row.innerHTML = `
+      <div class="n">${['①','②','③','④','⑤','⑥','⑦','⑧'][i] || (i + 1)}</div>
+      <input value="${(m.text || '').replace(/"/g, '&quot;')}" placeholder="这一块要改成什么…" />
+      ${m.failed ? '<button class="retry">重试这条</button>' : ''}
+      <button class="del" title="删除">×</button>`;
+    row.querySelector('input').oninput = e => { m.text = e.target.value; };
+    row.querySelector('.del').onclick = () => {
+      marks.splice(i, 1); renderEditor();
+    };
+    const retry = row.querySelector('.retry');
+    if (retry) retry.onclick = () => {
+      m.failed = false;
+      toast('只重跑第 ' + (i + 1) + ' 条，其余不动');
+      renderEditor();
+    };
+    list.appendChild(row);
+  });
+}
+
+function bindDraw() {
+  const cv = stage.querySelector('#cv');
+  if (!cv) return;
+  let start = null, ghost = null;
+  cv.addEventListener('pointerdown', e => {
+    if (tool !== 'box') return;
+    const r = cv.getBoundingClientRect();
+    start = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+    ghost = document.createElement('div');
+    ghost.className = 'mark';
+    cv.appendChild(ghost);
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!start || !ghost) return;
+    const r = cv.getBoundingClientRect();
+    const cur = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+    const x = Math.min(start.x, cur.x), y = Math.min(start.y, cur.y);
+    const w = Math.abs(cur.x - start.x), h = Math.abs(cur.y - start.y);
+    Object.assign(ghost.style, {
+      left: x * 100 + '%', top: y * 100 + '%',
+      width: w * 100 + '%', height: h * 100 + '%'
+    });
+  });
+  cv.addEventListener('pointerup', e => {
+    if (!start || !ghost) return;
+    const r = cv.getBoundingClientRect();
+    const cur = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+    const x = Math.min(start.x, cur.x), y = Math.min(start.y, cur.y);
+    const w = Math.abs(cur.x - start.x), h = Math.abs(cur.y - start.y);
+    start = null; ghost.remove(); ghost = null;
+    if (w < .02 || h < .02) { renderEditor(); return; }
+    marks.push({ x, y, w, h, text: '' });
+    renderEditor();
+    const inputs = stage.querySelectorAll('.item input');
+    const last = inputs[inputs.length - 1];
+    if (last) last.focus();
+  });
+}
+
+document.querySelectorAll('.proto-bar button').forEach(b =>
+  b.onclick = () => setState(b.dataset.state));
+document.querySelector('.refthumb').onclick = () => setState('editor');
+
+setState('viewer');
+</script>
+</body>
+</html>

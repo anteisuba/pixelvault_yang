@@ -15,14 +15,12 @@ import {
   Check,
   Download,
   Eraser,
-  Expand,
   FileText,
   Film,
   IdCard,
   Library,
   Maximize2,
   MoreHorizontal,
-  Palette,
   Paintbrush,
   Replace,
   Scissors,
@@ -121,20 +119,16 @@ const TASK_ICONS = {
   upscale: Sparkles,
   'remove-background': Eraser,
   inpaint: Paintbrush,
-  outpaint: Expand,
   'extract-element': Scissors,
   'object-replace': Replace,
-  'style-transfer': Palette,
 } as const satisfies Record<ReadyCanvasImageEditCapabilityId, typeof Sparkles>
 
 const MORE_EDIT_TASKS = [
   'upscale',
   'remove-background',
   'inpaint',
-  'outpaint',
   'extract-element',
   'object-replace',
-  'style-transfer',
 ] as const satisfies readonly ReadyCanvasImageEditCapabilityId[]
 
 /**
@@ -154,7 +148,7 @@ const MORE_EDIT_GROUPS: readonly {
   interactions: readonly CanvasImageEditInteraction[]
 }[] = [
   { labelKey: 'moreEditsInstant', interactions: ['instant'] },
-  { labelKey: 'moreEditsRegion', interactions: ['mask', 'outpaint'] },
+  { labelKey: 'moreEditsRegion', interactions: ['mask', 'annotate'] },
   { labelKey: 'moreEditsDescribe', interactions: ['prompt'] },
 ]
 
@@ -225,7 +219,7 @@ export function canOfferCanvasImageEdit(data: NodeWorkflowNodeData): boolean {
 
 /**
  * The image-family types — the only ones whose result is actually an image,
- * so the only ones the AI quick-edit suite (upscale/inpaint/outpaint/…) is
+ * so the only ones the AI quick-edit suite (upscale/inpaint/…) is
  * meaningful for. `NodeSelectionToolbarChrome` gates on this (in addition to
  * `canOfferCanvasImageEdit`) now that every node type feeds it a `data` with
  * `mediaUrl` — without the gate, a video/audio result would also read as

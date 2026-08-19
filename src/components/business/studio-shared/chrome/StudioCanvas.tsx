@@ -20,7 +20,7 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { promptCreatePath, studioCanvasEditPath } from '@/constants/routes'
+import { promptCreatePath } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { fetchGenerationByIdAPI } from '@/lib/api-client'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
@@ -33,12 +33,17 @@ import {
 } from '@/lib/studio/audio-feedback-mapping'
 import type { GenerationRecord } from '@/types'
 
+import { Button } from '@/components/ui/button'
 import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
 import { StudioAudioFeedback } from '@/components/business/studio/StudioAudioFeedback'
 import { StudioGenerationErrorDialog } from '@/components/business/image/StudioGenerationErrorDialog'
 import { StudioResultFeedback } from '@/components/business/image/StudioResultFeedback'
 import { AudioVariantGrid } from '@/components/business/studio/AudioVariantGrid'
+import {
+  StudioImageEditStage,
+  type StudioImageEditTarget,
+} from '@/components/business/studio-shared/editor/StudioImageEditStage'
 
 /**
  * StudioCanvas — central hero area for the canvas-centric layout.
@@ -62,7 +67,15 @@ export const StudioCanvas = memo(function StudioCanvas() {
     elapsedSeconds,
   } = useStudioGen()
   const tAudioFeedback = useTranslations('audioFeedback')
+  const tEdit = useTranslations('StudioImageEdit')
   const [errorDismissed, setErrorDismissed] = useState<string | null>(null)
+  /**
+   * 编辑态的目标图。非空 = 结果区整片切成编辑态（施工基准
+   * `references/pages/studio-image-edit.md` §2 方向 A：舞台接管）。
+   */
+  const [editTarget, setEditTarget] = useState<StudioImageEditTarget | null>(
+    null,
+  )
   const errorDialogOpen = !!error && error !== errorDismissed
   const { modelOptions } = useImageModelOptions()
 
@@ -234,20 +247,34 @@ export const StudioCanvas = memo(function StudioCanvas() {
     })()
   }, [searchParams, router, pathname, handleRemix, modelOptions.length])
 
-  // Route heavyweight image editing through the dedicated tool page.
-  const handleEdit = useCallback(
-    (generation: GenerationRecord) => {
-      router.push(
-        studioCanvasEditPath({
-          generationId: generation.id,
-          sourceUrl: generation.url,
-          width: generation.width,
-          height: generation.height,
-        }),
-      )
-    },
-    [router],
-  )
+  /**
+   * 就地打开编辑态。
+   *
+   * ⚠ 这里以前是 `router.push(studioCanvasEditPath(...))` —— 把人从工作台踢到
+   * 画布。owner 2026-08-18 定的方向正好相反（「让画布对齐 studio/image」），
+   * 2026-08-18 的 E0 也查实那条跳转是当时唯一的编辑入口。
+   */
+  /**
+   * 舞台归属（施工基准 §1，owner 2026-08-18 拍板）：没有生成结果时，把**当前
+   * 参考图**放到舞台上。今天它只有 34px 挤在提示词框角上，而右边整片空着。
+   * ⚠ 取第一条**启用**的槽 —— `referenceEntries` 里还有 over_limit / unsupported
+   * 的条目，它们不参与生成，也就不该被当成「当前这张」。
+   */
+  const stageReference = (() => {
+    const index = imageUpload.referenceEntries.findIndex(
+      (entry) => entry.disabledReason === null,
+    )
+    if (index < 0) return null
+    return {
+      url: imageUpload.referenceEntries[index].url,
+      referenceIndex: index,
+      referenceTotal: imageUpload.referenceEntries.length,
+    }
+  })()
+
+  const handleEdit = useCallback((generation: GenerationRecord) => {
+    setEditTarget({ url: generation.url, generationId: generation.id })
+  }, [])
 
   // 审查 D3：从画布结果一键存配方——复用 ImageDetailModal 同款深链，
   // 不再绕道 Gallery 详情。
@@ -272,6 +299,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
       ref={canvasRef}
       className={cn(
         'studio-canvas transition-all',
+        editTarget && 'flex min-h-0 flex-1 flex-col',
         isDragOver && 'ring-2 ring-primary/40 bg-primary/5 rounded-xl',
       )}
     >
@@ -282,7 +310,12 @@ export const StudioCanvas = memo(function StudioCanvas() {
           GenerationPreview — a single square can't fill a wide canvas
           without overflowing the viewport vertically, so it stays framed
           and centred rather than stranded in full-bleed dead space. */}
-      <div className="mx-auto w-full">
+      <div
+        className={cn(
+          'w-full',
+          editTarget ? 'flex min-h-0 flex-1 flex-col' : 'mx-auto',
+        )}
+      >
         {/* 图墙：多模型与单模型多张走**同一片**栅格 —— 它们本来就是同一个矩阵
             的两端（1 模型 × N 张 / N 模型 × 1 张 / N × M）。每格自己标模型名，
             同模型多张时带 `1/2` 序号，各自报生成中 / 失败。
@@ -290,7 +323,13 @@ export const StudioCanvas = memo(function StudioCanvas() {
         {/* ⚠ 只接 compare / variant。`mode: 'single'` 的 activeRun 也存在（单张
             路径也建 run 做逐项追踪），它必须继续走 GenerationPreview —— 一张图
             掉进栅格里会从「读图」降级成「扫缩略图」。 */}
-        {activeRun?.mode === 'compare' || activeRun?.mode === 'variant' ? (
+        {editTarget ? (
+          <StudioImageEditStage
+            target={editTarget}
+            onBack={() => setEditTarget(null)}
+            onTargetChange={setEditTarget}
+          />
+        ) : activeRun?.mode === 'compare' || activeRun?.mode === 'variant' ? (
           state.outputType === 'audio' ? (
             <AudioVariantGrid items={activeRun.items} />
           ) : (
@@ -301,6 +340,34 @@ export const StudioCanvas = memo(function StudioCanvas() {
               elapsedSeconds={elapsedSeconds}
             />
           )
+        ) : !lastGeneration && stageReference ? (
+          <div className="m-auto flex flex-col items-center gap-3">
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={stageReference.url}
+                alt={tEdit('sourceAlt')}
+                className="max-h-[62vh] max-w-full object-contain"
+              />
+            </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span>
+                {tEdit('stageReferenceCaption', {
+                  index: stageReference.referenceIndex + 1,
+                  total: stageReference.referenceTotal,
+                })}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => setEditTarget(stageReference)}
+              >
+                {tEdit('stageEditThis')}
+              </Button>
+            </div>
+          </div>
         ) : (
           <>
             <GenerationPreview

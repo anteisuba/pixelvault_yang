@@ -60,6 +60,45 @@ describe('useImageUpload', () => {
       expect(result.current.referenceImages).toEqual(['a', 'b', 'c'])
     })
 
+    // ⚠ 编辑参考图的落点：owner 2026-08-18 定「就地替换该槽位」。守的是
+    // **位置不动** —— 先删后加会把它挪到队尾，槽满时还会被判 over_limit，
+    // 于是「改好这张再拿去生成」就变成了「改好的那张不参与生成」。
+    it('replaces a slot in place, keeping its position and enabled state', () => {
+      const { result } = renderHook(() => useImageUpload())
+      act(() => result.current.setMaxImages(2))
+      act(() => result.current.addReferenceImage('a'))
+      act(() => result.current.addReferenceImage('b'))
+      act(() => result.current.addReferenceImage('c'))
+
+      act(() => result.current.replaceReferenceImage(0, 'a-edited'))
+
+      expect(result.current.referenceEntries.map((e) => e.url)).toEqual([
+        'a-edited',
+        'b',
+        'c',
+      ])
+      // 仍然是第 0 槽、仍然启用，所以仍然进 referenceImages
+      expect(result.current.referenceImages).toEqual(['a-edited', 'b'])
+      expect(result.current.referenceEntries[0]?.disabledReason).toBeNull()
+      // 超限那条不受影响
+      expect(result.current.referenceEntries[2]?.disabledReason).toBe(
+        'over_limit',
+      )
+    })
+
+    it('ignores out-of-range slots and no-op replacements', () => {
+      const { result } = renderHook(() => useImageUpload())
+      act(() => result.current.setMaxImages(2))
+      act(() => result.current.addReferenceImage('a'))
+      const before = result.current.referenceEntries
+
+      act(() => result.current.replaceReferenceImage(5, 'x'))
+      act(() => result.current.replaceReferenceImage(-1, 'x'))
+      act(() => result.current.replaceReferenceImage(0, 'a'))
+
+      expect(result.current.referenceEntries).toBe(before)
+    })
+
     it('keeps extra adds disabled once the enabled count hits max', () => {
       const { result } = renderHook(() => useImageUpload())
       act(() => result.current.setMaxImages(2))

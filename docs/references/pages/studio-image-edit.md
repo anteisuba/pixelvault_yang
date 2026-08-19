@@ -67,10 +67,12 @@
 | 多个框 + 各自注释 | 编号 ①②③ 画图上、注释以清单进 prompt → `object-replace` |
 | 不框 + 整体一句话 | `style-transfer`                                        |
 
-⛔ **`object-replace` 与 `style-transfer` 今天零实现**（2026-08-18 E0 查实，已从 ready 退回 hidden）。
-E3 要**从零建这条能力**：能力常量提回 ready + `CanvasCapabilityRequest` 成员 + runtime case + api-client +
-route + service。选型（FLUX 2 Pro edit / Gemini 3 Pro Image / GPT Image 2）在任务包 §7.7。
-⚠ 建完必须真机验一次再宣布 —— `availability: 'ready'` 是字段值，不是证据。
+✅ **`object-replace` 已于 2026-08-19（E3）从零建成并提回 ready**，默认模型 `gemini-3-pro-image`
+（三选一实测选定，任务包 §7.11）。⚠ **`style-transfer` 至今零执行路径，仍是 hidden** —— 要用它得先建，
+别只改 `availability` 那一行（E0 的教训）。
+
+⚠ **E3 的能力边界（真机实证）**：模型按**名字**改，不按框 —— 改动会溢出框（「加靴子」会把画面里所有
+光脚都加上）。框是「定位兜底 + 让用户看见圈了哪儿」，不是选区。要精确到一处，退回单框 `inpaint`。
 
 ## 6 · 编辑结果的去向 ✅ owner 拍板
 
@@ -100,7 +102,10 @@ route + service。选型（FLUX 2 Pro edit / Gemini 3 Pro Image / GPT Image 2）
 
 - 多图编辑（七条能力全是 `minImages:1/maxImages:1`）—— owner 未定 A/B 范围前不动。
 - SAM 吸附、画箭头当指令（后者 2026-07-11 已否）。
-- 画布侧实现（E5）—— 按本文对齐，另起切片。
+- ~~画布侧实现（E5）~~ → **2026-08-19 已完成**：两个宿主共用 `ImageEditSurface`，连布局都只剩一套，
+  只差结果落点（画布落派生节点 / 工作台就地替换槽位）。画布**不加编辑历史**是判断不是遗漏 —— 它每次
+  编辑都落新节点，节点图本身就是历史。
+- 编辑历史的**跨会话持久化** —— E4 只做了会话内，跨刷新要动 schema，单独一件事。
 
 ## 10 · 验收
 
@@ -118,3 +123,5 @@ route + service。选型（FLUX 2 Pro edit / Gemini 3 Pro Image / GPT Image 2）
   （`plans/prototypes/studio-image-edit-slice-2026-08-18.html`，真机验过拖框、编号、清单联动、单条重试）。
   §5 的「零实现」与 §7 的三条复用事实来自同日 E0 真机验底，证据在任务包 §3。
   ⚠ owner 2026-08-19 明确：**本条线不拆给 Codex，前后端全程由 Claude Code 完成**（覆盖 `AGENTS.md` 角色分工）。
+- 2026-08-19 E0–E5 全部落地（commit `720633ff`）。§5 的选路、§6 的落点、§2 的三区结构均已真机跑通；
+  唯一未真机验的是 §10-5 的「能回退到上一次」（E4 历史条），当时浏览器取不到 CDN 图，测试已覆盖。

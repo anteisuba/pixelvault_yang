@@ -708,6 +708,54 @@ describe('chatPromptAssistant', () => {
       expect(mockLlmCompletion).not.toHaveBeenCalled()
     })
 
+    it('⚠ frames 档的路由（OpenAI）在聊天轮同样不算数 —— 自由提问要 native', async () => {
+      // 能力矩阵三值化之后 OpenAI 的 video 是 `'frames'` 而不再是 `false`。
+      // 聊天轮读的是 `VIDEO_ANALYSIS_TASK_TIERS[conversational] = native`：
+      // 用户随时会问运镜/节奏/动作，而那三样帧序列看不见。抽帧那条走视觉线。
+      mockResolveLlmRoute.mockResolvedValue({
+        ...FAKE_ROUTE,
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+      })
+
+      await expect(
+        runGeneralTurn('clerk_1', {
+          messages: [
+            { role: 'user', content: '看看 https://youtu.be/dQw4w9WgXcQ' },
+          ],
+        }),
+      ).rejects.toMatchObject({
+        errorCode: 'ASSISTANT_VIDEO_UNSUPPORTED',
+        i18nKey: 'errors.assistant.videoUnsupported',
+      })
+      expect(mockLlmCompletion).not.toHaveBeenCalled()
+    })
+
+    it('同一条 OpenAI 路的图片引用照常收（frames 档的前提就是能吃图）', async () => {
+      mockResolveLlmRoute.mockResolvedValue({
+        ...FAKE_ROUTE,
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+      })
+
+      await runGeneralTurn('clerk_1', {
+        messages: [{ role: 'user', content: '看看这张' }],
+        references: [
+          {
+            id: 'ref-image-1',
+            kind: 'image',
+            url: 'https://cdn.example.com/a.png',
+            label: 'a.png',
+          },
+        ],
+      })
+
+      // 流式与缓冲共用同一个 mock（见文件头的 `llmTextStream`）。
+      expect(mockLlmCompletion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imageData: ['https://cdn.example.com/a.png'],
+        }),
+      )
+    })
+
     it('B站链接只出元数据 + 引导，绝不当视频送进去', async () => {
       mockFetchBilibiliVideoMetadata.mockResolvedValue([bilibiliMetadataItem()])
       mockLlmCompletion.mockResolvedValue('这条我看不了画面。')

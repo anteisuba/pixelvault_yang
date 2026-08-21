@@ -21,6 +21,13 @@ interface CompleteAssistantTextOptions {
   modelId?: string
   imageData?: LlmTextInput['imageData']
   videoData?: LlmTextInput['videoData']
+  /**
+   * 视频分析窗口（裁剪/降帧）。⚠ **必须一路转发到 provider**：它是长视频的成本
+   * 闸（§4.3.1 实测：裁 0–60s 只要全片 5% 的 token，fps 0.2 要 42%）。这里漏一
+   * 手，`resolveNativeVideoWindow` 算出来的降级就静默失效 —— 表现不是报错，是
+   * 半小时的视频照全片满帧烧，只有账单看得见。
+   */
+  videoAnalysis?: LlmTextInput['videoAnalysis']
   useGrounding?: boolean
   /** Request strict JSON where the provider supports it (F1 结构化输出). */
   responseFormat?: LlmTextInput['responseFormat']
@@ -122,6 +129,7 @@ export async function completeAssistantTextWithContextRetry({
   modelId,
   imageData,
   videoData,
+  videoAnalysis,
   useGrounding,
   responseFormat,
 }: CompleteAssistantTextOptions): Promise<string> {
@@ -132,6 +140,7 @@ export async function completeAssistantTextWithContextRetry({
       modelId,
       imageData,
       videoData,
+      videoAnalysis,
       adapterType: route.adapterType,
       providerConfig: route.providerConfig,
       apiKey: route.apiKey,
@@ -169,6 +178,7 @@ export async function* streamAssistantTextWithContextRetry({
   modelId,
   imageData,
   videoData,
+  videoAnalysis,
   useGrounding,
   responseFormat,
 }: CompleteAssistantTextOptions): AsyncIterable<string> {
@@ -179,6 +189,7 @@ export async function* streamAssistantTextWithContextRetry({
       modelId,
       imageData,
       videoData,
+      videoAnalysis,
       adapterType: route.adapterType,
       providerConfig: route.providerConfig,
       apiKey: route.apiKey,

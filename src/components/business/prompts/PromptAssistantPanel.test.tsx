@@ -550,4 +550,50 @@ describe('PromptAssistantPanel', () => {
       }),
     )
   })
+
+  // 能力矩阵三值化的消费者回归（切片 2 §4.3）：这个面板读的是
+  // `assistantAdapterAcceptsReferenceKind(…, VIDEO_ANALYSIS_TASK_TIERS.conversational)`。
+  // ⚠ 前端判一套、服务端判另一套的下场是「界面让挂、发出去 400」，所以两边同源。
+  it('看不了图的路由挂着图片附件时不许发送（服务端也会用同一张表拒）', () => {
+    render(
+      <PromptAssistantPanel
+        currentPrompt=""
+        writeback={makeWriteback()}
+        assistantRoute={{
+          optionId: 'deepseek-key',
+          apiKeyId: 'key-ds',
+          adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        }}
+        injectedReference={{ url: 'https://cdn.example.com/ref.png', token: 3 }}
+      />,
+    )
+
+    fireEvent.change(screen.getByPlaceholderText('placeholder'), {
+      target: { value: '看看这张' },
+    })
+    expect(screen.getByRole('button', { name: 'send' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'send' }))
+    expect(sendMock).not.toHaveBeenCalled()
+  })
+
+  it('能吃图的路由（OpenAI，frames 档）照常发得出去', () => {
+    render(
+      <PromptAssistantPanel
+        currentPrompt=""
+        writeback={makeWriteback()}
+        assistantRoute={{
+          optionId: 'openai-key',
+          apiKeyId: 'key-oa',
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+        }}
+        injectedReference={{ url: 'https://cdn.example.com/ref.png', token: 4 }}
+      />,
+    )
+
+    fireEvent.change(screen.getByPlaceholderText('placeholder'), {
+      target: { value: '看看这张' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'send' }))
+    expect(sendMock).toHaveBeenCalled()
+  })
 })

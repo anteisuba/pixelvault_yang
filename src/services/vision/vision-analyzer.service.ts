@@ -32,6 +32,12 @@ import {
   type VisionNamedClaim,
   type VisionObservations,
 } from '@/types/vision'
+import type { VideoAnalysisWindow } from '@/services/llm-text.service'
+import {
+  buildVideoFrameEvidence,
+  describeVideoFrameSet,
+  type VideoFrameSet,
+} from '@/services/video-frames/video-frame-set.service'
 import { resolveVisionRoute } from '@/services/vision/vision-route.service'
 import {
   completeVisionStructured,
@@ -146,16 +152,28 @@ ${VISION_JSON_CONTRACT}
 }`,
 }
 
+/**
+ * @param media 这一轮送进去的是什么：`image` = 图片/帧序列，`video` = 视频本体。
+ *
+ * ⚠ 帧序列必须**说清它是帧序列**：模型收到 8 张图时，「这是同一个视频的 8 个
+ * 采样点」和「这是 8 张不相干的图」会给出完全不同的答案（前者会去看漂移，
+ * 后者会逐张描述）。⛔ 但也不能说成「你看了这个视频」——它没看，两帧之间发生
+ * 了什么它不知道，说了它就敢答运镜。
+ */
 function buildUserPrompt(
   task: VisionTask,
-  mediaCount: number,
+  media: { kind: 'image' | 'frames' | 'video'; count: number },
   instruction?: string,
 ): string {
-  const parts = [
-    mediaCount === 1
-      ? 'Analyze the attached image.'
-      : `Analyze the ${mediaCount} attached images, in the order given.`,
-  ]
+  const lead =
+    media.kind === 'video'
+      ? 'Analyze the attached video.'
+      : media.kind === 'frames'
+        ? `Analyze these ${media.count} still frames sampled from ONE video at evenly spaced timestamps, in chronological order. They are samples, not the footage: never describe camera movement, pacing, or anything that happens between two frames.`
+        : media.count === 1
+          ? 'Analyze the attached image.'
+          : `Analyze the ${media.count} attached images, in the order given.`
+  const parts = [lead]
   if (instruction) {
     // 用户的补充要求也是**素材**，不是第二套指令 —— 它已经过了 `llmTextCompletion`
     // 的 prompt-guard 注入扫描，这里再用边界句夹一层，免得一句「forget the schema」
@@ -311,13 +329,15 @@ function buildQueryLabel(
   task: VisionTask,
   mediaUrls: readonly string[],
   instruction?: string,
+  /** 帧集/native 视频的来源说明 —— **复跑靠的就是这一行**（时间戳、策略版本齐全）。 */
+  sourceNote?: string,
 ): string {
   const inline = mediaUrls.filter(isInlineMedia).length
   const scope =
     inline > 0
       ? `${mediaUrls.length} image(s), ${inline} inline`
       : `${mediaUrls.length} image(s)`
-  const head = `${task} · ${scope}`
+  const head = [`${task} · ${scope}`, sourceNote].filter(Boolean).join(' · ')
   return (instruction ? `${head} · ${instruction}` : head).slice(0, 4000)
 }
 
@@ -394,6 +414,20 @@ export interface AnalyzeVisualParams {
   routeHint?: string
   /** 用户附加的一句话（「重点看手」）。 */
   instruction?: string
+  /**
+   * **frames 档**（切片 2 §4.3）：`mediaUrls` 是这个帧集的帧 URL。
+   * 给了它，证据就由帧集出（带时间戳标题 + 指回来源视频），`query` 里也会写下
+   * 完整的抽帧参数 —— 帧集可回溯的那一半在这里落地。
+   */
+  frameSet?: VideoFrameSet
+  /**
+   * **native 档**（切片 2 §4.3）：视频本体进模型，此时 `mediaUrls` 一般为空。
+   *
+   * ⚠ 视频进不了 `EvidenceItem`（三种 kind 里没有 video，而把一帧封面塞进
+   * `kind:'image'` 就是「封面冒充帧集」——owner 明令禁止的那件事）。所以这一档
+   * 的 run **证据为空**，来源写在 `query` 里。要可回看的证据就走 frames 档。
+   */
+  video?: { url: string; window?: VideoAnalysisWindow }
 }
 
 /** 某个任务对应的那一支观察 —— 调用方知道自己点了哪个任务，就不该再判别一次。 */
@@ -422,7 +456,9 @@ export async function analyzeVisual<TTask extends VisionTask>(
   }
 > {
   const minMedia = VISION_TASK_MIN_MEDIA[params.task]
-  if (params.mediaUrls.length < minMedia) {
+  // ⚠ native 档一段视频本身就含无数帧，`compare` 的「至少两张」对它不成立 ——
+  //   这道闸拦的是「拿一张图去比较」，不是「拿一段视频去比较」。
+  if (!params.video && params.mediaUrls.length < minMedia) {
     throw new ApiRequestError(
       'VISION_INSUFFICIENT_MEDIA',
       400,
@@ -437,12 +473,35 @@ export async function analyzeVisual<TTask extends VisionTask>(
     params.routeHint,
   )
 
-  const { items: evidence, refByInput } = buildEvidence(mediaUrls)
+  // 帧集给了就用帧集的证据（带时间戳、指回来源视频）；否则照旧从输入 URL 推。
+  // 两种输入下 `refByInput` 的含义都是「第 i 个输入 → 证据包里的第几条」。
+  const { items: evidence, refByInput } = params.frameSet
+    ? {
+        items: buildVideoFrameEvidence(params.frameSet),
+        refByInput: new Map(
+          params.frameSet.frames.map((frame, index) => [index, index + 1]),
+        ),
+      }
+    : buildEvidence(mediaUrls)
   const refs = {
     all: evidence.map((_item, index) => index + 1),
     byInput: refByInput,
   }
-  const query = buildQueryLabel(params.task, mediaUrls, params.instruction)
+  const sourceNote = params.frameSet
+    ? describeVideoFrameSet(params.frameSet)
+    : params.video
+      ? `native video · src=${params.video.url}${
+          params.video.window
+            ? ` · window=${JSON.stringify(params.video.window)}`
+            : ' · full length'
+        }`
+      : undefined
+  const query = buildQueryLabel(
+    params.task,
+    mediaUrls,
+    params.instruction,
+    sourceNote,
+  )
 
   let payload: unknown
   try {
@@ -451,10 +510,15 @@ export async function analyzeVisual<TTask extends VisionTask>(
       systemPrompt: VISION_SYSTEM_PROMPTS[params.task],
       userPrompt: buildUserPrompt(
         params.task,
-        mediaUrls.length,
+        {
+          kind: params.video ? 'video' : params.frameSet ? 'frames' : 'image',
+          count: mediaUrls.length,
+        },
         params.instruction,
       ),
       imageData: mediaUrls,
+      ...(params.video ? { videoData: [params.video.url] } : {}),
+      ...(params.video?.window ? { videoAnalysis: params.video.window } : {}),
       route,
       label: `vision.${params.task}`,
     })
@@ -504,6 +568,7 @@ export async function analyzeVisual<TTask extends VisionTask>(
     task: params.task,
     adapterType: route.adapterType,
     borrowed,
+    mode: params.video ? 'native' : params.frameSet ? 'frames' : 'image',
     mediaCount: mediaUrls.length,
     evidenceCount: evidence.length,
     conclusionCount: conclusions.length,

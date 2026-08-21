@@ -182,6 +182,85 @@ describe('createNodeAssistantStream', () => {
     ])
   })
 
+  // ─── 能力矩阵三值化的消费者回归（切片 2 §4.3）─────────────────
+
+  it('frames 档的路由（OpenAI）收到视频引用 → ASSISTANT_VIDEO_UNSUPPORTED', async () => {
+    // 画布 dock 也是自由对话，要的是 **native 档**：抽帧只在视觉线的显式任务里
+    // 发生，聊天里拿 8 张图回答运镜就是一份自信的错答案。
+    mockResolveLlmTextRoute.mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com' },
+      apiKey: 'openai-key',
+    })
+
+    await expect(
+      createNodeAssistantStream('clerk_user_1', {
+        ...REQUEST,
+        references: [
+          {
+            id: 'uploaded-video:1',
+            source: 'upload',
+            kind: 'video',
+            url: 'https://cdn.example.com/clip.mp4',
+            label: 'clip.mp4',
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_VIDEO_UNSUPPORTED',
+      i18nKey: 'errors.assistant.videoUnsupported',
+    })
+  })
+
+  it('同一条路的图片引用照常收（frames 档的前提就是能吃图）', async () => {
+    mockResolveLlmTextRoute.mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com' },
+      apiKey: 'openai-key',
+    })
+    mockLlmTextCompletion.mockResolvedValue('Ack.')
+
+    const stream = await createNodeAssistantStream('clerk_user_1', {
+      ...REQUEST,
+      references: [
+        {
+          id: 'uploaded-image:1',
+          source: 'upload',
+          kind: 'image',
+          url: 'https://cdn.example.com/reference.png',
+          label: 'reference.png',
+        },
+      ],
+    })
+
+    await readStream(stream)
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0]?.imageData).toEqual([
+      'https://cdn.example.com/reference.png',
+    ])
+  })
+
+  it('native 档的路由（Gemini）收得下视频引用', async () => {
+    mockLlmTextCompletion.mockResolvedValue('Ack.')
+
+    const stream = await createNodeAssistantStream('clerk_user_1', {
+      ...REQUEST,
+      references: [
+        {
+          id: 'uploaded-video:1',
+          source: 'upload',
+          kind: 'video',
+          url: 'https://cdn.example.com/clip.mp4',
+          label: 'clip.mp4',
+        },
+      ],
+    })
+
+    await readStream(stream)
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0]?.videoData).toEqual([
+      'https://cdn.example.com/clip.mp4',
+    ])
+  })
+
   it('streams through AI Gateway when configured', async () => {
     vi.stubEnv('AI_GATEWAY_API_KEY', 'gateway-key')
     mockStreamText.mockReturnValue({

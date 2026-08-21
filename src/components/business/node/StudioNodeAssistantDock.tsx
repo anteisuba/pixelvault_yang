@@ -21,7 +21,11 @@ import {
 } from '@/constants/node-studio'
 import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { assistantAdapterSupportsMedia } from '@/constants/assistant'
+import { assistantAdapterAcceptsReferenceKind } from '@/constants/assistant'
+import {
+  VIDEO_ANALYSIS_TASKS,
+  VIDEO_ANALYSIS_TASK_TIERS,
+} from '@/constants/video-analysis'
 import { isAutoApplyAssistantOp } from '@/constants/node-assistant-ops'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -260,6 +264,23 @@ export function StudioNodeAssistantDock({
   const referenceOptions = useMemo(
     () => getAssistantMediaReferences(nodes, tNodeTypes),
     [nodes, tNodeTypes],
+  )
+
+  /**
+   * 这条路收不收这种附件。视频要的是 **native 档**（切片 2 §4.3）——
+   * 画布 dock 也是自由对话，`frames` 档回答不了运镜/节奏/动作。
+   *
+   * ⚠ 提成一个回调而不是在两处布局里各写一遍：展开态和收起态是同一个闸，
+   * 抄两份就是「改了一处忘了另一处」的经典入口。
+   */
+  const canUseReference = useCallback(
+    (reference: { kind: 'image' | 'video' }) =>
+      assistantAdapterAcceptsReferenceKind(
+        assistantRoute.adapterType,
+        reference.kind,
+        VIDEO_ANALYSIS_TASK_TIERS[VIDEO_ANALYSIS_TASKS.conversational],
+      ),
+    [assistantRoute.adapterType],
   )
 
   const buildConversationContext = useCallback(
@@ -695,12 +716,7 @@ export function StudioNodeAssistantDock({
                 emptyHint={opener}
                 starters={dockStarters}
                 referenceOptions={referenceOptions}
-                canUseReference={(reference) =>
-                  assistantAdapterSupportsMedia(
-                    assistantRoute.adapterType,
-                    reference.kind,
-                  )
-                }
+                canUseReference={canUseReference}
                 onRunCapability={handleRunCapability}
                 planAssistantOps={planAssistantOps}
                 onApplyAssistantOps={handleApplyAssistantOps}
@@ -730,12 +746,7 @@ export function StudioNodeAssistantDock({
               emptyHint={opener}
               starters={dockStarters}
               referenceOptions={referenceOptions}
-              canUseReference={(reference) =>
-                assistantAdapterSupportsMedia(
-                  assistantRoute.adapterType,
-                  reference.kind,
-                )
-              }
+              canUseReference={canUseReference}
               onRunCapability={handleRunCapability}
               planAssistantOps={planAssistantOps}
               onApplyAssistantOps={handleApplyAssistantOps}

@@ -10,6 +10,7 @@ import { withRetry } from '@/lib/with-retry'
 import {
   llmTextCompletion,
   type ResolvedLlmTextRoute,
+  type VideoAnalysisWindow,
 } from '@/services/llm-text.service'
 
 /**
@@ -100,16 +101,15 @@ function isVisionRetryable(error: unknown): boolean {
   return false
 }
 
-async function withVisionTimeout<T>(task: Promise<T>): Promise<T> {
+async function withVisionTimeout<T>(
+  task: Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(
-        new Error(
-          `Vision completion timed out after ${VISION_LIMITS.timeoutMs}ms`,
-        ),
-      )
-    }, VISION_LIMITS.timeoutMs)
+      reject(new Error(`Vision completion timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
   })
   try {
     return await Promise.race([task, timeout])
@@ -124,6 +124,20 @@ export interface VisionStructuredParams<TSchema extends z.ZodType> {
   userPrompt: string
   /** 图片输入。`data:` 与 http(s) 都行 —— `llmTextCompletion` 按 provider 归一化。 */
   imageData: string[]
+  /**
+   * **native 档视频**（切片 2 §4.3）：视频本体进模型。`data:` / 视频直链 /
+   * YouTube 页面 URL 都行 —— 分类与直传由 `toGeminiVideoPart` 一处处理。
+   *
+   * ⚠ 两个实测坑**都已经在 `llm-text.service` 里复用现成的**，别在这里重造：
+   *  - 坑 1（thinking token 从 `maxOutputTokens` 里扣）：带视频那一轮
+   *    `resolveGeminiMaxOutputTokens` 会把预算抬到
+   *    `VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS`（3000），视觉线送的 2400 因此自动够用。
+   *  - 坑 2（视频不可访问回 403 而不是 404）：`toLlmTextProviderError` 已把它映射成
+   *    `ASSISTANT_VIDEO_UNREACHABLE`，不会再告诉用户「你的 key 没权限」。
+   */
+  videoData?: string[]
+  /** 成本 window（§4.3.1）。由 `resolveNativeVideoWindow` 按任务和片长算。 */
+  videoAnalysis?: VideoAnalysisWindow
   route: ResolvedLlmTextRoute
   /** 进日志与重试标签，形如 `vision.character_identity`。 */
   label: string
@@ -140,17 +154,23 @@ export async function completeVisionStructured<TSchema extends z.ZodType>(
 ): Promise<z.infer<TSchema>> {
   return withRetry(
     async () => {
+      const hasVideo = Boolean(params.videoData?.length)
       const raw = await withVisionTimeout(
         llmTextCompletion({
           systemPrompt: params.systemPrompt,
           userPrompt: params.userPrompt,
           imageData: params.imageData,
+          ...(params.videoData?.length ? { videoData: params.videoData } : {}),
+          ...(params.videoAnalysis
+            ? { videoAnalysis: params.videoAnalysis }
+            : {}),
           responseFormat: 'json_object',
           maxTokens: params.maxTokens ?? VISION_LIMITS.maxTokens,
           adapterType: params.route.adapterType,
           providerConfig: params.route.providerConfig,
           apiKey: params.route.apiKey,
         }),
+        hasVideo ? VISION_LIMITS.videoTimeoutMs : VISION_LIMITS.timeoutMs,
       )
 
       const parsed = parseJsonObject(raw)

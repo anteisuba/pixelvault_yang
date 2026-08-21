@@ -5795,7 +5795,8 @@
     "vision": {
       "noCapableRoute": "现在没有能看图的模型可用。配置 Gemini 或 OpenAI 的 API key 后即可分析图片。",
       "invalidOutput": "看图结果没能整理成结构化结论（已重试一次）。换一张图或稍后再试。",
-      "insufficientMedia": "对比至少需要两张图片。"
+      "insufficientMedia": "对比至少需要两张图片。",
+      "framesInvalid": "抽出的帧与确定性计划对不上，请重新抽帧。"
     }
   },
   "Transform": {

@@ -8,9 +8,15 @@ import {
   LORA_ASSISTANT_HTTP_STATUS,
 } from '@/constants/lora-assistant'
 import {
-  assistantAdapterSupportsMedia,
+  assistantAdapterSatisfiesVideoTier,
+  assistantAdapterSupportsImage,
   ASSISTANT_MEDIA_LIMITS,
+  ASSISTANT_MEDIA_UNSUPPORTED_ERRORS,
 } from '@/constants/assistant'
+import {
+  VIDEO_ANALYSIS_TASKS,
+  VIDEO_ANALYSIS_TASK_TIERS,
+} from '@/constants/video-analysis'
 import {
   ASSISTANT_DOMAIN_BRIEFS,
   ASSISTANT_LORA_IDENTITY_NOTE,
@@ -41,9 +47,11 @@ import {
 } from '@/services/kernel/assistant-completion.service'
 import {
   resolveLlmTextRoute,
+  type LlmTextInput,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
 import { fetchBilibiliVideoMetadata } from '@/services/research/bilibili.connector'
+import { resolveNativeVideoWindow } from '@/services/vision/video-analysis-route.service'
 import { runConnector } from '@/services/research/connector-runtime'
 import {
   runResearch,
@@ -221,20 +229,35 @@ function getAssistantMediaInputs(
     references.some((reference) => reference.kind === 'image')
   const hasVideo = references.some((reference) => reference.kind === 'video')
 
-  if (hasImage && !assistantAdapterSupportsMedia(adapterType, 'image')) {
+  if (hasImage && !assistantAdapterSupportsImage(adapterType)) {
+    const spec = ASSISTANT_MEDIA_UNSUPPORTED_ERRORS.image
     throw new ApiRequestError(
-      'ASSISTANT_IMAGE_UNSUPPORTED',
-      400,
-      'errors.assistant.imageUnsupported',
-      'The selected assistant model cannot analyze images.',
+      spec.code,
+      spec.httpStatus,
+      spec.i18nKey,
+      spec.message,
     )
   }
-  if (hasVideo && !assistantAdapterSupportsMedia(adapterType, 'video')) {
+  // ⚠ 聊天轮要的是 **native 档**，`frames` 档在这里不算数（切片 2 §4.3）。
+  //   理由：自由提问里用户随时可能问运镜、节奏、动作有没有崩，而那三样帧序列
+  //   看不见 —— 收下视频然后拿 8 张图去答，得到的是一份自信的错答案。
+  //   抽帧那条路走视觉线的 `/api/vision/analyze-video`：那里任务是明说的，
+  //   模型也被告知「你看到的是采样帧，不是这段视频」。
+  //   档位读 `VIDEO_ANALYSIS_TASK_TIERS` 那张表（conversational = native），
+  //   ⛔ 别在这里写死一个 `'native'` 字面量 —— 表和闸各说各话就是漂移的起点。
+  if (
+    hasVideo &&
+    !assistantAdapterSatisfiesVideoTier(
+      adapterType,
+      VIDEO_ANALYSIS_TASK_TIERS[VIDEO_ANALYSIS_TASKS.conversational],
+    )
+  ) {
+    const spec = ASSISTANT_MEDIA_UNSUPPORTED_ERRORS.video
     throw new ApiRequestError(
-      'ASSISTANT_VIDEO_UNSUPPORTED',
-      400,
-      'errors.assistant.videoUnsupported',
-      'The selected assistant model cannot analyze videos.',
+      spec.code,
+      spec.httpStatus,
+      spec.i18nKey,
+      spec.message,
     )
   }
 
@@ -938,6 +961,11 @@ interface AssistantTurnSetup {
    */
   media: AssistantMediaResolution
   /**
+   * 长视频的成本降级窗口（裁片段或降帧率）。`undefined` = 不降级：片短，
+   * 或者**片长根本取不到**——后者宁可多烧 token 也不拿一个不知道的数去裁用户的视频。
+   */
+  videoAnalysis?: LlmTextInput['videoAnalysis']
+  /**
    * 视频链接的元数据块（带边界标记）。`null` = 这轮一条视频链接都没有。
    *
    * **两种块，两套围栏**，拼在一起进用户提示：
@@ -1080,12 +1108,25 @@ async function prepareAssistantTurn(params: {
     systemPrompt = `${systemPrompt}\n\n${VIDEO_METADATA_DIRECTIVE}`
   }
 
+  // 长视频的成本闸（§4.3.1 实测：裁 0–60s 只要全片 5% 的 token）。
+  // ⚠ 聊天轮一律按 `conversational` 档判 —— 自由提问随时可能问到运镜/节奏，
+  //   所以降级走的是「降帧率」而不是「只看前 60 秒」。片长取不到就不降级：
+  //   拿一个我们不知道的数去裁用户的视频，比多烧一点 token 糟糕得多。
+  const videoAnalysis = media.videoData?.length
+    ? resolveNativeVideoWindow(
+        VIDEO_ANALYSIS_TASKS.conversational,
+        videoLinkMetadata.find((item) => item.durationSeconds !== undefined)
+          ?.durationSeconds,
+      )
+    : undefined
+
   return {
     systemPrompt,
     route,
     research,
     media,
     videoLinkBlock,
+    ...(videoAnalysis ? { videoAnalysis } : {}),
   }
 }
 
@@ -1109,6 +1150,7 @@ async function completeWithCitationGate(options: {
   route: ResolvedLlmTextRoute
   imageData?: string[]
   videoData?: string[]
+  videoAnalysis?: LlmTextInput['videoAnalysis']
   modelId?: string
   evidenceCount: number
 }): Promise<string> {
@@ -1229,6 +1271,7 @@ export async function createPromptAssistantStream(
             route: setup.route,
             imageData: setup.media.imageData,
             videoData: setup.media.videoData,
+            videoAnalysis: setup.videoAnalysis,
             modelId,
             evidenceCount,
           }),
@@ -1241,6 +1284,7 @@ export async function createPromptAssistantStream(
             PROMPT_ASSISTANT_CONTEXT_COMPACTION_TARGET_LENGTH,
           imageData: setup.media.imageData,
           videoData: setup.media.videoData,
+          videoAnalysis: setup.videoAnalysis,
           modelId,
         })
 
@@ -1389,6 +1433,7 @@ export async function chatPromptAssistant(
           route: setup.route,
           imageData: setup.media.imageData,
           videoData: setup.media.videoData,
+          videoAnalysis: setup.videoAnalysis,
           modelId: routeModelId,
           evidenceCount,
         }).catch((error) => {
@@ -1410,6 +1455,7 @@ export async function chatPromptAssistant(
             PROMPT_ASSISTANT_CONTEXT_COMPACTION_TARGET_LENGTH,
           imageData: setup.media.imageData,
           videoData: setup.media.videoData,
+          videoAnalysis: setup.videoAnalysis,
           modelId: routeModelId,
         })
 

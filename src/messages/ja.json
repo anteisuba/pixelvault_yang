@@ -5795,7 +5795,8 @@
     "vision": {
       "noCapableRoute": "画像を見られるモデルが現在ありません。Gemini または OpenAI の API キーを設定すると画像を分析できます。",
       "invalidOutput": "分析結果を構造化できませんでした（一度再試行済み）。別の画像を試すか、時間をおいて再度お試しください。",
-      "insufficientMedia": "比較には最低 2 枚の画像が必要です。"
+      "insufficientMedia": "比較には最低 2 枚の画像が必要です。",
+      "framesInvalid": "抽出したフレームが決定的な抽出計画と一致しません。抽出をやり直してください。"
     }
   },
   "Transform": {

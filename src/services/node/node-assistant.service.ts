@@ -8,7 +8,14 @@ import {
   NODE_ASSISTANT_OP_LIMITS,
   NODE_ASSISTANT_OP_MARKERS,
 } from '@/constants/node-assistant-ops'
-import { assistantAdapterSupportsMedia } from '@/constants/assistant'
+import {
+  assistantAdapterAcceptsReferenceKind,
+  ASSISTANT_MEDIA_UNSUPPORTED_ERRORS,
+} from '@/constants/assistant'
+import {
+  VIDEO_ANALYSIS_TASKS,
+  VIDEO_ANALYSIS_TASK_TIERS,
+} from '@/constants/video-analysis'
 import {
   NODE_STUDIO_ASSISTANT,
   NODE_STUDIO_ASSISTANT_LIMITS,
@@ -171,15 +178,24 @@ function getNodeAssistantMediaInputs(
     0,
     NODE_STUDIO_ASSISTANT_LIMITS.maxReferences,
   )
+  // 画布这条也是**自由对话**，要的同样是 native 档（切片 2 §4.3）：抽帧只在视觉线
+  // 的显式任务里发生，聊天里收下视频却只送 8 张图，模型会照样回答运镜。
+  // 档位读同一张表，⛔ 不在这里写第二个 `'native'` 字面量。
   const unsupported = references.find(
-    (reference) => !assistantAdapterSupportsMedia(adapterType, reference.kind),
+    (reference) =>
+      !assistantAdapterAcceptsReferenceKind(
+        adapterType,
+        reference.kind,
+        VIDEO_ANALYSIS_TASK_TIERS[VIDEO_ANALYSIS_TASKS.conversational],
+      ),
   )
   if (unsupported) {
+    const spec = ASSISTANT_MEDIA_UNSUPPORTED_ERRORS[unsupported.kind]
     throw new ApiRequestError(
-      `ASSISTANT_${unsupported.kind.toUpperCase()}_UNSUPPORTED`,
-      400,
-      `errors.assistant.${unsupported.kind}Unsupported`,
-      `The selected assistant model does not support ${unsupported.kind} references.`,
+      spec.code,
+      spec.httpStatus,
+      spec.i18nKey,
+      spec.message,
     )
   }
 

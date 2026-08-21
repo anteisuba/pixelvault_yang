@@ -5795,7 +5795,8 @@
     "vision": {
       "noCapableRoute": "No image-capable model is available right now. Add a Gemini or OpenAI API key to analyze images.",
       "invalidOutput": "The analysis could not be turned into structured findings (already retried once). Try another image, or try again later.",
-      "insufficientMedia": "Comparing needs at least two images."
+      "insufficientMedia": "Comparing needs at least two images.",
+      "framesInvalid": "The extracted frames don't match the deterministic plan. Re-run the extraction."
     }
   },
   "Transform": {

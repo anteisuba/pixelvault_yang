@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { getDefaultProviderConfig } from '@/constants/providers'
-import { assistantAdapterSupportsMedia } from '@/constants/assistant'
+import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import {
   VISION_CAPABLE_ADAPTERS,
   VISION_NO_CAPABLE_ROUTE_ERROR,
@@ -86,7 +86,7 @@ export async function resolveVisionRoute(
 ): Promise<ResolvedVisionRoute> {
   if (apiKeyId) {
     const selected = await resolveLlmTextRoute(userId, apiKeyId)
-    if (assistantAdapterSupportsMedia(selected.adapterType, 'image')) {
+    if (assistantAdapterSupportsImage(selected.adapterType)) {
       return { route: selected, borrowed: false }
     }
 

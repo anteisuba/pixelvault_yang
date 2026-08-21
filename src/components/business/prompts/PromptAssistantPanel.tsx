@@ -46,9 +46,13 @@ import {
 import { Message, MessageContent } from '@/components/ui/message'
 import { Spinner } from '@/components/ui/spinner'
 import {
-  assistantAdapterSupportsMedia,
+  assistantAdapterAcceptsReferenceKind,
   ASSISTANT_MEDIA_LIMITS,
 } from '@/constants/assistant'
+import {
+  VIDEO_ANALYSIS_TASKS,
+  VIDEO_ANALYSIS_TASK_TIERS,
+} from '@/constants/video-analysis'
 import { isAspectRatio } from '@/constants/config'
 import { LORA_ASSISTANT_ERROR_CODES } from '@/constants/lora-assistant'
 import { RESEARCH_MODES, type ResearchMode } from '@/constants/research'
@@ -300,9 +304,17 @@ export function PromptAssistantPanel({
     ],
   )
 
+  // ⚠ 视频要的是 **native 档**（切片 2 §4.3）：这里是自由对话，用户随时会问运镜/
+  //   节奏/动作，而 `frames` 档看不见那些。抽帧走视觉线的显式任务入口。
+  //   档位读服务端同一张表 —— 前端自己判一套、服务端判另一套的下场是「界面让挂、
+  //   发出去 400」。
   const unsupportedReference = references.find(
     (reference) =>
-      !assistantAdapterSupportsMedia(selectedAdapterType, reference.kind),
+      !assistantAdapterAcceptsReferenceKind(
+        selectedAdapterType,
+        reference.kind,
+        VIDEO_ANALYSIS_TASK_TIERS[VIDEO_ANALYSIS_TASKS.conversational],
+      ),
   )
   const canSubmit = Boolean(
     (inputValue.trim() || references.length > 0) &&

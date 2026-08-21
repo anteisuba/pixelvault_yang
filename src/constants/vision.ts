@@ -17,7 +17,7 @@
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   ASSISTANT_MEDIA_CAPABILITIES,
-  assistantAdapterSupportsMedia,
+  assistantAdapterSupportsImage,
 } from '@/constants/assistant'
 import {
   RESEARCH_CONCLUSION_BASES,
@@ -191,7 +191,7 @@ const VISION_ADAPTER_PREFERENCE: readonly AI_ADAPTER_TYPES[] = [
 export const VISION_CAPABLE_ADAPTERS: readonly AI_ADAPTER_TYPES[] = (() => {
   const capable = (
     Object.keys(ASSISTANT_MEDIA_CAPABILITIES) as AI_ADAPTER_TYPES[]
-  ).filter((adapterType) => assistantAdapterSupportsMedia(adapterType, 'image'))
+  ).filter(assistantAdapterSupportsImage)
   const preferred = VISION_ADAPTER_PREFERENCE.filter((adapterType) =>
     capable.includes(adapterType),
   )
@@ -279,6 +279,14 @@ export const VISION_LIMITS = {
    */
   timeoutMs: 25_000,
   /**
+   * **native 档视频**那一支的墙钟上限（切片 2 §4.3）。
+   *
+   * ⚠ 别拿 25 秒去卡视频：🔬 实测一条 18 分钟的片子光 VIDEO token 就 10 万，
+   * provider 侧的处理时间和图片完全不是一个量级，25 秒的表现会是「每次都超时」
+   * 而看起来像模型坏了。配套的路由 `maxDuration = 300`，两次 120 秒 + 退避装得下。
+   */
+  videoTimeoutMs: 120_000,
+  /**
    * 结构化输出的重试次数。照 `node-script-doc.service.ts` 的形态：
    * **打回重试一次就够** —— 同一个模型同一份提示词连错两次，第三次不会变对。
    */
@@ -295,3 +303,12 @@ export const VISION_LIMITS = {
  * 消费方只认这个常量名。
  */
 export const VISION_ANALYZE_ENDPOINT = '/api/vision/analyze'
+
+/**
+ * `POST /api/vision/analyze-video`（切片 2 §4.3）。
+ *
+ * 与上面同一个理由放在这里而不是 `API_ENDPOINTS`。**一个端点吃两条腿**
+ * （带帧集 = frames 档，不带 = native 档），路由判定在
+ * `resolveVideoAnalysisRoute` 一处 —— 分成两个端点就是把同一个闸写两遍。
+ */
+export const VISION_ANALYZE_VIDEO_ENDPOINT = '/api/vision/analyze-video'

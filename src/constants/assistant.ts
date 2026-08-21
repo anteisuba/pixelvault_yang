@@ -91,12 +91,58 @@ export const ASSISTANT_MEDIA_LIMITS = {
   geminiFilePollTimeoutMs: 60_000,
 } as const
 
+/**
+ * 「能看视频」有两档，不是一个布尔（AI 导演内核 · 切片 2 · §4.3）。
+ *
+ * 布尔的问题是它把两件成本、覆盖面、可复现性都不同的事压成了同一个 true：
+ *  - `native` = **视频本体**进模型（Gemini `fileData` / `inlineData`）。运镜、节奏、
+ *    动作连贯性只有这一档看得见 —— 帧序列里两帧之间发生了什么，帧本身不说。
+ *    代价是 🔬 实测 ≈5,450 token/分钟，随时长线性。
+ *  - `frames` = 看不了视频本体，但能吃图。由抽帧管线把视频变成 N 张**确定性**
+ *    关键帧再当图片送进去。一致性审片、画风、角色长相这类静态观察它够用，
+ *    而且便宜、可复跑（同一个视频＋同一份参数 → 同一组帧）。
+ *
+ * ⚠ **`false` 是「连图都吃不了」**，不是「只是没接视频」：`frames` 档的前提就是
+ * `image: true`，所以纯文本模型永远是 `false`。
+ */
+export const ASSISTANT_VIDEO_TIERS = {
+  native: 'native',
+  frames: 'frames',
+} as const
+
+export type AssistantVideoTier =
+  (typeof ASSISTANT_VIDEO_TIERS)[keyof typeof ASSISTANT_VIDEO_TIERS]
+
+export interface AssistantMediaCapability {
+  image: boolean
+  /** `false` = 一档都没有。两档的区别见 `ASSISTANT_VIDEO_TIERS`。 */
+  video: AssistantVideoTier | false
+}
+
+/**
+ * ⚠ **`video` 的档位跟着 `image` 走**：能吃图就至少是 `frames`（抽帧管线把视频
+ * 降级成图，不需要 provider 那边有任何新能力），吃不了图就只能是 `false`。
+ * 新开一个 provider 时先把 `image` 定对，`video` 只在**实测过视频直传**之后
+ * 才允许写 `native`。
+ *
+ * 🔬 Qwen（DASHSCOPE）的 DashScope 原生视频分支 **owner 2026-08-21 拍板本轮跳过**
+ * （缺 key 无法实测，不拿没测过的形态当能力）。它按图片能力归档即可。
+ * ⚠ 注意它此刻 `image: false` —— `llm-text.service.ts` 的 dashscope 分支其实
+ * 已经支持图片输入（VL 模型），这张表里的 false 是另一件事（助手路由默认模型
+ * 未必是 VL 档），**要翻它得先实测，别顺手改**。
+ */
 export const ASSISTANT_MEDIA_CAPABILITIES: Record<
   AI_ADAPTER_TYPES,
-  { image: boolean; video: boolean }
+  AssistantMediaCapability
 > = {
-  [AI_ADAPTER_TYPES.OPENAI]: { image: true, video: false },
-  [AI_ADAPTER_TYPES.GEMINI]: { image: true, video: true },
+  [AI_ADAPTER_TYPES.OPENAI]: {
+    image: true,
+    video: ASSISTANT_VIDEO_TIERS.frames,
+  },
+  [AI_ADAPTER_TYPES.GEMINI]: {
+    image: true,
+    video: ASSISTANT_VIDEO_TIERS.native,
+  },
   [AI_ADAPTER_TYPES.DEEPSEEK]: { image: false, video: false },
   [AI_ADAPTER_TYPES.ANTHROPIC]: { image: false, video: false },
   [AI_ADAPTER_TYPES.DASHSCOPE]: { image: false, video: false },
@@ -115,23 +161,105 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
   [AI_ADAPTER_TYPES.ELEVENLABS]: { image: false, video: false },
 }
 
-export function assistantAdapterSupportsMedia(
+export function assistantAdapterSupportsImage(
+  adapterType: AI_ADAPTER_TYPES,
+): boolean {
+  return ASSISTANT_MEDIA_CAPABILITIES[adapterType].image
+}
+
+/** 这条路能把视频看到哪一档。`false` = 一档都不行。 */
+export function assistantAdapterVideoTier(
+  adapterType: AI_ADAPTER_TYPES,
+): AssistantVideoTier | false {
+  return ASSISTANT_MEDIA_CAPABILITIES[adapterType].video
+}
+
+/**
+ * 「这条路能不能满足我要的那一档」。
+ *
+ * ⚠ **调用方必须显式说出自己要哪一档** —— 老的 `assistantAdapterSupportsMedia(
+ * adapter, 'video')` 之所以要删掉，就是因为它让「问运镜」和「逐帧比对」共用一个
+ * 答案：前者只有 `native` 做得到，后者 `frames` 就够。合成一个布尔的表现是
+ * 二选一的坏结果 —— 要么把能抽帧的模型也拒掉，要么让抽帧档去回答运镜问题。
+ *
+ * 档位是有序的：`native` 能满足 `frames`（视频本体都在了，逐帧比对当然做得到），
+ * 反过来不成立。
+ */
+export function assistantAdapterSatisfiesVideoTier(
+  adapterType: AI_ADAPTER_TYPES,
+  requiredTier: AssistantVideoTier,
+): boolean {
+  const tier = assistantAdapterVideoTier(adapterType)
+  if (tier === false) return false
+  if (requiredTier === ASSISTANT_VIDEO_TIERS.native) {
+    return tier === ASSISTANT_VIDEO_TIERS.native
+  }
+  return true
+}
+
+/**
+ * 附件闸的读法：这条路收不收这种附件。
+ *
+ * `requiredVideoTier` 对 `kind: 'image'` 不起作用（图片只有一档），但仍然是必填 ——
+ * 一个只在某个分支起作用的参数比一个隐式默认好：调用方写下 `'native'` 的那一刻
+ * 就等于声明了「我要把视频原样送进去」。
+ */
+export function assistantAdapterAcceptsReferenceKind(
   adapterType: AI_ADAPTER_TYPES,
   kind: 'image' | 'video',
+  requiredVideoTier: AssistantVideoTier,
 ): boolean {
-  return ASSISTANT_MEDIA_CAPABILITIES[adapterType][kind]
+  return kind === 'image'
+    ? assistantAdapterSupportsImage(adapterType)
+    : assistantAdapterSatisfiesVideoTier(adapterType, requiredVideoTier)
 }
+
+/**
+ * 「这条路吃不了这种附件」的结构化错误 —— **三个抛出点共用一份**
+ * （`prompt-assistant` / `node-assistant` / 视频分析路由）。
+ *
+ * ⚠ 原来三处各写各的字面量，`errorCode` 还是靠 `ASSISTANT_${kind.toUpperCase()}_UNSUPPORTED`
+ * 拼出来的 —— 同一个错三份定义，改一处就是漂移。
+ *
+ * ⚠ `i18nKey` 一字未改：`normalizeI18nKey` 会剥掉 `errors.` 前缀，实际查的是
+ * **`Errors.assistant.videoUnsupported`**（三语已在位，文案就是「请选择 Gemini，
+ * 或移除视频参考」——§4.3 要求的「明说需 Gemini key」已经落在这句上）。
+ * Hard Rule 8 由前端据 `errorCode` 路由到 `QuickSetupDialog`。
+ */
+export const ASSISTANT_MEDIA_UNSUPPORTED_ERRORS = {
+  image: {
+    code: 'ASSISTANT_IMAGE_UNSUPPORTED',
+    httpStatus: 400,
+    i18nKey: 'errors.assistant.imageUnsupported',
+    message: 'The selected assistant model cannot analyze images.',
+  },
+  video: {
+    code: 'ASSISTANT_VIDEO_UNSUPPORTED',
+    httpStatus: 400,
+    i18nKey: 'errors.assistant.videoUnsupported',
+    message:
+      'The selected assistant model cannot analyze video. A Gemini key analyzes video directly.',
+  },
+} as const
 
 export type AssistantMediaCapabilityLabel =
   | 'imageVideo'
   | 'imageOnly'
   | 'textOnly'
 
+/**
+ * 路由选择器上那个能力标签。
+ *
+ * ⚠ **`frames` 档标 `imageOnly` 是有意的**：这个标签说的是「你能往这条路上挂什么
+ * 附件」，而挂视频这件事今天仍然只有 `native` 做得到（抽帧发生在视觉线，不是聊天
+ * 附件面）。把 `frames` 标成「图片＋视频」会让用户挂上去然后撞
+ * `ASSISTANT_VIDEO_UNSUPPORTED` —— 标签撒谎比标签保守坏得多。
+ */
 export function getAssistantMediaCapabilityLabel(
   adapterType: AI_ADAPTER_TYPES,
 ): AssistantMediaCapabilityLabel {
   const capability = ASSISTANT_MEDIA_CAPABILITIES[adapterType]
-  if (capability.video) return 'imageVideo'
+  if (capability.video === ASSISTANT_VIDEO_TIERS.native) return 'imageVideo'
   if (capability.image) return 'imageOnly'
   return 'textOnly'
 }

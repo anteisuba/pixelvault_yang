@@ -38,11 +38,11 @@ import { useCanvasAssistantDrag } from '@/hooks/node/use-canvas-assistant-drag'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
+import { buildNodeAssistantNodeContexts } from '@/lib/node-assistant-context'
 import {
   planNodeAssistantOps,
   type PlannedNodeAssistantOp,
 } from '@/lib/node-assistant-op-plan'
-import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import type { AppLocale } from '@/i18n/routing'
 import type {
   NodeAssistantMediaReference,
@@ -82,37 +82,6 @@ interface StudioNodeAssistantDockProps {
   onExpandedChange(expanded: boolean): void
   onFocusNode(nodeId: string): void
   historyPortalTarget?: HTMLElement | null
-}
-
-function truncateNodeText(value: string, maxLength: number): string {
-  const trimmed = value.trim()
-  return trimmed.length > maxLength
-    ? `${trimmed.slice(0, Math.max(0, maxLength - 3))}...`
-    : trimmed
-}
-
-/**
- * 助手 payload 里的 `title` —— **必须是画布上显示的那个名字**。
- *
- * ⚠ 这里曾经是包 4.5 要修的洞：旧实现只认合并前的 `characterImage`（角色早已是
- * `image` + `role=character`，那个分支一次都不会命中），其余类型一律返回
- * `fallbackTitle`，也就是本地化的**类型标签**。于是助手看到的是「图片 / 镜头文本
- * / 视频生成」，用户改的「雨夜开场镜」和角色名「小林」它一个都拿不到，`@` 按名字
- * 引用因此不可能成立。
- *
- * 修法是接上**共享的显示名事实源**，而不是在这里再加一层兜底 —— 再写一套就是
- * 同一个错误的第五份副本。
- */
-function getNodeTitle(node: NodeWorkflowNode, fallbackTitle: string): string {
-  return resolveNodeDisplayName(node.data) ?? fallbackTitle
-}
-
-function getNodeSummary(node: NodeWorkflowNode): string | undefined {
-  if (node.type === NODE_TYPE_IDS.characterImage) {
-    return node.data.prompt || node.data.imageUrl
-  }
-
-  return node.data.prompt
 }
 
 function isHttpMediaUrl(value: string): boolean {
@@ -228,27 +197,13 @@ export function StudioNodeAssistantDock({
       }
     : undefined
 
+  // 投影本身住在 `lib/node-assistant-context` —— 它决定模型**能看见什么**，
+  // 而看不见就只能编，所以那段逻辑必须能脱离画布单测（空态 / 截断 / 哪些节点
+  // 有分类字段）。dock 这里只负责把本地化的类型标签递进去。
   const nodeContexts = useMemo<NodeAssistantNodeContext[]>(
     () =>
-      nodes.slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodes).map((node) => {
-        const fallbackTitle = tNodeTypes(node.type)
-        const summary = getNodeSummary(node)
-
-        return {
-          id: node.id,
-          type: node.type,
-          status: node.data.status,
-          title: truncateNodeText(
-            getNodeTitle(node, fallbackTitle),
-            NODE_STUDIO_ASSISTANT_LIMITS.maxNodeLabelLength,
-          ),
-          summary: summary
-            ? truncateNodeText(
-                summary,
-                NODE_STUDIO_ASSISTANT_LIMITS.maxNodeSummaryLength,
-              )
-            : undefined,
-        }
+      buildNodeAssistantNodeContexts(nodes, {
+        getNodeTypeLabel: (type) => tNodeTypes(type),
       }),
     [nodes, tNodeTypes],
   )

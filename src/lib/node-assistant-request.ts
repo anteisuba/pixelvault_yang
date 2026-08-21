@@ -1,3 +1,4 @@
+import { NODE_ASSISTANT_OP_LIMITS } from '@/constants/node-assistant-ops'
 import { NODE_STUDIO_ASSISTANT_LIMITS } from '@/constants/node-studio'
 import type {
   NodeAssistantMediaReference,
@@ -29,6 +30,12 @@ function sanitizeMessages(
     .slice(-NODE_STUDIO_ASSISTANT_LIMITS.maxMessages)
 }
 
+/**
+ * ⚠ 这里是**白名单**：出去的对象逐个字段自己拼。所以给
+ * `NodeAssistantNodeContextSchema` 加字段而漏改这里，新字段会在发请求前被安静
+ * 地丢掉 —— 编译过、测试过、真机上模型照样看不见（判据只能是抓请求体）。
+ * 加字段就来这儿加一行。
+ */
 function sanitizeNodes(
   nodes: NodeAssistantNodeContext[],
 ): NodeAssistantNodeContext[] {
@@ -36,17 +43,27 @@ function sanitizeNodes(
     .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodes)
     .map((node) => {
       const title = node.title.trim() || node.type
-      const summary = node.summary?.trim()
+      const promptExcerpt = node.promptExcerpt?.trim()
+      const imageCategoryLabel = node.imageCategoryLabel?.trim()
       return {
         id: node.id.trim(),
         type: node.type,
         status: node.status,
         title: title.slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodeLabelLength),
-        ...(summary
+        ...(promptExcerpt
           ? {
-              summary: summary.slice(
+              promptExcerpt: promptExcerpt.slice(
                 0,
                 NODE_STUDIO_ASSISTANT_LIMITS.maxNodeSummaryLength,
+              ),
+            }
+          : {}),
+        ...(node.imageCategory ? { imageCategory: node.imageCategory } : {}),
+        ...(node.imageCategory && imageCategoryLabel
+          ? {
+              imageCategoryLabel: imageCategoryLabel.slice(
+                0,
+                NODE_ASSISTANT_OP_LIMITS.maxCategoryLabelLength,
               ),
             }
           : {}),

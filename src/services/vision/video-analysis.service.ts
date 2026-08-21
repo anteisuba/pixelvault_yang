@@ -1,6 +1,10 @@
 import 'server-only'
 
 import { assistantAdapterVideoTier } from '@/constants/assistant'
+import {
+  VIDEO_ANALYSIS_MODES,
+  type VideoAnalysisMode,
+} from '@/constants/video-analysis'
 import type { VisionTask } from '@/constants/vision'
 import { logger } from '@/lib/logger'
 import {
@@ -11,10 +15,7 @@ import {
   analyzeVisual,
   type VisionObservationsFor,
 } from '@/services/vision/vision-analyzer.service'
-import {
-  resolveVideoAnalysisRoute,
-  VIDEO_ANALYSIS_MODES,
-} from '@/services/vision/video-analysis-route.service'
+import { resolveVideoAnalysisRoute } from '@/services/vision/video-analysis-route.service'
 import { resolveVisionRoute } from '@/services/vision/vision-route.service'
 import type { AssistantSurfaceId } from '@/types/assistant-conversation'
 import type { VisionAnalysisResult } from '@/types/vision'
@@ -58,7 +59,7 @@ export type AnalyzeVideoResult<TTask extends VisionTask> = Omit<
   task: TTask
   observations: VisionObservationsFor<TTask>
   /** 这一轮实际走的哪条腿 —— UI 要能如实说「只看了 8 帧」还是「看了视频」。 */
-  mode: (typeof VIDEO_ANALYSIS_MODES)[keyof typeof VIDEO_ANALYSIS_MODES]
+  mode: VideoAnalysisMode
   /** native 档超阈值自动降级了（裁片段 / 降帧率）。 */
   downgraded: boolean
 }

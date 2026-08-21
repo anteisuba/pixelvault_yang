@@ -28,14 +28,29 @@ import {
   CANVAS_ADD_INTENT_IDS,
   type CanvasAddIntentId,
 } from '@/constants/canvas-add-catalog'
-import { NODE_STUDIO_ASSISTANT_LIMITS } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_ASSISTANT_LIMITS,
+  type NodeStudioReferenceRole,
+} from '@/constants/node-studio'
 
 export const NODE_ASSISTANT_OP_IDS = {
   addNode: 'add_node',
   connect: 'connect',
   rename: 'rename',
+  /**
+   * 改**已有**节点的提示词（切片 5 第一批）。此前只有 `add_node` 能带 prompt ——
+   * 也就是说助手能在建节点的那一瞬间写字，建完之后一个字也改不了。用户说「把第
+   * 二镜改成黄昏」，助手唯一能做的是再建一个节点，而不是改那一个。
+   */
+  setPrompt: 'set_prompt',
+  /**
+   * 标图片分类（切片 5 第一批）。值域是 `NODE_STUDIO_REFERENCE_ROLES`，其中
+   * `frameStart` / `frameEnd` **就是关键帧首尾** —— 造关键帧的入口 2026-08-09
+   * 退役后，首尾语义的唯一载体就是这个分类，而在这条 op 之前助手写不了它。
+   */
+  setImageCategory: 'set_image_category',
   setReviewState: 'set_review_state',
-  /** ⚠ 唯一会扣 credit 的 op —— 审批上与其余四个分开走。 */
+  /** ⚠ 唯一会扣 credit 的 op —— 审批上与其余几个分开走。 */
   generate: 'generate',
 } as const
 
@@ -43,6 +58,8 @@ export const NODE_ASSISTANT_OPS = [
   NODE_ASSISTANT_OP_IDS.addNode,
   NODE_ASSISTANT_OP_IDS.connect,
   NODE_ASSISTANT_OP_IDS.rename,
+  NODE_ASSISTANT_OP_IDS.setPrompt,
+  NODE_ASSISTANT_OP_IDS.setImageCategory,
   NODE_ASSISTANT_OP_IDS.setReviewState,
   NODE_ASSISTANT_OP_IDS.generate,
 ] as const
@@ -50,23 +67,38 @@ export const NODE_ASSISTANT_OPS = [
 export type NodeAssistantOpId = (typeof NODE_ASSISTANT_OPS)[number]
 
 /**
+ * ⚠ 给下一批（`set_model` / `set_params` / `attach_asset`）留的坑位提醒 ——
+ * **`NodeWorkflowNodeDataSchema.imageResolution` 是死字段**：schema 里有、全仓
+ * 零个写者，图片生成真正读的是 `use-generate-composer.ts` 里的 React state。
+ * 谁要做「助手改画幅/分辨率」，写进 `data.imageResolution` 会得到一个三绿而毫无
+ * 效果的 op（编译过、测试过、真机上什么都不变）。先把那条链接通再说。
+ */
+
+/**
  * B3：**不用点就落画布**的那一档（owner 2026-08-08 拍板「自动落」）。
  *
  * 分档依据是「错了要付多大代价」，不是「改动大不大」：
- *   · 这三个是**纯结构、免费、一次撤销能全退**（B2.5 之后）。空节点删掉就是，
+ *   · 这几个是**纯结构/文字、免费、一次撤销能全退**（B2.5 之后）。空节点删掉就是，
  *     不留半成品像素，撤销栈也不脏。
  *   · `set_review_state` **不在**这里 —— 审核态是**用户对产出的判断**，不是结构。
  *     代码里已经钉死助手不得自批（`NODE_ASSISTANT_OP_REJECT_REASON_IDS.approvalForbidden`，
  *     owner 无开关），既然自批被禁，降级成「自动」也违背同一个意图。
  *   · `generate` **不在**这里 —— 唯一扣 credit 的 op。
  *
- * ⚠ 这条改写了 `unified-ai-assistant-2026-08.md` §1「助手不会未经用户确认修改画布」。
- * 那份契约已同步作废该半句，别再按旧文档判它是 bug。
+ * ⚠ `set_prompt` / `set_image_category` 归自动落的完整论据（切片 5 第一批）：
+ *   两条都免费、都只写节点自己的一个字段、都在同一个撤销步里。判据上与
+ *   `rename` 同类 —— rename 早就在自动落里，而它同样是**覆盖用户手打的文字**。
+ *   唯一的不对称是「覆盖掉的东西有多大」：rename 丢的是一个名字，set_prompt 丢的
+ *   可能是一整段手写提示词。这条不对称不足以改分档（撤销一次全退，回执卡上就有
+ *   「撤销」按钮），但**它是本档里唯一有实质损失的一条**，将来若要给自动落加
+ *   「先备份再写」之类的保险，从它开始。
  */
 export const NODE_ASSISTANT_AUTO_APPLY_OPS = [
   NODE_ASSISTANT_OP_IDS.addNode,
   NODE_ASSISTANT_OP_IDS.connect,
   NODE_ASSISTANT_OP_IDS.rename,
+  NODE_ASSISTANT_OP_IDS.setPrompt,
+  NODE_ASSISTANT_OP_IDS.setImageCategory,
 ] as const
 
 export function isAutoApplyAssistantOp(op: NodeAssistantOpId): boolean {
@@ -108,8 +140,9 @@ export const NODE_ASSISTANT_ADD_INTENT_HINTS: Record<
   [CANVAS_ADD_INTENT_IDS.imageShot]:
     'a shot still — one frame generated from shot text plus character / background references',
   // ⚠ 没有 keyframe 这一项：造关键帧的入口 2026-08-09 退役（见
-  // `CANVAS_ADD_INTENT_IDS` 头注）。助手要铺关键帧就铺 `image.asset`，首/尾由
-  // 用户在详情面板的分类下拉里标 —— 助手自己也标不了，它没有写 imageCategory 的 op。
+  // `CANVAS_ADD_INTENT_IDS` 头注）。助手要铺关键帧就铺 `image.asset`，首/尾用
+  // `set_image_category` 标 `frameStart` / `frameEnd`（切片 5 第一批补上了这条
+  // op —— 在那之前助手只能建图、标不了首尾，得让用户回详情面板自己下拉）。
   [CANVAS_ADD_INTENT_IDS.imageAsset]:
     'a loose image with no assigned role — only when none of the roles above fits',
   [CANVAS_ADD_INTENT_IDS.videoShotText]:
@@ -120,6 +153,34 @@ export const NODE_ASSISTANT_ADD_INTENT_HINTS: Record<
     'a node that stitches several clips into one sequence',
   [CANVAS_ADD_INTENT_IDS.audioVoiceProfile]:
     'a voice / timbre profile used for a character',
+}
+
+/**
+ * 每个图片分类**是什么**，给模型看的半句话（`set_image_category` 用）。
+ *
+ * 与 `NODE_ASSISTANT_ADD_INTENT_HINTS` 同一条论据：只把 id 列给模型，它就会按
+ * 英文词的字面意思猜，而 `identity`（这是谁）/`style`（画风）/`composition`（构图）
+ * 这几个词在通用语义里全都过于宽。写成 `Record<NodeStudioReferenceRole, …>`：
+ * 分类表加一个值而这里没跟上，编译期就红。
+ *
+ * ⚠ 只补**容易猜错的那几个**，其余留空串 —— 给 `pose` 写一句「the pose」是纯
+ * token 消耗。空串在渲染时就是「只有 id 一行」。
+ */
+export const NODE_ASSISTANT_CATEGORY_HINTS: Record<
+  NodeStudioReferenceRole,
+  string
+> = {
+  identity: ' — who this character IS (the face / identity reference)',
+  pose: '',
+  style: ' — art style / rendering look, not the subject',
+  composition: ' — framing and layout only',
+  background: ' — the place / environment',
+  faceCloseup: '',
+  costume: '',
+  prop: '',
+  frameStart: ' — FIRST frame of a video shot (keyframe)',
+  frameEnd: ' — LAST frame of a video shot (keyframe)',
+  custom: ' — only when none of the above fits; you MUST also send "label"',
 }
 
 /**
@@ -154,6 +215,15 @@ export const NODE_ASSISTANT_OP_LIMITS = {
   maxPromptLength: NODE_STUDIO_ASSISTANT_LIMITS.maxNodeSummaryLength,
   /** 打回理由。与 `NodeMediaReview.reason` 同一个量级。 */
   maxReasonLength: 300,
+  /**
+   * `set_image_category` 的自定义分类名。
+   *
+   * ⚠ 这个 80 必须与 `NodeWorkflowNodeDataSchema.imageCategoryLabel` 的 `.max(80)`
+   * 一致 —— 超了不是「显示被截断」，是**整份 project state 落不了库**（节点 schema
+   * 在持久化路径上校验）。那个 80 写死在 types 里、不是常量，所以这里只能对齐并
+   * 留下这句话；改那边记得改这边。
+   */
+  maxCategoryLabelLength: 80,
 } as const
 
 /**
@@ -177,6 +247,26 @@ export const NODE_ASSISTANT_OP_REJECT_REASON_IDS = {
   notGeneratable: 'notGeneratable',
   /** 没选模型 —— 与人手点「生成」时的拦法一致。 */
   noModel: 'noModel',
+  /**
+   * 这个节点身上根本没有「图片分类」这个字段 —— 与人手的入口一致：分类只长在
+   * 图片节点上（`type === image` 且不是身份卡），视频/音色/镜头文本都没有。
+   */
+  notCategorizable: 'notCategorizable',
+  /**
+   * 分类值不在 `NODE_STUDIO_REFERENCE_ROLES` 的 11 个里。
+   *
+   * ⚠ 这条**有意留在规划器**而不是收进 schema 的 `z.enum`：schema 拒 = 整个
+   * `[[canvas-ops]]` 块解析失败，同一批里其它好好的 op 一起陪葬，用户只看到一句
+   * 「读不出来」。留到这里拒，坏的那条显示「不认识这个分类」，其余照常执行。
+   * 与 `approved` 走规划层同一条论据（见 `NodeAssistantSetReviewStateOpSchema`）。
+   */
+  unknownCategory: 'unknownCategory',
+  /**
+   * 选了 `custom` 却没给名字。数据层的 `custom` 与 `imageCategoryLabel` 是**成对**
+   * 的（见 `NODE_STUDIO_REFERENCE_ROLES` 头注），只写一半会让卡上显示一个没有名字
+   * 的自定义分类。
+   */
+  missingCategoryLabel: 'missingCategoryLabel',
 } as const
 
 export type NodeAssistantOpRejectReason =

@@ -380,3 +380,202 @@ describe('planNodeAssistantOps · 改名', () => {
     })
   })
 })
+
+describe('planNodeAssistantOps · 改提示词（切片 5 第一批）', () => {
+  it('改已有节点的提示词 → ready，且归自动落一档', () => {
+    const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+      prompt: '旧的提示词',
+    })
+    const plan = planNodeAssistantOps(
+      batch({ op: 'set_prompt', target: 'shot-1', prompt: '黄昏，逆光，中景' }),
+      [shot],
+      [],
+    )
+    expect(plan.ops[0]).toMatchObject({
+      status: 'ready',
+      target: { kind: 'existing', nodeId: 'shot-1' },
+    })
+    expect(plan.readyStructuralCount).toBe(1)
+    expect(plan.readyGenerateCount).toBe(0)
+  })
+
+  it('能改本批刚建出来的节点（别名解析）', () => {
+    const plan = planNodeAssistantOps(
+      batch(
+        { op: 'add_node', intent: 'image.shot', ref: 's1' },
+        { op: 'set_prompt', target: 's1', prompt: '雨夜，霓虹反光' },
+      ),
+      [],
+      [],
+    )
+    expect(plan.ops.map((entry) => entry.status)).toEqual(['ready', 'ready'])
+    expect(plan.ops[1]?.target).toEqual({ kind: 'pending', ref: 's1' })
+  })
+
+  it('目标不存在 → unknownNode', () => {
+    const plan = planNodeAssistantOps(
+      batch({ op: 'set_prompt', target: 'ghost', prompt: '随便什么' }),
+      [],
+      [],
+    )
+    expect(plan.ops[0]).toMatchObject({
+      status: 'rejected',
+      reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.unknownNode,
+    })
+  })
+})
+
+describe('planNodeAssistantOps · 标图片分类（切片 5 第一批）', () => {
+  const looseImage = () => makeNode('img-1', NODE_TYPE_IDS.image)
+
+  it('把散图标成关键帧首帧 → ready', () => {
+    const plan = planNodeAssistantOps(
+      batch({
+        op: 'set_image_category',
+        target: 'img-1',
+        category: 'frameStart',
+      }),
+      [looseImage()],
+      [],
+    )
+    expect(plan.ops[0]).toMatchObject({ status: 'ready' })
+    expect(plan.readyStructuralCount).toBe(1)
+  })
+
+  it('镜头图（image + role=shot）也能标 —— 与人手工具条那条路一致', () => {
+    const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+    })
+    const plan = planNodeAssistantOps(
+      batch({ op: 'set_image_category', target: 'shot-1', category: 'style' }),
+      [shot],
+      [],
+    )
+    expect(plan.ops[0]).toMatchObject({ status: 'ready' })
+  })
+
+  const notCategorizable: {
+    label: string
+    type: NodeWorkflowNode['type']
+    data: Record<string, unknown>
+  }[] = [
+    {
+      label: '角色卡',
+      type: NODE_TYPE_IDS.image,
+      data: { role: NODE_IMAGE_ROLE_IDS.character },
+    },
+    {
+      label: '背景卡',
+      type: NODE_TYPE_IDS.image,
+      data: { role: NODE_IMAGE_ROLE_IDS.background },
+    },
+    { label: '视频节点', type: NODE_TYPE_IDS.seedance, data: {} },
+    { label: '镜头文本', type: NODE_TYPE_IDS.shotText, data: {} },
+  ]
+
+  for (const entry of notCategorizable) {
+    it(`${entry.label}身上没有分类这回事 → notCategorizable`, () => {
+      const plan = planNodeAssistantOps(
+        batch({
+          op: 'set_image_category',
+          target: 'n-1',
+          category: 'identity',
+        }),
+        [makeNode('n-1', entry.type, entry.data)],
+        [],
+      )
+      expect(plan.ops[0]).toMatchObject({
+        status: 'rejected',
+        reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.notCategorizable,
+      })
+    })
+  }
+
+  // ⛔ 收窄不猜：模糊匹配一个分类的代价是关键帧首尾接反。
+  it.each(['FrameStart', 'first-frame', '首帧', 'unset'])(
+    '不在 11 个里的分类值 %s → unknownCategory',
+    (category) => {
+      const plan = planNodeAssistantOps(
+        batch({ op: 'set_image_category', target: 'img-1', category }),
+        [looseImage()],
+        [],
+      )
+      expect(plan.ops[0]).toMatchObject({
+        status: 'rejected',
+        reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.unknownCategory,
+      })
+    },
+  )
+
+  it('custom 缺 label → missingCategoryLabel；给了 label → ready', () => {
+    const rejected = planNodeAssistantOps(
+      batch({ op: 'set_image_category', target: 'img-1', category: 'custom' }),
+      [looseImage()],
+      [],
+    )
+    expect(rejected.ops[0]).toMatchObject({
+      status: 'rejected',
+      reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.missingCategoryLabel,
+    })
+
+    const ready = planNodeAssistantOps(
+      batch({
+        op: 'set_image_category',
+        target: 'img-1',
+        category: 'custom',
+        label: '道具·手电',
+      }),
+      [looseImage()],
+      [],
+    )
+    expect(ready.ops[0]).toMatchObject({ status: 'ready' })
+  })
+
+  it('目标不存在 → unknownNode（先说找不到，再谈分类对不对）', () => {
+    const plan = planNodeAssistantOps(
+      batch({
+        op: 'set_image_category',
+        target: 'ghost',
+        category: 'nonsense',
+      }),
+      [],
+      [],
+    )
+    expect(plan.ops[0]).toMatchObject({
+      status: 'rejected',
+      reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.unknownNode,
+    })
+  })
+
+  it('同一批里标完再标一次，第二次读到的是模拟图上的新值', () => {
+    const plan = planNodeAssistantOps(
+      batch(
+        {
+          op: 'set_image_category',
+          target: 'img-1',
+          category: 'custom',
+          label: '临时',
+        },
+        { op: 'set_image_category', target: 'img-1', category: 'frameEnd' },
+      ),
+      [looseImage()],
+      [],
+    )
+    expect(plan.ops.map((entry) => entry.status)).toEqual(['ready', 'ready'])
+    expect(plan.readyStructuralCount).toBe(2)
+  })
+
+  it('本批新建的散图可以立刻标首尾帧 —— 关键帧入口退役后的那条路', () => {
+    const plan = planNodeAssistantOps(
+      batch(
+        { op: 'add_node', intent: 'image.asset', ref: 'k1' },
+        { op: 'set_image_category', target: 'k1', category: 'frameStart' },
+      ),
+      [],
+      [],
+    )
+    expect(plan.ops.map((entry) => entry.status)).toEqual(['ready', 'ready'])
+    expect(plan.ops[1]?.target).toEqual({ kind: 'pending', ref: 'k1' })
+  })
+})

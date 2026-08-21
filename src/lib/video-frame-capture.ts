@@ -1,4 +1,8 @@
-import { VIDEO_FRAME_LIMITS } from '@/constants/video-analysis'
+import {
+  VIDEO_FRAME_CAPTURE_REASONS,
+  VIDEO_FRAME_LIMITS,
+  type VideoFrameCaptureReason,
+} from '@/constants/video-analysis'
 import { planVideoFrames, type VideoFramePlan } from '@/lib/video-frame-plan'
 
 /**
@@ -42,14 +46,11 @@ export interface VideoFrameCaptureSuccess {
 
 export interface VideoFrameCaptureFailure {
   ok: false
-  /** 机器可读的失败原因 —— UI 要能分辨「读不出视频」和「跨域被挡」。 */
-  reason:
-    | 'unsupported-environment'
-    | 'load-failed'
-    | 'unreadable-duration'
-    | 'tainted-canvas'
-    | 'timeout'
-    | 'encode-failed'
+  /**
+   * 机器可读的失败原因 —— UI 要能分辨「读不出视频」和「跨域被挡」。
+   * 枚举住在 `constants/video-analysis.ts`，因为 UI 那边要按它穷举文案。
+   */
+  reason: VideoFrameCaptureReason
   message: string
 }
 
@@ -58,7 +59,7 @@ export type VideoFrameCaptureResult =
   | VideoFrameCaptureFailure
 
 function failure(
-  reason: VideoFrameCaptureFailure['reason'],
+  reason: VideoFrameCaptureReason,
   message: string,
 ): VideoFrameCaptureFailure {
   return { ok: false, reason, message }
@@ -116,7 +117,10 @@ export async function captureVideoFrames(
   source: string | File,
 ): Promise<VideoFrameCaptureResult> {
   if (typeof document === 'undefined') {
-    return failure('unsupported-environment', 'No DOM available')
+    return failure(
+      VIDEO_FRAME_CAPTURE_REASONS.unsupportedEnvironment,
+      'No DOM available',
+    )
   }
 
   const video = document.createElement('video')
@@ -151,27 +155,34 @@ export async function captureVideoFrames(
     const plan = planVideoFrames(duration)
     if (plan.entries.length === 0) {
       return failure(
-        'unreadable-duration',
+        VIDEO_FRAME_CAPTURE_REASONS.unreadableDuration,
         `Video duration is not usable (${String(duration)})`,
       )
     }
 
     const { w, h } = scaledSize(video.videoWidth, video.videoHeight)
     if (!w || !h) {
-      return failure('load-failed', 'Video has no decodable dimensions')
+      return failure(
+        VIDEO_FRAME_CAPTURE_REASONS.loadFailed,
+        'Video has no decodable dimensions',
+      )
     }
 
     const canvas = document.createElement('canvas')
     canvas.width = w
     canvas.height = h
     const ctx = canvas.getContext('2d')
-    if (!ctx) return failure('encode-failed', 'Canvas 2D context unavailable')
+    if (!ctx)
+      return failure(
+        VIDEO_FRAME_CAPTURE_REASONS.encodeFailed,
+        'Canvas 2D context unavailable',
+      )
 
     const frames: CapturedVideoFrame[] = []
     for (const entry of plan.entries) {
       if (remaining() <= 0) {
         return failure(
-          'timeout',
+          VIDEO_FRAME_CAPTURE_REASONS.timeout,
           `Frame capture exceeded ${VIDEO_FRAME_LIMITS.captureTimeoutMs}ms`,
         )
       }
@@ -189,7 +200,7 @@ export async function captureVideoFrames(
         // 跨域视频没带 CORS 头 → 画布被污染 → `toDataURL` 抛 SecurityError。
         // 这条要单独认出来：它的修法是配 R2 CORS，不是换个视频重试。
         return failure(
-          'tainted-canvas',
+          VIDEO_FRAME_CAPTURE_REASONS.taintedCanvas,
           error instanceof Error ? error.message : 'Canvas is tainted',
         )
       }
@@ -213,7 +224,9 @@ export async function captureVideoFrames(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return failure(
-      message.includes('Timed out') ? 'timeout' : 'load-failed',
+      message.includes('Timed out')
+        ? VIDEO_FRAME_CAPTURE_REASONS.timeout
+        : VIDEO_FRAME_CAPTURE_REASONS.loadFailed,
       message,
     )
   } finally {

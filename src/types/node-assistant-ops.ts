@@ -79,6 +79,54 @@ export const NodeAssistantAddNodeOpSchema = z.object({
     .optional(),
 })
 
+/**
+ * 改**已有**节点的提示词（切片 5 第一批）。
+ *
+ * 与 `add_node.prompt` 共用同一条守卫链（长度上限 + `stripNodeMarkers`）：助手读到
+ * 的提示词有多长、能写回的就有多长，`[[node:…]]` 标记一样不许混进这个字段 ——
+ * 它是发给图像模型的，不经过 UI 渲染。两处若各写各的，迟早只修好一处。
+ *
+ * ⚠ **这条会覆盖用户手写的提示词**，且归自动落一档（与 `rename` 同类，见
+ * `NODE_ASSISTANT_AUTO_APPLY_OPS` 的分档论据）。整批一个撤销步，回执卡上有撤销。
+ */
+export const NodeAssistantSetPromptOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_IDS.setPrompt),
+  target: NodeAssistantOpTargetSchema,
+  prompt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxPromptLength)
+    .transform(stripNodeMarkers),
+})
+
+/**
+ * 标图片分类（切片 5 第一批）—— `frameStart` / `frameEnd` 就是关键帧首尾。
+ *
+ * ⚠ `category` 是**自由字符串**而不是 `z.enum(NODE_STUDIO_REFERENCE_ROLES)`，
+ * 与 `set_review_state.state` 收下 `approved` 是同一条论据：schema 层拒 = 整块
+ * JSON 解析失败 = 同批其它 op 陪葬 + 用户只看到「读不出来」。收窄放在规划器
+ * （`unknownCategory` / `missingCategoryLabel`），坏的那条被点名，其余照常。
+ *
+ * `label` 只在 `category === 'custom'` 时有意义，且此时**必填**（规划器判）——
+ * 数据层的 custom 与 `imageCategoryLabel` 成对存在。
+ */
+export const NodeAssistantSetImageCategoryOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_IDS.setImageCategory),
+  target: NodeAssistantOpTargetSchema,
+  category: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxTargetLength),
+  label: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxCategoryLabelLength)
+    .optional(),
+})
+
 export const NodeAssistantConnectOpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_IDS.connect),
   source: NodeAssistantOpTargetSchema,
@@ -120,6 +168,8 @@ export const NodeAssistantOpSchema = z.discriminatedUnion('op', [
   NodeAssistantAddNodeOpSchema,
   NodeAssistantConnectOpSchema,
   NodeAssistantRenameOpSchema,
+  NodeAssistantSetPromptOpSchema,
+  NodeAssistantSetImageCategoryOpSchema,
   NodeAssistantSetReviewStateOpSchema,
   NodeAssistantGenerateOpSchema,
 ])
@@ -138,6 +188,12 @@ export type NodeAssistantConnectOp = z.infer<
   typeof NodeAssistantConnectOpSchema
 >
 export type NodeAssistantRenameOp = z.infer<typeof NodeAssistantRenameOpSchema>
+export type NodeAssistantSetPromptOp = z.infer<
+  typeof NodeAssistantSetPromptOpSchema
+>
+export type NodeAssistantSetImageCategoryOp = z.infer<
+  typeof NodeAssistantSetImageCategoryOpSchema
+>
 export type NodeAssistantSetReviewStateOp = z.infer<
   typeof NodeAssistantSetReviewStateOpSchema
 >

@@ -5251,6 +5251,8 @@
         "addNode": "{kind}「{name}」を追加",
         "connect": "「{source}」を「{target}」につなぐ",
         "rename": "「{target}」を「{name}」に改名",
+        "setPrompt": "「{target}」のプロンプトを書き換える",
+        "setImageCategory": "「{target}」を{category}にする",
         "reject": "「{target}」を差し戻す",
         "approve": "「{target}」を承認済みにする",
         "awaitReview": "「{target}」を未確認にする",
@@ -5262,7 +5264,10 @@
         "approvalForbidden": "アシスタントは承認できません。承認はあなただけが行えます",
         "noMedia": "このノードにはまだ画像がなく、マークできません",
         "notGeneratable": "この種類のノードはメディアを生成しません",
-        "noModel": "モデルが未選択です"
+        "noModel": "モデルが未選択です",
+        "notCategorizable": "この種類のノードに画像分類はありません",
+        "unknownCategory": "画像分類にない値です",
+        "missingCategoryLabel": "カスタム分類には名前が必要です"
       }
     }
   },
@@ -6077,5 +6082,42 @@
     "freeTextPlaceholder": "変更したい内容を記述...",
     "submit": "改善して生成",
     "cancel": "キャンセル"
+  },
+  "VideoAnalysis": {
+    "title": "この動画を分析",
+    "description": "固定の計画に沿って {count} フレームを抽出し、それを読み取ります。同じ動画なら毎回同じフレームです。",
+    "taskLabel": "何を見るか",
+    "task": {
+      "characterIdentity": "キャラクターの特徴",
+      "styleStudy": "画風",
+      "qualityReview": "品質と欠陥",
+      "compare": "フレーム間の一貫性"
+    },
+    "run": "分析",
+    "rerun": "再分析",
+    "extracting": "{count} フレームを抽出中…",
+    "analyzing": "フレームを読み取り中…",
+    "failed": "分析に失敗しました。",
+    "emptyResult": "このタスクでは所見が得られませんでした。",
+    "uncertainties": "確信が持てない点",
+    "basis": {
+      "observation": "確認",
+      "inference": "推論",
+      "unknown": "不明"
+    },
+    "receiptFrames": "抽出した {count} フレームを読み取りました（計画 v{version}）。",
+    "receiptNative": "抽出フレームではなく、動画そのものを読み取りました。",
+    "receiptModel": "モデル：{model}",
+    "receiptDowngraded": "動画が長いため、コストを抑えるよう範囲を絞って分析しました。",
+    "receiptBorrowed": "選択中の経路は動画を読めないため、今回は別の経路を使いました。",
+    "captureFailedTitle": "フレームを抽出できませんでした",
+    "captureReason": {
+      "unsupportedEnvironment": "この環境には描画用のキャンバスがないため、抽出をスキップしました。",
+      "loadFailed": "ブラウザがこの動画をデコードできず、フレームを抽出できませんでした。",
+      "unreadableDuration": "このファイルの長さを読み取れず、抽出計画を計算できませんでした。",
+      "taintedCanvas": "この環境は動画ストレージの CORS 許可リストに含まれていないため、ブラウザがフレーム抽出をブロックします。R2 の CORS ルールにこのオリジンを追加してください。動画を変えても解決しません。",
+      "timeout": "フレーム抽出が時間切れで中断されました。回線が速いときに再試行してください。",
+      "encodeFailed": "抽出したフレームをこのブラウザでエンコードできませんでした。"
+    }
   }
 }

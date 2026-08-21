@@ -109,6 +109,8 @@ function libraryState(item = makeItem()) {
     total: null,
     page: 1,
     hasNextPage: false,
+    // 这批结果回到浏览器的那一刻 —— 导入时写进 sourceSnapshot.retrievedAt。
+    retrievedAt: '2026-08-21T09:30:00.000Z',
     isLoading: false,
     isRevalidating: false,
     error: null,
@@ -328,6 +330,12 @@ describe('HuggingFaceLoraLibrary', () => {
       expect.objectContaining({
         loraUrl: singleFileItem.files[0]!.downloadUrl,
         baseModelFamily: 'anima-dit',
+        // 策略 C：收藏也要带出处快照 —— 这个 pane 有两个导入点，
+        // 「使用此 LoRA」与这里的「收藏」，少接一个就是一半的行没有出处。
+        sourceSnapshot: expect.objectContaining({
+          source: 'huggingface',
+          retrievedAt: '2026-08-21T09:30:00.000Z',
+        }),
       }),
     )
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

@@ -98,7 +98,9 @@ const CONTEXT: AssistantConversationContext = {
       type: NODE_TYPE_IDS.composer,
       status: NODE_STATUS_IDS.idle,
       title: 'Composer',
-      summary: 'story idea',
+      // `summary` 2026-08-21 改名为 `promptExcerpt` —— 它一直就是 node.data.prompt，
+      // 改名是为了让模型知道那段文字是可写的字段（`set_prompt` 的前提）。
+      promptExcerpt: 'story idea',
     },
   ],
 }

@@ -40,7 +40,7 @@ const REQUEST_BODY = {
       type: NODE_TYPE_IDS.composer,
       status: NODE_STATUS_IDS.idle,
       title: 'Composer',
-      summary: 'story idea',
+      promptExcerpt: 'story idea',
     },
   ],
 }

@@ -152,6 +152,51 @@ export const VIDEO_FRAME_LIMITS = {
   minDurationSeconds: 0.2,
 } as const
 
+/**
+ * 视频分析实际走的哪条腿。
+ *
+ * ⚠ 住在 constants 而不是 `video-analysis-route.service.ts`：那个文件是
+ * `server-only`，而**回执上的 mode 要在客户端渲染**（「只看了 8 帧」还是
+ * 「看了视频本体」是两句不同的话）。放在服务里的下场是 UI 只能写字面量。
+ */
+export const VIDEO_ANALYSIS_MODES = {
+  native: 'native',
+  frames: 'frames',
+} as const
+
+export type VideoAnalysisMode =
+  (typeof VIDEO_ANALYSIS_MODES)[keyof typeof VIDEO_ANALYSIS_MODES]
+
+/**
+ * 客户端抽帧失败的机器可读原因。
+ *
+ * ⚠ **分开列而不是压成一句「抽帧失败」**：这六条的**修法完全不同** ——
+ * `taintedCanvas` 要去配 R2 CORS（换个视频重试一万次也一样），
+ * `unreadableDuration` 是这个容器本身读不出时长，`timeout` 是这台机器慢。
+ * 压成一句的下场是用户按最容易想到的那条（换视频）去试，而那条恰好是无效的。
+ *
+ * 🔬 `taintedCanvas` 在 `*.vercel.app` 预览部署上是**必然发生**的：R2 的 CORS
+ * 允许名单只有 `localhost:3000` 与生产域名，预览域不在里面。那个环境要如实说
+ * 「此环境抽不了帧」，⛔ 不许静默当成「这个视频不行」。
+ */
+export const VIDEO_FRAME_CAPTURE_REASONS = {
+  /** 没有 DOM（SSR / 测试环境）。 */
+  unsupportedEnvironment: 'unsupported-environment',
+  /** `<video>` 加载不出来 / 没有可解码的尺寸。 */
+  loadFailed: 'load-failed',
+  /** 容器读不出可用时长 → 算不出计划。 */
+  unreadableDuration: 'unreadable-duration',
+  /** 跨域没带 CORS 头 → 画布被污染 → `toDataURL` 抛 SecurityError。 */
+  taintedCanvas: 'tainted-canvas',
+  /** 整套抽帧超过 `captureTimeoutMs`，或单次 seek 超过 `seekTimeoutMs`。 */
+  timeout: 'timeout',
+  /** 拿不到 2D context / 编码失败。 */
+  encodeFailed: 'encode-failed',
+} as const
+
+export type VideoFrameCaptureReason =
+  (typeof VIDEO_FRAME_CAPTURE_REASONS)[keyof typeof VIDEO_FRAME_CAPTURE_REASONS]
+
 /** 帧集在 R2 里的落点前缀。一次抽帧 = 一个目录，便于回看时整组取。 */
 export const VIDEO_FRAME_STORAGE_PREFIX = 'vision-frames'
 

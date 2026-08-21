@@ -323,6 +323,50 @@ describe('CanvasOpProposalCard', () => {
     ).not.toBeDisabled()
   })
 
+  // 切片 5 第一批：新 op 在卡上要有图标、有描述、能进整批应用。
+  // ⚠ `OP_ICONS` 漏一项时 `<undefined />` 会在渲染期炸掉整张卡（连同对话），
+  // 所以这条用例的价值一半在「渲染没崩」本身。
+  it('改提示词的 op 显示新提示词全文，并跟其它结构 op 一起整批应用', async () => {
+    const prompt = '黄昏，逆光，中景，人物剪影压在右侧三分线'
+    const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+      prompt: '旧的提示词',
+    })
+    const onApply = renderCard(
+      {
+        ops: [{ op: 'set_prompt', target: 'shot-1', prompt }],
+      },
+      [shot],
+    )
+
+    expect(screen.getByText('describe.setPrompt')).toBeInTheDocument()
+    // 批准一条自己看不到内容的写操作等于没有审批 —— 何况这条会**覆盖**原提示词。
+    expect(screen.getByText(prompt)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('apply'))
+    await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1))
+    expect(onApply.mock.calls[0][0]).toHaveLength(1)
+  })
+
+  it('标分类的 op 渲染出来，且分类值不认识时也不崩（原样显示模型写的词）', () => {
+    const image = makeNode('img-1', NODE_TYPE_IDS.image)
+    renderCard(
+      {
+        ops: [
+          { op: 'set_image_category', target: 'img-1', category: 'frameStart' },
+          { op: 'set_image_category', target: 'img-1', category: '首帧' },
+        ],
+      },
+      [image],
+    )
+
+    expect(
+      screen.getAllByText('describe.setImageCategory').length,
+    ).toBeGreaterThan(0)
+    // 第二条被规划器按 unknownCategory 拒掉 —— 它照样要显示在卡上。
+    expect(screen.getByText('rejectedPrefix')).toBeInTheDocument()
+  })
+
   it('助手自批的那条永远出现在卡上、永远不可应用', () => {
     const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
       role: NODE_IMAGE_ROLE_IDS.shot,

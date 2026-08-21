@@ -28,14 +28,18 @@ import {
   LORA_CANDIDATE_NOT_IMPORTABLE_REASONS,
   LORA_CANDIDATE_SOURCE_IDS,
   LORA_CANDIDATE_SOURCE_STATUSES,
-  LORA_CANDIDATE_UNRESOLVED_FAMILIES,
-  LORA_METADATA_COMPLETENESS,
-  LORA_METADATA_COMPLETENESS_THRESHOLDS,
 } from '@/constants/lora-candidate'
 import { normalizeToLoraBaseFamily } from '@/constants/lora-base-models'
 import { CircuitOpenError, getCircuitBreaker } from '@/lib/circuit-breaker'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import {
+  buildHuggingFaceSourceSnapshot,
+  buildLoraSourceSnapshot,
+  dedupeLoraStrings,
+  gradeLoraMetadataCompleteness,
+  resolveLoraFamily,
+} from '@/lib/lora-source-snapshot'
 import { withRetry } from '@/lib/with-retry'
 import {
   listCivitaiLoras,
@@ -47,7 +51,6 @@ import {
   type CivitaiLoraLibraryItem,
   type HuggingFaceLoraSearchItem,
   type LoraCandidateLicense,
-  type LoraSourceSnapshot,
 } from '@/types'
 import type {
   LoraCandidate,
@@ -176,84 +179,11 @@ function clampName(value: string): string {
 }
 
 /**
- * 上游说的家族是不是一个**真家族**。
- *
- * `'unknown'`（Civitai 缺 baseModel 时 `toLibraryItem` 写的）与 `'other'`
- * （HF 的 `inferBaseModelFamily` 推不出来时的落点）都不是家族名，是哨兵值。
- * 导入门槛判的就是它们 —— 家族定不出来，权重就不知道该挂到哪个底模上。
+ * ⚠ 归一里的**纯计算**部分（家族哨兵值、触发词去重、完整度分级、快照构造）已经
+ * 搬去 `lib/lora-source-snapshot.ts`：库 modal 的「使用」按钮是同一份快照的第二个
+ * 构造点，而它跑在浏览器里，`import 'server-only'` 的这个文件它进不来。
+ * 抄一份的下场是同一把 LoRA 从两个入口导入得到两份不同的出处记录。
  */
-function resolveFamily(raw: string | null | undefined): string | null {
-  const trimmed = raw?.trim()
-  if (!trimmed) return null
-  return (LORA_CANDIDATE_UNRESOLVED_FAMILIES as readonly string[]).includes(
-    trimmed.toLowerCase(),
-  )
-    ? null
-    : trimmed
-}
-
-function dedupeStrings(values: readonly string[]): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const value of values) {
-    const trimmed = value.trim()
-    if (!trimmed || seen.has(trimmed)) continue
-    seen.add(trimmed)
-    out.push(trimmed)
-  }
-  return out
-}
-
-/**
- * 六个信号（作者 / 许可 / 家族 / 触发词 / 文件大小 / 样图）里有几个。
- * **如实分级，不是评分** —— 唯一用途是让卡面说得出「这条我们知道的不多」。
- */
-function gradeCompleteness(signals: {
-  author: string | null
-  license: LoraCandidateLicense
-  baseModelFamily: string | null
-  triggerWords: readonly string[]
-  fileSizeBytes: number | null
-  sampleImageUrls: readonly string[]
-}): LoraCandidate['metadataCompleteness'] {
-  const present = [
-    signals.author !== null,
-    signals.license.known,
-    signals.baseModelFamily !== null,
-    signals.triggerWords.length > 0,
-    signals.fileSizeBytes !== null,
-    signals.sampleImageUrls.length > 0,
-  ].filter(Boolean).length
-
-  if (present >= LORA_METADATA_COMPLETENESS_THRESHOLDS.complete) {
-    return LORA_METADATA_COMPLETENESS.complete
-  }
-  return present >= LORA_METADATA_COMPLETENESS_THRESHOLDS.partial
-    ? LORA_METADATA_COMPLETENESS.partial
-    : LORA_METADATA_COMPLETENESS.minimal
-}
-
-function buildSnapshot(input: {
-  source: LoraCandidateSource
-  author: string | null
-  license: LoraCandidateLicense
-  pageUrl: string
-  revision: string | null
-  fileSizeBytes: number | null
-  metadataCompleteness: LoraCandidate['metadataCompleteness']
-  retrievedAt: string
-}): LoraSourceSnapshot {
-  return {
-    source: input.source,
-    author: input.author,
-    license: input.license,
-    pageUrl: input.pageUrl,
-    revision: input.revision,
-    retrievedAt: input.retrievedAt,
-    fileSizeBytes: input.fileSizeBytes,
-    metadataCompleteness: input.metadataCompleteness,
-  }
-}
 
 // ─── Civitai → LoraCandidate ────────────────────────────────────────
 
@@ -279,8 +209,8 @@ function civitaiToCandidate(
     allowNoCredit: item.allowNoCredit ?? null,
     known: true,
   }
-  const baseModelFamily = resolveFamily(item.baseModelFamily)
-  const triggerWords = dedupeStrings([
+  const baseModelFamily = resolveLoraFamily(item.baseModelFamily)
+  const triggerWords = dedupeLoraStrings([
     item.triggerWord,
     ...item.triggerAlternates,
   ])
@@ -289,7 +219,7 @@ function civitaiToCandidate(
     LORA_CANDIDATE_LIMITS.maxSampleImages,
   )
   const fileSizeBytes = item.fileSizeBytes ?? null
-  const metadataCompleteness = gradeCompleteness({
+  const metadataCompleteness = gradeLoraMetadataCompleteness({
     author,
     license,
     baseModelFamily,
@@ -299,7 +229,7 @@ function civitaiToCandidate(
   })
 
   const importable = baseModelFamily !== null && Boolean(item.loraUrl)
-  const snapshot = buildSnapshot({
+  const snapshot = buildLoraSourceSnapshot({
     source: LORA_CANDIDATE_SOURCE_IDS.civitai,
     author,
     license,
@@ -376,29 +306,13 @@ function huggingFaceToCandidate(
   const file = item.files[0]
   if (!file) return null
 
-  const [namespace] = item.repoId.split('/')
-  const author = item.repoId.includes('/') && namespace ? namespace : null
-  const license: LoraCandidateLicense = {
-    label: item.license,
-    // HF 没有 Civitai 那套逐项权限声明 —— null 表示「这个源没有这个概念」，
-    // 与「有这个概念但值不知道」不同。
-    commercialUse: null,
-    allowDerivatives: null,
-    allowNoCredit: null,
-    known: item.license !== null,
-  }
-  const baseModelFamily = resolveFamily(file.baseModelFamily)
-  const triggerWords = dedupeStrings(item.triggerWord.split(','))
+  // ⭐ 快照与卡面读的是**同一次归一**（`lib/lora-source-snapshot.ts`）——
+  //    作者/许可/体积/完整度都从它上面取，别在这里再算第二遍。
+  const snapshot = buildHuggingFaceSourceSnapshot({ item, file, retrievedAt })
+  const { author, license, fileSizeBytes, metadataCompleteness } = snapshot
+  const baseModelFamily = resolveLoraFamily(file.baseModelFamily)
+  const triggerWords = dedupeLoraStrings(item.triggerWord.split(','))
   const sampleImageUrls = item.coverImageUrl ? [item.coverImageUrl] : []
-  const fileSizeBytes = file.sizeBytes
-  const metadataCompleteness = gradeCompleteness({
-    author,
-    license,
-    baseModelFamily,
-    triggerWords,
-    fileSizeBytes,
-    sampleImageUrls,
-  })
 
   // gated / private 仓库**技术上取不到权重**（已拍板边界 7 的「技术不可得仍阻断」）。
   // 它排在家族判定之前：拿不到文件的时候，家族对不对已经不重要了。
@@ -409,19 +323,6 @@ function huggingFaceToCandidate(
         ? LORA_CANDIDATE_NOT_IMPORTABLE_REASONS.unknownBaseModel
         : null
   const importable = notImportableReason === null
-
-  const snapshot = buildSnapshot({
-    source: LORA_CANDIDATE_SOURCE_IDS.huggingface,
-    author,
-    license,
-    pageUrl: item.modelPageUrl,
-    // ⭐ HF 的 commit sha —— 「同一个仓库不同时间下到的不是同一份权重」。
-    // 这是策略 C 点名要的字段，也是 HF 行此前全空的那一格。
-    revision: item.revision,
-    fileSizeBytes,
-    metadataCompleteness,
-    retrievedAt,
-  })
 
   const importPayload: LoraCandidateImportPayload | null =
     importable && baseModelFamily

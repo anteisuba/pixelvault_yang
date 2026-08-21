@@ -11,8 +11,10 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   VIDEO_ANALYSIS_DOWNGRADE,
   VIDEO_ANALYSIS_DOWNGRADE_MODES,
+  VIDEO_ANALYSIS_MODES,
   VIDEO_ANALYSIS_TASK_DOWNGRADES,
   VIDEO_ANALYSIS_TASK_TIERS,
+  type VideoAnalysisMode,
   type VideoAnalysisTask,
 } from '@/constants/video-analysis'
 import { ApiRequestError } from '@/lib/errors'
@@ -34,14 +36,6 @@ import type { VideoAnalysisWindow } from '@/services/llm-text.service'
  * 最后一行是 Hard Rule 8 的入口：**不禁用 UI，明说「请选择 Gemini」**，
  * 前端据 `errorCode` 路由到 `QuickSetupDialog`（三语文案早已在位）。
  */
-
-export const VIDEO_ANALYSIS_MODES = {
-  native: 'native',
-  frames: 'frames',
-} as const
-
-export type VideoAnalysisMode =
-  (typeof VIDEO_ANALYSIS_MODES)[keyof typeof VIDEO_ANALYSIS_MODES]
 
 export interface VideoAnalysisDecision {
   mode: VideoAnalysisMode

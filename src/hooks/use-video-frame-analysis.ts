@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react'
 
+import type { VideoFrameCaptureReason } from '@/constants/video-analysis'
 import type { VisionTask } from '@/constants/vision'
 import {
   analyzeVideoAPI,
@@ -55,8 +56,14 @@ export function useVideoFrameAnalysis() {
   const [phase, setPhase] = useState<VideoFrameAnalysisPhase>('idle')
   const [result, setResult] = useState<VideoAnalysisResult | null>(null)
   const [error, setError] = useState<VideoFrameAnalysisError | null>(null)
-  /** 抽帧没成时的机器可读原因（`tainted-canvas` 等），给日志和提示用。 */
-  const [captureFailure, setCaptureFailure] = useState<string | null>(null)
+  /**
+   * 抽帧没成时的机器可读原因（`tainted-canvas` 等），给日志和提示用。
+   *
+   * ⚠ **窄成枚举而不是 `string`**：UI 要按它穷举文案（六条原因六种修法），
+   * `string` 会让「加了一条原因但没写文案」在编译期毫无反应。
+   */
+  const [captureFailure, setCaptureFailure] =
+    useState<VideoFrameCaptureReason | null>(null)
 
   const run = useCallback(
     async (

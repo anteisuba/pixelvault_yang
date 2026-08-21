@@ -54,6 +54,7 @@ import {
   NODE_STUDIO_TOOL_MODE_IDS,
   NODE_STUDIO_VIDEO_REFERENCE_LEGEND,
   NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
+  isNodeStudioReferenceRole,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
 import {
@@ -116,6 +117,10 @@ import {
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import { markMediaAwaitingReview, rejectMedia } from '@/lib/node-media-review'
+import {
+  buildAssistantSetImageCategoryPatch,
+  buildAssistantSetPromptPatch,
+} from '@/lib/node-assistant-op-patch'
 import {
   buildDisplayNamePatch,
   resolveNodeDisplayName,
@@ -3537,6 +3542,25 @@ function StudioNodeCanvas() {
           return node ? { role: node.data.role, type: node.type } : undefined
         }
 
+        /**
+         * 写节点 data 的**唯一出口**：先记账、再真写。
+         *
+         * 两件事绑在一起是有原因的 —— 漏掉记账那一半**不会报任何错**，它只会在
+         * 同一批里下一个要读现值的 op 上表现为「前面那次写被吞了」（`setState`
+         * 同 tick 读不回来，`workflow.nodes` 还是提案发出前的快照）。所以新的写
+         * data 的 op 一律走这里，别再单独调 `workflow.updateNodeData`。
+         */
+        const applyNodeDataPatch = (
+          nodeId: string,
+          patch: Partial<NodeWorkflowNodeData>,
+        ) => {
+          dataOverrideById.set(nodeId, {
+            ...dataOverrideById.get(nodeId),
+            ...patch,
+          })
+          workflow.updateNodeData(nodeId, patch)
+        }
+
         for (const entry of ops) {
           // 用户可能只勾了一部分；被剔掉的 add_node 会让引用它的 op 在这里落空。
           if (entry.status !== 'ready') {
@@ -3560,7 +3584,7 @@ function StudioNodeCanvas() {
             const item = getCanvasAddCatalogItem(op.intent)
             identityById.set(newId, { role: item.role, type: item.nodeType })
             if (op.name) {
-              workflow.updateNodeData(
+              applyNodeDataPatch(
                 newId,
                 buildDisplayNamePatch(
                   { role: item.role, type: item.nodeType },
@@ -3571,7 +3595,7 @@ function StudioNodeCanvas() {
             // B1 / A3：助手写进来的提示词。落的是节点自己的 `prompt` 字段 —— 与人手
             // 在同一个框里打字完全等价，不另设一套「助手写的提示词」通道。
             if (op.prompt) {
-              workflow.updateNodeData(newId, { prompt: op.prompt })
+              applyNodeDataPatch(newId, { prompt: op.prompt })
             }
             if (op.ref) realIdByRef.set(op.ref, newId)
             createdNodeIds.push(newId)
@@ -3600,9 +3624,40 @@ function StudioNodeCanvas() {
             }
             // 走包 4.5 的写侧事实源 —— 名字该落 characterName 还是 shotName 只有
             // 那一处说了算，助手这条路不新开第五份副本。
-            workflow.updateNodeData(
+            applyNodeDataPatch(
               targetId,
               buildDisplayNamePatch(identity, op.name),
+            )
+            applied += 1
+            continue
+          }
+
+          // 切片 5 第一批：改已有节点的提示词。规划器只判「目标解析得出来」，
+          // 所以这里也不再判族 —— 与 `add_node.prompt` 落到哪种节点上都照写同一条。
+          if (op.op === NODE_ASSISTANT_OP_IDS.setPrompt) {
+            const targetId = resolveNodeId(entry.target)
+            if (!targetId) {
+              skipped += 1
+              continue
+            }
+            applyNodeDataPatch(targetId, buildAssistantSetPromptPatch(op))
+            applied += 1
+            continue
+          }
+
+          // 切片 5 第一批：标图片分类（frameStart / frameEnd 就是关键帧首尾）。
+          if (op.op === NODE_ASSISTANT_OP_IDS.setImageCategory) {
+            const targetId = resolveNodeId(entry.target)
+            // ⚠ 这里的 `isNodeStudioReferenceRole` **不是复查**，是让 TS 拿到窄
+            // 类型：`op.category` 在 schema 里是自由字符串（收进 z.enum 会让一条
+            // 写错分类的 op 把整批提案带崩），收窄发生在规划器。
+            if (!targetId || !isNodeStudioReferenceRole(op.category)) {
+              skipped += 1
+              continue
+            }
+            applyNodeDataPatch(
+              targetId,
+              buildAssistantSetImageCategoryPatch(op.category, op),
             )
             applied += 1
             continue
@@ -3633,11 +3688,7 @@ function StudioNodeCanvas() {
                 : markMediaAwaitingReview(base, entry.mediaUrl, {
                     markedAt: reviewedAt,
                   })
-            dataOverrideById.set(targetId, {
-              ...dataOverrideById.get(targetId),
-              ...patch,
-            })
-            workflow.updateNodeData(targetId, patch)
+            applyNodeDataPatch(targetId, patch)
             applied += 1
             continue
           }

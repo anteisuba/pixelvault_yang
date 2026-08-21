@@ -1,8 +1,11 @@
 import { z } from 'zod'
 
+import { NODE_ASSISTANT_OP_LIMITS } from '@/constants/node-assistant-ops'
 import {
   NODE_STUDIO_ASSISTANT_LIMITS,
   NODE_STUDIO_ASSISTANT_MESSAGE_ROLES,
+  NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID,
+  NODE_STUDIO_REFERENCE_ROLES,
 } from '@/constants/node-studio'
 import {
   NodeStatusSchema,
@@ -24,6 +27,30 @@ export const NodeAssistantMessageSchema = z.object({
     .max(NODE_STUDIO_ASSISTANT_LIMITS.maxMessageLength),
 })
 
+/**
+ * 助手看得见的**一个节点的当前值**（切片 5 第一批扩容）。
+ *
+ * ── 为什么要扩 ──────────────────────────────────────────────────────
+ * 助手能写一个字段，就必须先看得见那个字段的现值，否则它只能盲写。盲写的后果
+ * 是有实证的：工作台那边不给模型可选模型列表，它就编了个工作区里根本不存在的
+ * 「Animagine XL」——用户看到的是「功能坏了」，而不是「模型答错了」。
+ *
+ * ── 加什么、不加什么 ────────────────────────────────────────────────
+ * 只加**这一批的 op 真的要用**的现值（`set_prompt` / `set_image_category`），
+ * 先窄后宽。⛔ 不塞 `referenceAssets` 的 URL：那是纯 token 消耗，模型也用不上
+ * （要看图走 references 那条正路）。model / 参数留给下一批，那时再连同能写它们的
+ * op 一起加。
+ *
+ * ── token 预算（`maxNodes` = 32 已在截断，这里算的是每节点增量）────────
+ * · `promptExcerpt`：**不是新增开销**，它就是原来的 `summary`（旧实现里
+ *   `getNodeSummary` 返回的一直是 `node.data.prompt`）改名 + 说清它是什么。
+ *   同样受 `maxNodeSummaryLength`（900）截断。改名的收益是模型知道「这段字就是
+ *   那个可写的 prompt 字段」，而不是一段来路不明的描述。
+ * · `imageCategory`：≤ 11 字符的枚举值 + 渲染成 ` · category: frameStart`
+ *   ≈ 23 字符 / ~8 token，**只出现在能标分类的节点上**（图片节点，非身份卡）。
+ *   32 个节点全是图片的极端情况 ≈ 736 字符 / ~250 token。
+ * · `imageCategoryLabel`：只在 `custom` 时出现，≤ 80 字符。
+ */
 export const NodeAssistantNodeContextSchema = z.object({
   id: z.string().trim().min(1).max(160),
   type: NodeWorkflowNodeTypeSchema,
@@ -33,10 +60,35 @@ export const NodeAssistantNodeContextSchema = z.object({
     .trim()
     .min(1)
     .max(NODE_STUDIO_ASSISTANT_LIMITS.maxNodeLabelLength),
-  summary: z
+  /**
+   * 节点**当前的提示词**，按 `maxNodeSummaryLength` 截断。空提示词直接缺席 ——
+   * 「这个节点还没有提示词」由字段不在来表达，不塞空串占位。
+   */
+  promptExcerpt: z
     .string()
     .trim()
     .max(NODE_STUDIO_ASSISTANT_LIMITS.maxNodeSummaryLength)
+    .optional(),
+  /**
+   * 图片分类的现值。三态**都有意义**，别把 `unset` 优化掉：
+   *   · 字段缺席 = 这个节点**没有分类这回事**（视频 / 音色 / 镜头文本 / 身份卡）。
+   *   · `unset`  = 有这个字段，但还没标。复用 Select 那颗哨兵
+   *     （`NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID`），语义完全一致：「字段在、值为空」。
+   *   · 其余     = 11 个分类之一，就是模型该写回 `set_image_category` 的那个值。
+   *
+   * ⚠ 光靠 `type` 分不出来：身份卡（角色卡 / 背景卡）的 `type` 也是 `image`，
+   * 只有 `data.role` 才能区分，而 role 不在这份 payload 里。所以「能不能标分类」
+   * 必须由这个字段在不在**直接说出来**，否则模型只能拿身份卡去试，然后吃一条
+   * `notCategorizable`。
+   */
+  imageCategory: z
+    .enum([...NODE_STUDIO_REFERENCE_ROLES, NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID])
+    .optional(),
+  /** `imageCategory === 'custom'` 时的展示名，与数据层成对。 */
+  imageCategoryLabel: z
+    .string()
+    .trim()
+    .max(NODE_ASSISTANT_OP_LIMITS.maxCategoryLabelLength)
     .optional(),
 })
 

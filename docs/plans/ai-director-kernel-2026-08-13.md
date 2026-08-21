@@ -529,6 +529,20 @@ Gemini 视觉 token **≈ 5,450 / 分钟，随时长线性**（18m41s = 101,923�
 
 ## 6. 后续序列（已定，动工前确认时点）
 
+### 🔬 切片 5 第一批 ✅（2026-08-21，526 测绿·作用域 tsc 0 错）
+
+**上下文增强 + `set_prompt` + `set_image_category`**（两个都归自动落，与 `rename` 同档——它同样覆盖用户手打文字且早就自动落）。
+
+⭐ **`promptExcerpt` 是「揭名」不是新增**：旧 `summary` 一直就是 `node.data.prompt`，模型早就在收全文，只是那段字没有名字，它无从知道那是可写的字段。改名净增 **8 字符/节点**，加字段则要把 900 字符塞两遍。
+⭐ **`imageCategory` 三态含 `unset`**：光靠 `type` 分不出能不能标（身份卡的 type 也是 image，只有 `data.role` 能分而它不在 payload 里）。字段缺席=没这回事，`unset`=有字段没标。判据 `canCarryImageCategory` 按**两个人手入口的并集**定（⚠ 我任务书里说「唯一写者是 LooseImageDetailBody」不准，工具条的 ⋯ 子菜单也能标）。
+⭐ **`frameStart`/`frameEnd` 从此助手可标**——常量里「助手自己也标不了」那句过期注释已删。
+
+⚠ **穷尽断言当场抓到执行 agent 自己的 bug**：改常量时手滑删掉 `setReviewState` 那行，所有审核态 op 掉进 default；没这条断言，症状就是「助手说标了，什么都没发生」。实测方式=临时往 union 塞 `probe_op`，看 TS2322 报没报。
+⚠ **发现一个清单外的白名单 sanitizer**：`lib/node-assistant-request.ts` 逐字段手拼，不改它新字段会在发请求前**被安静丢掉**——编译过、测试过、模型仍看不见。⭐ 这是本轮反复出现的那类 bug 的又一个变体。
+⚠ 顺手修掉一处 URL 泄漏：`characterImage` 分支的 `prompt || imageUrl` 兜底会把 R2 长 URL 喂给模型。
+
+**下一批（set_model / set_params / attach_asset）的硬前置**：模型仍看不见 `model`、生成参数、`referenceAssets`、审核态、**边/连线关系**（`connect` 已存在却看不见现有边，只能靠被拒的 duplicate 反推）。⛔ **`imageResolution` 是死字段**（schema 有、零写者、真读的是 `use-generate-composer` 的 React state）——做 `set_params` 前必须先接通那条链，否则得到一个三绿而无效果的 op。
+
 切片 5（ops 词表：`set_prompt`/`set_model`/`set_params`/`attach_asset`/`set_image_category`，校验写在规划器层）→ **建议模式**（循环控制器 `autoApprove=false` + 审片[v0 基准=卡面参考图+通用标准，frames 路] + 循环级安全件[停止/单镜头重试上限 2–3/单 run 上限/连续同 errorCode 停/评审失败即停] + 运行台账 + `ShotReview` 表[`canonDocumentId` 可空列等圣经；`ownerVerdict` 收同意/推翻]）→ 全自动（翻策略位，时机=owner 觉得点确认多余）。资产包 v0、角色圣经、`modelPrompts`/`referenceImages` 空槽位写入：**等角色卡设计成熟后再议**。
 
 ---

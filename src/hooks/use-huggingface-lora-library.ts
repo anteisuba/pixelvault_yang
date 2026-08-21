@@ -38,6 +38,14 @@ export interface UseHuggingFaceLoraLibraryReturn {
   total: number | null
   page: number
   hasNextPage: boolean
+  /**
+   * 当前这批 `items` **回到浏览器的那一刻**（ISO）。
+   *
+   * ⭐ 存在的理由只有一个：导入时要写进 `LoraAsset.sourceSnapshot.retrievedAt`
+   * ——「卡上写的作者/许可是那一刻上游说的」。用点击时刻代替是错的（用户可能翻了
+   * 十分钟），而这个时刻只有发请求的这一层知道。
+   */
+  retrievedAt: string
   isLoading: boolean
   isRevalidating: boolean
   error: string | null
@@ -58,6 +66,8 @@ export function useHuggingFaceLoraLibrary(
   options: UseHuggingFaceLoraLibraryOptions = {},
 ): UseHuggingFaceLoraLibraryReturn {
   const [items, setItems] = useState<HuggingFaceLoraSearchItem[]>([])
+  // 首帧的值只在 items 还空着时存在（那时无从导入），首次成功拉取立即覆盖。
+  const [retrievedAt, setRetrievedAt] = useState(() => new Date().toISOString())
   const [search, setSearchValue] = useState(options.initialSearch ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState(
     options.initialSearch ?? '',
@@ -108,6 +118,8 @@ export function useHuggingFaceLoraLibrary(
 
     if (response.success && response.data) {
       setItems(response.data.items)
+      // 与 items 同一跳落地 —— 快照里的「上游是什么时候这么说的」就是这一刻。
+      setRetrievedAt(new Date().toISOString())
       setTotal(response.data.total)
       setHasNextPage(response.data.hasNextPage)
       if (response.data.nextCursor) {
@@ -187,6 +199,7 @@ export function useHuggingFaceLoraLibrary(
     total,
     page,
     hasNextPage,
+    retrievedAt,
     // See `hasResolvedOnce` above — the `!hasResolvedOnce` half keeps the
     // loader up during the initial mount fetch, before `isRevalidating` has
     // committed true, so the empty state never flashes over an in-flight

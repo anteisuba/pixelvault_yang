@@ -5251,6 +5251,8 @@
         "addNode": "新建{kind}「{name}」",
         "connect": "把「{source}」连到「{target}」",
         "rename": "把「{target}」改名为「{name}」",
+        "setPrompt": "改写「{target}」的提示词",
+        "setImageCategory": "把「{target}」标为{category}",
         "reject": "打回「{target}」",
         "approve": "把「{target}」标为通过",
         "awaitReview": "把「{target}」标为待审",
@@ -5262,7 +5264,10 @@
         "approvalForbidden": "助手不能替你放行，通过只能由你点",
         "noMedia": "这个节点上还没有图，无从标记",
         "notGeneratable": "这类节点不产出媒体",
-        "noModel": "还没选模型"
+        "noModel": "还没选模型",
+        "notCategorizable": "这类节点没有图片分类",
+        "unknownCategory": "这不是图片分类里的值",
+        "missingCategoryLabel": "自定义分类得给个名字"
       }
     }
   },
@@ -6077,5 +6082,42 @@
     "freeTextPlaceholder": "描述你想改变的内容...",
     "submit": "优化并生成",
     "cancel": "取消"
+  },
+  "VideoAnalysis": {
+    "title": "分析这个视频",
+    "description": "按固定计划抽 {count} 帧再读它们。同一个视频永远抽到同一组帧，复跑对得上账。",
+    "taskLabel": "想看什么",
+    "task": {
+      "characterIdentity": "角色特征",
+      "styleStudy": "画风",
+      "qualityReview": "质量与缺陷",
+      "compare": "跨帧一致性"
+    },
+    "run": "分析",
+    "rerun": "重新分析",
+    "extracting": "正在抽 {count} 帧…",
+    "analyzing": "正在读这些帧…",
+    "failed": "分析失败。",
+    "emptyResult": "这一轮没有得出可用的观察。",
+    "uncertainties": "不确定的部分",
+    "basis": {
+      "observation": "看见",
+      "inference": "推断",
+      "unknown": "不知道"
+    },
+    "receiptFrames": "读了抽出来的 {count} 帧（计划 v{version}）。",
+    "receiptNative": "直接读了视频本体，不是抽出来的帧。",
+    "receiptModel": "模型：{model}",
+    "receiptDowngraded": "视频较长——本轮只分析了裁短后的范围以控制成本。",
+    "receiptBorrowed": "你选的那条路看不了视频，本轮借了另一条能看的。",
+    "captureFailedTitle": "没能抽到帧",
+    "captureReason": {
+      "unsupportedEnvironment": "当前环境没有可用的画布，抽帧这一步被跳过了。",
+      "loadFailed": "浏览器解不开这个视频，所以一帧也没抽到。",
+      "unreadableDuration": "读不出这个文件的时长，抽帧计划算不出来。",
+      "taintedCanvas": "当前环境不在视频存储的 CORS 允许名单里，浏览器因此禁止抽帧。修法是把这个域名加进 R2 的 CORS 规则——换个视频重试没有用。",
+      "timeout": "抽帧超时被中止了。网络快一些时再试一次。",
+      "encodeFailed": "抽出来的帧在这个浏览器里编码失败了。"
+    }
   }
 }

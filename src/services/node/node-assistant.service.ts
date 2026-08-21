@@ -5,6 +5,8 @@ import { streamText } from 'ai'
 import {
   NODE_ASSISTANT_ADD_INTENT_HINTS,
   NODE_ASSISTANT_ADD_INTENTS,
+  NODE_ASSISTANT_AUTO_APPLY_OPS,
+  NODE_ASSISTANT_CATEGORY_HINTS,
   NODE_ASSISTANT_OP_LIMITS,
   NODE_ASSISTANT_OP_MARKERS,
 } from '@/constants/node-assistant-ops'
@@ -20,6 +22,8 @@ import {
   NODE_STUDIO_ASSISTANT,
   NODE_STUDIO_ASSISTANT_LIMITS,
   NODE_STUDIO_ASSISTANT_ROUTE_MODELS,
+  NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID,
+  NODE_STUDIO_REFERENCE_ROLES,
 } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -91,8 +95,18 @@ function buildNodeSummary(
   const summary = nodes
     .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodes)
     .map((node) => {
-      const summary = node.summary ? ` — ${node.summary}` : ''
-      return `- [[node:${node.id}]] ${node.title} (${node.type}, ${node.status})${summary}`
+      // 现值逐项**指名道姓**（切片 5 第一批）。以前这一行的尾巴是一段没有名字的
+      // `— <summary>`，模型无从知道那就是它能改写的 `prompt` 字段；分类则完全
+      // 看不见，于是「把这张标成首帧」它只能答「你去详情面板标一下」。
+      const category = node.imageCategory
+        ? ` · category: ${node.imageCategory}${
+            node.imageCategoryLabel ? ` ("${node.imageCategoryLabel}")` : ''
+          }`
+        : ''
+      const prompt = node.promptExcerpt
+        ? ` · prompt: ${node.promptExcerpt}`
+        : ''
+      return `- [[node:${node.id}]] ${node.title} (${node.type}, ${node.status})${category}${prompt}`
     })
     .join('\n')
 
@@ -221,7 +235,7 @@ function getNodeAssistantMediaInputs(
 function buildCanvasOpsInstructions(): string {
   const { open, close } = NODE_ASSISTANT_OP_MARKERS
   return `CANVAS WRITE TOOLS:
-- Structural changes (add_node / connect / rename) are applied to the canvas AS SOON AS you emit them — they are free and the creator can undo the whole batch in one step. So describe them as done, not as a request ("Placed three character nodes" — not "click apply to place them", and never invent an apply button).
+- These ops (${NODE_ASSISTANT_AUTO_APPLY_OPS.join(' / ')}) are applied to the canvas AS SOON AS you emit them — they are free and the creator can undo the whole batch in one step. So describe them as done, not as a request ("Placed three character nodes" — not "click apply to place them", and never invent an apply button).
 - set_review_state and generate are NOT applied automatically: the creator confirms each one. For those, say what you are proposing.
 - To propose, append exactly ONE block at the very END of your reply:
   ${open}{"ops":[ … ]}${close}
@@ -230,18 +244,29 @@ function buildCanvasOpsInstructions(): string {
   {"op":"add_node","intent":"<intent>","ref":"<short alias>","name":"<display name>","prompt":"<the node's generation prompt>"} — "ref", "name" and "prompt" are optional; "ref" lets later ops in the SAME block point at the node you are creating.
   {"op":"connect","source":"<node id or ref>","target":"<node id or ref>"}
   {"op":"rename","target":"<node id or ref>","name":"<new name>"}
+  {"op":"set_prompt","target":"<node id or ref>","prompt":"<the node's new generation prompt>"} — REPLACES that node's prompt. Use it to edit a node that already exists instead of creating a duplicate one.
+  {"op":"set_image_category","target":"<node id or ref>","category":"<category>","label":"<name>"} — tags what an image is FOR. "label" is required only for "custom".
   {"op":"set_review_state","target":"<node id>","state":"awaiting_review" | "rejected","reason":"<why>"}
   {"op":"generate","target":"<node id>"} — spends the user's credits; propose it only when they explicitly asked to generate.
 - "intent" must be one of these exact values — pick by what the thing IS, not by which word the user happened to use:
 ${NODE_ASSISTANT_ADD_INTENTS.map(
   (intent) => `  ${intent} — ${NODE_ASSISTANT_ADD_INTENT_HINTS[intent]}`,
 ).join('\n')}
-- WRITE THE "prompt" whenever the node is something that gets generated (an image, a shot still, a keyframe, a video, shot text). A node you create without one lands on the canvas empty and the creator has to write it themselves — which is the work they asked you to do. Rules for it:
+- WRITE THE "prompt" whenever the node is something that gets generated (an image, a shot still, a keyframe, a video, shot text). A node you create without one lands on the canvas empty and the creator has to write it themselves — which is the work they asked you to do. The same rules apply to set_prompt, which replaces the whole prompt of an existing node — so restate the parts that stay, or they are gone. Rules for it:
   · Write the finished prompt, not a label. "A girl in the rain" is a label; the prompt says who, where, framing, light, and style.
   · When the new node is a VARIATION of something already on the canvas, carry over every attribute that must NOT change — same hairstyle, same outfit design, same proportions, same art style — and state them explicitly. The creator says "make it blue"; keeping everything else identical is your job, not theirs, and an unstated constraint is one the model will drift on.
   · Keep the whole set coherent: characters in the same story share a described look across every node you create in one block.
   · Plain text only. Never put a [[node:…]] marker inside a prompt — that field goes to the image model, not to the chat UI. Name the thing in words instead ("same face and hairstyle as the existing Kimi character sheet").
   · At most ${NODE_ASSISTANT_OP_LIMITS.maxPromptLength} characters.
+- "category" must be one of these exact values — no synonyms, no casing variants, no inventing new ones:
+${NODE_STUDIO_REFERENCE_ROLES.map(
+  (role) => `  ${role}${NODE_ASSISTANT_CATEGORY_HINTS[role]}`,
+).join('\n')}
+- READ THE CURRENT VALUES before you write. Each line in CURRENT CANVAS NODES carries what that node holds right now:
+  · "prompt: …" is the node's current generation prompt — the exact field set_prompt overwrites. When the creator asks for a change to an existing node, edit that prompt (keep everything they did not ask to change) instead of adding another node.
+  · "category: …" is the node's current image category. "${NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID}" means it can be categorized but is not yet — never write "${NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID}" back as a category.
+  · A node with NO "category:" on its line cannot carry one at all (video, voice, shot text, and identity cards) — do not propose set_image_category for it.
+  · Anything not shown on the line (model, parameters, attached references) you simply cannot see — say so rather than guessing, and never state a value you were not given.
 - Node ids are exactly the ids listed in CURRENT CANVAS NODES. Never invent one, and never use a node's display name as its id.
 - You may NOT approve media: "approved" is refused by the app every single time. Approving is the person's job — you may only send something back or mark it as awaiting review.
 - Propose only what the user actually asked for. When nothing needs to change, omit the block entirely.`

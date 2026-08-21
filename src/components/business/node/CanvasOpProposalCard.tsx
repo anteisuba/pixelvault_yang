@@ -1,14 +1,29 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { Check, Link2, PenLine, Plus, Sparkles, Undo2 } from 'lucide-react'
+import {
+  Check,
+  Link2,
+  PenLine,
+  Plus,
+  Sparkles,
+  Tags,
+  Type,
+  Undo2,
+  type LucideIcon,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
   isAutoApplyAssistantOp,
   NODE_ASSISTANT_OP_IDS,
+  type NodeAssistantOpId,
 } from '@/constants/node-assistant-ops'
 import { getCanvasAddCatalogItem } from '@/constants/canvas-add-catalog'
+import {
+  isNodeStudioReferenceRole,
+  NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
+} from '@/constants/node-studio'
 import { NODE_REVIEW_STATE_IDS } from '@/constants/node-types'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -34,13 +49,22 @@ interface CanvasOpProposalCardProps {
   onUndoAutoApply?(): void
 }
 
-const OP_ICONS = {
+/**
+ * ⚠ 类型是**穷举的 Record**，不是 `as const` 字面量：漏一个 op 时
+ * `OP_ICONS[entry.op.op]` 会是 `undefined`，而 `<undefined />` 在渲染时才炸
+ * ——整张卡连同对话一起白屏。写成 Record 让它在编译期就红。
+ */
+const OP_ICONS: Record<NodeAssistantOpId, LucideIcon> = {
   [NODE_ASSISTANT_OP_IDS.addNode]: Plus,
   [NODE_ASSISTANT_OP_IDS.connect]: Link2,
   [NODE_ASSISTANT_OP_IDS.rename]: PenLine,
+  [NODE_ASSISTANT_OP_IDS.setPrompt]: Type,
+  // 与人手那条路同一颗图标（`CanvasImageSelectionToolbar` 的分类子菜单也是
+  // `Tags`）—— 同一件事在两处长得一样，用户不用学第二遍。
+  [NODE_ASSISTANT_OP_IDS.setImageCategory]: Tags,
   [NODE_ASSISTANT_OP_IDS.setReviewState]: Undo2,
   [NODE_ASSISTANT_OP_IDS.generate]: Sparkles,
-} as const
+}
 
 /**
  * 助手的画布改动提案（包 5）。
@@ -106,6 +130,9 @@ export function CanvasOpProposalCard({
   const plan = frozenPlan ?? (landedCount ? initialPlan : livePlan)
   const tAdd = useTranslations('StudioNode.addCatalog.items')
   const tIngest = useTranslations('StudioNode.ingest.reasons')
+  // 分类名走**人手那条路已经在用的**那份词表（详情面板的分类下拉、选中工具条的
+  // 分类子菜单都读它），不为助手另起一套说法。
+  const tRoles = useTranslations('StudioNode.characterImage.reference')
   const [excluded, setExcluded] = useState<Set<number>>(() => new Set())
   const [runningIndex, setRunningIndex] = useState<number | null>(null)
   const [structuralRunning, setStructuralRunning] = useState(false)
@@ -147,6 +174,25 @@ export function CanvasOpProposalCard({
     [getNodeLabel, plan.ops, t, tAdd],
   )
 
+  /**
+   * 分类值 → 用户看得懂的那个词。
+   *
+   * ⚠ 必须先过 `isNodeStudioReferenceRole`：被 `unknownCategory` 拒掉的那条 op
+   * 照样要在卡上显示出来（用户得看见助手到底想标什么），而它的值不在词表里 ——
+   * 直接 `tRoles('roles.' + 值)` 会撞上一个不存在的 key。这种情况原样显示模型写
+   * 的那个词，那正是「它错在哪」的证据。
+   */
+  const describeCategory = useCallback(
+    (category: string, label: string | undefined): string => {
+      if (!isNodeStudioReferenceRole(category)) return category
+      if (category === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID && label) {
+        return label
+      }
+      return tRoles(`roles.${category}`)
+    },
+    [tRoles],
+  )
+
   const describe = useCallback(
     (entry: PlannedNodeAssistantOp): string => {
       const { op } = entry
@@ -166,6 +212,15 @@ export function CanvasOpProposalCard({
             target: describeRef(entry.target),
             name: op.name,
           })
+        // 提示词本身不进这句话 —— 它在下面单独整段显示（一行摘要塞不下一段
+        // 提示词，而截断过的提示词等于没给用户看）。
+        case NODE_ASSISTANT_OP_IDS.setPrompt:
+          return t('describe.setPrompt', { target: describeRef(entry.target) })
+        case NODE_ASSISTANT_OP_IDS.setImageCategory:
+          return t('describe.setImageCategory', {
+            target: describeRef(entry.target),
+            category: describeCategory(op.category, op.label),
+          })
         case NODE_ASSISTANT_OP_IDS.setReviewState:
           // 三个态各说各的。`approved` 永远会被拒，但**说的必须是它真的想干什么**
           // ——写成「标为待审」会让「助手不能替你放行」那句理由读起来莫名其妙。
@@ -179,7 +234,7 @@ export function CanvasOpProposalCard({
           return t('describe.generate', { target: describeRef(entry.target) })
       }
     },
-    [describeRef, t, tAdd],
+    [describeCategory, describeRef, t, tAdd],
   )
 
   const explainRejection = useCallback(
@@ -246,6 +301,13 @@ export function CanvasOpProposalCard({
         {plan.ops.map((entry) => {
           const Icon = OP_ICONS[entry.op.op]
           const isRejected = entry.status === 'rejected'
+          // B1：写进来的提示词要在这里看得见 —— 建节点时带的那段，和改已有节点
+          // 时的那段，是同一件事，显示也走同一处。
+          const proposedPrompt =
+            entry.op.op === NODE_ASSISTANT_OP_IDS.addNode ||
+            entry.op.op === NODE_ASSISTANT_OP_IDS.setPrompt
+              ? entry.op.prompt
+              : undefined
           // B3：判断（审核态）与花钱（生成）都不自动落，各自逐条确认。
           const needsOwnConfirm = !isAutoApplyAssistantOp(entry.op.op)
           const isExcluded = excluded.has(entry.index)
@@ -283,10 +345,9 @@ export function CanvasOpProposalCard({
                   {/* B1：助手写进来的提示词要在这里看得见。批准一条自己看不到内容
                       的写操作，等于没有审批 —— 提示词恰恰是这条 op 里唯一有内容
                       的部分。 */}
-                  {entry.op.op === NODE_ASSISTANT_OP_IDS.addNode &&
-                  entry.op.prompt ? (
+                  {proposedPrompt ? (
                     <span className="mt-0.5 block whitespace-pre-wrap break-words text-node-subtle">
-                      {entry.op.prompt}
+                      {proposedPrompt}
                     </span>
                   ) : null}
                   {isRejected ? (

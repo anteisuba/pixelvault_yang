@@ -5251,6 +5251,8 @@
         "addNode": "Add {kind} “{name}”",
         "connect": "Connect “{source}” into “{target}”",
         "rename": "Rename “{target}” to “{name}”",
+        "setPrompt": "Rewrite the prompt of “{target}”",
+        "setImageCategory": "Tag “{target}” as {category}",
         "reject": "Send back “{target}”",
         "approve": "Mark “{target}” as approved",
         "awaitReview": "Mark “{target}” as awaiting review",
@@ -5262,7 +5264,10 @@
         "approvalForbidden": "The assistant can't approve for you — only you can",
         "noMedia": "This node has no image yet, so there is nothing to mark",
         "notGeneratable": "This kind of node produces no media",
-        "noModel": "No model selected yet"
+        "noModel": "No model selected yet",
+        "notCategorizable": "This kind of node has no image category",
+        "unknownCategory": "That isn't one of the image categories",
+        "missingCategoryLabel": "A custom category needs a name"
       }
     }
   },
@@ -6077,5 +6082,42 @@
     "freeTextPlaceholder": "Describe what you want to change...",
     "submit": "Refine & Generate",
     "cancel": "Cancel"
+  },
+  "VideoAnalysis": {
+    "title": "Analyze this video",
+    "description": "Extracts {count} frames on a fixed plan, then reads them. Same video, same frames, every time.",
+    "taskLabel": "What to look for",
+    "task": {
+      "characterIdentity": "Character features",
+      "styleStudy": "Art style",
+      "qualityReview": "Quality & defects",
+      "compare": "Consistency across frames"
+    },
+    "run": "Analyze",
+    "rerun": "Analyze again",
+    "extracting": "Extracting {count} frames…",
+    "analyzing": "Reading the frames…",
+    "failed": "Analysis failed.",
+    "emptyResult": "The analysis produced no findings for this task.",
+    "uncertainties": "Not certain about",
+    "basis": {
+      "observation": "Seen",
+      "inference": "Inferred",
+      "unknown": "Unknown"
+    },
+    "receiptFrames": "Read {count} extracted frames (plan v{version}).",
+    "receiptNative": "Read the video itself, not extracted frames.",
+    "receiptModel": "Model: {model}",
+    "receiptDowngraded": "Long video — a reduced window was analyzed to keep the cost down.",
+    "receiptBorrowed": "Your selected model can't read video, so another one was used for this pass.",
+    "captureFailedTitle": "Frames could not be extracted",
+    "captureReason": {
+      "unsupportedEnvironment": "This browser context has no canvas to draw frames into, so extraction was skipped.",
+      "loadFailed": "The browser could not decode this video, so no frames were extracted.",
+      "unreadableDuration": "This file's duration could not be read, so the frame plan could not be computed.",
+      "taintedCanvas": "This environment is not on the video storage CORS allowlist, so the browser blocks frame extraction here. Fix it by adding this origin to the R2 CORS rules — switching videos will not help.",
+      "timeout": "Frame extraction took too long and was stopped. Try again on a faster connection.",
+      "encodeFailed": "The extracted frames could not be encoded in this browser."
+    }
   }
 }

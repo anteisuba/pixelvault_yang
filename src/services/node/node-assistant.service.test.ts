@@ -44,7 +44,10 @@ vi.mock('@/services/web-research.service', () => ({
 }))
 
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-import { NODE_STUDIO_ASSISTANT_LIMITS } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_ASSISTANT_LIMITS,
+  NODE_STUDIO_REFERENCE_ROLES,
+} from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { createNodeAssistantStream } from '@/services/node/node-assistant.service'
 import type { NodeAssistantRequest } from '@/types/node-assistant'
@@ -59,7 +62,7 @@ const REQUEST: NodeAssistantRequest = {
       type: NODE_TYPE_IDS.composer,
       status: NODE_STATUS_IDS.idle,
       title: 'Composer',
-      summary: 'A small story idea.',
+      promptExcerpt: 'A small story idea.',
     },
   ],
 }
@@ -137,6 +140,66 @@ describe('createNodeAssistantStream', () => {
 
     const userPrompt = mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt
     expect(userPrompt).toContain('SELECTED NODES:\n[[node:node-1]] Composer')
+  })
+
+  // 切片 5 第一批：能写一个字段，就得先看得见那个字段的现值。盲写的后果有实证
+  // （工作台不给可选模型列表 → 模型编了个不存在的「Animagine XL」）。
+  it('每个节点行带出它当前的提示词与图片分类，并说出「有这个字段但还没标」', async () => {
+    mockLlmTextCompletion.mockResolvedValue('Ack.')
+
+    await createNodeAssistantStream('clerk_user_1', {
+      ...REQUEST,
+      nodes: [
+        {
+          id: 'img-1',
+          type: NODE_TYPE_IDS.image,
+          status: NODE_STATUS_IDS.idle,
+          title: '街口空镜',
+          promptExcerpt: '雨夜，霓虹反光',
+          imageCategory: 'frameStart',
+        },
+        {
+          id: 'img-2',
+          type: NODE_TYPE_IDS.image,
+          status: NODE_STATUS_IDS.idle,
+          title: '还没分类的散图',
+          imageCategory: 'unset',
+        },
+        {
+          id: 'video-1',
+          type: NODE_TYPE_IDS.seedance,
+          status: NODE_STATUS_IDS.idle,
+          title: '第一镜',
+        },
+      ],
+    })
+
+    const userPrompt = mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt
+    expect(userPrompt).toContain(
+      '[[node:img-1]] 街口空镜 (image, idle) · category: frameStart · prompt: 雨夜，霓虹反光',
+    )
+    expect(userPrompt).toContain(
+      '[[node:img-2]] 还没分类的散图 (image, idle) · category: unset',
+    )
+    // 没有分类字段的节点整条不带 category —— 「这个节点根本标不了分类」就是靠
+    // 它缺席说出来的（身份卡的 type 也是 image，光看 type 分不出来）。
+    expect(userPrompt).toContain('[[node:video-1]] 第一镜 (seedance, idle)')
+    expect(userPrompt).not.toContain('第一镜 (seedance, idle) · category')
+  })
+
+  it('系统提示词把两个新 op 与合法分类值列全（词表从常量生成，不手抄）', async () => {
+    mockLlmTextCompletion.mockResolvedValue('Ack.')
+
+    await createNodeAssistantStream('clerk_user_1', REQUEST)
+
+    const systemPrompt = mockLlmTextCompletion.mock.calls[0]?.[0]?.systemPrompt
+    expect(systemPrompt).toContain('{"op":"set_prompt"')
+    expect(systemPrompt).toContain('{"op":"set_image_category"')
+    for (const role of NODE_STUDIO_REFERENCE_ROLES) {
+      expect(systemPrompt).toContain(`\n  ${role}`)
+    }
+    // 自动落那一档是从常量生成的 —— 新 op 进了白名单，这句话就得跟着变。
+    expect(systemPrompt).toContain('set_prompt / set_image_category')
   })
 
   it('falls back to a bare marker for a selected id that no longer matches any node', async () => {

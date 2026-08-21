@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   VIDEO_ANALYSIS_DOWNGRADE,
+  VIDEO_ANALYSIS_MODES,
   VIDEO_ANALYSIS_TASKS,
 } from '@/constants/video-analysis'
 
@@ -10,11 +11,8 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-const {
-  resolveNativeVideoWindow,
-  resolveVideoAnalysisRoute,
-  VIDEO_ANALYSIS_MODES,
-} = await import('@/services/vision/video-analysis-route.service')
+const { resolveNativeVideoWindow, resolveVideoAnalysisRoute } =
+  await import('@/services/vision/video-analysis-route.service')
 
 /**
  * 按任务路由三档（§4.3 第三条）+ 先降级再问（§4.3.1）。

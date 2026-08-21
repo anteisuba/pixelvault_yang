@@ -1,3 +1,4 @@
+import type { VideoAnalysisMode } from '@/constants/video-analysis'
 import {
   VISION_ANALYZE_ENDPOINT,
   VISION_ANALYZE_VIDEO_ENDPOINT,
@@ -12,7 +13,7 @@ type ApiResult<T> =
 
 /** 视频分析的额外两个字段（服务端如实回它走了哪条腿）。 */
 export interface VideoAnalysisResult extends VisionAnalysisResult {
-  mode: 'native' | 'frames'
+  mode: VideoAnalysisMode
   /** native 档超阈值自动降级了 —— UI 要如实说「只看了前 60 秒 / 降了帧率」。 */
   downgraded: boolean
 }

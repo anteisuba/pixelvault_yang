@@ -32,6 +32,7 @@ import { ROUTES } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useHuggingFaceLoraLibrary } from '@/hooks/use-huggingface-lora-library'
+import { buildHuggingFaceSourceSnapshot } from '@/lib/lora-source-snapshot'
 import { cn } from '@/lib/utils'
 import type {
   FavoriteLoraRequest,
@@ -169,6 +170,36 @@ export function HuggingFaceLoraLibrary({
     [detailOpen, selectedItem],
   )
 
+  /**
+   * 导入载荷（含出处快照，策略 C）。
+   *
+   * ⚠ 这个 pane 有**两个**导入点：「使用此 LoRA」与详情里的「收藏」。只接一个的
+   * 下场是同一把 LoRA 从两个按钮进来，一行有作者/许可/commit、另一行全空 ——
+   * 而两行看起来完全一样。所以载荷在这里拼一次，两个 handler 都用它。
+   * 构造走 `lib/lora-source-snapshot`（与库 modal / 助手推荐卡同一份）。
+   */
+  const buildImportPayload = useCallback(
+    (
+      item: HuggingFaceLoraSearchItem,
+      file: HuggingFaceLoraFile,
+    ): FavoriteLoraRequest => ({
+      name: item.name,
+      triggerWord: item.triggerWord,
+      loraUrl: file.downloadUrl,
+      type: item.type,
+      baseModelFamily: file.baseModelFamily,
+      provider: 'huggingface',
+      coverImageUrl: item.coverImageUrl,
+      // 抓取时刻 = 这批结果回来的那一刻，不是点击时刻。
+      sourceSnapshot: buildHuggingFaceSourceSnapshot({
+        item,
+        file,
+        retrievedAt: library.retrievedAt,
+      }),
+    }),
+    [library.retrievedAt],
+  )
+
   // 主「使用此 LoRA」：家族可生成时组合 import（幂等）+ 挂载栈 push + 跳转
   // 生成，与 civitai 对齐。家族不可生成时兜底跳 HF repo。
   const handleUse = useCallback(
@@ -182,15 +213,7 @@ export function HuggingFaceLoraLibrary({
         })
         return
       }
-      const record = await onImport({
-        name: item.name,
-        triggerWord: item.triggerWord,
-        loraUrl: file.downloadUrl,
-        type: item.type,
-        baseModelFamily: file.baseModelFamily,
-        provider: 'huggingface',
-        coverImageUrl: item.coverImageUrl,
-      })
+      const record = await onImport(buildImportPayload(item, file))
       if (!record) return
       stack.push(record)
       toast.success(t('addedToStack', { name: record.name }), {
@@ -200,24 +223,16 @@ export function HuggingFaceLoraLibrary({
         `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.GENERATE}`,
       )
     },
-    [onImport, router, stack, t],
+    [buildImportPayload, onImport, router, stack, t],
   )
 
   // 拍板②：HF 的「导入」语义统一为「收藏」，落 LoraAssetRecord 的实现不变
   // （onImport 幂等——已收藏文件直接返回既有记录）。
   const handleFavorite = useCallback(
     (item: HuggingFaceLoraSearchItem, file: HuggingFaceLoraFile) => {
-      void onImport({
-        name: item.name,
-        triggerWord: item.triggerWord,
-        loraUrl: file.downloadUrl,
-        type: item.type,
-        baseModelFamily: file.baseModelFamily,
-        provider: 'huggingface',
-        coverImageUrl: item.coverImageUrl,
-      })
+      void onImport(buildImportPayload(item, file))
     },
-    [onImport],
+    [buildImportPayload, onImport],
   )
 
   const handleUnfavorite = useCallback(

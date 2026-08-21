@@ -25,6 +25,7 @@ import {
   MediaDetailViewer,
   type MediaTransitionOrigin,
 } from '@/components/business/MediaDetailViewer'
+import { VideoAnalysisPanel } from '@/components/business/vision/VideoAnalysisPanel'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Spinner } from '@/components/ui/spinner'
@@ -352,6 +353,7 @@ export function AssetDetailSheet({
   if (!generation) return null
 
   const isAudioAsset = generation.outputType === 'AUDIO'
+  const isVideoAsset = generation.outputType === 'VIDEO'
 
   const previewUrl = getGenerationPreviewUrl(generation)
   const toolbarActions = (
@@ -388,29 +390,48 @@ export function AssetDetailSheet({
     </div>
   )
   const sideContent = (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-      <Field
-        label={t('detailPrompt')}
-        value={generation.prompt || '—'}
-        multiline
-      />
-      <Field label={t('detailModel')} value={generation.model} />
-      <Field label={t('detailProvider')} value={generation.provider} />
-      <Field
-        label={t('detailDimensions')}
-        value={`${generation.width} × ${generation.height}`}
-      />
-      {generation.duration != null && (
-        <Field label={t('detailDuration')} value={`${generation.duration}s`} />
-      )}
-      {generation.seed != null && (
-        <Field label={t('detailSeed')} value={String(generation.seed)} />
-      )}
-      <Field
-        label={t('detailCreatedAt')}
-        value={new Date(generation.createdAt).toLocaleString()}
-      />
-    </dl>
+    <>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+        <Field
+          label={t('detailPrompt')}
+          value={generation.prompt || '—'}
+          multiline
+        />
+        <Field label={t('detailModel')} value={generation.model} />
+        <Field label={t('detailProvider')} value={generation.provider} />
+        <Field
+          label={t('detailDimensions')}
+          value={`${generation.width} × ${generation.height}`}
+        />
+        {generation.duration != null && (
+          <Field
+            label={t('detailDuration')}
+            value={`${generation.duration}s`}
+          />
+        )}
+        {generation.seed != null && (
+          <Field label={t('detailSeed')} value={String(generation.seed)} />
+        )}
+        <Field
+          label={t('detailCreatedAt')}
+          value={new Date(generation.createdAt).toLocaleString()}
+        />
+      </dl>
+      {/*
+       * 「分析这个视频」的落点（切片 2 §4.3 的最后一米）。选这里是因为素材页的
+       * 视频**一定在我们自己的 R2 上**（CORS 允许名单里有生产域和 localhost），
+       * 抽帧拿得到干净的画布；工作台/画布那几个落点要么正在被并行会话改，
+       * 要么视频未必落库。`key` 挂 generation.id：换一条素材要从空态重新开始，
+       * ⛔ 不能把上一条视频的观察留在屏幕上。
+       */}
+      {isVideoAsset ? (
+        <VideoAnalysisPanel
+          key={generation.id}
+          videoUrl={generation.url}
+          projectId={generation.projectId}
+        />
+      ) : null}
+    </>
   )
   const footerActions = (
     <div className="space-y-2">

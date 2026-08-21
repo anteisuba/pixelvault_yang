@@ -375,12 +375,35 @@ export const NODE_STUDIO_REFERENCE_ROLES = [
 
 export const NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID = 'custom' as const
 
+export type NodeStudioReferenceRole =
+  (typeof NODE_STUDIO_REFERENCE_ROLES)[number]
+
+/**
+ * 一个字符串是不是这 11 个分类之一。
+ *
+ * 存在的理由是**助手写进来的分类值**（`set_image_category`，切片 5 第一批）：
+ * 那条 op 的 schema 有意收成自由字符串（收进 `z.enum` 会让一条写错分类的 op 把
+ * 整批提案带崩，见 `NODE_ASSISTANT_OP_REJECT_REASON_IDS.unknownCategory`），
+ * 所以收窄发生在规划器里，判据必须是**这张表本身**，⛔ 不许模糊匹配 / 大小写
+ * 归一 / 同义词映射 —— 猜错一个分类，用户看到的是关键帧首尾接反。
+ */
+export function isNodeStudioReferenceRole(
+  value: string,
+): value is NodeStudioReferenceRole {
+  return (NODE_STUDIO_REFERENCE_ROLES as readonly string[]).includes(value)
+}
+
 /**
  * 「未分类」在 Select 里的哨兵值（台账 F1，2026-08-02）。
  *
  * 数据层的「未分类」是 `imageCategory: undefined`，但 Radix SelectItem
  * **禁止 `value=""`**（空串是它内部表示「无选中」的保留值），原生 `<select>`
  * 时代直接用空串的写法换不过去。落库前映射回 `undefined`，不进数据。
+ *
+ * ⚠ 第二个消费者（切片 5 第一批）：**助手 payload 里的节点分类现值**
+ * （`NodeAssistantNodeContextSchema.imageCategory`）。同一个问题的同一个答案 ——
+ * 「字段在、值为空」需要一个说得出口的值，而 undefined 在那里表示的是另一件事
+ * （这个节点根本没有分类字段）。同样不进数据。
  */
 export const NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID = 'unset' as const
 

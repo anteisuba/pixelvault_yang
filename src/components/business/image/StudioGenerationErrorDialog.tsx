@@ -190,7 +190,16 @@ export function StudioGenerationErrorDialog({
   const [detailsExpanded, setDetailsExpanded] = useState(false)
 
   const errorCode = error.code ?? parseGenerationErrorCode(error.message)
-  const reasonKey = `generation.${errorCode}` as const
+  // ⚠ 必须过 `has`：next-intl 查不到 key 时**把 key 路径当文案渲染**，用户看到的
+  // 就是「Errors.generation.execution_worker_unavailable」这么一行（2026-08-22
+  // 真机撞到）。缺翻译是我们的疏漏，不该变成用户面前的乱码 —— 兜到 `unknown`，
+  // 原始报错本来就在下面的「查看详情」里一键可见。
+  // ⛔ 别把这条守卫当成「可以不写翻译」的许可：`generation-errors.i18n.test.ts`
+  //   会为每个错误码 × 三语言各断言一次，漏一个就红。
+  const specificKey = `generation.${errorCode}` as const
+  const reasonKey = tErrors.has(specificKey)
+    ? specificKey
+    : (`generation.${GENERATION_ERROR_CODES.UNKNOWN}` as const)
   const actions = resolveAvailableActions(errorCode, {
     onConfigureKey,
     onEditPrompt,

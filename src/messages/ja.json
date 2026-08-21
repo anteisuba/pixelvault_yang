@@ -5817,6 +5817,10 @@
       "reference_image_limit_exceeded": "参照画像の数がこのモデルの上限を超えています",
       "invalid_reference_image_dimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません",
       "runner_queue_stuck": "Runner はジョブを受け付けましたが、実行する GPU ワーカーがいなかったため自動的にキャンセルされました。再試行しても再びキューに並ぶだけです。当面はホスト型モデルをご利用いただくか、サイト管理者に Runner エンドポイントの確認をご依頼ください。",
+      "execution_worker_unavailable": "生成リクエストが実行サービスに届きませんでした。ローカル開発では workers/execution を起動し「Ready on 8787」を待ってください。本番環境では実行サービスに到達できるかご確認ください。",
+      "lora_incompatible_hosted": "このホスト型モデルの LoRA ローダーは、この LoRA のレイヤー形式を読み込めません（LoRA 自体に問題はありません）。Runner 対応のモデルに切り替えてください。同じホスト型モデルで再試行しても結果は変わりません。",
+      "runner_monthly_limit_exceeded": "今月の Runner 生成クォータを使い切りました。当面はホスト型モデルに切り替えるか、来月のリセットをお待ちください。",
+      "runner_lora_unavailable": "この LoRA は Runner のストレージボリュームにまだ配置されていないため、Runner では使用できません。配置済みの LoRA を選ぶか、ホスト型モデルに切り替えてください。",
       "unknown": "予期しないエラーが発生しました"
     },
     "validation": {

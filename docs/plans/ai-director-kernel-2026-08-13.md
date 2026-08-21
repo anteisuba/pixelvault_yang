@@ -101,6 +101,124 @@
 
 ---
 
+## 0.6 ✅ LoRA 一次确认链真机验收（2026-08-22，owner 登录态，`/studio/lora`）
+
+owner 指定「Lora 也验，视频跳过」。切片 3 的三道保护 + 一次确认三件事**全部实拍到**。
+
+| 验收项                                      | 实拍结果                                                                                                                                                                                                                 |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| **收藏去重**（owner 点名要修的）            | 同一载荷并发双发 → 两条都 `200`、**返回同一行**（`sameRow:true`）、库 92→93 **不是 94**；既有重复组 0。测试行用 `DELETE ?assetId=…` 清回 92                                                                              |
+| 候选检索链                                  | `watercolor illustration 的` → Civitai `ok` 8 条 / HF `empty` → 注入 **6 条候选**；回执头 **12,596 B**（上限 16,384，未降级）                                                                                            |
+| ⭐ **「只挑不写」契约**                     | `[[lora]]` 块正文实测**只有** `candidateId` / `reason` / `suggestedWeight` —— **零事实字段**。名字·作者·URL·许可全部来自候选对象                                                                                         |
+| 候选无匹配时                                | 上一轮只搜到 1 条不相干候选，助手**如实说没有**并点名那条（Boldline game style），且**比对了底模家族**：「与当前的 Anima Base v1.0（anima-dit 家族）不匹配」→ 转 `[[ask]]` 问方向。⛔ 没有硬推                           |
+| 推荐卡                                      | 样图 · 作者 · 底模 · 触发词 · **三个许可位**（商用/衍生/免署名 各带「允许」）· 下载量 · **元数据部分**（完整度如实标）· 来源页外链。**整页重载后卡照旧完整渲染**（候选随对话持久化，不只活在响应头）                     |
+| ⭐ **一次确认三件事**                       | 点「导入并挂载」→ 库 92→**93（`dupCount:1`）**· LORA 栈 已挂 0→**1（×0.70 带权重滑条）**· 提示词框写入 **`Fanciful`** · 卡面 chip 变「✓ 已导入、已挂载、触发词已填入」                                                   |
+| 🆕 **底模自动跟随**（超出任务书的正确行为） | 同一次确认把底模从 `Anima Base v1.0(anima-dit)` 换成 `SDXL 1.0(sdxl)` —— 正是这把 LoRA 的家族；助手头部状态同步成「挂载 ×1 / 触发词 ×1 / 底模 sdxl」。**撤销挂载时底模一并还原**，说明切换是跟挂载捆绑的、不是单向副作用 |
+| `sourceSnapshot` 落库                       | 八个键全在：`source/author/license/pageUrl/revision/retrievedAt/fileSizeBytes/metadataCompleteness`；`author:"twirble"` 与卡面一致，`license.known:true`，完整度 `partial`                                               |
+| `baseModelFamily` 约定                      | 写入 `"SDXL 1.0"`。**与既有 93 行完全一致**（Anima 42 · Illustrious 36 · NoobAI 6 · SDXL 1.0 3 · Pony 3 · SD 1.5 2）—— schema 注释里那句 `"flux"                                                                         | "sdxl"` 短码才是过时的，助手这条路没引入不一致 |
+| 分步失败上报                                | 由下面那个 500 顺带验到：卡上报「⚠ 导入失败 —— **库里没有新增任何东西**」+ 原始错误。**没有谎称成功，也没有把「挂载失败」和「没导进去」混为一谈**                                                                        |
+
+### ⚠ 环境坑（不是代码缺陷，别当 bug 追）：dev 进程里的陈旧 Prisma client
+
+首次点「导入并挂载」实测 **500**。二分到根因：
+
+- 带 `sourceSnapshot` → 500；**不带 → 200**；空对象 → 400（schema 正常拒）
+- 嵌套 null 无关（全非 null 的快照同样 500）
+- 迁移已落库（`migrate status` = up to date，列是 JSONB），磁盘上的生成产物也含该字段（`internal/class.ts` 的 inlineSchema + runtimeDataModel 都有）
+
+根因 = `src/lib/db.ts` 在 dev 下把 client 缓存在 `globalThis`，**这个 dev 进程早于 `prisma generate` 加进 `sourceSnapshot`**，旧 client 抛「未知参数」。服务里恰是**条件展开**（`...(input.sourceSnapshot ? {sourceSnapshot} : {})`），所以不带时整个键都不出现 → 正常。
+
+**判据**：`touch next.config.ts` 让 Next 自行重启后，**同一载荷立刻 200**。生产走构建期生成，不会有这个态。
+
+⚠ 记住这个形状：**「新加的字段一带就 500，不带就好」= dev 进程的 client 比磁盘旧**，别去查数据库、别去查适配器。
+
+### ✅ 检索意图闸只看最新一句（2026-08-22 发现并已修）
+
+`planLoraCandidateSearch(text)` 的入参就是**一句话**，不看对话历史。后果是一条自相矛盾的路径：
+
+1. 助手自己在 `[[ask]]` 里问「**重新搜索 LoRA**（请在下方告诉我要尝试的英文或中文关键词）」
+2. 用户照做，答「重新搜，关键词用 illustrious style」
+3. 闸判 `no lora discovery signal`（这句没有 LoRA 名词面）→ **不搜**，助手只能空手作答
+
+点那个 ask 选项本身能触发（选项文案里带「LoRA」），但**用户按提示自己打关键词就不行** —— 而提示语正是让他打关键词的。
+
+**改法**：`planLoraCandidateSearch(text, { previousUserText })` —— 纯函数多收一个「上一句」，
+⛔ **没有**新请求字段、新响应头、新持久化列。原本设想的「客户端带标志」被否掉了：回执头只在
+**有候选**时才发（`stream/route.ts`），所以「搜了但零结果」客户端根本看不见，走那条路要先补一个头
+再补一个可持久化字段 —— 而这个事实服务端本来就能纯函数重算。
+
+三条判据（都写成了测试）：
+
+1. **接管条件是「这句话完全没有 LoRA 信号」**，不是「不满足严格闸」。带名词却没有动词的那类
+   （「这个 LoRA 的触发词是什么」）留给原判据 —— 它要的不是另一把，塞候选是打断。
+2. **只续一轮**：`hasLoraDiscoveryIntent` 不递归，上一句只过严格闸。否则一次 LoRA 请求会让整段
+   对话每轮都打源。
+3. **取的是上一条**用户**消息**，不是 `messages.at(-3)` —— 中间隔几条助手消息会变（失败轮/重试轮）。
+
+记名接受的两条代价：① 上一轮已出推荐卡、这一轮用户在**用**卡时会白搜一次（约 1s，不花钱）；
+② 连续两轮都空手时第三轮要重说一次「LoRA」。⛔ 别为它们去翻对话历史猜意图 —— 那会把这道
+确定性的闸变成第二个会幻觉的地方。
+
+⚠ **接线那一半单独守着**：纯函数改对但上一句没传进去，编译过、意图闸的定向测试也全绿，真机
+表现是「一点没变」（`reference-optional-prop-silently-unwired` 同族）。所以
+`prompt-assistant.service.test.ts` 里加了三条抓 `searchLoraCandidates` **真实入参**的测试，
+其中一条专门用「中间隔两条助手消息」的对话验「取的是上一条用户消息」。
+
+---
+
+## 0.7 ✅ 图片线收尾验收（2026-08-22）+ 顺带修掉的两个真缺陷
+
+owner：「生成的话顶一个默认模板，就做一款叫鸣潮相关的角色的图片。」用模板
+「日系赛璐璐剧场版动画」（gpt-image-2 · 1:1）出图，主语 = 长离。
+
+### ⭐ 点生成图问助手 + 结构化视觉分析：一轮同时验到，且**抓出了生成图的真错误**
+
+生成结果页的「问助手」把图挂成参考 → 问「先做结构化视觉分析，再对照官方设定指出哪里对哪里不对」。
+一轮里三件事全发生了：
+
+- **检索**：已联网检索 · **14 条证据**（萌娘百科 3 ✓ · 哔哩哔哩 5 ✓ · 网页搜索 6 ✓ ·
+  维基百科/Fandom/**Danbooru 三个空手照实标出**）
+- **看像素**：构图与视点 / 光影与色彩 / 细节与质感三段，描述与实际画面逐条对得上
+  （回眸半身、右侧城墙透视线、左下角战火的暖橙轮廓光）
+- ⭐ **比对并纠错**：「**眼睛颜色（最严重偏离）：图中的眼睛是淡紫色，而长离的官方设定是标志性的
+  金瞳 [2, 11]**」。另两条：发尾偏白、缺红黄挑染；红发带散成飘带、没有羽毛结。
+  逐条核过原图 —— **说对了**。
+
+这是视觉线 × 检索线第一次合起来产生「用检索到的事实去判定像素对不对」的输出，正是内核要的东西。
+
+### 🐛 修掉：生成失败弹窗把 i18n key 原样吐给用户
+
+真机现象：本地执行 worker 没起，弹窗上写着「Errors.generation.execution_worker_unavailable」。
+
+- 根因：`StudioGenerationErrorDialog` 里 `{tErrors(reasonKey)}` **没有 `has()` 守卫**，
+  next-intl 查不到 key 时**把 key 路径当文案渲染**
+- 范围不是一个：`GENERATION_ERROR_CODES` 22 个码，`Errors.generation` 只有 18 条 ——
+  `execution_worker_unavailable` · `lora_incompatible_hosted` ·
+  `runner_monthly_limit_exceeded` · `runner_lora_unavailable` **三语全缺**
+- 修：补 4 × 3 = 12 条文案（三语键集逐键比对一致，各 5409）+ 加 `has()` 守卫兜到 `unknown`
+- ⭐ **判据留在测试里**：新增 `generation-errors.i18n.test.ts`，每个码 × 三语言各断言一次
+  「有非空文案」。⚠ 守卫是兜底不是许可 —— 它把乱码换成「未知错误」，用户仍然拿不到那句说明。
+- ⚠ 顺带修了测试夹具：那个 `next-intl` mock 只 mock 了 `t` 没 mock `t.has`，加守卫后 9 条测试
+  一起崩。mock 的 `has` 判据必须与真实一致（查不到就是 false），mock 成恒 true 等于把守卫测没了。
+
+### 🐛 修掉：Cmd/Ctrl+Enter 在助手输入框里也会真出一张图（**花钱**）
+
+`use-studio-shortcuts.ts` 把这个组合键挂在 **window** 上直接调 `onGenerate()`，
+**完全不看焦点在哪**。同一个文件里 `/` 那条早就守了 input/textarea —— 这件事一直知道，漏了这一支。
+
+- 修：判据 =「可编辑 **且不是**提示词框」。⛔ 不能简单写成「在 textarea 里就不触发」——
+  提示词框本身就是 textarea，在那里出图正是这条快捷键存在的理由。
+- ⚠ 命中守卫时 **不 `preventDefault`**：这下按键要原样还给那个控件（助手靠它发消息）。
+- 新增 `use-studio-shortcuts.test.ts`（此前零测试）6 条：该触发的两条 + 不该触发的三条
+  （助手 textarea / 普通 input / contenteditable）+ `enabled:false`。
+- 真机复验：JS 精确聚焦助手输入框 + **真实**按键 → 按钮停在「生成 1 张」，不出图；
+  焦点在 body 时照旧出图（那是对的）。
+  ⚠ 中途误判过一次：点空了没聚焦上，看到出图以为没修好 —— 判据必须先读 `document.activeElement`。
+
+**验证**：全量 tsc 0 错；受影响 13 个测试文件 / 227 测全绿。
+
+---
+
 ## 1. 已拍板边界（累计，不重新讨论）
 
 1. 目标 = A 为主 C 托底（owner 自用工作台优先，架构正确性托底）。
@@ -540,6 +658,21 @@ Gemini 视觉 token **≈ 5,450 / 分钟，随时长线性**（18m41s = 101,923�
 ⚠ **穷尽断言当场抓到执行 agent 自己的 bug**：改常量时手滑删掉 `setReviewState` 那行，所有审核态 op 掉进 default；没这条断言，症状就是「助手说标了，什么都没发生」。实测方式=临时往 union 塞 `probe_op`，看 TS2322 报没报。
 ⚠ **发现一个清单外的白名单 sanitizer**：`lib/node-assistant-request.ts` 逐字段手拼，不改它新字段会在发请求前**被安静丢掉**——编译过、测试过、模型仍看不见。⭐ 这是本轮反复出现的那类 bug 的又一个变体。
 ⚠ 顺手修掉一处 URL 泄漏：`characterImage` 分支的 `prompt || imageUrl` 兜底会把 R2 长 URL 喂给模型。
+
+### 🔬 切片 5 第二批 ✅（2026-08-22，全量双绿：tsc 0 错 · 531 文件 / 5082 测）
+
+`set_model` / `set_params` / `attach_asset` 落地，**编排模式补完整**——助手铺出来的图，用户点一下就能跑（此前必然 `noModel` 失败）。
+
+- **`set_model`＝目录 + 查表两条都要**：载荷只有 modelId，另四个字段由规划器补（让模型手写等于让它编 baseUrl）；同时喂目录，因为只查表不给列表＝每条都被拒＝用户看到「功能坏了」。⚠ `maxCatalogModels=32` **是量出来的**：取 24 会把 Seedance 2.5 整族切掉（目录按推荐序排）。
+- **`set_params` 只做视频节点**（查证：`imageResolution` 零写者 · 图片档位住 `use-generate-composer` 的 React state 且注释自陈是设计 · 五个读侧全带 `isVideoMediaNode` 守卫）。接通图片那条链**不是接线是产品决策**（档位跟合成条 vs 跟节点），且与在飞的工作台线撞车。图片节点给 `notParameterizable` 并让助手说清「那两档在生成条上」。⛔ 排除 `negativePrompt`：有读侧但是自由文字不是档位。
+- **`attach_asset` 载荷零 URL**：模型只给节点引用，媒体由规划期取。目标限收集器卡（人手写 `referenceAssets` 的三个入口都只长在那儿；其余节点走连线，助手已有 `connect`）。⭐ 容量闸把**三处手抄的回落链**收成 `resolveReferenceAssetLimit`，规划器是第四个调用方。
+- 上下文新增 `model`/`params`/`references`，**零 URL 有断言锁**。
+
+~~⚠ **发现一个既有缺陷（未改，与本批无关）**：`handleGenerateMediaNode` 把视频时长**硬钳在 4–15 秒**，而 Seedance 2.5 的能力表/滑条给到 **30 秒**——手动选 30s 也会被静默丢成 provider 默认。助手写 30s 会被规划器放行然后同样被钳掉，**人手与助手完全同病**。修它要动生成派发路径，单独立项。~~
+
+✅ **已修（2026-08-22）**：判据搬进 `src/lib/node-video-duration.ts` 的 `resolveNodeVideoDuration`，按 `getVideoModelParameterOptions(submitModelId, adapterType).durations` 逐档比对——与滑条、与规划器的 `set_params` 校验同一个事实源。⚠ 这条链上**还有第二道墙**：`GenerateVideoRequestSchema` / `WorkerVideoProviderInputSchema` 的 `.max(VIDEO_GENERATION.MAX_DURATION)` 也钉在 15，客户端发对了照样 400；`MAX_DURATION` 已改成全目录最大值 30（逐档校验本来就在 `video-generation-validation.service.ts`）。回归锁在 `src/lib/node-video-duration.test.ts` + `use-node-media-generation.test.ts`「carries a 30s Seedance 2.5 duration…」。
+
+**仍看不见（下一步若要更强需先补）**：边/连线关系（`connect` 只能靠被拒的 duplicate 反推）、审核态。
 
 **下一批（set_model / set_params / attach_asset）的硬前置**：模型仍看不见 `model`、生成参数、`referenceAssets`、审核态、**边/连线关系**（`connect` 已存在却看不见现有边，只能靠被拒的 duplicate 反推）。⛔ **`imageResolution` 是死字段**（schema 有、零写者、真读的是 `use-generate-composer` 的 React state）——做 `set_params` 前必须先接通那条链，否则得到一个三绿而无效果的 op。
 

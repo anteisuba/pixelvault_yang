@@ -1060,9 +1060,13 @@ async function prepareAssistantTurn(params: {
 
   const route = await resolveLlmTextRoute(params.userId, params.apiKeyId)
 
-  const latestUserText =
-    [...params.messages].reverse().find((msg) => msg.role === 'user')
-      ?.content ?? ''
+  // ⚠ 倒数第二条**用户**消息不等于 `messages.at(-3)` —— 中间隔着助手那一轮，
+  //   而失败轮、重试轮都会让间隔数变。所以先滤出用户消息再取，别数下标。
+  const userTexts = params.messages
+    .filter((msg) => msg.role === 'user')
+    .map((msg) => msg.content)
+  const latestUserText = userTexts.at(-1) ?? ''
+  const previousUserText = userTexts.at(-2)
 
   // 视频链接路由（切片 2）。分类是纯函数、零成本，所以**放在检索之前**：
   // 路由不支持视频时，能力闸（`getAssistantMediaInputs` 里那一道，不新造第二道）
@@ -1102,9 +1106,15 @@ async function prepareAssistantTurn(params: {
   // ⚠ **只有对话轮（`mode:'general'`）才搜**。另一条路是提示词转换（enhance /
   //   transform），产出是一段提示词、根本没有推荐卡这种形态 —— 在那里搜候选是
   //   纯粹白花两次外部请求。
+  //
+  // ⚠ 上一句要一起给：助手反问「告诉我关键词」之后，用户答上来的那句往往
+  //   **只有关键词**（「illustrious style」），严格闸听不见 —— 续问态就是接这个的，
+  //   判据见 `planLoraCandidateSearch`。
   const loraIntent =
     params.mode === 'general'
-      ? planLoraCandidateSearch(latestUserText)
+      ? planLoraCandidateSearch(latestUserText, {
+          previousUserText: previousUserText,
+        })
       : { shouldSearch: false as const, query: '', reason: 'not a chat turn' }
   const [research, platformVideoBlock, videoLinkMetadata, loraCandidates] =
     await Promise.all([

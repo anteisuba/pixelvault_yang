@@ -54,6 +54,15 @@ vi.mock('@/services/research/bilibili.connector', () => ({
 // 已挂载链接的平台元数据（切片 2 §4.3 收尾批）。**只 mock 取数那一半**——
 // 块的渲染（围栏、handle、unknown 空态）留真的跑，否则这里断言的就只是我自己
 // 写的假字符串。取数本身在 `services/video-metadata/*.test.ts` 里覆盖。
+// LoRA 候选检索（切片 3）：**只 mock 打源那一半**，意图闸
+// （`lora-candidate-intent`）留真的跑 —— 这里要验的正是「上一句有没有真的传到
+// 闸上」，把闸也 mock 掉这条测试就变成空转（记名教训：可选 prop 漏传时编译过、
+// 定向测试也过，只有抓真实入参才看得见）。
+const mockSearchLoraCandidates = vi.fn()
+vi.mock('@/services/lora/lora-candidates.service', () => ({
+  searchLoraCandidates: (...a: unknown[]) => mockSearchLoraCandidates(...a),
+}))
+
 const mockFetchVideoLinkMetadata = vi.fn()
 vi.mock(
   '@/services/video-metadata/video-metadata.service',
@@ -117,6 +126,13 @@ describe('chatPromptAssistant', () => {
     mockRunResearch.mockResolvedValue(null)
     // 默认：不取元数据（`[]` = 一条已挂载链接都没有 → 不出块也不加规矩）。
     mockFetchVideoLinkMetadata.mockResolvedValue([])
+    // 默认：搜了也是空手（候选注入与卡面渲染在各自的测试里覆盖，这里只关心
+    // 「搜没搜、拿什么词搜」）。
+    mockSearchLoraCandidates.mockResolvedValue({
+      candidates: [],
+      query: '',
+      sources: [],
+    })
   })
 
   it('rejects a conversational turn on the buffered entry — it has exactly one home', async () => {
@@ -1486,6 +1502,54 @@ describe('chatPromptAssistant', () => {
       ).rejects.toThrow()
 
       expect(mockLlmCompletion).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  // 2026-08-22：意图闸补了「续问态」之后，这里守的是**接线**那一半 ——
+  // 纯函数改对了但上一句没传进去，编译过、`lora-candidate-intent.test.ts` 也全绿，
+  // 而真机表现是「一点没变」。判据只能是抓 `searchLoraCandidates` 的真实入参。
+  describe('LoRA 候选检索 · 上一句要传到闸上', () => {
+    it('上一轮问了 LoRA、这一轮只给关键词 → 用关键词打源', async () => {
+      await runGeneralTurn('clerk_1', {
+        messages: [
+          { role: 'user', content: '推荐一个适合画水彩插画风格的 LoRA' },
+          { role: 'assistant', content: '你想要哪种水彩？告诉我关键词。' },
+          { role: 'user', content: '重新搜，关键词用 illustrious style' },
+        ],
+      })
+
+      expect(mockSearchLoraCandidates).toHaveBeenCalledWith(
+        expect.objectContaining({
+          query: expect.stringContaining('illustrious style'),
+        }),
+      )
+    })
+
+    it('⛔ 防空转：同一句话单独出现（没有上一轮）时不打源', async () => {
+      await runGeneralTurn('clerk_1', {
+        messages: [
+          { role: 'user', content: '重新搜，关键词用 illustrious style' },
+        ],
+      })
+
+      expect(mockSearchLoraCandidates).not.toHaveBeenCalled()
+    })
+
+    it('⚠ 取的是上一条**用户**消息，不是 messages 里往回数第三条', async () => {
+      // 中间隔着几条助手消息是会变的（失败轮、重试轮都会改变间隔数）。
+      // 数下标的写法在这条用例上会取到助手那句，于是续问态失效。
+      await runGeneralTurn('clerk_1', {
+        messages: [
+          { role: 'user', content: '推荐一个适合画水彩插画风格的 LoRA' },
+          { role: 'assistant', content: '先说结论：' },
+          { role: 'assistant', content: '你想要哪种水彩？告诉我关键词。' },
+          { role: 'user', content: '水彩插画' },
+        ],
+      })
+
+      expect(mockSearchLoraCandidates).toHaveBeenCalledWith(
+        expect.objectContaining({ query: '水彩插画' }),
+      )
     })
   })
 })

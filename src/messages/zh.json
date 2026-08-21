@@ -5817,6 +5817,10 @@
       "reference_image_limit_exceeded": "参考图数量超过该模型限制",
       "invalid_reference_image_dimensions": "参考图尺寸或比例不符合该模型要求",
       "runner_queue_stuck": "Runner 收下了这次出图，但没有 GPU worker 来跑，已自动取消。重试只会再排一次队——先换用托管模型，或让站点管理员检查 Runner 端点。",
+      "execution_worker_unavailable": "生成请求没能送到执行服务。本地开发请先启动 workers/execution（等它打出 Ready on 8787）；线上请检查执行服务是否可达。",
+      "lora_incompatible_hosted": "这个托管模型的 LoRA 加载器读不了这把 LoRA 的层格式（LoRA 本身没问题）。换成 Runner 支持的模型再试——重试同一个托管模型不会有变化。",
+      "runner_monthly_limit_exceeded": "本月 Runner 的出图额度已经用完。可以先改用托管模型，或等下个月额度重置。",
+      "runner_lora_unavailable": "这把 LoRA 还没预置到 Runner 的存储卷上，Runner 跑不了它。换一把已预置的 LoRA，或改用托管模型。",
       "unknown": "发生了未知错误"
     },
     "validation": {

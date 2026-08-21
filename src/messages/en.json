@@ -5817,6 +5817,10 @@
       "reference_image_limit_exceeded": "This model received too many reference images",
       "invalid_reference_image_dimensions": "The reference image size or aspect ratio is not supported",
       "runner_queue_stuck": "PixelVault Runner accepted the job but no GPU worker picked it up, so it was cancelled. Retrying will just queue again — use a hosted model for now, or ask the site admin to check the Runner endpoint.",
+      "execution_worker_unavailable": "The request never reached the execution service. In local dev, start workers/execution and wait for “Ready on 8787”; in production, check that the execution service is reachable.",
+      "lora_incompatible_hosted": "This hosted model's LoRA loader can't read this LoRA's layer format (the LoRA itself is fine). Switch to a Runner-backed model — retrying the same hosted model will not change anything.",
+      "runner_monthly_limit_exceeded": "This month's Runner generation quota is used up. Switch to a hosted model for now, or wait for next month's reset.",
+      "runner_lora_unavailable": "This LoRA isn't pre-loaded on the Runner's storage volume yet, so the Runner can't use it. Pick a pre-loaded LoRA, or switch to a hosted model.",
       "unknown": "An unexpected error occurred"
     },
     "validation": {

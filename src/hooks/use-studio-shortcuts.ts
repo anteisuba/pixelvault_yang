@@ -21,6 +21,29 @@ const MODE_SHORTCUT_ROUTES: Record<string, string> = {
   '3': ROUTES.STUDIO_AUDIO,
 }
 
+/**
+ * 焦点是不是落在**别的**输入框里（提示词框自己不算）。
+ *
+ * ⚠ 这个判据只给 Cmd/Ctrl+Enter 用。2026-08-22 真机撞到：在助手输入框里按
+ * Cmd/Ctrl+Enter 发消息，**同一下按键顺带真出了一张图** —— 监听挂在 window 上，
+ * 而这条分支此前完全不看焦点在哪。代价不是难看，是**花钱**。
+ *
+ * ⛔ 不能简单写成「在 textarea 里就不触发」：提示词框本身就是 textarea，
+ *    Cmd/Ctrl+Enter 在那里出图正是这条快捷键存在的理由。所以判据是
+ *    「可编辑 **且不是**提示词框」。
+ *
+ * 同文件里 `/` 那条早就守了 input/textarea —— 说明这件事一直知道，只是漏了这一支。
+ */
+function isTypingOutsidePromptField(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.id === STUDIO_PROMPT_TEXTAREA_ID) return false
+  return (
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLInputElement ||
+    target.isContentEditable
+  )
+}
+
 export function useStudioShortcuts({
   enabled = true,
   onGenerate,
@@ -52,6 +75,10 @@ export function useStudioShortcuts({
       }
 
       if (hasModifier && key === 'enter') {
+        // 助手输入框、重命名框、标签输入…… 里的 Cmd/Ctrl+Enter 是那个控件自己的
+        // 发送键，不该同时触发一次出图（见 `isTypingOutsidePromptField`）。
+        // ⚠ 这里 `return` 时**不 preventDefault** —— 要把这下按键原样还给那个控件。
+        if (isTypingOutsidePromptField(event.target)) return
         event.preventDefault()
         onGenerate?.()
         return

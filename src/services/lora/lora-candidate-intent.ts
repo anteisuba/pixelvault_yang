@@ -112,32 +112,85 @@ function toCandidateQuery(text: string): string {
 }
 
 /**
- * 判这一轮要不要搜 LoRA 候选。返回值永远合法，调用方不需要判空。
+ * 「这句话是在找一把 LoRA」的严格判据 —— 名词面与动词面**都要有**。
+ *
+ * 单独抽出来是因为它要被用两次：判**这一句**，也判**上一句**（见下面的续问态）。
+ * ⚠ 它永远只看一句话、永远不递归 —— 续问态的传染性必须止于一轮。
  */
-export function planLoraCandidateSearch(text: string): LoraCandidateIntent {
+function hasLoraDiscoveryIntent(text: string): boolean {
+  const lowered = text.trim().toLowerCase()
+  if (!lowered) return false
+  if (
+    !includesAny(lowered, LORA_NOUN_TERMS) &&
+    !includesAny(lowered, EXPLICIT_LORA_DISCOVERY_TERMS)
+  ) {
+    return false
+  }
+  return includesAny(lowered, SEEK_TERMS)
+}
+
+/**
+ * 判这一轮要不要搜 LoRA 候选。返回值永远合法，调用方不需要判空。
+ *
+ * `previousUserText` = 上一条**用户**消息。给了它才有续问态，见下。
+ */
+export function planLoraCandidateSearch(
+  text: string,
+  options?: { previousUserText?: string },
+): LoraCandidateIntent {
   const raw = text.trim()
   if (!raw) return NOT_SEARCHING('empty message')
 
+  if (hasLoraDiscoveryIntent(raw)) {
+    const query = toCandidateQuery(raw)
+    if (!query) {
+      // 剥完脚手架什么都不剩（「推荐个 lora」）—— 没有主语可搜。搜空词换回来的
+      // 是热门榜，与这轮对话无关；宁可不注入，让助手照协议先反问要什么风格。
+      // ⚠ 这条**不是死路**：下一轮用户答上来的关键词由续问态接住。
+      return NOT_SEARCHING('lora request has no searchable subject yet')
+    }
+    return { shouldSearch: true, query, reason: 'lora discovery intent' }
+  }
+
   const lowered = raw.toLowerCase()
   const hasLoraNoun = includesAny(lowered, LORA_NOUN_TERMS)
-  const hasSeek = includesAny(lowered, SEEK_TERMS)
   const namesLoraSource = includesAny(lowered, EXPLICIT_LORA_DISCOVERY_TERMS)
+
+  // ── 续问态（2026-08-22 真机补）───────────────────────────────────────
+  // 修的是一条**自相矛盾**的路径：助手自己反问「重新搜索 LoRA，请告诉我关键词」，
+  // 用户照做答「illustrious style」，而这句话里既没有 LoRA 名词面也没有寻找动词
+  // —— 严格闸判「no lora discovery signal」，于是助手空手作答。**提示语本身就是
+  // 让他只打关键词的**，闸却听不见他照做。
+  //
+  // ⚠ 接管条件是「这句话**完全没有** LoRA 信号」，不是「不满足严格闸」：
+  //   带名词却没有动词的那类（「这个 LoRA 的触发词是什么」）要**留给**下面那条
+  //   原判据 —— 它要的不是另一把，塞一堆候选是打断。续问态只接**光给关键词**的。
+  //
+  // ⚠ 只看**上一句**，且上一句只过严格闸（`hasLoraDiscoveryIntent` 不递归）——
+  //   所以续问态最多续一轮，不会在长对话里自我传染成「每轮都打源」。
+  //   已知代价（记名接受）：
+  //   ① 上一轮已经给出推荐卡、这一轮用户是**在用**卡（「第一个不错，看看触发词」）
+  //      会白搜一次 —— 一次检索，约 1s，不花钱；
+  //   ② 连续两轮都没搜到东西时，第三轮要用户重新说一次「LoRA」。
+  //   两条都是「漏判/误判都便宜」的成本模型下可接受的，⛔ 别为它们去翻对话历史
+  //   猜意图，那会把这条闸从确定性函数变成第二个会幻觉的地方。
+  if (
+    !hasLoraNoun &&
+    !namesLoraSource &&
+    options?.previousUserText &&
+    hasLoraDiscoveryIntent(options.previousUserText)
+  ) {
+    const query = toCandidateQuery(raw)
+    if (query) {
+      return { shouldSearch: true, query, reason: 'lora discovery follow-up' }
+    }
+    return NOT_SEARCHING('lora follow-up has no searchable subject')
+  }
 
   if (!hasLoraNoun && !namesLoraSource) {
     return NOT_SEARCHING('no lora discovery signal')
   }
-  if (!hasSeek) {
-    // 「我挂了两个 LoRA 你能看到吗」「这个 LoRA 的触发词是什么」—— 提到了
-    // LoRA，但要的不是**另一把**。给他一堆候选是打断，不是帮忙。
-    return NOT_SEARCHING('lora mentioned, but not as a request to find one')
-  }
-
-  const query = toCandidateQuery(raw)
-  if (!query) {
-    // 剥完脚手架什么都不剩（「推荐个 lora」）—— 没有主语可搜。搜空词换回来的
-    // 是热门榜，与这轮对话无关；宁可不注入，让助手照协议先反问要什么风格。
-    return NOT_SEARCHING('lora request has no searchable subject yet')
-  }
-
-  return { shouldSearch: true, query, reason: 'lora discovery intent' }
+  // 「我挂了两个 LoRA 你能看到吗」「这个 LoRA 的触发词是什么」—— 提到了
+  // LoRA，但要的不是**另一把**。给他一堆候选是打断，不是帮忙。
+  return NOT_SEARCHING('lora mentioned, but not as a request to find one')
 }

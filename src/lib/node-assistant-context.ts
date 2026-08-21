@@ -16,8 +16,14 @@
 import {
   NODE_STUDIO_ASSISTANT_LIMITS,
   NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID,
+  resolveReferenceAssetLimit,
 } from '@/constants/node-studio'
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  NODE_AUDIO_MODEL_NODE_TYPES,
+  NODE_IMAGE_MODEL_NODE_TYPES,
+  NODE_TYPE_IDS,
+  NODE_VIDEO_MODEL_NODE_TYPES,
+} from '@/constants/node-types'
 import { isIdentityCardNode } from '@/lib/node-workflow-graph'
 import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import type { NodeAssistantNodeContext } from '@/types/node-assistant'
@@ -51,6 +57,54 @@ export function canCarryImageCategory(node: {
 }
 
 /**
+ * 这个节点身上有「选模型」这回事吗（`set_model` 的判据）。
+ *
+ * 三个模型节点类型表的并集，**再减去身份卡** —— 卡片的 type 也在图片那张表里，
+ * 但它不产图（`generate` 也拒它，见规划器里那条同源的判据），详情面板压根不给它
+ * 渲染模型选择器。往档案夹上挂一个模型是一条三绿而无意义的写入。
+ */
+export function canCarryModel(node: {
+  type: NodeWorkflowNode['type']
+  data: NodeWorkflowNode['data']
+}): boolean {
+  const modelNodeTypes: readonly NodeWorkflowNode['type'][] = [
+    ...NODE_IMAGE_MODEL_NODE_TYPES,
+    ...NODE_VIDEO_MODEL_NODE_TYPES,
+    ...NODE_AUDIO_MODEL_NODE_TYPES,
+  ]
+  return modelNodeTypes.includes(node.type) && !isIdentityCardNode(node)
+}
+
+/**
+ * 这个节点身上有「生成档位」这回事吗（`set_params` 的判据）。
+ *
+ * ⚠ 判据是 `NODE_VIDEO_MODEL_NODE_TYPES`（今天只有视频生成节点），**不是**
+ * 「媒体种类是 video」：参考视频与合并节点的 kind 也是 video，但它们没有档位
+ * 控件、生成路径也不读这些字段。图片节点为什么不在这里，见
+ * `NODE_ASSISTANT_PARAM_IDS` 头注的查证结论（档位住在合成条的 React state 里）。
+ */
+export function canCarryGenerationParams(node: {
+  type: NodeWorkflowNode['type']
+}): boolean {
+  return (NODE_VIDEO_MODEL_NODE_TYPES as readonly string[]).includes(node.type)
+}
+
+/**
+ * 这个节点收不收参考图（`attach_asset` 的判据）。
+ *
+ * 人手把素材**挂进 `referenceAssets`** 的入口只有三处，三处都只长在收集器卡
+ * （角色卡 / 背景卡）上：档案面板的图集（`nestedAdd`）、选中工具条的「添加素材」、
+ * 名册卡落卡。其余节点的参考图走的是**连线**（阶段 3：参考图落散图节点 + 自动
+ * 连线），那条路助手已经有 `connect`——所以这里故意窄，不给同一件事开第二条路。
+ */
+export function canAttachReferenceAsset(node: {
+  type: NodeWorkflowNode['type']
+  data: NodeWorkflowNode['data']
+}): boolean {
+  return isIdentityCardNode(node)
+}
+
+/**
  * 助手 payload 里的 `title` —— **必须是画布上显示的那个名字**。
  *
  * ⚠ 这里曾经是包 4.5 要修的洞：旧实现只认合并前的 `characterImage`（角色早已是
@@ -64,6 +118,30 @@ export function canCarryImageCategory(node: {
  */
 function resolveTitle(node: NodeWorkflowNode, fallbackTitle: string): string {
   return resolveNodeDisplayName(node.data) ?? fallbackTitle
+}
+
+/**
+ * 视频节点的档位现值 → payload。**原样带**，不做单位美化：`duration` 在数据层
+ * 就是字符串（`'6'` / `'auto'`），模型写回时写的也是同一套值。
+ *
+ * 没设的档位直接缺席（与 `promptExcerpt` 同一条：一个空值渲染出来读起来像
+ * 「设成了空」，而它其实是「还没设」）。
+ */
+function buildParamsContext(
+  data: NodeWorkflowNode['data'],
+): NonNullable<NodeAssistantNodeContext['params']> {
+  const aspectRatio = data.aspectRatio?.trim()
+  const resolution = data.resolution?.trim()
+  const duration = data.duration?.trim()
+  return {
+    ...(aspectRatio ? { aspectRatio } : {}),
+    ...(resolution ? { resolution } : {}),
+    ...(duration ? { duration } : {}),
+    ...(typeof data.generateAudio === 'boolean'
+      ? { generateAudio: data.generateAudio }
+      : {}),
+    ...(typeof data.seed === 'number' ? { seed: data.seed } : {}),
+  }
 }
 
 export interface BuildNodeAssistantNodeContextsOptions {
@@ -89,6 +167,25 @@ export function buildNodeAssistantNodeContexts(
       ? (node.data.imageCategory ?? NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID)
       : undefined
     const categoryLabel = node.data.imageCategoryLabel?.trim()
+    // 与分类同构的三态：能选模型就一定有这个字段，没选就说 `unset`。
+    const model = canCarryModel(node)
+      ? (node.data.model?.modelId ?? NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID)
+      : undefined
+    const params = canCarryGenerationParams(node)
+      ? buildParamsContext(node.data)
+      : undefined
+    const references = canAttachReferenceAsset(node)
+      ? {
+          limit: resolveReferenceAssetLimit(node.data.model),
+          items: (node.data.referenceAssets ?? [])
+            .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodeReferences)
+            // ⛔ 只取 role 与源节点 id —— `url` 一个字都不进 payload。
+            .map((asset) => ({
+              role: asset.role,
+              ...(asset.sourceId ? { sourceId: asset.sourceId } : {}),
+            })),
+        }
+      : undefined
 
     return {
       id: node.id,
@@ -113,6 +210,13 @@ export function buildNodeAssistantNodeContexts(
       ...(category && categoryLabel
         ? { imageCategoryLabel: categoryLabel }
         : {}),
+      ...(model ? { model } : {}),
+      // ⚠ 空对象是**有意义的值**（「有档位、一个都没设」），而它在 JS 里恰好是
+      // truthy，所以这么写就能发出去。⛔ 别「优化」成
+      // `Object.keys(params).length > 0` —— 那会把三态压回两态，模型又分不出
+      // 「这节点没有档位」和「还没设」。
+      ...(params ? { params } : {}),
+      ...(references ? { references } : {}),
     } satisfies NodeAssistantNodeContext
   })
 }

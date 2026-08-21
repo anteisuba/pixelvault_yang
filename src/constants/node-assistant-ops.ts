@@ -49,6 +49,24 @@ export const NODE_ASSISTANT_OP_IDS = {
    * 退役后，首尾语义的唯一载体就是这个分类，而在这条 op 之前助手写不了它。
    */
   setImageCategory: 'set_image_category',
+  /**
+   * 换节点上选的模型（切片 5 第二批）。⛔ 模型**只能从可选列表里挑**，不许自己
+   * 写一个 id —— 工作台那边不给列表时它编了个工作区里不存在的「Animagine XL」。
+   * 值域走 `useWorkflowModelOptions` 的同一份选项，收窄在规划器。
+   */
+  setModel: 'set_model',
+  /**
+   * 改生成档位（切片 5 第二批）。**只对视频节点成立** —— 图片那几档
+   * （比例 / 清晰度）根本不住在节点上，见下方 `imageResolution` 那段实证。
+   */
+  setParams: 'set_params',
+  /**
+   * 把画布上**另一个节点的主媒体**挂进目标节点的参考图（切片 5 第二批）。
+   *
+   * ⛔ 载荷里没有 URL，只有节点引用 —— 与 LoRA 那批同源的一条：让模型写 URL
+   * 等于让它编一个不存在的地址；写节点 id 则天然被规划器的 `resolve()` 校验。
+   */
+  attachAsset: 'attach_asset',
   setReviewState: 'set_review_state',
   /** ⚠ 唯一会扣 credit 的 op —— 审批上与其余几个分开走。 */
   generate: 'generate',
@@ -60,6 +78,9 @@ export const NODE_ASSISTANT_OPS = [
   NODE_ASSISTANT_OP_IDS.rename,
   NODE_ASSISTANT_OP_IDS.setPrompt,
   NODE_ASSISTANT_OP_IDS.setImageCategory,
+  NODE_ASSISTANT_OP_IDS.setModel,
+  NODE_ASSISTANT_OP_IDS.setParams,
+  NODE_ASSISTANT_OP_IDS.attachAsset,
   NODE_ASSISTANT_OP_IDS.setReviewState,
   NODE_ASSISTANT_OP_IDS.generate,
 ] as const
@@ -67,12 +88,46 @@ export const NODE_ASSISTANT_OPS = [
 export type NodeAssistantOpId = (typeof NODE_ASSISTANT_OPS)[number]
 
 /**
- * ⚠ 给下一批（`set_model` / `set_params` / `attach_asset`）留的坑位提醒 ——
- * **`NodeWorkflowNodeDataSchema.imageResolution` 是死字段**：schema 里有、全仓
- * 零个写者，图片生成真正读的是 `use-generate-composer.ts` 里的 React state。
- * 谁要做「助手改画幅/分辨率」，写进 `data.imageResolution` 会得到一个三绿而毫无
- * 效果的 op（编译过、测试过、真机上什么都不变）。先把那条链接通再说。
+ * `set_params` 能写的档位 —— **只有视频节点上真的有人读的那几个**。
+ *
+ * ── 为什么图片的比例 / 清晰度不在这里（切片 5 第二批查证结论）──────────
+ * `NodeWorkflowNodeDataSchema.imageResolution` 是**死字段**：schema 里有、全仓零
+ * 个写者；图片的比例与清晰度真正住在 `use-generate-composer.ts` 的 React state
+ * 里（`useState<AspectRatio>` / `useState<ImageResolutionTier>`，注释写明是
+ * 「session-sticky, not reset per host」的**设计**），随 `runGenerateComposer` 的
+ * 入参直传。`handleGenerateMediaNode` 里读 `data.aspectRatio` / `data.resolution`
+ * 的三处全部带着 `isVideoMediaNode` 守卫 —— 写进图片节点的 data 是一条三绿而毫无
+ * 效果的路（编译过、测试过、真机上什么都不变）。
+ * 把那条链接通＝把「档位跟着合成条走」改成「档位跟着节点走」，那是产品决定不是
+ * 顺手项，且要动 composer 与工作台的发送路径。所以本批只做视频节点，图片节点给
+ * `notParameterizable` 明说「这几档不在节点上」。
+ *
+ * ⚠ 每一项都逐个确认过读侧（`StudioNodeWorkbench.handleGenerateMediaNode`）：
+ * duration/resolution/aspectRatio/generateAudio/seed 五个都会进 `nodeMediaGeneration
+ * .generate(...)` 的载荷，且 `VideoComposer` 有对应控件读同一个字段。
+ * ⛔ `negativePrompt` 有读侧但**没放进来**：它是自由文字不是档位，覆盖用户手写内容
+ * 的这类字段与 `set_prompt` 同族，要放也该放在那条线上一起想。
  */
+export const NODE_ASSISTANT_PARAM_IDS = {
+  aspectRatio: 'aspectRatio',
+  resolution: 'resolution',
+  duration: 'duration',
+  generateAudio: 'generateAudio',
+  seed: 'seed',
+} as const
+
+export const NODE_ASSISTANT_PARAMS = [
+  NODE_ASSISTANT_PARAM_IDS.aspectRatio,
+  NODE_ASSISTANT_PARAM_IDS.resolution,
+  NODE_ASSISTANT_PARAM_IDS.duration,
+  NODE_ASSISTANT_PARAM_IDS.generateAudio,
+  NODE_ASSISTANT_PARAM_IDS.seed,
+] as const
+
+export type NodeAssistantParamId = (typeof NODE_ASSISTANT_PARAMS)[number]
+
+/** 时长的「交给模型自己定」档 —— 与 `VideoComposer` 的自动开关写进同一个值。 */
+export const NODE_ASSISTANT_DURATION_AUTO = 'auto' as const
 
 /**
  * B3：**不用点就落画布**的那一档（owner 2026-08-08 拍板「自动落」）。
@@ -99,6 +154,16 @@ export const NODE_ASSISTANT_AUTO_APPLY_OPS = [
   NODE_ASSISTANT_OP_IDS.rename,
   NODE_ASSISTANT_OP_IDS.setPrompt,
   NODE_ASSISTANT_OP_IDS.setImageCategory,
+  // 切片 5 第二批：三条都符合上面那套判据 —— 免费、只写节点自己的字段、整批一个
+  // 撤销步。逐条找过反例：
+  //   · `set_model` 改的是**将来**那次生成的价钱，本身一分不花，而花钱的
+  //     `generate` 仍旧单独确认；选不动的模型（缺 key）在规划器就被拒了。
+  //   · `set_params` 是离散档位，撤销即回。
+  //   · `attach_asset` 是结构，与早就自动落的 `connect` 同类（都只是把画布上已有
+  //     的东西接起来，不产生新像素）。
+  NODE_ASSISTANT_OP_IDS.setModel,
+  NODE_ASSISTANT_OP_IDS.setParams,
+  NODE_ASSISTANT_OP_IDS.attachAsset,
 ] as const
 
 export function isAutoApplyAssistantOp(op: NodeAssistantOpId): boolean {
@@ -224,6 +289,19 @@ export const NODE_ASSISTANT_OP_LIMITS = {
    * 留下这句话；改那边记得改这边。
    */
   maxCategoryLabelLength: 80,
+  /**
+   * `set_model` 载荷里那个 model id 的长度上限 —— 与
+   * `NodeWorkflowModelSelectionSchema.modelId` 的 `.max(200)` 对齐。
+   */
+  maxModelIdLength: 200,
+  /** 档位值（`16:9` / `720p` 这类）的长度上限 —— 纯 DoS 护栏，值域校验在规划器。 */
+  maxParamValueLength: 40,
+  /**
+   * seed 的上限，与 `NodeWorkflowNodeDataSchema.seed` 的 `.max(2147483647)`
+   * 一致。⚠ 这里**不写进 schema**（写了就是一条坏 seed 带崩整批），规划器按它拒
+   * `unknownParamValue`。
+   */
+  maxSeed: 2_147_483_647,
 } as const
 
 /**
@@ -267,6 +345,33 @@ export const NODE_ASSISTANT_OP_REJECT_REASON_IDS = {
    * 的自定义分类。
    */
   missingCategoryLabel: 'missingCategoryLabel',
+  /**
+   * 这个节点根本不选模型（身份卡 / 镜头文本 / 参考视频 / 合并节点）—— 与
+   * `generate` 拒身份卡同一条判据，别让助手往档案夹上挂模型。
+   */
+  notModelTargetable: 'notModelTargetable',
+  /** 写的 id 不在这个节点能选的那张表里 —— 十有八九是它自己编的。 */
+  unknownModel: 'unknownModel',
+  /**
+   * id 是真的，但这条渠道**现在跑不了**（没绑 key、也没有 provider 级覆盖）。
+   * 与 `unknownModel` 分开：前者是「不存在」，后者是「去配一个 key 就能用」——
+   * 两句话对用户的下一步完全不同。
+   */
+  modelNeedsKey: 'modelNeedsKey',
+  /** 这类节点的生成档位不长在节点上（图片那几档住在合成条里，见 `NODE_ASSISTANT_PARAM_IDS`）。 */
+  notParameterizable: 'notParameterizable',
+  /** 一条 `set_params` 一个档位都没带 —— 什么都不会发生，与其静默不如说出来。 */
+  emptyParams: 'emptyParams',
+  /** 当前模型不吃这个档位（契约里写死 false，渲染时那颗控件根本不出现）。 */
+  unsupportedParam: 'unsupportedParam',
+  /** 档位值不在当前模型给的那张表里 —— ⛔ 不做就近匹配。 */
+  unknownParamValue: 'unknownParamValue',
+  /**
+   * 目标节点没有「参考图集」这回事。人手把素材挂进 `referenceAssets` 的入口只有
+   * 收集器卡（角色卡 / 背景卡）三处，其余节点的参考图走的是**连线**（阶段 3：
+   * 参考图落散图节点 + 自动连线）—— 那条路助手已经有 `connect` 了，不另开第二条。
+   */
+  notAttachable: 'notAttachable',
 } as const
 
 export type NodeAssistantOpRejectReason =

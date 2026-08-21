@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
   NODE_ASSISTANT_ADD_INTENTS,
+  NODE_ASSISTANT_DURATION_AUTO,
   NODE_ASSISTANT_OP_IDS,
   NODE_ASSISTANT_OP_LIMITS,
 } from '@/constants/node-assistant-ops'
@@ -127,6 +128,93 @@ export const NodeAssistantSetImageCategoryOpSchema = z.object({
     .optional(),
 })
 
+/**
+ * 换节点上选的模型（切片 5 第二批）。
+ *
+ * `model` 是**模型 id**，不是渠道（optionId）—— 同一个型号可以有工作区内置和
+ * 用户自己绑 key 两条路由，助手要选的是「用哪个模型」，挑哪条路由是应用的事
+ * （规划器按选择器的同一顺序取第一条能跑的）。
+ *
+ * ⚠ 载荷只有一个 id，是因为 `NodeWorkflowModelSelection` 有五个字段
+ * （optionId / modelId / adapterType / providerConfig / apiKeyId）—— 让模型手写
+ * 那一坨等于让它编 baseUrl。查表必须发生在客户端，这条 schema 只负责把 id 带过来。
+ */
+export const NodeAssistantSetModelOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_IDS.setModel),
+  target: NodeAssistantOpTargetSchema,
+  model: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxModelIdLength),
+})
+
+/**
+ * 改生成档位（切片 5 第二批）。
+ *
+ * ⚠ 每个档位都是**宽松类型**，值域校验一律在规划器 —— 与 `set_image_category`
+ * 同一条论据：schema 层拒 = 整块 JSON 解析失败 = 同批其它 op 陪葬。写错一个
+ * 分辨率不该让同一批里的建节点也一起没了。
+ *
+ * ⚠ 五个字段全是可选，但**一个都不带**会被规划器按 `emptyParams` 拒 ——
+ * 一条什么都不改的 op 落下去等于静默失败。
+ * （`z.discriminatedUnion` 的成员必须是纯 ZodObject，`.refine` 会把它变成
+ * ZodEffects 而进不了联合，所以这条只能判在规划器。）
+ */
+export const NodeAssistantSetParamsOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_IDS.setParams),
+  target: NodeAssistantOpTargetSchema,
+  aspectRatio: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
+    .optional(),
+  resolution: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
+    .optional(),
+  /** 秒数，或 `auto`（把时长交回给模型）—— 与 `VideoComposer` 的自动档同一个值。 */
+  duration: z
+    .union([z.number(), z.literal(NODE_ASSISTANT_DURATION_AUTO)])
+    .optional(),
+  generateAudio: z.boolean().optional(),
+  seed: z.number().optional(),
+})
+
+/**
+ * 把画布上另一个节点的主媒体挂进目标节点的参考图集（切片 5 第二批）。
+ *
+ * ⛔ **载荷里没有 URL**：`source` 是节点引用（画布上的 id，或本批 `add_node` 的
+ * 别名），媒体地址由应用自己从那个节点上取（`getNodePrimaryMediaUrl`）。理由与
+ * LoRA 那批同源 —— 让模型写 URL 就是让它编一个不存在的地址，而节点 id 天然被
+ * 规划器的 `resolve()` 校验。
+ *
+ * `role` 与 `set_image_category` 共用那 11 个分类（含 `custom` + `label` 成对），
+ * 同样宽松收下、规划器收窄。`onStage`（出场组）也在这里：它决定这张图会不会跟着
+ * 卡一起被下游收割，是「挂进来之后有没有用」的那一半。
+ */
+export const NodeAssistantAttachAssetOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_IDS.attachAsset),
+  target: NodeAssistantOpTargetSchema,
+  source: NodeAssistantOpTargetSchema,
+  role: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
+    .optional(),
+  label: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxCategoryLabelLength)
+    .optional(),
+  onStage: z.boolean().optional(),
+})
+
 export const NodeAssistantConnectOpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_IDS.connect),
   source: NodeAssistantOpTargetSchema,
@@ -170,6 +258,9 @@ export const NodeAssistantOpSchema = z.discriminatedUnion('op', [
   NodeAssistantRenameOpSchema,
   NodeAssistantSetPromptOpSchema,
   NodeAssistantSetImageCategoryOpSchema,
+  NodeAssistantSetModelOpSchema,
+  NodeAssistantSetParamsOpSchema,
+  NodeAssistantAttachAssetOpSchema,
   NodeAssistantSetReviewStateOpSchema,
   NodeAssistantGenerateOpSchema,
 ])
@@ -193,6 +284,15 @@ export type NodeAssistantSetPromptOp = z.infer<
 >
 export type NodeAssistantSetImageCategoryOp = z.infer<
   typeof NodeAssistantSetImageCategoryOpSchema
+>
+export type NodeAssistantSetModelOp = z.infer<
+  typeof NodeAssistantSetModelOpSchema
+>
+export type NodeAssistantSetParamsOp = z.infer<
+  typeof NodeAssistantSetParamsOpSchema
+>
+export type NodeAssistantAttachAssetOp = z.infer<
+  typeof NodeAssistantAttachAssetOpSchema
 >
 export type NodeAssistantSetReviewStateOp = z.infer<
   typeof NodeAssistantSetReviewStateOpSchema

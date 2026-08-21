@@ -30,6 +30,25 @@ function sanitizeMessages(
     .slice(-NODE_STUDIO_ASSISTANT_LIMITS.maxMessages)
 }
 
+function sanitizeNodeParams(
+  params: NonNullable<NodeAssistantNodeContext['params']>,
+): NonNullable<NodeAssistantNodeContext['params']> {
+  const aspectRatio = params.aspectRatio?.trim()
+  const resolution = params.resolution?.trim()
+  const duration = params.duration?.trim()
+  const clamp = (value: string) =>
+    value.slice(0, NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
+  return {
+    ...(aspectRatio ? { aspectRatio: clamp(aspectRatio) } : {}),
+    ...(resolution ? { resolution: clamp(resolution) } : {}),
+    ...(duration ? { duration: clamp(duration) } : {}),
+    ...(typeof params.generateAudio === 'boolean'
+      ? { generateAudio: params.generateAudio }
+      : {}),
+    ...(typeof params.seed === 'number' ? { seed: params.seed } : {}),
+  }
+}
+
 /**
  * ⚠ 这里是**白名单**：出去的对象逐个字段自己拼。所以给
  * `NodeAssistantNodeContextSchema` 加字段而漏改这里，新字段会在发请求前被安静
@@ -45,6 +64,7 @@ function sanitizeNodes(
       const title = node.title.trim() || node.type
       const promptExcerpt = node.promptExcerpt?.trim()
       const imageCategoryLabel = node.imageCategoryLabel?.trim()
+      const model = node.model?.trim()
       return {
         id: node.id.trim(),
         type: node.type,
@@ -65,6 +85,27 @@ function sanitizeNodes(
                 0,
                 NODE_ASSISTANT_OP_LIMITS.maxCategoryLabelLength,
               ),
+            }
+          : {}),
+        ...(model
+          ? { model: model.slice(0, NODE_ASSISTANT_OP_LIMITS.maxModelIdLength) }
+          : {}),
+        // ⚠ `params` 的空对象要**原样留着**：它表示「这节点有档位、一个都没设」，
+        // 与「这节点没有档位」（字段缺席）是两回事。
+        ...(node.params ? { params: sanitizeNodeParams(node.params) } : {}),
+        ...(node.references
+          ? {
+              references: {
+                limit: Math.max(0, Math.trunc(node.references.limit)),
+                items: node.references.items
+                  .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodeReferences)
+                  .map((item) => ({
+                    role: item.role,
+                    ...(item.sourceId?.trim()
+                      ? { sourceId: item.sourceId.trim() }
+                      : {}),
+                  })),
+              },
             }
           : {}),
       }

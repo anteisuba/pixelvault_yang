@@ -55,6 +55,7 @@ import {
   NODE_STUDIO_VIDEO_REFERENCE_LEGEND,
   NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
   isNodeStudioReferenceRole,
+  resolveReferenceAssetLimit,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
 import {
@@ -118,7 +119,10 @@ import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import { markMediaAwaitingReview, rejectMedia } from '@/lib/node-media-review'
 import {
+  buildAssistantAttachAssetPatch,
   buildAssistantSetImageCategoryPatch,
+  buildAssistantSetModelPatch,
+  buildAssistantSetParamsPatch,
   buildAssistantSetPromptPatch,
 } from '@/lib/node-assistant-op-patch'
 import {
@@ -3663,6 +3667,87 @@ function StudioNodeCanvas() {
             continue
           }
 
+          // 切片 5 第二批：换模型。⚠ 用的是**规划期查表命中的那条选项**
+          // （`entry.modelOption`）——执行层不再查第二遍，否则「同一个型号挑哪条
+          // 渠道」就有了两套规则，而它们迟早不一致。
+          if (op.op === NODE_ASSISTANT_OP_IDS.setModel) {
+            const targetId = resolveNodeId(entry.target)
+            if (!targetId || !entry.modelOption) {
+              skipped += 1
+              continue
+            }
+            applyNodeDataPatch(
+              targetId,
+              buildAssistantSetModelPatch(entry.modelOption),
+            )
+            applied += 1
+            continue
+          }
+
+          // 切片 5 第二批：改生成档位（只有视频节点有档位，规划器已经判过）。
+          if (op.op === NODE_ASSISTANT_OP_IDS.setParams) {
+            const targetId = resolveNodeId(entry.target)
+            if (!targetId) {
+              skipped += 1
+              continue
+            }
+            applyNodeDataPatch(targetId, buildAssistantSetParamsPatch(op))
+            applied += 1
+            continue
+          }
+
+          // 切片 5 第二批：把源节点的主媒体挂进目标卡的图集。
+          if (op.op === NODE_ASSISTANT_OP_IDS.attachAsset) {
+            const targetId = resolveNodeId(entry.target)
+            const sourceId = resolveNodeId(entry.source)
+            // `mediaUrl` 是规划期从源节点取好的那条 —— 这里不再回图上取一遍。
+            if (!targetId || !sourceId || !entry.mediaUrl) {
+              skipped += 1
+              continue
+            }
+            // ⚠ 图集要**接着本批已经挂上的那些往后加**：`workflow.nodes` 是提案
+            // 发出前的快照，本批刚建的卡在里面根本不存在，同一批第二次挂载读它
+            // 会把第一条覆盖掉。所以先合本地账再取数组。
+            const snapshot = workflow.nodes.find(
+              (candidate) => candidate.id === targetId,
+            )
+            const existing =
+              (
+                {
+                  ...snapshot?.data,
+                  ...dataOverrideById.get(targetId),
+                } as Partial<NodeWorkflowNodeData>
+              ).referenceAssets ?? []
+            const sourceNode = workflow.nodes.find(
+              (candidate) => candidate.id === sourceId,
+            )
+            // ⚠ 同 `set_image_category`：这里的 `isNodeStudioReferenceRole` 不是
+            // 复查，是让 TS 拿到窄类型（收窄发生在规划器）。
+            const role =
+              op.role && isNodeStudioReferenceRole(op.role)
+                ? op.role
+                : undefined
+            applyNodeDataPatch(
+              targetId,
+              buildAssistantAttachAssetPatch(existing, {
+                // 条目形状走**唯一那个构造器**（默认 role/weight 都在它身上），
+                // 与上传 / 素材库 / 从画布选择 / 名册落卡完全同形。
+                ...createReferenceAsset(
+                  entry.mediaUrl,
+                  NODE_STUDIO_REFERENCE_SOURCE_IDS.canvas,
+                  sourceId,
+                  sourceNode
+                    ? resolveNodeDisplayName(sourceNode.data)
+                    : undefined,
+                  role ? { role, customLabel: op.label } : undefined,
+                ),
+                ...(op.onStage ? { onStage: true } : {}),
+              }),
+            )
+            applied += 1
+            continue
+          }
+
           if (op.op === NODE_ASSISTANT_OP_IDS.setReviewState) {
             const targetId = resolveNodeId(entry.target)
             const node = targetId
@@ -4106,13 +4191,8 @@ function StudioNodeCanvas() {
         bounceNodeBack(node)
         return true
       }
-      const maxItems = card.data.model
-        ? getMaxReferenceImages(
-            card.data.model.adapterType,
-            card.data.model.modelId,
-          )
-        : NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems
-      if (maxItems !== undefined && existing.length >= maxItems) {
+      const maxItems = resolveReferenceAssetLimit(card.data.model)
+      if (existing.length >= maxItems) {
         toast.error(t('ingest.canvasNodeIngestRejected'), {
           description: t('ingest.reasons.capacityFullWithLimit', {
             current: existing.length,
@@ -4667,6 +4747,7 @@ function StudioNodeCanvas() {
             projectName={workflow.currentProjectName}
             nodes={workflow.nodes}
             edges={workflow.edges}
+            modelOptionsByType={modelOptionsByType}
             scriptDoc={workflow.scriptDoc}
             locale={appLocale}
             onOpenChange={setAssistantDockOpen}

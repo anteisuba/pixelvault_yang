@@ -119,6 +119,86 @@ describe('sanitizeNodeAssistantRequest', () => {
     )
   })
 
+  /**
+   * ⚠ 这个白名单是本轮反复出现的那类 bug 的落点：给节点上下文加了字段却漏改这里，
+   * 新字段会在**发请求前**被安静地丢掉 —— 编译过、测试过、真机上模型照样看不见。
+   * 所以每加一个现值字段，就在这里钉一条。
+   */
+  it('切片 5 第二批的三个现值字段能活着出去（漏改白名单就红在这里）', () => {
+    const result = sanitizeNodeAssistantRequest(
+      baseRequest({
+        nodes: [
+          {
+            id: 'card-1',
+            type: NODE_TYPE_IDS.image,
+            status: NODE_STATUS_IDS.idle,
+            title: '小林',
+            model: 'seedance-2.0',
+            params: { resolution: '720p', generateAudio: false, seed: 42 },
+            references: {
+              limit: 3,
+              items: [{ role: 'identity', sourceId: 'img-7' }],
+            },
+          },
+        ],
+      }),
+    )
+
+    expect(result.nodes[0]).toMatchObject({
+      model: 'seedance-2.0',
+      params: { resolution: '720p', generateAudio: false, seed: 42 },
+      references: {
+        limit: 3,
+        items: [{ role: 'identity', sourceId: 'img-7' }],
+      },
+    })
+  })
+
+  // 空的 `params` 是**有意义的值**（「有档位、一个都没设」），与字段整个缺席
+  // 是两回事。清理时把它优化掉，模型就又分不出这两种情况了。
+  it('params 的空对象要原样留着，不被当成「没有」清掉', () => {
+    const result = sanitizeNodeAssistantRequest(
+      baseRequest({
+        nodes: [
+          {
+            id: 'vid-1',
+            type: NODE_TYPE_IDS.seedance,
+            status: NODE_STATUS_IDS.idle,
+            title: '镜头 1',
+            params: {},
+          },
+        ],
+      }),
+    )
+
+    expect(result.nodes[0]?.params).toEqual({})
+  })
+
+  it('参考图条目按上限截断，且不会凭空长出 URL 字段', () => {
+    const items = Array.from(
+      { length: NODE_STUDIO_ASSISTANT_LIMITS.maxNodeReferences + 3 },
+      () => ({ role: 'identity' as const }),
+    )
+    const result = sanitizeNodeAssistantRequest(
+      baseRequest({
+        nodes: [
+          {
+            id: 'card-1',
+            type: NODE_TYPE_IDS.image,
+            status: NODE_STATUS_IDS.idle,
+            title: '小林',
+            references: { limit: 3, items },
+          },
+        ],
+      }),
+    )
+
+    expect(result.nodes[0]?.references?.items).toHaveLength(
+      NODE_STUDIO_ASSISTANT_LIMITS.maxNodeReferences,
+    )
+    expect(JSON.stringify(result.nodes[0])).not.toContain('http')
+  })
+
   it('does not truncate long assistant history on later turns', () => {
     const longAssistant = '镜'.repeat(20_000)
     const result = sanitizeNodeAssistantRequest(

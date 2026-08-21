@@ -5253,10 +5253,20 @@
         "rename": "Rename “{target}” to “{name}”",
         "setPrompt": "Rewrite the prompt of “{target}”",
         "setImageCategory": "Tag “{target}” as {category}",
+        "setModel": "Switch “{target}” to {model}",
+        "setParams": "Set “{target}” to {params}",
+        "attachAsset": "Attach “{source}” to “{target}” as {category}",
         "reject": "Send back “{target}”",
         "approve": "Mark “{target}” as approved",
         "awaitReview": "Mark “{target}” as awaiting review",
         "generate": "Generate “{target}”"
+      },
+      "params": {
+        "duration": "{value}s",
+        "durationAuto": "auto length",
+        "audioOn": "with audio",
+        "audioOff": "no audio",
+        "seed": "seed {value}"
       },
       "reasons": {
         "unknownNode": "That node can't be found",
@@ -5267,7 +5277,15 @@
         "noModel": "No model selected yet",
         "notCategorizable": "This kind of node has no image category",
         "unknownCategory": "That isn't one of the image categories",
-        "missingCategoryLabel": "A custom category needs a name"
+        "missingCategoryLabel": "A custom category needs a name",
+        "notModelTargetable": "This kind of node doesn't pick a model",
+        "unknownModel": "That model isn't in this node's list",
+        "modelNeedsKey": "That model needs its API key set up first",
+        "notParameterizable": "This node's settings don't live on the node — image size and quality are on the compose bar",
+        "emptyParams": "No setting was given, so nothing would change",
+        "unsupportedParam": "The selected model doesn't take that setting",
+        "unknownParamValue": "That value isn't one the selected model accepts",
+        "notAttachable": "Only character and background cards collect reference images — connect the node instead"
       }
     }
   },

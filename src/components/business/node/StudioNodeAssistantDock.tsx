@@ -49,7 +49,11 @@ import type {
   NodeAssistantNodeContext,
 } from '@/types/node-assistant'
 import type { NodeAssistantOpBatch } from '@/types/node-assistant-ops'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import type {
+  NodeWorkflowEdge,
+  NodeWorkflowModelOptionsByType,
+  NodeWorkflowNode,
+} from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
 import { AssistantConversation } from './AssistantConversation'
@@ -76,6 +80,14 @@ interface StudioNodeAssistantDockProps {
   nodes: NodeWorkflowNode[]
   /** 包 5：提案的合法性要在真实的图上判（重复边 / 参考位都要读边）。 */
   edges: NodeWorkflowEdge[]
+  /**
+   * 切片 5 第二批：`set_model` 的取值范围。
+   *
+   * ⚠ 从 workbench 传进来而不是在这里再调一次 `useWorkflowModelOptions()` ——
+   * 那个 hook 订阅 api-keys context 并按 key 重算三张表，第二个实例只是把同一份
+   * 计算再做一遍，且两份引用不同会让下面的 `useCallback` 每帧重建。
+   */
+  modelOptionsByType: NodeWorkflowModelOptionsByType
   scriptDoc: ScriptDoc | undefined
   locale: AppLocale
   onOpenChange(open: boolean): void
@@ -158,6 +170,7 @@ export function StudioNodeAssistantDock({
   projectName,
   nodes,
   edges,
+  modelOptionsByType,
   scriptDoc,
   locale,
   onOpenChange,
@@ -334,8 +347,9 @@ export function StudioNodeAssistantDock({
   // 对话消息的地方，所以规划落在这里；执行则必须回到 workbench（addNode /
   // onConnect 只在那儿），中间隔着 context 上那一个高层动作。
   const planAssistantOps = useCallback(
-    (batch: NodeAssistantOpBatch) => planNodeAssistantOps(batch, nodes, edges),
-    [edges, nodes],
+    (batch: NodeAssistantOpBatch) =>
+      planNodeAssistantOps(batch, nodes, edges, modelOptionsByType),
+    [edges, modelOptionsByType, nodes],
   )
 
   const handleApplyAssistantOps = useCallback(

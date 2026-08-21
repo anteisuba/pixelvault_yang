@@ -7,9 +7,15 @@ import {
   NODE_ASSISTANT_ADD_INTENTS,
   NODE_ASSISTANT_AUTO_APPLY_OPS,
   NODE_ASSISTANT_CATEGORY_HINTS,
+  NODE_ASSISTANT_DURATION_AUTO,
   NODE_ASSISTANT_OP_LIMITS,
   NODE_ASSISTANT_OP_MARKERS,
 } from '@/constants/node-assistant-ops'
+import {
+  getAvailableAudioModels,
+  getAvailableImageModels,
+  getAvailableVideoModels,
+} from '@/constants/models'
 import {
   assistantAdapterAcceptsReferenceKind,
   ASSISTANT_MEDIA_UNSUPPORTED_ERRORS,
@@ -84,6 +90,42 @@ function shouldUseGateway(): boolean {
   return Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL)
 }
 
+/**
+ * 档位现值 → 一段话。**空对象要说出「一个都没设」** —— 它与「这节点没有档位」
+ * （字段整个缺席）是两件事，压成同一种渲染模型就分不出来了。
+ */
+function formatNodeParams(
+  params: NonNullable<NodeAssistantNodeContext['params']>,
+): string {
+  const parts: string[] = []
+  if (params.aspectRatio) parts.push(params.aspectRatio)
+  if (params.resolution) parts.push(params.resolution)
+  if (params.duration) parts.push(`${params.duration}s`)
+  if (typeof params.generateAudio === 'boolean') {
+    parts.push(`audio ${params.generateAudio ? 'on' : 'off'}`)
+  }
+  if (typeof params.seed === 'number') parts.push(`seed ${params.seed}`)
+  return parts.length > 0 ? parts.join(', ') : 'none set'
+}
+
+/**
+ * 参考图现值 → 一段话。⛔ **一个 URL 都不出现**：模型拿一条 R2 长地址没有任何
+ * 用处，而它恰恰是最贵的那种 token。带 `sourceId` 是为了让模型看得出「这张卡已经
+ * 收了哪个节点的图」，从而不再提一条注定被判重的挂载。
+ */
+function formatNodeReferences(
+  references: NonNullable<NodeAssistantNodeContext['references']>,
+): string {
+  const head = `${references.items.length}/${references.limit}`
+  if (references.items.length === 0) return head
+  const detail = references.items
+    .map((item) =>
+      item.sourceId ? `${item.role} from ${item.sourceId}` : item.role,
+    )
+    .join(', ')
+  return `${head} (${detail})`
+}
+
 function buildNodeSummary(
   nodes: NodeAssistantNodeContext[],
   maxLength?: number,
@@ -106,7 +148,16 @@ function buildNodeSummary(
       const prompt = node.promptExcerpt
         ? ` · prompt: ${node.promptExcerpt}`
         : ''
-      return `- [[node:${node.id}]] ${node.title} (${node.type}, ${node.status})${category}${prompt}`
+      // 切片 5 第二批的三个现值。都遵循同一条：**字段在 = 这个节点有这回事**，
+      // 所以缺席时整段不渲染，模型据此知道那条 op 对它无效。
+      const model = node.model ? ` · model: ${node.model}` : ''
+      const params = node.params
+        ? ` · params: ${formatNodeParams(node.params)}`
+        : ''
+      const references = node.references
+        ? ` · refs: ${formatNodeReferences(node.references)}`
+        : ''
+      return `- [[node:${node.id}]] ${node.title} (${node.type}, ${node.status})${category}${model}${params}${references}${prompt}`
     })
     .join('\n')
 
@@ -227,6 +278,43 @@ function getNodeAssistantMediaInputs(
 }
 
 /**
+ * 「能换成哪些模型」那张目录（切片 5 第二批，`set_model` 的取值范围）。
+ *
+ * ── 为什么必须给 ──────────────────────────────────────────────────────
+ * 有实证：工作台那边不给列表，模型编了个工作区里根本不存在的「Animagine XL」。
+ * 用户看到的是「这功能坏了」，而不是「模型答错了」。
+ *
+ * ── 为什么在服务端生成、而不是随请求发上来 ────────────────────────────
+ * 这是一张**静态的工作区目录**（模型常量），逐节点重复 32 遍或每轮从客户端发一遍
+ * 都是白花的 token。与 `NODE_ASSISTANT_ADD_INTENTS` 同一条：词表从常量生成，
+ * 不手抄。客户端的选项表（`useWorkflowModelOptions`）与这里同源（都是
+ * `getAvailable*Models()`），差别只有**用户的 key 覆盖** —— 那一层由规划器补上
+ * （`modelNeedsKey`），所以这里诚实地标出哪些是平台免费额度、不假装知道用户配了
+ * 什么 key。
+ */
+function buildModelCatalogInstructions(): string {
+  const groups = [
+    { kind: 'image', models: getAvailableImageModels() },
+    { kind: 'video', models: getAvailableVideoModels() },
+    { kind: 'audio', models: getAvailableAudioModels() },
+  ]
+  const lines = groups.flatMap(({ kind, models }) => {
+    const shown = models.slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxCatalogModels)
+    if (shown.length === 0) return []
+    const ids = shown
+      .map((model) => (model.freeTier ? `${model.id} (free)` : model.id))
+      .join(', ')
+    const omitted = models.length - shown.length
+    return [
+      `  ${kind}: ${ids}${omitted > 0 ? `, …and ${omitted} more not listed` : ''}`,
+    ]
+  })
+
+  return `- MODELS THE CREATOR CAN PICK (the exact ids set_model accepts, grouped by what the node produces). Ones marked (free) run on the platform's own quota; the others need the creator to have set up that provider — if they have not, the app refuses the op and tells them, so prefer a (free) one unless they asked for a specific model:
+${lines.join('\n')}`
+}
+
+/**
  * 画布写能力的协议说明（包 5）。
  *
  * 词表从常量生成，不在提示词里手抄一份 —— ＋添加 菜单加了一族而这里没跟上，
@@ -246,6 +334,9 @@ function buildCanvasOpsInstructions(): string {
   {"op":"rename","target":"<node id or ref>","name":"<new name>"}
   {"op":"set_prompt","target":"<node id or ref>","prompt":"<the node's new generation prompt>"} — REPLACES that node's prompt. Use it to edit a node that already exists instead of creating a duplicate one.
   {"op":"set_image_category","target":"<node id or ref>","category":"<category>","label":"<name>"} — tags what an image is FOR. "label" is required only for "custom".
+  {"op":"set_model","target":"<node id or ref>","model":"<model id>"} — switches which model that node generates with. The id MUST be copied from MODELS THE CREATOR CAN PICK below; never invent one and never use a marketing name.
+  {"op":"set_params","target":"<node id>","aspectRatio":"16:9","resolution":"720p","duration":6,"generateAudio":true,"seed":123} — every field is optional, send only the ones you are changing, but send at least one. VIDEO generation nodes only, and every value must be one the node's current model accepts. "duration" is seconds (or "${NODE_ASSISTANT_DURATION_AUTO}" to let the model decide).
+  {"op":"attach_asset","target":"<character/background card>","source":"<node id or ref>","role":"<category>","onStage":true} — attaches the SOURCE node's image to that card's gallery. "role" and "onStage" are optional ("onStage" also sends this image downstream alongside the card's main one). There is no URL field: name the node that holds the image.
   {"op":"set_review_state","target":"<node id>","state":"awaiting_review" | "rejected","reason":"<why>"}
   {"op":"generate","target":"<node id>"} — spends the user's credits; propose it only when they explicitly asked to generate.
 - "intent" must be one of these exact values — pick by what the thing IS, not by which word the user happened to use:
@@ -258,15 +349,20 @@ ${NODE_ASSISTANT_ADD_INTENTS.map(
   · Keep the whole set coherent: characters in the same story share a described look across every node you create in one block.
   · Plain text only. Never put a [[node:…]] marker inside a prompt — that field goes to the image model, not to the chat UI. Name the thing in words instead ("same face and hairstyle as the existing Kimi character sheet").
   · At most ${NODE_ASSISTANT_OP_LIMITS.maxPromptLength} characters.
-- "category" must be one of these exact values — no synonyms, no casing variants, no inventing new ones:
+- "category" (set_image_category) and "role" (attach_asset) share one list — use one of these exact values, no synonyms, no casing variants, no inventing new ones:
 ${NODE_STUDIO_REFERENCE_ROLES.map(
   (role) => `  ${role}${NODE_ASSISTANT_CATEGORY_HINTS[role]}`,
 ).join('\n')}
+${buildModelCatalogInstructions()}
 - READ THE CURRENT VALUES before you write. Each line in CURRENT CANVAS NODES carries what that node holds right now:
   · "prompt: …" is the node's current generation prompt — the exact field set_prompt overwrites. When the creator asks for a change to an existing node, edit that prompt (keep everything they did not ask to change) instead of adding another node.
   · "category: …" is the node's current image category. "${NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID}" means it can be categorized but is not yet — never write "${NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID}" back as a category.
-  · A node with NO "category:" on its line cannot carry one at all (video, voice, shot text, and identity cards) — do not propose set_image_category for it.
-  · Anything not shown on the line (model, parameters, attached references) you simply cannot see — say so rather than guessing, and never state a value you were not given.
+  · "model: …" is the model that node generates with; "${NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID}" means it can pick one but has not yet.
+  · "params: …" are that node's generation dials (aspect ratio, resolution, duration, audio, seed); "none set" means the provider's own defaults apply.
+  · "refs: 2/3 (identity from img-7, …)" is that card's reference gallery — how many images it holds, its limit, and which canvas node each came from. Do not attach the same source twice, and do not propose one when the card is full.
+  · A line that does NOT carry one of those parts means the node has no such thing at all — no "category:" (video, voice, shot text, identity cards), no "model:" (identity cards, shot text, reference video, merge nodes), no "params:" (everything except video generation nodes), no "refs:" (everything except character/background cards). Do not propose the matching op for it.
+  · Image nodes have no "params:" on purpose: their aspect ratio and resolution live on the compose bar, not on the node. If the creator asks to change those, tell them where the control is instead of proposing set_params.
+  · Anything not shown on the line you simply cannot see — say so rather than guessing, and never state a value you were not given.
 - Node ids are exactly the ids listed in CURRENT CANVAS NODES. Never invent one, and never use a node's display name as its id.
 - You may NOT approve media: "approved" is refused by the app every single time. Approving is the person's job — you may only send something back or mark it as awaiting review.
 - Propose only what the user actually asked for. When nothing needs to change, omit the block entirely.`

@@ -1,5 +1,6 @@
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import type { NodeImageRole } from '@/constants/node-types'
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 
@@ -214,6 +215,23 @@ export const NODE_STUDIO_ASSISTANT_LIMITS = {
   maxNodeLabelLength: 160,
   maxNodeSummaryLength: 900,
   maxSelectedNodes: 12,
+  /**
+   * 一个节点的参考图现值最多列几条（切片 5 第二批）。数据层的实际上限是
+   * `resolveReferenceAssetLimit`（收集器卡 3），这里比它宽一点只是为了让存量
+   * 超额的卡也说得出实情，而不是被截断成看起来没满。
+   */
+  maxNodeReferences: 6,
+  /**
+   * 「能换成哪些模型」这段目录**每个模态**最多列几个 id（`set_model` 的取值范围）。
+   * 与 studio 的 `maxCatalogModels` 同性质：不给列表模型就会自己编一个 id，
+   * 给全量则是每一轮都付一次目录的 token。
+   *
+   * ⚠ 32 是量出来的不是拍的：今天三组共 45 个可用模型、整段约 1000 字符
+   * （~300 token），视频那组 26 个最多。取 24 会把 **Seedance 2.5 整族切掉**
+   * （目录按推荐序排，2.5 在末尾），表现就是「助手只会用老模型」。真超了按
+   * `…and N more not listed` 如实说，不假装列全了。
+   */
+  maxCatalogModels: 32,
   maxReferences: ASSISTANT_MEDIA_LIMITS.maxReferences,
   contextCompactionTargetLength: 32_000,
 } as const
@@ -404,6 +422,11 @@ export function isNodeStudioReferenceRole(
  * （`NodeAssistantNodeContextSchema.imageCategory`）。同一个问题的同一个答案 ——
  * 「字段在、值为空」需要一个说得出口的值，而 undefined 在那里表示的是另一件事
  * （这个节点根本没有分类字段）。同样不进数据。
+ *
+ * ⚠ 第三个消费者（切片 5 第二批）：**节点的模型现值**
+ * （`NodeAssistantNodeContextSchema.model`）。名字里的 IMAGE_CATEGORY 是它的
+ * 历史出处，值本身早已是助手 payload 通用的「字段在、值为空」哨兵 —— 再造一个
+ * 拼法相同的 `..._MODEL_UNSET_ID` 只会让同一个词有两个家。
  */
 export const NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID = 'unset' as const
 
@@ -628,6 +651,27 @@ export const NODE_STUDIO_CHARACTER_IMAGE_REFERENCES = {
   weightStep: 0.05,
   uploadNote: 'Node Studio character reference',
 } as const
+
+/**
+ * 一个节点的 `referenceAssets` 还能放几条 —— **这个数的唯一出处**。
+ *
+ * ⚠ 它此前被手抄了三份（`CharacterDetailBody` / `CanvasImageSelectionToolbar` /
+ * `StudioNodeWorkbench` 的名册落卡），三处写的都是同一条链：
+ * 「选了模型就问模型的上限，没选就回落到收集器卡的默认 3」。抄第四份的场合恰好
+ * 出现了（助手的 `attach_asset` 也要问同一个数），所以就地收成一处 ——
+ * 「多入口的闸只写一处」，这条在本仓翻过车。
+ *
+ * 收集器卡实际上从来没有自己的生成模型（它不产图，`generate` 也拒它），所以对卡
+ * 而言这个函数恒等于默认 3；分支留着是因为**镜头图 / 散图**确实带模型，而它们同
+ * 样有 `referenceAssets`。
+ */
+export function resolveReferenceAssetLimit(
+  model: { adapterType: AI_ADAPTER_TYPES; modelId: string } | undefined,
+): number {
+  return model
+    ? getMaxReferenceImages(model.adapterType, model.modelId)
+    : NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems
+}
 
 export const NODE_STUDIO_CHARACTER_IMAGE_OUTPUT = {
   maxSourceLabelLength: 160,

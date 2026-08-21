@@ -11,8 +11,7 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
-import { NODE_STUDIO_CHARACTER_IMAGE_REFERENCES } from '@/constants/node-studio'
+import { resolveReferenceAssetLimit } from '@/constants/node-studio'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useDownstreamUses } from '@/hooks/node/use-downstream-uses'
 import {
@@ -122,9 +121,7 @@ export function CharacterDetailBody({
     () => data.referenceAssets ?? [],
     [data.referenceAssets],
   )
-  const maxReferenceImages = data.model
-    ? getMaxReferenceImages(data.model.adapterType, data.model.modelId)
-    : NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems
+  const maxReferenceImages = resolveReferenceAssetLimit(data.model)
   const visualSeed = data.character?.visualSeed?.trim()
 
   // 上游音色。⚠ 这条绑定走的是**边**不是字段，所以能用图判定；反过来

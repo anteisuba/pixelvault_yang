@@ -36,10 +36,13 @@ export const NodeAssistantMessageSchema = z.object({
  * 「Animagine XL」——用户看到的是「功能坏了」，而不是「模型答错了」。
  *
  * ── 加什么、不加什么 ────────────────────────────────────────────────
- * 只加**这一批的 op 真的要用**的现值（`set_prompt` / `set_image_category`），
- * 先窄后宽。⛔ 不塞 `referenceAssets` 的 URL：那是纯 token 消耗，模型也用不上
- * （要看图走 references 那条正路）。model / 参数留给下一批，那时再连同能写它们的
- * op 一起加。
+ * 只加**这一批的 op 真的要用**的现值，先窄后宽：第一批是 `set_prompt` /
+ * `set_image_category`，第二批补上 `set_model` / `set_params` / `attach_asset`
+ * 各自的现值（`model` / `params` / `references`）。
+ * ⛔ 始终不塞 `referenceAssets` 的 URL：那是纯 token 消耗，模型也用不上（要看图
+ * 走 references 那条正路），第二批只喂计数、role 与源节点 id。
+ * ⛔ 也不塞「能换成哪些模型」那张目录：它是**画布级**的一份表，逐节点重复 32 遍
+ * 是纯浪费。那段由 service 从模型常量生成一次（`buildModelCatalogInstructions`）。
  *
  * ── token 预算（`maxNodes` = 32 已在截断，这里算的是每节点增量）────────
  * · `promptExcerpt`：**不是新增开销**，它就是原来的 `summary`（旧实现里
@@ -50,6 +53,13 @@ export const NodeAssistantMessageSchema = z.object({
  *   ≈ 23 字符 / ~8 token，**只出现在能标分类的节点上**（图片节点，非身份卡）。
  *   32 个节点全是图片的极端情况 ≈ 736 字符 / ~250 token。
  * · `imageCategoryLabel`：只在 `custom` 时出现，≤ 80 字符。
+ * · `model`（第二批）：一个模型 id + 渲染成 ` · model: seedance-2.0` ≈ 30 字符 /
+ *   ~10 token，**只出现在选得了模型的节点上**。32 个节点全都选得了模型的极端情况
+ *   ≈ 960 字符 / ~320 token。
+ * · `params`（第二批）：只出现在视频生成节点上，全设满 ≈ 60 字符 / ~20 token。
+ *   一张画布上视频节点通常个位数，实测量级远小于上面那条。
+ * · `references`（第二批）：只出现在收集器卡上，每条 ≈ 一个 role + 一个节点 id
+ *   ≈ 30 字符，上限 `maxNodeReferences`（6）→ 单卡最坏 ≈ 200 字符 / ~70 token。
  */
 export const NodeAssistantNodeContextSchema = z.object({
   id: z.string().trim().min(1).max(160),
@@ -89,6 +99,74 @@ export const NodeAssistantNodeContextSchema = z.object({
     .string()
     .trim()
     .max(NODE_ASSISTANT_OP_LIMITS.maxCategoryLabelLength)
+    .optional(),
+  /**
+   * 节点当前选的**模型 id**（切片 5 第二批，`set_model` 的现值）。三态与
+   * `imageCategory` 完全同构：
+   *   · 字段缺席 = 这个节点不选模型（身份卡 / 镜头文本 / 参考视频 / 合并节点）。
+   *   · `unset`  = 能选，但还没选。共用同一颗哨兵，见
+   *     `NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID` 的第三个消费者那段。
+   *   · 其余     = 模型 id 本身，也就是模型该写回 `set_model` 的那个值。
+   *
+   * ⛔ 只喂 id，不喂 `providerConfig`：baseUrl / label 那一坨对模型没有任何用处，
+   * 纯 token 消耗（一个 provider 的 baseUrl 就够 40 字符）。
+   */
+  model: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxModelIdLength)
+    .optional(),
+  /**
+   * 生成档位的现值（`set_params` 的现值）。**字段在 = 这个节点有档位可调**
+   * （今天只有视频生成节点），空对象 = 有档位但一个都没设，让模型分得清
+   * 「没有这回事」和「还没设」。
+   *
+   * 值原样带出：`duration` 在数据层就是字符串（`'6'` / `'auto'`），这里不做
+   * 美化 —— 模型写回时要写的也是同一套值。
+   */
+  params: z
+    .object({
+      aspectRatio: z
+        .string()
+        .trim()
+        .max(NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
+        .optional(),
+      resolution: z
+        .string()
+        .trim()
+        .max(NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
+        .optional(),
+      duration: z
+        .string()
+        .trim()
+        .max(NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
+        .optional(),
+      generateAudio: z.boolean().optional(),
+      seed: z.number().optional(),
+    })
+    .optional(),
+  /**
+   * 参考图集的现值（`attach_asset` 的现值）。**字段在 = 这个节点收参考图**
+   * （收集器卡：角色卡 / 背景卡），空 `items` = 收但还没挂。
+   *
+   * ⛔ **绝不带 URL**：模型拿一条 R2 长地址没有任何用处，而它恰恰是最贵的那种
+   * token。带 `sourceId`（画布上那个源节点的 id）是有用的 —— 模型据此知道「这张
+   * 卡已经收了 A 节点的图」，不会再提一条注定被 `duplicate` 拒掉的挂载。
+   */
+  references: z
+    .object({
+      /** 还能放几条的那个上限（`resolveReferenceAssetLimit`）。 */
+      limit: z.number().int().nonnegative(),
+      items: z
+        .array(
+          z.object({
+            role: z.enum(NODE_STUDIO_REFERENCE_ROLES),
+            sourceId: z.string().trim().min(1).max(160).optional(),
+          }),
+        )
+        .max(NODE_STUDIO_ASSISTANT_LIMITS.maxNodeReferences),
+    })
     .optional(),
 })
 

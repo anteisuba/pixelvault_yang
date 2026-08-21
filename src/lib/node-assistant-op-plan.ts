@@ -8,6 +8,12 @@
  *     有模型）
  *   · 分类 → `canCarryImageCategory`（与助手 payload 里那个字段同一条判据）
  *     + `isNodeStudioReferenceRole`（11 个分类的那张表本身）
+ *   · 模型 → `useWorkflowModelOptions` 给的那张表 + `isRunnableModelOption`
+ *     （选择器判「这条渠道现在能不能跑」用的同一个谓词）
+ *   · 档位 → `getVideoModelParameterOptions`（「支不支持」+「有哪些档」两问合一
+ *     的那一处，账本 X4）
+ *   · 参考图 → `resolveReferenceAssetLimit` + 按 URL 判重，与名册卡落卡那两道闸
+ *     同源，连拒绝词表都用连线那套（`duplicate` / `capacityFull`）
  * 写进提示词的规则模型总会滑出去；写成守卫的规则不会。
  *
  * ⚠ **类型矩阵今天是空门**：`canConnectNodeTypes` 自 2026-07-28 起恒返回 true
@@ -22,14 +28,20 @@
  */
 
 import {
+  NODE_ASSISTANT_DURATION_AUTO,
   NODE_ASSISTANT_OP_IDS,
+  NODE_ASSISTANT_OP_LIMITS,
   NODE_ASSISTANT_OP_REJECT_REASON_IDS,
   type NodeAssistantOpRejectReason,
 } from '@/constants/node-assistant-ops'
 import { getCanvasAddCatalogItem } from '@/constants/canvas-add-catalog'
 import {
   isNodeStudioReferenceRole,
+  NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
+  NODE_STUDIO_INGEST_REJECT_REASON_IDS,
   NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
+  NODE_STUDIO_REFERENCE_SOURCE_IDS,
+  resolveReferenceAssetLimit,
   type NodeStudioIngestRejectReason,
 } from '@/constants/node-studio'
 import {
@@ -37,16 +49,43 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
 } from '@/constants/node-types'
+import {
+  getVideoModelParameterOptions,
+  getVideoModelSendContract,
+} from '@/constants/video-model-send-plan'
 import { canAssistantSetReviewState } from '@/lib/node-media-review'
-import { canCarryImageCategory } from '@/lib/node-assistant-context'
-import { buildAssistantSetImageCategoryPatch } from '@/lib/node-assistant-op-patch'
-import { getNodeMediaUrl, isIdentityCardNode } from '@/lib/node-workflow-graph'
+import {
+  canAttachReferenceAsset,
+  canCarryGenerationParams,
+  canCarryImageCategory,
+  canCarryModel,
+} from '@/lib/node-assistant-context'
+import {
+  buildAssistantAttachAssetPatch,
+  buildAssistantSetImageCategoryPatch,
+  buildAssistantSetModelPatch,
+  buildAssistantSetParamsPatch,
+} from '@/lib/node-assistant-op-patch'
+import {
+  getNodeMediaUrl,
+  getNodePrimaryMediaUrl,
+  isIdentityCardNode,
+} from '@/lib/node-workflow-graph'
 import { evaluateCastIngest } from '@/hooks/node/use-cast-ingest'
+import { isRunnableModelOption } from '@/hooks/use-split-model-options'
 import type {
   NodeAssistantOp,
   NodeAssistantOpBatch,
+  NodeAssistantSetParamsOp,
 } from '@/types/node-assistant-ops'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import type {
+  NodeWorkflowEdge,
+  NodeWorkflowModelOption,
+  NodeWorkflowModelOptionsByType,
+  NodeWorkflowModelSelection,
+  NodeWorkflowNode,
+  NodeWorkflowReferenceAsset,
+} from '@/types/node-workflow'
 
 /** 只活在一次规划里的占位 id 前缀，绝不进图、绝不进持久化。 */
 const PENDING_NODE_ID_PREFIX = 'canvas-op-pending:'
@@ -74,8 +113,20 @@ export interface PlannedNodeAssistantOp {
   capacity?: { current: number; limit: number }
   source?: NodeAssistantOpNodeRef
   target?: NodeAssistantOpNodeRef
-  /** `set_review_state` 的落点（审核态按 URL 键控）。 */
+  /**
+   * 两条 op 共用的「这次动的是哪条媒体」：
+   *   · `set_review_state` —— 审核态按 URL 键控，这是它的落点。
+   *   · `attach_asset` —— 源节点的主媒体，也就是要挂进目标的那一条。
+   * 两者都是**规划期就定下来**的，执行层不再自己去图上取一遍（同一 tick 内读回来
+   * 的可能已经是被本批改过的图）。
+   */
   mediaUrl?: string
+  /**
+   * `set_model` 查表命中的那条选项。载荷里只有一个模型 id，剩下四个字段
+   * （optionId / adapterType / providerConfig / apiKeyId）全部来自这里 ——
+   * 执行层直接用，⛔ 不再查第二遍表（两次查表就有两种「挑哪条渠道」的规则）。
+   */
+  modelOption?: NodeWorkflowModelOption
 }
 
 export interface NodeAssistantOpPlan {
@@ -107,6 +158,79 @@ function createPendingNode(
   }
 }
 
+/** 这条 `set_params` 到底带了档位没有。⛔ 别用 `Object.keys`：那会把 `op` / `target` 也数进去。 */
+function hasAnyParam(op: NodeAssistantSetParamsOp): boolean {
+  return (
+    op.aspectRatio !== undefined ||
+    op.resolution !== undefined ||
+    op.duration !== undefined ||
+    op.generateAudio !== undefined ||
+    op.seed !== undefined
+  )
+}
+
+/**
+ * 档位值域校验 —— **两问合一问那一处**（`getVideoModelParameterOptions`，账本 X4）。
+ *
+ * ⚠ 顺序不能反：先问「这个模型支不支持这一档」（契约 `parameters.*`），再问
+ * 「有哪些档可选」（能力表 `supported*`）。漏掉第一问就会放过一颗点了不起作用的
+ * 值 —— Kling V3 / O3 Pro 的分辨率正是这样：能力表给了 `['1080p']`，契约却写死
+ * `resolution: false`。`getVideoModelParameterOptions` 把这个顺序封进去了，所以
+ * 这里只读它的返回：空数组 = 不支持。
+ *
+ * `generateAudio` / `seed` 没有档位表（一个布尔、一个整数），只问支不支持。
+ *
+ * ⛔ 一条 op 里只要有一个档位不合法就整条拒 —— 卡上一条 op 是一行，落一半会让
+ * 用户看到的和实际发生的对不上。
+ */
+function rejectSetParams(
+  op: NodeAssistantSetParamsOp,
+  model: NodeWorkflowModelSelection,
+): NodeAssistantOpRejectReason | null {
+  const options = getVideoModelParameterOptions(
+    model.modelId,
+    model.adapterType,
+  )
+  const { parameters } = getVideoModelSendContract(
+    model.modelId,
+    model.adapterType,
+  )
+  const { unsupportedParam, unknownParamValue } =
+    NODE_ASSISTANT_OP_REJECT_REASON_IDS
+
+  if (op.aspectRatio !== undefined) {
+    if (!parameters.aspectRatio) return unsupportedParam
+    if (!options.aspectRatios.includes(op.aspectRatio)) return unknownParamValue
+  }
+  if (op.resolution !== undefined) {
+    if (!parameters.resolution) return unsupportedParam
+    if (!options.resolutions.includes(op.resolution)) return unknownParamValue
+  }
+  if (op.duration !== undefined) {
+    if (!parameters.duration) return unsupportedParam
+    // `auto` 是「把时长交回给模型」，不是一个秒数 —— 不进档位表比对。
+    if (op.duration !== NODE_ASSISTANT_DURATION_AUTO) {
+      if (!options.durations.includes(op.duration)) return unknownParamValue
+    }
+  }
+  if (op.generateAudio !== undefined && !parameters.generateAudio) {
+    return unsupportedParam
+  }
+  if (op.seed !== undefined) {
+    if (!parameters.seed) return unsupportedParam
+    // 值域与 `NodeWorkflowNodeDataSchema.seed` 一致 —— 超了不是「被截断」，
+    // 是整份 project state 落不了库。
+    if (
+      !Number.isInteger(op.seed) ||
+      op.seed < 0 ||
+      op.seed > NODE_ASSISTANT_OP_LIMITS.maxSeed
+    ) {
+      return unknownParamValue
+    }
+  }
+  return null
+}
+
 /**
  * 把一批 op 排成「哪些能做、哪些不能做以及为什么」。纯函数：不碰图、不碰 React、
  * 不读时钟。
@@ -115,6 +239,12 @@ export function planNodeAssistantOps(
   batch: NodeAssistantOpBatch,
   nodes: readonly NodeWorkflowNode[],
   edges: readonly NodeWorkflowEdge[],
+  /**
+   * 每种节点能选的模型（`useWorkflowModelOptions` 的原样产物）——`set_model` 的
+   * 取值范围就是它。⛔ 别在这里自己按 `getAvailable*Models()` 重算一份：那份不带
+   * 用户的 key 覆盖，会把「配好了才能跑」的模型算成能跑。
+   */
+  modelOptionsByType: NodeWorkflowModelOptionsByType,
 ): NodeAssistantOpPlan {
   const simulatedNodes: NodeWorkflowNode[] = [...nodes]
   const simulatedEdges: NodeWorkflowEdge[] = [...edges]
@@ -326,6 +456,304 @@ export function planNodeAssistantOps(
         }
         simulatedNodes.splice(simulatedNodes.indexOf(targetNode), 1, patched)
         planned.push({ index, op, status: 'ready', target: target.ref })
+        return
+      }
+
+      case NODE_ASSISTANT_OP_IDS.setModel: {
+        const target = resolve(op.target)
+        if (!target) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.unknownNode,
+          })
+          return
+        }
+        const targetNode = simulatedNodes.find(
+          (node) => node.id === target.nodeId,
+        )
+        // 「这个节点选不选模型」与助手 payload 里那个字段共用同一条判据
+        // （`canCarryModel`）—— 模型看见的和规划器认的必须是同一件事。
+        if (!targetNode || !canCarryModel(targetNode)) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.notModelTargetable,
+            target: target.ref,
+          })
+          return
+        }
+        // ⛔ 精确相等，不做别名/大小写归一：模型 id 是要发给 provider 的那个字符串，
+        // 猜近的一个＝调用一个别的模型。
+        const matches = (modelOptionsByType[targetNode.type] ?? []).filter(
+          (option) => option.modelId === op.model,
+        )
+        if (matches.length === 0) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.unknownModel,
+            target: target.ref,
+          })
+          return
+        }
+        // 同一个型号可以有好几条渠道。挑「列表里第一条**现在真能跑的**」——
+        // 顺序由 `mergeModelOptionsWithPreferredSavedRoutes` 定，与选择器给用户看
+        // 的顺序是同一个；能不能跑的判据也是选择器那一个（`isRunnableModelOption`）。
+        const option = matches.find(isRunnableModelOption)
+        if (!option) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.modelNeedsKey,
+            target: target.ref,
+          })
+          return
+        }
+        const patched: NodeWorkflowNode = {
+          ...targetNode,
+          data: {
+            ...targetNode.data,
+            ...buildAssistantSetModelPatch(option),
+          },
+        }
+        simulatedNodes.splice(simulatedNodes.indexOf(targetNode), 1, patched)
+        planned.push({
+          index,
+          op,
+          status: 'ready',
+          target: target.ref,
+          modelOption: option,
+        })
+        return
+      }
+
+      case NODE_ASSISTANT_OP_IDS.setParams: {
+        const target = resolve(op.target)
+        if (!target) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.unknownNode,
+          })
+          return
+        }
+        const targetNode = simulatedNodes.find(
+          (node) => node.id === target.nodeId,
+        )
+        if (!targetNode || !canCarryGenerationParams(targetNode)) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.notParameterizable,
+            target: target.ref,
+          })
+          return
+        }
+        if (!hasAnyParam(op)) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.emptyParams,
+            target: target.ref,
+          })
+          return
+        }
+        // 档位的**值域是模型给的** —— 没选模型就没有可选档位，与人手点「生成」时
+        // 的拦法同一句话（`noModel`）。
+        const model = targetNode.data.model
+        if (!model) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.noModel,
+            target: target.ref,
+          })
+          return
+        }
+        const paramRejection = rejectSetParams(op, model)
+        if (paramRejection) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: paramRejection,
+            target: target.ref,
+          })
+          return
+        }
+        const patched: NodeWorkflowNode = {
+          ...targetNode,
+          data: { ...targetNode.data, ...buildAssistantSetParamsPatch(op) },
+        }
+        simulatedNodes.splice(simulatedNodes.indexOf(targetNode), 1, patched)
+        planned.push({ index, op, status: 'ready', target: target.ref })
+        return
+      }
+
+      case NODE_ASSISTANT_OP_IDS.attachAsset: {
+        const target = resolve(op.target)
+        const source = resolve(op.source)
+        if (!target || !source) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.unknownNode,
+            ...(source ? { source: source.ref } : {}),
+            ...(target ? { target: target.ref } : {}),
+          })
+          return
+        }
+        const targetNode = simulatedNodes.find(
+          (node) => node.id === target.nodeId,
+        )
+        const sourceNode = simulatedNodes.find(
+          (node) => node.id === source.nodeId,
+        )
+        if (!targetNode || !sourceNode) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.unknownNode,
+            source: source.ref,
+            target: target.ref,
+          })
+          return
+        }
+        // 自己挂自己：用连线那套词表说话（`evaluateCastIngest` 的自环也回
+        // `typeMismatch`），不为助手另造一个「不能挂自己」的说法。
+        if (sourceNode.id === targetNode.id) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_STUDIO_INGEST_REJECT_REASON_IDS.typeMismatch,
+            source: source.ref,
+            target: target.ref,
+          })
+          return
+        }
+        if (!canAttachReferenceAsset(targetNode)) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.notAttachable,
+            source: source.ref,
+            target: target.ref,
+          })
+          return
+        }
+        // 主媒体的解析走既有那条链（★主图 → 节点媒体 → 图集第一张），
+        // 与下游收割读到的是同一张图。本批刚建出来的节点必然没有媒体，
+        // 于是自然落到 `noMedia`。
+        const mediaUrl = getNodePrimaryMediaUrl(sourceNode.data)
+        if (!mediaUrl) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.noMedia,
+            source: source.ref,
+            target: target.ref,
+          })
+          return
+        }
+        if (op.role && !isNodeStudioReferenceRole(op.role)) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.unknownCategory,
+            source: source.ref,
+            target: target.ref,
+          })
+          return
+        }
+        const role =
+          op.role && isNodeStudioReferenceRole(op.role)
+            ? op.role
+            : NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultRole
+        if (
+          role === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID &&
+          !op.label?.trim()
+        ) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.missingCategoryLabel,
+            source: source.ref,
+            target: target.ref,
+          })
+          return
+        }
+        // 重复与容量两道闸走**人手落卡那一处**的同一套判据：按 URL 判重复，
+        // 上限问 `resolveReferenceAssetLimit`。词表也用连线那套 —— 用户在两个
+        // 地方看到的是同一句话。
+        const existing = targetNode.data.referenceAssets ?? []
+        if (existing.some((asset) => asset.url === mediaUrl)) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_STUDIO_INGEST_REJECT_REASON_IDS.duplicate,
+            source: source.ref,
+            target: target.ref,
+          })
+          return
+        }
+        const limit = resolveReferenceAssetLimit(targetNode.data.model)
+        if (existing.length >= limit) {
+          planned.push({
+            index,
+            op,
+            status: 'rejected',
+            reason: NODE_STUDIO_INGEST_REJECT_REASON_IDS.capacityFull,
+            capacity: { current: existing.length, limit },
+            source: source.ref,
+            target: target.ref,
+          })
+          return
+        }
+        // 同一批里挂第二条时，容量与重复都要看得见第一条 —— 所以模拟图上先挂上。
+        // ⚠ 这条替身**只活在模拟里**：真条目由执行层用 `createReferenceAsset` 造
+        // （id 是随机的，规划期造一个也没有意义）。
+        const simulatedAsset: NodeWorkflowReferenceAsset = {
+          id: `${PENDING_NODE_ID_PREFIX}reference:${index}`,
+          url: mediaUrl,
+          role,
+          weight: NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultWeight,
+          source: NODE_STUDIO_REFERENCE_SOURCE_IDS.canvas,
+          sourceId: sourceNode.id,
+          ...(op.onStage ? { onStage: true } : {}),
+        }
+        const patched: NodeWorkflowNode = {
+          ...targetNode,
+          data: {
+            ...targetNode.data,
+            ...buildAssistantAttachAssetPatch(existing, simulatedAsset),
+          },
+        }
+        simulatedNodes.splice(simulatedNodes.indexOf(targetNode), 1, patched)
+        planned.push({
+          index,
+          op,
+          status: 'ready',
+          source: source.ref,
+          target: target.ref,
+          mediaUrl,
+        })
         return
       }
 

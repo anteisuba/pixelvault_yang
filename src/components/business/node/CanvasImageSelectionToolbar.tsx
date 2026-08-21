@@ -37,7 +37,6 @@ import { useTranslations } from 'next-intl'
 
 import {
   NODE_STUDIO_AUDIO_INPUT,
-  NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
   NODE_STUDIO_DOCK,
   NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
   NODE_STUDIO_REFERENCE_ROLES,
@@ -45,9 +44,9 @@ import {
   NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
   NODE_STUDIO_VOICE_PROFILE,
   NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
+  resolveReferenceAssetLimit,
 } from '@/constants/node-studio'
 import { READY_CANVAS_IMAGE_EDIT_CAPABILITIES } from '@/constants/canvas-image-edit-capabilities'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import {
   NODE_REVIEW_STATE_IDS,
   NODE_STATUS_IDS,
@@ -666,12 +665,9 @@ function CollectorCapability({
   const t = useTranslations('StudioNode.nodeToolbar')
   const { updateNodeData } = useNodeWorkflowActions()
   const referenceAssets = data.referenceAssets ?? []
-  // Mirrors NodeMediaInspector's identical fallback — a collector node has
-  // no generation `model` of its own in practice, so this resolves to the
-  // shared default cap.
-  const maxReferenceImages = data.model
-    ? getMaxReferenceImages(data.model.adapterType, data.model.modelId)
-    : NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems
+  // 收集器卡实际上没有自己的生成模型，所以这里通常就回落到共享的默认上限 ——
+  // 那条回落链住在 `resolveReferenceAssetLimit`，四个入口共用同一处。
+  const maxReferenceImages = resolveReferenceAssetLimit(data.model)
 
   return (
     <>

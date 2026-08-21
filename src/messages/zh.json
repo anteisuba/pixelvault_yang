@@ -5253,10 +5253,20 @@
         "rename": "把「{target}」改名为「{name}」",
         "setPrompt": "改写「{target}」的提示词",
         "setImageCategory": "把「{target}」标为{category}",
+        "setModel": "把「{target}」换成 {model}",
+        "setParams": "把「{target}」设为{params}",
+        "attachAsset": "把「{source}」挂到「{target}」，作为{category}",
         "reject": "打回「{target}」",
         "approve": "把「{target}」标为通过",
         "awaitReview": "把「{target}」标为待审",
         "generate": "生成「{target}」"
+      },
+      "params": {
+        "duration": "{value} 秒",
+        "durationAuto": "时长自动",
+        "audioOn": "带音频",
+        "audioOff": "不带音频",
+        "seed": "种子 {value}"
       },
       "reasons": {
         "unknownNode": "找不到这个节点",
@@ -5267,7 +5277,15 @@
         "noModel": "还没选模型",
         "notCategorizable": "这类节点没有图片分类",
         "unknownCategory": "这不是图片分类里的值",
-        "missingCategoryLabel": "自定义分类得给个名字"
+        "missingCategoryLabel": "自定义分类得给个名字",
+        "notModelTargetable": "这类节点不选模型",
+        "unknownModel": "这个模型不在该节点的可选列表里",
+        "modelNeedsKey": "这个模型要先配好 API key 才能用",
+        "notParameterizable": "这类节点的参数不在节点上——图片的比例和清晰度在生成条上",
+        "emptyParams": "一个参数都没给，落下去什么也不会变",
+        "unsupportedParam": "当前模型不吃这个参数",
+        "unknownParamValue": "这个值不在当前模型给的档位里",
+        "notAttachable": "只有角色卡和背景卡才收参考图，其余节点请改用连线"
       }
     }
   },

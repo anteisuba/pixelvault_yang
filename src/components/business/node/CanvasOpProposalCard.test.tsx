@@ -9,7 +9,11 @@ import {
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { planNodeAssistantOps } from '@/lib/node-assistant-op-plan'
 import type { NodeAssistantOpBatch } from '@/types/node-assistant-ops'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import type {
+  NodeWorkflowEdge,
+  NodeWorkflowModelOptionsByType,
+  NodeWorkflowNode,
+} from '@/types/node-workflow'
 
 import { CanvasOpProposalCard } from './CanvasOpProposalCard'
 
@@ -30,6 +34,21 @@ function makeNode(
   } as NodeWorkflowNode
 }
 
+/** `set_model` 的取值范围（切片 5 第二批）—— 卡上只用得到「有没有命中」。 */
+const MODEL_OPTIONS: NodeWorkflowModelOptionsByType = {
+  [NODE_TYPE_IDS.image]: [
+    {
+      optionId: 'workspace:gemini-3.1-flash-image-preview',
+      modelId: 'gemini-3.1-flash-image-preview',
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: { label: 'Gemini', baseUrl: 'https://gemini.example' },
+      requestCount: 1,
+      sourceType: 'workspace',
+      freeTier: true,
+    },
+  ],
+}
+
 function renderCard(
   batch: NodeAssistantOpBatch,
   nodes: NodeWorkflowNode[] = [],
@@ -41,7 +60,7 @@ function renderCard(
     .mockResolvedValue({ applied: 1, skipped: 0, createdNodeIds: ['node-new'] })
   render(
     <CanvasOpProposalCard
-      plan={planNodeAssistantOps(batch, nodes, edges)}
+      plan={planNodeAssistantOps(batch, nodes, edges, MODEL_OPTIONS)}
       getNodeLabel={(id) => id}
       onApply={onApply}
       {...extra}
@@ -281,7 +300,7 @@ describe('CanvasOpProposalCard', () => {
       }
       const card = (nodes: NodeWorkflowNode[]) => (
         <CanvasOpProposalCard
-          plan={planNodeAssistantOps(batch, nodes, [])}
+          plan={planNodeAssistantOps(batch, nodes, [], MODEL_OPTIONS)}
           getNodeLabel={(id) => id}
           onApply={vi.fn()}
           autoAppliedCount={autoAppliedCount}
@@ -365,6 +384,60 @@ describe('CanvasOpProposalCard', () => {
     ).toBeGreaterThan(0)
     // 第二条被规划器按 unknownCategory 拒掉 —— 它照样要显示在卡上。
     expect(screen.getByText('rejectedPrefix')).toBeInTheDocument()
+  })
+
+  // 切片 5 第二批：三个新 op 在卡上要有图标、有描述、能进整批应用。
+  // ⚠ `OP_ICONS` 漏一项时 `<undefined />` 在渲染期炸掉整张卡（连同对话），
+  // 所以这条用例的价值一半在「渲染没崩」本身。
+  it('换模型 / 改档位 / 挂素材三条都渲染得出来，并归自动落一档', () => {
+    const card = makeNode('card-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.character,
+    })
+    const photo = makeNode('img-1', NODE_TYPE_IDS.image, {
+      mediaUrl: 'https://cdn/a.png',
+    })
+    const video = makeNode('vid-1', NODE_TYPE_IDS.seedance, {
+      model: {
+        optionId: 'workspace:seedance-2.0',
+        modelId: 'seedance-2.0',
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+      },
+    })
+    renderCard(
+      {
+        ops: [
+          {
+            op: 'set_model',
+            target: 'img-1',
+            model: 'gemini-3.1-flash-image-preview',
+          },
+          { op: 'set_params', target: 'vid-1', resolution: '720p', seed: 42 },
+          { op: 'attach_asset', target: 'card-1', source: 'img-1' },
+        ],
+      },
+      [card, photo, video],
+    )
+
+    expect(screen.getByText('describe.setModel')).toBeInTheDocument()
+    expect(screen.getByText('describe.setParams')).toBeInTheDocument()
+    expect(screen.getByText('describe.attachAsset')).toBeInTheDocument()
+    expect(screen.queryByText('rejectedPrefix')).not.toBeInTheDocument()
+    // 三条都是自动落档 → 走整批应用，不是逐条确认。
+    expect(screen.getByText('apply')).toBeInTheDocument()
+    expect(screen.queryByText('confirmGenerate')).not.toBeInTheDocument()
+  })
+
+  it('被拒的换模型也照样显示在卡上（用户得看见它编了什么）', () => {
+    const photo = makeNode('img-1', NODE_TYPE_IDS.image)
+    renderCard(
+      { ops: [{ op: 'set_model', target: 'img-1', model: 'Animagine XL' }] },
+      [photo],
+    )
+
+    expect(screen.getByText('describe.setModel')).toBeInTheDocument()
+    expect(screen.getByText('rejectedPrefix')).toBeInTheDocument()
+    expect(screen.queryByText('apply')).not.toBeInTheDocument()
   })
 
   it('助手自批的那条永远出现在卡上、永远不可应用', () => {

@@ -3,9 +3,12 @@
 import { useCallback, useState } from 'react'
 import {
   Check,
+  Cpu,
+  ImagePlus,
   Link2,
   PenLine,
   Plus,
+  SlidersHorizontal,
   Sparkles,
   Tags,
   Type,
@@ -16,12 +19,14 @@ import { useTranslations } from 'next-intl'
 
 import {
   isAutoApplyAssistantOp,
+  NODE_ASSISTANT_DURATION_AUTO,
   NODE_ASSISTANT_OP_IDS,
   type NodeAssistantOpId,
 } from '@/constants/node-assistant-ops'
 import { getCanvasAddCatalogItem } from '@/constants/canvas-add-catalog'
 import {
   isNodeStudioReferenceRole,
+  NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
   NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
 } from '@/constants/node-studio'
 import { NODE_REVIEW_STATE_IDS } from '@/constants/node-types'
@@ -33,6 +38,7 @@ import type {
   NodeAssistantOpPlan,
   PlannedNodeAssistantOp,
 } from '@/lib/node-assistant-op-plan'
+import type { NodeAssistantSetParamsOp } from '@/types/node-assistant-ops'
 
 import type { NodeAssistantOpRunResult } from './NodeWorkflowActionsContext'
 
@@ -62,6 +68,11 @@ const OP_ICONS: Record<NodeAssistantOpId, LucideIcon> = {
   // 与人手那条路同一颗图标（`CanvasImageSelectionToolbar` 的分类子菜单也是
   // `Tags`）—— 同一件事在两处长得一样，用户不用学第二遍。
   [NODE_ASSISTANT_OP_IDS.setImageCategory]: Tags,
+  [NODE_ASSISTANT_OP_IDS.setModel]: Cpu,
+  // 与人手那条路同一颗图标：`VideoComposer` 的参数区用的就是 `SlidersHorizontal`，
+  // 图集的「加一张」用的就是 `ImagePlus`。
+  [NODE_ASSISTANT_OP_IDS.setParams]: SlidersHorizontal,
+  [NODE_ASSISTANT_OP_IDS.attachAsset]: ImagePlus,
   [NODE_ASSISTANT_OP_IDS.setReviewState]: Undo2,
   [NODE_ASSISTANT_OP_IDS.generate]: Sparkles,
 }
@@ -193,6 +204,37 @@ export function CanvasOpProposalCard({
     [tRoles],
   )
 
+  /**
+   * 一条 `set_params` 到底改了什么 —— **每一档都要看得见**。
+   *
+   * 与提示词那条同一个理由：批准一条自己看不到内容的写操作等于没有审批。档位
+   * 又短，一行摘要放得下，所以不像提示词那样单独整段显示。
+   */
+  const describeParams = useCallback(
+    (op: NodeAssistantSetParamsOp): string => {
+      const parts: string[] = []
+      if (op.aspectRatio) parts.push(op.aspectRatio)
+      if (op.resolution) parts.push(op.resolution)
+      if (op.duration !== undefined) {
+        parts.push(
+          op.duration === NODE_ASSISTANT_DURATION_AUTO
+            ? t('params.durationAuto')
+            : t('params.duration', { value: String(op.duration) }),
+        )
+      }
+      if (op.generateAudio !== undefined) {
+        parts.push(
+          op.generateAudio ? t('params.audioOn') : t('params.audioOff'),
+        )
+      }
+      if (op.seed !== undefined) {
+        parts.push(t('params.seed', { value: String(op.seed) }))
+      }
+      return parts.join(' · ')
+    },
+    [t],
+  )
+
   const describe = useCallback(
     (entry: PlannedNodeAssistantOp): string => {
       const { op } = entry
@@ -221,6 +263,29 @@ export function CanvasOpProposalCard({
             target: describeRef(entry.target),
             category: describeCategory(op.category, op.label),
           })
+        case NODE_ASSISTANT_OP_IDS.setModel:
+          // 模型 id 原样显示 —— 用户要审的正是「换成哪一个」，而 id 就是那个事实
+          // （被拒时它还是「它编了什么」的证据）。
+          return t('describe.setModel', {
+            target: describeRef(entry.target),
+            model: op.model,
+          })
+        case NODE_ASSISTANT_OP_IDS.setParams:
+          return t('describe.setParams', {
+            target: describeRef(entry.target),
+            params: describeParams(op),
+          })
+        case NODE_ASSISTANT_OP_IDS.attachAsset:
+          // 分类要说出来：`attach_asset` 不带 role 时落的是默认分类，卡上显示的
+          // 必须是**真的会落进去的那个**，否则用户审的和实际写的是两个东西。
+          return t('describe.attachAsset', {
+            source: describeRef(entry.source),
+            target: describeRef(entry.target),
+            category: describeCategory(
+              op.role ?? NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultRole,
+              op.label,
+            ),
+          })
         case NODE_ASSISTANT_OP_IDS.setReviewState:
           // 三个态各说各的。`approved` 永远会被拒，但**说的必须是它真的想干什么**
           // ——写成「标为待审」会让「助手不能替你放行」那句理由读起来莫名其妙。
@@ -234,7 +299,7 @@ export function CanvasOpProposalCard({
           return t('describe.generate', { target: describeRef(entry.target) })
       }
     },
-    [describeCategory, describeRef, t, tAdd],
+    [describeCategory, describeParams, describeRef, t, tAdd],
   )
 
   const explainRejection = useCallback(

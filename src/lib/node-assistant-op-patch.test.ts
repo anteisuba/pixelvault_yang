@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import type { NodeWorkflowNodeData } from '@/types/node-workflow'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import type {
+  NodeWorkflowNodeData,
+  NodeWorkflowReferenceAsset,
+} from '@/types/node-workflow'
 
 import {
+  buildAssistantAttachAssetPatch,
   buildAssistantSetImageCategoryPatch,
+  buildAssistantSetModelPatch,
+  buildAssistantSetParamsPatch,
   buildAssistantSetPromptPatch,
 } from './node-assistant-op-patch'
 
@@ -39,6 +46,134 @@ describe('buildAssistantSetImageCategoryPatch', () => {
         label: '道具·手电',
       }),
     ).toEqual({ imageCategory: 'custom', imageCategoryLabel: '道具·手电' })
+  })
+})
+
+describe('buildAssistantSetModelPatch', () => {
+  const OPTION = {
+    optionId: 'saved:key-1:seedance-2.0',
+    modelId: 'seedance-2.0',
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+    requestCount: 5,
+    sourceType: 'saved' as const,
+    apiKeyId: 'key-1',
+  }
+
+  it('五个字段全部来自查表 —— 载荷里只有一个 id', () => {
+    expect(buildAssistantSetModelPatch(OPTION)).toEqual({
+      model: {
+        optionId: 'saved:key-1:seedance-2.0',
+        modelId: 'seedance-2.0',
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+        apiKeyId: 'key-1',
+      },
+    })
+  })
+
+  it('工作区内置路线没有 apiKeyId —— 字段直接缺席，不写 undefined', () => {
+    const patch = buildAssistantSetModelPatch({
+      optionId: 'workspace:seedance-2.0',
+      modelId: 'seedance-2.0',
+      adapterType: AI_ADAPTER_TYPES.FAL,
+      providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+      requestCount: 5,
+      sourceType: 'workspace',
+    })
+    expect(patch.model).not.toHaveProperty('apiKeyId')
+  })
+})
+
+describe('buildAssistantSetParamsPatch', () => {
+  it('只写载荷里真的带了的那几档', () => {
+    expect(
+      buildAssistantSetParamsPatch({
+        op: 'set_params',
+        target: 'vid-1',
+        resolution: '720p',
+        seed: 42,
+      }),
+    ).toEqual({ resolution: '720p', seed: 42 })
+  })
+
+  // ⚠ 数据层的 duration 是**字符串**（读侧走 Number.parseFloat）。写成数字
+  // 会在 zod 那关就掉，而那一掉是整份 project state 落不了库。
+  it('duration 折成字符串，auto 原样', () => {
+    expect(
+      buildAssistantSetParamsPatch({
+        op: 'set_params',
+        target: 'vid-1',
+        duration: 6,
+      }),
+    ).toEqual({ duration: '6' })
+    expect(
+      buildAssistantSetParamsPatch({
+        op: 'set_params',
+        target: 'vid-1',
+        duration: 'auto',
+      }),
+    ).toEqual({ duration: 'auto' })
+  })
+
+  it('generateAudio: false 要写进去（false 不是「没给」）', () => {
+    expect(
+      buildAssistantSetParamsPatch({
+        op: 'set_params',
+        target: 'vid-1',
+        generateAudio: false,
+      }),
+    ).toEqual({ generateAudio: false })
+  })
+})
+
+describe('buildAssistantAttachAssetPatch', () => {
+  const asset = (id: string, url: string): NodeWorkflowReferenceAsset => ({
+    id,
+    url,
+    role: 'identity',
+    weight: 0.72,
+    source: 'canvas',
+    sourceId: 'img-1',
+  })
+
+  it('在原数组尾部追加，不排序不去重（重复与容量在规划器就拒了）', () => {
+    const existing = [asset('r1', 'https://cdn.example.com/1.png')]
+    const patch = buildAssistantAttachAssetPatch(
+      existing,
+      asset('r2', 'https://cdn.example.com/2.png'),
+    )
+    expect(patch.referenceAssets?.map((entry) => entry.id)).toEqual([
+      'r1',
+      'r2',
+    ])
+    // 原数组不被就地改 —— 撤销栈拿到的是同一个引用就退不回去了。
+    expect(existing).toHaveLength(1)
+  })
+
+  it('卡上还没有图集时也能挂第一张', () => {
+    const patch = buildAssistantAttachAssetPatch(
+      undefined,
+      asset('r1', 'https://cdn.example.com/1.png'),
+    )
+    expect(patch.referenceAssets).toHaveLength(1)
+  })
+
+  // 执行器同一批挂两次靠本地账累积：第二次的 `existing` 必须是第一次写完的那份，
+  // 否则第二条会把第一条覆盖掉（快照读不回来）。
+  it('连挂两次要接着上一次的结果往后加', () => {
+    const first = buildAssistantAttachAssetPatch(
+      undefined,
+      asset('r1', 'https://cdn.example.com/1.png'),
+    )
+    const second = buildAssistantAttachAssetPatch(
+      first.referenceAssets,
+      asset('r2', 'https://cdn.example.com/2.png'),
+    )
+    expect(second.referenceAssets?.map((entry) => entry.id)).toEqual([
+      'r1',
+      'r2',
+    ])
   })
 })
 

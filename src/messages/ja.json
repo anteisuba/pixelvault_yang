@@ -5253,10 +5253,20 @@
         "rename": "「{target}」を「{name}」に改名",
         "setPrompt": "「{target}」のプロンプトを書き換える",
         "setImageCategory": "「{target}」を{category}にする",
+        "setModel": "「{target}」のモデルを {model} に変更",
+        "setParams": "「{target}」を{params}に設定",
+        "attachAsset": "「{source}」を「{target}」に{category}として追加",
         "reject": "「{target}」を差し戻す",
         "approve": "「{target}」を承認済みにする",
         "awaitReview": "「{target}」を未確認にする",
         "generate": "「{target}」を生成"
+      },
+      "params": {
+        "duration": "{value}秒",
+        "durationAuto": "長さ自動",
+        "audioOn": "音声あり",
+        "audioOff": "音声なし",
+        "seed": "シード {value}"
       },
       "reasons": {
         "unknownNode": "そのノードが見つかりません",
@@ -5267,7 +5277,15 @@
         "noModel": "モデルが未選択です",
         "notCategorizable": "この種類のノードに画像分類はありません",
         "unknownCategory": "画像分類にない値です",
-        "missingCategoryLabel": "カスタム分類には名前が必要です"
+        "missingCategoryLabel": "カスタム分類には名前が必要です",
+        "notModelTargetable": "この種類のノードはモデルを選びません",
+        "unknownModel": "そのモデルはこのノードの一覧にありません",
+        "modelNeedsKey": "そのモデルは先に API キーの設定が必要です",
+        "notParameterizable": "このノードの設定はノード側にありません。画像の比率と画質は生成バーにあります",
+        "emptyParams": "設定が一つも指定されておらず、何も変わりません",
+        "unsupportedParam": "選択中のモデルはその設定を受け付けません",
+        "unknownParamValue": "選択中のモデルが受け付ける値ではありません",
+        "notAttachable": "参考画像を集められるのはキャラクター／背景カードだけです。代わりにノードをつないでください"
       }
     }
   },

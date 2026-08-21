@@ -172,6 +172,196 @@ describe('buildNodeAssistantNodeContexts · 分类现值', () => {
   })
 })
 
+describe('buildNodeAssistantNodeContexts · 模型现值', () => {
+  const MODEL = {
+    optionId: 'workspace:seedance-2.0',
+    modelId: 'seedance-2.0',
+    adapterType: 'fal',
+    providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+  }
+
+  it('选得了模型但还没选 → unset（而不是装作没有这个字段）', () => {
+    const [context] = buildNodeAssistantNodeContexts(
+      [makeNode('img-1', NODE_TYPE_IDS.image)],
+      OPTIONS,
+    )
+    expect(context?.model).toBe(NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID)
+  })
+
+  it('选了就带 modelId —— 模型写回 set_model 用的就是这个值', () => {
+    const [context] = buildNodeAssistantNodeContexts(
+      [makeNode('vid-1', NODE_TYPE_IDS.seedance, { model: MODEL })],
+      OPTIONS,
+    )
+    expect(context?.model).toBe('seedance-2.0')
+  })
+
+  it('⛔ 只喂 id，不喂 providerConfig（baseUrl 是纯 token 消耗）', () => {
+    const [context] = buildNodeAssistantNodeContexts(
+      [makeNode('vid-1', NODE_TYPE_IDS.seedance, { model: MODEL })],
+      OPTIONS,
+    )
+    expect(JSON.stringify(context)).not.toContain('fal.run')
+    expect(JSON.stringify(context)).not.toContain('workspace:')
+  })
+
+  it('身份卡 / 镜头文本 / 合并节点根本没有这个字段', () => {
+    const contexts = buildNodeAssistantNodeContexts(
+      [
+        makeNode('card-1', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.character,
+        }),
+        makeNode('text-1', NODE_TYPE_IDS.shotText),
+        makeNode('merge-1', NODE_TYPE_IDS.videoMerge),
+      ],
+      OPTIONS,
+    )
+    for (const context of contexts) {
+      expect(context).not.toHaveProperty('model')
+    }
+  })
+})
+
+describe('buildNodeAssistantNodeContexts · 档位现值', () => {
+  it('视频节点没设档位 → 空对象（有这回事，但一个都没设）', () => {
+    const [context] = buildNodeAssistantNodeContexts(
+      [makeNode('vid-1', NODE_TYPE_IDS.seedance)],
+      OPTIONS,
+    )
+    expect(context?.params).toEqual({})
+  })
+
+  it('设过的档位原样带出（duration 在数据层就是字符串）', () => {
+    const [context] = buildNodeAssistantNodeContexts(
+      [
+        makeNode('vid-1', NODE_TYPE_IDS.seedance, {
+          aspectRatio: '16:9',
+          resolution: '720p',
+          duration: '6',
+          generateAudio: false,
+          seed: 42,
+        }),
+      ],
+      OPTIONS,
+    )
+    expect(context?.params).toEqual({
+      aspectRatio: '16:9',
+      resolution: '720p',
+      duration: '6',
+      generateAudio: false,
+      seed: 42,
+    })
+  })
+
+  // ⚠ 图片的比例 / 清晰度**不住在节点上**（住在合成条的 React state 里）——
+  // 给图片节点发一个 params 字段等于告诉模型「这里可以写」，然后它写了、
+  // 编译过、测试过、真机上什么都不变。
+  it('图片节点与参考视频 / 合并节点没有 params 字段', () => {
+    const contexts = buildNodeAssistantNodeContexts(
+      [
+        makeNode('img-1', NODE_TYPE_IDS.image),
+        makeNode('ref-1', NODE_TYPE_IDS.videoReference),
+        makeNode('merge-1', NODE_TYPE_IDS.videoMerge),
+      ],
+      OPTIONS,
+    )
+    for (const context of contexts) {
+      expect(context).not.toHaveProperty('params')
+    }
+  })
+})
+
+describe('buildNodeAssistantNodeContexts · 参考图现值', () => {
+  const cardWithRefs = () =>
+    makeNode('card-1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.character,
+      referenceAssets: [
+        {
+          id: 'r1',
+          url: 'https://cdn.example.com/very/long/asset-key.png',
+          role: 'identity',
+          weight: 0.72,
+          source: 'canvas',
+          sourceId: 'img-7',
+        },
+        {
+          id: 'r2',
+          url: 'https://cdn.example.com/another.png',
+          role: 'style',
+          weight: 0.72,
+          source: 'upload',
+        },
+      ],
+    })
+
+  it('收集器卡带出计数上限与 role 摘要', () => {
+    const [context] = buildNodeAssistantNodeContexts([cardWithRefs()], OPTIONS)
+    expect(context?.references).toEqual({
+      limit: 3,
+      items: [{ role: 'identity', sourceId: 'img-7' }, { role: 'style' }],
+    })
+  })
+
+  // ⛔ 这条是硬红线：上一批刚修掉一处把 R2 长 URL 喂给模型的兜底。
+  it('⛔ payload 里一个 URL 都不许出现', () => {
+    const [context] = buildNodeAssistantNodeContexts([cardWithRefs()], OPTIONS)
+    expect(JSON.stringify(context)).not.toContain('cdn.example.com')
+    expect(JSON.stringify(context)).not.toContain('http')
+  })
+
+  it('还没收图的卡 → 空 items（能收，但还没收）', () => {
+    const [context] = buildNodeAssistantNodeContexts(
+      [
+        makeNode('card-1', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.background,
+        }),
+      ],
+      OPTIONS,
+    )
+    expect(context?.references).toEqual({ limit: 3, items: [] })
+  })
+
+  it('条目数按 maxNodeReferences 截断', () => {
+    const [context] = buildNodeAssistantNodeContexts(
+      [
+        makeNode('card-1', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.character,
+          referenceAssets: Array.from(
+            { length: NODE_STUDIO_ASSISTANT_LIMITS.maxNodeReferences + 4 },
+            (_, index) => ({
+              id: `r${index}`,
+              url: `https://cdn.example.com/${index}.png`,
+              role: 'identity',
+              weight: 0.72,
+              source: 'upload',
+            }),
+          ),
+        }),
+      ],
+      OPTIONS,
+    )
+    expect(context?.references?.items).toHaveLength(
+      NODE_STUDIO_ASSISTANT_LIMITS.maxNodeReferences,
+    )
+  })
+
+  it('散图 / 镜头 / 视频节点没有这个字段（那条路是连线）', () => {
+    const contexts = buildNodeAssistantNodeContexts(
+      [
+        makeNode('img-1', NODE_TYPE_IDS.image),
+        makeNode('shot-1', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.shot,
+        }),
+        makeNode('vid-1', NODE_TYPE_IDS.seedance),
+      ],
+      OPTIONS,
+    )
+    for (const context of contexts) {
+      expect(context).not.toHaveProperty('references')
+    }
+  })
+})
+
 describe('buildNodeAssistantNodeContexts · 空态与上限', () => {
   it('空画布投影出空数组', () => {
     expect(buildNodeAssistantNodeContexts([], OPTIONS)).toEqual([])

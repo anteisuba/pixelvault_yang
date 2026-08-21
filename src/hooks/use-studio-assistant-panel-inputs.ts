@@ -14,6 +14,7 @@ import {
 } from '@/contexts/studio-context'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useLoraCandidateConfirm } from '@/hooks/use-lora-candidate-confirm'
 import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import type {
@@ -439,6 +440,21 @@ export function useStudioAssistantPanelInputs() {
     },
   }
 
+  /**
+   * LoRA 一次确认链（任务包 §5）在**工作台这一档**的形态：导入 + 触发词，**没有
+   * 挂载**。
+   *
+   * ⚠ 不是「少传了一个回调」：`useActiveLoraStack` 的 Provider 只包
+   * `/studio/lora`（见 studio/lora/layout.tsx），在这里调它会直接抛。所以
+   * `mount` 结构性缺席，卡上据此把动作换成「导入并填入触发词」+ 一条去 LoRA
+   * 工作台挂载的引导 —— ⛔ 而不是留一个点了没反应的挂载按钮。
+   *
+   * 触发词落点复用 `onAppendPrompt`（`appendPromptFragments` 去重那条既有路径）。
+   */
+  const loraConfirm = useLoraCandidateConfirm({
+    applyTriggerWords: onAppendPrompt,
+  })
+
   return {
     open,
     setOpen,
@@ -451,5 +467,6 @@ export function useStudioAssistantPanelInputs() {
     injectedReference,
     workbenchState,
     writeback,
+    loraConfirm,
   }
 }

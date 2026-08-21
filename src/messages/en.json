@@ -3161,7 +3161,52 @@
     "referenceOnlyPrompt": "Analyze the attached reference and help me develop the idea.",
     "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
     "imageUnsupported": "This model cannot analyze images. Choose OpenAI or Gemini, or remove the image reference.",
-    "routeAuto": "Auto route"
+    "routeAuto": "Auto route",
+    "loraCandidate": {
+      "sourceCivitai": "Civitai",
+      "sourceHuggingFace": "Hugging Face",
+      "authorUnknown": "Author unknown",
+      "baseModelUnknown": "Base model unknown",
+      "sizeUnknown": "Size unknown",
+      "licenseUnknown": "Licence unknown",
+      "licenseCommercial": "Commercial use",
+      "licenseDerivatives": "Derivatives",
+      "licenseNoCredit": "No credit required",
+      "permissionAllowed": "allowed",
+      "permissionDenied": "not allowed",
+      "permissionUnknown": "unknown",
+      "downloads": "{count, plural, one {# download} other {# downloads}}",
+      "alreadyMounted": "Mounted",
+      "alreadyImported": "In your library",
+      "alreadyInStack": "Already in the stack",
+      "confirm": "Import and mount",
+      "confirmImportOnly": "Import and add trigger words",
+      "confirmedMounted": "Imported, mounted, trigger words added",
+      "confirmedImported": "Imported, trigger words added",
+      "openSource": "Open source page",
+      "detailsTrimmed": "This turn's candidate details were too large to send in full, so this one cannot be imported from the card. Ask again to get a fresh set.",
+      "mountElsewhere": "This workbench has no LoRA stack, so nothing was mounted.",
+      "goToLoraWorkbench": "Mount it in the LoRA workbench",
+      "type": {
+        "subject": "Character",
+        "style": "Style"
+      },
+      "metadataCompleteness": {
+        "complete": "Full metadata",
+        "partial": "Partial metadata",
+        "minimal": "Minimal metadata"
+      },
+      "notImportable": {
+        "unknown_base_model": "The base model family could not be determined, so this one can only be recommended, not imported.",
+        "no_weight_file": "No downloadable weight file, so this one can only be recommended, not imported.",
+        "gated_repo": "This repository is gated on Hugging Face — accept its terms there first, then import it from the library."
+      },
+      "failed": {
+        "import": "Import failed — nothing was added to your library.",
+        "mount": "Imported, but mounting failed. It is in your library; mount it from the stack.",
+        "trigger_words": "Imported and mounted, but the trigger words could not be written into the prompt. Copy them from the card."
+      }
+    }
   },
   "Onboarding": {
     "next": "Next",

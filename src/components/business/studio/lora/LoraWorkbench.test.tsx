@@ -159,8 +159,10 @@ let mockStackItems: { asset: MockStackAsset; scale: number }[] = [
   { asset: stackAsset, scale: 1 },
 ]
 
-vi.mock('@/hooks/use-active-lora-stack', () => ({
-  useActiveLoraStack: () => ({
+vi.mock('@/hooks/use-active-lora-stack', () => {
+  // ⚠ 工厂**会被提升到文件顶部**，所以这个函数只能定义在里面 —— 定义在外面
+  //   会拿到 `Cannot access before initialization`。
+  const stack = () => ({
     get items() {
       return mockStackItems
     },
@@ -168,8 +170,16 @@ vi.mock('@/hooks/use-active-lora-stack', () => ({
     setScale: mockStackSetScale,
     remove: vi.fn(),
     clear: vi.fn(),
-  }),
-}))
+  })
+  return {
+    useActiveLoraStack: stack,
+    // ⚠ 不抛的那个变体也要 mock：`LoraAssistantDock` 用的是它（挂载栈对助手的
+    //   LoRA 推荐卡是可选能力）。漏掉这条会让**整个文件 31 条全红**，报错是
+    //   「No export is defined on the mock」而不是任何业务断言 —— 手写 mock 与
+    //   真模块脱节的老毛病，加导出时两边一起改。
+    useOptionalActiveLoraStack: stack,
+  }
+})
 
 // 做同款的额外 LoRA 解析（本地库 → Civitai）。默认「解析不到」，需要它成功的
 // 用例自己 mockResolvedValue —— 避免真的打 fetch。

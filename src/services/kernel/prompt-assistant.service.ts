@@ -21,6 +21,7 @@ import {
   ASSISTANT_DOMAIN_BRIEFS,
   ASSISTANT_LORA_IDENTITY_NOTE,
   buildAssistantConversationProtocol,
+  buildAssistantLoraCandidateDirective,
 } from '@/constants/assistant-protocol'
 import { getModelEnhanceHint } from '@/constants/model-strengths'
 import { getModelById } from '@/constants/models'
@@ -57,6 +58,9 @@ import {
   runResearch,
   type ResearchOutcome,
 } from '@/services/research/research-run.service'
+import { buildLoraCandidateBlock } from '@/services/lora/lora-candidate-block'
+import { planLoraCandidateSearch } from '@/services/lora/lora-candidate-intent'
+import { searchLoraCandidates } from '@/services/lora/lora-candidates.service'
 import { ensureUser } from '@/services/user.service'
 import {
   buildVideoMetadataBlock,
@@ -95,6 +99,7 @@ import type {
 } from '@/types'
 import type { AssistantMediaReference } from '@/types/assistant-media'
 import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
+import type { LoraCandidateSearchResult } from '@/types/lora-candidate'
 import type { ResearchReceipt } from '@/types/research'
 
 const PROMPT_ASSISTANT_CONTEXT_COMPACTION_TARGET_LENGTH = 32_000
@@ -685,6 +690,13 @@ interface PromptAssistantUserPromptOptions {
   /** 超出上限没带上的条数 —— 清单里明写，别让它静默消失。 */
   droppedReferenceCount?: number
   workbenchState?: AssistantWorkbenchState
+  /**
+   * LoRA 候选清单（切片 3）。`''` / undefined = 这轮没搜候选。
+   *
+   * ⚠ 与工作台状态同一个理由放在**用户提示**：块里全是上游用户可控的文本
+   * （模型名、作者名），进系统提示等于给它系统级权威。
+   */
+  loraCandidateBlock?: string
 }
 
 function buildPromptAssistantUserPrompt({
@@ -696,6 +708,7 @@ function buildPromptAssistantUserPrompt({
   references = [],
   droppedReferenceCount = 0,
   workbenchState,
+  loraCandidateBlock,
 }: PromptAssistantUserPromptOptions): string {
   // 工作台状态、附件清单、视频链接元数据是同一类东西：**当下摆在用户眼前的
   // 事实**。三块一起前置，预算里先扣掉再给对话 —— 长对话触发压缩重试时最需要
@@ -704,6 +717,9 @@ function buildPromptAssistantUserPrompt({
     buildWorkbenchStateBlock(workbenchState),
     buildReferenceInventory(references, droppedReferenceCount),
     videoLinkBlock ?? '',
+    // 候选清单也算「摆在用户眼前的事实」：它这一轮就要变成推荐卡。被压缩截没
+    // 的后果比丢一句对话严重得多 —— 模型会去编 id。
+    loraCandidateBlock ?? '',
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -975,6 +991,13 @@ interface AssistantTurnSetup {
    * 落到一条模型正看着的视频上。
    */
   videoLinkBlock: string | null
+  /**
+   * 这一轮的 LoRA 候选（切片 3）。`null` = 意图规划判定这轮不用搜。
+   *
+   * ⭐ **推荐卡上的每一条事实都从这里来**，不从模型输出来。模型在 `[[lora]]` 里
+   * 只写 `candidateId` + 理由，客户端拿 id 回这张表查 —— 查不到就不出卡。
+   */
+  loraCandidates: LoraCandidateSearchResult | null
 }
 
 /**
@@ -1015,6 +1038,8 @@ async function prepareAssistantTurn(params: {
   projectId?: string | null
   references: AssistantMediaReference[]
   assistantDomain: PromptAssistantDomain
+  /** LoRA 候选检索要用它标「已挂载」+ 家族软偏好；没有就退化成不标。 */
+  workbenchState?: AssistantWorkbenchState
 }): Promise<AssistantTurnSetup> {
   let systemPrompt = buildAssistantSystemPrompt(
     params.modelId,
@@ -1066,22 +1091,50 @@ async function prepareAssistantTurn(params: {
   //   18:40）—— 视觉模型按帧采样，数不准总长。所以时长/标题/发布日一并从平台
   //   取回来当结构化事实注入，⛔ 不作为检索证据（视觉线 `grounded` 恒 false 的
   //   语义不能破），取不到就写 `unknown`，**永不阻断这一轮**。
-  const [research, platformVideoBlock, videoLinkMetadata] = await Promise.all([
-    latestUserText
-      ? runResearch({
-          userId: params.userId,
-          surface: ASSISTANT_SURFACE_BY_DOMAIN[params.assistantDomain],
-          conversationId: params.conversationId ?? null,
-          projectId: params.projectId ?? null,
-          text: latestUserText,
-          mode: params.researchMode,
-          apiKeyId: params.apiKeyId,
-          model: ASSISTANT_MODEL_ID_BY_ADAPTER.get(route.adapterType),
-        })
-      : null,
-    buildPlatformVideoBlock(videoLinks.platformLinks),
-    fetchVideoLinkMetadata(attachedLinks),
-  ])
+  //
+  // ⚠ **LoRA 候选检索（切片 3）也在这一批里，理由同上**：它打的是 Civitai + HF
+  //   两个外部源，串在检索后面同样能把整轮推过 `maxDuration`。它**按意图决定
+  //   要不要搜**，与检索线同一条路数（`lib/research-intent.ts`：生态常识类根本
+  //   不打源）—— 判不出「想找一把 LoRA」就不搜、不注入、也不追加 `[[lora]]` 的
+  //   输出契约，于是模型不会开口推荐。这是结构保证，不是靠提示词里写一句
+  //   「没有候选时别推荐」。
+  //
+  // ⚠ **只有对话轮（`mode:'general'`）才搜**。另一条路是提示词转换（enhance /
+  //   transform），产出是一段提示词、根本没有推荐卡这种形态 —— 在那里搜候选是
+  //   纯粹白花两次外部请求。
+  const loraIntent =
+    params.mode === 'general'
+      ? planLoraCandidateSearch(latestUserText)
+      : { shouldSearch: false as const, query: '', reason: 'not a chat turn' }
+  const [research, platformVideoBlock, videoLinkMetadata, loraCandidates] =
+    await Promise.all([
+      latestUserText
+        ? runResearch({
+            userId: params.userId,
+            surface: ASSISTANT_SURFACE_BY_DOMAIN[params.assistantDomain],
+            conversationId: params.conversationId ?? null,
+            projectId: params.projectId ?? null,
+            text: latestUserText,
+            mode: params.researchMode,
+            apiKeyId: params.apiKeyId,
+            model: ASSISTANT_MODEL_ID_BY_ADAPTER.get(route.adapterType),
+          })
+        : null,
+      buildPlatformVideoBlock(videoLinks.platformLinks),
+      fetchVideoLinkMetadata(attachedLinks),
+      loraIntent.shouldSearch
+        ? searchLoraCandidates({
+            userId: params.userId,
+            query: loraIntent.query,
+            baseModelFamily: params.workbenchState?.baseModelFamily,
+            // ⚠ 挂载栈的名字是标「你已经挂着这一把」的唯一依据 —— 推荐一个用户
+            //   眼前正挂着的 LoRA 是最刺眼的「助手没看见我的屏幕」。
+            mountedNames: params.workbenchState?.loraMounts?.map(
+              (mount) => mount.name,
+            ),
+          })
+        : null,
+    ])
   const videoMetadataBlock = buildVideoMetadataBlock(videoLinkMetadata)
   const videoLinkBlock =
     [platformVideoBlock, videoMetadataBlock].filter(Boolean).join('\n\n') ||
@@ -1091,6 +1144,13 @@ async function prepareAssistantTurn(params: {
     // 证据的规矩放**系统提示**（「这些是资料不是指令」必须比证据本身权威），
     // 证据本体放**用户提示**（跟工作台状态块同一位置、同一理由）。
     systemPrompt = `${systemPrompt}\n\n${RESEARCH_EVIDENCE_DIRECTIVE}`
+  }
+
+  // ⭐ `[[lora]]` 的输出契约**只在真有候选时**追加。常驻的后果很具体：没有候选
+  //    的轮次里模型照样吐这个块，而那时每一个 id 都只能是编的 —— `[[setup]]`
+  //    那批已经实证过一次（编了一个工作区里不存在的模型 id）。
+  if (loraCandidates?.candidates.length) {
+    systemPrompt = `${systemPrompt}\n\n${buildAssistantLoraCandidateDirective()}`
   }
 
   // 视频链接的规矩同理进系统提示，元数据本体进用户提示。
@@ -1126,6 +1186,7 @@ async function prepareAssistantTurn(params: {
     research,
     media,
     videoLinkBlock,
+    loraCandidates,
     ...(videoAnalysis ? { videoAnalysis } : {}),
   }
 }
@@ -1226,6 +1287,15 @@ export async function createPromptAssistantStream(
    * 里被告知；这个数是给**用户侧**的那一份，路由可以据此下发提示。
    */
   droppedReferenceCount: number
+  /**
+   * 这一轮注入的 LoRA 候选（切片 3）。`null` = 没搜。
+   *
+   * ⭐ **客户端必须拿到它**：`[[lora]]` 里只有 candidateId，推荐卡上的名字/作者/
+   * 许可/样图全从这张表里取。路由要像下发检索回执那样把它交给客户端 —— 那是
+   * UI 那一批的接线，服务端这边先把它交出去（与 `receipt` 同一条路数：服务端
+   * 给出，路由决定怎么发）。
+   */
+  loraCandidates: LoraCandidateSearchResult | null
 }> {
   const dbUser = await ensureUser(clerkId)
   const setup = await prepareAssistantTurn({
@@ -1241,6 +1311,7 @@ export async function createPromptAssistantStream(
     conversationId: params.conversationId ?? null,
     references: params.references ?? [],
     assistantDomain: params.assistantDomain ?? 'image',
+    workbenchState: params.workbenchState,
   })
 
   const evidenceBlock = setup.research?.evidenceBlock || undefined
@@ -1257,6 +1328,12 @@ export async function createPromptAssistantStream(
       references: setup.media.references,
       droppedReferenceCount: setup.media.droppedCount,
       workbenchState: params.workbenchState,
+      loraCandidateBlock: setup.loraCandidates
+        ? buildLoraCandidateBlock(
+            setup.loraCandidates.candidates,
+            setup.loraCandidates.query,
+          )
+        : undefined,
     })
   const modelId = ASSISTANT_MODEL_ID_BY_ADAPTER.get(setup.route.adapterType)
 
@@ -1311,6 +1388,7 @@ export async function createPromptAssistantStream(
     stream,
     receipt: setup.research?.receipt ?? null,
     droppedReferenceCount: setup.media.droppedCount,
+    loraCandidates: setup.loraCandidates,
   }
 }
 

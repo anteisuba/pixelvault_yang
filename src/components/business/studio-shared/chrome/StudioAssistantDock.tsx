@@ -264,6 +264,7 @@ export function StudioAssistantDock() {
     injectedReference,
     workbenchState,
     writeback,
+    loraConfirm,
   } = useStudioAssistantPanelInputs()
   const { layout, isResizing, resetWidth, widthHandlers } = useDockLayout()
   const { route, researchMode } = useStudioAssistantControls()
@@ -406,6 +407,7 @@ export function StudioAssistantDock() {
             injectedReference={injectedReference}
             assistantRoute={route}
             researchMode={researchMode}
+            loraConfirm={loraConfirm}
           />
         )}
       </div>

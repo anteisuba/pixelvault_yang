@@ -3161,7 +3161,52 @@
     "referenceOnlyPrompt": "分析已添加的参考素材，并帮我继续完善这个想法。",
     "videoUnsupported": "当前模型无法分析视频。请选择 Gemini，或移除视频参考。",
     "imageUnsupported": "当前模型无法分析图片。请选择 OpenAI 或 Gemini，或移除图片参考。",
-    "routeAuto": "自动路由"
+    "routeAuto": "自动路由",
+    "loraCandidate": {
+      "sourceCivitai": "Civitai",
+      "sourceHuggingFace": "Hugging Face",
+      "authorUnknown": "作者未知",
+      "baseModelUnknown": "底模未知",
+      "sizeUnknown": "大小未知",
+      "licenseUnknown": "许可未知",
+      "licenseCommercial": "商用",
+      "licenseDerivatives": "衍生",
+      "licenseNoCredit": "免署名",
+      "permissionAllowed": "允许",
+      "permissionDenied": "不允许",
+      "permissionUnknown": "未知",
+      "downloads": "{count} 次下载",
+      "alreadyMounted": "已挂载",
+      "alreadyImported": "已收藏",
+      "alreadyInStack": "已在栈中",
+      "confirm": "导入并挂载",
+      "confirmImportOnly": "导入并填入触发词",
+      "confirmedMounted": "已导入、已挂载、触发词已填入",
+      "confirmedImported": "已导入，触发词已填入",
+      "openSource": "打开来源页",
+      "detailsTrimmed": "这一轮的候选详情太大没能完整下发，这条无法从卡片导入。再问一次可以拿到新的一批。",
+      "mountElsewhere": "当前工作台没有挂载栈，所以没有挂载。",
+      "goToLoraWorkbench": "去 LoRA 工作台挂载",
+      "type": {
+        "subject": "角色",
+        "style": "画风"
+      },
+      "metadataCompleteness": {
+        "complete": "元数据完整",
+        "partial": "元数据部分",
+        "minimal": "元数据很少"
+      },
+      "notImportable": {
+        "unknown_base_model": "定不出底模家族，这条只能推荐、不能导入。",
+        "no_weight_file": "没有可直接下载的权重文件，这条只能推荐、不能导入。",
+        "gated_repo": "这个 Hugging Face 仓库需要先在对方页面接受条款，之后再从库里导入。"
+      },
+      "failed": {
+        "import": "导入失败 —— 库里没有新增任何东西。",
+        "mount": "已导入，但挂载失败。它已经在你的库里，去挂载栈手动挂上即可。",
+        "trigger_words": "已导入并挂载，但触发词没能写进提示词，请从卡片上复制。"
+      }
+    }
   },
   "Onboarding": {
     "next": "下一步",

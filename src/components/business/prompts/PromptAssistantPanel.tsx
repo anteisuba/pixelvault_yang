@@ -33,6 +33,7 @@ import { CanvasAssistantReferencePicker } from '@/components/business/node/Canva
 import type { NodeAssistantRouteSelection } from '@/components/business/node/CanvasAssistantRouteSelector'
 import { AssistantAskedLog } from '@/components/business/prompts/AssistantAskedLog'
 import { AssistantTurnOptions } from '@/components/business/prompts/AssistantTurnOptions'
+import { PromptAssistantLoraPickCard } from '@/components/business/prompts/PromptAssistantLoraPickCard'
 import { PromptAssistantLoraResultCard } from '@/components/business/prompts/PromptAssistantLoraResultCard'
 import { ResearchReceiptCard } from '@/components/business/prompts/ResearchReceiptCard'
 import { buildResearchCitationComponents } from '@/components/business/prompts/ResearchRunEvidence'
@@ -63,8 +64,10 @@ import {
   usePromptAssistant,
   type PromptAssistantDisplayMessage,
 } from '@/hooks/kernel/use-prompt-assistant'
+import type { LoraCandidateConfirmAdapter } from '@/hooks/use-lora-candidate-confirm'
 import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
 import type { AssistantAskedPair } from '@/types/assistant-protocol'
+import { narrowLoraPicksToCandidates } from '@/lib/assistant-protocol-blocks'
 import { buildReferenceHandles } from '@/lib/assistant-reference-handles'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
@@ -162,6 +165,15 @@ export interface PromptAssistantPanelProps {
    * 外面，直接 useStudioForm() 会抛。
    */
   workbenchState?: AssistantWorkbenchState
+  /**
+   * LoRA 一次确认链（任务包 §5）。**由宿主装配后传进来**，缺席 = 这个宿主接不了
+   * 这条链，那时推荐卡退化成只读的事实卡。
+   *
+   * ⚠ `canMount` 的差异是这条链最容易漏的一处：`useActiveLoraStack` 的 Provider
+   * 只包 `/studio/lora`，图片/视频工作台没有挂载栈 —— 那里做「导入 + 触发词」，
+   * 并明说去哪儿挂。⛔ 不留点了没反应的挂载按钮。
+   */
+  loraConfirm?: LoraCandidateConfirmAdapter
 }
 
 function createReferenceId(prefix: string): string {
@@ -180,6 +192,7 @@ export function PromptAssistantPanel({
   assistantRoute,
   researchMode = RESEARCH_MODES.auto,
   workbenchState,
+  loraConfirm,
 }: PromptAssistantPanelProps) {
   const t = useTranslations('PromptAssistant')
   const tModels = useTranslations('Models')
@@ -453,6 +466,14 @@ export function PromptAssistantPanel({
             // A2：协议控件只挂**最后一轮**。往回滚看到三轮前的按钮还亮着、点下去
             // 发出一句过期答复，比没有按钮更糟。
             const isLastTurn = index === messages.length - 1
+            // ⚠ 推荐卡挂在**每一轮**上，不像反问/收敛只挂最后一轮：它是交付物
+            // 不是交互态 —— 三轮前推荐的那把 LoRA，今天点导入依然是对的那一把。
+            // 配对在这里做，命不中本轮候选的 pick 直接不出卡（模型编 id 时唯一
+            // 正确的处理）。
+            const resolvedLoraPicks = narrowLoraPicksToCandidates(
+              message.loraPicks,
+              message.loraCandidates,
+            )
             const turnOptions =
               isLastTurn && message.role === 'assistant' ? (
                 <AssistantTurnOptions
@@ -487,6 +508,19 @@ export function PromptAssistantPanel({
                     copiedLabel={t('copied')}
                   />
                 )}
+                {resolvedLoraPicks.length > 0 ? (
+                  <div className="mt-2 space-y-2 pl-6">
+                    {resolvedLoraPicks.map(({ pick, candidate }) => (
+                      <PromptAssistantLoraPickCard
+                        key={candidate.candidateId}
+                        pick={pick}
+                        candidate={candidate}
+                        confirm={loraConfirm}
+                        disabled={isLoading}
+                      />
+                    ))}
+                  </div>
+                ) : null}
                 {turnOptions}
               </div>
             )

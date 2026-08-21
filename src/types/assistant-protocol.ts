@@ -3,6 +3,7 @@ import { z } from 'zod'
 import {
   ASSISTANT_CLARIFY_FALLBACK_ID_PREFIXES,
   ASSISTANT_CLARIFY_LIMITS,
+  ASSISTANT_LORA_PICK_LIMITS,
 } from '@/constants/assistant-protocol'
 
 /**
@@ -180,6 +181,48 @@ export const AssistantSetupBlockSchema = z
   // 让下游每个消费点各写一次「都空就别渲染」干净。
   .refine((value) => Boolean(value.model || value.batchCount))
 export type AssistantSetupBlock = z.infer<typeof AssistantSetupBlockSchema>
+
+/**
+ * `[[lora]]` 块 —— LoRA 推荐（切片 3「一次确认链」）。
+ *
+ * ⭐ **载荷里只有 `candidateId` + 理由 + 建议权重，一个事实字段都没有。**
+ * 名字/作者/许可/下载链接来自服务端检索回来的候选对象；模型写它们只有两种
+ * 结局：与卡面数据不一致，或者干脆是编的。`[[setup]]` 那批已经实证过一次
+ * （模型编了一个工作区里不存在的模型 id），LoRA 这条链后面接着的是「一次确认
+ * → 自动下载导入挂载」，编出来的链接会一路走到用户的库里。
+ *
+ * **收窄不在这张 schema 上做**：`candidateId` 命不命中本轮候选列表，这里判断
+ * 不了（schema 不知道本轮注入了什么）。判断在
+ * `narrowLoraPicksToCandidates`，与 `[[setup]]` 的模型 id 查表同一条路数 ——
+ * 命不中就不出 chip。这里只挡形状。
+ */
+export const AssistantLoraPickSchema = z.object({
+  candidateId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(ASSISTANT_LORA_PICK_LIMITS.candidateIdMaxLength),
+  /** 为什么推荐这一把 —— 候选数据里唯一没有的东西，也是这个块存在的理由。 */
+  reason: z
+    .string()
+    .trim()
+    .min(1)
+    .max(ASSISTANT_LORA_PICK_LIMITS.reasonMaxLength),
+  suggestedWeight: z
+    .number()
+    .min(ASSISTANT_LORA_PICK_LIMITS.minWeight)
+    .max(ASSISTANT_LORA_PICK_LIMITS.maxWeight)
+    .optional(),
+})
+export type AssistantLoraPick = z.infer<typeof AssistantLoraPickSchema>
+
+export const AssistantLoraBlockSchema = z.object({
+  picks: z
+    .array(AssistantLoraPickSchema)
+    .min(1)
+    .max(ASSISTANT_LORA_PICK_LIMITS.maxPicks),
+})
+export type AssistantLoraBlock = z.infer<typeof AssistantLoraBlockSchema>
 
 /**
  * 一条已回答的问答对（A2c 的「已询问」折叠块）。

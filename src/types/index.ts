@@ -41,6 +41,11 @@ import {
   HUGGINGFACE_SHOWCASE_REVISION_MAX_LENGTH,
   LORA_CONTENT_TYPE_VALUES,
 } from '@/constants/lora'
+import {
+  LORA_ASSET_TYPE_VALUES,
+  LORA_CANDIDATE_SOURCE_VALUES,
+  LORA_METADATA_COMPLETENESS_VALUES,
+} from '@/constants/lora-candidate'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
@@ -3979,11 +3984,62 @@ export interface LoraTrainingListResponse {
 export const LoraAssetSourceSchema = z.enum(['curated', 'trained', 'imported'])
 export type LoraAssetSource = z.infer<typeof LoraAssetSourceSchema>
 
-export const LoraAssetTypeSchema = z.enum(['subject', 'style'])
+export const LoraAssetTypeSchema = z.enum(LORA_ASSET_TYPE_VALUES)
 export type LoraAssetType = z.infer<typeof LoraAssetTypeSchema>
 
 export const LoraAssetBaseFamilySchema = z.string().trim().min(1)
 export type LoraAssetBaseFamily = z.infer<typeof LoraAssetBaseFamilySchema>
+
+/**
+ * 一把 LoRA 的许可事实 —— **策略 C（已拍板边界 7）的核心字段，不阻断但必须如实**。
+ *
+ * ⚠ **为什么不是一个 `license: string`**：两个源说的根本不是同一件事。HF 有
+ * SPDX 风格的 `cardData.license`（`apache-2.0`）；Civitai **没有许可字段**，
+ * 只有作者勾的四个权限位（能不能商用、能不能改、要不要署名）。压成一个字符串
+ * 只有两条路：Civitai 一律写 null（把已知的权限声明丢掉），或者由我们编一个
+ * 许可名（猜）。两条都违反「不许猜、不许省略」。
+ *
+ * `known` 是给卡面用的单一判据：false 就必须显示「未知」，而不是留白 ——
+ * 留白会被读成「没有限制」。
+ */
+export const LoraCandidateLicenseSchema = z.object({
+  /** HF `cardData.license` 原样透传。null = 上游没有这个字段。 */
+  label: z.string().nullable(),
+  /** Civitai 作者声明的商用范围（`Image` / `Rent` / `Sell`…）。null = 该源没有这套声明。 */
+  commercialUse: z.array(z.string()).nullable(),
+  allowDerivatives: z.boolean().nullable(),
+  allowNoCredit: z.boolean().nullable(),
+  /** `label` 与 `commercialUse` 至少有一个非 null。 */
+  known: z.boolean(),
+})
+export type LoraCandidateLicense = z.infer<typeof LoraCandidateLicenseSchema>
+
+/**
+ * `LoraAsset.sourceSnapshot` 的形状 —— 双源通用的出处记录（策略 C）。
+ *
+ * ⚠ 与 `civitaiModelId` / `civitaiModelVersionId` / `civitaiFileHashAutoV3`
+ * **不重复**：那三个是 Civitai 专用**标识符**（哈希匹配、mined-prompts 用），
+ * HF 导入的行上全是 null。这一份是「这把 LoRA 从哪来、谁做的、什么许可、
+ * 什么时候抓的」，两个源都要有。
+ *
+ * `retrievedAt` 是**抓取时刻**不是导入时刻：卡上写的作者/许可是那一刻上游说的，
+ * 上游随后改了我们不知道 —— 时间戳是这句话唯一能落地的形态。
+ */
+export const LoraSourceSnapshotSchema = z.object({
+  source: z.enum(LORA_CANDIDATE_SOURCE_VALUES),
+  /** 作者名。Civitai = `creator.username`；HF = `repoId` 的前缀段。null = 取不到。 */
+  author: z.string().nullable(),
+  license: LoraCandidateLicenseSchema,
+  /** 模型主页（人能点开核对的那一页）。 */
+  pageUrl: z.string().nullable(),
+  /** HF 的 commit sha —— 「同一个仓库不同时间下到的不是同一份权重」。Civitai 恒 null。 */
+  revision: z.string().nullable(),
+  /** ISO 时间戳。 */
+  retrievedAt: z.string(),
+  fileSizeBytes: z.number().int().nonnegative().nullable(),
+  metadataCompleteness: z.enum(LORA_METADATA_COMPLETENESS_VALUES),
+})
+export type LoraSourceSnapshot = z.infer<typeof LoraSourceSnapshotSchema>
 
 export const LoraAssetRecordSchema = z.object({
   id: z.string(),
@@ -4017,6 +4073,12 @@ export const LoraAssetRecordSchema = z.object({
   modelId: z.number().int().positive().optional(),
   modelVersionId: z.number().int().positive().optional(),
   fileHashAutoV3: z.string().nullable().optional(),
+  /**
+   * 来源快照（策略 C）。`null` = 这一行是快照字段落地之前导入的，或本来就没有
+   * 来源（自训练 / 精选）。**optional 是给还没接上的构造点用的**（Civitai 库
+   * 条目、挂载栈本地记录），不是「可以不写」。
+   */
+  sourceSnapshot: LoraSourceSnapshotSchema.nullable().optional(),
 })
 
 export type LoraAssetRecord = z.infer<typeof LoraAssetRecordSchema>
@@ -4150,6 +4212,12 @@ export const FavoriteLoraRequestSchema = z.object({
   modelId: z.number().int().positive().optional(),
   modelVersionId: z.number().int().positive().optional(),
   fileHashAutoV3: z.string().nullable().optional(),
+  /**
+   * 来源快照（策略 C）。**双源都要带** —— 上面那三个 civitai 标识符在 HF 导入
+   * 时全是 null，作者/许可/revision 此前无处可放，于是 HF 收藏的行看不出是谁
+   * 做的、什么许可。optional 只为兼容还没接上的调用点（自训练回流）。
+   */
+  sourceSnapshot: LoraSourceSnapshotSchema.optional(),
 })
 export type FavoriteLoraRequest = z.infer<typeof FavoriteLoraRequestSchema>
 
@@ -4221,6 +4289,14 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // 'official' = trigger 来自 Civitai 作者填写字段；'inferred' = 我们从
   // 模型名推断的，UI 应展示「推断」徽章提示用户可能不准确。
   triggerSource: z.enum(['official', 'inferred']),
+  // 主 LoRA 权重文件的字节数（由上游 `files[].sizeKB × 1024` 换算）。
+  //
+  // ⚠ 这个字段 2026-08-21 才接上：`CivitaiFileSchema` 从一开始就解析了
+  // `sizeKB`，但从没映射进 library item —— 于是「这把 LoRA 多大」在整个前端
+  // 无处可取，推荐卡要显示的一项事实凭空缺失。null = 上游没给（meilisearch
+  // 搜索路径的版本对象不带文件大小）；optional 是为了不破坏其余构造该类型
+  // 的调用点/测试 fixture。
+  fileSizeBytes: z.number().int().nonnegative().nullable().optional(),
   // 主 LoRA 权重文件的 Civitai AutoV3 hash（lower-case，无前缀）。客户端
   // 用它调 `/api/lora-assets/civitai/mined-prompts` 端点，从作者/社区生成
   // 图的 prompt 里反推真实激活段。null 表示该版本没有 primary file 或上

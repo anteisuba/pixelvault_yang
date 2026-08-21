@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto'
 
 import { LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST } from '@/constants/lora'
 import { parseCivitaiVersionIdFromDownloadUrl } from '@/lib/civitai-lora-url'
-import { db } from '@/lib/db'
+import { db, isUniqueConstraintError } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import {
   fetchCivitaiVersionIdentifiers,
@@ -12,11 +12,13 @@ import {
 } from '@/services/civitai-lora.service'
 import { isOwnedStorageUrl } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
+import { LoraSourceSnapshotSchema } from '@/types'
 import type {
   LoraAssetRecord,
   LoraAssetSource,
   LoraAssetType,
   LoraAssetBaseFamily,
+  LoraSourceSnapshot,
 } from '@/types'
 
 interface LoraAssetRow {
@@ -39,6 +41,21 @@ interface LoraAssetRow {
   civitaiModelVersionId: number | null
   civitaiFileHashAutoV3: string | null
   recommendedPrompt: string | null
+  /** Json 列 —— 读出来必须过一次 schema，见 `toSourceSnapshot`。 */
+  sourceSnapshot: unknown
+}
+
+/**
+ * Json 列 → 强类型快照。**读不出来就当没有**，不抛。
+ *
+ * 理由与 `previewImageUrls` 的 `Array.isArray` 兜底同源：这是一个 2026-08-21
+ * 才加的列，此前所有行都是 null，而 Json 列本身没有任何类型保证。让一行脏数据
+ * 把整份 LoRA 列表打成 500，代价远大于那一行少显示一段来源信息。
+ */
+function toSourceSnapshot(value: unknown): LoraSourceSnapshot | null {
+  if (value === null || value === undefined) return null
+  const parsed = LoraSourceSnapshotSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
 }
 
 function toRecord(
@@ -68,6 +85,7 @@ function toRecord(
     modelId: row.civitaiModelId ?? undefined,
     modelVersionId: row.civitaiModelVersionId ?? undefined,
     fileHashAutoV3: row.civitaiFileHashAutoV3,
+    sourceSnapshot: toSourceSnapshot(row.sourceSnapshot),
   }
 }
 
@@ -402,6 +420,16 @@ export async function updateLoraAssetCover(
  * into the viewer's "Favorites" (source = 'imported').
  * Idempotent on (userId, loraUrl): returns the existing row if present.
  * Visible only to the owner — favorites are personal, not republished.
+ *
+ * **幂等是两层的**（2026-08-21 补齐，owner「收藏不能收藏同一个 LoRA 两次」）：
+ *
+ * 1. 先 `findFirst` —— 命中直接返回，省掉一次白写；
+ * 2. `create` 撞 `@@unique([userId, loraUrl])`（P2002）时**再查一次并返回既有行**。
+ *
+ * ⚠ **只有第 1 层挡不住并发**：两个请求同时查、都发现没有、就都写了。实测两组
+ * 重复分别相差 **5ms** 与 **184ms**，正是双击。所以约束是必需的，而第 2 层的作用
+ * 是让撞上约束的那个请求**表现得像幂等**，而不是把一个 500 甩给用户 —— 他只是
+ * 手快点了两下，不是做错了什么。
  */
 export async function favoriteExternalLora(
   clerkId: string,
@@ -417,6 +445,12 @@ export async function favoriteExternalLora(
     modelId?: number
     modelVersionId?: number
     fileHashAutoV3?: string | null
+    /**
+     * 来源快照（策略 C，已拍板边界 7）。**双源都该带** —— 上面那三个 civitai
+     * 标识符在 HF 导入时全是 null，作者/许可/revision 此前根本没有落点，于是
+     * HF 收藏的行看不出是谁做的、什么许可、锁的哪个 commit。
+     */
+    sourceSnapshot?: LoraSourceSnapshot
   },
 ): Promise<LoraAssetRecord> {
   const user = await ensureUser(clerkId)
@@ -427,31 +461,60 @@ export async function favoriteExternalLora(
   if (existing) return toRecord(existing, user.id)
 
   const styleCode = await reserveUniqueStyleCode(input.name, input.type)
-  const created = await db.loraAsset.create({
-    data: {
+  let created: Awaited<ReturnType<typeof db.loraAsset.create>>
+  try {
+    created = await db.loraAsset.create({
+      data: {
+        userId: user.id,
+        name: input.name,
+        styleCode,
+        source: 'imported',
+        type: input.type,
+        baseModelFamily: input.baseModelFamily,
+        provider: input.provider,
+        triggerWord: input.triggerWord,
+        loraUrl: input.loraUrl,
+        coverImageUrl: input.coverImageUrl ?? null,
+        defaultScale: 1.0,
+        isPublic: false,
+        recommendedPrompt: input.recommendedPrompt ?? null,
+        civitaiModelId: input.modelId ?? null,
+        civitaiModelVersionId: input.modelVersionId ?? null,
+        civitaiFileHashAutoV3: input.fileHashAutoV3 ?? null,
+        // ⚠ 条件展开而不是 `?? null`：Prisma 的 Json 输入类型不收顶层 `null`
+        // （要 `Prisma.JsonNull` 那一套）。列本身可空、无默认值，省略即 null，
+        // 两者落库结果逐字一致。
+        ...(input.sourceSnapshot
+          ? { sourceSnapshot: input.sourceSnapshot }
+          : {}),
+      },
+    })
+  } catch (error) {
+    // 撞上 `@@unique([userId, loraUrl])` = 另一个并发请求刚写进去了。
+    // 对用户来说这就是「已经收藏过了」，不是错误 —— 回查那一行返回即可。
+    if (!isUniqueConstraintError(error)) throw error
+
+    const raced = await db.loraAsset.findFirst({
+      where: { userId: user.id, loraUrl: input.loraUrl },
+    })
+    // 查不到只可能是约束因别的列冲突（styleCode），那是真错，照抛。
+    if (!raced) throw error
+
+    logger.info('LoraAsset favorite raced; returning existing row', {
       userId: user.id,
-      name: input.name,
-      styleCode,
-      source: 'imported',
-      type: input.type,
-      baseModelFamily: input.baseModelFamily,
-      provider: input.provider,
-      triggerWord: input.triggerWord,
       loraUrl: input.loraUrl,
-      coverImageUrl: input.coverImageUrl ?? null,
-      defaultScale: 1.0,
-      isPublic: false,
-      recommendedPrompt: input.recommendedPrompt ?? null,
-      civitaiModelId: input.modelId ?? null,
-      civitaiModelVersionId: input.modelVersionId ?? null,
-      civitaiFileHashAutoV3: input.fileHashAutoV3 ?? null,
-    },
-  })
+      styleCode: raced.styleCode,
+    })
+    return toRecord(raced, user.id)
+  }
 
   logger.info('LoraAsset favorited (imported)', {
     userId: user.id,
     styleCode,
     loraUrl: input.loraUrl,
+    // 快照缺失要在日志里看得见：HF 那条老路（LoraLibraryModal）至今不传，
+    // 补它是 UI 那一批的活，别让它悄悄一直缺着。
+    hasSourceSnapshot: Boolean(input.sourceSnapshot),
   })
 
   return toRecord(created, user.id)

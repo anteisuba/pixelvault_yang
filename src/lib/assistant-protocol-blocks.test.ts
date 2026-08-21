@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 
-import { extractAssistantProtocolBlocks } from '@/lib/assistant-protocol-blocks'
+import {
+  extractAssistantProtocolBlocks,
+  narrowLoraPicksToCandidates,
+} from '@/lib/assistant-protocol-blocks'
+import type { LoraCandidate } from '@/types/lora-candidate'
 
 const ASK_BLOCK = `[[ask]]
 {"questions":[{"id":"q1","question":"要什么主体？","options":[{"id":"o1","label":"人物"}],"multiSelect":false,"allowCustom":true,"allowSkip":false}]}
@@ -13,6 +17,12 @@ const NEXT_BLOCK = `[[next]]
 const PROMPT_BLOCK = `[[prompt]]
 {"positive":"a moody ivory hallway, soft window light","negative":"blurry, watermark","aspectRatio":"16:9"}
 [[/prompt]]`
+
+// ⭐ 载荷里**只有 candidateId + 理由 + 建议权重**：名字/链接/许可一个都不许
+// 模型写，卡面事实全部来自服务端检索回来的候选对象。
+const LORA_BLOCK = `[[lora]]
+{"picks":[{"candidateId":"civitai:122359:135867","reason":"官方立绘一致度最高","suggestedWeight":0.8},{"candidateId":"hf:owner/repo#0","reason":"更偏水彩，二选一"}]}
+[[/lora]]`
 
 describe('extractAssistantProtocolBlocks', () => {
   it('剥掉两个块并保留正文', () => {
@@ -322,5 +332,113 @@ describe('extractAssistantProtocolBlocks', () => {
 
     expect(result.ask).toBeUndefined()
     expect(result.protocolMalformed).toBe(true)
+  })
+
+  // ── `[[lora]]`：LoRA 推荐（切片 3「一次确认链」）──────────────────
+
+  it('与其它块共存时各读各的，正文剥干净', () => {
+    const result = extractAssistantProtocolBlocks(
+      `这把最贴你要的画风。\n\n${LORA_BLOCK}\n\n${NEXT_BLOCK}`,
+      { streamComplete: true },
+    )
+
+    expect(result.content).toBe('这把最贴你要的画风。')
+    expect(result.loraPicks).toHaveLength(2)
+    expect(result.loraPicks?.[0]?.candidateId).toBe('civitai:122359:135867')
+    expect(result.loraPicks?.[0]?.suggestedWeight).toBe(0.8)
+    expect(result.next?.satisfied).toBe('就这样生成')
+    expect(result.protocolMalformed).toBeUndefined()
+  })
+
+  it('⚠ 还没写完的 `[[lo` 不许漏进正文 —— 用户会看着裸标记蹦出来又消失', () => {
+    const result = extractAssistantProtocolBlocks(
+      `这把最贴你要的画风。\n\n[[lo`,
+      {
+        streamComplete: false,
+      },
+    )
+
+    // 裸标记被扣住了；尾部空白是「没命中任何标记」那条快路的既有行为
+    // （四个老标记同样如此），与泄漏无关。
+    expect(result.content).not.toContain('[[')
+    expect(result.content.trim()).toBe('这把最贴你要的画风。')
+    expect(result.loraPicks).toBeUndefined()
+    expect(result.protocolMalformed).toBeUndefined()
+  })
+
+  it('完整的块但载荷读不出来 —— 报 malformed，不静默吞', () => {
+    const result = extractAssistantProtocolBlocks(
+      `[[lora]]\n{"picks":[{"candidateId":"civitai:1:2"}]}\n[[/lora]]`,
+      { streamComplete: true },
+    )
+
+    // 缺 reason —— 推荐卡的全部价值就在那句「为什么」，没有它就不是一条推荐。
+    expect(result.loraPicks).toBeUndefined()
+    expect(result.protocolMalformed).toBe(true)
+  })
+})
+
+describe('narrowLoraPicksToCandidates', () => {
+  const candidate = (candidateId: string): LoraCandidate => ({
+    candidateId,
+    source: 'civitai',
+    name: 'Changli',
+    author: 'someauthor',
+    license: {
+      label: null,
+      commercialUse: ['Image'],
+      allowDerivatives: true,
+      allowNoCredit: false,
+      known: true,
+    },
+    baseModelFamily: 'Illustrious',
+    type: 'subject',
+    triggerWords: ['changli'],
+    sampleImageUrls: [],
+    fileSizeBytes: null,
+    pageUrl: 'https://civitai.com/models/122359',
+    downloads: 10,
+    metadataCompleteness: 'partial',
+    importable: true,
+    alreadyMounted: false,
+    alreadyImported: false,
+    importPayload: null,
+  })
+
+  it('⭐ 模型编的 id 不出卡 —— 命不中本轮候选就丢掉那一条', () => {
+    const resolved = narrowLoraPicksToCandidates(
+      [
+        { candidateId: 'civitai:999:999', reason: '编的' },
+        { candidateId: 'civitai:1:2', reason: '真的' },
+      ],
+      [candidate('civitai:1:2')],
+    )
+
+    expect(resolved).toHaveLength(1)
+    expect(resolved[0]?.candidate.name).toBe('Changli')
+    expect(resolved[0]?.pick.reason).toBe('真的')
+  })
+
+  it('同一个 id 挑两次只出一张卡（两张一样的卡 = 点一个亮两个）', () => {
+    const resolved = narrowLoraPicksToCandidates(
+      [
+        { candidateId: 'civitai:1:2', reason: '一' },
+        { candidateId: 'civitai:1:2', reason: '二' },
+      ],
+      [candidate('civitai:1:2')],
+    )
+
+    expect(resolved).toHaveLength(1)
+    expect(resolved[0]?.pick.reason).toBe('一')
+  })
+
+  it('本轮压根没注入候选时，任何 pick 都不出卡', () => {
+    expect(
+      narrowLoraPicksToCandidates(
+        [{ candidateId: 'civitai:1:2', reason: '有理由也没用' }],
+        [],
+      ),
+    ).toEqual([])
+    expect(narrowLoraPicksToCandidates(undefined, [candidate('x')])).toEqual([])
   })
 })

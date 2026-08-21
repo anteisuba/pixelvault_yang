@@ -42,9 +42,12 @@ import type {
   VideoStatusResponse,
   VideoSubmitResponse,
 } from '@/types'
+import type { LoraCandidateSearchResult } from '@/types/lora-candidate'
 import type { ResearchReceipt } from '@/types/research'
+import { decodeLoraCandidateReceiptHeader } from '@/lib/lora-candidate-receipt'
 import { decodeResearchReceiptHeader } from '@/lib/research-receipt'
 import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
+import { LORA_CANDIDATE_RECEIPT_HEADER } from '@/constants/lora-candidate'
 import { RESEARCH_RECEIPT_HEADER } from '@/constants/research'
 
 import {
@@ -1307,6 +1310,14 @@ export type PromptAssistantStreamApiResponse =
        * 会让它被念出来。读不出来就当没有 —— 回执坏了不该让一次对话失败。
        */
       research: ResearchReceipt | null
+      /**
+       * 这一轮注入的 LoRA 候选（切片 3）。`null` = 这一轮没搜候选。
+       *
+       * 与 `research` 同一条路数（响应头 + base64），但载荷大一个量级，所以
+       * 编码器带三档降级：解出来的候选可能没有样图、甚至没有导入载荷。判据在
+       * 候选对象自己身上（`sampleImageUrls` / `importPayload`），不另设标志位。
+       */
+      loraCandidates: LoraCandidateSearchResult | null
     }
   | { success: false; error: string; errorCode?: string; i18nKey?: string }
 
@@ -1350,6 +1361,9 @@ export async function streamPromptAssistantAPI(
       stream: response.body,
       research: decodeResearchReceiptHeader(
         response.headers.get(RESEARCH_RECEIPT_HEADER),
+      ),
+      loraCandidates: decodeLoraCandidateReceiptHeader(
+        response.headers.get(LORA_CANDIDATE_RECEIPT_HEADER),
       ),
     }
   } catch (error) {

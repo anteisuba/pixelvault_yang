@@ -37,6 +37,14 @@ vi.mock('@/hooks/kernel/use-prompt-assistant', () => ({
   }),
 }))
 
+// 推荐卡里的「去 LoRA 工作台挂载」用的是本地化 Link。`next-intl/navigation`
+// 在 jsdom 里会去解析 `next/navigation` 的裸路径并炸掉 —— 换成一个直白的 <a>。
+vi.mock('@/i18n/navigation', () => ({
+  Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}))
+
 vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => null,
 }))
@@ -595,5 +603,153 @@ describe('PromptAssistantPanel', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'send' }))
     expect(sendMock).toHaveBeenCalled()
+  })
+})
+
+// ─── 切片 3：LoRA 推荐卡在面板里的接线 ──────────────────────────────
+//
+// ⚠ 这一组守的是**宿主差异**，也是这一批最容易漏的一处：同一个面板挂在
+// LoRA 装配台 / 图片工作台 / 移动端抽屉三处，只有装配台拿得到挂载栈
+// （`LoraStackProvider` 只包 /studio/lora）。验一个宿主 ≠ 验全部。
+
+function loraPickMessage(): PromptAssistantDisplayMessage {
+  return {
+    role: 'assistant',
+    content: '这把比较贴。',
+    loraPicks: [
+      { candidateId: 'civitai:1:1', reason: '画风一致' },
+      // 命不中本轮候选的 pick（模型编的 id）—— 不该出卡
+      { candidateId: 'civitai:9:9', reason: '编的' },
+    ],
+    loraCandidates: [
+      {
+        candidateId: 'civitai:1:1',
+        source: 'civitai',
+        name: '长离 · 角色 LoRA',
+        author: 'creator',
+        license: {
+          label: null,
+          commercialUse: ['Image'],
+          allowDerivatives: true,
+          allowNoCredit: false,
+          known: true,
+        },
+        baseModelFamily: 'Illustrious',
+        type: 'subject',
+        triggerWords: ['changli'],
+        sampleImageUrls: [],
+        fileSizeBytes: 1024,
+        pageUrl: 'https://civitai.com/models/1',
+        downloads: 10,
+        metadataCompleteness: 'complete',
+        importable: true,
+        alreadyMounted: false,
+        alreadyImported: false,
+        importPayload: {
+          name: '长离 · 角色 LoRA',
+          triggerWord: 'changli',
+          loraUrl: 'https://civitai.com/api/download/models/1',
+          type: 'subject',
+          baseModelFamily: 'Illustrious',
+          provider: 'civitai',
+          coverImageUrl: null,
+          recommendedPrompt: null,
+          fileHashAutoV3: null,
+          sourceSnapshot: {
+            source: 'civitai',
+            author: 'creator',
+            license: {
+              label: null,
+              commercialUse: ['Image'],
+              allowDerivatives: true,
+              allowNoCredit: false,
+              known: true,
+            },
+            pageUrl: 'https://civitai.com/models/1',
+            revision: null,
+            retrievedAt: '2026-08-21T09:12:33.123Z',
+            fileSizeBytes: 1024,
+            metadataCompleteness: 'complete',
+          },
+        },
+      },
+    ],
+  }
+}
+
+describe('PromptAssistantPanel · LoRA 推荐卡', () => {
+  it('把 picks 兑换成候选后出卡，编出来的 id 不出卡', () => {
+    mockMessages = [loraPickMessage()]
+    render(
+      <PromptAssistantPanel
+        currentPrompt=""
+        writeback={makeWriteback()}
+        loraConfirm={{ canMount: true, confirm: vi.fn() }}
+      />,
+    )
+
+    expect(screen.getByText('长离 · 角色 LoRA')).toBeInTheDocument()
+    expect(screen.getByText('画风一致')).toBeInTheDocument()
+    // 模型编的那条查不到底 —— 渲染一张查不到底的卡等于把「编的」和「真有的」混在一起
+    expect(screen.queryByText('编的')).not.toBeInTheDocument()
+  })
+
+  it('LoRA 装配台宿主：出的是「导入并挂载」', () => {
+    mockMessages = [loraPickMessage()]
+    render(
+      <PromptAssistantPanel
+        currentPrompt=""
+        writeback={makeWriteback()}
+        loraConfirm={{ canMount: true, confirm: vi.fn() }}
+      />,
+    )
+
+    expect(screen.getByText('loraCandidate.confirm')).toBeInTheDocument()
+    expect(
+      screen.queryByText('loraCandidate.confirmImportOnly'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('非 LoRA 宿主：**没有挂载按钮**，改成「导入并填入触发词」', () => {
+    mockMessages = [loraPickMessage()]
+    render(
+      <PromptAssistantPanel
+        currentPrompt=""
+        writeback={makeWriteback()}
+        loraConfirm={{ canMount: false, confirm: vi.fn() }}
+      />,
+    )
+
+    expect(
+      screen.getByText('loraCandidate.confirmImportOnly'),
+    ).toBeInTheDocument()
+    // ⛔ 图片/视频工作台没有挂载栈，出「导入并挂载」就是一个点了没反应的按钮
+    expect(screen.queryByText('loraCandidate.confirm')).not.toBeInTheDocument()
+  })
+
+  it('宿主漏传 loraConfirm：卡仍如实展示，但一个按钮都不出', () => {
+    mockMessages = [loraPickMessage()]
+    render(
+      <PromptAssistantPanel currentPrompt="" writeback={makeWriteback()} />,
+    )
+
+    expect(screen.getByText('长离 · 角色 LoRA')).toBeInTheDocument()
+    expect(screen.queryByText('loraCandidate.confirm')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('loraCandidate.confirmImportOnly'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('这一轮没有推荐时不留任何残留', () => {
+    mockMessages = [{ role: 'assistant', content: '就聊聊天。' }]
+    render(
+      <PromptAssistantPanel
+        currentPrompt=""
+        writeback={makeWriteback()}
+        loraConfirm={{ canMount: true, confirm: vi.fn() }}
+      />,
+    )
+
+    expect(screen.queryByText('loraCandidate.confirm')).not.toBeInTheDocument()
   })
 })

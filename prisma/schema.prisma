@@ -999,6 +999,17 @@ model LoraAsset {
   civitaiFileHashAutoV3 String?
   recommendedPrompt     String? @db.Text
 
+  // 双源通用的来源快照（策略 C「自用优先」的记账面，见
+  // docs/plans/ai-director-kernel-2026-08-13.md 已拍板边界 7）：作者 / 许可 /
+  // 来源页 / HF revision / 抓取时间 / 文件大小 / 元数据完整度。
+  //
+  // ⚠ 它与上面那四个 civitai 字段**不是重复**：那四个是 civitai 专用的**标识符**
+  // （给 mined-prompts / 哈希匹配用），这一个是**双源共用的出处记录**——HF 导入的
+  // 行在那四个字段上全是 null，策略 C 要的作者/许可/revision 此前无处可放。
+  // 形状 = `LoraSourceSnapshotSchema`（src/types/lora-candidate.ts），读出来必须
+  // 过一次 schema：Json 列没有类型保证，旧行是 null。
+  sourceSnapshot Json?
+
   trainingJobId String?          @unique
   trainingJob   LoraTrainingJob? @relation(fields: [trainingJobId], references: [id], onDelete: SetNull)
 
@@ -1009,6 +1020,15 @@ model LoraAsset {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// 同一个人不能把同一个 LoRA 收藏两次。
+  ///
+  /// ⚠ **这条以前只做在应用层**（先 findFirst 再 create），挡不住并发 —— 2026-08-21
+  /// 清出两组重复，一组相差 5ms、一组 184ms，都是双击造成的竞态。清理后补上约束，
+  /// 写入侧同批改成「撞 P2002 就返回既有行」，两层一起才真的挡得住。
+  ///
+  /// ⚠ `userId` 可空（平台 curated LoRA 无主）。Postgres 的 unique 对 NULL 不去重，
+  /// 所以这条只约束「有主」的收藏，curated 不受影响 —— 正是想要的语义。
+  @@unique([userId, loraUrl])
   @@index([userId, createdAt(sort: Desc)])
   @@index([source, isPublic, createdAt(sort: Desc)])
 }

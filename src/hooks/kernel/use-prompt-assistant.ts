@@ -16,10 +16,12 @@ import type { AssistantMediaReference } from '@/types/assistant-media'
 import type {
   AssistantAskedPair,
   AssistantClarifyingQuestion,
+  AssistantLoraPick,
   AssistantNextStep,
   AssistantPromptBlock,
   AssistantSetupBlock,
 } from '@/types/assistant-protocol'
+import type { LoraCandidate } from '@/types/lora-candidate'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { RESEARCH_MODES, type ResearchMode } from '@/constants/research'
 import type { ResearchReceipt } from '@/types/research'
@@ -36,7 +38,10 @@ import {
   upsertAssistantConversationAPI,
 } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
-import { extractAssistantProtocolBlocks } from '@/lib/assistant-protocol-blocks'
+import {
+  extractAssistantProtocolBlocks,
+  narrowLoraPicksToCandidates,
+} from '@/lib/assistant-protocol-blocks'
 import { createAssistantTypewriter } from '@/lib/assistant-typewriter'
 
 /** Style preset shortcuts — must stay in sync with prompt-assistant.service */
@@ -109,6 +114,23 @@ export interface PromptAssistantDisplayMessage extends PromptAssistantMessage {
    * 这个字段，不能看 `researchRunId`。
    */
   research?: ResearchReceipt
+  /**
+   * `[[lora]]` 块里模型给的那一半（candidateId + 理由 + 建议权重）。
+   *
+   * ⚠ **它单独存在没有意义** —— 卡面上的每一个事实都来自 `loraCandidates`。
+   * 两个字段必须一起看，配对由 `narrowLoraPicksToCandidates` 做：命不中本轮候选
+   * 的 pick 直接丢掉（模型编了一个 id 时，能做的只有不渲染）。
+   */
+  loraPicks?: AssistantLoraPick[]
+  /**
+   * 这一轮服务端注入的候选（响应头下发，见 `lib/lora-candidate-receipt`）。
+   *
+   * ⚠ 与 `research` 的取舍**正好相反**：回执只活在客户端、刷新后按 runId 水合，
+   * 而候选**要持久化**。原因是候选没有可以按 id 重取的库表，它是那一刻的上游
+   * 快照 —— 重搜一次拿回来的可能是改过的版本，而「用户看到的卡必须等于导入的
+   * 那版」是这条链的核心承诺。落库的只有被挑中的那几条，见 `toStoredMessages`。
+   */
+  loraCandidates?: LoraCandidate[]
   protocolMalformed?: boolean
   /**
    * A2c：这条用户消息回答了哪几个问题。挂在**用户**消息上（`ask` 挂在助手消息
@@ -165,17 +187,34 @@ function toStoredMessages(messages: readonly PromptAssistantDisplayMessage[]) {
       promptDraft,
       setup,
       researchRunId,
-    }) => ({
-      role,
-      content,
-      ...(mediaReferences?.length ? { mediaReferences } : {}),
-      // ⚠ `promptDraft` / `setup` / `researchRunId` 走，`ask` / `next` 不走 ——
-      // 判据见 `AssistantConversationMessageSchema.promptDraft` 的注释：
-      // 交付物 vs 交互态。
-      ...(promptDraft ? { promptDraft } : {}),
-      ...(setup ? { setup } : {}),
-      ...(researchRunId ? { researchRunId } : {}),
-    }),
+      loraPicks,
+      loraCandidates,
+    }) => {
+      // 落库前先配对：**只存真的会渲染成卡的那几条**（≤3），不存整轮候选（≤6）。
+      // 顺带把「模型编的 id」在落库这一层也挡掉 —— 存进去的每条 pick 都有对应的
+      // 候选本体，回读时不必再担心配不上。
+      const resolvedPicks = narrowLoraPicksToCandidates(
+        loraPicks,
+        loraCandidates,
+      )
+      return {
+        role,
+        content,
+        ...(mediaReferences?.length ? { mediaReferences } : {}),
+        // ⚠ `promptDraft` / `setup` / `researchRunId` / LoRA 推荐走，
+        // `ask` / `next` 不走 —— 判据见
+        // `AssistantConversationMessageSchema.promptDraft` 的注释：交付物 vs 交互态。
+        ...(promptDraft ? { promptDraft } : {}),
+        ...(setup ? { setup } : {}),
+        ...(researchRunId ? { researchRunId } : {}),
+        ...(resolvedPicks.length
+          ? {
+              loraPicks: resolvedPicks.map((entry) => entry.pick),
+              loraCandidates: resolvedPicks.map((entry) => entry.candidate),
+            }
+          : {}),
+      }
+    },
   )
 }
 
@@ -197,6 +236,8 @@ function toDisplayMessages(
       promptDraft,
       setup,
       researchRunId,
+      loraPicks,
+      loraCandidates,
     }) => ({
       role,
       content,
@@ -204,6 +245,10 @@ function toDisplayMessages(
       ...(promptDraft ? { promptDraft } : {}),
       ...(setup ? { setup } : {}),
       ...(researchRunId ? { researchRunId } : {}),
+      // 两个字段必须一起回来：只回其中一个，卡要么没有事实、要么没有理由。
+      ...(loraPicks?.length && loraCandidates?.length
+        ? { loraPicks, loraCandidates }
+        : {}),
     }),
   )
 }
@@ -499,6 +544,9 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
       // ⚠ `quota_exceeded` 的回执 `runId` 是 null，但回执本身要渲染（用户得知道
       // 「今天的检索额度用完了」）。所以两个字段各挂各的，不能只挂 runId。
       const researchRunId = receipt?.runId ?? undefined
+      // 候选与回执走同一条响应头通道，同样在正文第一个字之前就到齐 —— 所以
+      // `[[lora]]` 一被抽出来就配得上事实，不存在「卡先出来、名字后到」。
+      const loraCandidates = result.loraCandidates?.candidates
       const render = (
         text: string,
         streamComplete: boolean,
@@ -513,6 +561,7 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
             ...extracted,
             ...(receipt ? { research: receipt } : {}),
             ...(researchRunId ? { researchRunId } : {}),
+            ...(loraCandidates?.length ? { loraCandidates } : {}),
           },
         ]
       }

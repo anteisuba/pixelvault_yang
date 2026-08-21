@@ -2,14 +2,17 @@ import { z } from 'zod'
 
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import {
+  ASSISTANT_LORA_PICK_LIMITS,
   ASSISTANT_PROTOCOL_DOMAIN_IDS,
   type AssistantProtocolDomain,
 } from '@/constants/assistant-protocol'
 import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
 import {
+  AssistantLoraPickSchema,
   AssistantPromptBlockSchema,
   AssistantSetupBlockSchema,
 } from '@/types/assistant-protocol'
+import { LoraCandidateSchema } from '@/types/lora-candidate'
 
 /**
  * 一段对话归谁 —— **每个域一个槽**（A1，owner 2026-08-08 拍板「四档」）。
@@ -101,6 +104,31 @@ export const AssistantConversationMessageSchema = z.object({
    * 来源清单今天点开依然是那些来源，和「复制」按钮一个道理。
    */
   researchRunId: z.string().trim().min(1).max(120).optional(),
+  /**
+   * LoRA 推荐（`[[lora]]` 块）—— 模型给的那一半：挑了哪个 candidateId、为什么、
+   * 建议多少权重。
+   *
+   * 持久化的判据与 `promptDraft` 一字不差：**交付物 vs 交互态**。推荐卡是交付物
+   * ——三轮前推荐的那把 LoRA，今天点「导入并挂载」依然是对的那一把，和「复制」
+   * 按钮一个道理。不存的代价是刷新一次整段推荐变成一句白话。
+   */
+  loraPicks: z
+    .array(AssistantLoraPickSchema)
+    .max(ASSISTANT_LORA_PICK_LIMITS.maxPicks)
+    .optional(),
+  /**
+   * 这一轮**被挑中的**那几条候选本体 —— 卡面上的名字/作者/许可/触发词/导入载荷
+   * 全在这里，模型输出里一个事实字段都没有。
+   *
+   * ⚠ **只存被挑中的（≤3），不存整轮候选（≤6）**：没被挑中的那几条在界面上不
+   * 出现，存了只是让每条历史消息多背几 KB。与 `researchRunId` 那条「证据本体不
+   * 进 messages」是同一个取舍，只是这里没有可以按 id 水合的库表 —— 候选是那一
+   * 刻的上游快照，重搜一次拿到的不是同一份，所以本体必须跟着走。
+   */
+  loraCandidates: z
+    .array(LoraCandidateSchema)
+    .max(ASSISTANT_LORA_PICK_LIMITS.maxPicks)
+    .optional(),
 })
 
 export type AssistantConversationMessageStored = z.infer<

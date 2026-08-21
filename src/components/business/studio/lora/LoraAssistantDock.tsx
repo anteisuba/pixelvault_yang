@@ -16,6 +16,8 @@ import {
 } from '@/components/business/assistant/AssistantShell'
 import { useDockLayout } from '@/components/business/studio-shared/chrome/StudioAssistantDock'
 import { StudioAssistantHeaderActions } from '@/components/business/assistant/StudioAssistantHeaderActions'
+import { useOptionalActiveLoraStack } from '@/hooks/use-active-lora-stack'
+import { useLoraCandidateConfirm } from '@/hooks/use-lora-candidate-confirm'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
 import type {
@@ -98,6 +100,21 @@ export function LoraAssistantDock({
   // 隔着整棵装配台树，逐层透传一个可选回调正是「漏传 = 三绿而功能全失效」的
   // 高发形态。写口在 `LoraWorkbench` 的 handleAskAssistantAboutResult。
   const { injectedReference, clearReference } = useStudioAssistantReference()
+  /**
+   * LoRA 一次确认链（任务包 §5）。**这个宿主是四档里唯一三件事都做得了的**：
+   * `LoraStackProvider` 只包 `/studio/lora`（见 studio/lora/layout.tsx），
+   * 挂载栈在这里拿得到，图片/视频工作台拿不到。
+   *
+   * 触发词走 `persona.onAppendPrompt` —— 装配台既有的那条追加路径（会去重、
+   * 规范逗号），⛔ 不新造第二条写提示词的路。
+   */
+  // ⚠ 用**不抛**的那个：挂载栈对这张卡是可选能力，缺 Provider 应当少一个按钮，
+  //   而不是整个 dock 崩掉（会抛的那版把本文件的测试全打红过）。
+  const stack = useOptionalActiveLoraStack()
+  const loraConfirm = useLoraCandidateConfirm({
+    ...(stack ? { mount: stack.push } : {}),
+    applyTriggerWords: persona.onAppendPrompt,
+  })
   const [hasOpenedOnce, setHasOpenedOnce] = useState(open)
   if (open && !hasOpenedOnce) {
     setHasOpenedOnce(true)
@@ -156,6 +173,7 @@ export function LoraAssistantDock({
     assistantRoute: route,
     researchMode,
     workbenchState,
+    loraConfirm,
   }
 
   // CD 助手 dock：正文上方一行「助手看得见什么」上下文 chips——挂载 ×N /

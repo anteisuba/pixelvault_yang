@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
+import {
+  LORA_CANDIDATE_RECEIPT_HEADER,
+  LORA_CANDIDATE_RECEIPT_HEADER_MAX_BYTES,
+  LORA_CANDIDATE_RECEIPT_TIERS,
+} from '@/constants/lora-candidate'
 import { RESEARCH_RECEIPT_HEADER } from '@/constants/research'
 import { PromptAssistantStreamRequestSchema } from '@/types'
 import { createPromptAssistantStream } from '@/services/kernel/prompt-assistant.service'
 import { logger } from '@/lib/logger'
 import { isGenerationError } from '@/lib/errors'
+import { encodeLoraCandidateReceiptHeader } from '@/lib/lora-candidate-receipt'
 import { rateLimit } from '@/lib/rate-limit'
 import { encodeResearchReceiptHeader } from '@/lib/research-receipt'
 
@@ -74,18 +80,36 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   try {
-    const { stream, receipt } = await createPromptAssistantStream(
-      clerkId,
-      parsed.data,
-    )
+    const { stream, receipt, loraCandidates } =
+      await createPromptAssistantStream(clerkId, parsed.data)
 
     const encodedReceipt = receipt ? encodeResearchReceiptHeader(receipt) : null
+    // 候选下发同样走响应头（切片 3）。⚠ 载荷比回执大一个量级，所以编码器是带
+    // 降级阶梯的 —— 掉档要在这里留痕，否则「有时候有推荐卡有时候没有」查不出来。
+    const encodedCandidates = loraCandidates?.candidates.length
+      ? encodeLoraCandidateReceiptHeader(loraCandidates)
+      : null
+
+    if (
+      encodedCandidates &&
+      encodedCandidates.tier !== LORA_CANDIDATE_RECEIPT_TIERS.full
+    ) {
+      logger.warn(`${routeName} lora candidate header degraded`, {
+        userId: clerkId,
+        tier: encodedCandidates.tier,
+        bytes: encodedCandidates.bytes,
+        limitBytes: LORA_CANDIDATE_RECEIPT_HEADER_MAX_BYTES,
+        candidateCount: loraCandidates?.candidates.length ?? 0,
+      })
+    }
 
     logger.info(routeName, {
       userId: clerkId,
       durationMs: Date.now() - startedAt,
       researchStatus: receipt?.status,
       grounded: receipt?.grounded,
+      loraCandidateCount: loraCandidates?.candidates.length,
+      loraCandidateTier: encodedCandidates?.tier,
     })
 
     return new Response(stream, {
@@ -95,6 +119,9 @@ export async function POST(request: NextRequest): Promise<Response> {
         // 检索回执走响应头，**不进正文流**（编解码与上限见 lib/research-receipt）。
         ...(encodedReceipt
           ? { [RESEARCH_RECEIPT_HEADER]: encodedReceipt }
+          : {}),
+        ...(encodedCandidates?.value
+          ? { [LORA_CANDIDATE_RECEIPT_HEADER]: encodedCandidates.value }
           : {}),
       },
     })

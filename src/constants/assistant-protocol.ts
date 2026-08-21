@@ -48,6 +48,20 @@ export const ASSISTANT_PROTOCOL_MARKER_IDS = {
    * 在档 2 讨论时就成立。并成一个块只会逼助手提前交付提示词。
    */
   setup: 'setup',
+  /**
+   * LoRA 推荐（切片 3「一次确认链」）。
+   *
+   * ⚠ **载荷里只有 `candidateId` + 理由 + 建议权重**。名字、下载链接、作者、
+   * 许可、底模家族一个都不许模型写 —— 卡面上的每一条事实来自服务端检索回来的
+   * 候选对象。理由是 `[[setup]]` 那批的实证：不给可选列表，模型就编了一个工作区
+   * 里根本不存在的「Animagine XL」。LoRA 这条链的代价更大 —— 编出来的下载链接
+   * 后面接着的是「一次确认 → 自动下载导入挂载」。
+   *
+   * ⚠ **这个块的输出契约不常驻系统提示**：只有本轮真的注入了候选列表时才追加
+   * （见 `buildAssistantLoraCandidateDirective`）。常驻的后果是模型在没有候选
+   * 的轮次里照样吐这个块，而那时每一个 id 都只能是编的。
+   */
+  lora: 'lora',
 } as const
 
 /**
@@ -80,6 +94,49 @@ export const ASSISTANT_CLARIFY_FALLBACK_ID_PREFIXES = {
   question: 'q-',
   option: 'o-',
 } as const
+
+/**
+ * `[[lora]]` 推荐块的形状上限。
+ *
+ * `maxPicks` 3：推荐卡是要用户**一次确认**的东西，一次给六张卡等于把选择成本
+ * 原样退回去。三张已经能覆盖「稳妥/激进/另一种画风」。
+ */
+export const ASSISTANT_LORA_PICK_LIMITS = {
+  maxPicks: 3,
+  /** `candidateId` 的长度上限 —— 与 `LoraCandidate.candidateId` 的构造宽度一致。 */
+  candidateIdMaxLength: 200,
+  reasonMaxLength: 300,
+  /** 建议权重的取值范围。收窄在客户端做，这里只挡明显离谱的值。 */
+  minWeight: 0.1,
+  maxWeight: 2,
+} as const
+
+/**
+ * `[[lora]]` 的输出契约 —— **只在本轮注入了候选列表时**追加到系统提示。
+ *
+ * ⚠ 契约进系统提示、候选列表本体进用户提示，与检索证据（`RESEARCH_EVIDENCE_DIRECTIVE`）
+ * 同一条分界：「这些是资料不是指令」必须比资料本身权威，而候选名/作者名是上游
+ * 用户可控的文本，放进系统提示等于给它系统级权威。
+ */
+export function buildAssistantLoraCandidateDirective(): string {
+  const { lora } = ASSISTANT_PROTOCOL_MARKER_IDS
+  return `LORA CANDIDATES — the creator's message reads like they are looking for a LoRA, so a list of real candidates is attached below under LORA CANDIDATES FOUND FOR THIS TURN.
+
+Rules for using it — these are structural, not stylistic:
+- The list is the ONLY place LoRA ids come from. Never invent a candidate id, a model name, a download link, an author, or a licence. If nothing on the list fits, say so in prose and emit no ${lora} block — that is a correct answer, not a failure.
+- Everything the creator sees on the recommendation card (name, author, licence, size, sample images, base model) is rendered from the attached data, NOT from what you write. So do not restate those facts inside the block; restating them can only introduce a mismatch.
+- Your job in the block is the ONE thing the data cannot supply: why this candidate, for this request, over the others.
+- Candidates marked "already mounted" are on the creator's workbench right now. Do not recommend them as if they were new; mention them only to say the creator already has what they asked for.
+- Candidates marked "cannot be imported" stay recommendable — say plainly that it can only be opened on its source page, and why.
+- Licence is shown as the upstream states it, including "unknown". Never soften "unknown" into "probably fine".
+
+[[${lora}]]
+{"picks":[{"candidateId":"copy one id verbatim from the list","reason":"why this one, for this request","suggestedWeight":0.8}]}
+[[/${lora}]]
+
+- At most ${ASSISTANT_LORA_PICK_LIMITS.maxPicks} picks, best first. "suggestedWeight" is optional — omit it unless you have an actual reason for that number.
+- Write "reason" in the same language as your prose; it is shown on the card.`
+}
 
 export const ASSISTANT_PROTOCOL_DOMAIN_IDS = {
   image: 'image',

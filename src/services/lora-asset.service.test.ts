@@ -31,6 +31,13 @@ vi.mock('@/lib/db', () => ({
       findUnique: (...a: unknown[]) => mockJobFindUnique(...a),
     },
   },
+  // ⚠ 用**真实现**而不是 vi.fn()：这个判据（P2002）本身就是被测行为的一部分，
+  // mock 成永远 true 的话，「撞别的错要照抛」那条就测不出来了。
+  isUniqueConstraintError: (error: unknown) =>
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2002',
 }))
 
 const mockIsOwnedStorageUrl = vi.fn<(url: string) => boolean>()
@@ -680,6 +687,43 @@ describe('favoriteExternalLora', () => {
     expect(result.isOwn).toBe(true)
   })
 
+  it('并发双击撞唯一约束时返回既有行，而不是把 500 甩给用户', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    // 第一次查：没有（另一个请求还没写完）。第二次查（撞约束后回查）：有了。
+    // ⚠ 用计数器而不是 `mockResolvedValueOnce` 链 —— 后者没被消费完会**泄漏到
+    //   下一个用例**（这条测试第一版就是这么把下一条染绿的）。
+    const raced = buildRow({
+      id: 'fav_raced',
+      source: 'imported',
+      ...civitaiInput,
+    })
+    let findFirstCalls = 0
+    mockAssetFindFirst.mockImplementation(async () => {
+      findFirstCalls += 1
+      return findFirstCalls === 1 ? null : raced
+    })
+    mockAssetFindUnique.mockResolvedValue(null)
+    mockAssetCreate.mockRejectedValue(
+      Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
+    )
+
+    const result = await favoriteExternalLora(OWNER.clerkId, civitaiInput)
+
+    expect(result.id).toBe('fav_raced')
+    expect(result.isOwn).toBe(true)
+  })
+
+  it('撞的不是唯一约束就照抛 —— 别把真错误吞成幂等', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindFirst.mockResolvedValue(null)
+    mockAssetFindUnique.mockResolvedValue(null)
+    mockAssetCreate.mockRejectedValue(new Error('connection reset'))
+
+    await expect(
+      favoriteExternalLora(OWNER.clerkId, civitaiInput),
+    ).rejects.toThrow('connection reset')
+  })
+
   it('persists Civitai provenance so source-match survives a reload', async () => {
     mockEnsureUser.mockResolvedValue(OWNER)
     mockAssetFindFirst.mockResolvedValue(null)
@@ -716,6 +760,87 @@ describe('favoriteExternalLora', () => {
     expect(result.modelVersionId).toBe(67890)
     expect(result.fileHashAutoV3).toBe('abcdef123456')
     expect(result.recommendedPrompt).toBe('phoebe_anima, red dress')
+  })
+
+  // ── 切片 3：来源快照（策略 C，已拍板边界 7）────────────────────────
+  //
+  // ⭐ HF 导入的行在四个 civitai 字段上**全是 null，而且那是对的** —— 作者 /
+  //    许可 / revision 此前根本没有落点，于是 HF 收藏看不出是谁做的。
+  //    `sourceSnapshot` 就是那一格。
+  const HF_SNAPSHOT = {
+    source: 'huggingface' as const,
+    author: 'WRATHGODDESS',
+    license: {
+      label: 'apache-2.0',
+      commercialUse: null,
+      allowDerivatives: null,
+      allowNoCredit: null,
+      known: true,
+    },
+    pageUrl: 'https://huggingface.co/WRATHGODDESS/Shino_Style_Anima',
+    revision: '19963ef82b6f0b899800e6ce4202d58fbf89e60e',
+    retrievedAt: '2026-08-21T09:00:00.000Z',
+    fileSizeBytes: 223_000_000,
+    metadataCompleteness: 'partial' as const,
+  }
+
+  it('writes the source snapshot, so a Hugging Face row is no longer provenance-blank', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindFirst.mockResolvedValue(null)
+    mockAssetFindUnique.mockResolvedValue(null)
+    mockAssetCreate.mockResolvedValue(
+      buildRow({
+        id: 'fav_hf',
+        source: 'imported',
+        sourceSnapshot: HF_SNAPSHOT,
+      }),
+    )
+
+    const result = await favoriteExternalLora(OWNER.clerkId, {
+      ...civitaiInput,
+      provider: 'huggingface',
+      loraUrl:
+        'https://huggingface.co/WRATHGODDESS/Shino_Style_Anima/resolve/19963ef8/ShinoAnimaV3.safetensors',
+      sourceSnapshot: HF_SNAPSHOT,
+    })
+
+    const arg = mockAssetCreate.mock.calls[0][0] as {
+      data: Record<string, unknown>
+    }
+    expect(arg.data.sourceSnapshot).toEqual(HF_SNAPSHOT)
+    // 四个 civitai 标识符仍然是 null —— 快照不是拿来「填满」它们的。
+    expect(arg.data).toMatchObject({
+      civitaiModelId: null,
+      civitaiModelVersionId: null,
+      civitaiFileHashAutoV3: null,
+    })
+    expect(result.sourceSnapshot).toEqual(HF_SNAPSHOT)
+  })
+
+  it('omits the snapshot key entirely when the caller has none (Prisma Json rejects a top-level null)', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindFirst.mockResolvedValue(null)
+    mockAssetFindUnique.mockResolvedValue(null)
+    mockAssetCreate.mockResolvedValue(buildRow({ id: 'fav_3' }))
+
+    await favoriteExternalLora(OWNER.clerkId, civitaiInput)
+
+    const arg = mockAssetCreate.mock.calls[0][0] as {
+      data: Record<string, unknown>
+    }
+    expect('sourceSnapshot' in arg.data).toBe(false)
+  })
+
+  it('treats an unreadable snapshot column as absent instead of throwing', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    // Json 列没有类型保证，2026-08-21 之前的行全是 null，旧行/脏行不该把整份
+    // 列表打成 500。
+    mockAssetFindFirst.mockResolvedValue(
+      buildRow({ id: 'fav_dirty', source: 'imported', sourceSnapshot: 42 }),
+    )
+
+    const result = await favoriteExternalLora(OWNER.clerkId, civitaiInput)
+    expect(result.sourceSnapshot).toBeNull()
   })
 
   it('is idempotent — returns existing row without creating a duplicate', async () => {

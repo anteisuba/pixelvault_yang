@@ -760,6 +760,7 @@ export const LoraAssetScalarFieldEnum = {
   civitaiModelVersionId: 'civitaiModelVersionId',
   civitaiFileHashAutoV3: 'civitaiFileHashAutoV3',
   recommendedPrompt: 'recommendedPrompt',
+  sourceSnapshot: 'sourceSnapshot',
   trainingJobId: 'trainingJobId',
   isPublic: 'isPublic',
   usageCount: 'usageCount',

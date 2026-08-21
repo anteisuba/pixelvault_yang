@@ -111,6 +111,7 @@ export type LoraAssetCountAggregateOutputType = {
   civitaiModelVersionId: number
   civitaiFileHashAutoV3: number
   recommendedPrompt: number
+  sourceSnapshot: number
   trainingJobId: number
   isPublic: number
   usageCount: number
@@ -206,6 +207,7 @@ export type LoraAssetCountAggregateInputType = {
   civitaiModelVersionId?: true
   civitaiFileHashAutoV3?: true
   recommendedPrompt?: true
+  sourceSnapshot?: true
   trainingJobId?: true
   isPublic?: true
   usageCount?: true
@@ -320,6 +322,7 @@ export type LoraAssetGroupByOutputType = {
   civitaiModelVersionId: number | null
   civitaiFileHashAutoV3: string | null
   recommendedPrompt: string | null
+  sourceSnapshot: runtime.JsonValue | null
   trainingJobId: string | null
   isPublic: boolean
   usageCount: number
@@ -370,6 +373,7 @@ export type LoraAssetWhereInput = {
   civitaiModelVersionId?: Prisma.IntNullableFilter<"LoraAsset"> | number | null
   civitaiFileHashAutoV3?: Prisma.StringNullableFilter<"LoraAsset"> | string | null
   recommendedPrompt?: Prisma.StringNullableFilter<"LoraAsset"> | string | null
+  sourceSnapshot?: Prisma.JsonNullableFilter<"LoraAsset">
   trainingJobId?: Prisma.StringNullableFilter<"LoraAsset"> | string | null
   isPublic?: Prisma.BoolFilter<"LoraAsset"> | boolean
   usageCount?: Prisma.IntFilter<"LoraAsset"> | number
@@ -399,6 +403,7 @@ export type LoraAssetOrderByWithRelationInput = {
   civitaiModelVersionId?: Prisma.SortOrderInput | Prisma.SortOrder
   civitaiFileHashAutoV3?: Prisma.SortOrderInput | Prisma.SortOrder
   recommendedPrompt?: Prisma.SortOrderInput | Prisma.SortOrder
+  sourceSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder
   trainingJobId?: Prisma.SortOrderInput | Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   usageCount?: Prisma.SortOrder
@@ -413,6 +418,7 @@ export type LoraAssetWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   styleCode?: string
   trainingJobId?: string
+  userId_loraUrl?: Prisma.LoraAssetUserIdLoraUrlCompoundUniqueInput
   AND?: Prisma.LoraAssetWhereInput | Prisma.LoraAssetWhereInput[]
   OR?: Prisma.LoraAssetWhereInput[]
   NOT?: Prisma.LoraAssetWhereInput | Prisma.LoraAssetWhereInput[]
@@ -432,6 +438,7 @@ export type LoraAssetWhereUniqueInput = Prisma.AtLeast<{
   civitaiModelVersionId?: Prisma.IntNullableFilter<"LoraAsset"> | number | null
   civitaiFileHashAutoV3?: Prisma.StringNullableFilter<"LoraAsset"> | string | null
   recommendedPrompt?: Prisma.StringNullableFilter<"LoraAsset"> | string | null
+  sourceSnapshot?: Prisma.JsonNullableFilter<"LoraAsset">
   isPublic?: Prisma.BoolFilter<"LoraAsset"> | boolean
   usageCount?: Prisma.IntFilter<"LoraAsset"> | number
   lastUsedAt?: Prisma.DateTimeNullableFilter<"LoraAsset"> | Date | string | null
@@ -439,7 +446,7 @@ export type LoraAssetWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"LoraAsset"> | Date | string
   user?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   trainingJob?: Prisma.XOR<Prisma.LoraTrainingJobNullableScalarRelationFilter, Prisma.LoraTrainingJobWhereInput> | null
-}, "id" | "styleCode" | "trainingJobId">
+}, "id" | "styleCode" | "trainingJobId" | "userId_loraUrl">
 
 export type LoraAssetOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -460,6 +467,7 @@ export type LoraAssetOrderByWithAggregationInput = {
   civitaiModelVersionId?: Prisma.SortOrderInput | Prisma.SortOrder
   civitaiFileHashAutoV3?: Prisma.SortOrderInput | Prisma.SortOrder
   recommendedPrompt?: Prisma.SortOrderInput | Prisma.SortOrder
+  sourceSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder
   trainingJobId?: Prisma.SortOrderInput | Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   usageCount?: Prisma.SortOrder
@@ -495,6 +503,7 @@ export type LoraAssetScalarWhereWithAggregatesInput = {
   civitaiModelVersionId?: Prisma.IntNullableWithAggregatesFilter<"LoraAsset"> | number | null
   civitaiFileHashAutoV3?: Prisma.StringNullableWithAggregatesFilter<"LoraAsset"> | string | null
   recommendedPrompt?: Prisma.StringNullableWithAggregatesFilter<"LoraAsset"> | string | null
+  sourceSnapshot?: Prisma.JsonNullableWithAggregatesFilter<"LoraAsset">
   trainingJobId?: Prisma.StringNullableWithAggregatesFilter<"LoraAsset"> | string | null
   isPublic?: Prisma.BoolWithAggregatesFilter<"LoraAsset"> | boolean
   usageCount?: Prisma.IntWithAggregatesFilter<"LoraAsset"> | number
@@ -521,6 +530,7 @@ export type LoraAssetCreateInput = {
   civitaiModelVersionId?: number | null
   civitaiFileHashAutoV3?: string | null
   recommendedPrompt?: string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   isPublic?: boolean
   usageCount?: number
   lastUsedAt?: Date | string | null
@@ -549,6 +559,7 @@ export type LoraAssetUncheckedCreateInput = {
   civitaiModelVersionId?: number | null
   civitaiFileHashAutoV3?: string | null
   recommendedPrompt?: string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   trainingJobId?: string | null
   isPublic?: boolean
   usageCount?: number
@@ -575,6 +586,7 @@ export type LoraAssetUpdateInput = {
   civitaiModelVersionId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   civitaiFileHashAutoV3?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recommendedPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   usageCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -603,6 +615,7 @@ export type LoraAssetUncheckedUpdateInput = {
   civitaiModelVersionId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   civitaiFileHashAutoV3?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recommendedPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   trainingJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   usageCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -630,6 +643,7 @@ export type LoraAssetCreateManyInput = {
   civitaiModelVersionId?: number | null
   civitaiFileHashAutoV3?: string | null
   recommendedPrompt?: string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   trainingJobId?: string | null
   isPublic?: boolean
   usageCount?: number
@@ -656,6 +670,7 @@ export type LoraAssetUpdateManyMutationInput = {
   civitaiModelVersionId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   civitaiFileHashAutoV3?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recommendedPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   usageCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -682,6 +697,7 @@ export type LoraAssetUncheckedUpdateManyInput = {
   civitaiModelVersionId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   civitaiFileHashAutoV3?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recommendedPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   trainingJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   usageCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -705,6 +721,11 @@ export type LoraAssetNullableScalarRelationFilter = {
   isNot?: Prisma.LoraAssetWhereInput | null
 }
 
+export type LoraAssetUserIdLoraUrlCompoundUniqueInput = {
+  userId: string
+  loraUrl: string
+}
+
 export type LoraAssetCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -724,6 +745,7 @@ export type LoraAssetCountOrderByAggregateInput = {
   civitaiModelVersionId?: Prisma.SortOrder
   civitaiFileHashAutoV3?: Prisma.SortOrder
   recommendedPrompt?: Prisma.SortOrder
+  sourceSnapshot?: Prisma.SortOrder
   trainingJobId?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   usageCount?: Prisma.SortOrder
@@ -890,6 +912,7 @@ export type LoraAssetCreateWithoutUserInput = {
   civitaiModelVersionId?: number | null
   civitaiFileHashAutoV3?: string | null
   recommendedPrompt?: string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   isPublic?: boolean
   usageCount?: number
   lastUsedAt?: Date | string | null
@@ -916,6 +939,7 @@ export type LoraAssetUncheckedCreateWithoutUserInput = {
   civitaiModelVersionId?: number | null
   civitaiFileHashAutoV3?: string | null
   recommendedPrompt?: string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   trainingJobId?: string | null
   isPublic?: boolean
   usageCount?: number
@@ -972,6 +996,7 @@ export type LoraAssetScalarWhereInput = {
   civitaiModelVersionId?: Prisma.IntNullableFilter<"LoraAsset"> | number | null
   civitaiFileHashAutoV3?: Prisma.StringNullableFilter<"LoraAsset"> | string | null
   recommendedPrompt?: Prisma.StringNullableFilter<"LoraAsset"> | string | null
+  sourceSnapshot?: Prisma.JsonNullableFilter<"LoraAsset">
   trainingJobId?: Prisma.StringNullableFilter<"LoraAsset"> | string | null
   isPublic?: Prisma.BoolFilter<"LoraAsset"> | boolean
   usageCount?: Prisma.IntFilter<"LoraAsset"> | number
@@ -998,6 +1023,7 @@ export type LoraAssetCreateWithoutTrainingJobInput = {
   civitaiModelVersionId?: number | null
   civitaiFileHashAutoV3?: string | null
   recommendedPrompt?: string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   isPublic?: boolean
   usageCount?: number
   lastUsedAt?: Date | string | null
@@ -1025,6 +1051,7 @@ export type LoraAssetUncheckedCreateWithoutTrainingJobInput = {
   civitaiModelVersionId?: number | null
   civitaiFileHashAutoV3?: string | null
   recommendedPrompt?: string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   isPublic?: boolean
   usageCount?: number
   lastUsedAt?: Date | string | null
@@ -1066,6 +1093,7 @@ export type LoraAssetUpdateWithoutTrainingJobInput = {
   civitaiModelVersionId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   civitaiFileHashAutoV3?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recommendedPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   usageCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1093,6 +1121,7 @@ export type LoraAssetUncheckedUpdateWithoutTrainingJobInput = {
   civitaiModelVersionId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   civitaiFileHashAutoV3?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recommendedPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   usageCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1118,6 +1147,7 @@ export type LoraAssetCreateManyUserInput = {
   civitaiModelVersionId?: number | null
   civitaiFileHashAutoV3?: string | null
   recommendedPrompt?: string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   trainingJobId?: string | null
   isPublic?: boolean
   usageCount?: number
@@ -1144,6 +1174,7 @@ export type LoraAssetUpdateWithoutUserInput = {
   civitaiModelVersionId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   civitaiFileHashAutoV3?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recommendedPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   usageCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1170,6 +1201,7 @@ export type LoraAssetUncheckedUpdateWithoutUserInput = {
   civitaiModelVersionId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   civitaiFileHashAutoV3?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recommendedPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   trainingJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   usageCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1196,6 +1228,7 @@ export type LoraAssetUncheckedUpdateManyWithoutUserInput = {
   civitaiModelVersionId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   civitaiFileHashAutoV3?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recommendedPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   trainingJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   usageCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1225,6 +1258,7 @@ export type LoraAssetSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   civitaiModelVersionId?: boolean
   civitaiFileHashAutoV3?: boolean
   recommendedPrompt?: boolean
+  sourceSnapshot?: boolean
   trainingJobId?: boolean
   isPublic?: boolean
   usageCount?: boolean
@@ -1254,6 +1288,7 @@ export type LoraAssetSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   civitaiModelVersionId?: boolean
   civitaiFileHashAutoV3?: boolean
   recommendedPrompt?: boolean
+  sourceSnapshot?: boolean
   trainingJobId?: boolean
   isPublic?: boolean
   usageCount?: boolean
@@ -1283,6 +1318,7 @@ export type LoraAssetSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   civitaiModelVersionId?: boolean
   civitaiFileHashAutoV3?: boolean
   recommendedPrompt?: boolean
+  sourceSnapshot?: boolean
   trainingJobId?: boolean
   isPublic?: boolean
   usageCount?: boolean
@@ -1312,6 +1348,7 @@ export type LoraAssetSelectScalar = {
   civitaiModelVersionId?: boolean
   civitaiFileHashAutoV3?: boolean
   recommendedPrompt?: boolean
+  sourceSnapshot?: boolean
   trainingJobId?: boolean
   isPublic?: boolean
   usageCount?: boolean
@@ -1320,7 +1357,7 @@ export type LoraAssetSelectScalar = {
   updatedAt?: boolean
 }
 
-export type LoraAssetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "styleCode" | "source" | "type" | "baseModelFamily" | "provider" | "triggerWord" | "loraUrl" | "storageKey" | "previewImageUrls" | "coverImageUrl" | "defaultScale" | "civitaiModelId" | "civitaiModelVersionId" | "civitaiFileHashAutoV3" | "recommendedPrompt" | "trainingJobId" | "isPublic" | "usageCount" | "lastUsedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["loraAsset"]>
+export type LoraAssetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "styleCode" | "source" | "type" | "baseModelFamily" | "provider" | "triggerWord" | "loraUrl" | "storageKey" | "previewImageUrls" | "coverImageUrl" | "defaultScale" | "civitaiModelId" | "civitaiModelVersionId" | "civitaiFileHashAutoV3" | "recommendedPrompt" | "sourceSnapshot" | "trainingJobId" | "isPublic" | "usageCount" | "lastUsedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["loraAsset"]>
 export type LoraAssetInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.LoraAsset$userArgs<ExtArgs>
   trainingJob?: boolean | Prisma.LoraAsset$trainingJobArgs<ExtArgs>
@@ -1359,6 +1396,7 @@ export type $LoraAssetPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     civitaiModelVersionId: number | null
     civitaiFileHashAutoV3: string | null
     recommendedPrompt: string | null
+    sourceSnapshot: runtime.JsonValue | null
     trainingJobId: string | null
     isPublic: boolean
     usageCount: number
@@ -1808,6 +1846,7 @@ export interface LoraAssetFieldRefs {
   readonly civitaiModelVersionId: Prisma.FieldRef<"LoraAsset", 'Int'>
   readonly civitaiFileHashAutoV3: Prisma.FieldRef<"LoraAsset", 'String'>
   readonly recommendedPrompt: Prisma.FieldRef<"LoraAsset", 'String'>
+  readonly sourceSnapshot: Prisma.FieldRef<"LoraAsset", 'Json'>
   readonly trainingJobId: Prisma.FieldRef<"LoraAsset", 'String'>
   readonly isPublic: Prisma.FieldRef<"LoraAsset", 'Boolean'>
   readonly usageCount: Prisma.FieldRef<"LoraAsset", 'Int'>

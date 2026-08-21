@@ -3161,7 +3161,52 @@
     "referenceOnlyPrompt": "添付した参考素材を分析し、アイデアを発展させてください。",
     "videoUnsupported": "このモデルは動画を分析できません。Geminiを選ぶか、動画の参考素材を削除してください。",
     "imageUnsupported": "このモデルは画像を分析できません。OpenAIまたはGeminiを選ぶか、画像の参考素材を削除してください。",
-    "routeAuto": "自動ルート"
+    "routeAuto": "自動ルート",
+    "loraCandidate": {
+      "sourceCivitai": "Civitai",
+      "sourceHuggingFace": "Hugging Face",
+      "authorUnknown": "作者不明",
+      "baseModelUnknown": "ベースモデル不明",
+      "sizeUnknown": "サイズ不明",
+      "licenseUnknown": "ライセンス不明",
+      "licenseCommercial": "商用利用",
+      "licenseDerivatives": "改変",
+      "licenseNoCredit": "クレジット不要",
+      "permissionAllowed": "可",
+      "permissionDenied": "不可",
+      "permissionUnknown": "不明",
+      "downloads": "{count} 回ダウンロード",
+      "alreadyMounted": "マウント済み",
+      "alreadyImported": "ライブラリにあり",
+      "alreadyInStack": "スタックに追加済み",
+      "confirm": "取り込んでマウント",
+      "confirmImportOnly": "取り込んでトリガーワードを入力",
+      "confirmedMounted": "取り込み・マウント・トリガーワード入力まで完了",
+      "confirmedImported": "取り込みとトリガーワードの入力が完了",
+      "openSource": "配布ページを開く",
+      "detailsTrimmed": "今回の候補データが大きすぎて完全に送れなかったため、このカードからは取り込めません。もう一度質問すると新しい候補が取得できます。",
+      "mountElsewhere": "このワークベンチにはLoRAスタックがないため、マウントはしていません。",
+      "goToLoraWorkbench": "LoRAワークベンチでマウントする",
+      "type": {
+        "subject": "キャラクター",
+        "style": "画風"
+      },
+      "metadataCompleteness": {
+        "complete": "メタデータ充実",
+        "partial": "メタデータ一部",
+        "minimal": "メタデータ僅少"
+      },
+      "notImportable": {
+        "unknown_base_model": "ベースモデルの系統を特定できないため、推奨のみで取り込みはできません。",
+        "no_weight_file": "ダウンロードできる重みファイルがないため、推奨のみで取り込みはできません。",
+        "gated_repo": "このHugging Faceリポジトリは利用条件への同意が必要です。先に同意してから、ライブラリ経由で取り込んでください。"
+      },
+      "failed": {
+        "import": "取り込みに失敗しました。ライブラリには何も追加されていません。",
+        "mount": "取り込みは成功しましたが、マウントに失敗しました。ライブラリにはあるので、スタックから手動でマウントしてください。",
+        "trigger_words": "取り込みとマウントは完了しましたが、トリガーワードをプロンプトに書き込めませんでした。カードからコピーしてください。"
+      }
+    }
   },
   "Onboarding": {
     "next": "次へ",

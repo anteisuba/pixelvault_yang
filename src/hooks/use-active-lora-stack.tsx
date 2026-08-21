@@ -486,3 +486,18 @@ export function useActiveLoraStack(): ActiveLoraStackValue {
   }
   return ctx
 }
+
+/**
+ * 拿不到挂载栈就返回 `null`，**不抛**。
+ *
+ * ⚠ 给「有栈就用、没栈就降级」的调用方用（助手的 LoRA 推荐卡就是：`/studio/lora`
+ * 里能挂，图片/视频工作台只能导入 + 填触发词）。用会抛的那个去表达「可选能力」，
+ * 结果是缺 Provider 时**整块 UI 崩掉**而不是少一个按钮 —— 2026-08-21 `LoraAssistantDock`
+ * 就这么把自己的测试全打红了，而线上没炸只是因为 Provider 恰好包着它。
+ *
+ * 需要栈才能工作的地方继续用 `useActiveLoraStack`：那种场景下缺 Provider 是装配
+ * 错误，就该响亮地炸。
+ */
+export function useOptionalActiveLoraStack(): ActiveLoraStackValue | null {
+  return useContext(ActiveLoraStackContext) ?? null
+}

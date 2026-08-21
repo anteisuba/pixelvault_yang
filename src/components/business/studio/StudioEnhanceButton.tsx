@@ -84,6 +84,7 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
     injectedReference,
     workbenchState,
     writeback,
+    loraConfirm,
   } = useStudioAssistantPanelInputs()
   const { route, researchMode } = useStudioAssistantControls()
 
@@ -170,6 +171,7 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
             onClose={() => setOpen(false)}
             assistantRoute={route}
             researchMode={researchMode}
+            loraConfirm={loraConfirm}
           />
         </div>
       </ResponsiveDialogContent>

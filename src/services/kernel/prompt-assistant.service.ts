@@ -29,6 +29,7 @@ import {
   VIDEO_LINK_MARKERS,
   VIDEO_LINK_PLATFORM_DIRECTIVE,
   VIDEO_LINK_PLATFORMS,
+  VIDEO_METADATA_DIRECTIVE,
   type VideoLinkPlatform,
 } from '@/constants/video-link'
 import { buildInspirationContext } from '@/services/kernel/inspiration-context.service'
@@ -49,6 +50,10 @@ import {
   type ResearchOutcome,
 } from '@/services/research/research-run.service'
 import { ensureUser } from '@/services/user.service'
+import {
+  buildVideoMetadataBlock,
+  fetchVideoLinkMetadata,
+} from '@/services/video-metadata/video-metadata.service'
 import {
   buildReferenceHandles,
   formatReferenceTag,
@@ -868,10 +873,32 @@ async function buildPlatformVideoBlock(
   return rendered.join('\n\n')
 }
 
+/**
+ * 本轮真正挂上去的那些链接视频 → `{ handle, url }`。
+ *
+ * ⚠ **offset 只算一次**：系统提示里那行 `[video #n]`、元数据块里的 handle、
+ * 界面 chip 上的编号必须是同一个数。同一个偏移量算两遍就是「一个数两个主人」
+ * —— §4.4 已经因为 `slice` 有两个主人吃过一次亏（清单里的 `#n` 指到模型没
+ * 收到的附件上），不再重演。
+ */
+function attachedVideoLinks(
+  routing: VideoLinkRouting,
+  effectiveReferences: readonly AssistantMediaReference[],
+): { handle: string; url: string }[] {
+  if (routing.references.length === 0) return []
+  // handle 用共享那套算 —— 界面 chip、附件清单、这里必须是同一个 `#n`。
+  const handles = buildReferenceHandles(effectiveReferences)
+  const offset = effectiveReferences.length - routing.references.length
+  return routing.references.map((reference, index) => ({
+    handle: handles[offset + index] ?? '#?',
+    url: reference.url,
+  }))
+}
+
 /** 系统提示那一段：规矩 + 哪条链接挂上了（带 handle）+ 哪条没挂上。 */
 function buildVideoLinkDirective(
   routing: VideoLinkRouting,
-  effectiveReferences: readonly AssistantMediaReference[],
+  attached: readonly { handle: string; url: string }[],
 ): string | null {
   const sections: string[] = []
 
@@ -879,14 +906,10 @@ function buildVideoLinkDirective(
     sections.push(VIDEO_LINK_PLATFORM_DIRECTIVE)
   }
 
-  if (routing.references.length > 0) {
-    // handle 用共享那套算 —— 界面 chip、附件清单、这里必须是同一个 `#n`。
-    const handles = buildReferenceHandles(effectiveReferences)
-    const offset = effectiveReferences.length - routing.references.length
-    const lines = routing.references.map((reference, index) => {
-      const handle = handles[offset + index] ?? '#?'
-      return `- ${formatReferenceTag('video', handle)} ${reference.url}`
-    })
+  if (attached.length > 0) {
+    const lines = attached.map(
+      (link) => `- ${formatReferenceTag('video', link.handle)} ${link.url}`,
+    )
     sections.push(`${VIDEO_LINK_ATTACHED_DIRECTIVE}\n${lines.join('\n')}`)
   }
 
@@ -914,7 +937,15 @@ interface AssistantTurnSetup {
    * 更新，拆开就是给漂移留门。
    */
   media: AssistantMediaResolution
-  /** 平台页元数据块（带边界标记）。`null` = 这轮没有平台链接。 */
+  /**
+   * 视频链接的元数据块（带边界标记）。`null` = 这轮一条视频链接都没有。
+   *
+   * **两种块，两套围栏**，拼在一起进用户提示：
+   *  - `<<<VIDEO LINK n>>>` = 平台页（B站/X/抖音），我们**没看过**；
+   *  - `<<<VIDEO METADATA n>>>` = 已挂上去的链接（YouTube/直链），我们**正在看**。
+   * 围栏分开的理由见 `VIDEO_METADATA_MARKERS`：混用会让「你没看过」这条规矩
+   * 落到一条模型正看着的视频上。
+   */
   videoLinkBlock: string | null
 }
 
@@ -989,6 +1020,7 @@ async function prepareAssistantTurn(params: {
     route.adapterType,
     params.referenceImageData,
   )
+  const attachedLinks = attachedVideoLinks(videoLinks, media.references)
 
   // 检索管线（切片 1）。
   //
@@ -1000,7 +1032,13 @@ async function prepareAssistantTurn(params: {
   //
   // 检索与 B站元数据**并行**：两边各自带重试和超时，串起来最坏能吃掉整轮的
   // `maxDuration=60`，表现是「助手转圈然后 504」。
-  const [research, videoLinkBlock] = await Promise.all([
+  //
+  // ⚠ **已挂载链接的平台元数据也在这一批里**（切片 2 §4.3 收尾）：08-21 修完
+  //   路由抢夺之后视频真的挂上了、画面也真的看得见，**时长仍答 19:13**（真值
+  //   18:40）—— 视觉模型按帧采样，数不准总长。所以时长/标题/发布日一并从平台
+  //   取回来当结构化事实注入，⛔ 不作为检索证据（视觉线 `grounded` 恒 false 的
+  //   语义不能破），取不到就写 `unknown`，**永不阻断这一轮**。
+  const [research, platformVideoBlock, videoLinkMetadata] = await Promise.all([
     latestUserText
       ? runResearch({
           userId: params.userId,
@@ -1014,7 +1052,12 @@ async function prepareAssistantTurn(params: {
         })
       : null,
     buildPlatformVideoBlock(videoLinks.platformLinks),
+    fetchVideoLinkMetadata(attachedLinks),
   ])
+  const videoMetadataBlock = buildVideoMetadataBlock(videoLinkMetadata)
+  const videoLinkBlock =
+    [platformVideoBlock, videoMetadataBlock].filter(Boolean).join('\n\n') ||
+    null
 
   if (research?.evidenceBlock) {
     // 证据的规矩放**系统提示**（「这些是资料不是指令」必须比证据本身权威），
@@ -1025,12 +1068,16 @@ async function prepareAssistantTurn(params: {
   // 视频链接的规矩同理进系统提示，元数据本体进用户提示。
   // ⚠ handle 按**截断后**的那份算 —— 链接补出来的视频永远排在末尾且只在放得下时
   //   才挂（见 `routeVideoLinks` 的上限判断），所以它们必然活过截断，offset 仍成立。
-  const videoLinkDirective = buildVideoLinkDirective(
-    videoLinks,
-    media.references,
-  )
+  const videoLinkDirective = buildVideoLinkDirective(videoLinks, attachedLinks)
   if (videoLinkDirective) {
     systemPrompt = `${systemPrompt}\n\n${videoLinkDirective}`
+  }
+
+  // ⚠ 元数据的规矩**单独一段**，且必须排在 `VIDEO_LINK_ATTACHED_DIRECTIVE`
+  //   之后：那一条说「数字只能来自画面」，这一条给它开唯一那个例外（平台报的
+  //   时长/发布日胜过从帧里数）。顺序颠倒过来，后来的那条会读成把例外又收回去。
+  if (videoMetadataBlock) {
+    systemPrompt = `${systemPrompt}\n\n${VIDEO_METADATA_DIRECTIVE}`
   }
 
   return {

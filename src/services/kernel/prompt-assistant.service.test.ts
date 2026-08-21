@@ -51,6 +51,21 @@ vi.mock('@/services/research/bilibili.connector', () => ({
     mockFetchBilibiliVideoMetadata(...a),
 }))
 
+// 已挂载链接的平台元数据（切片 2 §4.3 收尾批）。**只 mock 取数那一半**——
+// 块的渲染（围栏、handle、unknown 空态）留真的跑，否则这里断言的就只是我自己
+// 写的假字符串。取数本身在 `services/video-metadata/*.test.ts` 里覆盖。
+const mockFetchVideoLinkMetadata = vi.fn()
+vi.mock(
+  '@/services/video-metadata/video-metadata.service',
+  async (original) => ({
+    ...(await original<
+      typeof import('@/services/video-metadata/video-metadata.service')
+    >()),
+    fetchVideoLinkMetadata: (...a: unknown[]) =>
+      mockFetchVideoLinkMetadata(...a),
+  }),
+)
+
 import {
   chatPromptAssistant,
   createPromptAssistantStream,
@@ -100,6 +115,8 @@ describe('chatPromptAssistant', () => {
     mockBuildInspirationContext.mockResolvedValue('')
     // 默认：这一轮规划器判定不需要检索（返回 null = 完全没打源）
     mockRunResearch.mockResolvedValue(null)
+    // 默认：不取元数据（`[]` = 一条已挂载链接都没有 → 不出块也不加规矩）。
+    mockFetchVideoLinkMetadata.mockResolvedValue([])
   })
 
   it('rejects a conversational turn on the buffered entry — it has exactly one home', async () => {
@@ -906,6 +923,168 @@ describe('chatPromptAssistant', () => {
 
       // 不重试：这不是超上下文，重试只是把同一个 403 再买一次。
       expect(mockLlmCompletion).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  // ── 视频元数据一并取回（切片 2 §4.3 收尾批）─────────────────────
+  //
+  // 🔬 起因是 08-21 那道题剩下的半边：路由抢夺修完后视频真的挂上了、画面也
+  // 真看得见（追问逐秒描述准确），**时长仍答 19:13**（真值 18:40），同设置另
+  // 一次答 18:41。时长是元数据问题不是画面问题 —— 视觉模型按帧采样数不准总长。
+  // 所以挂视频时一并取平台元数据当**结构化事实**注入，让模型有可引的来源。
+
+  describe('视频元数据一并取回', () => {
+    /** 造一条取数成功的元数据（形状与 `VideoLinkMetadata` 一致）。 */
+    function metadataEntry(overrides: Record<string, unknown> = {}) {
+      return {
+        handle: '#1',
+        url: 'https://www.youtube.com/watch?v=aircAruvnKk',
+        title: 'But what is a neural network? | Deep learning chapter 1',
+        author: '3Blue1Brown',
+        durationSeconds: 1120,
+        publishedAt: '2017-10-05',
+        sources: ['youtube oembed', 'youtube watch page'],
+        ...overrides,
+      }
+    }
+
+    it('挂 YouTube 链接时一并取元数据，时长以结构化事实进用户提示', async () => {
+      mockFetchVideoLinkMetadata.mockResolvedValue([metadataEntry()])
+      mockLlmCompletion.mockResolvedValue('YouTube 报的时长是 18:40。')
+
+      await runGeneralTurn('clerk_1', {
+        messages: [
+          {
+            role: 'user',
+            content:
+              '这个视频有多长？https://www.youtube.com/watch?v=aircAruvnKk',
+          },
+        ],
+      })
+
+      // 取数拿到的是**已挂上去的那条**，handle 与附件清单同源。
+      expect(mockFetchVideoLinkMetadata).toHaveBeenCalledWith([
+        { handle: '#1', url: 'https://www.youtube.com/watch?v=aircAruvnKk' },
+      ])
+
+      const call = mockLlmCompletion.mock.calls[0]?.[0] as {
+        systemPrompt: string
+        userPrompt: string
+        videoData?: string[]
+      }
+      // 视频本体照走，元数据是**附加**不是替代。
+      expect(call.videoData).toEqual([
+        'https://www.youtube.com/watch?v=aircAruvnKk',
+      ])
+      expect(call.userPrompt).toContain('<<<VIDEO METADATA 1>>>')
+      expect(call.userPrompt).toContain('handle: [video #1]')
+      expect(call.userPrompt).toContain('duration: 18:40 (1120 seconds)')
+      expect(call.userPrompt).toContain('published: 2017-10-05')
+      expect(call.systemPrompt).toContain('LINKED VIDEO METADATA RULES')
+    })
+
+    it('⭐ 规矩必须写清「平台报的时长胜过从帧里数出来的」', async () => {
+      mockFetchVideoLinkMetadata.mockResolvedValue([metadataEntry()])
+      mockLlmCompletion.mockResolvedValue('ok')
+
+      await runGeneralTurn('clerk_1', {
+        messages: [
+          { role: 'user', content: 'https://youtu.be/aircAruvnKk 多长' },
+        ],
+      })
+
+      const { systemPrompt } = mockLlmCompletion.mock.calls[0]?.[0] as {
+        systemPrompt: string
+      }
+      // 元数据这条必须排在「数字只能来自画面」之后 —— 顺序颠倒会读成把例外收回去。
+      expect(
+        systemPrompt.indexOf('LINKED VIDEO METADATA RULES'),
+      ).toBeGreaterThan(systemPrompt.indexOf('LINKED VIDEO ATTACHED'))
+      expect(systemPrompt).toContain('the metadata WINS')
+      expect(systemPrompt).toContain('counted from frames is a guess')
+    })
+
+    it('时长取不到时块里**明写 unknown** —— 省略等于让模型接着猜', async () => {
+      mockFetchVideoLinkMetadata.mockResolvedValue([
+        {
+          handle: '#1',
+          url: 'https://cdn.example.com/shot-01.mp4',
+          sources: [],
+        },
+      ])
+      mockLlmCompletion.mockResolvedValue('我不知道这条有多长。')
+
+      await runGeneralTurn('clerk_1', {
+        messages: [
+          { role: 'user', content: '看看 https://cdn.example.com/shot-01.mp4' },
+        ],
+      })
+
+      const call = mockLlmCompletion.mock.calls[0]?.[0] as {
+        systemPrompt: string
+        userPrompt: string
+        videoData?: string[]
+      }
+      expect(call.userPrompt).toContain('duration: unknown')
+      expect(call.userPrompt).toContain('source: unavailable')
+      // ⭐ 取数失败**不阻断视频分析**：视频照挂、这一轮照走完。
+      expect(call.videoData).toEqual(['https://cdn.example.com/shot-01.mp4'])
+      expect(call.systemPrompt).toContain('genuinely unknown')
+    })
+
+    it('平台页与已挂载链接**各用各的围栏** —— 别把「你没看过」扣到正看着的视频上', async () => {
+      mockFetchBilibiliVideoMetadata.mockResolvedValue([
+        {
+          kind: 'text' as const,
+          id: 'bilibili:view:BV1GJ411x7h7',
+          sourceId: 'bilibili' as const,
+          sourceTier: 'community' as const,
+          retrievedAt: '2026-08-20T10:00:00.000Z',
+          title: 'bilibili · 测试稿件',
+          url: 'https://www.bilibili.com/video/BV1GJ411x7h7',
+          lang: 'zh' as const,
+          excerpt: '标题：测试稿件 · UP主：某个UP · 时长：3:21（201 秒）',
+        },
+      ])
+      mockFetchVideoLinkMetadata.mockResolvedValue([metadataEntry()])
+      mockLlmCompletion.mockResolvedValue('ok')
+
+      await runGeneralTurn('clerk_1', {
+        messages: [
+          {
+            role: 'user',
+            content:
+              '对比 https://www.bilibili.com/video/BV1GJ411x7h7 和 https://www.youtube.com/watch?v=aircAruvnKk',
+          },
+        ],
+      })
+
+      const call = mockLlmCompletion.mock.calls[0]?.[0] as {
+        systemPrompt: string
+        userPrompt: string
+      }
+      expect(call.userPrompt).toContain('<<<VIDEO LINK 1>>>')
+      expect(call.userPrompt).toContain('<<<VIDEO METADATA 1>>>')
+      expect(call.systemPrompt).toContain('LINKED PLATFORM VIDEO RULES')
+      expect(call.systemPrompt).toContain('LINKED VIDEO METADATA RULES')
+      // 两套围栏都不进 `[n]` 引用池 —— 混进去引用闸就对不上账。
+      expect(call.userPrompt).not.toContain('<<<EVIDENCE')
+    })
+
+    it('这一轮没有已挂载链接时既不出块也不加规矩', async () => {
+      mockLlmCompletion.mockResolvedValue('ok')
+
+      await runGeneralTurn('clerk_1', {
+        messages: [{ role: 'user', content: '帮我写个提示词' }],
+      })
+
+      const call = mockLlmCompletion.mock.calls[0]?.[0] as {
+        systemPrompt: string
+        userPrompt: string
+      }
+      expect(mockFetchVideoLinkMetadata).toHaveBeenCalledWith([])
+      expect(call.userPrompt).not.toContain('<<<VIDEO METADATA')
+      expect(call.systemPrompt).not.toContain('LINKED VIDEO METADATA RULES')
     })
   })
 

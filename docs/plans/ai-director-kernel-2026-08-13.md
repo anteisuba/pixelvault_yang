@@ -82,7 +82,12 @@
 - ✅ 日志 `Research skipped by planner {reason: "video link belongs to the vision line — nothing left to search"}`，回执 `null` —— **抢夺消失**。
 - ✅ **视频分析确认通着**：追问「能看到画面吗」→ 逐秒描述开头（3Blue1Brown 蓝棕虹膜 logo · π 卡通角色 · 28×28 像素网格里的手写「3」），帧级细节记忆编不出来。
 - ⚠ **但时长仍答 19:13**。判读：**时长是元数据问题不是画面问题**——视觉模型按帧采样，看得见画面却数不准总长；同一套设置 agent 探针得 18:41、本轮得 19:13，**是模型侧方差不是我们的 bug**。
-  - **候选修法（未做，需拍板）**：时长/发布日/标题这类元数据不该指望视觉模型数出来，应在挂视频时**一并取元数据注入**（YouTube oEmbed 免 key 可取时长），让模型有 `source` 可引。
+  - ✅ **已做（2026-08-21，owner 拍板「可以专门取」）**：`services/video-metadata/`——YouTube 双探针并行（oEmbed 取标题/作者/封面 + **watch 页直连取时长/发布日**），B站复用既有 `fetchBilibiliVideoMetadata`（未改一行），直链走 HEAD 取 type/size。零新依赖零新 key，失败只降级为 `unknown` 绝不阻断视频分析。
+    - 🔬 **实测纠正两条前提**：①**oEmbed 不返 duration**（回包只有 title/author/thumbnail 那些，取不到的视频回 400）；②**「Jina 读 YouTube 返 401」只说明那个代理被挡，直连带礼仪 UA 是 200**（`lengthSeconds:"1120"` = 18:40，与真值一字不差）。
+    - ⭐ **围栏词刻意与 `<<<VIDEO LINK n>>>` 分开**：那套的规矩写死「你没看过这些视频」，同轮混用等于当面告诉模型「你没看过这条你正在看的视频」——**正是 19:13 那个失败形状**。新块明写「平台报的 ≠ 画面看到的」，且四个字段上 **metadata WINS over anything you infer from the footage**（数帧是猜）。
+    - ⭐ 顺手消灭一处「一个数两个主人」：handle 的 offset 抽成 `attachedVideoLinks()` 只算一次，系统提示与元数据块共用。
+    - ✅ **真机收官验收（同一道题）**：「根据 **YouTube 的平台数据**，这个视频的长度是 **18分40秒**（共 1120 秒）」——数字准确、来源标注正确、给了原始秒数。**这道题的三层问题（路由抢夺 / 证据指令冲突 / 元数据靠猜）全部闭合。**
+    - ⚠ 未解：watch 页是抓取不是 API，YouTube 改版会让时长静默退回 `unknown`（只有一句 warn 无告警）；Vercel 出口 IP 的区域风控未验；B站元数据现在有两处出口（检索线 + 本模块）未收敛；画布线 `node-assistant` 完全没有视频链接路由（既有缺口非本批引入）。
 
 ⚠ **两条已知未修（agent 报告，均在授权外）**：`web-research.service.ts` 的 `gatherWebContext`（画布旧线）同样对任何 URL 无差别 `readUrl`，同病；**闸 2 只验引用编号在不在范围内，不验论断是否真在那条证据里**——「19分13秒 [1]」这种「引用真实、论断不在证据里」的组合仍会放行，是闸 2 的结构性盲区。
 

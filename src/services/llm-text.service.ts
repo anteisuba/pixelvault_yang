@@ -13,15 +13,38 @@ import {
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
+import {
+  VIDEO_ANALYSIS,
+  VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS,
+  VIDEO_ANALYSIS_UNREACHABLE_ERROR,
+} from '@/constants/video-analysis'
+import { VIDEO_LINK_KINDS } from '@/constants/video-link'
 import { db } from '@/lib/db'
 import { decryptApiKey } from '@/lib/crypto'
 import { ApiRequestError } from '@/lib/errors'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
+import { buildYoutubeWatchUrl, classifyVideoLink } from '@/lib/video-link'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { fetchAsBuffer } from '@/services/storage/r2'
 
 // ─── Types ───────────────────────────────────────────────────────
+
+/**
+ * 视频输入的两个便宜旋钮（§4.3.1，🔬 实测：裁 1 分钟 = 全片的 5%，
+ * `fps: 0.2` = 42%）。偏移量单位是**秒**，序列化成 Gemini 要的 `"60s"`。
+ *
+ * v1 不拧（默认全片默认帧率），但通道现在就是通的 —— 「先降级再问」接上去时
+ * 不需要再改一次管线。
+ */
+export interface VideoAnalysisWindow {
+  /** 采样帧率。省略 = provider 默认。 */
+  fps?: number
+  /** 裁剪窗起点（秒）。 */
+  startOffset?: number
+  /** 裁剪窗终点（秒）。 */
+  endOffset?: number
+}
 
 export interface LlmTextInput {
   systemPrompt: string
@@ -50,8 +73,19 @@ export interface LlmTextInput {
    *    value is forwarded as-is.
    */
   imageData?: string | string[]
-  /** Native video inputs. Currently supported only by the Gemini branch. */
+  /**
+   * Native video inputs. Currently supported only by the Gemini branch.
+   *
+   * Entries may be a `data:` URL, an `http(s)` URL to a video file, or a
+   * **YouTube page URL** — the classifier in `lib/video-link.ts` decides which
+   * of those it is; see `toGeminiVideoPart`.
+   */
   videoData?: string | string[]
+  /**
+   * Per-call cost lever for video input (§4.3.1). Omit for v1 default =
+   * whole video at the provider's default frame rate.
+   */
+  videoAnalysis?: VideoAnalysisWindow
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
   apiKey: string
@@ -80,9 +114,17 @@ const GeminiTextResponseSchema = z.object({
             ),
           })
           .optional(),
+        /**
+         * ⚠ 这两个字段**必须留着**：Gemini 会用 HTTP 200 + 空 parts 表达「被安全策略
+         * 拦了」「输出被截断了」，真正的原因只在这里。以前 schema 把它们丢掉，错误
+         * 就只剩一句「No text response from Gemini」——生产上撞到时无法归因
+         * （2026-08-19 真实事故）。**大声报错 ≠ 可归因。**
+         */
+        finishReason: z.string().optional(),
       }),
     )
     .optional(),
+  promptFeedback: z.object({ blockReason: z.string().optional() }).optional(),
 })
 
 const GeminiFileUploadResponseSchema = z.object({
@@ -419,15 +461,40 @@ function throwNoOpenAiTextResponse(
 function toLlmTextProviderError(
   responseStatus: number,
   errorBody: string,
-  context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
+  context: {
+    adapterType: AI_ADAPTER_TYPES
+    modelId: string
+    /** 这次请求里带了外链视频（YouTube 直传）。见下面的 403 分支。 */
+    hasLinkedVideo?: boolean
+  },
 ): ApiRequestError {
   logger.warn('LLM provider request failed', {
     adapterType: context.adapterType,
     modelId: context.modelId,
     responseStatus,
+    hasLinkedVideo: context.hasLinkedVideo === true,
     errorBodySnippet: errorBody.slice(0, 400),
   })
   const parsedCode = parseGenerationErrorCode(`${responseStatus} ${errorBody}`)
+
+  // ⚠ **坑 2（§4.3.2，实测踩过）**：`fileUri` 指向的视频取不到时 Gemini 回的是
+  // **403 PERMISSION_DENIED**，不是 404。落到下面那条通用 403 分支就会变成
+  // 「API key 认证失败」，把用户引去查一把好好的 key。
+  //
+  // 收窄条件有两道，避免把真的 key 问题也吃掉：① 这一轮确实带了外链视频；
+  // ② 错误正文没有被分类成 key 失效。
+  if (
+    context.hasLinkedVideo &&
+    responseStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.forbidden &&
+    parsedCode !== GENERATION_ERROR_CODES.INVALID_API_KEY
+  ) {
+    return new ApiRequestError(
+      VIDEO_ANALYSIS_UNREACHABLE_ERROR.code,
+      VIDEO_ANALYSIS_UNREACHABLE_ERROR.httpStatus,
+      VIDEO_ANALYSIS_UNREACHABLE_ERROR.i18nKey,
+      `${VIDEO_ANALYSIS_UNREACHABLE_ERROR.message} (provider status ${responseStatus}, model=${context.modelId})`,
+    )
+  }
 
   if (
     parsedCode === GENERATION_ERROR_CODES.INVALID_API_KEY ||
@@ -615,6 +682,34 @@ async function toGeminiInlinePart(
 interface GeminiVideoPartResult {
   part: Record<string, unknown>
   uploadedFileName?: string
+  /**
+   * 这一部分是**指向外部链接**的 fileUri（YouTube 直传），不是我们上传的文件。
+   * 403 的语义因此完全不同 —— 见 `toLlmTextProviderError` 的视频分支。
+   */
+  linkedVideo?: boolean
+}
+
+/**
+ * `videoMetadata` 的线上形状：偏移量是 Duration 字符串（`"60s"`），fps 是数字。
+ * 全省 = 不发这个字段（全片 + provider 默认帧率）。
+ */
+function toGeminiVideoMetadata(
+  analysisWindow: VideoAnalysisWindow | undefined,
+): Record<string, unknown> | null {
+  const fps = analysisWindow?.fps ?? VIDEO_ANALYSIS.defaultFps
+  const startOffset =
+    analysisWindow?.startOffset ?? VIDEO_ANALYSIS.defaultStartOffsetSeconds
+  const endOffset =
+    analysisWindow?.endOffset ?? VIDEO_ANALYSIS.defaultEndOffsetSeconds
+
+  const metadata = {
+    ...(typeof fps === 'number' ? { fps } : {}),
+    ...(typeof startOffset === 'number'
+      ? { startOffset: `${startOffset}s` }
+      : {}),
+    ...(typeof endOffset === 'number' ? { endOffset: `${endOffset}s` } : {}),
+  }
+  return Object.keys(metadata).length > 0 ? metadata : null
 }
 
 function waitForGeminiFilePoll(): Promise<void> {
@@ -708,7 +803,27 @@ async function uploadGeminiVideoFile(
 async function toGeminiVideoPart(
   videoUrl: string,
   apiKey: string,
+  videoAnalysis?: VideoAnalysisWindow,
 ): Promise<GeminiVideoPartResult> {
+  const videoMetadata = toGeminiVideoMetadata(videoAnalysis)
+  const withMetadata = (part: Record<string, unknown>) =>
+    videoMetadata ? { ...part, videoMetadata } : part
+
+  // ⚠ **YouTube 分支必须在 fetch 之前**（§4.2 点名的实现陷阱）：YouTube 页面是
+  // `text/html`，先抓再验 content-type 的话下面那道 `video/` 校验会把它拒掉，
+  // 而 Gemini 根本不需要我们去抓 —— `fileData.fileUri` 直接吃页面 URL
+  // （🔬 切片 0 实测：18m41s 直传 HTTP 200；1 小时 326k token 也没撞上限）。
+  // 免下载、零存储、不占我们 50MB 的帽。
+  const classification = classifyVideoLink(videoUrl)
+  if (classification.kind === VIDEO_LINK_KINDS.youtube) {
+    return {
+      part: withMetadata({
+        fileData: { fileUri: buildYoutubeWatchUrl(classification.videoId) },
+      }),
+      linkedVideo: true,
+    }
+  }
+
   const { buffer, mimeType } = await fetchAsBuffer(videoUrl, {
     maxBytes: ASSISTANT_MEDIA_LIMITS.maxVideoBytes,
   })
@@ -718,20 +833,20 @@ async function toGeminiVideoPart(
 
   if (buffer.byteLength < ASSISTANT_MEDIA_LIMITS.geminiInlineMaxBytes) {
     return {
-      part: {
+      part: withMetadata({
         inlineData: { mimeType, data: buffer.toString('base64') },
-      },
+      }),
     }
   }
 
   const uploaded = await uploadGeminiVideoFile(buffer, mimeType, apiKey)
   return {
-    part: {
+    part: withMetadata({
       fileData: {
         mimeType: uploaded.mimeType,
         fileUri: uploaded.uri,
       },
-    },
+    }),
     uploadedFileName: uploaded.name,
   }
 }
@@ -753,10 +868,40 @@ async function deleteGeminiUploadedFile(
   }
 }
 
-async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
+/**
+ * Build the Gemini request once so the buffered and streaming branches can't
+ * drift apart. Uploaded video files are returned rather than deleted here —
+ * the streaming branch must keep them alive until the body is fully consumed,
+ * not just until `fetch` resolves (headers arrive long before the last chunk).
+ */
+/**
+ * ⚠ **坑 1（§4.3.2）**：thinking token 从 `maxOutputTokens` 里扣，给 800 实测只
+ * 剩 31 字正文 + `finishReason=MAX_TOKENS`。带视频的一轮**只抬不降**到
+ * `VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS`。
+ *
+ * `providerManagedOutput` 那条路本来就不发这个字段（模型自身上限远高于 3000），
+ * 助手线走的正是它 —— 这道闸是给**显式指定预算**的调用方兜底的。
+ */
+function resolveGeminiMaxOutputTokens(
+  input: LlmTextInput,
+  hasVideoPart: boolean,
+): number | null {
+  if (input.providerManagedOutput || !input.maxTokens) return null
+  return hasVideoPart
+    ? Math.max(input.maxTokens, VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS)
+    : input.maxTokens
+}
+
+async function buildGeminiRequest(input: LlmTextInput): Promise<{
+  modelId: string
+  baseUrl: string
+  body: string
+  uploadedVideoNames: string[]
+  /** 请求里带了指向外部链接的视频（YouTube 直传）—— 403 的翻译要换一套。 */
+  hasLinkedVideo: boolean
+}> {
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.GEMINI]
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.GEMINI
-  const endpoint = `${baseUrl}/${modelId}:generateContent`
 
   const parts: Array<Record<string, unknown>> = []
 
@@ -769,14 +914,20 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
   }
 
   const uploadedVideoNames: string[] = []
+  let hasVideoPart = false
+  let hasLinkedVideo = false
   if (input.videoData) {
     const videos = Array.isArray(input.videoData)
       ? input.videoData
       : [input.videoData]
     const videoParts = await Promise.all(
-      videos.map((video) => toGeminiVideoPart(video, input.apiKey)),
+      videos.map((video) =>
+        toGeminiVideoPart(video, input.apiKey, input.videoAnalysis),
+      ),
     )
     parts.push(...videoParts.map((entry) => entry.part))
+    hasVideoPart = videoParts.length > 0
+    hasLinkedVideo = videoParts.some((entry) => entry.linkedVideo === true)
     uploadedVideoNames.push(
       ...videoParts.flatMap((entry) =>
         entry.uploadedFileName ? [entry.uploadedFileName] : [],
@@ -786,6 +937,83 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
 
   parts.push({ text: input.userPrompt })
 
+  const maxOutputTokens = resolveGeminiMaxOutputTokens(input, hasVideoPart)
+
+  return {
+    modelId,
+    baseUrl,
+    uploadedVideoNames,
+    hasLinkedVideo,
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: input.systemPrompt }],
+      },
+      contents: [{ parts }],
+      generationConfig: {
+        responseModalities: ['TEXT'],
+        ...(maxOutputTokens ? { maxOutputTokens } : {}),
+        ...(input.responseFormat === 'json_object'
+          ? { responseMimeType: 'application/json' }
+          : {}),
+      },
+      ...(input.useGrounding ? { tools: [{ google_search: {} }] } : {}),
+    }),
+  }
+}
+
+/**
+ * Gemini 用 **HTTP 200 + 空 parts** 表达好几种失败，真因只在 `finishReason` /
+ * `promptFeedback.blockReason` 里。把它们翻成可归因的错误，别再丢。
+ *
+ * 2026-08-19 生产事故：这里原本抛裸 `Error('No text response from Gemini')`，
+ * 被 `api-route-factory` 兜成 500 INTERNAL_ERROR，用户只看到「发生了意外错误」，
+ * 排查时完全分不清是内容被拦、输出被截断，还是真的挂了。
+ */
+function buildGeminiNoTextError(
+  data: z.infer<typeof GeminiTextResponseSchema>,
+  modelId: string,
+): ApiRequestError {
+  const blockReason = data.promptFeedback?.blockReason
+  const finishReason = data.candidates?.[0]?.finishReason
+
+  if (blockReason) {
+    return new ApiRequestError(
+      'ASSISTANT_CONTENT_BLOCKED',
+      422,
+      'errors.assistant.contentBlocked',
+      `Gemini blocked the request (blockReason=${blockReason}, model=${modelId}).`,
+    )
+  }
+  if (finishReason === 'SAFETY' || finishReason === 'PROHIBITED_CONTENT') {
+    return new ApiRequestError(
+      'ASSISTANT_CONTENT_BLOCKED',
+      422,
+      'errors.assistant.contentBlocked',
+      `Gemini stopped on safety (finishReason=${finishReason}, model=${modelId}).`,
+    )
+  }
+  if (finishReason === 'MAX_TOKENS') {
+    // thinking token 也从输出预算里扣 —— 预算紧时会出现「思考完了没剩下正文」。
+    return new ApiRequestError(
+      'ASSISTANT_OUTPUT_TRUNCATED',
+      502,
+      'errors.assistant.outputTruncated',
+      `Gemini hit the output cap before emitting text (model=${modelId}).`,
+    )
+  }
+  return new ApiRequestError(
+    'ASSISTANT_NO_TEXT_RESPONSE',
+    502,
+    'errors.assistant.noTextResponse',
+    `Gemini returned no text (finishReason=${finishReason ?? 'unknown'}, model=${modelId}).`,
+  )
+}
+
+async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
+  const { modelId, baseUrl, body, uploadedVideoNames, hasLinkedVideo } =
+    await buildGeminiRequest(input)
+  const endpoint = `${baseUrl}/${modelId}:generateContent`
+
   let response: Response
   try {
     response = await fetch(endpoint, {
@@ -794,22 +1022,7 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
         'x-goog-api-key': input.apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: input.systemPrompt }],
-        },
-        contents: [{ parts }],
-        generationConfig: {
-          responseModalities: ['TEXT'],
-          ...(!input.providerManagedOutput && input.maxTokens
-            ? { maxOutputTokens: input.maxTokens }
-            : {}),
-          ...(input.responseFormat === 'json_object'
-            ? { responseMimeType: 'application/json' }
-            : {}),
-        },
-        ...(input.useGrounding ? { tools: [{ google_search: {} }] } : {}),
-      }),
+      body,
     })
   } finally {
     await Promise.allSettled(
@@ -824,6 +1037,7 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
     throw toLlmTextProviderError(response.status, errorBody, {
       adapterType: AI_ADAPTER_TYPES.GEMINI,
       modelId,
+      hasLinkedVideo,
     })
   }
 
@@ -831,13 +1045,20 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
   const textPart = data.candidates?.[0]?.content?.parts?.find((p) => p.text)
 
   if (!textPart?.text) {
-    throw new Error('No text response from Gemini')
+    throw buildGeminiNoTextError(data, modelId)
   }
 
   return textPart.text.trim()
 }
 
-async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
+/**
+ * OpenAI `/chat/completions` 的请求，缓冲与流式共用一份 —— 同 Gemini 那条的理由：
+ * 两条各建各的 body 迟早漂移，而漂移的表现是「流式的回答和缓冲的不一样」。
+ */
+function buildOpenAiChatRequest(
+  input: LlmTextInput,
+  options: { stream?: boolean } = {},
+): { endpoint: string; requestModelId: string; body: string } {
   if (input.videoData) {
     throw new Error('OpenAI assistant route does not support video input.')
   }
@@ -846,7 +1067,6 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
     ? LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_SEARCH_API
     : modelId
   const baseUrl = getOpenAiChatBaseUrl(input.providerConfig.baseUrl)
-  const endpoint = `${baseUrl}/chat/completions`
 
   const messages: Array<Record<string, unknown>> = [
     { role: 'system', content: input.systemPrompt },
@@ -866,15 +1086,13 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
     messages.push({ role: 'user', content: input.userPrompt })
   }
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${input.apiKey}`,
-      'Content-Type': 'application/json',
-    },
+  return {
+    endpoint: `${baseUrl}/chat/completions`,
+    requestModelId,
     body: JSON.stringify({
       model: requestModelId,
       messages,
+      ...(options.stream ? { stream: true } : {}),
       ...(!input.providerManagedOutput
         ? getOpenAiTokenLimit(
             requestModelId,
@@ -886,6 +1104,19 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
         : {}),
       ...(input.useGrounding ? { web_search_options: {} } : {}),
     }),
+  }
+}
+
+async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
+  const { endpoint, requestModelId, body } = buildOpenAiChatRequest(input)
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body,
   })
 
   if (!response.ok) {
@@ -1186,6 +1417,177 @@ function guardUserPrompt(prompt: string, maxLength?: number | null): void {
   if (result.warnings.length > 0) {
     logger.warn('Prompt guard warnings', { warnings: result.warnings })
   }
+}
+
+/**
+ * 真流式的适配器 —— **能力矩阵，不是 fallback 垫片**。
+ *
+ * 不在这个集合里的 provider 不是「降级」，是这条 SSE 分支还没实现：`llmTextStream`
+ * 会缓冲完再一次性 yield。差别对调用方是可见的（查这个集合就知道），不靠猜。
+ * 加新 provider = 写它的 SSE 解析 + 往这里加一行，两件事必须同一个改动里做完。
+ */
+export const LLM_TEXT_STREAMING_ADAPTERS: ReadonlySet<AI_ADAPTER_TYPES> =
+  new Set([AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.OPENAI])
+
+export function supportsLlmTextStreaming(
+  adapterType: AI_ADAPTER_TYPES,
+): boolean {
+  return LLM_TEXT_STREAMING_ADAPTERS.has(adapterType)
+}
+
+/**
+ * 逐行读 SSE。Gemini 的 `alt=sse` 每个事件是一行 `data: {…}`，事件之间空行分隔；
+ * chunk 边界可以落在一行中间，所以必须留 buffer，不能按 chunk 直接 split。
+ */
+async function* readSseData(body: ReadableStream<Uint8Array>) {
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      let newlineIndex: number
+      while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, newlineIndex).trim()
+        buffer = buffer.slice(newlineIndex + 1)
+        if (line.startsWith('data:')) yield line.slice(5).trim()
+      }
+    }
+    const tail = (buffer + decoder.decode()).trim()
+    if (tail.startsWith('data:')) yield tail.slice(5).trim()
+  } finally {
+    reader.releaseLock()
+  }
+}
+
+async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
+  const { modelId, baseUrl, body, uploadedVideoNames, hasLinkedVideo } =
+    await buildGeminiRequest(input)
+  const endpoint = `${baseUrl}/${modelId}:streamGenerateContent?alt=sse`
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': input.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body,
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => 'Unknown error')
+      throw toLlmTextProviderError(response.status, errorBody, {
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        modelId,
+        hasLinkedVideo,
+      })
+    }
+    if (!response.body) {
+      throw new Error('No text response from Gemini')
+    }
+
+    for await (const data of readSseData(response.body)) {
+      if (!data || data === '[DONE]') continue
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(data)
+      } catch {
+        // 半个事件不该炸掉整条流；下一个事件照常处理。
+        continue
+      }
+      const chunk = GeminiTextResponseSchema.safeParse(parsed)
+      if (!chunk.success) continue
+      for (const part of chunk.data.candidates?.[0]?.content?.parts ?? []) {
+        if (part.text) yield part.text
+      }
+    }
+  } finally {
+    // 删上传的视频文件必须等流真读完 —— `fetch` resolve 时只到了响应头，
+    // 这时候删会把还没读完的那条流打断。
+    await Promise.allSettled(
+      uploadedVideoNames.map((name) =>
+        deleteGeminiUploadedFile(name, input.apiKey),
+      ),
+    )
+  }
+}
+
+/**
+ * 流式版 `llmTextCompletion`：产出增量文本片段。
+ *
+ * 没实现 SSE 的 provider 走缓冲后一次性 yield —— 调用方要区分就查
+ * `supportsLlmTextStreaming()`，别靠观察 chunk 个数猜。
+ */
+export async function* openAiTextStream(
+  input: LlmTextInput,
+): AsyncIterable<string> {
+  const { endpoint, requestModelId, body } = buildOpenAiChatRequest(input, {
+    stream: true,
+  })
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body,
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      modelId: requestModelId,
+    })
+  }
+  if (!response.body) {
+    // 流式没有可诊断的响应体可交给 `throwNoOpenAiTextResponse` —— 那个函数是用来
+    // 从解析好的 completion 里挖 refusal / finish_reason 的，这里根本没有。
+    throw new Error(`No text stream from OpenAI (${requestModelId})`)
+  }
+
+  for await (const data of readSseData(response.body)) {
+    // OpenAI 的流以字面量 `[DONE]` 收尾，它不是 JSON。
+    if (!data || data === '[DONE]') continue
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(data)
+    } catch {
+      continue
+    }
+    const delta = (
+      parsed as {
+        choices?: { delta?: { content?: string | null } }[]
+      }
+    ).choices?.[0]?.delta?.content
+    if (delta) yield delta
+  }
+}
+
+export async function* llmTextStream(
+  input: LlmTextInput,
+): AsyncIterable<string> {
+  if (supportsLlmTextStreaming(input.adapterType)) {
+    guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
+    switch (input.adapterType) {
+      case AI_ADAPTER_TYPES.GEMINI:
+        yield* geminiTextStream(input)
+        return
+      case AI_ADAPTER_TYPES.OPENAI:
+        yield* openAiTextStream(input)
+        return
+    }
+  }
+
+  // 非流式 provider 走缓冲补全，它自己会过 guard —— 这里再过一遍只会把
+  // guard 的告警日志打两份。
+  yield await llmTextCompletion(input)
 }
 
 /**

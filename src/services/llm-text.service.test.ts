@@ -23,12 +23,18 @@ import {
   isLlmTextContextLimitError,
   resolveLlmTextRoute,
   llmTextCompletion,
+  llmTextStream,
+  supportsLlmTextStreaming,
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   LLM_TEXT_DEFAULT_MAX_TOKENS,
   LLM_TEXT_MODEL_IDS,
 } from '@/constants/config'
+import {
+  VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS,
+  VIDEO_ANALYSIS_UNREACHABLE_ERROR,
+} from '@/constants/video-analysis'
 import { MAX_COMPILED_PROMPT_LENGTH } from '@/services/kernel/prompt-guard'
 
 afterEach(() => {
@@ -288,6 +294,246 @@ describe('llmTextCompletion - Gemini', () => {
     expect(payload.contents[0]?.parts[1]).toEqual({
       text: 'Analyze this video.',
     })
+  })
+
+  // ─── 视频链接路由（AI 导演内核切片 2 §4.2 / §4.3.2） ──────────────
+
+  it('sends a YouTube link straight through as fileData.fileUri without fetching it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: 'shots described' }] } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'You are helpful.',
+      userPrompt: 'What camera moves does this use?',
+      videoData: 'https://youtu.be/dQw4w9WgXcQ?si=tracking',
+      providerManagedOutput: true,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+    })
+
+    expect(result).toBe('shots described')
+    // ⚠ 这条断言就是那个实现陷阱本身：YouTube 页面是 text/html，一旦先 fetch
+    //   再验 content-type 就会被 `video/` 校验拒掉。所以**只能有一次 fetch**，
+    //   就是打给 Gemini 的那一次。
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
+      'generativelanguage.googleapis.com',
+    )
+
+    const payload = readFetchJson(fetchMock) as {
+      contents: Array<{
+        parts: Array<{
+          fileData?: { fileUri?: string; mimeType?: string }
+          videoMetadata?: Record<string, unknown>
+          text?: string
+        }>
+      }>
+    }
+    expect(payload.contents[0]?.parts[0]).toEqual({
+      fileData: { fileUri: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+    })
+    expect(payload.contents[0]?.parts[1]).toEqual({
+      text: 'What camera moves does this use?',
+    })
+  })
+
+  it('passes the videoMetadata cost levers through when a caller asks for them', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: 'first minute only' }] } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'You are helpful.',
+      userPrompt: 'Summarize the opening.',
+      videoData: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      videoAnalysis: { fps: 0.2, startOffset: 0, endOffset: 60 },
+      providerManagedOutput: true,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+    })
+
+    const payload = readFetchJson(fetchMock) as {
+      contents: Array<{ parts: Array<{ videoMetadata?: unknown }> }>
+    }
+    expect(payload.contents[0]?.parts[0]?.videoMetadata).toEqual({
+      fps: 0.2,
+      startOffset: '0s',
+      endOffset: '60s',
+    })
+  })
+
+  it('omits videoMetadata by default — v1 is whole video at the default frame rate', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: 'ok' }] } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'You are helpful.',
+      userPrompt: 'Describe it.',
+      videoData: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      providerManagedOutput: true,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+    })
+
+    const payload = readFetchJson(fetchMock) as {
+      contents: Array<{ parts: Array<{ videoMetadata?: unknown }> }>
+    }
+    expect(payload.contents[0]?.parts[0]?.videoMetadata).toBeUndefined()
+  })
+
+  it('raises an explicit output budget to the video floor — thinking tokens eat it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: 'full answer' }] } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'You are helpful.',
+      userPrompt: 'Describe it.',
+      videoData: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      maxTokens: 800,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+    })
+
+    const payload = readFetchJson(fetchMock) as {
+      generationConfig?: { maxOutputTokens?: number }
+    }
+    // 800 实测得到 thoughtsTokenCount=765 / 正文 31 字 / MAX_TOKENS。
+    expect(payload.generationConfig?.maxOutputTokens).toBe(
+      VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS,
+    )
+  })
+
+  it('leaves a text-only turn budget alone — the floor is video-only and never lowers', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: 'ok' }] } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'You are helpful.',
+      userPrompt: 'Write a tagline.',
+      maxTokens: 800,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+    })
+
+    const payload = readFetchJson(fetchMock) as {
+      generationConfig?: { maxOutputTokens?: number }
+    }
+    expect(payload.generationConfig?.maxOutputTokens).toBe(800)
+  })
+
+  it('translates a 403 on a linked video into "video unreachable", not "bad API key"', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 403,
+              message:
+                'You do not have permission to access the video or it may not exist.',
+              status: 'PERMISSION_DENIED',
+            },
+          }),
+          { status: 403 },
+        ),
+      ),
+    )
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'Describe it.',
+        videoData: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        providerManagedOutput: true,
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        providerConfig: {
+          label: 'Gemini',
+          baseUrl: 'https://generativelanguage.googleapis.com',
+        },
+        apiKey: 'test-key',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: VIDEO_ANALYSIS_UNREACHABLE_ERROR.code,
+      httpStatus: VIDEO_ANALYSIS_UNREACHABLE_ERROR.httpStatus,
+      i18nKey: VIDEO_ANALYSIS_UNREACHABLE_ERROR.i18nKey,
+    })
+  })
+
+  it('still reports a 403 without a linked video as an auth failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(new Response('permission denied', { status: 403 })),
+    )
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        providerManagedOutput: true,
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        providerConfig: {
+          label: 'Gemini',
+          baseUrl: 'https://generativelanguage.googleapis.com',
+        },
+        apiKey: 'test-key',
+      }),
+    ).rejects.toMatchObject({ errorCode: 'PROVIDER_AUTH_FAILED' })
   })
 
   it('throws a structured transient provider error on 503 response', async () => {
@@ -1107,6 +1353,311 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
       errorCode: 'PROVIDER_AUTH_FAILED',
       httpStatus: 401,
       i18nKey: 'errors.provider.invalidApiKey',
+    })
+  })
+})
+
+describe('llmTextStream', () => {
+  const GEMINI_ROUTE = {
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    providerConfig: {
+      label: 'Gemini',
+      baseUrl: 'https://generativelanguage.googleapis.com',
+    },
+    apiKey: 'test-key',
+  } as const
+
+  function sseResponse(lines: string[]): Response {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder()
+        for (const line of lines) controller.enqueue(encoder.encode(line))
+        controller.close()
+      },
+    })
+    return new Response(body, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    })
+  }
+
+  function geminiEvent(text: string): string {
+    return `data: ${JSON.stringify({
+      candidates: [{ content: { parts: [{ text }] } }],
+    })}
+
+`
+  }
+
+  async function collect(stream: AsyncIterable<string>): Promise<string[]> {
+    const chunks: string[] = []
+    for await (const chunk of stream) chunks.push(chunk)
+    return chunks
+  }
+
+  it('声明了哪些 adapter 真流式 —— 能力矩阵，不靠猜', () => {
+    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.GEMINI)).toBe(true)
+    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.OPENAI)).toBe(true)
+    // DeepSeek / DashScope / Anthropic 的 SSE 还没写 —— 这条断言就是那份待办
+    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(false)
+    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.ANTHROPIC)).toBe(false)
+  })
+
+  it('Gemini：逐个 SSE 事件产出增量文本', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          sseResponse([geminiEvent('你好'), geminiEvent('，世界')]),
+        ),
+    )
+
+    const chunks = await collect(
+      llmTextStream({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        ...GEMINI_ROUTE,
+      }),
+    )
+
+    expect(chunks).toEqual(['你好', '，世界'])
+  })
+
+  it('Gemini：走的是 streamGenerateContent 且带 alt=sse', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(sseResponse([geminiEvent('ok')]))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await collect(
+      llmTextStream({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        ...GEMINI_ROUTE,
+      }),
+    )
+
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(':streamGenerateContent')
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('alt=sse')
+  })
+
+  it('chunk 边界切在一行中间也要能拼回来', async () => {
+    const whole = geminiEvent('半截字')
+    const cut = Math.floor(whole.length / 2)
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          sseResponse([whole.slice(0, cut), whole.slice(cut)]),
+        ),
+    )
+
+    const chunks = await collect(
+      llmTextStream({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        ...GEMINI_ROUTE,
+      }),
+    )
+
+    expect(chunks.join('')).toBe('半截字')
+  })
+
+  it('单个事件 JSON 坏了只跳过它，不炸掉整条流', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          sseResponse([
+            geminiEvent('前'),
+            'data: {不是 JSON}\n\n',
+            geminiEvent('后'),
+          ]),
+        ),
+    )
+
+    const chunks = await collect(
+      llmTextStream({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        ...GEMINI_ROUTE,
+      }),
+    )
+
+    expect(chunks.join('')).toBe('前后')
+  })
+
+  it('HTTP 失败按 provider 错误抛，不产出空流', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('bad key', { status: 401 })),
+    )
+
+    await expect(
+      collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          ...GEMINI_ROUTE,
+        }),
+      ),
+    ).rejects.toMatchObject({ httpStatus: 401 })
+  })
+
+  it('OpenAI：从 delta.content 逐段产出，[DONE] 不当 JSON 解析', async () => {
+    const event = (content: string) =>
+      `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          sseResponse([event('前半'), event('后半'), 'data: [DONE]\n\n']),
+        ),
+    )
+
+    const chunks = await collect(
+      llmTextStream({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        providerConfig: {
+          label: 'OpenAI',
+          baseUrl: 'https://api.openai.com/v1',
+        },
+        apiKey: 'test-key',
+      }),
+    )
+
+    expect(chunks).toEqual(['前半', '后半'])
+  })
+
+  it('OpenAI：请求体带 stream:true', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(sseResponse(['data: [DONE]\n\n']))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await collect(
+      llmTextStream({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        providerConfig: {
+          label: 'OpenAI',
+          baseUrl: 'https://api.openai.com/v1',
+        },
+        apiKey: 'test-key',
+      }),
+    )
+
+    const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)
+    expect(body.stream).toBe(true)
+  })
+
+  it('没实现 SSE 的 adapter：缓冲后一次性 yield，形态仍是流', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'buffered answer' } }],
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+
+    const chunks = await collect(
+      llmTextStream({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        providerConfig: {
+          label: 'DeepSeek',
+          baseUrl: 'https://api.deepseek.com',
+        },
+        apiKey: 'test-key',
+      }),
+    )
+
+    expect(chunks).toEqual(['buffered answer'])
+  })
+})
+
+describe('Gemini 空回复的归因', () => {
+  const ROUTE = {
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    providerConfig: {
+      label: 'Gemini',
+      baseUrl: 'https://generativelanguage.googleapis.com',
+    },
+    apiKey: 'test-key',
+  } as const
+
+  // ⚠ 每次造新的 Response：body 只能读一次，共用同一个对象时第二次调用会挂在
+  // 「Body has already been read」上，跟被测逻辑毫无关系。
+  function respond(payload: unknown): void {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation(
+          async () => new Response(JSON.stringify(payload), { status: 200 }),
+        ),
+    )
+  }
+
+  function ask() {
+    return llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      ...ROUTE,
+    })
+  }
+
+  // ⚠ 2026-08-19 生产事故：这里原本抛裸 Error('No text response from Gemini')，
+  // 被工厂兜成 500「发生了意外错误」，真因（安全拦截 or 输出截断）全丢。
+  // **大声报错 ≠ 可归因。**
+
+  it('promptFeedback.blockReason → 内容被拦，可分类', async () => {
+    respond({ promptFeedback: { blockReason: 'SAFETY' } })
+    await expect(ask()).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_CONTENT_BLOCKED',
+      httpStatus: 422,
+    })
+  })
+
+  it('finishReason=SAFETY → 同样归到内容被拦', async () => {
+    respond({
+      candidates: [{ finishReason: 'SAFETY', content: { parts: [] } }],
+    })
+    await expect(ask()).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_CONTENT_BLOCKED',
+    })
+  })
+
+  it('finishReason=MAX_TOKENS → 输出被截断（thinking 也吃这份预算）', async () => {
+    respond({
+      candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [] } }],
+    })
+    await expect(ask()).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
+    })
+  })
+
+  it('说不出原因时也要把 finishReason 带进消息里，别只说「没有回复」', async () => {
+    respond({
+      candidates: [{ finishReason: 'RECITATION', content: { parts: [] } }],
+    })
+    await expect(ask()).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_NO_TEXT_RESPONSE',
+      // 认不出的 finishReason 也要原样带出来 —— 否则下次线上撞到又是一句
+      // 「没有回复」，还是查不动。
+      message: expect.stringContaining('RECITATION'),
     })
   })
 })

@@ -1,12 +1,18 @@
 import 'server-only'
 
+import { z } from 'zod'
+
 import { db } from '@/lib/db'
 import type { AspectRatio } from '@/constants/config'
+import { VISION_LIMITS } from '@/constants/vision'
 import type { GenerationRecord, GenerateVariationsModel } from '@/types'
+import { llmTextCompletion } from '@/services/llm-text.service'
+import { resolveVisionRoute } from '@/services/vision/vision-route.service'
 import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+  completeVisionStructured,
+  VISION_JSON_CONTRACT,
+  VISION_SAFETY_PREAMBLE,
+} from '@/services/vision/vision-structured-output'
 import {
   submitImageGeneration,
   waitForImageGenerationResult,
@@ -20,7 +26,27 @@ import {
 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 
-const REVERSE_ENGINEER_SYSTEM_PROMPT = `You are an expert at describing images for AI image generation. Analyze the provided image and generate a detailed prompt that could recreate it. Include: subject matter, composition, style, lighting, color palette, mood, textures, and any notable artistic qualities. Return ONLY the prompt text, no explanation or preamble.`
+/**
+ * ⚠ **本文件的产物是「反推提示词」，不是「结构化观察」** —— 别把它当成 Vision
+ * Analyzer 的一部分重写（AI 导演内核 · 切片 2 收编，2026-08-21）。
+ *
+ * 两条线现在共用三件东西，其余各走各的：
+ *  1. **路由**：`resolveVisionRoute` —— 用户选了看不了图的 key（DeepSeek / 通义 /
+ *     火山）时借一条能看图的，而不是把图发给一个瞎子然后拿到一段编造的描述。
+ *  2. **结构化输出纪律**：多维请求走 `completeVisionStructured`（zod + validator +
+ *     打回重试一次）。原来那段手写 `JSON.parse` + `catch { 整段塞进 overall }`
+ *     是一处真 bug —— 四维请求解析失败会**静默降级成一维**，字段齐全、内容错位、
+ *     零报错。
+ *  3. **注入前言**：图片是用户可控输入，图里嵌一句「忽略上述指令」不需要任何技术。
+ *
+ * ⛔ 不共用的是**任务 schema 与 `ResearchRun` 落库**：这里每个 dimension 产出的是
+ * 一段可以直接拼进生成提示词的文本，不是带 `basis` 的观察；它已经有自己的持久化
+ * （`ImageAnalysis` 行）。硬套四个视觉任务只会让 Arena 的反推入口拿到一份它用不了的
+ * 结构体。后续清理点记在切片 2 的交接里。
+ */
+const REVERSE_ENGINEER_SYSTEM_PROMPT = `You are an expert at describing images for AI image generation. Analyze the provided image and generate a detailed prompt that could recreate it. Include: subject matter, composition, style, lighting, color palette, mood, textures, and any notable artistic qualities. Return ONLY the prompt text, no explanation or preamble.
+
+${VISION_SAFETY_PREAMBLE}`
 
 // ─── Dimension-specific extraction prompts ──────────────────────
 
@@ -45,7 +71,9 @@ const DIMENSION_PROMPTS: Record<AnalysisDimension, string> = {
 
 function buildDimensionSystemPrompt(dimensions: AnalysisDimension[]): string {
   if (dimensions.length === 1) {
-    return `You are an expert at analyzing images for AI image generation. ${DIMENSION_PROMPTS[dimensions[0]]} Return ONLY the description text, no explanation or preamble.`
+    return `You are an expert at analyzing images for AI image generation. ${DIMENSION_PROMPTS[dimensions[0]]} Return ONLY the description text, no explanation or preamble.
+
+${VISION_SAFETY_PREAMBLE}`
   }
 
   // Multiple dimensions → return JSON
@@ -55,12 +83,41 @@ function buildDimensionSystemPrompt(dimensions: AnalysisDimension[]): string {
 
   return `You are an expert at analyzing images for AI image generation. Extract the requested dimensions from this image.
 
-Return ONLY valid JSON with these fields:
+${VISION_SAFETY_PREAMBLE}
+
+${VISION_JSON_CONTRACT}
 {
 ${fields}
 }
 
-Each field should contain a detailed description for that dimension. Output in English. No explanation or preamble — only JSON.`
+Each field should contain a detailed description for that dimension. Output in English.`
+}
+
+/**
+ * 多维请求的输出契约。
+ *
+ * 全部字段 optional + 「至少命中一个」：模型漏掉一维是可以接受的（老实现也是
+ * `if (parsed[d])` 逐个挑），但**一个都没有**说明这次输出根本没用上 ——
+ * 那是要打回重试的，不是安静地返回一个空对象。
+ */
+function buildDimensionSchema(dimensions: AnalysisDimension[]) {
+  const shape = Object.fromEntries(
+    dimensions.map((dimension) => [
+      dimension,
+      z.string().trim().min(1).max(VISION_LIMITS.dimensionChars).optional(),
+    ]),
+  ) as Record<AnalysisDimension, z.ZodOptional<z.ZodString>>
+
+  return z
+    .object(shape)
+    .partial()
+    .refine(
+      (parsed) =>
+        Object.values(parsed).some(
+          (value) => typeof value === 'string' && value.length > 0,
+        ),
+      { message: 'No requested dimension was returned' },
+    )
 }
 
 // ─── Public API ─────────────────────────────────────────────────
@@ -153,58 +210,54 @@ export async function analyzeImage(
     dbUser.id,
   )
 
-  const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
+  // 借路（切片 2）：用户选的 key 看不了图就换一条能看图的，一条都借不到才抛。
+  const { route } = await resolveVisionRoute(dbUser.id, apiKeyId)
 
   // Use dimension-based extraction if dimensions are specified
   const dims = requestedDimensions?.length ? requestedDimensions : null
-  const systemPrompt = dims
-    ? buildDimensionSystemPrompt(dims)
-    : REVERSE_ENGINEER_SYSTEM_PROMPT
-  const userPrompt = dims
-    ? 'Analyze this image and extract the requested dimensions.'
-    : 'Describe this image as a detailed AI image generation prompt.'
 
-  const rawResult = await llmTextCompletion({
-    systemPrompt,
-    userPrompt,
-    imageData: sourceImageUrl,
-    adapterType: route.adapterType,
-    providerConfig: route.providerConfig,
-    apiKey: route.apiKey,
-  })
-
-  // Parse result
-  let generatedPrompt = rawResult
+  let generatedPrompt: string
   let dimensions: Partial<Record<AnalysisDimension, string>> | null = null
 
-  if (dims) {
-    if (dims.length === 1) {
-      // Single dimension → raw text is the result
+  if (dims && dims.length > 1) {
+    // 多维 → 结构化输出（zod + validator + 打回重试一次）。
+    const parsed = await completeVisionStructured({
+      schema: buildDimensionSchema(dims),
+      systemPrompt: buildDimensionSystemPrompt(dims),
+      userPrompt: 'Analyze this image and extract the requested dimensions.',
+      imageData: [sourceImageUrl],
+      route,
+      label: `image-analysis.dimensions[${dims.join('+')}]`,
+    })
+
+    dimensions = {}
+    for (const dimension of dims) {
+      const value = parsed[dimension]
+      if (value) dimensions[dimension] = value
+    }
+    // `overall` 优先当反推提示词；没要 overall 时把各维拼起来（形态不变）。
+    generatedPrompt =
+      parsed.overall ?? Object.values(dimensions).filter(Boolean).join('\n\n')
+  } else {
+    const rawResult = await llmTextCompletion({
+      systemPrompt: dims
+        ? buildDimensionSystemPrompt(dims)
+        : REVERSE_ENGINEER_SYSTEM_PROMPT,
+      userPrompt: dims
+        ? 'Analyze this image and extract the requested dimensions.'
+        : 'Describe this image as a detailed AI image generation prompt.',
+      imageData: sourceImageUrl,
+      adapterType: route.adapterType,
+      providerConfig: route.providerConfig,
+      apiKey: route.apiKey,
+    })
+
+    if (dims) {
+      // 单维 → 原文就是结果（没有 JSON 可解，也就没有结构可校验）。
       dimensions = { [dims[0]]: rawResult.trim() }
       generatedPrompt = rawResult.trim()
     } else {
-      // Multiple dimensions → parse JSON
-      try {
-        const cleaned = rawResult
-          .replace(/```json\s*/g, '')
-          .replace(/```\s*/g, '')
-          .trim()
-        const parsed = JSON.parse(cleaned) as Record<string, string>
-        dimensions = {}
-        for (const d of dims) {
-          if (parsed[d]) {
-            dimensions[d] = parsed[d]
-          }
-        }
-        // Use overall as generatedPrompt, or join all dimensions
-        generatedPrompt =
-          parsed.overall ??
-          Object.values(dimensions).filter(Boolean).join('\n\n')
-      } catch {
-        // JSON parse failed — use raw text as overall
-        dimensions = { overall: rawResult.trim() }
-        generatedPrompt = rawResult.trim()
-      }
+      generatedPrompt = rawResult
     }
   }
 

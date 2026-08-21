@@ -75,6 +75,20 @@ export const IMAGE_SIZES = {
 /** Type for supported aspect ratios */
 export type AspectRatio = keyof typeof IMAGE_SIZES
 
+/**
+ * 收窄一个来路不明的字符串到受支持的比例。
+ *
+ * ⚠ **守卫长在枚举旁边是有意的**：它从 `IMAGE_SIZES` 直接取键，所以往
+ * `IMAGE_SIZES` 里加一个比例，所有调用点自动跟上。原来 `use-studio-replay-from-url`
+ * 里那份私藏实现把五个比例又硬编码列了一遍 —— 加比例时它会静默不跟。
+ *
+ * 调用方：replay URL 参数、助手 `[[prompt]]` 块的 `aspectRatio`。两者的共同点是
+ * **字符串来自应用外部**（用户手改的 URL / 模型自由生成的文本），不能假定合法。
+ */
+export function isAspectRatio(value: string): value is AspectRatio {
+  return Object.hasOwn(IMAGE_SIZES, value)
+}
+
 /** Default aspect ratio */
 export const DEFAULT_ASPECT_RATIO: AspectRatio = '1:1'
 
@@ -111,6 +125,13 @@ export const API_ENDPOINTS = {
   PROMPT_FEEDBACK: '/api/prompt/feedback',
   /** Prompt assistant (chat-based prompt generation) */
   PROMPT_ASSISTANT: '/api/prompt/assistant',
+  /** 对话轮（mode:'general'）走这条 —— 逐字文本流，不是 JSON。 */
+  PROMPT_ASSISTANT_STREAM: '/api/prompt/assistant/stream',
+  /**
+   * 一次检索的回看（`/api/research-run/{id}`）。
+   * 当轮回执走响应头，不走这条 —— 这条只服务历史消息的懒加载。
+   */
+  RESEARCH_RUN: '/api/research-run',
   /** Node Studio script breakdown */
   SCRIPT_BREAKDOWN: '/api/script-breakdown',
   /** Read-only assistant conversation shares */

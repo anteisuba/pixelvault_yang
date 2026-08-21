@@ -34,6 +34,15 @@ export type AssistantConversation = Prisma.AssistantConversationModel
  */
 export type AssistantConversationShare = Prisma.AssistantConversationShareModel
 /**
+ * Model ResearchRun
+ * 一次检索管线执行（AI 导演内核 · 切片 1 §3.1）。
+ * 
+ * 存在的理由是**减幻觉要可审计**：助手说的每个具体事实要能点回原文，
+ * 「没搜到」和「源挂了」要是两个可分辨的事实，单源失败要留下痕迹。
+ * 证据本体存这里，`AssistantConversation.messages` 里只存 researchRunId。
+ */
+export type ResearchRun = Prisma.ResearchRunModel
+/**
  * Model NodeWorkflowProject
  * Node Studio workflow project — persists the React Flow canvas state
  * (nodes + edges + per-node data) per user so a workflow survives across
@@ -211,3 +220,48 @@ export type ExtractedElement = Prisma.ExtractedElementModel
  * 
  */
 export type InspirationPrompt = Prisma.InspirationPromptModel
+/**
+ * Model CivitaiSearchSnapshot
+ * L2 陈旧兜底：每个规范化查询只留最近一次成功结果的快照。
+ * 
+ * 职责被刻意收窄成一件事——Civitai 搜索子系统不可用时，让搜过的词返回陈
+ * 旧数据而不是白屏。它不是通用结果缓存：新鲜请求照常打上游（上游健康时
+ * 本来就只要 0.6 秒），这里只在上游失败那一刻才被读出来。
+ * 
+ * 有界是硬要求。Neon 免费档整个项目 0.5 GB，一条快照实测 7.6–7.8 KB（12 条
+ * LoRA 的完整字段）。CIVITAI_SEARCH_SNAPSHOT_MAX_ENTRIES 配合 lastUsedAt 做
+ * LRU 淘汰，稳态占用约 8 MB。
+ */
+export type CivitaiSearchSnapshot = Prisma.CivitaiSearchSnapshotModel
+/**
+ * Model CivitaiLoraMirror
+ * L3 本地目录镜像：Civitai 的 LoRA 目录抄一份到本地，让搜索不再依赖上游
+ * 搜索子系统的健康度。
+ * 
+ * 字段集合由「渲染一条 CivitaiLoraLibraryItem 需要什么」倒推，不是随手挑
+ * 的——目标是本地命中的搜索一次上游请求都不发。下载地址不存：实测恒等于
+ * `https://civitai.com/api/download/models/{versionId}`（32/32），存了反而
+ * 是冗余。
+ * 
+ * 容量：单行实测 1,724 B（真数据灌到 6000 行时量的，索引固定开销已摊薄；
+ * 1000 行时还是 2,662 B，别用小样本估）。全量 642,554 条 ≈ 1.1 GB，远超
+ * Neon 免费档 0.5 GB，所以首灌按 downloadCount 截断在
+ * CIVITAI_MIRROR_BACKFILL_LIMIT（5 万 ≈ 85 MB），那里有完整的算术。
+ * 截断只是灌数时的一个参数，表结构与同步管线都按全量设计。
+ */
+export type CivitaiLoraMirror = Prisma.CivitaiLoraMirrorModel
+/**
+ * Model CivitaiMirrorSyncState
+ * 镜像刷新的进度状态。单行表——用固定 id，不是每次插新行。
+ * 
+ * 只有一条管线：把 top N 按下载量整轮重扫一遍，upsert，然后把本轮没扫到
+ * 的行删掉。看起来比"增量同步 + 指标刷新 + 删除对账"三条管线粗暴，但
+ * **指标刷新本来就绕不开全量扫描**——下载量/点赞数不会更新
+ * lastVersionAtUnix，changed-since 信号照不到它们，而它们正是排序依据和
+ * top-N 截断线的依据。既然最贵的那条省不掉，合成一条反而更省，也更不会
+ * 出现三条管线各自推进到不同进度的中间态。
+ * 
+ * 一轮扫完约 100 个上游请求（limit=1000），远超单次 cron 的执行上限，所
+ * 以按 cursor 分片续跑：每次 cron 推进若干批，扫到头才收尾。
+ */
+export type CivitaiMirrorSyncState = Prisma.CivitaiMirrorSyncStateModel

@@ -90,6 +90,9 @@ vi.mock('@/constants/prompt-tags', async (importOriginal) => {
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
     `${namespace}:${key}`,
+  // CivitaiCommunityBranch 用它渲染降级横幅里的「X 分钟前」。手写镜像 mock
+  // 漏一个导出不是漏一条断言——组件渲染直接抛，整个文件集体红。
+  useFormatter: () => ({ relativeTime: () => 'relative-time' }),
 }))
 
 // `warning` 是做同款补挂失败时唯一的用户可见反馈（recipeExtraApplyLimited）——
@@ -241,6 +244,10 @@ vi.mock('@/hooks/use-civitai-lora-library', () => ({
     error: null,
     search: '',
     setSearch: vi.fn(),
+    // 回车 / 点搜索按钮才检索。手写镜像漏掉它们，用例一按回车就调到
+    // undefined——而且不是漏一条断言，是渲染路径上直接抛。
+    submitSearch: vi.fn(),
+    commitSearchTerm: vi.fn(),
     sort: 'newest',
     setSort: vi.fn(),
     baseModel: 'all',
@@ -329,7 +336,24 @@ vi.mock('@/hooks/use-image-upload', () => ({
   }),
 }))
 
+// §3.0b 第 4 条「点这张生成图问助手」：注入通道是**模块级 store**（不依赖任何
+// Provider —— /studio/lora 故意不挂 <StudioProvider>，这正是它能被复用的原因）。
+// 桩掉写口才断言得到「按钮把**哪一张**图递了出去」：真 store 只把值存进模块变量，
+// 从外面看不见。⚠ clearReference 也要是跨渲染稳定的同一个 vi.fn() —— dock 里那条
+// 「关闭即清空」effect 拿它当依赖，每帧新造一个会让 effect 每帧重跑。
+const mockInjectReference = vi.hoisted(() => vi.fn())
+const mockClearReference = vi.hoisted(() => vi.fn())
+vi.mock('@/hooks/use-studio-assistant-reference', () => ({
+  useStudioAssistantReference: () => ({
+    injectedReference: undefined,
+    injectReference: mockInjectReference,
+    clearReference: mockClearReference,
+  }),
+}))
+
 beforeEach(() => {
+  mockInjectReference.mockReset()
+  mockClearReference.mockReset()
   mockReferenceImages = []
   mockRunnerUsage = null
   mockStackItems = [{ asset: stackAsset, scale: 1 }]
@@ -929,6 +953,34 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
         name: /LoraWorkbench:generate\.resultPreviewLabel/,
       }),
     ).not.toBeInTheDocument()
+  })
+
+  // §3.0b 第 4 条在 LoRA 装配台的落点。
+  //
+  // ⚠ 断言的是「递出去的是**这一格**的 URL」而不是「有个按钮在」：注入通道是
+  // 模块 store，按钮和面板之间没有任何编译期约束，把最新一张而不是当前展示的
+  // 那张递出去，tsc / eslint / 其余单测全会放行，表现只是「问的和看到的不是同
+  // 一张图」。
+  // ⚠ 同时断言 dock 真的展开了 —— 只注入不展开，用户点完屏幕上什么都不动。
+  it('§3.0b: the result image exposes 问助手 — injects that image and opens the dock', () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+    mockLastGeneration = { url: 'https://example.com/result.png' }
+
+    const { container } = render(<LoraWorkbench />)
+
+    const dock = container.querySelector(
+      'aside[aria-label="PromptAssistant:dockLabel"]',
+    )
+    expect(dock).toHaveAttribute('aria-hidden', 'true')
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'StudioV3:toolAskAssistant' }),
+    )
+
+    expect(mockInjectReference).toHaveBeenCalledWith(
+      'https://example.com/result.png',
+    )
+    expect(dock).toHaveAttribute('aria-hidden', 'false')
   })
 })
 

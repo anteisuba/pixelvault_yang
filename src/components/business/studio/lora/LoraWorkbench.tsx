@@ -163,6 +163,7 @@ import { adapterHasCapability } from '@/constants/llm-capability'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
+import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
 import { LoraAspectRatioChip } from '@/components/business/studio/lora/LoraAspectRatioChip'
 import { LoraAssistantDock } from '@/components/business/studio/lora/LoraAssistantDock'
 import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseModelModal'
@@ -185,7 +186,7 @@ import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { appendPromptFragments } from '@/lib/prompt-text-append'
 import { compilePromptTags } from '@/lib/prompt-tag-compiler'
-import type { LoraAssistantMount } from '@/types'
+import type { AssistantWorkbenchState, LoraAssistantMount } from '@/types'
 import type { PromptTagSelection } from '@/types/prompt-tags'
 import { cn } from '@/lib/utils'
 
@@ -1445,6 +1446,58 @@ function GenerateBranch({
         .map((selection) => selection.promptText),
     [promptTags.positive, promptTags.negative],
   )
+  // §3.0b：助手挂在 dock 里，看不见左边这张装配台——不喂状态它就只能反问用户
+  // 已经填好的底模 / 挂载 / 比例（owner 实测过三次同一个发作）。这里把「屏幕上
+  // 已经写着的事实」原样打包发出去。
+  //
+  // ⚠ 拿不到的字段一律留 undefined，**不塞占位值**：formatter 对 undefined 会
+  //   照实沉默，对占位值会当真并拿它去解释画面。本域两条明确的空缺——
+  //   - `lastRun`：LoRA 域没有 activeRun 那套批次追踪，无从填起；
+  //   - `output.batchCount`：本域是单次出图，压根没有张数字段。
+  //
+  // 参考图张数用 imageUpload.referenceImages（它已滤掉被底模能力位停用的条目），
+  // 助手要的是真正会参与这次出图的张数，不是上传过几张。
+  const assistantReferenceImageCount = imageUpload.referenceImages.length
+  const assistantWorkbenchState = useMemo<AssistantWorkbenchState>(
+    () => ({
+      prompt,
+      negativePrompt,
+      // 本域的「模型」就是底模。给出显式布尔，助手才说得出「你还没选底模」——
+      // 只传 undefined 的话「没选」和「选了但没细节」在下游是同一种沉默。
+      modelSelected: !!selectedBase,
+      output: { aspectRatio },
+      loraMounts: stack.items.map((entry) => ({
+        name: entry.asset.name,
+        type: entry.asset.type,
+        // asset 上的触发词是单数字符串，契约要数组；schema 不收空串元素，
+        // 所以按有/无折成 1 或 0 个元素，而不是塞一个空字符串进去。
+        // `?.` 不是多余：栈条目从 localStorage 读回时只过 isValidEntry（只验
+        // `asset` 存在，不验字段），旧版写下的记录可能压根没有 triggerWord，
+        // 直接 .trim() 会整页崩。上面 assistantMounts 同源同写法。
+        triggerWords: entry.asset.triggerWord?.trim()
+          ? [entry.asset.triggerWord.trim()]
+          : [],
+        // 条目没写 scale = 沿用资产默认值，与 handleGenerate 的取值口径一致；
+        // 两处不一致的话助手解释的权重会跟真正发出去的对不上。
+        scale: entry.scale ?? entry.asset.defaultScale,
+        // 缺省视为启用（见 use-active-lora-stack 的 StoredEntry.enabled 注）。
+        // 停用的必须如实标出，否则助手会把没生效的 LoRA 算进画面归因。
+        enabled: entry.enabled !== false,
+        family: entry.asset.baseModelFamily,
+      })),
+      baseModelFamily: selectedBase?.family,
+      baseModelLabel: selectedBase?.displayName,
+      referenceImageCount: assistantReferenceImageCount,
+    }),
+    [
+      aspectRatio,
+      assistantReferenceImageCount,
+      negativePrompt,
+      prompt,
+      selectedBase,
+      stack.items,
+    ],
+  )
   const assistantApiKeys = useMemo(
     () =>
       keys
@@ -1700,6 +1753,33 @@ function GenerateBranch({
     resultHistory[0] ??
     null
   const displayedResultUrl = selectedResult?.url ?? lastGeneration?.url ?? null
+
+  /**
+   * §3.0b 第 4 条「点这张生成图问助手」在 LoRA 装配台的落点。
+   *
+   * ⚠ 不能复用 `useAskAssistantAboutImage` —— 它开面板那一步是
+   * `dispatch({ type: 'OPEN_PANEL' })`，走的是 studio reducer，而 /studio/lora
+   * 故意不挂 `<StudioProvider>`（见 LoraAssistantDock 顶部注释），调它会直接抛。
+   * 可复用的是**注入通道本身**：`useStudioAssistantReference` 背后是模块级
+   * store，不依赖任何 Provider；开合则用本页自己的 `onAssistantOpenChange`。
+   *
+   * ⚠ 两步顺序不能反：先注入，再开面板。移动端宿主是 Drawer，是在刚挂载的那
+   * 一帧去读注入值的——反过来的话 `token` 已经先于订阅建立之前变过，附件不会
+   * 出现。
+   *
+   * ⚠ 只塞附件，不自动发送（owner 拍板）：vision token 是真钱，用户看到缩略图
+   * 后自己打字、自己按发送，走的还是既有那条 `references` 附件管线。
+   */
+  const { injectReference } = useStudioAssistantReference()
+  const handleAskAssistantAboutResult = useCallback(
+    (url: string) => {
+      if (!url) return
+      injectReference(url)
+      onAssistantOpenChange(true)
+    },
+    [injectReference, onAssistantOpenChange],
+  )
+
   // G3d 结果列：主图纵横比取自选中结果的 gen-time 快照（无则退回方形），
   // 元信息两行——① 尺寸 · 步数 · 种子（缺项自动省略）② 主 LoRA×强度 · 底模。
   const displayedAspect =
@@ -2399,6 +2479,28 @@ function GenerateBranch({
                       className="absolute inset-0 cursor-zoom-in"
                     />
                   )}
+                  {/* 「问助手」：把**当前展示的**那张结果图挂进助手输入区并把
+                      助手展开（§3.0b 第 4 条在装配台的落点）。缩略条切哪张，
+                      这里就问哪张——URL 取 displayedResultUrl 而不是最新一张。
+                      ⚠ 必须渲染在放大按钮**之后**且 z-10：那个按钮是
+                      `absolute inset-0` 盖满整张图的，排在它前面就点不到。
+                      ⚠ 不做 hover-only：本页触屏照样渲染，纯触屏没有 hover，
+                      hover-only 等于把它从可达变成不可达（与 CompareGrid 同一
+                      判据）。生成中不给——那时展示的是上一张的残影，问的和看到
+                      的会对不上。 */}
+                  {displayedResultUrl && !showGeneratingOverlay ? (
+                    <button
+                      type="button"
+                      aria-label={tStudioV3('toolAskAssistant')}
+                      title={tStudioV3('toolAskAssistant')}
+                      onClick={() =>
+                        handleAskAssistantAboutResult(displayedResultUrl)
+                      }
+                      className="absolute right-2 top-2 z-10 flex size-7 items-center justify-center rounded-full bg-background/80 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background hover:text-primary focus-visible:bg-background focus-visible:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                    >
+                      <Bot className="size-3.5" aria-hidden />
+                    </button>
+                  ) : null}
                 </div>
 
                 {/* G3d 结果元信息：① 尺寸 · 步数 · 种子 ② 主 LoRA×强度 · 底模。
@@ -2742,12 +2844,13 @@ function GenerateBranch({
         modelId={baseModelId ?? undefined}
         llmApiKeys={assistantApiKeys}
         referenceImageData={imageUpload.referenceImages[0]}
+        workbenchState={assistantWorkbenchState}
         onUsePrompt={setPrompt}
-        onAppendPrompt={handleAssistantAppendPrompt}
         persona={{
           mounts: assistantMounts,
           baseFamily: selectedBase?.family,
           trayTags: assistantTrayTags,
+          onAppendPrompt: handleAssistantAppendPrompt,
           onUseNegativePrompt: handleAssistantFillNegative,
           onAppendNegativePrompt: handleAssistantAppendNegative,
           onEscapeToSelfBuild: handleAssistantEscapeToSelfBuild,

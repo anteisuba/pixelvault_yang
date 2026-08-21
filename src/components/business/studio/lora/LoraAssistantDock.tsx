@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Bot, GripVertical } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
@@ -17,10 +17,12 @@ import {
 import { useDockLayout } from '@/components/business/studio-shared/chrome/StudioAssistantDock'
 import { StudioAssistantHeaderActions } from '@/components/business/assistant/StudioAssistantHeaderActions'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
+import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
 import type {
   PromptAssistantLoraPersona,
   PromptAssistantPanelProps,
 } from '@/components/business/prompts/PromptAssistantPanel'
+import type { AssistantWorkbenchState } from '@/types'
 
 function PanelLoadingFallback() {
   return (
@@ -46,8 +48,15 @@ interface LoraAssistantDockProps {
   llmApiKeys: { id: string; label: string }[]
   referenceImageData?: string
   onUsePrompt: (text: string) => void
-  onAppendPrompt: (text: string) => void
   persona: PromptAssistantLoraPersona
+  /**
+   * §3.0b：当前工作台状态，纯透传给面板。
+   *
+   * dock 自己不构造它——本页故意不挂 `<StudioProvider>`（见下方组件注释），
+   * 装配台的底模 / 挂载 / 比例 / 参考图全是 `GenerateBranch` 的局部 state，
+   * 只有那里读得到。可选是因为宿主换掉时不该连编译都过不去。
+   */
+  workbenchState?: AssistantWorkbenchState
 }
 
 /**
@@ -77,29 +86,76 @@ export function LoraAssistantDock({
   llmApiKeys,
   referenceImageData,
   onUsePrompt,
-  onAppendPrompt,
   persona,
+  workbenchState,
 }: LoraAssistantDockProps) {
   const t = useTranslations('PromptAssistant')
   const isMobile = useIsMobile()
   const { layout, isResizing, resetWidth, widthHandlers } = useDockLayout()
-  const { route, researchEnabled } = useStudioAssistantControls()
+  const { route, researchMode } = useStudioAssistantControls()
+  // §3.0b 第 4 条：结果图「问助手」注入的附件。读的是模块级 store —— 发起方
+  // （结果列那颗按钮，长在 GenerateBranch 深处）和消费方（面板，挂在这里）中间
+  // 隔着整棵装配台树，逐层透传一个可选回调正是「漏传 = 三绿而功能全失效」的
+  // 高发形态。写口在 `LoraWorkbench` 的 handleAskAssistantAboutResult。
+  const { injectedReference, clearReference } = useStudioAssistantReference()
   const [hasOpenedOnce, setHasOpenedOnce] = useState(open)
   if (open && !hasOpenedOnce) {
     setHasOpenedOnce(true)
   }
+
+  /**
+   * 一次注入只属于一次打开：助手关掉就把待注入的图丢掉。
+   *
+   * ⚠ 必要性在**移动端**才露出来 —— 那个宿主是 Drawer，关掉会把面板整个卸载，
+   * 重开时面板内部的 `lastInjectedToken` 归零，留在 store 里的旧引用会被当成
+   * 一次新注入**再挂一次**：用户没点，附件却在那儿，一不留神发出去就是白烧
+   * 一次 vision。桌面停靠的面板常驻不卸载，只验桌面看不到这个病。
+   *
+   * ⚠ 顺序安全：「问助手」是在同一个事件里先 `injectReference` 再把 dock 打开，
+   * React 合批后这个 effect 只会看到 `open === true`，不会把刚注入的清掉。
+   *
+   * ⚠ store 是**跨页共享**的一份（studio 图片工作台用的是同一个）。挂载时这条
+   * 就会以 `open === false` 跑一次，顺带把从别的页带过来的陈旧引用清掉 —— 那
+   * 是想要的行为，不是副作用。
+   */
+  useEffect(() => {
+    if (!open) clearReference()
+  }, [clearReference, open])
 
   const panelProps: PromptAssistantPanelProps = {
     currentPrompt,
     assistantDomain: 'lora',
     modelId,
     referenceImageData,
+    injectedReference,
     llmApiKeys,
-    onUsePrompt,
-    onAppendPrompt,
+    /**
+     * LoRA 装配台是四档宿主里最贫瘠的那一档（切片 S1）：只有提示词与负面，
+     * **规格 / 模型 / 张数三项结构性不存在**——装配台的底模、比例、张数都是
+     * `GenerateBranch` 的局部 state，不走 studio reducer，没有可写回的落点。
+     * 这里如实只给三项，而不是传一堆点了没反应的回调。
+     *
+     * ⚠ 没有 `undo`：本页没有快照机制。按切片 S3 的契约，没快照就不给撤销
+     * ——那是诚实，不是缺陷（拿一个不属于这次会话的旧值回滚才真的危险）。
+     */
+    writeback: {
+      prompt: {
+        current: currentPrompt || undefined,
+        apply: onUsePrompt,
+        isApplied: (value) => currentPrompt === value,
+      },
+      appendPrompt: persona.onAppendPrompt,
+      negative: {
+        apply: persona.onUseNegativePrompt,
+        // 装配台的负面框是局部 state，dock 读不到它的当前值——所以只能给
+        // 「能写」，给不了「已应用」。宁可永远显示「应用」，也不谎报已应用。
+        isApplied: () => false,
+      },
+    },
     loraPersona: persona,
     assistantRoute: route,
-    researchEnabled,
+    researchMode,
+    workbenchState,
   }
 
   // CD 助手 dock：正文上方一行「助手看得见什么」上下文 chips——挂载 ×N /

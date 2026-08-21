@@ -28,6 +28,26 @@ export const ASSISTANT_PROTOCOL_MARKER_IDS = {
   ask: 'ask',
   /** 收敛选项：每轮结尾的「✅ 满意 → 下一步 / 🔄 需要调整」。 */
   next: 'next',
+  /**
+   * 档 3 交付的提示词载荷。
+   *
+   * ⚠ **存在的理由是回填按钮以前填错了东西**：「填入提示词」原本插入的是
+   * `message.content`——**整条消息**，于是解释性散文、「建议参数设置」、负面提示词
+   * 全被灌进正面提示词框（owner 2026-08-18 截图实证）。
+   *
+   * 为什么不复用「取第一个代码块」：渲染层那些代码块是 react-markdown 的**通用**
+   * 渲染，不带语义——一条回复里正面和负面可能各占一个 fence，取第一个只是碰运气。
+   * 而且负面要回填进负面框、宽高比要回填进规格表单，**它们必须是分开的字段**，
+   * 代码块表达不了。
+   */
+  prompt: 'prompt',
+  /**
+   * 工作台配置提案（选模型 / 设张数）。
+   *
+   * ⚠ **和 `prompt` 分开的理由是档位**：`prompt` 只出现在档 3，而「该换个模型」
+   * 在档 2 讨论时就成立。并成一个块只会逼助手提前交付提示词。
+   */
+  setup: 'setup',
 } as const
 
 /**
@@ -44,6 +64,21 @@ export const ASSISTANT_CLARIFY_LIMITS = {
   maxOptions: 6,
   idMaxLength: 80,
   textMaxLength: 700,
+} as const
+
+/**
+ * 模型漏写 id 时，反问块按位置补出来的前缀（`q-1` / `o-1`）。
+ *
+ * ⚠ **id 在这条协议里是纯记账字段**：控件只拿它当 React key 和答案表的键，
+ * 不回传给模型、不进任何提示词。所以「模型没写」和「我们按位置编一个」对用户
+ * 是同一件事，而「整块反问降级成一行灰字」不是 —— 2026-08-21 真机那轮丢的就是
+ * 两个问题六个选项。归一化在 `types/assistant-protocol.ts` 的 `[[ask]]` 块上做，
+ * ⛔ 别下沉到 `AssistantClarifyingQuestionSchema`：那张 schema 是和画布 ScriptDoc
+ * 共用的，服务端那条路要的是严格校验。
+ */
+export const ASSISTANT_CLARIFY_FALLBACK_ID_PREFIXES = {
+  question: 'q-',
+  option: 'o-',
 } as const
 
 export const ASSISTANT_PROTOCOL_DOMAIN_IDS = {
@@ -136,7 +171,7 @@ export const ASSISTANT_DOMAIN_BRIEFS: Record<
 export function buildAssistantConversationProtocol(
   brief: AssistantDomainBrief,
 ): string {
-  const { ask, next } = ASSISTANT_PROTOCOL_MARKER_IDS
+  const { ask, next, prompt, setup } = ASSISTANT_PROTOCOL_MARKER_IDS
   const slotList = brief.slots.map((slot) => `  - ${slot}`).join('\n')
 
   return `BEFORE YOU CAN PROPOSE ANYTHING, these need to be known:
@@ -158,6 +193,8 @@ GEAR 3 · DELIVER. The creator confirmed a direction (they picked the satisfied 
 
 The creator must take one visible action between gear 1 and gear 3. Never move from a first vague request straight to a finished prompt — that is the single behaviour this protocol exists to prevent.
 
+The gears are how YOU decide what to write; they are not something the creator knows about. Never name a gear, never say "GEAR 3" or "delivery phase", never explain that you are following a protocol. Just answer in the shape the gear calls for.
+
 END EVERY TURN with a ${next} block, in every gear.
 
 OUTPUT BLOCKS — plain JSON between literal markers, no code fences around them:
@@ -170,7 +207,26 @@ OUTPUT BLOCKS — plain JSON between literal markers, no code fences around them
 {"satisfied":"what happens next if they are happy — be concrete and specific to this conversation","adjust":"what to tell you if they want a change"}
 [[/${next}]]
 
+IN GEAR 3 ONLY, when you deliver a prompt, also emit:
+
+[[${prompt}]]
+{"positive":"the finished prompt, and nothing else","negative":"only if you are actually recommending one","aspectRatio":"only if you are actually recommending one, e.g. 16:9"}
+[[/${prompt}]]
+
+IN ANY GEAR, when you are recommending a change to the workbench setup itself, also emit:
+
+[[${setup}]]
+{"model":"the exact model id from the list of models the creator can switch to","batchCount":2}
+[[/${setup}]]
+
 Rules for the blocks:
+- Every block holds ONE strict-JSON value: double quotes, no trailing comma, no comment, no raw line break inside a string. A block that will not parse is shown to the creator as an unreadable-answer notice, which is worse than not emitting the block at all.
+- The ${prompt} block is what the creator's "fill in" button writes into the form. So "positive" must contain the prompt ALONE — no lead-in sentence, no "here you go", no parameter list, no negative prompt. Explanation goes in your prose, outside the block.
+- "negative" and "aspectRatio" land in their OWN form fields. Omit them unless you are genuinely recommending a value; omitting means "no suggestion", never "clear it".
+- Emit ${prompt} only in gear 3. In gears 1 and 2 there is no finished prompt yet, so there is nothing to fill in.
+- The ${setup} block is a one-click change to the creator's workbench, so only emit it when you are ACTUALLY recommending that change and you said why in your prose. Never emit it to restate what is already selected — the attached workbench state tells you what that is.
+- "model" must be copied verbatim from the list of models the creator can switch to. If that list is absent, or the model you have in mind is not on it, say your recommendation in prose and omit the field — a made-up id silently produces no button.
+- Omit the whole ${setup} block when you are recommending nothing. An empty block is not a proposal.
 - At most ${ASSISTANT_CLARIFY_LIMITS.maxQuestions} questions, at most ${ASSISTANT_CLARIFY_LIMITS.maxOptions} options each. Ask only what changes the direction.
 - Options must be concrete and specific to this conversation. "Realistic / Anime / Other" is useless; name the actual looks on the table.
 - "satisfied" is never a bare "go ahead" — it names the next concrete step, e.g. "write the final prompt for the neon-alley version" or "generate the three character sheets".

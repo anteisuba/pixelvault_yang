@@ -55,6 +55,11 @@
   --color-modality-image: var(--modality-image);
   --color-modality-video: var(--modality-video);
   --color-modality-audio: var(--modality-audio);
+  /* 「已应用」状态色（owner 2026-08-20 第 5 条：从画布域提到脊柱）。
+     浅暗两档在 :root / .dark 各自定值，见那两处的对比度说明。 */
+  --color-status-applied: var(--status-applied);
+  --color-status-applied-surface: var(--status-applied-surface);
+  --color-status-risk: var(--status-risk);
   /* S4 minimap 蓝图纸（§3）：与 node-canvas 暖炭形成材质区分的独立深青底。 */
   --color-node-blueprint-bg: var(--node-blueprint-bg);
   --color-node-blueprint-line: var(--node-blueprint-line);
@@ -378,6 +383,28 @@
   --modality-image: oklch(46% 0.08 292);
   --modality-video: oklch(46% 0.09 255);
   --modality-audio: oklch(46% 0.09 10);
+
+  /* ── 「已应用」状态色 · 脊柱（owner 2026-08-20 拍板第 5 条）────────────
+     助手回填动作条要表达「这条建议已经写进工作台了」。仓库里三个候选成功色
+     **全是零消费者**，而且逐个算过只有一个够用：
+       --lora-ok  ≈ #509870 → 对白 3.46  ✗ 不够 12px 文字
+       --chart-2  ≈ #009689 → 对白 3.67  ✗ 同上
+       画布域 --node-status-done-fg = #16794c → 对白 5.42  ✓
+     唯一达标的那个原本锁在 `.domain-canvas` 作用域里，而助手 dock 是 fixed
+     浮层拿不到 —— 所以提到脊柱。canvas.css 的同名 token 不动（域内自洽）。
+
+     ⚠ **暗面必须单独给值，不能沿用浅面那个**：#16794c 在暗色 --secondary
+     (#404040) 上只有 **1.91**，直接复用等于暗色模式下什么都看不见。
+     暗面 #5cc998 在 background / secondary / 气泡(secondary/60) 三个底上
+     最差 5.07。
+
+     ⚠ **描边不承重**：能到 3:1 的「浅绿」不存在（最浅一档只有 2.30），
+     所以状态语义由图标＋文字＋填色三者承担，-surface 只是材质。 */
+  --status-applied: #16794c;
+  --status-applied-surface: #f0f7f2;
+  /* 风险 / 破坏性说明文字。比 --destructive（≈#e7000b，对白 4.77）稳，
+     且不像报错色那么跳；对白 6.54。 */
+  --status-risk: #b3261e;
 }
 
 html:lang(ja) {
@@ -427,6 +454,13 @@ html:lang(zh) {
   --accent-foreground: oklch(98.5% 0 0);
 
   --destructive: oklch(70.4% 0.191 22.216);
+
+  /* 「已应用」暗面档。⚠ 不是浅面那三个值的复制 —— 见 :root 里的说明：
+     #16794c 在暗色 --secondary 上只有 1.91。这三个是重算过的：
+     #5cc998 对 background/secondary/气泡 最差 5.07；#e06c65 对底 6.13。 */
+  --status-applied: #5cc998;
+  --status-applied-surface: #163024;
+  --status-risk: #e06c65;
 
   --border: oklch(100% 0 0 / 0.1);
   --input: oklch(100% 0 0 / 0.15);

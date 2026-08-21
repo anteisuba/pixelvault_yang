@@ -36,10 +36,30 @@ const INJECTION_PATTERNS = [
   /<<SYS>>/i,
   /<\/SYS>/i,
   /\bsystem\s*:\s*you\s+are/i,
-  /ignore\s+(previous|all|above)\s+(instructions|prompts)/i,
+  // ⚠ 中间的限定词必须可选：原来写死 `(previous|all|above)` 一个词，
+  //   「ignore **all previous** instructions」——最常见的那句原文——反而漏网
+  //   （2026-08-20 写证据侧扫描时发现）。
+  /ignore\s+(?:all\s+|the\s+)*(?:previous|prior|above|earlier|preceding|all)\s+(?:instructions|prompts|rules)/i,
   /forget\s+(everything|all|your)\s+(previous|instructions)/i,
   /\bdo\s+not\s+follow\s+(your|the)\s+(instructions|rules)/i,
 ]
+
+/**
+ * 返回命中的注入模式（`pattern.source`），没命中返回 null。
+ *
+ * 加它是为了把注入检查**从用户输入扩展到检索证据**（AI 导演内核 §3.5 安全底线）：
+ * 网页 / wiki / 社区帖是不可信文本，直接进上下文就是注入面。
+ *
+ * ⚠ 证据侧的处理与用户输入侧**不同**：用户输入命中就整条拒绝（`validatePrompt`），
+ * 证据命中则是**标记并降级**——一个 wiki 页面里混进一句「ignore previous
+ * instructions」不代表这一页没有事实价值，但也不能原样喂进模型。
+ */
+export function detectInjectionPattern(text: string): string | null {
+  for (const pattern of INJECTION_PATTERNS) {
+    if (pattern.test(text)) return pattern.source
+  }
+  return null
+}
 
 // ─── Validation ─────────────────────────────────────────────────
 

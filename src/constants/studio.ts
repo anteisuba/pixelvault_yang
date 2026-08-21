@@ -86,6 +86,19 @@ export const STUDIO_ASSISTANT_RECENT_ASSETS = 8
 export const IMAGE_BATCH_COUNTS = [1, 2, 4] as const
 export type ImageBatchCount = (typeof IMAGE_BATCH_COUNTS)[number]
 export const DEFAULT_IMAGE_BATCH_COUNT: ImageBatchCount = 1
+
+/**
+ * 收窄一个来路不明的数字到受支持的档位。
+ *
+ * ⚠ **守卫从 `IMAGE_BATCH_COUNTS` 直接读**，别在调用点抄一份 `[1,2,4]` ——
+ * 上面那段注释说得很清楚，这三个数还连着 `MAX_ACTIVE_JOBS_PER_USER`，抄出去的
+ * 副本不会跟着一起动。
+ *
+ * 调用方：助手 `[[setup]]` 块的 `batchCount`（模型可以吐任何数字）。
+ */
+export function isImageBatchCount(value: number): value is ImageBatchCount {
+  return (IMAGE_BATCH_COUNTS as readonly number[]).includes(value)
+}
 export const VARIANT_GRID_COLS = 2
 export const VARIANT_MAX_SEED = 4294967295
 

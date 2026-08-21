@@ -6,10 +6,7 @@ import { useTranslations } from 'next-intl'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
-import {
-  NODE_STUDIO_ASSISTANT_ROUTE_MODELS,
-  NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS,
-} from '@/constants/node-studio'
+import { NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getAssistantMediaCapabilityLabel } from '@/constants/assistant'
 
@@ -22,6 +19,19 @@ export interface NodeAssistantRouteSelection {
 interface CanvasAssistantRouteSelectorProps {
   value: NodeAssistantRouteSelection
   onChange(value: NodeAssistantRouteSelection): void
+  /**
+   * 没选具体 key 时触发器显示什么。**必须由调用方给，因为「默认路由」在两个域里
+   * 不是同一条**：
+   *  - 画布：不选 key 且无附件时走 gateway（`NODE_STUDIO_ASSISTANT.gatewayModelId`
+   *    = openai/gpt-5.6-sol），所以写死 OpenAI 是诚实的。
+   *  - studio：**没有 gateway 分支**，服务端按 `LLM_TEXT_ADAPTERS` 优先级兜底
+   *    （Gemini 打头），所以显示 OpenAI 是在说谎。
+   *
+   * ⚠ 2026-08-19 生产事故就是这个：组件原本写死画布的标签，studio 复用后
+   * 「界面显示 GPT、实际打 Gemini」，Gemini 空回复报错时 owner 完全无法归因。
+   * **别再在这里写死任何一个具体型号。**
+   */
+  emptyRouteLabel: string
 }
 
 export function getAssistantRouteKeyOptionId(keyId: string): string {
@@ -74,6 +84,7 @@ interface QuickSetupState {
 export function CanvasAssistantRouteSelector({
   value,
   onChange,
+  emptyRouteLabel,
 }: CanvasAssistantRouteSelectorProps) {
   const t = useTranslations('StudioNode.assistantRoute')
   const [quickSetup, setQuickSetup] = useState<QuickSetupState>({
@@ -146,9 +157,7 @@ export function CanvasAssistantRouteSelector({
         }
         onChange={handleSelect}
         onRequestSetup={handleRequestSetup}
-        // apiKeyId 为空时服务端仍会走默认网关模型；触发器应展示这条真实
-        // 默认路由，而不是只写一个看不出模型的字段名。
-        triggerEmptyLabel={NODE_STUDIO_ASSISTANT_ROUTE_MODELS[0].label}
+        triggerEmptyLabel={emptyRouteLabel}
         size="compact"
         popoverSide="bottom"
         detailForOption={detailForOption}

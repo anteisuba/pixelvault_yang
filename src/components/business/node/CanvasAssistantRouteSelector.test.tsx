@@ -72,6 +72,7 @@ describe('CanvasAssistantRouteSelector', () => {
   it('drives the two-step llm_assist picker scoped to the assistant capability', () => {
     render(
       <CanvasAssistantRouteSelector
+        emptyRouteLabel="Auto route"
         value={{
           optionId: 'node-studio-assistant:auto',
           adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -86,6 +87,7 @@ describe('CanvasAssistantRouteSelector', () => {
   it('opens the header model picker below its trigger', () => {
     render(
       <CanvasAssistantRouteSelector
+        emptyRouteLabel="Auto route"
         value={{
           optionId: 'node-studio-assistant:auto',
           adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -100,6 +102,7 @@ describe('CanvasAssistantRouteSelector', () => {
   it('passes value=null when no key is selected, and the key route otherwise', () => {
     const { rerender } = render(
       <CanvasAssistantRouteSelector
+        emptyRouteLabel="Auto route"
         value={{
           optionId: 'node-studio-assistant:auto',
           adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -111,6 +114,7 @@ describe('CanvasAssistantRouteSelector', () => {
 
     rerender(
       <CanvasAssistantRouteSelector
+        emptyRouteLabel="Auto route"
         value={{
           optionId: 'x',
           apiKeyId: 'k1',
@@ -122,9 +126,14 @@ describe('CanvasAssistantRouteSelector', () => {
     expect(pickerProps?.value).toBe('llm-route:assistant:key:k1')
   })
 
-  it('shows the real gateway model when no BYOK route is selected', () => {
+  // ⚠ 2026-08-19 生产事故的回归位：组件**曾经写死**画布的默认路由标签
+  // （OpenAI GPT-5.6 Sol）。studio 复用它时没有 gateway 分支，服务端按
+  // `LLM_TEXT_ADAPTERS` 兜底到 Gemini —— 界面报 GPT、实际打 Gemini，
+  // Gemini 空回复时 owner 完全无法归因。**默认路由是调用方的事实，不是组件的。**
+  it('未选 BYOK 路由时透传调用方给的标签，不自己写死任何型号', () => {
     render(
       <CanvasAssistantRouteSelector
+        emptyRouteLabel="调用方说了算"
         value={{
           optionId: 'node-studio-assistant:auto',
           adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -132,13 +141,14 @@ describe('CanvasAssistantRouteSelector', () => {
         onChange={vi.fn()}
       />,
     )
-    expect(pickerProps?.triggerEmptyLabel).toBe('OpenAI GPT-5.6 Sol')
+    expect(pickerProps?.triggerEmptyLabel).toBe('调用方说了算')
   })
 
   it('maps a picked saved key to the NodeAssistantRouteSelection contract', () => {
     const onChange = vi.fn()
     render(
       <CanvasAssistantRouteSelector
+        emptyRouteLabel="Auto route"
         value={{
           optionId: 'node-studio-assistant:auto',
           adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -158,6 +168,7 @@ describe('CanvasAssistantRouteSelector', () => {
     const onChange = vi.fn()
     render(
       <CanvasAssistantRouteSelector
+        emptyRouteLabel="Auto route"
         value={{
           optionId: 'node-studio-assistant:auto',
           adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -172,6 +183,7 @@ describe('CanvasAssistantRouteSelector', () => {
   it('opens QuickSetup for a needs-key provider with the adapter-matched label', () => {
     render(
       <CanvasAssistantRouteSelector
+        emptyRouteLabel="Auto route"
         value={{
           optionId: 'node-studio-assistant:auto',
           adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -200,6 +212,7 @@ describe('CanvasAssistantRouteSelector', () => {
   it('labels the media capability of every supported assistant route', () => {
     render(
       <CanvasAssistantRouteSelector
+        emptyRouteLabel="Auto route"
         value={{
           optionId: 'node-studio-assistant:auto',
           adapterType: AI_ADAPTER_TYPES.OPENAI,

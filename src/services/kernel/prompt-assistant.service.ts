@@ -14,44 +14,65 @@ import {
 import {
   ASSISTANT_DOMAIN_BRIEFS,
   ASSISTANT_LORA_IDENTITY_NOTE,
-  ASSISTANT_PROTOCOL_MARKER_IDS,
   buildAssistantConversationProtocol,
 } from '@/constants/assistant-protocol'
 import { getModelEnhanceHint } from '@/constants/model-strengths'
 import { getModelById } from '@/constants/models'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { RESEARCH_SOURCE_IDS } from '@/constants/research'
+import {
+  VIDEO_LINK_ATTACHED_DIRECTIVE,
+  VIDEO_LINK_DROPPED_DIRECTIVE,
+  VIDEO_LINK_KINDS,
+  VIDEO_LINK_LIMITS,
+  VIDEO_LINK_MARKERS,
+  VIDEO_LINK_PLATFORM_DIRECTIVE,
+  VIDEO_LINK_PLATFORMS,
+  type VideoLinkPlatform,
+} from '@/constants/video-link'
 import { buildInspirationContext } from '@/services/kernel/inspiration-context.service'
 import {
   buildAssistantConversation,
   completeAssistantTextWithContextRetry,
+  streamAssistantTextWithContextRetry,
   truncateAssistantContextBlock,
 } from '@/services/kernel/assistant-completion.service'
-import {
-  formatWebContext,
-  resolveResearchRoute,
-} from '@/services/kernel/research-route.service'
 import {
   resolveLlmTextRoute,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
+import { fetchBilibiliVideoMetadata } from '@/services/research/bilibili.connector'
+import { runConnector } from '@/services/research/connector-runtime'
+import {
+  runResearch,
+  type ResearchOutcome,
+} from '@/services/research/research-run.service'
 import { ensureUser } from '@/services/user.service'
 import {
-  gatherWebContext,
-  hasWebContext,
-  type WebContext,
-} from '@/services/web-research.service'
-import { extractMarkerBlock } from '@/lib/assistant-marker-block'
+  buildReferenceHandles,
+  formatReferenceTag,
+} from '@/lib/assistant-reference-handles'
+import { buildWorkbenchStateBlock } from '@/lib/assistant-workbench-state'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import {
+  validateEvidenceCitations,
   validateLlmPromptOutput,
   validateLlmStructuredOutput,
 } from '@/lib/llm-output-validator'
+import { extractUrlsFromText } from '@/lib/research-intent'
+import {
+  RESEARCH_EVIDENCE_DIRECTIVE,
+  sanitizeEvidenceItems,
+} from '@/lib/research-evidence-block'
 import { buildLoraAssistantTagResults } from '@/lib/prompt-tag-normalize'
 import { searchPromptTags } from '@/lib/prompt-tag-search'
+import { classifyVideoLink, normalizeVideoLinkUrl } from '@/lib/video-link'
 import { withRetry } from '@/lib/with-retry'
+import { RESEARCH_MODES, type ResearchMode } from '@/constants/research'
 import type {
+  AssistantWorkbenchState,
   LoraAssistantContext,
   PromptAssistantDomain,
   PromptAssistantMode,
@@ -60,10 +81,8 @@ import type {
   PromptAssistantResponseLanguage,
 } from '@/types'
 import type { AssistantMediaReference } from '@/types/assistant-media'
-import {
-  AssistantAskBlockSchema,
-  AssistantNextStepSchema,
-} from '@/types/assistant-protocol'
+import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
+import type { ResearchReceipt } from '@/types/research'
 
 const PROMPT_ASSISTANT_CONTEXT_COMPACTION_TARGET_LENGTH = 32_000
 
@@ -162,14 +181,40 @@ const ASSISTANT_MODEL_ID_BY_ADAPTER = new Map<AI_ADAPTER_TYPES, string>(
   ]),
 )
 
+/**
+ * 一轮附件的解析结果 —— 能力校验、`maxReferences` 截断、以及「截断了要说出来」
+ * 三件事长在**同一处**。拆开的代价见下面 `getAssistantMediaInputs` 的两条 ⚠。
+ */
+interface AssistantMediaResolution {
+  imageData?: string[]
+  videoData?: string[]
+  /**
+   * 本轮真正送进模型的引用（已截断）。附件清单和 `#n` 编号必须按这一份渲染 ——
+   * 拿未截断的那份去编号，模型会收到一个它其实没拿到的 `#9`。
+   */
+  references: AssistantMediaReference[]
+  /**
+   * 超出上限没能带上的条数。**不抛错**（多传一张不该让整轮失败），但也不许静默：
+   * 模型侧走附件清单里那行说明，调用方侧走这个数（见两个公开入口的返回值）。
+   */
+  droppedCount: number
+}
+
 function getAssistantMediaInputs(
   references: readonly AssistantMediaReference[],
   adapterType: AI_ADAPTER_TYPES,
   legacyReferenceImageData?: string,
-): { imageData?: string[]; videoData?: string[] } {
-  const bounded = references.slice(0, ASSISTANT_MEDIA_LIMITS.maxReferences)
-  const hasImage = bounded.some((reference) => reference.kind === 'image')
-  const hasVideo = bounded.some((reference) => reference.kind === 'video')
+): AssistantMediaResolution {
+  // ⚠ 能力校验按**全量** references 判，截断排在它后面。反过来（先截断、再拿截断
+  //   后的数组统计）的表现是：第 9 个附件是视频、路由又不支持视频时，本该弹的
+  //   `ASSISTANT_VIDEO_UNSUPPORTED` 一声不吭 —— 附件没了、错也没了，用户看到的是
+  //   助手对着一个它根本没收到的视频瞎猜。
+  // ⚠ legacy 参考图**算一张图**：它下面照样被 unshift 进 imageData，不进这个统计
+  //   就等于绕过能力闸，让图直接打到不支持视觉的 provider 上抛一句英文裸错。
+  const hasImage =
+    Boolean(legacyReferenceImageData) ||
+    references.some((reference) => reference.kind === 'image')
+  const hasVideo = references.some((reference) => reference.kind === 'video')
 
   if (hasImage && !assistantAdapterSupportsMedia(adapterType, 'image')) {
     throw new ApiRequestError(
@@ -188,6 +233,7 @@ function getAssistantMediaInputs(
     )
   }
 
+  const bounded = references.slice(0, ASSISTANT_MEDIA_LIMITS.maxReferences)
   const images = bounded
     .filter((reference) => reference.kind === 'image')
     .map((reference) => reference.url)
@@ -199,6 +245,8 @@ function getAssistantMediaInputs(
   return {
     ...(images.length > 0 ? { imageData: images } : {}),
     ...(videos.length > 0 ? { videoData: videos } : {}),
+    references: bounded,
+    droppedCount: references.length - bounded.length,
   }
 }
 
@@ -423,7 +471,7 @@ async function chatLoraAssistantStructured(
     loraContext,
   } = params
   const route = await resolveLlmTextRoute(dbUserId, apiKeyId)
-  const mediaInputs = getAssistantMediaInputs(
+  const media = getAssistantMediaInputs(
     references,
     route.adapterType,
     referenceImageData,
@@ -444,16 +492,17 @@ async function chatLoraAssistantStructured(
     structured = await completeLoraAssistantStructured({
       systemPrompt,
       buildUserPrompt: (maxLength) =>
-        buildPromptAssistantUserPrompt(
+        buildPromptAssistantUserPrompt({
           messages,
-          effectiveCurrentPrompt,
-          undefined,
+          currentPrompt: effectiveCurrentPrompt,
           maxLength,
-        ),
+          references: media.references,
+          droppedReferenceCount: media.droppedCount,
+        }),
       route,
       modelId: ASSISTANT_MODEL_ID_BY_ADAPTER.get(route.adapterType),
-      imageData: mediaInputs.imageData,
-      videoData: mediaInputs.videoData,
+      imageData: media.imageData,
+      videoData: media.videoData,
     })
   } catch (error) {
     if (error instanceof LoraAssistantStructuredOutputError) {
@@ -498,6 +547,10 @@ async function chatLoraAssistantStructured(
       negative,
       note: structured.note,
     },
+    // 与对话轮同一个口径：真丢了才带这个键（见 `chatPromptAssistant` 尾部）。
+    ...(media.droppedCount > 0
+      ? { droppedReferenceCount: media.droppedCount }
+      : {}),
   }
 }
 
@@ -554,78 +607,118 @@ function flattenConversation(
     .join('\n\n')
 }
 
-function buildPromptAssistantUserPrompt(
-  messages: PromptAssistantMessage[],
-  currentPrompt?: string,
-  webContext?: WebContext,
-  maxLength?: number,
+/**
+ * 附件清单 —— studio 以前**完全没有这块**：图片直接以 `imageData[]` 喂进去，模型
+ * 看到的是一堆没有名字的图，用户说「第二张」它对不上号。
+ *
+ * 只给编号、类型、来源，**不给 prompt**（owner 2026-08-19 定）。编号按 kind 各自
+ * 从 #1 起，与 `getAssistantMediaInputs` 过滤出的两个数组一一对应；界面 chip 显示
+ * 同一个 `#n`，用户和模型才算共享同一套称呼。
+ *
+ * ⚠ 入参必须是**已截断**的那一份（`AssistantMediaResolution.references`）——
+ * 这里不再自己 `slice` 一次：两处各截各的就是两个上限主人，一旦漂移，清单里的
+ * `#n` 会指到模型根本没收到的附件上。超量的部分由 `droppedCount` 明写出来。
+ */
+function buildReferenceInventory(
+  references: readonly AssistantMediaReference[],
+  droppedCount = 0,
 ): string {
-  if (!webContext || !hasWebContext(webContext)) {
-    return flattenConversation(messages, currentPrompt, maxLength)
+  if (references.length === 0 && droppedCount === 0) return ''
+  const handles = buildReferenceHandles(references)
+  const lines = references
+    .map((reference, index) => {
+      const origin = reference.source ?? 'attachment'
+      return `- ${formatReferenceTag(reference.kind, handles[index] ?? '#?')} (${origin})`
+    })
+    .join('\n')
+  // 截断本身是合理保护（多传一张不该让整轮失败），**但不能不告诉任何人**：
+  // 静默丢弃的表现是「助手全靠猜」，而用户以为它看过 —— 与
+  // `VIDEO_LINK_DROPPED_DIRECTIVE` 同一条理由、同一种口径。
+  const overflowLine =
+    droppedCount > 0
+      ? `\n- ${droppedCount} more attachment(s) exceeded the ${ASSISTANT_MEDIA_LIMITS.maxReferences}-reference limit and were NOT sent to you. Say so plainly and do not describe their content.`
+      : ''
+  return `ATTACHED REFERENCES (the creator can refer to these by handle, e.g. "image #2"):\n${lines}${overflowLine}`
+}
+
+/**
+ * ⚠ 位置参数到此为止 —— 这个函数的入参已经排到 6 个，再往后加没人数得清哪个是
+ * 哪个（同 `chatPromptAssistant` 尾部那个 options 对象的理由）。
+ */
+interface PromptAssistantUserPromptOptions {
+  messages: PromptAssistantMessage[]
+  currentPrompt?: string
+  evidenceBlock?: string
+  /** 平台页视频元数据块（切片 2 §4.2）。 */
+  videoLinkBlock?: string | null
+  maxLength?: number
+  /** **已截断**的引用（`AssistantMediaResolution.references`），不是原始入参。 */
+  references?: readonly AssistantMediaReference[]
+  /** 超出上限没带上的条数 —— 清单里明写，别让它静默消失。 */
+  droppedReferenceCount?: number
+  workbenchState?: AssistantWorkbenchState
+}
+
+function buildPromptAssistantUserPrompt({
+  messages,
+  currentPrompt,
+  evidenceBlock,
+  videoLinkBlock,
+  maxLength,
+  references = [],
+  droppedReferenceCount = 0,
+  workbenchState,
+}: PromptAssistantUserPromptOptions): string {
+  // 工作台状态、附件清单、视频链接元数据是同一类东西：**当下摆在用户眼前的
+  // 事实**。三块一起前置，预算里先扣掉再给对话 —— 长对话触发压缩重试时最需要
+  // 这些事实，不能让它们先被截没。
+  const prelude = [
+    buildWorkbenchStateBlock(workbenchState),
+    buildReferenceInventory(references, droppedReferenceCount),
+    videoLinkBlock ?? '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+  const withInventory = (conversation: string) =>
+    prelude ? `${prelude}\n\n${conversation}` : conversation
+
+  if (!evidenceBlock) {
+    // 前置块很短（每条一行、无 prompt），预算里先扣掉再给对话，避免它被截没。
+    const conversationBudget =
+      maxLength === undefined
+        ? undefined
+        : Math.max(1, maxLength - prelude.length - 2)
+    return withInventory(
+      flattenConversation(messages, currentPrompt, conversationBudget),
+    )
   }
 
-  const webBlock = `WEB CONTEXT (use this as your primary evidence for factual claims):
-${formatWebContext(webContext)}`
   if (maxLength === undefined) {
-    return `${flattenConversation(messages, currentPrompt)}\n\n${webBlock}`
+    return withInventory(
+      `${flattenConversation(messages, currentPrompt)}\n\n${evidenceBlock}`,
+    )
   }
 
-  const webBudget = Math.max(1, Math.floor(maxLength * 0.25))
-  const compactedWebBlock = truncateAssistantContextBlock(
-    webBlock,
-    webBudget,
-    'Additional web research context compacted for the retry.',
+  // ⚠ 压缩重试时证据块也要按比例让位，但**边界标记必须完整活下来** ——
+  // 截掉尾部的 `<<<END>>>` 等于把「这段是资料」的围栏拆了。
+  // `truncateAssistantContextBlock` 会补一行说明，围栏语义因此仍然闭合。
+  const evidenceBudget = Math.max(1, Math.floor(maxLength * 0.35))
+  const compactedEvidence = truncateAssistantContextBlock(
+    evidenceBlock,
+    evidenceBudget,
+    'Additional retrieved evidence compacted for the retry — items beyond this point were dropped; do not cite them.',
   )
   const conversationBudget = Math.max(
     1,
-    maxLength - compactedWebBlock.length - 2,
+    maxLength - compactedEvidence.length - prelude.length - 2,
   )
-  return `${flattenConversation(
-    messages,
-    currentPrompt,
-    conversationBudget,
-  )}\n\n${compactedWebBlock}`
-}
-
-// ─── A2 对话协议块 ──────────────────────────────────────────────
-
-/**
- * 把 `[[ask]]` / `[[next]]` 从正文里剥出来。
- *
- * 两块串着抽（第一次的剥净正文喂给第二次），用的是 `[[canvas-ops]]` 那台引擎 ——
- * 单双括号宽进、缺闭合就尽力解析这些规则都在里面，别在这里重写。
- *
- * ⚠ `malformed` 不吞：模型写了完整的块却读不出载荷时，用户至少要知道「助手想给你
- * 选项但没说清楚」。静默吞掉的表现是「有时候有按钮有时候没有」，最难排查。
- */
-function extractAssistantProtocolBlocks(
-  rawResult: string,
-): PromptAssistantResponseData {
-  const askBlock = extractMarkerBlock(rawResult, {
-    marker: ASSISTANT_PROTOCOL_MARKER_IDS.ask,
-    schema: AssistantAskBlockSchema,
-    streamComplete: true,
-  })
-  const nextBlock = extractMarkerBlock(askBlock.content, {
-    marker: ASSISTANT_PROTOCOL_MARKER_IDS.next,
-    schema: AssistantNextStepSchema,
-    streamComplete: true,
-  })
-
-  const malformed = askBlock.malformed || nextBlock.malformed
-  if (malformed) {
-    logger.warn('Assistant protocol block was present but unreadable', {
-      ask: askBlock.malformed,
-      next: nextBlock.malformed,
-    })
-  }
-
-  return {
-    prompt: nextBlock.content,
-    ...(askBlock.payload ? { ask: askBlock.payload.questions } : {}),
-    ...(nextBlock.payload ? { next: nextBlock.payload } : {}),
-    ...(malformed ? { protocolMalformed: true } : {}),
-  }
+  return withInventory(
+    `${flattenConversation(
+      messages,
+      currentPrompt,
+      conversationBudget,
+    )}\n\n${compactedEvidence}`,
+  )
 }
 
 // ─── Extract prompt from LLM response ──────────────────────────
@@ -643,7 +736,513 @@ function extractPromptFromResponse(raw: string): string {
     .trim()
 }
 
+// ─── 视频链接路由（切片 2 §4.2） ─────────────────────────────────
+//
+// 用户在对话里贴的链接分四种去处，判别在 `lib/video-link.ts` **一处**实现
+// （多入口的闸只写一处）。这里只负责把判别结果接进这一轮：
+//  - YouTube / 视频直链 → 补成视频引用，交给既有媒体管线（能力校验、8 上限、
+//    content-type 嗅探全都复用现成的，一条新分支都不加）；
+//  - 平台页 → 元数据块 + 上传片段引导，**不解流**（已拍板边界 16）；
+//  - 普通网页 → 这里不管，检索线的 url_reader 照旧处理。
+
+interface PlatformVideoLink {
+  url: string
+  platform: VideoLinkPlatform
+  id?: string
+}
+
+interface VideoLinkRouting {
+  /** 从链接补出来的视频引用（追加在用户自己的附件后面）。 */
+  references: AssistantMediaReference[]
+  platformLinks: PlatformVideoLink[]
+  /** 撞上 8 上限没能挂上的链接 —— 必须说出来，见 `VIDEO_LINK_DROPPED_DIRECTIVE`。 */
+  dropped: string[]
+}
+
+function routeVideoLinks(
+  text: string,
+  existingReferences: readonly AssistantMediaReference[],
+): VideoLinkRouting {
+  const references: AssistantMediaReference[] = []
+  const platformLinks: PlatformVideoLink[] = []
+  const dropped: string[] = []
+  const seenUrls = new Set(existingReferences.map((reference) => reference.url))
+
+  for (const raw of extractUrlsFromText(
+    text,
+    VIDEO_LINK_LIMITS.maxLinksPerTurn,
+  )) {
+    const url = normalizeVideoLinkUrl(raw)
+    const classification = classifyVideoLink(url)
+
+    if (classification.kind === VIDEO_LINK_KINDS.web) continue
+    if (classification.kind === VIDEO_LINK_KINDS.platformPage) {
+      platformLinks.push({
+        url,
+        platform: classification.platform,
+        ...(classification.id ? { id: classification.id } : {}),
+      })
+      continue
+    }
+
+    // 用户已经把同一个视频拖进来了 —— 别为一句话里的链接再送一份。
+    if (seenUrls.has(url)) continue
+    seenUrls.add(url)
+
+    // ⚠ 8 上限**在挂之前判**：挂完再让下游 `slice()` 削掉，等于这条引用既没进
+    //   模型、也没过能力校验、还没人告诉用户（§4.4 第 1 条那个静默消失的洞）。
+    if (
+      existingReferences.length + references.length >=
+      ASSISTANT_MEDIA_LIMITS.maxReferences
+    ) {
+      dropped.push(url)
+      continue
+    }
+
+    references.push({
+      id: `video-link:${url}`.slice(0, ASSISTANT_MEDIA_LIMITS.maxLabelLength),
+      kind: 'video',
+      url,
+      label:
+        classification.kind === VIDEO_LINK_KINDS.youtube
+          ? `YouTube ${classification.videoId}`
+          : 'Linked video file',
+    })
+  }
+
+  return { references, platformLinks, dropped }
+}
+
+/** 一条平台链接的元数据行。**取不到就如实说取不到**，不留白也不编。 */
+async function describePlatformVideoLink(
+  link: PlatformVideoLink,
+): Promise<string> {
+  const bvid =
+    link.platform === VIDEO_LINK_PLATFORMS.bilibili ? link.id : undefined
+  if (!bvid) {
+    return `metadata: unavailable (${
+      link.platform === VIDEO_LINK_PLATFORMS.bilibili
+        ? 'short link — the video id is not in the URL'
+        : 'no metadata connector for this platform'
+    })`
+  }
+
+  // 复用检索线那套跑法：重试 + 熔断 + 永不上抛。B站接口挂了不该让一次对话失败。
+  const { items, receipt } = await runConnector(
+    RESEARCH_SOURCE_IDS.bilibili,
+    async () => ({ items: await fetchBilibiliVideoMetadata({ bvid }) }),
+  )
+  // 标题/简介是任何人可编辑的自由文本 —— 和证据走同一道注入扫描。
+  const sanitized = sanitizeEvidenceItems(items)
+  const summary = sanitized.items.find((item) => item.kind === 'text')
+  if (!summary) {
+    return `metadata: unavailable (${receipt.error ?? receipt.status})`
+  }
+
+  return [
+    `metadata: bilibili view api | retrievedAt: ${summary.retrievedAt}${
+      summary.untrusted ? ' | flagged: contains instruction-like text' : ''
+    }`,
+    summary.excerpt,
+  ].join('\n')
+}
+
+/**
+ * 平台页元数据块。编号只是这一块内部的序号 —— **刻意不与证据的 `[n]` 同池**，
+ * 混进去会让引用闸（`validateEvidenceCitations`）对不上账。
+ */
+async function buildPlatformVideoBlock(
+  links: readonly PlatformVideoLink[],
+): Promise<string | null> {
+  if (links.length === 0) return null
+  const rendered = await Promise.all(
+    links.map(async (link, index) =>
+      [
+        VIDEO_LINK_MARKERS.begin(index + 1),
+        `platform: ${link.platform} | url: ${link.url}`,
+        await describePlatformVideoLink(link),
+        VIDEO_LINK_MARKERS.end,
+      ].join('\n'),
+    ),
+  )
+  return rendered.join('\n\n')
+}
+
+/** 系统提示那一段：规矩 + 哪条链接挂上了（带 handle）+ 哪条没挂上。 */
+function buildVideoLinkDirective(
+  routing: VideoLinkRouting,
+  effectiveReferences: readonly AssistantMediaReference[],
+): string | null {
+  const sections: string[] = []
+
+  if (routing.platformLinks.length > 0) {
+    sections.push(VIDEO_LINK_PLATFORM_DIRECTIVE)
+  }
+
+  if (routing.references.length > 0) {
+    // handle 用共享那套算 —— 界面 chip、附件清单、这里必须是同一个 `#n`。
+    const handles = buildReferenceHandles(effectiveReferences)
+    const offset = effectiveReferences.length - routing.references.length
+    const lines = routing.references.map((reference, index) => {
+      const handle = handles[offset + index] ?? '#?'
+      return `- ${formatReferenceTag('video', handle)} ${reference.url}`
+    })
+    sections.push(`${VIDEO_LINK_ATTACHED_DIRECTIVE}\n${lines.join('\n')}`)
+  }
+
+  if (routing.dropped.length > 0) {
+    sections.push(
+      `${VIDEO_LINK_DROPPED_DIRECTIVE}\n${routing.dropped
+        .map((url) => `- ${url}`)
+        .join('\n')}`,
+    )
+  }
+
+  return sections.length > 0 ? sections.join('\n\n') : null
+}
+
+// ─── Turn setup（缓冲与流式共用） ────────────────────────────────
+
+interface AssistantTurnSetup {
+  systemPrompt: string
+  route: ResolvedLlmTextRoute
+  /** 这一轮的检索结果。`null` = 这轮没检索（关掉了 / 规划器判定不需要）。 */
+  research: ResearchOutcome | null
+  /**
+   * 本轮附件的全部结论：喂给 provider 的两个数组、真正送进去的引用（含从链接补
+   * 进来的视频）、以及超量丢了几个。**一个对象**而不是三个字段 —— 它们必须同时
+   * 更新，拆开就是给漂移留门。
+   */
+  media: AssistantMediaResolution
+  /** 平台页元数据块（带边界标记）。`null` = 这轮没有平台链接。 */
+  videoLinkBlock: string | null
+}
+
+/**
+ * 旧的布尔 `research` → 新的三态。
+ *
+ * ⚠ **`research:false` 落到 `auto` 不是笔误**：那个布尔今天只有两个位置，
+ * `false` 表达的是「用户没有主动打开」，**不是**「用户明确要求别联网」——
+ * 现有 UI 根本没有第三个位置可选。真正的「关」必须由新字段 `researchMode:'off'`
+ * 显式送来。下一批 UI 要做的就是把这三态露出去（见交付报告）。
+ */
+export function resolveResearchMode(input: {
+  research?: boolean
+  researchMode?: ResearchMode
+}): ResearchMode {
+  if (input.researchMode) return input.researchMode
+  return input.research ? RESEARCH_MODES.forced : RESEARCH_MODES.auto
+}
+
+/**
+ * 一轮助手对话在真正调模型之前要做的所有事：系统提示、灵感 RAG、检索路由、
+ * 媒体能力校验。
+ *
+ * 抽出来是因为**缓冲和流式两条出口必须逐字节同配置** —— 这两条一旦各自维护一份
+ * 路由/检索策略，表现会是「流式的回答和缓冲的不一样」，而这种差异极难归因。
+ */
+async function prepareAssistantTurn(params: {
+  userId: string
+  messages: PromptAssistantMessage[]
+  modelId?: string
+  referenceImageData?: string
+  currentPrompt?: string
+  apiKeyId?: string
+  responseLanguage: PromptAssistantResponseLanguage
+  mode: PromptAssistantMode
+  useInspirationContext?: boolean
+  researchMode: ResearchMode
+  conversationId?: string | null
+  projectId?: string | null
+  references: AssistantMediaReference[]
+  assistantDomain: PromptAssistantDomain
+}): Promise<AssistantTurnSetup> {
+  let systemPrompt = buildAssistantSystemPrompt(
+    params.modelId,
+    params.responseLanguage,
+    params.mode,
+    params.assistantDomain,
+  )
+
+  // RAG: inject curated examples only on the first turn — later turns are
+  // iterative refinements where extra reference examples would dilute the
+  // user's evolving intent.
+  if (params.useInspirationContext && params.messages.length === 1) {
+    const seedPrompt =
+      params.currentPrompt?.trim() || params.messages[0]?.content || ''
+    const contextBlock = await buildInspirationContext(seedPrompt)
+    if (contextBlock) systemPrompt = `${systemPrompt}${contextBlock}`
+  }
+
+  const route = await resolveLlmTextRoute(params.userId, params.apiKeyId)
+
+  const latestUserText =
+    [...params.messages].reverse().find((msg) => msg.role === 'user')
+      ?.content ?? ''
+
+  // 视频链接路由（切片 2）。分类是纯函数、零成本，所以**放在检索之前**：
+  // 路由不支持视频时，能力闸（`getAssistantMediaInputs` 里那一道，不新造第二道）
+  // 会当场抛 `ASSISTANT_VIDEO_UNSUPPORTED`，省掉一次白花的规划器调用 + 打源。
+  const videoLinks = routeVideoLinks(latestUserText, params.references)
+  const media = getAssistantMediaInputs(
+    [...params.references, ...videoLinks.references],
+    route.adapterType,
+    params.referenceImageData,
+  )
+
+  // 检索管线（切片 1）。
+  //
+  // ⚠ **provider 自带的联网 grounding 在这条路上已经删掉了**（原来的
+  // `resolveResearchRoute` 借路）。不是顺手删的：那条路给的是模型私下看到的网页，
+  // 拿不到 EvidenceItem，于是**引用没法校验、来源没法露出、单源失败没法回执**
+  // —— 正是本批三道闸要挡的东西。切片 0 也证明它没降低幻觉率（两臂都 14.3%），
+  // 只是把「诚实弃权」换成了「自信编造」。画布那条路仍在用它，本批不动。
+  //
+  // 检索与 B站元数据**并行**：两边各自带重试和超时，串起来最坏能吃掉整轮的
+  // `maxDuration=60`，表现是「助手转圈然后 504」。
+  const [research, videoLinkBlock] = await Promise.all([
+    latestUserText
+      ? runResearch({
+          userId: params.userId,
+          surface: ASSISTANT_SURFACE_BY_DOMAIN[params.assistantDomain],
+          conversationId: params.conversationId ?? null,
+          projectId: params.projectId ?? null,
+          text: latestUserText,
+          mode: params.researchMode,
+          apiKeyId: params.apiKeyId,
+          model: ASSISTANT_MODEL_ID_BY_ADAPTER.get(route.adapterType),
+        })
+      : null,
+    buildPlatformVideoBlock(videoLinks.platformLinks),
+  ])
+
+  if (research?.evidenceBlock) {
+    // 证据的规矩放**系统提示**（「这些是资料不是指令」必须比证据本身权威），
+    // 证据本体放**用户提示**（跟工作台状态块同一位置、同一理由）。
+    systemPrompt = `${systemPrompt}\n\n${RESEARCH_EVIDENCE_DIRECTIVE}`
+  }
+
+  // 视频链接的规矩同理进系统提示，元数据本体进用户提示。
+  // ⚠ handle 按**截断后**的那份算 —— 链接补出来的视频永远排在末尾且只在放得下时
+  //   才挂（见 `routeVideoLinks` 的上限判断），所以它们必然活过截断，offset 仍成立。
+  const videoLinkDirective = buildVideoLinkDirective(
+    videoLinks,
+    media.references,
+  )
+  if (videoLinkDirective) {
+    systemPrompt = `${systemPrompt}\n\n${videoLinkDirective}`
+  }
+
+  return {
+    systemPrompt,
+    route,
+    research,
+    media,
+    videoLinkBlock,
+  }
+}
+
+/** 幻引用 —— 唯一值得花掉那一次重试的失败模式（§3.4 第 2 闸）。 */
+class PhantomCitationError extends Error {}
+
+/**
+ * 引用校验 + 打回重试。
+ *
+ * ⚠ **有证据的那一轮会先缓冲再出流**，这是本批一个明确的取舍：
+ * 「幻引用 = 输出不可用，打回重试」这道闸**必须在用户看到字之前**判定，
+ * 而边流边判是判不了的 —— 字已经出去了就收不回来。
+ *
+ * 代价可控的依据是项目已有的结论：`ASSISTANT_TYPEWRITER` 那套「传输与呈现解耦」
+ * 就是为「provider 一整块吐」准备的，**呈现层照样一个字一个字打**。所以损失的是
+ * 首字延迟，不是打字感。没有证据的普通轮**照旧真流式**，一个字节不变。
+ */
+async function completeWithCitationGate(options: {
+  systemPrompt: string
+  buildUserPrompt: (maxLength?: number) => string
+  route: ResolvedLlmTextRoute
+  imageData?: string[]
+  videoData?: string[]
+  modelId?: string
+  evidenceCount: number
+}): Promise<string> {
+  return withRetry(
+    async () => {
+      const raw = await completeAssistantTextWithContextRetry({
+        systemPrompt: options.systemPrompt,
+        buildUserPrompt: options.buildUserPrompt,
+        route: options.route,
+        modelId: options.modelId,
+        contextCompactionTargetLength:
+          PROMPT_ASSISTANT_CONTEXT_COMPACTION_TARGET_LENGTH,
+        imageData: options.imageData,
+        videoData: options.videoData,
+      })
+
+      const citations = validateEvidenceCitations(raw, options.evidenceCount)
+      if (!citations.usable) {
+        throw new PhantomCitationError(
+          citations.reason ?? 'phantom citation in grounded answer',
+        )
+      }
+      for (const warning of citations.warnings) {
+        logger.info('Grounded answer warning', { warning })
+      }
+      return raw
+    },
+    {
+      maxAttempts: 2,
+      baseDelayMs: 300,
+      label: 'prompt-assistant.citation-gate',
+      isRetryable: (error) => error instanceof PhantomCitationError,
+    },
+  )
+}
+
 // ─── Public API ─────────────────────────────────────────────────
+
+const PROMPT_ASSISTANT_ENCODER = new TextEncoder()
+
+/**
+ * 对话轮（`mode:'general'`）的**唯一**入口 —— 出的是逐字文本流。
+ *
+ * 协议块（`[[ask]]` / `[[next]]`）**不在这里剥**：流式下服务端拿不到「用户已经看到
+ * 多少」，半截载荷只有客户端边收边抽才判断得了。抽取在
+ * `lib/assistant-protocol-blocks.ts`，画布的 ops 抽取同一条路数、同一个理由。
+ *
+ * 真流式取决于路由落到哪个 provider —— 查 `supportsLlmTextStreaming()`。落到还没写
+ * SSE 的 provider 时这条流只会吐一大块，形态不变、体感退回等待。
+ */
+export async function createPromptAssistantStream(
+  clerkId: string,
+  params: {
+    messages: PromptAssistantMessage[]
+    modelId?: string
+    currentPrompt?: string
+    apiKeyId?: string
+    responseLanguage?: PromptAssistantResponseLanguage
+    useInspirationContext?: boolean
+    research?: boolean
+    researchMode?: ResearchMode
+    conversationId?: string | null
+    references?: AssistantMediaReference[]
+    assistantDomain?: PromptAssistantDomain
+    workbenchState?: AssistantWorkbenchState
+  },
+): Promise<{
+  stream: ReadableStream<Uint8Array>
+  /** 这一轮的检索回执。`null` = 没检索，路由据此决定发不发那个响应头。 */
+  receipt: ResearchReceipt | null
+  /**
+   * 超出 `maxReferences` 没能带上的附件数（0 = 全带上了）。模型侧已经在附件清单
+   * 里被告知；这个数是给**用户侧**的那一份，路由可以据此下发提示。
+   */
+  droppedReferenceCount: number
+}> {
+  const dbUser = await ensureUser(clerkId)
+  const setup = await prepareAssistantTurn({
+    userId: dbUser.id,
+    messages: params.messages,
+    modelId: params.modelId,
+    currentPrompt: params.currentPrompt,
+    apiKeyId: params.apiKeyId,
+    responseLanguage: params.responseLanguage ?? 'english',
+    mode: 'general',
+    useInspirationContext: params.useInspirationContext,
+    researchMode: resolveResearchMode(params),
+    conversationId: params.conversationId ?? null,
+    references: params.references ?? [],
+    assistantDomain: params.assistantDomain ?? 'image',
+  })
+
+  const evidenceBlock = setup.research?.evidenceBlock || undefined
+  const evidenceCount = setup.research?.items.length ?? 0
+  const buildUserPrompt = (maxLength?: number) =>
+    buildPromptAssistantUserPrompt({
+      messages: params.messages,
+      currentPrompt: params.currentPrompt,
+      evidenceBlock,
+      videoLinkBlock: setup.videoLinkBlock,
+      maxLength,
+      // ⚠ 用 `setup.media.references` 不是 `params.references` —— 从链接补进来的
+      //   视频必须出现在附件清单里，否则模型收到了它却没有称呼它的编号。
+      references: setup.media.references,
+      droppedReferenceCount: setup.media.droppedCount,
+      workbenchState: params.workbenchState,
+    })
+  const modelId = ASSISTANT_MODEL_ID_BY_ADAPTER.get(setup.route.adapterType)
+
+  // 有证据的一轮先缓冲、过引用闸、（必要时）重试一次，然后整段出流；
+  // 没证据的一轮照旧真流式。理由见 `completeWithCitationGate`。
+  const textStream =
+    evidenceCount > 0
+      ? gatedSingleChunkStream(() =>
+          completeWithCitationGate({
+            systemPrompt: setup.systemPrompt,
+            buildUserPrompt,
+            route: setup.route,
+            imageData: setup.media.imageData,
+            videoData: setup.media.videoData,
+            modelId,
+            evidenceCount,
+          }),
+        )
+      : streamAssistantTextWithContextRetry({
+          systemPrompt: setup.systemPrompt,
+          buildUserPrompt,
+          route: setup.route,
+          contextCompactionTargetLength:
+            PROMPT_ASSISTANT_CONTEXT_COMPACTION_TARGET_LENGTH,
+          imageData: setup.media.imageData,
+          videoData: setup.media.videoData,
+          modelId,
+        })
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        for await (const chunk of textStream) {
+          controller.enqueue(PROMPT_ASSISTANT_ENCODER.encode(chunk))
+        }
+        controller.close()
+      } catch (error) {
+        // 已经吐出去的字留在客户端（客户端负责补错误尾巴）；这里只把流断掉，
+        // 不吞错 —— 静默 close 会让用户看到半截话却没有任何提示。
+        logger.error('Prompt assistant stream failed', {
+          error: error instanceof Error ? error.message : String(error),
+          adapterType: setup.route.adapterType,
+        })
+        controller.error(error)
+      }
+    },
+  })
+
+  return {
+    stream,
+    receipt: setup.research?.receipt ?? null,
+    droppedReferenceCount: setup.media.droppedCount,
+  }
+}
+
+/** 把一次缓冲补全包成「只有一块」的流，形态与真流式一致。 */
+async function* gatedSingleChunkStream(
+  complete: () => Promise<string>,
+): AsyncIterable<string> {
+  try {
+    yield await complete()
+  } catch (error) {
+    if (error instanceof PhantomCitationError) {
+      // 两次都编引用 —— 这条回答不可用。**大声失败**，不要把带假引用的答案
+      // 端上去：那正是这道闸存在的全部理由。
+      throw new ApiRequestError(
+        'ASSISTANT_PHANTOM_CITATION',
+        502,
+        'errors.assistant.phantomCitation',
+        'The assistant cited evidence that does not exist, twice in a row.',
+      )
+    }
+    throw error
+  }
+}
 
 export async function chatPromptAssistant(
   clerkId: string,
@@ -659,6 +1258,14 @@ export async function chatPromptAssistant(
   loraContext?: LoraAssistantContext,
   references: AssistantMediaReference[] = [],
   assistantDomain: PromptAssistantDomain = 'image',
+  /**
+   * 后加的入参走一个尾部对象，不再往这串位置参数后面接第 14、15 个 —— 位置参数
+   * 已经排到 13 个，再加就没人数得清哪个是哪个了。
+   */
+  options: {
+    researchMode?: ResearchMode
+    conversationId?: string | null
+  } = {},
 ): Promise<PromptAssistantResponseData> {
   const dbUser = await ensureUser(clerkId)
 
@@ -678,80 +1285,97 @@ export async function chatPromptAssistant(
     })
   }
 
-  let systemPrompt = buildAssistantSystemPrompt(
+  // 对话轮只有一个家：`createPromptAssistantStream`。这里大声拒绝而不是悄悄
+  // 落到下面的提示词转换逻辑 —— 那条路会把一段正常回答当提示词裁一遍，表现是
+  // 「助手回答被砍成一句话」，极难归因。
+  if (mode === 'general') {
+    throw new ApiRequestError(
+      'ASSISTANT_CONVERSATION_IS_STREAMED',
+      400,
+      'errors.assistant.conversationIsStreamed',
+      'Conversational turns are served by POST /api/prompt/assistant/stream.',
+    )
+  }
+
+  const setup = await prepareAssistantTurn({
+    userId: dbUser.id,
+    messages,
     modelId,
+    referenceImageData,
+    currentPrompt,
+    apiKeyId,
     responseLanguage,
     mode,
-    assistantDomain,
-  )
-
-  // RAG: inject curated examples only on the first turn — later turns are
-  // iterative refinements where extra reference examples would dilute the
-  // user's evolving intent.
-  if (useInspirationContext && messages.length === 1) {
-    const seedPrompt = currentPrompt?.trim() || messages[0]?.content || ''
-    const contextBlock = await buildInspirationContext(seedPrompt)
-    if (contextBlock) systemPrompt = `${systemPrompt}${contextBlock}`
-  }
-
-  // Research turn — same two-tier policy as the node assistant:
-  // Serper-gathered context lets ANY writing model (incl. DeepSeek/Qwen)
-  // answer; otherwise borrow provider-native grounding when possible.
-  let route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
-  let useGrounding: boolean | undefined
-  let webContext: WebContext | undefined
-  if (research) {
-    const latestUserText =
-      [...messages].reverse().find((msg) => msg.role === 'user')?.content ?? ''
-    const gatheredContext: WebContext = latestUserText
-      ? await gatherWebContext(latestUserText)
-      : { results: [], pages: [] }
-
-    if (hasWebContext(gatheredContext)) {
-      webContext = gatheredContext
-    } else {
-      const researchRoute = await resolveResearchRoute(dbUser.id, apiKeyId)
-      route = researchRoute.route
-      useGrounding = researchRoute.useGrounding || undefined
-    }
-  }
-
-  const mediaInputs = getAssistantMediaInputs(
+    useInspirationContext,
+    researchMode: resolveResearchMode({
+      research,
+      researchMode: options.researchMode,
+    }),
+    conversationId: options.conversationId ?? null,
     references,
-    route.adapterType,
-    referenceImageData,
-  )
-
-  const rawResult = await completeAssistantTextWithContextRetry({
-    systemPrompt,
-    buildUserPrompt: (maxLength) =>
-      buildPromptAssistantUserPrompt(
-        messages,
-        currentPrompt,
-        webContext,
-        maxLength,
-      ),
-    route,
-    contextCompactionTargetLength:
-      PROMPT_ASSISTANT_CONTEXT_COMPACTION_TARGET_LENGTH,
-    imageData: mediaInputs.imageData,
-    videoData: mediaInputs.videoData,
-    modelId: ASSISTANT_MODEL_ID_BY_ADAPTER.get(route.adapterType),
-    useGrounding,
+    assistantDomain,
   })
 
-  // The unified assistant is a real conversation surface. Preserve normal
-  // Markdown answers verbatim; prompt extraction/validation only belongs to
-  // the explicit legacy prompt-conversion modes below.
-  //
-  // A2：只把两个协议块剥出来变成结构化数据。抽取放在服务端是因为**这条路是缓冲
-  // 补全不是流式** —— 整段一次到手，不存在「半截载荷」那种状态，所以
-  // `streamComplete` 恒真。画布那条是流式，它的 ops 抽取只能留在客户端。
-  if (mode === 'general') {
-    return extractAssistantProtocolBlocks(rawResult)
-  }
+  const evidenceBlock = setup.research?.evidenceBlock || undefined
+  const evidenceCount = setup.research?.items.length ?? 0
+  const buildUserPrompt = (maxLength?: number) =>
+    buildPromptAssistantUserPrompt({
+      messages,
+      currentPrompt,
+      evidenceBlock,
+      videoLinkBlock: setup.videoLinkBlock,
+      maxLength,
+      references: setup.media.references,
+      droppedReferenceCount: setup.media.droppedCount,
+    })
+  const routeModelId = ASSISTANT_MODEL_ID_BY_ADAPTER.get(
+    setup.route.adapterType,
+  )
+
+  // 引用闸只在真有证据时才有意义 —— 没有证据包时任何 `[n]` 都由
+  // `validateEvidenceCitations` 在 evidenceCount=0 分支上拦掉，不用多跑一轮。
+  const rawResult =
+    evidenceCount > 0
+      ? await completeWithCitationGate({
+          systemPrompt: setup.systemPrompt,
+          buildUserPrompt,
+          route: setup.route,
+          imageData: setup.media.imageData,
+          videoData: setup.media.videoData,
+          modelId: routeModelId,
+          evidenceCount,
+        }).catch((error) => {
+          if (error instanceof PhantomCitationError) {
+            throw new ApiRequestError(
+              'ASSISTANT_PHANTOM_CITATION',
+              502,
+              'errors.assistant.phantomCitation',
+              'The assistant cited evidence that does not exist, twice in a row.',
+            )
+          }
+          throw error
+        })
+      : await completeAssistantTextWithContextRetry({
+          systemPrompt: setup.systemPrompt,
+          buildUserPrompt,
+          route: setup.route,
+          contextCompactionTargetLength:
+            PROMPT_ASSISTANT_CONTEXT_COMPACTION_TARGET_LENGTH,
+          imageData: setup.media.imageData,
+          videoData: setup.media.videoData,
+          modelId: routeModelId,
+        })
 
   const prompt = extractPromptFromResponse(rawResult)
+  // 回执跟着响应体走（流式那条走响应头，理由见 RESEARCH_RECEIPT_HEADER）。
+  // 超量丢弃的条数同理搭这班车：**只在真丢了才出现**，0 不发字段 —— 老客户端
+  // 忽略这个新键照常跑，新客户端才有东西可提示。
+  const turnMetadata = {
+    ...(setup.research ? { research: setup.research.receipt } : {}),
+    ...(setup.media.droppedCount > 0
+      ? { droppedReferenceCount: setup.media.droppedCount }
+      : {}),
+  }
 
   // Validate output
   const validation = validateLlmPromptOutput(
@@ -764,8 +1388,8 @@ export async function chatPromptAssistant(
       modelId,
     })
     // Return raw prompt anyway — assistant output is less strict than enhance
-    return { prompt: prompt || rawResult.trim() }
+    return { prompt: prompt || rawResult.trim(), ...turnMetadata }
   }
 
-  return { prompt: validation.output }
+  return { prompt: validation.output, ...turnMetadata }
 }

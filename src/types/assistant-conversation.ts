@@ -6,6 +6,10 @@ import {
   type AssistantProtocolDomain,
 } from '@/constants/assistant-protocol'
 import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
+import {
+  AssistantPromptBlockSchema,
+  AssistantSetupBlockSchema,
+} from '@/types/assistant-protocol'
 
 /**
  * 一段对话归谁 —— **每个域一个槽**（A1，owner 2026-08-08 拍板「四档」）。
@@ -72,6 +76,31 @@ export const AssistantConversationMessageSchema = z.object({
     .array(AssistantMediaReferenceSchema)
     .max(ASSISTANT_MEDIA_LIMITS.maxReferences)
     .optional(),
+  /**
+   * 档 3 交付的提示词载荷（`[[prompt]]` 块）。
+   *
+   * ⚠ **它持久化，而 `ask` / `next` 故意不持久化** —— 这两类东西不同性质：
+   * 反问选项和收敛按钮是**那一轮的交互态**，恢复历史时重新点亮它们，点下去只会
+   * 把一句过期的答复发出去；而提示词是**交付物**，三轮前写的那版今天填进提示词框
+   * 依然完全正确。判据和「复制」按钮一样——复制从来就是常驻的。
+   *
+   * 不存的代价 2026-08-20 真机见过：刷新一次，整段对话的「填入提示词 / 填入负面 /
+   * 设为 16:9」三个按钮全消失，只剩复制。用户得自己从正文里手抄。
+   */
+  promptDraft: AssistantPromptBlockSchema.optional(),
+  /** 工作台配置提案（`[[setup]]` 块）。持久化理由同 `promptDraft`：也是交付物。 */
+  setup: AssistantSetupBlockSchema.optional(),
+  /**
+   * 这条回答背后那次检索的 `ResearchRun.id`。
+   *
+   * ⚠ **只存 id，不存证据本体**（§3.6 验收明写）。证据包动辄几十 KB，塞进
+   * messages 会让每次会话读写都拖着它走，而且同一份证据会在历史里复制 N 份。
+   * 加载会话时按需从 `ResearchRun` 水合，分享快照静态渲染（分享页不查库）。
+   *
+   * 持久化的判据和 `promptDraft` 一样是**交付物 vs 交互态**：三轮前那次检索的
+   * 来源清单今天点开依然是那些来源，和「复制」按钮一个道理。
+   */
+  researchRunId: z.string().trim().min(1).max(120).optional(),
 })
 
 export type AssistantConversationMessageStored = z.infer<

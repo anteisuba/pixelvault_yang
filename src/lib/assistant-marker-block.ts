@@ -16,6 +16,11 @@
  *    藏掉了 —— 没有卡，也没有任何提示。一个括号不该让整个能力静默消失。
  * 3. **流结束却没闭合，不能再当「还在写」**。那时要么标记写歪了、要么输出被截断，
  *    两种都得给用户交代：先尽力把剩下的当载荷解析，读不出来就报 `malformed`。
+ * 4. **开标记自己也是一个字一个字长出来的**（2026-08-21 真机抓到）：第 1 条藏的是
+ *    「开标记之后」的内容，而 `[[set` 这种**还没长完的开标记**压根匹配不上，于是
+ *    原样当正文返回 —— 用户眼看着裸标记蹦出来又消失。所以尾部凡是「还可能长成开
+ *    标记」的片段，流没结束前一律扣留。⛔ 别改成「等流结束再显示全部」：那会毁掉
+ *    打字机，而打字机是「传输与呈现解耦」这条结论的落点。
  */
 
 import type { z } from 'zod'
@@ -55,6 +60,12 @@ function parseJsonBlock(raw: string): unknown {
   }
 }
 
+/**
+ * 开标记的两种起手式，与下面 `open` 正则里的 `\[\[?` 是同一件事的两种写法：
+ * 一个用来**认已经写完的**，一个用来**认正在写的**。改一个就得改另一个。
+ */
+const MARKER_OPEN_LEADS = ['[[', '['] as const
+
 /** 单双括号都收 —— 见文件头第 2 条。marker 名按字面转义，允许 `-` 与字母数字。 */
 function buildMarkerPatterns(marker: string): {
   open: RegExp
@@ -73,6 +84,31 @@ function matchMarker(
 ): { index: number; length: number } | null {
   const match = pattern.exec(value)
   return match ? { index: match.index, length: match[0].length } : null
+}
+
+/**
+ * 尾巴上那截「还可能长成开标记」的字符有多长 —— 见文件头第 4 条。
+ *
+ * 候选就是「起手括号 + marker 名的任意前缀」（`[`、`[[`、`[[s`…`[[setup`）。
+ * `[[setup]` 不在候选里，因为它已经能被 `open` 命中 —— 走到这里就说明没命中。
+ *
+ * ⚠ **只判尾巴**：流式文本只会从末尾长，中间的 `[[` 要么早就凑成了标记、要么
+ * 这辈子都凑不成。扣留量最多 `marker.length + 2` 个字符，兑现为打字机上一两拍的
+ * 延迟，判定得出来立刻放行 —— 正文里的 `[1]`、markdown 链接不会被永久吃掉。
+ */
+function partialOpenMarkerLength(value: string, marker: string): number {
+  const tail = value.toLowerCase()
+  const name = marker.toLowerCase()
+  let held = 0
+  for (const lead of MARKER_OPEN_LEADS) {
+    for (let taken = 0; taken <= name.length; taken += 1) {
+      const candidate = lead + name.slice(0, taken)
+      if (candidate.length > held && tail.endsWith(candidate)) {
+        held = candidate.length
+      }
+    }
+  }
+  return held
 }
 
 /**
@@ -97,8 +133,20 @@ export function extractMarkerBlock<S extends z.ZodTypeAny>(
   const { marker, schema, streamComplete = false } = options
   const patterns = buildMarkerPatterns(marker)
 
+  /** 尾巴上那截还可能长成开标记的字符，流没结束前不外显 —— 见文件头第 4 条。 */
+  const holdBackPartialMarker = (value: string) =>
+    streamComplete
+      ? value
+      : value.slice(0, value.length - partialOpenMarkerLength(value, marker))
+
+  // ⚠ 「没有这种标记」的快路也要扣留：`[[set` 里既没有 `[[ask]]` 也没有
+  // `[[setup]]`，四种标记全从这里原样返回，正是 2026-08-21 那次泄漏的通道。
   if (!patterns.open.test(rawContent)) {
-    return { content: rawContent, payload: null, malformed: false }
+    return {
+      content: holdBackPartialMarker(rawContent),
+      payload: null,
+      malformed: false,
+    }
   }
 
   let content = ''
@@ -119,7 +167,9 @@ export function extractMarkerBlock<S extends z.ZodTypeAny>(
   while (true) {
     const openMatch = matchMarker(patterns.open, rest)
     if (!openMatch) {
-      content += rest
+      // 没命中开标记不等于「剩下的都是正文」：尾巴可能正是一个写到一半的开标记。
+      // 流结束了就没有「一半」这回事了，那时残缺括号就是普通文字。
+      content += holdBackPartialMarker(rest)
       break
     }
 

@@ -168,9 +168,12 @@ describe('createNodeAssistantStream', () => {
     })
 
     await readStream(stream)
-    expect(mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt).toContain(
-      '[image] reference.png (upload)',
-    )
+    const prompt = mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt
+    // 标识是**位置**（#1），不是内容。owner 2026-08-19：参考图的 prompt 不喂给模型。
+    expect(prompt).toContain('[image #1] (upload)')
+    expect(prompt).toContain('https://cdn.example.com/reference.png')
+    // label 曾经被素材选择器填成 generation 的完整 prompt —— 它不该出现在上下文里
+    expect(prompt).not.toContain('reference.png (upload)')
     expect(mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt).toContain(
       'https://cdn.example.com/reference.png',
     )

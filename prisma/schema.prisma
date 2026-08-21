@@ -151,6 +151,7 @@ model User {
   extractedElements  ExtractedElement[]
   nodeWorkflowProjects NodeWorkflowProject[]
   assistantConversations AssistantConversation[]
+  researchRuns       ResearchRun[]
 
   @@index([username])
   @@index([isDeleted])
@@ -189,6 +190,44 @@ model AssistantConversationShare {
 
   @@index([conversationId])
   @@index([expiresAt])
+}
+
+/// 一次检索管线执行（AI 导演内核 · 切片 1 §3.1）。
+///
+/// 存在的理由是**减幻觉要可审计**：助手说的每个具体事实要能点回原文，
+/// 「没搜到」和「源挂了」要是两个可分辨的事实，单源失败要留下痕迹。
+/// 证据本体存这里，`AssistantConversation.messages` 里只存 researchRunId。
+model ResearchRun {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surface        AssistantSurface
+  /// 弱引用，沿用 AssistantConversation 约定（无 FK）。
+  projectId      String?
+  conversationId String?
+  /// find_lora | analyze_character | study_style | review_shot | fact_lookup
+  goal           String
+  query          String           @db.Text
+  /// succeeded | no_evidence | failed | quota_exceeded
+  /// ⚠「没搜到」（no_evidence）和「搜挂了」（failed）是两个事实，不许合并。
+  status         String
+  /// 有没有拿到任何可引用的证据 —— UI 的「未取得联网证据」badge 读它。
+  grounded       Boolean
+  /// EvidenceItem[]（见 src/types/research.ts）
+  evidence       Json
+  /// 每条带 basis: source|observation|inference|unknown + evidenceRefs
+  conclusions    Json?
+  /// 源级回执 [{ sourceId, status, count, tookMs, error?, via? }]。
+  /// 部分成功是常态 —— 单源静默失败不允许，所以逐源落库而不是只存一个总状态。
+  perSource      Json
+  model          String?
+  error          String?          @db.Text
+  createdAt      DateTime         @default(now())
+  completedAt    DateTime?
+
+  /// 每日配额直接 count 这个索引（不塞 ApiUsageLedger —— 形状不合）。
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([conversationId])
 }
 
 /// Node Studio workflow project — persists the React Flow canvas state
@@ -1096,3 +1135,125 @@ model InspirationPrompt {
   @@index([source])
 }
 
+
+/// L2 陈旧兜底：每个规范化查询只留最近一次成功结果的快照。
+///
+/// 职责被刻意收窄成一件事——Civitai 搜索子系统不可用时，让搜过的词返回陈
+/// 旧数据而不是白屏。它不是通用结果缓存：新鲜请求照常打上游（上游健康时
+/// 本来就只要 0.6 秒），这里只在上游失败那一刻才被读出来。
+///
+/// 有界是硬要求。Neon 免费档整个项目 0.5 GB，一条快照实测 7.6–7.8 KB（12 条
+/// LoRA 的完整字段）。CIVITAI_SEARCH_SNAPSHOT_MAX_ENTRIES 配合 lastUsedAt 做
+/// LRU 淘汰，稳态占用约 8 MB。
+model CivitaiSearchSnapshot {
+  /// 规范化查询指纹（search/baseModel/sort/nsfw/type/page/cursor 的 sha256）
+  key String @id
+
+  /// CivitaiLoraLibraryResult 整体
+  payload Json
+
+  /// 这份快照最后一次成功从上游取到的时刻——UI 的「X 分钟前」用它
+  fetchedAt DateTime @default(now())
+
+  /// LRU 淘汰依据：最近一次被读或被写的时刻
+  lastUsedAt DateTime @default(now())
+
+  @@index([lastUsedAt])
+}
+
+/// L3 本地目录镜像：Civitai 的 LoRA 目录抄一份到本地，让搜索不再依赖上游
+/// 搜索子系统的健康度。
+///
+/// 字段集合由「渲染一条 CivitaiLoraLibraryItem 需要什么」倒推，不是随手挑
+/// 的——目标是本地命中的搜索一次上游请求都不发。下载地址不存：实测恒等于
+/// `https://civitai.com/api/download/models/{versionId}`（32/32），存了反而
+/// 是冗余。
+///
+/// 容量：单行实测 1,724 B（真数据灌到 6000 行时量的，索引固定开销已摊薄；
+/// 1000 行时还是 2,662 B，别用小样本估）。全量 642,554 条 ≈ 1.1 GB，远超
+/// Neon 免费档 0.5 GB，所以首灌按 downloadCount 截断在
+/// CIVITAI_MIRROR_BACKFILL_LIMIT（5 万 ≈ 85 MB），那里有完整的算术。
+/// 截断只是灌数时的一个参数，表结构与同步管线都按全量设计。
+model CivitaiLoraMirror {
+  /// Civitai 的 model id
+  modelId Int @id
+
+  /// 展示用的那个版本（civitai 自己挑的 version，缺失时取 versions[0]）
+  versionId   Int
+  versionName String?
+
+  name        String
+  creator     String?
+  category    String?
+  /// 该模型所有图片 nsfwLevel 的最大值——三态过滤靠它
+  nsfwLevelMax Int     @default(0)
+  /// 名字本身命中 NSFW 关键词（safe 档的第二道防线，落库时算好）
+  nsfwNamed   Boolean @default(false)
+
+  /// 版本的 baseModel（family 过滤靠它）
+  baseModel  String?
+  tags       String[] @default([])
+  /// version.trainedWords，触发词抽取的输入
+  trainedWords String[] @default([])
+  /// version.hashData 里的 AutoV3，挂载栈哈希匹配用
+  hashAutoV3 String?
+
+  downloadCount  Int @default(0)
+  thumbsUpCount  Int @default(0)
+  collectedCount Int @default(0)
+  commentCount   Int @default(0)
+
+  /// 封面与预览图：只存 CDN 路径两段（id + uuid 目录），完整 URL 由
+  /// buildCivitaiSearchImageOriginalUrl 拼，跟搜索路径同一套逻辑
+  images Json @default("[]")
+
+  createdAt     DateTime
+  /// 增量同步的水位线依据。新模型首发和老模型出新版本都会更新它——
+  /// Civitai 的 meilisearch 把它做成了 filterable，等于白送一个
+  /// changed-since 接口，增量成本因此与目录总量无关。
+  lastVersionAt DateTime
+  /// 本轮扫描写入这一行的时刻。收尾时靠它认出「本轮没扫到的行」= 掉出
+  /// top N 或已被上游删除的。⚠ 由同步管线的批量 upsert 原生 SQL 显式写
+  /// 入，不走 Prisma 客户端——所以这里不能标 @updatedAt（那是客户端行为，
+  /// 对原生 SQL 无效，标了就是骗人）。
+  syncedAt      DateTime @default(now())
+
+  @@index([downloadCount(sort: Desc)])
+  @@index([lastVersionAt])
+  @@index([baseModel])
+  @@index([nsfwLevelMax])
+  /// 名称模糊匹配：pg_trgm 1.6 在这个库上已经装好（2026-08-19 实测），
+  /// 不需要额外申请扩展。Civitai 的 meilisearch 是 typo-tolerant 的全文
+  /// 匹配，trigram 是本地能给出的最接近的等价物。
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([tags], type: Gin)
+}
+
+/// 镜像刷新的进度状态。单行表——用固定 id，不是每次插新行。
+///
+/// 只有一条管线：把 top N 按下载量整轮重扫一遍，upsert，然后把本轮没扫到
+/// 的行删掉。看起来比"增量同步 + 指标刷新 + 删除对账"三条管线粗暴，但
+/// **指标刷新本来就绕不开全量扫描**——下载量/点赞数不会更新
+/// lastVersionAtUnix，changed-since 信号照不到它们，而它们正是排序依据和
+/// top-N 截断线的依据。既然最贵的那条省不掉，合成一条反而更省，也更不会
+/// 出现三条管线各自推进到不同进度的中间态。
+///
+/// 一轮扫完约 100 个上游请求（limit=1000），远超单次 cron 的执行上限，所
+/// 以按 cursor 分片续跑：每次 cron 推进若干批，扫到头才收尾。
+model CivitaiMirrorSyncState {
+  id String @id
+
+  /// 本轮已经推进到的 offset
+  cursor Int @default(0)
+
+  /// 本轮开始的时刻。一轮走完后，syncedAt 早于它的行 = 本轮没扫到的行，
+  /// 也就是掉出 top N 或已被上游删除的——收尾时清掉。
+  passStartedAt DateTime?
+
+  /// 最近一次完整走完的时刻
+  lastCompletedAt DateTime?
+  /// 最近一次失败的原因，失败要能看见而不是静静重试
+  lastError String?
+
+  updatedAt DateTime @updatedAt
+}

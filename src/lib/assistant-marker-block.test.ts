@@ -120,6 +120,50 @@ describe('extractMarkerBlock', () => {
     expect(next.content).toBe('你想要什么感觉？')
   })
 
+  // 2026-08-21 真机事故：一轮回复里同时有 `[[setup]]` 和 `[[ask]]`，用户在打字机
+  // 过程中看到裸的 `[[set` 蹦出来又消失。根因是「开标记还没写完」这段时间里抽取器
+  // 压根不认得它，于是原样当正文返回 —— 藏起来的只有**已经闭合过开标记**的部分。
+  it('holds back a tail that could still be growing into an open marker', () => {
+    const frames = [
+      '聊天。[',
+      '聊天。[[',
+      '聊天。[[n',
+      '聊天。[[ne',
+      '聊天。[[nex',
+    ]
+
+    for (const frame of frames) {
+      const result = extractMarkerBlock(frame, {
+        marker: 'next',
+        schema: AssistantNextStepSchema,
+        streamComplete: false,
+      })
+      expect(result.content).toBe('聊天。')
+    }
+  })
+
+  it('releases the held tail as soon as it cannot be a marker any more', () => {
+    const result = extractMarkerBlock('聊天。[[no', {
+      marker: 'next',
+      schema: AssistantNextStepSchema,
+      streamComplete: false,
+    })
+
+    // 扣留只针对「还可能长成开标记」的尾巴。判定得出来就要立刻放行，
+    // 否则方括号开头的正文（markdown 链接、`[1]` 这种注脚）会被永久吃掉。
+    expect(result.content).toBe('聊天。[[no')
+  })
+
+  it('stops holding once the stream is over — a stray bracket is just text', () => {
+    const result = extractMarkerBlock('聊天。[[ne', {
+      marker: 'next',
+      schema: AssistantNextStepSchema,
+      streamComplete: true,
+    })
+
+    expect(result.content).toBe('聊天。[[ne')
+  })
+
   it('keeps only the first complete block but still strips the rest', () => {
     const schema = z.object({ v: z.number() })
     const result = extractMarkerBlock(

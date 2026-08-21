@@ -7,6 +7,7 @@ vi.mock('@/lib/logger', () => ({
 import { z } from 'zod'
 
 import {
+  validateEvidenceCitations,
   validateLlmPromptOutput,
   validateLlmStructuredOutput,
   validateRecipeFusion,
@@ -175,5 +176,50 @@ describe('validateLlmStructuredOutput', () => {
 
     expect(result.usable).toBe(false)
     expect(result.reason).toMatch(/subject/)
+  })
+})
+
+// ─── 引用校验（AI 导演内核 §3.4 第 2 闸）────────────────────────
+
+describe('validateEvidenceCitations', () => {
+  it('accepts citations that all point at real evidence items', () => {
+    const result = validateEvidenceCitations(
+      '长离是粉发金瞳 [1]，武器为迅刀 [3]。',
+      3,
+    )
+
+    expect(result.usable).toBe(true)
+    expect(result.warnings).toHaveLength(0)
+  })
+
+  it('rejects a citation beyond the bundle — the phantom-citation case', () => {
+    const result = validateEvidenceCitations('这个视频长 19 分 13 秒 [7]。', 3)
+
+    expect(result.usable).toBe(false)
+    expect(result.reason).toContain('[7]')
+    expect(result.reason).toContain('[1]-[3]')
+  })
+
+  it('rejects any citation at all when nothing was retrieved', () => {
+    const result = validateEvidenceCitations('据资料显示 [1]。', 0)
+
+    expect(result.usable).toBe(false)
+    expect(result.reason).toMatch(/no evidence/i)
+  })
+
+  it('warns (but does not reject) when evidence was available and unused', () => {
+    const result = validateEvidenceCitations('我不确定这个。', 4)
+
+    expect(result.usable).toBe(true)
+    expect(result.warnings[0]).toMatch(/cited none/i)
+  })
+
+  it('ignores markdown links — only bare [n] counts as a citation', () => {
+    const result = validateEvidenceCitations(
+      'See [the docs](https://example.com/9) for details.',
+      1,
+    )
+
+    expect(result.usable).toBe(true)
   })
 })

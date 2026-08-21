@@ -46,6 +46,49 @@ function createStream(chunks: string[]): ReadableStream<Uint8Array> {
   })
 }
 
+/**
+ * 把 `script` 一个字符一个字符地灌进助手流，返回**每一帧**渲染出来的助手正文。
+ *
+ * ⚠ 每个字符单独包一次 `act`：`createStream` 那种一口气 enqueue 完的流会让 React
+ * 把所有 setState 批成一次渲染，中间帧全被吞掉 —— 而中间帧正是这里唯一要验的东西，
+ * 吞掉了测试就变成空转。
+ */
+async function streamAssistantCharacters(script: string) {
+  let controller!: ReadableStreamDefaultController<Uint8Array>
+  mockStreamNodeAssistantAPI.mockResolvedValue({
+    success: true,
+    stream: new ReadableStream<Uint8Array>({
+      start(streamController) {
+        controller = streamController
+      },
+    }),
+  })
+
+  const { result } = renderHook(() =>
+    useAssistantConversation({ persist: false }),
+  )
+
+  let sent!: Promise<void>
+  await act(async () => {
+    sent = result.current.send('看看这个', CONTEXT)
+  })
+
+  const frames: string[] = []
+  for (const character of script) {
+    await act(async () => {
+      controller.enqueue(encoder.encode(character))
+    })
+    frames.push(result.current.messages[1]?.content ?? '')
+  }
+
+  await act(async () => {
+    controller.close()
+    await sent
+  })
+
+  return { frames, result }
+}
+
 const CONTEXT: AssistantConversationContext = {
   locale: 'zh',
   selectedNodeIds: ['node-1'],
@@ -136,6 +179,43 @@ describe('useAssistantConversation', () => {
     expect(result.current.messages[1]).toMatchObject({
       content: 'Run it',
       capabilities: [{ capability: 'upscale', nodeId: 'node-1' }],
+    })
+  })
+
+  // 与 2026-08-21 那次（A2 的 `[[ask]]` / `[[next]]`）是同一族事故：剥引用标记的
+  // 正则只认**写完的**标记，于是 `[[node`、`[[capabilit` 这些正在长出来的半截标记
+  // 原样当正文渲染 —— 用户眼看着裸标记在打字机里蹦出来又消失。
+  it('never renders a half-written reference marker while streaming', async () => {
+    const script =
+      '先看这张[[node:node-1]]，再放大[[capability:upscale:node-1]]，就行了。'
+
+    const { frames, result } = await streamAssistantCharacters(script)
+
+    // 脚本正文里一个方括号都没有，所以「任何一帧出现 `[`」= 半截标记漏出去了。
+    expect(frames.filter((frame) => frame.includes('['))).toEqual([])
+    // 防空转：第一帧只有第一个字，说明帧真的是一帧帧读到的。
+    expect(frames[0]).toBe('先')
+    expect(frames.at(-1)).toBe('先看这张，再放大，就行了。')
+
+    expect(result.current.messages[1]).toMatchObject({
+      content: '先看这张，再放大，就行了。',
+      references: [{ nodeId: 'node-1' }],
+      capabilities: [{ capability: 'upscale', nodeId: 'node-1' }],
+    })
+  })
+
+  it('releases a bracket that cannot become a reference marker', async () => {
+    const script = '参考 [1] 那一版就行。'
+
+    const { frames, result } = await streamAssistantCharacters(script)
+
+    // 扣留只针对「还可能长成标记」的尾巴，判定得出来就要立刻放行。⛔ 别把这条改成
+    // 「等流结束再显示」：那会毁掉打字机，而打字机正是「传输与呈现解耦」的落点。
+    expect(frames.some((frame) => frame.includes('[1]'))).toBe(true)
+    expect(result.current.messages[1]).toMatchObject({
+      content: script,
+      references: [],
+      capabilities: [],
     })
   })
 

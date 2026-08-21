@@ -2,6 +2,9 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
+import { RESEARCH_CONCLUSION_BASES } from '@/constants/research'
+import { VISION_TASKS } from '@/constants/vision'
+import { ASSISTANT_SURFACE_IDS } from '@/types/assistant-conversation'
 import {
   CharacterAttributesSchema,
   type CharacterCardRecord,
@@ -11,10 +14,16 @@ import {
   type SourceImageEntry,
   type SourceImageUpload,
 } from '@/types'
+import type {
+  VisionCharacterIdentity,
+  VisionClaim,
+  VisionNamedClaim,
+} from '@/types/vision'
 import {
   llmTextCompletion,
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
+import { analyzeVisual } from '@/services/vision/vision-analyzer.service'
 import {
   mapCharacterCardRow,
   serializeCharacterAttributes,
@@ -26,27 +35,6 @@ import { ensureUser } from '@/services/user.service'
 import { ownedBy } from '@/lib/db-scope'
 
 // ─── System Prompts ────────────────────────────────────────────
-
-const EXTRACT_ATTRIBUTES_SYSTEM_PROMPT = `You are an expert at analyzing anime, game, and illustration characters. Given an image of a character, extract structured attributes as JSON.
-
-Return ONLY valid JSON matching this exact schema (all fields optional strings):
-{
-  "hairColor": "color description",
-  "hairStyle": "style description",
-  "eyeColor": "color description",
-  "skinTone": "tone description",
-  "bodyType": "build description",
-  "outfit": "clothing description",
-  "accessories": "accessories description",
-  "pose": "pose description",
-  "expression": "facial expression",
-  "artStyle": "art style (anime, realistic, etc.)",
-  "colorPalette": "dominant colors",
-  "distinguishingFeatures": "unique features that identify this character",
-  "freeformDescription": "overall character description for generation"
-}
-
-Be specific and detailed. Focus on visually distinctive traits that would help an AI model reproduce this character consistently. Do NOT include background or setting details — focus only on the character.`
 
 // ─── Web Search Enhancement ──────────────────────────────────
 
@@ -110,7 +98,70 @@ async function searchCharacterInfo(
 // ─── Attribute Extraction ──────────────────────────────────────
 
 /**
- * Extract structured character attributes from an image using LLM vision.
+ * `basis:'unknown'` 的槽位**不进属性表**。
+ *
+ * 这是收编时最实质的一处行为变化：属性会被 `buildPromptFromAttributes` 直接拼进
+ * 生成提示词，而「我不知道她的发色」拼进去就变成一句关于发色的胡话。观察不到就
+ * 留空 —— 空字段下游会跳过，编出来的字段下游会当真。
+ */
+function claimValue(
+  claim: VisionClaim | VisionNamedClaim | undefined,
+): string | undefined {
+  if (!claim) return undefined
+  if (claim.basis === RESEARCH_CONCLUSION_BASES.unknown) return undefined
+  return claim.text
+}
+
+/**
+ * Vision Analyzer 的 `character_identity` 观察 → 现有的 `CharacterAttributes` 形状。
+ *
+ * 槽位是一一对应的（`types/vision.ts` 的身份层/可变层就是按这 13 个字段切的），
+ * 所以映射无损。**丢的只有元数据**：每条的 `basis` 和整包的 `uncertainties[]` ——
+ * `CharacterAttributes` 里没有它们的位置，而给它加字段会波及 141 个文件。
+ * 要看依据去读那一行 `ResearchRun`（`analyzeVisual` 已经把它落了）。
+ */
+export function mapVisionIdentityToAttributes(
+  observations: VisionCharacterIdentity,
+): CharacterAttributes {
+  const { identity, variableLayer } = observations
+  const mapped: CharacterAttributes = {
+    hairColor: claimValue(identity.hairColor),
+    hairStyle: claimValue(identity.hairStyle),
+    eyeColor: claimValue(identity.eyeColor),
+    skinTone: claimValue(identity.skinTone),
+    bodyType: claimValue(identity.bodyType),
+    outfit: claimValue(variableLayer.outfit),
+    accessories: claimValue(variableLayer.accessories),
+    pose: claimValue(variableLayer.pose),
+    expression: claimValue(variableLayer.expression),
+    artStyle: claimValue(observations.artStyle),
+    colorPalette: claimValue(identity.colorPalette),
+    distinguishingFeatures: claimValue(identity.distinguishingFeatures),
+    freeformDescription: claimValue(observations.summary),
+  }
+
+  // 过一遍既有 schema：长度上限（发色 50、outfit 300…）由它来裁，
+  // 别在这里复制一套第二份长度规则。
+  const parsed = CharacterAttributesSchema.safeParse(mapped)
+  return parsed.success ? parsed.data : mapped
+}
+
+/**
+ * Extract structured character attributes from an image.
+ *
+ * **收编（切片 2）**：这条链原来自成一路 —— 自己的 system prompt、自己的
+ * `JSON.parse`、自己的「解析失败就把整段原文塞进 freeformDescription」兜底。
+ * 现在它调 Vision Analyzer 的 `character_identity` 任务，于是白拿三件事：
+ * 借路（选了 DeepSeek 也能看图）、结构化校验 + 打回重试一次、每条观察带 `basis`
+ * 并落一行 `ResearchRun`。
+ *
+ * ⚠ **两处行为变化，是有意的**：
+ *  1. 解析失败不再降级成一段自由文本 —— 重试一次仍不合规就抛。原来的兜底会产出
+ *     一张字段全空、只有一段模型碎碎念的角色卡，看起来建成了其实没用。
+ *  2. `basis:'unknown'` 的槽位留空，不再让模型的「大概是」进提示词。
+ *
+ * ⛔ 返回形状与调用方签名一律不变（`CharacterAttributes`），也**不写 CharacterCard**
+ * ——建卡仍然是 `createCharacterCard` 的事（边界 13 角色卡冻结）。
  */
 export async function extractCharacterAttributes(
   clerkId: string,
@@ -118,34 +169,17 @@ export async function extractCharacterAttributes(
   apiKeyId?: string,
 ): Promise<CharacterAttributes> {
   const dbUser = await ensureUser(clerkId)
-  const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
 
-  const raw = await llmTextCompletion({
-    systemPrompt: EXTRACT_ATTRIBUTES_SYSTEM_PROMPT,
-    userPrompt:
-      'Analyze this character image and extract structured attributes as JSON.',
-    imageData,
-    adapterType: route.adapterType,
-    providerConfig: route.providerConfig,
-    apiKey: route.apiKey,
+  const analysis = await analyzeVisual({
+    userId: dbUser.id,
+    // 角色卡没有自己的助手槽位；图片工作台是离它最近的那个域。
+    surface: ASSISTANT_SURFACE_IDS.imageStudio,
+    task: VISION_TASKS.characterIdentity,
+    mediaUrls: [imageData],
+    routeHint: apiKeyId,
   })
 
-  // Parse LLM JSON output — strip markdown fences if present
-  const jsonStr = raw
-    .replace(/```(?:json)?\s*/g, '')
-    .replace(/```\s*/g, '')
-    .trim()
-
-  try {
-    const parsed = JSON.parse(jsonStr)
-    const result = CharacterAttributesSchema.safeParse(parsed)
-    if (result.success) return result.data
-  } catch {
-    // JSON parse failed — fall through to fallback
-  }
-
-  // Fallback: treat entire LLM output as freeform description
-  return { freeformDescription: raw.slice(0, 2000) }
+  return mapVisionIdentityToAttributes(analysis.observations)
 }
 
 /**

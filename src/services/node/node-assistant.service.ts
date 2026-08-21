@@ -34,6 +34,10 @@ import {
   type WebContext,
 } from '@/services/web-research.service'
 import { ensureUser } from '@/services/user.service'
+import {
+  buildReferenceHandles,
+  formatReferenceTag,
+} from '@/lib/assistant-reference-handles'
 import { ApiRequestError } from '@/lib/errors'
 import type {
   NodeAssistantMessage,
@@ -129,16 +133,24 @@ function buildReferenceSummary(
 ): string {
   if (references.length === 0) return 'No image or video references attached.'
 
-  const summary = references
-    .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxReferences)
-    .map((reference) => {
+  const bounded = references.slice(
+    0,
+    NODE_STUDIO_ASSISTANT_LIMITS.maxReferences,
+  )
+  // ⚠ 编号按 kind 各自从 #1 起，和模型实际收到的 imageData[] / videoData[] 对齐。
+  // 以前这里既没有编号、又用 `reference.label` 当标识 —— 而 label 被素材选择器
+  // 填成了 generation 的完整 prompt。owner 2026-08-19 定：**prompt 不喂**。
+  const handles = buildReferenceHandles(bounded)
+  const summary = bounded
+    .map((reference, index) => {
       const poster = reference.thumbnailUrl
         ? `\n  poster: ${reference.thumbnailUrl}`
         : ''
       const origin = reference.nodeId
         ? `canvas node ${reference.nodeId}`
         : (reference.source ?? 'attachment')
-      return `- [${reference.kind}] ${reference.label} (${origin})\n  url: ${reference.url}${poster}`
+      const tag = formatReferenceTag(reference.kind, handles[index] ?? '#?')
+      return `- ${tag} (${origin})\n  url: ${reference.url}${poster}`
     })
     .join('\n')
 

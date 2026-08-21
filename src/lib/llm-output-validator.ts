@@ -210,6 +210,65 @@ export function validateRecipeFusion(
   return { usable: true, output: cleaned, warnings }
 }
 
+// ─── Citation Validation (检索管线 §3.4 第 2 闸) ──────────────────
+
+/** 只认纯数字方括号。markdown 链接 `[text](url)` 天然不匹配。 */
+const CITATION_PATTERN = /\[(\d{1,3})\]/g
+
+/**
+ * 校验回答里的 `[n]` 引用是否都指向证据包内**真实存在**的条目。
+ *
+ * 🔬 **这条闸不是理论担忧，是实测**（切片 0）：开检索后问「这个 YouTube 视频多长」，
+ * 模型拿到 Serper 摘要里的**标题**，就自信报出「19 分 13 秒」（真值 18 分 40 秒）——
+ * 摘要里根本没有时长，是补出来的。无检索时同一题它诚实答「我访问不了这个链接」。
+ * 加检索而不加这道闸，等于把「诚实弃权」换成「自信编造」。
+ *
+ * 幻引用 = 输出不可用 → 调用方按既有结构化重试模式（maxAttempts:2）打回重试。
+ *
+ * @param evidenceCount 证据包条数。0 表示这轮没有证据 —— 此时出现任何 `[n]` 都是编的。
+ */
+export function validateEvidenceCitations(
+  llmOutput: string,
+  evidenceCount: number,
+): LlmValidationResult {
+  const warnings: string[] = []
+  const cited = new Set<number>()
+
+  for (const match of llmOutput.matchAll(CITATION_PATTERN)) {
+    const value = Number.parseInt(match[1] ?? '', 10)
+    if (Number.isFinite(value)) cited.add(value)
+  }
+
+  const phantom = [...cited].filter(
+    (index) => index < 1 || index > evidenceCount,
+  )
+
+  if (phantom.length > 0) {
+    logger.warn('LLM output cited evidence that does not exist', {
+      phantom,
+      evidenceCount,
+      outputLength: llmOutput.length,
+    })
+    return {
+      usable: false,
+      output: '',
+      reason:
+        evidenceCount === 0
+          ? `Output cited [${phantom.join('], [')}] but no evidence was retrieved`
+          : `Output cited [${phantom.join('], [')}] but only [1]-[${evidenceCount}] exist`,
+      warnings,
+    }
+  }
+
+  if (evidenceCount > 0 && cited.size === 0) {
+    // 不打回：有些轮次（打招呼、纯创作）本来就不需要引用。但要留痕 ——
+    // 「拿到了证据却一条都没引」是回答质量下降的早期信号。
+    warnings.push('Evidence was available but the answer cited none of it')
+  }
+
+  return { usable: true, output: llmOutput, warnings }
+}
+
 // ─── Structured Output Validation ───────────────────────────────
 
 export function validateLlmStructuredOutput<TSchema extends z.ZodType>(

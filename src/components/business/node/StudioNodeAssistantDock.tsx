@@ -16,6 +16,7 @@ import { useTranslations } from 'next-intl'
 
 import {
   NODE_STUDIO_ASSISTANT_LIMITS,
+  NODE_STUDIO_ASSISTANT_ROUTE_MODELS,
   NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS,
 } from '@/constants/node-studio'
 import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
@@ -630,6 +631,9 @@ export function StudioNodeAssistantDock({
               <CanvasAssistantRouteSelector
                 value={assistantRoute}
                 onChange={setAssistantRoute}
+                // 画布不选 key 时真的走 gateway（NODE_STUDIO_ASSISTANT.gatewayModelId
+                // = openai/gpt-5.6-sol），所以报这个型号是实话。
+                emptyRouteLabel={NODE_STUDIO_ASSISTANT_ROUTE_MODELS[0].label}
               />
               {isMobile ? (
                 <CanvasAssistantHistory

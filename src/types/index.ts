@@ -25,6 +25,7 @@ import {
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { AI_MODELS, getModelById } from '@/constants/models'
 import { RECIPE_VISIBILITY_VALUES } from '@/constants/prompt-library'
+import { RESEARCH_MODE_VALUES } from '@/constants/research'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import {
   DEFAULT_HUGGINGFACE_LORA_SORT,
@@ -47,6 +48,7 @@ import type {
   AssistantClarifyingQuestion,
   AssistantNextStep,
 } from '@/types/assistant-protocol'
+import type { ResearchReceipt } from '@/types/research'
 import {
   USER_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_UPLOAD_MAX_BYTES,
@@ -2235,6 +2237,127 @@ export const LoraAssistantMountSchema = z.object({
 })
 export type LoraAssistantMount = z.infer<typeof LoraAssistantMountSchema>
 
+// ─── 工作台状态（§3.0b「读」半边） ──────────────────────────────
+//
+// owner 实测三次发作：助手看不到左边工作台，反问用户已经填好的东西，最后甚至让
+// 用户「上传挂载面板截图」——去截一个应用内存里就有的状态。
+//
+// 三个域各自填自己有的字段，服务端一处消费。**故意用一个共享形状而不是三套**：
+// 三套意味着三处格式化、三处截断、三处遗漏，而它们要回答的是同一件事。
+//
+// ⚠ 全部 optional，且 `undefined`（不知道）与显式值（知道，比如「没选模型」）
+// **语义不同** —— 见 `modelSelected`。
+
+export const AssistantWorkbenchLoraMountSchema = z.object({
+  /**
+   * ⚠ 用 `.catch()` 兜住而不是 `.min(1)` 硬拒：挂载栈从 localStorage 读回，
+   * `isValidEntry` 只验 `asset` 存在、不验任何字段，旧版记录可能没有 `name`。
+   * 硬拒的后果是**整条助手请求 400**——一行脏数据掀翻整轮对话。状态块是尽力而为
+   * 的增强，不是关键路径；宁可这一条显示成 (unnamed)，也要让计数和其余条目活着。
+   */
+  name: z.string().trim().min(1).catch('(unnamed)'),
+  /** 角色 / 画风 / 概念…… 助手要靠它判断「这一层归 LoRA 管，别重写」。 */
+  type: z.string().trim().min(1).optional(),
+  triggerWords: z.array(z.string().trim().min(1)).default([]),
+  /** 权重。owner 的原始问题「我挂了两个 LoRA 你能看到吗」点名要的就是它。 */
+  scale: z.number().optional(),
+  /** 挂着但停用 ≠ 生效中 —— 不区分的话助手会把没生效的 LoRA 算进画面归因。 */
+  enabled: z.boolean().optional(),
+  family: z.string().trim().min(1).optional(),
+})
+export type AssistantWorkbenchLoraMount = z.infer<
+  typeof AssistantWorkbenchLoraMountSchema
+>
+
+/**
+ * 最近一批生成的**元数据**（不含像素）。
+ *
+ * ⚠ **只放这一批真正确定的事实**。该批实际用的生成参数（`snapshot.advancedParams`）
+ * 客户端拿不到——列表接口的 select 里没有它。表单里那些值是**当前实时值**，用户
+ * 出图后拖一下滑杆就变了，**不能冒充成「这批用的参数」**。所以参数只出现在
+ * `output`（明确标为当前表单值），不出现在这里。
+ */
+export const AssistantWorkbenchRunSchema = z.object({
+  /** single | compare | variant */
+  mode: z.string().trim().min(1).optional(),
+  /** 这一批发了几个请求 —— 本仓 1 请求 = 1 张，所以也是张数。 */
+  total: z.number().int().nonnegative().optional(),
+  succeeded: z.number().int().nonnegative().optional(),
+  failed: z.number().int().nonnegative().optional(),
+  /** 按模型聚合的计数，避免逐张列。 */
+  byModel: z
+    .array(
+      z.object({
+        model: z.string().trim().min(1),
+        count: z.number().int().positive(),
+      }),
+    )
+    .default([]),
+  /** 该批提交时用的提示词（会被截断，它只是回顾）。 */
+  prompt: z.string().optional(),
+  /** 用户有没有在这批里挑过「最佳」。 */
+  hasSelection: z.boolean().optional(),
+})
+export type AssistantWorkbenchRun = z.infer<typeof AssistantWorkbenchRunSchema>
+
+export const AssistantWorkbenchStateSchema = z.object({
+  /** 编辑器里的正面 / 负面提示词。 */
+  prompt: z.string().optional(),
+  negativePrompt: z.string().optional(),
+  /**
+   * **「没选模型」这个状态本身是信息。**
+   *
+   * 现状是 `modelId: undefined` 同时代表「没选」和「选了但该模型没有 enhance
+   * hint」，两者在系统提示里产出同一段空串——助手因此说不出「你还没选模型」。
+   * 这个布尔把两者拆开：`false` = 明确没选，`undefined` = 该域不适用。
+   */
+  modelSelected: z.boolean().optional(),
+  modelLabel: z.string().trim().min(1).optional(),
+  /** 多模型同发时额外挂了几个。 */
+  extraModelCount: z.number().int().nonnegative().optional(),
+  /** 出图规格 —— **当前表单值**，不是任何一批的历史快照。 */
+  output: z
+    .object({
+      aspectRatio: z.string().trim().min(1).optional(),
+      resolution: z.string().trim().min(1).optional(),
+      batchCount: z.number().int().positive().optional(),
+      durationSeconds: z.number().positive().optional(),
+      videoResolution: z.string().trim().min(1).optional(),
+    })
+    .optional(),
+  /** LoRA 栈明细。空数组 = 明确「一个都没挂」，与 undefined 不同。 */
+  loraMounts: z.array(AssistantWorkbenchLoraMountSchema).optional(),
+  baseModelFamily: z.string().trim().min(1).optional(),
+  baseModelLabel: z.string().trim().min(1).optional(),
+  /** 工作台左侧挂了几张参考图（助手面板自己的附件另算）。 */
+  referenceImageCount: z.number().int().nonnegative().optional(),
+  lastRun: AssistantWorkbenchRunSchema.optional(),
+  /**
+   * 现在**能选**的模型（`[[setup]]` 选模型提案的取值范围）。
+   *
+   * ⚠ 与上面所有字段不同，这一项不是「工作台现在是什么样」，而是「工作台能被
+   * 改成什么样」。加它是因为写回需要它：不告诉模型有哪些 id 可选，它只会编一个
+   * id，chip 于是永远不出现——表现是「这功能坏了」，而不是「模型答错了」。
+   *
+   * 只放**用户真的能跑的**（绑了 key，或该 provider 有 active key）。推荐一个
+   * 跑不了的模型等于把人推去配置页，那不是帮忙。
+   */
+  availableModels: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        label: z.string().trim().min(1),
+      }),
+    )
+    .optional(),
+})
+export type AssistantWorkbenchState = z.infer<
+  typeof AssistantWorkbenchStateSchema
+>
+
+/** 检索三态。值域长在 `constants/research.ts`，这里只做 schema。 */
+export const ResearchModeSchema = z.enum(RESEARCH_MODE_VALUES)
+
 export const LoraAssistantContextSchema = z.object({
   /** LoRAs currently mounted on the generate branch (spine row). */
   mounts: z.array(LoraAssistantMountSchema).default([]),
@@ -2251,10 +2374,15 @@ export const PromptAssistantRequestSchema = z.object({
   messages: z.array(PromptAssistantMessageSchema).min(1),
   /** Current generation model (for model-aware prompt formatting) */
   modelId: z.string().optional(),
-  /** Stable image/video references attached to the latest turn. */
+  /**
+   * Stable image/video references attached to the latest turn.
+   *
+   * ⚠ 卡的是 `maxReferencesPayload`（宽）不是 `maxReferences`（送模型的上限）——
+   * 超出后者的部分由服务端截断并告知，而不是让整轮 400。
+   */
   references: z
     .array(AssistantMediaReferenceSchema)
-    .max(ASSISTANT_MEDIA_LIMITS.maxReferences)
+    .max(ASSISTANT_MEDIA_LIMITS.maxReferencesPayload)
     .optional(),
   /** Studio domain whose live context should guide the conversation. */
   assistantDomain: PromptAssistantDomainSchema.optional(),
@@ -2269,14 +2397,48 @@ export const PromptAssistantRequestSchema = z.object({
   /** When true (and only on the first turn), inject top-3 curated
    *  inspiration prompts as a few-shot reference block. */
   useInspirationContext: z.boolean().optional(),
-  /** When true, answer with live web research (Serper context first,
-   *  provider-native grounding fallback — same policy as the node
-   *  assistant's research turns). */
+  /**
+   * @deprecated 用 `researchMode` —— 布尔表达不了「auto」这个新默认。
+   * `true` 仍等价于 `researchMode:'forced'`；缺省落到 `auto`。
+   */
   research: z.boolean().optional(),
+  /** 检索三态（auto 规划器决定 / forced 手动强制开 / off 完全不打源）。 */
+  researchMode: ResearchModeSchema.optional(),
   /** Opt-in v2 LoRA conversion engine (§2) — only meaningful with
    *  `mode: 'lora'`. Omitting it keeps the legacy `mode:'lora'` behavior. */
   loraContext: LoraAssistantContextSchema.optional(),
 })
+
+/**
+ * 对话轮（流式）的入参。
+ *
+ * 与上面那条的差别是**故意的**：没有 `mode`（这条只服务 `general`）、没有
+ * `loraContext`（结构化 LoRA 转换是另一条路，载荷形态也不同）。少这两个字段就
+ * 少一类「发到流式端点却期待 JSON」的调用。
+ */
+export const PromptAssistantStreamRequestSchema = z.object({
+  messages: z.array(PromptAssistantMessageSchema).min(1),
+  modelId: z.string().optional(),
+  /** 同上：宽口径校验，窄口径截断＋告知。 */
+  references: z
+    .array(AssistantMediaReferenceSchema)
+    .max(ASSISTANT_MEDIA_LIMITS.maxReferencesPayload)
+    .optional(),
+  assistantDomain: PromptAssistantDomainSchema.optional(),
+  currentPrompt: z.string().optional(),
+  apiKeyId: z.string().optional(),
+  responseLanguage: PromptAssistantResponseLanguageSchema.optional(),
+  useInspirationContext: z.boolean().optional(),
+  /** @deprecated 见 `PromptAssistantRequestSchema.research`。 */
+  research: z.boolean().optional(),
+  researchMode: ResearchModeSchema.optional(),
+  /** §3.0b：当前工作台状态。全 optional —— 三个域各填各的。 */
+  workbenchState: AssistantWorkbenchStateSchema.optional(),
+})
+
+export type PromptAssistantStreamRequest = z.infer<
+  typeof PromptAssistantStreamRequestSchema
+>
 
 export type PromptAssistantRequest = z.infer<
   typeof PromptAssistantRequestSchema
@@ -2329,6 +2491,24 @@ export interface PromptAssistantResponseData {
   next?: AssistantNextStep
   /** 出现了完整的协议块但读不出载荷 —— 用来提示而不是静默吞掉。 */
   protocolMalformed?: boolean
+  /**
+   * 检索回执（§3.5「源级回执」）。**只在这一轮真的打过源时出现** —— 规划器判定
+   * 不需要检索、或用户关掉了联网，这个字段就不存在（不是 `grounded:false`，
+   * 那表示打了没拿到，是另一件事）。
+   *
+   * ⚠ 证据本体不在这里，也不进 `AssistantConversation.messages`；消息里只存
+   * `researchRunId`，要看证据从 `ResearchRun` 水合。
+   */
+  research?: ResearchReceipt
+  /**
+   * 这一轮超出 `ASSISTANT_MEDIA_LIMITS.maxReferences` 没能送进模型的附件数。
+   * **只在真丢了才出现**（没丢就没有这个字段，不是 0）。
+   *
+   * 截断本身是合理保护 —— 多传一张不该让整轮失败，所以服务端不抛错。但也不能
+   * 静默：模型侧已经在附件清单里被告知「另有 N 个没给你」，这个字段是**用户侧**
+   * 的那一份。前端的回形针置灰是超限的事前反馈，这条是事后如实告知，不是第二道闸。
+   */
+  droppedReferenceCount?: number
 }
 
 export interface PromptAssistantResponse {
@@ -4201,6 +4381,11 @@ export const CivitaiLoraLibraryResultSchema = z.object({
   // 内容类型合并路径（恒 offset 分页），代理判断失真导致翻页静默失败
   // （按钮不会被禁用，点击只是不生效）；这个字段替换那个不准的代理判断。
   offsetPaginationSupported: z.boolean().optional(),
+  // L2 陈旧兜底：true = 这一页来自服务端快照缓存，因为 Civitai 搜索子系统
+  // 当时不可用。UI 据此显示「离线数据 · X 分钟前」而不是白屏。配套的
+  // stalenessAt 是这份快照最后一次成功从上游取到的时刻（ISO 字符串）。
+  stale: z.boolean().optional(),
+  fetchedAt: z.string().optional(),
 })
 
 export type CivitaiLoraLibraryResult = z.infer<

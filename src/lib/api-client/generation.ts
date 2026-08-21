@@ -6,6 +6,7 @@ import type {
   EnhancePromptRequest,
   EnhancePromptResponse,
   PromptAssistantRequest,
+  PromptAssistantStreamRequest,
   PromptAssistantResponse,
   GenerateRequest,
   GenerateResponse,
@@ -41,7 +42,10 @@ import type {
   VideoStatusResponse,
   VideoSubmitResponse,
 } from '@/types'
+import type { ResearchReceipt } from '@/types/research'
+import { decodeResearchReceiptHeader } from '@/lib/research-receipt'
 import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
+import { RESEARCH_RECEIPT_HEADER } from '@/constants/research'
 
 import {
   downloadRemoteAsset,
@@ -1283,6 +1287,71 @@ export async function chatPromptAssistantAPI(
     }
 
     return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export type PromptAssistantStreamApiResponse =
+  | {
+      success: true
+      stream: ReadableStream<Uint8Array>
+      /**
+       * 检索回执（AI 导演内核切片 1）。`null` = 这一轮没打源。
+       *
+       * 走**响应头**不走流：正文是纯文本，客户端直接当助手的话渲染，往流里插事件
+       * 会让它被念出来。读不出来就当没有 —— 回执坏了不该让一次对话失败。
+       */
+      research: ResearchReceipt | null
+    }
+  | { success: false; error: string; errorCode?: string; i18nKey?: string }
+
+/**
+ * 对话轮：拿到的是流，不是解析好的载荷。协议块抽取归客户端
+ * （`lib/assistant-protocol-blocks.ts`），因为只有客户端知道流有没有结束。
+ */
+export async function streamPromptAssistantAPI(
+  params: PromptAssistantStreamRequest,
+): Promise<PromptAssistantStreamApiResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.PROMPT_ASSISTANT_STREAM, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Assistant failed with status ${response.status}`,
+      )
+      return {
+        success: false,
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
+      }
+    }
+
+    if (!response.body) {
+      return {
+        success: false,
+        error: 'Assistant returned an empty stream',
+        errorCode: 'EMPTY_STREAM',
+      }
+    }
+
+    return {
+      success: true,
+      stream: response.body,
+      research: decodeResearchReceiptHeader(
+        response.headers.get(RESEARCH_RECEIPT_HEADER),
+      ),
+    }
   } catch (error) {
     return {
       success: false,

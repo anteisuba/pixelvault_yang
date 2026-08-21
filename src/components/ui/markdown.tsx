@@ -24,7 +24,12 @@ function extractLanguage(className?: string): string {
   return match ? match[1] : 'plaintext'
 }
 
-const INITIAL_COMPONENTS: Partial<Components> = {
+/**
+ * 默认的组件覆盖表。**导出是为了让调用方能在它之上叠加而不是替换掉它** ——
+ * `components` prop 一旦传入就整体接管，只传自己那几个的结果是 code/pre
+ * 悄悄退回裸 HTML（长提示词的横向滚动就是靠 `CodeBlock` 兜的）。
+ */
+export const INITIAL_COMPONENTS: Partial<Components> = {
   code: function CodeComponent({ className, children, ...props }) {
     const isInline =
       !props.node?.position?.start.line ||

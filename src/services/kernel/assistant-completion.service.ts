@@ -3,6 +3,7 @@ import 'server-only'
 import {
   isLlmTextContextLimitError,
   llmTextCompletion,
+  llmTextStream,
   type LlmTextInput,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
@@ -149,5 +150,58 @@ export async function completeAssistantTextWithContextRetry({
     const compactedPrompt = buildUserPrompt(contextCompactionTargetLength)
     if (compactedPrompt === fullPrompt) throw error
     return complete(compactedPrompt)
+  }
+}
+
+/**
+ * 流式版，策略与上面那条一致：先发全量上下文，**只有** provider 明确报输入超限
+ * 才压缩重试一次。
+ *
+ * ⚠ **已经吐出过字就绝不重试**（照搬画布 gateway 分支用真机换来的规则）：重试会把
+ * 同一段开场白再流一遍，用户看到的是重复的半截话。超上下文这种错必然发生在任何
+ * 可见输出之前，所以「吐过字」等价于「这个错不是超上下文」，直接抛。
+ */
+export async function* streamAssistantTextWithContextRetry({
+  systemPrompt,
+  buildUserPrompt,
+  route,
+  contextCompactionTargetLength,
+  modelId,
+  imageData,
+  videoData,
+  useGrounding,
+  responseFormat,
+}: CompleteAssistantTextOptions): AsyncIterable<string> {
+  const stream = (userPrompt: string) =>
+    llmTextStream({
+      systemPrompt,
+      userPrompt,
+      modelId,
+      imageData,
+      videoData,
+      adapterType: route.adapterType,
+      providerConfig: route.providerConfig,
+      apiKey: route.apiKey,
+      useGrounding,
+      providerManagedOutput: true,
+      promptGuardMaxLength: null,
+      responseFormat,
+    })
+
+  const fullPrompt = buildUserPrompt()
+  let emittedText = false
+
+  try {
+    for await (const chunk of stream(fullPrompt)) {
+      emittedText = true
+      yield chunk
+    }
+    return
+  } catch (error) {
+    if (emittedText || !isLlmTextContextLimitError(error)) throw error
+
+    const compactedPrompt = buildUserPrompt(contextCompactionTargetLength)
+    if (compactedPrompt === fullPrompt) throw error
+    yield* stream(compactedPrompt)
   }
 }

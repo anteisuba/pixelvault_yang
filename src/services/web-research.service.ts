@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { URL_READER, WEB_SEARCH } from '@/constants/web-search'
 import { assertSafeUrl } from '@/lib/url-guard'
 import { logger } from '@/lib/logger'
+import { extractUrlsFromText, stripUrls } from '@/lib/research-intent'
 import { withRetry } from '@/lib/with-retry'
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -13,6 +14,12 @@ export interface WebSearchResult {
   title: string
   url: string
   snippet: string
+  /**
+   * Serper 给的结果日期（只有部分结果带）。**新鲜度那道闸要它**：
+   * 「查于 X 小时前」说的是抓取时刻，「这条内容是哪天的」是另一件事，
+   * 两者都得有，证据冲突时才呈现得出「两说 + 各自日期」。
+   */
+  date?: string
 }
 
 export interface FetchedPage {
@@ -34,28 +41,13 @@ const SerperResponseSchema = z.object({
         title: z.string().optional(),
         link: z.string().optional(),
         snippet: z.string().optional(),
+        date: z.string().optional(),
       }),
     )
     .optional(),
 })
 
 // ─── Helpers ─────────────────────────────────────────────────────
-
-const URL_PATTERN = /https?:\/\/[^\s<>"')]+/gi
-
-function extractUrls(text: string): string[] {
-  const matches = text.match(URL_PATTERN) ?? []
-  const seen = new Set<string>()
-  const urls: string[] = []
-  for (const raw of matches) {
-    // Trim trailing punctuation the URL regex greedily swallowed.
-    const url = raw.replace(/[.,;]+$/, '')
-    if (seen.has(url)) continue
-    seen.add(url)
-    urls.push(url)
-  }
-  return urls.slice(0, URL_READER.maxUrlsPerTurn)
-}
 
 function markStatus(error: Error, status: number): Error {
   ;(error as { status?: number }).status = status
@@ -75,7 +67,16 @@ export function isWebSearchConfigured(): boolean {
  */
 export async function webSearch(
   query: string,
-  options: { includeDomains?: string[]; num?: number } = {},
+  options: {
+    includeDomains?: string[]
+    num?: number
+    /**
+     * Google 时间过滤（Serper 直通 `tbs`）。🔬 `qdr:w` 实测生效。
+     * 只在「最新/今天/几号」这类时效意图上给值 —— 一律加时间窗会把稳定事实
+     * 也过滤没了。取值走 `SERPER_TBS_BY_FRESHNESS`，别在调用点硬编码。
+     */
+    tbs?: string
+  } = {},
 ): Promise<WebSearchResult[]> {
   const apiKey = process.env.SERPER_API_KEY
   if (!apiKey) {
@@ -100,7 +101,11 @@ export async function webSearch(
             'X-API-KEY': apiKey,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ q, num }),
+          body: JSON.stringify({
+            q,
+            num,
+            ...(options.tbs ? { tbs: options.tbs } : {}),
+          }),
           signal: AbortSignal.timeout(WEB_SEARCH.timeoutMs),
         })
         if (!response.ok) {
@@ -120,6 +125,7 @@ export async function webSearch(
         title: entry.title ?? '',
         url: entry.link ?? '',
         snippet: (entry.snippet ?? '').slice(0, WEB_SEARCH.maxSnippetLength),
+        ...(entry.date ? { date: entry.date } : {}),
       }))
   } catch (error) {
     logger.warn('webSearch failed', {
@@ -196,11 +202,8 @@ export async function readUrl(rawUrl: string): Promise<FetchedPage | null> {
  * provider-native grounding or the model's own knowledge.
  */
 export async function gatherWebContext(query: string): Promise<WebContext> {
-  const urls = extractUrls(query)
-  const searchQuery = query
-    .replace(URL_PATTERN, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  const urls = extractUrlsFromText(query, URL_READER.maxUrlsPerTurn)
+  const searchQuery = stripUrls(query)
 
   const [pages, results] = await Promise.all([
     Promise.all(urls.map(readUrl)).then((list) =>

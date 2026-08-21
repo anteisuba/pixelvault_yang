@@ -34,6 +34,8 @@ import type { NodeAssistantRouteSelection } from '@/components/business/node/Can
 import { AssistantAskedLog } from '@/components/business/prompts/AssistantAskedLog'
 import { AssistantTurnOptions } from '@/components/business/prompts/AssistantTurnOptions'
 import { PromptAssistantLoraResultCard } from '@/components/business/prompts/PromptAssistantLoraResultCard'
+import { ResearchReceiptCard } from '@/components/business/prompts/ResearchReceiptCard'
+import { buildResearchCitationComponents } from '@/components/business/prompts/ResearchRunEvidence'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -47,7 +49,10 @@ import {
   assistantAdapterSupportsMedia,
   ASSISTANT_MEDIA_LIMITS,
 } from '@/constants/assistant'
+import { isAspectRatio } from '@/constants/config'
 import { LORA_ASSISTANT_ERROR_CODES } from '@/constants/lora-assistant'
+import { RESEARCH_MODES, type ResearchMode } from '@/constants/research'
+import { isImageBatchCount } from '@/constants/studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   STYLE_SHORTCUTS,
@@ -56,14 +61,17 @@ import {
 } from '@/hooks/kernel/use-prompt-assistant'
 import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
 import type { AssistantAskedPair } from '@/types/assistant-protocol'
+import { buildReferenceHandles } from '@/lib/assistant-reference-handles'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import type {
+  AssistantWorkbenchState,
   LoraAssistantMount,
   PromptAssistantDomain,
   PromptAssistantResponseLanguage,
 } from '@/types'
 import type { AssistantMediaReference } from '@/types/assistant-media'
+import type { AssistantWriteback } from '@/types/assistant-writeback'
 
 const RESPONSE_LANGUAGE_OPTIONS: {
   value: PromptAssistantResponseLanguage
@@ -105,6 +113,14 @@ export interface PromptAssistantLoraPersona {
   mounts: LoraAssistantMount[]
   baseFamily?: string
   trayTags: string[]
+  /**
+   * LoRA 结果卡的「追加」——追加的是 **tag 数组**，累加 tag 是正常用法。
+   *
+   * ⚠ 与 `writeback.appendPrompt` 不是一回事：那个追加的是一整段成品提示词
+   * （owner 2026-08-20 拍板第 4 条请回来的那个，语义是「不想被覆盖时的另一条
+   * 路」）。两者都叫「追加」但追加的东西不同，别合并。
+   */
+  onAppendPrompt: (text: string) => void
   onUseNegativePrompt: (text: string) => void
   onAppendNegativePrompt: (text: string) => void
   onEscapeToSelfBuild: () => void
@@ -117,14 +133,31 @@ export interface PromptAssistantPanelProps {
   referenceImageData?: string
   assistantDomain?: PromptAssistantDomain
   llmApiKeys?: { id: string; label: string }[]
-  onUsePrompt: (prompt: string) => void
-  onAppendPrompt?: (prompt: string) => void
+  /**
+   * 写回适配器。**一个对象而不是六个松散回调** —— 见
+   * `types/assistant-writeback.ts`：缺席是按宿主写死的结构性缺席
+   * （视频 6 项 / 图片 5 项 / 音频 5 项 / LoRA ≤3 项），六个可选 prop 表达不了
+   * 「这一档没有」和「宿主漏传了」的区别，而后者恰好在 `workbenchState` 上
+   * 真实发生过一整轮没人发现。
+   */
+  writeback: AssistantWriteback
   onClose?: () => void
   onSessionIdChange?: (sessionId: string | null) => void
   injectedReference?: { url: string; token: number }
   loraPersona?: PromptAssistantLoraPersona
   assistantRoute?: NodeAssistantRouteSelection
-  researchEnabled?: boolean
+  /**
+   * 联网检索三态。**替代了旧的 `researchEnabled: boolean`** —— 那个布尔在服务端
+   * 落到 `auto`/`forced` 两态，`off` 表达不出来，用户因此没有关闭手段。
+   * 缺省 `auto`：规划器按意图决定要不要打源。
+   */
+  researchMode?: ResearchMode
+  /**
+   * §3.0b：当前工作台状态。**由宿主构造后传进来，本组件不读任何 studio context**
+   * —— 同一个面板还被 `/studio/lora` 和 `/prompts` 复用，那两处在 StudioProvider
+   * 外面，直接 useStudioForm() 会抛。
+   */
+  workbenchState?: AssistantWorkbenchState
 }
 
 function createReferenceId(prefix: string): string {
@@ -136,13 +169,13 @@ export function PromptAssistantPanel({
   modelId,
   referenceImageData,
   assistantDomain,
-  onUsePrompt,
-  onAppendPrompt,
+  writeback,
   onSessionIdChange,
   injectedReference,
   loraPersona,
   assistantRoute,
-  researchEnabled = false,
+  researchMode = RESEARCH_MODES.auto,
+  workbenchState,
 }: PromptAssistantPanelProps) {
   const t = useTranslations('PromptAssistant')
   const tModels = useTranslations('Models')
@@ -156,6 +189,8 @@ export function PromptAssistantPanel({
     messages,
     sessionId,
     isLoading,
+    isThinking,
+    researchPending,
     error,
     errorCode,
     send,
@@ -248,8 +283,9 @@ export function PromptAssistantPanel({
       assistantDomain: effectiveDomain,
       apiKeyId: selectedApiKeyId,
       responseLanguage,
-      research: researchEnabled,
+      researchMode,
       loraContext,
+      workbenchState,
     }),
     [
       currentPrompt,
@@ -257,9 +293,10 @@ export function PromptAssistantPanel({
       loraContext,
       modelId,
       references,
-      researchEnabled,
+      researchMode,
       responseLanguage,
       selectedApiKeyId,
+      workbenchState,
     ],
   )
 
@@ -321,6 +358,9 @@ export function PromptAssistantPanel({
           ),
     )
   }, [])
+
+  // 序号从位置推导，不存进 reference —— 删掉中间一张后编号必须自动重排。
+  const referenceHandles = buildReferenceHandles(references)
 
   const removeReference = useCallback((referenceId: string) => {
     setReferences((current) =>
@@ -420,8 +460,8 @@ export function PromptAssistantPanel({
                     negative={message.lora.negative}
                     note={message.lora.note}
                     hasMounts={loraPersona.mounts.length > 0}
-                    onFillPrompt={onUsePrompt}
-                    onAppendPrompt={onAppendPrompt ?? (() => {})}
+                    onFillPrompt={writeback.prompt.apply}
+                    onAppendPrompt={loraPersona.onAppendPrompt}
                     onFillNegativePrompt={loraPersona.onUseNegativePrompt}
                     onAppendNegativePrompt={loraPersona.onAppendNegativePrompt}
                     onStageForReview={loraPersona.onStageForReview}
@@ -429,10 +469,8 @@ export function PromptAssistantPanel({
                 ) : (
                   <MessageBubble
                     message={message}
-                    onUsePrompt={onUsePrompt}
-                    onAppendPrompt={onAppendPrompt}
-                    useLabel={t('usePrompt')}
-                    appendLabel={t('appendPrompt')}
+                    writeback={writeback}
+                    isLastTurn={isLastTurn}
                     copyLabel={t('copyPrompt')}
                     copiedLabel={t('copied')}
                   />
@@ -442,7 +480,18 @@ export function PromptAssistantPanel({
             )
           })}
 
-          {isLoading ? (
+          {/* 「检索中」过渡态。⚠ 只有 `forced` 档会亮 —— `auto` 档要不要打源
+              由服务端当轮决定，客户端在响应头到达之前无从得知，给每一轮都亮
+              等于让不检索的那些轮先撒一次谎再默默收回。 */}
+          {researchPending ? (
+            <Message className="justify-start">
+              <ResearchReceiptCard pending />
+            </Message>
+          ) : null}
+
+          {/* 只在**第一个字出现之前**转圈。文字开始长出来之后还挂着「思考中…」，
+              读起来像卡住了 —— 那时候正在发生的事是「在写」，不是「在想」。 */}
+          {isThinking ? (
             <Message className="justify-start">
               <div className="flex items-center gap-2 rounded-xl bg-secondary p-2 text-sm text-muted-foreground">
                 <Spinner size="sm" />
@@ -518,13 +567,15 @@ export function PromptAssistantPanel({
         <div className="overflow-hidden rounded-xl bg-background/90">
           {references.length > 0 ? (
             <div className="flex gap-2 overflow-x-auto border-b border-border/50 p-2">
-              {references.map((reference) => {
+              {references.map((reference, index) => {
                 const Icon = reference.kind === 'video' ? Video : ImageIcon
+                // 用户看得到 #n 才说得出 #n —— 提示词里的清单用的是同一个字符串。
+                const handle = referenceHandles[index] ?? ''
                 return (
                   <div
                     key={reference.id}
                     className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted"
-                    title={reference.label}
+                    title={`${handle} · ${reference.label}`}
                   >
                     {reference.thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- remote user media preview
@@ -538,8 +589,9 @@ export function PromptAssistantPanel({
                         <Icon className="size-5" />
                       </span>
                     )}
-                    <span className="absolute bottom-1 left-1 rounded bg-background/85 p-1 text-muted-foreground">
+                    <span className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded bg-background/85 px-1 py-0.5 text-[10px] leading-none text-muted-foreground">
                       <Icon className="size-3" />
+                      {handle}
                     </span>
                     <button
                       type="button"
@@ -644,22 +696,31 @@ export function PromptAssistantPanel({
 
 function MessageBubble({
   message,
-  onUsePrompt,
-  onAppendPrompt,
-  useLabel,
-  appendLabel,
+  writeback,
+  isLastTurn,
   copyLabel,
   copiedLabel,
 }: {
   message: PromptAssistantDisplayMessage
-  onUsePrompt: (prompt: string) => void
-  onAppendPrompt?: (prompt: string) => void
-  useLabel: string
-  appendLabel: string
+  writeback: AssistantWriteback
+  /**
+   * 是不是最后一轮。**用来决定动作条默认展开还是收起** —— 面板挂载会自动水合
+   * 上一段会话，老用户的首帧不是空态而是一屏历史消息；若每条都把配置盒摊开，
+   * 首屏就是一列盒子墙（切片 S4 的密度决定）。
+   */
+  isLastTurn: boolean
   copyLabel: string
   copiedLabel: string
 }) {
   const [copied, setCopied] = useState(false)
+  // 正文里的 `[n]` 变可点。⚠ 每条消息一份（闭包住自己的 runId）—— 一条回答的
+  // 引用只能指向**它那次检索**的证据包，跨消息共用一份组件表会让 `[1]` 指到
+  // 别的 run 上去。`useMemo` 在这里不只是省渲染：`components` 每帧换新对象会
+  // 让整棵 markdown 树重挂，打字机效果直接抖掉。
+  const citationComponents = useMemo(
+    () => buildResearchCitationComponents(message.researchRunId),
+    [message.researchRunId],
+  )
 
   if (message.role === 'user') {
     return (
@@ -713,6 +774,13 @@ function MessageBubble({
   return (
     <Message className="justify-start">
       <div className="max-w-[95%] space-y-2">
+        {/* 检索回执长在回答**上方**：先说「这些话是从哪儿来的」，再说话。
+            ⚠ 回执整体缺席（两个字段都没有）= 这轮没检索 → 卡片自己返回 null，
+            不要在这里用 `grounded` 之类的字段去猜。 */}
+        <ResearchReceiptCard
+          receipt={message.research}
+          runId={message.researchRunId}
+        />
         <div className="flex items-start gap-2">
           <Bot className="mt-1 size-4 shrink-0 text-primary" />
           {/* `min-w-0`：`ui/code-block` 的 `overflow-x-auto` 只有在能被压窄时才
@@ -721,41 +789,21 @@ function MessageBubble({
               clientWidth 318）。修在这里而不是那个共享原语上 —— 它全站在用。 */}
           <MessageContent
             markdown
+            components={citationComponents}
             className="min-w-0 bg-secondary/60 text-sm leading-6"
           >
             {message.content}
           </MessageContent>
         </div>
-        <div className="flex flex-wrap gap-1.5 pl-6">
-          {/* A2：档 1 的回复是一段提问，不是提示词。「填入/追加」照旧显示的话，
-              点下去会把整段对话灌进提示词框 —— 协议一上线这个按钮就从「总是对」
-              变成了「对话轮次里总是错」。复制保留：复制一段对话文本没有歧义。 */}
-          {message.ask?.length ? null : (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => onUsePrompt(message.content)}
-                className="h-7 gap-1.5 rounded-full px-3 text-xs"
-              >
-                <Check className="size-3" />
-                {useLabel}
-              </Button>
-              {onAppendPrompt ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onAppendPrompt(message.content)}
-                  className="h-7 gap-1.5 rounded-full px-3 text-xs"
-                >
-                  <Plus className="size-3" />
-                  {appendLabel}
-                </Button>
-              ) : null}
-            </>
-          )}
+        <MessageActionBar
+          message={message}
+          writeback={writeback}
+          defaultExpanded={isLastTurn}
+        />
+        {/* 第三档：次要样式，**不是 hover 才出现**（切片 S5）——移动端宿主是纯
+            触屏的，hover-only 在那一档等于把复制从可达变成不可达。桌面 hover /
+            键盘 focus 时升到实色，触屏恒定可见的淡描边。 */}
+        <div className="group/actions flex flex-wrap gap-1.5 pl-6">
           <Button
             type="button"
             variant="outline"
@@ -773,5 +821,279 @@ function MessageBubble({
         </div>
       </div>
     </Message>
+  )
+}
+
+// ─── 动作条（方向 A · owner 2026-08-20 拍板）────────────────────────
+//
+// 三档层级取代原来那排等权重 chip：
+//   ① 主动作  —— 实心。`[[prompt]]` 的 positive（＋「追加」）。
+//   ② 配置盒  —— 「当前 → 建议」逐行，右侧一个「应用」。
+//   ③ 第三档  —— 复制 / 引用（在 MessageBubble 里，次要样式）。
+//
+// ⚠ 三条来自切片、别在实现时想当然改掉的判据：
+//   · 「已应用」**是算出来的不是存下来的**（`isApplied` 当场比值）。用户手改
+//     表单后它自动失效、撤销随之收起——绝不拿旧快照抹掉用户后写的内容。
+//   · 主动作**可以缺席**（`[[setup]]` 在档 2 就成立），那时配置盒里第一条可用
+//     项升为实心；层级靠「有且只有一个实心」建立，不靠固定位置。
+//   · 缺席原因只说第 ① 类（宿主没这个能力）。②目录查不到 / ③收窄失败 /
+//     ④模型这轮没给 一律静默——区分 ② 要改数据契约，挡在这一轮之外。
+
+interface ActionRow {
+  key: string
+  labelKey: string
+  current?: string
+  proposed: string
+  apply?: () => void
+  isApplied: boolean
+  undo?: () => void
+  noteKey?: string
+  unavailableKey?: string
+}
+
+function MessageActionBar({
+  message,
+  writeback,
+  defaultExpanded,
+}: {
+  message: PromptAssistantDisplayMessage
+  writeback: AssistantWriteback
+  defaultExpanded: boolean
+}) {
+  const t = useTranslations('PromptAssistant')
+  const tModels = useTranslations('Models')
+  const [expanded, setExpanded] = useState(defaultExpanded)
+
+  const draft = message.promptDraft
+  const setup = message.setup
+  const rows: ActionRow[] = []
+
+  const negative = draft?.negative
+  if (negative && writeback.negative) {
+    const field = writeback.negative
+    rows.push({
+      key: 'negative',
+      labelKey: 'rowNegative',
+      current: field.current,
+      proposed: negative,
+      isApplied: field.isApplied(negative),
+      ...(field.unavailableReason
+        ? { unavailableKey: field.unavailableReason }
+        : { apply: () => field.apply(negative), undo: field.undo }),
+    })
+  }
+
+  // ⚠ 模型可以吐 `21:9` / `widescreen`，收窄不过就不出这一行。
+  const ratio = draft?.aspectRatio
+  if (ratio && isAspectRatio(ratio) && writeback.aspectRatio) {
+    const field = writeback.aspectRatio
+    rows.push({
+      key: 'ratio',
+      labelKey: 'rowRatio',
+      current: field.current,
+      proposed: ratio,
+      apply: () => field.apply(ratio),
+      isApplied: field.isApplied(ratio),
+      undo: field.undo,
+    })
+  }
+
+  // ⚠ 目录里查不到就不渲染（`resolveModelLabel` 返回 null）。
+  const modelId = setup?.model
+  if (modelId && writeback.model && writeback.resolveModelLabel?.(modelId)) {
+    const field = writeback.model
+    const note = field.noteFor?.(modelId)
+    rows.push({
+      key: 'model',
+      labelKey: 'rowModel',
+      current: field.current,
+      proposed: getTranslatedModelLabel(tModels, modelId),
+      apply: () => field.apply(modelId),
+      isApplied: field.isApplied(modelId),
+      undo: field.undo,
+      ...(note ? { noteKey: note } : {}),
+    })
+  }
+
+  // ⚠ 合法档位只有 1/2/4，`3` 不出这一行。
+  const batchCount = setup?.batchCount
+  if (
+    typeof batchCount === 'number' &&
+    isImageBatchCount(batchCount) &&
+    writeback.batchCount
+  ) {
+    const field = writeback.batchCount
+    rows.push({
+      key: 'batch',
+      labelKey: 'rowBatch',
+      current: field.current,
+      proposed: String(batchCount),
+      apply: () => field.apply(batchCount),
+      isApplied: field.isApplied(batchCount),
+      undo: field.undo,
+    })
+  }
+
+  const positive = draft?.positive
+  const promptApplied = positive ? writeback.prompt.isApplied(positive) : false
+  if (!positive && rows.length === 0) return null
+
+  // 主动作缺席时，配置盒里第一条可用项升为实心。
+  const promotedKey = positive ? undefined : rows.find((r) => r.apply)?.key
+  const actionable = rows.filter((r) => !r.unavailableKey).length
+  const anyApplied = promptApplied || rows.some((r) => r.isApplied)
+
+  return (
+    <div className="flex flex-col gap-2 pl-6">
+      {/* ⚠ 「就地变已应用」对读屏用户等于什么都没发生（切片 S6）。 */}
+      <span aria-live="polite" className="sr-only">
+        {anyApplied ? t('applied') : ''}
+      </span>
+
+      {positive ? (
+        promptApplied ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-status-applied-surface px-3 text-xs font-medium text-status-applied">
+              <Check className="size-3.5" />
+              {t('applied')}
+            </span>
+            {writeback.prompt.undo ? (
+              <button
+                type="button"
+                onClick={writeback.prompt.undo}
+                aria-label={t('undoApplyAria', { action: t('usePrompt') })}
+                className="text-xs text-muted-foreground underline underline-offset-[3px] hover:text-foreground"
+              >
+                {t('undoApply')}
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => writeback.prompt.apply(positive)}
+              className="h-8 gap-1.5 rounded-full px-3.5 text-xs"
+            >
+              <Check className="size-3.5" />
+              {t('usePrompt')}
+            </Button>
+            {/* owner 2026-08-20 第 4 条翻案：「追加」回来了。语义是「不想被覆盖
+                时的另一条路」——撤销的前提是值没被人动过，手改之后就只剩它。 */}
+            {writeback.appendPrompt ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => writeback.appendPrompt?.(positive)}
+                className="h-8 gap-1.5 rounded-full px-3 text-xs"
+              >
+                <Plus className="size-3.5" />
+                {t('appendPrompt')}
+              </Button>
+            ) : null}
+          </div>
+        )
+      ) : null}
+
+      {/* ② 配置盒。owner 拍板第 1 条：**0 项也画外框**。 */}
+      {rows.length > 0 ? (
+        <div className="rounded-xl border border-border bg-card/40">
+          <div className="flex items-center gap-2 px-2.5 pb-1 pt-2">
+            <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              {t('actionsHeading')}
+            </span>
+            {/* ⚠ 历史消息默认收起：面板挂载会水合上一段会话，老用户首帧是一屏
+                历史；每条都摊开配置盒，首屏就是一列盒子墙（切片 S4）。 */}
+            {!expanded && actionable > 0 ? (
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="ml-auto text-[11px] text-muted-foreground underline underline-offset-[3px] hover:text-foreground"
+              >
+                {t('moreSuggestions', { count: actionable })}
+              </button>
+            ) : null}
+          </div>
+          {expanded ? (
+            <ul className="flex flex-col">
+              {rows.map((row) => (
+                <li
+                  key={row.key}
+                  className="flex min-h-8 items-center gap-2 border-t border-border/60 px-2.5 py-1 first:border-t-0"
+                >
+                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                    {t(row.labelKey)}
+                  </span>
+                  {row.unavailableKey ? (
+                    /* 缺席原因第 ① 类。⚠ 不能靠把灰调更浅表达「不可用」——
+                       那个灰只有 2.81:1（切片 S6），改由删除线承担。 */
+                    <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground line-through">
+                      {t(row.unavailableKey)}
+                    </span>
+                  ) : (
+                    <>
+                      {/* ⚠ 配置行永不折行：挤不下就砍信息。第一个被砍的是
+                          「当前 →」，最窄档整段消失（切片 S4）。 */}
+                      {row.current ? (
+                        <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:inline">
+                          {row.current} →
+                        </span>
+                      ) : null}
+                      <span className="min-w-0 flex-1 truncate text-[11px] font-medium">
+                        {row.proposed}
+                      </span>
+                      {row.isApplied ? (
+                        <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-status-applied">
+                          <Check className="size-3" />
+                          {t('applied')}
+                          {row.undo ? (
+                            <button
+                              type="button"
+                              onClick={row.undo}
+                              aria-label={t('undoApplyAria', {
+                                action: t(row.labelKey),
+                              })}
+                              className="ml-1 text-muted-foreground underline underline-offset-[3px] hover:text-foreground"
+                            >
+                              {t('undoApply')}
+                            </button>
+                          ) : null}
+                        </span>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant={
+                            promotedKey === row.key ? 'default' : 'outline'
+                          }
+                          size="xs"
+                          onClick={row.apply}
+                          className="shrink-0 rounded-full"
+                        >
+                          {t('apply')}
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </li>
+              ))}
+              {/* owner 拍板第 3 条：换模型撞上多模型对比名单要提示——目标模型
+                  已在名单里时，运行名单去重会让这一轮静默少跑一条。 */}
+              {rows.map((row) =>
+                row.noteKey && !row.isApplied ? (
+                  <li
+                    key={`${row.key}-note`}
+                    className="border-t border-border/60 px-2.5 py-1.5 text-[11px] leading-4 text-status-risk"
+                  >
+                    {t(row.noteKey)}
+                  </li>
+                ) : null,
+              )}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   )
 }

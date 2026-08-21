@@ -3,6 +3,7 @@
 import { memo, useState } from 'react'
 import {
   BookmarkPlus,
+  Bot,
   Download,
   GripHorizontal,
   ImagePlus,
@@ -18,6 +19,7 @@ import { toast } from 'sonner'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 
 import { useStudioGen, useStudioForm } from '@/contexts/studio-context'
+import { useAskAssistantAboutImage } from '@/hooks/use-ask-assistant-about-image'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { AudioPlayer } from '@/components/ui/audio-player'
 import VideoPlayer from '@/components/business/VideoPlayer'
@@ -99,6 +101,8 @@ export const GenerationPreview = memo(function GenerationPreview({
   const t = useTranslations('StudioV3')
   const tModels = useTranslations('Models')
   const isMobile = useIsMobile()
+  // §3.0b 第 4 条：把这张结果图作为附件引用进助手对话（不自动发送、不自动喂图）。
+  const askAssistantAboutImage = useAskAssistantAboutImage()
   const [detailOpen, setDetailOpen] = useState(false)
   const [toolDrawerOpen, setToolDrawerOpen] = useState(false)
   const generatingStageKey = getGeneratingStageKey(elapsedSeconds)
@@ -488,6 +492,17 @@ export const GenerationPreview = memo(function GenerationPreview({
           variant={variant}
         />
       )}
+      {/* §3.0b 第 4 条「引用对象扩展到生成图」：点一下把这张图挂进助手输入区。
+          ⚠ 只给 IMAGE —— 视频/音频的像素级引用要另一条能力（且 vision 借路只
+          吃图），在这里放一个点了会失败的按钮比没有更糟。 */}
+      {generation && generation.outputType === 'IMAGE' && generation.url ? (
+        <CanvasToolButton
+          icon={Bot}
+          label={t('toolAskAssistant')}
+          onClick={() => askAssistantAboutImage(generation.url)}
+          variant={variant}
+        />
+      ) : null}
       {onSaveRecipe && generation && (
         <CanvasToolButton
           icon={BookmarkPlus}

@@ -24,6 +24,9 @@ const mockNextPage = vi.hoisted(() => vi.fn())
 const mockPreviousPage = vi.hoisted(() => vi.fn())
 const mockSelectItem = vi.hoisted(() => vi.fn())
 const mockSetSearch = vi.hoisted(() => vi.fn())
+// 回车 / 点搜索按钮才检索——手写镜像漏了这两个，用例一按回车就调到 undefined。
+const mockSubmitSearch = vi.hoisted(() => vi.fn())
+const mockCommitSearchTerm = vi.hoisted(() => vi.fn())
 const mockSetSort = vi.hoisted(() => vi.fn())
 const mockSetBaseModel = vi.hoisted(() => vi.fn())
 const mockSetNsfwFilter = vi.hoisted(() => vi.fn())
@@ -48,6 +51,9 @@ let mockLibraryIsRevalidating = false
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
     `${namespace}:${key}`,
+  // CivitaiCommunityBranch 用它渲染降级横幅里的「X 分钟前」。手写镜像 mock
+  // 漏一个导出不是漏一条断言——组件渲染直接抛，整个文件集体红。
+  useFormatter: () => ({ relativeTime: () => 'relative-time' }),
 }))
 
 vi.mock('sonner', () => ({
@@ -213,6 +219,8 @@ describe('LoraWorkbench CivitaiCommunityBranch — single-column flow + in-place
       isRevalidating: false,
       error: null,
       setSearch: vi.fn(),
+      submitSearch: mockSubmitSearch,
+      commitSearchTerm: mockCommitSearchTerm,
       setBaseModelFamily: vi.fn(),
       setSort: vi.fn(),
       setContentType: mockSetContentType,
@@ -268,6 +276,8 @@ describe('LoraWorkbench CivitaiCommunityBranch — single-column flow + in-place
       },
       contentType: 'all',
       setSearch: mockSetSearch,
+      submitSearch: mockSubmitSearch,
+      commitSearchTerm: mockCommitSearchTerm,
       setSort: mockSetSort,
       setBaseModel: mockSetBaseModel,
       setNsfwFilter: mockSetNsfwFilter,
@@ -425,6 +435,62 @@ describe('LoraWorkbench CivitaiCommunityBranch — single-column flow + in-place
   })
 })
 
+describe('LoraWorkbench CivitaiCommunityBranch — 显式提交检索', () => {
+  beforeEach(() => {
+    mockSection = 'community'
+    mockLibraryQuery = ''
+    mockLibraryItems = []
+    mockLibrarySearch = 'anima'
+    mockLibraryDebouncedSearch = ''
+    mockSetSearch.mockReset()
+    mockSubmitSearch.mockReset()
+    mockCommitSearchTerm.mockReset()
+  })
+
+  const searchInput = () =>
+    screen.getByPlaceholderText('LoraWorkbench:communitySearch')
+
+  it('typing alone never starts a search', () => {
+    // 这条是这次改动的全部目的：旧行为敲一个键就打一次上游。
+    render(<LoraWorkbench />)
+
+    // 值必须和受控的 search 当前值不同，否则 React 不会派发 onChange。
+    fireEvent.change(searchInput(), { target: { value: 'anima turbo' } })
+
+    expect(mockSetSearch).toHaveBeenCalledWith('anima turbo')
+    expect(mockSubmitSearch).not.toHaveBeenCalled()
+  })
+
+  it('Enter submits the search', () => {
+    render(<LoraWorkbench />)
+
+    fireEvent.keyDown(searchInput(), { key: 'Enter' })
+
+    expect(mockSubmitSearch).toHaveBeenCalledTimes(1)
+  })
+
+  it('the search button submits too — mobile has no Enter key to press', () => {
+    render(<LoraWorkbench />)
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'LoraWorkbench:communitySearchSubmit',
+      }),
+    )
+
+    expect(mockSubmitSearch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not submit on any other key', () => {
+    render(<LoraWorkbench />)
+
+    fireEvent.keyDown(searchInput(), { key: 'a' })
+    fireEvent.keyDown(searchInput(), { key: 'Escape' })
+
+    expect(mockSubmitSearch).not.toHaveBeenCalled()
+  })
+})
+
 describe('LoraWorkbench CivitaiCommunityBranch — P1-5 URL deep link', () => {
   beforeEach(() => {
     mockSection = 'community'
@@ -457,6 +523,8 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-5 URL deep link', () => {
       nsfwFilter: mockLibraryNsfwFilter,
       contentType: 'all',
       setSearch: mockSetSearch,
+      submitSearch: mockSubmitSearch,
+      commitSearchTerm: mockCommitSearchTerm,
       setSort: mockSetSort,
       setBaseModel: mockSetBaseModel,
       setNsfwFilter: mockSetNsfwFilter,
@@ -536,6 +604,8 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
       nsfwFilter: mockLibraryNsfwFilter,
       contentType: 'all',
       setSearch: mockSetSearch,
+      submitSearch: mockSubmitSearch,
+      commitSearchTerm: mockCommitSearchTerm,
       setSort: mockSetSort,
       setBaseModel: mockSetBaseModel,
       setNsfwFilter: mockSetNsfwFilter,
@@ -666,6 +736,8 @@ describe('LoraWorkbench CivitaiCommunityBranch — single-column row visuals', (
       nsfwFilter: mockLibraryNsfwFilter,
       contentType: 'all',
       setSearch: mockSetSearch,
+      submitSearch: mockSubmitSearch,
+      commitSearchTerm: mockCommitSearchTerm,
       setSort: mockSetSort,
       setBaseModel: mockSetBaseModel,
       setNsfwFilter: mockSetNsfwFilter,

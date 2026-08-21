@@ -48,7 +48,9 @@ export function CanvasAssistantReferencePicker({
       kind: 'image',
       url: generation.url,
       thumbnailUrl: generation.thumbnailUrl ?? generation.url,
-      label: generation.prompt?.trim() || t('galleryImageLabel'),
+      // ⛔ 不拿 generation.prompt 当 label（owner 2026-08-19）——「指定第几张」
+      // 靠的是 #n 序号，不是内容。顺带也不会再撑爆 schema 的 160 字上限。
+      label: t('galleryImageLabel'),
     })
   }
 
@@ -60,7 +62,7 @@ export function CanvasAssistantReferencePicker({
       kind: 'video',
       url: generation.url,
       thumbnailUrl: generation.thumbnailUrl ?? undefined,
-      label: generation.prompt?.trim() || t('galleryVideoLabel'),
+      label: t('galleryVideoLabel'),
     })
   }
 

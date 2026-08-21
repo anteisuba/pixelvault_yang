@@ -4,13 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 import { useStudioForm } from '@/contexts/studio-context'
-
-const VALID_ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4'] as const
-type AspectRatio = (typeof VALID_ASPECT_RATIOS)[number]
-
-function isAspectRatio(value: string): value is AspectRatio {
-  return (VALID_ASPECT_RATIOS as readonly string[]).includes(value)
-}
+import { isAspectRatio } from '@/constants/config'
 
 /**
  * Hydrate the studio form from `?prompt= &seed= &negativePrompt= &aspectRatio=`

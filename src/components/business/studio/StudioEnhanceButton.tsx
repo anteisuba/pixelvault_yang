@@ -81,10 +81,11 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
     assistantDomain,
     llmApiKeys,
     referenceImageData,
-    onUsePrompt,
-    onAppendPrompt,
+    injectedReference,
+    workbenchState,
+    writeback,
   } = useStudioAssistantPanelInputs()
-  const { route, researchEnabled } = useStudioAssistantControls()
+  const { route, researchMode } = useStudioAssistantControls()
 
   const isEnhancing = promptEnhance.isEnhancing
 
@@ -153,17 +154,22 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
           {t('enhance')}
         </ResponsiveDialogDescription>
         <div className="flex h-[min(70svh,640px)] min-h-[360px] flex-col overflow-hidden px-1 pb-1 pt-2 sm:h-[min(680px,75vh)] sm:px-5 sm:pb-5 sm:pt-3">
+          {/* ⚠ `injectedReference`（§3.0b 第 4 条「问助手」的落点）是**可选** prop：
+              桌面 dock 传了、这个移动端宿主原来没传，编译器与全量单测都不会提醒，
+              表现是「移动端点了问助手什么都没发生」。
+              回归断言在 StudioEnhanceButton.test.tsx。 */}
           <PromptAssistantPanel
             currentPrompt={currentPrompt}
             modelId={modelId}
             assistantDomain={assistantDomain}
             referenceImageData={referenceImageData}
             llmApiKeys={llmApiKeys}
-            onUsePrompt={onUsePrompt}
-            onAppendPrompt={onAppendPrompt}
+            workbenchState={workbenchState}
+            writeback={writeback}
+            injectedReference={injectedReference}
             onClose={() => setOpen(false)}
             assistantRoute={route}
-            researchEnabled={researchEnabled}
+            researchMode={researchMode}
           />
         </div>
       </ResponsiveDialogContent>

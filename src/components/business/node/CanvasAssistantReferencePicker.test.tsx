@@ -136,7 +136,35 @@ describe('CanvasAssistantReferencePicker', () => {
       kind: 'video',
       url: 'https://cdn.example.com/reference.mp4',
       thumbnailUrl: 'https://cdn.example.com/reference.jpg',
-      label: 'Camera movement reference',
+      // ⛔ 不是 generation 的 prompt（owner 2026-08-19：参考图的 prompt 不喂给
+      // 模型，画布也不喂）。指定第几张靠 #n 序号，不靠内容。
+      label: 'galleryVideoLabel',
     })
+  })
+
+  it('图库图片同样不拿 prompt 当 label', () => {
+    const onAddReference = vi.fn()
+    render(
+      <CanvasAssistantReferencePicker
+        references={[]}
+        selectedReferences={[]}
+        onAddReference={onAddReference}
+      />,
+    )
+
+    pickerProps.onPickImageAsset({
+      id: 'image-1',
+      outputType: 'IMAGE',
+      url: 'https://cdn.example.com/a.png',
+      thumbnailUrl: 'https://cdn.example.com/a-thumb.png',
+      prompt: '一段会被喂给模型的完整提示词',
+    } as GenerationRecord)
+
+    expect(onAddReference).toHaveBeenCalledWith(
+      expect.objectContaining({ label: 'galleryImageLabel' }),
+    )
+    expect(onAddReference).not.toHaveBeenCalledWith(
+      expect.objectContaining({ label: '一段会被喂给模型的完整提示词' }),
+    )
   })
 })

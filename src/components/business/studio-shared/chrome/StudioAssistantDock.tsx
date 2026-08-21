@@ -23,6 +23,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import { useStudioAssistantPanelInputs } from '@/hooks/use-studio-assistant-panel-inputs'
+import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
 import { cn } from '@/lib/utils'
 import {
   AssistantShell,
@@ -260,16 +261,17 @@ export function StudioAssistantDock() {
     assistantDomain,
     llmApiKeys,
     referenceImageData,
-    onUsePrompt,
-    onAppendPrompt,
+    injectedReference,
+    workbenchState,
+    writeback,
   } = useStudioAssistantPanelInputs()
   const { layout, isResizing, resetWidth, widthHandlers } = useDockLayout()
-  const { route, researchEnabled } = useStudioAssistantControls()
+  const { route, researchMode } = useStudioAssistantControls()
   const referenceUpload = useNodeReferenceUpload()
+  // 注入的**写**口。读口（`injectedReference`）走上面的 panel-inputs 装配，
+  // 两者是同一个模块 store 的两侧 —— 拖放注入和「问助手」按钮注入落在同一处。
+  const { injectReference } = useStudioAssistantReference()
 
-  const [injectedReference, setInjectedReference] = useState<
-    { url: string; token: number } | undefined
-  >(undefined)
   const [isDragOver, setIsDragOver] = useState(false)
   const dockRef = useRef<HTMLElement>(null)
 
@@ -278,17 +280,12 @@ export function StudioAssistantDock() {
   // letting the <aside> frame stay mounted across close/reopen so the width
   // transition below animates instead of popping in at full size on every
   // open. Derived state from `open` via a render-phase update (React's
-  // recommended alternative to setState-in-effect — same pattern as
-  // injectedReference below). 施工基准：docs/references/pages/assistant-shell.md
-  // Slice B.
+  // recommended alternative to setState-in-effect).
+  // 施工基准：docs/references/pages/assistant-shell.md Slice B.
   const [hasOpenedOnce, setHasOpenedOnce] = useState(open)
   if (open && !hasOpenedOnce) {
     setHasOpenedOnce(true)
   }
-
-  const injectReference = useCallback((url: string) => {
-    setInjectedReference((prev) => ({ url, token: (prev?.token ?? 0) + 1 }))
-  }, [])
 
   // Internal drags (Pragmatic DnD): canvas results + prompt-strip thumbnails.
   useEffect(() => {
@@ -404,11 +401,11 @@ export function StudioAssistantDock() {
             assistantDomain={assistantDomain}
             referenceImageData={referenceImageData}
             llmApiKeys={llmApiKeys}
-            onUsePrompt={onUsePrompt}
-            onAppendPrompt={onAppendPrompt}
+            workbenchState={workbenchState}
+            writeback={writeback}
             injectedReference={injectedReference}
             assistantRoute={route}
-            researchEnabled={researchEnabled}
+            researchMode={researchMode}
           />
         )}
       </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { memo } from 'react'
-import { AlertTriangle, Check } from 'lucide-react'
+import { AlertTriangle, Bot, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { isBuiltInModel, getModelMessageKey } from '@/constants/models'
@@ -9,6 +9,7 @@ import type { RunItem } from '@/types'
 import { ImageCard } from '@/components/business/ImageCard'
 import { StudioGeneratingProgress } from '@/components/business/studio-shared'
 import { Button } from '@/components/ui/button'
+import { useAskAssistantAboutImage } from '@/hooks/use-ask-assistant-about-image'
 import { cn } from '@/lib/utils'
 
 interface CompareGridProps {
@@ -27,6 +28,9 @@ export const CompareGrid = memo(function CompareGrid({
 }: CompareGridProps) {
   const t = useTranslations('StudioV3')
   const tModels = useTranslations('Models')
+  // §3.0b 第 4 条：图墙是「这几张哪张好 / 为什么这张脸崩了」的天然提问现场，
+  // 所以每格自带入口，不用先选中再去单图视图。
+  const askAssistantAboutImage = useAskAssistantAboutImage()
 
   // 列数跟总张数走（对标原型：并排铺开，不是固定两列）。矩阵下一轮可能有
   // 8 张（4 模型 × 2），三列会把它压得太高。
@@ -93,6 +97,27 @@ export const CompareGrid = memo(function CompareGrid({
                 </span>
               ) : null}
             </div>
+
+            {/* 「问助手」：把这一格的图挂进助手输入区（§3.0b 第 4 条）。
+                ⚠ **不做 hover-only** —— 这片栅格在移动端照样渲染，纯触屏没有
+                hover，hover-only 等于把它从可达变成不可达。常驻淡底，hover /
+                focus 时升实。左上角是模型名徽章，所以落在右上角。 */}
+            {isCompleted && item.generation?.url ? (
+              <button
+                type="button"
+                aria-label={t('toolAskAssistant')}
+                title={t('toolAskAssistant')}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  if (item.generation?.url) {
+                    askAssistantAboutImage(item.generation.url)
+                  }
+                }}
+                className="absolute right-2 top-2 z-10 flex size-7 items-center justify-center rounded-full bg-background/80 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background hover:text-primary focus-visible:bg-background focus-visible:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              >
+                <Bot className="size-3.5" />
+              </button>
+            ) : null}
 
             {/* Generating —— 复用既存的 StudioGeneratingProgress（同一套显影
                 节奏与 shimmer 底），不再在这里另拼一份 Spinner + 文案。

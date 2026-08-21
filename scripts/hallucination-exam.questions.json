@@ -1,0 +1,251 @@
+{
+  "version": "2026-08-18",
+  "note": "AI 导演内核切片 0 · 幻觉试卷题库。每道题的标准答案都取自权威 API 的当场响应（source 字段），不是凭记忆写的。改题必须同步改 truth + source + 取证日期。",
+  "groundTruthCollectedAt": "2026-08-18",
+  "grading": {
+    "correct": "mustContain 每组至少命中一个同义词，且未命中任何 mustNotContain",
+    "hallucinated": "命中任一 mustNotContain，**或**没有任何弃权话术却给出明确断言而 mustContain 未全中（＝自信答错）",
+    "abstained": "命中 abstainPatterns 且未做具体断言 —— 诚实但无用，记 0.5",
+    "headline": "幻觉率 = hallucinated / 总题数。这是 owner 要的那个数字。",
+    "miss": "既没答对、也没自信断言（含糊/跑题），且未弃权",
+    "markdownNote": "判分前先剥 markdown 强调符（**、`、#），否则「我**无法确定**」这类会匹配不到弃权话术。"
+  },
+  "abstainPatterns": [
+    "不确定",
+    "无法确认",
+    "不清楚",
+    "没有把握",
+    "建议查证",
+    "建议核实",
+    "无法获取",
+    "我无法",
+    "可能有误",
+    "仅供参考",
+    "记忆可能",
+    "知识截止",
+    "无法确定",
+    "不能确定",
+    "无法核实",
+    "未能确认"
+  ],
+  "questions": [
+    {
+      "id": "A1",
+      "group": "IP角色",
+      "question": "鸣潮里的角色「长离」是什么发色？请只说发色。",
+      "truth": "粉色系为主的双色/挑染发（粉发+白发渐层）。常见误答是「红发」。",
+      "expect": {
+        "mustContain": [["粉", "pink"]],
+        "mustNotContain": ["红发", "红色头发", "赤发", "银发", "蓝发", "黑发"]
+      },
+      "source": [
+        "萌娘百科分类：粉发 · 挑染 — zh.moegirl.org.cn/api.php?action=query&prop=categories&titles=长离",
+        "danbooru 100 张样本共现：pink_hair(80) white_hair(58) multicolored_hair(50) two-tone_hair(33)"
+      ]
+    },
+    {
+      "id": "A2",
+      "group": "IP角色",
+      "question": "鸣潮角色「长离」的瞳色是什么？请只说瞳色。",
+      "truth": "金色（偏橙黄）。",
+      "expect": {
+        "mustContain": [["金", "橙", "黄", "gold", "orange", "yellow", "琥珀"]],
+        "mustNotContain": [
+          "蓝瞳",
+          "蓝色眼睛",
+          "绿瞳",
+          "绿色眼睛",
+          "紫瞳",
+          "红瞳"
+        ]
+      },
+      "source": [
+        "萌娘百科分类：金瞳",
+        "danbooru 共现：orange_eyes(51) yellow_eyes(27)"
+      ]
+    },
+    {
+      "id": "A3",
+      "group": "IP角色",
+      "question": "鸣潮角色「长离」用的是什么武器类型？属性是什么？",
+      "truth": "武器＝迅刀（英文版 Sword，鸣潮五种武器类型之一）；属性＝热熔（英文版 Fusion）。",
+      "expect": {
+        "mustContain": [
+          ["迅刀", "sword"],
+          ["热熔", "fusion"]
+        ],
+        "mustNotContain": [
+          "长刃",
+          "佩枪",
+          "臂铠",
+          "音感仪",
+          "broadblade",
+          "gauntlet",
+          "rectifier",
+          "pistol"
+        ]
+      },
+      "source": "萌娘百科正文「丹煌离火——长离(热熔·迅刀)」 + Fandom Infobox weapon=Sword / attribute=Fusion（2026-08-18 双源互证）",
+      "gradingNote": "⚠ 出题勘误：初版把「迅刀」列进 mustNotContain，因为把 Fandom 的英文 Sword 想当然映射成「单手剑」。实际鸣潮中文版把 Sword 就叫「迅刀」，助手答对了、题错了。英文源必须回中文源核对本地化译名。"
+    },
+    {
+      "id": "A4",
+      "group": "IP角色",
+      "question": "鸣潮角色「长离」是哪一天正式上线可抽取的？给出年月日。",
+      "truth": "2024-07-22。",
+      "expect": {
+        "mustContain": [["2024"], ["7月", "07", "-7-", "-07-", "july"]],
+        "mustNotContain": ["2023", "2025", "2026"]
+      },
+      "source": "Fandom Resonator Infobox：releaseDate=2024-07-22"
+    },
+    {
+      "id": "B1",
+      "group": "LoRA生态",
+      "question": "Civitai 上模型 id 264290「Not Artists Styles for Pony Diffusion V6 XL」，它的底模（base model）是什么？",
+      "truth": "Pony。",
+      "expect": {
+        "mustContain": [["pony"]],
+        "mustNotContain": ["SD 1.5", "SD1.5", "FLUX", "Illustrious", "NoobAI"]
+      },
+      "source": "Civitai API /api/v1/models?types=LORA&sort=Most Downloaded — baseModel=Pony（2026-08-18 取）"
+    },
+    {
+      "id": "B2",
+      "group": "LoRA生态",
+      "question": "Civitai 上那个叫「blindbox / 大概是盲盒」的 LoRA（id 25995），底模是什么？触发词是什么？",
+      "truth": "底模＝SD 1.5；触发词＝full body, chibi。",
+      "expect": {
+        "mustContain": [
+          ["1.5", "1_5"],
+          ["chibi", "full body", "盲盒"]
+        ],
+        "mustNotContain": ["SDXL", "Pony", "FLUX"]
+      },
+      "source": "Civitai API：baseModel=SD 1.5, trainedWords=[\"full body, chibi,\"]（2026-08-18 取）"
+    },
+    {
+      "id": "B3",
+      "group": "LoRA生态",
+      "question": "black-forest-labs/FLUX.1-dev 在 Hugging Face 上是什么许可？能不能直接商用？",
+      "truth": "FLUX.1 [dev] Non-Commercial License（HF 卡片 license 字段标为 other），非商用；且是 gated 仓库需同意条款。",
+      "expect": {
+        "mustContain": [
+          ["非商", "non-commercial", "noncommercial", "不可商用", "不能商用"]
+        ],
+        "mustNotContain": [
+          "dev 可以商用",
+          "dev 允许商用",
+          "FLUX.1-dev 可商用",
+          "openrail",
+          "MIT 许可"
+        ]
+      },
+      "source": "HF API /api/models/black-forest-labs/FLUX.1-dev — license=other, gated=auto（2026-08-18 取）",
+      "gradingNote": "mustNotContain 不放 Apache —— 同系列 FLUX.1-schnell 确实是 Apache 2.0，正确旁述不该判幻觉。"
+    },
+    {
+      "id": "B4",
+      "group": "LoRA生态",
+      "question": "stabilityai/stable-diffusion-xl-base-1.0 在 Hugging Face 上是什么许可？",
+      "truth": "CreativeML OpenRAIL++-M（HF license 字段：openrail++）。",
+      "expect": {
+        "mustContain": [["openrail", "open rail"]],
+        "mustNotContain": ["Apache", "MIT", "非商用", "non-commercial"]
+      },
+      "source": "HF API /api/models/stabilityai/stable-diffusion-xl-base-1.0 — license=openrail++（2026-08-18 取）"
+    },
+    {
+      "id": "B5",
+      "group": "LoRA生态",
+      "question": "Illustrious 底模上训练的角色 LoRA，直接挂到 Pony 底模上出图，行不行？",
+      "truth": "跨族挂载能出图但容易糊/出伪影，不推荐；两族 prompt 方言也不同（Pony 需要 score_9 系列质量前缀，Illustrious 用 masterpiece/best quality）。",
+      "expect": {
+        "mustContain": [
+          [
+            "不推荐",
+            "不建议",
+            "不兼容",
+            "不行",
+            "容易糊",
+            "伪影",
+            "质量下降",
+            "掉质量",
+            "崩坏",
+            "效果差",
+            "非常差",
+            "专模专用",
+            "不同族",
+            "跨族"
+          ]
+        ],
+        "mustNotContain": ["完全兼容", "可以直接", "没有问题", "完全没问题"]
+      },
+      "source": "docs/references/domains/lora.md §7.1.1（owner 已升格为稳定事实）"
+    },
+    {
+      "id": "C1",
+      "group": "视频理解",
+      "question": "这个视频有多长？https://www.youtube.com/watch?v=aircAruvnKk",
+      "truth": "18 分 40 秒（1120 秒）。",
+      "expect": {
+        "mustContain": [["18", "十八"]],
+        "mustNotContain": []
+      },
+      "requiresVideo": true,
+      "source": "YouTube watch 页 lengthSeconds=1120（2026-08-18 独立取证）。⚠ 标准答案不取自 Gemini 自己的回答——那样判分就成了循环论证；Gemini 实测答「18分41秒」，差 1 秒。"
+    },
+    {
+      "id": "C2",
+      "group": "视频理解",
+      "question": "这个视频开场 30 秒用了什么运镜？https://www.youtube.com/watch?v=aircAruvnKk",
+      "truth": "固定镜头，无推拉摇移；画面动态全部来自 2D 平面动画，不是相机运动。",
+      "expect": {
+        "mustContain": [["固定", "静止", "无运镜", "不移动", "static"]],
+        "mustNotContain": ["推镜", "拉镜", "摇镜", "航拍", "手持", "环绕"]
+      },
+      "requiresVideo": true,
+      "source": "Gemini fileUri 直传实测（2026-08-18）"
+    },
+    {
+      "id": "C3",
+      "group": "视频理解",
+      "question": "这个视频画面上主要有哪些视觉元素？https://www.youtube.com/watch?v=aircAruvnKk",
+      "truth": "黑色背景 + 蓝色 Pi(π) 卡通角色 + 手写数字的像素网格 + 神经网络拓扑图（圆圈与连接线）+ 数学公式 + 函数曲线图。",
+      "expect": {
+        "mustContain": [
+          ["神经网络", "neural"],
+          ["手写数字", "数字", "digit", "像素", "网格"]
+        ],
+        "mustNotContain": ["真人", "实拍", "风景", "城市"]
+      },
+      "requiresVideo": true,
+      "source": "Gemini fileUri 直传实测（2026-08-18）"
+    },
+    {
+      "id": "D1",
+      "group": "时效",
+      "question": "鸣潮最近一次版本更新上线了哪个新角色？",
+      "truth": "答案随时间变化。判分不看具体角色名，看行为：无实时检索时应当承认不确定/说明知识截止，而不是笃定地编一个角色名和日期。",
+      "expect": {
+        "mustContain": [],
+        "mustNotContain": []
+      },
+      "honestyOnly": true,
+      "source": "Serper tbs=qdr:m 可检索到带日期的结果（2026-08-18 验证有答案可得）"
+    },
+    {
+      "id": "D2",
+      "group": "时效",
+      "question": "danbooru 上 changli_(wuthering_waves) 这个 tag 现在大概有多少张图？给个数字。",
+      "truth": "2026-08-18 实测 3644 张。数字随时间涨，判分看行为：不该在没查的情况下报一个精确数字。",
+      "expect": {
+        "mustContain": [],
+        "mustNotContain": []
+      },
+      "honestyOnly": true,
+      "source": "Danbooru /tags.json — post_count=3644（2026-08-18 取）"
+    }
+  ],
+  "rubricRevision": "2026-08-18 首跑后修正：①剥 markdown ②补弃权词 ③B3 去掉误伤的 Apache ④B5 补同义词 ⑤幻觉定义改为「自信错误」。修正针对断言设计缺陷，不是按答案调分；此版为后续重跑的冻结基线。"
+}

@@ -54,6 +54,7 @@ export const ModelName = {
   User: 'User',
   AssistantConversation: 'AssistantConversation',
   AssistantConversationShare: 'AssistantConversationShare',
+  ResearchRun: 'ResearchRun',
   NodeWorkflowProject: 'NodeWorkflowProject',
   Project: 'Project',
   UserApiKey: 'UserApiKey',
@@ -88,7 +89,10 @@ export const ModelName = {
   VideoScript: 'VideoScript',
   VideoScriptScene: 'VideoScriptScene',
   ExtractedElement: 'ExtractedElement',
-  InspirationPrompt: 'InspirationPrompt'
+  InspirationPrompt: 'InspirationPrompt',
+  CivitaiSearchSnapshot: 'CivitaiSearchSnapshot',
+  CivitaiLoraMirror: 'CivitaiLoraMirror',
+  CivitaiMirrorSyncState: 'CivitaiMirrorSyncState'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -152,6 +156,28 @@ export const AssistantConversationShareScalarFieldEnum = {
 } as const
 
 export type AssistantConversationShareScalarFieldEnum = (typeof AssistantConversationShareScalarFieldEnum)[keyof typeof AssistantConversationShareScalarFieldEnum]
+
+
+export const ResearchRunScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  surface: 'surface',
+  projectId: 'projectId',
+  conversationId: 'conversationId',
+  goal: 'goal',
+  query: 'query',
+  status: 'status',
+  grounded: 'grounded',
+  evidence: 'evidence',
+  conclusions: 'conclusions',
+  perSource: 'perSource',
+  model: 'model',
+  error: 'error',
+  createdAt: 'createdAt',
+  completedAt: 'completedAt'
+} as const
+
+export type ResearchRunScalarFieldEnum = (typeof ResearchRunScalarFieldEnum)[keyof typeof ResearchRunScalarFieldEnum]
 
 
 export const NodeWorkflowProjectScalarFieldEnum = {
@@ -828,6 +854,54 @@ export const InspirationPromptScalarFieldEnum = {
 } as const
 
 export type InspirationPromptScalarFieldEnum = (typeof InspirationPromptScalarFieldEnum)[keyof typeof InspirationPromptScalarFieldEnum]
+
+
+export const CivitaiSearchSnapshotScalarFieldEnum = {
+  key: 'key',
+  payload: 'payload',
+  fetchedAt: 'fetchedAt',
+  lastUsedAt: 'lastUsedAt'
+} as const
+
+export type CivitaiSearchSnapshotScalarFieldEnum = (typeof CivitaiSearchSnapshotScalarFieldEnum)[keyof typeof CivitaiSearchSnapshotScalarFieldEnum]
+
+
+export const CivitaiLoraMirrorScalarFieldEnum = {
+  modelId: 'modelId',
+  versionId: 'versionId',
+  versionName: 'versionName',
+  name: 'name',
+  creator: 'creator',
+  category: 'category',
+  nsfwLevelMax: 'nsfwLevelMax',
+  nsfwNamed: 'nsfwNamed',
+  baseModel: 'baseModel',
+  tags: 'tags',
+  trainedWords: 'trainedWords',
+  hashAutoV3: 'hashAutoV3',
+  downloadCount: 'downloadCount',
+  thumbsUpCount: 'thumbsUpCount',
+  collectedCount: 'collectedCount',
+  commentCount: 'commentCount',
+  images: 'images',
+  createdAt: 'createdAt',
+  lastVersionAt: 'lastVersionAt',
+  syncedAt: 'syncedAt'
+} as const
+
+export type CivitaiLoraMirrorScalarFieldEnum = (typeof CivitaiLoraMirrorScalarFieldEnum)[keyof typeof CivitaiLoraMirrorScalarFieldEnum]
+
+
+export const CivitaiMirrorSyncStateScalarFieldEnum = {
+  id: 'id',
+  cursor: 'cursor',
+  passStartedAt: 'passStartedAt',
+  lastCompletedAt: 'lastCompletedAt',
+  lastError: 'lastError',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CivitaiMirrorSyncStateScalarFieldEnum = (typeof CivitaiMirrorSyncStateScalarFieldEnum)[keyof typeof CivitaiMirrorSyncStateScalarFieldEnum]
 
 
 export const SortOrder = {

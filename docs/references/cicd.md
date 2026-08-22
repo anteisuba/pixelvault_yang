@@ -66,6 +66,60 @@ limits 表，2026-08-21 查证。
 | **major 升级（尤其认证/框架级，如 Clerk 6→7）** | **绝不机器人式合并**——立专项任务按官方迁移指南做，走 `scenes/new-model.md` 同级的联网核验纪律 |
 | CI ❌ + Vercel ERROR 的 PR                      | 不合，先诊断（`gh run view --log-failed`）                                                    |
 
+## ⚠ 数据库：`.env.local` 就是生产库（2026-08-22 由构建日志证实）
+
+| 文件                          | 主机                       | 是什么                                                   |
+| ----------------------------- | -------------------------- | -------------------------------------------------------- |
+| `.env.local`（dev server 用） | `ep-flat-violet-aifhen7l`  | **Vercel 生产库本身**（owner 确认：有意为之，就一个库）  |
+| `.env.production.local`       | `ep-solitary-dew-airqqs4u` | ⛔ **陈旧库，不是生产**。当时落后 6 条迁移、数据也对不上 |
+
+证据：`dpl_DhWtqAFLvBHacQmjsjWpKC9LBvDV` 的构建日志写着
+`Datasource "db": ... at "ep-flat-violet-aifhen7l-pooler..."`；而 `.env.local` 指向的库里，
+那几条迁移的应用时间戳（08-19 15:03、08-21 12:05…）正是当初在开发机上跑 `migrate dev` 的时刻。
+
+**这条事实的后果，动数据库前必须先想到：**
+
+- `npx prisma migrate dev` 在开发机上跑 = **直接改生产 schema**，没有中间地带。
+  08-21 12:05 那条唯一索引就是这样先于代码上线、单方面在生产上生效的（那几天生产
+  跑的是旧代码 + 新 schema）。
+- 本地随手生成的图 / 会话 / LoRA 收藏都是**生产数据**。
+- 要先试一遍迁移，用 `node prisma/preflight-migrations.mjs`：从生产开一个即用即弃的
+  Neon 分支（写时复制，初始不占存储，免费档 10 个分支）跑 `migrate deploy`，跑完删掉。
+- ⚠ **别按名字猜哪个是生产。** 2026-08-22 我就是照 `.env.production.local` 查的，
+  据此得出「生产有 2 组重复行、部署一定会炸」并写进了 `d5fa8587` 的提交信息 ——
+  **那段描述是错的**，真生产在 08-21 12:05 就建好唯一索引了，部署一路 READY。
+  判据只能是构建日志里那行 `Datasource "db": ... at ...`。
+
+## ⚠ 约束型迁移：CI 结构性地看不见（2026-08-22 立闸）
+
+`ci.yml` 的「从零重建数据库」是在**空库**上跑迁移历史 —— 没有存量数据，唯一索引 /
+`SET NOT NULL` / 外键 / 列类型转换怎么都建得上。**绿色的 CI 在这类迁移上不构成证据。**
+
+而失败的代价不只是「索引没建上」：`vercel.json` 的 `buildCommand` 是
+`prisma migrate deploy && next build`，`&&` 短路 → **整个生产构建炸掉**，且
+`_prisma_migrations` 会留下一条 failed 记录，得 `prisma migrate resolve` 才能继续。
+
+两道闸：
+
+1. **`prisma/migration-safety.test.ts`（自动，进 pre-push 的全量 vitest）** —— 扫所有
+   `migration.sql`，对「给**已存在的表**加约束」的语句（同文件 `CREATE TABLE` 出来的新表
+   不算）要求在 `ACKNOWLEDGED` 里登记一句「在真实数据上为什么安全」。实测 50 条迁移里
+   只命中 7 条，噪声很低。
+   ⛔ **理由写在测试文件里，不能写进迁移 SQL** —— Prisma 给每个迁移存了校验和，改动
+   已应用迁移的文件（哪怕只加一行注释）会让 `migrate deploy` 报
+   「migration was modified after it was applied」。
+   ⚠ 它拦的是「你忘了想这件事」，不是「你想了但想错了」——**不会**因为文件里有
+   `DELETE` 就自动放行，那样只会把闸门变成安慰剂。
+2. **`node prisma/preflight-migrations.mjs`（手动，最彻底）** —— 见上一节。
+   ⚠ 需要 `NEON_API_KEY` / `NEON_PROJECT_ID`（放 `.env.local`）；**脚本本身尚未在真实
+   key 下跑通过**。
+
+⚠ **闸为什么不在 CI**：本项目直接在 main 上干活，push 即触发 Vercel 生产部署，而 CI 与
+Vercel 构建是**并行**的 —— CI 报警时构建已经炸了。所以闸必须在 push 之前、在本机生效。
+
+数据修复的形状参考 `prisma/migrations/20260821210441_dedupe_lora_assets`：时间戳排在约束
+迁移前一秒，谓词是严格全序（每组恰好活一行）。
+
 ## 本地闸门（与 CI 的关系）
 
 pre-commit（lint-staged 格式化）→ pre-push（tsc + lint + 全量 vitest，本机实测 2026-07-10 合计 ~15.8min，详见 testing.md）→ CI 复跑 tsc + lint + unit。**本地过了 CI 才可能过**；跳过本地钩子（--no-verify）被禁止。

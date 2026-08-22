@@ -1,0 +1,127 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; background: #ffffff; color: #0a0a0a; -webkit-font-smoothing: antialiased; }
+    a { color: #0a0a0a; } a:hover { color: #737373; }
+  </style>
+</helmet>
+
+<div style="display: grid; grid-template-columns: 588px 1fr; gap: 0; width: 1040px; height: 900px; background: #ffffff">
+
+  <!-- ══ 左：现状像素复刻（助手 dock，右上「助手」浮标打开的那个） ══ -->
+  <div style="display: flex; flex-direction: column; border-right: 1px solid #e5e5e5; background: #ffffff">
+
+    <div style="display: flex; align-items: center; gap: 8px; padding: 18px 20px 12px; border-bottom: 1px solid #f0f0f0">
+      <span style="display: inline-block; width: 6px; height: 6px; border-radius: 999px; background: #0a0a0a"></span>
+      <span style="font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: #737373">现状 · 2026-08-20 真机</span>
+    </div>
+
+    <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 14px; padding: 20px">
+
+      <!-- 用户气泡 -->
+      <div style="display: flex; justify-content: flex-end">
+        <div style="max-width: 82%; padding: 10px 14px; border-radius: 14px; background: #f0f0f0; font-size: 13px; line-height: 21px; color: #1c1c1c">从我工作区现在能选的模型里挑一个最适合二次元角色立绘的，直接帮我切过去，张数也设一下。</div>
+      </div>
+
+      <!-- 助手气泡 -->
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; align-items: flex-start; gap: 8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 4px; flex-shrink: 0"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div style="min-width: 0; padding: 12px 14px; border-radius: 14px; background: #f9f9f9; font-size: 13px; line-height: 22px; color: #0a0a0a">
+            <p style="margin: 0 0 12px">在当前可用的模型中，<code style="font-family: ui-monospace, monospace; font-size: 12px; background: #efefef; padding: 1px 5px; border-radius: 4px">illustrious-xl</code> 是最适合二次元动漫风格（尤其是精细的角色立绘）的顶尖模型。</p>
+            <p style="margin: 0">我已经在下方为你准备好了切换到 <code style="font-family: ui-monospace, monospace; font-size: 12px; background: #efefef; padding: 1px 5px; border-radius: 4px">illustrious-xl</code> 并且将单次生成张数设为 4 的一键配置。</p>
+          </div>
+        </div>
+
+        <!-- 六个等权重 chip：现状 -->
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; padding-left: 24px; position: relative">
+          <div style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #e5e5e5; border-radius: 999px; background: #ffffff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); font-size: 12px; color: #0a0a0a">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>填入提示词</div>
+          <div style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #e5e5e5; border-radius: 999px; background: #ffffff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); font-size: 12px; color: #0a0a0a">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>填入负面</div>
+          <div style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #e5e5e5; border-radius: 999px; background: #ffffff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); font-size: 12px; color: #0a0a0a">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="4" width="10" height="16" rx="2"/><rect x="2" y="9" width="8" height="6" rx="2"/></svg>设为 9:16</div>
+          <div style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #e5e5e5; border-radius: 999px; background: #ffffff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); font-size: 12px; color: #0a0a0a">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/></svg>换用 Illustrious XL</div>
+          <div style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #e5e5e5; border-radius: 999px; background: #ffffff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); font-size: 12px; color: #0a0a0a">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.8 2.2a2 2 0 0 0-1.6 0L2.6 6.1a1 1 0 0 0 0 1.8l8.6 3.9a2 2 0 0 0 1.6 0l8.6-3.9a1 1 0 0 0 0-1.8Z"/><path d="m22 17.6-9.2 4.2a2 2 0 0 1-1.6 0L2 17.6"/><path d="m22 12.6-9.2 4.2a2 2 0 0 1-1.6 0L2 12.6"/></svg>每模型 4 张</div>
+          <div style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #e5e5e5; border-radius: 999px; background: #ffffff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); font-size: 12px; color: #0a0a0a">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>复制</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 4px; padding: 10px 12px; border: 1px dashed #d4d4d4; border-radius: 10px; font-size: 11px; line-height: 18px; color: #737373">
+        点下去左栏确实变了——模型换成 Illustrious XL、规格变成每模型 4 张。<strong style="color: #0a0a0a; font-weight: 500">但这一屏上没有任何一个像素告诉你这件事发生了。</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 右：问题清单 ══ -->
+  <div style="display: flex; flex-direction: column; gap: 0; padding: 18px 24px 20px; background: #fafafa">
+    <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid #e5e5e5">
+      <span style="font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: #737373">域定义 · 助手回填与引用</span>
+    </div>
+
+    <p style="margin: 14px 0 0; font-size: 13px; line-height: 22px; color: #1c1c1c">
+      这个域只管一件事的**两个方向**：把助手说的话变成工作台上的动作，以及把工作台上的东西变成问助手的话。<span style="color: #737373">今天只有第一个方向存在，且只做了「写」没做「反馈」。</span>
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 11px; margin-top: 18px">
+
+      <div style="display: flex; gap: 11px">
+        <span style="flex-shrink: 0; width: 20px; height: 20px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center">1</span>
+        <div style="font-size: 12px; line-height: 20px; color: #1c1c1c"><strong style="font-weight: 500">点了没有任何反馈。</strong><span style="color: #737373">最硬的一条。我自己验收时是靠读表单值才确认生效的——真实用户只能扭头去看左栏，而 dock 打开时左栏被挡掉一半。</span></div>
+      </div>
+
+      <div style="display: flex; gap: 11px">
+        <span style="flex-shrink: 0; width: 20px; height: 20px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center">2</span>
+        <div style="font-size: 12px; line-height: 20px; color: #1c1c1c"><strong style="font-weight: 500">六个 chip 等权重，但它们是三类东西。</strong><span style="color: #737373">写提示词框（交付物）、改工作台配置（设置）、复制（与工作台无关）。排成一行长得一样，用户得逐个读文字才分得清。</span></div>
+      </div>
+
+      <div style="display: flex; gap: 11px">
+        <span style="flex-shrink: 0; width: 20px; height: 20px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center">3</span>
+        <div style="font-size: 12px; line-height: 20px; color: #1c1c1c"><strong style="font-weight: 500">不可逆，且覆盖没有警告。</strong><span style="color: #737373">「填入提示词」直接盖掉用户手打的那段，「换用模型」同理。没有撤销，也没有「你原来那版会没」的提示。</span></div>
+      </div>
+
+      <div style="display: flex; gap: 11px">
+        <span style="flex-shrink: 0; width: 20px; height: 20px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center">4</span>
+        <div style="font-size: 12px; line-height: 20px; color: #1c1c1c"><strong style="font-weight: 500">数量会膨胀到换行。</strong><span style="color: #737373">一条档 3 回复最多挂 6 个，dock 宽 448px，必然折成两行；折行后和正文糊在一起，读不出「这是一组动作」。</span></div>
+      </div>
+
+      <div style="display: flex; gap: 11px">
+        <span style="flex-shrink: 0; width: 20px; height: 20px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center">5</span>
+        <div style="font-size: 12px; line-height: 20px; color: #1c1c1c"><strong style="font-weight: 500">闸掉的不解释。</strong><span style="color: #737373">图片模态没有「填入负面」（工作台压根没那个框）。用户看不出是助手没给、还是产品不支持。</span></div>
+      </div>
+
+      <div style="display: flex; gap: 11px">
+        <span style="flex-shrink: 0; width: 20px; height: 20px; border-radius: 999px; background: #737373; color: #ffffff; font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center">6</span>
+        <div style="font-size: 12px; line-height: 20px; color: #1c1c1c"><strong style="font-weight: 500">反方向完全没有入口。</strong><span style="color: #737373">「选中一段回复继续问」和「点某张生成图问助手」是这个域的另一半，今天零实现。三个方向都得给它一个答案，不能等做到那一条再想。</span></div>
+      </div>
+    </div>
+
+    <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid #e5e5e5">
+      <p style="margin: 0; font-size: 11px; line-height: 18px; color: #737373">
+        右侧三块是三个**真正不同轴**的答案，不是同一个方案的三种深浅：<strong style="color: #0a0a0a; font-weight: 500">A</strong> 在气泡里分层 · <strong style="color: #0a0a0a; font-weight: 500">B</strong> 在气泡里结构化 · <strong style="color: #0a0a0a; font-weight: 500">C</strong> 把建议移出气泡、贴到真正会变的控件上。
+      </p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

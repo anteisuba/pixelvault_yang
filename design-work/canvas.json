@@ -1,0 +1,134 @@
+{
+  "pages": [
+    { "id": "directions", "name": "方向 · 现状与 A/B/C" },
+    { "id": "slices", "name": "A · 关键切片" }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "page": "directions",
+      "x": 0,
+      "y": 0,
+      "w": 1040,
+      "h": 900,
+      "title": "现状与问题"
+    },
+    {
+      "file": "DirectionA.dc.html",
+      "page": "directions",
+      "x": 1100,
+      "y": 0,
+      "w": 620,
+      "h": 900,
+      "title": "A · 动作条（已选）"
+    },
+    {
+      "file": "DirectionB.dc.html",
+      "page": "directions",
+      "x": 1760,
+      "y": 0,
+      "w": 620,
+      "h": 900,
+      "title": "B · 交付卡"
+    },
+    {
+      "file": "DirectionC.dc.html",
+      "page": "directions",
+      "x": 2420,
+      "y": 0,
+      "w": 620,
+      "h": 900,
+      "title": "C · 就地建议"
+    },
+
+    {
+      "file": "S1-HostMatrix.dc.html",
+      "page": "slices",
+      "x": 0,
+      "y": 0,
+      "w": 1240,
+      "h": 880,
+      "title": "S1 · 宿主档位矩阵"
+    },
+    {
+      "file": "S2-Skeleton.dc.html",
+      "page": "slices",
+      "x": 1300,
+      "y": 0,
+      "w": 760,
+      "h": 1080,
+      "title": "S2 · 层级骨架与形态"
+    },
+    {
+      "file": "S3-StateMachine.dc.html",
+      "page": "slices",
+      "x": 2120,
+      "y": 0,
+      "w": 880,
+      "h": 1100,
+      "title": "S3 · 已应用 / 撤销"
+    },
+    {
+      "file": "S4-Responsive.dc.html",
+      "page": "slices",
+      "x": 0,
+      "y": 1180,
+      "w": 1160,
+      "h": 860,
+      "title": "S4 · 响应式与截断"
+    },
+    {
+      "file": "S5-TouchAndQuote.dc.html",
+      "page": "slices",
+      "x": 1220,
+      "y": 1180,
+      "w": 880,
+      "h": 1040,
+      "title": "S5 · 触屏与引用提问"
+    },
+    {
+      "file": "S6-Specs.dc.html",
+      "page": "slices",
+      "x": 2160,
+      "y": 1180,
+      "w": 800,
+      "h": 1520,
+      "title": "S6 · 取色 / i18n / 待拍板"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "gate",
+      "x": 0,
+      "y": -168,
+      "w": 520,
+      "page": "directions",
+      "text": "域：助手回填与引用（assistant write-back & quote）\n\n设计治理第一轮：域定义 + 三方向。\n三个方向探同一根轴——「助手的产出和工作台之间那条线画在哪」。\nA 画在气泡里（分层）· B 画在气泡里（结构化）· C 画在控件上。\n\nowner 已选 A。切片见「A · 关键切片」页。"
+    },
+    {
+      "id": "slice-intro",
+      "x": 0,
+      "y": -196,
+      "w": 640,
+      "page": "slices",
+      "text": "第二轮：方向 A 的关键切片。\n\n⚠ 勘察推翻了 A 的一条前提——六枚 chip 从来不同时出现，缺席是按宿主写死的结构性缺席。\n所以 S1（宿主档位矩阵）排在最前：分层在四档下各自长什么样，是先决问题。\n\n要拍的七条在 S6 末尾。"
+    },
+    {
+      "id": "risk",
+      "x": 2120,
+      "y": -196,
+      "w": 460,
+      "page": "slices",
+      "text": "S3 是风险最高的一块：\n底层五个 action 全是纯 setter、零 undo。\n「已应用」在这里被设计成算出来的而不是存下来的——\n这一个决定同时解掉了「用户手改后撤销会抹掉他的内容」\n和「刷新后状态怎么恢复」两条。"
+    },
+    {
+      "id": "decide",
+      "x": 2160,
+      "y": 1080,
+      "w": 800,
+      "page": "slices",
+      "text": "↓ 要你拍的七条在这张的最下面。"
+    }
+  ],
+  "launch": { "view": "canvas", "page": "slices" }
+}

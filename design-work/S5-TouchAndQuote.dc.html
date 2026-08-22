@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; background: #ffffff; color: #0a0a0a; -webkit-font-smoothing: antialiased; }
+    a { color: #0a0a0a; } a:hover { color: #6b6b6b; }
+    .cap { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b6b6b; }
+    .note { font-size: 11px; line-height: 18px; color: #6b6b6b; }
+    .box { border: 1px solid #e5e5e5; border-radius: 12px; background: #ffffff; }
+    .apply { display: inline-flex; align-items: center; justify-content: center; height: 24px; padding: 0 10px; border-radius: 999px; border: 1px solid #e5e5e5; background: #ffffff; font-size: 11px; flex-shrink: 0; }
+    code { font-family: ui-monospace, monospace; font-size: 10px; background: #f2f2f2; padding: 1px 4px; border-radius: 3px; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; width: 880px; height: 1040px; background: #ffffff; padding: 20px 22px">
+
+  <div style="display: flex; align-items: baseline; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid #e5e5e5">
+    <span style="font-size: 18px; font-weight: 600; letter-spacing: -0.02em">切片 5 · 触屏档与引用提问</span>
+    <span style="font-size: 13px; color: #525252">方向 A 里被低估的两块</span>
+  </div>
+
+  <!-- 触屏 -->
+  <div style="margin-top: 16px">
+    <span class="cap">5a · 触屏档 —— hover 在这里等于删功能</span>
+    <div style="display: flex; gap: 18px; margin-top: 12px; align-items: flex-start">
+
+      <!-- 手机抽屉 -->
+      <div style="width: 244px; flex-shrink: 0">
+        <div style="border: 1px solid #d4d4d4; border-radius: 18px; overflow: hidden; background: #f0f0f0; height: 330px; display: flex; flex-direction: column; justify-content: flex-end">
+          <div style="height: 34px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #6b6b6b">工作台（被盖住）</div>
+          <div style="flex-grow: 1; background: #ffffff; border-radius: 16px 16px 0 0; border-top: 1px solid #e5e5e5; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px">
+            <div style="width: 34px; height: 4px; border-radius: 999px; background: #d4d4d4; align-self: center"></div>
+            <div style="padding: 9px 11px; border-radius: 12px; background: #f9f9f9; font-size: 11px; line-height: 18px">这版走冷调雨夜，加了 35mm 镜头和微粒颗粒。</div>
+            <div style="display: flex; flex-direction: column; gap: 6px; padding-left: 6px">
+              <span style="display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 13px; border-radius: 999px; background: #0a0a0a; color: #fff; font-size: 12px; font-weight: 500; align-self: flex-start">填入提示词</span>
+              <div class="box">
+                <div style="display: flex; align-items: center; gap: 7px; padding: 6px 9px"><span style="font-size: 11px; color: #6b6b6b">规格</span><span style="flex-grow: 1; font-size: 11px; font-weight: 500">9:16</span><span class="apply">应用</span></div>
+              </div>
+              <div style="display: flex; gap: 6px">
+                <span class="apply" style="height: 28px">复制</span>
+                <span class="apply" style="height: 28px">引用提问</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span class="note" style="display: block; margin-top: 8px; width: 244px">抽屉高度上限 <code>min(95svh, …)</code>，几乎盖满屏。</span>
+      </div>
+
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px">
+        <div style="padding: 10px 12px; border-left: 3px solid #b3261e; background: #fdf6f5; border-radius: 0 8px 8px 0">
+          <p style="margin: 0; font-size: 12px; line-height: 20px; color: #1c1c1c">
+            <strong style="font-weight: 500">移动端宿主是纯触屏的：</strong>那个入口在桌面只渲染一个触发按钮，<strong style="font-weight: 500">只有 &lt;1024px 才渲染抽屉</strong>。触屏没有 hover。
+            <span style="color: #b3261e">把复制/引用退到 hover，等于在这一档把它们从可达变成不可达。</span>
+          </p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 9px">
+          <div style="display: flex; gap: 9px"><span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #0a0a0a; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center">决</span><span class="note" style="color: #1c1c1c"><strong style="font-weight: 500">第三档不是「hover 出现」，是「次要样式」。</strong>桌面 hover 才升到实色，触屏恒定可见的淡描边。同一套 DOM，只差一个 opacity。</span></div>
+          <div style="display: flex; gap: 9px"><span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #0a0a0a; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center">决</span><span class="note" style="color: #1c1c1c">桌面的 hover 显隐必须同时挂 <code>group-focus-within</code> —— 否则键盘用户完全够不到复制。仓库里已有正确先例（图片卡动作条）。</span></div>
+          <div style="display: flex; gap: 9px"><span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #16794c; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center">值</span><span class="note" style="color: #1c1c1c"><strong style="font-weight: 500">这一档的收益最大</strong>：抽屉盖住了工作台，用户<strong style="font-weight: 500">根本看不到左栏</strong>——就地「已应用」是这一档唯一能给的反馈。</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 引用提问 -->
+  <div style="margin-top: 22px; padding-top: 18px; border-top: 1px solid #e5e5e5; flex-grow: 1">
+    <span class="cap">5b · 引用提问 —— 不是排布问题，是从零建的新交互</span>
+
+    <div style="margin-top: 12px; padding: 10px 12px; border-left: 3px solid #b3261e; background: #fdf6f5; border-radius: 0 8px 8px 0">
+      <p style="margin: 0; font-size: 12px; line-height: 20px; color: #1c1c1c">
+        <strong style="font-weight: 500">全仓 <code>window.getSelection</code> 零命中</strong>，没有任何选区监听 / 浮层先例。方向 A 把它写成「退到工具条里的一枚」，
+        实际它的工作量与风险<strong style="font-weight: 500">和其余五项不在一个量级</strong>——必须单独占一个切片，且建议排在动作条之后。
+      </p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px">
+      <div>
+        <span class="cap">要从零建的四件事</span>
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px">
+          <div class="box" style="padding: 8px 10px"><div style="font-size: 11px; font-weight: 500">① 选区锚点</div><div class="note">唯一可挂的容器是渲染 markdown 的那层。要在它上面监听选区并算出浮标位置（跨行选区取末端矩形）。</div></div>
+          <div class="box" style="padding: 8px 10px"><div style="font-size: 11px; font-weight: 500">② 触屏 fallback</div><div class="note">触屏长按会弹<strong style="color: #0a0a0a; font-weight: 500">系统文本菜单</strong>，和自定义浮标抢位置。要么让位、要么改成「整段引用」按钮。</div></div>
+          <div class="box" style="padding: 8px 10px"><div style="font-size: 11px; font-weight: 500">③ 引用块进请求</div><div class="note">三选一：写进输入框当文本 / 新协议字段 / 新持久化档。<span style="color: #0a0a0a">建议第一轮走最轻的——写进输入框，可见可删可改。</span></div></div>
+          <div class="box" style="padding: 8px 10px"><div style="font-size: 11px; font-weight: 500">④ 与既有附件条的关系</div><div class="note">输入框已有图片附件条。文本引用块是<strong style="color: #0a0a0a; font-weight: 500">同一排</strong>还是单独一行，要定。</div></div>
+        </div>
+      </div>
+
+      <div>
+        <span class="cap">唯一可借鉴的先例</span>
+        <div class="box" style="margin-top: 10px; padding: 10px 12px">
+          <div style="font-size: 11px; line-height: 18px; color: #1c1c1c">画布助手的 <code>@</code> 唤起。<span style="color: #6b6b6b">Studio 侧没有对应物，且它解决的是「挑一个已有对象」，不是「圈一段文本」——只能借形式，借不了实现。</span></div>
+        </div>
+
+        <span class="cap" style="display: block; margin-top: 18px">反方向的另一半：点生成图问助手</span>
+        <div class="box" style="margin-top: 10px; padding: 10px 12px">
+          <div class="note" style="color: #1c1c1c">这一半<strong style="color: #0a0a0a; font-weight: 500">材料是齐的</strong>：媒体引用 schema、附件条、缩略图回放、上限常量全都在，画布侧已有「把图带进对话」的完整路径。<br><br>
+          <strong style="color: #0a0a0a; font-weight: 500">建议：反方向先做这一半。</strong>它复用既有机制、能立刻交付「看图回答」，而选区引用可以晚一轮。</div>
+        </div>
+
+        <div style="margin-top: 16px; padding: 10px 12px; background: #fafafa; border-radius: 10px">
+          <div class="note"><strong style="color: #0a0a0a; font-weight: 500">⚠ 一个现状 bug 顺带记下</strong>：点预设/答复 chip 发送后<strong style="color: #0a0a0a; font-weight: 500">不清空附件条</strong>，同一批缩略图会同时出现在用户气泡和输入框里，看着像挂了两份（实际只发一份）。要么修要么解释。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

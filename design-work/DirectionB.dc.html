@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; background: #ffffff; color: #0a0a0a; -webkit-font-smoothing: antialiased; }
+    a { color: #0a0a0a; } a:hover { color: #737373; }
+    .row { display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px; border-top: 1px solid #f0f0f0; }
+    .apply { display: inline-flex; align-items: center; justify-content: center; height: 24px; padding: 0 10px; border-radius: 999px; border: 1px solid #e5e5e5; background: #ffffff; font-size: 11px; cursor: pointer; flex-shrink: 0; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; width: 620px; height: 900px; background: #ffffff">
+
+  <div style="display: flex; align-items: baseline; gap: 10px; padding: 18px 22px 14px; border-bottom: 1px solid #e5e5e5">
+    <span style="font-size: 18px; font-weight: 600; letter-spacing: -0.02em">方向 B</span>
+    <span style="font-size: 13px; color: #737373">交付卡 —— 在气泡里结构化</span>
+  </div>
+
+  <div style="flex-grow: 1; display: flex; flex-direction: column; padding: 20px 22px; overflow: hidden">
+
+    <p style="margin: 0 0 16px; font-size: 12px; line-height: 20px; color: #737373">
+      助手交付的本来就是<strong style="color: #0a0a0a; font-weight: 500">一组字段</strong>，那就按字段显示。散文留在卡外，卡里每行一个「当前 → 建议」，右侧一个应用；底部一个「全部应用」。
+    </p>
+
+    <!-- 散文留在卡外 -->
+    <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 4px; flex-shrink: 0"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+      <div style="min-width: 0; flex-grow: 1; padding: 12px 14px; border-radius: 14px; background: #f9f9f9; font-size: 13px; line-height: 22px; color: #0a0a0a">
+        这版走冷调雨夜。为了突显胶片质感，我在提示词里加了 35mm 镜头和微粒颗粒；负面里挡掉常见的塑料感和水印。
+      </div>
+    </div>
+
+    <!-- 交付卡 -->
+    <div style="margin-left: 24px; border: 1px solid #e0e0e0; border-radius: 14px; background: #ffffff; overflow: hidden; box-shadow: 0 1px 3px rgb(0 0 0 / 0.05)">
+
+      <div style="display: flex; align-items: center; gap: 8px; padding: 11px 13px; background: #fafafa">
+        <span style="font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #737373">这一版交付</span>
+        <span style="flex-grow: 1"></span>
+        <span style="font-size: 11px; color: #6b6b6b">3 项可用 · 1 项不适用</span>
+      </div>
+
+      <!-- 正面：主字段，给预览 -->
+      <div class="row" style="border-top: 1px solid #e0e0e0; flex-direction: column; gap: 7px">
+        <div style="display: flex; align-items: center; gap: 8px; width: 100%">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2M9 20h6M12 4v16"/></svg>
+          <span style="flex-grow: 1; font-size: 12px; font-weight: 500">正面提示词</span>
+          <sc-if value="{{ posApplied }}" hint-placeholder-val="{{ false }}">
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #1f5135"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>已填入</span>
+          </sc-if>
+          <sc-if value="{{ posPending }}" hint-placeholder-val="{{ true }}">
+            <span class="apply" onClick="{{ applyPos }}" style="background: #0a0a0a; border-color: #0a0a0a; color: #ffffff">填入</span>
+          </sc-if>
+        </div>
+        <div style="width: 100%; font-family: ui-monospace, monospace; font-size: 11px; line-height: 18px; color: #525252; background: #f7f7f7; border-radius: 8px; padding: 8px 10px; max-height: 54px; overflow: hidden">Cinematic street photography of a narrow Tokyo alleyway at night during rain. Back view of a solitary woman holding an umbrella…</div>
+        <sc-if value="{{ posApplied }}" hint-placeholder-val="{{ false }}">
+          <div style="width: 100%; display: flex; align-items: center; gap: 6px; font-size: 11px; color: #737373">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
+            <span>盖掉了你原来那段 — </span><a href="#" onClick="{{ undoPos }}" style="text-decoration: underline; text-underline-offset: 3px">改回去</a>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- 负面：不适用，说出理由 -->
+      <div class="row" style="opacity: 0.62">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#737373" stroke-width="2" stroke-linecap="round" style="flex-shrink: 0; margin-top: 3px"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px">
+          <span style="font-size: 12px">负面提示词</span>
+          <span style="font-size: 11px; line-height: 17px; color: #737373">图片工作台还没有负面输入框，填进去你看不见也删不掉。视频 / 音频可用。</span>
+        </div>
+      </div>
+
+      <!-- 规格 -->
+      <div class="row">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 3px"><rect x="12" y="4" width="10" height="16" rx="2"/><rect x="2" y="9" width="8" height="6" rx="2"/></svg>
+        <div style="flex-grow: 1; display: flex; align-items: baseline; gap: 7px">
+          <span style="font-size: 12px">规格</span>
+          <span style="font-size: 11px; color: #6b6b6b; text-decoration: line-through">1:1</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b6b6b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="align-self: center"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <span style="font-size: 12px; font-weight: 500">9:16</span>
+        </div>
+        <span class="apply">应用</span>
+      </div>
+
+      <!-- 模型 -->
+      <div class="row">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 3px"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/></svg>
+        <div style="flex-grow: 1; display: flex; align-items: baseline; gap: 7px">
+          <span style="font-size: 12px">模型</span>
+          <span style="font-size: 11px; color: #6b6b6b">未选</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b6b6b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="align-self: center"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <span style="font-size: 12px; font-weight: 500">Illustrious XL</span>
+        </div>
+        <span class="apply">应用</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-top: 1px solid #e0e0e0; background: #fafafa">
+        <span class="apply" style="background: #0a0a0a; border-color: #0a0a0a; color: #ffffff; height: 28px; padding: 0 13px; font-size: 12px">全部应用</span>
+        <span style="flex-grow: 1"></span>
+        <span style="font-size: 11px; color: #6b6b6b; cursor: pointer">复制</span>
+      </div>
+    </div>
+
+    <!-- 退化态 -->
+    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px dashed #e5e5e5">
+      <div style="font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b6b6b; margin-bottom: 10px">退化态 · 档 2 只提一条建议</div>
+      <div style="margin-left: 24px; display: inline-flex; align-items: center; gap: 9px; padding: 8px 11px; border: 1px solid #e0e0e0; border-radius: 12px; background: #ffffff">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/></svg>
+        <span style="font-size: 12px">模型 <span style="color: #6b6b6b">未选 →</span> <strong style="font-weight: 500">Illustrious XL</strong></span>
+        <span class="apply">应用</span>
+      </div>
+      <p style="margin: 10px 0 0 24px; font-size: 11px; line-height: 18px; color: #737373">一条建议时卡收成一行，不撑出表头和「全部应用」。这是 B 必须一起设计的部分——否则档 2 每句话都顶着一张大卡。</p>
+    </div>
+
+    <!-- 反方向 -->
+    <div style="margin-top: 18px; padding-top: 16px; border-top: 1px dashed #e5e5e5">
+      <div style="font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b6b6b; margin-bottom: 10px">反方向 · 引用一段继续问</div>
+      <p style="margin: 0; font-size: 11px; line-height: 18px; color: #737373">卡的每一行右侧多一个「就这条追问」——引用对象是<strong style="color: #0a0a0a; font-weight: 500">字段</strong>而不是任意文本段，问出去的话天然带结构（「把负面再收紧一点」）。代价：散文里的句子仍然引用不了。</p>
+    </div>
+
+    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding-top: 16px">
+      <div style="display: flex; gap: 8px; align-items: flex-start">
+        <span style="flex-shrink: 0; font-size: 10px; font-weight: 500; letter-spacing: 0.1em; color: #1f5135; padding-top: 2px">值</span>
+        <span style="font-size: 11px; line-height: 18px; color: #525252">结构与内容对齐，能显示「当前 → 建议」的差异，天然不膨胀。1–5 全解决，而且是唯一能在应用前就让用户看见「会被盖掉什么」的方向。</span>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: flex-start">
+        <span style="flex-shrink: 0; font-size: 10px; font-weight: 500; letter-spacing: 0.1em; color: #8a4b2a; padding-top: 2px">价</span>
+        <span style="font-size: 11px; line-height: 18px; color: #525252">视觉重量最大，对话感被削弱——每轮档 3 都压一张卡进来。退化态是必做项，不是可选项。</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { pos: false };
+  }
+  renderVals() {
+    return {
+      posApplied: this.state.pos,
+      posPending: !this.state.pos,
+      applyPos: () => this.setState({ pos: true }),
+      undoPos: () => this.setState({ pos: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>

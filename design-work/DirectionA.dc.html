@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; background: #ffffff; color: #0a0a0a; -webkit-font-smoothing: antialiased; }
+    a { color: #0a0a0a; } a:hover { color: #737373; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; font-size: 12px; cursor: pointer; border: 1px solid transparent; transition: background 140ms ease, border-color 140ms ease, color 140ms ease; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; width: 620px; height: 900px; background: #ffffff">
+
+  <div style="display: flex; align-items: baseline; gap: 10px; padding: 18px 22px 14px; border-bottom: 1px solid #e5e5e5">
+    <span style="font-size: 18px; font-weight: 600; letter-spacing: -0.02em">方向 A</span>
+    <span style="font-size: 13px; color: #737373">动作条 —— 在气泡里分层</span>
+  </div>
+
+  <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 0; padding: 20px 22px; overflow: hidden">
+
+    <p style="margin: 0 0 16px; font-size: 12px; line-height: 20px; color: #737373">
+      六个等权重 chip 拆成三档：<strong style="color: #0a0a0a; font-weight: 500">主动作</strong>实心、<strong style="color: #0a0a0a; font-weight: 500">配置</strong>降成一条带图标的细行、<strong style="color: #0a0a0a; font-weight: 500">复制</strong>退到 hover。点一下就地变「已应用」并露出撤销。
+    </p>
+
+    <!-- 气泡 -->
+    <div style="display: flex; align-items: flex-start; gap: 8px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 4px; flex-shrink: 0"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+      <div style="min-width: 0; flex-grow: 1; padding: 12px 14px; border-radius: 14px; background: #f9f9f9; font-size: 13px; line-height: 22px; color: #0a0a0a">
+        这版走冷调雨夜。为了突显胶片质感，我在提示词里加了 35mm 镜头和微粒颗粒；负面里挡掉常见的塑料感和水印。
+      </div>
+    </div>
+
+    <!-- 分层动作条 -->
+    <div style="margin: 10px 0 0 24px; display: flex; flex-direction: column; gap: 10px">
+
+      <!-- 第 1 档：主动作 -->
+      <div style="display: flex; align-items: center; gap: 8px">
+        <sc-if value="{{ promptApplied }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <div class="chip" style="background: #f0f7f2; border-color: #cfe3d6; color: #1f5135; cursor: default">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>已填入提示词
+            </div>
+            <a href="#" onClick="{{ undoPrompt }}" style="font-size: 12px; color: #737373; text-decoration: underline; text-underline-offset: 3px">撤销</a>
+          </div>
+        </sc-if>
+        <sc-if value="{{ promptPending }}" hint-placeholder-val="{{ true }}">
+          <div class="chip" onClick="{{ applyPrompt }}" style="background: #0a0a0a; border-color: #0a0a0a; color: #ffffff; height: 32px; padding: 0 14px; font-weight: 500">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>填入提示词
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- 第 2 档：配置，细行 -->
+      <div style="display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid #ededed; border-radius: 12px; background: #fcfcfc">
+        <div style="font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b6b6b; padding: 0 2px 4px">同时调整工作台</div>
+
+        <div style="display: flex; align-items: center; gap: 8px; padding: 4px 2px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#737373" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+          <span style="flex-grow: 1; font-size: 12px; color: #1c1c1c">负面提示词</span>
+          <span style="font-size: 11px; color: #6b6b6b">图片工作台没有这个框</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; padding: 4px 2px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="4" width="10" height="16" rx="2"/><rect x="2" y="9" width="8" height="6" rx="2"/></svg>
+          <span style="flex-grow: 1; font-size: 12px; color: #1c1c1c">规格 <span style="color: #6b6b6b">1:1</span> <span style="color: #6b6b6b">→</span> <strong style="font-weight: 500">9:16</strong></span>
+          <sc-if value="{{ ratioApplied }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 11px; color: #1f5135">已应用</span>
+          </sc-if>
+          <sc-if value="{{ ratioPending }}" hint-placeholder-val="{{ true }}">
+            <span class="chip" onClick="{{ applyRatio }}" style="height: 24px; padding: 0 10px; font-size: 11px; background: #ffffff; border-color: #e5e5e5">应用</span>
+          </sc-if>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; padding: 4px 2px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/></svg>
+          <span style="flex-grow: 1; font-size: 12px; color: #1c1c1c">模型 <span style="color: #6b6b6b">未选</span> <span style="color: #6b6b6b">→</span> <strong style="font-weight: 500">Illustrious XL</strong></span>
+          <span class="chip" style="height: 24px; padding: 0 10px; font-size: 11px; background: #ffffff; border-color: #e5e5e5">应用</span>
+        </div>
+      </div>
+
+      <!-- 第 3 档：hover 才出 -->
+      <div style="display: flex; align-items: center; gap: 6px; padding-left: 2px">
+        <span style="font-size: 11px; color: #d4d4d4">·</span>
+        <span style="font-size: 11px; color: #6b6b6b">复制 · 引用这段问</span>
+        <span style="font-size: 10px; color: #d4d4d4">（hover 气泡才出现）</span>
+      </div>
+    </div>
+
+    <!-- 反方向：引用提问 -->
+    <div style="margin-top: 26px; padding-top: 20px; border-top: 1px dashed #e5e5e5">
+      <div style="font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b6b6b; margin-bottom: 12px">反方向 · 引用一段继续问</div>
+      <div style="position: relative; padding: 12px 14px; border-radius: 14px; background: #f9f9f9; font-size: 13px; line-height: 22px; color: #0a0a0a">
+        为了突显胶片质感，<span style="background: #e8eef7; border-radius: 3px; padding: 1px 0; box-shadow: 0 0 0 2px #e8eef7">我在提示词里加了 35mm 镜头和微粒颗粒</span>；负面里挡掉常见的塑料感和水印。
+        <div style="position: absolute; left: 96px; top: -14px; display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 11px; box-shadow: 0 4px 12px rgb(0 0 0 / 0.18)">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>引用提问
+        </div>
+      </div>
+      <p style="margin: 12px 0 0; font-size: 11px; line-height: 18px; color: #737373">选中文字 → 浮出小工具条。与「复制」同一条工具条，所以复制从 chip 排里退役也不丢功能。</p>
+    </div>
+
+    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding-top: 18px">
+      <div style="display: flex; gap: 8px; align-items: flex-start">
+        <span style="flex-shrink: 0; font-size: 10px; font-weight: 500; letter-spacing: 0.1em; color: #1f5135; padding-top: 2px">值</span>
+        <span style="font-size: 11px; line-height: 18px; color: #525252">改动最小、与现有结构同构，一轮能落地。1/2/3/5 全解决：反馈就地、三档分层、撤销在原位、闸掉的说出理由。</span>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: flex-start">
+        <span style="flex-shrink: 0; font-size: 10px; font-weight: 500; letter-spacing: 0.1em; color: #8a4b2a; padding-top: 2px">价</span>
+        <span style="font-size: 11px; line-height: 18px; color: #525252">本质仍是「气泡下面一堆控件」。配置多于三条时那个盒子会继续长；档 2 只提一条建议时也得撑出整个盒子。</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { prompt: false, ratio: false };
+  }
+  renderVals() {
+    return {
+      promptApplied: this.state.prompt,
+      promptPending: !this.state.prompt,
+      ratioApplied: this.state.ratio,
+      ratioPending: !this.state.ratio,
+      applyPrompt: () => this.setState({ prompt: true }),
+      undoPrompt: () => this.setState({ prompt: false }),
+      applyRatio: () => this.setState({ ratio: true }),
+    };
+  }
+}
+</script>
+</body>
+</html>

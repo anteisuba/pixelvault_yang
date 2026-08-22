@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; background: #ffffff; color: #0a0a0a; -webkit-font-smoothing: antialiased; }
+    a { color: #0a0a0a; } a:hover { color: #6b6b6b; }
+    .cap { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b6b6b; }
+    .note { font-size: 11px; line-height: 18px; color: #6b6b6b; }
+    .node { border-radius: 10px; padding: 9px 11px; font-size: 11px; line-height: 17px; text-align: center; }
+    td, th { font-size: 11px; line-height: 17px; text-align: left; vertical-align: top; padding: 6px 9px; border-bottom: 1px solid #f0f0f0; }
+    th { font-size: 10px; letter-spacing: 0.06em; color: #6b6b6b; background: #fafafa; font-weight: 500; }
+    table { border-collapse: collapse; width: 100%; border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden; }
+    code { font-family: ui-monospace, monospace; font-size: 10px; background: #f2f2f2; padding: 1px 4px; border-radius: 3px; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; width: 880px; height: 1100px; background: #ffffff; padding: 20px 22px">
+
+  <div style="display: flex; align-items: baseline; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid #e5e5e5">
+    <span style="font-size: 18px; font-weight: 600; letter-spacing: -0.02em">切片 3 · 已应用 / 撤销</span>
+    <span style="font-size: 13px; color: #525252">底层零 undo 机制，这不是 UI 态而是一套契约</span>
+  </div>
+
+  <div style="margin-top: 12px; padding: 10px 12px; border-left: 3px solid #b3261e; background: #fdf6f5; border-radius: 0 8px 8px 0">
+    <p style="margin: 0; font-size: 12px; line-height: 20px; color: #1c1c1c">
+      <strong style="font-weight: 500">studio-context 那五个 action 全是纯 setter，全文件零 undo / 零快照。</strong>
+      而且最尖锐的一条是：现状没有任何机制知道「值被用户改过」——
+      <span style="color: #b3261e; font-weight: 500">天真的撤销会把用户后来手写的内容一起抹掉，比原问题更糟。</span>
+    </p>
+  </div>
+
+  <!-- 状态机 -->
+  <div style="margin-top: 16px">
+    <span class="cap">状态机 · 关键在于「已应用」是算出来的，不是存下来的</span>
+    <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px">
+      <div class="node" style="border: 1px solid #e5e5e5; background: #ffffff; width: 116px">未应用<br><span style="color: #6b6b6b">「应用」</span></div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 2px">
+        <span style="font-size: 10px; color: #6b6b6b">点应用</span>
+        <svg width="34" height="10" viewBox="0 0 34 10" fill="none" stroke="#0a0a0a" stroke-width="1.4"><path d="M0 5h30M26 1l4 4-4 4"/></svg>
+        <span style="font-size: 10px; color: #6b6b6b">存快照</span>
+      </div>
+      <div class="node" style="border: 1px solid #b7dcc7; background: #f0f7f2; color: #16794c; width: 140px">已应用<span style="color: #6b6b6b"> · 值未被动过</span><br><span style="font-weight: 500">「已应用 ✓ · 撤销」</span></div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 2px">
+        <span style="font-size: 10px; color: #6b6b6b">用户手改了这个框</span>
+        <svg width="34" height="10" viewBox="0 0 34 10" fill="none" stroke="#0a0a0a" stroke-width="1.4"><path d="M0 5h30M26 1l4 4-4 4"/></svg>
+      </div>
+      <div class="node" style="border: 1px solid #e5e5e5; background: #ffffff; width: 132px">回到未应用<br><span style="color: #6b6b6b">撤销自动消失</span></div>
+    </div>
+    <div style="margin-top: 10px; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 10px; background: #fafafa">
+      <p style="margin: 0; font-size: 11px; line-height: 19px; color: #1c1c1c">
+        <strong style="font-weight: 500">判据：已应用 ⟺ 当前表单值 === 这条建议的值。</strong>
+        整个「已应用」不存状态，每帧从 <code>state</code> 算出来。带来的三个后果都是我们想要的：
+        <span style="color: #6b6b6b">用户手改后它自动退回「应用」（因为事实上确实没应用了，撤销随之消失，不会抹掉用户后写的内容）；
+        刷新后仍然正确（值还等于建议 → 仍显示已应用，但没有快照 → 不显示撤销，诚实）；
+        同一字段被两条消息先后建议时，只有匹配当前值的那条显示已应用。</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- 快照契约 -->
+  <div style="margin-top: 18px">
+    <span class="cap">快照契约 · 逐动作定粒度（定错了撤销比不撤销更糟）</span>
+    <table style="margin-top: 10px">
+      <tr><th style="width: 78px">动作</th><th style="width: 150px">快照存什么</th><th>为什么是这个粒度</th></tr>
+      <tr><td>提示词</td><td><code>state.prompt</code> 全文</td><td>整体替换，字符串即可。</td></tr>
+      <tr><td>负面</td><td style="color: #b3261e; font-weight: 500">整个 advancedParams 对象</td><td><code>SET_ADVANCED_PARAMS</code> 是<strong style="font-weight: 500">整体替换</strong>。只存 negativePrompt 一个键，撤销时会把用户调好的 seed / steps / resolution 全部清空。</td></tr>
+      <tr><td>规格</td><td>标量 AspectRatio</td><td>五个合法值之一。</td></tr>
+      <tr><td>张数</td><td>标量 ImageBatchCount</td><td>1 / 2 / 4 之一。</td></tr>
+      <tr><td>模型</td><td>optionId</td><td>撤销本身对称（extras 名单没被动）。⚠ 但<strong style="font-weight: 500">正向</strong>有隐藏副作用，见下。</td></tr>
+    </table>
+    <div class="note" style="margin-top: 8px">
+      唯一可参照的既有先例是闭包快照（画布 composer 的模板选择器）。仓库里没有通用 undo 设施，本轮也不建议造一个。
+    </div>
+  </div>
+
+  <!-- 转移表 -->
+  <div style="margin-top: 16px; flex-grow: 1">
+    <span class="cap">九条转移 · 逐条给答案（现状至少四条没有答案）</span>
+    <table style="margin-top: 10px">
+      <tr><th style="width: 168px">情形</th><th>本切片的答案</th></tr>
+      <tr><td>重复点同一行</td><td>已应用态不可点（<code>cursor: default</code>），不是禁用样式——它已经是结果不是按钮。</td></tr>
+      <tr><td>撤销后再点应用</td><td>正常，重新存快照（快照是「点的那一刻的值」，不是「最初的值」）。</td></tr>
+      <tr><td>连点两次撤销</td><td>撤销后立刻回到未应用态，第二次点不到。</td></tr>
+      <tr style="background: #fdf6f5"><td style="font-weight: 500">用户手改了该字段</td><td><strong style="font-weight: 500">已应用自动失效、撤销消失</strong>。由判据自然导出，不需要监听。<span style="color: #b3261e">这是最危险的一条，也是整个设计的支点。</span></td></tr>
+      <tr><td>切历史会话</td><td>快照随消息内存态一起丢 → 显示已应用（若值仍匹配）但无撤销。</td></tr>
+      <tr><td>刷新 / 重新水合</td><td>同上。<code>promptDraft</code> / <code>setup</code> 已落库，chip 照出；快照不落库，撤销不出。</td></tr>
+      <tr><td>点「清空」</td><td>整个会话槽重置，动作条随消息一起消失。工作台的值<strong style="font-weight: 500">不回滚</strong>——已应用的东西是用户的了。</td></tr>
+      <tr><td>两条消息先后建议同一字段</td><td>值匹配谁谁显示已应用。两条建议同值时两条都显示，正确。</td></tr>
+      <tr><td>历史消息上的动作条</td><td>可点。<span style="color: #6b6b6b">⚠ 但首帧不是空态而是一屏历史——若每条都画带边框的配置盒，首屏会是一列盒子墙。见切片 4 的密度决定。</span></td></tr>
+    </table>
+  </div>
+
+  <div style="margin-top: 14px; display: flex; gap: 14px">
+    <div style="flex: 1; display: flex; gap: 9px">
+      <span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #b3261e; color: #ffffff; font-size: 10px; font-weight: 500; display: flex; align-items: center; justify-content: center">险</span>
+      <span style="font-size: 11px; line-height: 18px; color: #1c1c1c"><strong style="font-weight: 500">换模型有隐藏副作用</strong><span style="color: #6b6b6b">：目标模型若已在多模型对比名单里，运行名单去重会让这一轮<strong style="color: #b3261e; font-weight: 500">静默少跑一个模型</strong>。既有 bug，本切片只标记，但要决定是否在应用前提示。</span></span>
+    </div>
+    <div style="flex: 1; display: flex; gap: 9px">
+      <span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 10px; font-weight: 500; display: flex; align-items: center; justify-content: center">决</span>
+      <span style="font-size: 11px; line-height: 18px; color: #1c1c1c"><strong style="font-weight: 500">与「复制」的既有反馈是两套时序</strong><span style="color: #6b6b6b">：复制是 2000ms 自己消失（硬编码 setTimeout，卸载不清 timer）；已应用要<strong style="font-weight: 500">留着</strong>给撤销。两者同屏并存，差异必须先说清。</span></span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

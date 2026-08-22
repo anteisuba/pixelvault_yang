@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; background: #ffffff; color: #0a0a0a; -webkit-font-smoothing: antialiased; }
+    a { color: #0a0a0a; } a:hover { color: #6b6b6b; }
+    .cap { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b6b6b; }
+    .note { font-size: 11px; line-height: 18px; color: #6b6b6b; }
+    .ruler { font-family: ui-monospace, monospace; font-size: 10px; color: #6b6b6b; }
+    .main { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 12px; font-weight: 500; }
+    .box { border: 1px solid #e5e5e5; border-radius: 12px; background: #ffffff; }
+    .row { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; }
+    .lbl { color: #6b6b6b; flex-shrink: 0; font-size: 11px; }
+    .val { font-size: 11px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .apply { display: inline-flex; align-items: center; justify-content: center; height: 24px; padding: 0 10px; border-radius: 999px; border: 1px solid #e5e5e5; background: #ffffff; font-size: 11px; flex-shrink: 0; }
+    .stage { border: 1px dashed #cfcfcf; border-radius: 10px; padding: 10px; background: #fcfcfc; }
+  </style>
+</helmet>
+
+<div style="display: grid; grid-template-columns: 720px 1fr; gap: 20px; width: 1160px; height: 860px; background: #ffffff; padding: 20px 22px">
+
+  <!-- 左：实尺样本 -->
+  <div style="display: flex; flex-direction: column; gap: 0; min-width: 0">
+    <div style="display: flex; align-items: baseline; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #e5e5e5">
+      <span style="font-size: 18px; font-weight: 600; letter-spacing: -0.02em">切片 4 · 响应式四档与截断</span>
+    </div>
+
+    <p class="note" style="margin: 12px 0 14px">
+      dock 可调宽 <strong style="color: #0a0a0a; font-weight: 500">320 / 360 / 720</strong>（最小 / 默认 / 最大），平板抽屉 860。
+      下面是动作条<strong style="color: #0a0a0a; font-weight: 500">实尺</strong>样本——扣掉面板内边距与 24px 左缩进后的真实可用宽。
+    </p>
+
+    <div style="display: flex; gap: 16px; align-items: flex-start">
+      <!-- 250 -->
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span class="ruler">dock 320 → 可用 250px</span>
+        <div class="stage" style="width: 250px; box-sizing: border-box">
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <span class="main" style="align-self: flex-start">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>填入提示词</span>
+            <div class="box">
+              <div class="row"><span class="lbl">规格</span><span class="val" style="flex-grow: 1">9:16</span><span class="apply">应用</span></div>
+              <div class="row" style="border-top: 1px solid #f5f5f5"><span class="lbl">模型</span><span class="val" style="flex-grow: 1">gemini-3.1-flash-lite…</span><span class="apply">应用</span></div>
+              <div class="row" style="border-top: 1px solid #f5f5f5"><span class="lbl">张数</span><span class="val" style="flex-grow: 1">4</span><span class="apply">应用</span></div>
+            </div>
+          </div>
+        </div>
+        <span class="note" style="width: 250px">最窄档<strong style="color: #0a0a0a; font-weight: 500">丢掉「当前 →」整段</strong>，只留建议值；长模型名再截断（第 2 行）。留着它必然折行，折行后一行变三行，分层反而更高。</span>
+      </div>
+
+      <!-- 290 -->
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span class="ruler">dock 360（默认）→ 可用 290px</span>
+        <div class="stage" style="width: 290px; box-sizing: border-box">
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <span class="main" style="align-self: flex-start">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>填入提示词</span>
+            <div class="box">
+              <div class="row"><span class="lbl">规格</span><span class="lbl" style="font-size: 10px">1:1 →</span><span class="val" style="flex-grow: 1">9:16</span><span class="apply">应用</span></div>
+              <div class="row" style="border-top: 1px solid #f5f5f5"><span class="lbl">模型</span><span class="lbl" style="font-size: 10px">未选 →</span><span class="val" style="flex-grow: 1">gemini-3.1-flash…</span><span class="apply">应用</span></div>
+              <div class="row" style="border-top: 1px solid #f5f5f5"><span class="lbl">张数</span><span class="lbl" style="font-size: 10px">1 →</span><span class="val" style="flex-grow: 1">4</span><span class="apply">应用</span></div>
+            </div>
+          </div>
+        </div>
+        <span class="note" style="width: 290px">默认档「当前 →」以 10px 弱色回来。值仍需 <code style="font-family: ui-monospace, monospace; font-size: 10px">min-width:0 + truncate</code>（第 2 行同一个长模型名，截断点更靠后）。</span>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 18px">
+      <span class="ruler">dock 720（最大）→ 可用 650px</span>
+      <div class="stage" style="width: 650px; box-sizing: border-box">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <span class="main" style="align-self: flex-start">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>填入提示词</span>
+          <div class="box">
+            <div class="row"><span class="lbl">规格</span><span class="lbl" style="font-size: 10px">1:1 →</span><span class="val" style="flex-grow: 1">9:16 · 竖版</span><span class="apply">应用</span></div>
+            <div class="row" style="border-top: 1px solid #f5f5f5"><span class="lbl">模型</span><span class="lbl" style="font-size: 10px">未选 →</span><span class="val" style="flex-grow: 1">gemini-3.1-flash-lite-image</span><span class="apply">应用</span></div>
+          </div>
+        </div>
+      </div>
+      <span class="note" style="width: 650px">最宽档不额外加信息——<strong style="color: #0a0a0a; font-weight: 500">留白就是留白</strong>，别因为有地方就往里塞。</span>
+    </div>
+  </div>
+
+  <!-- 右：规则 -->
+  <div style="display: flex; flex-direction: column; gap: 0; min-width: 0; padding-left: 20px; border-left: 1px solid #e5e5e5">
+    <span class="cap">截断与折行规则</span>
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px">
+      <div style="display: flex; gap: 9px"><span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #0a0a0a; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center">1</span><span class="note" style="color: #1c1c1c"><strong style="font-weight: 500">配置行永不折行。</strong>它是「一件事一行」，折了就读不出对应关系。挤不下就砍信息，不换行。</span></div>
+      <div style="display: flex; gap: 9px"><span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #0a0a0a; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center">2</span><span class="note" style="color: #1c1c1c"><strong style="font-weight: 500">砍信息的顺序</strong>：先砍「当前值 →」（&lt;280px），再截断建议值（ellipsis + title 全称）。<span style="color: #6b6b6b">「应用」和标签永不砍。</span></span></div>
+      <div style="display: flex; gap: 9px"><span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #0a0a0a; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center">3</span><span class="note" style="color: #1c1c1c"><strong style="font-weight: 500">主按钮永不截断</strong>，它是固定短文案。</span></div>
+      <div style="display: flex; gap: 9px"><span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #b3261e; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center">!</span><span class="note" style="color: #1c1c1c"><strong style="font-weight: 500">现状 chip 没有任何截断防护</strong>：Button 基类带 <code style="font-family: ui-monospace, monospace; font-size: 10px">shrink-0 whitespace-nowrap</code>，无 max-w、无 truncate，文案直接拼完整模型显示名。一个长模型名就把行撑破。</span></div>
+    </div>
+
+    <div style="margin-top: 22px; padding-top: 16px; border-top: 1px solid #e5e5e5">
+      <span class="cap">首屏密度</span>
+      <p class="note" style="margin: 10px 0 0">
+        面板挂载会自动水合上一段会话——<strong style="color: #0a0a0a; font-weight: 500">老用户的首帧不是空态，是一屏历史消息</strong>，每条底下都挂着动作条且全部未应用。
+      </p>
+      <p class="note" style="margin: 8px 0 0">
+        若每条都画带边框的配置盒，首屏就是一列盒子墙。<strong style="color: #0a0a0a; font-weight: 500">决策：历史消息（非最后一轮）的配置盒默认收起</strong>，只留主按钮 + 一行「另有 3 项配置建议」，点开才展开。空态 starter 只是一帧闪屏，不该当默认稿。
+      </p>
+    </div>
+
+    <div style="margin-top: 22px; padding-top: 16px; border-top: 1px solid #e5e5e5">
+      <span class="cap">同屏药丸家族</span>
+      <p class="note" style="margin: 10px 0 0">
+        面板里已经有<strong style="color: #0a0a0a; font-weight: 500">四到五族圆角丸</strong>：顶部预设 4 枚、收敛选项 chip、回填 chip、LoRA 细化行、LoRA dock 上下文 chips。LoRA 域一屏能同时出现四族。
+      </p>
+      <p class="note" style="margin: 8px 0 0">
+        只把回填这一族分层，结果仍然是「满屏灰色小药丸」——<strong style="color: #0a0a0a; font-weight: 500">问题 2（等权重）不会真正解决</strong>。本切片给的区分手段是<strong style="color: #0a0a0a; font-weight: 500">形状</strong>：只有回填这一族用「实心 + 方角盒」，其余保持药丸。是否够，要 owner 看真机。
+      </p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

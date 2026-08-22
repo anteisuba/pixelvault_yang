@@ -1,0 +1,163 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; background: #ffffff; color: #0a0a0a; -webkit-font-smoothing: antialiased; }
+    a { color: #0a0a0a; } a:hover { color: #6b6b6b; }
+    .cap { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b6b6b; }
+    .chip { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; font-size: 11px; border: 1px solid #e5e5e5; background: #ffffff; color: #0a0a0a; }
+    .chip.solid { background: #0a0a0a; border-color: #0a0a0a; color: #ffffff; font-weight: 500; }
+    .chip.gone { border-style: dashed; border-color: #dcdcdc; color: #6b6b6b; background: #fbfbfb; }
+    .col { display: flex; flex-direction: column; gap: 0; border: 1px solid #e5e5e5; border-radius: 14px; overflow: hidden; background: #ffffff; }
+    .colhd { padding: 12px 14px; border-bottom: 1px solid #e5e5e5; }
+    .meta { display: flex; justify-content: space-between; gap: 8px; padding: 5px 14px; font-size: 11px; line-height: 17px; }
+    .k { color: #6b6b6b; flex-shrink: 0; }
+    .v { color: #0a0a0a; text-align: right; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; width: 1240px; height: 880px; background: #ffffff; padding: 20px 22px">
+
+  <div style="display: flex; align-items: baseline; gap: 12px; padding-bottom: 8px">
+    <span style="font-size: 18px; font-weight: 600; letter-spacing: -0.02em">切片 1 · 宿主档位矩阵</span>
+    <span style="font-size: 13px; color: #525252">分层的前提在四档宿主里只有一档成立</span>
+  </div>
+
+  <div style="padding: 10px 12px; border-left: 3px solid #0a0a0a; background: #fafafa; border-radius: 0 8px 8px 0; margin-bottom: 16px">
+    <p style="margin: 0; font-size: 12px; line-height: 20px; color: #1c1c1c">
+      勘察推翻了方向 A 的一条前提：<strong style="font-weight: 500">六枚 chip 从来不同时出现，而且缺席是按宿主写死的结构性缺席，不是「有时候少一个」。</strong>
+      只画满负载那一张，会在 LoRA 域发现配置盒是空壳、在图片域发现负面那行永远不渲染。
+      <span style="color: #6b6b6b">所以本切片要定的是：分层在四档下各自长什么样，以及在只剩两三项时分层还成不成立。</span>
+    </p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; flex-grow: 1">
+
+    <!-- 视频 -->
+    <div class="col">
+      <div class="colhd">
+        <div style="font-size: 13px; font-weight: 500">视频 Studio · 桌面 dock</div>
+        <div style="font-size: 11px; color: #6b6b6b; margin-top: 2px">唯一结构上能满 6 的一档</div>
+      </div>
+      <div style="padding: 8px 0 10px">
+        <div class="meta"><span class="k">渲染路径</span><span class="v">MessageBubble</span></div>
+        <div class="meta"><span class="k">面板宽</span><span class="v">320 / 360 / 720</span></div>
+        <div class="meta"><span class="k">可能动作</span><span class="v" style="color: #16794c; font-weight: 500">6 / 6</span></div>
+      </div>
+      <div style="padding: 12px 14px; border-top: 1px solid #f0f0f0; background: #fcfcfc; flex-grow: 1; display: flex; flex-direction: column; gap: 8px">
+        <span class="cap">动作条</span>
+        <span class="chip solid">填入提示词</span>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 8px 9px; border: 1px solid #e5e5e5; border-radius: 10px; background: #ffffff">
+          <span style="font-size: 11px; color: #1c1c1c">负面 <span style="color: #6b6b6b">→ 有</span></span>
+          <span style="font-size: 11px; color: #1c1c1c">规格 <span style="color: #6b6b6b">1:1 → 9:16</span></span>
+          <span style="font-size: 11px; color: #1c1c1c">模型 <span style="color: #6b6b6b">→ 有</span></span>
+          <span style="font-size: 11px; color: #1c1c1c">张数 <span style="color: #6b6b6b">1 → 4</span></span>
+        </div>
+        <span style="font-size: 10px; color: #6b6b6b">＋ 复制 · 引用（第三档次要样式，四档皆有）</span>
+      </div>
+    </div>
+
+    <!-- 图片 -->
+    <div class="col" style="border-color: #0a0a0a; box-shadow: 0 0 0 1px #0a0a0a">
+      <div class="colhd" style="background: #0a0a0a; color: #ffffff; border-bottom-color: #0a0a0a">
+        <div style="font-size: 13px; font-weight: 500">图片 Studio · 桌面 dock</div>
+        <div style="font-size: 11px; color: #c4c4c4; margin-top: 2px">重设计主落点</div>
+      </div>
+      <div style="padding: 8px 0 10px">
+        <div class="meta"><span class="k">渲染路径</span><span class="v">MessageBubble</span></div>
+        <div class="meta"><span class="k">面板宽</span><span class="v">320 / 360 / 720</span></div>
+        <div class="meta"><span class="k">可能动作</span><span class="v" style="font-weight: 500">5 / 6</span></div>
+      </div>
+      <div style="padding: 12px 14px; border-top: 1px solid #f0f0f0; background: #fcfcfc; flex-grow: 1; display: flex; flex-direction: column; gap: 8px">
+        <span class="cap">动作条</span>
+        <span class="chip solid">填入提示词</span>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 8px 9px; border: 1px solid #e5e5e5; border-radius: 10px; background: #ffffff">
+          <span style="font-size: 11px; color: #6b6b6b; text-decoration: line-through">负面</span>
+          <span style="font-size: 11px; color: #1c1c1c">规格 <span style="color: #6b6b6b">1:1 → 9:16</span></span>
+          <span style="font-size: 11px; color: #1c1c1c">模型 <span style="color: #6b6b6b">→ 有</span></span>
+          <span style="font-size: 11px; color: #1c1c1c">张数 <span style="color: #6b6b6b">1 → 4</span></span>
+        </div>
+        <span style="font-size: 10px; line-height: 16px; color: #6b6b6b">＋ 复制 · 引用（第三档）<br>负面被<strong style="color: #0a0a0a; font-weight: 500">显式置 undefined</strong>——工作台没有那个框</span>
+      </div>
+    </div>
+
+    <!-- 音频 -->
+    <div class="col">
+      <div class="colhd">
+        <div style="font-size: 13px; font-weight: 500">音频 Studio · 桌面 dock</div>
+        <div style="font-size: 11px; color: #6b6b6b; margin-top: 2px">同一个 dock 组件，也挂着</div>
+      </div>
+      <div style="padding: 8px 0 10px">
+        <div class="meta"><span class="k">渲染路径</span><span class="v">MessageBubble</span></div>
+        <div class="meta"><span class="k">面板宽</span><span class="v">320 / 360 / 720</span></div>
+        <div class="meta"><span class="k">可能动作</span><span class="v" style="font-weight: 500">5 / 6</span></div>
+      </div>
+      <div style="padding: 12px 14px; border-top: 1px solid #f0f0f0; background: #fcfcfc; flex-grow: 1; display: flex; flex-direction: column; gap: 8px">
+        <span class="cap">动作条</span>
+        <span class="chip solid">填入提示词</span>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 8px 9px; border: 1px solid #e5e5e5; border-radius: 10px; background: #ffffff">
+          <span style="font-size: 11px; color: #1c1c1c">负面 <span style="color: #6b6b6b">→ 有</span></span>
+          <span style="font-size: 11px; color: #1c1c1c">规格 <span style="color: #6b6b6b">→ 有</span></span>
+          <span style="font-size: 11px; color: #6b6b6b; text-decoration: line-through">模型</span>
+          <span style="font-size: 11px; color: #1c1c1c">张数 <span style="color: #6b6b6b">→ 有</span></span>
+        </div>
+        <span style="font-size: 10px; line-height: 16px; color: #6b6b6b">＋ 复制 · 引用（第三档）<br>模型目录是<strong style="color: #0a0a0a; font-weight: 500">空数组</strong>→ 查表恒 null，模型行结构性不存在</span>
+      </div>
+    </div>
+
+    <!-- LoRA -->
+    <div class="col" style="border-color: #c9a227">
+      <div class="colhd" style="background: #fdf8e8; border-bottom-color: #ecd9a0">
+        <div style="font-size: 13px; font-weight: 500">LoRA 装配台 · dock</div>
+        <div style="font-size: 11px; color: #7a5c10; margin-top: 2px">走的是另一条渲染路径</div>
+      </div>
+      <div style="padding: 8px 0 10px">
+        <div class="meta"><span class="k">渲染路径</span><span class="v" style="color: #7a5c10">两条并行</span></div>
+        <div class="meta"><span class="k">面板宽</span><span class="v">桌面卡 / 移动近全屏</span></div>
+        <div class="meta"><span class="k">可能动作</span><span class="v" style="font-weight: 500">≤ 3 / 6</span></div>
+      </div>
+      <div style="padding: 12px 14px; border-top: 1px solid #f0f0f0; background: #fcfcfc; flex-grow: 1; display: flex; flex-direction: column; gap: 8px">
+        <span class="cap">动作条</span>
+        <span class="chip solid">填入提示词</span>
+        <span class="chip">填入负面</span>
+        <div style="padding: 8px 9px; border: 1px dashed #dcdcdc; border-radius: 10px; background: #fbfbfb; font-size: 11px; line-height: 17px; color: #6b6b6b; text-align: center">
+          配置盒<br>整块不存在
+        </div>
+        <span style="font-size: 10px; line-height: 16px; color: #6b6b6b">＋ 复制 · 引用（第三档）<br>规格/模型/张数三个回调<strong style="color: #0a0a0a; font-weight: 500">一个都没传</strong>。而且带 <code style="font-family: ui-monospace, monospace; font-size: 10px">lora</code> 的消息完全绕开 MessageBubble，走结果卡（另 3 枚按钮、无复制、正文不渲染）</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display: flex; gap: 16px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #e5e5e5">
+    <div style="flex: 1; display: flex; gap: 9px">
+      <span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 10px; font-weight: 500; display: flex; align-items: center; justify-content: center">决</span>
+      <span style="font-size: 11px; line-height: 18px; color: #1c1c1c"><strong style="font-weight: 500">配置盒在只剩 0 项时是否还画外框？</strong><span style="color: #6b6b6b">LoRA 那档就是 0 项。若照画，一个空盒子比原来的两枚 chip 还重。</span></span>
+    </div>
+    <div style="flex: 1; display: flex; gap: 9px">
+      <span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 10px; font-weight: 500; display: flex; align-items: center; justify-content: center">决</span>
+      <span style="font-size: 11px; line-height: 18px; color: #1c1c1c"><strong style="font-weight: 500">LoRA 结果卡纳不纳入本次重设计？</strong><span style="color: #6b6b6b">不纳入 → /studio/lora 同屏两套动作 UI；纳入 → 范围翻倍。</span></span>
+    </div>
+    <div style="flex: 1; display: flex; gap: 9px">
+      <span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: #b3261e; color: #ffffff; font-size: 10px; font-weight: 500; display: flex; align-items: center; justify-content: center">险</span>
+      <span style="font-size: 11px; line-height: 18px; color: #1c1c1c"><strong style="font-weight: 500">结果卡有个更严重的实例</strong><span style="color: #6b6b6b">：tag 全删后按钮仍亮，点下去用空串覆盖工作台提示词。正是「覆盖无警告」的最坏形态，却在 A 的射程外。</span></span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

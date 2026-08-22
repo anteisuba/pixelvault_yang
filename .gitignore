@@ -69,6 +69,8 @@ next-env.d.ts
 
 # local scratch / probe outputs (e.g. fal-probe run dirs)
 /tmp/
+# research-connectivity-probe 的运行输出，每次跑都重写（scripts/research-connectivity-probe.mjs）
+/scripts/probe-latest.json
 
 # generated monitor outputs (model-doc-monitor snapshots/reports — regenerated, not tracked)
 /artifacts/
@@ -77,6 +79,11 @@ next-env.d.ts
 .ds-sync/
 ds-bundle/
 .design-sync/
+
+# design canvas（design-work/）：.dc.html 画板与 canvas.json 是源文件，进仓；
+# 发布用的单文件打包把整个编辑器代码内联进去（2.3MB），是构建产物，不进仓。
+/design-work/*.html
+!/design-work/*.dc.html
 
 # obsidian vault config (docs/ doubles as an Obsidian vault)
 docs/.obsidian/

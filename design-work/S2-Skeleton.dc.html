@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; background: #ffffff; color: #0a0a0a; -webkit-font-smoothing: antialiased; }
+    a { color: #0a0a0a; } a:hover { color: #6b6b6b; }
+    .cap { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #6b6b6b; }
+    .note { font-size: 11px; line-height: 18px; color: #6b6b6b; }
+    .spec { font-family: ui-monospace, monospace; font-size: 10px; color: #6b6b6b; }
+    .box { border: 1px solid #e5e5e5; border-radius: 12px; background: #ffffff; }
+    .row { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; }
+    .apply { display: inline-flex; align-items: center; justify-content: center; height: 24px; padding: 0 10px; border-radius: 999px; border: 1px solid #e5e5e5; background: #ffffff; font-size: 11px; flex-shrink: 0; }
+    .frame { border: 1px solid #e5e5e5; border-radius: 14px; padding: 14px; background: #fcfcfc; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; width: 760px; height: 1080px; background: #ffffff; padding: 20px 22px">
+
+  <div style="display: flex; align-items: baseline; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #e5e5e5">
+    <span style="font-size: 18px; font-weight: 600; letter-spacing: -0.02em">切片 2 · 层级骨架与形态</span>
+  </div>
+
+  <!-- 满负载几何 -->
+  <div style="margin-top: 16px">
+    <span class="cap">形态 A1 · 满负载（视频域）· 几何标注</span>
+    <div class="frame" style="margin-top: 10px; display: flex; gap: 16px">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 8px">
+        <div style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 12px; font-weight: 500; align-self: flex-start">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>填入提示词
+        </div>
+        <div class="box">
+          <div style="padding: 7px 10px 3px"><span class="cap" style="font-size: 9px">同时调整工作台</span></div>
+          <div class="row"><span style="flex-grow: 1; font-size: 11px">负面 <span style="color: #6b6b6b">空 → </span><strong style="font-weight: 500">blurry, watermark</strong></span><span class="apply">应用</span></div>
+          <div class="row"><span style="flex-grow: 1; font-size: 11px">规格 <span style="color: #6b6b6b">1:1 → </span><strong style="font-weight: 500">9:16</strong></span><span class="apply">应用</span></div>
+          <div class="row"><span style="flex-grow: 1; font-size: 11px">模型 <span style="color: #6b6b6b">未选 → </span><strong style="font-weight: 500">Illustrious XL</strong></span><span class="apply">应用</span></div>
+          <div class="row"><span style="flex-grow: 1; font-size: 11px">张数 <span style="color: #6b6b6b">1 → </span><strong style="font-weight: 500">4</strong></span><span class="apply">应用</span></div>
+        </div>
+      </div>
+      <div style="width: 186px; flex-shrink: 0; display: flex; flex-direction: column; gap: 5px; padding-left: 14px; border-left: 1px dashed #e5e5e5">
+        <div class="spec">主按钮 h 32 · px 14 · 12px/500</div>
+        <div class="spec">配置盒 r 12 · 描边 #e5e5e5</div>
+        <div class="spec">四行满负载＝视频域（见 S1）</div>
+        <div class="spec">配置行 h 32 · px 10 · 11px</div>
+        <div class="spec">应用 h 24 · px 10 · 11px</div>
+        <div class="spec">档间 gap 8 · 行间 gap 0</div>
+        <div class="spec">整条左缩进 24（对齐 Bot）</div>
+        <div class="note" style="margin-top: 4px">⚠ 24 不是随手写的：Bot 图标 16 + gap 8。改头像尺寸必须同步改这个数，否则动作条与正文错位。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 无主动作 -->
+  <div style="margin-top: 18px">
+    <span class="cap">形态 A2 · 无主动作（助手只提配置、还没交付提示词时的常规形态，不是边角）</span>
+    <div class="frame" style="margin-top: 10px">
+      <div style="display: flex; gap: 16px; align-items: flex-start">
+        <div style="flex-grow: 1">
+          <div class="box">
+            <div class="row"><span style="flex-grow: 1; font-size: 11px">模型 <span style="color: #6b6b6b">未选 → </span><strong style="font-weight: 500">Illustrious XL</strong></span><span class="apply" style="background: #0a0a0a; border-color: #0a0a0a; color: #ffffff">应用</span></div>
+          </div>
+        </div>
+        <div style="width: 300px; flex-shrink: 0" class="note">
+          <strong style="color: #0a0a0a; font-weight: 500">决策：主按钮缺席时谁当锚点。</strong>
+          稿里的答案是<strong style="color: #0a0a0a; font-weight: 500">配置盒里唯一那条升为实心</strong>，且盒子去掉标题行——三档层级靠「有且只有一个实心」建立，而不是靠固定的位置。
+          <br><span style="color: #b3261e">若不定：实现时会出现一个没有任何实心元素的动作条，层级失去锚点。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 退化 -->
+  <div style="margin-top: 18px">
+    <span class="cap">形态 A3 / A4 · 配置 1 条与 0 条的退化</span>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px">
+      <div class="frame">
+        <div style="font-size: 11px; font-weight: 500; margin-bottom: 8px">1 条 → 收成一行，不画盒</div>
+        <div style="display: flex; align-items: center; gap: 8px; align-self: flex-start">
+          <div style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 12px; font-weight: 500">填入提示词</div>
+          <span style="font-size: 11px; color: #6b6b6b">·</span>
+          <span style="font-size: 11px">规格 <strong style="font-weight: 500">9:16</strong></span>
+          <span class="apply">应用</span>
+        </div>
+        <div class="note" style="margin-top: 10px">带边框的盒子只装一行，在 320px dock 里<strong style="color: #0a0a0a; font-weight: 500">比原来的单个 chip 更占地</strong>——「解决膨胀」的收益会被自己吃掉。</div>
+      </div>
+      <div class="frame">
+        <div style="font-size: 11px; font-weight: 500; margin-bottom: 8px">0 条 → 只剩主动作</div>
+        <div style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 999px; background: #0a0a0a; color: #ffffff; font-size: 12px; font-weight: 500">填入提示词</div>
+        <div class="note" style="margin-top: 10px">LoRA 域恒定是这一档（外加一枚填入负面）。<strong style="color: #0a0a0a; font-weight: 500">分层在这里没有意义</strong>——本切片承认它，不硬撑三档。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 缺席原因 -->
+  <div style="margin-top: 18px; flex-grow: 1">
+    <span class="cap">形态 A5 · 缺席原因的四种措辞（代码今天把四种全塌成「不渲染」）</span>
+    <div class="box" style="margin-top: 10px">
+      <div style="display: grid; grid-template-columns: 128px 1fr 120px; gap: 0; font-size: 11px">
+        <div style="padding: 7px 10px; background: #fafafa; border-bottom: 1px solid #f0f0f0; color: #6b6b6b; font-size: 10px; letter-spacing: 0.06em">原因</div>
+        <div style="padding: 7px 10px; background: #fafafa; border-bottom: 1px solid #f0f0f0; color: #6b6b6b; font-size: 10px; letter-spacing: 0.06em">界面上说什么</div>
+        <div style="padding: 7px 10px; background: #fafafa; border-bottom: 1px solid #f0f0f0; color: #6b6b6b; font-size: 10px; letter-spacing: 0.06em">数据来源</div>
+
+        <div style="padding: 7px 10px; border-bottom: 1px solid #f5f5f5">① 宿主没这个能力</div>
+        <div style="padding: 7px 10px; border-bottom: 1px solid #f5f5f5; line-height: 17px">这一行灰掉常显：「负面 — 图片工作台没有这个框」</div>
+        <div style="padding: 7px 10px; border-bottom: 1px solid #f5f5f5; color: #16794c">面板本地可判</div>
+
+        <div style="padding: 7px 10px; border-bottom: 1px solid #f5f5f5">② 目录里查不到</div>
+        <div style="padding: 7px 10px; border-bottom: 1px solid #f5f5f5; line-height: 17px">不出行，但正文里模型名保留（助手已在散文里说了）</div>
+        <div style="padding: 7px 10px; border-bottom: 1px solid #f5f5f5; color: #b3261e">要宿主回传原因</div>
+
+        <div style="padding: 7px 10px; border-bottom: 1px solid #f5f5f5">③ 值收窄失败</div>
+        <div style="padding: 7px 10px; border-bottom: 1px solid #f5f5f5; line-height: 17px">不出行（<code style="font-family: ui-monospace, monospace; font-size: 10px">21:9</code> / <code style="font-family: ui-monospace, monospace; font-size: 10px">batchCount:3</code> 本产品没有）</div>
+        <div style="padding: 7px 10px; border-bottom: 1px solid #f5f5f5; color: #16794c">面板本地可判</div>
+
+        <div style="padding: 7px 10px">④ 模型这轮没给</div>
+        <div style="padding: 7px 10px; line-height: 17px">不出行，什么都不说（没建议 ≠ 有问题）</div>
+        <div style="padding: 7px 10px; color: #16794c">面板本地可判</div>
+      </div>
+    </div>
+    <div class="note" style="margin-top: 10px">
+      ⚠ <strong style="color: #0a0a0a; font-weight: 500">只有 ① 需要「解释」，而 ② 是数据契约改动不是文案改动</strong>：面板今天拿到的只是 <code style="font-family: ui-monospace, monospace; font-size: 10px">resolveModelOptionId → null</code>，分不清「目录里没有」和「模型没给」。要区分就得让 hook 回传原因。
+      本切片的建议是<strong style="color: #0a0a0a; font-weight: 500">第一轮只做 ①</strong>（它是 owner 点名的那条），②③④ 一律静默——把数据契约改动挡在这一轮之外。
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

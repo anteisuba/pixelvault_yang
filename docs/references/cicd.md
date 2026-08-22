@@ -83,7 +83,7 @@ limits 表，2026-08-21 查证。
   08-21 12:05 那条唯一索引就是这样先于代码上线、单方面在生产上生效的（那几天生产
   跑的是旧代码 + 新 schema）。
 - 本地随手生成的图 / 会话 / LoRA 收藏都是**生产数据**。
-- 要先试一遍迁移，用 `node prisma/preflight-migrations.mjs`：从生产开一个即用即弃的
+- 要先试一遍迁移，用 `npm run preflight:migrations`：从生产开一个即用即弃的
   Neon 分支（写时复制，初始不占存储，免费档 10 个分支）跑 `migrate deploy`，跑完删掉。
 - ⚠ **别按名字猜哪个是生产。** 2026-08-22 我就是照 `.env.production.local` 查的，
   据此得出「生产有 2 组重复行、部署一定会炸」并写进了 `d5fa8587` 的提交信息 ——
@@ -110,7 +110,7 @@ limits 表，2026-08-21 查证。
    「migration was modified after it was applied」。
    ⚠ 它拦的是「你忘了想这件事」，不是「你想了但想错了」——**不会**因为文件里有
    `DELETE` 就自动放行，那样只会把闸门变成安慰剂。
-2. **`node prisma/preflight-migrations.mjs`（手动，最彻底）** —— 见上一节。
+2. **`npm run preflight:migrations`（手动，最彻底）** —— 见上一节。
    ⚠ 需要 `NEON_API_KEY` / `NEON_PROJECT_ID`（放 `.env.local`）；**脚本本身尚未在真实
    key 下跑通过**。
 

@@ -49,7 +49,7 @@ const MIGRATIONS_DIR = join(
  *
  * ⚠ 新增条目**不是走过场**。写进来之前请真的确认过一件事：这条约束在**目标库
  * 的现有数据**上成立。手段任选其一：
- *   · `node prisma/preflight-migrations.mjs` —— 从生产开一个即用即弃的 Neon 分支把迁移
+ *   · `npm run preflight:migrations` —— 从生产开一个即用即弃的 Neon 分支把迁移
  *     真跑一遍（最彻底）；
  *   · 拿生产数据做只读查询验证（例如唯一索引就 `GROUP BY ... HAVING count(*)>1`）；
  *   · 该迁移已经在生产成功应用过（历史条目属于这种）。
@@ -181,7 +181,7 @@ describe('约束型迁移必须登记「在真实数据上为什么安全」', (
         'prisma migrate deploy 挂掉并连带炸掉整个 Vercel 构建。\n' +
         '确认过之后，把「怎么验的」写进 prisma/migration-safety.test.ts 的 ' +
         'ACKNOWLEDGED（⛔ 别去改迁移 SQL，校验和会对不上）。\n' +
-        '最彻底的验法：node prisma/preflight-migrations.mjs\n',
+        '最彻底的验法：npm run preflight:migrations\n',
     ).toBeDefined()
 
     // 空字符串 / "ok" 这类占位不算登记。

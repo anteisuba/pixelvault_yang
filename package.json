@@ -9,6 +9,7 @@
     "prebuild": "npm run check:node",
     "build": "next build",
     "prisma:generate": "prisma generate",
+    "preflight:migrations": "node ./scripts/preflight-migrations.mjs",
     "prestart": "npm run check:node",
     "start": "next start",
     "prelint": "npm run check:node",

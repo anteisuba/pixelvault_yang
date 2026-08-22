@@ -139,16 +139,12 @@
       "c:\\workspace\\pixelvault_yang\\src\\app\\api\\background-cards"
     ],
     "deny": [
-      "Edit(scripts/**)",
-      "Write(scripts/**)",
       "Edit(apps/**)",
       "Write(apps/**)",
       "Edit(.github/workflows/**)",
       "Write(.github/workflows/**)",
       "Edit(.husky/**)",
       "Write(.husky/**)",
-      "Edit(package.json)",
-      "Write(package.json)",
       "Edit(package-lock.json)",
       "Write(package-lock.json)",
       "Edit(pnpm-lock.yaml)",

@@ -3,13 +3,11 @@
  * 迁移预演：从生产库开一个即用即弃的 Neon 分支，把**还没应用的迁移**在上面真跑
  * 一遍，然后删掉分支。
  *
- *   node prisma/preflight-migrations.mjs
- *   node prisma/preflight-migrations.mjs --parent production --keep
+ *   npm run preflight:migrations
+ *   npm run preflight:migrations -- --parent production --keep
  *
- * ⚠ 放在 `prisma/` 而不是 `scripts/`，是因为 `.claude/settings.json` 的 deny 规则
- *   挡着 `Write(scripts/**)` 与 `Write(package.json)`。要挪去 `scripts/` 并加一个
- *   `npm run preflight:migrations` 别名，得人工来。位置本身也说得通：它和
- *   `migration-safety.test.ts` / `migrations/` 是一套东西。
+ * 闸门的另一半是 `prisma/migration-safety.test.ts`（自动，进 pre-push 的全量
+ * vitest）。那条拦的是「你忘了想这件事」，这条验的是「想了，且在真实数据上成立」。
  *
  * ## 为什么需要它
  *

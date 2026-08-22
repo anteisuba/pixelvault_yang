@@ -11,9 +11,17 @@
 | **每月** | 本文档                                                                                            | ①盘点 `src/constants/models/` ②逐 provider 官方页扫新版本/退役公告 ③接口与错误信息变更抽查 ④出添加/删除建议表交 owner 拍板 ⑤更新 Last Audited |
 | 触发式   | 本文档「本月发现」节                                                                              | owner 点名的模型动态随时核验补录                                                                                                              |
 
-月审步骤固定五问：现役哪些？官方出了什么新的？哪些该加（直连优先）？哪些该退（用量/被上位替代）？接口/错误格式变了吗？
+月审步骤固定**六问**：现役哪些？官方出了什么新的？哪些该加（直连优先）？哪些该退（用量/被上位替代）？接口/错误格式变了吗？**这一档是价钱不同还是能力不同？**
 
-## 现役阵容（2026-07-26 盘点，`available: true`）
+> 第六问是 2026-08-21 新增的，判据与理由见 §⑮。一句话：**价钱不同 → 走参数或路由，不进目录；能力不同 → 才配一条目录条目。**
+
+## 现役阵容（⚠ 下方逐条表格是 2026-07-26 快照，已过期）
+
+> **2026-08-21 从代码实测的真实计数**（`available: true`）：**图像 16 + 5 runner** · **视频 26** · **音频 3** · **3D 5**，合计 50 条在售；另有 10 条 `available: false` 的退役存档（图 6 / 视频 2 / 音频 1 / 3D 1）。`RESERVED_MODEL_IDS` 当前为空。
+>
+> ⚠ **下面四张逐条表停在 2026-07-26，视频那栏与代码差了 15 条**（Seedance 2.5 六变体、BytePlus 四变体、MiniMax H3 四变体、Kling O3 Pro 都是 07-26 之后加的），音频栏漏了已落地的 ElevenLabs Music v2。**别直接引用这些表**——事实源是 `src/constants/models/{image,video,audio,model-3d}.ts`。表格重建挂在下次月审。
+>
+> 📊 视频那 26 条的结构（2026-08-21 盘点）：**只有 8 个真模型**，其余 14 条是站点克隆（火山 / BytePlus / MiniMax CN）、4 条是端点克隆（reference）。即约 69% 的条目与「档位」无关，是渠道与端点的展开——讨论「模型是不是太多」之前先做这个切分。
 
 ### 图像（13 + 5 runner）
 
@@ -372,6 +380,71 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
 
 **接入任务包**：`docs/plans/seedance-25-ga-integration-2026-08.md`（已按三站扩容）。⚠ §⑫ 说「GA 时要改三件事」实际是**五件**——漏了 `video-model-send-plan.ts` 的 slots 按代分叉（2.0/2.5 现共用一个分支）和 tripwire 测试自身的改写（它第 79-85 行把 2.0 的 slots 钉死了，分叉后必挂，那是预期行为）。另有一个**待 owner 定的设计问题**：2.5 选了首帧图之后宽高比只能是 `adaptive`，UI 是锁死还是按 Hard Rule 8 给提示不禁用。
 
+### ⑭ 按模态重做的三线调查（2026-08-21，全量上网核实）
+
+口径：按 **LLM / 语音 / 视频** 三条模态线重做，共 55 条动作建议，每条带来源 URL + 查证日期。拿不准、来源自相矛盾、或只有二手转述的一律标「待验证」，未做任何推断。
+
+⚠ **本轮两块盲区（如实登记，别当已核）**：① 火山方舟文档站实测仍是 SPA，WebFetch 只拿到侧边栏，**所有火山口径的 Seedance 2.5 细节一律待验证**；② Artificial Analysis 榜单同样是 JS 渲染，仓内「跌出前五」这类退役理由本轮**无法复核**。
+
+#### owner 点名两项
+
+- **Wan 3 是真的、已发布，但现在还调不到。** 阿里 `wan3.0-video` 自 2026-08-06 起在百炼公测/邀测，30 秒直出、官方能力表原生写着「图生视频（首帧/首尾帧）」、0.3/0.6/1.2 元每秒（480P/720P/1080P）。但 **fal 官方页原文「Wan 3 is not live on fal yet」**，无价格无日期，fal 自己引导先用 2.7。⚠ **能真调到的最新代是 Wan 2.7**（`fal-ai/wan/v2.7/*`，$0.10/s，`end_image_url` 是官方参数）——别把 3.0 当「已可接入」写进任何施工图。三处口径打架已记：模型信息页说「邀测」、API 参考页说 preview、官方博客说公测，**能不能自助申到 key 无官方确认**。接百炼要新写 DashScope adapter（本仓无阿里直连，happy-horse 走 fal 转售），按原则 3 建议先挂盯梢、等 fal 上线可零新 adapter 接入。
+  ⚠ **打假**：wan27.org / wan3api.com 一类站点声称「Wan 2.7 权重已按 Apache 2.0 开源」，但 HF 上 Wan-AI 组织 27 个 repo **无任何 2.5 以上权重**，fal 的 LoRA trainer 也停在 2.2 —— **Wan 开源线止于 2.2**，那批 SEO 农场数字一律不采信。（ModelScope 是否另有 2.7 权重本轮未取到官方页，标待验证，别当「确认没有」。）
+- **Grok 有两条独立的线，别混为一谈。** 文本线 `grok-4.6`（2026-08-12）走 `https://api.x.ai/v1` 的 OpenAI 兼容接口，500k 上下文、text+image、$2/$6 每百万 token，比 `gpt-5.6-sol` 便宜 2.5 倍且**有视觉**（不像 DeepSeek 被排除在 enhance 之外）。⚠ 接它要一起改四处：新增 `AI_ADAPTER_TYPES.XAI` + `AI_PROVIDER_ENDPOINTS` + `ADAPTER_CAPABILITIES`（穷举无兜底）+ `LLM_TEXT_ADAPTERS`，且 `llm-text.service.ts:352` 的 `/^(gpt-5|o[134])/` 正则匹配不到 grok id，会走非 reasoning 分支。视频线是 fal 上的 `xai/grok-imagine-video/v1.5`（480p $0.08/s），但**违规请求照样计费**且只给 16:9 一种比例（本仓是五档），优先级排在其它候选之后。
+  仓内现状：模型目录零命中；Grok 仅出现在未拍板的规划文档里，定位是「研究检索的候选数据源」而非生成模型。
+
+#### LLM / 文本线
+
+- ⏰ **硬期限**：`gemini-3.1-flash-lite` 官方 **2027-05-07 停机**，须提前排期。⚠ 迁到 `gemini-3.5-flash-lite` 是**涨价**的（$0.25/$1.50 → $0.30/$2.50）——这是被逼的迁移，不是优化。
+- 两笔纯降价升级：`gemini-3.5-flash → 3.7-flash`（$1.50/$9.00 → $0.75/$3.75，且 3.5 已被官方标 Legacy）；`gpt-5.5 → gpt-5.6-terra`（$5/$30 → $2/$12，上下文 1M → 1.05M）。
+- ⭐ **enhance 线严重超配**：提示词增强挂 `gpt-5.5`（$5/$30），而同能力的 `gpt-5.6-luna` 是 $0.20/$1.20 —— **同一件事差 25 倍**。
+- `qwen3-vl-plus` 是**死常量**：无任何路由表引用，唯一非测试消费者是一句 enhanceHint 文案。
+- 能力声明复核：DeepSeek V4 两变体经官方确认**确实纯文本无视觉**（仓内 no-enhance 判断成立）；但 Claude 官方明写全系支持 vision，所以仓内把 Sonnet 5 限成 `['assistant']` 是**策略选择而非能力限制**，注释里「无视觉」式的暗示不成立。
+
+#### 语音 / 音频线
+
+- 4 条目录条目**上游 id 全部无需改动**（`s2.1-pro` / `eleven_text_to_sound_v2` / `music_v2` 都是当前在售型号；ElevenLabs 没有 v4，Fish 没有比 s2.1-pro 更新的）。
+- ⚠ **「6.7 倍」这个退役理由只在拉丁字母下成立**：Fish 官方计价单位是 `$15 / 1M UTF-8 **bytes**`（不是字符），中日文每字 3 bytes，等效约 $45/1M 字，对 ElevenLabs v3 的 $100 只剩约 **2.2 倍**。本站是 en/ja/zh 三语，`audio.ts:57-59` 那条注释不能当普适结论读。**退役结论沿用，但理由要改写。**
+- ⏰ Fish 免费档 `s2.1-pro-free` 官方免费期写到 **2026-08-31**（此前已延期至少两次），要么接、要么明确不接。
+- 音乐/音效线无更好替代：Suno 至今无公开自助 API（2026-07-01 CPO 领英称仅「探索中、限定合作伙伴」），Udio 走 UMG/WMG 和解后的封闭消费端。唯一值得排期的是把 `fal-ai/stable-audio-25` 作为**唯一音效模型的第二来源**（容灾，不是省钱）。
+
+#### 视频线
+
+- ⚠ **可能有个空承诺**：退役 Veo 3.1 时写下的「native extend 由 `KLING_V3_PRO` 接手」很可能落空——`fal-ai/kling-video/v3/pro/extend-video` 两个 URL 都 **404**，且不在 Kling v3 API 页那份 33 项请求类型清单里；而 `fal-ai/veo3.1/extend-video` 反倒还活着（$0.20/$0.40 每秒）。**须复核后修正退役理由。**
+- ⭐ **从未实现的首尾帧切片，现在有四条几乎零成本的落点**（按改动面从小到大）：MiniMax-H3（协议里已有 `first_frame`/`last_frame` role，adapter 已在用 `first_frame`）→ Seedance 2.5 i2v（`end_image_url`，且 fal 侧 `aspect_ratio` 固定 auto，正好绕开仓内注释担心的 ratio=adaptive 400 问题）→ Kling O3 standard i2v（官方描述即 start+end frame，$0.084/s 最便宜）→ Wan 2.7 i2v。
+- 各家没有想象中动：Google 官方文档只有 Veo 3.1 与 Gemini Omni Flash，**没有 Veo 4**（此前的自相矛盾到此终结）；Runway 仍停在 Gen-4.5（2025-12-11）；Seedance 无 3.0；**OpenAI 官方弃用页写死 Videos API 与全部 Sora 2 模型 2026-09-24 从 API 移除且无替代**——仓里没接是对的。
+- 与 LoRA 双核相关的两条开源权重线：MiniMax-H3（HF 2026-07-28，3.3M 下载）与 LTX-2.5（HF 2026-07-23，611.8K 下载，官方 IC-LoRA 生态、标 comfyui）。
+
+### ⑮ 档位判据：这一档是价钱不同，还是能力不同？（2026-08-21 立）
+
+**结论：厂商档位 95% 是「同一件事的不同价钱」，所以多档的价值在成本优化（路由问题），不在能力覆盖（目录问题）。**
+
+硬证据 —— OpenAI 自己的 spec 卡，`gpt-5.6` 的 sol / terra / luna **三张卡逐项相同**：1,050,000 上下文 / 922,000 最大输入 / 128,000 最大输出 / text+image 入 / 六级 reasoning effort / streaming + structured outputs + function calling + web search + prompt caching 全支持 / 知识截止同为 2026-02-16。唯一变量是价格：$5/$30 · $2/$12 · $0.20/$1.20 —— **25 倍价差，零能力差**。Claude 前三档同理（fable-5 $10/$50、opus-5 $5/$25、sonnet-5 $2/$10，均 1M 上下文 / 128k 输出 / adaptive thinking）。DeepSeek 更纯：v4-flash 与 v4-pro 同为 1M/384K，价格恰好 3 倍，差的是**并发配额**（2500 vs 500）不是能力面。
+
+**唯一真正「不同的事」是 Claude Haiku 4.5**：200k 上下文（其余 1M）、64k 输出（其余 128k）、Adaptive thinking = No、不在 effort 支持列表、知识截止停在 2025-02。但它是能力**减法**——本仓三条路由没有只有它能做的事，故也不构成加档理由。
+
+#### 判据（月审第六问用这个答）
+
+| 情形                                              | 处理                                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 档之间只差价钱/延迟（spec 卡逐项相同）            | **不进目录**。走参数（见 Rodin 先例）或走路由选型，用户不该为此多面对一个选项   |
+| 档之间差能力边界（上下文/输出上限/模态/思考能力） | 才配一条独立目录条目                                                            |
+| 同一模型经多个站点转售（fal / 火山 / BytePlus）   | 这是**渠道**不是档位，折进选择器第三层「比价」，不在第二层露出                  |
+| 上游有档但我们不发那个参数                        | ⛔ **不是零成本**——见 GPT Image 2 反例，会变成「算不出钱 + 选不到便宜档」的暗亏 |
+
+⚠ **加一条目录条目的成本是永久的**（退役≠删除，`available: false` + `RETIRED_MODEL_IDS`，enum 绝不动），且边际成本 ≥ 8 个源文件 + 3 份 i18n。所以默认答案是「不加」，加要给理由。
+
+#### 两个仓内先例
+
+- ✅ **正面 —— Rodin Gen-2.5**：5 个 tier 做成**一条目录条目 + 一个 API 参数**，credits 随档变，还带每档预估耗时（`src/constants/model-3d-generation.ts:141-169`）。天然绕开 i18n / family / variant / 单价四张表的乘法。**新档默认走这个形态。**
+- ⛔ **反面 —— GPT Image 2**：上游有 low/medium/high，1024² 下 $0.006 / $0.053 / $0.211（**35 倍价差**），但 adapter 根本不发 `quality`，落在 OpenAI 的 auto，官方又未公开 auto 映射到哪档 —— 结果既选不了便宜档，也填不出单价（`src/constants/models/unit-prices.ts:284-291` 记着「三个数里挑一个就是猜」）。
+
+#### LLM 侧的结构约束（动手前必读）
+
+三张路由表（enhance / assistant / planner）都是「一个 adapter 对一个模型」，取法是 `.find(m => m.adapterType === adapterType)`（`src/hooks/use-llm-route-picker.ts:47` / `:53` / `:59`）。**往同一家加第二档，第二条会静默消失**——不报错、选择器只显示第一个、闸门全绿。想给 LLM 上多档，先改数据结构，不是改 UI。
+
+而省钱的第一顺位其实不是换档，是 **effort**：两家都把权衡做进了单模型内部（Anthropic 文档原话可以「with a single model」做权衡，Sonnet 5 的 medium effort 被官方描述为「Comparable to Claude Sonnet 4.6 at high effort」——一格 effort ≈ 一整代模型）。而 `src/services/llm-text.service.ts:1372` 明写 `we never set effort`。⚠ **但这条不能顺手改**：同一段注释解释了为什么把 thinking 整个关掉——`max_tokens` 把 thinking 与回答**一起**算上限，而所有调用方的 token 预算都是按「不思考」量的。**接 effort 是一个要重新核算 token 预算的独立任务。**
+
 ## 接入执行规范（指针）
 
 - 加模型四件套：`AI_MODELS` enum + 模型配置 + i18n ×3 + provider adapter（`backend.md`）。
@@ -386,6 +459,7 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
 
 ## Last Audited
 
+- Date: 2026-08-21 · 范围：**按模态重做的全量调查（§⑭）+ 档位判据立案（§⑮）+ 月审五问扩为六问**。三条模态线（LLM / 语音 / 视频）共 55 条动作建议，全部上网核实并附来源 URL + 查证日期。owner 点名两项已查实：**Wan 3 真已发布但 fal 未上线**（能真调的最新代是 2.7），**Grok 分文本线 `grok-4.6` 与视频线 `grok-imagine-video/v1.5` 两条**。查出四条待办：`gemini-3.1-flash-lite` 2027-05-07 停机须排期、enhance 线超配 25 倍、Fish 免费档 08-31 到期、Kling v3 extend 端点疑似 404（退役 Veo 3.1 的理由可能落空）。修正两条既有断言：Fish「6.7 倍」只在拉丁字母下成立（UTF-8 bytes 计价，中日文等效 2.2 倍）、Claude 限成 assistant 是策略非能力限制。⚠ 两块盲区如实登记：火山文档站 SPA、AA 榜单 JS 渲染，本轮均未复核。同时把「现役阵容」标为过期并补上代码实测计数（图 16+5 / 视频 26 / 音频 3 / 3D 5），逐条表格重建挂下次月审。**未改模型代码。**
 - Date: 2026-08-08 · 范围：**2026-08 月审（owner 口头交办四问）**——① Seedance 2.5 状态复核 → **已 GA 且零阻塞**（08-07 火山上线 API；当日用真浏览器读官方文档钉死 model id `doubao-seedance-2-5-260628` + 时长 [4,30] + 素材 30/10/10 + 纯音频可独存，**§⑫ 立案的冲突 A 就此裁决**），写入新 §⑬ 并作废 §⑫ 那条「第二道闸」（`b4ecf638` 08-01 已把火山 Seedance 迁进 execution worker，文档没跟上）；⚠ 顺带确认 07-31「拿不到规格」的真因是**文档站 SPA 挡住了 curl**，不是登录墙——下次复查直接开浏览器；② Krea 2 权重可下载性复核（HF 官方 Raw/Turbo + `Comfy-Org/Krea-2` 单文件档，许可 <$1M 且 <50 席位免费商用），③ Civitai 确认 `Krea 2` 是一级 baseModel 枚举 + 独立生态页；④ **Krea2 vs Anima 热度实测推翻「Krea2 全面更好」的说法**（LoRA 月榜 52/35 Krea2 领先，但周榜 35/47、checkpoint 24/38 均 Anima 领先，社区口碑是分工不是高下）；⑤ worker-comfyui 仍无新 tag，但 **upstream main 已于 07-30 把 ComfyUI 钉到 0.29.0**，Krea2 的版本闸从「时间不可控」变成「只差发版」。owner 拍板优先级 **Seedance 2.5 > r4a LRU 转正 > Krea2(r4b)**。产出任务包 `docs/plans/seedance-25-ga-integration-2026-08.md`，runner 侧结论回写 `docs/plans/runner-r4-krea2-multiref-2026-07.md` §2.5。**未改模型代码。**
 - Date: 2026-07-31 · 范围：**MiniMax H3 调查（§⑩）+ fal 与原生逐模型比价（§⑪）+ Seedance 2.5 状态修正（§⑫）**。三条结论：H3 三通道全开且原生比 fal 便宜一半，owner 拍板先 fal 验质量再上原生；fal 加价按厂商分化（字节系 1.6~2.2× / FLUX·HappyHorse 持平），「全部迁原生」不成立；火山已给 2.5 定价但未放 model id。另查实 MiniMax 国内外站账号与 key **不通用**（推翻三方说法）。**未改模型代码。**
 - Date: 2026-07-31 · 范围：**Seedance 2.5 通道核查**——四条通道逐条实测，结论「上游未开门」写入 §⑨ 并修正 §⑥ 那行（fal 页面确实存在，卡点是 early access 白名单 + B2B only 条款，PixelVault 作为个人消费者产品不符合准入）。附带登记 2.0 三项欠账（mini 档 / 4K / 延长编辑），owner 拍板等 2.5 一并做。**未改模型代码。**

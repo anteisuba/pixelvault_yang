@@ -28,8 +28,9 @@
 
 ## 迁移纪律
 
-1. **改完 `schema.prisma` 必须**：`npx prisma migrate dev --name <description>` → `npx prisma generate`（`prisma/CLAUDE.md` 就地规则）。
-2. 迁移历史 41 个；迁移文件是事实源，**不许手改数据库结构**。曾缺失的 `20260531090000_prompt_core_recipe_assets` 已恢复进 Git；CI 必须同时做 migration drift 检查和从空库执行 `prisma migrate deploy`，避免“当前 schema 对齐但历史不可重建”。
+1. **改完 `schema.prisma` 必须**：`npx prisma migrate dev --create-only --name <description>`（**只生成**）→ 读 `migration.sql` → 约束型的先验再登记 → `npx prisma migrate dev`（应用）→ `npx prisma generate`（完整规矩见 `prisma/CLAUDE.md` 就地规则）。
+   ⛔ **禁止裸跑 `migrate dev`**：`.env.local` 指向的就是 Vercel 用的生产库（2026-08-22 构建日志确认，见 `cicd.md`），裸跑 = 迁移直接打到生产上。**本仓没有 dev 数据库**，「先在 dev 试一遍」这条退路不存在。
+2. 迁移历史 50 个（2026-08-23 点数；此前写的 41 已过期）；迁移文件是事实源，**不许手改数据库结构**。曾缺失的 `20260531090000_prompt_core_recipe_assets` 已恢复进 Git；CI 必须同时做 migration drift 检查和从空库执行 `prisma migrate deploy`，避免“当前 schema 对齐但历史不可重建”。
 3. WHERE / ORDER BY 用到的字段必须加 `@@index()`。
 4. 用户生成内容字段（prompt / 错误信息）用 `@db.Text`。
 5. 删除关系：ownership 关系 `onDelete: Cascade`；软引用 `onDelete: SetNull`——选哪个必须说得出理由（checklist P1）。

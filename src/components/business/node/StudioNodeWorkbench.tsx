@@ -167,6 +167,7 @@ import {
   translatePromptTokensToPositional,
 } from '@/lib/node-video-prompt-translation'
 import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
+import { resolveNodeVideoDuration } from '@/lib/node-video-duration'
 import { assembleReferenceImagePayload } from '@/lib/node-reference-payload'
 import { planVideoKeyframeImages } from '@/lib/node-video-keyframe-plan'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
@@ -1791,22 +1792,6 @@ function StudioNodeCanvas() {
       // 这条路径不再有 advancedParams 可送：它唯一的来源是角色图 LoRA，而那个
       // 编辑入口 04f8f6be 起就不在面板里了（详见上方角色图 generate 路径注释）。
 
-      // Bridge: duration is stored as a string in node.data (text-input
-      // legacy). The wire format accepts either a 4-15 integer or the
-      // literal 'auto' (Seedance-only). 'auto' passes through verbatim;
-      // numeric strings get parsed + clamped; anything else falls back to
-      // undefined so the service-side default kicks in.
-      const rawDuration =
-        isVideoMediaNode && typeof node.data.duration === 'string'
-          ? node.data.duration.trim()
-          : ''
-      const videoDuration: number | 'auto' | undefined = (() => {
-        if (rawDuration === 'auto') return 'auto'
-        const parsed = Number(rawDuration)
-        if (!Number.isFinite(parsed)) return undefined
-        if (parsed < 4 || parsed > 15) return undefined
-        return parsed
-      })()
       const videoResolution =
         isVideoMediaNode && typeof node.data.resolution === 'string'
           ? (node.data.resolution as
@@ -1865,6 +1850,17 @@ function StudioNodeCanvas() {
         : null
       const submitModelId = effectiveVideoModel?.modelId ?? model.modelId
       const submitApiKeyId = effectiveVideoModel?.apiKeyId ?? model.apiKeyId
+
+      // 时长得等**要提交的那个端点**定下来才能判 —— 可接受的档位跟着模型走，
+      // 判据在 `resolveNodeVideoDuration`（它曾在这里写死 4-15，把 Seedance 2.5
+      // 的 20/25/30 秒静默吞成 provider 默认的 5 秒）。
+      const videoDuration = isVideoMediaNode
+        ? resolveNodeVideoDuration({
+            raw: node.data.duration,
+            modelId: submitModelId,
+            adapterType: effectiveVideoModel?.adapterType ?? model.adapterType,
+          })
+        : undefined
       // One canonical model-specific plan feeds both the sidecar preview and
       // the real request. The legacy generic assembly above remains for image
       // and shot branches; video payload values come exclusively from this

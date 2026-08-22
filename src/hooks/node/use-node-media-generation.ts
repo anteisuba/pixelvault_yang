@@ -35,8 +35,13 @@ interface NodeMediaGenerationInput {
   apiKeyId?: string
   aspectRatio?: AspectRatio
   /**
-   * Video duration in seconds (Seedance accepts 4-15) or the literal 'auto'
-   * to let the model decide. Only consumed by video kind; other kinds ignore.
+   * Video duration in seconds, or the literal 'auto' to let the model decide.
+   * Only consumed by video kind; other kinds ignore.
+   *
+   * ⚠ 可接受的秒数**按模型走**（Seedance 2.0 是 4-15，2.5 到 30），这里不再复述
+   * 任何窗口 —— 调用方用 `resolveNodeVideoDuration` 定值，服务端按
+   * `supportedDurations` 逐档校验。曾在这条注释里写死的 4-15 正是发送端那道把
+   * 2.5 的 30 秒静默吞掉的墙的出处。
    */
   duration?: number | 'auto'
   /**

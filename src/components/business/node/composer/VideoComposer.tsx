@@ -128,9 +128,12 @@ interface VideoComposerProps {
   showMonitor?: boolean
 }
 
-// fal Seedance duration enum: 'auto' or 4..15 seconds. The slider walks the
-// model's supported seconds by index; this is the fallback set when a model
-// doesn't declare `supportedDurations`.
+// 滑条按 index 走**模型自己声明的**秒数档；这份只是模型没声明
+// `supportedDurations` 时的兜底集。
+//
+// ⚠ 这不是「视频时长的上限」—— Seedance 2.5 的档位到 30 秒。把这 4..15 当成通用
+// 窗口抄到别处去，就会得到「滑条拖得到、发出去被丢掉」那类静默失效（发送端曾
+// 写死 4-15，见 `lib/node-video-duration.ts`）。
 const DURATION_SECONDS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const
 
 // Aspect-ratio picker tiles render each option as a proportional preview rect

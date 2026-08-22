@@ -511,10 +511,17 @@ export const RUNWAY_API = {
 
 /** Video generation configuration */
 export const VIDEO_GENERATION = {
-  // Seedance 2.0 / Seedance Reference accept 4-15 seconds. Older models
-  // (Veo, Kling) clamp internally via their own builder helpers, so raising
-  // the wire-level cap to 15 doesn't break them.
-  MAX_DURATION: 15,
+  /**
+   * 线级**上限**，不是「某个模型的档位」——真正的逐档校验在
+   * `video-generation-validation.service.ts`（按 `supportedDurations` 精确比对，
+   * 不合法直接 400），worker 的各家 builder 还会各自再夹一次。这里只负责挡住
+   * 明显离谱的数字，所以取全目录里的最大值：Seedance 2.5 的 30 秒。
+   *
+   * ⚠ 曾写死 15（Seedance 2.0 的上限）。2.5 GA 之后能力表给到 30、UI 滑条也能
+   * 选到 30，但请求走到这条 Zod 就被 400 挡下 —— 卡在 15 等于让 2.5 的卖点发不
+   * 出去。收窄它之前先确认目录里没有更长的模型。
+   */
+  MAX_DURATION: 30,
   /**
    * Long-video pipeline cap for the first clip's duration. Independent of
    * MAX_DURATION because long-video runs on Veo/Kling/etc. extension models

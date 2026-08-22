@@ -24,7 +24,10 @@ import {
   submitVideoAPI,
 } from '@/lib/api-client'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
-import type { GenerationRecord } from '@/types'
+import { AI_MODELS } from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { resolveNodeVideoDuration } from '@/lib/node-video-duration'
+import { GenerateVideoRequestSchema, type GenerationRecord } from '@/types'
 
 const IMAGE_GENERATION: GenerationRecord = {
   id: 'generation-image',
@@ -154,6 +157,56 @@ describe('useNodeMediaGeneration', () => {
       videoUrls: undefined,
     })
     expect(checkVideoStatusAPI).toHaveBeenCalledWith('job-video')
+  })
+
+  it('carries a 30s Seedance 2.5 duration all the way into the request payload', async () => {
+    // 回归（2026-08-22）：2.5 的档位到 30 秒，滑条也能拖到 30，但发送路径上
+    // 曾有两道写死 15 的墙 —— `StudioNodeWorkbench` 的 `parsed > 15` 把它吞成
+    // undefined，`GenerateVideoRequestSchema` 的 `.max(15)` 再把漏网的 400 掉。
+    // 用户看到的是「选了 30 秒，出来 5 秒」，没有报错。这条锁住整条链。
+    vi.mocked(submitVideoAPI).mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-video-25', requestId: 'request-video-25' },
+    })
+    vi.mocked(checkVideoStatusAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-video-25',
+        status: 'COMPLETED',
+        generation: VIDEO_GENERATION_RECORD,
+      },
+    })
+
+    // 节点上存的是字符串（文本框时代的遗产）—— 先过 Workbench 用的那道翻译，
+    // 断言它没被丢掉，再看它有没有原样落进 payload。
+    const nodeDuration = resolveNodeVideoDuration({
+      raw: '30',
+      modelId: AI_MODELS.SEEDANCE_25,
+      adapterType: AI_ADAPTER_TYPES.FAL,
+    })
+    expect(nodeDuration).toBe(30)
+
+    const { result } = renderHook(() => useNodeMediaGeneration())
+
+    await act(async () => {
+      await result.current.generate({
+        kind: 'video',
+        modelId: AI_MODELS.SEEDANCE_25,
+        prompt: VIDEO_GENERATION_RECORD.prompt,
+        duration: nodeDuration,
+      })
+    })
+
+    expect(submitVideoAPI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: AI_MODELS.SEEDANCE_25,
+        duration: 30,
+      }),
+    )
+
+    // 第二道墙：路由的 Zod 得收得下这个 payload，否则客户端发对了也是 400。
+    const payload = vi.mocked(submitVideoAPI).mock.calls.at(-1)?.[0]
+    expect(GenerateVideoRequestSchema.parse(payload).duration).toBe(30)
   })
 
   it('carries the provider poster frame back as thumbnailUrl (§9.1)', async () => {

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   CIVITAI_LORA_BASE_MODEL_VALUES,
+  CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER,
   CIVITAI_LORA_SORT_VALUES,
   LORA_CONTENT_TYPE_EXCLUDES,
   LORA_CONTENT_TYPE_OVERRIDES,
@@ -18,6 +19,39 @@ vi.mock('@/lib/with-retry', () => ({
   withRetry: <T>(fn: () => Promise<T>) => fn(),
 }))
 
+// L2 快照层用内存 Map 替身：这里验的是「什么时候写、什么时候读」的接线，
+// 存储实现本身在 civitai-search-snapshot.service.test.ts 里单独覆盖。
+const { snapshotStore, SNAPSHOT_FETCHED_AT } = vi.hoisted(() => ({
+  snapshotStore: new Map<string, unknown>(),
+  SNAPSHOT_FETCHED_AT: new Date('2026-08-19T14:12:00.000Z'),
+}))
+
+// L3 镜像同样用替身：这里验的是降级链的接线顺序，镜像本身的查询逻辑在
+// civitai-mirror-search.service.test.ts 里覆盖。
+const { mirrorResult } = vi.hoisted(() => ({
+  mirrorResult: { current: null as unknown },
+}))
+
+vi.mock('@/services/civitai-mirror-search.service', () => ({
+  searchCivitaiMirror: vi.fn(async () => mirrorResult.current),
+  readCivitaiMirrorFreshness: vi.fn(
+    async () => new Date('2026-08-19T10:00:00.000Z'),
+  ),
+}))
+
+vi.mock('@/services/civitai-search-snapshot.service', () => ({
+  buildCivitaiSnapshotKey: (input: unknown) => JSON.stringify(input),
+  readCivitaiSearchSnapshot: vi.fn(async (key: string) => {
+    const payload = snapshotStore.get(key)
+    return payload ? { payload, fetchedAt: SNAPSHOT_FETCHED_AT } : null
+  }),
+  writeCivitaiSearchSnapshot: vi.fn(async (key: string, result: unknown) => {
+    snapshotStore.set(key, result)
+  }),
+  pruneCivitaiSearchSnapshots: vi.fn(async () => 0),
+}))
+
+import { getCircuitBreaker } from '@/lib/circuit-breaker'
 import {
   getCivitaiModelDescription,
   listCivitaiLoras,
@@ -35,6 +69,12 @@ beforeEach(() => {
   // leaves leftovers that pollute later tests once name-resolve fans out.
   mockFetch.mockReset()
   vi.stubGlobal('fetch', mockFetch)
+  // 搜索路径的断路器是模块级共享实例。几个故意打失败路径的用例会把它推到
+  // OPEN，之后所有用例都会撞 CircuitOpenError——每个用例都必须从 CLOSED 开
+  // 始。这里用真实断路器而不是 mock 掉它，是为了让它的行为也在测试覆盖里。
+  getCircuitBreaker('civitai.search').reset()
+  snapshotStore.clear()
+  mirrorResult.current = null
 })
 
 afterEach(() => {
@@ -970,11 +1010,14 @@ describe('listCivitaiLoras', () => {
 
     // B11: search always tries meilisearch first — fail it here so the
     // request falls through to the REST scan path this test exercises.
+    // 404 不是随手挑的：回落只在「meilisearch 这个非正式端点本身坏了」时发
+    // 生（4xx / 公钥轮换 / 形状变了）。5xx 表示整个搜索子系统降级，那时
+    // REST `query=` 也是同一个失败域，服务端会直接抛错而不回落。
     // mockImplementation (not mockResolvedValue) so each call gets a fresh
     // Response body instead of reusing one already-consumed instance.
     mockFetch.mockImplementation(async (input) => {
       if (String(input).includes('search-new.civitai.com')) {
-        return jsonResponse({ message: 'down' }, 503)
+        return jsonResponse({ message: 'gone' }, 404)
       }
       return jsonResponse({
         items: [
@@ -1052,7 +1095,7 @@ describe('listCivitaiLoras', () => {
     // path under test (see comment on the previous test).
     mockFetch.mockImplementation(async (input) => {
       if (String(input).includes('search-new.civitai.com')) {
-        return jsonResponse({ message: 'down' }, 503)
+        return jsonResponse({ message: 'gone' }, 404)
       }
       return jsonResponse({
         items: Array.from({ length: 12 }).map((_, index) => ({
@@ -1124,7 +1167,7 @@ describe('listCivitaiLoras', () => {
     // REST scan path under test.
     mockFetch.mockImplementation(async (input) => {
       if (String(input).includes('search-new.civitai.com')) {
-        return jsonResponse({ message: 'down' }, 503)
+        return jsonResponse({ message: 'gone' }, 404)
       }
       const cursor = new URL(String(input)).searchParams.get('cursor')
       const page = pages.get(cursor)
@@ -1192,7 +1235,7 @@ describe('listCivitaiLoras', () => {
     // so both pages fall through to the REST scan path under test.
     mockFetch.mockImplementation(async (input) => {
       if (String(input).includes('search-new.civitai.com')) {
-        return jsonResponse({ message: 'down' }, 503)
+        return jsonResponse({ message: 'gone' }, 404)
       }
       const cursor = new URL(String(input)).searchParams.get('cursor')
       const page = pages.get(cursor)
@@ -1448,7 +1491,9 @@ describe('listCivitaiLoras', () => {
         }),
     )
 
-    const promise = expect(listCivitaiLoras()).rejects.toThrow(/timed out/)
+    const promise = expect(listCivitaiLoras()).rejects.toThrow(
+      /Civitai request timeout after \d+ms/,
+    )
     // Run all pending fake timers (8s service timeout + withRetry's backoff
     // delays between retries). Using runAllTimersAsync instead of a single
     // advanceTimersByTimeAsync(8000) so we don't have to predict the exact
@@ -1718,16 +1763,22 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     const init = searchCall?.[1] as RequestInit
     expect(init.method).toBe('POST')
     const body = JSON.parse(String(init.body))
-    expect(body.queries[0].q).toBe('鸣潮')
-    expect(body.queries[0].sort).toEqual(['metrics.downloadCount:desc'])
+    // 两个窗口一趟往返：相关性窗口（不传 sort，exact/prefix 命中靠顶）+
+    // 排序窗口（用户选的 sort，保证层内顺序和深页供给）。
+    expect(body.queries).toHaveLength(2)
+    expect(body.queries.map((q: { q: string }) => q.q)).toEqual([
+      '鸣潮',
+      '鸣潮',
+    ])
+    expect(body.queries[0].sort).toBeUndefined()
+    expect(body.queries[1].sort).toEqual(['metrics.downloadCount:desc'])
   })
 
   it.each([
-    ['Highest Rated', undefined],
     ['Most Downloaded', ['metrics.downloadCount:desc']],
     ['Newest', ['createdAt:desc']],
   ] as const)(
-    'maps sort=%s to the meilisearch sort field %j',
+    'sends a relevance window alongside the sort=%s window',
     async (sort, expected) => {
       mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
 
@@ -1737,9 +1788,116 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
         String(call[0]).includes('search-new.civitai.com'),
       )
       const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
-      expect(body.queries[0].sort).toEqual(expected)
+      expect(body.queries[0].sort).toBeUndefined()
+      expect(body.queries[1].sort).toEqual(expected)
     },
   )
+
+  it('sends only one window for Highest Rated — it already is the relevance order', async () => {
+    // 退化成一条不是省事，是别白花一趟流量拉两份完全相同的结果。
+    mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
+
+    await listCivitaiLoras({ search: 'detail', sort: 'Highest Rated' })
+
+    const searchCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('search-new.civitai.com'),
+    )
+    const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
+    expect(body.queries).toHaveLength(1)
+    expect(body.queries[0].sort).toBeUndefined()
+  })
+
+  // ── 名称匹配分层：先完全匹配，再相似 ──────────────────────────────
+  //
+  // 2026-08-19 实测（真实上游）：meilisearch 一旦收到 sort 就把相关性整个
+  // 盖掉——用「最多下载」搜 anima，排第一的是名字里压根没有 anima 的模型，
+  // 真正的前缀匹配掉到第 10 位；用「最新」搜 detail tweaker，30 条内连前缀
+  // 匹配都没有。
+
+  it('puts an exact name match first even when it is the least downloaded', async () => {
+    mockSearchAndVersionFetch(
+      multiSearchResponse([
+        searchHitFixture({
+          id: 1,
+          name: 'Velvet Mythic Fantasy',
+          version: { id: 11, name: 'v1', metrics: { downloadCount: 900000 } },
+        }),
+        searchHitFixture({
+          id: 2,
+          name: 'anima',
+          version: { id: 22, name: 'v1', metrics: { downloadCount: 3 } },
+        }),
+        searchHitFixture({
+          id: 3,
+          name: 'Anima Turbo LoRA',
+          version: { id: 33, name: 'v1', metrics: { downloadCount: 5000 } },
+        }),
+      ]),
+    )
+
+    const result = await listCivitaiLoras({
+      search: 'anima',
+      sort: 'Most Downloaded',
+    })
+
+    expect(result.items.map((item) => item.name)).toEqual([
+      'anima', // 完全匹配
+      'Anima Turbo LoRA', // 前缀匹配
+      'Velvet Mythic Fantasy', // 名称没命中，靠 tag/描述进来的
+    ])
+  })
+
+  it('keeps the chosen sort inside each match tier', async () => {
+    // 分层只改变层与层之间的先后，不篡改用户明确要的排序语义。
+    mockSearchAndVersionFetch(
+      multiSearchResponse([
+        searchHitFixture({
+          id: 1,
+          name: 'Anima Small',
+          version: { id: 11, name: 'v1', metrics: { downloadCount: 10 } },
+        }),
+        searchHitFixture({
+          id: 2,
+          name: 'Anima Big',
+          version: { id: 22, name: 'v1', metrics: { downloadCount: 9999 } },
+        }),
+      ]),
+    )
+
+    const result = await listCivitaiLoras({
+      search: 'anima',
+      sort: 'Most Downloaded',
+    })
+
+    expect(result.items.map((item) => item.name)).toEqual([
+      'Anima Big',
+      'Anima Small',
+    ])
+  })
+
+  it('is case- and whitespace-insensitive when deciding an exact match', async () => {
+    mockSearchAndVersionFetch(
+      multiSearchResponse([
+        searchHitFixture({
+          id: 1,
+          name: 'Pixel Art XL',
+          version: { id: 11, name: 'v1', metrics: { downloadCount: 9999 } },
+        }),
+        searchHitFixture({
+          id: 2,
+          name: 'PIXEL   ART',
+          version: { id: 22, name: 'v1', metrics: { downloadCount: 1 } },
+        }),
+      ]),
+    )
+
+    const result = await listCivitaiLoras({
+      search: '  pixel art ',
+      sort: 'Most Downloaded',
+    })
+
+    expect(result.items[0]?.name).toBe('PIXEL   ART')
+  })
 
   it('maps a meilisearch hit into a full library item, reconstructing the cover URL from the CDN bucket', async () => {
     mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
@@ -1765,7 +1923,9 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     )
   })
 
-  it('computes the meilisearch offset from the requested page number', async () => {
+  it('re-scans a prefix window from 0 instead of paging by offset', async () => {
+    // 分层重排必须看到整个前缀窗口才成立：只在当页内重排的话，第 10 位的
+    // 前缀匹配翻到第 2 页反而更靠后。
     mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()], 100))
 
     await listCivitaiLoras({ search: 'detail', page: 3, pageSize: 12 })
@@ -1774,8 +1934,10 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
       String(call[0]).includes('search-new.civitai.com'),
     )
     const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
-    expect(body.queries[0].offset).toBe(24)
-    expect(body.queries[0].limit).toBe(12)
+    expect(body.queries[0].offset).toBe(0)
+    expect(body.queries[0].limit).toBe(
+      3 * 12 + CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER,
+    )
   })
 
   it('derives hasNextPage from estimatedTotalHits', async () => {
@@ -1792,11 +1954,11 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     expect(result.total).toBe(50)
   })
 
-  it('falls back to the REST search path when meilisearch fails, and flags sortFellBackToRelevance', async () => {
+  it('falls back to the REST search path when the meilisearch endpoint itself is broken (4xx), and flags sortFellBackToRelevance', async () => {
     mockFetch.mockImplementation(async (input) => {
       const url = String(input)
       if (url.includes('search-new.civitai.com')) {
-        return jsonResponse({ message: 'down' }, 503)
+        return jsonResponse({ message: 'gone' }, 404)
       }
       // REST fallback path (models?query=...) — return a normal REST payload.
       return jsonResponse({
@@ -1840,6 +2002,202 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
         !String(call[0]).includes('model-versions'),
     )
     expect(restCall).toBeDefined()
+  })
+
+  // ── L1 抗抖动：上游搜索子系统降级时的行为 ────────────────────────────
+  //
+  // 2026-08-19 实录：Civitai 对 `query=` 主动卸载（503 + Retry-After: 2 +
+  // "Model search is temporarily overloaded"），同一时刻不带 query 的浏览
+  // 路径全程 200。meilisearch 和 REST `query=` 是同一个搜索子系统的两张
+  // 脸，所以那次"回落"只是把失败重演一遍，单次请求 21–24 秒才吐 502。
+
+  it('does not fall back to REST when the search subsystem is degraded (5xx) — same failure domain', async () => {
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('search-new.civitai.com')) {
+        return jsonResponse({ error: 'overloaded' }, 503)
+      }
+      throw new Error('REST must not be called when the subsystem is degraded')
+    })
+
+    await expect(listCivitaiLoras({ search: 'detail' })).rejects.toThrow(/503/)
+
+    const restCall = mockFetch.mock.calls.find(
+      (call) =>
+        String(call[0]).includes('/api/v1/models') &&
+        !String(call[0]).includes('model-versions'),
+    )
+    expect(restCall).toBeUndefined()
+  })
+
+  it('retries meilisearch with a longer budget when the first attempt only times out', async () => {
+    vi.useFakeTimers()
+    let attempt = 0
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('search-new.civitai.com')) {
+        attempt += 1
+        // 第一发永不回来（模拟上游慢），第二发正常——慢和死必须分开处理。
+        if (attempt === 1) return new Promise<Response>(() => {})
+        return jsonResponse(multiSearchResponse([searchHitFixture()]))
+      }
+      const match = url.match(/model-versions\/(\d+)/)
+      return jsonResponse(
+        versionDownloadResponse(match ? Number(match[1]) : 0, 'https://x/y'),
+      )
+    })
+
+    const promise = listCivitaiLoras({ search: 'detail' })
+    await vi.runAllTimersAsync()
+    const result = await promise
+
+    expect(attempt).toBe(2)
+    expect(result.items).toHaveLength(1)
+  })
+
+  it('trips the circuit after repeated search failures and stops hitting Civitai', async () => {
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ error: 'overloaded' }, 503)
+      }
+      throw new Error('REST must not be called')
+    })
+
+    for (let i = 0; i < 3; i += 1) {
+      await expect(listCivitaiLoras({ search: 'detail' })).rejects.toThrow()
+    }
+    const callsBeforeOpen = mockFetch.mock.calls.length
+
+    // 第 4 次必须在本地快速失败，一个字节都不该再发给正在卸载的上游。
+    await expect(listCivitaiLoras({ search: 'detail' })).rejects.toThrow(
+      /Circuit breaker civitai\.search is OPEN/,
+    )
+    expect(mockFetch.mock.calls.length).toBe(callsBeforeOpen)
+  })
+
+  it('costs exactly one upstream request per search page', async () => {
+    // 原来每条 hit 都要单独打一次 /model-versions/:id 取 downloadUrl，一页
+    // 12 条 = 13 次上游请求；而且解析失败会把整条丢掉，上游一降级搜索页就
+    // 静默返回空。下载地址实测可直接构造（2026-08-19，32/32 一致）。
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('search-new.civitai.com')) {
+        return jsonResponse(
+          multiSearchResponse([
+            searchHitFixture({ id: 1 }),
+            searchHitFixture({ id: 2 }),
+            searchHitFixture({ id: 3 }),
+          ]),
+        )
+      }
+      throw new Error(`unexpected upstream call: ${url}`)
+    })
+
+    const result = await listCivitaiLoras({ search: 'anima' })
+
+    expect(result.items.length).toBeGreaterThan(0)
+    expect(mockFetch.mock.calls).toHaveLength(1)
+    expect(result.items[0]?.loraUrl).toMatch(
+      /^https:\/\/civitai\.com\/api\/download\/models\/\d+$/,
+    )
+  })
+
+  it('carries the AutoV3 hash through from the version hashData', async () => {
+    mockSearchAndVersionFetch(
+      multiSearchResponse([
+        searchHitFixture({
+          version: {
+            id: 4242,
+            name: 'v1',
+            baseModel: 'Illustrious',
+            hashData: [
+              { hash: 'DEADBEEF', type: 'AutoV2' },
+              { hash: 'A11CE0FF', type: 'AutoV3' },
+            ],
+          },
+        }),
+      ]),
+    )
+
+    const result = await listCivitaiLoras({ search: 'anima' })
+
+    expect(result.items[0]?.fileHashAutoV3).toBe('A11CE0FF')
+  })
+
+  // ── L2 陈旧兜底 ──────────────────────────────────────────────────────
+
+  it('serves the last successful snapshot when the search subsystem is down', async () => {
+    mockSearchAndVersionFetch(
+      multiSearchResponse([searchHitFixture({ name: 'Cached Anima' })]),
+    )
+    const fresh = await listCivitaiLoras({ search: 'anima' })
+    expect(fresh.stale).toBeUndefined()
+    expect(fresh.items).toHaveLength(1)
+
+    // 同一个查询，这次上游整体挂掉。
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ error: 'overloaded' }, 503)
+      }
+      throw new Error('REST must not be called')
+    })
+
+    const degraded = await listCivitaiLoras({ search: 'anima' })
+
+    expect(degraded.stale).toBe(true)
+    expect(degraded.fetchedAt).toBe(SNAPSHOT_FETCHED_AT.toISOString())
+    expect(degraded.items.map((item) => item.name)).toEqual(
+      fresh.items.map((item) => item.name),
+    )
+  })
+
+  it('falls through to the local mirror when there is no snapshot for this query', async () => {
+    // 镜像的价值恰恰在这里：它能回答**从没搜过的词**，那是快照永远填不了
+    // 的洞。顺序上快照优先——它是这个查询的精确历史答案，保真度更高。
+    mirrorResult.current = {
+      items: [],
+      page: 1,
+      pageSize: 12,
+      total: 3,
+      hasNextPage: false,
+      nextCursor: null,
+      offsetPaginationSupported: true,
+    }
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ error: 'overloaded' }, 503)
+      }
+      throw new Error('REST must not be called')
+    })
+
+    const result = await listCivitaiLoras({ search: 'never-searched-before' })
+
+    expect(result.stale).toBe(true)
+    expect(result.fetchedAt).toBe('2026-08-19T10:00:00.000Z')
+    expect(result.total).toBe(3)
+  })
+
+  it('still throws when the subsystem is down and neither snapshot nor mirror can answer', async () => {
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ error: 'overloaded' }, 503)
+      }
+      throw new Error('REST must not be called')
+    })
+
+    await expect(
+      listCivitaiLoras({ search: 'never-searched-before' }),
+    ).rejects.toThrow(/503/)
+  })
+
+  it('does not snapshot the browse path — it has prewarm and the CDN already', async () => {
+    mockFetch.mockImplementation(async () =>
+      jsonResponse({ items: [], metadata: {} }),
+    )
+
+    await listCivitaiLoras()
+
+    expect(snapshotStore.size).toBe(0)
   })
 
   it('search mode keeps the safe name-keyword client filter on hits', async () => {
@@ -2030,11 +2388,11 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
       expect(restCall).toBeUndefined()
     })
 
-    it('with no source (first page / unlocked), still falls back to REST on meilisearch failure — existing behavior preserved', async () => {
+    it('with no source (first page / unlocked), falls back to REST when the meilisearch endpoint is broken (4xx)', async () => {
       mockFetch.mockImplementation(async (input) => {
         const url = String(input)
         if (url.includes('search-new.civitai.com')) {
-          return jsonResponse({ message: 'down' }, 503)
+          return jsonResponse({ message: 'gone' }, 404)
         }
         return jsonResponse({
           items: [
@@ -3071,6 +3429,29 @@ describe('resolveCivitaiLoraByReference', () => {
       baseModelFamily: 'SDXL 1.0',
       fileHashAutoV3: '9c783c8ce46c',
     })
+  })
+
+  // 切片 3（推荐卡）：`sizeKB` 一直被 CivitaiFileSchema 解析着却从没映射出去，
+  // 「这把 LoRA 多大」在前端取不到。上游给的是**小数 KB**（实测
+  // 56075.02734375），换算后取整；缺失时是 null 而不是 0 —— 0 会被卡面显示成
+  // 「0 B」，那是个假事实。
+  it('maps the primary file sizeKB into fileSizeBytes, and null when absent', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        ...VERSION_PAYLOAD,
+        files: [{ ...VERSION_PAYLOAD.files[0], sizeKB: 56075.02734375 }],
+      }),
+    )
+    const withSize = await resolveCivitaiLoraByReference({
+      modelVersionId: 135867,
+    })
+    expect(withSize?.fileSizeBytes).toBe(Math.round(56075.02734375 * 1024))
+
+    mockFetch.mockResolvedValueOnce(jsonResponse(VERSION_PAYLOAD))
+    const withoutSize = await resolveCivitaiLoraByReference({
+      modelVersionId: 135867,
+    })
+    expect(withoutSize?.fileSizeBytes).toBeNull()
   })
 
   it('resolves a modelVersionId via the /:id endpoint', async () => {

@@ -89,6 +89,32 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 - `src/services/**`（含就地 `src/services/CLAUDE.md`、`src/app/api/CLAUDE.md`）· `src/services/providers/registry.ts` · `src/proxy.ts`
 - 历史详版：`git show cddc4384:docs/architecture/{auth,generation,overview,storage}.md`
 
+## Civitai 搜索的三级降级（2026-08-19 建，全部数字实测）
+
+**起因**：Civitai 对 `/api/v1/models?query=` 主动 load shedding（503 + `Retry-After: 2` + body `"Model search is temporarily overloaded"`，`x-handled-by` 是它自己的应用层不是 Cloudflare），同一时刻**不带 query 的浏览路径全程 200**。挂的是搜索子系统，不是整个 Civitai。
+
+⚠ **别再把 REST `query=` 当 meilisearch 的回落。** 两者是同一个搜索子系统的两张脸，上游一过载必然一起死——原来的"回落"只是把失败重演一遍再赔上十几秒（实录：单次请求 21–24 秒才吐 502）。回落只在 **4xx / 端点坏了 / 公钥轮换**时才有意义，`isUpstreamSearchDegraded()` 就是这条判据。
+
+**降级顺序**（`listCivitaiLoras`）：
+
+1. **上游 meilisearch** — 两级超时 5s → 10s（健康时实测 0.55–1.1s；事故当天返回在 7.99s，单一 8s 闸把"慢但会成功"判成了死）。整条搜索路径罩 `civitai.search` 断路器（3 次失败 / 30 秒），浏览路径不罩。
+2. **L2 快照**（`CivitaiSearchSnapshot`）— 每个规范化查询留最近一次成功结果。**不是通用缓存**：只在上游失败那一刻读。一条实测 7.6–7.8 KB，上限 1000 条 ≈ 8 MB，LRU 淘汰搭 prewarm cron（6h）。
+3. **L3 本地镜像**（`CivitaiLoraMirror`）— **兜底层，不是主查询层**。只覆盖 top N，当主路径会让长尾搜索静默变少。它的价值是能回答**从没搜过的词**，这是快照填不了的洞。
+
+顺序上快照优先于镜像：快照是这个查询（连同排序/档位/页码）的精确历史答案，保真度更高。
+
+### 上游实测事实（改动前先看，别重新踩）
+
+- **下载地址可直接构造**：`https://civitai.com/api/download/models/{versionId}`，32/32 与 REST 返回值一致（跨 top / 第 2 万名 / 最新发布三段采样，含早期访问模型）。原来每个 hit 单独打一次 `/model-versions/:id`，一页 12 条 = 13 次上游请求，**且拿不到就把整条丢掉**——上游一降级搜索页静默返回空，比报错更糟。现在一页 1 次请求。
+- **AutoV3 在 `version.hashData` 里**（50/50 命中，带 type 标注），不在 `files[].hashes` 上。旧注释说 meilisearch 拿不到 AutoV3 是找错了地方。
+- **meilisearch offset 硬上限 100,000**（offset=99990 有结果，100500 返回 0 条）。`metrics.downloadCount` **可排序但不可过滤**，所以"按下载量取前 20 万"够不着。
+- **`lastVersionAtUnix` 是可过滤的**——新模型首发和老模型出新版本都会更新它，等于上游白送一个 changed-since 接口。但**指标不走这个信号**（下载量变化不更新它），所以指标刷新绕不开全量扫描，镜像同步因此只做一条管线而不是三条。
+- **目录规模 642,554 条**（按 lastVersionAtUnix 月度分桶精确求和），日增 800–900，2025 年初见顶后稳定在 2 万/月，是线性不是指数。
+
+### 容量算术（改截断线前先重算）
+
+单行实测 **1,724 B**（灌到 6000 行时量的；1000 行时是 2,662 B，小样本会高估）。Neon 免费档整个项目 0.5 GB，当时已用 128 MB，`Generation` 表 701 行就占 67 MB。`CIVITAI_MIRROR_BACKFILL_LIMIT` 现为 5 万 ≈ 85 MB，注释里有完整推导。
+
 ## Last Verified
 
 - Date: 2026-07-23 · Method: 核验执行 Worker 幂等创建、应用派发分类、回调 CAS、DB-first 模型解析、平台免费体验闸门、Execution v1 防重放协议、日志脱敏、认证边界、Clerk Production 已验证邮箱重绑定和对应回归测试。route/service 数量与高风险引用计数仍沿用 2026-07-10 快照；据此改动前先对实际代码。

@@ -13,7 +13,7 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
@@ -114,6 +114,7 @@ export function CivitaiCommunityBranch({
   controlsSlotNode,
 }: CivitaiCommunityBranchOwnProps) {
   const t = useTranslations('LoraWorkbench')
+  const format = useFormatter()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -226,15 +227,6 @@ export function CivitaiCommunityBranch({
   }, [activeClerkId])
 
   useEffect(() => {
-    const trimmed = library.search.trim()
-    if (trimmed.length < 2) return
-    const id = setTimeout(() => {
-      setHistory(recordSearchTerm(trimmed, activeClerkId))
-    }, 800)
-    return () => clearTimeout(id)
-  }, [activeClerkId, library.search])
-
-  useEffect(() => {
     if (!historyOpen) return
     const handler = (e: MouseEvent) => {
       if (!searchWrapperRef.current?.contains(e.target as Node)) {
@@ -340,18 +332,47 @@ export function CivitaiCommunityBranch({
     library.contentType !== 'all'
       ? getLoraContentTypeDefinition(library.contentType).searchFallbackTerm
       : null
+  // 历史只记「真的搜过的词」。旧行为是敲字 800ms 后就记一条，于是
+  // "detail tw" 这种半截词也进了历史。记在提交这个事件上，不放 effect——
+  // effect 内同步 setState 会引发级联渲染（react-hooks/set-state-in-effect）。
+  const rememberSearch = useCallback(
+    (term: string) => {
+      const trimmed = term.trim()
+      if (trimmed.length < 2) return
+      setHistory(recordSearchTerm(trimmed, activeClerkId))
+    },
+    [activeClerkId],
+  )
+
   const handleTypeSearchFallback = useCallback(() => {
     if (!activeTypeSearchFallbackTerm) return
     library.setSearch(activeTypeSearchFallbackTerm)
+    library.commitSearchTerm(activeTypeSearchFallbackTerm)
+    rememberSearch(activeTypeSearchFallbackTerm)
     library.setContentType(DEFAULT_LORA_CONTENT_TYPE)
-  }, [activeTypeSearchFallbackTerm, library])
+  }, [activeTypeSearchFallbackTerm, library, rememberSearch])
+
+  // 输入框里的字 ≠ 正在搜的词 = 还有一次没提交的检索。按钮据此从 ghost 变
+  // 实心，把「回车才生效」这件事变成看得见的状态而不是要用户猜。
+  const hasPendingSearch =
+    library.search.trim() !== library.debouncedSearch.trim()
+
+  const handleSearchSubmit = useCallback(() => {
+    library.submitSearch()
+    rememberSearch(library.search)
+    setHistoryOpen(false)
+  }, [library, rememberSearch])
 
   const handleHistoryPick = useCallback(
     (term: string) => {
       library.setSearch(term)
+      // 点历史项等于「我就要搜这个」——立刻提交，不用再按一次回车。
+      library.commitSearchTerm(term)
+      // 重记一次把它顶到历史最前面。
+      rememberSearch(term)
       setHistoryOpen(false)
     },
-    [library],
+    [library, rememberSearch],
   )
 
   const handleHistoryClear = useCallback(() => {
@@ -493,6 +514,20 @@ export function CivitaiCommunityBranch({
           </Button>
         </div>
 
+        {library.isStale && library.staleFetchedAt ? (
+          <div
+            role="status"
+            className="border-border bg-muted/50 text-foreground mb-2 flex items-start gap-2 rounded-lg border px-3 py-2 text-xs font-medium"
+          >
+            <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            <span>
+              {t('staleSnapshotNotice', {
+                time: format.relativeTime(new Date(library.staleFetchedAt)),
+              })}
+            </span>
+          </div>
+        ) : null}
+
         <div
           className={cn(
             'min-h-0 transition-opacity',
@@ -617,16 +652,38 @@ export function CivitaiCommunityBranch({
                 value={library.search}
                 onChange={(event) => library.setSearch(event.target.value)}
                 onFocus={() => setHistoryOpen(true)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') return
+                  event.preventDefault()
+                  handleSearchSubmit()
+                }}
+                // 触屏键盘把回车键渲染成「搜索」，配合右侧按钮两条路都通。
+                // 不用 type="search"：Chrome 会画一个原生清除叉，正好压在
+                // 右侧那颗搜索按钮上。
+                enterKeyHint="search"
                 placeholder={t('communitySearch')}
-                className="h-9 pl-9 pr-8 text-xs"
+                className="h-9 pl-9 pr-16 text-xs"
               />
-              {library.isRevalidating && library.items.length > 0 ? (
+              {library.isRevalidating ? (
                 <Spinner
                   size="sm"
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 text-muted-foreground"
                   aria-hidden
                 />
               ) : null}
+              {/* 移动端没有回车键可按，必须有个能点的入口。桌面端它也是
+                  「输入不等于已搜」的可见提示——不然改成显式提交之后，用户
+                  敲完字盯着没变的列表会以为卡住了。 */}
+              <Button
+                type="button"
+                size="sm"
+                variant={hasPendingSearch ? 'default' : 'ghost'}
+                onClick={handleSearchSubmit}
+                aria-label={t('communitySearchSubmit')}
+                className="absolute right-1 top-1/2 h-7 -translate-y-1/2 px-2"
+              >
+                <Search className="size-3.5" aria-hidden />
+              </Button>
               {historyOpen && history.length > 0 ? (
                 <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-border bg-popover p-1 text-xs shadow-lg">
                   <div className="flex items-center justify-between px-2 py-1 text-2xs uppercase tracking-wide text-muted-foreground">

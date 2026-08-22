@@ -30,6 +30,33 @@
 - 生产异常时序：先看最新 production 部署 state → deploy-check / post-deploy smoke 结果 → 需要回滚找 `isRollbackCandidate` 的上一个 READY 部署。
 - Vercel 计划：Hobby（cron 表达式受限，历史上因此炸过一次构建）。
 
+### ⚠ 加 cron 前必须做的两件事（2026-08-20 又栽了一次，补成清单）
+
+1. **表达式只能是每日粒度。** `0 * * * *` / `0 */6 * * *` 这类会炸构建——
+   `6320100a`「use Hobby-compatible cron schedules」删掉的正是这两个。现存三条
+   （prewarm `0 0`、sweep `0 12`、civitai-mirror/sync `0 4`）都是每日。
+2. **同步把路径加进 `src/proxy.ts` 的 `isPublicRoute`。** Vercel Cron 没有
+   Clerk 会话，漏了不是"偶尔失败"是 **100% 被拦在路由外**——连路由里的
+   `CRON_SECRET` 校验都够不到，失败也不进 logger，表现为这条 cron 静悄悄地
+   永远没跑过。⚠ **症状是 404 不是 401**：Clerk 的 `auth.protect()` 只对页面
+   请求 redirect 到登录页，非页面请求走 `notFound()`（见
+   `@clerk/nextjs/server/protect`）。所以去 Vercel Function 日志里 grep 401
+   会一无所获，要找的是每天一条 404。`src/proxy.test.ts` 有 `it.each` 守着三
+   条路径，加 cron 时把新路径加进那个数组。
+
+**`maxDuration` 的真实上限：Hobby = 300s**（fluid compute 默认开启时，Hobby 的
+默认值与最大值都是 300；Pro 才有 800s、扩展 1800s）。来源：
+<https://vercel.com/docs/functions/configuring-functions/duration> 的 Duration
+limits 表，2026-08-21 查证。
+
+⚠ **仓内那 14 条路由写的 240 是个惯例数字，不是上限**。它来自 2026-03-25 的
+`7fdd984b`，标题写着「for Vercel **Pro** plan」——而本账号是 Hobby（2026-08-21
+在 Build Machine 设置页看到「Upgrade to the Pro Plan to set Elastic or Turbo」
+即为证据）。且那 14 条全是快返路由（arena 建完 match 就 return、generate-video
+是 submit 路径，等待在 /status 轮询侧），**没有一条真跑到过 240**，所以「240 已
+验证」是把「声明了 240 且部署通过」当成了「跑到过 240」——部署通过只证明配置被
+接受。唯一刻意吃满时长的是 `civitai-mirror/sync`，它取 300。
+
 ## Dependabot 分流规则（2026-07-10 实践沉淀）
 
 | 类型                                            | 处理                                                                                          |
@@ -48,11 +75,45 @@ pre-commit（lint-staged 格式化）→ pre-push（tsc + lint + 全量 vitest�
 - owner 已开 dev（3000）→ 直接复用，绝不另起实例；要 server log 直接向 owner 要。
 - dev 跑着不并行 build（污染 .next/Turbopack 缓存 → 嵌套路由 404，需删 .next 重启恢复）。
 - 测试 key 一次性 dev 实例，严禁进生产。
+- ⚠ 别把 lint / tsc 和全量 vitest 并行跑：CPU 饥饿会把测试拖到超时，表现是**假失败**（2026-08-22 实测三条测试跑到 657 秒然后红，单独复跑全过）。闸门必须串行，且判据是日志里的 `EXIT=`，不是包装它的那条 shell 语句的退出码。
+
+### ⚠ 本地执行 worker：「8787 在听 + /health 200」**不等于**它能用（2026-08-22 实测）
+
+`workers/execution` 的 `GENERATION_BUCKET`（R2）是 **remote 模式**绑定，靠 wrangler 的 `RemoteRuntimeController` 维持一条远端会话，其 preview token 需要**周期性去 Cloudflare 刷新**。刷新链一断，进程不会退出：
+
+- 本地 runtime 照常心跳、8787 照常 LISTENING、`/health` 照常 `{"ok":true}` —— **它碰不到 R2，所以什么都证明不了**
+- 远端绑定已死，生成会在写 R2 那步失败
+
+2026-08-22 实测到的完整形态（三环，只有第一环会被人看见）：
+
+1. `Failed to fetch auth token: TypeError: fetch failed` / `read ECONNRESET` → `Token refresh failed`
+   —— **传输层被 reset，不是凭据问题**，所以「重新登录」不是这一环的解释
+2. 约 4 小时后：`Error in RemoteRuntimeController: Error refreshing preview token` +
+   `UserError: Timed out waiting for authorization code`（`user oauth authorization timeout`）
+   —— 刷新失败后 wrangler 退回**交互式 OAuth**，没人完成就超时
+3. 之后 `Network connection lost.`，然后**只剩心跳，一次都不再重试**
+
+**判据**（别只看端口和 /health）：
+
+```bash
+npx wrangler whoami
+```
+
+报 `Not logged in.` 即远端凭据已失效。要看时间线就 grep wrangler 自己的日志（路径在每次报错的末行给出，形如 `%APPDATA%/xdg.config/.wrangler/logs/wrangler-<时间戳>.log`）里的 `RemoteRuntimeController`。
+
+**恢复**：`npx wrangler login`（交互式，只能由 owner 做）→ **然后必须重启 worker**。⛔ 光重新登录救不活已经跑着的那个进程里的 controller —— 实测它死了 7 小时、自己一次都没恢复。
+
+**结构性解**：改用 `CLOUDFLARE_API_TOKEN`（R2 读写权限）代替 OAuth，就没有周期性刷新，这个失败模式整个消失。wrangler 的错误文案自己也给了这条路。
+
+**登录不了时的退路**：`wrangler dev --local` 不需要 Cloudflare 凭据。⚠ 代价写在 `wrangler.jsonc` 那条 `"remote": true` 的注释里 —— 产物落本地 R2 模拟，而 Next.js 存下来的 CDN URL 指向真实桶，于是**库里会出现一批打不开的图**。只当临时手段，别拿它跑要留档的生成。
+
+⚠ 与另一条形态分开：**全线 502 = worker 根本没起**（跑 `npm --prefix workers/execution run dev` 等 `Ready on 8787`）；本条是**起着但远端会话已死**，症状完全不同 —— 前者连不上，后者连得上且健康检查绿。
 
 ## Source of Truth
 
-- `.github/workflows/*.yml`（5 个）· `.husky/` · `package.json`（scripts）· `scripts/check-model-docs.mjs` · Vercel 项目设置
+- `.github/workflows/*.yml`（5 个）· `.husky/` · `package.json`（scripts）· `scripts/check-model-docs.mjs` · Vercel 项目设置 · `workers/execution/wrangler.jsonc`（远端绑定声明，`GENERATION_BUCKET` 的 `"remote": true`）
 
 ## Last Verified
 
 - Date: 2026-07-23 · Method: 读取并解析 `ci.yml`；Execution Worker tests 已成为 build 前置，critical audit 阻断、high audit 报告，Prisma 同时检查 drift 与 fresh-database replay。当前本地审计为 0 critical；high/moderate 仍需按上游与 breaking-change 风险分批治理。
+- Date: 2026-08-22 · Scope: 仅「本地执行 worker」那一节 · Method: 真机实测 —— 8787 LISTENING + `/health` 返 `{"ok":true}` 与 `wrangler whoami` 报 `Not logged in.` **同时成立**；wrangler 运行日志里三环失败（ECONNRESET → OAuth 授权码超时 → Network connection lost）时间线逐条读出；`"remote": true` 与 `--local` 的代价取自 `wrangler.jsonc` 注释。⚠ **未实测的一点**：没有真跑一次生成去证「写 R2 必失败」（会花钱），那一步是从 remote 绑定语义推的。

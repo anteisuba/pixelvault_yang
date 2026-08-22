@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "CivitaiLoraMirror" ALTER COLUMN "syncedAt" SET DEFAULT CURRENT_TIMESTAMP;

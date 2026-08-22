@@ -6,11 +6,14 @@ import { z } from 'zod'
 
 import {
   CIVITAI_BASE_MODEL_FAMILY_MEMBERS,
+  CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL,
   CIVITAI_LORA_BASE_MODEL_VALUES,
   CIVITAI_NAMED_BASE_MODEL_MEMBER_SET,
   CIVITAI_OTHER_BASE_MODEL_MEMBERS,
   CIVITAI_LORA_CONTENT_TYPE_MAX_FETCH_LIMIT,
   CIVITAI_LORA_CONTENT_TYPE_OVERFETCH_BUFFER,
+  CIVITAI_LORA_SEARCH_MAX_FETCH_LIMIT,
+  CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER,
   CIVITAI_LORA_PAGE_SIZE,
   CIVITAI_LORA_SORT_VALUES,
   DEFAULT_LORA_CONTENT_TYPE,
@@ -30,7 +33,29 @@ import {
   summariseActivationSegments,
 } from '@/lib/civitai-image-prompt-mine'
 import { buildCivitaiLoraNameSearchQueries } from '@/lib/civitai-lora-reference'
+import { CircuitOpenError, getCircuitBreaker } from '@/lib/circuit-breaker'
+import {
+  readCivitaiMirrorFreshness,
+  searchCivitaiMirror,
+} from '@/services/civitai-mirror-search.service'
+import {
+  buildCivitaiSnapshotKey,
+  pruneCivitaiSearchSnapshots,
+  readCivitaiSearchSnapshot,
+  writeCivitaiSearchSnapshot,
+} from '@/services/civitai-search-snapshot.service'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
+import {
+  buildCivitaiItemImageUrls,
+  buildCivitaiVersionDownloadUrl,
+  CIVITAI_CARD_WIDTH,
+  CIVITAI_COVER_WIDTH,
+  CIVITAI_PREVIEW_WIDTH,
+  CIVITAI_THUMB_WIDTH,
+  inferLoraType,
+  isStaticCivitaiImage,
+  pickAutoV3Hash,
+} from '@/lib/civitai-library-item'
 import { cleanRecommendedPrompt } from '@/lib/lora-trigger-clean'
 import { civitaiDescriptionToText } from '@/lib/civitai-description-parse'
 import { extractCivitaiTrigger } from '@/lib/lora-trigger-extract'
@@ -45,7 +70,6 @@ import type {
   CivitaiModelDescriptionResult,
   CivitaiPreviewImage,
   CivitaiRecipeExtraLora,
-  LoraAssetType,
 } from '@/types'
 
 const CIVITAI_MODELS_API = 'https://civitai.com/api/v1/models'
@@ -57,6 +81,22 @@ const CIVITAI_MODEL_SEARCH_INDEX = 'models_v9'
 const CIVITAI_MODEL_SEARCH_PUBLIC_KEY =
   '8c46eb2508e21db1e9828a97968d91ab1ca1caa5f70a00e88a2ba1e286603b61'
 const CIVITAI_REQUEST_TIMEOUT_MS = 8000
+
+// 搜索路径的两级超时。meilisearch 健康时实测 0.55–1.1s（2026-08-19 curl 对
+// 照），所以 5s 已经是"上游明显不健康"的信号，早失败早交给断路器。但同一天
+// 的过载事故里它返回在 7.99s——只是慢，不是死；单一 8s 闸把这种"慢但会成
+// 功"直接判死，然后跳进同失败域的 REST 回落再赔上 13 秒。所以第一发快速失
+// 败，再给一发更长预算，只有两发都不回来才认定上游搜索不可用。
+const CIVITAI_SEARCH_TIMEOUT_FAST_MS = 5000
+const CIVITAI_SEARCH_TIMEOUT_PATIENT_MS = 10_000
+
+// 搜索路径的断路器。2026-08-19 事故里 Civitai 对 `query=` 请求主动 load
+// shedding（503 + Retry-After: 2，body 明写 "Model search is temporarily
+// overloaded"），而同一时刻不带 query 的浏览路径全程 200——挂的是搜索子系
+// 统，不是整个 Civitai。所以断路器只罩搜索，浏览不受牵连。
+const CIVITAI_SEARCH_BREAKER = 'civitai.search'
+const CIVITAI_SEARCH_BREAKER_FAILURE_THRESHOLD = 3
+const CIVITAI_SEARCH_BREAKER_RESET_MS = 30_000
 
 // Civitai 上游把「没有值」写成 null，而不是省略字段。z.number()/z.string()
 // 拒 null，而 .passthrough() 只放行未声明的字段、不放宽已声明字段的类型
@@ -240,12 +280,19 @@ const CivitaiSearchVersionSchema = z
     name: z.string().optional(),
     baseModel: z.string().nullable().optional(),
     files: z.array(CivitaiSearchVersionFileSchema).optional(),
-    // B11：meilisearch 版本对象里有这两个，但从不带 files[].downloadUrl —
-    // 触发词/下载量可以直接用，下载链接必须另外二段解析（见
-    // fetchCivitaiSearchVersionDownloadUrl）。
+    // B11：meilisearch 版本对象带 trainedWords / metrics，但从不带
+    // files[].downloadUrl——下载链接改为直接构造，见
+    // buildCivitaiVersionDownloadUrl。
     trainedWords: z.array(z.string()).optional(),
     metrics: CivitaiStatsSchema.optional(),
     createdAt: z.string().optional(),
+    // 2026-08-19 实测（50/50 命中）：AutoV3 就在版本对象的 hashData 里，
+    // 带 type 标注。此前这里判定"meilisearch 拿不到 AutoV3"是找错了地方
+    // ——它不在 files[].hashes 上。挂载栈靠这个哈希做匹配，拿得到就不该
+    // 让搜索结果里的条目退化成 no-op。
+    hashData: z
+      .array(z.object({ hash: z.string(), type: z.string() }).passthrough())
+      .optional(),
   })
   .passthrough()
 
@@ -453,6 +500,7 @@ async function resolveCivitaiLoraByLocator(
       baseDelayMs: 400,
       maxDelayMs: 1500,
       label: 'civitai.resolveLoraReference',
+      isRetryable: isCivitaiRetryable,
     })
   } catch (error) {
     logger.warn('Civitai LoRA reference resolve failed', {
@@ -777,6 +825,7 @@ async function resolveCivitaiLoraByNameStem(
         baseDelayMs: 400,
         maxDelayMs: 1500,
         label: 'civitai.resolveLoraByName',
+        isRetryable: isCivitaiRetryable,
       })
     } catch (error) {
       logger.warn('Civitai LoRA name search failed', {
@@ -804,36 +853,19 @@ async function resolveCivitaiLoraByWebSearchNameStem(
   if (!trimmed) return null
 
   const queries = buildCivitaiLoraNameSearchQueries(trimmed)
-  const url = new URL(CIVITAI_MODEL_SEARCH_API)
   const filter = buildCivitaiSearchFilters(baseModelFamily)
-  const body = {
-    queries: queries.map((q) => ({
-      indexUid: CIVITAI_MODEL_SEARCH_INDEX,
-      q,
-      limit: CIVITAI_WEB_RESOLVE_SEARCH_LIMIT,
-      offset: 0,
-      filter,
-    })),
-  }
 
   let payload: unknown
   try {
-    payload = await withRetry(
-      () =>
-        fetchCivitaiPayload(url, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${CIVITAI_MODEL_SEARCH_PUBLIC_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body),
-        }),
-      {
-        maxAttempts: 2,
-        baseDelayMs: 400,
-        maxDelayMs: 1500,
-        label: 'civitai.resolveLoraByWebSearchName',
-      },
+    payload = await fetchCivitaiSearchPayload(
+      queries.map((q) => ({
+        indexUid: CIVITAI_MODEL_SEARCH_INDEX,
+        q,
+        limit: CIVITAI_WEB_RESOLVE_SEARCH_LIMIT,
+        offset: 0,
+        filter,
+      })),
+      'civitai.resolveLoraByWebSearchName',
     )
   } catch (error) {
     logger.warn('Civitai LoRA web search fallback failed', {
@@ -914,6 +946,7 @@ export async function resolveCivitaiCheckpointByReference(
       baseDelayMs: 400,
       maxDelayMs: 1500,
       label: 'civitai.resolveCheckpointReference',
+      isRetryable: isCivitaiRetryable,
     })
   } catch (error) {
     logger.warn('Civitai checkpoint reference resolve failed', {
@@ -990,6 +1023,7 @@ export async function fetchCivitaiVersionIdentifiers(
       baseDelayMs: 400,
       maxDelayMs: 1500,
       label: 'civitai.backfillIdentifiers',
+      isRetryable: isCivitaiRetryable,
     })
   } catch (error) {
     logger.warn('Civitai identifier backfill fetch failed', {
@@ -1165,26 +1199,6 @@ function pickUsableModelVersion(
 }
 
 // 各场景下的目标渲染宽度（CSS px），用于把 Civitai 默认 `original=true` 的
-// 大图（1–5 MB）改写成对应尺寸的 transform。Retina 屏 ×2 在大多数列表场景
-// 已经够清；超出的 LCP/带宽成本远大于细节收益。
-const CIVITAI_THUMB_WIDTH = 96 // 列表 row 40×40 缩略；挂载栈 chip / facepile 用
-// 公开库封面网格卡（~166–221px CSS，retina 需 ~400 物理 px）。此前网格误用了
-// 96 档缩略图（P0-3：96px 拉伸到 ~200px 卡上系统性发糊），640 档又是给抽屉
-// 大图用的、网格 30 张同屏时流量翻倍——450 是网格卡专用的中间档。
-const CIVITAI_CARD_WIDTH = 450
-const CIVITAI_COVER_WIDTH = 640 // Inspector aspect-video / AssetCard square
-const CIVITAI_PREVIEW_WIDTH = 768 // 预留：未来的预览画廊 / 大图轮播
-
-/**
- * 封面/来源图只能是静态图：Civitai 允许视频当封面，但 `<img>` 渲染不了
- * video/mp4（transform 段对视频不转码、`anim=false` 也照样回 video/mp4，
- * 2026-07-11 实测）。只有明确标 `type: 'video'` 才跳过——缺省视为 image，
- * 老响应/测试 fixture 不受影响。
- */
-function isStaticCivitaiImage(image: { type?: string }): boolean {
-  return (image.type ?? 'image').toLowerCase() !== 'video'
-}
-
 function pickImages(
   version: z.infer<typeof CivitaiModelVersionSchema>,
   maxNsfwLevel: number,
@@ -1217,16 +1231,15 @@ function versionHasNsfwLevelAbove(
   )
 }
 
-function inferLoraType(tags: string[], name: string): LoraAssetType {
-  const haystack = `${name} ${tags.join(' ')}`.toLowerCase()
-  if (
-    haystack.includes('character') ||
-    haystack.includes('person') ||
-    haystack.includes('subject')
-  ) {
-    return 'subject'
+/**
+ * 上游的 `sizeKB` 是小数 KB（实测 `56075.02734375`）—— 换算成字节后取整。
+ * 缺失时返回 null（**不是 0**）：0 会被卡面显示成「0 B」，那是个假事实。
+ */
+function toFileSizeBytes(sizeKB: number | undefined): number | null {
+  if (typeof sizeKB !== 'number' || !Number.isFinite(sizeKB) || sizeKB <= 0) {
+    return null
   }
-  return 'style'
+  return Math.round(sizeKB * 1024)
 }
 
 function toLibraryItem(
@@ -1283,6 +1296,10 @@ function toLibraryItem(
 
   return {
     id: `civitai:${model.id}:${version.id}`,
+    // ⚠ 2026-08-21 补：`sizeKB` 从一开始就在 `CivitaiFileSchema` 里解析着，但从
+    // 没映射出去 —— 「这把 LoRA 多大」在整个前端取不到，而它是推荐卡要显示的
+    // 事实之一。上游给的是**小数** KB（实测 56075.02734375），所以换算完取整。
+    fileSizeBytes: toFileSizeBytes(primaryFile?.sizeKB),
     styleCode: `civitai-${version.id}`,
     name: model.name,
     source: 'imported',
@@ -1330,17 +1347,6 @@ function toLibraryItem(
 // #1848，我们自己 curl 对照实验也证实）。civitai 网页版自己的搜索走这个
 // meilisearch 端点，排序字段实测（2026-07-04）全部生效。
 
-// Cloudflare Images 账号级 bucket——同一 bucket 在两个完全无关模型/作者的
-// 封面图之间保持一致（不是按图分配），实测对照 REST 响应确认。
-const CIVITAI_SEARCH_IMAGE_BUCKET = 'xG1nkqKTMzGDvpLrqFT7WA'
-
-function buildCivitaiSearchImageOriginalUrl(image: {
-  id: number
-  url: string
-}): string {
-  return `https://image.civitai.com/${CIVITAI_SEARCH_IMAGE_BUCKET}/${image.url}/original=true/${image.id}.jpeg`
-}
-
 // 排序映射——三档实测（curl 对照，2026-07-04）：不传 sort 就是 meilisearch
 // 相关性序（与 REST 搜索结果逐条一致，说明 REST 内部就是这条相关性序）；
 // 其余两档严格降序。
@@ -1350,69 +1356,100 @@ const CIVITAI_SEARCH_SORT_MAP: Record<CivitaiLoraSort, string[] | undefined> = {
   Newest: ['createdAt:desc'],
 }
 
-// meilisearch hit 里没有 files[]/downloadUrl（实测确认，与 REST 的
-// modelVersions[].files 不同）——每个 hit 都要单独二段解析。批量大小跟
-// resolveFirstExactCivitaiVersionCandidate 的批量常量保持一致的节流力度。
-const CIVITAI_SEARCH_HIT_RESOLVE_BATCH_SIZE = 6
+/**
+ * 所有 meilisearch 请求的唯一入口（三个调用点原本是逐字复制的同一段）。
+ *
+ * 两级超时：先用 fast 预算打一发，只有「超时」这一种失败才用 patient 预算
+ * 再打一发。理由见 CIVITAI_SEARCH_TIMEOUT_FAST_MS 的注释——慢和死要分开
+ * 处理，2026-08-19 那次上游只是慢（7.99s），却被单一 8s 闸判成了死。
+ *
+ * 非超时的失败（503 卸载、4xx、公钥失效）不在这里重试：那些要么是上游明
+ * 确拒绝、要么是端点变了，重试都没有意义，交给调用方分流。
+ */
+export async function fetchCivitaiSearchPayload(
+  queries: unknown[],
+  label: string,
+  /**
+   * 覆盖两级超时预算。默认那套（5s → 10s）是按"用户在等"定的；后台同步拉
+   * limit=500 的整页，没人在等，慢一点远好过失败重来。
+   */
+  budgets?: { fastMs: number; patientMs: number },
+): Promise<unknown> {
+  const fastMs = budgets?.fastMs ?? CIVITAI_SEARCH_TIMEOUT_FAST_MS
+  const patientMs = budgets?.patientMs ?? CIVITAI_SEARCH_TIMEOUT_PATIENT_MS
+  const url = new URL(CIVITAI_MODEL_SEARCH_API)
+  const request = (timeoutMs: number) =>
+    fetchCivitaiPayload(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${CIVITAI_MODEL_SEARCH_PUBLIC_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ queries }),
+      timeoutMs,
+    })
 
-async function fetchCivitaiSearchVersionDownloadUrl(
-  versionId: number,
-): Promise<string | null> {
-  const url = new URL(`${CIVITAI_MODEL_VERSIONS_API}/${versionId}`)
   try {
-    const payload = await withRetry(() => fetchCivitaiPayload(url), {
-      maxAttempts: 2,
-      baseDelayMs: 400,
-      maxDelayMs: 1500,
-      label: 'civitai.searchVersionDownloadUrl',
-    })
-    const parsed = CivitaiVersionResolveSchema.safeParse(payload)
-    if (!parsed.success) return null
-    return pickDownloadUrl(parsed.data)
+    return await request(fastMs)
   } catch (error) {
-    logger.warn('Civitai search hit version download-url resolve failed', {
-      versionId,
-      error: error instanceof Error ? error.message : 'Unknown',
+    const timedOut =
+      error instanceof CivitaiFetchError && error.status === undefined
+    if (!timedOut) throw error
+    logger.warn('Civitai meilisearch slow — retrying with a longer budget', {
+      label,
+      fastBudgetMs: fastMs,
+      patientBudgetMs: patientMs,
     })
-    return null
+    return request(patientMs)
   }
 }
 
-async function hitToLibraryItem(
+/**
+ * 这个错误说明「Civitai 的搜索子系统整体不健康」——超时、5xx、主动卸载、
+ * 断路器已开。区分它的意义在回落决策：meilisearch 和 REST `query=` 是同一
+ * 个搜索子系统的两张脸（2026-08-19 实测：REST `query=` 全部 503，同一时刻
+ * 不带 query 的浏览路径全程 200），所以上游降级时回落 REST 只是把失败重演
+ * 一遍再赔上十几秒。只有 meilisearch 这个非正式端点本身坏了（4xx、公钥轮
+ * 换、响应形状变了）才值得回落——那才是当初设计回落的本意。
+ */
+// 在模块加载时就把实例建出来，而不是首次用到时懒建。getCircuitBreaker 只在
+// 创建那一次读 options，之后按名字返回缓存实例——懒建意味着"谁先按这个名字
+// 要，谁的配置说了算"，任何一个不带 options 的调用方（包括测试的 reset）都
+// 会静默把阈值退回默认值。在这里定死就没有这个先后顺序问题。
+const civitaiSearchBreaker = getCircuitBreaker(CIVITAI_SEARCH_BREAKER, {
+  failureThreshold: CIVITAI_SEARCH_BREAKER_FAILURE_THRESHOLD,
+  resetTimeoutMs: CIVITAI_SEARCH_BREAKER_RESET_MS,
+})
+
+function isUpstreamSearchDegraded(error: unknown): boolean {
+  if (error instanceof CircuitOpenError) return true
+  if (error instanceof CivitaiFetchError) {
+    if (error.status === undefined) return true
+    return error.status >= 500 || error.status === 429
+  }
+  return false
+}
+
+function hitToLibraryItem(
   hit: z.infer<typeof CivitaiSearchHitSchema>,
   maxImageNsfwLevel: number,
-): Promise<CivitaiLoraLibraryItem | null> {
+): CivitaiLoraLibraryItem | null {
   if (hit.type && hit.type.toUpperCase() !== 'LORA') return null
   // hit.version = civitai 挑的"这次命中要展示的版本"；versions[0] 兜底
   // 未必所有 hit 都带 version 字段。
   const version = hit.version ?? hit.versions?.[0]
   if (!version) return null
 
-  const loraUrl = await fetchCivitaiSearchVersionDownloadUrl(version.id)
-  if (!loraUrl) return null
+  const loraUrl = buildCivitaiVersionDownloadUrl(version.id)
 
   const tags = (hit.tags ?? []).map((tag) => tag.name)
-  const originalImageUrls = (hit.images ?? [])
-    .filter(
-      (image) =>
-        isStaticCivitaiImage(image) &&
-        (image.nsfwLevel ?? 1) <= maxImageNsfwLevel,
-    )
-    .slice(0, 6)
-    .map((image) => buildCivitaiSearchImageOriginalUrl(image))
-  const coverOriginal = originalImageUrls[0] ?? null
-  const previewImageUrls = originalImageUrls.map((url) =>
-    rewriteCivitaiImageUrl(url, { width: CIVITAI_PREVIEW_WIDTH }),
-  )
-  const coverImageUrl = coverOriginal
-    ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_COVER_WIDTH })
-    : null
-  const thumbImageUrl = coverOriginal
-    ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_THUMB_WIDTH })
-    : null
-  const cardImageUrl = coverOriginal
-    ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_CARD_WIDTH })
-    : null
+  const {
+    coverImageUrlOriginal: coverOriginal,
+    coverImageUrl,
+    thumbImageUrl,
+    cardImageUrl,
+    previewImageUrls,
+  } = buildCivitaiItemImageUrls(hit.images ?? [], maxImageNsfwLevel)
   const baseModelFamily = version.baseModel?.trim() || 'unknown'
 
   const triggerInfo = extractCivitaiTrigger({
@@ -1433,9 +1470,15 @@ async function hitToLibraryItem(
     baseModelFamily,
     provider: 'civitai',
     triggerWord: triggerInfo.trigger,
-    // meilisearch 版本对象没有 files[].hashes，AutoV3 拿不到——挂载栈的
-    // hash 匹配对搜索结果里的条目退化为 no-op，不影响下载/挂载本身。
-    fileHashAutoV3: null,
+    // 2026-08-19 实测 50/50：AutoV3 在版本对象的 hashData 里（不在
+    // files[].hashes 上，那是之前找错了地方）。补上之后挂载栈的哈希匹配
+    // 对搜索结果里的条目不再退化成 no-op。
+    fileHashAutoV3: pickAutoV3Hash(version.hashData),
+    // ⚠ 搜索路径拿不到文件大小 —— 2026-08-21 实测 meilisearch 的版本对象**根本
+    // 没有 `files` 字段**（有 hashes / hashData / metrics / settings，就是没有
+    // 文件清单）。所以这里恒 null，不是「忘了接」：推荐卡上这一栏对搜索来的
+    // 条目就是「未知」，⛔ 别为了填满它给每条候选补一次 REST 详情请求。
+    fileSizeBytes: null,
     triggerAlternates: triggerInfo.alternates,
     recommendedPrompt: triggerInfo.recommendedPrompt,
     recommendedPromptAlternates: triggerInfo.recommendedPromptAlternates,
@@ -1468,27 +1511,15 @@ async function hitToLibraryItem(
   }
 }
 
-async function hitsToLibraryItems(
+// 分批并发的节流机制随二段解析一起退役了——hitToLibraryItem 现在是纯本地
+// 映射，没有任何上游请求要限流。
+function hitsToLibraryItems(
   hits: readonly z.infer<typeof CivitaiSearchHitSchema>[],
   maxImageNsfwLevel: number,
-): Promise<CivitaiLoraLibraryItem[]> {
-  const resolved: CivitaiLoraLibraryItem[] = []
-  for (
-    let start = 0;
-    start < hits.length;
-    start += CIVITAI_SEARCH_HIT_RESOLVE_BATCH_SIZE
-  ) {
-    const batch = hits.slice(
-      start,
-      start + CIVITAI_SEARCH_HIT_RESOLVE_BATCH_SIZE,
-    )
-    const items = await Promise.all(
-      batch.map((hit) => hitToLibraryItem(hit, maxImageNsfwLevel)),
-    )
-    for (const item of items) {
-      if (item) resolved.push(item)
-    }
-  }
+): CivitaiLoraLibraryItem[] {
+  const resolved = hits
+    .map((hit) => hitToLibraryItem(hit, maxImageNsfwLevel))
+    .filter((item): item is CivitaiLoraLibraryItem => item !== null)
   return dedupeLibraryItems(resolved)
 }
 
@@ -1528,57 +1559,69 @@ async function listCivitaiLorasBySearch({
   sort: CivitaiLoraSort
   nsfwFilter: LoraNsfwFilter
 }): Promise<CivitaiLoraLibraryResult> {
-  const offset = (page - 1) * pageSize
-  const url = new URL(CIVITAI_MODEL_SEARCH_API)
+  const windowStart = (page - 1) * pageSize
+  const windowEnd = page * pageSize
+  // 分层重排必须看到「当前页末尾 + 缓冲」的完整前缀窗口才成立：只在当页内
+  // 重排的话，第 10 位的前缀匹配翻到第 2 页反而更靠后。与
+  // listCivitaiLorasByContentType 同一套范式——每次从 0 重扫一个更大的前缀
+  // 窗口，合并去重后整体排一遍再切片。
+  const fetchLimit = Math.min(
+    windowEnd + CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER,
+    CIVITAI_LORA_SEARCH_MAX_FETCH_LIMIT,
+  )
   const filters = buildCivitaiSearchFilters(
     baseModel === 'all' ? null : baseModel,
   )
   // Issue B: nsfw tri-state pushed down to the source filter so a fetched
   // page is already the right shape — no more post-filter shrinkage.
   appendNsfwSearchFilter(filters, nsfwFilter)
-  const body = {
-    queries: [
-      {
-        indexUid: CIVITAI_MODEL_SEARCH_INDEX,
-        q: search,
-        limit: pageSize,
-        offset,
-        filter: filters,
-        sort: CIVITAI_SEARCH_SORT_MAP[sort],
-      },
-    ],
-  }
 
-  const payload = await withRetry(
-    () =>
-      fetchCivitaiPayload(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${CIVITAI_MODEL_SEARCH_PUBLIC_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      }),
-    {
-      maxAttempts: 2,
-      baseDelayMs: 400,
-      maxDelayMs: 1500,
-      label: 'civitai.searchLoras',
-    },
+  const sortFields = CIVITAI_SEARCH_SORT_MAP[sort]
+  const baseQuery = {
+    indexUid: CIVITAI_MODEL_SEARCH_INDEX,
+    q: search,
+    limit: fetchLimit,
+    offset: 0,
+    filter: filters,
+  }
+  // 两个窗口，同一次 multi-search 一趟往返：
+  //   相关性窗口（不传 sort）——exact/prefix 命中在这里天然靠顶；
+  //   排序窗口（传用户选的 sort）——保证层内顺序和用户要的排序一致，也保
+  //   证深页有足够供给。
+  // 'Highest Rated' 本来就不传 sort，两条会完全相同，退化成一条不白花流量。
+  const queries = sortFields
+    ? [baseQuery, { ...baseQuery, sort: sortFields }]
+    : [baseQuery]
+
+  const payload = await fetchCivitaiSearchPayload(
+    queries,
+    'civitai.searchLoras',
   )
 
-  // 解析失败/形状异常直接抛出——调用方 listCivitaiLoras 捕获后回落 REST，
+  // 解析失败/形状异常直接抛出——调用方 listCivitaiLoras 捕获后按降级链处理，
   // 不在这里吞掉错误（吞了调用方就没法区分"真的没结果"和"端点坏了"）。
   const parsed = CivitaiModelSearchResponseSchema.parse(payload)
-  const result = parsed.results[0]
-  const hits = result?.hits ?? []
-  const filteredHits = filterSearchHitsByNsfw(hits, nsfwFilter)
-  const items = await hitsToLibraryItems(
-    filteredHits,
+
+  const mergedById = new Map<number, z.infer<typeof CivitaiSearchHitSchema>>()
+  for (const result of parsed.results) {
+    for (const hit of filterSearchHitsByNsfw(result.hits ?? [], nsfwFilter)) {
+      if (!mergedById.has(hit.id)) mergedById.set(hit.id, hit)
+    }
+  }
+
+  const ranked = rankSearchHitsByNameMatch(
+    [...mergedById.values()],
+    search,
+    sort,
+  )
+  const items = hitsToLibraryItems(
+    ranked.slice(windowStart, windowEnd),
     maxImageNsfwLevelFor(nsfwFilter),
   )
 
-  const estimatedTotal = result?.estimatedTotalHits ?? null
+  // 两条子 query 是同一个结果集的两种排序，estimatedTotalHits 相同——总数
+  // 仍然可信，不像 content-type 那条路径（两条 query 是不同集合）要报 null。
+  const estimatedTotal = parsed.results[0]?.estimatedTotalHits ?? null
 
   return {
     items,
@@ -1587,8 +1630,8 @@ async function listCivitaiLorasBySearch({
     total: estimatedTotal,
     hasNextPage:
       estimatedTotal !== null
-        ? offset + hits.length < estimatedTotal
-        : hits.length >= pageSize,
+        ? windowEnd < estimatedTotal
+        : ranked.length > windowEnd,
     nextCursor: null,
     // 这条路径也是按页码直接 offset 分页（meilisearch `offset`/`limit`），
     // 同一份根因修复，见 listCivitaiLorasByContentType 里的字段注释。
@@ -1599,6 +1642,51 @@ async function listCivitaiLorasBySearch({
 function buildTagsInFilter(tags: readonly string[]): string {
   const quoted = tags.map((tag) => JSON.stringify(tag)).join(', ')
   return `tags.name IN [${quoted}]`
+}
+
+/**
+ * 名称匹配强度分层。用户的诉求是「先出完全匹配搜索词的，再出相似的」——
+ * meilisearch 一旦收到 `sort` 就把相关性整个盖掉（2026-08-19 实测：用「最多
+ * 下载」搜 anima，排第一的是名字里压根没有 anima 的模型，真正的前缀匹配掉到
+ * 第 10 位；用「最新」搜 detail tweaker，30 条内连前缀匹配都没有）。
+ *
+ * 所以分层在我们这边做，不指望上游的 ranking rule：
+ *   0 完全相同 · 1 以搜索词开头 · 2 名称里包含 · 3 其余（靠 tag/描述命中）
+ * 层内仍按用户选的排序，所以「最多下载」在每一层内部依然是下载量降序——
+ * 分层只改变层与层之间的先后，不篡改用户明确要的排序语义。
+ */
+const CIVITAI_NAME_MATCH_TIERS = 4
+
+function normalizeSearchName(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function nameMatchTier(name: string, search: string): number {
+  const haystack = normalizeSearchName(name)
+  const needle = normalizeSearchName(search)
+  if (!needle) return CIVITAI_NAME_MATCH_TIERS - 1
+  if (haystack === needle) return 0
+  if (haystack.startsWith(needle)) return 1
+  if (haystack.includes(needle)) return 2
+  return 3
+}
+
+/**
+ * 先按名称匹配强度分层，层内再按用户选的 sort 排。
+ */
+function rankSearchHitsByNameMatch(
+  hits: readonly z.infer<typeof CivitaiSearchHitSchema>[],
+  search: string,
+  sort: CivitaiLoraSort,
+): z.infer<typeof CivitaiSearchHitSchema>[] {
+  const tiers: z.infer<typeof CivitaiSearchHitSchema>[][] = Array.from(
+    { length: CIVITAI_NAME_MATCH_TIERS },
+    () => [],
+  )
+  for (const hit of hits) {
+    tiers[nameMatchTier(hit.name, search)]?.push(hit)
+  }
+  return tiers.flatMap((tier) => sortMergedSearchHits(tier, sort))
 }
 
 // 合并两个独立分页窗口（L1 tag 命中 ∪ L2 关键词命中）后，各自的 meilisearch
@@ -1648,6 +1736,7 @@ async function resolveCivitaiLoraLibraryItemByModelId(
       baseDelayMs: 400,
       maxDelayMs: 1500,
       label: 'civitai.resolveContentTypeOverride',
+      isRetryable: isCivitaiRetryable,
     })
   } catch (error) {
     logger.warn('Civitai content-type override model resolve failed', {
@@ -1768,23 +1857,9 @@ async function listCivitaiLorasByContentType({
     }
   }
 
-  const url = new URL(CIVITAI_MODEL_SEARCH_API)
-  const payload = await withRetry(
-    () =>
-      fetchCivitaiPayload(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${CIVITAI_MODEL_SEARCH_PUBLIC_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ queries }),
-      }),
-    {
-      maxAttempts: 2,
-      baseDelayMs: 400,
-      maxDelayMs: 1500,
-      label: 'civitai.searchLorasByContentType',
-    },
+  const payload = await fetchCivitaiSearchPayload(
+    queries,
+    'civitai.searchLorasByContentType',
   )
 
   // 与 listCivitaiLorasBySearch 同一套契约：解析失败直接抛出，不静默吞掉。
@@ -1810,10 +1885,7 @@ async function listCivitaiLorasByContentType({
   // 才能拿到「这一页」应有的条目，避免旧版每页各自独立小窗口去重后缺量。
   const sortedHits = sortMergedSearchHits([...mergedById.values()], sort)
   const pageHits = sortedHits.slice(windowStart, windowEnd)
-  const items = await hitsToLibraryItems(
-    pageHits,
-    maxImageNsfwLevelFor(nsfwFilter),
-  )
+  const items = hitsToLibraryItems(pageHits, maxImageNsfwLevelFor(nsfwFilter))
 
   // L3 include：override 表里映射到当前类型、且这一页 L1/L2 都没捞到的
   // 模型——首发允许空表（机制先立起来），只在表非空且这页还没填满时才
@@ -1875,17 +1947,55 @@ async function listCivitaiLorasByContentType({
  */
 class CivitaiFetchError extends Error {
   readonly status?: number
-  constructor(message: string, status?: number) {
+  /**
+   * 上游 `Retry-After` 头解析出的毫秒数。有值 = Civitai 明确告诉我们它正在
+   * 主动卸载（load shedding），这不是随机抖动，重试打回去只会加压。
+   */
+  readonly retryAfterMs?: number
+  constructor(message: string, status?: number, retryAfterMs?: number) {
     super(message)
     this.name = 'CivitaiFetchError'
     this.status = status
+    this.retryAfterMs = retryAfterMs
   }
+}
+
+/** `Retry-After` 支持秒数和 HTTP 日期两种写法，两种都要认。 */
+function parseRetryAfterMs(header: string | null): number | undefined {
+  if (!header) return undefined
+  const seconds = Number(header)
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000
+  const at = Date.parse(header)
+  if (Number.isNaN(at)) return undefined
+  return Math.max(0, at - Date.now())
+}
+
+/**
+ * Civitai 专用的可重试判定，替掉 withRetry 的默认「5xx 一律重试」。
+ *
+ * 2026-08-19 实测：Civitai 对 `query=` 请求主动 load shedding 时回 503 +
+ * `Retry-After: 2` + body `"Model search is temporarily overloaded"`，而且
+ * 是持续的——间隔 2.5s 连打 4 次全部 503。默认策略把它当随机 5xx 退避重
+ * 试 3 次，白等 21 秒还给上游加了三倍压力。带 Retry-After 的响应一律不在
+ * 请求内重试，直接交给断路器快速失败。
+ */
+function isCivitaiRetryable(error: unknown): boolean {
+  if (error instanceof CircuitOpenError) return false
+  if (error instanceof CivitaiFetchError) {
+    if (error.retryAfterMs !== undefined) return false
+    if (error.status === undefined) return true // 超时 / 网络层
+    if (error.status === 503) return false // 卸载，等价于 Retry-After
+    return error.status >= 500 || error.status === 429
+  }
+  return false
 }
 
 interface CivitaiFetchOptions {
   method?: 'GET' | 'POST'
   headers?: HeadersInit
   body?: BodyInit | null
+  /** 覆盖默认超时预算，搜索路径用它做两级超时。 */
+  timeoutMs?: number
 }
 
 async function fetchCivitaiPayload(
@@ -1894,16 +2004,17 @@ async function fetchCivitaiPayload(
 ): Promise<unknown> {
   const controller = new AbortController()
   let timeoutId: ReturnType<typeof setTimeout> | null = null
+  const timeoutMs = options.timeoutMs ?? CIVITAI_REQUEST_TIMEOUT_MS
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
       controller.abort()
-      // Message must contain the substring 'timeout' so withRetry's
-      // defaultIsRetryable treats this as transient and retries (~3×).
-      // Without it ("timed out" ≠ "timeout"), retry silently no-ops and
-      // a single Civitai blip surfaces to the user as 502.
-      reject(new CivitaiFetchError('Civitai request timeout (timed out)'))
-    }, CIVITAI_REQUEST_TIMEOUT_MS)
+      // 超时错误不带 status，isCivitaiRetryable 据此判为可重试（网络层抖
+      // 动，值得再来一发）。与 503 卸载区分开：那个带 status/Retry-After。
+      reject(
+        new CivitaiFetchError(`Civitai request timeout after ${timeoutMs}ms`),
+      )
+    }, timeoutMs)
   })
   // When fetch wins the race, Promise.race ignores timeoutPromise but the
   // rejection still fires later and surfaces as "unhandled rejection".
@@ -1925,6 +2036,7 @@ async function fetchCivitaiPayload(
       throw new CivitaiFetchError(
         `Civitai request failed with status ${response.status}`,
         response.status,
+        parseRetryAfterMs(response.headers.get('retry-after')),
       )
     }
     return response.json() as Promise<unknown>
@@ -1946,6 +2058,7 @@ export async function resolveCivitaiModelPageUrlByVersion(
     baseDelayMs: 400,
     maxDelayMs: 2000,
     label: 'civitai.resolveModelVersion',
+    isRetryable: isCivitaiRetryable,
   })
   const parsed = CivitaiModelVersionDetailSchema.safeParse(payload)
 
@@ -2109,6 +2222,7 @@ async function fetchCivitaiLoraPage(
     baseDelayMs: 400,
     maxDelayMs: 2000,
     label: 'civitai.listLoras',
+    isRetryable: isCivitaiRetryable,
   })
   const parsed = CivitaiModelsResponseSchema.parse(payload)
   const imageNsfwCeiling = maxImageNsfwLevelFor(nsfwFilter)
@@ -2277,6 +2391,93 @@ async function listSearchedBaseModelCivitaiLoras({
 export async function listCivitaiLoras(
   input: ListCivitaiLorasInput = {},
 ): Promise<CivitaiLoraLibraryResult> {
+  const normalizedSearch = input.search?.trim() ?? ''
+  const contentType = input.contentType ?? DEFAULT_LORA_CONTENT_TYPE
+
+  // 浏览路径直接放行，不进快照兜底：2026-08-19 实测上游过载只打搜索子系
+  // 统，浏览全程 200；而且它已经有 prewarm cron + CDN 两层保护，再加一层
+  // 只是白占那 1000 个 LRU 名额。
+  if (!normalizedSearch && contentType === 'all') {
+    return listCivitaiLorasViaRest(input)
+  }
+
+  const snapshotKey = buildCivitaiSnapshotKey({
+    page: input.page ?? 1,
+    pageSize: input.pageSize ?? CIVITAI_LORA_PAGE_SIZE,
+    cursor: input.cursor ?? null,
+    search: normalizedSearch,
+    baseModel: input.baseModel ?? 'all',
+    sort: input.sort ?? 'Highest Rated',
+    nsfwFilter: input.nsfwFilter ?? DEFAULT_LORA_NSFW_FILTER,
+    contentType,
+  })
+
+  try {
+    const result = await listCivitaiLorasFromUpstream(input)
+    // 同步写入而不是 void：serverless 函数在响应返回后可能立刻被回收，悬空
+    // 的 promise 不保证跑完。写入本身 fail-open，不会把成功的搜索拖失败。
+    await writeCivitaiSearchSnapshot(snapshotKey, result)
+    return result
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown'
+
+    // 降级顺序：快照优先于镜像。快照是**这个查询**（连同排序/档位/页码）
+    // 上一次的精确答案，保真度最高；镜像更通用但只覆盖 top N、排序也复制
+    // 不了上游。只有快照没有时才轮到镜像——它的价值在于能回答从没搜过的
+    // 词，那是快照永远填不了的洞。
+    const snapshot = await readCivitaiSearchSnapshot(snapshotKey)
+    if (snapshot) {
+      logger.warn(
+        'Civitai search unavailable — serving the last successful snapshot',
+        {
+          error: message,
+          search: normalizedSearch,
+          contentType,
+          snapshotAgeMs: Date.now() - snapshot.fetchedAt.getTime(),
+        },
+      )
+      return {
+        ...snapshot.payload,
+        stale: true,
+        fetchedAt: snapshot.fetchedAt.toISOString(),
+      }
+    }
+
+    const mirrored = await searchCivitaiMirror({
+      page: input.page ?? 1,
+      pageSize: input.pageSize ?? CIVITAI_LORA_PAGE_SIZE,
+      search: normalizedSearch,
+      baseModel: input.baseModel ?? 'all',
+      acceptedBaseModelNames: acceptedBaseModelNames(
+        input.baseModel === 'all' ? null : input.baseModel,
+      ),
+      sort: input.sort ?? 'Highest Rated',
+      nsfwFilter: input.nsfwFilter ?? DEFAULT_LORA_NSFW_FILTER,
+      contentType,
+      maxImageNsfwLevel: maxImageNsfwLevelFor(
+        input.nsfwFilter ?? DEFAULT_LORA_NSFW_FILTER,
+      ),
+    })
+    if (mirrored) {
+      const syncedAt = await readCivitaiMirrorFreshness()
+      logger.warn(
+        'Civitai search unavailable and no snapshot — serving the local mirror',
+        { error: message, search: normalizedSearch, total: mirrored.total },
+      )
+      return {
+        ...mirrored,
+        stale: true,
+        fetchedAt: (syncedAt ?? new Date()).toISOString(),
+      }
+    }
+
+    throw error
+  }
+}
+
+async function listCivitaiLorasFromUpstream(
+  input: ListCivitaiLorasInput,
+): Promise<CivitaiLoraLibraryResult> {
   const {
     page = 1,
     pageSize = CIVITAI_LORA_PAGE_SIZE,
@@ -2293,15 +2494,18 @@ export async function listCivitaiLoras(
   // 分支——REST `tag=` 只支持单值、表达不了 civitaiTags 的多 tag OR，也没
   // 有名称关键词兜底，type≠'all' 时统一走 meilisearch。
   if (contentType !== 'all') {
-    return listCivitaiLorasByContentType({
-      page,
-      pageSize,
-      search: normalizedSearch,
-      baseModel,
-      sort,
-      nsfwFilter,
-      contentType,
-    })
+    // 同属搜索子系统，跟下面的搜索分支共用一个断路器。
+    return civitaiSearchBreaker.call(() =>
+      listCivitaiLorasByContentType({
+        page,
+        pageSize,
+        search: normalizedSearch,
+        baseModel,
+        sort,
+        nsfwFilter,
+        contentType,
+      }),
+    )
   }
 
   // B11：有搜索词就先走 civitai 自家 meilisearch（真排序，REST 带 query 时
@@ -2321,42 +2525,62 @@ export async function listCivitaiLoras(
   //     偷偷回落 REST——好过静默换分页范式。
   //   source 缺省（首页 / 未锁定）：自由选择，行为与今天一致。
   if (normalizedSearch) {
-    if (source === 'rest') {
-      const fallback = await listCivitaiLorasViaRest(input)
-      return { ...fallback, sortFellBackToRelevance: true }
-    }
-    try {
-      return await listCivitaiLorasBySearch({
-        page,
-        pageSize,
-        search: normalizedSearch,
-        baseModel,
-        sort,
-        nsfwFilter,
-      })
-    } catch (error) {
-      if (source === 'meilisearch') {
-        logger.warn(
-          'Civitai meilisearch failed mid-session (locked backend) — surfacing error instead of silently falling back to REST',
-          {
-            error: error instanceof Error ? error.message : 'Unknown',
-            search: normalizedSearch,
-            baseModel,
-            sort,
-            page,
-          },
-        )
-        throw error
+    // 搜索路径整体罩在断路器里；浏览路径（下面那条 return）不罩——
+    // 2026-08-19 实测过载只打搜索子系统，浏览全程 200，不该被牵连。
+    return civitaiSearchBreaker.call(async () => {
+      if (source === 'rest') {
+        const fallback = await listCivitaiLorasViaRest(input)
+        return { ...fallback, sortFellBackToRelevance: true }
       }
-      logger.warn('Civitai meilisearch failed, falling back to REST search', {
-        error: error instanceof Error ? error.message : 'Unknown',
-        search: normalizedSearch,
-        baseModel,
-        sort,
-      })
-      const fallback = await listCivitaiLorasViaRest(input)
-      return { ...fallback, sortFellBackToRelevance: true }
-    }
+      try {
+        return await listCivitaiLorasBySearch({
+          page,
+          pageSize,
+          search: normalizedSearch,
+          baseModel,
+          sort,
+          nsfwFilter,
+        })
+      } catch (error) {
+        if (source === 'meilisearch') {
+          logger.warn(
+            'Civitai meilisearch failed mid-session (locked backend) — surfacing error instead of silently falling back to REST',
+            {
+              error: error instanceof Error ? error.message : 'Unknown',
+              search: normalizedSearch,
+              baseModel,
+              sort,
+              page,
+            },
+          )
+          throw error
+        }
+        // 上游搜索整体降级时不回落 REST——两者同一个失败域，回落只是把失
+        // 败重演一遍再赔上十几秒（2026-08-19 事故实录：meilisearch 超时后
+        // 回落 REST，503 重试三次，单次请求 21–24 秒才吐 502）。
+        if (isUpstreamSearchDegraded(error)) {
+          logger.warn(
+            'Civitai search subsystem degraded — skipping the REST fallback (same failure domain)',
+            {
+              error: error instanceof Error ? error.message : 'Unknown',
+              search: normalizedSearch,
+              baseModel,
+              sort,
+              page,
+            },
+          )
+          throw error
+        }
+        logger.warn('Civitai meilisearch failed, falling back to REST search', {
+          error: error instanceof Error ? error.message : 'Unknown',
+          search: normalizedSearch,
+          baseModel,
+          sort,
+        })
+        const fallback = await listCivitaiLorasViaRest(input)
+        return { ...fallback, sortFellBackToRelevance: true }
+      }
+    })
   }
 
   return listCivitaiLorasViaRest(input)
@@ -2551,6 +2775,10 @@ export async function prewarmCivitaiLoraLibrary(): Promise<CivitaiLoraPrewarmRes
     })
   }
 
+  // L2 快照的 LRU 淘汰搭这趟车（6 小时一次）。放在 cron 而不是写入路径上：
+  // 按写入次数或随机概率触发，等于把维护成本摊到用户的搜索延迟里。
+  await pruneCivitaiSearchSnapshots()
+
   return {
     checkedAt: new Date().toISOString(),
     total: completedEntries.length,
@@ -2593,7 +2821,6 @@ const CIVITAI_IMAGES_BROWSING_LEVEL_ALL = 31
 //   1 None · 2 Soft · 4 Mature · 8 X · 16 XXX · 32 Blocked
 // safe 档只留 None/Soft；unrestricted / nsfwOnly 放到 XXX（仍挡 Blocked=32），
 // 让 hentai 类 LoRA（示例图全 XXX）也能出封面——否则 6 张候选全被挡成占位卡。
-const CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL = 2
 const CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL_PERMISSIVE = 16
 
 // 图片级封面天花板跟三态走。模型可见性仍由 listCivitaiLoras* 里的既有三态
@@ -2985,6 +3212,7 @@ async function fetchModelVersionSourceRecipes(
       baseDelayMs: 400,
       maxDelayMs: 2000,
       label: 'civitai.mineModelVersionPrompts',
+      isRetryable: isCivitaiRetryable,
     })
   } catch (error) {
     logger.warn('Civitai model version prompt fetch failed', {
@@ -3123,6 +3351,7 @@ async function fetchCivitaiModelDescriptionText(
       baseDelayMs: 400,
       maxDelayMs: 2000,
       label: 'civitai.modelDescription',
+      isRetryable: isCivitaiRetryable,
     })
   } catch (error) {
     logger.warn('Civitai model description fetch failed', {
@@ -3204,6 +3433,7 @@ export async function mineCivitaiUserPrompts({
       baseDelayMs: 400,
       maxDelayMs: 2000,
       label: 'civitai.mineUserPrompts',
+      isRetryable: isCivitaiRetryable,
     })
   } catch (error) {
     logger.warn('Civitai images fetch failed', {

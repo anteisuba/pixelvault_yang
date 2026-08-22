@@ -85,7 +85,7 @@ describe('useCivitaiLoraLibrary', () => {
     __resetCivitaiLibraryCacheForTests()
   })
 
-  it('keeps previous items visible while a new search is debouncing and fetching', async () => {
+  it('does not search while typing — only on explicit submit', async () => {
     const firstPageItem = createItem('browse-1', 'Browse page 1')
     const searchItem = createItem('search-1', '鸣潮 Search LoRA')
 
@@ -107,16 +107,20 @@ describe('useCivitaiLoraLibrary', () => {
       result.current.setSearch('鸣潮')
     })
 
-    // Stale items stay visible — no white flash. Revalidation flag flips on
-    // immediately so the input can show a small spinner.
+    // 敲字只改输入框：列表原样留着，也不发请求。旧行为是防抖 300ms 后自动
+    // 搜，等于每敲一个键打一次上游。
     expect(result.current.items).toEqual([firstPageItem])
     expect(result.current.isLoading).toBe(false)
-    expect(result.current.isRevalidating).toBe(true)
+    expect(result.current.isRevalidating).toBe(false)
     expect(result.current.page).toBe(1)
 
-    // Debounce window: API not called yet within the first 100 ms.
-    await new Promise((resolve) => window.setTimeout(resolve, 100))
+    // 等足够久：没有提交就永远不该发第二次请求。
+    await new Promise((resolve) => window.setTimeout(resolve, 400))
     expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      result.current.submitSearch()
+    })
 
     await waitFor(() => expect(result.current.items).toEqual([searchItem]))
 
@@ -205,6 +209,9 @@ describe('useCivitaiLoraLibrary', () => {
 
     act(() => {
       result.current.setSearch('failing')
+    })
+    act(() => {
+      result.current.submitSearch()
     })
 
     await waitFor(() => expect(result.current.error).toBe('upstream blip'))
@@ -663,7 +670,9 @@ describe('useCivitaiLoraLibrary', () => {
       act(() => {
         result.current.setSearch('second query')
       })
-      await new Promise((resolve) => window.setTimeout(resolve, 350))
+      act(() => {
+        result.current.submitSearch()
+      })
       await waitFor(() =>
         expect(result.current.items).toEqual([secondQueryPage1]),
       )
@@ -673,5 +682,59 @@ describe('useCivitaiLoraLibrary', () => {
         expect.objectContaining({ page: 1, source: undefined }),
       )
     })
+  })
+
+  // L1 抗抖动：被取代的请求必须真的掐掉，而不只是丢弃它的结果。
+  // 2026-08-19 Civitai 过载时，同一个搜索词有三条请求同时压在上游、每条跑满
+  // 21–24 秒——requestIdRef 只在响应回来时丢结果，拦不住已经发出去的请求。
+  it('aborts the in-flight request when a new one supersedes it', async () => {
+    const first = createItem('sort-1', 'First sort')
+    const second = createItem('sort-2', 'Second sort')
+
+    mockListCivitaiLoraAssetsAPI
+      .mockResolvedValueOnce({ success: true, data: createResult(first, 1) })
+      .mockImplementationOnce(
+        () => new Promise(() => {}), // 挂住不返回，模拟慢上游
+      )
+      .mockResolvedValueOnce({ success: true, data: createResult(second, 1) })
+
+    const { result } = renderHook(() => useCivitaiLoraLibrary())
+    await waitFor(() => expect(result.current.items).toEqual([first]))
+
+    act(() => {
+      result.current.setSort('Most Downloaded')
+    })
+    await waitFor(() =>
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(2),
+    )
+    const pending = mockListCivitaiLoraAssetsAPI.mock.calls[1][0]
+    expect(pending.signal?.aborted).toBe(false)
+
+    act(() => {
+      result.current.setSort('Newest')
+    })
+    await waitFor(() =>
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(3),
+    )
+
+    // 被取代的那一条真的断了，不是只丢弃结果。
+    expect(pending.signal?.aborted).toBe(true)
+    await waitFor(() => expect(result.current.items).toEqual([second]))
+  })
+
+  it('aborts the in-flight request on unmount', async () => {
+    const first = createItem('unmount-1', 'Before unmount')
+    mockListCivitaiLoraAssetsAPI.mockResolvedValue({
+      success: true,
+      data: createResult(first, 1),
+    })
+
+    const { result, unmount } = renderHook(() => useCivitaiLoraLibrary())
+    await waitFor(() => expect(result.current.items).toEqual([first]))
+    const call = mockListCivitaiLoraAssetsAPI.mock.calls[0][0]
+    expect(call.signal?.aborted).toBe(false)
+
+    unmount()
+    expect(call.signal?.aborted).toBe(true)
   })
 })

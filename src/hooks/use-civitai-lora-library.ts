@@ -47,6 +47,13 @@ export interface UseCivitaiLoraLibraryReturn {
    */
   sortFellBackToRelevance: boolean
   /**
+   * L2 陈旧兜底：这一页来自服务端快照，因为 Civitai 搜索子系统当时不可用。
+   * UI 必须显式告诉用户——静默端上旧数据比直接报错更糟。staleFetchedAt 是
+   * 这份快照最后一次成功取到的时刻（ISO 字符串）。
+   */
+  isStale: boolean
+  staleFetchedAt: string | null
+  /**
    * True only when there is nothing to show AND we are fetching. UI uses this
    * to render the full-section loader on first paint. After we have any items
    * (including stale ones from a previous query), this is false and
@@ -68,6 +75,14 @@ export interface UseCivitaiLoraLibraryReturn {
   nsfwFilter: LoraNsfwFilter
   contentType: LoraContentType
   setSearch: (value: string) => void
+  /** 回车 / 点搜索按钮才真正开始检索——不再每敲一个键搜一次。 */
+  submitSearch: () => void
+  /**
+   * 直接用给定的词开搜，不经过输入框 state。点历史项、类型筛选的「改用搜
+   * 索」兜底都属于「我就要搜这个」——用 setSearch + submitSearch 会读到本
+   * 次渲染的旧 `search`，搜出上一个词。
+   */
+  commitSearchTerm: (term: string) => void
   setSort: (value: CivitaiLoraSort) => void
   setBaseModel: (value: CivitaiLoraBaseModel) => void
   setNsfwFilter: (value: LoraNsfwFilter) => void
@@ -77,8 +92,6 @@ export interface UseCivitaiLoraLibraryReturn {
   previousPage: () => void
   refresh: () => Promise<void>
 }
-
-const SEARCH_DEBOUNCE_MS = 300
 
 // ─── Module-level cache ──────────────────────────────────────────────────
 //
@@ -162,6 +175,8 @@ export function useCivitaiLoraLibrary(
   const [page, setPage] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [sortFellBackToRelevance, setSortFellBackToRelevance] = useState(false)
+  const [isStale, setIsStale] = useState(false)
+  const [staleFetchedAt, setStaleFetchedAt] = useState<string | null>(null)
   // Bug 修复（类型筛选「下一页不可点」的真根因，见
   // CivitaiLoraLibraryResultSchema.offsetPaginationSupported 的注释）：此前
   // nextPage() 用「有没有输入搜索词」当「后端是否支持按页码直接翻页」的代
@@ -201,6 +216,10 @@ export function useCivitaiLoraLibrary(
     options.initialContentType ?? DEFAULT_LORA_CONTENT_TYPE,
   )
   const requestIdRef = useRef(0)
+  // requestIdRef 只负责在响应回来时丢弃过期结果——被取代的请求照样在服务端
+  // 跑完。2026-08-19 Civitai 过载时这意味着同一个搜索词并发三条、每条 21–24
+  // 秒，对着一个正在卸载的上游把压力乘了三倍。这个 ref 负责真的把它们掐掉。
+  const inFlightRef = useRef<AbortController | null>(null)
   const paginationPendingRef = useRef(false)
   const cursorByPageRef = useRef<Map<number, string | null>>(
     new Map([[1, null]]),
@@ -220,6 +239,8 @@ export function useCivitaiLoraLibrary(
     setTotal(result.total)
     setHasNextPage(result.hasNextPage)
     setSortFellBackToRelevance(result.sortFellBackToRelevance ?? false)
+    setIsStale(result.stale ?? false)
+    setStaleFetchedAt(result.stale ? (result.fetchedAt ?? null) : null)
     setOffsetPaginationSupported(result.offsetPaginationSupported ?? false)
     setSelectedItemId((current) => {
       if (current && result.items.some((item) => item.id === current)) {
@@ -242,14 +263,16 @@ export function useCivitaiLoraLibrary(
   }, [])
 
   const refresh = useCallback(async () => {
+    const normalizedSearch = search.trim()
+    // 输入框里的字还没提交（用户在敲下一个词）——什么都不做。
+    // ⚠ 这个守卫必须排在 requestId 自增前面：原来先自增再 return，等于用户
+    // 提交后再敲一个字就把在飞的那次请求作废掉，而又不发新请求，结果永远
+    // 不回来。改成回车触发后这个窗口从 300ms 变成「用户想敲多久就多久」，
+    // 必现。
+    if (normalizedSearch !== debouncedSearch) return
+
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
-
-    const normalizedSearch = search.trim()
-    // If the user is still typing (debounce in flight), let the debounce
-    // schedule the actual fetch — refresh is also called on every search
-    // keystroke via the effect chain, but we only act on the stabilised value.
-    if (normalizedSearch !== debouncedSearch) return
 
     const activeSearch = debouncedSearch
     const cursor = cursorByPageRef.current.get(page) ?? null
@@ -288,7 +311,12 @@ export function useCivitaiLoraLibrary(
     setIsRevalidating(true)
     setError(null)
 
+    inFlightRef.current?.abort()
+    const controller = new AbortController()
+    inFlightRef.current = controller
+
     const response = await listCivitaiLoraAssetsAPI({
+      signal: controller.signal,
       page,
       pageSize: CIVITAI_LORA_PAGE_SIZE,
       cursor,
@@ -322,7 +350,11 @@ export function useCivitaiLoraLibrary(
           ? 'rest'
           : 'meilisearch'
       }
-      writeCache(cacheKey, response.data)
+      // 降级快照不进客户端缓存。写进去的话，上游恢复之后用户还要再盯着旧
+      // 数据看满 5 分钟的 TTL——兜底数据的寿命必须止于上游恢复那一刻。
+      if (!response.data.stale) {
+        writeCache(cacheKey, response.data)
+      }
       applyResult(response.data)
     } else {
       // Stale-tolerant error mode: keep whatever items we had on screen so the
@@ -345,21 +377,32 @@ export function useCivitaiLoraLibrary(
     t,
   ])
 
-  // Debounce search input → committed `debouncedSearch`. Pagination resets to
-  // page 1 whenever the active search term actually changes.
-  useEffect(() => {
-    const trimmed = search.trim()
-    if (trimmed === debouncedSearch) return
-    const id = setTimeout(() => {
+  /**
+   * 把输入框里的字正式变成「在搜的词」。
+   *
+   * 2026-08-20 从防抖自动提交改成显式提交：每敲一个键就打一次上游太浪费，
+   * 而且 Civitai 的搜索子系统本来就会主动卸载（见 backend.md 三级降级那
+   * 节）——少发几十倍的请求本身就是对上游友好。
+   */
+  const commitSearch = useCallback(
+    (term: string) => {
+      const trimmed = term.trim()
+      if (trimmed === debouncedSearch) return
       cursorByPageRef.current = new Map([[1, null]])
       // Issue C: a new search term starts a new session — unlock the
       // backend so the next page 1 is free to pick meilisearch/REST again.
       searchBackendRef.current = null
       setDebouncedSearch(trimmed)
       setPage(1)
-    }, SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(id)
-  }, [search, debouncedSearch])
+      setIsRevalidating(true)
+    },
+    [debouncedSearch],
+  )
+
+  /** 回车 / 点搜索按钮时调用。 */
+  const submitSearch = useCallback(() => {
+    commitSearch(search)
+  }, [commitSearch, search])
 
   useEffect(() => {
     return deferEffectTask(() => {
@@ -367,15 +410,29 @@ export function useCivitaiLoraLibrary(
     })
   }, [refresh])
 
-  const setSearch = useCallback((value: string) => {
-    setSearchValue(value)
-    // Intentionally NOT clearing items or flipping isLoading here. The old
-    // behaviour blanked the list on every keystroke, producing a white flash
-    // for ~300 ms (debounce) + 600 ms (Civitai) before any pixels came back.
-    // Now: stale items stay rendered; the input gets a small spinner via
-    // `isRevalidating` until the debounced fetch resolves.
-    setIsRevalidating(true)
+  // 组件卸载时掐掉在飞请求——离开页面不该继续占着上游。
+  useEffect(() => {
+    const inFlight = inFlightRef
+    return () => {
+      inFlight.current?.abort()
+      inFlight.current = null
+    }
   }, [])
+
+  const setSearch = useCallback(
+    (value: string) => {
+      setSearchValue(value)
+      // 只改输入框的字，不发请求，也不清空当前结果——旧行为是每敲一个键就
+      // 清一次列表，白屏 ~300ms(防抖)+600ms(上游) 才回来。现在敲字期间列表
+      // 原样留着，直到用户显式提交。
+      //
+      // 唯一例外：删光了立刻提交空词回到浏览态。用户把字删完却什么都不发
+      // 生，界面会显得卡住。放在事件处理里而不是 effect 里——effect 内同步
+      // setState 会引发级联渲染（react-hooks/set-state-in-effect）。
+      if (value.trim() === '') commitSearch('')
+    },
+    [commitSearch],
+  )
 
   const setSort = useCallback(
     (value: CivitaiLoraSort) => {
@@ -498,6 +555,8 @@ export function useCivitaiLoraLibrary(
     pageSize: CIVITAI_LORA_PAGE_SIZE,
     hasNextPage,
     sortFellBackToRelevance,
+    isStale,
+    staleFetchedAt,
     isLoading,
     isRevalidating,
     error,
@@ -508,6 +567,8 @@ export function useCivitaiLoraLibrary(
     nsfwFilter,
     contentType,
     setSearch,
+    submitSearch,
+    commitSearchTerm: commitSearch,
     setSort,
     setBaseModel,
     setNsfwFilter,

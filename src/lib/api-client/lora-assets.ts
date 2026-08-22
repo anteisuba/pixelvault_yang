@@ -113,6 +113,12 @@ export async function listCivitaiLoraAssetsAPI(params: {
   source?: CivitaiSearchBackend
   /** S2 内容类型筛选（lora-workbench.md §3）。'all'（默认）不入 URL/请求。 */
   contentType?: LoraContentType
+  /**
+   * 取消被取代的搜索。没有它的时候，用户连切排序/NSFW 档会让多个注定被丢弃
+   * 的请求同时压在 Civitai 上——2026-08-19 的过载日志里同一个搜索词并发了
+   * 三条、每条跑满 21–24 秒，等于对着一个正在卸载的上游把压力乘了三倍。
+   */
+  signal?: AbortSignal
 }): Promise<CivitaiListResponse> {
   try {
     const query = new URLSearchParams()
@@ -135,6 +141,7 @@ export async function listCivitaiLoraAssetsAPI(params: {
 
     const response = await fetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI}?${query.toString()}`,
+      { signal: params.signal },
     )
     if (!response.ok) {
       return {

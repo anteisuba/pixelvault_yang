@@ -163,7 +163,7 @@ export function MediaDetailViewer({
           <section
             onClick={handleMediaBackdropClick}
             className={cn(
-              'relative flex h-[48dvh] min-h-80 shrink-0 items-center justify-center overflow-hidden bg-background px-3 pt-16 pb-5 before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_12%,rgba(255,255,255,0.08),transparent_34%)] before:content-[""] sm:px-6 lg:h-auto lg:min-h-0 lg:flex-1 lg:px-8 lg:py-16',
+              'relative flex h-[48dvh] min-h-80 shrink-0 items-center justify-center overflow-hidden bg-background px-3 pt-16 pb-5 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_12%,rgba(255,255,255,0.08),transparent_34%)] before:content-[""] sm:px-6 lg:h-auto lg:min-h-0 lg:flex-1 lg:px-8 lg:py-16',
               mediaClassName,
             )}
           >

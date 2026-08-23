@@ -1,0 +1,180 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: Geist, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: #0a0a0a; } a:hover { color: #525252; }
+    .mono { font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div style="width: 1180px; background: #ffffff; color: #0a0a0a; padding: 56px 64px 64px; box-sizing: border-box; display: flex; flex-direction: column; gap: 44px">
+
+  <!-- 抬头 -->
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <span class="mono" style="font-size: 11px; letter-spacing: 0.12em; color: #737373; text-transform: uppercase">/studio/image · stage</span>
+      <span style="flex-grow: 1; height: 1px; background: #e5e5e5"></span>
+      <span class="mono" style="font-size: 11px; color: #737373">2026-08-23</span>
+    </div>
+    <h1 style="margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15">结果区与参考图区：问题证据</h1>
+    <p style="margin: 0; max-width: 760px; font-size: 15px; line-height: 1.65; color: #525252; text-wrap: pretty">
+      下面每一条都在真机上量过（localhost:3000，Chrome 1920×911）。数字来自 <span class="mono" style="font-size: 13px">scripts/ui-probe.js</span>，不是读代码推的，也不是看截图估的。
+    </p>
+  </div>
+
+  <!-- 一句话诊断 -->
+  <div style="border-top: 2px solid #0a0a0a; border-bottom: 1px solid #e5e5e5; padding: 22px 0; display: flex; flex-direction: column; gap: 10px">
+    <p style="margin: 0; font-size: 19px; font-weight: 500; line-height: 1.45; letter-spacing: -0.01em">
+      四条问题是同一个根因：<span style="border-bottom: 2px solid #0a0a0a">结果区借用了画廊的卡片，参考图区被结果挤掉了。</span>
+    </p>
+    <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #525252; max-width: 860px">
+      <span class="mono" style="font-size: 13px">CompareGrid</span> 每格塞的是 <span class="mono" style="font-size: 13px">ImageCard</span> 的画廊形态——它为「逐张浏览归档」而生，自带日期、完整提示词、模型/提供商/请求数、右上角收藏与下载。把它并排放四份，就得到四份一模一样的元信息，和三个抢同一个角落的按钮。
+    </p>
+  </div>
+
+  <!-- owner 点名的四条 -->
+  <div style="display: flex; flex-direction: column; gap: 0">
+    <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase">你点名的四条</h2>
+      <span style="flex-grow: 1; height: 1px; background: #e5e5e5"></span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: #e5e5e5; border: 1px solid #e5e5e5">
+
+      <div style="background: #ffffff; padding: 24px 26px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: baseline; gap: 10px">
+          <span class="mono" style="font-size: 12px; color: #a63a2a">01</span>
+          <h3 style="margin: 0; font-size: 16px; font-weight: 600">参考图左右切不了</h3>
+        </div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #525252">舞台上写着「参考图 <span class="mono">1 / 2</span>」，但第 2 张没有任何抵达路径——代码永远取第一条可用的槽。</p>
+        <div style="background: #fafafa; border-left: 2px solid #0a0a0a; padding: 10px 14px">
+          <p class="mono" style="margin: 0; font-size: 12px; line-height: 1.6; color: #0a0a0a">探针自动判定 · counterWithoutControl</p>
+          <p style="margin: 6px 0 0; font-size: 12px; line-height: 1.55; color: #737373">有计数、无切换控件——用户看得到第 N 张的存在，却没有到达它的路径</p>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; padding: 24px 26px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: baseline; gap: 10px">
+          <span class="mono" style="font-size: 12px; color: #a63a2a">02</span>
+          <h3 style="margin: 0; font-size: 16px; font-weight: 600">生成图占用空间过大</h3>
+        </div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #525252">单格 <span class="mono">767px</span> 里，图只有 <span class="mono">494px</span>，剩下 <span class="mono">269px</span>（35%）是重复四遍的日期、提示词、模型、提供商、请求数。</p>
+        <div style="display: flex; gap: 10px; align-items: stretch; height: 84px">
+          <div style="width: 46px; display: flex; flex-direction: column; border: 1px solid #e5e5e5">
+            <div style="flex-grow: 494; background: #f5f5f5"></div>
+            <div style="flex-grow: 269; background: #fbe9e6; border-top: 1px solid #e5e5e5"></div>
+          </div>
+          <div style="display: flex; flex-direction: column; justify-content: space-between; padding: 2px 0">
+            <span class="mono" style="font-size: 11px; color: #737373">494 图</span>
+            <span class="mono" style="font-size: 11px; color: #a63a2a">269 重复元信息</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; padding: 24px 26px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: baseline; gap: 10px">
+          <span class="mono" style="font-size: 12px; color: #a63a2a">03</span>
+          <h3 style="margin: 0; font-size: 16px; font-weight: 600">生成后没地方编辑参考图</h3>
+        </div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #525252">参考图舞台的渲染条件是「还没有结果」。第一张图一落地，整块连同「编辑这张」一起消失，只剩提示词框角上 <span class="mono">34px</span> 的缩略图。</p>
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #737373">
+          <span style="border: 1px solid #e5e5e5; padding: 5px 10px">有参考图 · 无结果 → 可编辑</span>
+          <span class="mono">→</span>
+          <span style="border: 1px dashed #cfcfcf; padding: 5px 10px; color: #a63a2a">有结果 → 入口消失</span>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; padding: 24px 26px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: baseline; gap: 10px">
+          <span class="mono" style="font-size: 12px; color: #a63a2a">04</span>
+          <h3 style="margin: 0; font-size: 16px; font-weight: 600">生成后的图上 UI 重叠</h3>
+        </div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #525252">三颗按钮抢同一个右上角：「问助手」压在「下载」上。点下载的正中心，命中的是问助手。</p>
+        <div style="background: #fafafa; border-left: 2px solid #0a0a0a; padding: 10px 14px">
+          <p class="mono" style="margin: 0; font-size: 12px; line-height: 1.6">occluded · 4 处 / overlap · 16 对</p>
+          <p style="margin: 6px 0 0; font-size: 12px; line-height: 1.55; color: #737373">「下载」36×36 被「问助手」28×28 覆盖 80%</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 我自带的两条 -->
+  <div style="display: flex; flex-direction: column; gap: 18px">
+    <div style="display: flex; align-items: baseline; gap: 12px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase">你没点名，但同一块里也坏了</h2>
+      <span style="flex-grow: 1; height: 1px; background: #e5e5e5"></span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600">矩阵的两个轴在版面上丢了</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #525252">列数只看总格数：<span class="mono">4 格 → 3 列</span>。于是「2 模型 × 2 张」被排成 <span class="mono">3 + 1</span>——同一个模型的两张被拆到两行，右边空一大片。你截图里那一轮正是这样。</p>
+        <div style="display: flex; gap: 20px; align-items: flex-start">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <span class="mono" style="font-size: 11px; color: #a63a2a">现在 3+1</span>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; width: 148px">
+              <div style="height: 44px; background: #ececec"></div>
+              <div style="height: 44px; background: #ececec"></div>
+              <div style="height: 44px; background: #d9d9d9"></div>
+              <div style="height: 44px; background: #d9d9d9"></div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <span class="mono" style="font-size: 11px; color: #737373">该有的 2×2</span>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; width: 100px">
+              <div style="height: 44px; background: #ececec"></div>
+              <div style="height: 44px; background: #ececec"></div>
+              <div style="height: 44px; background: #d9d9d9"></div>
+              <div style="height: 44px; background: #d9d9d9"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 600">触控目标不达标</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #525252">「编辑这张」<span class="mono">82×32</span>、图上那三颗 <span class="mono">28–36px</span>，都低于 <span class="mono">44px</span> 下限。这片栅格在手机上照样渲染，而纯触屏没有 hover——按钮既小又只在 hover 时显形。</p>
+        <div style="display: flex; align-items: flex-end; gap: 14px">
+          <div style="width: 82px; height: 32px; border: 1px solid #a63a2a; display: grid; place-items: center"><span class="mono" style="font-size: 10px; color: #a63a2a">32</span></div>
+          <div style="width: 44px; height: 44px; border: 1px solid #0a0a0a; display: grid; place-items: center"><span class="mono" style="font-size: 10px">44</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方法 -->
+  <div style="background: #0a0a0a; color: #ffffff; padding: 30px 34px; display: flex; flex-direction: column; gap: 16px">
+    <h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #a3a3a3">为什么这些得你自己撞上，以及现在怎么不用了</h2>
+    <p style="margin: 0; font-size: 15px; line-height: 1.65; max-width: 880px; text-wrap: pretty">
+      这四条全部长在「生成完之后」。那个状态要花钱、要等几十秒、还得 provider 当时可用——我平时的真机验证根本到不了，只能读代码猜。而 tsc、vitest、jsdom 都判不了：<span style="color: #a3a3a3">jsdom 没有布局引擎，<span class="mono" style="font-size: 13px">getBoundingClientRect</span> 恒为 0，重叠与占空在那里永远是零。</span>
+    </p>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin-top: 4px">
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <p class="mono" style="margin: 0; font-size: 13px">/zh/dev/ui-states</p>
+        <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #a3a3a3">状态样板间。用假数据把矩阵的完成 / 生成中 / 失败 / 选中态摆在真浏览器里，外壳与工作台逐个类名一致。零 API 调用。</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <p class="mono" style="margin: 0; font-size: 13px">scripts/ui-probe.js</p>
+        <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #a3a3a3">几何探针。量遮挡（点中心命中谁）、矩形相交、计数无控件、单格占屏比、触控尺寸。上面四条里的三条是它自己报出来的。</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1180,"height":1560}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

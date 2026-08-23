@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: Geist, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: #0a0a0a; } a:hover { color: #525252; }
+    .mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .slot { background: #efefef; background-image: repeating-linear-gradient(135deg, transparent 0 9px, rgba(0,0,0,.035) 9px 10px); }
+  </style>
+</helmet>
+
+<div style="width: 1280px; height: 900px; background: #ffffff; color: #0a0a0a; display: flex; flex-direction: column; box-sizing: border-box">
+
+  <div style="display: flex; align-items: baseline; gap: 14px; padding: 20px 28px 16px; border-bottom: 1px solid #e5e5e5">
+    <span class="mono" style="font-size: 11px; letter-spacing: 0.12em; color: #737373">方向 B</span>
+    <h1 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">主图台 —— 一次看一张大的，一条轨管所有切换</h1>
+    <span style="flex-grow: 1"></span>
+    <span style="font-size: 12px; color: #737373">看清优先 · 竖图友好</span>
+  </div>
+
+  <div style="display: flex; flex-grow: 1; min-height: 0">
+
+    <div style="width: 288px; flex-shrink: 0; border-right: 1px solid #e5e5e5; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box">
+      <span style="font-size: 11px; color: #737373">提示词</span>
+      <div style="background: #f5f1e8; border-radius: 12px; padding: 12px; height: 92px; color: #2e2e2e; font-size: 12px; line-height: 1.5">Use image #1 and image #2 as strict character-design references…</div>
+      <div style="display: flex; gap: 8px">
+        <div style="border: 1px solid #e5e5e5; border-radius: 999px; padding: 6px 12px; font-size: 12px">模板</div>
+        <div style="border: 1px solid #e5e5e5; border-radius: 999px; padding: 6px 12px; font-size: 12px; background: #f5f5f5">图像 2</div>
+      </div>
+      <span style="font-size: 11px; color: #737373; margin-top: 6px">模型</span>
+      <div style="border: 1px solid #e5e5e5; border-radius: 10px; padding: 9px 12px; font-size: 13px">Gemini 3 Pro Image</div>
+      <div style="border: 1px solid #e5e5e5; border-radius: 10px; padding: 9px 12px; font-size: 13px">OpenAI GPT Image 2</div>
+      <span style="font-size: 11px; color: #737373; margin-top: 6px">规格</span>
+      <div style="border: 1px solid #e5e5e5; border-radius: 10px; padding: 9px 12px; font-size: 13px">9:16 · 每模型 2 张</div>
+      <div style="flex-grow: 1"></div>
+      <div style="background: #000000; color: #ffffff; border-radius: 12px; height: 44px; display: grid; place-items: center; font-size: 14px; font-weight: 500">生成 4 张</div>
+    </div>
+
+    <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; background: #ffffff">
+
+      <!-- 主图 -->
+      <div style="flex-grow: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 20px; padding: 22px 24px 0">
+        <div style="width: 38px; height: 38px; border-radius: 999px; border: 1px solid #e5e5e5; display: grid; place-items: center; color: #525252; flex-shrink: 0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </div>
+        <div style="height: 396px; width: 223px; border-radius: 12px; position: relative" class="slot">
+          <span class="mono" style="position: absolute; left: 10px; bottom: 8px; font-size: 10px; color: #525252">9:16</span>
+        </div>
+        <div style="width: 38px; height: 38px; border-radius: 999px; border: 1px solid #e5e5e5; display: grid; place-items: center; color: #525252; flex-shrink: 0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+      </div>
+
+      <!-- 图注 + 动作：永远在图外（修 04） -->
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 24px 20px">
+        <div style="display: flex; align-items: baseline; gap: 10px">
+          <span style="font-size: 14px; font-weight: 500">Gemini 3 Pro Image</span>
+          <span class="mono" style="font-size: 12px; color: #737373">结果 2 / 4 · 12.4s · seed 41827</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center">
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">编辑</div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">当参考图</div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">下载</div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">问助手</div>
+          <div style="background: #000000; color: #ffffff; border-radius: 999px; height: 40px; padding: 0 20px; display: grid; place-items: center; font-size: 13px; font-weight: 500">选用这张</div>
+        </div>
+      </div>
+
+      <!-- 一条轨装两段：参考 + 结果（修 01 / 03） -->
+      <div style="border-top: 1px solid #e5e5e5; background: #fafafa; padding: 14px 24px; display: flex; align-items: center; gap: 18px">
+
+        <div style="display: flex; align-items: center; gap: 10px">
+          <span style="font-size: 11px; color: #737373; flex-shrink: 0">参考 2</span>
+          <div style="display: flex; gap: 6px">
+            <div style="width: 40px; height: 54px; border-radius: 5px; border: 1px solid #e5e5e5" class="slot"></div>
+            <div style="width: 40px; height: 54px; border-radius: 5px; border: 1px solid #e5e5e5" class="slot"></div>
+            <div style="width: 40px; height: 54px; border-radius: 5px; border: 1px dashed #cfcfcf; display: grid; place-items: center; color: #a3a3a3; font-size: 16px">+</div>
+          </div>
+        </div>
+
+        <div style="width: 1px; height: 42px; background: #e5e5e5"></div>
+
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0">
+          <span style="font-size: 11px; color: #737373; flex-shrink: 0">结果 4</span>
+          <div style="display: flex; gap: 6px">
+            <div style="width: 40px; height: 54px; border-radius: 5px; border: 1px solid #e5e5e5" class="slot"></div>
+            <div style="width: 40px; height: 54px; border-radius: 5px; outline: 2px solid #0a0a0a; outline-offset: -2px" class="slot"></div>
+            <div style="width: 40px; height: 54px; border-radius: 5px; border: 1px solid #e5e5e5; display: grid; place-items: center">
+              <div style="width: 14px; height: 14px; border: 2px solid #d4d4d4; border-top-color: #0a0a0a; border-radius: 999px"></div>
+            </div>
+            <div style="width: 40px; height: 54px; border-radius: 5px; border: 1px solid #e5e5e5; display: grid; place-items: center; color: #a63a2a">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <span style="flex-grow: 1"></span>
+        <span class="mono" style="font-size: 11px; color: #a3a3a3">← → 切换</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="border-top: 1px solid #e5e5e5; background: #fafafa; padding: 16px 28px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px">
+    <div style="display: flex; flex-direction: column; gap: 5px">
+      <span class="mono" style="font-size: 11px; letter-spacing: 0.1em; color: #737373">换来</span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #0a0a0a">竖构图终于看得清——同样的屏幕，主图比现在每一格大 1.5 倍。参考与结果共用一条轨，「1 / 2」有了真正的左右，键盘也能翻。动作区固定，永不叠图。</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 5px">
+      <span class="mono" style="font-size: 11px; letter-spacing: 0.1em; color: #737373">代价</span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #525252">失去并置。「这两张哪个手画得对」得靠来回切 + 记忆，而多模型对比恰恰是这个工作台的卖点。缩略轨 40px 分不出细节差异。</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

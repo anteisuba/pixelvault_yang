@@ -33,8 +33,8 @@ import {
 } from '@/lib/studio/audio-feedback-mapping'
 import type { GenerationRecord } from '@/types'
 
-import { Button } from '@/components/ui/button'
 import { CompareGrid } from '@/components/business/image/CompareGrid'
+import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
 import { StudioAudioFeedback } from '@/components/business/studio/StudioAudioFeedback'
 import { StudioGenerationErrorDialog } from '@/components/business/image/StudioGenerationErrorDialog'
@@ -59,7 +59,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
     error,
     errorCode,
     retry,
-    activeRun,
+    activeRun: rawActiveRun,
     selectWinner,
     lastEvaluation,
     setLastEvaluation,
@@ -91,6 +91,21 @@ export const StudioCanvas = memo(function StudioCanvas() {
   const lastGeneration =
     rawLastGeneration && rawLastGeneration.outputType === expectedOutputType
       ? rawLastGeneration
+      : null
+  /**
+   * ⚠ **批次槽要走同一道守卫。** 上面那道只护住了 `lastGeneration`，`activeRun`
+   * 漏了整整一版 —— 而它的分支排在更前面、优先级更高。后果是跨模态串台：跑完
+   * 一批图片再进语音工作台，那几张图被 `AudioVariantGrid` 画成音频卡片（描述
+   * 文字是图片的提示词，`<audio src>` 指着图片 URL）；进视频工作台则被
+   * `CompareGrid` 原样画成图片，连「模型：GPT Image 2」都照抄。
+   *
+   * 三个模态共用一个 `StudioProvider`（挂在 `(workspace)/layout.tsx`，切路由不
+   * remount），所以上一模态的 run 会原封不动活到下一模态 —— 清不清空是另一回事，
+   * 但**渲染前按模态过滤是这里必须做的**。
+   */
+  const activeRun =
+    rawActiveRun && rawActiveRun.outputType === expectedOutputType
+      ? rawActiveRun
       : null
   const lastGenerationRef = useRef<GenerationRecord | null>(null)
 
@@ -255,22 +270,29 @@ export const StudioCanvas = memo(function StudioCanvas() {
    * 2026-08-18 的 E0 也查实那条跳转是当时唯一的编辑入口。
    */
   /**
-   * 舞台归属（施工基准 §1，owner 2026-08-18 拍板）：没有生成结果时，把**当前
-   * 参考图**放到舞台上。今天它只有 34px 挤在提示词框角上，而右边整片空着。
-   * ⚠ 取第一条**启用**的槽 —— `referenceEntries` 里还有 over_limit / unsupported
-   * 的条目，它们不参与生成，也就不该被当成「当前这张」。
+   * 参考轨的当前槽位（owner 2026-08-23 拍板方向 A + B 的参考轨）。
+   *
+   * ⚠ 这里以前是 `findIndex(disabledReason === null)` —— 写死取第一条可用的槽，
+   * 于是舞台上印着「参考图 1 / 2」却没有任何抵达第 2 张的路径。真机探针把它
+   * 判为「有计数、无切换控件」。现在位置是状态，参考轨负责改它。
+   *
+   * 越界靠推导而不是 effect 同步：删掉最后一张时 `referenceEntries` 立刻变短，
+   * 用 clamp 读能在同一帧就对，写回 state 会慢一帧、期间渲染的是空槽。
    */
-  const stageReference = (() => {
-    const index = imageUpload.referenceEntries.findIndex(
-      (entry) => entry.disabledReason === null,
-    )
-    if (index < 0) return null
-    return {
-      url: imageUpload.referenceEntries[index].url,
-      referenceIndex: index,
-      referenceTotal: imageUpload.referenceEntries.length,
-    }
-  })()
+  const [referenceCursor, setReferenceCursor] = useState(0)
+  const referenceEntries = imageUpload.referenceEntries
+  const activeReferenceIndex =
+    referenceEntries.length === 0
+      ? -1
+      : Math.min(referenceCursor, referenceEntries.length - 1)
+  const stageReference =
+    activeReferenceIndex < 0
+      ? null
+      : {
+          url: referenceEntries[activeReferenceIndex].url,
+          referenceIndex: activeReferenceIndex,
+          referenceTotal: referenceEntries.length,
+        }
 
   const handleEdit = useCallback((generation: GenerationRecord) => {
     setEditTarget({ url: generation.url, generationId: generation.id })
@@ -303,6 +325,24 @@ export const StudioCanvas = memo(function StudioCanvas() {
         isDragOver && 'ring-2 ring-primary/40 bg-primary/5 rounded-xl',
       )}
     >
+      {/* 参考轨 —— 与结果并存，不再被结果挤掉。编辑态下不画：编辑舞台自带
+          返回条与「正在编辑 · 参考图 N / M」，两条一起出现就是一屏两遍。 */}
+      {!editTarget && stageReference && (
+        <StudioReferenceRail
+          entries={referenceEntries}
+          activeIndex={stageReference.referenceIndex}
+          onActiveIndexChange={setReferenceCursor}
+          onEdit={(index) =>
+            setEditTarget({
+              url: referenceEntries[index].url,
+              referenceIndex: index,
+              referenceTotal: referenceEntries.length,
+            })
+          }
+          onRemove={imageUpload.removeReferenceImage}
+        />
+      )}
+
       {/* Content layer = fluid: the canvas fills the full padded width so
           the empty-state guide card and the Compare/Variant grids use the
           whole screen instead of floating in a narrow centred column. The
@@ -338,34 +378,21 @@ export const StudioCanvas = memo(function StudioCanvas() {
               selectedItemId={activeRun.selectedItemId}
               onSelect={selectWinner}
               elapsedSeconds={elapsedSeconds}
+              onEdit={handleEdit}
+              onUseAsReference={handleUseAsReference}
             />
           )
         ) : !lastGeneration && stageReference ? (
+          /* 还没有结果时，当前参考图占住舞台。位置与编辑入口都归参考轨管，
+             这里只负责把那一张放大 —— 计数与「编辑这张」不再重复一遍。 */
           <div className="m-auto flex flex-col items-center gap-3">
             <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={stageReference.url}
                 alt={tEdit('sourceAlt')}
-                className="max-h-[62vh] max-w-full object-contain"
+                className="studio-reference-stage-image object-contain"
               />
-            </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span>
-                {tEdit('stageReferenceCaption', {
-                  index: stageReference.referenceIndex + 1,
-                  total: stageReference.referenceTotal,
-                })}
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="rounded-full"
-                onClick={() => setEditTarget(stageReference)}
-              >
-                {tEdit('stageEditThis')}
-              </Button>
             </div>
           </div>
         ) : (

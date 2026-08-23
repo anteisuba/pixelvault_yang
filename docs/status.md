@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-08-18
+最后更新：2026-08-23
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
@@ -31,6 +31,13 @@
   video builder）」—— 2026-08-07 核对 `git status` 时那批改动已不在工作区，本条作废。
 
 ## Completed / Stable Enough to Build On
+
+### 图片工作台结果区
+
+- owner 2026-08-23 选定方向 A「对照台」打底，并采用方向 B 的顶部常驻参考轨与底部唯一动作栏。
+  `CompareGrid` 现按模型分行、点击只聚焦、定最佳需显式提交；图上不再叠按钮或 Gallery 元信息。
+  `StudioReferenceRail` 让参考图在生成前后都可切换 / 编辑 / 删除；编辑舞台高度与标注图框同步修正。
+  施工契约见 [`docs/references/pages/studio-image-workbench.md`](references/pages/studio-image-workbench.md)。
 
 ### 画布管道（本轮主链产出）
 
@@ -86,6 +93,11 @@
   其状态已升级为「已实现、待 owner 真机复核」。
 
 ## Validation
+
+- 2026-08-23 图片工作台结果区：开发态 `/zh/dev/ui-states` + `scripts/ui-probe.js` 复测同一状态，
+  交互遮挡 4→0、矩形相交 16→0、无切换控件计数 1→0，9:16 单格高度从 767px 降到 257px，
+  2×2 结果首屏由 3/4 提升为 4/4；全量 TypeScript 通过，全量 ESLint 0 error（5 条既有 warning），
+  全量 Vitest 537 files / 5196 tests 通过。未执行 production build：owner 的 3000 dev 实例正在运行。
 
 - 2026-08-18 图层分解整条删除（owner：功能废弃）：`LayerDecomposePanel` / `use-layer-decompose` /
   `image-decompose.service` / `/api/image/decompose` 四个文件删除；画布 `decompose` 能力与工作区那整段

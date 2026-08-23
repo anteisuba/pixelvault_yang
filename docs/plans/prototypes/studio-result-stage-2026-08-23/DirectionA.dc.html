@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: Geist, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: #0a0a0a; } a:hover { color: #525252; }
+    .mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .slot { background: #efefef; background-image: repeating-linear-gradient(135deg, transparent 0 9px, rgba(0,0,0,.035) 9px 10px); }
+  </style>
+</helmet>
+
+<div style="width: 1280px; height: 900px; background: #ffffff; color: #0a0a0a; display: flex; flex-direction: column; box-sizing: border-box">
+
+  <!-- 方向标题条 -->
+  <div style="display: flex; align-items: baseline; gap: 14px; padding: 20px 28px 16px; border-bottom: 1px solid #e5e5e5">
+    <span class="mono" style="font-size: 11px; letter-spacing: 0.12em; color: #737373">方向 A</span>
+    <h1 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">对照台 —— 一行一个模型，图上不放东西</h1>
+    <span style="flex-grow: 1"></span>
+    <span style="font-size: 12px; color: #737373">全貌优先 · 矩阵直读</span>
+  </div>
+
+  <div style="display: flex; flex-grow: 1; min-height: 0">
+
+    <!-- 参数栏（现状，不改） -->
+    <div style="width: 288px; flex-shrink: 0; border-right: 1px solid #e5e5e5; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box">
+      <span style="font-size: 11px; color: #737373">提示词</span>
+      <div style="background: #f5f1e8; border-radius: 12px; padding: 12px; height: 92px; color: #2e2e2e; font-size: 12px; line-height: 1.5">Use image #1 and image #2 as strict character-design references…</div>
+      <div style="display: flex; gap: 8px">
+        <div style="border: 1px solid #e5e5e5; border-radius: 999px; padding: 6px 12px; font-size: 12px">模板</div>
+        <div style="border: 1px solid #e5e5e5; border-radius: 999px; padding: 6px 12px; font-size: 12px; background: #f5f5f5">图像 2</div>
+      </div>
+      <span style="font-size: 11px; color: #737373; margin-top: 6px">模型</span>
+      <div style="border: 1px solid #e5e5e5; border-radius: 10px; padding: 9px 12px; font-size: 13px">Gemini 3 Pro Image</div>
+      <div style="border: 1px solid #e5e5e5; border-radius: 10px; padding: 9px 12px; font-size: 13px">OpenAI GPT Image 2</div>
+      <span style="font-size: 11px; color: #737373; margin-top: 6px">规格</span>
+      <div style="border: 1px solid #e5e5e5; border-radius: 10px; padding: 9px 12px; font-size: 13px">9:16 · 每模型 2 张</div>
+      <div style="flex-grow: 1"></div>
+      <div style="background: #000000; color: #ffffff; border-radius: 12px; height: 44px; display: grid; place-items: center; font-size: 14px; font-weight: 500">生成 4 张</div>
+    </div>
+
+    <!-- 结果区 -->
+    <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; background: #ffffff">
+
+      <!-- ① 参考轨：常驻，生成前后都在（修 01 / 03） -->
+      <div style="display: flex; align-items: center; gap: 14px; padding: 14px 24px; border-bottom: 1px solid #e5e5e5; background: #fafafa">
+        <span style="font-size: 12px; color: #525252; flex-shrink: 0">参考</span>
+        <div style="display: flex; gap: 8px">
+          <div style="width: 44px; height: 60px; border-radius: 6px; border: 2px solid #0a0a0a; position: relative" class="slot">
+            <span class="mono" style="position: absolute; left: 4px; bottom: 3px; font-size: 9px; color: #525252">1</span>
+          </div>
+          <div style="width: 44px; height: 60px; border-radius: 6px; border: 1px solid #e5e5e5; position: relative" class="slot">
+            <span class="mono" style="position: absolute; left: 4px; bottom: 3px; font-size: 9px; color: #737373">2</span>
+          </div>
+          <div style="width: 44px; height: 60px; border-radius: 6px; border: 1px dashed #cfcfcf; display: grid; place-items: center; color: #a3a3a3; font-size: 18px">+</div>
+        </div>
+        <span style="flex-grow: 1"></span>
+        <div style="display: flex; gap: 8px">
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 32px; padding: 0 14px; display: grid; place-items: center; font-size: 12px; background: #ffffff">编辑参考 1</div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 32px; padding: 0 14px; display: grid; place-items: center; font-size: 12px; background: #ffffff">移除</div>
+        </div>
+      </div>
+
+      <!-- ② 图墙：按模型分行 -->
+      <div style="flex-grow: 1; min-height: 0; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 20px">
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <span style="font-size: 13px; font-weight: 500">Gemini 3 Pro Image</span>
+            <span class="mono" style="font-size: 11px; color: #737373">12.4s</span>
+            <span style="flex-grow: 1; height: 1px; background: #e5e5e5"></span>
+            <span style="font-size: 12px; color: #525252">重跑这行</span>
+          </div>
+          <div style="display: flex; gap: 12px">
+            <div style="width: 152px; height: 270px; border-radius: 10px; position: relative; outline: 2px solid #0a0a0a; outline-offset: -2px" class="slot">
+              <span class="mono" style="position: absolute; right: 8px; top: 7px; font-size: 10px; color: #525252">1</span>
+              <div style="position: absolute; left: 8px; top: 7px; width: 18px; height: 18px; border-radius: 999px; background: #0a0a0a; color: #fff; display: grid; place-items: center; font-size: 11px">✓</div>
+            </div>
+            <div style="width: 152px; height: 270px; border-radius: 10px; position: relative" class="slot">
+              <span class="mono" style="position: absolute; right: 8px; top: 7px; font-size: 10px; color: #737373">2</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <span style="font-size: 13px; font-weight: 500">OpenAI GPT Image 2</span>
+            <span class="mono" style="font-size: 11px; color: #737373">18.1s</span>
+            <span style="flex-grow: 1; height: 1px; background: #e5e5e5"></span>
+            <span style="font-size: 12px; color: #525252">重跑这行</span>
+          </div>
+          <div style="display: flex; gap: 12px">
+            <div style="width: 152px; height: 270px; border-radius: 10px; position: relative" class="slot">
+              <span class="mono" style="position: absolute; right: 8px; top: 7px; font-size: 10px; color: #737373">1</span>
+            </div>
+            <div style="width: 152px; height: 270px; border-radius: 10px; border: 1px solid #e5e5e5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: #ffffff">
+              <span style="font-size: 12px; color: #737373; text-align: center; padding: 0 16px; line-height: 1.5">这一格失败了</span>
+              <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 32px; padding: 0 14px; display: grid; place-items: center; font-size: 12px">重试这张</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ③ 动作栏：选中时才出现，全局唯一一份（修 04） -->
+      <div style="border-top: 1px solid #e5e5e5; background: #ffffff; padding: 12px 24px; display: flex; align-items: center; gap: 12px">
+        <div style="width: 26px; height: 46px; border-radius: 4px" class="slot"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px">
+          <span style="font-size: 13px; font-weight: 500">Gemini 3 Pro Image · 第 1 张</span>
+          <span class="mono" style="font-size: 11px; color: #737373">1080×1920 · seed 41827</span>
+        </div>
+        <span style="flex-grow: 1"></span>
+        <div style="display: flex; gap: 8px; align-items: center">
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">编辑</div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">当参考图</div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">下载</div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">问助手</div>
+          <div style="background: #000000; color: #ffffff; border-radius: 999px; height: 40px; padding: 0 20px; display: grid; place-items: center; font-size: 13px; font-weight: 500">选用这张</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 取舍 -->
+  <div style="border-top: 1px solid #e5e5e5; background: #fafafa; padding: 16px 28px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px">
+    <div style="display: flex; flex-direction: column; gap: 5px">
+      <span class="mono" style="font-size: 11px; letter-spacing: 0.1em; color: #737373">换来</span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #0a0a0a">矩阵两个轴直接可读（行＝模型，列＝第几张）。图上零按钮零徽章，重叠从结构上不可能再发生。元信息尾巴全删，同样的屏幕能多放一倍的图。</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 5px">
+      <span class="mono" style="font-size: 11px; letter-spacing: 0.1em; color: #737373">代价</span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #525252">模型多时纵向变长，4 个模型要滚两屏。竖构图仍然是网格里最吃高度的那种。只选一个模型时退化成普通网格，行首那条略显多余。</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

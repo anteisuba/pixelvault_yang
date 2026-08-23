@@ -30,7 +30,12 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
     // 移动端退回纵向（参数在上、结果在下）：288px 的常驻栏在手机上会把结果区
     // 压到没有。断点用 lg（1024）与 `useIsMobile` 对齐 —— 平板 768–1023 那段
     // 若用 md 会出现「列位按 768 预留但内容到 1024 才渲染」的空沟。
-    <div className="flex min-h-0 flex-1 flex-col lg:h-svh lg:flex-row">
+    // ⚠ `lg:flex-none` 不是装饰：本组件是 `.studio-layout-v2`（column flex，
+    // `min-height:100svh` 无上限）的子项，只写 `flex-1` 会把 flex-basis 定成 0，
+    // **`h-svh` 就被忽略**，高度反过来由内容决定 —— 于是外壳跟着内容一起长，
+    // 下面那条 `overflow-y-auto` 永远触发不了，滚的是整页。
+    // 2026-08-23 真机实测：编辑态下这一层量到 1976px（视口 911）。
+    <div className="flex min-h-0 flex-1 flex-col lg:h-svh lg:flex-none lg:flex-row">
       <div className="studio-param-panel flex shrink-0 flex-col gap-3 border-b border-border/60 p-3 lg:w-72 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:p-4">
         {params}
       </div>

@@ -913,6 +913,73 @@ html:lang(zh) {
     min-height: 0;
   }
 
+  /* ── 结果图墙（CompareGrid）的格子高度 ────────────────────────────
+     对照台的规矩：**一行等高**，宽度由每张图自己的长宽比推出来。这样
+     竖图与方图并排时上下沿对齐，扫一行就是在比同一件事。
+
+     为什么是一个 CSS 变量而不是 Tailwind 工具类：需要 clamp() 随视口
+     伸缩，而 Tailwind 4 里那是 arbitrary value（Hard Rule 5 禁用）。
+     ⚠ 上限 300px 是量出来的 —— 旧版单格 767px 占 84% 视口高，一屏放不下
+     一行；300px 让 9:16 的四张同时进首屏还留得下动作栏。 */
+  .studio-result-row {
+    --studio-tile-h: clamp(9rem, 30vh, 18.75rem);
+  }
+
+  .studio-result-tile {
+    height: var(--studio-tile-h);
+  }
+
+  /* 还没有图的格子（生成中 / 失败）没有长宽比可用，给一个竖构图占位，
+     免得它们在行里塌成一条缝。 */
+  .studio-result-tile--pending {
+    aspect-ratio: 3 / 4;
+  }
+
+  /* 图片编辑舞台的「大图 + 右侧控件」两栏。
+     ⚠ 行必须显式写成 `minmax(0, 1fr)`：栅格默认的 `auto` 行会**按内容取高**，
+     于是即便这个盒子自己是 `flex-1 min-h-0`，行也能顶破它 —— 2026-08-23 真机
+     实测 `grid-template-rows` 解析成 `1798px`（视口 911），图片被原样铺开。
+     列也一并搬进来：`lg:grid-cols-[minmax(0,1fr)_320px]` 是 Tailwind arbitrary
+     value（Hard Rule 5 禁用），行列写在一处也少一个漂移点。 */
+  .studio-edit-body {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  @media (min-width: 64rem) {
+    .studio-edit-body {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+    }
+  }
+
+  /* 物体替换（框选标注）的源图。
+     它的容器必须逐像素等于图片渲染框（标注框按容器百分比定位、指针坐标按容器
+     rect 换算），所以高度约束只能加在图片自己身上，不能靠容器 stretch +
+     object-contain —— 那会多出留白并让所有标注框整体偏移。
+     ⚠ 14rem 是量出来的：真机 chrome（舞台上边距 + 返回条 + 工具条）= 154px，
+     舞台下边距 24px，再给「编辑历史」那一行留 ~46px 余量。 */
+  .studio-annotate-image {
+    max-height: calc(100svh - 14rem);
+    max-width: 100%;
+    width: auto;
+  }
+
+  /* 结果动作栏与参考轨的按钮：桌面沿用全站 32px 的紧凑密度，**触屏抬到
+     44px**。这片界面在手机上照样渲染，而纯触屏没有 hover —— 按 pointer 分档
+     比一刀切成 44px 更诚实：后者会让桌面端这一条凭空胖一圈。 */
+  @media (pointer: coarse) {
+    .studio-touch-actions button {
+      min-height: 2.75rem;
+    }
+  }
+
+  /* 无结果时占住舞台的那张参考图。
+     ⚠ 56vh 不是 62vh：参考轨现在常驻在它上面，按旧值算这张图会把动作区顶出
+     首屏。 */
+  .studio-reference-stage-image {
+    max-height: 56vh;
+    max-width: 100%;
+  }
+
   /* Scroll area for canvas + gallery */
   .studio-scroll-area {
     scrollbar-width: thin;

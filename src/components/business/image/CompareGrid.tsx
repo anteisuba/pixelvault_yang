@@ -1,179 +1,359 @@
 'use client'
 
-import { memo } from 'react'
-import { AlertTriangle, Bot, Check } from 'lucide-react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
+import {
+  AlertTriangle,
+  Bot,
+  Check,
+  Download,
+  Maximize2,
+  Images,
+  Wand2,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import { isBuiltInModel, getModelMessageKey } from '@/constants/models'
-import type { RunItem } from '@/types'
-import { ImageCard } from '@/components/business/ImageCard'
+import type { GenerationRecord, RunItem } from '@/types'
+import { OptimizedImage } from '@/components/ui/optimized-image'
 import { StudioGeneratingProgress } from '@/components/business/studio-shared'
 import { Button } from '@/components/ui/button'
 import { useAskAssistantAboutImage } from '@/hooks/use-ask-assistant-about-image'
+import { downloadRemoteAsset } from '@/lib/api-client'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import { cn } from '@/lib/utils'
+
+// 详情弹窗按需异步加载，和 ImageCard 里同样的理由：它拖着 VideoPlayer /
+// ImageCompare / 图片编辑 hook，一共 500+ 行。
+// ⚠ 与旧版的差别：只有聚焦结果后才挂载，而且整片图墙只挂**一份**，
+// 不再每格一份。
+const ImageDetailModal = dynamic(
+  () =>
+    import('@/components/business/ImageDetailModal').then(
+      (m) => m.ImageDetailModal,
+    ),
+  { ssr: false },
+)
 
 interface CompareGridProps {
   items: RunItem[]
+  /** 已定为最佳的那张的 generationId（服务端会落库）。 */
   selectedItemId: string | null
   onSelect: (generationId: string) => void
   /** 本轮已用秒数（父级的 1s 计时器），透传给 StudioGeneratingProgress。 */
   elapsedSeconds: number
+  onEdit: (generation: GenerationRecord) => void
+  onUseAsReference: (url: string) => void
 }
 
+interface ModelRow {
+  modelId: string
+  items: RunItem[]
+}
+
+/**
+ * 结果图墙 —— 方向 A「对照台」（owner 2026-08-23 拍板）。
+ *
+ * 三条结构性规矩，每一条都对着一个真机量到的问题：
+ *
+ * 1. **一行一个模型**。列数以前只看总格数（`4 格 → 3 列`），于是
+ *    「2 模型 × 2 张」被排成 `3 + 1`，同一个模型的两张被拆到两行 ——
+ *    矩阵的两个轴在版面上直接丢了。现在行 = 模型，行内 = 第几张。
+ *
+ * 2. **图上不放任何东西**。旧版每格是画廊形态的 `ImageCard`（自带右上角
+ *    收藏 + 下载）叠上本组件的「问助手」，三颗按钮抢同一个角：探针实测
+ *    「下载」的正中心点下去命中的是「问助手」。彻底的修法不是挪位置，是
+ *    让图上一颗按钮都没有。
+ *
+ * 3. **元信息尾巴全删**。旧版单格 767px 里图只占 494px，剩下 269px 是日期 /
+ *    完整提示词 / 模型 / 提供商 / 请求数 —— 四格并排就是同一段话印四遍。
+ *    比较时要看的是图，出处去详情里看。
+ *
+ * ⚠ 点击语义变了：**点格子 = 聚焦，不再直接定为最佳**。`selectWinner` 是
+ * 服务端写入，旧版「点哪张就落库哪张」让浏览的代价等于提交的代价。现在
+ * 聚焦是本地态，定最佳要在动作栏上按一次。
+ */
 export const CompareGrid = memo(function CompareGrid({
   items,
   selectedItemId,
   onSelect,
   elapsedSeconds,
+  onEdit,
+  onUseAsReference,
 }: CompareGridProps) {
   const t = useTranslations('StudioV3')
   const tModels = useTranslations('Models')
-  // §3.0b 第 4 条：图墙是「这几张哪张好 / 为什么这张脸崩了」的天然提问现场，
-  // 所以每格自带入口，不用先选中再去单图视图。
+  const tGallery = useTranslations('GalleryCard')
+  const tErrors = useTranslations('Errors')
   const askAssistantAboutImage = useAskAssistantAboutImage()
 
-  // 列数跟总张数走（对标原型：并排铺开，不是固定两列）。矩阵下一轮可能有
-  // 8 张（4 模型 × 2），三列会把它压得太高。
-  const cols =
-    items.length <= 2
-      ? 'sm:grid-cols-2'
-      : items.length <= 6
-        ? 'sm:grid-cols-3'
-        : 'sm:grid-cols-4'
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
 
-  // 同一个模型出多张时给个 `1/2` 序号 —— 否则一屏里几行同名，分不清哪张是哪张。
-  // 只在该模型确实有多张时出现；单张时保持干净的模型名。
-  const takesByModel = items.reduce<Record<string, number>>((acc, item) => {
-    acc[item.modelId] = (acc[item.modelId] ?? 0) + 1
-    return acc
-  }, {})
-  const seenByModel: Record<string, number> = {}
+  /**
+   * 按模型分行。`generateCompare` 摊平 items 时同一个模型的 N 张是连续的，
+   * 所以「相邻同名合并」既保住了模型顺序，也保住了每个模型内部的张序 ——
+   * 不用 groupBy（那会按 key 重排，第 2 张可能跑到第 1 张前面）。
+   */
+  const rows = useMemo(
+    () =>
+      items.reduce<ModelRow[]>((acc, item) => {
+        const last = acc[acc.length - 1]
+        if (last && last.modelId === item.modelId) last.items.push(item)
+        else acc.push({ modelId: item.modelId, items: [item] })
+        return acc
+      }, []),
+    [items],
+  )
+
+  const focused = items.find(
+    (item) => item.id === focusedItemId && item.status === 'completed',
+  )
+  const focusedGeneration = focused?.generation ?? null
+
+  // 重新生成一轮后旧的聚焦项已经不在 items 里了，动作栏必须跟着清掉，
+  // 否则它会停在上一轮那张图上（按钮还能按，操作的是已经不在屏上的图）。
+  useEffect(() => {
+    if (focusedItemId && !items.some((item) => item.id === focusedItemId)) {
+      setFocusedItemId(null)
+    }
+  }, [items, focusedItemId])
+
+  const handleDownload = useCallback(async () => {
+    if (!focusedGeneration || isDownloading) return
+    setIsDownloading(true)
+    try {
+      const ext = focusedGeneration.mimeType?.split('/')[1] || 'png'
+      const result = await downloadRemoteAsset(
+        focusedGeneration.url,
+        `pixelvault-${focusedGeneration.id.slice(0, 8)}.${ext}`,
+      )
+      if (!result.success) {
+        toast.error(
+          getApiErrorMessage(tErrors, result, tGallery('downloadFailed')),
+        )
+        window.open(focusedGeneration.url, '_blank', 'noopener,noreferrer')
+      }
+    } finally {
+      setIsDownloading(false)
+    }
+  }, [focusedGeneration, isDownloading, tErrors, tGallery])
 
   return (
-    <div
-      className={cn('grid grid-cols-1 gap-3', cols)}
-      role="radiogroup"
-      aria-label={t('variantSelectWinner')}
-    >
-      {items.map((item) => {
-        const isSelected =
-          selectedItemId != null && item.generation?.id === selectedItemId
-        const isCompleted =
-          item.status === 'completed' && item.generation != null
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div
+        className="studio-result-row flex flex-col gap-5"
+        role="listbox"
+        aria-label={t('variantSelectWinner')}
+      >
+        {rows.map((row) => {
+          const modelLabel = isBuiltInModel(row.modelId)
+            ? tModels(`${getModelMessageKey(row.modelId)}.label`)
+            : row.modelId
+          const takes = row.items.length
 
-        // Resolve model display name
-        const modelLabel = isBuiltInModel(item.modelId)
-          ? tModels(`${getModelMessageKey(item.modelId)}.label`)
-          : item.modelId
-        const takes = takesByModel[item.modelId] ?? 1
-        seenByModel[item.modelId] = (seenByModel[item.modelId] ?? 0) + 1
-        const takeIndex = seenByModel[item.modelId]
-
-        return (
-          <div
-            key={item.id}
-            role="radio"
-            aria-checked={isSelected}
-            aria-label={`${modelLabel}: ${item.status}`}
-            className={cn(
-              'group relative overflow-hidden rounded-xl border border-border/60 bg-muted/10 transition-all',
-              isSelected && 'ring-2 ring-primary border-primary/40',
-              isCompleted &&
-                !isSelected &&
-                'hover:border-primary/30 cursor-pointer',
-            )}
-            onClick={() => {
-              if (isCompleted && item.generation) {
-                onSelect(item.generation.id)
-              }
-            }}
-          >
-            {/* Model label badge — always visible */}
-            <div className="absolute left-2 top-2 z-10 flex items-center gap-1.5 rounded-full bg-background/90 px-2.5 py-1 text-2xs font-medium text-foreground shadow-sm backdrop-blur-sm">
-              {modelLabel}
-              {takes > 1 ? (
-                <span className="font-normal tabular-nums text-muted-foreground">
-                  {takeIndex}/{takes}
+          return (
+            <div key={row.modelId} className="flex flex-col gap-2">
+              {/* 行首条：模型名长在图外面。旧版把它做成压在图上的徽章，
+                  那正是右上角三按钮相撞的另一半原因。 */}
+              <div className="flex items-center gap-2.5">
+                <span className="text-sm font-medium text-foreground">
+                  {modelLabel}
                 </span>
-              ) : null}
-            </div>
-
-            {/* 「问助手」：把这一格的图挂进助手输入区（§3.0b 第 4 条）。
-                ⚠ **不做 hover-only** —— 这片栅格在移动端照样渲染，纯触屏没有
-                hover，hover-only 等于把它从可达变成不可达。常驻淡底，hover /
-                focus 时升实。左上角是模型名徽章，所以落在右上角。 */}
-            {isCompleted && item.generation?.url ? (
-              <button
-                type="button"
-                aria-label={t('toolAskAssistant')}
-                title={t('toolAskAssistant')}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  if (item.generation?.url) {
-                    askAssistantAboutImage(item.generation.url)
-                  }
-                }}
-                className="absolute right-2 top-2 z-10 flex size-7 items-center justify-center rounded-full bg-background/80 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background hover:text-primary focus-visible:bg-background focus-visible:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-              >
-                <Bot className="size-3.5" />
-              </button>
-            ) : null}
-
-            {/* Generating —— 复用既存的 StudioGeneratingProgress（同一套显影
-                节奏与 shimmer 底），不再在这里另拼一份 Spinner + 文案。
-                compact 变体：格子里放不下大号数字与参数行。 */}
-            {item.status === 'generating' && (
-              <div className="relative aspect-square w-full overflow-hidden">
-                <div className="studio-reveal-shimmer absolute inset-0" />
-                <StudioGeneratingProgress
-                  elapsedSeconds={elapsedSeconds}
-                  stageLabel={t('generating')}
-                  variant="compact"
-                />
+                {takes > 1 ? (
+                  <span className="text-2xs tabular-nums text-muted-foreground">
+                    {takes}
+                  </span>
+                ) : null}
+                <span className="h-px flex-1 bg-border/60" />
               </div>
-            )}
 
-            {/* Failed */}
-            {item.status === 'failed' && (
-              <div className="flex flex-col items-center justify-center gap-2 px-4 py-20">
-                <AlertTriangle className="size-5 text-destructive/60" />
-                <p className="text-center text-xs text-muted-foreground font-serif">
-                  {item.error ?? t('generateFailed')}
-                </p>
-              </div>
-            )}
+              <div className="flex flex-wrap items-start gap-3">
+                {row.items.map((item, takeIndex) => {
+                  const isCompleted =
+                    item.status === 'completed' && item.generation != null
+                  const isWinner =
+                    selectedItemId != null &&
+                    item.generation?.id === selectedItemId
+                  const isFocused = item.id === focusedItemId
 
-            {/* Completed */}
-            {isCompleted && item.generation && (
-              <div className="animate-in fade-in slide-in-from-bottom-1 duration-300">
-                <div className="[&_img]:object-contain">
-                  <ImageCard generation={item.generation} />
-                </div>
+                  const aspectRatio =
+                    item.generation != null
+                      ? `${Math.max(item.generation.width, 1)} / ${Math.max(
+                          item.generation.height,
+                          1,
+                        )}`
+                      : undefined
 
-                {/* Hover select button */}
-                {!isSelected && (
-                  <div className="absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-background/80 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-full bg-background/90 backdrop-blur-sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (item.generation) {
-                          onSelect(item.generation.id)
+                  return (
+                    <div
+                      key={item.id}
+                      role="option"
+                      aria-selected={isFocused}
+                      aria-label={`${modelLabel} ${takeIndex + 1}/${takes}`}
+                      tabIndex={isCompleted ? 0 : -1}
+                      onClick={() => {
+                        if (isCompleted) setFocusedItemId(item.id)
+                      }}
+                      onKeyDown={(event) => {
+                        if (!isCompleted) return
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          setFocusedItemId(item.id)
                         }
                       }}
+                      className={cn(
+                        'studio-result-tile relative overflow-hidden rounded-xl bg-muted/10 transition-shadow',
+                        aspectRatio ? undefined : 'studio-result-tile--pending',
+                        isCompleted && 'cursor-pointer',
+                        isFocused
+                          ? 'outline outline-2 -outline-offset-2 outline-foreground'
+                          : 'outline outline-1 -outline-offset-1 outline-border/60',
+                        'focus-visible:outline-2 focus-visible:outline-primary',
+                      )}
+                      style={aspectRatio ? { aspectRatio } : undefined}
                     >
-                      <Check className="size-3.5" />
-                      {t('variantSelectWinner')}
-                    </Button>
-                  </div>
-                )}
+                      {item.status === 'generating' && (
+                        <>
+                          <div className="studio-reveal-shimmer absolute inset-0" />
+                          <StudioGeneratingProgress
+                            elapsedSeconds={elapsedSeconds}
+                            stageLabel={t('generating')}
+                            variant="compact"
+                          />
+                        </>
+                      )}
+
+                      {item.status === 'failed' && (
+                        <div className="flex size-full flex-col items-center justify-center gap-2 px-4">
+                          <AlertTriangle className="size-5 text-destructive/60" />
+                          <p className="text-center font-serif text-xs text-muted-foreground">
+                            {item.error ?? t('generateFailed')}
+                          </p>
+                        </div>
+                      )}
+
+                      {isCompleted && item.generation && (
+                        <OptimizedImage
+                          src={item.generation.url}
+                          alt={modelLabel}
+                          fill
+                          sizes="320px"
+                          containerClassName="size-full animate-in fade-in duration-300"
+                          className="object-cover"
+                        />
+                      )}
+
+                      {/* 已定为最佳：一个角标，不是按钮 —— 图上依旧零可点元素。 */}
+                      {isWinner && (
+                        <span className="pointer-events-none absolute left-2 top-2 flex size-6 items-center justify-center rounded-full bg-foreground text-background">
+                          <Check className="size-3.5" aria-hidden="true" />
+                          <span className="sr-only">
+                            {t('variantSelected')}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-            )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* 动作栏 —— 全屏唯一一份，永远在图外面。
+          `sticky bottom-0`：图墙比一屏长时它跟着停在底边，不用滚回去找。 */}
+      {focusedGeneration && (
+        <div className="studio-touch-actions sticky bottom-0 z-20 mt-4 flex flex-wrap items-center gap-2 border-t border-border/60 bg-background/95 py-3 backdrop-blur-sm">
+          <div className="mr-auto flex min-w-0 items-center gap-2.5">
+            <span className="truncate text-sm font-medium">
+              {isBuiltInModel(focusedGeneration.model)
+                ? tModels(
+                    `${getModelMessageKey(focusedGeneration.model)}.label`,
+                  )
+                : focusedGeneration.model}
+            </span>
+            <span className="text-2xs tabular-nums text-muted-foreground">
+              {focusedGeneration.width}×{focusedGeneration.height}
+            </span>
           </div>
-        )
-      })}
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => setDetailOpen(true)}
+          >
+            <Maximize2 className="size-3.5" />
+            {t('openDetail')}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => onEdit(focusedGeneration)}
+          >
+            <Wand2 className="size-3.5" />
+            {t('toolEdit')}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => onUseAsReference(focusedGeneration.url)}
+          >
+            <Images className="size-3.5" />
+            {t('useAsReference')}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="rounded-full"
+            disabled={isDownloading}
+            onClick={() => void handleDownload()}
+          >
+            <Download className="size-3.5" />
+            {t('toolDownload')}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => askAssistantAboutImage(focusedGeneration.url)}
+          >
+            <Bot className="size-3.5" />
+            {t('toolAskAssistant')}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="rounded-full"
+            disabled={focusedGeneration.id === selectedItemId}
+            onClick={() => onSelect(focusedGeneration.id)}
+          >
+            <Check className="size-3.5" />
+            {focusedGeneration.id === selectedItemId
+              ? t('variantSelected')
+              : t('variantSelectWinner')}
+          </Button>
+        </div>
+      )}
+
+      {focusedGeneration && (
+        <ImageDetailModal
+          generation={focusedGeneration}
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+        />
+      )}
     </div>
   )
 })

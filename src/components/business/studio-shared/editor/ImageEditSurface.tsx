@@ -554,9 +554,9 @@ export function ImageEditSurface({
     activeTask === 'inpaint' || activeTask === 'object-replace' ? (
       renderTaskControls()
     ) : (
-      <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="studio-edit-body grid min-h-0 flex-1 gap-5">
         {sourceFigure}
-        <div className="min-w-0">{renderTaskControls()}</div>
+        <div className="min-w-0 overflow-y-auto">{renderTaskControls()}</div>
       </div>
     )
 

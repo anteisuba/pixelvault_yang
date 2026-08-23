@@ -136,12 +136,16 @@ export function ImageAnnotationEditor({
   }, [annotations, canApply, isLoading, onApply])
 
   return (
-    <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="studio-edit-body grid min-h-0 flex-1 gap-5">
       <div
         ref={surfaceRef}
         role="application"
         aria-label={t('annotate.hint')}
-        className="relative min-h-0 self-start overflow-hidden rounded-xl border border-border bg-muted"
+        // ⚠ 这一层必须**恰好等于图片的渲染框**：下面那些框选标注是按本元素的
+        // 百分比定位的，指针坐标也是拿它的 rect 换算的。所以不能让它 stretch
+        // 满整格再把图 object-contain 进去 —— 那样上下会多出留白，框会整体错位。
+        // 高度约束因此加在 <img> 上（.studio-annotate-image），容器只负责居中。
+        className="relative min-h-0 place-self-center overflow-hidden rounded-xl border border-border bg-muted"
         style={{
           touchAction: 'none',
           cursor: isLoading ? 'wait' : 'crosshair',
@@ -156,7 +160,7 @@ export function ImageAnnotationEditor({
           src={imageUrl}
           alt={t('sourceAlt')}
           draggable={false}
-          className="pointer-events-none block w-full select-none"
+          className="studio-annotate-image pointer-events-none block select-none"
         />
         {annotations.map((item, index) => (
           <div

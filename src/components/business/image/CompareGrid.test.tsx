@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { GenerationRecord, RunItem } from '@/types'
@@ -7,9 +7,10 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@/components/business/ImageCard', () => ({
-  ImageCard: ({ generation }: { generation: GenerationRecord }) => (
-    <div data-testid="image-card" data-url={generation.url} />
+vi.mock('@/components/ui/optimized-image', () => ({
+  OptimizedImage: ({ src, alt }: { src: string; alt: string }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img data-testid="tile-image" src={src} alt={alt} />
   ),
 }))
 
@@ -17,7 +18,11 @@ vi.mock('@/components/business/studio-shared', () => ({
   StudioGeneratingProgress: () => <div data-testid="progress" />,
 }))
 
-// §3.0b 第 4 条的注入口。用桩件断言「按了哪一格就带哪一格的 URL」——
+vi.mock('@/lib/api-client', () => ({
+  downloadRemoteAsset: vi.fn().mockResolvedValue({ success: true }),
+}))
+
+// §3.0b 第 4 条的注入口。用桩件断言「动作栏带的是被聚焦那格的 URL」——
 // 真实实现要 StudioProvider，而这里要验的是接线不是 reducer。
 const askAssistantMock = vi.fn()
 vi.mock('@/hooks/use-ask-assistant-about-image', () => ({
@@ -27,7 +32,15 @@ vi.mock('@/hooks/use-ask-assistant-about-image', () => ({
 import { CompareGrid } from './CompareGrid'
 
 function makeGeneration(id: string, url: string): GenerationRecord {
-  return { id, url, prompt: 'a cat' } as GenerationRecord
+  return {
+    id,
+    url,
+    prompt: 'a cat',
+    width: 1024,
+    height: 1024,
+    model: 'flux-dev',
+    mimeType: 'image/png',
+  } as GenerationRecord
 }
 
 function makeItem(overrides: Partial<RunItem>): RunItem {
@@ -41,66 +54,154 @@ function makeItem(overrides: Partial<RunItem>): RunItem {
   } as RunItem
 }
 
-const completedItems: RunItem[] = [
+/** 2 模型 × 2 张 —— `generateCompare` 摊平后同模型的两张是连续的。 */
+const matrixItems: RunItem[] = [
   makeItem({
-    id: 'a',
+    id: 'a1',
     modelId: 'flux-dev',
     status: 'completed',
-    generation: makeGeneration('gen-a', 'https://cdn.example.com/a.png'),
+    generation: makeGeneration('gen-a1', 'https://cdn.example.com/a1.png'),
   }),
   makeItem({
-    id: 'b',
+    id: 'a2',
+    modelId: 'flux-dev',
+    status: 'completed',
+    generation: makeGeneration('gen-a2', 'https://cdn.example.com/a2.png'),
+  }),
+  makeItem({
+    id: 'b1',
     modelId: 'seedream-4',
     status: 'completed',
-    generation: makeGeneration('gen-b', 'https://cdn.example.com/b.png'),
+    generation: makeGeneration('gen-b1', 'https://cdn.example.com/b1.png'),
+  }),
+  makeItem({
+    id: 'b2',
+    modelId: 'seedream-4',
+    status: 'completed',
+    generation: makeGeneration('gen-b2', 'https://cdn.example.com/b2.png'),
   }),
 ]
+
+function renderGrid(props: Partial<Parameters<typeof CompareGrid>[0]> = {}) {
+  return render(
+    <CompareGrid
+      items={matrixItems}
+      selectedItemId={null}
+      onSelect={vi.fn()}
+      elapsedSeconds={3}
+      onEdit={vi.fn()}
+      onUseAsReference={vi.fn()}
+      {...props}
+    />,
+  )
+}
 
 beforeEach(() => {
   askAssistantMock.mockClear()
 })
 
-describe('CompareGrid — 问助手 entry', () => {
-  it('offers one ask-assistant button per completed cell and passes that cell own url', () => {
-    render(
+describe('CompareGrid — 图上零按钮', () => {
+  // 真机探针实测：旧版「下载」36×36 的正中心点下去命中的是「问助手」28×28。
+  // 根因是每格同时叠了三颗按钮。修法不是挪位置，是让格子里一颗都没有。
+  it('renders no buttons inside the tiles', () => {
+    renderGrid()
+    for (const tile of screen.getAllByRole('option')) {
+      expect(within(tile).queryAllByRole('button')).toHaveLength(0)
+    }
+  })
+
+  it('shows no action bar until a tile is focused', () => {
+    renderGrid()
+    expect(
+      screen.queryByRole('button', { name: /toolAskAssistant/ }),
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe('CompareGrid — 聚焦与定为最佳是两步', () => {
+  // `selectWinner` 是服务端写入。旧版「点哪格就落库哪格」让浏览的代价
+  // 等于提交的代价 —— 想看第二张就顺手改了最佳。
+  it('focuses a tile on click without selecting a winner', () => {
+    const onSelect = vi.fn()
+    renderGrid({ onSelect })
+
+    fireEvent.click(screen.getAllByRole('option')[2])
+
+    expect(onSelect).not.toHaveBeenCalled()
+    expect(screen.getAllByRole('option')[2]).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
+
+  it('selects the winner only from the action bar', () => {
+    const onSelect = vi.fn()
+    renderGrid({ onSelect })
+
+    fireEvent.click(screen.getAllByRole('option')[2])
+    fireEvent.click(screen.getByRole('button', { name: /variantSelectWinner/ }))
+
+    expect(onSelect).toHaveBeenCalledWith('gen-b1')
+  })
+
+  it('routes action-bar actions to the focused tile', () => {
+    const onUseAsReference = vi.fn()
+    renderGrid({ onUseAsReference })
+
+    fireEvent.click(screen.getAllByRole('option')[3])
+    fireEvent.click(screen.getByRole('button', { name: /toolAskAssistant/ }))
+    fireEvent.click(screen.getByRole('button', { name: /useAsReference/ }))
+
+    expect(askAssistantMock).toHaveBeenCalledWith(
+      'https://cdn.example.com/b2.png',
+    )
+    expect(onUseAsReference).toHaveBeenCalledWith(
+      'https://cdn.example.com/b2.png',
+    )
+  })
+
+  // 重新生成一轮后旧的聚焦项已经不在 items 里。动作栏若还留着，按钮操作的
+  // 是一张已经不在屏上的图。
+  it('drops the action bar when the focused item leaves the run', () => {
+    const { rerender } = renderGrid()
+    fireEvent.click(screen.getAllByRole('option')[0])
+    expect(
+      screen.getByRole('button', { name: /toolAskAssistant/ }),
+    ).toBeInTheDocument()
+
+    rerender(
       <CompareGrid
-        items={completedItems}
+        items={[matrixItems[2], matrixItems[3]]}
         selectedItemId={null}
         onSelect={vi.fn()}
         elapsedSeconds={3}
+        onEdit={vi.fn()}
+        onUseAsReference={vi.fn()}
       />,
     )
 
-    const buttons = screen.getAllByRole('button', { name: 'toolAskAssistant' })
-    expect(buttons).toHaveLength(2)
+    expect(
+      screen.queryByRole('button', { name: /toolAskAssistant/ }),
+    ).not.toBeInTheDocument()
+  })
+})
 
-    fireEvent.click(buttons[1])
-    expect(askAssistantMock).toHaveBeenCalledWith(
-      'https://cdn.example.com/b.png',
+describe('CompareGrid — 矩阵按模型分行', () => {
+  // 旧版列数只看总格数（4 格 → 3 列），于是「2 模型 × 2 张」排成 3 + 1，
+  // 同一个模型的两张被拆到两行。
+  it('groups consecutive takes of the same model into one row', () => {
+    renderGrid()
+    const rows = screen.getAllByRole('listbox')[0].children
+    expect(rows).toHaveLength(2)
+    expect(within(rows[0] as HTMLElement).getAllByRole('option')).toHaveLength(
+      2,
+    )
+    expect(within(rows[1] as HTMLElement).getAllByRole('option')).toHaveLength(
+      2,
     )
   })
 
-  // ⚠ 整格是「选为最佳」的点击区。不 stopPropagation 的话，问一句助手会顺手
-  // 把这张定为最佳 —— 一次点击干了两件事，其中一件用户没要求。
-  it('does not select the cell as winner when asking the assistant', () => {
-    const onSelect = vi.fn()
-    render(
-      <CompareGrid
-        items={completedItems}
-        selectedItemId={null}
-        onSelect={onSelect}
-        elapsedSeconds={3}
-      />,
-    )
-
-    fireEvent.click(
-      screen.getAllByRole('button', { name: 'toolAskAssistant' })[0],
-    )
-    expect(askAssistantMock).toHaveBeenCalledTimes(1)
-    expect(onSelect).not.toHaveBeenCalled()
-  })
-
-  it('hides the entry on cells that have no image yet', () => {
+  it('keeps unfinished tiles unfocusable', () => {
     render(
       <CompareGrid
         items={[
@@ -110,28 +211,17 @@ describe('CompareGrid — 问助手 entry', () => {
         selectedItemId={null}
         onSelect={vi.fn()}
         elapsedSeconds={3}
+        onEdit={vi.fn()}
+        onUseAsReference={vi.fn()}
       />,
     )
 
+    for (const tile of screen.getAllByRole('option')) {
+      fireEvent.click(tile)
+      expect(tile).toHaveAttribute('aria-selected', 'false')
+    }
     expect(
-      screen.queryByRole('button', { name: 'toolAskAssistant' }),
+      screen.queryByRole('button', { name: /toolAskAssistant/ }),
     ).not.toBeInTheDocument()
-  })
-
-  it('keeps the entry on the already-selected cell', () => {
-    render(
-      <CompareGrid
-        items={completedItems}
-        selectedItemId="gen-a"
-        onSelect={vi.fn()}
-        elapsedSeconds={3}
-      />,
-    )
-
-    // 「选为最佳」那条悬浮条在选中格上是不渲染的；引用提问与选中与否无关，
-    // 两张都要留着入口。
-    expect(
-      screen.getAllByRole('button', { name: 'toolAskAssistant' }),
-    ).toHaveLength(2)
   })
 })

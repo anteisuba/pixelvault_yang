@@ -19,7 +19,12 @@ import { Markdown } from '@/components/ui/markdown'
 import { Spinner } from '@/components/ui/spinner'
 import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
 import type { AssistantCapabilityReference } from '@/hooks/use-assistant-conversation'
-import { NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_ASSISTANT_LIMITS,
+  NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW,
+} from '@/constants/node-studio'
+import { collectConversationMediaReferences } from '@/lib/assistant-media-selection'
+import { buildReferenceHandles } from '@/lib/assistant-reference-handles'
 import { MentionInput, type MentionToken } from './composer/MentionInput'
 import { cn } from '@/lib/utils'
 import type {
@@ -156,6 +161,23 @@ export function AssistantConversation({
   const unsupportedReference = selectedReferences.find(
     (reference) => !canUseReference(reference),
   )
+
+  // ⚠ 编号要对**这一轮真正会送出去的那个池子**编（含整段对话的历史附件），
+  // 不是只对编辑器里挂着的那几张 —— 只对当轮编号的话，用户看到 `#1` 而模型
+  // 被告知的是 `#6`，两套称呼各说各话。判据与 studio 那条同源，见
+  // `lib/assistant-media-selection.ts`。此前画布这边 UI 上**一个编号都没有**，
+  // 而模型照样收到 `[image #n]`（2026-08-22 owner 在 studio 侧撞到同一件事）。
+  const outgoingHandleByUrl = useMemo(() => {
+    const outgoing = collectConversationMediaReferences(
+      messages,
+      selectedReferences,
+      { maxReferences: NODE_STUDIO_ASSISTANT_LIMITS.maxReferences },
+    )
+    const handles = buildReferenceHandles(outgoing)
+    return new Map(
+      outgoing.map((reference, index) => [reference.url, handles[index] ?? '']),
+    )
+  }, [messages, selectedReferences])
 
   // A4：`@` 的三件套 —— 胶囊渲染用的 tokens、把选中素材写进句子、以及 `@`
   // 这个补充入口。⚠ 选择器仍然是入口本体，`@` 只是「不想翻列表」时的快捷方式
@@ -338,8 +360,9 @@ export function AssistantConversation({
                                 <Icon className="size-4" />
                               </span>
                             )}
-                            <span className="absolute bottom-0.5 left-0.5 rounded bg-node-panel/85 p-0.5">
+                            <span className="absolute bottom-0.5 left-0.5 flex items-center gap-0.5 rounded bg-node-panel/85 px-1 py-0.5 text-[10px] leading-none">
                               <Icon className="size-2.5" />
+                              {outgoingHandleByUrl.get(reference.url) ?? ''}
                             </span>
                           </span>
                         )
@@ -491,6 +514,11 @@ export function AssistantConversation({
                     title={reference.url}
                   >
                     <Icon className="size-3 shrink-0" />
+                    {outgoingHandleByUrl.get(reference.url) ? (
+                      <span className="shrink-0 tabular-nums">
+                        {outgoingHandleByUrl.get(reference.url)}
+                      </span>
+                    ) : null}
                     <span className="max-w-32 truncate">{reference.label}</span>
                     <button
                       type="button"

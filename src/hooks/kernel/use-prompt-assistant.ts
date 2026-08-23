@@ -23,6 +23,7 @@ import type {
 } from '@/types/assistant-protocol'
 import type { LoraCandidate } from '@/types/lora-candidate'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import { collectConversationMediaReferences } from '@/lib/assistant-media-selection'
 import { RESEARCH_MODES, type ResearchMode } from '@/constants/research'
 import type { ResearchReceipt } from '@/types/research'
 import type {
@@ -253,30 +254,25 @@ function toDisplayMessages(
   )
 }
 
-function collectConversationMediaReferences(
+/**
+ * 这一轮带哪些参考素材。选取优先级与**发出顺序**的分工见
+ * `lib/assistant-media-selection.ts` —— 编号（`buildReferenceHandles`）直接
+ * 跟着这里返回的顺序走，改它就是改用户看到的 `#n`。
+ */
+export function collectStudioConversationMediaReferences(
   messages: readonly PromptAssistantDisplayMessage[],
   currentReferences: readonly AssistantMediaReference[] = [],
 ): AssistantMediaReference[] {
-  const candidates = [
-    ...currentReferences,
-    ...[...messages]
-      .reverse()
-      .flatMap((message) => message.mediaReferences ?? []),
-  ]
-  const unique = new Map<string, AssistantMediaReference>()
-  for (const reference of candidates) {
-    if (!unique.has(reference.url)) {
-      unique.set(reference.url, {
-        ...reference,
-        // label 是**展示用**字符串，schema 限 160 字。素材选择器拿 generation 的
-        // 完整 prompt 当 label，随便就超；而且**历史会话里已经存了超长 label**，
-        // 只修选择器救不了那些行 —— 所以夹在这个漏斗上，新选的和回放的一起管。
-        label: reference.label.slice(0, ASSISTANT_MEDIA_LIMITS.maxLabelLength),
-      })
-    }
-    if (unique.size >= ASSISTANT_MEDIA_LIMITS.maxReferences) break
-  }
-  return Array.from(unique.values())
+  return collectConversationMediaReferences(messages, currentReferences, {
+    maxReferences: ASSISTANT_MEDIA_LIMITS.maxReferences,
+    // label 是**展示用**字符串，schema 限 160 字。素材选择器拿 generation 的
+    // 完整 prompt 当 label，随便就超；而且**历史会话里已经存了超长 label**，
+    // 只修选择器救不了那些行 —— 所以夹在这个漏斗上，新选的和回放的一起管。
+    normalize: (reference) => ({
+      ...reference,
+      label: reference.label.slice(0, ASSISTANT_MEDIA_LIMITS.maxLabelLength),
+    }),
+  })
 }
 
 /** Shared `send`/`applyPreset`/`retry` options. `loraContext` is the F2 LoRA
@@ -289,6 +285,8 @@ export interface PromptAssistantSendOptions {
   assistantDomain?: PromptAssistantDomain
   currentPrompt?: string
   apiKeyId?: string
+  /** 用户选的 LLM 档位（非生成模型 `modelId`）。服务端对表校验。 */
+  llmModelId?: string
   responseLanguage?: PromptAssistantResponseLanguage
   mode?: PromptAssistantMode
   useInspirationContext?: boolean
@@ -456,13 +454,14 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
       const shared = {
         messages: toWireMessages(allMessages),
         modelId: opts?.modelId,
-        references: collectConversationMediaReferences(
+        references: collectStudioConversationMediaReferences(
           allMessages,
           opts?.references,
         ),
         assistantDomain: opts?.assistantDomain,
         currentPrompt: opts?.currentPrompt,
         apiKeyId: opts?.apiKeyId,
+        llmModelId: opts?.llmModelId,
         responseLanguage: opts?.responseLanguage,
         useInspirationContext: opts?.useInspirationContext,
         researchMode: opts?.researchMode,

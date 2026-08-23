@@ -61,6 +61,7 @@ import { isImageBatchCount } from '@/constants/studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   STYLE_SHORTCUTS,
+  collectStudioConversationMediaReferences,
   usePromptAssistant,
   type PromptAssistantDisplayMessage,
 } from '@/hooks/kernel/use-prompt-assistant'
@@ -289,6 +290,7 @@ export function PromptAssistantPanel({
     [currentPrompt, loraPersona],
   )
   const selectedApiKeyId = assistantRoute?.apiKeyId
+  const selectedLlmModelId = assistantRoute?.modelId
   const selectedAdapterType =
     assistantRoute?.adapterType ?? AI_ADAPTER_TYPES.OPENAI
 
@@ -299,6 +301,7 @@ export function PromptAssistantPanel({
       references,
       assistantDomain: effectiveDomain,
       apiKeyId: selectedApiKeyId,
+      llmModelId: selectedLlmModelId,
       responseLanguage,
       researchMode,
       loraContext,
@@ -313,6 +316,7 @@ export function PromptAssistantPanel({
       researchMode,
       responseLanguage,
       selectedApiKeyId,
+      selectedLlmModelId,
       workbenchState,
     ],
   )
@@ -384,8 +388,24 @@ export function PromptAssistantPanel({
     )
   }, [])
 
-  // 序号从位置推导，不存进 reference —— 删掉中间一张后编号必须自动重排。
-  const referenceHandles = buildReferenceHandles(references)
+  // ⚠ 编号必须对**这一轮真正会送出去的那个池子**编，不是只对编辑器里挂着的
+  // 几张 —— 送出去的池子含整段对话的历史附件（`collectStudioConversationMediaReferences`）。
+  // 只对当轮编号的话，用户看到 `#1` 而模型被告知的是 `#6`，两套称呼各说各话，
+  // 这正是 2026-08-22 owner 撞到的「[image #1] 我根本不知道是哪张」。
+  // 序号仍从位置推导、不存进 reference —— 删掉中间一张后编号自动重排。
+  // ⚠ 必须 memo：打字机流式时这个组件每 tick 重渲染一次，而这里要遍历整段对话。
+  //   更要紧的是 `handleByUrl` 会作为 prop 往下传 —— 每帧换一个新 Map 等于把下游
+  //   的任何 memo 都作废（同文件里「每帧换新对象让整棵 markdown 树重挂」是同一课）。
+  const handleByUrl = useMemo(() => {
+    const outgoing = collectStudioConversationMediaReferences(
+      messages,
+      references,
+    )
+    const handles = buildReferenceHandles(outgoing)
+    return new Map(
+      outgoing.map((reference, index) => [reference.url, handles[index] ?? '']),
+    )
+  }, [messages, references])
 
   const removeReference = useCallback((referenceId: string) => {
     setReferences((current) =>
@@ -506,6 +526,7 @@ export function PromptAssistantPanel({
                     isLastTurn={isLastTurn}
                     copyLabel={t('copyPrompt')}
                     copiedLabel={t('copied')}
+                    handleByUrl={handleByUrl}
                   />
                 )}
                 {resolvedLoraPicks.length > 0 ? (
@@ -613,10 +634,12 @@ export function PromptAssistantPanel({
         <div className="overflow-hidden rounded-xl bg-background/90">
           {references.length > 0 ? (
             <div className="flex gap-2 overflow-x-auto border-b border-border/50 p-2">
-              {references.map((reference, index) => {
+              {references.map((reference) => {
                 const Icon = reference.kind === 'video' ? Video : ImageIcon
                 // 用户看得到 #n 才说得出 #n —— 提示词里的清单用的是同一个字符串。
-                const handle = referenceHandles[index] ?? ''
+                // ⚠ 按 url 查而不是按下标：这里的下标是「编辑器里的第几张」，
+                //   而编号是对整个送出池子编的，两者只在空会话时才碰巧相等。
+                const handle = handleByUrl.get(reference.url) ?? ''
                 return (
                   <div
                     key={reference.id}
@@ -746,9 +769,18 @@ function MessageBubble({
   isLastTurn,
   copyLabel,
   copiedLabel,
+  handleByUrl,
 }: {
   message: PromptAssistantDisplayMessage
   writeback: AssistantWriteback
+  /**
+   * url → `#n`。**必须由面板算好传进来**：编号是对「这一轮送出去的整个池子」
+   * 编的（含历史附件），单看一条消息自己那几张算不出来。
+   *
+   * ⚠ 查不到 = 这张已被 `maxReferences` 截断、**这一轮没送给模型** —— 那就不画
+   * 编号。⛔ 别兜个 `#?` 上去：用户会拿它去跟助手说话，而模型根本不认识它。
+   */
+  handleByUrl: ReadonlyMap<string, string>
   /**
    * 是不是最后一轮。**用来决定动作条默认展开还是收起** —— 面板挂载会自动水合
    * 上一段会话，老用户的首帧不是空态而是一屏历史消息；若每条都把配置盒摊开，
@@ -776,11 +808,16 @@ function MessageBubble({
             <div className="flex justify-end gap-1.5 overflow-x-auto">
               {message.mediaReferences.map((reference) => {
                 const Icon = reference.kind === 'video' ? Video : ImageIcon
+                const handle = handleByUrl.get(reference.url) ?? ''
                 return (
                   <span
                     key={reference.id}
                     className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted"
-                    title={reference.label}
+                    title={
+                      handle
+                        ? `${handle} · ${reference.label}`
+                        : reference.label
+                    }
                   >
                     {reference.thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- persisted remote user media
@@ -794,8 +831,9 @@ function MessageBubble({
                         <Icon className="size-4" />
                       </span>
                     )}
-                    <span className="absolute bottom-0.5 left-0.5 rounded bg-background/85 p-0.5 text-muted-foreground">
+                    <span className="absolute bottom-0.5 left-0.5 flex items-center gap-0.5 rounded bg-background/85 px-1 py-0.5 text-[10px] leading-none text-muted-foreground">
                       <Icon className="size-2.5" />
+                      {handle}
                     </span>
                   </span>
                 )

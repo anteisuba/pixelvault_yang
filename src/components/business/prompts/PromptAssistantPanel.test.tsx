@@ -17,7 +17,14 @@ const sendMock = vi.fn()
 const applyPresetMock = vi.fn()
 let mockMessages: PromptAssistantDisplayMessage[] = []
 
-vi.mock('@/hooks/kernel/use-prompt-assistant', () => ({
+// ⚠ 这个 mock 是**逐字段手拼**的：hook 新导出一个东西、组件用上，这里不补就
+// 整文件崩（渲染时抛 "not a function"）。2026-08-22 加 `#n` 编号时又踩了一次。
+// ⭐ `collectStudioConversationMediaReferences` 刻意走**真实实现**：它是纯函数，
+//    而编号正确与否恰恰取决于它算出来的顺序 —— mock 掉就等于把这条测没了。
+vi.mock('@/hooks/kernel/use-prompt-assistant', async (importOriginal) => ({
+  collectStudioConversationMediaReferences: (
+    await importOriginal<typeof import('@/hooks/kernel/use-prompt-assistant')>()
+  ).collectStudioConversationMediaReferences,
   STYLE_SHORTCUTS: {
     imageStyle: 'image-style-shortcut',
     detailed: 'detailed-shortcut',
@@ -92,6 +99,54 @@ beforeEach(() => {
 })
 
 describe('PromptAssistantPanel', () => {
+  // 2026-08-22 owner：「[image #1] 和 [image #6] 我根本不知道是哪张」。
+  // 编号一直只画在**编辑器**里的待发送缩略图上，一发出去就消失 —— 而助手的回答
+  // 是之后才到的，等编号有用时它已经没了。
+  describe('参考素材编号（#n）', () => {
+    const attachment = (url: string, label: string) => ({
+      id: `ref-${url}`,
+      source: 'gallery' as const,
+      kind: 'image' as const,
+      url,
+      label,
+    })
+
+    it('⭐ 已发出的消息上也画编号，且与助手口中的 [image #n] 同一套', () => {
+      mockMessages = [
+        {
+          role: 'user',
+          content: '第一轮',
+          mediaReferences: [attachment('https://cdn.test/a.png', 'A')],
+        },
+        { role: 'assistant', content: '好的' },
+        {
+          role: 'user',
+          content: '第二轮',
+          mediaReferences: [attachment('https://cdn.test/b.png', 'B')],
+        },
+      ]
+
+      render(
+        <PromptAssistantPanel currentPrompt="" writeback={makeWriteback()} />,
+      )
+
+      // 按对话顺序：先出现的是 #1。⛔ 旧行为是「当前 + 历史倒序」，最新的才是 #1，
+      // 与用户从上往下读的顺序正好相反。
+      expect(screen.getByTitle('#1 · A')).toBeInTheDocument()
+      expect(screen.getByTitle('#2 · B')).toBeInTheDocument()
+    })
+
+    it('⚠ 防空转：没有附件时不凭空画编号', () => {
+      mockMessages = [{ role: 'user', content: '光说话' }]
+
+      render(
+        <PromptAssistantPanel currentPrompt="" writeback={makeWriteback()} />,
+      )
+
+      expect(screen.queryByTitle(/^#\d/)).not.toBeInTheDocument()
+    })
+  })
+
   it('uses the model route controlled by the shared assistant header', () => {
     render(
       <PromptAssistantPanel

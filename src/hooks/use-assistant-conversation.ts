@@ -15,6 +15,7 @@ import {
 } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { collectConversationMediaReferences } from '@/lib/assistant-media-selection'
 import { extractNodeAssistantOps } from '@/lib/node-assistant-ops'
 import { sanitizeNodeAssistantRequest } from '@/lib/node-assistant-request'
 import type { NodeAssistantOpBatch } from '@/types/node-assistant-ops'
@@ -60,6 +61,8 @@ export interface AssistantConversationContext {
   references?: NodeAssistantMediaReference[]
   locale: AppLocale
   apiKeyId?: string
+  /** 用户选的 LLM 档位（非生成模型）。服务端对表校验。 */
+  llmModelId?: string
   /** Reference-research turn (study a film/anime/short → original suggestions). */
   research?: boolean
 }
@@ -268,25 +271,18 @@ function toStoredMessages(messages: AssistantConversationMessage[]) {
     }))
 }
 
-function collectConversationMediaReferences(
+/**
+ * 这一轮带哪些参考素材。选取优先级与**发出顺序**的分工见
+ * `lib/assistant-media-selection.ts` —— 编号（`buildReferenceHandles`）直接
+ * 跟着这里返回的顺序走，改它就是改用户看到的 `#n`。
+ */
+function collectCanvasConversationMediaReferences(
   messages: AssistantConversationMessage[],
   current: NodeAssistantMediaReference[],
 ): NodeAssistantMediaReference[] {
-  const unique = new Map<string, NodeAssistantMediaReference>()
-  const candidates = [
-    ...current,
-    ...messages
-      .slice()
-      .reverse()
-      .flatMap((message) => message.mediaReferences ?? []),
-  ]
-
-  for (const reference of candidates) {
-    if (!unique.has(reference.url)) unique.set(reference.url, reference)
-    if (unique.size >= NODE_STUDIO_ASSISTANT_LIMITS.maxReferences) break
-  }
-
-  return [...unique.values()]
+  return collectConversationMediaReferences(messages, current, {
+    maxReferences: NODE_STUDIO_ASSISTANT_LIMITS.maxReferences,
+  })
 }
 
 async function readTextStream(
@@ -477,12 +473,13 @@ export function useAssistantConversation(
         messages: nextMessages.map(toApiMessage),
         nodes: context.nodes,
         selectedNodeIds: context.selectedNodeIds,
-        references: collectConversationMediaReferences(
+        references: collectCanvasConversationMediaReferences(
           nextMessages,
           context.references ?? [],
         ),
         locale: context.locale,
         apiKeyId: context.apiKeyId,
+        llmModelId: context.llmModelId,
         research: context.research,
       })
 
@@ -591,12 +588,13 @@ export function useAssistantConversation(
         messages: withoutTrailingAssistant.map(toApiMessage),
         nodes: context.nodes,
         selectedNodeIds: context.selectedNodeIds,
-        references: collectConversationMediaReferences(
+        references: collectCanvasConversationMediaReferences(
           withoutTrailingAssistant,
           context.references ?? [],
         ),
         locale: context.locale,
         apiKeyId: context.apiKeyId,
+        llmModelId: context.llmModelId,
         research: context.research,
       })
 

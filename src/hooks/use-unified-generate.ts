@@ -437,6 +437,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         selectedItemId: itemId,
         prompt: input.freePrompt ?? '',
         startedAt: Date.now(),
+        outputType: 'IMAGE',
       })
 
       try {
@@ -627,6 +628,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         selectedItemId: itemId,
         prompt: params.prompt,
         startedAt: Date.now(),
+        outputType: 'VIDEO',
       })
 
       try {
@@ -768,6 +770,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         selectedItemId: null,
         prompt: input.freePrompt ?? '',
         startedAt: Date.now(),
+        outputType: 'IMAGE',
       })
 
       try {
@@ -943,6 +946,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         selectedItemId: null,
         prompt: input.freePrompt ?? '',
         startedAt: Date.now(),
+        outputType: 'IMAGE',
       })
 
       try {
@@ -1066,6 +1070,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         selectedItemId: itemId,
         prompt: input.freePrompt ?? '',
         startedAt: Date.now(),
+        outputType: 'AUDIO',
       })
 
       try {
@@ -1199,6 +1204,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         selectedItemId: null,
         prompt: input.freePrompt ?? '',
         startedAt: Date.now(),
+        outputType: 'AUDIO',
       })
 
       const payload = buildAudioRequestPayload(input)

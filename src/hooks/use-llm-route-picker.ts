@@ -37,29 +37,29 @@ export interface UseLLMRoutePickerReturn {
   healthMap: Record<string, ApiKeyHealthStatus>
 }
 
-function getRegistryEntry(
+/**
+ * All tiers an adapter offers in this scope, registry order preserved (the
+ * first entry is the adapter's default tier — same rule the server applies in
+ * resolveAssistantModelId). One adapter may expose several modelIds since
+ * 2026-08-23 (e.g. GPT-5.6 sol/terra/luna).
+ */
+function getRegistryEntries(
   scope: LlmCapabilityScope,
   adapterType: AI_ADAPTER_TYPES,
-): { modelId: string; label: string } | null {
+): Array<{ modelId: string; label: string }> {
   switch (scope) {
-    case 'planner': {
-      const entry = Object.values(SCRIPT_PLANNER_MODELS).find(
+    case 'planner':
+      return Object.values(SCRIPT_PLANNER_MODELS)
+        .filter((m) => m.adapterType === adapterType)
+        .map((m) => ({ modelId: m.modelId, label: m.label }))
+    case 'assistant':
+      return NODE_STUDIO_ASSISTANT_ROUTE_MODELS.filter(
         (m) => m.adapterType === adapterType,
-      )
-      return entry ? { modelId: entry.modelId, label: entry.label } : null
-    }
-    case 'assistant': {
-      const entry = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+      ).map((m) => ({ modelId: m.modelId, label: m.label }))
+    case 'enhance':
+      return LLM_ENHANCE_ROUTE_MODELS.filter(
         (m) => m.adapterType === adapterType,
-      )
-      return entry ? { modelId: entry.modelId, label: entry.label } : null
-    }
-    case 'enhance': {
-      const entry = LLM_ENHANCE_ROUTE_MODELS.find(
-        (m) => m.adapterType === adapterType,
-      )
-      return entry ? { modelId: entry.modelId, label: entry.label } : null
-    }
+      ).map((m) => ({ modelId: m.modelId, label: m.label }))
   }
 }
 
@@ -71,43 +71,35 @@ export function useLLMRoutePicker(
   const savedRoutes = useMemo<LLMRouteOption[]>(() => {
     return keys
       .filter((k) => k.isActive && adapterHasCapability(k.adapterType, scope))
-      .flatMap((k) => {
-        const registry = getRegistryEntry(scope, k.adapterType)
-        if (!registry) return []
-        return [
-          {
-            optionId: `llm-route:${scope}:key:${k.id}`,
-            apiKeyId: k.id,
-            adapterType: k.adapterType,
-            modelId: registry.modelId,
-            label: registry.label,
-            providerLabel: getProviderLabel(k.providerConfig),
-            maskedKey: k.maskedKey,
-            keyLabel: k.label,
-            isSaved: true,
-          },
-        ]
-      })
+      .flatMap((k) =>
+        // One key × N tiers → N options. optionId carries the modelId so two
+        // tiers of the same key stay distinct selections.
+        getRegistryEntries(scope, k.adapterType).map((registry) => ({
+          optionId: `llm-route:${scope}:key:${k.id}:${registry.modelId}`,
+          apiKeyId: k.id,
+          adapterType: k.adapterType,
+          modelId: registry.modelId,
+          label: registry.label,
+          providerLabel: getProviderLabel(k.providerConfig),
+          maskedKey: k.maskedKey,
+          keyLabel: k.label,
+          isSaved: true,
+        })),
+      )
   }, [keys, scope])
 
   const lockedRoutes = useMemo<LLMRouteOption[]>(() => {
-    return getLLMCapabilityScope(scope).flatMap((adapterType) => {
-      const registry = getRegistryEntry(scope, adapterType)
-      if (!registry) return []
-      return [
-        {
-          optionId: `llm-route:${scope}:setup:${registry.modelId}`,
-          apiKeyId: null,
-          adapterType,
-          modelId: registry.modelId,
-          label: registry.label,
-          providerLabel: getProviderLabel(
-            getDefaultProviderConfig(adapterType),
-          ),
-          isSaved: false,
-        },
-      ]
-    })
+    return getLLMCapabilityScope(scope).flatMap((adapterType) =>
+      getRegistryEntries(scope, adapterType).map((registry) => ({
+        optionId: `llm-route:${scope}:setup:${registry.modelId}`,
+        apiKeyId: null,
+        adapterType,
+        modelId: registry.modelId,
+        label: registry.label,
+        providerLabel: getProviderLabel(getDefaultProviderConfig(adapterType)),
+        isSaved: false,
+      })),
+    )
   }, [scope])
 
   const allRoutes = useMemo<LLMRouteOption[]>(

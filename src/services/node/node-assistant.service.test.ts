@@ -127,8 +127,8 @@ describe('createNodeAssistantStream', () => {
         providerManagedOutput: true,
         promptGuardMaxLength: null,
         // label≠actual fix: the Gemini assistant route resolves to the
-        // assistant-table model (3.5 Flash), not the generic text default.
-        modelId: 'gemini-3.5-flash',
+        // assistant-table model (3.7 Flash), not the generic text default.
+        modelId: 'gemini-3.7-flash',
       }),
     )
   })
@@ -524,7 +524,7 @@ describe('createNodeAssistantStream — reference research turn', () => {
       expect.objectContaining({
         adapterType: AI_ADAPTER_TYPES.GEMINI,
         apiKey: 'gemini-key',
-        modelId: 'gemini-3.5-flash',
+        modelId: 'gemini-3.7-flash',
         useGrounding: true,
       }),
     )

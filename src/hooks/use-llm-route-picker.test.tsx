@@ -48,8 +48,12 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k3', adapterType: AI_ADAPTER_TYPES.VOLCENGINE }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('enhance'))
+      // One key × N registry tiers → N options (OpenAI 3, Gemini 2).
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
+        'k1',
+        'k1',
+        'k2',
         'k2',
       ])
     })
@@ -60,7 +64,11 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k2', adapterType: AI_ADAPTER_TYPES.DEEPSEEK }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('enhance'))
-      expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual(['k1'])
+      expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
+        'k1',
+        'k1',
+        'k1',
+      ])
     })
 
     it('filters out inactive keys', () => {
@@ -79,16 +87,25 @@ describe('useLLMRoutePicker', () => {
       mockApiKeys([])
       const { result } = renderHook(() => useLLMRoutePicker('enhance'))
       const adapters = result.current.lockedRoutes.map((r) => r.adapterType)
-      expect(adapters.sort()).toEqual(
+      expect([...new Set(adapters)].sort()).toEqual(
         [
           AI_ADAPTER_TYPES.DASHSCOPE,
           AI_ADAPTER_TYPES.GEMINI,
           AI_ADAPTER_TYPES.OPENAI,
+          AI_ADAPTER_TYPES.XAI,
         ].sort(),
       )
       expect(result.current.lockedRoutes.every((r) => r.modelId)).toBe(true)
       expect(result.current.lockedRoutes.map((r) => r.label).sort()).toEqual(
-        ['Gemini 3.1 Flash Lite', 'OpenAI GPT-5.5', 'Qwen Flash'].sort(),
+        [
+          'OpenAI GPT-5.6 Luna',
+          'OpenAI GPT-5.6 Terra',
+          'OpenAI GPT-5.6 Sol',
+          'Gemini 3.5 Flash Lite',
+          'Gemini 3.7 Flash',
+          'Qwen Flash',
+          'Grok 4.6',
+        ].sort(),
       )
     })
   })
@@ -111,7 +128,7 @@ describe('useLLMRoutePicker', () => {
       mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
       const { result } = renderHook(() => useLLMRoutePicker('planner'))
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
-      expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-5.5')
+      expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-5.6 Terra')
     })
 
     it('locked routes list all planner-capable adapters with registry data', () => {
@@ -132,8 +149,11 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k5', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
+      // OpenAI key expands to its 3 tiers; the rest stay single-tier.
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
+        'k2',
+        'k2',
         'k2',
         'k4',
         'k5',
@@ -144,19 +164,22 @@ describe('useLLMRoutePicker', () => {
       mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.GEMINI })])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
-      expect(result.current.savedRoutes[0].label).toBe('Gemini 3.5 Flash')
+      expect(result.current.savedRoutes[0].label).toBe('Gemini 3.7 Flash')
     })
 
-    it('offers OpenAI, Gemini, DeepSeek, and Claude setup rows without Qwen', () => {
+    it('offers OpenAI, Gemini, DeepSeek, Claude, and Grok setup rows without Qwen', () => {
       mockApiKeys([])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
       expect(
         result.current.lockedRoutes.map((route) => route.adapterType),
       ).toEqual([
         AI_ADAPTER_TYPES.OPENAI,
+        AI_ADAPTER_TYPES.OPENAI,
+        AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.ANTHROPIC,
+        AI_ADAPTER_TYPES.XAI,
       ])
     })
   })

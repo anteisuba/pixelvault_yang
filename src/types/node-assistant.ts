@@ -197,6 +197,13 @@ export const NodeAssistantRequestSchema = z.object({
   locale: z.enum(LOCALES),
   apiKeyId: z.string().trim().min(1).max(160).optional(),
   /**
+   * LLM tier the user picked in the route selector (e.g. gpt-5.6-terra).
+   * Distinct from any node's generation modelId. Validated server-side
+   * against NODE_STUDIO_ASSISTANT_ROUTE_MODELS; unknown values fall back to
+   * the adapter's default tier.
+   */
+  llmModelId: z.string().trim().min(1).max(160).optional(),
+  /**
    * Reference-research turn: study an existing film/anime/short and return
    * structural analysis + original script suggestions + prompt seeds. Routed
    * through a grounding-capable provider (Gemini/OpenAI) when one is available,

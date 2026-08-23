@@ -441,8 +441,13 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
   // ($0.26 vs $0.13 per 2K second — docs/references/model-pricing.md).
   // Global and CN are separate accounts with non-interchangeable keys, so each
   // station gets its own adapterType and its own catalog entries.
-  // ⚠ 2K is the only output resolution H3 offers — hence the '2k' addition to
+  // ⚠ 2K is the only resolution WE ship for H3 — hence the '2k' addition to
   // VIDEO_RESOLUTIONS. Never leave supportedResolutions empty for these.
+  // ⛔ This is a product choice, NOT a model limit. The earlier wording ("2K is
+  // the only output resolution H3 offers") was wrong: MiniMax's own Output
+  // Specs list 768P / 2K, and the pricing page bills 768P separately (2026-08-23:
+  // $0.08/s global, ¥0.50/s CN, vs $0.13 / ¥0.80 for 2K). Corrected so nobody
+  // refuses a 768P tier on the grounds that the model can't do it.
   {
     id: AI_MODELS.MINIMAX_H3,
     cost: 5,

@@ -395,9 +395,15 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
 
 #### LLM / 文本线
 
-- ⏰ **硬期限**：`gemini-3.1-flash-lite` 官方 **2027-05-07 停机**，须提前排期。⚠ 迁到 `gemini-3.5-flash-lite` 是**涨价**的（$0.25/$1.50 → $0.30/$2.50）——这是被逼的迁移，不是优化。
-- 两笔纯降价升级：`gemini-3.5-flash → 3.7-flash`（$1.50/$9.00 → $0.75/$3.75，且 3.5 已被官方标 Legacy）；`gpt-5.5 → gpt-5.6-terra`（$5/$30 → $2/$12，上下文 1M → 1.05M）。
-- ⭐ **enhance 线严重超配**：提示词增强挂 `gpt-5.5`（$5/$30），而同能力的 `gpt-5.6-luna` 是 $0.20/$1.20 —— **同一件事差 25 倍**。
+- ✅ **2026-08-23 已落地（owner 拍板）**：`gpt-5.5` 整退（官方现价 $5/$30 比新旗舰 sol 还贵——sol 已降到 **$4/$20**，08-21 审计里的 $5/$30 过时）；三条路由线全部换上 **GPT-5.6 三档**（sol/terra/luna，spec 全同只差价），助手默认 sol、规划默认 terra、增强默认 luna。Gemini 同步：助手/规划 `3.5-flash → 3.7-flash`，增强线 `3.1-flash-lite → 3.5-flash-lite`（2027-05-07 停机的止损迁移）+ `3.7-flash` 两档并列。
+- ✅ **路由结构改造（同日）**：三张路由表主键从 `adapterType` 改为 `(adapterType, modelId)`，同一家可挂多档；客户端选档经 `llmModelId` 字段过网，服务端 `resolveAssistantModelId`（`constants/node-studio.ts`）对表校验、不认识就落该家**第一条**（=默认档）。⚠ 增强线与规划线**今天没有选择器 UI**（增强注册表零 UI 消费者、规划硬编码 auto），表已备好多档，露出留给工作台重设计那条线。
+- ⏰ 遗留提醒：`gemini-3.7-flash` 是 2026 年内促销价（$0.75/$3.75），**2027-01-01 起翻倍**——成本预估要标生效期。
+- ✅ **xAI (Grok) 已接入（2026-08-23，owner 拍板「只接 4.6」）**：新增 `AI_ADAPTER_TYPES.XAI`，`grok-4.6` 一个型号，进 **enhance + assistant** 两条线（不进 planner——那条线的 provider 枚举串在三个 Zod schema 里，是独立改动）。500k 上下文、`text, image → text`、$2/$6 每百万 token（**≥200k 上下文翻倍到 $4/$12**）。
+  - ⚠ **官方模型汇总表的 Modalities 栏是错的**：它把每个 Grok 都写成 Text，而每个型号的**专属页**都写 `text, image → text`（grok-4.6 另有图片理解指南佐证）。**以专属页为准**。08-21 审计据汇总表推测「4.3 可能无视觉」，已被推翻。
+  - ⚠ **不要复用 `buildOpenAiChatRequest`**：虽然 xAI 官方称与 OpenAI REST 完全兼容，但那个 helper 的 base URL 走 `getOpenAiChatBaseUrl()`（缺省回落到 **OpenAI 的域名**），且 `useGrounding` 时会把 modelId 换成 `gpt-5-search-api`——等于把 Grok 的请求计到 OpenAI 账上。已按 DeepSeek/DashScope 的形自建 `xaiTextCompletion`，顺带绕开 `isOpenAiReasoningModel` 那条 `/^(gpt-5|o[134])/` 正则（匹配不到 grok id，会给出过低的 token 预算）。
+  - ⚠ `ADAPTER_KEY_HINTS` 里的 `xai-...` 是**观察值不是官方口径**（xAI 文档只给 `<YOUR_XAI_API_KEY_HERE>` 占位符）。因此 `validate-api-key.ts` **故意没有加 xAI 前缀规则**——真校验交给 `verifyAdapterKey` 打 `GET /v1/models`。
+  - 未接的档：`grok-4.5`（与 4.6 同价更旧，被严格支配）、`grok-4.3`（1M 上下文、$1.25/$2.50，是便宜档候选，owner 本轮决定不接）、`grok-4.20-*` 三变体、`grok-build-0.1`。
+  - ⛔ 视频线 `xai/grok-imagine-video/v1.5`（fal，480p $0.08/s）仍未接：**违规请求照样计费**且只给 16:9 一种比例（本仓是五档）。
 - `qwen3-vl-plus` 是**死常量**：无任何路由表引用，唯一非测试消费者是一句 enhanceHint 文案。
 - 能力声明复核：DeepSeek V4 两变体经官方确认**确实纯文本无视觉**（仓内 no-enhance 判断成立）；但 Claude 官方明写全系支持 vision，所以仓内把 Sonnet 5 限成 `['assistant']` 是**策略选择而非能力限制**，注释里「无视觉」式的暗示不成立。
 

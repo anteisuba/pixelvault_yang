@@ -50,6 +50,10 @@ import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { getModelById, modelSupportsLora } from '@/constants/models'
+import { getVideoModelParameterOptions } from '@/constants/video-model-send-plan'
+import { getNodeModeForModel } from '@/constants/video-node-modes'
+import { useStudioVideoMode } from '@/hooks/use-studio-video-mode'
+import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import {
   getReferenceCapability,
@@ -161,6 +165,31 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     : isVideoMode
       ? videoModel
       : imageModel
+
+  /**
+   * 视频选择器只列**当前用途**的端点 —— 与 `StudioVideoModeToggle` 配对：
+   * 用途拆到工具条上之后，第三栏就只剩渠道（Seedance 2.0 Fast 从 6 行降到 3 行）。
+   * 画布用的是同一条路数（`VideoComposer` 的 `filterModelByMode`）。
+   *
+   * ⚠ 必须 memo：谓词的引用每次 render 变一次的话，选择器拿到的 `options` 数组
+   * 身份也跟着变 —— 那正是 `BaseModelPickerPanel` 注释里记的「视图被重置回第一层」
+   * 那个坑。
+   * ⚠ 非视频模态传 `undefined` 而不是恒真谓词：恒真谓词一样会每帧换引用。
+   * ⚠ 用途取自 `useStudioVideoMode`（与工具条上的分段控件同一个源）。**没选模型
+   *   时它落在 `DEFAULT_VIDEO_NODE_MODE`，不能退化成「不过滤」** —— 首次打开
+   *   选择器恰恰是没有选中项的那一刻，退化就等于这个功能在最该生效的场景里不
+   *   生效。实测过一版正是如此：闸门全绿，真机第三栏照旧 6 行。
+   */
+  const { mode: videoMode } = useStudioVideoMode()
+  const filterVideoModelByMode = useMemo(
+    () =>
+      isVideoMode
+        ? (option: StudioModelOption) =>
+            getNodeModeForModel(option.modelId, option.adapterType) ===
+            videoMode
+        : undefined,
+    [isVideoMode, videoMode],
+  )
   const trimmedPrompt = state.prompt.trim()
   const hasPromptForImage = Boolean(trimmedPrompt)
   const audioPromptLength = isAudioMode ? trimmedPrompt.length : 0
@@ -622,24 +651,50 @@ export const StudioPromptArea = memo(function StudioPromptArea({
         ? selectedWorkflow.id
         : undefined
 
+    // ⚠ 档位按当前模型夹取，**夹在这里而不是只夹在面板里**：面板（
+    // `StudioVideoParams`）可能一次都没被打开过，而残留值来自「切模型」——
+    // 先在支持 1080p 的模型上选了 1080p，再切到只到 720p 的
+    // `SEEDANCE_25_REFERENCE`，state 里那个 1080p 原样发出去就是 400。这里是
+    // 这两个值离开客户端的唯一出口，夹在出口才挡得住所有来路。
+    //   · duration —— 落到最接近的合法档；契约不支持这个参数时发 `'auto'`
+    //     （载荷里 duration 必填，而 `'auto'` 的语义正是「交给模型定」）
+    //   · resolution —— 直接省略（本来就可空），让模型走自己的默认档，
+    //     比擅自换一个用户没选过的档诚实
+    const { durations: allowedDurations, resolutions: allowedResolutions } =
+      getVideoModelParameterOptions(
+        selectedModel.modelId,
+        selectedModel.adapterType,
+      )
+    const duration: number | 'auto' =
+      allowedDurations.length === 0
+        ? 'auto'
+        : allowedDurations.includes(state.videoDuration)
+          ? state.videoDuration
+          : allowedDurations.reduce((closest, candidate) =>
+              Math.abs(candidate - state.videoDuration) <
+              Math.abs(closest - state.videoDuration)
+                ? candidate
+                : closest,
+            )
+    const resolution =
+      state.videoResolution &&
+      allowedResolutions.includes(state.videoResolution)
+        ? state.videoResolution
+        : undefined
+
     return {
       prompt: finalPrompt,
       modelId: selectedModel.modelId,
       apiKeyId: selectedModel.keyId,
       aspectRatio: state.aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
-      duration: state.videoDuration,
+      duration,
       referenceImage: firstRef,
       // Only emit the array form when the model genuinely takes multiple —
       // single-image i2v models keep their existing payload shape so we
       // don't accidentally send unused fields to fal.
       ...(videoMax > 1 && refs.length > 0 ? { referenceImages: refs } : {}),
       negativePrompt: state.advancedParams.negativePrompt ?? undefined,
-      resolution: (state.videoResolution ?? undefined) as
-        | '480p'
-        | '540p'
-        | '720p'
-        | '1080p'
-        | undefined,
+      resolution: resolution as '480p' | '540p' | '720p' | '1080p' | undefined,
       ...(videoWorkflowId ? { workflowId: videoWorkflowId } : {}),
       characterCardIds:
         appliedCharacterIds.length > 0 ? appliedCharacterIds : undefined,
@@ -1471,6 +1526,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                             'modelSelector.searchPlaceholder',
                           )}
                           emptySearchText={tForm('modelSelector.emptySearch')}
+                          filterOption={filterVideoModelByMode}
                         />
                       )}
                       <PromptTemplatePicker

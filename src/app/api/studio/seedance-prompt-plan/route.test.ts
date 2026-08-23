@@ -40,7 +40,7 @@ const PLAN_RESPONSE: SeedancePromptPlanResponseData = {
   },
   planner: {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
-    modelId: 'gemini-3.5-flash',
+    modelId: 'gemini-3.7-flash',
     label: 'Gemini',
   },
 }

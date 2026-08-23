@@ -35,6 +35,10 @@ import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import type { AspectRatio } from '@/constants/config'
 import { VIDEO_GENERATION } from '@/constants/config'
 import {
+  DEFAULT_VIDEO_NODE_MODE,
+  type VideoNodeMode,
+} from '@/constants/video-node-modes'
+import {
   DEFAULT_AUDIO_FORMAT,
   DEFAULT_AUDIO_LATENCY,
   AUDIO_DEFAULT_EXPRESSIVENESS,
@@ -194,6 +198,14 @@ export interface StudioFormState {
   audioReferenceText: string
   /** Style preset ID (empty string = no preset) */
   stylePresetId: string
+  /**
+   * Video-specific — 「用途」档，决定发哪个端点（关键帧 / 多图参考 / 全能参考）。
+   *
+   * 与画布同构：画布把它存在节点数据上（`node-workflow.ts` 的 `videoMode`），
+   * Studio 存在表单里。⚠ **必须是真 state，不能从选中模型反推** —— 反推在「还
+   * 没选模型」时无处可存，而那正是初始状态，表现是点了档位没有任何反应。
+   */
+  videoMode: VideoNodeMode
   /** Video-specific — duration in seconds per clip */
   videoDuration: number
   /** Video-specific — output resolution; null means provider default */
@@ -230,6 +242,7 @@ export type StudioAction =
   | { type: 'SET_AUDIO_EMOTION'; payload: string }
   | { type: 'SET_AUDIO_EXPRESSIVENESS'; payload: string }
   | { type: 'SET_AUDIO_SFX_DURATION'; payload: number }
+  | { type: 'SET_VIDEO_MODE'; payload: VideoNodeMode }
   | { type: 'SET_AUDIO_SFX_LOOP'; payload: boolean }
   | { type: 'SET_AUDIO_SFX_PROMPT_INFLUENCE'; payload: number }
   | { type: 'SET_AUDIO_SFX_VARIANT_COUNT'; payload: number }
@@ -380,6 +393,7 @@ const initialFormState: StudioFormState = {
   audioReferenceFileName: null,
   audioReferenceText: '',
   stylePresetId: NO_STYLE_PRESET_ID,
+  videoMode: DEFAULT_VIDEO_NODE_MODE,
   videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
   videoResolution: null,
   longVideoMode: false,
@@ -522,6 +536,8 @@ export function studioFormReducer(
       }
     case 'SET_TOKEN_INPUT':
       return { ...state, tokenInput: action.payload }
+    case 'SET_VIDEO_MODE':
+      return { ...state, videoMode: action.payload }
     case 'SET_VIDEO_DURATION':
       return { ...state, videoDuration: action.payload }
     case 'SET_VIDEO_RESOLUTION':
@@ -602,6 +618,7 @@ export function studioFormReducer(
         audioReferenceFileName: null,
         audioReferenceText: '',
         stylePresetId: NO_STYLE_PRESET_ID,
+        videoMode: DEFAULT_VIDEO_NODE_MODE,
         videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
         videoResolution: null,
         longVideoMode: false,

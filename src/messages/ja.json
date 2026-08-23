@@ -2585,6 +2585,10 @@
         "label": "Claude",
         "description": "Anthropic Claude Sonnet 5 を使用。キャンバスアシスタントの構造的推論（複数シーンの一貫性、キャラクターアーク、ショット構成）に対応。"
       },
+      "xai": {
+        "label": "Grok",
+        "description": "xAI Grok 4.6 をアシスタントとプロンプト強化に使用。50 万トークンのコンテキストと画像理解を備え、ここにある主力テキストモデルの中で最も安価です。"
+      },
       "runner": {
         "label": "PixelVault Runner",
         "description": "忠実な Civitai レシピ複製のための自己ホスト型 RunPod ComfyUI ランナー。プラットフォーム管理型で、ユーザー設定はできません。"
@@ -5003,6 +5007,7 @@
       "setupChatGpt": "OpenAI",
       "setupQwen": "Qwen",
       "setupClaude": "Claude",
+      "setupGrok": "Grok",
       "mediaCapabilities": {
         "imageVideo": "画像＋動画",
         "imageOnly": "画像ビジョン",
@@ -5407,6 +5412,7 @@
   "StudioToolbar": {
     "enhance": "アシスタント",
     "reference": "参照",
+    "videoMode": "画像の用途",
     "video": "ビデオ",
     "voice": "音声",
     "voiceSelected": "✓ 音声",

@@ -21,6 +21,7 @@ import { ReferenceImageChip } from './ReferenceImageChip'
 import { StudioAspectRatioPopover } from './StudioAspectRatioPopover'
 import { StudioEnhanceButton } from './StudioEnhanceButton'
 import { StudioSfxParamsPopover } from './StudioSfxParamsPopover'
+import { StudioVideoModeToggle } from './StudioVideoModeToggle'
 
 interface StudioToolbarPanelsProps {
   compact?: boolean
@@ -57,6 +58,10 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels({
         <StudioEnhanceButton disabled={isGenerating} />
         {/* Reference image: same Krea-style chip as image mode (upload + select asset popover). */}
         <ReferenceImageChip disabled={isGenerating} />
+        {/* 紧挨着参考图：这个两段式决定**那张图怎么被用**（当第一帧，还是当内容
+            参考），离它越远越难联想。只在型号有孪生端点时才渲染。 */}
+        <StudioVideoModeToggle disabled={isGenerating} />
+
         {/* Aspect ratio: same popover as image mode — video-specific ratios are picked inside the popover based on outputType. */}
         <StudioAspectRatioPopover disabled={isGenerating} />
         <button

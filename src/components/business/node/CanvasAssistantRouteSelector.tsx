@@ -14,6 +14,12 @@ export interface NodeAssistantRouteSelection {
   optionId: string
   apiKeyId?: string
   adapterType: AI_ADAPTER_TYPES
+  /**
+   * LLM tier the user picked (e.g. gpt-5.6-terra). Absent on the legacy
+   * "auto" selection — the server then falls back to the adapter's default
+   * (first) entry in NODE_STUDIO_ASSISTANT_ROUTE_MODELS.
+   */
+  modelId?: string
 }
 
 interface CanvasAssistantRouteSelectorProps {
@@ -34,13 +40,26 @@ interface CanvasAssistantRouteSelectorProps {
   emptyRouteLabel: string
 }
 
-export function getAssistantRouteKeyOptionId(keyId: string): string {
-  return `${NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.keyPrefix}:${keyId}`
+export function getAssistantRouteKeyOptionId(
+  keyId: string,
+  modelId?: string,
+): string {
+  const base = `${NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.keyPrefix}:${keyId}`
+  return modelId ? `${base}:${modelId}` : base
 }
 
+// ⚠ The `default` here means a missing case shows the WRONG provider's name
+// on the setup button (it falls through to Gemini) — compile-clean and
+// silently misleading. Add a case whenever an adapter joins the assistant
+// route table.
 function getSetupLabelKey(
   adapterType: AI_ADAPTER_TYPES,
-): 'setupChatGpt' | 'setupDeepSeek' | 'setupGemini' | 'setupClaude' {
+):
+  | 'setupChatGpt'
+  | 'setupDeepSeek'
+  | 'setupGemini'
+  | 'setupClaude'
+  | 'setupGrok' {
   switch (adapterType) {
     case AI_ADAPTER_TYPES.OPENAI:
       return 'setupChatGpt'
@@ -48,6 +67,8 @@ function getSetupLabelKey(
       return 'setupDeepSeek'
     case AI_ADAPTER_TYPES.ANTHROPIC:
       return 'setupClaude'
+    case AI_ADAPTER_TYPES.XAI:
+      return 'setupGrok'
     default:
       return 'setupGemini'
   }
@@ -99,9 +120,10 @@ export function CanvasAssistantRouteSelector({
     (option: StudioModelOption) => {
       if (!option.keyId) return
       onChange({
-        optionId: getAssistantRouteKeyOptionId(option.keyId),
+        optionId: getAssistantRouteKeyOptionId(option.keyId, option.modelId),
         apiKeyId: option.keyId,
         adapterType: option.adapterType,
+        modelId: option.modelId,
       })
     },
     [onChange],
@@ -127,12 +149,13 @@ export function CanvasAssistantRouteSelector({
   const handleQuickSetupVerified = useCallback(
     (_modelId: string, keyId: string) => {
       onChange({
-        optionId: getAssistantRouteKeyOptionId(keyId),
+        optionId: getAssistantRouteKeyOptionId(keyId, quickSetup.modelId),
         apiKeyId: keyId,
         adapterType: quickSetup.adapterType,
+        modelId: quickSetup.modelId,
       })
     },
-    [onChange, quickSetup.adapterType],
+    [onChange, quickSetup.adapterType, quickSetup.modelId],
   )
 
   const detailForOption = useCallback(
@@ -153,7 +176,12 @@ export function CanvasAssistantRouteSelector({
         layout="columns"
         llmCapability="assistant"
         value={
-          value.apiKeyId ? `llm-route:assistant:key:${value.apiKeyId}` : null
+          // Saved-route optionIds carry the modelId since tiers multiplied —
+          // a selection without one (legacy "auto") matches no option, which
+          // renders the empty label; that is the honest display for it.
+          value.apiKeyId && value.modelId
+            ? `llm-route:assistant:key:${value.apiKeyId}:${value.modelId}`
+            : null
         }
         onChange={handleSelect}
         onRequestSetup={handleRequestSetup}

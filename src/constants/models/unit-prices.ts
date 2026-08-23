@@ -149,6 +149,96 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
     verifiedAt: '2026-08-08',
   },
 
+  // ── BytePlus ModelArk（国际站）─────────────────────────────────────────
+  // 2026-08-23 补。BytePlus **按 token 计费**（公式：(输入视频时长 + 输出时长)
+  // × 宽 × 高 × 帧率 / 1024），官方定价页另给一张 Price examples 表把 token
+  // 换算成每秒/每条 —— 下面的每秒价直接抄官方例表，不是我推算的。720p·16:9·
+  // 24fps = 21,600 tokens/秒，三个模型逐一对得上。
+  //
+  // ⚠ 该页是 SPA：WebFetch / 脚本直连只拿得到侧边栏，必须实跑浏览器等正文渲染。
+  // ⚠ 下面全是**刊例价**。核价时页面上有两档限时折扣（2.5 仅 1080p 打 72 折至
+  //   09-17；2.0 Fast 480p+720p 打 75 折至 09-07，720p 约 $0.09/s）——折扣不进
+  //   本表，因为它会到期，而本表是长期比价基准。
+  // ⚠ 「有视频输入」是另一套更低的费率且带最低 token 门槛；本表按文件头口径取
+  //   **无视频输入**档。
+  [AI_MODELS.SEEDANCE_25_BYTEPLUS]: {
+    amount: 0.231,
+    unit: 'second',
+    source:
+      'BytePlus ModelArk 定价页官方例表：720p·16:9·5s·无视频输入 = $1.156/条 → $0.231/s（费率 $10.70/M tokens）',
+    verifiedAt: '2026-08-23',
+  },
+  [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: {
+    amount: 0.231,
+    unit: 'second',
+    source:
+      '同 SEEDANCE_25_BYTEPLUS —— token 公式只数「输入视频时长 + 输出时长」，参考图不进计费，故两端点同价',
+    verifiedAt: '2026-08-23',
+  },
+  [AI_MODELS.SEEDANCE_20_BYTEPLUS]: {
+    amount: 0.151,
+    unit: 'second',
+    source:
+      'BytePlus ModelArk 定价页官方例表：720p·5s·无视频输入 = $0.76/条 → $0.151/s（费率 $7.0/M tokens）',
+    verifiedAt: '2026-08-23',
+  },
+  [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: {
+    amount: 0.151,
+    unit: 'second',
+    source: '同 SEEDANCE_20_BYTEPLUS（参考图不进 token 计费）',
+    verifiedAt: '2026-08-23',
+  },
+  [AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS]: {
+    amount: 0.121,
+    unit: 'second',
+    source:
+      'BytePlus ModelArk 定价页官方例表：720p·5s·无视频输入 = $0.60/条 → $0.121/s（刊例费率 $5.6/M tokens）',
+    verifiedAt: '2026-08-23',
+  },
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]: {
+    amount: 0.121,
+    unit: 'second',
+    source: '同 SEEDANCE_20_FAST_BYTEPLUS（参考图不进 token 计费）',
+    verifiedAt: '2026-08-23',
+  },
+
+  // ── MiniMax H3（两站分开计价）───────────────────────────────────────────
+  // 2026-08-23 补。⚠ **这四条不严格适用文件头的 720p 基准**：H3 根本没有 720p
+  // 档，官方只有 768P 和 2K，而产品 `videoDefaults` 恒发 2K（video.ts:461/478/
+  // 494/511）。按 owner 定的「**按产品默认档**」口径取 2K 价 —— 若改填 768P 价
+  // 来凑 720p 可比性，标的就是产品根本发不出去的档，正是文件头警告过的「按低
+  // 档位标价把它腰斩」。跨模型横比这四条时请记得它们是 2K。
+  // ⚠ 两站价格**确实不同**（国际 $0.13 vs 国内 ≈$0.113，差约 13%），两个 adapter
+  //   两套 key，不许共用一个数。
+  // ⚠ 输入图片前 5 张免费、之后另计（国际 $0.04/张，国内 0.20 元/张），本表按
+  //   文件头「不含参考图」口径不计。
+  [AI_MODELS.MINIMAX_H3]: {
+    amount: 0.13,
+    unit: 'second',
+    source:
+      'MiniMax 国际站 Pay-as-you-go 定价页：MiniMax-H3 2K $0.13/秒（768P $0.08/秒）。⚠ 2K 档，非 720p',
+    verifiedAt: '2026-08-23',
+  },
+  [AI_MODELS.MINIMAX_H3_REFERENCE]: {
+    amount: 0.13,
+    unit: 'second',
+    source: '同 MINIMAX_H3 —— 按输出秒数计价，与端点无关',
+    verifiedAt: '2026-08-23',
+  },
+  [AI_MODELS.MINIMAX_H3_CN]: {
+    amount: 0.113,
+    unit: 'second',
+    source:
+      'MiniMax 国内站 按量计费页：MiniMax-H3 2K 0.80 元/秒 ÷ 7.1 ≈ $0.113（768P 0.50 元/秒）。⚠ 2K 档，非 720p',
+    verifiedAt: '2026-08-23',
+  },
+  [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: {
+    amount: 0.113,
+    unit: 'second',
+    source: '同 MINIMAX_H3_CN',
+    verifiedAt: '2026-08-23',
+  },
+
   // ══ 图片 ══════════════════════════════════════════════════════════════════
   // 2026-08-18 补（任务包 studio-workbench-redesign-2026-08-14 §4.11 切片 4：
   // owner 拍板「先把单价表补齐」再做成本预览）。口径见文件头「图片」那条 ——

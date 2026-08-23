@@ -2585,6 +2585,10 @@
         "label": "Claude",
         "description": "使用 Anthropic Claude Sonnet 5，负责画布助手的结构化推理——多场戏连贯、角色弧光与分镜规划。"
       },
+      "xai": {
+        "label": "Grok",
+        "description": "使用 xAI Grok 4.6 处理助手对话与提示词增强——50 万 token 上下文、能看图，且是这里所有旗舰文本线中最便宜的一条。"
+      },
       "runner": {
         "label": "PixelVault Runner",
         "description": "自建 RunPod ComfyUI runner，用于忠实复刻 Civitai 来源图配方。平台托管，用户不可配置。"
@@ -5003,6 +5007,7 @@
       "setupChatGpt": "OpenAI",
       "setupQwen": "Qwen",
       "setupClaude": "Claude",
+      "setupGrok": "Grok",
       "mediaCapabilities": {
         "imageVideo": "图片＋视频",
         "imageOnly": "图片视觉",
@@ -5407,6 +5412,7 @@
   "StudioToolbar": {
     "enhance": "助手",
     "reference": "参考图",
+    "videoMode": "图片用途",
     "video": "视频",
     "voice": "音色",
     "voiceSelected": "✓ 音色",

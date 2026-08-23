@@ -394,6 +394,20 @@ export interface ActiveRun {
   selectedItemId: string | null
   prompt: string
   startedAt: number
+  /**
+   * 这一批产出的是什么。**渲染前必须按它过滤**。
+   *
+   * ⚠ 这个字段缺席过，后果是一个跨模态串台：三个模态（图片/视频/语音）共用一个
+   * `StudioProvider`（挂在 `(workspace)/layout.tsx`，切路由不 remount），`activeRun`
+   * 又是一槽三用；`StudioCanvas` 早就给**另一个**结果槽 `lastGeneration` 加了模态
+   * 守卫，却给不了 `activeRun` —— 因为那时它身上没有任何字段能说出自己是什么。
+   * 于是跑完一批图片再进语音工作台，那 4 张图会被当成音频卡片画出来（描述文字
+   * 是图片的提示词、`<audio src>` 指着图片 URL）；进视频工作台则被 CompareGrid
+   * 原样画成图片，连「模型：GPT Image 2」都照抄。
+   *
+   * 与 `GenerationRecord.outputType` 同一套取值，好让两个槽用同一个判据过滤。
+   */
+  outputType: OutputType
 }
 
 // ─── Generate Request ─────────────────────────────────────────────
@@ -2395,6 +2409,13 @@ export const PromptAssistantRequestSchema = z.object({
   currentPrompt: z.string().optional(),
   /** User-selected API key for LLM calls */
   apiKeyId: z.string().optional(),
+  /**
+   * LLM tier the user picked in the route selector (e.g. gpt-5.6-terra) —
+   * NOT the generation model (`modelId` above). Validated server-side against
+   * NODE_STUDIO_ASSISTANT_ROUTE_MODELS; unknown values fall back to the
+   * adapter's default tier.
+   */
+  llmModelId: z.string().optional(),
   /** User-selected language for assistant prompt output */
   responseLanguage: PromptAssistantResponseLanguageSchema.optional(),
   /** Specialized prompt conversion mode */
@@ -2432,6 +2453,8 @@ export const PromptAssistantStreamRequestSchema = z.object({
   assistantDomain: PromptAssistantDomainSchema.optional(),
   currentPrompt: z.string().optional(),
   apiKeyId: z.string().optional(),
+  /** 同非流式版：用户选的 LLM 档位（非生成模型），服务端对表校验。 */
+  llmModelId: z.string().optional(),
   responseLanguage: PromptAssistantResponseLanguageSchema.optional(),
   useInspirationContext: z.boolean().optional(),
   /** @deprecated 见 `PromptAssistantRequestSchema.research`。 */

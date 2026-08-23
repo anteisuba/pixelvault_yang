@@ -425,6 +425,7 @@ export type ProviderGroup =
   | 'elevenlabs'
   | 'hyper3d'
   | 'anthropic'
+  | 'xai'
   | 'minimax'
   | 'runner'
 
@@ -447,6 +448,7 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'runner',
   'hyper3d',
   'anthropic',
+  'xai',
 ]
 
 /** Map adapter type to provider group. */
@@ -482,6 +484,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'hyper3d'
     case AI_ADAPTER_TYPES.ANTHROPIC:
       return 'anthropic'
+    case AI_ADAPTER_TYPES.XAI:
+      return 'xai'
     // Both stations share one display group — users pick the station via the
     // model entry, not via a second heading in the picker.
     case AI_ADAPTER_TYPES.MINIMAX:

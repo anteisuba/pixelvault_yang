@@ -286,6 +286,7 @@ function setupStudioForm(
     audioReferenceUrl: null,
     audioReferenceFileName: null,
     audioReferenceText: '',
+    videoMode: 'keyframe',
     videoDuration: 5,
     videoResolution: '720p',
     longVideoMode: false,

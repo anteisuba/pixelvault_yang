@@ -119,11 +119,29 @@ describe('CanvasAssistantRouteSelector', () => {
           optionId: 'x',
           apiKeyId: 'k1',
           adapterType: AI_ADAPTER_TYPES.GEMINI,
+          modelId: 'gemini-3.7-flash',
         }}
         onChange={vi.fn()}
       />,
     )
-    expect(pickerProps?.value).toBe('llm-route:assistant:key:k1')
+    expect(pickerProps?.value).toBe(
+      'llm-route:assistant:key:k1:gemini-3.7-flash',
+    )
+  })
+
+  it('legacy selection without modelId matches no option (renders empty label)', () => {
+    render(
+      <CanvasAssistantRouteSelector
+        emptyRouteLabel="Auto route"
+        value={{
+          optionId: 'x',
+          apiKeyId: 'k1',
+          adapterType: AI_ADAPTER_TYPES.GEMINI,
+        }}
+        onChange={vi.fn()}
+      />,
+    )
+    expect(pickerProps?.value).toBeNull()
   })
 
   // ⚠ 2026-08-19 生产事故的回归位：组件**曾经写死**画布的默认路由标签
@@ -158,9 +176,10 @@ describe('CanvasAssistantRouteSelector', () => {
     )
     pickerProps?.onChange(makeOption({ keyId: 'key-123' }))
     expect(onChange).toHaveBeenCalledWith({
-      optionId: 'node-studio-assistant:key:key-123',
+      optionId: 'node-studio-assistant:key:key-123:model-id',
       apiKeyId: 'key-123',
       adapterType: AI_ADAPTER_TYPES.OPENAI,
+      modelId: 'model-id',
     })
   })
 

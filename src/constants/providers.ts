@@ -39,6 +39,15 @@ export enum AI_ADAPTER_TYPES {
    */
   ANTHROPIC = 'anthropic',
   /**
+   * xAI (Grok) — BYOK, text-only. grok-4.6 is the only model on this route
+   * (owner 2026-08-23 decree): 500k context, vision, function calling +
+   * structured outputs + reasoning, at $2/$6 per MTok — half the output price
+   * of gpt-5.6-terra. Officially OpenAI-REST-compatible, so it reuses the
+   * DeepSeek-style chat path rather than needing its own adapter file.
+   * ⚠ Pricing doubles above a 200k-token context ($4/$12).
+   */
+  XAI = 'xai',
+  /**
    * Self-hosted RunPod Serverless ComfyUI runner — faithful Civitai recipe
    * clones (checkpoint + LoRA stack) that hosted providers can't run. Not a
    * BYOK adapter: intentionally absent from `AI_ADAPTER_TYPE_OPTIONS` so it
@@ -71,6 +80,7 @@ export const AI_ADAPTER_TYPE_OPTIONS = [
   AI_ADAPTER_TYPES.MINIMAX,
   AI_ADAPTER_TYPES.MINIMAX_CN,
   AI_ADAPTER_TYPES.ANTHROPIC,
+  AI_ADAPTER_TYPES.XAI,
 ] as const
 
 export const DEFAULT_PROVIDER_CONFIGS: Record<
@@ -150,6 +160,12 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
     label: 'Claude',
     baseUrl: AI_PROVIDER_ENDPOINTS.ANTHROPIC,
   },
+  // 'Grok' not 'xAI': same model-family-name convention as 'Claude' (not
+  // 'Anthropic') and 'Qwen' (not 'DashScope').
+  [AI_ADAPTER_TYPES.XAI]: {
+    label: 'Grok',
+    baseUrl: AI_PROVIDER_ENDPOINTS.XAI,
+  },
   [AI_ADAPTER_TYPES.RUNNER]: {
     label: 'PixelVault Runner',
     baseUrl: AI_PROVIDER_ENDPOINTS.RUNPOD,
@@ -175,6 +191,11 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.MINIMAX]: 'eyJhbGci...',
   [AI_ADAPTER_TYPES.MINIMAX_CN]: 'eyJhbGci...',
   [AI_ADAPTER_TYPES.ANTHROPIC]: 'sk-ant-...',
+  // ⚠ xAI's docs never state a key prefix (only `<YOUR_XAI_API_KEY_HERE>`
+  // placeholders). This is the console's observed format, kept as a display
+  // hint only — validate-api-key.ts deliberately has no xAI prefix rule, so a
+  // key that doesn't match still saves. Real validation is verifyAdapterKey.
+  [AI_ADAPTER_TYPES.XAI]: 'xai-...',
   // Platform-managed only — never entered by a user (no BYOK UI slot).
   [AI_ADAPTER_TYPES.RUNNER]: 'n/a (platform-managed)',
 }
@@ -200,6 +221,10 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   [AI_ADAPTER_TYPES.MINIMAX_CN]: 5,
   // Same tier as OPENAI — both premium-priced text/reasoning routes.
   [AI_ADAPTER_TYPES.ANTHROPIC]: 3,
+  // grok-4.6 is $2/$6 per MTok — cheaper than every other flagship text route
+  // here (gpt-5.6-sol $4/$20, terra $2/$12, Sonnet 5 $2/$10), so it sits in
+  // the cheap text tier with Gemini/DeepSeek rather than the premium one.
+  [AI_ADAPTER_TYPES.XAI]: 2,
   // Faithful recipe clone — heavier than a plain hosted call (cold-start
   // aware), priced closer to the premium tier.
   [AI_ADAPTER_TYPES.RUNNER]: 3,
@@ -223,6 +248,7 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.MINIMAX]: 'MiniMax-H3',
   [AI_ADAPTER_TYPES.MINIMAX_CN]: 'MiniMax-H3',
   [AI_ADAPTER_TYPES.ANTHROPIC]: 'claude-sonnet-5',
+  [AI_ADAPTER_TYPES.XAI]: 'grok-4.6',
   [AI_ADAPTER_TYPES.RUNNER]: 'waiIllustriousSDXL_v150',
 }
 
@@ -318,6 +344,10 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   [AI_ADAPTER_TYPES.ANTHROPIC]: {
     url: 'https://console.anthropic.com/settings/keys',
     steps: 'Sign in → Settings → API Keys → Create Key (sk-ant-...).',
+  },
+  [AI_ADAPTER_TYPES.XAI]: {
+    url: 'https://console.x.ai/team/default/api-keys',
+    steps: 'Sign in → Console → API Keys → Create API key.',
   },
   [AI_ADAPTER_TYPES.RUNNER]: {
     url: 'https://docs.runpod.io/serverless/overview',

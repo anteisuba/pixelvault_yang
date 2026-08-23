@@ -42,9 +42,9 @@ export const DEFAULT_SCRIPT_PLANNER_PROVIDER = SCRIPT_PLANNER_PROVIDER_IDS.auto
 
 export const SCRIPT_PLANNER_MODELS = {
   gemini: {
-    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_7_FLASH,
     adapterType: AI_ADAPTER_TYPES.GEMINI,
-    label: 'Gemini 3.5 Flash',
+    label: 'Gemini 3.7 Flash',
   },
   deepseek: {
     modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
@@ -52,9 +52,11 @@ export const SCRIPT_PLANNER_MODELS = {
     label: 'DeepSeek V4 Pro',
   },
   openai: {
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_5,
+    // Terra: the balanced GPT-5.6 tier — planner is long-in/long-out, the
+    // cheap luna tier is for enhance, the sol flagship for the assistant.
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    label: 'OpenAI GPT-5.5',
+    label: 'OpenAI GPT-5.6 Terra',
   },
   dashscope: {
     modelId: LLM_TEXT_MODEL_IDS.QWEN3_MAX,

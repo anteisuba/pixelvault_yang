@@ -190,6 +190,10 @@ const LLM_TEXT_ADAPTERS = [
   // through `isLlmTextAdapter`, so a saved Claude key can't complete without
   // this membership.
   AI_ADAPTER_TYPES.ANTHROPIC,
+  // Same reasoning as Claude above: last in the auto-fallback order (newest,
+  // narrowest scope), but membership here is what lets a saved Grok key
+  // resolve through the explicit-apiKeyId path.
+  AI_ADAPTER_TYPES.XAI,
 ] as const
 
 type LlmTextAdapterType = (typeof LLM_TEXT_ADAPTERS)[number]
@@ -199,11 +203,12 @@ function isLlmTextAdapter(t: AI_ADAPTER_TYPES): t is LlmTextAdapterType {
 }
 
 const LLM_TEXT_MODELS: Record<LlmTextAdapterType, string> = {
-  [AI_ADAPTER_TYPES.GEMINI]: LLM_TEXT_MODEL_IDS.GEMINI_3_1_FLASH_LITE,
+  [AI_ADAPTER_TYPES.GEMINI]: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH_LITE,
   [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
-  [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_5,
+  [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
   [AI_ADAPTER_TYPES.DASHSCOPE]: LLM_TEXT_MODEL_IDS.QWEN_PLUS,
   [AI_ADAPTER_TYPES.ANTHROPIC]: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5,
+  [AI_ADAPTER_TYPES.XAI]: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
 }
 
 const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
@@ -212,6 +217,7 @@ const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.OPENAI]: 'OpenAI',
   [AI_ADAPTER_TYPES.DASHSCOPE]: 'Qwen',
   [AI_ADAPTER_TYPES.ANTHROPIC]: 'Claude',
+  [AI_ADAPTER_TYPES.XAI]: 'Grok',
 }
 
 const LLM_TEXT_IMAGE_MAX_BYTES = 10 * 1024 * 1024
@@ -339,6 +345,8 @@ function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
       return AI_PROVIDER_ENDPOINTS.DASHSCOPE
     case AI_ADAPTER_TYPES.ANTHROPIC:
       return AI_PROVIDER_ENDPOINTS.ANTHROPIC
+    case AI_ADAPTER_TYPES.XAI:
+      return AI_PROVIDER_ENDPOINTS.XAI
   }
 }
 
@@ -1285,6 +1293,93 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
 }
 
 /**
+ * xAI (Grok) text completion — OpenAI `/chat/completions` drop-in (xAI's docs
+ * state "full compatibility with the OpenAI REST API").
+ *
+ * ⚠ Deliberately NOT routed through `buildOpenAiChatRequest`, even though the
+ * wire format matches. That helper is OpenAI-specific in two ways that would
+ * silently break this route: it resolves its base URL via
+ * `getOpenAiChatBaseUrl()` (which falls back to **OpenAI's** host), and on
+ * `useGrounding` it swaps `modelId` for `OPENAI_GPT_5_SEARCH_API` — i.e. a
+ * grounded Grok turn would be billed to OpenAI. Copying the DeepSeek/DashScope
+ * shape keeps this route's host and model ids its own; it also sidesteps
+ * `isOpenAiReasoningModel`, whose `/^(gpt-5|o[134])/` regex never matches a
+ * `grok-*` id and would hand Grok a too-small token budget.
+ *
+ * Image input IS supported (grok-4.6 takes `text, image → text`; 20MiB max,
+ * jpg/png only) using the same OpenAI multimodal content shape Qwen uses.
+ * Video and grounding are not — xAI's Live Search is a separate API surface,
+ * so we fail loudly rather than silently dropping the request.
+ */
+async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
+  if (input.videoData) {
+    throw new Error('Grok (xAI) text completion does not support video input.')
+  }
+  if (input.useGrounding) {
+    throw new Error('Grok (xAI) text completion does not support grounding.')
+  }
+
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.XAI]
+  const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.XAI
+  const endpoint = `${baseUrl.replace(/\/$/, '')}/chat/completions`
+
+  const messages: Array<Record<string, unknown>> = [
+    { role: 'system', content: input.systemPrompt },
+  ]
+
+  if (input.imageData) {
+    const images = Array.isArray(input.imageData)
+      ? input.imageData
+      : [input.imageData]
+    const content: Array<Record<string, unknown>> = images.map((img) => ({
+      type: 'image_url',
+      image_url: { url: img },
+    }))
+    content.push({ type: 'text', text: input.userPrompt })
+    messages.push({ role: 'user', content })
+  } else {
+    messages.push({ role: 'user', content: input.userPrompt })
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: modelId,
+      messages,
+      ...(!input.providerManagedOutput
+        ? {
+            max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
+          }
+        : {}),
+      ...(input.responseFormat === 'json_object'
+        ? { response_format: { type: 'json_object' } }
+        : {}),
+    }),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      modelId,
+    })
+  }
+
+  const data = OpenAiChatResponseSchema.parse(await response.json())
+  const content = getOpenAiChatText(data)
+
+  if (!content) {
+    throw new Error('No text response from Grok')
+  }
+
+  return content
+}
+
+/**
  * Claude (Anthropic) text completion — the Messages API, NOT an
  * OpenAI-compatible drop-in. Four deliberate differences from the branches
  * above (docs/references/pages/assistant-shell.md):
@@ -1607,6 +1702,8 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
       return dashscopeTextCompletion(input)
     case AI_ADAPTER_TYPES.ANTHROPIC:
       return anthropicTextCompletion(input)
+    case AI_ADAPTER_TYPES.XAI:
+      return xaiTextCompletion(input)
     default:
       throw new Error(
         `LLM text completion not supported for adapter: ${input.adapterType}`,

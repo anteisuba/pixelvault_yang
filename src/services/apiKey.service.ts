@@ -313,7 +313,10 @@ async function verifyAdapterKey(
         })
         break
       }
-      case AI_ADAPTER_TYPES.DEEPSEEK: {
+      // Same OpenAI-compatible `GET /models` auth probe for both — xAI's docs
+      // state full OpenAI REST compatibility, and `/v1/models` is part of it.
+      case AI_ADAPTER_TYPES.DEEPSEEK:
+      case AI_ADAPTER_TYPES.XAI: {
         const url = `${baseUrl.replace(/\/$/, '')}/models`
         response = await safeFetch(url, {
           method: 'GET',

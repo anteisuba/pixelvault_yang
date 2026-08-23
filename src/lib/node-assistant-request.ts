@@ -160,6 +160,7 @@ export function sanitizeNodeAssistantRequest(
 ): NodeAssistantRequest {
   const messages = sanitizeMessages(request.messages)
   const apiKeyId = request.apiKeyId?.trim()
+  const llmModelId = request.llmModelId?.trim()
 
   return {
     messages,
@@ -171,6 +172,7 @@ export function sanitizeNodeAssistantRequest(
     references: sanitizeReferences(request.references),
     locale: request.locale,
     ...(apiKeyId ? { apiKeyId } : {}),
+    ...(llmModelId ? { llmModelId } : {}),
     ...(request.research ? { research: true } : {}),
   }
 }

@@ -622,7 +622,7 @@ describe('llmTextCompletion - OpenAI', () => {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
       apiKey: 'sk-test',
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_5,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_SOL,
     })
 
     const payload = readFetchJson(fetchMock)
@@ -788,7 +788,7 @@ describe('llmTextCompletion - OpenAI', () => {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
       apiKey: 'sk-test',
-      modelId: 'gpt-5.5',
+      modelId: 'gpt-5.6-terra',
       maxTokens: 900,
     })
 
@@ -870,7 +870,7 @@ describe('llmTextCompletion - OpenAI', () => {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
       apiKey: 'sk-test',
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_5,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_SOL,
       useGrounding: true,
     })
 
@@ -1149,6 +1149,97 @@ describe('llmTextCompletion - DashScope (Qwen)', () => {
       image_url: { url: 'https://example.com/ref.png' },
     })
     expect(content[1]).toEqual({ type: 'text', text: 'Describe this image.' })
+  })
+})
+
+describe('llmTextCompletion — xAI (Grok)', () => {
+  it('posts to the xAI chat endpoint with the route model and bearer key', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'grok reply' } }] }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+      apiKey: 'xai-test',
+      modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
+    })
+
+    expect(result).toBe('grok reply')
+    // ⚠ The host must stay api.x.ai. The regression this guards against is
+    // routing Grok through buildOpenAiChatRequest, whose base-URL fallback is
+    // OpenAI's own host — a silent cross-provider bill.
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.x.ai/v1/chat/completions',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer xai-test',
+        }),
+      }),
+    )
+    const payload = readFetchJson(fetchMock)
+    expect(payload.model).toBe('grok-4.6')
+  })
+
+  it('forwards image input as OpenAI-style image_url content (grok-4.6 vision)', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'described' } }] }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'You analyze images.',
+      userPrompt: 'Describe this image.',
+      imageData: 'https://example.com/ref.png',
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+      apiKey: 'xai-test',
+    })
+
+    const payload = readFetchJson(fetchMock) as unknown as {
+      messages: Array<{
+        role: string
+        content: Array<{ type: string; image_url?: { url: string } }> | string
+      }>
+    }
+    const userMessage = payload.messages.find((m) => m.role === 'user')
+    const content = userMessage?.content as Array<{
+      type: string
+      image_url?: { url: string }
+    }>
+    expect(content[0]).toEqual({
+      type: 'image_url',
+      image_url: { url: 'https://example.com/ref.png' },
+    })
+    expect(content[1]).toEqual({ type: 'text', text: 'Describe this image.' })
+  })
+
+  it('rejects grounding loudly instead of silently dropping it', async () => {
+    // xAI's Live Search is a separate API surface. Failing here is the point:
+    // a silent no-op would return an ungrounded answer that reads grounded.
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'latest news',
+        adapterType: AI_ADAPTER_TYPES.XAI,
+        providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+        apiKey: 'xai-test',
+        useGrounding: true,
+      }),
+    ).rejects.toThrow(/grounding/i)
   })
 })
 

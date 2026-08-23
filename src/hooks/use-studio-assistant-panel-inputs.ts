@@ -66,6 +66,14 @@ export function useStudioAssistantPanelInputs() {
   const { state, dispatch } = useStudioForm()
   const { imageUpload, styles } = useStudioData()
   const { activeRun } = useStudioGen()
+  // 当前模态对应的产出类型 —— 与 `StudioCanvas` 的 `expectedOutputType` 同一套
+  // 映射（`GenerationRecord.outputType` / `ActiveRun.outputType` 的取值）。
+  const expectedRunOutputType =
+    state.outputType === 'video'
+      ? 'VIDEO'
+      : state.outputType === 'audio'
+        ? 'AUDIO'
+        : 'IMAGE'
   const { selectedModel: imageSelectedModel, modelOptions: imageModelOptions } =
     useImageModelOptions()
   const { selectedModel: videoSelectedModel, modelOptions: videoModelOptions } =
@@ -175,7 +183,13 @@ export function useStudioAssistantPanelInputs() {
         : {}),
     },
     referenceImageCount: imageUpload.referenceImages.length,
-    ...(activeRun ? { lastRun: toWorkbenchRun(activeRun) } : {}),
+    // ⚠ 与 `StudioCanvas` 同一道守卫：`activeRun` 一槽三模态共用（三个模态共享
+    // 一个 `StudioProvider`，切路由不 remount），不按模态过滤就会把上一模态的
+    // 批次说给助手听 —— 在语音工作台问它，它会以为你刚生成了 4 张图，然后据此
+    // 给建议。渲染层那次串台是看得见的，这一处是**看不见的**，更难归因。
+    ...(activeRun && activeRun.outputType === expectedRunOutputType
+      ? { lastRun: toWorkbenchRun(activeRun) }
+      : {}),
     ...(availableModels.length > 0 ? { availableModels } : {}),
   }
 

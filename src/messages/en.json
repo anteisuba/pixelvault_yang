@@ -2585,6 +2585,10 @@
         "label": "Claude",
         "description": "Use Anthropic Claude Sonnet 5 for the canvas assistant's structural reasoning — multi-scene continuity, character arcs, and shot planning."
       },
+      "xai": {
+        "label": "Grok",
+        "description": "Use xAI Grok 4.6 for the assistant and prompt enhancement — a 500k-token context window with image understanding, at the lowest price of any flagship text route here."
+      },
       "runner": {
         "label": "PixelVault Runner",
         "description": "Self-hosted RunPod ComfyUI runner for faithful Civitai recipe clones. Platform-managed — not user-configurable."
@@ -5003,6 +5007,7 @@
       "setupChatGpt": "OpenAI",
       "setupQwen": "Qwen",
       "setupClaude": "Claude",
+      "setupGrok": "Grok",
       "mediaCapabilities": {
         "imageVideo": "Images + video",
         "imageOnly": "Image vision",
@@ -5407,6 +5412,7 @@
   "StudioToolbar": {
     "enhance": "Assistant",
     "reference": "Reference",
+    "videoMode": "Image role",
     "video": "Video",
     "voice": "Voice",
     "voiceSelected": "✓ Voice",

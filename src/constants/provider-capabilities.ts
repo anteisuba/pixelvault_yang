@@ -242,6 +242,12 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       capabilities: [],
     },
 
+    [AI_ADAPTER_TYPES.XAI]: {
+      // Grok is a text/vision LLM line here — it reads images but never
+      // generates them, so no image-generation parameter controls.
+      capabilities: [],
+    },
+
     [AI_ADAPTER_TYPES.HYPER3D_RODIN]: {
       capabilities: ['seed'] as const,
       maxReferenceImages: 5,
@@ -445,7 +451,11 @@ export function getReferenceImageMode(
 }
 
 export type CapabilityFieldType =
-  'slider' | 'select' | 'textarea' | 'seed' | 'lora'
+  | 'slider'
+  | 'select'
+  | 'textarea'
+  | 'seed'
+  | 'lora'
 
 /** Map a user-configurable capability to its field type for data-driven rendering */
 export function getCapabilityFieldType(

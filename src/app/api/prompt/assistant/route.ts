@@ -24,7 +24,7 @@ export const POST = createApiRoute({
       data.loraContext,
       data.references,
       data.assistantDomain,
-      { researchMode: data.researchMode },
+      { researchMode: data.researchMode, llmModelId: data.llmModelId },
     )
   },
 })

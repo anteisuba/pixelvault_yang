@@ -1119,9 +1119,14 @@ function MessageActionBar({
                   ) : (
                     <>
                       {/* ⚠ 配置行永不折行：挤不下就砍信息。第一个被砍的是
-                          「当前 →」，最窄档整段消失（切片 S4）。 */}
+                          「当前 →」，最窄档整段消失（切片 S4）。
+                          ⚠ 这里**不能用 `shrink-0`**：负面提示词的当前值是一整段
+                          话，不可收缩的它会吃光整行 —— 实测溢出卡片右边框 61px，
+                          而右边的 `proposed`（`flex-1` basis 0）被挤到**宽度 0**，
+                          助手建议的新值整个看不见。`max-w-1/3` 只在长值时才咬合，
+                          `9:16 →` 这类短值仍按内容宽排，不会留出空档。 */}
                       {row.current ? (
-                        <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:inline">
+                        <span className="hidden min-w-0 max-w-1/3 truncate text-[10px] text-muted-foreground sm:inline">
                           {row.current} →
                         </span>
                       ) : null}

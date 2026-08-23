@@ -258,10 +258,12 @@ export function StudioNodeAssistantDock({
       references: lastReferences,
       locale,
       apiKeyId: assistantRoute.apiKeyId,
+      llmModelId: assistantRoute.modelId,
       research: researchEnabled,
     }),
     [
       assistantRoute.apiKeyId,
+      assistantRoute.modelId,
       locale,
       nodeContexts,
       lastReferences,

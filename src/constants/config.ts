@@ -442,6 +442,13 @@ export const AI_PROVIDER_ENDPOINTS = {
   OPENAI: 'https://api.openai.com/v1/images',
   OPENAI_CHAT: 'https://api.openai.com/v1',
   DEEPSEEK: 'https://api.deepseek.com',
+  /**
+   * xAI (Grok) — text-only route. Officially "full compatibility with the
+   * OpenAI REST API", so this base URL feeds the same buildOpenAiChatRequest
+   * path DeepSeek uses. `/v1` is part of the base URL in xAI's own SDK
+   * examples (https://docs.x.ai/docs/guides/chat), not appended by us.
+   */
+  XAI: 'https://api.x.ai/v1',
   FAL: 'https://fal.run',
   FAL_QUEUE: 'https://queue.fal.run',
   RUNWAY: 'https://api.dev.runwayml.com/v1',
@@ -474,10 +481,18 @@ export const AI_PROVIDER_ENDPOINTS = {
 } as const
 
 export const LLM_TEXT_MODEL_IDS = {
-  GEMINI_3_1_FLASH_LITE: 'gemini-3.1-flash-lite',
-  GEMINI_3_5_FLASH: 'gemini-3.5-flash',
-  OPENAI_GPT_5_5: 'gpt-5.5',
+  // Gemini: 3.1-flash-lite retired 2026-08-23 — official shutdown 2027-05-07
+  // (deprecations page), replaced by 3.5-flash-lite. 3.7-flash is the current
+  // Flash flagship (promo pricing through 2026-12-31, doubles 2027-01-01).
+  GEMINI_3_5_FLASH_LITE: 'gemini-3.5-flash-lite',
+  GEMINI_3_7_FLASH: 'gemini-3.7-flash',
+  // OpenAI: gpt-5.5 retired 2026-08-23 — at $5/$30 it costs more than the
+  // newer flagship sol ($4/$20), strictly dominated. GPT-5.6 ships as three
+  // price tiers with identical spec cards (sol flagship / terra balanced /
+  // luna high-volume cheap); route tables pick the tier per use case.
   OPENAI_GPT_5_6_SOL: 'gpt-5.6-sol',
+  OPENAI_GPT_5_6_TERRA: 'gpt-5.6-terra',
+  OPENAI_GPT_5_6_LUNA: 'gpt-5.6-luna',
   OPENAI_GPT_5_SEARCH_API: 'gpt-5-search-api',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
   // Qwen (DashScope, intl). Text flagship + 1M-context default + cheap +
@@ -490,6 +505,15 @@ export const LLM_TEXT_MODEL_IDS = {
   // Anthropic (Claude). Sonnet 5 only — owner 2026-07-26 decree, no Opus
   // tier on this route. Canvas-assistant structural reasoning.
   CLAUDE_SONNET_5: 'claude-sonnet-5',
+  /**
+   * xAI (Grok). grok-4.6 only — owner 2026-08-23 decree. 500k context,
+   * text+image input, function calling / structured outputs / reasoning.
+   * $2/$6 per MTok under 200k context, $4/$12 above it.
+   * ⚠ The docs' model **summary table** lists every Grok's modality as "Text";
+   * that column is wrong — each model's own page (and the image-understanding
+   * guide, for 4.6) says `text, image → text`. Trust the per-model page.
+   */
+  XAI_GROK_4_6: 'grok-4.6',
 } as const
 
 export const LLM_TEXT_DEFAULT_MAX_TOKENS = {

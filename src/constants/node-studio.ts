@@ -252,6 +252,9 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS = {
   setupPrefix: 'node-studio-assistant:setup',
 } as const
 
+// Multiple tiers per adapter since 2026-08-23 (owner decree: expose GPT-5.6's
+// three price tiers and let the user pick). The FIRST entry for an adapter is
+// its default tier — resolveAssistantModelId below relies on this ordering.
 export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -259,9 +262,19 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
     label: 'OpenAI GPT-5.6 Sol',
   },
   {
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
+    label: 'OpenAI GPT-5.6 Terra',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_LUNA,
+    label: 'OpenAI GPT-5.6 Luna',
+  },
+  {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
-    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH,
-    label: 'Gemini 3.5 Flash',
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_7_FLASH,
+    label: 'Gemini 3.7 Flash',
   },
   {
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
@@ -277,7 +290,35 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
     modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5,
     label: 'Claude Sonnet 5',
   },
+  {
+    // 2026-08-23: xAI joins as the fifth assistant route. 500k context with
+    // vision at $2/$6 — the cheapest flagship on this route.
+    adapterType: AI_ADAPTER_TYPES.XAI,
+    modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
+    label: 'Grok 4.6',
+  },
 ] as const
+
+/**
+ * Resolve the assistant modelId for an adapter, honoring an explicit tier the
+ * client picked. An unknown (adapterType, modelId) pair falls back to the
+ * adapter's default (first) entry instead of trusting the wire value — the
+ * route table stays the only source of callable assistant models.
+ */
+export function resolveAssistantModelId(
+  adapterType: AI_ADAPTER_TYPES,
+  requestedModelId?: string,
+): string | undefined {
+  const entries = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.filter(
+    (m) => m.adapterType === adapterType,
+  )
+  if (entries.length === 0) return undefined
+  if (requestedModelId) {
+    const match = entries.find((m) => m.modelId === requestedModelId)
+    if (match) return match.modelId
+  }
+  return entries[0].modelId
+}
 
 export const NODE_STUDIO_DOCK = {
   focusZoom: 0.95,

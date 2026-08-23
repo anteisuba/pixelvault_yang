@@ -143,6 +143,36 @@ describe('planResearchHeuristically — IP / 角色', () => {
   })
 })
 
+describe('planResearchHeuristically — 要链接（2026-08-22 实拍幻觉）', () => {
+  // owner 原话，一字未改。它既没有问号也没有问句词，改动前落到兜底分支判
+  // `no retrieval signal` —— 于是证据规矩不注入、模型手上一个真 URL 都没有，
+  // 结果编了两个：域名对、路径瞎编，一个图裂一个 404。
+  it('⭐ 「给我一个适合作为参考图的网站」→ 打源', () => {
+    const plan = planResearchHeuristically(
+      '那你给我一个适合作为参考图的网站也可以，我自己上传',
+    )
+
+    expect(plan.shouldSearch).toBe(true)
+    expect(plan.reason).toBe(
+      'asked for a link — the model would otherwise invent one',
+    )
+  })
+
+  it('同时点了 IP 角色时走角色源组', () => {
+    const plan = planResearchHeuristically('给我一个鸣潮长离的官方立绘链接')
+
+    expect(plan.shouldSearch).toBe(true)
+    expect(plan.sourceGroup).toBe(RESEARCH_SOURCE_GROUPS.ipCharacter)
+  })
+
+  it('⛔ 名词面与动词面都要有：光提到「网站」不算', () => {
+    // 「画一个网站界面」是创作请求，不是问我要链接 —— 拖去打源只会白花一次。
+    const plan = planResearchHeuristically('画一个网站界面的概念图')
+
+    expect(plan.shouldSearch).toBe(false)
+  })
+})
+
 describe('planResearchHeuristically — 不检索的那些', () => {
   it('skips retrieval for stable ecosystem knowledge', () => {
     // 🔬 切片 0：LoRA 生态题两臂 5/5 全对 —— 检索管线不必平均用力

@@ -128,11 +128,28 @@ export function useStudioAssistantPanelInputs() {
     ).values(),
   ]
 
+  /**
+   * 这个模态到底有没有负面提示词输入框。
+   *
+   * ⚠ **一个判据，两处消费**（状态块 + 写回声明）—— 分开写必然分叉，而分叉的
+   * 表现就是 2026-08-22 owner 撞到的那一幕：写回如实说「这个工作台没有这一项」，
+   * 状态块却仍然告诉模型「Negative prompt: (empty)」，于是它提了一个写不进去的
+   * 负面提示词，用户看到一行被当场否掉的建议。
+   *
+   * ⚠ 图片模态不渲染 BottomDock，整个高级面板不存在 —— 值写进去**看不见也删不掉，
+   * 却照样参与生成**，所以这里必须是「没有」而不是「有但空着」。
+   */
+  const hasNegativePromptField = state.outputType !== 'image'
+
   // §3.0b：助手看不见左边工作台 —— 这里把它看得见的事实打包发出去。
   // ⚠ 这个 hook 是**唯一改一处、桌面 dock 和移动端两个宿主同时生效**的点。
   const workbenchState: AssistantWorkbenchState = {
     prompt: state.prompt,
-    negativePrompt: state.advancedParams.negativePrompt,
+    // 字段缺席 = 这个工作台没有负面框（见 `hasNegativePromptField`）。
+    // ⛔ 别回落成空串：那在状态块里会打成 `(empty)`，等于说「有槽，空着」。
+    ...(hasNegativePromptField
+      ? { negativePrompt: state.advancedParams.negativePrompt }
+      : {}),
     // 「没选模型」这个状态本身是信息 —— 以前 modelId:undefined 同时代表「没选」
     // 和「选了但该模型没 enhance hint」，助手因此说不出「你还没选模型」。
     modelSelected: state.selectedOptionId !== null,
@@ -349,35 +366,34 @@ export function useStudioAssistantPanelInputs() {
         : {}),
     },
     appendPrompt: onAppendPrompt,
-    negative:
-      state.outputType === 'image'
-        ? // 缺席原因第 ① 类：宿主没这个能力。说出来而不是静默消失——
-          // 但 `apply` 仍要给一个（类型上必填），面板见 unavailableReason 就不调它。
-          {
-            apply: () => {},
-            isApplied: () => false,
-            unavailableReason: 'unavailableHere',
-          }
-        : {
-            current: state.advancedParams.negativePrompt || undefined,
-            apply: fillNegativePrompt,
-            isApplied: (value) => state.advancedParams.negativePrompt === value,
-            ...(snapshots.advancedParams
-              ? {
-                  undo: () => {
-                    dispatch({
-                      type: 'SET_ADVANCED_PARAMS',
-                      // ⚠ 整个对象回滚，不是只回 negativePrompt 一个键。
-                      payload: snapshots.advancedParams as AdvancedParams,
-                    })
-                    setSnapshots((prev) => ({
-                      ...prev,
-                      advancedParams: undefined,
-                    }))
-                  },
-                }
-              : {}),
-          },
+    negative: !hasNegativePromptField
+      ? // 缺席原因第 ① 类：宿主没这个能力。说出来而不是静默消失——
+        // 但 `apply` 仍要给一个（类型上必填），面板见 unavailableReason 就不调它。
+        {
+          apply: () => {},
+          isApplied: () => false,
+          unavailableReason: 'unavailableHere',
+        }
+      : {
+          current: state.advancedParams.negativePrompt || undefined,
+          apply: fillNegativePrompt,
+          isApplied: (value) => state.advancedParams.negativePrompt === value,
+          ...(snapshots.advancedParams
+            ? {
+                undo: () => {
+                  dispatch({
+                    type: 'SET_ADVANCED_PARAMS',
+                    // ⚠ 整个对象回滚，不是只回 negativePrompt 一个键。
+                    payload: snapshots.advancedParams as AdvancedParams,
+                  })
+                  setSnapshots((prev) => ({
+                    ...prev,
+                    advancedParams: undefined,
+                  }))
+                },
+              }
+            : {}),
+        },
     aspectRatio: {
       current: state.aspectRatio,
       apply: onUseAspectRatio,

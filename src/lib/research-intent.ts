@@ -140,6 +140,50 @@ const QUESTION_TERMS = [
   'why does',
 ]
 
+/**
+ * 「给我个链接 / 官网 / 出处」这一类。**必须打源**：URL 是模型最擅长「按格式
+ * 编出来」的一类事实 —— 域名对、路径瞎编，看上去完全可信，点进去 404。
+ *
+ * 2026-08-22 owner 实拍两条：`static.wikia.nocookie.net/wutheringwaves/images/
+ * 7/70/Changli_Portrait.png`（图裂）与 `patchwiki.biligame.com/images/mc/8/8a/
+ * <乱码>.png`（404）。那一轮的原话是「给我一个适合作为参考图的网站」——
+ * 既没有问号也没有问句词，落到兜底分支判 `no retrieval signal`，于是证据规矩
+ * 根本没注入，模型手上一个真 URL 都没有，只能编。
+ *
+ * ⚠ 名词面与动词面**都要有**：光有「网站」会把「画一个网站界面」这种创作请求
+ *   也拖去打源。要的是「问我要一个链接」，不是「提到了网站」。
+ */
+const LINK_NOUN_TERMS = [
+  '网址',
+  '链接',
+  '网站',
+  '官网',
+  '出处',
+  '来源页',
+  '原图',
+  'url',
+  'link',
+  'website',
+  'official site',
+  'source page',
+]
+
+const LINK_SEEK_TERMS = [
+  '给我',
+  '有没有',
+  '哪里',
+  '哪儿',
+  '推荐',
+  '找',
+  '发我',
+  '来一个',
+  'give me',
+  'send me',
+  'where',
+  'recommend',
+  'any ',
+]
+
 /** 明确的创作指令 —— 这类不该打源（打了也只会稀释用户的意图）。 */
 const CREATIVE_TERMS = [
   '帮我写',
@@ -347,6 +391,25 @@ export function planResearchHeuristically(text: string): ResearchPlan {
       freshness: RESEARCH_FRESHNESS.none,
       urls: [],
       reason: 'well-known ecosystem fact — model knowledge is reliable here',
+    }
+  }
+
+  // ④b 要链接 —— 打源。放在创作请求之前：「给我一个参考图网站」里没有创作动词，
+  //     但万一将来词表相交，「要链接」的优先级更高（编 URL 的代价远大于多搜一次）。
+  if (
+    includesAny(lowered, LINK_NOUN_TERMS) &&
+    includesAny(lowered, LINK_SEEK_TERMS)
+  ) {
+    return {
+      shouldSearch: true,
+      sourceGroup: isIpCharacter
+        ? RESEARCH_SOURCE_GROUPS.ipCharacter
+        : RESEARCH_SOURCE_GROUPS.general,
+      goal: RESEARCH_GOALS.factLookup,
+      queries: [{ text: query, lang: 'zh' }],
+      freshness: RESEARCH_FRESHNESS.none,
+      urls: [],
+      reason: 'asked for a link — the model would otherwise invent one',
     }
   }
 

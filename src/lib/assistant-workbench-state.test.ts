@@ -31,6 +31,16 @@ describe('buildWorkbenchStateBlock', () => {
     expect(block).toContain('Negative prompt: (empty)')
   })
 
+  // 2026-08-22 owner：助手提了一条负面提示词，写回当场否掉「这个工作台没有这一项」。
+  // 根因是这两件事此前都打成 `(empty)`：**「有槽但空着」和「根本没有这个槽」**。
+  it('⭐ 负面字段缺席 = 这个工作台没有负面框，整行不出现', () => {
+    const block = buildWorkbenchStateBlock({ prompt: 'a cat' })
+
+    expect(block).not.toContain('Negative prompt')
+    // 防空转：同一次调用里「有但空着」的提示词行照常出现。
+    expect(block).toContain('Prompt in the editor: a cat')
+  })
+
   it('一个 LoRA 都没挂也要说出来', () => {
     expect(buildWorkbenchStateBlock({ loraMounts: [] })).toContain(
       'Mounted LoRAs: none',

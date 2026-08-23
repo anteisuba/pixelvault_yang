@@ -148,8 +148,15 @@ export function buildWorkbenchStateBlock(
   // ── 编辑器文本 ──
   const prompt = clamp(state.prompt, LIMITS.promptChars)
   lines.push(`- Prompt in the editor: ${prompt ?? '(empty)'}`)
-  const negative = clamp(state.negativePrompt, LIMITS.promptChars)
-  lines.push(`- Negative prompt: ${negative ?? '(empty)'}`)
+  // ⚠ **字段缺席 = 这个工作台没有负面框**，不是「有但空着」—— 图片模态就是这一档
+  //   （不渲染 BottomDock，整个高级面板不存在）。判据必须在 `clamp` **之前**：
+  //   clamp 对 `''` 和 `undefined` 都返回 null，过完就分不出这两件事了。
+  //   打成 `(empty)` 的后果实拍过（2026-08-22）：模型以为有槽可填，提了一个负面
+  //   提示词，写回那边当场否掉「这个工作台没有这一项」—— 一条注定被拒的建议。
+  if (state.negativePrompt !== undefined) {
+    const negative = clamp(state.negativePrompt, LIMITS.promptChars)
+    lines.push(`- Negative prompt: ${negative ?? '(empty)'}`)
+  }
 
   // ── 规格 ──
   if (state.output) {

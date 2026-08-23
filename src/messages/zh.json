@@ -3798,6 +3798,8 @@
     "removeFailed": "删除 Token 失败"
   },
   "StudioPromptArea": {
+    "negativePromptLabel": "负面提示词",
+    "negativePromptPlaceholder": "不想要的元素，例如 blurry, extra fingers",
     "samplePrompt": "晨光中的电影感人像，浅景深，胶片颗粒感",
     "blocked": {
       "styleCardRequired": "请先选择一张风格卡",

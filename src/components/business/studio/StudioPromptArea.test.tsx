@@ -336,6 +336,84 @@ function getSetPromptActions(): SetPromptAction[] {
 }
 
 describe('StudioPromptArea', () => {
+  // 2026-08-22 owner：「我没看到有负面提示词的地方」。查证结论 —— 输入框只长在
+  // `panels.advanced` 对话框里，而那条链（StudioBottomDock → StudioDockPanelArea）
+  // 图片模态**整条不挂载**，于是命令面板的「切换高级设置」是个空开关；而生成管线
+  // 一直在读 `advancedParams.negativePrompt`。字段活着、门没开。
+  describe('负面提示词（图片参数栏）', () => {
+    const setupImagePanel = (advancedParams: Record<string, unknown> = {}) =>
+      setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
+        outputType: 'image',
+        selectedOptionId: null,
+        advancedParams,
+      })
+
+    it('⭐ 图片参数栏里有入口（折叠行，收起时不渲染输入框）', () => {
+      setupImagePanel()
+      render(<StudioPromptArea layout="panel" />)
+
+      const row = screen.getByRole('button', { name: /negativePromptLabel/ })
+      expect(row).toHaveAttribute('aria-expanded', 'false')
+      expect(
+        screen.queryByRole('textbox', { name: 'negativePromptLabel' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('展开后能输入，且写回 advancedParams', () => {
+      setupImagePanel()
+      render(<StudioPromptArea layout="panel" />)
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /negativePromptLabel/ }),
+      )
+      const input = screen.getByRole('textbox', { name: 'negativePromptLabel' })
+      fireEvent.change(input, { target: { value: 'bad hands' } })
+
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: { negativePrompt: 'bad hands' },
+      })
+    })
+
+    it('⚠ 整个对象带过去，不清掉其余高级参数', () => {
+      // `SET_ADVANCED_PARAMS` 是**整体替换** —— 只发 negativePrompt 会把 seed
+      // 这类同住一个对象的参数一起抹掉。
+      setupImagePanel({ seed: 1234 })
+      render(<StudioPromptArea layout="panel" />)
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /negativePromptLabel/ }),
+      )
+      fireEvent.change(
+        screen.getByRole('textbox', { name: 'negativePromptLabel' }),
+        { target: { value: 'blurry' } },
+      )
+
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: { seed: 1234, negativePrompt: 'blurry' },
+      })
+    })
+
+    it('清空写成 undefined 而不是空串（空串会被当成「设过一个空负面」带进请求）', () => {
+      setupImagePanel({ negativePrompt: 'bad hands' })
+      render(<StudioPromptArea layout="panel" />)
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /negativePromptLabel/ }),
+      )
+      fireEvent.change(
+        screen.getByRole('textbox', { name: 'negativePromptLabel' }),
+        { target: { value: '' } },
+      )
+
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: { negativePrompt: undefined },
+      })
+    })
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockGenerate.mockResolvedValue(null)

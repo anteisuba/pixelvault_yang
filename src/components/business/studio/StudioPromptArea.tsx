@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
-import { Loader2, Send, X } from 'lucide-react'
+import { ChevronDown, Loader2, Send, X } from 'lucide-react'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -290,6 +290,12 @@ export const StudioPromptArea = memo(function StudioPromptArea({
   )
 
   // ── Inspiration: apply + placeholder dialog ─────────────────────
+  /**
+   * 负面提示词的折叠态。⚠ 只是**显示**折叠，值本身活在 `state.advancedParams`
+   * —— 折叠不影响它是否随请求发出（发出的判据只有「有没有内容」）。
+   */
+  const [negativePromptExpanded, setNegativePromptExpanded] = useState(false)
+
   const [placeholderDialog, setPlaceholderDialog] = useState<{
     open: boolean
     prompt: string
@@ -1204,6 +1210,64 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               <StudioEnhanceButton disabled={isGenerating} />
             </span>
           </Toolbar.Root>
+
+          {/* 负面提示词 —— 折叠行 + 内容预览，与 LoRA 工作台同一形态（那边是这个
+              字段在本项目里的既有落点）。
+              ⭐ 2026-08-22 补：**图片工作台此前根本没有输入它的地方** ——
+              `StudioImageAdvancedParams` 里那个输入框只长在 `panels.advanced`
+              对话框里，而该对话框挂在 `StudioBottomDock` → `StudioDockPanelArea`
+              这条链上，图片模态走的是 `StudioWorkbenchLayout`，**整条链不挂载**。
+              于是命令面板里的「切换高级设置」翻的是一个没人渲染的状态（空开关），
+              而生成管线一直在读 `advancedParams.negativePrompt`（worker 侧
+              `readStringField(providerInput,'negativePrompt')`）—— 字段活着、门没开。
+              ⛔ 没有把整个高级对话框挂过来：那会把 seed 一并放出去，而 owner
+              2026-08-22 明确「seed 不介入，只接负面提示词」。
+              ⛔ 没有复用 `.lora-reveal`：那是 lora 域皮肤的类，跨域引用会把两个
+              域的皮肤绑死；这里用条件渲染，行为一致、无跨域依赖。 */}
+          <div className="flex flex-col gap-1.5">
+            <button
+              type="button"
+              aria-expanded={negativePromptExpanded}
+              onClick={() => setNegativePromptExpanded((open) => !open)}
+              className="flex w-full items-center gap-2 rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-left"
+            >
+              <span className="shrink-0 text-2xs font-medium text-muted-foreground/70">
+                {tPromptArea('negativePromptLabel')}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground/60">
+                {(state.advancedParams.negativePrompt ?? '').trim() ||
+                  tPromptArea('negativePromptPlaceholder')}
+              </span>
+              <ChevronDown
+                className={cn(
+                  'size-3.5 shrink-0 text-muted-foreground transition-transform duration-fast ease-standard',
+                  negativePromptExpanded && 'rotate-180',
+                )}
+                aria-hidden
+              />
+            </button>
+            {negativePromptExpanded ? (
+              <textarea
+                aria-label={tPromptArea('negativePromptLabel')}
+                value={state.advancedParams.negativePrompt ?? ''}
+                onChange={(event) =>
+                  dispatch({
+                    type: 'SET_ADVANCED_PARAMS',
+                    // ⚠ 整个对象带过去，只换一个键 —— `SET_ADVANCED_PARAMS` 是
+                    //   整体替换，只发 negativePrompt 会把其余参数清空。
+                    payload: {
+                      ...state.advancedParams,
+                      negativePrompt: event.target.value || undefined,
+                    },
+                  })
+                }
+                placeholder={tPromptArea('negativePromptPlaceholder')}
+                rows={2}
+                disabled={isGenerating}
+                className="w-full resize-none rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-xs outline-none placeholder:text-muted-foreground/60 focus:border-primary/40"
+              />
+            ) : null}
+          </div>
 
           {/* 模型 —— 这一轮的名单。行不是丸：行能装下单价，缺价一眼看得出来。
               主模型 + 额外模型都在这里，选择器是多选的（三栏居中 modal，不受

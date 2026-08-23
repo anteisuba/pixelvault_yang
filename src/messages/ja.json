@@ -3798,6 +3798,8 @@
     "removeFailed": "Token削除に失敗しました"
   },
   "StudioPromptArea": {
+    "negativePromptLabel": "ネガティブ",
+    "negativePromptPlaceholder": "避けたい要素（例：blurry, extra fingers）",
     "samplePrompt": "朝の柔らかい光の中の映画的なポートレート、浅い被写界深度、フィルムグレイン",
     "blocked": {
       "styleCardRequired": "先にスタイルカードを選択してください",

@@ -136,10 +136,15 @@ export function useStudioAssistantPanelInputs() {
    * 状态块却仍然告诉模型「Negative prompt: (empty)」，于是它提了一个写不进去的
    * 负面提示词，用户看到一行被当场否掉的建议。
    *
-   * ⚠ 图片模态不渲染 BottomDock，整个高级面板不存在 —— 值写进去**看不见也删不掉，
-   * 却照样参与生成**，所以这里必须是「没有」而不是「有但空着」。
+   * ⭐ **同日更新**：图片模态当时判「没有」是对的（那条链上确实没有输入口），但
+   * 正确的修法不是让助手闭嘴 —— 生成管线一直在读 `advancedParams.negativePrompt`，
+   * 缺的只是门。门已在 `StudioPromptArea` 的参数栏补上（折叠行），所以图片模态
+   * 现在**有**这个字段。
+   *
+   * ⚠ 排除的是 **audio**：它既没有输入控件（`StudioAudioParams` 零处），载荷里
+   * 也不带这个键（audio 分支零处）—— 那才是真正「没这回事」的一档。
    */
-  const hasNegativePromptField = state.outputType !== 'image'
+  const hasNegativePromptField = state.outputType !== 'audio'
 
   // §3.0b：助手看不见左边工作台 —— 这里把它看得见的事实打包发出去。
   // ⚠ 这个 hook 是**唯一改一处、桌面 dock 和移动端两个宿主同时生效**的点。

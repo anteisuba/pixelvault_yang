@@ -3798,6 +3798,8 @@
     "removeFailed": "Failed to remove token"
   },
   "StudioPromptArea": {
+    "negativePromptLabel": "Negative prompt",
+    "negativePromptPlaceholder": "Unwanted elements, e.g. blurry, extra fingers",
     "samplePrompt": "A cinematic portrait in soft morning light, shallow depth of field, film grain",
     "blocked": {
       "styleCardRequired": "Pick a style card first",

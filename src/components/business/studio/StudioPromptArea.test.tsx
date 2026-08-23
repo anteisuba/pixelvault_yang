@@ -186,11 +186,25 @@ vi.mock('@/components/business/studio/StudioToolbarPanels', () => ({
 }))
 
 vi.mock('@/components/ui/prompt-input', () => ({
+  // ⚠ 必须复刻真组件那一手：根容器在**任何冒泡上来的点击**时把焦点抢给主输入框
+  //   （真实现见 `ui/prompt-input.tsx` 的 handleClick → focusUnlessTouch）。
+  //   ⛔ 别简化成光秃秃的 `<div {...props}>` —— 2026-08-22 就是因为这个，
+  //   「点了负面提示词框、打的字全进主提示词框」在测试里完全看不见，
+  //   owner 真机撞到时的原话是「甚至无法点击」。
   PromptInput: ({
     children,
     ...props
   }: { children: ReactNode } & ComponentProps<'div'>) => (
-    <div {...props}>{children}</div>
+    <div
+      {...props}
+      onClick={(event) => {
+        props.onClick?.(event)
+        // 第一个 textarea = 主提示词框（DOM 顺序），与真组件的 textareaRef 等价。
+        event.currentTarget.querySelector('textarea')?.focus()
+      }}
+    >
+      {children}
+    </div>
   ),
   PromptInputTextarea: (props: ComponentProps<'textarea'>) => (
     <textarea {...props} />
@@ -393,6 +407,43 @@ describe('StudioPromptArea', () => {
         type: 'SET_ADVANCED_PARAMS',
         payload: { seed: 1234, negativePrompt: 'blurry' },
       })
+    })
+
+    // 2026-08-22 owner：「甚至无法点击」。根因不是命中区域，是 `PromptInput` 根容器
+    // 在冒泡时把焦点抢回主提示词框 —— 点中了、也聚焦了，然后焦点被夺走，
+    // 于是打的字全进主提示词框。同文件的 `PromptInputAction` 早就用
+    // stopPropagation 防这一手。
+    it('⛔ 点负面框时容器不许把焦点抢回主提示词框', () => {
+      setupImagePanel()
+      render(<StudioPromptArea layout="panel" />)
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /negativePromptLabel/ }),
+      )
+      const negative = screen.getByRole('textbox', {
+        name: 'negativePromptLabel',
+      })
+      const mainPrompt = screen.getByRole('textbox', { name: 'promptLabel' })
+
+      fireEvent.click(negative)
+
+      expect(document.activeElement).not.toBe(mainPrompt)
+    })
+
+    it('⛔ 展开后不再重复同一句 placeholder（同一句话不许一屏两遍）', () => {
+      setupImagePanel()
+      render(<StudioPromptArea layout="panel" />)
+
+      const row = screen.getByRole('button', { name: /negativePromptLabel/ })
+      expect(row.textContent).toContain('negativePromptPlaceholder')
+
+      fireEvent.click(row)
+
+      // 展开后同一句只由输入框的 placeholder 承担，摘要行不再重复。
+      expect(row.textContent).not.toContain('negativePromptPlaceholder')
+      expect(
+        screen.getByRole('textbox', { name: 'negativePromptLabel' }),
+      ).toHaveAttribute('placeholder', 'negativePromptPlaceholder')
     })
 
     it('清空写成 undefined 而不是空串（空串会被当成「设过一个空负面」带进请求）', () => {

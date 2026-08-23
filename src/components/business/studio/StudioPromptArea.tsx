@@ -1224,7 +1224,16 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               2026-08-22 明确「seed 不介入，只接负面提示词」。
               ⛔ 没有复用 `.lora-reveal`：那是 lora 域皮肤的类，跨域引用会把两个
               域的皮肤绑死；这里用条件渲染，行为一致、无跨域依赖。 */}
-          <div className="flex flex-col gap-1.5">
+          <div
+            className="flex flex-col gap-1.5"
+            // ⭐ 必须挡住冒泡：`PromptInput` 的根 div 在**容器内任何点击**冒泡上来时
+            //   都会 `focusUnlessTouch(textareaRef)` 把焦点抢回主提示词框
+            //   （见 `ui/prompt-input.tsx` 的 handleClick）。不挡的话点这里的输入框
+            //   会「看着聚焦了、打的字全进主提示词框」—— 2026-08-22 owner 实拍
+            //   「甚至无法点击」，我当时误判成自己点偏了。
+            //   ⚠ 同文件里 `PromptInputAction` 早就是这么防的，这里照它。
+            onClick={(event) => event.stopPropagation()}
+          >
             <button
               type="button"
               aria-expanded={negativePromptExpanded}
@@ -1234,10 +1243,17 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               <span className="shrink-0 text-2xs font-medium text-muted-foreground/70">
                 {tPromptArea('negativePromptLabel')}
               </span>
-              <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground/60">
-                {(state.advancedParams.negativePrompt ?? '').trim() ||
-                  tPromptArea('negativePromptPlaceholder')}
-              </span>
+              {/* ⚠ 预览只在**收起**时出现：展开后下面的输入框已经把同一句
+                  placeholder 写了一遍，两处一模一样的字同屏出现是噪音
+                  （「同一句话不许一屏两遍」）。展开时这里只留标签。 */}
+              {negativePromptExpanded ? (
+                <span className="flex-1" />
+              ) : (
+                <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground/60">
+                  {(state.advancedParams.negativePrompt ?? '').trim() ||
+                    tPromptArea('negativePromptPlaceholder')}
+                </span>
+              )}
               <ChevronDown
                 className={cn(
                   'size-3.5 shrink-0 text-muted-foreground transition-transform duration-fast ease-standard',

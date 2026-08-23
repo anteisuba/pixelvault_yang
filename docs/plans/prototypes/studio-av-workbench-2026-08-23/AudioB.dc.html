@@ -1,0 +1,164 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: Geist, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: #0a0a0a; } a:hover { color: #525252; }
+    .mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .slot { background: #efefef; background-image: repeating-linear-gradient(135deg, transparent 0 9px, rgba(0,0,0,.035) 9px 10px); }
+    .lbl { font-size: 11px; color: #737373; }
+    .fold { border: 1px solid #e5e5e5; border-radius: 10px; padding: 8px 11px; font-size: 12.5px; display: flex; align-items: center; justify-content: space-between; }
+  </style>
+</helmet>
+
+<div style="width: 1280px; height: 900px; background: #ffffff; color: #0a0a0a; display: flex; flex-direction: column; box-sizing: border-box">
+
+  <div style="display: flex; align-items: baseline; gap: 14px; padding: 20px 28px 16px; border-bottom: 1px solid #e5e5e5">
+    <span class="mono" style="font-size: 11px; letter-spacing: 0.12em; color: oklch(46% 0.09 10)">音频 · 方向 B</span>
+    <h1 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">调音台 —— 和图片同一个壳，参数按档整组替换</h1>
+    <span style="flex-grow: 1"></span>
+    <span style="font-size: 12px; color: #737373">三模态一个骨架 · 换的只是栏位</span>
+  </div>
+
+  <div style="display: flex; flex-grow: 1; min-height: 0">
+
+    <!-- 左参数栏 288 -->
+    <div style="width: 288px; flex-shrink: 0; border-right: 1px solid #e5e5e5; padding: 16px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box">
+
+      <div style="display: flex; gap: 3px; border: 1px solid #e5e5e5; border-radius: 10px; padding: 3px">
+        <div style="flex-grow: 1; height: 28px; border-radius: 7px; background: oklch(46% 0.09 10 / 0.1); color: oklch(46% 0.09 10); display: grid; place-items: center; font-size: 12px; font-weight: 500">语音</div>
+        <div style="flex-grow: 1; height: 28px; border-radius: 7px; display: grid; place-items: center; font-size: 12px; color: #737373">音效</div>
+        <div style="flex-grow: 1; height: 28px; border-radius: 7px; display: grid; place-items: center; font-size: 12px; color: #737373">音乐</div>
+      </div>
+
+      <div style="display: flex; align-items: baseline; justify-content: space-between"><span class="lbl">正文</span><span class="mono" style="font-size: 10.5px; color: #737373">1 268 / 5 000</span></div>
+      <div style="background: #f5f1e8; border-radius: 12px; padding: 11px; height: 96px; color: #2e2e2e; font-size: 12px; line-height: 1.6; box-sizing: border-box">凌晨四点半，山谷还没醒。雾贴着地面走，像谁把一整条河横过来铺在了草上……</div>
+
+      <span class="lbl" style="margin-top: 2px">音色</span>
+      <div style="border: 1px solid #e5e5e5; border-radius: 10px; padding: 7px 9px; display: flex; gap: 9px; align-items: center">
+        <div style="width: 28px; height: 28px; border-radius: 999px; flex-shrink: 0" class="slot"></div>
+        <span style="font-size: 12.5px; flex-grow: 1">晚间电台 · 女声</span>
+        <span style="color: #a3a3a3; font-size: 11px">换</span>
+      </div>
+
+      <div class="fold" style="margin-top: 2px"><span>怎么念 · 语速正常 / 表现力自动</span><span style="color: #a3a3a3">⌄</span></div>
+      <div class="fold"><span>停顿与发音 · 2 条</span><span style="color: #a3a3a3">⌄</span></div>
+      <div class="fold"><span>输出 · MP3 44.1k</span><span style="color: #a3a3a3">⌄</span></div>
+      <div class="fold"><span>模型参数 · 默认</span><span style="color: #a3a3a3">⌄</span></div>
+      <div class="fold"><span>多角色音色 · 未启用</span><span style="color: #a3a3a3">⌄</span></div>
+
+      <div style="border: 1px dashed #e0e0e0; border-radius: 10px; padding: 8px 11px; font-size: 11.5px; color: #a08b6a; background: #fdfaf3; line-height: 1.5">⚠ 五个折叠是这个方向的代价：语音的参数今天是一个三页签对话框，288px 只装得下手风琴。</div>
+
+      <div style="flex-grow: 1"></div>
+      <span class="mono" style="font-size: 11px; color: #737373">约 6 积分 · 约 1.4 分钟</span>
+      <div style="background: #000000; color: #ffffff; border-radius: 12px; height: 44px; display: grid; place-items: center; font-size: 14px; font-weight: 500">合成 1 条</div>
+    </div>
+
+    <!-- 结果区 -->
+    <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; padding: 18px 24px; gap: 12px">
+
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span style="font-size: 13px; font-weight: 500">Fish Audio S2 Pro</span>
+        <span class="mono" style="font-size: 11px; color: #737373">3 条</span>
+        <span style="flex-grow: 1; height: 1px; background: #e5e5e5"></span>
+        <span style="font-size: 12px; color: #525252">全部重跑</span>
+      </div>
+
+      <!-- 条目 1：选中 -->
+      <div style="border-radius: 12px; outline: 2px solid #0a0a0a; outline-offset: -2px; padding: 14px 16px; display: flex; align-items: center; gap: 14px">
+        <div style="width: 38px; height: 38px; border-radius: 999px; background: #0a0a0a; color: #ffffff; display: grid; place-items: center; font-size: 11px; flex-shrink: 0">▶</div>
+        <div style="display: flex; flex-direction: column; gap: 3px; width: 132px; flex-shrink: 0">
+          <span style="font-size: 12.5px; font-weight: 500">取次 3 · 表现力戏剧</span>
+          <span class="mono" style="font-size: 10.5px; color: #737373">1:26 · 2.1 MB</span>
+        </div>
+        <svg width="340" height="30" viewBox="0 0 180 32" style="color: #0a0a0a; flex-shrink: 0" aria-hidden="true">
+          <path d="M3 12v8M9 9v14M15 5v22M21 2v28M27 7v18M33 11v10M39 13v6M45 8v16M51 4v24M57 3v26M63 6v20M69 10v12M75 12v8M81 7v18M87 3v26M93 5v22M99 9v14M105 11v10M111 8v16M117 4v24M123 2v28M129 6v20M135 10v12M141 13v6M147 9v14M153 5v22M159 7v18M165 11v10M171 12v8M177 10v12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity=".22"/>
+          <path d="M3 12v8M9 9v14M15 5v22M21 2v28M27 7v18M33 11v10M39 13v6M45 8v16M51 4v24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+        <span style="flex-grow: 1"></span>
+        <div style="display: flex; gap: 7px; flex-shrink: 0">
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 32px; padding: 0 13px; display: grid; place-items: center; font-size: 12px">下载</div>
+          <div style="background: #000000; color: #ffffff; border-radius: 999px; height: 32px; padding: 0 15px; display: grid; place-items: center; font-size: 12px">采纳</div>
+        </div>
+      </div>
+
+      <!-- 条目 2 -->
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 14px">
+        <div style="width: 38px; height: 38px; border-radius: 999px; border: 1px solid #e5e5e5; display: grid; place-items: center; font-size: 11px; flex-shrink: 0">▶</div>
+        <div style="display: flex; flex-direction: column; gap: 3px; width: 132px; flex-shrink: 0">
+          <span style="font-size: 12.5px">取次 2 · 语速慢</span>
+          <span class="mono" style="font-size: 10.5px; color: #737373">1:41 · 2.5 MB</span>
+        </div>
+        <svg width="340" height="30" viewBox="0 0 180 32" style="color: #737373; flex-shrink: 0" aria-hidden="true">
+          <path d="M3 10v12M9 6v20M15 3v26M21 8v16M27 12v8M33 5v22M39 9v14M45 13v6M51 7v18M57 4v24M63 11v10M69 8v16M75 3v26M81 6v20M87 10v12M93 12v8M99 5v22M105 9v14M111 13v6M117 7v18M123 4v24M129 11v10M135 8v16M141 3v26M147 6v20M153 10v12M159 12v8M165 5v22M171 9v14M177 13v6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity=".4"/>
+        </svg>
+        <span style="flex-grow: 1"></span>
+        <div style="display: flex; gap: 7px; flex-shrink: 0">
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 32px; padding: 0 13px; display: grid; place-items: center; font-size: 12px">下载</div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 32px; padding: 0 15px; display: grid; place-items: center; font-size: 12px">采纳</div>
+        </div>
+      </div>
+
+      <!-- 条目 3：失败 -->
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; background: #fbfbfb">
+        <div style="width: 38px; height: 38px; border-radius: 999px; border: 1px dashed #d4d4d4; flex-shrink: 0"></div>
+        <div style="display: flex; flex-direction: column; gap: 3px; width: 132px; flex-shrink: 0">
+          <span style="font-size: 12.5px; color: #b45309">取次 1 · 失败</span>
+          <span class="mono" style="font-size: 10.5px; color: #737373">正文超出上限</span>
+        </div>
+        <span style="font-size: 12px; color: #737373; flex-grow: 1">把正文截到 5 000 字以内，或换一个没有硬上限的模型。</span>
+        <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 32px; padding: 0 13px; display: grid; place-items: center; font-size: 12px; flex-shrink: 0">重试这条</div>
+      </div>
+
+      <!-- 三档参数组对照 -->
+      <div style="margin-top: auto; border-top: 1px solid #e5e5e5; padding-top: 14px">
+        <div style="display: flex; align-items: baseline; gap: 10px; padding-bottom: 10px">
+          <span style="font-size: 13px; font-weight: 500">切档时左栏换成什么</span>
+          <span style="font-size: 12px; color: #737373">—— 骨架不动，只有栏位整组替换；这是「一个壳」成立的前提</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+          <div style="border: 1px solid #e5e5e5; border-radius: 10px; padding: 11px 13px; display: flex; flex-direction: column; gap: 6px">
+            <span style="font-size: 12.5px; font-weight: 500">语音</span>
+            <span style="font-size: 11.5px; color: #525252; line-height: 1.6">正文（有上限）· 音色 · 语速 / 表现力 / 朗读风格 · 停顿与发音 · 输出 · 模型参数 · 多角色</span>
+          </div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 10px; padding: 11px 13px; display: flex; flex-direction: column; gap: 6px">
+            <span style="font-size: 12.5px; font-weight: 500">音效</span>
+            <span style="font-size: 11.5px; color: #525252; line-height: 1.6">描述 · 变体数 ×1/×2/×3 · 时长 · 提示词贴合度 · 无缝循环。<strong style="color: #0a0a0a">没有音色、没有语速</strong> —— 那三颗丸今天照样显示。</span>
+          </div>
+          <div style="border: 1px dashed #e0e0e0; border-radius: 10px; padding: 11px 13px; display: flex; flex-direction: column; gap: 6px; background: #fdfaf3">
+            <span style="font-size: 12.5px; font-weight: 500; color: #a08b6a">音乐 · 今天是半成品</span>
+            <span style="font-size: 11.5px; color: #7d6a4d; line-height: 1.6">描述 · 时长（3–600 秒，后端已通、前端无门 E8）。今天切过去显示的是语音那排（E7）。要么补齐这两栏，要么先关掉这一档。</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="border-top: 1px solid #e5e5e5; background: #fafafa; padding: 16px 28px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px">
+    <div style="display: flex; flex-direction: column; gap: 5px">
+      <span class="mono" style="font-size: 11px; letter-spacing: 0.1em; color: #737373">换来</span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #0a0a0a">三个模态一套骨架，图片改完的那套结构直接复用，维护面最小。音效的 ×N 变体天然落进结果列表，和图片的矩阵是同一件事。E7 / E8 被逼到台面上：切档换栏这条规矩一旦成立，音乐档「显示语音参数」就不再可能。</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 5px">
+      <span class="mono" style="font-size: 11px; letter-spacing: 0.1em; color: #737373">代价</span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #525252">288px 装语音那堆参数只能靠五个折叠 —— 用户要找「响度归一」得先猜它在哪一折。正文被压成 96px 的小框，而它是这个模态真正的主角（方向 A 正是冲这一条去的）。结果区一次只并排三行波形，长稿子对比时看不出差别，只能逐条听。</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

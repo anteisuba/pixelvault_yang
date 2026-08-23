@@ -1,0 +1,162 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: Geist, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: #0a0a0a; } a:hover { color: #525252; }
+    .mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .slot { background: #efefef; background-image: repeating-linear-gradient(135deg, transparent 0 9px, rgba(0,0,0,.035) 9px 10px); }
+    .lbl { font-size: 11px; color: #737373; }
+  </style>
+</helmet>
+
+<div style="width: 1280px; height: 900px; background: #ffffff; color: #0a0a0a; display: flex; flex-direction: column; box-sizing: border-box">
+
+  <div style="display: flex; align-items: baseline; gap: 14px; padding: 20px 28px 16px; border-bottom: 1px solid #e5e5e5">
+    <span class="mono" style="font-size: 11px; letter-spacing: 0.12em; color: oklch(46% 0.09 255)">视频 · 方向 B</span>
+    <h1 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">片场 —— 输入槽位上舞台，为「等 1–5 分钟」而排</h1>
+    <span style="flex-grow: 1"></span>
+    <span style="font-size: 12px; color: #737373">输入语义优先 · 等待期不空转</span>
+  </div>
+
+  <div style="display: flex; flex-grow: 1; min-height: 0">
+
+    <!-- 左栏收窄到 224：只留「这一条怎么跑」 -->
+    <div style="width: 224px; flex-shrink: 0; border-right: 1px solid #e5e5e5; padding: 16px; display: flex; flex-direction: column; gap: 11px; box-sizing: border-box">
+      <span class="lbl">用途</span>
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="height: 30px; border-radius: 8px; background: oklch(46% 0.09 255 / 0.1); color: oklch(46% 0.09 255); display: flex; align-items: center; padding: 0 11px; font-size: 12.5px; font-weight: 500">关键帧</div>
+        <div style="height: 30px; border-radius: 8px; display: flex; align-items: center; padding: 0 11px; font-size: 12.5px; color: #737373">图像参考</div>
+        <div style="height: 30px; border-radius: 8px; display: flex; align-items: center; padding: 0 11px; font-size: 12.5px; color: #737373">多模态参考</div>
+      </div>
+
+      <span class="lbl" style="margin-top: 4px">模型</span>
+      <div style="border: 1px solid #e5e5e5; border-radius: 10px; padding: 8px 11px; font-size: 12.5px">Seedance 2.5 · 火山</div>
+
+      <span class="lbl" style="margin-top: 4px">规格</span>
+      <div style="display: flex; gap: 4px">
+        <div style="flex-grow: 1; height: 28px; border-radius: 8px; border: 1px solid #0a0a0a; display: grid; place-items: center; font-size: 12px">5s</div>
+        <div style="flex-grow: 1; height: 28px; border-radius: 8px; border: 1px solid #e5e5e5; display: grid; place-items: center; font-size: 12px; color: #737373">10s</div>
+      </div>
+      <div style="display: flex; gap: 4px">
+        <div style="flex-grow: 1; height: 28px; border-radius: 8px; border: 1px solid #e5e5e5; display: grid; place-items: center; font-size: 12px; color: #737373">480p</div>
+        <div style="flex-grow: 1; height: 28px; border-radius: 8px; border: 1px solid #0a0a0a; display: grid; place-items: center; font-size: 12px">720p</div>
+      </div>
+      <div style="display: flex; gap: 4px">
+        <div style="flex-grow: 1; height: 28px; border-radius: 8px; border: 1px solid #0a0a0a; display: grid; place-items: center; font-size: 12px">16:9</div>
+        <div style="flex-grow: 1; height: 28px; border-radius: 8px; border: 1px solid #e5e5e5; display: grid; place-items: center; font-size: 12px; color: #737373">9:16</div>
+      </div>
+
+      <div style="border: 1px solid #e5e5e5; border-radius: 10px; padding: 7px 11px; font-size: 12px; color: #737373; display: flex; align-items: center; justify-content: space-between">反向提示词<span style="color: #a3a3a3">⌄</span></div>
+
+      <div style="flex-grow: 1"></div>
+      <span class="mono" style="font-size: 11px; color: #737373">队列 2 / 4 · 约 24 积分</span>
+    </div>
+
+    <!-- 舞台 -->
+    <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column">
+
+      <!-- 槽位条：图往哪儿去，画出来 -->
+      <div style="padding: 16px 24px 14px; border-bottom: 1px solid #e5e5e5; background: #fafafa; display: flex; align-items: flex-start; gap: 18px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span class="lbl">首帧</span>
+          <div style="width: 112px; height: 63px; border-radius: 8px; outline: 2px solid #0a0a0a; outline-offset: -2px" class="slot"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span class="lbl" style="color: #a3a3a3">尾帧 · 尚未实现</span>
+          <div style="width: 112px; height: 63px; border-radius: 8px; border: 1px dashed #e0e0e0; background: #f7f7f7; display: grid; place-items: center"><span style="font-size: 10.5px; color: #b8b8b8">不可用</span></div>
+        </div>
+        <div style="width: 1px; align-self: stretch; background: #e5e5e5"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span class="lbl">内容参考 · 关键帧档下不参与</span>
+          <div style="display: flex; gap: 8px">
+            <div style="width: 63px; height: 63px; border-radius: 8px; opacity: .4" class="slot"></div>
+            <div style="width: 63px; height: 63px; border-radius: 8px; border: 1px dashed #cfcfcf; display: grid; place-items: center; color: #c4c4c4; font-size: 18px">+</div>
+          </div>
+        </div>
+        <span style="flex-grow: 1"></span>
+        <p style="margin: 0; width: 250px; font-size: 11.5px; line-height: 1.6; color: #737373">槽位随用途档换名换数：切到「图像参考」，首帧槽收起、内容参考槽亮起并放开到该模型的上限。<strong style="color: #525252">尾帧槽今天必须是灰的</strong> —— 后端没有这个字段（E5）。</p>
+      </div>
+
+      <!-- 等待态：B 的主状态 -->
+      <div style="flex-grow: 1; min-height: 0; padding: 18px 24px; display: flex; gap: 16px">
+        <div style="flex-grow: 1; border-radius: 12px; border: 1px solid #e5e5e5; background: #fafafa; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px">
+          <div style="width: 46px; height: 46px; border-radius: 999px; border: 3px solid #e5e5e5; border-top-color: #0a0a0a"></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px">
+            <span style="font-size: 14px; font-weight: 500">正在生成 · 排队已过</span>
+            <span class="mono" style="font-size: 22px; letter-spacing: -0.01em">1:24</span>
+            <span style="font-size: 12px; color: #737373">Seedance 2.5 通常 2–4 分钟。可以直接排下一条。</span>
+          </div>
+          <div style="display: flex; gap: 8px">
+            <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 32px; padding: 0 14px; display: grid; place-items: center; font-size: 12px; background: #ffffff">取消这条</div>
+            <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 32px; padding: 0 14px; display: grid; place-items: center; font-size: 12px; background: #ffffff">看上一条</div>
+          </div>
+        </div>
+
+        <!-- 队列 -->
+        <div style="width: 208px; flex-shrink: 0; display: flex; flex-direction: column; gap: 9px">
+          <span class="lbl">本轮队列</span>
+          <div style="border: 1px solid #0a0a0a; border-radius: 9px; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px">
+            <span style="font-size: 12px; font-weight: 500">#3 生成中</span>
+            <div style="height: 3px; border-radius: 999px; background: #e5e5e5; position: relative"><div style="position: absolute; left: 0; top: 0; bottom: 0; width: 46%; border-radius: 999px; background: #0a0a0a"></div></div>
+            <span class="mono" style="font-size: 10.5px; color: #737373">镜头缓缓推近，猫从窗台…</span>
+          </div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 9px; padding: 8px 10px; display: flex; gap: 8px; align-items: center">
+            <div style="width: 46px; height: 26px; border-radius: 4px; flex-shrink: 0" class="slot"></div>
+            <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 12px">#2 已完成</span><span class="mono" style="font-size: 10.5px; color: #737373">5.0s · 720p</span></div>
+          </div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 9px; padding: 8px 10px; display: flex; gap: 8px; align-items: center">
+            <div style="width: 46px; height: 26px; border-radius: 4px; flex-shrink: 0" class="slot"></div>
+            <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 12px">#1 已完成</span><span class="mono" style="font-size: 10.5px; color: #737373">5.0s · 720p</span></div>
+          </div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 9px; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; background: #fff">
+            <span style="font-size: 12px; color: #b45309">#0 失败</span>
+            <span style="font-size: 10.5px; color: #737373; line-height: 1.45">参考图超过该模型上限</span>
+            <span style="font-size: 11px; text-decoration: underline">重试这条</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 提示词沉到底部，贴着结果 -->
+      <div style="border-top: 1px solid #e5e5e5; padding: 14px 24px; display: flex; align-items: flex-end; gap: 12px">
+        <div style="flex-grow: 1; background: #f5f1e8; border-radius: 14px; padding: 11px 14px; min-height: 58px; box-sizing: border-box; display: flex; flex-direction: column; gap: 7px">
+          <span style="font-size: 13px; color: #2e2e2e; line-height: 1.5">镜头缓缓推近，猫从窗台跃下，晨光穿过纱帘…</span>
+          <div style="display: flex; gap: 6px">
+            <div style="border: 1px solid rgba(0,0,0,.1); border-radius: 999px; padding: 3px 9px; font-size: 11px; color: #6b6558">运镜语法</div>
+            <div style="border: 1px solid rgba(0,0,0,.1); border-radius: 999px; padding: 3px 9px; font-size: 11px; color: #6b6558">模板</div>
+            <div style="border: 1px solid rgba(0,0,0,.1); border-radius: 999px; padding: 3px 9px; font-size: 11px; color: #6b6558">助手</div>
+          </div>
+        </div>
+        <div style="background: #000000; color: #ffffff; border-radius: 12px; height: 58px; padding: 0 22px; display: grid; place-items: center; font-size: 14px; font-weight: 500; flex-shrink: 0">再排一条</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="border-top: 1px solid #e5e5e5; background: #fafafa; padding: 16px 28px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px">
+    <div style="display: flex; flex-direction: column; gap: 5px">
+      <span class="mono" style="font-size: 11px; letter-spacing: 0.1em; color: #737373">换来</span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #0a0a0a">「这张图会被当成什么」画在了槽位上，不再靠一颗丸的名字去记（E4）。长等待不再是死屏：槽位、提示词、队列全程在场，等的时候能直接排下一条（并发上限本来就是 4）。失败按条重试，不牵连整轮。尾帧槽用一个明确的灰位记账 E5，比装作没有这回事诚实。</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 5px">
+      <span class="mono" style="font-size: 11px; letter-spacing: 0.1em; color: #737373">代价</span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #525252">提示词跑到底部、参数留在左栏，扫视是 Z 形，和图片工作台不同构（D1 要为此付一次学习成本）。队列列表要有真的多任务态支撑，不能只是把 activeRun 画三遍。画一个永远点不动的尾帧槽有「广告未来功能」的风险，owner 也可能宁可先不画。</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

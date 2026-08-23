@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; font-family: Geist, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: #0a0a0a; } a:hover { color: #525252; }
+    .mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .slot { background: #efefef; background-image: repeating-linear-gradient(135deg, transparent 0 9px, rgba(0,0,0,.035) 9px 10px); }
+    .lbl { font-size: 11px; color: #737373; }
+    .row { border: 1px solid #e5e5e5; border-radius: 10px; padding: 9px 12px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  </style>
+</helmet>
+
+<div style="width: 1280px; height: 900px; background: #ffffff; color: #0a0a0a; display: flex; flex-direction: column; box-sizing: border-box">
+
+  <!-- 方向标题条 -->
+  <div style="display: flex; align-items: baseline; gap: 14px; padding: 20px 28px 16px; border-bottom: 1px solid #e5e5e5">
+    <span class="mono" style="font-size: 11px; letter-spacing: 0.12em; color: oklch(46% 0.09 255)">视频 · 方向 A</span>
+    <h1 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">机位台 —— 与图片工作台同构，用途档升到第一决策</h1>
+    <span style="flex-grow: 1"></span>
+    <span style="font-size: 12px; color: #737373">最小改动 · 学习成本零</span>
+  </div>
+
+  <div style="display: flex; flex-grow: 1; min-height: 0">
+
+    <!-- 左参数栏 288 -->
+    <div style="width: 288px; flex-shrink: 0; border-right: 1px solid #e5e5e5; padding: 16px; display: flex; flex-direction: column; gap: 11px; box-sizing: border-box">
+
+      <!-- ① 用途：第一决策，因为它决定端点与下面所有栏位 -->
+      <span class="lbl">图片用途 · 决定这一次发哪个端点</span>
+      <div style="display: flex; gap: 3px; border: 1px solid #e5e5e5; border-radius: 10px; padding: 3px">
+        <div style="flex-grow: 1; height: 28px; border-radius: 7px; background: oklch(46% 0.09 255 / 0.1); color: oklch(46% 0.09 255); display: grid; place-items: center; font-size: 12px; font-weight: 500">关键帧</div>
+        <div style="flex-grow: 1; height: 28px; border-radius: 7px; display: grid; place-items: center; font-size: 12px; color: #737373">图像参考</div>
+        <div style="flex-grow: 1; height: 28px; border-radius: 7px; display: grid; place-items: center; font-size: 12px; color: #737373">多模态</div>
+      </div>
+
+      <span class="lbl" style="margin-top: 2px">提示词</span>
+      <div style="background: #f5f1e8; border-radius: 12px; padding: 11px; height: 84px; color: #2e2e2e; font-size: 12px; line-height: 1.55; box-sizing: border-box">镜头缓缓推近，猫从窗台跃下，晨光穿过纱帘…</div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap">
+        <div style="border: 1px solid #e5e5e5; border-radius: 999px; padding: 5px 11px; font-size: 12px">模板</div>
+        <div style="border: 1px solid #e5e5e5; border-radius: 999px; padding: 5px 11px; font-size: 12px; background: #f5f5f5">首帧图 1</div>
+        <div style="border: 1px solid #e5e5e5; border-radius: 999px; padding: 5px 11px; font-size: 12px">运镜语法</div>
+      </div>
+
+      <div class="row" style="justify-content: space-between; padding: 7px 11px"><span class="lbl">反向提示词</span><span style="font-size: 11px; color: #a3a3a3">模糊、抖动、字幕</span><span style="color: #a3a3a3; font-size: 11px">⌄</span></div>
+
+      <span class="lbl" style="margin-top: 2px">模型</span>
+      <div class="row" style="padding: 8px 11px"><span style="flex-grow: 1">Seedance 2.5 · 火山</span><span style="color: #a3a3a3; font-size: 12px">✕</span></div>
+      <div class="row" style="border-style: dashed; color: #737373; padding: 8px 11px; justify-content: center">＋ 添加模型</div>
+
+      <span class="lbl" style="margin-top: 2px">规格 · 档位随模型收窄</span>
+      <div style="display: flex; flex-direction: column; gap: 7px">
+        <div style="display: flex; align-items: center; gap: 8px"><span class="lbl" style="width: 42px">时长</span><div style="display: flex; gap: 4px; flex-grow: 1">
+          <div style="flex-grow: 1; height: 26px; border-radius: 7px; border: 1px solid #0a0a0a; display: grid; place-items: center; font-size: 12px">5s</div>
+          <div style="flex-grow: 1; height: 26px; border-radius: 7px; border: 1px solid #e5e5e5; display: grid; place-items: center; font-size: 12px; color: #737373">10s</div>
+          <div style="flex-grow: 1; height: 26px; border-radius: 7px; border: 1px solid #e5e5e5; display: grid; place-items: center; font-size: 12px; color: #737373">15s</div>
+        </div></div>
+        <div style="display: flex; align-items: center; gap: 8px"><span class="lbl" style="width: 42px">分辨率</span><div style="display: flex; gap: 4px; flex-grow: 1">
+          <div style="flex-grow: 1; height: 26px; border-radius: 7px; border: 1px solid #e5e5e5; display: grid; place-items: center; font-size: 12px; color: #737373">480p</div>
+          <div style="flex-grow: 1; height: 26px; border-radius: 7px; border: 1px solid #0a0a0a; display: grid; place-items: center; font-size: 12px">720p</div>
+        </div></div>
+        <div style="display: flex; align-items: center; gap: 8px"><span class="lbl" style="width: 42px">比例</span><div style="display: flex; gap: 4px; flex-grow: 1">
+          <div style="flex-grow: 1; height: 26px; border-radius: 7px; border: 1px solid #0a0a0a; display: grid; place-items: center; font-size: 12px">16:9</div>
+          <div style="flex-grow: 1; height: 26px; border-radius: 7px; border: 1px solid #e5e5e5; display: grid; place-items: center; font-size: 12px; color: #737373">9:16</div>
+          <div style="flex-grow: 1; height: 26px; border-radius: 7px; border: 1px solid #e5e5e5; display: grid; place-items: center; font-size: 12px; color: #737373">1:1</div>
+        </div></div>
+      </div>
+
+      <div style="flex-grow: 1"></div>
+      <span class="mono" style="font-size: 11px; color: #737373">约 12 积分 · 1080p 不可用（该型号未声明）</span>
+      <div style="background: #000000; color: #ffffff; border-radius: 12px; height: 44px; display: grid; place-items: center; font-size: 14px; font-weight: 500">生成 1 条 · 5 秒</div>
+    </div>
+
+    <!-- 右舞台 -->
+    <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column">
+
+      <!-- 输入轨：槽位名随用途换 -->
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid #e5e5e5; background: #fafafa">
+        <span style="font-size: 12px; color: #525252; flex-shrink: 0">首帧</span>
+        <div style="width: 64px; height: 36px; border-radius: 6px; border: 2px solid #0a0a0a" class="slot"></div>
+        <div style="width: 64px; height: 36px; border-radius: 6px; border: 1px dashed #cfcfcf; display: grid; place-items: center; color: #a3a3a3; font-size: 16px">+</div>
+        <span style="font-size: 11.5px; color: #737373">关键帧档：这张图是视频的第一帧。切到「图像参考」它会变成内容参考，这条轨跟着改名。</span>
+        <span style="flex-grow: 1"></span>
+        <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 30px; padding: 0 13px; display: grid; place-items: center; font-size: 12px; background: #ffffff">替换</div>
+      </div>
+
+      <!-- 播放器 -->
+      <div style="flex-grow: 1; min-height: 0; padding: 18px 24px 0; display: flex; flex-direction: column; gap: 12px">
+        <div style="flex-grow: 1; min-height: 0; border-radius: 12px; background: #0a0a0a; position: relative; overflow: hidden; display: grid; place-items: center">
+          <span class="mono" style="font-size: 12px; color: #6b6b6b">视频画面 · 16:9</span>
+          <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 14px; display: flex; align-items: center; gap: 10px; background: linear-gradient(to top, rgba(0,0,0,.72), transparent)">
+            <div style="width: 26px; height: 26px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; color: #0a0a0a; font-size: 10px">▶</div>
+            <div style="flex-grow: 1; height: 3px; border-radius: 999px; background: rgba(255,255,255,.28); position: relative"><div style="position: absolute; left: 0; top: 0; bottom: 0; width: 34%; border-radius: 999px; background: #ffffff"></div></div>
+            <span class="mono" style="font-size: 11px; color: #e5e5e5">0:01.7 / 0:05</span>
+          </div>
+        </div>
+
+        <!-- 取次条：本轮生成过的几条，逐条回看 -->
+        <div style="display: flex; align-items: center; gap: 10px">
+          <span class="lbl" style="flex-shrink: 0">本轮取次</span>
+          <div style="display: flex; gap: 8px">
+            <div style="width: 78px; height: 44px; border-radius: 7px; outline: 2px solid #0a0a0a; outline-offset: -2px; position: relative" class="slot"><span class="mono" style="position: absolute; left: 5px; bottom: 3px; font-size: 9px; color: #525252">3</span></div>
+            <div style="width: 78px; height: 44px; border-radius: 7px; position: relative" class="slot"><span class="mono" style="position: absolute; left: 5px; bottom: 3px; font-size: 9px; color: #737373">2</span></div>
+            <div style="width: 78px; height: 44px; border-radius: 7px; position: relative" class="slot"><span class="mono" style="position: absolute; left: 5px; bottom: 3px; font-size: 9px; color: #737373">1</span></div>
+            <div style="width: 78px; height: 44px; border-radius: 7px; border: 1px solid #e5e5e5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px"><span class="mono" style="font-size: 9.5px; color: #737373">1:24</span><div style="width: 44px; height: 2px; border-radius: 999px; background: #e5e5e5; position: relative"><div style="position: absolute; left: 0; top: 0; bottom: 0; width: 46%; border-radius: 999px; background: #0a0a0a"></div></div></div>
+          </div>
+          <span style="font-size: 11.5px; color: #737373">同一个提示词连生几条，都留在这条轨上 —— 视频没有对比接口，能比的只有先后取次。</span>
+        </div>
+      </div>
+
+      <!-- 动作栏 -->
+      <div style="border-top: 1px solid #e5e5e5; margin-top: 14px; padding: 12px 24px; display: flex; align-items: center; gap: 12px">
+        <div style="display: flex; flex-direction: column; gap: 2px">
+          <span style="font-size: 13px; font-weight: 500">Seedance 2.5 · 取次 3</span>
+          <span class="mono" style="font-size: 11px; color: #737373">1280×720 · 5.0s · 用时 1:38</span>
+        </div>
+        <span style="flex-grow: 1"></span>
+        <div style="display: flex; gap: 8px; align-items: center">
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">下载</div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">末帧接着拍</div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">存配方</div>
+          <div style="border: 1px solid #e5e5e5; border-radius: 999px; height: 40px; padding: 0 16px; display: grid; place-items: center; font-size: 13px">问助手</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 取舍 -->
+  <div style="border-top: 1px solid #e5e5e5; background: #fafafa; padding: 16px 28px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px">
+    <div style="display: flex; flex-direction: column; gap: 5px">
+      <span class="mono" style="font-size: 11px; letter-spacing: 0.1em; color: #737373">换来</span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #0a0a0a">和图片工作台同一套骨架，用户跨模态不用重学。参数从对话框搬到常驻栏，当前值一眼可见（E2）。用途档升到栏首，它决定端点这件事终于在版面上排第一（E4）。「取次条」在不动生成链路的前提下给了视频唯一可能的对比方式（E1）。</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 5px">
+      <span class="mono" style="font-size: 11px; letter-spacing: 0.1em; color: #737373">代价</span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #525252">只有一条结果时右侧很空 —— 图片靠矩阵填满的地方这里填不满。剧本线继续待在一颗丸后面，E6 那条没解。等待 1–5 分钟时整块舞台被等待卡占住，无事可做（方向 B 专攻这条）。档位随模型消失时左栏会突然变矮，需要给空栏位一句解释。</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

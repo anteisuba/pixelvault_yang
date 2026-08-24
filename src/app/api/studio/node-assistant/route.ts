@@ -9,7 +9,8 @@ import { isGenerationError } from '@/lib/errors'
 import { sanitizeNodeAssistantRequestBody } from '@/lib/node-assistant-request'
 import { rateLimit } from '@/lib/rate-limit'
 
-export const maxDuration = 60
+/** 与 `POST /api/prompt/assistant/stream` 同一个理由，见那条路由的注释。 */
+export const maxDuration = 300
 
 export async function POST(request: NextRequest): Promise<Response> {
   const startedAt = Date.now()

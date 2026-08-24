@@ -16,7 +16,14 @@ import { encodeLoraCandidateReceiptHeader } from '@/lib/lora-candidate-receipt'
 import { rateLimit } from '@/lib/rate-limit'
 import { encodeResearchReceiptHeader } from '@/lib/research-receipt'
 
-export const maxDuration = 60
+/**
+ * Hobby 的真实上限就是 300（`docs/references/cicd.md`，2026-08-21 查证）；此前
+ * 那个 60 是白留的余量，2026-08-24 被 Grok 一轮撞穿。
+ *
+ * ⚠ 它是兜底不是解法：真正让首字延迟不再等于整轮延迟的是 provider 的 SSE
+ * （`LLM_TEXT_STREAMING_ADAPTERS`）。还没写 SSE 的那家在这里只是多拿 240 秒。
+ */
+export const maxDuration = 300
 
 /**
  * 工作台三域助手的对话轮 —— 出逐字文本流。

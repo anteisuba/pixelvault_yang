@@ -6,6 +6,7 @@ import {
   AI_PROVIDER_ENDPOINTS,
   LLM_TEXT_DEFAULT_MAX_TOKENS,
   LLM_TEXT_MODEL_IDS,
+  LLM_TEXT_TIMEOUTS_MS,
 } from '@/constants/config'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import {
@@ -230,6 +231,7 @@ const LLM_TEXT_PROVIDER_HTTP_STATUS = {
   rateLimited: 429,
   temporarilyUnavailable: 503,
   upstreamFailure: 502,
+  gatewayTimeout: 504,
 } as const
 
 const LLM_TEXT_PROVIDER_ERROR_CODES = {
@@ -242,6 +244,8 @@ const LLM_TEXT_PROVIDER_ERROR_CODES = {
   outputBudgetExhausted: 'PROVIDER_OUTPUT_BUDGET_EXHAUSTED',
   /** The provider rejected the request because its input context was too long. */
   contextLimitExceeded: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
+  /** We gave up waiting on the provider before the platform killed the function. */
+  timeout: 'PROVIDER_TIMEOUT',
 } as const
 
 const LLM_TEXT_PROVIDER_ERROR_I18N_KEYS = {
@@ -252,6 +256,7 @@ const LLM_TEXT_PROVIDER_ERROR_I18N_KEYS = {
   failed: 'errors.provider.failed',
   outputBudgetExhausted: 'errors.provider.outputBudgetExhausted',
   contextLimitExceeded: 'errors.provider.contextLimitExceeded',
+  timeout: 'errors.provider.timeout',
 } as const
 
 const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
@@ -269,6 +274,8 @@ const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
     'This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.',
   contextLimitExceeded:
     'The selected model rejected the input because its context window was exceeded. PixelVault already compacted older history and retried once; start a new conversation or remove large references.',
+  timeout:
+    'The selected provider did not answer in time. Retry, shorten the conversation, or choose another Agent Key.',
 } as const
 
 const LLM_TEXT_CONTEXT_LIMIT_PATTERNS = [
@@ -568,6 +575,96 @@ function toLlmTextProviderError(
     LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.failed,
     LLM_TEXT_PROVIDER_ERROR_MESSAGES.failed,
   )
+}
+
+/**
+ * 超时 —— **不是** provider 给的状态码，是我们主动放弃等待。
+ *
+ * 用 504 而不是 502，是为了让上层能区分「上游拒绝了这次请求」（重试无益）
+ * 和「上游没在时限内答话」（值得再试）。
+ */
+function toLlmTextTimeoutError(context: {
+  adapterType: AI_ADAPTER_TYPES
+  modelId: string
+  timeoutMs: number
+}): ApiRequestError {
+  logger.warn('LLM provider request timed out', context)
+  return new ApiRequestError(
+    LLM_TEXT_PROVIDER_ERROR_CODES.timeout,
+    LLM_TEXT_PROVIDER_HTTP_STATUS.gatewayTimeout,
+    LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.timeout,
+    `${LLM_TEXT_PROVIDER_ERROR_MESSAGES.timeout} (model=${context.modelId}, waited ${context.timeoutMs}ms)`,
+  )
+}
+
+/**
+ * signal 触发时 fetch 抛的是 `DOMException`，名字随触发方式变
+ * （手动 `controller.abort()` → `AbortError`；`AbortSignal.timeout()` → `TimeoutError`）。
+ *
+ * ⚠ 只认 `name` 不用 `instanceof Error`：`DOMException` 在 Node 里虽然继承自
+ * `Error`，但跨 realm（undici / 测试替身）时那个判断会漏。
+ */
+function isAbortError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false
+  const name = (error as { name?: unknown }).name
+  return name === 'AbortError' || name === 'TimeoutError'
+}
+
+/**
+ * 缓冲补全的 fetch —— 计时盖住**整次请求**，包括调用方后面 `.json()` 读响应体
+ * 那一段（`AbortSignal` 一直有效到 body 读完）。
+ *
+ * 每个 provider 分支都必须走它而不是裸 `fetch`：没有超时时上游挂住只能等平台
+ * 杀函数，那条路径回给客户端的是一个不带任何信息的 504。
+ */
+async function fetchLlmTextBuffered(
+  endpoint: string,
+  init: Omit<RequestInit, 'signal'>,
+  context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
+): Promise<Response> {
+  try {
+    return await fetch(endpoint, {
+      ...init,
+      signal: AbortSignal.timeout(LLM_TEXT_TIMEOUTS_MS.COMPLETION),
+    })
+  } catch (error) {
+    if (!isAbortError(error)) throw error
+    throw toLlmTextTimeoutError({
+      ...context,
+      timeoutMs: LLM_TEXT_TIMEOUTS_MS.COMPLETION,
+    })
+  }
+}
+
+/**
+ * 流式的 fetch —— 计时**只跑到响应头到手为止**。
+ *
+ * ⛔ 这里不能用 `AbortSignal.timeout()`：那个 signal 会一直活到响应体读完，
+ * 于是一条正常但写得久的回答会被自己的超时掐断——正是流式要解决的问题。
+ * 要保护的只有「连不上 / 不回头」这一段，所以自己管 controller，
+ * `finally` 里撤掉计时器，之后这条流爱读多久读多久。
+ */
+async function fetchLlmTextStreaming(
+  endpoint: string,
+  init: Omit<RequestInit, 'signal'>,
+  context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(
+    () => controller.abort(),
+    LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS,
+  )
+  try {
+    return await fetch(endpoint, { ...init, signal: controller.signal })
+  } catch (error) {
+    if (!isAbortError(error)) throw error
+    throw toLlmTextTimeoutError({
+      ...context,
+      timeoutMs: LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 // ─── Route Resolution ────────────────────────────────────────────
@@ -1024,14 +1121,18 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
 
   let response: Response
   try {
-    response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': input.apiKey,
-        'Content-Type': 'application/json',
+    response = await fetchLlmTextBuffered(
+      endpoint,
+      {
+        method: 'POST',
+        headers: {
+          'x-goog-api-key': input.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body,
       },
-      body,
-    })
+      { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId },
+    )
   } finally {
     await Promise.allSettled(
       uploadedVideoNames.map((name) =>
@@ -1118,14 +1219,18 @@ function buildOpenAiChatRequest(
 async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
   const { endpoint, requestModelId, body } = buildOpenAiChatRequest(input)
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${input.apiKey}`,
-      'Content-Type': 'application/json',
+  const response = await fetchLlmTextBuffered(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${input.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body,
     },
-    body,
-  })
+    { adapterType: AI_ADAPTER_TYPES.OPENAI, modelId: requestModelId },
+  )
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
@@ -1145,7 +1250,15 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
   return content
 }
 
-async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
+/**
+ * DeepSeek `/chat/completions` 的请求，缓冲与流式共用一份 —— 同
+ * `buildOpenAiChatRequest` 的理由：两条各建各的 body 迟早漂移，而漂移的表现是
+ * 「流式的回答和缓冲的不一样」。
+ */
+function buildDeepseekChatRequest(
+  input: LlmTextInput,
+  options: { stream?: boolean } = {},
+): { endpoint: string; modelId: string; body: string } {
   if (input.imageData) {
     throw new Error('DeepSeek text completion does not support image input.')
   }
@@ -1159,20 +1272,17 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
 
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DEEPSEEK]
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.DEEPSEEK
-  const endpoint = `${baseUrl.replace(/\/$/, '')}/chat/completions`
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${input.apiKey}`,
-      'Content-Type': 'application/json',
-    },
+  return {
+    endpoint: `${baseUrl.replace(/\/$/, '')}/chat/completions`,
+    modelId,
     body: JSON.stringify({
       model: modelId,
       messages: [
         { role: 'system', content: input.systemPrompt },
         { role: 'user', content: input.userPrompt },
       ],
+      ...(options.stream ? { stream: true } : {}),
       ...(!input.providerManagedOutput
         ? {
             max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
@@ -1182,7 +1292,24 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
         ? { response_format: { type: 'json_object' } }
         : {}),
     }),
-  })
+  }
+}
+
+async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
+  const { endpoint, modelId, body } = buildDeepseekChatRequest(input)
+
+  const response = await fetchLlmTextBuffered(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${input.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body,
+    },
+    { adapterType: AI_ADAPTER_TYPES.DEEPSEEK, modelId },
+  )
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
@@ -1212,7 +1339,10 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
  *     the word "json" and `enable_thinking: false` — both handled here.
  *  3. No grounding / web_search support (compatible-mode has no such tool).
  */
-async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
+function buildDashscopeChatRequest(
+  input: LlmTextInput,
+  options: { stream?: boolean } = {},
+): { endpoint: string; modelId: string; body: string } {
   if (input.videoData) {
     throw new Error('Qwen text completion does not support video input.')
   }
@@ -1225,7 +1355,6 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DASHSCOPE]
   const baseUrl =
     input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.DASHSCOPE
-  const endpoint = `${baseUrl.replace(/\/$/, '')}/chat/completions`
 
   const wantsJson = input.responseFormat === 'json_object'
   // Qwen's JSON mode requires the literal token "json" somewhere in the
@@ -1254,15 +1383,13 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
     messages.push({ role: 'user', content: input.userPrompt })
   }
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${input.apiKey}`,
-      'Content-Type': 'application/json',
-    },
+  return {
+    endpoint: `${baseUrl.replace(/\/$/, '')}/chat/completions`,
+    modelId,
     body: JSON.stringify({
       model: modelId,
       messages,
+      ...(options.stream ? { stream: true } : {}),
       ...(!input.providerManagedOutput
         ? {
             max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
@@ -1272,7 +1399,24 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
         ? { response_format: { type: 'json_object' }, enable_thinking: false }
         : {}),
     }),
-  })
+  }
+}
+
+async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
+  const { endpoint, modelId, body } = buildDashscopeChatRequest(input)
+
+  const response = await fetchLlmTextBuffered(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${input.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body,
+    },
+    { adapterType: AI_ADAPTER_TYPES.DASHSCOPE, modelId },
+  )
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
@@ -1293,8 +1437,9 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
 }
 
 /**
- * xAI (Grok) text completion — OpenAI `/chat/completions` drop-in (xAI's docs
- * state "full compatibility with the OpenAI REST API").
+ * xAI (Grok) `/chat/completions` request — OpenAI drop-in (xAI's docs state
+ * "full compatibility with the OpenAI REST API"), shared by the buffered and
+ * streaming consumers.
  *
  * ⚠ Deliberately NOT routed through `buildOpenAiChatRequest`, even though the
  * wire format matches. That helper is OpenAI-specific in two ways that would
@@ -1311,7 +1456,10 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
  * Video and grounding are not — xAI's Live Search is a separate API surface,
  * so we fail loudly rather than silently dropping the request.
  */
-async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
+function buildXaiChatRequest(
+  input: LlmTextInput,
+  options: { stream?: boolean } = {},
+): { endpoint: string; modelId: string; body: string } {
   if (input.videoData) {
     throw new Error('Grok (xAI) text completion does not support video input.')
   }
@@ -1321,7 +1469,6 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
 
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.XAI]
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.XAI
-  const endpoint = `${baseUrl.replace(/\/$/, '')}/chat/completions`
 
   const messages: Array<Record<string, unknown>> = [
     { role: 'system', content: input.systemPrompt },
@@ -1341,15 +1488,13 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
     messages.push({ role: 'user', content: input.userPrompt })
   }
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${input.apiKey}`,
-      'Content-Type': 'application/json',
-    },
+  return {
+    endpoint: `${baseUrl.replace(/\/$/, '')}/chat/completions`,
+    modelId,
     body: JSON.stringify({
       model: modelId,
       messages,
+      ...(options.stream ? { stream: true } : {}),
       ...(!input.providerManagedOutput
         ? {
             max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
@@ -1359,7 +1504,24 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
         ? { response_format: { type: 'json_object' } }
         : {}),
     }),
-  })
+  }
+}
+
+async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
+  const { endpoint, modelId, body } = buildXaiChatRequest(input)
+
+  const response = await fetchLlmTextBuffered(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${input.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body,
+    },
+    { adapterType: AI_ADAPTER_TYPES.XAI, modelId },
+  )
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
@@ -1447,30 +1609,34 @@ async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
     ? `${input.systemPrompt}\n\nRespond with a single valid JSON object and nothing else — no prose, no markdown code fences.`
     : input.systemPrompt
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'x-api-key': input.apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
+  const response = await fetchLlmTextBuffered(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        'x-api-key': input.apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelId,
+        max_tokens: input.providerManagedOutput
+          ? LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_MANAGED
+          : (input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT),
+        // ⚠ Sonnet 5 runs **adaptive thinking when `thinking` is omitted**, and
+        // `max_tokens` caps thinking + answer *together* — a 1024-token default
+        // could be spent entirely on thinking and truncate the reply. The other
+        // four adapters here don't think, and every caller's token budget was
+        // sized against that, so keep parity and turn it off. (Accepted only at
+        // effort `high` or below; we never set `effort`, and its default is
+        // `high` — pairing disabled thinking with `xhigh`/`max` would 400.)
+        thinking: { type: 'disabled' },
+        system: systemPrompt,
+        messages: [{ role: 'user', content: input.userPrompt }],
+      }),
     },
-    body: JSON.stringify({
-      model: modelId,
-      max_tokens: input.providerManagedOutput
-        ? LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_MANAGED
-        : (input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT),
-      // ⚠ Sonnet 5 runs **adaptive thinking when `thinking` is omitted**, and
-      // `max_tokens` caps thinking + answer *together* — a 1024-token default
-      // could be spent entirely on thinking and truncate the reply. The other
-      // four adapters here don't think, and every caller's token budget was
-      // sized against that, so keep parity and turn it off. (Accepted only at
-      // effort `high` or below; we never set `effort`, and its default is
-      // `high` — pairing disabled thinking with `xhigh`/`max` would 400.)
-      thinking: { type: 'disabled' },
-      system: systemPrompt,
-      messages: [{ role: 'user', content: input.userPrompt }],
-    }),
-  })
+    { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
+  )
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
@@ -1520,9 +1686,23 @@ function guardUserPrompt(prompt: string, maxLength?: number | null): void {
  * 不在这个集合里的 provider 不是「降级」，是这条 SSE 分支还没实现：`llmTextStream`
  * 会缓冲完再一次性 yield。差别对调用方是可见的（查这个集合就知道），不靠猜。
  * 加新 provider = 写它的 SSE 解析 + 往这里加一行，两件事必须同一个改动里做完。
+ *
+ * ⚠ **少一行的代价是生产 504，不是「体感慢一点」**（2026-08-24 实证）：助手的流式
+ * 路由在缓冲那条路上一个字节都不产出，响应头因此从未 flush，函数被平台杀掉时
+ * 网关只能回 504 —— 客户端看到的是错误而不是半截回答。Grok 08-23 接入时漏了这
+ * 一半，第二天就撞上了。
+ *
+ * 只剩 Claude 还没写：它的 SSE 是 Anthropic 自己的事件格式（`content_block_delta`
+ * 等），与这四家共用的 `streamOpenAiCompatibleChat` 不是一份解析，是独立一件事。
  */
 export const LLM_TEXT_STREAMING_ADAPTERS: ReadonlySet<AI_ADAPTER_TYPES> =
-  new Set([AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.OPENAI])
+  new Set([
+    AI_ADAPTER_TYPES.GEMINI,
+    AI_ADAPTER_TYPES.OPENAI,
+    AI_ADAPTER_TYPES.DEEPSEEK,
+    AI_ADAPTER_TYPES.DASHSCOPE,
+    AI_ADAPTER_TYPES.XAI,
+  ])
 
 export function supportsLlmTextStreaming(
   adapterType: AI_ADAPTER_TYPES,
@@ -1565,14 +1745,18 @@ async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
   const endpoint = `${baseUrl}/${modelId}:streamGenerateContent?alt=sse`
 
   try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': input.apiKey,
-        'Content-Type': 'application/json',
+    const response = await fetchLlmTextStreaming(
+      endpoint,
+      {
+        method: 'POST',
+        headers: {
+          'x-goog-api-key': input.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body,
       },
-      body,
-    })
+      { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId },
+    )
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
@@ -1618,42 +1802,57 @@ async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
  * 没实现 SSE 的 provider 走缓冲后一次性 yield —— 调用方要区分就查
  * `supportsLlmTextStreaming()`，别靠观察 chunk 个数猜。
  */
-export async function* openAiTextStream(
-  input: LlmTextInput,
-): AsyncIterable<string> {
-  const { endpoint, requestModelId, body } = buildOpenAiChatRequest(input, {
-    stream: true,
-  })
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${input.apiKey}`,
-      'Content-Type': 'application/json',
+/**
+ * OpenAI 兼容 `/chat/completions` 的 SSE 消费 —— **四家共用一份**。
+ *
+ * OpenAI / DeepSeek / Qwen / Grok 的事件格式完全一致
+ * （`data: {choices:[{delta:{content}}]}`，以字面量 `[DONE]` 收尾），所以解析
+ * 只写一遍。各家的差异全在请求那一侧（host / model id / 能力闸 / JSON 模式的
+ * 特殊要求），由各自的 `build*ChatRequest` 负责——这条边界的意义是：接第五家
+ * OpenAI 兼容 provider 时只用写它的 request builder。
+ */
+async function* streamOpenAiCompatibleChat(options: {
+  endpoint: string
+  body: string
+  apiKey: string
+  adapterType: AI_ADAPTER_TYPES
+  modelId: string
+  label: string
+}): AsyncIterable<string> {
+  const response = await fetchLlmTextStreaming(
+    options.endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${options.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: options.body,
     },
-    body,
-  })
+    { adapterType: options.adapterType, modelId: options.modelId },
+  )
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
     throw toLlmTextProviderError(response.status, errorBody, {
-      adapterType: AI_ADAPTER_TYPES.OPENAI,
-      modelId: requestModelId,
+      adapterType: options.adapterType,
+      modelId: options.modelId,
     })
   }
   if (!response.body) {
     // 流式没有可诊断的响应体可交给 `throwNoOpenAiTextResponse` —— 那个函数是用来
     // 从解析好的 completion 里挖 refusal / finish_reason 的，这里根本没有。
-    throw new Error(`No text stream from OpenAI (${requestModelId})`)
+    throw new Error(`No text stream from ${options.label} (${options.modelId})`)
   }
 
   for await (const data of readSseData(response.body)) {
-    // OpenAI 的流以字面量 `[DONE]` 收尾，它不是 JSON。
+    // OpenAI 兼容的流以字面量 `[DONE]` 收尾，它不是 JSON。
     if (!data || data === '[DONE]') continue
     let parsed: unknown
     try {
       parsed = JSON.parse(data)
     } catch {
+      // 半个事件不该炸掉整条流；下一个事件照常处理。
       continue
     }
     const delta = (
@@ -1663,6 +1862,70 @@ export async function* openAiTextStream(
     ).choices?.[0]?.delta?.content
     if (delta) yield delta
   }
+}
+
+export async function* openAiTextStream(
+  input: LlmTextInput,
+): AsyncIterable<string> {
+  const { endpoint, requestModelId, body } = buildOpenAiChatRequest(input, {
+    stream: true,
+  })
+
+  yield* streamOpenAiCompatibleChat({
+    endpoint,
+    body,
+    apiKey: input.apiKey,
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    modelId: requestModelId,
+    label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.OPENAI],
+  })
+}
+
+async function* deepseekTextStream(input: LlmTextInput): AsyncIterable<string> {
+  const { endpoint, modelId, body } = buildDeepseekChatRequest(input, {
+    stream: true,
+  })
+
+  yield* streamOpenAiCompatibleChat({
+    endpoint,
+    body,
+    apiKey: input.apiKey,
+    adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+    modelId,
+    label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.DEEPSEEK],
+  })
+}
+
+async function* dashscopeTextStream(
+  input: LlmTextInput,
+): AsyncIterable<string> {
+  const { endpoint, modelId, body } = buildDashscopeChatRequest(input, {
+    stream: true,
+  })
+
+  yield* streamOpenAiCompatibleChat({
+    endpoint,
+    body,
+    apiKey: input.apiKey,
+    adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
+    modelId,
+    label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.DASHSCOPE],
+  })
+}
+
+async function* xaiTextStream(input: LlmTextInput): AsyncIterable<string> {
+  const { endpoint, modelId, body } = buildXaiChatRequest(input, {
+    stream: true,
+  })
+
+  yield* streamOpenAiCompatibleChat({
+    endpoint,
+    body,
+    apiKey: input.apiKey,
+    adapterType: AI_ADAPTER_TYPES.XAI,
+    modelId,
+    label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.XAI],
+  })
 }
 
 export async function* llmTextStream(
@@ -1676,6 +1939,15 @@ export async function* llmTextStream(
         return
       case AI_ADAPTER_TYPES.OPENAI:
         yield* openAiTextStream(input)
+        return
+      case AI_ADAPTER_TYPES.DEEPSEEK:
+        yield* deepseekTextStream(input)
+        return
+      case AI_ADAPTER_TYPES.DASHSCOPE:
+        yield* dashscopeTextStream(input)
+        return
+      case AI_ADAPTER_TYPES.XAI:
+        yield* xaiTextStream(input)
         return
     }
   }

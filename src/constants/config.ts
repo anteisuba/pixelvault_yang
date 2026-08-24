@@ -526,6 +526,29 @@ export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   ANTHROPIC_MANAGED: 8192,
 } as const
 
+/**
+ * LLM 文本请求的超时。**在函数被平台杀掉之前自己失败**，是这两个数存在的
+ * 全部理由 —— 没有它们时 provider 挂住只能等 Vercel 的
+ * `Vercel Runtime Timeout Error`，那条路径回给客户端的是 504，不带任何
+ * 可诊断的信息（2026-08-24 生产实证：Grok 助手轮跑满 60s 被杀）。
+ */
+export const LLM_TEXT_TIMEOUTS_MS = {
+  /**
+   * 缓冲补全一整次请求（含读完响应体）的上限。
+   *
+   * 取值受 `completeWithCitationGate` 的 `maxAttempts: 2` 约束：两次串起来
+   * 是 240s，仍小于助手路由的 `maxDuration = 300`。
+   */
+  COMPLETION: 120_000,
+  /**
+   * 流式请求**只盖「连接 + 响应头」**这一段，响应头到手就撤掉计时器。
+   *
+   * ⛔ 不能拿它去盖整条流：一条正常但很长的回答会被自己的超时掐断，
+   * 而那正是流式要解决的问题。
+   */
+  STREAM_HEADERS: 30_000,
+} as const
+
 export const RUNWAY_API = {
   VERSION: '2024-11-06',
   IMAGE_TO_VIDEO_PATH: '/image_to_video',

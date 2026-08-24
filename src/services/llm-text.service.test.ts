@@ -30,6 +30,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   LLM_TEXT_DEFAULT_MAX_TOKENS,
   LLM_TEXT_MODEL_IDS,
+  LLM_TEXT_TIMEOUTS_MS,
 } from '@/constants/config'
 import {
   VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS,
@@ -1489,8 +1490,12 @@ describe('llmTextStream', () => {
   it('声明了哪些 adapter 真流式 —— 能力矩阵，不靠猜', () => {
     expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.GEMINI)).toBe(true)
     expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.OPENAI)).toBe(true)
-    // DeepSeek / DashScope / Anthropic 的 SSE 还没写 —— 这条断言就是那份待办
-    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(false)
+    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(true)
+    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.DASHSCOPE)).toBe(true)
+    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.XAI)).toBe(true)
+    // Claude 的 SSE 是 Anthropic 自己的事件格式，不与上面四家共用一份解析 ——
+    // 这条断言就是那份待办。⚠ 少一行的代价是生产 504（2026-08-24 Grok 实证），
+    // 不是「体感慢一点」。
     expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.ANTHROPIC)).toBe(false)
   })
 
@@ -1649,13 +1654,13 @@ describe('llmTextStream', () => {
     expect(body.stream).toBe(true)
   })
 
-  it('没实现 SSE 的 adapter：缓冲后一次性 yield，形态仍是流', async () => {
+  it('没实现 SSE 的 adapter（Claude）：缓冲后一次性 yield，形态仍是流', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
         new Response(
           JSON.stringify({
-            choices: [{ message: { content: 'buffered answer' } }],
+            content: [{ type: 'text', text: 'buffered answer' }],
           }),
           { status: 200 },
         ),
@@ -1666,16 +1671,201 @@ describe('llmTextStream', () => {
       llmTextStream({
         systemPrompt: 'sys',
         userPrompt: 'user',
-        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
         providerConfig: {
-          label: 'DeepSeek',
-          baseUrl: 'https://api.deepseek.com',
+          label: 'Claude',
+          baseUrl: 'https://api.anthropic.com/v1',
         },
         apiKey: 'test-key',
       }),
     )
 
     expect(chunks).toEqual(['buffered answer'])
+  })
+
+  // ─── OpenAI 兼容的另外三家（2026-08-24 补齐） ──────────────────
+  //
+  // ⚠ 这三条不是「顺手加的覆盖」。Grok 08-23 接入时只写了缓冲那一半，助手的
+  //   流式路由于是一个字节都不产出、响应头从未 flush，第二天生产就回了 504。
+  //   每一家都必须同时验「请求带 stream:true」和「真的逐段产出」——只验其一
+  //   都会漏掉那个形态。
+
+  const OPENAI_COMPATIBLE_STREAM_ROUTES = [
+    {
+      name: 'DeepSeek',
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      baseUrl: 'https://api.deepseek.com',
+      expectedHost: 'https://api.deepseek.com/chat/completions',
+    },
+    {
+      name: 'Qwen',
+      adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      expectedHost:
+        'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    },
+    {
+      name: 'Grok',
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      baseUrl: 'https://api.x.ai/v1',
+      expectedHost: 'https://api.x.ai/v1/chat/completions',
+    },
+  ] as const
+
+  it.each(OPENAI_COMPATIBLE_STREAM_ROUTES)(
+    '$name：请求带 stream:true、打自己的 host、并逐段产出',
+    async ({ adapterType, baseUrl, expectedHost, name }) => {
+      const event = (content: string) =>
+        `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(
+          sseResponse([event('前半'), event('后半'), 'data: [DONE]\n\n']),
+        )
+      vi.stubGlobal('fetch', fetchMock)
+
+      const chunks = await collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType,
+          providerConfig: { label: name, baseUrl },
+          apiKey: 'test-key',
+        }),
+      )
+
+      expect(chunks).toEqual(['前半', '后半'])
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(expectedHost)
+      expect(readFetchJson(fetchMock).stream).toBe(true)
+    },
+  )
+
+  it('流式：响应头到手就撤掉计时器 —— 写得久的回答不会被自己的超时掐断', async () => {
+    // ⛔ 只 fake setTimeout/clearTimeout：sinon 的默认集合里有 queueMicrotask，
+    //    fake 掉它会把 ReadableStream 的读取卡死，测的就不是这件事了。
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      let capturedSignal: AbortSignal | null = null
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+          capturedSignal = init.signal ?? null
+          return sseResponse([
+            `data: ${JSON.stringify({ choices: [{ delta: { content: '慢' } }] })}\n\n`,
+            'data: [DONE]\n\n',
+          ])
+        }),
+      )
+
+      const chunks = await collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType: AI_ADAPTER_TYPES.XAI,
+          providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+          apiKey: 'test-key',
+        }),
+      )
+
+      expect(chunks).toEqual(['慢'])
+      // 远远越过首字窗口之后 signal 仍未 abort —— 计时器确实撤掉了。
+      vi.advanceTimersByTime(LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS * 4)
+      expect(capturedSignal).not.toBeNull()
+      expect((capturedSignal as unknown as AbortSignal).aborted).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('流式：响应头等不到时报 PROVIDER_TIMEOUT，不是没头没尾的 502', async () => {
+    const aborted = new Error('The operation was aborted')
+    aborted.name = 'AbortError'
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(aborted))
+
+    await expect(
+      collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType: AI_ADAPTER_TYPES.XAI,
+          providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+          apiKey: 'test-key',
+        }),
+      ),
+    ).rejects.toMatchObject({
+      errorCode: 'PROVIDER_TIMEOUT',
+      httpStatus: 504,
+    })
+  })
+})
+
+describe('LLM 文本请求的超时', () => {
+  // 没有这道闸时，上游挂住只能等平台杀函数，客户端拿到的是一个不带任何信息的
+  // 504（2026-08-24 生产实证）。这里验的是「我们先自己失败，并且说得清」。
+  it('缓冲补全：超时抛 PROVIDER_TIMEOUT 且带 504', async () => {
+    const timedOut = new Error('The operation timed out')
+    timedOut.name = 'TimeoutError'
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(timedOut))
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.XAI,
+        providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+        apiKey: 'test-key',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: 'PROVIDER_TIMEOUT',
+      httpStatus: 504,
+      i18nKey: 'errors.provider.timeout',
+    })
+  })
+
+  it('缓冲补全：signal 带的是整次请求的窗口，不是流式那个短的', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+        {
+          status: 200,
+        },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+      apiKey: 'test-key',
+    })
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit
+    expect(init.signal).toBeInstanceOf(AbortSignal)
+    expect(init.signal?.aborted).toBe(false)
+  })
+
+  it('两次串起来仍小于助手路由的 maxDuration —— 引用闸会重试一次', () => {
+    const CITATION_GATE_MAX_ATTEMPTS = 2
+    const ASSISTANT_ROUTE_MAX_DURATION_MS = 300_000
+    expect(
+      LLM_TEXT_TIMEOUTS_MS.COMPLETION * CITATION_GATE_MAX_ATTEMPTS,
+    ).toBeLessThan(ASSISTANT_ROUTE_MAX_DURATION_MS)
+  })
+
+  it('非 abort 的错误照旧原样抛出，不被误报成超时', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('ECONNREFUSED')))
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.XAI,
+        providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+        apiKey: 'test-key',
+      }),
+    ).rejects.toThrow('ECONNREFUSED')
   })
 })
 

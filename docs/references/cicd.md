@@ -57,6 +57,29 @@ limits 表，2026-08-21 查证。
 验证」是把「声明了 240 且部署通过」当成了「跑到过 240」——部署通过只证明配置被
 接受。唯一刻意吃满时长的是 `civitai-mirror/sync`，它取 300。
 
+🔥 **2026-08-24：60 秒第一次被真的跑穿。** 助手三条路由（`prompt/assistant`、
+`prompt/assistant/stream`、`studio/node-assistant`）此前都写 60，Grok 一轮对话
+把它跑满 → `Vercel Runtime Timeout Error: Task timed out after 60 seconds` →
+客户端拿到 **504**。三条已改成 300。
+
+⚠ **别把这条读成「时长不够，调大即可」**：真正的病是那条流式路由在没有 SSE 的
+provider 上一个字节都不产出，**响应头因此从未 flush**，函数被杀时网关只能回 504
+（有 SSE 时同样超时只会得到一条截断的 200，字还在）。300 是兜底，解法是
+`LLM_TEXT_STREAMING_ADAPTERS`——判据见 `model-catalog.md` 的 xAI 段。
+
+⚠ **有 SSE 也仍有一段窗口压在这个数下面，别以为补完 SSE 就绝迹了**：Next 要等
+这条流吐出第一个字节才 flush 响应头。推理模型在「想」的时候有没有 content delta
+可吐，**本仓未实证**——xAI 的流式文档（`docs.x.ai/docs/guides/streaming-response`，
+2026-08-24 查证）只描述 `choices[0].delta.content` 与 `[DONE]` 收尾，没有提推理
+阶段的独立字段。所以「首字之前」这一段仍然可能是**零字节 → 超时即 504**，300 就
+是给它的余量。要收窄这段窗口只能靠产品层取舍（换非推理档 / 缩上下文），不是配置。
+⛔ 真要下结论，判据是**生产日志里首字到达的时刻**，不是文档也不是推理。
+
+⚠ **同日补的第二件事：`maxDuration` 不是超时机制。** 到点是平台杀进程，回给
+客户端的 504 不带任何可诊断信息。真正的超时要写在发请求的那一侧
+（`LLM_TEXT_TIMEOUTS_MS`：缓冲补全 120s、流式只盖「连接 + 响应头」30s），
+这样上游挂住时是我们主动放弃并报 `PROVIDER_TIMEOUT`。
+
 ## Dependabot 分流规则（2026-07-10 实践沉淀）
 
 | 类型                                            | 处理                                                                                          |

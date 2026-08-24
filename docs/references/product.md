@@ -43,7 +43,7 @@
 ## 3D（2026-07-10 定位 → 2026-07-31 重述）
 
 - **现阶段：可用 · 非北极星**（**取代原「搁置」表述**）。
-  「搁置」是 2026-07-10 的措辞，但与代码事实不符：**单图 → GLB 早已是一等公民**——`/studio/3d` + `MODEL_3D_OPTIONS` 5 个 available（TripoSR / Trellis 2 / Hunyuan3D v3 · v3.1 Pro / Rodin Gen-2.5）+ `generate-3d.service` 队列与 mesh 阶段 + R2 入库 + ModelViewer + 首页已有 3D 产品位。
+  「搁置」是 2026-07-10 的措辞，但与代码事实不符：**单图 → GLB 早已是一等公民**——`/studio/3d` + `MODEL_3D_OPTIONS` 5 个 available（TripoSR / Trellis 2 / Hunyuan3D v3 · v3.1 Pro / Rodin Gen-2.5）+ `generate-3d.service` + Cloudflare Worker 队列（含 Rodin Gen-2.5 mesh-first 两段式：`rodinMeshFirst` 出白模 → `rodinTextureOnly` 续上色）+ R2 入库 + ModelViewer + 首页已有 3D 产品位。⚠ **2026-08-25 更新**：`generate-3d.service` 早年直连 fal.ai 队列的 inline 提交/轮询（含 Hunyuan3D 专属的 PR3-α mesh-first 分阶段 continue/retry-mesh）已整删——2026-05 起 3D 提交侧对 FAL/Hyper3D Rodin 就已无条件短路进 Worker，那条 inline 路径早已打不到；引擎现状以 Worker 为准，不是并列的"queue 与 mesh 阶段"。
   **真正的缺口是入口可见性与下游联动，不是引擎。**
 - **不投入的是**：再堆同质 I2-3D 模型（Meshy / 完整 Tripo 商业 API 等）——缺的是 **GLB 下游**，不是第 6 个重建模型。
 - **该投入的下一步（按价值，非承诺）**：导航/首页入口去「搁置」叙事 → Assets/Gallery 图「变 3D」深链且结果回 Assets → 角色卡多视角定妆（GLB 转台截帧回灌参考图）。

@@ -2,16 +2,6 @@ import 'server-only'
 
 import type { AudioExpressivenessTier } from '@/constants/audio-options'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
-import type {
-  Model3DGenerateType,
-  Model3DPolygonType,
-  RodinMaterial,
-  RodinMeshMode,
-  RodinTextureMode,
-  RodinTier,
-  Trellis2Resolution,
-  Trellis2TextureSize,
-} from '@/constants/model-3d-generation'
 import {
   getUnsupportedReferenceImageMessage,
   REFERENCE_IMAGE_ERROR_PATTERNS,
@@ -28,98 +18,6 @@ export interface ProviderQueueStatusInput {
   statusUrl: string
   responseUrl: string
   apiKey: string
-}
-
-// ─── 3D (image-to-3D) Provider Types ─────────────────────────────
-
-export interface ProviderModel3DInput {
-  /** Public URL of the source image (already in R2) */
-  imageUrl: string
-  modelId: string
-  providerConfig: ProviderConfig
-  apiKey: string
-  /** Hunyuan3D: enables PBR-textured mesh (3x cost) */
-  texturedMesh?: boolean
-  /** Hunyuan3D octree resolution (256/512/1024) */
-  octreeResolution?: number
-  /** Hunyuan3D v3/v3.1 side views for multi-view reconstruction */
-  multiViewImages?: {
-    backImageUrl?: string
-    leftImageUrl?: string
-    rightImageUrl?: string
-    topImageUrl?: string
-    bottomImageUrl?: string
-    leftFrontImageUrl?: string
-    rightFrontImageUrl?: string
-  }
-  /** Hunyuan3D v3/v3.1 PBR material generation */
-  enablePbr?: boolean
-  /** Hunyuan3D v3/v3.1 target face count */
-  faceCount?: number
-  /** Hunyuan3D v3/v3.1 task type */
-  generateType?: Model3DGenerateType
-  /** Hunyuan3D v3 low-poly polygon type */
-  polygonType?: Model3DPolygonType
-  /** Trellis 2 output resolution */
-  trellisResolution?: Trellis2Resolution
-  /** Trellis 2 texture atlas size */
-  trellisTextureSize?: Trellis2TextureSize
-  /** Trellis 2 final mesh vertex target */
-  trellisDecimationTarget?: number
-  /** Trellis 2 topology cleanup */
-  trellisRemesh?: boolean
-  /** Trellis 2 remesh detail projection */
-  trellisRemeshProject?: number
-  /** Trellis 2 structure-stage sampling steps */
-  trellisStructureSamplingSteps?: number
-  /** Trellis 2 shape-stage sampling steps */
-  trellisShapeSamplingSteps?: number
-  /** Trellis 2 texture-stage sampling steps */
-  trellisTextureSamplingSteps?: number
-  /** TripoSR: remove background before reconstruction */
-  removeBackground?: boolean
-  /** Reproducibility seed */
-  seed?: number
-  // ─── Hyper3D Rodin ────────────────────────────────────────────────
-  /** Rodin quality tier */
-  rodinTier?: RodinTier
-  /** Rodin mesh topology mode */
-  rodinMeshMode?: RodinMeshMode
-  /** Rodin texture shading mode */
-  rodinTextureMode?: RodinTextureMode
-  /** Rodin PBR material type */
-  rodinMaterial?: RodinMaterial
-  /** Rodin: pack more geometry detail */
-  rodinHighPack?: boolean
-  /** Rodin: T/A canonical pose alignment */
-  rodinTAPose?: boolean
-  /** Rodin: HD texture quality */
-  rodinHdTexture?: boolean
-  /** Rodin: texture delight / lighting removal */
-  rodinTextureDelight?: boolean
-  /** Rodin: polygon count override */
-  rodinQualityOverride?: number
-  /** Rodin: additional reference image URLs */
-  rodinAdditionalImageUrls?: string[]
-  /** Rodin: 3D bounding box [x_min, y_min, z_min, x_max, y_max, z_max] */
-  rodinBboxCondition?: number[]
-}
-
-export interface ProviderModel3DResult {
-  /** Public URL of the generated GLB file (provider-temporary; download to R2) */
-  modelUrl: string
-  /** MIME type, typically 'application/octet-stream' or 'model/gltf-binary' */
-  contentType?: string
-  /** File size in bytes */
-  fileSize?: number
-  requestCount: number
-}
-
-export interface ProviderModel3DQueueStatusResult {
-  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
-  result?: ProviderModel3DResult
-  error?: string
-  errorCode?: string
 }
 
 export interface HealthCheckInput {
@@ -365,13 +263,5 @@ export interface ProviderAdapter {
   checkAudioQueueStatus?(
     input: ProviderQueueStatusInput,
   ): Promise<ProviderAudioQueueStatusResult>
-  /** Async 3D queue submission (e.g. fal Hunyuan3D / TripoSR) */
-  submitModel3DToQueue?(
-    input: ProviderModel3DInput,
-  ): Promise<ProviderQueueSubmitResult>
-  /** Async 3D queue status polling */
-  checkModel3DQueueStatus?(
-    input: ProviderQueueStatusInput,
-  ): Promise<ProviderModel3DQueueStatusResult>
   healthCheck?(input: HealthCheckInput): Promise<HealthCheckResult>
 }

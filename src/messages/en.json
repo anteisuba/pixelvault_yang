@@ -1105,7 +1105,9 @@
     "referenceTextRequired": "Transcript is required when a reference clip is attached.",
     "referenceErrorTooLarge": "Reference audio is too large. Max {max}.",
     "referenceErrorNotAudio": "That file isn't audio. Try MP3, WAV, M4A, or FLAC.",
-    "referenceErrorFailed": "Failed to upload the reference clip."
+    "referenceErrorFailed": "Failed to upload the reference clip.",
+    "readingLabel": "Delivery",
+    "musicDurationHint": "ElevenLabs Music accepts 3–600s; 5s is our floor because shorter than that is not a track."
   },
   "audioFeedback": {
     "voiceMismatch": "Voice mismatch",
@@ -1154,7 +1156,9 @@
       "actionPromptHint": "Describe the video scene — the characters' appearance is auto-injected.",
       "actionPromptPlaceholder": "e.g. walking in a forest, smiling, wind blowing hair...",
       "imageWarning": "Only 1st card's image used for video"
-    }
+    },
+    "railLabelKeyframe": "First frame",
+    "railLabelReference": "Content reference"
   },
   "Model3DGenerate": {
     "title": "Image-to-3D",
@@ -3813,7 +3817,8 @@
       "referenceRequired": "Drop or attach a reference image in the prompt box first",
       "referenceUnsupported": "The selected model will not read reference images. Remove the reference image or switch to a reference-aware model.",
       "audioPromptTooLong": "Shorten the audio text to {max} characters or less",
-      "audioReferenceTextRequired": "Add the transcript of your uploaded reference audio before generating."
+      "audioReferenceTextRequired": "Add the transcript of your uploaded reference audio before generating.",
+      "videoQueueFull": "Up to {max} clips can render at once — wait for one to finish"
     },
     "audioPromptMeta": "{current} / {max} chars · ≈ {minutes} min · ≈ {credits, plural, one {# credit} other {# credits}}",
     "audioPromptMetaNoLimit": "{current} chars · ≈ {minutes} min · ≈ {credits, plural, one {# credit} other {# credits}}",
@@ -6149,5 +6154,16 @@
       "timeout": "Frame extraction took too long and was stopped. Try again on a faster connection.",
       "encodeFailed": "The extracted frames could not be encoded in this browser."
     }
+  },
+  "StudioVideoQueue": {
+    "label": "This batch",
+    "concurrency": "{running} / {max} running",
+    "retry": "Retry this one",
+    "viewTake": "Play take {index}",
+    "itemRunning": "#{index} rendering",
+    "itemFailed": "#{index} failed",
+    "itemDone": "#{index} done",
+    "itemViewing": "#{index} playing",
+    "hint": "Rendering does not lock the stage — change the params on the left and queue another."
   }
 }

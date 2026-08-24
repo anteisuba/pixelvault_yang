@@ -31,18 +31,16 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   enhance: false,
   stylePreset: false,
   reverse: false,
-  advanced: false,
   refImage: false,
-  aspectRatio: false,
-  resolution: false,
-  batchCount: false,
   spec: false,
+  videoSpec: false,
+  audioReading: false,
+  musicSpec: false,
   loraSelector: false,
   voiceSelector: false,
   voiceTrainer: false,
   audioTranscribe: false,
   sfxParams: false,
-  videoParams: false,
   script: false,
   keepChange: false,
 }
@@ -52,9 +50,18 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
-vi.mock('sonner', () => ({
-  toast: vi.fn(),
-}))
+vi.mock('sonner', () => {
+  // ⚠ 光有 `toast()` 不够：组件在被闸挡住时调 `toast.info(...)`，
+  //   缺这几个方法会在测试里抛 `toast.info is not a function`，而且是
+  //   unhandled rejection —— 报错指向 React 的 dispatch 栈，很难联想到替身。
+  const toast = Object.assign(vi.fn(), {
+    info: vi.fn(),
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  })
+  return { toast }
+})
 
 vi.mock('@/contexts/studio-context', () => ({
   STUDIO_TOOL_PANEL_NAMES: [
@@ -108,6 +115,11 @@ vi.mock('@/contexts/studio-context', () => ({
     isGenerating: false,
     generate: mockGenerate,
     elapsedSeconds: 0,
+    // ⚠ 手写镜像少一个字段就等于把闸关上：`canQueueMoreVideo` 缺席时
+    //   `!undefined` 为真，视频模态的生成按钮会被判成「队列已满」，三条视频
+    //   提交测试同时红。这类漏字段是这个仓库反复踩的一类（见 VideoComposer
+    //   的夹具脱节）。
+    canQueueMoreVideo: true,
   }),
 }))
 
@@ -181,8 +193,14 @@ vi.mock('@/components/business/studio/StudioEnhanceButton', () => ({
   StudioEnhanceButton: () => <button type="button">enhance</button>,
 }))
 
-vi.mock('@/components/business/studio/StudioToolbarPanels', () => ({
-  StudioToolbarPanels: () => <div data-testid="studio-toolbar-panels" />,
+// 卡片那两颗拖着整条卡片管理链（角色卡管理 → LoRA 训练对话框 → …），
+// 与本文件要验的提示词 / 负面提示词 / 模型名单无关，替身掉保持单测聚焦。
+vi.mock('@/components/business/studio/StudioCardsButton', () => ({
+  StudioCardsButton: () => <button type="button">cards</button>,
+}))
+
+vi.mock('@/components/business/studio/StudioCardSection', () => ({
+  StudioCardSection: () => <div data-testid="studio-card-section" />,
 }))
 
 vi.mock('@/components/ui/prompt-input', () => ({
@@ -263,6 +281,7 @@ function setupStudioForm(
     audioEmotion: 'none',
     audioExpressiveness: 'auto',
     audioSfxDurationSeconds: 5,
+    audioMusicDurationSeconds: 30,
     audioSfxLoop: false,
     audioSfxPromptInfluence: 0.3,
     audioSfxVariantCount: 1,
@@ -351,10 +370,10 @@ function getSetPromptActions(): SetPromptAction[] {
 }
 
 describe('StudioPromptArea', () => {
-  // 2026-08-22 owner：「我没看到有负面提示词的地方」。查证结论 —— 输入框只长在
-  // `panels.advanced` 对话框里，而那条链（StudioBottomDock → StudioDockPanelArea）
-  // 图片模态**整条不挂载**，于是命令面板的「切换高级设置」是个空开关；而生成管线
-  // 一直在读 `advancedParams.negativePrompt`。字段活着、门没开。
+  // 2026-08-22 owner：「我没看到有负面提示词的地方」。查证结论 —— 输入框当时只长在
+  // `panels.advanced` 对话框里，而那条链图片模态整条不挂载，于是命令面板的
+  // 「切换高级设置」是个空开关；而生成管线一直在读 `advancedParams.negativePrompt`。
+  // 字段活着、门没开。折叠行是补上的那道门。
   describe('负面提示词（图片参数栏）', () => {
     const setupImagePanel = (advancedParams: Record<string, unknown> = {}) =>
       setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
@@ -365,10 +384,22 @@ describe('StudioPromptArea', () => {
 
     it('⭐ 图片参数栏里有入口（折叠行，收起时不渲染输入框）', () => {
       setupImagePanel()
-      render(<StudioPromptArea layout="panel" />)
+      render(<StudioPromptArea />)
 
       const row = screen.getByRole('button', { name: /negativePromptLabel/ })
       expect(row).toHaveAttribute('aria-expanded', 'false')
+      expect(row).toHaveAttribute(
+        'aria-controls',
+        'studio-negative-prompt-input',
+      )
+      expect(row).toHaveClass('rounded-lg', 'border-border', 'coarse:min-h-11')
+      const reveal = row.nextElementSibling
+      expect(reveal).toHaveAttribute('aria-hidden', 'true')
+      expect(reveal).toHaveClass(
+        'grid-rows-[0fr]',
+        'opacity-0',
+        'duration-base',
+      )
       expect(
         screen.queryByRole('textbox', { name: 'negativePromptLabel' }),
       ).not.toBeInTheDocument()
@@ -376,12 +407,16 @@ describe('StudioPromptArea', () => {
 
     it('展开后能输入，且写回 advancedParams', () => {
       setupImagePanel()
-      render(<StudioPromptArea layout="panel" />)
+      render(<StudioPromptArea />)
 
       fireEvent.click(
         screen.getByRole('button', { name: /negativePromptLabel/ }),
       )
       const input = screen.getByRole('textbox', { name: 'negativePromptLabel' })
+      const reveal = input.closest('[aria-hidden="false"]')
+      expect(reveal).toHaveClass('grid-rows-[1fr]', 'opacity-100')
+      expect(input).toHaveAttribute('id', 'studio-negative-prompt-input')
+      expect(input).toHaveClass('h-[46px]', 'rounded-lg', 'border-border')
       fireEvent.change(input, { target: { value: 'bad hands' } })
 
       expect(mockDispatch).toHaveBeenCalledWith({
@@ -394,7 +429,7 @@ describe('StudioPromptArea', () => {
       // `SET_ADVANCED_PARAMS` 是**整体替换** —— 只发 negativePrompt 会把 seed
       // 这类同住一个对象的参数一起抹掉。
       setupImagePanel({ seed: 1234 })
-      render(<StudioPromptArea layout="panel" />)
+      render(<StudioPromptArea />)
 
       fireEvent.click(
         screen.getByRole('button', { name: /negativePromptLabel/ }),
@@ -416,7 +451,7 @@ describe('StudioPromptArea', () => {
     // stopPropagation 防这一手。
     it('⛔ 点负面框时容器不许把焦点抢回主提示词框', () => {
       setupImagePanel()
-      render(<StudioPromptArea layout="panel" />)
+      render(<StudioPromptArea />)
 
       fireEvent.click(
         screen.getByRole('button', { name: /negativePromptLabel/ }),
@@ -433,7 +468,7 @@ describe('StudioPromptArea', () => {
 
     it('⛔ 展开后不再重复同一句 placeholder（同一句话不许一屏两遍）', () => {
       setupImagePanel()
-      render(<StudioPromptArea layout="panel" />)
+      render(<StudioPromptArea />)
 
       const row = screen.getByRole('button', { name: /negativePromptLabel/ })
       expect(row.textContent).toContain('negativePromptPlaceholder')
@@ -449,7 +484,7 @@ describe('StudioPromptArea', () => {
 
     it('清空写成 undefined 而不是空串（空串会被当成「设过一个空负面」带进请求）', () => {
       setupImagePanel({ negativePrompt: 'bad hands' })
-      render(<StudioPromptArea layout="panel" />)
+      render(<StudioPromptArea />)
 
       fireEvent.click(
         screen.getByRole('button', { name: /negativePromptLabel/ }),
@@ -516,29 +551,6 @@ describe('StudioPromptArea', () => {
     expect(getSetPromptActions()).toEqual([])
   })
 
-  it('keeps the composer expanded when pointer down happens outside', () => {
-    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
-      outputType: 'image',
-      selectedOptionId: null,
-    })
-
-    render(
-      <>
-        <StudioPromptArea />
-        <button type="button">outside target</button>
-      </>,
-    )
-
-    const promptGroup = screen.getByRole('group')
-    expect(promptGroup).toHaveAttribute('data-expanded', 'true')
-
-    fireEvent.pointerDown(
-      screen.getByRole('button', { name: 'outside target' }),
-    )
-
-    expect(promptGroup).toHaveAttribute('data-expanded', 'true')
-  })
-
   it('does not pre-close the open image surface when its panel trigger is pressed', () => {
     setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
       outputType: 'image',
@@ -546,7 +558,7 @@ describe('StudioPromptArea', () => {
       panels: { ...EMPTY_PANELS, refImage: true },
     })
 
-    render(<StudioPromptArea layout="panel" />)
+    render(<StudioPromptArea />)
     mockDispatch.mockClear()
 
     fireEvent.pointerDown(screen.getByRole('button', { name: 'label' }))
@@ -563,7 +575,7 @@ describe('StudioPromptArea', () => {
       panels: { ...EMPTY_PANELS, spec: true },
     })
 
-    render(<StudioPromptArea layout="panel" />)
+    render(<StudioPromptArea />)
     mockDispatch.mockClear()
 
     fireEvent.pointerDown(screen.getByRole('button', { name: 'specLabel' }))
@@ -582,7 +594,6 @@ describe('StudioPromptArea', () => {
     render(<StudioPromptArea />)
 
     const promptGroup = screen.getByRole('group')
-    expect(promptGroup).toHaveAttribute('data-expanded', 'true')
 
     fireEvent.drop(promptGroup, {
       dataTransfer: {
@@ -594,7 +605,6 @@ describe('StudioPromptArea', () => {
     })
 
     expect(mockImageUploadHandleDrop).toHaveBeenCalledTimes(1)
-    expect(promptGroup).toHaveAttribute('data-expanded', 'true')
   })
 
   it('adds CINEMATIC_SHORT_VIDEO workflowId to the video submit payload', async () => {
@@ -708,6 +718,103 @@ describe('StudioPromptArea', () => {
         }),
       }),
     )
+  })
+
+  // ── 音乐档的时长（切片 E）───────────────────────────────────────
+  //
+  // ⚠ 这一组盯的是一个「字段活着、门没开」：适配器早就读 `durationSeconds` 并
+  // 换算成 `music_length_ms`，而提交侧只在**音效**那一支传它 —— 于是所有音乐
+  // 都是适配器兜底的 30 秒，用户没有任何办法改。
+  const musicModelOption = {
+    optionId: 'music-option',
+    modelId: 'elevenlabs-music-v2',
+    keyId: 'eleven-key-1',
+    keyLabel: 'ElevenLabs key',
+    adapterType: 'elevenlabs',
+    providerConfig: {
+      label: 'ElevenLabs',
+      baseUrl: 'https://api.elevenlabs.io',
+    },
+    sourceType: 'saved',
+    requestCount: 1,
+  }
+
+  it('⭐ 音乐档把时长发出去 —— 不再恒是适配器兜底的 30 秒', async () => {
+    mockUseAudioModelOptions.mockReturnValue({
+      selectedModel: musicModelOption,
+      modelOptions: [musicModelOption],
+    })
+    setupStudioForm(WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE, {
+      outputType: 'audio',
+      audioKind: 'music',
+      selectedOptionId: 'music-option',
+      prompt: 'a slow lo-fi loop for a rainy window',
+      audioMusicDurationSeconds: 95,
+    })
+
+    render(<StudioPromptArea />)
+    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
+
+    await waitFor(() =>
+      expect(mockGenerate).toHaveBeenCalledWith({
+        mode: 'audio',
+        audio: expect.objectContaining({
+          modelId: 'elevenlabs-music-v2',
+          durationSeconds: 95,
+        }),
+      }),
+    )
+  })
+
+  it('⚠ 音效与音乐共用 durationSeconds，但取值来自各自的 state', async () => {
+    mockUseAudioModelOptions.mockReturnValue({
+      selectedModel: musicModelOption,
+      modelOptions: [musicModelOption],
+    })
+    setupStudioForm(WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE, {
+      outputType: 'audio',
+      audioKind: 'music',
+      selectedOptionId: 'music-option',
+      prompt: 'a slow lo-fi loop',
+      audioMusicDurationSeconds: 95,
+      // 音效那条留着一个完全不同的值：拿错了这里就会露馅
+      audioSfxDurationSeconds: 4,
+    })
+
+    render(<StudioPromptArea />)
+    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
+
+    await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
+    const payload = mockGenerate.mock.calls.at(-1)?.[0] as {
+      audio: { durationSeconds?: number; variantCount?: number }
+    }
+    expect(payload.audio.durationSeconds).toBe(95)
+    // 变体只属于音效 —— 音乐一次只出一条
+    expect(payload.audio.variantCount).toBeUndefined()
+  })
+
+  it('语音档不传时长 —— 长度由正文决定，没有这一档可选', async () => {
+    const speechModel = { ...musicModelOption, modelId: 'fish-audio-s2-pro' }
+    mockUseAudioModelOptions.mockReturnValue({
+      selectedModel: speechModel,
+      modelOptions: [speechModel],
+    })
+    setupStudioForm(WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE, {
+      outputType: 'audio',
+      audioKind: 'speech',
+      selectedOptionId: 'music-option',
+      prompt: 'Hello',
+      audioMusicDurationSeconds: 95,
+    })
+
+    render(<StudioPromptArea />)
+    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
+
+    await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
+    const payload = mockGenerate.mock.calls.at(-1)?.[0] as {
+      audio: { durationSeconds?: number }
+    }
+    expect(payload.audio.durationSeconds).toBeUndefined()
   })
 
   // ── Audio text limit is per model (L split, 2026-08-07) ─────────────

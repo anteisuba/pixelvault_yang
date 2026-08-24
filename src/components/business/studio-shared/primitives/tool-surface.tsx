@@ -200,3 +200,38 @@ export function StudioToolPopoverContent({
     />
   )
 }
+
+/**
+ * 参数栏「触发器 + 浮层」里那一组药丸的样式（ParamIdiom 形态 2）。
+ * 图片的「规格」与视频的「规格」共用一套，观感必须逐像素一致 —— 两处各写一份
+ * 是漂移的起点。选中态用 `studioChipActiveClass`。
+ */
+export const studioSegButtonClass =
+  'inline-flex min-w-14 flex-1 items-center justify-center gap-1.5 rounded-full border border-transparent px-3 py-1.5 text-xs font-medium transition-colors duration-fast ease-standard'
+export const studioSegInactiveClass =
+  'border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground'
+
+/**
+ * 比例的线框缩略图 —— 光看「4:3 / 3:4」两个数字要在脑子里换算横竖，画一个
+ * 同比例的小框就不用换算了。逐行带框能让**所有候选**一眼可比（旧的
+ * `StudioAspectRatioPopover` 是在旁边单摆一个 96px 大预览，只显示当前选中那个）。
+ */
+export function StudioRatioGlyph({ ratio }: { ratio: string }) {
+  const [w, h] = ratio.split(':').map(Number)
+  const BOX = 12
+  const scale = !w || !h ? 1 : w >= h ? BOX / w : BOX / h
+  return (
+    <span
+      className="flex size-3.5 shrink-0 items-center justify-center"
+      aria-hidden
+    >
+      <span
+        className="rounded-[1.5px] border border-current"
+        style={{
+          width: `${(w || BOX) * scale}px`,
+          height: `${(h || BOX) * scale}px`,
+        }}
+      />
+    </span>
+  )
+}

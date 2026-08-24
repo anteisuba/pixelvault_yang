@@ -17,12 +17,10 @@
  */
 
 // chrome — workbench shell components
-export * from './chrome/StudioBottomDock'
 export * from './chrome/StudioCanvas'
 export * from './chrome/StudioCommandPalette'
 export * from './chrome/StudioErrorBoundary'
 export * from './chrome/StudioLightbox'
-export * from './chrome/StudioResizableLayout'
 
 // setup — API key / model configuration gates
 export * from './setup/QuickSetupDialog'

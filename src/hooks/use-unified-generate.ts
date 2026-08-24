@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import {
   AUDIO_GENERATION,
   IMAGE_GENERATION,
+  PLATFORM_GENERATION_GUARD,
   VIDEO_GENERATION,
 } from '@/constants/config'
 import type { AudioFormat, AudioLatency } from '@/constants/audio-options'
@@ -131,6 +132,12 @@ export interface UseUnifiedGenerateReturn {
   activeRun: ActiveRun | null
   /** B5: Select a variant as winner */
   selectWinner: (generationId: string) => Promise<void>
+  /** 视频队列里还在跑的条数（只数当前批次且 outputType 为 VIDEO 的）。 */
+  activeVideoJobCount: number
+  /** 还能不能再排一条视频 —— 上限取平台并发闸的 4，判据见实现处注释。 */
+  canQueueMoreVideo: boolean
+  /** 用某一条自己的参数重放它；原地把失败那条换成新排的一条。 */
+  retryVideoQueueItem: (itemId: string) => Promise<void>
 }
 
 function isAudioEmotion(value: string | undefined): value is AudioEmotion {
@@ -251,6 +258,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollCountRef = useRef(0)
   const singleImageInFlightRef = useRef(false)
+  /**
+   * 队列里每一条自己的请求参数。
+   *
+   * ⚠ 不能靠 `lastRequestRef` 重试：它只存最后一次提交。队列里排了三条、想重试
+   * 第 1 条时，拿到的会是第 3 条的参数 —— 重试出来的东西跟失败的那条无关。
+   */
+  const videoJobParamsRef = useRef(new Map<string, GenerateVideoRequest>())
 
   const tStudio = useTranslations('StudioV2')
   const tVideo = useTranslations('VideoGenerate')
@@ -601,36 +615,126 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     ],
   )
 
-  // ── Video generation (async queue + polling) ──────────────────
+  // ── Video generation (queue + per-item polling) ───────────────
 
+  /**
+   * 一条视频任务的轮询循环 —— **每条自己一份**，照 `pollImageJobForRunItem` 的
+   * 形状写。
+   *
+   * ⚠ 这里以前是 `pollRef.current = setInterval(...)`，而 `pollRef` 是整个 hook
+   * **共用的一个 ref**：排第二条时第一条的 interval 会被原样覆盖掉 —— 要么泄漏
+   * 一个永不停的定时器，要么被下一次 `stopPolling()` 一起清掉，第一条从此再也
+   * 不更新。视频能排队的前提就是先拆掉这个共享槽。
+   */
+  const pollVideoJobForRunItem = useCallback(
+    async (jobId: string, itemId: string): Promise<GenerationRecord | null> => {
+      for (
+        let attempt = 1;
+        attempt <= VIDEO_GENERATION.MAX_POLL_ATTEMPTS;
+        attempt += 1
+      ) {
+        await waitForPollInterval(VIDEO_GENERATION.POLL_INTERVAL_MS)
+
+        try {
+          const statusResponse = await checkVideoStatusAPI(jobId)
+
+          if (!statusResponse.success || !statusResponse.data) {
+            // 提交后头几拍拿不到状态是正常的（job 还没落库）；超过容忍窗口才判失败。
+            if (attempt <= VIDEO_GENERATION.EARLY_POLL_TOLERANCE) continue
+            const { message } = resolveGenerationError(
+              statusResponse,
+              tVideo('errorFallback'),
+            )
+            markActiveRunItemFailed(itemId, message)
+            return null
+          }
+
+          const statusData = statusResponse.data
+
+          if (statusData.status === 'COMPLETED') {
+            const generation = statusData.generation
+            markActiveRunItemCompleted(itemId, generation)
+            setLastGeneration(generation)
+            notifySaved(generation, tVideo('toastSuccess'))
+            return generation
+          }
+
+          if (statusData.status === 'FAILED') {
+            const { message } = resolveGenerationError(
+              statusData,
+              tVideo('errorFallback'),
+            )
+            markActiveRunItemFailed(itemId, message)
+            return null
+          }
+        } catch {
+          // 网络抖一下：跳过这一拍继续轮询，不把整条判死。
+          continue
+        }
+      }
+
+      markActiveRunItemFailed(itemId, tVideo('errorTimeout'))
+      return null
+    },
+    [
+      tVideo,
+      notifySaved,
+      resolveGenerationError,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+    ],
+  )
+
+  /**
+   * 提交一条视频任务并**立刻返回** —— 轮询在后台跑，结果落到它自己那个 item 上。
+   *
+   * ## 为什么不再 await 到完成
+   *
+   * 视频 1–5 分钟。旧版把整段等待做成一次 `await`，期间 `isGenerating` 恒为
+   * true，于是参数栏所有控件禁用、生成按钮禁用 —— 用户除了盯着屏幕什么也做不了。
+   * 现在 `isGenerating` 只覆盖**提交**那几百毫秒；「有几条在跑」由 run items 自己
+   * 表达，队列条渲染它们。
+   *
+   * ## 失败只标这一条，不调 `finish(err)`
+   *
+   * ⚠ `finish(err)` 会 `setError` 并弹全局错误对话框、同时 `setIsGenerating(false)`
+   * ＋停表。队列里第 1 条失败时调它，等于替还在跑的第 2、3 条宣布整轮结束。
+   * 所以这里只 `markActiveRunItemFailed`，错误长在那一格上，可单条重试。
+   */
   const generateVideo = useCallback(
     async (params: GenerateVideoRequest): Promise<GenerationRecord | null> => {
-      setIsGenerating(true)
       setError(null)
       setErrorCode(null)
-      setStage('queued')
-      startTimer()
 
-      // B0: Create ActiveRun for video generation
       const itemId = crypto.randomUUID()
-      setActiveRun({
-        id: crypto.randomUUID(),
-        mode: 'single',
-        items: [
-          {
-            id: itemId,
-            modelId: params.modelId,
-            status: 'generating',
-            generation: null,
-            error: null,
-          },
-        ],
-        selectedItemId: itemId,
-        prompt: params.prompt,
-        startedAt: Date.now(),
-        outputType: 'VIDEO',
-      })
+      const startedAt = Date.now()
+      const newItem: RunItem = {
+        id: itemId,
+        modelId: params.modelId,
+        status: 'generating',
+        generation: null,
+        error: null,
+        startedAt,
+      }
 
+      // 同一批就接在现有队列后面；上一批是别的模态（或还没有批次）就新起一批。
+      setActiveRun((prev) =>
+        prev && prev.outputType === 'VIDEO'
+          ? { ...prev, items: [...prev.items, newItem], prompt: params.prompt }
+          : {
+              id: crypto.randomUUID(),
+              mode: 'single',
+              items: [newItem],
+              selectedItemId: null,
+              prompt: params.prompt,
+              startedAt,
+              outputType: 'VIDEO',
+            },
+      )
+      videoJobParamsRef.current.set(itemId, params)
+
+      setIsGenerating(true)
+      setStage('queued')
       try {
         const submitResponse = await submitVideoAPI(params)
         if (!submitResponse.success || !submitResponse.data) {
@@ -639,100 +743,35 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             tVideo('errorFallback'),
           )
           markActiveRunItemFailed(itemId, message)
-          finish(message, code)
+          // 提交就失败是**这一次动作**的失败（配额、鉴权、参数不合法），用户正等着
+          // 按钮的回应，该报出来；轮询期间的失败才只标格子。
+          setError(message)
+          setErrorCode(code ?? null)
+          toast.error(message)
           return null
         }
 
-        const { jobId } = submitResponse.data
         setStage('processing')
-        pollCountRef.current = 0
-
-        return await new Promise<GenerationRecord | null>((resolve) => {
-          pollRef.current = setInterval(async () => {
-            pollCountRef.current += 1
-
-            if (pollCountRef.current > VIDEO_GENERATION.MAX_POLL_ATTEMPTS) {
-              markActiveRunItemFailed(itemId, tVideo('errorTimeout'))
-              finish(
-                tVideo('errorTimeout'),
-                GENERATION_ERROR_CODES.PROVIDER_TIMEOUT,
-              )
-              resolve(null)
-              return
-            }
-
-            try {
-              const statusResponse = await checkVideoStatusAPI(jobId)
-
-              if (!statusResponse.success || !statusResponse.data) {
-                if (
-                  pollCountRef.current <= VIDEO_GENERATION.EARLY_POLL_TOLERANCE
-                ) {
-                  return
-                }
-                const { message, code } = resolveGenerationError(
-                  statusResponse,
-                  tVideo('errorFallback'),
-                )
-                markActiveRunItemFailed(itemId, message)
-                finish(message, code)
-                resolve(null)
-                return
-              }
-
-              const statusData = statusResponse.data
-
-              if (statusData.status === 'COMPLETED') {
-                const generation = statusData.generation
-                setLastGeneration(generation)
-                markActiveRunItemCompleted(itemId, generation)
-                finish()
-                notifySaved(generation, tVideo('toastSuccess'))
-                resolve(generation)
-                return
-              }
-
-              if (statusData.status === 'FAILED') {
-                const { message, code } = resolveGenerationError(
-                  statusData,
-                  tVideo('errorFallback'),
-                )
-                markActiveRunItemFailed(itemId, message)
-                finish(message, code)
-                resolve(null)
-                return
-              }
-
-              if (statusData.status === 'IN_QUEUE') {
-                setStage('queued')
-                return
-              }
-
-              if (statusData.status === 'IN_PROGRESS') {
-                setStage('processing')
-              }
-            } catch {
-              markActiveRunItemFailed(itemId, tVideo('errorUnexpected'))
-              finish(tVideo('errorUnexpected'))
-              resolve(null)
-            }
-          }, VIDEO_GENERATION.POLL_INTERVAL_MS)
-        })
+        // 不 await：让按钮立刻可用，轮询自己把结果写回那一格。
+        void pollVideoJobForRunItem(submitResponse.data.jobId, itemId)
+        return null
       } catch (err) {
         const message =
           err instanceof Error ? err.message : tVideo('errorUnexpected')
-        finish(message)
+        markActiveRunItemFailed(itemId, message)
+        setError(message)
+        toast.error(message)
         return null
+      } finally {
+        setIsGenerating(false)
+        setStage('idle')
       }
     },
     [
       tVideo,
-      notifySaved,
       resolveGenerationError,
-      startTimer,
-      finish,
-      markActiveRunItemCompleted,
       markActiveRunItemFailed,
+      pollVideoJobForRunItem,
     ],
   )
 
@@ -1364,6 +1403,48 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     return generate(lastRequestRef.current)
   }, [generate, isGenerating])
 
+  /**
+   * 队列里还在跑的条数 —— 队列闸与「再排一条」的按钮态都读它。
+   *
+   * ⚠ 只数**当前批次且是视频**的：三个模态共用一个 `activeRun` 槽，不加模态守卫
+   * 会把上一批图片也数进来。
+   */
+  const activeVideoJobCount =
+    activeRun?.outputType === 'VIDEO'
+      ? activeRun.items.filter((item) => item.status === 'generating').length
+      : 0
+
+  /**
+   * 还能不能再排一条。
+   *
+   * ⚠ 判据取 `MAX_ACTIVE_JOBS_PER_USER`（4）—— 它服务端只管**平台出资**的请求，
+   * BYOK 不受限，所以前端这道闸对自带 key 的用户偏严。宁可偏严：多拦一条比让
+   * 第 5 条吃 429、在队列里显示成一个没人看得懂的失败要好。真要放开，得先让
+   * 前端拿得到出资方（`isPlatformFunded` 今天只在服务端读）。
+   */
+  const canQueueMoreVideo =
+    activeVideoJobCount < PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER
+
+  /**
+   * 重试队列里的某一条 —— 用**它自己**当初的参数重放，原地换成新的一条。
+   */
+  const retryVideoQueueItem = useCallback(
+    async (itemId: string): Promise<void> => {
+      const params = videoJobParamsRef.current.get(itemId)
+      if (!params) return
+      // 先把失败那条摘掉，再排一条新的：留着旧的会让队列里出现两条同义项，
+      // 而它们的 jobId 不同、状态各自演进，读起来像「重试了两次」。
+      setActiveRun((prev) =>
+        prev
+          ? { ...prev, items: prev.items.filter((item) => item.id !== itemId) }
+          : null,
+      )
+      videoJobParamsRef.current.delete(itemId)
+      await generateVideo(params)
+    },
+    [generateVideo],
+  )
+
   const reset = useCallback(() => {
     setError(null)
     setErrorCode(null)
@@ -1388,5 +1469,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     reset,
     activeRun,
     selectWinner,
+    activeVideoJobCount,
+    canQueueMoreVideo,
+    retryVideoQueueItem,
   }
 }

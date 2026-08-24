@@ -10,19 +10,10 @@ import {
   CommandList,
   CommandSeparator,
 } from 'cmdk'
-import {
-  ImageIcon,
-  Film,
-  Mic,
-  Wand2,
-  Layers,
-  Settings2,
-  Search,
-  Cpu,
-} from 'lucide-react'
+import { ImageIcon, Film, Mic, Wand2, Layers, Search, Cpu } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { useStudioForm, type PanelName } from '@/contexts/studio-context'
+import { useStudioForm } from '@/contexts/studio-context'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
@@ -85,14 +76,6 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
   const switchWorkflow = useCallback(
     (mode: 'quick' | 'card') => {
       dispatch({ type: 'SET_WORKFLOW_MODE', payload: mode })
-      setOpen(false)
-    },
-    [dispatch],
-  )
-
-  const togglePanel = useCallback(
-    (panel: PanelName) => {
-      dispatch({ type: 'TOGGLE_PANEL', payload: panel })
       setOpen(false)
     },
     [dispatch],
@@ -218,18 +201,8 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
             </CommandGroup>
           )}
 
-          <CommandSeparator />
-
-          {/* Panels */}
-          <CommandGroup heading={t('groups.panels')}>
-            <CommandItem
-              onSelect={() => togglePanel('advanced')}
-              className="studio-command-item"
-            >
-              <Settings2 className="size-4 text-muted-foreground" />
-              <span>{t('commands.toggleAdvanced')}</span>
-            </CommandItem>
-          </CommandGroup>
+          {/* 「面板」组已删（2026-08-23 切片 A）：组里唯一一项是「切换高级设置」，
+              而那个面板整条退役了 —— 留着就是个空开关。 */}
 
           <CommandSeparator />
 

@@ -239,7 +239,7 @@ export function useDockLayout() {
 
 /**
  * StudioAssistantDock — desktop (≥lg) host for PromptAssistantPanel as a
- * persistent right-side overlay, mounted as a DOM sibling of StudioFlowLayout
+ * persistent right-side overlay, mounted as a DOM sibling of the workbench
  * in StudioWorkspaceUI without participating in its flex sizing. Mobile keeps
  * the drawer host in StudioEnhanceButton; both share `panels.enhance` as the
  * open state.

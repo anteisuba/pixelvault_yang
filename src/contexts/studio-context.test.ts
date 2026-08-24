@@ -49,6 +49,7 @@ function makeInitialState(
     audioEmotion: 'none',
     audioExpressiveness: 'auto',
     audioSfxDurationSeconds: 5,
+    audioMusicDurationSeconds: 30,
     audioSfxLoop: false,
     audioSfxPromptInfluence: 0.3,
     audioSfxVariantCount: 1,
@@ -88,18 +89,16 @@ function makeInitialState(
       enhance: false,
       stylePreset: false,
       reverse: false,
-      advanced: false,
       refImage: false,
-      aspectRatio: false,
-      resolution: false,
-      batchCount: false,
       spec: false,
+      videoSpec: false,
+      audioReading: false,
+      musicSpec: false,
       loraSelector: false,
       voiceSelector: false,
       voiceTrainer: false,
       audioTranscribe: false,
       sfxParams: false,
-      videoParams: false,
       script: false,
       keepChange: false,
     },
@@ -145,15 +144,15 @@ describe('studioFormReducer', () => {
 
   it('SET_SELECTED_WORKFLOW_ID opens default tool panel and closes existing tool panels', () => {
     const state = makeInitialState()
-    state.panels.advanced = true
+    state.panels.reverse = true
 
     const next = studioFormReducer(state, {
       type: 'SET_SELECTED_WORKFLOW_ID',
       payload: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
     })
 
-    expect(next.panels.videoParams).toBe(true)
-    expect(next.panels.advanced).toBe(false)
+    expect(next.panels.videoSpec).toBe(true)
+    expect(next.panels.reverse).toBe(false)
   })
 
   it('SET_SELECTED_WORKFLOW_ID can suppress the default panel for route sync', () => {
@@ -166,7 +165,7 @@ describe('studioFormReducer', () => {
     })
 
     expect(next.outputType).toBe('video')
-    expect(next.panels.videoParams).toBe(false)
+    expect(next.panels.videoSpec).toBe(false)
   })
 
   it('SET_SELECTED_WORKFLOW_ID keeps prompt when staying in the same media group', () => {
@@ -519,19 +518,19 @@ describe('studioFormReducer', () => {
     const state = makeInitialState()
     const next = studioFormReducer(state, {
       type: 'TOGGLE_PANEL',
-      payload: 'advanced',
+      payload: 'reverse',
     })
-    expect(next.panels.advanced).toBe(true)
+    expect(next.panels.reverse).toBe(true)
   })
 
   it('TOGGLE_PANEL closes an open panel', () => {
     const state = makeInitialState()
-    state.panels.advanced = true
+    state.panels.reverse = true
     const next = studioFormReducer(state, {
       type: 'TOGGLE_PANEL',
-      payload: 'advanced',
+      payload: 'reverse',
     })
-    expect(next.panels.advanced).toBe(false)
+    expect(next.panels.reverse).toBe(false)
   })
 
   it('TOGGLE_PANEL does not affect non-toolbar panels', () => {
@@ -539,11 +538,11 @@ describe('studioFormReducer', () => {
     state.panels.cardManagement = true
     const next = studioFormReducer(state, {
       type: 'TOGGLE_PANEL',
-      payload: 'advanced',
+      payload: 'reverse',
     })
     // cardManagement is not a toolbar panel, so it stays open
     expect(next.panels.cardManagement).toBe(true)
-    expect(next.panels.advanced).toBe(true)
+    expect(next.panels.reverse).toBe(true)
   })
 
   it('TOGGLE_PANEL toolbar panels are mutually exclusive', () => {
@@ -551,11 +550,11 @@ describe('studioFormReducer', () => {
     state.panels.refImage = true
     const next = studioFormReducer(state, {
       type: 'TOGGLE_PANEL',
-      payload: 'advanced',
+      payload: 'reverse',
     })
-    // Opening advanced should close refImage (both are toolbar panels)
+    // Opening reverse should close refImage (both are toolbar panels)
     expect(next.panels.refImage).toBe(false)
-    expect(next.panels.advanced).toBe(true)
+    expect(next.panels.reverse).toBe(true)
   })
 
   it('TOGGLE_PANEL keeps the assistant dock (enhance) open when a tool panel opens', () => {
@@ -563,11 +562,11 @@ describe('studioFormReducer', () => {
     state.panels.enhance = true
     const next = studioFormReducer(state, {
       type: 'TOGGLE_PANEL',
-      payload: 'advanced',
+      payload: 'reverse',
     })
     // enhance backs the persistent assistant dock — it coexists with tool dialogs
     expect(next.panels.enhance).toBe(true)
-    expect(next.panels.advanced).toBe(true)
+    expect(next.panels.reverse).toBe(true)
   })
 
   // ── CLOSE_PANEL ──
@@ -595,7 +594,7 @@ describe('studioFormReducer', () => {
 
   it('CLOSE_ALL_PANELS closes every open panel', () => {
     const state = makeInitialState()
-    state.panels.advanced = true
+    state.panels.reverse = true
     state.panels.enhance = true
     state.panels.cardManagement = true
 
@@ -634,7 +633,7 @@ describe('studioFormReducer', () => {
       advancedParams: { guidanceScale: 12 },
       selectedOptionId: 'some-model',
     })
-    state.panels.advanced = true
+    state.panels.reverse = true
     state.panels.enhance = true
 
     const next = studioFormReducer(state, { type: 'RESET_FORM' })
@@ -695,7 +694,6 @@ describe('studioFormReducer', () => {
     'cardSelector',
     'enhance',
     'reverse',
-    'advanced',
     'refImage',
     'keepChange',
   ])('TOGGLE_PANEL works for panel "%s"', (panel) => {

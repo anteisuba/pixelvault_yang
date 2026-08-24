@@ -75,7 +75,17 @@ function renderAudioParams(overrides?: {
       overrides?.onChangeAudioReferenceText ?? vi.fn(),
   }
 
-  render(<StudioAudioParams {...props} />)
+  // 切片 D 之后这个组件按 `section` 分段渲染（朗读进浮层、停顿与高级各进一个
+  // 折叠行、声音那页跟着音色库）。这些用例验的是**控件本身**，不是谁装它们，
+  // 所以四段一起渲染 —— 段与段的内容不重叠，不会撞 getByRole。
+  render(
+    <>
+      <StudioAudioParams section="reading" {...props} />
+      <StudioAudioParams section="pause" {...props} />
+      <StudioAudioParams section="advanced" {...props} />
+      <StudioAudioParams section="voice" {...props} />
+    </>,
+  )
   return props
 }
 
@@ -87,7 +97,11 @@ describe('StudioAudioParams', () => {
     expect(screen.getByText('paceNormal')).toBeInTheDocument()
     expect(screen.getByText('paceFast')).toBeInTheDocument()
     expect(screen.getByText('styleNarration')).toBeInTheDocument()
-    expect(screen.getByText('advancedHint')).toBeInTheDocument()
+    // 切片 D：收起的「高级」印当前值（`MP3 · 44.1k · 均衡`），说明挪进了展开区。
+    // ⚠ 只断言摘要在场，不断言说明「不在场」—— 折叠靠 `grid-rows-[0fr]` 收高，
+    //   元素仍在 DOM 里，而 jsdom 没有布局，量不出它被收掉了（这是本仓已知的
+    //   闸门盲区，不该用一条永远为假的断言去装作能量）。
+    expect(screen.getByText(/MP3 · .+ · latency/)).toBeInTheDocument()
     expect(screen.getByText('paceHint')).toBeInTheDocument()
     expect(screen.getByText('pauseMarkersHint')).toBeInTheDocument()
   })
@@ -110,22 +124,27 @@ describe('StudioAudioParams', () => {
     expect(onChangeAdvanced).toHaveBeenCalledWith({ style: 'narration' })
   })
 
-  it('groups advanced controls into output, voice, and model tabs', () => {
+  // ⭐ 切片 D：「声音」不再是「高级」里的一页 —— 参考音频 / 音量 / 多角色音色
+  // 回答的都是「谁来念」，跟着音色库走；「高级」只剩输出与模型两页。
+  it('高级只剩输出与模型两页，声音那页已随音色库离开', () => {
     renderAudioParams()
 
     fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
 
     expect(screen.getByText('tabOutput')).toBeInTheDocument()
-    expect(screen.getByText('tabVoice')).toBeInTheDocument()
     expect(screen.getByText('tabModel')).toBeInTheDocument()
+    expect(screen.queryByText('tabVoice')).not.toBeInTheDocument()
     expect(screen.getByText('format')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
-    expect(screen.getByText('speakerVoiceIds')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('tab', { name: /tabModel/ }))
     expect(screen.getByText('temperature')).toBeInTheDocument()
     expect(screen.getByText('withTimestamps')).toBeInTheDocument()
+  })
+
+  it('多角色音色随「声音」段独立渲染，不再需要先点开高级', () => {
+    renderAudioParams()
+
+    expect(screen.getByText('speakerVoiceIds')).toBeInTheDocument()
   })
 
   it('renders speaker voice ids as chips with picker and remove controls', () => {
@@ -139,9 +158,6 @@ describe('StudioAudioParams', () => {
       onChangeAdvanced,
       onRequestSpeakerVoiceSelect,
     })
-
-    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
-    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
 
     expect(screen.getByText('voice-a')).toBeInTheDocument()
     expect(screen.getByText('voice-b')).toBeInTheDocument()
@@ -166,9 +182,6 @@ describe('StudioAudioParams', () => {
     const onChangeAdvanced = vi.fn()
     renderAudioParams({ onChangeAdvanced })
 
-    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
-    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
-
     const input = screen.getByPlaceholderText('speakerVoiceInputPlaceholder')
     fireEvent.change(input, { target: { value: 'voice-a, voice-b' } })
     fireEvent.keyDown(input, { key: 'Enter' })
@@ -178,11 +191,8 @@ describe('StudioAudioParams', () => {
     })
   })
 
-  it('renders the reference-audio dropzone with transcript field on the Voice tab', () => {
+  it('renders the reference-audio dropzone with transcript field', () => {
     renderAudioParams()
-
-    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
-    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
 
     // Empty state: dropzone visible, transcript empty
     expect(screen.getByText(/referencePick/)).toBeInTheDocument()
@@ -199,9 +209,6 @@ describe('StudioAudioParams', () => {
       audioReferenceText: '',
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
-    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
-
     expect(screen.getByText('voice.mp3')).toBeInTheDocument()
     expect(screen.getByText('referenceTextRequired')).toBeInTheDocument()
   })
@@ -214,9 +221,6 @@ describe('StudioAudioParams', () => {
       audioReferenceText: '',
       onChangeAudioReferenceText,
     })
-
-    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
-    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
 
     fireEvent.change(screen.getByPlaceholderText('referenceTextPlaceholder'), {
       target: { value: 'Hello world.' },
@@ -232,9 +236,6 @@ describe('StudioAudioParams', () => {
       audioReferenceText: 'hi',
       onChangeAudioReferenceUpload,
     })
-
-    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
-    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
 
     fireEvent.click(screen.getByRole('button', { name: 'referenceRemove' }))
     expect(onChangeAudioReferenceUpload).toHaveBeenCalledWith(null)

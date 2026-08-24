@@ -2,7 +2,12 @@ import { createElement, type ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
-import { AUDIO_GENERATION, IMAGE_GENERATION } from '@/constants/config'
+import {
+  AUDIO_GENERATION,
+  IMAGE_GENERATION,
+  PLATFORM_GENERATION_GUARD,
+  VIDEO_GENERATION,
+} from '@/constants/config'
 import { FAKE_GENERATION } from '@/test/api-helpers'
 import type { GenerationRecord } from '@/types'
 
@@ -65,6 +70,8 @@ import {
   studioGenerateAPI,
   generateAudioAPI,
   checkAudioStatusAPI,
+  submitVideoAPI,
+  checkVideoStatusAPI,
 } from '@/lib/api-client'
 import { toast } from 'sonner'
 
@@ -72,6 +79,8 @@ const mockStudioGenerate = vi.mocked(studioGenerateAPI)
 const mockCheckImageStatus = vi.mocked(checkImageGenerationStatusAPI)
 const mockGenerateAudio = vi.mocked(generateAudioAPI)
 const mockCheckAudioStatus = vi.mocked(checkAudioStatusAPI)
+const mockSubmitVideo = vi.mocked(submitVideoAPI)
+const mockCheckVideoStatus = vi.mocked(checkVideoStatusAPI)
 
 function wrapper({ children }: { children: ReactNode }) {
   return createElement(LoraStackProvider, null, children)
@@ -88,6 +97,13 @@ const IMAGE_INPUT = {
 const AUDIO_INPUT = {
   modelId: 'fish-audio-s2-pro',
   freePrompt: 'Hello world',
+}
+
+const VIDEO_INPUT = {
+  modelId: 'seedance-2.0-fast',
+  prompt: 'a cat leaps off the sill',
+  aspectRatio: '16:9' as const,
+  duration: 5,
 }
 
 const SUCCESS_IMAGE_SUBMIT_RESPONSE = {
@@ -807,6 +823,149 @@ describe('useUnifiedGenerate', () => {
     expect(result.current.lastGeneration?.id).toBe(FAKE_GENERATION.id)
     expect(result.current.error).toBeNull()
     expect(mockStudioGenerate).toHaveBeenCalledTimes(2)
+  })
+
+  // ── 视频队列（切片 C）─────────────────────────────────────────
+  //
+  // 这一组盯的是「能不能同时跑几条」。旧版做不到，原因不是产品决定而是实现：
+  // 轮询挂在整个 hook 共用的一个 `pollRef` 上，排第二条会把第一条的定时器覆盖掉。
+  describe('视频队列', () => {
+    const queueVideo = async (
+      result: { current: ReturnType<typeof useUnifiedGenerate> },
+      overrides: Partial<typeof VIDEO_INPUT> = {},
+    ) => {
+      await act(async () => {
+        await result.current.generate({
+          mode: 'video',
+          video: { ...VIDEO_INPUT, ...overrides },
+        })
+      })
+    }
+
+    beforeEach(() => {
+      // 队列里每条要有自己的 id —— 外层 beforeEach 把 randomUUID 钉成常量，
+      // 那会让四条 item 共用一个 id。
+      let seq = 0
+      vi.spyOn(crypto, 'randomUUID').mockImplementation(
+        () =>
+          `00000000-0000-0000-0000-${String(seq++).padStart(12, '0')}` as ReturnType<
+            typeof crypto.randomUUID
+          >,
+      )
+      mockSubmitVideo.mockResolvedValue({
+        success: true,
+        data: { jobId: 'job-video-1', requestId: 'request-video-1' },
+      })
+      mockCheckVideoStatus.mockResolvedValue({
+        success: true,
+        data: { jobId: 'job-video-1', status: 'IN_QUEUE' },
+      })
+    })
+
+    it('⭐ 再排一条是 append 不是替换 —— 两条同时在跑', async () => {
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      await queueVideo(result)
+      await queueVideo(result, { prompt: 'a second take' })
+
+      expect(result.current.activeRun?.items).toHaveLength(2)
+      expect(
+        result.current.activeRun?.items.every(
+          (item) => item.status === 'generating',
+        ),
+      ).toBe(true)
+      expect(result.current.activeVideoJobCount).toBe(2)
+    })
+
+    it('⭐ 提交完成后 isGenerating 立刻回落 —— 等待期间还能再排一条', async () => {
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      await queueVideo(result)
+
+      expect(result.current.isGenerating).toBe(false)
+      expect(result.current.canQueueMoreVideo).toBe(true)
+    })
+
+    it('⭐ 排满 4 条后关闸 —— 与服务端并发闸同一个数', async () => {
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      for (
+        let i = 0;
+        i < PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER;
+        i += 1
+      ) {
+        await queueVideo(result, { prompt: `take ${i}` })
+      }
+
+      expect(result.current.activeVideoJobCount).toBe(
+        PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER,
+      )
+      expect(result.current.canQueueMoreVideo).toBe(false)
+    })
+
+    it('⭐ 提交失败只失败它自己，不把还在跑的那条一起判死', async () => {
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      await queueVideo(result)
+      mockSubmitVideo.mockResolvedValueOnce(ERROR_RESPONSE)
+      await queueVideo(result, { prompt: 'doomed take' })
+
+      const items = result.current.activeRun?.items ?? []
+      expect(items).toHaveLength(2)
+      expect(items[0].status).toBe('generating')
+      expect(items[1].status).toBe('failed')
+      // 还有一条在跑，闸不能因为另一条失败就关上
+      expect(result.current.canQueueMoreVideo).toBe(true)
+    })
+
+    it('⭐ 重试用**那一条**自己的参数重放，不是最后一次提交的参数', async () => {
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      mockSubmitVideo.mockResolvedValueOnce(ERROR_RESPONSE)
+      await queueVideo(result, { prompt: 'the failed one' })
+      await queueVideo(result, { prompt: 'a later take' })
+
+      const failed = result.current.activeRun?.items.find(
+        (item) => item.status === 'failed',
+      )
+      expect(failed).toBeDefined()
+
+      mockSubmitVideo.mockClear()
+      await act(async () => {
+        await result.current.retryVideoQueueItem(failed!.id)
+      })
+
+      expect(mockSubmitVideo).toHaveBeenCalledWith(
+        expect.objectContaining({ prompt: 'the failed one' }),
+      )
+      // 失败那条被换掉，不留一条同义的残骸
+      expect(
+        result.current.activeRun?.items.some((item) => item.id === failed!.id),
+      ).toBe(false)
+    })
+
+    it('轮询失败只标那一格，不弹全局错误对话框', async () => {
+      vi.useFakeTimers()
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      mockCheckVideoStatus.mockResolvedValue({
+        success: true,
+        data: {
+          jobId: 'job-video-1',
+          status: 'FAILED',
+          error: 'provider blew up',
+        },
+      })
+
+      await queueVideo(result)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(VIDEO_GENERATION.POLL_INTERVAL_MS)
+      })
+
+      expect(result.current.activeRun?.items[0].status).toBe('failed')
+      // `error` 是全局错误对话框的开关 —— 队列里单条失败不该弹它
+      expect(result.current.error).toBeNull()
+    })
   })
 
   it('reset clears all state', async () => {

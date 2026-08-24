@@ -44,12 +44,10 @@ export type WorkflowDefaultOpenPanel =
   | 'civitai'
   | 'enhance'
   | 'reverse'
-  | 'advanced'
   | 'refImage'
-  | 'aspectRatio'
   | 'voiceSelector'
   | 'voiceTrainer'
-  | 'videoParams'
+  | 'videoSpec'
   | 'script'
 
 type WorkflowDefinition = {
@@ -189,7 +187,8 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
     ],
   },
   [WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO]: {
-    openPanel: 'videoParams',
+    // 2026-08-23 切片 B：视频设置对话框退役，时长/分辨率/比例并进「规格」浮层。
+    openPanel: 'videoSpec',
     recommendedModelIds: [
       // VEO_31 removed 2026-07-26 (retired). HappyHorse v1.1 takes the slot —
       // it sits in the arena top 5 alongside Seedance 2.0.

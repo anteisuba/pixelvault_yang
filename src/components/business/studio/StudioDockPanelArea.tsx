@@ -29,6 +29,7 @@ import {
   studioDialogBodyClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import type { SelectedVoice } from '@/components/business/node/VoiceSelector'
+import { useStudioAudioParamsProps } from '@/hooks/use-studio-audio-params'
 
 /**
  * Shared spinner for panel bodies that ship as separate chunks. Without
@@ -74,20 +75,6 @@ const AudioTranscribeDialog = dynamic(
     ),
   { loading: () => <PanelLoadingFallback /> },
 )
-const StudioVideoParams = dynamic(
-  () =>
-    import('@/components/business/studio/StudioVideoParams').then(
-      (mod) => mod.StudioVideoParams,
-    ),
-  { loading: () => <PanelLoadingFallback /> },
-)
-const StudioImageAdvancedParams = dynamic(
-  () =>
-    import('@/components/business/image/StudioImageAdvancedParams').then(
-      (mod) => mod.StudioImageAdvancedParams,
-    ),
-  { loading: () => <PanelLoadingFallback /> },
-)
 const StudioScriptPanel = dynamic(
   () =>
     import('@/components/business/studio/StudioScriptPanel').then(
@@ -123,6 +110,9 @@ type SpeakerVoiceSelectionTarget =
  */
 export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const { state, dispatch } = useStudioForm()
+  // 那 40 个受控 props 的拼装搬进了 hook —— 参数面板现在有三个宿主
+  // （音色库这一份 + 参数栏的浮层与折叠行），拼装留在宿主里就会被复制三遍。
+  const audioParamsProps = useStudioAudioParamsProps()
   const { imageUpload, civitai, styles } = useStudioData()
   const t = useTranslations('StudioV2')
   const tPanels = useTranslations('StudioPanels')
@@ -296,149 +286,11 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
         onVoiceSelectComplete={handleVoiceSelectComplete}
         sidePanel={
           <StudioAudioParams
-            voiceCardId={state.voiceCardId}
-            pace={state.audioPace}
-            expressiveness={state.audioExpressiveness}
-            pauseMarkers={state.audioPauseMarkers}
-            advanced={{
-              style: state.audioEmotion,
-              volume: state.audioVolume,
-              normalizeLoudness: state.audioNormalizeLoudness,
-              normalizeText: state.audioNormalizeText,
-              withTimestamps: state.audioWithTimestamps,
-              format: state.audioFormat,
-              sampleRate: state.audioSampleRate,
-              mp3Bitrate: state.audioMp3Bitrate,
-              opusBitrate: state.audioOpusBitrate,
-              latency: state.audioLatency,
-              temperature: state.audioTemperature,
-              topP: state.audioTopP,
-              chunkLength: state.audioChunkLength,
-              repetitionPenalty: state.audioRepetitionPenalty,
-              speakerVoiceIds: state.audioSpeakerVoiceIds,
-            }}
-            onChangePace={(pace) =>
-              dispatch({ type: 'SET_AUDIO_PACE', payload: pace })
-            }
-            onChangeExpressiveness={(value) =>
-              dispatch({ type: 'SET_AUDIO_EXPRESSIVENESS', payload: value })
-            }
-            onChangePauseMarkers={(markers) =>
-              dispatch({
-                type: 'SET_AUDIO_PAUSE_MARKERS',
-                payload: markers,
-              })
-            }
-            onChangeAdvanced={(settings) => {
-              if (settings.style !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_EMOTION',
-                  payload: settings.style,
-                })
-              }
-              if (settings.volume !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_VOLUME',
-                  payload: settings.volume,
-                })
-              }
-              if (settings.normalizeLoudness !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_NORMALIZE_LOUDNESS',
-                  payload: settings.normalizeLoudness,
-                })
-              }
-              if (settings.normalizeText !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_NORMALIZE_TEXT',
-                  payload: settings.normalizeText,
-                })
-              }
-              if (settings.withTimestamps !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_WITH_TIMESTAMPS',
-                  payload: settings.withTimestamps,
-                })
-              }
-              if (settings.format !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_FORMAT',
-                  payload: settings.format,
-                })
-              }
-              if (settings.sampleRate !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_SAMPLE_RATE',
-                  payload: settings.sampleRate,
-                })
-              }
-              if (settings.mp3Bitrate !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_MP3_BITRATE',
-                  payload: settings.mp3Bitrate,
-                })
-              }
-              if (settings.opusBitrate !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_OPUS_BITRATE',
-                  payload: settings.opusBitrate,
-                })
-              }
-              if (settings.latency !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_LATENCY',
-                  payload: settings.latency,
-                })
-              }
-              if (settings.temperature !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_TEMPERATURE',
-                  payload: settings.temperature,
-                })
-              }
-              if (settings.topP !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_TOP_P',
-                  payload: settings.topP,
-                })
-              }
-              if (settings.chunkLength !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_CHUNK_LENGTH',
-                  payload: settings.chunkLength,
-                })
-              }
-              if (settings.repetitionPenalty !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_REPETITION_PENALTY',
-                  payload: settings.repetitionPenalty,
-                })
-              }
-              if (settings.speakerVoiceIds !== undefined) {
-                dispatch({
-                  type: 'SET_AUDIO_SPEAKER_VOICE_IDS',
-                  payload: settings.speakerVoiceIds,
-                })
-              }
-            }}
+            {...audioParamsProps}
+            section="voice"
             onRequestSpeakerVoiceSelect={requestSpeakerVoiceSelect}
             isSelectingSpeakerVoice={isSelectingSpeakerVoice}
             activeSpeakerVoiceIndex={activeSpeakerVoiceIndex}
-            audioReferenceUrl={state.audioReferenceUrl}
-            audioReferenceFileName={state.audioReferenceFileName}
-            audioReferenceText={state.audioReferenceText}
-            onChangeAudioReferenceUpload={(payload) =>
-              dispatch({
-                type: 'SET_AUDIO_REFERENCE_UPLOAD',
-                payload,
-              })
-            }
-            onChangeAudioReferenceText={(text) =>
-              dispatch({
-                type: 'SET_AUDIO_REFERENCE_TEXT',
-                payload: text,
-              })
-            }
           />
         }
       />
@@ -481,43 +333,17 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
         </ResponsiveDialogContent>
       </ResponsiveDialog>
 
-      {/* ── Advanced Params (image mode) ───────────────────────
-          Phase 1A: seed lock + negative prompt. Lays the physical floor
-          for "reproduce that image" and "tweak one tag" workflows. */}
-      <ResponsiveDialog
-        open={state.panels.advanced}
-        onOpenChange={(open) => {
-          if (!open) closePanel('advanced')
-        }}
-      >
-        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-md`}>
-          <StudioPanelHeader>{tPanels('advanced')}</StudioPanelHeader>
-          <ResponsiveDialogDescription className="sr-only">
-            {tPanels('advanced')}
-          </ResponsiveDialogDescription>
-          <div className={DIALOG_BODY}>
-            <StudioImageAdvancedParams />
-          </div>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
+      {/* ⚠ 「高级设置」对话框（seed 锁定 + 负面提示词）已于 2026-08-23 切片 A
+          整条删除。它自 2026-08-18 图片模态改走横向工作台起就**不可达** ——
+          唯一的宿主是当时的 `StudioBottomDock`，而图片不挂载它；负面提示词
+          已由参数栏的折叠行承担（owner 2026-08-22），seed 则是 owner 同日
+          明确「不介入」。切片 A 把这个宿主挂到了 `StudioWorkspaceUI` 上，
+          不删它就等于凭空复活一个被否掉的 seed 入口 + 第二个负面输入框。
+          ⚠ `advancedParams.seed` 字段与生成管线都还在，删的只是 UI 门。 */}
 
-      {/* ── Video Params (video mode) ─────────────────────────── */}
-      <ResponsiveDialog
-        open={state.panels.videoParams}
-        onOpenChange={(open) => {
-          if (!open) closePanel('videoParams')
-        }}
-      >
-        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <StudioPanelHeader>{tPanels('videoSettings')}</StudioPanelHeader>
-          <ResponsiveDialogDescription className="sr-only">
-            {tPanels('videoSettings')}
-          </ResponsiveDialogDescription>
-          <div className={DIALOG_BODY}>
-            <StudioVideoParams />
-          </div>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
+      {/* ⚠ 「视频设置」对话框已于 2026-08-23 切片 B 退役：时长 / 分辨率 / 宽高比
+          并进参数栏的「规格」浮层（`StudioVideoSpecPopover`，与图片同一形态），
+          反向提示词并进参数栏的折叠行。参数常驻可见，不用点开才知道当前值。 */}
 
       {/* ── Video Script (video mode) ─────────────────────────── */}
       <ResponsiveDialog

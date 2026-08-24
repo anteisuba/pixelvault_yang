@@ -365,6 +365,14 @@ export type RunGroupMode = 'single' | 'compare' | 'variant'
 interface RunItemBase {
   id: string
   modelId: string
+  /**
+   * 这一条**自己**是什么时候提交的（epoch ms）。
+   *
+   * ⚠ 队列态下 `ActiveRun.startedAt` 不够用：视频可以边等边排下一条，四条的
+   * 已用时长各不相同，共用一个批次起点会让后排的显示成「已等 3 分钟」。
+   * 可选是因为图片的矩阵批次同时提交，那边继续用批次起点即可。
+   */
+  startedAt?: number
 }
 
 export type PendingRunItem = RunItemBase & {

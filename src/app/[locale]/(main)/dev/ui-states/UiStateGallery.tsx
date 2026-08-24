@@ -72,6 +72,7 @@ export function UiStateGallery() {
               第一张图落地就整块消失。这里两者同屏，量的是它们真实的相对位置
               （尤其是右上角那颗固定的助手浮标会不会压住轨上的按钮）。 */}
           <StudioReferenceRail
+            label="参考图"
             entries={UI_STATE_REFERENCE_ENTRIES}
             activeIndex={referenceIndex}
             onActiveIndexChange={setReferenceIndex}

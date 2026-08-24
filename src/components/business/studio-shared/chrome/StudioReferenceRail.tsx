@@ -15,6 +15,12 @@ interface StudioReferenceRailProps {
   onActiveIndexChange: (index: number) => void
   onEdit: (index: number) => void
   onRemove: (index: number) => void
+  /**
+   * 这条轨叫什么。**由模态与视频用途决定，不是装饰**（切片 B）：
+   * 图片是「参考图」，视频关键帧档是「首帧」，其余视频档是「内容参考」。
+   * 同一张图在不同用途下被送去干完全不同的事，轨上不写清就只能靠猜。
+   */
+  label: string
 }
 
 /**
@@ -36,15 +42,14 @@ export const StudioReferenceRail = memo(function StudioReferenceRail({
   onActiveIndexChange,
   onEdit,
   onRemove,
+  label,
 }: StudioReferenceRailProps) {
   const t = useTranslations('ImageChip')
   const tEdit = useTranslations('StudioImageEdit')
 
   return (
     <div className="mb-4 flex items-center gap-3 border-b border-border/60 pb-3">
-      <span className="shrink-0 text-xs text-muted-foreground">
-        {t('referenceLabel')}
-      </span>
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
 
       <div
         // ⚠ 不能 `flex-1` 把动作推到最右边：助手浮标（StudioAssistantFab）是
@@ -53,7 +58,9 @@ export const StudioReferenceRail = memo(function StudioReferenceRail({
         // 的 max-w 里横滑，右上角那块永远留给浮标。
         className="studio-scroll-area flex min-w-0 max-w-md gap-2 overflow-x-auto"
         role="tablist"
-        aria-label={t('referenceLabel')}
+        // 可访问名与可见标签是同一句 —— 视频关键帧档下读屏念「参考图」而屏上
+        // 写着「首帧」，是两个事实。
+        aria-label={label}
       >
         {entries.map((entry, index) => {
           const isActive = index === activeIndex

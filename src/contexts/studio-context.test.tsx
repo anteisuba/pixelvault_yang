@@ -176,7 +176,7 @@ describe('StudioProvider workflow selection', () => {
       result.current.setSelectedWorkflowId(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
     })
 
-    expect(result.current.state.panels.videoParams).toBe(true)
+    expect(result.current.state.panels.videoSpec).toBe(true)
   })
 
   it('setLastEvaluation updates evaluation state', () => {

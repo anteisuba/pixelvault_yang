@@ -103,7 +103,22 @@ export interface StudioAudioAdvancedSettings {
   speakerVoiceIds: string[]
 }
 
+/**
+ * 这一次只渲染哪一段。
+ *
+ * 参数栏按 `ParamIdiom` 的三种披露把这些控件分给了不同的宿主：朗读进浮层、
+ * 停顿与高级各进一个折叠行。分段渲染而不是把组件拆成四个文件，是因为这些控件
+ * 的内容（带试听的风格药丸、三页签的高级面板）没有变，变的只是谁装它们 ——
+ * 拆文件会把 1200 行内容原样搬四遍，那是漂移的起点。
+ */
+export type StudioAudioParamsSection =
+  | 'reading'
+  | 'pause'
+  | 'advanced'
+  | 'voice'
+
 interface StudioAudioParamsProps {
+  section: StudioAudioParamsSection
   voiceCardId: string | null
   pace: string
   /** Expressiveness tier ('auto' resolves from the selected emotion). */
@@ -114,7 +129,11 @@ interface StudioAudioParamsProps {
   onChangeExpressiveness: (value: string) => void
   onChangePauseMarkers: (markers: string[]) => void
   onChangeAdvanced: (settings: Partial<StudioAudioAdvancedSettings>) => void
-  onRequestSpeakerVoiceSelect: (index: number | null) => void
+  /**
+   * 只有 `section='voice'` 用得到 —— 多角色那颗要反过来打开音色库挑人。
+   * 其余段的宿主（参数栏的浮层 / 折叠行）不渲染它，所以是可选的。
+   */
+  onRequestSpeakerVoiceSelect?: (index: number | null) => void
   isSelectingSpeakerVoice?: boolean
   activeSpeakerVoiceIndex?: number | null
   /** Public R2 URL of the uploaded ad-hoc reference clip, or null. */
@@ -572,6 +591,7 @@ function ReferenceAudioField({
 }
 
 export const StudioAudioParams = memo(function StudioAudioParams({
+  section,
   voiceCardId,
   pace,
   expressiveness,
@@ -591,6 +611,32 @@ export const StudioAudioParams = memo(function StudioAudioParams({
   onChangeAudioReferenceText,
 }: StudioAudioParamsProps) {
   const t = useTranslations('audioParams')
+  /**
+   * 「高级」里可见的页签。
+   *
+   * ⚠ 声音那一页（参考音频 / 响度 / 音量 / 多角色音色）**跟着音色库走**，不在
+   * 参数栏这条折叠行里：它回答的是「谁来念」，和选音色是同一件事；而且多角色
+   * 那颗要能反过来打开音色库挑人，留在栏里就得为这条耦合另造一份共享状态。
+   */
+  /**
+   * 收起时印在标签旁的当前值 —— 输出那三档是这一段里唯一会被反复改的东西
+   * （分享用 MP3、后期用 WAV），模型参数默认值居多，塞进摘要只会把它挤掉。
+   */
+  const advancedSummary = [
+    advanced.format.toUpperCase(),
+    `${Math.round(advanced.sampleRate / 100) / 10}k`,
+    t(
+      advanced.latency === 'low'
+        ? 'latencyLow'
+        : advanced.latency === 'normal'
+          ? 'latencyNormal'
+          : 'latencyBalanced',
+    ),
+  ].join(' · ')
+
+  const visibleAdvancedTabs = ADVANCED_TAB_OPTIONS.filter(
+    (option) => option.value !== AUDIO_ADVANCED_TAB_IDS.VOICE,
+  )
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [advancedTab, setAdvancedTab] = useState<AudioAdvancedTabId>(
     AUDIO_ADVANCED_TAB_IDS.OUTPUT,
@@ -673,575 +719,606 @@ export const StudioAudioParams = memo(function StudioAudioParams({
 
   return (
     <div className="space-y-5" data-voice-card-id={voiceCardId ?? undefined}>
-      <section className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setStyleOpen((o) => !o)}
-          aria-expanded={styleOpen}
-          className="flex w-full items-center justify-between gap-3 text-left"
-        >
-          <span className="min-w-0 space-y-0.5">
-            <span className="block text-2xs font-medium text-muted-foreground/70">
-              {t('style')}
-            </span>
-            {styleOpen ? null : (
-              <span className="block truncate text-2xs text-foreground">
-                {selectedStyleLabel}
+      {section === 'voice' ? (
+        <section className="space-y-4">
+          <TooltipProvider delayDuration={250}>
+            <ReferenceAudioField
+              url={audioReferenceUrl}
+              fileName={audioReferenceFileName}
+              text={audioReferenceText}
+              onChangeUpload={onChangeAudioReferenceUpload}
+              onChangeText={onChangeAudioReferenceText}
+            />
+
+            <div className="grid gap-2">
+              <AudioSwitchRow
+                label={t('normalizeLoudness')}
+                hint={t('normalizeLoudnessHint')}
+                checked={advanced.normalizeLoudness}
+                onCheckedChange={(checked) =>
+                  onChangeAdvanced({ normalizeLoudness: checked })
+                }
+              />
+            </div>
+
+            <ParamSlider
+              label={t('volume')}
+              labelAccessory={
+                <AudioInfoTooltip label={t('volume')} hint={t('volumeHint')} />
+              }
+              value={advanced.volume}
+              onChange={(value) => onChangeAdvanced({ volume: value })}
+              min={TTS_VOLUME_RANGE.min}
+              max={TTS_VOLUME_RANGE.max}
+              step={TTS_VOLUME_RANGE.step}
+              formatValue={(value) => `${value > 0 ? '+' : ''}${value}`}
+            />
+
+            <SpeakerVoiceIdsField
+              voiceIds={advanced.speakerVoiceIds}
+              isSelecting={isSelectingSpeakerVoice}
+              activeIndex={activeSpeakerVoiceIndex}
+              onChange={(speakerVoiceIds) =>
+                onChangeAdvanced({ speakerVoiceIds })
+              }
+              onRequestVoiceSelect={onRequestSpeakerVoiceSelect ?? (() => {})}
+            />
+          </TooltipProvider>
+        </section>
+      ) : null}
+
+      {section === 'reading' ? (
+        <section className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setStyleOpen((o) => !o)}
+            aria-expanded={styleOpen}
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <span className="min-w-0 space-y-0.5">
+              <span className="block text-2xs font-medium text-muted-foreground/70">
+                {t('style')}
               </span>
-            )}
-          </span>
-          <ChevronDown
+              {styleOpen ? null : (
+                <span className="block truncate text-2xs text-foreground">
+                  {selectedStyleLabel}
+                </span>
+              )}
+            </span>
+            <ChevronDown
+              className={cn(
+                'size-4 shrink-0 text-muted-foreground transition-transform',
+                styleOpen && 'rotate-180',
+              )}
+            />
+          </button>
+          <div
             className={cn(
-              'size-4 shrink-0 text-muted-foreground transition-transform',
-              styleOpen && 'rotate-180',
+              'grid transition-[grid-template-rows] duration-200 ease-out',
+              styleOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
             )}
-          />
-        </button>
-        <div
-          className={cn(
-            'grid transition-[grid-template-rows] duration-200 ease-out',
-            styleOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
-          )}
-        >
-          <div className="overflow-hidden">
-            <p className="pb-2 text-2xs text-muted-foreground">
-              {t('styleHint')}
+          >
+            <div className="overflow-hidden">
+              <p className="pb-2 text-2xs text-muted-foreground">
+                {t('styleHint')}
+              </p>
+              <ToggleGroup
+                type="single"
+                value={advanced.style}
+                onValueChange={(value) => {
+                  if (value) onChangeAdvanced({ style: value })
+                }}
+                aria-label={t('style')}
+                className="!grid w-full grid-cols-2"
+              >
+                {STYLE_OPTIONS.map((option) => {
+                  const Icon = option.icon
+                  return (
+                    <ToggleGroupItem
+                      key={option.value}
+                      value={option.value}
+                      onMouseEnter={() => startStylePreview(option.value)}
+                      onMouseLeave={stopStylePreview}
+                      onFocus={() => startStylePreview(option.value)}
+                      onBlur={stopStylePreview}
+                      className="flex items-center justify-center gap-1.5 px-2 text-center"
+                    >
+                      <Icon className="size-3 shrink-0 opacity-70" />
+                      <span className="truncate">{t(option.labelKey)}</span>
+                    </ToggleGroupItem>
+                  )
+                })}
+              </ToggleGroup>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {section === 'reading' ? (
+        <section className="space-y-2">
+          <div className="space-y-0.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-2xs font-medium text-muted-foreground/70">
+                {t('expressiveness')}
+              </span>
+              {isAutoExpressiveness ? (
+                <span className="text-2xs text-muted-foreground/70">
+                  {t('expressivenessAuto')}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChangeExpressiveness(AUDIO_EXPRESSIVENESS.AUTO)
+                  }
+                  className="text-2xs text-muted-foreground underline-offset-2 hover:underline"
+                >
+                  {t('expressivenessResetAuto')}
+                </button>
+              )}
+            </div>
+            <p className="text-2xs text-muted-foreground">
+              {t('expressivenessHint')}
             </p>
-            <ToggleGroup
-              type="single"
-              value={advanced.style}
-              onValueChange={(value) => {
-                if (value) onChangeAdvanced({ style: value })
-              }}
-              aria-label={t('style')}
-              className="!grid w-full grid-cols-2"
-            >
-              {STYLE_OPTIONS.map((option) => {
-                const Icon = option.icon
-                return (
+          </div>
+          <ToggleGroup
+            type="single"
+            value={resolvedExpressiveness}
+            onValueChange={(value) => {
+              if (value) onChangeExpressiveness(value)
+            }}
+            aria-label={t('expressiveness')}
+            className="!grid w-full grid-cols-3"
+          >
+            {AUDIO_EXPRESSIVENESS_TIERS.map((tier) => (
+              <ToggleGroupItem
+                key={tier}
+                value={tier}
+                className="px-2 text-center"
+              >
+                {t(EXPRESSIVENESS_LABEL_KEYS[tier])}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </section>
+      ) : null}
+
+      {section === 'reading' ? (
+        <section className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setPaceOpen((o) => !o)}
+            aria-expanded={paceOpen}
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <span className="min-w-0 space-y-0.5">
+              <span className="block text-2xs font-medium text-muted-foreground/70">
+                {t('pace')}
+              </span>
+              {paceOpen ? null : (
+                <span className="block truncate text-2xs text-foreground">
+                  {selectedPaceLabel}
+                </span>
+              )}
+            </span>
+            <ChevronDown
+              className={cn(
+                'size-4 shrink-0 text-muted-foreground transition-transform',
+                paceOpen && 'rotate-180',
+              )}
+            />
+          </button>
+          <div
+            className={cn(
+              'grid transition-[grid-template-rows] duration-200 ease-out',
+              paceOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+            )}
+          >
+            <div className="overflow-hidden">
+              <p className="pb-2 text-2xs text-muted-foreground">
+                {t('paceHint')}
+              </p>
+              <ToggleGroup
+                type="single"
+                value={pace}
+                onValueChange={(value) => {
+                  if (value) onChangePace(value)
+                }}
+                aria-label={t('pace')}
+                className="!grid w-full grid-cols-3"
+              >
+                {PACE_OPTIONS.map((option) => (
                   <ToggleGroupItem
                     key={option.value}
                     value={option.value}
-                    onMouseEnter={() => startStylePreview(option.value)}
-                    onMouseLeave={stopStylePreview}
-                    onFocus={() => startStylePreview(option.value)}
-                    onBlur={stopStylePreview}
-                    className="flex items-center justify-center gap-1.5 px-2 text-center"
+                    className="px-2 text-center"
                   >
-                    <Icon className="size-3 shrink-0 opacity-70" />
-                    <span className="truncate">{t(option.labelKey)}</span>
+                    {t(option.labelKey)}
                   </ToggleGroupItem>
-                )
-              })}
-            </ToggleGroup>
+                ))}
+              </ToggleGroup>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="space-y-2">
-        <div className="space-y-0.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-2xs font-medium text-muted-foreground/70">
-              {t('expressiveness')}
-            </span>
-            {isAutoExpressiveness ? (
-              <span className="text-2xs text-muted-foreground/70">
-                {t('expressivenessAuto')}
+      {section === 'pause' ? (
+        <section className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setPauseOpen((o) => !o)}
+            aria-expanded={pauseOpen}
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <span className="min-w-0 space-y-0.5">
+              <span className="block text-2xs font-medium text-muted-foreground/70">
+                {t('pauseMarkers')}
               </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() =>
-                  onChangeExpressiveness(AUDIO_EXPRESSIVENESS.AUTO)
-                }
-                className="text-2xs text-muted-foreground underline-offset-2 hover:underline"
+              {pauseOpen ? null : (
+                <span className="block truncate text-2xs text-foreground">
+                  {selectedPauseLabel}
+                </span>
+              )}
+            </span>
+            <ChevronDown
+              className={cn(
+                'size-4 shrink-0 text-muted-foreground transition-transform',
+                pauseOpen && 'rotate-180',
+              )}
+            />
+          </button>
+          <div
+            className={cn(
+              'grid transition-[grid-template-rows] duration-200 ease-out',
+              pauseOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+            )}
+          >
+            <div className="overflow-hidden">
+              <p className="pb-2 text-2xs text-muted-foreground">
+                {t('pauseMarkersHint')}
+              </p>
+              <ToggleGroup
+                type="multiple"
+                value={pauseMarkers}
+                onValueChange={onChangePauseMarkers}
+                aria-label={t('pauseMarkers')}
+                className="!grid w-full grid-cols-3"
               >
-                {t('expressivenessResetAuto')}
-              </button>
-            )}
+                {PAUSE_OPTIONS.map((option) => (
+                  <ToggleGroupItem
+                    key={option.value}
+                    value={option.value}
+                    className="px-2 text-center"
+                  >
+                    {t(option.labelKey)}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
           </div>
-          <p className="text-2xs text-muted-foreground">
-            {t('expressivenessHint')}
-          </p>
-        </div>
-        <ToggleGroup
-          type="single"
-          value={resolvedExpressiveness}
-          onValueChange={(value) => {
-            if (value) onChangeExpressiveness(value)
-          }}
-          aria-label={t('expressiveness')}
-          className="!grid w-full grid-cols-3"
-        >
-          {AUDIO_EXPRESSIVENESS_TIERS.map((tier) => (
-            <ToggleGroupItem
-              key={tier}
-              value={tier}
-              className="px-2 text-center"
-            >
-              {t(EXPRESSIVENESS_LABEL_KEYS[tier])}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setPaceOpen((o) => !o)}
-          aria-expanded={paceOpen}
-          className="flex w-full items-center justify-between gap-3 text-left"
-        >
-          <span className="min-w-0 space-y-0.5">
-            <span className="block text-2xs font-medium text-muted-foreground/70">
-              {t('pace')}
-            </span>
-            {paceOpen ? null : (
-              <span className="block truncate text-2xs text-foreground">
-                {selectedPaceLabel}
+      {section === 'advanced' ? (
+        <section className="border-t border-border/60 pt-4">
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((current) => !current)}
+            aria-expanded={advancedOpen}
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            {/* ⚠ 收起时印**当前值**，不是那句「普通生成保持默认即可」的说明
+                （`ParamIdiom` 形态 1）：说明每次都一样，看一百遍也不告诉你这次
+                会导出成什么。展开后摘要让位 —— 下面的控件已经把每个值写了一遍。 */}
+            <span className="flex min-w-0 flex-1 items-baseline gap-2">
+              <span className="shrink-0 text-2xs font-medium text-muted-foreground/70">
+                {t('advanced')}
               </span>
-            )}
-          </span>
-          <ChevronDown
-            className={cn(
-              'size-4 shrink-0 text-muted-foreground transition-transform',
-              paceOpen && 'rotate-180',
-            )}
-          />
-        </button>
-        <div
-          className={cn(
-            'grid transition-[grid-template-rows] duration-200 ease-out',
-            paceOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
-          )}
-        >
-          <div className="overflow-hidden">
-            <p className="pb-2 text-2xs text-muted-foreground">
-              {t('paceHint')}
-            </p>
-            <ToggleGroup
-              type="single"
-              value={pace}
-              onValueChange={(value) => {
-                if (value) onChangePace(value)
-              }}
-              aria-label={t('pace')}
-              className="!grid w-full grid-cols-3"
-            >
-              {PACE_OPTIONS.map((option) => (
-                <ToggleGroupItem
-                  key={option.value}
-                  value={option.value}
-                  className="px-2 text-center"
-                >
-                  {t(option.labelKey)}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setPauseOpen((o) => !o)}
-          aria-expanded={pauseOpen}
-          className="flex w-full items-center justify-between gap-3 text-left"
-        >
-          <span className="min-w-0 space-y-0.5">
-            <span className="block text-2xs font-medium text-muted-foreground/70">
-              {t('pauseMarkers')}
+              {advancedOpen ? null : (
+                <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground/60">
+                  {advancedSummary}
+                </span>
+              )}
             </span>
-            {pauseOpen ? null : (
-              <span className="block truncate text-2xs text-foreground">
-                {selectedPauseLabel}
-              </span>
-            )}
-          </span>
-          <ChevronDown
-            className={cn(
-              'size-4 shrink-0 text-muted-foreground transition-transform',
-              pauseOpen && 'rotate-180',
-            )}
-          />
-        </button>
-        <div
-          className={cn(
-            'grid transition-[grid-template-rows] duration-200 ease-out',
-            pauseOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
-          )}
-        >
-          <div className="overflow-hidden">
-            <p className="pb-2 text-2xs text-muted-foreground">
-              {t('pauseMarkersHint')}
-            </p>
-            <ToggleGroup
-              type="multiple"
-              value={pauseMarkers}
-              onValueChange={onChangePauseMarkers}
-              aria-label={t('pauseMarkers')}
-              className="!grid w-full grid-cols-3"
-            >
-              {PAUSE_OPTIONS.map((option) => (
-                <ToggleGroupItem
-                  key={option.value}
-                  value={option.value}
-                  className="px-2 text-center"
-                >
-                  {t(option.labelKey)}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
-        </div>
-      </section>
+            <ChevronDown
+              className={cn(
+                'size-4 shrink-0 text-muted-foreground transition-transform',
+                advancedOpen && 'rotate-180',
+              )}
+            />
+          </button>
 
-      <section className="border-t border-border/60 pt-4">
-        <button
-          type="button"
-          onClick={() => setAdvancedOpen((current) => !current)}
-          aria-expanded={advancedOpen}
-          className="flex w-full items-center justify-between gap-3 text-left"
-        >
-          <span className="space-y-1">
-            <span className="block text-2xs font-medium text-muted-foreground/70">
-              {t('advanced')}
-            </span>
-            <span className="block text-2xs text-muted-foreground">
-              {t('advancedHint')}
-            </span>
-          </span>
-          <ChevronDown
+          <div
             className={cn(
-              'size-4 shrink-0 text-muted-foreground transition-transform',
-              advancedOpen && 'rotate-180',
+              'grid transition-[grid-template-rows] duration-200 ease-out',
+              advancedOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
             )}
-          />
-        </button>
-
-        <div
-          className={cn(
-            'grid transition-[grid-template-rows] duration-200 ease-out',
-            advancedOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
-          )}
-        >
-          <div className="overflow-hidden">
-            <TooltipProvider delayDuration={250}>
-              <Tabs
-                value={advancedTab}
-                onValueChange={(value) => {
-                  if (isAudioAdvancedTabId(value)) {
-                    setAdvancedTab(value)
+          >
+            <div className="overflow-hidden">
+              <TooltipProvider delayDuration={250}>
+                {/* 说明从标签行挪到这里：它是「什么时候才需要动这一段」的解释，
+                    只在真的展开时才有用。 */}
+                <p className="pt-3 text-2xs text-muted-foreground">
+                  {t('advancedHint')}
+                </p>
+                <Tabs
+                  value={
+                    advancedTab === AUDIO_ADVANCED_TAB_IDS.VOICE
+                      ? AUDIO_ADVANCED_TAB_IDS.OUTPUT
+                      : advancedTab
                   }
-                }}
-                className="pt-4"
-              >
-                <TabsList className="grid h-auto w-full grid-cols-3">
-                  {ADVANCED_TAB_OPTIONS.map((option) => {
-                    const Icon = option.icon
-                    return (
-                      <TabsTrigger
-                        key={option.value}
-                        value={option.value}
-                        onClick={() => setAdvancedTab(option.value)}
-                        className="h-8 gap-1 text-2xs"
-                      >
-                        <Icon className="size-3" />
-                        {t(option.labelKey)}
-                      </TabsTrigger>
-                    )
-                  })}
-                </TabsList>
-
-                <TabsContent
-                  value={AUDIO_ADVANCED_TAB_IDS.OUTPUT}
-                  className="mt-4 space-y-3"
+                  onValueChange={(value) => {
+                    if (isAudioAdvancedTabId(value)) {
+                      setAdvancedTab(value)
+                    }
+                  }}
+                  className="pt-4"
                 >
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <AudioFieldLabel
-                        label={t('format')}
-                        hint={t('formatHint')}
-                      />
-                      <Select
-                        value={advanced.format}
-                        onValueChange={(value) => {
-                          if (isAudioFormat(value)) {
-                            onChangeAdvanced({ format: value })
-                          }
-                        }}
-                      >
-                        <SelectTrigger size="sm" aria-label={t('format')}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {AUDIO_FORMATS.map((format) => (
-                            <SelectItem key={format} value={format}>
-                              {t(`format${format.toUpperCase()}`)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <TabsList className="grid h-auto w-full grid-cols-2">
+                    {visibleAdvancedTabs.map((option) => {
+                      const Icon = option.icon
+                      return (
+                        <TabsTrigger
+                          key={option.value}
+                          value={option.value}
+                          onClick={() => setAdvancedTab(option.value)}
+                          className="h-8 gap-1 text-2xs"
+                        >
+                          <Icon className="size-3" />
+                          {t(option.labelKey)}
+                        </TabsTrigger>
+                      )
+                    })}
+                  </TabsList>
 
-                    <div className="space-y-1.5">
-                      <AudioFieldLabel
-                        label={t('sampleRate')}
-                        hint={t('sampleRateHint')}
-                      />
-                      <Select
-                        value={String(advanced.sampleRate)}
-                        onValueChange={(value) =>
-                          onChangeAdvanced({ sampleRate: Number(value) })
-                        }
-                      >
-                        <SelectTrigger size="sm" aria-label={t('sampleRate')}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {AUDIO_SAMPLE_RATES.map((sampleRate) => (
-                            <SelectItem
-                              key={sampleRate}
-                              value={String(sampleRate)}
-                            >
-                              {t('sampleRateValue', { sampleRate })}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <AudioFieldLabel
-                        label={t('latency')}
-                        hint={t('latencyHint')}
-                      />
-                      <Select
-                        value={advanced.latency}
-                        onValueChange={(value) => {
-                          if (isAudioLatency(value)) {
-                            onChangeAdvanced({ latency: value })
-                          }
-                        }}
-                      >
-                        <SelectTrigger size="sm" aria-label={t('latency')}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {AUDIO_LATENCIES.map((latency) => (
-                            <SelectItem key={latency} value={latency}>
-                              {t(
-                                `latency${latency.charAt(0).toUpperCase()}${latency.slice(1)}`,
-                              )}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {advanced.format === 'mp3' && (
+                  <TabsContent
+                    value={AUDIO_ADVANCED_TAB_IDS.OUTPUT}
+                    className="mt-4 space-y-3"
+                  >
+                    <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <AudioFieldLabel
-                          label={t('mp3Bitrate')}
-                          hint={t('mp3BitrateHint')}
+                          label={t('format')}
+                          hint={t('formatHint')}
                         />
                         <Select
-                          value={String(advanced.mp3Bitrate)}
-                          onValueChange={(value) =>
-                            onChangeAdvanced({ mp3Bitrate: Number(value) })
-                          }
+                          value={advanced.format}
+                          onValueChange={(value) => {
+                            if (isAudioFormat(value)) {
+                              onChangeAdvanced({ format: value })
+                            }
+                          }}
                         >
-                          <SelectTrigger size="sm" aria-label={t('mp3Bitrate')}>
+                          <SelectTrigger size="sm" aria-label={t('format')}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {AUDIO_MP3_BITRATES.map((bitrate) => (
-                              <SelectItem key={bitrate} value={String(bitrate)}>
-                                {t('mp3BitrateValue', { bitrate })}
+                            {AUDIO_FORMATS.map((format) => (
+                              <SelectItem key={format} value={format}>
+                                {t(`format${format.toUpperCase()}`)}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                    )}
 
-                    {advanced.format === 'opus' && (
                       <div className="space-y-1.5">
                         <AudioFieldLabel
-                          label={t('opusBitrate')}
-                          hint={t('opusBitrateHint')}
+                          label={t('sampleRate')}
+                          hint={t('sampleRateHint')}
                         />
                         <Select
-                          value={String(advanced.opusBitrate)}
+                          value={String(advanced.sampleRate)}
                           onValueChange={(value) =>
-                            onChangeAdvanced({ opusBitrate: Number(value) })
+                            onChangeAdvanced({ sampleRate: Number(value) })
                           }
                         >
-                          <SelectTrigger
-                            size="sm"
-                            aria-label={t('opusBitrate')}
+                          <SelectTrigger size="sm" aria-label={t('sampleRate')}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {AUDIO_SAMPLE_RATES.map((sampleRate) => (
+                              <SelectItem
+                                key={sampleRate}
+                                value={String(sampleRate)}
+                              >
+                                {t('sampleRateValue', { sampleRate })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <AudioFieldLabel
+                          label={t('latency')}
+                          hint={t('latencyHint')}
+                        />
+                        <Select
+                          value={advanced.latency}
+                          onValueChange={(value) => {
+                            if (isAudioLatency(value)) {
+                              onChangeAdvanced({ latency: value })
+                            }
+                          }}
+                        >
+                          <SelectTrigger size="sm" aria-label={t('latency')}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {AUDIO_LATENCIES.map((latency) => (
+                              <SelectItem key={latency} value={latency}>
+                                {t(
+                                  `latency${latency.charAt(0).toUpperCase()}${latency.slice(1)}`,
+                                )}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {advanced.format === 'mp3' && (
+                        <div className="space-y-1.5">
+                          <AudioFieldLabel
+                            label={t('mp3Bitrate')}
+                            hint={t('mp3BitrateHint')}
+                          />
+                          <Select
+                            value={String(advanced.mp3Bitrate)}
+                            onValueChange={(value) =>
+                              onChangeAdvanced({ mp3Bitrate: Number(value) })
+                            }
                           >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {AUDIO_OPUS_BITRATES.map((bitrate) => (
-                              <SelectItem key={bitrate} value={String(bitrate)}>
-                                {bitrate === -1000
-                                  ? t('opusBitrateAuto')
-                                  : t('opusBitrateValue', {
-                                      bitrate: bitrate / 1000,
-                                    })}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
+                            <SelectTrigger
+                              size="sm"
+                              aria-label={t('mp3Bitrate')}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AUDIO_MP3_BITRATES.map((bitrate) => (
+                                <SelectItem
+                                  key={bitrate}
+                                  value={String(bitrate)}
+                                >
+                                  {t('mp3BitrateValue', { bitrate })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
 
-                <TabsContent
-                  value={AUDIO_ADVANCED_TAB_IDS.VOICE}
-                  className="mt-4 space-y-4"
-                >
-                  <ReferenceAudioField
-                    url={audioReferenceUrl}
-                    fileName={audioReferenceFileName}
-                    text={audioReferenceText}
-                    onChangeUpload={onChangeAudioReferenceUpload}
-                    onChangeText={onChangeAudioReferenceText}
-                  />
+                      {advanced.format === 'opus' && (
+                        <div className="space-y-1.5">
+                          <AudioFieldLabel
+                            label={t('opusBitrate')}
+                            hint={t('opusBitrateHint')}
+                          />
+                          <Select
+                            value={String(advanced.opusBitrate)}
+                            onValueChange={(value) =>
+                              onChangeAdvanced({ opusBitrate: Number(value) })
+                            }
+                          >
+                            <SelectTrigger
+                              size="sm"
+                              aria-label={t('opusBitrate')}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AUDIO_OPUS_BITRATES.map((bitrate) => (
+                                <SelectItem
+                                  key={bitrate}
+                                  value={String(bitrate)}
+                                >
+                                  {bitrate === -1000
+                                    ? t('opusBitrateAuto')
+                                    : t('opusBitrateValue', {
+                                        bitrate: bitrate / 1000,
+                                      })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
 
-                  <div className="grid gap-2">
-                    <AudioSwitchRow
-                      label={t('normalizeLoudness')}
-                      hint={t('normalizeLoudnessHint')}
-                      checked={advanced.normalizeLoudness}
-                      onCheckedChange={(checked) =>
-                        onChangeAdvanced({ normalizeLoudness: checked })
+                  <TabsContent
+                    value={AUDIO_ADVANCED_TAB_IDS.MODEL}
+                    className="mt-4 space-y-4"
+                  >
+                    <div className="grid gap-2">
+                      <AudioSwitchRow
+                        label={t('normalizeText')}
+                        hint={t('normalizeTextHint')}
+                        checked={advanced.normalizeText}
+                        onCheckedChange={(checked) =>
+                          onChangeAdvanced({ normalizeText: checked })
+                        }
+                      />
+                      <AudioSwitchRow
+                        label={t('withTimestamps')}
+                        hint={t('withTimestampsHint')}
+                        checked={advanced.withTimestamps}
+                        onCheckedChange={(checked) =>
+                          onChangeAdvanced({ withTimestamps: checked })
+                        }
+                      />
+                    </div>
+
+                    <ParamSlider
+                      label={t('temperature')}
+                      labelAccessory={
+                        <AudioInfoTooltip
+                          label={t('temperature')}
+                          hint={t('temperatureHint')}
+                        />
                       }
-                    />
-                  </div>
-
-                  <ParamSlider
-                    label={t('volume')}
-                    labelAccessory={
-                      <AudioInfoTooltip
-                        label={t('volume')}
-                        hint={t('volumeHint')}
-                      />
-                    }
-                    value={advanced.volume}
-                    onChange={(value) => onChangeAdvanced({ volume: value })}
-                    min={TTS_VOLUME_RANGE.min}
-                    max={TTS_VOLUME_RANGE.max}
-                    step={TTS_VOLUME_RANGE.step}
-                    formatValue={(value) => `${value > 0 ? '+' : ''}${value}`}
-                  />
-
-                  <SpeakerVoiceIdsField
-                    voiceIds={advanced.speakerVoiceIds}
-                    isSelecting={isSelectingSpeakerVoice}
-                    activeIndex={activeSpeakerVoiceIndex}
-                    onChange={(speakerVoiceIds) =>
-                      onChangeAdvanced({ speakerVoiceIds })
-                    }
-                    onRequestVoiceSelect={onRequestSpeakerVoiceSelect}
-                  />
-                </TabsContent>
-
-                <TabsContent
-                  value={AUDIO_ADVANCED_TAB_IDS.MODEL}
-                  className="mt-4 space-y-4"
-                >
-                  <div className="grid gap-2">
-                    <AudioSwitchRow
-                      label={t('normalizeText')}
-                      hint={t('normalizeTextHint')}
-                      checked={advanced.normalizeText}
-                      onCheckedChange={(checked) =>
-                        onChangeAdvanced({ normalizeText: checked })
+                      value={advanced.temperature}
+                      onChange={(value) =>
+                        onChangeAdvanced({ temperature: value })
                       }
+                      min={TTS_TEMPERATURE_RANGE.min}
+                      max={TTS_TEMPERATURE_RANGE.max}
+                      step={TTS_TEMPERATURE_RANGE.step}
                     />
-                    <AudioSwitchRow
-                      label={t('withTimestamps')}
-                      hint={t('withTimestampsHint')}
-                      checked={advanced.withTimestamps}
-                      onCheckedChange={(checked) =>
-                        onChangeAdvanced({ withTimestamps: checked })
+                    <ParamSlider
+                      label={t('topP')}
+                      labelAccessory={
+                        <AudioInfoTooltip
+                          label={t('topP')}
+                          hint={t('topPHint')}
+                        />
                       }
+                      value={advanced.topP}
+                      onChange={(value) => onChangeAdvanced({ topP: value })}
+                      min={TTS_TOP_P_RANGE.min}
+                      max={TTS_TOP_P_RANGE.max}
+                      step={TTS_TOP_P_RANGE.step}
                     />
-                  </div>
-
-                  <ParamSlider
-                    label={t('temperature')}
-                    labelAccessory={
-                      <AudioInfoTooltip
-                        label={t('temperature')}
-                        hint={t('temperatureHint')}
-                      />
-                    }
-                    value={advanced.temperature}
-                    onChange={(value) =>
-                      onChangeAdvanced({ temperature: value })
-                    }
-                    min={TTS_TEMPERATURE_RANGE.min}
-                    max={TTS_TEMPERATURE_RANGE.max}
-                    step={TTS_TEMPERATURE_RANGE.step}
-                  />
-                  <ParamSlider
-                    label={t('topP')}
-                    labelAccessory={
-                      <AudioInfoTooltip
-                        label={t('topP')}
-                        hint={t('topPHint')}
-                      />
-                    }
-                    value={advanced.topP}
-                    onChange={(value) => onChangeAdvanced({ topP: value })}
-                    min={TTS_TOP_P_RANGE.min}
-                    max={TTS_TOP_P_RANGE.max}
-                    step={TTS_TOP_P_RANGE.step}
-                  />
-                  <ParamSlider
-                    label={t('chunkLength')}
-                    labelAccessory={
-                      <AudioInfoTooltip
-                        label={t('chunkLength')}
-                        hint={t('chunkLengthHint')}
-                      />
-                    }
-                    value={advanced.chunkLength}
-                    onChange={(value) =>
-                      onChangeAdvanced({ chunkLength: value })
-                    }
-                    min={TTS_CHUNK_LENGTH_RANGE.min}
-                    max={TTS_CHUNK_LENGTH_RANGE.max}
-                    step={TTS_CHUNK_LENGTH_RANGE.step}
-                  />
-                  <ParamSlider
-                    label={t('repetitionPenalty')}
-                    labelAccessory={
-                      <AudioInfoTooltip
-                        label={t('repetitionPenalty')}
-                        hint={t('repetitionPenaltyHint')}
-                      />
-                    }
-                    value={advanced.repetitionPenalty}
-                    onChange={(value) =>
-                      onChangeAdvanced({ repetitionPenalty: value })
-                    }
-                    min={TTS_REPETITION_PENALTY_RANGE.min}
-                    max={TTS_REPETITION_PENALTY_RANGE.max}
-                    step={TTS_REPETITION_PENALTY_RANGE.step}
-                  />
-                </TabsContent>
-              </Tabs>
-            </TooltipProvider>
+                    <ParamSlider
+                      label={t('chunkLength')}
+                      labelAccessory={
+                        <AudioInfoTooltip
+                          label={t('chunkLength')}
+                          hint={t('chunkLengthHint')}
+                        />
+                      }
+                      value={advanced.chunkLength}
+                      onChange={(value) =>
+                        onChangeAdvanced({ chunkLength: value })
+                      }
+                      min={TTS_CHUNK_LENGTH_RANGE.min}
+                      max={TTS_CHUNK_LENGTH_RANGE.max}
+                      step={TTS_CHUNK_LENGTH_RANGE.step}
+                    />
+                    <ParamSlider
+                      label={t('repetitionPenalty')}
+                      labelAccessory={
+                        <AudioInfoTooltip
+                          label={t('repetitionPenalty')}
+                          hint={t('repetitionPenaltyHint')}
+                        />
+                      }
+                      value={advanced.repetitionPenalty}
+                      onChange={(value) =>
+                        onChangeAdvanced({ repetitionPenalty: value })
+                      }
+                      min={TTS_REPETITION_PENALTY_RANGE.min}
+                      max={TTS_REPETITION_PENALTY_RANGE.max}
+                      step={TTS_REPETITION_PENALTY_RANGE.step}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </TooltipProvider>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
     </div>
   )
 })

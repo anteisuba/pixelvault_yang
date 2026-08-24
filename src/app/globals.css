@@ -1054,29 +1054,6 @@ html:lang(zh) {
     backdrop-filter: blur(4px);
   }
 
-  /* Bottom dock — fixed at bottom, always visible */
-  .studio-dock {
-    border-top: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
-    padding: 0.75rem 1.5rem 0.75rem;
-    background: color-mix(in oklab, var(--background) 95%, transparent);
-    backdrop-filter: blur(12px);
-    position: relative;
-    z-index: 10;
-  }
-
-  /* Mobile/tablet (<1024, 与 MOBILE_BREAKPOINT 同界): sticky dock above keyboard + reduce padding */
-  @media (max-width: 1023.98px) {
-    .studio-dock {
-      position: sticky;
-      bottom: 0;
-      padding: 0.5rem 0.75rem;
-      padding-bottom: calc(0.5rem + var(--keyboard-safe-area-bottom, 0px));
-      transform: translateY(calc(var(--keyboard-inset, 0px) * -1));
-      transition: transform var(--duration-base) var(--ease-standard);
-      will-change: transform;
-    }
-  }
-
   /* Composer 壳体 — 象牙工作台（docs/references/domains/studio.md）。
      用语义类而非 @theme 生成的工具类：跑着的 dev server 对新增
      theme key 不重启不生成工具类，语义类热更新立即生效。
@@ -1141,10 +1118,6 @@ html:lang(zh) {
     .card-actions {
       opacity: 1 !important;
     }
-  }
-
-  .studio-dock-inner {
-    width: 100%;
   }
 
   /* Resizable panel sidebar styling */
@@ -1706,26 +1679,14 @@ html:lang(zh) {
 }
 
 /* ── Studio 空态高度链（有意放在 @layer 之外）─────────────────────
-   .studio-empty-state 在树里时：画布槽 → StudioCanvas → 内容层整条链
-   改为可伸展的 flex 列，让起手势内容垂直居中于 canvas + dock 之外的
-   全部剩余高度。结果态不受影响 —— lg 下 dock 依旧跟随图片（见
-   StudioResizableLayout 注释）。两个实现约束：
-   1. 必须是未分层样式：槽位上的 lg:flex-none 在 utilities layer，
-      layered 规则不论 specificity 都压不过它。
-   2. flex-basis 用 auto 而不是 0%：移动端外层容器是内容高度，
-      0% 会把整条链坍缩成 0。 */
-.studio-canvas-slot:has(.studio-empty-state),
-.studio-canvas-slot:has(.studio-empty-state) .studio-canvas,
-.studio-canvas-slot:has(.studio-empty-state) .studio-canvas > div {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-height: 0;
-}
-
-/* 横向工作台（StudioWorkbenchLayout）没有 .studio-canvas-slot 那个槽位，
-   上面那条链够不到它，空态就会贴顶。这里给结果区补同一条链 —— 同样必须
-   放在 @layer 之外，理由同上。 */
+   .studio-empty-state 在树里时：结果区 → StudioCanvas → 内容层整条链改为
+   可伸展的 flex 列，让起手势内容垂直居中于结果区的全部剩余高度。
+   ⚠ 必须是未分层样式：`.studio-workbench-stage` 上的 flex 工具类在
+   utilities layer，layered 规则不论 specificity 都压不过它。
+   ⚠ flex-basis 用 auto 而不是 0%：移动端外层容器是内容高度，0% 会把整条链
+   坍缩成 0。
+   ⚠ 2026-08-23 切片 A：`.studio-canvas-slot` 那一份已删 —— 那个槽位属于退役的
+   `StudioFlowLayout`，三个模态统一走横向工作台后 DOM 里不再有这个类。 */
 .studio-workbench-stage:has(.studio-empty-state) .studio-canvas,
 .studio-workbench-stage:has(.studio-empty-state) .studio-canvas > div {
   display: flex;

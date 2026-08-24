@@ -10,13 +10,18 @@ import {
   type ClipboardEvent,
   type DragEvent,
 } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
-import { ChevronDown, Loader2, Send, X } from 'lucide-react'
+import {
+  ChevronDown,
+  FileAudio2,
+  FileText,
+  Loader2,
+  Plus,
+  X,
+} from 'lucide-react'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { motionTransition } from '@/constants/motion'
 import {
   STUDIO_PROMPT_TEXTAREA_ID,
   STUDIO_REFERENCE_DRAG_TYPE,
@@ -51,6 +56,9 @@ import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { getModelById, modelSupportsLora } from '@/constants/models'
 import { getVideoModelParameterOptions } from '@/constants/video-model-send-plan'
+import { PLATFORM_GENERATION_GUARD, VIDEO_GENERATION } from '@/constants/config'
+import type { AspectRatio } from '@/constants/config'
+import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
 import { getNodeModeForModel } from '@/constants/video-node-modes'
 import { useStudioVideoMode } from '@/hooks/use-studio-video-mode'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
@@ -68,14 +76,20 @@ import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
 import { PlaceholderFillDialog } from '@/components/business/prompts/inspiration/PlaceholderFillDialog'
-import { StudioToolbarPanels } from '@/components/business/studio/StudioToolbarPanels'
-// 参数栏（layout='panel'）直接组合这几颗 —— 它们本来就是独立组件，不用经过
-// StudioToolbarPanels 那层横向工具条。
+// 参数栏直接组合这几颗 —— 它们本来就是独立组件，不用经过一层横向工具条
+// （`StudioToolbarPanels` / `StudioToolbar` 已随 dock 一起退役）。
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
-// 规格三档（比例 · 清晰度 · 张数）在参数栏里收进一个触发器；dock 那三颗独立的
-// chip 仍归视频 / 音频用，两套并存不互相替代。
+import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
+import { StudioCardSection } from '@/components/business/studio/StudioCardSection'
+// 规格三档（比例 · 清晰度 · 张数）在参数栏里收进一个触发器 —— 只服务图片；
+// 视频的比例仍是自己那颗独立 chip，切片 B 再合。
 import { StudioSpecPopover } from '@/components/business/studio/StudioSpecPopover'
+import { StudioVideoSpecPopover } from '@/components/business/studio/StudioVideoSpecPopover'
+import { StudioVideoModeToggle } from '@/components/business/studio/StudioVideoModeToggle'
+import { StudioSfxSpecPopover } from '@/components/business/studio/StudioSfxSpecPopover'
+import { StudioMusicSpecPopover } from '@/components/business/studio/StudioMusicSpecPopover'
+import { StudioAudioSpeechParams } from '@/components/business/studio/StudioAudioSpeechParams'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioAudioKindSwitcher } from '@/components/business/studio/StudioAudioKindSwitcher'
 import { cn } from '@/lib/utils'
@@ -87,13 +101,17 @@ import type {
   OutputType as RecipeOutputType,
   RecipeRecord,
 } from '@/types'
-import {
-  PromptInput,
-  PromptInputTextarea,
-  PromptInputActions,
-} from '@/components/ui/prompt-input'
-import { Spinner } from '@/components/ui/spinner'
+import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
+
+/**
+ * 模态专属那几颗丸的样式 —— 从退役的 `StudioToolbarPanels` 原样搬过来，
+ * 好让切片 A 是一次纯搬迁：形态换成 `ParamIdiom` 里的「触发器 + 浮层」
+ * 是切片 B / D 的事，那时这两个常量会一起消失。
+ */
+const modalityPillClass =
+  'flex h-9 items-center gap-2 rounded-lg border border-border/60 px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:border-primary/25 hover:text-foreground disabled:pointer-events-none disabled:opacity-50'
+const modalityPillActiveClass = 'border-primary/30 bg-primary/10 text-primary'
 
 const STUDIO_FLOATING_SURFACE_SELECTOR = [
   '[data-studio-tool-popover]',
@@ -106,38 +124,34 @@ const STUDIO_FLOATING_SURFACE_SELECTOR = [
 ].join(', ')
 
 /**
- * StudioPromptArea — Prompt textarea with embedded Generate button.
- * Uses prompt-kit PromptInput compound component.
+ * StudioPromptArea — 工作台左侧参数栏的全部内容：提示词 → 加料 chip →
+ * 模态专属参数 → 模型 → 规格 → 成本 + 生成。
+ *
+ * ⚠ 曾有 `layout: 'dock' | 'panel'` 两套排布，2026-08-23 切片 A **删掉了 dock**
+ * 那支 —— 三个模态统一走 `StudioWorkbenchLayout`，纵向 canvas + 底部丸整条路
+ * （`StudioFlowLayout` / `StudioBottomDock` / `StudioToolbarPanels` /
+ * `StudioToolbar`）一并退役，不留兼容层。
+ *
+ * 提示词输入与 `executeGenerate` 绑在一起，是这个组件不能按「参数 / 动作」
+ * 拆开的唯一原因。
  */
-interface StudioPromptAreaProps {
-  /**
-   * 排布方式。`'dock'`（默认）= 底部整宽 composer，视频 / 音频仍走这套；
-   * `'panel'` = 左侧参数栏的纵向堆叠（提示词 → 模板/参考图 → 模型 → 规格 →
-   * 生成），工作台重设计用。
-   *
-   * ⚠ 两个分支**共用同一套 handler**（`handleGenerate` / `buildImageInput` /
-   * quick setup …）—— 变的只有 JSX 排布。提示词输入与 `executeGenerate` 绑在
-   * 一起，是这个组件不能按"参数/动作"拆开的唯一原因。
-   */
-  layout?: 'dock' | 'panel'
-}
-
-export const StudioPromptArea = memo(function StudioPromptArea({
-  layout = 'dock',
-}: StudioPromptAreaProps = {}) {
-  const isPanel = layout === 'panel'
+export const StudioPromptArea = memo(function StudioPromptArea() {
   const { state, dispatch } = useStudioForm()
   const { styles, characters, backgrounds, imageUpload, projects } =
     useStudioData()
-  const { isGenerating, generate, elapsedSeconds } = useStudioGen()
+  const { isGenerating, generate, elapsedSeconds, canQueueMoreVideo } =
+    useStudioGen()
   const t = useTranslations('StudioV2')
   const tV3 = useTranslations('StudioV3')
   const tForm = useTranslations('StudioForm')
   const tPromptArea = useTranslations('StudioPromptArea')
   const tImageChip = useTranslations('ImageChip')
   const tModels = useTranslations('Models')
+  // 模态专属那几颗丸的文案 —— 命名空间沿用 dock 时期的，文案一个字没改
+  const tBar = useTranslations('StudioToolbar')
+  const tScript = useTranslations('VideoScript')
+  const tVideo = useTranslations('VideoGenerate')
   const locale = useLocale()
-  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     if (!localStorage.getItem(SAMPLE_PROMPT_STORAGE_KEY) && !state.prompt) {
@@ -528,7 +542,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     return undefined
   }, [state.audioPace])
   const composerContainerRef = useRef<HTMLDivElement>(null)
-  const isComposerExpanded = true
   const hasOpenToolPanel = STUDIO_TOOL_PANEL_NAMES.some(
     (panel) => state.panels[panel],
   )
@@ -736,6 +749,54 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     [runModels],
   )
 
+  /**
+   * 视频 / 音频的单选换型号。除了 `SET_OPTION_ID`，还要**把规格收窄到新型号真
+   * 支持的档位** —— 否则从 30 秒的型号切到 10 秒的型号，时长仍是 24，服务端按
+   * `supportedDurations` 精确比对，「什么都没动只换了个模型」就 400。
+   * 收窄规则与判据在 `clampVideoSpecToModel`（纯函数，有单测）。
+   */
+  const handleSelectSingleModel = useCallback(
+    (option: SelectedModelOption) => {
+      dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
+      if (!isVideoMode) return
+
+      const next = getVideoModelParameterOptions(
+        option.modelId,
+        option.adapterType,
+      )
+      const patch = clampVideoSpecToModel({
+        durations: next.durations,
+        resolutions: next.resolutions,
+        aspectRatios: next.aspectRatios,
+        current: {
+          duration: state.videoDuration,
+          resolution: state.videoResolution,
+          aspectRatio: state.aspectRatio,
+        },
+        fallbackAspectRatio: VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
+      })
+      if (patch.duration !== undefined) {
+        dispatch({ type: 'SET_VIDEO_DURATION', payload: patch.duration })
+      }
+      if (patch.resolution !== undefined) {
+        dispatch({ type: 'SET_VIDEO_RESOLUTION', payload: patch.resolution })
+      }
+      if (patch.aspectRatio !== undefined) {
+        dispatch({
+          type: 'SET_ASPECT_RATIO',
+          payload: patch.aspectRatio as AspectRatio,
+        })
+      }
+    },
+    [
+      dispatch,
+      isVideoMode,
+      state.aspectRatio,
+      state.videoDuration,
+      state.videoResolution,
+    ],
+  )
+
   const handleToggleRunModel = useCallback(
     (option: SelectedModelOption) => {
       // 还没有主模型时，第一次点选就当选主模型 —— 否则名单有条目却没有主模型，
@@ -842,6 +903,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     if (!canGenerate) return
     if (isAudioMode && selectedModel) {
       const isSfx = state.audioKind === AUDIO_KIND.SFX
+      const isMusic = state.audioKind === AUDIO_KIND.MUSIC
       // Audio clip + transcript must ship as a coherent pair (schema refine);
       // resolve them from one source so a card clip without a transcript never
       // 400s the request.
@@ -874,7 +936,13 @@ export const StudioPromptArea = memo(function StudioPromptArea({
           referenceText: audioReference.referenceText,
           emotion: state.audioEmotion,
           expressiveness: state.audioExpressiveness,
-          durationSeconds: isSfx ? state.audioSfxDurationSeconds : undefined,
+          // ⚠ 音效与音乐**共用**这一个字段，但取值来自各自的 state：音效 0.5–30 秒、
+          //   音乐 5–600 秒。语音没有时长可言（由正文长度决定），传 undefined。
+          durationSeconds: isSfx
+            ? state.audioSfxDurationSeconds
+            : isMusic
+              ? state.audioMusicDurationSeconds
+              : undefined,
           loop: isSfx ? state.audioSfxLoop : undefined,
           promptInfluence: isSfx ? state.audioSfxPromptInfluence : undefined,
           variantCount: isSfx ? state.audioSfxVariantCount : undefined,
@@ -957,6 +1025,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     state.audioEmotion,
     state.audioExpressiveness,
     state.audioSfxDurationSeconds,
+    state.audioMusicDurationSeconds,
     state.audioSfxLoop,
     state.audioSfxPromptInfluence,
     state.audioSfxVariantCount,
@@ -1004,6 +1073,15 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     message: string
     focusPrompt?: 'now' | 'nextFrame'
   } | null => {
+    // ⚠ 队列闸排在 `canGenerate` 之前：表单本身完全合法，挡住它的是「已经有 4 条
+    //   在跑」。放在后面就永远轮不到 —— `canGenerate` 为真时这个函数直接返回 null。
+    if (isVideoMode && !canQueueMoreVideo) {
+      return {
+        message: tPromptArea('blocked.videoQueueFull', {
+          max: PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER,
+        }),
+      }
+    }
     if (canGenerate) return null
     if (usesStyleCardForModel && !styles.activeCardId) {
       return { message: tPromptArea('blocked.styleCardRequired') }
@@ -1051,6 +1129,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     return null
   }, [
     canGenerate,
+    canQueueMoreVideo,
     usesStyleCardForModel,
     styles.activeCardId,
     selectedModel?.modelId,
@@ -1180,93 +1259,249 @@ export const StudioPromptArea = memo(function StudioPromptArea({
         />
       )}
 
-      {isPanel ? (
-        <PromptInput
-          ref={composerContainerRef}
-          id="studio-prompt"
-          isLoading={isGenerating}
-          value={state.prompt}
-          onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
-          maxHeight="14rem"
-          onSubmit={handleGenerate}
-          onDragEnter={handlePromptDragEnter}
-          onDragOver={handlePromptDragOver}
-          onDragLeave={handlePromptDragLeave}
-          onDrop={handlePromptDrop}
-          role="group"
-          disabled={isGenerating}
-          className={cn(
-            'flex min-h-0 flex-1 flex-col gap-3 rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
-            imageUpload.isDragging &&
-              'rounded-xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
-          )}
-        >
-          {/* 提示词 —— 参数栏里它是一块独立的输入区，不再和发送键挤一行 */}
+      {/* 占位符填空 —— 灵感提示词里带 `{{...}}` 时弹它。
+          ⚠ 原来只长在已删除的 dock 分支里：`handleApplyInspiration` 一直在
+          `setPlaceholderDialog({open:true})`，但参数栏没有渲染它 —— 又一个
+          「状态活着、门没开」。挂在 fragment 根上（Dialog，无布局足迹）。 */}
+      <PlaceholderFillDialog
+        open={placeholderDialog.open}
+        onOpenChange={(open) =>
+          setPlaceholderDialog((prev) => ({ ...prev, open }))
+        }
+        prompt={placeholderDialog.prompt}
+        onApply={applyInspirationPrompt}
+      />
+
+      <PromptInput
+        ref={composerContainerRef}
+        id="studio-prompt"
+        isLoading={isGenerating}
+        value={state.prompt}
+        onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
+        maxHeight="14rem"
+        onSubmit={handleGenerate}
+        onDragEnter={handlePromptDragEnter}
+        onDragOver={handlePromptDragOver}
+        onDragLeave={handlePromptDragLeave}
+        onDrop={handlePromptDrop}
+        role="group"
+        disabled={isGenerating}
+        className={cn(
+          'flex min-h-0 flex-1 flex-col gap-3 rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
+          imageUpload.isDragging &&
+            'rounded-xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
+        )}
+      >
+        {/* 图片用途 —— **栏首第一决策**（切片 B）。它决定这一次发哪个端点，
+            也决定下面「首帧 / 内容参考」那条输入轨叫什么名字、放得下几张；
+            排在提示词之后就等于让人先写完再回头改前提。
+            ⚠ 只在目录里真有 ≥2 档模型时渲染（组件自己判），少于 2 档没得选。 */}
+        {isVideoMode ? (
           <div className="flex flex-col gap-1.5">
             <span className="text-2xs font-medium text-muted-foreground/70">
-              {tForm('promptLabel')}
+              {tBar('videoMode')}
             </span>
-            <div className="studio-composer rounded-xl border border-border/60 px-2 py-1.5">
-              <ImageAttachmentPreviewStrip
-                entries={imageUpload.referenceEntries}
-                previewAlt={tImageChip('label')}
-                previewLabel={(index) =>
-                  tImageChip('previewReferenceImage', { index })
-                }
-                previewDescription={tImageChip('previewReferenceDescription')}
-                previewCloseLabel={tImageChip('closeReferencePreview')}
-                removeLabel={(index) =>
-                  tImageChip('removeReferenceImage', { index })
-                }
-                onRemove={imageUpload.removeReferenceImage}
-                overLimitTooltip={tImageChip('disabledOverLimit')}
-                unsupportedTooltip={tImageChip('disabledUnsupported')}
-                variant="composer"
-                dragType={STUDIO_REFERENCE_DRAG_TYPE}
-              />
-              <PromptInputTextarea
-                id={STUDIO_PROMPT_TEXTAREA_ID}
-                aria-label={tForm('promptLabel')}
-                placeholder={placeholder}
-                onPaste={handlePromptPaste}
-                className="min-h-20 px-1 py-1 font-sans text-sm leading-5 disabled:opacity-100"
-              />
-            </div>
-            {isImagePromptOverLimit && (
-              <span className="text-2xs tabular-nums text-destructive">
-                {`${imagePromptLength}/${imagePromptMaxChars}`}
-              </span>
-            )}
+            <StudioVideoModeToggle disabled={isGenerating} />
           </div>
+        ) : null}
 
-          {/* 往提示词里加东西的两个动作：模板 / 参考图。紧贴输入框，不进「参数」。
+        {/* 提示词 —— 参数栏里它是一块独立的输入区，不再和发送键挤一行 */}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-2xs font-medium text-muted-foreground/70">
+            {tForm('promptLabel')}
+          </span>
+          <div className="studio-composer rounded-xl border border-border/60 px-2 py-1.5">
+            <ImageAttachmentPreviewStrip
+              entries={imageUpload.referenceEntries}
+              previewAlt={tImageChip('label')}
+              previewLabel={(index) =>
+                tImageChip('previewReferenceImage', { index })
+              }
+              previewDescription={tImageChip('previewReferenceDescription')}
+              previewCloseLabel={tImageChip('closeReferencePreview')}
+              removeLabel={(index) =>
+                tImageChip('removeReferenceImage', { index })
+              }
+              onRemove={imageUpload.removeReferenceImage}
+              overLimitTooltip={tImageChip('disabledOverLimit')}
+              unsupportedTooltip={tImageChip('disabledUnsupported')}
+              variant="composer"
+              dragType={STUDIO_REFERENCE_DRAG_TYPE}
+            />
+            <PromptInputTextarea
+              id={STUDIO_PROMPT_TEXTAREA_ID}
+              aria-label={tForm('promptLabel')}
+              placeholder={placeholder}
+              onPaste={handlePromptPaste}
+              className="min-h-20 px-1 py-1 font-sans text-sm leading-5 disabled:opacity-100"
+            />
+          </div>
+          {/* 音频的字数 / 分钟数 / 上限 —— 从 dock 搬进来（切片 A）。音效那一档
+              的提示词是「音效描述」，没有朗读时长可估，所以不印。 */}
+          {isAudioMode && state.audioKind !== AUDIO_KIND.SFX && (
+            <span
+              className={cn(
+                'text-2xs tabular-nums',
+                isAudioPromptOverLimit
+                  ? 'text-destructive'
+                  : isAudioPromptNearLimit
+                    ? 'text-amber-600'
+                    : 'text-muted-foreground/70',
+              )}
+            >
+              {audioPromptMeta}
+            </span>
+          )}
+          {isImagePromptOverLimit && (
+            <span className="text-2xs tabular-nums text-destructive">
+              {`${imagePromptLength}/${imagePromptMaxChars}`}
+            </span>
+          )}
+        </div>
+
+        {/* 往提示词里加东西的两个动作：模板 / 参考图。紧贴输入框，不进「参数」。
               ⚠ 必须裹 Toolbar.Root —— 这几颗 chip 底下是 Radix `Toolbar.Button`，
               没有 roving-focus context 会直接抛 `RovingFocusGroupItem must be used
               within RovingFocusGroup`。dock 那边由 StudioToolbar 提供，参数栏得自己给。 */}
-          <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
-            <PromptTemplatePicker
-              currentModelId={selectedModel?.modelId}
-              currentOutputType={currentTemplateOutputType}
-              currentParams={currentTemplateParams}
-              currentPrompt={state.prompt}
-              currentProvider={
-                selectedModel
-                  ? getProviderLabel(selectedModel.providerConfig)
-                  : undefined
-              }
-              onApply={handleApplyRecipe}
-              onApplyInspiration={handleApplyInspiration}
-            />
-            <ReferenceImageChip disabled={isGenerating} />
-            {/* 助手在 lg 以上由右上角的 StudioAssistantFab 承担（owner
-                2026-08-14），这里只留小屏那份 —— 不是重复：dock 是 lg:flex，
-                小屏的抽屉宿主就长在这颗丸里面，删了小屏就没有助手入口了。 */}
-            <span className="contents lg:hidden">
-              <StudioEnhanceButton disabled={isGenerating} />
-            </span>
-          </Toolbar.Root>
+        <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
+          <PromptTemplatePicker
+            currentModelId={selectedModel?.modelId}
+            currentOutputType={currentTemplateOutputType}
+            currentParams={currentTemplateParams}
+            currentPrompt={state.prompt}
+            currentProvider={
+              selectedModel
+                ? getProviderLabel(selectedModel.providerConfig)
+                : undefined
+            }
+            onApply={handleApplyRecipe}
+            onApplyInspiration={handleApplyInspiration}
+          />
+          {/* ⚠ 音频没有参考图这回事 —— dock 时代它的工具条里本来就没有这颗
+              （`StudioToolbarPanels` 的音频分支只有 助手 / 音色 / 克隆 / 转脚本）。
+              参数栏这一行是三模态共用的，不加这个闸就等于给语音凭空多一个
+              点了没用的入口。音频要传的是**参考音频**，在音色面板里。 */}
+          {!isAudioMode ? <ReferenceImageChip disabled={isGenerating} /> : null}
+          {/* 卡片入口 —— 切片 A 从退役的 `StudioToolbar` 搬过来的唯一一颗。
+              其余四颗（助手 / 参考图 / 比例 / 张数）参数栏本来就有：比例与张数
+              在「规格」浮层里，参考图就在左边，助手是右上角浮标。
+              ⚠ 不搬这一颗的话，卡片工作流在工作台里**没有任何入口** ——
+              `workflowMode` 从 localStorage 恢复成 `card` 时，模型名单被
+              `workflowMode === 'quick'` 挡掉，而卡片选择器又不在，整栏是死的。 */}
+          {isImageMode ? <StudioCardsButton disabled={isGenerating} /> : null}
+          {/* 助手在 lg 以上由右上角的 StudioAssistantFab 承担（owner
+                2026-08-14），这里只留小屏那份 —— 不是重复：小屏没有浮标，
+                抽屉宿主就长在这颗丸里面，删了小屏就没有助手入口了。 */}
+          <span className="contents lg:hidden">
+            <StudioEnhanceButton disabled={isGenerating} />
+          </span>
+        </Toolbar.Root>
 
-          {/* 负面提示词 —— 折叠行 + 内容预览，与 LoRA 工作台同一形态（那边是这个
+        {/* 卡片工作流的下拉组 —— 原来长在 `StudioBottomDock` 里，随 dock 一起
+            退役，改挂这里。条件与旧版逐字一致（音频没有卡片）。 */}
+        {state.workflowMode === 'card' && !isAudioMode ? (
+          <StudioCardSection />
+        ) : null}
+
+        {/* ── 模态专属的「另一条线」────────────────────────────────────
+            视频只剩「剧本」（分镜编排那条线，切片 C 才给它形态）；音频那排
+            仍是切片 A 原样搬来的丸，按 `ParamIdiom` 重排是切片 D 的事。
+            ⚠ 规格类的参数不在这里：视频的时长 / 分辨率 / 比例已并进下面的
+            「规格」浮层，反向提示词并进折叠行 —— 参数区回答「下一版长什么样」，
+            这一行回答「我现在要做什么」。 */}
+        {isVideoMode ? (
+          <>
+            <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() =>
+                  dispatch({ type: 'TOGGLE_PANEL', payload: 'script' })
+                }
+                disabled={isGenerating}
+                className={cn(
+                  modalityPillClass,
+                  state.panels.script && modalityPillActiveClass,
+                )}
+              >
+                <FileText className="size-4" />
+                {tScript('panelTitle')}
+              </button>
+            </Toolbar.Root>
+          </>
+        ) : null}
+
+        {isAudioMode ? (
+          <>
+            <StudioAudioKindSwitcher />
+            {/* ⚠ 音色 / 克隆 / 音频转脚本**只属于语音档**。今天工具条只判了音效
+                一个分支，于是切到「音乐」显示的仍是这三颗 —— 对一段配乐来说
+                「换音色」「克隆」都没有意义（Main 板 E7）。判据改成正列语音，
+                新增档位默认不继承语音的栏位。 */}
+            {state.audioKind === AUDIO_KIND.SPEECH ? (
+              <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
+                <>
+                  {/* ⚠ 音色**不在这一行** —— 它已经是下面「音色」那一栏（形态 3
+                      的行），在这里再放一颗丸就是同一条信息一屏两遍。留在这行的
+                      两颗是**动作**不是参数：克隆一个新音色、把一段音频转成稿子。 */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (state.panels.voiceSelector) {
+                        dispatch({
+                          type: 'CLOSE_PANEL',
+                          payload: 'voiceSelector',
+                        })
+                      }
+                      dispatch({
+                        type: 'TOGGLE_PANEL',
+                        payload: 'voiceTrainer',
+                      })
+                    }}
+                    disabled={isGenerating}
+                    className={cn(
+                      modalityPillClass,
+                      state.panels.voiceTrainer && modalityPillActiveClass,
+                    )}
+                  >
+                    <Plus className="size-4" />
+                    {tBar('clone')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (state.panels.voiceSelector) {
+                        dispatch({
+                          type: 'CLOSE_PANEL',
+                          payload: 'voiceSelector',
+                        })
+                      }
+                      if (state.panels.voiceTrainer) {
+                        dispatch({
+                          type: 'CLOSE_PANEL',
+                          payload: 'voiceTrainer',
+                        })
+                      }
+                      dispatch({
+                        type: 'TOGGLE_PANEL',
+                        payload: 'audioTranscribe',
+                      })
+                    }}
+                    disabled={isGenerating}
+                    className={cn(
+                      modalityPillClass,
+                      state.panels.audioTranscribe && modalityPillActiveClass,
+                    )}
+                  >
+                    <FileAudio2 className="size-4" />
+                    {tBar('transcribe')}
+                  </button>
+                </>
+              </Toolbar.Root>
+            ) : null}
+          </>
+        ) : null}
+
+        {/* 负面提示词 —— 折叠行 + 内容预览，与 LoRA 工作台同一形态（那边是这个
               字段在本项目里的既有落点）。
               ⭐ 2026-08-22 补：**图片工作台此前根本没有输入它的地方** ——
               `StudioImageAdvancedParams` 里那个输入框只长在 `panels.advanced`
@@ -1278,9 +1513,14 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               ⛔ 没有把整个高级对话框挂过来：那会把 seed 一并放出去，而 owner
               2026-08-22 明确「seed 不介入，只接负面提示词」。
               ⛔ 没有复用 `.lora-reveal`：那是 lora 域皮肤的类，跨域引用会把两个
-              域的皮肤绑死；这里用条件渲染，行为一致、无跨域依赖。 */}
+              域的皮肤绑死；这里用条件渲染，行为一致、无跨域依赖。
+              ⚠ 图片 + 视频共用这一条：两边写的是**同一个字段**
+              （`advancedParams.negativePrompt`），视频那份原本长在「视频设置」
+              对话框里，切片 B 把对话框整个退役了，字段的家从此只有这一个。
+              音频没有这个字段，所以不渲染。 */}
+        {!isAudioMode ? (
           <div
-            className="flex flex-col gap-1.5"
+            className="flex flex-col"
             // ⭐ 必须挡住冒泡：`PromptInput` 的根 div 在**容器内任何点击**冒泡上来时
             //   都会 `focusUnlessTouch(textareaRef)` 把焦点抢回主提示词框
             //   （见 `ui/prompt-input.tsx` 的 handleClick）。不挡的话点这里的输入框
@@ -1292,8 +1532,9 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             <button
               type="button"
               aria-expanded={negativePromptExpanded}
+              aria-controls="studio-negative-prompt-input"
               onClick={() => setNegativePromptExpanded((open) => !open)}
-              className="flex w-full items-center gap-2 rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-left"
+              className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-[7px] text-left transition-colors duration-fast ease-standard hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background coarse:min-h-11"
             >
               <span className="shrink-0 text-2xs font-medium text-muted-foreground/70">
                 {tPromptArea('negativePromptLabel')}
@@ -1317,386 +1558,230 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 aria-hidden
               />
             </button>
-            {negativePromptExpanded ? (
-              <textarea
-                aria-label={tPromptArea('negativePromptLabel')}
-                value={state.advancedParams.negativePrompt ?? ''}
-                onChange={(event) =>
-                  dispatch({
-                    type: 'SET_ADVANCED_PARAMS',
-                    // ⚠ 整个对象带过去，只换一个键 —— `SET_ADVANCED_PARAMS` 是
-                    //   整体替换，只发 negativePrompt 会把其余参数清空。
-                    payload: {
-                      ...state.advancedParams,
-                      negativePrompt: event.target.value || undefined,
-                    },
-                  })
-                }
-                placeholder={tPromptArea('negativePromptPlaceholder')}
-                rows={2}
-                disabled={isGenerating}
-                className="w-full resize-none rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-xs outline-none placeholder:text-muted-foreground/60 focus:border-primary/40"
-              />
-            ) : null}
+            <div
+              aria-hidden={!negativePromptExpanded}
+              className={cn(
+                'grid transition-[grid-template-rows,opacity] duration-base ease-standard motion-reduce:transition-none',
+                negativePromptExpanded
+                  ? 'grid-rows-[1fr] opacity-100'
+                  : 'grid-rows-[0fr] opacity-0',
+              )}
+            >
+              <div
+                className="min-h-0 overflow-hidden"
+                inert={!negativePromptExpanded}
+              >
+                <div className="pt-1.5">
+                  <textarea
+                    id="studio-negative-prompt-input"
+                    aria-label={tPromptArea('negativePromptLabel')}
+                    value={state.advancedParams.negativePrompt ?? ''}
+                    onChange={(event) =>
+                      dispatch({
+                        type: 'SET_ADVANCED_PARAMS',
+                        // ⚠ 整个对象带过去，只换一个键 —— `SET_ADVANCED_PARAMS` 是
+                        //   整体替换，只发 negativePrompt 会把其余参数清空。
+                        payload: {
+                          ...state.advancedParams,
+                          negativePrompt: event.target.value || undefined,
+                        },
+                      })
+                    }
+                    placeholder={tPromptArea('negativePromptPlaceholder')}
+                    rows={2}
+                    disabled={isGenerating}
+                    className="h-[46px] w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-2xs outline-none transition-colors duration-fast ease-standard placeholder:text-muted-foreground/60 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
+        ) : null}
 
-          {/* 模型 —— 这一轮的名单。行不是丸：行能装下单价，缺价一眼看得出来。
+        {/* 模型（视频 / 音频）—— **单选**。这两个模态没有对比路径：
+            `generate()` 里视频那支直接 `generateVideo`（恒 `mode:'single'`），
+            音频只有音效档有 `variantCount`。给它们一份多选名单会画出一个
+            发不出去的矩阵。⚠ 视频还要按「用途」收窄端点（`filterOption`），
+            与工具条上的分段控件同一个源。 */}
+        {state.workflowMode === 'quick' && !isImageMode && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-2xs font-medium text-muted-foreground/70">
+              {tForm('modelLabel')}
+            </span>
+            <MainModelPicker
+              modality={isAudioMode ? 'audio' : 'video'}
+              layout="columns"
+              value={state.selectedOptionId ?? null}
+              onChange={handleSelectSingleModel}
+              onRequestSetup={handleOpenQuickSetup}
+              triggerEmptyLabel={t('noModelHint')}
+              searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+              emptySearchText={tForm('modelSelector.emptySearch')}
+              filterOption={filterVideoModelByMode}
+              className="w-full justify-start"
+            />
+          </div>
+        )}
+
+        {/* 模型（图片）—— 这一轮的名单。行不是丸：行能装下单价，缺价一眼看得出来。
               主模型 + 额外模型都在这里，选择器是多选的（三栏居中 modal，不受
               这 288px 的栏宽约束）。 */}
-          {state.workflowMode === 'quick' && (
-            <div className="flex flex-col gap-1.5">
-              <span className="flex items-center text-2xs font-medium text-muted-foreground/70">
-                {tForm('modelLabel')}
-                {runModels.length > 1 ? (
-                  <span className="ml-auto font-normal tabular-nums">
-                    {t('modelCountSelected', { count: runModels.length })}
-                  </span>
-                ) : null}
-              </span>
-              {runModels.map((option) => (
-                <div
-                  key={option.optionId}
-                  className="flex h-8 items-center gap-2 rounded-md border border-border/60 bg-background pl-2.5 pr-1.5 text-xs"
-                >
-                  <span className="min-w-0 flex-1 truncate">
-                    {getTranslatedModelLabel(tModels, option.modelId)}
-                  </span>
-                  {/* 每一行都能删，包括最后一条 —— 删空了就回到「请先选择模型」，
+        {state.workflowMode === 'quick' && isImageMode && (
+          <div className="flex flex-col gap-1.5">
+            <span className="flex items-center text-2xs font-medium text-muted-foreground/70">
+              {tForm('modelLabel')}
+              {runModels.length > 1 ? (
+                <span className="ml-auto font-normal tabular-nums">
+                  {t('modelCountSelected', { count: runModels.length })}
+                </span>
+              ) : null}
+            </span>
+            {runModels.map((option) => (
+              <div
+                key={option.optionId}
+                className="flex h-8 items-center gap-2 rounded-md border border-border/60 bg-background pl-2.5 pr-1.5 text-xs"
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  {getTranslatedModelLabel(tModels, option.modelId)}
+                </span>
+                {/* 每一行都能删，包括最后一条 —— 删空了就回到「请先选择模型」，
                       那本来就是个合法状态（发送时会拦并提示）。留一条删不掉的
                       行反而让「怎么换掉它」没有出口。 */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveRunModel(option.optionId)}
-                    aria-label={t('modelRemove')}
-                    className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </div>
-              ))}
-              <MainModelPicker
-                modality="image"
-                layout="columns"
-                // ⚠ 恒为 null：这里是纯粹的「添加」入口，不是「当前选中什么」的
-                // 显示位。传选中值会让触发器和名单第一行写着同一个名字（真机
-                // 抓到：名单 `FLUX LoRA` + 触发器 `FLUX LoRA ⌄`，同一条信息两遍）。
-                // 选中状态由名单承担；面板里的勾选走 selectedOptionIds。
-                value={null}
-                onChange={(option) =>
-                  dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
-                }
-                selectedOptionIds={runModelIds}
-                onToggleOption={handleToggleRunModel}
-                onRequestSetup={handleOpenQuickSetup}
-                triggerEmptyLabel={
-                  runModels.length > 0 ? t('modelAdd') : t('noModelHint')
-                }
-                searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
-                emptySearchText={tForm('modelSelector.emptySearch')}
-                className="w-full justify-start border-dashed"
-              />
-            </div>
-          )}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveRunModel(option.optionId)}
+                  aria-label={t('modelRemove')}
+                  className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+            <MainModelPicker
+              modality="image"
+              layout="columns"
+              // ⚠ 恒为 null：这里是纯粹的「添加」入口，不是「当前选中什么」的
+              // 显示位。传选中值会让触发器和名单第一行写着同一个名字（真机
+              // 抓到：名单 `FLUX LoRA` + 触发器 `FLUX LoRA ⌄`，同一条信息两遍）。
+              // 选中状态由名单承担；面板里的勾选走 selectedOptionIds。
+              value={null}
+              onChange={(option) =>
+                dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
+              }
+              selectedOptionIds={runModelIds}
+              onToggleOption={handleToggleRunModel}
+              onRequestSetup={handleOpenQuickSetup}
+              triggerEmptyLabel={
+                runModels.length > 0 ? t('modelAdd') : t('noModelHint')
+              }
+              searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+              emptySearchText={tForm('modelSelector.emptySearch')}
+              className="w-full justify-start border-dashed"
+            />
+          </div>
+        )}
 
-          {/* 规格 —— 比例 / 清晰度 / 张数。回答「下一版长什么样」 */}
+        {/* 规格 —— 回答「下一版长什么样」。同一个形态、两套数据：
+            图片 = 比例 · 清晰度 · 每模型几张；视频 = 时长 · 分辨率 · 比例。
+            ⚠ 两颗**不能合成一颗**：数据源完全不同（图片读能力表的
+            `resolutionOptions` + `IMAGE_BATCH_COUNTS`，视频读
+            `getVideoModelParameterOptions` 实算的档位），合起来会变成一个
+            满是 `isVideoMode ?` 的分支堆。共用的是形态与药丸样式，不是组件。
+            音频没有规格这一说（时长/变体归音效自己的浮层，切片 D）。 */}
+        {isImageMode ? (
           <div className="flex flex-col gap-1.5">
             <span className="text-2xs font-medium text-muted-foreground/70">
               {t('specLabel')}
             </span>
             <StudioSpecPopover disabled={isGenerating} />
           </div>
+        ) : null}
+        {isVideoMode ? (
+          <StudioVideoSpecPopover disabled={isGenerating} />
+        ) : null}
+        {isAudioMode && state.audioKind === AUDIO_KIND.SFX ? (
+          <StudioSfxSpecPopover disabled={isGenerating} />
+        ) : null}
+        {/* 音乐档补上它唯一缺的那一栏。⚠ 这不是新功能：适配器早就读
+            `durationSeconds`，只是没人传，于是所有音乐都是兜底的 30 秒。 */}
+        {isAudioMode && state.audioKind === AUDIO_KIND.MUSIC ? (
+          <StudioMusicSpecPopover disabled={isGenerating} />
+        ) : null}
+        {/* 语音档的音色 / 朗读 / 高级 —— 原来长在音色库弹层的侧栏里，也就是说
+            要调个语速得先打开音色库。切片 D 把「怎么念」搬进栏，「谁来念」留在
+            面板。 */}
+        {isAudioMode && state.audioKind === AUDIO_KIND.SPEECH ? (
+          <StudioAudioSpeechParams disabled={isGenerating} />
+        ) : null}
 
-          {/* 成本 + 生成 —— 一起沉到参数栏底部（`mt-auto` 挂在这层，不挂按钮，
+        {/* 成本 + 生成 —— 一起沉到参数栏底部（`mt-auto` 挂在这层，不挂按钮，
               否则成本行会被留在上面、跟它解释的那个按钮隔开半栏）。 */}
-          <div className="mt-auto flex shrink-0 flex-col gap-2">
+        <div className="mt-auto flex shrink-0 flex-col gap-2">
+          {/* 成本预览只对图片有数：单价表今天一条音频条目都没有，视频那批也
+              只覆盖了一部分。按既有规矩缺价留空，不填猜的数。 */}
+          {isImageMode ? (
             <StudioCostPreview
               models={runModels}
               perModelCount={state.imageBatchCount}
             />
-            {/* 生成 —— 按钮上写清这一次会出几张 */}
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                void handleGenerate()
-              }}
-              disabled={isGenerating || isImagePromptOverLimit}
-              aria-label={t('generate')}
-              aria-busy={isGenerating}
-              aria-disabled={!canGenerate}
-              className={cn(
-                'flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-sm',
-                'transition-[background-color,transform,box-shadow] duration-fast ease-standard',
-                'hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-                // 挡住时降到次级填充。现在按钮上写着缺什么，就没有「点一下才知道」
-                // 这层信息了，所以不必再用满强度的实心黑去引诱点击 —— 整屏唯一的
-                // 最高强调留给真正能出图的那一刻。文字仍用 foreground 满强度：
-                // 降的是底不是字，`muted-foreground` 落在浅底上过不了对比度。
-                !isGenerating &&
-                  blockedReason &&
-                  'bg-muted text-foreground shadow-none hover:shadow-none',
-                (isGenerating || isImagePromptOverLimit) &&
-                  'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:shadow-none',
-              )}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  {elapsedSeconds > 0
-                    ? `${t('generating')} ${elapsedSeconds}s`
-                    : t('generating')}
-                </>
-              ) : (
-                // 缺什么就写在按钮上。按钮**保持可点**（Krea 式，点了还会 toast
-                // 并把焦点送到该补的地方），但没必要让人点一下才知道缺模型 ——
-                // 「模型：请先选择模型」就在同一栏上面两行，按钮再说一句
-                // 「生成 1 张」等于跟旁边的事实对着干。
-                (blockedReason?.message ??
-                t('generateCount', {
-                  count: Math.max(1, runModels.length) * state.imageBatchCount,
-                }))
-              )}
-            </button>
-          </div>
-        </PromptInput>
-      ) : (
-        <div ref={composerContainerRef}>
-          <PromptInput
-            id="studio-prompt"
-            isLoading={isGenerating}
-            value={state.prompt}
-            onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
-            maxHeight="var(--studio-prompt-max-h)"
-            onSubmit={handleGenerate}
-            onDragEnter={handlePromptDragEnter}
-            onDragOver={handlePromptDragOver}
-            onDragLeave={handlePromptDragLeave}
-            onDrop={handlePromptDrop}
-            data-slot="input-group"
-            data-expanded={isComposerExpanded}
-            role="group"
-            disabled={isGenerating}
+          ) : null}
+          {/* 生成 —— 按钮上写清这一次会出几张 */}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              void handleGenerate()
+            }}
+            disabled={
+              isGenerating || isImagePromptOverLimit || isAudioPromptOverLimit
+            }
+            aria-label={t('generate')}
+            aria-busy={isGenerating}
+            aria-disabled={!canGenerate}
             className={cn(
-              'group/input-group relative mx-auto w-full max-w-7xl 2xl:max-w-[88rem] rounded-none border-0 bg-transparent p-0 shadow-none outline-none [--studio-prompt-max-h:160px] md:[--studio-prompt-max-h:320px]',
-              isGenerating && 'opacity-100',
-              imageUpload.isDragging &&
-                'rounded-3xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
+              'flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-sm',
+              'transition-[background-color,transform,box-shadow] duration-fast ease-standard',
+              'hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+              // 挡住时降到次级填充。现在按钮上写着缺什么，就没有「点一下才知道」
+              // 这层信息了，所以不必再用满强度的实心黑去引诱点击 —— 整屏唯一的
+              // 最高强调留给真正能出图的那一刻。文字仍用 foreground 满强度：
+              // 降的是底不是字，`muted-foreground` 落在浅底上过不了对比度。
+              !isGenerating &&
+                blockedReason &&
+                'bg-muted text-foreground shadow-none hover:shadow-none',
+              (isGenerating ||
+                isImagePromptOverLimit ||
+                isAudioPromptOverLimit) &&
+                'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:shadow-none',
             )}
           >
-            <AnimatePresence initial={false}>
-              {isComposerExpanded && (
-                <motion.div
-                  key="composer-dock-controls"
-                  className="overflow-hidden"
-                  initial={{ height: 0, opacity: 0, y: 8, marginBottom: 0 }}
-                  animate={{
-                    height: 'auto',
-                    opacity: 1,
-                    y: 0,
-                    marginBottom: 8,
-                  }}
-                  exit={{ height: 0, opacity: 0, y: 6, marginBottom: 0 }}
-                  transition={motionTransition('slow', reducedMotion)}
-                >
-                  <div className="studio-dock-control-row flex flex-col gap-2 px-1 md:flex-row md:items-center md:gap-3">
-                    <div className="flex min-w-0 shrink-0 items-center gap-1.5">
-                      {isAudioMode && <StudioAudioKindSwitcher />}
-                      {state.workflowMode === 'quick' && (
-                        <MainModelPicker
-                          modality={
-                            isAudioMode
-                              ? 'audio'
-                              : isVideoMode
-                                ? 'video'
-                                : 'image'
-                          }
-                          value={state.selectedOptionId ?? null}
-                          onChange={(option) =>
-                            dispatch({
-                              type: 'SET_OPTION_ID',
-                              payload: option.optionId,
-                            })
-                          }
-                          onRequestSetup={handleOpenQuickSetup}
-                          // dock 是整宽容器，装得下三栏并列；画布节点上的 composer
-                          // 丸装不下，那边保持默认的 drill。见 layout 的 prop 注释。
-                          layout="columns"
-                          triggerEmptyLabel={t('noModelHint')}
-                          searchPlaceholder={tForm(
-                            'modelSelector.searchPlaceholder',
-                          )}
-                          emptySearchText={tForm('modelSelector.emptySearch')}
-                          filterOption={filterVideoModelByMode}
-                        />
-                      )}
-                      <PromptTemplatePicker
-                        currentModelId={selectedModel?.modelId}
-                        currentOutputType={currentTemplateOutputType}
-                        currentParams={currentTemplateParams}
-                        currentPrompt={state.prompt}
-                        currentProvider={
-                          selectedModel
-                            ? getProviderLabel(selectedModel.providerConfig)
-                            : undefined
-                        }
-                        onApply={handleApplyRecipe}
-                        onApplyInspiration={handleApplyInspiration}
-                      />
-                      <PlaceholderFillDialog
-                        open={placeholderDialog.open}
-                        onOpenChange={(open) =>
-                          setPlaceholderDialog((prev) => ({ ...prev, open }))
-                        }
-                        prompt={placeholderDialog.prompt}
-                        onApply={applyInspirationPrompt}
-                      />
-                    </div>
-                    <div
-                      aria-hidden="true"
-                      className="hidden h-4 w-px shrink-0 bg-border/60 md:block"
-                    />
-                    <div className="relative min-w-0 md:flex-1">
-                      <div className="overflow-x-auto">
-                        <div className="flex min-w-max items-center">
-                          <StudioToolbarPanels compact />
-                        </div>
-                      </div>
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-background to-transparent md:hidden"
-                      />
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-background to-transparent md:hidden"
-                      />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <motion.div
-              layout
-              animate={{
-                borderRadius: isComposerExpanded ? 24 : 999,
-                paddingTop: isComposerExpanded ? 8 : 6,
-                paddingBottom: isComposerExpanded ? 8 : 6,
-                paddingLeft: 8,
-                paddingRight: 8,
-              }}
-              className={cn(
-                'studio-composer overflow-hidden border border-black/5 shadow-2xl shadow-black/20 ring-1 ring-black/5',
-                'has-[textarea:focus-visible]:border-black/10 has-[textarea:focus-visible]:shadow-black/30 has-[textarea:focus-visible]:ring-black/10',
-              )}
-              transition={motionTransition('slow', reducedMotion)}
-            >
-              <ImageAttachmentPreviewStrip
-                entries={imageUpload.referenceEntries}
-                previewAlt={tImageChip('label')}
-                previewLabel={(index) =>
-                  tImageChip('previewReferenceImage', { index })
-                }
-                previewDescription={tImageChip('previewReferenceDescription')}
-                previewCloseLabel={tImageChip('closeReferencePreview')}
-                removeLabel={(index) =>
-                  tImageChip('removeReferenceImage', { index })
-                }
-                onRemove={imageUpload.removeReferenceImage}
-                overLimitTooltip={tImageChip('disabledOverLimit')}
-                unsupportedTooltip={tImageChip('disabledUnsupported')}
-                variant="composer"
-                dragType={STUDIO_REFERENCE_DRAG_TYPE}
-              />
-              <div className="flex min-h-11 items-center gap-2">
-                <PromptInputTextarea
-                  id={STUDIO_PROMPT_TEXTAREA_ID}
-                  aria-label={tForm('promptLabel')}
-                  placeholder={placeholder}
-                  onPaste={handlePromptPaste}
-                  className="min-h-8 flex-1 px-3 py-1 font-sans text-sm leading-5 selection:bg-neutral-950 selection:text-white placeholder:text-neutral-400 disabled:opacity-100"
-                />
-                <PromptInputActions className="shrink-0 items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      void handleGenerate()
-                    }}
-                    disabled={
-                      isGenerating ||
-                      isAudioPromptOverLimit ||
-                      isImagePromptOverLimit
-                    }
-                    aria-label={t('generate')}
-                    aria-busy={isGenerating}
-                    aria-disabled={!canGenerate}
-                    className={cn(
-                      'flex size-10 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white shadow-sm transition-[background-color,transform,box-shadow]',
-                      'hover:bg-neutral-800 hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400',
-                      (isGenerating ||
-                        isAudioPromptOverLimit ||
-                        isImagePromptOverLimit) &&
-                        'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:bg-muted hover:shadow-none',
-                    )}
-                    style={{
-                      transitionTimingFunction: 'var(--ease-standard)',
-                    }}
-                  >
-                    <AnimatePresence initial={false} mode="wait">
-                      {isGenerating ? (
-                        <motion.span
-                          key="generating"
-                          className="flex items-center justify-center"
-                          initial={{ opacity: 0, scale: 0.92 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.92 }}
-                          transition={motionTransition('fast', reducedMotion)}
-                        >
-                          <Spinner size="md" />
-                          {elapsedSeconds > 0 && (
-                            <span className="sr-only">
-                              {t('generating')} {elapsedSeconds}s
-                            </span>
-                          )}
-                        </motion.span>
-                      ) : (
-                        <motion.span
-                          key="idle"
-                          className="flex items-center justify-center"
-                          initial={{ opacity: 0, scale: 0.92 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.92 }}
-                          transition={motionTransition('fast', reducedMotion)}
-                        >
-                          <Send className="size-4 -rotate-12" />
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </button>
-                </PromptInputActions>
-              </div>
-            </motion.div>
-            {isAudioMode && state.audioKind !== AUDIO_KIND.SFX && (
-              <div
-                className={cn(
-                  'flex justify-end px-3 pt-1 text-2xs tabular-nums',
-                  isAudioPromptOverLimit
-                    ? 'text-destructive'
-                    : isAudioPromptNearLimit
-                      ? 'text-amber-600'
-                      : 'text-muted-foreground/70',
-                )}
-              >
-                {audioPromptMeta}
-              </div>
+            {isGenerating ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                {elapsedSeconds > 0
+                  ? `${t('generating')} ${elapsedSeconds}s`
+                  : t('generating')}
+              </>
+            ) : (
+              // 缺什么就写在按钮上。按钮**保持可点**（Krea 式，点了还会 toast
+              // 并把焦点送到该补的地方），但没必要让人点一下才知道缺模型 ——
+              // 「模型：请先选择模型」就在同一栏上面两行，按钮再说一句
+              // 「生成 1 张」等于跟旁边的事实对着干。
+              // ⚠ 只有图片按「模型数 × 张数」报数。视频恒出 1 条、语音恒出 1 条，
+              //   给它们印一个乘法结果等于承诺一个发不出去的矩阵。
+              (blockedReason?.message ??
+              (isVideoMode
+                ? `${tVideo('generateButton')} · ${state.videoDuration}s`
+                : isAudioMode
+                  ? t('generate')
+                  : t('generateCount', {
+                      count:
+                        Math.max(1, runModels.length) * state.imageBatchCount,
+                    })))
             )}
-            {isImagePromptOverLimit && (
-              <div className="flex justify-end px-3 pt-1 text-2xs tabular-nums text-destructive">
-                {`${imagePromptLength}/${imagePromptMaxChars}`}
-              </div>
-            )}
-          </PromptInput>
+          </button>
         </div>
-      )}
+      </PromptInput>
     </>
   )
 })

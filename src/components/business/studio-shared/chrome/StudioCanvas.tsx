@@ -26,6 +26,7 @@ import { fetchGenerationByIdAPI } from '@/lib/api-client'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
+import { resolveReferenceRailSlot } from '@/lib/studio/reference-rail-slot'
 import { cn } from '@/lib/utils'
 import {
   applyAudioFeedbackTags,
@@ -35,6 +36,7 @@ import type { GenerationRecord } from '@/types'
 
 import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'
+import { StudioVideoQueueStrip } from '@/components/business/studio-shared/chrome/StudioVideoQueueStrip'
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
 import { StudioAudioFeedback } from '@/components/business/studio/StudioAudioFeedback'
 import { StudioGenerationErrorDialog } from '@/components/business/image/StudioGenerationErrorDialog'
@@ -65,9 +67,12 @@ export const StudioCanvas = memo(function StudioCanvas() {
     setLastEvaluation,
     isGenerating,
     elapsedSeconds,
+    retryVideoQueueItem,
   } = useStudioGen()
   const tAudioFeedback = useTranslations('audioFeedback')
   const tEdit = useTranslations('StudioImageEdit')
+  const tVideo = useTranslations('VideoGenerate')
+  const tImageChip = useTranslations('ImageChip')
   const [errorDismissed, setErrorDismissed] = useState<string | null>(null)
   /**
    * 编辑态的目标图。非空 = 结果区整片切成编辑态（施工基准
@@ -294,6 +299,43 @@ export const StudioCanvas = memo(function StudioCanvas() {
           referenceTotal: referenceEntries.length,
         }
 
+  /**
+   * 这条轨叫什么 —— 槽位语义由 `resolveReferenceRailSlot` 判（那里有判据与单测），
+   * 这里只负责把三种槽位映到文案。穷举 Record 无兜底：新增一种槽位时 tsc 先红。
+   */
+  const referenceRailLabel = {
+    'first-frame': tVideo('railLabelKeyframe'),
+    'content-reference': tVideo('railLabelReference'),
+    'image-reference': tImageChip('referenceLabel'),
+  }[resolveReferenceRailSlot(state.outputType, state.videoMode)]
+
+  /**
+   * 队列里当前在播放器里看的那一条。null = 看最新结果（`lastGeneration`）。
+   *
+   * ⚠ 是**本地态**，不是 `selectedItemId` —— 后者是「定为最佳」，会落库
+   * （`selectWinner` 走服务端）。浏览的代价不该等于提交的代价，图片图墙那边
+   * 2026-08-23 已经为同一条理由把两者分开过一次。
+   */
+  const [focusedQueueItemId, setFocusedQueueItemId] = useState<string | null>(
+    null,
+  )
+  const videoQueueItems =
+    state.outputType === 'video' && activeRun?.outputType === 'VIDEO'
+      ? activeRun.items
+      : []
+  const focusedQueueGeneration =
+    videoQueueItems.find(
+      (item) => item.id === focusedQueueItemId && item.status === 'completed',
+    )?.generation ?? null
+
+  // 这一轮重排后旧的聚焦项可能已经不在队列里（重试会把失败那条换掉），
+  // 用推导而不是 effect 同步：写回 state 会慢一帧，那一帧渲染的是空。
+  const activeFocusedQueueItemId = videoQueueItems.some(
+    (item) => item.id === focusedQueueItemId,
+  )
+    ? focusedQueueItemId
+    : null
+
   const handleEdit = useCallback((generation: GenerationRecord) => {
     setEditTarget({ url: generation.url, generationId: generation.id })
   }, [])
@@ -329,6 +371,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
           返回条与「正在编辑 · 参考图 N / M」，两条一起出现就是一屏两遍。 */}
       {!editTarget && stageReference && (
         <StudioReferenceRail
+          label={referenceRailLabel}
           entries={referenceEntries}
           activeIndex={stageReference.referenceIndex}
           onActiveIndexChange={setReferenceCursor}
@@ -398,7 +441,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
         ) : (
           <>
             <GenerationPreview
-              generation={lastGeneration}
+              generation={focusedQueueGeneration ?? lastGeneration}
               isLatestResult
               onUseAsReference={handleUseAsReference}
               onRemix={handleRemix}
@@ -424,6 +467,18 @@ export const StudioCanvas = memo(function StudioCanvas() {
           </>
         )}
       </div>
+
+      {/* 视频队列条 —— 在内容层**外面**：它属于舞台底部的常驻一条，
+          与结果并存（编辑态没有视频，所以不必再加 editTarget 守卫）。 */}
+      {videoQueueItems.length > 0 ? (
+        <StudioVideoQueueStrip
+          items={videoQueueItems}
+          focusedItemId={activeFocusedQueueItemId}
+          onFocus={setFocusedQueueItemId}
+          onRetry={(itemId) => void retryVideoQueueItem(itemId)}
+        />
+      ) : null}
+
       {error && (
         <StudioGenerationErrorDialog
           open={errorDialogOpen}

@@ -45,7 +45,9 @@ describe('AudioVariantGrid', () => {
     const audio = container.querySelector('audio')
     expect(audio).not.toBeNull()
     expect(audio?.getAttribute('src')).toBe('https://cdn.example.com/c.mp3')
-    expect(screen.getByText('thunder')).toBeInTheDocument()
+    // ⭐ 切片 E：**不再逐条印提示词**。变体是同一段提示词跑 N 次，四条印四遍
+    // 同一句话是纯噪音；出处去详情里看。
+    expect(screen.queryByText('thunder')).not.toBeInTheDocument()
   })
 
   it('numbers the tiles', () => {

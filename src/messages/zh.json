@@ -1105,7 +1105,9 @@
     "referenceTextRequired": "上传参考音频后必须填写对应文字稿。",
     "referenceErrorTooLarge": "参考音频太大，单文件不能超过 {max}。",
     "referenceErrorNotAudio": "这不是一个音频文件，请上传 MP3 / WAV / M4A / FLAC。",
-    "referenceErrorFailed": "参考音频上传失败。"
+    "referenceErrorFailed": "参考音频上传失败。",
+    "readingLabel": "朗读",
+    "musicDurationHint": "ElevenLabs Music 接受 3–600 秒；下限取 5 秒是产品判断，再短算不上一段音乐。"
   },
   "audioFeedback": {
     "voiceMismatch": "音色不对",
@@ -1154,7 +1156,9 @@
       "actionPromptHint": "描述视频场景 — 角色外貌已自动注入。",
       "actionPromptPlaceholder": "例如：在森林中行走，微笑，风吹动头发……",
       "imageWarning": "视频仅使用第一个角色卡的图片"
-    }
+    },
+    "railLabelKeyframe": "首帧",
+    "railLabelReference": "内容参考"
   },
   "Model3DGenerate": {
     "title": "图生 3D 模型",
@@ -3813,7 +3817,8 @@
       "referenceRequired": "请先把参考图拖入或添加到输入框中",
       "referenceUnsupported": "当前模型不会读取参考图。请先移除参考图，或切换到支持参考图的模型。",
       "audioPromptTooLong": "请把音频文本缩短到 {max} 字以内",
-      "audioReferenceTextRequired": "请填写上传参考音频对应的文字稿后再生成。"
+      "audioReferenceTextRequired": "请填写上传参考音频对应的文字稿后再生成。",
+      "videoQueueFull": "最多同时跑 {max} 条，等一条跑完再排"
     },
     "audioPromptMeta": "{current} / {max} 字 · ≈ {minutes} 分钟 · ≈ {credits} 次生成额度",
     "audioPromptMetaNoLimit": "{current} 字 · ≈ {minutes} 分钟 · ≈ {credits} 次生成额度",
@@ -6149,5 +6154,16 @@
       "timeout": "抽帧超时被中止了。网络快一些时再试一次。",
       "encodeFailed": "抽出来的帧在这个浏览器里编码失败了。"
     }
+  },
+  "StudioVideoQueue": {
+    "label": "本轮队列",
+    "concurrency": "{running} / {max} 并发",
+    "retry": "重试这条",
+    "viewTake": "播放第 {index} 条",
+    "itemRunning": "#{index} 生成中",
+    "itemFailed": "#{index} 失败",
+    "itemDone": "#{index} 完成",
+    "itemViewing": "#{index} 正在看",
+    "hint": "生成中不占死舞台：左栏照样能改参数、再排一条。"
   }
 }

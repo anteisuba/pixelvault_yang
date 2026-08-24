@@ -12,11 +12,31 @@ interface AudioVariantGridProps {
   items: RunItem[]
 }
 
+/** `m:ss`。时长缺席时（provider 没回）不印，不猜。 */
+function formatClipLength(seconds: number | null | undefined): string | null {
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds)) return null
+  const total = Math.round(seconds)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
 /**
- * AudioVariantGrid — A/B compare grid for audio runs (SFX ×N, or emotion
- * compare). Each tile is an inline player so variants can be auditioned side by
- * side; unlike the image VariantGrid there's no "pick a winner" — the value is
- * hearing them together.
+ * 音频结果 —— **一行一条**（切片 E）。
+ *
+ * ## 为什么不是栅格
+ *
+ * 图片可以并置扫视，一眼看完四张；**听不能扫** —— 并排放两列不省时间，只是
+ * 把每条的播放条压窄一半。而音频这块屏幕真正稀缺的是**播放条的宽度**：一分钟
+ * 的旁白在 320px 的条上拖不准。一行一条把宽度还给它。
+ *
+ * ## 每条印什么
+ *
+ * 序号 · 时长 · 播放器。⛔ **不印提示词** —— 变体是同一段提示词跑 N 次
+ * （`generateAudioVariants` 只换随机性，不换参数），逐条印等于把同一句话印四遍。
+ * ⛔ 也不画波形：我们手上只有 URL，画一条与音频无关的假波形比不画更糟。
+ *
+ * ⚠ 失败行没有「重试这条」：音频没有逐条重放的接口（视频那条是
+ * `retryVideoQueueItem`，音频侧没有对应物）。画一颗点了没反应的按钮是这轮一路
+ * 在治的那类缺陷，所以只写原因。
  */
 export const AudioVariantGrid = memo(function AudioVariantGrid({
   items,
@@ -24,21 +44,30 @@ export const AudioVariantGrid = memo(function AudioVariantGrid({
   const t = useTranslations('StudioV3')
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="flex flex-col gap-2">
       {items.map((item, idx) => {
         const isCompleted =
           item.status === 'completed' && item.generation != null
+        const clipLength = formatClipLength(item.generation?.duration)
 
         return (
           <div
             key={item.id}
             className={cn(
-              'flex min-h-28 flex-col justify-center gap-2 rounded-xl border border-border/60 bg-muted/10 p-4',
+              'flex min-h-16 items-center gap-3 rounded-xl border border-border/60 px-4 py-3',
+              item.status === 'failed' ? 'bg-muted/10' : 'bg-background',
             )}
           >
-            <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground/70">
-              {`#${idx + 1}`}
-            </span>
+            <div className="flex w-20 shrink-0 flex-col gap-0.5">
+              <span className="font-mono text-2xs tabular-nums text-muted-foreground">
+                {`#${idx + 1}`}
+              </span>
+              {clipLength ? (
+                <span className="font-mono text-2xs tabular-nums text-muted-foreground/70">
+                  {clipLength}
+                </span>
+              ) : null}
+            </div>
 
             {item.status === 'generating' && (
               <div className="flex items-center gap-2 text-muted-foreground">
@@ -48,8 +77,8 @@ export const AudioVariantGrid = memo(function AudioVariantGrid({
             )}
 
             {item.status === 'failed' && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <AlertTriangle className="size-4 text-destructive/60" />
+              <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                <AlertTriangle className="size-4 shrink-0 text-destructive/60" />
                 <span className="font-serif text-xs">
                   {item.error ?? t('generateFailed')}
                 </span>
@@ -57,19 +86,12 @@ export const AudioVariantGrid = memo(function AudioVariantGrid({
             )}
 
             {isCompleted && item.generation && (
-              <div className="animate-in fade-in space-y-1.5 duration-300">
-                <audio
-                  controls
-                  preload="none"
-                  src={item.generation.url}
-                  className="w-full"
-                />
-                {item.generation.prompt && (
-                  <p className="line-clamp-2 text-2xs text-muted-foreground">
-                    {item.generation.prompt}
-                  </p>
-                )}
-              </div>
+              <audio
+                controls
+                preload="none"
+                src={item.generation.url}
+                className="animate-in fade-in min-w-0 flex-1 duration-300"
+              />
             )}
           </div>
         )

@@ -9,12 +9,12 @@ import {
   StudioAssistantDock,
   StudioAssistantFab,
   StudioCanvas,
-  StudioBottomDock,
-  StudioFlowLayout,
   StudioWorkbenchLayout,
   StudioPromptArea,
   StudioCommandPalette,
 } from '@/components/business/studio'
+import { StudioDockPanelArea } from '@/components/business/studio/StudioDockPanelArea'
+import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
 import { Button } from '@/components/ui/button'
 
 import {
@@ -32,6 +32,25 @@ import {
 } from '@/lib/studio-node-handoff'
 
 const STUDIO_MODE_KEY = 'studio-workflow-mode'
+
+/** 把「保留 / 改变」的标签拼回提示词尾巴。原样搬自退役的 `StudioBottomDock`。 */
+function buildRefinePrompt(
+  basePrompt: string,
+  keepTags: string[],
+  changeTags: string[],
+  freeText: string,
+): string {
+  const keepText = keepTags.length > 0 ? `Keep ${keepTags.join(', ')}.` : ''
+  const changeText =
+    changeTags.length > 0 ? `Change ${changeTags.join(', ')}.` : ''
+  const suffix = [keepText, changeText, freeText.trim()]
+    .filter((part) => part.length > 0)
+    .join(' ')
+  const trimmedBase = basePrompt.trim()
+
+  if (!suffix) return trimmedBase
+  return trimmedBase ? `${trimmedBase}. ${suffix}` : suffix
+}
 
 /**
  * StudioWorkspaceUI — the workspace's visual + non-mode-sync logic, lifted
@@ -136,6 +155,23 @@ export function StudioWorkspaceUI() {
     setNodeHandoff(null)
   }, [])
 
+  // 「保留与改变」的提交 —— 随 `StudioBottomDock` 一起搬过来（切片 A）。
+  const handleKeepChangeSubmit = useCallback(
+    (keepTags: string[], changeTags: string[], freeText: string) => {
+      const refinedPrompt = buildRefinePrompt(
+        state.prompt,
+        keepTags,
+        changeTags,
+        freeText,
+      )
+
+      dispatch({ type: 'SET_PROMPT', payload: refinedPrompt })
+      dispatch({ type: 'CLOSE_PANEL', payload: 'keepChange' })
+      dispatch({ type: 'REQUEST_GENERATE' })
+    },
+    [dispatch, state.prompt],
+  )
+
   return (
     <>
       <a
@@ -190,30 +226,45 @@ export function StudioWorkspaceUI() {
          *
          * The assistant remains a DOM sibling of the canvas column, but its
          * desktop shell is a fixed overlay so opening it never subtracts
-         * width from the work surface. StudioFlowLayout stays the sole owner
-         * of the vertical canvas/dock rhythm.
+         * width from the work surface.
          */}
         <div className="studio-layout-v2 min-w-0 flex-1">
-          {/* 图片模态走横向工作台（左参数栏 + 右结果区）；视频 / 音频维持纵向
-              canvas + 底部 dock，直到它们各自的参数也设计完（owner 2026-08-14：
-              先只换图片模态，端到端打穿一条再说）。 */}
-          {state.outputType === 'image' ? (
-            <StudioWorkbenchLayout
-              params={<StudioPromptArea layout="panel" />}
-              stage={<StudioCanvas />}
-            />
-          ) : (
-            <StudioFlowLayout
-              canvas={<StudioCanvas />}
-              dock={<StudioBottomDock />}
-            />
-          )}
+          {/* 三个模态共用一套外壳（切片 A，owner 2026-08-23）。此前只有图片走
+              横向工作台，视频 / 音频还留在「纵向 canvas + 底部丸」那条路上；
+              那条路连同 `StudioFlowLayout` / `StudioBottomDock` /
+              `StudioToolbarPanels` / `StudioToolbar` 已整条退役，不留兼容层。
+              栏位差异归 `StudioPromptArea` 自己按 outputType 分。 */}
+          <StudioWorkbenchLayout
+            params={<StudioPromptArea />}
+            stage={<StudioCanvas />}
+          />
         </div>
         <StudioAssistantDock />
-        {/* 右上角助手浮标 —— 只在图片模态（工作台重设计的范围）。视频/音频仍
-            从底部 dock 的助手丸进，那条路没动。 */}
-        {state.outputType === 'image' ? <StudioAssistantFab /> : null}
+        {/* 右上角助手浮标 —— 三个模态都有了。小屏没有它，抽屉宿主长在参数栏
+            那颗「助手」丸里（`lg:hidden`），两者不重复。 */}
+        <StudioAssistantFab />
       </div>
+
+      {/* 工具面板 —— 原来挂在 `StudioBottomDock` 上，dock 一退役就必须改挂
+          这里，否则视频设置 / 剧本 / 音色库 / 克隆 / 转脚本 / 图片高级参数
+          全部变成「点了没反应」。
+          ⚠ 这也顺手补上了一个既有缺陷：`StudioDockPanelArea` 里那条
+          `imageUpload.setMaxImages(...)` 是全仓唯一给 Studio 设参考图上限的地方，
+          而图片模态走横向工作台之后它一直没挂载 —— 于是图片的参考图上限一直是
+          Infinity，`over_limit` 那条禁用理由永远不触发（服务端仍会拦，所以是
+          「提示缺席」不是「越权」）。现在三个模态都挂着，上限按模型生效。 */}
+      <StudioDockPanelArea />
+      <StudioKeepChangePanel
+        open={state.panels.keepChange}
+        onOpenChange={(open) =>
+          dispatch({
+            type: open ? 'OPEN_PANEL' : 'CLOSE_PANEL',
+            payload: 'keepChange',
+          })
+        }
+        currentIntent={null}
+        onSubmit={handleKeepChangeSubmit}
+      />
 
       <StudioCommandPalette />
     </>

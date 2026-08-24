@@ -47,8 +47,8 @@ const EXPECTED_OUTPUT_TYPE: Record<StudioEmptyMode, string> = {
  * localStorage 记忆，之后只能手动打开）。
  *
  * 布局注意：根元素的 `.studio-empty-state` 类是 globals.css 里
- * `.studio-canvas-slot:has(...)` 规则的锚点 —— 空态时画布槽吃满剩余
- * 视口高度、内容垂直居中，保证 canvas + dock 首屏完整可见。
+ * `.studio-workbench-stage:has(...)` 规则的锚点 —— 空态时结果区吃满剩余
+ * 高度、内容垂直居中。（`.studio-canvas-slot` 那一份随 dock 于 2026-08-23 退役。）
  */
 export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   const t = useTranslations('StudioEmptyState')

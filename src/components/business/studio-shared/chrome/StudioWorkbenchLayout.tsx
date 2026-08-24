@@ -10,9 +10,10 @@ interface StudioWorkbenchLayoutProps {
 /**
  * 工作台布局 —— **横向**：左侧常驻参数栏 + 右侧结果区。
  *
- * 与 `StudioFlowLayout`（纵向 canvas + 底部 dock）是并列的两种外壳，不是替代：
- * 图片模态走这套，视频 / 音频仍走 FlowLayout，直到它们各自的参数也设计完
- * （owner 2026-08-14：先只换图片模态，端到端打穿一条再说）。
+ * 图片 / 视频 / 音频**三个模态共用这一套**（切片 A，owner 2026-08-23）。此前
+ * 只有图片走它，视频 / 音频还留在 `StudioFlowLayout`（纵向 canvas + 底部 dock）
+ * 上；那条路已整条退役，不留兼容层。栏位差异归 `StudioPromptArea` 按
+ * `outputType` 自己分，这一层对模态无感知。
  *
  * 分工沿用画布 07-31 那条已验证的分界线：
  * **参数回答「下一版长什么样」，动作回答「我现在要做什么」。**
@@ -40,9 +41,9 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
         {params}
       </div>
       {/* ⚠ 结果区要把高度传给 StudioCanvas，否则空态的 `grow + justify-center`
-          没有可撑的高度就贴顶。旧骨架靠 globals.css 的
-          `.studio-canvas-slot:has(.studio-empty-state)` 做这件事，那个类只在
-          FlowLayout 里；这里直接让 `.studio-canvas` 成为撑满的 flex 列。 */}
+          没有可撑的高度就贴顶。globals.css 里
+          `.studio-workbench-stage:has(.studio-empty-state)` 负责把
+          `.studio-canvas` 撑成满高的 flex 列。 */}
       <div className="studio-workbench-stage studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-3 lg:p-6">
         {stage}
       </div>

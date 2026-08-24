@@ -252,6 +252,22 @@ export const DEFAULT_SFX_VARIANT_COUNT: SfxVariantCount = 4
 
 export const DEFAULT_SFX_DURATION_SECONDS = 5
 
+// ─── Music ─────────────────────────────────────────────────────────
+//
+// ⚠ 上游（ElevenLabs Music v2 `POST /v1/music`）声明的是 `music_length_ms`
+// **3000–600000**，也就是 3–600 秒；适配器省略时按 30 秒发。
+// 这里下限取 **5 秒**而不是 3：3–4 秒的「音乐」没有产品意义，而 5 起步能让
+// step=5 的档位落得整齐（5 / 10 / 15 …）。取值仍在厂商区间内，不会被拒。
+// ⚠ 这是**我拍的产品下限**，不是厂商限制 —— 要放宽到 3 只需改这里，服务端不用动。
+export const MUSIC_DURATION_RANGE = {
+  min: 5,
+  max: 600,
+  step: 5,
+} as const
+
+/** 与 `elevenlabs.adapter.ts` 省略 duration 时的兜底同一个数，两处不能各写各的。 */
+export const DEFAULT_MUSIC_DURATION_SECONDS = 30
+
 /** Preset voice options for Fish Audio */
 export const FISH_AUDIO_VOICES = [
   { id: 'alloy', labelKey: 'alloy', descKey: 'alloyDesc' },

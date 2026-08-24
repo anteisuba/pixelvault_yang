@@ -46,6 +46,7 @@ import {
   DEFAULT_AUDIO_MP3_BITRATE,
   DEFAULT_AUDIO_OPUS_BITRATE,
   DEFAULT_AUDIO_SAMPLE_RATE,
+  DEFAULT_MUSIC_DURATION_SECONDS,
   DEFAULT_SFX_DURATION_SECONDS,
   normalizeSpeakerVoiceIds,
   SFX_PROMPT_INFLUENCE_RANGE,
@@ -92,18 +93,16 @@ export type PanelName =
   | 'enhance'
   | 'stylePreset'
   | 'reverse'
-  | 'advanced'
   | 'refImage'
-  | 'aspectRatio'
-  | 'resolution'
-  | 'batchCount'
   | 'spec'
+  | 'videoSpec'
+  | 'audioReading'
+  | 'musicSpec'
   | 'loraSelector'
   | 'voiceSelector'
   | 'voiceTrainer'
   | 'audioTranscribe'
   | 'sfxParams'
-  | 'videoParams'
   | 'script'
   | 'keepChange'
 
@@ -142,6 +141,8 @@ export interface StudioFormState {
   audioExpressiveness: string
   /** Audio-specific (sfx) — target clip length in seconds */
   audioSfxDurationSeconds: number
+  /** 音乐档的时长（秒）。音效那条是 `audioSfxDurationSeconds`，两档的范围不同。 */
+  audioMusicDurationSeconds: number
   /** Audio-specific (sfx) — seamless loop toggle */
   audioSfxLoop: boolean
   /** Audio-specific (sfx) — prompt adherence vs creativity (0–1) */
@@ -242,6 +243,7 @@ export type StudioAction =
   | { type: 'SET_AUDIO_EMOTION'; payload: string }
   | { type: 'SET_AUDIO_EXPRESSIVENESS'; payload: string }
   | { type: 'SET_AUDIO_SFX_DURATION'; payload: number }
+  | { type: 'SET_AUDIO_MUSIC_DURATION'; payload: number }
   | { type: 'SET_VIDEO_MODE'; payload: VideoNodeMode }
   | { type: 'SET_AUDIO_SFX_LOOP'; payload: boolean }
   | { type: 'SET_AUDIO_SFX_PROMPT_INFLUENCE'; payload: number }
@@ -293,18 +295,16 @@ const initialPanels: Record<PanelName, boolean> = {
   enhance: false,
   stylePreset: false,
   reverse: false,
-  advanced: false,
   refImage: false,
-  aspectRatio: false,
-  resolution: false,
-  batchCount: false,
   spec: false,
+  videoSpec: false,
+  audioReading: false,
+  musicSpec: false,
   loraSelector: false,
   voiceSelector: false,
   voiceTrainer: false,
   audioTranscribe: false,
   sfxParams: false,
-  videoParams: false,
   script: false,
   keepChange: false,
 }
@@ -315,16 +315,14 @@ const initialPanels: Record<PanelName, boolean> = {
 export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
   'reverse',
   'cardSelector',
-  'advanced',
   'stylePreset',
   'refImage',
   'loraSelector',
   'civitai',
-  'aspectRatio',
-  'resolution',
-  'batchCount',
   'spec',
-  'videoParams',
+  'videoSpec',
+  'audioReading',
+  'musicSpec',
   'script',
   'voiceSelector',
   'voiceTrainer',
@@ -369,6 +367,7 @@ const initialFormState: StudioFormState = {
   audioEmotion: AUDIO_DEFAULT_EMOTION,
   audioExpressiveness: AUDIO_DEFAULT_EXPRESSIVENESS,
   audioSfxDurationSeconds: DEFAULT_SFX_DURATION_SECONDS,
+  audioMusicDurationSeconds: DEFAULT_MUSIC_DURATION_SECONDS,
   audioSfxLoop: false,
   audioSfxPromptInfluence: SFX_PROMPT_INFLUENCE_RANGE.default,
   audioSfxVariantCount: 1,
@@ -439,6 +438,8 @@ export function studioFormReducer(
       return { ...state, audioExpressiveness: action.payload }
     case 'SET_AUDIO_SFX_DURATION':
       return { ...state, audioSfxDurationSeconds: action.payload }
+    case 'SET_AUDIO_MUSIC_DURATION':
+      return { ...state, audioMusicDurationSeconds: action.payload }
     case 'SET_AUDIO_SFX_LOOP':
       return { ...state, audioSfxLoop: action.payload }
     case 'SET_AUDIO_SFX_PROMPT_INFLUENCE':
@@ -594,6 +595,7 @@ export function studioFormReducer(
         audioEmotion: AUDIO_DEFAULT_EMOTION,
         audioExpressiveness: AUDIO_DEFAULT_EXPRESSIVENESS,
         audioSfxDurationSeconds: DEFAULT_SFX_DURATION_SECONDS,
+        audioMusicDurationSeconds: DEFAULT_MUSIC_DURATION_SECONDS,
         audioSfxLoop: false,
         audioSfxPromptInfluence: SFX_PROMPT_INFLUENCE_RANGE.default,
         audioSfxVariantCount: 1,

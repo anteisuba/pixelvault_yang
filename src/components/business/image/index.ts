@@ -6,6 +6,5 @@
  */
 export * from './CompareGrid'
 export * from './StudioGenerationErrorDialog'
-export * from './StudioImageAdvancedParams'
 export * from './StudioKeepChangePanel'
 export * from './StudioResultFeedback'

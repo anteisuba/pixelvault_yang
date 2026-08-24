@@ -156,7 +156,7 @@ export const GenerationPreview = memo(function GenerationPreview({
       state.outputType === 'video' ||
       state.outputType === 'audio'
     ) {
-      // 起手势空态（外边距归 StudioFlowLayout 单层管理，这里不再加 wrapper）。
+      // 起手势空态（外边距归 StudioWorkbenchLayout 单层管理，这里不再加 wrapper）。
       return (
         <StudioEmptyState
           key={state.outputType}

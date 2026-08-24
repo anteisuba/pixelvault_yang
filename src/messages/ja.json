@@ -1105,7 +1105,9 @@
     "referenceTextRequired": "参考音声をアップロードしたら、書き起こしも必須です。",
     "referenceErrorTooLarge": "参考音声が大きすぎます。最大 {max} まで。",
     "referenceErrorNotAudio": "音声ファイルではありません。MP3 / WAV / M4A / FLAC を選択してください。",
-    "referenceErrorFailed": "参考音声のアップロードに失敗しました。"
+    "referenceErrorFailed": "参考音声のアップロードに失敗しました。",
+    "readingLabel": "話し方",
+    "musicDurationHint": "ElevenLabs Music は 3〜600 秒。5 秒未満は曲として成立しないため下限を 5 秒にしています。"
   },
   "audioFeedback": {
     "voiceMismatch": "声が合わない",
@@ -1154,7 +1156,9 @@
       "actionPromptHint": "動画のシーンを説明してください — キャラクターの外見は自動注入されます。",
       "actionPromptPlaceholder": "例：森の中を歩いている、微笑んでいる、風に髪がなびく...",
       "imageWarning": "動画では最初のカードの画像のみ使用されます"
-    }
+    },
+    "railLabelKeyframe": "最初のフレーム",
+    "railLabelReference": "コンテンツ参照"
   },
   "Model3DGenerate": {
     "title": "画像から3D",
@@ -3813,7 +3817,8 @@
       "referenceRequired": "参照画像をプロンプト欄にドラッグするか追加してください",
       "referenceUnsupported": "選択中のモデルは参照画像を読み取りません。参照画像を外すか、参照画像対応モデルに切り替えてください。",
       "audioPromptTooLong": "音声テキストは {max} 文字以内にしてください",
-      "audioReferenceTextRequired": "アップロードした参考音声の書き起こしを入力してから生成してください。"
+      "audioReferenceTextRequired": "アップロードした参考音声の書き起こしを入力してから生成してください。",
+      "videoQueueFull": "同時に生成できるのは{max}本まで。1本終わるまで待ってください"
     },
     "audioPromptMeta": "{current} / {max} 文字 · 約 {minutes} 分 · 生成 {credits} 回分",
     "audioPromptMetaNoLimit": "{current} 文字 · 約 {minutes} 分 · 生成 {credits} 回分",
@@ -6149,5 +6154,16 @@
       "timeout": "フレーム抽出が時間切れで中断されました。回線が速いときに再試行してください。",
       "encodeFailed": "抽出したフレームをこのブラウザでエンコードできませんでした。"
     }
+  },
+  "StudioVideoQueue": {
+    "label": "このバッチ",
+    "concurrency": "{running} / {max} 実行中",
+    "retry": "これを再試行",
+    "viewTake": "テイク{index}を再生",
+    "itemRunning": "#{index} 生成中",
+    "itemFailed": "#{index} 失敗",
+    "itemDone": "#{index} 完了",
+    "itemViewing": "#{index} 再生中",
+    "hint": "生成中でもステージは塞がりません。左でパラメータを変えて次を追加できます。"
   }
 }

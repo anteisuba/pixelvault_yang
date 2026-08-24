@@ -4,7 +4,7 @@
 
 ## 专属 5 问（开工硬门）
 
-1. **影响哪些表和字段？引用面多大？**——`Generation` / `User` 是全库引用最广的模型，>5 处只做向后兼容（加列可以，改列义/删列要兼容期）。往 `Generation` 加字段前先答：这是不是该拆去 `GenerationJob` / 专属表的东西（长期建模）？
+1. **影响哪些表和字段？引用面多大？**——`Generation` / `User` 是全库引用最广的模型：**代码侧的调用方 grep 出来一次全改完**（不留旧字段读法的垫片）；**数据库列本身走 expand-contract**——加列可以直接来，改列义 / 删列 / 改类型要留兼容期。理由只有一个，是部署顺序：`vercel.json` 的 buildCommand 是 `prisma migrate deploy && next build`，**迁移先于新代码上线，且旧 serverless 实例还在跑旧查询**，中间那段时间新旧 schema 必须同时可服务。⚠ 这与 CLAUDE.md Engineering Principle 1 不冲突——那条禁的是**代码层**的兼容垫片，不是禁生产库的 expand-contract。往 `Generation` 加字段前先答：这是不是该拆去 `GenerationJob` / 专属表的东西（长期建模）？
 2. **可回滚吗？**——写出回滚评估：纯加列 = 低风险；删列/改类型/改约束 = 要兼容期方案（先双写/后清理），不确定就问 owner。
 3. **存量数据怎么迁？**——默认值 / 回填 / 兼容读，三选一说清；要回填的话脚本放哪、谁跑、跑几行。
 4. **哪些查询读写这个字段？**——grep service 层用点；WHERE / ORDER BY 用到的字段加 `@@index()`；关系删除语义（Cascade=ownership / SetNull=软引用）说得出理由。

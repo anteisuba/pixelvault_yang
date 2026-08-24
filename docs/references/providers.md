@@ -10,9 +10,10 @@
 4. 生成执行目标是 **worker-only**：Next.js 只做 auth / validation / route+key resolution / job create / signed dispatch / callback finalization；provider submit / poll / 结果下载 / R2 上传在 Cloudflare Worker。
 5. 官方文档打不开、要登录、只渲染 shell 时，**不能把字段写成已确认事实**。
 
-## Adapter 架构（2026-07-11 更新：新增 runner）
+## Adapter 架构（2026-08-24 复核：registry 实到 14 个）
 
-- Registry `src/services/providers/registry.ts` 注册 **11 个 adapter**：huggingface · gemini · openai · fal · runway · replicate · novelai · volcengine · fish_audio · elevenlabs · **runner**（2026-07-11 新增，Comfy Runner / RunPod ComfyUI，见 `docs/plans/comfy-runner-HANDOFF-2026-07.md`）。
+- Registry `src/services/providers/registry.ts` 注册 **14 个 adapter**：huggingface · gemini · openai · fal · runway · replicate · novelai · volcengine · **byteplus** · fish_audio · elevenlabs · **minimax** · **minimax_cn** · **runner**（Comfy Runner / RunPod ComfyUI，见 `docs/plans/comfy-runner-HANDOFF-2026-07.md`）。⚠ **名册的事实源是 `registry.ts` 里的 `PROVIDER_ADAPTERS` 那张表**，不是这里的数字——加/删 adapter 时以文件为准，别照抄本行。
+- **同一份实现挂多个 adapter type** 是既有形状，不是漏写：`byteplus` = `{ ...volcengineAdapter, adapterType: BYTEPLUS }`（BytePlus ModelArk 国际站 vs 火山 Ark 国内站）；`minimax` / `minimax_cn` 同理（`api.minimax.io` vs `api.minimaxi.com`）。分成两个 type 而不是一个 config flag 的原因只有一个——**两站账号独立、key 不可互换**，而 key 存储按 adapterType 分槽。
 - `runner` 是 BYOK 六步之外的特例：无 API key 可配（`AI_ADAPTER_TYPE_OPTIONS` 故意不含它），`resolveGenerationRoute()` 命中它就走独立分支——系统 key（`RUNPOD_KEY`）+ 月度限额（`RUNNER_MONTHLY_LIMIT`），不占用户每日 FREE_TIER 额度。真正的 provider 调用（RunPod submit/poll + recipe→ComfyUI workflow 映射）在 Worker（`workers/execution/src/models/runner/`），adapter 侧 `generateImage()` 只是契约占位（同步路径不支持，冷启动太长）。
 - `HYPER3D_RODIN` **故意不进 registry**——3D 走 `generate-3d.service.ts` 直发 Worker。
 - `deepseek` 不是 media adapter——用于 text / planner / assistant 路径（`llm-text.service.ts`）。
@@ -87,27 +88,31 @@ adapter / Worker 抛错
 
 推论（避免反复重开这个话题）：
 
-- **不要**为「去掉中转」再造第三条字节通道——Seedream / Seedance 已是 **fal + 火山 Ark 双轨**，够了。
+- ~~**不要**为「去掉中转」再造第三条字节通道——fal + 火山 Ark 双轨够了~~ **本条已被现实推翻（2026-08-24 记录）**：BytePlus（字节国际线）adapter 已于 2026-08-12 前后接入 registry 并在生产跑着，Seedance 2.5 现为 **fal / 火山 / BytePlus 三轨**（三轨定位见上方速览表；BytePlus 是海外正解，不是 fal 的替身）。当时反对的理由（多一个 adapter 的运维面）被三站 key 互不通用、海外线需独立通道的事实压过。保留原句划掉而非删除，防止下一轮有人按旧结论把 BytePlus 当「违规第三通道」提退役。
 - **不要**为「全部原生」拆散统一的 fal 队列与 credit 抽象——代价是更多 adapter 与运维面。
 - FLUX 走 fal 是合理默认；仅当 BFL 官方有明确价差或合规需求才开 `bfl` adapter spike。
 - Kling 换原生 = **新 provider 工程**（区域/资质/API 形态都不同），不是改 endpoint 字符串。
 
 ## 逐 provider 现状速览
 
-| adapter           | 用途                                                           | 错误/接入特点（已核验口径）                                                                                                                                                                |
-| ----------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| openai            | 图（gpt-image-2）                                              | 参考图仅 JPEG/PNG/WebP；Worker 已迁移；adapter 无视频路径（Sora 仅存在于 types.ts fetchHeaders 契约注释，目录中无 Sora 模型）                                                              |
-| gemini            | 图（generateContent + inline 参考图）                          | 参考图 +HEIC/HEIF；Worker 已迁移                                                                                                                                                           |
-| fal               | 图/视频/3D 最大聚合通道（queue submit/poll）                   | 参考图 URL 必须直接可达；**部分视频 schema 未逐字段核验**（改前查模型页）；Worker 已迁移（图+视频+长视频）                                                                                 |
-| replicate         | 图（FLUX/SDXL LoRA 字段）                                      | 结果下载需 bearer；Worker 已迁移                                                                                                                                                           |
-| novelai           | 图（nai-diffusion-5 / 4.5，Full+Curated）                      | **BYOK-only**（无平台 key）。返回 ZIP 需解包；V5 payload 是 `params_version: 4` 且不发 `skip_cfg_above_sigma`；Worker 已迁移（t2i + 单图 img2img）。V5 发布当天无 Director / Vibe Transfer |
-| volcengine        | 图/视频国内直连（Ark）                                         | 官方文档页需 JS 渲染，字段级改动去控制台 API Explorer / SDK 例子核；Worker 已迁移（图）                                                                                                    |
-| huggingface       | 图（Inference Providers）                                      | 二进制响应；Worker 已迁移                                                                                                                                                                  |
-| runway            | 视频                                                           | —                                                                                                                                                                                          |
-| fish_audio        | 音频 TTS（**s2.1-pro**，2026-07-30 升级）                      | **无 getSystemApiKey 平台 key 映射**（BYOK-only 现状）。稳定 key 仍是 `fish-audio-s2-pro`，只换 `externalModelId`                                                                          |
-| elevenlabs        | 音频 SFX + **Music**（`eleven_text_to_sound_v2` / `music_v2`） | 2026-06 后新增 adapter；同样**无 getSystemApiKey 平台 key 映射**（BYOK-only）。⚠ 语音 `eleven_v3` 已 `available: false`（价高退役），别按「EL 是 TTS 供应商」排期                          |
-| （hyper3d_rodin） | 3D，不进 registry                                              | Worker 直发                                                                                                                                                                                |
-| （deepseek）      | 文本 planner/助手                                              | 不是 media adapter                                                                                                                                                                         |
+| adapter           | 用途                                                                         | 错误/接入特点（已核验口径）                                                                                                                                                                                                                                                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| openai            | 图（gpt-image-2）                                                            | 参考图仅 JPEG/PNG/WebP；Worker 已迁移；adapter 无视频路径（Sora 仅存在于 types.ts fetchHeaders 契约注释，目录中无 Sora 模型）                                                                                                                                                                                                                       |
+| gemini            | 图（generateContent + inline 参考图）                                        | 参考图 +HEIC/HEIF；Worker 已迁移                                                                                                                                                                                                                                                                                                                    |
+| fal               | 图/视频/3D 最大聚合通道（queue submit/poll）                                 | 参考图 URL 必须直接可达；**部分视频 schema 未逐字段核验**（改前查模型页）；Worker 已迁移（图+视频+长视频）                                                                                                                                                                                                                                          |
+| replicate         | 图（FLUX/SDXL LoRA 字段）                                                    | 结果下载需 bearer；Worker 已迁移                                                                                                                                                                                                                                                                                                                    |
+| novelai           | 图（nai-diffusion-5 / 4.5，Full+Curated）                                    | **BYOK-only**（无平台 key）。返回 ZIP 需解包；V5 payload 是 `params_version: 4` 且不发 `skip_cfg_above_sigma`；Worker 已迁移（t2i + 单图 img2img）。V5 发布当天无 Director / Vibe Transfer                                                                                                                                                          |
+| volcengine        | 图/视频国内直连（Ark，`ark.cn-beijing.volces.com/api/v3`）                   | 官方文档页需 JS 渲染，字段级改动去控制台 API Explorer / SDK 例子核；Worker 已迁移（图）                                                                                                                                                                                                                                                             |
+| byteplus          | 图/视频国际线（BytePlus ModelArk，`ark.ap-southeast.bytepluses.com/api/v3`） | 与 volcengine **同一份实现**（`byteplusAdapter = { ...volcengineAdapter, adapterType: BYTEPLUS }`），只换 adapterType / baseUrl / key 槽；账号与 key **与国内 Ark 不通用**。有平台 key（`BYTEPLUS_API_KEY`）。Worker 侧共用 `models/volcengine/video-request-builder.ts`（`isVolcEngineProviderId` 同时认 `byteplus`）                              |
+| minimax           | 视频（MiniMax-H3，国际站 `api.minimax.io/v2`）                               | 队列型 submit → poll；`generateImage()` 直接抛 400（**video only**）。轮询的 `status` 故意用 string 不用 `z.enum`——未文档化的中间态按「仍在排队」处理，不炸掉在飞的 poll。参考图/视频/音频上限 9 / 3 / 3 且总数 ≤12（超任一条 provider 返 400，发送前 clamp）。有平台 key（`MINIMAX_API_KEY`）；Worker 侧 `models/minimax/video-request-builder.ts` |
+| minimax_cn        | 同上，国内站 `api.minimaxi.com/v2`（域名多一个 `i`）                         | 与 `minimax` 是同一份实现的两个 adapterType 标签；两站账号独立、**key 不可互换**，key 存储按 adapterType 分槽所以不能合成一个 config flag。平台 key 走 `MINIMAX_CN_API_KEY`                                                                                                                                                                         |
+| huggingface       | 图（Inference Providers）                                                    | 二进制响应；Worker 已迁移                                                                                                                                                                                                                                                                                                                           |
+| runway            | 视频                                                                         | —                                                                                                                                                                                                                                                                                                                                                   |
+| fish_audio        | 音频 TTS（**s2.1-pro**，2026-07-30 升级）                                    | **无 getSystemApiKey 平台 key 映射**（BYOK-only 现状）。稳定 key 仍是 `fish-audio-s2-pro`，只换 `externalModelId`                                                                                                                                                                                                                                   |
+| elevenlabs        | 音频 SFX + **Music**（`eleven_text_to_sound_v2` / `music_v2`）               | 2026-06 后新增 adapter；同样**无 getSystemApiKey 平台 key 映射**（BYOK-only）。⚠ 语音 `eleven_v3` 已 `available: false`（价高退役），别按「EL 是 TTS 供应商」排期                                                                                                                                                                                   |
+| runner            | 图（Comfy Runner / RunPod ComfyUI 自托管）                                   | **无 BYOK 槽**（`ADAPTER_KEY_HINTS` 写 `n/a (platform-managed)`，`AI_ADAPTER_TYPE_OPTIONS` 故意不含它）；系统 key + 月度限额。adapter 侧 `generateImage()` 只是契约占位，真实 submit/poll 在 Worker——细节见上方「Adapter 架构」与「Runner recipe contract」                                                                                         |
+| （hyper3d_rodin） | 3D，不进 registry                                                            | Worker 直发                                                                                                                                                                                                                                                                                                                                         |
+| （deepseek）      | 文本 planner/助手                                                            | 不是 media adapter                                                                                                                                                                                                                                                                                                                                  |
 
 ## 未决项（继承自 2026-06 核验，仍未解决）
 
@@ -152,14 +157,15 @@ adapter / Worker 抛错
 ## Source of Truth
 
 - `src/constants/{providers,config,generation-errors,provider-capabilities}.ts` · `src/constants/models/`
-- `src/services/providers/`（registry / types / 10 adapter）· `src/services/{api-key-resolver,apiKey}.service.ts` · `src/services/image/generate-image.service.ts` · `src/services/llm-text.service.ts`
+- `src/services/providers/`（registry / types / adapter 实现——**adapter 名册与个数一律以 `registry.ts` 的 `PROVIDER_ADAPTERS` 为准**）· `src/services/{api-key-resolver,apiKey}.service.ts` · `src/services/image/generate-image.service.ts` · `src/services/llm-text.service.ts`
 - `src/lib/{errors,api-error-message,platform-keys}.ts`
 - HF LoRA discovery: `src/services/huggingface-lora.service.ts` · `src/app/api/lora-assets/huggingface/route.ts` · `src/hooks/use-huggingface-lora-library.ts` · `src/constants/lora.ts`
 - 历史详版（含 worker 迁移逐条清单）：`git show cddc4384:docs/integrations/providers.md`
 
 ## Last Verified
 
+- Date: 2026-08-24 · Method: `registry.ts` 的 `PROVIDER_ADAPTERS` 逐条清点——**实到 14 个**（此前本文件写的 11 / 10 都已过期）；byteplus / minimax / minimax_cn 三行的通道、key 槽与错误处理读 `volcengine.adapter.ts`、`minimax.adapter.ts`、`src/lib/platform-keys.ts`、`src/constants/{providers,config}.ts` 核验，Worker 落点对照 `workers/execution/src/models/`。仅核 adapter 名册与这三条的接入形状，**payload 字段级未重验**。
 - Date: 2026-07-14 · Method: official Hub cursor response plus live local API page 1/page 2 and Anima-family requests; focused service/hook/component tests verify modality filtering, file-size hydration, cursor continuity, family switching, exact file import, and overflow containment.
 
-- Date: 2026-07-10 · Method: registry（10 adapter）/ types 契约 / 错误码表与参考图分类正则读源码核验；BYOK 六步与 worker 边界沿用 2026-06-03 审计口径（当时对照过官方文档）。
+- Date: 2026-07-10 · Method: registry（**当时** 10 adapter，名册已被上面 2026-08-24 条目取代）/ types 契约 / 错误码表与参考图分类正则读源码核验；BYOK 六步与 worker 边界沿用 2026-06-03 审计口径（当时对照过官方文档）。
 - **payload 字段级事实一律以改动当时的官方文档为准**——本文件不承诺字段级新鲜度。

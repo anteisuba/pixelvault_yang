@@ -128,9 +128,9 @@
 
 **owner 2026-07-27 定：登录页的设计后面单独做，不在首页这条线里。** 这里只记它和首页现在的耦合，免得下一轮再踩。
 
-- 文案挂在 `Homepage.auth.*`（`panel.eyebrow/title/description/items.*` = 左栏；`signIn|signUp.eyebrow/title/description` = 右栏；`note` = 底部一句），载体是 `src/components/business/AuthPageShell.tsx`。⚠ **不能删**——两个 route 是 `useTranslations('Homepage')` 再取 `auth.*`，按命名空间 grep 搜不到；v2 清场时差点删掉，是 `completeness.test.ts` 拦下来的。
-- 名字已名不副实（它是登录页文案，不是首页的）。**重设计那一轮顺手搬去自己的命名空间**，连带改 `sign-in` / `sign-up` 两个 page。现在不动是因为改动会越过首页的范围。
-- 它**不共享** v3 的皮肤：`AuthPageShell` 走全站暗色 token，v3 是独立的 `.home-v3` 浅色域。所以登录页重设计不受 §A 约束，也不要拿 §A 的令牌当答案。
+- 文案挂在**自己的 `Auth` 命名空间**（`title` / `subtitle` / `terms` / `backHome` / `open` / `close`）+ `Common.brand`；载体是 `src/components/business/auth/AuthCard.tsx`——`/sign-in`、`/sign-up` 两个 route 与 `AuthDialog.tsx` 渲染的是**同一张卡**（route 侧 `getTranslations({ namespace: 'Auth' })`，卡内 `useTranslations('Auth')` / `useTranslations('Common')`）。
+- **与首页的命名空间耦合已解除**：文案曾挂在 `Homepage.auth.*`、载体曾是 `src/components/business/AuthPageShell.tsx`，清 `Homepage` 时按命名空间 grep 搜不到而差点误删——那条「不能删」的告警是为这个存在的。现在 `Homepage.auth.*` 与 `AuthPageShell.tsx` **都已不存在**，grep `'Auth'` 直接命中，告警随之作废（已删）。
+- 它**不共享** v3 的皮肤，也**不走全站暗色 token**：登录页有自己的域皮肤 `src/app/auth.css`（`.auth-surface` 米白纸面 `--auth-paper: #f4f2ec`），v3 是独立的 `.home-v3` 浅色域。所以登录页的设计不受 §A 约束，也不要拿 §A 的令牌当答案。
 - 已知缺口：登录页**自己没有语言切换器**。用户从邮件深链直接落在 `/en/sign-in` 就换不了语言。首页顶栏已经有了（见 §A1），登录页那一份留给重设计。
 
 ## A9 · 仍未决

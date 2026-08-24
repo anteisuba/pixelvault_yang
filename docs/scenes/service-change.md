@@ -5,7 +5,7 @@
 ## 专属 5 问（开工硬门）
 
 1. **扩现有 service 还是新建？**——先 `grep` exports 和调用方，确认没有已有 80% 的现成引擎（复用大于重造）；新建按 `<name>.service.ts` + 首行 `server-only` + named functions。
-2. **影响面多大？**——对照高风险模块表（`references/backend.md`：types/index 333 · user.service 141 · generate-image orchestrator · models.ts 99 · r2.ts 55）；被引用 >5 处只做向后兼容修改。
+2. **影响面多大？**——对照高风险模块表（`references/backend.md`：types/index 333 · user.service 141 · generate-image orchestrator · models.ts 99 · r2.ts 55）；grep 出**全部调用方，在同一个改动里一起改完**——不留旧签名垫片、不加兼容层、不写 fallback（CLAUDE.md Engineering Principle 1「不保留向后兼容」）。引用面大只意味着这次 diff 会大，不意味着降级成「兼容式」改法。
 3. **数据边界在哪？**——碰 Prisma 的哪些模型？ownership（userId）校验在本函数落还是上游已保证（写清楚，不默认）？需要改 schema → 停，走 `db-migration.md`。
 4. **外部调用与韧性怎么配？**——有外部 API → `withRetry()` + per-provider breaker；有 LLM → 入口过 `prompt-guard`、出口过 `llm-output-validator`；logger 记什么上下文（可诊断性）。
 5. **测试边界 case 清单？**——空输入 / 越权 / 不存在 / 失败路径 / 幂等，逐个列出再写测试（测边界不是测 happy path）。

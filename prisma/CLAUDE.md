@@ -39,9 +39,9 @@
 
 ## Schema Reference
 
-Models are defined in `prisma/schema.prisma` (the source of truth). For architecture-level context, see [`docs/references/backend.md`](../docs/references/backend.md).
+Models are defined in `prisma/schema.prisma` (the source of truth). 域模型地图（38 模型 + 12 枚举）、迁移纪律与高风险模型见 [`docs/references/database.md`](../docs/references/database.md)；分层与 service 边界（谁能碰 Prisma）见 [`docs/references/backend.md`](../docs/references/backend.md)。
 
-⚠ 这里原先指向 `docs/architecture/overview.md`，那批文档 2026-08-07 已删（owner「删，不是归档」）。历史版本用 `git show cddc4384:docs/architecture/overview.md` 取。
+⚠ 这两个指针原先合成一条指向 `docs/architecture/overview.md`，那批文档 2026-08-07 已删（owner「删，不是归档」）。历史版本用 `git show cddc4384:docs/architecture/overview.md` 取。
 
 ## Naming Conventions
 

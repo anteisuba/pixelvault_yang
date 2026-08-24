@@ -2,7 +2,11 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pixelvault-execution",
   "main": "src/index.ts",
-  "compatibility_date": "2026-04-24",
+  // 2026-05-14：这一天起 `workflows_preserve_non_retryable_error_message` 默认开
+  // （NonRetryableError 的 message/name 不再被换成通用终止串）。这个窗口里只有它
+  // 一个 flag 翻转，2026-05-19 的 `diagnostics_channel_has_subscribers_getter`
+  // 已经在窗口外，所以推到这一天是「只拿这一个变更」的最小步。
+  "compatibility_date": "2026-05-14",
   "observability": {
     "enabled": true,
   },

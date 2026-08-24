@@ -58,6 +58,42 @@ export class WorkerProviderError extends Error {
   }
 }
 
+/**
+ * 跨 step 边界的失败载荷。只用纯数据（V8 可序列化），不带任何原型 —— 原型是
+ * 跨不过 Workflows 的 step 边界的。
+ */
+export interface WorkerStepFailurePayload {
+  message: string
+  errorCode?: string
+  providerMetadata: Record<string, unknown>
+}
+
+/**
+ * 已经跨过 step 边界、带着完整结构化信息的 provider 失败。由
+ * `guardWorkflowStep`（见 `lib/step-failure.ts`）在 `run()` 内部抛出，不跨任何
+ * 边界，所以顶层 catch 的 `instanceof` 是可靠的 —— 而 `WorkerProviderError`
+ * 的不是。
+ */
+export class WorkerStepFailure extends Error {
+  readonly failure: WorkerStepFailurePayload
+
+  constructor(failure: WorkerStepFailurePayload) {
+    super(failure.message)
+    this.name = 'WorkerStepFailure'
+    this.failure = failure
+  }
+}
+
+export function toWorkerStepFailurePayload(
+  error: WorkerProviderError,
+): WorkerStepFailurePayload {
+  return {
+    message: error.message,
+    ...(error.errorCode !== undefined ? { errorCode: error.errorCode } : {}),
+    providerMetadata: error.providerMetadata,
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -405,6 +441,21 @@ export function buildWorkerFailureCallbackData(
   errorCode?: string
   providerMetadata?: Record<string, unknown>
 } {
+  // 从 step 边界里活着带出来的失败（见 lib/step-failure.ts）。workflow 顶层
+  // catch 里的 provider 失败**都**走这条 —— `WorkerProviderError` 本身跨不过
+  // step 边界，它的 instanceof 在那里永远是 false。
+  if (error instanceof WorkerStepFailure) {
+    return {
+      error: error.failure.message,
+      errorCode: error.failure.errorCode,
+      providerMetadata: {
+        ...(fallback.providerMetadata ?? {}),
+        ...error.failure.providerMetadata,
+      },
+    }
+  }
+
+  // 没跨过 step 边界就抛到这里的（例如直接在 run() 里构造的）仍然原样可用。
   if (error instanceof WorkerProviderError) {
     return {
       error: error.message,

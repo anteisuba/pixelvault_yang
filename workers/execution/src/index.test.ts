@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   buildFalImageInput,
+  bytesToBase64,
   computeTieredDimensions,
   getImageReferenceInputs,
   createSignedRequestHeaders,
@@ -556,6 +557,60 @@ describe('hex helpers', () => {
     expect(timingSafeEqualHex('deadbeef', 'deadbeee')).toBe(false)
     expect(timingSafeEqualHex('dead', 'deadbeef')).toBe(false)
     expect(timingSafeEqualHex('not-hex', 'deadbeef')).toBe(false)
+  })
+})
+
+describe('bytesToBase64', () => {
+  // 分块编码必须与朴素实现逐字节等价。base64 每 3 字节 → 4 字符，所以块大小不是 3
+  // 的倍数、或余数处理错，都只会在特定长度上出错——因此这里逐长度扫过块边界。
+  const naive = (bytes: Uint8Array) =>
+    btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(''))
+
+  it('matches a known vector', () => {
+    expect(bytesToBase64(new TextEncoder().encode('hello'))).toBe('aGVsbG8=')
+  })
+
+  it('returns empty string for empty input', () => {
+    expect(bytesToBase64(new Uint8Array(0))).toBe('')
+  })
+
+  it('handles every remainder class across the chunk boundary', () => {
+    const CHUNK = 32766
+    for (const length of [
+      1,
+      2,
+      3,
+      CHUNK - 1,
+      CHUNK,
+      CHUNK + 1,
+      CHUNK + 2,
+      CHUNK + 3,
+      CHUNK * 2 + 1,
+    ]) {
+      const bytes = new Uint8Array(length)
+      for (let i = 0; i < length; i += 1) bytes[i] = (i * 7 + 13) % 256
+      expect(bytesToBase64(bytes), `length=${length}`).toBe(naive(bytes))
+    }
+  })
+
+  it('round-trips through atob', () => {
+    const bytes = new Uint8Array(100_000)
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = i % 256
+    const decoded = atob(bytesToBase64(bytes))
+    expect(decoded.length).toBe(bytes.length)
+    for (let i = 0; i < bytes.length; i += 1) {
+      if (decoded.charCodeAt(i) !== bytes[i]) {
+        throw new Error(`byte ${i} differs`)
+      }
+    }
+  })
+
+  it('encodes a multi-megabyte buffer without exhausting the call stack', () => {
+    // 旧的逐字节实现正是在这个量级上把 128MB 的 Worker 撑爆的（2026-08-24 生产事故）。
+    const bytes = new Uint8Array(8 * 1024 * 1024)
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = i % 256
+    const encoded = bytesToBase64(bytes)
+    expect(encoded.length).toBe(Math.ceil(bytes.length / 3) * 4)
   })
 })
 

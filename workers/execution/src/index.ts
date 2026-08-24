@@ -10,6 +10,7 @@ import {
   createProviderPayloadError,
   createProviderResponseError,
 } from './lib/provider-error'
+import { guardWorkflowStep } from './lib/step-failure'
 import { buildFalWorkerQueueRequest as buildFalWorkerVideoQueueRequest } from './models/fal/video-request-builders'
 import {
   buildMiniMaxVideoRequest,
@@ -1150,11 +1151,24 @@ function base64ToBytes(b64: string): Uint8Array {
   return bytes
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = ''
-  for (let i = 0; i < bytes.length; i += 1)
-    binary += String.fromCharCode(bytes[i])
-  return btoa(binary)
+/**
+ * Base64-encode a byte array in chunks.
+ *
+ * ⚠ 别改回逐字节 `binary += String.fromCharCode(bytes[i])`。那个写法是给 32 字节的
+ * API key 写的（见上方注释），但 `readReferenceImageAsBase64` 拿它编码整张参考图：
+ * 一张 8MB 的图会逐字节堆出上百万个中间字符串节点，128MB 的 Worker 直接 OOM——
+ * 2026-08-24 生产上真炸过（`Worker exceeded memory limit.`）。
+ *
+ * 32766 = 3 × 10922：既是 3 的倍数（base64 每 3 字节编码成 4 字符，只有按 3 对齐
+ * 分块才能把各块结果直接拼接），又低于 `String.fromCharCode` 的实参数量上限。
+ */
+export function bytesToBase64(bytes: Uint8Array): string {
+  const CHUNK_BYTES = 32766
+  let base64 = ''
+  for (let i = 0; i < bytes.length; i += CHUNK_BYTES) {
+    base64 += btoa(String.fromCharCode(...bytes.subarray(i, i + CHUNK_BYTES)))
+  }
+  return base64
 }
 
 async function importStateKey(secret: string): Promise<CryptoKey> {
@@ -3118,9 +3132,12 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
 > {
   async run(
     event: WorkflowEvent<WorkerRunContext>,
-    step: WorkflowStep,
+    rawStep: WorkflowStep,
   ): Promise<unknown> {
     const context = event.payload
+    // provider 失败要带着 errorCode / providerMetadata 活着走出 step 边界，
+    // 必须过这一层 —— 原因见 lib/step-failure.ts 顶部。
+    const step = guardWorkflowStep(rawStep)
 
     try {
       // Resolve the API key ONCE, AES-GCM encrypt before persisting in
@@ -3395,9 +3412,12 @@ export class LongVideoPipelineWorkflow extends WorkflowEntrypoint<
 > {
   async run(
     event: WorkflowEvent<LongVideoPipelineRunContext>,
-    step: WorkflowStep,
+    rawStep: WorkflowStep,
   ): Promise<unknown> {
     const context = event.payload
+    // provider 失败要带着 errorCode / providerMetadata 活着走出 step 边界，
+    // 必须过这一层 —— 原因见 lib/step-failure.ts 顶部。
+    const step = guardWorkflowStep(rawStep)
 
     try {
       if (context.providerId !== 'fal') {
@@ -3666,9 +3686,12 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
 > {
   async run(
     event: WorkflowEvent<WorkerModel3DRunContext>,
-    step: WorkflowStep,
+    rawStep: WorkflowStep,
   ): Promise<unknown> {
     const context = event.payload
+    // provider 失败要带着 errorCode / providerMetadata 活着走出 step 边界，
+    // 必须过这一层 —— 原因见 lib/step-failure.ts 顶部。
+    const step = guardWorkflowStep(rawStep)
 
     try {
       // Resolve the API key ONCE, AES-GCM encrypt before persisting in workflow
@@ -3782,9 +3805,12 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
 > {
   async run(
     event: WorkflowEvent<WorkerModel3DRunContext>,
-    step: WorkflowStep,
+    rawStep: WorkflowStep,
   ): Promise<unknown> {
     const context = event.payload
+    // provider 失败要带着 errorCode / providerMetadata 活着走出 step 边界，
+    // 必须过这一层 —— 原因见 lib/step-failure.ts 顶部。
+    const step = guardWorkflowStep(rawStep)
 
     try {
       // Resolve+encrypt the API key ONCE — see Hyper3DRodinWorkflow for rationale.
@@ -4039,16 +4065,6 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
 }
 
 // ─── Image generation (OpenAI gpt-image, synchronous HTTP) ────────────────────
-
-class OpenAIImageError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message)
-    this.name = 'OpenAIImageError'
-  }
-}
 
 function parseImageRunContext(input: unknown): WorkerImageRunContext | null {
   if (!isRecord(input)) return null
@@ -5690,12 +5706,20 @@ async function submitRunnerImageJob(
   const upscaler = readRunnerUpscaler(advancedParams)
 
   // img2img: when the request carries a reference image (base-model capability
-  // maxReferenceImages > 0), fetch it to base64 for RunPod's `input.images`
+  // maxReferenceImages > 0), hand RunPod the R2 URL via `input.images_to_fetch`
   // and map referenceStrength → KSampler denoise with the same inversion the
   // fal/replicate paths use. No reference → txt2img (workflow-builder default).
+  //
+  // ⚠ 别改回「在这里 base64」：这个 Worker 只有 128MB 内存，整张图转 base64 会把它
+  // 撑爆；就算侥幸编完，膨胀 4/3 后的请求体又会顶穿 RunPod /run 的 10MiB 上限。一张
+  // ~8MB 的参考图正好卡在两堵墙之间（2026-08-24 同一张图连点两次分别撞上了两者）。
+  // fork 侧 `ensure_input_images` 负责拉图并就地 base64——那台机器内存以 GB 计。
+  // 契约见 workers/runner-comfyui-fork/README.md。
   const referenceImage = getImageReferenceInputs(context)[0]
   const RUNNER_REFERENCE_IMAGE_NAME = 'reference.png'
-  let referenceImages: Array<{ name: string; image: string }> | undefined
+  let referenceImagesToFetch:
+    | Array<{ name: string; url: string; source: 'r2' }>
+    | undefined
   let referenceImageName: string | undefined
   let referenceDenoise: number | undefined
   if (referenceImage) {
@@ -5703,10 +5727,11 @@ async function submitRunnerImageJob(
     referenceDenoise = invertReferenceStrength(
       readNumberField(advancedParams, 'referenceStrength') ?? 0.7,
     )
-    referenceImages = [
+    referenceImagesToFetch = [
       {
         name: RUNNER_REFERENCE_IMAGE_NAME,
-        image: await readReferenceImageAsBase64(referenceImage),
+        url: referenceImage,
+        source: 'r2',
       },
     ]
   }
@@ -5759,7 +5784,8 @@ async function submitRunnerImageJob(
   }))
 
   const runpodInput: Record<string, unknown> = { workflow }
-  if (referenceImages) runpodInput.images = referenceImages
+  if (referenceImagesToFetch)
+    runpodInput.images_to_fetch = referenceImagesToFetch
   if (lorasToFetch.length > 0) runpodInput.loras_to_fetch = lorasToFetch
   // v3 T1：fork GPU 侧据此从 Civitai 直下底模到 models/checkpoints/（缺则下、有则跳）。
   // url 不带 token（不进 job 载荷）——fork 用自己的 CIVITAI_KEY secret 加鉴权，公开
@@ -6266,11 +6292,11 @@ async function generateOpenAIImage(
   )
 
   if (!response.ok) {
-    const errBody = await response.text().catch(() => '')
-    throw new OpenAIImageError(
-      response.status,
-      `OpenAI image generation failed (${response.status}): ${errBody.slice(0, 200)}`,
-    )
+    throw await createProviderResponseError(response, {
+      provider: 'openai',
+      phase: 'generate_image',
+      fallbackMessage: `OpenAI image generation failed (${response.status}).`,
+    })
   }
 
   const payload = (await response.json()) as {
@@ -6303,9 +6329,12 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
 > {
   async run(
     event: WorkflowEvent<WorkerImageRunContext>,
-    step: WorkflowStep,
+    rawStep: WorkflowStep,
   ): Promise<unknown> {
     const context = event.payload
+    // provider 失败要带着 errorCode / providerMetadata 活着走出 step 边界，
+    // 必须过这一层 —— 原因见 lib/step-failure.ts 顶部。
+    const step = guardWorkflowStep(rawStep)
 
     try {
       // Resolve + AES-GCM encrypt the API key once before persisting in
@@ -6719,12 +6748,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
     } catch (error) {
       const failureData = buildWorkerFailureCallbackData(error, {
         message: 'Workflow execution failed.',
-        providerMetadata: {
-          workflowInstanceId: event.instanceId,
-          ...(error instanceof OpenAIImageError
-            ? { status: error.status }
-            : {}),
-        },
+        providerMetadata: { workflowInstanceId: event.instanceId },
       })
 
       await step.do('callback-failure', async () =>

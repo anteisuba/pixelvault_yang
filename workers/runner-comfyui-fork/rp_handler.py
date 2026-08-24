@@ -29,6 +29,7 @@ ComfyUI 的 folder_paths 按目录 mtime 失效缓存，故新下载的 LoRA/che
 - v3 底模直下需给端点配 CIVITAI_KEY secret（gated/限流兜底；公开底模无 token 也能下）。
 """
 
+import base64
 import hashlib
 import importlib.util
 import os
@@ -37,7 +38,11 @@ from urllib.parse import urlparse
 import requests
 import runpod
 
-from runner_payload import normalize_workflow_seeds
+from runner_payload import (
+    build_input_image_specs,
+    normalize_workflow_seeds,
+    safe_basename,
+)
 from cache_policy import cache_inventory, ensure_cache_capacity, touch_cache_hit
 from cache_manifest import append_download_event, write_volume_manifest
 
@@ -65,6 +70,9 @@ DOWNLOAD_TIMEOUT_SECONDS = int(os.environ.get("RUNNER_LORA_DL_TIMEOUT", "600"))
 # 底模大（6.5GB+），给足下载窗口。
 CHECKPOINT_DL_TIMEOUT_SECONDS = int(os.environ.get("RUNNER_CKPT_DL_TIMEOUT", "1800"))
 BASE_HANDLER_PATH = os.environ.get("RUNNER_BASE_HANDLER", "/handler_base.py")
+# v7：参考图走 URL 后，唯一还需要的护栏是「别让一张异常巨图把 worker 撑爆」。
+# 正常参考图是几 MB，64MB 远超任何真实用例，只用来兜住畸形输入。
+INPUT_IMAGE_MAX_BYTES = 64 * 1024 * 1024
 ALLOWED_LORA_SOURCE = "r2"
 ALLOWED_CHECKPOINT_SOURCE = "civitai"
 # v3：worker 发的是不带 token 的 civitai URL，fork 用自己的 secret 加鉴权。
@@ -89,12 +97,6 @@ if _spec is None or _spec.loader is None:
 _base = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_base)
 base_handler = _base.handler
-
-
-def _safe_basename(name: str) -> str:
-    if not name or "/" in name or "\\" in name or ".." in name:
-        raise ValueError(f"Invalid filename (path traversal blocked): {name!r}")
-    return name
 
 
 def _is_civitai_url(url: str) -> bool:
@@ -227,7 +229,7 @@ def ensure_checkpoint(spec, protected_paths=()) -> None:
     source = spec.get("source")
     if source != ALLOWED_CHECKPOINT_SOURCE:
         raise ValueError(f"Refusing checkpoint from disallowed source: {source!r}")
-    filename = _safe_basename(spec.get("filename", ""))
+    filename = safe_basename(spec.get("filename", ""))
     url = spec.get("url")
     if not url:
         raise ValueError(f"Missing download url for checkpoint {filename!r}")
@@ -275,7 +277,7 @@ def ensure_companions(companions_to_fetch, protected_paths=()) -> None:
         source = spec.get("source")
         if source != ALLOWED_COMPANION_SOURCE:
             raise ValueError(f"Refusing companion from disallowed source: {source!r}")
-        filename = _safe_basename(spec.get("filename", ""))
+        filename = safe_basename(spec.get("filename", ""))
         url = spec.get("url")
         if not url:
             raise ValueError(f"Missing download url for companion {filename!r}")
@@ -317,7 +319,7 @@ def ensure_loras(loras_to_fetch, protected_paths=()) -> None:
         source = spec.get("source")
         if source != ALLOWED_LORA_SOURCE:
             raise ValueError(f"Refusing LoRA from disallowed source: {source!r}")
-        filename = _safe_basename(spec.get("filename", ""))
+        filename = safe_basename(spec.get("filename", ""))
         url = spec.get("url")
         if not url:
             raise ValueError(f"Missing download url for LoRA {filename!r}")
@@ -344,7 +346,7 @@ def ensure_upscaler(spec, protected_paths=()) -> None:
     source = spec.get("source")
     if source != ALLOWED_UPSCALER_SOURCE:
         raise ValueError(f"Refusing upscaler from disallowed source: {source!r}")
-    filename = _safe_basename(spec.get("filename", ""))
+    filename = safe_basename(spec.get("filename", ""))
     expected_sha256 = UPSCALER_SHA256_ALLOWLIST.get(filename)
     if expected_sha256 is None:
         raise ValueError(f"Refusing unknown upscaler: {filename!r}")
@@ -383,6 +385,51 @@ def ensure_upscaler(spec, protected_paths=()) -> None:
     print(f"[runner-fork] cached upscaler {filename}", flush=True)
 
 
+def ensure_input_images(images_to_fetch) -> list:
+    """Fetch `input.images_to_fetch` into official-handler `input.images` entries.
+
+    官方 handler 的契约是 base64（upload_images() 解码后 POST 到 ComfyUI 的
+    /upload/image），所以这里仍然要 base64——区别在于**编码发生在 GPU worker**：
+    内存以 GB 计、base64 是 C 实现，一张几 MB 的图零压力。旧路径把这一步放在
+    128MB 的 Cloudflare Worker 里，那才是它撑不住的原因。
+
+    不落盘：参考图是一次性的，写进 Volume 只会去和模型文件抢 LRU 缓存名额。
+    """
+    specs = build_input_image_specs(images_to_fetch)
+    if not specs:
+        return []
+
+    images = []
+    for name, url in specs:
+        print(f"[runner-fork] downloading input image {name} …", flush=True)
+        chunks = []
+        total = 0
+        with requests.get(
+            url, stream=True, timeout=DOWNLOAD_TIMEOUT_SECONDS
+        ) as resp:
+            resp.raise_for_status()
+            for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                if not chunk:
+                    continue
+                total += len(chunk)
+                if total > INPUT_IMAGE_MAX_BYTES:
+                    raise ValueError(
+                        f"Input image {name!r} exceeds {INPUT_IMAGE_MAX_BYTES} bytes"
+                    )
+                chunks.append(chunk)
+        images.append(
+            {
+                "name": name,
+                "image": base64.b64encode(b"".join(chunks)).decode("ascii"),
+            }
+        )
+        print(
+            f"[runner-fork] fetched input image {name} ({total} bytes)",
+            flush=True,
+        )
+    return images
+
+
 def handler(job):
     inp = (job or {}).get("input", {}) or {}
     os.makedirs(LORA_DIR, exist_ok=True)
@@ -390,7 +437,7 @@ def handler(job):
     protected_paths = set()
     for spec in inp.get("loras_to_fetch") or []:
         protected_paths.add(
-            os.path.join(LORA_DIR, _safe_basename(spec.get("filename", "")))
+            os.path.join(LORA_DIR, safe_basename(spec.get("filename", "")))
         )
     checkpoint_spec = inp.get("checkpoint_to_fetch")
     if checkpoint_spec:
@@ -400,7 +447,7 @@ def handler(job):
         protected_paths.add(
             os.path.join(
                 checkpoint_dir,
-                _safe_basename(checkpoint_spec.get("filename", "")),
+                safe_basename(checkpoint_spec.get("filename", "")),
             )
         )
     upscaler_spec = inp.get("upscaler_to_fetch")
@@ -408,7 +455,7 @@ def handler(job):
         protected_paths.add(
             os.path.join(
                 UPSCALER_DIR,
-                _safe_basename(upscaler_spec.get("filename", "")),
+                safe_basename(upscaler_spec.get("filename", "")),
             )
         )
     print(
@@ -427,6 +474,10 @@ def handler(job):
             cache_inventory(LORA_DIR, CHECKPOINT_DIR, DIFFUSION_MODELS_DIR)
         )
         raise
+    # 参考图在模型就位之后拉：它不进 Volume、不参与 LRU，失败也不该污染 cache manifest。
+    fetched_images = ensure_input_images(inp.get("images_to_fetch"))
+    if fetched_images:
+        inp.setdefault("images", []).extend(fetched_images)
     normalize_workflow_seeds(job)
     inventory = cache_inventory(LORA_DIR, CHECKPOINT_DIR, DIFFUSION_MODELS_DIR)
     print(f"[runner-fork] cache inventory after job: {inventory}", flush=True)

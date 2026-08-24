@@ -34,8 +34,12 @@ handler 包一层下载再 `serverless.start`。
     "workflow": {
       /* ComfyUI workflow，LoraLoader 用 filename */
     },
-    "images": [
-      /* img2img 参考图，可无 */
+    "images_to_fetch": [
+      {
+        "name": "reference.png",
+        "url": "<R2 图片 URL>",
+        "source": "r2",
+      },
     ],
     "loras_to_fetch": [
       {
@@ -51,6 +55,26 @@ handler 包一层下载再 `serverless.start`。
 - `filename` 由 app `prepareRunnerLoras` 派生（Civitai 使用 version id，HF 使用来源哈希 + 文件名），workflow 的
   LoraLoader 也用它。
 - `source` 恒为 `"r2"`——handler 拒绝其它来源（防 SSRF）；文件名须纯 basename（防目录穿越）。
+
+### `images_to_fetch`（v7，img2img 参考图）
+
+**app 侧不再发 `images`。** 官方字段 `images`（`[{name, image}]`，image 是 base64）由本 fork
+在 `ensure_input_images` 里填——它按 `images_to_fetch` 拉图、就地 base64，再交给官方
+`upload_images()` 走 ComfyUI `/upload/image`。官方那条路一步没改。
+
+换路的原因是旧路径夹在两堵墙中间：Cloudflare Worker 只有 128MB 内存（整张图转 base64 会
+把它撑爆），而 base64 膨胀 4/3 后又会顶穿 RunPod `/run` 的 10MiB 请求体上限。一张 ~8MB
+的参考图正好卡在两者之间——2026-08-24 同一张图连点两次，分别撞上了这两堵墙。改走 URL 后
+Cloudflare Worker 完全不碰图片字节，和几百 MB 的 LoRA 走同一条路。
+
+- `name` 须与 workflow 里 `LoadImage` 节点的文件名一致；纯 basename。
+- `url` 须 `https://`——挡掉明文与内网元数据端点。
+- 单张上限 `INPUT_IMAGE_MAX_BYTES`（64MB），只用来兜住畸形输入。
+- 参考图**不落盘**：一次性数据，不该去和模型文件抢 Volume 的 LRU 名额。
+
+⚠ **部署顺序**：本 fork 必须先上线，app 侧才能切到 `images_to_fetch`。反过来的话，新字段
+发给老 worker，老 worker 不认识它、`images` 又是空的——参考图静默消失，img2img 悄悄退化
+成 txt2img，出图会「成功」但完全不像参考图。
 
 ---
 
@@ -158,6 +182,21 @@ RunPod → Serverless → 现端点 **`01g8rrmixe4hah`** → 右上 **⋮ → Ed
    `[runner-fork] downloading LoRA civitai-<id>.safetensors …` 和 `cached LoRA …`。
 3. 同一把再出一张 → 无下载日志（缓存命中）、更快。
 4. 顺带验 Anima 兼容性：看脸对不对（不对再收紧 app 侧 `normalizeToLoraBaseFamily`）。
+
+### v7 参考图链路（`images_to_fetch`）
+
+⚠ **这条必须看日志，不能只看「出图成功了」。** fork 没更新时新字段无人认领、`images`
+又是空的，结果是**静默退化成 txt2img**——出图照常成功，只是完全不像参考图。成功本身
+不是证据。
+
+1. 放一张参考图 → 出图。
+2. RunPod 端点 **Logs** 里必须有这两行：
+   - `[runner-fork] downloading input image reference.png …`
+   - `[runner-fork] fetched input image reference.png (<N> bytes)`
+     **看不到 = fork 是老镜像**，此时出的图是纯 txt2img，别当成功。
+3. 出图结果应体现参考图构图（参考强度 70% 时应明显相似）。
+4. 换一张**大图**（>8MB）复验：旧路径会在这个量级上死（Worker OOM 或 RunPod 10MiB
+   拒收），新路径应正常出图——这是 2026-08-24 那次事故的直接回归。
 
 ## ⚠ 故障排查 / 升级 worker-comfyui 时的核对点
 

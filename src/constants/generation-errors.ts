@@ -178,10 +178,16 @@ const ERROR_PATTERNS: Array<{ pattern: RegExp; code: GenerationErrorCode }> = [
     pattern: /model.*unavailable|not\s*found|\b502\b/i,
     code: GENERATION_ERROR_CODES.MODEL_UNAVAILABLE,
   },
-  {
-    pattern: /credit|limit\s*reached|quota|exceeded/i,
-    code: GENERATION_ERROR_CODES.INSUFFICIENT_CREDITS,
-  },
+  // ⚠ 这里曾有一条 `/credit|limit\s*reached|quota|exceeded/i` 兜底，把任何含
+  // 「exceeded」的消息判成 INSUFFICIENT_CREDITS →「今日免费生成次数已用完」。
+  // 2026-08-24 生产上，Runner 的 `exceeded max body size of 10MiB` 和
+  // `Worker exceeded memory limit.` 都被它说成了「你没额度了」——而当天全站的免费
+  // 额度一次都没用过，Runner 路径根本不经过免费额度闸。别再加回来：
+  //   - 真正的免费额度耗尽走的是 backend code `FREE_LIMIT_EXCEEDED`（见下方
+  //     BACKEND_ERROR_CODE_MAP），从不依赖消息文本；
+  //   - Runner 月度额度用完同理走 `RUNNER_MONTHLY_LIMIT_EXCEEDED`；
+  //   - 「exceeded」是英文错误消息里最常见的词之一，用它兜底等于随机说谎。
+  // 认不出来就落到 UNKNOWN、显示 provider 原文——难看，但不指向错误的方向。
 ]
 
 export function parseGenerationErrorCode(

@@ -76,4 +76,27 @@ describe('parseGenerationErrorCode', () => {
     )
     expect(parseGenerationErrorCode('')).toBe(GENERATION_ERROR_CODES.UNKNOWN)
   })
+
+  it('never reports a size/memory failure as exhausted credits', () => {
+    // 2026-08-24 回归：这两条真实的 Runner 失败曾被兜底正则里的「exceeded」判成
+    // INSUFFICIENT_CREDITS →「今日免费生成次数已用完」，而当天免费额度一次都没用过。
+    for (const message of [
+      'WorkerProviderError: bad request: body: exceeded max body size of 10MiB',
+      'Worker exceeded memory limit.',
+    ]) {
+      expect(parseGenerationErrorCode(message)).not.toBe(
+        GENERATION_ERROR_CODES.INSUFFICIENT_CREDITS,
+      )
+    }
+  })
+
+  it('still classifies a real free-tier exhaustion by its backend code', () => {
+    // 消息文本不再参与判定，但真正的额度耗尽走 code 映射，必须仍然准确。
+    expect(normalizeErrorCode('FREE_LIMIT_EXCEEDED')).toBe(
+      GENERATION_ERROR_CODES.INSUFFICIENT_CREDITS,
+    )
+    expect(normalizeErrorCode('RUNNER_MONTHLY_LIMIT_EXCEEDED')).toBe(
+      GENERATION_ERROR_CODES.RUNNER_MONTHLY_LIMIT_EXCEEDED,
+    )
+  })
 })

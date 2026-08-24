@@ -243,7 +243,9 @@ export function GalleryGrid({
       ref={feedRef}
       role="feed"
       aria-label={feedLabel}
-      className="grid grid-cols-1 items-start gap-x-6 sm:grid-cols-2 xl:grid-cols-3"
+      // 列数随宽度增加，而不是把同样几列拉宽 —— 容器去掉 1280 封顶后，
+      // 3 列在 1900 宽下每列会涨到 ~550px，那是把图放大不是多给内容。
+      className="grid grid-cols-1 items-start gap-x-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
       style={{ gridAutoRows: `${MASONRY_GRID_ROW_HEIGHT_PX}px` }}
       onKeyDown={handleGalleryKeyDown}
     >

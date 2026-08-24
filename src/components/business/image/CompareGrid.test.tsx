@@ -134,6 +134,31 @@ describe('CompareGrid — 聚焦与定为最佳是两步', () => {
     )
   })
 
+  // ⭐ owner 2026-08-24 实拍「生成的图片没有选中的感觉」。根因：这套 2px 内描边
+  // 是参考轨 44×44 缩略图用的，占它宽度 4.5%；搬到 190px+ 的结果大图上只占 1%，
+  // 还压在满幅彩图的边缘像素里。改成画在**图外侧**的 ring + offset。
+  it('⭐ 聚焦的格子把标识画在图外侧，不跟图片内容抢像素', () => {
+    renderGrid()
+
+    const tiles = screen.getAllByRole('option')
+    fireEvent.click(tiles[2])
+
+    expect(tiles[2].className).toMatch(/ring-2/)
+    expect(tiles[2].className).toMatch(/ring-offset-2/)
+    // 未聚焦的保持一条极淡的内描边，不喧宾夺主
+    expect(tiles[0].className).not.toMatch(/ring-2/)
+    expect(tiles[0].className).toMatch(/outline-1/)
+  })
+
+  it('⭐ 动作栏说清在操作哪一张 —— 同模型多张时印序号', () => {
+    renderGrid()
+
+    fireEvent.click(screen.getAllByRole('option')[1])
+
+    // 缺了它，同一个模型两张的动作栏（模型名 + 同样的尺寸）长得一模一样
+    expect(screen.getByText(/takeLabel/)).toBeInTheDocument()
+  })
+
   it('selects the winner only from the action bar', () => {
     const onSelect = vi.fn()
     renderGrid({ onSelect })

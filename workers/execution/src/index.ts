@@ -4476,7 +4476,17 @@ function readAdvancedRecord(
   return context.providerInput.advancedParams ?? {}
 }
 
-function getImageReferenceInputs(context: WorkerImageRunContext): string[] {
+/**
+ * 这一次要发给 provider 的参考图 —— **有几张发几张**。
+ *
+ * ⚠ 复数字段优先，单数 `referenceImage` 只是向后兼容的回退。别在这里或调用方
+ * 取 `[0]`：OpenAI 的 `/v1/images/edits` 收到 16 张，Vercel 侧一路（
+ * `submit-image.service.ts` 的 providerInput）传的也是完整数组，这里截一刀就
+ * 等于用户放了两张只有一张生效，而 UI 上两张都亮着 —— 那类静默失效最难归因。
+ */
+export function getImageReferenceInputs(
+  context: WorkerImageRunContext,
+): string[] {
   if (context.providerInput.referenceImages?.length) {
     return context.providerInput.referenceImages
   }

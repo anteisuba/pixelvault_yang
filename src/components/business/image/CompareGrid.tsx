@@ -113,6 +113,21 @@ export const CompareGrid = memo(function CompareGrid({
   )
   const focusedGeneration = focused?.generation ?? null
 
+  /**
+   * 聚焦项在它那一行里是第几张 —— 动作栏要说清「我在操作哪一张」。
+   *
+   * ⚠ 缺了它的后果：同一个模型的两张，动作栏印的「模型名 + 1024×1536」完全
+   * 一样，于是那条栏对两张图长得一模一样，看不出对谁生效。行内只有一张时不印
+   * 序号（`第 1 张 / 共 1 张` 是废话）。
+   */
+  const focusedPosition = useMemo(() => {
+    for (const row of rows) {
+      const index = row.items.findIndex((item) => item.id === focusedItemId)
+      if (index >= 0 && row.items.length > 1) return index + 1
+    }
+    return null
+  }, [rows, focusedItemId])
+
   // 重新生成一轮后旧的聚焦项已经不在 items 里了，动作栏必须跟着清掉，
   // 否则它会停在上一轮那张图上（按钮还能按，操作的是已经不在屏上的图）。
   useEffect(() => {
@@ -208,8 +223,14 @@ export const CompareGrid = memo(function CompareGrid({
                         'studio-result-tile relative overflow-hidden rounded-xl bg-muted/10 transition-shadow',
                         aspectRatio ? undefined : 'studio-result-tile--pending',
                         isCompleted && 'cursor-pointer',
+                        // ⚠ 聚焦态**不能只用内描边**。这套样式原本是参考轨那
+                        // 44×44 缩略图用的：2px 内描边占它宽度的 4.5%，很显眼；
+                        // 搬到 190px+ 的结果大图上只占 1%，还压在满幅彩图的边缘
+                        // 像素里 —— owner 2026-08-24 实拍「没有选中的感觉」。
+                        // 改成画在**图外侧**的 ring + offset：不与图片内容抢像素，
+                        // 在任何底色的图上都立得住；未选中保持一条极淡的内描边。
                         isFocused
-                          ? 'outline outline-2 -outline-offset-2 outline-foreground'
+                          ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background'
                           : 'outline outline-1 -outline-offset-1 outline-border/60',
                         'focus-visible:outline-2 focus-visible:outline-primary',
                       )}
@@ -276,6 +297,11 @@ export const CompareGrid = memo(function CompareGrid({
                   )
                 : focusedGeneration.model}
             </span>
+            {focusedPosition !== null ? (
+              <span className="text-2xs tabular-nums text-muted-foreground">
+                {t('takeLabel', { index: focusedPosition })}
+              </span>
+            ) : null}
             <span className="text-2xs tabular-nums text-muted-foreground">
               {focusedGeneration.width}×{focusedGeneration.height}
             </span>

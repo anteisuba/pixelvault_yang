@@ -5540,7 +5540,8 @@
     "zoomOut": "Zoom out",
     "resetZoom": "Reset zoom",
     "variantSelectWinner": "Select as best",
-    "variantSelected": "Selected"
+    "variantSelected": "Selected",
+    "takeLabel": "Take {index}"
   },
   "StudioImageEdit": {
     "eyebrow": "Studio Tool",

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildFalImageInput,
   computeTieredDimensions,
+  getImageReferenceInputs,
   createSignedRequestHeaders,
   decryptStateString,
   encryptStateString,
@@ -579,6 +580,48 @@ function makeFalImageContext(
     },
   } as Parameters<typeof buildFalImageInput>[0]
 }
+
+describe('getImageReferenceInputs', () => {
+  // ⭐ owner 2026-08-24 问「放了两张参照图，是只用了一张还是只是显示问题」。
+  // 追完整条链（前端 referenceImages → submit-image.service 的 providerInput →
+  // 这里 → OpenAI body 的 images 数组）代码是对的，但**全仓没有一条测试覆盖
+  // 多张**：worker 测试里每个 referenceImages 都只有一个元素。补上，免得以后
+  // 有人顺手加个 `[0]` 而闸门全绿。
+  it('⭐ 有几张发几张 —— 绝不截成第一张', () => {
+    expect(
+      getImageReferenceInputs(
+        makeFalImageContext({
+          referenceImages: ['https://cdn/a.png', 'https://cdn/b.png'],
+        }) as never,
+      ),
+    ).toEqual(['https://cdn/a.png', 'https://cdn/b.png'])
+  })
+
+  it('复数字段优先于单数的向后兼容字段', () => {
+    expect(
+      getImageReferenceInputs(
+        makeFalImageContext({
+          referenceImage: 'https://cdn/legacy.png',
+          referenceImages: ['https://cdn/a.png', 'https://cdn/b.png'],
+        }) as never,
+      ),
+    ).toEqual(['https://cdn/a.png', 'https://cdn/b.png'])
+  })
+
+  it('只有单数字段时包成一条', () => {
+    expect(
+      getImageReferenceInputs(
+        makeFalImageContext({
+          referenceImage: 'https://cdn/legacy.png',
+        }) as never,
+      ),
+    ).toEqual(['https://cdn/legacy.png'])
+  })
+
+  it('都没有时是空数组 —— 调用方据此走 generations 而不是 edits', () => {
+    expect(getImageReferenceInputs(makeFalImageContext() as never)).toEqual([])
+  })
+})
 
 describe('resolveFalImageModelId', () => {
   it('keeps the text-to-image endpoint when no reference image is attached', () => {

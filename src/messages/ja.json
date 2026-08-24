@@ -5540,7 +5540,8 @@
     "zoomOut": "縮小",
     "resetZoom": "ズームをリセット",
     "variantSelectWinner": "ベストに選択",
-    "variantSelected": "選択済み"
+    "variantSelected": "選択済み",
+    "takeLabel": "{index} 枚目"
   },
   "StudioImageEdit": {
     "eyebrow": "Studioツール",

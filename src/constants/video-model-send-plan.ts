@@ -3,7 +3,9 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 
 export type VideoReferenceMode =
-  'text-or-first-frame' | 'multimodal-reference' | 'image-content-array'
+  | 'text-or-first-frame'
+  | 'multimodal-reference'
+  | 'image-content-array'
 
 export type VideoExecutionStatus = 'ready' | 'execution-not-migrated'
 

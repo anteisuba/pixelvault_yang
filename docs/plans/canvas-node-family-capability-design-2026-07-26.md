@@ -19,7 +19,7 @@ owner 清单里**一半是动词不是名词**。名词做节点、动词做动�
 | **B 单张首帧**   | `SEEDANCE_20` / `_FAST` · `KLING_V3_PRO` · `HAPPYHORSE_10` · `LTX_23` | 一张 `image_url` / `start_image_url`                                                                                   | auto（`generate_audio`） | 各自枚举（Kling/HH 3–15，LTX 6/8/10） | 各自枚举                       | 3–5 种         | 仅 Seedance |
 | **C 内容数组**   | `GEMINI_OMNI_FLASH`                                                   | `input: [{type:'text'}, {image}…]` 走 **Interactions API**，无三轨概念；`video_config.task` 按有无参考图自动切 t2v/i2v | auto                     | **无参数** —— 模型自定 3–10s          | 只 720p                        | 只 16:9 / 9:16 | ❌          |
 
-事实源：`video-request-builders.ts`（A/B 各 builder）· `gemini.adapter.ts` `submitVideoToQueue`（C，工作树未提交）· `video-model-capabilities.ts` · `types/index.ts` `GenerateVideoRequestSchema`。
+事实源（2026-08-24 更新——原引用的两个 src 文件已随死执行链清理删除，生产执行只在 workers/execution）：`workers/execution/src/models/{fal,volcengine,minimax}/video-request-builder(s).ts`（A/B 各 builder 的现存实现）· `video-model-capabilities.ts` · `types/index.ts` `GenerateVideoRequestSchema`。**C 形态（`gemini.adapter.ts` 的 `submitVideoToQueue`）已整删且从未进过 `workers/execution`**——它上线以来一直卡在 501（`canSubmitVideoViaExecutionWorker` 白名单从未含 Gemini），本节下方对 Gemini Omni Flash 的能力描述现在没有任何代码支撑，仅作历史设计记录保留；⚠ `available: true` 意味着它今天在 UI 里仍可被选中但会 501，不是能正常生成。
 
 ### 1.1 四条今天 UI 没表达、必须进设计的硬事实
 

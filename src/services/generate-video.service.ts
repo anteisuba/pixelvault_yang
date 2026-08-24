@@ -15,7 +15,6 @@ import type {
   VideoStatusResponseData,
   VideoSubmitResponseData,
 } from '@/types'
-import { getProviderAdapter } from '@/services/providers/registry'
 import {
   fetchAsBuffer,
   generateStorageKey,
@@ -124,15 +123,6 @@ export async function submitVideoGenerationForUserId(
 
       const resolvedRoute = await resolveGenerationRoute(userId, input)
       const resolvedProvider = getProviderLabel(resolvedRoute.providerConfig)
-      const adapter = getProviderAdapter(resolvedRoute.adapterType)
-
-      if (!adapter?.submitVideoToQueue) {
-        throw new GenerateImageServiceError(
-          'UNSUPPORTED_MODEL',
-          'Video generation is not supported for this provider',
-          400,
-        )
-      }
 
       return {
         executionRoute: resolvedRoute,

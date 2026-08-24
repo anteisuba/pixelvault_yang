@@ -20,9 +20,6 @@ vi.mock('./openai.adapter', () => ({
 vi.mock('./replicate.adapter', () => ({
   replicateAdapter: { adapterType: 'replicate' },
 }))
-vi.mock('./runway.adapter', () => ({
-  runwayAdapter: { adapterType: 'runway' },
-}))
 vi.mock('./volcengine.adapter', () => ({
   volcengineAdapter: { adapterType: 'volcengine' },
   byteplusAdapter: { adapterType: 'byteplus' },
@@ -50,12 +47,6 @@ describe('getProviderAdapter', () => {
     expect(adapter.adapterType).toBe('gemini')
   })
 
-  it('returns the Runway adapter for RUNWAY type', () => {
-    const adapter = getProviderAdapter(AI_ADAPTER_TYPES.RUNWAY)
-
-    expect(adapter.adapterType).toBe('runway')
-  })
-
   it('returns the BytePlus adapter for the international Ark station', () => {
     const adapter = getProviderAdapter(AI_ADAPTER_TYPES.BYTEPLUS)
 
@@ -64,6 +55,17 @@ describe('getProviderAdapter', () => {
 
   it('throws for text-only providers without media adapters', () => {
     expect(() => getProviderAdapter(AI_ADAPTER_TYPES.DEEPSEEK)).toThrow(
+      'Provider adapter not available',
+    )
+  })
+
+  // Runway (gen4.5) was deleted from the registry — the enum member stays
+  // (retired ≠ deleted, see CLAUDE.md Engineering Principles), but any code
+  // path that still resolves a route to it must fail cleanly rather than
+  // silently succeed or crash unhandled. api-route-factory's catch-all turns
+  // this Error into a clean 4xx/5xx JSON response (see handleRouteError).
+  it('throws for the retired Runway adapter', () => {
+    expect(() => getProviderAdapter(AI_ADAPTER_TYPES.RUNWAY)).toThrow(
       'Provider adapter not available',
     )
   })

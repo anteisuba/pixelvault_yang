@@ -6085,7 +6085,7 @@ async function extractNovelAiZipImage(
   )
 }
 
-async function generateNovelAiImage(
+export async function generateNovelAiImage(
   env: ExecutionEnv,
   context: WorkerImageRunContext,
   apiKey: string,

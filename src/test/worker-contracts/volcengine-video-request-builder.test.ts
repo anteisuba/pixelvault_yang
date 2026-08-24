@@ -1,19 +1,44 @@
-import { describe, expect, it, vi } from 'vitest'
+/**
+ * worker-contracts —— 死执行链清理 Step 1（只加不删）。
+ *
+ * 生产的视频请求构造逻辑住在 `workers/execution/src/models/**`（execution
+ * worker 是真实发请求给 provider 的那一路）；`src/services/providers/
+ * volcengine.adapter.ts` 里的 `buildVolcEngineVideoQueueBody` 是已经漂移的死
+ * fork，不再被生产调用（volcengine video 走的是 worker-only 路径）。
+ *
+ * 但 worker 自己的 vitest（`workers/execution/vitest.config.ts`）不解析 `@/`
+ * 别名，测不了依赖 `MODEL_OPTIONS` / `getVideoModelSendContract` 这类 fixture
+ * 的用例 —— 所以这类契约测试只能住在根 vitest suite 里，靠跨目录相对路径直接
+ * import worker 的源文件（根 `vitest.config.ts` 的 `exclude: ['workers/**']`
+ * 只排除该目录下的**测试文件**，不阻止 import）。
+ *
+ * 本文件断言的是 `workers/execution/src/models/volcengine/video-request-builder.ts`
+ * 的真实导出 `buildVolcEngineVideoRequest`，不再调用 src 侧的死 fork。
+ *
+ * worker 里 `REFERENCE_ENDPOINT_MODEL_IDS` / `ADAPTIVE_RATIO_MODEL_IDS` 是私有
+ * 常量，手抄自 `getVideoModelSendContract` 的事实（worker 拿不到 `@/` 别名，
+ * import 不了那份契约）——本文件末尾额外加了一条「遍历全目录」的漂移闸，通过
+ * 可观察行为反推这两个私有集合是否还和契约一致。
+ */
+import { describe, expect, it } from 'vitest'
 
-import { AI_PROVIDER_ENDPOINTS, VIDEO_GENERATION } from '@/constants/config'
+import { VIDEO_GENERATION } from '@/constants/config'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import { AI_MODELS, MODEL_OPTIONS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { VideoDefaults } from '@/constants/models'
-import type { ProviderQueueSubmitInput } from '@/services/providers/types'
 
-vi.mock('server-only', () => ({}))
-
-import { buildVolcEngineVideoQueueBody } from './volcengine.adapter'
+import {
+  buildVolcEngineVideoRequest,
+  type VolcEngineVideoBuilderInput,
+} from '../../../workers/execution/src/models/volcengine/video-request-builder'
 
 const PROMPT = 'A precise cinematic prompt'
 const REF = 'https://example.com/reference.png'
-const API_KEY = 'ark-test-key'
+const IMG1 = 'https://example.com/a.png'
+const IMG2 = 'https://example.com/b.png'
+const VID1 = 'https://example.com/clip.mp4'
+const AUD1 = 'https://example.com/voice.mp3'
 
 interface VolcVideoFixture {
   id: string
@@ -79,22 +104,24 @@ const VOLC_VIDEO_FIXTURES = {
   },
 } satisfies Record<string, VolcVideoFixture>
 
-function buildInput(
-  model: VolcVideoFixture,
+function buildWorkerInput(
+  fixture: VolcVideoFixture,
   referenceImage?: string,
-): ProviderQueueSubmitInput {
+  overrides: Partial<VolcEngineVideoBuilderInput> = {},
+): VolcEngineVideoBuilderInput {
   return {
     prompt: PROMPT,
-    modelId: model.id,
+    modelId: fixture.id,
+    externalModelId: fixture.externalModelId,
     aspectRatio: '16:9',
-    providerConfig: {
-      label: 'VolcEngine',
-      baseUrl: AI_PROVIDER_ENDPOINTS.VOLCENGINE,
-    },
-    apiKey: API_KEY,
     duration: 5,
     referenceImage,
-    videoDefaults: model.videoDefaults,
+    // The worker's input type is intentionally decoupled from src's
+    // `VideoDefaults` (it can't import `@/constants/models` either) and
+    // declares `videoDefaults?: Record<string, unknown>` — a plain-object
+    // cast at this one boundary point, not a behavioral difference.
+    videoDefaults: fixture.videoDefaults as Record<string, unknown> | undefined,
+    ...overrides,
   }
 }
 
@@ -151,10 +178,10 @@ const volcBodyCases: VolcBodyCase[] = [
   },
 ]
 
-describe('buildVolcEngineVideoQueueBody', () => {
+describe('buildVolcEngineVideoRequest', () => {
   it.each(volcBodyCases)('builds $label body', (testCase) => {
-    const body = buildVolcEngineVideoQueueBody(
-      buildInput(testCase.model, testCase.referenceImage),
+    const body = buildVolcEngineVideoRequest(
+      buildWorkerInput(testCase.model, testCase.referenceImage),
     )
 
     expect(body).toMatchObject({
@@ -191,11 +218,11 @@ describe('buildVolcEngineVideoQueueBody', () => {
   it('clamps duration to the Seedance 2.0 window of 4–15 seconds', () => {
     // Regression: this used to clamp to 2–12 (the 1.0-pro window), so a 15s
     // request — which the capability matrix openly offers — came back as 12s
-    // with no error anywhere. Keep in step with the execution worker's
-    // buildVolcEngineVideoRequest.
+    // with no error anywhere. Keep in step with the src-side (dead)
+    // buildVolcEngineVideoQueueBody — both must clamp identically.
     const durationFor = (duration: number | 'auto' | undefined) =>
-      buildVolcEngineVideoQueueBody({
-        ...buildInput(VOLC_VIDEO_FIXTURES.seedance20),
+      buildVolcEngineVideoRequest({
+        ...buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance20),
         duration,
       }).duration
 
@@ -212,7 +239,8 @@ describe('buildVolcEngineVideoQueueBody', () => {
   it('is sendable — VolcEngine video now has an execution-worker branch', () => {
     // Before 2026-08-01 every VolcEngine video model was catalog-only: the
     // service 501'd on anything that wasn't fal. This is the tripwire for
-    // that regressing.
+    // that regressing. Pure catalog/contract check — doesn't touch either
+    // builder fork.
     for (const model of MODEL_OPTIONS.filter(
       (candidate) =>
         candidate.adapterType === AI_ADAPTER_TYPES.VOLCENGINE &&
@@ -228,10 +256,11 @@ describe('buildVolcEngineVideoQueueBody', () => {
   })
 
   it('filters unsupported 1080p for Seedance 2.0 Fast Volc', () => {
-    const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20Fast),
-      resolution: '1080p',
-    })
+    const body = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance20Fast, undefined, {
+        resolution: '1080p',
+      }),
+    )
 
     expect(body.resolution).toBe('720p')
   })
@@ -248,9 +277,6 @@ describe('buildVolcEngineVideoQueueBody', () => {
       AI_MODELS.SEEDANCE_20_VOLCENGINE,
       AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
       AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
-      // Seedance 2.5 joined 2026-08-01 as RESERVED (available: false, placeholder
-      // externalModelId) — it belongs to this provider's catalog surface even
-      // though 火山 hasn't opened its API. See models/seedance-25-reservation.test.ts.
       AI_MODELS.SEEDANCE_25_VOLCENGINE,
       AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
     ]
@@ -264,19 +290,63 @@ describe('buildVolcEngineVideoQueueBody', () => {
       expect(model.adapterType).toBe(AI_ADAPTER_TYPES.VOLCENGINE)
     }
   })
+
+  it('drift guard: the reference-mode and aspect-ratio-lock hardcoded sets match the send contract for every catalog model', () => {
+    // worker 里 REFERENCE_ENDPOINT_MODEL_IDS / ADAPTIVE_RATIO_MODEL_IDS 都是
+    // 私有常量、没有导出，只能通过可观察行为（content 里的 role、返回的
+    // ratio）反推它们是否还和 getVideoModelSendContract 这份源头事实一致。
+    // 这条就是 Step 1 任务书里点名要保住的「防 worker 硬编码 id 集合漂移的
+    // 唯一闸」。
+    const volcVideoModels = MODEL_OPTIONS.filter(
+      (model) =>
+        model.adapterType === AI_ADAPTER_TYPES.VOLCENGINE &&
+        model.outputType === 'VIDEO',
+    )
+    expect(volcVideoModels.length).toBeGreaterThan(0)
+
+    for (const model of volcVideoModels) {
+      const contract = getVideoModelSendContract(
+        model.id,
+        AI_ADAPTER_TYPES.VOLCENGINE,
+      )
+      const body = buildVolcEngineVideoRequest({
+        prompt: PROMPT,
+        modelId: model.id,
+        externalModelId: model.externalModelId,
+        aspectRatio: '16:9',
+        duration: 5,
+        referenceImages: [IMG1, IMG2],
+        videoDefaults: model.videoDefaults as
+          | Record<string, unknown>
+          | undefined,
+      })
+      const imageRoles = (
+        body.content as Array<{ type: string; role?: string }>
+      )
+        .filter((entry) => entry.type === 'image_url')
+        .map((entry) => entry.role)
+
+      if (contract.referenceMode === 'multimodal-reference') {
+        expect(imageRoles, model.id).toEqual([
+          'reference_image',
+          'reference_image',
+        ])
+      } else {
+        expect(imageRoles, model.id).toEqual(['first_frame', 'last_frame'])
+      }
+
+      expect(body.ratio, model.id).toBe(contract.imageAspectRatioLock ?? '16:9')
+    }
+  })
 })
 
-describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
-  const IMG1 = 'https://example.com/a.png'
-  const IMG2 = 'https://example.com/b.png'
-  const VID1 = 'https://example.com/clip.mp4'
-  const AUD1 = 'https://example.com/voice.mp3'
-
+describe('buildVolcEngineVideoRequest reference-to-video', () => {
   it('reference endpoint: multiple images go out as reference_image', () => {
-    const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20Reference),
-      referenceImages: [IMG1, IMG2],
-    })
+    const body = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance20Reference, undefined, {
+        referenceImages: [IMG1, IMG2],
+      }),
+    )
 
     expect(body.content).toEqual([
       { type: 'text', text: PROMPT },
@@ -286,10 +356,11 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
   })
 
   it('keyframe endpoint: two images go out as first_frame + last_frame', () => {
-    const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20),
-      referenceImages: [IMG1, IMG2],
-    })
+    const body = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance20, undefined, {
+        referenceImages: [IMG1, IMG2],
+      }),
+    )
 
     expect(body.content).toEqual([
       { type: 'text', text: PROMPT },
@@ -299,11 +370,11 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
   })
 
   it('两个端点共用同一个 externalModelId —— 只能按内部 modelId 分场景', () => {
-    const keyframe = buildVolcEngineVideoQueueBody(
-      buildInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1),
+    const keyframe = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1),
     )
-    const reference = buildVolcEngineVideoQueueBody(
-      buildInput(VOLC_VIDEO_FIXTURES.seedance20Reference, IMG1),
+    const reference = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance20Reference, IMG1),
     )
 
     // 发给火山的 model 字段完全一样 —— 这正是不能拿它当判据的原因。
@@ -319,11 +390,12 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
   })
 
   it('combines reference image, video and audio entries', () => {
-    const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1),
-      videoUrls: [VID1],
-      audioUrls: [AUD1],
-    })
+    const body = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1, {
+        videoUrls: [VID1],
+        audioUrls: [AUD1],
+      }),
+    )
 
     expect(body.content).toEqual([
       { type: 'text', text: PROMPT },
@@ -334,8 +406,8 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
   })
 
   it('keeps a lone first frame as i2v (no reference roles)', () => {
-    const body = buildVolcEngineVideoQueueBody(
-      buildInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1),
+    const body = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1),
     )
 
     expect(body.content).toEqual([
@@ -345,55 +417,57 @@ describe('buildVolcEngineVideoQueueBody reference-to-video', () => {
   })
 
   it('drops reference audio when no image or video accompanies it', () => {
-    const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20),
-      audioUrls: [AUD1],
-    })
+    const body = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance20, undefined, {
+        audioUrls: [AUD1],
+      }),
+    )
 
     expect(body.content).toEqual([{ type: 'text', text: PROMPT }])
   })
 
   it('2.5 关键帧档 + 有图 → ratio 强制 adaptive（传具体宽高比会 400）', () => {
-    const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(VOLC_VIDEO_FIXTURES.seedance25, IMG1),
-    })
+    const body = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance25, IMG1),
+    )
 
     expect(body.ratio).toBe('adaptive')
   })
 
   it('⚠ 2.5 纯文生视频 → 比例照发，不受首帧那条约束', () => {
     // 判据是「这次请求有没有图」，不是模型 id —— 只看 id 会把文生的比例也改掉。
-    const body = buildVolcEngineVideoQueueBody(
-      buildInput(VOLC_VIDEO_FIXTURES.seedance25),
+    const body = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance25),
     )
 
     expect(body.ratio).toBe('16:9')
   })
 
   it('2.0 + 有图 → 比例照发，这条约束只属于 2.5', () => {
-    const body = buildVolcEngineVideoQueueBody(
-      buildInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1),
+    const body = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance20, IMG1),
     )
 
     expect(body.ratio).toBe('16:9')
   })
 
   it('caps references at 9 images / 3 videos / 3 audio', () => {
-    const body = buildVolcEngineVideoQueueBody({
-      ...buildInput(VOLC_VIDEO_FIXTURES.seedance20),
-      referenceImages: Array.from(
-        { length: 12 },
-        (_, index) => `https://img/${index}.png`,
-      ),
-      videoUrls: Array.from(
-        { length: 5 },
-        (_, index) => `https://vid/${index}.mp4`,
-      ),
-      audioUrls: Array.from(
-        { length: 5 },
-        (_, index) => `https://aud/${index}.mp3`,
-      ),
-    })
+    const body = buildVolcEngineVideoRequest(
+      buildWorkerInput(VOLC_VIDEO_FIXTURES.seedance20, undefined, {
+        referenceImages: Array.from(
+          { length: 12 },
+          (_, index) => `https://img/${index}.png`,
+        ),
+        videoUrls: Array.from(
+          { length: 5 },
+          (_, index) => `https://vid/${index}.mp4`,
+        ),
+        audioUrls: Array.from(
+          { length: 5 },
+          (_, index) => `https://aud/${index}.mp3`,
+        ),
+      }),
+    )
 
     const content = body.content as Array<{ role?: string }>
     expect(

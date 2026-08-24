@@ -11,7 +11,6 @@ import {
   type ProviderAudioInput,
   type ProviderAudioResult,
   type ProviderAudioTimestampSegment,
-  type ProviderGenerationResult,
 } from '@/services/providers/types'
 
 interface FishTimestampEvent {
@@ -196,18 +195,10 @@ async function parseTimestampStream(response: Response): Promise<{
  * Fish Audio provider adapter — TTS (Text-to-Speech) only.
  *
  * Synchronous API: POST /v1/tts → audio bytes.
- * Image generation is not supported (throws ProviderError).
+ * No image generation support — Fish Audio is audio-only.
  */
 export const fishAudioAdapter: ProviderAdapter = {
   adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
-
-  async generateImage(): Promise<ProviderGenerationResult> {
-    throw new ProviderError(
-      'Fish Audio',
-      400,
-      'Image generation is not supported by Fish Audio',
-    )
-  },
 
   async generateAudio(input: ProviderAudioInput): Promise<ProviderAudioResult> {
     const {

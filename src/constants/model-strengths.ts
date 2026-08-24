@@ -54,8 +54,6 @@ export const USER_PREFERENCE_WEIGHT = 0.15
 export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
   [AI_ADAPTER_TYPES.FAL]:
     'Target model: FLUX. Prefer photographic terminology, specific lens/camera details, precise lighting descriptions, and full natural language sentences.',
-  [AI_ADAPTER_TYPES.RUNWAY]:
-    'Target model: Runway video. Prefer concise cinematic descriptions with subject motion, camera movement, lighting, and scene continuity.',
   [AI_ADAPTER_TYPES.NOVELAI]:
     'Target model: NovelAI (anime diffusion). Prefer comma-separated danbooru-style tags. Quality tags first, then character tags, then style and scene. Natural-language sentences are acceptable on V5 but tags remain the reliable dialect. A reference image is optional: one image becomes img2img, not a character lock. Do not assume Director / Vibe Transfer.',
   [AI_ADAPTER_TYPES.GEMINI]:

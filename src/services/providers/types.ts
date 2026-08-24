@@ -1,8 +1,6 @@
 import 'server-only'
 
 import type { AudioExpressivenessTier } from '@/constants/audio-options'
-import type { AspectRatio } from '@/constants/config'
-import type { VideoDefaults } from '@/constants/models'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
 import type {
   Model3DGenerateType,
@@ -14,106 +12,11 @@ import type {
   Trellis2Resolution,
   Trellis2TextureSize,
 } from '@/constants/model-3d-generation'
-import type { VideoResolution } from '@/constants/video-options'
 import {
   getUnsupportedReferenceImageMessage,
   REFERENCE_IMAGE_ERROR_PATTERNS,
 } from '@/constants/generation-errors'
-import type { AdvancedParams, ModelHealthStatus } from '@/types'
-
-export interface ProviderGenerationInput {
-  prompt: string
-  modelId: string
-  /** Execution id resolved from the DB-first model catalog. */
-  externalModelId?: string
-  aspectRatio: AspectRatio
-  providerConfig: ProviderConfig
-  apiKey: string
-  referenceImage?: string
-  /** Multiple reference images for character/style consistency */
-  referenceImages?: string[]
-  advancedParams?: AdvancedParams
-  /** User's Civitai API token (when known) — adapters that resolve
-   *  Civitai LoRA download URLs need it because civitai.com/api/download
-   *  now 401s without authentication, even for public models. */
-  civitaiToken?: string | null
-}
-
-export interface ProviderGenerationResult {
-  imageUrl: string
-  width: number
-  height: number
-  requestCount: number
-}
-
-export interface ProviderVideoInput {
-  prompt: string
-  modelId: string
-  aspectRatio: AspectRatio
-  providerConfig: ProviderConfig
-  apiKey: string
-  duration?: number
-  referenceImage?: string
-  timeoutMs?: number
-}
-
-export interface ProviderVideoResult {
-  videoUrl: string
-  thumbnailUrl?: string
-  width: number
-  height: number
-  duration: number
-  requestCount: number
-  /** Optional auth headers needed to fetch the video URL (e.g. OpenAI Sora) */
-  fetchHeaders?: Record<string, string>
-}
-
-export interface ProviderQueueSubmitInput {
-  prompt: string
-  modelId: string
-  aspectRatio: AspectRatio
-  providerConfig: ProviderConfig
-  apiKey: string
-  /**
-   * Either a number of seconds, or the literal 'auto' token (Seedance 2.0
-   * supports this; other builders coerce 'auto' to their configured default
-   * via `asNumericDuration` in fal/video-request-builders.ts).
-   */
-  duration?: number | 'auto'
-  /**
-   * Single reference image — kept for back-compat with the bulk of video
-   * models that only accept one i2v starting frame. New multi-reference
-   * models (Veo 3.1) should read `referenceImages` instead; the adapter
-   * normalises one to the other.
-   */
-  referenceImage?: string
-  /** Multi-reference array for models like Veo 3.1 reference-to-video. */
-  referenceImages?: string[]
-  /**
-   * Reference audio clips for voice cloning. Consumed only by builders for
-   * models with audio.mode === 'reference' (Seedance 2.0 reference-to-video).
-   */
-  audioUrls?: string[]
-  /**
-   * Per-clip binding labels (character name per audio URL). When supplied,
-   * the Seedance Reference builder labels @AudioN tokens with the character
-   * name so multi-character scenes route the right voice to the right person.
-   */
-  audioBindings?: ReadonlyArray<{
-    url: string
-    characterName?: string
-  }>
-  /**
-   * Reference video clips. Consumed only by Seedance 2.0 reference-to-video
-   * (unlocks the 0.6x price multiplier).
-   */
-  videoUrls?: string[]
-  negativePrompt?: string
-  resolution?: VideoResolution
-  i2vModelId?: string
-  videoDefaults?: VideoDefaults
-  seed?: number
-}
+import type { ModelHealthStatus } from '@/types'
 
 export interface ProviderQueueSubmitResult {
   requestId: string
@@ -125,13 +28,6 @@ export interface ProviderQueueStatusInput {
   statusUrl: string
   responseUrl: string
   apiKey: string
-}
-
-export interface ProviderQueueStatusResult {
-  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
-  result?: ProviderVideoResult
-  error?: string
-  errorCode?: string
 }
 
 // ─── 3D (image-to-3D) Provider Types ─────────────────────────────
@@ -387,18 +283,6 @@ function humanizeProviderError(
   return `${provider} error: ${message}`
 }
 
-export interface ProviderExtendVideoInput {
-  /** URL of the video to extend */
-  videoUrl: string
-  prompt: string
-  aspectRatio: AspectRatio
-  providerConfig: ProviderConfig
-  apiKey: string
-  /** FAL extend endpoint ID, e.g. 'fal-ai/veo3.1/extend-video' */
-  extendEndpointId: string
-  duration?: number
-}
-
 // ─── Audio Provider Types ────────────────────────────────────────
 
 export interface ProviderAudioInput {
@@ -461,19 +345,6 @@ export interface ProviderAudioQueueStatusResult {
 
 export interface ProviderAdapter {
   readonly adapterType: AI_ADAPTER_TYPES
-  generateImage(
-    input: ProviderGenerationInput,
-  ): Promise<ProviderGenerationResult>
-  generateVideo?(input: ProviderVideoInput): Promise<ProviderVideoResult>
-  submitVideoToQueue?(
-    input: ProviderQueueSubmitInput,
-  ): Promise<ProviderQueueSubmitResult>
-  submitExtendVideoToQueue?(
-    input: ProviderExtendVideoInput,
-  ): Promise<ProviderQueueSubmitResult>
-  checkVideoQueueStatus?(
-    input: ProviderQueueStatusInput,
-  ): Promise<ProviderQueueStatusResult>
   /** Synchronous audio generation (e.g. Fish Audio — returns audio immediately) */
   generateAudio?(input: ProviderAudioInput): Promise<ProviderAudioResult>
   /**

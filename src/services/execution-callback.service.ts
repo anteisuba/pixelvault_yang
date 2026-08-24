@@ -100,7 +100,6 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     creditCost: z.number().int().positive().optional(),
     apiKeyId: z.string().min(1).optional(),
     originalModelId: z.string().min(1).optional(),
-    fallbackUsed: z.boolean().optional(),
     advancedParams: z.unknown().optional(),
     recipeUsage: z.unknown().optional(),
     runGroupId: z.string().min(1).optional(),

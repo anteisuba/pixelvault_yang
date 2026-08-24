@@ -20,7 +20,6 @@ const mockFetchAsBuffer = vi.fn()
 const mockUploadToR2 = vi.fn()
 const mockCreateVideoPosterAsset = vi.fn()
 const mockGenerationJobUpdate = vi.fn()
-const mockSubmitVideoToQueue = vi.fn()
 
 vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
@@ -133,10 +132,7 @@ describe('generate-video.service worker dispatch', () => {
       isFreeGeneration: false,
       creditCost: 5,
     })
-    mockGetProviderAdapter.mockReturnValue({
-      submitVideoToQueue: mockSubmitVideoToQueue,
-      checkVideoQueueStatus: vi.fn(),
-    })
+    mockGetProviderAdapter.mockReturnValue({})
     mockCreateGenerationJob.mockResolvedValue({
       id: 'job-1',
       status: 'RUNNING',
@@ -179,7 +175,6 @@ describe('generate-video.service worker dispatch', () => {
     )
 
     expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-job-1' })
-    expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
     expect(fetch).toHaveBeenCalledWith(
       'http://127.0.0.1:8787/workflows/fal-queue',
       expect.objectContaining({
@@ -221,7 +216,6 @@ describe('generate-video.service worker dispatch', () => {
     )
 
     expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-job-1' })
-    expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
     expect(fetch).toHaveBeenCalled()
   })
 
@@ -296,7 +290,6 @@ describe('generate-video.service worker dispatch', () => {
       code: 'UNSUPPORTED_MODEL',
       status: 501,
     })
-    expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
     expect(fetch).not.toHaveBeenCalled()
   })
 
@@ -423,7 +416,6 @@ describe('generate-video.service worker dispatch', () => {
       code: 'UNSUPPORTED_MODEL',
       status: 501,
     })
-    expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
   })
 
   it('fails routes without worker-resolvable keys instead of using inline queue', async () => {
@@ -446,7 +438,6 @@ describe('generate-video.service worker dispatch', () => {
       code: 'UNSUPPORTED_MODEL',
       status: 501,
     })
-    expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
     expect(fetch).not.toHaveBeenCalled()
   })
 

@@ -3,7 +3,7 @@
 Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久归档。
 
 **Stack**: Next.js 16 (App Router + Turbopack) · TypeScript · Clerk · Prisma 7 + PostgreSQL (Neon) · Cloudflare R2 · next-intl (en/ja/zh)
-**AI Providers**: 多 adapter 架构——**名册与个数一律以 `src/services/providers/registry.ts` 的 `PROVIDER_ADAPTERS` 为准**（2026-08-24 清点为 14 个），接入契约与逐 provider 现状见 `docs/references/providers.md`
+**AI Providers**: 多 adapter 架构——**名册与个数一律以 `src/services/providers/registry.ts` 的 `PROVIDER_ADAPTERS` 为准**（2026-08-24 清点为 13 个，同日死执行链清理整删 runway 后从 14 降为 13），接入契约与逐 provider 现状见 `docs/references/providers.md`
 
 冲突时优先级：用户明确指令 > Hard Rules > `docs/WORKFLOW.md` > 默认行为。
 
@@ -58,7 +58,7 @@ Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久�
 
 - `src/types/index.ts` — 333 files (see `src/types/CLAUDE.md`)
 - `src/services/user.service.ts` — 141 files
-- `src/services/image/generate-image.service.ts` — orchestrator, 8+ deps
+- `src/services/image/generate-image.service.ts` — 路由解析+上传模块（非 orchestrator，2026-08-24 死执行链清理删掉了 provider 调用/fallback/落库路径后现状），~480 行，8+ deps
 - `src/contexts/studio-context.tsx` — 47 files (see `src/contexts/CLAUDE.md`)
 - `src/constants/models.ts` — 99 files (see `src/constants/CLAUDE.md`)
 - `src/services/storage/r2.ts` — 55 importers

@@ -1,13 +1,32 @@
+/**
+ * worker-contracts —— 死执行链清理 Step 1（只加不删）。
+ *
+ * 生产的视频请求构造逻辑住在 `workers/execution/src/models/**`（execution
+ * worker 是真实发请求给 provider 的那一路）；`src/services/providers/**` 下
+ * 同名的 builder（这里是 `fal/video-request-builders.ts` 的
+ * `buildFalVideoQueueRequest`）是已经漂移的死 fork，不再被生产调用。
+ *
+ * 但 worker 自己的 vitest（`workers/execution/vitest.config.ts`）不解析 `@/`
+ * 别名，测不了依赖 `MODEL_OPTIONS` 这类 fixture 的用例 —— 所以这类契约测试只能
+ * 住在根 vitest suite 里，靠跨目录相对路径直接 import worker 的源文件（根
+ * `vitest.config.ts` 的 `exclude: ['workers/**']` 只排除该目录下的**测试文件**，
+ * 不阻止 import，`src/services/providers/fal/video-request-builders.test.ts`
+ * 已经这么做了）。
+ *
+ * 本文件断言的是 `workers/execution/src/models/fal/video-request-builders.ts`
+ * 的真实导出 `buildFalWorkerQueueRequest`，不再调用 src 侧的死 fork——
+ * `falBodyCases` 里的期望值就是业务真相（两侧此前逐条 `.toEqual` 比对全绿，
+ * 详见被这份文件取代的差分测试）。
+ */
 import { describe, expect, it } from 'vitest'
 
 import { AI_MODELS, MODEL_OPTIONS, type ModelOption } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import {
-  buildFalVideoQueueRequest,
-  type FalVideoRequestBuilderInput,
-} from '@/services/providers/fal/video-request-builders'
-import { buildFalWorkerQueueRequest } from '../../../../workers/execution/src/models/fal/video-request-builders'
+  buildFalWorkerQueueRequest,
+  type FalWorkerVideoRequestContext,
+} from '../../../workers/execution/src/models/fal/video-request-builders'
 
 const PROMPT = 'A precise cinematic prompt'
 const REF = 'https://example.com/reference.png'
@@ -30,43 +49,31 @@ function getModel(id: AI_MODELS): ModelOption {
   return model
 }
 
-function buildInput(
+type ProviderInputOverrides = Partial<
+  FalWorkerVideoRequestContext['providerInput']
+>
+
+/**
+ * 直接产出 worker 的 `FalWorkerVideoRequestContext` —— 不再像原 src 测试那样
+ * 先造一份 src 侧输入再转换一次，因为这份契约文件根本不碰 src 的死 fork。
+ */
+function buildWorkerInput(
   modelId: AI_MODELS,
   referenceImage?: string,
-): FalVideoRequestBuilderInput {
+  overrides: ProviderInputOverrides = {},
+): FalWorkerVideoRequestContext {
   const model = getModel(modelId)
   return {
-    prompt: PROMPT,
-    modelId,
-    externalModelId: model.externalModelId,
-    aspectRatio: '16:9',
-    duration: 5,
-    referenceImage,
-    i2vModelId: model.i2vModelId,
-    videoDefaults: model.videoDefaults,
-  }
-}
-
-function buildWorkerInput(modelId: AI_MODELS, referenceImage?: string) {
-  const input = buildInput(modelId, referenceImage)
-  return {
     providerInput: {
-      prompt: input.prompt,
-      modelId: input.modelId,
-      externalModelId: input.externalModelId,
-      aspectRatio: input.aspectRatio,
-      duration: input.duration,
-      referenceImage: input.referenceImage,
-      referenceImages: input.referenceImages,
-      audioUrls: input.audioUrls,
-      audioBindings: input.audioBindings,
-      videoUrls: input.videoUrls,
-      negativePrompt: input.negativePrompt,
-      generateAudio: input.generateAudio,
-      seed: input.seed,
-      resolution: input.resolution,
-      i2vModelId: input.i2vModelId,
-      videoDefaults: input.videoDefaults,
+      prompt: PROMPT,
+      modelId,
+      externalModelId: model.externalModelId,
+      aspectRatio: '16:9',
+      duration: 5,
+      referenceImage,
+      i2vModelId: model.i2vModelId,
+      videoDefaults: model.videoDefaults,
+      ...overrides,
     },
   }
 }
@@ -337,10 +344,10 @@ const falBodyCases: FalBodyCase[] = [
   },
 ]
 
-describe('buildFalVideoQueueRequest', () => {
+describe('buildFalWorkerQueueRequest — per-model bodies', () => {
   it.each(falBodyCases)('builds $label body', (testCase) => {
-    const request = buildFalVideoQueueRequest(
-      buildInput(testCase.modelId, testCase.referenceImage),
+    const request = buildFalWorkerQueueRequest(
+      buildWorkerInput(testCase.modelId, testCase.referenceImage),
     )
 
     expect(request.endpointModelId).toBe(testCase.expectedEndpoint)
@@ -355,15 +362,18 @@ describe('buildFalVideoQueueRequest', () => {
 
   it('rejects Seedance Reference without a reference image or video before hitting provider', () => {
     expect(() =>
-      buildFalVideoQueueRequest(buildInput(AI_MODELS.SEEDANCE_20_REFERENCE)),
+      buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE),
+      ),
     ).toThrow(/requires at least one reference image or video/)
   })
 
   it('accepts a video-only Seedance Reference request', () => {
-    const result = buildFalVideoQueueRequest({
-      ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE),
-      videoUrls: ['https://example.com/clip.mp4'],
-    })
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, undefined, {
+        videoUrls: ['https://example.com/clip.mp4'],
+      }),
+    )
 
     expect(result.input.image_urls).toBeUndefined()
     expect(result.input.video_urls).toEqual(['https://example.com/clip.mp4'])
@@ -371,22 +381,23 @@ describe('buildFalVideoQueueRequest', () => {
   })
 
   it('filters unsupported 1080p resolution for Seedance 2.0 Fast', () => {
-    const input = buildInput(AI_MODELS.SEEDANCE_20_FAST)
-    const request = buildFalVideoQueueRequest({
-      ...input,
-      resolution: '1080p',
-    })
+    const request = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.SEEDANCE_20_FAST, undefined, {
+        resolution: '1080p',
+      }),
+    )
 
     expect(request.input).toMatchObject({ resolution: '720p' })
   })
 
   it('uses the public Seedance 2.5 I2V schema, including an optional end frame', () => {
     const endFrame = 'https://example.com/end.png'
-    const result = buildFalVideoQueueRequest({
-      ...buildInput(AI_MODELS.SEEDANCE_25, REF),
-      duration: 30,
-      referenceImages: [REF, endFrame],
-    })
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.SEEDANCE_25, REF, {
+        duration: 30,
+        referenceImages: [REF, endFrame],
+      }),
+    )
 
     expect(result.endpointModelId).toBe('bytedance/seedance-2.5/image-to-video')
     expect(result.input).toMatchObject({
@@ -396,15 +407,6 @@ describe('buildFalVideoQueueRequest', () => {
       duration: '30',
       resolution: '720p',
     })
-    expect(
-      buildFalWorkerQueueRequest({
-        providerInput: {
-          ...buildWorkerInput(AI_MODELS.SEEDANCE_25, REF).providerInput,
-          duration: 30,
-          referenceImages: [REF, endFrame],
-        },
-      }),
-    ).toEqual(result)
   })
 
   it('keeps Seedance 2.5 reference limits at 30/10/10 with a 50-file cap', () => {
@@ -420,30 +422,28 @@ describe('buildFalVideoQueueRequest', () => {
       { length: 12 },
       (_, i) => `https://example.com/audio-${i}.mp3`,
     )
-    const input = {
-      ...buildInput(AI_MODELS.SEEDANCE_25_REFERENCE, REF),
-      duration: 30 as const,
-      referenceImages: images,
-      videoUrls: videos,
-      audioUrls: audio,
-    }
-    const result = buildFalVideoQueueRequest(input)
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.SEEDANCE_25_REFERENCE, REF, {
+        duration: 30,
+        referenceImages: images,
+        videoUrls: videos,
+        audioUrls: audio,
+      }),
+    )
 
     expect(result.input.duration).toBe('30')
     expect(result.input.image_urls).toHaveLength(30)
     expect(result.input.video_urls).toHaveLength(10)
     expect(result.input.audio_urls).toHaveLength(10)
-    expect(buildFalWorkerQueueRequest({ providerInput: input })).toEqual(result)
   })
 
   it('normalizes legacy Veo public ID before building queue requests', () => {
-    const legacyVeo = buildFalVideoQueueRequest({
-      ...buildInput(AI_MODELS.VEO_31),
-      modelId: 'veo-3',
-    })
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.VEO_31, undefined, { modelId: 'veo-3' }),
+    )
 
-    expect(legacyVeo.endpointModelId).toBe('fal-ai/veo3.1')
-    expect(legacyVeo.input).toMatchObject({
+    expect(result.endpointModelId).toBe('fal-ai/veo3.1')
+    expect(result.input).toMatchObject({
       prompt: PROMPT,
       aspect_ratio: '16:9',
       resolution: '1080p',
@@ -451,10 +451,11 @@ describe('buildFalVideoQueueRequest', () => {
   })
 
   it('emits audio_urls for Seedance 2.0 Reference when provided', () => {
-    const result = buildFalVideoQueueRequest({
-      ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-      audioUrls: ['https://example.com/voice-a.mp3'],
-    })
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+        audioUrls: ['https://example.com/voice-a.mp3'],
+      }),
+    )
 
     expect(result.input.image_urls).toEqual([REF])
     expect(result.input.audio_urls).toEqual(['https://example.com/voice-a.mp3'])
@@ -467,82 +468,88 @@ describe('buildFalVideoQueueRequest', () => {
       'https://example.com/c.mp3',
       'https://example.com/d.mp3',
     ]
-    const result = buildFalVideoQueueRequest({
-      ...buildInput(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, REF),
-      audioUrls,
-    })
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, REF, {
+        audioUrls,
+      }),
+    )
 
     expect((result.input.audio_urls as string[]).length).toBe(3)
   })
 
   it('omits audio_urls when not provided', () => {
-    const result = buildFalVideoQueueRequest(
-      buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
     )
 
     expect(result.input.audio_urls).toBeUndefined()
   })
 
   it('ignores audioUrls on non-Reference Seedance endpoints', () => {
-    const result = buildFalVideoQueueRequest({
-      ...buildInput(AI_MODELS.SEEDANCE_20_FAST, REF),
-      audioUrls: ['https://example.com/voice.mp3'],
-    })
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.SEEDANCE_20_FAST, REF, {
+        audioUrls: ['https://example.com/voice.mp3'],
+      }),
+    )
 
     expect(result.input.audio_urls).toBeUndefined()
   })
 
   describe('@AudioN prompt injection on Seedance Reference', () => {
     it('prepends @Audio1 when audioUrls is set but the prompt has no @AudioN', () => {
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-        audioUrls: ['https://example.com/voice-a.mp3'],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+          audioUrls: ['https://example.com/voice-a.mp3'],
+        }),
+      )
 
       expect(result.input.prompt).toBe(`@Audio1 ${PROMPT}`)
     })
 
     it('prepends @Audio1 @Audio2 for two audio URLs', () => {
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, REF),
-        audioUrls: [
-          'https://example.com/voice-a.mp3',
-          'https://example.com/voice-b.mp3',
-        ],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, REF, {
+          audioUrls: [
+            'https://example.com/voice-a.mp3',
+            'https://example.com/voice-b.mp3',
+          ],
+        }),
+      )
 
       expect(result.input.prompt).toBe(`@Audio1 @Audio2 ${PROMPT}`)
     })
 
     it('leaves the prompt alone when the user already wrote @Audio1', () => {
       const userPrompt = 'narrator: @Audio1 says "hi"'
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-        prompt: userPrompt,
-        audioUrls: ['https://example.com/voice-a.mp3'],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+          prompt: userPrompt,
+          audioUrls: ['https://example.com/voice-a.mp3'],
+        }),
+      )
 
       expect(result.input.prompt).toBe(userPrompt)
     })
 
     it('does not inject when audioUrls is empty', () => {
-      const result = buildFalVideoQueueRequest(
-        buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
       )
 
       expect(result.input.prompt).toBe(PROMPT)
     })
 
     it('caps the prefix at @Audio3 even when 4 URLs are supplied', () => {
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-        audioUrls: [
-          'https://example.com/a.mp3',
-          'https://example.com/b.mp3',
-          'https://example.com/c.mp3',
-          'https://example.com/d.mp3',
-        ],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+          audioUrls: [
+            'https://example.com/a.mp3',
+            'https://example.com/b.mp3',
+            'https://example.com/c.mp3',
+            'https://example.com/d.mp3',
+          ],
+        }),
+      )
 
       expect(result.input.prompt).toBe(`@Audio1 @Audio2 @Audio3 ${PROMPT}`)
     })
@@ -550,13 +557,14 @@ describe('buildFalVideoQueueRequest', () => {
 
   describe('character-bound @AudioN injection on Seedance Reference', () => {
     it('labels @AudioN with the character name when audioBindings carries one', () => {
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-        audioBindings: [
-          { url: 'https://example.com/alice.mp3', characterName: 'Alice' },
-          { url: 'https://example.com/bob.mp3', characterName: 'Bob' },
-        ],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+          audioBindings: [
+            { url: 'https://example.com/alice.mp3', characterName: 'Alice' },
+            { url: 'https://example.com/bob.mp3', characterName: 'Bob' },
+          ],
+        }),
+      )
 
       expect(result.input.prompt).toBe(
         `Alice (@Audio1) Bob (@Audio2) ${PROMPT}`,
@@ -568,34 +576,37 @@ describe('buildFalVideoQueueRequest', () => {
     })
 
     it('mixes labeled and unlabeled bindings within the same prompt', () => {
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-        audioBindings: [
-          { url: 'https://example.com/narrator.mp3' },
-          { url: 'https://example.com/alice.mp3', characterName: 'Alice' },
-        ],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+          audioBindings: [
+            { url: 'https://example.com/narrator.mp3' },
+            { url: 'https://example.com/alice.mp3', characterName: 'Alice' },
+          ],
+        }),
+      )
 
       expect(result.input.prompt).toBe(`@Audio1 Alice (@Audio2) ${PROMPT}`)
     })
 
     it('falls back to bare audioUrls when audioBindings is absent', () => {
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-        audioUrls: ['https://example.com/x.mp3'],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+          audioUrls: ['https://example.com/x.mp3'],
+        }),
+      )
 
       expect(result.input.prompt).toBe(`@Audio1 ${PROMPT}`)
     })
 
     it('prefers audioBindings when both audioBindings and audioUrls are given', () => {
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-        audioUrls: ['https://example.com/ignored.mp3'],
-        audioBindings: [
-          { url: 'https://example.com/alice.mp3', characterName: 'Alice' },
-        ],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+          audioUrls: ['https://example.com/ignored.mp3'],
+          audioBindings: [
+            { url: 'https://example.com/alice.mp3', characterName: 'Alice' },
+          ],
+        }),
+      )
 
       expect(result.input.audio_urls).toEqual(['https://example.com/alice.mp3'])
       expect(result.input.prompt).toBe(`Alice (@Audio1) ${PROMPT}`)
@@ -604,10 +615,11 @@ describe('buildFalVideoQueueRequest', () => {
 
   describe('video_urls + @VideoN injection on Seedance Reference', () => {
     it('emits video_urls and prepends @Video1 when videoUrls is set', () => {
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-        videoUrls: ['https://example.com/clip-a.mp4'],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+          videoUrls: ['https://example.com/clip-a.mp4'],
+        }),
+      )
 
       expect(result.input.video_urls).toEqual([
         'https://example.com/clip-a.mp4',
@@ -616,15 +628,16 @@ describe('buildFalVideoQueueRequest', () => {
     })
 
     it('caps video_urls at 3 and prepends @Video1 @Video2 @Video3', () => {
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, REF),
-        videoUrls: [
-          'https://example.com/a.mp4',
-          'https://example.com/b.mp4',
-          'https://example.com/c.mp4',
-          'https://example.com/d.mp4',
-        ],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, REF, {
+          videoUrls: [
+            'https://example.com/a.mp4',
+            'https://example.com/b.mp4',
+            'https://example.com/c.mp4',
+            'https://example.com/d.mp4',
+          ],
+        }),
+      )
 
       expect((result.input.video_urls as string[]).length).toBe(3)
       expect(result.input.prompt).toBe(`@Video1 @Video2 @Video3 ${PROMPT}`)
@@ -632,38 +645,41 @@ describe('buildFalVideoQueueRequest', () => {
 
     it('leaves the prompt alone when the user already wrote @Video1', () => {
       const userPrompt = 'continue from @Video1 with new motion'
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-        prompt: userPrompt,
-        videoUrls: ['https://example.com/clip.mp4'],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+          prompt: userPrompt,
+          videoUrls: ['https://example.com/clip.mp4'],
+        }),
+      )
 
       expect(result.input.prompt).toBe(userPrompt)
     })
 
     it('omits video_urls when not provided', () => {
-      const result = buildFalVideoQueueRequest(
-        buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
       )
 
       expect(result.input.video_urls).toBeUndefined()
     })
 
     it('ignores videoUrls on non-Reference Seedance endpoints', () => {
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_FAST, REF),
-        videoUrls: ['https://example.com/clip.mp4'],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_FAST, REF, {
+          videoUrls: ['https://example.com/clip.mp4'],
+        }),
+      )
 
       expect(result.input.video_urls).toBeUndefined()
     })
 
     it('combines @AudioN and @VideoN prefixes when both are supplied', () => {
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-        audioUrls: ['https://example.com/voice.mp3'],
-        videoUrls: ['https://example.com/clip.mp4'],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+          audioUrls: ['https://example.com/voice.mp3'],
+          videoUrls: ['https://example.com/clip.mp4'],
+        }),
+      )
 
       expect(result.input.prompt).toBe(`@Video1 @Audio1 ${PROMPT}`)
       expect(result.input.audio_urls).toEqual(['https://example.com/voice.mp3'])
@@ -675,20 +691,21 @@ describe('buildFalVideoQueueRequest', () => {
         { length: 9 },
         (_, i) => `https://example.com/img-${i}.png`,
       )
-      const result = buildFalVideoQueueRequest({
-        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
-        referenceImages: nineImages,
-        audioUrls: [
-          'https://example.com/a.mp3',
-          'https://example.com/b.mp3',
-          'https://example.com/c.mp3',
-        ],
-        videoUrls: [
-          'https://example.com/x.mp4',
-          'https://example.com/y.mp4',
-          'https://example.com/z.mp4',
-        ],
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF, {
+          referenceImages: nineImages,
+          audioUrls: [
+            'https://example.com/a.mp3',
+            'https://example.com/b.mp3',
+            'https://example.com/c.mp3',
+          ],
+          videoUrls: [
+            'https://example.com/x.mp4',
+            'https://example.com/y.mp4',
+            'https://example.com/z.mp4',
+          ],
+        }),
+      )
 
       expect((result.input.image_urls as string[]).length).toBe(6)
       expect((result.input.audio_urls as string[]).length).toBe(3)
@@ -696,56 +713,29 @@ describe('buildFalVideoQueueRequest', () => {
     })
   })
 
-  it('honors explicit audio and seed parameters in inline and worker builders', () => {
-    const happyHorse = {
-      ...buildInput(AI_MODELS.HAPPYHORSE_10, REF),
-      generateAudio: false,
-      seed: 31415,
-    }
-    const inline = buildFalVideoQueueRequest(happyHorse)
-    const worker = buildFalWorkerQueueRequest({
-      providerInput: {
-        ...happyHorse,
-        aspectRatio: happyHorse.aspectRatio,
-      },
-    })
+  it('honors explicit audio and seed parameters on the worker builder', () => {
+    const happyHorse = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.HAPPYHORSE_10, REF, {
+        generateAudio: false,
+        seed: 31415,
+      }),
+    )
 
-    expect(inline.input.seed).toBe(31415)
+    expect(happyHorse.input.seed).toBe(31415)
     // HappyHorse's public v1.1 schema has native audio but no generate_audio
     // switch, so the unsupported override is deliberately absent.
-    expect(inline.input.generate_audio).toBeUndefined()
-    expect(worker).toEqual(inline)
+    expect(happyHorse.input.generate_audio).toBeUndefined()
 
-    const seedance = {
-      ...buildInput(AI_MODELS.SEEDANCE_20_FAST),
-      generateAudio: false,
-      seed: 2718,
-    }
-    const inlineSeedance = buildFalVideoQueueRequest(seedance)
-    const workerSeedance = buildFalWorkerQueueRequest({
-      providerInput: {
-        ...seedance,
-        aspectRatio: seedance.aspectRatio,
-      },
-    })
-    expect(inlineSeedance.input).toMatchObject({
+    const seedance = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.SEEDANCE_20_FAST, undefined, {
+        generateAudio: false,
+        seed: 2718,
+      }),
+    )
+    expect(seedance.input).toMatchObject({
       generate_audio: false,
       seed: 2718,
     })
-    expect(workerSeedance).toEqual(inlineSeedance)
-  })
-})
-
-describe('buildFalWorkerQueueRequest', () => {
-  it.each(falBodyCases)('matches inline builder for $label', (testCase) => {
-    const inline = buildFalVideoQueueRequest(
-      buildInput(testCase.modelId, testCase.referenceImage),
-    )
-    const worker = buildFalWorkerQueueRequest(
-      buildWorkerInput(testCase.modelId, testCase.referenceImage),
-    )
-
-    expect(worker).toEqual(inline)
   })
 
   it('keeps the source-of-truth FAL video model list fully covered', () => {
@@ -761,71 +751,39 @@ describe('buildFalWorkerQueueRequest', () => {
     )
   })
 
-  it('matches inline legacy ID normalization for execution-worker requests', () => {
-    const inline = buildFalVideoQueueRequest({
-      ...buildInput(AI_MODELS.VEO_31),
-      modelId: 'veo-3',
-    })
-    const worker = buildFalWorkerQueueRequest({
-      providerInput: {
-        ...buildWorkerInput(AI_MODELS.VEO_31).providerInput,
-        modelId: 'veo-3',
-      },
-    })
-
-    expect(worker).toEqual(inline)
-  })
-
   describe('Veo 3.1 multi-reference', () => {
     const REF_A = 'https://example.com/a.png'
     const REF_B = 'https://example.com/b.png'
     const REF_C = 'https://example.com/c.png'
     const REF_D = 'https://example.com/d.png'
 
-    function buildVeoInput(referenceImages: string[]) {
-      const model = getModel(AI_MODELS.VEO_31)
-      const input: FalVideoRequestBuilderInput = {
-        prompt: PROMPT,
-        modelId: AI_MODELS.VEO_31,
-        externalModelId: model.externalModelId,
-        aspectRatio: '16:9',
-        duration: 5,
-        referenceImage: referenceImages[0],
+    function buildVeoWorkerInput(
+      referenceImages: string[],
+    ): FalWorkerVideoRequestContext {
+      return buildWorkerInput(AI_MODELS.VEO_31, referenceImages[0], {
         referenceImages,
-        i2vModelId: model.i2vModelId,
-        videoDefaults: model.videoDefaults,
-      }
-      return input
+      })
     }
 
     it('passes the full referenceImages array through to image_urls', () => {
-      const result = buildFalVideoQueueRequest(
-        buildVeoInput([REF_A, REF_B, REF_C]),
+      const result = buildFalWorkerQueueRequest(
+        buildVeoWorkerInput([REF_A, REF_B, REF_C]),
       )
       expect(result.mode).toBe('image-to-video')
       expect(result.input.image_urls).toEqual([REF_A, REF_B, REF_C])
     })
 
     it('caps image_urls at 3 even when more references are supplied', () => {
-      const result = buildFalVideoQueueRequest(
-        buildVeoInput([REF_A, REF_B, REF_C, REF_D]),
+      const result = buildFalWorkerQueueRequest(
+        buildVeoWorkerInput([REF_A, REF_B, REF_C, REF_D]),
       )
       expect(result.input.image_urls).toEqual([REF_A, REF_B, REF_C])
     })
 
     it('falls back to [referenceImage] when referenceImages is empty', () => {
-      const model = getModel(AI_MODELS.VEO_31)
-      const result = buildFalVideoQueueRequest({
-        prompt: PROMPT,
-        modelId: AI_MODELS.VEO_31,
-        externalModelId: model.externalModelId,
-        aspectRatio: '16:9',
-        duration: 5,
-        referenceImage: REF_A,
-        referenceImages: [],
-        i2vModelId: model.i2vModelId,
-        videoDefaults: model.videoDefaults,
-      })
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.VEO_31, REF_A, { referenceImages: [] }),
+      )
       expect(result.input.image_urls).toEqual([REF_A])
     })
   })

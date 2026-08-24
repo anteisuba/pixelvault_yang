@@ -52,7 +52,7 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 第一主路径：`选模型 → prompt/参考图 → 生成 → 永久保存 → 管理/复用`。Studio 是主入口；Node workflow 是长视频/高级编排层，不替代 Studio。
 
 - 入口分模态：`api/studio/generate` → `studio-generate.service` → `image/submit-image.service`；`api/generate-video` / `generate-audio` / `generate-3d` 各有 service；长视频 `api/generate-long-video` → `video-pipeline.service`；画布持久化 `api/node-workflow/projects/**` → `node/node-workflow.service`。
-- `image/generate-image.service` = orchestrator（**高风险，8+ 依赖**）。
+- `image/generate-image.service`（~480 行）= 路由解析 + 校验 + 参考图上传模块（**高风险，8+ 依赖**）；**不再是 orchestrator**——2026-08-24 死执行链清理删掉了它内部的 provider 调用/fallback/落库路径（`generateImageForUser` 等），真正的 provider 调用现在只在 `workers/execution`。它现在只做「算出该用哪个 model/key/provider config」（`resolveGenerationRoute` / `resolveImageRouteAndValidate`），由 `image/submit-image.service` 拿着这份路由结果去签名派发给 Worker。
 - **`Generation` = 全模态统一资产记录**（outputType / status / url+storageKey / 缩略图 / 尺寸时长 / 3D 模型字段 / prompt / model+provider / 可见性 / userId / projectId / 卡片-配方-runGroup 元数据）；`generation.service` 拥有创建/查询/可见性/列表/删除。
 - 异步执行骨架：`GenerationJob` + `ApiUsageLedger`（`usage.service`：免费位预留 / job 创建 / 完成 / 失败 / 账本挂接）+ `execution-outbox` / `execution-callback` / `execution-sweeper` services + `/api/internal/execution/*`（签名回调）。**Comfy runner 复用此骨架**（见 `plans/comfy-runner-HANDOFF-2026-07.md`）。
 - 无付费公开体验保护：生产环境未显式设置 `PLATFORM_GENERATION_ENABLED=true` 时平台生成 fail closed；免费位在同一数据库 advisory lock 内执行全局日预算（500）与用户日额度（20）检查；创建 Job 时按用户串行限制最多 2 个 `QUEUED/RUNNING` 任务。
@@ -63,7 +63,7 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 
 ## Provider 接入（现状）
 
-- Adapter 目录 `src/services/providers/`（2026-07-10 清点）：elevenlabs · fal（含子目录）· fish-audio · gemini · huggingface · novelai · openai · replicate · runway · volcengine + `registry.ts` + `types.ts`；adapter type 集中 `src/constants/providers.ts`。
+- Adapter 目录 `src/services/providers/`（2026-08-24 清点，`runway.adapter.ts` 已随死执行链清理整删）：elevenlabs · fal（含子目录）· fish-audio · gemini · huggingface · minimax（`minimaxAdapter`/`minimaxCnAdapter` 两个 type）· novelai · openai · replicate · runner · volcengine（`volcengineAdapter`/`byteplusAdapter` 两个 type）+ `registry.ts` + `types.ts`；11 个文件、13 个 registry 条目；adapter type 集中 `src/constants/providers.ts`。
 - Provider adapter 输入包含解析后的 `externalModelId`；adapter 优先使用该值，不能重新从硬编码目录取执行模型 ID。
 - BYOK：`api-key-resolver.service`；**显式 `apiKeyId` 不可 fallback 到平台 key**；平台 key 在 `lib/platform-keys`。
 - 加模型四件套必须同步：`AI_MODELS` enum + 模型配置 + i18n ×3 + provider adapter。
@@ -73,13 +73,13 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 
 grep 的目的是**把所有调用方收进同一个 diff**——不留旧签名垫片、不加兼容层、不写 fallback（CLAUDE.md Engineering Principle 1「不保留向后兼容」）。引用面大只意味着这次改动会大，不构成「改成兼容式」的理由。
 
-| 模块                                           | 引用面（2026-06 口径）                   |
-| ---------------------------------------------- | ---------------------------------------- |
-| `src/types/index.ts`                           | 333 files（见 `src/types/CLAUDE.md`）    |
-| `src/services/user.service.ts`                 | 141 files                                |
-| `src/services/image/generate-image.service.ts` | orchestrator，8+ deps                    |
-| `src/constants/models.ts`                      | 99 files（见 `src/constants/CLAUDE.md`） |
-| `src/services/storage/r2.ts`                   | 55 importers                             |
+| 模块                                           | 引用面（2026-06 口径）                                       |
+| ---------------------------------------------- | ------------------------------------------------------------ |
+| `src/types/index.ts`                           | 333 files（见 `src/types/CLAUDE.md`）                        |
+| `src/services/user.service.ts`                 | 141 files                                                    |
+| `src/services/image/generate-image.service.ts` | 路由解析+上传模块（非 orchestrator，2026-08-24 起），8+ deps |
+| `src/constants/models.ts`                      | 99 files（见 `src/constants/CLAUDE.md`）                     |
+| `src/services/storage/r2.ts`                   | 55 importers                                                 |
 
 ## 安全红线
 
@@ -104,6 +104,15 @@ grep 的目的是**把所有调用方收进同一个 diff**——不留旧签名
 3. **L3 本地镜像**（`CivitaiLoraMirror`）— **兜底层，不是主查询层**。只覆盖 top N，当主路径会让长尾搜索静默变少。它的价值是能回答**从没搜过的词**，这是快照填不了的洞。
 
 顺序上快照优先于镜像：快照是这个查询（连同排序/档位/页码）的精确历史答案，保真度更高。
+
+### 官方分页契约（2026-08-24 核 [Civitai Pagination](https://developer.civitai.com/site/guide/pagination)）
+
+历史几轮「page-only / page+cursor / cursor-priority / revert」都在猜 REST 怎么分页。官方现在写死了：
+
+- 浏览（无 `query`）：`page` 或 `cursor` 均可；深页用 cursor。`page * limit` 不得超过 1000，否则 429。
+- 搜索（有 `query`）：**必须 cursor，禁止 `page`+`query`（400 Bad Request）**。`query` 不带 cursor 可以（第一页）。
+- REST `query=` 与非正式 meilisearch（`search-new.civitai.com`）是同一个搜索子系统，过载时一起死——所以 L1 失败后的回落是快照/镜像，不是 REST `query=`。
+- ⚠ **页码不能跨后端搬。** meilisearch offset 的第 6 页 ≠ 本地镜像 offset 的第 6 页（镜像只覆盖 top N，同一词可能只有几十条）。L1 失败时如果请求页在回落语料里是空的、但这个词其实有命中，必须回到回落第 1 页，不能把「第 6 页 · 41 个 LoRA」配上空列表。
 
 ### 上游实测事实（改动前先看，别重新踩）
 

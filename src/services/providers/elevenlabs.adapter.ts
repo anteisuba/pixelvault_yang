@@ -13,7 +13,6 @@ import {
   type ProviderAdapter,
   type ProviderAudioInput,
   type ProviderAudioResult,
-  type ProviderGenerationResult,
 } from '@/services/providers/types'
 
 /**
@@ -50,19 +49,11 @@ function buildVoiceSettings(
  * ElevenLabs provider adapter — TTS (Text-to-Speech) only, eleven_v3 model.
  *
  * Synchronous API: POST /v1/text-to-speech/{voiceId} → raw audio bytes (no
- * JSON envelope). Auth header is `xi-api-key` (NOT Bearer). Image generation is
- * not supported (throws ProviderError).
+ * JSON envelope). Auth header is `xi-api-key` (NOT Bearer). No image
+ * generation support — ElevenLabs is audio-only.
  */
 export const elevenLabsAdapter: ProviderAdapter = {
   adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
-
-  async generateImage(): Promise<ProviderGenerationResult> {
-    throw new ProviderError(
-      'ElevenLabs',
-      400,
-      'Image generation is not supported by ElevenLabs',
-    )
-  },
 
   async generateAudio(input: ProviderAudioInput): Promise<ProviderAudioResult> {
     const { prompt, modelId, providerConfig, apiKey, voiceId, sampleRate } =

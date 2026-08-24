@@ -143,7 +143,9 @@ LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA/LoRA底�
 
 ### ⑦ Gemini Omni Flash 接入笔记（2026-07-26）
 
-**它不走 `:generateContent`。** Gemini 视频跑在 **Interactions API** 上——一个 create/poll 面，正好对上项目的 `submitVideoToQueue` + `checkVideoQueueStatus` 契约。
+> ⚠ **2026-08-24 更新（死执行链删除）**：本节描述的实现从上线起就没进过 `canSubmitVideoViaExecutionWorker` 白名单，一直卡在 501（生产从未跑通）。死执行链清理已把 `src/services/providers/gemini.adapter.ts` 里的 `generateVideo`/`submitVideoToQueue`/`checkVideoQueueStatus` 三方法连同 `generate-video.service.ts` 的存在性守卫整块删除——**这套代码现在哪儿都不存在**，既不在 src/ 也从未进过 `workers/execution`。下文保留原始 API 形态笔记作历史记录（如果哪天要把 Gemini 视频真正迁进 worker，这仍是最详细的 Interactions API 调研），但别再照着找 `submitVideoToQueue`/`checkVideoQueueStatus` 这两个方法名——它们已经不是任何活代码的一部分。
+
+**它不走 `:generateContent`。** Gemini 视频跑在 **Interactions API** 上——一个 create/poll 面，当时对上了 Next.js adapter 层（已删除）的 `submitVideoToQueue` + `checkVideoQueueStatus` 契约。
 
 | 环节 | 形态                                                                                                                                                                             |
 | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -159,7 +161,7 @@ LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA/LoRA底�
 
 1. **时长不可控** —— Interactions API 没有 duration 参数，官方只说输出 3–10 秒。能力矩阵故意只声明 `[8]` 单值，而不是给一个假的选择器。
 2. **轮询拿不到方向** —— `checkVideoQueueStatus` 的入参只有 `statusUrl/responseUrl/apiKey`，看不到请求时的 aspect ratio，响应里也没有像素尺寸。所以竖屏片段会被标成 1280x720（文件本身是对的，只是元数据不准）。
-3. **⚠ 未经真机验证** —— 实现完全按官方文档写，单测覆盖了提交/轮询/Files 三态/失败分支，但没有用真 API key 跑过一次真实生成。首次真机调用要盯 `submitVideoToQueue` 的 4xx 和 `checkVideoQueueStatus` 里 `Unrecognised video URI` 这条错误——如果 uri 形态和文档不一致，会命中它。
+3. **⚠ 从未真机验证过，且实现已删** —— 当年完全按官方文档写，单测覆盖了提交/轮询/Files 三态/失败分支，但从没用真 API key 跑过一次真实生成，一直卡在 501。2026-08-24 死执行链清理时作为死代码整块删除（见本节顶部更新）——如果以后要重接，`Unrecognised video URI` 这类 uri 形态校验错误是当年笔记留下的唯一线索，实现要重写。
 
 `gemini-omni-flash-preview` 是 preview 档，enum 值特意写成 `gemini-omni-flash`（不含 `-preview`），GA 时只改一行 externalModelId——这是①那次事故的直接教训。
 
@@ -232,13 +234,15 @@ curl -s "https://fal.ai/api/models?keywords=seedance&total=100&page=1" | python 
 
 **✅ 已实现（2026-08-01）。** 下面保留施工事实，因为其中一条纠正了本节初稿的错误判断。
 
-⚠ **初稿说「视频执行面在 Next.js 侧、worker 零改动」——错的。** `generate-video.service.ts:114` 的 `adapter.submitVideoToQueue` 只是存在性守卫，真正的闸在 `canSubmitVideoViaExecutionWorker`，原本写死 `adapterType === FAL`，其余一律 `501 not migrated`。**这意味着火山 Seedance ×4 与 Gemini Omni Flash 至今都执行不了**（火山 adapter 自己的注释写着「service 走 worker-only，dead」）。所以原生视频要能跑，**必须进 execution worker**。
+⚠ **初稿说「视频执行面在 Next.js 侧、worker 零改动」——错的。** 当时 `generate-video.service.ts:114` 的 `adapter.submitVideoToQueue` 只是存在性守卫，真正的闸在 `canSubmitVideoViaExecutionWorker`，原本写死 `adapterType === FAL`，其余一律 `501 not migrated`。**这意味着火山 Seedance ×4 与 Gemini Omni Flash 至今都执行不了**（火山 adapter 自己的注释写着「service 走 worker-only，dead」）。所以原生视频要能跑，**必须进 execution worker**。
+
+> ⚠ **2026-08-24 更新**：`adapter.submitVideoToQueue` 存在性守卫本身已作为死执行链删除（不是改成常量判据——它和 `canSubmitVideoViaExecutionWorker` 本来就查的同一个常量，守卫是纯冗余）。今天路由**只看** `canSubmitVideoViaExecutionWorker`，Next.js 侧 adapter 不再有任何 `submitVideoToQueue`/`checkVideoQueueStatus`/`generateVideo` 方法可守卫——这套方法名已随 fal/gemini/volcengine/minimax 四个 adapter 的死代码清理一起消失，只活在 `workers/execution` 里。
 
 实际落地：
 
 - **worker 新增 provider 派发缝**：`submitProviderQueue` / `pollProviderQueue` 两个包装函数，fal 保持 fallthrough；`CinematicShortVideoWorkflow` 的两个调用点改指向它们。请求构建器抽到 `workers/execution/src/models/minimax/video-request-builder.ts`（照 `models/fal/video-request-builders.ts` 的分工——builder 抽模块、submit/poll 留 index.ts）
 - **两处白名单必须同步**：`generate-video.service.ts` 的 `WORKER_CAPABLE_VIDEO_ADAPTERS`（服务端受不受）与 `video-model-send-plan.ts` 的 `WORKER_READY_VIDEO_ADAPTERS`（UI 给不给发）。只加一处 = 要么 UI 藏着能跑的模型，要么点了发在 workflow 里 500
-- **Next.js adapter 仍要写**（`minimax.adapter.ts`）：`submitVideoToQueue` 是服务端的存在性守卫，缺了直接 400；同时它是 worker 逻辑的可测镜像
+- ~~**Next.js adapter 仍要写**（`minimax.adapter.ts`）：`submitVideoToQueue` 是服务端的存在性守卫，缺了直接 400；同时它是 worker 逻辑的可测镜像~~ —— **2026-08-24 起不再成立**：这份「可测镜像」当时就已经和 worker 活版漂移（见 backend.md 的 fal/volcengine/minimax 三对 fork 记录），死执行链清理把 `minimax.adapter.ts` 的 `buildMiniMaxContent`/`isMiniMaxReferenceModel`/`buildMiniMaxVideoQueueBody`/`generateVideo`/`submitVideoToQueue`/`checkVideoQueueStatus` 全部删除。服务端存在性守卫也已删（见上一条注记）。`minimax.adapter.ts` 现在只剩 `healthCheck`（`minimaxAdapter`/`minimaxCnAdapter` 两个 adapterType 共用同一份实现，形态不变）。
 - **一个实现两个 adapterType**：`minimaxAdapter` / `minimaxCnAdapter` 共享同一份实现，只换 `adapterType` 标签 —— 两站线材格式相同，差的只是 baseUrl 与 key 槽
 - 分辨率：`VIDEO_RESOLUTIONS` 加了 `'2k'`，同时新建 `DEFAULT_VIDEO_RESOLUTIONS`（不含 2k）供 `DEFAULT_VIDEO_MODEL_CAPABILITIES` 用 —— 否则每个没显式声明的模型都会白捡 2K
 - 测试：`minimax.adapter.test.ts` 15 例（2K 固定 / 时长夹取 / 首帧 vs 参考角色 / 顺序保序 / 9-3-3-封顶-12 / 音频不得独存 / 目录接线 / execution ready）。⚠ vitest 配置 `exclude: ['workers/**']`，worker 那份是镜像、测不到，改一边要手动同步另一边

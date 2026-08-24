@@ -43,7 +43,6 @@ vi.mock('@/services/image/generate-image.service', () => {
   return {
     GenerateImageServiceError,
     resolveImageRouteAndValidate: vi.fn(),
-    generateImageForUser: vi.fn(),
     uploadReferenceImagesIfNeeded: vi.fn(),
   }
 })

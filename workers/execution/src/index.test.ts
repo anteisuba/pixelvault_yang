@@ -7,6 +7,7 @@ import {
   createSignedRequestHeaders,
   decryptStateString,
   encryptStateString,
+  generateNovelAiImage,
   hexToBytes,
   isCallbackKind,
   isImageResolutionTier,
@@ -371,6 +372,169 @@ describe('pollAndPersistRunnerImageJob', () => {
     )
     const uploadedBytes = put.mock.calls[0]?.[1] as Uint8Array
     expect(uploadedBytes.byteLength).toBe(1_100_000)
+  })
+})
+
+/**
+ * worker-contracts 补丁 —— 死执行链清理 Step 1（只加不删）。
+ *
+ * `generateNovelAiImage` 是 NovelAI 图片生成在 execution worker 里的真实现
+ * （`context.providerId === 'novelai'` 时被 ImageQueueWorkflow.run 调用，见
+ * index.ts 里 `generate-novelai-image` 那个 step.do）。为了能在这里直接单测它，
+ * 给它加了一个 `export`（纯新增，零行为变化——和同文件里
+ * `pollAndPersistRunnerImageJob` / `buildFalImageInput` 等已导出的纯函数走的
+ * 是同一个既有约定）。
+ *
+ * 对照的是 `src/services/providers/novelai.adapter.ts`（d2c664bd 新增，
+ * `src/services/providers/novelai.adapter.test.ts` 65 行新测试覆盖）里的三条
+ * 语义：V5 模型 params_version 发 4、V5 不发 skip_cfg_above_sigma、V5 拒绝多图
+ * 参考。src 侧那份 adapter 是死 fork（图片生成早已走 worker-only），这里断言的
+ * 是 index.ts 里真正会跑的那份。
+ */
+describe('generateNovelAiImage', () => {
+  const NOVELAI_V5_FULL = 'nai-diffusion-5-full'
+  const NOVELAI_V45_FULL = 'nai-diffusion-4-5-full'
+
+  function createStoredZip(
+    fileName: string,
+    fileData: Uint8Array,
+  ): ArrayBuffer {
+    const fileNameBytes = new TextEncoder().encode(fileName)
+    const header = Buffer.alloc(30)
+    header.writeUInt32LE(0x04034b50, 0)
+    header.writeUInt16LE(20, 4)
+    header.writeUInt16LE(0, 6)
+    header.writeUInt16LE(0, 8)
+    header.writeUInt32LE(0, 10)
+    header.writeUInt32LE(0, 14)
+    header.writeUInt32LE(fileData.byteLength, 18)
+    header.writeUInt32LE(fileData.byteLength, 22)
+    header.writeUInt16LE(fileNameBytes.byteLength, 26)
+    header.writeUInt16LE(0, 28)
+
+    const bytes = Buffer.concat([
+      header,
+      Buffer.from(fileNameBytes),
+      Buffer.from(fileData),
+    ])
+    const zip = new ArrayBuffer(bytes.byteLength)
+    new Uint8Array(zip).set(bytes)
+    return zip
+  }
+
+  function stubNovelAiZipResponse() {
+    const fakeZip = createStoredZip(
+      'image.png',
+      Uint8Array.from(Buffer.from('fake-novel-ai-image')),
+    )
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(fakeZip, {
+        status: 200,
+        headers: { 'content-type': 'application/zip' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  function makeEnv() {
+    return {
+      GENERATION_BUCKET: { put: vi.fn().mockResolvedValue(undefined) },
+      R2_PUBLIC_URL: 'https://cdn.example.com',
+    } as unknown as Parameters<typeof generateNovelAiImage>[0]
+  }
+
+  function makeContext(externalModelId: string, referenceImages?: string[]) {
+    return {
+      runId: 'run-novelai-1',
+      workflowId: 'IMAGE_QUEUE',
+      outputType: 'IMAGE',
+      providerId: 'novelai',
+      callbackUrl: 'https://cb.example.com',
+      resolveKeyUrl: 'https://resolve.example.com',
+      timeoutMs: 60000,
+      maxAttempts: 5,
+      pollIntervalMs: 2000,
+      providerInput: {
+        prompt: 'masterpiece, best quality, 1girl, blue hair',
+        modelId: externalModelId,
+        externalModelId,
+        aspectRatio: '1:1',
+        referenceImages,
+      },
+    } as unknown as Parameters<typeof generateNovelAiImage>[1]
+  }
+
+  it('sends params_version 4 for V5 models', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+
+    await generateNovelAiImage(
+      makeEnv(),
+      makeContext(NOVELAI_V5_FULL),
+      'nai-test-key',
+    )
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+    ) as { model: string; parameters: Record<string, unknown> }
+    expect(body.model).toBe(NOVELAI_V5_FULL)
+    expect(body.parameters.params_version).toBe(4)
+  })
+
+  it('omits skip_cfg_above_sigma for V5 models', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+
+    await generateNovelAiImage(
+      makeEnv(),
+      makeContext(NOVELAI_V5_FULL),
+      'nai-test-key',
+    )
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+    ) as { parameters: Record<string, unknown> }
+    expect(body.parameters).not.toHaveProperty('skip_cfg_above_sigma')
+  })
+
+  it('contrast: V4.5 still sends params_version 3 and keeps skip_cfg_above_sigma', async () => {
+    // Not one of the three ported semantics, but proves the V5 assertions
+    // above are exercising a real branch and not a constant.
+    const fetchMock = stubNovelAiZipResponse()
+
+    await generateNovelAiImage(
+      makeEnv(),
+      makeContext(NOVELAI_V45_FULL),
+      'nai-test-key',
+    )
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+    ) as { parameters: Record<string, unknown> }
+    expect(body.parameters.params_version).toBe(3)
+    expect(body.parameters).toHaveProperty('skip_cfg_above_sigma')
+  })
+
+  it('rejects a V5 request carrying more than one reference image', async () => {
+    // src's novelai.adapter.ts throws specifically for `hasMultiRef && useV5`
+    // ('NovelAI V5 does not support multi-image Character Reference yet.'),
+    // leaving V4/V4.5 multi-ref (Director mode) to go through
+    // buildMultiRefParams. The worker's generateNovelAiImage rejects ANY
+    // NovelAI model with more than one reference image
+    // ('NovelAI multi-reference Director generation is not worker-migrated
+    // yet.') — broader than src's V5-only rule, so this specific case still
+    // throws, but for a different reason. See the drift note in the Step 1
+    // report; not asserting the exact message here since the two forks
+    // disagree on it.
+    await expect(
+      generateNovelAiImage(
+        makeEnv(),
+        makeContext(NOVELAI_V5_FULL, [
+          'https://example.com/a.png',
+          'https://example.com/b.png',
+        ]),
+        'nai-test-key',
+      ),
+    ).rejects.toThrow()
   })
 })
 

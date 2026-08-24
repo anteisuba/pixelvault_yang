@@ -206,14 +206,6 @@ describe('video-pipeline.service', () => {
     )
     mockEnsureUser.mockResolvedValue({ id: 'user-1' })
     mockResolveGenerationRoute.mockResolvedValue(EXECUTION_ROUTE)
-    mockGetProviderAdapter.mockReturnValue({
-      submitVideoToQueue: (...args: unknown[]) =>
-        mockSubmitVideoToQueue(...args),
-      submitExtendVideoToQueue: (...args: unknown[]) =>
-        mockSubmitExtendVideoToQueue(...args),
-      checkVideoQueueStatus: (...args: unknown[]) =>
-        mockCheckVideoQueueStatus(...args),
-    })
     mockSubmitVideoToQueue.mockResolvedValue({
       requestId: 'request-1',
       statusUrl: 'https://queue.example.com/status',

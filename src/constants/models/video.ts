@@ -93,7 +93,14 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
   },
   {
     // Tops all three Artificial Analysis video arenas (T2V ±audio and I2V).
-    // Runs on the Interactions API — see geminiAdapter.submitVideoToQueue.
+    // Runs on the Interactions API. ⚠ available:true but NOT actually
+    // reachable: canSubmitVideoViaExecutionWorker never allowlisted Gemini,
+    // so every request 501s. The Next.js-side implementation (formerly
+    // geminiAdapter.submitVideoToQueue/checkVideoQueueStatus) was deleted as
+    // dead code 2026-08-24 (dead-chain cleanup) and was never migrated to
+    // workers/execution — see docs/references/model-catalog.md §7 for the
+    // historical API-shape notes. Flip available:false or finish the worker
+    // migration before touching this entry.
     // Official docs still mark Omni Flash as preview (ai.google.dev, 2026-07-06
     // last-updated on page). There is no public non-preview id yet — keep
     // preview execution id until Google publishes GA.

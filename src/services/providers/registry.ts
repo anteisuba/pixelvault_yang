@@ -15,7 +15,6 @@ import { novelAiAdapter } from '@/services/providers/novelai.adapter'
 import { openAiAdapter } from '@/services/providers/openai.adapter'
 import { replicateAdapter } from '@/services/providers/replicate.adapter'
 import { runnerAdapter } from '@/services/providers/runner.adapter'
-import { runwayAdapter } from '@/services/providers/runway.adapter'
 import {
   byteplusAdapter,
   volcengineAdapter,
@@ -27,7 +26,6 @@ const PROVIDER_ADAPTERS: Partial<Record<AI_ADAPTER_TYPES, ProviderAdapter>> = {
   [AI_ADAPTER_TYPES.GEMINI]: geminiAdapter,
   [AI_ADAPTER_TYPES.OPENAI]: openAiAdapter,
   [AI_ADAPTER_TYPES.FAL]: falAdapter,
-  [AI_ADAPTER_TYPES.RUNWAY]: runwayAdapter,
   [AI_ADAPTER_TYPES.REPLICATE]: replicateAdapter,
   [AI_ADAPTER_TYPES.NOVELAI]: novelAiAdapter,
   [AI_ADAPTER_TYPES.VOLCENGINE]: volcengineAdapter,

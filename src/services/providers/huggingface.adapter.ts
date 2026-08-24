@@ -1,103 +1,14 @@
 import 'server-only'
 
-import {
-  API_USAGE,
-  AI_PROVIDER_ENDPOINTS,
-  IMAGE_SIZES,
-} from '@/constants/config'
-import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
-import { invertReferenceStrength } from '@/lib/utils'
-
-import {
-  ProviderError,
-  type HealthCheckInput,
-  type ProviderAdapter,
-  type ProviderGenerationInput,
+import type {
+  HealthCheckInput,
+  ProviderAdapter,
 } from '@/services/providers/types'
-
-import { logger } from '@/lib/logger'
 
 export const huggingFaceAdapter: ProviderAdapter = {
   adapterType: AI_ADAPTER_TYPES.HUGGINGFACE,
-  async generateImage({
-    prompt,
-    modelId,
-    externalModelId,
-    aspectRatio,
-    providerConfig,
-    apiKey,
-    referenceImage,
-    referenceImages,
-    advancedParams,
-  }: ProviderGenerationInput) {
-    const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
-    const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.HUGGINGFACE
-    const endpoint = `${baseUrl}/${externalModelId ?? getExecutionModelId(modelId)}`
-    const params: Record<string, unknown> = { width, height }
-
-    if (advancedParams?.negativePrompt) {
-      params.negative_prompt = advancedParams.negativePrompt
-    }
-    if (advancedParams?.guidanceScale != null) {
-      params.guidance_scale = advancedParams.guidanceScale
-    }
-    if (advancedParams?.steps != null) {
-      params.num_inference_steps = advancedParams.steps
-    }
-    if (advancedParams?.seed != null && advancedParams.seed >= 0) {
-      params.seed = advancedParams.seed
-    }
-
-    const body: Record<string, unknown> = {
-      inputs: prompt,
-      parameters: params,
-    }
-
-    const effectiveRefImage = referenceImages?.[0] ?? referenceImage
-    if (effectiveRefImage) {
-      body.image = effectiveRefImage
-      // HuggingFace `strength` = denoising (higher = more change)
-      // Our `referenceStrength` = similarity (higher = more similar)
-      if (advancedParams?.referenceStrength != null) {
-        params.strength = invertReferenceStrength(
-          advancedParams.referenceStrength,
-        )
-      }
-    }
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
-
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => 'Unknown error')
-      logger.error('HuggingFace generateImage failed', {
-        status: response.status,
-        modelId,
-        endpoint,
-        errorBody: errorBody.slice(0, 500),
-      })
-      throw new ProviderError('HuggingFace', response.status, errorBody)
-    }
-
-    const imageBuffer = await response.arrayBuffer()
-    const base64 = Buffer.from(imageBuffer).toString('base64')
-    const contentType = response.headers.get('content-type') ?? 'image/png'
-
-    return {
-      imageUrl: `data:${contentType};base64,${base64}`,
-      width,
-      height,
-      requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-    }
-  },
 
   async healthCheck({ modelId, apiKey, baseUrl, timeoutMs }: HealthCheckInput) {
     const start = Date.now()

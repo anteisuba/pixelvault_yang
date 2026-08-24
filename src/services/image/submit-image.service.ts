@@ -69,8 +69,6 @@ export interface ImageQueueMetadata {
   originalModelId: string
   recipeUsage?: GenerateRequest['recipeUsage']
   advancedParams?: GenerateRequest['advancedParams']
-  /** Set to true once a fallback re-dispatch has happened (caps it at one). */
-  fallbackUsed?: boolean
   workflowInstanceId?: string
   runGroupId?: string
   runGroupType?: 'single' | 'compare' | 'variant'

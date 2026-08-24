@@ -25,8 +25,9 @@ export type ProviderCapability =
 /**
  * How the adapter handles reference images:
  * - 'native': Model natively understands "keep this character, change the scene" (OpenAI, Gemini)
- * - 'img2img': Model treats reference as base image to modify / style transfer (fal.ai Flux, Recraft, SD)
- * - 'director': Specialized character reference system with high reference weight (NovelAI)
+ * - 'img2img': Model treats reference as base image to modify / style transfer (fal.ai Flux, Recraft, SD, NovelAI)
+ * - 'director': Specialized character-reference system. Unused in production after
+ *   NovelAI V5 launch (no Precise Reference) and the V4.5 Director worker gap.
  */
 export type ReferenceImageMode = 'native' | 'img2img' | 'director'
 
@@ -99,7 +100,9 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       steps: { min: 1, max: 50, step: 1, default: 28 },
       referenceStrength: { min: 0.01, max: 0.99, step: 0.01, default: 0.7 },
       maxReferenceImages: 1,
-      referenceImageMode: 'director',
+      // Production worker treats a single reference as img2img. V5 launch has
+      // no Director / Precise Reference; V4.5 Director is not worker-migrated.
+      referenceImageMode: 'img2img',
     },
 
     [AI_ADAPTER_TYPES.FAL]: {
@@ -286,6 +289,14 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
 export const MODEL_CAPABILITY_OVERRIDES: Partial<
   Record<string, Partial<CapabilityConfig>>
 > = {
+  [AI_MODELS.NOVELAI_V5_FULL]: {
+    guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
+    steps: { min: 1, max: 50, step: 1, default: 23 },
+  },
+  [AI_MODELS.NOVELAI_V5_CURATED]: {
+    guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
+    steps: { min: 1, max: 50, step: 1, default: 23 },
+  },
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },

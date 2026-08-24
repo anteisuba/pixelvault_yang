@@ -79,10 +79,12 @@ describe('reference-image-capabilities', () => {
       expect(cap.mode).toBe('img2img')
     })
 
-    it('keeps adapter-level director mode for NovelAI', () => {
+    it('treats NovelAI reference as optional single-image img2img', () => {
       const cap = getImageReferenceCapability(AI_ADAPTER_TYPES.NOVELAI)
       if (cap.kind !== 'flexible') throw new Error('expected flexible')
-      expect(cap.mode).toBe('director')
+      expect(cap.min).toBe(0)
+      expect(cap.max).toBe(1)
+      expect(cap.mode).toBe('img2img')
     })
   })
 

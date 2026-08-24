@@ -6008,12 +6008,21 @@ export async function pollAndPersistRunnerImageJob(
   return { status: 'COMPLETED', ...uploaded }
 }
 
-function isNovelAiV4Model(externalModelId: string): boolean {
+function isNovelAiStructuredPromptModel(externalModelId: string): boolean {
   return (
     externalModelId === 'nai-diffusion-4-full' ||
     externalModelId === 'nai-diffusion-4-curated-preview' ||
     externalModelId === 'nai-diffusion-4-5-full' ||
-    externalModelId === 'nai-diffusion-4-5-curated'
+    externalModelId === 'nai-diffusion-4-5-curated' ||
+    externalModelId === 'nai-diffusion-5-full' ||
+    externalModelId === 'nai-diffusion-5-curated'
+  )
+}
+
+function isNovelAiV5Model(externalModelId: string): boolean {
+  return (
+    externalModelId === 'nai-diffusion-5-full' ||
+    externalModelId === 'nai-diffusion-5-curated'
   )
 }
 
@@ -6103,29 +6112,30 @@ async function generateNovelAiImage(
     configuredSeed != null && configuredSeed >= 0
       ? Math.round(configuredSeed)
       : randomUint32()
-  const useV4 = isNovelAiV4Model(externalModelId)
+  const useStructuredPrompt = isNovelAiStructuredPromptModel(externalModelId)
+  const useV5 = isNovelAiV5Model(externalModelId)
   const parameters: Record<string, unknown> = {
-    params_version: useV4 ? 3 : 1,
+    params_version: useV5 ? 4 : useStructuredPrompt ? 3 : 1,
     width: dimensions.width,
     height: dimensions.height,
-    scale: readNumberField(advancedParams, 'guidanceScale') ?? 5,
+    scale: readNumberField(advancedParams, 'guidanceScale') ?? (useV5 ? 7 : 5),
     sampler: 'k_euler_ancestral',
-    steps: readPositiveNumberField(advancedParams, 'steps') ?? 28,
+    steps:
+      readPositiveNumberField(advancedParams, 'steps') ?? (useV5 ? 23 : 28),
     seed,
     extra_noise_seed: seed,
     n_samples: 1,
-    ucPreset: useV4 ? 4 : 3,
+    ucPreset: useStructuredPrompt ? 4 : 3,
     qualityToggle: false,
     sm: false,
     sm_dyn: false,
     dynamic_thresholding: false,
     controlnet_strength: 1,
     legacy: false,
-    add_original_image: isImg2Img && useV4,
+    add_original_image: isImg2Img && useStructuredPrompt,
     cfg_rescale: 0,
     noise_schedule: 'karras',
     legacy_v3_extend: false,
-    skip_cfg_above_sigma: null,
     use_coords: false,
     characterPrompts: [],
     negative_prompt: negative,
@@ -6133,6 +6143,9 @@ async function generateNovelAiImage(
     reference_image_multiple: [],
     reference_information_extracted_multiple: [],
     reference_strength_multiple: [],
+  }
+  if (!useV5) {
+    parameters.skip_cfg_above_sigma = null
   }
 
   if (referenceImage) {
@@ -6144,7 +6157,7 @@ async function generateNovelAiImage(
     parameters.extra_noise_seed = seed
   }
 
-  if (useV4) {
+  if (useStructuredPrompt) {
     parameters.v4_prompt = {
       caption: {
         base_caption: context.providerInput.prompt,

@@ -156,8 +156,11 @@ async function runHealthCheck(
         break
       }
       case 'novelai':
-        url = 'https://api.novelai.net/user/subscription'
-        headers = { Authorization: `Bearer ${apiKey}` }
+        url = `${test.baseUrl}/user/subscription`
+        headers = {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        }
         break
       case 'volcengine':
         url = `${test.baseUrl}/models`

@@ -158,6 +158,9 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
   [AI_ADAPTER_TYPES.FAL]: { image: false, video: false },
   [AI_ADAPTER_TYPES.RUNWAY]: { image: false, video: false },
   [AI_ADAPTER_TYPES.REPLICATE]: { image: false, video: false },
+  // NovelAI is an image generator (BYOK), not an assistant LLM. The
+  // assistant can *recommend* NovelAI catalog ids via workbench state;
+  // it cannot route chat/vision through this adapter.
   [AI_ADAPTER_TYPES.NOVELAI]: { image: false, video: false },
   [AI_ADAPTER_TYPES.FISH_AUDIO]: { image: false, video: false },
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: { image: false, video: false },

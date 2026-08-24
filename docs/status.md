@@ -6,6 +6,8 @@
 
 ## Current Focus
 
+- **NovelAI 已捞回 Image（2026-08-24）**：V4.5 Full/Curated + V5 Full/Curated，四档 `available: true`、**只 BYOK**。Worker 认 V5 id（`params_version: 4`，不发 `skip_cfg_above_sigma`）。参考图可选、最多 1 张、按 img2img 发。不进 LoRA。助手 LLM 路由不改（NovelAI 不是聊天模型）；enhance / 工作台目录会随 catalog 自动看见这四档。
+
 - **C+F 素材页与选择器 UI 正在做 Codex / Claude 设计对比**：域要求与 shared/dedicated shell 边界已确认；右侧 Dock 是当前工作方向。Owner 2026-08-11 否决 V1 视觉，Codex 已重做“编辑型私人档案馆”V2（文件夹/详情两态），并准备独立的 [`Claude 设计简报`](plans/assets-claude-design-brief-2026-08-11.md)。完整账本见 [`docs/plans/assets-cf-design-2026-08-09.md`](plans/assets-cf-design-2026-08-09.md)；`src/**` 继续冻结，待 owner 对比后选向。
 - **本周十条待办**（owner 2026-08-07 口述），索引 =
   [`docs/plans/week-2026-08-07-backlog.md`](plans/week-2026-08-07-backlog.md)，交接 = 同目录

@@ -238,7 +238,7 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.FAL]: 'fal-ai/flux-2-pro',
   [AI_ADAPTER_TYPES.RUNWAY]: 'gen4.5',
   [AI_ADAPTER_TYPES.REPLICATE]: 'ideogram-ai/ideogram-v2',
-  [AI_ADAPTER_TYPES.NOVELAI]: 'nai-diffusion-4-5-full',
+  [AI_ADAPTER_TYPES.NOVELAI]: 'nai-diffusion-5-full',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'doubao-seedream-5-0-260128',
   [AI_ADAPTER_TYPES.BYTEPLUS]: 'dreamina-seedance-2-0-260128',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 's2-pro',

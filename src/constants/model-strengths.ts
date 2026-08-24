@@ -57,7 +57,7 @@ export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
   [AI_ADAPTER_TYPES.RUNWAY]:
     'Target model: Runway video. Prefer concise cinematic descriptions with subject motion, camera movement, lighting, and scene continuity.',
   [AI_ADAPTER_TYPES.NOVELAI]:
-    'Target model: NovelAI (anime diffusion). Output as comma-separated danbooru-style tags. Include quality tags (masterpiece, best quality) at the start. Character tags before style and background tags.',
+    'Target model: NovelAI (anime diffusion). Prefer comma-separated danbooru-style tags. Quality tags first, then character tags, then style and scene. Natural-language sentences are acceptable on V5 but tags remain the reliable dialect. A reference image is optional: one image becomes img2img, not a character lock. Do not assume Director / Vibe Transfer.',
   [AI_ADAPTER_TYPES.GEMINI]:
     'Target model: Gemini image generation. Prefer natural, descriptive English sentences with rich visual detail.',
   [AI_ADAPTER_TYPES.VOLCENGINE]:
@@ -128,18 +128,52 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
     promptStyle: 'tag-based',
     enhanceHint:
-      'Advanced anime model with fine detail. Use danbooru tags with emphasis syntax like (feature:1.3). Quality tags first, then character details, then style and scene tags.',
+      'NovelAI V4.5 Full. Use danbooru tags with emphasis like (feature:1.3). Quality tags first, then character details, then style and scene. Reference image is optional img2img, not character lock.',
     routerWeights: {
-      referenceFit: 0.7,
+      referenceFit: 0.55,
       costEfficiency: 0.55,
       latency: 0.45,
       health: 0.78,
     },
   },
-  // Added 2026-07-26. This entry was missing entirely, so the router had no
-  // styleFit signal for the model and anime intents could only ever land on
-  // NovelAI. With NovelAI retired, Illustrious/NoobAI carries the anime line —
-  // and it is tag-based (danbooru) for the same reasons NovelAI was.
+  [AI_MODELS.NOVELAI_V45_CURATED]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    enhanceHint:
+      'NovelAI V4.5 Curated. Same tag dialect as Full, cleaner dataset. Quality tags first, then character, then scene. Reference image is optional img2img.',
+    routerWeights: {
+      referenceFit: 0.5,
+      costEfficiency: 0.55,
+      latency: 0.45,
+      health: 0.78,
+    },
+  },
+  [AI_MODELS.NOVELAI_V5_FULL]: {
+    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
+    promptStyle: 'tag-based',
+    enhanceHint:
+      'NovelAI V5 Full. Prefer danbooru tags; short natural-language clauses are also understood. Quality tags first, then character, then scene. Do not rely on Director, Vibe Transfer, or Precise Reference — they are not on V5 yet. One optional reference image is img2img only.',
+    routerWeights: {
+      referenceFit: 0.45,
+      costEfficiency: 0.4,
+      latency: 0.45,
+      health: 0.7,
+    },
+  },
+  [AI_MODELS.NOVELAI_V5_CURATED]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    enhanceHint:
+      'NovelAI V5 Curated. Tag dialect first; short natural-language clauses are ok. Cleaner dataset, easier to steer. No Director / Vibe Transfer on V5 yet. One optional reference image is img2img only.',
+    routerWeights: {
+      referenceFit: 0.4,
+      costEfficiency: 0.4,
+      latency: 0.45,
+      health: 0.7,
+    },
+  },
+  // Illustrious/NoobAI carries the hosted LoRA anime line. NovelAI is a
+  // closed API — same tag dialect, no Civitai LoRA slot.
   [AI_MODELS.ILLUSTRIOUS_XL]: {
     bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
     promptStyle: 'tag-based',
@@ -261,3 +295,21 @@ export function getModelEnhanceHint(
   if (adapterType) return ADAPTER_PROMPT_HINTS[adapterType] ?? null
   return null
 }
+
+export function isTagBasedPromptModel(modelId: string): boolean {
+  return MODEL_STRENGTHS[modelId as AI_MODELS]?.promptStyle === 'tag-based'
+}
+
+/**
+ * Hard dialect for NovelAI / Illustrious-style generators. Chat stays in the
+ * user's language; the thing that goes into the prompt box must be English
+ * danbooru tags. Natural-language paragraphs are the wrong input dialect.
+ */
+export const TAG_BASED_GENERATION_PROMPT_RULE = `GENERATION PROMPT DIALECT — this target model does not eat natural-language paragraphs.
+- Keep chatting in the user's language.
+- When you deliver a generation prompt ([[prompt]] positive, or a code block meant to be pasted into the generator), output English danbooru-style comma-separated tags only.
+- Order: quality tags first, then subject count, character, outfit, pose, expression, then scene / background / lighting.
+- Example dialect: masterpiece, best quality, 1girl, long hair, looking at viewer, school uniform, sitting, indoors.
+- Negative: English tags (lowres, bad anatomy), not sentences.
+- Do not write a cinematic paragraph as the generation prompt. Explanation stays outside the prompt block.
+- This overrides any instruction to write the prompt block in the same language as your prose: tag vocabulary is English-normalised.`

@@ -75,4 +75,69 @@ describe('novelAiAdapter.generateImage', () => {
 
     await expect(novelAiAdapter.generateImage(BASE_INPUT)).rejects.toThrow()
   })
+
+  it('sends V4.5 structured prompt with skip_cfg_above_sigma', async () => {
+    const fakeZip = createStoredZip(
+      'image.png',
+      Uint8Array.from(Buffer.from('fake-novel-ai-image')),
+    )
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(fakeZip, {
+        status: 200,
+        headers: { 'content-type': 'application/zip' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await novelAiAdapter.generateImage({
+      ...BASE_INPUT,
+      modelId: 'nai-diffusion-4-5-full',
+      externalModelId: 'nai-diffusion-4-5-full',
+    })
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+    ) as {
+      model: string
+      parameters: Record<string, unknown>
+    }
+    expect(body.model).toBe('nai-diffusion-4-5-full')
+    expect(body.parameters.params_version).toBe(3)
+    expect(body.parameters.scale).toBe(5)
+    expect(body.parameters).toHaveProperty('skip_cfg_above_sigma')
+    expect(body.parameters.v4_prompt).toBeDefined()
+  })
+
+  it('sends V5 structured prompt without skip_cfg_above_sigma', async () => {
+    const fakeZip = createStoredZip(
+      'image.png',
+      Uint8Array.from(Buffer.from('fake-novel-ai-image')),
+    )
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(fakeZip, {
+        status: 200,
+        headers: { 'content-type': 'application/zip' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await novelAiAdapter.generateImage({
+      ...BASE_INPUT,
+      modelId: 'nai-diffusion-5-full',
+      externalModelId: 'nai-diffusion-5-full',
+    })
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+    ) as {
+      model: string
+      parameters: Record<string, unknown>
+    }
+    expect(body.model).toBe('nai-diffusion-5-full')
+    expect(body.parameters.params_version).toBe(4)
+    expect(body.parameters.scale).toBe(7)
+    expect(body.parameters.steps).toBe(23)
+    expect(body.parameters.v4_prompt).toBeDefined()
+    expect(body.parameters).not.toHaveProperty('skip_cfg_above_sigma')
+  })
 })

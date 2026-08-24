@@ -3311,11 +3311,19 @@
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
-      "description": "最新のNovelAIモデル。生成忠実度向上、複数キャラクター対応、テキスト描画対応。"
+      "description": "前世代の NovelAI Full。複数キャラとテキスト描画に対応。Opus の標準サイズは回数無制限。自分の NovelAI トークンを使う。"
     },
     "novelaiV45Curated": {
       "label": "NovelAI Diffusion V4.5 Curated",
-      "description": "厳選データセットで訓練されたバリアント。制御しやすく、安定した品質を実現。"
+      "description": "前世代の NovelAI Curated。データがきれいで扱いやすい。Opus の標準サイズは回数無制限。自分の NovelAI トークンを使う。"
+    },
+    "novelaiV5Full": {
+      "label": "NovelAI Diffusion V5 Full",
+      "description": "最新の NovelAI アニメモデル。自然言語と複数キャラが強化。自分の NovelAI サブスクを使用。V5 は Opus でも用量制限あり。"
+    },
+    "novelaiV5Curated": {
+      "label": "NovelAI Diffusion V5 Curated",
+      "description": "V5 の厳選データ版。扱いやすい。自分の NovelAI サブスクを使用。V5 は Opus でも用量制限あり。"
     },
     "illustriousXl": {
       "label": "Illustrious XL",

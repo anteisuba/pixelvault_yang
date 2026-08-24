@@ -25,7 +25,9 @@ export function getSystemApiKey(adapterType: string): string | null {
     case AI_ADAPTER_TYPES.REPLICATE:
       return process.env.REPLICATE_API_TOKEN ?? null
     case AI_ADAPTER_TYPES.NOVELAI:
-      return process.env.NOVELAI_API_TOKEN ?? null
+      // BYOK-only (owner 2026-08-24). V5 is metered on Opus; the platform
+      // must not spend a shared NovelAI subscription on user gens.
+      return null
     case AI_ADAPTER_TYPES.VOLCENGINE:
       return process.env.VOLCENGINE_API_KEY ?? null
     case AI_ADAPTER_TYPES.BYTEPLUS:

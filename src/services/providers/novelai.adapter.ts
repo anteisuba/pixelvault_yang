@@ -30,16 +30,24 @@ const NOVELAI_SIZES: Record<string, { width: number; height: number }> = {
 const DEFAULT_NEGATIVE =
   'lowres, bad anatomy, bad hands, missing fingers, extra digit'
 
-/** V4/V4.5 models require structured prompt objects */
-const V4_MODELS = new Set([
+/** V4+ models require structured v4_prompt / v4_negative_prompt objects. */
+const STRUCTURED_PROMPT_MODELS = new Set([
   'nai-diffusion-4-full',
   'nai-diffusion-4-curated-preview',
   'nai-diffusion-4-5-full',
   'nai-diffusion-4-5-curated',
+  'nai-diffusion-5-full',
+  'nai-diffusion-5-curated',
 ])
 
-function isV4Model(modelId: string): boolean {
-  return V4_MODELS.has(modelId)
+const V5_MODELS = new Set(['nai-diffusion-5-full', 'nai-diffusion-5-curated'])
+
+function isStructuredPromptModel(modelId: string): boolean {
+  return STRUCTURED_PROMPT_MODELS.has(modelId)
+}
+
+function isV5Model(modelId: string): boolean {
+  return V5_MODELS.has(modelId)
 }
 
 /**
@@ -263,9 +271,15 @@ async function getSubscriptionRefLimit(
 ): Promise<number> {
   if (referenceImages.length <= 1) return referenceImages.length
   try {
-    const subRes = await fetch('https://api.novelai.net/user/subscription', {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    })
+    const subRes = await fetch(
+      `${AI_PROVIDER_ENDPOINTS.NOVELAI}/user/subscription`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      },
+    )
     if (subRes.ok) {
       const sub = (await subRes.json()) as { tier: number }
       if (sub.tier < 3) return 1
@@ -386,33 +400,39 @@ export const novelAiAdapter: ProviderAdapter = {
         ? advancedParams.seed
         : Math.floor(Math.random() * 4294967295)
 
-    const hasMultiRef = referenceImages && referenceImages.length > 0
+    const hasMultiRef = Boolean(referenceImages && referenceImages.length > 0)
     const isImg2Img = !hasMultiRef && Boolean(referenceImage)
-    const useV4 = isV4Model(externalModelId)
+    const useStructuredPrompt = isStructuredPromptModel(externalModelId)
+    const useV5 = isV5Model(externalModelId)
     const refStrength = advancedParams?.referenceStrength ?? 0.6
 
+    if (hasMultiRef && useV5) {
+      throw new Error(
+        'NovelAI V5 does not support multi-image Character Reference yet.',
+      )
+    }
+
     const parameters: Record<string, unknown> = {
-      params_version: useV4 ? 3 : 1,
+      params_version: useV5 ? 4 : useStructuredPrompt ? 3 : 1,
       width,
       height,
-      scale: advancedParams?.guidanceScale ?? 5.0,
+      scale: advancedParams?.guidanceScale ?? (useV5 ? 7.0 : 5.0),
       sampler: 'k_euler_ancestral',
-      steps: advancedParams?.steps ?? 28,
+      steps: advancedParams?.steps ?? (useV5 ? 23 : 28),
       seed,
       extra_noise_seed: seed,
       n_samples: 1,
-      ucPreset: useV4 ? 4 : 3,
+      ucPreset: useStructuredPrompt ? 4 : 3,
       qualityToggle: false,
       sm: false,
       sm_dyn: false,
       dynamic_thresholding: false,
       controlnet_strength: 1.0,
       legacy: false,
-      add_original_image: isImg2Img && useV4,
+      add_original_image: isImg2Img && useStructuredPrompt,
       cfg_rescale: 0,
       noise_schedule: 'karras',
       legacy_v3_extend: false,
-      skip_cfg_above_sigma: null,
       use_coords: false,
       characterPrompts: [],
       negative_prompt: negative,
@@ -420,6 +440,9 @@ export const novelAiAdapter: ProviderAdapter = {
       reference_image_multiple: [],
       reference_information_extracted_multiple: [],
       reference_strength_multiple: [],
+    }
+    if (!useV5) {
+      parameters.skip_cfg_above_sigma = null
     }
 
     if (isImg2Img && referenceImage) {
@@ -431,23 +454,23 @@ export const novelAiAdapter: ProviderAdapter = {
       Object.assign(parameters, img2imgParams)
     }
 
-    if (hasMultiRef) {
+    if (hasMultiRef && referenceImages) {
       const multiRefParams = await buildMultiRefParams(
         referenceImages,
-        useV4,
+        useStructuredPrompt,
         refStrength,
         apiKey,
       )
       Object.assign(parameters, multiRefParams)
     }
 
-    const effectivePrompt = extractScenePrompt(prompt, !!hasMultiRef)
+    const effectivePrompt = extractScenePrompt(prompt, hasMultiRef)
     parameters.prompt = effectivePrompt
 
-    if (useV4) {
+    if (useStructuredPrompt) {
       Object.assign(
         parameters,
-        buildV4Prompt(effectivePrompt, negative, prompt, !!hasMultiRef),
+        buildV4Prompt(effectivePrompt, negative, prompt, hasMultiRef),
       )
     }
 
@@ -494,11 +517,13 @@ export const novelAiAdapter: ProviderAdapter = {
   async healthCheck({ apiKey, timeoutMs }: HealthCheckInput) {
     const start = Date.now()
     try {
-      // User API is still on api.novelai.net (image.novelai.net is for generation only)
-      const endpoint = 'https://api.novelai.net/user/subscription'
+      const endpoint = `${AI_PROVIDER_ENDPOINTS.NOVELAI}/user/subscription`
       const response = await fetch(endpoint, {
         method: 'GET',
-        headers: { Authorization: `Bearer ${apiKey}` },
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
         signal: AbortSignal.timeout(timeoutMs),
       })
       const latencyMs = Date.now() - start

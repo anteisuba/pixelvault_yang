@@ -156,11 +156,10 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
 > = {
   [WORKFLOW_IDS.ANIME_ILLUSTRATION]: {
     recommendedModelIds: [
-      // ILLUSTRIOUS_XL runs NoobAI — the Illustrious/NoobAI line is the hottest
-      // anime base family on Civitai, so it carries this workflow alone now.
-      // ANIMA_PENCIL_XL omitted: model is currently disabled pending a real
-      // endpoint. Re-add when an Anima checkpoint mirror is wired up.
-      // NOVELAI_V45_CURATED removed 2026-07-26 (retired).
+      AI_MODELS.NOVELAI_V5_FULL,
+      AI_MODELS.NOVELAI_V45_FULL,
+      // ILLUSTRIOUS_XL is the hosted LoRA anime line (Civitai adapters).
+      // NovelAI is a closed API — tags, not LoRA files.
       AI_MODELS.ILLUSTRIOUS_XL,
     ],
   },

@@ -12,6 +12,8 @@ The model name and execution provider remain separate UI fields.
   (`minimax-text` cached as `minimax.svg`, added 2026-08-01 with MiniMax H3 —
   the text variant, matching `bytedance.svg`: `viewBox 0 0 114 24` logotype
   with `fill="currentColor"` so it follows the rail's own colour)
+- NovelAI mark: local geometric N (`novelai.svg`), added 2026-08-24 when
+  V4.5/V5 returned to the image catalog. Not from the lobehub pack.
 - ElevenMusic logotype: ElevenLabs official brand resources,
   https://elevenlabs.io/brand (black SVG cached as `eleven-music.svg`)
 

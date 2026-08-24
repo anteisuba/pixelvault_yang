@@ -23,7 +23,11 @@ import {
   buildAssistantConversationProtocol,
   buildAssistantLoraCandidateDirective,
 } from '@/constants/assistant-protocol'
-import { getModelEnhanceHint } from '@/constants/model-strengths'
+import {
+  getModelEnhanceHint,
+  isTagBasedPromptModel,
+  TAG_BASED_GENERATION_PROMPT_RULE,
+} from '@/constants/model-strengths'
 import { getModelById } from '@/constants/models'
 import { resolveAssistantModelId } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -144,10 +148,17 @@ function buildAssistantSystemPrompt(
   if (modelId) {
     const model = getModelById(modelId)
     const hint = getModelEnhanceHint(modelId, model?.adapterType)
-    if (hint) {
-      modelSection = `\n\nCURRENT TARGET MODEL: ${modelId}${model?.adapterType ? ` (${model.adapterType})` : ''}
+    const dialect = isTagBasedPromptModel(modelId)
+      ? `\n\n${TAG_BASED_GENERATION_PROMPT_RULE}`
+      : ''
+    if (hint || dialect) {
+      modelSection = `\n\nCURRENT TARGET MODEL: ${modelId}${model?.adapterType ? ` (${model.adapterType})` : ''}${
+        hint
+          ? `
 MODEL PROMPT STYLE: ${hint}
 Adapt your output format to match this model's strengths.`
+          : ''
+      }${dialect}`
     }
   }
 

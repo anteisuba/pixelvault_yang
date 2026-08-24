@@ -3311,11 +3311,19 @@
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
-      "description": "最新 NovelAI 模型，生成保真度提升，支持多角色和文字渲染。"
+      "description": "上一代 NovelAI Full，支持多角色和文字渲染。Opus 默认尺寸仍不限次数。使用你自己的 NovelAI token。"
     },
     "novelaiV45Curated": {
       "label": "NovelAI Diffusion V4.5 Curated",
-      "description": "精选数据集训练的变体，更易控制，适合稳定出图。"
+      "description": "上一代 NovelAI Curated，数据更干净、更好控。Opus 默认尺寸仍不限次数。使用你自己的 NovelAI token。"
+    },
+    "novelaiV5Full": {
+      "label": "NovelAI Diffusion V5 Full",
+      "description": "最新 NovelAI 动漫模型。自然语言与多角色更强。走你自己的 NovelAI 订阅；V5 在 Opus 会计入用量。"
+    },
+    "novelaiV5Curated": {
+      "label": "NovelAI Diffusion V5 Curated",
+      "description": "V5 精选档，数据更干净、更好控。走你自己的 NovelAI 订阅；V5 在 Opus 会计入用量。"
     },
     "illustriousXl": {
       "label": "Illustrious XL",

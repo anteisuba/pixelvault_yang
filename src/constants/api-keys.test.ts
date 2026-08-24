@@ -17,10 +17,7 @@ describe('api key adapter options', () => {
       AI_ADAPTER_TYPES.DEEPSEEK,
       AI_ADAPTER_TYPES.FAL,
       AI_ADAPTER_TYPES.REPLICATE,
-      // NOVELAI dropped out 2026-07-26: both V4.5 models retired, so no
-      // available model routes to it anymore. Existing user keys are untouched.
-      // VolcEngine (火山方舟) became active once the direct-API Seedance/Seedream
-      // variants shipped as available models — users need to configure its key.
+      AI_ADAPTER_TYPES.NOVELAI,
       AI_ADAPTER_TYPES.VOLCENGINE,
       AI_ADAPTER_TYPES.BYTEPLUS,
       AI_ADAPTER_TYPES.FISH_AUDIO,

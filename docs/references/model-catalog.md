@@ -17,7 +17,7 @@
 
 ## 现役阵容（⚠ 下方逐条表格是 2026-07-26 快照，已过期）
 
-> **2026-08-21 从代码实测的真实计数**（`available: true`）：**图像 16 + 5 runner** · **视频 26** · **音频 3** · **3D 5**，合计 50 条在售；另有 10 条 `available: false` 的退役存档（图 6 / 视频 2 / 音频 1 / 3D 1）。`RESERVED_MODEL_IDS` 当前为空。
+> **2026-08-24 从代码实测的真实计数**（`available: true`）：**图像 20 + 5 runner** · **视频 26** · **音频 3** · **3D 5**，合计 54 条在售；另有 8 条 `available: false` 的退役存档（图 4 / 视频 2 / 音频 1 / 3D 1）。`RESERVED_MODEL_IDS` 当前为空。2026-08-24 把 NovelAI V4.5 Full/Curated 从退役捞回，并加上 V5 Full/Curated（四档均 BYOK-only）。
 >
 > ⚠ **下面四张逐条表停在 2026-07-26，视频那栏与代码差了 15 条**（Seedance 2.5 六变体、BytePlus 四变体、MiniMax H3 四变体、Kling O3 Pro 都是 07-26 之后加的），音频栏漏了已落地的 ElevenLabs Music v2。**别直接引用这些表**——事实源是 `src/constants/models/{image,video,audio,model-3d}.ts`。表格重建挂在下次月审。
 >
@@ -62,6 +62,18 @@ FISH_AUDIO_S2_PRO（s2-pro，Fish 直连）· ELEVENLABS_SFX_V2（eleven_text_to
 ### 3D（5）
 
 RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全 fal 系）；HUNYUAN3D_2_1 已 false（被 v3.1 上位替代）。
+
+## 本月发现（2026-08-24 · NovelAI V5）
+
+owner 拍板把 NovelAI 从 `RETIRED_MODEL_IDS` 捞回，接到 **Image**（不是 LoRA），四档全开、只 BYOK：
+
+| enum                            | externalModelId           | 备注                               |
+| ------------------------------- | ------------------------- | ---------------------------------- |
+| `NOVELAI_V5_FULL`               | `nai-diffusion-5-full`    | 2026-08-21 发布；Opus 计入用量电池 |
+| `NOVELAI_V5_CURATED`            | `nai-diffusion-5-curated` | 同上；Curated inpaint 仍回落到 4.5 |
+| `NOVELAI_V45_FULL` / `_CURATED` | `nai-diffusion-4-5-*`     | 捞回。Opus 默认尺寸仍无限          |
+
+出图契约：提示词必填（Danbooru tag 方言，V5 也能吃短自然语言）；参考图**可选**，最多 1 张，worker 按 img2img 发。V5 当天没有 Director / Vibe Transfer / Precise Reference。不能挂 Civitai LoRA。
 
 ## 本月发现（2026-07-26，首次全量 + 市场主流度审计）
 
@@ -109,14 +121,13 @@ LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA/LoRA底�
 
 ### ⑤ 本轮退役（`available: false` + 进 RETIRED_MODEL_IDS，不物理删除）
 
-| 退役                         | 理由                                                      |
-| ---------------------------- | --------------------------------------------------------- |
-| SEEDREAM_45 / \_VOLCENGINE   | 被 5.0 取代                                               |
-| IDEOGRAM_3                   | 未进前 15；文字排版位已被 GPT Image 2 / Seedream 5.0 覆盖 |
-| NOVELAI_V45_FULL / \_CURATED | 本部署 46% 成功率（42/91 次）+ 榜单垫底                   |
-| VEO_31                       | 跌出视频前五且单价最高（8 credit）                        |
-| LTX_23                       | 未上榜；budget 位由 SEEDANCE_20_FAST 承担                 |
-| ELEVENLABS_V3                | 约 6.7 倍于 Fish S2 Pro 的价格，质量不占优                |
+| 退役                       | 理由                                                      |
+| -------------------------- | --------------------------------------------------------- |
+| SEEDREAM_45 / \_VOLCENGINE | 被 5.0 取代                                               |
+| IDEOGRAM_3                 | 未进前 15；文字排版位已被 GPT Image 2 / Seedream 5.0 覆盖 |
+| VEO_31                     | 跌出视频前五且单价最高（8 credit）                        |
+| LTX_23                     | 未上榜；budget 位由 SEEDANCE_20_FAST 承担                 |
+| ELEVENLABS_V3              | 约 6.7 倍于 Fish S2 Pro 的价格，质量不占优                |
 
 **退役 ≠ 删除**：条目保留在 enum / MODEL_OPTIONS / i18n 里，只是从选择器消失。永久归档是产品承诺，历史 Generation 记录的 `model` 字段引用着这些 id，物理删除会让旧作品失去模型标签与所属族。
 

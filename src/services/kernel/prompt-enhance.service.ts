@@ -1,7 +1,10 @@
 import 'server-only'
 
 import type { PromptEnhanceStyle } from '@/constants/config'
-import { getModelEnhanceHint } from '@/constants/model-strengths'
+import {
+  getModelEnhanceHint,
+  isTagBasedPromptModel,
+} from '@/constants/model-strengths'
 import { getModelById } from '@/constants/models'
 import { buildInspirationContext } from '@/services/kernel/inspiration-context.service'
 import {
@@ -96,6 +99,15 @@ Do not just list objects — paint with words.
   lora: `You are an expert at writing trigger keywords for LoRA fine-tuned image models. Given a scene description, output a comma-separated list of LoRA-style trigger tags: character tags (e.g. 1girl, blue_hair, twintails), pose tags, clothing tags, background tags, quality tags (masterpiece, best quality, highres), and negative avoidance hints. Keep the output concise, tag-format only (lowercase, underscores). Return ONLY the tag list, no explanation or sentence prose.`,
 }
 
+const TAG_BASED_ENHANCE_SYSTEM_PROMPT = `You rewrite image prompts for tag-based anime diffusion models (NovelAI, Illustrious / NoobAI).
+
+Output ONLY a comma-separated English danbooru tag list. No sentences, no headings, no commentary, no quotes.
+
+Order: quality tags first, then subject count, character, outfit, pose, expression, then scene / background / lighting.
+Example: masterpiece, best quality, 1girl, long hair, looking at viewer, school uniform, sitting, indoors, window light
+
+Preserve the user's subject. Do not invent a different character.`
+
 export async function enhancePrompt(
   clerkId: string,
   prompt: string,
@@ -108,8 +120,13 @@ export async function enhancePrompt(
 
   const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
 
-  // Build model-aware system prompt
+  // Tag-based generators (NovelAI, Illustrious) reject the paragraph
+  // styles above. Swap the whole system prompt rather than appending a
+  // hint the paragraph rules would override.
   let systemPrompt = STYLE_SYSTEM_PROMPTS[style]
+  if (modelId && isTagBasedPromptModel(modelId)) {
+    systemPrompt = TAG_BASED_ENHANCE_SYSTEM_PROMPT
+  }
   if (modelId) {
     const model = getModelById(modelId)
     const hint = getModelEnhanceHint(modelId, model?.adapterType)

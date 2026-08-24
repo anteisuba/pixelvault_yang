@@ -161,4 +161,24 @@ describe('models', () => {
     expect(available.has(AI_MODELS.KLING_O3_PRO)).toBe(true)
     expect(available.has(AI_MODELS.FLUX_2_PRO_EDIT)).toBe(true)
   })
+
+  it('keeps NovelAI V4.5 and V5 available as BYOK image models', () => {
+    const availableImageIds = new Set(
+      getAvailableImageModels().map((model) => model.id),
+    )
+
+    for (const modelId of [
+      AI_MODELS.NOVELAI_V45_FULL,
+      AI_MODELS.NOVELAI_V45_CURATED,
+      AI_MODELS.NOVELAI_V5_FULL,
+      AI_MODELS.NOVELAI_V5_CURATED,
+    ]) {
+      const model = getModelById(modelId)
+      expect(isRetiredModelId(modelId)).toBe(false)
+      expect(model?.available).toBe(true)
+      expect(model?.freeTier).toBeUndefined()
+      expect(model?.adapterType).toBe(AI_ADAPTER_TYPES.NOVELAI)
+      expect(availableImageIds.has(modelId)).toBe(true)
+    }
+  })
 })

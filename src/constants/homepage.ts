@@ -73,7 +73,8 @@ export const HOMEPAGE_MODEL_REFERENCE_PRICES: Partial<
   Record<AI_MODELS, HomepageModelReferencePrice>
 > = {
   // ⚠ 2026-08-18 又搬走一批（图片那 11 条）—— 见下方「已搬走」注记。这里只剩
-  // 退役模型与音频那两条。
+  // 未进 unit-prices 的存量（含仍在售但未核实单价的 NovelAI V4.5，以及退役/音频）。
+  // V5 单价未核实，故意不写——UI 缺价优于猜价。
   [AI_MODELS.IDEOGRAM_3]: { amount: 0.06, unit: 'image' },
   [AI_MODELS.SEEDREAM_45]: { amount: 0.04, unit: 'image' },
   [AI_MODELS.NOVELAI_V45_FULL]: { amount: 0.012, unit: 'image' },

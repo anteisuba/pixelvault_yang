@@ -329,6 +329,10 @@ const HOME_V3_MODEL_BRAND_COVERS: Readonly<Record<string, string>> = {
   'seedream-5.0-pro-volcengine':
     '/homepage/production/models/brand/bytedance.svg',
   'recraft-v4-pro': '/homepage/production/models/brand/recraft.svg',
+  'nai-diffusion-4-5-full': '/homepage/production/models/brand/novelai.svg',
+  'nai-diffusion-4-5-curated': '/homepage/production/models/brand/novelai.svg',
+  'nai-diffusion-5-full': '/homepage/production/models/brand/novelai.svg',
+  'nai-diffusion-5-curated': '/homepage/production/models/brand/novelai.svg',
   'seedance-2.0-fast': '/homepage/production/models/brand/bytedance.svg',
   'seedance-2.0': '/homepage/production/models/brand/bytedance.svg',
   'seedance-2.0-fast-reference':

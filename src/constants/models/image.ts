@@ -225,10 +225,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
     externalModelId: 'nai-diffusion-4-5-full',
     outputType: 'IMAGE',
-    // Retired 2026-07-26 — 46% success rate in this deployment (42/91 calls)
-    // and bottom of the arena. Anime line stays covered by ILLUSTRIOUS_XL and
-    // the runner family, which is also where user LoRAs actually work.
-    available: false,
+    // Restored 2026-08-24 as BYOK-only. Opus still has unlimited default-size
+    // gens on V4.5; V5 is the metered successor.
+    available: true,
     officialUrl: 'https://docs.novelai.net/en/image/models',
     qualityTier: 'premium',
     styleTag: 'anime',
@@ -240,9 +239,35 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
     externalModelId: 'nai-diffusion-4-5-curated',
     outputType: 'IMAGE',
-    // Retired 2026-07-26 — retired alongside the full variant.
-    available: false,
+    available: true,
     officialUrl: 'https://docs.novelai.net/en/image/models',
+    qualityTier: 'premium',
+    styleTag: 'anime',
+  },
+  {
+    id: AI_MODELS.NOVELAI_V5_FULL,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
+    externalModelId: 'nai-diffusion-5-full',
+    outputType: 'IMAGE',
+    // NovelAI Diffusion V5, 2026-08-21. Same generate-image endpoint as 4.5.
+    // BYOK-only: V5 is excluded from Opus unlimited and burns Anlas after
+    // the usage battery. Director / Vibe Transfer are not on the launch API.
+    available: true,
+    officialUrl: 'https://novelai.net/v5',
+    qualityTier: 'premium',
+    styleTag: 'anime',
+  },
+  {
+    id: AI_MODELS.NOVELAI_V5_CURATED,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
+    externalModelId: 'nai-diffusion-5-curated',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://novelai.net/v5',
     qualityTier: 'premium',
     styleTag: 'anime',
   },

@@ -97,6 +97,26 @@ describe('enhancePrompt', () => {
     expect(call?.systemPrompt).toMatch(/Model-specific guidance/i)
   })
 
+  it('swaps paragraph styles for danbooru tags when the target is NovelAI', async () => {
+    mockLlmCompletion.mockResolvedValue(
+      'masterpiece, best quality, 1girl, cat ears, sitting under a tree',
+    )
+
+    await enhancePrompt(
+      'clerk_1',
+      ORIGINAL_PROMPT,
+      'photorealistic',
+      AI_MODELS.NOVELAI_V5_FULL,
+    )
+
+    const call = mockLlmCompletion.mock.calls[0]?.[0] as
+      | { systemPrompt: string }
+      | undefined
+    expect(call?.systemPrompt).toMatch(/danbooru tag list/i)
+    expect(call?.systemPrompt).not.toMatch(/ONE dense paragraph/i)
+    expect(call?.systemPrompt).toMatch(/Model-specific guidance/i)
+  })
+
   it('falls back to the original prompt when the LLM output is rejected', async () => {
     // Meta-commentary that the validator will reject after stripping fails.
     mockLlmCompletion.mockResolvedValue('') // empty output → unusable

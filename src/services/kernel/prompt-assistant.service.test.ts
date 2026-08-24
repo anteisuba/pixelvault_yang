@@ -162,6 +162,27 @@ describe('chatPromptAssistant', () => {
     )
   })
 
+  it('requires English danbooru tags when the target model is NovelAI', async () => {
+    mockLlmCompletion.mockResolvedValue('ask a couple of clarifying questions')
+
+    await runGeneralTurn('clerk_1', {
+      messages: [{ role: 'user', content: '帮我写提示词，一个穿校服的女孩' }],
+      modelId: 'nai-diffusion-5-full',
+      assistantDomain: 'image',
+    })
+
+    const call = mockLlmCompletion.mock.calls[0]?.[0] as
+      | { systemPrompt: string }
+      | undefined
+    expect(call?.systemPrompt).toContain(
+      'CURRENT TARGET MODEL: nai-diffusion-5-full',
+    )
+    expect(call?.systemPrompt).toMatch(
+      /does not eat natural-language paragraphs/i,
+    )
+    expect(call?.systemPrompt).toMatch(/danbooru-style comma-separated tags/i)
+  })
+
   it('sends full history first, then compacts once on a provider context error', async () => {
     mockLlmCompletion
       .mockRejectedValueOnce(new Error('context limit'))

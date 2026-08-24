@@ -3311,11 +3311,19 @@
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
-      "description": "Latest NovelAI model with improved fidelity, multi-character support, and text rendering."
+      "description": "Previous NovelAI Full model with multi-character prompting and text rendering. Unlimited on Opus at default size. Bring your own NovelAI token."
     },
     "novelaiV45Curated": {
       "label": "NovelAI Diffusion V4.5 Curated",
-      "description": "Curated variant trained on cleaner data — easier to steer, ideal for consistent quality."
+      "description": "Previous NovelAI Curated model trained on cleaner data — easier to steer. Unlimited on Opus at default size. Bring your own NovelAI token."
+    },
+    "novelaiV5Full": {
+      "label": "NovelAI Diffusion V5 Full",
+      "description": "Latest NovelAI anime model. Stronger natural-language and multi-character prompting. Uses your NovelAI subscription; V5 is metered on Opus."
+    },
+    "novelaiV5Curated": {
+      "label": "NovelAI Diffusion V5 Curated",
+      "description": "Cleaner-dataset V5 variant — easier to steer. Uses your NovelAI subscription; V5 is metered on Opus."
     },
     "illustriousXl": {
       "label": "Illustrious XL",

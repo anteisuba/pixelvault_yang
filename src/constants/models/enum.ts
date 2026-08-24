@@ -48,6 +48,8 @@ export enum AI_MODELS {
   GEMINI_FLASH_LITE_IMAGE = 'gemini-3.1-flash-lite-image',
   NOVELAI_V45_FULL = 'nai-diffusion-4-5-full',
   NOVELAI_V45_CURATED = 'nai-diffusion-4-5-curated',
+  NOVELAI_V5_FULL = 'nai-diffusion-5-full',
+  NOVELAI_V5_CURATED = 'nai-diffusion-5-curated',
   ILLUSTRIOUS_XL = 'illustrious-xl',
   ANIMA_PENCIL_XL = 'anima-pencil-xl',
   RECRAFT_V4_PRO = 'recraft-v4-pro',

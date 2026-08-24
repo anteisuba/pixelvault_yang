@@ -9,7 +9,11 @@ import {
   isAiAdapterType,
   type ProviderConfig,
 } from '@/constants/providers'
-import { HEALTH_CHECK, RUNWAY_API } from '@/constants/config'
+import {
+  AI_PROVIDER_ENDPOINTS,
+  HEALTH_CHECK,
+  RUNWAY_API,
+} from '@/constants/config'
 import { logger } from '@/lib/logger'
 import { safeFetch } from '@/lib/url-guard'
 import { ProviderConfigSchema } from '@/types'
@@ -397,12 +401,19 @@ async function verifyAdapterKey(
         break
       }
       case AI_ADAPTER_TYPES.NOVELAI: {
-        // User API is on api.novelai.net (image.novelai.net is generation only)
-        response = await fetch('https://api.novelai.net/user/subscription', {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${apiKey}` },
-          signal: AbortSignal.timeout(timeoutMs),
-        })
+        // 2026-07: NovelAI moved /user/subscription off api.novelai.net onto
+        // the image host. Hitting the old URL 401/404s a valid pst- token.
+        response = await fetch(
+          `${AI_PROVIDER_ENDPOINTS.NOVELAI}/user/subscription`,
+          {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            signal: AbortSignal.timeout(timeoutMs),
+          },
+        )
         break
       }
       case AI_ADAPTER_TYPES.VOLCENGINE:
@@ -486,6 +497,11 @@ async function verifyAdapterKey(
     if (response.ok) {
       return { ok: true, latencyMs }
     }
+    logger.warn('API key verification rejected by provider', {
+      adapterType,
+      status: response.status,
+      latencyMs,
+    })
     return { ok: false, latencyMs, error: `HTTP ${response.status}` }
   } catch (err) {
     const latencyMs = Date.now() - start

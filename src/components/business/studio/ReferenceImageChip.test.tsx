@@ -12,6 +12,7 @@ const mockImageUpload = vi.hoisted(() => ({
   addReferenceImage: vi.fn(),
   addFromUrl: vi.fn(),
   removeReferenceImage: vi.fn(),
+  handleFileChange: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
@@ -96,5 +97,26 @@ describe('ReferenceImageChip', () => {
     )
 
     expect(screen.getByTestId('image-picker-popover-body')).toBeInTheDocument()
+  })
+
+  it('⭐ 上传走 R2 那条路，不再把整张图 base64 塞进生成请求', () => {
+    // ⚠ 这条 413 是真机撞出来的：base64 膨胀 ~33%，一张 3.4MB 的图就能把
+    //   `POST /api/studio/generate` 的 body 顶到 Vercel Serverless 的 4.5MB
+    //   硬上限，平台层直接拒、响应不是 JSON，前端只剩 `Failed with status 413`。
+    render(
+      <Toolbar.Root>
+        <ReferenceImageChip />
+      </Toolbar.Root>,
+    )
+
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['x'], 'ref.png', { type: 'image/png' })
+    Object.defineProperty(input, 'files', { value: [file] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    expect(mockImageUpload.handleFileChange).toHaveBeenCalledWith(file)
+    expect(mockImageUpload.addReferenceImage).not.toHaveBeenCalled()
   })
 })

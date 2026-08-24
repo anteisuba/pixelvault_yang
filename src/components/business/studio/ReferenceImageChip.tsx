@@ -32,7 +32,8 @@ interface ReferenceImageChipProps {
  *                     asset library (shared ImagePickerPopoverBody — same UI
  *                     as the prompt assistant's image entry, docs/plans/
  *                     docs/references/pages/assistant-shell.md)
- *   tap Upload     → native file picker, base64 → addReferenceImage
+ *   tap Upload     → native file picker → uploadLocalFile（压缩 + multipart
+ *                     → R2 URL）。⛔ 绝不是 base64 data URL，见 handleFileSelect
  *   tap Select     → close popover, open full-screen AssetSelectorDialog
  *                     (Krea-style sidebar + grid). Picking a tile fetches
  *                     the asset via addFromUrl and dismisses the dialog.
@@ -60,12 +61,20 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
     dispatch({ type: 'CLOSE_PANEL', payload: 'refImage' })
   }
 
+  /**
+   * ⚠ 这里以前是 `FileReader.readAsDataURL` → `addReferenceImage`，也就是把整张
+   * 图以 **base64 data URL** 塞进 `referenceImages`，随生成请求进 JSON body。
+   * base64 膨胀约 33%，一张 3.4MB 的图就能把 body 顶到 Vercel Serverless 的
+   * **4.5MB 硬上限**，平台层直接 413 —— 响应不是 JSON，前端只能显示
+   * `Failed with status 413`，服务端的错误信息根本没机会产生。
+   *
+   * ⭐ 正确的那条路一直都在：`useImageUpload.handleFileChange` → `uploadLocalFile`
+   * → 压缩（15MB 闸）+ multipart 上传 → 回来一个 R2 的 http(s) URL。粘贴与拖到
+   * 提示词框走的就是它，只有这颗 chip 自己另写了一份。那边的注释写得很清楚：
+   * 「never inlined as a multi-MB data URL in a generate request body」。
+   */
   const handleFileSelect = (file: File) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      imageUpload.addReferenceImage(reader.result as string)
-    }
-    reader.readAsDataURL(file)
+    void imageUpload.handleFileChange(file)
   }
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {

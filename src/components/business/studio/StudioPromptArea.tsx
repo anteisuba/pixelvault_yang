@@ -223,15 +223,30 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   // a generic VALIDATION_ERROR the user can't act on.
   const isImageMode = !isAudioMode && !isVideoMode
   const imagePromptLength = isImageMode ? trimmedPrompt.length : 0
-  // Quick mode sends freePrompt straight to the provider, so cap it at the
-  // selected model's real encoder limit; card mode's freePrompt goes through
-  // LLM fusion, so it keeps the card-recipe default.
-  const imagePromptMaxChars =
-    (isImageMode && state.workflowMode === 'quick'
+  /**
+   * 图片提示词的上限 —— **只认模型自己声明的那个数**（owner 2026-08-24）。
+   *
+   * ⚠ 这里以前是 `?? CARD_RECIPE.FREE_PROMPT_MAX_LENGTH`，也就是模型没声明就
+   * 兜到 **2000**。那个 2000 的主人是**卡片配方**（`CreateCardRecipeSchema` 里
+   * 「动作 / 姿势」那个输入框），被借来当了 quick 模式的默认上限 —— 于是一串
+   * 正常的风格标签就能顶到 `2932/2000` 并把生成按钮锁死，而真正的请求边界
+   * （`StudioGenerateSchema` 的 `FREE_PROMPT_ABSOLUTE_MAX_LENGTH`）是 **32000**。
+   * 常量注释本来就写着「per-model gates decide the real quick-mode cap」。
+   *
+   * ⭐ 与音频那两层同构（`resolveAudioTextLimit`）：**declared** 是厂商声明的
+   * 上限，没声明就没有 —— 给未知模型编一个保守数正是音频侧早就修掉的病
+   * （那边的原话：refusing to invent a ceiling is the point）。超出请求边界时
+   * 由服务端报错，走既有的错误对话框。
+   *
+   * card 模式不变：那条 freePrompt 就是卡片配方自己的字段，2000 是它的数。
+   */
+  const imagePromptMaxChars = !isImageMode
+    ? undefined
+    : state.workflowMode === 'quick'
       ? getModelById(selectedModel?.modelId ?? '')?.maxPromptChars
-      : undefined) ?? CARD_RECIPE.FREE_PROMPT_MAX_LENGTH
+      : CARD_RECIPE.FREE_PROMPT_MAX_LENGTH
   const isImagePromptOverLimit =
-    isImageMode && imagePromptLength > imagePromptMaxChars
+    imagePromptMaxChars !== undefined && imagePromptLength > imagePromptMaxChars
   const audioEstimatedMinutesLabel = useMemo(() => {
     const estimatedMinutes =
       audioPromptLength > 0
@@ -1106,7 +1121,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         focusPrompt: 'now',
       }
     }
-    if (isImagePromptOverLimit) {
+    if (isImagePromptOverLimit && imagePromptMaxChars !== undefined) {
       return {
         message: tPromptArea('blocked.promptTooLong', {
           max: imagePromptMaxChars,

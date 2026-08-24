@@ -880,9 +880,14 @@ describe('StudioPromptArea', () => {
     expect(mockGenerate).not.toHaveBeenCalled()
   })
 
-  it('shows the character counter and disables generation when the image prompt exceeds the limit', () => {
+  // ⭐ owner 2026-08-24：取消那个 2000。它的主人是卡片配方里「动作 / 姿势」那个
+  // 输入框，被借来当了 quick 模式的默认上限，于是一串正常的风格标签就能顶到
+  // `2932/2000` 并锁死生成按钮 —— 而请求边界本来就是 32000。
+  // 与音频侧 `resolveAudioTextLimit` 的两层同构：没声明就没有上限。
+  it('⭐ 模型没声明上限时不设前置闸 —— 不印计数、不锁按钮', async () => {
     const imageModel = {
       optionId: 'image-option',
+      // 目录里没有 maxPromptChars 声明的型号
       modelId: 'gpt-image-1',
       keyId: 'openai-key-1',
       keyLabel: 'OpenAI key',
@@ -901,6 +906,25 @@ describe('StudioPromptArea', () => {
     setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
       outputType: 'image',
       selectedOptionId: 'image-option',
+      prompt: 'a'.repeat(2932),
+    })
+
+    render(<StudioPromptArea />)
+
+    expect(screen.queryByText(/^2932\//)).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /^generate$/ }),
+    ).not.toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
+    await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
+  })
+
+  it('卡片工作流仍按卡片配方自己的 2000 拦 —— 那条 freePrompt 就是它的字段', () => {
+    setupStudioForm(WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE, {
+      outputType: 'image',
+      workflowMode: 'card',
+      selectedOptionId: null,
       prompt: 'a'.repeat(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH + 1),
     })
 
@@ -912,7 +936,6 @@ describe('StudioPromptArea', () => {
       ),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
-    expect(mockGenerate).not.toHaveBeenCalled()
   })
 
   it('caps the prompt at the model-specific maxPromptChars (Ideogram V4 = 1000)', () => {
@@ -933,7 +956,8 @@ describe('StudioPromptArea', () => {
       selectedModel: ideogram,
       modelOptions: [ideogram],
     })
-    // 1001 chars is under the 2000 default but over Ideogram's 1000 cap.
+    // ⚠ 厂商声明的上限**保留**前置闸：那是真实的 encoder 限制，提前拦比让
+    //   provider 回一句英文错更有用（与音频 declared 层同理）。
     setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
       outputType: 'image',
       selectedOptionId: 'ideogram-option',

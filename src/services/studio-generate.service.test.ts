@@ -68,6 +68,22 @@ describe('compileAndGenerate prompt limits', () => {
     expect(submitImageGeneration).not.toHaveBeenCalled()
   })
 
+  // ⭐ owner 2026-08-24：模型没声明上限时**不拦**。此前兜底到
+  // `CARD_RECIPE.FREE_PROMPT_MAX_LENGTH`（2000）—— 那个数的主人是卡片配方里
+  // 「动作 / 姿势」那个输入框，而这条链路的真正边界是 `StudioGenerateSchema`
+  // 的 `FREE_PROMPT_ABSOLUTE_MAX_LENGTH`（32000）。
+  it('⭐ 模型没声明 maxPromptChars 时不拦 —— 不给未知模型编一个上限', async () => {
+    // 目录里 18 个图片型号没有声明上限（Seedream / NovelAI / Illustrious …），
+    // 此前它们全部被那个借来的 2000 拦着。
+    await compileAndGenerate('clerk-1', {
+      ...QUICK_INPUT,
+      modelId: AI_MODELS.SEEDREAM_50_PRO,
+      freePrompt: 'a'.repeat(2932),
+    })
+
+    expect(submitImageGeneration).toHaveBeenCalled()
+  })
+
   it('allows quick-mode freePrompt at the resolved model maxPromptChars', async () => {
     const result = await compileAndGenerate('clerk-1', {
       ...QUICK_INPUT,

@@ -157,6 +157,17 @@ export function useImageUpload(): UseImageUploadReturn {
     })
   }, [])
 
+  /**
+   * 往参考图槽位里加一条。
+   *
+   * ⚠ **契约：只收 http(s) URL，不收 `data:` base64。** 参考图随生成请求进
+   * JSON body，一张 3.4MB 的图 base64 后就能把 body 顶到 Vercel Serverless 的
+   * 4.5MB 硬上限 —— 平台层直接 413，响应不是 JSON，用户只看得到一句
+   * `Failed with status 413`。2026-08-24 真机撞到过：`ReferenceImageChip` 的
+   * 上传按钮自己 `readAsDataURL` 绕过了 `uploadLocalFile`。
+   * → 本地文件一律走 `handleFileChange` / `uploadLocalFile`（压缩 + multipart
+   *   → R2 URL）；已有的 http(s) URL 走 `addFromUrl`。
+   */
   const addReferenceImage = useCallback((image: string) => {
     setReferenceEntries((prev) => {
       const max = maxImagesRef.current

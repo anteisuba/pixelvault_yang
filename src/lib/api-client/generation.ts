@@ -42,13 +42,11 @@ import type {
   VideoStatusResponse,
   VideoSubmitResponse,
 } from '@/types'
-import type { LoraCandidateSearchResult } from '@/types/lora-candidate'
-import type { ResearchReceipt } from '@/types/research'
-import { decodeLoraCandidateReceiptHeader } from '@/lib/lora-candidate-receipt'
-import { decodeResearchReceiptHeader } from '@/lib/research-receipt'
+import {
+  readAssistantStream,
+  type AssistantStreamMessage,
+} from '@/lib/assistant-stream-client'
 import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
-import { LORA_CANDIDATE_RECEIPT_HEADER } from '@/constants/lora-candidate'
-import { RESEARCH_RECEIPT_HEADER } from '@/constants/research'
 
 import {
   downloadRemoteAsset,
@@ -1302,28 +1300,23 @@ export async function chatPromptAssistantAPI(
 export type PromptAssistantStreamApiResponse =
   | {
       success: true
-      stream: ReadableStream<Uint8Array>
       /**
-       * 检索回执（AI 导演内核切片 1）。`null` = 这一轮没打源。
+       * 已解析的帧流（`text` / `research` / `lora` / `error`）。
        *
-       * 走**响应头**不走流：正文是纯文本，客户端直接当助手的话渲染，往流里插事件
-       * 会让它被念出来。读不出来就当没有 —— 回执坏了不该让一次对话失败。
+       * ⚠ **回执与候选是流里的帧，不再是响应头**（2026-08-25 换帧协议）。旧方案
+       * 把它们 base64 塞进 HTTP 头，因而受头字段大小上限约束，候选那份不得不带
+       * 三档降级阶梯；帧没有上限，那套阶梯已随此改动删除。代价是它们**不再于
+       * 函数返回时就位** —— 消费者要在迭代中接住，服务端保证它们排在第一个
+       * `text` 之前。
        */
-      research: ResearchReceipt | null
-      /**
-       * 这一轮注入的 LoRA 候选（切片 3）。`null` = 这一轮没搜候选。
-       *
-       * 与 `research` 同一条路数（响应头 + base64），但载荷大一个量级，所以
-       * 编码器带三档降级：解出来的候选可能没有样图、甚至没有导入载荷。判据在
-       * 候选对象自己身上（`sampleImageUrls` / `importPayload`），不另设标志位。
-       */
-      loraCandidates: LoraCandidateSearchResult | null
+      events: AsyncIterable<AssistantStreamMessage>
     }
   | { success: false; error: string; errorCode?: string; i18nKey?: string }
 
 /**
- * 对话轮：拿到的是流，不是解析好的载荷。协议块抽取归客户端
- * （`lib/assistant-protocol-blocks.ts`），因为只有客户端知道流有没有结束。
+ * 对话轮：拿到的是帧流，不是解析好的整条回答。正文里的协议块（`[[ask]]` /
+ * `[[next]]` …）**仍归客户端抽取**（`lib/assistant-protocol-blocks.ts`）——
+ * 把标记也升级成帧是下一片。
  */
 export async function streamPromptAssistantAPI(
   params: PromptAssistantStreamRequest,
@@ -1356,16 +1349,7 @@ export async function streamPromptAssistantAPI(
       }
     }
 
-    return {
-      success: true,
-      stream: response.body,
-      research: decodeResearchReceiptHeader(
-        response.headers.get(RESEARCH_RECEIPT_HEADER),
-      ),
-      loraCandidates: decodeLoraCandidateReceiptHeader(
-        response.headers.get(LORA_CANDIDATE_RECEIPT_HEADER),
-      ),
-    }
+    return { success: true, events: readAssistantStream(response.body) }
   } catch (error) {
     return {
       success: false,

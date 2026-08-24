@@ -1,7 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+// ⚠ 真实的 next-intl `t` 带 `has()`，`getApiErrorMessage` 靠它判断 i18nKey 解不
+// 解得出来。mock 漏了它 = 走到 i18nKey 那条路径时 `t.has is not a function`。
+vi.mock('next-intl', () => ({
+  useTranslations: () =>
+    Object.assign((key: string) => key, { has: () => false }),
+}))
 
 vi.mock('@/lib/api-client', () => ({
   chatPromptAssistantAPI: vi.fn(),
@@ -18,18 +23,26 @@ import {
 } from '@/lib/api-client'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { narrowLoraPicksToCandidates } from '@/lib/assistant-protocol-blocks'
-import type { LoraCandidate } from '@/types/lora-candidate'
+import type {
+  LoraCandidate,
+  LoraCandidateSearchResult,
+} from '@/types/lora-candidate'
+import type { AssistantStreamMessage } from '@/lib/assistant-stream-client'
 import { usePromptAssistant } from './use-prompt-assistant'
 
-/** 把若干段文本做成一条真 ReadableStream，模拟 provider 逐段吐字。 */
-function streamOf(chunks: string[]): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder()
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk))
-      controller.close()
-    },
-  })
+/**
+ * 把若干段正文做成**帧流**，模拟服务端逐段吐字。
+ *
+ * ⚠ 换帧协议前这里造的是 `ReadableStream<Uint8Array>`，回执与候选是函数返回值上
+ * 的字段（它们当时走响应头）。现在它们是流里的帧，且服务端保证排在第一个 `text`
+ * 之前 —— 这个 helper 的产出顺序就是那份保证的镜像。
+ */
+async function* eventsOf(
+  chunks: string[],
+  extras: { lora?: LoraCandidateSearchResult } = {},
+): AsyncIterable<AssistantStreamMessage> {
+  if (extras.lora) yield { type: 'lora', candidates: extras.lora }
+  for (const delta of chunks) yield { type: 'text', delta }
 }
 
 function lastAssistantContent(messages: { role: string; content: string }[]) {
@@ -45,9 +58,7 @@ describe('usePromptAssistant · 流式对话轮', () => {
     const body = '第一段。第二段。第三段。'
     vi.mocked(streamPromptAssistantAPI).mockResolvedValue({
       success: true,
-      stream: streamOf([body]),
-      research: null,
-      loraCandidates: null,
+      events: eventsOf([body]),
     })
 
     const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
@@ -73,9 +84,7 @@ describe('usePromptAssistant · 流式对话轮', () => {
     ]
     vi.mocked(streamPromptAssistantAPI).mockResolvedValue({
       success: true,
-      stream: streamOf(raw),
-      research: null,
-      loraCandidates: null,
+      events: eventsOf(raw),
     })
 
     const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
@@ -103,9 +112,7 @@ describe('usePromptAssistant · 流式对话轮', () => {
   it('isThinking 只在第一个字出现之前为真', async () => {
     vi.mocked(streamPromptAssistantAPI).mockResolvedValue({
       success: true,
-      stream: streamOf(['有内容了']),
-      research: null,
-      loraCandidates: null,
+      events: eventsOf(['有内容了']),
     })
 
     const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
@@ -125,26 +132,14 @@ describe('usePromptAssistant · 流式对话轮', () => {
     expect(result.current.isThinking).toBe(false)
   })
 
-  it('流中途挂掉：保留已打出来的文字，再补错误尾巴', async () => {
-    const encoder = new TextEncoder()
-    // ⚠ 不能 start 里 enqueue 完直接 error —— `error()` 会**清空**已入队的 chunk
-    // （Streams 规范），那样这段文字根本没送达，测的就不是「送达后中断」了。
-    // 用 pull：第一拍给字，第二拍才炸。
-    let pulls = 0
+  it('连接断了（帧流直接抛）：保留已打出来的文字，再补错误尾巴', async () => {
+    async function* explodingEvents(): AsyncIterable<AssistantStreamMessage> {
+      yield { type: 'text', delta: '已经写了半句' }
+      throw new Error('upstream exploded')
+    }
     vi.mocked(streamPromptAssistantAPI).mockResolvedValue({
       success: true,
-      stream: new ReadableStream<Uint8Array>({
-        pull(controller) {
-          pulls += 1
-          if (pulls === 1) {
-            controller.enqueue(encoder.encode('已经写了半句'))
-            return
-          }
-          controller.error(new Error('upstream exploded'))
-        },
-      }),
-      research: null,
-      loraCandidates: null,
+      events: explodingEvents(),
     })
 
     const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
@@ -167,12 +162,48 @@ describe('usePromptAssistant · 流式对话轮', () => {
     expect(result.current.isLoading).toBe(false)
   })
 
+  it('服务端补的 error 帧：错误码活着到 UI，不再退化成一句读流异常', async () => {
+    // ⭐ 这是换帧协议**顺带修好**的老毛病。裸文本流时中途失败只能
+    //    `controller.error()`，客户端拿到的是一个没有 errorCode / i18nKey 的异常，
+    //    于是「provider 超时」和「网断了」在 UI 上长得一模一样 —— 上面那条测的
+    //    正是后者。这条测前者。
+    async function* failingEvents(): AsyncIterable<AssistantStreamMessage> {
+      yield { type: 'text', delta: '已经写了半句' }
+      yield {
+        type: 'error',
+        error: 'The selected provider did not answer in time.',
+        errorCode: 'PROVIDER_TIMEOUT',
+        i18nKey: 'errors.provider.timeout',
+      }
+    }
+    vi.mocked(streamPromptAssistantAPI).mockResolvedValue({
+      success: true,
+      events: failingEvents(),
+    })
+
+    const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
+    act(() => {
+      result.current.clear()
+    })
+
+    await act(async () => {
+      await result.current.send('写点什么')
+    })
+
+    await waitFor(() => {
+      expect(result.current.errorCode).toBe('PROVIDER_TIMEOUT')
+    })
+    // 已流出的文字同样不被清空 —— 与「连接断了」那条同一条收尾纪律。
+    expect(lastAssistantContent(result.current.messages)).toContain(
+      '已经写了半句',
+    )
+    expect(result.current.isLoading).toBe(false)
+  })
+
   it('超长的附件 label 在发出前夹到上限 —— 否则整条请求 400', async () => {
     vi.mocked(streamPromptAssistantAPI).mockResolvedValue({
       success: true,
-      stream: streamOf(['好的']),
-      research: null,
-      loraCandidates: null,
+      events: eventsOf(['好的']),
     })
 
     const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
@@ -209,9 +240,7 @@ describe('usePromptAssistant · 流式对话轮', () => {
   it('空流报错而不是留一条空助手气泡', async () => {
     vi.mocked(streamPromptAssistantAPI).mockResolvedValue({
       success: true,
-      stream: streamOf(['']),
-      research: null,
-      loraCandidates: null,
+      events: eventsOf(['']),
     })
 
     const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
@@ -296,19 +325,24 @@ describe('usePromptAssistant · LoRA 推荐（切片 3）', () => {
   it('候选走响应头到达，`[[lora]]` 里只有 id —— 事实来自候选而不是正文', async () => {
     vi.mocked(streamPromptAssistantAPI).mockResolvedValue({
       success: true,
-      stream: streamOf([
-        '这几把比较贴。\n\n',
-        '[[lora]]\n{"picks":[{"candidateId":"civitai:1:1","reason":"画风一致","suggestedWeight":0.7}]}\n[[/lora]]',
-      ]),
-      research: null,
-      loraCandidates: {
-        candidates: [
-          loraCandidate('civitai:1:1'),
-          loraCandidate('civitai:2:2'),
+      events: eventsOf(
+        [
+          '这几把比较贴。\n\n',
+          '[[lora]]\n{"picks":[{"candidateId":"civitai:1:1","reason":"画风一致","suggestedWeight":0.7}]}\n[[/lora]]',
         ],
-        query: '长离 lora',
-        sources: [{ source: 'civitai', status: 'ok', count: 2, tookMs: 10 }],
-      },
+        {
+          lora: {
+            candidates: [
+              loraCandidate('civitai:1:1'),
+              loraCandidate('civitai:2:2'),
+            ],
+            query: '长离 lora',
+            sources: [
+              { source: 'civitai', status: 'ok', count: 2, tookMs: 10 },
+            ],
+          },
+        },
+      ),
     })
 
     const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
@@ -344,19 +378,24 @@ describe('usePromptAssistant · LoRA 推荐（切片 3）', () => {
   it('落库只存被挑中的那几条候选，⛔ 不把整轮 6 条都塞进历史', async () => {
     vi.mocked(streamPromptAssistantAPI).mockResolvedValue({
       success: true,
-      stream: streamOf([
-        '推荐这把。',
-        '[[lora]]\n{"picks":[{"candidateId":"civitai:1:1","reason":"画风一致"},{"candidateId":"civitai:9:9","reason":"编的 id"}]}\n[[/lora]]',
-      ]),
-      research: null,
-      loraCandidates: {
-        candidates: [
-          loraCandidate('civitai:1:1'),
-          loraCandidate('civitai:2:2'),
+      events: eventsOf(
+        [
+          '推荐这把。',
+          '[[lora]]\n{"picks":[{"candidateId":"civitai:1:1","reason":"画风一致"},{"candidateId":"civitai:9:9","reason":"编的 id"}]}\n[[/lora]]',
         ],
-        query: '长离 lora',
-        sources: [{ source: 'civitai', status: 'ok', count: 2, tookMs: 10 }],
-      },
+        {
+          lora: {
+            candidates: [
+              loraCandidate('civitai:1:1'),
+              loraCandidate('civitai:2:2'),
+            ],
+            query: '长离 lora',
+            sources: [
+              { source: 'civitai', status: 'ok', count: 2, tookMs: 10 },
+            ],
+          },
+        },
+      ),
     })
 
     const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))

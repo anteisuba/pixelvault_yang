@@ -94,16 +94,10 @@ async function runGeneralTurn(
   clerkId: string,
   params: Parameters<typeof createPromptAssistantStream>[1],
 ): Promise<string> {
-  const { stream } = await createPromptAssistantStream(clerkId, params)
-  const reader = stream.getReader()
-  const decoder = new TextDecoder()
+  const { text: deltas } = await createPromptAssistantStream(clerkId, params)
   let text = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    text += decoder.decode(value, { stream: true })
-  }
-  return text + decoder.decode()
+  for await (const chunk of deltas) text += chunk
+  return text
 }
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }
@@ -583,11 +577,11 @@ describe('chatPromptAssistant', () => {
     mockRunResearch.mockResolvedValue(researchOutcome(1))
     mockLlmCompletion.mockResolvedValue('长离是粉发 [1]。')
 
-    const { stream, receipt } = await createPromptAssistantStream('clerk_1', {
+    const { text, receipt } = await createPromptAssistantStream('clerk_1', {
       messages: [{ role: 'user', content: '鸣潮长离的发色是什么' }],
       research: true,
     })
-    await new Response(stream).text()
+    for await (const chunk of text) void chunk
 
     expect(receipt).toMatchObject({ runId: 'run_1', grounded: true })
 
@@ -636,10 +630,15 @@ describe('chatPromptAssistant', () => {
     mockRunResearch.mockResolvedValue(researchOutcome(0))
     mockLlmCompletion.mockResolvedValue('我没查到相关资料。')
 
-    const { receipt } = await createPromptAssistantStream('clerk_1', {
+    const { text, receipt } = await createPromptAssistantStream('clerk_1', {
       messages: [{ role: 'user', content: '长离发色' }],
       research: true,
     })
+    // ⚠ 必须真的消费：service 现在交出的是 `AsyncIterable`，**不迭代就不会打
+    //   provider**。旧版返回 `ReadableStream`，`start()` 在构造时就跑了，所以
+    //   过去这条断言不消费也能过。惰性是改进（没人读就不烧 token），但它把
+    //   「调了几次」的判据挪到了消费之后。
+    for await (const chunk of text) void chunk
 
     // 「打了但没料」不是「源挂了」—— 回执必须能分辨
     expect(receipt).toMatchObject({ grounded: false, status: 'no_evidence' })
@@ -1258,7 +1257,7 @@ describe('chatPromptAssistant', () => {
         messages: [{ role: 'user', content: '看看这 10 张' }],
         references: imageReferences(10),
       })
-      await new Response(result.stream).text()
+      for await (const chunk of result.text) void chunk
 
       const call = mockLlmCompletion.mock.calls[0]?.[0] as {
         imageData?: string[]

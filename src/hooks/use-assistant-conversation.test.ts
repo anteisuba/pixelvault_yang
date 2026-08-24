@@ -30,20 +30,66 @@ vi.mock('next-intl', () => {
 })
 
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import type { AssistantStreamMessage } from '@/lib/assistant-stream-client'
 import { useAssistantConversation } from '@/hooks/use-assistant-conversation'
 import type { AssistantConversationContext } from '@/hooks/use-assistant-conversation'
 
-const encoder = new TextEncoder()
+/**
+ * ⚠ 这条链路 2026-08-25 起收的是**帧**不是裸文本（`text/event-stream`）。
+ * 这些 helper 造的就是解析后的帧流，与 `lib/assistant-stream-client.ts` 的产出同形。
+ */
+async function* eventsOf(
+  chunks: string[],
+): AsyncIterable<AssistantStreamMessage> {
+  for (const delta of chunks) yield { type: 'text', delta }
+}
 
-function createStream(chunks: string[]): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      for (const chunk of chunks) {
-        controller.enqueue(encoder.encode(chunk))
+/**
+ * 可外部逐帧推送的帧流 —— 「中间帧」那几条测试要一个字一个字地喂。
+ *
+ * ⚠ 不能用「一口气 yield 完」的 generator：React 会把所有 setState 批成一次渲染，
+ * 中间帧全被吞掉，而中间帧正是那几条唯一要验的东西。
+ */
+function createPushableEvents(): {
+  events: AsyncIterable<AssistantStreamMessage>
+  push: (delta: string) => void
+  close: () => void
+} {
+  const queue: AssistantStreamMessage[] = []
+  let notify: (() => void) | null = null
+  let closed = false
+
+  const wake = () => {
+    const pending = notify
+    notify = null
+    pending?.()
+  }
+
+  async function* events(): AsyncIterable<AssistantStreamMessage> {
+    while (true) {
+      const next = queue.shift()
+      if (next) {
+        yield next
+        continue
       }
-      controller.close()
+      if (closed) return
+      await new Promise<void>((resolve) => {
+        notify = resolve
+      })
+    }
+  }
+
+  return {
+    events: events(),
+    push(delta) {
+      queue.push({ type: 'text', delta })
+      wake()
     },
-  })
+    close() {
+      closed = true
+      wake()
+    },
+  }
 }
 
 /**
@@ -54,14 +100,10 @@ function createStream(chunks: string[]): ReadableStream<Uint8Array> {
  * 吞掉了测试就变成空转。
  */
 async function streamAssistantCharacters(script: string) {
-  let controller!: ReadableStreamDefaultController<Uint8Array>
+  const pushable = createPushableEvents()
   mockStreamNodeAssistantAPI.mockResolvedValue({
     success: true,
-    stream: new ReadableStream<Uint8Array>({
-      start(streamController) {
-        controller = streamController
-      },
-    }),
+    events: pushable.events,
   })
 
   const { result } = renderHook(() =>
@@ -76,13 +118,13 @@ async function streamAssistantCharacters(script: string) {
   const frames: string[] = []
   for (const character of script) {
     await act(async () => {
-      controller.enqueue(encoder.encode(character))
+      pushable.push(character)
     })
     frames.push(result.current.messages[1]?.content ?? '')
   }
 
   await act(async () => {
-    controller.close()
+    pushable.close()
     await sent
   })
 
@@ -133,7 +175,7 @@ describe('useAssistantConversation', () => {
   it('accumulates streamed assistant messages and extracts node references', async () => {
     mockStreamNodeAssistantAPI.mockResolvedValue({
       success: true,
-      stream: createStream(['Check ', '[[node:node-1]]', '.']),
+      events: eventsOf(['Check ', '[[node:node-1]]', '.']),
     })
 
     const { result } = renderHook(() =>
@@ -167,7 +209,7 @@ describe('useAssistantConversation', () => {
   it('extracts confirmed capability markers without persisting marker text', async () => {
     mockStreamNodeAssistantAPI.mockResolvedValue({
       success: true,
-      stream: createStream(['Run it [[capability:upscale:node-1]]']),
+      events: eventsOf(['Run it [[capability:upscale:node-1]]']),
     })
 
     const { result } = renderHook(() =>
@@ -267,7 +309,7 @@ describe('useAssistantConversation', () => {
   it('forwards the selected assistant api key route', async () => {
     mockStreamNodeAssistantAPI.mockResolvedValue({
       success: true,
-      stream: createStream(['ok']),
+      events: eventsOf(['ok']),
     })
 
     const { result } = renderHook(() =>
@@ -292,11 +334,11 @@ describe('useAssistantConversation', () => {
     mockStreamNodeAssistantAPI
       .mockResolvedValueOnce({
         success: true,
-        stream: createStream(['first answer']),
+        events: eventsOf(['first answer']),
       })
       .mockResolvedValueOnce({
         success: true,
-        stream: createStream(['follow-up answer']),
+        events: eventsOf(['follow-up answer']),
       })
     const mediaReference = {
       id: 'gallery-video:video-1',
@@ -339,7 +381,7 @@ describe('useAssistantConversation', () => {
       })
       .mockResolvedValueOnce({
         success: true,
-        stream: createStream(['recovered']),
+        events: eventsOf(['recovered']),
       })
 
     const { result } = renderHook(() =>

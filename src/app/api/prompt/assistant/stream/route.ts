@@ -2,19 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
-import {
-  LORA_CANDIDATE_RECEIPT_HEADER,
-  LORA_CANDIDATE_RECEIPT_HEADER_MAX_BYTES,
-  LORA_CANDIDATE_RECEIPT_TIERS,
-} from '@/constants/lora-candidate'
-import { RESEARCH_RECEIPT_HEADER } from '@/constants/research'
 import { PromptAssistantStreamRequestSchema } from '@/types'
 import { createPromptAssistantStream } from '@/services/kernel/prompt-assistant.service'
 import { logger } from '@/lib/logger'
 import { isGenerationError } from '@/lib/errors'
-import { encodeLoraCandidateReceiptHeader } from '@/lib/lora-candidate-receipt'
+import { toAssistantSseResponse } from '@/lib/assistant-stream'
 import { rateLimit } from '@/lib/rate-limit'
-import { encodeResearchReceiptHeader } from '@/lib/research-receipt'
 
 /**
  * Hobby 的真实上限就是 300（`docs/references/cicd.md`，2026-08-21 查证）；此前
@@ -87,28 +80,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   try {
-    const { stream, receipt, loraCandidates } =
-      await createPromptAssistantStream(clerkId, parsed.data)
-
-    const encodedReceipt = receipt ? encodeResearchReceiptHeader(receipt) : null
-    // 候选下发同样走响应头（切片 3）。⚠ 载荷比回执大一个量级，所以编码器是带
-    // 降级阶梯的 —— 掉档要在这里留痕，否则「有时候有推荐卡有时候没有」查不出来。
-    const encodedCandidates = loraCandidates?.candidates.length
-      ? encodeLoraCandidateReceiptHeader(loraCandidates)
-      : null
-
-    if (
-      encodedCandidates &&
-      encodedCandidates.tier !== LORA_CANDIDATE_RECEIPT_TIERS.full
-    ) {
-      logger.warn(`${routeName} lora candidate header degraded`, {
-        userId: clerkId,
-        tier: encodedCandidates.tier,
-        bytes: encodedCandidates.bytes,
-        limitBytes: LORA_CANDIDATE_RECEIPT_HEADER_MAX_BYTES,
-        candidateCount: loraCandidates?.candidates.length ?? 0,
-      })
-    }
+    const { text, receipt, loraCandidates } = await createPromptAssistantStream(
+      clerkId,
+      parsed.data,
+    )
 
     logger.info(routeName, {
       userId: clerkId,
@@ -116,25 +91,20 @@ export async function POST(request: NextRequest): Promise<Response> {
       researchStatus: receipt?.status,
       grounded: receipt?.grounded,
       loraCandidateCount: loraCandidates?.candidates.length,
-      loraCandidateTier: encodedCandidates?.tier,
     })
 
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-store',
-        // 检索回执走响应头，**不进正文流**（编解码与上限见 lib/research-receipt）。
-        ...(encodedReceipt
-          ? { [RESEARCH_RECEIPT_HEADER]: encodedReceipt }
-          : {}),
-        ...(encodedCandidates?.value
-          ? { [LORA_CANDIDATE_RECEIPT_HEADER]: encodedCandidates.value }
-          : {}),
-      },
+    // 回执与候选**整个进流**（`research` / `lora` 帧）。旧方案走响应头，为了绕开
+    // 头字段的大小上限还配了三档降级阶梯；帧没有上限，那套阶梯已随此改动删除。
+    return toAssistantSseResponse({
+      text,
+      research: receipt,
+      loraCandidates,
+      routeName,
     })
   } catch (error) {
     // 只有「还没开始出流」的失败会落到这里（路由解析、媒体能力闸、provider 首个
-    // 请求被拒）。流开始之后再挂是 `controller.error`，客户端读流时才看得到。
+    // 请求被拒），此时还能回一个 JSON 信封。流开始之后再挂，是成帧器补的
+    // `error` 帧 —— 客户端照样拿得到 errorCode / i18nKey。
     if (isGenerationError(error)) {
       logger.warn(`${routeName} provider error`, {
         errorCode: error.errorCode,

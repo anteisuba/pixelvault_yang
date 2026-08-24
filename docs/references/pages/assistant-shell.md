@@ -88,6 +88,41 @@
 
 专属：领域上下文组装、回复动作、画布 Script 展开态、画布桌面助手位置拖动、画布节点引用/写操作、LoRA 结构化标签结果。
 
+## 6.5 传输协议（2026-08-25 换成 SSE）
+
+两条流式端点（`POST /api/prompt/assistant/stream`、`POST /api/studio/node-assistant`）
+出的是 **`text/event-stream`**，不是裸文本。帧表在 `constants/assistant-stream.ts`，
+成帧 `lib/assistant-stream.ts`，读帧 `lib/assistant-stream-client.ts`，编解码
+`lib/sse.ts`（与读 provider 的 SSE 共用一份）。
+
+| 帧         | 载荷                              | 约束                                   |
+| ---------- | --------------------------------- | -------------------------------------- |
+| `open`     | `{}`                              | **必须第一帧**，见下                   |
+| `research` | `ResearchReceipt`                 | 最多一次，排在第一个 `text` 之前       |
+| `lora`     | `LoraCandidateSearchResult`       | 最多一次，同上；候选为空则不发         |
+| `text`     | `{ delta }`                       | ⚠ **增量**不是累积                     |
+| `error`    | `{ error, errorCode?, i18nKey? }` | 流中途失败；已发的 `text` 帧留在屏幕上 |
+| `done`     | `{}`                              | 正常收尾，用来与「连接断了」区分       |
+
+⭐ **`open` 帧存在的唯一理由**：Next 要等流吐出第一个**字节**才 flush 响应头。
+裸文本流在模型开口之前一个字节都没有，函数被平台杀掉时网关只能回 **504**——
+用户看到的是错误而不是半截回答（2026-08-24 生产实证）。开流即发 `open`，响应头
+当场 flush，之后无论模型想多久、无论是不是引用闸那条整段缓冲的路径，超时最多是
+一条**截断的 200**。⛔ 别把它挪到模型开口之后。判据钉在 `lib/assistant-stream.test.ts`。
+
+**换协议顺带删掉的东西**（都是为「没有帧」而生的补丁）：
+`lib/research-receipt.ts` 与 `lib/lora-candidate-receipt.ts` 整个删除——回执与候选
+原先 base64 塞进响应头，因而受头字段大小上限约束，候选那份还配了三档降级阶梯
+（`full` / `no_images` / `minimal` / `dropped`）。⚠ 那套阶梯自带一个**从未实测的
+风险**：常量注释里写着「单个头字段在 nginx 一类反代上的默认缓冲是 8KB，这个数没有
+余量可言」——真实上限一旦低于 16KB，推荐卡会在生产上静默降级甚至消失。帧没有上限，
+这个风险随之消失。
+
+⚠ **仍留在正文里的是协议块**（`[[ask]]` / `[[next]]` / `[[prompt]]` / `[[setup]]` /
+`[[lora]]`），客户端照旧用 `lib/assistant-protocol-blocks.ts` 边收边抽，
+`lib/assistant-marker-block.ts` 那四条流式安全规则原样保留。把标记也升级成帧是
+**下一片**（owner 2026-08-25 定的切法），不是遗漏。
+
 ## 7. 验收证据
 
 - `/zh/studio/image`、视频 Studio、`/zh/studio/lora?section=generate`、`/zh/studio/node` 的普通对话态几何与头部顺序一致。
@@ -99,6 +134,13 @@
 
 ## Last Verified
 
+- 2026-08-25：两条流式端点换成 SSE 帧协议（§6.5）。`open` 帧把响应头的 flush 与
+  「模型开没开口」解耦，这条路由上的 504 因此在协议层被关死；回执与候选从响应头
+  搬进流事件，`research-receipt.ts` / `lora-candidate-receipt.ts` 及三档降级阶梯
+  整个删除；流中途失败从「一个读流异常」变成一帧带 `errorCode` / `i18nKey` 的
+  `error`。同批：`LLM_TEXT_STREAMS` 穷举 Record 取代「谁支持流式」的 Set + 缓冲
+  降级（漏写编译不过），Claude 的 SSE 补齐，六家 LLM 文本 provider 全部真流式。
+  闸门：全量 tsc 零错（我方文件）· 受影响 18 文件 358 条 vitest 全绿 · eslint 零问题。
 - 2026-08-11：节点画布桌面助手改为标题栏空白区域直接拖动，交互按钮排除拖动；历史迁入左侧 activity rail，移动端保留头部入口；展开态宽度提高到 `min(64rem, 72vw)`。Pointer 拖动与按钮排除由定向测试覆盖，方向键移动、历史列表/恢复、按钮不误触与展开几何由当前 3000 页面验证。
 - 2026-08-05：owner 确认方向 A、关键切片与“图片也可分析视频参考”。
 - 2026-08-05：共享模型/头部/历史/分享/多附件与 Gemini 原生视频切片已实现；npm typecheck、

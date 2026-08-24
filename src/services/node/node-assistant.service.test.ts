@@ -67,20 +67,14 @@ const REQUEST: NodeAssistantRequest = {
   ],
 }
 
-async function readStream(stream: ReadableStream<Uint8Array>): Promise<string> {
-  const reader = stream.getReader()
-  const decoder = new TextDecoder()
+/**
+ * service 现在产的是文本增量（`AsyncIterable<string>`），不是编好码的
+ * `ReadableStream` —— 成帧归 `lib/assistant-stream.ts`，那条边界的验收在
+ * `lib/assistant-stream.test.ts`。
+ */
+async function readStream(text: AsyncIterable<string>): Promise<string> {
   let output = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      break
-    }
-    output += decoder.decode(value, { stream: true })
-  }
-
-  output += decoder.decode()
+  for await (const chunk of text) output += chunk
   return output
 }
 

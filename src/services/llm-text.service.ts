@@ -26,6 +26,7 @@ import { ApiRequestError } from '@/lib/errors'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
 import { buildYoutubeWatchUrl, classifyVideoLink } from '@/lib/video-link'
+import { readSseData } from '@/lib/sse'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { fetchAsBuffer } from '@/services/storage/r2'
 
@@ -179,7 +180,7 @@ const OpenAiChatResponseSchema = z.object({
 // ─── LLM Text Models ────────────────────────────────────────────
 
 /** Text-capable LLM adapter types */
-const LLM_TEXT_ADAPTERS = [
+export const LLM_TEXT_ADAPTERS = [
   AI_ADAPTER_TYPES.GEMINI,
   AI_ADAPTER_TYPES.DEEPSEEK,
   AI_ADAPTER_TYPES.OPENAI,
@@ -1578,7 +1579,10 @@ const AnthropicTextResponseSchema = z.object({
   ),
 })
 
-async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
+function buildAnthropicMessagesRequest(
+  input: LlmTextInput,
+  options: { stream?: boolean } = {},
+): { endpoint: string; modelId: string; body: string } {
   if (input.imageData) {
     throw new Error('Claude text completion does not support image input.')
   }
@@ -1593,7 +1597,6 @@ async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.ANTHROPIC]
   const baseUrl =
     input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.ANTHROPIC
-  const endpoint = `${baseUrl.replace(/\/$/, '')}/messages`
 
   const wantsJson = input.responseFormat === 'json_object'
   // ⚠ Anthropic has NO `response_format`, and **assistant-turn prefill returns
@@ -1609,32 +1612,48 @@ async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
     ? `${input.systemPrompt}\n\nRespond with a single valid JSON object and nothing else — no prose, no markdown code fences.`
     : input.systemPrompt
 
+  return {
+    endpoint: `${baseUrl.replace(/\/$/, '')}/messages`,
+    modelId,
+    body: JSON.stringify({
+      model: modelId,
+      ...(options.stream ? { stream: true } : {}),
+      max_tokens: input.providerManagedOutput
+        ? LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_MANAGED
+        : (input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT),
+      // ⚠ Sonnet 5 runs **adaptive thinking when `thinking` is omitted**, and
+      // `max_tokens` caps thinking + answer *together* — a 1024-token default
+      // could be spent entirely on thinking and truncate the reply. The other
+      // four adapters here don't think, and every caller's token budget was
+      // sized against that, so keep parity and turn it off. (Accepted only at
+      // effort `high` or below; we never set `effort`, and its default is
+      // `high` — pairing disabled thinking with `xhigh`/`max` would 400.)
+      thinking: { type: 'disabled' },
+      system: systemPrompt,
+      messages: [{ role: 'user', content: input.userPrompt }],
+    }),
+  }
+}
+
+/** Anthropic 的鉴权头与那四家不同（`x-api-key` + 版本号），两个消费者共用。 */
+function anthropicRequestInit(apiKey: string, body: string) {
+  return {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body,
+  }
+}
+
+async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
+  const { endpoint, modelId, body } = buildAnthropicMessagesRequest(input)
+
   const response = await fetchLlmTextBuffered(
     endpoint,
-    {
-      method: 'POST',
-      headers: {
-        'x-api-key': input.apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: modelId,
-        max_tokens: input.providerManagedOutput
-          ? LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_MANAGED
-          : (input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT),
-        // ⚠ Sonnet 5 runs **adaptive thinking when `thinking` is omitted**, and
-        // `max_tokens` caps thinking + answer *together* — a 1024-token default
-        // could be spent entirely on thinking and truncate the reply. The other
-        // four adapters here don't think, and every caller's token budget was
-        // sized against that, so keep parity and turn it off. (Accepted only at
-        // effort `high` or below; we never set `effort`, and its default is
-        // `high` — pairing disabled thinking with `xhigh`/`max` would 400.)
-        thinking: { type: 'disabled' },
-        system: systemPrompt,
-        messages: [{ role: 'user', content: input.userPrompt }],
-      }),
-    },
+    anthropicRequestInit(input.apiKey, body),
     { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
   )
 
@@ -1677,65 +1696,6 @@ function guardUserPrompt(prompt: string, maxLength?: number | null): void {
   }
   if (result.warnings.length > 0) {
     logger.warn('Prompt guard warnings', { warnings: result.warnings })
-  }
-}
-
-/**
- * 真流式的适配器 —— **能力矩阵，不是 fallback 垫片**。
- *
- * 不在这个集合里的 provider 不是「降级」，是这条 SSE 分支还没实现：`llmTextStream`
- * 会缓冲完再一次性 yield。差别对调用方是可见的（查这个集合就知道），不靠猜。
- * 加新 provider = 写它的 SSE 解析 + 往这里加一行，两件事必须同一个改动里做完。
- *
- * ⚠ **少一行的代价是生产 504，不是「体感慢一点」**（2026-08-24 实证）：助手的流式
- * 路由在缓冲那条路上一个字节都不产出，响应头因此从未 flush，函数被平台杀掉时
- * 网关只能回 504 —— 客户端看到的是错误而不是半截回答。Grok 08-23 接入时漏了这
- * 一半，第二天就撞上了。
- *
- * 只剩 Claude 还没写：它的 SSE 是 Anthropic 自己的事件格式（`content_block_delta`
- * 等），与这四家共用的 `streamOpenAiCompatibleChat` 不是一份解析，是独立一件事。
- */
-export const LLM_TEXT_STREAMING_ADAPTERS: ReadonlySet<AI_ADAPTER_TYPES> =
-  new Set([
-    AI_ADAPTER_TYPES.GEMINI,
-    AI_ADAPTER_TYPES.OPENAI,
-    AI_ADAPTER_TYPES.DEEPSEEK,
-    AI_ADAPTER_TYPES.DASHSCOPE,
-    AI_ADAPTER_TYPES.XAI,
-  ])
-
-export function supportsLlmTextStreaming(
-  adapterType: AI_ADAPTER_TYPES,
-): boolean {
-  return LLM_TEXT_STREAMING_ADAPTERS.has(adapterType)
-}
-
-/**
- * 逐行读 SSE。Gemini 的 `alt=sse` 每个事件是一行 `data: {…}`，事件之间空行分隔；
- * chunk 边界可以落在一行中间，所以必须留 buffer，不能按 chunk 直接 split。
- */
-async function* readSseData(body: ReadableStream<Uint8Array>) {
-  const reader = body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-
-      let newlineIndex: number
-      while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, newlineIndex).trim()
-        buffer = buffer.slice(newlineIndex + 1)
-        if (line.startsWith('data:')) yield line.slice(5).trim()
-      }
-    }
-    const tail = (buffer + decoder.decode()).trim()
-    if (tail.startsWith('data:')) yield tail.slice(5).trim()
-  } finally {
-    reader.releaseLock()
   }
 }
 
@@ -1796,12 +1756,6 @@ async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
   }
 }
 
-/**
- * 流式版 `llmTextCompletion`：产出增量文本片段。
- *
- * 没实现 SSE 的 provider 走缓冲后一次性 yield —— 调用方要区分就查
- * `supportsLlmTextStreaming()`，别靠观察 chunk 个数猜。
- */
 /**
  * OpenAI 兼容 `/chat/completions` 的 SSE 消费 —— **四家共用一份**。
  *
@@ -1913,6 +1867,59 @@ async function* dashscopeTextStream(
   })
 }
 
+/**
+ * Claude 的 SSE —— **不与那四家共用解析**，它是 Anthropic 自己的事件格式
+ * （官方文档 `platform.claude.com/docs/en/build-with-claude/streaming`，
+ * 2026-08-25 查证）：
+ *
+ *   event: content_block_delta
+ *   data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"…"}}
+ *
+ * 以 `message_stop` 收尾，没有 `[DONE]` 哨兵。
+ *
+ * ⚠ 只取 `text_delta`。同一个 `content_block_delta` 还会驮 `thinking_delta` /
+ * `signature_delta`（扩展思考）与 `input_json_delta`（工具调用）—— 把它们当正文
+ * yield 出去，就是把模型的思考过程念给用户听。本仓的 Claude 分支恒
+ * `thinking: {type:'disabled'}`，但这道判据不能靠那个配置兜着：配置是能改的。
+ */
+async function* anthropicTextStream(
+  input: LlmTextInput,
+): AsyncIterable<string> {
+  const { endpoint, modelId, body } = buildAnthropicMessagesRequest(input, {
+    stream: true,
+  })
+
+  const response = await fetchLlmTextStreaming(
+    endpoint,
+    anthropicRequestInit(input.apiKey, body),
+    { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
+  )
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      modelId,
+    })
+  }
+  if (!response.body) {
+    throw new Error(`No text stream from Claude (${modelId})`)
+  }
+
+  for await (const data of readSseData(response.body)) {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(data)
+    } catch {
+      continue
+    }
+    const delta = (
+      parsed as { delta?: { type?: string; text?: string | null } }
+    ).delta
+    if (delta?.type === 'text_delta' && delta.text) yield delta.text
+  }
+}
+
 async function* xaiTextStream(input: LlmTextInput): AsyncIterable<string> {
   const { endpoint, modelId, body } = buildXaiChatRequest(input, {
     stream: true,
@@ -1928,33 +1935,47 @@ async function* xaiTextStream(input: LlmTextInput): AsyncIterable<string> {
   })
 }
 
+/**
+ * 每一家的 SSE 实现 —— **穷举 Record，没有兜底分支**。
+ *
+ * ⭐ 这张表取代了原先的 `LLM_TEXT_STREAMING_ADAPTERS: Set` + 「不在集合里就缓冲」
+ *    降级。那条降级是 2026-08-24 生产 504 能活下来的原因：08-23 接 Grok 时只写了
+ *    缓冲那一半，`llmTextStream` 于是静默地 `yield await llmTextCompletion()`，
+ *    形态一模一样、行为天差地别（一个逐字、一个等完再一坨），**编译器和测试都不
+ *    会说话**，直到线上一条长对话把 60 秒跑穿。
+ *
+ *    原来的注释写着「调用方要区分就查 `supportsLlmTextStreaming()`」——
+ *    实际上没有任何调用方去查过。这正是 Engineering Principles 1 禁的那种
+ *    fallback：它让缺陷可以静默存在。
+ *
+ * ⛔ **不许加 `default` / 索引签名 / `Partial`**。这张表的全部价值就是：接第七家
+ *    LLM 文本 provider 时漏写 stream 实现，`tsc` 当场报
+ *    「Property '<家>' is missing」，而不是等生产给你一个 504。
+ */
+export const LLM_TEXT_STREAMS: Record<
+  LlmTextAdapterType,
+  (input: LlmTextInput) => AsyncIterable<string>
+> = {
+  [AI_ADAPTER_TYPES.GEMINI]: geminiTextStream,
+  [AI_ADAPTER_TYPES.OPENAI]: openAiTextStream,
+  [AI_ADAPTER_TYPES.DEEPSEEK]: deepseekTextStream,
+  [AI_ADAPTER_TYPES.DASHSCOPE]: dashscopeTextStream,
+  [AI_ADAPTER_TYPES.ANTHROPIC]: anthropicTextStream,
+  [AI_ADAPTER_TYPES.XAI]: xaiTextStream,
+}
+
 export async function* llmTextStream(
   input: LlmTextInput,
 ): AsyncIterable<string> {
-  if (supportsLlmTextStreaming(input.adapterType)) {
-    guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
-    switch (input.adapterType) {
-      case AI_ADAPTER_TYPES.GEMINI:
-        yield* geminiTextStream(input)
-        return
-      case AI_ADAPTER_TYPES.OPENAI:
-        yield* openAiTextStream(input)
-        return
-      case AI_ADAPTER_TYPES.DEEPSEEK:
-        yield* deepseekTextStream(input)
-        return
-      case AI_ADAPTER_TYPES.DASHSCOPE:
-        yield* dashscopeTextStream(input)
-        return
-      case AI_ADAPTER_TYPES.XAI:
-        yield* xaiTextStream(input)
-        return
-    }
+  if (!isLlmTextAdapter(input.adapterType)) {
+    // 与 `llmTextCompletion` 的 default 同一条：大声失败，不静默降级。
+    throw new Error(
+      `LLM text streaming not supported for adapter: ${input.adapterType}`,
+    )
   }
 
-  // 非流式 provider 走缓冲补全，它自己会过 guard —— 这里再过一遍只会把
-  // guard 的告警日志打两份。
-  yield await llmTextCompletion(input)
+  guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
+  yield* LLM_TEXT_STREAMS[input.adapterType](input)
 }
 
 /**

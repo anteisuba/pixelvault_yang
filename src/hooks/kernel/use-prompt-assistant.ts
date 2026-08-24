@@ -527,8 +527,9 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
         return
       }
 
-      // 回执随响应头到达，在正文第一个字之前 —— 「检索中」的过渡态到此为止，
-      // 之后由回执卡自己表达四态。
+      // ⭐ 响应头到达 = 服务端已经跑完 `prepareAssistantTurn`，检索就在那里面。
+      //    所以「检索中」的过渡态在这里结束仍然成立 —— 换成帧协议之后回执本身
+      //    晚一点才到（它现在是流里的 `research` 帧），但那不影响这个判据。
       setPromptAssistantState(surface, (prev) => ({
         ...prev,
         researchPending: false,
@@ -537,15 +538,16 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
       // 协议块抽取跑在**已显示的文本**上，不是收到的全文 —— 否则打字机还在写正文，
       // 反问卡就先蹦出来了。抽取本身会把没闭合的标记段藏掉，所以标记字符不会被
       // 当成正文打出来。抽取是纯函数，每帧重跑很便宜。
-      // 检索回执来自响应头，在正文第一个字之前就到齐了。这里只把 runId 挂到消息上
-      // （证据本体不进 messages —— 要看证据从 ResearchRun 水合）。回执的渲染是下一批。
-      const receipt = result.research ?? undefined
+      //
+      // ⚠ 下面三个是 `let`：回执 / 候选现在是**流里的帧**，不再是函数返回时就位的
+      //   响应头。服务端保证它们排在第一个 `text` 帧之前，所以第一次 render 时它们
+      //   已经填好，`[[lora]]` 一被抽出来就配得上事实，仍然不存在「卡先出来、名字
+      //   后到」。render 是闭包，读的永远是最新值。
+      let receipt: ResearchReceipt | undefined
       // ⚠ `quota_exceeded` 的回执 `runId` 是 null，但回执本身要渲染（用户得知道
       // 「今天的检索额度用完了」）。所以两个字段各挂各的，不能只挂 runId。
-      const researchRunId = receipt?.runId ?? undefined
-      // 候选与回执走同一条响应头通道，同样在正文第一个字之前就到齐 —— 所以
-      // `[[lora]]` 一被抽出来就配得上事实，不存在「卡先出来、名字后到」。
-      const loraCandidates = result.loraCandidates?.candidates
+      let researchRunId: string | undefined
+      let loraCandidates: LoraCandidate[] | undefined
       const render = (
         text: string,
         streamComplete: boolean,
@@ -576,18 +578,35 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
         },
       })
 
+      // 流中途失败现在是一帧 `error`，不是抛异常 —— 载荷带 errorCode / i18nKey，
+      // 于是「provider 超时」和「网断了」在 UI 上终于分得开。
+      let errorFrame: {
+        error: string
+        errorCode?: string
+        i18nKey?: string
+      } | null = null
+
       try {
-        const reader = result.stream.getReader()
-        const decoder = new TextDecoder()
-        try {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-            typewriter.push(decoder.decode(value, { stream: true }))
+        for await (const message of result.events) {
+          switch (message.type) {
+            case 'text':
+              typewriter.push(message.delta)
+              break
+            case 'research':
+              receipt = message.receipt
+              researchRunId = message.receipt.runId ?? undefined
+              break
+            case 'lora':
+              loraCandidates = message.candidates.candidates
+              break
+            case 'error':
+              errorFrame = {
+                error: message.error,
+                ...(message.errorCode ? { errorCode: message.errorCode } : {}),
+                ...(message.i18nKey ? { i18nKey: message.i18nKey } : {}),
+              }
+              break
           }
-          typewriter.push(decoder.decode())
-        } finally {
-          reader.releaseLock()
         }
       } catch (streamError) {
         // §3.0 点名要的「已流出文字 + 错误尾巴」：把**已经收到**的全部显示出来再
@@ -604,6 +623,22 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
           error:
             streamError instanceof Error ? streamError.message : t('failed'),
           errorCode: 'ASSISTANT_STREAM_INTERRUPTED',
+        }))
+        return
+      }
+
+      if (errorFrame) {
+        // 与上面 catch 同一条收尾（已流出的字留下 + 错误尾巴），差别只在于这里
+        // 有服务端给的结构化原因，所以文案走 i18nKey 而不是一句裸异常消息。
+        typewriter.cancel()
+        const shown = typewriter.raw()
+        const failure = errorFrame
+        setPromptAssistantState(surface, (prev) => ({
+          ...prev,
+          messages: shown.trim() ? render(shown, true) : allMessages,
+          isLoading: false,
+          error: getApiErrorMessage(tErrors, failure, t('failed')),
+          errorCode: failure.errorCode ?? 'ASSISTANT_STREAM_INTERRUPTED',
         }))
         return
       }

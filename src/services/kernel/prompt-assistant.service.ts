@@ -1280,8 +1280,6 @@ async function completeWithCitationGate(options: {
 
 // ─── Public API ─────────────────────────────────────────────────
 
-const PROMPT_ASSISTANT_ENCODER = new TextEncoder()
-
 /**
  * 对话轮（`mode:'general'`）的**唯一**入口 —— 出的是逐字文本流。
  *
@@ -1311,7 +1309,11 @@ export async function createPromptAssistantStream(
     workbenchState?: AssistantWorkbenchState
   },
 ): Promise<{
-  stream: ReadableStream<Uint8Array>
+  /**
+   * 文本增量。**协议不归这里管** —— 成帧在 `lib/assistant-stream.ts`，service 只
+   * 产内容。⚠ 迭代中抛出的错交给成帧器变成 `error` 帧，别在这里吞。
+   */
+  text: AsyncIterable<string>
   /** 这一轮的检索回执。`null` = 没检索，路由据此决定发不发那个响应头。 */
   receipt: ResearchReceipt | null
   /**
@@ -1398,30 +1400,31 @@ export async function createPromptAssistantStream(
           modelId,
         })
 
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      try {
-        for await (const chunk of textStream) {
-          controller.enqueue(PROMPT_ASSISTANT_ENCODER.encode(chunk))
-        }
-        controller.close()
-      } catch (error) {
-        // 已经吐出去的字留在客户端（客户端负责补错误尾巴）；这里只把流断掉，
-        // 不吞错 —— 静默 close 会让用户看到半截话却没有任何提示。
-        logger.error('Prompt assistant stream failed', {
-          error: error instanceof Error ? error.message : String(error),
-          adapterType: setup.route.adapterType,
-        })
-        controller.error(error)
-      }
-    },
-  })
-
   return {
-    stream,
+    // ⚠ 原样交出去，不在这里包 `ReadableStream`、也不在这里 catch。成帧器
+    //   （`lib/assistant-stream.ts`）会把中途抛出的错变成一帧结构化 `error`，
+    //   那比旧的 `controller.error()` 强：errorCode / i18nKey 能活着到客户端。
+    //   路由名会进那条日志，adapterType 这里补一句留痕。
+    text: withAdapterErrorContext(textStream, setup.route.adapterType),
     receipt: setup.research?.receipt ?? null,
     droppedReferenceCount: setup.media.droppedCount,
     loraCandidates: setup.loraCandidates,
+  }
+}
+
+/** 出错时把「是哪家 provider」记下来再原样抛 —— 成帧器只认得错误本身。 */
+async function* withAdapterErrorContext(
+  source: AsyncIterable<string>,
+  adapterType: AI_ADAPTER_TYPES,
+): AsyncIterable<string> {
+  try {
+    yield* source
+  } catch (error) {
+    logger.error('Prompt assistant text stream failed', {
+      error: error instanceof Error ? error.message : String(error),
+      adapterType,
+    })
+    throw error
   }
 }
 
@@ -1573,7 +1576,8 @@ export async function chatPromptAssistant(
         })
 
   const prompt = extractPromptFromResponse(rawResult)
-  // 回执跟着响应体走（流式那条走响应头，理由见 RESEARCH_RECEIPT_HEADER）。
+  // 这条是 JSON 信封（转换轮），回执直接搭响应体。流式那条走 `research` 帧
+  // （`constants/assistant-stream.ts`）—— 两边都不再有「塞进响应头」那一版。
   // 超量丢弃的条数同理搭这班车：**只在真丢了才出现**，0 不发字段 —— 老客户端
   // 忽略这个新键照常跑，新客户端才有东西可提示。
   const turnMetadata = {

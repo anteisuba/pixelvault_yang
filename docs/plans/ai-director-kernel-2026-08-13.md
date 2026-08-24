@@ -111,7 +111,7 @@ owner 指定「Lora 也验，视频跳过」。切片 3 的三道保护 + 一次
 | 候选检索链                                  | `watercolor illustration 的` → Civitai `ok` 8 条 / HF `empty` → 注入 **6 条候选**；回执头 **12,596 B**（上限 16,384，未降级）                                                                                            |
 | ⭐ **「只挑不写」契约**                     | `[[lora]]` 块正文实测**只有** `candidateId` / `reason` / `suggestedWeight` —— **零事实字段**。名字·作者·URL·许可全部来自候选对象                                                                                         |
 | 候选无匹配时                                | 上一轮只搜到 1 条不相干候选，助手**如实说没有**并点名那条（Boldline game style），且**比对了底模家族**：「与当前的 Anima Base v1.0（anima-dit 家族）不匹配」→ 转 `[[ask]]` 问方向。⛔ 没有硬推                           |
-| 推荐卡                                      | 样图 · 作者 · 底模 · 触发词 · **三个许可位**（商用/衍生/免署名 各带「允许」）· 下载量 · **元数据部分**（完整度如实标）· 来源页外链。**整页重载后卡照旧完整渲染**（候选随对话持久化，不只活在响应头）                     |
+| 推荐卡                                      | 样图 · 作者 · 底模 · 触发词 · **三个许可位**（商用/衍生/免署名 各带「允许」）· 下载量 · **元数据部分**（完整度如实标）· 来源页外链。**整页重载后卡照旧完整渲染**（候选随对话持久化，不只活在这一轮的下发帧里）           |
 | ⭐ **一次确认三件事**                       | 点「导入并挂载」→ 库 92→**93（`dupCount:1`）**· LORA 栈 已挂 0→**1（×0.70 带权重滑条）**· 提示词框写入 **`Fanciful`** · 卡面 chip 变「✓ 已导入、已挂载、触发词已填入」                                                   |
 | 🆕 **底模自动跟随**（超出任务书的正确行为） | 同一次确认把底模从 `Anima Base v1.0(anima-dit)` 换成 `SDXL 1.0(sdxl)` —— 正是这把 LoRA 的家族；助手头部状态同步成「挂载 ×1 / 触发词 ×1 / 底模 sdxl」。**撤销挂载时底模一并还原**，说明切换是跟挂载捆绑的、不是单向副作用 |
 | `sourceSnapshot` 落库                       | 八个键全在：`source/author/license/pageUrl/revision/retrievedAt/fileSizeBytes/metadataCompleteness`；`author:"twirble"` 与卡面一致，`license.known:true`，完整度 `partial`                                               |
@@ -143,9 +143,10 @@ owner 指定「Lora 也验，视频跳过」。切片 3 的三道保护 + 一次
 点那个 ask 选项本身能触发（选项文案里带「LoRA」），但**用户按提示自己打关键词就不行** —— 而提示语正是让他打关键词的。
 
 **改法**：`planLoraCandidateSearch(text, { previousUserText })` —— 纯函数多收一个「上一句」，
-⛔ **没有**新请求字段、新响应头、新持久化列。原本设想的「客户端带标志」被否掉了：回执头只在
-**有候选**时才发（`stream/route.ts`），所以「搜了但零结果」客户端根本看不见，走那条路要先补一个头
-再补一个可持久化字段 —— 而这个事实服务端本来就能纯函数重算。
+⛔ **没有**新请求字段、新下发通道、新持久化列。原本设想的「客户端带标志」被否掉了：候选只在
+**有候选**时才下发（`stream/route.ts`），所以「搜了但零结果」客户端根本看不见，走那条路要先补一个
+通道再补一个可持久化字段 —— 而这个事实服务端本来就能纯函数重算。
+（⚠ 措辞已按 2026-08-25 更新：当时那个通道是响应头，现在是流里的 `event: lora` 帧；结论不变。）
 
 三条判据（都写成了测试）：
 
@@ -536,7 +537,7 @@ model ResearchRun {
 
 **关键决策（设计席已批准）**：
 
-1. 回执走 `X-Research-Receipt` 响应头（base64 UTF-8 JSON，4KB 帽；正文是 text/plain，往流里插事件会被老客户端念出来；api-client 已解好放 `result.research`）。⚠ 回执整体缺席（null）＝本轮没检索 ≠ `grounded:false`（打了没拿到）。
+1. ~~回执走 `X-Research-Receipt` 响应头（base64 UTF-8 JSON，4KB 帽）~~ → **2026-08-25 已换掉，别再按这条实现**。助手流升级成 SSE 之后回执是流里的一帧 `event: research`（`constants/assistant-stream.ts`），载荷整个原样进流：**没有大小上限，因此没有 base64、没有 4KB 帽、没有降级**。「正文是 text/plain 所以插不了事件」这个前提本身已经不成立。客户端从 `result.events` 的 `{type:'research'}` 帧接住，服务端保证它排在第一个 `text` 帧之前。⚠ 回执整体缺席（null）＝本轮没检索 ≠ `grounded:false`（打了没拿到）——这一条不变。
 2. **有证据轮改缓冲**：幻引用闸（`validateEvidenceCitations`，打回重试）必须在用户看到字之前判定；呈现仍走打字机（传输与呈现解耦本就为此准备）。无证据普通轮一个字节没变，照旧真流式。
 3. **prompt-assistant 路删掉 provider grounding 借路**：它给不出 EvidenceItem → 引用无法校验、来源无法露出、单源失败无法回执，且切片 0 实证它不降幻觉率。画布路（node-assistant）未动。
 4. `research:false` 暂映射 `auto`（那个布尔表达的是「没主动开」不是「明确关」）；**真正的 off 必须由 UI 三态（auto/forced/off）送来——UI 批硬要求，否则用户没有关闭手段**。
@@ -627,7 +628,7 @@ Gemini 视觉 token **≈ 5,450 / 分钟，随时长线性**（18m41s = 101,923�
 
 ⚠ **设计席拍板：校验上限与送模型上限拆成两个数**（`ASSISTANT_MEDIA_LIMITS.maxReferencesPayload = 32` vs `maxReferences = 8`）。起因是 agent 核实出的事实——原 schema 卡死 8，**第 9 个附件会让整轮对话 400，用户连打好的字一起丢**，还吐 Zod 英文裸串。放宽后 9–32 走「截断＋告知」，>32 才判异常载荷。这也把本批从「纯纵深防御」变成线上真正可达的路径（此前三洞因 schema 硬拒 + legacy 字段无 HTTP 生产者而从外部打不进来）。
 
-**未做**：`droppedReferenceCount` 到 UI 的最后一跳（流式需在 route 加响应头；**告知在会话层已闭环**——模型被指令要求主动说明，UI chrome 属锦上添花）；legacy `referenceImageData` 参数已无活的 HTTP 生产者，按原则 1 该删但要动位置参数签名，留待清理批。
+**未做**：`droppedReferenceCount` 到 UI 的最后一跳（2026-08-25 起这一跳变便宜了——流式已是帧协议，加一种帧即可，不用再动响应头；**告知在会话层已闭环**——模型被指令要求主动说明，UI chrome 属锦上添花）；legacy `referenceImageData` 参数已无活的 HTTP 生产者，按原则 1 该删但要动位置参数签名，留待清理批。
 
 ### 4.5 验收
 

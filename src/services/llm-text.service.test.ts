@@ -24,7 +24,8 @@ import {
   resolveLlmTextRoute,
   llmTextCompletion,
   llmTextStream,
-  supportsLlmTextStreaming,
+  LLM_TEXT_ADAPTERS,
+  LLM_TEXT_STREAMS,
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -1481,22 +1482,38 @@ describe('llmTextStream', () => {
 `
   }
 
+  /** Anthropic 的收尾帧 —— 没有 `[DONE]` 哨兵，用 `message_stop`。 */
+  const CLAUDE_MESSAGE_STOP_FRAME =
+    'event: message_stop\ndata: {"type":"message_stop"}\n\n'
+
   async function collect(stream: AsyncIterable<string>): Promise<string[]> {
     const chunks: string[] = []
     for await (const chunk of stream) chunks.push(chunk)
     return chunks
   }
 
-  it('声明了哪些 adapter 真流式 —— 能力矩阵，不靠猜', () => {
-    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.GEMINI)).toBe(true)
-    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.OPENAI)).toBe(true)
-    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(true)
-    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.DASHSCOPE)).toBe(true)
-    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.XAI)).toBe(true)
-    // Claude 的 SSE 是 Anthropic 自己的事件格式，不与上面四家共用一份解析 ——
-    // 这条断言就是那份待办。⚠ 少一行的代价是生产 504（2026-08-24 Grok 实证），
-    // 不是「体感慢一点」。
-    expect(supportsLlmTextStreaming(AI_ADAPTER_TYPES.ANTHROPIC)).toBe(false)
+  it('每一家 LLM 文本 adapter 都有 SSE 实现 —— 没有「不支持就缓冲」这条路', () => {
+    // ⭐ 这条替代了原先的「能力矩阵」断言。那版断言的语义是「谁支持谁不支持」，
+    //    也就是承认降级存在；降级正是 2026-08-24 生产 504 能活下来的原因
+    //    （08-23 漏写 Grok 的 SSE，静默缓冲把它兜住了）。现在表是穷举 Record，
+    //    漏写一家 tsc 直接报错，这条只是把同一件事在运行时也钉一遍。
+    expect(Object.keys(LLM_TEXT_STREAMS).sort()).toEqual(
+      [...LLM_TEXT_ADAPTERS].sort(),
+    )
+  })
+
+  it('不是 LLM 文本 adapter 的家：大声失败，不静默降级成缓冲', async () => {
+    await expect(
+      collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType: AI_ADAPTER_TYPES.FAL,
+          providerConfig: { label: 'fal', baseUrl: 'https://fal.run' },
+          apiKey: 'test-key',
+        }),
+      ),
+    ).rejects.toThrow(/not supported/i)
   })
 
   it('Gemini：逐个 SSE 事件产出增量文本', async () => {
@@ -1654,17 +1671,29 @@ describe('llmTextStream', () => {
     expect(body.stream).toBe(true)
   })
 
-  it('没实现 SSE 的 adapter（Claude）：缓冲后一次性 yield，形态仍是流', async () => {
+  it('Claude：只取 text_delta —— thinking_delta 绝不当正文念出去', async () => {
+    // ⚠ Anthropic 是自己的事件格式，不与那四家共用解析。同一个
+    //   `content_block_delta` 还会驮思考与工具调用的增量；把它们 yield 出去就是
+    //   把模型的思考过程念给用户听。本仓恒 `thinking:{type:'disabled'}`，但这道
+    //   判据不能靠那个配置兜着——配置是能改的。
+    const frame = (delta: Record<string, unknown>) =>
+      `event: content_block_delta\ndata: ${JSON.stringify({
+        type: 'content_block_delta',
+        index: 0,
+        delta,
+      })}\n\n`
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            content: [{ type: 'text', text: 'buffered answer' }],
-          }),
-          { status: 200 },
+      vi
+        .fn()
+        .mockResolvedValue(
+          sseResponse([
+            frame({ type: 'thinking_delta', thinking: '我先想想' }),
+            frame({ type: 'text_delta', text: '前半' }),
+            frame({ type: 'text_delta', text: '后半' }),
+            CLAUDE_MESSAGE_STOP_FRAME,
+          ]),
         ),
-      ),
     )
 
     const chunks = await collect(
@@ -1680,7 +1709,29 @@ describe('llmTextStream', () => {
       }),
     )
 
-    expect(chunks).toEqual(['buffered answer'])
+    expect(chunks).toEqual(['前半', '后半'])
+  })
+
+  it('Claude：请求体带 stream:true', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(sseResponse([CLAUDE_MESSAGE_STOP_FRAME]))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await collect(
+      llmTextStream({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: {
+          label: 'Claude',
+          baseUrl: 'https://api.anthropic.com/v1',
+        },
+        apiKey: 'test-key',
+      }),
+    )
+
+    expect(readFetchJson(fetchMock).stream).toBe(true)
   })
 
   // ─── OpenAI 兼容的另外三家（2026-08-24 补齐） ──────────────────

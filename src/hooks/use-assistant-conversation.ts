@@ -14,6 +14,8 @@ import {
   upsertAssistantConversationAPI,
 } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import type { AssistantStreamMessage } from '@/lib/assistant-stream-client'
+import type { AssistantStreamErrorFrame } from '@/types/assistant-stream'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { collectConversationMediaReferences } from '@/lib/assistant-media-selection'
 import { extractNodeAssistantOps } from '@/lib/node-assistant-ops'
@@ -285,31 +287,60 @@ function collectCanvasConversationMediaReferences(
   })
 }
 
-async function readTextStream(
-  stream: ReadableStream<Uint8Array>,
+/**
+ * 服务端在流中途失败时补的那一帧 —— 带着 errorCode / i18nKey。
+ *
+ * 换帧协议之前这里只有一个读流异常，于是「provider 超时」和「网断了」在 UI 上
+ * 长得一模一样。包成 Error 是为了让下面两个既有的 catch 分支原样接住它。
+ */
+class AssistantStreamFrameError extends Error {
+  constructor(readonly payload: AssistantStreamErrorFrame) {
+    super(payload.error)
+    this.name = 'AssistantStreamFrameError'
+  }
+}
+
+function toStreamErrorMessage(
+  error: unknown,
+  // ⛔ 收完整的 translator，别拿函数 + has 两个参数再 `Object.assign` 拼回去 ——
+  //    那会就地改掉 next-intl 的 t 函数本身。
+  tErrors: Parameters<typeof getApiErrorMessage>[0],
+  fallback: string,
+): string {
+  if (error instanceof AssistantStreamFrameError) {
+    return getApiErrorMessage(tErrors, error.payload, fallback)
+  }
+  return error instanceof Error ? error.message : fallback
+}
+
+/**
+ * 把帧流累积成正文，`onChunk` 收到的仍是**累积**文本（协议块抽取要整段重跑）。
+ *
+ * ⚠ 换帧协议前这里是 `readTextStream`，直接把 body 当 UTF-8 解。现在正文在
+ * `text` 帧的载荷里。
+ */
+async function readAssistantText(
+  events: AsyncIterable<AssistantStreamMessage>,
   onChunk: (nextText: string) => void,
 ): Promise<string> {
-  const reader = stream.getReader()
-  const decoder = new TextDecoder()
   let output = ''
 
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        break
-      }
-
-      output += decoder.decode(value, { stream: true })
+  for await (const message of events) {
+    if (message.type === 'text') {
+      output += message.delta
       onChunk(output)
+      continue
     }
-
-    output += decoder.decode()
-    onChunk(output)
-    return output
-  } finally {
-    reader.releaseLock()
+    if (message.type === 'error') {
+      throw new AssistantStreamFrameError({
+        error: message.error,
+        ...(message.errorCode ? { errorCode: message.errorCode } : {}),
+        ...(message.i18nKey ? { i18nKey: message.i18nKey } : {}),
+      })
+    }
   }
+
+  return output
 }
 
 export function useAssistantConversation(
@@ -505,8 +536,8 @@ export function useAssistantConversation(
         const streamState: { message: AssistantConversationMessage | null } = {
           message: null,
         }
-        const finalRawContent = await readTextStream(
-          response.stream,
+        const finalRawContent = await readAssistantText(
+          response.events,
           (rawContent) => {
             streamState.message = toDisplayAssistantMessage(
               assistantMessageId,
@@ -545,9 +576,11 @@ export function useAssistantConversation(
         setIsLoading(false)
         setMessages(nextMessages)
         setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : t('assistant.streamFailed'),
+          toStreamErrorMessage(
+            caughtError,
+            tErrors,
+            t('assistant.streamFailed'),
+          ),
         )
       }
     },
@@ -619,8 +652,8 @@ export function useAssistantConversation(
         const streamState: { message: AssistantConversationMessage | null } = {
           message: null,
         }
-        const finalRawContent = await readTextStream(
-          response.stream,
+        const finalRawContent = await readAssistantText(
+          response.events,
           (rawContent) => {
             streamState.message = toDisplayAssistantMessage(
               assistantMessageId,
@@ -655,9 +688,11 @@ export function useAssistantConversation(
         setIsLoading(false)
         setMessages(withoutTrailingAssistant)
         setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : t('assistant.streamFailed'),
+          toStreamErrorMessage(
+            caughtError,
+            tErrors,
+            t('assistant.streamFailed'),
+          ),
         )
       }
     },

@@ -19,15 +19,9 @@ import { ApiRequestError } from '@/lib/errors'
 
 import { POST } from './route'
 
-const encoder = new TextEncoder()
-
-function createStream(text: string): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(encoder.encode(text))
-      controller.close()
-    },
-  })
+/** service 现在交出的是文本增量；成帧（SSE）归路由那一层。 */
+async function* createStream(text: string): AsyncIterable<string> {
+  yield text
 }
 
 const REQUEST_BODY = {
@@ -80,7 +74,7 @@ describe('POST /api/studio/node-assistant', () => {
     expect(body.success).toBe(false)
   })
 
-  it('returns a text stream on success', async () => {
+  it('returns an SSE frame stream on success，且 open 帧排在最前', async () => {
     mockAuthenticated()
     mockCreateNodeAssistantStream.mockResolvedValue(createStream('ok'))
 
@@ -89,8 +83,13 @@ describe('POST /api/studio/node-assistant', () => {
     )
 
     expect(response.status).toBe(200)
-    expect(response.headers.get('Content-Type')).toContain('text/plain')
-    await expect(response.text()).resolves.toBe('ok')
+    expect(response.headers.get('Content-Type')).toContain('text/event-stream')
+    const body = await response.text()
+    // ⭐ `open` 必须是第一帧：它产生的字节就是响应头得以 flush 的原因。挪到模型
+    //    开口之后 = 把 2026-08-24 那个 504 又请回来。
+    expect(body.indexOf('event: open')).toBe(0)
+    expect(body).toContain('event: text\ndata: {"delta":"ok"}')
+    expect(body).toContain('event: done')
     expect(mockCreateNodeAssistantStream).toHaveBeenCalledWith(
       'clerk_test_user',
       REQUEST_BODY,

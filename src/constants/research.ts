@@ -238,25 +238,6 @@ export const RESEARCH_MODE_VALUES = [
 
 export type ResearchMode = (typeof RESEARCH_MODE_VALUES)[number]
 
-/**
- * 流式端点的检索回执走**响应头**，不走正文流。
- *
- * 理由是向后兼容：这条端点的正文是 `text/plain` 的纯文本，客户端直接把 body 当
- * 正文读。往流里插一个 SSE 事件会让老客户端把 `data: {...}` 当成助手说的话渲染
- * 出来。响应头老客户端**天然忽略**，而且在正文第一个字之前就到齐了。
- *
- * 值是 base64(UTF-8 JSON) —— 回执里可能带中文错误信息，HTTP 头不能直接放非 ASCII。
- */
-export const RESEARCH_RECEIPT_HEADER = 'X-Research-Receipt'
-
-/**
- * 回执头的字节上限。
- *
- * ⚠ 单个 HTTP 头字段在多数服务端是 8KB 硬限，超了**整个响应被拒**（不是回执少
- * 一行，是助手一个字都出不来）。留一半余量，超了先丢错误文本再丢整条。
- */
-export const RESEARCH_RECEIPT_HEADER_MAX_BYTES = 4096
-
 /** 检索目标（`ResearchRun.goal`）。 */
 export const RESEARCH_GOALS = {
   findLora: 'find_lora',

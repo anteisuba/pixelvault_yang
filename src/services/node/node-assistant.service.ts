@@ -63,8 +63,6 @@ import type {
   NodeAssistantRequest,
 } from '@/types/node-assistant'
 
-const NODE_ASSISTANT_ENCODER = new TextEncoder()
-
 // Model resolution reads from NODE_STUDIO_ASSISTANT_ROUTE_MODELS via
 // resolveAssistantModelId, so the picker label and the runtime model share one
 // source (the historical label≠actual bug), and the user's tier pick
@@ -463,30 +461,15 @@ CONVERSATION:\n`
   return `${prefix}${conversation}${suffix}`
 }
 
-function streamFromText(text: string): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(NODE_ASSISTANT_ENCODER.encode(text))
-      controller.close()
-    },
-  })
-}
-
-function streamFromAsyncText(
-  textStream: AsyncIterable<string>,
-): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      try {
-        for await (const chunk of textStream) {
-          controller.enqueue(NODE_ASSISTANT_ENCODER.encode(chunk))
-        }
-        controller.close()
-      } catch (error) {
-        controller.error(error)
-      }
-    },
-  })
+/**
+ * 把一段已经算好的文本变成「只有一块」的增量流，形态与真流式一致。
+ *
+ * ⚠ 这里不再包 `ReadableStream`：成帧归 `lib/assistant-stream.ts`，service 只产
+ * 内容。旧版在这里 `controller.error(error)`，等于把错误的**协议形态**也定死在
+ * service 里——客户端只能拿到一个读流异常，errorCode / i18nKey 全丢。
+ */
+async function* streamFromText(text: string): AsyncIterable<string> {
+  yield text
 }
 
 async function* streamGatewayWithContextCompaction(
@@ -524,7 +507,7 @@ async function* streamGatewayWithContextCompaction(
 export async function createNodeAssistantStream(
   clerkId: string,
   request: NodeAssistantRequest,
-): Promise<ReadableStream<Uint8Array>> {
+): Promise<AsyncIterable<string>> {
   // Reference-research turns always go through the BYOK path (the Vercel
   // gateway model has no web_search tool wired), so they bypass the gateway
   // branch entirely.
@@ -589,10 +572,8 @@ export async function createNodeAssistantStream(
     shouldUseGateway() &&
     (request.references?.length ?? 0) === 0
   ) {
-    return streamFromAsyncText(
-      streamGatewayWithContextCompaction(systemPrompt, (maxLength) =>
-        buildNodeAssistantUserPrompt(request, maxLength),
-      ),
+    return streamGatewayWithContextCompaction(systemPrompt, (maxLength) =>
+      buildNodeAssistantUserPrompt(request, maxLength),
     )
   }
 

@@ -6,6 +6,7 @@ import { NodeAssistantRequestSchema } from '@/types/node-assistant'
 import { createNodeAssistantStream } from '@/services/node/node-assistant.service'
 import { logger } from '@/lib/logger'
 import { isGenerationError } from '@/lib/errors'
+import { toAssistantSseResponse } from '@/lib/assistant-stream'
 import { sanitizeNodeAssistantRequestBody } from '@/lib/node-assistant-request'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -67,19 +68,14 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   try {
-    const stream = await createNodeAssistantStream(clerkId, parsed.data)
+    const text = await createNodeAssistantStream(clerkId, parsed.data)
 
     logger.info(routeName, {
       userId: clerkId,
       durationMs: Date.now() - startedAt,
     })
 
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-store',
-      },
-    })
+    return toAssistantSseResponse({ text, routeName })
   } catch (error) {
     if (isGenerationError(error)) {
       logger.warn(`${routeName} provider error`, {

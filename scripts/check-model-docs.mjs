@@ -190,6 +190,28 @@ async function buildReport(models, args) {
   const baselineSnapshot = args.compareSnapshot
     ? await readJson(args.compareSnapshot)
     : null
+
+  // Symmetric guard to the zero-model check below, but for the *baseline* side
+  // of the diff: a snapshot with an empty `models` array is not "zero drift",
+  // it is wreckage from the pre-2026-07-26 parser (it read the deprecated
+  // src/constants/models.ts barrel — now just a spread of the per-type files —
+  // and silently extracted zero entries while still writing a "successful"
+  // snapshot). Diffing today's real catalog against that baseline reports every
+  // current model as newly "added" and buries every real doc-page change in
+  // that noise, which is exactly how this monitor went quiet for weeks. Fail
+  // loudly instead of comparing against known-bad input.
+  if (
+    baselineSnapshot &&
+    Array.isArray(baselineSnapshot.models) &&
+    baselineSnapshot.models.length === 0
+  ) {
+    throw new Error(
+      `Baseline snapshot at ${args.compareSnapshot} has an empty models array. ` +
+        'It is a bad-parser artifact, not a real "no models" baseline. ' +
+        'Rebuild it first: npm run models:update-doc-snapshot',
+    )
+  }
+
   const watchTargets = buildWatchTargets(models)
   const pageResults = []
 

@@ -14,6 +14,37 @@ interface ResponsivePage {
 const localizedPath = (route: Route): string =>
   route === ROUTES.HOME ? `/${LOCALE}` : `/${LOCALE}${route}`
 
+/**
+ * The `mobile` project runs on real WebKit (`devices['iPhone 14']` sets
+ * `defaultBrowserType: 'webkit'`). There, Clerk's dev-browser handshake
+ * (`__clerk_hs_reason=dev-browser-missing`) settles ~1s later than it does on
+ * Chromium, and that extra delay consistently lands the page's first
+ * `[HMR] connected` inside whatever the test does next — Turbopack responds
+ * with one unprompted full-document reload (`[Fast Refresh] rebuilding` in
+ * the console), tearing out any element mid-interaction. Verified with a
+ * standalone trace: reproduces 5/5 on webkit, 0/2 on
+ * `devices['Desktop Chrome']`, always exactly one reload.
+ *
+ * Where the reload lands inside the block varies by run — sometimes it
+ * throws a distinctive "not attached to the DOM", sometimes it surfaces as a
+ * `toHaveCSS` timeout reporting an empty string, since Playwright's own
+ * assertion retry loop swallows the intermediate detach and only reports the
+ * last value it saw. No error-text pattern covers every shape, so this
+ * retries on ANY failure — safe here because the block is read-only
+ * (assertions + `boundingBox()` reads, no mutations): a genuine bug
+ * reproduces identically on the retry and still fails the test, one attempt
+ * later. Locators re-resolve against the fresh DOM on their own, so a single
+ * retry is enough — this is not covering for a real bug, `[chromium]` never
+ * needs it.
+ */
+async function toleratingOneDevReload<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run()
+  } catch {
+    return run()
+  }
+}
+
 const pages: ResponsivePage[] = [
   { name: 'root', path: ROUTES.HOME },
   { name: 'home', path: localizedPath(ROUTES.HOME) },
@@ -102,35 +133,47 @@ test.describe('Mobile Responsive', () => {
     const views = page.locator('.home-v3-views')
     const firstCapability = page.locator('.home-v3-cap-row').first()
 
-    await expect(app).toBeVisible()
-    await expect(views).toHaveCSS('height', '510px')
+    await toleratingOneDevReload(async () => {
+      // The reload lands at an unpredictable point in this window — sometimes
+      // before the first CSS read, sometimes mid scroll — so everything from
+      // here through the box measurements below is inside the retry.
+      await expect(app).toBeVisible()
+      await expect(views).toHaveCSS('height', '510px')
 
-    // The app reveal starts at scale(.93) while it is below the fold. Bring the
-    // real interaction surface into view before measuring its touch targets.
-    await app.scrollIntoViewIfNeeded()
+      // The app reveal starts at scale(.93) while it is below the fold. Bring the
+      // real interaction surface into view before measuring its touch targets.
+      await app.scrollIntoViewIfNeeded()
 
-    const tabs = page.locator('.home-v3-tabs label')
-    await expect
-      .poll(
-        async () =>
-          Promise.all(
-            (await tabs.all()).map(
-              async (tab) => (await tab.boundingBox())?.height,
+      const tabs = page.locator('.home-v3-tabs label')
+      await expect
+        .poll(
+          async () =>
+            Promise.all(
+              (await tabs.all()).map(
+                async (tab) => (await tab.boundingBox())?.height,
+              ),
             ),
-          ),
-        { timeout: 10_000 },
-      )
-      .toEqual([44, 44, 44, 44])
-    for (const tab of await tabs.all()) {
-      const box = await tab.boundingBox()
-      expect(box?.width).toBeGreaterThan(box?.height ?? 0)
-    }
+          { timeout: 10_000 },
+        )
+        .toEqual([44, 44, 44, 44])
+      for (const tab of await tabs.all()) {
+        const box = await tab.boundingBox()
+        expect(box?.width).toBeGreaterThan(box?.height ?? 0)
+      }
 
-    const appBox = await app.boundingBox()
-    const capabilityBox = await firstCapability.boundingBox()
-    expect(appBox).not.toBeNull()
-    expect(capabilityBox).not.toBeNull()
-    expect(capabilityBox!.y).toBeGreaterThanOrEqual(appBox!.y + appBox!.height)
+      const appBox = await app.boundingBox()
+      const capabilityBox = await firstCapability.boundingBox()
+      expect(appBox).not.toBeNull()
+      expect(capabilityBox).not.toBeNull()
+      // Each box is independently rounded by the engine's layout math (more so
+      // under the transform `.home-v3-app` animates through), so their edges
+      // don't always telescope to the exact same float — observed misses were
+      // ~0.008px, invisible at any zoom. A 1px tolerance absorbs that without
+      // hiding a real overlap.
+      expect(capabilityBox!.y).toBeGreaterThanOrEqual(
+        appBox!.y + appBox!.height - 1,
+      )
+    })
 
     const canvas = page.locator('.home-v3-canvas')
     await expect(canvas).toHaveCSS('width', '760px')

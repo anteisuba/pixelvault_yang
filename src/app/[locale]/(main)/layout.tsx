@@ -7,6 +7,7 @@ import { MainProviders } from '@/components/layout/MainProviders'
 import { MobileShell } from '@/components/layout/MobileShell'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
+import { omitMessages, OUTSIDE_APP_NAMESPACES } from '@/i18n/messages-split'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 
 export default async function MainLayout({
@@ -20,10 +21,16 @@ export default async function MainLayout({
   const locale = isAppLocale(localeParam) ? localeParam : DEFAULT_LOCALE
   const tCommon = await getTranslations({ locale, namespace: 'Common' })
   // Root layout's NextIntlClientProvider only ships the marketing
-  // subset. Re-wrap with the full bundle so Studio/Gallery/Arena
-  // client components see every namespace. use-intl 4.x replaces
-  // (not merges) on nesting.
-  const fullMessages = await getMessages({ locale })
+  // subset. Re-wrap here so Studio/Gallery/Arena client components see
+  // every namespace they can reach. use-intl 4.x replaces (not merges)
+  // on nesting, so this provider must carry the whole app bundle —
+  // minus the namespaces whose only consumers sit outside `(main)`
+  // (marketing hero, legal prose, auth cards, `generateMetadata`).
+  // See `src/i18n/messages-split.ts`.
+  const appMessages = omitMessages(
+    await getMessages({ locale }),
+    OUTSIDE_APP_NAMESPACES,
+  )
   const sidebarState = (await cookies()).get('sidebar_state')?.value
   const userAgent = (await headers()).get('user-agent') ?? ''
   const isMobileUA = /Mobile|iP(hone|ad|od)|Android/i.test(userAgent)
@@ -41,7 +48,7 @@ export default async function MainLayout({
       >
         {tCommon('skipToMainContent')}
       </a>
-      <NextIntlClientProvider locale={locale} messages={fullMessages}>
+      <NextIntlClientProvider locale={locale} messages={appMessages}>
         <MainProviders>
           <SidebarProvider defaultOpen={defaultSidebarOpen}>
             <AppSidebar />

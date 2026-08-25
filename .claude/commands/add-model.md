@@ -49,7 +49,7 @@
 
 ## 5 · 执行链 —— ⚠ 生产在 worker，不在 `src/services/providers`
 
-**视频/图片的生产请求构造住在 `workers/execution/src/models/<provider>/**`。** `src/services/providers/**` 下的同名 builder 是**已漂移的死 fork\*\*，不再被生产调用（出处见 `src/test/worker-contracts/` 各文件头）。
+**视频/图片的生产请求构造住在 `workers/execution/src/models/<provider>/` 下。** 而 `src/services/providers/` 下的同名 builder 是**已漂移的死 fork**，不再被生产调用（出处见 `src/test/worker-contracts/` 各文件头）。
 
 ⛔ 改错边的表现是：**全量测试绿，线上毫无变化**。死 fork 自带绿测试。
 

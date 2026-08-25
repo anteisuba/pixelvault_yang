@@ -2,6 +2,8 @@ import 'server-only'
 
 import { NextResponse } from 'next/server'
 
+import { CRON_JOBS } from '@/constants/cron'
+import { recordCronRun } from '@/lib/cron-heartbeat'
 import { logger } from '@/lib/logger'
 import { sweepStaleExecutions } from '@/services/execution-sweeper.service'
 import { processPendingImagePreviewDerivativeOutboxes } from '@/services/image/image-preview-derivative.service'
@@ -38,11 +40,16 @@ export async function GET(request: Request): Promise<NextResponse> {
         (result) => result.status === 'completed',
       ).length,
     }
+    await recordCronRun(CRON_JOBS.EXECUTION_SWEEP, { ok: true })
     return NextResponse.json({ success: true, data })
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Execution sweep failed'
     logger.error('GET /api/internal/execution/sweep failed', { error: message })
+    await recordCronRun(CRON_JOBS.EXECUTION_SWEEP, {
+      ok: false,
+      detail: message,
+    })
     return NextResponse.json(
       { success: false, error: message },
       { status: 500 },

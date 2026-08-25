@@ -1,8 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { CRON_JOBS } from '@/constants/cron'
 import { parseJSON } from '@/test/api-helpers'
 
 vi.mock('server-only', () => ({}))
+
+const mockRecordCronRun = vi.fn()
+
+vi.mock('@/lib/cron-heartbeat', () => ({
+  recordCronRun: (...args: unknown[]) => mockRecordCronRun(...args),
+}))
 
 vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
@@ -95,6 +102,29 @@ describe('GET /api/internal/civitai-lora/prewarm', () => {
       failureCount: 0,
     })
     expect(mockPrewarmCivitaiLoraLibrary).toHaveBeenCalledOnce()
+    expect(mockRecordCronRun).toHaveBeenCalledWith(
+      CRON_JOBS.CIVITAI_LORA_PREWARM,
+      { ok: true },
+    )
+  })
+
+  it('records an unhealthy heartbeat when the prewarm fails outright', async () => {
+    mockPrewarmCivitaiLoraLibrary.mockRejectedValueOnce(
+      new Error('Civitai unreachable'),
+    )
+
+    await GET(createRequest(CRON_SECRET))
+
+    expect(mockRecordCronRun).toHaveBeenCalledWith(
+      CRON_JOBS.CIVITAI_LORA_PREWARM,
+      { ok: false, detail: 'Civitai unreachable' },
+    )
+  })
+
+  it('does not record a heartbeat for an unauthenticated probe', async () => {
+    await GET(createRequest('wrong-secret'))
+
+    expect(mockRecordCronRun).not.toHaveBeenCalled()
   })
 
   it('returns 502 when every prewarm task fails', async () => {

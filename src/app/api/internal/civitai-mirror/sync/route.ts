@@ -2,7 +2,9 @@ import 'server-only'
 
 import { NextResponse } from 'next/server'
 
+import { CRON_JOBS } from '@/constants/cron'
 import { CIVITAI_MIRROR_SYNC_MAX_BATCHES_PER_RUN } from '@/constants/lora'
+import { recordCronRun } from '@/lib/cron-heartbeat'
 import { logger } from '@/lib/logger'
 import {
   syncCivitaiMirrorChunk,
@@ -68,12 +70,23 @@ export async function GET(
 
   try {
     const data = await syncCivitaiMirrorChunk({ maxBatches })
+    // `notice` 非空 = 这一趟被比例闸挡下了剪枝、或进度被并发运行丢弃。
+    // HTTP 上它仍是 200（活儿确实推进了），但对监控来说它就是不健康——
+    // 比例闸此前只写 logger + 返回体，而 Hobby 的日志一小时后就没了。
+    await recordCronRun(CRON_JOBS.CIVITAI_MIRROR_SYNC, {
+      ok: data.notice === null,
+      detail: data.notice,
+    })
     return NextResponse.json<SuccessBody>({ success: true, data })
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Civitai mirror sync failed'
     logger.error('GET /api/internal/civitai-mirror/sync failed', {
       error: message,
+    })
+    await recordCronRun(CRON_JOBS.CIVITAI_MIRROR_SYNC, {
+      ok: false,
+      detail: message,
     })
     return NextResponse.json<ErrorBody>(
       { success: false, error: message },

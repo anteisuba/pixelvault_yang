@@ -230,8 +230,11 @@ function handleRouteError(
     durationMs: Date.now() - startedAt,
   })
 
-  // Stdout logging keeps a 24-72h Vercel trail; Sentry keeps the structured,
-  // queryable, alertable copy. Only unknown / unhandled errors get here —
+  // ⚠ Stdout logging keeps **1 hour** on Vercel Hobby, not the 24-72h this
+  // comment used to claim (<https://vercel.com/docs/logs/runtime> Limits 表；
+  // 2026-08-25 实测过去 24h 只查得到 2 条 runtime log)。所以 Sentry 不是
+  // "structured copy"，它是**唯一活得过一小时的那一份**。Only unknown /
+  // unhandled errors get here —
   // GenerationError + ApiRequestError + database quota are already handled
   // above and aren't worth paging on.
   Sentry.captureException(error, {

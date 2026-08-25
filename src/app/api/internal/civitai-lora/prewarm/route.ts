@@ -2,6 +2,8 @@ import 'server-only'
 
 import { NextResponse } from 'next/server'
 
+import { CRON_JOBS } from '@/constants/cron'
+import { recordCronRun } from '@/lib/cron-heartbeat'
 import { logger } from '@/lib/logger'
 import {
   prewarmCivitaiLoraLibrary,
@@ -43,13 +45,23 @@ export async function GET(
   try {
     const data = await prewarmCivitaiLoraLibrary()
     if (data.successCount === 0) {
+      const error = 'Civitai LoRA prewarm failed'
+      await recordCronRun(CRON_JOBS.CIVITAI_LORA_PREWARM, {
+        ok: false,
+        detail: error,
+      })
       return NextResponse.json<ErrorBody>(
-        { success: false, error: 'Civitai LoRA prewarm failed', data },
+        { success: false, error, data },
         { status: 502 },
       )
     }
 
     if (data.failureCount > 0) {
+      const error = `Civitai LoRA prewarm completed with failures (${data.failureCount} of ${data.failureCount + data.successCount})`
+      await recordCronRun(CRON_JOBS.CIVITAI_LORA_PREWARM, {
+        ok: false,
+        detail: error,
+      })
       return NextResponse.json<ErrorBody>(
         {
           success: false,
@@ -60,12 +72,17 @@ export async function GET(
       )
     }
 
+    await recordCronRun(CRON_JOBS.CIVITAI_LORA_PREWARM, { ok: true })
     return NextResponse.json<SuccessBody>({ success: true, data })
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Civitai LoRA prewarm failed'
     logger.error('GET /api/internal/civitai-lora/prewarm failed', {
       error: message,
+    })
+    await recordCronRun(CRON_JOBS.CIVITAI_LORA_PREWARM, {
+      ok: false,
+      detail: message,
     })
     return NextResponse.json<ErrorBody>(
       { success: false, error: message },

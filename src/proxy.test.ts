@@ -89,6 +89,22 @@ describe('proxy internal execution routes', () => {
     },
   )
 
+  it('lets the cron heartbeat monitor reach its HEALTH_CHECK_TOKEN gate', async () => {
+    // cron-monitor.yml 每天读这条来判断三条 cron 昨天跑没跑。漏放行的话它
+    // 恒 404 → workflow 每天开一条假 issue，而真的漏跑反而照旧看不见。
+    await middleware(
+      {
+        nextUrl: {
+          pathname: '/api/health/crons',
+          origin: 'https://pixelvault.example.com',
+        },
+      } as never,
+      {} as never,
+    )
+
+    expect(protect).not.toHaveBeenCalled()
+  })
+
   it('lets a signed-out reader open the terms and the privacy policy', async () => {
     // The auth card's "by continuing you agree to our terms" links point here.
     // While these were protected, following one bounced the reader to sign-in —

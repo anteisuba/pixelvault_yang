@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { CRON_JOBS } from '@/constants/cron'
 import { CIVITAI_MIRROR_SYNC_MAX_BATCHES_PER_RUN } from '@/constants/lora'
 
 const mockSync = vi.fn()
+const mockRecordCronRun = vi.fn()
+
+vi.mock('@/lib/cron-heartbeat', () => ({
+  recordCronRun: (...args: unknown[]) => mockRecordCronRun(...args),
+}))
 
 vi.mock('@/services/civitai-mirror-sync.service', () => ({
   syncCivitaiMirrorChunk: (...args: unknown[]) => mockSync(...args),
@@ -123,5 +129,40 @@ describe('GET /api/internal/civitai-mirror/sync', () => {
       success: false,
       error: 'upstream down',
     })
+    expect(mockRecordCronRun).toHaveBeenCalledWith(
+      CRON_JOBS.CIVITAI_MIRROR_SYNC,
+      { ok: false, detail: 'upstream down' },
+    )
+  })
+
+  it('records a healthy heartbeat when the chunk carries no notice', async () => {
+    vi.stubEnv('CRON_SECRET', 'right')
+
+    await GET(request('https://x/api/internal/civitai-mirror/sync', 'right'))
+
+    expect(mockRecordCronRun).toHaveBeenCalledWith(
+      CRON_JOBS.CIVITAI_MIRROR_SYNC,
+      { ok: true, detail: null },
+    )
+  })
+
+  it('records the ratio guard as unhealthy even though HTTP stays 200', async () => {
+    // 比例闸跳闸此前只写 logger + 返回体的 notice——Hobby 的 runtime log 一小时
+    // 后就没了，于是「剪枝被挡下」实际上没有任何人看得见。心跳是它第一个能活
+    // 过一小时的落点。
+    vi.stubEnv('CRON_SECRET', 'right')
+    const notice =
+      'Prune aborted: 900/1000 rows are stale (90%), above the 20% guard'
+    mockSync.mockResolvedValue({ ...CHUNK, completed: true, notice })
+
+    const response = await GET(
+      request('https://x/api/internal/civitai-mirror/sync', 'right'),
+    )
+
+    expect(response.status).toBe(200)
+    expect(mockRecordCronRun).toHaveBeenCalledWith(
+      CRON_JOBS.CIVITAI_MIRROR_SYNC,
+      { ok: false, detail: notice },
+    )
   })
 })

@@ -35,6 +35,9 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks/clerk',
   '/api/health',
   '/api/health/providers',
+  // cron-monitor.yml 用 HEALTH_CHECK_TOKEN 读三条 cron 的心跳，同样没有
+  // Clerk 会话。
+  '/api/health/crons',
   '/api/internal/civitai-lora/prewarm',
   // Worker-to-Next.js internal calls — these endpoints verify their own
   // HMAC/Ed25519 signature and must bypass Clerk auth (the Worker has no

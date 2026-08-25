@@ -170,9 +170,9 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
   `08f27813` 真机验过成本预览逐档价（Wan 5s/720p $0.50 → 30s/1080p $6.00 →
   30s/480p $1.50，Seedance 2.0 720p $1.52 / 1080p $3.41，Kling 无旋钮路径 $0.84）；
   `d083ba0c` 的心跳端点用 Vercel MCP 实查生产验证。
-  ⚠ **本文件不预先声称全量闸门绿**：完整的一次（tsc + lint + vitest + Playwright mobile
-  - production build）按 `docs/checklists/release.md` 在 push 前跑，以那次结果为准；
-    owner 的 3000 dev 实例跑着时不并行 build。
+  ⚠ **本文件不预先声称全量闸门绿**：完整的一次（tsc + lint + vitest +
+  Playwright mobile + production build）按 `docs/checklists/release.md` 在 push
+  前跑，以那次结果为准；owner 的 3000 dev 实例跑着时不并行 build。
 - 2026-08-23 图片工作台结果区：开发态 `/zh/dev/ui-states` + `scripts/ui-probe.js` 复测同一状态，
   交互遮挡 4→0、矩形相交 16→0、无切换控件计数 1→0，9:16 单格高度从 767px 降到 257px，
   2×2 结果首屏由 3/4 提升为 4/4；全量 TypeScript 通过，全量 ESLint 0 error（5 条既有 warning），

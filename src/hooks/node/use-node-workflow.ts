@@ -1058,12 +1058,13 @@ export function useNodeWorkflow({
   // Server hydration: once localStorage has settled AND we know who's
   // signed in, pull the server-side project list. The server is the
   // source of truth — if it has projects, they replace local state. If
-  // the server is empty but localStorage has data **belonging to this
-  // user**, treat it as a one-time migration. Critically, we re-verify
-  // `storageRef.current.ownerClerkId === clerkId` right before the
-  // migration POSTs run — that's the seatbelt that stops a previous
-  // account's leftover local state from being uploaded as the new
-  // user's projects.
+  // the server is empty, every local project **belonging to this user**
+  // is uploaded once — including the empty bootstrap default, which is
+  // how a brand-new user's very first session gets a server row at all.
+  // Critically, we re-verify `storageRef.current.ownerClerkId === clerkId`
+  // right before the migration POSTs run — that's the seatbelt that stops
+  // a previous account's leftover local state from being uploaded as the
+  // new user's projects.
   useEffect(() => {
     if (clerkId === null) return
     if (hasServerHydrated.current) return
@@ -1122,13 +1123,21 @@ export function useNodeWorkflow({
         return
       }
 
-      // Empty local projects (just the bootstrap default) aren't worth
-      // migrating.
-      const localHasContent = localSnapshot.projects.some(
-        (project) =>
-          project.state.nodes.length > 0 || project.state.edges.length > 0,
-      )
-      if (localHasContent && !hasServerMigrationAttempted.current) {
+      // ⚠ 这里**不看**本地有没有内容。原先有一条「空项目（就那个 bootstrap
+      // 默认项目）不值得迁移」的短路，而新用户手里的项目恰恰就是空的 ——
+      // 于是它**从来没有在服务端建过行**：整个第一次会话只活在 localStorage，
+      // 要等到下次进页面、且那时本地已经有内容了，才顺着这条迁移路径上云。
+      // 中间清一次缓存 / 换台设备 / 浏览器崩一次，第一次会话就整段没了。
+      //
+      // 更糟的是安静：下面写入 effect 的 `serverConfirmedProjectIds` 闸会把这
+      // 期间的每一次写入都跳过（这个 id 服务端从没确认过），连原来每 5 秒撞一
+      // 次 404 的动静都没有了。代价是给空项目多发一次 POST，换来的是
+      // 「进过画布 = 云端有它的行」。
+      //
+      // ⚠ 触发条件必须留在「list 成功且返回空」上，不能放宽成「当前项目没被
+      // 确认过就补建」：list **失败**后本地项目同样是未确认状态，但服务端那行
+      // 是存在的，照着补建就是凭空多一行重复项目。
+      if (!hasServerMigrationAttempted.current) {
         hasServerMigrationAttempted.current = true
         // 这是**一次性**上传：`hasServerMigrationAttempted` 之后不再重试。
         // 原来这个循环连返回值都不看 —— 上传全挂 → 下面 refetch 返回空 →
@@ -1447,6 +1456,52 @@ export function useNodeWorkflow({
     return true
   }, [clerkId])
 
+  /**
+   * 给一个刚在本地建出来的项目在服务端建行。**每一条「本地凭空多出一个项目」
+   * 的路径都必须走这里**（新建项目、删掉最后一个项目后补的替代项目）。
+   *
+   * Fire-and-forget。成功但 id 不同（服务端自己发 UUID）就把本地 id 改写成服务
+   * 端的，否则后续写入 / activate 打的是一个不存在的行；失败就报出来，本地那份
+   * 继续留着，等下次刷新由服务端水化那条路收拾。
+   *
+   * ⚠ 登记 `serverConfirmedProjectIds` 是这里最要紧的一步（id 变没变都要登记）。
+   * 没登记的项目会被写入 effect 那条「本会话服务端确认过」的闸挡下 —— 每次写入
+   * 直接 return，只留一条用户看不见的 warn，`saveNow` 也直接返回 false 弹「保存
+   * 失败」。用户这一会话画的东西全都不上云。
+   */
+  const createProjectOnServer = useCallback(
+    (project: NodeWorkflowProject) => {
+      void createNodeWorkflowProjectAPI({
+        name: project.name,
+        state: project.state,
+      }).then((response) => {
+        if (!response.success || !response.data) {
+          reportServerWriteFailure(
+            SERVER_WRITE_OPERATIONS.create,
+            response.error,
+          )
+          return
+        }
+
+        const serverId = response.data.id
+        serverConfirmedProjectIds.current.add(serverId)
+        if (serverId === project.id) return
+
+        setWorkflowStorage((currentStorage) => ({
+          ...currentStorage,
+          currentProjectId:
+            currentStorage.currentProjectId === project.id
+              ? serverId
+              : currentStorage.currentProjectId,
+          projects: currentStorage.projects.map((p) =>
+            p.id === project.id ? { ...p, id: serverId } : p,
+          ),
+        }))
+      })
+    },
+    [reportServerWriteFailure, setWorkflowStorage],
+  )
+
   const createProject = useCallback(
     (name: string) => {
       const timestamp = createWorkflowTimestamp()
@@ -1463,49 +1518,16 @@ export function useNodeWorkflow({
         projects: [...currentStorage.projects, project],
       }))
 
-      // Fire-and-forget create on the server. If it succeeds with a
-      // different id (server assigns its own UUID), rewrite the local id so
-      // subsequent writes / activate calls hit the right row. If it fails,
-      // the project lives only in localStorage until the user reloads (at
-      // which point the server hydrate will reconcile).
       if (canCallServerNow()) {
-        void createNodeWorkflowProjectAPI({
-          name: normalizedName,
-          state: project.state,
-        }).then((response) => {
-          if (!response.success || !response.data) {
-            reportServerWriteFailure(
-              SERVER_WRITE_OPERATIONS.create,
-              response.error,
-            )
-            return
-          }
-
-          // 服务端刚建出来的行 —— 登记它，否则这个新项目的内容永远过不了
-          // 写入 effect 那条「本会话确认过」的闸。id 有没有变都要登记。
-          const serverId = response.data.id
-          serverConfirmedProjectIds.current.add(serverId)
-          if (serverId === project.id) return
-
-          setWorkflowStorage((currentStorage) => ({
-            ...currentStorage,
-            currentProjectId:
-              currentStorage.currentProjectId === project.id
-                ? serverId
-                : currentStorage.currentProjectId,
-            projects: currentStorage.projects.map((p) =>
-              p.id === project.id ? { ...p, id: serverId } : p,
-            ),
-          }))
-        })
+        createProjectOnServer(project)
       }
 
       return project.id
     },
     [
       canCallServerNow,
+      createProjectOnServer,
       defaultProjectName,
-      reportServerWriteFailure,
       setWorkflowStorage,
     ],
   )
@@ -1599,7 +1621,8 @@ export function useNodeWorkflow({
 
   const deleteProject = useCallback(
     (id: string): NodeWorkflowProjectSummary | null => {
-      const targetProject = storageRef.current.projects.find(
+      const snapshot = storageRef.current
+      const targetProject = snapshot.projects.find(
         (project) => project.id === id,
       )
 
@@ -1607,32 +1630,41 @@ export function useNodeWorkflow({
         return null
       }
 
-      setWorkflowStorage((currentStorage) => {
-        const remainingProjects = currentStorage.projects.filter(
-          (project) => project.id !== id,
-        )
+      const remainingProjects = snapshot.projects.filter(
+        (project) => project.id !== id,
+      )
 
-        if (remainingProjects.length === currentStorage.projects.length) {
-          return currentStorage
-        }
+      // 删掉最后一个项目时本地立刻补一个空项目顶上。它必须**在这里**先建出来，
+      // 好走下面 `createProjectOnServer` 那条建行 + 登记 id 的路。
+      //
+      // ⚠ 原先它是在 `setWorkflowStorage` 的 updater 里现造的，没有任何人给它在
+      // 服务端建行：这个新 id 于是从没被服务端确认过，写入 effect 对它的每一次
+      // 写入都 return（只留一条用户看不见的 warn），`saveNow` 直接返回 false 让
+      // 工作台弹「保存失败」。用户删完最后一个项目后接着画的东西整个会话都不
+      // 上云，要等下次刷新、服务端 list 返回空、走一次性迁移路径才补上。
+      const replacementProject =
+        remainingProjects.length === 0
+          ? createWorkflowProject(
+              normalizeProjectName(defaultProjectName, defaultProjectName),
+              createEmptyWorkflowState(),
+            )
+          : null
 
-        const nextProject = remainingProjects[0]
-        if (!nextProject) {
-          return createDefaultWorkflowStorage(
-            defaultProjectName,
-            currentStorage.ownerClerkId,
-          )
-        }
-
-        return {
-          ...currentStorage,
-          currentProjectId:
-            currentStorage.currentProjectId === id
-              ? nextProject.id
-              : currentStorage.currentProjectId,
-          projects: remainingProjects,
-        }
-      })
+      setWorkflowStorage((currentStorage) =>
+        replacementProject
+          ? createWorkflowStorageFromProject(
+              replacementProject,
+              currentStorage.ownerClerkId,
+            )
+          : {
+              ...currentStorage,
+              currentProjectId:
+                currentStorage.currentProjectId === id
+                  ? remainingProjects[0].id
+                  : currentStorage.currentProjectId,
+              projects: remainingProjects,
+            },
+      )
 
       serverConfirmedProjectIds.current.delete(id)
       warnedUnconfirmedProjectIds.current.delete(id)
@@ -1647,12 +1679,17 @@ export function useNodeWorkflow({
             )
           }
         })
+
+        if (replacementProject) {
+          createProjectOnServer(replacementProject)
+        }
       }
 
       return getProjectSummaries([targetProject])[0] ?? null
     },
     [
       canCallServerNow,
+      createProjectOnServer,
       defaultProjectName,
       reportServerWriteFailure,
       setWorkflowStorage,

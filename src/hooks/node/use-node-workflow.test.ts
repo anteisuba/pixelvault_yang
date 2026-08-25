@@ -340,6 +340,9 @@ describe('useNodeWorkflow', () => {
     const thirdResponse = new Promise<Response>((resolve) => {
       resolveThird = resolve
     })
+    // ⚠ 这三次调用被当成「三次 list」一一对应。所以每次都必须让服务端**返回
+    // 一个项目**：返回空会触发 bootstrap 迁移（POST 建行 + refetch），调用序号
+    // 立刻错位，而这条测试要验的只是 `isHydrated` 的翻转时机。
     const fetchMock = vi
       .fn()
       .mockImplementationOnce(() => firstResponse)
@@ -365,10 +368,13 @@ describe('useNodeWorkflow', () => {
 
     act(() => {
       resolveFirst(
-        new Response(JSON.stringify({ success: true, data: [] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        new Response(
+          JSON.stringify({ success: true, data: [serverProjectRecord()] }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
       )
     })
     await waitFor(() => expect(result.current.isHydrated).toBe(true))
@@ -379,10 +385,13 @@ describe('useNodeWorkflow', () => {
 
     act(() => {
       resolveSecond(
-        new Response(JSON.stringify({ success: true, data: [] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        new Response(
+          JSON.stringify({ success: true, data: [serverProjectRecord()] }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
       )
     })
     await waitFor(() => expect(result.current.isHydrated).toBe(true))
@@ -396,10 +405,13 @@ describe('useNodeWorkflow', () => {
 
     act(() => {
       resolveThird(
-        new Response(JSON.stringify({ success: true, data: [] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        new Response(
+          JSON.stringify({ success: true, data: [serverProjectRecord()] }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
       )
     })
     await waitFor(() => expect(result.current.isHydrated).toBe(true))
@@ -1995,5 +2007,231 @@ describe('useNodeWorkflow', () => {
     // 一半就替换，等于把没传成功的项目从本地也一并抹掉。
     expect(listCalls()).toHaveLength(1)
     expect(result.current.projects).toHaveLength(2)
+  })
+
+  // ── 新用户的 bootstrap 项目必须上云 ───────────────────────────────────────
+  // 原来迁移路径上有一条「空项目不值得迁移」的短路，而新用户手里那个 bootstrap
+  // 默认项目恰恰是空的 —— 它于是从没在服务端建过行，整个第一次会话只活在
+  // localStorage，而且写入闸（`serverConfirmedProjectIds`）会把这期间的每一次
+  // 写入静默跳过。清一次缓存就整段没了。
+
+  it('creates a server row for a brand-new user whose only project is the empty bootstrap default', async () => {
+    // 有状态的假服务端：POST 之后 refetch 得看得见刚建出来的那一行。
+    const serverRows: ReturnType<typeof serverProjectRecord>[] = []
+    const { result, createCalls, listCalls, putCalls } =
+      await renderHydratedHook({
+        list: () => jsonResponse({ success: true, data: [...serverRows] }),
+        post: () => {
+          const row = serverProjectRecord({
+            id: 'srv_bootstrap_1',
+            name: DEFAULT_PROJECT_NAME,
+          })
+          serverRows.push(row)
+          return jsonResponse({ success: true, data: row })
+        },
+      })
+
+    // 服务端空 + 本地只有那个空的默认项目 → 照样建行。
+    expect(createCalls()).toHaveLength(1)
+    expect(createCalls()[0]?.body?.name).toBe(DEFAULT_PROJECT_NAME)
+    expect(
+      (createCalls()[0]?.body?.state as { nodes: unknown[] }).nodes,
+    ).toHaveLength(0)
+    // 初次 list + 建完之后那次 refetch。
+    expect(listCalls()).toHaveLength(2)
+    expect(result.current.currentProjectId).toBe('srv_bootstrap_1')
+
+    // ⭐ 本次修复成立与否的判据：新 id 必须进了 `serverConfirmedProjectIds`。
+    // 那个 Set 是 ref，唯一的外部可观测面就是「这个项目的写入放不放行」——
+    // 没进去的话下面这次改动会被静默跳过，等于建了个寂寞。
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+    expect(putCalls()).toHaveLength(1)
+    expect(putCalls()[0]?.url).toContain('srv_bootstrap_1')
+    expect(
+      (putCalls()[0]?.body?.state as { nodes: unknown[] }).nodes,
+    ).toHaveLength(1)
+    expect(loggerWarnMock).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed bootstrap upload and still refuses to write to the unconfirmed project', async () => {
+    const { result, createCalls, listCalls, putCalls } =
+      await renderHydratedHook({
+        list: () => jsonResponse({ success: true, data: [] }),
+        post: () => jsonResponse({ success: false, error: 'offline' }, 500),
+      })
+
+    // 建不出来就得说 —— 静默才是这次要修的病。
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(1))
+    expect(toastErrorMock).toHaveBeenCalledWith('cloudSaveFailed')
+    expect(serverPersistErrorCalls()[0]?.[1]).toMatchObject({
+      operation: SERVER_WRITE_OPERATIONS.migrate,
+    })
+    expect(createCalls()).toHaveLength(1)
+    // 失败了就不 refetch，也不拿服务端结果替换本地。
+    expect(listCalls()).toHaveLength(1)
+
+    // 没建成 = 没确认。绝不能顺手把本地 id 登记进去「让写入先跑起来」——
+    // 那等于让一份来路不明的 state 去 PUT 一个可能根本不存在的行。
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+    expect(putCalls()).toHaveLength(0)
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      expect.stringContaining('not confirmed by the server'),
+      expect.objectContaining({ projectId: result.current.currentProjectId }),
+    )
+    // 本地那份原样留着，用户继续能编辑。
+    expect(result.current.projects).toHaveLength(1)
+    expect(result.current.nodes).toHaveLength(1)
+  })
+
+  it('never uploads another account’s local snapshot as this account’s project', async () => {
+    // 本账号的 key 里躺着一份**声称属于别人**的快照（同步 / 手动导入 / 开发者
+    // 工具都可能造成）。读取那一层就该把它顶掉。
+    window.localStorage.setItem(
+      TEST_STORAGE_KEY,
+      JSON.stringify({
+        version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+        ownerClerkId: OTHER_CLERK_ID,
+        currentProjectId: 'project-foreign',
+        projects: [
+          {
+            id: 'project-foreign',
+            name: 'Foreign workflow',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            state: { nodes: [HYDRATED_NODE], edges: [] },
+          },
+        ],
+      }),
+    )
+
+    const serverRows: ReturnType<typeof serverProjectRecord>[] = []
+    const { result, createCalls } = await renderHydratedHook({
+      list: () => jsonResponse({ success: true, data: [...serverRows] }),
+      post: () => {
+        const row = serverProjectRecord({ id: 'srv_bootstrap_1' })
+        serverRows.push(row)
+        return jsonResponse({ success: true, data: row })
+      },
+    })
+
+    // 内存里是本账号自己的空默认项目，别人那份一个节点都没进来。
+    expect(result.current.nodes).toEqual([])
+    // 建行是对的（本账号自己的空项目也该有云端副本），但建上去的**绝不能是
+    // 别人那份**：迁移循环喂的是内存快照，隔离在它之前就已经生效了。
+    expect(createCalls()).toHaveLength(1)
+    expect(createCalls()[0]?.body?.name).toBe(DEFAULT_PROJECT_NAME)
+    expect(
+      (createCalls()[0]?.body?.state as { nodes: unknown[] }).nodes,
+    ).toHaveLength(0)
+  })
+
+  it('refuses to upload an in-memory snapshot that is not provably this account’s', async () => {
+    const rig = stubServerFetch({
+      list: () => jsonResponse({ success: true, data: [] }),
+      post: () => jsonResponse({ success: true, data: serverProjectRecord() }),
+    })
+
+    // ⚠ 顺序就是这条测试的全部。`renderHook` 同步返回时，localStorage 水化那个
+    // `queueMicrotask` 还没跑（栈还没空）；此刻写一笔就让 `hasPreHydrationMutation`
+    // 置位，水化于是**保留内存里这份**而不是去读盘 —— 它的 owner 还是 parked
+    // 哨兵，不是本账号。这正是「切账号时上一个账号的残留快照还在内存里」那条路
+    // 能达到的同一个状态。
+    const { result } = renderNodeWorkflowHook()
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    // 水化 microtask 在「有 pre-hydration 写入」这条路上不 setState，所以要再
+    // 推一次渲染，服务端水化 effect 才会重跑。
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+    })
+    await waitFor(() => expect(result.current.isHydrated).toBe(true))
+
+    // 迁移循环之前那条 seatbelt（`localSnapshot.ownerClerkId !== clerkId`）必须
+    // 拦住它 —— 服务端是空的，删掉「本地有没有内容」那条短路之后，这里是唯一
+    // 拦着「把不属于本账号的快照 POST 成本账号项目」的东西。
+    expect(rig.createCalls()).toHaveLength(0)
+    // 拦住不等于丢掉：本地那份还在，用户继续能编辑。
+    expect(result.current.nodes).toHaveLength(2)
+  })
+
+  // ── 删掉最后一个项目后补的替代项目也必须建行 ─────────────────────────────
+  // 和上面那条 bootstrap 的洞同一类：本地凭空多出一个项目，却没人给它在服务端
+  // 建行。它的 id 不在 `serverConfirmedProjectIds` 里，于是写入 effect 会跳过它
+  // 的每一次写入（只留一条用户看不见的 warn）、`saveNow` 直接返回 false 弹「保存
+  // 失败」—— 用户删完最后一个项目后接着画的东西整个会话都不上云。
+
+  it('creates a server row for the replacement project after deleting the last one', async () => {
+    const { result, calls, createCalls, putCalls } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({
+          success: true,
+          data: [
+            serverProjectRecord({ id: 'srv_only_1', name: 'Only project' }),
+          ],
+        }),
+      // 服务端发自己的 UUID —— 本地那个临时 id 必须被改写掉，否则后续写入打的
+      // 是一个不存在的行。
+      post: () =>
+        jsonResponse({
+          success: true,
+          data: serverProjectRecord({
+            id: 'srv_replacement_1',
+            name: DEFAULT_PROJECT_NAME,
+          }),
+        }),
+    })
+
+    expect(result.current.currentProjectId).toBe('srv_only_1')
+
+    act(() => {
+      result.current.deleteProject('srv_only_1')
+    })
+
+    // 本地立刻补上了一个空的默认项目……
+    expect(result.current.projects).toHaveLength(1)
+    expect(result.current.currentProjectName).toBe(DEFAULT_PROJECT_NAME)
+    expect(result.current.nodes).toEqual([])
+    // ……删除照常发出去……
+    expect(
+      calls.filter(
+        (call) => call.method === 'DELETE' && call.url.includes('srv_only_1'),
+      ),
+    ).toHaveLength(1)
+    // ……而这次修的就是这一条：替代项目也得有服务端的行。
+    expect(createCalls()).toHaveLength(1)
+    expect(createCalls()[0]?.body?.name).toBe(DEFAULT_PROJECT_NAME)
+    expect(
+      (createCalls()[0]?.body?.state as { nodes: unknown[] }).nodes,
+    ).toHaveLength(0)
+
+    await waitFor(() =>
+      expect(result.current.currentProjectId).toBe('srv_replacement_1'),
+    )
+
+    // ⭐ 判据：接着画的东西真的 PUT 到了服务端那个新 id 上。`serverConfirmedProjectIds`
+    // 是 ref，唯一的外部可观测面就是「这个项目的写入放不放行」。
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+    expect(putCalls()).toHaveLength(1)
+    expect(putCalls()[0]?.url).toContain('srv_replacement_1')
+    expect(
+      (putCalls()[0]?.body?.state as { nodes: unknown[] }).nodes,
+    ).toHaveLength(1)
+    // ⚠ 不断言「一条 warn 都没有」：本地建出来到服务端确认之间那一小段里，写入
+    // effect 会为那个临时 id 警告一次，这是 `createProject` 也有的既有行为。要紧
+    // 的是**服务端那个 id 从没被挡过**。
+    expect(loggerWarnMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('not confirmed by the server'),
+      expect.objectContaining({ projectId: 'srv_replacement_1' }),
+    )
   })
 })

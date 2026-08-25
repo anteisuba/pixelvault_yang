@@ -152,8 +152,10 @@ describe('models', () => {
     ])
   })
 
-  it('uses Fish s2.1-pro execution id while keeping stable catalog key', () => {
-    expect(getExecutionModelId(AI_MODELS.FISH_AUDIO_S2_PRO)).toBe('s2.1-pro')
+  it('uses Fish s2.1-pro-free execution id while keeping stable catalog key', () => {
+    expect(getExecutionModelId(AI_MODELS.FISH_AUDIO_S2_PRO)).toBe(
+      's2.1-pro-free',
+    )
   })
 
   it('registers Kling O3 Pro and FLUX.2 Pro Edit as available', () => {

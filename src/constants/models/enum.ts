@@ -68,7 +68,10 @@ export enum AI_MODELS {
   // Audio models
   /**
    * Catalog key kept as fish-audio-s2-pro for DB/i18n stability. Execution id
-   * is `s2.1-pro` (Fish production recommendation as of 2026-07).
+   * is `s2.1-pro-free` — Fish's **free tier** of S2.1 Pro (same model, same
+   * language coverage), free only through **2026-08-31**. If Fish does not
+   * extend the window again, switch back to the paid `s2.1-pro`; see the note
+   * on this entry in `src/constants/models/audio.ts`.
    */
   FISH_AUDIO_S2_PRO = 'fish-audio-s2-pro',
   ELEVENLABS_V3 = 'eleven-v3',

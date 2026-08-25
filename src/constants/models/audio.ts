@@ -27,9 +27,24 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     cost: 2,
     adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FISH_AUDIO),
-    // Production recommendation (2026-07 Fish docs): s2.1-pro. Catalog enum
-    // stays fish-audio-s2-pro for generation history / VoiceCard stability.
-    externalModelId: 's2.1-pro',
+    // 走免费档 `s2.1-pro-free`：与收费档 `s2.1-pro` 是同一个模型、同样的语言覆盖；
+    // `reference_id`（音色卡）与多说话人 `reference_id` 数组同样支持——2026-08-25
+    // 查官方 API reference 确认，整个 S2 家族都支持多说话人，唯一不支持的是 `s1`。
+    // model 走 HTTP header，合法值 s1 / s2-pro / s2.1-pro / s2.1-pro-free。
+    //
+    // Catalog enum 保持 `fish-audio-s2-pro` 不动（生成历史 / VoiceCard 稳定性）。
+    //
+    // ⚠ 免费期到 2026-08-31，且已经延期两次（07-24 → 整个 7 月 → 08-31）。到期若不
+    // 再延，这个 model string 会失效——而它是目前**唯一 `available: true` 的语音
+    // 模型**（`ELEVENLABS_V3` 已 `available: false`），失效即语音生成整条断掉。届时
+    // 改回 `'s2.1-pro'`（$15 / 百万 UTF-8 字节，BYOK 由用户自付）。复核提醒钉在
+    // `audio.test.ts` 的 execution id 用例上。
+    //
+    // ⚠ 免费档无 SLA、无 TTFA / DPA 保证，Fair Use 可限流，且官方声明请求**可能被
+    // 用于改进模型**。
+    // https://fish.audio/blog/s2-1-pro-free-api/
+    // https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech
+    externalModelId: 's2.1-pro-free',
     outputType: 'AUDIO',
     audioKind: AUDIO_KIND.SPEECH,
     available: true,

@@ -64,8 +64,17 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
   key 下跑通过。而 `bb9e7bae` 之后 Preview 也不再跑迁移——**「合并前验一次迁移」现在
   没有任何工具兜着**。三条路选一：配上这两个变量、给 Preview 配 Neon 分支库、或明确
   接受这个缺口。
-- **Fish 音频免费档 2026-08-31 到期**（还剩 6 天，此前已延期至少两次）：商务条款从未
-  核过，到期后 `FISH_AUDIO_S2_PRO` 转 $15 / 百万 UTF-8 字节。接、还是明确不接。
+- **Fish 音频免费档已接，待办改成「09-01 复核」**：`FISH_AUDIO_S2_PRO` 的执行 id 已从
+  `s2.1-pro` 切到免费档 `s2.1-pro-free`（同一个模型、同样的语言覆盖，音色卡
+  `reference_id` 与多说话人数组照常可用），单价 $0。代价是免费档无 SLA、无 TTFA / DPA
+  保证，Fair Use 可限流，且官方声明请求**可能被用于改进模型**。
+  所以待办不再是「接不接」，而是 **2026-09-01 去
+  https://fish.audio/blog/s2-1-pro-free-api/ 确认有没有第三次延期**（免费期 08-31 到期，
+  此前已延两次：07-24 → 整个 7 月 → 08-31）。到期不再延 = 这个 model string 失效，而它
+  是目前**唯一 `available: true` 的语音模型**（`ELEVENLABS_V3` 已 `available: false`），
+  失效即语音生成整条断掉。回退一行：`src/constants/models/audio.ts` 的
+  `externalModelId` 改回 `'s2.1-pro'`（$15 / 百万 UTF-8 字节，BYOK 用户自付），并同步
+  `audio.test.ts` / `models.test.ts` 两处 pin。
 
 ## Current Focus
 

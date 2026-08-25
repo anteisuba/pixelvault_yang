@@ -3,8 +3,13 @@
  * 迁移预演：从生产库开一个即用即弃的 Neon 分支，把**还没应用的迁移**在上面真跑
  * 一遍，然后删掉分支。
  *
- *   npm run preflight:migrations
- *   npm run preflight:migrations -- --parent production --keep
+ *   npm run preflight:migrations           # 父分支从 DATABASE_URL 反推
+ *   npm run preflight:migrations -- --keep # 保留分支自己进去看
+ *
+ * ⛔ **别用 `--parent production`。** 本项目里 Neon 的分支名是反的——叫
+ * `production` 的那个是 `.env.production.local` 指的**陈旧库**（而且它还是
+ * Neon 的默认分支），运行时真正连的库挂在叫 `development` 的分支上。在陈旧库
+ * 上预演会绿，但那个绿与生产无关。不传 `--parent` 才是对的。
  *
  * 闸门的另一半是 `prisma/migration-safety.test.ts`（自动，进 pre-push 的全量
  * vitest）。那条拦的是「你忘了想这件事」，这条验的是「想了，且在真实数据上成立」。
@@ -127,7 +132,16 @@ async function waitUntilConnectable(uri) {
 
 let branchId
 try {
-  // 解析父分支：给了名字就查 id，没给就用项目默认分支。
+  // 解析父分支。
+  //
+  // ⛔ **绝不按分支名认，也绝不用 Neon 的「默认分支」。** 本项目里这两条都会
+  // 把你带到错的库上（2026-08-25 实测）：叫 `production` 的分支挂的是
+  // `ep-solitary-dew-…`，即 `.env.production.local` 指向的那个**陈旧库**，而且
+  // 它正好是 Neon 的默认分支；Vercel 生产运行时真正连的 `ep-flat-violet-…`
+  // 反而挂在叫 `development` 的分支上。名字是反的。
+  //
+  // 在陈旧库上跑预演比不跑更糟：它会绿，而那个绿与生产无关。所以默认行为改成
+  // 从 `DATABASE_URL` 反推——运行时连哪个库，就在哪个库的副本上预演。
   let parentId
   if (parent) {
     const { branches } = await neon(`/projects/${projectId}/branches`)
@@ -140,6 +154,36 @@ try {
       )
     }
     parentId = hit.id
+    console.warn(
+      `⚠ 用 --parent 指定了 ${hit.name}(${hit.id})，跳过了「从 DATABASE_URL 反推」。` +
+        '确认这真是运行时在连的那个库，否则预演结果不作数。',
+    )
+  } else {
+    const runtimeUrl = process.env.DATABASE_URL ?? fileEnv.DATABASE_URL
+    if (!runtimeUrl) {
+      throw new Error(
+        '没有 DATABASE_URL，无法反推该在哪个分支上预演。' +
+          '要么配上，要么显式 --parent <分支>（自负其责）。',
+      )
+    }
+    // ep-flat-violet-aifhen7l-pooler.c-4.us-east-1.aws.neon.tech → ep-flat-violet-aifhen7l
+    const endpointId = new URL(runtimeUrl).hostname
+      .split('.')[0]
+      .replace(/-pooler$/, '')
+    const { endpoints } = await neon(`/projects/${projectId}/endpoints`)
+    const hit = endpoints.find((e) => e.id === endpointId)
+    if (!hit) {
+      throw new Error(
+        `DATABASE_URL 指向的 endpoint ${endpointId} 不在本项目里。` +
+          `现有 endpoint：${endpoints.map((e) => e.id).join(', ')}`,
+      )
+    }
+    parentId = hit.branch_id
+    const { branches } = await neon(`/projects/${projectId}/branches`)
+    const branch = branches.find((b) => b.id === parentId)
+    console.log(
+      `父分支从 DATABASE_URL 反推：${endpointId} → ${branch?.name ?? '?'}(${parentId})`,
+    )
   }
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
@@ -177,20 +221,33 @@ try {
     ['prisma', 'migrate', 'deploy'],
     {
       stdio: 'inherit',
+      // ⚠ Windows 必须带 shell。Node ≥18.20.2 的 CVE-2024-27980 缓解禁止不经
+      // shell 直接起 .cmd/.bat，`spawnSync('npx.cmd', …)` 会当场 EINVAL、
+      // status 为 null，而且因为进程压根没起来，stdio:'inherit' 一个字都不输出。
+      shell: process.platform === 'win32',
       env: { ...process.env, DATABASE_URL: uri, DIRECT_URL: uri },
     },
   )
 
-  if (result.status === 0) {
+  // ⚠ 先分「没能执行」和「执行了但失败」。混为一谈会把一次 spawn 失败播报成
+  // 「这些迁移直接打生产会失败」——那是假警报，会把人骗去改根本没问题的数据。
+  if (result.error) {
+    console.error(
+      `\n❌ 起不来 prisma：${result.error.code ?? ''} ${result.error.message}\n` +
+        '   这是**没能执行**，不是迁移失败 —— 别据此去修数据。',
+    )
+    process.exitCode = 1
+  } else if (result.status === 0) {
     console.log('\n✅ 待跑的迁移在生产数据的副本上全部通过。')
+    process.exitCode = 0
   } else {
     console.error(
       `\n❌ migrate deploy 退出码 ${result.status} —— 这些迁移直接打生产会失败。\n` +
         '   先补数据修复（形状参考 prisma/migrations/20260821210441_dedupe_lora_assets），\n' +
         '   再重跑本脚本。',
     )
+    process.exitCode = result.status ?? 1
   }
-  process.exitCode = result.status ?? 1
 } catch (error) {
   console.error(`\n预演失败: ${error.message}`)
   process.exitCode = 1

@@ -44,6 +44,10 @@ export default defineConfig({
   },
   datasource: {
     url: resolveDirectUrl(),
-    shadowDatabaseUrl: process.env['SHADOW_DATABASE_URL'],
+    // `|| undefined`：空字符串永远不是合法的数据库 URL，但 dotenv 会把
+    // `.env.local` 里一行光秃秃的 `SHADOW_DATABASE_URL=` 读成 `''`，Prisma 随即
+    // 抛 P1013「must not be an empty string」——连 `migrate deploy` 这种根本不用
+    // 影子库的命令也一起挡掉。把空串归一成「没设」。
+    shadowDatabaseUrl: process.env['SHADOW_DATABASE_URL'] || undefined,
   },
 })

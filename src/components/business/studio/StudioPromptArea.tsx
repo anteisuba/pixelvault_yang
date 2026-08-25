@@ -55,6 +55,8 @@ import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { getModelById, modelSupportsLora } from '@/constants/models'
+import { VIDEO_UNIT_PRICE_BASE_RESOLUTION } from '@/constants/models/unit-prices'
+import { isVideoResolution } from '@/constants/video-options'
 import { getVideoModelParameterOptions } from '@/constants/video-model-send-plan'
 import { PLATFORM_GENERATION_GUARD, VIDEO_GENERATION } from '@/constants/config'
 import type { AspectRatio } from '@/constants/config'
@@ -90,7 +92,10 @@ import { StudioVideoModeToggle } from '@/components/business/studio/StudioVideoM
 import { StudioSfxSpecPopover } from '@/components/business/studio/StudioSfxSpecPopover'
 import { StudioMusicSpecPopover } from '@/components/business/studio/StudioMusicSpecPopover'
 import { StudioAudioSpeechParams } from '@/components/business/studio/StudioAudioSpeechParams'
-import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
+import {
+  StudioCostPreview,
+  type CostPreviewBasis,
+} from '@/components/business/studio/StudioCostPreview'
 import { StudioAudioKindSwitcher } from '@/components/business/studio/StudioAudioKindSwitcher'
 import { cn } from '@/lib/utils'
 import { composeCharacterInjection } from '@/lib/character-card-injection'
@@ -763,6 +768,52 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     () => new Set(runModels.map((o) => o.optionId)),
     [runModels],
   )
+
+  /**
+   * 视频档的成本预览基准。
+   *
+   * ⚠ 必须按**真正会发出去的那两个值**算，不是 state 里的原始值 —— 切模型后
+   * 残留的时长/分辨率会在出口被夹（见 `buildVideoInput` 的同名逻辑），按未夹的
+   * 值报价就是报一个用户根本不会被收的数。两处的夹法写成同一个表达式，好让
+   * 它们不一致时一眼看得出来。
+   *
+   * 契约不支持 duration（`durations` 为空 → 出口发 `'auto'`）时返回 null：
+   * 长度未知就算不出总价，隐藏比编一个数诚实。
+   */
+  const videoCostBasis = useMemo<CostPreviewBasis | null>(() => {
+    if (!isVideoMode || !selectedModel) return null
+
+    const { durations, resolutions } = getVideoModelParameterOptions(
+      selectedModel.modelId,
+      selectedModel.adapterType,
+    )
+    if (durations.length === 0) return null
+
+    const durationSeconds = durations.includes(state.videoDuration)
+      ? state.videoDuration
+      : durations.reduce((closest, candidate) =>
+          Math.abs(candidate - state.videoDuration) <
+          Math.abs(closest - state.videoDuration)
+            ? candidate
+            : closest,
+        )
+
+    // 用户没选档（或选的档被夹掉）时出口发的是 `undefined` —— 服务端走模型
+    // 自己的 `videoDefaults.resolution`，所以报价也要按那一档算。
+    const picked =
+      state.videoResolution && resolutions.includes(state.videoResolution)
+        ? state.videoResolution
+        : (getModelById(selectedModel.modelId)?.videoDefaults?.resolution ??
+          VIDEO_UNIT_PRICE_BASE_RESOLUTION)
+
+    return {
+      kind: 'video',
+      durationSeconds,
+      resolution: isVideoResolution(picked)
+        ? picked
+        : VIDEO_UNIT_PRICE_BASE_RESOLUTION,
+    }
+  }, [isVideoMode, selectedModel, state.videoDuration, state.videoResolution])
 
   /**
    * 视频 / 音频的单选换型号。除了 `SET_OPTION_ID`，还要**把规格收窄到新型号真
@@ -1732,12 +1783,20 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         {/* 成本 + 生成 —— 一起沉到参数栏底部（`mt-auto` 挂在这层，不挂按钮，
               否则成本行会被留在上面、跟它解释的那个按钮隔开半栏）。 */}
         <div className="mt-auto flex shrink-0 flex-col gap-2">
-          {/* 成本预览只对图片有数：单价表今天一条音频条目都没有，视频那批也
-              只覆盖了一部分。按既有规矩缺价留空，不填猜的数。 */}
+          {/* 成本预览覆盖图片与视频。音频还没有：单价表里一条音频条目都没有，
+              按既有规矩缺价留空，不填猜的数。
+              ⚠ 视频恒单条 —— 传的是 `selectedModel` 而不是 `runModels`（那份
+              是图片矩阵的名单，视频模式下本来就是空的）。 */}
           {isImageMode ? (
             <StudioCostPreview
               models={runModels}
-              perModelCount={state.imageBatchCount}
+              basis={{ kind: 'image', perModelCount: state.imageBatchCount }}
+            />
+          ) : null}
+          {isVideoMode && selectedModel && videoCostBasis ? (
+            <StudioCostPreview
+              models={[selectedModel]}
+              basis={videoCostBasis}
             />
           ) : null}
           {/* 生成 —— 按钮上写清这一次会出几张 */}

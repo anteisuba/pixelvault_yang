@@ -78,6 +78,17 @@ export enum AI_MODELS {
 
   // Video models
   HAPPYHORSE_10 = 'happyhorse-1.0',
+  /**
+   * Wan 3.0 via fal — Alibaba's Tongyi Wanxiang line, **not** a HappyHorse
+   * successor. The two are separate Alibaba product lines (fal lists them as
+   * distinct model families); adding Wan does not retire HappyHorse.
+   *
+   * Base = text-to-video + image-to-video (first frame, optional last frame).
+   * `_REFERENCE` = the multimodal reference endpoint (images + video + audio +
+   * document + webpage), same split as the Seedance pair.
+   */
+  WAN_30 = 'wan-3.0',
+  WAN_30_REFERENCE = 'wan-3.0-reference',
   KLING_V3_PRO = 'kling-v3-pro',
   /** Kling VIDEO 3.0 Omni Pro — element/video reference heavy workflows. */
   KLING_O3_PRO = 'kling-o3-pro',

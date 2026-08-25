@@ -354,6 +354,10 @@ const HOME_V3_MODEL_BRAND_COVERS: Readonly<Record<string, string>> = {
   'seedance-2.0-reference-byteplus':
     '/homepage/production/models/brand/bytedance.svg',
   'happyhorse-1.0': '/homepage/production/models/brand/alibaba-cloud.svg',
+  // Wan is a different Alibaba line than HappyHorse, but the same owner — one
+  // mark covers both.
+  'wan-3.0': '/homepage/production/models/brand/alibaba-cloud.svg',
+  'wan-3.0-reference': '/homepage/production/models/brand/alibaba-cloud.svg',
   // Reserved (available: false) so it never reaches the rail today, but mapped
   // now so flipping 2.5 on at GA doesn't leave the homepage without art.
   'seedance-2.5-volcengine': '/homepage/production/models/brand/bytedance.svg',

@@ -66,6 +66,55 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     },
   },
   {
+    id: AI_MODELS.WAN_30,
+    // $0.10/s at the 720p base tier — the cheapest premium video in the
+    // catalog per second (HappyHorse $0.14, Kling $0.112, Seedance 2.0
+    // $0.3034). Priced at 5 to sit level with HappyHorse: cheaper per second,
+    // but the 30s ceiling makes a typical run land higher.
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'alibaba/wan-3.0/text-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://fal.ai/models/alibaba/wan-3.0/text-to-video',
+    // ⚠ `timeoutMs` bounds the **submit** step only — the worker passes it to
+    // `step.do('submit-provider', { timeout })`. The wait budget for the
+    // generation itself is `maxAttempts × pollIntervalMs`
+    // (EXECUTION_WORKER: 200 × 3s = 600s), which is global, not per-model.
+    // Raising this number does nothing for long renders; don't "fix" a 30s
+    // timeout here.
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    // Same endpoint family: t2v takes `prompt`, i2v takes `start_image_url`
+    // (+ optional `end_image_url` — the first fal video model in the catalog
+    // that can actually do first+last frame).
+    i2vModelId: 'alibaba/wan-3.0/image-to-video',
+    videoDefaults: {
+      generateAudio: true,
+      // fal defaults to 1080p; the catalog pins 720p so the price the user
+      // sees (unit-prices is a 720p-based figure) matches what we send.
+      resolution: '720p',
+    },
+  },
+  {
+    id: AI_MODELS.WAN_30_REFERENCE,
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'alibaba/wan-3.0/reference-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://fal.ai/models/alibaba/wan-3.0/reference-to-video',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    requiresReferenceImage: true,
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
+  {
     id: AI_MODELS.VEO_31,
     cost: 8,
     adapterType: AI_ADAPTER_TYPES.FAL,

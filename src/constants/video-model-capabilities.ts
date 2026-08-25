@@ -49,6 +49,11 @@ export function videoModelSupportsSeed(
 ): boolean {
   if (modelId === AI_MODELS.VEO_31) return !hasReferenceInputs
   if (modelId === AI_MODELS.HAPPYHORSE_10) return true
+  // Wan 3.0 declares `seed` on all three endpoints (t2v / i2v / r2v) in fal's
+  // OpenAPI — reference inputs don't disable it the way Veo's do.
+  if (modelId === AI_MODELS.WAN_30 || modelId === AI_MODELS.WAN_30_REFERENCE) {
+    return true
+  }
   return SEED_CAPABLE_SEEDANCE.has(modelId)
 }
 
@@ -158,6 +163,34 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     supportedResolutions: ['720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
+  // Wan 3.0 — fal's OpenAPI puts `duration` at [2, 30]. That is the widest
+  // range in the catalog by 2×, and the duration control switches from chips
+  // to a slider on its own past DURATION_SLIDER_THRESHOLD (4), so the long
+  // list costs the UI nothing.
+  // ⚠ Cost scales with the knobs: 2s/480p ≈ $0.10, 30s/1080p ≈ $6.00. The
+  // credit `cost` on the catalog entry is flat, so the price preview in the
+  // parameter bar is the only thing telling the user those differ.
+  // `adaptive` is deliberately absent from the ratio list — it is not a member
+  // of VIDEO_ASPECT_RATIOS. The builder omits `aspect_ratio` for image inputs
+  // instead, which lets fal apply its own `adaptive` default.
+  [AI_MODELS.WAN_30]: {
+    supportedDurations: [
+      2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+    ],
+    supportedResolutions: ['480p', '720p', '1080p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
+  [AI_MODELS.WAN_30_REFERENCE]: {
+    supportedDurations: [
+      2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+    ],
+    supportedResolutions: ['480p', '720p', '1080p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    // `reference_audio_urls` takes up to 5 clips totalling ≤15s.
+    audio: { mode: 'reference', maxReferences: 5 },
   },
   // Kling V3 / O3 Pro 没有分辨率旋钮：fal 的 4 个端点（v3、o3 各自的
   // text-to-video + image-to-video）输入 schema 里都不存在 resolution 字段，

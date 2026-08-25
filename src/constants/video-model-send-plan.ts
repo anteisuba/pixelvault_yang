@@ -36,6 +36,7 @@ export interface VideoModelSendContract {
     | 'seedance'
     | 'kling'
     | 'happyhorse'
+    | 'wan'
     | 'gemini'
     | 'veo'
     | 'minimax'
@@ -357,6 +358,63 @@ export function getVideoModelSendContract(
         seed: true,
       },
       execution: executionStatus(adapterType),
+      positionalImageTokens: false,
+      imageAspectRatioLock: null,
+      keyframeSlots: 1,
+    }
+  }
+
+  if (normalized === AI_MODELS.WAN_30) {
+    return {
+      family: 'wan',
+      referenceMode: 'text-or-first-frame',
+      // 首尾帧：fal 的 i2v schema 收 `start_image_url` + `end_image_url`，
+      // worker 的 buildWan30 两个都发得出来 —— 与 Seedance 2.5 同一条路径，
+      // 不是「声明得比实现宽」。
+      slots: FIRST_LAST_FRAME_SLOTS,
+      parameters: {
+        duration: true,
+        aspectRatio: true,
+        resolution: true,
+        // fal 的 Wan 3.0 输入 schema 里没有 negative_prompt 字段（一手 OpenAPI
+        // 核过，三个端点都没有）。给了也发不出去。
+        negativePrompt: false,
+        generateAudio: true,
+        seed: true,
+      },
+      execution: executionStatus(adapterType),
+      positionalImageTokens: false,
+      imageAspectRatioLock: null,
+      keyframeSlots: 2,
+    }
+  }
+
+  if (normalized === AI_MODELS.WAN_30_REFERENCE) {
+    return {
+      family: 'wan',
+      referenceMode: 'multimodal-reference',
+      slots: {
+        images: 10,
+        videos: 5,
+        audio: 5,
+        // ⚠ 官方没有公布跨模态合计上限（Seedance 有 12 / 50，Wan 没有）——
+        // 不编一个。各模态各自有上限，合计不设。
+      },
+      parameters: {
+        duration: true,
+        aspectRatio: true,
+        resolution: true,
+        negativePrompt: false,
+        generateAudio: true,
+        seed: true,
+      },
+      execution: executionStatus(adapterType),
+      // ⚠ 故意 false。Wan 的位置引用语法是 `Image 1` / `Video 1` / `Audio 1`
+      // （空格 + 首字母大写，fal schema 与阿里文档口径一致），而这一侧的
+      // 图例走共享常量 `NODE_STUDIO_VIDEO_REFERENCE_LEGEND.imagePrefix`
+      // = `@Image` —— Seedance 的语法。声明 true 会发出 Wan 不认的 token，
+      // 表现是参考图静默不起作用。Wan 语法由 worker 的 buildWan30Reference
+      // 自己前缀，不借用这条通道。
       positionalImageTokens: false,
       imageAspectRatioLock: null,
       keyframeSlots: 1,

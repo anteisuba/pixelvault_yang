@@ -10,7 +10,10 @@ import {
   MODEL_UNIT_PRICES,
   formatUnitPriceAmount,
   getModelUnitPrice,
+  getVideoUnitPricePerSecond,
 } from '@/constants/models/unit-prices'
+import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
+import type { VideoResolution } from '@/constants/video-options'
 
 /**
  * 渠道比价数据的卫生与自洽性。见 `unit-prices.ts` 文件头的口径说明。
@@ -42,6 +45,63 @@ describe('model unit prices', () => {
       expect(price.verifiedAt, `${id} verifiedAt must be YYYY-MM-DD`).toMatch(
         /^\d{4}-\d{2}-\d{2}$/,
       )
+    }
+  })
+
+  it('⚠ 分档表只许填模型真发得出去的档', () => {
+    // 判据是**产品能不能出这一档**，不是「官方页上还印着别的档」。给一个用户
+    // 永远选不到的档标价，会在跨模型比价时把这条说成另一个价位 —— 例如 H3 的
+    // 768P（$0.08）比它实际恒发的 2K（$0.13）便宜 38%。
+    for (const [id, price] of entries) {
+      if (!price.resolutionAmounts) continue
+      const allowed = getVideoModelCapabilities(id).supportedResolutions ?? []
+      for (const [resolution, amount] of Object.entries(
+        price.resolutionAmounts,
+      )) {
+        expect(
+          allowed,
+          `${id} prices ${resolution} but the model cannot output it`,
+        ).toContain(resolution)
+        expect(amount, `${id}.${resolution} must be positive`).toBeGreaterThan(
+          0,
+        )
+        expect(amount, `${id}.${resolution} looks like a typo`).toBeLessThan(
+          100,
+        )
+      }
+    }
+  })
+
+  it('⚠ 分档表里的 720p 必须与 amount 一致', () => {
+    // `amount` 按文件头口径就是 720p 那一档。两个数字说同一件事却不相等 =
+    // 有人只改了一半，而横向比价读的是 `amount`、成本预览读的是分档表 ——
+    // 同一个模型会在两个界面上报两个价。
+    for (const [id, price] of entries) {
+      const tiered = price.resolutionAmounts?.['720p']
+      if (tiered === undefined) continue
+      expect(tiered, `${id}: resolutionAmounts['720p'] !== amount`).toBe(
+        price.amount,
+      )
+    }
+  })
+
+  it('没有分辨率旋钮的视频模型必须报得出价', () => {
+    // 回归守卫：H3 恒发 2k、Kling 恒出 1080p，它们的默认档都不是 720p 基准档。
+    // 少了分档表，`getVideoUnitPricePerSecond` 会把一个明明有价的模型判成缺价，
+    // 成本预览就只剩一行「N 个模型未标价」。
+    const knobless: [AI_MODELS, VideoResolution][] = [
+      [AI_MODELS.MINIMAX_H3, '2k'],
+      [AI_MODELS.MINIMAX_H3_REFERENCE, '2k'],
+      [AI_MODELS.MINIMAX_H3_CN, '2k'],
+      [AI_MODELS.MINIMAX_H3_REFERENCE_CN, '2k'],
+      [AI_MODELS.KLING_V3_PRO, '1080p'],
+      [AI_MODELS.KLING_O3_PRO, '1080p'],
+    ]
+    for (const [id, resolution] of knobless) {
+      expect(
+        getVideoUnitPricePerSecond(id, resolution),
+        `${id} has no price at its only tier ${resolution}`,
+      ).toBeGreaterThan(0)
     }
   })
 

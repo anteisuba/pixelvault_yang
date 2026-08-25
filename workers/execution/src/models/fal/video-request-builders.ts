@@ -57,6 +57,8 @@ const FAL_VIDEO_MODEL_IDS = {
   KLING_V3_PRO: 'kling-v3-pro',
   KLING_O3_PRO: 'kling-o3-pro',
   HAPPYHORSE_10: 'happyhorse-1.0',
+  WAN_30: 'wan-3.0',
+  WAN_30_REFERENCE: 'wan-3.0-reference',
   LTX_23: 'ltx-2.3',
   SEEDANCE_20: 'seedance-2.0',
   SEEDANCE_20_FAST: 'seedance-2.0-fast',
@@ -83,6 +85,27 @@ const FAL_EXTENDED_ASPECT_RATIOS = [
 ] as const
 const HAPPYHORSE_ASPECT_RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4'] as const
 const LTX_ASPECT_RATIOS = ['16:9', '9:16'] as const
+
+/**
+ * Wan 3.0 (fal `alibaba/wan-3.0/*`). Values below come from fal's OpenAPI for
+ * the three endpoints, not from a docs page summary.
+ *
+ * The schema also carries `aspect_ratio: 'adaptive'` (the upstream default),
+ * `enable_prompt_expansion`, `enable_thinking`, `enable_safety_checker`,
+ * `file_url` and `web_url`. None are sent:
+ * - `adaptive` is not a member of the app's VIDEO_ASPECT_RATIOS, so image
+ *   modes omit `aspect_ratio` entirely and inherit it instead.
+ * - the three `enable_*` switches have no UI and their defaults are the ones
+ *   we want (expansion on, thinking off, safety on).
+ * - `file_url` / `web_url` (document- and webpage-to-video) have no plumbing
+ *   in `providerInput` yet — a capability worth its own slice, not a silent
+ *   half-wiring.
+ */
+const WAN_30_ASPECT_RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4'] as const
+const WAN_30_RESOLUTIONS = ['480p', '720p', '1080p'] as const
+const WAN_30_MIN_DURATION = 2
+const WAN_30_MAX_DURATION = 30
+const WAN_30_REFERENCE_LIMITS = { images: 10, videos: 5, audio: 5 } as const
 
 function pickString(
   value: string | undefined,
@@ -343,6 +366,117 @@ function buildHappyHorse10(
     )
   }
 
+  return body
+}
+
+function pickWan30Common(
+  context: FalWorkerVideoRequestContext,
+): Record<string, unknown> {
+  const { providerInput } = context
+  return {
+    prompt: providerInput.prompt,
+    resolution:
+      pickResolution(
+        providerInput.resolution,
+        providerInput.videoDefaults,
+        WAN_30_RESOLUTIONS,
+        '720p',
+      ) ?? '720p',
+    duration: pickClampedNumberDuration(
+      asNumericDuration(providerInput.duration),
+      WAN_30_MIN_DURATION,
+      WAN_30_MAX_DURATION,
+    ),
+    audio:
+      providerInput.generateAudio ??
+      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ??
+      true,
+  }
+}
+
+function buildWan30(
+  context: FalWorkerVideoRequestContext,
+  mode: FalWorkerVideoMode,
+): Record<string, unknown> {
+  const { providerInput } = context
+  const body = pickWan30Common(context)
+
+  if (mode === 'image-to-video') {
+    // ⚠ Wan names the first frame `start_image_url`, not `image_url` — the
+    // field every other fal i2v builder here uses. Copying one of those
+    // verbatim yields a 422.
+    body.start_image_url = requireReferenceImage(context)
+    // 尾帧：与 Seedance 2.5 同一个约定 —— referenceImages[1] 是尾帧，顺序由
+    // 采集端 `orderKeyframes` 按 imageCategory 保证。
+    const endImage = providerInput.referenceImages?.[1]
+    if (endImage) {
+      body.end_image_url = endImage
+    }
+    // `aspect_ratio` 故意不发：上游默认 `adaptive` 会跟随输入帧，发一个具体
+    // 比例反而会给用户自己的图加黑边。
+  } else {
+    body.aspect_ratio = pickString(
+      providerInput.aspectRatio,
+      WAN_30_ASPECT_RATIOS,
+      '16:9',
+    )
+  }
+
+  return body
+}
+
+function buildWan30Reference(
+  context: FalWorkerVideoRequestContext,
+): Record<string, unknown> {
+  const { providerInput } = context
+
+  const imageRefs =
+    providerInput.referenceImages && providerInput.referenceImages.length > 0
+      ? providerInput.referenceImages
+      : providerInput.referenceImage
+        ? [providerInput.referenceImage]
+        : []
+  const imageUrls = imageRefs.slice(0, WAN_30_REFERENCE_LIMITS.images)
+  const videoUrls = (providerInput.videoUrls ?? []).slice(
+    0,
+    WAN_30_REFERENCE_LIMITS.videos,
+  )
+  const audioUrls = (
+    providerInput.audioBindings && providerInput.audioBindings.length > 0
+      ? providerInput.audioBindings.map((binding) => binding.url)
+      : (providerInput.audioUrls ?? [])
+  ).slice(0, WAN_30_REFERENCE_LIMITS.audio)
+
+  if (
+    imageUrls.length === 0 &&
+    videoUrls.length === 0 &&
+    audioUrls.length === 0
+  ) {
+    throw new Error(
+      `FAL video model ${providerInput.modelId} requires at least one reference image, video, or audio clip.`,
+    )
+  }
+
+  const body = pickWan30Common(context)
+  body.aspect_ratio = pickString(
+    providerInput.aspectRatio,
+    WAN_30_ASPECT_RATIOS,
+    '16:9',
+  )
+
+  if (imageUrls.length > 0) body.reference_image_urls = imageUrls
+  if (videoUrls.length > 0) body.reference_video_urls = videoUrls
+  if (audioUrls.length > 0) body.reference_audio_urls = audioUrls
+
+  // ⛔ 这里**没有**像 buildSeedanceReference 那样往 prompt 前面塞位置 token。
+  // 两个原因：
+  // 1. Wan 的语法是 `Image 1` / `Video 1` / `Audio 1`（空格 + 首字母大写），
+  //    不是 Seedance 的 `@Image1` —— 照抄会发出 Wan 不认的 token。
+  // 2. fal 的 schema 把位置引用写成**可选**的表达手段（"can be addressed
+  //    positionally"），没说不提就不生效。Seedance 那个前缀是实测出来的必需
+  //    品，Wan 这边我还没有同等证据。
+  // 端到端实测要专门验这一条：不提 `Image 1` 时参考图到底起不起作用。真需要
+  // 再补前缀，别先按猜测发。
   return body
 }
 
@@ -610,6 +744,10 @@ function buildBody(
       return buildVeo31(context, mode)
     case FAL_VIDEO_MODEL_IDS.HAPPYHORSE_10:
       return buildHappyHorse10(context, mode)
+    case FAL_VIDEO_MODEL_IDS.WAN_30:
+      return buildWan30(context, mode)
+    case FAL_VIDEO_MODEL_IDS.WAN_30_REFERENCE:
+      return buildWan30Reference(context)
     case FAL_VIDEO_MODEL_IDS.LTX_23:
       return buildLtx23(context, mode)
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_20:
@@ -638,9 +776,9 @@ function buildBody(
 }
 
 /**
- * seed 支持矩阵（spike 2026-06-20，fal 一手 OpenAPI）：Seedance 全族 + Veo
- * base(text-to-video) + HappyHorse v1.1 accept `seed`; Veo
- * reference(image-to-video) / Kling V3 Pro / LTX 2.3 do not.
+ * seed 支持矩阵（spike 2026-06-20，fal 一手 OpenAPI；2026-08-25 补 Wan 3.0）：
+ * Seedance 全族 + Veo base(text-to-video) + HappyHorse v1.1 + Wan 3.0 三端点
+ * accept `seed`; Veo reference(image-to-video) / Kling V3 Pro / LTX 2.3 do not.
  */
 function applySeedIfSupported(
   body: Record<string, unknown>,
@@ -656,6 +794,10 @@ function applySeedIfSupported(
     modelId === FAL_VIDEO_MODEL_IDS.SEEDANCE_20_REFERENCE ||
     modelId === FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST_REFERENCE ||
     modelId === FAL_VIDEO_MODEL_IDS.HAPPYHORSE_10 ||
+    // Wan 3.0 declares `seed` on all three endpoints; unlike Veo, reference
+    // inputs do not remove it.
+    modelId === FAL_VIDEO_MODEL_IDS.WAN_30 ||
+    modelId === FAL_VIDEO_MODEL_IDS.WAN_30_REFERENCE ||
     (modelId === FAL_VIDEO_MODEL_IDS.VEO_31 && mode === 'text-to-video')
   if (supportsSeed) {
     body.seed = seed

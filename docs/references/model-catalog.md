@@ -44,7 +44,10 @@
 
 Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE · ANIMA_PENCIL_XL_RUNNER · PONY_DIFFUSION_V6 · SDXL_10_RUNNER · ANIMA_DIT_RUNNER。这一族是唯一真正吃用户 LoRA 的线。
 
-### 视频（11）
+### 视频（28 个 available）
+
+> ⚠ **2026-08-25 记：下表不全。** 实际 `available: true` 的视频模型是 **28** 个（脚本口径：数 `src/constants/models/video.ts` 里的条目），而表里只列了 8 行。缺的是 Seedance 2.5 全族、BytePlus 四条、MiniMax H3 四条、Kling O3 Pro —— 都在接入时进了代码没进这张表。原标题写的「11」也是旧数。
+> 接 Wan 3.0 时只补了自己那两行，**没有替别人的模型编 externalModelId**（那要逐条回查官方页，不是顺手能做对的事）。补全这张表值得单独开一刀。
 
 | enum                                                | externalModelId                                  | 通道                                                          |
 | --------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------- |
@@ -53,6 +56,8 @@ Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE ·
 | SEEDANCE_20(\_FAST)\_VOLCENGINE + REFERENCE 变体 ×4 | doubao-seedance-2-0(-fast)-260128                | 火山方舟直连（cn）                                            |
 | KLING_V3_PRO                                        | fal-ai/kling-video/v3/pro/text-to-video          | fal（唯一 native extend）                                     |
 | HAPPYHORSE_10                                       | alibaba/happy-horse/v1.1/text-to-video           | fal                                                           |
+| WAN_30                                              | alibaba/wan-3.0/text-to-video                    | fal（目录唯一 30s；首尾帧）                                   |
+| WAN_30_REFERENCE                                    | alibaba/wan-3.0/reference-to-video               | fal（图 10 / 视频 5 / 音频 5）                                |
 | **GEMINI_OMNI_FLASH**                               | gemini-omni-flash-preview                        | Gemini 直连（**Interactions API**，非 generateContent，见 ⑦） |
 
 ### 音频（2）

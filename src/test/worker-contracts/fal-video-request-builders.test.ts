@@ -254,6 +254,74 @@ const falBodyCases: FalBodyCase[] = [
     absentFields: ['aspect_ratio', 'generate_audio'],
   },
   {
+    label: 'Wan 3.0 T2V',
+    modelId: AI_MODELS.WAN_30,
+    expectedEndpoint: 'alibaba/wan-3.0/text-to-video',
+    expectedMode: 'text-to-video',
+    expectedBody: {
+      prompt: PROMPT,
+      resolution: '720p',
+      duration: 5,
+      audio: true,
+      aspect_ratio: '16:9',
+    },
+    // `audio` is Wan's switch — `generate_audio` is Seedance/LTX naming and
+    // must never leak in. `negative_prompt` is absent from all three Wan
+    // schemas, so it must never be emitted either.
+    absentFields: [
+      'generate_audio',
+      'image_url',
+      'start_image_url',
+      'negative_prompt',
+    ],
+  },
+  {
+    label: 'Wan 3.0 I2V',
+    modelId: AI_MODELS.WAN_30,
+    referenceImage: REF,
+    expectedEndpoint: 'alibaba/wan-3.0/image-to-video',
+    expectedMode: 'image-to-video',
+    expectedBody: {
+      prompt: PROMPT,
+      start_image_url: REF,
+      resolution: '720p',
+      duration: 5,
+      audio: true,
+    },
+    // `image_url` would be the wrong field name; `aspect_ratio` is omitted so
+    // fal's `adaptive` default follows the input frame.
+    absentFields: [
+      'image_url',
+      'aspect_ratio',
+      'end_image_url',
+      'generate_audio',
+      'negative_prompt',
+    ],
+  },
+  {
+    label: 'Wan 3.0 Reference',
+    modelId: AI_MODELS.WAN_30_REFERENCE,
+    referenceImage: REF,
+    expectedEndpoint: 'alibaba/wan-3.0/reference-to-video',
+    // No i2vModelId on this entry, so the reference endpoint stays in
+    // text-to-video mode and carries its references as arrays instead.
+    expectedMode: 'text-to-video',
+    expectedBody: {
+      prompt: PROMPT,
+      resolution: '720p',
+      duration: 5,
+      audio: true,
+      aspect_ratio: '16:9',
+      reference_image_urls: [REF],
+    },
+    absentFields: [
+      'image_urls',
+      'start_image_url',
+      'generate_audio',
+      'negative_prompt',
+    ],
+  },
+  {
     label: 'Seedance 2.0 Fast Reference',
     modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
     referenceImage: REF,
@@ -435,6 +503,118 @@ describe('buildFalWorkerQueueRequest — per-model bodies', () => {
     expect(result.input.image_urls).toHaveLength(30)
     expect(result.input.video_urls).toHaveLength(10)
     expect(result.input.audio_urls).toHaveLength(10)
+  })
+
+  it('sends a Wan 3.0 end frame from referenceImages[1]', () => {
+    const endFrame = 'https://example.com/end.png'
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.WAN_30, REF, {
+        referenceImages: [REF, endFrame],
+      }),
+    )
+
+    expect(result.endpointModelId).toBe('alibaba/wan-3.0/image-to-video')
+    expect(result.input).toMatchObject({
+      start_image_url: REF,
+      end_image_url: endFrame,
+    })
+  })
+
+  it('clamps Wan 3.0 duration into the published [2, 30] range', () => {
+    const long = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.WAN_30, undefined, { duration: 45 }),
+    )
+    const short = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.WAN_30, undefined, { duration: 1 }),
+    )
+
+    expect(long.input.duration).toBe(30)
+    expect(short.input.duration).toBe(2)
+  })
+
+  it('keeps every Wan 3.0 resolution tier the schema publishes', () => {
+    for (const resolution of ['480p', '720p', '1080p'] as const) {
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.WAN_30, undefined, { resolution }),
+      )
+      expect(result.input.resolution).toBe(resolution)
+    }
+  })
+
+  it('uses Wan 3.0 reference_* field names, not the Seedance ones', () => {
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.WAN_30_REFERENCE, REF, {
+        videoUrls: ['https://example.com/clip.mp4'],
+        audioUrls: ['https://example.com/voice.mp3'],
+      }),
+    )
+
+    expect(result.endpointModelId).toBe('alibaba/wan-3.0/reference-to-video')
+    expect(result.input).toMatchObject({
+      reference_image_urls: [REF],
+      reference_video_urls: ['https://example.com/clip.mp4'],
+      reference_audio_urls: ['https://example.com/voice.mp3'],
+    })
+    expect(result.input).not.toHaveProperty('image_urls')
+    expect(result.input).not.toHaveProperty('video_urls')
+    expect(result.input).not.toHaveProperty('audio_urls')
+  })
+
+  it('leaves the Wan 3.0 reference prompt untouched — no @ImageN injection', () => {
+    // Wan addresses references as `Image 1`, not `@Image1`. Until that is
+    // verified against a live run, the builder must not invent either form.
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.WAN_30_REFERENCE, REF, {
+        audioUrls: ['https://example.com/voice.mp3'],
+        videoUrls: ['https://example.com/clip.mp4'],
+      }),
+    )
+
+    expect(result.input.prompt).toBe(PROMPT)
+  })
+
+  it('caps Wan 3.0 reference inputs at 10 images / 5 videos / 5 audio', () => {
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.WAN_30_REFERENCE, REF, {
+        referenceImages: Array.from(
+          { length: 14 },
+          (_, i) => `https://example.com/image-${i}.png`,
+        ),
+        videoUrls: Array.from(
+          { length: 8 },
+          (_, i) => `https://example.com/video-${i}.mp4`,
+        ),
+        audioUrls: Array.from(
+          { length: 8 },
+          (_, i) => `https://example.com/audio-${i}.mp3`,
+        ),
+      }),
+    )
+
+    expect(result.input.reference_image_urls).toHaveLength(10)
+    expect(result.input.reference_video_urls).toHaveLength(5)
+    expect(result.input.reference_audio_urls).toHaveLength(5)
+  })
+
+  it('rejects a Wan 3.0 reference request with no references at all', () => {
+    expect(() =>
+      buildFalWorkerQueueRequest(buildWorkerInput(AI_MODELS.WAN_30_REFERENCE)),
+    ).toThrow(/requires at least one reference image, video, or audio clip/)
+  })
+
+  it('accepts an audio-only Wan 3.0 reference request', () => {
+    // Unlike Seedance, Wan publishes no "audio needs a visual" rule — so the
+    // builder must not invent one.
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.WAN_30_REFERENCE, undefined, {
+        audioUrls: ['https://example.com/voice.mp3'],
+      }),
+    )
+
+    expect(result.input.reference_audio_urls).toEqual([
+      'https://example.com/voice.mp3',
+    ])
+    expect(result.input).not.toHaveProperty('reference_image_urls')
   })
 
   it('normalizes legacy Veo public ID before building queue requests', () => {

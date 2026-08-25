@@ -107,6 +107,28 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     defaultRole: 'subject',
     mode: 'native',
   },
+  // Wan 3.0 i2v takes `start_image_url` + optional `end_image_url` —— 两张，
+  // 且第二张有语义（尾帧），不是「再来一张参考图」。不给 override 的话默认
+  // `{max: 1}` 会把尾帧在 UI 层就掐掉，用户填了也送不出去。
+  // ⚠ `defaultRole` 只有 general / subject / style 三个值 —— 这里**没有**
+  // 「首帧 / 尾帧」这种语义（`NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS` 里那套
+  // frameStart/frameEnd 是画布图例的另一套字符串，不是这个类型）。两张图的
+  // 首尾语义由**位置**承载（[0] 首帧、[1] 尾帧，见 buildWan30），不由 role。
+  [AI_MODELS.WAN_30]: {
+    kind: 'flexible',
+    min: 0,
+    max: 2,
+    defaultRole: 'general',
+    mode: 'native',
+  },
+  // 参考端点：`reference_image_urls` 收 10 张（fal OpenAPI maxItems）。
+  [AI_MODELS.WAN_30_REFERENCE]: {
+    kind: 'flexible',
+    min: 1,
+    max: 10,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
   // Seedance 2.0 reference-to-video accepts up to 9 reference images per the
   // fal docs. The default `{max: 1}` previously truncated the upstream image
   // harvest at one frame, surfacing as "3/1 refs" in the inspector.

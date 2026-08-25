@@ -194,6 +194,9 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
       AI_MODELS.SEEDANCE_20_FAST,
       AI_MODELS.SEEDANCE_20,
       AI_MODELS.HAPPYHORSE_10,
+      // 2026-08-25：Wan 3.0 —— 720p 每秒最便宜的 premium 档，且是目录里唯一
+      // 单次能出 30 秒的模型，短片场景正好吃到。
+      AI_MODELS.WAN_30,
       AI_MODELS.KLING_V3_PRO,
     ],
   },

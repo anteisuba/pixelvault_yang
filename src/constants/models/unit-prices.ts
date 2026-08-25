@@ -1,4 +1,5 @@
 import { AI_MODELS } from '@/constants/models/enum'
+import type { VideoResolution } from '@/constants/video-options'
 
 /**
  * 模型单价 —— 模型选择器**第三层「渠道比价」**的数据源。
@@ -53,11 +54,51 @@ export interface ModelUnitPrice {
   /** USD。视频按 720p 每秒计，见文件头口径。 */
   amount: number
   unit: ModelPriceUnit
+  /**
+   * 视频专用：**逐档**每秒单价（USD）。有它的时候它是权威，`amount` 只作为
+   * 720p 基准档留给横向比价。
+   *
+   * ⚠ 为什么不用倍率推：各家的档位间距不一样（Wan 是 1:2:4，Seedance 2.0 是
+   * 720p→1080p 2.25 倍，HappyHorse 只有 1.29 倍）。一个统一倍率必然对不上。
+   *
+   * ⚠ **只填核实过的档**。没填的档不会退回 `amount` —— 那正是「按低档位标价
+   * 把高档腰斩」的老错（见文件头首页那张表）。查不到的档由调用方按缺价处理，
+   * 显示成「起」而不是等号。
+   */
+  resolutionAmounts?: Partial<Record<VideoResolution, number>>
   /** 数据出处，写到能让下一个人原样复核的程度。 */
   source: string
   /** 最后核对日期 YYYY-MM-DD。 */
   verifiedAt: string
 }
+
+/** 本表视频口径的基准档（文件头：视频 = 720p、每秒、含音频、无视频输入）。 */
+export const VIDEO_UNIT_PRICE_BASE_RESOLUTION =
+  '720p' as const satisfies VideoResolution
+
+/**
+ * ## `resolutionAmounts` 的覆盖现状（2026-08-25 补全那一轮）
+ *
+ * **全覆盖**（模型开几档就填了几档，任何档都报得出精确价）：
+ * Wan 3.0 ×2 · HappyHorse · Kling V3/O3 · MiniMax H3 ×4 · 火山 Seedance 2.0 ×2 ·
+ * Veo 3.1（退役，预填）。
+ *
+ * **部分覆盖**：fal Seedance 2.0 / 2.0 Reference —— 有 720p 与 1080p，**没有
+ * 480p**（fal 的标价原文就没给），480p 档照缺价处理。
+ *
+ * **故意留空，别"顺手补全"**：
+ * - **BytePlus 六条** —— 官方例表只给 720p 一档。想推 1080p 就得假设费率不随
+ *   分辨率变，而**火山那边它是变的**（720p 46 元/M token vs 1080p 51）。同一家
+ *   字节系都不一致，推算就是编数。
+ * - **Seedance 2.5 全族（三站）** —— 同上，只有 720p 有官方数。
+ * - **fal Seedance 2.0 Fast ×2** —— 只有 720p 有数，而 720p 本来就走 `amount`
+ *   兜底，填了等于没填；480p 仍然缺。
+ * - **Gemini Omni Flash** —— 整条根本不在本表里（它的每秒价是从 token 单价推的
+ *   估算，见 model-pricing.md），补它是"给本表加新条目"，不是补分档。
+ *
+ * 补空档的唯一正确姿势：回官方页重新核一次那一档的价，附 `source` 与
+ * `verifiedAt`。⛔ 不许拿已有档位打折/加倍推。
+ */
 
 export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
   // ── Seedance 2.5 · 火山方舟（cn）────────────────────────────────────────
@@ -78,15 +119,24 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
 
   // ── Seedance 2.0 · 火山方舟（cn）────────────────────────────────────────
   // 官方算例：720p / 5s / 无输入视频 = 4.97 元 → 0.994 元/秒 ÷ 7.1 ≈ $0.140
+  // 逐档来自火山定价页的每秒价（480p 0.46 · 720p 0.99 · 1080p 2.48 元/秒）。
+  // ⭐ 用 token 公式反算对过：1080p = 1920×1080×24÷1024 = 48,600 token/s ×
+  // 51 元/M = 2.479 元/s ✓；720p = 21,600 × 46/M = 0.9936 元/s ✓。两档分毫不差，
+  // 所以这张分档表不是抄了个孤立数字。（480p 差 4% 以内，差在 480p 的宽度官方
+  // 没写死，公式那侧是我假设的 854 宽 —— 以页面公布的 0.46 为准。）
+  // ⚠ 4k 档（5.05 元/秒）不填：`VideoResolution` 里没有这个成员，产品也发不出去。
   [AI_MODELS.SEEDANCE_20_VOLCENGINE]: {
     amount: 0.14,
     unit: 'second',
-    source: '火山方舟定价页算例 720p·5s·无输入视频 = 4.97 元（汇率 7.1）',
+    resolutionAmounts: { '480p': 0.065, '720p': 0.14, '1080p': 0.349 },
+    source:
+      '火山方舟定价页算例 720p·5s·无输入视频 = 4.97 元（汇率 7.1）；逐档 480p 0.46 / 720p 0.99 / 1080p 2.48 元/秒，与 token 公式互校',
     verifiedAt: '2026-07-31',
   },
   [AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE]: {
     amount: 0.14,
     unit: 'second',
+    resolutionAmounts: { '480p': 0.065, '720p': 0.14, '1080p': 0.349 },
     source: '同 SEEDANCE_20_VOLCENGINE',
     verifiedAt: '2026-07-31',
   },
@@ -97,15 +147,20 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
   //
   // ⚠ 口径统一取 **720p、含音频**。Kling 与 Veo 的标价分「audio on/off」两档，
   // 这里取 audio on —— 与火山那几条（生成即含音频）可比。
+  // ⚠ 分档只填 720p / 1080p —— fal 的 pricingInfoOverride 没给 480p 价，而
+  // 目录里这两条是开着 480p 档的。480p 因此仍按缺价处理（预览显示「起」）。
+  // 补它要回 fal 重新核一次价，不是照着 720p 打个折。
   [AI_MODELS.SEEDANCE_20]: {
     amount: 0.3034,
     unit: 'second',
+    resolutionAmounts: { '720p': 0.3034, '1080p': 0.682 },
     source: 'fal pricingInfoOverride：720p $0.3034/s（1080p $0.682/s）',
     verifiedAt: '2026-08-08',
   },
   [AI_MODELS.SEEDANCE_20_REFERENCE]: {
     amount: 0.3034,
     unit: 'second',
+    resolutionAmounts: { '720p': 0.3034, '1080p': 0.682 },
     source:
       'fal pricingInfoOverride，reference 端点与 text-to-video 同价（已逐字核对）',
     verifiedAt: '2026-08-08',
@@ -122,9 +177,15 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
     source: 'fal pricingInfoOverride，reference 端点同价（已逐字核对）',
     verifiedAt: '2026-08-08',
   },
+  // Kling 两条**没有分辨率旋钮**（send contract `resolution: false`），固定出
+  // 1080p。填 `'1080p'` 不是为了让用户切档 —— 是把「这个数说的是哪一档」写死：
+  // 今天它们的 `videoDefaults` 不带 resolution，解析器落到 720p 基准档拿到
+  // `amount`（同一个数，没问题）；哪天有人给 videoDefaults 补上 `'1080p'`，
+  // 没有这张表价格就会**凭空消失**。
   [AI_MODELS.KLING_V3_PRO]: {
     amount: 0.168,
     unit: 'second',
+    resolutionAmounts: { '1080p': 0.168 },
     source:
       'fal pricingInfoOverride：audio on $0.168/s（audio off $0.112，voice control $0.196）',
     verifiedAt: '2026-08-08',
@@ -132,21 +193,47 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
   [AI_MODELS.KLING_O3_PRO]: {
     amount: 0.14,
     unit: 'second',
+    resolutionAmounts: { '1080p': 0.14 },
     source: 'fal pricingInfoOverride：audio on $0.14/s（audio off $0.112）',
     verifiedAt: '2026-08-08',
   },
+  // 退役条目（`available: false`），填了今天没人读 —— 但 fal 的标价原文就写着
+  // 两档同价，现在填比将来复活时再回查便宜。
   [AI_MODELS.VEO_31]: {
     amount: 0.4,
     unit: 'second',
+    resolutionAmounts: { '720p': 0.4, '1080p': 0.4 },
     source:
       'fal pricingInfoOverride：720p/1080p 含音频 $0.40/s（不含音频 $0.20；4k 含音频 $0.60）',
     verifiedAt: '2026-08-08',
   },
+  // 两档全覆盖 —— 目录里 HappyHorse 只开 720p / 1080p，正好都有价。
   [AI_MODELS.HAPPYHORSE_10]: {
     amount: 0.14,
     unit: 'second',
+    resolutionAmounts: { '720p': 0.14, '1080p': 0.18 },
     source: 'fal pricingInfoOverride：720p $0.14/s（1080p $0.18/s）',
     verifiedAt: '2026-08-08',
+  },
+  // Wan 3.0 —— fal 三个端点同价，所以 base 与 reference 是同一个数（本表的
+  // 「参考端点与主端点同价」断言也要求如此）。
+  // ⚠ 分辨率跨度是本表最大的一档：480p $0.05 / 720p $0.10 / 1080p $0.20。按
+  // 口径取 720p，但 1080p 的实付是这个数的两倍 —— 价格预览要按用户选的档算，
+  // 不能直接拿这个数乘时长（见 StudioCostPreview 的 resolution 处理）。
+  [AI_MODELS.WAN_30]: {
+    amount: 0.1,
+    unit: 'second',
+    resolutionAmounts: { '480p': 0.05, '720p': 0.1, '1080p': 0.2 },
+    source:
+      'fal 定价页：480p $0.05/s · 720p $0.10/s · 1080p $0.20/s（页面例子「5s 720p = $0.50」）',
+    verifiedAt: '2026-08-25',
+  },
+  [AI_MODELS.WAN_30_REFERENCE]: {
+    amount: 0.1,
+    unit: 'second',
+    resolutionAmounts: { '480p': 0.05, '720p': 0.1, '1080p': 0.2 },
+    source: 'fal 定价页：与 text-to-video 同价，三端点不分档',
+    verifiedAt: '2026-08-25',
   },
 
   // ── BytePlus ModelArk（国际站）─────────────────────────────────────────
@@ -212,9 +299,15 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
   //   两套 key，不许共用一个数。
   // ⚠ 输入图片前 5 张免费、之后另计（国际 $0.04/张，国内 0.20 元/张），本表按
   //   文件头「不含参考图」口径不计。
+  // ⭐ 这四条的 `resolutionAmounts` **不是可选补充，是必需的**：H3 没有分辨率
+  // 旋钮，`videoDefaults.resolution` 恒发 `'2k'`，而 `getVideoUnitPricePerSecond`
+  // 的兜底只认 720p 基准档。不写这张表，一个明明有价的模型会被判成「未标价」。
+  // ⚠ 768P 档（$0.08 / 0.50 元）**故意不填**：产品发不出那一档，填了就是给一个
+  // 用户永远选不到的档标价，反而会在将来误导比价。
   [AI_MODELS.MINIMAX_H3]: {
     amount: 0.13,
     unit: 'second',
+    resolutionAmounts: { '2k': 0.13 },
     source:
       'MiniMax 国际站 Pay-as-you-go 定价页：MiniMax-H3 2K $0.13/秒（768P $0.08/秒）。⚠ 2K 档，非 720p',
     verifiedAt: '2026-08-23',
@@ -222,12 +315,14 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
   [AI_MODELS.MINIMAX_H3_REFERENCE]: {
     amount: 0.13,
     unit: 'second',
+    resolutionAmounts: { '2k': 0.13 },
     source: '同 MINIMAX_H3 —— 按输出秒数计价，与端点无关',
     verifiedAt: '2026-08-23',
   },
   [AI_MODELS.MINIMAX_H3_CN]: {
     amount: 0.113,
     unit: 'second',
+    resolutionAmounts: { '2k': 0.113 },
     source:
       'MiniMax 国内站 按量计费页：MiniMax-H3 2K 0.80 元/秒 ÷ 7.1 ≈ $0.113（768P 0.50 元/秒）。⚠ 2K 档，非 720p',
     verifiedAt: '2026-08-23',
@@ -235,6 +330,7 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
   [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: {
     amount: 0.113,
     unit: 'second',
+    resolutionAmounts: { '2k': 0.113 },
     source: '同 MINIMAX_H3_CN',
     verifiedAt: '2026-08-23',
   },
@@ -399,6 +495,30 @@ export const getModelUnitPriceByStringId = (
 ): ModelUnitPrice | null =>
   (MODEL_UNIT_PRICES as Record<string, ModelUnitPrice | undefined>)[modelId] ??
   null
+
+/**
+ * 视频：取**用户选中的那一档**的每秒单价。
+ *
+ * 返回 null = 这一档没有可信数据，调用方按缺价处理（显示「起」而不是等号）。
+ * 只有两种情况给得出数：
+ * 1. 该模型填了 `resolutionAmounts` 且命中这一档 —— 逐档核实过，精确；
+ * 2. 选的正好是基准档 720p —— `amount` 本来就是这一档的价。
+ *
+ * ⛔ 其它档**不退回** `amount`。24 个有价视频模型里目前只有 Wan 3.0 逐档核过，
+ * 拿 720p 的数去顶 1080p 会把 Seedance 2.0 说便宜 2.25 倍。宁可报「起」。
+ */
+export const getVideoUnitPricePerSecond = (
+  modelId: string,
+  resolution: VideoResolution,
+): number | null => {
+  const price = getModelUnitPriceByStringId(modelId)
+  if (!price || price.unit !== 'second') return null
+
+  const tiered = price.resolutionAmounts?.[resolution]
+  if (tiered !== undefined) return tiered
+
+  return resolution === VIDEO_UNIT_PRICE_BASE_RESOLUTION ? price.amount : null
+}
 
 /**
  * 金额显示格式。两位小数为主；小于 1 分的（如 FLUX 2 Flash 的 $0.005）退到三位，

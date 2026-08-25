@@ -1834,8 +1834,8 @@
     "nsfwFilterNsfwOnly": "NSFWのみ",
     "nsfwFilterSafe": "セーフ",
     "nsfwToggleHint": "表示を切り替え：制限なし / NSFWのみ / セーフ",
-    "sortFallbackLabel": "関連度順",
-    "sortFallbackHint": "検索の並び替えが一時的に利用できません。関連度順で表示しています",
+    "sortFallbackLabel": "並び替えを簡略化",
+    "sortFallbackHint": "検索の並び替えが一時的に利用できません。代替順で表示しています",
     "baseModelFilterLabel": "ベースモデルで絞り込み",
     "baseModelFilterAll": "全部",
     "baseModelFilterOther": "その他",
@@ -3380,6 +3380,14 @@
     "happyhorse10": {
       "label": "HappyHorse 1.1",
       "description": "fal.ai 経由の Alibaba 動画モデル。ネイティブ音声、テキスト動画、画像動画に対応。"
+    },
+    "wan30": {
+      "label": "Wan 3.0",
+      "description": "1 回の生成で最長 30 秒、ネイティブ音声付き。テキスト動画と始点・終点フレーム指定に対応。"
+    },
+    "wan30Reference": {
+      "label": "Wan 3.0（参照生成）",
+      "description": "参照動画生成——画像 10 枚、動画 5 本、音声 5 本までをまとめて参照。"
     },
     "klingV3Pro": {
       "label": "Kling 3.0 Pro",

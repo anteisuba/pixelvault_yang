@@ -57,6 +57,8 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.ELEVENLABS_SFX_V2]: 'elevenSfxV2',
   [AI_MODELS.ELEVENLABS_MUSIC_V2]: 'elevenMusicV2',
   [AI_MODELS.HAPPYHORSE_10]: 'happyhorse10',
+  [AI_MODELS.WAN_30]: 'wan30',
+  [AI_MODELS.WAN_30_REFERENCE]: 'wan30Reference',
   [AI_MODELS.KLING_V3_PRO]: 'klingV3Pro',
   [AI_MODELS.KLING_O3_PRO]: 'klingO3Pro',
   [AI_MODELS.LTX_23]: 'ltx23',
@@ -217,6 +219,10 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: 'Seedance',
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]: 'Seedance',
   [AI_MODELS.HAPPYHORSE_10]: 'HappyHorse',
+  // Wan is Tongyi Wanxiang, a separate Alibaba line from HappyHorse — two
+  // families, not one brand with two models.
+  [AI_MODELS.WAN_30]: 'Wan',
+  [AI_MODELS.WAN_30_REFERENCE]: 'Wan',
   [AI_MODELS.LTX_23]: 'LTX',
   [AI_MODELS.FISH_AUDIO_S2_PRO]: 'Fish Audio',
   [AI_MODELS.ELEVENLABS_V3]: 'ElevenLabs',
@@ -308,6 +314,10 @@ export const MODEL_VARIANTS: Record<string, string> = {
   [AI_MODELS.VEO_31]: 'veo-3.1',
   [AI_MODELS.GEMINI_OMNI_FLASH]: 'gemini-omni-flash',
   [AI_MODELS.HAPPYHORSE_10]: 'happyhorse-1.1',
+  // Base + reference share one 型号 — same split as the Seedance pair, so the
+  // picker's second layer shows one Wan 3.0 entry, not two.
+  [AI_MODELS.WAN_30]: 'wan-3.0',
+  [AI_MODELS.WAN_30_REFERENCE]: 'wan-3.0',
   [AI_MODELS.LTX_23]: 'ltx-2.3',
 }
 
@@ -355,6 +365,7 @@ const VIDEO_MODEL_PRIORITY: Partial<Record<AI_MODELS, number>> = {
   [AI_MODELS.SEEDANCE_20_VOLCENGINE]: 2.5,
   [AI_MODELS.SEEDANCE_20_BYTEPLUS]: 2.75,
   [AI_MODELS.HAPPYHORSE_10]: 3,
+  [AI_MODELS.WAN_30]: 3.5,
   [AI_MODELS.VEO_31]: 4,
   [AI_MODELS.KLING_V3_PRO]: 5,
   [AI_MODELS.KLING_O3_PRO]: 5.5,
@@ -364,6 +375,7 @@ const VIDEO_MODEL_PRIORITY: Partial<Record<AI_MODELS, number>> = {
   [AI_MODELS.SEEDANCE_20_REFERENCE]: 7,
   [AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE]: 7.5,
   [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: 7.75,
+  [AI_MODELS.WAN_30_REFERENCE]: 7.9,
   [AI_MODELS.SEEDANCE_25]: 8,
   [AI_MODELS.SEEDANCE_25_VOLCENGINE]: 8.25,
   [AI_MODELS.SEEDANCE_25_BYTEPLUS]: 8.5,

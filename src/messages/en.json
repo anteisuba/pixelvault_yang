@@ -1834,8 +1834,8 @@
     "nsfwFilterNsfwOnly": "NSFW only",
     "nsfwFilterSafe": "Safe",
     "nsfwToggleHint": "Cycle rating: unrestricted / NSFW only / safe",
-    "sortFallbackLabel": "By relevance",
-    "sortFallbackHint": "Search ranking is temporarily unavailable — showing relevance order",
+    "sortFallbackLabel": "Sort unavailable",
+    "sortFallbackHint": "Search ranking is temporarily unavailable — showing a fallback order",
     "baseModelFilterLabel": "Filter by base model",
     "baseModelFilterAll": "All",
     "baseModelFilterOther": "Other",
@@ -3380,6 +3380,14 @@
     "happyhorse10": {
       "label": "HappyHorse 1.1",
       "description": "Alibaba video model on fal.ai with native audio, text-to-video, and image-to-video support."
+    },
+    "wan30": {
+      "label": "Wan 3.0",
+      "description": "Up to 30 seconds in one pass, with native audio. Text-to-video plus first- and last-frame control."
+    },
+    "wan30Reference": {
+      "label": "Wan 3.0 (Reference)",
+      "description": "Reference-to-video — combines up to 10 images, 5 video clips, and 5 audio clips in one shot."
     },
     "klingV3Pro": {
       "label": "Kling 3.0 Pro",

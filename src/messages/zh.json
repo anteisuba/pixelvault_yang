@@ -1834,8 +1834,8 @@
     "nsfwFilterNsfwOnly": "仅NSFW",
     "nsfwFilterSafe": "安全",
     "nsfwToggleHint": "切换分级：不设限 / 仅NSFW / 安全",
-    "sortFallbackLabel": "按相关性",
-    "sortFallbackHint": "搜索排序服务暂时不可用，当前按相关性显示",
+    "sortFallbackLabel": "排序已降级",
+    "sortFallbackHint": "搜索排序暂时不可用，当前按备用顺序显示",
     "baseModelFilterLabel": "按基础模型过滤",
     "baseModelFilterAll": "全部",
     "baseModelFilterOther": "其他",
@@ -3380,6 +3380,14 @@
     "happyhorse10": {
       "label": "HappyHorse 1.1",
       "description": "通过 fal.ai 提供的 Alibaba 视频模型，支持原生音频、文生视频和图生视频。"
+    },
+    "wan30": {
+      "label": "Wan 3.0",
+      "description": "单次最长 30 秒，自带原生音频。支持文生视频与首尾帧控制。"
+    },
+    "wan30Reference": {
+      "label": "Wan 3.0（参考生成）",
+      "description": "参考生视频——最多 10 张图、5 段视频、5 段音频一起参与生成。"
     },
     "klingV3Pro": {
       "label": "可灵 3.0 Pro",

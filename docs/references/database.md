@@ -42,7 +42,7 @@ Model = PascalCase（`UserApiKey`）· 字段 = camelCase（`createdAt`）· 枚
 
 ## 高风险提示
 
-- `Generation` 与 `User` 是被 service 层引用最广的模型——改字段先 grep 影响面：**代码侧的调用方在同一个改动里一起改完**，不留旧字段读法的垫片（CLAUDE.md Engineering Principle 1）；**数据库列本身走 expand-contract**——加列可以直接来，改列义 / 删列 / 改类型要过兼容期。⚠ 兼容期不是「引用多所以保守」，而是部署顺序决定的：`vercel.json` 的 buildCommand 是 `prisma migrate deploy && next build`，迁移先于新代码上线，旧 serverless 实例还在跑旧查询，中间那段时间新旧 schema 必须同时可服务。
+- `Generation` 与 `User` 是被 service 层引用最广的模型——改字段先 grep 影响面：**代码侧的调用方在同一个改动里一起改完**，不留旧字段读法的垫片（CLAUDE.md Engineering Principle 1）；**数据库列本身走 expand-contract**——加列可以直接来，改列义 / 删列 / 改类型要过兼容期。⚠ 兼容期不是「引用多所以保守」，而是部署顺序决定的：`vercel.json` 的 buildCommand 走 `scripts/vercel-build.sh`，生产构建里迁移先于 `next build`、也就先于新代码上线，旧 serverless 实例还在跑旧查询，中间那段时间新旧 schema 必须同时可服务。（脚本按 `VERCEL_ENV` 分支，迁移**只在 production 跑**——Preview 是「新代码 + 旧 schema」。）
 - `Generation` 承载全模态（图/视频/音频/3D）+ 卡片/配方/runGroup 元数据，往里加字段前先确认不是该拆去 `GenerationJob` / 专属表的东西（长期建模优先）。
 - 视频三套系统（Story / VideoPipeline / VideoScript 族）是收敛中的并存现状——新视频功能先看 `plans/` 在飞任务包再选挂靠点，别随手再开第四套。
 

@@ -11,9 +11,11 @@ import { describe, expect, it } from 'vitest'
  *
  * 2026-08-22：`20260821210442_lora_unique_user_url` 给 `LoraAsset(userId, loraUrl)`
  * 建唯一索引，作者清的是本地库，生产上仍有 2 组重复。真跑的话
- * `prisma migrate deploy` 失败 → `vercel.json` 的 `buildCommand` 短路 → **整个
- * 生产构建炸掉**，并在 `_prisma_migrations` 留下 failed 记录，得 `migrate resolve`
- * 才能继续。
+ * `prisma migrate deploy` 失败 → `vercel.json` 的 `buildCommand`
+ * （`scripts/vercel-build.sh`，`set -e`）短路 → **整个生产构建炸掉**，并在
+ * `_prisma_migrations` 留下 failed 记录，得 `migrate resolve` 才能继续。
+ * ⚠ 该脚本只在 `VERCEL_ENV=production` 时跑迁移，所以 **Preview 部署绿了不构成
+ * 迁移能成功的证据**——它根本没跑过迁移。
  *
  * ⚠ **CI 结构性地看不见这类问题**：`ci.yml` 的「从零重建数据库」是在**空库**上
  * 跑迁移历史，没有存量数据，唯一索引/NOT NULL/外键怎么都建得上。绿色的 CI 在

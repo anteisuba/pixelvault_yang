@@ -17,6 +17,7 @@ watched_paths=(
   "package.json"
   "vercel.json"
   "scripts/vercel-ignore-build.sh"
+  "scripts/vercel-build.sh"
 )
 
 base_sha="${VERCEL_GIT_PREVIOUS_SHA:-}"

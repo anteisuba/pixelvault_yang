@@ -26,7 +26,9 @@
 
 ### ⚠ Migrate 与运行时分用两个 URL：direct vs pooler（2026-08-25）
 
-`buildCommand`（`prisma migrate deploy && next build`）曾经和运行时共用同一个
+`buildCommand`（现在是 `bash scripts/vercel-build.sh`，只在
+`VERCEL_ENV=production` 时跑 `prisma migrate deploy`；本节写下时它还是一行
+`prisma migrate deploy && next build`）曾经和运行时共用同一个
 `DATABASE_URL`——构建日志实证 `prisma migrate deploy` 连的是
 `ep-flat-violet-aifhen7l-pooler...`，即迁移跑在 **pooled（PgBouncer）端点**上。
 这不是 Neon 官方推荐的用法：PgBouncer 事务池化模式下 `migrate` 用来做互斥的
@@ -46,16 +48,29 @@ advisory lock 不可靠；反过来运行时若改走 direct，Vercel 突发并�
 
 ⚠ **部署时序**：这个改动上线前必须先在 Vercel 项目设置里配好 `DIRECT_URL`
 （值取 Neon dashboard 里主机名不带 `-pooler` 的那条连接串），否则代码一上线，
-下一次构建的 `prisma migrate deploy` 会在拿不到 `DIRECT_URL` 时直接失败，
-`&&` 短路整个生产构建（同一失败模式见下方「约束型迁移」节）。
+下一次生产构建的 `prisma migrate deploy` 会在拿不到 `DIRECT_URL` 时直接失败，
+短路整个生产构建（同一失败模式见下方「约束型迁移」节）。此外
+`scripts/vercel-build.sh` 会在生产路径上先检查 `DIRECT_URL` 主机名含不含
+`-pooler`，含就直接退出——把「迁移悄悄跑在 pooler 上」这个**没有任何症状**的
+失败模式变成大声报错（只判子串，绝不回显含明文密码的 URL 本身）。
 
-⚠ **Preview 隔离未核实**：`scripts/vercel-ignore-build.sh` 只按改动路径决定
-建不建、不按 `VERCEL_ENV` 分支；只要某个 preview 分支的 push 碰了 `prisma/`
-等受监视路径，`buildCommand` 就会带着该次部署环境下的 `DIRECT_URL` /
-`DATABASE_URL` 跑一次 `migrate deploy`。这两个变量在 Vercel 项目设置里对
-Preview / Production 是否隔离（不同库 vs 同一个值）取决于 dashboard 配置，
-**读代码确认不了**——待 owner 在 Vercel 项目设置逐一核实，核实前功能分支的
-迁移改动一旦 push 就有打到生产库的风险。
+⚠ **Preview 不再跑迁移（2026-08-25）**：`buildCommand` 已从一行
+`prisma migrate deploy && next build` 换成 `bash scripts/vercel-build.sh`，脚本
+按 `VERCEL_ENV` 分支——**只有 `production` 才跑 `prisma migrate deploy`**，
+Preview / Development 直接进 `next build`。起因是三件事叠在一起：Preview 与
+Production 在 Vercel 项目设置里配的是**同一个库**；`scripts/vercel-ignore-build.sh`
+只按改动路径决定建不建、不按 `VERCEL_ENV` 分支；而旧的 `buildCommand` 无条件
+跑迁移。合起来 = 任何 feature 分支只要碰了 `prisma/` 等受监视路径并 push，
+**在合并进 main 之前** schema 就已经改到生产库上了。
+
+**代价是期望行为，不是 bug**：Preview 现在跑在**生产的 schema** 上——代码是新
+的、schema 还是旧的。带新迁移的分支在 Preview 上会在相关代码路径报错，这正是
+要的效果：把「这条分支需要迁移」摆到台面上，而不是偷偷改生产库；真正应用迁移
+的是合进 main 之后的那次生产构建。⚠ 生产路径的语义完全没变——迁移仍先于
+`next build`，迁移失败仍然短路整个构建（脚本 `set -euo pipefail`）。
+
+Preview scope 的 `DIRECT_URL` 至此已经用不上了（那条路径不跑迁移），留着无害，
+不必特意去 Vercel 项目设置里删。
 
 ## 状态查询与排障（agent 可直接执行，2026-07-10 验证可用）
 
@@ -186,9 +201,11 @@ provider 上一个字节都不产出，**响应头因此从未 flush**，函数�
 `ci.yml` 的「从零重建数据库」是在**空库**上跑迁移历史 —— 没有存量数据，唯一索引 /
 `SET NOT NULL` / 外键 / 列类型转换怎么都建得上。**绿色的 CI 在这类迁移上不构成证据。**
 
-而失败的代价不只是「索引没建上」：`vercel.json` 的 `buildCommand` 是
-`prisma migrate deploy && next build`，`&&` 短路 → **整个生产构建炸掉**，且
-`_prisma_migrations` 会留下一条 failed 记录，得 `prisma migrate resolve` 才能继续。
+而失败的代价不只是「索引没建上」：`vercel.json` 的 `buildCommand` 走
+`scripts/vercel-build.sh`，生产构建里迁移仍先于 `next build` 且 `set -e` 短路 →
+**整个生产构建炸掉**，且 `_prisma_migrations` 会留下一条 failed 记录，得
+`prisma migrate resolve` 才能继续。（Preview 不跑迁移，所以这个失败模式只在
+production 出现——反过来说，**Preview 绿了不构成迁移能成功的证据**。）
 
 两道闸：
 

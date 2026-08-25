@@ -3,7 +3,7 @@
   "github": {
     "silent": false
   },
-  "buildCommand": "prisma migrate deploy && next build",
+  "buildCommand": "bash scripts/vercel-build.sh",
   "ignoreCommand": "bash scripts/vercel-ignore-build.sh",
   "crons": [
     {

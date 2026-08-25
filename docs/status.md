@@ -1,12 +1,73 @@
 # 项目状态
 
-最后更新：2026-08-23
+最后更新：2026-08-25
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
-## Current Focus
+## ⚠ 待推：本地 main 领先 origin/main 18 笔
 
-- **NovelAI 已捞回 Image（2026-08-24）**：V4.5 Full/Curated + V5 Full/Curated，四档 `available: true`、**只 BYOK**。Worker 认 V5 id（`params_version: 4`，不发 `skip_cfg_above_sigma`）。参考图可选、最多 1 张、按 img2img 发。不进 LoRA。助手 LLM 路由不改（NovelAI 不是聊天模型）；enhance / 工作台目录会随 catalog 自动看见这四档。
+08-24 21:54 ~ 08-25 20:40 的提交**线上一笔都没有**。push `main` = 生产部署，先过
+`docs/checklists/release.md` P0。⚠ 部署顺序有硬约束：`bf965440` 要求 **fork 镜像先上
+RunPod、app 才能上线**；反了的话新字段无人认领而 `images` 又是空的，参考图静默消失、
+img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考图。
+
+- **部署链路**：Preview 不再跑 `migrate deploy`（`bb9e7bae`——buildCommand 改指
+  `scripts/vercel-build.sh`，只有 `VERCEL_ENV=production` 才迁移；此前任何碰 `prisma/`
+  的功能分支一 push 就已在合并前把 schema 改到生产库上）。迁移改走 Neon direct 端点
+  （`533679e2`，新增 `DIRECT_URL`；运行时继续用 pooler，缺失即大声抛错、**刻意不回落**，
+  否则静默退回 pooler 正好掩盖要修的问题）。三条 cron 上心跳（`d083ba0c` +
+  `.github/workflows/cron-monitor.yml`）——Hobby 的 runtime log 只活 1 小时，实查生产
+  过去 24h 三条 cron 一条痕迹都不剩。
+  ⚠ 代价（有意接受）：Preview 从此跑在生产 schema 上，带新迁移的分支在 Preview 上相关
+  代码路径会报错——这是期望行为，正解是给 Preview 配 Neon 分支库，独立一件事。
+- **画布数据安全**：堵住「本地 state 覆盖服务端」整条链（`6388ca13`——只 PUT 本会话
+  服务端确认过的项目 · 服务端拒收「非空 → 空」的覆盖 · localStorage 与云端两侧的静默
+  失败都接上 logger + 一次性抑制的 toast）。燃料是 localStorage 配额静默截断：Chromium
+  按 UTF-16 计费，约第 36 个中等项目就爆。另一半是「内容从未上过云」——新用户的首个
+  项目现在真的会在服务端建行（`acc8a668`），此前整个首次会话只活在 localStorage。
+  ⚠ 同族已知未处理：`deleteProject` 删掉最后一个项目时本地新建的默认项目，其 id 同样
+  不在确认集合里。
+- **死代码收敛**：src 侧死执行链整删（`4dbb2724`，46 文件 −7433 行；生产自 2026-06-03
+  起全量走 execution worker，那份第二实现自那时起不可达，测试绿断言的是死的那份）；
+  fal 的 3D inline 死路径随后补删（`8c7b7814`，当时留下的顾虑逐条复验后被证伪）。
+  ⛔ 别再去 src 找 `generateImage` / 视频方法，只存在于 git 历史；防线在
+  `src/test/worker-contracts/`。
+- **i18n**：(main) 不再下发 5 个只在它之外用的命名空间（`48de10e1`，每次 (main) 页面
+  加载省约 8.6% 的 RSC payload，`src/messages/*.json` 一个键没动，用 denylist 而非
+  allowlist）。配套 AST 守卫断言每条路由 **client 可达**的命名空间都被下发（`7d22a799`，
+  36 用例）——堵的正是「漏发一个 → 页面原样吐 message key，编译不报错、旧全量测试全过」
+  这个盲区，关键设计是 RSC 边界建模。
+- **模型**：接入 Wan 3.0（`08f27813`，fal 三端点；走 fal 而非百炼原生是因为原生这次没有
+  价格优势，逐档价与「这是个案不是新默认」记进 `model-pricing.md`）。顺带把成本预览扩到
+  视频档并修好「没有分辨率旋钮的模型价格会凭空消失」——24 个有价视频模型填了 14 个，
+  其余官方只公布 720p 一档，留空显示「起」，⛔不按比例推。重建模型文档监控基线
+  （`69d787ca`，真实 54 模型；旧基线是空数组 = 六周检测盲区，另加空基线守卫）。
+- **worker / runner**：参考图改走 URL（`bf965440`）——修 execution worker 128MB OOM
+  与 RunPod `/run` 的 10MiB 请求体拒收，并删掉那条把两种真实失败都判成「今日免费生成
+  次数已用完」的兜底正则。`errorCode` 跨不过 Cloudflare Workflows 的 step 边界，改由
+  step 返回值带出（`d1de9c4a`，`guardWorkflowStep`；⚠ 本地 wrangler dev 不复现，端到端
+  会以错误的理由变绿，契约只能靠单元测试锁）。runner fork README 按 API 实读值重写
+  （`75ce8fa8`，端点 / 卷 / 构建链路原本全是错的，照做会走进死路）。
+- **助手 / LLM**：助手流换成 SSE 帧协议（`2321dbf5`）——`open` 帧把响应头 flush 与
+  「模型开没开口」解耦，这条路由上的 504 在协议层关死（超时最多是一条截断的 200）；
+  为「没有帧」而生的响应头塞载荷那 185 行连同三档降级阶梯整个删掉。前一笔补上 Grok /
+  DeepSeek / Qwen 的 SSE、把三条助手路由 `maxDuration` 提到 300、并给所有 provider 的
+  主请求加超时（`5c6c67f9`，根因是 08-23 接 Grok 时只写了缓冲补全那一半）。
+- **文档**：清掉六处与 Engineering Principle 1 相反的「只做向后兼容」指令、adapter 名册
+  对齐 `registry.ts`、修三处坏指针（`98969039`）；修一处被 prettier 转义坏的加粗
+  （`41250dc4`，同样的伤在 `docs/plans/` 下还有五处未动）。
+
+## 未决（等 owner 拍板）
+
+- **`npm run preflight:migrations` 是断头路**：它要 `NEON_API_KEY` + `NEON_PROJECT_ID`，
+  这两个变量 `.env.example` 与 `.env.local` 里**都没有**，脚本自 08-22 写就起从未在真实
+  key 下跑通过。而 `bb9e7bae` 之后 Preview 也不再跑迁移——**「合并前验一次迁移」现在
+  没有任何工具兜着**。三条路选一：配上这两个变量、给 Preview 配 Neon 分支库、或明确
+  接受这个缺口。
+- **Fish 音频免费档 2026-08-31 到期**（还剩 6 天，此前已延期至少两次）：商务条款从未
+  核过，到期后 `FISH_AUDIO_S2_PRO` 转 $15 / 百万 UTF-8 字节。接、还是明确不接。
+
+## Current Focus
 
 - **C+F 素材页与选择器 UI 正在做 Codex / Claude 设计对比**：域要求与 shared/dedicated shell 边界已确认；右侧 Dock 是当前工作方向。Owner 2026-08-11 否决 V1 视觉，Codex 已重做“编辑型私人档案馆”V2（文件夹/详情两态），并准备独立的 [`Claude 设计简报`](plans/assets-claude-design-brief-2026-08-11.md)。完整账本见 [`docs/plans/assets-cf-design-2026-08-09.md`](plans/assets-cf-design-2026-08-09.md)；`src/**` 继续冻结，待 owner 对比后选向。
 - **本周十条待办**（owner 2026-08-07 口述），索引 =
@@ -24,15 +85,16 @@
   包 3 分镜静帧投影 · 包 4 审核态门禁 · 包 4.5 显示名收口 · 包 5 助手写画布。
 - **下一个 = 包 6 审阅网格**，是主链上**第一个要过 `ui-page` 设计门**的包：
   域定义 → 三方向 → 关键切片（桌面 + 375）→ owner 逐项确认 → 写 page 文档 → 才实现。
-- 节点详情页 Round 2 A「媒体优先」已按确认契约实现并完成定向验证；后续真机反馈中的
-  左栏圆角、参考视频比例、音色选择后试听与助手默认模型显示也已修复。详情双栏断点已从
-  `1120px` 收窄到 `960px`，避免 1092px 画布误进上下布局。方向 E 只保留为历史基线。
-- 图片族详情来源已收口：右栏只保留「参考图 + 添加参考图」，其浮层统一上传 / 素材库 / 粘贴；
-  主图上传/素材库替换迁到左侧媒体上的「替换图片」，Studio 与未完成 LoRA 不再占用详情 UI。
-- ⚠ 上一版这里写着「本地另有未提交改动（MiniMax adapter / Seedance 2.5 预留 / VolcEngine
-  video builder）」—— 2026-08-07 核对 `git status` 时那批改动已不在工作区，本条作废。
 
 ## Completed / Stable Enough to Build On
+
+### 模型目录
+
+- NovelAI 已捞回 Image（2026-08-24）：V4.5 Full/Curated + V5 Full/Curated 四档
+  `available: true`、**只 BYOK**，worker 认 V5 id（`params_version: 4`，不发
+  `skip_cfg_above_sigma`）。参考图可选、最多 1 张、按 img2img 发；不进 LoRA；助手 LLM
+  路由不改（NovelAI 不是聊天模型）。V4/4.5 的多图 Director 在 worker 侧从未实现，
+  能力已收 `max: 1`。
 
 ### 图片工作台结果区
 
@@ -60,6 +122,12 @@
   也已补齐同样三渠道，并按官方 schema 分开 fal 与 Ark 的参考音频约束。桌面画布助手现可直接拖动
   标题栏空白区且保持原尺寸，按钮不会误触拖动；历史记录迁入左侧第三视图；Script 展开态由约 627px
   提升到约 811px（当前 1127px 视口），仍限制在画布工作区内；助手默认顶部改为 64px，画布外观入口固定在顶栏最右侧。
+- 节点详情页 Round 2 A「媒体优先」已按确认契约实现并完成定向验证；后续真机反馈中的
+  左栏圆角、参考视频比例、音色选择后试听与助手默认模型显示也已修复。详情双栏断点已从
+  `1120px` 收窄到 `960px`，避免 1092px 画布误进上下布局。方向 E 只保留为历史基线。
+  owner 的真机复核仍在继续。
+- 图片族详情来源已收口：右栏只保留「参考图 + 添加参考图」，其浮层统一上传 / 素材库 / 粘贴；
+  主图上传/素材库替换迁到左侧媒体上的「替换图片」，Studio 与未完成 LoRA 不再占用详情 UI。
 
 ### 早前已稳定
 
@@ -87,7 +155,6 @@
   只有 `681–960px` 才切换为“媒体上方全宽 + 下方提示词 / 素材双列”。
 - 宽屏编辑栏已确认固定为 `384px`；素材管理已确认在参考素材栏内原位切换，不遮挡提示词并保留焦点回返。
 - 移动端已确认在 `≤680px` 进入“媒体 → 提示词/模型 → 参考素材”的完整单列，主动作粘附底部。
-- Round 2 A 已按逐项确认结果实现；现行结构与验证事实见 `docs/references/pages/canvas-node-detail.md`。
 - 图片族主图与参考图保持不同数据语义，但来源入口不再重名堆叠；LoRA 存量字段未做破坏性迁移。
 - **包 6 审阅网格的造型同样未确认**，必须走完设计门再实现。
 - 稳定方向与未决问题见 `docs/plans/canvas-session-handoff-2026-07-30.md`；
@@ -96,11 +163,21 @@
 
 ## Validation
 
+- **2026-08-25 待推的 18 笔，闸门逐笔记在各自提交消息里**：`2321dbf5` 全量 tsc 零错、
+  受影响 18 文件 358 条 vitest 全绿；`5c6c67f9` / `bf965440` 同日全量 vitest
+  **532 files / 5148 passed**（当时唯二失败来自同工作树在飞的 3D 改动，已随 `8c7b7814`
+  落地）；`4dbb2724` worker 95/95 + 计划内文件三绿；`8c7b7814` 定向 33 绿 + worker 95 绿；
+  `08f27813` 真机验过成本预览逐档价（Wan 5s/720p $0.50 → 30s/1080p $6.00 →
+  30s/480p $1.50，Seedance 2.0 720p $1.52 / 1080p $3.41，Kling 无旋钮路径 $0.84）；
+  `d083ba0c` 的心跳端点用 Vercel MCP 实查生产验证。
+  ⚠ **本文件不预先声称全量闸门绿**：完整的一次（tsc + lint + vitest + Playwright mobile
+  - production build）按 `docs/checklists/release.md` 在 push 前跑，以那次结果为准；
+    owner 的 3000 dev 实例跑着时不并行 build。
 - 2026-08-23 图片工作台结果区：开发态 `/zh/dev/ui-states` + `scripts/ui-probe.js` 复测同一状态，
   交互遮挡 4→0、矩形相交 16→0、无切换控件计数 1→0，9:16 单格高度从 767px 降到 257px，
   2×2 结果首屏由 3/4 提升为 4/4；全量 TypeScript 通过，全量 ESLint 0 error（5 条既有 warning），
   全量 Vitest 537 files / 5196 tests 通过。未执行 production build：owner 的 3000 dev 实例正在运行。
-
+  （文件数此后降到 532，是 `4dbb2724` 删掉死执行链连带删测试所致。）
 - 2026-08-18 图层分解整条删除（owner：功能废弃）：`LayerDecomposePanel` / `use-layer-decompose` /
   `image-decompose.service` / `/api/image/decompose` 四个文件删除；画布 `decompose` 能力与工作区那整段
   （预览 / 全选 / 放置图层）删除，ready 能力 8 → 7；`'layers'` 交互、`'image-layers'` 输出、
@@ -115,88 +192,31 @@
   搜索框按 owner 删；规格三档合成 `StudioSpecPopover`；助手改右上角浮标 `StudioAssistantFab`。
   真机 1920 实测：浮标开 720px / 关 0px、参数栏坐标全程不动；生成按钮阻塞态文案 18.15:1（`color(srgb …)`
   分量是 0–1，按 0–255 读会算出 1.50 的假值）。TypeScript 0 错 · 全量 Vitest 绿 · 目标 ESLint 0 warning。
-  ⛔ 切片 4（成本预览）/ 5（平台出资降档）未做，卡 owner 一句话；编辑线 E0–E5 一条未开工。
+  ⛔ 切片 4（成本预览）已落地：图片档 `5f3a3c77`，视频档随 `08f27813` 扩齐；切片 5（平台出资降档）
+  仍未做，卡 owner 一句话；编辑线 E0–E5 一条未开工。
 - 2026-08-17 Studio Image 参数栏弹层回归：`ResponsivePopover` 在窄视口 + fine pointer 时保留锚定 Popover，
   touch-primary 紧凑态仍走 Drawer；`StudioPromptArea` 的 document pointer handler 不再抢先关闭当前
   `图像` / `规格` 触发器。定向 Vitest 3 files / 25 tests、全量 Vitest 485 files / 4409 tests、
-  TypeScript、目标 ESLint 与 `git diff --check` 通过；现有 3000 页面实测两个入口均可“打开 → 再点同一按钮关闭”，
-  点击提示词区域关闭仍正常，控制台无新增 error。
-- 2026-08-11 画布助手顶部避让：`CanvasWorkspaceLayout` Vitest 1/1、目标 ESLint 与 `git diff --check` 通过；现有 3000 页面在 1127px 视口实测“桌面”按钮右边缘为 1115px，助手为 `360×832`、顶部 64px、右/下各 16px。全量 TypeScript 被工作区另一项未完成的 `KreaAssetBrowser.tsx` 密度常量/类型缺失阻断，与本次几何改动无关。
-- 2026-08-11 画布助手交互：定向 Vitest 4 files / 14 tests、TypeScript、目标 ESLint、目标源码
-  Prettier 与 `git diff --check` 通过；现有 3000 页面实测标题栏方向键移动 `-24px`、模型按钮点击后
-  位移仍为 `0px`，左栏展示 2 条真实历史会话；Script 展开态由约 `627px` 增至 `811px`，最后恢复
-  `360×880` 默认右上位置。`StudioNodeWorkbench.tsx` 全文件 ESLint 仍只有本次前已有的 5 条 React
-  Compiler 债务，本次触及文件的其余目标 ESLint 为 0 error。
-- 2026-08-11 Seedance 2.5 三渠道：fal.ai、火山方舟国内与 BytePlus 国际均进入同一型号；fal
-  text/image/reference 三端点与两条 Ark 带日期 model id 已写入目录，应用侧与 execution Worker
-  请求构造器同步支持 4–30 秒、480p/720p、30/10/10/50 参考上限与 2.5 首尾帧。根目录定向
-  Vitest 6 files / 139 tests、execution Worker 1 file / 12 tests 通过，`npm run typecheck` 与目标 ESLint 通过；
-  真机确认 Seedance 2.5 型号显示 3 个渠道且第三层为 fal.ai / VolcEngine / BytePlus，验证后已恢复原选择；
-  官方公开索引/OpenAPI 已核对，未执行新的付费生成。
-- 2026-08-11 身份卡空态崩溃回归：修正 `naturalSize` 尚未建立时的空值解引用；复现测试先红后连续
-  两次转绿，TypeScript 与目标 ESLint 通过；现有 3000 页面刷新后 React Flow 恢复为 12 个节点，
-  空身份卡正常显示且 Next.js 运行时错误覆盖层消失。
-- 2026-08-11 视频紧凑编排器补齐缺 Key 路由：未配置的 BytePlus 通道仍可点击，但只打开
-  `QuickSetupDialog`，不会更改当前模型或发起生成。回归测试先红后连续两次转绿；`VideoComposer`
-  53/53、TypeScript、目标 ESLint 通过；真机确认配置窗出现、关闭后原 VolcEngine 选择保持不变。
-- 2026-08-10 画布反馈与 Seedance 2.0 国际通道定向验证：全量 TypeScript 通过；根目录相关
-  Vitest 14 files / 108 tests、worker Vitest 1 file / 9 tests 通过；目标 ESLint 通过
-  （`StudioNodeWorkbench.tsx` 仍保留本次变更前已有的 React Compiler lint 债务，未在本片扩修）。
-- 2026-08-05 统一 AI 对话助手实现切片：Image / Video Studio、LoRA 与节点画布共用 `360px`
-  overlay 浮卡头部、同一模型注册表、历史/分享/研究与最多 8 个图片/视频附件契约；助手默认
-  OpenAI 路由升级为 `OpenAI GPT-5.6 Sol`，Gemini 接收真实视频输入，其他不兼容路由在发送前阻断。
-  附件现按用户消息持久化、历史恢复与分享回显，后续轮次继续引用稳定 URL；素材库支持图片与视频，
-  菜单明确标记视觉能力，Qwen 从共享助手路由源头排除。安装与本地命令统一使用 npm；
-  `npm run typecheck`、目标 ESLint、相关 Vitest 10 files / 110 tests 通过，追加模型注册表回归命令
-  3 files / 30 tests 通过；全量
-  `npm run lint` 为 0 error / 5 条既有 warning，全量 Vitest 在 424 秒超时且未产出最终汇总。
-  3000 端口仍由既有 Node dev 进程监听，但本轮浏览器显示“无法访问此站点”且 HTTP 冒烟请求超时；
-  按规则未重启或另起第二实例。四域桌面、375px、弹层与附件交互仍待 owner 手动刷新或后续重启 dev
-  后完成视觉验收；任务包继续保留为 active。
-- 2026-08-05 发布闸门：`npm run preflight` 全绿（TypeScript、ESLint 0 error / 5 warning、
-  Vitest 465 files / 4161 tests）；移动端 Playwright 单 worker 30/30 通过。现有 3000 dev
-  实例运行中，按仓库规则未并行执行本地 production build，构建交由 Vercel Production 验证。
-- 2026-08-05 模型选择器真机回归：Canvas 助手头部模型菜单按宿主显式向下展开，Image Studio
-  通用图片模型源排除仅供 LoRA 工作台使用的 PixelVault Runner；LoRA 独立 Runner 路径不变。
-  Studio 助手无已保存 Key 时仍展示默认助手模型与三条 Enhance 模型路由，并改为覆盖
-  主工作区的固定右侧浮卡（桌面 top / right / bottom 均留 16px，四边圆角）。当前
-  `npm run typecheck`、目标 ESLint、相关 Vitest 44/44 通过；浏览器
-  实测 Canvas 菜单 `data-side=bottom` 且完整可见，Image Studio 的 Runner 条目为 0、其余 5 个厂商
-  入口正常；Studio 助手开/关前后主工作区同为 1232px，Quick Setup 可进入。
-
-- **上一轮全量闸门：2026-07-31（包 5 交付时）**——全量 `tsc` exit 0 零输出；
-  全量 vitest **4046 passed**，仅 `LoraWorkbench` 满负载超时（已登记的假失败，
-  单跑 27/27 绿）。
-- **此后未再跑全量**：包 5 的四处真机修正（含 `d1cba07a` 提案静默消失）与本地
-  未提交的模型接入改动**都在这次闸门之后**，声称绿之前必须重跑。
-- 节点详情 Round 2 A 定向验证（2026-08-04）：`npm run typecheck` 通过；目标 ESLint 通过；
-  相关 Vitest 88/88，最终素材/视频复跑 75/75；1309 / 1025 / 375 真机几何与无横向溢出通过，
-  素材管理内联、不遮 prompt、焦点回返及共享视频模型选择器均实测成立。
-- 画布后续反馈回归（2026-08-04）：`npm run typecheck` 与目标 ESLint 通过；相关 Vitest
-  75/75。真机确认左栏展开/收起均为 `16px`，参考视频节点与 1280×720 媒体同为 16:9，
-  声音详情存在“声音库”入口，助手头部显示 `OpenAI GPT-5.5`。旧音色节点缺少历史样本 URL
-  不做猜测回填；重新从声音库选择或生成试听后进入可播放状态。
-- 2026-08-05 UI 收口：`npm run typecheck`、目标 ESLint、相关 Vitest 32/32 通过；浏览器实测
-  1294px 详情工作区为 `766px + 384px` 左右双栏，视频生成/视频合成空态为 `rgb(255,255,255)`；
-  首页交互区是左侧文案的真实子节点且右侧媒体内无按钮/说明；添加菜单只有一个无展开态的「收集」。
-- 2026-08-05 图片族来源精简：`npm run typecheck`、目标 ESLint、`ImageFamilyBody` Vitest 6/6 通过；
-  浏览器实测详情无 Studio/LoRA，参考图单一添加入口仍含上传/素材库/粘贴，主图替换菜单含上传/素材库。
-- 真机验收（包 5）：伪造四条 op → 2 ready / 2 rejected → 应用后节点 18→19、边 26→27；
-  修复后复跑得 19 条 op，应用后 13 节点 / 6 边并落库。
-- 真实扣费 provider smoke 仍未执行。
+  TypeScript、目标 ESLint 与 `git diff --check` 通过；现有 3000 页面实测两个入口均可“打开 → 再点同一按钮关闭”。
+- **2026-08-11 及更早的逐条验证记录不再在本文件复述**（画布助手几何与交互 · Seedance 2.5 三渠道 ·
+  身份卡空态回归 · 视频紧凑编排器缺 Key 路由 · 08-10 画布反馈 · 08-05 统一助手切片 / 模型选择器 /
+  UI 收口 / 图片族来源 · 08-04 节点详情 Round 2 与画布反馈 · 包 5 真机验收）：全部已验完并进 main，
+  真机数值见各自 `docs/references/pages/*.md` 与 git 历史。
+  与发布相关的唯一一条留在这里：**移动端 Playwright 最近一次记录在案的结果是 2026-08-05 的
+  单 worker 30/30**，此后未再跑。
 
 ## Next
 
-1. **包 6 审阅网格**：按 `ui-page` 走设计门（域定义 → 三方向 → 关键切片 → owner 确认）。
-2. 包 7 剧本节点**设计轮**（owner 已定：形态仍模糊，不是写契约）；其前置除包 6 外，
+1. **推这 18 笔**：过 `docs/checklists/release.md` P0；**fork 镜像先上 RunPod，app 再上线**。
+2. **包 6 审阅网格**：按 `ui-page` 走设计门（域定义 → 三方向 → 关键切片 → owner 确认）。
+3. 包 7 剧本节点**设计轮**（owner 已定：形态仍模糊，不是写契约）；其前置除包 6 外，
    还包括**卡片总线契约必须回来补**——否则剧本节点铺出的角色槽全要手填。
-3. 节点详情页 Round 2：owner 继续真机复核当前实现；首页案例、视频族浅色空态、侧栏圆角、
-   参考视频比例、图片族单一参考入口与单一「收集」入口均已完成。
 4. 链外登记 G1 参考图接不到素材库 / G3 政策归因 / G4 进度·取消·失败可见性 / G5 身份卡存废。
    G2 模型选择器已修（`df12cf19`）。
 5. 可插包 I1 视频灰区 #2（很小，仍未做）· I2 LoRA 提示分层 · I3 壳级 A' 浅壳。
-6. 交付前跑完整 lint、Vitest、Playwright mobile、production build；
-   push `main` 前再过 `docs/checklists/release.md` P0。
+6. 本轮留下的两个同族收尾：`deleteProject` 删到最后一个项目时新建的本地 id 不在服务端确认集合里
+   （`acc8a668` 登记）· `prompt/enhance` 与 `prompt/feedback` 仍是 `maxDuration = 30`，小于新的
+   120s 缓冲超时，走 Grok 时超时永远轮不到触发（`5c6c67f9` 登记，要不要一起提由 owner 定）。
 
 ## Blocked
 
@@ -204,4 +224,6 @@
 - **卡片总线契约** owner 已后置，但**包 7 之前必须回来补**（G5 身份卡存废与之同源）。
 - OpenAI key 无效（GPT Image 2 报 401）；VolcEngine 未绑 key ——
   后者挡着 G3 的归因对照实验。
-- 真实视频 provider smoke 需要有效且经 owner 授权的 API key，会产生费用。
+- 真实扣费 provider smoke 仍未执行（需要有效且经 owner 授权的 API key，会产生费用）。
+  Wan 3.0 因此有三件事未定：位置引用是否必需、首尾帧是否真生效、30s 是否超过轮询上限
+  （`maxAttempts × pollInterval = 600s`，全局常量未动）。

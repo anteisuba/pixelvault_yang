@@ -78,100 +78,87 @@ Cloudflare Worker 完全不碰图片字节，和几百 MB 的 LoRA 走同一条�
 
 ---
 
-# 部署教程
+# 部署
 
-## 先选路（一次性）
+## 现状（2026-08-25 全部经 RunPod / GitHub API 实读，不是回忆）
 
-| 方案                             | 要不要本机 Docker    | 端点 ID  | 后续更新               | 适合                     |
-| -------------------------------- | -------------------- | -------- | ---------------------- | ------------------------ |
-| **A · RunPod 从 GitHub 构建**    | 不要                 | **换新** | `git push` 自动重建    | 没装 Docker（推荐）      |
-| **B · 本机 Docker 构建后推仓库** | 要（Docker Desktop） | **不变** | 手动 build+push+改镜像 | 已有 Docker、想保端点 ID |
+| 项             | 值                                                            |
+| -------------- | ------------------------------------------------------------- |
+| 生产端点       | `dt0wyuid7lywic` · `pixelvault-runner-eu-ro-1`（EU-RO-1）     |
+| Template       | `pmh4gs9eht`                                                  |
+| 当前镜像       | `ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-v7`           |
+| Network Volume | `ivchraoqjv`                                                  |
+| 构建来源仓     | GitHub 私有仓 `anteisuba/pixelvault-runner-fork`（main 分支） |
+| 构建方式       | 该仓 `.github/workflows/build.yml` → GitHub Actions → 推 GHCR |
+| Worker 接线    | `workers/execution/wrangler.jsonc` 的 `RUNPOD_ENDPOINT`       |
 
-换端点 ID 的代价其实很小：`RUNPOD_ENDPOINT` 只在 `workers/execution/wrangler.jsonc` 一处
-（Vercel 不涉及），改 1 行 + `wrangler deploy` 即可。所以**没 Docker 就走 A**。
+⚠ **不需要本机 Docker**，也不用 Docker Hub。base 镜像 11.9GB（解压 20GB+），在 GitHub
+托管 runner 上构建，本机一个字节都不用传。RunPod 只负责按 tag 拉 GHCR 镜像——它**没有**
+接 GitHub 自动构建，控制台里 Import Git Repository 那条路本项目没在用。
 
----
+⚠ 小仓的文件是从本目录**手工同步**过去的。同步时对着 Dockerfile 的 `COPY` 行核对：
+`Dockerfile` + `rp_handler.py` · `runner_payload.py` · `cache_policy.py` · `cache_manifest.py`
+——**四个 .py 缺一不可**，少一个构建就在那一步失败。`README.md` 与测试文件不进镜像。
 
-## 方案 A：RunPod 从 GitHub 自动构建（推荐，免本机 Docker）
+## 改了 fork 代码，怎么上线
 
-### A1. 建一个专用小仓（避免 monorepo 构建上下文坑）
+1. 同步改动到小仓，push `main` → Actions 构建，产出
+   `ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-<commit-sha>`。
+2. 等 Actions 绿（约 7 分钟，大头是拉 base 镜像）。
+3. 把 template 的镜像指向那个 sha（REST）：
 
-Dockerfile 里 `COPY rp_handler.py /handler.py` 是相对**构建上下文**的。RunPod GitHub 构建
-默认拿仓库根当上下文，若直接指 monorepo 子目录，`COPY rp_handler.py` 可能找不到文件。最稳
-＝把这 3 个文件放进一个**根目录**就是它们的独立小仓：
+   ```bash
+   curl -X PATCH -H "Authorization: Bearer $RUNPOD_KEY" -H "Content-Type: application/json" -d "{\"imageName\":\"ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-<sha>\"}" https://rest.runpod.io/v1/templates/pmh4gs9eht
+   ```
 
-1. GitHub 新建仓（私有即可）：`pixelvault-runner-fork`。
-2. 把 `workers/runner-comfyui-fork/` 下 `rp_handler.py` / `Dockerfile` / `README.md` 三个文件
-   放到该仓**根目录**，push。
+   控制台等价操作：Serverless → 端点 → ⋮ Edit Endpoint → Container Image。
+   ⚠ 回读确认，**但别打印整个响应**——它会把 template 的 env 连 `CIVITAI_KEY` 一起回显。
 
-（想省一个仓也行：用本 monorepo，RunPod 里 Dockerfile Path 填
-`workers/runner-comfyui-fork/Dockerfile`——但需确认 RunPod 用子目录当上下文，不确定就走小仓。）
+4. 改 template 会让 worker 滚动重启。重启期间会短暂出现 `ready:0 / throttled:N`
+   （释放 GPU 后要重新抢容量），几十秒内恢复，别误判成故障。
+5. app 侧若同时有改动：`cd workers/execution && npx wrangler deploy`。
+   ⚠ **CI 不会替你部署 worker**——所有 workflow 里没有任何 `wrangler deploy`。
 
-### A2. 把 GitHub 接给 RunPod
+⚠ **fork 必须先于 app 上线**。反过来的话新字段发给老 worker、老 worker 不认识它，
+参考图会静默消失、img2img 悄悄退化成 txt2img——出图照样「成功」，只是完全不像参考图。
 
-RunPod 控制台 → **Settings → Connections → GitHub 卡片 → Connect** → 走 GitHub 授权 →
-选「All repositories」或「Only select repositories」（选到上面的小仓）→ **Save**。私有仓也 OK。
+## ⚠ 镜像 tag 纪律
 
-### A3. 新建 Serverless 端点（从 GitHub 构建）
+`build.yml` 的 tag 现在是按 commit sha 生成的**不可变** tag。
 
-RunPod → **Serverless → New Endpoint** →
+**别改回固定串。** 这里先后硬编码过 `5.8.6-r3` 和 `5.8.6-v7`，而生产 template 恰好锁着
+同名 tag——那样任何一次 push main 都会**静默覆盖生产正在运行的镜像**。2026-08-25 实地
+撞上过一次（force push main 触发重建，覆盖了生产用的 `5.8.6-v7`；所幸源码逐字节相同）。
+上线必须是「构建出 sha → 显式改 template 指向它」两步，不能是「push 一下就生效」。
 
-1. **Import Git Repository**：搜到 `pixelvault-runner-fork`。
-2. **Branch**：`main`。**Dockerfile Path**：`Dockerfile`（小仓根目录）。→ **Next**。
-3. 端点设置：
-   - **Endpoint Name**：`pixelvault-runner-v2`（随意）。**Type**：`Queue`。
-   - **GPU**：选便宜档（16–24GB 够 SDXL；如 RTX 4090 / A5000）。
-   - **⚠ Network Volume**：挂现有的 **`rk3t3mb1ko`（US-CA-2，80GB）**。
-     挂了卷，GPU 会被过滤到该卷所在数据中心（US-CA-2）——正常，选那里的 GPU。
-   - **Max Workers**：1–2。**Active（min）Workers**：0（省钱，冷启动换钱）。
-   - **Execution Timeout**：**300 秒**（冷启动＋下载 LoRA＋出图，默认 120 可能不够）。
-   - **Environment Variables**：一般不用加。如需覆盖：`RUNNER_LORA_DIR` /
-     `RUNNER_LORA_DL_TIMEOUT` / `RUNNER_CACHE_RESERVE_BYTES`（默认保留 8GiB
-     空闲）。LRU 只会删除 PixelVault 动态命名的 `civitai-*`、`hf-*` LoRA 和
-     `civitai-ckpt-*` checkpoint；不会删除手工放入或预置的模型。
-     每次下载准备完成后会原子更新 `/runpod-volume/pixelvault-cache-manifest.json`，
-     下载/淘汰事件追加到 `/runpod-volume/pixelvault-download-history.jsonl`；两者都不写
-     下载 URL 或密钥。路径可用 `RUNNER_CACHE_MANIFEST_PATH` / `RUNNER_DOWNLOAD_HISTORY_PATH`
-     覆盖。
-   - LoRA 从 **R2** 预签名链拉取，fork 不需要 R2 凭证。源图精确 checkpoint 会由
-     fork 直接访问 Civitai；公开文件可匿名下载，gated/限流文件需要把 `CIVITAI_KEY`
-     配成 RunPod endpoint secret（不要写进普通环境变量或仓库）。
-4. **Deploy Endpoint**。首次构建要几分钟（RunPod build，超时 30min/单次、总 160min）。
+## 端点参数（重建时照填，2026-08-25 实读）
 
-### A4. 记下新端点 ID → 接线
+| 项                | 值                                                                        |
+| ----------------- | ------------------------------------------------------------------------- |
+| Type              | Queue（`isServerless: true`）                                             |
+| Network Volume    | `ivchraoqjv` ⚠ 挂卷会把 GPU 过滤到卷所在数据中心（EU-RO-1），选那里的 GPU |
+| GPU               | RTX 4090 / RTX A4500 / RTX 2000 Ada / RTX A5000 / L4 / RTX 3090           |
+| Max / Min Workers | 2 / 0                                                                     |
+| Standby Workers   | 1 ⚠ 有一个常驻 worker，是持续成本                                         |
+| Idle Timeout      | 60s · FlashBoot 开                                                        |
+| Execution Timeout | **600000 ms（10 分钟）**——早期文档写的 300 秒已不是现状                   |
+| Scaler            | QUEUE_DELAY，值 4                                                         |
+| Container Disk    | 20 GB                                                                     |
 
-构建完，端点详情页顶部有新的 **Endpoint ID**（形如 `xxxxxxxxxxxx`）。把它接进 Worker：
+**环境变量**：生产 template 只配了 `CIVITAI_KEY`（gated/限流的 Civitai 文件要用，公开文件
+匿名可下）。LoRA 走 R2 预签名链，fork 不需要 R2 凭证。可选覆盖项：`RUNNER_LORA_DIR` /
+`RUNNER_LORA_DL_TIMEOUT` / `RUNNER_CACHE_RESERVE_BYTES`（默认保留 8GiB 空闲）/
+`RUNNER_CACHE_MANIFEST_PATH` / `RUNNER_DOWNLOAD_HISTORY_PATH`。
 
-- 改 `workers/execution/wrangler.jsonc` 的 `"RUNPOD_ENDPOINT"` 为新 ID（**让我改这行**）。
-- owner 跑 `cd workers/execution && npx wrangler deploy`（`RUNPOD_KEY` secret 不变，同 RunPod 账户）。
+缓存 LRU **只删** PixelVault 动态命名的 `civitai-*`、`hf-*` LoRA 和 `civitai-ckpt-*`
+checkpoint，不碰手工放入或预置的模型。每次下载完成后原子更新
+`/runpod-volume/pixelvault-cache-manifest.json`，事件追加到
+`/runpod-volume/pixelvault-download-history.jsonl`，两者都不写下载 URL 或密钥。
 
-> 之后 v2 才算通。（本机注册表 `HKCU\…\RUNPOD_ENDPOINT` 只给本地脚本用，改不改都不影响生产。）
-
-### A5. 以后更新 fork
-
-改小仓文件 → `git push` → RunPod 自动重建端点。升级 worker-comfyui 版本时，改 Dockerfile
-`FROM …:x.y.z-base` 那行并复核下方「故障排查」再 push。
-
----
-
-## 方案 B：本机 Docker 构建后推镜像仓库（保留现端点 ID）
-
-需要 Docker Desktop + 一个镜像仓库账号（Docker Hub 免费）。
-
-```bash
-cd workers/runner-comfyui-fork
-docker build -t <你的DockerHub用户名>/pixelvault-runner:5.8.6 .
-docker push <你的DockerHub用户名>/pixelvault-runner:5.8.6
-```
-
-RunPod → Serverless → 现端点 **`01g8rrmixe4hah`** → 右上 **⋮ → Edit Endpoint** →
-
-- **Container Image** 改成 `<你的用户名>/pixelvault-runner:5.8.6`。
-- **Execution Timeout** 设 **300**。
-- 确认 Network Volume 仍是 `rk3t3mb1ko`。
-- **Save Endpoint**（RunPod 滚动重启 worker）。
-
-端点 ID 不变 → `wrangler.jsonc` / Worker **无需改动**。
+⚠ 换端点 ID 的代价很小：`RUNPOD_ENDPOINT` 只在 `workers/execution/wrangler.jsonc` 一处
+（Vercel 不涉及），改 1 行 + `wrangler deploy`。本机注册表 / 环境变量里的
+`RUNPOD_ENDPOINT` 只给本地脚本用，**且可能是过时的**——2026-08-25 实测本机那个值指向一个
+已不存在的端点。判断生产端点一律以 `wrangler.jsonc` 为准。
 
 ---
 
@@ -193,10 +180,21 @@ RunPod → Serverless → 现端点 **`01g8rrmixe4hah`** → 右上 **⋮ → Ed
 2. RunPod 端点 **Logs** 里必须有这两行：
    - `[runner-fork] downloading input image reference.png …`
    - `[runner-fork] fetched input image reference.png (<N> bytes)`
-     **看不到 = fork 是老镜像**，此时出的图是纯 txt2img，别当成功。
+
+   **看不到 = fork 是老镜像**，此时出的图是纯 txt2img，别当成功。
+
 3. 出图结果应体现参考图构图（参考强度 70% 时应明显相似）。
 4. 换一张**大图**（>8MB）复验：旧路径会在这个量级上死（Worker OOM 或 RunPod 10MiB
    拒收），新路径应正常出图——这是 2026-08-24 那次事故的直接回归。
+
+**不想动 UI 时的快速探针**：直接给端点发一个 job，`workflow` 传空对象、`images_to_fetch`
+传一张真实 R2 图。`ensure_input_images` 跑完后官方 handler 会因空 workflow 报
+`prompt_no_outputs` —— **报这个就说明取图那段全通了**；报别的（下载失败 / 超上限 /
+source 被拒）才是本 fork 的问题。不出图、不占 GPU 时间、不计 app 侧月度额度。
+
+2026-08-25 用这条探针实测：14.7MB 的 PNG，`executionTime` 2115ms 走完下载 + base64 +
+送进 ComfyUI。同日端到端复测同一张图，`COMPLETED` 且落库；而 08-24 旧路径下这张图
+两次分别死于 `Worker exceeded memory limit.` 和 `exceeded max body size of 10MiB`。
 
 ## ⚠ 故障排查 / 升级 worker-comfyui 时的核对点
 

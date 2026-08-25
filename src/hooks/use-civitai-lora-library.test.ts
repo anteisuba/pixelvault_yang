@@ -134,6 +134,48 @@ describe('useCivitaiLoraLibrary', () => {
     expect(result.current.isRevalidating).toBe(false)
   })
 
+  it('does not apply a stale in-flight page after a new search is submitted', async () => {
+    const browseItem = createItem('browse-1', 'Browse page 1')
+    const searchItem = createItem('search-1', '鸣潮 Search LoRA')
+    let resolveBrowse:
+      | ((value: Awaited<ReturnType<typeof listCivitaiLoraAssetsAPI>>) => void)
+      | undefined
+    const browsePromise = new Promise<
+      Awaited<ReturnType<typeof listCivitaiLoraAssetsAPI>>
+    >((resolve) => {
+      resolveBrowse = resolve
+    })
+
+    mockListCivitaiLoraAssetsAPI
+      .mockReturnValueOnce(browsePromise)
+      .mockResolvedValueOnce({
+        success: true,
+        data: createResult(searchItem, 1),
+      })
+
+    const { result } = renderHook(() => useCivitaiLoraLibrary())
+
+    await waitFor(() =>
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(1),
+    )
+
+    act(() => {
+      result.current.setSearch('鸣潮')
+      result.current.commitSearchTerm('鸣潮')
+    })
+
+    await waitFor(() => expect(result.current.items).toEqual([searchItem]))
+
+    await act(async () => {
+      resolveBrowse?.({
+        success: true,
+        data: createResult(browseItem, 1),
+      })
+    })
+
+    expect(result.current.items).toEqual([searchItem])
+  })
+
   it('serves repeated queries from cache without re-fetching', async () => {
     const itemA = createItem('cache-a', 'A')
     const itemB = createItem('cache-b', 'B')
@@ -284,6 +326,82 @@ describe('useCivitaiLoraLibrary', () => {
       expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
         expect.objectContaining({ page: 2, contentType: 'clothing' }),
       )
+    })
+
+    it('does not advance when the known total already fits on this page', async () => {
+      const item = createItem('total-guard-1', 'Fits on page 1')
+
+      mockListCivitaiLoraAssetsAPI.mockResolvedValueOnce({
+        success: true,
+        data: {
+          ...createResult(item, 1, null),
+          hasNextPage: true,
+          offsetPaginationSupported: true,
+          total: 5,
+        },
+      })
+
+      const { result } = renderHook(() => useCivitaiLoraLibrary())
+      await waitFor(() => expect(result.current.items).toEqual([item]))
+
+      act(() => {
+        result.current.nextPage()
+      })
+
+      expect(result.current.page).toBe(1)
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(1)
+    })
+
+    it('adopts the server page when a stale fallback clamps to page 1', async () => {
+      const liveItem = createItem('live-1', 'Live page 1')
+      const fallbackItem = createItem('fallback-1', '鸣潮 fallback')
+
+      mockListCivitaiLoraAssetsAPI
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            ...createResult(liveItem, 1, null),
+            hasNextPage: true,
+            offsetPaginationSupported: true,
+            total: 5000,
+          },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            ...createResult(fallbackItem, 1, null),
+            hasNextPage: true,
+            offsetPaginationSupported: true,
+            total: 41,
+            stale: true,
+            fetchedAt: '2026-08-19T10:00:00.000Z',
+          },
+        })
+        .mockResolvedValue({
+          success: true,
+          data: {
+            ...createResult(fallbackItem, 1, null),
+            hasNextPage: true,
+            offsetPaginationSupported: true,
+            total: 41,
+            stale: true,
+            fetchedAt: '2026-08-19T10:00:00.000Z',
+          },
+        })
+
+      const { result } = renderHook(() =>
+        useCivitaiLoraLibrary({ initialSearch: '鸣潮' }),
+      )
+      await waitFor(() => expect(result.current.items).toEqual([liveItem]))
+
+      act(() => {
+        result.current.nextPage()
+      })
+
+      await waitFor(() => expect(result.current.items).toEqual([fallbackItem]))
+      expect(result.current.page).toBe(1)
+      expect(result.current.isStale).toBe(true)
+      expect(result.current.total).toBe(41)
     })
 
     it('still refuses to advance without offsetPaginationSupported and without a cursor (unchanged REST-browse behaviour)', async () => {

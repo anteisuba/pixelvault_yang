@@ -4477,7 +4477,7 @@ export const CivitaiLoraLibraryResultSchema = z.object({
   hasNextPage: z.boolean(),
   nextCursor: z.string().nullable(),
   // B11：搜索路径的 civitai meilisearch 端点挂了，回落到忽略 sort 的 REST
-  // 搜索路径时置 true——UI 用它把排序控件降级显示成「按相关性」。
+  // 搜索路径时置 true——UI 用它把排序控件降级显示成「排序已降级」。
   sortFellBackToRelevance: z.boolean().optional(),
   // Bug 修复（2026-07-18，类型筛选「下一页不可点」的真根因）：true = 这个
   // 结果来自按页码直接 offset 分页的后端（meilisearch 搜索路径 /

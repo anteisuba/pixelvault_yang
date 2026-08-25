@@ -105,6 +105,20 @@ grep 的目的是**把所有调用方收进同一个 diff**——不留旧签名
 
 顺序上快照优先于镜像：快照是这个查询（连同排序/档位/页码）的精确历史答案，保真度更高。
 
+**搜索过载没有上游解法。** Civitai 对搜索子系统主动 load shedding，我们控不了。能做的是：断路器打开后立刻失败（不再等 5–10s）、禁止回落同失败域的 REST `query=`、用快照/镜像接着服务，并且降级时仍按用户选的「最新 / 最多下载」做全局排序。浏览（不带搜索词）不受影响。
+
+### 排序（2026-08-25 对齐 Civitai 官网搜索）
+
+Civitai 官网搜索（`ModelSearchIndexSortBy`）是**全局排序**，不是「先名称匹配再排序」：
+
+| 档       | meilisearch                      | 镜像降级                                    |
+| -------- | -------------------------------- | ------------------------------------------- |
+| 推荐     | 不传 sort = 相关性               | 点赞降序（复制不了相关性，UI 标排序已降级） |
+| 最多下载 | `sortMetrics.downloadCount:desc` | `downloadCount`                             |
+| 最新     | `createdAt:desc`                 | `createdAt`                                 |
+
+搜索路径用真实 `offset=(page-1)*pageSize`，不再从 0 拉前缀窗口再按名称分层。类型筛选合并路径仍在合并后按同一套全局 sort 重排。
+
 ### 官方分页契约（2026-08-24 核 [Civitai Pagination](https://developer.civitai.com/site/guide/pagination)）
 
 历史几轮「page-only / page+cursor / cursor-priority / revert」都在猜 REST 怎么分页。官方现在写死了：

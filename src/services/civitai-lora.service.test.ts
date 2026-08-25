@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   CIVITAI_LORA_BASE_MODEL_VALUES,
-  CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER,
   CIVITAI_LORA_SORT_VALUES,
   LORA_CONTENT_TYPE_EXCLUDES,
   LORA_CONTENT_TYPE_OVERRIDES,
@@ -61,6 +60,7 @@ import {
   resolveCivitaiLoraByReference,
   resolveCivitaiModelPageUrlByVersion,
 } from '@/services/civitai-lora.service'
+import { searchCivitaiMirror } from '@/services/civitai-mirror-search.service'
 
 const mockFetch = vi.fn<typeof fetch>()
 
@@ -75,6 +75,10 @@ beforeEach(() => {
   getCircuitBreaker('civitai.search').reset()
   snapshotStore.clear()
   mirrorResult.current = null
+  vi.mocked(searchCivitaiMirror).mockImplementation(
+    async () =>
+      mirrorResult.current as Awaited<ReturnType<typeof searchCivitaiMirror>>,
+  )
 })
 
 afterEach(() => {
@@ -1125,10 +1129,32 @@ describe('listCivitaiLoras', () => {
     const requestUrl = new URL(String(restCall?.[0]))
     expect(requestUrl.searchParams.get('limit')).toBe('40')
     expect(requestUrl.searchParams.get('query')).toBe('鸣潮')
+    expect(requestUrl.searchParams.get('page')).toBeNull()
     expect(requestUrl.searchParams.getAll('baseModels')).toEqual([
       'Illustrious',
       'NoobAI',
     ])
+  })
+
+  it('never sends REST page together with query (official 400)', async () => {
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ message: 'gone' }, 404)
+      }
+      return jsonResponse({
+        items: [],
+        metadata: { nextCursor: 'cursor-next' },
+      })
+    })
+
+    await listCivitaiLoras({ search: '鸣潮', page: 6 })
+
+    const restCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('/api/v1/models'),
+    )
+    const requestUrl = new URL(String(restCall?.[0]))
+    expect(requestUrl.searchParams.get('query')).toBe('鸣潮')
+    expect(requestUrl.searchParams.get('page')).toBeNull()
   })
 
   it('continues sparse searched base model pages until the logical page is full', async () => {
@@ -1763,22 +1789,17 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     const init = searchCall?.[1] as RequestInit
     expect(init.method).toBe('POST')
     const body = JSON.parse(String(init.body))
-    // 两个窗口一趟往返：相关性窗口（不传 sort，exact/prefix 命中靠顶）+
-    // 排序窗口（用户选的 sort，保证层内顺序和深页供给）。
-    expect(body.queries).toHaveLength(2)
-    expect(body.queries.map((q: { q: string }) => q.q)).toEqual([
-      '鸣潮',
-      '鸣潮',
-    ])
-    expect(body.queries[0].sort).toBeUndefined()
-    expect(body.queries[1].sort).toEqual(['metrics.downloadCount:desc'])
+    expect(body.queries).toHaveLength(1)
+    expect(body.queries[0].q).toBe('鸣潮')
+    expect(body.queries[0].sort).toEqual(['sortMetrics.downloadCount:desc'])
+    expect(body.queries[0].offset).toBe(0)
   })
 
   it.each([
-    ['Most Downloaded', ['metrics.downloadCount:desc']],
+    ['Most Downloaded', ['sortMetrics.downloadCount:desc']],
     ['Newest', ['createdAt:desc']],
   ] as const)(
-    'sends a relevance window alongside the sort=%s window',
+    'sends a single meilisearch window with sort=%s',
     async (sort, expected) => {
       mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
 
@@ -1788,8 +1809,8 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
         String(call[0]).includes('search-new.civitai.com'),
       )
       const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
-      expect(body.queries[0].sort).toBeUndefined()
-      expect(body.queries[1].sort).toEqual(expected)
+      expect(body.queries).toHaveLength(1)
+      expect(body.queries[0].sort).toEqual(expected)
     },
   )
 
@@ -1807,14 +1828,8 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     expect(body.queries[0].sort).toBeUndefined()
   })
 
-  // ── 名称匹配分层：先完全匹配，再相似 ──────────────────────────────
-  //
-  // 2026-08-19 实测（真实上游）：meilisearch 一旦收到 sort 就把相关性整个
-  // 盖掉——用「最多下载」搜 anima，排第一的是名字里压根没有 anima 的模型，
-  // 真正的前缀匹配掉到第 10 位；用「最新」搜 detail tweaker，30 条内连前缀
-  // 匹配都没有。
-
-  it('puts an exact name match first even when it is the least downloaded', async () => {
+  it('keeps meilisearch hit order instead of bubbling exact name matches', async () => {
+    // 跟 Civitai 官网一样：选「最多下载」就是全局下载量，不把完全匹配提前。
     mockSearchAndVersionFetch(
       multiSearchResponse([
         searchHitFixture({
@@ -1823,43 +1838,14 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
           version: { id: 11, name: 'v1', metrics: { downloadCount: 900000 } },
         }),
         searchHitFixture({
-          id: 2,
-          name: 'anima',
-          version: { id: 22, name: 'v1', metrics: { downloadCount: 3 } },
-        }),
-        searchHitFixture({
           id: 3,
           name: 'Anima Turbo LoRA',
           version: { id: 33, name: 'v1', metrics: { downloadCount: 5000 } },
         }),
-      ]),
-    )
-
-    const result = await listCivitaiLoras({
-      search: 'anima',
-      sort: 'Most Downloaded',
-    })
-
-    expect(result.items.map((item) => item.name)).toEqual([
-      'anima', // 完全匹配
-      'Anima Turbo LoRA', // 前缀匹配
-      'Velvet Mythic Fantasy', // 名称没命中，靠 tag/描述进来的
-    ])
-  })
-
-  it('keeps the chosen sort inside each match tier', async () => {
-    // 分层只改变层与层之间的先后，不篡改用户明确要的排序语义。
-    mockSearchAndVersionFetch(
-      multiSearchResponse([
-        searchHitFixture({
-          id: 1,
-          name: 'Anima Small',
-          version: { id: 11, name: 'v1', metrics: { downloadCount: 10 } },
-        }),
         searchHitFixture({
           id: 2,
-          name: 'Anima Big',
-          version: { id: 22, name: 'v1', metrics: { downloadCount: 9999 } },
+          name: 'anima',
+          version: { id: 22, name: 'v1', metrics: { downloadCount: 3 } },
         }),
       ]),
     )
@@ -1870,33 +1856,47 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     })
 
     expect(result.items.map((item) => item.name)).toEqual([
-      'Anima Big',
-      'Anima Small',
+      'Velvet Mythic Fantasy',
+      'Anima Turbo LoRA',
+      'anima',
     ])
   })
 
-  it('is case- and whitespace-insensitive when deciding an exact match', async () => {
+  it('keeps newest order even when the newest hit is a weak name match', async () => {
     mockSearchAndVersionFetch(
       multiSearchResponse([
         searchHitFixture({
           id: 1,
-          name: 'Pixel Art XL',
-          version: { id: 11, name: 'v1', metrics: { downloadCount: 9999 } },
+          name: 'Wuthering Waves yesterday',
+          createdAt: '2026-08-24T00:00:00.000Z',
+          version: {
+            id: 11,
+            name: 'v1',
+            createdAt: '2026-08-24T00:00:00.000Z',
+          },
         }),
         searchHitFixture({
           id: 2,
-          name: 'PIXEL   ART',
-          version: { id: 22, name: 'v1', metrics: { downloadCount: 1 } },
+          name: '鸣潮',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          version: {
+            id: 22,
+            name: 'v1',
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
         }),
       ]),
     )
 
     const result = await listCivitaiLoras({
-      search: '  pixel art ',
-      sort: 'Most Downloaded',
+      search: '鸣潮',
+      sort: 'Newest',
     })
 
-    expect(result.items[0]?.name).toBe('PIXEL   ART')
+    expect(result.items.map((item) => item.name)).toEqual([
+      'Wuthering Waves yesterday',
+      '鸣潮',
+    ])
   })
 
   it('maps a meilisearch hit into a full library item, reconstructing the cover URL from the CDN bucket', async () => {
@@ -1923,9 +1923,7 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     )
   })
 
-  it('re-scans a prefix window from 0 instead of paging by offset', async () => {
-    // 分层重排必须看到整个前缀窗口才成立：只在当页内重排的话，第 10 位的
-    // 前缀匹配翻到第 2 页反而更靠后。
+  it('pages search with meilisearch offset, not a prefix rescan from 0', async () => {
     mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()], 100))
 
     await listCivitaiLoras({ search: 'detail', page: 3, pageSize: 12 })
@@ -1934,10 +1932,8 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
       String(call[0]).includes('search-new.civitai.com'),
     )
     const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
-    expect(body.queries[0].offset).toBe(0)
-    expect(body.queries[0].limit).toBe(
-      3 * 12 + CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER,
-    )
+    expect(body.queries[0].offset).toBe(24)
+    expect(body.queries[0].limit).toBe(12)
   })
 
   it('derives hasNextPage from estimatedTotalHits', async () => {
@@ -2175,6 +2171,124 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     expect(result.stale).toBe(true)
     expect(result.fetchedAt).toBe('2026-08-19T10:00:00.000Z')
     expect(result.total).toBe(3)
+  })
+
+  it('clamps a degraded deep page to page 1 of the fallback corpus instead of an empty page', async () => {
+    // 截图根因：搜「鸣潮」、上游搜索挂、镜像只有 41 条，客户端还停在
+    // meilisearch 的第 6 页 → 空列表 +「第 6 页 · 41 个 LoRA」。
+    // 官方契约：query 的分页是 cursor，页码不能跨后端搬。
+    vi.mocked(searchCivitaiMirror).mockImplementation(async (input) => {
+      const page = input.page ?? 1
+      if (page === 1) {
+        return {
+          items: [{ name: '鸣潮 (Wuthering Waves) || 今汐' }],
+          page: 1,
+          pageSize: 12,
+          total: 41,
+          hasNextPage: true,
+          nextCursor: null,
+          offsetPaginationSupported: true,
+        } as never
+      }
+      return {
+        items: [],
+        page,
+        pageSize: 12,
+        total: 41,
+        hasNextPage: false,
+        nextCursor: null,
+        offsetPaginationSupported: true,
+      } as never
+    })
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ error: 'overloaded' }, 503)
+      }
+      throw new Error('REST must not be called')
+    })
+
+    const result = await listCivitaiLoras({ search: '鸣潮', page: 6 })
+
+    expect(result.stale).toBe(true)
+    expect(result.page).toBe(1)
+    expect(result.total).toBe(41)
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]?.name).toContain('鸣潮')
+  })
+
+  it('keeps fallback pagination when the requested mirror page still has hits', async () => {
+    vi.mocked(searchCivitaiMirror).mockImplementation(async (input) => {
+      const page = input.page ?? 1
+      return {
+        items:
+          page === 2 ? [{ name: '鸣潮 page 2' }] : [{ name: '鸣潮 page 1' }],
+        page,
+        pageSize: 12,
+        total: 41,
+        hasNextPage: page * 12 < 41,
+        nextCursor: null,
+        offsetPaginationSupported: true,
+      } as never
+    })
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ error: 'overloaded' }, 503)
+      }
+      throw new Error('REST must not be called')
+    })
+
+    const result = await listCivitaiLoras({ search: '鸣潮', page: 2 })
+
+    expect(result.stale).toBe(true)
+    expect(result.page).toBe(2)
+    expect(result.items[0]?.name).toBe('鸣潮 page 2')
+  })
+
+  it('serves the page-1 snapshot when a deep-page snapshot is missing and the mirror page is empty', async () => {
+    snapshotStore.set(
+      JSON.stringify({
+        page: 1,
+        pageSize: 12,
+        cursor: null,
+        search: '鸣潮',
+        baseModel: 'all',
+        sort: 'Highest Rated',
+        nsfwFilter: 'safe',
+        contentType: 'all',
+      }),
+      {
+        items: [{ name: 'Cached 鸣潮' }],
+        page: 1,
+        pageSize: 12,
+        total: 24,
+        hasNextPage: true,
+        nextCursor: null,
+      },
+    )
+    vi.mocked(searchCivitaiMirror).mockImplementation(async (input) => {
+      const page = input.page ?? 1
+      return {
+        items: [],
+        page,
+        pageSize: 12,
+        total: 24,
+        hasNextPage: false,
+        nextCursor: null,
+        offsetPaginationSupported: true,
+      } as never
+    })
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return jsonResponse({ error: 'overloaded' }, 503)
+      }
+      throw new Error('REST must not be called')
+    })
+
+    const result = await listCivitaiLoras({ search: '鸣潮', page: 6 })
+
+    expect(result.stale).toBe(true)
+    expect(result.page).toBe(1)
+    expect(result.items[0]?.name).toBe('Cached 鸣潮')
   })
 
   it('still throws when the subsystem is down and neither snapshot nor mirror can answer', async () => {

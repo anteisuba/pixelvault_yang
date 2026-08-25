@@ -43,7 +43,7 @@ export interface UseCivitaiLoraLibraryReturn {
   hasNextPage: boolean
   /**
    * B11：搜索路径的 civitai meilisearch 端点挂了、回落到忽略 sort 的 REST
-   * 路径时为 true——UI 据此把排序控件降级显示成「按相关性」。
+   * 路径时为 true——UI 据此把排序控件降级显示成「排序已降级」。
    */
   sortFellBackToRelevance: boolean
   /**
@@ -157,6 +157,27 @@ function writeCache(key: string, result: CivitaiLoraLibraryResult): void {
   }
 }
 
+function invalidateCacheForQuery(params: {
+  baseModel: CivitaiLoraBaseModel
+  sort: CivitaiLoraSort
+  search: string
+  nsfwFilter: LoraNsfwFilter
+  contentType: LoraContentType
+}): void {
+  const prefix = [
+    params.baseModel,
+    params.sort,
+    params.search,
+    params.nsfwFilter,
+    params.contentType,
+  ].join('|')
+  for (const key of [...libraryCache.keys()]) {
+    if (key === prefix || key.startsWith(`${prefix}|`)) {
+      libraryCache.delete(key)
+    }
+  }
+}
+
 /**
  * Test-only escape hatch. Call from `beforeEach` so the module-level cache
  * does not leak between specs.
@@ -242,6 +263,10 @@ export function useCivitaiLoraLibrary(
     setIsStale(result.stale ?? false)
     setStaleFetchedAt(result.stale ? (result.fetchedAt ?? null) : null)
     setOffsetPaginationSupported(result.offsetPaginationSupported ?? false)
+    // 服务端在降级时可能把深页钳回第 1 页（meilisearch 页码不能套到镜像
+    // 语料上）。页码是客户端 state，必须跟结果一起改，否则会显示
+    // 「第 6 页 · 41 个 LoRA」配上空列表。
+    setPage((current) => (result.page === current ? current : result.page))
     setSelectedItemId((current) => {
       if (current && result.items.some((item) => item.id === current)) {
         return current
@@ -252,6 +277,8 @@ export function useCivitaiLoraLibrary(
 
   const clearFacetResults = useCallback(() => {
     requestIdRef.current += 1
+    inFlightRef.current?.abort()
+    inFlightRef.current = null
     setItems([])
     setSelectedItemId(null)
     setTotal(null)
@@ -352,7 +379,18 @@ export function useCivitaiLoraLibrary(
       }
       // 降级快照不进客户端缓存。写进去的话，上游恢复之后用户还要再盯着旧
       // 数据看满 5 分钟的 TTL——兜底数据的寿命必须止于上游恢复那一刻。
-      if (!response.data.stale) {
+      // 同一查询下已经缓存的 live 页也要清掉：服务端把深页钳回第 1 页时
+      // setPage(1) 会再触发一次 fetch，否则会命中 5 分钟前的 live 第 1 页，
+      // 把刚端上的降级结果盖掉。
+      if (response.data.stale) {
+        invalidateCacheForQuery({
+          baseModel,
+          sort,
+          search: activeSearch,
+          nsfwFilter,
+          contentType,
+        })
+      } else {
         writeCache(cacheKey, response.data)
       }
       applyResult(response.data)
@@ -388,6 +426,12 @@ export function useCivitaiLoraLibrary(
     (term: string) => {
       const trimmed = term.trim()
       if (trimmed === debouncedSearch) return
+      // 先作废在飞请求再改 state：旧的第 6 页响应回来不能盖掉新搜索。
+      // requestId 必须先加——abort 会让 fetch 立刻以 success:false 回来，
+      // 若不先加，refresh 会把 AbortError 当成真正的加载失败。
+      requestIdRef.current += 1
+      inFlightRef.current?.abort()
+      inFlightRef.current = null
       cursorByPageRef.current = new Map([[1, null]])
       // Issue C: a new search term starts a new session — unlock the
       // backend so the next page 1 is free to pick meilisearch/REST again.
@@ -491,6 +535,9 @@ export function useCivitaiLoraLibrary(
     if (paginationPendingRef.current || isRevalidating || !hasNextPage) {
       return
     }
+    if (total !== null && page * CIVITAI_LORA_PAGE_SIZE >= total) {
+      return
+    }
 
     const targetPage = page + 1
     const cursorReady = cursorByPageRef.current.has(targetPage)
@@ -512,6 +559,7 @@ export function useCivitaiLoraLibrary(
     offsetPaginationSupported,
     page,
     sortFellBackToRelevance,
+    total,
   ])
 
   const previousPage = useCallback(() => {

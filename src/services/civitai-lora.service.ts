@@ -12,8 +12,6 @@ import {
   CIVITAI_OTHER_BASE_MODEL_MEMBERS,
   CIVITAI_LORA_CONTENT_TYPE_MAX_FETCH_LIMIT,
   CIVITAI_LORA_CONTENT_TYPE_OVERFETCH_BUFFER,
-  CIVITAI_LORA_SEARCH_MAX_FETCH_LIMIT,
-  CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER,
   CIVITAI_LORA_PAGE_SIZE,
   CIVITAI_LORA_SORT_VALUES,
   DEFAULT_LORA_CONTENT_TYPE,
@@ -1347,12 +1345,15 @@ function toLibraryItem(
 // #1848，我们自己 curl 对照实验也证实）。civitai 网页版自己的搜索走这个
 // meilisearch 端点，排序字段实测（2026-07-04）全部生效。
 
-// 排序映射——三档实测（curl 对照，2026-07-04）：不传 sort 就是 meilisearch
-// 相关性序（与 REST 搜索结果逐条一致，说明 REST 内部就是这条相关性序）；
-// 其余两档严格降序。
+// 排序映射对齐 Civitai 官网搜索（github.com/civitai/civitai
+// `ModelSearchIndexSortBy`，2026-08-24 核）：
+//   推荐 / 默认 = 不传 sort = meilisearch 相关性；
+//   最多下载 = `sortMetrics.downloadCount`（不是展示用的 `metrics.downloadCount`，
+//     作者隐藏下载数时展示字段是 null，拿它排会乱）；
+//   最新 = `createdAt:desc`。
 const CIVITAI_SEARCH_SORT_MAP: Record<CivitaiLoraSort, string[] | undefined> = {
   'Highest Rated': undefined,
-  'Most Downloaded': ['metrics.downloadCount:desc'],
+  'Most Downloaded': ['sortMetrics.downloadCount:desc'],
   Newest: ['createdAt:desc'],
 }
 
@@ -1559,16 +1560,7 @@ async function listCivitaiLorasBySearch({
   sort: CivitaiLoraSort
   nsfwFilter: LoraNsfwFilter
 }): Promise<CivitaiLoraLibraryResult> {
-  const windowStart = (page - 1) * pageSize
   const windowEnd = page * pageSize
-  // 分层重排必须看到「当前页末尾 + 缓冲」的完整前缀窗口才成立：只在当页内
-  // 重排的话，第 10 位的前缀匹配翻到第 2 页反而更靠后。与
-  // listCivitaiLorasByContentType 同一套范式——每次从 0 重扫一个更大的前缀
-  // 窗口，合并去重后整体排一遍再切片。
-  const fetchLimit = Math.min(
-    windowEnd + CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER,
-    CIVITAI_LORA_SEARCH_MAX_FETCH_LIMIT,
-  )
   const filters = buildCivitaiSearchFilters(
     baseModel === 'all' ? null : baseModel,
   )
@@ -1577,50 +1569,29 @@ async function listCivitaiLorasBySearch({
   appendNsfwSearchFilter(filters, nsfwFilter)
 
   const sortFields = CIVITAI_SEARCH_SORT_MAP[sort]
-  const baseQuery = {
+  // 跟 Civitai 官网搜索同一套：一条 query、真实 offset、sort 全局生效。
+  // 旧实现拉相关性窗口再按名称分层，会把「最新」变成「先完全匹配再按时间」
+  // ——官网选 Newest 是全局新→旧，匹配差的新模型也能置顶。
+  const query = {
     indexUid: CIVITAI_MODEL_SEARCH_INDEX,
     q: search,
-    limit: fetchLimit,
-    offset: 0,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
     filter: filters,
+    ...(sortFields ? { sort: sortFields } : {}),
   }
-  // 两个窗口，同一次 multi-search 一趟往返：
-  //   相关性窗口（不传 sort）——exact/prefix 命中在这里天然靠顶；
-  //   排序窗口（传用户选的 sort）——保证层内顺序和用户要的排序一致，也保
-  //   证深页有足够供给。
-  // 'Highest Rated' 本来就不传 sort，两条会完全相同，退化成一条不白花流量。
-  const queries = sortFields
-    ? [baseQuery, { ...baseQuery, sort: sortFields }]
-    : [baseQuery]
 
   const payload = await fetchCivitaiSearchPayload(
-    queries,
+    [query],
     'civitai.searchLoras',
   )
 
   // 解析失败/形状异常直接抛出——调用方 listCivitaiLoras 捕获后按降级链处理，
   // 不在这里吞掉错误（吞了调用方就没法区分"真的没结果"和"端点坏了"）。
   const parsed = CivitaiModelSearchResponseSchema.parse(payload)
+  const hits = filterSearchHitsByNsfw(parsed.results[0]?.hits ?? [], nsfwFilter)
+  const items = hitsToLibraryItems(hits, maxImageNsfwLevelFor(nsfwFilter))
 
-  const mergedById = new Map<number, z.infer<typeof CivitaiSearchHitSchema>>()
-  for (const result of parsed.results) {
-    for (const hit of filterSearchHitsByNsfw(result.hits ?? [], nsfwFilter)) {
-      if (!mergedById.has(hit.id)) mergedById.set(hit.id, hit)
-    }
-  }
-
-  const ranked = rankSearchHitsByNameMatch(
-    [...mergedById.values()],
-    search,
-    sort,
-  )
-  const items = hitsToLibraryItems(
-    ranked.slice(windowStart, windowEnd),
-    maxImageNsfwLevelFor(nsfwFilter),
-  )
-
-  // 两条子 query 是同一个结果集的两种排序，estimatedTotalHits 相同——总数
-  // 仍然可信，不像 content-type 那条路径（两条 query 是不同集合）要报 null。
   const estimatedTotal = parsed.results[0]?.estimatedTotalHits ?? null
 
   return {
@@ -1631,10 +1602,8 @@ async function listCivitaiLorasBySearch({
     hasNextPage:
       estimatedTotal !== null
         ? windowEnd < estimatedTotal
-        : ranked.length > windowEnd,
+        : items.length >= pageSize,
     nextCursor: null,
-    // 这条路径也是按页码直接 offset 分页（meilisearch `offset`/`limit`），
-    // 同一份根因修复，见 listCivitaiLorasByContentType 里的字段注释。
     offsetPaginationSupported: true,
   }
 }
@@ -1642,51 +1611,6 @@ async function listCivitaiLorasBySearch({
 function buildTagsInFilter(tags: readonly string[]): string {
   const quoted = tags.map((tag) => JSON.stringify(tag)).join(', ')
   return `tags.name IN [${quoted}]`
-}
-
-/**
- * 名称匹配强度分层。用户的诉求是「先出完全匹配搜索词的，再出相似的」——
- * meilisearch 一旦收到 `sort` 就把相关性整个盖掉（2026-08-19 实测：用「最多
- * 下载」搜 anima，排第一的是名字里压根没有 anima 的模型，真正的前缀匹配掉到
- * 第 10 位；用「最新」搜 detail tweaker，30 条内连前缀匹配都没有）。
- *
- * 所以分层在我们这边做，不指望上游的 ranking rule：
- *   0 完全相同 · 1 以搜索词开头 · 2 名称里包含 · 3 其余（靠 tag/描述命中）
- * 层内仍按用户选的排序，所以「最多下载」在每一层内部依然是下载量降序——
- * 分层只改变层与层之间的先后，不篡改用户明确要的排序语义。
- */
-const CIVITAI_NAME_MATCH_TIERS = 4
-
-function normalizeSearchName(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ')
-}
-
-function nameMatchTier(name: string, search: string): number {
-  const haystack = normalizeSearchName(name)
-  const needle = normalizeSearchName(search)
-  if (!needle) return CIVITAI_NAME_MATCH_TIERS - 1
-  if (haystack === needle) return 0
-  if (haystack.startsWith(needle)) return 1
-  if (haystack.includes(needle)) return 2
-  return 3
-}
-
-/**
- * 先按名称匹配强度分层，层内再按用户选的 sort 排。
- */
-function rankSearchHitsByNameMatch(
-  hits: readonly z.infer<typeof CivitaiSearchHitSchema>[],
-  search: string,
-  sort: CivitaiLoraSort,
-): z.infer<typeof CivitaiSearchHitSchema>[] {
-  const tiers: z.infer<typeof CivitaiSearchHitSchema>[][] = Array.from(
-    { length: CIVITAI_NAME_MATCH_TIERS },
-    () => [],
-  )
-  for (const hit of hits) {
-    tiers[nameMatchTier(hit.name, search)]?.push(hit)
-  }
-  return tiers.flatMap((tier) => sortMergedSearchHits(tier, sort))
 }
 
 // 合并两个独立分页窗口（L1 tag 命中 ∪ L2 关键词命中）后，各自的 meilisearch
@@ -2388,6 +2312,154 @@ async function listSearchedBaseModelCivitaiLoras({
   }
 }
 
+function fallbackHasHits(
+  result: CivitaiLoraLibraryResult | null | undefined,
+): result is CivitaiLoraLibraryResult {
+  return Boolean(result && result.items.length > 0)
+}
+
+function markCivitaiSearchStale(
+  result: CivitaiLoraLibraryResult,
+  fetchedAt: Date,
+): CivitaiLoraLibraryResult {
+  return {
+    ...result,
+    stale: true,
+    fetchedAt: fetchedAt.toISOString(),
+  }
+}
+
+/**
+ * L1 搜索失败后的回落。官方契约（developer.civitai.com/site/guide/pagination，
+ * 2026-08-24 核）：`query` 必须走 cursor，`page`+`query` 是 400。我们 L1 用的
+ * 非正式 meilisearch 是 offset 页码，本地镜像也是 offset 页码——两套页码指的
+ * 不是同一份语料。把 live meilisearch 的第 6 页拿去问只有 41 条的镜像，就会
+ * 端出「没有找到匹配的 LoRA」配上「第 6 页 · 41 个 LoRA」。
+ *
+ * 所以：请求页在回落语料里是空的、但这个词其实有命中时，回到回落第 1 页。
+ * 已经在回落里翻页（第 2 页还有条目）则照常返回，不误重置。
+ */
+async function resolveDegradedCivitaiSearch({
+  input,
+  snapshotKey,
+  error,
+}: {
+  input: ListCivitaiLorasInput
+  snapshotKey: string
+  error: unknown
+}): Promise<CivitaiLoraLibraryResult> {
+  const message = error instanceof Error ? error.message : 'Unknown'
+  const requestedPage = input.page ?? 1
+  const pageSize = input.pageSize ?? CIVITAI_LORA_PAGE_SIZE
+  const normalizedSearch = input.search?.trim() ?? ''
+  const contentType = input.contentType ?? DEFAULT_LORA_CONTENT_TYPE
+  const baseModel = input.baseModel ?? 'all'
+  const sort = input.sort ?? 'Highest Rated'
+  const nsfwFilter = input.nsfwFilter ?? DEFAULT_LORA_NSFW_FILTER
+
+  const queryMirror = (page: number) =>
+    searchCivitaiMirror({
+      page,
+      pageSize,
+      search: normalizedSearch,
+      baseModel,
+      acceptedBaseModelNames: acceptedBaseModelNames(
+        baseModel === 'all' ? null : baseModel,
+      ),
+      sort,
+      nsfwFilter,
+      contentType,
+      maxImageNsfwLevel: maxImageNsfwLevelFor(nsfwFilter),
+    })
+
+  const exactSnapshot = await readCivitaiSearchSnapshot(snapshotKey)
+  if (exactSnapshot && fallbackHasHits(exactSnapshot.payload)) {
+    logger.warn(
+      'Civitai search unavailable — serving the last successful snapshot',
+      {
+        error: message,
+        search: normalizedSearch,
+        contentType,
+        snapshotAgeMs: Date.now() - exactSnapshot.fetchedAt.getTime(),
+      },
+    )
+    return markCivitaiSearchStale(
+      exactSnapshot.payload,
+      exactSnapshot.fetchedAt,
+    )
+  }
+
+  const mirrored = await queryMirror(requestedPage)
+  // 有命中就用这一页；第 1 页空结果也返回（「这个词本地确实没有」），
+  // 不要 502。深页空结果不能在这里返回——页码可能来自另一套语料，
+  // 交给下面钳回第 1 页。
+  if (mirrored && (fallbackHasHits(mirrored) || requestedPage === 1)) {
+    const syncedAt = (await readCivitaiMirrorFreshness()) ?? new Date()
+    logger.warn(
+      'Civitai search unavailable and no snapshot — serving the local mirror',
+      { error: message, search: normalizedSearch, total: mirrored.total },
+    )
+    return markCivitaiSearchStale(mirrored, syncedAt)
+  }
+
+  if (requestedPage > 1) {
+    const page1Key = buildCivitaiSnapshotKey({
+      page: 1,
+      pageSize,
+      cursor: null,
+      search: normalizedSearch,
+      baseModel,
+      sort,
+      nsfwFilter,
+      contentType,
+    })
+    const page1Snapshot = await readCivitaiSearchSnapshot(page1Key)
+    if (page1Snapshot && fallbackHasHits(page1Snapshot.payload)) {
+      logger.warn(
+        'Civitai search unavailable — deep page empty in fallback, serving page 1 snapshot',
+        { error: message, search: normalizedSearch, requestedPage },
+      )
+      return markCivitaiSearchStale(
+        { ...page1Snapshot.payload, page: 1 },
+        page1Snapshot.fetchedAt,
+      )
+    }
+
+    const page1Mirror = await queryMirror(1)
+    if (page1Mirror && fallbackHasHits(page1Mirror)) {
+      const syncedAt = (await readCivitaiMirrorFreshness()) ?? new Date()
+      logger.warn(
+        'Civitai search unavailable — deep page empty in fallback, serving page 1 of the local mirror',
+        {
+          error: message,
+          search: normalizedSearch,
+          requestedPage,
+          total: page1Mirror.total,
+        },
+      )
+      return markCivitaiSearchStale({ ...page1Mirror, page: 1 }, syncedAt)
+    }
+  }
+
+  if (exactSnapshot) {
+    logger.warn(
+      'Civitai search unavailable — serving the last successful snapshot',
+      {
+        error: message,
+        search: normalizedSearch,
+        contentType,
+        snapshotAgeMs: Date.now() - exactSnapshot.fetchedAt.getTime(),
+      },
+    )
+    return markCivitaiSearchStale(
+      exactSnapshot.payload,
+      exactSnapshot.fetchedAt,
+    )
+  }
+
+  throw error
+}
+
 export async function listCivitaiLoras(
   input: ListCivitaiLorasInput = {},
 ): Promise<CivitaiLoraLibraryResult> {
@@ -2419,59 +2491,7 @@ export async function listCivitaiLoras(
     await writeCivitaiSearchSnapshot(snapshotKey, result)
     return result
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown'
-
-    // 降级顺序：快照优先于镜像。快照是**这个查询**（连同排序/档位/页码）
-    // 上一次的精确答案，保真度最高；镜像更通用但只覆盖 top N、排序也复制
-    // 不了上游。只有快照没有时才轮到镜像——它的价值在于能回答从没搜过的
-    // 词，那是快照永远填不了的洞。
-    const snapshot = await readCivitaiSearchSnapshot(snapshotKey)
-    if (snapshot) {
-      logger.warn(
-        'Civitai search unavailable — serving the last successful snapshot',
-        {
-          error: message,
-          search: normalizedSearch,
-          contentType,
-          snapshotAgeMs: Date.now() - snapshot.fetchedAt.getTime(),
-        },
-      )
-      return {
-        ...snapshot.payload,
-        stale: true,
-        fetchedAt: snapshot.fetchedAt.toISOString(),
-      }
-    }
-
-    const mirrored = await searchCivitaiMirror({
-      page: input.page ?? 1,
-      pageSize: input.pageSize ?? CIVITAI_LORA_PAGE_SIZE,
-      search: normalizedSearch,
-      baseModel: input.baseModel ?? 'all',
-      acceptedBaseModelNames: acceptedBaseModelNames(
-        input.baseModel === 'all' ? null : input.baseModel,
-      ),
-      sort: input.sort ?? 'Highest Rated',
-      nsfwFilter: input.nsfwFilter ?? DEFAULT_LORA_NSFW_FILTER,
-      contentType,
-      maxImageNsfwLevel: maxImageNsfwLevelFor(
-        input.nsfwFilter ?? DEFAULT_LORA_NSFW_FILTER,
-      ),
-    })
-    if (mirrored) {
-      const syncedAt = await readCivitaiMirrorFreshness()
-      logger.warn(
-        'Civitai search unavailable and no snapshot — serving the local mirror',
-        { error: message, search: normalizedSearch, total: mirrored.total },
-      )
-      return {
-        ...mirrored,
-        stale: true,
-        fetchedAt: (syncedAt ?? new Date()).toISOString(),
-      }
-    }
-
-    throw error
+    return resolveDegradedCivitaiSearch({ input, snapshotKey, error })
   }
 }
 
@@ -2510,7 +2530,7 @@ async function listCivitaiLorasFromUpstream(
 
   // B11：有搜索词就先走 civitai 自家 meilisearch（真排序，REST 带 query 时
   // 忽略 sort）；端点非正式、公钥可能轮换，失败就回落现有 REST 搜索路径，
-  // 结果打上 sortFellBackToRelevance 让 UI 把排序控件降级显示成「按相关性」。
+  // 结果打上 sortFellBackToRelevance 让 UI 把排序控件降级显示成「排序已降级」。
   //
   // Issue C（docs/plans/lora-search-image-audit-2026-07.md）：这个选择每次
   // 请求独立做，与上一页无关——但 meilisearch 走 offset 分页、REST 回落走
@@ -2645,13 +2665,18 @@ async function listCivitaiLorasViaRest({
     if (normalizedSearch) {
       url.searchParams.set('query', normalizedSearch)
     }
-    // Civitai's REST `page` parameter is unreliable for models/images: live
-    // checks show `page=6` can return page 1. Only the first page may use
-    // `page`; later non-search pages must be addressed by cursor.
+    // Official pagination contract (developer.civitai.com/site/guide/pagination,
+    // verified 2026-08-24): `query` requires cursor-based pagination.
+    // Combining `page` with `query` returns 400 Bad Request. Browse (no query)
+    // may use page or cursor; we only send `page=1` for the first browse hop,
+    // later browse pages must use the opaque cursor.
     if (nextPageCursor) {
       url.searchParams.set('cursor', nextPageCursor)
     } else if (!normalizedSearch) {
       url.searchParams.set('page', '1')
+    }
+    if (normalizedSearch) {
+      url.searchParams.delete('page')
     }
     if (baseModel !== 'all') {
       appendBaseModelFamilyParams(url, baseModel)

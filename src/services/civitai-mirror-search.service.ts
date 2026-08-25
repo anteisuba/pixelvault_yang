@@ -2,8 +2,6 @@ import 'server-only'
 
 import {
   CIVITAI_LORA_PAGE_SIZE,
-  CIVITAI_LORA_SEARCH_MAX_FETCH_LIMIT,
-  CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER,
   CIVITAI_MIRROR_SYNC_STATE_ID,
   CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL,
   DEFAULT_LORA_CONTENT_TYPE,
@@ -74,9 +72,9 @@ function contentTypeWhere(
 }
 
 /**
- * 本地排序。'Highest Rated' 在上游是 meilisearch 的相关性序，本地复制不了
- * 那个算法——退化成按下载量降序，并在结果里如实标 sortFellBackToRelevance
- * 让 UI 把排序控件降级显示，不假装我们排得和 Civitai 一样。
+ * 本地排序。跟 Civitai 官网搜索同一套全局序：最新=创建时间，最多下载=下载量。
+ * 「推荐」在上游是 meilisearch 相关性，本地复制不了——退化成点赞降序（官网
+ * Highest Rated 搜索档用的就是 thumbsUpCount），并标 sortFellBackToRelevance。
  */
 function orderBy(
   sort: CivitaiLoraSort,
@@ -86,28 +84,6 @@ function orderBy(
     return [{ downloadCount: 'desc' }, { modelId: 'desc' }]
   }
   return [{ thumbsUpCount: 'desc' }, { downloadCount: 'desc' }]
-}
-
-/**
- * 名称匹配分层，与上游路径（rankSearchHitsByNameMatch）同一套语义。
- *
- * 兜底层必须和主路径排得一样——上游一挂顺序就突然变样，比慢更让人不安。
- * 分层在 JS 里做而不是下推 SQL：Prisma 的 orderBy 表达不了 CASE WHEN，而
- * 镜像本身就是按下载量截断的 top N，低下载量的完全匹配根本不在库里，过取
- * 一个前缀窗口再分层足够。
- */
-function normalizeSearchName(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ')
-}
-
-function nameMatchTier(name: string, search: string): number {
-  const haystack = normalizeSearchName(name)
-  const needle = normalizeSearchName(search)
-  if (!needle) return 3
-  if (haystack === needle) return 0
-  if (haystack.startsWith(needle)) return 1
-  if (haystack.includes(needle)) return 2
-  return 3
 }
 
 function mirrorRowToLibraryItem(
@@ -222,20 +198,15 @@ export async function searchCivitaiMirror(
   const where: Prisma.CivitaiLoraMirrorWhereInput = { AND: and }
 
   try {
-    // 分层重排要看到整个前缀窗口才成立——只在当页内重排的话，靠后的完全
-    // 匹配翻页后反而更靠后。与上游路径同一套范式。
     const windowStart = (page - 1) * pageSize
     const windowEnd = page * pageSize
-    const fetchLimit = Math.min(
-      windowEnd + CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER,
-      CIVITAI_LORA_SEARCH_MAX_FETCH_LIMIT,
-    )
     const [total, rows] = await Promise.all([
       db.civitaiLoraMirror.count({ where }),
       db.civitaiLoraMirror.findMany({
         where,
         orderBy: orderBy(sort),
-        take: fetchLimit,
+        skip: windowStart,
+        take: pageSize,
         select: {
           modelId: true,
           versionId: true,
@@ -256,25 +227,16 @@ export async function searchCivitaiMirror(
 
     if (total === 0) return null
 
-    const ranked = search
-      ? [...rows].sort(
-          (a, b) =>
-            nameMatchTier(a.name, search) - nameMatchTier(b.name, search),
-        )
-      : rows
-
     return {
-      items: ranked
-        .slice(windowStart, windowEnd)
-        .map((row) => mirrorRowToLibraryItem(row, input.maxImageNsfwLevel)),
+      items: rows.map((row) =>
+        mirrorRowToLibraryItem(row, input.maxImageNsfwLevel),
+      ),
       page,
       pageSize,
       total,
       hasNextPage: windowEnd < total,
       nextCursor: null,
-      // 本地按 offset 分页，与 meilisearch 路径同一种范式。
       offsetPaginationSupported: true,
-      // 本地排不出 Civitai 的 Highest Rated，如实标出来让 UI 降级显示。
       sortFellBackToRelevance: sort === 'Highest Rated',
     }
   } catch (error) {

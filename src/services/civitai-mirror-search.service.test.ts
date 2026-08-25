@@ -83,10 +83,7 @@ describe('searchCivitaiMirror', () => {
     expect(result?.offsetPaginationSupported).toBe(true)
   })
 
-  it('puts exact and prefix name matches first, keeping the sort inside each tier', async () => {
-    // 兜底层必须和主路径排得一样——上游一挂顺序就突然变样，比慢更让人不安。
-    // rows 按 downloadCount 降序进来（orderBy），分层是稳定排序，所以层内
-    // 顺序原样保留。
+  it('keeps the SQL sort instead of bubbling exact name matches', async () => {
     mockCount.mockResolvedValue(4)
     mockFindMany.mockResolvedValue([
       mirrorRow({ modelId: 1, name: 'Velvet Mythic', downloadCount: 900000 }),
@@ -106,10 +103,10 @@ describe('searchCivitaiMirror', () => {
     })
 
     expect(result?.items.map((item) => item.name)).toEqual([
-      'anima', // 完全匹配
-      'Anima Turbo LoRA', // 前缀
-      'Studio with anima inside', // 包含
-      'Velvet Mythic', // 名称没命中
+      'Velvet Mythic',
+      'Anima Turbo LoRA',
+      'Studio with anima inside',
+      'anima',
     ])
   })
 

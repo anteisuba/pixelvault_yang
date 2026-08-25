@@ -2,7 +2,7 @@
 
 > 定位：CI/CD 现状事实（按现状写，不引入新 CI——owner 2026-07-10 拍板）。本地闸门见 `testing.md`；环境红线见 `forbidden.md` CI/CD 节。
 
-## GitHub Actions（5 workflows，2026-07-10 核验）
+## GitHub Actions（6 workflows，2026-07-10 核验；2026-08-25 新增 cron-monitor）
 
 | Workflow                | 触发                                                                                                                               | 内容                                                                                                                                                                                                                    |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -11,6 +11,7 @@
 | `health-monitor.yml`    | cron `17 */6 * * *`（每 6 小时）+ 手动                                                                                             | POST `/api/health/providers`（HEALTH_CHECK_TOKEN 鉴权）；有模型 unavailable → 开 issue（`provider-outage` label，已有 open 则不重复）；endpoint 非 200 → workflow 失败                                                  |
 | `model-doc-monitor.yml` | cron `17 0 * * 1`（每周一）+ 手动                                                                                                  | `npm run models:check-docs`：模型文档/接口检查，报告进 job summary + artifact（用 OPENAI/GEMINI key 做探测）；errorCount 或 changeCount ≠ 0 时自动开/更新 issue（`model-doc-monitor` label）                            |
 | `post-deploy-smoke.yml` | **独立 workflow**（不是被 deploy-check 调用）：workflow_dispatch（手动传 base_url）+ deployment_status（同样仅 Production 成功后） | 跑 `scripts/smoke.ts`（带 Vercel protection bypass secret）；与 deploy-check 的内联冒烟是并行两套                                                                                                                       |
+| `cron-monitor.yml`      | cron `37 13 * * *`（每日）+ 手动                                                                                                   | GET `/api/health/crons`（HEALTH_CHECK_TOKEN 鉴权，与 health-monitor 同一把，无需新 secret）；`healthy:false` → 开/追评 issue（`cron-failure` label）；端点非 200 → workflow 失败。见下方「Vercel cron 的可见性」        |
 
 ### model-doc-monitor 基线与已知退化
 
@@ -23,6 +24,39 @@
 - Production 部署成功 → `deploy-check` 自动冒烟；失败开 issue。
 - 环境变量边界：`NEXT_PUBLIC_` 只准 Clerk public key / CDN domain / App URL；其余机密只进服务端。
 
+### ⚠ Migrate 与运行时分用两个 URL：direct vs pooler（2026-08-25）
+
+`buildCommand`（`prisma migrate deploy && next build`）曾经和运行时共用同一个
+`DATABASE_URL`——构建日志实证 `prisma migrate deploy` 连的是
+`ep-flat-violet-aifhen7l-pooler...`，即迁移跑在 **pooled（PgBouncer）端点**上。
+这不是 Neon 官方推荐的用法：PgBouncer 事务池化模式下 `migrate` 用来做互斥的
+advisory lock 不可靠；反过来运行时若改走 direct，Vercel 突发并发下每实例
+`DATABASE_POOL.MAX_CONNECTIONS`（3）条连接会直接打满 Neon 的连接上限。
+
+现状（`prisma.config.ts`）：
+
+- **`DIRECT_URL`** —— 专供 `prisma migrate` / `db` / `studio` 等 CLI 命令，
+  Neon direct 端点（主机名不带 `-pooler`）。缺失时 `prisma.config.ts` 在这里
+  就大声抛错，不回退到 `DATABASE_URL`。例外是 `generate`/`validate`/`format`
+  这类不连库的纯 schema 命令——CI 的 lint/test/build 三个 job 就是在完全不设
+  这两个变量的情况下跑 `prisma generate` 的（Prisma 7.2+ 官方允许），必须保持
+  可用，否则会连累三个跟迁移无关的 job。
+- **`DATABASE_URL`** —— 运行时（`src/lib/db.ts` 经 `@prisma/adapter-pg`）与各
+  backfill/seed 脚本用，保持 Neon pooler 端点，未改动。
+
+⚠ **部署时序**：这个改动上线前必须先在 Vercel 项目设置里配好 `DIRECT_URL`
+（值取 Neon dashboard 里主机名不带 `-pooler` 的那条连接串），否则代码一上线，
+下一次构建的 `prisma migrate deploy` 会在拿不到 `DIRECT_URL` 时直接失败，
+`&&` 短路整个生产构建（同一失败模式见下方「约束型迁移」节）。
+
+⚠ **Preview 隔离未核实**：`scripts/vercel-ignore-build.sh` 只按改动路径决定
+建不建、不按 `VERCEL_ENV` 分支；只要某个 preview 分支的 push 碰了 `prisma/`
+等受监视路径，`buildCommand` 就会带着该次部署环境下的 `DIRECT_URL` /
+`DATABASE_URL` 跑一次 `migrate deploy`。这两个变量在 Vercel 项目设置里对
+Preview / Production 是否隔离（不同库 vs 同一个值）取决于 dashboard 配置，
+**读代码确认不了**——待 owner 在 Vercel 项目设置逐一核实，核实前功能分支的
+迁移改动一旦 push 就有打到生产库的风险。
+
 ## 状态查询与排障（agent 可直接执行，2026-07-10 验证可用）
 
 - **GitHub 侧（gh CLI，本机已登录 anteisuba）**：`gh run list --limit 10`（最近运行）· `gh run view <id> --log-failed`（失败日志）· `gh pr list`（PR 积压）· `gh run watch`（push 后盯 CI）。
@@ -30,7 +64,7 @@
 - 生产异常时序：先看最新 production 部署 state → deploy-check / post-deploy smoke 结果 → 需要回滚找 `isRollbackCandidate` 的上一个 READY 部署。
 - Vercel 计划：Hobby（cron 表达式受限，历史上因此炸过一次构建）。
 
-### ⚠ 加 cron 前必须做的两件事（2026-08-20 又栽了一次，补成清单）
+### ⚠ 加 cron 前必须做的三件事（2026-08-20 又栽了一次，补成清单；第 3 条 2026-08-25 加）
 
 1. **表达式只能是每日粒度。** `0 * * * *` / `0 */6 * * *` 这类会炸构建——
    `6320100a`「use Hobby-compatible cron schedules」删掉的正是这两个。现存三条
@@ -43,6 +77,36 @@
    `@clerk/nextjs/server/protect`）。所以去 Vercel Function 日志里 grep 401
    会一无所获，要找的是每天一条 404。`src/proxy.test.ts` 有 `it.each` 守着三
    条路径，加 cron 时把新路径加进那个数组。
+
+3. **给它上心跳**：在路由的每条出口调 `recordCronRun(CRON_JOBS.<名字>, …)`，
+   并把名字加进 `src/constants/cron.ts` 的 `CRON_JOBS`。漏了不会报错，只会让
+   这条 cron **不在监控里**——和它压根没跑一样安静。
+
+### ⚠ Vercel cron 的可见性：日志活不过 1 小时（2026-08-25 立）
+
+**「昨天那条 cron 跑没跑」在没有心跳的情况下是结构上无法回答的**，两条平台事实叠在一起：
+
+| 事实                                                                                                                                       | 来源                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| 「Vercel will not retry an invocation if a cron job fails.」                                                                               | <https://vercel.com/docs/cron-jobs/manage-cron-jobs> · Cron job error handling |
+| 投递是 best effort；漏投时「your function does not execute, and **no runtime log is created** for that scheduled run」，也可能**重复投递** | 同页 · Cron job delivery and idempotency                                       |
+| **Hobby 的 runtime log 保留期 = 1 小时**（Pro 才 1 天）                                                                                    | <https://vercel.com/docs/logs/runtime> · Limits 表                             |
+| Hobby 的 cron 在**指定整点内任意时刻**触发（`0 4 * * *` 可能落在 04:00–04:59）                                                             | manage-cron-jobs · Cron jobs accuracy                                          |
+
+实测佐证：2026-08-25 用 Vercel MCP 查生产项目过去 24h 的 runtime log，`group_by=statusCode` 只返回 **2 条**记录，按 `requestPath` 过滤 `/api/internal/` 返回**空表**——当天 00:00 / 04:00 / 12:00 的三次 cron 一条都不剩。
+
+**补法（已落地）**：
+
+- `src/lib/cron-heartbeat.ts` — 每条 cron 在自己的每条出口写一条心跳到 **Upstash Redis**（`pv:cron-heartbeat:<name>`，TTL 7 天）。
+  - 落点选 Upstash 不选新建表：Upstash 在生产**已经是硬依赖**（`execution-replay-guard` 没它直接 fail-closed），而加 Prisma 表要在开发机上跑迁移——本仓开发机连的就是生产库。
+  - `recordCronRun` **永不抛错**：正事已经做完了，不能让观测手段反过来制造故障。
+  - `readCronHeartbeats` **故意会抛**：读不到就是「监控本身瞎了」，必须冒到 HTTP 层。
+- `GET /api/health/crons` — 汇总三条心跳。**状态码约定**：cron 出事仍是 200（判据在响应体 `healthy` 上），**非 200 只表示监控自己坏了**。两种故障因此能分开报警。
+- `cron-monitor.yml` — 每天 13:37 UTC 读一次；`healthy:false` 开 `cron-failure` issue，非 200 直接让 workflow 红。
+
+**过期阈值 26h 的来历**：日常间隔 24h + Hobby 整点内漂移最多 1h = 正常最大 25h，26h 只留一小时余量。**调大它就等于把「漏跑一次」变成「漏跑两次才报」**，别随手放宽。
+
+⚠ **首次部署会有一条 bootstrap issue**：三条心跳要各自等到自己下一次 cron 才第一次写入，在那之前 `lastRun` 为 null → 判 stale。24 小时内自愈，同标签只会开一条。
 
 **`maxDuration` 的真实上限：Hobby = 300s**（fluid compute 默认开启时，Hobby 的
 默认值与最大值都是 300；Pro 才有 800s、扩展 1800s）。来源：

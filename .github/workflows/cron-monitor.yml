@@ -1,0 +1,142 @@
+name: Cron Heartbeat Monitor
+
+# 为什么需要这个 workflow：
+#   - Vercel 对失败的 cron **不重试**，投递本身也只是 best effort（漏投时函数
+#     根本不执行，连一条 runtime log 都不会产生）。
+#   - Hobby 的 runtime log **只留 1 小时**。一条 04:00 跑的 cron，05:00 之后
+#     「它昨天跑没跑」在结构上就无法回答了。
+#   两条加起来 = 三条 cron 死了没有任何人会知道。这里每天读一次心跳补上。
+#
+# 复用既有设施，不引入新东西：
+#   - 鉴权用 HEALTH_CHECK_TOKEN（health-monitor.yml 已在用），PROD_URL 同理
+#     —— **不需要新建任何 GitHub secret**。
+#   - 报警沿用本仓惯例：失败就开 issue，已有 open 的同标签 issue 则追评。
+
+on:
+  schedule:
+    # 13:37 UTC。三条 cron 分别排在 00:00 / 04:00 / 12:00，而 Hobby 允许在那个
+    # 整点内的任意时刻触发（12:00 那条最晚到 12:59），所以检查点必须晚于 13:00。
+    # 留 37 分钟余量，也避开整点的 GitHub Actions 排队高峰。
+    - cron: '37 13 * * *'
+  workflow_dispatch: # 手动触发
+
+permissions:
+  issues: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  check:
+    name: Vercel Cron Heartbeat Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Read cron heartbeats
+        id: heartbeats
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          HEALTH_CHECK_TOKEN: ${{ secrets.HEALTH_CHECK_TOKEN }}
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 30 \
+            -H "Authorization: Bearer ${HEALTH_CHECK_TOKEN}" \
+            "${PROD_URL%/}/api/health/crons")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+          # heredoc 形式：响应体是单行 JSON，但引号/多行都不该毁掉这一步。
+          {
+            echo 'body<<CRON_MONITOR_BODY_EOF'
+            echo "$BODY"
+            echo 'CRON_MONITOR_BODY_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "healthy=$(echo "$BODY" | jq -r '.healthy // false')" >> "$GITHUB_OUTPUT"
+          else
+            echo "healthy=unknown" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open an issue when a cron missed a run or reported failure
+        if: steps.heartbeats.outputs.http_code == '200' && steps.heartbeats.outputs.healthy == 'false'
+        uses: actions/github-script@v7
+        env:
+          # ⚠ 经 env 传，**不要**把响应体内插进 script 源码里（health-monitor.yml
+          # 里那句 `JSON.parse('${{ ... }}')` 是个既脆又危险的写法：响应体里出现
+          # 一个引号就语法炸，而响应体是外部输入）。
+          HEARTBEAT_BODY: ${{ steps.heartbeats.outputs.body }}
+        with:
+          script: |
+            const body = JSON.parse(process.env.HEARTBEAT_BODY);
+
+            const age = (ms) =>
+              ms === null ? 'never reported' : `${(ms / 3600000).toFixed(1)}h ago`;
+
+            const broken = body.data
+              .filter((entry) => !entry.healthy)
+              .map((entry) => {
+                const why = entry.stale
+                  ? 'missed at least one scheduled run'
+                  : entry.lastRun?.detail || 'reported failure';
+                return `- **${entry.name}** — last heartbeat ${age(entry.ageMs)}; ${why}`;
+              })
+              .join('\n');
+
+            const summary = body.summary;
+            const issueBody = [
+              '**Vercel cron heartbeat check found unhealthy jobs:**',
+              '',
+              broken,
+              '',
+              `**Summary:** ${summary.healthy} healthy / ${summary.stale} stale / ${summary.failed} failed (total: ${summary.total})`,
+              '',
+              'Vercel does not retry failed cron invocations, and Hobby runtime logs are',
+              'retained for only 1 hour — the heartbeat above is the only surviving record.',
+              '',
+              `[Workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+            ].join('\n');
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'cron-failure',
+              state: 'open',
+              per_page: 20,
+            });
+            const existing = issues.find((issue) => !issue.pull_request);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: issueBody,
+              });
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Vercel cron unhealthy: ${summary.stale} stale / ${summary.failed} failed`,
+              body: issueBody,
+              labels: ['cron-failure'],
+            });
+
+      - name: Fail when the heartbeat endpoint itself is unreachable
+        if: steps.heartbeats.outputs.http_code != '200'
+        env:
+          HTTP_CODE: ${{ steps.heartbeats.outputs.http_code }}
+        run: |
+          # 非 200 = **监控瞎了**，与「某条 cron 挂了」是两回事，所以走 workflow
+          # 失败而不是开 cron-failure issue。503 的常见原因是 Upstash 读不到
+          # ——而 Upstash 同时是 worker 回调防重放的 fail-closed 单点，所以这条
+          # 红灯也顺带覆盖了「回调链路整条断掉」。
+          echo "GET /api/health/crons returned HTTP ${HTTP_CODE}"
+          exit 1

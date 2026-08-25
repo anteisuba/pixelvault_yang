@@ -162,6 +162,19 @@ export const NODE_STUDIO_WORKFLOW_STORAGE = {
   version: 3,
   legacyVersion: 1,
   legacyVersionV2: 2,
+  /**
+   * The two names browsers use for "localStorage is full". Chromium/WebKit
+   * throw a `DOMException` named `QuotaExceededError`; Firefox still uses the
+   * legacy `NS_ERROR_DOM_QUOTA_REACHED` spelling. Matched by name because
+   * `DOMException.code` is 0 in Firefox's legacy path and there is no shared
+   * error class to `instanceof` against.
+   *
+   * ⚠ The quota is not counted in the bytes you can measure with
+   * `Buffer.byteLength` — Chromium bills localStorage in UTF-16 code units
+   * (2 bytes per char), so an ASCII snapshot burns roughly twice its byte
+   * size against the ~5 MB ceiling.
+   */
+  quotaExceededErrorNames: ['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'],
 } as const
 
 export const NODE_STUDIO_IMAGE_EDIT_HANDOFF = {

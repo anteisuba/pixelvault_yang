@@ -5181,7 +5181,10 @@
       "projectCreated": "Project \"{name}\" created.",
       "projectRenamed": "Project renamed to \"{name}\".",
       "projectDeleted": "Project \"{name}\" deleted.",
-      "videoMergeComposed": "{count, plural, one {Composed # clip} other {Composed # clips}} into a merge bin."
+      "videoMergeComposed": "{count, plural, one {Composed # clip} other {Composed # clips}} into a merge bin.",
+      "localCacheFull": "This browser's local cache is full — the canvas is no longer kept here. Your work is still saved to the cloud.",
+      "localCacheUnavailable": "This browser refused local storage — the canvas is no longer kept here. Your work is still saved to the cloud.",
+      "cloudSaveFailed": "Can't reach the cloud — recent canvas changes aren't saved. Keep this tab open and check your connection."
     },
     "quickEdit": {
       "placeholder": "Describe how you want to edit this image",

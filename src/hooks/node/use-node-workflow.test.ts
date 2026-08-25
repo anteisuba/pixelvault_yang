@@ -21,7 +21,51 @@ import { NodeWorkflowStorageSchema } from '@/types/node-workflow'
 import type { CanvasDerivedImageOutput } from '@/types/canvas-image-edit'
 import type { ScriptBreakdownResult } from '@/types/script-breakdown'
 
-import { useNodeWorkflow } from './use-node-workflow'
+import {
+  SERVER_WRITE_DEBOUNCE_MS,
+  SERVER_WRITE_OPERATIONS,
+  useNodeWorkflow,
+} from './use-node-workflow'
+
+// The hook only reaches for i18n + toast on one path: the alarm it raises
+// when localStorage persistence stops working. `translate` is created once
+// inside the factory (not per call) so the hook's identity-stable reporter
+// callback really is stable — an unstable `t` would re-run the hydrate
+// effect on every render.
+vi.mock('next-intl', () => {
+  const translate = (key: string) => key
+  return { useTranslations: () => translate }
+})
+
+const { toastErrorMock } = vi.hoisted(() => ({ toastErrorMock: vi.fn() }))
+vi.mock('sonner', () => ({ toast: { error: toastErrorMock } }))
+
+const loggerErrorMock = vi.hoisted(() => vi.fn())
+const loggerWarnMock = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: loggerWarnMock,
+    error: loggerErrorMock,
+  },
+}))
+
+/**
+ * Make every `localStorage.setItem` throw the DOMException browsers use for
+ * "you are out of quota". jsdom's storage is unbounded, so the only way to
+ * exercise the overflow path is to inject the throw.
+ */
+function stubQuotaExceededStorage(errorName = 'QuotaExceededError') {
+  const setItem = vi
+    .spyOn(Storage.prototype, 'setItem')
+    .mockImplementation(() => {
+      const error = new Error('Storage quota exceeded')
+      error.name = errorName
+      throw error
+    })
+  return setItem
+}
 
 const FIRST_POSITION = { x: 20, y: 40 }
 const SECOND_POSITION = { x: 220, y: 40 }
@@ -134,8 +178,146 @@ function readStoredCurrentState() {
   return currentProject?.state ?? { nodes: [], edges: [] }
 }
 
+// ── Server-write test rig ────────────────────────────────────────────────
+// The hook talks to the server through `fetch`, so these helpers route the
+// calls by method: GET = the hydration list, PUT = the debounced state push,
+// POST = create/activate. Every call is recorded (url + method + parsed body)
+// so a test can assert on what did — or crucially, did NOT — go up.
+
+interface RecordedFetchCall {
+  url: string
+  method: string
+  body: Record<string, unknown> | undefined
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+function serverProjectRecord(
+  overrides: Partial<{
+    id: string
+    name: string
+    state: { nodes: unknown[]; edges: unknown[] }
+  }> = {},
+) {
+  return {
+    id: 'srv_project_1',
+    userId: 'db_user_1',
+    name: 'Server project',
+    state: { nodes: [], edges: [] },
+    lastActiveAt: '2026-08-25T00:00:00.000Z',
+    createdAt: '2026-08-25T00:00:00.000Z',
+    updatedAt: '2026-08-25T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+const HYDRATED_NODE = {
+  id: 'node-hydrated',
+  type: NODE_TYPE_IDS.shotText,
+  position: FIRST_POSITION,
+  data: {
+    prompt: 'Hydrated prompt',
+    status: NODE_STATUS_IDS.idle,
+  },
+}
+
+interface ServerFetchHandlers {
+  list: () => Response
+  put?: () => Response
+  /** POST /projects — create + the one-time local→server migration. */
+  post?: () => Response
+  /** POST /projects/:id/activate — the `lastActiveAt` pointer bump. */
+  activate?: () => Response
+}
+
+function stubServerFetch(handlers: ServerFetchHandlers) {
+  const calls: RecordedFetchCall[] = []
+  const fetchMock = vi.fn((input: unknown, init?: RequestInit) => {
+    const method = init?.method ?? 'GET'
+    const rawBody = init?.body
+    calls.push({
+      url: String(input),
+      method,
+      body:
+        typeof rawBody === 'string'
+          ? (JSON.parse(rawBody) as Record<string, unknown>)
+          : undefined,
+    })
+    if (method === 'PUT') {
+      return Promise.resolve(
+        handlers.put?.() ?? jsonResponse({ success: true, data: null }),
+      )
+    }
+    if (method === 'POST') {
+      const handler = String(input).endsWith('/activate')
+        ? (handlers.activate ?? handlers.post)
+        : handlers.post
+      return Promise.resolve(
+        handler?.() ?? jsonResponse({ success: true, data: null }),
+      )
+    }
+    return Promise.resolve(handlers.list())
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  return {
+    calls,
+    putCalls: () => calls.filter((call) => call.method === 'PUT'),
+    createCalls: () =>
+      calls.filter(
+        (call) => call.method === 'POST' && !call.url.endsWith('/activate'),
+      ),
+    listCalls: () => calls.filter((call) => call.method === 'GET'),
+  }
+}
+
+/** Render the hook and wait for the whole hydrate pipeline to settle. */
+async function renderHydratedHook(handlers: ServerFetchHandlers) {
+  const rig = stubServerFetch(handlers)
+  const { result } = renderNodeWorkflowHook()
+  await waitFor(() => expect(result.current.isHydrated).toBe(true))
+  return { result, ...rig }
+}
+
+/**
+ * Run one canvas mutation and let its debounced server write fire.
+ *
+ * ⚠ Fake timers must be installed **before** the mutation: the write effect
+ * schedules its `setTimeout` while re-running, so a timer registered under
+ * real timers can never be advanced by `vi.advanceTimersByTime`. Hydration
+ * still runs on real timers (it needs `Response.json()` to resolve), which is
+ * why this is a helper and not a `beforeEach`.
+ */
+/**
+ * Only the *server* persist failures — `loggerErrorMock` also collects the
+ * localStorage alarm, and mixing the two would make the counts meaningless.
+ */
+function serverPersistErrorCalls() {
+  return loggerErrorMock.mock.calls.filter(
+    ([message]) => message === '[node-workflow] server persist failed',
+  )
+}
+
+function mutateAndFlushServerWrite(mutate: () => void) {
+  vi.useFakeTimers()
+  act(() => {
+    mutate()
+  })
+  act(() => {
+    vi.advanceTimersByTime(SERVER_WRITE_DEBOUNCE_MS)
+  })
+  vi.useRealTimers()
+}
+
 beforeEach(() => {
   window.localStorage.clear()
+  toastErrorMock.mockClear()
+  loggerErrorMock.mockClear()
+  loggerWarnMock.mockClear()
 })
 
 afterEach(() => {
@@ -1311,6 +1493,130 @@ describe('useNodeWorkflow', () => {
     expect(snapshot.nodes[0]?.position).toEqual(FIRST_POSITION)
   })
 
+  it('reports a full localStorage instead of swallowing the failure', async () => {
+    vi.useFakeTimers()
+    const setItem = stubQuotaExceededStorage()
+    const { result } = renderNodeWorkflowHook()
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+    act(() => {
+      vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
+    })
+
+    expect(setItem).toHaveBeenCalled()
+    expect(loggerErrorMock).toHaveBeenCalledWith(
+      '[node-workflow] localStorage persist failed',
+      expect.objectContaining({ quotaExceeded: true }),
+    )
+    expect(toastErrorMock).toHaveBeenCalledTimes(1)
+    expect(toastErrorMock).toHaveBeenCalledWith('localCacheFull')
+    // The canvas keeps working — the snapshot is still in memory and the
+    // server copy is authoritative.
+    expect(result.current.nodes).toHaveLength(1)
+
+    setItem.mockRestore()
+  })
+
+  it("names Firefox's legacy quota error as a quota failure too", async () => {
+    vi.useFakeTimers()
+    const setItem = stubQuotaExceededStorage('NS_ERROR_DOM_QUOTA_REACHED')
+    const { result } = renderNodeWorkflowHook()
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+    act(() => {
+      vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
+    })
+
+    expect(toastErrorMock).toHaveBeenCalledWith('localCacheFull')
+
+    setItem.mockRestore()
+  })
+
+  it('falls back to the generic message for a non-quota storage failure', async () => {
+    vi.useFakeTimers()
+    const setItem = stubQuotaExceededStorage('SecurityError')
+    const { result } = renderNodeWorkflowHook()
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+    act(() => {
+      vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
+    })
+
+    expect(loggerErrorMock).toHaveBeenCalledWith(
+      '[node-workflow] localStorage persist failed',
+      expect.objectContaining({ quotaExceeded: false }),
+    )
+    expect(toastErrorMock).toHaveBeenCalledWith('localCacheUnavailable')
+
+    setItem.mockRestore()
+  })
+
+  it('warns about a full localStorage only once per session', async () => {
+    vi.useFakeTimers()
+    const setItem = stubQuotaExceededStorage()
+    const { result } = renderNodeWorkflowHook()
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Three separate debounce windows — without the one-shot guard this
+    // would be three toasts (and in real use, one per keystroke).
+    for (const position of [FIRST_POSITION, SECOND_POSITION, MOVED_POSITION]) {
+      act(() => {
+        result.current.addNode(NODE_TYPE_IDS.composer, position)
+      })
+      act(() => {
+        vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
+      })
+    }
+
+    expect(setItem.mock.calls.length).toBeGreaterThan(1)
+    expect(toastErrorMock).toHaveBeenCalledTimes(1)
+
+    setItem.mockRestore()
+  })
+
+  it('stays silent when the write is deliberately skipped (parked session)', async () => {
+    vi.useFakeTimers()
+    const setItem = stubQuotaExceededStorage()
+    const { result } = renderNodeWorkflowHook(null)
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+    act(() => {
+      vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs + 10)
+    })
+
+    expect(toastErrorMock).not.toHaveBeenCalled()
+    expect(loggerErrorMock).not.toHaveBeenCalled()
+
+    setItem.mockRestore()
+  })
+
   it('parks itself and never writes localStorage while clerkId is null', async () => {
     vi.useFakeTimers()
     const { result } = renderNodeWorkflowHook(null)
@@ -1442,5 +1748,252 @@ describe('useNodeWorkflow', () => {
         ),
       ).toBeNull()
     }
+  })
+
+  // ── 服务端写入闸 ───────────────────────────────────────────────────────
+  // 守的是一条数据丢失级的覆写链：list 请求失败 → 回落 localStorage →
+  // `hasServerHydrated` 照样置 true → 5 秒后本地那份把服务端的好副本整体
+  // PUT 覆盖掉。闸的判据是「本会话服务端亲口确认过这个项目 id」。
+
+  it('never pushes state to a project the server did not confirm this session', async () => {
+    const { result, putCalls } = await renderHydratedHook({
+      // 服务端 list 挂了 —— 画布照常回落到 localStorage 继续能用……
+      list: () => jsonResponse({ success: false, error: 'boom' }, 500),
+    })
+    expect(result.current.isHydrated).toBe(true)
+
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+
+    // ……但**一个字节都不许写回服务端**：手里这份 state 来路不明。
+    expect(putCalls()).toHaveLength(0)
+    expect(loggerWarnMock).toHaveBeenCalledTimes(1)
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      expect.stringContaining('not confirmed by the server'),
+      expect.objectContaining({ projectId: result.current.currentProjectId }),
+    )
+
+    // 每次改动写入 effect 都会重跑——警告只能响一次，否则等于把日志刷爆。
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+    })
+    expect(putCalls()).toHaveLength(0)
+    expect(loggerWarnMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('pushes state to a project the server list confirmed', async () => {
+    const { result, putCalls } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({ success: true, data: [serverProjectRecord()] }),
+    })
+
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+
+    const writes = putCalls()
+    expect(writes).toHaveLength(1)
+    expect(writes[0]?.url).toContain('srv_project_1')
+    expect((writes[0]?.body?.state as { nodes: unknown[] }).nodes).toHaveLength(
+      1,
+    )
+    expect(loggerWarnMock).not.toHaveBeenCalled()
+  })
+
+  it('does not carry one account’s confirmed ids into the next sign-in', async () => {
+    const rig = stubServerFetch({
+      list: () =>
+        jsonResponse({ success: true, data: [serverProjectRecord()] }),
+    })
+    const { result, rerender } = renderHook(
+      ({ clerkId }: { clerkId: string | null }) =>
+        useNodeWorkflow({ defaultProjectName: DEFAULT_PROJECT_NAME, clerkId }),
+      {
+        initialProps: { clerkId: TEST_CLERK_ID } as { clerkId: string | null },
+      },
+    )
+    await waitFor(() => expect(result.current.isHydrated).toBe(true))
+
+    // 第二个账号的 list 挂掉。此时上一个账号确认过的 `srv_project_1` 还留在
+    // 内存里——若不按 clerkId 清空，它就会给新账号的写入放行。
+    rig.calls.length = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(jsonResponse({ success: false, error: 'boom' }, 500)),
+      ),
+    )
+    rerender({ clerkId: OTHER_CLERK_ID })
+    await waitFor(() => expect(result.current.isHydrated).toBe(true))
+
+    const secondAccountFetch = vi.mocked(globalThis.fetch)
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+
+    const writeCalls = secondAccountFetch.mock.calls.filter(
+      ([, init]) => (init as RequestInit | undefined)?.method === 'PUT',
+    )
+    expect(writeCalls).toHaveLength(0)
+  })
+
+  it('vouches for a canvas the user emptied so the server clear guard lets it through', async () => {
+    const { result, putCalls } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({
+          success: true,
+          data: [
+            serverProjectRecord({
+              state: { nodes: [HYDRATED_NODE], edges: [] },
+            }),
+          ],
+        }),
+    })
+    expect(result.current.nodes).toHaveLength(1)
+
+    // 画布没有「一键清空」按钮，清空只能一个个删节点——就是这条路。
+    mutateAndFlushServerWrite(() => {
+      result.current.deleteNode(HYDRATED_NODE.id)
+    })
+
+    const cleared = putCalls().at(-1)
+    expect((cleared?.body?.state as { nodes: unknown[] }).nodes).toHaveLength(0)
+    expect(cleared?.body?.allowEmptyState).toBe(true)
+
+    // 重新有了节点，记号就得撤掉：之后再变空得是**新一次**用户操作说了算。
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, SECOND_POSITION)
+    })
+    expect(putCalls().at(-1)?.body?.allowEmptyState).toBe(false)
+  })
+
+  it('never vouches for an empty state it did not watch the user create', async () => {
+    const { result, putCalls } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({ success: true, data: [serverProjectRecord()] }),
+    })
+
+    // 项目本来就是空的（水化下来就是零节点），用户只是碰了一下画布外观。
+    mutateAndFlushServerWrite(() => {
+      result.current.setCanvasAppearance(TEST_CANVAS_APPEARANCE)
+    })
+
+    const write = putCalls().at(-1)
+    expect((write?.body?.state as { nodes: unknown[] }).nodes).toHaveLength(0)
+    expect(write?.body?.allowEmptyState).toBe(false)
+  })
+
+  // ── 云端保存失败可见 ───────────────────────────────────────────────────
+  // 这几个调用原本全是裸 `void fetch(...)`：失败零信号。对称于 localStorage
+  // 那侧——日志每次都记，toast 一个会话只响一次。
+
+  it('reports a failed cloud save, and only once per session', async () => {
+    const { result } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({ success: true, data: [serverProjectRecord()] }),
+      put: () => jsonResponse({ success: false, error: 'offline' }, 500),
+    })
+
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+    await waitFor(() => expect(serverPersistErrorCalls()).toHaveLength(1))
+
+    expect(serverPersistErrorCalls()[0]?.[1]).toMatchObject({
+      operation: SERVER_WRITE_OPERATIONS.update,
+    })
+    expect(toastErrorMock).toHaveBeenCalledTimes(1)
+    expect(toastErrorMock).toHaveBeenCalledWith('cloudSaveFailed')
+
+    // 后续 debounce 窗口同样失败：日志每次都记（否则等于丢证据），
+    // toast 只此一次（否则断网时每 5 秒复读一遍）。
+    for (const position of [SECOND_POSITION, MOVED_POSITION]) {
+      mutateAndFlushServerWrite(() => {
+        result.current.addNode(NODE_TYPE_IDS.agent, position)
+      })
+    }
+    await waitFor(() => expect(serverPersistErrorCalls()).toHaveLength(3))
+    expect(toastErrorMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not let a failed activate swallow the next real save alarm', async () => {
+    const { result } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({
+          success: true,
+          data: [
+            serverProjectRecord(),
+            serverProjectRecord({ id: 'srv_project_2', name: 'Second' }),
+          ],
+        }),
+      activate: () => jsonResponse({ success: false, error: 'offline' }, 500),
+      put: () => jsonResponse({ success: false, error: 'offline' }, 500),
+    })
+
+    act(() => {
+      result.current.switchProject('srv_project_2')
+    })
+    await waitFor(() => expect(serverPersistErrorCalls()).toHaveLength(1))
+    expect(serverPersistErrorCalls()[0]?.[1]).toMatchObject({
+      operation: SERVER_WRITE_OPERATIONS.activate,
+    })
+    // activate 挂掉只丢「下次默认开哪个项目」这个指针，画布内容毫发无损 ——
+    // 弹「你的内容没保存」是假警报。
+    expect(toastErrorMock).not.toHaveBeenCalled()
+
+    // 而且它绝不能把一次性抑制标志用掉：紧接着真正的内容写入失败必须还能响。
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(1))
+    expect(toastErrorMock).toHaveBeenCalledWith('cloudSaveFailed')
+  })
+
+  it('reports a failed one-time migration and keeps the local copy intact', async () => {
+    window.localStorage.setItem(
+      TEST_STORAGE_KEY,
+      JSON.stringify({
+        version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+        ownerClerkId: TEST_CLERK_ID,
+        currentProjectId: 'local-a',
+        projects: [
+          {
+            id: 'local-a',
+            name: 'Local A',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            state: { nodes: [HYDRATED_NODE], edges: [] },
+          },
+          {
+            id: 'local-b',
+            name: 'Local B',
+            createdAt: '2026-01-02T00:00:00.000Z',
+            updatedAt: '2026-01-02T00:00:00.000Z',
+            state: { nodes: [HYDRATED_NODE], edges: [] },
+          },
+        ],
+      }),
+    )
+
+    const { result, createCalls, listCalls } = await renderHydratedHook({
+      // 服务端一个项目都没有 → 走「本地内容一次性上云」那条迁移路径……
+      list: () => jsonResponse({ success: true, data: [] }),
+      post: () => jsonResponse({ success: false, error: 'offline' }, 500),
+    })
+
+    // ……上传挂了。原来这个循环连返回值都不看，用户以为已经同步了。
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(1))
+    expect(toastErrorMock).toHaveBeenCalledWith('cloudSaveFailed')
+    expect(serverPersistErrorCalls()[0]?.[1]).toMatchObject({
+      operation: SERVER_WRITE_OPERATIONS.migrate,
+    })
+
+    // 第一个就失败 → 停手，不再传剩下的。
+    expect(createCalls()).toHaveLength(1)
+    // ⚠ 也**不做**那步 refetch + 「拿服务端结果整体替换本地快照」——只传上去
+    // 一半就替换，等于把没传成功的项目从本地也一并抹掉。
+    expect(listCalls()).toHaveLength(1)
+    expect(result.current.projects).toHaveLength(2)
   })
 })

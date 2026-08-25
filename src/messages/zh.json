@@ -5181,7 +5181,10 @@
       "projectCreated": "项目「{name}」已创建。",
       "projectRenamed": "项目已重命名为「{name}」。",
       "projectDeleted": "项目「{name}」已删除。",
-      "videoMergeComposed": "已把 {count} 段视频合成到片盒。"
+      "videoMergeComposed": "已把 {count} 段视频合成到片盒。",
+      "localCacheFull": "本地缓存已满，画布不再本地暂存。你的内容仍在保存到云端。",
+      "localCacheUnavailable": "浏览器拒绝了本地存储，画布不再本地暂存。你的内容仍在保存到云端。",
+      "cloudSaveFailed": "连不上云端，最近的画布改动没有保存。请保持此标签页打开并检查网络连接。"
     },
     "quickEdit": {
       "placeholder": "描述你想如何编辑这张图片",

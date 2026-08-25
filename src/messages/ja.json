@@ -5181,7 +5181,10 @@
       "projectCreated": "プロジェクト「{name}」を作成しました。",
       "projectRenamed": "プロジェクト名を「{name}」に変更しました。",
       "projectDeleted": "プロジェクト「{name}」を削除しました。",
-      "videoMergeComposed": "{count}本の動画を合成ビンにまとめました。"
+      "videoMergeComposed": "{count}本の動画を合成ビンにまとめました。",
+      "localCacheFull": "このブラウザのローカルキャッシュが満杯です。キャンバスはここに保持されなくなりました。作業内容はクラウドに保存されています。",
+      "localCacheUnavailable": "このブラウザがローカル保存を拒否しました。キャンバスはここに保持されません。作業内容はクラウドに保存されています。",
+      "cloudSaveFailed": "クラウドに接続できません。最近のキャンバスの変更は保存されていません。このタブを開いたまま、接続を確認してください。"
     },
     "quickEdit": {
       "placeholder": "この画像をどう編集するか書いてください",

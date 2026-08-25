@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 import {
   addEdge,
   applyEdgeChanges,
@@ -60,6 +62,7 @@ import {
   updateNodeWorkflowProjectAPI,
   activateNodeWorkflowProjectAPI,
 } from '@/lib/api-client'
+import { logger } from '@/lib/logger'
 import { applyDagreLayout } from '@/lib/node-workflow-layout'
 import { migrateRetireFusedNodes } from '@/lib/node-workflow-migrate-fused-nodes'
 import { migrateRetirePlanner } from '@/lib/node-workflow-migrate-planner'
@@ -551,8 +554,34 @@ function readWorkflowStorageFromStorage(
  * 5s of inactivity before pushing the current project state to the server.
  * Long enough that rapid edits collapse into a single PUT; short enough
  * that a crash or tab close loses at most a few seconds of work.
+ *
+ * Exported so the write-gate tests can drive the exact debounce window
+ * instead of hardcoding a second copy of the number.
  */
-const SERVER_WRITE_DEBOUNCE_MS = 5000
+export const SERVER_WRITE_DEBOUNCE_MS = 5000
+
+/**
+ * Which server call failed. Only ever a log field, but named here so the
+ * fire-and-forget call sites can't drift into free-form strings — and so a
+ * log search for one of them finds every site that can emit it.
+ */
+export const SERVER_WRITE_OPERATIONS = {
+  create: 'create-project',
+  update: 'update-project-state',
+  rename: 'rename-project',
+  delete: 'delete-project',
+  /** The one-time "local projects → server rows" upload on first hydrate. */
+  migrate: 'migrate-local-projects',
+  /**
+   * `lastActiveAt` bump on project switch. Deliberately in its own bucket:
+   * it is the only one of these whose failure costs the user *nothing but a
+   * pointer* — see `switchProject`.
+   */
+  activate: 'activate-project',
+} as const
+
+type ServerWriteOperation =
+  (typeof SERVER_WRITE_OPERATIONS)[keyof typeof SERVER_WRITE_OPERATIONS]
 
 function projectFromServerRecord(
   record: NodeWorkflowProjectRecord,
@@ -597,12 +626,49 @@ function migrateStorageProjects(
   return changed ? { ...storage, projects } : storage
 }
 
+/**
+ * Outcome of one localStorage persist attempt.
+ *
+ * `skipped` is the *deliberate* no-op (SSR, or the account-isolation guard
+ * refusing to stamp one user's snapshot into another's slot) — it must never
+ * be reported to the user. The other two are real failures: the local cache
+ * stopped working and the user has no way to know unless we say so.
+ */
+const WORKFLOW_STORAGE_WRITE_OUTCOMES = {
+  written: 'written',
+  skipped: 'skipped',
+  quotaExceeded: 'quota-exceeded',
+  failed: 'failed',
+} as const
+
+type WorkflowStorageWriteOutcome =
+  (typeof WORKFLOW_STORAGE_WRITE_OUTCOMES)[keyof typeof WORKFLOW_STORAGE_WRITE_OUTCOMES]
+
+function isQuotaExceededError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return (
+    NODE_STUDIO_WORKFLOW_STORAGE.quotaExceededErrorNames as readonly string[]
+  ).includes(error.name)
+}
+
+/**
+ * Persist the whole snapshot (every project, full state) under this user's
+ * scoped key.
+ *
+ * ⚠ This write grows without bound: `MAX_PROJECTS_PER_USER` is 50, a
+ * 40-node project serializes to ~70 KB, and Chromium bills localStorage in
+ * UTF-16 code units — so a heavy account can walk into the ~5 MB ceiling.
+ * When that happens the browser throws and **local persistence simply stops**.
+ * The server copy is authoritative (see the server-hydration effect below),
+ * so nothing is lost, but the user must be told — this used to be a bare
+ * `catch { return }` and the failure was invisible.
+ */
 function writeWorkflowStorageToStorage(
   storage: NodeWorkflowStorageSnapshot,
   clerkId: string,
-): void {
+): WorkflowStorageWriteOutcome {
   if (typeof window === 'undefined') {
-    return
+    return WORKFLOW_STORAGE_WRITE_OUTCOMES.skipped
   }
 
   // Refuse to persist a snapshot whose owner doesn't match the active
@@ -610,16 +676,37 @@ function writeWorkflowStorageToStorage(
   // state is still the previous user's. Better to drop the write than
   // to stamp another account's data into this user's slot.
   if (storage.ownerClerkId !== clerkId) {
-    return
+    return WORKFLOW_STORAGE_WRITE_OUTCOMES.skipped
   }
 
+  // Declared outside the try so the failure log can report how big the
+  // snapshot got. Serialization itself stays inside: a throw there (e.g.
+  // RangeError on an absurd string length) must be logged like any other
+  // persist failure, not escape uncaught from a setTimeout callback.
+  let serialized = ''
+
   try {
+    serialized = JSON.stringify(storage)
     window.localStorage.setItem(
       getNodeStudioWorkflowStorageKey(clerkId),
-      JSON.stringify(storage),
+      serialized,
     )
-  } catch {
-    return
+    return WORKFLOW_STORAGE_WRITE_OUTCOMES.written
+  } catch (error) {
+    const quotaExceeded = isQuotaExceededError(error)
+    logger.error('[node-workflow] localStorage persist failed', {
+      quotaExceeded,
+      errorName: error instanceof Error ? error.name : typeof error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      projectCount: storage.projects.length,
+      // Character count, not bytes: that's the unit Chromium's quota is
+      // billed in, so this is the number to compare against ~5 MB. `0`
+      // means serialization itself is what failed.
+      snapshotChars: serialized.length,
+    })
+    return quotaExceeded
+      ? WORKFLOW_STORAGE_WRITE_OUTCOMES.quotaExceeded
+      : WORKFLOW_STORAGE_WRITE_OUTCOMES.failed
   }
 }
 
@@ -643,6 +730,71 @@ export function useNodeWorkflow({
   defaultProjectName,
   clerkId,
 }: UseNodeWorkflowOptions): UseNodeWorkflowValue {
+  const tToasts = useTranslations('StudioNode.toasts')
+  /**
+   * `t` behind a ref so `reportStorageWriteOutcome` can be identity-stable
+   * (`[]` deps). It is listed in the hydration effect's dependencies, and
+   * that effect resets the whole hydrate pipeline when it re-runs — a
+   * reporter that changed identity on every render would re-hydrate the
+   * canvas on every render.
+   */
+  const tToastsRef = useRef(tToasts)
+  /**
+   * 「本地暂存写不进去」一个会话只说一次。本地写入是 400ms 的 debounce——
+   * 不抑制的话配额一满，用户每敲一下键盘就会再吃一次同样的 toast。
+   * 故意不在成功写入后复位：同一次会话里反复提醒同一件事只是噪音。
+   */
+  const hasReportedStorageWriteFailure = useRef(false)
+  const reportStorageWriteOutcome = useCallback(
+    (outcome: WorkflowStorageWriteOutcome) => {
+      if (
+        outcome === WORKFLOW_STORAGE_WRITE_OUTCOMES.written ||
+        outcome === WORKFLOW_STORAGE_WRITE_OUTCOMES.skipped
+      ) {
+        return
+      }
+      if (hasReportedStorageWriteFailure.current) {
+        return
+      }
+      hasReportedStorageWriteFailure.current = true
+      toast.error(
+        outcome === WORKFLOW_STORAGE_WRITE_OUTCOMES.quotaExceeded
+          ? tToastsRef.current('localCacheFull')
+          : tToastsRef.current('localCacheUnavailable'),
+      )
+    },
+    [],
+  )
+  /**
+   * 「云端也保存不上」同样一个会话只弹一次 toast —— 自动保存是 5 秒 debounce，
+   * 断网时不抑制就会每 5 秒复读一次同一句话。日志则**每次都记**：抑制的是
+   * 噪音，不是证据。
+   *
+   * ⚠ 这是 `localCacheFull` / `localCacheUnavailable` 那两句「你的内容仍在
+   * 保存到云端」成立的前提——云端要是也在静默失败，那句话就是假的。
+   *
+   * ⚠ `activate` 故意**不**走这里（见 `switchProject`）：它失败只丢一个
+   * 「下次默认开哪个项目」的指针，共用这个一次性标志会让那种假阳性把后面
+   * 真正的内容写入失败告警一并吃掉。
+   */
+  const hasReportedServerWriteFailure = useRef(false)
+  const reportServerWriteFailure = useCallback(
+    (operation: ServerWriteOperation, error?: string) => {
+      logger.error('[node-workflow] server persist failed', {
+        operation,
+        error,
+      })
+      if (hasReportedServerWriteFailure.current) {
+        return
+      }
+      hasReportedServerWriteFailure.current = true
+      toast.error(tToastsRef.current('cloudSaveFailed'))
+    },
+    [],
+  )
+  useEffect(() => {
+    tToastsRef.current = tToasts
+  }, [tToasts])
   const parkedStorage = useMemo(
     () =>
       createDefaultWorkflowStorage(defaultProjectName, PARKED_OWNER_CLERK_ID),
@@ -686,6 +838,29 @@ export function useNodeWorkflow({
   // clerkId-change effect below can reset them on account switch.
   const hasServerHydrated = useRef(false)
   const hasServerMigrationAttempted = useRef(false)
+  /**
+   * 本会话里**服务端亲口确认存在**的项目 id。只有它们才允许被写回服务端。
+   *
+   * 起因是一条数据丢失级的覆写链：`hasServerHydrated` 在 list 请求**失败**、
+   * 回落到 localStorage 之后照样置 true（它管的是「水化流程走完没有」，还带着
+   * `isHydrated` 那套 UI 语义），于是「网络抖一下 + 用户切个项目」就足以让本地
+   * 那份可能陈旧的 state 在 5 秒后整体 PUT 覆盖掉服务端的好副本。
+   *
+   * 这个 Set 回答的是另一个问题：**这一份 state 到底是不是从服务端来的**。
+   * 两个闸各管一件事，都留着，不合并。放 ref 不放 state —— 它只在写入路径上
+   * 被读，进 state 只会白白多一轮渲染。
+   */
+  const serverConfirmedProjectIds = useRef<Set<string>>(new Set())
+  /** 「未确认所以跳过写入」每个项目只警告一次：写入 effect 每次改动都会跑。 */
+  const warnedUnconfirmedProjectIds = useRef<Set<string>>(new Set())
+  /**
+   * 「这个项目的空，是用户自己删空的」。服务端的空覆盖闸靠它放行。
+   *
+   * 画布没有「一键清空」入口，清空只能一个个删节点（或撤销回空），这些写入
+   * 全部经过 `setWorkflowStorage`，所以那里是唯一的记账点。项目重新有了节点
+   * 就撤掉记号：那之后再变空，得是**新一次**用户操作说了算。
+   */
+  const locallyClearedProjectIds = useRef<Set<string>>(new Set())
   const workflowHistory = useRef<{
     past: NodeWorkflowState[]
     future: NodeWorkflowState[]
@@ -729,7 +904,27 @@ export function useNodeWorkflow({
         hasPreHydrationMutation.current = true
       }
 
-      const nextStorage = updater(storageRef.current)
+      const previousStorage = storageRef.current
+      const nextStorage = updater(previousStorage)
+
+      // 记账「用户把当前项目删空了」。只看当前项目，而且只在 currentProjectId
+      // 没变的那些写入里看 —— switchProject / deleteProject 会换掉它，那不是
+      // 「清空」，把它们算进来就等于给空覆盖闸开了后门。
+      const trackedProjectId = nextStorage.currentProjectId
+      if (trackedProjectId === previousStorage.currentProjectId) {
+        const before = previousStorage.projects.find(
+          (project) => project.id === trackedProjectId,
+        )
+        const after = nextStorage.projects.find(
+          (project) => project.id === trackedProjectId,
+        )
+        if (after && after.state.nodes.length > 0) {
+          locallyClearedProjectIds.current.delete(trackedProjectId)
+        } else if (after && before && before.state.nodes.length > 0) {
+          locallyClearedProjectIds.current.add(trackedProjectId)
+        }
+      }
+
       storageRef.current = nextStorage
       setStorageState(nextStorage)
     },
@@ -788,6 +983,11 @@ export function useNodeWorkflow({
     hasPreHydrationMutation.current = false
     hasServerHydrated.current = false
     hasServerMigrationAttempted.current = false
+    // 换账号 = 换一整套项目 id。上一个账号确认过的 id 在这个账号里什么都不
+    // 证明，留着就等于把账号隔离撕了一个口子。
+    serverConfirmedProjectIds.current = new Set()
+    warnedUnconfirmedProjectIds.current = new Set()
+    locallyClearedProjectIds.current = new Set()
     if (clerkId === null) {
       loadedForClerkId.current = null
     }
@@ -815,7 +1015,9 @@ export function useNodeWorkflow({
 
       if (hasPreHydrationMutation.current) {
         preHydrationSaveTimeout = window.setTimeout(() => {
-          writeWorkflowStorageToStorage(storageRef.current, clerkId)
+          reportStorageWriteOutcome(
+            writeWorkflowStorageToStorage(storageRef.current, clerkId),
+          )
         }, NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
         return
       }
@@ -833,7 +1035,9 @@ export function useNodeWorkflow({
         window.clearTimeout(preHydrationSaveTimeout)
       }
     }
-  }, [clerkId, defaultProjectName])
+    // `reportStorageWriteOutcome` is `useCallback([])` — stable for the life
+    // of the hook, so listing it here cannot re-trigger the hydrate.
+  }, [clerkId, defaultProjectName, reportStorageWriteOutcome])
 
   useEffect(() => {
     if (!hasHydrated.current) {
@@ -843,11 +1047,13 @@ export function useNodeWorkflow({
     if (loadedForClerkId.current !== clerkId) return
 
     const timeoutId = window.setTimeout(() => {
-      writeWorkflowStorageToStorage(storageState, clerkId)
+      reportStorageWriteOutcome(
+        writeWorkflowStorageToStorage(storageState, clerkId),
+      )
     }, NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
 
     return () => window.clearTimeout(timeoutId)
-  }, [clerkId, storageState])
+  }, [clerkId, reportStorageWriteOutcome, storageState])
 
   // Server hydration: once localStorage has settled AND we know who's
   // signed in, pull the server-side project list. The server is the
@@ -891,6 +1097,11 @@ export function useNodeWorkflow({
       const localSnapshot = storageRef.current
 
       if (serverProjects.length > 0) {
+        // 唯一的登记点之一：这些 id 是服务端刚刚亲口报出来的，之后的写入
+        // 才敢往它们身上 PUT。失败分支（上面那个 early return）**不登记**。
+        for (const project of serverProjects) {
+          serverConfirmedProjectIds.current.add(project.id)
+        }
         const nextStorage: NodeWorkflowStorageSnapshot = {
           version: NODE_STUDIO_WORKFLOW_STORAGE.version,
           ownerClerkId: clerkId,
@@ -919,25 +1130,48 @@ export function useNodeWorkflow({
       )
       if (localHasContent && !hasServerMigrationAttempted.current) {
         hasServerMigrationAttempted.current = true
+        // 这是**一次性**上传：`hasServerMigrationAttempted` 之后不再重试。
+        // 原来这个循环连返回值都不看 —— 上传全挂 → 下面 refetch 返回空 →
+        // 静默走回本地分支 → 用户以为已经同步了。
+        let migrationFailed = false
         for (const project of localSnapshot.projects) {
-          await createNodeWorkflowProjectAPI({
+          const created = await createNodeWorkflowProjectAPI({
             name: project.name,
             state: project.state,
           })
-        }
-        // Re-fetch to pick up server-assigned ids, then re-run the hydrate
-        // path so the canvas swaps to the migrated copy.
-        const refetch = await listNodeWorkflowProjectsAPI()
-        if (cancelled) return
-        if (refetch.success && refetch.data && refetch.data.length > 0) {
-          const nextStorage: NodeWorkflowStorageSnapshot = {
-            version: NODE_STUDIO_WORKFLOW_STORAGE.version,
-            ownerClerkId: clerkId,
-            currentProjectId: refetch.data[0].id,
-            projects: refetch.data.map(projectFromServerRecord),
+          if (cancelled) return
+          if (!created.success || !created.data) {
+            migrationFailed = true
+            reportServerWriteFailure(
+              SERVER_WRITE_OPERATIONS.migrate,
+              created.error,
+            )
+            break
           }
-          storageRef.current = nextStorage
-          setStorageState(nextStorage)
+        }
+
+        // ⚠ 只在**整批**都上去了之后才做下面那步替换。下面是拿服务端结果
+        // **整体替换本地快照**——只传上去一半就替换，等于把没传成功的那几个
+        // 项目从本地内存里也一并抹掉。宁可让本地那份原样留着，等下次进页面
+        // 重跑迁移（这个标志只是 ref，刷新即复位）。
+        if (!migrationFailed) {
+          // Re-fetch to pick up server-assigned ids, then re-run the hydrate
+          // path so the canvas swaps to the migrated copy.
+          const refetch = await listNodeWorkflowProjectsAPI()
+          if (cancelled) return
+          if (refetch.success && refetch.data && refetch.data.length > 0) {
+            for (const project of refetch.data) {
+              serverConfirmedProjectIds.current.add(project.id)
+            }
+            const nextStorage: NodeWorkflowStorageSnapshot = {
+              version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+              ownerClerkId: clerkId,
+              currentProjectId: refetch.data[0].id,
+              projects: refetch.data.map(projectFromServerRecord),
+            }
+            storageRef.current = nextStorage
+            setStorageState(nextStorage)
+          }
         }
       }
 
@@ -949,7 +1183,9 @@ export function useNodeWorkflow({
     }
     // Re-checked on every state tick so the "wait until localStorage
     // hydrated" gate eventually opens the server hydrate.
-  }, [clerkId, defaultProjectName, storageState])
+    // `reportServerWriteFailure` is `useCallback([])` — identity-stable, so
+    // listing it cannot re-trigger the hydrate.
+  }, [clerkId, defaultProjectName, reportServerWriteFailure, storageState])
 
   // Debounced server write — pushes the CURRENT project's state up every
   // ~5s of inactivity. We don't push the full snapshot (other projects)
@@ -965,14 +1201,40 @@ export function useNodeWorkflow({
     const current = storageState.projects.find((p) => p.id === currentId)
     if (!current) return
 
+    // ⚠ 覆写链的客户端这一头。`hasServerHydrated` 上面那条闸拦不住 list 请求
+    // 失败后的回落——它在失败分支里也会置 true。只有服务端本会话亲口确认过
+    // 的项目才允许被写回去；没确认过就说明手里这份 state 来路不明（陈旧的
+    // localStorage 快照、或干脆是清过站点数据后的空壳），PUT 上去就是拿它
+    // 覆盖服务端那份好的。
+    if (!serverConfirmedProjectIds.current.has(currentId)) {
+      if (!warnedUnconfirmedProjectIds.current.has(currentId)) {
+        warnedUnconfirmedProjectIds.current.add(currentId)
+        logger.warn(
+          '[node-workflow] skipped server write: project not confirmed by the server this session',
+          { projectId: currentId },
+        )
+      }
+      return
+    }
+
     const timeoutId = window.setTimeout(() => {
       void updateNodeWorkflowProjectAPI(currentId, {
         state: current.state,
+        // 服务端默认拒绝「空覆盖非空」。只有本地亲眼看见用户把它删空时才
+        // 放行——见 `locallyClearedProjectIds`。
+        allowEmptyState: locallyClearedProjectIds.current.has(currentId),
+      }).then((response) => {
+        if (!response.success) {
+          reportServerWriteFailure(
+            SERVER_WRITE_OPERATIONS.update,
+            response.error,
+          )
+        }
       })
     }, SERVER_WRITE_DEBOUNCE_MS)
 
     return () => window.clearTimeout(timeoutId)
-  }, [clerkId, storageState])
+  }, [clerkId, reportServerWriteFailure, storageState])
 
   const currentProject = useMemo(
     () => getCurrentProject(storageState, defaultProjectName),
@@ -1211,29 +1473,41 @@ export function useNodeWorkflow({
           name: normalizedName,
           state: project.state,
         }).then((response) => {
-          if (
-            response.success &&
-            response.data &&
-            response.data.id !== project.id
-          ) {
-            const serverId = response.data.id
-            setWorkflowStorage((currentStorage) => ({
-              ...currentStorage,
-              currentProjectId:
-                currentStorage.currentProjectId === project.id
-                  ? serverId
-                  : currentStorage.currentProjectId,
-              projects: currentStorage.projects.map((p) =>
-                p.id === project.id ? { ...p, id: serverId } : p,
-              ),
-            }))
+          if (!response.success || !response.data) {
+            reportServerWriteFailure(
+              SERVER_WRITE_OPERATIONS.create,
+              response.error,
+            )
+            return
           }
+
+          // 服务端刚建出来的行 —— 登记它，否则这个新项目的内容永远过不了
+          // 写入 effect 那条「本会话确认过」的闸。id 有没有变都要登记。
+          const serverId = response.data.id
+          serverConfirmedProjectIds.current.add(serverId)
+          if (serverId === project.id) return
+
+          setWorkflowStorage((currentStorage) => ({
+            ...currentStorage,
+            currentProjectId:
+              currentStorage.currentProjectId === project.id
+                ? serverId
+                : currentStorage.currentProjectId,
+            projects: currentStorage.projects.map((p) =>
+              p.id === project.id ? { ...p, id: serverId } : p,
+            ),
+          }))
         })
       }
 
       return project.id
     },
-    [canCallServerNow, defaultProjectName, setWorkflowStorage],
+    [
+      canCallServerNow,
+      defaultProjectName,
+      reportServerWriteFailure,
+      setWorkflowStorage,
+    ],
   )
 
   const switchProject = useCallback(
@@ -1256,7 +1530,20 @@ export function useNodeWorkflow({
       // Bump server lastActiveAt so reopening this account on another
       // device lands on the just-switched-to project.
       if (canCallServerNow()) {
-        void activateNodeWorkflowProjectAPI(id)
+        // ⚠ 只记日志，**不弹 toast**，也**不共用**内容写入那个一次性抑制标志。
+        // 两个理由，缺一不可：
+        // 1. activate 失败丢的只是「下次默认开哪个项目」这个指针，画布内容
+        //    一点风险都没有——套「你的内容没保存」那句话是假警报。
+        // 2. 更要命的是，如果共用一次性标志，这种假阳性会把后面**真正**的
+        //    state 写入失败告警一并吃掉——用户从此再也收不到该收的警报。
+        void activateNodeWorkflowProjectAPI(id).then((response) => {
+          if (!response.success) {
+            logger.error('[node-workflow] server persist failed', {
+              operation: SERVER_WRITE_OPERATIONS.activate,
+              error: response.error,
+            })
+          }
+        })
       }
     },
     [canCallServerNow, setWorkflowStorage],
@@ -1289,10 +1576,25 @@ export function useNodeWorkflow({
       })
 
       if (canCallServerNow() && renamedId && renamedName) {
-        void updateNodeWorkflowProjectAPI(renamedId, { name: renamedName })
+        // 只送 name，不带 state —— 改名不该顺手把画布也推一遍。
+        void updateNodeWorkflowProjectAPI(renamedId, {
+          name: renamedName,
+        }).then((response) => {
+          if (!response.success) {
+            reportServerWriteFailure(
+              SERVER_WRITE_OPERATIONS.rename,
+              response.error,
+            )
+          }
+        })
       }
     },
-    [canCallServerNow, defaultProjectName, setWorkflowStorage],
+    [
+      canCallServerNow,
+      defaultProjectName,
+      reportServerWriteFailure,
+      setWorkflowStorage,
+    ],
   )
 
   const deleteProject = useCallback(
@@ -1332,13 +1634,29 @@ export function useNodeWorkflow({
         }
       })
 
+      serverConfirmedProjectIds.current.delete(id)
+      warnedUnconfirmedProjectIds.current.delete(id)
+      locallyClearedProjectIds.current.delete(id)
+
       if (canCallServerNow()) {
-        void deleteNodeWorkflowProjectAPI(id)
+        void deleteNodeWorkflowProjectAPI(id).then((response) => {
+          if (!response.success) {
+            reportServerWriteFailure(
+              SERVER_WRITE_OPERATIONS.delete,
+              response.error,
+            )
+          }
+        })
       }
 
       return getProjectSummaries([targetProject])[0] ?? null
     },
-    [canCallServerNow, defaultProjectName, setWorkflowStorage],
+    [
+      canCallServerNow,
+      defaultProjectName,
+      reportServerWriteFailure,
+      setWorkflowStorage,
+    ],
   )
 
   const updateNodeData = useCallback(
@@ -1764,8 +2082,20 @@ export function useNodeWorkflow({
     const currentId = snapshot.currentProjectId
     const current = snapshot.projects.find((p) => p.id === currentId)
     if (!current) return false
+    // 手动保存走同一条闸。服务端水化失败时，用户手里这份 state 同样来路不明
+    // ——「手动点的」不代表它比服务端那份新。这里返回 false，调用方
+    // （StudioNodeWorkbench 的保存按钮）会照常弹「保存失败」，所以是**可见**
+    // 的拒绝，不是静默吞掉。
+    if (!serverConfirmedProjectIds.current.has(currentId)) {
+      logger.warn(
+        '[node-workflow] skipped manual save: project not confirmed by the server this session',
+        { projectId: currentId },
+      )
+      return false
+    }
     const response = await updateNodeWorkflowProjectAPI(currentId, {
       state: current.state,
+      allowEmptyState: locallyClearedProjectIds.current.has(currentId),
     })
     return response.success
   }, [canCallServerNow])

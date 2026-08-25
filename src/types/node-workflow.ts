@@ -674,6 +674,18 @@ export const UpdateNodeWorkflowProjectRequestSchema = z.object({
     .max(NODE_STUDIO_PROJECTS.nameMaxLength)
     .optional(),
   state: NodeWorkflowStateDataSchema.optional(),
+  /**
+   * 「这个空 state 是用户自己删空的，不是事故」。
+   *
+   * `state` 是整体替换，没有 merge —— 一份空的 state 上来就会把库里那份好副本
+   * 抹平。服务端因此默认拒绝「空覆盖非空」（见 `updateNodeWorkflowProject`），
+   * 而**用户真的把画布删空**是合法操作，得有一条显式的放行路径，就是这个字段。
+   *
+   * 只有 `useNodeWorkflow` 亲眼看见「本项目从有节点变成零节点」时才置 true；
+   * 客户端拿不准那份 state 是不是真的（比如服务端 list 失败后回落到
+   * localStorage 的那一份）时一律不带这个标记。
+   */
+  allowEmptyState: z.boolean().optional(),
 })
 
 export type NodeWorkflowProjectRecord = z.infer<

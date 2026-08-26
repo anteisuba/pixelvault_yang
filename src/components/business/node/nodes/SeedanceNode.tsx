@@ -6,6 +6,7 @@ import { Maximize2, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { getModelFamily } from '@/constants/models'
+import { NODE_STUDIO_NODE_SIDECAR_OFFSET } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
@@ -69,7 +70,11 @@ export const SeedanceNode = memo(function SeedanceNode(
         }
         position={Position.Right}
         align="start"
-        offset={isMobile ? 20 : 24}
+        offset={
+          isMobile
+            ? NODE_STUDIO_NODE_SIDECAR_OFFSET.mobile
+            : NODE_STUDIO_NODE_SIDECAR_OFFSET.desktop
+        }
         className="canvas-video-sidecar-toolbar"
       >
         <CanvasPopIn side="right">

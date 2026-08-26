@@ -2,30 +2,14 @@
 
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type CSSProperties,
   type ReactNode,
 } from 'react'
-import {
-  Handle,
-  NodeToolbar,
-  Position,
-  useEdges,
-  useNodes,
-  useStore,
-} from '@xyflow/react'
-import {
-  AudioWaveform,
-  Mountain,
-  PencilLine,
-  Play,
-  UserRound,
-  X,
-  type LucideIcon,
-} from 'lucide-react'
+import { Handle, NodeToolbar, Position, useStore } from '@xyflow/react'
+import { PencilLine } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_STUDIO_CARD_LABEL_LANE } from '@/constants/node-studio'
@@ -33,13 +17,10 @@ import {
   NODE_TOKEN_BADGE_LABELS,
   type NodeTokenType,
 } from '@/constants/node-tokens'
-import { NODE_TYPE_IDS, type NodeWorkflowStatus } from '@/constants/node-types'
+import type { NodeWorkflowStatus } from '@/constants/node-types'
 import { IMEAwareInput } from '@/components/business/node/inspector/IMEAwareField'
-import { resolveNodePresentationType } from '@/lib/node-presentation'
 import { focusUnlessTouch } from '@/lib/touch'
-import { getUpstreamNodes } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
@@ -47,9 +28,6 @@ import { NodeSelectionToolbarChrome } from '../CanvasImageSelectionToolbar'
 import { CanvasPopIn } from '../CanvasPopIn'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { NodeStatusBadge } from './NodeStatusBadge'
-
-/** S2 成分栏最多展示的 chip 数，溢出折叠为「+N」（施工图改动清单⑤）。 */
-const MAX_VISIBLE_INGREDIENTS = 4
 
 interface NodeShellRootProps {
   type: NodeTokenType
@@ -66,8 +44,13 @@ interface NodeShellRootProps {
    */
   toolbarData?: NodeWorkflowNodeData
   /** When `failed`, the card gets a red border (must-1 失败态). Optional so
-   *  existing callers are unaffected; node cards pass their `data.status`. */
-  status?: NodeWorkflowStatus
+   *  existing callers are unaffected; node cards pass their `data.status`.
+   *
+   * 画布修法 08-B：额外接受 `LooseImageCard` 包 4 已经在用的两个审核态字面量
+   * ——同一条 `data-status` 通用规则（canvas.css）三个状态共用一条卡边色，
+   * 这里只是让走 `NodeShell` 的调用方（`IdentityCollectorCard`）也够得到它，
+   * 不新增语义、不碰 `NodeStatusSchema`（那是生成态机，审核态是另一个维度）。 */
+  status?: NodeWorkflowStatus | 'awaiting-review' | 'rejected'
   children: ReactNode
   showSourceHandle?: boolean
   showTargetHandle?: boolean
@@ -271,18 +254,6 @@ interface NodeShellSlotProps {
   className?: string
 }
 
-// §2.3 端口图标：4 个导演元素族各一个 glyph，渲在端口内（pointer-events-none，
-// 不抢 ReactFlow 的拖拽热区）；通用节点无 glyph（纯点）。
-const PORT_GLYPHS: Partial<Record<NodeTokenType, LucideIcon>> = {
-  characterImage: UserRound,
-  backgroundImage: Mountain,
-  voice: AudioWaveform,
-  seedance: Play,
-  videoReference: Play,
-  videoMerge: Play,
-  video: Play,
-}
-
 // R3-1 端口锚点化退场（canvas-relationship-v3 §2.4）: the Handle DOM stays —
 // ReactFlow still anchors edges to its bounding box — but it's visually
 // inert. No type-color dot, no glyph, no hover affordance, not connectable
@@ -423,7 +394,7 @@ function NodeShellRoot({
         // S1（2026-07-26）：`canvas-card` 是画布域皮肤 v0.2 的卡框（canvas.css），
         // 特异度 0,2,0 高于下面的 Tailwind 工具类，所以背景/圆角/边/投影由它接管。
         // `node-card-paper` 仍保留——它做的是容器级 --node-* 变量覆盖，让卡内
-        // 子组件（Body/Footer/成分栏）在白卡上继续是深字，S1 不动卡内。
+        // 子组件（Body/Footer）在白卡上继续是深字，S1 不动卡内。
         // 选中态与失败态改由 data-selected / data-status 驱动（见 canvas.css），
         // 原来的 ring + border 组合去掉，避免和 canvas-card 的 box-shadow 打架。
         'group relative w-node-card overflow-visible node-card-paper canvas-card',
@@ -532,99 +503,6 @@ function NodeShellHeader({
   )
 }
 
-interface NodeShellIngredientsProps {
-  /** The node whose incoming edges are summarized. Matches the `nodeId` this
-   *  card already passes to `NodeShellRoot` — same graph-store read pattern
-   *  as the Inspector reference chips (ShotInspector), just compact + inert. */
-  nodeId: string
-}
-
-/**
- * S2 成分栏，S5b B1-7 只读升级为可解绑：片头条下的 chip 行，摘要「这张卡吃了
- * 哪些上游连线」，hover 露出 × 解除对应边（= 吞噬「胃取出」的紧凑卡等效，和
- * 详情面板参考素材分区的「取出」同一颗 deleteEdge）。新 chip 首次挂载播放
- * 消化落定 pop（§8，globals.css `.node-ingest-chip-pop`，只在挂载时播放一次，
- * 已存在的 chip 重渲染不会重放）。空（叶子节点/未连线）则不渲染整行。
- */
-function NodeShellIngredients({ nodeId }: NodeShellIngredientsProps) {
-  const tTypes = useTranslations('StudioNode.nodeTypes')
-  const tVideo = useTranslations('StudioNode.videoGeneration')
-  const tIngest = useTranslations('StudioNode.ingest')
-  const allNodes = useNodes<NodeWorkflowNode>()
-  const edges = useEdges<NodeWorkflowEdge>()
-  const { deleteEdge } = useNodeWorkflowActions()
-
-  const upstream = useMemo(
-    () => getUpstreamNodes(nodeId, edges, allNodes),
-    [nodeId, edges, allNodes],
-  )
-
-  if (upstream.length === 0) {
-    return null
-  }
-
-  const visible = upstream.slice(0, MAX_VISIBLE_INGREDIENTS)
-  const overflow = upstream.length - visible.length
-
-  return (
-    <div
-      className="flex flex-wrap items-center gap-1.5 border-b border-node-card-line px-5 py-2"
-      title={tVideo('upstreamTitle')}
-    >
-      {visible.map((sourceNode) => {
-        const presentationType = resolveNodePresentationType(sourceNode)
-        const Glyph = PORT_GLYPHS[presentationType]
-        const data = sourceNode.data
-        // Named sources (character/background/shot/voice) show their own
-        // name — mirrors NodeMediaPreview's per-role header title so the same
-        // node reads with the same label everywhere. Everything else falls
-        // back to the localized type label (identical to NodeShell.Header's
-        // own fallback for an untitled card).
-        const customName =
-          presentationType === NODE_TYPE_IDS.characterImage
-            ? data.characterName?.trim() || data.character?.name?.trim()
-            : presentationType === NODE_TYPE_IDS.backgroundImage
-              ? data.backgroundName?.trim()
-              : presentationType === NODE_TYPE_IDS.shot
-                ? data.shotName?.trim()
-                : presentationType === NODE_TYPE_IDS.voice
-                  ? data.voiceName?.trim()
-                  : undefined
-        const label = customName || tTypes(presentationType)
-        const edgeId = edges.find(
-          (edge) => edge.source === sourceNode.id && edge.target === nodeId,
-        )?.id
-
-        return (
-          <span
-            key={sourceNode.id}
-            className="node-ingest-chip-pop group/chip inline-flex max-w-28 items-center gap-1 rounded-full bg-node-panel-soft py-0.5 pl-2 pr-1 text-2xs font-medium text-node-muted"
-          >
-            {Glyph ? <Glyph aria-hidden className="size-3 shrink-0" /> : null}
-            <span className="truncate">{label}</span>
-            {edgeId ? (
-              <button
-                type="button"
-                aria-label={tIngest('removeIngredient', { name: label })}
-                title={tIngest('removeIngredient', { name: label })}
-                onClick={() => deleteEdge(edgeId)}
-                className="nodrag flex size-3.5 shrink-0 items-center justify-center rounded-full text-node-subtle opacity-0 transition-opacity hover:text-node-status-failed focus-visible:opacity-100 group-hover/chip:opacity-100"
-              >
-                <X className="size-2.5" aria-hidden />
-              </button>
-            ) : null}
-          </span>
-        )
-      })}
-      {overflow > 0 ? (
-        <span className="shrink-0 text-2xs font-medium text-node-subtle">
-          +{overflow}
-        </span>
-      ) : null}
-    </div>
-  )
-}
-
 function NodeShellBody({ children, className }: NodeShellSlotProps) {
   return <div className={cn('px-5 py-4', className)}>{children}</div>
 }
@@ -644,7 +522,6 @@ function NodeShellFooter({ children, className }: NodeShellSlotProps) {
 
 export const NodeShell = Object.assign(NodeShellRoot, {
   Header: NodeShellHeader,
-  Ingredients: NodeShellIngredients,
   Body: NodeShellBody,
   Footer: NodeShellFooter,
 })

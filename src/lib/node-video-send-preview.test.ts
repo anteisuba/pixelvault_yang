@@ -213,6 +213,63 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
     expect(preview.assembledImageCount).toBe(2)
   })
 
+  // 画布修法 08-B 核验：`dropped` 数组构建顺序把审核门排在容量类原因前面
+  // （源码 `node-video-send-preview.ts` 里 `dropped` 的初始化注释：「审核门挡下
+  // 的排在最前：它是用户能立刻处理的那一类」）。此前只有 `expect.arrayContaining`
+  // 断言过存在性，没有断言过顺序——这条补上，用精确的 `toEqual` 锁住顺序。
+  it('审核门条目排在容量超限条目前面（发送预览 dropped 顺序）', () => {
+    const nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char1.png',
+        characterName: 'A',
+      }),
+      makeNode('char2', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char2.png',
+        characterName: 'B',
+      }),
+      makeNode('char3', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char3-blocked.png',
+        characterName: 'C',
+        mediaReview: {
+          'https://cdn/char3-blocked.png': { state: 'awaiting_review' },
+        },
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance, { prompt: '' }),
+    ]
+    const edges = [
+      makeEdge('e1', 'char1', 'video1'),
+      makeEdge('e2', 'char2', 'video1'),
+      makeEdge('e3', 'char3', 'video1'),
+    ]
+
+    const preview = buildVideoSendPreview({
+      nodeId: 'video1',
+      data: nodes[3].data,
+      edges,
+      nodes,
+      // char1 一个就把上限占满，char2 因此走容量类 'model-limit'；char3 在
+      // 收割阶段就已经被审核门挡下，压根进不了候选名单，与容量无关。
+      maxReferenceImages: 1,
+      autoNamePrefix: AUTO_NAME_PREFIX,
+    })
+
+    expect(preview.images.map((image) => image.url)).toEqual([
+      'https://cdn/char1.png',
+    ])
+    expect(preview.dropped).toEqual([
+      {
+        kind: 'image',
+        url: 'https://cdn/char3-blocked.png',
+        reason: 'awaiting-review',
+      },
+      {
+        kind: 'image',
+        url: 'https://cdn/char2.png',
+        reason: 'model-limit',
+      },
+    ])
+  })
+
   it('skips capping entirely when maxReferenceImages is undefined (model unknown)', () => {
     const nodes = [
       makeNode('char1', NODE_TYPE_IDS.characterImage, {

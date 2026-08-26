@@ -4493,6 +4493,7 @@
         "textHelper": "可直接写提示词，或从画布接入参考素材",
         "chooseFromCanvas": "从画布选择",
         "noReferences": "当前没有参考素材",
+        "keyframeSlotHint": "在上游图片的「分类」里选「首帧」或「尾帧」",
         "addReference": "添加参考素材",
         "promptPlaceholder": "描述你想生成的镜头、动作与声音…",
         "editParameters": "编辑视频参数"
@@ -4814,24 +4815,25 @@
     "workflowNodes": {
       "shotText": {
         "emptyPreview": "把场景、动作、镜头和构图整理成可执行镜头文本。",
+        "emptyState": "还没有镜头文本",
         "footerEmpty": "等待镜头文本",
         "editText": "编辑文本",
         "detailHint": "这些字段会按顺序拼成提示词，送进下游的视频节点。"
       },
       "characterImage": {
-        "emptyPreview": "还没有角色图——生成或选择一张已有图。",
+        "emptyState": "还没有角色图",
         "footerEmpty": "等待角色设置"
       },
       "shot": {
-        "emptyPreview": "从镜头文本和角色/背景参考生成单张镜头图。",
+        "emptyState": "还没有镜头图",
         "footerEmpty": "等待镜头提示"
       },
       "backgroundImage": {
-        "emptyPreview": "定义地点、氛围和光线，生成可复用背景图。",
+        "emptyState": "还没有背景图",
         "footerEmpty": "等待背景设定"
       },
       "frameImage": {
-        "emptyPreview": "合成角色、背景和镜头意图，锁定视频关键帧。",
+        "emptyState": "还没有关键帧",
         "footerEmpty": "等待关键帧设定"
       },
       "voice": {
@@ -4847,8 +4849,7 @@
         "footerEmpty": "等待上传"
       },
       "videoMerge": {
-        "emptyPreview": "连接 2-9 段视频后点击合并，得到一段长视频。",
-        "footerEmpty": "等待合并"
+        "emptyState": "还没有成片"
       }
     },
     "topbar": {
@@ -5124,7 +5125,6 @@
         "slots": "参考位 {current}/{limit}",
         "fallbackName": "未命名"
       },
-      "removeIngredient": "解绑{name}",
       "quickThrow": {
         "toggleAria": "快投 {name}",
         "hint": "投放 {name} — 点击目标镜头，Esc 退出",
@@ -5205,6 +5205,8 @@
     "generateComposer": {
       "placeholderEmpty": "描述你想生成的画面…",
       "placeholderEditing": "说说想把这张图改成什么…",
+      "placeholderEmptyAudio": "描述你想生成的声音…",
+      "placeholderEditingAudio": "说说想把这段声音改成什么…",
       "editingBadge": "正在改",
       "addReference": "添加参考图",
       "aspectLabel": "比例",

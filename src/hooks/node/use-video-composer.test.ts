@@ -197,6 +197,36 @@ describe('useVideoComposer referenceTokens (§7 部门条 bookkeeping)', () => {
     })
   })
 
+  // 画布修法 08-A：`resolveBoundVoice`（boundVoice.label）与音频区（voice-kind
+  // token 的 label，走 `binding.characterName`/`harvestUpstreamAudioBindings`）
+  // 此前都直读 voiceName/characterName，不过共享解析器的机器值守卫。「选已有
+  // 图」写入口把上传备注常量当名字写进这两个字段时，音槽与身份徽标都会把
+  // 机器串当人名显示。
+  it('⚠ 回归：boundVoice.label 与音频区 label 都丢掉已知上传备注机器串', () => {
+    graphState.nodes = [
+      makeNode('voice1', NODE_TYPE_IDS.voice, {
+        voiceName: 'Node Studio character reference',
+        voiceClipUrl: 'https://cdn.test/voice.mp3',
+      }),
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        characterName: 'Node Studio character output',
+        imageUrl: 'https://cdn.test/char.png',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    graphState.edges = [
+      makeEdge('e-voice', 'voice1', 'char1'),
+      makeEdge('e-char', 'char1', 'video1'),
+    ]
+
+    const tokens = renderComposer().referenceTokens
+    const voice = tokens.find((token) => token.kind === 'voice')
+    // binding.characterName 落空时退回 voiceName ——两个都是机器串，最终是空串。
+    expect(voice?.label).toBe('')
+    const character = tokens.find((token) => token.kind === 'character')
+    expect(character?.boundVoice?.label).toBe('')
+  })
+
   it('marks a routed voice WITHOUT reference audio as an unready boundVoice (不静默丢)', () => {
     // The character keeps its 音色 facet even when no reference audio is set —
     // ready=false so the UI dims the badge instead of hiding the wire.

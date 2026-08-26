@@ -130,6 +130,46 @@ describe('resolveNodeDisplayName', () => {
       ),
     ).toBe('雨夜开场镜')
   })
+
+  // 画布修法 08-A：`useNodeReferenceUpload` 的 note 参数没写描述时原样落进
+  // `generation.prompt`，「选已有图」写入口再把它当名字抄进节点字段——
+  // 卡名/左栏/@ 菜单/槽架 token 名等全部显示处都必须挡住这几个已知机器串。
+  it.each([
+    [
+      'NODE_STUDIO_MEDIA_IMAGE_OUTPUT.uploadNote',
+      'Node Studio image node output',
+    ],
+    [
+      'NODE_STUDIO_CHARACTER_IMAGE_OUTPUT.uploadNote',
+      'Node Studio character output',
+    ],
+    [
+      'NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.uploadNote',
+      'Node Studio character reference',
+    ],
+  ])('mediaLabel 等于 %s 时返回 undefined', (_label, uploadNote) => {
+    expect(
+      resolveNodeDisplayName(data({ mediaLabel: uploadNote })),
+    ).toBeUndefined()
+  })
+
+  // ⚠ 这道守卫此前只挡 mediaLabel/sourceLabel 两个字段——但
+  // `StudioNodeWorkbench.handleSpawnReference` 按 role 把同一个机器串写进
+  // characterName/backgroundName/shotName 时，读侧完全不设防（这几个字段排
+  // 在优先链最前面，根本不会走到 mediaLabel 那一步）。
+  it.each([
+    ['characterName', { characterName: 'Node Studio image node output' }],
+    ['backgroundName', { backgroundName: 'Node Studio character output' }],
+    ['shotName', { shotName: 'Node Studio character reference' }],
+  ])('%s 等于已知上传备注常量时同样返回 undefined', (_field, patch) => {
+    expect(resolveNodeDisplayName(data(patch))).toBeUndefined()
+  })
+
+  it('用户真把节点起名叫上传备注文案之外的名字时照常显示', () => {
+    expect(
+      resolveNodeDisplayName(data({ mediaLabel: 'Node Studio 团队合影' })),
+    ).toBe('Node Studio 团队合影')
+  })
 })
 
 describe('buildDisplayNamePatch', () => {

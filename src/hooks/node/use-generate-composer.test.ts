@@ -11,6 +11,7 @@ import type {
 import {
   computeSpawnPosition,
   inferComposerHost,
+  resolveComposerPlaceholderKey,
   useGenerateComposer,
 } from './use-generate-composer'
 
@@ -112,6 +113,31 @@ describe('inferComposerHost (§7.5 宿主推断)', () => {
       makeNode('n7', NODE_TYPE_IDS.image, { mediaUrl: '   ' }),
     )
     expect(host?.hasMedia).toBe(false)
+  })
+})
+
+describe('resolveComposerPlaceholderKey (§4/《画布修法》02 节刀 1 按物种说话)', () => {
+  it('image 宿主：空态与编辑态两条既有文案不回归', () => {
+    expect(resolveComposerPlaceholderKey('image', false)).toBe(
+      'placeholderEmpty',
+    )
+    expect(resolveComposerPlaceholderKey('image', true)).toBe(
+      'placeholderEditing',
+    )
+  })
+
+  it('voice 宿主：空态与有内容态必须落声音文案，不能沿用图片那两条（旧 bug）', () => {
+    expect(resolveComposerPlaceholderKey('audio', false)).toBe(
+      'placeholderEmptyAudio',
+    )
+    expect(resolveComposerPlaceholderKey('audio', true)).toBe(
+      'placeholderEditingAudio',
+    )
+    // ⚠ 这条锁的正是旧 bug 本身：旧实现只读 hasMedia 一维，空音色卡
+    // （mode='audio', hasMedia=false）会落进图片的空态键。
+    expect(resolveComposerPlaceholderKey('audio', false)).not.toBe(
+      'placeholderEmpty',
+    )
   })
 })
 

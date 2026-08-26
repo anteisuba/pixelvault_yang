@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>画布上该改的问题</title>
+<style>
+  :root {
+    --stage: #c9bdb4;
+    --stage-deep: #b7a89e;
+    --paper: #f4efe8;
+    --card: #fff;
+    --ink: #1a1512;
+    --mute: #6a5f57;
+    --line: rgba(26, 21, 18, 0.12);
+    --blue: #2b5ce6;
+    --bad: #c0342e;
+    --ok: #1f7a4d;
+    --warn: #9a5b12;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--stage); color: var(--ink); }
+  body {
+    font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", Palatino, Georgia, serif;
+    line-height: 1.15;
+  }
+  img { display: block; max-width: 100%; }
+  button { font: inherit; }
+
+  .cover {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 8vh 6vw;
+    text-align: center;
+  }
+  .cover h1 {
+    font-size: clamp(48px, 9vw, 128px);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    max-width: 16ch;
+  }
+  .cover p {
+    margin-top: 1.2rem;
+    font-size: clamp(18px, 2.2vw, 28px);
+    color: var(--mute);
+  }
+  .stamp {
+    display: inline-block;
+    margin-top: 2rem;
+    padding: 0.35em 0.7em;
+    border: 3px solid var(--bad);
+    color: var(--bad);
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    transform: rotate(-6deg);
+  }
+
+  section { padding: 10vh 5vw 12vh; }
+  .photo-bleed {
+    padding: 0;
+    background: #1a1512;
+  }
+  .photo-bleed img { width: 100%; height: auto; }
+  .photo-caption {
+    padding: 1.2rem 5vw 2.4rem;
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 15px;
+    color: #d9cfc6;
+  }
+
+  .kicker {
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--mute);
+    margin-bottom: 1rem;
+  }
+  h2 {
+    font-size: clamp(36px, 6vw, 84px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    max-width: 12ch;
+    margin-bottom: 0.6em;
+  }
+  .one-line {
+    font-size: clamp(22px, 3vw, 40px);
+    max-width: 18ch;
+    color: var(--ink);
+  }
+  .tiny {
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 16px;
+    color: var(--mute);
+    max-width: 36ch;
+    margin-top: 1rem;
+  }
+
+  .trio {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2vw;
+    margin-top: 6vh;
+  }
+  @media (max-width: 900px) {
+    .trio { grid-template-columns: 1fr; }
+  }
+  .job {
+    background: var(--paper);
+    border-radius: 18px;
+    padding: 1.6rem 1.4rem 2rem;
+    min-height: 420px;
+  }
+  .job .num {
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    color: var(--mute);
+  }
+  .job h3 {
+    font-size: clamp(28px, 3vw, 42px);
+    margin: 0.4rem 0 1.2rem;
+  }
+  .stage-mini {
+    background: var(--stage-deep);
+    border-radius: 12px;
+    height: 220px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 1.2rem;
+  }
+
+  /* node drawings */
+  .n {
+    background: var(--card);
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 10px 30px rgba(26,21,18,0.12);
+    position: relative;
+    overflow: hidden;
+  }
+  .n .name {
+    position: absolute;
+    left: 0;
+    top: -22px;
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 12px;
+    color: #3d342e;
+    white-space: nowrap;
+  }
+  .n .port {
+    position: absolute;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    background: #6b7280;
+    transform: translateY(-50%);
+  }
+  .n .port.l { left: -6px; }
+  .n .port.r { right: -6px; }
+  .n .port.round { border-radius: 50%; }
+  .n .port.ring {
+    background: transparent;
+    border: 2px solid #8a7b6a;
+    border-radius: 50%;
+  }
+  .n .port.sq { border-radius: 2px; }
+
+  .media-card { width: 168px; height: 112px; border-radius: 8px; }
+  .media-card .fill {
+    width: 100%; height: 100%;
+    background:
+      radial-gradient(circle at 30% 30%, #f2d3b8, transparent 40%),
+      linear-gradient(160deg, #7aa0c4, #d7b48a);
+  }
+  .empty-video {
+    width: 200px; height: 118px; border-radius: 8px;
+    display: grid; place-items: center;
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 12px; color: #737373; text-align: center; gap: 8px;
+  }
+  .empty-video .ico {
+    width: 36px; height: 36px; border-radius: 10px; background: #eeeae4;
+    display: grid; place-items: center; font-size: 16px;
+  }
+  .form-card {
+    width: 210px; height: 150px; border-radius: 8px;
+    border: 1px dashed #737373 !important;
+    padding: 12px; background: #fff;
+  }
+  .form-card .chip {
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 10px; background: #f3efe8; display: inline-block;
+    padding: 2px 8px; border-radius: 999px; margin-bottom: 8px;
+  }
+  .form-card .win {
+    height: 72px; border: 1px solid var(--line); border-radius: 6px;
+    display: grid; place-items: center; color: #8a8078; font-size: 22px;
+  }
+  .form-card .foot {
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 10px; color: #8a8078; margin-top: 8px;
+  }
+  .id-card {
+    width: 170px; height: 96px; border-radius: 8px;
+  }
+  .id-card .who {
+    height: 68px;
+    background: linear-gradient(#e8e0d6, #d3c4b6);
+    display: grid; place-items: center; font-size: 28px; color: #8a8078;
+  }
+  .id-card .bar {
+    height: 28px; display: flex; align-items: center; gap: 10px;
+    padding: 0 10px; font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 11px; color: #525252; background: rgba(255,255,255,0.9);
+  }
+  .voice {
+    width: 200px; height: 72px; border-radius: 8px; display: flex;
+  }
+  .voice .cover {
+    width: 72px; background: #c9b4c4;
+    display: grid; place-items: center; font-size: 22px;
+  }
+  .voice .meta { padding: 10px 12px; font-family: "PingFang SC", "Noto Sans SC", sans-serif; }
+  .voice .wave { color: #a1a1a1; letter-spacing: -1px; font-size: 18px; }
+  .voice .sub { font-size: 11px; color: #737373; margin-top: 8px; }
+
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3vw;
+    align-items: stretch;
+    margin-top: 4vh;
+  }
+  @media (max-width: 800px) { .split { grid-template-columns: 1fr; } }
+  .pane {
+    background: var(--paper);
+    border-radius: 20px;
+    padding: 1.6rem;
+    min-height: 520px;
+  }
+  .pane.bad { outline: 4px solid var(--bad); }
+  .pane.good { outline: 4px solid var(--ok); }
+  .tag {
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.16em;
+    margin-bottom: 0.8rem;
+  }
+  .tag.bad { color: var(--bad); }
+  .tag.good { color: var(--ok); }
+  .pane h3 { font-size: clamp(28px, 3.4vw, 48px); margin-bottom: 0.4rem; }
+  .draw {
+    margin: 2rem 0;
+    background: var(--stage-deep);
+    border-radius: 16px;
+    min-height: 280px;
+    display: grid;
+    place-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .sidecar {
+    position: absolute;
+    right: 18px; top: 28px; bottom: 28px;
+    width: 132px; background: #fff; border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 10px; font-family: "PingFang SC", "Noto Sans SC", sans-serif; font-size: 10px; color: #525252;
+  }
+  .sidecar .row { height: 8px; background: #eee; border-radius: 4px; margin: 8px 0; }
+  .sidecar .send {
+    margin-top: 18px; height: 22px; background: #111; border-radius: 6px;
+  }
+
+  .stack {
+    display: grid;
+    gap: 18px;
+    margin-top: 5vh;
+  }
+  .row-card {
+    display: grid;
+    grid-template-columns: 88px 1fr 220px;
+    gap: 18px;
+    align-items: center;
+    background: var(--paper);
+    border-radius: 16px;
+    padding: 1rem 1.2rem;
+  }
+  @media (max-width: 800px) {
+    .row-card { grid-template-columns: 1fr; }
+  }
+  .idx {
+    font-size: 40px; font-weight: 700; color: var(--bad);
+  }
+  .row-card p {
+    font-size: clamp(22px, 2.6vw, 32px);
+  }
+  .row-card .how {
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 14px; color: var(--mute);
+  }
+
+  .overlap {
+    position: relative;
+    height: 360px;
+    margin-top: 4vh;
+  }
+  .overlap .n { position: absolute; }
+  .overlap .a { left: 8%; top: 40px; transform: rotate(-8deg); background: #fff7e8; padding: 28px; width: 240px; font-size: 32px; }
+  .overlap .b { left: 32%; top: 90px; transform: rotate(4deg); background: #eef4ff; padding: 28px; width: 240px; font-size: 32px; }
+  .overlap .c { left: 54%; top: 30px; transform: rotate(-2deg); background: #fdecec; padding: 28px; width: 260px; font-size: 32px; }
+
+  .wires {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2vw;
+    margin-top: 5vh;
+  }
+  @media (max-width: 900px) { .wires { grid-template-columns: 1fr 1fr; } }
+  .wire {
+    background: var(--paper);
+    border-radius: 16px;
+    min-height: 220px;
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .wire strong { font-size: 28px; display: block; margin-top: 1rem; }
+
+  .mess {
+    margin-top: 4vh;
+    background: var(--stage-deep);
+    border-radius: 20px;
+    min-height: 420px;
+    position: relative;
+    overflow: hidden;
+  }
+  .mess .pic {
+    position: absolute; left: 18%; top: 48px;
+    width: 280px; height: 300px; border-radius: 8px;
+    background:
+      radial-gradient(circle at 50% 30%, #f6d5b8, transparent 42%),
+      linear-gradient(#8fb3d4, #c48a6a);
+    box-shadow: 0 0 0 3px var(--blue);
+  }
+  .mess .tb {
+    position: absolute; left: 22%; top: 18px;
+    background: #fff; border-radius: 999px; padding: 8px 14px;
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif; font-size: 13px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  }
+  .mess .pill {
+    position: absolute; left: 34%; top: 170px;
+    background: #fff; border-radius: 999px; padding: 10px 22px;
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif; font-weight: 600;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.16);
+  }
+  .mess .comp {
+    position: absolute; left: 18%; bottom: 18px;
+    width: 300px; height: 92px; background: #fff; border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.14);
+    padding: 12px;
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 13px; color: #737373;
+  }
+  .mess .note {
+    position: absolute; right: 8%; top: 30%;
+    font-size: 42px; max-width: 7ch;
+  }
+
+  .wall {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.4vw;
+    margin-top: 5vh;
+  }
+  @media (max-width: 900px) { .wall { grid-template-columns: 1fr; } }
+  .tile {
+    background: var(--paper);
+    border-radius: 18px;
+    min-height: 240px;
+    padding: 1.4rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .tile .picbox {
+    height: 110px;
+    border-radius: 12px;
+    background: var(--stage-deep);
+    display: grid;
+    place-items: center;
+    font-size: 40px;
+    margin-bottom: 1rem;
+  }
+  .tile h3 { font-size: 28px; }
+  .tile p {
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 15px; color: var(--mute); margin-top: 0.4rem;
+  }
+
+  .keep {
+    background: #1a1512;
+    color: #f4efe8;
+  }
+  .keep h2 { color: #f4efe8; }
+  .keep-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2vw;
+    margin-top: 4vh;
+  }
+  @media (max-width: 800px) { .keep-grid { grid-template-columns: 1fr; } }
+  .keep-item {
+    border: 1px solid rgba(244,239,232,0.16);
+    border-radius: 16px;
+    padding: 1.6rem;
+    font-size: clamp(24px, 3vw, 36px);
+  }
+  .keep-item span {
+    display: block;
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    color: #8dceab;
+    margin-bottom: 0.6rem;
+  }
+
+  .end {
+    min-height: 70vh;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 10vh 6vw;
+  }
+  .end h2 { max-width: 10ch; }
+  .end ol {
+    list-style: none;
+    margin-top: 3rem;
+    font-size: clamp(24px, 3.2vw, 44px);
+    text-align: left;
+  }
+  .end li { margin: 0.5rem 0; }
+  .end li em { font-style: normal; color: var(--bad); }
+
+  .shot {
+    margin-top: 4vh;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(26,21,18,0.18);
+  }
+  .shot img { width: 100%; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div>
+    <p class="kicker">真机 · 2026-08-26</p>
+    <h1>画布上这些节点，哪里不对</h1>
+    <p>大图。少字。给没跟过这场讨论的人看。</p>
+    <div class="stamp">要改的都在这里</div>
+  </div>
+</header>
+
+<section class="photo-bleed">
+  <img src="canvas-node-problems/01-overview.png" alt="真机画布全貌：镜头图空卡、散图、生成框叠在一起" />
+  <p class="photo-caption">这是现在的画布。左边是清单，中间是节点。问题不在某一张丑，而在它们各自以为自己是不同的东西。</p>
+</section>
+
+<section>
+  <p class="kicker">01 · 总因</p>
+  <h2>三种工作，一种盒子。</h2>
+  <p class="one-line">所以并排放着，你会说不出哪里怪。</p>
+  <div class="trio">
+    <article class="job">
+      <p class="num">工作 A</p>
+      <h3>我有的东西</h3>
+      <div class="stage-mini">
+        <div class="n media-card">
+          <span class="name">□ 西格莉卡</span>
+          <i class="port sq l"></i><i class="port sq r"></i>
+          <div class="fill"></div>
+        </div>
+      </div>
+      <p class="tiny">散图、参考视频、声音片段。像桌上的照片和磁带。</p>
+    </article>
+    <article class="job">
+      <p class="num">工作 B</p>
+      <h3>会做出东西</h3>
+      <div class="stage-mini">
+        <div class="n empty-video">
+          <span class="name">□ 镜头2-视频</span>
+          <i class="port sq l"></i><i class="port sq r"></i>
+          <div class="ico">▶</div>
+          还没有生成视频
+        </div>
+      </div>
+      <p class="tiny">镜头图、视频、片盒。像一台还没开机的相机。</p>
+    </article>
+    <article class="job">
+      <p class="num">工作 C</p>
+      <h3>用来找人</h3>
+      <div class="stage-mini">
+        <div class="n id-card">
+          <span class="name">○ 角色：常客</span>
+          <i class="port ring r"></i>
+          <div class="who">👤</div>
+          <div class="bar"><span>▦ 0</span><span>无音色</span></div>
+        </div>
+      </div>
+      <p class="tiny">角色卡、场景卡。像通讯录，不是照片本身。</p>
+    </article>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">02 · 生成节点</p>
+  <h2>收着看结果。打开才下单。</h2>
+  <p class="one-line">空着和做完，应该是同一扇窗。</p>
+  <div class="split">
+    <div class="pane good">
+      <p class="tag good">视频 · 已经对了</p>
+      <h3>收着是窗。打开才出表单。</h3>
+      <div class="draw">
+        <div class="n empty-video" style="transform:translateX(-40px)">
+          <span class="name">□ 镜头2-视频</span>
+          <i class="port sq l"></i><i class="port sq r"></i>
+          <div class="ico">▶</div>
+          还没有生成视频
+        </div>
+        <div class="sidecar">
+          视频编排
+          <div class="row"></div>
+          <div class="row"></div>
+          <div class="row" style="height:48px"></div>
+          <div class="send"></div>
+        </div>
+      </div>
+      <p class="tiny">点它，右边出现编排器。节点自己不变形。</p>
+    </div>
+    <div class="pane bad">
+      <p class="tag bad">镜头图 · 要改</p>
+      <h3>空着就像已经打开了。</h3>
+      <div class="draw">
+        <div class="n form-card">
+          <span class="name">■ 镜头1-静帧</span>
+          <i class="port sq l"></i><i class="port sq r"></i>
+          <span class="chip">镜头图</span>
+          <div class="win">🖼</div>
+          <p class="foot">从镜头文本和角色/背景参考生成…</p>
+        </div>
+      </div>
+      <p class="tiny">说明书写在节点上。出图后又变成照片。同一节点换了物种。</p>
+    </div>
+  </div>
+  <div class="shot">
+    <img src="canvas-node-problems/03-video.png" alt="真机：空视频是白窗，右侧是编排器" />
+  </div>
+</section>
+
+<section>
+  <p class="kicker">03 · 还要改的生成节点</p>
+  <h2>片盒把说明书焊在节点上。</h2>
+  <div class="split">
+    <div class="pane bad">
+      <p class="tag bad">片盒 · 要改</p>
+      <h3>卡上在教你怎么合并。</h3>
+      <div class="draw">
+        <div class="n form-card" style="width:240px;height:170px">
+          <span class="name">□ 完整合辑视频</span>
+          <i class="port sq l"></i><i class="port sq r"></i>
+          <span class="chip">元気な女性</span>
+          <span class="chip">音色：常客</span>
+          <div class="win">🎬</div>
+          <p class="foot">等待合并    ✎</p>
+        </div>
+      </div>
+      <p class="tiny">收着应该只显示成片或空窗。合并按钮放到打开之后。</p>
+    </div>
+    <div class="pane bad">
+      <p class="tag bad">片盒还撒谎</p>
+      <h3>声音不该出现在这里。</h3>
+      <div class="draw">
+        <div class="n voice">
+          <span class="name">◉ 音色：常客</span>
+          <i class="port round r"></i>
+          <div class="cover">▶</div>
+          <div class="meta">
+            <div class="wave">∿∿∿∿∿</div>
+            <div class="sub">暂无试听样本</div>
+          </div>
+        </div>
+      </div>
+      <p class="tiny">片盒只拼接视频。真机上却把声音芯片挂在顶上。</p>
+    </div>
+  </div>
+  <div class="shot">
+    <img src="canvas-node-problems/07-merge.png" alt="真机片盒：顶上出现声音 chip，卡内是说明书" />
+  </div>
+</section>
+
+<section>
+  <p class="kicker">04 · 点一下</p>
+  <h2>每个生成节点，打开的面不一样。</h2>
+  <div class="stack">
+    <div class="row-card">
+      <div class="idx">1</div>
+      <p>点视频 → 右边出表单</p>
+      <div class="how">这条留下</div>
+    </div>
+    <div class="row-card">
+      <div class="idx">2</div>
+      <p>点空镜头图 → 卡自己就是表单</p>
+      <div class="how">要改：收着变空窗</div>
+    </div>
+    <div class="row-card">
+      <div class="idx">3</div>
+      <p>点散图 → 底下出「把这张图改成什么」</p>
+      <div class="how">位置和下单面跟视频不统一</div>
+    </div>
+    <div class="row-card">
+      <div class="idx">4</div>
+      <p>点声音 → 弹出「描述你想生成的画面」</p>
+      <div class="how">错的。声音不是在画图。</div>
+    </div>
+    <div class="row-card">
+      <div class="idx">5</div>
+      <p>点片盒 → 上方一个「开始合并」</p>
+      <div class="how">说明书仍留在卡里</div>
+    </div>
+  </div>
+  <div class="shot">
+    <img src="canvas-node-problems/06-voice.png" alt="真机：选中声音卡，下方却是画面生成框" />
+  </div>
+</section>
+
+<section>
+  <p class="kicker">05 · 身份卡</p>
+  <h2>一张卡，三个身份。</h2>
+  <p class="one-line">所以你怎么连它，都对，也都不对。</p>
+  <div class="overlap">
+    <div class="n a">筛子<br />用来找</div>
+    <div class="n b">档案<br />有图、有声音</div>
+    <div class="n c">参考图<br />会送进模型</div>
+  </div>
+  <p class="tiny" style="margin-top:2rem">文档说：它不进提示词。代码说：连到视频就会被收割成图。左栏叫「卡片」。卡面长得像照片。</p>
+  <div class="shot">
+    <img src="canvas-node-problems/04-identity.png" alt="真机身份卡：有封面、出演工具条、出端口" />
+  </div>
+  <div class="shot" style="margin-top:1.4vw">
+    <img src="canvas-node-problems/05-identity-empty.png" alt="真机空身份卡和空场景都是人形虚线框" />
+  </div>
+</section>
+
+<section>
+  <p class="kicker">06 · 关系</p>
+  <h2>绑在一起，有四种说法。</h2>
+  <div class="wires">
+    <div class="wire">
+      <span class="kicker">说法 1</span>
+      <strong>拉端口</strong>
+      <p class="tiny">视频、镜头图还在用。</p>
+    </div>
+    <div class="wire">
+      <span class="kicker">说法 2</span>
+      <strong>拖进卡</strong>
+      <p class="tiny">身份卡入边不画。拖了像没发生。</p>
+    </div>
+    <div class="wire">
+      <span class="kicker">说法 3</span>
+      <strong>槽架 / @</strong>
+      <p class="tiny">只活在视频编排器里。</p>
+    </div>
+    <div class="wire">
+      <span class="kicker">说法 4</span>
+      <strong>顶上芯片</strong>
+      <p class="tiny">片盒、空镜头图在重复说同一件事。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">07 · 选中之后</p>
+  <h2>作品被控件盖住了。</h2>
+  <div class="mess">
+    <div class="pic"></div>
+    <div class="tb">快捷编辑 ⤓ … 🗑</div>
+    <div class="pill">⟳ 替换</div>
+    <div class="comp">说说想把这张图改成什么…</div>
+    <p class="note">名字、工具条、替换、生成框，同时要注意力。</p>
+  </div>
+  <div class="shot">
+    <img src="canvas-node-problems/02-image.png" alt="真机散图选中：替换胶囊盖在脸上，下方是生成框" />
+  </div>
+</section>
+
+<section>
+  <p class="kicker">08 · 其它要改</p>
+  <h2>剩下这些，也是真的。</h2>
+  <div class="wall">
+    <article class="tile">
+      <div class="picbox">👤👤</div>
+      <div>
+        <h3>场景空态用人像</h3>
+        <p>角色和场景空着长得一样。只靠卡外那行字分。</p>
+      </div>
+    </article>
+    <article class="tile">
+      <div class="picbox" style="font-size:16px;padding:12px;text-align:center;color:#3d342e">Node Studio image node output</div>
+      <div>
+        <h3>机器名泄漏</h3>
+        <p>左栏和卡上都还看得到这种名字。一看就不是作品。</p>
+      </div>
+    </article>
+    <article class="tile">
+      <div class="picbox">🖼 🖼 🖼</div>
+      <div>
+        <h3>长得一样的图，送法不同</h3>
+        <p>散图、镜头图、特写、首尾帧。画布上看不出谁会被模型吃掉。</p>
+      </div>
+    </article>
+    <article class="tile">
+      <div class="picbox">12</div>
+      <div>
+        <h3>静默上限</h3>
+        <p>未过审不发出去。参考图超过 12 张会被砍。卡面不说。</p>
+      </div>
+    </article>
+    <article class="tile">
+      <div class="picbox">⬚ ⬚</div>
+      <div>
+        <h3>空身份 ≈ 空视频</h3>
+        <p>都是白盒子加一个图标。一个是名册，一个是相机。</p>
+      </div>
+    </article>
+    <article class="tile">
+      <div class="picbox">首 / 尾</div>
+      <div>
+        <h3>关键帧没有门口</h3>
+        <p>添加菜单已拔掉。要进详情下拉才标得了首尾。找不到。</p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="keep">
+  <p class="kicker" style="color:#8dceab">先别动</p>
+  <h2>这些已经对了。</h2>
+  <div class="keep-grid">
+    <div class="keep-item"><span>留</span>视频：收着是窗，打开才下单</div>
+    <div class="keep-item"><span>留</span>打开详情时，节点不要变大</div>
+    <div class="keep-item"><span>留</span>散图、参考视频：卡就是媒体</div>
+    <div class="keep-item"><span>留</span>身份卡只出不进（入端口已经撤对了）</div>
+  </div>
+</section>
+
+<section class="end">
+  <div>
+    <p class="kicker">先做这三件</p>
+    <h2>从最刺眼的开始。</h2>
+    <ol>
+      <li><em>1.</em> 声音不要弹出画图框</li>
+      <li><em>2.</em> 镜头图、片盒：收着改成空窗</li>
+      <li><em>3.</em> 身份卡只能是一种东西</li>
+    </ol>
+  </div>
+</section>
+
+</body>
+</html>

@@ -4493,6 +4493,7 @@
         "textHelper": "プロンプトを書くか、キャンバスから参照素材を接続します",
         "chooseFromCanvas": "キャンバスから選択",
         "noReferences": "参照素材はまだありません",
+        "keyframeSlotHint": "上流画像の「分類」で「開始フレーム」または「終了フレーム」を選択",
         "addReference": "参照素材を追加",
         "promptPlaceholder": "生成したいショット、動き、音を説明…",
         "editParameters": "動画パラメータを編集"
@@ -4814,24 +4815,25 @@
     "workflowNodes": {
       "shotText": {
         "emptyPreview": "シーン、動き、カメラ、構図を実行可能なショット文に整理します。",
+        "emptyState": "ショット文はまだありません",
         "footerEmpty": "ショット文を待機中",
         "editText": "テキストを編集",
         "detailHint": "これらの項目は順にプロンプトへ連結され、下流の動画ノードに渡されます。"
       },
       "characterImage": {
-        "emptyPreview": "キャラクター画像はまだありません — 生成するか既存画像を選択してください。",
+        "emptyState": "キャラクター画像はまだありません",
         "footerEmpty": "キャラクター設定待ち"
       },
       "shot": {
-        "emptyPreview": "ショット文とキャラクター/背景参考から単一ショット画像を生成します。",
+        "emptyState": "ショット画像はまだありません",
         "footerEmpty": "ショットプロンプトを待機中"
       },
       "backgroundImage": {
-        "emptyPreview": "場所、ムード、光を定義して再利用できる背景を生成します。",
+        "emptyState": "背景画像はまだありません",
         "footerEmpty": "背景設定を待機中"
       },
       "frameImage": {
-        "emptyPreview": "キャラクター、背景、ショット意図を合わせて動画キーフレームにします。",
+        "emptyState": "キーフレームはまだありません",
         "footerEmpty": "キーフレーム設定を待機中"
       },
       "voice": {
@@ -4847,8 +4849,7 @@
         "footerEmpty": "アップロード待ち"
       },
       "videoMerge": {
-        "emptyPreview": "2-9 本の動画を接続して結合を実行すると 1 本の長い動画になります。",
-        "footerEmpty": "結合待ち"
+        "emptyState": "結合した動画はまだありません"
       }
     },
     "topbar": {
@@ -5124,7 +5125,6 @@
         "slots": "参照枠 {current}/{limit}",
         "fallbackName": "無題"
       },
-      "removeIngredient": "{name}のバインドを解除",
       "quickThrow": {
         "toggleAria": "{name}をクイック投入",
         "hint": "{name} を投入中 — ターゲットのショットをクリック、Esc で終了",
@@ -5205,6 +5205,8 @@
     "generateComposer": {
       "placeholderEmpty": "生成したい画面を書いてください…",
       "placeholderEditing": "この画像をどう変えたいか書いてください…",
+      "placeholderEmptyAudio": "生成したい音を書いてください…",
+      "placeholderEditingAudio": "この音をどう変えたいか書いてください…",
       "editingBadge": "編集中",
       "addReference": "参考画像を追加",
       "aspectLabel": "アスペクト比",

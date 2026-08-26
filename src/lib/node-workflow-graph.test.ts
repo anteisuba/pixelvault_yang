@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   NODE_IMAGE_ROLE_IDS,
+  NODE_MEDIA_KIND_IDS,
   NODE_REVIEW_STATE_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
@@ -36,6 +37,7 @@ import {
   isVisualReferenceNode,
   isVoiceProfileNode,
   mergePromptWithUpstreamText,
+  resolveGenerateTargetKind,
   summarizeUpstreamSeedanceReferences,
   type UpstreamImageReference,
   type VideoLegendImageReference,
@@ -94,6 +96,74 @@ describe('node-workflow-graph predicates', () => {
     expect(isVoiceProfileNode(makeNode('f', NODE_TYPE_IDS.shotText))).toBe(
       false,
     )
+  })
+})
+
+/**
+ * 《画布修法》02 节刀 1：`inferComposerHost`（use-generate-composer.ts）与
+ * `planNodeAssistantOps` 的 `generate` op（node-assistant-op-plan.ts）此前
+ * 各自手写「身份卡 / text 不是生成目标」，两处注释互称同源。这个函数是它们
+ * 现在真正共用的地基——这里只锁这一个函数自己的契约；两个调用方各自「再收
+ * 窄到哪些媒体种类」仍由它们自己的既有测试覆盖
+ * （use-generate-composer.test.ts 的 `inferComposerHost` 用例、
+ * node-assistant-op-plan.test.ts 的 notGeneratable / video 放行用例）。
+ */
+describe('resolveGenerateTargetKind (生成目标判据的公共地基)', () => {
+  it('身份卡（角色卡/背景卡）统一返回 undefined —— 不管是新 role 写法还是旧类型名', () => {
+    for (const node of [
+      makeNode('c1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.character,
+      }),
+      makeNode('c2', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.background,
+      }),
+      makeNode('c3', NODE_TYPE_IDS.characterImage),
+      makeNode('c4', NODE_TYPE_IDS.backgroundImage),
+    ]) {
+      expect(resolveGenerateTargetKind(node), node.id).toBeUndefined()
+    }
+  })
+
+  it('text 节点（shotText）返回 undefined —— 没有落生成结果的地方', () => {
+    expect(
+      resolveGenerateTargetKind(makeNode('t1', NODE_TYPE_IDS.shotText)),
+    ).toBeUndefined()
+  })
+
+  it('没有媒体种类的节点类型（composer/agent 自身）返回 undefined', () => {
+    expect(
+      resolveGenerateTargetKind(makeNode('n1', NODE_TYPE_IDS.composer)),
+    ).toBeUndefined()
+    expect(
+      resolveGenerateTargetKind(makeNode('n2', NODE_TYPE_IDS.agent)),
+    ).toBeUndefined()
+  })
+
+  it('image/audio/video 节点各自返回自己的种类 —— 不排除 video（差异化收窄留给调用方）', () => {
+    expect(resolveGenerateTargetKind(makeNode('i1', NODE_TYPE_IDS.image))).toBe(
+      NODE_MEDIA_KIND_IDS.image,
+    )
+    expect(resolveGenerateTargetKind(makeNode('v1', NODE_TYPE_IDS.voice))).toBe(
+      NODE_MEDIA_KIND_IDS.audio,
+    )
+    expect(
+      resolveGenerateTargetKind(makeNode('s1', NODE_TYPE_IDS.seedance)),
+    ).toBe(NODE_MEDIA_KIND_IDS.video)
+  })
+
+  it('图这一侧（镜头/关键帧/特写 role）不受身份卡判据影响', () => {
+    for (const role of [
+      NODE_IMAGE_ROLE_IDS.shot,
+      NODE_IMAGE_ROLE_IDS.frame,
+      NODE_IMAGE_ROLE_IDS.closeup,
+    ]) {
+      expect(
+        resolveGenerateTargetKind(
+          makeNode(`i-${role}`, NODE_TYPE_IDS.image, { role }),
+        ),
+        role,
+      ).toBe(NODE_MEDIA_KIND_IDS.image)
+    }
   })
 })
 
@@ -1071,6 +1141,27 @@ describe('harvestUpstreamImageReferences', () => {
     ])
   })
 
+  // 画布修法 08-A：这个函数此前直读 characterName/backgroundName（本文件私有
+  // 的 readCharacterName/readBackgroundName），不过共享解析器的机器值守卫。
+  // 「选已有图」写入口把上传备注常量当名字写进这两个字段时，送进模型的镜头
+  // 图例会原样带上那串机器备注。改走 resolveNodeDisplayName 之后必须回落 undefined。
+  it('丢掉已知上传备注机器串，不把它当图例名字送给模型', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: 'Node Studio character output',
+      }),
+      makeNode('bg', NODE_TYPE_IDS.backgroundImage, {
+        imageUrl: 'https://cdn/bg.png',
+        backgroundName: 'Node Studio image node output',
+      }),
+    ]
+    expect(harvestUpstreamImageReferences(upstream).references).toEqual([
+      { url: 'https://cdn/char.png', kind: 'character', name: undefined },
+      { url: 'https://cdn/bg.png', kind: 'background', name: undefined },
+    ])
+  })
+
   it('V-2 主图: uses the ★-starred referenceAssets image for a shot node harvest', () => {
     const upstream = [
       makeNode('char', NODE_TYPE_IDS.characterImage, {
@@ -1410,6 +1501,45 @@ describe('harvestUpstreamVideoImageReferences (§7.2⑦ 视频图例真源)', ()
       kind: 'background',
       name: undefined,
     })
+  })
+
+  // 画布修法 08-A：closeup 分支此前直读 characterName（本函数私有的通用 trim
+  // 版 readName），够不到共享解析器的机器值守卫；关键帧分支同理直读
+  // mediaLabel。「选已有图」写入口把上传备注常量当名字写进这两个字段时，
+  // 送进模型的视频图例会原样带上那串机器备注。
+  it('⚠ 回归：closeup / 关键帧丢掉已知上传备注机器串，退回 undefined/autoName', () => {
+    const nodes = [
+      makeNode('cu1', NODE_TYPE_IDS.image, {
+        role: NODE_IMAGE_ROLE_IDS.closeup,
+        mediaUrl: 'https://cdn/cu.png',
+        characterName: 'Node Studio character output',
+      }),
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: '剑修',
+      }),
+      makeNode('frame1', NODE_TYPE_IDS.frameImage, {
+        mediaUrl: 'https://cdn/frame.png',
+        mediaLabel: 'Node Studio image node output',
+        imageCategory: 'frameStart',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      makeEdge('e-cu', 'cu1', 'char1'),
+      makeEdge('e-char', 'char1', 'video1'),
+      makeEdge('e-frame', 'frame1', 'video1'),
+    ]
+    const map = harvestUpstreamVideoImageReferences('video1', edges, nodes)
+    expect(map.get('https://cdn/cu.png')).toEqual({
+      kind: 'closeup',
+      name: undefined,
+    })
+    // 关键帧没有专有身份字段，未命名时退回 `${category}${ordinal}`——不是机
+    // 器串本身，也不是空字符串。
+    expect(map.get('https://cdn/frame.png')?.name).not.toBe(
+      'Node Studio image node output',
+    )
   })
 
   it('R3-6 出场组: expands a collector to primary + onStage extras, category-labeled when resolvable', () => {
@@ -2082,6 +2212,30 @@ describe('harvestUpstreamAudioBindings', () => {
         nodeId: 'voiceA',
         characterName: 'Alice',
       },
+    ])
+  })
+
+  // 画布修法 08-A：这里此前用本文件私有的 readCharacterName（characterName
+  // || character.name 优先链，不带机器值守卫）取角色名。「选已有图」写入口
+  // 把上传备注常量当名字写进 characterName 时，角色绑定的 @AudioN 槽会把
+  // 机器串当角色名显示。改走共享解析器后 characterName 字段整个不出现
+  // （undefined 不参与 spread，与"从没起过名"的角色同一种形状）。
+  it('丢掉已知上传备注机器串，不把它当角色名附到音频绑定上', () => {
+    const nodes = [
+      makeNode('voiceA', NODE_TYPE_IDS.voice, {
+        voiceClipUrl: 'https://cdn/voice-a.mp3',
+      }),
+      makeNode('charA', NODE_TYPE_IDS.characterImage, {
+        characterName: 'Node Studio character output',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      makeEdge('e1', 'voiceA', 'charA'),
+      makeEdge('e2', 'charA', 'seedance'),
+    ]
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      { url: 'https://cdn/voice-a.mp3', nodeId: 'voiceA' },
     ])
   })
 

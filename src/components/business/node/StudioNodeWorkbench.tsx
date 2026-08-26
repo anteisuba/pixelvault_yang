@@ -4831,7 +4831,8 @@ function StudioNodeCanvas() {
             />
             {/* canvas-generate-composer.md：画布级共享组件，挂载一次——同
                 VideoMergeComposeToolbar 的手法，自己内部用 NodeToolbar(nodeId)
-                贴宿主卡下方，或在无宿主（画布空白双击）时浮在固定屏幕坐标。 */}
+                贴宿主卡右侧（《画布修法》02 节刀 1，与视频侧车同款位置几何），
+                或在无宿主（画布空白双击）时浮在固定屏幕坐标。 */}
             <GenerateComposer />
           </ReactFlow>
           {workflow.nodes.length === 0 && (

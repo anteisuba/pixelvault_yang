@@ -1,21 +1,31 @@
 'use client'
 
-import Image from 'next/image'
-import { useEffect, useMemo, useState } from 'react'
-import { useEdges, useNodes, useUpdateNodeInternals } from '@xyflow/react'
-import { Grid2x2, Mic2, UserRound } from 'lucide-react'
+import { useMemo } from 'react'
+import { useEdges, useNodes } from '@xyflow/react'
+import { Grid2x2, Mic2, Mountain, UserRound } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import {
+  NODE_REVIEW_STATE_IDS,
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import {
+  countPulseInitial,
+  countPulseTransition,
+  useCountPulse,
+} from '@/hooks/node/use-count-pulse'
 import {
   getNodePrimaryMediaUrl,
   getUpstreamNodes,
   isVoiceProfileNode,
 } from '@/lib/node-workflow-graph'
-import { buildDisplayNamePatch } from '@/lib/node-display-name'
+import {
+  buildDisplayNamePatch,
+  resolveNodeDisplayName,
+} from '@/lib/node-display-name'
+import { resolveMediaReviewState } from '@/lib/node-media-review'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
@@ -31,35 +41,23 @@ interface IdentityCollectorCardProps {
   selected?: boolean
 }
 
-const IDENTITY_CARD_SIZE = {
-  minWidth: 240,
-  maxWidth: 480,
-  referenceHeight: 240,
-} as const
-
-function computeIdentityCardSize(aspectRatio: number) {
-  const naturalWidth = IDENTITY_CARD_SIZE.referenceHeight * aspectRatio
-  const width = Math.min(
-    IDENTITY_CARD_SIZE.maxWidth,
-    Math.max(IDENTITY_CARD_SIZE.minWidth, naturalWidth),
-  )
-  return {
-    width: Math.round(width),
-    height: Math.round(width / aspectRatio),
-  }
-}
-
+/**
+ * 画布修法 08-A：原实现按 legacyType 分支手抄了一份优先链，绕开了读侧的
+ * 机器值守卫——「选已有图」写入口把上传备注常量当名字写进 characterName/
+ * backgroundName 时，这张身份卡的头会照单展示。两个 legacyType 各自只有一个
+ * 专属身份字段，与共享解析器的优先链结果一致，改走它。
+ */
 function getName(
   legacyType: NodeWorkflowNodeType,
   data: NodeWorkflowNode['data'],
 ) {
-  if (legacyType === NODE_TYPE_IDS.characterImage) {
-    return data.characterName?.trim() || data.character?.name?.trim()
+  if (
+    legacyType !== NODE_TYPE_IDS.characterImage &&
+    legacyType !== NODE_TYPE_IDS.backgroundImage
+  ) {
+    return undefined
   }
-  if (legacyType === NODE_TYPE_IDS.backgroundImage) {
-    return data.backgroundName?.trim()
-  }
-  return undefined
+  return resolveNodeDisplayName(data)
 }
 
 /** S4 write side for the on-card rename (canvas-image-card.md §1), mirroring
@@ -83,17 +81,28 @@ function commitName(
 }
 
 /**
- * S4（2026-07-27，canvas-identity-card.md）整卡重写。§0 域定义拍板「身份卡 =
- * 角色的分类锚点」——它不再是图集浏览器：图集网格（缩略图 + 主图星标）整体
- * 删除，换成「▦ N」纯计数 chip。旧 `fusedIntoNodeId` 隐藏通路已经退役；
- * `referenceAssets` 暂时保留为兼容数据，等待多归属模型单独落地。
+ * 画布修法 05 节（2026-08-26）「名片脸」整卡重写，取代 S4
+ * （2026-07-27，canvas-image-card.md）那版「代表图铺满 + 压图玻璃条」。
+ * 诊断原文：「长得像照片，谁都会认错」——用户把它当成又一张散图，混进
+ * 「照片就是照片」那条规矩管辖的族群。改法是把它彻底摆成**名片**：左侧
+ * 84×84 定妆照缩略（不再铺满整卡），右侧库存行（▦N + 音色状态横排，不再
+ * 压在图上）——固定 240×84，与声音卡同一个几何（canvas.css「声音卡 / 身份
+ * 卡共用：固定宽 240」那条注释，本轮起两族连高度也共用）。
  *
- * §6 明确本轮不做的事，都没做：数据模型改造（打标签/多归属）、上方近场
- * 工具条、展开态管理模态——那些是切片 v2，owner 还没确认。
+ * 空态与有内容态**同构**：两栏结构不变，左栏换成族图标（角色=人形、
+ * 场景=山形，不再共用一个人形），右栏换成提示文案——「占几何不占内容」，
+ * 不再是另一套居中铺满的版式（VoiceNode 的空态即是这个模式的先例）。
  *
- * 成分栏（NodeShell.Ingredients，画上游连线摘要）也一并去掉：新域定义下
- * 「找得到」不等于「用连线表达」（§5 已拍板不画边），卡上只留§1 定的四件
- * 信息，成分栏摘要的是图连线关系，跟这四件事是两回事。
+ * 卡片尺寸从「按图比例算 240–480」改成固定值之后，不再需要
+ * `useUpdateNodeInternals`：那是 `LooseImageCard` 的模式，因为它的尺寸在
+ * 挂载后会随图片 onLoad 实测异步改变；这里两态共享同一个 CSS 固定尺寸，
+ * 从首次渲染起就不会再变，和同一家族的 `VoiceNode`（同样固定 240×84）
+ * 一样零消费这个 hook。
+ *
+ * S4 时代整卡重写的注释一并归档：图集网格早已删除换成「▦ N」纯计数 chip；
+ * 旧 `fusedIntoNodeId` 隐藏通路已退役；`referenceAssets` 仍是兼容数据，
+ * 等待多归属模型单独落地；成分栏（`NodeShell.Ingredients`）已在刀 2 整体
+ * 删除，与本轮无关。
  */
 export function IdentityCollectorCard({
   id,
@@ -105,18 +114,15 @@ export function IdentityCollectorCard({
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
   const { updateNodeData } = useNodeWorkflowActions()
-  const updateNodeInternals = useUpdateNodeInternals()
-  const [naturalSize, setNaturalSize] = useState<{
-    url: string
-    width: number
-    height: number
-  } | null>(null)
+  const reducedMotion = useReducedMotion()
   const name = getName(legacyType, data)
   const referenceAssets = useMemo(
     () => data.referenceAssets ?? [],
     [data.referenceAssets],
   )
 
+  // ⛔ 不可变契约 2（packet-3-identity.md）：这条取数逻辑不动——🎙 由上游音色
+  // 边推出，不是身份卡自己的字段。
   const hasVoice = useMemo(() => {
     if (legacyType !== NODE_TYPE_IDS.characterImage) return false
     return getUpstreamNodes(id, edges, nodes).some(isVoiceProfileNode)
@@ -125,6 +131,7 @@ export function IdentityCollectorCard({
   // 图集（referenceAssets）是收集器卡图片的唯一事实源；mediaUrl 只是它的封面，
   // 通常就是图集里某张图的另一个 url 串。以图集为准去重，mediaUrl 仅在图集
   // 为空时兜底（迁移前老卡只在 mediaUrl 存单图）。
+  // ⛔ 不可变契约 2：▦ N 读 referenceAssets——这条取数逻辑不动。
   const galleryUrls = useMemo(() => {
     const fromAssets = [
       ...new Set(
@@ -141,33 +148,37 @@ export function IdentityCollectorCard({
   const nodeCount = galleryUrls.length
   const representativeUrl = getNodePrimaryMediaUrl(data) || galleryUrls[0]
   const isEmpty = !representativeUrl
-  const mediaWidth =
-    typeof data.mediaWidth === 'number' && data.mediaWidth > 0
-      ? data.mediaWidth
-      : naturalSize && naturalSize.url === representativeUrl
-        ? naturalSize.width
-        : null
-  const mediaHeight =
-    typeof data.mediaHeight === 'number' && data.mediaHeight > 0
-      ? data.mediaHeight
-      : naturalSize && naturalSize.url === representativeUrl
-        ? naturalSize.height
-        : null
-  const cardSize =
-    mediaWidth && mediaHeight
-      ? computeIdentityCardSize(mediaWidth / mediaHeight)
-      : null
+  // C · 计数回执（packet-3-identity.md）：▦N 在数值增加时播放一次轻脉冲。
+  const pulseKey = useCountPulse(nodeCount)
 
-  useEffect(() => {
-    updateNodeInternals(id)
-  }, [cardSize?.height, cardSize?.width, id, updateNodeInternals])
+  /**
+   * 画布修法 08-B 核验发现的缺口：`LooseImageCard`（散图/镜头图/特写）包 4
+   * 就已经把审核态接进卡边色，这张身份卡（角色/场景）当时漏接——封面图待审
+   * / 被打回时卡面完全没有标记，用户只能等生成那一刻的 toast。
+   *
+   * 补法与 `LooseImageCard` 同一套：查代表图（卡面实际显示的那张）的审核
+   * 状态，映射成 `NodeShell` 既有的 `data-status` 通用规则吃的两个字面量
+   * ——不新造视觉，canvas.css 里 `.canvas-card[data-status='awaiting-review'/
+   * 'rejected']` 的描边规则已经在，只是这张卡此前没喂给它。
+   */
+  const reviewState = resolveMediaReviewState(data, representativeUrl)
+  const cardStatus =
+    reviewState === NODE_REVIEW_STATE_IDS.awaitingReview
+      ? 'awaiting-review'
+      : reviewState === NODE_REVIEW_STATE_IDS.rejected
+        ? 'rejected'
+        : data.status
+
+  // B · 空态分家：角色空态人形、场景空态山形——不再共用一个 UserRound。
+  const EmptyIcon =
+    legacyType === NODE_TYPE_IDS.backgroundImage ? Mountain : UserRound
 
   return (
     <NodeShell
       nodeId={id}
       type={legacyType}
       selected={selected}
-      status={data.status}
+      status={cardStatus}
       toolbarData={data}
       isCollector
       /**
@@ -185,7 +196,6 @@ export function IdentityCollectorCard({
         'canvas-card--w-fixed canvas-identity-card',
         isEmpty && 'canvas-card--dashed',
       )}
-      style={cardSize ?? undefined}
     >
       <NodeShell.Header
         type={legacyType}
@@ -202,61 +212,67 @@ export function IdentityCollectorCard({
         isCollector
       />
 
-      <div className="canvas-identity-media">
-        {representativeUrl ? (
-          <Image
-            src={representativeUrl}
-            alt=""
-            fill
-            sizes="240px"
-            className="object-contain"
-            unoptimized
-            draggable={false}
-            onLoad={(event) => {
-              const image = event.currentTarget
-              if (
-                !representativeUrl ||
-                !image.naturalWidth ||
-                !image.naturalHeight
-              ) {
-                return
-              }
-              setNaturalSize({
-                url: representativeUrl,
-                width: image.naturalWidth,
-                height: image.naturalHeight,
-              })
-            }}
-          />
-        ) : (
-          <div className="canvas-identity-empty">
-            <UserRound className="size-8" aria-hidden />
-            <p>{t('identityEmptyHint')}</p>
-          </div>
-        )}
-
-        {!isEmpty ? (
-          <div className="canvas-identity-bar">
-            <span
-              className="canvas-identity-chip"
-              aria-label={t('nodeCountAria', { count: nodeCount })}
-              title={t('nodeCountAria', { count: nodeCount })}
+      {/* 名片脸：左侧定妆照缩略 + 右侧库存行，与 VoiceNode 同一个「封面 + 正文」
+          结构（canvas.css 里的「声音卡 / 身份卡共用：固定宽 240」延伸到这里连
+          高度也共用）。 */}
+      <div className="flex overflow-hidden rounded-[inherit]">
+        <div className="canvas-identity-cover">
+          {representativeUrl ? (
+            // 定妆照来自 R2/生成结果，不吃 next/image 的静态 host 契约——同
+            // VoiceNode / CastCard 的 raw-img 惯例（原 next/image 早已带
+            // unoptimized，本来就没有真做优化）。
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={representativeUrl}
+              alt=""
+              className="size-full object-cover"
+              draggable={false}
+            />
+          ) : (
+            <div
+              className="flex size-full items-center justify-center"
+              style={{
+                background: 'var(--canvas-fill-control)',
+                color: 'var(--canvas-ink-muted)',
+              }}
             >
-              <Grid2x2 className="size-3" aria-hidden />
-              {nodeCount}
-            </span>
-            {hasVoice ? (
-              <span className="canvas-identity-chip canvas-identity-chip--voice">
-                <Mic2 className="size-3" aria-hidden />
-                {t('voiceSection')}
-              </span>
-            ) : (
-              <span className="canvas-identity-chip canvas-identity-chip--muted">
-                {t('noVoice')}
-              </span>
-            )}
-          </div>
-        ) : null}
+              <EmptyIcon className="size-6" aria-hidden />
+            </div>
+          )}
+        </div>
+
+        <div className="canvas-identity-body">
+          {isEmpty ? (
+            <p className="canvas-identity-empty-hint">
+              {t('identityEmptyHint')}
+            </p>
+          ) : (
+            <>
+              <motion.span
+                key={pulseKey}
+                initial={countPulseInitial(pulseKey)}
+                animate={{ scale: 1 }}
+                transition={countPulseTransition(reducedMotion)}
+                className="canvas-identity-chip"
+                aria-label={t('nodeCountAria', { count: nodeCount })}
+                title={t('nodeCountAria', { count: nodeCount })}
+              >
+                <Grid2x2 className="size-3" aria-hidden />
+                {nodeCount}
+              </motion.span>
+              {hasVoice ? (
+                <span className="canvas-identity-chip canvas-identity-chip--voice">
+                  <Mic2 className="size-3" aria-hidden />
+                  {t('voiceSection')}
+                </span>
+              ) : (
+                <span className="canvas-identity-chip canvas-identity-chip--muted">
+                  {t('noVoice')}
+                </span>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </NodeShell>
   )

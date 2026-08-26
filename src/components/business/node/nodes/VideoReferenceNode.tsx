@@ -24,6 +24,7 @@ import {
 } from '@/constants/node-studio'
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { useReferenceVideoUpload } from '@/hooks/node/use-reference-video-upload'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
@@ -69,14 +70,14 @@ export const VideoReferenceNode = memo(function VideoReferenceNode(
     typeof data.videoThumbnailUrl === 'string'
       ? data.videoThumbnailUrl
       : undefined
-  // S5（2026-07-27，canvas-image-card.md §三）：卡外原地可编辑名字，同
-  // LooseImageCard 的 rawLabel 写法——mediaLabel 优先，sourceLabel 兜底
-  // （两者是同一件事的老搭档，见下面 onCommit 的写入侧）。owner 真机确认过
-  // 这张卡（videoReference）之前 0/1，没有任何改名入口。
-  const rawLabel =
-    (typeof data.mediaLabel === 'string' && data.mediaLabel.trim()) ||
-    (typeof data.sourceLabel === 'string' && data.sourceLabel.trim()) ||
-    ''
+  // S5（2026-07-27，canvas-image-card.md §三）：卡外原地可编辑名字。owner 真机
+  // 确认过这张卡（videoReference）之前 0/1，没有任何改名入口。
+  // 画布修法 08-A：改用共享显示名链，同 LooseImageCard 包 4.5 那次升级
+  // ——直接读 mediaLabel/sourceLabel 绕开了机器值守卫，「选已有图」写入口
+  // 把上传备注常量当名字写进这两个字段时，输入框会把机器串当成可编辑的
+  // rawLabel 摆出来，一次原样回车就存成真名字。仍然保持 raw（无兜底）：
+  // `EditableNodeLabel` 拿到兜底文案后同样会把它存成真名字。
+  const rawLabel = resolveNodeDisplayName(data) ?? ''
 
   const frameWidth = width ?? NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE
   const frameHeight = height ?? NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE

@@ -14,6 +14,7 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 
 import { NODE_STUDIO_INGEST_REJECT_REASON_IDS } from '@/constants/node-studio'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import { isVoiceProfileNode } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
 import {
@@ -106,21 +107,12 @@ interface MouthPreviewState {
   overLimit: boolean
 }
 
-/** Card display name for the preview header — mirrors CastCard.getCastCardName's
- *  field precedence but without needing the sectionId (the drag already knows
- *  the source node; this derives a human label from whichever identity field is
- *  set). */
+/** Card display name for the preview header — single source of truth is
+ *  `resolveNodeDisplayName`（画布修法 08-A：这里此前手抄了一份不带机器值
+ *  守卫的优先链，「选已有图」写入口把上传备注常量当名字写进节点字段时，
+ *  张口预览/快投提示会照单读出）。 */
 function deriveSourceName(node: NodeWorkflowNode): string | undefined {
-  const pick = (value: unknown): string | undefined =>
-    typeof value === 'string' && value.trim() ? value.trim() : undefined
-  return (
-    pick(node.data.characterName) ||
-    pick(node.data.character?.name) ||
-    pick(node.data.backgroundName) ||
-    pick(node.data.voiceName) ||
-    pick(node.data.mediaLabel) ||
-    undefined
-  )
+  return resolveNodeDisplayName(node.data)
 }
 
 export function IngestDragProvider({

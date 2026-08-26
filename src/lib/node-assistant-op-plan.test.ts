@@ -403,6 +403,24 @@ describe('planNodeAssistantOps · 触发生成', () => {
     }
   })
 
+  it('video 节点不因身份卡/text 闸被拒 —— 落到 noModel 而不是 notGeneratable（《画布修法》02 节刀 1 行为锁）', () => {
+    // ⚠ 这条锁的是共享判据 `resolveGenerateTargetKind` 收拢
+    // `inferComposerHost` 与本文件生成闸之后，两处唯一还合法保留的差异：
+    // 画布生成框（GenerateComposer）只认 image/audio，video 留给组装台；但
+    // 助手这条 `generate` op 链路本来就放行 video，收敛时绝不能把这条也
+    // 一并收紧——没选模型时应该看到 noModel，不是 notGeneratable。
+    const seedance = makeNode('v1', NODE_TYPE_IDS.seedance)
+    const plan = planOps(
+      batch({ op: 'generate', target: 'v1' }),
+      [seedance],
+      [],
+    )
+    expect(plan.ops[0]).toMatchObject({
+      status: 'rejected',
+      reason: NODE_ASSISTANT_OP_REJECT_REASON_IDS.noModel,
+    })
+  })
+
   it('没选模型 → noModel（与人手点生成时的拦法一致）', () => {
     const shot = makeNode('shot-1', NODE_TYPE_IDS.image, {
       role: NODE_IMAGE_ROLE_IDS.shot,

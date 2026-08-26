@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useDownstreamUses } from '@/hooks/node/use-downstream-uses'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import { getSeedanceReferenceKind } from '@/lib/node-workflow-graph'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
@@ -56,16 +57,12 @@ export function ShotDetailBody({
       if (!source) continue
       const kind = getSeedanceReferenceKind(source)
       if (kind !== 'character' && kind !== 'background') continue
-      const rawName =
-        kind === 'character'
-          ? (typeof source.data.characterName === 'string' &&
-              source.data.characterName.trim()) ||
-            source.data.character?.name?.trim() ||
-            ''
-          : typeof source.data.backgroundName === 'string'
-            ? source.data.backgroundName.trim()
-            : ''
-      refs.push({ edgeId: edge.id, kind, name: rawName || null })
+      // 画布修法 08-A：直接读 characterName/backgroundName 绕开了机器值
+      // 守卫——点这颗 chip 名字会把它插进 prompt，机器串一旦被插入生成
+      // 提示词后果比"只是显示"更重。改走共享解析器（character/background
+      // 各自只有一个专属身份字段，与按 kind 分支的原结果一致）。
+      const rawName = resolveNodeDisplayName(source.data)
+      refs.push({ edgeId: edge.id, kind, name: rawName ?? null })
     }
     return refs
   }, [allNodes, edges, nodeId])

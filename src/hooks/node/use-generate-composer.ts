@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { XYPosition } from '@xyflow/react'
 
-import {
-  NODE_MEDIA_KIND_BY_NODE_TYPE,
-  NODE_MEDIA_KIND_IDS,
-} from '@/constants/node-types'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
   NODE_STUDIO_GENERATE_COMPOSER,
   NODE_STUDIO_NODE_PLACEMENT,
@@ -17,7 +14,8 @@ import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
 import { useNodeWorkflowActions } from '@/components/business/node/NodeWorkflowActionsContext'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { pushComposerHistory } from '@/lib/generate-composer-history'
-import { isIdentityCardNode } from '@/lib/node-workflow-graph'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
+import { resolveGenerateTargetKind } from '@/lib/node-workflow-graph'
 import type { GenerationRecord } from '@/types'
 import type {
   NodeWorkflowModelSelection,
@@ -27,6 +25,31 @@ import type {
 /** The two modes this round wires — video stays on 组装台, text has no home
  *  (canvas-generate-composer.md §3). */
 export type GenerateComposerMode = 'image' | 'audio'
+
+/** §4/《画布修法》02 节刀 1「按物种说话」—— i18n key，不是翻译好的文本，组件
+ *  仍要自己调 `t()`（`StudioNode.generateComposer.*`）。
+ *
+ *  这是 placeholder / aria-label 按 `(mode, hasMedia)` 取值的**唯一闸门**：
+ *  旧实现里 `GenerateComposer.tsx` 只读 `hasMedia`（`isEditing ? …editing :
+ *  …empty`），从不读 `mode` —— 空音色卡（mode='audio'）落进图片的空态文案
+ *  「描述你想生成的画面…」；`MentionInput` 的 `aria-label` 更是硬编码成
+ *  `t('placeholderEmpty')`，连 `hasMedia` 都不看。两处调用方现在都读这一个
+ *  函数的返回值，杜绝再出现「只读一维」。 */
+export type ComposerPlaceholderKey =
+  | 'placeholderEmpty'
+  | 'placeholderEditing'
+  | 'placeholderEmptyAudio'
+  | 'placeholderEditingAudio'
+
+export function resolveComposerPlaceholderKey(
+  mode: GenerateComposerMode,
+  hasMedia: boolean,
+): ComposerPlaceholderKey {
+  if (mode === 'audio') {
+    return hasMedia ? 'placeholderEditingAudio' : 'placeholderEmptyAudio'
+  }
+  return hasMedia ? 'placeholderEditing' : 'placeholderEmpty'
+}
 
 export type ImageResolutionTier =
   (typeof NODE_STUDIO_GENERATE_COMPOSER.imageResolutionTiers)[number]
@@ -94,18 +117,17 @@ export interface GenerateComposerSendInput {
 }
 
 /** §7.5 宿主推断: selected node → which family, which state. Pure so it's
- *  independently testable without mounting React Flow. */
+ *  independently testable without mounting React Flow.
+ *
+ *  卡片（角色卡 / 背景卡）判据与「只认 image/audio、视频留给组装台」的收窄
+ *  现在都经 `resolveGenerateTargetKind`（node-workflow-graph.ts）——与
+ *  `node-assistant-op-plan.ts` 的 `generate` op 共用同一处地基，见该函数的
+ *  文档注释（《画布修法》02 节刀 1）。 */
 export function inferComposerHost(
   node: NodeWorkflowNode | null,
 ): ComposerHost | null {
   if (!node) return null
-  // ⚠ 卡片（角色卡 / 背景卡）**不是生成宿主**。它是身份档案夹：收集同一个主体的图，
-  // 自己不产图 —— 要出图就落在图片节点上，卡片只负责引用（owner 2026-08-08）。
-  //
-  // 这里原先只按**媒体种类**设闸，而卡片的 kind 恰好也是 `image`，于是生成框直接挂
-  // 到了角色卡上。判据必须是 role，不是 kind —— 那个维度天然分不出卡片和图。
-  if (isIdentityCardNode(node)) return null
-  const kind = NODE_MEDIA_KIND_BY_NODE_TYPE[node.type]
+  const kind = resolveGenerateTargetKind(node)
   if (
     kind !== NODE_MEDIA_KIND_IDS.image &&
     kind !== NODE_MEDIA_KIND_IDS.audio
@@ -116,9 +138,10 @@ export function inferComposerHost(
     typeof node.data.mediaUrl === 'string' && node.data.mediaUrl.trim()
       ? node.data.mediaUrl
       : undefined
-  const mediaLabel =
-    (typeof node.data.mediaLabel === 'string' && node.data.mediaLabel.trim()) ||
-    undefined
+  // 画布修法 08-A：直接读 node.data.mediaLabel 绕开了机器值守卫，改走共享
+  // 解析器（同批 ImageNode/ImageSourceStarter/SeedanceNode 那次台账 B7(b)
+  // 修的是同一类问题，这里当时漏了）。
+  const mediaLabel = resolveNodeDisplayName(node.data)
   return {
     nodeId: node.id,
     mode: kind,

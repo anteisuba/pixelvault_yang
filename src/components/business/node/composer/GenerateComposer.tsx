@@ -27,8 +27,12 @@ import {
 } from '@/components/ui/popover'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import type { AspectRatio } from '@/constants/config'
-import { NODE_STUDIO_GENERATE_COMPOSER } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_GENERATE_COMPOSER,
+  NODE_STUDIO_NODE_SIDECAR_OFFSET,
+} from '@/constants/node-studio'
 import { NODE_TYPE_IDS } from '@/constants/node-types'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { focusUnlessTouch } from '@/lib/touch'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
@@ -55,6 +59,7 @@ import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { isRunnableModelOption } from '@/hooks/use-split-model-options'
 import {
   useGenerateComposer,
+  resolveComposerPlaceholderKey,
   type ComposerReferenceSlot,
   type GenerateComposerMode,
   type ImageResolutionTier,
@@ -312,10 +317,16 @@ function ComposerCore({ composer }: ComposerCoreProps) {
     focusUnlessTouch(el)
   }, [composer.focusToken])
 
-  const isEditing = Boolean(composer.host?.hasMedia)
-  const placeholder = isEditing
-    ? t('placeholderEditing')
-    : t('placeholderEmpty')
+  // §4/《画布修法》02 节刀 1「按物种说话」——placeholder 与 aria-label 必须按
+  // (mode, hasMedia) 两维取值，不能只读 hasMedia 一维（旧 bug：空音色卡落进
+  // 图片的空态文案「描述你想生成的画面…」）。`composer.mode` 在这个组件树里
+  // 恒非空——`GenerateComposer()` 只在 mode 已确定（挂了宿主，或空白唤起已选
+  // 过模式）时才渲染 `ComposerCore`；`?? 'image'` 只是给 TS 一个兜底，运行期
+  // 不会取到。
+  const hasMedia = Boolean(composer.host?.hasMedia)
+  const placeholder = t(
+    resolveComposerPlaceholderKey(composer.mode ?? 'image', hasMedia),
+  )
 
   const modelOptions =
     composer.mode === 'image'
@@ -462,7 +473,7 @@ function ComposerCore({ composer }: ComposerCoreProps) {
           tokens={[]}
           mentionCandidates={mentionCandidates}
           onMentionSelect={handleMentionSelect}
-          aria-label={t('placeholderEmpty')}
+          aria-label={placeholder}
           placeholder={placeholder}
           {...KEY_GUARD}
           className="canvas-composer-input"
@@ -641,15 +652,19 @@ function ModePicker({
  * 画布 · 生成提示词框（docs/references/pages/canvas-generate-composer.md）。
  * 画布级共享组件，挂载一次——host 完全由当前单选节点推出，见
  * `useGenerateComposer`。渲染分两条腿：
- *   - 有宿主（图片/声音卡）：贴宿主卡下方的 `NodeToolbar`（Position.Bottom），
- *     自动跟随该节点的位置/缩放/平移，与 `VideoMergeComposeToolbar` 同一手法
- *     ——不需要把这个组件塞进每张卡自己的渲染树。
- *   - 无宿主（画布空白处双击唤起）：固定屏幕坐标的浮层，出现模式二选一。
+ *   - 有宿主（图片/声音卡）：贴宿主卡**右侧**的 `NodeToolbar`
+ *     （`Position.Right` `align="start"`），自动跟随该节点的位置/缩放/平移
+ *     ——与视频侧车（`SeedanceNode`）同款位置几何，offset 共读
+ *     `NODE_STUDIO_NODE_SIDECAR_OFFSET`（《画布修法》02 节刀 1，
+ *     2026-08-26 取代此前「贴下方」，见 canvas-generate-composer.md §1）。
+ *   - 无宿主（画布空白处双击唤起）：固定屏幕坐标的浮层，出现模式二选一，
+ *     这条腿不受本次改动影响。
  */
 export function GenerateComposer() {
   const composer = useGenerateComposer()
   const { screenToFlowPosition } = useReactFlow()
   const rootRef = useRef<HTMLDivElement>(null)
+  const isMobile = useIsMobile()
 
   // 画布空白处唤起 —— 双击空白处（非节点/边/控件）打开，位置钉在点击点。
   // 只在 canvasRef 之外用一个独立的 document 级监听，不改
@@ -731,13 +746,20 @@ export function GenerateComposer() {
       <NodeToolbar
         nodeId={composer.host.nodeId}
         isVisible={composer.visibility === 'attached'}
-        position={Position.Bottom}
-        // 与宿主卡的垂直间距 2026-07-27 owner 真机反馈二轮修订：14→8px
-        // （canvas-generate-composer.md §1「尺寸与间距」——间距大到读不出
-        // "贴"宿主卡下方的归属关系，看起来像另一个独立浮层）。
-        offset={8}
+        position={Position.Right}
+        align="start"
+        // 《画布修法》02 节刀 1（2026-08-26）：位置从贴下方改成右侧侧车，与
+        // `SeedanceNode` 的视频侧车同款几何——offset 共读同一个常量，不各写
+        // 一份数字。这个 offset 是 owner 在视频侧车上多轮真机验证过的
+        // 「不盖宿主卡自己的出端口/出边起点」的值，生成框复用它即视为达标
+        // （canvas-generate-composer.md §1）。
+        offset={
+          isMobile
+            ? NODE_STUDIO_NODE_SIDECAR_OFFSET.mobile
+            : NODE_STUDIO_NODE_SIDECAR_OFFSET.desktop
+        }
       >
-        <CanvasPopIn side="bottom">
+        <CanvasPopIn side="right">
           <div ref={rootRef} className="canvas-composer-root">
             {body}
           </div>

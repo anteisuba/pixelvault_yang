@@ -271,10 +271,9 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       if (voiceNodes.length === 0) return undefined
       const chosen =
         voiceNodes.find(({ node }) => readVoiceUrl(node)) ?? voiceNodes[0]
-      const voiceName =
-        typeof chosen.node.data.voiceName === 'string'
-          ? chosen.node.data.voiceName.trim()
-          : ''
+      // 画布修法 08-A：走全仓唯一那个解析器，不再自己读 voiceName —— 同批
+      // 已修的角色/背景/镜头 token 那一支旁边，这一支当时漏改。
+      const voiceName = resolveNodeDisplayName(chosen.node.data) ?? ''
       return {
         nodeId: chosen.node.id,
         label: voiceName,
@@ -378,10 +377,8 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
           const closeupSlot = closeupUrl
             ? payloadImageUrls.indexOf(closeupUrl)
             : -1
-          const closeupNameField =
-            typeof upstream.data.characterName === 'string'
-              ? upstream.data.characterName.trim()
-              : ''
+          // 画布修法 08-A：走全仓唯一那个解析器，不再自己读 characterName。
+          const closeupNameField = resolveNodeDisplayName(upstream.data) ?? ''
           const closeupName =
             closeupNameField ||
             (closeupSlot >= 0 ? autoName('closeup', closeupSlot) : '')
@@ -422,10 +419,10 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       const voiceNode = binding.nodeId
         ? nodeById.get(binding.nodeId)
         : undefined
-      const voiceName =
-        voiceNode && typeof voiceNode.data.voiceName === 'string'
-          ? voiceNode.data.voiceName.trim()
-          : ''
+      // 画布修法 08-A：走全仓唯一那个解析器，不再自己读 voiceName。
+      const voiceName = voiceNode
+        ? (resolveNodeDisplayName(voiceNode.data) ?? '')
+        : ''
       tokens.push({
         id: binding.nodeId ?? `audio-${index}`,
         kind: 'voice',
@@ -455,10 +452,8 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
     for (const node of incoming) {
       if (!isVoiceProfileNode(node)) continue
       if (readVoiceUrl(node)) continue
-      const voiceName =
-        typeof node.data.voiceName === 'string'
-          ? node.data.voiceName.trim()
-          : ''
+      // 画布修法 08-A：走全仓唯一那个解析器，不再自己读 voiceName。
+      const voiceName = resolveNodeDisplayName(node.data) ?? ''
       tokens.push({
         id: node.id,
         kind: 'voice',

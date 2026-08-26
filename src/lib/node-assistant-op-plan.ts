@@ -44,11 +44,7 @@ import {
   resolveReferenceAssetLimit,
   type NodeStudioIngestRejectReason,
 } from '@/constants/node-studio'
-import {
-  NODE_MEDIA_KIND_BY_NODE_TYPE,
-  NODE_MEDIA_KIND_IDS,
-  NODE_STATUS_IDS,
-} from '@/constants/node-types'
+import { NODE_STATUS_IDS } from '@/constants/node-types'
 import {
   getVideoModelParameterOptions,
   getVideoModelSendContract,
@@ -69,7 +65,7 @@ import {
 import {
   getNodeMediaUrl,
   getNodePrimaryMediaUrl,
-  isIdentityCardNode,
+  resolveGenerateTargetKind,
 } from '@/lib/node-workflow-graph'
 import { evaluateCastIngest } from '@/hooks/node/use-cast-ingest'
 import { isRunnableModelOption } from '@/hooks/use-split-model-options'
@@ -821,19 +817,13 @@ export function planNodeAssistantOps(
         const targetNode = simulatedNodes.find(
           (node) => node.id === target.nodeId,
         )
-        const kind = targetNode
-          ? NODE_MEDIA_KIND_BY_NODE_TYPE[targetNode.type]
-          : undefined
-        // ⚠ 卡片（角色卡 / 背景卡）**不是生成目标**：它是身份档案夹，收集同一个主体
+        // 卡片（角色卡 / 背景卡）不是生成目标：它是身份档案夹，收集同一个主体
         // 的图，自己不产图。助手要出图就落在图片节点上，卡片只负责引用
-        // （owner 2026-08-08）。与 `inferComposerHost` 的卡片闸门同一条判据 ——
-        // 卡片的 media kind 也是 image，只按 kind 判会让助手把结果写进卡片。
-        if (
-          !targetNode ||
-          !kind ||
-          kind === NODE_MEDIA_KIND_IDS.text ||
-          isIdentityCardNode(targetNode)
-        ) {
+        // （owner 2026-08-08）。《画布修法》02 节刀 1：这条判据与
+        // `inferComposerHost` 的卡片闸门共用同一处地基
+        // （`resolveGenerateTargetKind`）——此前两处各自手写，注释互称同源，
+        // 现在真的同源了。video 仍放行（该函数不排除它），与改前行为一致。
+        if (!targetNode || !resolveGenerateTargetKind(targetNode)) {
           planned.push({
             index,
             op,

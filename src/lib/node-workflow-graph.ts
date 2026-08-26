@@ -12,6 +12,7 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
   type NodeReviewState,
+  type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
 import type {
   NodeWorkflowEdge,
@@ -165,6 +166,29 @@ export function isIdentityCardNode(node: {
     node.data.role === NODE_IMAGE_ROLE_IDS.character ||
     node.data.role === NODE_IMAGE_ROLE_IDS.background
   )
+}
+
+/**
+ * 「这个节点算哪种可生成媒体」的公共地基——身份卡（角色卡/背景卡，见上面
+ * `isIdentityCardNode`：自己不产图，只负责引用）与没有媒体种类 / text 节点
+ * （没有落生成结果的地方）统一收成 `undefined`，也就是「不是生成目标」。
+ *
+ * 《画布修法》02 节刀 1：`use-generate-composer.ts` 的 `inferComposerHost`
+ * 与 `node-assistant-op-plan.ts` 的 `generate` op 此前各自手写过这条判据——
+ * 两处的注释都自称「与对方同源」，现在真的同源了。调用方仍各自负责再收窄到
+ * 自己认的媒体种类子集，这条差异不收进本函数：
+ * - `inferComposerHost` 只认 image/audio（视频留在组装台，
+ *   canvas-generate-composer.md §3「视频生成 ❌ 走组装台」）
+ * - 助手的 `generate` op 额外放行 video——本函数不排除 video，
+ *   与改前行为一致（`node-assistant-op-plan.test.ts` 锁了这条）
+ */
+export function resolveGenerateTargetKind(node: {
+  type: NodeWorkflowNode['type']
+  data: NodeWorkflowNodeData
+}): NodeWorkflowMediaKind | undefined {
+  if (isIdentityCardNode(node)) return undefined
+  const kind = NODE_MEDIA_KIND_BY_NODE_TYPE[node.type]
+  return kind === NODE_MEDIA_KIND_IDS.text ? undefined : kind
 }
 
 /**
@@ -546,14 +570,6 @@ export interface UpstreamImageReference {
   category?: string
 }
 
-function readBackgroundName(node: NodeWorkflowNode): string | undefined {
-  const name =
-    typeof node.data.backgroundName === 'string'
-      ? node.data.backgroundName.trim()
-      : ''
-  return name || undefined
-}
-
 /**
  * S5d ③ / R3-6 出场组: resolve a reference asset's model-facing category label
  * — `NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS[role]`, or the user-typed
@@ -597,8 +613,12 @@ export function harvestUpstreamImageReferences(
   for (const node of upstreamNodes) {
     const kind = getSeedanceReferenceKind(node)
     if (kind !== 'character' && kind !== 'background') continue
-    const name =
-      kind === 'character' ? readCharacterName(node) : readBackgroundName(node)
+    // 画布修法 08-A：走全仓唯一那个解析器，不再自己读 characterName/
+    // backgroundName 两个字段——`harvestUpstreamVideoImageReferences`（视频
+    // 图例，同文件）2026-08-09 已经改过，这个镜头图例的姊妹函数当时漏改，
+    // 于是同一张选了机器备注当名字的图，在视频图例里显示正常、在镜头图例
+    // 里却把机器串原样递给模型。
+    const name = resolveNodeDisplayName(node.data)
     const stageUrls = getNodeStageMediaUrls(node.data)
     stageUrls.forEach((url, index) => {
       if (!url || seen.has(url)) return
@@ -789,9 +809,6 @@ export function harvestUpstreamVideoImageReferences(
   const directUpstream = getUpstreamNodes(focalNodeId, edges, nodes)
   const map = new Map<string, VideoLegendImageReference>()
 
-  const readName = (value: unknown): string | undefined =>
-    typeof value === 'string' && value.trim() ? value.trim() : undefined
-
   // SF-2b (canvas-shot-frame-fold-2026-07 §-1): keyframe/首帧 nodes used to be
   // entirely OMITTED from this map (see the old docstring — "no name/token").
   // They still carry no `@token` mention (projection-only, cast-redesign
@@ -810,8 +827,12 @@ export function harvestUpstreamVideoImageReferences(
     if (!url || map.has(url)) continue
     keyframeOrdinal += 1
     const category = resolveKeyframeLegendCategory(node, keyframeOrdinal)
+    // 画布修法 08-A：走全仓唯一那个解析器——关键帧没有专有身份字段，写侧
+    // 落的是 mediaLabel，与散图同款，因此同样吃「选已有图」写入口把上传
+    // 备注常量当名字写进去的那个 bug。
     map.set(url, {
-      name: readName(node.data.mediaLabel) ?? `${category}${keyframeOrdinal}`,
+      name:
+        resolveNodeDisplayName(node.data) ?? `${category}${keyframeOrdinal}`,
       category,
     })
   }
@@ -886,9 +907,11 @@ export function harvestUpstreamVideoImageReferences(
       if (!isCloseupNode(upstream)) continue
       const closeupUrl = getNodePrimaryMediaUrl(upstream.data)
       if (!closeupUrl || map.has(closeupUrl)) continue
+      // 画布修法 08-A：走全仓唯一那个解析器，不再直读 characterName——原来
+      // 这里是本函数一个通用 trim 版 `readName` helper，不带机器值守卫。
       map.set(closeupUrl, {
         kind: 'closeup',
-        name: readName(upstream.data.characterName),
+        name: resolveNodeDisplayName(upstream.data),
       })
     }
   }
@@ -1032,22 +1055,6 @@ export interface AudioBinding {
   sourceKind?: 'audio-clip' | 'voice-profile'
 }
 
-function readCharacterName(node: NodeWorkflowNode): string | undefined {
-  const fromData =
-    typeof node.data.characterName === 'string'
-      ? node.data.characterName.trim()
-      : ''
-  if (fromData) return fromData
-  const fromCharacter =
-    node.data.character && typeof node.data.character === 'object'
-      ? (node.data.character as { name?: unknown }).name
-      : undefined
-  if (typeof fromCharacter === 'string' && fromCharacter.trim()) {
-    return fromCharacter.trim()
-  }
-  return undefined
-}
-
 /**
  * 这个音色节点能拿出来发的那一条音频 URL。
  *
@@ -1174,7 +1181,10 @@ export function harvestUpstreamAudioBindings(
   // direct and character-routed voices reference the same URL.
   for (const node of directUpstream) {
     if (!isVisualReferenceNode(node)) continue
-    const characterName = readCharacterName(node)
+    // 画布修法 08-A：走全仓唯一那个解析器——这里此前手抄的
+    // characterName/character.name 优先链不带机器值守卫，「音色绑角色卡」
+    // 那一路的 @AudioN 槽会把上传备注常量当角色名显示。
+    const characterName = resolveNodeDisplayName(node.data)
     const characterUpstream = getUpstreamNodes(node.id, edges, nodes)
     for (const candidate of characterUpstream) {
       const url = readVoiceUrl(candidate)

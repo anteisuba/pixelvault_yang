@@ -32,7 +32,6 @@ vi.mock('./NodeShell', () => {
   Nothing.displayName = 'ShellNoop'
   const Shell = Object.assign(Pass, {
     Header: Nothing,
-    Ingredients: Nothing,
     Body: Pass,
     Footer: ({ children }: { children: React.ReactNode }) => (
       <footer data-testid="node-footer">{children}</footer>
@@ -91,9 +90,15 @@ describe('NodeMediaPreview — 文本族卡面', () => {
   it('真的没内容时才显示空态占位', () => {
     render(<NodeMediaPreview {...makeProps({})} />)
 
+    // 画布修法 06 节：收起卡面的空态改读 emptyState（状态词），不再是
+    // emptyPreview（那句教学句还留给详情面板的证据抽屉用，见 NodeMediaPreview
+    // 里的同款注释）。
     expect(
-      screen.getByText('StudioNode.workflowNodes.shotText.emptyPreview'),
+      screen.getByText('StudioNode.workflowNodes.shotText.emptyState'),
     ).toBeInTheDocument()
+    expect(
+      screen.queryByText('StudioNode.workflowNodes.shotText.emptyPreview'),
+    ).not.toBeInTheDocument()
   })
 
   it('文本节点使用白色纸面且不渲染状态底栏', () => {
@@ -114,5 +119,36 @@ describe('NodeMediaPreview — 文本族卡面', () => {
     )
 
     expect(screen.queryByTestId('node-footer')).not.toBeInTheDocument()
+  })
+})
+
+describe('NodeMediaPreview — 片盒卡面（videoMerge，画布修法 06 节）', () => {
+  it('空态显示专属状态词，不落回旧的教学句 key', () => {
+    render(
+      <NodeMediaPreview
+        {...makeProps({})}
+        type={NODE_TYPE_IDS.videoMerge}
+        kind={NODE_MEDIA_KIND_IDS.video}
+      />,
+    )
+
+    expect(
+      screen.getByText('StudioNode.workflowNodes.videoMerge.emptyState'),
+    ).toBeInTheDocument()
+  })
+
+  it('不渲染底栏——「等待合并」教学句与装饰性 WandSparkles 圆钮随之一起消失', () => {
+    render(
+      <NodeMediaPreview
+        {...makeProps({})}
+        type={NODE_TYPE_IDS.videoMerge}
+        kind={NODE_MEDIA_KIND_IDS.video}
+      />,
+    )
+
+    expect(screen.queryByTestId('node-footer')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('StudioNode.workflowNodes.videoMerge.footerEmpty'),
+    ).not.toBeInTheDocument()
   })
 })

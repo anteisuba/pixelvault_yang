@@ -39,6 +39,7 @@ import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import { buildNodeAssistantNodeContexts } from '@/lib/node-assistant-context'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import {
   planNodeAssistantOps,
   type PlannedNodeAssistantOp,
@@ -137,10 +138,12 @@ function getAssistantMediaReferences(
           : null
     if (!kind) continue
 
+    // 画布修法 08-A：直接读 mediaLabel/sourceLabel 绕开了机器值守卫——
+    // 「选已有图」写入口把上传备注常量当名字写进这两个字段时，@ 菜单候选名
+    // 会照单展示那串机器备注。改走共享解析器，顺带也能认出 characterName 等
+    // 专有身份字段（原逻辑不认）。
     const label =
-      node.data.mediaLabel?.trim() ||
-      node.data.sourceLabel?.trim() ||
-      getNodeTypeLabel(node.type)
+      resolveNodeDisplayName(node.data) || getNodeTypeLabel(node.type)
     const videoThumb =
       typeof node.data.videoThumbnailUrl === 'string'
         ? node.data.videoThumbnailUrl.trim()

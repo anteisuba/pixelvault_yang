@@ -424,6 +424,22 @@ export function VideoComposer({
   const videoMode = composer.videoMode
 
   /**
+   * 画布修法 08-C：关键帧档「两个槽都空」是合法的常态（纯文生视频），但真机
+   * 走查发现空态下**没有任何线索**告诉用户怎么把一张已有的图标成首帧/尾帧
+   * ——「设为首帧/尾帧」的唯一入口在别处（上游图片自己的 `CanvasImageSelectionToolbar`
+   * 分类下拉 / ⤢ 详情 `handleCategoryChange`），槽架/空态文案都不提这一句。
+   * 添加菜单的关键帧项已被 owner 2026-08-09 拔掉（`canvas-add-catalog.ts`
+   * 头注），替代路径就是这句提示指的方向，别的入口都没有了。
+   *
+   * ⚠ 严格限幅：只加这一行文案，不加控件、不加"关键帧帽子"、不写
+   * `imageCategory` —— 槽架总包阶段 7（具名槽/中性值/存量迁移）owner
+   * 2026-08-10 明确「先放着」，这里不碰。
+   */
+  const showKeyframeSlotHint =
+    videoMode === 'keyframe' &&
+    !composer.referenceTokens.some((token) => token.kind === 'keyframe')
+
+  /**
    * 切档（§9.3）：不符合新模式的模型**直接消失并清空选择**，模型相关的参数档一并
    * 回默认（新模型未必支持旧档位）。**用户已传的素材一律保留在数据层** —— 素材是
    * 用户的劳动，模式是可来回切的视图状态，切回来还在，只是当前模式下不发送。
@@ -1425,6 +1441,11 @@ export function VideoComposer({
                 {tc('sidecar.noReferences')}
               </p>
             )}
+            {showKeyframeSlotHint ? (
+              <p className="canvas-video-composer-assets-empty">
+                {tc('sidecar.keyframeSlotHint')}
+              </p>
+            ) : null}
             <ResponsivePopover
               open={addPickerOpen}
               onOpenChange={setAddPickerOpen}
@@ -1785,6 +1806,9 @@ export function VideoComposer({
           onInsert={handleSlotInsert}
           onRemove={handleRemoveReference}
         />
+        {showKeyframeSlotHint ? (
+          <p className="canvas-detail-line">{tc('sidecar.keyframeSlotHint')}</p>
+        ) : null}
         {spawnReference ? (
           <ReferenceAddBar
             availableMediaKinds={availableMediaKinds}

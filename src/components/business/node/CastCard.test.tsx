@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -6,9 +7,10 @@ vi.mock('next-intl', () => ({
     params ? `${key} ${JSON.stringify(params)}` : key,
 }))
 
-const { mockBeginDrag, mockDeleteNode } = vi.hoisted(() => ({
+const { mockBeginDrag, mockDeleteNode, mockMotion } = vi.hoisted(() => ({
   mockBeginDrag: vi.fn(),
   mockDeleteNode: vi.fn(),
+  mockMotion: { reducedMotion: false },
 }))
 
 vi.mock('./IngestDragLayer', () => ({
@@ -20,6 +22,37 @@ vi.mock('./IngestDragLayer', () => ({
 
 vi.mock('./NodeWorkflowActionsContext', () => ({
   useNodeWorkflowActions: () => ({ deleteNode: mockDeleteNode }),
+}))
+
+// 画布修法 05 节「拖了必有回音」：📷N 徽标换成 motion.span 做一次性脉冲。
+// motion/react 在 jsdom 里跑真动画意义不大，这里只截下传给它的 `initial`/
+// `transition`（同 CanvasPopIn.test.tsx / IdentityCollectorCard.test.tsx 的
+// 手法），其余渲染行为（文本内容、× 按钮等）继续走真实 DOM 断言。
+const motionCaptures: Array<{
+  initial: unknown
+  transition: { duration: number }
+}> = []
+
+vi.mock('motion/react', () => ({
+  useReducedMotion: () => mockMotion.reducedMotion,
+  motion: {
+    span: ({
+      initial,
+      animate,
+      transition,
+      children,
+      ...rest
+    }: Record<string, unknown> & { children?: ReactNode }) => {
+      // 只是从 ...rest 里摘掉，不让它漏到真实 DOM span 上（同 NodeDetailPanel.
+      // test.tsx 的 `void` 手法）——本测试不断言 animate 本身的值。
+      void animate
+      motionCaptures.push({
+        initial,
+        transition: transition as { duration: number },
+      })
+      return <span {...rest}>{children}</span>
+    },
+  },
 }))
 
 import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
@@ -46,6 +79,8 @@ function makeNode(
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockMotion.reducedMotion = false
+  motionCaptures.length = 0
 })
 
 describe('CastCard', () => {
@@ -163,6 +198,49 @@ describe('CastCard', () => {
       />,
     )
     expect(screen.getByTitle('开场运镜')).toBeInTheDocument()
+  })
+
+  // 画布修法 08-A 回归测试：card name 此前手抄了一份不带机器值守卫的优先
+  // 链（`getCastCardName`），「选已有图」写入口把上传备注常量当名字写进
+  // characterName/mediaLabel 时，这张卡会把机器串当人名显示。改走共享的
+  // `resolveNodeDisplayName` 之后必须回落到 section 兜底文案。
+  it('falls back to the section label instead of showing a known upload-note machine string', () => {
+    const characterNode = makeNode('c1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.character,
+      characterName: 'Node Studio character output',
+    })
+    const { rerender } = render(
+      <CastCard
+        node={characterNode}
+        sectionId={NODE_IMAGE_ROLE_IDS.character}
+        Icon={FakeIcon}
+        performanceCount={0}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    expect(screen.getByTitle('sections.character')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Node Studio character output'),
+    ).not.toBeInTheDocument()
+
+    const videoRefNode = makeNode('r1', NODE_TYPE_IDS.videoReference, {
+      mediaLabel: 'Node Studio image node output',
+    })
+    rerender(
+      <CastCard
+        node={videoRefNode}
+        sectionId={NODE_TYPE_IDS.videoReference}
+        Icon={FakeIcon}
+        performanceCount={0}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    expect(screen.getByTitle('sections.videoReference')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Node Studio image node output'),
+    ).not.toBeInTheDocument()
   })
 
   it('shows "出演 N 镜" only when performanceCount is greater than zero', () => {
@@ -374,5 +452,102 @@ describe('CastCard', () => {
     )
     expect(screen.getByTitle('黛西').className).toBe(firstClassName)
     expect(firstClassName).toMatch(/(^|\s)-?rotate-[12](\s|$)/)
+  })
+
+  // 画布修法 05 节「拖了必有回音」：📷N 只在 referenceCount 真的增加时弹一次。
+  it('does not pop the 📷N badge on first mount, but does once referenceCount increases', () => {
+    const node = makeNode('c1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.character,
+      characterName: '黛西',
+    })
+    const { rerender } = render(
+      <CastCard
+        node={node}
+        sectionId={NODE_IMAGE_ROLE_IDS.character}
+        Icon={FakeIcon}
+        performanceCount={0}
+        referenceCount={2}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    expect(motionCaptures.at(-1)?.initial).toBe(false)
+
+    rerender(
+      <CastCard
+        node={node}
+        sectionId={NODE_IMAGE_ROLE_IDS.character}
+        Icon={FakeIcon}
+        performanceCount={0}
+        referenceCount={3}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    expect(motionCaptures.at(-1)?.initial).toEqual({ scale: 1.2 })
+    expect(screen.getByText('📷3')).toBeInTheDocument()
+  })
+
+  it('does not pop the 📷N badge when referenceCount decreases', () => {
+    const node = makeNode('c1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.character,
+      characterName: '黛西',
+    })
+    const { rerender } = render(
+      <CastCard
+        node={node}
+        sectionId={NODE_IMAGE_ROLE_IDS.character}
+        Icon={FakeIcon}
+        performanceCount={0}
+        referenceCount={3}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    rerender(
+      <CastCard
+        node={node}
+        sectionId={NODE_IMAGE_ROLE_IDS.character}
+        Icon={FakeIcon}
+        performanceCount={0}
+        referenceCount={1}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    expect(motionCaptures.at(-1)?.initial).toBe(false)
+    expect(screen.getByText('📷1')).toBeInTheDocument()
+  })
+
+  it('keeps the pulse duration at 0 under prefers-reduced-motion while the badge text still updates', () => {
+    mockMotion.reducedMotion = true
+    const node = makeNode('c1', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.character,
+      characterName: '黛西',
+    })
+    const { rerender } = render(
+      <CastCard
+        node={node}
+        sectionId={NODE_IMAGE_ROLE_IDS.character}
+        Icon={FakeIcon}
+        performanceCount={0}
+        referenceCount={1}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    rerender(
+      <CastCard
+        node={node}
+        sectionId={NODE_IMAGE_ROLE_IDS.character}
+        Icon={FakeIcon}
+        performanceCount={0}
+        referenceCount={2}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    expect(motionCaptures.at(-1)?.transition.duration).toBe(0)
+    expect(screen.getByText('📷2')).toBeInTheDocument()
   })
 })

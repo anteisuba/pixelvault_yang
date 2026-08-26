@@ -31,6 +31,7 @@ import {
   getVoiceAPI,
   uploadReferenceAudioAPI,
 } from '@/lib/api-client'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import { readVoiceUrlFromData } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
@@ -389,8 +390,12 @@ export function VoiceDetailBody({
   // ⚠ 一个音色都没选时**不能**回落到 provider：真机实拍到卡上「Fish Audio」
   // 上下叠了两行（名字位与 provider 位同一个值），看上去像已经选好了。
   // 没选就说没选。
+  // 画布修法 08-A：首选项直接读 data.voiceName 绕开了机器值守卫，改走共享
+  // 解析器；后两档兜底（选了但没名 / 完全没选）逻辑不变。
   const selectedVoiceName =
-    data.voiceName?.trim() || (data.voiceId ? '' : tDetail('valueUnset')) || ''
+    resolveNodeDisplayName(data) ||
+    (data.voiceId ? '' : tDetail('valueUnset')) ||
+    ''
   const selectedVoiceProvider =
     data.voiceProvider?.trim() || NODE_STUDIO_VOICE_PROFILE.providerDefault
   const activeCover = isFishSource

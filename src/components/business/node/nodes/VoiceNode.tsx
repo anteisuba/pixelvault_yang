@@ -19,6 +19,7 @@ import {
   NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
 } from '@/constants/node-studio'
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import {
   getNodePrimaryMediaUrl,
   getSeedanceReferenceKind,
@@ -113,7 +114,8 @@ export const VoiceNode = memo(function VoiceNode(
         ? 'ready'
         : 'empty'
   // Never fall back to the raw voiceId — it reads as gibberish.
-  const voiceTitle = data.voiceName?.trim()
+  // 画布修法 08-A：直接读 data.voiceName 绕开了机器值守卫，改走共享解析器。
+  const voiceTitle = resolveNodeDisplayName(data)
   const providerLabel = data.voiceProvider || t('providerFallback')
   // Cover follows the active source: my-voice keeps its own cover so it never
   // shows the system voice's image (and vice versa).

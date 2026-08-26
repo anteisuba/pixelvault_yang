@@ -3,14 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import type { NodeProps } from '@xyflow/react'
-import {
-  AlertCircle,
-  FileText,
-  ImageIcon,
-  Mic2,
-  Video,
-  WandSparkles,
-} from 'lucide-react'
+import { AlertCircle, FileText, ImageIcon, Mic2, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -128,17 +121,6 @@ function commitHeaderTitle(
   )
 }
 
-function getMediaStatusLabelKey(
-  hasMedia: boolean,
-  kind: NodeWorkflowMediaKind,
-): 'statusIdle' | 'statusSuccess' | 'statusTextReady' {
-  if (kind === NODE_MEDIA_KIND_IDS.text) {
-    return 'statusTextReady'
-  }
-
-  return hasMedia ? 'statusSuccess' : 'statusIdle'
-}
-
 export function NodeMediaPreview({
   id,
   type,
@@ -163,7 +145,6 @@ export function NodeMediaPreview({
       : undefined
   const isTextKind = kind === NODE_MEDIA_KIND_IDS.text
   const workflowPrompt = buildNodeWorkflowPrompt(type, data)
-  const hasWorkflowPrompt = Boolean(workflowPrompt)
   const generationStatus =
     data.generationStatus ??
     (mediaUrl
@@ -204,7 +185,6 @@ export function NodeMediaPreview({
         // image 族状态挪进媒体窗左上角徽标，卡外的头不重复盖章。
         hideStatusBadge={isImageKind}
       />
-      <NodeShell.Ingredients nodeId={id} />
       <NodeShell.Body className="space-y-3">
         <div
           className={cn(
@@ -311,8 +291,13 @@ export function NodeMediaPreview({
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
                 {getEmptyIcon(kind, type)}
+                {/* 画布修法 06 节「顶上芯片退休」：收起卡面只留两张脸（空窗 /
+                    成品），不再说明书。`emptyPreview` 原文是教学句（部分还被
+                    详情面板复用，如 shotText 的证据抽屉——那边保留原句不动），
+                    卡面这里改读专门新增的 `emptyState` 状态词 key，别和详情层
+                    共用同一把内容。 */}
                 <p className="text-xs leading-5 text-node-muted">
-                  {tWorkflows(`${type}.emptyPreview`)}
+                  {tWorkflows(`${type}.emptyState`)}
                 </p>
               </div>
             )
@@ -335,22 +320,12 @@ export function NodeMediaPreview({
           </div>
         ) : null}
       </NodeShell.Body>
-      {!isImageKind && !isTextKind ? (
-        <NodeShell.Footer>
-          {/* ⚠ text-node-**muted** 不是 subtle：subtle 是 #8a8070，对白卡背
-            **3.89**，够不到 11px 文字的 4.5（同 A7 里判掉的那一档）。卡背早在
-            S1 就被 `.canvas-card` 刷成 #ffffff，而这套墨色是按纸面 #ebe5d8 算
-            的 —— 又一处「颜色按纸背算、实际压白卡」的错位。muted 是 6.94。 */}
-          <p className="truncate text-2xs font-medium text-node-muted">
-            {hasWorkflowPrompt
-              ? t(getMediaStatusLabelKey(Boolean(mediaUrl), kind))
-              : tWorkflows(`${type}.footerEmpty`)}
-          </p>
-          <span className="flex size-8 items-center justify-center rounded-2xl bg-node-panel-inner text-node-foreground">
-            <WandSparkles className="size-4" />
-          </span>
-        </NodeShell.Footer>
-      ) : null}
+      {/* 画布修法 06 节：这条 Footer 此前只有 kind=video（即 videoMerge，唯一
+          经这里的视频族）能到达——image/text kind 早就被上面这行挡住。它装的
+          是「等待合并」教学句 + 一颗看着像按钮实则纯装饰的 WandSparkles 圆钮，
+          真实状态（生成中/失败）从来都在媒体窗内表达，不在这里。R3「组级不
+          适用整栏不渲染」：撤完这两样这一整行就是空壳，所以连行一起撤，不
+          留一个只会渲染空壳的条件分支。 */}
     </NodeShell>
   )
 }

@@ -29,6 +29,11 @@
  */
 
 import {
+  NODE_STUDIO_CHARACTER_IMAGE_OUTPUT,
+  NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
+  NODE_STUDIO_MEDIA_IMAGE_OUTPUT,
+} from '@/constants/node-studio'
+import {
   NODE_IMAGE_ROLE_IDS,
   NODE_TYPE_IDS,
   type NodeImageRole,
@@ -103,40 +108,66 @@ export function buildFallbackNodeNames<
   return names
 }
 
+/**
+ * 已知的「上传备注」机器串 —— `useNodeReferenceUpload` 的 `note` 参数没写
+ * 描述时会原样落进 `generation.prompt`（服务端行为，见 A 节改动背景）。之后
+ * 「选已有图」一类写入口（`ReferenceLandingTabs.handleSelectAssets` /
+ * `StudioNodeWorkbench` 素材库拖拽落图 / `ImageFamilyBody.handleSelectExisting`
+ * / `CharacterDetailBody` / `VideoComposer` 同模式）直接拿 `generation.prompt`
+ * 当名字，于是这几个常量原样穿透进 `characterName`/`backgroundName`/
+ * `shotName`/`mediaLabel`/`sourceLabel` 里的任意一个（`StudioNodeWorkbench.
+ * handleSpawnReference` 按 role 决定具体落哪个字段）。
+ *
+ * import 常量本身，不手抄字符串 —— 串值一旦漂移这里要跟着漂移，硬编码会
+ * 悄悄失联。
+ */
+const KNOWN_UPLOAD_NOTE_LABELS: readonly string[] = [
+  NODE_STUDIO_MEDIA_IMAGE_OUTPUT.uploadNote,
+  NODE_STUDIO_CHARACTER_IMAGE_OUTPUT.uploadNote,
+  NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.uploadNote,
+]
+
 export function resolveNodeDisplayName(
   data: NodeWorkflowNodeData,
 ): string | undefined {
   return (
-    trimmed(data.characterName) ??
-    trimmed(data.character?.name) ??
-    trimmed(data.backgroundName) ??
-    trimmed(data.shotName) ??
-    trimmed(data.voiceName) ??
+    notMachineValue(data, trimmed(data.characterName)) ??
+    notMachineValue(data, trimmed(data.character?.name)) ??
+    notMachineValue(data, trimmed(data.backgroundName)) ??
+    notMachineValue(data, trimmed(data.shotName)) ??
+    notMachineValue(data, trimmed(data.voiceName)) ??
     notMachineValue(data, trimmed(data.mediaLabel)) ??
     notMachineValue(data, trimmed(data.sourceLabel))
   )
 }
 
 /**
- * 丢掉「其实是机器值」的那种标签 —— 模型 id 与 generation id 两类。
+ * 丢掉「其实是机器值」的那种标签 —— 上传备注常量、模型 id、generation id
+ * 三类。
  *
  * 生成流程曾经把 `generation.model` 直接写进 `mediaLabel`（那是显示名字段），
  * 于是一张从没被命名过的生成图，在助手 payload 与卡匣里都叫
  * `gemini-3.1-flash-image-preview` —— 把系统值当人起的名字。写侧已经不再这么
  * 写了，但**存量项目里那些标签还在**，所以读侧也要挡一道。
  *
- * ⚠ 判据是**与这个节点自己带的那个 id 精确相等**，不是「看起来像模型名 / 像
- * hash」的模式匹配。用户完全可以把一张图就叫这个名字 —— 只有当它和该节点实际
- * 用的模型 / generation id 一字不差时，才几乎必然是那次写入留下的。
+ * ⚠ 判据是**与这个节点自己带的那个 id 精确相等**（或是全局共享的已知上传备注
+ * 常量），不是「看起来像模型名 / 像 hash」的模式匹配。用户完全可以把一张图就
+ * 叫这个名字 —— 只有当它和该节点实际用的模型 / generation id 一字不差时，才
+ * 几乎必然是那次写入留下的。
  *
  * ⚠ 这一层接不住的：用户拖入一个 hash 命名的下载文件（`file.name` 不等于任何
  * id 字段）。那要靠写侧剥扩展名 + 兜底文案，不能在这里放宽判据。
+ *
+ * ⚠ 对全部 7 个字段统一跑这道判据（A 节前是只有 mediaLabel/sourceLabel 过
+ * 这道闸）—— `handleSpawnReference` 按 role 把同一个机器串写进
+ * characterName/backgroundName/shotName 时，读侧不能只挡后两个字段。
  */
 function notMachineValue(
   data: NodeWorkflowNodeData,
   value: string | undefined,
 ): string | undefined {
   if (!value) return undefined
+  if (KNOWN_UPLOAD_NOTE_LABELS.includes(value)) return undefined
   if (value === data.model?.modelId) return undefined
   // 台账 C5（2026-08-02）：generation id 与模型 id 同病 —— 素材库选图那条
   // 路径把机器串写进了显示名字段，用户在快捷编辑面板里看到的是

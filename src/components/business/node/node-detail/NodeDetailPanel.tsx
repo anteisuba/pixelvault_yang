@@ -12,6 +12,7 @@ import {
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
@@ -25,26 +26,24 @@ interface NodeDetailPanelProps {
   onClose(): void
 }
 
+/**
+ * 画布修法 08-A：原实现按 presentationType 分支手抄了一份优先链，绕开了
+ * 读侧的机器值守卫——「选已有图」写入口把上传备注常量当名字写进
+ * characterName/backgroundName/shotName 时，这个大标题会照单展示。四个
+ * presentationType 各自只有一个专属身份字段，与共享解析器的优先链结果
+ * 一致，改走它；`voiceId` 兜底是 voice 分支独有的（resolver 不认 id 类
+ * 字段），单独保留。
+ */
 function getNodeName(
   node: NodeWorkflowNode,
   presentationType: NodeWorkflowNodeType,
   fallback: string,
 ): string {
-  if (presentationType === NODE_TYPE_IDS.characterImage) {
-    return (
-      node.data.characterName?.trim() ||
-      node.data.character?.name?.trim() ||
-      fallback
-    )
-  }
+  const resolved = resolveNodeDisplayName(node.data)
+  if (resolved) return resolved
   if (presentationType === NODE_TYPE_IDS.voice) {
-    return node.data.voiceName?.trim() || node.data.voiceId?.trim() || fallback
-  }
-  if (presentationType === NODE_TYPE_IDS.backgroundImage) {
-    return node.data.backgroundName?.trim() || fallback
-  }
-  if (presentationType === NODE_TYPE_IDS.shot) {
-    return node.data.shotName?.trim() || fallback
+    const voiceId = node.data.voiceId?.trim()
+    if (voiceId) return voiceId
   }
   return fallback
 }

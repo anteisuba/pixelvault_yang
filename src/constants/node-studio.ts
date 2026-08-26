@@ -928,6 +928,20 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
 } as const
 
 /**
+ * 节点右侧侧车（`NodeToolbar` `Position.Right` `align="start"`）的贴靠距离
+ * ——《画布修法》02 节刀 1「一把总钥匙」：画布上凡是挂在宿主卡右侧的浮层都
+ * 用这一份数字，不许各写各的。
+ *
+ * 取值即 `SeedanceNode`（视频侧车）此前手写的 24 / 20——owner 多轮真机验证
+ * 过它不会盖住宿主卡自己的出端口/出边起点，是新落点（图片/音频生成框）唯一
+ * 要对齐的达标线，不是重新拍的数。
+ */
+export const NODE_STUDIO_NODE_SIDECAR_OFFSET = {
+  desktop: 24,
+  mobile: 20,
+} as const
+
+/**
  * 生成提示词框（docs/references/pages/canvas-generate-composer.md）——画布级
  * 共享组件，不属于任何单一节点族。这里只收「没别处可放」的具名数值，避免裸
  * 字面量散在组件里（Hard Rule 1）。

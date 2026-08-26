@@ -121,13 +121,24 @@ const { composerState } = vi.hoisted(() => ({
     referenceKinds: [] as Array<'character' | 'background' | 'shot' | 'voice'>,
     referenceTokens: [] as Array<{
       id: string
-      kind: 'character' | 'background' | 'shot' | 'voice'
+      // 画布修法 08-C：补上 keyframe/closeup/video 三个此前没有任何用例用过
+      // 的 kind（真实类型见 `ReferenceTokenChip.ReferenceTokenKind`，7 种）。
+      kind:
+        | 'character'
+        | 'background'
+        | 'shot'
+        | 'keyframe'
+        | 'closeup'
+        | 'voice'
+        | 'video'
       label: string
       token: string
       mediaUrl?: string
       coverImage?: string
       edgeId?: string
       boundVoice?: { nodeId: string; label: string; ready: boolean }
+      insertable?: boolean
+      dimmed?: boolean
     }>,
     referencedTokenIds: new Set<string>(),
     /** 画布上有名字的文本节点 —— `@` 菜单里的文本候选（阶段 4 胶囊）。 */
@@ -598,6 +609,19 @@ describe('VideoComposer compact sidecar', () => {
     expect(updateNodeData).not.toHaveBeenCalled()
   })
 
+  // 画布修法 08-C：紧凑档（画布卡）同样要出这条提示——空态原本落到
+  // `sidecar.noReferences` 那句通用文案，对关键帧档没有任何针对性。
+  it('紧凑档·关键帧档空槽时也出现「去分类设首尾帧」的提示', () => {
+    renderCompact({ videoMode: 'keyframe' } as Partial<NodeWorkflowNodeData>)
+    expect(screen.getByText('sidecar.noReferences')).toBeInTheDocument()
+    expect(screen.getByText('sidecar.keyframeSlotHint')).toBeInTheDocument()
+  })
+
+  it('紧凑档·非关键帧档不出现这条关键帧提示', () => {
+    renderCompact({ videoMode: 'multimodal' } as Partial<NodeWorkflowNodeData>)
+    expect(screen.queryByText('sidecar.keyframeSlotHint')).toBeNull()
+  })
+
   it('connects or adds references inside the compact editor without opening detail', () => {
     listConnectableReferences.mockReturnValue([
       {
@@ -828,6 +852,45 @@ describe('VideoComposer references row (detail)', () => {
     ]) {
       expect(screen.queryByRole('heading', { name: heading })).toBeNull()
     }
+  })
+
+  /**
+   * 画布修法 08-C：关键帧档「两个槽都空」是合法常态（纯文生），但真机走查
+   * 发现空态没有任何线索告诉用户怎么把已有图标成首帧/尾帧——「设为首帧/
+   * 尾帧」的唯一入口在别处（上游图片自己的分类下拉），槽架/空态文案原本
+   * 都不提。这一组锁住新补的那一行提示，以及它不该出现的两种场合。
+   */
+  it('关键帧档且没有任何关键帧槽位时，出现「去分类设首尾帧」的提示', () => {
+    // renderDetail 的夹具没有 videoMode/model，按 mock 的反推规则落到默认档
+    // 「关键帧」；beforeEach 已把 referenceTokens 清空。
+    renderDetail()
+    expect(screen.getByText('sidecar.keyframeSlotHint')).toBeInTheDocument()
+  })
+
+  it('已经有关键帧槽位时，提示不再出现', () => {
+    composerState.referenceTokens = [
+      {
+        id: 'k1',
+        kind: 'keyframe',
+        label: '',
+        token: '',
+        insertable: false,
+        mediaUrl: 'https://cdn.test/frame-start.png',
+      },
+    ]
+    renderDetail()
+    expect(screen.queryByText('sidecar.keyframeSlotHint')).toBeNull()
+  })
+
+  it('非关键帧档（多图参考）即使一个素材都没有，也不出现这条关键帧提示', () => {
+    render(
+      detailTree({
+        prompt: '',
+        status: 'idle',
+        videoMode: 'image-reference',
+      } as NodeWorkflowNodeData),
+    )
+    expect(screen.queryByText('sidecar.keyframeSlotHint')).toBeNull()
   })
 
   it('详情复用通用视频模型选择器，不再渲染自造品牌 rail', () => {

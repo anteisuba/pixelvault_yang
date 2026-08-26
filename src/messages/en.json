@@ -4493,6 +4493,7 @@
         "textHelper": "Write a prompt or connect reference assets from the canvas",
         "chooseFromCanvas": "Choose from canvas",
         "noReferences": "No reference assets connected",
+        "keyframeSlotHint": "In an upstream image's Category, pick First frame or Last frame",
         "addReference": "Add reference asset",
         "promptPlaceholder": "Describe the shot, motion, and sound you want…",
         "editParameters": "Edit video parameters"
@@ -4814,24 +4815,25 @@
     "workflowNodes": {
       "shotText": {
         "emptyPreview": "Turn scene, action, camera, and composition into executable shot text.",
+        "emptyState": "No shot text yet",
         "footerEmpty": "Waiting for shot text",
         "editText": "Edit text",
         "detailHint": "These fields are joined in order into the prompt sent to downstream video nodes."
       },
       "characterImage": {
-        "emptyPreview": "No character image yet — generate one or pick an existing image.",
+        "emptyState": "No character image yet",
         "footerEmpty": "Waiting for character setup"
       },
       "shot": {
-        "emptyPreview": "Generate a single shot image from shot text and character/background references.",
+        "emptyState": "No shot image yet",
         "footerEmpty": "Waiting for shot prompt"
       },
       "backgroundImage": {
-        "emptyPreview": "Define location, mood, and lighting for a reusable background.",
+        "emptyState": "No background image yet",
         "footerEmpty": "Waiting for background setup"
       },
       "frameImage": {
-        "emptyPreview": "Combine characters, background, and shot intent into a video keyframe.",
+        "emptyState": "No keyframe yet",
         "footerEmpty": "Waiting for keyframe setup"
       },
       "voice": {
@@ -4847,8 +4849,7 @@
         "footerEmpty": "Waiting for upload"
       },
       "videoMerge": {
-        "emptyPreview": "Connect 2-9 video clips, then run merge to get a single long clip.",
-        "footerEmpty": "Waiting for merge"
+        "emptyState": "No merged video yet"
       }
     },
     "topbar": {
@@ -5124,7 +5125,6 @@
         "slots": "Slots {current}/{limit}",
         "fallbackName": "Untitled"
       },
-      "removeIngredient": "Unbind {name}",
       "quickThrow": {
         "toggleAria": "Quick-throw {name}",
         "hint": "Throwing {name} — click a target shot, Esc to exit",
@@ -5205,6 +5205,8 @@
     "generateComposer": {
       "placeholderEmpty": "Describe the image you want to generate…",
       "placeholderEditing": "Describe what to change about this image…",
+      "placeholderEmptyAudio": "Describe the sound you want to generate…",
+      "placeholderEditingAudio": "Describe what to change about this sound…",
       "editingBadge": "Editing",
       "addReference": "Add reference",
       "aspectLabel": "Aspect ratio",

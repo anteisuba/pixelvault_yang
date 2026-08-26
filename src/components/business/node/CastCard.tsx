@@ -2,10 +2,17 @@
 
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react'
 import { Send, X } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_STUDIO_CAST_DOCK } from '@/constants/node-studio'
 import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  countPulseInitial,
+  countPulseTransition,
+  useCountPulse,
+} from '@/hooks/node/use-count-pulse'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
@@ -34,30 +41,17 @@ function trimmedOrUndefined(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
-/** Card display name — same field precedence as `NodeMediaPreview.getHeaderTitle`
- *  / `NodeDetailPanel.getNodeName`, extended to the two non-image sections. */
-function getCastCardName(
-  node: NodeWorkflowNode,
-  sectionId: CastSectionId,
-): string | undefined {
-  switch (sectionId) {
-    case NODE_IMAGE_ROLE_IDS.character:
-      return (
-        trimmedOrUndefined(node.data.characterName) ||
-        trimmedOrUndefined(node.data.character?.name)
-      )
-    case NODE_IMAGE_ROLE_IDS.background:
-      return trimmedOrUndefined(node.data.backgroundName)
-    case NODE_TYPE_IDS.voice:
-      return (
-        trimmedOrUndefined(node.data.voiceName) ||
-        trimmedOrUndefined(node.data.voiceId)
-      )
-    case NODE_TYPE_IDS.videoReference:
-      return trimmedOrUndefined(node.data.mediaLabel)
-    default:
-      return undefined
-  }
+/** Card display name — single source of truth is `resolveNodeDisplayName`
+ *  (画布修法 08-A：这里此前手抄了一份按 sectionId 分支的同款优先链，绕开了
+ *  读侧的机器值守卫——「选已有图」写入口把上传备注常量当名字写进
+ *  characterName/backgroundName/mediaLabel 时，这张卡会照单展示。四个
+ *  section 各自只有一个专属身份字段，与共享解析器的优先链结果一致，故这里
+ *  不再需要按 sectionId 分支；`voiceId` 兜底是本卡独有的（resolver 不认
+ *  id 类字段），单独保留）。 */
+function getCastCardName(node: NodeWorkflowNode): string | undefined {
+  return (
+    resolveNodeDisplayName(node.data) ?? trimmedOrUndefined(node.data.voiceId)
+  )
 }
 
 /** Card thumbnail source — the node's own image for character/background,
@@ -121,8 +115,13 @@ export function CastCard({
   const tIngest = useTranslations('StudioNode.ingest')
   const { beginDrag, enterQuickThrow } = useIngestDrag()
   const { deleteNode } = useNodeWorkflowActions()
+  const reducedMotion = useReducedMotion()
+  // 画布修法 05 节「拖了必有回音」：素材拖进这张卡对应的角色/场景后，
+  // referenceCount 会变大——▦N/📷N 是同一语义的两处显示，共享同一个
+  // pulse hook（见 IdentityCollectorCard 里的姊妹用法）。
+  const pulseKey = useCountPulse(referenceCount)
   const fallbackName = t(`sections.${sectionId}`)
-  const name = getCastCardName(node, sectionId) || fallbackName
+  const name = getCastCardName(node) || fallbackName
   const thumbnailUrl = getCastCardThumbnail(node, sectionId)
   const tiltClass = getTiltClass(node.id)
   const hasIdentityBadge = referenceCount > 0 || hasVoice
@@ -283,7 +282,11 @@ export function CastCard({
         @{name}
       </span>
       {hasIdentityBadge ? (
-        <span
+        <motion.span
+          key={pulseKey}
+          initial={countPulseInitial(pulseKey)}
+          animate={{ scale: 1 }}
+          transition={countPulseTransition(reducedMotion)}
           className="w-full truncate text-2xs"
           style={{ color: 'var(--canvas-ink-muted)' }}
           aria-label={identityBadgeAria}
@@ -291,7 +294,7 @@ export function CastCard({
           {referenceCount > 0 ? `📷${referenceCount}` : null}
           {referenceCount > 0 && hasVoice ? ' ' : null}
           {hasVoice ? '♪' : null}
-        </span>
+        </motion.span>
       ) : null}
       {performanceCount > 0 ? (
         <span

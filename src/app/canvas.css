@@ -340,24 +340,6 @@
   box-shadow: 0 1px 4px var(--node-shadow);
 }
 
-/* 成分栏 chip 落定（§8「消化落定」: 340ms scale 0.3→1.2→1 overshoot）。类名常
-   驻在每个 chip 上，但 CSS animation 只在元素首次挂载（新增引用）时播放一次，
-   已存在的 chip 重渲染不会重放——不需要额外的一次性 class 摘除逻辑。 */
-@keyframes node-ingest-chip-pop {
-  0% {
-    transform: scale(0.3);
-  }
-  60% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-.node-ingest-chip-pop {
-  animation: node-ingest-chip-pop 340ms var(--ease-standard) both;
-}
-
 /* C4 监视器遮幅 — 上下 letterbox bars, 纯装饰，不接受交互。 */
 .node-monitor-matte::before,
 .node-monitor-matte::after {
@@ -706,9 +688,10 @@
      借用已有变量把颜色悄悄改掉。 */
   --canvas-waveform-idle: #a1a1a1;
 
-  /* 14 · 身份卡底条（canvas-identity-card.md §1，同 §8 底部工具条玻璃配方
-     0.85 白，非新造色值） */
-  --canvas-identity-bar-bg: rgba(255, 255, 255, 0.85);
+  /* 14 · 身份卡底条 token 已随 2026-08-26 画布修法 05 节的名片脸改版删除
+     （`--canvas-identity-bar-bg`，旧压图玻璃条专用，零消费者）——身份卡
+     现在的库存行是普通卡背上的一排 chip，不再需要玻璃配方，见下方身份卡
+     CSS 块头注。 */
 
   /* 15 · 语义脊柱映射（D7/D2 刀 1 · 2026-08-02 owner 拍板）——
      app 全局 <html class="dark">，画布是浅色孤岛：子树里共享组件
@@ -836,7 +819,6 @@
   --canvas-voice-cover-scrim: rgba(0, 0, 0, 0.35);
   --canvas-voice-slot-bg: rgba(23, 23, 23, 0.92);
   --canvas-waveform-idle: var(--canvas-ink-muted);
-  --canvas-identity-bar-bg: rgba(23, 23, 23, 0.85);
 }
 
 /* reduced-motion：三档时长全部压到 1ms 并保留终态（规格 §9） */
@@ -1055,29 +1037,14 @@
   }
 }
 
-.domain-canvas
-  .canvas-video-sidecar[data-expanded='false']
-  .canvas-video-sidecar-header {
-  min-height: 44px;
-  justify-content: flex-end;
-  padding: 8px 10px 0;
-  border-bottom: 0;
-}
-
-.domain-canvas
-  .canvas-video-sidecar[data-expanded='false']
-  .canvas-video-sidecar-header
-  > div:first-child,
-.domain-canvas
-  .canvas-video-sidecar[data-expanded='false']
-  .canvas-video-sidecar-icon-button {
-  display: none;
-}
-
-.domain-canvas .canvas-video-sidecar[data-expanded='true'] {
-  width: var(--canvas-card-w-console-open);
-}
-
+/* ⚠ 死 CSS 已删（《画布修法》02 节刀 1 task D，2026-08-26）：这里原来有三条
+   `.canvas-video-sidecar[data-expanded='false'|'true']` 规则（折叠头/展开
+   宽度），零匹配——`SeedanceNode` 从不给这个元素写 `data-expanded`；唯二两个
+   `data-expanded` 产出者是 `CanvasLeftPanel`（class 是 `canvas-left-panel`）
+   与 `CanvasSlotRack`（class 是 `canvas-slot-rack`），都不是这个类。「展开」
+   动作已改道 ⤢ 详情面板，这条 data 属性驱动的折叠态没有活的写入方。
+   `--canvas-card-w-console-open` 随之失去这唯一的消费者，令牌定义本身按本
+   包边界保留未删（详见任务报告）。 */
 .domain-canvas .canvas-video-sidecar-header {
   display: flex;
   min-height: 56px;
@@ -2278,51 +2245,51 @@
   color: var(--canvas-ink-regular);
 }
 
-/* ── 身份卡（canvas-identity-card.md §1/§2）──────────────────────────────
-   240 × 135，代表图铺满 + 底部玻璃条 36 压在图上。 */
+/* ── 身份卡（canvas-identity-card.md §1/§2，2026-08-26 画布修法 05 节
+   「名片脸」取代版）────────────────────────────────────────────────────
+   旧版 240 × 135，代表图铺满 + 底部玻璃条 36 压在图上——诊断是「长得像
+   照片，谁都会认错」。改版收成真正的名片：固定 240 × 84（与声音卡同高，
+   见上方「声音卡 / 身份卡共用：固定宽 240」那条注释，本轮起连高度也共用），
+   左侧 84×84 定妆照缩略、右侧库存行横排，不再有任何东西压在图上。
+   空态与有内容态**同构**（两栏结构不变，只换内容，不换版式）——VoiceNode
+   的「封面 + 正文」两栏、空态换图标的写法就是这个模式的先例，这里直接
+   照抄同一套几何，不重新发明。 */
 .domain-canvas .canvas-identity-card {
-  height: 135px;
+  height: 84px;
 }
-.domain-canvas .canvas-identity-media {
+/* 左栏：定妆照缩略。方形圆角继承卡身的 --canvas-card-radius（8px）——同
+   .canvas-voice-cover 的裁边手法（齐边铺满卡高的整个左缘，圆角吃卡的左
+   侧两角）。没有代表图时换成族图标（见下方 JSX 的 EmptyIcon：角色=人形、
+   场景=山形），底用 --canvas-fill-control，与 VoiceNode 空态封面同色。 */
+.domain-canvas .canvas-identity-cover {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 84px;
+  height: 84px;
+  flex: none;
   overflow: hidden;
-  border-radius: inherit;
+  border-top-left-radius: inherit;
+  border-bottom-left-radius: inherit;
 }
-/* 空态：--canvas-fill-control 底 + 人形字形 + 「选一张代表图」，铺满整个
-   媒体区（§2 三态表「空」行——这一态没有底条）。 */
-.domain-canvas .canvas-identity-empty {
-  position: absolute;
-  inset: 0;
+/* 右栏：库存行，占满剩余宽度、纵向居中。有内容态放两枚 chip（▦N + 音色
+   状态），空态放提示文案——两态共用同一个容器，只是子节点不同（「占几何
+   不占内容」，不再是旧版那种另起一套居中铺满的空态版式）。 */
+.domain-canvas .canvas-identity-body {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 6px;
-  padding: 0 16px;
-  text-align: center;
-  background: var(--canvas-fill-control);
-  color: var(--canvas-ink-muted);
+  height: 84px;
+  min-width: 0;
+  flex: 1;
+  padding: 0 12px;
+  overflow: hidden;
 }
-.domain-canvas .canvas-identity-empty p {
+.domain-canvas .canvas-identity-empty-hint {
   font-size: var(--canvas-text-meta);
   line-height: var(--canvas-text-meta-lh);
-}
-.domain-canvas .canvas-identity-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 8px;
-  background: var(--canvas-identity-bar-bg);
-  border-top: 1px solid var(--canvas-stroke-regular);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  color: var(--canvas-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .domain-canvas .canvas-identity-chip {
   display: inline-flex;
@@ -3401,11 +3368,14 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
    composer」一栏，原样采用 --canvas-pop-*，不新造颜色/圆角/投影 token。
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* 宽度 2026-07-27 owner 真机反馈二轮修订：380→440px（「composer 尺寸需要变
-   大一些，目前看着有点小了」，canvas-generate-composer.md §1「尺寸与间距」）。 */
+/* 宽度改读 `--canvas-card-w-console`（420px，与视频侧车同一个令牌）——此前的
+   440px 字面量停在 2026-07-27 二轮反馈那次修订上，没跟上 2026-08-09 阶段
+   6-A 把这个宽度收成令牌、定值改到 420 那一轮（canvas-slot-rack.md §7.3
+   #2、canvas-generate-composer.md §1）。《画布修法》02 节刀 1 挪位置到右侧
+   侧车时一并把这处漂移的字面量对齐回去，不新造第二份「440」。 */
 .domain-canvas .canvas-composer-root {
-  width: 440px;
-  max-width: min(440px, calc(100vw - 32px));
+  width: var(--canvas-card-w-console);
+  max-width: min(var(--canvas-card-w-console), calc(100vw - 32px));
 }
 /* 空白唤起态没有宿主节点，NodeToolbar 管不到它——自己用 fixed 定位钉在双击
    点，L5 瞬时浮层同一档 z-index（同「添加菜单」，都是"还没有对象"的瞬时

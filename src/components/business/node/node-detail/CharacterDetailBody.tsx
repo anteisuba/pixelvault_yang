@@ -14,6 +14,7 @@ import {
 import { resolveReferenceAssetLimit } from '@/constants/node-studio'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useDownstreamUses } from '@/hooks/node/use-downstream-uses'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import {
   getNodePrimaryMediaUrl,
   getUpstreamNodes,
@@ -152,9 +153,11 @@ export function CharacterDetailBody({
           candidateEdge.target === nodeId,
       )
       if (!edge) continue
+      // 画布修法 08-A：直接读 candidate.data.voiceName 绕开了机器值守卫，
+      // 改走共享解析器；voiceId/voiceReferenceAudioName 两档兜底是本处
+      // 独有的（resolver 不认这两个字段），原样保留。
       const voiceName =
-        (typeof candidate.data.voiceName === 'string' &&
-          candidate.data.voiceName.trim()) ||
+        resolveNodeDisplayName(candidate.data) ||
         (typeof candidate.data.voiceId === 'string' &&
           candidate.data.voiceId.trim()) ||
         (typeof candidate.data.voiceReferenceAudioName === 'string' &&
@@ -186,10 +189,9 @@ export function CharacterDetailBody({
           typeof closeup.data.mediaUrl === 'string'
             ? closeup.data.mediaUrl
             : '',
-        label:
-          (typeof closeup.data.characterName === 'string' &&
-            closeup.data.characterName.trim()) ||
-          tTypes('image'),
+        // 画布修法 08-A：直接读 closeup.data.characterName 绕开了机器值
+        // 守卫，改走共享解析器。
+        label: resolveNodeDisplayName(closeup.data) || tTypes('image'),
       }))
       .filter((item) => item.url.length > 0)
 
@@ -262,10 +264,10 @@ export function CharacterDetailBody({
     [nodeId, spawnReference],
   )
 
-  const displayName =
-    (typeof data.characterName === 'string' && data.characterName.trim()) ||
-    data.character?.name?.trim() ||
-    ''
+  // 画布修法 08-A：直接读 data.characterName 绕开了机器值守卫——「选已有图」
+  // 写入口把上传备注常量当名字写进这个字段时，角色详情面板的大标题会照单
+  // 展示。改走共享解析器。
+  const displayName = resolveNodeDisplayName(data) ?? ''
 
   return (
     <>

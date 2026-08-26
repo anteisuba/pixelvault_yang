@@ -8,6 +8,7 @@ import { NODE_STUDIO_VIDEO_INPUT } from '@/constants/node-studio'
 import { NODE_STATUS_IDS } from '@/constants/node-types'
 import { useDownstreamUses } from '@/hooks/node/use-downstream-uses'
 import { useReferenceVideoUpload } from '@/hooks/node/use-reference-video-upload'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { NodeProgressState } from '../nodes/NodeProgressState'
@@ -50,8 +51,10 @@ export function VideoReferenceDetailBody({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
-  const mediaLabel =
-    typeof data.mediaLabel === 'string' ? data.mediaLabel : null
+  // 画布修法 08-A：直接读 data.mediaLabel 绕开了机器值守卫——「选已有图」
+  // 写入口把上传备注常量当名字写进这个字段时，台座与发送预览条目会照单
+  // 展示那串机器备注。改走共享解析器。
+  const mediaLabel = resolveNodeDisplayName(data) ?? null
   const videoThumbnailUrl =
     typeof data.videoThumbnailUrl === 'string'
       ? data.videoThumbnailUrl

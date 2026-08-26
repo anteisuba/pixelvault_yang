@@ -156,6 +156,20 @@ export function NodeMediaPreview({
   const isError =
     generationStatus === NODE_GENERATION_STATUS_IDS.error ||
     (data.status === NODE_STATUS_IDS.failed && Boolean(data.generationError))
+  // 《画布修法》02 节刀 1 task B：生成类节点的"空态"卡宽收窄——characterImage/
+  // backgroundImage 排除在外（身份卡族：既有的 IdentityCollectorCard 走
+  // .canvas-card--w-fixed 固定 240，不经这个组件；这里能收到这两个 type 的唯一
+  // 途径是 role=closeup——closeup 复用"角色卡"的呈现，见 node-types.ts
+  // NODE_IMAGE_ROLE_TO_LEGACY_TYPE 的注释，形态上更贴近身份族而不是镜头族，
+  // 不在本刀"镜头图/视频生成/片盒/镜头文本"四族清单内）。除此之外这个组件能
+  // 到达的 type（shot/frameImage/videoMerge/shotText）在"没有媒体"时都要收窄；
+  // shot/frameImage/shotText 恒无 mediaUrl（有图/有媒体的同类型节点已经切到
+  // LooseImageCard，text 族的产物是文字不是 mediaUrl），videoMerge 的
+  // mediaUrl 才是真正会在"有内容"时变真的那个。
+  const useCompactWidth =
+    type !== NODE_TYPE_IDS.characterImage &&
+    type !== NODE_TYPE_IDS.backgroundImage &&
+    !mediaUrl
 
   return (
     <NodeShell
@@ -164,14 +178,13 @@ export function NodeMediaPreview({
       selected={selected}
       status={data.status}
       toolbarData={data}
-      // S4：image kind 空态卡边转虚线（canvas-image-card.md §3 例外条）。这个
-      // 组件只在没有媒体时渲染（有媒体的同类型节点已经切到 LooseImageCard），
-      // 所以 mediaUrl 恒假，这里只需排除生成中/失败两态。
-      className={
-        isImageKind && !isPending && !isError
-          ? 'canvas-card--dashed'
-          : undefined
-      }
+      className={cn(
+        // S4：image kind 空态卡边转虚线（canvas-image-card.md §3 例外条）。这个
+        // 组件只在没有媒体时渲染（有媒体的同类型节点已经切到 LooseImageCard），
+        // 所以 mediaUrl 恒假，这里只需排除生成中/失败两态。
+        isImageKind && !isPending && !isError && 'canvas-card--dashed',
+        useCompactWidth && 'canvas-card--w-empty',
+      )}
     >
       <NodeShell.Header
         type={type}
@@ -188,11 +201,16 @@ export function NodeMediaPreview({
       <NodeShell.Body className="space-y-3">
         <div
           className={cn(
-            'relative aspect-video overflow-hidden rounded-sm border',
+            'relative overflow-hidden rounded-sm border',
+            // 《画布修法》02 节刀 1 task C：text kind 脱离 16:9 主窗——
+            // 一段字被撑成电影幕。改按内容定高的窄笺，高度地板由
+            // .canvas-text-preview-surface 自己的 min-height 兜底（canvas.css），
+            // 其余 kind 仍走原来的 16:9 生成窗，规则不变。
+            isTextKind ? 'canvas-text-preview-surface' : 'aspect-video',
             isImageKind
               ? 'canvas-image-preview-window'
               : isTextKind
-                ? 'canvas-text-preview-surface'
+                ? undefined
                 : cn(
                     'node-card-window border-node-panel-inner',
                     isVideoKind && !mediaUrl

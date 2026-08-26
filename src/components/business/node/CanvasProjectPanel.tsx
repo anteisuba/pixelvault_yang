@@ -121,8 +121,13 @@ export function CanvasProjectPanel({
               {t('nodeCount', { count: nodeCount })}
             </span>
           </div>
-          {/* 搬进侧边栏后空间够了，重命名/删除不必再藏进菜单项里 */}
-          <div className="mt-3 flex gap-2">
+          {/* 搬进侧边栏后空间够了，重命名/删除不必再藏进菜单项里。
+              G4（画布修法 P2 收口）：调查实测删除紧挨着改名，误点代价不对称
+              （改名可再改回来，删除大概率不可逆）。中间加一条竖分隔把两者
+              隔开——不改删除本身的确认流程，只做位置与视觉上的隔离；危险色
+              （text-destructive / hover:bg-destructive/10）在这之前已经在用，
+              不是新加的。 */}
+          <div className="mt-3 flex items-stretch gap-2">
             <button
               type="button"
               onClick={onRenameProject}
@@ -131,6 +136,10 @@ export function CanvasProjectPanel({
               <Pencil className="size-3" aria-hidden />
               {t('projectMenu.rename')}
             </button>
+            <div
+              className="w-px shrink-0 bg-node-panel-inner"
+              aria-hidden="true"
+            />
             {/* 删除只留图标：文案「删除当前项目」在 240px 里会把重命名挤扁，
                 而红色垃圾桶本身已经足够警示。全文进 aria-label / title。 */}
             <button

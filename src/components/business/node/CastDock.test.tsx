@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -32,6 +33,14 @@ import {
 } from '@/constants/node-types'
 
 import { CastDock, countCanvasNodes } from './CastDock'
+
+// G1（画布修法 P2）：CastDock 的 query 从内部 `useState` 改成了 controlled
+// prop（`CanvasRosterRail` 现在拿同一份 query 去过滤下段的卡片区）。这个壳
+// 在测试里补回「自己管理 state」的那部分，让既有的输入/断言写法不用大改。
+function ControlledCastDock() {
+  const [query, setQuery] = useState('')
+  return <CastDock query={query} onQueryChange={setQuery} />
+}
 
 function makeNode(
   id: string,
@@ -72,7 +81,7 @@ describe('CastDock all-node locator', () => {
       }),
     ]
 
-    render(<CastDock />)
+    render(<ControlledCastDock />)
 
     expect(screen.getByText('groups.text')).toBeInTheDocument()
     expect(screen.getByText('groups.image')).toBeInTheDocument()
@@ -96,7 +105,7 @@ describe('CastDock all-node locator', () => {
       makeNode('voice-1', NODE_TYPE_IDS.voice, { voiceName: '旁白' }),
     ]
 
-    render(<CastDock />)
+    render(<ControlledCastDock />)
     const search = screen.getByRole('searchbox', { name: 'searchLabel' })
 
     fireEvent.change(search, { target: { value: '灯塔' } })
@@ -116,7 +125,7 @@ describe('CastDock all-node locator', () => {
       }),
     ]
 
-    render(<CastDock />)
+    render(<ControlledCastDock />)
     fireEvent.click(
       screen.getByRole('button', {
         name: 'locateNode {"name":"黛西"}',
@@ -124,6 +133,40 @@ describe('CastDock all-node locator', () => {
     )
 
     expect(mockFocusNode).toHaveBeenCalledWith('image-1')
+  })
+
+  // 包 H（画布修法《手机 390px》）：手机定位器传 `onSelectNode` 换掉点击目标
+  // （打开只读预览，而不是飞一个用户看不见的画布相机）。默认行为（上一个用例）
+  // 必须保持字节不变，这里只加一个用例覆盖新分支，不改旧的。
+  it('calls onSelectNode instead of focusNode when provided', () => {
+    flowState.nodes = [
+      makeNode('image-1', NODE_TYPE_IDS.image, {
+        characterName: '黛西',
+        role: NODE_IMAGE_ROLE_IDS.character,
+      }),
+    ]
+    const onSelectNode = vi.fn()
+
+    function ControlledWithSelect() {
+      const [query, setQuery] = useState('')
+      return (
+        <CastDock
+          query={query}
+          onQueryChange={setQuery}
+          onSelectNode={onSelectNode}
+        />
+      )
+    }
+
+    render(<ControlledWithSelect />)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'locateNode {"name":"黛西"}',
+      }),
+    )
+
+    expect(onSelectNode).toHaveBeenCalledWith('image-1')
+    expect(mockFocusNode).not.toHaveBeenCalled()
   })
 
   it('shows outgoing reference counts but no create, edit, or delete controls', () => {
@@ -141,21 +184,41 @@ describe('CastDock all-node locator', () => {
       { id: 'edge-2', source: 'source', target: 'target-2' },
     ]
 
-    render(<CastDock />)
+    render(<ControlledCastDock />)
 
     expect(screen.getByText('referenceCount {"count":2}')).toBeInTheDocument()
     expect(screen.queryByText('create')).not.toBeInTheDocument()
     expect(screen.queryByText('deleteCard')).not.toBeInTheDocument()
   })
 
+  // G1（画布修法 P2）：query 现在是纯 controlled prop——组件自己不再持有任何
+  // 输入历史。这是「同一个 query 也能喂给 CanvasRosterRail 下段卡片区」这个
+  // 修法的前提，得单独锁住，免得日后又长回内部 `useState`。
+  it('is a controlled input — reports changes via onQueryChange instead of owning state', () => {
+    flowState.nodes = [
+      makeNode('voice-1', NODE_TYPE_IDS.voice, { voiceName: '旁白' }),
+    ]
+    const onQueryChange = vi.fn()
+
+    render(<CastDock query="" onQueryChange={onQueryChange} />)
+    fireEvent.change(screen.getByRole('searchbox'), {
+      target: { value: '旁' },
+    })
+
+    expect(onQueryChange).toHaveBeenCalledWith('旁')
+    // The parent never echoed the new value back in (`query` prop is still
+    // ""), so the list must not have filtered itself off private state.
+    expect(screen.getByText('旁白')).toBeInTheDocument()
+  })
+
   it('distinguishes an empty canvas from a search with no matches', () => {
-    const { rerender } = render(<CastDock />)
+    const { rerender } = render(<ControlledCastDock />)
     expect(screen.getByText('empty')).toBeInTheDocument()
 
     flowState.nodes = [
       makeNode('voice-1', NODE_TYPE_IDS.voice, { voiceName: '旁白' }),
     ]
-    rerender(<CastDock />)
+    rerender(<ControlledCastDock />)
     fireEvent.change(screen.getByRole('searchbox'), {
       target: { value: '不存在' },
     })

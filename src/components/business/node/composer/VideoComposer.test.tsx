@@ -403,6 +403,8 @@ vi.mock('@/components/ui/responsive-popover', () => {
   }
 })
 
+import { NodeDetailFrame } from '../node-detail/NodeDetailFrame'
+
 import { VideoComposer } from './VideoComposer'
 
 /**
@@ -447,6 +449,94 @@ function renderCompact(patch: Partial<NodeWorkflowNodeData> = {}) {
   const data = { prompt: '', status: 'idle', ...patch } as NodeWorkflowNodeData
   return render(<VideoComposer id="v1" data={data} density="card" />)
 }
+
+/**
+ * ⚠ `detailTree` 上面那份是**扁平**渲染（`{slots.stage}{slots.desk}…`），
+ * 不经过 `NodeDetailFrame`，测不出 DOM 序——契约「槽序 = DOM 序 = 键盘序」
+ * 的断言必须过真壳。这三条补的正是这个洞（画布修法包 C，2026-08-26）。
+ */
+function detailTreeWithFrame(data: NodeWorkflowNodeData, id = 'v1') {
+  return (
+    <VideoComposer id={id} data={data} density="detail">
+      {(slots) => (
+        <NodeDetailFrame identity={<span>identity</span>} slots={slots} />
+      )}
+    </VideoComposer>
+  )
+}
+
+function slotOrder(container: HTMLElement): string[] {
+  return Array.from(container.querySelectorAll('[data-node-detail-slot]')).map(
+    (element) => element.getAttribute('data-node-detail-slot') ?? '',
+  )
+}
+
+describe('VideoComposer · 七槽 DOM 序（画布修法包 C 空态让位）', () => {
+  beforeEach(() => {
+    composerState.referenceKinds = []
+    composerState.referenceTokens = []
+    composerState.referencedTokenIds = new Set()
+  })
+
+  it('空态（未生成）：source-rack 让位给 stage，其余六槽顺序不跳', () => {
+    const { container } = render(
+      detailTreeWithFrame({
+        prompt: '',
+        status: 'idle',
+      } as NodeWorkflowNodeData),
+    )
+    expect(slotOrder(container)).toEqual([
+      'identity-bar',
+      'subject-stage',
+      'compose-desk',
+      'relations-strip',
+      'evidence-drawer',
+      'action-dock',
+    ])
+  })
+
+  it('有片时七槽满员，回到今天的媒体优先——素材架不让位', () => {
+    const { container } = render(
+      detailTreeWithFrame({
+        prompt: '',
+        status: 'done',
+        mediaUrl: 'https://cdn.test/clip.mp4',
+      } as NodeWorkflowNodeData),
+    )
+    expect(slotOrder(container)).toEqual([
+      'identity-bar',
+      'subject-stage',
+      'compose-desk',
+      'source-rack',
+      'relations-strip',
+      'evidence-drawer',
+      'action-dock',
+    ])
+  })
+
+  /**
+   * `isPending` 是第三个闸：生成一开始（即使还没有 `mediaUrl`）就该回到
+   * 监视器（REC 徽标/已耗时），不该继续显示写作台——见 `VideoComposer.tsx`
+   * 里 `showPromotedEmptyLayout` 的头注。
+   */
+  it('生成中：即便还没有 mediaUrl，也回到监视器，七槽满员', () => {
+    const { container } = render(
+      detailTreeWithFrame({
+        prompt: '',
+        status: 'running',
+      } as NodeWorkflowNodeData),
+    )
+    expect(slotOrder(container)).toEqual([
+      'identity-bar',
+      'subject-stage',
+      'compose-desk',
+      'source-rack',
+      'relations-strip',
+      'evidence-drawer',
+      'action-dock',
+    ])
+  })
+})
 
 describe('VideoComposer compact sidecar', () => {
   beforeEach(() => {
@@ -827,9 +917,13 @@ describe('VideoComposer references row (detail)', () => {
   it('七个槽各自拿到该拿的内容（监视器/素材/提示词/模式）', () => {
     renderDetail()
 
-    // 主体台：监视器空态 —— R2 只许一枚极淡字形，**不许**解释文案
+    // 主体台：画布修法包 C 空态让位——真正空闲（未生成）时监视器不占大位，
+    // 素材清单 + 提示词促升进来，井退成预览带（monitor 自身空态另有专测，
+    // 见下方 `VideoComposer monitor` describe）。
     expect(screen.queryByText('monitor.empty')).toBeNull()
-    expect(document.querySelector('.canvas-detail-well')).not.toBeNull()
+    expect(
+      document.querySelector('.canvas-detail-stage-promoted'),
+    ).not.toBeNull()
     // 编排台：提示词
     expect(
       screen.getByRole('textbox', { name: 'prompt.label' }),
@@ -1171,14 +1265,19 @@ describe('VideoComposer monitor (detail, §4 C4)', () => {
 
   /**
    * ⚠ 反过来了：详情面板走静默档（`quiet`），R2「空态：占几何可以，占内容不行」
-   * 明写禁「生成后在此预览」这类解释文案、禁四角取景框。几何照留（同尺寸同圆角
-   * 同底），只把内容像素换成一枚极淡字形。卡层监视器不受影响。
+   * 明写禁「生成后在此预览」这类解释文案、禁四角取景框。卡层监视器不受影响。
+   *
+   * ⚠ 画布修法包 C（2026-08-26）就地更正 R2 的后半句：真正空闲（未生成）时
+   * 井退成一条预览带，不再是同尺寸同圆角同底的整块井——**槽的顺序与身份不变，
+   * 不是每个槽的尺寸不变**（详见 `canvas-node-detail.md` R2 注）。带子仍守
+   * 「占几何不占内容」的精神：只有一枚极淡字形 + 一行短提示，零取景框零棋盘格。
    */
   it('空态只留几何与一枚极淡字形，不留解释文案与取景框', () => {
     const { container } = renderDetail()
     expect(screen.queryByText('monitor.empty')).toBeNull()
     expect(container.querySelectorAll('.node-monitor-corner')).toHaveLength(0)
-    expect(container.querySelector('.canvas-detail-well')).not.toBeNull()
+    expect(container.querySelector('.canvas-detail-stage-band')).not.toBeNull()
+    expect(container.querySelector('.canvas-detail-well')).toBeNull()
     expect(document.querySelector('video')).toBeNull()
   })
 

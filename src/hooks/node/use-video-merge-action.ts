@@ -44,6 +44,14 @@ export interface VideoMergeAction {
   canMerge: boolean
   isMerging: boolean
   disabledReason: VideoMergeDisabledReason
+  /**
+   * 《画布修法》刀二·B3（2026-08-26）：`disabledReason` 的**文案**版本——原本
+   * 这段 `kind` → `t(...)` 的三路三元表达式手写在 `VideoMergeDetailBody` 里，
+   * 现在片盒又多了一个消费者（右侧侧车 `VideoMergeNode.tsx`），闸设在一处，
+   * 别让两处各写一份、日后改一处漏一处。`null` 当且仅当 `disabledReason` 为
+   * `null`。
+   */
+  disabledReasonText: string | null
   handleMerge(): Promise<void>
 }
 
@@ -113,6 +121,16 @@ export function useVideoMergeAction(node: NodeWorkflowNode): VideoMergeAction {
         : hasInvalidTrim
           ? { kind: 'invalidTrim' }
           : null
+
+  // 文案版本——与上面的判定同源，三路分支对应三种 kind（'invalidTrim' 落
+  // trim.rangeWarning，与 VideoMergeDetailBody 迁出前的原文一致）。
+  const disabledReasonText: string | null = !disabledReason
+    ? null
+    : disabledReason.kind === 'tooFewClips'
+      ? t('errors.tooFewClips', { min: disabledReason.min })
+      : disabledReason.kind === 'tooManyClips'
+        ? t('errors.tooManyClips', { max: disabledReason.max })
+        : t('trim.rangeWarning')
 
   const handleMerge = useCallback(async () => {
     if (!canMerge) return
@@ -203,6 +221,7 @@ export function useVideoMergeAction(node: NodeWorkflowNode): VideoMergeAction {
     canMerge,
     isMerging,
     disabledReason,
+    disabledReasonText,
     handleMerge,
   }
 }

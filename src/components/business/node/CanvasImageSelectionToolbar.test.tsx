@@ -28,11 +28,6 @@ const mocks = vi.hoisted(() => ({
   // 所以 seedance capability 现在也读 useNodes。
   nodes: [] as Array<{ id: string; type: string; data: NodeWorkflowNodeData }>,
   fitView: vi.fn(),
-  mergeAction: {
-    canMerge: true,
-    isMerging: false,
-    handleMerge: vi.fn(),
-  },
 }))
 
 vi.mock('next-intl', () => ({
@@ -72,24 +67,6 @@ vi.mock('./CharacterImageReferenceControls', () => ({
       {triggerLabel}
     </button>
   ),
-}))
-
-vi.mock('./FishVoiceLibraryDialog', () => ({
-  FishVoiceLibraryDialog: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="voice-library-dialog" /> : null,
-}))
-
-// FB-5 ②: VoiceCapability now also renders AssetSelectorDialog (从素材).
-// Same minimal-mock pattern as every other test that imports a component
-// transitively pulling in AssetSelectorDialog (e.g. NodeMediaInspector.test.tsx)
-// — the real component drags in next-intl navigation, which this test's
-// lightweight `next-intl` mock doesn't cover.
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
-  AssetSelectorDialog: () => null,
-}))
-
-vi.mock('@/hooks/node/use-video-merge-action', () => ({
-  useVideoMergeAction: () => mocks.mergeAction,
 }))
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
@@ -148,11 +125,6 @@ const IMAGE_DATA = {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.edges = []
-  mocks.mergeAction = {
-    canMerge: true,
-    isMerging: false,
-    handleMerge: vi.fn(),
-  }
 })
 
 describe('CanvasImageSelectionToolbar', () => {
@@ -285,6 +257,10 @@ describe('NodeSelectionToolbarChrome', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
+  // 《画布修法》刀二·B1 复核（2026-08-26）：撤掉这颗按钮的计划已停手——
+  // composer 生成路径不读上游角色/背景参考图，与它不等价（完整理由见
+  // CanvasImageSelectionToolbar.tsx 的 extra prop 文档）。按钮保留，用例
+  // 恢复原断言。
   it('image family with media still delegates to the untouched CanvasImageSelectionToolbar, plus a shot-only 生成 extra', () => {
     render(
       <NodeSelectionToolbarChrome
@@ -305,7 +281,10 @@ describe('NodeSelectionToolbarChrome', () => {
     expect(mocks.generateMediaNode).toHaveBeenCalledWith('node-1')
   })
 
-  it('a video result does not trip the image quick-edit gate (videoMerge with media)', () => {
+  // 《画布修法》刀二·B3：videoMerge 的合并按钮从这条工具条撤掉（挪去片盒
+  // 自己的右侧侧车，见 VideoMergeNode.test.tsx），但只要 mediaUrl 还在，
+  // 通用区（expand/download/delete）必须照旧可达——三族「未受影响」的验收点。
+  it('a video result does not trip the image quick-edit gate, and universal actions stay reachable once merge is retired (videoMerge with media)', () => {
     render(
       <NodeSelectionToolbarChrome
         nodeId="node-1"
@@ -323,8 +302,14 @@ describe('NodeSelectionToolbarChrome', () => {
       screen.queryByRole('button', { name: 'quickEdit' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'merge.regenerate' }),
-    ).toBeInTheDocument()
+      screen.queryByRole('button', { name: 'merge.regenerate' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'merge.run' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'expand' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'download' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'delete' })).toBeInTheDocument()
   })
 
   it('collector card (isCollector) gets 添加素材 + 出演, never the image quick-edit suite even with a mediaUrl', () => {
@@ -503,8 +488,13 @@ describe('NodeSelectionToolbarChrome', () => {
     expect(mocks.setExpandedNodeId).toHaveBeenCalledWith('node-1')
   })
 
-  it('videoMerge capability keeps merge local and reserves detail for expand', () => {
-    render(
+  // 《画布修法》刀二·B3：合并按钮从这条工具条撤下，挪去片盒自己的右侧侧车
+  // （VideoMergeNode.test.tsx 守那一半）。没有媒体、又没有能力区，这条工具条
+  // 按 owner 2026-07-27 的既有规则整条不渲染——不是回归，是同一条规则新覆盖
+  // 到了这个类型（见 CanvasImageSelectionToolbar.tsx `ToolbarCapabilityRegion`
+  // 头注）。
+  it('videoMerge capability retired from the toolbar — merge entry point moves to the node’s own sidecar (B3)', () => {
+    const { container } = render(
       <NodeSelectionToolbarChrome
         nodeId="node-1"
         data={{ status: NODE_STATUS_IDS.idle } as NodeWorkflowNodeData}
@@ -512,18 +502,21 @@ describe('NodeSelectionToolbarChrome', () => {
         nodeType={NODE_TYPE_IDS.videoMerge}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'merge.run' }))
-    expect(mocks.mergeAction.handleMerge).toHaveBeenCalled()
-
     expect(
-      screen.queryByRole('button', { name: 'reorder' }),
+      screen.queryByRole('button', { name: 'merge.run' }),
     ).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'expand' }))
-    expect(mocks.setExpandedNodeId).toHaveBeenCalledWith('node-1')
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
   })
 
-  it('voice capability: 更换 opens the shared voice library dialog', () => {
-    render(
+  // 《画布修法》刀二·B2：声音库/从素材选择两颗从这条工具条撤下，卡上唯一
+  // 那一颗（VoiceNode.test.tsx 守那一半）现在同时到达两种来源。voice 从不
+  // 写 data.mediaUrl（用 voiceClipUrl），所以没有能力区时这条工具条恒不渲染
+  // ——同一条 owner 2026-07-27 规则，不是新例外；⤢/删除改由右侧 GenerateComposer
+  // （voice 恒解析为 audio kind）与键盘 Backspace 承接，与 SeedanceNode 的既有
+  // 先例（零近场工具条、全靠侧车）同一个判断。
+  it('voice capability retired from the toolbar — selection now lives entirely on the card itself (B2)', () => {
+    const { container } = render(
       <NodeSelectionToolbarChrome
         nodeId="node-1"
         data={{ status: NODE_STATUS_IDS.idle } as NodeWorkflowNodeData}
@@ -531,9 +524,14 @@ describe('NodeSelectionToolbarChrome', () => {
         nodeType={NODE_TYPE_IDS.voice}
       />,
     )
-    expect(screen.queryByTestId('voice-library-dialog')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'chooseVoice' }))
-    expect(screen.getByTestId('voice-library-dialog')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'chooseVoice' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'referenceFromAssets' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('videoReference with media gets a 替换 capability plus universal actions', () => {

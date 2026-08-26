@@ -8,7 +8,6 @@ import {
   type ComponentType,
 } from 'react'
 import {
-  Archive,
   Clapperboard,
   FileText,
   Film,
@@ -26,7 +25,6 @@ import type { XYPosition } from '@xyflow/react'
 
 import {
   CANVAS_ADD_CATALOG,
-  CANVAS_ADD_GROUP_IDS,
   CANVAS_ADD_INTENT_IDS,
   type CanvasAddIntentId,
 } from '@/constants/canvas-add-catalog'
@@ -87,6 +85,36 @@ export function CanvasAddMenu({
   const t = useTranslations('StudioNode')
   const menuRef = useRef<HTMLDivElement | null>(null)
   const [layout, setLayout] = useState<CanvasAddMenuLayout | null>(null)
+  // 《画布修法》A1（P1 误触）：菜单没有遮罩、也不吃点击——外部 pointerdown
+  // 已经在下面把菜单关了，但原生 click 是浏览器基于 mousedown/mouseup 独立
+  // 派发的下一个事件，不会因为更早的 pointerdown 调了 stopPropagation 就不
+  // 发。那一下于是「既关了菜单，又顺手点中了菜单刚刚让开的东西」（比如左栏
+  // 「当前项目」正下方就是菜单自己的「从素材库选择」）。这里记一下「下一次
+  // click 要吞掉」，在 document 捕获阶段拦住，让它连目标的 onClick 都碰不到
+  // ——不用 state：state 落地要等一次渲染，同一个用户手势里 click 可能先到。
+  const suppressClickUntilRef = useRef(0)
+
+  useEffect(() => {
+    // 常驻监听，不随 open 卸载：outside-pointerdown 那一刻会同步把 open 关掉
+    // （见下方 handleEscape 头注引用的同一种「document 阶段之间同步 flush」
+    // 现象），这个监听若也跟着 open 一起被移除，刚武装好的
+    // suppressClickUntilRef 就没人来消费。改用一个时间窗口（而不是"下一次
+    // click 无条件吞"）容错 pointerdown 后手势中断、click 始终没跟上来的
+    // 情况，避免误留到很久之后一次完全不相关的点击上。
+    const handleClickCapture = (event: MouseEvent) => {
+      const armedUntil = suppressClickUntilRef.current
+      suppressClickUntilRef.current = 0
+      if (armedUntil === 0 || Date.now() > armedUntil) {
+        return
+      }
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    document.addEventListener('click', handleClickCapture, true)
+    return () => {
+      document.removeEventListener('click', handleClickCapture, true)
+    }
+  }, [])
 
   useEffect(() => {
     if (!open) {
@@ -100,6 +128,14 @@ export function CanvasAddMenu({
         menuRef.current &&
         !menuRef.current.contains(target)
       ) {
+        // 只给主键（左键/触屏点按，button===0）武装吞click——右键在这块画布
+        // 上另有含义（画布空白右键 = handlePaneContextMenu，就地在新位置重开
+        // 一个添加菜单），且右键本身通常不触发 click。武装了也没人消费，会
+        // 一直留到 2s 窗口内，误吞新菜单上紧接着那一次正常左键点击。
+        if (event.button === 0) {
+          suppressClickUntilRef.current =
+            Date.now() + NODE_STUDIO_ADD_MENU.outsideClickSuppressWindowMs
+        }
         onClose()
       }
     }
@@ -244,49 +280,32 @@ export function CanvasAddMenu({
             {t(`addCatalog.groups.${group.id}`)}
           </h3>
           <div className="space-y-0.5">
-            {group.id === CANVAS_ADD_GROUP_IDS.organize ? (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() =>
-                  onSelect(CANVAS_ADD_INTENT_IDS.organizeCharacter)
-                }
-                className={cn(
-                  'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
-                  'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-                )}
-              >
-                <Archive className="size-4 shrink-0 text-node-muted" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium text-node-foreground">
-                    {t('addCatalog.items.collect.label')}
-                  </span>
-                </span>
-              </button>
-            ) : (
-              group.items.map((item) => {
-                const Icon = ICON_BY_INTENT[item.id]
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="menuitem"
-                    onClick={() => onSelect(item.id)}
-                    className={cn(
-                      'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
-                      'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
-                    )}
-                  >
-                    <Icon className="size-4 shrink-0 text-node-muted" />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium text-node-foreground">
-                        {t(`addCatalog.items.${item.labelKey}.label`)}
-                      </span>
+            {/* 《画布修法》A2：组织组不再塌成一颗「收集」按钮——两行各自的
+                intent（角色档案/场景档案）走与其它三组同一条渲染路径，
+                与 owner 拍板的两行诉求对齐（此前 organizeScene 是 UI 不可
+                达的死代码，见 canvas-add-catalog.ts 头注旁的调查记录）。 */}
+            {group.items.map((item) => {
+              const Icon = ICON_BY_INTENT[item.id]
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => onSelect(item.id)}
+                  className={cn(
+                    'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
+                    'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
+                  )}
+                >
+                  <Icon className="size-4 shrink-0 text-node-muted" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-node-foreground">
+                      {t(`addCatalog.items.${item.labelKey}.label`)}
                     </span>
-                  </button>
-                )
-              })
-            )}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </section>
       ))}

@@ -532,4 +532,42 @@ describe('VoiceDetailBody', () => {
       status: NODE_STATUS_IDS.idle,
     })
   })
+
+  /**
+   * 画布修法包 E（2026-08-26）：试听时长——调查抓到详情面板的试听卡显示
+   * 0:00。真因见 `VoiceDetailBody` 播放器那段头注：这里用的原生
+   * `<audio controls>` 从没有一行代码读过 `duration`、也没监听过
+   * `loadedmetadata`，数字纯粹是浏览器自己画的原生控件皮肤。换成既有的
+   * `AudioPlayer`（`GenerationPreview` 消费的同一个组件）后由它的
+   * `loadedmetadata` 监听负责，不是重写一条新链——`readVoiceUrlFromData`
+   * 取 URL 的链路一行没动。
+   */
+  it('试听：拿到 loadedmetadata 后显示真实时长，不是原生控件的 0:00', () => {
+    renderBody(makeData({ voiceClipUrl: 'https://cdn.example.com/s.mp3' }))
+
+    const audio = document.querySelector('audio')
+    expect(audio).not.toBeNull()
+    Object.defineProperty(audio as HTMLAudioElement, 'duration', {
+      configurable: true,
+      value: 7,
+    })
+    fireEvent.loadedMetadata(audio as HTMLAudioElement)
+
+    expect(screen.getByText('0:07')).toBeInTheDocument()
+  })
+
+  it('试听：还没读到 duration 时显示占位 --:--，不撒谎成 0:00', () => {
+    renderBody(makeData({ voiceClipUrl: 'https://cdn.example.com/s.mp3' }))
+
+    // 不触发 loadedmetadata——jsdom 不会自己派发这个事件，组件应该停在
+    // 「还不知道」的占位态，不是编一个假的 0:00。
+    expect(screen.getByText('--:--')).toBeInTheDocument()
+  })
+
+  it('没有可播 clip 时维持哑轨占位，不渲染播放器（不是同一种"0:00"）', () => {
+    renderBody(makeData())
+
+    expect(document.querySelector('audio')).toBeNull()
+    expect(screen.queryByText('--:--')).not.toBeInTheDocument()
+  })
 })

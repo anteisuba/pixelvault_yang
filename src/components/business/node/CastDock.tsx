@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, type ComponentType } from 'react'
+import { useMemo, type ComponentType } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
 import { FileText, ImageIcon, Mic2, Search, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -87,6 +87,28 @@ export function countCanvasNodes(nodes: readonly NodeWorkflowNode[]): number {
   return nodes.length
 }
 
+interface CastDockProps {
+  /**
+   * 搜索词（画布修法 G1，2026-08-26）：曾经是这个组件内部的 `useState`，但
+   * `CanvasRosterRail` 下段的收集器卡区需要用**同一个** query 过滤 —— 两段各
+   * 管一份 state 就是「同一个搜索框只过滤半个面板」那个 bug 的根因。state 因此
+   * 搬去父组件持有，这里改收 controlled props。
+   */
+  query: string
+  onQueryChange: (value: string) => void
+  /**
+   * 包 H（画布修法《手机 390px》，2026-08-26）：行点击的替代落点。省略时行为
+   * 字节不变——仍是 `focusNode`（选中并飞相机到真实画布节点），桌面唯一调用点
+   * `CanvasRosterRail` 不传这个 prop。
+   *
+   * 手机默认形态没有可看的画布相机可飞（画布退到「查看画布」入口后面），点一行
+   * 该做的事变成「打开这个节点的只读预览」——传这个 prop 换掉点击目标，而不是
+   * 复制一份列表：locator 本身的数据整形/分组/搜索对两边完全一样，见
+   * `CanvasMobileView` 的调用点。
+   */
+  onSelectNode?: (nodeId: string) => void
+}
+
 /**
  * All-node locator.
  *
@@ -94,15 +116,19 @@ export function countCanvasNodes(nodes: readonly NodeWorkflowNode[]): number {
  * left-panel integration narrow, but none of the old mirror-card semantics
  * remain: no create, delete, detail, rename, drag, or quick throw. Rows project
  * directly from React Flow's live nodes and only call the workbench's
- * `focusNode`, which selects and fits the real canvas node.
+ * `focusNode` (or, on the mobile locator, `onSelectNode`).
  */
-export function CastDock() {
+export function CastDock({
+  query,
+  onQueryChange,
+  onSelectNode,
+}: CastDockProps) {
   const t = useTranslations('StudioNode.castDock')
   const tStudio = useTranslations('StudioNode')
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
   const { focusNode } = useNodeWorkflowActions()
-  const [query, setQuery] = useState('')
+  const activateRow = onSelectNode ?? focusNode
 
   const referenceCountByNodeId = useMemo(() => {
     const counts = new Map<string, number>()
@@ -161,7 +187,7 @@ export function CastDock() {
         <input
           type="search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => onQueryChange(event.target.value)}
           aria-label={t('searchLabel')}
           placeholder={t('searchPlaceholder')}
           className="h-9 w-full rounded-lg border bg-transparent pl-8 pr-2 text-xs outline-none transition-colors placeholder:text-node-subtle focus:border-node-foreground"
@@ -204,7 +230,7 @@ export function CastDock() {
                     <button
                       key={entry.node.id}
                       type="button"
-                      onClick={() => focusNode?.(entry.node.id)}
+                      onClick={() => activateRow?.(entry.node.id)}
                       aria-label={t('locateNode', { name: entry.name })}
                       aria-current={entry.node.selected ? 'true' : undefined}
                       className={cn(

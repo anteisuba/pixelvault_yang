@@ -41,6 +41,7 @@ import {
   NODE_STUDIO_BOTTOM_DOCK,
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
+  NODE_STUDIO_ADD_MENU,
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
   NODE_STUDIO_DOCK,
   NODE_STUDIO_EDGE_VISUALS,
@@ -56,6 +57,7 @@ import {
   NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
   isNodeStudioReferenceRole,
   resolveReferenceAssetLimit,
+  resolveTopbarAddSpawnPosition,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
 import {
@@ -115,6 +117,7 @@ import {
   useUpdateNodeInternalsOnInit,
   type ForceNodeInternalsUpdate,
 } from '@/hooks/node/use-update-node-internals-on-init'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import { markMediaAwaitingReview, rejectMedia } from '@/lib/node-media-review'
@@ -127,6 +130,7 @@ import {
 } from '@/lib/node-assistant-op-patch'
 import {
   buildDisplayNamePatch,
+  resolveNodeAccessibleName,
   resolveNodeDisplayName,
   stripFileExtension,
 } from '@/lib/node-display-name'
@@ -142,6 +146,7 @@ import {
   resolveCanvasImageEditHandoff,
 } from '@/lib/canvas-image-edit-handoff'
 import {
+  assembleShotImageReferencePlan,
   buildReferenceAssetLegendEntries,
   buildShotReferenceLegend,
   buildVideoReferenceLegend,
@@ -157,6 +162,7 @@ import {
   harvestUpstreamVideoUrls,
   getSeedanceReferenceKind,
   isShotNode,
+  mergeComposerReferenceAssets,
   mergePromptWithUpstreamText,
   summarizeUpstreamSeedanceReferences,
   type UpstreamImageReference,
@@ -218,6 +224,7 @@ import {
 import { CanvasAddMenu } from './CanvasAddMenu'
 import { CanvasBottomDock } from './CanvasBottomDock'
 import { CanvasMiniMap } from './CanvasMiniMap'
+import { CanvasMobileView } from './CanvasMobileView'
 import { CanvasStartupSkeleton } from './CanvasStartupSkeleton'
 import { CanvasSurface, getCanvasAppearanceCssVars } from './CanvasSurface'
 import { CanvasTopBar } from './CanvasTopBar'
@@ -647,6 +654,9 @@ function StudioNodeCanvas() {
   // 落槽容量闸的两句话：区名取槽架那一份（两处显示同一个词），拒绝理由取 ingest。
   const tSlotRack = useTranslations('StudioNode.videoComposer.slotRack')
   const tIngestReasons = useTranslations('StudioNode.ingest.reasons')
+  // D1（画布修法《键盘可达》）：节点 ariaLabel 的类型标签 + "类型：名字" 拼接
+  // 格式，消费点在下方的 renderedNodes。
+  const tNodeTypes = useTranslations('StudioNode.nodeTypes')
   const locale = useLocale()
   const searchParams = useSearchParams()
   const imageEditHandoff = useMemo(
@@ -753,6 +763,13 @@ function StudioNodeCanvas() {
   // 上面两个 state 的初值本来就是 false（助手默认关着，宽窄屏都一样），
   // effect 里再 setState(false) 什么都没改。真正的窄屏行为在 4500+ 那个
   // matchMedia effect 里（左面板收成图标轨），那份还在。
+  //
+  // 包 H（画布修法《手机 390px》，2026-08-26）：`useIsMobile` 断点 1024，与
+  // 上面那条 matchMedia 一致（不是另定义一条）。`canvasPeek` = 用户主动点了
+  // 「查看画布」——true 时只收起 `CanvasMobileView` 这层不透明覆盖层，桌面那棵
+  // 树（顶栏/底部工具条/左栏/ReactFlow）从未卸载，见该组件顶部长注。
+  const isMobile = useIsMobile()
+  const [canvasPeek, setCanvasPeek] = useState(false)
   const appLocale = isAppLocale(locale) ? locale : DEFAULT_LOCALE
 
   const closeAddMenu = useCallback(() => {
@@ -971,23 +988,61 @@ function StudioNodeCanvas() {
     }
   }, [isSaving, t, workflow])
 
+  // 《画布修法》02 节刀 1 task A：连续第几次从顶栏 ＋ 打开添加菜单——
+  // `resolveTopbarAddSpawnPosition` 拿它取模算错位步进，不读 `workflow.nodes.length`
+  // （见该函数文档，画布已有大量节点时用总数当步数会让第一次新建就飞出老远）。
+  const topbarAddSequenceRef = useRef(0)
+
   const handleTopbarAddClick = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       const rect = event.currentTarget.getBoundingClientRect()
+      // P1 误触（2026-08-26 全域扫描实测：菜单开着点「当前项目」，触发的是下层
+      // 的「从素材库选择」）。根因不是点击穿透，也不是 z 序——菜单 z-canvas-
+      // transient(50) 本来就压着左栏 z-canvas-chrome(40)。真因是**几何**：锚点
+      // 取的是「＋」按钮自己的左边缘，而那颗按钮住在左栏 56px 图标轨**里面**，
+      // 菜单宽 232px，于是整个菜单盖在左栏身上（左栏展开时宽 296px）。落在重叠
+      // 区的点击天然归最上层的真按钮——这种情况下任何交互层补丁（吞点击、加
+      // 遮罩）都只能挡住「非按钮」的那部分，挡不住按钮压按钮。
+      //
+      // 改成锚在**左栏面板的右外缘**：读面板自身的 rect 而不是判 expanded 状态，
+      // 收起(56)/展开(296)两态自动适配，也不必把 CANVAS_LEFT_PANEL_WIDTH_PX
+      // import 进来复制一份宽度事实。面板缺席（窄屏 md 以下不渲染左栏）时回落
+      // 到按钮自身左缘，与改动前一致。
+      const leftPanel = event.currentTarget.closest(
+        '[data-testid="canvas-left-panel"]',
+      )
+      const anchorX = leftPanel
+        ? leftPanel.getBoundingClientRect().right +
+          NODE_STUDIO_ADD_MENU.panelGapPx
+        : rect.left
       const menuPosition = getCanvasLocalPosition({
-        x: rect.left,
+        x: anchorX,
         y: rect.bottom,
       })
+
+      // 落点从画布坐标系里写死的角（96,96）改成「当前视口中心」——用户平移过
+      // 画布之后新卡还落在看得见的地方；同一份 screenToFlowPosition(视口中心)
+      // 换算已经在 handleReference/handlePaste 两处立过先例（同文件），这里复用
+      // 同一个读法，不另写一套。
+      const viewportCenter = screenToFlowPosition({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      })
+      const flowPosition = resolveTopbarAddSpawnPosition(
+        viewportCenter,
+        topbarAddSequenceRef.current,
+      )
+      topbarAddSequenceRef.current += 1
 
       openAddMenu(
         {
           x: menuPosition.x,
           y: menuPosition.y + NODE_STUDIO_NODE_PLACEMENT.menuOffset.y,
         },
-        NODE_STUDIO_NODE_PLACEMENT.topbarAddPosition,
+        flowPosition,
       )
     },
-    [getCanvasLocalPosition, openAddMenu],
+    [getCanvasLocalPosition, openAddMenu, screenToFlowPosition],
   )
 
   const handlePaneContextMenu = useCallback(
@@ -1703,11 +1758,22 @@ function StudioNodeCanvas() {
             videoImageAutoNamePrefix,
           )
         : null
-      // 视频线用未截断的候选（下面按真实上限裁一次）；其余线沿用早已截断好的
+      // 视频线用未截断的候选（这里按真实上限裁一次）；其余线沿用早已截断好的
       // `referenceImages`，那一支 V-3b 从来没碰过。
-      const cappedReferenceImages = (
-        isVideoMediaNode ? dedupedReferenceCandidates : referenceImages
-      ).slice(0, slotLimits.images)
+      //
+      // ⚠ 2026-08-26 修一处**注释与代码不一致**：`.slice()` 原本写在三元的
+      // 括号**外面**，于是非视频线也被裁了一刀——而 `slotLimits` 是
+      // `resolveVideoSendSlotLimits(getVideoModelSendContract(modelId))` 算的
+      // **视频**容量，图片模型（镜头图用的那些）在那张表里一个都不认识，全部
+      // 落进 `FALLBACK_CONTRACT` → `FIRST_FRAME_SLOTS.images = 1`。后果是镜头
+      // 图无论连了几张角色/背景参考，工具条这条路最终只发得出**第 1 张**。
+      // 非视频线的 `referenceImages` 在上面已经用 provider 自己的
+      // `maxReferenceImages` 截过（`assembleReferenceImagePayload`），这里再按
+      // 视频兜底裁一次既没依据也没人要——把 slice 收回视频分支里，正是这段注释
+      // 一直在描述的意图。
+      const cappedReferenceImages = isVideoMediaNode
+        ? dedupedReferenceCandidates.slice(0, slotLimits.images)
+        : referenceImages
       // 切片 6 第 ⑤ 层守卫：关键帧档只有 first_frame / last_frame 两个位置，适配器
       // 按位置取图。而收割顺序是「关键帧在前，其余参考图跟在后面」——「1 张首帧 +
       // 1 张角色卡图」原样送下去，角色图就会被当成尾帧，视频以一张不相干的图结尾。
@@ -2102,13 +2168,55 @@ function StudioNodeCanvas() {
         input.model.adapterType,
         input.model.modelId,
       )
-      // R3-6a §1 共享装配: same dedup + cap function every other reference-
-      // collecting path in this file uses — single source of truth, not a
-      // second independent tally.
-      const referenceImages = assembleReferenceImagePayload(
+      // 画布修法包 F：宿主是镜头图节点时，这条发送路必须读同一份上游角色/
+      // 背景收割 —— 此前只认 `input.referenceUrls`（宿主缩略 + 手动加的库图），
+      // 从不读图，一张连着角色卡的镜头图从这里发送会把角色参考图静默丢掉，
+      // 而工具条「生成」钮（`handleGenerateMediaNode`）一直都读上游。判据复用
+      // 既有 `isShotNode`（不手写第二个），收割 + 合并去重 + 容量闸 + 图例
+      // 全部经 `assembleShotImageReferencePlan`（`node-workflow-graph.ts`）——
+      // 与工具条那条路完全相同的三个原语（`harvestUpstreamImageReferences` →
+      // `assembleReferenceImagePayload` → `buildShotReferenceLegend`），使两条
+      // 路对同一画布状态产出逐项相等的 referenceImages + 图例（回归测试见
+      // `node-workflow-graph.test.ts` 的 `assembleShotImageReferencePlan`
+      // describe 块）。非镜头图宿主（或无宿主）时 `hostUpstreamNodes` 恒空，
+      // 退化成改动前的行为（只有 `input.referenceUrls`，legend 恒空串）。
+      const hostNode = input.hostNodeId
+        ? workflow.nodes.find((item) => item.id === input.hostNodeId)
+        : undefined
+      const hostUpstreamNodes =
+        hostNode && isShotNode(hostNode)
+          ? getUpstreamNodes(hostNode.id, workflow.edges, workflow.nodes)
+          : []
+      const shotReferencePlan = assembleShotImageReferencePlan(
         input.referenceUrls,
+        hostUpstreamNodes,
         maxReferenceImages,
-      ).imageUrls
+      )
+      // 两条收割链合起来报一次 —— 同工具条路径 §5-W3「排除时要提示」：门禁生效
+      // 但用户不知道，等价于产品在骗他。这条路此前完全不会触发（从不读上游）。
+      if (shotReferencePlan.blocked.length > 0) {
+        const pending = shotReferencePlan.blocked.filter(
+          (item) => item.state === NODE_REVIEW_STATE_IDS.awaitingReview,
+        ).length
+        const rejected = shotReferencePlan.blocked.length - pending
+        toast.info(
+          t('mediaNodes.reviewBlocked', {
+            total: shotReferencePlan.blocked.length,
+            pending,
+            rejected,
+          }),
+          {
+            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+          },
+        )
+      }
+      const referenceImages = shotReferencePlan.referenceImages
+      // 图例跟上工具条路径的做法：legend 只加进**发给模型**的这一份 prompt，
+      // 节点持久化的 `data.prompt`（下方 updateNodeData）保持用户原文不变。
+      const finalPrompt = shotReferencePlan.legend
+        ? `${shotReferencePlan.legend}\n\n${input.prompt}`
+        : input.prompt
       // `referenceUrls[0]` is the pinned host slot whenever the host has
       // media (canvas-generate-composer.md §4 — the composer always puts it
       // first), everything after is a library pick.
@@ -2124,6 +2232,16 @@ function StudioNodeCanvas() {
             ? NODE_STUDIO_REFERENCE_SOURCE_IDS.canvas
             : NODE_STUDIO_REFERENCE_SOURCE_IDS.asset,
       }))
+      // 包 F 续（owner 2026-08-26 拍板「只修抹掉、不改发送」）：就地填充的那个
+      // target 就是宿主本身，上面这份 referenceAssets 原样写下去会把宿主手动
+      // 加过的风格/道具参考图抹掉。合并规则与理由见
+      // `mergeComposerReferenceAssets`（node-workflow-graph.ts）——只改落盘的
+      // 这一份，发送口径（referenceImages）一个字不动。新建的兄弟节点是空的，
+      // 没有可保的旧条目，照旧用 composer 自己这份。
+      const hostReferenceAssets = mergeComposerReferenceAssets(
+        hostNode?.data.referenceAssets,
+        referenceAssets,
+      )
 
       const runs = Math.max(1, Math.min(input.batchCount, 4))
       // §7 一条对称的例外：空卡宿主（或刚从空白处新建、同样是空的节点）吸收
@@ -2158,7 +2276,10 @@ function StudioNodeCanvas() {
           model: input.model,
           aspectRatio: input.aspectRatio,
           imageResolution: input.imageResolution,
-          referenceAssets,
+          referenceAssets:
+            targetId === input.hostNodeId
+              ? hostReferenceAssets
+              : referenceAssets,
           mediaKind: NODE_MEDIA_KIND_IDS.image,
           generationStatus: NODE_GENERATION_STATUS_IDS.pending,
           // 同上：清掉上一次可能是助手写的来源，免得这次用户生成转 pending 后被
@@ -2213,7 +2334,7 @@ function StudioNodeCanvas() {
             kind: NODE_MEDIA_KIND_IDS.image,
             modelId: input.model.modelId,
             apiKeyId: input.model.apiKeyId,
-            prompt: input.prompt,
+            prompt: finalPrompt,
             aspectRatio: input.aspectRatio,
             referenceImages:
               referenceImages.length > 0 ? referenceImages : undefined,
@@ -2706,7 +2827,7 @@ function StudioNodeCanvas() {
   const reviewCurrentNodeId = reviewMode.active
     ? (reviewMode.current?.nodeId ?? null)
     : null
-  const renderedNodes = useMemo(() => {
+  const reviewDecoratedNodes = useMemo(() => {
     if (!reviewCurrentNodeId) return workflow.nodes
     return workflow.nodes.map((node) =>
       node.id === reviewCurrentNodeId
@@ -2714,6 +2835,65 @@ function StudioNodeCanvas() {
         : node,
     )
   }, [reviewCurrentNodeId, workflow.nodes])
+
+  // D1（画布修法《键盘可达》，2026-08-26）：给每个节点挂 React Flow 的
+  // `ariaLabel`——不设置时 NodeWrapper 直接省掉 DOM `aria-label`（见
+  // `resolveNodeAccessibleName` 的文档注释），读屏会退化成「按内容拼可访问
+  // 名」，18 个节点因此全部念成卡头改名按钮的 aria-label「命名」。这里是唯一
+  // 消费点，别在具体某个节点组件里重复挂。
+  //
+  // ⚠ 性能：延续上面 `reviewDecoratedNodes` 同一条纪律——不在审阅模式时它原样
+  // 透传 `workflow.nodes`，而 `workflow.nodes` 在拖拽的每一帧都会换一个新的
+  // 数组引用（本文件多处 "A1 perf fix" 注释已确认这个前提——`applyNodeChanges`
+  // 只给真正变化的那个节点换新对象引用，没变的节点引用不动）。下面按节点引用
+  // 键控的缓存复用没变节点的旧装饰结果：不这样做的话，任何一次拖拽都会因为
+  // 「所有节点的 props 都换了新对象」而让全画布的节点组件跟着重渲染一遍，不只
+  // 是被拖的那一张。
+  const ariaLabelCacheRef = useRef<{
+    tNodeTypes: typeof tNodeTypes | null
+    byNode: WeakMap<NodeWorkflowNode, NodeWorkflowNode>
+  }>({ tNodeTypes: null, byNode: new WeakMap() })
+
+  const renderedNodes = useMemo(() => {
+    const cache = ariaLabelCacheRef.current
+    // 语言切换后 tNodeTypes 是新的函数引用——整份缓存作废，否则会读到别的
+    // 语言留下的旧字符串。
+    if (cache.tNodeTypes !== tNodeTypes) {
+      cache.tNodeTypes = tNodeTypes
+      cache.byNode = new WeakMap()
+    }
+    return reviewDecoratedNodes.map((node) => {
+      const cached = cache.byNode.get(node)
+      if (cached) return cached
+      // 理论上不会发生（画布里的节点全部走 NODE_TYPE_IDS 显式建type），但
+      // `Node.type` 在库的类型里是可选字段——没有就不装饰，原样返回。
+      if (!node.type) return node
+      // ⚠ 不能直接 `tNodeTypes(node.type)`——统一 image 节点的 `node.type` 恒为
+      // 'image'，角色/场景身份卡会因此读成「图片：xxx」而不是卡头实际显示的
+      // 「卡片：xxx」/「镜头图：xxx」。`resolveNodePresentationType` 是这个
+      // 仓库里「role → 展示类型」的单一事实源（GenerateComposer 的
+      // mentionKindOf 同一个坑，同一个解法），走它才能和卡面上的文字对上。
+      //
+      // ⚠ 唯一例外与 NodeDetailPanel 的 `isLooseImage` 同一个坑：无 role 的散图
+      // `resolveNodePresentationType` 会落到它自己的 shot 兜底（'镜头图'），但
+      // `ImageNode` 对无 role 的图片实际渲染的是 `LooseImageCard`/
+      // `ImageSourceStarter`，走的是通用 'image' 类型——同一处已有先例，这里
+      // 照抄同一个判据，不新发明一条。
+      const isLooseImage = node.type === NODE_TYPE_IDS.image && !node.data.role
+      const presentationType = isLooseImage
+        ? node.type
+        : resolveNodePresentationType(node)
+      const typeLabel = tNodeTypes(presentationType)
+      const ariaLabel = resolveNodeAccessibleName(
+        node.data,
+        typeLabel,
+        (type, name) => tNodeTypes('typeNameAria', { type, name }),
+      )
+      const decorated: NodeWorkflowNode = { ...node, ariaLabel }
+      cache.byNode.set(node, decorated)
+      return decorated
+    })
+  }, [reviewDecoratedNodes, tNodeTypes])
 
   // R3-1 选中集合（canvas-relationship-v3 §2.2）: `workflow.nodes[].selected`
   // already round-trips through `workflow.onNodesChange` (applyNodeChanges
@@ -4803,6 +4983,14 @@ function StudioNodeCanvas() {
             // 少一层就是「看得见端口但拉不出线」。
             nodesConnectable
             elementsSelectable
+            // D1（画布修法《键盘可达》）：102 个可聚焦项里 20 条是连线，Tab 从
+            // 画布进去要先穿过所有边才轮到按钮。边默认可聚焦
+            // （`edgesFocusable` 库默认 true）——关掉后边退出 Tab 序，但鼠标
+            // 点击选中（`elementsSelectable`/`onEdgeClick`）与全局
+            // `deleteKeyCode` 处理（读 `edge.selected`，与 DOM 焦点无关，见
+            // @xyflow/react 的 `useGlobalKeyHandler`）都不受这个开关影响——
+            // 鼠标点边选中 + Delete 删边这条通路原样保留。
+            edgesFocusable={false}
             selectNodesOnDrag={false}
             nodeDragThreshold={NODE_STUDIO_CANVAS.nodeDragThreshold}
             panOnDrag={panOnDrag}
@@ -5027,6 +5215,18 @@ function StudioNodeCanvas() {
           </AlertDialog>
         </IngestDragProvider>
       </CanvasWorkspaceLayout>
+      {/* 包 H（画布修法《手机 390px》）：<1024 默认盖一层不透明覆盖层——上面
+          那整棵桌面树（含 <ReactFlow>）不受影响地继续挂载/同步，覆盖层只是
+          挡住那张「看得到、点不中」的缩微画布，换成列表 + 只读预览。
+          z-canvas-workspace 稳赢桌面 chrome 顶格的 z-canvas-chrome 与助手 rail
+          的 z-20，与 DOM 顺序无关（见该组件顶部长注）。 */}
+      {isMobile ? (
+        <CanvasMobileView
+          peeking={canvasPeek}
+          onEnterPeek={() => setCanvasPeek(true)}
+          onExitPeek={() => setCanvasPeek(false)}
+        />
+      ) : null}
     </NodeWorkflowActionsProvider>
   )
 }

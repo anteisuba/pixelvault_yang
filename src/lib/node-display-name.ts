@@ -26,6 +26,13 @@
  * ⚠ 写侧口径（owner 2026-07-31 拍板）：**按 role/type 定，与「有没有媒体」无关**。
  * 同一个节点永远写同一个字段，读写因此天然对齐。旧数据不迁移 —— 读侧的优先链
  * 本来就把所有历史字段都含在内。
+ *
+ * ── 2026-08-26 画布修法 D1 追加 `resolveNodeAccessibleName` ──────────────
+ * 不是第三条独立读法：**内部直接调用上面的 `resolveNodeDisplayName`**，只是
+ * 在没名字时退回类型名、有名字时把类型也带上，给 React Flow 的 `Node.ariaLabel`
+ * 消费（键盘 Tab 到节点时读屏念的就是这个）。放在同一文件是因为它的正确性
+ * 完全依赖那条优先链——链一变它自动跟着变，拆开放就是又一次「读法分叉」的
+ * 开始，正是这个文件存在的理由。
  */
 
 import {
@@ -221,4 +228,32 @@ export function buildDisplayNamePatch(
   // 无 role 的散图、关键帧、镜头文本、视频合并、参考视频、seedance —— 没有专有
   // 身份字段，用通用媒体标签。
   return { mediaLabel: value, sourceLabel: value }
+}
+
+/**
+ * 节点的可访问名（画布修法 D1，2026-08-26）——挂到 React Flow 的 `Node.ariaLabel`
+ * 上。不设置时 `NodeWrapper` 直接省掉 DOM `aria-label` 属性（node_modules/
+ * @xyflow/react 源码里就是 `"aria-label": node.ariaLabel`，没有兜底字符串），
+ * 读屏于是退化成「按内容拼可访问名」：卡里唯一带显式 aria-label 的后代通常是
+ * 卡头的改名按钮（`EditableNodeLabel`，见 NodeShell.tsx），它的 aria-label
+ * 固定是 `StudioNode.nodeToolbar.rename`（"命名"）——这正是「18 个节点读屏都
+ * 念成同一个词」的来源。显式给节点自己的 ariaLabel 从根上堵住这条退化路径。
+ *
+ * 有名字时把类型也带上（"镜头图：镜头1-静帧"）而不是只读名字——同一画布上
+ * 大概率不止一个节点叫得出名字，类型前缀让读屏用户能区分「这是哪一种」。
+ *
+ * `formatNamed` 由调用方传入（next-intl 的 `StudioNode.nodeTypes.typeNameAria`），
+ * 分隔符是要被读屏念出来的文案，不在这个纯函数里手拼字面量。
+ */
+export function resolveNodeAccessibleName(
+  data: NodeWorkflowNodeData,
+  typeLabel: string,
+  formatNamed: (typeLabel: string, name: string) => string,
+): string {
+  const name = resolveNodeDisplayName(data)
+  if (!name) return typeLabel
+  // ⚠ 名字本身常常已经带着类型前缀——系统给音色卡的默认命名就是「音色：常客」，
+  // 身份卡是「角色：店员小林」。再套一层模板会读成「音色：音色：常客」（真机
+  // 2026-08-26 实测）。名字已经以类型词开头时直接用名字，别念两遍。
+  return name.startsWith(typeLabel) ? name : formatNamed(typeLabel, name)
 }

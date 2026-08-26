@@ -109,6 +109,23 @@ describe('NodeMediaPreview — 文本族卡面', () => {
     expect(screen.queryByTestId('node-footer')).not.toBeInTheDocument()
   })
 
+  // 《画布修法》02 节刀 1 task C：text kind 脱离 16:9 主窗——一段字被撑成电影
+  // 幕。空态与有内容态都不该再带 aspect-video，高度改由
+  // .canvas-text-preview-surface 自己的 min-height 兜底（canvas.css）。
+  it('空态与有内容态都不再套 aspect-video——高度改由内容/CSS 地板决定，不锁 16:9', () => {
+    const { rerender } = render(<NodeMediaPreview {...makeProps({})} />)
+    expect(
+      screen
+        .getByText('StudioNode.workflowNodes.shotText.emptyState')
+        .closest('.canvas-text-preview-surface'),
+    ).not.toHaveClass('aspect-video')
+
+    rerender(<NodeMediaPreview {...makeProps({ scene: '有内容态' })} />)
+    expect(
+      screen.getByText(/有内容态/).closest('.canvas-text-preview-surface'),
+    ).not.toHaveClass('aspect-video')
+  })
+
   it('图片节点不渲染状态底栏', () => {
     render(
       <NodeMediaPreview
@@ -150,5 +167,79 @@ describe('NodeMediaPreview — 片盒卡面（videoMerge，画布修法 06 节�
     expect(
       screen.queryByText('StudioNode.workflowNodes.videoMerge.footerEmpty'),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('NodeMediaPreview — 空态卡宽收窄（《画布修法》02 节刀 1 task B）', () => {
+  it('镜头图空态收到 canvas-card--w-empty（320），不再是常驻 400 的 w-node-card', () => {
+    const { container } = render(
+      <NodeMediaPreview
+        {...makeProps({})}
+        type={NODE_TYPE_IDS.shot}
+        kind={NODE_MEDIA_KIND_IDS.image}
+      />,
+    )
+
+    expect(container.firstElementChild).toHaveClass('canvas-card--w-empty')
+  })
+
+  it('镜头文本空态与有内容态都收到 canvas-card--w-empty（宽度不随内容变化，只有高度变）', () => {
+    const { container: emptyContainer } = render(
+      <NodeMediaPreview {...makeProps({})} />,
+    )
+    expect(emptyContainer.firstElementChild).toHaveClass('canvas-card--w-empty')
+
+    const { container: filledContainer } = render(
+      <NodeMediaPreview {...makeProps({ scene: '有内容态' })} />,
+    )
+    expect(filledContainer.firstElementChild).toHaveClass(
+      'canvas-card--w-empty',
+    )
+  })
+
+  it('片盒空态收到 canvas-card--w-empty，落地视频后回到既有宽度算法（回归：有内容态不受影响）', () => {
+    const { container: emptyContainer } = render(
+      <NodeMediaPreview
+        {...makeProps({})}
+        type={NODE_TYPE_IDS.videoMerge}
+        kind={NODE_MEDIA_KIND_IDS.video}
+      />,
+    )
+    expect(emptyContainer.firstElementChild).toHaveClass('canvas-card--w-empty')
+
+    const { container: filledContainer } = render(
+      <NodeMediaPreview
+        {...makeProps({ mediaUrl: 'https://cdn.example.com/merged.mp4' })}
+        type={NODE_TYPE_IDS.videoMerge}
+        kind={NODE_MEDIA_KIND_IDS.video}
+      />,
+    )
+    expect(filledContainer.firstElementChild).not.toHaveClass(
+      'canvas-card--w-empty',
+    )
+  })
+
+  it('身份卡族（characterImage/backgroundImage）不收窄——那两个 type 走的是固定 240 宽的身份卡族', () => {
+    const { container: characterContainer } = render(
+      <NodeMediaPreview
+        {...makeProps({})}
+        type={NODE_TYPE_IDS.characterImage}
+        kind={NODE_MEDIA_KIND_IDS.image}
+      />,
+    )
+    expect(characterContainer.firstElementChild).not.toHaveClass(
+      'canvas-card--w-empty',
+    )
+
+    const { container: backgroundContainer } = render(
+      <NodeMediaPreview
+        {...makeProps({})}
+        type={NODE_TYPE_IDS.backgroundImage}
+        kind={NODE_MEDIA_KIND_IDS.image}
+      />,
+    )
+    expect(backgroundContainer.firstElementChild).not.toHaveClass(
+      'canvas-card--w-empty',
+    )
   })
 })

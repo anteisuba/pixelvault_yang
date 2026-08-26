@@ -111,6 +111,20 @@ describe('ImageSourceStarter — 生成中 / 生成失败 (canvas-generate-compo
     expect(screen.getByText('uploadHint')).toBeInTheDocument()
   })
 
+  // 《第一次交互》刀一 task B：这个组件只在「还没有图」时渲染，所以收窄是无
+  // 条件的——上传/生成开始时卡不该从 320 跳回 400。两态各锁一次，防止有人把
+  // 它挂回 isEmpty。
+  it.each([
+    ['真正的空态', NODE_STATUS_IDS.idle],
+    ['上传/生成中', NODE_STATUS_IDS.running],
+  ])('%s：卡宽都收窄到空态档', (_label, status) => {
+    render(<ImageSourceStarter nodeId="node-1" status={status} />)
+
+    expect(
+      screen.getByTestId('node-shell').getAttribute('data-classname'),
+    ).toContain('canvas-card--w-empty')
+  })
+
   it('生成中（composer/generateMediaNode 已把 generationStatus/status 写进节点）：两个端口都露，非虚线，无百分比', () => {
     render(
       <ImageSourceStarter

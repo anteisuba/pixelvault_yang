@@ -19,6 +19,7 @@ import {
   NODE_STUDIO_MEDIA_IMAGE_OUTPUT,
 } from '@/constants/node-studio'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
+import { cn } from '@/lib/utils'
 import {
   buildDisplayNamePatch,
   stripFileExtension,
@@ -252,7 +253,11 @@ export function ImageSourceStarter({
       // 间也不可见）。
       showSourceHandle={!isEmpty}
       showTargetHandle={!isEmpty}
-      className={isEmpty ? 'canvas-card--dashed' : undefined}
+      // 《第一次交互》刀一 task B：这个组件只在「还没有图」时渲染（`ImageNode`
+      // 的 `!role && !hasMedia` 分支），所以收窄是**无条件**的，不挂在 isEmpty
+      // 上——宽度不该在上传/生成开始的那一刻突然从 320 跳回 400。判据与
+      // `NodeMediaPreview.useCompactWidth` 的 `!mediaUrl` 同源。
+      className={cn('canvas-card--w-empty', isEmpty && 'canvas-card--dashed')}
     >
       <NodeShell.Header
         type={NODE_TYPE_IDS.image}

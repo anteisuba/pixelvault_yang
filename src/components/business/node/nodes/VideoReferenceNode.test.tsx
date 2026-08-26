@@ -94,4 +94,24 @@ describe('VideoReferenceNode', () => {
       'true',
     )
   })
+
+  // 《画布修法》02 节刀 1 task B：调查锚点原文点名「参考视频空态」要从 400 收到
+  // 320——但这张卡从来不走 NodeShell 的 w-node-card（它是可缩放媒体卡，见文件顶
+  // 部注释），落点已经是 use-node-workflow.ts `addNode` 的 `needsExplicitSize`
+  // 分支显式写的 NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE(320)。React Flow 还没测出
+  // 真实尺寸、`width`/`height` prop 缺席时的兜底同样是这个常量——补一条回归锁住
+  // 这个"已经是 320"的事实，不需要为它改产品代码。
+  it('falls back to the shared loose-image size (320) before React Flow measures it', () => {
+    const props = {
+      id: 'video-reference-2',
+      type: 'videoReference',
+      data: { prompt: '', status: 'idle' },
+      selected: false,
+    } as unknown as ComponentProps<typeof VideoReferenceNode>
+    const { container } = render(<VideoReferenceNode {...props} />)
+    const root = container.firstElementChild as HTMLElement
+
+    expect(root.style.width).toBe('320px')
+    expect(root.style.height).toBe('320px')
+  })
 })

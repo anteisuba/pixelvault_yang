@@ -7,6 +7,7 @@ import {
 } from '@/constants/node-types'
 import {
   buildDisplayNamePatch,
+  resolveNodeAccessibleName,
   resolveNodeDisplayName,
   stripFileExtension,
 } from '@/lib/node-display-name'
@@ -250,5 +251,63 @@ describe('读写闭环 —— 换组件渲染不丢名字', () => {
     )
     expect(after).toEqual(before)
     expect(Object.keys(before)).toEqual(['shotName'])
+  })
+})
+
+// 画布修法 D1（键盘可达，2026-08-26）：React Flow `Node.ariaLabel` 的可访问名
+// ——不是第三条读法，只是在 resolveNodeDisplayName 之上加一层「没名字退回类型
+// 名」的格式化。format 用一个纯回调代替真的 next-intl，断言不依赖 i18n 字典。
+describe('resolveNodeAccessibleName', () => {
+  const formatNamed = (type: string, name: string) => `${type}：${name}`
+
+  // 真机 2026-08-26：音色卡的系统默认名就是「音色：常客」，身份卡是「角色：
+  // 店员小林」——再套一层模板会念成「音色：音色：常客」。
+  it.each([
+    ['音色', '音色：常客'],
+    ['卡片', '卡片：小林'],
+  ])('名字已经以类型词「%s」开头时不再重复念一遍', (typeLabel, voiceName) => {
+    expect(
+      resolveNodeAccessibleName(data({ voiceName }), typeLabel, formatNamed),
+    ).toBe(voiceName)
+  })
+
+  it('没命名过时只读类型名，不拼冒号', () => {
+    expect(resolveNodeAccessibleName(data({}), '镜头图', formatNamed)).toBe(
+      '镜头图',
+    )
+  })
+
+  it('有名字时读「类型：名字」', () => {
+    expect(
+      resolveNodeAccessibleName(
+        data({ shotName: '镜头1-静帧' }),
+        '镜头图',
+        formatNamed,
+      ),
+    ).toBe('镜头图：镜头1-静帧')
+  })
+
+  it('挡机器值的判据与 resolveNodeDisplayName 完全一致 —— 走的是同一条链', () => {
+    // 上传备注常量、generation id 这类机器串会被 resolveNodeDisplayName 挡
+    // 掉；这个函数不重新判一遍，只是原样转发结果，所以退回类型名而不是把
+    // 机器串念给用户听。
+    const id = 'cbf13d8d9e967d35c185019db8431c80'
+    const dirty = data({
+      mediaLabel: id,
+      generationId: id,
+    } as Partial<NodeWorkflowNodeData>)
+    expect(resolveNodeAccessibleName(dirty, '图片', formatNamed)).toBe('图片')
+  })
+
+  it('formatNamed 只在有名字时才被调用', () => {
+    let calls = 0
+    const spy = (type: string, name: string) => {
+      calls += 1
+      return `${type}/${name}`
+    }
+    resolveNodeAccessibleName(data({}), '音色', spy)
+    expect(calls).toBe(0)
+    resolveNodeAccessibleName(data({ voiceName: '旁白' }), '音色', spy)
+    expect(calls).toBe(1)
   })
 })

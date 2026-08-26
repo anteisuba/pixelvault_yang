@@ -4,6 +4,7 @@ import { memo, useCallback, useId, useMemo, useRef, useState } from 'react'
 import { useEdges, useNodes, type NodeProps } from '@xyflow/react'
 import {
   AudioWaveform,
+  IdCard,
   Library,
   Music2,
   Pause,
@@ -14,6 +15,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import {
+  NODE_STUDIO_AUDIO_INPUT,
   NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
   NODE_STUDIO_VOICE_PROFILE,
   NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
@@ -26,7 +28,16 @@ import {
   readVoiceUrlFromData,
 } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
+import type { GenerationRecord } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 import { FishVoiceLibraryDialog } from '../FishVoiceLibraryDialog'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
@@ -87,6 +98,10 @@ export const VoiceNode = memo(function VoiceNode(
   const { updateNodeData } = useNodeWorkflowActions()
   const waveformClipId = useId()
   const [libraryOpen, setLibraryOpen] = useState(false)
+  // 《画布修法》刀二·B2（2026-08-26）：卡上这一颗现在是唯一的「选择音色」
+  // 入口——原工具条的 chooseVoice/referenceFromAssets 两颗撤了，两种来源
+  // （声音库 / 素材库）改由这颗触发的小菜单承接，见下方 emptyCardAction 那块。
+  const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   // Track the failed cover URL (not a boolean) so picking a new voice with a
   // valid cover recovers instead of staying stuck on the icon fallback.
   const [erroredCover, setErroredCover] = useState<string | null>(null)
@@ -330,14 +345,38 @@ export const VoiceNode = memo(function VoiceNode(
 
         <div className="canvas-voice-body">
           {cardState === 'empty' ? (
-            <button
-              type="button"
-              onClick={() => setLibraryOpen(true)}
-              className="canvas-voice-empty-action canvas-secondary-btn nodrag"
-            >
-              <Library className="size-3 shrink-0" aria-hidden />
-              <span className="truncate">{t('emptyCardAction')}</span>
-            </button>
+            // 卡上这一颗是唯一的「选择音色」入口——原来只到得了声音库
+            // （FishVoiceLibraryDialog），现在小菜单同时到达两种来源。
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="canvas-voice-empty-action canvas-secondary-btn nodrag"
+                >
+                  <Library className="size-3 shrink-0" aria-hidden />
+                  <span className="truncate">{t('emptyCardAction')}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="border-node-panel-inner bg-node-panel text-node-foreground"
+              >
+                <DropdownMenuItem
+                  onClick={() => setLibraryOpen(true)}
+                  className="gap-2 focus:bg-node-panel-inner"
+                >
+                  <IdCard className="size-3.5" aria-hidden />
+                  {t('chooseVoice')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setAssetDialogOpen(true)}
+                  className="gap-2 focus:bg-node-panel-inner"
+                >
+                  <Library className="size-3.5" aria-hidden />
+                  {t('referenceFromAssets')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : cardState === 'generating' ? (
             <>
               <p className="canvas-voice-generating-text">
@@ -442,6 +481,30 @@ export const VoiceNode = memo(function VoiceNode(
           setLibraryOpen(false)
         }}
         onVoiceSelectComplete={() => setLibraryOpen(false)}
+      />
+
+      {/* FB-5 ②「从素材」——从卡上小菜单的第二项到达，字段集与旧工具条
+          `VoiceCapability` 一致（voiceClipUrl/Source + Name/MimeType +
+          voiceReferenceCoverImage），原样搬过来，不新开一条音频通道。 */}
+      <AssetSelectorDialog
+        open={assetDialogOpen}
+        onOpenChange={setAssetDialogOpen}
+        title={t('referenceDialogTitle')}
+        description={t('referenceDialogDescription')}
+        mediaType="audio"
+        onSelect={(generation: GenerationRecord) => {
+          updateNodeData(id, {
+            voiceClipUrl: generation.url,
+            voiceClipSource: NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.uploaded,
+            voiceReferenceAudioName: t('referenceAudioFallback'),
+            voiceReferenceAudioMimeType: NODE_STUDIO_AUDIO_INPUT.assetMimeType,
+            voiceReferenceCoverImage:
+              generation.previewUrl ?? generation.thumbnailUrl ?? undefined,
+            voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
+            status: NODE_STATUS_IDS.ready,
+          })
+          setAssetDialogOpen(false)
+        }}
       />
     </NodeShell>
   )

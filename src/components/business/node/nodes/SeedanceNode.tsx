@@ -61,7 +61,12 @@ export const SeedanceNode = memo(function SeedanceNode(
       type={NODE_TYPE_IDS.seedance}
       selected={selected}
       status={data.status}
-      className="canvas-video-card"
+      // 《画布修法》02 节刀 1 task B：空态（还没有视频）从 420
+      // (--canvas-card-w-console) 收到 320 (--canvas-card-w-empty)；一旦有
+      // mediaUrl 落地立刻回到既有的 420 侧车宽度，不影响已产出视频的卡。
+      // canvas.css 里 .canvas-card--w-empty 的规则必须留在 .canvas-video-card
+      // 之后（同一 0,2,0 specificity 靠源码顺序分胜负），见那条规则的注释。
+      className={cn('canvas-video-card', !mediaUrl && 'canvas-card--w-empty')}
     >
       <NodeToolbar
         nodeId={id}

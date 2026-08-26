@@ -356,6 +356,11 @@ export function LooseImageCard({
                 // 有 8 项（分类/展开/下载/快捷编辑/重新生成/删除/…），而审核是
                 // 「这张图能不能用」，跟下方编辑框里的「拿它再生成」是同一场决
                 // 策。落点见 `composer/GenerateComposer` 的参数条首位。
+                //
+                // ⚠《画布修法》刀二·B1 复核（2026-08-26）：本轮任务包原计划撤
+                // 掉这颗按钮，改走右侧 GenerateComposer——已停手，composer 的
+                // 生成路径不读上游角色/背景参考图，与这颗按钮不等价（完整理由
+                // 见 CanvasImageSelectionToolbar.tsx 的 extra prop 文档）。
                 nodeType === NODE_TYPE_IDS.shot ? (
                   <ShotGenerateButton nodeId={id} data={data} />
                 ) : null

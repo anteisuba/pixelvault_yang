@@ -83,6 +83,11 @@ export function ShotDetailBody({
       nodeId={nodeId}
       type={type}
       data={data}
+      // 画布修法包 C：空态让位只在镜头图开——写作台字段搬进主体台，
+      // 井退成预览带（对照 docs/plans/prototypes/canvas-detail-empty-ui.html
+      // 「重做 01 · 镜头图」）。散图/关键帧/背景走 ImageFamilyBody 默认档,
+      // 不受影响。
+      promoteFieldsWhenEmpty
       rackExtras={
         // R4：空而合法 → 彻底安静。没有上游就整行不出现，不预埋「还没有连接参考」。
         upstreamRefs.length === 0 ? null : (

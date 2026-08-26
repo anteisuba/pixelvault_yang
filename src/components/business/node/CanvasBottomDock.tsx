@@ -39,9 +39,13 @@ const TOOL_MODE_ICONS: Record<
   hand: Hand,
 }
 
-// A3: 「适应画布」两处触发（zoom-level 文本 + Focus 图标按钮）共用同一份
-// options——显式 maxZoom 让 fit 稳定停在 200% 舒适档（NODE_STUDIO_CANVAS.
-// fitViewMaxZoom），不随手动滚轮上限（maxZoom: 4）一起被推高。
+// A3 → G2（画布修法 P2 收口，2026-08-26）：这份 options 原来喂给两处触发
+// （zoom-level 文本按钮 + Focus 图标按钮），二者 onClick 与 aria-label 逐字
+// 相同，读作「两颗同名同义的适应画布」（调查实测）。收口只留 Focus 图标按钮
+// 这一颗门；zoom-level 文本退回纯只读展示，不再共享这份 options（见下方
+// 渲染处的 `<span>`）。显式 maxZoom 本身的理由不变——让 fit 稳定停在 200%
+// 舒适档（NODE_STUDIO_CANVAS.fitViewMaxZoom），不随手动滚轮上限
+// （maxZoom: 4）一起被推高。
 const FIT_VIEW_OPTIONS = {
   padding: 0.16,
   duration: 220,
@@ -164,15 +168,14 @@ export function CanvasBottomDock({
               {t('bottomDock.zoomOut')}
             </TooltipContent>
           </Tooltip>
-          <button
-            type="button"
-            onClick={() => void fitView(FIT_VIEW_OPTIONS)}
-            aria-label={t('bottomDock.fitView')}
-            title={t('bottomDock.fitView')}
-            className="min-w-12 rounded-lg px-1.5 py-1 text-center text-xs font-semibold tabular-nums text-node-foreground transition-colors hover:bg-node-panel-inner"
-          >
+          {/* G2：只读态的当前缩放展示，不再是「适应画布」的第二个触发——原来
+              这颗按钮与下面的 Focus 图标共用同一个 fitView(FIT_VIEW_OPTIONS)
+              调用、同一句 aria-label，两颗按钮点哪个都一样。适应画布现在唯一
+              的入口是下面的 Focus 图标按钮；这里不再可点，也不需要
+              aria-label/title——可见文字本身就是全部信息。 */}
+          <span className="min-w-12 rounded-lg px-1.5 py-1 text-center text-xs font-semibold tabular-nums text-node-foreground">
             {t('bottomDock.zoomLevel', { percent: zoomPercent })}
-          </button>
+          </span>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

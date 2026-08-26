@@ -181,8 +181,30 @@
   border-color: var(--canvas-stroke-regular);
   background: var(--canvas-card-bg);
 }
+/* 画布修法 D2（刀三·修缝，2026-08-26）：两栏卡（声音卡 canvas-voice-cover +
+   正文、身份卡 canvas-identity-cover + 库存行）左栏各自独立 overflow:hidden
+   + 圆角裁边，拖拽时整卡微倾 1deg 会让浏览器把左栏与右栏拆成两个独立合成层
+   分别栅格化再各自旋转——两层的边缘各自四舍五入到设备像素，缝隙处露出画布
+   底色，成了一条能看见的发丝缝。`will-change: transform` 逼卡根在旋转前把
+   整个子树（左栏+右栏）先合成到同一张位图上，再整体旋转，两栏之间就不再有
+   缝可露。只在 .dragging 期间挂——常驻会让所有卡永远占一个合成层，17/18 张
+   没有这个问题的卡白付出显存代价。 */
 .react-flow__node.dragging .node-card-paper {
   rotate: 1deg;
+  will-change: transform;
+}
+
+/* 键盘焦点环（画布修法 D1，2026-08-26）：@xyflow/react 的基础样式表对**所有**
+   节点写死 `.react-flow__node.selectable:focus{,-visible} { outline: none }`，
+   只给库内置的 input/default/output/group 四种类型另配了 box-shadow 替代——
+   本项目的自定义类型（image/voice/seedance/…）一个都不在那份名单里，于是
+   Tab 到任何一张卡都完全看不见焦点在哪。这里把它补回来。
+   ⚠ 只认 `:focus-visible`：鼠标点选不该画环（选中态自有 --canvas-accent 环，
+   两个环叠在一起会读成两种状态）。`--canvas-stroke-focus` 是既有 token，
+   4.74:1 已过对比度，不新造颜色。 */
+.domain-canvas .react-flow__node.selectable:focus-visible {
+  outline: 2px solid var(--canvas-stroke-focus);
+  outline-offset: 2px;
 }
 
 /* ── Canvas (Node 导演台) motion standard ─────────────────────────────
@@ -531,6 +553,16 @@
      驻画布，660 会挡掉大半画布，维持 420。 */
   --canvas-card-w-console: 420px;
   --canvas-card-w-console-open: 660px; /* 组装台展开态（560 → 660，度量表 §5 #2） */
+  /* 《画布修法》02 节刀 1 task B（2026-08-26）：生成类节点"空态"（还没有内容）
+     的卡宽——新建三秒不占半屏。覆盖镜头图/视频生成(Seedance)/片盒(videoMerge)/
+     镜头文本四族的空态，一旦有内容（图落地/视频落地/写了字）各自切回原有宽度
+     算法，这个 token 只管空态那一刻。参考视频(videoReference)不读它——那张卡
+     从建出来就直接吃 NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE(320)，本来就已经是
+     这个数（use-node-workflow.ts 的 addNode，needsExplicitSize 分支）。 */
+  --canvas-card-w-empty: 320px;
+  /* 同一刀 task C：镜头文本脱离 16:9 主窗之后的高度地板——内容比这个矮时卡不
+     塌成一条缝，比这个高时改由内容把卡撑高（.canvas-text-preview-surface）。 */
+  --canvas-text-preview-min-h: 96px;
 
   /* 3 · 边线与控件填充（对比度纪律见规格 §3.1：可识别性由内容+焦点承担） */
   --canvas-stroke-light: rgba(0, 0, 0, 0.02);
@@ -2111,6 +2143,27 @@
   width: var(--canvas-card-w-fixed);
 }
 
+/* 《画布修法》02 节刀 1 task B：生成类节点空态卡宽，同一份 0,2,0 specificity
+   压过 w-node-card 工具类的写法（上面 .canvas-card--w-fixed 那份注释）。
+   ⚠ 本文件更早处的 `.domain-canvas .canvas-video-card` 规则（`SeedanceNode`
+   用）也在设同一个 `width` 属性，且 specificity 同为 0,2,0——两条同时命中同一
+   张卡时（空态视频卡）靠**源码顺序**分胜负，这条规则必须留在
+   `.canvas-video-card` 之后（按符号名 grep，别按行号），才能在空态时压过
+   --canvas-card-w-console（420）。 */
+.domain-canvas .canvas-card--w-empty {
+  width: var(--canvas-card-w-empty);
+}
+
+/* 同一刀 task C：镜头文本按内容定高——display:grid 让空态的"图标+状态词"能在
+   min-height 地板内居中，有内容态超过地板时改由内容把卡撑高，两态共用同一条
+   规则，组件不需要量高度写内联 style。 */
+.domain-canvas .canvas-text-preview-surface {
+  display: grid;
+  align-content: stretch;
+  justify-content: stretch;
+  min-height: var(--canvas-text-preview-min-h);
+}
+
 /* 图片卡宽钳制的 CSS 安全网（§2）：真正的宽度由 LooseImageCard 按媒体比例
    算出并写成内联 style，这两条 min/max 只是兜底——即便算法哪天算漏了，
    卡也不会跌出 180–480 的范围。 */
@@ -2590,6 +2643,185 @@
   font-size: 11.5px;
   text-align: center;
   color: var(--canvas-detail-ink-2);
+}
+
+/* ── 空态让位（画布修法包 C，2026-08-26）───────────────────────────────
+   owner 确认见 docs/plans/prototypes/canvas-detail-empty-ui.html。
+   镜头图 / 视频生成 / 视频合成三族在没有输出媒体时，把「下一步要做的事」
+   （写作台字段 / 素材清单+提示词 / 九槽阵列）整块搬进 stage 槽渲染，
+   井本体退成 `.canvas-detail-stage-band` 那条窄带；desk/rack 对应槽在
+   这个状态下传 `undefined`（内容临时寄居在 stage，不是被删）。
+   ⚠ DOM 序不变（stage 仍先于 desk/rack），变的只是这两个槽此刻由谁承载
+   视觉大位置；有内容态与其余七族一像素不受影响——下面这组类只在族主动
+   套用 `.canvas-detail-stage-promoted` 时生效。
+   ⚠ 负 margin 精确抵消 `.canvas-detail-stage-pin` 当前断点的 padding，
+   让子元素接管整块背景/对齐，不必改父级规则本身（零回归风险）。 */
+.domain-canvas .canvas-detail-stage-promoted {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  margin: -24px;
+  padding: 20px;
+  gap: 14px;
+  overflow-y: auto;
+  background: var(--canvas-detail-s0);
+}
+/* 井退成的预览带 —— R2 版式同构的空态字形，只是几何缩成一条，
+   贴在主区（promoted 内容）之后，同一个 stage 槽内、工作区底部。 */
+.domain-canvas .canvas-detail-stage-band {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 74px;
+  max-height: 96px;
+  border-radius: 10px;
+  background: var(--canvas-detail-s2);
+  color: var(--canvas-detail-ink-2);
+  font-size: 12px;
+}
+.domain-canvas .canvas-detail-stage-band svg {
+  color: var(--canvas-detail-ghost);
+}
+@media (max-width: 960px) {
+  .domain-canvas .canvas-detail-stage-promoted {
+    margin: -20px -24px;
+  }
+}
+@media (max-width: 680px) {
+  .domain-canvas .canvas-detail-stage-promoted {
+    margin: -14px;
+    padding: 14px;
+  }
+  .domain-canvas .canvas-detail-stage-band {
+    min-height: 64px;
+    max-height: 84px;
+  }
+}
+
+/* 散图空态先问一句（画布修法包 E，2026-08-26）── owner 确认见
+   docs/plans/prototypes/canvas-detail-empty-ui.html「收入口 01 · 图片」。
+   `!hasMedia` 时 stage 槽先渲染两颗选择卡，不把上传/生成两条路的控件同时
+   铺开；选「用 AI 生成」后退场，改走上面 `.canvas-detail-stage-promoted`
+   那一套（`ImageFamilyBody` 的 `showEmptyChoice`/`offerChoiceWhenEmpty`）。
+   ⚠ 复用既有 token（s0/bd/ink/ink-2），不新造色值——Hard Rule 5。 */
+.domain-canvas .canvas-detail-fork {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.domain-canvas .canvas-detail-fork-opt {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  border: 1px solid var(--canvas-detail-bd);
+  border-radius: 10px;
+  padding: 20px 16px;
+  background: var(--canvas-detail-s0);
+  color: var(--canvas-detail-ink);
+  text-align: center;
+  transition: border-color var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-detail-fork-opt:hover {
+  border-color: var(--canvas-detail-ink-2);
+}
+.domain-canvas .canvas-detail-fork-icon {
+  color: var(--canvas-detail-ink-2);
+}
+.domain-canvas .canvas-detail-fork-title {
+  font-size: 13px;
+  font-weight: 650;
+}
+.domain-canvas .canvas-detail-fork-hint {
+  font-size: 11.5px;
+  color: var(--canvas-detail-ink-2);
+}
+@media (max-width: 680px) {
+  .domain-canvas .canvas-detail-fork {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 视频合成空态：素材架的九槽阵列，替代纯文本 URL 列表（契约 §6 rack =
+   「上游片段列表」，这里只是同一件事的新形状）；只在 `!mediaUrl` 时套用，
+   有成片后 rack 走原来的 `<ol>` 文本列表，一像素不改。
+   上限 9 与「至少 2 段」不是这里的字面值——组件按 `minClips`/`maxClips`
+   算好 `data-required` 再传下来，CSS 只管形状。 */
+.domain-canvas .canvas-detail-merge-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--canvas-detail-ink);
+}
+.domain-canvas .canvas-detail-merge-heading-count {
+  flex: 0 0 auto;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--canvas-detail-ink-2);
+}
+.domain-canvas .canvas-detail-merge-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.domain-canvas .canvas-detail-merge-slot {
+  display: flex;
+  min-height: 84px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  overflow: hidden;
+  border: 1px solid var(--canvas-detail-bd);
+  border-radius: 10px;
+  padding: 8px;
+  background: var(--canvas-detail-s0);
+  color: var(--canvas-detail-ink-2);
+  font-size: 11px;
+  text-align: center;
+}
+.domain-canvas .canvas-detail-merge-slot-index {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--canvas-detail-ink);
+}
+/* 前两格「必须」——contrast-check：#2b5ce6 on #FFFFFF = 5.56（边界与文字
+   门槛均过）。 */
+.domain-canvas .canvas-detail-merge-slot[data-required='true'] {
+  border-color: var(--canvas-accent);
+}
+.domain-canvas
+  .canvas-detail-merge-slot[data-required='true']
+  .canvas-detail-merge-slot-index,
+.domain-canvas
+  .canvas-detail-merge-slot[data-required='true']
+  .canvas-detail-merge-slot-tag {
+  color: var(--canvas-accent);
+}
+.domain-canvas .canvas-detail-merge-slot[data-filled='true'] {
+  border-style: solid;
+  color: var(--canvas-detail-ink);
+}
+.domain-canvas .canvas-detail-merge-slot-url {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  color: var(--canvas-detail-ink-2);
+}
+@media (max-width: 680px) {
+  .domain-canvas .canvas-detail-merge-slot {
+    min-height: 64px;
+    padding: 6px;
+  }
 }
 
 /* 槽 3 · 素材架 —— R1：一行文字按钮 ⟷ 右对齐弱化计数，一行即一槽。

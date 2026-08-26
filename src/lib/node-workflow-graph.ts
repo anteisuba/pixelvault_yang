@@ -28,6 +28,7 @@ import {
   isMediaApprovedForDownstream,
   resolveMediaReviewState,
 } from './node-media-review'
+import { assembleReferenceImagePayload } from './node-reference-payload'
 
 /**
  * 被审核门挡下的一张图（包 4 / §4.2 Q3）。
@@ -681,6 +682,94 @@ export function buildShotReferenceLegend(
   })
   if (lines.length === 0) return ''
   return `${NODE_STUDIO_SHOT_REFERENCE_LEGEND.title}\n${lines.join('\n')}`
+}
+
+/**
+ * 画布修法包 F: assemble a shot image node's final `referenceImages` + prompt
+ * legend from a caller's OWN candidate URLs (whatever it already collected —
+ * e.g. the generate-composer's pinned host thumbnail + manually picked
+ * slots) plus the SAME upstream character/background harvest the toolbar
+ * 「生成」button (`handleGenerateMediaNode`, `StudioNodeWorkbench.tsx`) has
+ * always read for a shot node. One function, built from the exact primitives
+ * that handler already calls in this order — `harvestUpstreamImageReferences`
+ * → merge → `assembleReferenceImagePayload` (dedupe + cap) →
+ * `buildShotReferenceLegend` — so a second reference-collecting call site
+ * never again has to re-derive (and silently diverge from) that recipe.
+ *
+ * Before this existed, the generate-composer's send path
+ * (`handleRunGenerateComposer`) never read the graph at all — a shot node
+ * wired to a character/background card would drop that reference the moment
+ * you generated from the composer instead of the toolbar button, with no
+ * indication anything was missing (画布修法 包 F repro).
+ *
+ * Own candidates are prioritized first (first-seen-wins dedup, same as every
+ * other reference-collecting call site) — an upstream reference only fills a
+ * slot the caller's own picks didn't already claim.
+ */
+export interface ShotImageReferencePlan {
+  /** Deduped + capped, ready to ship as `referenceImages`. */
+  referenceImages: string[]
+  /** '' when nothing named made the cut — same contract as `buildShotReferenceLegend`. */
+  legend: string
+  /** Upstream media the review gate excluded — caller must surface, never swallow (§5-W3). */
+  blocked: BlockedUpstreamMedia[]
+}
+
+export function assembleShotImageReferencePlan(
+  ownCandidateUrls: readonly (string | undefined)[],
+  upstreamNodes: readonly NodeWorkflowNode[],
+  maxReferenceImages: number,
+): ShotImageReferencePlan {
+  const harvested = harvestUpstreamImageReferences(upstreamNodes)
+  const referenceByUrl = new Map<string, UpstreamImageReference>()
+  for (const reference of harvested.references) {
+    referenceByUrl.set(reference.url, reference)
+  }
+  const referenceImages = assembleReferenceImagePayload(
+    [
+      ...ownCandidateUrls,
+      ...harvested.references.map((reference) => reference.url),
+    ],
+    maxReferenceImages,
+  ).imageUrls
+  return {
+    referenceImages,
+    legend: buildShotReferenceLegend(referenceImages, referenceByUrl),
+    blocked: harvested.blocked,
+  }
+}
+
+/**
+ * 画布修法包 F 续（owner 2026-08-26 拍板「只修抹掉、不改发送」）：把 generate
+ * composer 这一次要落盘的 `referenceAssets` 与**宿主已有的那份**合并，而不是
+ * 覆盖。
+ *
+ * 起因：composer 发送时会拿自己的 `referenceImages` 反写 `referenceAssets`。
+ * 宿主是空卡时 `fillsInPlace` 成立、落点就是宿主本身，于是一张手动加过
+ * 风格/道具参考图、还没生成过的镜头图，从 composer 发一次就把那些条目连同
+ * 它们的 `role`/`weight`/`name` 一起抹掉了——它们既不在 `input.referenceUrls`
+ * 里、也不在上游收割里，没有任何一条路能把它们找回来。这与包 F 刚修掉的是
+ * 同一类「静默丢参考图」，只是换了个来源。
+ *
+ * 宿主原有条目**整个留下且排在前面**：`buildReferenceAssetLegendEntries` 的
+ * 分类图例、以及工具条那条路的候选取数，全都读这些字段，降级成
+ * `defaultRole` 就等于把分类丢了。URL 撞车时保留宿主那条（更富信息），
+ * composer 这次的条目只补没被占过的 URL。
+ *
+ * ⚠ 这只管**落盘**的那一份，**不动发送口径**：`referenceImages` 仍然只由
+ * `input.referenceUrls` + 上游收割决定（见 `assembleShotImageReferencePlan`），
+ * 被保住的这些图不会因此被发出去 —— composer 保持所见即所发。
+ */
+export function mergeComposerReferenceAssets(
+  hostAssets: readonly NodeWorkflowReferenceAsset[] | undefined,
+  composerAssets: readonly NodeWorkflowReferenceAsset[],
+): NodeWorkflowReferenceAsset[] {
+  const kept = hostAssets ?? []
+  const keptUrls = new Set(kept.map((asset) => asset.url))
+  return [
+    ...kept,
+    ...composerAssets.filter((asset) => !keptUrls.has(asset.url)),
+  ]
 }
 
 /**

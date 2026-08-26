@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { ImageIcon, Library, Trash2, Upload } from 'lucide-react'
+import { ImageIcon, Library, Sparkles, Trash2, Upload } from 'lucide-react'
 import {
   useCallback,
   useMemo,
@@ -114,6 +114,30 @@ export interface ImageFamilyBodyProps extends NodeDetailBodyProps {
    * 完整理由与解除条件见 `ReferenceLandingTabs` 的 `onResolved` 头注。
    */
   nestedReferenceAdd?: boolean
+  /**
+   * 画布修法包 C（2026-08-26）：空态让位——`!hasMedia` 时把编排台的字段
+   * 整块搬进主体台的大位置，井退成底部一条预览带（模型选择器留在素材架侧）。
+   * **只有镜头图该传 `true`**（`ShotDetailBody`）；默认 `false`，散图/关键帧/
+   * 背景三族一像素不受影响。有媒体后四族版式完全一致，回到今天的媒体优先。
+   */
+  promoteFieldsWhenEmpty?: boolean
+  /**
+   * 画布修法包 E（2026-08-26）：空态先问一句——`!hasMedia` 时 stage 槽先渲染
+   * 「上传图片 / 用 AI 生成」两颗选择按钮，不把上传、生成两条路的控件同时铺开
+   * （对照 `docs/plans/prototypes/canvas-detail-empty-ui.html`「收入口 01 · 图片」）。
+   * 选「用 AI 生成」落地为**面板本地** state（不写节点数据），随后复用
+   * `promoteFieldsWhenEmpty` 那套写作台渲染；选「上传图片」直接触发既有文件
+   * 输入（`uploadHandlerProps`，走素材架同一条通路），不改这个开关。
+   * **只有散图（`LooseImageDetailBody`）该传 `true`**，且必须同时传
+   * `promoteFieldsWhenEmpty`——选完「生成」之后要落到的正是那套版式，两个
+   * 开关分开是因为「先问不问」与「问完给什么」是两件事。默认 `false`，
+   * 镜头图/关键帧/背景三族不受影响。
+   * ⚠ 选择状态按 `nodeId` 归零：族表提供者按 `presentationType` 而非
+   * `nodeId` 挂载（见 `NodeDetailPanel.renderFrame` 头注），同类型节点之间
+   * 切换不会重新挂载这个组件实例。不归零的话，在节点 A 上选了「用 AI 生成」
+   * 后切到同类型的另一个空节点 B，会直接带着 A 的选择出现，B 不会再被问一次。
+   */
+  offerChoiceWhenEmpty?: boolean
   children: (slots: NodeDetailSlots) => ReactNode
 }
 
@@ -128,6 +152,8 @@ export function ImageFamilyBody({
   referenceExtraItems,
   onExtractReference,
   nestedReferenceAdd = false,
+  promoteFieldsWhenEmpty = false,
+  offerChoiceWhenEmpty = false,
   children,
 }: ImageFamilyBodyProps) {
   const t = useTranslations('StudioNode.mediaNodes')
@@ -148,6 +174,26 @@ export function ImageFamilyBody({
 
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
   const hasMedia = Boolean(mediaUrl)
+  /** 画布修法包 C：空态让位是否生效。有媒体后恒 false —— 版式立刻回到媒体优先。 */
+  const showPromotedEmptyLayout = promoteFieldsWhenEmpty && !hasMedia
+  /**
+   * 画布修法包 E：空态先问一句「上传还是生成」——面板本地 state，选了「生成」
+   * 才退场，不写节点数据。按 nodeId 归零的理由见 prop 头注。
+   *
+   * ⚠ 用「渲染期调整 state」而不是 `useEffect`——与 `VoiceNode.tsx` 的
+   * `playbackSourceUrl` 同一个模式（该文件头注写明了理由）：只在 `nodeId`
+   * 真的变了时写一次，React 立刻带新 state 重跑本次渲染，比 effect 版少
+   * 一帧（effect 版会让被切到的新节点先用旧 state 画一帧「已经选过生成」），
+   * 也不触发 `react-hooks/set-state-in-effect`。
+   */
+  const [choseGenerateMode, setChoseGenerateMode] = useState(false)
+  const [choseGenerateModeNodeId, setChoseGenerateModeNodeId] = useState(nodeId)
+  if (choseGenerateModeNodeId !== nodeId) {
+    setChoseGenerateModeNodeId(nodeId)
+    setChoseGenerateMode(false)
+  }
+  const showEmptyChoice =
+    offerChoiceWhenEmpty && !hasMedia && !choseGenerateMode
   const referenceAssets = useMemo(
     () => data.referenceAssets ?? [],
     [data.referenceAssets],
@@ -270,6 +316,9 @@ export function ImageFamilyBody({
       sourceLabel: undefined,
       status: NODE_STATUS_IDS.idle,
     })
+    // 包 E：清空即回到「还没有东西」，再次打开时应该重新问一句，不是直接
+    // 回落到上次选过的「用 AI 生成」写作台。
+    setChoseGenerateMode(false)
   }, [nodeId, updateNodeData])
 
   const handleSelectExisting = useCallback(
@@ -324,18 +373,211 @@ export function ImageFamilyBody({
 
   const blockingReason = isPending
     ? t('generating')
-    : !data.model
-      ? t('noModel')
-      : !prompt
-        ? t('noPrompt')
-        : null
+    : showEmptyChoice
+      ? t('emptyChoice.dockHint')
+      : !data.model
+        ? t('noModel')
+        : !prompt
+          ? t('noPrompt')
+          : null
 
   const modelLabel = data.model?.providerConfig.label ?? null
+
+  /** 井空态时兼作上传落点的那组处理器——promoted 带子也要用同一份（不是新按钮）。 */
+  const uploadHandlerProps = hasMedia
+    ? {}
+    : {
+        role: 'button' as const,
+        tabIndex: 0,
+        'aria-label': t('existing.upload'),
+        onClick: () => fileInputRef.current?.click(),
+        onKeyDown: (event: React.KeyboardEvent) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return
+          event.preventDefault()
+          fileInputRef.current?.click()
+        },
+        onPaste: handlePaste,
+        onDragOver: (event: DragEvent<HTMLDivElement>) =>
+          event.preventDefault(),
+        onDrop: handleDrop,
+      }
+
+  const hiddenFileInputEl = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept={NODE_STUDIO_IMAGE_INPUT.accept}
+      className="hidden"
+      onChange={handleFileInputChange}
+    />
+  )
+
+  /**
+   * 编排台字段——散图/关键帧/背景默认档原样塞进 desk；镜头图空态时整块搬进
+   * `stage`（`promoteFieldsWhenEmpty`）。抽成变量只为了两处复用同一份 JSX，
+   * **逻辑一行不动**（S7 同款「重排不是重造」）。
+   */
+  const fieldsListEls = fields.map((fieldId) => {
+    const value = getNodeWorkflowFieldValue(data, fieldId)
+    const label = tFields(`${fieldId}.label`)
+    const placeholder = tFields(`${fieldId}.placeholder`)
+    const isLong =
+      fieldId === NODE_WORKFLOW_FIELD_IDS.prompt ||
+      fieldId === NODE_WORKFLOW_FIELD_IDS.action ||
+      fieldId === NODE_WORKFLOW_FIELD_IDS.composition ||
+      fieldId === NODE_WORKFLOW_FIELD_IDS.dialogue ||
+      fieldId === NODE_WORKFLOW_FIELD_IDS.motion
+
+    // R7：一栏内只有两类排法。长文本整宽无标签无边框（标签靠
+    // placeholder 与 aria-label 承担，**prompt 不配独立标签行**）；
+    // 短值标签左、值右、一行。
+    /**
+     * 正文（`prompt`）在**镜头图**上换成 `MentionInput` —— 契约 §5.4
+     * 落点清单里的「详情面板 prompt」。
+     *
+     * ⚠ **只给镜头图开**，不是嫌麻烦而是「形态即说明」：镜头图是
+     * `isShotImageNode`，**唯一会读上游图的图片族**（收割上游角色/背景
+     * 图并给它们注图例）。散图 / 关键帧 / 背景卡的生成只读自己的
+     * Inspector，给它们一个 `@` 就是画一条连了也不进请求的边 —— 伪装
+     * 能力。哪天图片收割扩到别的族，把这个判据跟着扩，别在这里手写第
+     * 二套名单。
+     * ⚠ 其余长字段（动作 / 构图 / 台词 / 运镜）维持 textarea：它们是
+     * 结构化子字段，不是「你写给模型的那段话」。
+     */
+    const isMentionablePrompt =
+      fieldId === NODE_WORKFLOW_FIELD_IDS.prompt && isShotImageNode
+
+    return isMentionablePrompt ? (
+      <div key={fieldId} className="canvas-detail-prompt-block">
+        <MentionInput
+          ref={mentionRef}
+          value={value}
+          onValueChange={(next) => handleFieldChange(fieldId, next)}
+          // 上游引用的 chip 化留给日后：图片族今天没有算好的
+          // `referenceTokens`，传空名单 = 插进去的 `@名字` 是纯文本，
+          // 值本身正确（与 `GenerateComposer` 同一档取舍）。
+          tokens={[]}
+          mentionCandidates={mentionCandidates}
+          onMentionSelect={handleMentionSelect}
+          aria-label={label}
+          placeholder={placeholder}
+          className="canvas-detail-prompt-input"
+        />
+      </div>
+    ) : isLong ? (
+      <div key={fieldId} className="canvas-detail-prompt-block">
+        <IMEAwareTextarea
+          value={value}
+          onValueChange={(next) => handleFieldChange(fieldId, next)}
+          aria-label={label}
+          placeholder={placeholder}
+          disabled={isPending}
+        />
+      </div>
+    ) : (
+      <div key={fieldId} className="canvas-detail-krow">
+        <span className="canvas-detail-krow-key">{label}</span>
+        <IMEAwareInput
+          value={value}
+          onValueChange={(next) => handleFieldChange(fieldId, next)}
+          aria-label={label}
+          placeholder={placeholder}
+          disabled={isPending}
+          className="canvas-detail-krow-input"
+        />
+      </div>
+    )
+  })
+
+  // ⬜ 模型仍是一块面板而不是 R10 要求的一颗 chip（原有 ⬜ 事项，见下方注释）。
+  const modelPickerEl = (
+    <DetailModelPicker
+      value={data.model}
+      options={modelOptions}
+      onChange={(model) => updateNodeData(nodeId, { model })}
+      kind={NODE_MEDIA_KIND_IDS.image}
+    />
+  )
 
   return (
     <>
       {children({
-        stage: (
+        stage: showEmptyChoice ? (
+          <>
+            {/* 包 E：先问一句「上传还是生成」——两颗大按钮，不把两条路的控件
+                同时铺开（对照确认图「收入口 01 · 图片」改完态）。上传项直接
+                复用 `uploadHandlerProps`（走素材架同一条上传通路：点/键盘/
+                拖拽/粘贴全套，不新造）；生成项只切一个面板本地 state，
+                真正的写作台由下面 `showPromotedEmptyLayout` 分支渲染。 */}
+            <div className="canvas-detail-stage">
+              <div className="canvas-detail-fork">
+                <div className="canvas-detail-fork-opt" {...uploadHandlerProps}>
+                  <Upload
+                    aria-hidden
+                    className="canvas-detail-fork-icon size-5"
+                    strokeWidth={1.5}
+                  />
+                  <span className="canvas-detail-fork-title">
+                    {t('existing.upload')}
+                  </span>
+                  <span className="canvas-detail-fork-hint">
+                    {t('emptyChoice.uploadHint')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="canvas-detail-fork-opt"
+                  onClick={() => setChoseGenerateMode(true)}
+                >
+                  <Sparkles
+                    aria-hidden
+                    className="canvas-detail-fork-icon size-5"
+                    strokeWidth={1.5}
+                  />
+                  <span className="canvas-detail-fork-title">
+                    {t('emptyChoice.generateTitle')}
+                  </span>
+                  <span className="canvas-detail-fork-hint">
+                    {t('emptyChoice.generateHint')}
+                  </span>
+                </button>
+              </div>
+            </div>
+            {hiddenFileInputEl}
+          </>
+        ) : showPromotedEmptyLayout ? (
+          <>
+            <div className="canvas-detail-stage-promoted">
+              <div className="canvas-detail-stack">{fieldsListEls}</div>
+              {/* 井退成的预览带——契约 R2 仍成立（版式同构，只把内容像素换成
+                  极淡字形），只是几何缩到 74–96px。⚠ 仍在 stage 槽上，
+                  不是被删掉。⚠ 不搬 `uploadHandlerProps` 上来：那样会让它的
+                  可访问名（「上传图片」）与可见文案（「生成后出现在这里」）
+                  对不上（WCAG 2.5.3 Label in Name）。上传入口维持素材架里
+                  那颗显式按钮（本文件头注早就写明这是键盘用户的真正落点，
+                  井上的点/拖/粘贴只是满态时的顺手），带子退回纯展示。 */}
+              <div className="canvas-detail-stage-band">
+                {isPending ? (
+                  <NodeProgressState
+                    indicator="breath"
+                    veiled
+                    label={t('generating')}
+                  />
+                ) : (
+                  <>
+                    <ImageIcon
+                      aria-hidden
+                      className="canvas-detail-well-glyph size-5"
+                      strokeWidth={1.25}
+                    />
+                    <span>{tDetail('stagePreviewHint')}</span>
+                  </>
+                )}
+              </div>
+            </div>
+            {hiddenFileInputEl}
+          </>
+        ) : (
           <>
             <div className="canvas-detail-stage">
               {/* ⚠ 空态下这块**同时是**上传落点（点 / 拖 / 粘贴）。R2 要求空态与
@@ -345,23 +587,7 @@ export function ImageFamilyBody({
               <div
                 className="canvas-detail-well"
                 style={{ '--canvas-detail-ar': aspect } as React.CSSProperties}
-                {...(hasMedia
-                  ? {}
-                  : {
-                      role: 'button',
-                      tabIndex: 0,
-                      'aria-label': t('existing.upload'),
-                      onClick: () => fileInputRef.current?.click(),
-                      onKeyDown: (event: React.KeyboardEvent) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') return
-                        event.preventDefault()
-                        fileInputRef.current?.click()
-                      },
-                      onPaste: handlePaste,
-                      onDragOver: (event: DragEvent<HTMLDivElement>) =>
-                        event.preventDefault(),
-                      onDrop: handleDrop,
-                    })}
+                {...uploadHandlerProps}
               >
                 {mediaUrl ? (
                   <>
@@ -445,13 +671,7 @@ export function ImageFamilyBody({
             {pedestal ? (
               <div className="canvas-detail-pedestal">{pedestal}</div>
             ) : null}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={NODE_STUDIO_IMAGE_INPUT.accept}
-              className="hidden"
-              onChange={handleFileInputChange}
-            />
+            {hiddenFileInputEl}
           </>
         ),
 
@@ -492,90 +712,25 @@ export function ImageFamilyBody({
           </div>
         ),
 
-        desk: (
+        // ⬜ 模型仍是一块面板而不是 R10 要求的一颗 chip：把它收成
+        // 「标签即当前模型 ▾」的浮层要改 studio-shared 的
+        // `BaseModelPickerPanel`，那是跨线项（契约 §8 末段同一条线）。
+        // 本片先把它落进正确的槽，形态留给参数一颗按钮那一片一起收。
+        //
+        // 画布修法包 C：空态让位时字段搬去了 stage，desk 这里只剩模型选择器
+        // （对照确认图的边栏第一项）；有媒体或未启用促升的三族维持今天的
+        // 「字段 + 模型」同一个 stack，一像素不改。
+        //
+        // 画布修法包 E：先问一句阶段 desk 传 `null`（**不是** `undefined`——
+        // 后者会让 compose-desk 整栏从 DOM 里消失，破坏「槽序 = DOM 序」；
+        // `null` 让槽位仍在，只是此刻空着）。模型选择器属于「生成」这条路的
+        // 控件，选择前不铺开，见 `showEmptyChoice` 头注。
+        desk: showEmptyChoice ? null : showPromotedEmptyLayout ? (
+          <div className="canvas-detail-stack">{modelPickerEl}</div>
+        ) : (
           <div className="canvas-detail-stack">
-            {fields.map((fieldId) => {
-              const value = getNodeWorkflowFieldValue(data, fieldId)
-              const label = tFields(`${fieldId}.label`)
-              const placeholder = tFields(`${fieldId}.placeholder`)
-              const isLong =
-                fieldId === NODE_WORKFLOW_FIELD_IDS.prompt ||
-                fieldId === NODE_WORKFLOW_FIELD_IDS.action ||
-                fieldId === NODE_WORKFLOW_FIELD_IDS.composition ||
-                fieldId === NODE_WORKFLOW_FIELD_IDS.dialogue ||
-                fieldId === NODE_WORKFLOW_FIELD_IDS.motion
-
-              // R7：一栏内只有两类排法。长文本整宽无标签无边框（标签靠
-              // placeholder 与 aria-label 承担，**prompt 不配独立标签行**）；
-              // 短值标签左、值右、一行。
-              /**
-               * 正文（`prompt`）在**镜头图**上换成 `MentionInput` —— 契约 §5.4
-               * 落点清单里的「详情面板 prompt」。
-               *
-               * ⚠ **只给镜头图开**，不是嫌麻烦而是「形态即说明」：镜头图是
-               * `isShotImageNode`，**唯一会读上游图的图片族**（收割上游角色/背景
-               * 图并给它们注图例）。散图 / 关键帧 / 背景卡的生成只读自己的
-               * Inspector，给它们一个 `@` 就是画一条连了也不进请求的边 —— 伪装
-               * 能力。哪天图片收割扩到别的族，把这个判据跟着扩，别在这里手写第
-               * 二套名单。
-               * ⚠ 其余长字段（动作 / 构图 / 台词 / 运镜）维持 textarea：它们是
-               * 结构化子字段，不是「你写给模型的那段话」。
-               */
-              const isMentionablePrompt =
-                fieldId === NODE_WORKFLOW_FIELD_IDS.prompt && isShotImageNode
-
-              return isMentionablePrompt ? (
-                <div key={fieldId} className="canvas-detail-prompt-block">
-                  <MentionInput
-                    ref={mentionRef}
-                    value={value}
-                    onValueChange={(next) => handleFieldChange(fieldId, next)}
-                    // 上游引用的 chip 化留给日后：图片族今天没有算好的
-                    // `referenceTokens`，传空名单 = 插进去的 `@名字` 是纯文本，
-                    // 值本身正确（与 `GenerateComposer` 同一档取舍）。
-                    tokens={[]}
-                    mentionCandidates={mentionCandidates}
-                    onMentionSelect={handleMentionSelect}
-                    aria-label={label}
-                    placeholder={placeholder}
-                    className="canvas-detail-prompt-input"
-                  />
-                </div>
-              ) : isLong ? (
-                <div key={fieldId} className="canvas-detail-prompt-block">
-                  <IMEAwareTextarea
-                    value={value}
-                    onValueChange={(next) => handleFieldChange(fieldId, next)}
-                    aria-label={label}
-                    placeholder={placeholder}
-                    disabled={isPending}
-                  />
-                </div>
-              ) : (
-                <div key={fieldId} className="canvas-detail-krow">
-                  <span className="canvas-detail-krow-key">{label}</span>
-                  <IMEAwareInput
-                    value={value}
-                    onValueChange={(next) => handleFieldChange(fieldId, next)}
-                    aria-label={label}
-                    placeholder={placeholder}
-                    disabled={isPending}
-                    className="canvas-detail-krow-input"
-                  />
-                </div>
-              )
-            })}
-
-            {/* ⬜ 模型仍是一块面板而不是 R10 要求的一颗 chip：把它收成
-                「标签即当前模型 ▾」的浮层要改 studio-shared 的
-                `BaseModelPickerPanel`，那是跨线项（契约 §8 末段同一条线）。
-                本片先把它落进正确的槽，形态留给参数一颗按钮那一片一起收。 */}
-            <DetailModelPicker
-              value={data.model}
-              options={modelOptions}
-              onChange={(model) => updateNodeData(nodeId, { model })}
-              kind={NODE_MEDIA_KIND_IDS.image}
-            />
+            {fieldsListEls}
+            {modelPickerEl}
           </div>
         ),
 

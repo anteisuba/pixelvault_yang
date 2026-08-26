@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -63,7 +63,9 @@ import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
 import { CharacterDetailBody } from './CharacterDetailBody'
 import { FrameDetailBody } from './FrameDetailBody'
+import { LooseImageDetailBody } from './LooseImageDetailBody'
 import { NodeDetailFrame } from './NodeDetailFrame'
+import { ShotDetailBody } from './ShotDetailBody'
 import type { NodeDetailSlots } from './slots'
 
 function slotOrder(container: HTMLElement): string[] {
@@ -199,5 +201,214 @@ describe('图片族 × 七槽（S4）', () => {
 
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     expect(screen.getByRole('status')).toBeInTheDocument()
+  })
+})
+
+/**
+ * 画布修法包 C（2026-08-26）：镜头图空态让位——`ShotDetailBody` 是
+ * `promoteFieldsWhenEmpty` 唯一的调用方，其余三族（散图/关键帧/背景）走
+ * `ImageFamilyBody` 默认档，上面那组「图片族 × 七槽」测试已经守住它们
+ * 一像素不变。这里单独锁镜头图自己的两态。
+ */
+describe('镜头图 · 空态让位（画布修法包 C）', () => {
+  it('空态：写作台字段搬进 stage，desk 只剩模型选择器，DOM 七槽不跳', () => {
+    const { container } = renderFamily(ShotDetailBody, NODE_TYPE_IDS.shot, {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+    })
+
+    // 契约唯一不可推翻的一条：槽序 = DOM 序 = 键盘序，七槽一格不跳。
+    expect(slotOrder(container)).toEqual([
+      'identity-bar',
+      'subject-stage',
+      'compose-desk',
+      'source-rack',
+      'relations-strip',
+      'evidence-drawer',
+      'action-dock',
+    ])
+
+    const stage = container.querySelector(
+      '[data-node-detail-slot="subject-stage"]',
+    )
+    const desk = container.querySelector(
+      '[data-node-detail-slot="compose-desk"]',
+    )
+    // prompt 字段（镜头图走 MentionInput，aria-label 与其余长字段同一套）
+    // 现在住在 stage 里，desk 不再重复它。
+    expect(stage?.querySelector('[aria-label="prompt.label"]')).not.toBeNull()
+    expect(desk?.querySelector('[aria-label="prompt.label"]')).toBeNull()
+    expect(stage?.querySelector('[aria-label="camera.label"]')).not.toBeNull()
+    // desk 这个状态下只剩模型选择器——夹具没有可用模型选项时它按 R3
+    // 整栏不渲染（`DetailModelPicker` 既有行为），desk 因此是空的但仍在位
+    // （上面的 DOM 序断言已经锁住 compose-desk 没有从 DOM 里消失）。
+    expect(desk).not.toBeNull()
+    expect(desk?.querySelector('[aria-label="camera.label"]')).toBeNull()
+    // 井退成预览带——仍在 stage 槽上，不是被删掉（R2：空态占几何不占内容，
+    // 极淡字形 + 一行提示，零解释文案之外的「生成后出现在这里」是本包对
+    // R2 的就地更正）。
+    expect(stage?.querySelector('.canvas-detail-stage-band')).not.toBeNull()
+    expect(screen.getByText('stagePreviewHint')).toBeInTheDocument()
+  })
+
+  it('有图之后版式立刻回到今天的媒体优先——字段回到 desk，stage 只剩媒体井', () => {
+    const { container } = renderFamily(ShotDetailBody, NODE_TYPE_IDS.shot, {
+      prompt: '一只猫',
+      mediaUrl: 'https://cdn.test/shot.png',
+      status: NODE_STATUS_IDS.done,
+    })
+
+    const stage = container.querySelector(
+      '[data-node-detail-slot="subject-stage"]',
+    )
+    const desk = container.querySelector(
+      '[data-node-detail-slot="compose-desk"]',
+    )
+    expect(desk?.querySelector('[aria-label="prompt.label"]')).not.toBeNull()
+    expect(stage?.querySelector('.canvas-detail-stage-promoted')).toBeNull()
+    expect(stage?.querySelector('.canvas-detail-stage-band')).toBeNull()
+  })
+})
+
+/**
+ * 画布修法包 E（2026-08-26）：散图空态先问「上传还是生成」——owner 确认见
+ * docs/plans/prototypes/canvas-detail-empty-ui.html「收入口 01 · 图片」。
+ * `LooseImageDetailBody` 是 `offerChoiceWhenEmpty` 唯一的调用方，其余三族
+ * （镜头图/关键帧/背景）都不传，上面两组测试已经守住它们一像素不受影响。
+ */
+describe('散图 · 空态先问一句（画布修法包 E）', () => {
+  function renderLooseImage(data: NodeWorkflowNodeData, nodeId = 'node-1') {
+    return render(
+      <LooseImageDetailBody
+        nodeId={nodeId}
+        type={NODE_TYPE_IDS.image}
+        data={data}
+      >
+        {(slots) => (
+          <NodeDetailFrame identity={<span>identity</span>} slots={slots} />
+        )}
+      </LooseImageDetailBody>,
+    )
+  }
+
+  it('空态先给两颗按钮，不是灰井 + 铺开的字段/模型；七槽 DOM 序不跳', () => {
+    const { container } = renderLooseImage({
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+    })
+
+    expect(slotOrder(container)).toEqual([
+      'identity-bar',
+      'subject-stage',
+      'compose-desk',
+      'source-rack',
+      'relations-strip',
+      'evidence-drawer',
+      'action-dock',
+    ])
+
+    expect(
+      screen.getByRole('button', { name: 'existing.upload' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('emptyChoice.generateTitle')).toBeInTheDocument()
+    expect(screen.getByText('emptyChoice.uploadHint')).toBeInTheDocument()
+    expect(screen.getByText('emptyChoice.generateHint')).toBeInTheDocument()
+    // 动作坞的阻塞原因换成「选一条开始」，不是 noModel/noPrompt——两条路都
+    // 还没选，noModel 那句在这一屏没有意义。
+    expect(screen.getByText('emptyChoice.dockHint')).toBeInTheDocument()
+    // 两条路的控件不同时铺开：模型选择器、prompt 字段此刻都不该出现。
+    expect(screen.queryByLabelText('prompt.label')).not.toBeInTheDocument()
+
+    const desk = container.querySelector(
+      '[data-node-detail-slot="compose-desk"]',
+    )
+    // 槽位仍在（DOM 序没跳，上面已断言），只是此刻空着——`null` 不是
+    // `undefined`，这条顺带锁住两者不被混用（slots.ts 头注那条区分）。
+    expect(desk).not.toBeNull()
+    expect(desk?.textContent).toBe('')
+  })
+
+  it('点「用 AI 生成」后这一屏变成写作台（复用包 C 的 promoteFieldsWhenEmpty）', () => {
+    const { container } = renderLooseImage({
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+    })
+
+    fireEvent.click(screen.getByText('emptyChoice.generateTitle'))
+
+    const stage = container.querySelector(
+      '[data-node-detail-slot="subject-stage"]',
+    )
+    expect(stage?.querySelector('.canvas-detail-fork')).toBeNull()
+    expect(stage?.querySelector('[aria-label="prompt.label"]')).not.toBeNull()
+    expect(stage?.querySelector('.canvas-detail-stage-band')).not.toBeNull()
+    // 两颗选择按钮已经不在了——这一屏现在只回答「生成」这一件事。
+    expect(
+      screen.queryByRole('button', { name: 'existing.upload' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('点「上传图片」直接触发既有文件输入，不新造一条上传通路、也不切进写作台', () => {
+    renderLooseImage({ prompt: '', status: NODE_STATUS_IDS.idle })
+
+    const clickSpy = vi.spyOn(HTMLInputElement.prototype, 'click')
+    fireEvent.click(screen.getByRole('button', { name: 'existing.upload' }))
+
+    expect(clickSpy).toHaveBeenCalledTimes(1)
+    // 还停在「先问一句」——没有一个隐藏的 state 被顺手带去写作台。
+    expect(
+      screen.getByRole('button', { name: 'existing.upload' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('emptyChoice.generateTitle')).toBeInTheDocument()
+
+    clickSpy.mockRestore()
+  })
+
+  it('有内容时与改前一致：主区是媒体井，不是两颗按钮（回归）', () => {
+    const { container } = renderLooseImage({
+      prompt: '一只猫',
+      mediaUrl: 'https://cdn.test/loose.png',
+      status: NODE_STATUS_IDS.done,
+    })
+
+    const stage = container.querySelector(
+      '[data-node-detail-slot="subject-stage"]',
+    )
+    expect(stage?.querySelector('.canvas-detail-fork')).toBeNull()
+    expect(stage?.querySelector('.canvas-detail-well')).not.toBeNull()
+    expect(screen.getByText('imageAlt')).toBeInTheDocument()
+  })
+
+  /**
+   * `LooseImageDetailBody` 挂在 `key={presentationType}` 下（见
+   * `NodeDetailPanel.renderFrame`），同类型节点之间切换**不会**重新挂载这个
+   * 组件实例——面板本地 state 若不按 nodeId 归零，节点 A 上选过的「生成」
+   * 会直接带到节点 B 上，B 不会再被问一次。这条测试锁的就是这个真实存在的
+   * 跨节点串态风险（`ImageFamilyBody` 的 `useEffect(() => ..., [nodeId])`）。
+   */
+  it('切到同类型的另一个空节点时重新问一句，不带着上一个节点选过的「生成」', () => {
+    const emptyData = { prompt: '', status: NODE_STATUS_IDS.idle }
+    const { rerender } = renderLooseImage(emptyData, 'img-a')
+
+    fireEvent.click(screen.getByText('emptyChoice.generateTitle'))
+    expect(
+      screen.queryByRole('button', { name: 'existing.upload' }),
+    ).not.toBeInTheDocument()
+
+    rerender(
+      <LooseImageDetailBody
+        nodeId="img-b"
+        type={NODE_TYPE_IDS.image}
+        data={emptyData}
+      >
+        {(slots) => (
+          <NodeDetailFrame identity={<span>identity</span>} slots={slots} />
+        )}
+      </LooseImageDetailBody>,
+    )
+
+    expect(
+      screen.getByRole('button', { name: 'existing.upload' }),
+    ).toBeInTheDocument()
   })
 })

@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PixelVault · 模型阵容滚动交互 Mock</title>
+    <style>
+      :root {
+        --paper: #ffffff;
+        --ink: #050505;
+        --muted: #777774;
+        --line: #e4e4df;
+        --panel: #f3f3f0;
+        --panel-strong: #e9e9e4;
+        --radius-xl: 30px;
+        --radius-lg: 22px;
+        --ease: cubic-bezier(0.22, 1, 0.36, 1);
+        --gutter: clamp(20px, 4vw, 72px);
+        --header-width: min(950px, calc(100vw - 32px));
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        color-scheme: light;
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        overflow-x: hidden;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          "Noto Sans SC",
+          "PingFang SC",
+          "Microsoft YaHei",
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .page-progress {
+        position: fixed;
+        z-index: 40;
+        inset: 0 auto auto 0;
+        width: 100%;
+        height: 2px;
+        pointer-events: none;
+      }
+
+      .page-progress > i {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: var(--ink);
+        transform: scaleX(0);
+        transform-origin: left;
+      }
+
+      .site-header {
+        position: fixed;
+        z-index: 30;
+        top: 14px;
+        left: 50%;
+        width: var(--header-width);
+        transform: translateX(-50%);
+      }
+
+      .header-pill {
+        display: flex;
+        min-height: 56px;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 10px 8px 22px;
+        border: 1px solid rgba(0, 0, 0, 0.025);
+        border-radius: 999px;
+        background: rgba(244, 244, 241, 0.94);
+        backdrop-filter: blur(14px);
+      }
+
+      .wordmark {
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .header-note {
+        margin-left: auto;
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .header-chip {
+        display: inline-flex;
+        min-height: 40px;
+        align-items: center;
+        padding: 0 18px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: white;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .intro {
+        min-height: 96svh;
+        display: grid;
+        place-items: center;
+        padding: 110px var(--gutter) 56px;
+      }
+
+      .intro-copy {
+        width: min(1180px, 100%);
+      }
+
+      .eyebrow,
+      .section-kicker,
+      .gesture-caption {
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .intro h1 {
+        max-width: 13ch;
+        margin: 28px 0 0;
+        font-size: clamp(56px, 8vw, 128px);
+        line-height: 0.96;
+        letter-spacing: -0.075em;
+      }
+
+      .intro-bottom {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 28px;
+        margin-top: clamp(60px, 10vh, 120px);
+        padding-top: 22px;
+        border-top: 1px solid var(--line);
+      }
+
+      .intro-bottom p {
+        max-width: 520px;
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.75;
+        color: #3f3f3d;
+      }
+
+      .scroll-cue {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        white-space: nowrap;
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 11px;
+      }
+
+      .scroll-cue i {
+        width: 46px;
+        height: 1px;
+        background: var(--ink);
+      }
+
+      .catalog {
+        padding: clamp(110px, 14vh, 170px) 0 clamp(100px, 13vh, 160px);
+        border-top: 1px solid var(--line);
+      }
+
+      .catalog-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
+        gap: 48px;
+        align-items: end;
+        padding: 0 var(--gutter);
+      }
+
+      .catalog h2 {
+        max-width: 11ch;
+        margin: 24px 0 0;
+        font-size: clamp(48px, 6.7vw, 108px);
+        line-height: 0.95;
+        letter-spacing: -0.07em;
+      }
+
+      .catalog-summary {
+        justify-self: end;
+        max-width: 420px;
+        padding-bottom: 8px;
+      }
+
+      .catalog-summary p {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.75;
+        color: #454543;
+      }
+
+      .input-rule {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 12px;
+        align-items: center;
+        margin-top: 24px;
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 10px;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+      }
+
+      .input-rule::after {
+        content: "";
+        height: 1px;
+        background: var(--line);
+      }
+
+      .catalog-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-top: clamp(52px, 8vh, 90px);
+        padding: 0 var(--gutter) 24px;
+      }
+
+      .tabs {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 6px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .tabs::-webkit-scrollbar {
+        display: none;
+      }
+
+      .tab {
+        flex: none;
+        min-height: 46px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 17px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--paper);
+        color: var(--muted);
+        cursor: pointer;
+        transition:
+          color 180ms,
+          border-color 180ms,
+          background 180ms,
+          transform 180ms;
+      }
+
+      .tab:hover {
+        color: var(--ink);
+        transform: translateY(-1px);
+      }
+
+      .tab[aria-selected="true"] {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: white;
+      }
+
+      .tab b {
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .tab em {
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 9px;
+        font-style: normal;
+        opacity: 0.66;
+      }
+
+      .rail-controls {
+        display: flex;
+        flex: none;
+        gap: 8px;
+        margin-left: auto;
+      }
+
+      .arrow {
+        width: 46px;
+        height: 46px;
+        border: 1px solid var(--line);
+        border-radius: 50%;
+        background: var(--paper);
+        color: var(--ink);
+        cursor: pointer;
+        transition:
+          transform 180ms,
+          background 180ms,
+          opacity 180ms;
+      }
+
+      .arrow:hover:not(:disabled) {
+        background: var(--panel);
+        transform: translateY(-2px);
+      }
+
+      .arrow:disabled {
+        opacity: 0.28;
+        cursor: default;
+      }
+
+      .rail-shell {
+        position: relative;
+      }
+
+      .rail {
+        display: flex;
+        gap: 14px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 4px var(--gutter) 24px;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        cursor: grab;
+        touch-action: pan-x pan-y;
+        transition:
+          opacity 220ms var(--ease),
+          transform 280ms var(--ease);
+      }
+
+      .rail::-webkit-scrollbar {
+        display: none;
+      }
+
+      .rail.is-swapping {
+        opacity: 0;
+        transform: translateY(14px);
+      }
+
+      .rail.is-dragging {
+        cursor: grabbing;
+        scroll-snap-type: none;
+        user-select: none;
+      }
+
+      .model-card {
+        position: relative;
+        flex: 0 0 clamp(260px, 23vw, 360px);
+        min-width: 0;
+        overflow: hidden;
+        padding: 0;
+        border: 0;
+        border-radius: var(--radius-lg);
+        background: var(--panel);
+        color: var(--ink);
+        text-align: left;
+        cursor: pointer;
+        scroll-snap-align: start;
+        transition:
+          transform 260ms var(--ease),
+          background 260ms,
+          box-shadow 260ms;
+      }
+
+      .model-card:hover {
+        transform: translateY(-5px);
+        background: var(--panel-strong);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+      }
+
+      .model-card:focus-visible,
+      .tab:focus-visible,
+      .arrow:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 3px;
+      }
+
+      .model-media {
+        position: relative;
+        aspect-ratio: 1 / 1.06;
+        overflow: hidden;
+        background: #efefeb;
+      }
+
+      .model-media img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+        pointer-events: none;
+        transition: transform 700ms var(--ease);
+      }
+
+      .model-card:hover .model-media img {
+        transform: scale(1.035);
+      }
+
+      .model-index {
+        position: absolute;
+        top: 14px;
+        left: 16px;
+        padding: 5px 7px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(8px);
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 9px;
+      }
+
+      .model-open {
+        position: absolute;
+        right: 14px;
+        bottom: 14px;
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(8px);
+        font-size: 14px;
+        transform: translateY(8px);
+        opacity: 0;
+        transition:
+          opacity 220ms,
+          transform 260ms var(--ease);
+      }
+
+      .model-card:hover .model-open,
+      .model-card:focus-visible .model-open {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .model-info {
+        min-height: 112px;
+        padding: 19px 18px 18px;
+      }
+
+      .model-info h3 {
+        margin: 0;
+        font-size: 17px;
+        line-height: 1.25;
+        letter-spacing: -0.025em;
+      }
+
+      .model-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 9px;
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 9.5px;
+        color: var(--muted);
+      }
+
+      .rail-foot {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 24px;
+        align-items: center;
+        margin-top: 10px;
+        padding: 0 var(--gutter);
+      }
+
+      .rail-progress {
+        height: 2px;
+        overflow: hidden;
+        background: var(--line);
+      }
+
+      .rail-progress i {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: var(--ink);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 120ms linear;
+      }
+
+      .rail-hint {
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 10px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      .continuation {
+        min-height: 95svh;
+        display: grid;
+        align-items: center;
+        padding: 100px var(--gutter);
+        background: #0a0a0a;
+        color: white;
+      }
+
+      .continuation-inner {
+        width: min(1180px, 100%);
+        margin: 0 auto;
+      }
+
+      .continuation .eyebrow {
+        color: #898987;
+      }
+
+      .continuation h2 {
+        max-width: 13ch;
+        margin: 26px 0 0;
+        font-size: clamp(48px, 7vw, 112px);
+        line-height: 0.98;
+        letter-spacing: -0.07em;
+      }
+
+      .continuation p {
+        max-width: 500px;
+        margin: 42px 0 0;
+        color: #aaa;
+        font-size: 15px;
+        line-height: 1.8;
+      }
+
+      .gesture-monitor {
+        position: fixed;
+        z-index: 35;
+        right: 18px;
+        bottom: 18px;
+        min-width: 226px;
+        padding: 13px 15px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        background: rgba(8, 8, 8, 0.9);
+        color: white;
+        backdrop-filter: blur(14px);
+        transform: translateY(12px);
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 200ms,
+          transform 260ms var(--ease);
+      }
+
+      .gesture-monitor.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .gesture-monitor p {
+        margin: 5px 0 0;
+        font-size: 12px;
+      }
+
+      .gesture-monitor[data-mode="page"] .monitor-dot {
+        background: #f4f4f0;
+      }
+
+      .gesture-monitor[data-mode="rail"] .monitor-dot {
+        background: #aee6ff;
+      }
+
+      .gesture-caption {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #8e8e8a;
+      }
+
+      .monitor-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+      }
+
+      dialog {
+        width: min(620px, calc(100vw - 32px));
+        padding: 0;
+        overflow: hidden;
+        border: 0;
+        border-radius: 26px;
+        background: white;
+        color: var(--ink);
+        box-shadow: 0 30px 100px rgba(0, 0, 0, 0.25);
+      }
+
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.46);
+        backdrop-filter: blur(4px);
+      }
+
+      .dialog-media {
+        height: 260px;
+        background: var(--panel);
+      }
+
+      .dialog-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .dialog-body {
+        padding: 26px;
+      }
+
+      .dialog-body h3 {
+        margin: 0;
+        font-size: 32px;
+        letter-spacing: -0.045em;
+      }
+
+      .dialog-body p {
+        margin: 12px 0 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 28px;
+      }
+
+      .dialog-actions button {
+        min-height: 44px;
+        padding: 0 18px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: white;
+        cursor: pointer;
+      }
+
+      .dialog-actions .primary {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: white;
+      }
+
+      @media (max-width: 800px) {
+        .header-note {
+          display: none;
+        }
+
+        .catalog-head {
+          grid-template-columns: 1fr;
+        }
+
+        .catalog-summary {
+          justify-self: start;
+        }
+
+        .intro-bottom {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .catalog-toolbar {
+          align-items: flex-start;
+          flex-wrap: wrap;
+        }
+
+        .tabs {
+          width: 100%;
+        }
+
+        .rail-controls {
+          margin-left: 0;
+        }
+
+        .model-card {
+          flex-basis: min(78vw, 320px);
+        }
+
+        .rail-foot {
+          grid-template-columns: 1fr;
+        }
+
+        .gesture-monitor {
+          right: 12px;
+          bottom: 12px;
+          min-width: 190px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-progress" aria-hidden="true"><i></i></div>
+
+    <header class="site-header">
+      <div class="header-pill">
+        <span class="wordmark">ANTEI</span>
+        <span class="header-note">Homepage motion study · model catalog</span>
+        <span class="header-chip">Mock</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div class="intro-copy">
+          <p class="eyebrow">滚动归属测试 · 01</p>
+          <h1>页面向下，模型向右，各走各的。</h1>
+          <div class="intro-bottom">
+            <p>
+              这个 mock 专门验证模型阵容的输入冲突：普通滚轮始终属于页面；横向触控板、Shift
+              + 滚轮、拖拽与箭头才属于模型轨。
+            </p>
+            <span class="scroll-cue"><i></i> 向下滚动测试</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="catalog" aria-labelledby="catalog-title">
+        <div class="catalog-head">
+          <div>
+            <p class="section-kicker">真实目录 · 每小时同步</p>
+            <h2 id="catalog-title">61 个模型，四种模态。</h2>
+          </div>
+          <div class="catalog-summary">
+            <p>
+              选择一种创作任务，再横向浏览可以执行它的模型。模型不是静态 Logo
+              墙；每张卡都会进入对应工作台，并保留供应商与参考价格。
+            </p>
+            <div class="input-rule">纵向滚轮不会被模型轨截获</div>
+          </div>
+        </div>
+
+        <div class="catalog-toolbar">
+          <div class="tabs" role="tablist" aria-label="模型模态">
+            <button class="tab" role="tab" data-group="image" aria-selected="true">
+              <b>图片</b><em>26</em>
+            </button>
+            <button class="tab" role="tab" data-group="video" aria-selected="false">
+              <b>视频</b><em>28</em>
+            </button>
+            <button class="tab" role="tab" data-group="audio" aria-selected="false">
+              <b>音频</b><em>02</em>
+            </button>
+            <button class="tab" role="tab" data-group="model3d" aria-selected="false">
+              <b>3D</b><em>05</em>
+            </button>
+          </div>
+
+          <div class="rail-controls">
+            <button class="arrow" type="button" data-prev aria-label="上一批模型">←</button>
+            <button class="arrow" type="button" data-next aria-label="下一批模型">→</button>
+          </div>
+        </div>
+
+        <div class="rail-shell">
+          <div class="rail" tabindex="0" role="tabpanel" aria-live="polite"></div>
+        </div>
+
+        <div class="rail-foot">
+          <div class="rail-progress" aria-hidden="true"><i></i></div>
+          <span class="rail-hint">拖拽 · 横向触控板 · Shift + 滚轮 · 箭头</span>
+        </div>
+      </section>
+
+      <section class="continuation">
+        <div class="continuation-inner">
+          <p class="eyebrow">滚动归属测试 · 02</p>
+          <h2>没有被横轨困住，页面自然来到这里。</h2>
+          <p>
+            这一区域刻意放在模型阵容之后。把鼠标停在任意模型卡上继续向下滚，如果可以直接来到这里，说明纵向滚动冲突已经解除。
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <aside class="gesture-monitor" data-mode="page" aria-live="polite">
+      <div class="gesture-caption"><i class="monitor-dot"></i> INPUT ROUTING</div>
+      <p>纵向滚轮 → 页面</p>
+    </aside>
+
+    <dialog>
+      <div class="dialog-media"><img alt="" /></div>
+      <div class="dialog-body">
+        <p class="section-kicker">模型详情</p>
+        <h3></h3>
+        <p class="dialog-description"></p>
+        <div class="dialog-actions">
+          <button type="button" data-close>关闭</button>
+          <button type="button" class="primary">使用这个模型创作</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script>
+      const base = "../../../public/homepage/production/models/";
+
+      const groups = {
+        image: [
+          ["OpenAI GPT Image 2", "OpenAI", "$0.04 / 张", "image/gpt-image-2.png", "适合角色、产品与高质量通用图片生成。"],
+          ["Gemini 3 Pro Image", "Google", "$0.13 / 张", "image/gemini-3-pro-image-preview.webp", "参考图理解与复杂指令跟随能力突出。"],
+          ["Flux 2 Pro", "Black Forest Labs", "$0.03 / 张", "image/flux-2-pro.webp", "写实、设计和快速迭代之间保持平衡。"],
+          ["Seedream 5.0 Pro", "ByteDance", "按用量", "image/seedream-5.0-pro.webp", "适合中文语境、商业视觉与高分辨率输出。"],
+          ["Recraft V4 Pro", "Recraft", "按用量", "image/recraft-v4-pro.webp", "品牌图形、排版与设计资产生成。"],
+          ["Flux LoRA", "fal.ai", "按用量", "image/flux-lora.webp", "挂载 LoRA，保持角色或风格特征。"],
+          ["Illustrious XL", "Runner", "按用量", "image/illustrious-xl.webp", "面向动漫与插画工作流的本地执行模型。"],
+          ["Anima DiT", "Runner", "按用量", "image/anima-dit-runner.webp", "为角色定制与风格化创作提供可控底模。"],
+        ],
+        video: [
+          ["Seedance 2.0 Fast", "fal.ai", "$0.14 / 秒", "video/seedance-2.0-fast.webp", "快速图生视频，适合镜头预演和迭代。"],
+          ["Seedance 2.0", "fal.ai", "$0.30 / 秒", "video/seedance-2.0.webp", "高质量视频生成与复杂运动表现。"],
+          ["Seedance Reference", "ByteDance", "按用量", "video/seedance-2.0-reference-volcengine.webp", "使用多参考输入维持角色与场景一致性。"],
+          ["Kling V3 Pro", "Kling", "按用量", "video/kling-v3-pro.webp", "电影化运动与高质量视频输出。"],
+          ["Gemini Omni Flash", "Google", "按用量", "video/gemini-omni-flash.webp", "快速多模态生成与原生音频能力。"],
+          ["HappyHorse 1.0", "Alibaba Cloud", "按用量", "video/happyhorse-1.0.webp", "面向轻量视频创作的快速执行模型。"],
+        ],
+        audio: [
+          ["Fish Audio S2 Pro", "Fish Audio", "$0.20 / 千字符", "audio/fish-audio-s2-pro.webp", "多语言文字转语音与可复用声音身份。"],
+          ["ElevenLabs SFX V2", "ElevenLabs", "按用量", "audio/eleven-sfx-v2.webp", "通过文字描述生成环境声与效果音。"],
+        ],
+        model3d: [
+          ["Rodin Gen-2.5", "Hyper3D", "按用量", "model3d/rodin-gen-2.5.webp", "从单图生成可继续使用的 GLB 资产。"],
+          ["Hunyuan3D v3.1 Pro", "Tencent", "按用量", "model3d/hunyuan3d-v3.1-pro.webp", "高质量几何与纹理重建。"],
+          ["Hunyuan3D v3", "Tencent", "按用量", "model3d/hunyuan3d-v3.webp", "兼顾速度与模型完整性的图片转 3D。"],
+          ["Trellis 2", "Microsoft", "按用量", "model3d/trellis-2.webp", "快速生成适合预览与复用的三维资产。"],
+          ["TripoSR", "Tripo", "按用量", "model3d/triposr.webp", "轻量、快速的单图三维重建。"],
+        ],
+      };
+
+      const rail = document.querySelector(".rail");
+      const tabs = [...document.querySelectorAll(".tab")];
+      const prev = document.querySelector("[data-prev]");
+      const next = document.querySelector("[data-next]");
+      const railProgress = document.querySelector(".rail-progress i");
+      const pageProgress = document.querySelector(".page-progress i");
+      const monitor = document.querySelector(".gesture-monitor");
+      const monitorText = monitor.querySelector("p");
+      const dialog = document.querySelector("dialog");
+      const dialogImage = dialog.querySelector("img");
+      const dialogTitle = dialog.querySelector("h3");
+      const dialogDescription = dialog.querySelector(".dialog-description");
+      let activeGroup = "image";
+      let monitorTimer;
+
+      function cardMarkup(model, index) {
+        const [name, provider, price, image, description] = model;
+        return `
+          <button class="model-card" type="button" data-index="${index}" aria-label="了解 ${name}">
+            <span class="model-media">
+              <img src="${base}${image}" alt="" draggable="false" />
+              <span class="model-index">${String(index + 1).padStart(2, "0")}</span>
+              <span class="model-open">↗</span>
+            </span>
+            <span class="model-info">
+              <h3>${name}</h3>
+              <span class="model-meta"><span>${provider}</span><span>${price}</span></span>
+            </span>
+          </button>`;
+      }
+
+      function render(group, animate = true) {
+        activeGroup = group;
+        if (animate) rail.classList.add("is-swapping");
+        window.setTimeout(() => {
+          rail.innerHTML = groups[group].map(cardMarkup).join("");
+          rail.scrollLeft = 0;
+          rail.classList.remove("is-swapping");
+          updateRailState();
+        }, animate ? 180 : 0);
+      }
+
+      function updateRailState() {
+        const max = Math.max(0, rail.scrollWidth - rail.clientWidth);
+        const progress = max ? rail.scrollLeft / max : 0;
+        railProgress.style.transform = `scaleX(${progress})`;
+        prev.disabled = rail.scrollLeft <= 2;
+        next.disabled = rail.scrollLeft >= max - 2 || max === 0;
+      }
+
+      function showInput(mode, message) {
+        window.clearTimeout(monitorTimer);
+        monitor.dataset.mode = mode;
+        monitorText.textContent = message;
+        monitor.classList.add("is-visible");
+        monitorTimer = window.setTimeout(() => monitor.classList.remove("is-visible"), 1100);
+      }
+
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          tabs.forEach((item) => item.setAttribute("aria-selected", String(item === tab)));
+          render(tab.dataset.group);
+        });
+      });
+
+      prev.addEventListener("click", () => {
+        rail.scrollBy({ left: -Math.max(520, rail.clientWidth * 0.68), behavior: "smooth" });
+        showInput("rail", "箭头 → 模型轨向左");
+      });
+
+      next.addEventListener("click", () => {
+        rail.scrollBy({ left: Math.max(520, rail.clientWidth * 0.68), behavior: "smooth" });
+        showInput("rail", "箭头 → 模型轨向右");
+      });
+
+      rail.addEventListener("scroll", updateRailState, { passive: true });
+
+      rail.addEventListener(
+        "wheel",
+        (event) => {
+          const explicitShift = event.shiftKey && Math.abs(event.deltaY) > 0;
+          const nativeHorizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY) * 1.15;
+
+          if (!explicitShift && !nativeHorizontal) {
+            showInput("page", "纵向滚轮 → 页面继续向下");
+            return;
+          }
+
+          const delta = explicitShift ? event.deltaY : event.deltaX;
+          const max = rail.scrollWidth - rail.clientWidth;
+          const nextLeft = Math.min(max, Math.max(0, rail.scrollLeft + delta));
+
+          if (nextLeft === rail.scrollLeft) {
+            showInput("page", "横轨到达边界 → 释放给页面");
+            return;
+          }
+
+          event.preventDefault();
+          rail.scrollLeft = nextLeft;
+          showInput("rail", explicitShift ? "Shift + 滚轮 → 模型轨" : "横向手势 → 模型轨");
+        },
+        { passive: false },
+      );
+
+      let drag = null;
+
+      rail.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        drag = { id: event.pointerId, x: event.clientX, left: rail.scrollLeft, moved: false };
+        rail.setPointerCapture(event.pointerId);
+        rail.classList.add("is-dragging");
+      });
+
+      rail.addEventListener("pointermove", (event) => {
+        if (!drag || drag.id !== event.pointerId) return;
+        const distance = event.clientX - drag.x;
+        if (Math.abs(distance) > 5) drag.moved = true;
+        rail.scrollLeft = drag.left - distance;
+        if (drag.moved) showInput("rail", "拖拽 → 模型轨");
+      });
+
+      function endDrag(event) {
+        if (!drag || drag.id !== event.pointerId) return;
+        rail.releasePointerCapture(event.pointerId);
+        rail.classList.remove("is-dragging");
+        window.setTimeout(() => (drag = null), 0);
+      }
+
+      rail.addEventListener("pointerup", endDrag);
+      rail.addEventListener("pointercancel", endDrag);
+
+      rail.addEventListener("click", (event) => {
+        if (drag?.moved) {
+          event.preventDefault();
+          return;
+        }
+        const card = event.target.closest(".model-card");
+        if (!card) return;
+        const model = groups[activeGroup][Number(card.dataset.index)];
+        dialogImage.src = `${base}${model[3]}`;
+        dialogTitle.textContent = model[0];
+        dialogDescription.textContent = model[4];
+        dialog.showModal();
+      });
+
+      rail.addEventListener("keydown", (event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        rail.scrollBy({ left: event.key === "ArrowRight" ? 360 : -360, behavior: "smooth" });
+      });
+
+      dialog.querySelector("[data-close]").addEventListener("click", () => dialog.close());
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
+      });
+
+      window.addEventListener(
+        "scroll",
+        () => {
+          const max = document.documentElement.scrollHeight - window.innerHeight;
+          pageProgress.style.transform = `scaleX(${max ? window.scrollY / max : 0})`;
+        },
+        { passive: true },
+      );
+
+      render("image", false);
+    </script>
+  </body>
+</html>

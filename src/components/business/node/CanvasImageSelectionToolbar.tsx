@@ -17,8 +17,6 @@ import {
   Eraser,
   FileText,
   Film,
-  IdCard,
-  Library,
   Maximize2,
   MoreHorizontal,
   Paintbrush,
@@ -36,14 +34,10 @@ import {
 import { useTranslations } from 'next-intl'
 
 import {
-  NODE_STUDIO_AUDIO_INPUT,
   NODE_STUDIO_DOCK,
   NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
   NODE_STUDIO_REFERENCE_ROLES,
   NODE_STUDIO_VIDEO_INPUT,
-  NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
-  NODE_STUDIO_VOICE_PROFILE,
-  NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
   resolveReferenceAssetLimit,
 } from '@/constants/node-studio'
 import { READY_CANVAS_IMAGE_EDIT_CAPABILITIES } from '@/constants/canvas-image-edit-capabilities'
@@ -67,12 +61,10 @@ import {
   harvestUpstreamShotTextPrompt,
 } from '@/lib/node-workflow-graph'
 import type { NodeTokenType } from '@/constants/node-tokens'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { useReferenceVideoUpload } from '@/hooks/node/use-reference-video-upload'
-import { useVideoMergeAction } from '@/hooks/node/use-video-merge-action'
 import { cn } from '@/lib/utils'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
-import type { GenerationRecord, NodeWorkflowReferenceRole } from '@/types'
+import type { NodeWorkflowReferenceRole } from '@/types'
 import type {
   NodeWorkflowEdge,
   NodeWorkflowNode,
@@ -88,7 +80,6 @@ import {
 
 import { CanvasImageEditWorkspace } from './CanvasImageEditWorkspace'
 import { CharacterImageReferenceControls } from './CharacterImageReferenceControls'
-import { FishVoiceLibraryDialog } from './FishVoiceLibraryDialog'
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
 import {
   DropdownMenu,
@@ -107,10 +98,24 @@ interface CanvasImageSelectionToolbarProps {
   data: NodeWorkflowNodeData
   quickEditOpen?: boolean
   onQuickEditOpenChange?(open: boolean): void
-  /** R3-3 (canvas-relationship-v3 §3.2): a type-specific capability button
-   *  appended alongside quick-edit/delete — today only 镜头图 (role=shot)
-   *  passes its 生成/重生成 button here. The image family's own toolbar
-   *  chrome otherwise stays exactly as it was ("保留不动"). */
+  /**
+   * R3-3 (canvas-relationship-v3 §3.2): a type-specific capability button
+   * appended alongside quick-edit/delete — today only 镜头图 (role=shot)
+   * passes its 生成/重生成 button here. The image family's own toolbar
+   * chrome otherwise stays exactly as it was ("保留不动").
+   *
+   * ⚠ 《画布修法》刀二·B1 复核（2026-08-26）：本轮任务包原计划撤掉这颗按钮，
+   * 让 shot 完全改走右侧 GenerateComposer。**已停手**——composer 的生成路径
+   * 与这颗按钮实测**不等价**：`ShotGenerateButton` → `handleGenerateMediaNode`
+   * 会对镜头图自动收割上游角色/背景参考图（`StudioNodeWorkbench.tsx`
+   * `harvestUpstreamImageReferences`，仅 `isShotImageNode` 分支触发），而
+   * composer → `handleRunGenerateComposer` 的 `referenceImages` 只读
+   * composer 自己的 `referenceSlots`（宿主已有媒体的缩略图 + 手动
+   * AssetSelectorDialog 选的图），不读图上游连线——"@" 提及
+   * （`connectReferenceNode`）只建边/插入文字 token，不会把被提及节点的图
+   * 塞进这次生成的 `referenceImages`。对一张连了角色卡/背景卡的镜头图，
+   * 撤钮会让用户静默丢失这些参考图。按包内判据"停手上报"，这颗按钮保留。
+   */
   extra?: ReactNode
 }
 
@@ -685,13 +690,6 @@ function CollectorCapability({
   )
 }
 
-/** 镜头图（role=shot）capability addition — 生成/重生成, reusing the exact
- *  `generateMediaNode` context channel `NodeMediaInspector`/`VideoComposer`
- *  already call. Rendered both as the image-family toolbar's `extra` slot
- *  (media already exists — exported so `LooseImageCard` can pass it in
- *  directly, since it calls `CanvasImageSelectionToolbar` itself rather than
- *  going through `NodeSelectionToolbarChrome`) and as the sole capability of
- *  the generic no-media branch. */
 /** 台账 #12：blockReason 存在时给 disabled 生成钮包一层 Radix Tooltip。
  *  `ToolbarLabelButton` 的 `disabled:pointer-events-none` 会吃掉原生 title，
  *  照 `NodeMediaInspector` 的「span 包一层」先例。触屏没有 hover——点击
@@ -719,6 +717,19 @@ function GenerateBlockTooltip({
   )
 }
 
+/**
+ * 镜头图（role=shot）capability addition — 生成/重生成, reusing the exact
+ * `generateMediaNode` context channel `NodeMediaInspector`/`VideoComposer`
+ * already call. Rendered both as the image-family toolbar's `extra` slot
+ * (media already exists — exported so `LooseImageCard` can pass it in
+ * directly, since it calls `CanvasImageSelectionToolbar` itself rather than
+ * going through `NodeSelectionToolbarChrome`) and as the sole capability of
+ * the generic no-media branch.
+ *
+ * ⚠ 《画布修法》刀二·B1 复核（2026-08-26）：**保留，不撤**——见
+ * `CanvasImageSelectionToolbarProps.extra` 上的完整理由（composer 生成路径
+ * 不读上游角色/背景参考图，与这颗按钮不等价）。
+ */
 export function ShotGenerateButton({
   nodeId,
   data,
@@ -992,130 +1003,36 @@ function VideoReferenceCapability({
   )
 }
 
-/** Video merge capability region: merge only. Reordering remains a detail
- * concern reached through the universal expand button. */
-function VideoMergeCapability({
-  nodeId,
-  data,
-}: {
-  nodeId: string
-  data: NodeWorkflowNodeData
-}) {
-  const t = useTranslations('StudioNode.videoMerge')
-  const syntheticNode = useMemo<NodeWorkflowNode>(
-    () => ({
-      id: nodeId,
-      type: NODE_TYPE_IDS.videoMerge,
-      position: { x: 0, y: 0 },
-      data,
-    }),
-    [nodeId, data],
-  )
-  const { canMerge, isMerging, handleMerge } =
-    useVideoMergeAction(syntheticNode)
-  const hasMedia = Boolean(
-    typeof data.mediaUrl === 'string' && data.mediaUrl.trim(),
-  )
-
-  return (
-    <>
-      <ToolbarLabelButton
-        icon={Sparkles}
-        label={
-          isMerging
-            ? t('merging')
-            : hasMedia
-              ? t('merge.regenerate')
-              : t('merge.run')
-        }
-        onClick={() => void handleMerge()}
-        disabled={!canMerge}
-      />
-    </>
-  )
-}
-
-/** 音色（voice）capability region — 声音库 (`FishVoiceLibraryDialog`, unchanged) +
- *  FB-5 ②「从素材」: pick an already-generated audio clip from the asset
- *  library as reference audio. Reuses the EXACT channel `VoiceDetailBody`'s
- *  own "从素材选择" entry already established — `AssetSelectorDialog`
- *  `mediaType="audio"` + the same field set its `handleSelectReferenceAsset`
- *  writes (voiceClipUrl/Source + Name/MimeType + voiceReferenceCoverImage) —
- *  no new audio channel introduced. */
-function VoiceCapability({
-  nodeId,
-  data,
-}: {
-  nodeId: string
-  data: NodeWorkflowNodeData
-}) {
-  const t = useTranslations('StudioNode.voiceProfile')
-  const { updateNodeData } = useNodeWorkflowActions()
-  const [libraryOpen, setLibraryOpen] = useState(false)
-  const [assetDialogOpen, setAssetDialogOpen] = useState(false)
-
-  return (
-    <>
-      <ToolbarLabelButton
-        icon={IdCard}
-        label={t('chooseVoice')}
-        onClick={() => setLibraryOpen(true)}
-      />
-      <ToolbarLabelButton
-        icon={Library}
-        label={t('referenceFromAssets')}
-        onClick={() => setAssetDialogOpen(true)}
-      />
-      <FishVoiceLibraryDialog
-        open={libraryOpen}
-        onOpenChange={setLibraryOpen}
-        selectedVoiceId={typeof data.voiceId === 'string' ? data.voiceId : null}
-        onSelectVoiceId={(voice) => {
-          updateNodeData(nodeId, {
-            voiceId: voice.voiceId,
-            voiceName: voice.name,
-            voiceCoverImage: voice.coverImage ?? undefined,
-            voiceProvider:
-              data.voiceProvider || NODE_STUDIO_VOICE_PROFILE.providerDefault,
-            voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
-            // A picked voiceId always satisfies VoiceInspector's own
-            // hasVoiceProfileData check, so this mirrors its ready branch.
-            status: NODE_STATUS_IDS.ready,
-          })
-          setLibraryOpen(false)
-        }}
-        onVoiceSelectComplete={() => setLibraryOpen(false)}
-      />
-      <AssetSelectorDialog
-        open={assetDialogOpen}
-        onOpenChange={setAssetDialogOpen}
-        title={t('referenceDialogTitle')}
-        description={t('referenceDialogDescription')}
-        mediaType="audio"
-        onSelect={(generation: GenerationRecord) => {
-          updateNodeData(nodeId, {
-            voiceClipUrl: generation.url,
-            voiceClipSource: NODE_STUDIO_VOICE_CLIP_SOURCE_IDS.uploaded,
-            voiceReferenceAudioName: t('referenceAudioFallback'),
-            voiceReferenceAudioMimeType: NODE_STUDIO_AUDIO_INPUT.assetMimeType,
-            voiceReferenceCoverImage:
-              generation.previewUrl ?? generation.thumbnailUrl ?? undefined,
-            voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
-            status: NODE_STATUS_IDS.ready,
-          })
-          setAssetDialogOpen(false)
-        }}
-      />
-    </>
-  )
-}
+// 《画布修法》刀二·B2/B3（2026-08-26）：VoiceCapability（声音库/从素材选择两颗）
+// 与 VideoMergeCapability（开始合并）已从这条工具条撤下——
+//   - 音色的选择入口收口到卡上唯一那一颗（VoiceNode.tsx 的空态主动作，现在
+//     用一个小菜单同时到达声音库与素材库两种来源，同一套字段写入逻辑原样
+//     搬过去，见该文件）；
+//   - 片盒的合并入口保留在 ⤢ 详情面板动作坞（VideoMergeDetailBody，不动），
+//     同时片盒新挂了自己的右侧侧车（VideoMergeNode.tsx，复用 NodeToolbar
+//     Position.Right + NODE_STUDIO_NODE_SIDECAR_OFFSET，与视频侧车同款几何）
+//     承接「选中即可达」。
+// 两者都不再在这个通用能力注册表里出现。
 
 /** Capability-region registry (§3.2 table). Returns null for types with no
  *  reachable capability today (composer/agent，两者已退役、用户看不到；
  *  frame/closeup without media) — an empty middle region, not a dead button.
  *  ⚠ videoReference 与 shotText 于 2026-08-02（台账 #28 及其收尾）**迁出**
  *  这个清单：它们无媒体时没有能力区 ⇒ 整条工具条不渲染 ⇒ 详情面板不可达，
- *  而那恰恰是各自最该打开的面板。见两个 Capability 组件的头注。 */
+ *  而那恰恰是各自最该打开的面板。见两个 Capability 组件的头注。
+ *  ⚠ 《画布修法》刀二·一族一扇门（2026-08-26）：voice / videoMerge 两个 case
+ *  **反向迁出**——不是没有能力区了，是它们各自「会产生新东西」的那颗按钮改
+ *  住右面了（voice 走 GenerateComposer，本来就已经对 audio kind 的选中节点
+ *  常挂；videoMerge 走它自己新挂的右侧侧车，见 `VideoMergeNode.tsx`）。两者
+ *  只要还有 mediaUrl 就仍然落进这里之外的路径拿到通用区（videoMerge→本函数
+ *  下面 default 分支为 null 但 `GenericSelectionToolbar` 仍按 mediaUrl 渲染
+ *  通用区）；空态时这两种类型在这条注册表里不再有能力区，近场工具条整条不
+ *  渲染——同一条 owner 2026-07-27 规则（见下面 `GenericSelectionToolbar` 头
+ *  注），不是新例外。
+ *  ⚠ shot **不在此列，维持原状**——`ShotGenerateButton` 复核后确认与
+ *  composer 生成路径不等价（composer 不读上游角色/背景参考图，见
+ *  `CanvasImageSelectionToolbarProps.extra` 的完整理由），按包内判据"停手
+ *  上报"，撤钮计划已收回。 */
 function ToolbarCapabilityRegion({
   nodeId,
   data,
@@ -1133,10 +1050,6 @@ function ToolbarCapabilityRegion({
   switch (nodeType) {
     case NODE_TYPE_IDS.seedance:
       return <SeedanceCapability nodeId={nodeId} data={data} />
-    case NODE_TYPE_IDS.videoMerge:
-      return <VideoMergeCapability nodeId={nodeId} data={data} />
-    case NODE_TYPE_IDS.voice:
-      return <VoiceCapability nodeId={nodeId} data={data} />
     case NODE_TYPE_IDS.shot:
       return <ShotGenerateButton nodeId={nodeId} data={data} />
     // 台账 #28：加这一 case 是为了让空参考视频卡也有工具条 ⇒ 有 ⤢ ⇒

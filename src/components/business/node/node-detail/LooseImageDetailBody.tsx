@@ -75,6 +75,11 @@ export function LooseImageDetailBody({
       type={type}
       data={data}
       aspect="1 / 1"
+      // 画布修法包 E（2026-08-26）：散图空态先问「上传还是生成」；选了「生成」
+      // 之后复用包 C 给镜头图做的写作台版式（`promoteFieldsWhenEmpty`）。
+      // 两个开关的头注都在 `ImageFamilyBody` —— 只有这一族两个都传 `true`。
+      offerChoiceWhenEmpty
+      promoteFieldsWhenEmpty
       pedestal={
         // ⚠ 分类**可编辑**，所以它穿控件壳 —— R6 禁的是给只读/派生值穿壳，
         // 不是禁一切控件。台座这一行因此是「灰标签 + 一颗窄下拉」，

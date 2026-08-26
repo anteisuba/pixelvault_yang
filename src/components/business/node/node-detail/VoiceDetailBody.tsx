@@ -35,6 +35,7 @@ import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import { readVoiceUrlFromData } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AudioPlayer } from '@/components/ui/audio-player'
 import { ParamSlider } from '@/components/ui/param-slider'
 import { Spinner } from '@/components/ui/spinner'
 import { useDownstreamUses } from '@/hooks/node/use-downstream-uses'
@@ -495,10 +496,22 @@ export function VoiceDetailBody({
               {/* 播放器：契约 §6 把它和音色卡一起归主体台 —— 「这个节点此刻是什么、
                   证据长什么样」，对音色来说证据就是能听见的那一段。
                   ⚠ 空态**不换版式**（R2）：没有可播的 clip 时留一条哑轨，
-                  几何不变，不写「先选一个音色」之类的解释文案。 */}
+                  几何不变，不写「先选一个音色」之类的解释文案。
+                  画布修法包 E（2026-08-26）：原生 `<audio controls>` 换成
+                  `AudioPlayer`（`GenerationPreview` 同款）——真因见头注下方
+                  「试听时长」小节：原生控件的时长数字完全是浏览器自己画的，
+                  我们代码从没读过 `duration`，也没等过 `loadedmetadata`，
+                  换成这个已有组件是**复用**不是新写一条时长链（它已经拿
+                  `duration > 0 ? 真时长 : '--:--'` 兜底，不会把还没读到的
+                  时长显示成撒谎的 `0:00`）。`compact` 挡掉快进/倍速/下载，
+                  贴合这里「一行试听条」的分量，不铺开一整套播放器控件。 */}
               <div className="mt-3">
                 {playableUrl ? (
-                  <audio src={playableUrl} controls className="nodrag w-full" />
+                  <AudioPlayer
+                    src={playableUrl}
+                    compact
+                    className="nodrag w-full"
+                  />
                 ) : (
                   <div className="canvas-detail-voice-track" aria-hidden />
                 )}

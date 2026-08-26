@@ -70,7 +70,11 @@ export function CanvasAppearancePanel({
             type="button"
             aria-label={t('trigger')}
             title={t('trigger')}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-node-paint/40 bg-node-panel-soft pl-1.5 pr-2.5 text-xs font-semibold text-node-foreground shadow-sm transition-colors hover:border-node-paint hover:bg-node-panel-inner"
+            // coarse:before:* 是本域扩命中区的既有手法（同
+            // CanvasImageSelectionToolbar 的每颗图标钮）：视觉尺寸 36 不动，
+            // 触屏下用伪元素上下各撑 4px 补到 44。桌面 fine pointer 走 32/36
+            // 底线，本来就合规，所以不加常驻高度。
+            className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-node-paint/40 bg-node-panel-soft pl-1.5 pr-2.5 text-xs font-semibold text-node-foreground shadow-sm transition-colors hover:border-node-paint hover:bg-node-panel-inner coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-['']"
           >
             <span
               className="relative flex size-6 items-center justify-center overflow-hidden rounded-full border border-node-edge/50 shadow-inner"

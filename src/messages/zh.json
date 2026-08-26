@@ -3962,7 +3962,8 @@
       "voice": "音色",
       "seedance": "视频生成",
       "videoReference": "参考视频",
-      "videoMerge": "视频合成"
+      "videoMerge": "视频合成",
+      "typeNameAria": "{type}：{name}"
     },
     "addMenuHelpers": {
       "shotText": "整理镜头说明、动作和画面调度。",
@@ -4011,10 +4012,6 @@
         "audioVoiceProfile": {
           "label": "音色档案",
           "helper": "选择系统音色或上传参考音频，保存可复用的声音身份。"
-        },
-        "collect": {
-          "label": "收集",
-          "helper": "创建一个用于整理可复用视觉参考的收集器。"
         },
         "organizeCharacter": {
           "label": "角色档案",
@@ -4358,6 +4355,9 @@
       "mediaLabel": "合并的 {count} 段视频",
       "upstreamHeader": "上游视频片段",
       "upstreamEmpty": "至少连接 2 段视频再开始合并。",
+      "slotsHeading": "按顺序接入视频片段",
+      "slotRequired": "必须",
+      "slotOptional": "可选",
       "clipCount": "{count} / {max} 段",
       "merge": {
         "run": "开始合并",
@@ -4438,6 +4438,12 @@
         "pasteMeta": "复制图片后在这里粘贴",
         "pasteEmpty": "剪贴板里没有图片。",
         "uploadFailed": "图片上传失败。"
+      },
+      "emptyChoice": {
+        "uploadHint": "也可以直接拖文件进来",
+        "generateTitle": "用 AI 生成",
+        "generateHint": "写一句话，选个模型",
+        "dockHint": "两条路都行，选一条开始。"
       },
       "generate": "生成",
       "regenerate": "重新生成",
@@ -4708,7 +4714,8 @@
       "fieldRoute": "路由",
       "fieldFile": "文件",
       "fieldConstraints": "格式约束",
-      "valueBoundNotReady": "已绑定 · 无可发送音频"
+      "valueBoundNotReady": "已绑定 · 无可发送音频",
+      "stagePreviewHint": "生成后出现在这里"
     },
     "voiceDetail": {
       "paramsLabel": "基础调节",
@@ -5079,7 +5086,8 @@
     "minimapTitle": "小地图",
     "castDock": {
       "title": "节点",
-      "rosterTitle": "卡片",
+      "locatorTitle": "画布上的全部节点",
+      "rosterTitle": "可复用的角色与场景",
       "rosterHint": "拖到节点上即喂入 —— 长按可挑目标",
       "searchLabel": "搜索画布节点",
       "searchPlaceholder": "搜索节点…",
@@ -5265,6 +5273,15 @@
       "promptPatchPlaceholder": "补一句要改成什么样",
       "regenerate": "改词再来",
       "regenerating": "重新生成中"
+    },
+    "mobileCanvas": {
+      "viewCanvas": "查看画布",
+      "backToList": "返回列表",
+      "fedBy": "上游",
+      "feeds": "下游",
+      "noConnections": "还没连到别的节点",
+      "removedNotice": "这个节点已经不在画布上了",
+      "emptyMedia": "还没有素材"
     },
     "canvasOps": {
       "title": "助手想改画布",

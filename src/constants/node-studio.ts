@@ -126,6 +126,13 @@ export const NODE_STUDIO_PLACEHOLDER_TOAST = {
 export const NODE_STUDIO_ADD_MENU = {
   viewportPaddingPx: 16,
   minAvailableHeightPx: 240,
+  /** 《画布修法》A1：outside-pointerdown 关菜单后，武装「下一次 click 要
+   *  吞掉」的有效期上限——超过这个窗口还没等到 click（比如手势中途被打断），
+   *  就不再吞，避免误伤很久之后一次不相关的点击。见 CanvasAddMenu.tsx。 */
+  outsideClickSuppressWindowMs: 2000,
+  /** P1 误触修复：菜单锚在左栏面板右外缘时留的这道缝。和面板自己的 `left-4`
+   *  同级的小间距——只是让菜单不贴着面板边，不是布局参数。 */
+  panelGapPx: 8,
 } as const
 
 export const NODE_STUDIO_BOTTOM_DOCK = {
@@ -853,6 +860,13 @@ export const NODE_STUDIO_CHARACTER_IMAGE_LORAS = {
 } as const
 
 export const NODE_STUDIO_NODE_PLACEMENT = {
+  // ⚠《画布修法》02 节刀 1 task A（2026-08-26）之后，`topbarAddPosition` 只剩
+  // 两个**旧**兜底调用方在用（图片编辑 handoff 建节点 / handleSpawnReference
+  // 找不到宿主节点时的锚点，均在 StudioNodeWorkbench.tsx）——这两条不在本刀
+  // 范围内，故意留着没改。顶栏 ＋ 添加菜单本身的落点已经改用
+  // `resolveTopbarAddSpawnPosition`（本文件下方），不再读这个常量：写死的画布
+  // 坐标角在用户平移过画布后会落到看不见的地方，且连点添加菜单 N 次会让 N 张
+  // 卡精确重叠（同一个坐标）。
   topbarAddPosition: {
     x: 96,
     y: 96,
@@ -861,6 +875,21 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     x: 16,
     y: 16,
   },
+  /**
+   * 顶栏 ＋ 添加菜单——连续新建节点之间的错位步进（`resolveTopbarAddSpawnPosition`
+   * 消费）。量级参考：比 `menuOffset`（16，屏幕像素，管菜单自己贴哪）大一档才
+   * 看得出"这是第二张/第三张"；比 `referenceSpawn`（-420/200，管的是"新节点相对
+   * 宿主"完全不重叠）小一档——这里的目标不是数学上零像素重叠（同一菜单能建出
+   * 400 宽的纯图片卡到 320 宽的镜头/视频卡不等，零重叠在 200% 默认缩放下会把
+   * 卡顶出视口），而是让人一眼看出这是三张不同的卡，不是叠在一起的一张。
+   */
+  topbarAddStep: {
+    x: 64,
+    y: 64,
+  },
+  /** 错位步进按取模回卷的上限：连点超过这个次数后从头开始叠错位，避免几十次
+   *  连点后越飘越远、飘出可见范围（"落点在视口内"是这条路径的另一条硬指标）。 */
+  topbarAddCascadeLimit: 6,
   // projectScriptDocToGraph anchors a recognisable left→right pipeline:
   // characters | shotText | shotStill | voice | seedance | videoMerge.
   // ScriptDoc has no on-canvas node to anchor on, so positions are absolute
@@ -926,6 +955,29 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     columns: 3,
   },
 } as const
+
+/**
+ * 顶栏 ＋ 添加菜单的新建落点（《画布修法》02 节刀 1 task A）：当前视口中心 +
+ * 按连续新建次数取模的错位步进。抽成纯函数是为了不依赖 ReactFlow 实例就能单
+ * 测——真正的「屏幕坐标 → 画布坐标」换算（`screenToFlowPosition`）留给调用方
+ * （`StudioNodeWorkbench.handleTopbarAddClick`），这里只管「视口中心算出来之
+ * 后，第 N 次新建该落在哪」这一步纯算术。
+ *
+ * `sequence` 是调用方自己维护的「这是第几次从这条路径新建」计数（0 起，每次
+ * 成功打开菜单自增），不是 `workflow.nodes.length`——画布已有几十个节点时，
+ * 用总数当步数会让第一次新建就飞出老远；这条路径只关心「连续点了几次」。
+ */
+export function resolveTopbarAddSpawnPosition(
+  viewportCenter: { x: number; y: number },
+  sequence: number,
+): { x: number; y: number } {
+  const { topbarAddStep, topbarAddCascadeLimit } = NODE_STUDIO_NODE_PLACEMENT
+  const cascadeIndex = sequence % topbarAddCascadeLimit
+  return {
+    x: viewportCenter.x + cascadeIndex * topbarAddStep.x,
+    y: viewportCenter.y + cascadeIndex * topbarAddStep.y,
+  }
+}
 
 /**
  * 节点右侧侧车（`NodeToolbar` `Position.Right` `align="start"`）的贴靠距离

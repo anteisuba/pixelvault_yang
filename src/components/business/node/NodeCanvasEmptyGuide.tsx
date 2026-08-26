@@ -45,7 +45,10 @@ export function NodeCanvasEmptyGuide({
       <button
         type="button"
         onClick={onAddNode}
-        className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-2xl px-3 py-2 text-xs font-medium text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
+        // 它上面那颗主动作是 h-11（44），这颗次动作按视觉层级只有 32——桌面
+        // fine pointer 合规，触屏差 12px。用本域既有的 coarse:before:* 手法
+        // 补命中区（视觉不变），与 CanvasAppearancePanel 同一条纪律。
+        className="relative mx-auto mt-3 inline-flex items-center gap-1.5 rounded-2xl px-3 py-2 text-xs font-medium text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground coarse:before:absolute coarse:before:-inset-y-1.5 coarse:before:inset-x-0 coarse:before:content-['']"
       >
         <Plus className="size-3.5" />
         {t('addNode')}

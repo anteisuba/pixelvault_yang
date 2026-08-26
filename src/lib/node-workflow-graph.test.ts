@@ -11,9 +11,15 @@ import {
   NODE_STUDIO_KEYFRAME_LEGEND_UNCLASSIFIED_CATEGORY,
   NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS,
 } from '@/constants/node-studio'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import type {
+  NodeWorkflowEdge,
+  NodeWorkflowNode,
+  NodeWorkflowReferenceAsset,
+} from '@/types/node-workflow'
 
+import { assembleReferenceImagePayload } from './node-reference-payload'
 import {
+  assembleShotImageReferencePlan,
   buildReferenceAssetLegendEntries,
   buildShotReferenceLegend,
   buildVideoReferenceLegend,
@@ -36,6 +42,7 @@ import {
   isVideoSourceNode,
   isVisualReferenceNode,
   isVoiceProfileNode,
+  mergeComposerReferenceAssets,
   mergePromptWithUpstreamText,
   resolveGenerateTargetKind,
   summarizeUpstreamSeedanceReferences,
@@ -1354,6 +1361,241 @@ describe('buildShotReferenceLegend', () => {
     expect(legend).toBe(
       '参考图说明：\n图1：角色「yangyang」\n图2 = 古剑（道具）',
     )
+  })
+})
+
+// 画布修法包 F：composer 发送路（handleRunGenerateComposer）此前只认自己的
+// referenceUrls，从不读图上游——一张连着角色卡的镜头图从这里发送会把角色参考
+// 图静默丢掉，而工具条「生成」钮（handleGenerateMediaNode）一直都读。这个
+// describe 块锁住修复后 composer 调的这个函数本身的行为（去重/容量/图例/
+// 审核排除），以及它与工具条那条路在「无自有 referenceAssets、无宿主已有
+// 媒体」的复现场景下逐项相等——这是本包验收硬线，「下次有人改其中一条会立刻
+// 红」的落点就是这个 describe 块。
+describe('assembleShotImageReferencePlan (画布修法包 F)', () => {
+  it('merges own candidates with the upstream character/background harvest, own first', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: 'yangyang',
+      }),
+    ]
+    const plan = assembleShotImageReferencePlan(
+      ['https://cdn/own.png'],
+      upstream,
+      5,
+    )
+    expect(plan).toEqual({
+      referenceImages: ['https://cdn/own.png', 'https://cdn/char.png'],
+      legend: '参考图说明：\n图2：角色「yangyang」',
+      blocked: [],
+    })
+  })
+
+  it('dedupes a URL both the own candidates and the upstream harvest contribute, keeping the own-candidate position', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: 'yangyang',
+      }),
+    ]
+    // 同一张图两条路都会带出来（composer 手动加了这张图，它又连着上游角色卡）
+    // —— 不能在 referenceImages 里出现两次。
+    const plan = assembleShotImageReferencePlan(
+      ['https://cdn/char.png'],
+      upstream,
+      5,
+    )
+    expect(plan.referenceImages).toEqual(['https://cdn/char.png'])
+    expect(plan.legend).toBe('参考图说明：\n图1：角色「yangyang」')
+  })
+
+  it('caps the merged list at maxReferenceImages, dropping upstream overflow after the own picks', () => {
+    const upstream = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/d.png',
+        characterName: 'X',
+      }),
+      makeNode('char2', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/e.png',
+        characterName: 'Y',
+      }),
+    ]
+    const plan = assembleShotImageReferencePlan(
+      ['https://cdn/a.png', 'https://cdn/b.png', 'https://cdn/c.png'],
+      upstream,
+      4,
+    )
+    // 落槽/上限函数还是 assembleReferenceImagePayload——合并后没有绕过它：
+    // 'e.png' 排第 5 位，被 max=4 砍掉，图例也就只到第 4 位。
+    expect(plan.referenceImages).toEqual([
+      'https://cdn/a.png',
+      'https://cdn/b.png',
+      'https://cdn/c.png',
+      'https://cdn/d.png',
+    ])
+    expect(plan.legend).toBe('参考图说明：\n图4：角色「X」')
+  })
+
+  it('surfaces upstream media the review gate excluded instead of silently dropping it', () => {
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        status: 'idle',
+        characterName: '小林',
+        mediaUrl: 'https://cdn/char.png',
+        mediaReview: { 'https://cdn/char.png': { state: 'awaiting_review' } },
+      }),
+    ]
+    const plan = assembleShotImageReferencePlan([], upstream, 5)
+    expect(plan.referenceImages).toEqual([])
+    expect(plan.legend).toBe('')
+    expect(plan.blocked).toEqual([
+      { url: 'https://cdn/char.png', nodeId: 'char', state: 'awaiting_review' },
+    ])
+  })
+
+  it('degrades to the own candidates untouched (deduped) when there is no upstream — non-shot host or no host', () => {
+    const plan = assembleShotImageReferencePlan(
+      ['https://cdn/a.png', 'https://cdn/a.png', 'https://cdn/b.png'],
+      [],
+      5,
+    )
+    expect(plan).toEqual({
+      referenceImages: ['https://cdn/a.png', 'https://cdn/b.png'],
+      legend: '',
+      blocked: [],
+    })
+  })
+
+  it('包 F 复现场景：与工具条 handleGenerateMediaNode 的既有配方对同一上游产出逐项相等的 payload', () => {
+    // 复现：一张连着「角色：常客」的镜头图，宿主自己没有 referenceAssets、也
+    // 没有已生成媒体（`existingImageReference` 恒 undefined）——包 F 报告原文
+    // 的场景。两条路唯一的候选来源都是这份上游收割。
+    const upstream = [
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/regular.png',
+        characterName: '常客',
+      }),
+    ]
+    const maxReferenceImages = 5
+
+    // 工具条 handleGenerateMediaNode 的既有配方（StudioNodeWorkbench.tsx，
+    // isShotImageNode 分支，逐字照抄，不新写一份取数）：
+    //   referenceCandidateSources = [existingImageReference, ...referenceAssets
+    //     .map(url), ...upstreamImageReferences.map(url)]
+    //   referenceImages = assembleReferenceImagePayload(referenceCandidateSources,
+    //     maxReferenceImages).imageUrls
+    //   referenceByUrl = new Map(buildReferenceAssetLegendEntries(referenceAssets))
+    //     then overwritten by each upstream reference
+    //   referenceLegend = buildShotReferenceLegend(referenceImages, referenceByUrl)
+    // 本场景 existingImageReference=undefined、referenceAssets=[]，所以工具条侧
+    // 的「own candidates」化简为 [undefined]。
+    const toolbarHarvested = harvestUpstreamImageReferences(upstream)
+    const toolbarReferenceByUrl = new Map<string, UpstreamImageReference>(
+      buildReferenceAssetLegendEntries(undefined),
+    )
+    for (const reference of toolbarHarvested.references) {
+      toolbarReferenceByUrl.set(reference.url, reference)
+    }
+    const toolbarReferenceImages = harvestUpstreamImageReferences(
+      upstream,
+    ).references.map((reference) => reference.url)
+    const toolbarExpected = {
+      referenceImages: toolbarReferenceImages,
+      legend: buildShotReferenceLegend(
+        toolbarReferenceImages,
+        toolbarReferenceByUrl,
+      ),
+      blocked: toolbarHarvested.blocked,
+    }
+
+    // composer 发送路 handleRunGenerateComposer（修复后）：own candidates 是
+    // `input.referenceUrls`——宿主没有媒体、用户没手动加参考图时恒 []。
+    const composerActual = assembleShotImageReferencePlan(
+      [],
+      upstream,
+      maxReferenceImages,
+    )
+
+    expect(composerActual).toEqual(toolbarExpected)
+    expect(composerActual).toEqual({
+      referenceImages: ['https://cdn/regular.png'],
+      legend: '参考图说明：\n图1：角色「常客」',
+      blocked: [],
+    })
+
+    // 改前的对照（复现证据）：composer 旧配方只有 assembleReferenceImagePayload
+    // (input.referenceUrls, max) 一步，完全不读 upstream —— 同一个上游状态会
+    // 产出 []，图例这一步过去根本不存在（PR 前 handleRunGenerateComposer 里
+    // 没有 buildShotReferenceLegend 调用）。这正是包 F 报告的「静默丢掉角色
+    // 参考图」。
+    const preFixComposerReferenceImages = assembleReferenceImagePayload(
+      [],
+      maxReferenceImages,
+    ).imageUrls
+    expect(preFixComposerReferenceImages).toEqual([])
+    expect(preFixComposerReferenceImages).not.toEqual(
+      composerActual.referenceImages,
+    )
+  })
+})
+
+describe('mergeComposerReferenceAssets (包 F 续：只修抹掉、不改发送)', () => {
+  const propAsset: NodeWorkflowReferenceAsset = {
+    id: 'host-prop',
+    url: 'https://cdn/prop.png',
+    role: 'prop',
+    weight: 0.7,
+    source: 'upload',
+    name: '古剑',
+  }
+  const composerAsset: NodeWorkflowReferenceAsset = {
+    id: 'composer-1',
+    url: 'https://cdn/picked.png',
+    role: 'identity',
+    weight: 0.72,
+    source: 'asset',
+  }
+
+  it('复现场景：宿主手动加过的风格/道具参考图不再被 composer 反写抹掉', () => {
+    const merged = mergeComposerReferenceAssets([propAsset], [composerAsset])
+
+    // 宿主那条整个留下——role/weight/name 一个字段都没降级（分类图例靠它们）。
+    expect(merged).toEqual([propAsset, composerAsset])
+    // 改前的对照：composer 直接把自己这份写下去，宿主的道具图连同分类一起消失。
+    expect([composerAsset]).not.toContainEqual(propAsset)
+  })
+
+  it('URL 撞车时保留宿主那条（信息更富），不塞第二条同 URL 的 defaultRole 条目', () => {
+    const composerDuplicate: NodeWorkflowReferenceAsset = {
+      id: 'composer-2',
+      url: propAsset.url,
+      role: 'identity',
+      weight: 0.72,
+      source: 'asset',
+    }
+
+    expect(
+      mergeComposerReferenceAssets([propAsset], [composerDuplicate]),
+    ).toEqual([propAsset])
+  })
+
+  it('宿主没有旧条目（新建的兄弟节点 / 未设过参考图）时退化成 composer 自己那份', () => {
+    expect(mergeComposerReferenceAssets(undefined, [composerAsset])).toEqual([
+      composerAsset,
+    ])
+    expect(mergeComposerReferenceAssets([], [composerAsset])).toEqual([
+      composerAsset,
+    ])
+  })
+
+  it('不改发送口径：合并只发生在落盘那一份，返回值不参与 referenceImages 的组装', () => {
+    // 保住的道具图不在候选里 —— 发送仍然只由 own candidates + 上游收割决定。
+    const plan = assembleShotImageReferencePlan([], [], 5)
+    const merged = mergeComposerReferenceAssets([propAsset], [composerAsset])
+
+    expect(merged.map((asset) => asset.url)).toContain(propAsset.url)
+    expect(plan.referenceImages).not.toContain(propAsset.url)
+    expect(plan.referenceImages).toEqual([])
   })
 })
 

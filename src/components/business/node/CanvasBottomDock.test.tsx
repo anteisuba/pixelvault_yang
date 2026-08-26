@@ -76,9 +76,7 @@ describe('CanvasBottomDock', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'bottomDock.zoomOut' }))
     fireEvent.click(screen.getByRole('button', { name: 'bottomDock.zoomIn' }))
-    fireEvent.click(
-      screen.getAllByRole('button', { name: 'bottomDock.fitView' })[0]!,
-    )
+    fireEvent.click(screen.getByRole('button', { name: 'bottomDock.fitView' }))
 
     expect(zoomOut).toHaveBeenCalledWith({ duration: 160 })
     expect(zoomIn).toHaveBeenCalledWith({ duration: 160 })
@@ -87,6 +85,33 @@ describe('CanvasBottomDock', () => {
       duration: 220,
       maxZoom: 2,
     })
+  })
+
+  // G2（画布修法 P2 收口）：调查实测底栏曾有两颗同名同义的「适应画布」
+  // （zoom-level 文本按钮 + Focus 图标按钮，点哪个都调用同一个 fitView）。
+  // `getByRole` 本身就是回归闸——如果重新长出第二个同名按钮，它会因为
+  // 「匹配到多个元素」直接抛错而不是静默通过。
+  it('底栏只剩一颗「适应画布」，缩放百分比只做只读展示', () => {
+    render(
+      <CanvasBottomDock
+        activeMode="pointer"
+        canUndo={false}
+        canRedo={false}
+        onModeChange={vi.fn()}
+        onUndo={vi.fn()}
+        onRedo={vi.fn()}
+        nodeCount={3}
+        relationsCollapsed={false}
+        onRelationsCollapsedChange={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.getAllByRole('button', { name: 'bottomDock.fitView' }),
+    ).toHaveLength(1)
+    expect(
+      screen.getByText('bottomDock.zoomLevel:{"percent":125}'),
+    ).toBeInTheDocument()
   })
 
   it('toggles the 关系线 collapse switch and reflects its pressed (收起) state', () => {

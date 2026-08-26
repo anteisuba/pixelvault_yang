@@ -3962,7 +3962,8 @@
       "voice": "Voice Profile",
       "seedance": "Video Generation",
       "videoReference": "Reference Video",
-      "videoMerge": "Compose videos"
+      "videoMerge": "Compose videos",
+      "typeNameAria": "{type}: {name}"
     },
     "addMenuHelpers": {
       "shotText": "Draft shot direction, action, and camera notes.",
@@ -4011,10 +4012,6 @@
         "audioVoiceProfile": {
           "label": "Voice profile",
           "helper": "Choose a system voice or upload reference audio as a reusable identity."
-        },
-        "collect": {
-          "label": "Collect",
-          "helper": "Create one reusable collection for visual references."
         },
         "organizeCharacter": {
           "label": "Character profile",
@@ -4358,6 +4355,9 @@
       "mediaLabel": "Merged {count} clips",
       "upstreamHeader": "Upstream clips",
       "upstreamEmpty": "Connect at least 2 video nodes to start merging.",
+      "slotsHeading": "Connect clips in order",
+      "slotRequired": "Required",
+      "slotOptional": "Optional",
       "clipCount": "{count} / {max} clips",
       "merge": {
         "run": "Run merge",
@@ -4438,6 +4438,12 @@
         "pasteMeta": "Copy an image, then paste it here",
         "pasteEmpty": "Clipboard has no image.",
         "uploadFailed": "Image upload failed."
+      },
+      "emptyChoice": {
+        "uploadHint": "You can also drag a file in",
+        "generateTitle": "Generate with AI",
+        "generateHint": "Write a sentence, pick a model",
+        "dockHint": "Either works — pick one to start."
       },
       "generate": "Generate",
       "regenerate": "Regenerate",
@@ -4708,7 +4714,8 @@
       "fieldRoute": "Route",
       "fieldFile": "File",
       "fieldConstraints": "Format limits",
-      "valueBoundNotReady": "bound · no sendable audio"
+      "valueBoundNotReady": "bound · no sendable audio",
+      "stagePreviewHint": "Appears here once generated"
     },
     "voiceDetail": {
       "paramsLabel": "Adjustments",
@@ -5079,7 +5086,8 @@
     "minimapTitle": "Minimap",
     "castDock": {
       "title": "Nodes",
-      "rosterTitle": "Cards",
+      "locatorTitle": "All nodes on the canvas",
+      "rosterTitle": "Reusable characters & scenes",
       "rosterHint": "Drag onto a node to feed it — or long-press to pick targets",
       "searchLabel": "Search canvas nodes",
       "searchPlaceholder": "Search nodes…",
@@ -5265,6 +5273,15 @@
       "promptPatchPlaceholder": "What to change for the retry",
       "regenerate": "Tweak & retry",
       "regenerating": "Regenerating"
+    },
+    "mobileCanvas": {
+      "viewCanvas": "View canvas",
+      "backToList": "Back to list",
+      "fedBy": "Fed by",
+      "feeds": "Feeds into",
+      "noConnections": "Not connected to any other node",
+      "removedNotice": "This node is no longer on the canvas",
+      "emptyMedia": "No media yet"
     },
     "canvasOps": {
       "title": "The assistant wants to change the canvas",

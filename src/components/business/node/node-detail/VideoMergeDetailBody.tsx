@@ -64,12 +64,13 @@ export function VideoMergeDetailBody({
   const {
     upstreamVideoUrls,
     clipCount,
+    minClips,
     maxClips,
     clipOverrides,
     hasAnyTrim,
     canMerge,
     isMerging,
-    disabledReason: mergeDisabledReason,
+    disabledReasonText: disabledReason,
     handleMerge,
   } = useVideoMergeAction(node)
 
@@ -79,16 +80,13 @@ export function VideoMergeDetailBody({
     (mediaUrl
       ? NODE_GENERATION_STATUS_IDS.success
       : NODE_GENERATION_STATUS_IDS.idle)
-
-  // hook 给的是 UI 无关的形状；工具条那颗紧凑「合成」按钮把同一个形状翻成一句
-  // 短 tooltip，这里翻成整句。
-  const disabledReason = mergeDisabledReason
-    ? mergeDisabledReason.kind === 'tooFewClips'
-      ? t('errors.tooFewClips', { min: mergeDisabledReason.min })
-      : mergeDisabledReason.kind === 'tooManyClips'
-        ? t('errors.tooManyClips', { max: mergeDisabledReason.max })
-        : t('trim.rangeWarning')
-    : null
+  /**
+   * 画布修法包 C（2026-08-26）：空态让位——还没有成片时把九槽阵列整块搬进
+   * 主体台，井退成预览带；编排台（裁剪按钮）/ 关系带 / 证据抽屉留在原位不动
+   * （对照确认图「重做 03 · 视频合成」；三槽在这一族里本来就轻量，不必跟着挪，
+   * 挪了反而多造一种布局）。有成片后一像素不改，回到今天的媒体优先。
+   */
+  const showPromotedEmptyLayout = !mediaUrl
 
   const handleTrimChange = useCallback(
     (url: string, field: 'startSec' | 'endSec', next: number | undefined) => {
@@ -130,10 +128,80 @@ export function VideoMergeDetailBody({
     trimmedCount > 0 ? t('trim.trimmedCount', { count: trimmedCount }) : '',
   ].filter(Boolean)
 
+  /**
+   * 九槽阵列——素材架「上游片段列表」的新形状（对照确认图「重做 03 · 视频
+   * 合成」）：位置本身就是说明书，前 `minClips` 格标「必须」，其余「可选」；
+   * 已接的 `clipCount` 段按序填上前几格。上限/下限取自 `useVideoMergeAction`
+   * 已经解算好的 `maxClips`/`minClips`（源头是 `MIN_CLIPS`/`MAX_CLIPS`），
+   * 不在这里手写字面量。
+   */
+  const mergeGridEl = (
+    <div className="canvas-detail-stack">
+      <div className="canvas-detail-merge-heading">
+        <span>{t('slotsHeading')}</span>
+        <span className="canvas-detail-merge-heading-count">
+          {t('clipCount', { count: clipCount, max: maxClips })}
+        </span>
+      </div>
+      <div className="canvas-detail-merge-grid">
+        {Array.from({ length: maxClips }, (_, index) => {
+          const filled = index < clipCount
+          const required = index < minClips
+          const url = upstreamVideoUrls[index]
+          return (
+            <div
+              key={index}
+              className="canvas-detail-merge-slot"
+              data-required={required ? 'true' : undefined}
+              data-filled={filled ? 'true' : undefined}
+            >
+              <span className="canvas-detail-merge-slot-index">
+                {index + 1}
+              </span>
+              {filled && url ? (
+                <span className="canvas-detail-merge-slot-url" title={url}>
+                  {url}
+                </span>
+              ) : (
+                <span className="canvas-detail-merge-slot-tag">
+                  {required ? t('slotRequired') : t('slotOptional')}
+                </span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+
   return (
     <>
       {children({
-        stage: (
+        stage: showPromotedEmptyLayout ? (
+          <div className="canvas-detail-stage-promoted">
+            {mergeGridEl}
+            {/* 井退成的预览带——契约 R2 仍成立，只是几何缩到 74–96px；
+                仍在 stage 槽上，不是被删掉。 */}
+            <div className="canvas-detail-stage-band">
+              {isMerging ? (
+                <NodeProgressState
+                  indicator="breath"
+                  veiled
+                  label={t('merging')}
+                />
+              ) : (
+                <>
+                  <Layers
+                    aria-hidden
+                    className="canvas-detail-well-glyph size-5"
+                    strokeWidth={1.25}
+                  />
+                  <span>{tDetail('stagePreviewHint')}</span>
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
           <div className="canvas-detail-stage">
             <div className="canvas-detail-well">
               {mediaUrl ? (
@@ -173,23 +241,27 @@ export function VideoMergeDetailBody({
         // 素材架 = 上游片段列表：本族的「材料」就是连进来的那几段视频，
         // 而且它们**不可在这里增删**（增删靠画布连线），所以只读列出。
         // R6：只读派生值不穿控件壳。
-        rack:
-          clipCount === 0 ? (
-            <p className="canvas-detail-line">{t('upstreamEmpty')}</p>
-          ) : (
-            <ol className="canvas-detail-stack">
-              {upstreamVideoUrls.map((url, index) => (
-                <li key={url} className="flex items-center gap-2 text-xs">
-                  <span className="w-4 shrink-0 text-right font-semibold text-node-muted">
-                    {index + 1}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-node-muted">
-                    {url}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          ),
+        //
+        // 画布修法包 C：还没有成片时这份清单整块搬进 stage（`mergeGridEl`
+        // 同一份 JSX，只是换了个更宽的落位），这里传 undefined——不是删掉，
+        // 是这个状态下寄居在别的槽。有成片后走原来的判据与 `<ol>`，一像素不改
+        // （含 `clipCount === 0` 那个边缘态：成片还在但上游线已被拆掉）。
+        rack: showPromotedEmptyLayout ? undefined : clipCount === 0 ? (
+          <p className="canvas-detail-line">{t('upstreamEmpty')}</p>
+        ) : (
+          <ol className="canvas-detail-stack">
+            {upstreamVideoUrls.map((url, index) => (
+              <li key={url} className="flex items-center gap-2 text-xs">
+                <span className="w-4 shrink-0 text-right font-semibold text-node-muted">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-node-muted">
+                  {url}
+                </span>
+              </li>
+            ))}
+          </ol>
+        ),
 
         desk: (
           <div className="flex flex-wrap items-center gap-2">

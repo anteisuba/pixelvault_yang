@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -46,18 +47,21 @@ describe('CanvasAddMenu', () => {
         screen.getByText(`addCatalog.groups.${groupId}`),
       ).toBeInTheDocument()
     }
-    // 顶部真上传 + 图片 2 + 视频 4 + 声音 1 + 统一收集 1 = 9。
-    // 角色/场景两个兼容 intent 仍留在 catalog，但手工菜单只暴露一个收集入口。
+    // 顶部真上传/从素材库选择 2 + 图片 2 + 视频 4 + 声音 1 + 组织 2 = 11。
     // 图片从 3 降到 2：关键帧 2026-08-09 退役（canvas-add-catalog 头注）。
-    // 顶部主行现在有两条：上传图片 + 从素材库选择（owner 2026-08-11）。
-    expect(screen.getAllByRole('menuitem')).toHaveLength(10)
+    // 组织从「塌成一颗收集」改回两行（《画布修法》A2）：角色档案/场景档案
+    // 各自独立可达，不再有孤儿的 collect 文案。
+    expect(screen.getAllByRole('menuitem')).toHaveLength(11)
     expect(screen.getByText('addCatalog.pickFromLibrary')).toBeInTheDocument()
     expect(
-      screen.getByText('addCatalog.items.collect.label'),
+      screen.queryByText('addCatalog.items.collect.label'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('addCatalog.items.organizeCharacter.label'),
     ).toBeInTheDocument()
     expect(
-      screen.queryByText('addCatalog.items.organizeCharacter.label'),
-    ).not.toBeInTheDocument()
+      screen.getByText('addCatalog.items.organizeScene.label'),
+    ).toBeInTheDocument()
     expect(screen.queryByText('addCatalog.cast')).not.toBeInTheDocument()
     expect(
       screen.queryByText('addCatalog.items.shotText.label'),
@@ -87,7 +91,9 @@ describe('CanvasAddMenu', () => {
     expect(onSelect).not.toHaveBeenCalled()
   })
 
-  it('keeps one collection entry and creates the canonical collector directly', () => {
+  // 《画布修法》A2：组织组恢复两行——角色档案 / 场景档案各自独立可点，
+  // 不再塌成一颗硬编码派 organizeCharacter 的「收集」按钮。
+  it('dispatches the matching intent per row, including both organize entries', () => {
     const onSelect = vi.fn()
     render(
       <CanvasAddMenu
@@ -107,19 +113,23 @@ describe('CanvasAddMenu', () => {
     )
     expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageAsset)
 
-    // 2026-08-09：关键帧那一项已退役（见 canvas-add-catalog 的头注），菜单里
-    // 不再有它，所以这里也不再点它。
     fireEvent.click(
       screen
-        .getByText('addCatalog.items.collect.label')
+        .getByText('addCatalog.items.organizeCharacter.label')
         .closest('button') as HTMLElement,
     )
     expect(onSelect).toHaveBeenCalledWith(
       CANVAS_ADD_INTENT_IDS.organizeCharacter,
     )
-    expect(
-      screen.queryByText('addCatalog.items.organizeScene.label'),
-    ).not.toBeInTheDocument()
+
+    fireEvent.click(
+      screen
+        .getByText('addCatalog.items.organizeScene.label')
+        .closest('button') as HTMLElement,
+    )
+    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.organizeScene)
+
+    expect(onSelect).toHaveBeenCalledTimes(3)
   })
 
   // R3-4 §4.2「一次一层」回归（owner 实测，2026-07-27）: 菜单在 document 级
@@ -177,5 +187,106 @@ describe('CanvasAddMenu', () => {
     } finally {
       window.removeEventListener('keydown', workbenchLadder)
     }
+  })
+
+  // 右键在画布上另有含义（空白处右键 = 就地重开一个添加菜单），且浏览器
+  // 通常不为右键派发 click——不能武装吞 click，否则会一直留着，误吞新菜单
+  // 打开后紧接着那一次正常左键点击。
+  it('does not arm click suppression when the outside pointerdown is a right-click', () => {
+    const onClose = vi.fn()
+    const outsideOnClick = vi.fn()
+    render(
+      <div>
+        <button type="button" onClick={outsideOnClick}>
+          outside target
+        </button>
+        <CanvasAddMenu
+          open
+          screenPosition={{ x: 24, y: 24 }}
+          onSelect={vi.fn()}
+          onUpload={vi.fn()}
+          onPickFromLibrary={vi.fn()}
+          onClose={onClose}
+        />
+      </div>,
+    )
+
+    const outsideButton = screen.getByText('outside target')
+    fireEvent.pointerDown(outsideButton, { pointerId: 1, button: 2 })
+    expect(onClose).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(outsideButton)
+    expect(outsideOnClick).toHaveBeenCalledTimes(1)
+  })
+
+  // 《画布修法》A1（P1 误触）：菜单打开时点击外部——那一下常常正好落在菜单
+  // 自己盖住的其它控件上（调查实测复现：点左栏「当前项目」，触发了下层的
+  // 「从素材库选择」）。第一下必须只关菜单，不能让同一次点击顺手激活它刚刚
+  // 让开位置的东西。
+  it('swallows the click that follows an outside pointerdown, so it only closes the menu', () => {
+    const outsideOnClick = vi.fn()
+
+    // 用一个持有 open 状态的小外壳来贴近真实宿主（StudioNodeWorkbench 里
+    // onClose 会把 addMenu 置空，从而让 open 真正翻成 false）——直接传静态
+    // `open` + `vi.fn()` 测不出「菜单关闭之后再点一次应该正常生效」这一半，
+    // 因为 open 全程没变过，outside-pointerdown 监听器会在第二次点击时重新
+    // 武装一次新的吞掉窗口。
+    function Harness() {
+      const [open, setOpen] = useState(true)
+      return (
+        <div>
+          <button type="button" onClick={outsideOnClick}>
+            outside target
+          </button>
+          <CanvasAddMenu
+            open={open}
+            screenPosition={{ x: 24, y: 24 }}
+            onSelect={vi.fn()}
+            onUpload={vi.fn()}
+            onPickFromLibrary={vi.fn()}
+            onClose={() => setOpen(false)}
+          />
+        </div>
+      )
+    }
+
+    render(<Harness />)
+
+    const outsideButton = screen.getByText('outside target')
+    fireEvent.pointerDown(outsideButton, { pointerId: 1, button: 0 })
+
+    // 同一个用户手势里紧跟着来的 click（浏览器基于 mousedown/mouseup 独立
+    // 派发，不会因为更早的 pointerdown 被拦截就不发）——这一下必须被吞掉。
+    fireEvent.click(outsideButton)
+    expect(outsideOnClick).not.toHaveBeenCalled()
+
+    // 吞掉的只是「这一次」——菜单已经真正关闭（open 翻成了 false），用户
+    // 再点一次应该正常生效（验收清单：「再点一次才进项目」）。
+    fireEvent.click(outsideButton)
+    expect(outsideOnClick).toHaveBeenCalledTimes(1)
+  })
+
+  // 同一把锁不能误伤正常操作：点菜单自己的条目时，pointerdown 命中的是
+  // menuRef 内部，不算「外部点击」，click 应该照常派给 onSelect。
+  it('does not suppress a normal pointerdown+click sequence on its own menu item', () => {
+    const onSelect = vi.fn()
+    render(
+      <CanvasAddMenu
+        open
+        screenPosition={{ x: 24, y: 24 }}
+        onSelect={onSelect}
+        onUpload={vi.fn()}
+        onPickFromLibrary={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+
+    const button = screen
+      .getByText('addCatalog.items.imageAsset.label')
+      .closest('button') as HTMLElement
+    fireEvent.pointerDown(button, { pointerId: 1, button: 0 })
+    fireEvent.click(button)
+
+    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageAsset)
   })
 })

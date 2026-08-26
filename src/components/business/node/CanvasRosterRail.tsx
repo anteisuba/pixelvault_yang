@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
-import { Image as ImageIcon, User } from 'lucide-react'
+import { Image as ImageIcon, ListTree, User } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import { isIdentityCardNode } from '@/lib/node-workflow-graph'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
@@ -41,6 +42,18 @@ import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
  * ⚠ 卡**没有搬家**（owner 同批拍板）：画布上照旧有卡、素材边照旧画。下段是卡的
  * **快捷入口**，不是卡的家。B 方向原设计里的「素材无线 + 卡只住 rail」仍未实现，
  * 那是独立的一片（见总包阶段 8 的两读法表）。
+ *
+ * ── 2026-08-26 画布修法 G1/G3 追加 ──────────────────────────────────────
+ * G1：搜索框原来是 `CastDock` 内部私有的 `useState`，只过滤上段；下段的收集器
+ * 卡区完全不知道有这个 query。搜「镜头1」时上段收窄、下段 4 张卡纹丝不动，
+ * 正是「同一个搜索框只过滤半个面板」的 bug。query 现在提到这里持有，下发给
+ * `CastDock` 当 controlled prop，同时用来过滤 `cards`——判据复用
+ * `resolveNodeDisplayName`（全仓单一事实源），不手写第二套匹配。
+ * G3：两段标题原来是「节点」（外层 `CanvasLeftPanel` 头部chrome）+「卡片」
+ * （本组件下段），关系不明显——卡片本身也是节点，同一张角色卡在两段里各出现
+ * 一次。这里给上段补一句「画布上的全部节点」标题（不重复外层已经显示过的计数），
+ * 下段标题改成更具体的「可复用的角色与场景」，读两个标题就能猜到下段是上段的
+ * 一个子集，不做结构重排（两段位置、内容来源全部不变）。
  */
 
 /** 收集器卡在 `CastCard` 里的分区 id —— 只有角色/背景两族是收集器。 */
@@ -80,6 +93,8 @@ export function CanvasRosterRail() {
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
   const { focusNode } = useNodeWorkflowActions()
+  // G1：唯一一份 query——上段的 `CastDock` 与下段的卡片区都读它。
+  const [query, setQuery] = useState('')
 
   /**
    * 三个计数**一次遍历算完再分发**给每张卡 —— `CastCard` 的 `referenceCount`
@@ -117,53 +132,92 @@ export function CanvasRosterRail() {
     })
   }, [edges, nodes])
 
+  // G1：卡片段用与上段完全相同的判据过滤——不新写第二套匹配，直接问
+  // `resolveNodeDisplayName`（全仓显示名单一事实源）当前这张卡的名字里有没有
+  // 这个 query。没命名过的卡退回它的分区标签（「角色」/「场景」）再判——与
+  // `CastDock` 自己的 `name ?? typeLabel` 是同一条退让逻辑，不是另起一套。
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const filteredCards = normalizedQuery
+    ? cards.filter((card) => {
+        const name =
+          resolveNodeDisplayName(card.node.data) ??
+          t(`sections.${card.section.id}`)
+        return name.toLocaleLowerCase().includes(normalizedQuery)
+      })
+    : cards
+
   return (
     <div className="flex flex-col gap-4">
-      <CastDock />
+      {/* 上段：G3 补的标题。不重复外层 `CanvasLeftPanel` 头部 chrome 已经显示
+        过的「节点」+ 计数，只加一句更具体的说明，让两段的关系读得出来。 */}
+      <div className="flex flex-col gap-1.5">
+        <div
+          className="flex items-center gap-1.5 px-1"
+          style={{ color: 'var(--canvas-ink-muted)' }}
+        >
+          <ListTree className="size-3.5 shrink-0" aria-hidden />
+          <h3 className="min-w-0 truncate text-2xs font-semibold">
+            {t('locatorTitle')}
+          </h3>
+        </div>
+        <CastDock query={query} onQueryChange={setQuery} />
+      </div>
 
       {/* 下段：收集器卡区。⚠ 一张卡都没有时**整段不渲染** —— 空标题 + 空网格是
-        「伪装能力」（域定义禁区），而这一段的价值全在「有卡可拖」。 */}
+        「伪装能力」（域定义禁区），而这一段的价值全在「有卡可拖」。这个门槛看
+        **未过滤的** `cards`：项目里压根没有卡与「搜索把卡全滤掉了」是两件事，
+        前者不渲染，后者要渲染出「没有匹配」（见下方 `filteredCards` 分支）。 */}
       {cards.length > 0 ? (
         <section className="flex flex-col gap-1.5 border-t border-node-panel-inner pt-3">
           <div
             className="flex items-center gap-1.5 px-1"
             style={{ color: 'var(--canvas-ink-muted)' }}
           >
-            <User className="size-3.5" aria-hidden />
-            <h3 className="text-2xs font-semibold">{t('rosterTitle')}</h3>
-            <span className="ml-auto text-2xs tabular-nums">
-              {cards.length}
+            <User className="size-3.5 shrink-0" aria-hidden />
+            <h3 className="min-w-0 truncate text-2xs font-semibold">
+              {t('rosterTitle')}
+            </h3>
+            <span className="ml-auto shrink-0 text-2xs tabular-nums">
+              {filteredCards.length}
             </span>
           </div>
           <p className="px-1 text-2xs text-node-subtle">{t('rosterHint')}</p>
 
-          {/* ⚠ `px-1.5 pt-1.5` 不是留白偏好，是**给卡的 hover 徽章让位**：
-            `CastCard` 的删除钮定位在 `-right-1.5 -top-1.5`（绝对定位仍计入
-            滚动宽度），不留这圈余量整个左栏会多出一条 7px 的横滚条 —— 真机实测
-            `section.scrollWidth 235 > clientWidth 228`。
-            ⚠ 别用 `-mx-1.5` 把余量「还回去」—— 那等于没留，徽章照样顶出去
-            （试过，`scrollWidth` 一点没变）。列宽窄 16px 是这圈余量的真实代价。 */}
-          <div className="grid grid-cols-2 gap-1.5 px-2 pt-1.5">
-            {cards.map((card) => (
-              /* ⚠ 这一层 wrapper 只为一件事：给阶段 8-b 的命中检测一个标记
-                （`StudioNodeWorkbench` 的 `findRosterCardAt` 按这个属性找落点）。
-                ⚠ 标记打在**外层**不打在 `CastCard` 上 —— 那张卡自己已经是
-                「面板 → 画布」那条手势的**拖拽源**，把落点属性塞进同一个元素，
-                两条方向相反的手势就共用一个 DOM 身份，读代码的人分不清哪条在用它。 */
-              <div key={card.node.id} data-roster-card-id={card.node.id}>
-                <CastCard
-                  node={card.node}
-                  sectionId={card.section.id}
-                  Icon={card.section.Icon}
-                  performanceCount={card.performanceCount}
-                  referenceCount={card.referenceCount}
-                  hasVoice={card.hasVoice}
-                  selected={Boolean(card.node.selected)}
-                  onSelect={() => focusNode?.(card.node.id)}
-                />
-              </div>
-            ))}
-          </div>
+          {filteredCards.length > 0 ? (
+            /* ⚠ `px-1.5 pt-1.5` 不是留白偏好，是**给卡的 hover 徽章让位**：
+              `CastCard` 的删除钮定位在 `-right-1.5 -top-1.5`（绝对定位仍计入
+              滚动宽度），不留这圈余量整个左栏会多出一条 7px 的横滚条 —— 真机实测
+              `section.scrollWidth 235 > clientWidth 228`。
+              ⚠ 别用 `-mx-1.5` 把余量「还回去」—— 那等于没留，徽章照样顶出去
+              （试过，`scrollWidth` 一点没变）。列宽窄 16px 是这圈余量的真实代价。 */
+            <div className="grid grid-cols-2 gap-1.5 px-2 pt-1.5">
+              {filteredCards.map((card) => (
+                /* ⚠ 这一层 wrapper 只为一件事：给阶段 8-b 的命中检测一个标记
+                  （`StudioNodeWorkbench` 的 `findRosterCardAt` 按这个属性找落点）。
+                  ⚠ 标记打在**外层**不打在 `CastCard` 上 —— 那张卡自己已经是
+                  「面板 → 画布」那条手势的**拖拽源**，把落点属性塞进同一个元素，
+                  两条方向相反的手势就共用一个 DOM 身份，读代码的人分不清哪条在用它。 */
+                <div key={card.node.id} data-roster-card-id={card.node.id}>
+                  <CastCard
+                    node={card.node}
+                    sectionId={card.section.id}
+                    Icon={card.section.Icon}
+                    performanceCount={card.performanceCount}
+                    referenceCount={card.referenceCount}
+                    hasVoice={card.hasVoice}
+                    selected={Boolean(card.node.selected)}
+                    onSelect={() => focusNode?.(card.node.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            // G1：搜索把卡全滤掉时不能整段静默消失（那会和「项目里根本没有
+            // 卡」两种状态混在一起分不清），复用 `noResults`——卡本身就是节点。
+            <p className="px-1 py-4 text-center text-2xs text-node-subtle">
+              {t('noResults')}
+            </p>
+          )}
         </section>
       ) : null}
     </div>

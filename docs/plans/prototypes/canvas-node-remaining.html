@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>画布全域扫描 · 功能、页面、交互</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" />
+<style>
+  :root {
+    --stage:#c9bdb4; --deep:#b7a89e; --paper:#f4efe8; --ink:#1a1512; --mute:#6a5f57;
+    --bad:#c0342e; --ok:#1f7a4d; --blue:#2b5ce6;
+    --serif:"Noto Serif SC","Songti SC",Georgia,serif;
+    --sans:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--stage);color:var(--ink);font-family:var(--serif);line-height:1.15}
+  img{display:block;max-width:100%}
+  .cover{min-height:86vh;display:grid;place-items:center;padding:8vh 6vw;text-align:center}
+  .cover h1{font-size:clamp(40px,7vw,96px);font-weight:900;letter-spacing:-.04em;max-width:12ch}
+  .cover p{margin-top:1.1rem;font-size:clamp(18px,2.2vw,26px);color:var(--mute)}
+  .stamp{display:inline-block;margin-top:1.6rem;padding:.35em .75em;border:3px solid var(--bad);color:var(--bad);font-family:var(--sans);font-size:14px;font-weight:700;letter-spacing:.22em;transform:rotate(-6deg)}
+  section{padding:8vh 5vw 10vh}
+  .kicker{font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.28em;color:var(--mute);margin-bottom:.9rem}
+  h2{font-size:clamp(30px,4.8vw,68px);font-weight:900;letter-spacing:-.03em;max-width:16ch;margin-bottom:.4em}
+  .one{font-size:clamp(20px,2.5vw,32px);max-width:22ch}
+  .tiny{font-family:var(--sans);font-size:15px;line-height:1.55;color:var(--mute);max-width:46ch;margin-top:.9rem}
+  .shot{margin-top:2.4vh;border-radius:16px;overflow:hidden;box-shadow:0 16px 36px rgba(26,21,18,.18)}
+  .shot img{width:100%}
+  .cap{font-family:var(--sans);font-size:13px;color:var(--mute);margin-top:.55rem}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:1.6vw;margin-top:3.5vh}
+  @media(max-width:900px){.split{grid-template-columns:1fr}}
+  .pane{background:var(--paper);border-radius:18px;padding:1.3rem;min-height:220px}
+  .pane.bad{outline:4px solid var(--bad)}
+  .pane.good{outline:4px solid var(--ok)}
+  .tag{font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.16em;margin-bottom:.5rem}
+  .tag.bad{color:var(--bad)}.tag.good{color:var(--ok)}
+  .pane h3{font-size:clamp(22px,2.6vw,34px)}
+  .ix{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem;font-family:var(--sans);font-size:13px}
+  .ix span{background:#fff;border-radius:999px;padding:.35em .8em}
+  .ix .no{color:var(--bad)}
+  .ix .ok{color:var(--ok)}
+  table.board{width:100%;margin-top:3vh;border-collapse:collapse;font-family:var(--sans);background:var(--paper);border-radius:16px;overflow:hidden}
+  .board th,.board td{text-align:left;padding:12px 14px;border-bottom:1px solid rgba(0,0,0,.06);vertical-align:top}
+  .board th{font-size:12px;letter-spacing:.16em;color:var(--mute)}
+  .board td:first-child{font-family:var(--serif);font-size:20px;font-weight:700;width:18%}
+  .now{color:var(--bad)}.next{color:var(--ok)}
+  .keep{background:#1a1512;color:#f4efe8}
+  .keep h2{color:#f4efe8}
+  .keep-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2vw;margin-top:3vh}
+  @media(max-width:800px){.keep-grid{grid-template-columns:1fr}}
+  .keep-item{border:1px solid rgba(244,239,232,.16);border-radius:16px;padding:1.2rem;font-size:clamp(20px,2.3vw,28px)}
+  .keep-item span{display:block;font-family:var(--sans);font-size:12px;letter-spacing:.2em;color:#8dceab;margin-bottom:.4rem}
+  .end{min-height:50vh;display:grid;place-items:center;text-align:center;padding:8vh 6vw}
+  .end ol{list-style:none;margin-top:1.8rem;font-size:clamp(20px,2.6vw,34px);text-align:left}
+  .end em{font-style:normal;color:var(--bad)}
+  .draw{margin:1.2rem 0 .6rem;background:var(--deep);border-radius:14px;min-height:160px;display:grid;place-items:center}
+  .mini{width:240px;height:84px;background:#fff;border-radius:8px;display:flex;overflow:hidden;box-shadow:0 12px 24px rgba(0,0,0,.18)}
+  .mini .c{width:84px;background:#e8e0d6;display:grid;place-items:center}
+  .mini .b{flex:1;padding:14px 12px;font-family:var(--sans);font-size:12px;color:#737373}
+  .chapter{background:var(--paper);min-height:72vh;display:grid;place-items:center;text-align:center}
+  .chapter h2{max-width:13ch;margin-inline:auto}
+  .chapter .one{margin-inline:auto}
+  .legend{display:inline-flex;align-items:center;gap:.7rem;margin-top:1.6rem;padding:.7rem 1rem;border:2px solid var(--ink);border-radius:999px;font-family:var(--sans);font-size:14px;font-weight:700}
+  .legend b{font-size:20px}
+  .open-shot{margin-top:2rem;border:10px solid var(--paper);border-radius:20px;overflow:hidden;box-shadow:0 18px 44px rgba(26,21,18,.2)}
+  .open-shot img{width:100%}
+  .verdicts{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2vw;margin-top:2.5rem}
+  @media(max-width:900px){.verdicts{grid-template-columns:1fr}}
+  .verdict{min-height:240px;border-radius:18px;padding:1.4rem;background:var(--paper);display:flex;flex-direction:column;justify-content:space-between}
+  .verdict b{font-size:clamp(42px,6vw,84px);line-height:.9}
+  .verdict p{font-size:clamp(20px,2.4vw,30px)}
+  .verdict.bad{outline:4px solid var(--bad)}
+  .verdict.mid{outline:4px solid #b36b1e}
+  .verdict.good{outline:4px solid var(--ok)}
+  .numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2vw;margin-top:2.5rem}
+  .number{background:var(--paper);border-radius:18px;padding:1.4rem;min-height:210px;display:flex;flex-direction:column;justify-content:space-between}
+  .number b{font-family:var(--sans);font-size:clamp(54px,8vw,110px);line-height:.8}
+  .number span{font-family:var(--sans);font-size:clamp(16px,2vw,24px);font-weight:700}
+  .number.hot{outline:4px solid var(--bad)}
+  .photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5vw;margin-top:2rem}
+  .photo{background:var(--paper);border-radius:18px;overflow:hidden;box-shadow:0 16px 36px rgba(26,21,18,.16)}
+  .photo img{width:100%;height:auto}
+  .photo figcaption{padding:.8rem 1rem;font-family:var(--sans);font-size:14px;color:var(--mute)}
+  .priority{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2vw;margin-top:2.5rem}
+  .priority article{background:var(--paper);border-radius:18px;padding:1.35rem;min-height:280px}
+  .priority b{display:block;font-family:var(--sans);font-size:12px;letter-spacing:.18em;margin-bottom:1rem}
+  .priority h3{font-size:clamp(24px,3vw,38px);margin-bottom:.6rem}
+  .priority p{font-family:var(--sans);font-size:15px;line-height:1.5;color:var(--mute)}
+  .priority .p1{outline:4px solid var(--bad)}
+  .priority .p2{outline:4px solid #b36b1e}
+  .priority .p3{outline:4px solid var(--ok)}
+  .coverage{display:grid;grid-template-columns:repeat(4,1fr);gap:1vw;margin-top:2rem}
+  .coverage div{background:var(--paper);border-radius:16px;padding:1.15rem;font-family:var(--sans);font-size:15px;line-height:1.5}
+  .coverage b{display:block;font-family:var(--serif);font-size:24px;margin-bottom:.35rem}
+  @media(max-width:900px){.numbers,.priority,.coverage{grid-template-columns:1fr 1fr}.photo-grid{grid-template-columns:1fr}}
+  @media(max-width:620px){.numbers,.priority,.coverage{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div>
+    <p class="kicker">画布全域扫描 · 功能 / 页面 / 交互 / 窄屏 / 键盘</p>
+    <h1>画布，里里外外都看过了。</h1>
+    <p>功能够深。路标、层级、窄屏，还没跟上。</p>
+    <div class="stamp">全 域 实 测</div>
+  </div>
+</header>
+
+<section class="chapter">
+  <div>
+    <p class="kicker">一句话</p>
+    <h2>不是功能少。是入口太多，彼此挤。</h2>
+    <p class="one">画布、左栏、底栏、助手，四层同时抢注意力。</p>
+    <div class="numbers">
+      <div class="number"><b>20</b><span>个工作面检查</span></div>
+      <div class="number"><b>0</b><span>个阻断 / 数据事故</span></div>
+      <div class="number hot"><b>3</b><span>个必须先修</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">全景</p>
+  <h2>一张画布，四套操作。</h2>
+  <p class="one">节点在中间。资源在左。控制在下。AI 在右。</p>
+  <div class="shot"><img src="canvas-node-problems/a-main.png" alt="画布全景：左侧节点索引、中间画布、底部控制、右侧助手"></div>
+  <div class="ix">
+    <span class="ok">功能完整</span>
+    <span class="ok">项目可恢复</span>
+    <span class="no">工作面互相遮</span>
+    <span class="no">没有稳定主次</span>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">P1 · 误触</p>
+  <h2>点“当前项目”，却打开素材库。</h2>
+  <p class="one">“添加”菜单盖住导航，还会截走点击。</p>
+  <div class="shot"><img src="canvas-node-problems/a-add-menu.png" alt="添加节点菜单盖住左侧节点、当前项目和历史对话导航"></div>
+  <p class="cap">实测复现：菜单打开时点击“当前项目”，触发了下层的“从素材库选择”。</p>
+</section>
+
+<section>
+  <p class="kicker">入口盘点</p>
+  <h2>找得到。看不清边界。</h2>
+  <div class="photo-grid">
+    <figure class="photo"><img src="canvas-node-problems/a-projects.png" alt="当前项目与项目切换列表"><figcaption>项目：都在一处；长名字挤成一行。</figcaption></figure>
+    <figure class="photo"><img src="canvas-node-problems/a-history.png" alt="历史对话列表"><figcaption>历史：能找旧对话；与右侧助手关系不明显。</figcaption></figure>
+    <figure class="photo"><img src="canvas-node-problems/a-node-search.png" alt="节点搜索镜头1的结果"><figcaption>搜索：节点变成 2 个；下面 4 张卡仍全在。</figcaption></figure>
+    <figure class="photo"><img src="canvas-node-problems/a-appearance.png" alt="画布外观设置"><figcaption>外观：颜色、图片、恢复默认；结构清楚。</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">P1 · 键盘</p>
+  <h2>先走 20 条线，才轮到按钮。</h2>
+  <p class="one">Tab 读的是内部 ID。18 个节点又都叫“命名”。</p>
+  <div class="photo-grid">
+    <figure class="photo"><img src="canvas-node-problems/a-keyboard-edge.png" alt="键盘焦点停在画布连线上"><figcaption>102 个可聚焦项；20 个是连线。</figcaption></figure>
+    <figure class="photo"><img src="canvas-node-problems/a-bottom-dock.png" alt="画布底部缩放和编辑工具"><figcaption>底栏能用；两颗“适应画布”同名同义。</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">AI 工作面</p>
+  <h2>助手很强。也很占地方。</h2>
+  <p class="one">聊天、生成大纲、节点应用，已经是一套独立工作台。</p>
+  <div class="photo-grid">
+    <figure class="photo"><img src="canvas-node-problems/a-assistant.png" alt="画布右侧助手"><figcaption>聊天在右。可收起、分享、开剧本。</figcaption></figure>
+    <figure class="photo"><img src="canvas-node-problems/a-script-workspace.png" alt="剧本大纲工作区"><figcaption>剧本在右再开一层。空时只剩“按对话生成”。</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">P1 · 手机</p>
+  <h2>能看到。很难做。</h2>
+  <p class="one">390 像素宽：大画布被缩成微缩图；助手挤满屏。</p>
+  <div class="photo-grid">
+    <figure class="photo"><img src="canvas-node-problems/a-mobile.png" alt="390像素宽的画布"><figcaption>节点、连线、底栏都太小。</figcaption></figure>
+    <figure class="photo"><img src="canvas-node-problems/a-mobile-assistant.png" alt="390像素宽的画布助手"><figcaption>聊天可读；模型名和头部动作挤在一行。</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">优先级</p>
+  <h2>先清路，再美容。</h2>
+  <div class="priority">
+    <article class="p1"><b>P1 · 先修</b><h3>挡错路</h3><p>添加菜单不要盖导航。连线退出 Tab 顺序。手机改成“查看 / 审核”，别硬塞桌面画布。</p></article>
+    <article class="p2"><b>P2 · 收口</b><h3>一件事，一扇门</h3><p>搜索连卡片一起过滤。适应画布只留一颗。节点与卡片库分清。项目删除远离改名。</p></article>
+    <article class="p3"><b>P3 · 打磨</b><h3>让状态说人话</h3><p>30% 时给概览标签。按钮带对象名。助手头部在窄屏分两行。统一 44px 触点。</p></article>
+  </div>
+</section>
+
+<section class="keep">
+  <p class="kicker" style="color:#8dceab">值得保留</p>
+  <h2>这不是模板拼出来的画布。</h2>
+  <div class="keep-grid">
+    <div class="keep-item"><span>留</span>节点种类按图片 / 视频 / 声音 / 组织分组</div>
+    <div class="keep-item"><span>留</span>项目、历史、节点三种索引都在左边</div>
+    <div class="keep-item"><span>留</span>撤销 / 重做不可用时诚实禁用</div>
+    <div class="keep-item"><span>留</span>助手可收起；剧本按需展开</div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">检查边界</p>
+  <h2>危险动作，没有乱点。</h2>
+  <div class="coverage">
+    <div><b>实测</b>画布、添加、素材库、项目、历史、搜索、外观、底栏、助手、剧本、8 种详情。</div>
+    <div><b>窄屏</b>1024、768、390。桌面视口已恢复。</div>
+    <div><b>只读核对</b>审核模式、生成流程、分享、改名、删除、新建项目。</div>
+    <div><b>没触发</b>会花模型费用、改数据、删除项目的动作。</div>
+  </div>
+  <p class="tiny">运行中未发现画布自身报错。开发日志只有一条首屏图片加载提醒；浏览器扩展报错不计入产品问题。</p>
+</section>
+
+<section class="chapter">
+  <div>
+    <p class="kicker">下面：8 种节点</p>
+    <h2>每一种，都新建、点选、拖动、打开。</h2>
+    <p class="one">节点结论保留在后半本。</p>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">先共同的病</p>
+  <h2>点 + ，全堆在同一个点上。</h2>
+  <p class="one">默认 200%。生成类空窗把屏幕撑满。下单面经常在画面外头。</p>
+  <div class="split">
+    <div class="pane bad">
+      <p class="tag bad">现在</p>
+      <h3>8 张卡，一个坐标。</h3>
+      <p class="tiny">添加菜单从左侧 + 落下的节点，全部生在同一个 topbar 坐标。叠成一摞。空图片、空镜头、空视频、空文本，每一张都是一块巨大的白幕。</p>
+    </div>
+    <div class="pane good">
+      <p class="tag good">改完</p>
+      <h3>错开落。空窗跟名片一样克制。</h3>
+      <p class="tiny">每加一张，往右下错一格。空生成窗默认约 320 宽，不要一出生就占半屏。下单面必须落在视口里。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">01 · 图片</p>
+  <h2>拖入即可上传。点了没反应。</h2>
+  <div class="shot"><img src="canvas-node-problems/t-image.png" alt="空图片：巨大虚线框，拖入即可上传"></div>
+  <p class="cap">新建「图片」。没有名字。没有工具条。没有右侧生成框。整张卡是 dropzone。</p>
+  <div class="ix">
+    <span class="no">点选：巨大空框</span>
+    <span class="no">点击：不打开文件</span>
+    <span class="no">下单面：没出现</span>
+    <span class="ok">拖文件：这是唯一入口</span>
+  </div>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">现在</p><h3>一张邮票大的工作，做成一块墙。</h3></div>
+    <div class="pane good"><p class="tag good">改完</p><h3>240 宽虚线框。点选后右边出生成面。点击也可上传。</h3></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">02 · 镜头图</p>
+  <h2>两个生成门。</h2>
+  <div class="shot"><img src="canvas-node-problems/t-shot.png" alt="空镜头图：还没有镜头图，工具条生成，右侧生成框"></div>
+  <p class="cap">点选后：上头「生成」，右边再一个「描述你想生成的画面」。</p>
+  <div class="ix">
+    <span class="no">工具条生成</span>
+    <span class="no">右侧再一扇门</span>
+    <span class="ok">空窗文案短了</span>
+  </div>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">现在</p><h3>同一件事，按两次。</h3></div>
+    <div class="pane good"><p class="tag good">改完</p><h3>工具条只留展开和删除。生成只住右边。</h3></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">03 · 视频生成</p>
+  <h2>空窗对了。下单面经常看不见。</h2>
+  <div class="shot"><img src="canvas-node-problems/t-video.png" alt="空视频生成：还没有生成视频，卡片巨大"></div>
+  <p class="cap">新建时卡太宽，右侧编排器被挤出视口。点选等于没打开。</p>
+  <div class="ix">
+    <span class="ok">空窗不是说明书</span>
+    <span class="no">默认尺寸太大</span>
+    <span class="no">打开面跑出屏幕</span>
+  </div>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">现在</p><h3>点了，像没点。</h3></div>
+    <div class="pane good"><p class="tag good">改完</p><h3>卡缩到能并排放下右侧面。空着不要写就绪。</h3></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">04 · 参考视频</p>
+  <h2>和视频生成长得像一对。</h2>
+  <div class="shot"><img src="canvas-node-problems/t-videoref.png" alt="空参考视频：还没有上传视频"></div>
+  <p class="cap">「还没有上传视频」。摄像机图标。同样大的白窗。上传入口不明显。</p>
+  <div class="ix">
+    <span class="no">不像「请上传」</span>
+    <span class="no">和生成空窗几乎同款</span>
+  </div>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">现在</p><h3>两个视频空窗，分不清谁产谁吃。</h3></div>
+    <div class="pane good"><p class="tag good">改完</p><h3>参考卡更小。正中一颗「上传视频」。不跟生成窗抢脸。</h3></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">05 · 镜头文本</p>
+  <h2>一段字，撑成电影幕。</h2>
+  <div class="shot"><img src="canvas-node-problems/t-shottext.png" alt="空镜头文本：还没有镜头文本，16:9 大窗"></div>
+  <p class="cap">点选。没有右侧写作面。要改字得再按展开。空着是 16:9 的「还没有镜头文本」。</p>
+  <div class="ix">
+    <span class="no">卡是视频尺寸</span>
+    <span class="no">点选不能写</span>
+    <span class="no">必须打开详情</span>
+  </div>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">现在</p><h3>笺被做成了幕。</h3></div>
+    <div class="pane good"><p class="tag good">改完</p><h3>窄笺。点选就能写四格：场景 / 动作 / 镜头 / 构图。</h3></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">06 · 视频合成</p>
+  <h2>还没有成片。合并键找不到。</h2>
+  <div class="shot"><img src="canvas-node-problems/t-merge.png" alt="空片盒：还没有成片"></div>
+  <p class="cap">和镜头文本、参考视频叠在一起。工具条「开始合并」在卡顶上，卡一高就被顶出视口。</p>
+  <div class="ix">
+    <span class="ok">说明书撤了</span>
+    <span class="no">主动作容易看不见</span>
+  </div>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">现在</p><h3>空窗对了，手势没地方放。</h3></div>
+    <div class="pane good"><p class="tag good">改完</p><h3>选中后右边是片段条 + 合并。不要只把键挂在头顶。</h3></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">07 · 音色档案</p>
+  <h2>同一件事，三个入口。</h2>
+  <div class="shot"><img src="canvas-node-problems/t-voice.png" alt="空音色：卡上从音频库选择，工具条声音库，右侧生成声音"></div>
+  <p class="cap">卡上「从音频库选择」。上头「声音库 / 从素材选择」。右边「描述你想生成的声音」。参数条还写着下一轮。</p>
+  <div class="ix">
+    <span class="ok">空卡是名片尺寸</span>
+    <span class="ok">文案不再说画面</span>
+    <span class="no">入口重复三次</span>
+    <span class="no">拖的时候封面和正文会裂</span>
+  </div>
+  <div class="shot"><img src="canvas-node-problems/t-voice-detail.png" alt="音色详情：大灰井，未选择，右侧已有语速音量"></div>
+  <p class="cap">打开：左边又是空湖。没选音色，右边已经有语速 / 音量 / 情绪。</p>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">现在</p><h3>挑音色，三条路。打开，一块灰。</h3></div>
+    <div class="pane good">
+      <p class="tag good">改完</p>
+      <h3>卡上那一颗是唯一入口。拖影整张走。打开就是声音库，不是灰井。</h3>
+      <div class="draw"><div class="mini"><div class="c">♪</div><div class="b">从音频库选择</div></div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">08 · 收集</p>
+  <h2>菜单里没有场景。只有「收集」。</h2>
+  <div class="shot"><img src="canvas-node-problems/t-collect.png" alt="收集：空角色名片，选一张代表图"></div>
+  <p class="cap">「收集」建出角色名片。场景要从别处变。点选后工具条是添加素材 / 出演。</p>
+  <div class="ix">
+    <span class="ok">名片脸</span>
+    <span class="no">场景不在添加菜单</span>
+    <span class="no">拖同样会裂</span>
+  </div>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">现在</p><h3>角色有门。场景没有门。</h3></div>
+    <div class="pane good"><p class="tag good">改完</p><h3>菜单里角色 / 场景两行。拖影整张名片。</h3></div>
+  </div>
+</section>
+
+<section class="chapter">
+  <div>
+    <p class="kicker">第二轮 · 真的按了「展开」</p>
+    <h2>打开，就是把一张卡变成一张大工作桌。</h2>
+    <p class="one">有东西，桌子可以大。没东西，先把下一步放到眼前。</p>
+    <div class="legend"><b>↗</b> 按卡片上方这个键</div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">打开 01 · 图片</p>
+  <h2>有图时，能用。</h2>
+  <p class="one">左边看图。右边改图、选模型、加参考。</p>
+  <div class="open-shot"><img src="canvas-node-problems/o-image.png" alt="图片节点详情：左边大图，右边生成设置"></div>
+  <div class="ix">
+    <span class="ok">看图很清楚</span>
+    <span class="ok">生成在右边</span>
+    <span class="no">空图片不该先铺大画布</span>
+  </div>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">空着时</p><h3>先看到一块大空地。</h3></div>
+    <div class="pane good"><p class="tag good">应该</p><h3>先问：上传，还是生成？</h3></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">打开 02 · 镜头图</p>
+  <h2>左边全空。工作都在右边。</h2>
+  <p class="one">要先写提示词、镜头、构图、动作。灰色大舞台此时没有用。</p>
+  <div class="open-shot"><img src="canvas-node-problems/o-shot.png" alt="镜头图详情：左边大块空白，右边长表单"></div>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">现在</p><h3>空舞台是主角。</h3></div>
+    <div class="pane good"><p class="tag good">应该</p><h3>先写画面。有图后再放大舞台。</h3></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">打开 03 · 视频生成</p>
+  <h2>素材很多，却躲在右边。</h2>
+  <p class="one">左边还是空。真正要检查的是 7 个素材和提示词。</p>
+  <div class="open-shot"><img src="canvas-node-problems/o-video.png" alt="视频生成详情：左边空舞台，右边素材清单和生成设置"></div>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">现在</p><h3>先看空片，再找素材。</h3></div>
+    <div class="pane good"><p class="tag good">应该</p><h3>先核素材和文字。有片再看大片。</h3></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">打开 04 · 参考视频</p>
+  <h2>这张基本对了。</h2>
+  <p class="one">视频就是主角。右边只说文件。底下只有清空和替换。</p>
+  <div class="open-shot"><img src="canvas-node-problems/o-videoref.png" alt="参考视频详情：左边播放视频，右边文件信息"></div>
+  <div class="ix">
+    <span class="ok">一眼知道它是什么</span>
+    <span class="ok">一眼知道能做什么</span>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">打开 05 · 镜头文本</p>
+  <h2>这张也对了。</h2>
+  <p class="one">四个格子：场景、动作、镜头、构图。没有假舞台。</p>
+  <div class="open-shot"><img src="canvas-node-problems/o-shottext.png" alt="镜头文本详情：场景、动作、镜头、构图四个输入框"></div>
+  <div class="ix">
+    <span class="ok">打开后很清楚</span>
+    <span class="no">但卡片上不能直接写</span>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">打开 06 · 视频合成</p>
+  <h2>最空的一张。</h2>
+  <p class="one">0 / 9 段。左边却先留了一整块成片舞台。</p>
+  <div class="open-shot"><img src="canvas-node-problems/o-merge.png" alt="视频合成详情：左边大块空白，右边显示零个片段"></div>
+  <div class="split">
+    <div class="pane bad"><p class="tag bad">现在</p><h3>没有片段，也先给影院。</h3></div>
+    <div class="pane good"><p class="tag good">应该</p><h3>先给 9 个片段槽。接够两段再合并。</h3></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">打开 07 · 音色</p>
+  <h2>内容清楚了。入口还太多。</h2>
+  <p class="one">中间是试听卡。右边有系统音色、我的音色、声音库。</p>
+  <div class="open-shot"><img src="canvas-node-problems/o-voice.png" alt="音色详情：中间试听卡，右边三种声音来源"></div>
+  <div class="ix">
+    <span class="ok">终于像声音档案</span>
+    <span class="no">卡上还有声音库 / 素材 / 生成三条路</span>
+    <span class="no">试听显示 0:00</span>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">打开 08 · 收集</p>
+  <h2>最像一个档案柜。</h2>
+  <p class="one">左边放参考图。右边绑角色卡、音色、出演镜头。</p>
+  <div class="open-shot"><img src="canvas-node-problems/o-collect.png" alt="角色收集详情：左边参考图，右边角色和音色绑定"></div>
+  <div class="ix">
+    <span class="ok">图放一起</span>
+    <span class="ok">身份关系放一起</span>
+    <span class="ok">打开比卡片更有价值</span>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">打开后的总判定</p>
+  <h2>不是八张都重做。</h2>
+  <div class="verdicts">
+    <div class="verdict bad"><b>3</b><p>先重做<br>镜头图 / 视频生成 / 视频合成</p></div>
+    <div class="verdict mid"><b>2</b><p>收入口<br>图片 / 音色</p></div>
+    <div class="verdict good"><b>3</b><p>结构可留<br>参考视频 / 镜头文本 / 收集</p></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">总表 · 按种</p>
+  <h2>点一下，发生了什么。</h2>
+  <table class="board">
+    <thead><tr><th>节点</th><th>点选</th><th>拖</th><th>打开</th><th>改完</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>图片</td>
+        <td class="now">巨框，点不了</td>
+        <td>整张走</td>
+        <td>大图 + 右边生成</td>
+        <td class="next">空着先选上传 / 生成</td>
+      </tr>
+      <tr>
+        <td>镜头图</td>
+        <td class="now">生成 ×2</td>
+        <td>整张走</td>
+        <td class="now">空舞台 + 右边长表</td>
+        <td class="next">空着先写；有图再放大</td>
+      </tr>
+      <tr>
+        <td>视频生成</td>
+        <td class="now">面在屏外</td>
+        <td>整张走</td>
+        <td class="now">空舞台 + 素材清单</td>
+        <td class="next">卡缩小；空着素材优先</td>
+      </tr>
+      <tr>
+        <td>参考视频</td>
+        <td class="now">像生成空窗</td>
+        <td>整张走</td>
+        <td class="ok">视频 + 文件信息</td>
+        <td class="next">更小；正中上传</td>
+      </tr>
+      <tr>
+        <td>镜头文本</td>
+        <td class="now">不能写</td>
+        <td>整张走</td>
+        <td class="ok">四格表单</td>
+        <td class="next">窄笺；点选即写</td>
+      </tr>
+      <tr>
+        <td>视频合成</td>
+        <td class="now">合并键易丢</td>
+        <td>整张走</td>
+        <td class="now">灰湖 + 0 / 9 段</td>
+        <td class="next">先给片段槽 + 合并</td>
+      </tr>
+      <tr>
+        <td>音色</td>
+        <td class="now">三个入口</td>
+        <td class="now">封面裂开</td>
+        <td class="now">试听卡 + 三种来源</td>
+        <td class="next">一颗选择；整张拖；打开即曲库</td>
+      </tr>
+      <tr>
+        <td>收集</td>
+        <td class="ok">名片</td>
+        <td class="now">会裂</td>
+        <td class="ok">图集 + 身份绑定</td>
+        <td class="next">菜单分角色 / 场景；拖不裂</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="keep">
+  <p class="kicker" style="color:#8dceab">已经对了</p>
+  <h2>空窗短文案。下单在右。名片不是大图。</h2>
+  <div class="keep-grid">
+    <div class="keep-item"><span>留</span>镜头 / 片盒不再写说明书</div>
+    <div class="keep-item"><span>留</span>声音不再说「画面」</div>
+    <div class="keep-item"><span>留</span>音色、收集是小卡</div>
+    <div class="keep-item"><span>留</span>打开详情，节点不变形</div>
+  </div>
+</section>
+
+<section class="end">
+  <div>
+    <p class="kicker">下一刀</p>
+    <h2>先让路不打架。</h2>
+    <ol>
+      <li><em>1.</em> 添加菜单：不盖导航，不截点击</li>
+      <li><em>2.</em> 键盘：跳过连线，按钮说出对象名</li>
+      <li><em>3.</em> 手机：先做查看 / 审核模式</li>
+      <li><em>4.</em> 节点：空东西变小，每件事只留一扇门</li>
+    </ol>
+  </div>
+</section>
+
+</body>
+</html>

@@ -106,9 +106,15 @@
    * - L1（边层）/L2（节点层）由 React Flow 自己管理内部 pane
    *   （.react-flow__pane=1 / __viewport=2 / __renderer=4 等），我们不越权
    *   接管，这两个 token 只做文档占位，当前没有类消费。
-   * - L7（重编辑工作区，CanvasImageEditWorkspace/ScriptDocWorkspace）今天
-   *   靠 isolate + Radix 共享 z-50 免费拿到「盖过 L6」的效果，token 同样只
-   *   是占位，留给未来自建 workspace host 时用。
+   * - L7（重编辑工作区，CanvasImageEditWorkspace/ScriptDocWorkspace）当时
+   *   靠 isolate + Radix 共享 z-50 免费拿到「盖过 L6」的效果，token 本身
+   *   一度只是占位。
+   * - 2026-08-26（画布修法《手机 390px》包 H）：`z-canvas-workspace` 类
+   *   第一次被真正消费——`CanvasMobileView` 是手机 <1024 默认覆盖层，
+   *   要压过 L4 顶栏/底部工具条与助手 rail（.workspace 层级的 z-20），
+   *   语义正好是「一整块替换默认画布视图的工作区」，L7 这一档腾出来正合适，
+   *   不必新开一档。它不走 isolate（不在 `.stage` 里）也不走 Radix，是这一
+   *   档第一个直接吃 CSS token 数值本身的消费者。
    */
   --z-index-canvas-surface: 0; /* L0 CanvasSurface 暖炭表面 */
   --z-index-canvas-edges: 10; /* L1 墨线边层（React Flow 内部管理，占位） */
@@ -117,7 +123,7 @@
   --z-index-canvas-chrome: 40; /* L4 工作区 chrome：顶栏/底部工具条/卡匣/minimap */
   --z-index-canvas-transient: 50; /* L5 瞬时浮层：添加菜单/卡匣展开浮层 */
   --z-index-canvas-panel: 60; /* L6 对象任务面板：NodeDetailPanel（唯一 backdrop） */
-  --z-index-canvas-workspace: 70; /* L7 重编辑工作区（占位，见上方说明） */
+  --z-index-canvas-workspace: 70; /* L7 手机默认覆盖层 CanvasMobileView（首个消费者，见上方说明） */
   --z-index-canvas-drag: 80; /* L8 拖拽 ghost / 吞噬 portal，恒压过共享 UI z-50 */
   --text-brand: 1.12rem;
   --text-nav: 0.6875rem;

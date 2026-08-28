@@ -76,7 +76,7 @@ PixelVault 的交互目标是：**跟手、有物理感、久用不累**。
 | 区域                                                 | 库                                  | 备注                              |
 | ---------------------------------------------------- | ----------------------------------- | --------------------------------- |
 | 画布、Studio、LoRA、Assets、Prompts、`components/ui` | **`motion` / `framer-motion` 唯一** | 状态与布局动画                    |
-| 首页营销（`HomeV3*` / `home-v3.css`）                | **GSAP** 允许                       | **必须**动态 import，不进主 chunk |
+| 首页营销（`HomeV4*` / `home-v4.css`）                | **GSAP** 允许                       | **必须**动态 import，不进主 chunk |
 | 工程页引入 GSAP                                      | **禁止**                            | 见调研 §3；复议条件见该文         |
 
 理由摘要：工程页以 React 状态机为主；双库成本高；画布与 React Flow 不宜 GSAP 直操 transform。

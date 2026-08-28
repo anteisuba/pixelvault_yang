@@ -159,9 +159,11 @@ expect(reference.slots).toMatchObject({
 
 - 怎么验：三个 locale 文件里这两个 key 是否都已存在（预留时可能已加）。**⚠ 改 messages JSON 禁用正则批量替换**，跨 256KB 的 `.*?` 会静默删掉别处的键——逐键改，改完逐键对比。
 
-### 3.6 首页品牌图（已就位，无需动）
+### 3.6 首页品牌图（无需动 —— 但理由已经变了）
 
-`home-v3.ts:347-348` 已有 `seedance-2.5-volcengine` / `seedance-2.5-reference-volcengine` 的 bytedance 图标映射。
+⚠ **2026-08-28 更正**：原文说的 `home-v3.ts` 逐 model-id 品牌图映射**已随 v3 首页整体删除**，别再去找。
+
+现在首页（v4）的模型阵容是 `HOME_V4_STATIONS` 里手挑的 25 个条目，与 `AI_MODELS` 目录**不是一一对应**——视频站只有一条 `Seedance`（`logo: 'seed'`，见 `src/constants/homepage-v4.ts`），代表整个 Seedance 线路，不按 2.0 / 2.5 / reference 分条。所以接 2.5 依旧**不需要动首页**，但原因是首页压根不逐 id 列模型，而不是「映射已就位」。
 
 ### 3.7 其余官方约束（本次实读顺带查到，代码里都没有）
 

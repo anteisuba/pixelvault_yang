@@ -2,7 +2,7 @@
 
 > **状态：施工基准（2026-08-18 owner 确认「分段浮岛」方向 + 关键切片，指示开工）。**
 > 范围：**只管壳** —— 侧栏 / 移动导航 / 默认页面表面（`bg-background`）/ 全局语义槽。
-> **不管**各业务域皮肤（画布 `canvas.css`、LoRA `lora.css`、首页 `home-v3.css`、legal `legal.css` 各自为政，见 `brand-dna.md`「共享行为不共享皮肤」）。
+> **不管**各业务域皮肤（画布 `canvas.css`、LoRA `lora.css`、首页 `home-v4.css`、legal `legal.css` 各自为政，见 `brand-dna.md`「共享行为不共享皮肤」）。
 > 设计原型（讨论期证据，非可合入代码）：`docs/plans/prototypes/sidebar-shell-directions-2026-08-18.html`（诊断 + 三方向）·`docs/plans/prototypes/sidebar-slice-drifting-islands-2026-08-18.html`（关键切片）。
 > 上一轮基准（2026-07-31「全浅 A'」）的未竟事项收在 §8。
 
@@ -207,7 +207,7 @@ M3 边缘手势（与画布 pan、画廊/素材横滑直接冲突）。
 
 ## 10 · 禁改 / 红线
 
-- **不动各业务域皮肤**（`canvas.css` / `lora.css` / `home-v3.css` / `legal.css`）。壳换材质**不构成**任何域返工的理由；改完这四张皮肤的外观必须**零变化**，变了就说明脊柱漏进域里了。
+- **不动各业务域皮肤**（`canvas.css` / `lora.css` / `home-v4.css` / `legal.css`）。壳换材质**不构成**任何域返工的理由；改完这四张皮肤的外观必须**零变化**，变了就说明脊柱漏进域里了。
 - **不撤激活态的两个承重信号**（墨竖条、字重墨色跃迁）。只留白浮片 = 1.24:1，等于没有激活态。
 - **触屏 52px 不得压到 44**。
 - **不得恢复第二套导航组件**，也不得在组件里手抄第二份条目清单。

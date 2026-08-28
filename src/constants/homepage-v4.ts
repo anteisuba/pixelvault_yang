@@ -1,0 +1,902 @@
+import { ROUTES } from '@/constants/routes'
+
+/**
+ * v4 marketing home — the paging deck.
+ *
+ * Construction spec: `docs/plans/prototypes/homepage-slide-v2-SPEC.html` (the
+ * de-base64'd copy of the accepted prototype). Every number in this file is
+ * lifted from that file's `<style>` / engine so the skin and the engine cannot
+ * drift apart: the motion numbers below are written onto the domain root as CSS
+ * custom properties by `HomeV4Deck`, and `home-v4.css` reads them from there.
+ * One number, one home.
+ *
+ * Asset names come from `public/homepage/v4/_manifest.md` — the SPEC still spells
+ * them `asset-NN.*`, that mapping table is the translation.
+ */
+
+/* ── 引擎：输入阈值与节拍 ─────────────────────────────────────────── */
+
+/**
+ * Wheel/touch/keyboard routing plus the transition clock. `LOCK_MS` is
+ * deliberately a hair longer than `PAGE_MS`: the lock has to outlive the slide,
+ * or a trackpad's tail delta lands mid-flight and double-steps the deck.
+ */
+export const HOME_V4_ENGINE = {
+  /** One vertical page slide. Published as `--dur`. */
+  PAGE_MS: 850,
+  /** Input is ignored for this long after a step. */
+  LOCK_MS: 900,
+  /** Accumulated `wheel` deltaY that counts as one step. */
+  WHEEL_THRESHOLD: 46,
+  /** Swipe distance (px) that counts as one step. */
+  TOUCH_THRESHOLD_PX: 52,
+} as const
+
+/**
+ * Three-layer parallax. The layers run on their own clocks so that at the moment
+ * the page lands they are still sliding inside it — that lag is the depth.
+ * Vertical numbers are `vh`, the horizontal (station) ones `vw`.
+ */
+export const HOME_V4_PARALLAX = {
+  /** Background layer, slowest. */
+  L1_MS: 1050,
+  /* The text layer has no entry: it runs on `PAGE_MS`, the page's own clock. */
+  /** Visual blocks, fastest. */
+  L3_MS: 680,
+  /** Cross-fade of a horizontal station's pages. */
+  STATION_FADE_MS: 750,
+  VERTICAL_VH: { L1: 7, L2: 13, L3: 22 },
+  HORIZONTAL_VW: { L1: 6, L2: 11, L3: 18 },
+} as const
+
+/** Left-rail dots: each title slides in one beat after the one above it. */
+export const HOME_V4_DOTS_STAGGER_MS = 18
+
+/* ── 开场页演出 ──────────────────────────────────────────────────── */
+
+/**
+ * The opening runs its intro once per entry, then keeps a resident rotation:
+ * every `ROTATE_INTERVAL_MS` one random cell cross-fades to a spare, and the
+ * cell's outgoing shot goes back into the spare pool.
+ *
+ * The SPEC did this by copying two base64 blobs out of later pages at runtime.
+ * That hack is retired — `HOME_V4_STRIP_SPARES` are ordinary paths.
+ */
+export const HOME_V4_OPENING = {
+  /** Play the intro this long after the page becomes active. */
+  ENTER_DELAY_MS: 300,
+  /** …and this long after first paint, where nothing has moved yet. */
+  FIRST_PAINT_DELAY_MS: 450,
+  /** Headline mask lifts. */
+  HERO_MS: 150,
+  /** First strip cell appears. */
+  STRIP_START_MS: 620,
+  /** Each following cell. */
+  STRIP_STAGGER_MS: 60,
+  /** Note line + provider marquee + scroll cue, together. */
+  TAIL_MS: 1550,
+  /** Resident rotation period. */
+  ROTATE_INTERVAL_MS: 5200,
+  /** Cross-fade window: `b` on top at full opacity before `a` takes the new src. */
+  SWAP_MS: 900,
+} as const
+
+/** 收尾页：CTA 收口 → 品牌帽尾升入 → 单行 footer，一遍即止。 */
+export const HOME_V4_FINALE = {
+  ENTER_DELAY_MS: 350,
+  HERO_MS: 200,
+  MARK_MS: 500,
+  FOOT_MS: 800,
+  /** Same figure the v3 footer prints; the page states it, so it is not a `new Date()`. */
+  COPYRIGHT_YEAR: 2026,
+} as const
+
+/* ── 开场作品墙 ──────────────────────────────────────────────────── */
+
+/**
+ * Ten real archive results — the page carries no brand colour of its own, so
+ * every colour on the first screen comes from these. Re-encoded to 480×640 from
+ * the 1086px originals kept in `public/homepage/production/`: this strip caps
+ * each cell at 120px wide, so the originals were shipping ~10× the pixels they
+ * drew.
+ */
+export const HOME_V4_STRIP = [
+  { id: 'lunaMoth', src: '/homepage/v4/hero-01-luna-moth-480.webp' },
+  {
+    id: 'desertObservatory',
+    src: '/homepage/v4/hero-02-desert-observatory-480.webp',
+  },
+  { id: 'blackClay', src: '/homepage/v4/hero-03-black-clay-480.webp' },
+  {
+    id: 'risographLaundry',
+    src: '/homepage/v4/hero-04-risograph-laundry-480.webp',
+  },
+  { id: 'frostFlower', src: '/homepage/v4/hero-05-frost-flower-480.webp' },
+  { id: 'watchRobot', src: '/homepage/v4/hero-06-watch-robot-480.webp' },
+  { id: 'snowTrain', src: '/homepage/v4/hero-07-snow-train-480.webp' },
+  { id: 'glacialRiver', src: '/homepage/v4/hero-08-glacial-river-480.webp' },
+  { id: 'rubyChair', src: '/homepage/v4/hero-09-ruby-chair-480.webp' },
+  { id: 'cenoteDiver', src: '/homepage/v4/hero-10-cenote-diver-480.webp' },
+] as const
+
+/** Rotation pool. Two is enough: one is out on the wall while the other waits. */
+export const HOME_V4_STRIP_SPARES = [
+  '/homepage/v4/night-ferry-poster.webp',
+  '/homepage/v4/night-ferry-anchor-her.webp',
+] as const
+
+/* ── 功能页（P2）：共用素材、字形与节拍 ──────────────────────────── */
+
+/**
+ * 「夜航的信」— one short film's material, shared by feature pages 04 / 05 / 06
+ * so the three read as one story rather than three stock demos.
+ *
+ * The SPEC filled these three pages by *copying blobs between them at runtime*
+ * (`fn5Media` / `fn6Media` read `#fn4-out video`'s src, `.cn img`'s src…). That
+ * hack is retired: every page states its own path, and the pages stay
+ * independent of each other's DOM and of the order they are visited in.
+ */
+export const HOME_V4_STORY = {
+  shotDeck: '/homepage/v4/night-ferry-shot-01-deck.webp',
+  shotDeparture: '/homepage/v4/night-ferry-shot-02-departure.webp',
+  shotPullback: '/homepage/v4/night-ferry-shot-03-pullback.webp',
+  anchor: '/homepage/v4/night-ferry-anchor-her.webp',
+  poster: '/homepage/v4/night-ferry-poster.webp',
+  clip: '/homepage/v4/night-ferry-clip.mp4',
+} as const
+
+/**
+ * Glyphs the mock UIs print. Marks, not words — they read the same in all three
+ * locales, so they stay out of the message files (same call as the numbered
+ * eyebrows).
+ */
+export const HOME_V4_GLYPHS = {
+  play: '▶',
+  search: '⌕',
+  note: '♪',
+  plus: '＋',
+  send: '↑',
+  arrow: '→',
+} as const
+
+/**
+ * The one breakpoint the deck's mobile layouts are cut at. Feature page 05 is
+ * the only performance whose *timeline* differs between the two, so it asks
+ * `matchMedia` for this at play time — see `HOME_V4_FN_CANVAS`.
+ */
+export const HOME_V4_MOBILE_QUERY = '(max-width: 768px)'
+
+/* ── 01 图片：工作台 → 打字机 → 生成 → 四格 ───────────────────────── */
+
+/**
+ * The four models the mock workbench fires at once. Product names — never
+ * translated, and deliberately the shorthand the real bar prints (`Gemini 3
+ * Pro`), not the catalogue's full `Gemini 3 Pro Image`.
+ */
+export const HOME_V4_FN_IMAGE_MODELS = [
+  'GPT Image 2',
+  'Gemini 3 Pro',
+  'FLUX 2 Pro',
+  'Seedream 5.0',
+] as const
+
+/**
+ * Typing is per character, so the reveal is chained off the *end of the typing*
+ * rather than a wall-clock offset — a longer en/ja prompt then pushes the whole
+ * tail back instead of showing results before the prompt is written.
+ */
+export const HOME_V4_FN_IMAGE = {
+  ENTER_DELAY_MS: 500,
+  /** One character. */
+  TYPE_MS: 46,
+  /** Quad starts appearing this long after the last character. */
+  REVEAL_MS: 350,
+} as const
+
+/* ── 02 LoRA：逐个挂载 → 触发词弹入 → 出图位 ─────────────────────── */
+
+/**
+ * Library rows. `base` is the base model the LoRA is cut for — an uppercase
+ * category plus a product name, the same all-Latin shorthand the real library
+ * prints, so it stays out of the message files.
+ */
+export const HOME_V4_FN_LORA_CARDS = [
+  { id: 'ghibli', base: 'STYLE · Illustrious' },
+  { id: 'grain', base: 'EFFECT · FLUX' },
+  { id: 'mecha', base: 'CHARACTER · Pony V6' },
+  { id: 'water', base: 'STYLE · SDXL' },
+] as const
+
+/**
+ * The three the demo actually mounts, in mount order — the fourth card stays in
+ * the library, because a rack that fills itself completely reads as a fixed
+ * list rather than a choice. `trigger` is prompt syntax, never translated.
+ */
+export const HOME_V4_FN_LORA_MOUNTS = [
+  { id: 'ghibli', trigger: 'ghibli soft', weight: 1 },
+  { id: 'grain', trigger: 'film grain', weight: 0.6 },
+  { id: 'mecha', trigger: 'mecha musume', weight: 0.8 },
+] as const
+
+/** The two output tiles, in order. Ids double as message keys. */
+export const HOME_V4_FN_LORA_OUTS = ['stack', 'reweight'] as const
+
+export const HOME_V4_FN_LORA = {
+  ENTER_DELAY_MS: 400,
+  /** First mount lands, then one every `MOUNT_STEP_MS`. */
+  MOUNT_START_MS: 500,
+  MOUNT_STEP_MS: 620,
+  /** Trigger words drop into the prompt row after the last mount. */
+  TRIGGER_START_MS: 2500,
+  TRIGGER_STEP_MS: 260,
+  /** Output tiles fade up last. */
+  OUT_START_MS: 3500,
+  OUT_STEP_MS: 300,
+} as const
+
+/* ── 03 声音：配音聊天室 ─────────────────────────────────────────── */
+
+/**
+ * Three messages, each with the waveform its voice note draws. The bar heights
+ * are percentages of the track and carry no meaning beyond looking like speech
+ * — they are data, not layout, which is why they live here and not in the CSS.
+ */
+export const HOME_V4_FN_AUDIO_LINES = [
+  {
+    id: 'qing',
+    mine: false,
+    wave: [87, 84, 54, 43, 78, 89, 71, 33, 63, 88, 83, 53, 44, 79, 89, 70],
+  },
+  {
+    id: 'lei',
+    mine: true,
+    wave: [59, 37, 74, 89, 75, 39, 58, 86, 86, 59, 38, 75, 89],
+  },
+  {
+    id: 'ke',
+    mine: false,
+    wave: [
+      78, 89, 71, 33, 63, 88, 83, 53, 44, 79, 89, 70, 32, 64, 88, 83, 52, 45,
+    ],
+  },
+] as const
+
+export const HOME_V4_FN_AUDIO = {
+  ENTER_DELAY_MS: 400,
+  /** First bubble lands, then one every `MSG_STEP_MS`. */
+  MSG_START_MS: 500,
+  MSG_STEP_MS: 900,
+  /** A bubble's waveform grows this long after the bubble itself arrives. */
+  PLAY_DELAY_MS: 380,
+} as const
+
+/* ── 04 视频：全能参考输入框 ─────────────────────────────────────── */
+
+/** The three reference capsules, top to bottom. `thumb` is the pill's picture. */
+export const HOME_V4_FN_VIDEO_REFS = [
+  { id: 'shot', thumb: HOME_V4_STORY.shotDeck, glyph: HOME_V4_GLYPHS.play },
+  { id: 'anchor', thumb: HOME_V4_STORY.anchor, glyph: null },
+  { id: 'voice', thumb: null, glyph: HOME_V4_GLYPHS.note },
+] as const
+
+/** Composer tool row. Marks, not words. */
+export const HOME_V4_FN_VIDEO_TOOLS = ['＋', '⬡', '▤', '✥'] as const
+
+export const HOME_V4_FN_VIDEO = {
+  ENTER_DELAY_MS: 400,
+  /** First capsule lands, then one every `PILL_STEP_MS`. */
+  PILL_START_MS: 400,
+  PILL_STEP_MS: 550,
+  /** Prompt line appears and the typewriter starts. */
+  PROMPT_MS: 2150,
+  /** One character. */
+  TYPE_MS: 42,
+  /**
+   * The cut appears this long after the last character. The SPEC hard-coded
+   * 3950ms, which is exactly this gap for the Chinese prompt — chaining it off
+   * the typing instead keeps the order (prompt → send button lights → cut) true
+   * for the longer en/ja lines.
+   */
+  OUT_AFTER_TYPE_MS: 834,
+  /** Pill thumbnail, matching `.fn-video .pill img` in `home-v4.css`. */
+  THUMB_PX: 24,
+} as const
+
+/* ── 05 画布：助手 → 剧本 → 节点 → 成片 ──────────────────────────── */
+
+/** The three shots, in script order. Ids double as message keys. */
+export const HOME_V4_FN_CANVAS_SHOTS = [
+  'deck',
+  'departure',
+  'pullback',
+] as const
+
+/** Node thumbnails on the mini canvas, matching `.s3 .cn img` / `.cnv video`. */
+export const HOME_V4_FN_CANVAS_THUMBS = {
+  SHOT: { W: 110, H: 62 },
+  CUT: { W: 222, H: 125 },
+} as const
+
+/**
+ * Two timelines, because the two layouts tell the story differently: on desktop
+ * the three windows stand side by side and the *hand-off* is the point (a ghost
+ * flies from one window into the next), on mobile they are one carousel and the
+ * hand-off is the step change itself, so the flight is dropped and every beat
+ * shifts.
+ */
+export const HOME_V4_FN_CANVAS = {
+  ENTER_DELAY_MS: 400,
+  /** A ghost is removed this long after it launches — see `.flyer` in the CSS. */
+  FLY_LIFE_MS: 820,
+  /** The script chip shrinks into the second window's title. */
+  CHIP_FLY_SCALE: 0.55,
+  /** A shot card grows slightly as it lands on the canvas. */
+  CARD_FLY_SCALE: 1.1,
+  PC: {
+    MSG_MS: [300, 1150],
+    CHIP_MS: 1950,
+    HANDOFF_MS: 2650,
+    SCRIPT_ON_MS: 3350,
+    ROW_IN_MS: 3500,
+    ROW_SENT_MS: 3950,
+    NODE_IN_MS: 4600,
+    ROW_STEP_MS: 450,
+    WIRES_MS: 5900,
+    CUT_MS: 6700,
+  },
+  MOBILE: {
+    MSG_MS: [350, 1150],
+    CHIP_MS: 1900,
+    STAGE_SCRIPT_MS: 2800,
+    ROW_IN_MS: 3200,
+    ROW_SENT_MS: 3550,
+    ROW_STEP_MS: 430,
+    STAGE_BOARD_MS: 5150,
+    NODE_IN_MS: 5550,
+    NODE_STEP_MS: 380,
+    WIRES_MS: 6850,
+    CUT_MS: 7550,
+  },
+} as const
+
+/* ── 06 资源库：归档飞入 → 涌入 → 回流飞出 ───────────────────────── */
+
+/**
+ * The ten library tiles, in grid order. `kind` picks the tile's body:
+ *
+ * - `shot` — a picture from the archive (`src`),
+ * - `wave` — the voice note, drawn from `wave`,
+ * - `swatch` — a flat gradient tile (LoRA / 3D), painted by `data-tile`,
+ * - `prompt` — the saved prompt card,
+ * - `count` — the 「还在库里」 tally.
+ *
+ * `hero` marks the one tile that flies back out into the reuse slot, and
+ * `arrival` marks the three that drop in from the pages above (the SPEC's
+ * `.far`).
+ */
+export const HOME_V4_FN_VAULT_CELLS = [
+  {
+    id: 'cut',
+    kind: 'shot',
+    src: HOME_V4_STORY.poster,
+    arrival: true,
+    hero: false,
+  },
+  {
+    id: 'anchor',
+    kind: 'shot',
+    src: HOME_V4_STORY.anchor,
+    arrival: true,
+    hero: true,
+  },
+  { id: 'voice', kind: 'wave', src: null, arrival: true, hero: false },
+  {
+    id: 'shotDeck',
+    kind: 'shot',
+    src: HOME_V4_STORY.shotDeck,
+    arrival: false,
+    hero: false,
+  },
+  {
+    id: 'shotPullback',
+    kind: 'shot',
+    src: HOME_V4_STORY.shotPullback,
+    arrival: false,
+    hero: false,
+  },
+  { id: 'lora', kind: 'swatch', src: null, arrival: false, hero: false },
+  { id: 'prompt', kind: 'prompt', src: null, arrival: false, hero: false },
+  { id: 'threed', kind: 'swatch', src: null, arrival: false, hero: false },
+  {
+    id: 'shotDeparture',
+    kind: 'shot',
+    src: HOME_V4_STORY.shotDeparture,
+    arrival: false,
+    hero: false,
+  },
+  { id: 'count', kind: 'count', src: null, arrival: false, hero: false },
+] as const
+
+/** The voice tile's waveform. Same kind of data as the audio page's. */
+export const HOME_V4_FN_VAULT_WAVE = [
+  68, 29, 60, 86, 86, 60, 29, 68, 89, 82, 51, 39, 75, 89,
+] as const
+
+/** Filter chips over the grid. Ids double as message keys; the first is on. */
+export const HOME_V4_FN_VAULT_FILTERS = [
+  'all',
+  'image',
+  'video',
+  'audio',
+  'lora',
+] as const
+
+export const HOME_V4_FN_VAULT = {
+  ENTER_DELAY_MS: 400,
+  /** The three arrivals drop in first, one every `ARRIVAL_STEP_MS`. */
+  ARRIVAL_START_MS: 350,
+  ARRIVAL_STEP_MS: 280,
+  /** …then the rest of the library floods in. */
+  REST_START_MS: 1450,
+  REST_STEP_MS: 80,
+  /** The character anchor lights up, then a *copy* flies to the reuse slot. */
+  LIFT_MS: 2550,
+  FLY_MS: 3000,
+  SLOT_MS: 3720,
+  CTA_MS: 4150,
+  FLY_LIFE_MS: 820,
+  FLY_SCALE: 0.85,
+  /** What the tally prints. The library is the product; the number is the point. */
+  ARCHIVED_COUNT: 1284,
+} as const
+
+/* ── 模型区：五个横站 ────────────────────────────────────────────── */
+
+export const HOME_V4_STATION_KEYS = [
+  'image',
+  'lora',
+  'video',
+  'audio',
+  'threed',
+] as const
+
+export type HomeV4StationKey = (typeof HOME_V4_STATION_KEYS)[number]
+
+/**
+ * Brands that ship a drawn mark on the identity board. Everything else prints
+ * its name as a mono textmark (`mark`), which is why the list is this short —
+ * a wrong logo is worse than no logo.
+ *
+ * `seed` is the composite: the ByteDance wordmark followed by 「Seed」, the
+ * research group Seedream / Seedance actually come from.
+ */
+export const HOME_V4_MODEL_LOGO_KEYS = ['openai', 'gemini', 'seed'] as const
+
+export type HomeV4ModelLogoKey = (typeof HOME_V4_MODEL_LOGO_KEYS)[number]
+
+/**
+ * How a model page paints its background.
+ *
+ * - `cover` — one landscape shot bled over the whole page, darkened by a scrim.
+ * - `side` — one portrait shot stood upright on the right, complete and
+ *   uncropped, over paper. The identity board keeps the left half.
+ * - `wall` — three portrait shots side by side, one triptych across the page.
+ *   Mobile shows only the first.
+ *
+ * A model with `cover: null` falls back to the paper + prompt-card state
+ * regardless of what it declares here.
+ */
+export const HOME_V4_MODEL_LAYOUTS = ['cover', 'side', 'wall'] as const
+
+export type HomeV4ModelLayout = (typeof HOME_V4_MODEL_LAYOUTS)[number]
+
+/**
+ * How many of each repeated field a model record carries. Every model in the
+ * SPEC has exactly these, and the message files are indexed against them
+ * (`v4.models.<key>.plus.0` …), so the counts are what the copy test walks.
+ * Changing one here without adding the copy is a test failure, not a blank row.
+ */
+export const HOME_V4_MODEL_FACETS = {
+  TAGS: 3,
+  PLUS: 3,
+  MINUS: 2,
+} as const
+
+export interface HomeV4Model {
+  /** Stable id, used for React keys, deep links and message paths. */
+  key: string
+  /** Product name. A proper noun — never translated. */
+  name: string
+  /** Eyebrow, e.g. `IMAGE · OPENAI`. Proper nouns — never translated. */
+  provider: string
+  /**
+   * Full-bleed background under `public/`. `null` is the SPEC's
+   * 「待站内生成」 state — the page shows the prompt watermark card instead,
+   * and the shot still has to be generated in-app (task list in the manifest).
+   */
+  cover: string | null
+  /** Drawn brand mark, or `null` to print `mark` as a textmark instead. */
+  logo: HomeV4ModelLogoKey | null
+  /**
+   * Mono textmark used when there is no drawn logo. All-Latin product
+   * shorthand — never translated. `null` exactly when `logo` is set.
+   */
+  mark: string | null
+  layout: HomeV4ModelLayout
+  /**
+   * Panels 2 and 3 of a `wall`. Empty for every other layout; `cover` is
+   * panel 1, so a wall is `[cover, ...wall]`.
+   */
+  wall: readonly string[]
+  /**
+   * The shot this page still needs, written as the prompt that will generate
+   * it. Set exactly when `cover` is `null`.
+   *
+   * ⚠ Deliberately **not** translated. It is a generation task addressed to the
+   * model, not a sentence addressed to a reader; rendering the Japanese page's
+   * card in Japanese would produce a prompt nobody is going to run.
+   */
+  wantPrompt: string | null
+}
+
+/**
+ * The five stations, in deck order, each with its models in station order.
+ *
+ * Language-neutral facts only. Everything a reader actually reads — the
+ * positioning line, the price line, the route line, the source badge, the
+ * tag chips, the strengths, the weaknesses and both halves of every spec row —
+ * lives in `Homepage.v4.models.<key>.*` in all three locales.
+ */
+export const HOME_V4_STATIONS: Record<
+  HomeV4StationKey,
+  readonly HomeV4Model[]
+> = {
+  image: [
+    {
+      key: 'gpt',
+      name: 'GPT Image 2',
+      provider: 'IMAGE · OPENAI',
+      cover: '/homepage/v4/model-gpt-image-2.jpg',
+      logo: 'openai',
+      mark: null,
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'gemini',
+      name: 'Gemini 3 Pro Image',
+      provider: 'IMAGE · GOOGLE',
+      cover: '/homepage/v4/model-gemini-3-pro-image.jpg',
+      logo: 'gemini',
+      mark: null,
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'flux',
+      name: 'FLUX 2 Pro',
+      provider: 'IMAGE · BLACK FOREST LABS',
+      cover: '/homepage/v4/model-flux-2-pro.jpg',
+      logo: null,
+      mark: 'FLUX',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'seedream',
+      name: 'Seedream 5.0',
+      provider: 'IMAGE · BYTEDANCE',
+      cover: '/homepage/v4/model-seedream-5.jpg',
+      logo: 'seed',
+      mark: null,
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'recraft',
+      name: 'Recraft V4 Pro',
+      provider: 'IMAGE · RECRAFT',
+      cover: '/homepage/v4/model-recraft-v4-pro.webp',
+      logo: null,
+      mark: 'RECRAFT',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'novelai',
+      name: 'NovelAI Diffusion V5',
+      provider: 'IMAGE · ANLATAN',
+      cover: '/homepage/v4/model-novelai-v5.webp',
+      logo: null,
+      mark: 'NOVELAI',
+      layout: 'wall',
+      wall: [
+        '/homepage/v4/model-novelai-v5-b.jpg',
+        '/homepage/v4/model-novelai-v5-c.jpg',
+      ],
+      wantPrompt: null,
+    },
+    {
+      key: 'illustrious',
+      name: 'Illustrious XL',
+      provider: 'IMAGE · ONOMA AI · 开源',
+      cover: '/homepage/v4/model-illustrious-xl.webp',
+      logo: null,
+      mark: 'ILLUSTRIOUS',
+      layout: 'wall',
+      wall: [
+        '/homepage/v4/model-illustrious-xl-b.webp',
+        '/homepage/v4/model-illustrious-xl-c.webp',
+      ],
+      wantPrompt: null,
+    },
+  ],
+  lora: [
+    {
+      key: 'ill-b',
+      name: 'Illustrious XL',
+      provider: 'LORA · ONOMA AI · 开源',
+      cover: '/homepage/v4/model-lora-illustrious-xl.webp',
+      logo: null,
+      mark: 'ILLUSTRIOUS',
+      layout: 'side',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'wai',
+      name: 'WAI-Illustrious',
+      provider: 'LORA · RUNNER',
+      cover: '/homepage/v4/model-lora-wai-illustrious.webp',
+      logo: null,
+      mark: 'WAI',
+      layout: 'side',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'pencil',
+      name: 'Anima Pencil-XL',
+      provider: 'LORA · RUNNER',
+      cover: '/homepage/v4/model-lora-anima-pencil-xl.webp',
+      logo: null,
+      mark: 'PENCIL-XL',
+      layout: 'side',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'pony',
+      name: 'Pony Diffusion V6 XL',
+      provider: 'LORA · RUNNER',
+      cover: '/homepage/v4/model-lora-pony-v6-xl.webp',
+      logo: null,
+      mark: 'PONY V6',
+      layout: 'side',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'sdxl',
+      name: 'SDXL 1.0',
+      provider: 'LORA · RUNNER',
+      cover: '/homepage/v4/model-lora-sdxl-10.webp',
+      logo: null,
+      mark: 'SDXL',
+      layout: 'side',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'anima',
+      name: 'Anima（DiT）',
+      provider: 'LORA · RUNNER',
+      cover: '/homepage/v4/model-lora-anima-dit.webp',
+      logo: null,
+      mark: 'ANIMA',
+      layout: 'side',
+      wall: [],
+      wantPrompt: null,
+    },
+  ],
+  video: [
+    {
+      key: 'seedance',
+      name: 'Seedance',
+      provider: 'VIDEO · BYTEDANCE',
+      cover: '/homepage/v4/model-seedance.webp',
+      logo: 'seed',
+      mark: null,
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'minimax',
+      name: 'MiniMax H3',
+      provider: 'VIDEO · MINIMAX',
+      cover: '/homepage/v4/model-minimax-h3.webp',
+      logo: null,
+      mark: 'MINIMAX',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'wan30',
+      name: 'Wan 3.0',
+      provider: 'VIDEO · ALIBABA',
+      cover: null,
+      logo: null,
+      mark: 'WAN 3.0',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: '代表帧：茶馆窗外雨景，水汽氤氲，缓慢横摇，16:9',
+    },
+    {
+      key: 'horse',
+      name: 'HappyHorse 1.1',
+      provider: 'VIDEO · ALIBABA',
+      cover: '/homepage/v4/model-happyhorse-11.webp',
+      logo: null,
+      mark: 'HAPPYHORSE',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'kling',
+      name: '可灵',
+      provider: 'VIDEO · KLING',
+      cover: '/homepage/v4/model-kling.webp',
+      logo: null,
+      mark: 'KLING',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'gomni',
+      name: 'Gemini Omni Flash',
+      provider: 'VIDEO · GOOGLE',
+      cover: null,
+      logo: 'gemini',
+      mark: null,
+      layout: 'cover',
+      wall: [],
+      wantPrompt: '代表帧：城市日转夜延时分镜草稿，快节奏，16:9',
+    },
+  ],
+  audio: [
+    {
+      key: 'fish',
+      name: 'Fish Audio S2.1 Pro',
+      provider: 'AUDIO · FISH AUDIO',
+      cover: '/homepage/v4/model-fish-audio-s21-pro.jpg',
+      logo: null,
+      mark: 'FISH AUDIO',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'eleven',
+      name: 'ElevenLabs',
+      provider: 'AUDIO · ELEVENLABS',
+      cover: '/homepage/v4/model-elevenlabs.jpg',
+      logo: null,
+      mark: 'ELEVENLABS',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+  ],
+  threed: [
+    {
+      key: 'rodin',
+      name: 'Rodin Gen-2.5',
+      provider: '3D · HYPER3D',
+      cover: '/homepage/v4/model-rodin-gen-25.jpg',
+      logo: null,
+      mark: 'RODIN',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'hunyuan',
+      name: 'Hunyuan3D',
+      provider: '3D · TENCENT',
+      cover: null,
+      logo: null,
+      mark: 'HUNYUAN',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: '雕塑级角色半身 3D 渲染特写，中性灰棚，微距细节，16:9',
+    },
+    {
+      key: 'trellis',
+      name: 'Trellis 2',
+      provider: '3D · MICROSOFT',
+      cover: '/homepage/v4/model-trellis-2.jpg',
+      logo: null,
+      mark: 'TRELLIS',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+    {
+      key: 'tripo',
+      name: 'TripoSR',
+      provider: '3D · TRIPO',
+      cover: '/homepage/v4/model-triposr.jpg',
+      logo: null,
+      mark: 'TRIPO',
+      layout: 'cover',
+      wall: [],
+      wantPrompt: null,
+    },
+  ],
+}
+
+/** Every model, flattened in deck order — the copy tests and the sheet walk it. */
+export const HOME_V4_ALL_MODELS: readonly HomeV4Model[] =
+  HOME_V4_STATION_KEYS.flatMap((key) => HOME_V4_STATIONS[key])
+
+/* ── 竖轴：13 页 ─────────────────────────────────────────────────── */
+
+/** Which block of the left rail / mobile toc a page belongs to. */
+export type HomeV4PageGroup = 'opening' | 'feature' | 'models' | 'finale'
+
+export interface HomeV4Page {
+  /** Stable id. Doubles as the i18n key under `Homepage.v4.pages.*`. */
+  id: string
+  group: HomeV4PageGroup
+  /**
+   * Numbered eyebrow, e.g. `01 · IMAGE`. Language-neutral by design, so it stays
+   * out of the message files. `null` on the opening (which prints the model
+   * count instead) and the finale (which prints nothing).
+   */
+  eyebrow: string | null
+  /** Set on the five model pages: they page sideways before releasing downward. */
+  station: HomeV4StationKey | null
+}
+
+/**
+ * The deck, top to bottom. Thirteen pages: opening, six feature pages, the five
+ * model stations, finale.
+ *
+ * A fourteenth page — a four-column price list of the whole catalogue — shipped
+ * briefly and was cut by owner on sight (「这个页面不需要。之前的设计页面也没有
+ * 这个」). The deck is back to the prototype's structure: the model region ends
+ * at the 3D station and releases straight into the finale.
+ */
+export const HOME_V4_PAGES: readonly HomeV4Page[] = [
+  { id: 'opening', group: 'opening', eyebrow: null, station: null },
+  { id: 'image', group: 'feature', eyebrow: '01 · IMAGE', station: null },
+  { id: 'lora', group: 'feature', eyebrow: '02 · LORA', station: null },
+  { id: 'audio', group: 'feature', eyebrow: '03 · AUDIO', station: null },
+  { id: 'video', group: 'feature', eyebrow: '04 · VIDEO', station: null },
+  { id: 'canvas', group: 'feature', eyebrow: '05 · CANVAS', station: null },
+  { id: 'vault', group: 'feature', eyebrow: '06 · VAULT', station: null },
+  { id: 'modelsImage', group: 'models', eyebrow: null, station: 'image' },
+  { id: 'modelsLora', group: 'models', eyebrow: null, station: 'lora' },
+  { id: 'modelsVideo', group: 'models', eyebrow: null, station: 'video' },
+  { id: 'modelsAudio', group: 'models', eyebrow: null, station: 'audio' },
+  { id: 'models3d', group: 'models', eyebrow: null, station: 'threed' },
+  { id: 'finale', group: 'finale', eyebrow: null, station: null },
+]
+
+/** Where the finale's CTA goes — same destination as the footer's 画布 link. */
+export const HOME_V4_ROUTES = {
+  home: ROUTES.HOME,
+  canvas: ROUTES.STUDIO_NODE,
+  studio: ROUTES.STUDIO_IMAGE,
+  terms: ROUTES.TERMS,
+  privacy: ROUTES.PRIVACY,
+} as const

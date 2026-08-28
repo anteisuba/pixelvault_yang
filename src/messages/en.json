@@ -620,244 +620,686 @@
     "heroStat": "{models} MODELS · {providers} PROVIDERS · {modalities} MODALITIES",
     "heroLine1": "Generate with every model.",
     "heroLine2": "Keep every result.",
-    "views": {
-      "canvas": "Canvas",
-      "studio": "Studio",
-      "lora": "LoRA",
-      "assets": "Assets"
-    },
-    "viewBars": {
-      "canvas": {
-        "project": "Night Ferry Letter",
-        "status": "2 nodes generating"
+    "v4": {
+      "nav": {
+        "label": "Page navigation",
+        "pageLabel": "Page index",
+        "close": "Close",
+        "stationPages": "{count} pages",
+        "prevModel": "Previous model",
+        "nextModel": "Next model"
       },
-      "studio": {
-        "project": "4 models in parallel",
-        "status": "3 / 4 done"
-      },
-      "lora": {
-        "project": "Same character · 12 shots",
-        "status": "Consistency 0.94"
-      },
-      "assets": {
-        "project": "All · 2,418 items",
-        "status": "Archived to R2"
-      }
-    },
-    "caps": {
-      "moreModels": "+{count} more",
-      "textToImage": {
-        "eyebrow": "TEXT → IMAGE → IMAGE",
-        "body": "Write the character from one sentence, then hand that image back as the reference for the next edit. Swap only the jacket, or redraw him as a game sprite. The hard part was never the edit; it is still being him afterwards.",
-        "title": "Change the outfit, change the style,\nstill the same character."
-      },
-      "imageToVideo": {
-        "eyebrow": "IMAGE → VIDEO",
-        "body": "No rewriting the brief. The selected result becomes the first frame, and the prompt, references and camera notes travel with it — so the clip lives in the same world as the still.",
-        "title": "Take the one you picked\nand let it move."
-      },
-      "imageTo3d": {
-        "eyebrow": "IMAGE → 3D",
-        "body": "Every saved image can go to 3D. The source, the prompt and the generated model stay on one record, so next time you reach for it instead of hunting for it.",
-        "title": "Anything in the archive\nbecomes a reusable asset."
-      }
-    },
-    "models": {
-      "title": "{count} models. Four modalities.",
       "groups": {
-        "image": "Image models",
-        "video": "Video models",
-        "audio": "Audio models",
-        "model3d": "3D models"
+        "opening": "Opening",
+        "feature": "Features",
+        "models": "Models",
+        "finale": "Closing"
       },
-      "priceVaries": "Usage-based",
-      "prevBatch": "{group}, previous",
-      "nextBatch": "{group}, next",
-      "groupCount": "{count}",
-      "priceImage": "{amount} per image",
-      "priceSecond": "{amount} per second",
-      "priceKChars": "{amount} per 1k chars",
-      "detail": {
-        "viewDetails": "Learn about {model}",
-        "canDo": "What it can do",
-        "advantagesTitle": "Advantages",
-        "provider": "Provider",
-        "pricing": "Reference price",
-        "modality": "Modality",
-        "openStudio": "Create with this model",
-        "officialDocs": "Official model page",
-        "close": "Close model details",
-        "advantages": {
-          "premiumQuality": "Premium output quality",
-          "balancedQuality": "Balanced quality and speed",
-          "fastValue": "Fast, cost-efficient iteration",
-          "freeTier": "Free-tier access",
-          "imageGeneration": "Text-to-image generation",
-          "videoGeneration": "Text-to-video generation",
-          "photorealistic": "Photorealistic rendering",
-          "anime": "Anime and illustration",
-          "design": "Design and brand graphics",
-          "artistic": "Cinematic and artistic images",
-          "versatile": "Versatile creative work",
-          "lora": "Custom LoRA support",
-          "imageToVideo": "Image-to-video support",
-          "referenceInput": "Reference-image control",
-          "nativeAudio": "Native audio generation",
-          "speech": "Multilingual text-to-speech",
-          "soundEffects": "Text-to-sound effects",
-          "imageTo3d": "Image-to-3D reconstruction",
-          "glbOutput": "Reusable GLB assets"
-        }
-      }
-    },
-    "canvasView": {
-      "nodes": {
-        "script": "Script",
-        "character": "Character",
-        "setting": "Setting",
-        "audio": "Audio",
-        "shot": "Shot",
-        "video": "Video"
+      "opening": {
+        "note": "Made here · From the public gallery · Updated continuously",
+        "cuePc": "SCROLL",
+        "cueMobile": "SWIPE"
       },
-      "nodeStatus": {
-        "script": {
-          "state": "Confirmed",
-          "detail": "412 words"
+      "finale": {
+        "title": "Generating is where it starts.",
+        "cta": "Open the canvas",
+        "guidelines": "Content guidelines"
+      },
+      "fn": {
+        "image": {
+          "workbench": "Image workbench",
+          "meta": "1024×1365 · 1 each · same prompt",
+          "prompt": "Ginger cat curator in round glasses at a museum desk, framed art behind, warm light",
+          "generate": "Generate",
+          "pendingKicker": "To generate · same prompt",
+          "pendingLine": "The one line on the left",
+          "moreModels": "{count} models"
         },
-        "character": {
-          "state": "Generated",
-          "detail": "4 / 4"
-        },
-        "setting": {
-          "state": "Generating",
-          "detail": "62%"
+        "lora": {
+          "workbench": "LoRA workbench",
+          "mounted": "<b>{count}</b> loaded · no cap",
+          "search": "Search Civitai / HuggingFace…",
+          "add": "Load",
+          "mountedKicker": "Loaded · weights",
+          "promptKicker": "PROMPT · trigger words arrive on their own",
+          "freeText": ", a girl on a rooftop at dusk, trench coat, looking back",
+          "cards": {
+            "ghibli": { "name": "Ghibli Soft", "short": "Ghibli Soft" },
+            "grain": { "name": "Film Grain", "short": "Film Grain" },
+            "mecha": { "name": "Mecha Musume", "short": "Mecha Musume" },
+            "water": { "name": "Watercolor", "short": "Watercolor" }
+          },
+          "outs": {
+            "stack": "To generate · three LoRAs at once",
+            "reweight": "To generate · another pass, new weights"
+          }
         },
         "audio": {
-          "state": "Generated",
-          "detail": "0:18"
-        },
-        "shot": {
-          "state": "Selected",
-          "detail": "seed 8841"
+          "room": "Voice room",
+          "meta": "8 speakers · voice library + cloning · Fish S2.1",
+          "lines": {
+            "qing": {
+              "avatar": "Q",
+              "who": "Qing · Fish soft female",
+              "text": "The show opens tonight at eight.",
+              "duration": "0:03"
+            },
+            "lei": {
+              "avatar": "L",
+              "who": "Lei · Fish young male",
+              "text": "Got it. I'll do one more pass on the poster.",
+              "duration": "0:02"
+            },
+            "ke": {
+              "avatar": "N",
+              "who": "Narrator · cloned voice",
+              "text": "And just then, the lamps in the hall came on one by one.",
+              "duration": "0:04"
+            }
+          },
+          "addVoice": "Add a voice",
+          "placeholder": "Type a line, pick a voice, hit generate…",
+          "generate": "Generate"
         },
         "video": {
-          "state": "Queued",
-          "detail": "5s"
+          "workbench": "Video workbench",
+          "meta": "Seedance reference endpoint · 5s · 1080p",
+          "refs": {
+            "shot": {
+              "label": "shot01-night-departure",
+              "say": "match this shot"
+            },
+            "anchor": {
+              "label": "character-anchor-her.webp",
+              "say": "match this character"
+            },
+            "voice": {
+              "label": "line-her-letter 0:18",
+              "say": "match this voice"
+            }
+          },
+          "prompt": "A night ferry leaves the harbour, camera drifts back, rain on the lamp.",
+          "toolsMeta": "4 references · any type · voice cloning ×3",
+          "submit": "Send",
+          "outTag": "Seedance · made here · The Night Ferry"
+        },
+        "canvas": {
+          "assistant": {
+            "title": "Assistant",
+            "meta": "script brain",
+            "meAvatar": "Me",
+            "me": "A night ferry, leaving port in the rain — turn it into a short.",
+            "botAvatar": "AI",
+            "bot": "Three shots: a look back on deck, out of the harbour, pull away. Here is the script.",
+            "chip": "Script · The Night Ferry v1"
+          },
+          "script": {
+            "title": "Script",
+            "meta": "3 shots · The Night Ferry",
+            "toNode": "node",
+            "rows": {
+              "deck": {
+                "index": "Shot 01",
+                "text": "On deck, she turns back at the rail, cabin lights on"
+              },
+              "departure": {
+                "index": "Shot 02",
+                "text": "The ferry clears the harbour, the lighthouse blinking"
+              },
+              "pullback": {
+                "index": "Shot 03",
+                "text": "The camera pulls away, rain landing on the lamp"
+              }
+            }
+          },
+          "board": {
+            "title": "Canvas",
+            "meta": "4 nodes · 3 wires",
+            "nodes": {
+              "deck": "Shot 01 · deck",
+              "departure": "Shot 02 · departure",
+              "pullback": "Shot 03 · pull away"
+            },
+            "cut": "Cut · SEEDANCE · made here"
+          }
+        },
+        "vault": {
+          "title": "Vault",
+          "meta": "Images · video · audio · LoRA · kept for good",
+          "filters": {
+            "all": "All",
+            "image": "Images",
+            "video": "Video",
+            "audio": "Audio",
+            "lora": "LoRA"
+          },
+          "cells": {
+            "cut": "05 · The Night Ferry",
+            "anchor": "04 · character anchor",
+            "voice": "03 · line 0:18",
+            "shotDeck": "Image",
+            "shotPullback": "Image",
+            "shotDeparture": "Image",
+            "lora": "LoRA · Ghibli Soft",
+            "prompt": "PROMPT",
+            "threed": "3D · RODIN",
+            "count": "still in the vault"
+          },
+          "promptText": "A night ferry leaves the harbour, camera drifts back, rain on the lamp.",
+          "archived": "+ {count, number}",
+          "reuseKicker": "REUSE",
+          "slotEmpty": "Reference slot · empty",
+          "slotFilled": "Reference loaded · canvas",
+          "note": "Any one of these, dragged into the canvas or a workbench, is the reference for the next generation. A result is not the end, it is material.",
+          "cta": "Start creating"
         }
       },
-      "script": "The last ferry of the night. She folded the letter into a square, tucked it inside her coat, and did not look back.",
-      "inspector": {
-        "title": "Shot · 03",
-        "rowModel": "Model",
-        "rowSize": "Size",
-        "rowSeed": "seed",
-        "prompt": "Ferry deck, night, backlit. She faces away from camera; sea wind lifts one corner of her coat. 35mm, grain.",
-        "refs": "References · from upstream",
-        "regenerate": "Regenerate"
+      "pages": {
+        "opening": { "nav": "Opening" },
+        "image": {
+          "nav": "Image",
+          "title": "One line. Four models answer."
+        },
+        "lora": {
+          "nav": "LoRA",
+          "title": "Find one, load it. Load as many as you like."
+        },
+        "audio": {
+          "nav": "Audio",
+          "title": "Pick a voice, type, and it speaks."
+        },
+        "video": {
+          "nav": "Video",
+          "title": "Image, voice, footage, text — all of it can be a reference."
+        },
+        "canvas": {
+          "nav": "Canvas",
+          "title": "Talk out a script, grow it into nodes, wire it into a cut."
+        },
+        "vault": {
+          "nav": "Vault",
+          "title": "Everything you keep can go back on stage."
+        },
+        "modelsImage": { "nav": "Models · Image" },
+        "modelsLora": { "nav": "Models · LoRA" },
+        "modelsVideo": { "nav": "Models · Video" },
+        "modelsAudio": { "nav": "Models · Audio" },
+        "models3d": { "nav": "Models · 3D" },
+        "finale": { "nav": "Closing" }
+      },
+      "modelPage": {
+        "plus": "Strong at",
+        "minus": "Weak at",
+        "more": "Details · strengths and specs ↑",
+        "close": "Close details",
+        "want": "Backdrop pending · to be generated in-app",
+        "coverAlt": "{model} sample output"
+      },
+      "models": {
+        "gpt": {
+          "pos": "The all-rounder: top of the blind-test boards, and the best at reading a complicated brief.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 1 route",
+          "src": "Made here · GPT Image 2",
+          "tags": {
+            "0": "Poster layout",
+            "1": "Long briefs",
+            "2": "Multilingual type"
+          },
+          "plus": {
+            "0": "Text inside the image lands almost every time — poster-grade",
+            "1": "Highest fidelity on long multi-condition prompts; nothing gets dropped",
+            "2": "Chinese, Japanese and Korean render just as cleanly"
+          },
+          "minus": {
+            "0": "Thinking mode adds latency; it is on the slow side",
+            "1": "Expensive in bulk, and transparency support is only fair"
+          }
+        },
+        "gemini": {
+          "pos": "Fast and steady workhorse: 2–5 seconds an image, and the finest editing control here.",
+          "fare": "$0.13 / image · Flash tier $0.03–0.07",
+          "routes": "On ANTEI · 3 routes",
+          "src": "Made here · Gemini 3 Pro Image",
+          "tags": {
+            "0": "Fast iteration",
+            "1": "Local edits",
+            "2": "Real places"
+          },
+          "plus": {
+            "0": "2–5 seconds an image — editing never breaks your rhythm",
+            "1": "Finest control over inpainting, relighting and camera moves",
+            "2": "Search-grounded: real landmarks and real light have a source"
+          },
+          "minus": {
+            "0": "Holds back on the surreal and the heavily stylised",
+            "1": "Small faces and small type still break"
+          }
+        },
+        "flux": {
+          "pos": "The texture one: skin and cloth without the plastic sheen, and rock-steady on long descriptions.",
+          "fare": "$0.03 / image · edit $0.04 · Flash $0.005",
+          "routes": "On ANTEI · 5 routes",
+          "src": "fal.ai official demo output",
+          "tags": { "0": "Product texture", "1": "Concept art", "2": "Value" },
+          "plus": {
+            "0": "Real texture: little of the plastic sheen, sharp on objects and materials",
+            "1": "Dual-stream architecture holds long descriptive prompts precisely",
+            "2": "Best value at this quality tier, with no parameter fiddling"
+          },
+          "minus": {
+            "0": "Portraits drift towards a porcelain-doll over-retouch",
+            "1": "Text inside the image is still unreliable"
+          }
+        },
+        "seedream": {
+          "pos": "A designer's head: it understands layout and Chinese, and searches the web while it generates.",
+          "fare": "$0.03–0.09 / image · three integrations",
+          "routes": "On ANTEI · 5 routes",
+          "src": "Made here · Seedream 5.0",
+          "tags": {
+            "0": "Chinese posters",
+            "1": "Infographics",
+            "2": "Layout"
+          },
+          "plus": {
+            "0": "Design-grade sense of layout: a magazine cover in one pass",
+            "1": "Native type in 10+ languages, strongest in Chinese",
+            "2": "Searches the web mid-generation, so the facts have a source"
+          },
+          "minus": {
+            "0": "Long strings of text still come out wrong, and it takes 8–15 seconds",
+            "1": "Photographic texture reads AI-ish; weaker than Gemini at realism"
+          }
+        },
+        "recraft": {
+          "pos": "The designer's tier: the only one that outputs native SVG, and it sets whole paragraphs.",
+          "fare": "$0.21 / image",
+          "routes": "On ANTEI · 1 route",
+          "src": "Made here · Recraft V4 Pro",
+          "tags": {
+            "0": "Vector logos",
+            "1": "Brand collateral",
+            "2": "Full paragraphs"
+          },
+          "plus": {
+            "0": "The only model that generates true vector SVG",
+            "1": "Readable paragraphs where others manage 2–3 words",
+            "2": "Top of the HF text-to-image arena since October 2024"
+          },
+          "minus": {
+            "0": "$0.21 an image is the most expensive in the image section",
+            "1": "Design-specialised: general photorealism is not its ground"
+          }
+        },
+        "novelai": {
+          "pos": "The newest anime specialist: 22 characters in one frame without blending, and a whole comic page in one pass.",
+          "fare": "Usage-based · V4.5 tier from $0.01 / image",
+          "routes": "On ANTEI · 4 routes (V5 ×2 + V4.5 ×2)",
+          "src": "novelai.net official samples",
+          "tags": {
+            "0": "Anime figures",
+            "1": "Many characters",
+            "2": "Comic panels"
+          },
+          "plus": {
+            "0": "Twice the size plus a 32-channel VAE: detail down to hair strands and trinkets",
+            "1": "Up to 22 characters in one frame — multi-panel comics lay out directly",
+            "2": "Prompts in Japanese, traditional Chinese and more; transparency supported"
+          },
+          "minus": {
+            "0": "Anime-specialised; not for realistic scenes",
+            "1": "Not in the unlimited tier, and billed tighter than V4.5"
+          }
+        },
+        "illustrious": {
+          "pos": "The leading open anime base: enormous character knowledge and the busiest fine-tuning scene.",
+          "fare": "$0.14 / image (direct API)",
+          "routes": "On ANTEI · 1 API route + its own entry in LoRA",
+          "src": "illustriousxl.org official showcase",
+          "tags": {
+            "0": "Anime characters",
+            "1": "Fan work",
+            "2": "LoRA base"
+          },
+          "plus": {
+            "0": "Trained on all of Danbooru: the widest character recall here",
+            "1": "Far steadier structure — hands and feet — than its open-source generation",
+            "2": "The busiest fine-tune scene (WAI and others); you will meet it again in LoRA"
+          },
+          "minus": {
+            "0": "Character knowledge stops mid-2024; it will not know a new season",
+            "1": "Realism and design work are not its race"
+          }
+        },
+        "ill-b": {
+          "pos": "The base-model entry: the anime foundation with the liveliest LoRA scene.",
+          "fare": "$0.14 / image (direct API)",
+          "routes": "On ANTEI · API and Runner, both",
+          "src": "In-app base-model cover",
+          "tags": {
+            "0": "Anime base",
+            "1": "Liveliest scene",
+            "2": "Two routes"
+          },
+          "plus": {
+            "0": "The largest Civitai scene: the fullest set of character and style LoRAs",
+            "1": "Full Danbooru grounding — character terms land straight away",
+            "2": "The API route needs no deployment; the Runner route mounts anything"
+          },
+          "minus": {
+            "0": "Weak towards realism",
+            "1": "New-season characters have to come from a LoRA"
+          }
+        },
+        "wai": {
+          "pos": "The crowd-favourite tune: a polished anime face straight out of the box.",
+          "fare": "Usage-based (Runner)",
+          "routes": "On ANTEI · self-hosted Runner",
+          "src": "In-app base-model cover",
+          "tags": {
+            "0": "Community favourite",
+            "1": "No setup",
+            "2": "Anime characters"
+          },
+          "plus": {
+            "0": "A fixture on the community charts — good-looking on default settings",
+            "1": "Takes Illustrious-family LoRAs, so characters reproduce reliably",
+            "2": "Runs straight on the Runner with every parameter open"
+          },
+          "minus": {
+            "0": "Leans sweet; not the one for hard realism",
+            "1": "Queue depends on Runner load"
+          }
+        },
+        "pencil": {
+          "pos": "Pencil and clean line: sketch-feel illustration in one pass.",
+          "fare": "Usage-based (Runner)",
+          "routes": "On ANTEI · self-hosted Runner",
+          "src": "In-app base-model cover",
+          "tags": {
+            "0": "Clean line",
+            "1": "Sketch feel",
+            "2": "Illustration"
+          },
+          "plus": {
+            "0": "A pencil and clean-line texture nothing else here has",
+            "1": "Works for line art and for finished colour alike",
+            "2": "Runs straight on the Runner with every parameter open"
+          },
+          "minus": {
+            "0": "Narrow subject range: illustration is the point",
+            "1": "Not made for thick-paint realism"
+          }
+        },
+        "pony": {
+          "pos": "The grandfather of the style universe: somebody has trained every look on it.",
+          "fare": "Usage-based (Runner)",
+          "routes": "On ANTEI · self-hosted Runner",
+          "src": "In-app base-model cover",
+          "tags": {
+            "0": "Style scene",
+            "1": "The elder",
+            "2": "Broad support"
+          },
+          "plus": {
+            "0": "The widest LoRA compatibility of any base here",
+            "1": "A mature system of style trigger words",
+            "2": "The deepest community back catalogue"
+          },
+          "minus": {
+            "0": "Plain faces out of the box; LoRAs do the lifting",
+            "1": "Prompt syntax has a learning curve (the score terms)"
+          }
+        },
+        "sdxl": {
+          "pos": "The general-purpose veteran: realism through illustration, it takes it all.",
+          "fare": "Usage-based (Runner)",
+          "routes": "On ANTEI · self-hosted Runner",
+          "src": "In-app base-model cover",
+          "tags": {
+            "0": "General purpose",
+            "1": "Veteran",
+            "2": "Realism-capable"
+          },
+          "plus": {
+            "0": "The open base with the broadest ecosystem coverage",
+            "1": "Realism, design and illustration all run on it",
+            "2": "The most mature tooling and the most documentation"
+          },
+          "minus": {
+            "0": "Raw quality has been left behind by newer models",
+            "1": "Standing out takes a LoRA stack"
+          }
+        },
+        "anima": {
+          "pos": "The new-architecture testbed: an anime newcomer on a DiT foundation.",
+          "fare": "Usage-based (Runner)",
+          "routes": "On ANTEI · self-hosted Runner (v4 pipeline)",
+          "src": "In-app base-model cover",
+          "tags": { "0": "DiT architecture", "1": "Newcomer", "2": "Testbed" },
+          "plus": {
+            "0": "A new DiT architecture with a high ceiling for detail",
+            "1": "The v4 pipeline is already deployed here",
+            "2": "A fresh option on the anime side"
+          },
+          "minus": {
+            "0": "The scene is only starting; few LoRAs",
+            "1": "Generation takes longer"
+          }
+        },
+        "seedance": {
+          "pos": "Reference generation in one go: the video workhorse, on 18 routes.",
+          "fare": "$0.12–0.30 / second",
+          "routes": "On ANTEI · 18 routes (fal / VolcEngine / BytePlus / Ark)",
+          "src": "fal.ai official demo frame · Seedance 2.0",
+          "tags": {
+            "0": "Reference input",
+            "1": "Many routes",
+            "2": "Voice cloning"
+          },
+          "plus": {
+            "0": "Reference endpoint: an image and three voice samples, fed together",
+            "1": "Every tier from 2.0 to 2.5 is live, with four integrations backing each other up",
+            "2": "The steadiest first-frame image-to-video here"
+          },
+          "minus": {
+            "0": "Top-end 2.5 is the priciest per second",
+            "1": "Past 10 seconds you have to stitch"
+          }
+        },
+        "minimax": {
+          "pos": "The value workhorse: two regions, and reference input on both.",
+          "fare": "$0.11–0.13 / second",
+          "routes": "On ANTEI · 4 routes (overseas + China × reference)",
+          "src": "fal.ai official demo frame · MiniMax",
+          "tags": { "0": "Dual region", "1": "Value", "2": "Reference input" },
+          "plus": {
+            "0": "A reference endpoint even at the low tier",
+            "1": "The China routes are friendly on latency",
+            "2": "Well regarded for natural human motion"
+          },
+          "minus": {
+            "0": "Few 1080p tiers",
+            "1": "Weaker than Kling on stylised camera work"
+          }
+        },
+        "wan30": {
+          "pos": "Alibaba's workhorse: shipped upstream, and we are still adding routes.",
+          "fare": "$0.10 / second",
+          "routes": "On ANTEI · 2 routes (text-to-video / reference) · more to come",
+          "src": "Pending in-app generation",
+          "tags": { "0": "Reference input", "1": "Low price", "2": "Growing" },
+          "plus": {
+            "0": "The lowest unit price on the whole site, at $0.10 a second",
+            "1": "The reference-to-video route is live",
+            "2": "Upstream keeps shipping endpoints and we keep adding them"
+          },
+          "minus": {
+            "0": "Plain camera language",
+            "1": "Only fair consistency over longer takes"
+          }
+        },
+        "horse": {
+          "pos": "The fast-tier dark horse: top-five value on the blind-test board.",
+          "fare": "$0.14 / second",
+          "routes": "On ANTEI · 1 route",
+          "src": "fal.ai official demo frame · HappyHorse 1.1",
+          "tags": { "0": "Fast tier", "1": "Blind-test board", "2": "Value" },
+          "plus": {
+            "0": "Top five on the Artificial Analysis blind-test board (v1.1 and v1.0 share the ranking — our note)",
+            "1": "Quick to finish a clip",
+            "2": "Friendly unit price"
+          },
+          "minus": {
+            "0": "Only fair style control",
+            "1": "Little written about it"
+          }
+        },
+        "kling": {
+          "pos": "The camera one: the name people trust for movement and texture.",
+          "fare": "$0.14–0.17 / second",
+          "routes": "On ANTEI · 2 routes (3.0 Pro / O3 Pro Omni)",
+          "src": "fal.ai official demo frame · Kling O3",
+          "tags": { "0": "Camera work", "1": "Texture", "2": "Omni" },
+          "plus": {
+            "0": "First rank for camera movement and physical texture",
+            "1": "O3 Pro Omni is the all-round endpoint",
+            "2": "Delicate human performance"
+          },
+          "minus": {
+            "0": "3.0 Pro does not take reference input (our note)",
+            "1": "Upper-middle unit price"
+          }
+        },
+        "gomni": {
+          "pos": "The quick all-rounder: get the idea moving, cheaply.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 1 route",
+          "src": "Pending in-app generation",
+          "tags": { "0": "All-round", "1": "Fast", "2": "Usage-based" },
+          "plus": {
+            "0": "Text-to-video and image-to-video in one place",
+            "1": "Fast and cheap — right for a rough pass",
+            "2": "Strong image understanding from the Google side"
+          },
+          "minus": {
+            "0": "A lower ceiling than the dedicated video models",
+            "1": "Coarse style control"
+          }
+        },
+        "fish": {
+          "pos": "The workhorse for lines: the name people trust for natural Chinese speech.",
+          "fare": "$0.20 / thousand characters",
+          "routes": "On ANTEI · the free s2.1-pro-free tier is live",
+          "src": "fish.audio official artwork",
+          "tags": {
+            "0": "Chinese dialogue",
+            "1": "Voice library",
+            "2": "Free tier"
+          },
+          "plus": {
+            "0": "First rank for natural spoken Chinese",
+            "1": "Pick from the in-app voice library, or clone",
+            "2": "The free tier is wired up (s2.1-pro-free)"
+          },
+          "minus": {
+            "0": "Slightly flat English accent",
+            "1": "Extreme emotion needs the temperature adjusted"
+          }
+        },
+        "eleven": {
+          "pos": "Effects and score: SFX and Music, two routes.",
+          "fare": "Usage-based – $0.15 / second",
+          "routes": "On ANTEI · 2 routes (SFX v2 + Music v2)",
+          "src": "elevenlabs.io official artwork",
+          "tags": { "0": "Sound effects", "1": "Score", "2": "Two routes" },
+          "plus": {
+            "0": "SFX: one sentence, one foley take",
+            "1": "Music: the structure of a full cue stays under control",
+            "2": "The industry benchmark for audio quality"
+          },
+          "minus": {
+            "0": "Only fair with Chinese lyrics",
+            "1": "Billed per second, so length has to be watched"
+          }
+        },
+        "rodin": {
+          "pos": "Multi-view control: up to 5 references feed a single model.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 1 route",
+          "src": "hyper3d.ai official artwork",
+          "tags": {
+            "0": "Multi-view",
+            "1": "Controllable",
+            "2": "Production feel"
+          },
+          "plus": {
+            "0": "Up to 5 reference images (our cap)",
+            "1": "Topology clean enough to keep editing afterwards",
+            "2": "A four-view workflow"
+          },
+          "minus": {
+            "0": "On the slow tier for generation",
+            "1": "Only fair texture ceiling"
+          }
+        },
+        "hunyuan": {
+          "pos": "The polygon king: a 1.5-million-face ceiling for the detail-minded.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 2 routes (v3.1 Pro / v3)",
+          "src": "Pending in-app generation",
+          "tags": { "0": "High poly", "1": "Detail", "2": "Two versions" },
+          "plus": {
+            "0": "40k to 1.5M faces, adjustable (500k by default)",
+            "1": "Textured mesh in one pass",
+            "2": "v3.1 Pro sharpens the detail further"
+          },
+          "minus": {
+            "0": "High-poly exports are large files",
+            "1": "Better at organic forms than hard surfaces"
+          }
+        },
+        "trellis": {
+          "pos": "Every dial exposed: resolution, texture and decimation are all yours.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 1 route",
+          "src": "microsoft.github.io/TRELLIS official teaser",
+          "tags": {
+            "0": "Full control",
+            "1": "Decimation",
+            "2": "Game pipeline"
+          },
+          "plus": {
+            "0": "Three resolution tiers: 512 / 1024 / 1536",
+            "1": "Textures from 1K to 4K",
+            "2": "Decimation from 5k to 2M drops straight into a game pipeline"
+          },
+          "minus": {
+            "0": "Middling speed",
+            "1": "Stylised input trips it up"
+          }
+        },
+        "tripo": {
+          "pos": "The seconds tier: one image, one grey model, a few seconds.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 1 route",
+          "src": "tripo3d.ai official artwork",
+          "tags": { "0": "Seconds", "1": "Lightweight", "2": "Mockups" },
+          "plus": {
+            "0": "The fastest model here",
+            "1": "Light grey models, right for a mockup",
+            "2": "Open-source roots, friendly ecosystem"
+          },
+          "minus": {
+            "0": "No texture detail",
+            "1": "Complex structures blur"
+          }
+        }
       }
-    },
-    "studioView": {
-      "prompt": "A ridge at dusk, cloud sea spilling through the pass. Backlit, 35mm, grain, cool cast.",
-      "size": "1536 × 864",
-      "perModel": "1 image per model",
-      "ownKey": "Your own API key",
-      "estimate": "about $0.15",
-      "generateAll": "Generate all four",
-      "picked": "Picked",
-      "barPrompt": "PROMPT · A ridge at dusk, cloud sea through the pass",
-      "barDone": "4 / 4 done"
-    },
-    "imageDemo": {
-      "bar": "PROMPT · anime male character, short black hair, amber eyes",
-      "promptLine": "anime male character, short black hair, amber eyes, stand-collar jacket",
-      "pick": "Pick an edit",
-      "same": "Same character",
-      "base": {
-        "action": "Original",
-        "note": "Written from the sentence above."
-      },
-      "outfit": {
-        "action": "Change the outfit",
-        "note": "Only the jacket changed. Same face, same pose, same light."
-      },
-      "style": {
-        "action": "Change the style",
-        "note": "Redrawn as a game sprite. Still the same character."
-      },
-      "generate": "Generate",
-      "hint": "Press generate to run the prompt above.",
-      "running": "Generating",
-      "real": {
-        "action": "Make it a photo",
-        "note": "Taken to a photograph. Same face, same mole, same jacket."
-      }
-    },
-    "loraView": {
-      "base": "Base model",
-      "stack": "LoRA stack",
-      "triggers": "Trigger words",
-      "generateSet": "Generate a set",
-      "shotFront": "Front",
-      "shotProfile": "Profile",
-      "shotWaist": "Waist up",
-      "footA": "Same character · three framings · one set of weights",
-      "footB": "Lock identity, release composition and light"
-    },
-    "assetsView": {
-      "treeTitle": "Archive",
-      "folderAll": "All",
-      "folderProject": "Night Ferry Letter",
-      "folderCharacters": "Character sheets",
-      "folderStudies": "Ridge studies",
-      "folderVoice": "Voice",
-      "folderAssets3d": "3D assets",
-      "rowModel": "Model",
-      "rowProvider": "Provider",
-      "rowSeed": "seed",
-      "rowTime": "Time",
-      "prompt": "Autumn woodland, a fox asleep in fallen leaves. Shallow depth of field, warm light."
-    },
-    "videoDemo": {
-      "bar": "First frame · Seedream 5.0 → Seedance 2.0",
-      "firstFrame": "First frame",
-      "play": "Play video",
-      "pause": "Pause video",
-      "seek": "Seek video"
-    },
-    "turntableDemo": {
-      "bar": "Source · Still life #0142"
     },
     "foot": {
       "tagline": "Generate, archive and reuse in one place. Every result keeps its key settings.",
-      "cols": {
-        "product": {
-          "title": "Product",
-          "items": {
-            "i1": "Canvas",
-            "i2": "Studio",
-            "i3": "LoRA",
-            "i4": "Assets",
-            "i5": "Gallery"
-          }
-        },
-        "resources": {
-          "title": "Resources",
-          "items": {
-            "i1": "Model catalogue",
-            "i2": "Pricing",
-            "i3": "Changelog",
-            "i4": "Docs"
-          }
-        },
-        "company": {
-          "title": "Company",
-          "items": {
-            "i1": "About",
-            "i2": "Contact",
-            "i3": "Status"
-          }
-        }
-      },
       "privacy": "Privacy policy",
       "terms": "Terms of service"
     }
@@ -3308,6 +3750,14 @@
     "seedream50LiteVolcengine": {
       "label": "Seedream 5.0 Lite (VolcEngine)",
       "description": "Value tier of Seedream 5.0 via VolcEngine (Ark) direct API — China region, cheaper than the same model on fal."
+    },
+    "seedream50ProByteplus": {
+      "label": "Seedream 5.0 Pro (BytePlus)",
+      "description": "Seedream 5.0 Pro via BytePlus ModelArk — the international Ark station, billed in USD. Single images only, no batch generation."
+    },
+    "seedream50LiteByteplus": {
+      "label": "Seedream 5.0 Lite (BytePlus)",
+      "description": "Value tier of Seedream 5.0 via BytePlus ModelArk — the international Ark station, billed in USD."
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
@@ -5842,6 +6292,7 @@
       "referenceImageUnreachable": "The provider could not download the reference image. Use a direct public image URL or upload the image again.",
       "referenceImageLimitExceeded": "This model received too many reference images. Remove some reference images and try again.",
       "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again.",
+      "accountLimitReached": "The provider account has hit the usage limit configured for this model, and the model service is paused. Retrying will not help — raise or remove that limit in the provider's console, or switch to a different model.",
       "outputBudgetExhausted": "This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.",
       "contextLimitExceeded": "This model's context window is still too small after PixelVault compacted older history and retried once. Start a new conversation or remove large references.",
       "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",
@@ -5868,6 +6319,7 @@
       "reference_image_unreachable": "The provider could not download the reference image",
       "reference_image_limit_exceeded": "This model received too many reference images",
       "invalid_reference_image_dimensions": "The reference image size or aspect ratio is not supported",
+      "provider_account_limit_reached": "The provider account hit its configured usage limit for this model and the service is paused. Retrying will not help — adjust the limit in the provider's console.",
       "runner_queue_stuck": "PixelVault Runner accepted the job but no GPU worker picked it up, so it was cancelled. Retrying will just queue again — use a hosted model for now, or ask the site admin to check the Runner endpoint.",
       "execution_worker_unavailable": "The request never reached the execution service. In local dev, start workers/execution and wait for “Ready on 8787”; in production, check that the execution service is reachable.",
       "lora_incompatible_hosted": "This hosted model's LoRA loader can't read this LoRA's layer format (the LoRA itself is fine). Switch to a Runner-backed model — retrying the same hosted model will not change anything.",

@@ -425,7 +425,7 @@ owner：「图片编辑那一片还没做呢。新开一个专门做这个。」
 **字体（2026-08-07 更新）**：owner 原话「**字体如果有更好的可以再设计**」。→ 这条从「等 owner 拍板」变成「**我方出方向**」。**别再用选择题问**（已问过一轮无结果）。做法：铺 3 个字体方向，每个配同一段真实首页文案的对照渲染，让 owner 看着选。排版是这个方向唯一的强调手段，字体不定后面全是白工。
 
 ⚠ 「白厅画廊」是**线上现状**已进 main，不是待合方向。
-⚠ 首页是全项目唯一允许 GSAP 的域，必须动态导入不进主 chunk（落点 `HomeV3Motion.tsx`）。
+⚠ 首页是全项目唯一允许 GSAP 的域，必须动态导入不进主 chunk（落点＝首页营销域 `home-v4/`）。
 
 ---
 
@@ -484,8 +484,8 @@ owner：「图片编辑那一片还没做呢。新开一个专门做这个。」
 ### 已有的地基（不用重造，直接用）
 
 - **动效 canon 双份同步**：`src/app/globals.css` 与 `src/constants/motion.ts`（135 行）。标准曲线 `cubic-bezier(0.22, 1, 0.36, 1)`；四档时长 `--duration-fast/base/slow/reveal = 120/200/320/500ms`；交错 `STAGGER_STEP_S 0.05` / `STAGGER_MAX_S 0.3`；画布专属 `--ease-ingest`、`--ease-soft-return` 与 `INGEST_MOTION`、`NODE_EDGE_SIGNING_MOTION` 编排常量。**写动效调档位，别现编数字。**
-- **薄脊柱 + 域皮肤已落地**：`globals.css` 1741 行（脊柱）+ `canvas.css` 4063 / `home-v3.css` 2549 / `lora.css` 133（域皮肤）+ `auth.css` / `legal.css`。
-- **动画库分工已执行到位**：`motion` 15 处（app 内部唯一）· `gsap` 仅 `HomeV3Motion.tsx` 一处（符合「GSAP 只在首页营销域」的约定）。
+- **薄脊柱 + 域皮肤已落地**：`globals.css` 1741 行（脊柱）+ `canvas.css` 4063 / `home-v4.css` / `lora.css` 133（域皮肤）+ `auth.css` / `legal.css`。
+- **动画库分工已执行到位**：`motion` 15 处（app 内部唯一）· `gsap` 仅首页营销域一处（符合「GSAP 只在首页营销域」的约定）。
 
 ### J1 · 补视觉基线 ⛔ I 的前置
 
@@ -649,7 +649,7 @@ owner：「图片编辑那一片还没做呢。新开一个专门做这个。」
 | **C+F**   | ui-page           | ⚠ **走设计治理**：域定义 → 三方向 → 关键切片 → owner 确认 → **才写码**。C4 画质是唯一例外（纯工程 bug），**已单独修完**，剩下的 C1/C2/C3/C5/C6 + F 全部照走治理。⚠ C1 裁切与 C4 不同源，别当成一起修完了。⭐ **还欠一件 C4 的尾巴**：存量 384px 缩略图回填（owner 定了并进这一批），约束见 §C4 末尾 |
 | **D**     | 多场景            | D0（一次多张 / 多模型各一张）优先，它同时影响 Studio 和画布两处 → D1 UI 走设计治理 → D2/D3/D4 各自拆包                                                                                                                                                                                              |
 | **E**     | 文档              | ①先出「文件 → 已实现/在飞/规则 → 依据 commit」**清单**给 owner 过目 → ②批准后才删 → ③工作流部分**逐条与 owner 核对**                                                                                                                                                                                |
-| **G**     | ui-marketing      | ①**先铺 3 个字体方向做对照**（别用选择题）→ owner 选定 → ②按 `homepage-motion-design-2026-07-27.md` §9 推进 → GSAP 只能动态导入进 `HomeV3Motion.tsx`                                                                                                                                                |
+| **G**     | ui-marketing      | ①**先铺 3 个字体方向做对照**（别用选择题）→ owner 选定 → ②按 `homepage-motion-design-2026-07-27.md` §9 推进 → GSAP 只能动态导入，且只在首页营销域                                                                                                                                                   |
 | ~~**H**~~ | ~~bugfix~~        | ✅ 已完成（`eb295d23` + `6c3add69`）——详见上方 H 段的「真根因」与「被推翻的三条」                                                                                                                                                                                                                   |
 | **I**     | ui-page           | ⛔ **先做 J1**，再走设计治理：域定义先确立「侧边栏 = 薄品牌脊柱，不属任何单域皮肤」→ 三方向 → 关键切片 → owner 确认 → 才写码 → 同步 `app-shell.md`                                                                                                                                                  |
 | **J**     | testing / 工程    | J1 补基线（画廊/素材/LoRA/画布各一张，照抄 `e2e/tools/canvas-ui-shots.mjs`）→ J2 删 `framer-motion` 死依赖 → J3 修 `globals.css:162` 悬空引用（可并进 E）                                                                                                                                           |

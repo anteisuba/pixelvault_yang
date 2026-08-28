@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  HOMEPAGE_MODEL_REFERENCE_PRICES,
-  resolveHomepageReferencePrice,
-} from '@/constants/homepage'
 import { getModelById } from '@/constants/models'
 import { AI_MODELS } from '@/constants/models/enum'
 import {
@@ -127,35 +123,10 @@ describe('model unit prices', () => {
     }
   })
 
-  it('⚠ 两张表不得重叠 —— 首页存量表只放本表没覆盖的', () => {
-    // 这条断言变过两次，记一下为什么：
-    //
-    //  1. 最初「不得重叠」—— 立错了：补齐 fal 价格后必然重叠。
-    //  2. 改成「只比单位不比金额」—— 也不对：它把「首页低报 3 倍」正当化成了
-    //     「两个口径」，于是那个 bug 被测试保护了起来。
-    //  3. 现在（owner 2026-08-08 拍板首页从本表派生）重叠**真的**不该存在了：
-    //     同一个模型两个数字，就是漂移本身。
-    for (const [id] of entries) {
-      expect(
-        HOMEPAGE_MODEL_REFERENCE_PRICES[id],
-        `${id} 在两张表里都有 —— 首页那条要删，取值走 resolveHomepageReferencePrice`,
-      ).toBeUndefined()
-    }
-  })
-
-  it('首页取价走本表；本表没有的才退回存量表', () => {
-    for (const [id, price] of entries) {
-      const resolved = resolveHomepageReferencePrice(id)
-      expect(resolved, `${id} 应当能从本表取到价`).not.toBeNull()
-      expect(resolved?.amount).toBe(price.amount)
-      expect(resolved?.unit).toBe(price.unit)
-    }
-  })
-
   it('⚠ 口径成立的前提：有价的视频模型全都默认开音频', () => {
     // owner 选的是「按产品默认档」。当前它恰好等于本表的含音频口径 —— 因为所有
     // 有价视频模型都 `generateAudio: true`。**这是巧合不是定理**：哪天进来一个
-    // 默认关音频的模型，本表就必须加一列区分，否则首页会高报它的价。
+    // 默认关音频的模型，本表就必须加一列区分，否则比价界面会高报它的价。
     for (const [id] of entries) {
       const model = getModelById(id)
       if (!model || model.outputType !== 'VIDEO') continue

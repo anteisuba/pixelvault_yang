@@ -1,0 +1,3746 @@
+/*
+ * v4 marketing home — skin lane.
+ *
+ * Construction spec: `docs/plans/prototypes/homepage-slide-v2-SPEC.html`. The
+ * rules below are that file's `<style>`, migrated 1:1 for the P1 surface (engine,
+ * navigation, opening, finale). The performance skins for the six feature pages
+ * and the model stations land with P2/P3.
+ *
+ * Scoping is strict: everything lives under `.home-v4` and nothing declares
+ * domain tokens at `:root` — the canvas skin once leaked into two assistant
+ * docks that way.
+ *
+ * The two things that genuinely have to reach outside the domain root are the
+ * scroll and touch locks, and they do it through a class the deck adds to
+ * `<html>`/`<body>` on mount and removes on unmount, so no other route inherits
+ * a frozen page.
+ */
+
+html.home-v4-locked,
+body.home-v4-locked {
+  height: 100%;
+  overflow: hidden;
+}
+
+.home-v4 {
+  /* The app's <html> carries `.dark`; without an explicit color-scheme the
+     native scrollbar and form controls render dark on this white page. */
+  color-scheme: light;
+
+  --paper: #ffffff;
+  --ink: #0a0a0a;
+  --dim: #616167;
+  --line: #e6e6e2;
+  /* Not in the SPEC's :root — it uses `--line-2` in fourteen places and never
+     declares it, so every one of them fell back to nothing (the page dots were
+     invisible until they went active). One step darker than `--line`. */
+  --line-2: #d3d3ce;
+  --panel: #f4f4f1;
+  --panel2: #ebebe7;
+
+  /* ⚠ `var(--cjk)` 必须排在 monospace 之前：IBM Plex Mono 一个汉字字形都没有，
+     少了这一段，凡是走 `--mono` 的中文都掉进系统 monospace 的宋体回落 ——
+     owner 2026-08-28「小字号都看不清，中文尤其丑」的根因就是这一条。`--cjk`
+     自带 PingFang / 微软雅黑 的系统回落，并在 `[data-locale='ja']` 上整段换成
+     日文面，所以 /ja 也不会掉进明朝体。 */
+  --mono: var(--font-home-mono), ui-monospace, Consolas, var(--cjk), monospace;
+  --sans:
+    var(--font-home-sans), var(--cjk), -apple-system, 'PingFang SC', sans-serif;
+  /* 2026-08-28 字体拍板 B：标题走衬线（刊物重量），正文与数据字不变 */
+  /* `--serif-cjk` is a next/font variable, so it already ends in its own
+     system-serif fallbacks — repeating them here would only duplicate them. */
+  --serif: var(--serif-cjk), serif;
+  --cjk: var(--font-chinese-sans);
+  --serif-cjk: var(--font-home-serif);
+
+  --gut: clamp(22px, 5vw, 80px);
+  --bar: 54px;
+
+  /* Motion. `HomeV4Deck` overwrites these inline from `HOME_V4_ENGINE` /
+     `HOME_V4_PARALLAX` so the numbers have exactly one home; the literals here
+     are the same SPEC values and only apply if the script never runs. */
+  --dur: 850ms;
+  --l1-dur: 1050ms;
+  --l3-dur: 680ms;
+  --hfade: 750ms;
+  --l1-v: 7vh;
+  --l2-v: 13vh;
+  --l3-v: 22vh;
+  --l1-h: 6vw;
+  --l2-h: 11vw;
+  --l3-h: 18vw;
+  --dot-stagger: 18ms;
+
+  --easing: cubic-bezier(0.65, 0.05, 0.28, 1);
+
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Keyed off the domain root's own attribute, not `<html lang>`: the root layout
+   owns `lang` and never re-renders across client navigations. */
+.home-v4[data-locale='ja'] {
+  --cjk: var(--font-japanese-sans);
+  --serif-cjk: var(--font-home-serif-jp);
+}
+
+.home-v4 *,
+.home-v4 *::before,
+.home-v4 *::after {
+  box-sizing: border-box;
+}
+
+.home-v4 :focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.home-v4 button {
+  font: inherit;
+  color: inherit;
+}
+
+.home-v4 .mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── 登录条：浮岛 ───────────────────────────────────────────────
+   owner 评论拍板回退线上设计：brand · 语言 · 登录，没有 nav links。
+   条子不再横贯视口，而是一枚居中胶囊 —— 所以是 top+translateX 定位，
+   `--bar` 只剩一个用途：给 `.page-inner` 算顶部留白。 */
+.home-v4 .topbar {
+  position: fixed;
+  z-index: 80;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100vw - 28px), max(50vw, 560px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 22px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 12px 34px -18px rgba(10, 10, 10, 0.28),
+    inset 0 0 0 1px var(--line);
+}
+
+.home-v4 .topbar .logo {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 15.5px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+/* 撑开的是它，不是 `.locales` 的 `margin-left: auto` —— 手机上语言标整块
+   隐藏，靠边距推的话登录钮会跟着塌回品牌字旁边。 */
+.home-v4 .topbar .spacer {
+  flex: 1;
+}
+
+.home-v4 .topbar .locales {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  margin-right: 4px;
+}
+
+.home-v4 .topbar .locales a {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  text-decoration: none;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.home-v4 .topbar .locales a:hover {
+  color: var(--ink);
+}
+
+.home-v4 .topbar .locales a[data-active] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.home-v4 .topbar .login {
+  padding: 8px 20px;
+  background: var(--ink);
+  color: var(--paper);
+  border: 0;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ─── 翻页引擎：竖站 ────────────────────────────────────────────── */
+.home-v4 .deck {
+  position: fixed;
+  inset: 0;
+  background: var(--paper);
+}
+
+.home-v4 .vp {
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  /* 错速层在待命位会探出页界（横向 11–18vw），必须就地裁剪 */
+  overflow: hidden;
+  transform: translateY(100vh);
+  transition: transform var(--dur) var(--easing);
+  will-change: transform;
+}
+
+.home-v4 .vp[data-pos='on'] {
+  transform: translateY(0);
+}
+
+.home-v4 .vp[data-pos='before'] {
+  transform: translateY(-100vh);
+}
+
+/* 三层错速：层的过渡时长与页错开，翻页瞬间层在页内继续滑，产生深度。
+   l1 背景最慢 · l2 文字中速（= --dur） · l3 视觉块最快。 */
+.home-v4 .l1,
+.home-v4 .l2,
+.home-v4 .l3 {
+  transition: transform var(--dur) var(--easing);
+  will-change: transform;
+}
+
+.home-v4 .l1 {
+  transition-duration: var(--l1-dur);
+}
+
+.home-v4 .l3 {
+  transition-duration: var(--l3-dur);
+}
+
+.home-v4 .vp[data-pos='after'] .l1 {
+  transform: translateY(calc(-1 * var(--l1-v)));
+}
+
+.home-v4 .vp[data-pos='after'] .l2 {
+  transform: translateY(calc(-1 * var(--l2-v)));
+}
+
+.home-v4 .vp[data-pos='after'] .l3 {
+  transform: translateY(calc(-1 * var(--l3-v)));
+}
+
+.home-v4 .vp[data-pos='before'] .l1 {
+  transform: translateY(var(--l1-v));
+}
+
+.home-v4 .vp[data-pos='before'] .l2 {
+  transform: translateY(var(--l2-v));
+}
+
+.home-v4 .vp[data-pos='before'] .l3 {
+  transform: translateY(var(--l3-v));
+}
+
+.home-v4 .vp[data-pos='on'] .l1,
+.home-v4 .vp[data-pos='on'] .l2,
+.home-v4 .vp[data-pos='on'] .l3 {
+  transform: none;
+}
+
+.home-v4 .page-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 2.4vh, 26px);
+  padding: calc(var(--bar) + 16px) var(--gut) 44px;
+  position: relative;
+}
+
+/* ─── 横站（模型区）：站内横排页 ────────────────────────────────── */
+.home-v4 .hwrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* 横向切换语法：不平推 —— 背景交叉淡化，内容层错速滑入。
+   竖向保持上推；横向像画廊换灯箱片。 */
+.home-v4 .hpg {
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--hfade) ease;
+  will-change: opacity;
+}
+
+.home-v4 .hpg[data-pos='on'] {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.home-v4 .hpg[data-pos='before'],
+.home-v4 .hpg[data-pos='after'] {
+  z-index: 1;
+}
+
+.home-v4 .hpg[data-pos='after'] .l1 {
+  transform: translateX(calc(-1 * var(--l1-h)));
+}
+
+.home-v4 .hpg[data-pos='after'] .l2 {
+  transform: translateX(calc(-1 * var(--l2-h)));
+}
+
+.home-v4 .hpg[data-pos='after'] .l3 {
+  transform: translateX(calc(-1 * var(--l3-h)));
+}
+
+.home-v4 .hpg[data-pos='before'] .l1 {
+  transform: translateX(var(--l1-h));
+}
+
+.home-v4 .hpg[data-pos='before'] .l2 {
+  transform: translateX(var(--l2-h));
+}
+
+.home-v4 .hpg[data-pos='before'] .l3 {
+  transform: translateX(var(--l3-h));
+}
+
+.home-v4 .hpg[data-pos='on'] .l1,
+.home-v4 .hpg[data-pos='on'] .l2,
+.home-v4 .hpg[data-pos='on'] .l3 {
+  transform: none;
+}
+
+/* ─── 通用排版 ──────────────────────────────────────────────────── */
+.home-v4 .eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.home-v4 h1,
+.home-v4 h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 900;
+  letter-spacing: 0.015em;
+  line-height: 1.24;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.home-v4 h1 {
+  font-size: clamp(2.2rem, 5.6vw, 4.6rem);
+}
+
+.home-v4 h2 {
+  font-size: clamp(1.9rem, 4.6vw, 3.6rem);
+}
+
+.home-v4 .sub {
+  margin: 0;
+  font-size: clamp(0.92rem, 1.4vw, 1.05rem);
+  color: var(--dim);
+  text-align: center;
+}
+
+.home-v4 .cta {
+  display: inline-block;
+  padding: 13px 34px;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.home-v4 .fg {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(14px, 2.4vh, 26px);
+  width: 100%;
+}
+
+/* 占位页（P2/P3 会换成演出）：只有 eyebrow + 标题 */
+.home-v4 .stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+/* ─── 开场页 · 作品墙 + 跑马灯 + SCROLL cue ─────────────────────── */
+
+/* 巨型品牌字，压在内容底下当水印。
+   ⚠ 居中只能用 `inset: 0` + grid，不能用 `translate(-50%,-50%)`：它挂在 l1
+   错速层上，翻页时引擎会把 `transform` 整个改写掉，居中会跟着飞出去。 */
+.home-v4 .op-brand {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--serif);
+  font-weight: 900;
+  font-size: clamp(150px, 21vw, 390px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--ink) 5%, var(--paper));
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.home-v4 .op-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.home-v4 .op-stat {
+  opacity: 0;
+  transition: opacity 0.7s ease 0.1s;
+}
+
+.home-v4 .op-hero.in .op-stat {
+  opacity: 1;
+}
+
+.home-v4 .op-hero h1 {
+  margin: 0;
+}
+
+.home-v4 .opl {
+  display: block;
+  overflow: hidden;
+}
+
+.home-v4 .opl > span {
+  display: inline-block;
+  transform: translateY(112%);
+  transition: transform var(--dur) cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.home-v4 .opl:nth-child(2) > span {
+  transition-delay: 0.12s;
+}
+
+.home-v4 .op-hero.in .opl > span {
+  transform: none;
+}
+
+.home-v4 .op-strip {
+  flex: none;
+  width: min(1270px, 94vw);
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.home-v4 .op-strip figure {
+  position: relative;
+  margin: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 120px;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: 0 16px 40px -22px rgba(10, 10, 10, 0.35);
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.55s ease,
+    transform 0.6s cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+.home-v4 .op-strip figure.in {
+  opacity: 1;
+  transform: none;
+}
+
+.home-v4 .op-strip img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.home-v4 .op-strip img.b {
+  opacity: 0;
+  transition: opacity 0.85s ease;
+}
+
+.home-v4 .op-strip figure.swap img.b {
+  opacity: 1;
+}
+
+.home-v4 .op-note {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+.home-v4 .op-note.in {
+  opacity: 1;
+}
+
+.home-v4 .op-mq {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 44px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
+}
+
+.home-v4 .op-mq.in {
+  opacity: 1;
+}
+
+.home-v4 .op-track {
+  display: flex;
+  width: max-content;
+  animation: home-v4-marquee 44s linear infinite;
+}
+
+.home-v4 .op-track .half {
+  display: flex;
+  gap: 56px;
+  padding-right: 56px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+@keyframes home-v4-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.home-v4 .op-cue {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+
+.home-v4 .op-cue.in {
+  opacity: 1;
+}
+
+.home-v4 .op-cue i {
+  width: 1px;
+  height: 20px;
+  background: var(--ink);
+  animation: home-v4-cue 1.9s ease-in-out infinite;
+}
+
+@keyframes home-v4-cue {
+  0% {
+    transform: scaleY(0.15);
+    transform-origin: top;
+    opacity: 0.15;
+  }
+  50% {
+    transform: scaleY(1);
+    transform-origin: top;
+    opacity: 0.8;
+  }
+  100% {
+    transform: scaleY(0.15);
+    transform-origin: bottom;
+    opacity: 0.15;
+  }
+}
+
+.home-v4 .op-cue span {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--dim);
+}
+
+/* ─── 站内横向进度（模型站底部） ────────────────────────────────── */
+.home-v4 .hnav {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--dim);
+}
+
+.home-v4 .hnav button {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+}
+
+.home-v4 .hnav button:hover {
+  border-color: var(--ink);
+}
+
+.home-v4 .hnav .hdots {
+  display: flex;
+  gap: 6px;
+}
+
+.home-v4 .hnav .hdots i {
+  width: 16px;
+  height: 2px;
+  background: var(--line);
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+
+.home-v4 .hnav .hdots i[data-on='true'] {
+  background: var(--ink);
+}
+
+/* ─── 竖轴页点（PC 左缘） ───────────────────────────────────────── */
+/* hover 整个区域展开全部页名；每个 title 自带 hover 动效 */
+.home-v4 .dots {
+  position: fixed;
+  z-index: 70;
+  left: clamp(8px, 1.6vw, 22px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 12px 14px 12px 10px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.home-v4 .dots:hover {
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  border-color: var(--line);
+  box-shadow: 0 18px 50px -28px rgba(10, 10, 10, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.home-v4 .dots button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: none;
+  border: 0;
+  padding: 3px 4px;
+  cursor: pointer;
+}
+
+.home-v4 .dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--line-2);
+  transition:
+    background 0.25s,
+    transform 0.25s;
+  display: block;
+  flex: none;
+}
+
+.home-v4 .dots button[data-on='true'] i {
+  background: var(--ink);
+}
+
+/* 页名不是数据字：走正文 sans、正常字号、墨色。等宽小字在 hover 里一闪而过
+   本来就读不出来，是 owner 点名的那批「小字看不清」之一。 */
+.home-v4 .dots .nm {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease,
+    color 0.2s ease;
+  transition-delay: calc(var(--i, 0) * var(--dot-stagger));
+}
+
+.home-v4 .dots button[data-on='true'] .nm {
+  opacity: 1;
+  transform: none;
+  color: var(--ink);
+}
+
+.home-v4 .dots:hover .nm {
+  opacity: 1;
+  transform: none;
+}
+
+/* title hover 动效：点亮 + 点放大 + 名字前移一步 */
+.home-v4 .dots button:hover i {
+  background: var(--ink);
+  transform: scale(1.5);
+}
+
+.home-v4 .dots button:hover .nm {
+  color: var(--ink);
+  transform: translateX(2px);
+  transition-delay: 0s;
+}
+
+/* ─── 尾页 ──────────────────────────────────────────────────────── */
+.home-v4 .fin-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 18px var(--gut) 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.12em;
+  opacity: 0;
+  transition: opacity 0.8s ease 0.3s;
+}
+
+.home-v4 .fin-foot.in {
+  opacity: 1;
+}
+
+.home-v4 .fin-foot a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.home-v4 .fin-foot a:hover {
+  color: var(--ink);
+}
+
+.home-v4 .fin-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 17px;
+}
+
+.home-v4 .fin-hero h2 {
+  margin: 0;
+}
+
+.home-v4 .fin-hero.in .opl > span {
+  transform: none;
+}
+
+.home-v4 .fin-sub {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+  opacity: 0;
+  transition: opacity 0.7s ease 0.35s;
+}
+
+.home-v4 .fin-hero.in .fin-sub {
+  opacity: 1;
+}
+
+.home-v4 .fin-hero .cta {
+  opacity: 0;
+  transform: translateY(9px);
+  transition:
+    opacity 0.6s ease 0.5s,
+    transform 0.6s ease 0.5s;
+}
+
+.home-v4 .fin-hero.in .cta {
+  opacity: 1;
+  transform: none;
+}
+
+/* ⚠ 它带着 l1 错速层类，层类会写 transform —— 所以居中**不能**用
+   `left:50%; translateX(-50%)`，否则一翻页就被层的 translate 顶飞。
+   用 left/right 撑满 + text-align:center。 */
+.home-v4 .fin-mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.16em;
+  z-index: 1;
+  text-align: center;
+  font-size: clamp(150px, 19vw, 370px);
+  font-weight: 900;
+  line-height: 0.8;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--ink) 6%, var(--paper));
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 1.1s ease;
+}
+
+.home-v4 .fin-mark.in {
+  opacity: 1;
+}
+
+/* ═══ 功能页 01–06（P2）══════════════════════════════════════════ */
+
+/* 六页共用的躯干：`.imgfn` 是 `.fg` 的功能页变体（限宽 + 纵向节奏），
+   `.fn-head` / `.fn-stage` 是 SPEC 里写在标签上的两条 inline style —— 迁进
+   皮肤，因为它们是版式不是数据。 */
+.home-v4 .imgfn {
+  width: min(860px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
+
+.home-v4 .fn-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.home-v4 .fn-stage {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.home-v4 .fn-stage.col {
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 三处打字机共用一个光标闪烁 */
+@keyframes home-v4-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ─── 01 图片：工作台 + 同题四格 ────────────────────────────────── */
+.home-v4 .fn-studio {
+  width: min(980px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: 0 30px 80px -40px rgba(10, 10, 10, 0.28);
+  overflow: hidden;
+  text-align: left;
+}
+
+.home-v4 .fn-studio .bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-v4 .fn-studio .bar .t {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-right: 6px;
+}
+
+.home-v4 .fn-studio .mchip {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  color: var(--dim);
+}
+
+.home-v4 .fn-studio .mchip.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.home-v4 .fn-studio .bar .p {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-studio .prow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-v4 .fn-studio .prow .txt {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  min-height: 19px;
+  flex: 1;
+}
+
+.home-v4 .fn-studio .prow .cur {
+  width: 8px;
+  height: 16px;
+  background: var(--ink);
+  animation: home-v4-blink 1s steps(2) infinite;
+  flex: none;
+}
+
+.home-v4 .fn-studio .go {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--ink);
+  color: var(--paper);
+  cursor: default;
+  opacity: 0.35;
+  transition: opacity 0.3s;
+}
+
+.home-v4 .fn-studio.typed .go {
+  opacity: 1;
+}
+
+.home-v4 .fn-quad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 14px 16px 16px;
+}
+
+.home-v4 .fn-quad .fq {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: 11px;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  opacity: 0;
+  transform: translateY(14px) scale(0.97);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
+}
+
+.home-v4 .fn-studio.reveal .fq {
+  opacity: 1;
+  transform: none;
+}
+
+.home-v4 .fn-studio.reveal .fq:nth-child(2) {
+  transition-delay: 0.3s;
+}
+
+.home-v4 .fn-studio.reveal .fq:nth-child(3) {
+  transition-delay: 0.6s;
+}
+
+.home-v4 .fn-studio.reveal .fq:nth-child(4) {
+  transition-delay: 0.9s;
+}
+
+.home-v4 .fn-quad .fq .mtag {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.62);
+  color: #f4f2ec;
+  backdrop-filter: blur(4px);
+}
+
+.home-v4 .fn-quad .fq .want {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  text-align: center;
+}
+
+/* 「待生成」占位卡：整张卡就这两行字，`--dim` 在浅灰格子上读不出来，
+   两处都比 `--dim` 再深一档（标签 #55555b / 正文 #4c4c52）。 */
+.home-v4 .fn-quad .fq .want .k {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: #55555b;
+  text-transform: uppercase;
+}
+
+.home-v4 .fn-quad .fq .want p {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #4c4c52;
+}
+
+/* 底部「N 个模型 →」预告：点一个直接跳到模型站的那一页 */
+.home-v4 .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.home-v4 .chips button {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  padding: 7px 15px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+  color: var(--dim);
+  transition:
+    border-color 0.2s,
+    color 0.2s;
+}
+
+.home-v4 .chips button:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.home-v4 .chips .hint {
+  align-self: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.2em;
+}
+
+/* ─── 02 LoRA：挂载工作台 ───────────────────────────────────────── */
+.home-v4 .fn-lora {
+  width: min(1000px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: 0 30px 80px -40px rgba(10, 10, 10, 0.28);
+  overflow: hidden;
+  text-align: left;
+}
+
+.home-v4 .fn-lora .bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-v4 .fn-lora .bar .t {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.home-v4 .fn-lora .bar .cnt {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-lora .bar .cnt b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.home-v4 .fn-lora .cols {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+}
+
+.home-v4 .fn-lora .lib {
+  border-right: 1px solid var(--line);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-v4 .fn-lora .search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  padding: 7px 11px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-lora .lcard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  transition:
+    border-color 0.3s,
+    background 0.3s;
+}
+
+.home-v4 .fn-lora .lcard .cv {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  flex: none;
+}
+
+/* 封面是纯色块，没有图 —— 所以配色属于皮肤，不写在标签的 style 上 */
+.home-v4 .fn-lora .lcard[data-cover='ghibli'] .cv {
+  background: linear-gradient(135deg, #9ab8d8, #41608a);
+}
+
+.home-v4 .fn-lora .lcard[data-cover='grain'] .cv {
+  background: linear-gradient(135deg, #d8b48f, #8a5f41);
+}
+
+.home-v4 .fn-lora .lcard[data-cover='mecha'] .cv {
+  background: linear-gradient(135deg, #c39ad8, #5f418a);
+}
+
+.home-v4 .fn-lora .lcard[data-cover='water'] .cv {
+  background: linear-gradient(135deg, #9ad8b4, #418a5f);
+}
+
+.home-v4 .fn-lora .lcard .nm {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.home-v4 .fn-lora .lcard .bm {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-lora .lcard .add {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  color: var(--dim);
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.home-v4 .fn-lora .lcard.hot {
+  border-color: var(--ink);
+  background: var(--panel);
+}
+
+.home-v4 .fn-lora .lcard.hot .add {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.home-v4 .fn-lora .rig {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.home-v4 .fn-lora .rk {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+  text-transform: uppercase;
+}
+
+.home-v4 .fn-lora .mrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 7px 11px;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
+}
+
+.home-v4 .fn-lora .mrow.in {
+  opacity: 1;
+  transform: none;
+}
+
+.home-v4 .fn-lora .mrow .nm {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.home-v4 .fn-lora .mrow .w {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.home-v4 .fn-lora .mrow .track2 {
+  width: 74px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--line);
+  position: relative;
+}
+
+.home-v4 .fn-lora .mrow .track2 i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: var(--ink);
+}
+
+.home-v4 .fn-lora .mrow .wv {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-v4 .fn-lora .prow2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 9px 12px;
+  min-height: 40px;
+}
+
+.home-v4 .fn-lora .trig {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  background: var(--panel);
+  opacity: 0;
+  transform: scale(0.7);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.home-v4 .fn-lora .trig.in {
+  opacity: 1;
+  transform: none;
+}
+
+.home-v4 .fn-lora .free {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-lora .outrow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.home-v4 .fn-lora .oq {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.home-v4 .fn-lora .oq.in {
+  opacity: 1;
+}
+
+.home-v4 .fn-lora .oq .k {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+  text-transform: uppercase;
+}
+
+/* ─── 03 声音：配音聊天室 ───────────────────────────────────────── */
+.home-v4 .fn-audio {
+  width: min(760px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: 0 30px 80px -40px rgba(10, 10, 10, 0.28);
+  overflow: hidden;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-v4 .fn-audio .bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-v4 .fn-audio .bar .t {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.home-v4 .fn-audio .bar .p {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-audio .flow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 16px;
+  min-height: 240px;
+}
+
+.home-v4 .fn-audio .msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+.home-v4 .fn-audio .msg.in {
+  opacity: 1;
+  transform: none;
+}
+
+.home-v4 .fn-audio .msg.me {
+  flex-direction: row-reverse;
+}
+
+.home-v4 .fn-audio .ava {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* 三个说话人的头像色：数据是「谁在说」，颜色是皮肤 */
+.home-v4 .fn-audio [data-voice='qing'] {
+  background: linear-gradient(135deg, #c98da8, #8a4160);
+}
+
+.home-v4 .fn-audio [data-voice='lei'] {
+  background: linear-gradient(135deg, #7fa3c9, #33506b);
+}
+
+.home-v4 .fn-audio [data-voice='ke'] {
+  background: linear-gradient(135deg, #c9b47f, #8a6f33);
+}
+
+.home-v4 .fn-audio .msg .grp {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-width: 78%;
+}
+
+.home-v4 .fn-audio .msg.me .grp {
+  align-items: flex-end;
+}
+
+.home-v4 .fn-audio .who {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.home-v4 .fn-audio .bub {
+  border: 1px solid var(--line);
+  border-radius: 4px 14px 14px 14px;
+  background: var(--panel);
+  padding: 9px 13px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.home-v4 .fn-audio .msg.me .bub {
+  border-radius: 14px 4px 14px 14px;
+  background: var(--paper);
+}
+
+.home-v4 .fn-audio .voice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 13px;
+  background: var(--paper);
+}
+
+.home-v4 .fn-audio .voice .play {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  flex: none;
+  background: var(--ink);
+  color: var(--paper);
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  padding-left: 2px;
+}
+
+.home-v4 .fn-audio .voice .wv {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+}
+
+.home-v4 .fn-audio .voice .wv i {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--ink);
+  opacity: 0.75;
+  height: calc(var(--h) * 1%);
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform 0.4s ease;
+  transition-delay: calc(var(--i) * 28ms);
+}
+
+.home-v4 .fn-audio .msg.played .voice .wv i {
+  transform: scaleY(1);
+}
+
+.home-v4 .fn-audio .voice .dur {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-audio .inrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.home-v4 .fn-audio .picks {
+  display: flex;
+  gap: 6px;
+}
+
+.home-v4 .fn-audio .pick {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.4;
+  border: 2px solid transparent;
+  transition:
+    opacity 0.3s,
+    border-color 0.3s;
+}
+
+.home-v4 .fn-audio .pick.add {
+  background: var(--line-2);
+  color: var(--dim);
+}
+
+.home-v4 .fn-audio .pick.on {
+  opacity: 1;
+  border-color: var(--ink);
+}
+
+.home-v4 .fn-audio .inrow .tx {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-audio .inrow .cur2 {
+  width: 7px;
+  height: 14px;
+  background: var(--ink);
+  animation: home-v4-blink 1s steps(2) infinite;
+}
+
+.home-v4 .fn-audio .inrow .go {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 7px 18px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ─── 04 视频：全能参考输入框（PC 左右等高，成片在右） ───────────── */
+/* ⚠ 这张窗比 `.imgfn` 的 860 限宽还宽：必须 `flex:none` 才不被父级压回去，
+   同时自带 vw 上限兜住窄屏。 */
+.home-v4 .fn-video {
+  flex: none;
+  width: min(1180px, 92vw);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: 0 30px 80px -40px rgba(10, 10, 10, 0.28);
+  overflow: hidden;
+  text-align: left;
+}
+
+.home-v4 .fn-video .bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-v4 .fn-video .bar .t {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.home-v4 .fn-video .bar .p {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-video .vrow {
+  display: flex;
+  align-items: stretch;
+  gap: 13px;
+  padding: 12px 15px 14px;
+}
+
+.home-v4 .fn-video .ibox {
+  flex: none;
+  width: 430px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: var(--panel);
+  padding: 12px 13px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-v4 .fn-video .iline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
+}
+
+.home-v4 .fn-video .iline.in {
+  opacity: 1;
+  transform: none;
+}
+
+.home-v4 .fn-video .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 8px;
+  padding: 4px 10px 4px 4px;
+}
+
+.home-v4 .fn-video .pill img {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: 5px;
+  display: block;
+}
+
+.home-v4 .fn-video .pill .ai {
+  font-style: normal;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--line);
+  font-size: 12px;
+}
+
+.home-v4 .fn-video .pill b {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  max-width: 156px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-v4 .fn-video .say {
+  font-size: 12px;
+  color: var(--dim);
+  opacity: 0;
+  transition: opacity 0.4s ease 0.18s;
+}
+
+.home-v4 .fn-video .iline.in .say {
+  opacity: 1;
+}
+
+.home-v4 .fn-video .iline.ptxt {
+  min-height: 20px;
+  gap: 2px;
+}
+
+.home-v4 .fn-video .tw {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.home-v4 .fn-video .cur3 {
+  width: 7px;
+  height: 14px;
+  background: var(--ink);
+  animation: home-v4-blink 1s steps(2) infinite;
+  flex: none;
+}
+
+.home-v4 .fn-video .itools {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 8px 3px 0;
+  border-top: 1px solid var(--line);
+}
+
+.home-v4 .fn-video .itools .ic {
+  font-size: 12px;
+  color: var(--dim);
+  line-height: 1;
+}
+
+.home-v4 .fn-video .itools .meta {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-video .itools .up {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 0;
+  flex: none;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  opacity: 0.3;
+  transition: opacity 0.3s;
+}
+
+.home-v4 .fn-video .itools .up.on {
+  opacity: 1;
+}
+
+.home-v4 .fn-video .out {
+  flex: 1;
+  min-width: 0;
+  border-radius: 13px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+
+.home-v4 .fn-video .out.in {
+  opacity: 1;
+}
+
+.home-v4 .fn-video .out video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.home-v4 .fn-video .out .src2 {
+  position: absolute;
+  right: 9px;
+  bottom: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(10, 10, 10, 0.5);
+  padding: 3px 9px;
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+}
+
+/* ─── 05 画布：三窗错落 + 产物飞递 ──────────────────────────────── */
+.home-v4 .fn-canvas {
+  width: min(1250px, 100%);
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
+}
+
+/* 飞递的 ghost 落在这块空层里，不进 React 管的子树（05 与 06 共用一套） */
+.home-v4 .fn-flyers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.home-v4 .fn-step {
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 30px 80px -40px rgba(10, 10, 10, 0.28);
+  overflow: hidden;
+  transition:
+    opacity 0.5s ease,
+    border-color 0.5s ease;
+}
+
+.home-v4 .fn-step .bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-v4 .fn-step .bar .no {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid var(--ink);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.home-v4 .fn-step .bar .t {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.home-v4 .fn-step .bar .p {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.home-v4 .fn-step.dimmed {
+  opacity: 0.5;
+}
+
+.home-v4 .fn-step.dimmed.on {
+  opacity: 1;
+  border-color: var(--ink);
+}
+
+.home-v4 .fn-hand {
+  flex: none;
+  width: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--line-2);
+  transition: color 0.4s;
+}
+
+.home-v4 .fn-hand.on {
+  color: var(--ink);
+}
+
+.home-v4 .fn-hand[data-h='0'] {
+  margin-top: 158px;
+}
+
+.home-v4 .fn-hand[data-h='1'] {
+  margin-top: 176px;
+}
+
+/* 步 ① 助手聊天 */
+.home-v4 .fn-step.s1 {
+  width: 296px;
+  margin-top: 38px;
+}
+
+.home-v4 .fn-step.s1 .body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-height: 208px;
+}
+
+.home-v4 .s1 .m {
+  display: flex;
+  gap: 7px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.45s,
+    transform 0.45s;
+}
+
+.home-v4 .s1 .m.in {
+  opacity: 1;
+  transform: none;
+}
+
+.home-v4 .s1 .m.me {
+  flex-direction: row-reverse;
+}
+
+.home-v4 .s1 .av {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--paper);
+  background: var(--ink);
+}
+
+.home-v4 .s1 .m.me .av {
+  background: var(--line-2);
+  color: var(--ink);
+}
+
+.home-v4 .s1 .b {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 3px 11px 11px 11px;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.home-v4 .s1 .m.me .b {
+  border-radius: 11px 3px 11px 11px;
+  background: var(--paper);
+}
+
+.home-v4 .s1 .chip {
+  align-self: flex-start;
+  margin-left: 33px;
+  border: 1px solid var(--ink);
+  background: var(--panel);
+  border-radius: 9px;
+  padding: 6px 11px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  opacity: 0;
+  transform: scale(0.7);
+  transition:
+    opacity 0.35s,
+    transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.home-v4 .s1 .chip.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* 步 ② 剧本 */
+.home-v4 .fn-step.s2 {
+  width: 330px;
+  margin-top: 86px;
+}
+
+.home-v4 .fn-step.s2 .body {
+  padding: 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-v4 .s2 .row {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 8px 10px;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.45s,
+    transform 0.45s;
+}
+
+.home-v4 .s2 .row.in {
+  opacity: 1;
+  transform: none;
+}
+
+.home-v4 .s2 .row .ix {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.home-v4 .s2 .row .tx {
+  font-size: 11.5px;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.home-v4 .s2 .row .np {
+  font-family: var(--mono);
+  font-size: 10px;
+  white-space: nowrap;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--dim);
+  transition:
+    background 0.35s,
+    color 0.35s,
+    border-color 0.35s;
+}
+
+.home-v4 .s2 .row.sent .np {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+/* 步 ③ 画布 */
+.home-v4 .fn-step.s3 {
+  width: 450px;
+}
+
+.home-v4 .s3 .cv {
+  position: relative;
+  height: 378px;
+  background-image: radial-gradient(
+    rgba(10, 10, 10, 0.13) 1px,
+    transparent 1.5px
+  );
+  background-size: 16px 16px;
+}
+
+.home-v4 .s3 .cn {
+  position: absolute;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 10px 24px -14px rgba(10, 10, 10, 0.35);
+  padding: 5px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 0.4s,
+    transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.35);
+}
+
+.home-v4 .s3 .cn.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* 节点坐标是画布的构图，不是数据 —— 留在皮肤里 */
+.home-v4 .s3 .cn[data-n='0'] {
+  left: 14px;
+  top: 18px;
+}
+
+.home-v4 .s3 .cn[data-n='1'] {
+  left: 14px;
+  top: 144px;
+}
+
+.home-v4 .s3 .cn[data-n='2'] {
+  left: 14px;
+  top: 270px;
+}
+
+.home-v4 .s3 .cn[data-n='3'] {
+  left: 196px;
+  top: 104px;
+}
+
+.home-v4 .s3 .cn img {
+  display: block;
+  width: 110px;
+  height: 62px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.home-v4 .s3 .cn .cl {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  padding: 4px 2px 1px;
+  letter-spacing: 0.06em;
+}
+
+.home-v4 .s3 .cn.cnv {
+  padding: 6px;
+}
+
+.home-v4 .s3 .cn.cnv video {
+  display: block;
+  width: 222px;
+  height: 125px;
+  object-fit: cover;
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.home-v4 .s3 svg.wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* `pathLength="1"` 把每条线归一化，画线就只是 dashoffset 1 → 0 */
+.home-v4 .s3 .wires path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  opacity: 0.6;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.7s ease;
+}
+
+.home-v4 .s3 .wires path:nth-child(2) {
+  transition-delay: 0.16s;
+}
+
+.home-v4 .s3 .wires path:nth-child(3) {
+  transition-delay: 0.32s;
+}
+
+.home-v4 .s3 .wires path.draw {
+  stroke-dashoffset: 0;
+}
+
+/* 接续飞行元素（05 剧本卡 / 分镜卡 · 06 回流图） */
+.home-v4 .flyer {
+  position: absolute;
+  z-index: 60;
+  pointer-events: none;
+  transition:
+    transform 0.78s cubic-bezier(0.45, 0.05, 0.25, 1),
+    opacity 0.78s ease;
+}
+
+.home-v4 .fly-chip {
+  display: inline-block;
+  white-space: nowrap;
+  border: 1px solid var(--ink);
+  background: var(--panel);
+  border-radius: 9px;
+  padding: 6px 11px;
+  font-family: var(--mono);
+  font-size: 11px;
+  box-shadow: 0 14px 34px -14px rgba(10, 10, 10, 0.45);
+}
+
+.home-v4 .fly-card {
+  display: block;
+  width: 56px;
+  height: 34px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  border-radius: 7px;
+  box-shadow: 0 14px 34px -14px rgba(10, 10, 10, 0.45);
+}
+
+.home-v4 .fly-shot {
+  display: block;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--ink);
+  box-shadow: 0 14px 34px -14px rgba(10, 10, 10, 0.45);
+}
+
+/* ─── 06 资源库：混合模态网格 + 回流竖条 ────────────────────────── */
+.home-v4 .fn-vault {
+  width: min(1020px, 100%);
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: 0 30px 80px -40px rgba(10, 10, 10, 0.28);
+  overflow: hidden;
+  text-align: left;
+}
+
+.home-v4 .fn-vault .bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-v4 .fn-vault .bar .t {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.home-v4 .fn-vault .bar .p {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-vault .vbody {
+  display: flex;
+}
+
+.home-v4 .fn-vault .vleft {
+  flex: 1;
+  padding: 12px 14px;
+  border-right: 1px solid var(--line);
+}
+
+.home-v4 .fn-vault .chips2 {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.home-v4 .fn-vault .chips2 span {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--dim);
+}
+
+.home-v4 .fn-vault .chips2 .on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.home-v4 .fn-vault .vgrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 9px;
+}
+
+.home-v4 .fn-vault .vc {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.4s ease,
+    transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    border-color 0.35s,
+    box-shadow 0.35s;
+}
+
+/* 前三格是「上面几页的产物」，从页外高处落进来 */
+.home-v4 .fn-vault .vc.far {
+  transform: translateY(-270px) scale(0.72);
+}
+
+.home-v4 .fn-vault .vc.in {
+  opacity: 1;
+  transform: none;
+}
+
+.home-v4 .fn-vault .vc.lift {
+  border-color: var(--ink);
+  box-shadow: 0 12px 28px -12px rgba(10, 10, 10, 0.42);
+}
+
+.home-v4 .fn-vault .vc img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.home-v4 .fn-vault .vc[data-tile='lora'] {
+  background: linear-gradient(135deg, #9ab8d8, #41608a);
+}
+
+.home-v4 .fn-vault .vc[data-tile='threed'] {
+  background: linear-gradient(135deg, #c9b47f, #8a6f33);
+}
+
+.home-v4 .fn-vault .vc .vk {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.55);
+  color: #f4f2ec;
+  backdrop-filter: blur(3px);
+}
+
+.home-v4 .fn-vault .vc .wvc {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 12px;
+}
+
+.home-v4 .fn-vault .vc .wvc i {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--ink);
+  opacity: 0.7;
+  height: calc(var(--h) * 1%);
+}
+
+.home-v4 .fn-vault .vc.tcard {
+  background: var(--paper);
+  padding: 10px 9px;
+}
+
+.home-v4 .fn-vault .vc.tcard .tp {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: var(--ink);
+  display: block;
+}
+
+.home-v4 .fn-vault .vc.ncard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: var(--paper);
+}
+
+.home-v4 .fn-vault .vc.ncard b {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.home-v4 .fn-vault .vc.ncard .nk {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.12em;
+}
+
+.home-v4 .fn-vault .vright {
+  width: 240px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.home-v4 .fn-vault .rk2 {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+  text-transform: uppercase;
+}
+
+.home-v4 .fn-vault .slot {
+  position: relative;
+  height: 122px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  transition: border-color 0.4s;
+}
+
+.home-v4 .fn-vault .slot .ph {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.12em;
+}
+
+.home-v4 .fn-vault .slot img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.45s;
+}
+
+.home-v4 .fn-vault .slot .gk {
+  position: absolute;
+  left: 7px;
+  bottom: 7px;
+  opacity: 0;
+  transition: opacity 0.45s;
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.55);
+  color: #f4f2ec;
+  backdrop-filter: blur(3px);
+}
+
+.home-v4 .fn-vault .slot.got {
+  border-color: var(--ink);
+  border-style: solid;
+}
+
+.home-v4 .fn-vault .slot.got .ph {
+  opacity: 0;
+}
+
+.home-v4 .fn-vault .slot.got img,
+.home-v4 .fn-vault .slot.got .gk {
+  opacity: 1;
+}
+
+.home-v4 .fn-vault .vnote {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--dim);
+}
+
+.home-v4 .fn-vault .cta2 {
+  align-self: flex-start;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  padding: 6px 14px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  color: var(--ink);
+  opacity: 0.3;
+  transition:
+    opacity 0.35s,
+    background 0.35s,
+    color 0.35s;
+}
+
+.home-v4 .fn-vault .cta2.on {
+  opacity: 1;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ═══ 模型页（P3）：整图背景 + 暗玻璃身份板 + 强弱规格横条 ════════
+   官方样图铺满整页当背景（挂 l1 慢层，翻页瞬间像镜头微移）；内容圈进两块
+   暗玻璃：左下身份板（l2）+ 底部横条（强 / 弱 / 站内规格，l3）。
+
+   ⚠ 两处与 SPEC 的差：
+   1. SPEC 里 `.m-bg.side` / `.m-bg.plain` 写 `background: transparent`，靠
+      透出底下的 `bgno` 大序号水印给左半屏纹理。bgno 这一轮退役了，透出来
+      的就只剩空白，所以两者改成自己铺纸底。
+   2. SPEC 先按浅玻璃写一遍配色，紧接着整段用暗玻璃覆盖掉。这里只留生效的
+      那一份 —— 搬一套自己就被下一行推翻的规则过来毫无意义。          */
+.home-v4 .mpage {
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 12px;
+  padding-bottom: 64px;
+}
+
+.home-v4 .m-bg {
+  position: absolute;
+  inset: -4%;
+  z-index: 0;
+}
+
+/* 铺满不糊：单层 cover 占满整页，「不丢信息」由图的构图负责（代表作按 16:9
+   满幅、主体偏右创作）。`--pos` 留着，逐图微调不用改结构。 */
+.home-v4 .m-bg img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--pos, center);
+}
+
+/* 暗 scrim：只压左缘与底缘，给玻璃板托底，不碰画面主体 */
+.home-v4 .m-bg .veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(96deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0) 52%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 34%);
+}
+
+.home-v4 .m-bg.side,
+.home-v4 .m-bg.plain {
+  background: var(--paper);
+}
+
+/* 竖图布局：整图靠右完整摆放（contain，不裁），左侧纸底给玻璃板留位。
+   ⚠ SPEC 写死 `top: 7%`，实测（1920×911）落在 y=32 —— 顶栏是 54px 不透明白条，
+   整图的上缘被压掉一截。`.m-bg` 自身是 `inset: -4%`，所以要清掉顶栏得把那 4%
+   加回来再让开一个 `--bar`；来源角标本来就是这么写的，这里跟它同一个算式。 */
+.home-v4 .m-bg.side img {
+  position: absolute;
+  left: auto;
+  right: 4.5%;
+  top: calc(4% + var(--bar) + 10px);
+  width: auto;
+  height: 80%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 14px;
+  box-shadow: 0 30px 80px -34px rgba(0, 0, 0, 0.4);
+}
+
+.home-v4 .m-bg.side .src {
+  background: rgba(10, 10, 10, 0.07);
+  color: #55555a;
+}
+
+/* 竖图墙：三张等高并排铺满整页。SPEC 写 `var(--void)`，那个变量整份文件
+   从没声明过（和 `--line-2` 同一类漏），这里落到最接近的 `--ink`。 */
+.home-v4 .m-bg.wall {
+  display: flex;
+  gap: 12px;
+  background: var(--ink);
+}
+
+.home-v4 .m-bg.wall img {
+  position: static;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.home-v4 .m-bg.wall .veil2 {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(96deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 50%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0) 32%);
+}
+
+/* 来源角标：这张图是站内生成还是官方样图，页面自己说清楚 */
+.home-v4 .m-bg .src {
+  position: absolute;
+  right: 6%;
+  top: calc(4% + var(--bar) + 10px);
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.42);
+  backdrop-filter: blur(4px);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* 无图页：纸底 + 提示词水印卡（= 站内出图任务单，不是装饰） */
+.home-v4 .m-bg .want {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%, -50%);
+  width: min(430px, 70%);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px dashed var(--line-2);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.6);
+  text-align: left;
+}
+
+/* 同 `.fn-quad .fq .want .k`：半透明白卡上 `--dim` 不够，深一档。 */
+.home-v4 .m-bg .want .k {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #55555b;
+}
+
+.home-v4 .m-bg .want p {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ─── 身份板（l2）──────────────────────────────────────────────── */
+.home-v4 .m-glass {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  width: min(500px, 62%);
+  padding: 20px 24px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(
+    160deg,
+    rgba(13, 13, 16, 0.62),
+    rgba(13, 13, 16, 0.4)
+  );
+  backdrop-filter: blur(9px) saturate(1.2);
+  box-shadow:
+    0 24px 60px -28px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  color: #f4f2ec;
+  text-align: left;
+}
+
+.home-v4 .m-glass .toprow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-v4 .m-glass .lg {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  color: #f4f2ec;
+}
+
+.home-v4 .m-glass .lg svg {
+  width: 100%;
+  height: 100%;
+}
+
+.home-v4 .m-glass .lg.textmark {
+  display: flex;
+  align-items: center;
+  width: auto;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.2em;
+}
+
+.home-v4 .m-glass .lg.seedmark {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: auto;
+}
+
+.home-v4 .m-glass .lg.seedmark svg {
+  width: 26px;
+  height: 26px;
+}
+
+.home-v4 .m-glass .lg.seedmark b {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.home-v4 .m-glass .prov {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244, 242, 236, 0.6);
+}
+
+.home-v4 .m-glass h2 {
+  text-align: left;
+  font-size: clamp(1.7rem, 3.1vw, 2.5rem);
+  line-height: 1.12;
+  color: #f4f2ec;
+}
+
+.home-v4 .m-glass .pos {
+  margin: 0;
+  font-size: 0.92rem;
+  color: rgba(244, 242, 236, 0.8);
+}
+
+.home-v4 .m-glass .meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.home-v4 .m-glass .fare {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #f4f2ec;
+}
+
+.home-v4 .m-glass .fare b {
+  font-weight: 500;
+}
+
+.home-v4 .m-glass .routes {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(244, 242, 236, 0.6);
+}
+
+.home-v4 .m-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.home-v4 .m-tags i {
+  padding: 4px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(244, 242, 236, 0.85);
+}
+
+/* ─── 强 / 弱（l3）───────────────────────────────────────────────
+   2026-08-28 owner 拍板：不再是压在页底的三列横条，而是接在身份板下面的
+   同宽左列 —— 两块竖排，右半页整个让给图。玻璃外观与身份板一致。 */
+.home-v4 .m-strip {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  width: min(500px, 62%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(
+    160deg,
+    rgba(13, 13, 16, 0.58),
+    rgba(13, 13, 16, 0.38)
+  );
+  backdrop-filter: blur(9px) saturate(1.2);
+  box-shadow:
+    0 24px 60px -28px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  color: #f4f2ec;
+  text-align: left;
+}
+
+/* 竖排后这条线立在「弱在哪」左侧，和原型一致（原型审定稿保留了它）。 */
+.home-v4 .m-strip .pm + .pm {
+  padding-left: 20px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.home-v4 .m-strip .k {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(244, 242, 236, 0.85);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* 条目压在照片上，投影是为了让弱对比的那几张也读得出来。 */
+.home-v4 .m-strip ul {
+  margin: 7px 0 0;
+  padding-left: 1.05em;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.82rem;
+  color: rgba(244, 242, 236, 0.95);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+}
+
+.home-v4 .m-strip .minus li {
+  color: rgba(244, 242, 236, 0.9);
+}
+
+/* 详情按钮：手机独有（PC 上横条本来就在屏上，再开一层是开给自己看） */
+.home-v4 .m-more {
+  display: none;
+  align-self: flex-start;
+  margin-top: 9px;
+  padding: 6px 13px;
+  border: 1px solid rgba(244, 242, 236, 0.5);
+  border-radius: 999px;
+  background: none;
+  color: #f4f2ec;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+/* ─── 手机详情 sheet（portal 到 body，见 HomeV4ModelSheet）────────
+   `.vp` 带 transform + will-change + overflow:hidden，是个包含块 —— sheet
+   长在页里就会被裁掉、并且相对页而不是视口定位。所以它长在 body 上，外面
+   再套一层 `.home-v4` 把域内变量与字体带过去；`display: contents` 让这层
+   不产生盒子，veil 与 sheet 各自对视口定位。 */
+.home-v4.msheet {
+  display: contents;
+}
+
+.home-v4 .msheet-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 91;
+  padding: 0;
+  border: 0;
+  background: rgba(10, 10, 10, 0.42);
+  cursor: pointer;
+}
+
+.home-v4 .msheet-body {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 92;
+  display: flex;
+  flex-direction: column;
+  max-height: 74vh;
+  overflow-y: auto;
+  /* 手机上 body 是 `touch-action: none`，不在这里放行就滑不动 */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  padding: 18px 20px 30px;
+  border-radius: 18px 18px 0 0;
+  background: var(--paper);
+  box-shadow: 0 -24px 70px rgba(10, 10, 10, 0.4);
+}
+
+/* 顶部把手：纯视觉件，关闭走遮罩 / 翻页 / Esc */
+.home-v4 .msheet-body::before {
+  content: '';
+  flex: none;
+  width: 38px;
+  height: 4px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+  background: var(--line-2);
+}
+
+/* 同一份内容换个载体：纸底墨字。玻璃上的投影在白纸上只会糊，一并去掉。 */
+.home-v4 .m-strip.as-sheet {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  color: var(--ink);
+}
+
+.home-v4 .m-strip.as-sheet .pm + .pm {
+  padding: 14px 0 0;
+  border-left: 0;
+  border-top: 1px solid var(--line);
+}
+
+.home-v4 .m-strip.as-sheet ul,
+.home-v4 .m-strip.as-sheet .minus li {
+  color: var(--ink);
+  text-shadow: none;
+}
+
+.home-v4 .m-strip.as-sheet .k {
+  color: var(--dim);
+  text-shadow: none;
+}
+
+/* ═══ 价目页（P3）：一屏四栏，站内目录直读 ═══════════════════════ */
+/* ⚠ 同 `.fn-video`：这块比 `.imgfn` 的 860 限宽还宽，必须 `flex: none` 才不被
+   父级压回 860（四栏 61 行挤进 860 会把模型名逐个折行）。 */
+.home-v4 .pricing {
+  flex: none;
+  width: min(1180px, 92vw);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* `align-items: start` on purpose: 音频 3 条、3D 5 条，拉齐到图片那栏的高度就是
+   两块空白，看着像内容没加载完。让短栏收到自己的行数为止。 */
+.home-v4 .pricegrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+  min-height: 0;
+}
+
+.home-v4 .pricecol {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+
+.home-v4 .pricecol .pch {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.home-v4 .pricecol .pch h3 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.home-v4 .pricecol .pch span {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  color: var(--dim);
+}
+
+.home-v4 .pcl {
+  overflow-y: auto;
+  max-height: min(46vh, 420px);
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.home-v4 .pcl ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 名字占一行，供应商在它下面，价格贴右 —— 三个字段两行，窄栏也不折行 */
+.home-v4 .pcl li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'nm pp'
+    'pv pp';
+  align-items: center;
+  gap: 0 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-v4 .pcl li:last-child {
+  border-bottom: 0;
+}
+
+.home-v4 .pcl .nm {
+  grid-area: nm;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.home-v4 .pcl .pv {
+  grid-area: pv;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.home-v4 .pcl .pp {
+  grid-area: pp;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.home-v4 .pricenote {
+  margin: 0;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+/* ─── 减少动态：禁过渡（瞬切），手势不禁 ────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .home-v4 .vp,
+  .home-v4 .hpg,
+  .home-v4 .vp .l1,
+  .home-v4 .vp .l2,
+  .home-v4 .vp .l3,
+  .home-v4 .hpg .l1,
+  .home-v4 .hpg .l2,
+  .home-v4 .hpg .l3 {
+    transition: none !important;
+  }
+}
+
+/* ═══ Mobile 层（≤768px）：翻页保留（swipe 即手机原生手势） ═══════ */
+.home-v4 .mdots,
+.home-v4 .mtoc,
+.home-v4 .cue-m {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  html.home-v4-locked,
+  body.home-v4-locked {
+    overscroll-behavior: none;
+  }
+
+  /* 手机上整页交给手势引擎；两个例外（胶片带横滑 / 目录竖滚）在下面豁免。
+     这些是 owner 真机踩坑后的修复，别删。 */
+  body.home-v4-locked {
+    touch-action: none;
+  }
+
+  .home-v4 {
+    --bar: 48px;
+    --gut: 16px;
+  }
+
+  .home-v4 .op-strip {
+    touch-action: pan-x;
+  }
+
+  .home-v4 .mtoc {
+    touch-action: pan-y;
+  }
+
+  .home-v4 .topbar {
+    padding-left: 16px;
+  }
+
+  .home-v4 .topbar .locales {
+    display: none;
+  }
+
+  .home-v4 .dots {
+    display: none !important;
+  }
+
+  .home-v4 h1 {
+    font-size: clamp(26px, 8.2vw, 36px);
+  }
+
+  .home-v4 h2 {
+    font-size: clamp(20px, 6.2vw, 29px);
+  }
+
+  .home-v4 .eyebrow {
+    font-size: 10.5px;
+    letter-spacing: 0.2em;
+  }
+
+  .home-v4 .page-inner {
+    padding: calc(var(--bar) + 12px) var(--gut) 40px;
+  }
+
+  .home-v4 .fg {
+    gap: 14px;
+  }
+
+  /* 导航：右缘细点条（拇指区）→ 点击弹全屏目录 */
+  .home-v4 .mdots {
+    display: flex;
+    position: fixed;
+    right: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 60;
+    flex-direction: column;
+    gap: 7px;
+    padding: 10px 5px;
+    border: 0;
+    background: none;
+  }
+
+  .home-v4 .mdots i {
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--ink);
+    opacity: 0.22;
+    transition:
+      opacity 0.3s,
+      height 0.3s;
+  }
+
+  .home-v4 .mdots i.on {
+    opacity: 0.95;
+    height: 14px;
+  }
+
+  .home-v4 .mtoc {
+    position: fixed;
+    inset: 0;
+    z-index: 95;
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    padding: 60px 26px 30px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+    overflow-y: auto;
+  }
+
+  .home-v4 .mtoc.on {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .home-v4 .mtoc .mt-k {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    color: var(--dim);
+    margin: 14px 0 6px;
+    text-transform: uppercase;
+  }
+
+  .home-v4 .mtoc button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 21px;
+    letter-spacing: 0.01em;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .home-v4 .mtoc button.on {
+    text-decoration: underline;
+    text-underline-offset: 7px;
+    text-decoration-thickness: 2px;
+  }
+
+  .home-v4 .mtoc button.on .no {
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  .home-v4 .mtoc button .no {
+    font-family: var(--mono);
+    font-weight: 400;
+    font-size: 10.5px;
+    color: var(--dim);
+    margin-right: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .home-v4 .mtoc .mt-x {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    background: var(--paper);
+    font-size: 15px;
+    line-height: 1;
+    color: var(--ink);
+    padding: 0;
+  }
+
+  /* 开场：作品墙改横滑胶片带（手机原生卡带），cue 换 SWIPE */
+  .home-v4 .op-strip {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding: 4px 2px 10px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .home-v4 .op-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .home-v4 .op-strip figure {
+    flex: 0 0 34vw;
+    max-width: none;
+    scroll-snap-align: center;
+  }
+
+  .home-v4 .op-note {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-align: center;
+  }
+
+  .home-v4 .op-mq {
+    bottom: 56px;
+  }
+
+  .home-v4 .op-track .half {
+    gap: 34px;
+    padding-right: 34px;
+    font-size: 10.5px;
+  }
+
+  .home-v4 .cue-pc {
+    display: none;
+  }
+
+  .home-v4 .cue-m {
+    display: inline;
+  }
+
+  /* 收尾 */
+  .home-v4 .fin-mark {
+    font-size: 27vw;
+  }
+
+  .home-v4 .fin-sub {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-align: center;
+    padding: 0 10px;
+    line-height: 1.8;
+  }
+
+  .home-v4 .fin-foot {
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+    font-size: 10px;
+  }
+
+  /* 横向站导航钮：拇指触达尺寸 */
+  .home-v4 .hnav {
+    bottom: 12px;
+  }
+
+  .home-v4 .hnav button {
+    display: grid;
+    width: 38px;
+    height: 38px;
+  }
+
+  /* ── 功能页 · 一屏一焦点 ────────────────────────────────────── */
+  .home-v4 .imgfn {
+    width: 100%;
+    gap: 14px;
+  }
+
+  /* 01 图片：焦点=同题四格 2×2（方形），模型预告 chips 收起 */
+  .home-v4 .fn-studio {
+    width: 100%;
+  }
+
+  .home-v4 .fn-studio .bar {
+    gap: 6px;
+    padding: 9px 12px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  .home-v4 .fn-studio .bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .home-v4 .fn-studio .bar .t {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .home-v4 .fn-studio .bar .p {
+    display: none;
+  }
+
+  .home-v4 .fn-studio .mchip {
+    flex: none;
+    font-size: 10.5px;
+    padding: 3px 9px;
+  }
+
+  .home-v4 .fn-studio .prow {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .home-v4 .fn-studio .prow .txt {
+    font-size: 11.5px;
+  }
+
+  .home-v4 .fn-studio .go {
+    padding: 7px 15px;
+    font-size: 12px;
+  }
+
+  .home-v4 .imgfn .chips {
+    display: none;
+  }
+
+  .home-v4 .fn-quad {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px 10px 12px;
+  }
+
+  .home-v4 .fn-quad .fq {
+    aspect-ratio: 1 / 1;
+  }
+
+  /* 02 LoRA：焦点=挂载态（库列表收起） */
+  .home-v4 .fn-lora {
+    width: 100%;
+  }
+
+  .home-v4 .fn-lora .cols {
+    grid-template-columns: 1fr;
+  }
+
+  .home-v4 .fn-lora .lib {
+    display: none;
+  }
+
+  .home-v4 .fn-lora .rig {
+    padding: 11px 12px;
+  }
+
+  .home-v4 .fn-lora .outrow .oq .k {
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+  }
+
+  /* 03 声音：聊天框天然竖版，只收字号 */
+  .home-v4 .fn-audio {
+    width: 100%;
+  }
+
+  .home-v4 .fn-audio .bar .p {
+    display: none;
+  }
+
+  .home-v4 .fn-audio .flow {
+    padding: 14px 12px;
+    min-height: 0;
+    gap: 11px;
+  }
+
+  .home-v4 .fn-audio .inrow {
+    gap: 7px;
+    padding: 10px 11px;
+  }
+
+  .home-v4 .fn-audio .inrow .tx {
+    font-size: 11px;
+  }
+
+  /* 04 视频：回竖排（PC 左右是桌面拍板），输入框上、成片下 */
+  .home-v4 .fn-video {
+    width: 100%;
+  }
+
+  .home-v4 .fn-video .bar .p {
+    display: none;
+  }
+
+  .home-v4 .fn-video .vrow {
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 12px 12px;
+  }
+
+  .home-v4 .fn-video .ibox {
+    width: auto;
+  }
+
+  .home-v4 .fn-video .iline {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .home-v4 .fn-video .say {
+    font-size: 11px;
+  }
+
+  .home-v4 .fn-video .out {
+    flex: none;
+  }
+
+  .home-v4 .fn-video .out video {
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  /* 05 画布：分步轮播 —— 三窗同格叠放，同一位置只站一步。
+     ⚠ 轮播的 opacity 与 `.fn-step.dimmed.on` 同权重，靠 `.fn-canvas` 提权
+     压过它；删掉那一节选择器，第 ②③ 步会在第 ① 步时就半亮着露脸。 */
+  .home-v4 .fn-canvas {
+    width: 100%;
+    display: grid;
+  }
+
+  .home-v4 .fn-canvas .fn-step {
+    grid-area: 1 / 1;
+    width: 100%;
+    margin-top: 0;
+    transition:
+      opacity 0.5s ease,
+      transform 0.5s ease;
+  }
+
+  .home-v4 .fn-canvas .fn-hand {
+    display: none;
+  }
+
+  .home-v4 .fn-canvas .fn-step.s2,
+  .home-v4 .fn-canvas .fn-step.s3 {
+    opacity: 0;
+    transform: translateY(16px);
+    pointer-events: none;
+  }
+
+  .home-v4 .fn-canvas[data-stage='2'] .fn-step.s1,
+  .home-v4 .fn-canvas[data-stage='3'] .fn-step.s1 {
+    opacity: 0;
+    transform: translateY(-16px);
+    pointer-events: none;
+  }
+
+  .home-v4 .fn-canvas[data-stage='2'] .fn-step.s2 {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .home-v4 .fn-canvas[data-stage='3'] .fn-step.s2 {
+    opacity: 0;
+    transform: translateY(-16px);
+    pointer-events: none;
+  }
+
+  .home-v4 .fn-canvas[data-stage='3'] .fn-step.s3 {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .home-v4 .fn-step .bar {
+    padding: 8px 12px;
+  }
+
+  .home-v4 .s1 .body {
+    min-height: 0;
+    padding: 9px 10px;
+    gap: 6px;
+  }
+
+  .home-v4 .s1 .b {
+    font-size: 12px;
+  }
+
+  .home-v4 .s2 .body {
+    padding: 9px 10px;
+    gap: 6px;
+  }
+
+  .home-v4 .s2 .row {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .home-v4 .s2 .row .tx {
+    font-size: 11.5px;
+  }
+
+  .home-v4 .s3 .cv {
+    zoom: 0.7;
+  }
+
+  /* 06 资源库：网格 3×3（文字卡收起），回流条横排在下 */
+  .home-v4 .fn-vault {
+    width: 100%;
+  }
+
+  .home-v4 .fn-vault .bar .p {
+    display: none;
+  }
+
+  .home-v4 .fn-vault .vbody {
+    flex-direction: column;
+  }
+
+  .home-v4 .fn-vault .vleft {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px;
+  }
+
+  .home-v4 .fn-vault .chips2 span {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  .home-v4 .fn-vault .vgrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+  }
+
+  .home-v4 .fn-vault .vc.tcard {
+    display: none;
+  }
+
+  .home-v4 .fn-vault .vright {
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+  }
+
+  .home-v4 .fn-vault .rk2 {
+    width: 100%;
+  }
+
+  .home-v4 .fn-vault .slot {
+    width: 116px;
+    height: 82px;
+    flex: none;
+  }
+
+  .home-v4 .fn-vault .vnote {
+    flex: 1;
+    min-width: 160px;
+    font-size: 11.5px;
+    line-height: 1.55;
+  }
+
+  /* ── 模型页 · 图当主角，信息压底，强弱两块收进上拉 sheet ────── */
+  .home-v4 .m-glass {
+    width: 100%;
+    padding: 13px 15px 12px;
+  }
+
+  .home-v4 .m-glass .pos {
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .home-v4 .m-glass .meta {
+    flex-wrap: wrap;
+    gap: 4px 10px;
+  }
+
+  /* 标签在手机上是第四层信息，与定位句重复度高 —— 让位给图 */
+  .home-v4 .m-tags {
+    display: none;
+  }
+
+  .home-v4 .m-more {
+    display: inline-block;
+  }
+
+  /* 强弱块只在 sheet 里出现（`.as-sheet` 那份），页面上的这份收起 */
+  .home-v4 .m-strip {
+    display: none;
+  }
+
+  .home-v4 .m-strip.as-sheet {
+    display: flex;
+  }
+
+  /* 三联在手机上只剩第一张：三条 1/3 宽的竖缝谁也看不清 */
+  .home-v4 .m-bg.wall img:not(:first-of-type) {
+    display: none;
+  }
+
+  .home-v4 .m-bg.wall img:first-of-type {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* 竖图改横向居中、压上半屏，下半屏留给玻璃板。顶栏同样要让开（见 PC 那条） */
+  .home-v4 .m-bg.side img {
+    left: 4%;
+    right: 4%;
+    top: calc(4% + var(--bar) + 8px);
+    margin: auto;
+    width: auto;
+    max-width: 92%;
+    height: 50%;
+  }
+
+  /* sheet 打开时站内导航正好在它底下，让开 */
+  .home-v4 .hwrap.sheet-on .hnav {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ── 价目页 · 四栏改一条，栏头吸顶，整块一次滚完 ───────────── */
+  .home-v4 .pricing {
+    width: 100%;
+  }
+
+  .home-v4 .pricegrid {
+    grid-template-columns: 1fr;
+    gap: 0;
+    overflow-y: auto;
+    /* body 是 `touch-action: none`，滚动区必须自己放行 */
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+  }
+
+  .home-v4 .pricecol {
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .home-v4 .pricecol + .pricecol {
+    border-top: 1px solid var(--line);
+  }
+
+  .home-v4 .pricecol .pch {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  /* 滚动条交给外层那一条，四段接着排下去 */
+  .home-v4 .pcl {
+    max-height: none;
+    overflow: visible;
+  }
+}

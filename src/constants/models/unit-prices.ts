@@ -30,18 +30,19 @@ import type { VideoResolution } from '@/constants/video-options'
  * - 这是**给用户看的参考价，不是计费依据**。计费走服务端 credit policy，两者
  *   不可互相推导。
  *
- * ## 首页也从这里取值（2026-08-08 owner 拍板）
+ * ## 本表是全站唯一的参考价来源
  *
  * `constants/homepage.ts` 曾经并存着第二张价格表，给 Seedance 2.0 标 $0.1/s ——
  * 比火山官方算例**低了 3 倍**。一个数字两个来源必然漂，这就是漂的样子。
  *
- * 现在 homepage 走 `resolveHomepageReferencePrice`：先问本表，本表没有的才退回它
- * 自己的存量表（图片/音频那批还没核实）。**补价格请补到本表**，别往那张加新条目。
+ * 2026-08-28 首页价目页随 owner 拍板整页退役，那张存量表与 `resolveHomepage-
+ * ReferencePrice` 一并删除（未搬完的 7 条见该次提交）。现在只剩本表，消费者是
+ * `StudioCostPreview` 与 `BaseModelPickerPanel`。**补价格只补本表。**
  *
- * ⚠ owner 选的口径是「**按产品默认档**」——哪个开关默认开就报哪个价。当前目录里
- * 12 个有价视频模型**全部** `generateAudio: true`，所以默认档恰好等于本表已有的
- * 含音频口径，不需要存第二个数字。**哪天出现默认关音频的模型，这条就不再自动成立**，
- * 那时才需要在本表加一列区分。
+ * ⚠ 口径是「**按产品默认档**」——哪个开关默认开就报哪个价。当前目录里 12 个有价
+ * 视频模型**全部** `generateAudio: true`，所以默认档恰好等于本表已有的含音频口径，
+ * 不需要存第二个数字。**哪天出现默认关音频的模型，这条就不再自动成立**，那时才需要
+ * 在本表加一列区分。
  *
  * ## 覆盖策略：宁可留空，不填没核实过的数字
  *
@@ -416,6 +417,23 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
     source:
       '火山方舟模型价格页 图片生成模型表：doubao-seedream-5-0-lite 输出图 0.22 元/张（无像素分档，输入图免费）÷ 7.1 ≈ $0.0310',
     verifiedAt: '2026-08-18',
+  },
+
+  // ── BytePlus ModelArk（国际站）─────────────────────────────────────────
+  // 官方价格页直接标 USD，无需汇率换算——比 cn 站那两条少一层误差来源。
+  [AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS]: {
+    amount: 0.09,
+    unit: 'image',
+    source:
+      'BytePlus ModelArk Pricing 图片生成表：dola-seedream-5-0-pro-260628 单图生成 > 2.61M 像素（1.5K 以上）$0.09/张。⚠ 与 cn 站同理取高档位——worker 默认发 2K（2048×2048=419 万像素），低档位 $0.045 产品发不出去。输入图首张免费、第 2 张起 $0.003 未计入（本表只记出图价，与其余条目口径一致）',
+    verifiedAt: '2026-08-28',
+  },
+  [AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS]: {
+    amount: 0.035,
+    unit: 'image',
+    source:
+      'BytePlus ModelArk Pricing 图片生成表：seedream-5-0-lite-260128 输出图 $0.035/张（无像素分档，输入图免费）。与 fal 转售同价，比 cn 站 $0.031 略贵',
+    verifiedAt: '2026-08-28',
   },
 
   // ── Gemini（Google AI）─────────────────────────────────────────────────

@@ -620,244 +620,602 @@
     "heroStat": "{models} MODELS · {providers} PROVIDERS · {modalities} MODALITIES",
     "heroLine1": "用每一个模型生成，",
     "heroLine2": "保留每一次结果。",
-    "views": {
-      "canvas": "画布",
-      "studio": "工作台",
-      "lora": "LoRA",
-      "assets": "素材"
-    },
-    "viewBars": {
-      "canvas": {
-        "project": "夜航的信",
-        "status": "2 个节点生成中"
+    "v4": {
+      "nav": {
+        "label": "页导航",
+        "pageLabel": "页码",
+        "close": "关闭",
+        "stationPages": "{count} 页",
+        "prevModel": "上一个模型",
+        "nextModel": "下一个模型"
       },
-      "studio": {
-        "project": "4 个模型并发",
-        "status": "3 / 4 已完成"
-      },
-      "lora": {
-        "project": "同一角色 · 12 张",
-        "status": "一致性 0.94"
-      },
-      "assets": {
-        "project": "全部 · 2,418 件",
-        "status": "R2 已归档"
-      }
-    },
-    "caps": {
-      "moreModels": "+ {count} 个",
-      "textToImage": {
-        "eyebrow": "TEXT → IMAGE → IMAGE",
-        "body": "先用一句话把角色写出来，再把这张图当作参考交给下一步。可以只换外套，也可以整个重画成像素风。难的从来不是改，是改完之后他还是他。",
-        "title": "换了衣服，\n换了画风，\n还是同一个人。"
-      },
-      "imageToVideo": {
-        "eyebrow": "IMAGE → VIDEO",
-        "body": "不用重新描述一遍。选中的结果直接作为首帧送进视频模型，prompt、参考图和镜头设定一起带过去，出来的片子和原图是同一个世界。",
-        "title": "挑好的那张，\n直接接着动起来。"
-      },
-      "imageTo3d": {
-        "eyebrow": "IMAGE → 3D",
-        "body": "档案里任何一张图都能进 3D。原图、prompt 和生成出来的模型留在同一条记录上，下次要用直接调，不用重新找。",
-        "title": "存过的图，\n转成能复用的资产。"
-      }
-    },
-    "models": {
-      "title": "{count} 个模型，四种模态。",
       "groups": {
-        "image": "图片模型",
-        "video": "视频模型",
-        "audio": "音频模型",
-        "model3d": "3D 模型"
+        "opening": "开场",
+        "feature": "功能",
+        "models": "模型",
+        "finale": "收尾"
       },
-      "priceVaries": "按用量",
-      "prevBatch": "{group} 上一批",
-      "nextBatch": "{group} 下一批",
-      "groupCount": "{count} 个",
-      "priceImage": "{amount} / 张",
-      "priceSecond": "{amount} / 秒",
-      "priceKChars": "{amount} / 千字符",
-      "detail": {
-        "viewDetails": "了解 {model}",
-        "canDo": "可以做什么",
-        "advantagesTitle": "模型优势",
-        "provider": "供应商",
-        "pricing": "参考价格",
-        "modality": "模态",
-        "openStudio": "使用这个模型创作",
-        "officialDocs": "查看模型官方页面",
-        "close": "关闭模型介绍",
-        "advantages": {
-          "premiumQuality": "高质量旗舰输出",
-          "balancedQuality": "质量与速度均衡",
-          "fastValue": "快速、低成本迭代",
-          "freeTier": "支持免费额度",
-          "imageGeneration": "文字生成图片",
-          "videoGeneration": "文字生成视频",
-          "photorealistic": "擅长写实质感",
-          "anime": "擅长动漫与插画",
-          "design": "适合设计与品牌图形",
-          "artistic": "擅长电影感与艺术画面",
-          "versatile": "适合多种创作任务",
-          "lora": "支持自定义 LoRA",
-          "imageToVideo": "支持图片生成视频",
-          "referenceInput": "支持参考图控制",
-          "nativeAudio": "支持原生音频生成",
-          "speech": "支持多语言文字转语音",
-          "soundEffects": "支持文字生成音效",
-          "imageTo3d": "支持图片重建 3D",
-          "glbOutput": "输出可复用 GLB 资产"
-        }
-      }
-    },
-    "canvasView": {
-      "nodes": {
-        "script": "剧本",
-        "character": "角色",
-        "setting": "背景",
-        "audio": "音频",
-        "shot": "镜头",
-        "video": "视频"
+      "opening": {
+        "note": "站内生成 · 来自公开画廊 · 持续更新",
+        "cuePc": "SCROLL",
+        "cueMobile": "SWIPE"
       },
-      "nodeStatus": {
-        "script": {
-          "state": "已确认",
-          "detail": "412 字"
+      "finale": {
+        "title": "生成完，才是开始。",
+        "cta": "打开画布",
+        "guidelines": "内容准则"
+      },
+      "fn": {
+        "image": {
+          "workbench": "图片工作台",
+          "meta": "1024×1365 · 各 1 张 · 同题",
+          "prompt": "一只戴圆框眼镜的橘猫馆长，坐在美术馆前台，胸牌写着「馆长」，身后挂满画框，暖光，浅景深",
+          "generate": "生成",
+          "pendingKicker": "待生成 · 同题出图",
+          "pendingLine": "用左侧同一条词",
+          "moreModels": "{count} 个模型"
         },
-        "character": {
-          "state": "已生成",
-          "detail": "4 / 4"
-        },
-        "setting": {
-          "state": "生成中",
-          "detail": "62%"
+        "lora": {
+          "workbench": "LoRA 工作台",
+          "mounted": "已挂 <b>{count}</b> · 不设上限",
+          "search": "搜 Civitai / HuggingFace…",
+          "add": "挂载",
+          "mountedKicker": "已挂载 · 权重",
+          "promptKicker": "PROMPT · 触发词自动进场",
+          "freeText": "，少女站在黄昏的天台，风衣，回头",
+          "cards": {
+            "ghibli": {
+              "name": "吉卜力软彩 Ghibli Soft",
+              "short": "吉卜力软彩"
+            },
+            "grain": { "name": "胶片颗粒 Film Grain", "short": "胶片颗粒" },
+            "mecha": { "name": "机甲少女 Mecha Musume", "short": "机甲少女" },
+            "water": { "name": "水彩纸纹 Watercolor", "short": "水彩纸纹" }
+          },
+          "outs": {
+            "stack": "待生成 · 三 LoRA 同挂",
+            "reweight": "待生成 · 换权重再来一张"
+          }
         },
         "audio": {
-          "state": "已生成",
-          "detail": "0:18"
-        },
-        "shot": {
-          "state": "已选用",
-          "detail": "seed 8841"
+          "room": "配音间",
+          "meta": "多说话人 ×8 · 音色库 + 克隆 · Fish S2.1",
+          "lines": {
+            "qing": {
+              "avatar": "晴",
+              "who": "晴 · Fish 温柔女声",
+              "text": "今晚的画展，八点开始。",
+              "duration": "0:03"
+            },
+            "lei": {
+              "avatar": "磊",
+              "who": "磊 · Fish 少年音",
+              "text": "好，我把海报再改一版。",
+              "duration": "0:02"
+            },
+            "ke": {
+              "avatar": "客",
+              "who": "旁白 · 克隆音色",
+              "text": "而此刻，馆里的灯一盏盏亮了。",
+              "duration": "0:04"
+            }
+          },
+          "addVoice": "添加音色",
+          "placeholder": "输入台词，选音色，点生成…",
+          "generate": "生成"
         },
         "video": {
-          "state": "排队中",
-          "detail": "5s"
+          "workbench": "视频工作台",
+          "meta": "Seedance 参考端点 · 5s · 1080p",
+          "refs": {
+            "shot": { "label": "分镜01-夜航出港", "say": "参考这个镜头" },
+            "anchor": { "label": "角色锚-她.webp", "say": "参考这个角色设定" },
+            "voice": { "label": "台词-她的信 0:18", "say": "参考这个角色音频" }
+          },
+          "prompt": "夜航渡轮驶出港口，镜头缓慢拉远，雨点落在灯上。",
+          "toolsMeta": "参考 4 · 不限类型 · 语音克隆 ×3",
+          "submit": "生成",
+          "outTag": "Seedance · 站内生成 · 夜航的信"
+        },
+        "canvas": {
+          "assistant": {
+            "title": "助手",
+            "meta": "剧本脑",
+            "meAvatar": "我",
+            "me": "一艘夜航渡轮，雨夜出港——帮我拍成短片。",
+            "botAvatar": "助",
+            "bot": "拆成三个分镜：甲板回头、驶出港口、拉远收尾。剧本给你。",
+            "chip": "剧本 · 夜航的信 v1"
+          },
+          "script": {
+            "title": "剧本",
+            "meta": "3 分镜 · 夜航的信",
+            "toNode": "节点",
+            "rows": {
+              "deck": {
+                "index": "分镜 01",
+                "text": "甲板上，她扶栏回头，舱灯亮着"
+              },
+              "departure": {
+                "index": "分镜 02",
+                "text": "渡轮驶出港口，灯塔明灭"
+              },
+              "pullback": {
+                "index": "分镜 03",
+                "text": "镜头拉远，雨点落在灯上"
+              }
+            }
+          },
+          "board": {
+            "title": "画布",
+            "meta": "节点 ×4 · 连线 ×3",
+            "nodes": {
+              "deck": "分镜 01 · 甲板",
+              "departure": "分镜 02 · 出港",
+              "pullback": "分镜 03 · 拉远"
+            },
+            "cut": "成片 · SEEDANCE · 站内生成"
+          }
+        },
+        "vault": {
+          "title": "资源库",
+          "meta": "图 · 视频 · 声音 · LoRA · 永久归档",
+          "filters": {
+            "all": "全部",
+            "image": "图片",
+            "video": "视频",
+            "audio": "声音",
+            "lora": "LoRA"
+          },
+          "cells": {
+            "cut": "05 · 夜航的信",
+            "anchor": "04 · 角色锚",
+            "voice": "03 · 台词 0:18",
+            "shotDeck": "图片",
+            "shotPullback": "图片",
+            "shotDeparture": "图片",
+            "lora": "LoRA · 吉卜力软彩",
+            "prompt": "PROMPT",
+            "threed": "3D · RODIN",
+            "count": "还在库里"
+          },
+          "promptText": "夜航渡轮驶出港口，镜头缓慢拉远，雨点落在灯上。",
+          "archived": "+ {count, number}",
+          "reuseKicker": "回流 · REUSE",
+          "slotEmpty": "参考位 · 空",
+          "slotFilled": "已挂参考 · 画布",
+          "note": "库里任意一张，拖进画布或工作台，就是下一次生成的参考。作品不是终点，是原料。",
+          "cta": "去创作"
         }
       },
-      "script": "夜里最后一班渡轮。她把信折成方块，塞进外套内袋，没有回头。",
-      "inspector": {
-        "title": "镜头 · 03",
-        "rowModel": "模型",
-        "rowSize": "尺寸",
-        "rowSeed": "seed",
-        "prompt": "渡轮甲板，夜，逆光。她背对镜头，海风把外套吹起一角。35mm，颗粒感。",
-        "refs": "参考 · 来自上游",
-        "regenerate": "重新生成"
+      "pages": {
+        "opening": { "nav": "开场" },
+        "image": { "nav": "图片生成", "title": "一句话，四家一起出。" },
+        "lora": { "nav": "LoRA 生成", "title": "搜到就挂，挂几个都行。" },
+        "audio": { "nav": "声音生成", "title": "选个音色，打字就开口。" },
+        "video": { "nav": "视频生成", "title": "图、声、影、字，都能当参考。" },
+        "canvas": { "nav": "画布", "title": "聊出剧本，长成节点，连出片。" },
+        "vault": { "nav": "资源库", "title": "存下来的，都能再上场。" },
+        "modelsImage": { "nav": "模型 · 图片" },
+        "modelsLora": { "nav": "模型 · LoRA" },
+        "modelsVideo": { "nav": "模型 · 视频" },
+        "modelsAudio": { "nav": "模型 · 声音" },
+        "models3d": { "nav": "模型 · 3D" },
+        "finale": { "nav": "收尾" }
+      },
+      "modelPage": {
+        "plus": "强在哪",
+        "minus": "弱在哪",
+        "more": "详情 · 强弱与规格 ↑",
+        "close": "关闭详情",
+        "want": "背景样图待生成 · 站内出图",
+        "coverAlt": "{model} 代表图"
+      },
+      "models": {
+        "gpt": {
+          "pos": "全能第一名：盲测榜连续霸榜，最能读懂复杂指令。",
+          "fare": "按用量计费",
+          "routes": "在 ANTEI · 1 条线路",
+          "src": "站内生成 · GPT Image 2",
+          "tags": { "0": "海报排版", "1": "复杂长指令", "2": "多语言文字" },
+          "plus": {
+            "0": "图内文字排版几乎不出错，海报级可用",
+            "1": "多条件长 prompt 忠实度最高，不丢要素",
+            "2": "中日韩等多语言文字渲染同样在线"
+          },
+          "minus": {
+            "0": "思考模式带来延迟，出图偏慢",
+            "1": "大批量成本高，透明底支持一般"
+          }
+        },
+        "gemini": {
+          "pos": "又快又稳的主力：2–5 秒出图，编辑控制最细。",
+          "fare": "$0.13 / 张 · Flash 档 $0.03–0.07",
+          "routes": "在 ANTEI · 3 条线路",
+          "src": "站内生成 · Gemini 3 Pro Image",
+          "tags": { "0": "快速迭代", "1": "局部编辑", "2": "真实场景" },
+          "plus": {
+            "0": "2–5 秒出图，改图不打断手感",
+            "1": "局部重绘、打光、镜头变换控制最细",
+            "2": "搜索接地：真实地标与光照有据可依"
+          },
+          "minus": {
+            "0": "超现实、强风格化反而放不开",
+            "1": "小脸与小字等细节仍会崩"
+          }
+        },
+        "flux": {
+          "pos": "质感派：皮肤布纹少塑料光，长描述跟随极稳。",
+          "fare": "$0.03 / 张 · 编辑 $0.04 · Flash $0.005",
+          "routes": "在 ANTEI · 5 条线路",
+          "src": "fal.ai 官方演示输出",
+          "tags": { "0": "产品质感", "1": "概念设定", "2": "高性价比" },
+          "plus": {
+            "0": "真实质感：少「塑料光」，物体与材质刻画锐利",
+            "1": "双流架构，长描述型 prompt 跟随极稳",
+            "2": "同档质量里性价比最高，免调参"
+          },
+          "minus": {
+            "0": "人像易出「瓷娃娃」式过度修饰",
+            "1": "图内文字渲染仍不稳定"
+          }
+        },
+        "seedream": {
+          "pos": "设计头脑：懂排版懂中文，还会边生成边查资料。",
+          "fare": "$0.03–0.09 / 张 · 三条接入",
+          "routes": "在 ANTEI · 5 条线路",
+          "src": "站内生成 · Seedream 5.0",
+          "tags": { "0": "中文海报", "1": "信息图", "2": "设计排版" },
+          "plus": {
+            "0": "设计级排版理解：杂志封面一把出",
+            "1": "10+ 语言原生文字，中文最稳",
+            "2": "边生成边联网搜索，真实信息有据"
+          },
+          "minus": {
+            "0": "长串文字仍会错，8–15 秒偏慢",
+            "1": "照片质感偏「AI 味」，写实弱于 Gemini"
+          }
+        },
+        "recraft": {
+          "pos": "设计师的那一档：唯一原生出 SVG，整段文字可读。",
+          "fare": "$0.21 / 张",
+          "routes": "在 ANTEI · 1 条线路",
+          "src": "站内生成 · Recraft V4 Pro",
+          "tags": { "0": "LOGO 矢量", "1": "品牌物料", "2": "整段文字" },
+          "plus": {
+            "0": "唯一能原生生成矢量 SVG 的模型",
+            "1": "整段可读文字：别家 2–3 词它能整段",
+            "2": "HF 文生图竞技场 2024 年 10 月起霸榜"
+          },
+          "minus": {
+            "0": "$0.21 / 张 是图片区最贵",
+            "1": "设计特化：通用写实摄影不是主场"
+          }
+        },
+        "novelai": {
+          "pos": "动漫专精最新代：22 个角色同画不串，整页漫画一把出。",
+          "fare": "按用量 · V4.5 档 $0.01 / 张起",
+          "routes": "在 ANTEI · 4 条线路（V5 ×2 ＋ V4.5 ×2）",
+          "src": "novelai.net 官方样图",
+          "tags": { "0": "动漫立绘", "1": "多角色同画", "2": "漫画分格" },
+          "plus": {
+            "0": "体积翻倍 + 32 通道 VAE：发丝饰品级细节",
+            "1": "最多 22 个角色同画，多格漫画直接排",
+            "2": "日语繁中等多语言 prompt，支持透明底"
+          },
+          "minus": {
+            "0": "动漫特化，写实场景不适用",
+            "1": "不进「无限用」档，计费比 V4.5 收紧"
+          }
+        },
+        "illustrious": {
+          "pos": "开源动漫底模顶流：角色知识海量，微调生态最旺。",
+          "fare": "$0.14 / 张（API 直连）",
+          "routes": "在 ANTEI · API 1 条 + LoRA 侧另户口",
+          "src": "illustriousxl.org 官站展示",
+          "tags": { "0": "动漫角色", "1": "二创同人", "2": "LoRA 底模" },
+          "plus": {
+            "0": "Danbooru 全量训练：角色认知量最大",
+            "1": "手脚等结构稳定性远超同代开源",
+            "2": "WAI 等微调生态最繁荣，LoRA 区还会再见到它"
+          },
+          "minus": {
+            "0": "角色知识截至 2024 年中，新番认不出",
+            "1": "写实与设计场景不是它的赛道"
+          }
+        },
+        "ill-b": {
+          "pos": "底模户口：LoRA 生态最旺的动漫底座。",
+          "fare": "$0.14 / 张（API 直连）",
+          "routes": "在 ANTEI · API + Runner 双户口",
+          "src": "站内底模封面",
+          "tags": { "0": "动漫底座", "1": "生态最旺", "2": "双户口" },
+          "plus": {
+            "0": "Civitai 生态最大：角色 / 画风 LoRA 最全",
+            "1": "Danbooru 全量底子，角色词直接认",
+            "2": "API 线免部署，Runner 线自由挂载"
+          },
+          "minus": {
+            "0": "写实向弱",
+            "1": "新番角色要靠 LoRA 补"
+          }
+        },
+        "wai": {
+          "pos": "人气调校版：开箱即出精致动漫脸。",
+          "fare": "按用量（Runner）",
+          "routes": "在 ANTEI · 自建 Runner",
+          "src": "站内底模封面",
+          "tags": { "0": "人气调校", "1": "开箱即用", "2": "动漫角色" },
+          "plus": {
+            "0": "社区人气榜常客，默认出图就好看",
+            "1": "吃 Illustrious 系 LoRA，角色再现稳",
+            "2": "Runner 直跑，参数全开"
+          },
+          "minus": {
+            "0": "风格偏甜系，硬核写实别找它",
+            "1": "排队看 Runner 负载"
+          }
+        },
+        "pencil": {
+          "pos": "铅笔清线风：线稿感插画一把出。",
+          "fare": "按用量（Runner）",
+          "routes": "在 ANTEI · 自建 Runner",
+          "src": "站内底模封面",
+          "tags": { "0": "清线风", "1": "线稿感", "2": "插画" },
+          "plus": {
+            "0": "铅笔 / 清线质感独一份",
+            "1": "线稿到上色两相宜",
+            "2": "Runner 直跑，参数全开"
+          },
+          "minus": {
+            "0": "题材窄：吃插画向",
+            "1": "厚涂写实不擅长"
+          }
+        },
+        "pony": {
+          "pos": "风格宇宙的祖师爷：什么画风都有人训过。",
+          "fare": "按用量（Runner）",
+          "routes": "在 ANTEI · 自建 Runner",
+          "src": "站内底模封面",
+          "tags": { "0": "风格生态", "1": "祖师爷", "2": "兼容广" },
+          "plus": {
+            "0": "LoRA 兼容面最广的一支",
+            "1": "风格触发词体系成熟",
+            "2": "社区沉淀最深"
+          },
+          "minus": {
+            "0": "原生脸普通，靠 LoRA 拉",
+            "1": "提示词语法有门槛（score 系）"
+          }
+        },
+        "sdxl": {
+          "pos": "通用老将：写实到插画都能接。",
+          "fare": "按用量（Runner）",
+          "routes": "在 ANTEI · 自建 Runner",
+          "src": "站内底模封面",
+          "tags": { "0": "通用", "1": "老将", "2": "写实可用" },
+          "plus": {
+            "0": "生态覆盖最全的开源底模",
+            "1": "写实 / 设计 / 插画都能跑",
+            "2": "工具链与教程最成熟"
+          },
+          "minus": {
+            "0": "原生质量被新模甩开",
+            "1": "要出彩得靠 LoRA 组合"
+          }
+        },
+        "anima": {
+          "pos": "新架构试验田：DiT 底座的动漫新星。",
+          "fare": "按用量（Runner）",
+          "routes": "在 ANTEI · 自建 Runner（v4 管线）",
+          "src": "站内底模封面",
+          "tags": { "0": "DiT 架构", "1": "新星", "2": "试验田" },
+          "plus": {
+            "0": "DiT 新架构，细节上限高",
+            "1": "站内 v4 管线已部署",
+            "2": "动漫向的新选择"
+          },
+          "minus": {
+            "0": "生态刚起步，LoRA 少",
+            "1": "出图时间偏长"
+          }
+        },
+        "seedance": {
+          "pos": "参考生成一梭子：18 条线路的视频主力。",
+          "fare": "$0.12–0.30 / 秒",
+          "routes": "在 ANTEI · 18 条线路（fal / 火山 / BytePlus / 方舟）",
+          "src": "fal.ai 官方演示帧 · Seedance 2.0",
+          "tags": { "0": "参考生成", "1": "多接入", "2": "语音克隆" },
+          "plus": {
+            "0": "参考端点：图 + 语音 ×3 一起喂",
+            "1": "2.0 到 2.5 全档在架，四家接入互备",
+            "2": "首帧图生视频跟手最稳"
+          },
+          "minus": {
+            "0": "顶配 2.5 是每秒最贵档",
+            "1": "超 10 秒要拼段"
+          }
+        },
+        "minimax": {
+          "pos": "性价比主力：国内外双线，参考也在。",
+          "fare": "$0.11–0.13 / 秒",
+          "routes": "在 ANTEI · 4 条线路（海外 + 国内 × 参考）",
+          "src": "fal.ai 官方演示帧 · MiniMax",
+          "tags": { "0": "双线互备", "1": "性价比", "2": "参考生成" },
+          "plus": {
+            "0": "低价档还带参考端点",
+            "1": "国内线路延迟友好",
+            "2": "人物动作自然度口碑好"
+          },
+          "minus": {
+            "0": "1080p 档少",
+            "1": "风格化镜头弱于可灵"
+          }
+        },
+        "wan30": {
+          "pos": "阿里主力：官方已上线，站内线路还在加。",
+          "fare": "$0.10 / 秒",
+          "routes": "在 ANTEI · 2 条线路（文生 / 参考）· 更多日后接入",
+          "src": "待站内生成",
+          "tags": { "0": "参考生成", "1": "低价", "2": "扩容中" },
+          "plus": {
+            "0": "全站最低单价档 $0.10 / 秒",
+            "1": "reference-to-video 参考线在架",
+            "2": "官方持续放新端点，站内跟进扩容"
+          },
+          "minus": {
+            "0": "镜头语言朴素",
+            "1": "长时一致性一般"
+          }
+        },
+        "horse": {
+          "pos": "快档黑马：盲测榜前五的性价比。",
+          "fare": "$0.14 / 秒",
+          "routes": "在 ANTEI · 1 条线路",
+          "src": "fal.ai 官方演示帧 · HappyHorse 1.1",
+          "tags": { "0": "快档", "1": "盲测榜", "2": "性价比" },
+          "plus": {
+            "0": "Artificial Analysis 盲测榜前五（v1.1 与 v1.0 同榜，站内注记）",
+            "1": "出片速度快",
+            "2": "单价友好"
+          },
+          "minus": {
+            "0": "风格控制一般",
+            "1": "生态资料少"
+          }
+        },
+        "kling": {
+          "pos": "镜头派：运镜与质感的口碑担当。",
+          "fare": "$0.14–0.17 / 秒",
+          "routes": "在 ANTEI · 2 条线路（3.0 Pro / O3 Pro Omni）",
+          "src": "fal.ai 官方演示帧 · Kling O3",
+          "tags": { "0": "运镜", "1": "质感", "2": "Omni" },
+          "plus": {
+            "0": "运镜与物理质感第一梯队",
+            "1": "O3 Pro Omni 全能端",
+            "2": "人物表演细腻"
+          },
+          "minus": {
+            "0": "3.0 Pro 不吃参考输入（站内注记）",
+            "1": "单价中上"
+          }
+        },
+        "gomni": {
+          "pos": "全能快手：便宜地把想法先动起来。",
+          "fare": "按用量",
+          "routes": "在 ANTEI · 1 条线路",
+          "src": "待站内生成",
+          "tags": { "0": "全能", "1": "快", "2": "按用量" },
+          "plus": {
+            "0": "文生 / 图生一把抓",
+            "1": "快且便宜，适合打草稿",
+            "2": "Google 生态识图强"
+          },
+          "minus": {
+            "0": "上限不如专业视频模",
+            "1": "风格控制粗"
+          }
+        },
+        "fish": {
+          "pos": "台词主力：中文语音自然度的口碑档。",
+          "fare": "$0.20 / 千字符",
+          "routes": "在 ANTEI · s2.1-pro-free 免费档在架",
+          "src": "fish.audio 官方视觉",
+          "tags": { "0": "中文台词", "1": "音色库", "2": "免费档" },
+          "plus": {
+            "0": "中文口语自然度第一梯队",
+            "1": "站内音色库直选 + 克隆",
+            "2": "免费档已接（s2.1-pro-free）"
+          },
+          "minus": {
+            "0": "英文口音略平",
+            "1": "极端情绪要调温度"
+          }
+        },
+        "eleven": {
+          "pos": "音效与配乐：SFX 和 Music 两条线。",
+          "fare": "按用量 – $0.15 / 秒",
+          "routes": "在 ANTEI · 2 条线路（SFX v2 + Music v2）",
+          "src": "elevenlabs.io 官方视觉",
+          "tags": { "0": "音效", "1": "配乐", "2": "双线" },
+          "plus": {
+            "0": "SFX：一句话直出拟音",
+            "1": "Music：整段配乐结构可控",
+            "2": "行业标杆音质"
+          },
+          "minus": {
+            "0": "中文歌词能力一般",
+            "1": "按秒计费，片长要控"
+          }
+        },
+        "rodin": {
+          "pos": "多视图控场：最多 5 张参考喂一个模型。",
+          "fare": "按用量",
+          "routes": "在 ANTEI · 1 条线路",
+          "src": "hyper3d.ai 官方视觉",
+          "tags": { "0": "多视图", "1": "可控", "2": "产线感" },
+          "plus": {
+            "0": "参考图最多 5 张（站内上限）",
+            "1": "拓扑质量适合后期改",
+            "2": "四方位视图工作流"
+          },
+          "minus": {
+            "0": "出模速度慢档",
+            "1": "贴图上限一般"
+          }
+        },
+        "hunyuan": {
+          "pos": "面数王：150 万面上限的细节党。",
+          "fare": "按用量",
+          "routes": "在 ANTEI · 2 条线路（v3.1 Pro / v3）",
+          "src": "待站内生成",
+          "tags": { "0": "高面数", "1": "细节", "2": "双版本" },
+          "plus": {
+            "0": "面数 4 万–150 万可调（默认 50 万）",
+            "1": "纹理网格一次出",
+            "2": "v3.1 Pro 细节增强"
+          },
+          "minus": {
+            "0": "高面数导出文件大",
+            "1": "有机体强于硬表面"
+          }
+        },
+        "trellis": {
+          "pos": "参数全开：分辨率、贴图、减面都在手。",
+          "fare": "按用量",
+          "routes": "在 ANTEI · 1 条线路",
+          "src": "microsoft.github.io/TRELLIS 官方 teaser",
+          "tags": { "0": "参数全开", "1": "减面", "2": "游戏管线" },
+          "plus": {
+            "0": "分辨率 512 / 1024 / 1536 三档",
+            "1": "贴图 1K–4K 可选",
+            "2": "减面 5k–2M 直接对接游戏管线"
+          },
+          "minus": {
+            "0": "速度中庸",
+            "1": "风格化输入易翻车"
+          }
+        },
+        "tripo": {
+          "pos": "秒出档：一张图几秒钟一个白模。",
+          "fare": "按用量",
+          "routes": "在 ANTEI · 1 条线路",
+          "src": "tripo3d.ai 官方视觉",
+          "tags": { "0": "秒出", "1": "轻量", "2": "打样" },
+          "plus": {
+            "0": "出模最快",
+            "1": "轻量白模适合打样",
+            "2": "开源出身生态友好"
+          },
+          "minus": {
+            "0": "无贴图细节",
+            "1": "复杂结构易糊"
+          }
+        }
       }
-    },
-    "studioView": {
-      "prompt": "黄昏的山脊，云海漫过垭口。逆光，35mm，颗粒感，冷调。",
-      "size": "1536 × 864",
-      "perModel": "每个模型 1 张",
-      "ownKey": "自带 API key",
-      "estimate": "约 $0.15",
-      "generateAll": "同时生成 4 张",
-      "picked": "选用",
-      "barPrompt": "PROMPT · 黄昏的山脊，云海漫过垭口",
-      "barDone": "4 / 4 完成"
-    },
-    "imageDemo": {
-      "bar": "PROMPT · 二次元男角色，黑色短发，琥珀色眼睛",
-      "promptLine": "二次元男角色，黑色短发，琥珀色眼睛，立领外套",
-      "pick": "选一种改法",
-      "same": "同一个角色",
-      "base": {
-        "action": "原图",
-        "note": "由上面那句话生成。"
-      },
-      "outfit": {
-        "action": "换衣服",
-        "note": "只有外套变了。脸、姿势、光都没动。"
-      },
-      "style": {
-        "action": "换画风",
-        "note": "重画成游戏像素精灵，还是同一个人。"
-      },
-      "generate": "生成",
-      "hint": "点「生成」跑上面这句提示词。",
-      "running": "生成中",
-      "real": {
-        "action": "真人化",
-        "note": "转成真人。脸、痣、外套都还在。"
-      }
-    },
-    "loraView": {
-      "base": "底模",
-      "stack": "LoRA 栈",
-      "triggers": "触发词",
-      "generateSet": "生成一组",
-      "shotFront": "正面",
-      "shotProfile": "侧身",
-      "shotWaist": "半身",
-      "footA": "同一角色 · 三个镜位 · 同一组权重",
-      "footB": "锁身份，放开构图与光线"
-    },
-    "assetsView": {
-      "treeTitle": "档案",
-      "folderAll": "全部",
-      "folderProject": "夜航的信",
-      "folderCharacters": "角色设定",
-      "folderStudies": "山景研究",
-      "folderVoice": "配音",
-      "folderAssets3d": "3D 资产",
-      "rowModel": "模型",
-      "rowProvider": "供应商",
-      "rowSeed": "seed",
-      "rowTime": "时间",
-      "prompt": "秋日林间，狐狸蜷在落叶里睡着。浅景深，暖光。"
-    },
-    "videoDemo": {
-      "bar": "首帧 · Seedream 5.0 → Seedance 2.0",
-      "firstFrame": "首帧",
-      "play": "播放视频",
-      "pause": "暂停视频",
-      "seek": "调整视频进度"
-    },
-    "turntableDemo": {
-      "bar": "源 · 静物 #0142"
     },
     "foot": {
       "tagline": "在一个地方完成生成、归档与复用。每个结果都保留关键参数。",
-      "cols": {
-        "product": {
-          "title": "产品",
-          "items": {
-            "i1": "画布",
-            "i2": "工作台",
-            "i3": "LoRA",
-            "i4": "素材",
-            "i5": "画廊"
-          }
-        },
-        "resources": {
-          "title": "资源",
-          "items": {
-            "i1": "模型目录",
-            "i2": "价格",
-            "i3": "更新日志",
-            "i4": "文档"
-          }
-        },
-        "company": {
-          "title": "公司",
-          "items": {
-            "i1": "关于",
-            "i2": "联系",
-            "i3": "状态"
-          }
-        }
-      },
       "privacy": "隐私政策",
       "terms": "服务条款"
     }
@@ -3308,6 +3666,14 @@
     "seedream50LiteVolcengine": {
       "label": "Seedream 5.0 Lite（火山引擎）",
       "description": "经火山方舟（Ark）直连的 Seedream 5.0 实惠档 — 国内区域，比同款走 fal 便宜。"
+    },
+    "seedream50ProByteplus": {
+      "label": "Seedream 5.0 Pro（BytePlus）",
+      "description": "经 BytePlus ModelArk（方舟国际站）直连的 Seedream 5.0 Pro 档 — 美元计价；只出单图，不支持组图生成。"
+    },
+    "seedream50LiteByteplus": {
+      "label": "Seedream 5.0 Lite（BytePlus）",
+      "description": "经 BytePlus ModelArk（方舟国际站）直连的 Seedream 5.0 实惠档 — 美元计价。"
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
@@ -5842,6 +6208,7 @@
       "referenceImageUnreachable": "服务商无法下载这张参考图。请使用可直接访问的公开图片链接，或重新上传图片。",
       "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",
       "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。",
+      "accountLimitReached": "服务商账号为该模型设置的用量上限已触顶，模型服务已被暂停。重试不会有变化——请到服务商控制台调高或关闭该模型的用量限额，或先改用其它模型。",
       "outputBudgetExhausted": "该推理模型在写出回复前就用尽了输出额度。请重试、换非推理模型（如 Gemini / Qwen），或缩短提示词。",
       "contextLimitExceeded": "PixelVault 已压缩较早历史并自动重试一次，但仍超过该模型的上下文上限。请新建对话或移除较大的参考内容。",
       "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",
@@ -5868,6 +6235,7 @@
       "reference_image_unreachable": "服务商无法下载这张参考图",
       "reference_image_limit_exceeded": "参考图数量超过该模型限制",
       "invalid_reference_image_dimensions": "参考图尺寸或比例不符合该模型要求",
+      "provider_account_limit_reached": "服务商账号为该模型设置的用量上限已触顶，模型服务被暂停。重试无效，需到服务商控制台调整限额。",
       "runner_queue_stuck": "Runner 收下了这次出图，但没有 GPU worker 来跑，已自动取消。重试只会再排一次队——先换用托管模型，或让站点管理员检查 Runner 端点。",
       "execution_worker_unavailable": "生成请求没能送到执行服务。本地开发请先启动 workers/execution（等它打出 Ready on 8787）；线上请检查执行服务是否可达。",
       "lora_incompatible_hosted": "这个托管模型的 LoRA 加载器读不了这把 LoRA 的层格式（LoRA 本身没问题）。换成 Runner 支持的模型再试——重试同一个托管模型不会有变化。",

@@ -10,6 +10,8 @@ import {
   geistMono,
   homepageMono,
   homepageSans,
+  homepageSerif,
+  homepageSerifJapanese,
   japaneseSans,
   serifFont,
 } from '@/i18n/fonts'
@@ -32,7 +34,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning data-scroll-behavior="smooth">
       <body
-        className={`${appSans.variable} ${displayFont.variable} ${serifFont.variable} ${editorialSerif.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} ${homepageSans.variable} ${homepageMono.variable} font-sans antialiased`}
+        className={`${appSans.variable} ${displayFont.variable} ${serifFont.variable} ${editorialSerif.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} ${homepageSans.variable} ${homepageMono.variable} ${homepageSerif.variable} ${homepageSerifJapanese.variable} font-sans antialiased`}
       >
         {children}
       </body>

@@ -17,8 +17,8 @@ primitive → semantic → domain/component → page
 
 ## CSS 与 token 现状
 
-- 入口：`src/app/globals.css`（全局枢纽，@theme inline + 语义变量 + 组件层）+ 域皮肤 `src/app/canvas.css` / `src/app/home-v3.css` / `src/app/legal.css`（域内局部，令牌一律写在域根上**不准写 `:root`**——canvas.css 就是这么泄漏到两个助手 dock 的）。
-- 首页域皮肤 2026-07-27 从 `homepage.css`（`.homepage-*` / `--home-*`）换成 `home-v3.css`（`.home-v3-*` / `--h-*`），旧文件和它的 17 个 `Homepage*` 组件已删。
+- 入口：`src/app/globals.css`（全局枢纽，@theme inline + 语义变量 + 组件层）+ 域皮肤 `src/app/canvas.css` / `src/app/home-v4.css` / `src/app/legal.css`（域内局部，令牌一律写在域根上**不准写 `:root`**——canvas.css 就是这么泄漏到两个助手 dock 的）。
+- 首页域皮肤 2026-08-28 从 `home-v3.css` 换成 `home-v4.css`（`.home-v4` 翻页站），v3 的皮肤 + 20 个 `HomeV3*` 组件 + `constants/home-v3.ts` 已整体删除。此前 2026-07-27 曾从 `homepage.css`（`.homepage-*`）换到 v3。
 - 运行时默认 `.dark`（根 html className）。⚠ `.dark` 只换色 token 不设 color-scheme——暗面组件需显式 `color-scheme: dark`。
 - **Tailwind 4：无 `tailwind.config.ts`**，token 扩展一律在 `globals.css` 的 `@theme inline`（2026-07-10 核验；CLAUDE.md 旧口径已修正）。
 - ⚠ globals.css 首行仍 `@import` Fontshare Satoshi，但全 src 无任何 `Satoshi` font-family 引用（字体栈已迁 Geist）——死引用，已立清理任务。
@@ -29,7 +29,7 @@ primitive → semantic → domain/component → page
 | ----------------- | ------------------------------------------------------------------------ | -------------------------------------------- |
 | Semantic fallback | `bg-background` / `bg-card` / `border-border` / `bg-muted`…              | 无域级方向时的中性实现，不是视觉上限         |
 | Domain            | `sidebar-*` · `node-*` · `--surface-composer` · `--width-studio-*`       | 只在所属域使用；当前值不外溢为全站默认       |
-| Page              | `home-v3-*` / `--h-*`（首页域）                                          | 留在页内；第二个页面需要同模式时仍先分别验证 |
+| Page              | `.home-v4` 域内令牌（首页域）                                            | 留在页内；第二个页面需要同模式时仍先分别验证 |
 | Utility           | `max-w-content` / `max-w-gallery` · `text-3xs` / `text-2xs` / `text-nav` | 共享尺度工具，不表达品牌性格                 |
 
 - `editorial-*` 类族（globals.css 33 处）：跨 prompts / arena / storyboard / 详情页 / 路由态的陈列面模式；职责混合（壳/hero/panel/metric 混在一起），提取或改动前按页确认。
@@ -118,7 +118,7 @@ StudioNodeWorkbench（主工作台）· CanvasTopBar / CanvasBottomDock / Canvas
 
 ## Source of Truth
 
-- `src/app/globals.css` · `src/app/home-v3.css` · `src/app/canvas.css` · `src/i18n/fonts.ts` · `src/i18n/routing.ts`
+- `src/app/globals.css` · `src/app/home-v4.css` · `src/app/canvas.css` · `src/i18n/fonts.ts` · `src/i18n/routing.ts`
 - `src/hooks/use-mobile.ts` · `src/app/[locale]/(main)/layout.tsx` · `src/components/{ui,layout,business}/`
 - 历史详版（含逐行 source 引用）：`git show cddc4384:docs/design/system/<文件>`（css-and-tokens / layout-shell / components / i18n-accessibility / current-ui-inventory）
 

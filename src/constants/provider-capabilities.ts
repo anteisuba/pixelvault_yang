@@ -214,8 +214,18 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       referenceImageMode: 'native',
     },
 
+    // BytePlus ModelArk = 火山 Ark's international station serving the same
+    // image API, so the image parameter surface must mirror VOLCENGINE above.
+    // ⚠ Was `capabilities: []` while this route was video-only; leaving it
+    // empty once Seedream landed here would silently strip seed / guidance /
+    // resolution controls and drop maxReferenceImages to the conservative
+    // adapter floor for every BytePlus image model.
     [AI_ADAPTER_TYPES.BYTEPLUS]: {
-      capabilities: [],
+      capabilities: ['seed', 'guidanceScale', 'resolution', 'imageAnalysis'],
+      guidanceScale: { min: 1, max: 10, step: 0.5, default: 8.0 },
+      resolutionOptions: ['2K', '4K'],
+      maxReferenceImages: VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES,
+      referenceImageMode: 'native',
     },
 
     // Video-only route. This table drives the **image** parameter controls, and

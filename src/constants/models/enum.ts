@@ -44,6 +44,26 @@ export enum AI_MODELS {
    * See docs/references/model-pricing.md.
    */
   SEEDREAM_50_LITE_VOLCENGINE = 'seedream-5.0-lite-volcengine',
+  /**
+   * Seedream 5.0 **Pro** via BytePlus ModelArk — 火山方舟's international
+   * station (ap-southeast-1). Additive third channel alongside fal and the
+   * cn-region 火山 entries, per owner's 2026-06-16 "additive 多版本" call:
+   * one entry per channel, region shown via `getAdapterRegion`.
+   *
+   * ⚠ BytePlus prefixes this id `dola-`, not cn's `doubao-` and not the
+   * `dreamina-` that its own Seedance ids use. Date suffix matches cn.
+   * Verified 2026-08-28 against the BytePlus Model list.
+   */
+  SEEDREAM_50_PRO_BYTEPLUS = 'seedream-5.0-pro-byteplus',
+  /**
+   * Seedream 5.0 Lite via BytePlus ModelArk.
+   *
+   * ⚠ Unlike Pro above, the Lite/base ids carry **no vendor prefix at all**
+   * on BytePlus — it is plain `seedream-5-0-lite-260128`. Do not "normalize"
+   * it to `dola-`/`doubao-`; that id does not exist on that station.
+   * The only Seedream also served from eu-west-1 (Pro is ap-southeast only).
+   */
+  SEEDREAM_50_LITE_BYTEPLUS = 'seedream-5.0-lite-byteplus',
   /** Nano Banana 2 Lite — ultra-low-latency Gemini image tier. */
   GEMINI_FLASH_LITE_IMAGE = 'gemini-3.1-flash-lite-image',
   NOVELAI_V45_FULL = 'nai-diffusion-4-5-full',

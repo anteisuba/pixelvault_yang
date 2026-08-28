@@ -161,6 +161,40 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     styleTag: 'artistic',
   },
   {
+    // ── BytePlus ModelArk (国际站, ap-southeast-1) ──────────────────
+    // Same Ark image API as the 火山 entries above; the station is selected
+    // purely by `providerConfig.baseUrl`, which the worker now honours. Keys
+    // are NOT interchangeable with 火山 — that is why BYTEPLUS is its own
+    // adapter type rather than a flag (see providers.ts "Two stations").
+    //
+    // ⚠ Prefix is `dola-`. Not `doubao-` (cn), not `dreamina-` (BytePlus's
+    // own Seedance ids). Verified against the BytePlus Model list 2026-08-28.
+    id: AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.BYTEPLUS),
+    externalModelId: 'dola-seedream-5-0-pro-260628',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1330310',
+    qualityTier: 'premium',
+    styleTag: 'artistic',
+  },
+  {
+    // ⚠ No vendor prefix on this one — BytePlus serves Lite as the bare
+    // `seedream-5-0-lite-260128`. Only Seedream also available in eu-west-1.
+    id: AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.BYTEPLUS),
+    externalModelId: 'seedream-5-0-lite-260128',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1330310',
+    qualityTier: 'standard',
+    styleTag: 'artistic',
+  },
+  {
     // Retired 2026-07-26 — superseded by Seedream 5.0; entry kept so archived
     // generations still resolve a label. See RETIRED_MODEL_IDS.
     id: AI_MODELS.SEEDREAM_45,

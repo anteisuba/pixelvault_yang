@@ -36,6 +36,10 @@ import {
 import { getGenerationByIdForUser } from '@/services/generation.service'
 import { buildGenerationFailureResponseFields } from '@/services/generation-failure-response.service'
 import {
+  getImageInputCount,
+  parseWorkerJobMetadata,
+} from '@/services/execution-callback.service'
+import {
   createGenerationJob,
   failGenerationJob,
 } from '@/services/usage.service'
@@ -285,6 +289,10 @@ export async function submitImageGeneration(
         referenceImages:
           referenceImages.length > 0 ? referenceImages : undefined,
         advancedParams: runnerAdvancedParams,
+        // Lets one worker branch serve both Ark stations (火山 cn-beijing vs
+        // BytePlus ap-southeast). Mirrors what generate-video.service.ts and
+        // generate-audio.service.ts have always sent.
+        providerBaseUrl: route.providerConfig.baseUrl,
         outputStorageKey,
       },
     }
@@ -368,6 +376,7 @@ export async function checkImageGenerationStatus(
       errorMessage: true,
       errorCode: true,
       startedAt: true,
+      externalRequestId: true,
     },
   })
 
@@ -399,10 +408,14 @@ export async function checkImageGenerationStatus(
   }
 
   if (job.status === 'FAILED') {
+    const metadata = parseWorkerJobMetadata(job.externalRequestId)
     return {
       jobId: job.id,
       status: 'FAILED',
-      ...buildGenerationFailureResponseFields(job),
+      ...buildGenerationFailureResponseFields({
+        ...job,
+        hasReferenceImage: getImageInputCount(metadata) > 0,
+      }),
     }
   }
 

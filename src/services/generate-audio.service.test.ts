@@ -1099,6 +1099,7 @@ describe('checkAudioGenerationStatus', () => {
       error: 'Fish Audio quota exhausted',
       errorCode: 'provider_insufficient_balance',
       i18nKey: 'errors.provider.insufficientBalance',
+      hasReferenceImage: false,
     })
     expect(checkAudioQueueStatus).not.toHaveBeenCalled()
     expect(getApiKeyValueById).not.toHaveBeenCalled()
@@ -1404,6 +1405,7 @@ describe('checkAudioGenerationStatus', () => {
     expect(result).toEqual({
       jobId: 'job-async-1',
       status: 'FAILED',
+      hasReferenceImage: false,
     })
     expect(failExpiredExecutionOutbox).toHaveBeenCalledWith(
       'outbox-audio-1',
@@ -1441,6 +1443,7 @@ describe('checkAudioGenerationStatus', () => {
     expect(result).toEqual({
       jobId: 'job-async-1',
       status: 'FAILED',
+      hasReferenceImage: false,
     })
     expect(failGenerationJob).toHaveBeenCalledWith(
       'job-async-1',

@@ -321,6 +321,49 @@ describe('check3DGenerationStatusForUserId', () => {
     })
     expect(result).not.toHaveProperty('cancelled')
   })
+
+  // 3D's queue metadata names its source image `sourceImageUrl` — a
+  // different key from the IMAGE/VIDEO/AUDIO metadata schema's
+  // `referenceImageUrl`/`referenceImages`. Regression: an earlier version of
+  // this fix reused the shared IMAGE-shaped parser here, which always read 0
+  // reference images for 3D and silently disabled reference-image error
+  // classification even when a genuine source image caused the failure.
+  it('derives hasReferenceImage from the 3D-specific sourceImageUrl field', async () => {
+    mockFindJob.mockResolvedValue({
+      ...LEGACY_INLINE_RUNNING_JOB,
+      status: 'FAILED',
+      errorMessage: 'the source image aspect ratio is not supported',
+    } as never)
+
+    const result = await check3DGenerationStatusForUserId('user-1', 'job-1')
+
+    expect(result).toMatchObject({
+      hasReferenceImage: true,
+      errorCode: 'invalid_reference_image_dimensions',
+    })
+  })
+
+  it('reports no reference image for a text-to-3D job with no source image', async () => {
+    mockFindJob.mockResolvedValue({
+      ...LEGACY_INLINE_RUNNING_JOB,
+      externalRequestId: JSON.stringify({
+        requestId: 'req-1',
+        statusUrl: 'https://queue.fal.run/status/req-1',
+        responseUrl: 'https://queue.fal.run/result/req-1',
+        prompt: 'a low poly fox',
+        apiKeyId: 'fal-key-id',
+      }),
+      status: 'FAILED',
+      errorMessage: 'the source image aspect ratio is not supported',
+    } as never)
+
+    const result = await check3DGenerationStatusForUserId('user-1', 'job-1')
+
+    expect(result).toMatchObject({ hasReferenceImage: false })
+    expect((result as { errorCode?: string }).errorCode).not.toBe(
+      'invalid_reference_image_dimensions',
+    )
+  })
 })
 
 // PR3-α's staged mesh-first flow (continue / retry-mesh) only ever drove

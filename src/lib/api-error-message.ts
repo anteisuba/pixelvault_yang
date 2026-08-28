@@ -8,6 +8,8 @@ interface ApiErrorLike {
   error?: string
   errorCode?: string
   i18nKey?: string
+  /** See `ParseGenerationErrorCodeOptions.hasReferenceImage`. */
+  hasReferenceImage?: boolean
 }
 
 type ErrorTranslator = ((key: string) => string) & {
@@ -85,7 +87,9 @@ export function getGenerationErrorMessage(
 
   const code =
     normalizeErrorCode(payload.errorCode) ??
-    parseGenerationErrorCode(payload.error ?? '')
+    parseGenerationErrorCode(payload.error ?? '', {
+      hasReferenceImage: payload.hasReferenceImage,
+    })
 
   if (code !== GENERATION_ERROR_CODES.UNKNOWN) {
     const generationKey = `generation.${code}`

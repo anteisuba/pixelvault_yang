@@ -25,6 +25,10 @@ import {
   failGenerationJob,
 } from '@/services/usage.service'
 import { buildGenerationFailureResponseFields } from '@/services/generation-failure-response.service'
+import {
+  getImageInputCount,
+  parseWorkerJobMetadata,
+} from '@/services/execution-callback.service'
 import { ensureUser } from '@/services/user.service'
 import {
   GenerateImageServiceError,
@@ -419,10 +423,14 @@ export async function checkVideoGenerationStatusForUserId(
 
   // Already failed
   if (job.status === 'FAILED') {
+    const metadata = parseWorkerJobMetadata(job.externalRequestId)
     return {
       jobId: job.id,
       status: 'FAILED',
-      ...buildGenerationFailureResponseFields(job),
+      ...buildGenerationFailureResponseFields({
+        ...job,
+        hasReferenceImage: getImageInputCount(metadata) > 0,
+      }),
     }
   }
 

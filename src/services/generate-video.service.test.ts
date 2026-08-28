@@ -459,6 +459,7 @@ describe('generate-video.service worker dispatch', () => {
       jobId: 'job-video-1',
       status: 'FAILED',
       error: 'fal.ai video queue failed with status 422',
+      hasReferenceImage: false,
     })
   })
 

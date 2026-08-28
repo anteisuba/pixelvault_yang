@@ -1,3 +1,5 @@
+import { deflateRawSync } from 'node:zlib'
+
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -25,6 +27,7 @@ import {
   timingSafeEqualHex,
   toHex,
   verifySignedBody,
+  volcEngine4KSize,
 } from './index'
 import executionWorker from './index'
 
@@ -396,31 +399,115 @@ describe('generateNovelAiImage', () => {
   const NOVELAI_V5_FULL = 'nai-diffusion-5-full'
   const NOVELAI_V45_FULL = 'nai-diffusion-4-5-full'
 
-  function createStoredZip(
-    fileName: string,
-    fileData: Uint8Array,
-  ): ArrayBuffer {
+  /**
+   * Builds a real ZIP archive (local header + central directory + EOCD),
+   * optionally in NovelAI's actual shape: general-purpose bit 3 set and the
+   * local header's sizes zeroed, with the true sizes only recoverable from
+   * the central directory and a trailing data descriptor after the file
+   * data. `extractNovelAiZipImage` must read sizes from the central
+   * directory to handle this — see the fix note on that function.
+   */
+  function buildZip({
+    fileName,
+    fileData,
+    compressedData,
+    compressionMethod,
+    streamedSizes,
+  }: {
+    fileName: string
+    fileData: Uint8Array
+    compressedData: Uint8Array
+    compressionMethod: number
+    streamedSizes: boolean
+  }): ArrayBuffer {
     const fileNameBytes = new TextEncoder().encode(fileName)
-    const header = Buffer.alloc(30)
-    header.writeUInt32LE(0x04034b50, 0)
-    header.writeUInt16LE(20, 4)
-    header.writeUInt16LE(0, 6)
-    header.writeUInt16LE(0, 8)
-    header.writeUInt32LE(0, 10)
-    header.writeUInt32LE(0, 14)
-    header.writeUInt32LE(fileData.byteLength, 18)
-    header.writeUInt32LE(fileData.byteLength, 22)
-    header.writeUInt16LE(fileNameBytes.byteLength, 26)
-    header.writeUInt16LE(0, 28)
+    const generalPurposeFlag = streamedSizes ? 0x08 : 0
+
+    const localHeader = Buffer.alloc(30)
+    localHeader.writeUInt32LE(0x04034b50, 0)
+    localHeader.writeUInt16LE(20, 4)
+    localHeader.writeUInt16LE(generalPurposeFlag, 6)
+    localHeader.writeUInt16LE(compressionMethod, 8)
+    localHeader.writeUInt32LE(0, 10)
+    localHeader.writeUInt32LE(0, 14)
+    localHeader.writeUInt32LE(streamedSizes ? 0 : compressedData.byteLength, 18)
+    localHeader.writeUInt32LE(streamedSizes ? 0 : fileData.byteLength, 22)
+    localHeader.writeUInt16LE(fileNameBytes.byteLength, 26)
+    localHeader.writeUInt16LE(0, 28)
+
+    const localSection = Buffer.concat([
+      localHeader,
+      Buffer.from(fileNameBytes),
+      Buffer.from(compressedData),
+    ])
+
+    // Real NovelAI zips append a data descriptor after streamed entries —
+    // included here so the extractor is proven not to depend on scanning
+    // past it (the bug this replaces used to swallow these bytes).
+    const dataDescriptor = Buffer.alloc(streamedSizes ? 12 : 0)
+    if (streamedSizes) {
+      dataDescriptor.writeUInt32LE(0, 0)
+      dataDescriptor.writeUInt32LE(compressedData.byteLength, 4)
+      dataDescriptor.writeUInt32LE(fileData.byteLength, 8)
+    }
+
+    const centralDirOffset = localSection.byteLength + dataDescriptor.byteLength
+
+    const centralHeader = Buffer.alloc(46)
+    centralHeader.writeUInt32LE(0x02014b50, 0)
+    centralHeader.writeUInt16LE(20, 4)
+    centralHeader.writeUInt16LE(20, 6)
+    centralHeader.writeUInt16LE(generalPurposeFlag, 8)
+    centralHeader.writeUInt16LE(compressionMethod, 10)
+    centralHeader.writeUInt32LE(0, 12)
+    centralHeader.writeUInt32LE(0, 16)
+    centralHeader.writeUInt32LE(compressedData.byteLength, 20)
+    centralHeader.writeUInt32LE(fileData.byteLength, 24)
+    centralHeader.writeUInt16LE(fileNameBytes.byteLength, 28)
+    centralHeader.writeUInt16LE(0, 30)
+    centralHeader.writeUInt16LE(0, 32)
+    centralHeader.writeUInt16LE(0, 34)
+    centralHeader.writeUInt16LE(0, 36)
+    centralHeader.writeUInt32LE(0, 38)
+    centralHeader.writeUInt32LE(0, 42)
+
+    const centralSection = Buffer.concat([
+      centralHeader,
+      Buffer.from(fileNameBytes),
+    ])
+
+    const eocd = Buffer.alloc(22)
+    eocd.writeUInt32LE(0x06054b50, 0)
+    eocd.writeUInt16LE(0, 4)
+    eocd.writeUInt16LE(0, 6)
+    eocd.writeUInt16LE(1, 8)
+    eocd.writeUInt16LE(1, 10)
+    eocd.writeUInt32LE(centralSection.byteLength, 12)
+    eocd.writeUInt32LE(centralDirOffset, 16)
+    eocd.writeUInt16LE(0, 20)
 
     const bytes = Buffer.concat([
-      header,
-      Buffer.from(fileNameBytes),
-      Buffer.from(fileData),
+      localSection,
+      dataDescriptor,
+      centralSection,
+      eocd,
     ])
     const zip = new ArrayBuffer(bytes.byteLength)
     new Uint8Array(zip).set(bytes)
     return zip
+  }
+
+  function createStoredZip(
+    fileName: string,
+    fileData: Uint8Array,
+  ): ArrayBuffer {
+    return buildZip({
+      fileName,
+      fileData,
+      compressedData: fileData,
+      compressionMethod: 0,
+      streamedSizes: false,
+    })
   }
 
   function stubNovelAiZipResponse() {
@@ -537,6 +624,50 @@ describe('generateNovelAiImage', () => {
       ),
     ).rejects.toThrow()
   })
+
+  it('extracts the image from a deflate-compressed, streamed-size ZIP (real NovelAI shape)', async () => {
+    // Regression test: NovelAI's actual response is deflate-compressed
+    // (method 8) with the local header's sizes zeroed (general-purpose bit
+    // 3, "streamed"). The old extractor guessed the compressed length by
+    // scanning forward for the next `PK` signature, which is unsound
+    // against arbitrary compressed bytes and threw "trailing bytes after
+    // end of compressed data" / "Called close() on a decompression stream
+    // with incomplete data" against real responses. This exercises the
+    // fixed central-directory-based path end to end.
+    const fileData = Uint8Array.from(
+      Buffer.from('a'.repeat(4000) + 'fake-png-bytes' + 'b'.repeat(4000)),
+    )
+    const compressedData = new Uint8Array(deflateRawSync(Buffer.from(fileData)))
+    const fakeZip = buildZip({
+      fileName: 'image_0.png',
+      fileData,
+      compressedData,
+      compressionMethod: 8,
+      streamedSizes: true,
+    })
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(fakeZip, {
+        status: 200,
+        headers: { 'content-type': 'application/zip' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const env = makeEnv()
+
+    await generateNovelAiImage(
+      env,
+      makeContext(NOVELAI_V5_FULL),
+      'nai-test-key',
+    )
+
+    const putCall = (
+      env.GENERATION_BUCKET.put as unknown as {
+        mock: { calls: unknown[][] }
+      }
+    ).mock.calls[0]
+    const uploadedBytes = new Uint8Array(putCall[1] as ArrayBuffer)
+    expect(uploadedBytes).toEqual(fileData)
+  })
 })
 
 describe('hex helpers', () => {
@@ -557,6 +688,45 @@ describe('hex helpers', () => {
     expect(timingSafeEqualHex('deadbeef', 'deadbeee')).toBe(false)
     expect(timingSafeEqualHex('dead', 'deadbeef')).toBe(false)
     expect(timingSafeEqualHex('not-hex', 'deadbeef')).toBe(false)
+  })
+})
+
+describe('volcEngine4KSize', () => {
+  // Regression: a single shared 4K budget (3840x2160 = 8,294,400 px) is over
+  // Seedream 5.0 pro's per-model ceiling of 4,624,220 px, so every 4K request
+  // on pro came back `400 InvalidParameter: image area must be at most
+  // 4624220 pixels`. Confirmed against real failed jobs in the DB.
+  const PRO = 'doubao-seedream-5-0-pro-260628'
+  const LITE = 'doubao-seedream-5-0-lite-260128'
+  const PRO_MAX = 4_624_220
+
+  it('clamps the 4K budget under the Seedream pro ceiling for every aspect ratio', () => {
+    for (const aspectRatio of ['1:1', '16:9', '9:16', '4:3', '3:4']) {
+      const { width, height } = volcEngine4KSize(aspectRatio, PRO)
+      expect(width * height).toBeLessThanOrEqual(PRO_MAX)
+    }
+  })
+
+  it('preserves the requested aspect ratio while clamping', () => {
+    const { width, height } = volcEngine4KSize('16:9', PRO)
+    expect(width / height).toBeCloseTo(16 / 9, 1)
+  })
+
+  it('still gives non-pro models the full 4K budget', () => {
+    const { width, height } = volcEngine4KSize('16:9', LITE)
+    // Above pro's cap — proves the clamp is model-specific, not blanket.
+    expect(width * height).toBeGreaterThan(PRO_MAX)
+    expect(width * height).toBeLessThanOrEqual(4096 * 4096)
+  })
+
+  it('emits edges Ark accepts (multiples of 16)', () => {
+    for (const modelId of [PRO, LITE]) {
+      for (const aspectRatio of ['1:1', '16:9', '4:3']) {
+        const { width, height } = volcEngine4KSize(aspectRatio, modelId)
+        expect(width % 16).toBe(0)
+        expect(height % 16).toBe(0)
+      }
+    }
   })
 })
 

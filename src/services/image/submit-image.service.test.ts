@@ -493,6 +493,7 @@ describe('checkImageGenerationStatus', () => {
       jobId: 'job-1',
       status: 'FAILED',
       error: 'Replicate image generation failed: Checkpoint not supported',
+      hasReferenceImage: false,
     })
   })
 

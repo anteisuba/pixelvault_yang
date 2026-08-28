@@ -58,6 +58,10 @@ import {
 import { createGeneration } from '@/services/generation.service'
 import { buildGenerationFailureResponseFields } from '@/services/generation-failure-response.service'
 import {
+  getImageInputCount,
+  parseWorkerJobMetadata,
+} from '@/services/execution-callback.service'
+import {
   resolveGenerationRoute,
   GenerateImageServiceError,
   type ResolvedGenerationRoute,
@@ -1289,10 +1293,14 @@ export async function checkAudioGenerationStatus(
   }
 
   if (job.status === 'FAILED') {
+    const metadata = parseWorkerJobMetadata(job.externalRequestId)
     return {
       jobId: job.id,
       status: 'FAILED',
-      ...buildGenerationFailureResponseFields(job),
+      ...buildGenerationFailureResponseFields({
+        ...job,
+        hasReferenceImage: getImageInputCount(metadata) > 0,
+      }),
     }
   }
 
@@ -1329,10 +1337,14 @@ export async function checkAudioGenerationStatus(
     })
 
     if (freshJob?.status === 'FAILED') {
+      const metadata = parseWorkerJobMetadata(freshJob.externalRequestId)
       return {
         jobId: job.id,
         status: 'FAILED',
-        ...buildGenerationFailureResponseFields(freshJob),
+        ...buildGenerationFailureResponseFields({
+          ...freshJob,
+          hasReferenceImage: getImageInputCount(metadata) > 0,
+        }),
       }
     }
 
@@ -1424,10 +1436,14 @@ export async function checkAudioGenerationStatus(
     }
 
     if (freshJob?.status === 'FAILED') {
+      const metadata = parseWorkerJobMetadata(freshJob.externalRequestId)
       return {
         jobId: freshJob.id,
         status: 'FAILED',
-        ...buildGenerationFailureResponseFields(freshJob),
+        ...buildGenerationFailureResponseFields({
+          ...freshJob,
+          hasReferenceImage: getImageInputCount(metadata) > 0,
+        }),
       }
     }
 

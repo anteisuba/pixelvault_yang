@@ -756,6 +756,7 @@ export type AudioStatusResponseData =
       error?: string
       errorCode?: string
       i18nKey?: string
+      hasReferenceImage?: boolean
     }
 
 export interface AudioStatusResponse {
@@ -788,6 +789,7 @@ export type ImageStatusResponseData =
       error?: string
       errorCode?: string
       i18nKey?: string
+      hasReferenceImage?: boolean
     }
 
 export interface ImageStatusResponse {
@@ -1286,6 +1288,7 @@ export type Model3DStatusResponseData =
       error?: string
       errorCode?: string
       i18nKey?: string
+      hasReferenceImage?: boolean
     }
 
 // ─── Multi-View Generation (reference-edit chain for 3D inputs) ─────
@@ -1629,6 +1632,13 @@ const WorkerImageProviderInputSchema = z.object({
   referenceImages: z.array(z.string()).optional(),
   /** Provider-specific params, transparently forwarded to the adapter. */
   advancedParams: z.unknown().optional(),
+  /**
+   * Station base URL for adapters whose implementation is shared across two
+   * regional deployments (火山 Ark 国内站 vs BytePlus ModelArk 国际站). The
+   * video path has carried this since Seedance landed; images hardcoded the
+   * CN host, which is why the overseas image line could not exist at all.
+   */
+  providerBaseUrl: z.string().trim().url().optional(),
   outputStorageKey: z.string().trim().min(1).optional(),
 })
 

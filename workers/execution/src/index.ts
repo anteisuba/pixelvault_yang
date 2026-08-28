@@ -231,6 +231,12 @@ interface WorkerImageRunContext {
     referenceImage?: string
     referenceImages?: string[]
     advancedParams?: Record<string, unknown>
+    /**
+     * Station base URL for adapters shared across two regional deployments
+     * (火山 Ark 国内站 vs BytePlus ModelArk 国际站). Absent for every other
+     * image provider, which keeps its own hardcoded host.
+     */
+    providerBaseUrl?: string
     outputStorageKey?: string
   }
 }
@@ -4135,6 +4141,8 @@ function parseImageRunContext(input: unknown): WorkerImageRunContext | null {
       referenceImage,
       referenceImages,
       advancedParams,
+      providerBaseUrl:
+        readStringField(providerInput, 'providerBaseUrl') ?? undefined,
       outputStorageKey:
         readStringField(providerInput, 'outputStorageKey') ?? undefined,
     },
@@ -4389,16 +4397,64 @@ export function tieredGeminiDimensions(
 // getVolcEngineImageSize() untouched.
 const VOLCENGINE_4K_TARGET_PIXELS = 3840 * 2160
 
-function volcEngine4KSize(aspectRatio: string): {
+/**
+ * Ark's total-pixel ceiling is **per model**, and Seedream 5.0 pro's is far
+ * lower than the rest: 4,624,220 px (2048x2048x1.1025) against 16,777,216
+ * (4096x4096) for lite / 4.x. A single shared 4K budget of 8,294,400 px is
+ * therefore always over pro's cap, and every 4K request on pro came back
+ * `400 InvalidParameter: image area must be at most 4624220 pixels`.
+ * Clamping (rather than rejecting) keeps the tier usable — pro officially
+ * lists only 1K/1.5K/2K, so "4K" on it means "as large as pro allows".
+ * Source: Ark 图片生成 API, the `size` parameter's per-model sections.
+ */
+const VOLCENGINE_PRO_MAX_TOTAL_PIXELS = 4_624_220
+const VOLCENGINE_MAX_TOTAL_PIXELS = 4096 * 4096
+const VOLCENGINE_SIZE_EDGE_STEP = 16
+
+function volcEngineMaxTotalPixels(externalModelId: string): number {
+  return /seedream-\d+-\d+-pro/.test(externalModelId)
+    ? VOLCENGINE_PRO_MAX_TOTAL_PIXELS
+    : VOLCENGINE_MAX_TOTAL_PIXELS
+}
+
+/**
+ * Floors both edges to the step so the product is provably <= the budget.
+ * `computeTieredDimensions` rounds to nearest and only shrinks *height* when
+ * it overshoots `maxTotalPixels`, which would distort the requested aspect
+ * ratio — not acceptable when the caller asked for 16:9.
+ */
+function volcEngineSizeForBudget(
+  aspectRatio: string,
+  targetPixels: number,
+): { width: number; height: number; size: string } {
+  const [rw, rh] = IMAGE_ASPECT_RATIO_PARTS[aspectRatio] ?? [1, 1]
+  const floorToStep = (value: number) =>
+    Math.max(
+      VOLCENGINE_SIZE_EDGE_STEP,
+      Math.floor(value / VOLCENGINE_SIZE_EDGE_STEP) * VOLCENGINE_SIZE_EDGE_STEP,
+    )
+
+  const width = floorToStep(Math.sqrt((targetPixels * rw) / rh))
+  const height = floorToStep((width * rh) / rw)
+
+  return { width, height, size: `${width}x${height}` }
+}
+
+export function volcEngine4KSize(
+  aspectRatio: string,
+  externalModelId: string,
+): {
   width: number
   height: number
   size: string
 } {
-  const { width, height } = computeTieredDimensions(aspectRatio, {
-    targetPixels: VOLCENGINE_4K_TARGET_PIXELS,
-    edgeStep: 8,
-  })
-  return { width, height, size: `${width}x${height}` }
+  return volcEngineSizeForBudget(
+    aspectRatio,
+    Math.min(
+      VOLCENGINE_4K_TARGET_PIXELS,
+      volcEngineMaxTotalPixels(externalModelId),
+    ),
+  )
 }
 
 // fal Seedream 4.5's custom `{width, height}` size object requires each
@@ -5266,7 +5322,10 @@ async function generateVolcEngineImage(
   const resolution = readStringField(advancedParams, 'resolution')
   const size =
     resolution === '4K'
-      ? volcEngine4KSize(context.providerInput.aspectRatio)
+      ? volcEngine4KSize(
+          context.providerInput.aspectRatio,
+          context.providerInput.externalModelId,
+        )
       : getVolcEngineImageSize(context.providerInput.aspectRatio)
   const body: Record<string, unknown> = {
     model: context.providerInput.externalModelId,
@@ -5290,7 +5349,17 @@ async function generateVolcEngineImage(
   const guidanceScale = readNumberField(advancedParams, 'guidanceScale')
   if (guidanceScale != null) body.guidance_scale = guidanceScale
 
-  const response = await fetch(`${VOLCENGINE_BASE_URL}/images/generations`, {
+  // 火山 Ark (cn-beijing) and BytePlus ModelArk (ap-southeast) expose the
+  // identical /images/generations contract, so one function serves both —
+  // the station is chosen entirely by this URL. Hardcoding the CN host here
+  // is what made an overseas image line impossible; the video path has read
+  // providerBaseUrl since Seedance landed, which is why Seedance already had
+  // a working BytePlus route while images did not.
+  const baseUrl = (
+    context.providerInput.providerBaseUrl ?? VOLCENGINE_BASE_URL
+  ).replace(/\/$/, '')
+
+  const response = await fetch(`${baseUrl}/images/generations`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -6067,6 +6136,54 @@ async function inflateRawZipEntry(bytes: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await new Response(stream).arrayBuffer())
 }
 
+const ZIP_EOCD_SIGNATURE = 0x06054b50
+const ZIP_EOCD_MIN_SIZE = 22
+const ZIP_MAX_COMMENT_LENGTH = 0xffff
+
+/**
+ * Locate the End Of Central Directory record by scanning backward from the
+ * tail of the archive (it's the only fixed-signature record whose position
+ * isn't knowable in advance, since it sits after an optional comment).
+ */
+function findZipEndOfCentralDirectory(zipBytes: Uint8Array): number {
+  const minIndex = Math.max(
+    0,
+    zipBytes.length - ZIP_EOCD_MIN_SIZE - ZIP_MAX_COMMENT_LENGTH,
+  )
+  for (
+    let index = zipBytes.length - ZIP_EOCD_MIN_SIZE;
+    index >= minIndex;
+    index -= 1
+  ) {
+    if (
+      zipBytes[index] === 0x50 &&
+      zipBytes[index + 1] === 0x4b &&
+      zipBytes[index + 2] === 0x05 &&
+      zipBytes[index + 3] === 0x06
+    ) {
+      return index
+    }
+  }
+  throw new Error(
+    'NovelAI ZIP response is missing its end-of-central-directory record.',
+  )
+}
+
+/**
+ * Extracts the sole image entry from NovelAI's ZIP response.
+ *
+ * ⚠ NovelAI writes the local file header in streamed form — general-purpose
+ * bit 3 set, compressed/uncompressed size zeroed there — so those sizes
+ * can't be trusted. An earlier version of this function guessed the
+ * compressed length by scanning forward for the next `PK\x01`/`PK\x03`
+ * signature; that's unsound against arbitrary compressed bytes, which can
+ * coincidentally contain that 3-byte pattern (truncating the stream and
+ * throwing "incomplete data" on close()) or miss it and swallow the trailing
+ * data-descriptor bytes into the stream (throwing "trailing bytes after end
+ * of compressed data"). The central directory — always present, always
+ * fully populated — carries the authoritative compressed size regardless of
+ * the local header's streaming flag, so read from there instead.
+ */
 async function extractNovelAiZipImage(
   zipBytes: Uint8Array,
 ): Promise<Uint8Array> {
@@ -6079,29 +6196,35 @@ async function extractNovelAiZipImage(
     throw new Error('NovelAI returned an invalid ZIP image response.')
   }
 
-  const view = new DataView(
+  const localView = new DataView(
     zipBytes.buffer,
     zipBytes.byteOffset,
     zipBytes.byteLength,
   )
-  const compressionMethod = view.getUint16(8, true)
-  let compressedSize = view.getUint32(18, true)
-  const filenameLength = view.getUint16(26, true)
-  const extraFieldLength = view.getUint16(28, true)
-  const dataOffset = 30 + filenameLength + extraFieldLength
+  const localFilenameLength = localView.getUint16(26, true)
+  const localExtraFieldLength = localView.getUint16(28, true)
+  const dataOffset = 30 + localFilenameLength + localExtraFieldLength
 
-  if (compressedSize === 0) {
-    for (let index = dataOffset; index < zipBytes.length - 3; index += 1) {
-      if (
-        zipBytes[index] === 0x50 &&
-        zipBytes[index + 1] === 0x4b &&
-        (zipBytes[index + 2] === 0x01 || zipBytes[index + 2] === 0x03)
-      ) {
-        compressedSize = index - dataOffset
-        break
-      }
-    }
+  const eocdOffset = findZipEndOfCentralDirectory(zipBytes)
+  const eocdView = new DataView(
+    zipBytes.buffer,
+    zipBytes.byteOffset + eocdOffset,
+    ZIP_EOCD_MIN_SIZE,
+  )
+  const centralDirOffset = eocdView.getUint32(16, true)
+
+  const centralDirView = new DataView(
+    zipBytes.buffer,
+    zipBytes.byteOffset + centralDirOffset,
+    zipBytes.byteLength - centralDirOffset,
+  )
+  if (centralDirView.getUint32(0, true) !== 0x02014b50) {
+    throw new Error(
+      'NovelAI ZIP central directory entry has an unexpected signature.',
+    )
   }
+  const compressionMethod = centralDirView.getUint16(10, true)
+  const compressedSize = centralDirView.getUint32(20, true)
 
   const compressed = zipBytes.subarray(dataOffset, dataOffset + compressedSize)
   if (compressionMethod === 0) return compressed
@@ -6692,7 +6815,13 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
             return generateHuggingFaceImage(this.env, context, apiKey)
           },
         )
-      } else if (context.providerId === 'volcengine') {
+      } else if (
+        context.providerId === 'volcengine' ||
+        // Same Ark image API, international station. The station is selected
+        // by providerInput.providerBaseUrl, not by this id — the two share
+        // one implementation exactly like the video path does.
+        context.providerId === 'byteplus'
+      ) {
         result = await step.do(
           'generate-volcengine-image',
           {

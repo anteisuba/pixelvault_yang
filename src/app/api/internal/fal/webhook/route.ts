@@ -4,7 +4,6 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 import { FAL_WEBHOOK } from '@/constants/execution'
-import { parseGenerationErrorCode } from '@/constants/generation-errors'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { verifyFalWebhookSignature } from '@/lib/signature-verifiers/fal-webhook'
@@ -150,13 +149,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (isFailed) {
       const errorMessage = extractFalErrorMessage(body)
 
+      // ⚠ Deliberately no `errorCode` here: classifying this text blind
+      // (without knowing whether the job actually carried a reference
+      // image) risks the same misattribution the `hasReferenceImage` gate
+      // in `parseGenerationErrorCode` exists to prevent — see
+      // `generation-failure-response.service.ts`. Leaving it unset defers
+      // classification to job-status read time, where that context is
+      // available, exactly like every other provider's worker failures.
       result = await handleExecutionCallback({
         runId,
         kind: 'result',
         ts,
         data: {
           error: errorMessage,
-          errorCode: parseGenerationErrorCode(errorMessage),
           providerMetadata: {
             requestId: readString(body, 'request_id') ?? undefined,
             status: readString(body, 'status') ?? undefined,

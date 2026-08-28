@@ -244,6 +244,29 @@ export async function submit3DGenerationForUserId(
 
 // ─── Check 3D generation status ─────────────────────────────────
 
+/**
+ * 3D's queue metadata (`Model3DQueueMetaSchema`) names its source image
+ * `sourceImageUrl`, not `referenceImageUrl`/`referenceImages` like the
+ * IMAGE/VIDEO/AUDIO metadata schema — so it needs its own presence check
+ * rather than the shared `getImageInputCount`, which would always read 0 for
+ * a 3D job (silently disabling reference-image error classification for it,
+ * even on a genuine "your source image is invalid" failure). Deliberately
+ * lenient (never throws): a malformed or absent value just means "no image".
+ */
+function has3DSourceImage(externalRequestId: string | null): boolean {
+  if (!externalRequestId) return false
+  try {
+    const parsed: unknown = JSON.parse(externalRequestId)
+    return (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      Boolean((parsed as Record<string, unknown>).sourceImageUrl)
+    )
+  } catch {
+    return false
+  }
+}
+
 export async function check3DGenerationStatus(
   clerkId: string,
   jobId: string,
@@ -284,7 +307,12 @@ export async function check3DGenerationStatusForUserId(
       jobId: job.id,
       status: 'FAILED',
       ...(cancelled ? { cancelled: true } : {}),
-      ...(!cancelled ? buildGenerationFailureResponseFields(job) : {}),
+      ...(!cancelled
+        ? buildGenerationFailureResponseFields({
+            ...job,
+            hasReferenceImage: has3DSourceImage(job.externalRequestId),
+          })
+        : {}),
     }
   }
 

@@ -132,7 +132,14 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     parentGenerationId: z.string().min(1).optional(),
   })
 
-function parseWorkerJobMetadata(value: string | null) {
+/**
+ * The worker's queue metadata (including `referenceImages`) is stored in
+ * `GenerationJob.externalRequestId` — a JSON blob reusing a column named for
+ * something else, not an actual external request id. Exported so the
+ * status-check services can derive `hasReferenceImage` for
+ * `buildGenerationFailureResponseFields` without duplicating this parsing.
+ */
+export function parseWorkerJobMetadata(value: string | null) {
   if (!value) return {}
 
   try {
@@ -144,7 +151,7 @@ function parseWorkerJobMetadata(value: string | null) {
   }
 }
 
-function getImageInputCount(metadata: {
+export function getImageInputCount(metadata: {
   referenceImageUrl?: string
   referenceImages?: string[]
 }): number {

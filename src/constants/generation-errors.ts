@@ -45,6 +45,17 @@ export const GENERATION_ERROR_CODES = {
    * 离开我们自己的机器。单列一个码，是因为它此前一直被参考图那条规则吃掉。
    */
   EXECUTION_WORKER_UNAVAILABLE: 'execution_worker_unavailable',
+  /**
+   * Provider 侧**账号自己设的**用量闸被触到，模型服务已被暂停（火山方舟
+   * `SetLimitExceeded`：「Your account [...] has reached the set inference
+   * limit for the [...] model, and the model service has been paused」）。
+   *
+   * 单列一个码而不是复用 PROVIDER_RATE_LIMIT，理由和 RUNNER_QUEUE_STUCK 一样：
+   * 两者给用户的指示完全相反。限流值得等一会儿再试，**这个等多久都没用** ——
+   * 得去 provider 控制台把限额调高或关掉。它走 HTTP 429，不单列就会被通用的
+   * 429 规则说成「请求过于频繁，稍后重试」，把人钉在一个永远不会好的重试循环里。
+   */
+  PROVIDER_ACCOUNT_LIMIT_REACHED: 'provider_account_limit_reached',
   UNKNOWN: 'unknown',
 } as const
 
@@ -100,7 +111,22 @@ const PROVIDER_REFERENCE_FORMAT_GUIDANCE: Array<{
 // doesn't get classified as INVALID_API_KEY. Likewise, the api-key regex
 // requires an "invalid/expired/missing" qualifier so casual mentions of
 // the term don't trigger.
-const ERROR_PATTERNS: Array<{ pattern: RegExp; code: GenerationErrorCode }> = [
+/**
+ * `requiresReferenceImage: true` marks patterns that only mean what they say
+ * when the request actually carried a reference image. These regexes match
+ * on generic English words (image/size/exceeds/maximum/resolution/pixels…)
+ * that providers also use to complain about the OUTPUT image or unrelated
+ * request fields — see the EXECUTION_WORKER_UNAVAILABLE comment below for a
+ * previously-patched instance of the same failure mode. `parseGenerationErrorCode`
+ * skips these entries when the caller knows (`hasReferenceImage: false`) that
+ * no reference image was part of the request, instead of asserting "your
+ * reference image is broken" about a request that never had one.
+ */
+const ERROR_PATTERNS: Array<{
+  pattern: RegExp
+  code: GenerationErrorCode
+  requiresReferenceImage?: boolean
+}> = [
   // Must beat the generic MODEL_UNAVAILABLE ("not found") pattern below —
   // Replicate's delta-lock/noobai-xl throws these exact phrases when a
   // community LoRA's layer format doesn't match its loader.
@@ -114,29 +140,50 @@ const ERROR_PATTERNS: Array<{ pattern: RegExp; code: GenerationErrorCode }> = [
   // UNREACHABLE 的 `fetch.*failed` 吃掉，于是「worker 没起」被显示成「服务商无法
   // 下载这张参考图」—— 一张参考图都没有的时候也照报，把人往完全错误的方向带
   // （owner 2026-08-14 真机撞上；此前已在 memory 里记过一次「文案是假线索」）。
+  // `requiresReferenceImage` below generalizes this same fix to the other
+  // four reference-image patterns instead of relying solely on ordering.
   {
     pattern: /execution worker|worker dispatch/i,
     code: GENERATION_ERROR_CODES.EXECUTION_WORKER_UNAVAILABLE,
   },
+  // ⚠ 也必须排在参考图规则**之前**：火山的原文是
+  // `...(429): {"error":{"code":"SetLimitExceeded","message":"Your account
+  // [...] has reached the set inference limit for the [...] model..."}}`，
+  // 里面同时有 "image"（来自我们自己的 `VolcEngine image generation failed`
+  // 前缀）和 "Exceeded"，正好被 TOO_LARGE 的 `image.*?exceeded` 吃掉，于是
+  // 账号限额被显示成「参考图文件过大」——一张参考图都没有的时候也照报
+  // （owner 2026-08-27 真机撞上，DB 里 errorMessage 原文可查）。
+  // ⚠ 这条正则刻意只认 provider 的具体标识（`SetLimitExceeded` / 那句
+  // 固定英文），**不是**「含 limit/exceeded 就算」的兜底——那种兜底正是
+  // 下面注释里记着的、2026-08-24 被删掉的那条祸根。
+  {
+    pattern: /SetLimitExceeded|reached the set inference limit/i,
+    code: GENERATION_ERROR_CODES.PROVIDER_ACCOUNT_LIMIT_REACHED,
+  },
   {
     pattern: REFERENCE_IMAGE_ERROR_PATTERNS.UNSUPPORTED_FORMAT,
     code: GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT,
+    requiresReferenceImage: true,
   },
   {
     pattern: REFERENCE_IMAGE_ERROR_PATTERNS.TOO_LARGE,
     code: GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE,
+    requiresReferenceImage: true,
   },
   {
     pattern: REFERENCE_IMAGE_ERROR_PATTERNS.UNREACHABLE,
     code: GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE,
+    requiresReferenceImage: true,
   },
   {
     pattern: REFERENCE_IMAGE_ERROR_PATTERNS.LIMIT_EXCEEDED,
     code: GENERATION_ERROR_CODES.REFERENCE_IMAGE_LIMIT_EXCEEDED,
+    requiresReferenceImage: true,
   },
   {
     pattern: REFERENCE_IMAGE_ERROR_PATTERNS.INVALID_DIMENSIONS,
     code: GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS,
+    requiresReferenceImage: true,
   },
   {
     pattern: /timeout|timed?\s*out/i,
@@ -190,10 +237,27 @@ const ERROR_PATTERNS: Array<{ pattern: RegExp; code: GenerationErrorCode }> = [
   // 认不出来就落到 UNKNOWN、显示 provider 原文——难看，但不指向错误的方向。
 ]
 
+export interface ParseGenerationErrorCodeOptions {
+  /**
+   * Whether the request that produced this error actually carried a
+   * reference image. `false` skips the five reference-image-specific
+   * patterns so a generic provider complaint (about the output image, a
+   * size/resolution param, or anything else containing those same English
+   * words) can't be mislabeled as "your reference image is broken" for a
+   * request that never had one. Omit when unknown — the patterns still
+   * apply, matching prior behavior.
+   */
+  hasReferenceImage?: boolean
+}
+
 export function parseGenerationErrorCode(
   errorMessage: string,
+  options?: ParseGenerationErrorCodeOptions,
 ): GenerationErrorCode {
-  for (const { pattern, code } of ERROR_PATTERNS) {
+  for (const { pattern, code, requiresReferenceImage } of ERROR_PATTERNS) {
+    if (requiresReferenceImage && options?.hasReferenceImage === false) {
+      continue
+    }
     if (pattern.test(errorMessage)) {
       return code
     }
@@ -256,9 +320,18 @@ function getUnsupportedReferenceImageI18nKey(errorMessage: string): string {
   )
 }
 
-export function getGenerationErrorI18nKey(errorMessage: string): string | null {
-  const errorCode = parseGenerationErrorCode(errorMessage)
-
+/**
+ * Maps an already-resolved error code to its i18n key. Split out of
+ * `getGenerationErrorI18nKey` so a caller that already has a trustworthy
+ * `errorCode` (e.g. one computed with `parseGenerationErrorCode` plus
+ * `hasReferenceImage` context) can resolve the matching i18n key without
+ * re-parsing the raw message a second time through the context-blind
+ * default patterns.
+ */
+export function getGenerationErrorI18nKeyForCode(
+  errorCode: GenerationErrorCode,
+  errorMessage: string,
+): string | null {
   if (errorCode === GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT) {
     return getUnsupportedReferenceImageI18nKey(errorMessage)
   }
@@ -276,6 +349,9 @@ export function getGenerationErrorI18nKey(errorMessage: string): string | null {
   }
   if (errorCode === GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE) {
     return 'errors.provider.insufficientBalance'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.PROVIDER_ACCOUNT_LIMIT_REACHED) {
+    return 'errors.provider.accountLimitReached'
   }
   if (errorCode === GENERATION_ERROR_CODES.LORA_INCOMPATIBLE_HOSTED) {
     return 'errors.provider.loraIncompatibleHosted'
@@ -297,6 +373,14 @@ export function getGenerationErrorI18nKey(errorMessage: string): string | null {
   }
 
   return null
+}
+
+export function getGenerationErrorI18nKey(
+  errorMessage: string,
+  options?: ParseGenerationErrorCodeOptions,
+): string | null {
+  const errorCode = parseGenerationErrorCode(errorMessage, options)
+  return getGenerationErrorI18nKeyForCode(errorCode, errorMessage)
 }
 
 export function getUnsupportedReferenceImageMessage(provider: string): string {

@@ -97,6 +97,9 @@ export const WORKER_MIGRATED_IMAGE_ADAPTERS: readonly AI_ADAPTER_TYPES[] = [
   AI_ADAPTER_TYPES.REPLICATE,
   AI_ADAPTER_TYPES.NOVELAI,
   AI_ADAPTER_TYPES.VOLCENGINE,
+  // BytePlus ModelArk = the same Ark image API on the international station;
+  // the worker serves both from one branch, keyed on providerBaseUrl.
+  AI_ADAPTER_TYPES.BYTEPLUS,
   AI_ADAPTER_TYPES.HUGGINGFACE,
   // RunPod cold starts (150s+) make async-only mandatory — there is no sync
   // fallback path for RUNNER.

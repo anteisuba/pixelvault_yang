@@ -373,13 +373,20 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   // and a classification code (for the error dialog to pick its reason).
   const resolveGenerationError = useCallback(
     (
-      payload: { error?: string; errorCode?: string; i18nKey?: string },
+      payload: {
+        error?: string
+        errorCode?: string
+        i18nKey?: string
+        hasReferenceImage?: boolean
+      },
       fallback: string,
     ): { message: string; code: GenerationErrorCode } => ({
       message: getGenerationErrorMessage(tErrors, payload, fallback),
       code:
         normalizeErrorCode(payload.errorCode) ??
-        parseGenerationErrorCode(payload.error ?? ''),
+        parseGenerationErrorCode(payload.error ?? '', {
+          hasReferenceImage: payload.hasReferenceImage,
+        }),
     }),
     [tErrors],
   )

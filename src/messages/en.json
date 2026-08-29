@@ -703,10 +703,10 @@
         },
         "video": {
           "workbench": "Video workbench",
-          "meta": "Seedance reference endpoint · 5s · 1080p",
+          "meta": "Seedance 2.5 reference endpoint · 30s in one pass · 720p",
           "refs": {
             "shot": {
-              "label": "shot01-night-departure",
+              "label": "shot01-entrance",
               "say": "match this shot"
             },
             "anchor": {
@@ -714,41 +714,41 @@
               "say": "match this character"
             },
             "voice": {
-              "label": "line-her-letter 0:18",
+              "label": "line-her-umbrella 0:03",
               "say": "match this voice"
             }
           },
-          "prompt": "A night ferry leaves the harbour, camera drifts back, rain on the lamp.",
+          "prompt": "Rainy June walk home. No umbrella for her; he tilts his over, right shoulder soaking. Three shots: entrance, slope, arcade. Cel-shaded 2D.",
           "toolsMeta": "4 references · any type · voice cloning ×3",
           "submit": "Send",
-          "outTag": "Seedance · made here · The Night Ferry"
+          "outTag": "Seedance · made here · The Borrowed Umbrella"
         },
         "canvas": {
           "assistant": {
             "title": "Assistant",
             "meta": "script brain",
             "meAvatar": "Me",
-            "me": "A night ferry, leaving port in the rain — turn it into a short.",
+            "me": "Rainy season, a girl forgets her umbrella — turn it into a short.",
             "botAvatar": "AI",
-            "bot": "Three shots: a look back on deck, out of the harbour, pull away. Here is the script.",
-            "chip": "Script · The Night Ferry v1"
+            "bot": "Three shots: waiting at the entrance, sharing the umbrella, parting at the arcade. Here is the script.",
+            "chip": "Script · The Borrowed Umbrella v1"
           },
           "script": {
             "title": "Script",
-            "meta": "3 shots · The Night Ferry",
+            "meta": "3 shots · The Borrowed Umbrella",
             "toNode": "node",
             "rows": {
               "deck": {
                 "index": "Shot 01",
-                "text": "On deck, she turns back at the rail, cabin lights on"
+                "text": "At the entrance, she watches the rain with no umbrella"
               },
               "departure": {
                 "index": "Shot 02",
-                "text": "The ferry clears the harbour, the lighthouse blinking"
+                "text": "He tilts the umbrella her way, his right shoulder wet"
               },
               "pullback": {
                 "index": "Shot 03",
-                "text": "The camera pulls away, rain landing on the lamp"
+                "text": "Under the arcade, the rain suddenly goes quiet"
               }
             }
           },
@@ -756,9 +756,9 @@
             "title": "Canvas",
             "meta": "4 nodes · 3 wires",
             "nodes": {
-              "deck": "Shot 01 · deck",
-              "departure": "Shot 02 · departure",
-              "pullback": "Shot 03 · pull away"
+              "deck": "Shot 01 · entrance",
+              "departure": "Shot 02 · shared umbrella",
+              "pullback": "Shot 03 · arcade"
             },
             "cut": "Cut · SEEDANCE · made here"
           }
@@ -774,9 +774,9 @@
             "lora": "LoRA"
           },
           "cells": {
-            "cut": "05 · The Night Ferry",
+            "cut": "05 · The Borrowed Umbrella",
             "anchor": "04 · character anchor",
-            "voice": "03 · line 0:18",
+            "voice": "03 · line 0:03",
             "shotDeck": "Image",
             "shotPullback": "Image",
             "shotDeparture": "Image",
@@ -785,7 +785,7 @@
             "threed": "3D · RODIN",
             "count": "still in the vault"
           },
-          "promptText": "A night ferry leaves the harbour, camera drifts back, rain on the lamp.",
+          "promptText": "Rainy season, walking home — he tilts the umbrella her way, his right shoulder soaked.",
           "archived": "+ {count, number}",
           "reuseKicker": "REUSE",
           "slotEmpty": "Reference slot · empty",
@@ -2086,7 +2086,8 @@
       "safeMode": "Safe mode",
       "mineEmpty": "No favorited or trained LoRAs yet",
       "mountedToast": "Mounted {name}",
-      "mountedNoBase": "Mounted {name} · no runnable base for this family yet"
+      "mountedNoBase": "Mounted {name} · no runnable base for this family yet",
+      "mountBlockedDownloadDisabled": "{name} can't be mounted — its creator turned off downloads on Civitai, so no backend can fetch the weights. It only works inside Civitai's own generator."
     },
     "baseModal": {
       "title": "Change base model",
@@ -4617,9 +4618,11 @@
         "pasteTitle": "Paste reference images",
         "pasteMeta": "Focus here, then paste an image.",
         "pasteEmpty": "No image found in the clipboard.",
-        "selectAsset": "Select from assets",
+        "selectAsset": "Reopen the asset library",
+        "assetDialogOpened": "Asset library opened",
         "empty": "No reference images yet.",
         "uploadFailed": "Reference image upload failed.",
+        "roleLabel": "Reference role",
         "weightLabel": "Reference weight",
         "remove": "Remove reference image",
         "assetDialogTitle": "Select reference images",
@@ -4896,7 +4899,11 @@
         "dockHint": "Either works — pick one to start."
       },
       "generate": "Generate",
-      "regenerate": "Regenerate",
+      "regenerate": "Rerun (overwrite)",
+      "regenerateConfirmTitle": "Overwrite this image?",
+      "regenerateConfirmDescription": "Rerunning replaces the image on this node with the new result and spends a generation. To keep this one and make another, use the composer's send arrow — it creates a downstream node instead.",
+      "regenerateConfirmCancel": "Cancel",
+      "regenerateConfirmAction": "Overwrite and rerun",
       "generating": "Generating...",
       "noModel": "Select a model first.",
       "noPrompt": "Write a prompt first.",
@@ -5650,7 +5657,8 @@
       "videoMergeComposed": "{count, plural, one {Composed # clip} other {Composed # clips}} into a merge bin.",
       "localCacheFull": "This browser's local cache is full — the canvas is no longer kept here. Your work is still saved to the cloud.",
       "localCacheUnavailable": "This browser refused local storage — the canvas is no longer kept here. Your work is still saved to the cloud.",
-      "cloudSaveFailed": "Can't reach the cloud — recent canvas changes aren't saved. Keep this tab open and check your connection."
+      "cloudSaveFailed": "Can't reach the cloud — recent canvas changes aren't saved. Keep this tab open and check your connection.",
+      "cloudSaveRejected": "The cloud rejected this save — recent canvas changes aren't saved. This is not a connection problem; the details are below."
     },
     "quickEdit": {
       "placeholder": "Describe how you want to edit this image",
@@ -5744,6 +5752,7 @@
       "confirmGenerate": "Confirm generation (uses credits)",
       "confirmReview": "Confirm review change",
       "autoApplied": "{count} placed on the canvas — nothing spent yet",
+      "autoConnectsFailed": "{count} connection(s) not created",
       "undoAutoApplied": "Undo",
       "generateSeparateHint": "Generation is confirmed separately",
       "rejectedPrefix": "Won't run: {reason}",
@@ -5827,7 +5836,7 @@
     "generate": "Generate",
     "generating": "Generating...",
     "generateSuccess": "Image generated!",
-    "viewInGallery": "View in gallery",
+    "viewInGallery": "View full size",
     "generateFailed": "Generation failed",
     "stillProcessingHint": "Still generating in the background — it'll appear in your library when it's ready.",
     "variantGenerate": "Generate Variants",
@@ -5844,6 +5853,7 @@
     "costApprox": "≈ {amount}",
     "costApproxFrom": "≈ {amount}+",
     "costUnpriced": "{count, plural, one {# model has no listed price} other {# models have no listed price}}",
+    "costRange": "Plus, varying by tier: ~{min} – {max}",
     "batchCountSummary": "{count, plural, one {# per model} other {# per model}}",
     "generateCount": "{count, plural, one {Generate # image} other {Generate # images}}",
     "batchCountLabel": "Images per run",
@@ -6300,7 +6310,8 @@
       "storageUploadFailed": "The provider returned media, but saving it failed. Try again.",
       "loraIncompatibleHosted": "This LoRA's layer format isn't supported by the hosted model. Try a PixelVault Runner model (faithful recipe clone) instead, if available.",
       "runnerMonthlyLimitExceeded": "PixelVault Runner's monthly generation limit has been reached. Try again next month, or use a hosted model instead.",
-      "runnerLoraUnavailable": "This LoRA isn't available on PixelVault Runner yet (not pre-loaded). Try a different LoRA or a hosted model."
+      "runnerLoraUnavailable": "This LoRA isn't available on PixelVault Runner yet (not pre-loaded). Try a different LoRA or a hosted model.",
+      "loraDownloadDisabled": "The creator turned off downloads for this LoRA on Civitai, so its weights can't be fetched by any backend. Pick a different LoRA."
     },
     "generation": {
       "provider_timeout": "The AI provider took too long to respond",
@@ -6325,6 +6336,7 @@
       "lora_incompatible_hosted": "This hosted model's LoRA loader can't read this LoRA's layer format (the LoRA itself is fine). Switch to a Runner-backed model — retrying the same hosted model will not change anything.",
       "runner_monthly_limit_exceeded": "This month's Runner generation quota is used up. Switch to a hosted model for now, or wait for next month's reset.",
       "runner_lora_unavailable": "This LoRA isn't pre-loaded on the Runner's storage volume yet, so the Runner can't use it. Pick a pre-loaded LoRA, or switch to a hosted model.",
+      "lora_download_disabled": "The creator turned off downloads for this LoRA on Civitai — it can only be used inside Civitai's own generator. No API key fixes this; pick a different LoRA.",
       "unknown": "An unexpected error occurred"
     },
     "validation": {

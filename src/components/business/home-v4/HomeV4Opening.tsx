@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useTranslations } from 'next-intl'
 
@@ -9,8 +9,10 @@ import { HOMEPAGE_MODEL_COUNTS, HOMEPAGE_PROVIDERS } from '@/constants/homepage'
 import {
   HOME_V4_ENGINE,
   HOME_V4_OPENING,
+  HOME_V4_SHOWCASE,
   HOME_V4_STRIP,
   HOME_V4_STRIP_SPARES,
+  type HomeV4ShowcaseShot,
 } from '@/constants/homepage-v4'
 
 /** One strip cell. `b` sits on top of `a` and only exists during/after a swap. */
@@ -20,9 +22,27 @@ interface StripSlot {
   swapping: boolean
 }
 
+/** The bundled wall, used when the page passed nothing (tests, storybook). */
+const STATIC_SHOTS: readonly HomeV4ShowcaseShot[] = [
+  ...HOME_V4_STRIP,
+  ...HOME_V4_STRIP_SPARES.map((src, index) => ({
+    id: `static-spare-${index}`,
+    src,
+  })),
+]
+
 interface HomeV4OpeningProps {
   /** True while this is the page on screen. Drives play / reset, same as the SPEC. */
   active: boolean
+  /**
+   * The wall, newest public work first, read server-side by the page. The first
+   * `CELL_COUNT` fill the grid and the rest become the rotation pool — the split
+   * happens here because only this component knows what a "cell" is.
+   *
+   * Falls back to the bundled strip when absent. The service already guarantees
+   * a full wall, so this fallback is for callers that pass nothing at all.
+   */
+  shots?: readonly HomeV4ShowcaseShot[]
 }
 
 /**
@@ -48,22 +68,34 @@ interface HomeV4OpeningProps {
  * has no timeline of its own: it is there from the first paint and only moves
  * when the deck moves.
  */
-export function HomeV4Opening({ active }: HomeV4OpeningProps) {
+export function HomeV4Opening({ active, shots }: HomeV4OpeningProps) {
   const t = useTranslations('Homepage')
   const tCommon = useTranslations('Common')
+
+  /* Server prop, so these are settled on the first render and never change —
+     but memoised anyway, because `cells` is an effect dependency. */
+  const wall = shots?.length ? shots : STATIC_SHOTS
+  const cells = useMemo(
+    () => wall.slice(0, HOME_V4_SHOWCASE.CELL_COUNT),
+    [wall],
+  )
 
   const [heroIn, setHeroIn] = useState(false)
   const [revealed, setRevealed] = useState(0)
   const [tailIn, setTailIn] = useState(false)
   const [slots, setSlots] = useState<StripSlot[]>(() =>
-    HOME_V4_STRIP.map((shot) => ({ a: shot.src, b: null, swapping: false })),
+    cells.map((shot) => ({ a: shot.src, b: null, swapping: false })),
   )
 
   /* Refs, not state: the rotation tick reads them from inside a timer, where a
      captured render's values would be stale. */
   const slotsRef = useRef(slots)
   const revealedRef = useRef(0)
-  const sparesRef = useRef<string[]>([...HOME_V4_STRIP_SPARES])
+  /* Whatever the grid did not take. The rotation swaps these in and hands the
+     outgoing shot back, so the pool never empties. */
+  const sparesRef = useRef<string[]>(
+    wall.slice(HOME_V4_SHOWCASE.CELL_COUNT).map((shot) => shot.src),
+  )
   const swapTimersRef = useRef<number[]>([])
   /* The very first paint gets a longer beat than a return visit. */
   const firstRunRef = useRef(true)
@@ -139,7 +171,7 @@ export function HomeV4Opening({ active }: HomeV4OpeningProps) {
     }
 
     at(() => setHeroIn(true), base + HOME_V4_OPENING.HERO_MS)
-    HOME_V4_STRIP.forEach((_, index) => {
+    cells.forEach((_, index) => {
       at(
         () => reveal(index + 1),
         base +
@@ -158,7 +190,7 @@ export function HomeV4Opening({ active }: HomeV4OpeningProps) {
       timers.forEach((id) => window.clearTimeout(id))
       if (interval !== undefined) window.clearInterval(interval)
     }
-  }, [active, commit, reveal, rotate])
+  }, [active, cells, commit, reveal, rotate])
 
   return (
     <div className="page-inner">
@@ -188,7 +220,7 @@ export function HomeV4Opening({ active }: HomeV4OpeningProps) {
         </div>
 
         <div className="op-strip l3">
-          {HOME_V4_STRIP.map((shot, index) => {
+          {cells.map((shot, index) => {
             const slot = slots[index]
             const classes = [
               index < revealed ? 'in' : '',

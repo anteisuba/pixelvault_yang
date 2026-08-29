@@ -18,6 +18,7 @@ import {
   HOME_V4_STATIONS,
   type HomeV4Page,
   type HomeV4PageGroup,
+  type HomeV4ShowcaseShot,
   type HomeV4StationKey,
 } from '@/constants/homepage-v4'
 
@@ -38,6 +39,8 @@ type StationIndexes = Record<HomeV4StationKey, number>
 interface HomeV4DeckProps {
   /** Locale segment. Passed down so the sheet's portal can re-declare it. */
   locale: string
+  /** Opening wall shots, read server-side. Passed straight through. */
+  shots?: readonly HomeV4ShowcaseShot[]
 }
 
 /** Which model's detail sheet is open. `null` while none is. */
@@ -93,7 +96,7 @@ function posOf(index: number, current: number): 'before' | 'on' | 'after' {
  * cut rather than slide). The gestures stay — taking them away would leave the
  * page with no way to move at all.
  */
-export function HomeV4Deck({ locale }: HomeV4DeckProps) {
+export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
   const t = useTranslations('Homepage')
 
   const [vIdx, setVIdx] = useState(0)
@@ -406,7 +409,8 @@ export function HomeV4Deck({ locale }: HomeV4DeckProps) {
 
   const renderPage = (page: HomeV4Page, index: number) => {
     const active = index === vIdx
-    if (page.id === 'opening') return <HomeV4Opening active={active} />
+    if (page.id === 'opening')
+      return <HomeV4Opening active={active} shots={shots} />
     if (page.id === 'finale') return <HomeV4Finale active={active} />
     if (page.station) return renderStation(page, index)
 

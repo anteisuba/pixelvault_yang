@@ -9,6 +9,7 @@ import {
   HOME_V4_DOTS_STAGGER_MS,
   HOME_V4_ENGINE,
   HOME_V4_PARALLAX,
+  type HomeV4ShowcaseShot,
 } from '@/constants/homepage-v4'
 import { AuthDialogProvider } from '@/components/business/auth/AuthDialog'
 
@@ -49,13 +50,21 @@ const MOTION_VARS = {
  * the previous marketing home spent a while drawing Japanese in Noto Sans SC
  * because of that.
  */
-export function HomeV4Shell() {
+interface HomeV4ShellProps {
+  /**
+   * The opening wall's shots, read from the public gallery by the page. Omitted
+   * only by tests; the page always passes a full wall (the service pads it).
+   */
+  shots?: readonly HomeV4ShowcaseShot[]
+}
+
+export function HomeV4Shell({ shots }: HomeV4ShellProps) {
   const locale = useLocale()
 
   return (
     <AuthDialogProvider>
       <div className="home-v4" data-locale={locale} style={MOTION_VARS}>
-        <HomeV4Deck locale={locale} />
+        <HomeV4Deck locale={locale} shots={shots} />
       </div>
     </AuthDialogProvider>
   )

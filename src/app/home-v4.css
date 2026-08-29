@@ -726,6 +726,8 @@ body.home-v4-locked {
 /* 页名不是数据字：走正文 sans、正常字号、墨色。等宽小字在 hover 里一闪而过
    本来就读不出来，是 owner 点名的那批「小字看不清」之一。 */
 .home-v4 .dots .nm {
+  max-width: 0;
+  overflow: hidden;
   font-family: var(--sans);
   font-size: 12.5px;
   font-weight: 500;
@@ -734,19 +736,16 @@ body.home-v4-locked {
   opacity: 0;
   transform: translateX(-6px);
   transition:
+    max-width 0.28s ease,
     opacity 0.28s ease,
     transform 0.28s ease,
     color 0.2s ease;
   transition-delay: calc(var(--i, 0) * var(--dot-stagger));
 }
 
-.home-v4 .dots button[data-on='true'] .nm {
-  opacity: 1;
-  transform: none;
-  color: var(--ink);
-}
-
-.home-v4 .dots:hover .nm {
+.home-v4 .dots:hover .nm,
+.home-v4 .dots button:focus-visible .nm {
+  max-width: 14rem;
   opacity: 1;
   transform: none;
 }
@@ -1003,6 +1002,9 @@ body.home-v4-locked {
   padding: 14px 16px 16px;
 }
 
+/* ⚠ 格子本身不做入场：四个空位在打字期间就立在那儿，`reveal` 动的是**结果**
+   ——出图盖上来、占位退下去。格子跟着一起淡入的话，「四家一起出」那一刻演的
+   就成了「格子出现」而不是「格子被填满」。 */
 .home-v4 .fn-quad .fq {
   position: relative;
   aspect-ratio: 3 / 4;
@@ -1010,27 +1012,46 @@ body.home-v4-locked {
   overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--line);
+}
+
+/* 出图：`fill` 让 next/image 自己写 position/inset，这里只管盖法与登场。
+   起手放大一档而不是位移，位移会在 `overflow:hidden` 的格子里漏出一条边。 */
+.home-v4 .fn-quad .fq img {
+  object-fit: cover;
   opacity: 0;
-  transform: translateY(14px) scale(0.97);
+  transform: scale(1.04);
   transition:
     opacity 0.6s ease,
     transform 0.6s ease;
 }
 
-.home-v4 .fn-studio.reveal .fq {
+.home-v4 .fn-quad .fq .want {
+  transition: opacity 0.6s ease;
+}
+
+.home-v4 .fn-studio.reveal .fq img {
   opacity: 1;
   transform: none;
 }
 
-.home-v4 .fn-studio.reveal .fq:nth-child(2) {
+.home-v4 .fn-studio.reveal .fq .want {
+  opacity: 0;
+}
+
+/* 四格错开。延时挂在 `.fq` 的 `nth-child` 上，所以四格必须是 `.fn-quad` 的
+   直接子元素——中间夹一层包装就全部同时落下。 */
+.home-v4 .fn-studio.reveal .fq:nth-child(2) img,
+.home-v4 .fn-studio.reveal .fq:nth-child(2) .want {
   transition-delay: 0.3s;
 }
 
-.home-v4 .fn-studio.reveal .fq:nth-child(3) {
+.home-v4 .fn-studio.reveal .fq:nth-child(3) img,
+.home-v4 .fn-studio.reveal .fq:nth-child(3) .want {
   transition-delay: 0.6s;
 }
 
-.home-v4 .fn-studio.reveal .fq:nth-child(4) {
+.home-v4 .fn-studio.reveal .fq:nth-child(4) img,
+.home-v4 .fn-studio.reveal .fq:nth-child(4) .want {
   transition-delay: 0.9s;
 }
 

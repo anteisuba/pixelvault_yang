@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 
 import { useTranslations } from 'next-intl'
@@ -38,9 +39,14 @@ const BEAT_CLASS: Record<Beat, string> = {
  *
  * One prompt is typed into a bar that already has four models switched on, the
  * generate button lights the moment the line is finished, and the four results
- * stagger in. The four tiles are deliberately 「待生成」 placeholders: the shots
- * have to be generated in-app before this page can show real output, and a
- * stand-in that admits it is a stand-in beats four pretty stock images.
+ * stagger in.
+ *
+ * The four tiles stand there as 「待生成」 slots for the whole of the typing and
+ * are filled by each model's real answer at `reveal` — that empty-then-filled
+ * turn *is* the page, and it is why the shots are not simply painted in from
+ * the start. The pictures are four in-app results of this very prompt, one per
+ * model, carried on `HOME_V4_FN_IMAGE_MODELS` so the name and the picture can
+ * never drift apart.
  *
  * Everything after the typing is chained off `promptText.length` rather than a
  * fixed offset — see `useHomeV4Typewriter`.
@@ -95,9 +101,9 @@ export function HomeV4FnImage({
       <div className={`fn-studio${BEAT_CLASS[beat]}`}>
         <div className="bar">
           <span className="t">{t('v4.fn.image.workbench')}</span>
-          {HOME_V4_FN_IMAGE_MODELS.map((name) => (
-            <span className="mchip on" key={name}>
-              {name}
+          {HOME_V4_FN_IMAGE_MODELS.map((model) => (
+            <span className="mchip on" key={model.name}>
+              {model.name}
             </span>
           ))}
           <span className="p">{t('v4.fn.image.meta')}</span>
@@ -115,13 +121,24 @@ export function HomeV4FnImage({
         {/* The stagger between tiles lives in `home-v4.css` as `nth-child`
             delays, so these must stay direct children. */}
         <div className="fn-quad">
-          {HOME_V4_FN_IMAGE_MODELS.map((name) => (
-            <div className="fq" key={name}>
-              <span className="want">
+          {HOME_V4_FN_IMAGE_MODELS.map((model) => (
+            <div className="fq" key={model.name}>
+              {/* Mock status text, and wrong the moment the shot lands — the
+                  picture's `alt` is what carries the meaning either way. */}
+              <span className="want" aria-hidden="true">
                 <span className="k">{t('v4.fn.image.pendingKicker')}</span>
                 <p>{t('v4.fn.image.pendingLine')}</p>
               </span>
-              <span className="mtag">{name}</span>
+              {/* The prompt is the description of the picture, in the reader's
+                  own language, so the model name in front of it is the whole
+                  alt this needs. */}
+              <Image
+                src={model.shot}
+                alt={`${model.name} · ${promptText}`}
+                fill
+                sizes="(max-width: 768px) 44vw, 200px"
+              />
+              <span className="mtag">{model.name}</span>
             </div>
           ))}
         </div>

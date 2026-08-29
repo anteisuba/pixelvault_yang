@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server'
 
 import { HomeV4Shell } from '@/components/business/home-v4/HomeV4Shell'
 import type { AppLocale } from '@/i18n/routing'
+import { getHomeV4ShowcaseShots } from '@/services/homepage-showcase.service'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -51,5 +52,11 @@ export default async function LocalizedRootPage({
   // request scope set up in [locale]/layout.tsx.
   await params
 
-  return <HomeV4Shell />
+  // The opening's wall is the public gallery's latest work. Read here, on the
+  // server, so the deck stays a pure renderer and the shots ship inside the
+  // first HTML response. Locale-independent, so the three prerenders share it;
+  // the service never throws — it falls back to the bundled strip.
+  const showcaseShots = await getHomeV4ShowcaseShots()
+
+  return <HomeV4Shell shots={showcaseShots} />
 }

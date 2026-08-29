@@ -119,30 +119,99 @@ export const HOME_V4_STRIP = [
   { id: 'cenoteDiver', src: '/homepage/v4/hero-10-cenote-diver-480.webp' },
 ] as const
 
-/** Rotation pool. Two is enough: one is out on the wall while the other waits. */
+/**
+ * Rotation pool. Two is enough: one is out on the wall while the other waits.
+ *
+ * ⚠ Written as literal paths rather than `HOME_V4_STORY.*`: that constant is
+ * declared further down this file, so reading it here would hit the temporal
+ * dead zone at module load.
+ */
 export const HOME_V4_STRIP_SPARES = [
-  '/homepage/v4/night-ferry-poster.webp',
-  '/homepage/v4/night-ferry-anchor-her.webp',
+  '/homepage/production/umbrella/umbrella-kf5-farewell.webp',
+  '/homepage/production/umbrella/umbrella-kf3-hydrangea.webp',
 ] as const
+
+/**
+ * 作品墙的取数口径。墙上真正画的是**公开画廊里最新的公开作品**
+ * （`getHomeShowcaseShots()`），上面那两组静态图退成兜底：构建期取不到数、
+ * 查询失败、或库里合格作品不足时，用它们把墙补满。
+ *
+ * `CELL_COUNT` 直接读 `HOME_V4_STRIP.length` —— 格子数只有一个家。
+ */
+/**
+ * 墙上一格的图。服务端取数、客户端演出共用的契约，所以住在常量里而不是
+ * `homepage-showcase.service.ts` —— 那是 `server-only` 模块，客户端组件
+ * 连类型都不该从那里引。`id` 只作 React key，不打印。
+ */
+export interface HomeV4ShowcaseShot {
+  id: string
+  src: string
+}
+
+export const HOME_V4_SHOWCASE = {
+  /** 墙上的格子数。 */
+  CELL_COUNT: HOME_V4_STRIP.length,
+  /** 轮换备胎的最少张数：一张在墙上时另一张在等，少于 2 张轮换就停了。 */
+  SPARE_COUNT: HOME_V4_STRIP_SPARES.length,
+  /** 一次最多下发几张（格子 + 备胎）。多出来的只是更长的轮换池。 */
+  POOL_LIMIT: 24,
+  /**
+   * 先按最新捞多少行，再在服务端筛掉横图。竖版比例是运气问题，
+   * 所以捞的行数要显著多于 `POOL_LIMIT`。
+   */
+  QUERY_LIMIT: 72,
+} as const
+
+/**
+ * 人工置顶：这里列出的 generation id 排在墙的最前面，顺序即本数组顺序。
+ *
+ * **维护方式**：在画廊里找到想置顶的作品，复制它的 generation id（详情页 URL
+ * 末段），加进这个数组，重新部署即可。删掉即恢复「按最新」。
+ *
+ * ⚠ 置顶会**跳过竖版比例筛选**（自动选片才按 3:4 挑竖图；人工点名的以人为准），
+ * 但**不会**跳过公开性检查 —— 非公开 / 非图片 / 未完成 / 没有缩略图的作品，
+ * 即使 pin 了也不会出现在首页。
+ */
+export const HOME_V4_SHOWCASE_PINNED: readonly string[] = []
+
+/**
+ * 人工黑名单：这里列出的 generation id 永远不上首页作品墙，
+ * 即使它是最新的公开作品。
+ *
+ * **维护方式**：同上，把 generation id 加进数组即可。用于把不适合当门面的
+ * 公开作品挡在首屏之外，**不需要**把它从画廊里撤下来。
+ */
+export const HOME_V4_SHOWCASE_BLOCKLIST: readonly string[] = []
 
 /* ── 功能页（P2）：共用素材、字形与节拍 ──────────────────────────── */
 
 /**
- * 「夜航的信」— one short film's material, shared by feature pages 04 / 05 / 06
- * so the three read as one story rather than three stock demos.
+ * 「借伞」— one short film's material, shared by feature pages 04 / 05 / 06 so
+ * the three read as one story rather than three stock demos. A Japanese high
+ * school in the rainy season: she forgets her umbrella, he tilts his over her
+ * and walks the rest of the way with a wet right shoulder.
  *
  * The SPEC filled these three pages by *copying blobs between them at runtime*
  * (`fn5Media` / `fn6Media` read `#fn4-out video`'s src, `.cn img`'s src…). That
  * hack is retired: every page states its own path, and the pages stay
  * independent of each other's DOM and of the order they are visited in.
+ *
+ * ⚠ The three `shot*` keys are **slots on the pages**, not descriptions of the
+ * frames — they are the order the canvas script is written and the nodes are
+ * laid out in. The names date from the placeholder story this replaced; what
+ * each slot actually shows is the label in the message files.
  */
 export const HOME_V4_STORY = {
-  shotDeck: '/homepage/v4/night-ferry-shot-01-deck.webp',
-  shotDeparture: '/homepage/v4/night-ferry-shot-02-departure.webp',
-  shotPullback: '/homepage/v4/night-ferry-shot-03-pullback.webp',
-  anchor: '/homepage/v4/night-ferry-anchor-her.webp',
-  poster: '/homepage/v4/night-ferry-poster.webp',
-  clip: '/homepage/v4/night-ferry-clip.mp4',
+  /** 分镜 01 · 昇降口 — she watches the rain with no umbrella. */
+  shotDeck: '/homepage/production/umbrella/umbrella-kf1-entrance.webp',
+  /** 分镜 02 · 共伞 — the over-shoulder shot, the umbrella tilting her way. */
+  shotDeparture: '/homepage/production/umbrella/umbrella-kf2-shared.webp',
+  /** 分镜 03 · 商店街 — the arcade, where the rain goes quiet. */
+  shotPullback: '/homepage/production/umbrella/umbrella-kf4-arcade.webp',
+  /** Character anchor: both of them from behind, under the one umbrella. */
+  anchor: '/homepage/production/umbrella/umbrella-kf3-hydrangea.webp',
+  poster: '/homepage/production/umbrella/umbrella-kf5-farewell.webp',
+  clip: '/homepage/production/umbrella/umbrella-film-30s.mp4',
 } as const
 
 /**
@@ -169,15 +238,35 @@ export const HOME_V4_MOBILE_QUERY = '(max-width: 768px)'
 /* ── 01 图片：工作台 → 打字机 → 生成 → 四格 ───────────────────────── */
 
 /**
- * The four models the mock workbench fires at once. Product names — never
- * translated, and deliberately the shorthand the real bar prints (`Gemini 3
- * Pro`), not the catalogue's full `Gemini 3 Pro Image`.
+ * The four models the mock workbench fires at once, in tile order. `name` is a
+ * product name — never translated, and deliberately the shorthand the real bar
+ * prints (`Gemini 3 Pro`), not the catalogue's full `Gemini 3 Pro Image`.
+ *
+ * `shot` is that model's own answer to `v4.fn.image.prompt`: four real in-app
+ * results of one prompt, re-encoded to 480×640 from what each model returned
+ * (880×1184 … 1536×2048) because a tile draws ~180px wide.
+ *
+ * ⚠ Name and shot are one row on purpose — the page's whole claim is *which*
+ * model drew *which* picture, and two parallel arrays would let them drift
+ * apart with nothing failing.
  */
 export const HOME_V4_FN_IMAGE_MODELS = [
-  'GPT Image 2',
-  'Gemini 3 Pro',
-  'FLUX 2 Pro',
-  'Seedream 5.0',
+  {
+    name: 'GPT Image 2',
+    shot: '/homepage/production/quad/quad-gpt-image-2.webp',
+  },
+  {
+    name: 'Gemini 3 Pro',
+    shot: '/homepage/production/quad/quad-gemini-3-pro.webp',
+  },
+  {
+    name: 'FLUX 2 Pro',
+    shot: '/homepage/production/quad/quad-flux-2-pro.webp',
+  },
+  {
+    name: 'Seedream 5.0',
+    shot: '/homepage/production/quad/quad-seedream-5-0.webp',
+  },
 ] as const
 
 /**
@@ -289,13 +378,19 @@ export const HOME_V4_FN_VIDEO = {
   PILL_STEP_MS: 550,
   /** Prompt line appears and the typewriter starts. */
   PROMPT_MS: 2150,
-  /** One character. */
-  TYPE_MS: 42,
   /**
-   * The cut appears this long after the last character. The SPEC hard-coded
-   * 3950ms, which is exactly this gap for the Chinese prompt — chaining it off
-   * the typing instead keeps the order (prompt → send button lights → cut) true
-   * for the longer en/ja lines.
+   * One character. The cut lands at `PROMPT_MS + length × TYPE_MS +
+   * OUT_AFTER_TYPE_MS`, so this number is the only lever against the length of
+   * `v4.fn.video.prompt` — 42ms was cut for a 23-character Chinese line, and
+   * the full three-shot brief that replaced it is 64 / 138 / 71 characters.
+   * At 28ms the three locales land at 4.8s / 6.8s / 5.0s.
+   */
+  TYPE_MS: 28,
+  /**
+   * The cut appears this long after the last character. The SPEC hard-coded the
+   * whole thing as one 3950ms wall-clock offset; chaining it off the typing
+   * instead keeps the order (prompt → send button lights → cut) true whatever
+   * the locale's line length is.
    */
   OUT_AFTER_TYPE_MS: 834,
   /** Pill thumbnail, matching `.fn-video .pill img` in `home-v4.css`. */

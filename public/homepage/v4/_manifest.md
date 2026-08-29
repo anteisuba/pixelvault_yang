@@ -18,12 +18,7 @@
 | hero-08-glacial-river-480.webp      | image/webp | 26KB  | `…" alt=""><img class="b" alt=""></figure>' + '        <figure><img class="a" src="`                                                                                                                                         |
 | hero-09-ruby-chair-480.webp         | image/webp | 12KB  | `…" alt=""><img class="b" alt=""></figure>' + '        <figure><img class="a" src="`                                                                                                                                         |
 | hero-10-cenote-diver-480.webp       | image/webp | 19KB  | `…" alt=""><img class="b" alt=""></figure>' + '        <figure><img class="a" src="`                                                                                                                                         |
-| night-ferry-shot-01-deck.webp       | image/webp | 12KB  | `  '      <div class="vrow">' +       '      <div class="ibox">' +       '        <div class="iline" data-r="0"><span class="pill"><img src="`                                                                               |
-| night-ferry-anchor-her.webp         | image/webp | 115KB | `/span><span class="say">参考这个镜头</span></div>' +       '        <div class="iline" data-r="1"><span class="pill"><img class="anchor-src" src="`                                                                         |
-| night-ferry-poster.webp             | image/webp | 100KB | `>↑</button></div>' +       '      </div>' +       '      <div class="out" id="fn4-out"><video muted loop playsinline preload="auto" poster="`                                                                               |
-| night-ferry-clip.mp4                | video/mp4  | 693KB | `…" src="`                                                                                                                                                                                                                   |
-| night-ferry-shot-02-departure.webp  | image/webp | 10KB  | `8AAAA" alt=""><span class="cl">分镜 01 · 甲板</span></div>' +       '          <div class="cn" data-n="1" style="left:14px;top:144px"><img src="`                                                                           |
-| night-ferry-shot-03-pullback.webp   | image/webp | 14KB  | `/JrAA" alt=""><span class="cl">分镜 02 · 出港</span></div>' +       '          <div class="cn" data-n="2" style="left:14px;top:270px"><img src="`                                                                           |
+| ～～故事素材六件～～                | －         | －    | **已于 2026-08-29 整组退役**：占位故事「夜航的信」换成站内自产的《借伞》，新素材落在 `public/homepage/production/umbrella/`（不在本目录）。映射见文末。                                                                      |
 | model-gpt-image-2.jpg               | -          | 140KB | `距景深，海报排版含主标题与三行日程小字，16:9，主体偏右' },         { t:'prompt', p:'杂志内页：三栏排版介绍一座海边小城，含标题与图注' },         { t:'prompt', p:'透明背景的机械怀表产品图，金属细节清晰' } ],       img: ` |
 | model-gemini-3-pro-image.jpg        | -          | 402KB | ` gallery: [         { t:'img' },         { t:'prompt', p:'同一间咖啡店，把招牌改成霓虹「ANTEI」，其余保持不变' },         { t:'prompt', p:'黄昏的上海外滩，真实光照与地标' } ],       img:`                                 |
 | model-flux-2-pro.jpg                | -          | 269KB | `     gallery: [         { t:'img' },         { t:'prompt', p:'棚拍：一只做旧皮革相机包，柔光箱侧光，商业产品图' },         { t:'prompt', p:'概念设定：晨雾里的悬浮渔船市场' } ],       img:`                                |
@@ -76,16 +71,25 @@
 | asset-09.webp | hero-09-ruby-chair-480.webp         | 开场作品墙 · 第 9 格  |
 | asset-10.webp | hero-10-cenote-diver-480.webp       | 开场作品墙 · 第 10 格 |
 
-### 「夜航的信」故事素材（功能页 04 / 05 / 06 共用一套）
+### 「借伞」故事素材（功能页 04 / 05 / 06 共用一套）
 
-| SPEC 里的名字 | 语义名                             | 用在哪                                                                   |
-| ------------- | ---------------------------------- | ------------------------------------------------------------------------ |
-| asset-11.webp | night-ferry-shot-01-deck.webp      | fn04 参考胶囊缩略图 · fn05 画布节点「分镜 01 · 甲板」                    |
-| asset-12.webp | night-ferry-anchor-her.webp        | fn04 `img.anchor-src`「角色锚-她」· fn06 回流参考槽 · **开场轮换备胎 ①** |
-| asset-13.webp | night-ferry-poster.webp            | fn04 成片 `<video poster>` · fn06 库首格封面 · **开场轮换备胎 ②**        |
-| asset-14.mp4  | night-ferry-clip.mp4               | fn04 成片 · fn05 画布成片节点（同一条 src）                              |
-| asset-15.webp | night-ferry-shot-02-departure.webp | fn05 画布节点「分镜 02 · 出港」                                          |
-| asset-16.webp | night-ferry-shot-03-pullback.webp  | fn05 画布节点「分镜 03 · 拉远」                                          |
+⚠ **2026-08-29 换素材**：SPEC 时期的占位故事「夜航的信」（`night-ferry-*`，SPEC 里的
+`asset-11`～`asset-16`）已整组删除，换成站内自产的《借伞》——日本高中梅雨季，女孩忘带伞，
+男孩把伞往她那边偏、自己右肩淋湿。**新素材不在本目录**，落在
+`public/homepage/production/umbrella/`（与 `hero/` 同级，走「站内产物按题材归档」那条线）。
+
+| 文件                        | 分镜         | 用在哪                                                                   |
+| --------------------------- | ------------ | ------------------------------------------------------------------------ |
+| umbrella-kf1-entrance.webp  | KF1 昇降口   | fn04 参考胶囊缩略图 · fn05 画布节点「分镜 01 · 昇降口」                  |
+| umbrella-kf2-shared.webp    | KF2 过肩共伞 | fn05 画布节点「分镜 02 · 共伞」· fn06 库格                               |
+| umbrella-kf4-arcade.webp    | KF4 商店街   | fn05 画布节点「分镜 03 · 商店街」· fn06 库格                             |
+| umbrella-kf3-hydrangea.webp | KF3 紫阳花坡 | fn04 `img.anchor-src`「角色锚-她」· fn06 回流参考槽 · **开场轮换备胎 ①** |
+| umbrella-kf5-farewell.webp  | KF5 夕照离别 | fn04 成片 `<video poster>` · fn06 库首格封面 · **开场轮换备胎 ②**        |
+| umbrella-film-30s.mp4       | 成片 30s     | fn04 成片 · fn05 画布成片节点（同一条 src）                              |
+
+⚠ `HOME_V4_STORY` 的三个 `shot*` 键名（`shotDeck` / `shotDeparture` / `shotPullback`）是
+**页面上的槽位**，沿用自上一版占位故事，**不描述画面内容**——每个槽实际演什么以上表和
+`src/messages/*.json` 的标签为准。
 
 ### 模型站背景图（`m-bg`；`-b` / `-c` 是 `wall` 三联的第 2 / 3 张）
 

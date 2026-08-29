@@ -8,6 +8,7 @@ import {
   HOME_V4_ENGINE,
   HOME_V4_FN_AUDIO_LINES,
   HOME_V4_FN_CANVAS_SHOTS,
+  HOME_V4_FN_IMAGE_MODELS,
   HOME_V4_FN_LORA_CARDS,
   HOME_V4_FN_LORA_MOUNTS,
   HOME_V4_FN_LORA_OUTS,
@@ -44,10 +45,22 @@ describe('home v4 · assets', () => {
     const referenced = [
       ...HOME_V4_STRIP.map((shot) => shot.src),
       ...HOME_V4_STRIP_SPARES,
+      /* Feature page 01's quad. A missing one leaves that model's tile stuck on
+         its 「待生成」 placeholder — the exact state the shot replaced, so the
+         page would look intentional rather than broken. */
+      ...HOME_V4_FN_IMAGE_MODELS.map((model) => model.shot),
     ]
 
     const missing = referenced.filter((src) => !existsSync(localPath(src)))
     expect(missing).toEqual([])
+  })
+
+  /* Four models, four pictures — a duplicate means one model is showing another
+     model's work under its own name, which is the one claim this page makes. */
+  it('gives every quad model its own shot', () => {
+    const shots = HOME_V4_FN_IMAGE_MODELS.map((model) => model.shot)
+
+    expect(new Set(shots).size).toBe(shots.length)
   })
 
   /* A mistyped cover ships a model page of grey boxes, and the triptych panels
@@ -63,10 +76,10 @@ describe('home v4 · assets', () => {
     expect(shots.filter((src) => !existsSync(localPath(src)))).toEqual([])
   })
 
-  /* 「夜航的信」 is one story told across three feature pages. The SPEC held it
+  /* 「借伞」 is one story told across three feature pages. The SPEC held it
      together by copying blobs between pages at runtime; now each page states
      its own path, so a typo in one of them is a page of grey boxes. */
-  it('every 夜航的信 asset the feature pages reference exists in public/', () => {
+  it('every 借伞 asset the feature pages reference exists in public/', () => {
     const referenced = Object.values(HOME_V4_STORY)
 
     expect(referenced.filter((src) => !existsSync(localPath(src)))).toEqual([])

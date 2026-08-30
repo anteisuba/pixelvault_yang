@@ -77,7 +77,7 @@ import {
 } from '@/constants/node-types'
 import { NODE_ASSISTANT_OP_IDS } from '@/constants/node-assistant-ops'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
-import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
+import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/constants/config'
 import { INGEST_MOTION, NODE_EDGE_SIGNING_MOTION } from '@/constants/motion'
 import { DEFAULT_SCRIPT_PLANNER_PROVIDER } from '@/constants/script-breakdown'
 import { AUDIO_EMOTIONS, type AudioEmotion } from '@/constants/voice-cards'
@@ -121,8 +121,10 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import { markMediaAwaitingReview, rejectMedia } from '@/lib/node-media-review'
+import { logger } from '@/lib/logger'
 import {
   buildAssistantAttachAssetPatch,
+  buildAssistantPromptPatch,
   buildAssistantSetImageCategoryPatch,
   buildAssistantSetModelPatch,
   buildAssistantSetParamsPatch,
@@ -133,6 +135,7 @@ import {
   resolveNodeAccessibleName,
   resolveNodeDisplayName,
   stripFileExtension,
+  toNodeDisplayLabel,
 } from '@/lib/node-display-name'
 import { parseMentions } from '@/components/business/node/composer/MentionInput'
 import type {
@@ -1028,9 +1031,12 @@ function StudioNodeCanvas() {
         x: window.innerWidth / 2,
         y: window.innerHeight / 2,
       })
+      // 台账 S：把现有节点的位置一并传进去做碰撞避让 —— 否则第一次新建永远精确
+      // 落在视口正中，而刚生成完的那张卡恰好被居中过。
       const flowPosition = resolveTopbarAddSpawnPosition(
         viewportCenter,
         topbarAddSequenceRef.current,
+        workflow.nodes.map((node) => node.position),
       )
       topbarAddSequenceRef.current += 1
 
@@ -1042,7 +1048,7 @@ function StudioNodeCanvas() {
         flowPosition,
       )
     },
-    [getCanvasLocalPosition, openAddMenu, screenToFlowPosition],
+    [getCanvasLocalPosition, openAddMenu, screenToFlowPosition, workflow.nodes],
   )
 
   const handlePaneContextMenu = useCallback(
@@ -1143,7 +1149,9 @@ function StudioNodeCanvas() {
             x: anchor.x + (index % columns) * columnOffsetX,
             y: anchor.y + Math.floor(index / columns) * rowOffsetY,
           }
-          const label = generation.prompt?.trim() || generation.model
+          const label = toNodeDisplayLabel(
+            generation.prompt ?? generation.model,
+          )
           const newNodeId = workflow.addNode(NODE_TYPE_IDS.image, position)
           workflow.updateNodeData(newNodeId, {
             imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
@@ -1855,8 +1863,34 @@ function StudioNodeCanvas() {
         isVideoMediaNode && typeof node.data.seed === 'number'
           ? node.data.seed
           : undefined
-      // 这条路径不再有 advancedParams 可送：它唯一的来源是角色图 LoRA，而那个
-      // 编辑入口 04f8f6be 起就不在面板里了（详见上方角色图 generate 路径注释）。
+      /**
+       * 台账 O（2026-08-29 真机）：工具条「重新生成」**丢画幅**。
+       *
+       * composer 的发送把用户选的比例/清晰度写进了节点（`handleRunGenerateComposer`
+       * 的 `updateNodeData` 里 `aspectRatio` + `imageResolution` 两个字段），而这条
+       * 路径下面读 `data.aspectRatio` 的地方全都挂着 `isVideoMediaNode` 守卫 ——
+       * 图片节点于是一个规格都不送，`use-node-media-generation` 回落到
+       * `DEFAULT_ASPECT_RATIO`。真机后果：composer 上白纸黑字写着 16:9 · 2K，
+       * 「重新生成」出来的是 1024 × 1024 方图，而用户没有任何理由怀疑。
+       *
+       * ⚠ 读的是**节点自己存的那份**，不是 composer 的 React state —— composer 的
+       * 档位是 session-sticky 的会话状态，工具条这条路根本够不到它，也不该够到
+       * （用户可能选中的是另一张卡）。节点上那份就是「这张卡是按什么规格生成的」。
+       *
+       * ⚠ `imageResolution === 'auto'` 时**不送** advancedParams：这与 composer 那条
+       * 路（`input.imageResolution !== 'auto' ? {...} : undefined`）逐字一致，
+       * auto 的语义就是「交给 provider 定」，送一个 'auto' 字符串下去是另一回事。
+       */
+      const imageAspectRatio =
+        isImageMediaNode && typeof node.data.aspectRatio === 'string'
+          ? (node.data.aspectRatio as AspectRatio)
+          : undefined
+      const imageAdvancedParams: AdvancedParams | undefined =
+        isImageMediaNode &&
+        typeof node.data.imageResolution === 'string' &&
+        node.data.imageResolution !== 'auto'
+          ? { resolution: node.data.imageResolution }
+          : undefined
 
       const videoResolution =
         isVideoMediaNode && typeof node.data.resolution === 'string'
@@ -1973,7 +2007,8 @@ function StudioNodeCanvas() {
           prompt: videoSendPlan?.request.prompt ?? finalPrompt,
           duration: videoDuration,
           resolution: videoResolution,
-          aspectRatio: videoAspectRatio,
+          aspectRatio: videoAspectRatio ?? imageAspectRatio,
+          advancedParams: imageAdvancedParams,
           referenceImages: videoSendPlan
             ? videoSendPlan.request.referenceImages
             : effectiveReferenceImages.length > 0
@@ -2682,7 +2717,7 @@ function StudioNodeCanvas() {
       }
 
       const newId = workflow.addNode(input.nodeType, position)
-      const name = input.media.name?.trim()
+      const name = toNodeDisplayLabel(input.media.name)
 
       if (input.nodeType === NODE_TYPE_IDS.image) {
         // Subject-name props are schema fields accessed directly as
@@ -2791,9 +2826,9 @@ function StudioNodeCanvas() {
       imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
       mediaKind: NODE_MEDIA_KIND_IDS.image,
       mediaUrl: result.url,
-      mediaLabel: result.label,
+      mediaLabel: toNodeDisplayLabel(result.label),
       sourceGenerationId: result.generationId,
-      sourceLabel: result.label,
+      sourceLabel: toNodeDisplayLabel(result.label),
       status: NODE_STATUS_IDS.done,
     })
     clearStudioNodeResult()
@@ -3445,9 +3480,29 @@ function StudioNodeCanvas() {
    */
   /** @returns 连上了没有 —— `false` = 被容量闸拒了（调用方据此决定要不要在正文留字）。 */
   const handleIngestConnect = useCallback(
-    (sourceId: string, targetId: string): boolean => {
-      const source = workflow.nodes.find((node) => node.id === sourceId)
-      const target = workflow.nodes.find((node) => node.id === targetId)
+    (
+      sourceId: string,
+      targetId: string,
+      /**
+       * 本批**刚建出来、还没进 `workflow.nodes` 快照**的节点（台账 K-2，
+       * 2026-08-29 真机）。
+       *
+       * `workflow.nodes` 是本次渲染的快照，`addNode` 是 setState —— 同一 tick 里
+       * 新建的节点在它里面永远查不到。于是助手「建 4 个文本 + 4 个视频，再把它们
+       * 两两连起来」这套最常见的编排，**四条连线全部**在下面那句 `find` 上返回
+       * false，而执行器当时不看返回值，照样计进「已落 20 个」。用户看到的是一个
+       * 只会变大的数字，恰恰盖住了失败。
+       *
+       * 助手执行器本来就在维护这本账（`identityById` / `dataOverrideById`），
+       * 这里只是把它接进来 —— 没有第二套状态。人手连线不传这个参数，行为一字未变。
+       */
+      pendingNodes?: readonly NodeWorkflowNode[],
+    ): boolean => {
+      const findNode = (id: string) =>
+        workflow.nodes.find((node) => node.id === id) ??
+        pendingNodes?.find((node) => node.id === id)
+      const source = findNode(sourceId)
+      const target = findNode(targetId)
       if (!source || !target) return false
 
       // 容量闸见 `rejectWhenCapacityFull`（与 `handleSpawnReference` 共用）。
@@ -3457,7 +3512,9 @@ function StudioNodeCanvas() {
             source,
             target,
             edges: workflow.edges,
-            nodes: workflow.nodes,
+            nodes: pendingNodes
+              ? [...workflow.nodes, ...pendingNodes]
+              : workflow.nodes,
           }),
         )
       ) {
@@ -3699,8 +3756,22 @@ function StudioNodeCanvas() {
           Partial<NodeWorkflowNodeData>
         >()
         const createdNodeIds: string[] = []
+        /**
+         * 本批**已经建出来、但还没进 `workflow.nodes` 快照**的节点（台账 K-2）。
+         *
+         * 这是文件头注②那条约束的直接后果：`addNode` 是 setState，同一 tick 内
+         * `workflow.nodes` 读不到它。改名/审核那几条 op 早就靠 `identityById`
+         * 绕过了，**只有 connect 没有** —— 它调的 `handleIngestConnect` 自己去
+         * `workflow.nodes.find()`，于是「先建节点再连线」这套最常见的编排，每一条
+         * 线都在 find 上失败。位置与 data 都取本地这份，跟 `applyNodeDataPatch`
+         * 那本账同源，容量闸因此看得到本批刚挂上去的素材。
+         */
+        const pendingNodeById = new Map<string, NodeWorkflowNode>()
+        const pendingNodes = () => Array.from(pendingNodeById.values())
         let applied = 0
         let skipped = 0
+        /** 声明了但没做成的连线 —— 单独报出来，不许混进 `applied`。 */
+        let failedConnects = 0
         /** 这一批里真的跑了几次生成 —— 只有它 >0 才值得提示「去审吧」。 */
         let generated = 0
 
@@ -3738,6 +3809,15 @@ function StudioNodeCanvas() {
             ...dataOverrideById.get(nodeId),
             ...patch,
           })
+          // 本批新建的节点在快照里不存在，容量闸只能读这份 —— 不同步的话，
+          // 「先给卡挂图、再从它连线出去」在同一批里会按空卡算容量。
+          const pending = pendingNodeById.get(nodeId)
+          if (pending) {
+            pendingNodeById.set(nodeId, {
+              ...pending,
+              data: { ...pending.data, ...patch },
+            })
+          }
           workflow.updateNodeData(nodeId, patch)
         }
 
@@ -3763,6 +3843,25 @@ function StudioNodeCanvas() {
             const newId = createCanvasObject(op.intent, position)
             const item = getCanvasAddCatalogItem(op.intent)
             identityById.set(newId, { role: item.role, type: item.nodeType })
+            // 台账 K-2：本批账本要记的不只有身份，还有整个节点 —— 后面的 connect
+            // 要拿它算合法性与容量。形状与 `createCanvasObject` 真写进图里的那份
+            // 一致（默认 data + role）。
+            pendingNodeById.set(newId, {
+              id: newId,
+              type: item.nodeType,
+              position,
+              data: {
+                ...createDefaultNodeData(item.nodeType),
+                ...(item.role
+                  ? {
+                      ...createDefaultNodeData(
+                        NODE_IMAGE_ROLE_TO_LEGACY_TYPE[item.role],
+                      ),
+                      role: item.role,
+                    }
+                  : {}),
+              },
+            })
             if (op.name) {
               applyNodeDataPatch(
                 newId,
@@ -3772,10 +3871,24 @@ function StudioNodeCanvas() {
                 ),
               )
             }
-            // B1 / A3：助手写进来的提示词。落的是节点自己的 `prompt` 字段 —— 与人手
-            // 在同一个框里打字完全等价，不另设一套「助手写的提示词」通道。
+            // B1 / A3：助手写进来的提示词。落点按节点类型解析（台账 K-1：这里原先
+            // 无条件写 `prompt`，而镜头文本节点读的是 scene/action/camera/composition
+            // 四栏 —— 助手写的四段镜头文本全部作废，节点还只说「还没有镜头文本」）。
             if (op.prompt) {
-              applyNodeDataPatch(newId, { prompt: op.prompt })
+              const promptPatch = buildAssistantPromptPatch(
+                { role: item.role, type: item.nodeType },
+                op.prompt,
+              )
+              // null = 这个类型没有自由文本字段（音色卡）。**节点照建，只是文字
+              // 没地方放** —— 所以不算整条 op 失败，但要在日志里留痕，别再静默。
+              if (promptPatch) {
+                applyNodeDataPatch(newId, promptPatch)
+              } else {
+                logger.warn(
+                  '[node-assistant] dropped prompt: node type has no free-text field',
+                  { nodeType: item.nodeType },
+                )
+              }
             }
             if (op.ref) realIdByRef.set(op.ref, newId)
             createdNodeIds.push(newId)
@@ -3790,7 +3903,15 @@ function StudioNodeCanvas() {
               skipped += 1
               continue
             }
-            handleIngestConnect(sourceId, targetId)
+            // 台账 K-2：**看返回值**。此前无条件 `applied += 1`，于是连线被拒
+            // （类型不合法 / 容量满 / 或者最常见的：端点是本批刚建的节点，
+            // 在快照里查不到）也照样计进「已落 N 个」——用户看到的那个数越大越
+            // 让人放心，而它恰恰盖住了失败。
+            if (!handleIngestConnect(sourceId, targetId, pendingNodes())) {
+              failedConnects += 1
+              skipped += 1
+              continue
+            }
             applied += 1
             continue
           }
@@ -3816,11 +3937,18 @@ function StudioNodeCanvas() {
           // 所以这里也不再判族 —— 与 `add_node.prompt` 落到哪种节点上都照写同一条。
           if (op.op === NODE_ASSISTANT_OP_IDS.setPrompt) {
             const targetId = resolveNodeId(entry.target)
-            if (!targetId) {
+            const identity = targetId ? resolveIdentity(targetId) : undefined
+            const promptPatch =
+              targetId && identity
+                ? buildAssistantSetPromptPatch(identity, op)
+                : null
+            // 台账 K-1：落点解析不出来（该类型没有自由文本字段）就**算这条没做**，
+            // 不再写进一个零读者的字段然后报「已落」。
+            if (!targetId || !promptPatch) {
               skipped += 1
               continue
             }
-            applyNodeDataPatch(targetId, buildAssistantSetPromptPatch(op))
+            applyNodeDataPatch(targetId, promptPatch)
             applied += 1
             continue
           }
@@ -3978,7 +4106,7 @@ function StudioNodeCanvas() {
         // 生成之前的快照，在这儿数待审数量必然读到旧值。
         if (generated > 0) setAssistantBatchMark((mark) => mark + 1)
 
-        return { applied, skipped, createdNodeIds }
+        return { applied, skipped, failedConnects, createdNodeIds }
       }),
     [
       createCanvasObject,
@@ -4065,8 +4193,8 @@ function StudioNodeCanvas() {
         imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
         mediaKind: NODE_MEDIA_KIND_IDS.image,
         mediaUrl: reference.url,
-        mediaLabel: reference.name,
-        sourceLabel: reference.name,
+        mediaLabel: toNodeDisplayLabel(reference.name),
+        sourceLabel: toNodeDisplayLabel(reference.name),
         generationStatus: NODE_GENERATION_STATUS_IDS.success,
         status: NODE_STATUS_IDS.done,
       })
@@ -4622,7 +4750,9 @@ function StudioNodeCanvas() {
           }
           const newNodeId = workflow.addNode(NODE_TYPE_IDS.image, position)
           // 台账 C5：拖入的文件名进显示名字段前剥扩展名。
-          const droppedName = stripFileExtension(result.name)
+          const droppedName = toNodeDisplayLabel(
+            stripFileExtension(result.name),
+          )
           workflow.updateNodeData(newNodeId, {
             imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
             mediaKind: NODE_MEDIA_KIND_IDS.image,

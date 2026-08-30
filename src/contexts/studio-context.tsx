@@ -104,10 +104,25 @@ export type PanelName =
   | 'audioTranscribe'
   | 'sfxParams'
   | 'script'
+  | 'videoAudio'
   | 'keepChange'
 
 type OutputType = 'image' | 'video' | 'audio'
 type WorkflowMode = 'quick' | 'card'
+
+/**
+ * 一条视频音频参考。`ownerName` 对应 worker 那边的
+ * `audioBindings[].characterName`——它决定生成的是 `{Name} (@AudioN)` 还是无标签
+ * 的 `@AudioN`（台账 A ①，owner 拍板「下拉已应用角色卡 + 可手填」）。
+ */
+export interface VideoAudioReference {
+  /** 本地列表 key，不发往服务端。 */
+  id: string
+  url: string
+  fileName: string
+  /** 属于哪个角色；留空 = 无归属，退化成无标签 @AudioN（schema 允许）。 */
+  ownerName?: string
+}
 
 export interface StudioFormState {
   selectedWorkflowId: WorkflowId
@@ -211,6 +226,28 @@ export interface StudioFormState {
   videoDuration: number
   /** Video-specific — output resolution; null means provider default */
   videoResolution: string | null
+  /**
+   * 视频的**音频参考**（台账 A，owner 2026-08-29 拍板）。
+   *
+   * ⚠ 这条通道此前只断在**最上面两层**：Zod schema / service / worker 三层早就
+   * 收 `audioUrls` + `audioBindings`，连校验（音频数上限、超槽 400、
+   * `audioRequiresVisual`）都写好了 —— 断的是「UI 没有入口」和「buildVideoInput
+   * 不填这两个字段」。后果是工作台这条路**永远做不出带指定音色的对白视频**。
+   *
+   * ⚠ 存 URL 不存 File：`uploadReferenceAudioAPI` 返回的是公网地址，而
+   * `generate-video.service.ts` 对音频是**原样透传、不重传 R2**，所以这里必须
+   * 已经是可公开访问的 URL。
+   */
+  videoAudioRefs: VideoAudioReference[]
+  /**
+   * 原生出声开关（台账 A「顺带」）。`null` = **没设过**，最终值吃模型目录的
+   * `videoDefaults.generateAudio` —— 服务端把 `undefined` 原样透传，worker 那边
+   * 再落到目录默认。用户拨过一次就写死一个显式布尔。
+   *
+   * ⚠ 三态是必要的：`false` 与「没设过」在**目录默认为 true** 的模型上是相反的
+   * 结果，用布尔两态会让「没设过」被当成用户主动关掉了声音。
+   */
+  videoGenerateAudio: boolean | null
   /** Video-specific — long-video pipeline on/off */
   longVideoMode: boolean
   /** Video-specific — total target duration when long-video is on */
@@ -279,6 +316,8 @@ export type StudioAction =
   | { type: 'SET_LONG_VIDEO_MODE'; payload: boolean }
   | { type: 'SET_LONG_VIDEO_TARGET_DURATION'; payload: number }
   | { type: 'REQUEST_GENERATE' }
+  | { type: 'SET_VIDEO_AUDIO_REFS'; payload: VideoAudioReference[] }
+  | { type: 'SET_VIDEO_GENERATE_AUDIO'; payload: boolean | null }
   | { type: 'TOGGLE_PANEL'; payload: PanelName }
   | { type: 'OPEN_PANEL'; payload: PanelName }
   | { type: 'CLOSE_PANEL'; payload: PanelName }
@@ -306,6 +345,7 @@ const initialPanels: Record<PanelName, boolean> = {
   audioTranscribe: false,
   sfxParams: false,
   script: false,
+  videoAudio: false,
   keepChange: false,
 }
 
@@ -324,6 +364,7 @@ export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
   'audioReading',
   'musicSpec',
   'script',
+  'videoAudio',
   'voiceSelector',
   'voiceTrainer',
   'audioTranscribe',
@@ -395,6 +436,8 @@ const initialFormState: StudioFormState = {
   videoMode: DEFAULT_VIDEO_NODE_MODE,
   videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
   videoResolution: null,
+  videoAudioRefs: [],
+  videoGenerateAudio: null,
   longVideoMode: false,
   longVideoTargetDuration: VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1], // 30s
   generateRequestId: 0,
@@ -421,6 +464,12 @@ export function studioFormReducer(
         workflowMode: defaults.workflowMode ?? state.workflowMode,
         prompt: isChangingMediaGroup ? '' : state.prompt,
         recipeUsage: isChangingMediaGroup ? null : state.recipeUsage,
+        // 台账 A：音频参考与提示词同档 —— 换了媒体大类（视频 → 图片/音频）
+        // 它就不再适用；同为视频的工作流之间切换保留，不白扔用户传的素材。
+        videoAudioRefs: isChangingMediaGroup ? [] : state.videoAudioRefs,
+        videoGenerateAudio: isChangingMediaGroup
+          ? null
+          : state.videoGenerateAudio,
         panels,
       }
     }
@@ -543,6 +592,10 @@ export function studioFormReducer(
       return { ...state, videoDuration: action.payload }
     case 'SET_VIDEO_RESOLUTION':
       return { ...state, videoResolution: action.payload }
+    case 'SET_VIDEO_AUDIO_REFS':
+      return { ...state, videoAudioRefs: action.payload }
+    case 'SET_VIDEO_GENERATE_AUDIO':
+      return { ...state, videoGenerateAudio: action.payload }
     case 'SET_LONG_VIDEO_MODE':
       return { ...state, longVideoMode: action.payload }
     case 'SET_LONG_VIDEO_TARGET_DURATION':
@@ -623,6 +676,8 @@ export function studioFormReducer(
         videoMode: DEFAULT_VIDEO_NODE_MODE,
         videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
         videoResolution: null,
+        videoAudioRefs: [],
+        videoGenerateAudio: null,
         longVideoMode: false,
         longVideoTargetDuration:
           VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1],

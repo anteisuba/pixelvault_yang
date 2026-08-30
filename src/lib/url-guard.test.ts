@@ -125,5 +125,54 @@ describe('url-guard', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
       fetchMock.mockRestore()
     })
+
+    // 真实故障（2026-08-29）：Civitai 的 /api/download/models/:id 307 到一个
+    // AWS SigV4 预签名的 R2 链接。第二跳带上 Authorization，R2 就改走 header
+    // 签名并返 400 Missing x-amz-content-sha256——配了 Civitai token 反而让
+    // 每次 LoRA 缓存都失败。凭据只能留在首跳的源上。
+    it('drops credential headers when a redirect leaves the origin', async () => {
+      const fetchMock = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 307,
+            headers: { location: 'https://cdn.example.com/signed?sig=abc' },
+          }),
+        )
+        .mockResolvedValueOnce(new Response('ok', { status: 200 }))
+
+      await safeFetch('https://example.com/download', {
+        headers: { Authorization: 'Bearer secret', Accept: 'application/json' },
+      })
+
+      const secondInit = fetchMock.mock.calls[1]?.[1] as RequestInit
+      const forwarded = new Headers(secondInit.headers)
+      expect(forwarded.get('authorization')).toBeNull()
+      // 非凭据头照常跟着走——摘的是凭据，不是整份 header。
+      expect(forwarded.get('accept')).toBe('application/json')
+      fetchMock.mockRestore()
+    })
+
+    it('keeps credential headers on a same-origin redirect', async () => {
+      const fetchMock = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 302,
+            headers: { location: 'https://example.com/download/final' },
+          }),
+        )
+        .mockResolvedValueOnce(new Response('ok', { status: 200 }))
+
+      await safeFetch('https://example.com/download', {
+        headers: { Authorization: 'Bearer secret' },
+      })
+
+      const secondInit = fetchMock.mock.calls[1]?.[1] as RequestInit
+      expect(new Headers(secondInit.headers).get('authorization')).toBe(
+        'Bearer secret',
+      )
+      fetchMock.mockRestore()
+    })
   })
 })

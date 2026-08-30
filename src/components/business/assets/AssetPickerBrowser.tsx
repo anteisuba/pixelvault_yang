@@ -29,7 +29,7 @@ import {
 } from '@/constants/asset-previews'
 import {
   CLIENT_UPLOAD_MAX_BYTES,
-  USER_UPLOAD_ACCEPTED_MIME_TYPES,
+  USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_UPLOAD_PROVIDER,
 } from '@/constants/uploads'
 import { useGallery } from '@/hooks/use-gallery'
@@ -244,7 +244,7 @@ export function AssetPickerBrowser({
   const handleUpload = useCallback(
     async (files: File[]) => {
       const images = files.filter((file) =>
-        (USER_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]).includes(
+        (USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]).includes(
           file.type,
         ),
       )
@@ -446,7 +446,9 @@ export function AssetPickerBrowser({
                         <input
                           type="file"
                           multiple
-                          accept={USER_UPLOAD_ACCEPTED_MIME_TYPES.join(',')}
+                          accept={USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES.join(
+                            ',',
+                          )}
                           className="sr-only"
                           onChange={(event) => {
                             const files = Array.from(event.target.files ?? [])

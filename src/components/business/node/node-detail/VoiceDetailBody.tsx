@@ -3,11 +3,13 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
+import { useNodes } from '@xyflow/react'
 import { ImagePlus, Mic2, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -24,7 +26,11 @@ import {
 import { TTS_SPEED_RANGE, TTS_VOLUME_RANGE } from '@/constants/audio-options'
 import { AUDIO_GENERATION } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
-import { NODE_MEDIA_KIND_IDS, NODE_STATUS_IDS } from '@/constants/node-types'
+import {
+  NODE_IMAGE_ROLE_IDS,
+  NODE_MEDIA_KIND_IDS,
+  NODE_STATUS_IDS,
+} from '@/constants/node-types'
 import {
   checkAudioStatusAPI,
   generateAudioAPI,
@@ -35,13 +41,17 @@ import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import { readVoiceUrlFromData } from '@/lib/node-workflow-graph'
 import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AudioOwnerPicker } from '@/components/business/studio-shared/primitives/AudioOwnerPicker'
 import { AudioPlayer } from '@/components/ui/audio-player'
 import { ParamSlider } from '@/components/ui/param-slider'
 import { Spinner } from '@/components/ui/spinner'
 import { useDownstreamUses } from '@/hooks/node/use-downstream-uses'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import type { GenerationRecord } from '@/types'
-import type { NodeWorkflowNodeData } from '@/types/node-workflow'
+import type {
+  NodeWorkflowNode,
+  NodeWorkflowNodeData,
+} from '@/types/node-workflow'
 
 import { FishVoiceLibraryDialog } from '../FishVoiceLibraryDialog'
 import type { SelectedVoice } from '../VoiceSelector'
@@ -153,6 +163,24 @@ export function VoiceDetailBody({
   const [erroredCover, setErroredCover] = useState<string | null>(null)
   const { uploadFile: uploadCover, isUploading: isCoverUploading } =
     useNodeReferenceUpload()
+
+  /**
+   * 归属下拉的候选 = **画布上所有已命名的角色卡**（台账 X）。
+   *
+   * ⚠ 不收窄成「本节点的下游」：用户常常是先建音色、再决定它给谁 —— 按连线过滤
+   * 会让还没连线的音色卡拿到一个空名单，正好是最需要这个字段的那一刻。
+   * ⚠ 走全仓唯一那个显示名解析器，不自己读 `characterName`（它不带机器值守卫）。
+   */
+  const allNodes = useNodes<NodeWorkflowNode>()
+  const ownerCandidates = useMemo(() => {
+    const names = new Set<string>()
+    for (const node of allNodes) {
+      if (node.data.role !== NODE_IMAGE_ROLE_IDS.character) continue
+      const name = resolveNodeDisplayName(node.data)
+      if (name) names.add(name)
+    }
+    return Array.from(names)
+  }, [allNodes])
 
   const modelOptions = modelOptionsByType[type] ?? []
   const isFishSource =
@@ -610,6 +638,37 @@ export function VoiceDetailBody({
               onChange={(model) => updateNodeData(nodeId, { model })}
               kind={NODE_MEDIA_KIND_IDS.audio}
             />
+            {/*
+              「属于哪个角色」（台账 X，owner 2026-08-29 拍板）。
+
+              ⚠ 放在合成参数**之前**、且不挂 `showSynthesisParams`：归属对三种
+              来源（系统音色 / 上传 / 库里取的片段）一样成立 —— 它答的是「谁在
+              说话」，与这段音频怎么来的无关。
+
+              ⚠ 只有**绕过角色卡直挂视频节点**时才真的用得上：走
+              `voice → character → video` 两跳的那条，角色名由角色卡自己给
+              （`harvestUpstreamAudioBindings` 的 pass 1 优先）。所以这里不做
+              「已经连了角色卡就隐藏」的分支 —— 一条音色可以同时连着两个地方，
+              按当下有没有连线来藏字段会让用户的输入随连线来回消失。
+            */}
+            <div className="canvas-detail-krow">
+              <span className="canvas-detail-krow-key">
+                {t('audioOwnerLabel')}
+              </span>
+              <AudioOwnerPicker
+                value={data.audioOwnerName}
+                candidates={ownerCandidates}
+                onChange={(next) => applyPatch({ audioOwnerName: next })}
+                labels={{
+                  none: t('audioOwnerNone'),
+                  custom: t('audioOwnerCustom'),
+                  customPlaceholder: t('audioOwnerPlaceholder'),
+                  ariaLabel: t('audioOwnerLabel'),
+                }}
+                className="h-8 rounded-lg border border-node-edge bg-node-panel px-2 text-xs text-node-foreground"
+              />
+            </div>
+
             {/* 合成参数只在**合成**这条路上露出。取用库里的片段 / 用户上传的音频时，
                 那段音频已经录成那样了，这三个控件对它一点作用都没有 —— 显示就是在
                 暗示可以调（owner 2026-08-10）。域定义见 canvas-voice-card.md §0.5。 */}

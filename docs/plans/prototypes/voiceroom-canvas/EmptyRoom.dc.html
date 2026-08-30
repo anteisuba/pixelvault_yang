@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&amp;display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; color: #0a0a0a; }
+    a { color: #0a0a0a; } a:hover { color: #616167; }
+    .mono { font-family: ui-monospace, 'SF Mono', Consolas, 'PingFang SC', 'Microsoft YaHei', monospace; }
+    .serif { font-family: 'Noto Serif SC', 'Songti SC', 'SimSun', serif; }
+    .chip { font-family: ui-monospace, Consolas, 'PingFang SC', monospace; font-size: 10.5px; padding: 5px 11px; border: 1px solid #d3d3ce; border-radius: 999px; background: #ffffff; color: #0a0a0a; }
+  </style>
+</helmet>
+<div style="width: 960px; height: 720px; background: #f4f4f1; padding: 20px; overflow: hidden;">
+  <div style="width: 100%; height: 100%; background: #ffffff; border: 1px solid #e6e6e2; border-radius: 18px; box-shadow: 0 30px 80px -40px rgba(10,10,10,0.28); display: flex; flex-direction: column; overflow: hidden;">
+
+    <div style="display: flex; align-items: center; gap: 16px; padding: 12px 18px; border-bottom: 1px solid #e6e6e2;">
+      <span style="font-size: 13px; font-weight: 400; color: #616167;">未命名房间</span>
+      <span class="mono" style="margin-left: auto; font-size: 10.5px; color: #616167;">多说话人 ×8 · 音色库 + 克隆 · Fish S2.1</span>
+      <span class="chip">素材库 <span style="color: #616167;">· 0</span></span>
+      <span style="font-size: 11.5px; font-weight: 600; padding: 7px 16px; border-radius: 999px; background: #0a0a0a; color: #ffffff; opacity: 0.35;">合成整场</span>
+    </div>
+
+    <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 40px 20px; text-align: center;">
+      <span class="mono" style="font-size: 10px; letter-spacing: 0.24em; color: #616167;">班底还空着</span>
+      <span class="serif" style="font-size: 26px; font-weight: 700; letter-spacing: 0.02em;">先请一位进来。</span>
+      <p style="margin: 0; font-size: 12.5px; color: #616167; max-width: 340px; line-height: 1.7;">从音色库挑一副嗓子，或克隆一副自己的。选中谁，打的字就是谁的台词——生成完自动进素材库。</p>
+      <div style="display: flex; gap: 10px; margin-top: 6px;">
+        <span style="font-size: 12px; font-weight: 600; padding: 9px 20px; border-radius: 999px; background: #0a0a0a; color: #ffffff;">从音色库选角</span>
+        <span style="font-size: 12px; font-weight: 500; padding: 9px 20px; border-radius: 999px; border: 1px solid #d3d3ce; background: #ffffff; color: #0a0a0a;">克隆我的声音</span>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 18px; opacity: 0.55;">
+        <span class="mono" style="width: 34px; height: 34px; border-radius: 999px; border: 1px dashed #d3d3ce; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #d3d3ce;">?</span>
+        <span class="mono" style="width: 34px; height: 34px; border-radius: 999px; border: 1px dashed #d3d3ce; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #d3d3ce;">?</span>
+        <span class="mono" style="width: 34px; height: 34px; border-radius: 999px; border: 1px dashed #d3d3ce; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #d3d3ce;">?</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

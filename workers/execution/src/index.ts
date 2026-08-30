@@ -4504,27 +4504,42 @@ const FAL_TEXT_TO_IMAGE_ONLY_MODELS = new Set([
   'fal-ai/flux-2/flash',
   'ideogram/v4',
   'fal-ai/bytedance/seedream/v4.5/text-to-image',
+  'bytedance/seedream/v5/pro/text-to-image',
+  'fal-ai/bytedance/seedream/v5/lite/text-to-image',
   'fal-ai/recraft/v4/pro/text-to-image',
+  'fal-ai/recraft/v4.1/pro/text-to-image',
 ])
 const FAL_SEEDREAM_45_MODEL_ID = 'fal-ai/bytedance/seedream/v4.5/text-to-image'
-// `fal-ai/flux-lora` 是纯文生图端点，喂 image_url 也会被忽略；带参考图时必须换到
-// `/image-to-image` 变体（同样吃 loras，所以 LoRA + img2img 能同时成立）。基础 id
-// 保留在 FAL_TEXT_TO_IMAGE_ONLY_MODELS 里——切换之后 id 就不再命中那个集合，
-// 自然落进下面的标准 img2img 分支。与 src/services/providers/fal.adapter.ts 同款，
-// 两份必须一起改（2026-07-26：app 侧 B9 改过、Worker 侧漏了，参考图被静默丢弃）。
-const FAL_FLUX_LORA_T2I_MODEL_ID = 'fal-ai/flux-lora'
-const FAL_FLUX_LORA_I2I_MODEL_ID = 'fal-ai/flux-lora/image-to-image'
+/**
+ * fal 把若干型号拆成纯 T2I 端点 + 真正收参考图的兄弟端点。目录只挂 T2I id，
+ * 有参考图时在这里换过去——跟 flux-lora → `/image-to-image` 同一套路。
+ * `/edit` 兄弟吃 `image_urls[]`；flux-lora 的 `/image-to-image` 吃单数
+ * `image_url` + strength（见 buildFalImageInput）。
+ */
+const FAL_IMAGE_REFERENCE_ENDPOINT_BY_T2I: Record<string, string> = {
+  'fal-ai/flux-lora': 'fal-ai/flux-lora/image-to-image',
+  'fal-ai/flux-2-pro': 'fal-ai/flux-2-pro/edit',
+  'fal-ai/flux-2/flash': 'fal-ai/flux-2/flash/edit',
+  'bytedance/seedream/v5/pro/text-to-image': 'bytedance/seedream/v5/pro/edit',
+  'fal-ai/bytedance/seedream/v5/lite/text-to-image':
+    'fal-ai/bytedance/seedream/v5/lite/edit',
+}
+
+const FAL_NATIVE_IMAGE_URLS_ENDPOINTS = new Set([
+  ...FAL_KONTEXT_MULTI_IMAGE_MODELS,
+  ...Object.values(FAL_IMAGE_REFERENCE_ENDPOINT_BY_T2I).filter((id) =>
+    id.endsWith('/edit'),
+  ),
+])
 
 /**
- * 实际要打的 fal 端点 id。目前只有 flux-lora 需要按「有没有参考图」换端点，
- * 但请求体构造和 URL 拼接两处都得用它，所以抽出来避免只改一处。
+ * 实际要打的 fal 端点 id。有参考图时按 FAL_IMAGE_REFERENCE_ENDPOINT_BY_T2I
+ * 换到 edit / i2i 变体。请求体构造和 URL 拼接两处都得用它，所以抽出来。
  */
 export function resolveFalImageModelId(context: WorkerImageRunContext): string {
   const { externalModelId } = context.providerInput
-  if (externalModelId !== FAL_FLUX_LORA_T2I_MODEL_ID) return externalModelId
-  return getImageReferenceInputs(context).length > 0
-    ? FAL_FLUX_LORA_I2I_MODEL_ID
-    : externalModelId
+  if (getImageReferenceInputs(context).length === 0) return externalModelId
+  return FAL_IMAGE_REFERENCE_ENDPOINT_BY_T2I[externalModelId] ?? externalModelId
 }
 
 interface FalImageResult {
@@ -4770,17 +4785,14 @@ export function buildFalImageInput(
   }
 
   const externalModelId = resolveFalImageModelId(context)
-  if (FAL_KONTEXT_MULTI_IMAGE_MODELS.has(externalModelId)) {
-    if (providerInput.referenceImages?.length) {
-      input.image_urls = providerInput.referenceImages
-    }
+  const refs = getImageReferenceInputs(context)
+  if (FAL_NATIVE_IMAGE_URLS_ENDPOINTS.has(externalModelId)) {
+    if (refs.length) input.image_urls = refs
   } else if (FAL_KONTEXT_SINGLE_IMAGE_MODELS.has(externalModelId)) {
-    const referenceImage =
-      providerInput.referenceImages?.[0] ?? providerInput.referenceImage
+    const referenceImage = refs[0]
     if (referenceImage) input.image_url = referenceImage
   } else if (!FAL_TEXT_TO_IMAGE_ONLY_MODELS.has(externalModelId)) {
-    const referenceImage =
-      providerInput.referenceImages?.[0] ?? providerInput.referenceImage
+    const referenceImage = refs[0]
     if (referenceImage) {
       input.image_url = referenceImage
       const referenceStrength = readNumberField(

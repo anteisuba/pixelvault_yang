@@ -38,7 +38,9 @@ export const VOICE_API_ERROR_CODES = {
 } as const
 
 export const VOICE_TRAIN_MAX_FILES = 8
-export const VOICE_TRAIN_MAX_FILE_BYTES = 10 * 1024 * 1024
+/** 单段样本的上限，MB。字节数由它推出来，别两处各写一个数。 */
+export const VOICE_TRAIN_MAX_FILE_MB = 10
+export const VOICE_TRAIN_MAX_FILE_BYTES = VOICE_TRAIN_MAX_FILE_MB * 1024 * 1024
 
 export const VOICE_CARD_DEFAULT_PACE = 'normal'
 

@@ -15,6 +15,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 import type {
   NodeWorkflowReferenceAsset,
@@ -25,6 +33,54 @@ import {
   ReferenceLandingTabs,
   type ResolvedReferenceMedia,
 } from './ReferenceLandingTabs'
+
+/**
+ * 参考图权重滑块（台账 D，2026-08-29）。
+ *
+ * ── 原来是什么样 ────────────────────────────────────────────────────
+ * 一条裸 `<input type="range">`，只挂了 `accent-node-paint` /
+ * `accent-node-edge-active`。**accent 色本身是浅色，而 Chrome 的未填充轨道是深灰**
+ * —— 于是画面上「填充=浅、未填充=深」，与所有人对滑块的直觉相反，用户读出来的
+ * 方向是反的。而且从头到尾**不显示数值**：权重是真会影响出图的实参，读不出来就
+ * 调不准。
+ *
+ * ── 现在 ────────────────────────────────────────────────────────────
+ * 换成域内已经在用的 `ui/slider`（`VideoComposer` 的时长滑条同款）：Range 在左、
+ * Track 在右，方向由结构决定而不是靠 accent 色碰运气；旁边补一个 `tabular-nums`
+ * 的百分比读数。
+ *
+ * ⚠ 显示的是百分比而不是 0.72 这样的原始值：权重域是 0–1（见
+ * `NODE_STUDIO_CHARACTER_IMAGE_REFERENCES`），对用户而言「72%」比「0.72」直白，
+ * 而写回数据层的仍是原始小数，一位小数都不丢（`step` 是 0.05，乘 100 后仍是整数）。
+ */
+function ReferenceWeightSlider({
+  value,
+  label,
+  onChange,
+}: {
+  value: number
+  label: string
+  onChange(weight: number): void
+}) {
+  const { minWeight, maxWeight, weightStep } =
+    NODE_STUDIO_CHARACTER_IMAGE_REFERENCES
+  return (
+    <div className="flex items-center gap-1.5">
+      <Slider
+        min={minWeight}
+        max={maxWeight}
+        step={weightStep}
+        value={[value]}
+        onValueChange={(next) => onChange(next[0] ?? value)}
+        aria-label={label}
+        className="nodrag nopan nowheel min-w-0 flex-1"
+      />
+      <span className="shrink-0 tabular-nums text-2xs font-semibold text-node-muted">
+        {`${Math.round(value * 100)}%`}
+      </span>
+    </div>
+  )
+}
 
 /** A closeup (面部特写) image merged read-only into the gallery grid — a
  *  SEPARATE node bound via edge, not a `referenceAssets` entry, so it has no
@@ -315,7 +371,12 @@ export function CharacterImageReferenceControls({
                   />
                   {tDossier('onStageBadge')}
                 </span>
-                <div className="absolute inset-0 flex flex-col justify-between bg-node-canvas/0 opacity-0 transition-opacity group-hover:bg-node-canvas/55 group-hover:opacity-100">
+                {/* 台账 C 附带（2026-08-29）：这层覆盖层原本是纯 `group-hover` ——
+                    分类下拉与权重滑块**只有 hover 才出现**，触屏上没有 hover，
+                    等于这两个控件在手机/平板上不存在。粗指针档常显（`coarse:`
+                    变体 = `@media (pointer: coarse)`，globals.css 已定义），
+                    鼠标档保持原来的 hover 行为一像素不动。 */}
+                <div className="absolute inset-0 flex flex-col justify-between bg-node-canvas/0 opacity-0 transition-opacity group-hover:bg-node-canvas/55 group-hover:opacity-100 coarse:bg-node-canvas/55 coarse:opacity-100">
                   <div className="flex items-center justify-end gap-1 p-1">
                     <button
                       type="button"
@@ -395,21 +456,34 @@ export function CharacterImageReferenceControls({
                     </button>
                   </div>
                   <div className="space-y-1 p-1.5">
-                    <select
+                    {/* 台账 C（2026-08-29）：这里原先是裸 `<select>` + `<option>`
+                        —— 系统箭头、系统字体、系统弹出层，而周围每一个控件都是
+                        shadcn 原语。换成域内已有的 `ui/select`（同一批分类下拉在
+                        `LooseImageDetailBody` 就是这么写的），视觉与键盘行为一并
+                        对齐，不再是全站唯一的原生下拉。 */}
+                    <Select
                       value={reference.role}
-                      onChange={(event) =>
+                      onValueChange={(next) =>
                         updateReference(reference.id, {
-                          role: event.target.value as NodeWorkflowReferenceRole,
+                          role: next as NodeWorkflowReferenceRole,
                         })
                       }
-                      className="nodrag nopan nowheel h-6 w-full rounded-lg border border-node-panel-inner/70 bg-node-panel/90 text-2xs font-semibold text-node-foreground"
                     >
-                      {NODE_STUDIO_REFERENCE_ROLES.map((role) => (
-                        <option key={role} value={role}>
-                          {t(`roles.${role}`)}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger
+                        aria-label={t('roleLabel')}
+                        size="sm"
+                        className="nodrag nopan nowheel h-6 w-full rounded-lg border-node-panel-inner/70 bg-node-panel/90 px-1.5 text-2xs font-semibold text-node-foreground"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {NODE_STUDIO_REFERENCE_ROLES.map((role) => (
+                          <SelectItem key={role} value={role}>
+                            {t(`roles.${role}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     {reference.role === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID ? (
                       <input
                         type="text"
@@ -424,19 +498,12 @@ export function CharacterImageReferenceControls({
                         className="nodrag nopan nowheel h-6 w-full rounded-lg border border-node-panel-inner/70 bg-node-panel/90 px-1.5 text-2xs text-node-foreground"
                       />
                     ) : null}
-                    <input
-                      type="range"
-                      min={NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.minWeight}
-                      max={NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxWeight}
-                      step={NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.weightStep}
+                    <ReferenceWeightSlider
                       value={reference.weight}
-                      onChange={(event) =>
-                        updateReference(reference.id, {
-                          weight: Number(event.target.value),
-                        })
+                      label={t('weightLabel')}
+                      onChange={(weight) =>
+                        updateReference(reference.id, { weight })
                       }
-                      aria-label={t('weightLabel')}
-                      className="nodrag nopan nowheel h-3 w-full accent-node-paint"
                     />
                   </div>
                 </div>
@@ -556,21 +623,29 @@ export function CharacterImageReferenceControls({
                   />
                 </div>
                 <div className="min-w-0 flex-1 space-y-1.5">
-                  <select
+                  <Select
                     value={reference.role}
-                    onChange={(event) =>
+                    onValueChange={(next) =>
                       updateReference(reference.id, {
-                        role: event.target.value as NodeWorkflowReferenceRole,
+                        role: next as NodeWorkflowReferenceRole,
                       })
                     }
-                    className="nodrag nopan nowheel h-7 w-full rounded-xl border border-node-panel-inner bg-node-panel text-xs font-semibold text-node-foreground"
                   >
-                    {NODE_STUDIO_REFERENCE_ROLES.map((role) => (
-                      <option key={role} value={role}>
-                        {t(`roles.${role}`)}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      aria-label={t('roleLabel')}
+                      size="sm"
+                      className="nodrag nopan nowheel h-7 w-full rounded-xl border-node-panel-inner bg-node-panel px-2 text-xs font-semibold text-node-foreground"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NODE_STUDIO_REFERENCE_ROLES.map((role) => (
+                        <SelectItem key={role} value={role}>
+                          {t(`roles.${role}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {reference.role === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID ? (
                     <input
                       type="text"
@@ -585,19 +660,12 @@ export function CharacterImageReferenceControls({
                       className="nodrag nopan nowheel h-7 w-full rounded-xl border border-node-panel-inner bg-node-panel px-2 text-xs text-node-foreground"
                     />
                   ) : null}
-                  <input
-                    type="range"
-                    min={NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.minWeight}
-                    max={NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxWeight}
-                    step={NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.weightStep}
+                  <ReferenceWeightSlider
                     value={reference.weight}
-                    onChange={(event) =>
-                      updateReference(reference.id, {
-                        weight: Number(event.target.value),
-                      })
+                    label={t('weightLabel')}
+                    onChange={(weight) =>
+                      updateReference(reference.id, { weight })
                     }
-                    aria-label={t('weightLabel')}
-                    className="nodrag nopan nowheel w-full accent-node-edge-active"
                   />
                 </div>
                 <button

@@ -277,7 +277,29 @@ describe('NodeSelectionToolbarChrome', () => {
       screen.getByRole('button', { name: 'regenerate' }),
     ).toBeInTheDocument()
 
+    // 台账 Q（owner 2026-08-29 真机）：这颗按钮在**已有图**时是「原地覆盖 +
+    // 花钱 + 不可逆」，而它就挨着纯查看的「放大」。owner 想点放大，点到了它，
+    // 一张已验收的关键帧当场被覆盖重跑。点一下**不再**直接开跑。
     fireEvent.click(screen.getByRole('button', { name: 'regenerate' }))
+    expect(mocks.generateMediaNode).not.toHaveBeenCalled()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'regenerateConfirmAction' }),
+    )
+    expect(mocks.generateMediaNode).toHaveBeenCalledWith('node-1')
+  })
+
+  it('还没有图时不问 —— 第一次生成没有任何东西可毁', () => {
+    render(
+      <NodeSelectionToolbarChrome
+        nodeId="node-1"
+        data={{ ...IMAGE_DATA, mediaUrl: undefined, imageUrl: undefined }}
+        selected
+        nodeType={NODE_TYPE_IDS.shot}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'generate' }))
     expect(mocks.generateMediaNode).toHaveBeenCalledWith('node-1')
   })
 

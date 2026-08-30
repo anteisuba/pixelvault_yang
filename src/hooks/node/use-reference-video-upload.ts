@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
 import { uploadReferenceVideoAPI } from '@/lib/api-client'
+import { toNodeDisplayLabel } from '@/lib/node-display-name'
 import { captureVideoThumbnail } from '@/lib/video-thumbnail'
 
 export interface ReferenceVideoUploadPatch {
@@ -57,7 +58,7 @@ export function useReferenceVideoUpload(): UseReferenceVideoUploadValue {
         })
         return {
           mediaUrl: response.data.url,
-          mediaLabel: response.data.fileName,
+          mediaLabel: toNodeDisplayLabel(response.data.fileName) ?? '',
           videoThumbnailUrl: response.data.thumbnailUrl,
           sizeBytes: response.data.sizeBytes,
         }

@@ -44,6 +44,8 @@ import {
   failGenerationJob,
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
+import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
+import { findCivitaiLorasWithDownloadDisabled } from '@/services/civitai-lora.service'
 import { generateStorageKey } from '@/services/storage/r2'
 import { prepareRunnerLoras } from '@/services/runner/civitai-lora-to-r2.service'
 import { prepareRunnerCheckpoint } from '@/services/runner/prepare-runner-checkpoint.service'
@@ -157,6 +159,27 @@ export async function submitImageGeneration(
     )
   }
 
+  // ⛔ Civitai Creator Controls：作者关掉下载的 LoRA 谁都拉不到权重，两条线
+  // （Runner 自己下 / 云端 API 由 provider 下）都会在几十秒后以 401 收场，而
+  // 401 一路被翻译成「你的 API Key 无效或已过期」——一句把人送去查一把没坏的
+  // key 的假话（2026-08-29 owner 真机）。所以在这里、在建 job 行和传参考图之前
+  // 就断掉，说清楚唯一的出路是换 LoRA。判不了时放行，见
+  // `CivitaiLoraDownloadPolicy.downloadDisabled`。
+  const loraUrls = (input.advancedParams?.loras ?? []).map((lora) => lora.url)
+  if (loraUrls.length > 0) {
+    const blocked = await findCivitaiLorasWithDownloadDisabled(loraUrls)
+    if (blocked.length > 0) {
+      const names = blocked
+        .map((policy) => policy.name ?? `#${policy.modelVersionId}`)
+        .join('、')
+      throw new GenerateImageServiceError(
+        'LORA_DOWNLOAD_DISABLED',
+        `The creator disabled downloads for this LoRA on Civitai (${names}), so no backend can fetch its weights. Pick a different LoRA.`,
+        422,
+      )
+    }
+  }
+
   // Upload the reference image to R2 up front so the worker receives a stable
   // URL (it cannot resolve data: URLs or short-lived client blobs itself).
   const timer = new GenerationStageTimer({
@@ -218,16 +241,27 @@ export async function submitImageGeneration(
       const loras = input.advancedParams?.loras ?? []
       if (loras.length > 0) {
         try {
-          const runnerLoras = await prepareRunnerLoras(loras)
+          const userCivitaiToken = await getCivitaiTokenByInternalUserId(
+            dbUser.id,
+          ).catch(() => null)
+          const runnerLoras = await prepareRunnerLoras(loras, userCivitaiToken)
           runnerAdvancedParams = { ...input.advancedParams, runnerLoras }
         } catch (error) {
           // 大声失败：LoRA 下载/缓存失败 → 明确报错而非静默出一张没挂 LoRA 的图。
           throw new GenerateImageServiceError(
-            'PROVIDER_ERROR',
+            error instanceof Error &&
+              'code' in error &&
+              error.code === 'AUTH_REQUIRED'
+              ? 'INVALID_API_KEY'
+              : 'PROVIDER_ERROR',
             error instanceof Error
               ? error.message
               : 'Failed to prepare runner LoRA',
-            502,
+            error instanceof Error &&
+              'code' in error &&
+              error.code === 'AUTH_REQUIRED'
+              ? 401
+              : 502,
           )
         }
       }

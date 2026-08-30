@@ -6,6 +6,7 @@ import {
   MODEL_UNIT_PRICES,
   formatUnitPriceAmount,
   getModelUnitPriceByStringId,
+  getModelUnitPriceRangeByStringId,
   getVideoUnitPricePerSecond,
 } from '@/constants/models/unit-prices'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
@@ -35,8 +36,16 @@ const videoBasis = (
 /** 有价的图片模型，两条，价格从表里取 —— 不写死金额，改价不该弄红这个测试。 */
 const PRICED_A = AI_MODELS.FLUX_2_PRO
 const PRICED_B = AI_MODELS.SEEDREAM_50_LITE
-/** 故意留空的那条（quality=auto，35 倍价差，见 unit-prices.ts 待补段）。 */
-const UNPRICED = AI_MODELS.OPENAI_GPT_IMAGE_2
+/**
+ * 真正**什么都报不出**的那条：火山 Seedream 5.0 基础款 —— 官方价格页只列了
+ * `-pro` / `-lite`，不带后缀的 5-0 按哪档计费未公开，连上下界都没有。
+ *
+ * ⚠ 2026-08-29 从 `OPENAI_GPT_IMAGE_2` 换过来（台账 M）：那条现在报得出**区间**
+ * （OpenAI 三档单价是公开的，缺的只是 auto 落哪档的映射），已经不是「未标价」了。
+ */
+const UNPRICED = AI_MODELS.SEEDREAM_50_VOLCENGINE
+/** 钉不死一个数、但边界已知的那条（台账 M）。 */
+const RANGED = AI_MODELS.OPENAI_GPT_IMAGE_2
 /** 按秒计价的视频条目 —— 混进来必须当缺价，不许折进按张算的合计。 */
 const PER_SECOND = AI_MODELS.SEEDANCE_25_VOLCENGINE
 /** 逐档核过的视频条目（三档都填了 `resolutionAmounts`）。 */
@@ -215,6 +224,58 @@ describe('StudioCostPreview', () => {
         screen.getByText(`costApproxFrom:{"amount":"${expected}"}`),
       ).toBeInTheDocument()
       expect(screen.getByText('costUnpriced:{"count":1}')).toBeInTheDocument()
+    })
+  })
+
+  /**
+   * 台账 M（owner 2026-08-29 真机）：选中 GPT Image 2 后「预计费用」只显示
+   * 「1 个模型未标价」，**不给任何金额**。而那三个档位数官方是公开的 —— 缺的
+   * 只是「auto 落哪档」的映射。报区间是诚实的，报「未标价」是把已知信息也藏了。
+   */
+  describe('钉不死一个数、但边界已知的（台账 M）', () => {
+    it('报上下界，而不是算进「未标价」条数', () => {
+      render(
+        <StudioCostPreview models={[model(RANGED)]} basis={imageBasis(1)} />,
+      )
+      const range = getModelUnitPriceRangeByStringId(RANGED)!
+      expect(
+        screen.getByText(
+          `costRange:${JSON.stringify({
+            min: formatUnitPriceAmount(range.min),
+            max: formatUnitPriceAmount(range.max),
+          })}`,
+        ),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/costUnpriced/)).not.toBeInTheDocument()
+    })
+
+    it('⭐ 区间**不折进合计** —— 累加上界会报一个用户几乎不会付的数', () => {
+      render(
+        <StudioCostPreview
+          models={[model(PRICED_A), model(RANGED)]}
+          basis={imageBasis(1)}
+        />,
+      )
+      // 合计只含有确价的那条，且因为还有别的条目而降级成「起」。
+      const expected = formatUnitPriceAmount(amountOf(PRICED_A))
+      expect(
+        screen.getByText(`costApproxFrom:{"amount":"${expected}"}`),
+      ).toBeInTheDocument()
+    })
+
+    it('区间随张数放大 —— 一次出 4 张，上下界都乘 4', () => {
+      render(
+        <StudioCostPreview models={[model(RANGED)]} basis={imageBasis(4)} />,
+      )
+      const range = getModelUnitPriceRangeByStringId(RANGED)!
+      expect(
+        screen.getByText(
+          `costRange:${JSON.stringify({
+            min: formatUnitPriceAmount(range.min * 4),
+            max: formatUnitPriceAmount(range.max * 4),
+          })}`,
+        ),
+      ).toBeInTheDocument()
     })
   })
 })

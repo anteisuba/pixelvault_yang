@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-08-25
+最后更新：2026-08-30
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
@@ -97,8 +97,20 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
 
 ## Completed / Stable Enough to Build On
 
+### 素材库上传
+
+- 2026-08-29 素材库上传入口已从图片扩到图片 + 视频（MP4 / MOV / WebM）。视频走浏览器直传 R2，
+  单次 PUT 上限采用 R2 的 5 GiB 平台边界，预签名窗口 1 小时；完成接口只用 HEAD 核对真实大小并
+  Range 读取前 4 KiB 验证容器签名，不把整段大视频下载进应用服务器内存。视频记录按 `VIDEO`
+  归档，并把客户端截帧写入 thumbnail 字段。
+
 ### 模型目录
 
+- fal 图生图路由（2026-08-30）：挂参考图时 `SEEDREAM_50_PRO` / `SEEDREAM_50_LITE` /
+  `FLUX_2_PRO` / `FLUX_2_FLASH` 从 T2I 端点切到官方 `/edit`，发 `image_urls[]`
+  （上限 10 / 10 / 8 / 4）。此前能力表写 `maxReferenceImages: 0`，工作台会 400
+  「does not support reference images」。Recraft / Illustrious 在 fal 上没有对等
+  edit 端点，仍是 0。火山/BytePlus Seedream 本来就能带参考图，未改。
 - NovelAI 已捞回 Image（2026-08-24）：V4.5 Full/Curated + V5 Full/Curated 四档
   `available: true`、**只 BYOK**，worker 认 V5 id（`params_version: 4`，不发
   `skip_cfg_above_sigma`）。参考图可选、最多 1 张、按 img2img 发；不进 LoRA；助手 LLM
@@ -152,6 +164,7 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
 
 ## Design Status
 
+- 2026-08-30 首页功能页 01 调整为图片优先：860px 工作台内输入列 315px、四宫格 500px，单图 245px；移动端补齐纵向回落，四宫格宽度 100%。未改变首页其他功能页、动效时钟或产品内页。
 - 2026-08-05 LoRA 域已按 owner 真机反馈统一为系统白色浅色工作台；无 `section` 的
   `/studio/lora` 默认入口改为 Generate，Library / Mine / Train 显式深链保持不变。
 - 2026-08-05 后续反馈已完成：首页图片案例改为“左侧文案内含交互 / 右侧纯图片”；视频生成、
@@ -171,6 +184,14 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
   其状态已升级为「已实现、待 owner 真机复核」。
 
 ## Validation
+
+- 2026-08-30 首页图片功能页：Chrome 1920×855 实测输入 315px / 结果 500px / 单格 245px，页面 `scrollWidth === innerWidth`；`HomeV4Fn.test.tsx` 40/40 通过，目标 ESLint 0 error，`npm run typecheck` 通过，`git diff --check` 无空白错误。owner 的 3000 dev 实例运行中，按规则未并行 build。
+- 2026-08-29 素材库视频上传：定向 Vitest 7 files / 62 tests 通过（含 80 MB 完成校验与
+  `bytes=0-4095` 范围读取断言）；本次改动文件 ESLint 0 error；`git diff --check` 无空白错误；
+  Chrome 实查 `/zh/assets` 文件输入已声明 JPG / PNG / WebP / GIF / MP4 / MOV / WebM。
+  全仓 TypeScript 被并行音频改动缺失的 `AUDIO_EMOTION` / `AudioEmotion` 导出阻断，非本链路错误；
+  全量 Vitest 在工作区另两套既有 Vitest 进程并行占用资源时长时间无汇总，已停止本次重复运行；owner
+  的 3000 dev 实例运行中，按规则未并行 build。
 
 - **2026-08-25 待推的 18 笔，闸门逐笔记在各自提交消息里**：`2321dbf5` 全量 tsc 零错、
   受影响 18 文件 358 条 vitest 全绿；`5c6c67f9` / `bf965440` 同日全量 vitest

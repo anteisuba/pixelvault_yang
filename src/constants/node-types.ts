@@ -275,6 +275,37 @@ export const NODE_WORKFLOW_FIELDS_BY_IMAGE_ROLE: Record<
   [NODE_IMAGE_ROLE_IDS.closeup]: [NODE_WORKFLOW_FIELD_IDS.prompt],
 } as const
 
+/**
+ * 一段**自由文本**该落这个节点的哪个字段 —— 只对「字段集里没有 `prompt`」的类型
+ * 有意义，今天只有 `shotText` 一个（它的四栏是 scene / action / camera /
+ * composition，没有 prompt）。
+ *
+ * ── 为什么需要这张表（台账 K-1，2026-08-29 真机）──────────────────────
+ * 助手的 `add_node.prompt` / `set_prompt` 一律写 `data.prompt`，而 `shotText`
+ * 节点的读侧（详情面板渲染、`buildNodeWorkflowPrompt`、下游视频的
+ * `harvestUpstreamShotTextPrompt`）读的是那四栏。真机后果：助手写的四段镜头文本
+ * （401 / 288 / 302 / 270 字符）**全部作废**，节点只显示「还没有镜头文本」，
+ * 既不报错也看不出内容写错了地方 —— 静默且看起来像「助手没写」。
+ *
+ * 落点选 `action` 不是随手挑的：ScriptDoc 投影里 `action ← shot.summary`
+ * （见 `lib/node-workflow-script-doc.ts` 的 `SHOT_TEXT_FIELD_TO_SCRIPT_DOC`），
+ * 也就是说 `action` 就是这个节点「这一镜发生了什么」的正文字段。
+ *
+ * `null` = **这个类型真的没有自由文本字段**，写哪儿都是黑洞。调用方拿到 null 要
+ * 明说「这个节点没有提示词字段」而不是随便找个字段塞进去 —— 音色节点就是这一档
+ * （它的五栏全是音色配置，正文台词住在下游视频节点上）。这条不变量的测试第一次
+ * 跑就抓到了它：`voice` 与 `shotText` 同病，助手往音色节点写 prompt 同样静默丢失。
+ *
+ * ⚠ 不变量由 `node-types.test.ts` 钉着：**字段集里没有 `prompt` 的类型，这里必须
+ * 有一条**（哪怕是显式的 `null`）。加新节点类型时忘了登记会红，不会再静默丢内容。
+ */
+export const NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE: Partial<
+  Record<NodeWorkflowNodeType, NodeWorkflowFieldId | null>
+> = {
+  [NODE_TYPE_IDS.shotText]: NODE_WORKFLOW_FIELD_IDS.action,
+  [NODE_TYPE_IDS.voice]: null,
+} as const
+
 export const NODE_MEDIA_KIND_BY_NODE_TYPE = {
   [NODE_TYPE_IDS.composer]: undefined,
   [NODE_TYPE_IDS.agent]: undefined,

@@ -10,7 +10,6 @@ import {
   VOICE_TRAIN_MAX_FILES,
   VOICE_TRAIN_MAX_FILE_BYTES,
 } from '@/constants/voice-cards'
-import { useStudioForm } from '@/contexts/studio-context'
 import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { createVoiceAPI, transcribeVoiceAPI } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
@@ -29,12 +28,32 @@ type TrainStage = 'idle' | 'uploading' | 'finalizing'
 
 const UPLOAD_TO_FINALIZE_MS = 1500
 
+export interface VoiceTrainerCreated {
+  /** 新建的音色卡 id；上游偶尔不回卡（只回 Fish 模型）时是 null。 */
+  cardId: string | null
+  /** Fish 侧的模型 id —— 生成时真正用的那个。 */
+  voiceId: string
+}
+
+interface VoiceTrainerProps {
+  /**
+   * 训练成功后的落点。
+   *
+   * ⚠ 这里**故意不碰 StudioContext**。这个组件原先直接 `dispatch` 两条选中态，
+   * 于是它只能活在工作台里；而配音间（`/studio/audio`）是刻意住在工作台路由组
+   * 外面的，没有 `StudioProvider`——想复用就得把整个外壳搬过去。改成回调之后，
+   * 工作台自己在回调里 dispatch，配音间拿它去刷新音色卡，组件本身谁都不认识。
+   */
+  onCreated?: (created: VoiceTrainerCreated) => void
+}
+
 /**
  * VoiceTrainer — Upload audio to create a custom Fish Audio voice (clone).
  * Fast mode: voice is instantly available after creation.
  */
-export const VoiceTrainer = memo(function VoiceTrainer() {
-  const { dispatch } = useStudioForm()
+export const VoiceTrainer = memo(function VoiceTrainer({
+  onCreated,
+}: VoiceTrainerProps) {
   const t = useTranslations('StudioPage')
   const voiceCards = useVoiceCards()
 
@@ -132,11 +151,10 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
     if (result.success && result.data) {
       toast.success(t('voiceTrainSuccess'))
       const selectedVoiceId = result.voiceCard?.voiceId ?? result.data.id
-      dispatch({
-        type: 'SET_VOICE_CARD_ID',
-        payload: result.voiceCard?.id ?? null,
+      onCreated?.({
+        cardId: result.voiceCard?.id ?? null,
+        voiceId: selectedVoiceId,
       })
-      dispatch({ type: 'SET_VOICE_ID', payload: selectedVoiceId })
       void voiceCards.refresh()
       // Reset form
       setTitle('')

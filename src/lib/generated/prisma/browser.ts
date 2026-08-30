@@ -96,6 +96,18 @@ export type Recipe = Prisma.RecipeModel
  */
 export type VoiceCard = Prisma.VoiceCardModel
 /**
+ * Model VoiceRoom
+ * 配音间的一场戏。左列一个房间一行，各自带班底 / 底垫 / 台词。
+ * 
+ * 「一场戏 = 一个会话」是这个域的核心比喻：房间不是文件夹，是聊天室。
+ */
+export type VoiceRoom = Prisma.VoiceRoomModel
+/**
+ * Model VoiceLine
+ * 一条台词 = 聊天流里的一个气泡 = 一次生成。
+ */
+export type VoiceLine = Prisma.VoiceLineModel
+/**
  * Model UserCreativePreference
  * 
  */

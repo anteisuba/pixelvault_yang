@@ -18,6 +18,57 @@ function pickSeekTime(duration: number): number {
   return Math.min(0.1, duration / 2)
 }
 
+export interface VideoFileMetadata {
+  width: number
+  height: number
+  duration?: number
+}
+
+/** Read browser-decoded video dimensions/duration without uploading bytes. */
+export async function readVideoFileMetadata(
+  file: File,
+): Promise<VideoFileMetadata | null> {
+  if (typeof document === 'undefined') return null
+
+  return new Promise<VideoFileMetadata | null>((resolve) => {
+    const video = document.createElement('video')
+    const objectUrl = URL.createObjectURL(file)
+    let settled = false
+
+    const finish = (result: VideoFileMetadata | null) => {
+      if (settled) return
+      settled = true
+      URL.revokeObjectURL(objectUrl)
+      video.removeAttribute('src')
+      video.load()
+      video.remove()
+      resolve(result)
+    }
+
+    video.preload = 'metadata'
+    video.muted = true
+    video.playsInline = true
+    video.onloadedmetadata = () => {
+      const width = video.videoWidth
+      const height = video.videoHeight
+      if (!width || !height) {
+        finish(null)
+        return
+      }
+      finish({
+        width,
+        height,
+        duration:
+          Number.isFinite(video.duration) && video.duration >= 0
+            ? video.duration
+            : undefined,
+      })
+    }
+    video.onerror = () => finish(null)
+    video.src = objectUrl
+  })
+}
+
 export async function captureVideoThumbnail(file: File): Promise<Blob | null> {
   if (typeof document === 'undefined') return null
 

@@ -6825,6 +6825,8 @@
     "linePlaceholder": "{name} 的台词——情感可写在句里：（耳语）别回头…",
     "pickSpeakerFirst": "先选一位说话人",
     "lineInputLabel": "台词",
+    "params": "参数",
+    "paramsHint": "管接下来生成的念法。单句要改，点气泡上的情感角标。",
     "sending": "派发中",
     "generate": "生成",
     "addVoice": "添加音色",
@@ -6847,8 +6849,6 @@
       "surprised": "惊讶"
     },
     "casting": "选角",
-    "voiceLibrary": "音色库",
-    "myVoices": "我的音色",
     "close": "关闭",
     "searchVoices": "搜嗓子——「低沉的男声」「像电台深夜节目」…",
     "preview": "试听",
@@ -6856,8 +6856,29 @@
     "alreadyInCast": "已在班底",
     "loading": "加载中",
     "noVoicesFound": "没有找到匹配的音色",
-    "noVoiceCards": "还没有收藏的音色——去音色库挑一个",
-    "castingLoadFailed": "音色列表加载失败",
-    "castingJoinFailed": "加入班底失败"
+    "tab": {
+      "public": "音色库",
+      "favorites": "收藏的声音",
+      "cloned": "克隆的声音"
+    },
+    "favorite": "收藏声音",
+    "unfavorite": "取消收藏",
+    "previewing": "试听中",
+    "castFull": "班底已满",
+    "noFavoriteVoices": "还没有收藏的声音——去音色库给中意的那副嗓子点颗星",
+    "noClonedVoices": "还没有克隆的声音",
+    "listEnd": "到底了",
+    "castLabel": "班底",
+    "castCount": "{count} 位 · 上限 {max}",
+    "done": "完成",
+    "vaultNote": "生成完自动入库 · 无需保存",
+    "vaultEmpty": "这个房间还没有录下任何声音",
+    "pickModel": "选择模型",
+    "cloneNew": "克隆新声音",
+    "cloneNewHint": "最多 {files} 段样本 · 每段 ≤{mb}MB\n两分钟就有自己的嗓子",
+    "cancel": "取消",
+    "deleteRoom": "删除房间",
+    "deleteRoomTitle": "删除这个房间？",
+    "deleteRoomHint": "「{name}」和它的全部台词都会删掉。已经生成的声音不受影响，仍然在素材库里。"
   }
 }

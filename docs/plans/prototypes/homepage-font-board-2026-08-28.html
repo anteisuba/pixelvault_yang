@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN" data-font="b">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>字体对比板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700;900&family=Noto+Serif+SC:wght@600;900&family=ZCOOL+XiaoWei&display=swap">
+
+<style>
+  /* ═══ 首页字体对比板 ═══════════════════════════════════════════
+     owner 两次反馈「字体看着不舒服」——这次不猜：同一内容四套
+     字体世界现场切。载体 = 图片功能页样张 + 模型页样张。
+     四套都用 Google Fonts 简体现货（正式实现可换任意授权字体，
+     这里先定「气质方向」）。 */
+  :root {
+    --paper: #ffffff; --ink: #0a0a0a; --dim: #75757a;
+    --line: #e6e6e2; --panel: #f4f4f1;
+    --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    --body: "Noto Sans", "Noto Sans SC", -apple-system, "PingFang SC", sans-serif;
+    --gut: clamp(22px, 5vw, 72px);
+  }
+  /* 四套世界：只换 display 族 / 字重 / 字距 */
+  html[data-font="a"] { --disp: "Noto Sans", "Noto Sans SC", sans-serif; --dw: 700; --dls: -0.02em; }
+  html[data-font="b"] { --disp: "Noto Serif SC", "Songti SC", serif;     --dw: 900; --dls: 0.015em; }
+  html[data-font="c"] { --disp: "ZCOOL XiaoWei", "Noto Serif SC", serif; --dw: 400; --dls: 0.02em; }
+  html[data-font="d"] { --disp: "Noto Sans SC", sans-serif;              --dw: 900; --dls: -0.035em; }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--body); line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ── 切换条 ─────────────────────────────────────────────────── */
+  .picker {
+    position: sticky; top: 0; z-index: 40;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    padding: 12px var(--gut);
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+  }
+  .picker .lbl { color: var(--dim); margin-right: 6px; }
+  .picker button {
+    padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px;
+    background: none; cursor: pointer; color: var(--dim);
+  }
+  .picker button[data-on="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  .why {
+    padding: 14px var(--gut) 0; max-width: 60rem;
+    font-size: .88rem; color: var(--dim);
+  }
+  .why b { color: var(--ink); font-weight: 600; }
+  .why > div { display: none; }
+  html[data-font="a"] .why .wa { display: block; }
+  html[data-font="b"] .why .wb { display: block; }
+  html[data-font="c"] .why .wc { display: block; }
+  html[data-font="d"] .why .wd { display: block; }
+
+  /* ── 样张通用 ───────────────────────────────────────────────── */
+  .board { display: flex; flex-direction: column; gap: 0; }
+  .spec {
+    padding: clamp(40px, 7vh, 72px) var(--gut);
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .spec .tag { align-self: flex-start; font-family: var(--mono); font-size: 10px; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; }
+
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; }
+  .disp { font-family: var(--disp); font-weight: var(--dw); letter-spacing: var(--dls); line-height: 1.2; margin: 0; text-align: center; text-wrap: balance; }
+  h1.disp { font-size: clamp(2.2rem, 5.4vw, 4.4rem); }
+  h2.disp { font-size: clamp(1.8rem, 4.2vw, 3.4rem); }
+  .sub { margin: 0; color: var(--dim); font-size: .95rem; text-align: center; }
+
+  .promptbar {
+    display: flex; align-items: center; gap: 12px; width: min(560px, 100%);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 18px;
+    font-family: var(--mono); font-size: 13px;
+    box-shadow: 0 10px 30px -18px rgba(10,10,10,.25);
+  }
+  .promptbar .cursor { width: 8px; height: 16px; background: var(--ink); }
+  .quad { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 11px; width: min(760px, 100%); }
+  .quad .cell { aspect-ratio: 1; border-radius: 12px; position: relative; overflow: hidden; border: 1px solid var(--line); }
+  .quad .cell i { position: absolute; inset: 0; }
+  .quad .cell:nth-child(1) i { background: radial-gradient(140% 120% at 20% 15%, #e8cf9e, #a06b38 55%, #35200f 100%); }
+  .quad .cell:nth-child(2) i { background: radial-gradient(130% 130% at 80% 20%, #c3d7e6, #5b7f9e 55%, #16283b 100%); }
+  .quad .cell:nth-child(3) i { background: radial-gradient(120% 140% at 30% 85%, #e6c2b3, #9e5568 60%, #2c1420 100%); }
+  .quad .cell:nth-child(4) i { background: radial-gradient(150% 110% at 70% 80%, #cfe0c3, #6d9161 55%, #1c2b18 100%); }
+  .quad .seed { position: absolute; left: 9px; bottom: 7px; font-family: var(--mono); font-size: 8.5px; color: rgba(255,255,255,.75); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chips span { font-family: var(--mono); font-size: 11px; padding: 7px 15px; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); }
+
+  /* 模型页样张 */
+  .mpage { width: min(1000px, 100%); display: grid; grid-template-columns: minmax(0,10fr) minmax(0,8fr); gap: clamp(24px,3.5vw,50px); align-items: center; }
+  .mid { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+  .mid .prov { font-family: var(--mono); font-size: 10.5px; letter-spacing: .22em; color: var(--dim); }
+  .mid .h { font-family: var(--disp); font-weight: var(--dw); letter-spacing: var(--dls); font-size: clamp(1.8rem, 3.2vw, 2.7rem); margin: 0; line-height: 1.15; }
+  .mid .pos { margin: 0; font-size: .95rem; color: var(--dim); max-width: 24rem; }
+  .mid .fare { font-family: var(--mono); font-size: 12px; }
+  .pmrow { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 4px; }
+  .pm { border: 1px solid var(--line); border-radius: 12px; padding: 12px 15px; }
+  .pm .k { font-family: var(--mono); font-size: 9px; letter-spacing: .26em; color: var(--dim); }
+  .pm ul { margin: 7px 0 0; padding-left: 1.05em; font-size: .84rem; display: flex; flex-direction: column; gap: 4px; }
+  .pm.minus li { color: var(--dim); }
+  .mshot { border-radius: 16px; background: var(--panel); border: 1px solid var(--line); aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 10px; letter-spacing: .3em; color: var(--dim); }
+
+  @media (max-width: 860px) { .mpage { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="picker">
+  <span class="lbl">字体世界</span>
+  <button type="button" data-f="a">A · 现状黑体</button>
+  <button type="button" data-f="b" data-on="true">B · 衬线</button>
+  <button type="button" data-f="c">C · 小薇宋意</button>
+  <button type="button" data-f="d">D · 超黑海报</button>
+</div>
+
+<div class="why">
+  <div class="wa"><b>A · Noto Sans 700（站内现行）</b>——与产品内一致性最好，但你两次说「不舒服」：它是资讯字体，做整屏大标题偏平淡，当对照组留着。</div>
+  <div class="wb"><b>B · Noto Serif SC 900（衬线大字）</b>——理由：翻页站每屏就一句话，衬线大字有「刊物标题」的正式与重量，和 mono 数据字对比最鲜明；白底大衬线是杂志式官网的经典配方。</div>
+  <div class="wc"><b>C · ZCOOL XiaoWei（小薇 · 宋意 display）</b>——理由：现成中文里个性最强的一款，笔画带金石气，「档案馆」气质贴合 PixelVault 的名字。注意：仅一个字重、Latin 字形一般（看 GPT Image 2 那行的英文感受下）。</div>
+  <div class="wd"><b>D · Noto Sans SC 900（超黑收距）</b>——理由：海报式冲击力最强，字距收紧后像标语牌；代价是 Noto 超黑的中文略「糊」，长标题发闷。</div>
+</div>
+
+<div class="board">
+  <!-- 样张 1 · 开场 -->
+  <section class="spec">
+    <span class="tag">样张 1 · 开场页</span>
+    <p class="eyebrow">19 MODELS · 61 ROUTES · 5 MODALITIES</p>
+    <h1 class="disp">用每一个模型生成，<br>留住每一次结果。</h1>
+  </section>
+
+  <!-- 样张 2 · 图片功能页 -->
+  <section class="spec">
+    <span class="tag">样张 2 · 图片生成功能页</span>
+    <p class="eyebrow">01 · IMAGE</p>
+    <h2 class="disp">一句话，四张图。</h2>
+    <div class="promptbar"><span>海边小城，黄昏，胶片颗粒</span><span class="cursor"></span></div>
+    <div class="quad">
+      <div class="cell"><i></i><span class="seed">seed 8841 · GPT</span></div>
+      <div class="cell"><i></i><span class="seed">seed 8842 · Gemini</span></div>
+      <div class="cell"><i></i><span class="seed">seed 8843 · FLUX</span></div>
+      <div class="cell"><i></i><span class="seed">seed 8844 · Seedream</span></div>
+    </div>
+    <div class="chips"><span>GPT Image 2</span><span>Gemini 3 Pro</span><span>FLUX 2 Pro</span><span>Seedream 5.0</span><span>Recraft V4</span><span>NovelAI V5</span><span>Illustrious XL</span></div>
+  </section>
+
+  <!-- 样张 3 · 模型页 -->
+  <section class="spec">
+    <span class="tag">样张 3 · 模型介绍页</span>
+    <div class="mpage">
+      <div class="mid">
+        <p class="prov">IMAGE · OPENAI</p>
+        <p class="h">GPT Image 2</p>
+        <p class="pos">全能第一名：盲测榜连续霸榜，最能读懂复杂指令。</p>
+        <p class="fare"><b>按用量计费</b></p>
+        <div class="pmrow">
+          <div class="pm"><span class="k">强在哪</span><ul><li>图内文字排版几乎不出错</li><li>长 prompt 忠实度最高</li><li>多语言文字渲染在线</li></ul></div>
+          <div class="pm minus"><span class="k">弱在哪</span><ul><li>思考模式带来延迟</li><li>批量成本高</li></ul></div>
+        </div>
+      </div>
+      <div class="mshot">官方样图位</div>
+    </div>
+  </section>
+</div>
+
+<script>
+  document.querySelectorAll('.picker button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.documentElement.dataset.font = b.dataset.f;
+      document.querySelectorAll('.picker button').forEach(function (o) { o.dataset.on = String(o === b); });
+    });
+  });
+  window.__font = function () { return document.documentElement.dataset.font; };
+</script>
+</body>
+</html>

@@ -35,14 +35,14 @@ const r2 = new S3Client({
 export function generateStorageKey(
   outputType: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'MODEL_3D',
   userId: string,
-  audioFormat?: string,
+  mediaFormat?: string,
 ): string {
   const date = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
   const random = randomBytes(12).toString('hex') // 24-char cryptographically secure
 
   if (outputType === 'AUDIO') {
     const ext =
-      audioFormat === 'wav' ? 'wav' : audioFormat === 'opus' ? 'opus' : 'mp3'
+      mediaFormat === 'wav' ? 'wav' : mediaFormat === 'opus' ? 'opus' : 'mp3'
     return `generations/${userId}/audio/${date}_${random}.${ext}`
   }
 
@@ -51,7 +51,14 @@ export function generateStorageKey(
   }
 
   const subdir = outputType === 'VIDEO' ? 'video' : 'image'
-  const ext = outputType === 'VIDEO' ? 'mp4' : 'png'
+  const ext =
+    outputType === 'VIDEO'
+      ? mediaFormat === 'webm'
+        ? 'webm'
+        : mediaFormat === 'mov'
+          ? 'mov'
+          : 'mp4'
+      : 'png'
   return `generations/${userId}/${subdir}/${date}_${random}.${ext}`
 }
 
@@ -328,6 +335,70 @@ export async function getR2ObjectBuffer(params: {
   if (params.maxBytes !== undefined && buffer.byteLength > params.maxBytes) {
     throw new Error(
       `R2 object exceeds maximum size of ${params.maxBytes} bytes (got ${buffer.byteLength}).`,
+    )
+  }
+
+  return { buffer, mimeType: object.ContentType }
+}
+
+/** Read object facts without downloading its body. */
+export async function getR2ObjectMetadata(params: {
+  key: string
+}): Promise<{ sizeBytes: number; mimeType?: string }> {
+  const object = await withRetry(
+    () =>
+      r2.send(
+        new HeadObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME!,
+          Key: params.key,
+        }),
+      ),
+    { maxAttempts: 3, baseDelayMs: 500, label: 'r2.headObject' },
+  )
+
+  if (object.ContentLength === undefined) {
+    throw new Error(`R2 object size missing: ${params.key}`)
+  }
+
+  return { sizeBytes: object.ContentLength, mimeType: object.ContentType }
+}
+
+/** Download only a bounded byte range, used for large-file signature checks. */
+export async function getR2ObjectRange(params: {
+  key: string
+  startByte: number
+  endByteInclusive: number
+}): Promise<{ buffer: Buffer; mimeType?: string }> {
+  if (
+    !Number.isSafeInteger(params.startByte) ||
+    !Number.isSafeInteger(params.endByteInclusive) ||
+    params.startByte < 0 ||
+    params.endByteInclusive < params.startByte
+  ) {
+    throw new Error('Invalid R2 byte range')
+  }
+
+  const object = await withRetry(
+    () =>
+      r2.send(
+        new GetObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME!,
+          Key: params.key,
+          Range: `bytes=${params.startByte}-${params.endByteInclusive}`,
+        }),
+      ),
+    { maxAttempts: 3, baseDelayMs: 500, label: 'r2.getObjectRange' },
+  )
+
+  if (!object.Body) {
+    throw new Error(`R2 object body missing: ${params.key}`)
+  }
+
+  const buffer = Buffer.from(await object.Body.transformToByteArray())
+  const expectedMaxBytes = params.endByteInclusive - params.startByte + 1
+  if (buffer.byteLength > expectedMaxBytes) {
+    throw new Error(
+      `R2 range response exceeds requested size of ${expectedMaxBytes} bytes.`,
     )
   }
 

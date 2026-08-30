@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils'
 import {
   buildDisplayNamePatch,
   stripFileExtension,
+  toNodeDisplayLabel,
 } from '@/lib/node-display-name'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
@@ -137,9 +138,7 @@ export function ImageSourceStarter({
     generationId: string | undefined,
     label: string,
   ) => {
-    const trimmedLabel = label
-      .trim()
-      .slice(0, NODE_STUDIO_MEDIA_IMAGE_OUTPUT.maxSourceLabelLength)
+    const trimmedLabel = toNodeDisplayLabel(label)
 
     updateNodeData(nodeId, {
       imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,

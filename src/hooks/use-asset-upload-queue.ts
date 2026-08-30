@@ -67,8 +67,30 @@ export interface UseAssetUploadQueueReturn {
   changeTarget: (projectId: string | null) => void
 }
 
-/** 本地读一张图的真实宽高比；读不到就按契约兜底 4:5。 */
-function readAspectRatio(objectUrl: string): Promise<number> {
+/** 本地读取图片/视频的真实宽高比；读不到就按契约兜底 4:5。 */
+function readAspectRatio(objectUrl: string, mimeType: string): Promise<number> {
+  if (mimeType.startsWith('video/')) {
+    return new Promise((resolve) => {
+      const video = document.createElement('video')
+      video.preload = 'metadata'
+      video.onloadedmetadata = () => {
+        resolve(
+          video.videoWidth > 0 && video.videoHeight > 0
+            ? video.videoWidth / video.videoHeight
+            : ASSET_UPLOAD_FALLBACK_ASPECT_RATIO,
+        )
+        video.removeAttribute('src')
+        video.load()
+        video.remove()
+      }
+      video.onerror = () => {
+        resolve(ASSET_UPLOAD_FALLBACK_ASPECT_RATIO)
+        video.remove()
+      }
+      video.src = objectUrl
+    })
+  }
+
   return new Promise((resolve) => {
     const image = new Image()
     image.onload = () => {
@@ -158,7 +180,7 @@ export function useAssetUploadQueue({
         const id = `${file.name}-${file.size}-${Math.random().toString(36).slice(2, 9)}`
         filesRef.current.set(id, file)
         const previewUrl = URL.createObjectURL(file)
-        void readAspectRatio(previewUrl).then((aspectRatio) =>
+        void readAspectRatio(previewUrl, file.type).then((aspectRatio) =>
           patchItem(id, { aspectRatio }),
         )
         const item: UploadQueueItem = {

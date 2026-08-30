@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type {
   NodeWorkflowNodeData,
@@ -15,14 +16,44 @@ import {
 } from './node-assistant-op-patch'
 
 describe('buildAssistantSetPromptPatch', () => {
-  it('只写 prompt 一个字段 —— 与人手在同一个框里打字等价', () => {
+  it('有 prompt 字段的节点：只写 prompt —— 与人手在同一个框里打字等价', () => {
     expect(
-      buildAssistantSetPromptPatch({
-        op: 'set_prompt',
-        target: 'shot-1',
-        prompt: '黄昏，逆光，中景',
-      }),
+      buildAssistantSetPromptPatch(
+        { role: NODE_IMAGE_ROLE_IDS.shot, type: NODE_TYPE_IDS.image },
+        {
+          op: 'set_prompt',
+          target: 'shot-1',
+          prompt: '黄昏，逆光，中景',
+        },
+      ),
     ).toEqual({ prompt: '黄昏，逆光，中景' })
+  })
+
+  /**
+   * 台账 K-1（2026-08-29 真机）：镜头文本节点读的是 scene/action/camera/composition
+   * 四栏，`prompt` 在它身上零读者 —— 写进去等于内容 100% 丢失，而节点只显示
+   * 「还没有镜头文本」。这两条是那条 bug 的回归闸。
+   */
+  it('镜头文本节点：落进它真的读得到的那一栏，不写零读者的 prompt', () => {
+    const patch = buildAssistantSetPromptPatch(
+      { type: NODE_TYPE_IDS.shotText },
+      {
+        op: 'set_prompt',
+        target: 'text-1',
+        prompt: '雨中，两人共伞并肩走过便利店的暖光',
+      },
+    )
+    expect(patch).toEqual({ action: '雨中，两人共伞并肩走过便利店的暖光' })
+    expect(patch).not.toHaveProperty('prompt')
+  })
+
+  it('音色节点没有自由文本字段：返回 null 让调用方明说拒绝', () => {
+    expect(
+      buildAssistantSetPromptPatch(
+        { type: NODE_TYPE_IDS.voice },
+        { op: 'set_prompt', target: 'voice-1', prompt: '温柔的女声' },
+      ),
+    ).toBeNull()
   })
 })
 
@@ -189,11 +220,14 @@ describe('buildAssistantAttachAssetPatch', () => {
 describe('同一批里对同一个节点写两次', () => {
   it('后一次不会把前一次写的别的字段抹掉', () => {
     const ledger: Partial<NodeWorkflowNodeData> = {}
-    const first = buildAssistantSetPromptPatch({
-      op: 'set_prompt',
-      target: 'img-1',
-      prompt: '雨夜，霓虹反光',
-    })
+    const first = buildAssistantSetPromptPatch(
+      { role: NODE_IMAGE_ROLE_IDS.shot, type: NODE_TYPE_IDS.image },
+      {
+        op: 'set_prompt',
+        target: 'img-1',
+        prompt: '雨夜，霓虹反光',
+      },
+    )
     const second = buildAssistantSetImageCategoryPatch('frameEnd', {
       op: 'set_image_category',
       target: 'img-1',

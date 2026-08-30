@@ -12,8 +12,8 @@ export const maxDuration = 60
  * POST /api/generations/[id]/poster
  *
  * Body: raw image bytes (Content-Type header carries the mime type).
- * Used by `<ModelViewer>` to upload a client-rendered poster PNG once
- * the GLB renders, so the asset browser can show a real thumbnail.
+ * Used by `<ModelViewer>` for 3D and by local video uploads after the browser
+ * captures a frame, so the asset browser can show a real thumbnail.
  */
 export async function POST(
   request: NextRequest,

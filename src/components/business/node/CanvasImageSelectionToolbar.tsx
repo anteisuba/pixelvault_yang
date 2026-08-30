@@ -92,6 +92,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface CanvasImageSelectionToolbarProps {
   nodeId: string
@@ -748,21 +749,52 @@ export function ShotGenerateButton({
     ? null
     : getMediaGenerateBlockReason(NODE_TYPE_IDS.shot, data)
 
+  const disabled = isRunning || !generateMediaNode || Boolean(blockReason)
+  const button = (
+    <ToolbarLabelButton
+      icon={Film}
+      label={
+        isRunning ? t('generating') : hasMedia ? t('regenerate') : t('generate')
+      }
+      // 有图那一支的点击由外层 `ConfirmDialog` 的 trigger 接管（见下方注释），
+      // 这里给一个空函数而不是 undefined —— `ToolbarLabelButton` 的 onClick 是必填。
+      onClick={
+        hasMedia ? () => undefined : () => void generateMediaNode?.(nodeId)
+      }
+      disabled={disabled}
+    />
+  )
+
+  /**
+   * 台账 Q + P（owner 2026-08-29 真机）：这颗按钮在**已有图**时是
+   * 「原地覆盖 + 花钱 + 不可逆」，而它就挨着「放大」——一个纯查看动作。owner
+   * 想点放大看大图，点到了它，一张已验收的关键帧当场被覆盖重跑。
+   *
+   * 两件事一起做，缺一条都不够：
+   *   ① 文案说清它是**覆盖**（`regenerate` 现在是「重跑（覆盖）」）——与 composer
+   *      发送箭头的「新建下游节点」在名字上就分得开，这是台账 P 那条「两者都长得
+   *      像再跑一次」的正解。
+   *   ② 覆盖前问一次。**只在 `hasMedia` 时问** —— 第一次生成没有任何东西可毁，
+   *      给它加一道确认纯属噪音。
+   *
+   * ⚠ 空态那一支必须保持 `onClick` 直连：`ConfirmDialog` 的 trigger 会吃掉点击，
+   * 两支共用一个包装就等于给第一次生成也加了确认。
+   */
+  if (!hasMedia || disabled) {
+    return (
+      <GenerateBlockTooltip reason={blockReason}>{button}</GenerateBlockTooltip>
+    )
+  }
+
   return (
-    <GenerateBlockTooltip reason={blockReason}>
-      <ToolbarLabelButton
-        icon={Film}
-        label={
-          isRunning
-            ? t('generating')
-            : hasMedia
-              ? t('regenerate')
-              : t('generate')
-        }
-        onClick={() => void generateMediaNode?.(nodeId)}
-        disabled={isRunning || !generateMediaNode || Boolean(blockReason)}
-      />
-    </GenerateBlockTooltip>
+    <ConfirmDialog
+      trigger={button}
+      title={t('regenerateConfirmTitle')}
+      description={t('regenerateConfirmDescription')}
+      cancelLabel={t('regenerateConfirmCancel')}
+      confirmLabel={t('regenerateConfirmAction')}
+      onConfirm={() => void generateMediaNode?.(nodeId)}
+    />
   )
 }
 

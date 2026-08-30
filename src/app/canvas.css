@@ -2105,14 +2105,24 @@
   line-height: var(--canvas-text-meta-lh);
 }
 
-/* 就绪 · hover：居中「替换」白胶囊，仅 hover / 选中出现，不常驻（§3）。
+/* 就绪 · hover：「替换」白胶囊，仅 hover / 选中出现，不常驻（§3）。
    触发条件挂在卡根的 `.group` / `data-selected`（LooseImageCard 根节点已有
-   这两个标记，见该文件），与图片详情模态「唯一主动作居中浮层」同一模式。 */
+   这两个标记，见该文件）。
+
+   ⚠ 台账 R（owner 2026-08-29 真机）：这颗胶囊原先**居中**（`top/left: 50%`），
+   照搬的是图片详情模态「唯一主动作居中浮层」那套。在模态里成立（图大、胶囊是
+   那一屏唯一的主动作），搬到卡上就不成立：卡只有 ~320px 宽，画面正中通常正是
+   主体。而且它并不是「hover 才出现」—— `data-selected` 那条同样会点亮它，
+   **刚生成完的卡是自动选中的**，于是用户想看结果时它恰好挂在脸上。owner 实测
+   要看角色肩上的湿痕，只能开详情面板绕过它。
+
+   改到**右下角**：让开画面正中，且避开左上的来源徽标（`.canvas-image-badge`
+   是 top/left: 8px）与左下的出场旗标。触发条件一字不动 —— 问题从来不是它什么
+   时候出现，是它出现在哪。 */
 .domain-canvas .canvas-image-replace-pill {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  right: 8px;
+  bottom: 8px;
   z-index: 2;
   display: inline-flex;
   align-items: center;

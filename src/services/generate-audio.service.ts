@@ -556,6 +556,13 @@ export async function generateAudioForUser(
               audioFormat: result.format,
               providerPrompt,
               voiceId: request.voiceId,
+              // 说话人的**名字**。素材库一直能拿到音色的脸（previewUrl）和 id，
+              // 却没有名字可印——`voiceId` 是给 provider 看的句柄，不是给人看的。
+              // ⚠ 只在这条同步路径上写。异步 provider 的落库在
+              // `getReadyAudioQueueMetadata` 那条线上，它有自己的 outbox payload
+              // schema，要带 voiceName 得把字段一路穿过序列化。配音间用的 Fish
+              // 是同步返回，走的就是这里；等真有异步语音 provider 进来再补那条。
+              voiceName: request.voiceName,
               timestamps: result.timestamps,
             },
             timer,

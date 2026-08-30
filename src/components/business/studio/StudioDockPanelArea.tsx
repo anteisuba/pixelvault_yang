@@ -82,6 +82,13 @@ const StudioScriptPanel = dynamic(
     ),
   { loading: () => <PanelLoadingFallback /> },
 )
+const StudioVideoAudioPanel = dynamic(
+  () =>
+    import('@/components/business/studio/StudioVideoAudioPanel').then(
+      (mod) => mod.StudioVideoAudioPanel,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
 
 // Krea-aligned panel dialog sizing — centred, capped width, vertical scroll
 // inside the content area. Each panel picks the closest fit so the dialog
@@ -308,7 +315,13 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
             {tBar('clone')}
           </ResponsiveDialogDescription>
           <div className={DIALOG_BODY}>
-            <VoiceTrainer />
+            {/* 选中态由工作台自己接——组件不再直接碰 StudioContext。 */}
+            <VoiceTrainer
+              onCreated={({ cardId, voiceId }) => {
+                dispatch({ type: 'SET_VOICE_CARD_ID', payload: cardId })
+                dispatch({ type: 'SET_VOICE_ID', payload: voiceId })
+              }}
+            />
           </div>
         </ResponsiveDialogContent>
       </ResponsiveDialog>
@@ -344,6 +357,26 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
       {/* ⚠ 「视频设置」对话框已于 2026-08-23 切片 B 退役：时长 / 分辨率 / 宽高比
           并进参数栏的「规格」浮层（`StudioVideoSpecPopover`，与图片同一形态），
           反向提示词并进参数栏的折叠行。参数常驻可见，不用点开才知道当前值。 */}
+
+      {/* ── Video audio references (video mode) ─────────────────
+          台账 A（owner 2026-08-29）：工作台此前完全没有挂音频的地方，而后端
+          三层（schema / service / worker）早就通了。面板宿主与「剧本」同款。 */}
+      <ResponsiveDialog
+        open={state.panels.videoAudio}
+        onOpenChange={(open) => {
+          if (!open) closePanel('videoAudio')
+        }}
+      >
+        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-lg`}>
+          <StudioPanelHeader>{tPanels('videoAudio')}</StudioPanelHeader>
+          <ResponsiveDialogDescription className="sr-only">
+            {tPanels('videoAudio')}
+          </ResponsiveDialogDescription>
+          <div className={DIALOG_BODY}>
+            <StudioVideoAudioPanel />
+          </div>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       {/* ── Video Script (video mode) ─────────────────────────── */}
       <ResponsiveDialog

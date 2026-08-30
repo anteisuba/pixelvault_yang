@@ -85,9 +85,11 @@ import {
   type AssetGridDensity,
 } from '@/constants/assets-grid'
 import {
+  CLIENT_VIDEO_UPLOAD_MAX_BYTES,
   USER_UPLOAD_ACCEPTED_MIME_TYPES,
   CLIENT_UPLOAD_MAX_BYTES,
   USER_UPLOAD_PROVIDER,
+  USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES,
 } from '@/constants/uploads'
 import { Link } from '@/i18n/navigation'
 import {
@@ -97,7 +99,10 @@ import {
   batchUpdateVisibilityAPI,
   fetchAssetSectionCounts,
 } from '@/lib/api-client/gallery'
-import { uploadImageFileAPI } from '@/lib/api-client/generation'
+import {
+  uploadImageFileAPI,
+  uploadVideoFileAPI,
+} from '@/lib/api-client/generation'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { clearGalleryCache } from '@/lib/gallery-cache'
@@ -112,6 +117,10 @@ import {
 import { toLayoutAspectRatio } from '@/lib/justified-layout'
 import { cn } from '@/lib/utils'
 import { isTouchPrimary } from '@/lib/touch'
+import {
+  captureVideoThumbnail,
+  readVideoFileMetadata,
+} from '@/lib/video-thumbnail'
 import type {
   AssetSectionCounts,
   GenerationRecord,
@@ -937,6 +946,42 @@ export function KreaAssetBrowser({
       }
 
       try {
+        const isVideo = (
+          USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]
+        ).includes(file.type)
+
+        if (isVideo) {
+          const maxGb = String(
+            CLIENT_VIDEO_UPLOAD_MAX_BYTES / 1024 / 1024 / 1024,
+          )
+          if (file.size > CLIENT_VIDEO_UPLOAD_MAX_BYTES) {
+            return {
+              ok: false,
+              error: t('uploadVideoTooLarge', { maxGb }),
+            }
+          }
+
+          const [metadata, poster] = await Promise.all([
+            readVideoFileMetadata(file),
+            captureVideoThumbnail(file),
+          ])
+          const response = await uploadVideoFileAPI(file, {
+            width: metadata?.width ?? 0,
+            height: metadata?.height ?? 0,
+            duration: metadata?.duration,
+            poster,
+            projectId: options.projectId ?? undefined,
+            onProgress: options.onProgress,
+          })
+          if (!response.success || !response.data) {
+            return {
+              ok: false,
+              error: getApiErrorMessage(tErrors, response, t('uploadFailed')),
+            }
+          }
+          return { ok: true, generation: response.data.generation }
+        }
+
         // Over-cap files get squeezed client-side instead of bouncing, so
         // pasting a Retina screenshot or dragging in a phone photo just
         // works. Server enforces its own cap as a safety net.
@@ -996,9 +1041,13 @@ export function KreaAssetBrowser({
 
   const processUploadFiles = useCallback(
     (files: File[]) => {
-      const images = files.filter((file) => file.type.startsWith('image/'))
-      if (images.length === 0) return
-      uploadQueue.enqueue(images, uploadTargetProjectId)
+      const acceptedFiles = files.filter((file) =>
+        (USER_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]).includes(
+          file.type,
+        ),
+      )
+      if (acceptedFiles.length === 0) return
+      uploadQueue.enqueue(acceptedFiles, uploadTargetProjectId)
     },
     [uploadQueue, uploadTargetProjectId],
   )
@@ -1546,7 +1595,7 @@ export function KreaAssetBrowser({
               「不另做一套移动 chips」），文件夹那组由门牌行承担（它在 <768
               本来就是固定宽横滚）。 */}
           {/* Hidden upload input — rendered wherever uploading is allowed
-              (main page always, image picker) so both the top-bar upload
+              (main page always, media picker) so both the top-bar upload
               button and the picker's inline dashed cell can trigger it. */}
           {uploadDropEnabled && (
             <input

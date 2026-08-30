@@ -10,6 +10,7 @@ import {
   CIVITAI_LORA_BASE_MODEL_VALUES,
   CIVITAI_NAMED_BASE_MODEL_MEMBER_SET,
   CIVITAI_OTHER_BASE_MODEL_MEMBERS,
+  CIVITAI_USAGE_CONTROL_DOWNLOAD,
   CIVITAI_LORA_CONTENT_TYPE_MAX_FETCH_LIMIT,
   CIVITAI_LORA_CONTENT_TYPE_OVERFETCH_BUFFER,
   CIVITAI_LORA_PAGE_SIZE,
@@ -31,6 +32,7 @@ import {
   summariseActivationSegments,
 } from '@/lib/civitai-image-prompt-mine'
 import { buildCivitaiLoraNameSearchQueries } from '@/lib/civitai-lora-reference'
+import { parseCivitaiVersionIdFromDownloadUrl } from '@/lib/civitai-lora-url'
 import { CircuitOpenError, getCircuitBreaker } from '@/lib/circuit-breaker'
 import {
   readCivitaiMirrorFreshness,
@@ -197,6 +199,9 @@ const CivitaiModelVersionSchema = z
     createdAt: z.string().nullable().optional(),
     trainedWords: z.array(z.string()).optional(),
     downloadUrl: z.string().url().optional(),
+    // Creator Controls。只有 version 详情端点带它，列表/搜索都没有——
+    // 判据与三个实测坑见 `CIVITAI_USAGE_CONTROL_DOWNLOAD` 的注释。
+    usageControl: z.string().nullable().optional(),
     files: z.array(CivitaiFileSchema).optional(),
     images: z.array(CivitaiImageSchema).optional(),
     stats: CivitaiStatsSchema.optional(),
@@ -1009,6 +1014,120 @@ export async function resolveCivitaiLoraByReference({
   return null
 }
 
+// ── Creator Controls：这把 LoRA 的权重到底能不能被下走 ────────────────────
+//
+// 2026-08-29 owner 真机：挂 `Ananta`（version 2266398）出图，Runner 线报
+// 「你的 API Key 无效或已过期」、云端 API 线报 `URL responded with status
+// code: 401`，两条其实是同一件事——作者把下载关了，`usageControl` 是
+// `Generation`。Civitai 对**任何** token 都返 401，所以这不是凭据问题，
+// 换 token / 加 token 一点用都没有，唯一出路是换一把 LoRA。
+
+const CivitaiDownloadPolicySchema = z
+  .object({
+    id: z.number(),
+    usageControl: z.string().nullable().optional(),
+    name: z.string().nullable().optional(),
+    model: z
+      .object({ name: z.string().nullable().optional() })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough()
+
+export interface CivitaiLoraDownloadPolicy {
+  modelVersionId: number
+  /**
+   * `true` = 作者禁用了下载（`usageControl` 存在且不是 `Download`）。
+   * `false` = 明确可下载。
+   * **`null` = 判不了**（上游超时/5xx/形状变了/这个字段没返）——调用方必须
+   * 按放行处理：这道闸是"提前说清楚"，不是新增一条能把好 LoRA 挡在门外的
+   * 单点故障。Civitai 挂了不该让所有带 LoRA 的生成都失败。
+   */
+  downloadDisabled: boolean | null
+  usageControl: string | null
+  /** 报错文案里点名用；拿不到就留 null，别编。 */
+  name: string | null
+}
+
+export async function fetchCivitaiLoraDownloadPolicy(
+  modelVersionId: number,
+): Promise<CivitaiLoraDownloadPolicy> {
+  const unknown: CivitaiLoraDownloadPolicy = {
+    modelVersionId,
+    downloadDisabled: null,
+    usageControl: null,
+    name: null,
+  }
+  const url = new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
+
+  let payload: unknown
+  try {
+    payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 2,
+      baseDelayMs: 400,
+      maxDelayMs: 1500,
+      label: 'civitai.downloadPolicy',
+      isRetryable: isCivitaiRetryable,
+    })
+  } catch (error) {
+    logger.warn('Civitai download policy fetch failed; letting the job pass', {
+      modelVersionId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return unknown
+  }
+
+  const parsed = CivitaiDownloadPolicySchema.safeParse(payload)
+  if (!parsed.success) {
+    logger.warn('Civitai download policy response had unexpected shape', {
+      modelVersionId,
+      issues: parsed.error.issues.map((issue) => issue.message).join('; '),
+    })
+    return unknown
+  }
+
+  const usageControl = parsed.data.usageControl ?? null
+  return {
+    modelVersionId,
+    downloadDisabled:
+      usageControl === null
+        ? null
+        : usageControl !== CIVITAI_USAGE_CONTROL_DOWNLOAD,
+    usageControl,
+    name: parsed.data.model?.name ?? parsed.data.name ?? null,
+  }
+}
+
+/**
+ * 一次生成请求里所有 Civitai LoRA 的"下载被作者关掉"清单。
+ *
+ * 闸写在这一处、按 URL 收口，是因为下游有两条完全不同的路径（Runner 自己
+ * 下载进 R2 / 云端 API 由 provider 去下），而入口不止一个（工作台、画布、
+ * 配方还原、收藏、@ 补挂）。逐条 provider 报错去猜，只会得到两套互相矛盾
+ * 的谎话——上一轮就是这么把它说成「API Key 失效」的。
+ *
+ * 非 Civitai 的 LoRA（HF / 自训练 / 已在 R2 的）直接跳过：这个字段只有
+ * Civitai 有。判不了的（`downloadDisabled === null`）不进清单 —— 见
+ * `CivitaiLoraDownloadPolicy.downloadDisabled` 的 fail-open 说明。
+ */
+export async function findCivitaiLorasWithDownloadDisabled(
+  loraUrls: readonly string[],
+): Promise<CivitaiLoraDownloadPolicy[]> {
+  const versionIds = [
+    ...new Set(
+      loraUrls
+        .map((url) => parseCivitaiVersionIdFromDownloadUrl(url))
+        .filter((id): id is number => id !== null),
+    ),
+  ]
+  if (versionIds.length === 0) return []
+
+  const policies = await Promise.all(
+    versionIds.map((id) => fetchCivitaiLoraDownloadPolicy(id)),
+  )
+  return policies.filter((policy) => policy.downloadDisabled === true)
+}
+
 export async function fetchCivitaiVersionIdentifiers(
   modelVersionId: number,
 ): Promise<CivitaiVersionIdentifiers | null> {
@@ -1346,14 +1465,23 @@ function toLibraryItem(
 // meilisearch 端点，排序字段实测（2026-07-04）全部生效。
 
 // 排序映射对齐 Civitai 官网搜索（github.com/civitai/civitai
-// `ModelSearchIndexSortBy`，2026-08-24 核）：
+// `ModelSearchIndexSortBy`，2026-08-29 复核）：
 //   推荐 / 默认 = 不传 sort = meilisearch 相关性；
-//   最多下载 = `sortMetrics.downloadCount`（不是展示用的 `metrics.downloadCount`，
-//     作者隐藏下载数时展示字段是 null，拿它排会乱）；
+//   最多下载 = `metrics.downloadCount`。⚠ 不是 `sortMetrics.downloadCount`：
+//     那是 Creator Controls 预留的 sort-only 字段（作者隐藏下载数时文档里
+//     保留真值），但它**从未在 live 索引上声明成 sortable**（官网 parser
+//     注释：要先做一次 models index reset，还没做），拿它排序恒 400
+//     invalid_search_sort——2026-08-26 引入时抄的是 search-index 侧的意图
+//     值，没实测，「最多下载」自那天起每次都静默降级。作者隐藏下载数时
+//     `metrics.downloadCount` 为 null → desc 排序沉底，这是上游 sortable
+//     白名单内唯一的下载数字段，官网自己也停在它上面。
 //   最新 = `createdAt:desc`。
+// ⚠ 改任何 sort 字段前先对 live 端点实测（非法字段的 400 报错会自报完整
+// sortable 白名单）——官网源码只是意图，不是 live 索引的现状。测试
+// 「meilisearch sort 字段都在上游实测的 sortable 白名单里」锁着这份清单。
 const CIVITAI_SEARCH_SORT_MAP: Record<CivitaiLoraSort, string[] | undefined> = {
   'Highest Rated': undefined,
-  'Most Downloaded': ['sortMetrics.downloadCount:desc'],
+  'Most Downloaded': ['metrics.downloadCount:desc'],
   Newest: ['createdAt:desc'],
 }
 

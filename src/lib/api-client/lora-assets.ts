@@ -328,6 +328,48 @@ export async function fetchCivitaiModelDescriptionAPI(
   }
 }
 
+export interface CivitaiLoraDownloadPolicyResult {
+  modelVersionId: number
+  /** `null` = 判不了；调用方必须放行（别把上游抽风变成"这把 LoRA 不能用"）。 */
+  downloadDisabled: boolean | null
+  usageControl: string | null
+  name: string | null
+}
+
+interface CivitaiDownloadPolicyResponse {
+  success: boolean
+  data?: CivitaiLoraDownloadPolicyResult
+  error?: string
+}
+
+// 挂载前的闸：作者在 Civitai 关掉下载的 LoRA，谁都拉不到权重（Runner 自己下
+// 和云端 API 让 provider 下，两条都会在几十秒后以 401 收场）。点「使用」时先问
+// 一句，比让人等一轮生成再看到一句假的「API Key 无效」强。
+export async function fetchCivitaiLoraDownloadPolicyAPI(
+  modelVersionId: number,
+): Promise<CivitaiDownloadPolicyResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_DOWNLOAD_POLICY}?modelVersionId=${modelVersionId}`,
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return (await response.json()) as CivitaiDownloadPolicyResponse
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
 interface RunnerUsageResponse {
   success: boolean
   data?: RunnerUsageResult

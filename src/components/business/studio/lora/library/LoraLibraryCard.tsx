@@ -4,6 +4,7 @@ import { Boxes, Download, Heart, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useHuggingFaceShowcaseCover } from '@/hooks/use-huggingface-showcase-cover'
+import { Spinner } from '@/components/ui/spinner'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
 import type {
@@ -20,6 +21,11 @@ import type {
 interface LoraLibraryCardBaseProps {
   /** 已挂进当前栈——使用键降级为「已挂」禁用态。 */
   mounted: boolean
+  /**
+   * 挂载前的服务端闸在飞（Civitai 下载策略约 300ms）。没有它，点完「使用」会
+   * 有小半秒什么都不发生——看起来像点空了。
+   */
+  busy?: boolean
   onUse: () => void
 }
 
@@ -43,7 +49,7 @@ function formatCount(value: number): string {
 
 export function LoraLibraryCard(props: LoraLibraryCardProps) {
   const t = useTranslations('LoraWorkbench')
-  const { mounted, onUse } = props
+  const { mounted, busy = false, onUse } = props
 
   // HF 封面渐进增强（同 LoraLibraryRow）：hook 无条件调用；非 HF 传空跳过。
   const showcase = useHuggingFaceShowcaseCover(
@@ -150,15 +156,18 @@ export function LoraLibraryCard(props: LoraLibraryCardProps) {
         <button
           type="button"
           onClick={onUse}
-          disabled={mounted}
+          disabled={mounted || busy}
+          aria-busy={busy || undefined}
           className={cn(
-            'mt-auto inline-flex h-8 w-full items-center justify-center rounded-md border text-xs font-semibold transition-colors',
+            'mt-auto inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border text-xs font-semibold transition-colors',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
             mounted
               ? 'cursor-default border-border/60 bg-muted text-muted-foreground'
               : 'border-primary bg-primary text-primary-foreground hover:bg-[var(--lora-primary-hi)]',
+            busy && !mounted && 'opacity-70',
           )}
         >
+          {busy && !mounted ? <Spinner size="sm" aria-hidden /> : null}
           {mounted ? t('library.mounted') : t('library.use')}
         </button>
       </div>

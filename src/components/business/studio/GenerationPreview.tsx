@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import {
   BookmarkPlus,
   Bot,
@@ -23,6 +23,7 @@ import { useAskAssistantAboutImage } from '@/hooks/use-ask-assistant-about-image
 import { useIsMobile } from '@/hooks/use-mobile'
 import { AudioPlayer } from '@/components/ui/audio-player'
 import VideoPlayer from '@/components/business/VideoPlayer'
+import { subscribeStudioResultDetail } from '@/lib/studio-result-detail'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
 import { StudioEmptyState } from '@/components/business/studio/StudioEmptyState'
 import { StudioGeneratingProgress } from '@/components/business/studio-shared'
@@ -104,6 +105,20 @@ export const GenerationPreview = memo(function GenerationPreview({
   // §3.0b 第 4 条：把这张结果图作为附件引用进助手对话（不自动发送、不自动喂图）。
   const askAssistantAboutImage = useAskAssistantAboutImage()
   const [detailOpen, setDetailOpen] = useState(false)
+  /**
+   * 台账 L：生成完成 toast 上的「查看作品」打开的就是下面这个浮层，不再整页
+   * 跳去 `/gallery/<id>`（那条路必然 404 且会清空整个工作台，理由见
+   * `lib/studio-result-detail.ts`）。只认**当前正在展示的那一次生成**——
+   * 队列里别的结果不该把这个浮层劫走。
+   */
+  useEffect(
+    () =>
+      subscribeStudioResultDetail((generationId) => {
+        if (generationId !== generation?.id) return
+        setDetailOpen(true)
+      }),
+    [generation?.id],
+  )
   const [toolDrawerOpen, setToolDrawerOpen] = useState(false)
   const generatingStageKey = getGeneratingStageKey(elapsedSeconds)
   const generatingStageLabel = t(

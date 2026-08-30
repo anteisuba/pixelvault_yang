@@ -1,0 +1,2021 @@
+/**
+ * 配音间（`/studio/audio`）的域皮肤。
+ *
+ * 和 `canvas.css` / `lora.css` / `home-v4.css` 同一个规矩：**所有变量都挂在
+ * `.voiceroom` 这个域根上**，一个都不往 `:root` 放——画布皮肤曾经那样漏进过
+ * 两个助手 dock。
+ *
+ * ⚠ 第一期**锁浅色**（owner 2026-08-29）。纸墨是这个设计的身份，不是主题的
+ * 一种取值；app 的 `<html>` 带 `.dark`，没有显式 `color-scheme` 的话原生滚动条
+ * 和表单控件会在这张白纸上渲染成暗色。
+ */
+
+/*
+ * ⚠ 令牌挂在**两个**选择器上，不是一个：参数浮层由 Radix 送进 portal，渲染在
+ * `.voiceroom` 之外，只声明在域根上的变量到那里全部解析不到（背景会掉回 app
+ * 主题，暗色主题下就是一张黑面板贴在白纸旁边）。一份声明两个消费者，别抄第二份
+ * 色板。
+ */
+.voiceroom,
+.vr-params-pop {
+  color-scheme: light;
+
+  /*
+   * 对比度（2026-08-29 用 contrast-check 逐对算的，不是目测）：
+   *   --vr-dim   on paper 6.15 · on panel 5.58 · on panel-2 5.15  → 正文过 AA
+   *   --vr-ink   on paper 19.80 · on panel 17.97
+   *   --vr-alarm on paper 6.69 · on panel 6.07
+   *   --vr-line-strong on paper 3.38 · on panel 3.06 → UI 组件边界过 1.4.11
+   *   --vr-line-2 1.50 / --vr-line 1.25 → **装饰级**，只画分隔与容器，
+   *     不承担「这是个可点的东西」这一信息。
+   */
+  --vr-paper: #ffffff;
+  --vr-ink: #0a0a0a;
+  --vr-dim: #616167;
+  /* 发丝线：纯装饰分隔 */
+  --vr-line: #e6e6e2;
+  /* 容器边：纯装饰 */
+  --vr-line-2: #d3d3ce;
+  /*
+   * 可点元素的边框。#d3d3ce 在白纸上只有 1.50:1，远低于 WCAG 1.4.11 对 UI 组件
+   * 边界的 3:1——纸墨的轻盈感不该由「按钮边界看不见」来买单。这是两个面上都
+   * 过线的最浅值，装饰性的线仍然保持极淡。
+   */
+  --vr-line-strong: #8c8c88;
+  --vr-panel: #f4f4f1;
+  --vr-panel-2: #ebebe7;
+  --vr-alarm: #a03a2e;
+
+  --vr-mono:
+    var(--font-geist-mono), ui-monospace, Consolas, var(--font-chinese-sans),
+    monospace;
+  --vr-sans:
+    var(--font-app-sans), var(--font-chinese-sans), -apple-system,
+    'PingFang SC', sans-serif;
+  /* 标题的刊物重量。复用首页那份 Noto Serif SC，不另开字体开销。 */
+  --vr-serif: var(--font-home-serif), 'Songti SC', serif;
+
+  /*
+   * 动效字典（owner 2026-08-29 拍板「利落 + 峰值有戏」）。
+   * 需要 JS 编排的那几个时长在 `src/constants/voiceroom.ts`，其余全在这里。
+   */
+  --vr-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --vr-t-fast: 160ms; /* hover / 按压 */
+  --vr-t-base: 240ms; /* 气泡、卡片、展开 */
+  --vr-t-sheet: 300ms; /* 面板开合 */
+  --vr-t-fly: 420ms; /* 峰值：选角飞行 */
+}
+
+.voiceroom {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+  background: var(--vr-panel);
+  color: var(--vr-ink);
+  font-family: var(--vr-sans);
+}
+
+.voiceroom *,
+.voiceroom *::before,
+.voiceroom *::after {
+  box-sizing: border-box;
+}
+
+/* ── 左列：房间 ─────────────────────────────────────────────────── */
+
+.vr-rail {
+  width: 198px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.vr-rail-new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--vr-mono);
+  font-size: 11px;
+  color: var(--vr-dim);
+  border: 1px dashed var(--vr-line-strong);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: none;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-rail-new:hover {
+  border-color: var(--vr-ink);
+  color: var(--vr-ink);
+}
+
+.vr-rooms {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/*
+ * ⚠ 删除键必须是房间按钮的**兄弟**，不能塞进去——`<button>` 里套 `<button>`
+ * 是非法 HTML，浏览器会把内层拎出来，点删除就变成点开房间。
+ */
+.vr-room-row {
+  position: relative;
+}
+
+.vr-room-del {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: var(--vr-paper);
+  color: var(--vr-dim);
+  opacity: 0;
+  transition:
+    opacity var(--vr-t-fast) ease,
+    color var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+/* 悬停整行才露出来：安静时左列只讲「有哪些房间」，不摆一排叉。 */
+.vr-room-row:hover .vr-room-del,
+.vr-room-del:focus-visible {
+  opacity: 1;
+}
+
+.vr-room-del:hover {
+  color: var(--vr-alarm);
+}
+
+.vr-room-item {
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: none;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  transition:
+    background var(--vr-t-fast) ease,
+    border-color var(--vr-t-fast) ease,
+    box-shadow var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+/*
+ * ⚠ 这一行原先**连 hover 都没有**：鼠标扫过去、按下去，画面上什么都不发生，
+ * 一直要等聊天流整个换掉才有反应——owner 2026-08-30 说的「点击僵硬」就是这个。
+ * 悬停先把纸垫上来，按下再压进去一点，点击这件事本身要有回音。
+ */
+.vr-room-item:hover:not([data-active='true']) {
+  background: color-mix(in srgb, var(--vr-paper) 62%, transparent);
+  border-color: var(--vr-line);
+}
+
+.vr-room-item[data-active='true'] {
+  background: var(--vr-paper);
+  border-color: var(--vr-line);
+  box-shadow: 0 10px 30px -18px rgba(10, 10, 10, 0.25);
+}
+
+/* 宽行不缩放——那会让整块字跟着糊。压下去 1px 更像纸。 */
+.vr-room-item:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.vr-room-name {
+  font-family: var(--vr-serif);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.vr-room-name[data-unnamed='true'] {
+  font-weight: 400;
+  color: var(--vr-dim);
+}
+
+.vr-room-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 16px;
+}
+
+.vr-stack {
+  display: flex;
+}
+
+.vr-stack > * + * {
+  margin-left: -5px;
+}
+
+.vr-when {
+  font-family: var(--vr-mono);
+  font-size: 9.5px;
+  color: var(--vr-dim);
+  margin-left: auto;
+}
+
+.vr-rail-foot {
+  margin-top: auto;
+  font-family: var(--vr-mono);
+  font-size: 9.5px;
+  color: var(--vr-dim);
+  line-height: 1.7;
+  padding: 0 4px;
+}
+
+/* ── 房间本体 ───────────────────────────────────────────────────── */
+
+.vr-stage {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--vr-paper);
+  border: 1px solid var(--vr-line);
+  border-radius: 18px;
+  box-shadow: 0 30px 80px -40px rgba(10, 10, 10, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.vr-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--vr-line);
+}
+
+/*
+ * 房间名：读态与改态**共用同一个盒子**。
+ *
+ * ⚠ 这两条的字号、字重、内边距、圆角、边框宽度必须逐项一致。原先标题是
+ * `border: 0; padding: 0`，输入框是 `1px` 边框 + `3px 8px` 内边距——点一下，
+ * 文字往右下挪 9px、一个比标题宽好几倍的框凭空弹出来（owner 2026-08-30 说的
+ * 「这个地方点击比较僵硬」）。现在标题的边框是**透明的**：占位不显形，
+ * 换成输入框时零位移，只是边框和纸面淡进来。
+ */
+.vr-bar-title,
+.vr-bar-title-input {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-family: inherit;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+}
+
+.vr-bar-title {
+  color: inherit;
+  cursor: text;
+  transition:
+    background var(--vr-t-fast) ease,
+    border-color var(--vr-t-fast) ease;
+}
+
+/* 悬停先把「这里可以改」说出来——此前只有一个 title 提示，等于没有。 */
+.vr-bar-title:hover {
+  background: var(--vr-paper);
+  border-color: var(--vr-line-2);
+}
+
+/* 房间名跟着流一起换：不淡一下的话名字先跳、屋子后到，读起来像两件事。 */
+.vr-bar-title[data-swapping='true'] {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.vr-bar-title[data-unnamed='true'] {
+  font-weight: 400;
+  color: var(--vr-dim);
+}
+
+.vr-bar-title-input {
+  color: var(--vr-ink);
+  background: var(--vr-paper);
+  border-color: var(--vr-line-strong);
+  outline: none;
+  /*
+   * ⚠ 跟着内容伸缩。`<input>` 默认约 170px 宽，而房间名往往只有三五个字——
+   * 不管它的话，点一下就是一个远宽于标题的框弹出来，那正是「僵硬」的大头。
+   * `field-sizing` 不支持时退回默认宽度，与改之前一样，不会更糟。
+   */
+  field-sizing: content;
+  min-width: 6ch;
+  max-width: 320px;
+  /* 边框与纸面淡进来，不是「啪」地出现。 */
+  animation: vr-field-in var(--vr-t-fast) var(--vr-ease-out);
+}
+
+@keyframes vr-field-in {
+  from {
+    border-color: transparent;
+    background: transparent;
+  }
+}
+
+.vr-bar-meta {
+  margin-left: auto;
+  font-family: var(--vr-mono);
+  font-size: 10.5px;
+  color: var(--vr-dim);
+}
+
+.vr-chip {
+  font-family: var(--vr-mono);
+  font-size: 10.5px;
+  padding: 5px 11px;
+  border: 1px solid var(--vr-line-strong);
+  border-radius: 999px;
+  background: var(--vr-paper);
+  color: var(--vr-ink);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-chip:hover,
+.vr-chip[data-active='true'] {
+  border-color: var(--vr-ink);
+  color: var(--vr-ink);
+}
+
+/* ── 素材库抽屉 ─────────────────────────────────────────────────── */
+
+/*
+ * 就地展开，不是浮层：它属于这个房间，压在房间上面会让人以为自己离开了。
+ * 高度用 `0fr → 1fr` 过渡——`max-height` 那套要预估一个够大的值，内容一多就
+ * 被截断，一少又拖着一段空转的时间。
+ */
+.vr-vault {
+  flex: none;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 260ms var(--vr-ease-out);
+}
+
+.vr-vault[data-open] {
+  grid-template-rows: 1fr;
+}
+
+.vr-vault-inner {
+  overflow: hidden;
+}
+
+.vr-vault-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--vr-line);
+  background: var(--vr-panel);
+}
+
+.vr-vault-card {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border: 1px solid var(--vr-line);
+  border-radius: 12px;
+  background: var(--vr-paper);
+  /* 卡片跟着抽屉一起进来，20ms/张——和选角面板同一套接力。 */
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity var(--vr-t-base) var(--vr-ease-out),
+    transform var(--vr-t-base) var(--vr-ease-out);
+  transition-delay: calc(var(--vr-d, 0) * 20ms);
+}
+
+.vr-vault[data-open] .vr-vault-card {
+  opacity: 1;
+  transform: none;
+}
+
+.vr-vault-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vr-vault-name {
+  font-size: 11.5px;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vr-vault-sub {
+  font-family: var(--vr-mono);
+  font-size: 9.5px;
+  color: var(--vr-dim);
+}
+
+.vr-vault-wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 14px;
+}
+
+.vr-vault-wave i {
+  display: block;
+  width: 2.5px;
+  border-radius: 2px;
+  background: var(--vr-ink);
+  opacity: 0.55;
+  height: calc(var(--h) * 1%);
+}
+
+.vr-vault-note {
+  flex: none;
+  font-family: var(--vr-mono);
+  font-size: 10px;
+  color: var(--vr-dim);
+  padding-left: 4px;
+  white-space: nowrap;
+}
+
+/* ── 聊天流 ─────────────────────────────────────────────────────── */
+
+.vr-flow {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 18px;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+}
+
+/* 切房间：旧流先整体退场（上移 6px），退完才换成新的那一屋子人。 */
+.vr-flow[data-leaving='true'] {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/*
+ * 气泡入场用 **animation 而不是 transition**：React 里没有「先挂上去、强制回流、
+ * 再加 class」这一步（样机的 `reveal()` 干的就是这件事），而 animation 在挂载
+ * 那一刻就自己跑起来。`both` 让它在 `--vr-md` 的延迟期间保持起始态，否则切房间
+ * 时后面的气泡会先整齐地闪一下再逐条落下。
+ */
+.vr-msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  animation: vr-msg-in var(--vr-t-base) var(--vr-ease-out) both;
+  animation-delay: var(--vr-md, 0ms);
+}
+
+@keyframes vr-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/*
+ * 失败：一次 260ms 的 shake —— 纸墨世界里唯一允许打破安静的时刻。
+ *
+ * ⚠ 入场动画**必须一起列在这里**。只写 `animation: vr-shake` 会把列表整个换掉，
+ * shake 结束、`data-shake` 摘掉的那一刻，`vr-msg-in` 从头名重新出现 = 重新播一遍，
+ * 整条消息又淡入升起一次。同名同位次的动画不会被重启，所以留着它。
+ */
+.vr-msg[data-shake='true'] {
+  animation:
+    vr-msg-in var(--vr-t-base) var(--vr-ease-out) both,
+    vr-shake 260ms var(--vr-ease-out);
+  animation-delay: var(--vr-md, 0ms), 0ms;
+}
+
+@keyframes vr-shake {
+  0%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  55% {
+    transform: translateX(3px);
+  }
+  80% {
+    transform: translateX(-2px);
+  }
+}
+
+/*
+ * ⚠ `align-items: flex-start` 不是可有可无的对齐偏好：默认的 `stretch` 会让
+ * 气泡跟着**最宽的那个兄弟**一起变宽——情感展开器一挂上来，「而此刻，馆里的灯
+ * 一盏盏亮了。」这句就从 180px 弹到整行宽，点一下角标整条消息跳一下。
+ * 每个孩子各自量自己的宽度，展开器变宽是它一个人的事。
+ */
+.vr-msg-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  max-width: 74%;
+  min-width: 0;
+}
+
+/* ⚠ 中文名不走 mono：等宽字体里「央视配音」四个字会被拉散，字距再加更糟。 */
+.vr-who {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vr-dim);
+}
+
+.vr-bubble {
+  border: 1px solid var(--vr-line);
+  border-radius: 4px 14px 14px 14px;
+  background: var(--vr-panel);
+  padding: 9px 13px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+/* ── 头像：颜色即说话人 ─────────────────────────────────────────── */
+
+.vr-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--vr-line-2);
+  overflow: hidden;
+  user-select: none;
+}
+
+.vr-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vr-avatar[data-size='s'] {
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+}
+
+/* 选角卡的大头像。这块也是「点脸即试听」的主体热区。 */
+.vr-avatar[data-size='l'] {
+  width: 84px;
+  height: 84px;
+  font-family: var(--vr-serif);
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.vr-avatar[data-size='xs'] {
+  width: 16px;
+  height: 16px;
+  font-size: 0;
+  border: 2px solid var(--vr-paper);
+}
+
+/* 8 档色。⚠ 档数与 `VOICE_ROOM_AVATAR_TONE_COUNT` 同步，少一档就有说话人拿不到底色。 */
+.vr-avatar[data-tone='0'] {
+  background: linear-gradient(135deg, #c98da8, #8a4160);
+}
+.vr-avatar[data-tone='1'] {
+  background: linear-gradient(135deg, #7fa3c9, #33506b);
+}
+.vr-avatar[data-tone='2'] {
+  background: linear-gradient(135deg, #c9b47f, #8a6f33);
+}
+.vr-avatar[data-tone='3'] {
+  background: linear-gradient(135deg, #7fb8b0, #2f5e57);
+}
+.vr-avatar[data-tone='4'] {
+  background: linear-gradient(135deg, #a58ac9, #5c3f82);
+}
+.vr-avatar[data-tone='5'] {
+  background: linear-gradient(135deg, #b89a7f, #6b4a2f);
+}
+.vr-avatar[data-tone='6'] {
+  background: linear-gradient(135deg, #87b096, #33584a);
+}
+.vr-avatar[data-tone='7'] {
+  background: linear-gradient(135deg, #c98d8d, #8a4141);
+}
+/* 音效师与配乐是内建角色，用中性灰，和人声一眼可分。 */
+.vr-avatar[data-kind='sfx'] {
+  background: linear-gradient(135deg, #8a94a6, #3a4356);
+}
+.vr-avatar[data-kind='bgm'] {
+  background: linear-gradient(135deg, #87b096, #33584a);
+}
+
+/* ── 语音条 ─────────────────────────────────────────────────────── */
+
+/*
+ * 语音条 + 它的情感展开器，纵向叠。
+ *
+ * ⚠ 曾经是 `flex-wrap: wrap` 的横排（那时角标还是并排的第二颗丸子）。角标并进
+ * 语音条之后这里只剩两个孩子，横排会让 420px 的展开器**贴着语音条右边**摊开，
+ * 而不是落在它下面——换行只在放不下时才发生，420 + 175 恰好放得下。
+ */
+.vr-voice-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.vr-voice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--vr-line);
+  border-radius: 999px;
+  padding: 7px 13px;
+  background: var(--vr-paper);
+  animation: vr-voice-in var(--vr-handoff, 180ms) var(--vr-ease-out) both;
+}
+
+@keyframes vr-voice-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.vr-voice[data-kind='sfx'] {
+  border-style: dashed;
+  background: var(--vr-panel);
+}
+
+.vr-play {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  flex: none;
+  background: var(--vr-ink);
+  color: var(--vr-paper);
+  display: grid;
+  place-items: center;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+}
+
+.vr-wave i {
+  display: block;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--vr-ink);
+  opacity: 0.75;
+  height: calc(var(--h) * 1%);
+  /* 波形逐条长出来 —— per-bar 延时，纯 CSS，零 JS。 */
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform 0.4s ease;
+  transition-delay: calc(var(--i) * 28ms);
+}
+
+.vr-voice[data-drawn='true'] .vr-wave i {
+  transform: scaleY(1);
+}
+
+.vr-voice[data-kind='sfx'] .vr-wave i {
+  opacity: 0.45;
+}
+
+.vr-dur {
+  font-family: var(--vr-mono);
+  font-size: 11px;
+  color: var(--vr-dim);
+}
+
+/* ── 情感角标 ───────────────────────────────────────────────────── */
+
+/*
+ * 角标不是第二颗丸子，是语音条的一格。
+ *
+ * 旧版是紧挨着的独立胶囊，owner 2026-08-29 直接判「不好看」——两颗形状相同的
+ * 丸子并排，读起来像两个东西，可它们描述的是同一条 take。改成内嵌一格：去边框，
+ * 只留左边一道细线做分隔，播放 / 波形 / 时长 / 情感是一个对象的四栏。
+ */
+.vr-emotion {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--vr-dim);
+  background: none;
+  border: 0;
+  padding: 0 0 0 9px;
+  border-left: 1px solid var(--vr-line);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    color 0.16s ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-emotion:hover,
+.vr-emotion[aria-expanded='true'] {
+  color: var(--vr-ink);
+}
+
+.vr-emotion svg {
+  opacity: 0.6;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vr-emotion[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+/*
+ * 情感弹层**行内展开**，不做浮层。
+ *
+ * 浮层版（absolute + bottom:100%）在聊天流最顶上那条消息上会被
+ * `.vr-flow` 的 overflow 直接裁掉一半——2026-08-29 真机上撞到了。要让浮层
+ * 不被裁就得上 portal + 位置测算，为一个九选一的小面板不值。行内展开把后面的
+ * 消息往下推一点，永远不会被裁，滚动容器自己就处理好了。
+ */
+/*
+ * ⚠ 宽度必须是**定值**，不能写 `width: 100%`：它的父容器（`.vr-voice-row`）在
+ * 收缩到内容宽的上下文里，百分比宽的孩子对内在宽度贡献 0——于是 100% 会解析成
+ * 「语音条那么宽」，九个 chip 被挤成一列细条。420px 装得下两行 chip，再由
+ * `max-width` 兜住窄屏。
+ */
+.vr-emotion-pop {
+  width: 356px;
+  max-width: 100%;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vr-emotion-pop[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+
+/* 0fr 的行仍会被内容撑开，除非这里把溢出裁掉——这是该写法的必需件。 */
+.vr-emotion-pop-inner {
+  overflow: hidden;
+}
+
+.vr-emotion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 10px;
+  background: var(--vr-paper);
+  border: 1px solid var(--vr-line);
+  border-radius: 12px;
+}
+
+/* chip 逐个进场：16ms/个，跟着展开一起走。 */
+.vr-emotion-chips .vr-opt {
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+  transition-delay: calc(var(--i) * 16ms);
+}
+
+.vr-emotion-pop[data-open='true'] .vr-opt {
+  opacity: 1;
+  transform: none;
+}
+
+.vr-emotion-pop-title {
+  width: 100%;
+  font-family: var(--vr-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  color: var(--vr-dim);
+  text-transform: uppercase;
+  padding-bottom: 2px;
+}
+
+/*
+ * 域里只有**一颗** chip：情感九选一和参数面板的语速 / 表现力共用它。
+ * 两处各画一套只会让它们慢慢长歪。
+ */
+.vr-opt {
+  font-size: 11px;
+  padding: 4px 10px;
+  border: 1px solid var(--vr-line-strong);
+  border-radius: 999px;
+  background: var(--vr-paper);
+  color: var(--vr-ink);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color var(--vr-t-fast) ease,
+    background var(--vr-t-fast) ease,
+    color var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-opt:hover {
+  border-color: var(--vr-ink);
+}
+
+.vr-opt[data-current='true'] {
+  background: var(--vr-ink);
+  color: var(--vr-paper);
+  border-color: var(--vr-ink);
+}
+
+/* ── 生成中 / 失败 ──────────────────────────────────────────────── */
+
+.vr-speaking {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--vr-line);
+  border-radius: 999px;
+  padding: 7px 13px;
+  background: var(--vr-paper);
+  font-family: var(--vr-mono);
+  font-size: 10.5px;
+  color: var(--vr-dim);
+  align-self: flex-start;
+  transition:
+    opacity var(--vr-handoff, 180ms) ease,
+    transform var(--vr-handoff, 180ms) ease;
+}
+
+/* 交接：讲话丸先缩掉再让位，不是「啪」地换成语音条。 */
+.vr-speaking[data-out='true'] {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.vr-speaking-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  height: 14px;
+}
+
+.vr-speaking-dots i {
+  display: block;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--vr-ink);
+  opacity: 0.6;
+  height: 40%;
+  animation: vr-talk 1s ease-in-out infinite;
+}
+
+.vr-speaking-dots i:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.vr-speaking-dots i:nth-child(3) {
+  animation-delay: 0.24s;
+}
+.vr-speaking-dots i:nth-child(4) {
+  animation-delay: 0.36s;
+}
+.vr-speaking-dots i:nth-child(5) {
+  animation-delay: 0.48s;
+}
+
+@keyframes vr-talk {
+  0%,
+  100% {
+    height: 30%;
+  }
+  50% {
+    height: 95%;
+  }
+}
+
+.vr-failed {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--vr-mono);
+  font-size: 10.5px;
+  color: var(--vr-alarm);
+  animation: vr-fail-in var(--vr-t-base) var(--vr-ease-out) both;
+}
+
+@keyframes vr-fail-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.vr-retry {
+  color: var(--vr-ink);
+  border: 0;
+  background: none;
+  border-bottom: 1px solid var(--vr-ink);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0;
+  transition: transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+/* ── 输入行 ─────────────────────────────────────────────────────── */
+
+.vr-composer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--vr-line);
+}
+
+.vr-picks {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.vr-pick {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.4;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  background: var(--vr-line-2);
+  overflow: hidden;
+  transition:
+    opacity var(--vr-t-fast) ease,
+    border-color var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-pick:hover {
+  opacity: 0.85;
+}
+
+.vr-pick[data-selected='true'] {
+  opacity: 1;
+  border-color: var(--vr-ink);
+}
+
+.vr-pick-add {
+  background: var(--vr-line-2);
+  color: var(--vr-dim);
+  opacity: 1;
+}
+
+.vr-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font-family: var(--vr-mono);
+  font-size: 12px;
+  color: var(--vr-ink);
+  padding: 6px 0;
+}
+
+.vr-input::placeholder {
+  color: var(--vr-dim);
+}
+
+.vr-send {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 7px 18px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--vr-ink);
+  color: var(--vr-paper);
+  cursor: pointer;
+  flex: none;
+  transition:
+    opacity var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 念法参数 ───────────────────────────────────────────────────── */
+
+.vr-params-btn {
+  position: relative;
+  font-family: var(--vr-mono);
+  font-size: 10.5px;
+  padding: 6px 12px;
+  border: 1px solid var(--vr-line-strong);
+  border-radius: 999px;
+  background: var(--vr-paper);
+  color: var(--vr-dim);
+  cursor: pointer;
+  flex: none;
+  transition:
+    border-color 0.16s ease,
+    color 0.16s ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-params-btn:hover:not(:disabled),
+.vr-params-btn[data-state='open'] {
+  border-color: var(--vr-ink);
+  color: var(--vr-ink);
+}
+
+.vr-params-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/*
+ * 参数动过就点一个墨点：面板一收，「现在是什么念法」在界面上就没有别的痕迹了，
+ * 用户不该为了确认这件事再点开一次。
+ */
+.vr-params-btn[data-touched='true']::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--vr-ink);
+}
+
+/* 覆盖 shadcn popover 的 w-72 / p-4 / bg-popover —— 这一域是纸墨，不跟随主题。 */
+.vr-params-pop {
+  width: 320px;
+  /* 触屏落成全宽抽屉时不能硬撑 320。 */
+  max-width: 100%;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--vr-paper);
+  border-color: var(--vr-line);
+  color: var(--vr-ink);
+  font-family: var(--vr-sans);
+}
+
+.vr-params-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vr-params-k {
+  font-family: var(--vr-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: var(--vr-dim);
+  text-transform: uppercase;
+}
+
+.vr-params-hint {
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--vr-dim);
+}
+
+.vr-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── 空态 ───────────────────────────────────────────────────────── */
+
+.vr-empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.vr-empty-eyebrow {
+  font-family: var(--vr-mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--vr-dim);
+  text-transform: uppercase;
+}
+
+.vr-empty-title {
+  font-family: var(--vr-serif);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.vr-empty-sub {
+  font-size: 12.5px;
+  color: var(--vr-dim);
+  max-width: 340px;
+  line-height: 1.7;
+}
+
+.vr-cta {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 9px 20px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--vr-ink);
+  color: var(--vr-paper);
+  cursor: pointer;
+  margin-top: 6px;
+  transition: transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+/* ── 选角面板 ───────────────────────────────────────────────────── */
+
+/*
+ * 半屏面板从下方推上来，遮罩单独淡入（200 / 300 两条不同的时长：光比板子先到，
+ * 板子才像是被光推上来的）。
+ *
+ * ⚠ 入场用 **animation 而不是 transition**。transition 要求「先画出收起态那一帧、
+ * 再翻成展开态」，在 React 里就得靠 `requestAnimationFrame` 补那一帧——而**标签页
+ * 不可见时 rAF 整个冻结**，面板会永远停在收起位。animation 在挂载那一刻自己就跑，
+ * 不需要任何 JS，也就没有这个洞。（2026-08-30 实测撞到：后台标签里 `data-open`
+ * 永远翻不过来。）
+ */
+.vr-caster-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(10, 10, 10, 0.24);
+  animation: vr-scrim-in 200ms ease both;
+}
+
+@keyframes vr-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.vr-caster {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /*
+   * ⚠ `height` 不是 `max-height`：内容少的分栏（收藏只有一张卡）会把面板缩掉一
+   * 大截，切分栏时整个面板高度跳变。定高让三个分栏共用同一个框，卡片区自己滚。
+   */
+  height: 86%;
+  display: flex;
+  flex-direction: column;
+  background: var(--vr-paper);
+  border-top: 1px solid var(--vr-line);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -24px 70px -30px rgba(10, 10, 10, 0.45);
+  animation: vr-sheet-in var(--vr-t-sheet) var(--vr-ease-out) both;
+}
+
+@keyframes vr-sheet-in {
+  from {
+    transform: translateY(102%);
+  }
+}
+
+.vr-caster-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px 10px;
+  flex: none;
+}
+
+.vr-caster-title {
+  font-family: var(--vr-serif);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* ── 分栏：一根墨条滑过去 ───────────────────────────────────────── */
+
+.vr-tabs {
+  position: relative;
+  display: flex;
+  gap: 2px;
+}
+
+.vr-tab {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px 7px;
+  border: 0;
+  background: none;
+  color: var(--vr-dim);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    color var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-tab:hover,
+.vr-tab[data-active='true'] {
+  color: var(--vr-ink);
+}
+
+/*
+ * 墨条：位置和宽度由 JS 量出来写进 style（分栏标题带计数，宽度会变）。
+ * 这里只负责让它**滑**过去而不是瞬移。
+ */
+.vr-tab-ink {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--vr-ink);
+  border-radius: 2px;
+  pointer-events: none;
+  transition:
+    transform var(--vr-t-base) var(--vr-ease-out),
+    width var(--vr-t-base) var(--vr-ease-out),
+    opacity var(--vr-t-fast) ease;
+}
+
+.vr-caster-close {
+  margin-left: auto;
+  font-family: var(--vr-mono);
+  font-size: 11px;
+  color: var(--vr-dim);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 6px;
+  transition:
+    color var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-caster-close:hover {
+  color: var(--vr-ink);
+}
+
+/* ── 工具条 ─────────────────────────────────────────────────────── */
+
+.vr-caster-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 20px 12px;
+  border-bottom: 1px solid var(--vr-line);
+  flex: none;
+  flex-wrap: wrap;
+}
+
+.vr-search {
+  flex: 1;
+  min-width: 220px;
+  border: 1px solid var(--vr-line-strong);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 11.5px;
+  background: var(--vr-paper);
+  outline: none;
+  color: var(--vr-ink);
+  font-family: inherit;
+}
+
+.vr-search::placeholder {
+  color: var(--vr-dim);
+}
+
+.vr-search:focus {
+  border-color: var(--vr-ink);
+}
+
+.vr-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vr-filter,
+.vr-sort {
+  font-size: 11px;
+  padding: 5px 11px;
+  border: 1px solid var(--vr-line-strong);
+  border-radius: 999px;
+  background: var(--vr-paper);
+  color: var(--vr-dim);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color var(--vr-t-fast) ease,
+    color var(--vr-t-fast) ease,
+    background var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-filter:hover,
+.vr-sort:hover {
+  border-color: var(--vr-ink);
+  color: var(--vr-ink);
+}
+
+.vr-filter[data-active='true'] {
+  background: var(--vr-ink);
+  border-color: var(--vr-ink);
+  color: var(--vr-paper);
+}
+
+/* ── 卡片网格 ───────────────────────────────────────────────────── */
+
+.vr-caster-grid {
+  flex: 1;
+  min-height: 120px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  /*
+   * ⚠ `max-content` 不是可以省的默认值。卡片带 `overflow: hidden`（要裁圆角），
+   * 那让它变成滚动容器，对行高的固有贡献塌成一个更小的数——行被算成 178px 而卡片
+   * 自己要 238px，「请进房间」那颗按钮直接被裁掉（2026-08-30 真机量到）。
+   * 显式按 max-content 定行高，卡片仍然被拉伸到行高，同一行的卡片还是齐平的。
+   */
+  grid-auto-rows: max-content;
+  gap: 12px;
+  padding: 16px 20px;
+  align-content: start;
+  transition:
+    opacity var(--vr-t-swap, 120ms) ease,
+    transform var(--vr-t-swap, 120ms) ease;
+}
+
+/* 换分栏：旧内容先退，新内容再按 20ms/张接力进来。 */
+.vr-caster-grid[data-swapping] {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.vr-caster-state,
+.vr-caster-end {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--vr-dim);
+}
+
+.vr-caster-state {
+  font-size: 12px;
+  padding: 40px 0;
+}
+
+.vr-caster-end {
+  font-family: var(--vr-mono);
+  font-size: 10.5px;
+  padding: 10px 0 4px;
+}
+
+/* ── 音色卡：大头像画廊卡 ───────────────────────────────────────── */
+
+.vr-vc {
+  /* ⚠ 星标是 absolute 的，少了这行会定位到面板身上飘去右上角。 */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--vr-line);
+  border-radius: 16px;
+  background: var(--vr-paper);
+  overflow: hidden;
+  animation: vr-vc-in var(--vr-t-base) var(--vr-ease-out) both;
+  animation-delay: calc(var(--vr-d, 0) * 20ms);
+  transition:
+    border-color var(--vr-t-fast) ease,
+    box-shadow var(--vr-t-fast) ease;
+}
+
+@keyframes vr-vc-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.vr-vc:hover {
+  border-color: var(--vr-line-strong);
+  box-shadow: 0 14px 34px -22px rgba(10, 10, 10, 0.35);
+}
+
+.vr-vc[data-playing] {
+  border-color: var(--vr-ink);
+}
+
+/* ── 脸：点它就是听 ─────────────────────────────────────────────── */
+
+/*
+ * ⚠ `flex: none` 不能省：卡片是网格项，会被拉到**行高**；行里但凡有一张卡矮一点，
+ * 其余卡就被压到同一高度，而脸是 flex 子项、默认可收缩，于是 128px 被挤成 68px
+ * （2026-08-30 真机量到的数）。脸的高度是版式，不参与分配。
+ */
+.vr-face {
+  position: relative;
+  flex: none;
+  height: 128px;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: var(--vr-panel);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.vr-face:disabled {
+  cursor: default;
+}
+
+.vr-face .vr-avatar {
+  position: relative;
+  z-index: 2;
+  transition: transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-face:hover:not(:disabled) .vr-avatar {
+  transform: scale(1.04);
+}
+
+/* 试听进度：环套着脸，不是卡上第四件独立的东西。 */
+.vr-ring {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.vr-vc[data-playing] .vr-ring {
+  opacity: 1;
+}
+
+.vr-ring circle {
+  fill: none;
+  stroke: var(--vr-ink);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+/* 两圈错开半个周期的脉冲，让「正在响」在余光里也看得见。 */
+.vr-pulse {
+  position: absolute;
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(10, 10, 10, 0.28);
+  z-index: 1;
+  opacity: 0;
+}
+
+.vr-vc[data-playing] .vr-pulse {
+  animation: vr-pulse 1.8s var(--vr-ease-out) infinite;
+}
+
+.vr-vc[data-playing] .vr-pulse:nth-child(2) {
+  animation-delay: 0.9s;
+}
+
+@keyframes vr-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(2.05);
+    opacity: 0;
+  }
+}
+
+/* 播放/暂停图标：hover 或正在响时才出现，安静时脸上什么都不压。 */
+.vr-glyph {
+  position: absolute;
+  z-index: 4;
+  right: 26px;
+  bottom: 18px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--vr-ink);
+  color: var(--vr-paper);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-face:hover .vr-glyph,
+.vr-vc[data-playing] .vr-glyph {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── 星标收藏 ───────────────────────────────────────────────────── */
+
+.vr-star {
+  position: absolute;
+  z-index: 5;
+  top: 9px;
+  right: 9px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(2px);
+  border: 0;
+  cursor: pointer;
+  color: var(--vr-dim);
+  opacity: 0;
+  transform: scale(0.92);
+  transition:
+    opacity var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out),
+    color var(--vr-t-fast) ease;
+}
+
+/* 已收藏的星**常驻**：它是状态，不是只在 hover 时才存在的动作。 */
+.vr-vc:hover .vr-star,
+.vr-star:focus-visible,
+.vr-star[data-on] {
+  opacity: 1;
+  transform: none;
+}
+
+.vr-star:hover,
+.vr-star[data-on] {
+  color: var(--vr-ink);
+}
+
+.vr-star[data-on] svg {
+  fill: currentColor;
+}
+
+.vr-star:disabled {
+  cursor: progress;
+}
+
+/* ── 卡片下半身 ─────────────────────────────────────────────────── */
+
+.vr-vc-meta {
+  padding: 11px 13px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.vr-vc-name {
+  font-family: var(--vr-serif);
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ⚠ 与 `.vr-vc-eq` 同高：试听时两者互换，高度不一致会让整张卡抖一下。 */
+.vr-vc-tags,
+.vr-vc-eq {
+  height: 15px;
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vr-vc-tags {
+  color: var(--vr-dim);
+}
+
+.vr-vc-eq {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--vr-ink);
+}
+
+.vr-vc-bars {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  height: 12px;
+}
+
+.vr-vc-bars i {
+  display: block;
+  width: 2.5px;
+  border-radius: 2px;
+  background: var(--vr-ink);
+  height: 30%;
+  animation: vr-talk 1s ease-in-out infinite;
+}
+
+.vr-vc-bars i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.vr-vc-bars i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.vr-vc-join {
+  margin: 8px 13px 13px;
+  padding: 7px 0;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--vr-ink);
+  border-radius: 999px;
+  background: var(--vr-paper);
+  color: var(--vr-ink);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background var(--vr-t-fast) ease,
+    color var(--vr-t-fast) ease,
+    border-color var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-vc-join:hover:not(:disabled) {
+  background: var(--vr-ink);
+  color: var(--vr-paper);
+}
+
+.vr-vc-join:disabled {
+  border-color: var(--vr-line-2);
+  color: var(--vr-dim);
+  cursor: default;
+}
+
+/*
+ * 克隆入口卡：与音色卡同一格网格，虚线区分「这是个动作，不是一副嗓子」。
+ * ⚠ 不能复用 `.vr-face` 那套——它没有脸可点，整张卡就是按钮。
+ */
+.vr-vc-new {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 26px 12px;
+  text-align: center;
+  border-style: dashed;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--vr-ink);
+}
+
+.vr-vc-new {
+  transition:
+    border-color var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-vc-new:hover {
+  border-color: var(--vr-ink);
+}
+
+.vr-vc-new-plus {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background: var(--vr-panel);
+  display: grid;
+  place-items: center;
+  color: var(--vr-dim);
+}
+
+.vr-vc-new-t {
+  font-family: var(--vr-serif);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.vr-vc-new-s {
+  font-size: 10.5px;
+  color: var(--vr-dim);
+  line-height: 1.6;
+  /* 文案里带换行符，让它照排。 */
+  white-space: pre-line;
+}
+
+/* ── 骨架卡：扩载时先占位 ───────────────────────────────────────── */
+
+.vr-vc-skel {
+  pointer-events: none;
+}
+
+.vr-skel-face {
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  background: var(--vr-panel-2);
+  animation: vr-skel 1.4s ease-in-out infinite;
+}
+
+.vr-skel-line {
+  height: 10px;
+  border-radius: 4px;
+  background: var(--vr-panel-2);
+  animation: vr-skel 1.4s ease-in-out infinite;
+}
+
+.vr-skel-line[data-w='60'] {
+  width: 60%;
+}
+
+.vr-skel-line[data-w='40'] {
+  width: 40%;
+}
+
+.vr-skel-btn {
+  height: 30px;
+  border-radius: 999px;
+  background: var(--vr-panel);
+  margin: 8px 13px 13px;
+  animation: vr-skel 1.4s ease-in-out infinite;
+}
+
+@keyframes vr-skel {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ── 班底托盘 ───────────────────────────────────────────────────── */
+
+.vr-caster-tray {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 20px;
+  border-top: 1px solid var(--vr-line);
+  background: var(--vr-panel);
+}
+
+.vr-tray-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vr-dim);
+}
+
+.vr-tray-avas {
+  display: flex;
+  align-items: center;
+}
+
+/* 头像叠着排：这是一个班子，不是一串并列的条目。 */
+.vr-tray-ava + .vr-tray-ava {
+  margin-left: -6px;
+}
+
+.vr-tray-ava .vr-avatar {
+  border: 2px solid var(--vr-panel);
+}
+
+/* 飞行落地那一下的弹跳——飞行体消失和它接上，读起来才是一个连续动作。 */
+.vr-tray-ava[data-land] {
+  animation: vr-land 300ms var(--vr-ease-out);
+}
+
+@keyframes vr-land {
+  0% {
+    transform: scale(0.4);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.vr-tray-count {
+  font-size: 10.5px;
+  color: var(--vr-dim);
+}
+
+.vr-caster-done {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 7px 18px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--vr-ink);
+  color: var(--vr-paper);
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 120ms var(--vr-ease-out);
+}
+
+/*
+ * ── 按压 ─────────────────────────────────────────────────────
+ *
+ * 全域只有一种按下的样子：**缩 4%**（样机 `.send:active` 定的手感）。
+ * 丸状与紧凑控件都走它；宽行另说（见 `.vr-room-item:active`）。
+ *
+ * ⚠ `:not(:disabled)` 不能省：禁用的按钮被按也缩一下，等于在骗人说「收到了」。
+ */
+.voiceroom
+  :is(
+    .vr-send,
+    .vr-cta,
+    .vr-caster-done,
+    .vr-caster-close,
+    .vr-vc-join,
+    .vr-vc-new,
+    .vr-params-btn,
+    .vr-chip,
+    .vr-opt,
+    .vr-filter,
+    .vr-sort,
+    .vr-emotion,
+    .vr-play,
+    .vr-rail-new,
+    .vr-room-del,
+    .vr-tab,
+    .vr-retry,
+    .vr-pick
+  ):active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/*
+ * 飞行体挂在 `<body>` 上（要跨出面板的 overflow），所以**够不着 `.voiceroom` 上的
+ * 令牌**。解法不是把色板抄一份，而是让它同时戴上 `.vr-avatar`——8 档色的渐变本来
+ * 就写的是字面色值，在 body 上照样成立，于是「飞过去的那张脸」和落地后的那张
+ * 一定同色。这里只补它作为飞行体独有的那几条。
+ *
+ * ⚠ `--font-home-serif` 是 next/font 挂在 `:root` 上的，不是域变量，body 上取得到。
+ */
+.vr-flier {
+  position: fixed;
+  z-index: 99;
+  font-family: var(--font-home-serif), 'Songti SC', serif;
+  font-size: 30px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* ── 错误条 ─────────────────────────────────────────────────────── */
+
+.vr-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 18px;
+  border-top: 1px solid var(--vr-line);
+  background: var(--vr-panel);
+  font-family: var(--vr-mono);
+  font-size: 10.5px;
+  color: var(--vr-alarm);
+}
+
+.vr-error button {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  color: var(--vr-ink);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  border-bottom: 1px solid var(--vr-ink);
+  padding: 0;
+}
+
+/* ── 键盘焦点 ───────────────────────────────────────────────────── */
+
+/*
+ * 纸墨面上不用系统蓝框：`outline` 走墨色，两像素偏移让它在浅底上看得清。
+ * 每一个可点的东西都要有——这一屏几乎全是自定义控件，漏一个就是把键盘用户
+ * 挡在门外。
+ */
+.voiceroom :focus-visible {
+  outline: 2px solid var(--vr-ink);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/*
+ * ⚠ **文本框例外**：它们自己有边框、有光标，focus 状态本来就看得见。再套一圈
+ * 2px 墨色 outline，在改房间名那种小输入框上就是一个又粗又黑的方框糊在标题位置
+ * （owner 2026-08-30 指出）——而且那个框是 `autoFocus` 打开的，用户刚点完，
+ * 根本不需要再被告知焦点在哪。改成边框转墨色，与选角面板的搜索框同一套语言。
+ */
+.voiceroom input:focus-visible,
+.voiceroom textarea:focus-visible {
+  outline: none;
+  border-color: var(--vr-ink);
+}
+
+/* ── 小屏：房间列收进抽屉之前，先让它整体让位 ───────────────────── */
+
+@media (max-width: 900px) {
+  .voiceroom {
+    padding: 10px;
+  }
+
+  .vr-rail {
+    display: none;
+  }
+
+  .vr-bar-meta {
+    display: none;
+  }
+
+  .vr-msg-body {
+    max-width: 86%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voiceroom * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

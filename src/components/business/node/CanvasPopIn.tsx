@@ -29,9 +29,10 @@ export interface CanvasPopInProps {
    * 浮层贴在卡的哪一侧 —— 决定它从哪个方向浮起来。
    * `bottom` = 挂在卡下方（生成框、快编面板）→ 从上方 4px 处落下；
    * `top` = 挂在卡上方（近场工具条）→ 从下方 4px 处升起；
-   * `right` = 挂在卡右侧（侧车）→ 从左侧 6px 处推出。
+   * `right` = 挂在卡右侧（侧车）→ 从左侧 6px 处推出；
+   * `left` = 挂在卡左侧（侧车被视口右缘挤过去时，台账 N）→ 从右侧 6px 处推出。
    */
-  side: 'top' | 'bottom' | 'right'
+  side: 'top' | 'bottom' | 'right' | 'left'
   children: ReactNode
   className?: string
 }
@@ -41,6 +42,7 @@ const OFFSET = {
   top: { x: 0, y: 4 },
   bottom: { x: 0, y: -4 },
   right: { x: -6, y: 0 },
+  left: { x: 6, y: 0 },
 } as const
 
 export function CanvasPopIn({ side, children, className }: CanvasPopInProps) {

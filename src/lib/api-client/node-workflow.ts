@@ -12,6 +12,17 @@ export interface NodeWorkflowApiResponse<TData> {
   data?: TData
   error?: string
   errorCode?: string
+  /**
+   * HTTP 状态码 —— **只在服务端真的回了一个响应时才有值**（台账 V，2026-08-29）。
+   *
+   * 有它 = 服务端收到了请求并拒绝（4xx 多半是 payload 本身不合法，`error` 里就是
+   * Zod 的原文）；没有它 = `fetch` 自己抛了，请求根本没到（离线 / DNS / CORS）。
+   *
+   * 画布的持久化失败提示靠这一个字段分岔：此前两种情况共用「连不上云端，请检查
+   * 网络连接」，于是一条 160 字上限的校验失败会把用户送去查网络，而画布**从那一
+   * 刻起就不再落库**、刷新即失。
+   */
+  status?: number
 }
 
 function endpointWithId(id: string): string {
@@ -30,6 +41,7 @@ export async function listNodeWorkflowProjectsAPI(): Promise<
     if (!response.ok) {
       return {
         success: false,
+        status: response.status,
         error: await getErrorMessage(
           response,
           `Failed with status ${response.status}`,
@@ -54,6 +66,7 @@ export async function createNodeWorkflowProjectAPI(
     if (!response.ok) {
       return {
         success: false,
+        status: response.status,
         error: await getErrorMessage(
           response,
           `Failed with status ${response.status}`,
@@ -79,6 +92,7 @@ export async function updateNodeWorkflowProjectAPI(
     if (!response.ok) {
       return {
         success: false,
+        status: response.status,
         error: await getErrorMessage(
           response,
           `Failed with status ${response.status}`,
@@ -99,6 +113,7 @@ export async function deleteNodeWorkflowProjectAPI(
     if (!response.ok) {
       return {
         success: false,
+        status: response.status,
         error: await getErrorMessage(
           response,
           `Failed with status ${response.status}`,
@@ -121,6 +136,7 @@ export async function activateNodeWorkflowProjectAPI(
     if (!response.ok) {
       return {
         success: false,
+        status: response.status,
         error: await getErrorMessage(
           response,
           `Failed with status ${response.status}`,

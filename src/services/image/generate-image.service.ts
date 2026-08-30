@@ -58,7 +58,9 @@ export interface ResolvedGenerationRoute {
 type GenerateImageServiceErrorCode =
   | 'CUSTOM_MODEL_REQUIRES_ROUTE'
   | 'FREE_LIMIT_EXCEEDED'
+  | 'INVALID_API_KEY'
   | 'INVALID_JOB'
+  | 'LORA_DOWNLOAD_DISABLED'
   | 'INVALID_ROUTE_SELECTION'
   | 'JOB_NOT_FOUND'
   | 'MISSING_API_KEY'

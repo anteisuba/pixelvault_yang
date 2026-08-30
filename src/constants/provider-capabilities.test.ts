@@ -115,4 +115,25 @@ describe('provider-capabilities', () => {
       ),
     ).toBe(16)
   })
+
+  it('exposes fal edit-capable T2I models at their official reference caps', () => {
+    expect(
+      getMaxReferenceImages(AI_ADAPTER_TYPES.FAL, AI_MODELS.FLUX_2_PRO),
+    ).toBe(8)
+    expect(
+      getMaxReferenceImages(AI_ADAPTER_TYPES.FAL, AI_MODELS.FLUX_2_PRO_EDIT),
+    ).toBe(8)
+    expect(
+      getMaxReferenceImages(AI_ADAPTER_TYPES.FAL, AI_MODELS.FLUX_2_FLASH),
+    ).toBe(4)
+    expect(
+      getMaxReferenceImages(AI_ADAPTER_TYPES.FAL, AI_MODELS.SEEDREAM_50_PRO),
+    ).toBe(10)
+    expect(
+      getMaxReferenceImages(AI_ADAPTER_TYPES.FAL, AI_MODELS.SEEDREAM_50_LITE),
+    ).toBe(10)
+    expect(
+      getMaxReferenceImages(AI_ADAPTER_TYPES.FAL, AI_MODELS.RECRAFT_V4_PRO),
+    ).toBe(0)
+  })
 })

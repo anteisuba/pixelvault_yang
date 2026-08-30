@@ -25,8 +25,6 @@ describe('reference-image-capabilities', () => {
     })
 
     it.each([
-      AI_MODELS.FLUX_2_PRO,
-      AI_MODELS.FLUX_2_FLASH,
       AI_MODELS.SEEDREAM_45,
       AI_MODELS.IDEOGRAM_3,
       AI_MODELS.RECRAFT_V4_PRO,
@@ -34,6 +32,22 @@ describe('reference-image-capabilities', () => {
       const cap = getImageReferenceCapability(AI_ADAPTER_TYPES.FAL, modelId)
       expect(cap.kind).toBe('none')
     })
+
+    it.each([
+      [AI_MODELS.FLUX_2_PRO, 8],
+      [AI_MODELS.FLUX_2_PRO_EDIT, 8],
+      [AI_MODELS.FLUX_2_FLASH, 4],
+      [AI_MODELS.SEEDREAM_50_PRO, 10],
+      [AI_MODELS.SEEDREAM_50_LITE, 10],
+    ] as const)(
+      'returns flexible native refs for fal edit-capable %s',
+      (modelId, max) => {
+        const cap = getImageReferenceCapability(AI_ADAPTER_TYPES.FAL, modelId)
+        if (cap.kind !== 'flexible') throw new Error('expected flexible')
+        expect(cap.max).toBe(max)
+        expect(cap.mode).toBe('native')
+      },
+    )
 
     it('returns flexible max=14 for GEMINI adapter', () => {
       const cap = getImageReferenceCapability(AI_ADAPTER_TYPES.GEMINI)

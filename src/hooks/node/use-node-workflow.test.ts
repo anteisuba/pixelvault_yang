@@ -1929,6 +1929,35 @@ describe('useNodeWorkflow', () => {
     expect(toastErrorMock).toHaveBeenCalledTimes(1)
   })
 
+  /**
+   * 台账 V（2026-08-29 真机）：服务端 Zod 拒收整份 project state 时，UI 报的是
+   * 「连不上云端，请检查网络连接」—— 用户被送去查网络查不出任何东西，而画布从
+   * 那一刻起就不再落库。这条钉住「4xx 走另一句文案，并把服务端原话带出来」。
+   */
+  it('says the cloud REJECTED the save (with the server reason) on a 4xx', async () => {
+    const zodMessage = 'Too big: expected string to have <=160 characters, ×3'
+    const { result } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({ success: true, data: [serverProjectRecord()] }),
+      put: () => jsonResponse({ success: false, error: zodMessage }, 400),
+    })
+
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+    })
+    await waitFor(() => expect(serverPersistErrorCalls()).toHaveLength(1))
+
+    // 日志里带上状态码 —— 排查时「服务端答了 400」和「压根没答」是两条不同的线。
+    expect(serverPersistErrorCalls()[0]?.[1]).toMatchObject({
+      operation: SERVER_WRITE_OPERATIONS.update,
+      status: 400,
+    })
+    expect(toastErrorMock).toHaveBeenCalledTimes(1)
+    expect(toastErrorMock).toHaveBeenCalledWith('cloudSaveRejected', {
+      description: zodMessage,
+    })
+  })
+
   it('does not let a failed activate swallow the next real save alarm', async () => {
     const { result } = await renderHydratedHook({
       list: () =>

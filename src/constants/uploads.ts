@@ -29,26 +29,59 @@ export const USER_UPLOAD_MAX_BYTES = 15 * 1024 * 1024
 export const CLIENT_UPLOAD_MAX_BYTES = 15 * 1024 * 1024
 
 /**
+ * Video uploads go directly from the browser to R2 and are preserved as-is.
+ * R2 accepts a single PUT up to 5 GiB. Keep this platform limit separate from
+ * the client-compressible image path; the completion endpoint only reads the
+ * object's metadata and signature bytes, never the full video into memory.
+ */
+export const USER_VIDEO_UPLOAD_MAX_BYTES = 5 * 1024 * 1024 * 1024
+export const CLIENT_VIDEO_UPLOAD_MAX_BYTES = USER_VIDEO_UPLOAD_MAX_BYTES
+
+/** Bytes needed to identify the supported video containers safely. */
+export const USER_VIDEO_UPLOAD_SIGNATURE_BYTES = 4096
+
+/**
  * Short-lived presigned PUT URL window for browser-direct R2 uploads. Keep it
  * tight: the client only needs enough time to send one prepared image file.
  */
 export const USER_UPLOAD_DIRECT_URL_EXPIRES_SECONDS = 5 * 60
 
+/** Large videos need a wider window than image uploads to finish one PUT. */
+export const USER_VIDEO_UPLOAD_DIRECT_URL_EXPIRES_SECONDS = 60 * 60
+
 /**
- * Accepted MIME types for user uploads. Deliberately narrow — `image/svg+xml`
- * is excluded because SVG can carry inline scripts that execute when the
- * file is later opened directly from the CDN.
+ * Accepted image MIME types. Deliberately narrow — `image/svg+xml` is excluded
+ * because SVG can carry inline scripts that execute when opened from the CDN.
  *
  * Server-side, the *real* format is re-verified against the buffer via
  * `sharp.metadata()` in `upload-image.service.ts` so a client can't lie
  * about the MIME type in the data URL header.
  */
-export const USER_UPLOAD_ACCEPTED_MIME_TYPES = [
+export const USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES = [
   'image/jpeg',
   'image/png',
   'image/webp',
   'image/gif',
 ] as const
+
+export const USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES = [
+  'video/mp4',
+  'video/quicktime',
+  'video/x-quicktime',
+  'video/webm',
+] as const
+
+/** Accepted media for the full asset-library upload entrance. */
+export const USER_UPLOAD_ACCEPTED_MIME_TYPES = [
+  ...USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES,
+  ...USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES,
+] as const
+
+export type AcceptedImageUploadMimeType =
+  (typeof USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES)[number]
+
+export type AcceptedVideoUploadMimeType =
+  (typeof USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES)[number]
 
 export type AcceptedUploadMimeType =
   (typeof USER_UPLOAD_ACCEPTED_MIME_TYPES)[number]

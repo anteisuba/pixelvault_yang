@@ -22,10 +22,18 @@ vi.mock('@aws-sdk/client-s3', () => {
   function MockDeleteObjectCommand(params: unknown) {
     return { _type: 'delete', params }
   }
+  function MockGetObjectCommand(params: unknown) {
+    return { _type: 'get', params }
+  }
+  function MockHeadObjectCommand(params: unknown) {
+    return { _type: 'head', params }
+  }
   return {
     S3Client: MockS3Client,
     PutObjectCommand: MockPutObjectCommand,
     DeleteObjectCommand: MockDeleteObjectCommand,
+    GetObjectCommand: MockGetObjectCommand,
+    HeadObjectCommand: MockHeadObjectCommand,
   }
 })
 
@@ -65,6 +73,8 @@ import {
   deleteFromR2,
   isOwnedStorageUrl,
   uploadFromHttpToR2,
+  getR2ObjectMetadata,
+  getR2ObjectRange,
 } from './r2'
 
 // ─── Tests ──────────────────────────────────────────────────────
@@ -80,6 +90,11 @@ describe('generateStorageKey', () => {
   it('generates video key with .mp4 extension', () => {
     const key = generateStorageKey('VIDEO', 'user-456')
     expect(key).toMatch(/\/video\/.*\.mp4$/)
+  })
+
+  it('preserves supported uploaded video container extensions', () => {
+    expect(generateStorageKey('VIDEO', 'user-456', 'webm')).toMatch(/\.webm$/)
+    expect(generateStorageKey('VIDEO', 'user-456', 'mov')).toMatch(/\.mov$/)
   })
 
   it('generates audio key with default .mp3 extension', () => {
@@ -227,6 +242,60 @@ describe('uploadToR2', () => {
 
     expect(url).toBe('https://cdn.test.com/test/key.png')
     expect(mockSend).toHaveBeenCalledOnce()
+  })
+})
+
+describe('bounded R2 object inspection', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('reads object size with HEAD and no body download', async () => {
+    mockSend.mockResolvedValue({
+      ContentLength: 80 * 1024 * 1024,
+      ContentType: 'video/mp4',
+    })
+
+    await expect(
+      getR2ObjectMetadata({ key: 'generations/user/video/clip.mp4' }),
+    ).resolves.toEqual({
+      sizeBytes: 80 * 1024 * 1024,
+      mimeType: 'video/mp4',
+    })
+    expect(mockSend).toHaveBeenCalledWith({
+      _type: 'head',
+      params: {
+        Bucket: 'test-bucket',
+        Key: 'generations/user/video/clip.mp4',
+      },
+    })
+  })
+
+  it('requests and returns only the declared signature range', async () => {
+    mockSend.mockResolvedValue({
+      Body: {
+        transformToByteArray: () =>
+          Promise.resolve(Uint8Array.from([0, 0, 0, 24])),
+      },
+      ContentType: 'video/mp4',
+    })
+
+    await expect(
+      getR2ObjectRange({
+        key: 'generations/user/video/clip.mp4',
+        startByte: 0,
+        endByteInclusive: 4095,
+      }),
+    ).resolves.toMatchObject({
+      buffer: Buffer.from([0, 0, 0, 24]),
+      mimeType: 'video/mp4',
+    })
+    expect(mockSend).toHaveBeenCalledWith({
+      _type: 'get',
+      params: {
+        Bucket: 'test-bucket',
+        Key: 'generations/user/video/clip.mp4',
+        Range: 'bytes=0-4095',
+      },
+    })
   })
 })
 

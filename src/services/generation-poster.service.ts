@@ -13,13 +13,11 @@ import type { GenerationRecord } from '@/types'
 const MAX_POSTER_BYTES = 2 * 1024 * 1024 // 2 MB — poster is a small thumbnail
 
 /**
- * Persist a client-captured poster PNG for a MODEL_3D generation.
+ * Persist a client-captured poster for a VIDEO or MODEL_3D generation.
  *
- * `<ModelViewer>` calls `.toBlob()` once the GLB renders, then POSTs the
- * bytes here. We upload to R2 and overwrite the generation's `url` /
- * `storageKey` (which initially pointed at the GLB) so the asset browser
- * can render a real thumbnail. The GLB itself stays at `modelUrl` /
- * `modelStorageKey` and is untouched.
+ * 3D keeps its historical behavior: the poster becomes `url` while the GLB
+ * stays at `modelUrl`. Video keeps its media URL untouched and stores the
+ * captured frame in the dedicated thumbnail fields.
  */
 export async function uploadGenerationPoster(
   clerkId: string,
@@ -77,16 +75,18 @@ export async function uploadGenerationPoster(
   if (gen.userId !== dbUser.id) {
     throw new GenerateImageServiceError('PROVIDER_ERROR', 'Forbidden', 403)
   }
-  if (gen.outputType !== 'MODEL_3D') {
+  if (gen.outputType !== 'MODEL_3D' && gen.outputType !== 'VIDEO') {
     throw new GenerateImageServiceError(
       'PROVIDER_ERROR',
-      'Poster upload is only supported for 3D generations',
+      'Poster upload is only supported for video and 3D generations',
       400,
     )
   }
-  // Idempotency: if `url` already differs from `modelUrl`, a poster was
-  // uploaded previously — return current row instead of re-uploading.
-  if (gen.modelUrl && gen.url !== gen.modelUrl) {
+  // Idempotency: use the type-appropriate poster field.
+  if (
+    (gen.outputType === 'VIDEO' && gen.thumbnailUrl) ||
+    (gen.outputType === 'MODEL_3D' && gen.modelUrl && gen.url !== gen.modelUrl)
+  ) {
     return gen as GenerationRecord
   }
 
@@ -99,11 +99,17 @@ export async function uploadGenerationPoster(
 
   const updated = await db.generation.update({
     where: { id: generationId },
-    data: {
-      url: posterUrl,
-      storageKey: posterKey,
-      mimeType: trustedMimeType,
-    },
+    data:
+      gen.outputType === 'VIDEO'
+        ? {
+            thumbnailUrl: posterUrl,
+            thumbnailStorageKey: posterKey,
+          }
+        : {
+            url: posterUrl,
+            storageKey: posterKey,
+            mimeType: trustedMimeType,
+          },
   })
 
   return updated as GenerationRecord

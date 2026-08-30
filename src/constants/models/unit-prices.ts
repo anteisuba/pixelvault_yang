@@ -497,6 +497,57 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
   //     没有「每张多少钱」这种东西；要报价得先定义一个平均出图耗时，那就是猜。
 }
 
+/**
+ * 「钉不死一个数，但**边界是知道的**」那一类 —— 台账 M（owner 2026-08-29）。
+ *
+ * ── 为什么单独一张表，而不是往 `ModelUnitPrice` 里塞 ────────────────
+ * `MODEL_UNIT_PRICES` 里的每个 `amount` 都会**进合计**。区间进不了合计（把上界
+ * 累加会报一个用户几乎不会付的数，把下界累加就是老错「按低档标价」），所以它不能
+ * 混进同一张表。分开放的好处是判据也分开了：那张表答「这个模型每张多少钱」，
+ * 这张表答「我们只知道它落在哪两个数之间」。
+ *
+ * ── 为什么要有它 ────────────────────────────────────────────────────
+ * owner 实测：选中 GPT Image 2 后左下「预计费用」显示「1 个模型未标价」，**不给
+ * 任何金额**。按张计费的模型不给预估，用户点「生成」时不知道要花多少。而这条的
+ * 三个档位数官方是公开的（就写在下面 `reason` 引的那段注释里）—— 我们缺的不是
+ * 数据，是「auto 落到哪一档」这一个映射。报区间是诚实的，报「未标价」是把已知
+ * 信息一起藏了。
+ *
+ * ⛔ **不许往这里填猜的边界**。没有官方三档数的模型（Seedream 5.0 基础款、五个
+ * runner 模型）仍旧什么都不显示 —— 一个编的区间和一个编的等号一样糟。
+ */
+export interface ModelUnitPriceRange {
+  min: number
+  max: number
+  unit: ModelPriceUnit
+  /** 为什么钉不死一个数 —— 写到能让下一个人判断「解锁条件到了没有」。 */
+  reason: string
+  source: string
+  verifiedAt: string
+}
+
+export const MODEL_UNIT_PRICE_RANGES: Partial<
+  Record<AI_MODELS, ModelUnitPriceRange>
+> = {
+  [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
+    min: 0.006,
+    max: 0.211,
+    unit: 'image',
+    reason:
+      'OpenAI 按 quality 分 low / medium / high 三档（1024²：$0.006 / $0.053 / $0.211），而我们的 adapter 不发 quality → 落到官方的 `auto`，官方未公开 auto 映射到哪一档。解锁条件：产品把 quality 钉死一档，或 OpenAI 文档写明 auto 的映射。',
+    source:
+      'developers.openai.com 生图指南的算价表（三档 1024² 单价），与上方「待补」注释同源',
+    verifiedAt: '2026-08-18',
+  },
+}
+
+export const getModelUnitPriceRangeByStringId = (
+  modelId: string,
+): ModelUnitPriceRange | null =>
+  (MODEL_UNIT_PRICE_RANGES as Record<string, ModelUnitPriceRange | undefined>)[
+    modelId
+  ] ?? null
+
 /** 取模型单价；没有可信数据时返回 null，调用方应当隐藏价格而非显示占位。 */
 export const getModelUnitPrice = (modelId: AI_MODELS): ModelUnitPrice | null =>
   MODEL_UNIT_PRICES[modelId] ?? null

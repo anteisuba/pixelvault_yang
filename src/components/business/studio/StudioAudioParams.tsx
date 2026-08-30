@@ -43,6 +43,8 @@ import {
   isAudioAdvancedTabId,
   isAudioFormat,
   isAudioLatency,
+  REFERENCE_AUDIO_MAX_BYTES,
+  REFERENCE_AUDIO_MAX_MB,
   TTS_CHUNK_LENGTH_RANGE,
   TTS_REPETITION_PENALTY_RANGE,
   TTS_TEMPERATURE_RANGE,
@@ -441,9 +443,6 @@ function SpeakerVoiceIdsField({
     </div>
   )
 }
-
-const REFERENCE_AUDIO_MAX_MB = 25
-const REFERENCE_AUDIO_MAX_BYTES = REFERENCE_AUDIO_MAX_MB * 1024 * 1024
 
 interface ReferenceAudioFieldProps {
   url: string | null

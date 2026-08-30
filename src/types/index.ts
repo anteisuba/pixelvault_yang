@@ -55,9 +55,12 @@ import type {
 } from '@/types/assistant-protocol'
 import type { ResearchReceipt } from '@/types/research'
 import {
-  USER_UPLOAD_ACCEPTED_MIME_TYPES,
+  USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_UPLOAD_MAX_BYTES,
-  type AcceptedUploadMimeType,
+  USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES,
+  USER_VIDEO_UPLOAD_MAX_BYTES,
+  type AcceptedImageUploadMimeType,
+  type AcceptedVideoUploadMimeType,
 } from '@/constants/uploads'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 import {
@@ -685,6 +688,16 @@ export const GenerateAudioRequestSchema = z
      * pointer, never duplicated bytes.
      */
     coverImageUrl: z.string().url().optional(),
+    /**
+     * Human-readable name of the voice that spoke this line ("晴"), stored on
+     * the generation's `snapshot.voiceName`.
+     *
+     * The asset library already had a cover (`coverImageUrl` above) and an id
+     * (`voiceId`), but no NAME — so an audio clip could show a face and no way
+     * to say whose it was. `voiceId` is a provider handle, not something to put
+     * in front of a user.
+     */
+    voiceName: z.string().trim().min(1).max(120).optional(),
   })
   .refine(
     (data) => {
@@ -980,7 +993,7 @@ export interface UploadImageResponse {
 
 export const CreateUploadImageDirectRequestSchema = z.object({
   fileName: z.string().trim().max(240).optional(),
-  mimeType: z.enum(USER_UPLOAD_ACCEPTED_MIME_TYPES),
+  mimeType: z.enum(USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES),
   sizeBytes: z.number().int().positive().max(USER_UPLOAD_MAX_BYTES),
   note: z.string().trim().max(500).optional(),
   projectId: z.string().trim().min(1).optional(),
@@ -992,7 +1005,7 @@ export type CreateUploadImageDirectRequest = z.infer<
 
 export const CompleteUploadImageDirectRequestSchema = z.object({
   storageKey: z.string().trim().min(1).max(1024),
-  mimeType: z.enum(USER_UPLOAD_ACCEPTED_MIME_TYPES),
+  mimeType: z.enum(USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES),
   sizeBytes: z.number().int().positive().max(USER_UPLOAD_MAX_BYTES),
   note: z.string().trim().max(500).optional(),
   projectId: z.string().trim().min(1).optional(),
@@ -1007,11 +1020,63 @@ export interface DirectUploadImagePrepare {
   storageKey: string
   publicUrl: string
   headers: {
-    'Content-Type': AcceptedUploadMimeType
+    'Content-Type': AcceptedImageUploadMimeType
     'If-None-Match': '*'
   }
   expiresAt: string
   maxBytes: number
+}
+
+export const CreateUploadVideoDirectRequestSchema = z.object({
+  fileName: z.string().trim().max(240).optional(),
+  mimeType: z.enum(USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES),
+  sizeBytes: z.number().int().positive().max(USER_VIDEO_UPLOAD_MAX_BYTES),
+  note: z.string().trim().max(500).optional(),
+  projectId: z.string().trim().min(1).optional(),
+})
+
+export type CreateUploadVideoDirectRequest = z.infer<
+  typeof CreateUploadVideoDirectRequestSchema
+>
+
+export const CompleteUploadVideoDirectRequestSchema = z.object({
+  storageKey: z.string().trim().min(1).max(1024),
+  mimeType: z.enum(USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES),
+  sizeBytes: z.number().int().positive().max(USER_VIDEO_UPLOAD_MAX_BYTES),
+  width: z.number().int().nonnegative().max(32768),
+  height: z.number().int().nonnegative().max(32768),
+  duration: z
+    .number()
+    .finite()
+    .nonnegative()
+    .max(24 * 60 * 60)
+    .optional(),
+  note: z.string().trim().max(500).optional(),
+  projectId: z.string().trim().min(1).optional(),
+})
+
+export type CompleteUploadVideoDirectRequest = z.infer<
+  typeof CompleteUploadVideoDirectRequestSchema
+>
+
+export interface DirectUploadVideoPrepare {
+  uploadUrl: string
+  storageKey: string
+  publicUrl: string
+  headers: {
+    'Content-Type': AcceptedVideoUploadMimeType
+    'If-None-Match': '*'
+  }
+  expiresAt: string
+  maxBytes: number
+}
+
+export interface UploadVideoResponse {
+  success: boolean
+  data?: { generation: GenerationRecord }
+  error?: string
+  errorCode?: string
+  i18nKey?: string
 }
 
 // ─── 3D Generate Request + Queue (submit + poll) ─────────────────

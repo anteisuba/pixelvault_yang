@@ -53,6 +53,22 @@ export const OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES = 16
  * references to a `*_VOLCENGINE` Seedream model and see whether 火山 400s.
  */
 export const VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES = 14
+/**
+ * fal Seedream 5.0 Pro/Lite `/edit`: "Up to 10 images are supported; if more
+ * are sent, only the last 10 are used."
+ * https://fal.ai/models/bytedance/seedream/v5/pro/edit
+ */
+export const FAL_SEEDREAM_MAX_REFERENCE_IMAGES = 10
+/**
+ * FLUX.2 [pro] official API cap is 8 reference images (BFL / Azure Foundry).
+ * fal OpenAPI for `fal-ai/flux-2-pro/edit` has no maxItems.
+ */
+export const FAL_FLUX_2_PRO_MAX_REFERENCE_IMAGES = 8
+/**
+ * `fal-ai/flux-2/flash/edit`: "A maximum of 4 images are allowed, if more are
+ * provided, only the first 4 will be used."
+ */
+export const FAL_FLUX_2_FLASH_MAX_REFERENCE_IMAGES = 4
 export const FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX = 3
 export const FAL_KLING_V3_MAX_REFERENCE_IMAGES =
   1 + FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX
@@ -312,7 +328,31 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.FLUX_2_PRO]: {
-    maxReferenceImages: 0,
+    // fal T2I endpoint ignores refs; worker swaps to `/edit` when any are
+    // attached (same pattern as flux-lora → `/image-to-image`). `/edit` is
+    // native multi-ref, not img2img denoising — drop referenceStrength.
+    maxReferenceImages: FAL_FLUX_2_PRO_MAX_REFERENCE_IMAGES,
+    referenceImageMode: 'native' as const,
+    capabilities: [
+      'negativePrompt',
+      'guidanceScale',
+      'steps',
+      'seed',
+      'imageAnalysis',
+      'lora',
+    ] as const,
+  },
+  [AI_MODELS.FLUX_2_PRO_EDIT]: {
+    maxReferenceImages: FAL_FLUX_2_PRO_MAX_REFERENCE_IMAGES,
+    referenceImageMode: 'native' as const,
+    capabilities: [
+      'negativePrompt',
+      'guidanceScale',
+      'steps',
+      'seed',
+      'imageAnalysis',
+      'lora',
+    ] as const,
   },
   [AI_MODELS.SEEDREAM_45]: {
     maxReferenceImages: 0,
@@ -332,7 +372,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     resolutionOptions: ['2K', '4K'],
   },
   [AI_MODELS.SEEDREAM_50_PRO]: {
-    maxReferenceImages: 0,
+    maxReferenceImages: FAL_SEEDREAM_MAX_REFERENCE_IMAGES,
+    referenceImageMode: 'native' as const,
     // Same shape as the 4.5 override — full replacement, not a merge, because
     // resolveConfig() swaps `capabilities` wholesale. 5.0 tops out at 2K
     // (pricing tiers are ≤1536² and ≤2048²), so no 4K option here.
@@ -348,13 +389,23 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     resolutionOptions: ['2K'],
   },
   [AI_MODELS.SEEDREAM_50_LITE]: {
-    maxReferenceImages: 0,
+    maxReferenceImages: FAL_SEEDREAM_MAX_REFERENCE_IMAGES,
+    referenceImageMode: 'native' as const,
   },
   [AI_MODELS.IDEOGRAM_3]: {
     maxReferenceImages: 0,
   },
   [AI_MODELS.FLUX_2_FLASH]: {
-    maxReferenceImages: 0,
+    maxReferenceImages: FAL_FLUX_2_FLASH_MAX_REFERENCE_IMAGES,
+    referenceImageMode: 'native' as const,
+    capabilities: [
+      'negativePrompt',
+      'guidanceScale',
+      'steps',
+      'seed',
+      'imageAnalysis',
+      'lora',
+    ] as const,
   },
   [AI_MODELS.FLUX_LORA]: {
     // B9 (D6): reference-image img2img enabled. The FAL adapter default

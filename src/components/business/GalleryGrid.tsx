@@ -273,6 +273,58 @@ export function GalleryGrid({
   )
 }
 
+// 每个 item 一个 window resize 监听器时，滚几批之后页面上会挂着上百个 handler，
+// 一次窗口缩放就是上百轮「读 getComputedStyle + 读 getBoundingClientRect +
+// 写 gridRowEnd」的读写交错，也就是上百次强制同步布局。
+// 收成一个共享订阅：先把所有 item 量完，再统一提交 gridRowEnd，一轮缩放只剩一次回流。
+// ⚠ resize 监听不能删 —— ResizeObserver 只盯 content 自身的盒子，断点切换后
+// 浏览器还会再排一轮（滚动条出现/消失、图片重新布局），漏掉那一轮就会留下过期的
+// 跨度，表现为砌体布局重叠/空洞。下面的补量保留了原来 setTimeout(0) 的语义。
+type RowSpanMeasure = () => (() => void) | null
+
+const rowSpanMeasures = new Set<RowSpanMeasure>()
+let rowSpanSettleTimeoutId: number | null = null
+
+function flushRowSpans() {
+  // 读写分离：measure 阶段只读，commit 阶段只写，中间不交错。
+  const commits: Array<() => void> = []
+  for (const measure of rowSpanMeasures) {
+    const commit = measure()
+    if (commit) commits.push(commit)
+  }
+  for (const commit of commits) commit()
+}
+
+function handleRowSpanResize() {
+  flushRowSpans()
+  // 补一次宏任务尾量。区别是整页只排一个定时器，不是每个 item 一个。
+  if (rowSpanSettleTimeoutId !== null) {
+    window.clearTimeout(rowSpanSettleTimeoutId)
+  }
+  rowSpanSettleTimeoutId = window.setTimeout(() => {
+    rowSpanSettleTimeoutId = null
+    flushRowSpans()
+  }, 0)
+}
+
+function subscribeRowSpan(measure: RowSpanMeasure): () => void {
+  if (rowSpanMeasures.size === 0) {
+    window.addEventListener('resize', handleRowSpanResize)
+  }
+  rowSpanMeasures.add(measure)
+
+  return () => {
+    rowSpanMeasures.delete(measure)
+    if (rowSpanMeasures.size > 0) return
+
+    window.removeEventListener('resize', handleRowSpanResize)
+    if (rowSpanSettleTimeoutId !== null) {
+      window.clearTimeout(rowSpanSettleTimeoutId)
+      rowSpanSettleTimeoutId = null
+    }
+  }
+}
+
 interface GalleryGridItemProps {
   generation: GenerationRecord
   index: number
@@ -305,32 +357,30 @@ const GalleryGridItem = memo(function GalleryGridItem({
     const grid = item?.parentElement
     if (!item || !content || !grid) return
 
-    let timeoutId: number | null = null
-
-    const updateRowSpan = () => {
+    const measureRowSpan: RowSpanMeasure = () => {
       const rowHeight = Number.parseFloat(getComputedStyle(grid).gridAutoRows)
-      if (!Number.isFinite(rowHeight) || rowHeight <= 0) return
+      if (!Number.isFinite(rowHeight) || rowHeight <= 0) return null
 
       const contentHeight = content.getBoundingClientRect().height
-      item.style.gridRowEnd = `span ${Math.max(
+      const gridRowEnd = `span ${Math.max(
         1,
         Math.ceil(contentHeight / rowHeight),
       )}`
+
+      return () => {
+        // 跨度没变就别写，免得把刚算好的布局重新标脏。
+        if (item.style.gridRowEnd === gridRowEnd) return
+        item.style.gridRowEnd = gridRowEnd
+      }
     }
 
-    const scheduleRowSpanUpdate = () => {
-      updateRowSpan()
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId)
-      }
-      timeoutId = window.setTimeout(() => {
-        timeoutId = null
-        updateRowSpan()
-      }, 0)
+    const updateRowSpan = () => {
+      measureRowSpan()?.()
     }
 
     updateRowSpan()
-    window.addEventListener('resize', scheduleRowSpanUpdate)
+
+    const unsubscribeResize = subscribeRowSpan(measureRowSpan)
 
     const resizeObserver =
       typeof ResizeObserver === 'undefined'
@@ -339,10 +389,7 @@ const GalleryGridItem = memo(function GalleryGridItem({
     resizeObserver?.observe(content)
 
     return () => {
-      window.removeEventListener('resize', scheduleRowSpanUpdate)
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId)
-      }
+      unsubscribeResize()
       resizeObserver?.disconnect()
     }
   }, [])

@@ -276,6 +276,15 @@ export interface NodeAssistantOpRunResult {
   applied: number
   /** 执行时才失效的（引用的新节点被用户从这一批里剔掉了）。 */
   skipped: number
+  /**
+   * `skipped` 里**连线没建成**的那一部分（台账 K-2，2026-08-29 真机）。
+   *
+   * 单独拎出来是因为它与其余的 skipped 不是一回事：其余多半是用户自己剔掉了引用
+   * 的节点（预期之内），而连线失败意味着**助手规划的图结构没成形** —— 4 个镜头
+   * 文本与 4 个视频节点铺好了却一条都没连上，用户看到的画布是散的。回执里必须
+   * 点名说出来，否则一个只会变大的「已落 N 个」恰恰盖住了它。
+   */
+  failedConnects: number
   createdNodeIds: string[]
 }
 

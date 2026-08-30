@@ -47,4 +47,60 @@ describe('resolveTopbarAddSpawnPosition（《画布修法》02 节刀 1 task A�
     expect(Math.abs(farClick.x - center.x)).toBeLessThanOrEqual(maxOffset)
     expect(Math.abs(farClick.y - center.y)).toBeLessThanOrEqual(maxOffset)
   })
+
+  /**
+   * 台账 S（owner 2026-08-29 真机）：错位步进按的是「这一会话点了几次」，与那个
+   * 位置上有没有东西无关 —— 第 0 次永远精确落在视口正中，而刚生成完的卡恰好被
+   * 居中过（生成后自动选中 + 聚焦）。两次「+ → 镜头图」都盖住了刚出的图。
+   */
+  describe('碰撞避让', () => {
+    const { topbarAddStep, topbarAddCascadeLimit } = NODE_STUDIO_NODE_PLACEMENT
+
+    it('视口中心被占时，往下顺延到第一个空格位', () => {
+      const spawned = resolveTopbarAddSpawnPosition(center, 0, [center])
+      expect(spawned).not.toEqual(center)
+      expect(spawned).toEqual({
+        x: center.x + topbarAddStep.x,
+        y: center.y + topbarAddStep.y,
+      })
+    })
+
+    it('连着两格都被占就再顺延一格', () => {
+      const occupied = [
+        center,
+        { x: center.x + topbarAddStep.x, y: center.y + topbarAddStep.y },
+      ]
+      expect(resolveTopbarAddSpawnPosition(center, 0, occupied)).toEqual({
+        x: center.x + 2 * topbarAddStep.x,
+        y: center.y + 2 * topbarAddStep.y,
+      })
+    })
+
+    it('判据是两轴都在一个步进之内 —— 只有一轴接近不算占住', () => {
+      // 同一个 y，但 x 差了整整一个步进：卡角必然错开，不该被判成占住。
+      const nearMiss = [{ x: center.x + topbarAddStep.x, y: center.y }]
+      expect(resolveTopbarAddSpawnPosition(center, 0, nearMiss)).toEqual(center)
+    })
+
+    it('整条错位链都满时退回原落点，绝不飘出视口', () => {
+      const everySlot = Array.from(
+        { length: topbarAddCascadeLimit },
+        (_, index) => ({
+          x: center.x + index * topbarAddStep.x,
+          y: center.y + index * topbarAddStep.y,
+        }),
+      )
+      expect(resolveTopbarAddSpawnPosition(center, 0, everySlot)).toEqual(
+        center,
+      )
+    })
+
+    it('不传清单时行为与改动前逐字相同', () => {
+      expect(resolveTopbarAddSpawnPosition(center, 0)).toEqual(center)
+      expect(resolveTopbarAddSpawnPosition(center, 2, [])).toEqual({
+        x: center.x + 2 * topbarAddStep.x,
+        y: center.y + 2 * topbarAddStep.y,
+      })
+    })
+  })
 })

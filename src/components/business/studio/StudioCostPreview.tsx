@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import {
   formatUnitPriceAmount,
   getModelUnitPriceByStringId,
+  getModelUnitPriceRangeByStringId,
   getVideoUnitPricePerSecond,
 } from '@/constants/models/unit-prices'
 import type { VideoResolution } from '@/constants/video-options'
@@ -65,13 +66,32 @@ export const StudioCostPreview = memo(function StudioCostPreview({
 }: StudioCostPreviewProps) {
   const t = useTranslations('StudioV2')
 
-  const { total, pricedCount, unpricedCount } = useMemo(() => {
+  const { total, pricedCount, unpricedCount, rangeBounds } = useMemo(() => {
     let sum = 0
     let priced = 0
+    /**
+     * 台账 M（owner 2026-08-29）：钉不死一个数、但**边界是知道的**那批
+     * （今天只有 GPT Image 2：OpenAI 按 quality 分三档，而我们不发 quality）。
+     * 它们不进 `sum` —— 把上界累加会报一个用户几乎不会付的数，把下界累加就是
+     * 「按低档标价」那个老错。单独攒成一个区间，在缺价那行里说出来：
+     * 「1 个模型未标价」把已知的信息也一起藏了，而 owner 要的正是「点生成时
+     * 知道要花多少」。
+     */
+    let rangeMin = 0
+    let rangeMax = 0
+    let rangedCount = 0
     for (const model of models) {
       if (basis.kind === 'image') {
         const price = getModelUnitPriceByStringId(model.modelId)
-        if (!price || price.unit !== 'image') continue
+        if (!price || price.unit !== 'image') {
+          const range = getModelUnitPriceRangeByStringId(model.modelId)
+          if (range && range.unit === 'image') {
+            rangeMin += range.min * basis.perModelCount
+            rangeMax += range.max * basis.perModelCount
+            rangedCount += 1
+          }
+          continue
+        }
         sum += price.amount * basis.perModelCount
         priced += 1
         continue
@@ -88,7 +108,9 @@ export const StudioCostPreview = memo(function StudioCostPreview({
     return {
       total: sum,
       pricedCount: priced,
-      unpricedCount: models.length - priced,
+      // 有区间的那几个**不再算「未标价」** —— 它们现在报得出东西了。
+      unpricedCount: models.length - priced - rangedCount,
+      rangeBounds: rangedCount > 0 ? { min: rangeMin, max: rangeMax } : null,
     }
   }, [models, basis])
 
@@ -104,12 +126,27 @@ export const StudioCostPreview = memo(function StudioCostPreview({
         </span>
         {pricedCount > 0 ? (
           <span className="font-medium tabular-nums text-foreground">
-            {t(unpricedCount > 0 ? 'costApproxFrom' : 'costApprox', {
-              amount: formatUnitPriceAmount(total),
-            })}
+            {/* ⭐ 「起」的判据是**有没有加数没进这个和**，不是「有没有未标价的」。
+                台账 M 加了「有区间」这一档之后，只看 `unpricedCount` 会让一个
+                少了加数的和印成等号 —— 正是这行注释原本要防的那个错。 */}
+            {t(
+              unpricedCount > 0 || rangeBounds
+                ? 'costApproxFrom'
+                : 'costApprox',
+              { amount: formatUnitPriceAmount(total) },
+            )}
           </span>
         ) : null}
       </div>
+      {/* 台账 M：能给上下界的先给界 —— 「未标价」把已知信息也藏了。 */}
+      {rangeBounds ? (
+        <span className="text-2xs tabular-nums text-muted-foreground">
+          {t('costRange', {
+            min: formatUnitPriceAmount(rangeBounds.min),
+            max: formatUnitPriceAmount(rangeBounds.max),
+          })}
+        </span>
+      ) : null}
       {/* 缺价的单独说 —— 不并进上面那个数，也不省略。省略了用户会以为合计是全的。 */}
       {unpricedCount > 0 ? (
         <span className="text-2xs text-muted-foreground">

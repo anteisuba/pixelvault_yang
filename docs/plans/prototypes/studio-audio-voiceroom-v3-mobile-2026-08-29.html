@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>配音间 · 手机切片 mock v3m — 2026-08-29</title>
+<style>
+  :root {
+    --paper: #ffffff;
+    --ink: #0a0a0a;
+    --dim: #616167;
+    --line: #e6e6e2;
+    --line-2: #d3d3ce;
+    --panel: #f4f4f1;
+    --panel2: #ebebe7;
+    --mono: ui-monospace, "SF Mono", Consolas, "PingFang SC", "Microsoft YaHei", monospace;
+    --sans: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --serif: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--sans); background: var(--panel); color: var(--ink);
+    padding: 26px 22px 20px;
+    display: flex; flex-direction: column; gap: 16px; align-items: center;
+  }
+  .page-head { width: 100%; max-width: 1620px; display: flex; align-items: baseline; gap: 14px; }
+  .page-head .crumb { font-family: var(--mono); font-size: 10.5px; letter-spacing: .22em; color: var(--dim); text-transform: uppercase; }
+  .page-head h1 { font-family: var(--serif); font-size: 21px; font-weight: 700; }
+  .page-head .hint { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--dim); }
+
+  .frames { display: flex; flex-wrap: wrap; gap: 22px; justify-content: center; }
+  .device { display: flex; flex-direction: column; gap: 9px; align-items: center; }
+  .cap { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--dim); }
+  .phone {
+    width: 372px; height: 726px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 30px;
+    box-shadow: 0 30px 80px -40px rgba(10,10,10,.35);
+    overflow: hidden; position: relative;
+    display: flex; flex-direction: column;
+  }
+
+  /* ── 通用件 ── */
+  .ava { border-radius: 999px; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; }
+  .ava.l { width: 34px; height: 34px; font-size: 13px; }
+  .ava.s { width: 28px; height: 28px; font-size: 11px; }
+  .ava.xs { width: 15px; height: 15px; }
+  [data-voice="qing"] { background: linear-gradient(135deg,#c98da8,#8a4160); }
+  [data-voice="lei"]  { background: linear-gradient(135deg,#7fa3c9,#33506b); }
+  [data-voice="ke"]   { background: linear-gradient(135deg,#c9b47f,#8a6f33); }
+  [data-voice="fx"]   { background: linear-gradient(135deg,#8a94a6,#3a4356); }
+  [data-voice="bgm"]  { background: linear-gradient(135deg,#87b096,#33584a); }
+  [data-voice="lan"]  { background: linear-gradient(135deg,#7fb8b0,#2f5e57); }
+  [data-voice="chen"] { background: linear-gradient(135deg,#b89a7f,#6b4a2f); }
+  [data-voice="yu"]   { background: linear-gradient(135deg,#a58ac9,#5c3f82); }
+
+  .bar { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .bar .burger { font-size: 15px; color: var(--ink); cursor: pointer; line-height: 1; }
+  .bar .k { font-size: 13px; font-weight: 700; }
+  .bar .right { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+  .chip { font-family: var(--mono); font-size: 9.5px; padding: 4px 9px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--ink); }
+  .chip .n { color: var(--dim); }
+  .go-final { font-size: 10.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 0; background: var(--ink); color: var(--paper); }
+
+  .flow { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 13px; padding: 15px 13px; }
+  .msg { display: flex; gap: 8px; align-items: flex-start; }
+  .msg .grp { display: flex; flex-direction: column; gap: 4px; max-width: 86%; }
+  .who { font-family: var(--mono); font-size: 9.5px; letter-spacing: .06em; color: var(--dim); }
+  .bub { border: 1px solid var(--line); border-radius: 4px 13px 13px 13px; background: var(--panel); padding: 8px 11px; font-size: 12px; line-height: 1.5; }
+  .voice { display: flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; background: var(--paper); }
+  .voice .play { width: 20px; height: 20px; border-radius: 999px; flex: none; background: var(--ink); color: var(--paper); display: grid; place-items: center; font-size: 9px; padding-left: 1px; }
+  .wv { display: flex; align-items: center; gap: 2px; height: 15px; }
+  .wv i { width: 2.5px; border-radius: 2px; background: var(--ink); opacity: .75; height: calc(var(--h) * 1%); }
+  .voice .dur { font-family: var(--mono); font-size: 10px; color: var(--dim); }
+  .voice.fx { border-style: dashed; background: var(--panel); }
+  .voice.fx .wv i { opacity: .45; }
+  .row2 { display: flex; align-items: center; gap: 7px; }
+  .emo { font-family: var(--mono); font-size: 9px; letter-spacing: .08em; padding: 3px 7px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--dim); background: var(--paper); }
+  .speaking { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; background: var(--paper); font-family: var(--mono); font-size: 9.5px; color: var(--dim); }
+  .speaking .dots { display: flex; gap: 2.5px; align-items: center; height: 12px; }
+  .speaking .dots i { width: 2.5px; border-radius: 2px; background: var(--ink); opacity: .6; animation: talk 1s ease-in-out infinite; height: 40%; }
+  .speaking .dots i:nth-child(2) { animation-delay: .12s; }
+  .speaking .dots i:nth-child(3) { animation-delay: .24s; }
+  .speaking .dots i:nth-child(4) { animation-delay: .36s; }
+  @keyframes talk { 0%,100% { height: 30%; } 50% { height: 95%; } }
+
+  .bed { display: flex; align-items: center; gap: 8px; padding: 8px 13px; border-top: 1px solid var(--line); background: var(--panel); font-size: 10.5px; }
+  .bed .k { font-family: var(--mono); font-size: 9px; letter-spacing: .14em; color: var(--dim); }
+  .bed .t { font-weight: 600; }
+  .bed .m { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+  .bed .sw { margin-left: auto; width: 26px; height: 15px; border-radius: 999px; background: var(--ink); position: relative; flex: none; }
+  .bed .sw::after { content: ""; position: absolute; top: 2px; right: 2px; width: 11px; height: 11px; border-radius: 999px; background: var(--paper); }
+
+  /* 输入区两行：上行 cast 横滑，下行输入 + 参数 + 生成 —— 拇指热区全在底部 */
+  .dock { border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 9px; padding: 10px 12px 13px; }
+  .picks { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+  .pick { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 700; opacity: .4; border: 2px solid transparent; flex: none; }
+  .pick.on { opacity: 1; border-color: var(--ink); }
+  .pick.add { background: var(--line-2); color: var(--dim); }
+  .pick-label { font-family: var(--mono); font-size: 9px; color: var(--dim); align-self: center; flex: none; padding-right: 2px; }
+  .inline { display: flex; align-items: center; gap: 8px; }
+  .field { flex: 1; display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 9px 13px; font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .field .cur { width: 6px; height: 12px; background: var(--ink); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .pbtn { font-family: var(--mono); font-size: 10px; padding: 8px 11px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--paper); color: var(--dim); flex: none; }
+  .pbtn.on { border-color: var(--ink); color: var(--ink); }
+  .go { font-size: 11px; font-weight: 600; padding: 9px 16px; border-radius: 999px; border: 0; background: var(--ink); color: var(--paper); flex: none; }
+
+  /* ── 帧2：房间抽屉 ── */
+  .scrim { position: absolute; inset: 0; background: rgba(10,10,10,.28); }
+  .drawer {
+    position: absolute; top: 0; bottom: 0; left: 0; width: 76%;
+    background: var(--paper); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 8px; padding: 16px 12px;
+    box-shadow: 20px 0 60px -30px rgba(10,10,10,.4);
+  }
+  .drawer .ttl { font-family: var(--mono); font-size: 9.5px; letter-spacing: .2em; color: var(--dim); text-transform: uppercase; padding: 0 4px 4px; }
+  .drawer .new { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10.5px; color: var(--dim); border: 1px dashed var(--line-2); border-radius: 12px; padding: 10px 12px; }
+  .rm { border: 1px solid transparent; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .rm.on { background: var(--panel); border-color: var(--line); }
+  .rm .nm { font-family: var(--serif); font-size: 13.5px; font-weight: 700; }
+  .rm .nm.unnamed { color: var(--dim); font-weight: 400; }
+  .rm .sub { display: flex; align-items: center; gap: 6px; min-height: 15px; }
+  .rm .stack { display: flex; }
+  .rm .stack .dot { width: 15px; height: 15px; border-radius: 999px; border: 2px solid var(--paper); margin-left: -5px; }
+  .rm .stack .dot:first-child { margin-left: 0; }
+  .rm .when { font-family: var(--mono); font-size: 9px; color: var(--dim); margin-left: auto; }
+  .drawer .foot { margin-top: auto; font-family: var(--mono); font-size: 9px; color: var(--dim); line-height: 1.7; padding: 0 4px; }
+
+  /* ── 帧3：选角全屏 ── */
+  .caster-full { position: absolute; inset: 0; background: var(--paper); display: flex; flex-direction: column; }
+  .caster-full .hd { display: flex; align-items: center; gap: 10px; padding: 13px 14px; border-bottom: 1px solid var(--line); }
+  .caster-full .hd .t { font-size: 13px; font-weight: 700; }
+  .caster-full .hd .src { display: flex; gap: 2px; }
+  .caster-full .hd .src .s { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; padding: 4px 9px; color: var(--dim); border-bottom: 2px solid transparent; }
+  .caster-full .hd .src .s.on { color: var(--ink); border-bottom-color: var(--ink); }
+  .caster-full .hd .close { margin-left: auto; font-family: var(--mono); color: var(--dim); font-size: 12px; }
+  .caster-full .tools { display: flex; flex-direction: column; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .caster-full .search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 13px; font-family: var(--mono); font-size: 10.5px; color: var(--dim); }
+  .caster-full .fs { display: flex; gap: 6px; overflow-x: auto; }
+  .caster-full .f { font-family: var(--mono); font-size: 9.5px; padding: 4px 10px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--dim); flex: none; }
+  .caster-full .f.on { border-color: var(--ink); color: var(--ink); }
+  .caster-full .grid { flex: 1; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 12px 14px; align-content: start; }
+  .vc { border: 1px solid var(--line); border-radius: 13px; padding: 11px; display: flex; flex-direction: column; gap: 8px; }
+  .vc .top { display: flex; align-items: center; gap: 8px; }
+  .vc .nm { font-size: 12px; font-weight: 700; }
+  .vc .tags { font-family: var(--mono); font-size: 8.5px; color: var(--dim); }
+  .vc .demo { display: flex; align-items: center; gap: 6px; }
+  .vc .demo .play { width: 18px; height: 18px; border-radius: 999px; flex: none; background: var(--ink); color: var(--paper); display: grid; place-items: center; font-size: 8px; padding-left: 1px; }
+  .vc .demo .dur { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+  .vc .join { font-size: 10.5px; font-weight: 600; padding: 6px 0; border-radius: 999px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); text-align: center; }
+  .vc.in .join { border-color: var(--line-2); color: var(--dim); }
+  .vc.clone-new { border-style: dashed; align-items: center; justify-content: center; text-align: center; gap: 5px; }
+  .vc.clone-new .big { font-size: 18px; color: var(--dim); }
+  .vc.clone-new .lb { font-size: 11.5px; font-weight: 600; }
+  .vc.clone-new .sb { font-family: var(--mono); font-size: 8.5px; color: var(--dim); line-height: 1.6; }
+
+  /* ── 帧4：参数半屏 sheet ── */
+  .sheet-scrim { position: absolute; inset: 0; background: rgba(10,10,10,.28); }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: var(--paper); border-top: 1px solid var(--line);
+    border-radius: 22px 22px 0 0;
+    padding: 12px 16px 18px;
+    display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 -20px 60px -30px rgba(10,10,10,.4);
+  }
+  .sheet .grab { width: 36px; height: 4px; border-radius: 999px; background: var(--line-2); align-self: center; }
+  .sheet .ttl { display: flex; align-items: baseline; gap: 8px; }
+  .sheet .ttl .t { font-size: 13px; font-weight: 700; }
+  .sheet .ttl .sb { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+  .sheet .row { display: flex; flex-direction: column; gap: 6px; }
+  .sheet .k { font-family: var(--mono); font-size: 9px; letter-spacing: .18em; color: var(--dim); text-transform: uppercase; }
+  .sheet .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sheet .c { font-size: 11px; padding: 6px 13px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--paper); }
+  .sheet .c.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .sheet .adv { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 9.5px; color: var(--dim); border-top: 1px solid var(--line); padding-top: 11px; }
+  .sheet .adv .car { margin-left: auto; }
+
+  .footnote { width: 100%; max-width: 1620px; font-family: var(--mono); font-size: 10px; color: var(--dim); line-height: 1.8; }
+  .footnote b { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <span class="crumb">STUDIO · AUDIO · MOBILE</span>
+  <h1>配音间 · 手机切片</h1>
+  <span class="hint">mock v3m · 四态并排 · 2026-08-29</span>
+</div>
+
+<div class="frames">
+
+  <!-- ══ 帧 1：房间主视图 ══ -->
+  <div class="device">
+    <div class="phone">
+      <div class="bar">
+        <span class="burger">☰</span>
+        <span class="k">画展之夜</span>
+        <span class="right">
+          <span class="chip">素材库 <span class="n">· 23</span></span>
+          <button class="go-final">合成 · 0:12</button>
+        </span>
+      </div>
+      <div class="flow">
+        <div class="msg">
+          <span class="ava l" data-voice="qing">晴</span>
+          <span class="grp">
+            <span class="who">晴 · Fish 温柔女声</span>
+            <span class="bub">各位晚上好——今晚的画展，八点开始。</span>
+            <span class="row2">
+              <span class="voice"><span class="play">▶</span><span class="wv"><i style="--h:87"></i><i style="--h:84"></i><i style="--h:54"></i><i style="--h:43"></i><i style="--h:78"></i><i style="--h:89"></i><i style="--h:71"></i><i style="--h:33"></i><i style="--h:63"></i><i style="--h:88"></i></span><span class="dur">0:04</span></span>
+              <span class="emo">平静</span>
+            </span>
+          </span>
+        </div>
+        <div class="msg">
+          <span class="ava l" data-voice="lei">磊</span>
+          <span class="grp">
+            <span class="who">磊 · Fish 少年音</span>
+            <span class="bub">好，我把海报再改一版，八点前挂出来！</span>
+            <span class="row2">
+              <span class="voice"><span class="play">▶</span><span class="wv"><i style="--h:59"></i><i style="--h:37"></i><i style="--h:74"></i><i style="--h:89"></i><i style="--h:75"></i><i style="--h:39"></i><i style="--h:58"></i><i style="--h:86"></i></span><span class="dur">0:03</span></span>
+              <span class="emo">兴奋 ⌄</span>
+            </span>
+          </span>
+        </div>
+        <div class="msg">
+          <span class="ava l" data-voice="fx">效</span>
+          <span class="grp">
+            <span class="who">音效师 · SFX</span>
+            <span class="bub">『木门缓缓推开，门轴吱呀作响』</span>
+            <span class="row2">
+              <span class="voice fx"><span class="play">▶</span><span class="wv"><i style="--h:20"></i><i style="--h:35"></i><i style="--h:85"></i><i style="--h:92"></i><i style="--h:88"></i><i style="--h:60"></i><i style="--h:38"></i></span><span class="dur">0:02</span></span>
+              <span class="emo">音效</span>
+            </span>
+          </span>
+        </div>
+        <div class="msg">
+          <span class="ava l" data-voice="qing">晴</span>
+          <span class="grp">
+            <span class="who">晴 · Fish 温柔女声</span>
+            <span class="bub">而此刻，馆里的灯一盏盏亮了。</span>
+            <span class="speaking"><span class="dots"><i></i><i></i><i></i><i></i></span>正在开口</span>
+          </span>
+        </div>
+      </div>
+      <div class="bed">
+        <span class="ava s" data-voice="bgm">乐</span>
+        <span class="k">底垫</span>
+        <span class="t">画廊之夜</span>
+        <span class="m">循环 · −14dB</span>
+        <span class="sw"></span>
+      </div>
+      <div class="dock">
+        <div class="picks">
+          <span class="pick-label">谁开口</span>
+          <span class="pick on" data-voice="qing">晴</span>
+          <span class="pick" data-voice="lei">磊</span>
+          <span class="pick" data-voice="ke">客</span>
+          <span class="pick" data-voice="fx">效</span>
+          <span class="pick" data-voice="bgm">乐</span>
+          <span class="pick add">＋</span>
+        </div>
+        <div class="inline">
+          <span class="field">晴的台词…<span class="cur"></span></span>
+          <button class="pbtn">参数</button>
+          <button class="go">生成</button>
+        </div>
+      </div>
+    </div>
+    <span class="cap">① 房间 —— 拇指热区全在底部两行</span>
+  </div>
+
+  <!-- ══ 帧 2：房间抽屉 ══ -->
+  <div class="device">
+    <div class="phone">
+      <div class="bar">
+        <span class="burger">☰</span>
+        <span class="k">画展之夜</span>
+        <span class="right"><span class="chip">素材库 <span class="n">· 23</span></span><button class="go-final">合成 · 0:12</button></span>
+      </div>
+      <div class="flow"></div>
+      <div class="scrim"></div>
+      <div class="drawer">
+        <span class="ttl">房间</span>
+        <div class="new"><span>＋</span>新房间</div>
+        <div class="rm on">
+          <span class="nm">画展之夜</span>
+          <span class="sub">
+            <span class="stack"><span class="dot ava xs" data-voice="qing"></span><span class="dot ava xs" data-voice="lei"></span><span class="dot ava xs" data-voice="ke"></span><span class="dot ava xs" data-voice="fx"></span></span>
+            <span class="when">刚刚</span>
+          </span>
+        </div>
+        <div class="rm">
+          <span class="nm unnamed">未命名房间</span>
+          <span class="sub"><span class="when">空</span></span>
+        </div>
+        <div class="rm">
+          <span class="nm">睡前故事 · 第三章</span>
+          <span class="sub">
+            <span class="stack"><span class="dot ava xs" data-voice="ke"></span><span class="dot ava xs" data-voice="bgm"></span></span>
+            <span class="when">昨天</span>
+          </span>
+        </div>
+        <div class="rm">
+          <span class="nm">广告 15 秒 · 三版</span>
+          <span class="sub">
+            <span class="stack"><span class="dot ava xs" data-voice="lei"></span><span class="dot ava xs" data-voice="fx"></span></span>
+            <span class="when">周三</span>
+          </span>
+        </div>
+        <p class="foot">每个房间自带<br>班底 · 底垫 · 素材</p>
+      </div>
+    </div>
+    <span class="cap">② 房间抽屉 —— ☰ 呼出，左滑收回</span>
+  </div>
+
+  <!-- ══ 帧 3：选角全屏 ══ -->
+  <div class="device">
+    <div class="phone">
+      <div class="caster-full">
+        <div class="hd">
+          <span class="t">选角</span>
+          <span class="src"><span class="s on">音色库</span><span class="s">我的克隆</span></span>
+          <span class="close">✕</span>
+        </div>
+        <div class="tools">
+          <span class="search">搜嗓子——「低沉的男声」…</span>
+          <div class="fs"><span class="f on">全部</span><span class="f">中文</span><span class="f">英文</span><span class="f">日文</span><span class="f">女</span><span class="f">男</span></div>
+        </div>
+        <div class="grid">
+          <div class="vc in">
+            <div class="top"><span class="ava s" data-voice="qing">晴</span><span><div class="nm">晴</div><div class="tags">女 · 温柔 · zh</div></span></div>
+            <div class="demo"><span class="play">▶</span><span class="wv"><i style="--h:70"></i><i style="--h:45"></i><i style="--h:80"></i><i style="--h:55"></i><i style="--h:75"></i></span><span class="dur">0:06</span></div>
+            <div class="join">已在班底</div>
+          </div>
+          <div class="vc">
+            <div class="top"><span class="ava s" data-voice="lan">澜</span><span><div class="nm">澜</div><div class="tags">女 · 电台夜话 · zh</div></span></div>
+            <div class="demo"><span class="play">▶</span><span class="wv"><i style="--h:50"></i><i style="--h:70"></i><i style="--h:40"></i><i style="--h:65"></i><i style="--h:55"></i></span><span class="dur">0:07</span></div>
+            <div class="join">请进房间</div>
+          </div>
+          <div class="vc">
+            <div class="top"><span class="ava s" data-voice="chen">沉</span><span><div class="nm">沉</div><div class="tags">男 · 低音纪录片 · zh</div></span></div>
+            <div class="demo"><span class="play">▶</span><span class="wv"><i style="--h:60"></i><i style="--h:80"></i><i style="--h:50"></i><i style="--h:85"></i><i style="--h:65"></i></span><span class="dur">0:05</span></div>
+            <div class="join">请进房间</div>
+          </div>
+          <div class="vc">
+            <div class="top"><span class="ava s" data-voice="yu">雨</span><span><div class="nm">小雨（克隆）</div><div class="tags">克隆 · 8 段样本</div></span></div>
+            <div class="demo"><span class="play">▶</span><span class="wv"><i style="--h:55"></i><i style="--h:65"></i><i style="--h:45"></i><i style="--h:70"></i><i style="--h:50"></i></span><span class="dur">0:04</span></div>
+            <div class="join">请进房间</div>
+          </div>
+          <div class="vc clone-new">
+            <span class="big">＋</span>
+            <span class="lb">克隆新声音</span>
+            <span class="sb">8 段样本 · 每段 ≤10MB</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="cap">③ 选角 —— 小屏整页接管，不做半浮层</span>
+  </div>
+
+  <!-- ══ 帧 4：参数 sheet ══ -->
+  <div class="device">
+    <div class="phone">
+      <div class="bar">
+        <span class="burger">☰</span>
+        <span class="k">画展之夜</span>
+        <span class="right"><span class="chip">素材库 <span class="n">· 23</span></span><button class="go-final">合成 · 0:12</button></span>
+      </div>
+      <div class="flow"></div>
+      <div class="sheet-scrim"></div>
+      <div class="sheet">
+        <span class="grab"></span>
+        <div class="ttl"><span class="t">参数</span><span class="sb">管接下来生成的念法 · 单句纠错点气泡角标</span></div>
+        <div class="row">
+          <span class="k">语速</span>
+          <div class="chips"><span class="c">慢</span><span class="c on">正常</span><span class="c">快</span></div>
+        </div>
+        <div class="row">
+          <span class="k">表现力</span>
+          <div class="chips"><span class="c on">自动</span><span class="c">克制</span><span class="c">自然</span><span class="c">戏剧化</span></div>
+        </div>
+        <div class="row">
+          <span class="k">朗读风格</span>
+          <div class="chips"><span class="c on">默认</span><span class="c">旁白</span><span class="c">对话</span></div>
+        </div>
+        <div class="adv">高级 · 温度 / Top-P / 音量<span class="car">⌄</span></div>
+      </div>
+    </div>
+    <span class="cap">④ 参数 —— 输入行「参数」键呼出半屏 sheet</span>
+  </div>
+
+</div>
+
+<p class="footnote">
+  <b>v3m 注记</b> ——
+  ① 聊天本来就是手机形态：桌面版的房间列收进 ☰ 抽屉，其余结构原样落下来，没有为小屏重排。
+  ② 拇指热区：谁开口（cast 横滑）+ 输入 + 参数 + 生成全部压在底部两行；顶部只放低频动作（素材库 / 合成）。
+  ③ 选角在小屏是<b>整页接管</b>不是半浮层——搜索+筛选+试听需要整屏呼吸。
+  ④ 参数是半屏 sheet（语速 / 表现力 / 朗读风格 + 高级折叠），管「接下来生成的念法」；单句纠错仍走气泡上的情感角标。
+  ⑤ 底垫条在小屏保留一行精简版（名字 / 循环 / 开关）。
+</p>
+
+</body>
+</html>

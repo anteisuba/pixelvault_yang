@@ -52,6 +52,8 @@ vi.mock('@/services/civitai-search-snapshot.service', () => ({
 
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
 import {
+  fetchCivitaiLoraDownloadPolicy,
+  findCivitaiLorasWithDownloadDisabled,
   getCivitaiModelDescription,
   listCivitaiLoras,
   mineCivitaiUserPrompts,
@@ -1791,12 +1793,12 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     const body = JSON.parse(String(init.body))
     expect(body.queries).toHaveLength(1)
     expect(body.queries[0].q).toBe('鸣潮')
-    expect(body.queries[0].sort).toEqual(['sortMetrics.downloadCount:desc'])
+    expect(body.queries[0].sort).toEqual(['metrics.downloadCount:desc'])
     expect(body.queries[0].offset).toBe(0)
   })
 
   it.each([
-    ['Most Downloaded', ['sortMetrics.downloadCount:desc']],
+    ['Most Downloaded', ['metrics.downloadCount:desc']],
     ['Newest', ['createdAt:desc']],
   ] as const)(
     'sends a single meilisearch window with sort=%s',
@@ -1811,6 +1813,55 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
       const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
       expect(body.queries).toHaveLength(1)
       expect(body.queries[0].sort).toEqual(expected)
+    },
+  )
+
+  // 2026-08-29 事故锁：`sortMetrics.downloadCount` 从未进过 live 索引的
+  // sortable 白名单（Creator Controls 预留字段，声明 sortable 要等一次
+  // models index reset），但 2026-08-26 对齐官网源码时把它抄进了 sort map
+  // ——上游恒 400 invalid_search_sort，「最多下载」自引入起每次都静默降级
+  // 成 REST 相关性序，任何 mock 测试都测不出来。这里把发出的每个 sort 字
+  // 段锁在**上游实测**的 sortable 白名单内；改 sort map 前先重新实测：
+  //
+  //   curl -sS -X POST https://search-new.civitai.com/multi-search \
+  //     -H 'Authorization: Bearer <CIVITAI_MODEL_SEARCH_PUBLIC_KEY>' \
+  //     -H 'Content-Type: application/json' \
+  //     -d '{"queries":[{"indexUid":"models_v9","q":"","limit":1,"sort":["<候选字段>:desc"]}]}'
+  //
+  //   合法字段 200；非法字段 400，报错体自带完整白名单——把它抄进这份常量
+  //   （连同实测日期）再改 map。官网源码只是意图，不是 live 索引的现状。
+  const CIVITAI_SORTABLE_ATTRIBUTES_LIVE_2026_08_29 = [
+    'createdAt',
+    'id',
+    'isOfficial',
+    'metrics.collectedCount',
+    'metrics.commentCount',
+    'metrics.downloadCount',
+    'metrics.favoriteCount',
+    'metrics.thumbsUpCount',
+    'metrics.tippedAmountCount',
+  ]
+
+  it.each([['Most Downloaded'], ['Newest']] as const)(
+    'meilisearch sort fields for %s stay inside the upstream sortable whitelist',
+    async (sort) => {
+      mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
+
+      await listCivitaiLoras({ search: 'detail', sort })
+
+      const searchCall = mockFetch.mock.calls.find((call) =>
+        String(call[0]).includes('search-new.civitai.com'),
+      )
+      const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
+      for (const query of body.queries) {
+        expect(query.sort?.length).toBeGreaterThan(0)
+        for (const sortField of query.sort) {
+          const attribute = String(sortField).replace(/:(asc|desc)$/, '')
+          expect(CIVITAI_SORTABLE_ATTRIBUTES_LIVE_2026_08_29).toContain(
+            attribute,
+          )
+        }
+      }
     },
   )
 
@@ -4446,5 +4497,88 @@ describe('listCivitaiLoras — S2 content type filter', () => {
       expect(result.offsetPaginationSupported).toBe(true)
       expect(result.nextCursor).toBeNull()
     })
+  })
+})
+
+// ── Creator Controls：作者关掉下载的 LoRA ────────────────────────────────
+//
+// 2026-08-29 真机根因。`usageControl` 只在 version 详情端点上有，且
+// **不可下载的版本照样返 `downloadUrl`** —— 所以判据只能是这个字段本身。
+describe('civitai download policy', () => {
+  it('flags a version whose creator turned downloads off', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        id: 2266398,
+        usageControl: 'Generation',
+        // 不可下载也照样带 downloadUrl —— 拿它当判据就会漏判。
+        downloadUrl: 'https://civitai.com/api/download/models/2266398',
+        model: { name: 'Ananta' },
+      }),
+    )
+
+    const policy = await fetchCivitaiLoraDownloadPolicy(2266398)
+
+    expect(policy).toEqual({
+      modelVersionId: 2266398,
+      downloadDisabled: true,
+      usageControl: 'Generation',
+      name: 'Ananta',
+    })
+  })
+
+  it('clears a version that is actually downloadable', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({ id: 135867, usageControl: 'Download' }),
+    )
+
+    const policy = await fetchCivitaiLoraDownloadPolicy(135867)
+    expect(policy.downloadDisabled).toBe(false)
+  })
+
+  it('returns null (= 判不了) when the field is missing, so callers pass', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({ id: 42 }))
+
+    const policy = await fetchCivitaiLoraDownloadPolicy(42)
+    expect(policy.downloadDisabled).toBeNull()
+  })
+
+  it('returns null (= 判不了) when Civitai itself is down', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({ error: 'boom' }, 503))
+
+    const policy = await fetchCivitaiLoraDownloadPolicy(7)
+    expect(policy.downloadDisabled).toBeNull()
+  })
+
+  it('only reports the blocked Civitai LoRAs and never touches other sources', async () => {
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/2266398')) {
+        return jsonResponse({
+          id: 2266398,
+          usageControl: 'Generation',
+          model: { name: 'Ananta' },
+        })
+      }
+      return jsonResponse({ id: 135867, usageControl: 'Download' })
+    })
+
+    const blocked = await findCivitaiLorasWithDownloadDisabled([
+      'https://civitai.com/api/download/models/2266398',
+      'https://civitai.com/api/download/models/135867',
+      // 非 Civitai 源没有这个字段，一次请求都不该发。
+      'https://huggingface.co/foo/bar/resolve/main/style.safetensors',
+    ])
+
+    expect(blocked.map((policy) => policy.modelVersionId)).toEqual([2266398])
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('passes everything through when no LoRA is a Civitai download link', async () => {
+    const blocked = await findCivitaiLorasWithDownloadDisabled([
+      'https://huggingface.co/foo/bar/resolve/main/style.safetensors',
+    ])
+
+    expect(blocked).toEqual([])
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })

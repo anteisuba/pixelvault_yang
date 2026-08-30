@@ -6825,6 +6825,8 @@
     "linePlaceholder": "{name} の台詞——感情は文中に：（ささやき）振り向かないで…",
     "pickSpeakerFirst": "話す人を選んでください",
     "lineInputLabel": "台詞",
+    "params": "読み方",
+    "paramsHint": "これから生成する読み方の設定です。1 行だけ直すときは吹き出しの感情バッジから。",
     "sending": "送信中",
     "generate": "生成",
     "addVoice": "音声を追加",
@@ -6847,8 +6849,6 @@
       "surprised": "驚き"
     },
     "casting": "キャスティング",
-    "voiceLibrary": "音声ライブラリ",
-    "myVoices": "マイ音声",
     "close": "閉じる",
     "searchVoices": "声を検索——低い男性の声、深夜ラジオ風…",
     "preview": "試聴",
@@ -6856,8 +6856,29 @@
     "alreadyInCast": "キャスト済み",
     "loading": "読み込み中",
     "noVoicesFound": "一致する音声が見つかりません",
-    "noVoiceCards": "保存した音声がまだありません——ライブラリから選んでください",
-    "castingLoadFailed": "音声の読み込みに失敗しました",
-    "castingJoinFailed": "音声を追加できませんでした"
+    "tab": {
+      "public": "ボイスライブラリ",
+      "favorites": "お気に入り",
+      "cloned": "クローン"
+    },
+    "favorite": "お気に入りに追加",
+    "unfavorite": "お気に入りから外す",
+    "previewing": "試聴中",
+    "castFull": "キャストがいっぱいです",
+    "noFavoriteVoices": "お気に入りはまだありません — ライブラリで星を付けてください",
+    "noClonedVoices": "クローンした声はまだありません",
+    "listEnd": "ここまでです",
+    "castLabel": "キャスト",
+    "castCount": "{count} / {max}",
+    "done": "完了",
+    "vaultNote": "生成すると自動で保存されます",
+    "vaultEmpty": "この部屋にはまだ録音がありません",
+    "pickModel": "モデルを選択",
+    "cloneNew": "声をクローン",
+    "cloneNewHint": "サンプル最大 {files} 件 · 各 {mb}MB まで\n2 分で自分の声に",
+    "cancel": "キャンセル",
+    "deleteRoom": "ルームを削除",
+    "deleteRoomTitle": "このルームを削除しますか？",
+    "deleteRoomHint": "「{name}」とすべてのセリフが削除されます。生成済みの音声は素材ライブラリに残ります。"
   }
 }

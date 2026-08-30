@@ -97,6 +97,10 @@ import {
   uploadImageFileAPI,
 } from '@/lib/api-client'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
+import {
+  getGenerationModel3DPosterUrl,
+  getGenerationModel3DVisualUrl,
+} from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import type {
   Generate3DRequest,
@@ -1150,9 +1154,8 @@ export function Studio3DWorkspace({
                   // Fall back to the persisted poster (`url` differs from
                   // `modelUrl` after a previous capture-upload).
                   sourceImage?.url ??
-                  (displayGeneration.url !== displayGeneration.modelUrl
-                    ? displayGeneration.url
-                    : undefined)
+                  getGenerationModel3DVisualUrl(displayGeneration) ??
+                  undefined
                 }
                 alt={displayGeneration.prompt || '3D model'}
                 loadingLabel={t('viewerLoading')}
@@ -1164,13 +1167,23 @@ export function Studio3DWorkspace({
                 )}
                 onModelVisible={() => setFinalModelVisible(true)}
                 onPosterCaptured={(blob) => {
-                  // Fire-and-forget: failure is non-fatal (asset just won't
-                  // get a thumbnail until next view-and-capture). Only
-                  // capture for the freshly-generated row — the deeplinked
-                  // one already has its poster persisted.
-                  if (generatedGeneration) {
-                    void uploadGenerationPosterAPI(generatedGeneration.id, blob)
-                  }
+                  // Historical rows can legitimately lack a poster (the
+                  // worker first stores the GLB in both url + modelUrl). Let
+                  // any opened row self-heal after its mesh becomes visible,
+                  // not only a row generated during this React session.
+                  if (getGenerationModel3DPosterUrl(displayGeneration)) return
+                  void uploadGenerationPosterAPI(
+                    displayGeneration.id,
+                    blob,
+                  ).then((response) => {
+                    if (
+                      response.success &&
+                      response.data?.generation &&
+                      hydratedGeneration?.id === displayGeneration.id
+                    ) {
+                      setHydratedGeneration(response.data.generation)
+                    }
+                  })
                 }}
               >
                 {/*

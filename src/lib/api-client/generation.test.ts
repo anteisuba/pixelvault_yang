@@ -7,6 +7,7 @@ import {
   submitLongVideoAPI,
   submitVideoAPI,
   uploadImageFileAPI,
+  uploadVideoFileAPI,
 } from '@/lib/api-client/generation'
 
 const STRUCTURED_ERROR_PAYLOAD = {
@@ -363,5 +364,73 @@ describe('uploadImageFileAPI direct R2 flow', () => {
     expect(result.success).toBe(false)
     // Never reached the complete step.
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('uploadVideoFileAPI direct R2 flow', () => {
+  it('prepares, uploads, and completes a video as an asset', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              uploadUrl: 'https://r2.example.com/video?signature=ok',
+              storageKey: 'generations/db_user_123/video/2026-08-29_abc.mp4',
+              publicUrl: 'https://cdn.example.com/video.mp4',
+              headers: { 'Content-Type': 'video/mp4', 'If-None-Match': '*' },
+              expiresAt: new Date(Date.now() + 300_000).toISOString(),
+              maxBytes: 50 * 1024 * 1024,
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              generation: {
+                id: 'video-gen-1',
+                outputType: 'VIDEO',
+                url: 'https://cdn.example.com/video.mp4',
+              },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const file = new File(['video-bytes'], 'clip.mp4', { type: 'video/mp4' })
+    const result = await uploadVideoFileAPI(file, {
+      width: 1920,
+      height: 1080,
+      duration: 8.5,
+    })
+
+    expect(result.success).toBe(true)
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      API_ENDPOINTS.UPLOAD_VIDEO_DIRECT,
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://r2.example.com/video?signature=ok',
+      expect.objectContaining({
+        method: 'PUT',
+        headers: { 'Content-Type': 'video/mp4', 'If-None-Match': '*' },
+        body: file,
+      }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      API_ENDPOINTS.UPLOAD_VIDEO_DIRECT_COMPLETE,
+      expect.objectContaining({ method: 'POST' }),
+    )
   })
 })

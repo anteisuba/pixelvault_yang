@@ -21,6 +21,17 @@ const mockOptions = vi.hoisted(() => ({
     aspectRatios: ['16:9', '9:16'] as readonly string[],
   },
 }))
+/**
+ * 选中的模型可变 —— 台账 A「顺带」加了 `generateAudio` 开关之后，「整块不渲染」
+ * 不再等价于「三组档位全空」：那第四个控件问的是**契约**，不是
+ * `getVideoModelParameterOptions`。「没选模型」这个真实前提必须能被摆出来。
+ */
+const mockSelectedModel = vi.hoisted(() => ({
+  value: { modelId: 'seedance-2.5', adapterType: 'volcengine' } as {
+    modelId: string
+    adapterType: string
+  } | null,
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -40,14 +51,29 @@ vi.mock('@/contexts/studio-context', () => ({
 }))
 
 vi.mock('@/hooks/use-video-model-options', () => ({
-  useVideoModelOptions: () => ({
-    selectedModel: { modelId: 'seedance-2.5', adapterType: 'volcengine' },
-  }),
+  useVideoModelOptions: () => ({ selectedModel: mockSelectedModel.value }),
 }))
 
-vi.mock('@/constants/video-model-send-plan', () => ({
-  getVideoModelParameterOptions: () => mockOptions.value,
-}))
+/**
+ * ⚠ **部分 mock**，不是整模块替身。
+ *
+ * 台账 A「顺带」（2026-08-29）：面板补了 `generateAudio` 开关，它问的是
+ * `getVideoModelSendContract(...)` —— 也就是**选中端点的契约支不支持**这一档。
+ * 用 `importOriginal` 保留真实契约表，只覆写这个文件真正要控制的那一个函数：
+ * 手写一个 `{ parameters: { generateAudio: true } }` 等于让「不支持的档不渲染」
+ * 这条规则在本文件失效，而同文件另外三档守的正是这条。
+ *
+ * ⛔ 也别改回「整模块替身 + 手抄几个导出」—— 那正是本仓反复踩的「手写镜像漏一个
+ * 字段，整文件集体崩」（见 VideoComposer 夹具脱节那条）。
+ */
+vi.mock('@/constants/video-model-send-plan', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/constants/video-model-send-plan')>()
+  return {
+    ...actual,
+    getVideoModelParameterOptions: () => mockOptions.value,
+  }
+})
 
 vi.mock('@/components/business/studio-shared/primitives/tool-surface', () => ({
   StudioToolSurface: ({ children }: { children: ReactNode }) => (
@@ -84,6 +110,10 @@ describe('StudioVideoSpecPopover', () => {
       durations: [5, 10],
       resolutions: ['480p', '720p'],
       aspectRatios: ['16:9', '9:16'],
+    }
+    mockSelectedModel.value = {
+      modelId: 'seedance-2.5',
+      adapterType: 'volcengine',
     }
   })
 
@@ -122,11 +152,24 @@ describe('StudioVideoSpecPopover', () => {
     expect(screen.getByText('aspectRatioLabel')).toBeInTheDocument()
   })
 
-  it('⭐ 三组全空就整块不渲染，连「规格」标签都不留（没选模型时的常态）', () => {
+  it('⭐ 没选模型时整块不渲染，连「规格」标签都不留', () => {
+    // ⚠ 前提要摆全：台账 A「顺带」加了 `generateAudio` 开关之后，「整块不渲染」
+    // 不再等价于「三组档位全空」—— 那个开关问的是**契约**。真正的常态是「还没选
+    // 模型」，那时四样东西都没有答案。
     mockOptions.value = { durations: [], resolutions: [], aspectRatios: [] }
+    mockSelectedModel.value = null
     const { container } = render(<StudioVideoSpecPopover />)
 
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('⭐ 档位三组全空但模型支持出声时，只剩出声开关那一组', () => {
+    mockOptions.value = { durations: [], resolutions: [], aspectRatios: [] }
+    render(<StudioVideoSpecPopover />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'specLabel' }))
+    expect(screen.getByText('generateAudioLabel')).toBeInTheDocument()
+    expect(screen.queryByText('durationLabel')).not.toBeInTheDocument()
   })
 
   it('目录声明了产品不支持的比例时把它滤掉', () => {

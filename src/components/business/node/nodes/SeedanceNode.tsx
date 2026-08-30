@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { NodeToolbar, Position, type NodeProps } from '@xyflow/react'
 import { Maximize2, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -16,6 +16,7 @@ import {
   buildDisplayNamePatch,
   resolveNodeDisplayName,
 } from '@/lib/node-display-name'
+import { useSidecarPlacement } from '@/hooks/node/use-sidecar-placement'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
@@ -56,6 +57,14 @@ export const SeedanceNode = memo(function SeedanceNode(
   // 侧车标题显示**系列**（Seedance / Kling），那是这张卡在讲哪个牌子。
   const nodeBrand = data.model ? getModelFamily(data.model.modelId) : null
 
+  // 台账 N（2026-08-29 真机 ⭐）：编排台此前写死贴右侧，宿主卡靠视口右缘时
+  // 模型/规格/发送整行落在屏幕外，唯一出路是把节点拖回屏幕中间。放得下时
+  // 恒等于原来的 `Right`/`start`，一像素不动。
+  const [sidecarEl, setSidecarEl] = useState<HTMLElement | null>(null)
+  const sidecarVisible =
+    Boolean(selected) && !multiSelectActive && !canvasNodeDragActive
+  const placement = useSidecarPlacement(id, sidecarEl, sidecarVisible)
+
   return (
     <NodeShell
       type={NODE_TYPE_IDS.seedance}
@@ -70,11 +79,9 @@ export const SeedanceNode = memo(function SeedanceNode(
     >
       <NodeToolbar
         nodeId={id}
-        isVisible={
-          Boolean(selected) && !multiSelectActive && !canvasNodeDragActive
-        }
-        position={Position.Right}
-        align="start"
+        isVisible={sidecarVisible}
+        position={placement.position}
+        align={placement.align}
         offset={
           isMobile
             ? NODE_STUDIO_NODE_SIDECAR_OFFSET.mobile
@@ -82,8 +89,11 @@ export const SeedanceNode = memo(function SeedanceNode(
         }
         className="canvas-video-sidecar-toolbar"
       >
-        <CanvasPopIn side="right">
+        <CanvasPopIn
+          side={placement.position === Position.Left ? 'left' : 'right'}
+        >
           <aside
+            ref={setSidecarEl}
             aria-label={t('sidecar.ariaLabel')}
             className="canvas-video-sidecar nodrag nopan nowheel"
           >

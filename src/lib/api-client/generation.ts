@@ -37,8 +37,10 @@ import type {
   Model3DStatusResponse,
   Model3DSubmitResponse,
   DirectUploadImagePrepare,
+  DirectUploadVideoPrepare,
   UploadImageRequest,
   UploadImageResponse,
+  UploadVideoResponse,
   VideoStatusResponse,
   VideoSubmitResponse,
 } from '@/types'
@@ -151,10 +153,9 @@ export async function checkVideoStatusAPI(
 }
 
 /**
- * Upload a client-rendered poster PNG (or any image) for a MODEL_3D
- * generation. Server overwrites the row's `url` / `storageKey` so the
- * asset browser can render a real thumbnail. Idempotent — calling twice
- * returns the existing row without re-uploading.
+ * Upload a client-rendered poster image for a VIDEO or MODEL_3D generation.
+ * Videos fill their thumbnail fields; 3D keeps its poster-as-`url` model.
+ * Idempotent — calling twice returns the existing row without re-uploading.
  */
 export async function uploadGenerationPosterAPI(
   generationId: string,
@@ -227,6 +228,12 @@ export async function uploadImageAPI(
 interface DirectUploadPrepareResponse {
   success: boolean
   data?: DirectUploadImagePrepare
+  error?: string
+}
+
+interface DirectUploadVideoPrepareResponse {
+  success: boolean
+  data?: DirectUploadVideoPrepare
   error?: string
 }
 
@@ -396,6 +403,111 @@ export async function uploadImageFileAPI(
     )
 
     return complete
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/** Browser-direct R2 upload for a local video selected in the asset library. */
+export async function uploadVideoFileAPI(
+  file: File,
+  options: {
+    width: number
+    height: number
+    duration?: number
+    poster?: Blob | null
+    note?: string
+    projectId?: string
+    onProgress?: (percent: number) => void
+    signal?: AbortSignal
+  },
+): Promise<UploadVideoResponse> {
+  try {
+    const prepare = await postJson<DirectUploadVideoPrepareResponse>(
+      API_ENDPOINTS.UPLOAD_VIDEO_DIRECT,
+      {
+        fileName: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        note: options.note,
+        projectId: options.projectId,
+      },
+      'Video upload prepare failed',
+    )
+
+    if (!prepare.success || !prepare.data) {
+      return {
+        success: false,
+        error: prepare.error ?? 'Video upload prepare failed',
+      }
+    }
+
+    let storageResponse: PutResult
+    try {
+      storageResponse = options.onProgress
+        ? await putFileWithProgress(
+            prepare.data.uploadUrl,
+            file,
+            prepare.data.headers,
+            options.onProgress,
+            options.signal,
+          )
+        : await fetch(prepare.data.uploadUrl, {
+            method: 'PUT',
+            headers: prepare.data.headers,
+            body: file,
+          })
+    } catch (error) {
+      return {
+        success: false,
+        error: `Could not reach video storage: ${
+          error instanceof Error ? error.message : 'network error'
+        }`,
+        i18nKey: 'errors.upload.storageUnreachable',
+      }
+    }
+
+    if (!storageResponse.ok) {
+      return {
+        success: false,
+        error: `Video storage rejected the upload (status ${storageResponse.status})`,
+        i18nKey: 'errors.upload.storageRejected',
+      }
+    }
+
+    const complete = await postJson<UploadVideoResponse>(
+      API_ENDPOINTS.UPLOAD_VIDEO_DIRECT_COMPLETE,
+      {
+        storageKey: prepare.data.storageKey,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        width: options.width,
+        height: options.height,
+        duration: options.duration,
+        note: options.note,
+        projectId: options.projectId,
+      },
+      'Video upload finalize failed',
+    )
+
+    if (!complete.success || !complete.data || !options.poster) {
+      return complete
+    }
+
+    // Poster capture/upload is best-effort. The video is already safely in
+    // the archive, and AssetTile can decode a frame itself when no poster is
+    // available, so a poster failure must not turn the upload into a failure.
+    const poster = await uploadGenerationPosterAPI(
+      complete.data.generation.id,
+      options.poster,
+    )
+    return poster.success && poster.data
+      ? { success: true, data: poster.data }
+      : complete
   } catch (error) {
     return {
       success: false,

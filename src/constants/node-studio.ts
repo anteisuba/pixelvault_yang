@@ -734,13 +734,29 @@ export function resolveReferenceAssetLimit(
     : NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems
 }
 
+/**
+ * 显示名字段的长度上限 —— **`types/node-workflow.ts` 里那批 `.max(160)` 的唯一
+ * 出处**（`characterName` / `backgroundName` / `shotName` / `mediaLabel` /
+ * `sourceLabel` / `referenceAssets[].name`）。
+ *
+ * ⚠ 这个数此前被手抄成两份 `maxSourceLabelLength: 160`，而**只有两个写入口在用
+ * 它** —— 另外七个把 `generation.prompt` 原样写进同一批字段（台账 V，2026-08-29：
+ * 服务端 Zod 拒收整个 project state，画布从那一刻起不再落库，UI 却报成「网络连不
+ * 上」）。收成一处 + 一个共享的截断函数（`lib/node-display-name.ts` 的
+ * `toNodeDisplayLabel`）之后，写入口不再各自决定截不截。
+ *
+ * ⚠ 改这个数要连着改 schema 那批 `.max(...)` —— 它们必须是同一个数，写侧截到
+ * 161 而 schema 收 160 就等于什么都没修。
+ */
+export const NODE_STUDIO_DISPLAY_NAME = {
+  maxLength: 160,
+} as const
+
 export const NODE_STUDIO_CHARACTER_IMAGE_OUTPUT = {
-  maxSourceLabelLength: 160,
   uploadNote: 'Node Studio character output',
 } as const
 
 export const NODE_STUDIO_MEDIA_IMAGE_OUTPUT = {
-  maxSourceLabelLength: 160,
   uploadNote: 'Node Studio image node output',
 } as const
 
@@ -970,13 +986,48 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
 export function resolveTopbarAddSpawnPosition(
   viewportCenter: { x: number; y: number },
   sequence: number,
+  /**
+   * 画布上**已经有的**节点位置（左上角坐标）。传了就做碰撞避让：从 `sequence`
+   * 那一格开始往下找第一个没被占的落点。
+   *
+   * ⚠ 台账 S（owner 2026-08-29 真机）：错位步进按的是**这一会话点了几次**，
+   * 与「那个位置上有没有东西」无关 —— 于是第 0 次（`cascadeIndex = 0`）永远
+   * 精确落在视口正中，而刚生成完的那张卡恰好就被居中过（生成后自动选中 +
+   * 聚焦）。owner 两次「+ → 镜头图」都正好盖住刚出的图，每次都得手动拖开。
+   *
+   * 省略时行为与改动前逐字相同 —— 没有位置清单的调用方不受影响。
+   */
+  occupied?: readonly { x: number; y: number }[],
 ): { x: number; y: number } {
   const { topbarAddStep, topbarAddCascadeLimit } = NODE_STUDIO_NODE_PLACEMENT
-  const cascadeIndex = sequence % topbarAddCascadeLimit
-  return {
-    x: viewportCenter.x + cascadeIndex * topbarAddStep.x,
-    y: viewportCenter.y + cascadeIndex * topbarAddStep.y,
+  const at = (index: number) => ({
+    x: viewportCenter.x + index * topbarAddStep.x,
+    y: viewportCenter.y + index * topbarAddStep.y,
+  })
+
+  const fallback = at(sequence % topbarAddCascadeLimit)
+  if (!occupied || occupied.length === 0) return fallback
+
+  /**
+   * 「占住了」的判据是**两轴都落在一个步进之内**。用步进本身当阈值而不是去量
+   * 卡的真实尺寸：卡宽从 320 到 420 不等且随内容变，工作台这条路径手里没有可靠
+   * 的尺寸；而错位步进（64）本来就是「让人一眼看出这是两张卡」的那个数，
+   * 挪一格之后卡角必然错开，这正是要的结果。
+   */
+  const isFree = (candidate: { x: number; y: number }) =>
+    !occupied.some(
+      (node) =>
+        Math.abs(node.x - candidate.x) < topbarAddStep.x &&
+        Math.abs(node.y - candidate.y) < topbarAddStep.y,
+    )
+
+  for (let offset = 0; offset < topbarAddCascadeLimit; offset += 1) {
+    const candidate = at((sequence + offset) % topbarAddCascadeLimit)
+    if (isFree(candidate)) return candidate
   }
+  // 整条错位链都被占满 —— 与其飘到视野外，不如退回原来的落点（「落点在视口内」
+  // 是这条路径的另一条硬指标，见 `topbarAddCascadeLimit` 的注释）。
+  return fallback
 }
 
 /**

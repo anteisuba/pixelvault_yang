@@ -16,6 +16,7 @@ import {
   FileAudio2,
   FileText,
   Loader2,
+  Music2,
   Plus,
   X,
 } from 'lucide-react'
@@ -57,7 +58,10 @@ import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { getModelById, modelSupportsLora } from '@/constants/models'
 import { VIDEO_UNIT_PRICE_BASE_RESOLUTION } from '@/constants/models/unit-prices'
 import { isVideoResolution } from '@/constants/video-options'
-import { getVideoModelParameterOptions } from '@/constants/video-model-send-plan'
+import {
+  getVideoModelParameterOptions,
+  getVideoModelSendContract,
+} from '@/constants/video-model-send-plan'
 import { PLATFORM_GENERATION_GUARD, VIDEO_GENERATION } from '@/constants/config'
 import type { AspectRatio } from '@/constants/config'
 import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
@@ -155,6 +159,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   // 模态专属那几颗丸的文案 —— 命名空间沿用 dock 时期的，文案一个字没改
   const tBar = useTranslations('StudioToolbar')
   const tScript = useTranslations('VideoScript')
+  const tVideoAudio = useTranslations('StudioVideoAudio')
   const tVideo = useTranslations('VideoGenerate')
   const locale = useLocale()
 
@@ -485,6 +490,30 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     isAudioMode &&
     Boolean(state.audioReferenceUrl) &&
     state.audioReferenceText.trim().length === 0
+  /**
+   * 台账 A ②（owner 2026-08-29 拍板「加，按选中线路的契约判」）：挂了音频参考
+   * 但一张图/一段视频都没挂时，有些线路会 400。
+   *
+   * ⚠ **判据按线路走，不按模型走** —— 同一个 Seedance 2.5，火山/BytePlus 那条
+   * 允许纯音频参考（`audioRequiresVisual: false`），fal 那条不允许。所以这里读
+   * `getVideoModelSendContract(modelId, adapterType)`，与服务端
+   * `video-generation-validation.service.ts` 的同一份契约。
+   *
+   * ⚠ 服务端那道 400 在派发和扣费**之前**，所以不加这道闸也不会花钱 —— 加它是
+   * 为了让用户在点「生成」**之前**就知道差什么，而不是等一次往返换回一句英文。
+   * 画布那边同款（`sendPreview.blockers` 的 `audio-requires-visual`）。
+   */
+  const videoAudioNeedsVisual =
+    isVideoMode &&
+    state.videoAudioRefs.length > 0 &&
+    !hasRefImage &&
+    Boolean(
+      selectedModel &&
+      getVideoModelSendContract(
+        selectedModel.modelId,
+        selectedModel.adapterType as AI_ADAPTER_TYPES,
+      ).slots.audioRequiresVisual,
+    )
   const canGenerate =
     (usesStyleCardForModel
       ? !!styles.activeCardId && !!selectedStyleCard?.modelId
@@ -494,7 +523,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     !modelRejectsRefImages &&
     !isAudioPromptOverLimit &&
     !isImagePromptOverLimit &&
-    !isAudioReferenceIncomplete
+    !isAudioReferenceIncomplete &&
+    !videoAudioNeedsVisual
 
   // ── Reset selectedOptionId when outputType changes ─────────────
   // image/video/audio each have their own model pools; carrying a stale
@@ -652,6 +682,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     const videoMax = getReferenceCapabilityMax(videoCap)
     const refs = imageUpload.referenceImages.slice(0, videoMax)
     const firstRef = refs[0]
+    // 台账 A：音频参考的 URL 清单。面板已按选中端点的槽位上限挡过，这里不再裁。
+    const videoAudioUrls = state.videoAudioRefs.map((ref) => ref.url)
 
     // When workflowMode='card' with character cards applied, prepend character prompt.
     let finalPrompt = composePrompt(state.prompt) ?? ''
@@ -731,6 +763,38 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       ...(videoWorkflowId ? { workflowId: videoWorkflowId } : {}),
       characterCardIds:
         appliedCharacterIds.length > 0 ? appliedCharacterIds : undefined,
+      /**
+       * 台账 A（owner 2026-08-29 拍板）—— **真正的断点就是这两行**。
+       *
+       * 只加「音频」面板而不改这里等于白做：schema / service / worker 三层早就
+       * 收这两个字段，是 `buildVideoInput` 从来不填它们，所以工作台这条路一直
+       * 做不出带指定音色的对白视频。
+       *
+       * ⚠ 两个字段都要送：`audioUrls` 是发给 provider 的音频清单，
+       * `audioBindings` 只多带一个 `characterName` —— worker 据此生成
+       * `{Name} (@AudioN)` 提示词 token（`workers/execution/src/index.ts`）。
+       * 只送前者，多角色对白片里模型拿不到「谁在说话」。
+       * ⚠ 容量不在这里裁：服务端按选中端点的契约校验（超槽 400），前端在面板
+       * 里就按同一份契约挡住了 —— 这里再裁一刀会让两处的数悄悄分叉。
+       */
+      /**
+       * 原生出声（台账 A「顺带」）。`null` = 用户没设过 → **不发这个字段**，最终
+       * 值落到模型目录的 `videoDefaults.generateAudio`（服务端原样透传、worker 兜
+       * 底）。发一个 `false` 上去与「没设过」在目录默认为 true 的模型上结果相反，
+       * 所以这里必须区分三态，不能 `?? false`。
+       */
+      ...(state.videoGenerateAudio === null
+        ? {}
+        : { generateAudio: state.videoGenerateAudio }),
+      ...(videoAudioUrls.length > 0
+        ? {
+            audioUrls: videoAudioUrls,
+            audioBindings: state.videoAudioRefs.map((ref) => ({
+              url: ref.url,
+              ...(ref.ownerName ? { characterName: ref.ownerName } : {}),
+            })),
+          }
+        : {}),
     }
   }, [
     selectedModel,
@@ -740,6 +804,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     state.videoDuration,
     state.videoResolution,
     state.advancedParams.negativePrompt,
+    state.videoAudioRefs,
+    state.videoGenerateAudio,
     state.workflowMode,
     characters.activeCards,
     composePrompt,
@@ -1192,6 +1258,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     if (modelRejectsRefImages) {
       return { message: tPromptArea('blocked.referenceUnsupported') }
     }
+    if (videoAudioNeedsVisual) {
+      return {
+        message: tPromptArea('blocked.videoAudioNeedsVisual'),
+        focusPrompt: 'nextFrame',
+      }
+    }
     return null
   }, [
     canGenerate,
@@ -1202,6 +1274,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     modelRequiresRef,
     hasRefImage,
     modelRejectsRefImages,
+    videoAudioNeedsVisual,
     isAudioPromptOverLimit,
     audioTextLimit.enforced,
     isImagePromptOverLimit,
@@ -1491,6 +1564,32 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               >
                 <FileText className="size-4" />
                 {tScript('panelTitle')}
+              </button>
+              {/*
+                台账 A（owner 2026-08-29）：**挂音频参考的入口**。此前这一行只有
+                「剧本」一颗丸，整个工作台找不到任何挂音频的地方 —— 而「全能参考」
+                那一档选得到、Seedance 2.5 的音频槽有 10 个、后端三层全通。
+                ⚠ 挂了几条要显示出来：不显示的话，用户切走再回来根本不知道这次
+                请求还带着音频（图片参考那颗丸同款处理）。
+              */}
+              <button
+                type="button"
+                onClick={() =>
+                  dispatch({ type: 'TOGGLE_PANEL', payload: 'videoAudio' })
+                }
+                disabled={isGenerating}
+                className={cn(
+                  modalityPillClass,
+                  state.panels.videoAudio && modalityPillActiveClass,
+                )}
+              >
+                <Music2 className="size-4" />
+                {tVideoAudio('pill')}
+                {state.videoAudioRefs.length > 0 ? (
+                  <span className="tabular-nums">
+                    {state.videoAudioRefs.length}
+                  </span>
+                ) : null}
               </button>
             </Toolbar.Root>
           </>

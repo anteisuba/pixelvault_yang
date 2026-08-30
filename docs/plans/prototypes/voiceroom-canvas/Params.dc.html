@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; color: #0a0a0a; }
+    a { color: #0a0a0a; } a:hover { color: #616167; }
+    .mono { font-family: ui-monospace, 'SF Mono', Consolas, 'PingFang SC', 'Microsoft YaHei', monospace; }
+    .c { font-size: 11px; padding: 4px 11px; border: 1px solid #d3d3ce; border-radius: 999px; background: #ffffff; }
+    .con { background: #0a0a0a; color: #ffffff; border-color: #0a0a0a; }
+    .k { font-family: ui-monospace, Consolas, 'PingFang SC', monospace; font-size: 9.5px; letter-spacing: 0.18em; color: #616167; text-transform: uppercase; }
+    .pick { width: 30px; height: 30px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 12px; font-weight: 700; opacity: 0.4; border: 2px solid transparent; flex: none; }
+  </style>
+</helmet>
+<div style="width: 620px; height: 440px; background: #f4f4f1; padding: 20px 24px; overflow: hidden; display: flex; flex-direction: column;">
+
+  <span class="mono" style="font-size: 10px; letter-spacing: 0.18em; color: #616167;">细节 · 参数 —— 输入行「参数」键点开，管接下来生成的念法</span>
+
+  <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px;">
+
+    <div style="width: 320px; background: #ffffff; border: 1px solid #e6e6e2; border-radius: 14px; box-shadow: 0 22px 60px -24px rgba(10,10,10,0.35); padding: 14px; display: flex; flex-direction: column; gap: 12px; align-self: flex-end; margin-right: 56px; position: relative;">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span class="k">语速</span>
+        <span style="display: flex; gap: 6px;"><span class="c">慢</span><span class="c con">正常</span><span class="c">快</span></span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span class="k">表现力</span>
+        <span style="display: flex; gap: 6px;"><span class="c con">自动</span><span class="c">克制</span><span class="c">自然</span><span class="c">戏剧化</span></span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span class="k">朗读风格</span>
+        <span style="display: flex; gap: 6px;"><span class="c con">默认</span><span class="c">旁白</span><span class="c">对话</span></span>
+      </div>
+      <div class="mono" style="display: flex; align-items: center; gap: 8px; font-size: 10px; color: #616167; border-top: 1px solid #e6e6e2; padding-top: 10px;">
+        <span>高级 · 温度 / Top-P / 音量</span>
+        <svg style="margin-left: auto;" width="8" height="6" viewBox="0 0 8 6"><path d="M0.5 0.5l3.5 4.5 3.5-4.5" stroke="#616167" stroke-width="1.2" fill="none"></path></svg>
+      </div>
+      <span style="position: absolute; right: 34px; bottom: -6px; width: 10px; height: 10px; background: #ffffff; border-right: 1px solid #e6e6e2; border-bottom: 1px solid #e6e6e2; transform: rotate(45deg);"></span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid #e6e6e2; background: #ffffff; border-radius: 12px; border: 1px solid #e6e6e2;">
+      <span style="display: flex; gap: 6px;">
+        <span class="pick" style="opacity: 1; border-color: #0a0a0a; background: linear-gradient(135deg, #c98da8, #8a4160);">晴</span>
+        <span class="pick" style="background: linear-gradient(135deg, #7fa3c9, #33506b);">磊</span>
+        <span class="pick" style="background: linear-gradient(135deg, #c9b47f, #8a6f33);">客</span>
+        <span class="pick" style="background: linear-gradient(135deg, #8a94a6, #3a4356);">效</span>
+        <span class="pick" style="background: linear-gradient(135deg, #87b096, #33584a);">乐</span>
+        <span class="pick" style="background: #d3d3ce; opacity: 1;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 0v10M0 5h10" stroke="#616167" stroke-width="1.4"></path></svg></span>
+      </span>
+      <span class="mono" style="flex: 1; font-size: 12px; color: #616167;">晴的台词…</span>
+      <span class="mono" style="font-size: 10.5px; padding: 6px 12px; border: 1px solid #0a0a0a; border-radius: 999px; background: #ffffff; color: #0a0a0a;">参数</span>
+      <span style="font-size: 11.5px; font-weight: 600; padding: 7px 18px; border-radius: 999px; background: #0a0a0a; color: #ffffff;">生成</span>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

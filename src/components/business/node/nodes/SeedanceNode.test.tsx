@@ -10,7 +10,17 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@xyflow/react', () => ({
   NodeToolbar: ({ children }: { children: ReactNode }) => children,
-  Position: { Right: 'right' },
+  Position: { Right: 'right', Left: 'left' },
+  // 台账 N：侧车位置改成视口避让后，`useSidecarPlacement` 要读 ReactFlow 的
+  // 节点几何与 transform。这两条与「卡宽收不收窄」无关，给最小替身即可 ——
+  // 没有节点 = 直接回默认位置（右侧 / start），也就是这些用例的原有前提。
+  useReactFlow: () => ({
+    getNode: () => undefined,
+    flowToScreenPosition: (position: { x: number; y: number }) => position,
+  }),
+  useStore: (
+    selector: (state: { transform: [number, number, number] }) => unknown,
+  ) => selector({ transform: [0, 0, 1] }),
 }))
 
 vi.mock('../NodeWorkflowActionsContext', () => ({

@@ -18,7 +18,7 @@
  * leans on the card's own drop shadow and on layout instead. `--auth-dim` at
  * 4.31 is also a hair under 4.5.
  *
- * This domain does NOT share the `.home-v3` tokens. It opens over the home but
+ * This domain does NOT share the `.home-v4` tokens. It opens over the home but
  * is its own world, and the sign-in page has to stand on its own.
  */
 

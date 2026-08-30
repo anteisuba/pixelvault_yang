@@ -56,7 +56,10 @@ import {
 } from '@/lib/api-client'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { getApiErrorMessage } from '@/lib/api-error-message'
-import { getGenerationPreviewUrl } from '@/lib/generation-media'
+import {
+  getGenerationModel3DVisualUrl,
+  getGenerationPreviewUrl,
+} from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord, ProjectRecord } from '@/types'
 
@@ -775,11 +778,7 @@ function Model3DPreview({ generation }: { generation: GenerationRecord }) {
       <div className="aspect-square max-h-[calc(48dvh-4rem)] w-full overflow-hidden rounded-2xl border border-border/60 bg-muted/40 lg:max-h-[calc(100dvh-12rem)]">
         <ModelViewer
           src={generation.modelUrl}
-          poster={
-            generation.url && generation.url !== generation.modelUrl
-              ? generation.url
-              : undefined
-          }
+          poster={getGenerationModel3DVisualUrl(generation) ?? undefined}
           alt={generation.prompt || '3D model'}
           loadingLabel={t('viewerLoading')}
           className="h-full w-full"

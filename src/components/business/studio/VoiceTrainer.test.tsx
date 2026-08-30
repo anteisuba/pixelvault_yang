@@ -12,10 +12,12 @@ vi.mock('next-intl', () => ({
     },
 }))
 
-const dispatchMock = vi.fn()
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => ({ state: {}, dispatch: dispatchMock }),
-}))
+/**
+ * ⚠ 2026-08-30：训练成功后的落点从「直接 dispatch 进 StudioContext」改成了
+ * `onCreated` 回调——这样配音间（没有 StudioProvider）也能复用这个组件。
+ * 这里锁的是那个回调的形状，工作台自己在回调里 dispatch。
+ */
+const onCreatedMock = vi.fn()
 
 const refreshMock = vi.fn(async () => {})
 vi.mock('@/hooks/cards/use-voice-cards', () => ({
@@ -65,7 +67,7 @@ function pickFiles(files: File[]) {
 
 describe('VoiceTrainer', () => {
   afterEach(() => {
-    dispatchMock.mockReset()
+    onCreatedMock.mockReset()
     refreshMock.mockClear()
     createVoiceMock.mockReset()
     transcribeVoiceMock.mockReset()
@@ -127,7 +129,7 @@ describe('VoiceTrainer', () => {
       voiceCard: { id: 'card-1', voiceId: 'fish-voice-1' },
     })
 
-    render(<VoiceTrainer />)
+    render(<VoiceTrainer onCreated={onCreatedMock} />)
     fireEvent.change(screen.getByPlaceholderText('voiceTrainNamePlaceholder'), {
       target: { value: 'My Voice' },
     })
@@ -136,13 +138,9 @@ describe('VoiceTrainer', () => {
     fireEvent.click(screen.getByText('voiceTrainCreate'))
 
     await waitFor(() => expect(createVoiceMock).toHaveBeenCalled())
-    expect(dispatchMock).toHaveBeenCalledWith({
-      type: 'SET_VOICE_CARD_ID',
-      payload: 'card-1',
-    })
-    expect(dispatchMock).toHaveBeenCalledWith({
-      type: 'SET_VOICE_ID',
-      payload: 'fish-voice-1',
+    expect(onCreatedMock).toHaveBeenCalledWith({
+      cardId: 'card-1',
+      voiceId: 'fish-voice-1',
     })
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())
     expect(toastSuccess).toHaveBeenCalledWith('voiceTrainSuccess')
@@ -157,7 +155,7 @@ describe('VoiceTrainer', () => {
       error: 'raw',
     })
 
-    render(<VoiceTrainer />)
+    render(<VoiceTrainer onCreated={onCreatedMock} />)
     fireEvent.change(screen.getByPlaceholderText('voiceTrainNamePlaceholder'), {
       target: { value: 'My Voice' },
     })
@@ -166,7 +164,7 @@ describe('VoiceTrainer', () => {
 
     await waitFor(() => expect(toastError).toHaveBeenCalled())
     expect(toastError.mock.calls[0]?.[0]).toBe('voiceApiKeyRequired')
-    expect(dispatchMock).not.toHaveBeenCalled()
+    expect(onCreatedMock).not.toHaveBeenCalled()
     expect(refreshMock).not.toHaveBeenCalled()
   })
 

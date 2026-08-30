@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
@@ -572,6 +572,53 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       ? getNodeModeForModel(data.model.modelId, data.model.adapterType)
       : DEFAULT_VIDEO_NODE_MODE)
 
+  /**
+   * 切档（§9.3）——**模式是视图，型号是选择**。
+   *
+   * ⚠ 台账 U（2026-08-29 真机）：这里原来的做法是「新模式不认这条 modelId 就把
+   * model 整个清掉」，而 modelId 是**端点**不是型号 —— `seedance-2.5` 在关键帧档
+   * 是 `seedance-2.5-volcengine`、在全能参考档是 `seedance-2.5-reference-volcengine`，
+   * 两个 id 天然不同。于是「先选模型再选用途」（最自然的操作顺序）必然把用户刚选
+   * 的 2.5 清掉，随后上面那个「没模型就起默认」的 effect 补进 Seedance 2.0 Fast。
+   * 真机后果不止是模型名变了：槽位上限跟着从 2.5 的 30/10/10 退回 2.0 的 9/3/3，
+   * 而用户的注意力在刚点的那个用途上，全程零提示。
+   *
+   * 正解就是提交链路一直在用的那个函数 —— `resolveVideoModelForMode` 拿「型号 ×
+   * 渠道 × 新模式」重新解析端点。这正是「用户只看见 Seedance 2.5、reference 这个
+   * 词不出现在 UI 里」得以成立的那一步，切档时没有理由不走同一条。
+   *
+   * 解析不出来（该型号在新档下真的没有端点）才回到原行为：清模型 + 清型号相关的
+   * 档位（新模型未必支持旧档位）。**用户已传的素材一律保留在数据层** —— 素材是
+   * 用户的劳动，模式是可来回切的视图状态。
+   */
+  const selectMode = useCallback(
+    (next: VideoNodeMode) => {
+      if (next === videoMode) return
+      const remapped = data.model
+        ? resolveVideoModelForMode(data.model, next, options)
+        : null
+      if (remapped) {
+        // 同一个型号 × 渠道在两档下解析到同一个端点时（多数模型只有一条端点），
+        // 不写 `model` —— 补丁保持最小，历史栈里也不会多出一次「其实没变」的写入。
+        const unchanged =
+          remapped.modelId === data.model?.modelId &&
+          remapped.optionId === data.model?.optionId
+        updateNodeData(nodeId, {
+          videoMode: next,
+          ...(unchanged ? {} : { model: toSelection(remapped) }),
+        })
+        return
+      }
+      updateNodeData(nodeId, {
+        videoMode: next,
+        ...(data.model
+          ? { model: undefined, duration: undefined, resolution: undefined }
+          : {}),
+      })
+    },
+    [data.model, nodeId, options, updateNodeData, videoMode],
+  )
+
   useEffect(() => {
     if (data.model) return
     if (options.length === 0) return
@@ -672,6 +719,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   return {
     options,
     videoMode,
+    selectMode,
     textNodes,
     hasReferenceInputs,
     hasUpstreamInputs,

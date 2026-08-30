@@ -6825,6 +6825,8 @@
     "linePlaceholder": "{name}: put the emotion in the sentence — (whisper) do not look back…",
     "pickSpeakerFirst": "Pick a speaker first",
     "lineInputLabel": "Line",
+    "params": "Delivery",
+    "paramsHint": "Sets how the next lines are read. To fix one line, tap its emotion badge.",
     "sending": "Sending",
     "generate": "Generate",
     "addVoice": "Add a voice",
@@ -6847,8 +6849,6 @@
       "surprised": "Surprised"
     },
     "casting": "Casting",
-    "voiceLibrary": "Voice library",
-    "myVoices": "My voices",
     "close": "Close",
     "searchVoices": "Search voices — a low male voice, late-night radio…",
     "preview": "Preview",
@@ -6856,8 +6856,29 @@
     "alreadyInCast": "In the cast",
     "loading": "Loading",
     "noVoicesFound": "No voices matched",
-    "noVoiceCards": "No saved voices yet — pick one from the library",
-    "castingLoadFailed": "Could not load voices",
-    "castingJoinFailed": "Could not add that voice"
+    "tab": {
+      "public": "Voice library",
+      "favorites": "Saved",
+      "cloned": "Cloned"
+    },
+    "favorite": "Save voice",
+    "unfavorite": "Remove from saved",
+    "previewing": "Previewing",
+    "castFull": "Cast is full",
+    "noFavoriteVoices": "No saved voices yet — star one in the library",
+    "noClonedVoices": "No cloned voices yet",
+    "listEnd": "End of list",
+    "castLabel": "Cast",
+    "castCount": "{count} of {max}",
+    "done": "Done",
+    "vaultNote": "Saved automatically · nothing to do",
+    "vaultEmpty": "Nothing recorded in this room yet",
+    "pickModel": "Pick a model",
+    "cloneNew": "Clone a voice",
+    "cloneNewHint": "Up to {files} samples · {mb}MB each\nYour own voice in two minutes",
+    "cancel": "Cancel",
+    "deleteRoom": "Delete room",
+    "deleteRoomTitle": "Delete this room?",
+    "deleteRoomHint": "“{name}” and all its lines will be removed. Voices you already generated stay in your library."
   }
 }

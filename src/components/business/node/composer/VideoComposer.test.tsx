@@ -148,7 +148,19 @@ const { composerState } = vi.hoisted(() => ({
     textNodes: [] as Array<{ id: string; name: string; text: string }>,
     /** 模式档位的可用性判据 = 这一档有没有模型（owner 2026-08-10）。默认空表
      *  示三档全无模型 → 全部置灰，正是「无可用模型」那条用例要的状态。 */
-    options: [] as Array<{ modelId: string; adapterType?: string }>,
+    /**
+     * ⚠ 形状要能喂给真实的 `resolveVideoModelForMode`（切档解析端点走它）——
+     * 只有 `modelId` + `adapterType` 的简化形状会让重解析产出一个没有 optionId /
+     * providerConfig 的半成品选择。台账 U 之后 mock 的 `selectMode` 用真实解析器，
+     * 所以这里也要给真实字段。
+     */
+    options: [] as Array<{
+      optionId?: string
+      modelId: string
+      adapterType?: string
+      providerConfig?: { label: string; baseUrl: string }
+      apiKeyId?: string
+    }>,
     // R3-6b: `maxReferenceImages` / `sendPreview` mirror `useVideoComposer`'s
     // real return shape — VideoComposer.tsx reads both unconditionally, so
     // this mock has to supply them (not just the fields these tests assert
@@ -207,14 +219,63 @@ const { composerState } = vi.hoisted(() => ({
 vi.mock('@/hooks/node/use-video-composer', async () => {
   const { DEFAULT_VIDEO_NODE_MODE, getNodeModeForModel } =
     await import('@/constants/video-node-modes')
+  const { resolveVideoModelForMode } =
+    await import('@/lib/video-node-model-resolver')
   return {
-    useVideoComposer: (_nodeId: string, data: NodeWorkflowNodeData) => ({
+    useVideoComposer: (nodeId: string, data: NodeWorkflowNodeData) => ({
       options: composerState.options,
       videoMode:
         data?.videoMode ??
         (data?.model
           ? getNodeModeForModel(data.model.modelId, data.model.adapterType)
           : DEFAULT_VIDEO_NODE_MODE),
+      /**
+       * ⚠ 与上面 `videoMode` 同理：切档逻辑也用**真实**的
+       * `resolveVideoModelForMode`，不在 mock 里手写一份简化版。台账 U 那条 bug
+       * （切档把 2.5 清成 2.0 Fast）的判据全在「同一型号在新档下解析到哪个端点」
+       * 这一步上，mock 掉它这几条用例就什么都守不住了。
+       */
+      selectMode: (next: string) => {
+        const current =
+          data?.videoMode ??
+          (data?.model
+            ? getNodeModeForModel(data.model.modelId, data.model.adapterType)
+            : DEFAULT_VIDEO_NODE_MODE)
+        if (next === current) return
+        const remapped = data?.model
+          ? resolveVideoModelForMode(
+              data.model,
+              next as never,
+              composerState.options as never,
+            )
+          : null
+        if (remapped) {
+          const unchanged =
+            remapped.modelId === data.model?.modelId &&
+            remapped.optionId === data.model?.optionId
+          updateNodeData(nodeId, {
+            videoMode: next,
+            ...(unchanged
+              ? {}
+              : {
+                  model: {
+                    optionId: remapped.optionId,
+                    modelId: remapped.modelId,
+                    adapterType: remapped.adapterType,
+                    providerConfig: remapped.providerConfig,
+                    apiKeyId: remapped.apiKeyId,
+                  },
+                }),
+          })
+          return
+        }
+        updateNodeData(nodeId, {
+          videoMode: next,
+          ...(data?.model
+            ? { model: undefined, duration: undefined, resolution: undefined }
+            : {}),
+        })
+      },
       hasReferenceInputs: false,
       hasUpstreamInputs: true,
       referenceKinds: composerState.referenceKinds,
@@ -232,12 +293,24 @@ vi.mock('@/hooks/node/use-video-composer', async () => {
 
 /** 覆盖三档各一个模型 —— 让模式下拉的档位真的可选（可用性判据 = 该档有模型）。 */
 const MODE_COVERING_OPTIONS = [
-  { modelId: AI_MODELS.SEEDANCE_20, adapterType: AI_ADAPTER_TYPES.FAL },
   {
+    optionId: 'workspace:seedance-20',
+    modelId: AI_MODELS.SEEDANCE_20,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: { label: 'fal', baseUrl: 'https://x.test' },
+  },
+  {
+    optionId: 'workspace:ref',
     modelId: AI_MODELS.SEEDANCE_20_REFERENCE,
     adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: { label: 'fal', baseUrl: 'https://x.test' },
   },
-] as Array<{ modelId: string; adapterType?: string }>
+] as Array<{
+  optionId?: string
+  modelId: string
+  adapterType?: string
+  providerConfig?: { label: string; baseUrl: string }
+}>
 
 /**
  * 打开底部参数条的模式下拉，选一档。
@@ -639,7 +712,15 @@ describe('VideoComposer compact sidecar', () => {
     ).toHaveTextContent('sidecar.mode.multimodal')
   })
 
-  it('切档时清掉不兼容的模型与参数档，但**不动**用户已传的素材', () => {
+  /**
+   * 台账 U（2026-08-29 真机）：切档**不该丢用户选的型号**。
+   *
+   * 这条用例此前断言的是相反的行为（「清掉模型与参数档」），因为老实现拿
+   * **端点 id** 判「模型还留不留」—— 而同一个型号在两档下本来就是两个端点 id，
+   * 于是每一次真正的切档都判 false。真机后果：选好 Seedance 2.5 再切用途，模型
+   * 自己变回 Seedance 2.0 Fast，槽位上限跟着从 30/10/10 退回 9/3/3，全程零提示。
+   */
+  it('切档保留用户选的型号，只把端点重解析到新档', () => {
     composerState.options = MODE_COVERING_OPTIONS
     renderCompact({
       videoMode: 'multimodal',
@@ -656,12 +737,15 @@ describe('VideoComposer compact sidecar', () => {
     selectMode('keyframe')
 
     const patch = updateNodeData.mock.calls.at(-1)?.[1]
-    expect(patch).toEqual({
-      videoMode: 'keyframe',
-      model: undefined,
-      duration: undefined,
-      resolution: undefined,
-    })
+    expect(patch.videoMode).toBe('keyframe')
+    // 同一个型号（seedance-2.0）× 同一个渠道（fal），端点换成关键帧档那条。
+    expect(patch.model.modelId).toBe(AI_MODELS.SEEDANCE_20)
+    expect(patch.model.adapterType).toBe(AI_ADAPTER_TYPES.FAL)
+    // 时长/分辨率**不再被清掉**：端点变了但型号没变，两条端点的
+    // supportedDurations / supportedResolutions 逐项相同（见
+    // `constants/video-model-capabilities.ts`），清掉纯属误伤。
+    expect(patch).not.toHaveProperty('duration')
+    expect(patch).not.toHaveProperty('resolution')
     // 素材字段一个都不许出现在补丁里 —— 切视图不销毁用户的劳动。
     for (const assetField of [
       'referenceImages',
@@ -671,6 +755,32 @@ describe('VideoComposer compact sidecar', () => {
     ]) {
       expect(patch).not.toHaveProperty(assetField)
     }
+  })
+
+  it('该型号在新档下真的没有端点时，才清模型与参数档', () => {
+    // 档位可用（清单里有 Seedance 的参考端点），但**节点选的是 Kling**，而 Kling
+    // 这个型号在全能参考档下没有任何端点 —— 这才是「模型跟不上新档」的真形态。
+    composerState.options = MODE_COVERING_OPTIONS
+    renderCompact({
+      videoMode: 'keyframe',
+      duration: '10',
+      resolution: '720p',
+      model: {
+        optionId: 'workspace:kling',
+        modelId: AI_MODELS.KLING_V3_PRO,
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: { label: 'fal', baseUrl: 'https://x.test' },
+      },
+    } as Partial<NodeWorkflowNodeData>)
+
+    selectMode('multimodal')
+
+    expect(updateNodeData.mock.calls.at(-1)?.[1]).toEqual({
+      videoMode: 'multimodal',
+      model: undefined,
+      duration: undefined,
+      resolution: undefined,
+    })
   })
 
   it('切到该模型仍然支持的档时，保留模型与参数档', () => {

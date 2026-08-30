@@ -15,6 +15,14 @@
 import { NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID } from '@/constants/node-studio'
 import type { NodeStudioReferenceRole } from '@/constants/node-studio'
 import {
+  NODE_WORKFLOW_FIELDS_BY_IMAGE_ROLE,
+  NODE_WORKFLOW_FIELDS_BY_NODE_TYPE,
+  NODE_WORKFLOW_FIELD_IDS,
+  NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE,
+  type NodeImageRole,
+  type NodeWorkflowNodeType,
+} from '@/constants/node-types'
+import {
   VIDEO_RESOLUTIONS,
   type VideoResolution,
 } from '@/constants/video-options'
@@ -31,13 +39,52 @@ import type {
 } from '@/types/node-workflow'
 
 /**
- * `set_prompt` 的补丁。落的是节点自己的 `prompt` 字段 —— 与人手在同一个框里打字
- * 完全等价，不另设一套「助手写的提示词」通道（与 `add_node.prompt` 同一条）。
+ * 助手写进来的一段自由文本该落**哪个字段** —— `add_node.prompt` 与 `set_prompt`
+ * 共用这一处（台账 K-1，2026-08-29 真机）。
+ *
+ * ── 为什么不能一律写 `prompt` ────────────────────────────────────────
+ * 「与人手在同一个框里打字完全等价」这句话本身是对的，错的是**假设每种节点都有
+ * 那个框**。`shotText` 没有：它的四栏是 scene / action / camera / composition，
+ * 详情面板渲染的是这四栏、`buildNodeWorkflowPrompt` 拼的也是这四栏，`prompt`
+ * 在它身上零读者。真机后果是助手写的四段镜头文本（401 / 288 / 302 / 270 字符）
+ * 全部作废，而节点只显示「还没有镜头文本」—— **静默，且看起来像助手没写**。
+ * `voice` 同病（五栏全是音色配置，没有正文字段）。
+ *
+ * 落点表在 `constants/node-types.ts`，不变量测试钉着「字段集没有 prompt 的类型
+ * 必须登记」。返回 `null` = 这个节点真的没地方放这段文字，调用方要**明说拒绝**，
+ * 不许随便找个字段塞进去（那只是把黑洞换个位置）。
+ */
+export function buildAssistantPromptPatch(
+  identity: { role?: NodeImageRole; type?: NodeWorkflowNodeType },
+  prompt: string,
+): Partial<NodeWorkflowNodeData> | null {
+  const fields = identity.role
+    ? NODE_WORKFLOW_FIELDS_BY_IMAGE_ROLE[identity.role]
+    : identity.type
+      ? NODE_WORKFLOW_FIELDS_BY_NODE_TYPE[identity.type]
+      : undefined
+
+  // 没有登记字段集的类型走 `buildNodeWorkflowPrompt` 的同一条兜底：`[prompt]`。
+  if (!fields || fields.includes(NODE_WORKFLOW_FIELD_IDS.prompt)) {
+    return { prompt }
+  }
+
+  const landing = identity.type
+    ? NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE[identity.type]
+    : undefined
+  if (!landing) return null
+  return { [landing]: prompt }
+}
+
+/**
+ * `set_prompt` 的补丁。落点由 `buildAssistantPromptPatch` 按节点类型决定 ——
+ * 见它的头注（此前这里无条件写 `prompt`，对镜头文本节点等于把内容丢进黑洞）。
  */
 export function buildAssistantSetPromptPatch(
+  identity: { role?: NodeImageRole; type?: NodeWorkflowNodeType },
   op: NodeAssistantSetPromptOp,
-): Partial<NodeWorkflowNodeData> {
-  return { prompt: op.prompt }
+): Partial<NodeWorkflowNodeData> | null {
+  return buildAssistantPromptPatch(identity, op.prompt)
 }
 
 /**

@@ -136,6 +136,21 @@ describe('ReferenceLandingTabs · 素材库选入 → 落散图节点', () => {
     expect(onResolved.mock.calls[0][0]).toMatchObject({ source: 'asset' })
   })
 
+  /**
+   * 台账 B（owner 2026-08-29）：四格里只有素材库是两跳 —— 点了 Tab 还要再点一个
+   * 同名按钮。Tab 本身已经表达过意图了。
+   */
+  it('点「素材库」Tab 直接开对话框，不需要第二次点击', () => {
+    spawnReference.mockClear()
+    render(<ReferenceLandingTabs targetNodeId="host-1" />)
+
+    fireEvent.mouseDown(screen.getByText('assetTab'))
+    // 对话框的 mock 只在 open 时渲染这颗按钮 —— 它在场就等于对话框开了。
+    fireEvent.click(screen.getByText('confirm-two-assets'))
+
+    expect(spawnReference).toHaveBeenCalledTimes(2)
+  })
+
   it('上限 0 的节点（该模式不吃参考图）：Tab 的输入面全部禁用', () => {
     render(<ReferenceLandingTabs targetNodeId="host-1" disabled />)
     expect(screen.getByText('uploadTitle').closest('button')).toBeDisabled()
@@ -198,7 +213,10 @@ describe('ReferenceLandingTabs · 第四源「从画布选择」（阶段 8-a）
   })
 
   it('画布上一张图都没有时给空态，不给一个空网格', () => {
-    listCanvasImageSources.mockReturnValueOnce([])
+    // ⚠ 不能用 `mockReturnValueOnce`：它把「空画布」这个前提绑在**渲染次数**上，
+    // 组件多一次 re-render 就漏回默认的两条数据（Tabs 改成受控后正是如此，
+    // 见台账 B）。前提是「这块画布是空的」，那就整场都空。
+    listCanvasImageSources.mockReturnValue([])
     render(<ReferenceLandingTabs targetNodeId="host-1" />)
     fireEvent.mouseDown(screen.getByText('canvasTab'))
     expect(screen.getByText('canvasEmpty')).toBeInTheDocument()

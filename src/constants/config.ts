@@ -203,6 +203,12 @@ export const API_ENDPOINTS = {
   /** Complete a browser-direct R2 image upload and create its Generation row */
   UPLOAD_IMAGE_DIRECT_COMPLETE: '/api/upload-image/direct/complete',
 
+  /** Prepare a browser-direct R2 video upload from the asset library */
+  UPLOAD_VIDEO_DIRECT: '/api/upload-video/direct',
+
+  /** Complete a browser-direct R2 video upload and create its Generation row */
+  UPLOAD_VIDEO_DIRECT_COMPLETE: '/api/upload-video/direct/complete',
+
   /** Upload a poster PNG for a MODEL_3D generation (client-rendered thumbnail) */
   GENERATION_POSTER: '/api/generations',
 
@@ -275,6 +281,12 @@ export const API_ENDPOINTS = {
   /** Audio generation status polling */
   GENERATE_AUDIO_STATUS: '/api/generate-audio/status',
 
+  /** 配音间：一场戏 = 一个房间 */
+  VOICEROOM_ROOMS: '/api/voiceroom/rooms',
+
+  /** 配音间：一条台词 = 一次生成 */
+  VOICEROOM_LINES: '/api/voiceroom/lines',
+
   /** Studio V2 */
   STUDIO_GENERATE: '/api/studio/generate',
   STUDIO_GENERATE_STATUS: '/api/studio/generate/status',
@@ -303,6 +315,9 @@ export const API_ENDPOINTS = {
   /** Mine real activation prompts from /api/v1/images for a Civitai LoRA */
   LORA_ASSETS_CIVITAI_MINED_PROMPTS: '/api/lora-assets/civitai/mined-prompts',
   LORA_ASSETS_CIVITAI_DESCRIPTION: '/api/lora-assets/civitai/description',
+  /** Civitai Creator Controls：这把 LoRA 的权重能不能被下走（挂载前的闸） */
+  LORA_ASSETS_CIVITAI_DOWNLOAD_POLICY:
+    '/api/lora-assets/civitai/download-policy',
   RUNNER_USAGE: '/api/runner/usage',
   /** Resolve a recipe's extra-LoRA reference (hash / versionId) to a mountable item */
   LORA_ASSETS_CIVITAI_RESOLVE: '/api/lora-assets/civitai/resolve',

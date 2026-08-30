@@ -38,6 +38,7 @@
 import {
   NODE_STUDIO_CHARACTER_IMAGE_OUTPUT,
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
+  NODE_STUDIO_DISPLAY_NAME,
   NODE_STUDIO_MEDIA_IMAGE_OUTPUT,
 } from '@/constants/node-studio'
 import {
@@ -70,6 +71,39 @@ export function stripFileExtension(fileName: string): string {
     .trim()
     .replace(/\.[A-Za-z0-9]{1,8}$/, '')
     .trim()
+}
+
+/**
+ * 任意长文本 → 可以安全落进显示名字段的短标签。**所有把用户/机器文本写进
+ * `characterName` / `backgroundName` / `shotName` / `voiceName` / `mediaLabel` /
+ * `sourceLabel` / `referenceAssets[].name` 的入口都必须过这里。**
+ *
+ * ── 为什么必须收成一处（台账 V，2026-08-29 真机实测）─────────────────
+ * 这七个字段在 `types/node-workflow.ts` 里全是 `.max(160)`，而写侧有七个入口把
+ * `generation.prompt` **原样**写进去 —— 一张用几百字提示词生成的图，只要被选进
+ * 参考图 / 落成散图节点，那段提示词就成了它的「名字」。后果不是显示难看，是
+ * **整个项目从那一刻起不再落库**：
+ *
+ *   `[node-workflow] server persist failed {"operation":"update-project-state",
+ *    "error":"Too big: expected string to have <=160 characters, ×3"}`
+ *
+ * 服务端 Zod 拒收整个 payload，客户端却把它报成「连不上云端，请检查网络连接」
+ * （已同步修，见 `use-node-workflow.ts` 的 `reportServerWriteFailure`）。用户被
+ * 指去修网络，而这轮所有配置只活在浏览器内存里，刷新即失。
+ *
+ * ⚠ 截断而不是拒绝：这些字段本就该短（是标题不是内容），原文一直都在
+ * `data.prompt` / `generationId` 指向的 Generation 记录上，没有信息丢失。
+ *
+ * ⚠ 空串返回 `undefined` 而不是 `''`：schema 上这批字段是 `.min(1).optional()`，
+ * 写空串同样会被服务端拒收 —— 换一个 Zod 报错不算修好。
+ */
+export function toNodeDisplayLabel(value: unknown): string | undefined {
+  const trimmedValue = trimmed(value)
+  if (!trimmedValue) return undefined
+  const clamped = trimmedValue
+    .slice(0, NODE_STUDIO_DISPLAY_NAME.maxLength)
+    .trim()
+  return clamped.length > 0 ? clamped : undefined
 }
 
 /**
@@ -194,6 +228,12 @@ function notMachineValue(
  *
  * `mediaLabel` 与 `sourceLabel` 一起写：两者是老搭档，只写一个会让它们悄悄
  * 分叉（`NodeMediaPreview` 原注释已经记过这条）。
+ *
+ * ⚠ 值一律过 `toNodeDisplayLabel` 截到 schema 上限（台账 V）。改名输入框本身没有
+ * maxLength——粘一段长文进去，落盘时服务端会拒收**整个 project state**，而不是只
+ * 拒这一个名字。空名字由 `EditableNodeLabel.applyCommit` 在上游拦掉，这里截完仍
+ * 为空只可能是调用方传了纯空白，退化成不写这个字段（返回空补丁）而不是写空串
+ * —— schema 上这批字段是 `.min(1)`，写空串同样会让整份状态被拒。
  */
 export function buildDisplayNamePatch(
   /**
@@ -204,7 +244,8 @@ export function buildDisplayNamePatch(
   nextValue: string,
 ): Partial<NodeWorkflowNodeData> {
   const { role, type } = identity
-  const value = nextValue.trim()
+  const value = toNodeDisplayLabel(nextValue)
+  if (!value) return {}
 
   if (
     role === NODE_IMAGE_ROLE_IDS.character ||

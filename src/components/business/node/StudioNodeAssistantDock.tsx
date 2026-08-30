@@ -360,7 +360,12 @@ export function StudioNodeAssistantDock({
   const handleApplyAssistantOps = useCallback(
     async (ops: readonly PlannedNodeAssistantOp[]) => {
       if (!runAssistantCanvasOps) {
-        return { applied: 0, skipped: ops.length, createdNodeIds: [] }
+        return {
+          applied: 0,
+          skipped: ops.length,
+          failedConnects: 0,
+          createdNodeIds: [],
+        }
       }
       const result = await runAssistantCanvasOps(ops)
       if (result.applied > 0) {
@@ -387,6 +392,13 @@ export function StudioNodeAssistantDock({
   const [autoAppliedByMessageId, setAutoAppliedByMessageId] = useState<
     Record<string, number>
   >({})
+  /**
+   * 台账 K-2：自动落里**连线没建成**的条数，按消息 id 记。与 `applied` 分开存是
+   * 因为它们答的是两个问题 ——「落了几个」和「结构成没成形」。回执把后者漏掉时，
+   * 前者越大越让人放心。
+   */
+  const [autoFailedConnectsByMessageId, setAutoFailedConnectsByMessageId] =
+    useState<Record<string, number>>({})
 
   useEffect(() => {
     // ② 首次挂载：现有消息一律记成已处理，不回溯执行。
@@ -418,6 +430,12 @@ export function StudioNodeAssistantDock({
           ...current,
           [message.id]: result.applied,
         }))
+        if (result.failedConnects > 0) {
+          setAutoFailedConnectsByMessageId((current) => ({
+            ...current,
+            [message.id]: result.failedConnects,
+          }))
+        }
       })
     }
   }, [
@@ -695,6 +713,7 @@ export function StudioNodeAssistantDock({
                 planAssistantOps={planAssistantOps}
                 onApplyAssistantOps={handleApplyAssistantOps}
                 autoAppliedByMessageId={autoAppliedByMessageId}
+                autoFailedConnectsByMessageId={autoFailedConnectsByMessageId}
                 onUndoAutoApply={undo}
               />
             </div>
@@ -725,6 +744,7 @@ export function StudioNodeAssistantDock({
               planAssistantOps={planAssistantOps}
               onApplyAssistantOps={handleApplyAssistantOps}
               autoAppliedByMessageId={autoAppliedByMessageId}
+              autoFailedConnectsByMessageId={autoFailedConnectsByMessageId}
               onUndoAutoApply={undo}
             />
           </div>

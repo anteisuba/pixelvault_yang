@@ -20,6 +20,7 @@ import {
 } from '@/constants/lora'
 import { getCompatibleBases } from '@/constants/lora-base-models'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
+import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
 import { useHuggingFaceLoraLibrary } from '@/hooks/use-huggingface-lora-library'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
@@ -66,6 +67,8 @@ export function LoraLibraryModal({
   const t = useTranslations('LoraWorkbench')
   const isMobile = useIsMobile()
   const stack = useActiveLoraStack()
+  // 挂载前的 Civitai 下载闸（与「库」tab 的 CivitaiLibraryPane 共用同一实现）。
+  const { checkingVersionId, ensureMountable } = useCivitaiDownloadGate()
   // 「我的」= 收藏 + 训练；HF 挂载走「导入为收藏 → LoraAssetRecord → 挂栈」
   // （favoriteExternalLora 幂等：已收藏文件直接返回既有记录）。
   const { favoriteExternalLora, favoriteAssets, trainedAssets, isLoadingMine } =
@@ -140,7 +143,13 @@ export function LoraLibraryModal({
   const safeMode = civitai.nsfwFilter === 'safe'
 
   const handleUseCivitai = useCallback(
-    (item: CivitaiLoraLibraryItem) => {
+    async (item: CivitaiLoraLibraryItem) => {
+      // ⛔ 作者在 Civitai 关掉下载的 LoRA 挂上去只是个陷阱——判据、原因和
+      // 「为什么它不与下面那条 owner 决定冲突」都写在 useCivitaiDownloadGate
+      // 里。一句话：「该族暂无可出图底模」是会变的临时状态，照挂 + 提示是对的；
+      // 这一条是作者的永久设置，挂上去永远也出不了图。
+      if (!(await ensureMountable(item))) return
+
       // owner 2026-07-25：点「使用」一律直接挂载，不再跳 Civitai 外链。族暂无
       // 可出图底模时照挂 + 提示（装配栏的兼容点/「当前没有可用底模」会把状态说
       // 清楚），比把人踢去外站更诚实。
@@ -156,7 +165,7 @@ export function LoraLibraryModal({
       }
       onOpenChange(false)
     },
-    [onOpenChange, stack, t],
+    [ensureMountable, onOpenChange, stack, t],
   )
 
   const handleUseHf = useCallback(
@@ -366,7 +375,8 @@ export function LoraLibraryModal({
                     source="civitai"
                     item={item}
                     mounted={mountedUrls.has(item.loraUrl)}
-                    onUse={() => handleUseCivitai(item)}
+                    busy={checkingVersionId === item.modelVersionId}
+                    onUse={() => void handleUseCivitai(item)}
                   />
                 ))}
           </div>

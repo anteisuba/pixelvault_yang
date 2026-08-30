@@ -1,3 +1,14 @@
+/**
+ * 参考音频的体积上限。
+ *
+ * ⚠ 这个数**必须只有一份**：`services/audio-reference.service.ts` 是
+ * `import 'server-only'`，客户端够不到它，于是 `StudioAudioParams` 当初就地抄了
+ * 一份 25MB。2026-08-29 加视频音频参考面板时这本该抄第三份 —— 收在这里，服务端
+ * 与两个客户端面板读同一个数（Hard Rule 1）。
+ */
+export const REFERENCE_AUDIO_MAX_MB = 25
+export const REFERENCE_AUDIO_MAX_BYTES = REFERENCE_AUDIO_MAX_MB * 1024 * 1024
+
 /** Supported audio output formats */
 export const AUDIO_FORMATS = ['mp3', 'wav', 'pcm', 'opus'] as const
 export type AudioFormat = (typeof AUDIO_FORMATS)[number]

@@ -39,7 +39,11 @@ export interface EnsuredRunnerLora {
 export class RunnerLoraR2Error extends Error {
   constructor(
     message: string,
-    readonly code: 'INVALID_LORA_URL' | 'DOWNLOAD_FAILED' | 'TOO_LARGE',
+    readonly code:
+      | 'INVALID_LORA_URL'
+      | 'AUTH_REQUIRED'
+      | 'DOWNLOAD_FAILED'
+      | 'TOO_LARGE',
   ) {
     super(message)
     this.name = 'RunnerLoraR2Error'
@@ -59,6 +63,28 @@ function isRemoteFileTooLargeError(error: unknown): error is Error {
   return (
     error instanceof Error && error.message.includes('exceeds maximum size of')
   )
+}
+
+function isRemoteAuthenticationError(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    /buffered upload \((?:401|403)\)/.test(error.message)
+  )
+}
+
+function getCivitaiTokenCandidates(
+  preferredToken?: string | null,
+): Array<string | null> {
+  const candidates: Array<string | null> = []
+  for (const candidate of [
+    preferredToken || undefined,
+    getSystemCivitaiToken() || undefined,
+    null,
+  ]) {
+    if (candidate === undefined) continue
+    if (!candidates.includes(candidate)) candidates.push(candidate)
+  }
+  return candidates
 }
 
 export interface HuggingFaceLoraReference {
@@ -158,6 +184,7 @@ export function deriveRunnerHuggingFaceLoraFilename(
  */
 export async function ensureCivitaiLoraInR2(
   loraDownloadUrl: string,
+  preferredToken?: string | null,
 ): Promise<EnsuredRunnerLora> {
   const versionId = extractCivitaiModelVersionId(loraDownloadUrl)
   if (versionId == null) {
@@ -175,35 +202,49 @@ export async function ensureCivitaiLoraInR2(
     return { filename, r2Key, downloaded: false }
   }
 
-  const token = getSystemCivitaiToken()
-  const fetchHeaders = token ? { Authorization: `Bearer ${token}` } : undefined
-
-  try {
-    await uploadBufferedHttpToR2({
-      sourceUrl: loraDownloadUrl,
-      key: r2Key,
-      mimeType: 'application/octet-stream',
-      fetchHeaders,
-      maxBytes: RUNNER_LORA_MAX_BYTES,
-    })
-  } catch (error) {
-    logger.warn('Failed to cache Civitai LoRA to R2', {
-      versionId,
-      error: error instanceof Error ? error.message : 'Unknown',
-    })
-    if (isRemoteFileTooLargeError(error)) {
-      const match = error.message.match(/declared (\d+)|got (\d+)/)
-      const size = Number(match?.[1] ?? match?.[2] ?? RUNNER_LORA_MAX_BYTES + 1)
-      throw toRunnerLoraTooLargeError(size)
+  let lastAuthenticationError: Error | null = null
+  for (const token of getCivitaiTokenCandidates(preferredToken)) {
+    try {
+      await uploadBufferedHttpToR2({
+        sourceUrl: loraDownloadUrl,
+        key: r2Key,
+        mimeType: 'application/octet-stream',
+        fetchHeaders: token ? { Authorization: `Bearer ${token}` } : undefined,
+        maxBytes: RUNNER_LORA_MAX_BYTES,
+      })
+      logger.info('Cached Civitai LoRA to R2', { versionId, r2Key })
+      return { filename, r2Key, downloaded: true }
+    } catch (error) {
+      if (isRemoteAuthenticationError(error)) {
+        lastAuthenticationError = error
+        continue
+      }
+      logger.warn('Failed to cache Civitai LoRA to R2', {
+        versionId,
+        error: error instanceof Error ? error.message : 'Unknown',
+      })
+      if (isRemoteFileTooLargeError(error)) {
+        const match = error.message.match(/declared (\d+)|got (\d+)/)
+        const size = Number(
+          match?.[1] ?? match?.[2] ?? RUNNER_LORA_MAX_BYTES + 1,
+        )
+        throw toRunnerLoraTooLargeError(size)
+      }
+      throw new RunnerLoraR2Error(
+        `Failed to download Civitai LoRA ${versionId} to R2`,
+        'DOWNLOAD_FAILED',
+      )
     }
-    throw new RunnerLoraR2Error(
-      `Failed to download Civitai LoRA ${versionId} to R2`,
-      'DOWNLOAD_FAILED',
-    )
   }
 
-  logger.info('Cached Civitai LoRA to R2', { versionId, r2Key })
-  return { filename, r2Key, downloaded: true }
+  logger.warn('Civitai authentication failed while caching LoRA to R2', {
+    versionId,
+    error: lastAuthenticationError?.message ?? 'Unauthorized',
+  })
+  throw new RunnerLoraR2Error(
+    'Civitai API token is invalid or expired.',
+    'AUTH_REQUIRED',
+  )
 }
 
 /** Ensure a public Hugging Face SafeTensors LoRA is cached in R2. */
@@ -266,9 +307,10 @@ export async function ensureHuggingFaceLoraInR2(
 /** Resolve either a Civitai or Hugging Face source into the shared R2 cache. */
 export async function ensureRunnerLoraInR2(
   loraDownloadUrl: string,
+  preferredCivitaiToken?: string | null,
 ): Promise<EnsuredRunnerLora> {
   if (extractCivitaiModelVersionId(loraDownloadUrl) !== null) {
-    return ensureCivitaiLoraInR2(loraDownloadUrl)
+    return ensureCivitaiLoraInR2(loraDownloadUrl, preferredCivitaiToken)
   }
   if (parseHuggingFaceLoraReference(loraDownloadUrl)) {
     return ensureHuggingFaceLoraInR2(loraDownloadUrl)
@@ -289,10 +331,14 @@ const RUNNER_LORA_PRESIGN_TTL_SECONDS = 900
  */
 export async function prepareRunnerLoras(
   loras: readonly { url: string; scale?: number | null }[],
+  preferredCivitaiToken?: string | null,
 ): Promise<RunnerLoraSpec[]> {
   const specs: RunnerLoraSpec[] = []
   for (const lora of loras) {
-    const { filename, r2Key } = await ensureRunnerLoraInR2(lora.url)
+    const { filename, r2Key } = await ensureRunnerLoraInR2(
+      lora.url,
+      preferredCivitaiToken,
+    )
     const downloadUrl = await createPresignedR2GetUrl({
       key: r2Key,
       expiresInSeconds: RUNNER_LORA_PRESIGN_TTL_SECONDS,

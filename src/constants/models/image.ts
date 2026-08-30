@@ -57,7 +57,10 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     maxPromptChars: 8000,
   },
   {
-    // Multi-reference edit (up to 9 images) — prompt-driven transform.
+    // Multi-reference edit (up to 8 images, BFL API cap) — prompt-driven transform.
+    // FLUX_2_PRO now auto-swaps onto this same fal `/edit` endpoint when the
+    // user attaches references, so this catalog row is the explicit edit-only
+    // entry (requires at least one image), not the only way to reach `/edit`.
     id: AI_MODELS.FLUX_2_PRO_EDIT,
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.FAL,

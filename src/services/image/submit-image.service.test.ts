@@ -56,11 +56,17 @@ vi.mock('@/services/usage.service', () => ({
 vi.mock('@/services/user.service', () => ({
   ensureUser: vi.fn(),
 }))
+vi.mock('@/services/civitai-token.service', () => ({
+  getCivitaiTokenByInternalUserId: vi.fn(),
+}))
 vi.mock('@/services/storage/r2', () => ({
   generateStorageKey: vi.fn(() => 'generations/user-1/image/output.png'),
 }))
 vi.mock('@/services/runner/civitai-lora-to-r2.service', () => ({
   prepareRunnerLoras: vi.fn(),
+}))
+vi.mock('@/services/civitai-lora.service', () => ({
+  findCivitaiLorasWithDownloadDisabled: vi.fn(),
 }))
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -83,7 +89,9 @@ import {
   failGenerationJob,
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
+import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
 import { prepareRunnerLoras } from '@/services/runner/civitai-lora-to-r2.service'
+import { findCivitaiLorasWithDownloadDisabled } from '@/services/civitai-lora.service'
 import {
   checkImageGenerationStatus,
   submitImageGeneration,
@@ -129,6 +137,10 @@ beforeEach(() => {
     count: 0,
   } as never)
   vi.mocked(ensureUser).mockResolvedValue({ id: 'user-1' } as never)
+  vi.mocked(getCivitaiTokenByInternalUserId).mockResolvedValue(
+    'user-civitai-token',
+  )
+  vi.mocked(findCivitaiLorasWithDownloadDisabled).mockResolvedValue([])
 })
 
 // ─── submitImageGeneration ─────────────────────────────────────
@@ -234,9 +246,10 @@ describe('submitImageGeneration', () => {
       },
     })
 
-    expect(prepareRunnerLoras).toHaveBeenCalledWith([
-      { url: 'https://civitai.com/api/download/models/111', scale: 0.9 },
-    ])
+    expect(prepareRunnerLoras).toHaveBeenCalledWith(
+      [{ url: 'https://civitai.com/api/download/models/111', scale: 0.9 }],
+      'user-civitai-token',
+    )
     expect(dispatchImageWorkerRun).toHaveBeenCalledWith(
       expect.objectContaining({
         providerInput: expect.objectContaining({
@@ -299,6 +312,129 @@ describe('submitImageGeneration', () => {
       }),
     )
     expect(dispatchImageWorkerRun).not.toHaveBeenCalled()
+  })
+
+  it('classifies Runner Civitai authentication failures as INVALID_API_KEY', async () => {
+    vi.mocked(resolveImageRouteAndValidate).mockResolvedValue({
+      dbUser: { id: 'user-1' } as never,
+      route: {
+        modelId: 'illustrious-recipe-clone',
+        adapterType: AI_ADAPTER_TYPES.RUNNER,
+        providerConfig: { label: 'PixelVault Runner' },
+        creditCost: 1,
+        isFreeGeneration: false,
+        resolvedApiKeyId: null,
+      } as never,
+      provider: 'RUNNER',
+    })
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+    vi.mocked(prepareRunnerLoras).mockRejectedValue(
+      Object.assign(new Error('Civitai API token is invalid or expired.'), {
+        code: 'AUTH_REQUIRED',
+      }),
+    )
+
+    await expect(
+      submitImageGeneration('clerk-1', {
+        ...INPUT,
+        modelId: 'illustrious-recipe-clone',
+        advancedParams: {
+          loras: [
+            {
+              url: 'https://civitai.com/api/download/models/2266398',
+              scale: 1,
+            },
+          ],
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'INVALID_API_KEY',
+      status: 401,
+    })
+
+    expect(failGenerationJob).toHaveBeenCalledWith(
+      'job-1',
+      expect.objectContaining({
+        errorMessage: 'Civitai API token is invalid or expired.',
+      }),
+    )
+    expect(dispatchImageWorkerRun).not.toHaveBeenCalled()
+  })
+
+  // 2026-08-29 owner 真机：作者在 Civitai 关掉下载的 LoRA，Runner 线和云端 API
+  // 线都会在几十秒后拿到 401，而 401 一路被翻译成「你的 API Key 无效或已过期」。
+  // 闸写在两条线**之前**，所以这里故意用托管路由（FAL）验——它根本不经过
+  // prepareRunnerLoras，上一条 AUTH_REQUIRED 的分支盖不到它。
+  it('blocks a download-disabled Civitai LoRA before any job row exists — hosted route too', async () => {
+    setupResolve(AI_ADAPTER_TYPES.FAL)
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+    vi.mocked(findCivitaiLorasWithDownloadDisabled).mockResolvedValue([
+      {
+        modelVersionId: 2266398,
+        downloadDisabled: true,
+        usageControl: 'Generation',
+        name: 'Ananta',
+      },
+    ])
+
+    await expect(
+      submitImageGeneration('clerk-1', {
+        ...INPUT,
+        advancedParams: {
+          loras: [
+            {
+              url: 'https://civitai.com/api/download/models/2266398',
+              scale: 1,
+            },
+          ],
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'LORA_DOWNLOAD_DISABLED',
+      status: 422,
+    })
+
+    // 点名是哪一把，否则挂了好几把时用户不知道该拆哪个。
+    await expect(
+      submitImageGeneration('clerk-1', {
+        ...INPUT,
+        advancedParams: {
+          loras: [
+            {
+              url: 'https://civitai.com/api/download/models/2266398',
+              scale: 1,
+            },
+          ],
+        },
+      }),
+    ).rejects.toThrow(/Ananta/)
+
+    // 建 job 行 / 传参考图 / 派发都不该发生 —— 这次生成从头就不该开始。
+    expect(createGenerationJob).not.toHaveBeenCalled()
+    expect(uploadReferenceImagesIfNeeded).not.toHaveBeenCalled()
+    expect(dispatchImageWorkerRun).not.toHaveBeenCalled()
+  })
+
+  it('lets the run through when Civitai cannot be reached (judgement unknown ≠ blocked)', async () => {
+    setupResolve(AI_ADAPTER_TYPES.FAL)
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+    // fetchCivitaiLoraDownloadPolicy 判不了时不进清单，所以这里就是空数组 ——
+    // 上游抽风绝不能变成「所有带 LoRA 的生成都失败」。
+    vi.mocked(findCivitaiLorasWithDownloadDisabled).mockResolvedValue([])
+
+    await expect(
+      submitImageGeneration('clerk-1', {
+        ...INPUT,
+        advancedParams: {
+          loras: [
+            {
+              url: 'https://civitai.com/api/download/models/2266398',
+              scale: 1,
+            },
+          ],
+        },
+      }),
+    ).resolves.toEqual({ jobId: 'job-1', requestId: 'wf-1' })
   })
 
   it('still throws MISSING_API_KEY for a non-free, non-runner route with no user key', async () => {

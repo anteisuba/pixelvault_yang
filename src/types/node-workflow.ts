@@ -232,6 +232,23 @@ export const NodeWorkflowNodeDataSchema = z
      * 只有 `node-workflow-migrate-voice-clip.ts` 读它。
      */
     voiceSampleUrl: z.string().trim().min(1).optional(),
+    /**
+     * 这条音色**属于哪个角色**（台账 X，owner 2026-08-29 拍板）。
+     *
+     * 只在音色**绕过角色卡、直接挂进视频节点**时才需要：走
+     * `voice → character → video` 两跳的那条，角色名由角色卡自己给
+     * （`harvestUpstreamAudioBindings` 的 pass 1）。直挂的那条此前没有任何地方
+     * 能说「这条属于谁」，于是送出预览里两条音频都写「旁白」，多角色对白片
+     * 在 UI 上根本钉不到角色 —— 而这正是 Seedance 2.5 官方推荐的写法
+     * （「Images 1-2 are Character 1 and correspond to Audio 1」）。
+     *
+     * ⛔ **不能复用 `characterName`**：那是显示名优先链的**第一顺位**
+     * （`resolveNodeDisplayName`），写在音色节点上会把卡的名字从音色名劫持成
+     * 角色名。归属和名字是两件事。
+     *
+     * 可选且无迁移：存量音色节点没有它 = 无归属，与改动前行为逐字相同。
+     */
+    audioOwnerName: z.string().trim().min(1).max(160).optional(),
     voiceStyle: z.string().optional(),
     voiceEmotion: z.string().optional(),
     voiceSpeed: z.number().min(0.5).max(2).optional(),

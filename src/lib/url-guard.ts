@@ -99,6 +99,35 @@ function resolveRedirectUrl(location: string, currentUrl: string): string {
   return new URL(location, currentUrl).toString()
 }
 
+/**
+ * 跨源重定向必须把凭据头摘掉（WHATWG fetch §"HTTP-redirect fetch" 第 12 步：
+ * `Authorization` / `Cookie` / `Proxy-Authorization` 在跨源跳转时删除）。
+ * 我们自己走手动重定向，不摘就等于把 header 原样转发给了第三方主机。
+ *
+ * 这不是理论洁癖，是真实故障（2026-08-29 实测）：Civitai 的
+ * `/api/download/models/:id` 307 到一个 **AWS SigV4 预签名**的 R2 链接
+ * （`X-Amz-SignedHeaders=host`）。第二跳只要带上 `Authorization`，R2 就改走
+ * header 签名校验并返 **400 `InvalidRequest: Missing x-amz-content-sha256`**
+ * ——不带这个头则 200。也就是说：配了 Civitai token 反而让所有 LoRA 缓存请求
+ * 必然失败，而报错长得像"下载挂了"。顺带把 token 泄给了 CDN 主机。
+ */
+const CROSS_ORIGIN_STRIPPED_HEADERS = [
+  'authorization',
+  'cookie',
+  'proxy-authorization',
+]
+
+function stripCredentialHeadersForCrossOrigin(
+  headers: HeadersInit | undefined,
+): HeadersInit | undefined {
+  if (!headers) return headers
+  const next = new Headers(headers)
+  for (const name of CROSS_ORIGIN_STRIPPED_HEADERS) {
+    next.delete(name)
+  }
+  return next
+}
+
 export async function safeFetch(
   rawUrl: string,
   options: SafeFetchOptions = {},
@@ -109,11 +138,14 @@ export async function safeFetch(
     ...fetchOptions
   } = options
 
-  let currentUrl = assertSafeUrl(rawUrl, { allowedProtocols }).toString()
+  const initialUrl = assertSafeUrl(rawUrl, { allowedProtocols })
+  let currentUrl = initialUrl.toString()
+  let currentHeaders = fetchOptions.headers
 
   for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount++) {
     const response = await fetch(currentUrl, {
       ...fetchOptions,
+      headers: currentHeaders,
       redirect: 'manual',
     })
 
@@ -130,9 +162,15 @@ export async function safeFetch(
       throw new Error('Too many redirects')
     }
 
-    currentUrl = assertSafeUrl(resolveRedirectUrl(location, currentUrl), {
+    const nextUrl = assertSafeUrl(resolveRedirectUrl(location, currentUrl), {
       allowedProtocols,
-    }).toString()
+    })
+    // 判据用「首跳的源」而不是「上一跳的源」：一旦摘掉就不再恢复，两种写法
+    // 结果等价，而这种写法不需要额外的状态位。
+    if (nextUrl.origin !== initialUrl.origin) {
+      currentHeaders = stripCredentialHeadersForCrossOrigin(currentHeaders)
+    }
+    currentUrl = nextUrl.toString()
   }
 
   throw new Error('Too many redirects')

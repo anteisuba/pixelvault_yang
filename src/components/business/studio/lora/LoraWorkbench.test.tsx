@@ -236,6 +236,7 @@ vi.mock('@/hooks/use-prompt-tag-stack', () => ({
 }))
 
 let mockLastGeneration: { url: string } | null = null
+let mockGenerateError: string | null = null
 vi.mock('@/hooks/use-unified-generate', () => ({
   useUnifiedGenerate: () => ({
     generate: mockGenerate,
@@ -243,6 +244,10 @@ vi.mock('@/hooks/use-unified-generate', () => ({
     get lastGeneration() {
       return mockLastGeneration
     },
+    get error() {
+      return mockGenerateError
+    },
+    elapsedSeconds: 0,
   }),
 }))
 
@@ -423,6 +428,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     quickSetupSpy.mockReset()
     mockAddTag.mockReset()
     mockLastGeneration = null
+    mockGenerateError = null
     mockMinedRecipes = []
     mockMinedPreviewImages = []
   })
@@ -523,6 +529,17 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
 
     expect(mockGenerate).toHaveBeenCalledTimes(1)
     expect(screen.queryByTestId('quick-setup-dialog')).not.toBeInTheDocument()
+  })
+
+  it('shows the generation failure instead of silently returning to the empty result', () => {
+    mockGenerateError = 'Civitai API token is invalid or expired'
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+
+    render(<LoraWorkbench />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Civitai API token is invalid or expired',
+    )
   })
 
   // S5 触发词 chips 化：正文不再 prefill 触发词，触发词改走独立的

@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>工作台助手 · 操作员化 — 三方向样机</title>
+<style>
+  /* ⚠ 样机 · demo 例外：不受设计文档约束。图片引用 http://localhost:3000（dev 在跑才显示，
+     挂了会退成灰底占位，不影响读交互）。 */
+  :root{
+    --paper:#f4f2ee; --panel:#ffffff; --ink:#1b1a18; --dim:#8a857c;
+    --line:#e4dfd7; --line2:#d5cfc5;
+    --ai:#6d5ae0; --ai-ink:#4c3fb0; --ai-soft:#f1eefb; --ai-line:#d9d2f4;
+    --money:#b45309; --money-soft:#fdf3e7;
+    --ok:#15803d; --err:#b91c1c;
+    --mono:'SF Mono','Cascadia Mono',Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font:14px/1.6 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif}
+  .off{display:none!important}
+
+  /* ── 顶栏：方向切换 + 幕步进 ─────────────────────────── */
+  header{position:sticky;top:0;z-index:50;background:rgba(244,242,238,.94);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:10px 22px;display:flex;align-items:center;gap:18px}
+  header .ttl{font-weight:800;letter-spacing:-.01em}
+  header .ttl small{display:block;font-weight:400;font-size:11px;color:var(--dim)}
+  .dirs{display:flex;gap:6px;margin-left:8px}
+  .dirs button{border:1px solid var(--line2);background:var(--panel);border-radius:999px;padding:5px 14px;
+    font-size:12.5px;cursor:pointer;font-weight:600;color:var(--dim)}
+  .dirs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .stepper{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .stepper button{width:30px;height:30px;border-radius:999px;border:1px solid var(--line2);background:var(--panel);cursor:pointer;font-size:14px}
+  .dots{display:flex;gap:5px}
+  .dots i{width:22px;height:4px;border-radius:2px;background:var(--line2)}
+  .dots i.on{background:var(--ink)}
+  .cap{font-size:12.5px;color:var(--dim);max-width:520px}
+  .cap b{color:var(--ink)}
+
+  /* ── 已锁规则条 ──────────────────────────────────────── */
+  .rules{display:flex;gap:8px;flex-wrap:wrap;padding:8px 22px;border-bottom:1px solid var(--line);background:#fbfaf7}
+  .rules span{font-size:11px;font-family:var(--mono);border:1px solid var(--line);border-radius:999px;
+    padding:2px 10px;color:var(--dim)}
+  .rules span b{color:var(--ai-ink)}
+
+  /* ── 舞台外框 ────────────────────────────────────────── */
+  .proto{display:none;padding:18px 22px 8px}
+  .proto.on{display:block}
+  .wb{position:relative;background:var(--paper);border:1px solid var(--line2);border-radius:16px;
+    overflow:hidden;height:640px;display:grid;box-shadow:0 24px 60px -38px rgba(20,18,14,.35)}
+  #pA .wb{grid-template-columns:250px 1fr}
+  #pB .wb{grid-template-columns:250px 1fr 360px}
+  #pC .wb{grid-template-columns:1fr 292px}
+
+  /* ── 表单列（A/B 共用形态） ──────────────────────────── */
+  .form{background:var(--panel);border-right:1px solid var(--line);padding:14px;display:flex;
+    flex-direction:column;gap:11px;overflow-y:auto}
+  .fld{position:relative}
+  .fld>label{font-size:11px;color:var(--dim);letter-spacing:.05em;display:flex;align-items:center;gap:6px}
+  .fld .box{margin-top:4px;border:1px solid var(--line);border-radius:9px;background:#fbfaf8;
+    padding:8px 10px;font-size:12.5px;min-height:34px}
+  .fld.touched .box{border-color:var(--ai-line);background:var(--ai-soft)}
+  .badge{font-size:10px;font-family:var(--mono);color:var(--ai-ink);background:var(--ai-soft);
+    border:1px solid var(--ai-line);border-radius:999px;padding:1px 7px;cursor:pointer}
+  .badge:hover{text-decoration:line-through}
+  .user-ink{color:var(--ink)}
+  .ai-ink{color:var(--ai-ink)}
+  .confirm{margin-top:5px;border:1px dashed var(--ai-line);background:var(--ai-soft);border-radius:8px;
+    padding:6px 9px;font-size:11.5px;color:var(--ai-ink)}
+  .confirm b{background:var(--ai);color:#fff;border-radius:6px;padding:1px 8px;margin:0 2px;cursor:pointer}
+  .confirm span{border:1px solid var(--ai-line);border-radius:6px;padding:1px 8px;margin:0 2px;cursor:pointer}
+  .refs{display:flex;gap:8px}
+  .ref{width:74px}
+  .ref .th{position:relative;width:74px;height:98px;border-radius:8px;overflow:hidden;border:1px solid var(--ai-line);
+    background:linear-gradient(150deg,#e8e4f8,#cfc7ee)}
+  .ref .th img{width:100%;height:100%;object-fit:cover;display:block}
+  .ref em{display:block;font-style:normal;font-size:10px;color:var(--dim);line-height:1.35;margin-top:3px}
+  .ref .src-tag{position:absolute;left:4px;bottom:4px;font-size:9px;font-family:var(--mono);
+    background:rgba(20,18,14,.72);color:#fff;border-radius:5px;padding:0 5px}
+  .fire{margin-top:auto;border:none;border-radius:11px;padding:12px;background:#e9e5de;color:#9a948a;
+    font-size:14px;font-weight:700;cursor:not-allowed;width:100%}
+  .fire.primed{background:var(--ink);color:#fff;cursor:pointer;outline:2px solid var(--ai);outline-offset:2px;
+    animation:primo 2.2s ease-in-out infinite}
+  @keyframes primo{0%,100%{outline-color:var(--ai)}50%{outline-color:transparent}}
+  .fire.primed .price{font-family:var(--mono);font-weight:400;font-size:12px;opacity:.85;margin-left:8px}
+  .revert-all{margin-top:6px;text-align:center;font-size:11px;color:var(--dim);cursor:pointer}
+  .revert-all u{color:var(--ai-ink)}
+
+  /* ── 中央舞台（结果区） ─────────────────────────────── */
+  .stage{position:relative;display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden}
+  .empty{color:var(--dim);text-align:center;font-size:13px}
+  .empty b{display:block;font-size:15px;color:var(--ink);margin-bottom:6px}
+  .result{display:flex;gap:14px;align-items:flex-end}
+  .shot{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line2);
+    background:linear-gradient(160deg,#efece6,#ddd8cf);box-shadow:0 18px 44px -26px rgba(20,18,14,.4)}
+  .shot.big{width:300px;height:400px}
+  .shot.sml{width:132px;height:176px;opacity:.75}
+  .shot img{width:100%;height:100%;object-fit:cover;display:block}
+  .shot .tag{position:absolute;left:8px;bottom:8px;font-size:10px;font-family:var(--mono);
+    background:rgba(20,18,14,.7);color:#fff;border-radius:6px;padding:1px 8px}
+
+  /* ── 助手面（共用件） ────────────────────────────────── */
+  .cop{background:var(--panel);display:flex;flex-direction:column;min-height:0}
+  .cop-h{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .cop-h .dot{width:8px;height:8px;border-radius:99px;background:var(--ai)}
+  .cop-h b{font-size:13px}
+  .cop-h .route{margin-left:auto;font-size:10.5px;font-family:var(--mono);color:var(--dim);
+    border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+  .cop-h .hx{font-size:12px;color:var(--dim);cursor:pointer}
+  .thread{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+  .msg-u{align-self:flex-end;max-width:86%;background:var(--ink);color:#fff;border-radius:12px 12px 3px 12px;
+    padding:8px 12px;font-size:12.5px}
+  .plan{border:1px solid var(--ai-line);background:var(--ai-soft);border-radius:12px;padding:9px 11px;font-size:12px}
+  .plan b{display:block;font-size:11px;color:var(--ai-ink);letter-spacing:.06em;margin-bottom:5px}
+  .plan .steps{display:flex;flex-wrap:wrap;gap:4px}
+  .plan .steps i{font-style:normal;font-size:11px;background:#fff;border:1px solid var(--ai-line);
+    border-radius:999px;padding:1px 8px;color:var(--ai-ink)}
+
+  .log{display:flex;flex-direction:column;gap:6px}
+  .logi{position:relative;display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);
+    border-radius:10px;padding:7px 9px;font-size:12px;background:#fdfcfa}
+  .logi.now{border-color:var(--ai-line);background:var(--ai-soft)}
+  .logi .ic{flex:none;width:20px;height:20px;border-radius:7px;background:var(--ai-soft);
+    border:1px solid var(--ai-line);display:grid;place-items:center;font-size:11px}
+  .logi .tt{font-weight:600}
+  .logi .why{color:var(--dim);font-size:11px}
+  .logi .un{position:absolute;right:8px;top:7px;font-size:10px;color:var(--dim);cursor:pointer;opacity:0;
+    font-family:var(--mono)}
+  .logi:hover .un{opacity:1}
+  .logi.money{border-color:#ecd9bd;background:var(--money-soft)}
+  .logi.money .ic{background:var(--money-soft);border-color:#ecd9bd}
+  .logi.money .tt{color:var(--money)}
+  .webrow{display:flex;gap:6px;margin-top:6px}
+  .webrow .wc{position:relative;width:58px;height:58px;border-radius:8px;border:1px solid var(--line2);
+    background:linear-gradient(140deg,#ded9d0,#cbc4b8);overflow:hidden}
+  .webrow .wc:nth-child(2){background:linear-gradient(140deg,#d9dee2,#b9c2c8)}
+  .webrow .wc:nth-child(3){background:linear-gradient(140deg,#e4ddd2,#cfc3b0)}
+  .webrow .wc.sel{outline:2px solid var(--ai);outline-offset:1px}
+  .webrow .wc.sel::after{content:'✓ 入库';position:absolute;left:0;right:0;bottom:0;font-size:9px;
+    text-align:center;background:rgba(109,90,224,.92);color:#fff}
+
+  .critique{border:1px solid var(--ai-line);border-radius:12px;overflow:hidden;font-size:12px}
+  .critique .ch{background:var(--ai-soft);padding:7px 11px;font-size:11px;color:var(--ai-ink);
+    font-weight:700;letter-spacing:.04em}
+  .critique ul{list-style:none;padding:8px 11px;display:flex;flex-direction:column;gap:4px}
+  .critique li.ok::before{content:'✓ ';color:var(--ok);font-weight:700}
+  .critique li.bad::before{content:'✗ ';color:var(--err);font-weight:700}
+  .critique .fix{border-top:1px dashed var(--ai-line);padding:8px 11px;background:#fdfcff}
+  .critique .fix b{color:var(--ai-ink)}
+  .critique .fix .mini{margin-top:5px;font-size:10.5px;font-family:var(--mono);color:var(--dim)}
+  .critique .fix .mini u{cursor:pointer;color:var(--ai-ink);margin-right:10px;text-decoration:none;
+    border-bottom:1px dotted var(--ai-line)}
+
+  .ledger{border:1px solid var(--line2);border-radius:12px;padding:9px 11px;font-size:12px;background:#fbfaf7}
+  .ledger b{display:block;font-size:11px;letter-spacing:.05em;color:var(--dim);margin-bottom:4px}
+  .ledger .row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;padding:1px 0}
+  .ledger .act{margin-top:7px;display:flex;gap:6px}
+  .ledger .act span{flex:1;text-align:center;border:1px solid var(--line2);border-radius:8px;
+    padding:4px 0;font-size:11.5px;cursor:pointer}
+  .ledger .act span:first-child{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  .composer{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;align-items:center}
+  .composer .in{flex:1;border:1px solid var(--line);border-radius:10px;padding:8px 11px;color:var(--dim);font-size:12.5px}
+  .composer .go{width:34px;height:34px;border-radius:10px;background:var(--ink);color:#fff;border:none;font-size:14px}
+
+  /* ── A 方向特有：覆盖层与胶囊 ────────────────────────── */
+  #pA .overlay{position:absolute;top:12px;right:12px;bottom:12px;width:390px;border:1px solid var(--line2);
+    border-radius:14px;box-shadow:0 26px 60px -30px rgba(20,18,14,.45);z-index:5;background:var(--panel);
+    display:flex;flex-direction:column}
+  #pA .pill{position:absolute;right:16px;top:14px;z-index:6;display:flex;align-items:center;gap:8px;
+    background:var(--ink);color:#fff;border-radius:999px;padding:7px 15px;font-size:12px;cursor:pointer;
+    box-shadow:0 12px 30px -14px rgba(20,18,14,.6)}
+  #pA .pill .dot{width:7px;height:7px;border-radius:99px;background:var(--ai);animation:blink 1.4s infinite}
+  @keyframes blink{50%{opacity:.35}}
+  #pA .toast{position:absolute;right:16px;bottom:16px;width:330px;z-index:6;background:var(--panel);
+    border:1px solid var(--ai-line);border-radius:12px;box-shadow:0 20px 44px -22px rgba(20,18,14,.5);
+    max-height:308px;overflow:hidden}
+  #pA .toast .squeeze{font-size:10px;color:var(--err);padding:4px 11px;border-top:1px dashed #f2c9c9;background:#fdf6f6}
+
+  /* ── C 方向特有：座舱 ────────────────────────────────── */
+  #pC .cabin{display:flex;flex-direction:column;background:var(--panel);min-height:0}
+  #pC .thread{max-width:660px;width:100%;margin:0 auto}
+  #pC .dash{background:#faf9f6;border-left:1px solid var(--line);padding:12px;display:flex;
+    flex-direction:column;gap:8px;overflow-y:auto}
+  #pC .dash h4{font-size:11px;color:var(--dim);letter-spacing:.08em}
+  .chip{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:7px 10px;font-size:12px}
+  .chip label{display:block;font-size:10px;color:var(--dim);letter-spacing:.05em}
+  .chip.touched{border-color:var(--ai-line);background:var(--ai-soft)}
+  .chip .badge{float:right}
+  #pC .firecard{border:2px solid var(--ai);border-radius:14px;padding:12px 14px;background:#fff;
+    display:flex;align-items:center;gap:12px}
+  #pC .firecard .big{flex:1}
+  #pC .firecard .big b{display:block;font-size:13.5px}
+  #pC .firecard .big span{font-size:11.5px;color:var(--dim)}
+  #pC .firecard button{border:none;background:var(--ink);color:#fff;border-radius:10px;padding:10px 20px;
+    font-size:13.5px;font-weight:700;cursor:pointer}
+  #pC .inline-shot{align-self:flex-start;max-width:86%}
+  #pC .inline-shot .shot{width:250px;height:334px}
+
+  /* ── 方向注脚 ────────────────────────────────────────── */
+  .verdicts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:14px 22px 26px}
+  .vd{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:13px 15px;font-size:12.5px}
+  .vd h3{font-size:13.5px;margin-bottom:5px}
+  .vd h3 em{font-style:normal;font-size:10px;font-family:var(--mono);color:#fff;background:var(--ai);
+    border-radius:999px;padding:1px 8px;vertical-align:2px;margin-left:6px}
+  .vd p{color:var(--dim);font-size:12px}
+  .vd p b{color:var(--ink)}
+  .vd.rec{border-color:var(--ai-line);box-shadow:0 14px 34px -24px rgba(109,90,224,.5)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="ttl">工作台助手 · 操作员化<small>三方向 × 五幕 · 同一个真实故事各演一遍 · 2026-08-30</small></div>
+  <div class="dirs">
+    <button data-dir="A">A 覆盖层++</button>
+    <button data-dir="B" class="on">B 副驾栏</button>
+    <button data-dir="C">C 座舱</button>
+  </div>
+  <div class="stepper">
+    <div class="cap" id="cap"></div>
+    <button id="prev">←</button>
+    <div class="dots" id="dots"></div>
+    <button id="next">→</button>
+  </div>
+</header>
+
+<div class="rules">
+  <span><b>钱是唯一硬闸</b> — 免费动作直做，花积分永远停在预填好的生成键</span>
+  <span><b>只动看得见的旋钮</b> — 每个改动都是界面上存在的控件，带归属标记、可撤销</span>
+  <span><b>覆写手写要确认</b> — 就地确认，不弹窗</span>
+  <span><b>自动只看它备的那次</b> — 你自己发的生成不打扰</span>
+  <span><b>首版动作集</b> — 表单全套 + 素材库检索挂载 + 联网搜图入库</span>
+</div>
+
+<!-- ════════ B · 副驾栏（默认展示 · 推荐） ════════ -->
+<section class="proto on" id="pB" data-dir="B">
+  <div class="wb">
+    <aside class="form">
+      <div class="fld" id="bPrompt">
+        <label>提示词 <span class="badge off" data-on="3">✦ 助手 +236 字 · 撤销</span></label>
+        <div class="box">
+          <span class="user-ink">手办质感的立绘</span><span class="ai-ink off" data-on="3">，1girl，棕色短波波头，内层橙色发梢，橙色米字发卡，米白宽大外套，抱黑色硬皮书，PVC 手办质感，棚拍布光…（+236 字）</span>
+        </div>
+        <div class="confirm off" data-on="2" data-off="3">框里有你手写的 7 个字 — <b>追加在后</b><span>覆盖</span><span>保留</span></div>
+      </div>
+      <div class="fld off" data-on="2">
+        <label>参考图 <span class="badge">✦ 助手挂的 ×2</span></label>
+        <div class="refs" style="margin-top:5px">
+          <div class="ref"><div class="th"><img src="http://localhost:3000/homepage/production/lora/lora-body-1.webp" onerror="this.remove()"><span class="src-tag">素材库</span></div><em>角色全身立绘</em></div>
+          <div class="ref off" data-on="2"><div class="th"><span class="src-tag">网络 · 已入库</span></div><em>PVC 质感参考</em></div>
+        </div>
+      </div>
+      <div class="fld off" data-on="3" id="bModel">
+        <label>模型 <span class="badge">✦ 助手 · 撤销</span></label>
+        <div class="box">GPT Image 2 <span style="color:var(--dim);font-size:11px">— 材质与长指令忠实度</span></div>
+      </div>
+      <div class="fld off" data-on="3">
+        <label>负面提示词 <span class="badge">✦ 助手 · 撤销</span></label>
+        <div class="box ai-ink">写实照片、布料材质、3D 渲染引擎感</div>
+      </div>
+      <div class="fld off" data-on="3">
+        <label>规格 <span class="badge">✦ 助手 · 撤销</span></label>
+        <div class="box">3:4 · 1 张</div>
+      </div>
+      <button class="fire" id="bFire">生成<span class="price off" data-on="3">— 预估 $0.09</span></button>
+      <div class="revert-all off" data-on="3"><u>还原助手的全部改动</u>（6 处）</div>
+    </aside>
+
+    <div class="stage">
+      <div class="empty" data-off="4"><b>图片工作台</b>助手在右栏干活，改动落在左栏表单上——<br>三栏同屏，结果永远不被盖住</div>
+      <div class="result off" data-on="4" data-off="5">
+        <div class="shot big"><img src="http://localhost:3000/homepage/production/lora/lora-body-3.webp" onerror="this.remove()"><span class="tag">第 1 轮 · $0.09</span></div>
+      </div>
+      <div class="result off" data-on="5">
+        <div class="shot sml"><img src="http://localhost:3000/homepage/production/lora/lora-body-3.webp" onerror="this.remove()"><span class="tag">第 1 轮</span></div>
+        <div class="shot big"><img src="http://localhost:3000/homepage/production/lora/lora-body-4.webp" onerror="this.remove()"><span class="tag">第 2 轮 · 手办质感 ✓</span></div>
+      </div>
+    </div>
+
+    <aside class="cop">
+      <div class="cop-h"><span class="dot"></span><b>助手</b><span class="route">GPT-5.6 Sol · 自动</span><span class="hx">历史</span></div>
+      <div class="thread">
+        <div class="msg-u">用我库里的角色出一张手办质感的立绘</div>
+        <div class="plan">
+          <b>计划 · 不花积分的直接做</b>
+          <div class="steps"><i>① 库里找角色参考</i><i>② 网上找质感参考</i><i>③ 配模型与规格</i><i>④ 备好生成给你点</i></div>
+        </div>
+        <div class="log" id="bLog"></div>
+        <div class="critique off" data-on="4">
+          <div class="ch">自动检查 · 第 1 轮（它备的它负责看）</div>
+          <ul>
+            <li class="ok">米字发卡 · 六臂形状在</li>
+            <li class="ok">内层橙发梢 / 橙蝴蝶结 / 黑皮书</li>
+            <li class="bad">手办质感只到七成 — 大衣还是布料画法，没有 PVC 反光</li>
+          </ul>
+          <div class="fix"><b>已预填第 2 轮：</b>提示词 +「PVC 材质·可动关节·棚拍底座」，负面 +「布料褶皱」
+            <div class="mini"><u>查看 diff</u><u>还原这轮改动</u>生成键已重新点亮 · $0.09</div>
+          </div>
+        </div>
+        <div class="ledger off" data-on="5">
+          <b>本次会话总账</b>
+          <div class="row"><span>助手改动（全部可还原）</span><span>6 处</span></div>
+          <div class="row"><span>联网搜图 · 入库</span><span>1 次 · 1 张</span></div>
+          <div class="row"><span>你点的生成</span><span>2 次 · $0.18</span></div>
+          <div class="act"><span>存为配方</span><span>清掉助手的所有改动</span></div>
+        </div>
+      </div>
+      <div class="composer"><div class="in">继续说，或直接改左边的表单…</div><button class="go">→</button></div>
+    </aside>
+  </div>
+</section>
+
+<!-- ════════ A · 覆盖层++ ════════ -->
+<section class="proto" id="pA" data-dir="A">
+  <div class="wb">
+    <aside class="form">
+      <div class="fld">
+        <label>提示词 <span class="badge off" data-on="3">✦ +236 字 · 撤销</span></label>
+        <div class="box"><span class="user-ink">手办质感的立绘</span><span class="ai-ink off" data-on="3">，1girl，棕色短波波头…（+236 字）</span></div>
+        <div class="confirm off" data-on="2" data-off="3">框里有你手写的 7 个字 — <b>追加在后</b><span>覆盖</span><span>保留</span></div>
+      </div>
+      <div class="fld off" data-on="2">
+        <label>参考图 <span class="badge">✦ ×2</span></label>
+        <div class="refs" style="margin-top:5px">
+          <div class="ref"><div class="th"><img src="http://localhost:3000/homepage/production/lora/lora-body-1.webp" onerror="this.remove()"><span class="src-tag">素材库</span></div><em>角色立绘</em></div>
+          <div class="ref"><div class="th"><span class="src-tag">网络·入库</span></div><em>PVC 质感</em></div>
+        </div>
+      </div>
+      <div class="fld off" data-on="3"><label>模型 <span class="badge">✦ 撤销</span></label><div class="box">GPT Image 2</div></div>
+      <div class="fld off" data-on="3"><label>规格 <span class="badge">✦ 撤销</span></label><div class="box">3:4 · 1 张</div></div>
+      <button class="fire" id="aFire">生成<span class="price off" data-on="3">— 预估 $0.09</span></button>
+      <div class="revert-all off" data-on="3"><u>还原助手的全部改动</u></div>
+    </aside>
+
+    <div class="stage">
+      <div class="empty" data-off="4"><b>图片工作台</b>面板开着时盖住这里 —— 所以 A 的解法是「干完活自动收起」</div>
+      <div class="result off" data-on="4" data-off="5">
+        <div class="shot big"><img src="http://localhost:3000/homepage/production/lora/lora-body-3.webp" onerror="this.remove()"><span class="tag">第 1 轮 · $0.09</span></div>
+      </div>
+      <div class="result off" data-on="5">
+        <div class="shot sml"><img src="http://localhost:3000/homepage/production/lora/lora-body-3.webp" onerror="this.remove()"><span class="tag">第 1 轮</span></div>
+        <div class="shot big"><img src="http://localhost:3000/homepage/production/lora/lora-body-4.webp" onerror="this.remove()"><span class="tag">第 2 轮</span></div>
+      </div>
+    </div>
+
+    <!-- 幕 1–3：覆盖层展开在结果区上方 -->
+    <div class="overlay" data-off="4">
+      <div class="cop-h"><span class="dot" style="width:8px;height:8px;border-radius:99px;background:var(--ai)"></span><b>助手</b><span class="route">GPT-5.6 Sol · 自动</span><span class="hx">收起</span></div>
+      <div class="thread">
+        <div class="msg-u">用我库里的角色出一张手办质感的立绘</div>
+        <div class="plan"><b>计划</b><div class="steps"><i>① 库里找参考</i><i>② 网上找质感</i><i>③ 配模型规格</i><i>④ 备好给你点</i></div></div>
+        <div class="log" id="aLog"></div>
+      </div>
+      <div class="composer"><div class="in">继续说…</div><button class="go">→</button></div>
+    </div>
+
+    <!-- 幕 4–5：收成胶囊 + 角落评价 toast（A 的天花板就在这） -->
+    <div class="pill off" data-on="4"><span class="dot"></span>助手 · 已看完第 1 轮</div>
+    <div class="toast off" data-on="4">
+      <div class="critique" style="border:none">
+        <div class="ch">自动检查 · 第 1 轮</div>
+        <ul>
+          <li class="ok">发卡 / 橙发梢 / 黑皮书 都在</li>
+          <li class="bad">手办质感只到七成 — 大衣还是布料</li>
+        </ul>
+        <div class="fix"><b>已预填第 2 轮</b> · 生成键已点亮 $0.09<div class="mini"><u>查看 diff</u><u>还原</u></div></div>
+      </div>
+      <div class="squeeze">⚠ A 的天花板：评价只能挤在这个角落 toast 里——同屏靠避让，不是结构</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ C · 座舱 ════════ -->
+<section class="proto" id="pC" data-dir="C">
+  <div class="wb">
+    <div class="cabin">
+      <div class="cop-h"><span class="dot" style="width:8px;height:8px;border-radius:99px;background:var(--ai)"></span><b>助手 · 座舱</b><span class="route">GPT-5.6 Sol · 自动</span><span class="hx">历史</span></div>
+      <div class="thread">
+        <div class="msg-u">用我库里的角色出一张手办质感的立绘</div>
+        <div class="plan"><b>计划 · 不花积分的直接做</b><div class="steps"><i>① 库里找角色参考</i><i>② 网上找质感参考</i><i>③ 配模型与规格</i><i>④ 备好生成给你点</i></div></div>
+        <div class="log" id="cLog"></div>
+        <div class="firecard off" data-on="3" data-off="4" id="cFire1">
+          <div class="big"><b>已备好 · 等你来点</b><span>GPT Image 2 · 3:4 · 1 张 · 参考 ×2 —— 右侧仪表盘可逐项检查/撤销</span></div>
+          <button>生成 · $0.09</button>
+        </div>
+        <div class="inline-shot off" data-on="4">
+          <div class="shot"><img src="http://localhost:3000/homepage/production/lora/lora-body-3.webp" onerror="this.remove()"><span class="tag">第 1 轮 · $0.09</span></div>
+        </div>
+        <div class="critique off" data-on="4">
+          <div class="ch">自动检查 · 第 1 轮</div>
+          <ul>
+            <li class="ok">米字发卡 · 六臂形状在</li>
+            <li class="ok">内层橙发梢 / 橙蝴蝶结 / 黑皮书</li>
+            <li class="bad">手办质感只到七成 — 大衣还是布料画法</li>
+          </ul>
+          <div class="fix"><b>已预填第 2 轮：</b>+「PVC 材质·可动关节·棚拍底座」<div class="mini"><u>查看 diff</u><u>还原这轮</u></div></div>
+        </div>
+        <div class="firecard off" data-on="4" data-off="5" id="cFire2">
+          <div class="big"><b>第 2 轮已备好</b><span>只动了提示词与负面 · 其余沿用</span></div>
+          <button>再生成 · $0.09</button>
+        </div>
+        <div class="inline-shot off" data-on="5">
+          <div class="shot"><img src="http://localhost:3000/homepage/production/lora/lora-body-4.webp" onerror="this.remove()"><span class="tag">第 2 轮 · 手办质感 ✓</span></div>
+        </div>
+        <div class="ledger off" data-on="5">
+          <b>本次会话总账</b>
+          <div class="row"><span>助手改动（全部可还原）</span><span>6 处</span></div>
+          <div class="row"><span>联网搜图 · 入库</span><span>1 次 · 1 张</span></div>
+          <div class="row"><span>你点的生成</span><span>2 次 · $0.18</span></div>
+          <div class="act"><span>存为配方</span><span>清掉助手的所有改动</span></div>
+        </div>
+      </div>
+      <div class="composer"><div class="in">对话开车 · 随时伸手拧右边的仪表盘…</div><button class="go">→</button></div>
+    </div>
+
+    <aside class="dash">
+      <h4>工作台 · 仪表盘（点任意项展开编辑）</h4>
+      <div class="chip" id="cPromptChip">
+        <label>提示词</label>
+        <span class="user-ink">手办质感的立绘</span><span class="ai-ink off" data-on="3">（+236 字）</span>
+        <span class="badge off" data-on="3">✦</span>
+        <div class="confirm off" data-on="2" data-off="3">你手写了 7 字 — <b>追加</b><span>覆盖</span><span>保留</span></div>
+      </div>
+      <div class="chip off touched" data-on="2">
+        <label>参考图</label>
+        <div class="refs" style="margin-top:4px">
+          <div class="ref"><div class="th" style="width:58px;height:76px"><img src="http://localhost:3000/homepage/production/lora/lora-body-1.webp" onerror="this.remove()"><span class="src-tag">库</span></div></div>
+          <div class="ref"><div class="th" style="width:58px;height:76px"><span class="src-tag">网络</span></div></div>
+        </div>
+      </div>
+      <div class="chip off touched" data-on="3"><label>模型</label>GPT Image 2 <span class="badge">✦</span></div>
+      <div class="chip off touched" data-on="3"><label>负面</label>写实照片、布料材质 <span class="badge">✦</span></div>
+      <div class="chip off touched" data-on="3"><label>规格</label>3:4 · 1 张 <span class="badge">✦</span></div>
+      <div class="chip off" data-on="3" style="text-align:center;color:var(--dim);font-size:11px;cursor:pointer"><u style="color:var(--ai-ink)">还原助手的全部改动</u>（6 处）</div>
+    </aside>
+  </div>
+</section>
+
+<!-- ── 方向注脚 ── -->
+<div class="verdicts">
+  <div class="vd"><h3>A · 覆盖层++</h3>
+    <p><b>改动最小</b>：现有面板换上日志流与预填，干完活自动收成胶囊给结果让位。<br>
+    天花板：同屏靠<b>避让</b>不是结构——幕 4 里评价被挤进角落 toast，就是它的极限。适合当兜底/窄屏形态。</p></div>
+  <div class="vd rec"><h3>B · 副驾栏<em>推荐</em></h3>
+    <p><b>表单 / 结果 / 助手三栏常驻同屏</b>：改动落在真表单上（单一事实），归属标记与撤销一眼可见，
+    结果和评价天然同屏。<br>代价：窄屏要塌回 A 的形态（两者共用全部组件，塌得回去）。</p></div>
+  <div class="vd"><h3>C · 座舱</h3>
+    <p><b>对话为主面</b>，表单退成右侧仪表盘——这几轮你和我协作的样子直接产品化，沉浸最强。<br>
+    风险：打断表单肌肉记忆。更适合当 B 之上的「第二模式」（一键放大对话），而非默认。</p></div>
+</div>
+
+<script>
+/* ── 共享日志数据：三个方向同一份，产品里也该是同一个组件 ── */
+const LOG = [
+  {on:2, ic:'👁', tt:'读取工作台', why:'你已写 7 字提示词 · 未选模型 · 无参考', un:1},
+  {on:2, ic:'🔍', tt:'搜素材库「角色 立绘」· 12 个结果', why:'挑了角色全身立绘 → 挂为参考 ①', un:1},
+  {on:2, ic:'🌐', tt:'联网搜图「PVC figure 棚拍 参考」', why:'3 个候选 · 选 1 → 已存入素材库 → 挂为参考 ②', web:1, un:1},
+  {on:3, ic:'⚙', tt:'换模型 GPT Image 2', why:'理由：材质质感 + 长指令忠实度（图内无文字，排版强项用不上）', un:1},
+  {on:3, ic:'✎', tt:'写入提示词 +236 字 · 负面词', why:'追加在你的 7 字之后（经你确认）· 负面挡写实与布料', un:1},
+  {on:3, ic:'▭', tt:'规格 3:4 · 1 张', why:'立绘竖版 · 先出一张看方向', un:1},
+  {on:3, ic:'￥', tt:'预填生成 · 预估 $0.09', why:'到此为止 —— 生成键亮了，等你来点', money:1},
+];
+function renderLog(el){
+  el.innerHTML = LOG.map(e=>`
+    <div class="logi off ${e.money?'money':''}" data-on="${e.on}">
+      <span class="ic">${e.ic}</span>
+      <div><div class="tt">${e.tt}</div><div class="why">${e.why}</div>
+      ${e.web?'<div class="webrow"><div class="wc"></div><div class="wc sel"></div><div class="wc"></div></div>':''}</div>
+      ${e.un?'<span class="un">撤销</span>':''}
+    </div>`).join('');
+}
+['aLog','bLog','cLog'].forEach(id=>renderLog(document.getElementById(id)));
+
+/* ── 幕引擎 ── */
+const CAPS = {
+  1:'幕 1 · <b>开口与计划</b> — 一句话；助手读表单、报计划，不啰嗦',
+  2:'幕 2 · <b>素材直播</b> — 搜库、联网搜图入库、挂参考；免费动作直做、逐条可撤销；覆写手写要就地确认',
+  3:'幕 3 · <b>配置与预填</b> — 模型/词/规格落进真表单；生成键点亮标价，助手停手（点生成键推进剧情）',
+  4:'幕 4 · <b>结果与自动评价</b> — 它备的它负责看：锚点清单 + 已预填第 2 轮（再点生成）',
+  5:'幕 5 · <b>二轮与收尾</b> — 更好的结果；总账、全量还原、存配方',
+};
+const state = {dir:'B', scene:1, MAX:5};
+function apply(){
+  document.querySelectorAll('.proto').forEach(p=>p.classList.toggle('on', p.dataset.dir===state.dir));
+  document.querySelectorAll('.dirs button').forEach(b=>b.classList.toggle('on', b.dataset.dir===state.dir));
+  const p = document.querySelector('.proto.on');
+  p.querySelectorAll('[data-on],[data-off]').forEach(el=>{
+    const on = el.dataset.on ? +el.dataset.on : 0;
+    const off = el.dataset.off ? +el.dataset.off : 99;
+    el.classList.toggle('off', !(state.scene>=on && state.scene<off));
+  });
+  const vis = [...p.querySelectorAll('.logi')].filter(el=>!el.classList.contains('off'));
+  vis.forEach(el=>el.classList.remove('now'));
+  const latest = vis.filter(el=>+el.dataset.on===state.scene).pop();
+  if(latest) latest.classList.add('now');
+  ['aFire','bFire'].forEach(id=>{
+    const f=document.getElementById(id); if(!f) return;
+    f.classList.toggle('primed', state.scene===3 || state.scene===4);
+  });
+  document.getElementById('cap').innerHTML = CAPS[state.scene];
+  document.getElementById('dots').innerHTML =
+    Array.from({length:state.MAX},(_,i)=>`<i class="${i+1<=state.scene?'on':''}"></i>`).join('');
+}
+document.querySelectorAll('.dirs button').forEach(b=>b.onclick=()=>{state.dir=b.dataset.dir;apply();});
+document.getElementById('prev').onclick=()=>{state.scene=Math.max(1,state.scene-1);apply();};
+document.getElementById('next').onclick=()=>{state.scene=Math.min(state.MAX,state.scene+1);apply();};
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft') document.getElementById('prev').click();
+  if(e.key==='ArrowRight') document.getElementById('next').click();
+  if(['1','2','3'].includes(e.key)){state.dir={1:'A',2:'B',3:'C'}[e.key];apply();}
+});
+/* 生成键本身可推进剧情：幕 3 → 4、幕 4 → 5（用户的那一下点击） */
+['aFire','bFire','cFire1','cFire2'].forEach(id=>{
+  const el=document.getElementById(id); if(!el) return;
+  el.addEventListener('click',()=>{
+    if(state.scene===3){state.scene=4;apply();}
+    else if(state.scene===4){state.scene=5;apply();}
+  });
+});
+apply();
+</script>
+</body>
+</html>

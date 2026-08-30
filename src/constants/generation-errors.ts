@@ -24,6 +24,20 @@ export const GENERATION_ERROR_CODES = {
    * again". See docs/plans/comfy-runner-HANDOFF-2026-07.md §1.1/§4.2.
    */
   LORA_INCOMPATIBLE_HOSTED: 'lora_incompatible_hosted',
+  /**
+   * Civitai 的作者把这把 LoRA 的下载关了（version 详情的
+   * `usageControl` 是 `Generation` / `InternalGeneration` 而不是 `Download`），
+   * 权重只能在 Civitai 站内生成时用。`/api/download/models/:id` 对**任何**
+   * token 都返 401 `The creator of this asset has disabled downloads on this
+   * file` —— 有没有 Civitai token、token 有没有过期，跟这件事完全无关。
+   *
+   * 单列一个码，是因为它此前被 ERROR_PATTERNS 的通用 `\b401\b` 规则说成
+   * INVALID_API_KEY（2026-08-29 owner 真机撞上：Runner 线报「你的 API Key
+   * 无效或已过期」，云端 API 线报 `Replicate image generation failed: URL
+   * responded with status code: 401` 同样落到 invalid_api_key）。那句话把人
+   * 送去查一把根本没坏的 key，而**唯一的出路是换一把 LoRA**。
+   */
+  LORA_DOWNLOAD_DISABLED: 'lora_download_disabled',
   /** RUNNER's monthly generation budget cap (RUNNER_MONTHLY_LIMIT) was hit. */
   RUNNER_MONTHLY_LIMIT_EXCEEDED: 'runner_monthly_limit_exceeded',
   /** A requested LoRA isn't pre-baked on the runner's Network Volume yet. */
@@ -284,6 +298,7 @@ const BACKEND_ERROR_CODE_MAP: Record<string, GenerationErrorCode> = {
   RUNNER_MONTHLY_LIMIT_EXCEEDED:
     GENERATION_ERROR_CODES.RUNNER_MONTHLY_LIMIT_EXCEEDED,
   RUNNER_LORA_UNAVAILABLE: GENERATION_ERROR_CODES.RUNNER_LORA_UNAVAILABLE,
+  LORA_DOWNLOAD_DISABLED: GENERATION_ERROR_CODES.LORA_DOWNLOAD_DISABLED,
 }
 
 const GENERATION_ERROR_CODE_VALUES = new Set<string>(
@@ -355,6 +370,9 @@ export function getGenerationErrorI18nKeyForCode(
   }
   if (errorCode === GENERATION_ERROR_CODES.LORA_INCOMPATIBLE_HOSTED) {
     return 'errors.provider.loraIncompatibleHosted'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.LORA_DOWNLOAD_DISABLED) {
+    return 'errors.provider.loraDownloadDisabled'
   }
   if (errorCode === GENERATION_ERROR_CODES.RUNNER_MONTHLY_LIMIT_EXCEEDED) {
     return 'errors.provider.runnerMonthlyLimitExceeded'

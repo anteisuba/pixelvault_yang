@@ -107,15 +107,17 @@ grep 的目的是**把所有调用方收进同一个 diff**——不留旧签名
 
 **搜索过载没有上游解法。** Civitai 对搜索子系统主动 load shedding，我们控不了。能做的是：断路器打开后立刻失败（不再等 5–10s）、禁止回落同失败域的 REST `query=`、用快照/镜像接着服务，并且降级时仍按用户选的「最新 / 最多下载」做全局排序。浏览（不带搜索词）不受影响。
 
-### 排序（2026-08-25 对齐 Civitai 官网搜索）
+### 排序（2026-08-25 对齐 Civitai 官网搜索；2026-08-29 修正下载档字段）
 
 Civitai 官网搜索（`ModelSearchIndexSortBy`）是**全局排序**，不是「先名称匹配再排序」：
 
-| 档       | meilisearch                      | 镜像降级                                    |
-| -------- | -------------------------------- | ------------------------------------------- |
-| 推荐     | 不传 sort = 相关性               | 点赞降序（复制不了相关性，UI 标排序已降级） |
-| 最多下载 | `sortMetrics.downloadCount:desc` | `downloadCount`                             |
-| 最新     | `createdAt:desc`                 | `createdAt`                                 |
+| 档       | meilisearch                  | 镜像降级                                    |
+| -------- | ---------------------------- | ------------------------------------------- |
+| 推荐     | 不传 sort = 相关性           | 点赞降序（复制不了相关性，UI 标排序已降级） |
+| 最多下载 | `metrics.downloadCount:desc` | `downloadCount`                             |
+| 最新     | `createdAt:desc`             | `createdAt`                                 |
+
+⚠ 下载档**不是** `sortMetrics.downloadCount`：那是官网 Creator Controls 预留的 sort-only 字段（隐藏下载数时保真值），从未在 live 索引上声明成 sortable（官网注释：要先做一次 models index reset）。2026-08-26 对齐时抄了 search-index 侧的意图值没实测，上游恒 400 → 「最多下载」每次静默降级 REST 相关性序，3 天后才发现。教训：**官网源码只是意图，live 索引的 sortable 白名单才是现状**——改 sort 字段前对 live 端点实测（非法字段的 400 报错自带完整白名单），测试锁见 `civitai-lora.service.test.ts` 的 sortable whitelist 用例。
 
 搜索路径用真实 `offset=(page-1)*pageSize`，不再从 0 拉前缀窗口再按名称分层。类型筛选合并路径仍在合并后按同一套全局 sort 重排。
 

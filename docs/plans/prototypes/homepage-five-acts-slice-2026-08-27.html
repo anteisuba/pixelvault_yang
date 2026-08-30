@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>首页五幕切片</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+
+<style>
+  /* ═══ 关键切片 · 蓝图的可滚验证版 ═══════════════════════════════
+     验证对象是「节奏」：一根轴 / 五幕 / 读数器 / 经纸转场 / 静场开幕。
+     视觉与字体对齐 v3 拍板（src/i18n/fonts.ts）：Latin 面先于 CJK 面
+     （Noto Sans → Noto Sans SC，否则数字落进 SC 的松垮 Latin），
+     标题 700 / -0.02em，IBM Plex Mono 只用 400/500。
+     语法七条自查：无嵌套滚动容器 · 横向流动只有首屏跑马灯一处 ·
+     reduced-motion 与窄屏退静态堆叠 · 无 JS 时全部内容仍可读。 */
+  :root {
+    --paper:   #ffffff;
+    --ink:     #050505;
+    --panel:   #f3f3f0;
+    --panel-2: #e9e9e4;
+    --dim:     #77777a;
+    --line:    #e4e4df;
+    --line-2:  #d6d6d0;
+
+    --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    --sans: "Noto Sans", "Noto Sans SC", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --gut: clamp(20px, 4vw, 64px);
+  }
+
+  * , *::before, *::after { box-sizing: border-box; }
+
+  html { scroll-behavior: auto; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  button { font: inherit; }
+
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ─── 幕 01 · 开场 ──────────────────────────────────────────── */
+  .act-hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column; justify-content: center; gap: clamp(22px, 4vh, 40px);
+    padding: 0 var(--gut);
+    overflow: hidden;
+  }
+  .hero-stat {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .act-hero h1 {
+    margin: 0; font-size: clamp(2.4rem, 6.4vw, 5.2rem);
+    font-weight: 700; letter-spacing: -.02em; line-height: 1.14; text-wrap: balance;
+  }
+  .hero-cta { display: flex; align-items: center; gap: 16px; }
+  .hero-cta a {
+    display: inline-block; padding: 13px 30px; border-radius: 999px;
+    background: var(--ink); color: var(--paper); text-decoration: none;
+    font-size: 14.5px; font-weight: 600;
+  }
+  .hero-cta span { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+
+  /* 首屏跑马灯 —— 全页唯一的横向流动（语法第 5 条的那一次） */
+  .marquee {
+    margin-top: clamp(20px, 5vh, 52px);
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    padding: 13px 0; overflow: hidden; white-space: nowrap;
+  }
+  .marquee-inner { display: inline-block; animation: mq 46s linear infinite; }
+  .marquee span {
+    font-family: var(--mono); font-size: 12px; color: var(--dim);
+    margin-right: 46px; letter-spacing: .06em;
+  }
+  @keyframes mq { to { transform: translateX(-50%); } }
+
+  /* ─── 幕 02 · 画布窗（加重到 1.2 屏） ───────────────────────── */
+  .act-product {
+    min-height: 120vh;
+    display: flex; flex-direction: column; justify-content: center; gap: 22px;
+    padding: clamp(40px, 7vh, 80px) var(--gut);
+  }
+  .app-frame {
+    border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
+    box-shadow: 0 30px 80px -40px rgba(0,0,0,.25);
+    background: var(--paper);
+  }
+  .app-bar {
+    display: flex; align-items: center; gap: 20px;
+    padding: 12px 18px; border-bottom: 1px solid var(--line);
+  }
+  .app-bar b { font-size: 13px; letter-spacing: -.01em; }
+  .app-tabs { display: flex; gap: 4px; margin-left: 8px; }
+  .app-tabs i {
+    font-style: normal; font-size: 12px; color: var(--dim);
+    padding: 5px 12px; border-radius: 999px;
+  }
+  .app-tabs i.on { background: var(--ink); color: var(--paper); }
+  .app-bar .meta { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--dim); }
+
+  .app-canvas {
+    position: relative; height: clamp(340px, 52vh, 520px);
+    background:
+      radial-gradient(circle, var(--line) 1px, transparent 1px) 0 0 / 26px 26px;
+  }
+  .node {
+    position: absolute; width: clamp(130px, 13vw, 168px);
+    border: 1px solid var(--line-2); border-radius: 11px; background: var(--paper);
+    padding: 9px 11px 10px; box-shadow: 0 8px 22px -14px rgba(0,0,0,.28);
+  }
+  .node .t { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; font-weight: 700; }
+  .node .t span { font-family: var(--mono); font-size: 8.5px; color: var(--dim); font-weight: 400; white-space: nowrap; }
+  .node .body { margin-top: 7px; height: 40px; border-radius: 6px; background: var(--panel); }
+  .node .s { margin-top: 6px; font-family: var(--mono); font-size: 8.5px; color: var(--dim); display: flex; justify-content: space-between; }
+  /* ─── 钉住舞台通用外壳（幕 03 / 幕 04 共用） ────────────────── */
+  .pinwrap { position: relative; }
+  .pinstage {
+    position: sticky; top: 0; height: 100vh; min-height: 540px;
+    display: flex; flex-direction: column; overflow: hidden;
+    padding: clamp(30px, 5vh, 60px) 0 0;
+  }
+  .stagehead { flex: none; padding: 0 var(--gut) clamp(10px, 1.6vh, 18px); }
+  .stagehead h2 { margin: 0; font-size: clamp(1.7rem, 4.2vw, 2.9rem); font-weight: 700; letter-spacing: -.02em; line-height: 1.12; }
+  .stagehead p { margin: 8px 0 0; max-width: 40rem; color: var(--dim); font-size: .92rem; }
+  .stagebody { position: relative; flex: 1 1 auto; min-height: 0; }
+  .stagefoot { flex: none; height: clamp(46px, 8vh, 72px); }
+
+  /* ─── 幕 03 · 能力舞台（3 片原地换） ────────────────────────── */
+  #act-cap { height: 370vh; }
+  .cap-slide {
+    position: absolute; inset: 0;
+    display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+    gap: clamp(24px, 4vw, 60px); align-items: center;
+    padding: 0 var(--gut);
+    will-change: transform, opacity;
+  }
+  /* 标题与正文按减法删除；变换公式就是这一片的全部话语 */
+  .cap-slide .eyebrow { margin: 0; font-family: var(--mono); font-weight: 500; font-size: clamp(1.1rem, 2.3vw, 1.8rem); letter-spacing: .1em; color: var(--ink); }
+  .cap-slide .models { margin: 16px 0 0; font-family: var(--mono); font-size: 10.5px; color: var(--dim); }
+  .cap-demo {
+    aspect-ratio: 16 / 10.5; border-radius: 16px; background: var(--panel);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: 11px; color: var(--dim);
+  }
+
+  /* ─── 桥（0.5 屏，一句话，不钉） ────────────────────────────── */
+  /* 桥：句子按减法删除，0.5 屏纯纸面停顿保留（两钉之间留一口气） */
+  .bridge { min-height: 50vh; }
+
+  /* ─── 幕 04 · 阵容四小幕（静场开幕 + 经纸转场） ─────────────── */
+  #act-roster { height: 400vh; }
+
+  .sub {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center; gap: clamp(12px, 2vh, 20px);
+    padding: 0 var(--gut);
+    will-change: transform, opacity;
+  }
+
+  /* 静场拍：模态名 + 家族数，单独占屏一拍 */
+  .sub .still {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    will-change: transform, opacity;
+  }
+  .sub .still b { font-size: clamp(2.3rem, 6vw, 4.6rem); font-weight: 700; letter-spacing: -.02em; line-height: 1.08; }
+  .sub .still i {
+    font-style: normal; font-family: var(--mono); font-size: clamp(1rem, 2vw, 1.5rem);
+    color: var(--dim); letter-spacing: .08em;
+  }
+
+  .sub .grid-wrap { will-change: transform, opacity; display: flex; flex-direction: column; gap: clamp(12px, 2vh, 20px); }
+  .sub .grid-head { display: flex; align-items: baseline; gap: 13px; }
+  .sub .grid-head h3 { margin: 0; font-size: clamp(1.3rem, 2.8vw, 2rem); font-weight: 700; letter-spacing: -.02em; }
+  .sub .grid-head .n { font-family: var(--mono); font-size: clamp(1.3rem, 2.8vw, 2rem); font-weight: 500; color: var(--dim); }
+  .sub .grid-head .say { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--dim); }
+
+  .fam-grid { display: grid; gap: clamp(9px, 1vw, 13px); grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); }
+  .fam {
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; gap: 5px;
+    min-height: clamp(88px, 13vh, 128px);
+    padding: 14px 15px 12px; border-radius: 13px; background: var(--panel);
+    text-align: left;
+  }
+  .fam .top { display: flex; justify-content: space-between; gap: 8px; font-family: var(--mono); font-size: 9.5px; color: var(--dim); }
+  .fam .top .c { padding: 1px 7px; border: 1px solid var(--line-2); border-radius: 999px; white-space: nowrap; }
+  .fam[data-many="true"] .top .c { border-color: var(--ink); color: var(--ink); font-weight: 500; }
+  .fam .nm { font-size: clamp(13.5px, 1.4vw, 17px); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
+  .fam .pr { margin-top: auto; font-family: var(--mono); font-size: 10px; color: var(--dim); }
+
+  /* ─── 幕 05 · 归档金库 + CTA ────────────────────────────────── */
+  .act-vault {
+    min-height: 120vh;
+    display: flex; flex-direction: column; justify-content: center; gap: clamp(22px, 3.5vh, 36px);
+    padding: clamp(50px, 8vh, 90px) var(--gut);
+  }
+  .act-vault h2 { margin: 0; font-size: clamp(1.9rem, 5vw, 3.4rem); font-weight: 700; letter-spacing: -.02em; line-height: 1.12; text-wrap: balance; }
+  .act-vault > p { margin: 0; max-width: 34rem; color: var(--dim); font-size: clamp(.95rem, 1.6vw, 1.1rem); }
+
+  .vault-row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); max-width: 860px; }
+  .vcard {
+    border: 1px solid var(--line); border-radius: 13px; padding: 13px 14px 11px;
+    display: flex; flex-direction: column; gap: 8px; background: var(--paper);
+  }
+  .vcard .k { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+  .vcard .thumb { height: 62px; border-radius: 8px; background: var(--panel); }
+  .vcard .m { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+
+  .vault-cta { display: flex; align-items: center; gap: 16px; margin-top: 6px; }
+  .vault-cta a {
+    display: inline-block; padding: 15px 36px; border-radius: 999px;
+    background: var(--ink); color: var(--paper); text-decoration: none;
+    font-size: 15px; font-weight: 700;
+  }
+  .vault-cta span { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+
+  .footer {
+    min-height: 40vh;
+    display: flex; align-items: flex-end;
+    padding: 0 var(--gut) 34px;
+    border-top: 1px solid var(--line);
+    margin-top: 10vh;
+  }
+  .footer .in { width: 100%; display: flex; justify-content: space-between; gap: 20px; font-family: var(--mono); font-size: 10.5px; color: var(--dim); }
+
+  /* ─── 全页读数器（幕 02 起常驻，两级：幕计数 + 幕内细线） ───── */
+  .readout {
+    position: fixed; z-index: 50; inset: auto 0 0 0;
+    display: flex; align-items: center; gap: 14px;
+    padding: 11px var(--gut) 13px;
+    background: color-mix(in srgb, var(--paper) 84%, transparent);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 10.5px; color: var(--dim);
+    opacity: 0; pointer-events: none;
+    transition: opacity .3s;
+  }
+  .readout.on { opacity: 1; pointer-events: auto; }
+  .readout .count { font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .readout .name { color: var(--ink); }
+  .readout .rail { position: relative; flex: 1 1 auto; height: 2px; background: var(--line); border-radius: 2px; }
+  .readout .fill { position: absolute; inset: 0 auto 0 0; width: 0%; background: var(--ink); border-radius: 2px; }
+  .readout .dots { display: flex; gap: 7px; }
+  .readout .dots button {
+    width: 26px; height: 14px; padding: 0; border: 0; background: transparent; cursor: pointer;
+    display: grid; align-items: center;
+  }
+  .readout .dots button i { display: block; height: 2px; border-radius: 2px; background: var(--line-2); transition: background .25s; }
+  .readout .dots button[data-on="true"] i { background: var(--ink); }
+
+  /* ─── 窄屏 / 减少动态：全部退静态堆叠 ───────────────────────── */
+  @media (max-width: 900px), (prefers-reduced-motion: reduce) {
+    #act-cap, #act-roster { height: auto; }
+    .pinstage { position: static; height: auto; min-height: 0; overflow: visible; padding-bottom: 30px; }
+    .stagebody { display: flex; flex-direction: column; gap: 44px; }
+    .cap-slide, .sub { position: static; inset: auto; opacity: 1 !important; transform: none !important; }
+    .cap-slide { grid-template-columns: 1fr; gap: 18px; padding: 0 var(--gut); }
+    .sub { padding: 0 var(--gut); }
+    .sub .still { display: none; }
+    .sub .grid-wrap { opacity: 1 !important; transform: none !important; }
+    .fam-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .stagefoot { display: none; }
+    .readout { display: none; }
+    .marquee-inner { animation: none; }
+    .app-canvas { height: 420px; }
+  }
+  @media (max-width: 560px) { .fam-grid { grid-template-columns: 1fr !important; } }
+</style>
+</head>
+<body>
+
+<!-- ══ 幕 01 · 开场 ═════════════════════════════════════════════ -->
+<section class="act-hero" data-act="0" aria-label="开场">
+  <p class="hero-stat">19 MODELS · 61 ROUTES · 4 MODALITIES</p>
+  <h1>用每一个模型生成，<br>保留每一次结果。</h1>
+  <div class="hero-cta">
+    <a href="#" onclick="return false">打开画布</a>
+    <span>免费开始</span>
+  </div>
+  <div class="marquee" aria-hidden="true"><div class="marquee-inner" id="mq"></div></div>
+</section>
+
+<!-- ══ 幕 02 · 画布窗（加重 1.2 屏） ════════════════════════════ -->
+<section class="act-product" data-act="1" aria-label="画布窗">
+  <div class="app-frame">
+    <div class="app-bar">
+      <b>夜航的信</b>
+      <div class="app-tabs"><i class="on">画布</i><i>工作台</i><i>LoRA</i><i>素材</i></div>
+      <span class="meta">2 个节点生成中 · 自动保存 22:41</span>
+    </div>
+    <div class="app-canvas" id="canvas"></div>
+  </div>
+</section>
+
+<!-- ══ 幕 03 · 能力舞台（3 片原地换，留任） ═════════════════════ -->
+<div class="pinwrap" id="act-cap" data-act="2" aria-label="能力舞台">
+  <div class="pinstage">
+    <div class="stagehead">
+      <h2>上一步的结果，是下一步的原料。</h2>
+    </div>
+    <div class="stagebody" id="cap-body"></div>
+    <div class="stagefoot"></div>
+  </div>
+</div>
+
+<!-- ══ 桥 · 0.5 屏纯纸面停顿（不钉，无文案） ═══════════════════ -->
+<section class="bridge" data-act="bridge" aria-label="停顿"></section>
+
+<!-- ══ 幕 04 · 阵容四小幕（静场开幕 + 经纸转场） ════════════════ -->
+<div class="pinwrap" id="act-roster" data-act="3" aria-label="模型阵容">
+  <div class="pinstage">
+    <div class="stagebody" id="roster-body"></div>
+    <div class="stagefoot"></div>
+  </div>
+</div>
+
+<!-- ══ 幕 05 · 归档金库 + CTA ═══════════════════════════════════ -->
+<section class="act-vault" data-act="4" aria-label="归档金库">
+  <h2>生成完，才是开始。</h2>
+  <p>图、视频、角色、LoRA 都进库——都是下一次的原料。</p>
+  <div class="vault-row" id="vault-row"></div>
+  <div class="vault-cta">
+    <a href="#" onclick="return false">打开画布</a>
+    <span>第一条档案，两分钟后就有</span>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="in">
+    <span>PIXELVAULT · 关键切片 · 2026-08-27</span>
+  </div>
+</footer>
+
+<!-- ══ 全页读数器 ═══════════════════════════════════════════════ -->
+<nav class="readout" id="readout" aria-label="页面幕导航">
+  <span class="count" id="ro-count">01 / 05</span>
+  <span class="name" id="ro-name">开场</span>
+  <span class="rail"><span class="fill" id="ro-fill"></span></span>
+  <span class="dots" id="ro-dots"></span>
+</nav>
+
+<script>
+  /* ─── 数据 ─────────────────────────────────────────────────── */
+  var PROVIDERS = ['OpenAI','Google Gemini','fal.ai','NovelAI','ByteDance Seedream','ElevenLabs','Fish Audio','Replicate','Hyper3D Rodin','Black Forest Labs','Hugging Face','MiniMax'];
+
+  var CAPS = [
+    { eye: 'TEXT → IMAGE → IMAGE', m: 'GPT Image 2 · Gemini 3 Pro · Flux 2 Pro · NovelAI V4.5 ＋ 4 个' },
+    { eye: 'IMAGE → VIDEO', m: 'Seedance · 可灵 · Wan 3.0 · Gemini Omni Flash' },
+    { eye: 'IMAGE → 3D', m: 'Rodin Gen-2.5 · Hunyuan3D · Trellis 2 · TripoSR' }
+  ];
+
+  var ROSTER = [
+    { name: '图片模型', say: '从一句话到成图，改完还是他', fams: [
+      ['OpenAI','GPT Image 2',1,'按用量'], ['Gemini','Gemini Image',3,'$0.03–0.13 / 张'],
+      ['FLUX','FLUX',5,'$0.005–0.08 / 张'], ['ByteDance','Seedream 5.0',5,'$0.03–0.09 / 张'],
+      ['NovelAI','NovelAI Diffusion',4,'$0.01 / 张起'], ['Recraft','Recraft V4 Pro',1,'$0.21 / 张'],
+      ['开源底模','Illustrious XL',1,'$0.14 / 张'], ['自建 Runner','自建 Runner',5,'按用量']
+    ]},
+    { name: '视频模型', say: '挑好的那张，直接接着动起来', fams: [
+      ['ByteDance','Seedance',18,'$0.12–0.30 / 秒'], ['MiniMax','MiniMax H3',4,'$0.11–0.13 / 秒'],
+      ['Alibaba Cloud','通义万相 / HappyHorse',3,'$0.10–0.14 / 秒'], ['KLING','可灵',2,'$0.14–0.17 / 秒'],
+      ['Gemini','Gemini Omni Flash',1,'按用量']
+    ]},
+    { name: '音频模型', say: '给画面配上声音', fams: [
+      ['Fish Audio','Fish Audio S2.1 Pro',1,'$0.20 / 千字符'], ['ElevenLabs','ElevenLabs',2,'按用量–$0.15 / 秒']
+    ]},
+    { name: '3D 模型', say: '存过的图，转成能复用的资产', fams: [
+      ['Hyper3D','Rodin Gen-2.5',1,'按用量'], ['Hunyuan','Hunyuan3D',2,'按用量'],
+      ['Microsoft','Trellis 2',1,'按用量'], ['Tripo','TripoSR',1,'按用量']
+    ]}
+  ];
+
+  var NODES = [
+    { x: 5,  y: 12, t: '剧本',  s: 'GPT-5.5',       st: '已确认 · 412 字' },
+    { x: 27, y: 40, t: '角色',  s: 'Flux 2 Pro',     st: '已生成 · 4 / 4' },
+    { x: 27, y: 6,  t: '背景',  s: 'Gemini 3 Pro',   st: '生成中 · 62%' },
+    { x: 49, y: 22, t: '镜头',  s: 'Seedream 5.0',   st: '已选用 · seed 8841' },
+    { x: 49, y: 62, t: '音频',  s: 'Fish Audio S2',  st: '已生成 · 0:18' },
+    { x: 72, y: 38, t: '视频',  s: 'Seedance 2.0',   st: '排队中 · 5s' }
+  ];
+
+  var VAULT = [
+    { k: 'IMAGE',  m: 'seed 8841 · 2048²' },
+    { k: 'VIDEO',  m: '5s · 24fps · v2' },
+    { k: 'CHARACTER', m: '安台 · 12 参考图' },
+    { k: 'LORA',   m: 'antei-v3 · 32 rank' }
+  ];
+
+  /* ─── 静态构建 ─────────────────────────────────────────────── */
+  (function build() {
+    // 跑马灯：两份拼接位移 -50%
+    var mq = document.getElementById('mq');
+    var run = PROVIDERS.map(function (p) { return '<span>' + p + '</span>'; }).join('');
+    mq.innerHTML = run + run;
+
+    // 画布节点 + 连线
+    var cv = document.getElementById('canvas');
+    NODES.forEach(function (n, i) {
+      var el = document.createElement('div');
+      el.className = 'node';
+      el.style.left = n.x + '%';
+      el.style.top = n.y + '%';
+      el.innerHTML = '<div class="t"><b></b><span></span></div><div class="body"></div><div class="s"><span></span></div>';
+      el.querySelector('b').textContent = n.t;
+      el.querySelector('.t span').textContent = n.s;
+      el.querySelector('.s span').textContent = n.st;
+      cv.appendChild(el);
+      /* 不画连线：百分比坐标在非正方形容器里算不出正确角度，歪线比没线糟。
+         节点连线是正式实现里 HomeV3Product 自己的事，切片只验证幕的呼吸。 */
+    });
+
+    // 能力舞台 3 片
+    var capBody = document.getElementById('cap-body');
+    CAPS.forEach(function (c) {
+      var s = document.createElement('div');
+      s.className = 'cap-slide';
+      s.innerHTML = '<div><p class="eyebrow"></p><p class="models mono"></p></div><div class="cap-demo">演示位 · 现有组件原样迁入</div>';
+      s.querySelector('.eyebrow').textContent = c.eye;
+      s.querySelector('.models').textContent = c.m;
+      capBody.appendChild(s);
+    });
+
+    // 阵容四小幕：每小幕 = 静场拍 + 家族网格
+    var rosterBody = document.getElementById('roster-body');
+    ROSTER.forEach(function (g) {
+      var sub = document.createElement('div');
+      sub.className = 'sub';
+
+      var still = document.createElement('div');
+      still.className = 'still';
+      still.innerHTML = '<b></b><i></i>';
+      still.querySelector('b').textContent = g.name;
+      still.querySelector('i').textContent = g.fams.length + ' 个家族';
+
+      var wrap = document.createElement('div');
+      wrap.className = 'grid-wrap';
+      var head = document.createElement('div');
+      head.className = 'grid-head';
+      head.innerHTML = '<h3></h3><span class="n"></span>';
+      head.querySelector('h3').textContent = g.name;
+      head.querySelector('.n').textContent = g.fams.length;
+
+      var grid = document.createElement('div');
+      grid.className = 'fam-grid';
+      // ≤5 张一行排开（视频幕 5 张走 4 列会剩一张孤行）；再多才折 4 列
+      grid.style.setProperty('--cols', g.fams.length <= 5 ? g.fams.length : 4);
+      g.fams.forEach(function (f) {
+        var card = document.createElement('div');
+        card.className = 'fam';
+        card.dataset.many = String(f[2] >= 4);
+        card.innerHTML = '<span class="top"><span></span><span class="c"></span></span><span class="nm"></span><span class="pr"></span>';
+        var tops = card.querySelectorAll('.top span');
+        tops[0].textContent = f[0];
+        tops[1].textContent = f[2] + ' 条';
+        card.querySelector('.nm').textContent = f[1];
+        card.querySelector('.pr').textContent = f[3];
+        grid.appendChild(card);
+      });
+
+      wrap.appendChild(head); wrap.appendChild(grid);
+      sub.appendChild(still); sub.appendChild(wrap);
+      rosterBody.appendChild(sub);
+    });
+
+    // 归档行
+    var vr = document.getElementById('vault-row');
+    VAULT.forEach(function (v) {
+      var c = document.createElement('div');
+      c.className = 'vcard';
+      c.innerHTML = '<span class="k"></span><span class="thumb"></span><span class="m"></span>';
+      c.querySelector('.k').textContent = v.k;
+      c.querySelector('.m').textContent = v.m;
+      vr.appendChild(c);
+    });
+  })();
+
+  /* ─── 滚动驱动 ─────────────────────────────────────────────── */
+  var ACTS = [
+    { name: '开场',     el: document.querySelector('[data-act="0"]') },
+    { name: '画布窗',   el: document.querySelector('[data-act="1"]') },
+    { name: '能力舞台', el: document.getElementById('act-cap') },
+    { name: '模型阵容', el: document.getElementById('act-roster') },
+    { name: '归档金库', el: document.querySelector('[data-act="4"]') }
+  ];
+
+  var capSlides   = [].slice.call(document.querySelectorAll('.cap-slide'));
+  var rosterSubs  = [].slice.call(document.querySelectorAll('.sub'));
+  var readout     = document.getElementById('readout');
+  var roCount     = document.getElementById('ro-count');
+  var roName      = document.getElementById('ro-name');
+  var roFill      = document.getElementById('ro-fill');
+  var pinned      = true;
+
+  // 读数器刻度点：点击跳幕
+  (function dots() {
+    var host = document.getElementById('ro-dots');
+    ACTS.forEach(function (a, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', '跳到 ' + a.name);
+      b.innerHTML = '<i></i>';
+      b.addEventListener('click', function () {
+        window.scrollTo({ top: a.el.offsetTop, behavior: 'smooth' });
+      });
+      host.appendChild(b);
+    });
+  })();
+  var roDots = [].slice.call(document.querySelectorAll('#ro-dots button'));
+
+  function sectionProgress(el) {
+    var r = el.getBoundingClientRect();
+    var span = el.offsetHeight - window.innerHeight;
+    if (span <= 0) {
+      // 非钉住幕：以「穿过视口」为进度
+      return Math.min(1, Math.max(0, (window.innerHeight - r.top) / (window.innerHeight + el.offsetHeight)));
+    }
+    return Math.min(1, Math.max(0, -r.top / span));
+  }
+
+  /* 能力舞台：3 片原地换（现有组件的语法，简化重演） */
+  function paintCap(p) {
+    var n = capSlides.length, span = 1 / n;
+    capSlides.forEach(function (s, i) {
+      var t = (p - i * span) / span;
+      var o, y;
+      if (t < -0.14 || t > 1.14) { o = 0; y = t < 0 ? 30 : -30; }
+      else if (t < 0.14) { o = (t + 0.14) / 0.28; y = (0.14 - t) * 90; }
+      else if (t > 0.86) { o = (1.14 - t) / 0.28; y = (0.86 - t) * 90; }
+      else { o = 1; y = 0; }
+      if (i === 0 && t < 0.14) { o = 1; y = 0; }
+      if (i === n - 1 && t > 0.86) { o = 1; y = 0; }
+      s.style.opacity = o.toFixed(3);
+      s.style.transform = 'translate3d(0,' + y.toFixed(1) + 'px,0)';
+      s.inert = o < 0.5;
+    });
+  }
+
+  /* 阵容四小幕：静场开幕 + 经纸转场。
+     经纸 = 上一小幕完全退场（回到纸面）之后，下一小幕才开始进场 ——
+     out 段 [0.86, 0.96] → 空一拍 [0.96, 1.04] → in 段 [1.04, 1.14]。
+     幕内再分两拍：静场拍（0 → 0.30 独占）、网格拍（0.24 起浮入）。 */
+  function paintRoster(p) {
+    var n = rosterSubs.length, span = 1 / n;
+    rosterSubs.forEach(function (sub, i) {
+      var t = (p - i * span) / span;
+      var still = sub.querySelector('.still');
+      var wrap  = sub.querySelector('.grid-wrap');
+
+      /* 经纸窗口：out 在 [0.86, 0.94] 内降到 0，in 在 [0.06, 0.14] 内从 0 升。
+         相邻小幕换算同一时刻：上一幕 t=0.94 归零时，下一幕 t=-0.06 还没起步；
+         下一幕 t=0.06 起步时，上一幕 t=1.06 早已归零 —— 中间是一拍纯纸面。
+         第一版把 in 提前到了 t<0.02，实测两幕共存透明度 0.505，是交叉不是经纸。 */
+      var o;
+      if (t < 0.06 || t > 0.94) o = 0;
+      else if (t < 0.14) o = (t - 0.06) / 0.08;   // 进场：从纸里浮现
+      else if (t > 0.86) o = (0.94 - t) / 0.08;   // 退场：回到纸面
+      else o = 1;
+      if (i === 0 && t < 0.14) o = 1;
+      if (i === n - 1 && t > 0.86 && t <= 1) o = 1;
+      sub.style.opacity = o.toFixed(3);
+      sub.inert = o < 0.5;
+
+      // 静场拍：占小幕前 30%，然后让位给网格
+      var so, wo, wy;
+      if (t < 0.22) { so = 1; }
+      else if (t < 0.34) { so = (0.34 - t) / 0.12; }
+      else { so = 0; }
+      if (t < 0.24) { wo = 0; wy = 34; }
+      else if (t < 0.40) { wo = (t - 0.24) / 0.16; wy = (0.40 - t) / 0.16 * 34; }
+      else { wo = 1; wy = 0; }
+
+      still.style.opacity = so.toFixed(3);
+      still.style.transform = 'scale(' + (0.96 + 0.04 * Math.min(1, Math.max(0, t / 0.22))).toFixed(4) + ')';
+      wrap.style.opacity = wo.toFixed(3);
+      wrap.style.transform = 'translate3d(0,' + wy.toFixed(1) + 'px,0)';
+    });
+  }
+
+  function paint() {
+    if (!pinned) return;
+
+    // 当前幕 = 视口中线落在哪个幕的段内
+    var mid = window.innerHeight / 2;
+    var current = 0;
+    ACTS.forEach(function (a, i) {
+      var r = a.el.getBoundingClientRect();
+      if (r.top <= mid) current = i;
+    });
+
+    var p = sectionProgress(ACTS[current].el);
+    roCount.textContent = '0' + (current + 1) + ' / 0' + ACTS.length;
+    roName.textContent = ACTS[current].name;
+    roFill.style.width = (p * 100).toFixed(1) + '%';
+    roDots.forEach(function (d, i) { d.dataset.on = String(i === current); });
+
+    // 读数器从幕 02 起在场（语法第 4 条）
+    var heroBottom = ACTS[0].el.getBoundingClientRect().bottom;
+    readout.classList.toggle('on', heroBottom < mid);
+
+    paintCap(sectionProgress(ACTS[2].el));
+    paintRoster(sectionProgress(ACTS[3].el));
+  }
+
+  function measure() {
+    pinned = window.matchMedia('(min-width: 901px)').matches
+          && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!pinned) { readout.classList.remove('on'); return; }
+    paint();
+  }
+
+  // scroll 直连、不做 rAF 节流：scroll 本就按帧派发，且隐藏标签页里 rAF 会冻结
+  window.addEventListener('scroll', paint, { passive: true });
+  window.addEventListener('resize', measure);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+  window.addEventListener('load', measure);
+  measure();
+</script>
+</body>
+</html>

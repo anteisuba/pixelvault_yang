@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>助手 A · 关键切片 v4 — 全按钮交互定稿</title>
+<style>
+  /* ⚠ 关键切片 v2 · demo 例外。已拍规则全部是【真交互】：
+     ① 点工作台任意处 → 收成胶囊；点提示词框 / 助手面板 → 不收（注意力法则）
+     ② 评价卡内嵌它评的那张图（证据长在结论里）
+     ③ 统一底盘：域 tab 切走，工具与表单换、会话线程不断（线程里插域标记）
+     ④ 面板默认 560px，左缘可拖拽，宽度记忆（localStorage）
+     ⑤ 门面收纳：头部只剩「身份·域 chip·会话·收起」，上传与模型路由沉到输入框 */
+  :root{
+    --paper:#f4f2ee; --panel:#ffffff; --ink:#1b1a18; --dim:#8a857c;
+    --line:#e4dfd7; --line2:#d5cfc5;
+    --ai:#6d5ae0; --ai-ink:#4c3fb0; --ai-soft:#f1eefb; --ai-line:#d9d2f4;
+    --money:#b45309; --money-soft:#fdf3e7; --ok:#15803d; --err:#b91c1c;
+    --mono:'SF Mono','Cascadia Mono',Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font:14px/1.6 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif}
+  .off{display:none!important}
+
+  header{position:sticky;top:0;z-index:50;background:rgba(244,242,238,.94);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:10px 22px;display:flex;align-items:center;gap:16px}
+  header .ttl{font-weight:800}
+  header .ttl small{display:block;font-weight:400;font-size:11px;color:var(--dim)}
+  .stepper{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .stepper button{width:30px;height:30px;border-radius:999px;border:1px solid var(--line2);background:var(--panel);cursor:pointer}
+  .dots{display:flex;gap:5px}
+  .dots i{width:22px;height:4px;border-radius:2px;background:var(--line2)}
+  .dots i.on{background:var(--ink)}
+  .cap{font-size:12.5px;color:var(--dim);max-width:520px}
+  .cap b{color:var(--ink)}
+  .hint{padding:7px 22px;border-bottom:1px solid var(--line);background:#fbfaf7;font-size:11.5px;color:var(--dim)}
+  .hint b{color:var(--ai-ink)}
+
+  .wrap{padding:18px 22px}
+  .wb{position:relative;border:1px solid var(--line2);border-radius:16px;overflow:hidden;height:680px;
+    display:grid;grid-template-columns:255px 1fr;background:var(--paper);
+    box-shadow:0 24px 60px -38px rgba(20,18,14,.35)}
+
+  /* 域 tab（模拟三个工作台路由） */
+  .dtabs{position:absolute;left:14px;top:12px;z-index:7;display:flex;gap:4px;background:var(--panel);
+    border:1px solid var(--line2);border-radius:999px;padding:3px}
+  .dtabs button{border:none;background:none;border-radius:999px;padding:3px 13px;font-size:12px;
+    cursor:pointer;color:var(--dim);font-weight:600}
+  .dtabs button.on{background:var(--ink);color:#fff}
+
+  .form{background:var(--panel);border-right:1px solid var(--line);padding:52px 14px 14px;display:flex;
+    flex-direction:column;gap:11px;overflow-y:auto}
+  .fld>label{font-size:11px;color:var(--dim);letter-spacing:.05em;display:flex;align-items:center;gap:6px}
+  .fld .box{margin-top:4px;border:1px solid var(--line);border-radius:9px;background:#fbfaf8;
+    padding:8px 10px;font-size:12.5px;min-height:34px}
+  .fld.touched .box{border-color:var(--ai-line);background:var(--ai-soft)}
+  .badge{font-size:10px;font-family:var(--mono);color:var(--ai-ink);background:var(--ai-soft);
+    border:1px solid var(--ai-line);border-radius:999px;padding:1px 7px;cursor:pointer}
+  .user-ink{color:var(--ink)} .ai-ink{color:var(--ai-ink)}
+  .confirm{margin-top:5px;border:1px dashed var(--ai-line);background:var(--ai-soft);border-radius:8px;
+    padding:6px 9px;font-size:11.5px;color:var(--ai-ink)}
+  .confirm b{background:var(--ai);color:#fff;border-radius:6px;padding:1px 8px;margin:0 2px;cursor:pointer}
+  .confirm span{border:1px solid var(--ai-line);border-radius:6px;padding:1px 8px;margin:0 2px;cursor:pointer}
+  .refs{display:flex;gap:8px;margin-top:5px}
+  .ref{width:72px}
+  .ref .th{position:relative;width:72px;height:96px;border-radius:8px;overflow:hidden;
+    border:1px solid var(--ai-line);background:linear-gradient(150deg,#e8e4f8,#cfc7ee)}
+  .ref .th img{width:100%;height:100%;object-fit:cover;display:block}
+  .ref .src-tag{position:absolute;left:4px;bottom:4px;font-size:9px;font-family:var(--mono);
+    background:rgba(20,18,14,.72);color:#fff;border-radius:5px;padding:0 5px}
+  .ref em{display:block;font-style:normal;font-size:10px;color:var(--dim);margin-top:3px;line-height:1.35}
+  .fire{margin-top:auto;border:none;border-radius:11px;padding:12px;background:#e9e5de;color:#9a948a;
+    font-size:14px;font-weight:700;cursor:not-allowed;width:100%}
+  .fire.primed{background:var(--ink);color:#fff;cursor:pointer;outline:2px solid var(--ai);outline-offset:2px;
+    animation:primo 2.2s ease-in-out infinite}
+  @keyframes primo{0%,100%{outline-color:var(--ai)}50%{outline-color:transparent}}
+  .fire .price{font-family:var(--mono);font-weight:400;font-size:12px;opacity:.85;margin-left:8px}
+  .revert-all{margin-top:6px;text-align:center;font-size:11px;color:var(--dim);cursor:pointer}
+  .revert-all u{color:var(--ai-ink)}
+  .mrow{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:12px}
+  .mrow .w{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim)}
+
+  .stage{position:relative;display:flex;align-items:center;justify-content:center;padding:20px}
+  .empty{color:var(--dim);text-align:center;font-size:13px}
+  .empty b{display:block;font-size:15px;color:var(--ink);margin-bottom:6px}
+  .result{display:flex;gap:14px;align-items:flex-end}
+  .shot{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line2);
+    background:linear-gradient(160deg,#efece6,#ddd8cf);box-shadow:0 18px 44px -26px rgba(20,18,14,.4)}
+  .shot.big{width:300px;height:400px}
+  .shot.sml{width:132px;height:176px;opacity:.75}
+  .shot img{width:100%;height:100%;object-fit:cover;display:block}
+  .shot .tag{position:absolute;left:8px;bottom:8px;font-size:10px;font-family:var(--mono);
+    background:rgba(20,18,14,.7);color:#fff;border-radius:6px;padding:1px 8px}
+
+  /* ── 覆盖层：默认 560 · 左缘拖拽 ── */
+  .overlay{position:absolute;top:12px;right:12px;bottom:12px;width:560px;z-index:5;
+    background:var(--panel);border:1px solid var(--line2);border-radius:14px;
+    box-shadow:0 26px 60px -30px rgba(20,18,14,.45);display:flex;flex-direction:column;
+    transition:opacity .22s ease,transform .28s cubic-bezier(.3,.9,.3,1)}
+  .overlay.hid{transform:translateX(24px) scale(.97);opacity:0;pointer-events:none}
+  .overlay.drag{transition:none}
+  .grip{position:absolute;left:-3px;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:9}
+  .grip::after{content:'';position:absolute;left:3px;top:50%;transform:translateY(-50%);
+    width:3px;height:44px;border-radius:3px;background:var(--line2)}
+  .grip:hover::after{background:var(--ai)}
+  .wtip{position:absolute;left:-64px;top:50%;transform:translateY(-50%);font-family:var(--mono);
+    font-size:11px;background:var(--ink);color:#fff;border-radius:7px;padding:2px 8px;opacity:0}
+  .overlay.drag .wtip{opacity:1}
+
+  .cop-h{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .cop-h .dot{width:8px;height:8px;border-radius:99px;background:var(--ai)}
+  .cop-h b{font-size:13px}
+  .dchip{font-size:10.5px;font-family:var(--mono);color:var(--ai-ink);background:var(--ai-soft);
+    border:1px solid var(--ai-line);border-radius:999px;padding:1px 9px}
+  .cop-h .sp{flex:1}
+  .hbtn{font-size:12px;color:var(--dim);cursor:pointer;border:1px solid var(--line);
+    border-radius:8px;padding:2px 10px;background:#fff}
+  .menu{position:absolute;right:12px;top:44px;z-index:20;background:var(--panel);border:1px solid var(--line2);
+    border-radius:12px;box-shadow:0 18px 40px -18px rgba(20,18,14,.4);min-width:250px;overflow:hidden}
+  .menu .mi{padding:9px 13px;font-size:12.5px;cursor:pointer;display:flex;gap:8px;align-items:center}
+  .menu .mi:hover{background:#f7f5f1}
+  .menu .mi small{margin-left:auto;font-size:10px;font-family:var(--mono);color:var(--dim)}
+  .menu .mi .dtag{font-size:9.5px;font-family:var(--mono);border:1px solid var(--line2);
+    border-radius:5px;padding:0 5px;color:var(--dim)}
+  .menu .sep{border-top:1px solid var(--line)}
+
+  .thread{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+  .msg-u{align-self:flex-end;max-width:86%;background:var(--ink);color:#fff;
+    border-radius:12px 12px 3px 12px;padding:8px 12px;font-size:12.5px}
+  .plan{border:1px solid var(--ai-line);background:var(--ai-soft);border-radius:12px;padding:9px 11px;font-size:12px}
+  .plan b{display:block;font-size:11px;color:var(--ai-ink);letter-spacing:.06em;margin-bottom:5px}
+  .plan .steps{display:flex;flex-wrap:wrap;gap:4px}
+  .plan .steps i{font-style:normal;font-size:11px;background:#fff;border:1px solid var(--ai-line);
+    border-radius:999px;padding:1px 8px;color:var(--ai-ink)}
+  .dmark{align-self:center;font-size:10.5px;font-family:var(--mono);color:var(--dim);
+    border:1px dashed var(--line2);border-radius:999px;padding:2px 12px}
+  .log{display:flex;flex-direction:column;gap:6px}
+  .logi{position:relative;display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);
+    border-radius:10px;padding:7px 9px;font-size:12px;background:#fdfcfa}
+  .logi.now{border-color:var(--ai-line);background:var(--ai-soft)}
+  .logi .ic{flex:none;width:20px;height:20px;border-radius:7px;background:var(--ai-soft);
+    border:1px solid var(--ai-line);display:grid;place-items:center;font-size:11px}
+  .logi .tt{font-weight:600}
+  .logi .why{color:var(--dim);font-size:11px}
+  .logi .un{position:absolute;right:8px;top:7px;font-size:10px;color:var(--dim);cursor:pointer;
+    opacity:0;font-family:var(--mono)}
+  .logi:hover .un{opacity:1}
+  .logi.money{border-color:#ecd9bd;background:var(--money-soft)}
+  .logi.money .tt{color:var(--money)}
+  .webrow{display:flex;gap:6px;margin-top:6px}
+  .webrow .wc{position:relative;width:56px;height:56px;border-radius:8px;border:1px solid var(--line2);
+    background:linear-gradient(140deg,#ded9d0,#cbc4b8);overflow:hidden}
+  .webrow .wc:nth-child(2){background:linear-gradient(140deg,#d9dee2,#b9c2c8)}
+  .webrow .wc:nth-child(3){background:linear-gradient(140deg,#e4ddd2,#cfc3b0)}
+  .webrow .wc.sel{outline:2px solid var(--ai);outline-offset:1px}
+  .webrow .wc.sel::after{content:'✓ 入库';position:absolute;left:0;right:0;bottom:0;font-size:9px;
+    text-align:center;background:rgba(109,90,224,.92);color:#fff}
+
+  .critique{border:1px solid var(--ai-line);border-radius:12px;overflow:hidden;font-size:12px}
+  .critique .ch{background:var(--ai-soft);padding:7px 11px;font-size:11px;color:var(--ai-ink);
+    font-weight:700;letter-spacing:.04em}
+  .critique .body{display:flex;gap:10px;padding:9px 11px}
+  .critique .ev{flex:none;width:92px;height:122px;border-radius:9px;overflow:hidden;
+    border:1px solid var(--line2);cursor:zoom-in;background:linear-gradient(160deg,#efece6,#ddd8cf)}
+  .critique .ev img{width:100%;height:100%;object-fit:cover;display:block}
+  .critique ul{list-style:none;display:flex;flex-direction:column;gap:4px;flex:1}
+  .critique li.ok::before{content:'✓ ';color:var(--ok);font-weight:700}
+  .critique li.bad::before{content:'✗ ';color:var(--err);font-weight:700}
+  .critique .fix{border-top:1px dashed var(--ai-line);padding:8px 11px;background:#fdfcff}
+  .critique .fix b{color:var(--ai-ink)}
+  .critique .fix .mini{margin-top:5px;font-size:10.5px;font-family:var(--mono);color:var(--dim)}
+  .critique .fix .mini u{cursor:pointer;color:var(--ai-ink);margin-right:10px;text-decoration:none;
+    border-bottom:1px dotted var(--ai-line)}
+  .ledger{border:1px solid var(--line2);border-radius:12px;padding:9px 11px;font-size:12px;background:#fbfaf7}
+  .ledger b{display:block;font-size:11px;letter-spacing:.05em;color:var(--dim);margin-bottom:4px}
+  .ledger .row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;padding:1px 0}
+  .ledger .act{margin-top:7px;display:flex;gap:6px}
+  .ledger .act span{flex:1;text-align:center;border:1px solid var(--line2);border-radius:8px;
+    padding:4px 0;font-size:11.5px;cursor:pointer}
+  .ledger .act span:first-child{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  .sugg{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 8px}
+  .sugg span{font-size:11.5px;border:1px solid var(--ai-line);color:var(--ai-ink);background:#fff;
+    border-radius:999px;padding:3px 11px;cursor:pointer}
+  /* ── 输入区：工具条在输入框【上方】（owner 拍）· 发送随输入行 ── */
+  .composer{border-top:1px solid var(--line);padding:9px 12px 10px;display:flex;flex-direction:column;gap:7px}
+  .tbar{display:flex;align-items:center;gap:8px}
+  .tbar .clip{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:#fff;
+    display:grid;place-items:center;cursor:pointer;font-size:13px;color:var(--dim)}
+  .mchip{display:flex;align-items:center;gap:5px;font-size:11.5px;border:1px solid var(--line);
+    border-radius:999px;padding:4px 11px;cursor:pointer;background:#fff;color:var(--ink)}
+  .mchip b{font-weight:600}
+  .mchip i{font-style:normal;color:var(--dim);font-size:10px}
+  .tbar .sp{flex:1}
+  .tbar .stop{width:30px;height:30px;border-radius:9px;border:1px solid #ecc9c9;background:#fdf3f3;
+    color:var(--err);display:grid;place-items:center;cursor:pointer;font-size:11px}
+  .irow{display:flex;gap:8px;align-items:center}
+  .irow .in{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 11px;color:var(--dim);font-size:12.5px}
+  .irow .go{width:38px;height:36px;border-radius:10px;background:var(--ink);color:#fff;border:none;font-size:14px;cursor:pointer}
+
+  /* ── 参考图：挂载入场动效 + hover 浮起 + 点击放大 ── */
+  .refs .ref{animation:refin .5s cubic-bezier(.2,.9,.3,1.25) backwards}
+  .refs .ref:nth-child(2){animation-delay:.14s}
+  @keyframes refin{from{opacity:0;transform:translateY(10px) scale(.88)}}
+  .ref .th{transition:transform .2s ease,box-shadow .2s ease;cursor:zoom-in}
+  .ref .th:hover{transform:translateY(-3px) scale(1.045);box-shadow:0 12px 26px -12px rgba(20,18,14,.4)}
+
+  /* ── 灯箱（参考图 / 评价卡缩略图共用） ── */
+  .lb{position:fixed;inset:0;z-index:99;background:rgba(20,18,14,.72);display:grid;place-items:center;cursor:zoom-out}
+  .lb img{max-width:70vw;max-height:80vh;border-radius:14px;box-shadow:0 40px 120px -30px rgba(0,0,0,.7);
+    animation:lbin .26s cubic-bezier(.2,.9,.3,1.1)}
+  @keyframes lbin{from{opacity:0;transform:scale(.86)}}
+  .lb .cap2{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);color:#fff;font-size:12px;opacity:.75}
+
+  /* ── 模型选择 = 复用现有「自动路由」组件（不另行设计，按真机形态复刻出场） ── */
+  .rmask{position:absolute;inset:0;z-index:30;background:rgba(20,18,14,.35);display:grid;place-items:center}
+  .rmodal{width:620px;background:var(--panel);border:1px solid var(--line2);border-radius:14px;
+    box-shadow:0 30px 80px -30px rgba(0,0,0,.5);overflow:hidden;animation:lbin .22s ease}
+  .rmodal .rh{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .rmodal .rh b{font-size:14px}
+  .rmodal .rh .note{font-size:10px;font-family:var(--mono);color:var(--dim)}
+  .rmodal .rh .auto2{font-size:11.5px;border:1px solid var(--ai-line);color:var(--ai-ink);background:var(--ai-soft);
+    border-radius:999px;padding:2px 11px;cursor:pointer}
+  .rmodal .rh .x2{margin-left:auto;cursor:pointer;color:var(--dim);border:1px solid var(--line);border-radius:8px;padding:0 8px}
+  .rcols{display:grid;grid-template-columns:1.1fr 1fr .9fr;min-height:218px}
+  .rcol{border-right:1px solid var(--line);padding:10px}
+  .rcol:last-child{border-right:none}
+  .rcol h5{font-size:11px;color:var(--dim);font-weight:400;margin:0 0 6px 4px}
+  .ri{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:12.5px}
+  .ri:hover{background:#f7f5f1}
+  .ri.on{background:var(--ai-soft)}
+  .ri .lg2{width:16px;height:16px;border-radius:5px;display:grid;place-items:center;font-size:9px;color:#fff;font-weight:700}
+
+  /* 日志：点条目展开详情 · 撤销后划线 · 系统行 */
+  .logi .det{display:none;margin-top:5px;font-size:11px;color:var(--dim);border-top:1px dashed var(--line);padding-top:5px}
+  .logi.open .det{display:block}
+  .logi.undone{opacity:.55}
+  .logi.undone .tt{text-decoration:line-through}
+  .sysline{align-self:center;font-size:10.5px;font-family:var(--mono);color:var(--err);
+    border:1px dashed #ecc9c9;border-radius:999px;padding:2px 12px;background:#fdf6f6}
+  .diffbox{display:none;margin-top:6px;font-size:11px;font-family:var(--mono);background:#fdfcff;
+    border:1px solid var(--ai-line);border-radius:8px;padding:7px 9px;line-height:1.7}
+  .diffbox.on{display:block}
+  .diffbox ins{background:#e5f6e9;color:var(--ok);text-decoration:none;border-radius:3px;padding:0 2px}
+  .clr-confirm{background:#fdf3f3!important;color:var(--err)!important;border-color:#ecc9c9!important}
+
+  /* ── 附件面板（📎）：上传三类 + 素材库就地预览 + 粘贴提示 ── */
+  .menu.attach{right:12px;left:12px;top:auto;bottom:96px;min-width:0;padding:10px}
+  .drop{border:1.5px dashed var(--line2);border-radius:10px;padding:13px;text-align:center;
+    font-size:12.5px;color:var(--dim);cursor:pointer;background:#fbfaf8}
+  .drop:hover{border-color:var(--ai);color:var(--ai-ink)}
+  .drop em{font-style:normal;font-family:var(--mono);font-size:10.5px;display:block;margin-top:2px}
+  .ahead{display:flex;align-items:center;margin:10px 2px 6px;font-size:11px;color:var(--dim);letter-spacing:.05em}
+  .ahead u{margin-left:auto;color:var(--ai-ink);cursor:pointer;text-decoration:none;
+    border-bottom:1px dotted var(--ai-line);font-size:11px}
+  .agrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .ath{position:relative;aspect-ratio:3/4;border-radius:8px;overflow:hidden;cursor:pointer;
+    border:1px solid var(--line2);background:linear-gradient(150deg,#e6e2da,#d3cdc2)}
+  .ath img{width:100%;height:100%;object-fit:cover;display:block}
+  .ath:hover{outline:2px solid var(--ai);outline-offset:1px}
+  .ath .tb{position:absolute;right:3px;top:3px;font-size:9px;font-family:var(--mono);
+    background:rgba(20,18,14,.72);color:#fff;border-radius:5px;padding:0 4px}
+  .ath.media{display:grid;place-items:center;font-size:16px;color:var(--dim)}
+  .paste{margin-top:9px;font-size:11px;color:var(--dim);border-top:1px dashed var(--line);
+    padding-top:8px;cursor:pointer}
+  .paste b{color:var(--ai-ink)}
+  .attrow{display:flex;gap:6px;padding:8px 14px 0}
+  .attc{position:relative;display:flex;align-items:center;gap:6px;border:1px solid var(--ai-line);
+    background:var(--ai-soft);border-radius:9px;padding:3px 8px 3px 3px;font-size:11px;color:var(--ai-ink)}
+  .attc .tth{width:26px;height:26px;border-radius:6px;overflow:hidden;background:#d3cdc2;
+    display:grid;place-items:center;font-size:12px}
+  .attc .tth img{width:100%;height:100%;object-fit:cover;display:block}
+  .attc .x{cursor:pointer;color:var(--dim);font-family:var(--mono);padding:0 3px}
+  .menu .sub{background:#f8f7f3}
+  .menu .si{padding-left:26px;font-size:12px}
+  .menu .si.on b{color:var(--ai-ink)}
+
+  .pill{position:absolute;right:16px;top:14px;z-index:6;display:flex;align-items:center;gap:8px;
+    background:var(--ink);color:#fff;border-radius:999px;padding:8px 16px;font-size:12.5px;cursor:pointer;
+    box-shadow:0 12px 30px -14px rgba(20,18,14,.6);transition:transform .25s ease,opacity .2s ease}
+  .pill.hid{transform:translateY(-6px);opacity:0;pointer-events:none}
+  .pill .dot{width:7px;height:7px;border-radius:99px;background:var(--ai)}
+  .pill.working .dot{animation:blink 1.2s infinite}
+  .pill.alert{outline:2px solid var(--ai);outline-offset:2px;animation:primo 2.2s infinite}
+  @keyframes blink{50%{opacity:.3}}
+
+  .flash{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:8;
+    background:var(--ink);color:#fff;border-radius:999px;padding:6px 16px;font-size:11.5px;
+    opacity:0;transition:opacity .25s ease;pointer-events:none;white-space:nowrap}
+  .flash.on{opacity:.92}
+
+  .foot{padding:12px 22px 26px;font-size:12px;color:var(--dim);display:flex;gap:16px;flex-wrap:wrap}
+  .foot b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="ttl">助手 A · 关键切片 v4<small>模型 chip 明面 · 全按钮交互（插话转向/二击清空/药丸即发/日志详情）· 2026-08-30</small></div>
+  <div class="stepper">
+    <div class="cap" id="cap"></div>
+    <button id="prev">←</button><div class="dots" id="dots"></div><button id="next">→</button>
+  </div>
+</header>
+<div class="hint">
+  试玩点：① 收放（点表单收/提示词框不收/胶囊回）② 切域（会话不断）③ 拖宽 ④ 📎 附件面板
+  ⑤ <b>模型 chip 在输入框上方工具条</b>——点开是现有「自动路由」组件（复用）⑥ <b>点日志条展开详情</b> · hover 撤销（划线+通报助手）
+  ⑦ 幕 4 试「查看 diff / 还原这轮」⑧ 幕 5 试「清掉全部」的<b>二击确认</b> ⑨ 幕 1–2 有 ⏹ · 药丸即发 ⑩ <b>参考图：挂载弹入动效 · hover 浮起 · 点击灯箱放大</b>
+</div>
+
+<div class="wrap">
+  <div class="wb" id="wb">
+    <div class="dtabs" id="dtabs">
+      <button data-d="image" class="on">图片</button>
+      <button data-d="lora">LoRA</button>
+      <button data-d="video">视频</button>
+    </div>
+
+    <!-- 图片域表单（故事发生地） -->
+    <aside class="form" id="form-image">
+      <div class="fld keep" id="promptFld" data-keep>
+        <label>提示词 <span class="badge off" data-on="3">✦ 助手 +236 字 · 撤销</span></label>
+        <div class="box"><span class="user-ink">手办质感的立绘</span><span class="ai-ink off" data-on="3">，1girl，棕色短波波头，内层橙色发梢，橙色米字发卡，米白宽大外套，抱黑色硬皮书，PVC 手办质感，棚拍布光…（+236 字）</span></div>
+        <div class="confirm off" data-on="2" data-off="3">框里有你手写的 7 个字 — <b>追加在后</b><span>覆盖</span><span>保留</span></div>
+      </div>
+      <div class="fld off" data-on="2">
+        <label>参考图 <span class="badge">✦ 助手挂的 ×2</span></label>
+        <div class="refs">
+          <div class="ref"><div class="th"><img src="http://localhost:3000/homepage/production/lora/lora-body-1.webp" onerror="this.remove()"><span class="src-tag">素材库</span></div><em>角色全身立绘</em></div>
+          <div class="ref"><div class="th"><span class="src-tag">网络 · 已入库</span></div><em>PVC 质感参考</em></div>
+        </div>
+      </div>
+      <div class="fld off touched" data-on="3"><label>模型 <span class="badge">✦ 撤销</span></label><div class="box">GPT Image 2 <span style="color:var(--dim);font-size:11px">— 材质与长指令</span></div></div>
+      <div class="fld off touched" data-on="3"><label>负面提示词 <span class="badge">✦ 撤销</span></label><div class="box ai-ink">写实照片、布料材质、3D 渲染引擎感</div></div>
+      <div class="fld off touched" data-on="3"><label>规格 <span class="badge">✦ 撤销</span></label><div class="box">3:4 · 1 张</div></div>
+      <button class="fire" id="fire">生成<span class="price off" data-on="3">— 预估 $0.09</span></button>
+      <div class="revert-all off" data-on="3"><u>还原助手的全部改动</u>（6 处）</div>
+    </aside>
+
+    <!-- LoRA 域表单（静态示意：同一个助手在这里的工具变成挂载与权重） -->
+    <aside class="form off" id="form-lora">
+      <div class="fld"><label>已挂载 · 权重</label>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:5px">
+          <div class="mrow">扁平线稿 Flatline <span class="w">2.0</span></div>
+          <div class="mrow">手办质感 Anime Figure <span class="w">0.1</span></div>
+          <div class="mrow">细节增强 Detail Tweaker <span class="w">0.6</span></div>
+        </div>
+      </div>
+      <div class="fld"><label>搜索</label><div class="box" style="color:var(--dim)">搜 Civitai / HuggingFace…</div></div>
+      <div class="fld"><label>触发词</label><div class="box" style="font-family:var(--mono);font-size:11px">@flatline · f1gur3</div></div>
+      <button class="fire">生成</button>
+    </aside>
+
+    <!-- 视频域表单（静态示意） -->
+    <aside class="form off" id="form-video">
+      <div class="fld"><label>提示词</label><div class="box" style="color:var(--dim)">描述镜头、动作与时长节拍…</div></div>
+      <div class="fld"><label>参考 · 图 / 音频</label>
+        <div class="refs"><div class="ref"><div class="th" style="height:72px"><img src="http://localhost:3000/homepage/production/lora/lora-body-4.webp" onerror="this.remove()"><span class="src-tag">图</span></div></div>
+        <div class="ref"><div class="th" style="height:72px;display:grid;place-items:center;color:var(--dim)">♪<span class="src-tag">音色</span></div></div></div>
+      </div>
+      <div class="fld"><label>规格</label><div class="box">720p · 8 秒 · 16:9</div></div>
+      <button class="fire">生成</button>
+    </aside>
+
+    <div class="stage" id="stage">
+      <div class="empty" data-off="4"><b>图片工作台</b>点这里收面板 · 左上角切域 · 拖面板左缘调宽</div>
+      <div class="result off" data-on="4" data-off="5">
+        <div class="shot big"><img src="http://localhost:3000/homepage/production/lora/lora-body-3.webp" onerror="this.remove()"><span class="tag">第 1 轮 · $0.09</span></div>
+      </div>
+      <div class="result off" data-on="5">
+        <div class="shot sml"><img src="http://localhost:3000/homepage/production/lora/lora-body-3.webp" onerror="this.remove()"><span class="tag">第 1 轮</span></div>
+        <div class="shot big"><img src="http://localhost:3000/homepage/production/lora/lora-body-4.webp" onerror="this.remove()"><span class="tag">第 2 轮 · 手办质感 ✓</span></div>
+      </div>
+    </div>
+
+    <!-- 覆盖层：统一助手 -->
+    <div class="overlay" id="ov" data-keep>
+      <div class="grip" id="grip"><span class="wtip" id="wtip">560px</span></div>
+      <div class="cop-h">
+        <span class="dot"></span><b>助手</b><span class="dchip" id="dchip">在图片工作台</span>
+        <span class="sp"></span>
+        <span class="hbtn" id="sess">会话</span>
+        <span class="hbtn" id="more">⋯</span>
+        <span class="hbtn" id="fold">收起</span>
+      </div>
+      <div class="menu off" id="sessMenu">
+        <div class="mi"><b>＋ 新对话</b></div>
+        <div class="mi sep">手办质感的立绘 <span class="dtag">图片·LoRA</span><small>进行中</small></div>
+        <div class="mi">三语展览海报 <span class="dtag">图片</span><small>昨天</small></div>
+        <div class="mi">借伞 · 30 秒分镜 <span class="dtag">视频</span><small>上周</small></div>
+      </div>
+      <div class="menu off" id="moreMenu" style="right:52px">
+        <div class="mi">分享这段会话</div>
+        <div class="mi">问题反馈</div>
+      </div>
+      <div class="thread" id="thread">
+        <div class="msg-u">用我库里的角色出一张手办质感的立绘</div>
+        <div class="plan"><b>计划 · 不花积分的直接做</b>
+          <div class="steps"><i>① 库里找角色参考</i><i>② 网上找质感参考</i><i>③ 配模型与规格</i><i>④ 备好生成给你点</i></div>
+        </div>
+        <div class="log" id="log"></div>
+        <div class="critique off" data-on="4">
+          <div class="ch">自动检查 · 第 1 轮（它备的它负责看）</div>
+          <div class="body">
+            <div class="ev" title="点看大图"><img src="http://localhost:3000/homepage/production/lora/lora-body-3.webp" onerror="this.remove()"></div>
+            <ul>
+              <li class="ok">米字发卡 · 六臂形状在</li>
+              <li class="ok">橙发梢 / 蝴蝶结 / 黑皮书</li>
+              <li class="bad">手办质感只到七成 — 大衣还是布料画法，没有 PVC 反光</li>
+            </ul>
+          </div>
+          <div class="fix"><b id="fixLine">已预填第 2 轮：</b>提示词 +「PVC 材质·可动关节·棚拍底座」，负面 +「布料褶皱」
+            <div class="mini"><u id="diffLink">查看 diff</u><u id="revRound">还原这轮</u><span id="fireNote">生成键已重新点亮 · $0.09</span></div>
+            <div class="diffbox" id="diffBox">…抱黑色硬皮书，<ins>PVC 材质，可动关节，棚拍底座，</ins>棚拍布光…<br>负面：写实照片、布料材质<ins>、布料褶皱</ins></div>
+          </div>
+        </div>
+        <div class="critique off" data-on="5">
+          <div class="ch">自动检查 · 第 2 轮</div>
+          <div class="body">
+            <div class="ev"><img src="http://localhost:3000/homepage/production/lora/lora-body-4.webp" onerror="this.remove()"></div>
+            <ul><li class="ok">PVC 反光与关节出来了 · 锚点全在</li>
+                <li class="ok">与第 1 轮同 seed 同参考 — 只动了词</li></ul>
+          </div>
+        </div>
+        <div class="ledger off" data-on="5">
+          <b>本次会话总账</b>
+          <div class="row"><span>助手改动（全部可还原）</span><span>6 处</span></div>
+          <div class="row"><span>联网搜图 · 入库</span><span>1 次 · 1 张</span></div>
+          <div class="row"><span>你点的生成</span><span>2 次 · $0.18</span></div>
+          <div class="act"><span id="saveRecipe">存为配方</span><span id="clearAll">清掉助手的所有改动</span></div>
+        </div>
+      </div>
+      <div class="sugg" id="sugg"></div>
+      <div class="attrow off" id="attRow"></div>
+      <div class="menu attach off" id="attachMenu">
+        <div class="drop" id="dropZone">拖进来，或点击上传<em>图片 · 音频 · 视频</em></div>
+        <div class="ahead">素材库 · 最近<u id="openLib">打开完整素材库 →</u></div>
+        <div class="agrid" id="agrid">
+          <div class="ath" data-t="img" data-l="角色立绘"><img src="http://localhost:3000/homepage/production/lora/lora-body-1.webp" onerror="this.remove()"></div>
+          <div class="ath" data-t="img" data-l="手办质感"><img src="http://localhost:3000/homepage/production/lora/lora-body-4.webp" onerror="this.remove()"></div>
+          <div class="ath" data-t="img" data-l="紫阳花坡"><img src="http://localhost:3000/homepage/production/umbrella/umbrella-kf3-hydrangea.webp" onerror="this.remove()"></div>
+          <div class="ath" data-t="img" data-l="晴·头像"><img src="http://localhost:3000/homepage/production/voice/avatar-qing.webp" onerror="this.remove()"></div>
+          <div class="ath media" data-t="aud" data-l="她的音色 0:03">♪<span class="tb">音频</span></div>
+          <div class="ath" data-t="vid" data-l="借伞 30s"><img src="http://localhost:3000/homepage/production/umbrella/umbrella-kf5-farewell.webp" onerror="this.remove()"><span class="tb">▶ 视频</span></div>
+        </div>
+        <div class="paste" id="pasteHint">💡 也可以把图片<b>直接粘贴</b>到输入框 — 会以附件形式出现在上面</div>
+      </div>
+      <div class="composer">
+        <div class="tbar">
+          <span class="clip" id="clip" title="附件：上传 / 素材库 / 粘贴">📎</span>
+          <span class="mchip" id="mchip" title="助手用哪个脑子 — 点开是现有「自动路由」组件"><b id="mVal">自动</b><i id="mTag">按任务挑</i><span style="color:var(--dim)">▾</span></span>
+          <span class="sp"></span>
+          <span class="tbar stop off" id="stopBtn" title="停止当前工作">⏹</span>
+        </div>
+        <div class="irow">
+          <div class="in" id="inbox">继续说，或把图直接粘贴进来…</div>
+          <button class="go" title="发送 — 助手干活时发送即插话转向">→</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 模型选择 = 现有「自动路由」组件（复刻出场，不另行设计） -->
+    <div class="rmask off" id="routeModal" data-keep>
+      <div class="rmodal">
+        <div class="rh"><b>自动路由</b><span class="note">复用现有通用组件 · 不另行设计</span>
+          <span class="auto2" id="rAuto">自动 · 按任务挑</span><span class="x2" id="rClose">×</span></div>
+        <div class="rcols">
+          <div class="rcol"><h5>系列</h5>
+            <div class="ri on" data-s="DeepSeek"><span class="lg2" style="background:#4d6bfe">D</span>DeepSeek</div>
+            <div class="ri" data-s="Grok"><span class="lg2" style="background:#1c1c1c">G</span>Grok</div>
+            <div class="ri" data-s="Gemini"><span class="lg2" style="background:#3b7ef2">✦</span>Gemini</div>
+            <div class="ri" data-s="OpenAI"><span class="lg2" style="background:#10a37f">O</span>OpenAI</div>
+            <div class="ri" data-s="Claude"><span class="lg2" style="background:#d97757">C</span>Claude</div>
+          </div>
+          <div class="rcol"><h5>型号</h5><div id="rModels"></div></div>
+          <div class="rcol"><h5>已配置 API KEY</h5><div id="rKeys" style="font-size:12.5px;padding:7px 10px;color:var(--dim)"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pill hid" id="pill"><span class="dot"></span><span id="pillTxt">助手</span></div>
+    <div class="flash" id="flash"></div>
+  </div>
+</div>
+
+<div class="foot">
+  <span><b>头部三件套：</b>身份+域 chip · 会话（历史+新对话合一）· 收起；「⋯」只剩分享/反馈。<b>模型 chip 是高频件</b>，住输入框工具条明面（owner 拍）</span>
+  <span><b>干活时：</b>插话即转向（发送键语义）· ⏹ 常驻 · 输入框占位语变「说，我在听」</span>
+  <span><b>附件面板：</b>上传三类（图/音/视频）· 素材库<b>就地预览</b>（台账 B 条教训：不做「按钮→弹窗」两跳）· 粘贴直达 · 附件成 chip 可摘</span>
+  <span><b>统一底盘：</b>切域换工具不换记忆 ｜ <b>宽度：</b>默认 560 · 拖左缘 420–860 · 记忆</span>
+</div>
+
+<div class="lb off" id="lb"><img id="lbImg" src=""><div class="cap2">点击任意处关闭</div></div>
+
+<script>
+const LOG=[
+ {on:2,ic:'👁',tt:'读取工作台',why:'你已写 7 字提示词 · 未选模型 · 无参考',un:1,
+  det:'读到的完整状态：提示词「手办质感的立绘」· 模型未选 · 规格 1:1 默认 · 参考 0 · 负面空'},
+ {on:2,ic:'🔍',tt:'搜素材库「角色 立绘」· 12 个结果',why:'挑了角色全身立绘 → 挂为参考 ①',un:1,
+  det:'查询词：角色 立绘 · 命中 12 · 挑选理由：唯一一张全身且锚点齐全（发卡/橙发梢/黑书）的立绘'},
+ {on:2,ic:'🌐',tt:'联网搜图「PVC figure 棚拍 参考」',why:'通用图搜 + Civitai/HF · 3 候选选 1 → 已入库 → 挂为参考 ②',web:1,un:1,
+  det:'点未选中的候选可换选，参考 ② 会同步换。已入库 = 出现在素材库，可复用'},
+ {on:3,ic:'⚙',tt:'换模型 GPT Image 2',why:'材质质感 + 长指令忠实度',un:1,
+  det:'也考虑过：Seedream 5.0（中文排版强，本图无文字用不上）· FLUX 2 Pro（写实向，与赛璐璐底冲突）'},
+ {on:3,ic:'✎',tt:'写入提示词 +236 字 · 负面词',why:'追加在你的 7 字之后（经你确认）',un:1,
+  det:'锚点显式点名：发卡 / 橙发梢 / 黑书 —— 不点名模型会漏（《借伞》教训）'},
+ {on:3,ic:'▭',tt:'规格 3:4 · 1 张',why:'立绘竖版 · 先出一张看方向',un:1,
+  det:'先 1 张试方向省积分；方向对了再加张数'},
+ {on:3,ic:'￥',tt:'预填生成 · 预估 $0.09',why:'到此为止 — 生成键亮了，等你来点',money:1,
+  det:'账单：GPT Image 2 · 1 张 × $0.09。这是整条日志里唯一的钱色条目——钱是唯一硬闸'},
+];
+document.getElementById('log').innerHTML=LOG.map(e=>`
+  <div class="logi off ${e.money?'money':''}" data-on="${e.on}" data-tt="${e.tt}">
+    <span class="ic">${e.ic}</span>
+    <div style="flex:1"><div class="tt">${e.tt}</div><div class="why">${e.why}</div>
+    ${e.web?'<div class="webrow"><div class="wc"></div><div class="wc sel"></div><div class="wc"></div></div>':''}
+    <div class="det">${e.det}</div></div>
+    ${e.un?'<span class="un">撤销</span>':''}
+  </div>`).join('');
+
+const CAPS={
+ 1:'幕 1 · <b>开口与计划</b> — 统一助手，域 chip 标着它在哪',
+ 2:'幕 2 · <b>素材直播</b> — 搜库 / 联网搜图入库 / 挂参考；覆写手写就地确认',
+ 3:'幕 3 · <b>配置与预填</b> — 生成键点亮。试试收放、切域、拖宽；点生成键推进',
+ 4:'幕 4 · <b>结果与评价</b> — 扣扳机自动让位；胶囊脉冲；点开看内嵌证据的评价卡',
+ 5:'幕 5 · <b>二轮与收尾</b> — 更好的结果 · 总账',
+};
+const PILL={1:{t:'助手 · 干活中',c:'working'},2:{t:'助手 · 干活中 3/7',c:'working'},
+ 3:{t:'已备好 · 生成键已亮 $0.09',c:''},4:{t:'已看完第 1 轮 · 有建议',c:'alert'},5:{t:'第 2 轮 ✓ · 总账',c:''}};
+const SUGG={
+ image:['帮我配好这张图','从库里找参考','这张为什么不够手办感？|4'],
+ lora:['找个赛璐璐画风的 LoRA','这套挂载会打架吗','把权重扫一遍对比'],
+ video:['把第 2 轮那张动起来','配上她的音色','切成 3 个镜头'],
+};
+const DNAME={image:'在图片工作台',lora:'在 LoRA 工作台',video:'在视频工作台'};
+const state={scene:1,open:true,dom:'image',MAX:5};
+const $=id=>document.getElementById(id);
+function renderSugg(){
+  $('sugg').innerHTML=SUGG[state.dom].map(s=>{
+    const [t,minScene]=s.split('|');
+    if(minScene&&state.scene<+minScene) return '';
+    return `<span>${t}</span>`;
+  }).join('');
+}
+function apply(){
+  document.querySelectorAll('#wb [data-on],#wb [data-off]').forEach(el=>{
+    const on=el.dataset.on?+el.dataset.on:0, off=el.dataset.off?+el.dataset.off:99;
+    el.classList.toggle('off',!(state.scene>=on&&state.scene<off));
+  });
+  ['image','lora','video'].forEach(d=>$('form-'+d).classList.toggle('off',d!==state.dom));
+  document.querySelectorAll('#dtabs button').forEach(b=>b.classList.toggle('on',b.dataset.d===state.dom));
+  $('dchip').textContent=DNAME[state.dom];
+  const vis=[...document.querySelectorAll('.logi')].filter(el=>!el.classList.contains('off'));
+  vis.forEach(el=>el.classList.remove('now'));
+  const latest=vis.filter(el=>+el.dataset.on===state.scene).pop();
+  if(latest) latest.classList.add('now');
+  $('fire').classList.toggle('primed',
+    state.dom==='image'&&(state.scene===3||(state.scene===4&&!state.r2rev)));
+  /* 工作态：⏹ 常驻 + 输入框占位语改成「插话即转向」 */
+  const working=state.scene<=2;
+  $('stopBtn').classList.toggle('off',!working);
+  $('inbox').textContent=working?'说，我在听 — 插话即转向':'继续说，或把图直接粘贴进来…';
+  /* 胶囊 hover：最近一条日志 */
+  const lastLog=[...document.querySelectorAll('.logi')].filter(el=>!el.classList.contains('off')).pop();
+  $('pill').title=lastLog?('最近：'+lastLog.dataset.tt):'';
+  $('ov').classList.toggle('hid',!state.open);
+  $('pill').classList.toggle('hid',state.open);
+  const p=PILL[state.scene];
+  $('pillTxt').textContent=p.t;
+  $('pill').className='pill '+(state.open?'hid ':'')+p.c;
+  $('cap').innerHTML=CAPS[state.scene];
+  $('dots').innerHTML=Array.from({length:state.MAX},(_,i)=>`<i class="${i+1<=state.scene?'on':''}"></i>`).join('');
+  renderSugg();
+}
+function flash(t){const f=$('flash');f.textContent=t;f.classList.add('on');
+  clearTimeout(f._t);f._t=setTimeout(()=>f.classList.remove('on'),1600);}
+function closeMenus(){['sessMenu','moreMenu','attachMenu','routeModal'].forEach(id=>{const el=$(id);if(el)el.classList.add('off')});}
+
+/* 注意力法则（唯一收放规则） */
+$('wb').addEventListener('pointerdown',e=>{
+  if(e.target.closest('#dtabs')) return;                 /* 域 tab 单独处理 */
+  if(e.target.closest('[data-keep]')){
+    if(!e.target.closest('.menu')&&!e.target.closest('#sess')&&!e.target.closest('#more')) closeMenus();
+    if(e.target.closest('#promptFld')&&state.open) flash('提示词框 — 面板不收（共同编辑区）');
+    return;
+  }
+  if(e.target.closest('#pill')){state.open=true;apply();return}
+  closeMenus();
+  if(state.open){state.open=false;apply();flash('工作台点击 — 面板让位（点右上胶囊回来）')}
+});
+
+/* 域切换：工具换、会话不断（插域标记）。切换本身也是工作台点击 → 面板让位 */
+$('dtabs').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b||b.dataset.d===state.dom) return;
+  state.dom=b.dataset.d;
+  const m=document.createElement('div'); m.className='dmark';
+  m.textContent='→ 切到'+DNAME[state.dom].replace('在','')+' · 工具已切换，会话不断';
+  $('thread').appendChild(m);
+  state.open=false; apply();
+  flash('域切换 — 同一个助手，换了工具箱（点胶囊看线程标记）');
+});
+
+/* 拖拽宽度 + 记忆 */
+(function(){
+  const ov=$('ov'), grip=$('grip'), tip=$('wtip');
+  let saved=null; try{saved=+localStorage.getItem('pv-assist-w')||null}catch(e){}
+  if(saved) ov.style.width=Math.min(Math.max(saved,420),860)+'px';
+  tip.textContent=parseInt(getComputedStyle(ov).width)+'px';
+  let sx=0,sw=0,on=false;
+  grip.addEventListener('pointerdown',e=>{
+    on=true;sx=e.clientX;sw=ov.getBoundingClientRect().width;
+    ov.classList.add('drag');grip.setPointerCapture(e.pointerId);e.stopPropagation();
+  });
+  grip.addEventListener('pointermove',e=>{
+    if(!on)return;
+    const w=Math.min(Math.max(sw+(sx-e.clientX),420),860);
+    ov.style.width=w+'px';tip.textContent=Math.round(w)+'px';
+  });
+  grip.addEventListener('pointerup',()=>{
+    on=false;ov.classList.remove('drag');
+    try{localStorage.setItem('pv-assist-w',parseInt(ov.style.width))}catch(e){}
+    flash('宽度已记住 · '+parseInt(ov.style.width)+'px');
+  });
+})();
+
+/* 会话 / 溢出 / 附件菜单（互斥） */
+$('sess').addEventListener('click',e=>{e.stopPropagation();const was=$('sessMenu').classList.contains('off');closeMenus();if(was)$('sessMenu').classList.remove('off')});
+$('more').addEventListener('click',e=>{e.stopPropagation();const was=$('moreMenu').classList.contains('off');closeMenus();if(was)$('moreMenu').classList.remove('off')});
+$('fold').addEventListener('click',e=>{e.stopPropagation();closeMenus();state.open=false;apply()});
+
+/* 📎 附件面板 */
+$('clip').addEventListener('click',e=>{e.stopPropagation();const was=$('attachMenu').classList.contains('off');closeMenus();if(was)$('attachMenu').classList.remove('off')});
+const ATT=[];
+function renderAtt(){
+  $('attRow').classList.toggle('off',ATT.length===0);
+  $('attRow').innerHTML=ATT.map((a,i)=>`
+    <span class="attc"><span class="tth">${a.src?`<img src="${a.src}">`:(a.t==='aud'?'♪':'▶')}</span>${a.l}
+    <span class="x" data-i="${i}">×</span></span>`).join('');
+}
+$('agrid').addEventListener('click',e=>{
+  const th=e.target.closest('.ath'); if(!th) return;
+  if(ATT.length>=3){flash('演示上限 3 个附件');return}
+  ATT.push({t:th.dataset.t,l:th.dataset.l,src:th.querySelector('img')?.src||null});
+  renderAtt(); closeMenus(); flash('已挂到这条消息 · '+th.dataset.l);
+});
+$('attRow').addEventListener('click',e=>{
+  const x=e.target.closest('.x'); if(!x) return;
+  ATT.splice(+x.dataset.i,1); renderAtt();
+});
+$('dropZone').addEventListener('click',()=>flash('上传：图片 / 音频 / 视频（实现期接 /api/upload-*）'));
+$('openLib').addEventListener('click',()=>flash('跳完整素材库选择器（现有 AssetSelectorDialog）'));
+$('pasteHint').addEventListener('click',()=>flash('粘贴即挂件（实现期接 clipboard paste 事件）'));
+
+/* 模型 chip：点开=现有「自动路由」组件（复用，不另行设计） */
+const SERIES={
+ DeepSeek:{models:['DeepSeek V4 Pro'],key:'DeepSeek'},
+ Grok:{models:['Grok 4.5'],key:null},
+ Gemini:{models:['Gemini 3 Pro'],key:null},
+ OpenAI:{models:['GPT-5.6 Sol'],key:'OpenAI'},
+ Claude:{models:['Claude Sonnet 5'],key:'Claude'},
+};
+function renderSeries(name){
+  $('rModels').innerHTML=SERIES[name].models.map(m=>`<div class="ri" data-m="${m}" data-ss="${name}">${m}</div>`).join('');
+  $('rKeys').textContent=SERIES[name].key||'未配置 — 会引导去 QuickSetup';
+}
+renderSeries('DeepSeek');
+$('mchip').addEventListener('click',e=>{e.stopPropagation();closeMenus();$('routeModal').classList.remove('off')});
+$('rClose').addEventListener('click',()=>$('routeModal').classList.add('off'));
+$('rAuto').addEventListener('click',()=>{
+  $('mVal').textContent='自动';$('mTag').textContent='按任务挑';
+  $('routeModal').classList.add('off');flash('助手模型 → 自动（按任务挑）');
+});
+$('routeModal').addEventListener('pointerdown',e=>e.stopPropagation());
+$('routeModal').addEventListener('click',e=>{
+  if(e.target.id==='routeModal'){$('routeModal').classList.add('off');return}
+  const s=e.target.closest('.ri[data-s]');
+  if(s){s.parentElement.querySelectorAll('.ri').forEach(x=>x.classList.toggle('on',x===s));
+    renderSeries(s.dataset.s);return}
+  const m=e.target.closest('.ri[data-m]');
+  if(m){$('mVal').textContent=m.dataset.m;$('mTag').textContent=m.dataset.ss;
+    $('routeModal').classList.add('off');flash('助手模型 → '+m.dataset.m)}
+});
+
+/* 灯箱：参考图 / 评价卡缩略图点击放大（带缩放动画） */
+document.addEventListener('click',e=>{
+  const img=e.target.closest('.ref .th img, .critique .ev img');
+  if(img){$('lbImg').src=img.src;$('lb').classList.remove('off');return}
+  const bare=e.target.closest('.ref .th');
+  if(bare&&!bare.querySelector('img')) flash('预览：这张是网络来源占位示意');
+});
+$('lb').addEventListener('click',()=>$('lb').classList.add('off'));
+
+/* ⏹ 停止（工作态常驻）· 插话即转向由发送键语义承载 */
+$('stopBtn').addEventListener('click',()=>flash('已停止 — 当前步骤收尾即止，可再说话继续'));
+
+/* 建议药丸：点即发送 */
+$('sugg').addEventListener('click',e=>{
+  const s=e.target.closest('span'); if(!s) return;
+  const m=document.createElement('div'); m.className='msg-u'; m.textContent=s.textContent;
+  $('thread').appendChild(m); $('thread').scrollTop=1e6;
+  flash('已发送 — 药丸即短意图，点即开干');
+});
+
+/* 日志：点条目展开详情 · 撤销划线并通报助手 · 候选换选 */
+$('log').addEventListener('click',e=>{
+  const un=e.target.closest('.un');
+  if(un){
+    const li=un.closest('.logi'); li.classList.add('undone');
+    const s=document.createElement('div'); s.className='sysline';
+    s.textContent='你撤销了：'+li.dataset.tt+'（助手已知晓，下一轮不再重做）';
+    $('thread').appendChild(s); $('thread').scrollTop=1e6;
+    flash('已撤销并通报助手'); return;
+  }
+  const wc=e.target.closest('.wc');
+  if(wc){
+    if(!wc.classList.contains('sel')){
+      wc.parentElement.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
+      wc.classList.add('sel'); flash('已换选 — 参考 ② 同步更换');
+    }
+    return;
+  }
+  const li=e.target.closest('.logi');
+  if(li) li.classList.toggle('open');
+});
+
+/* 评价卡：diff 展开 · 还原这轮 · 缩略图聚焦舞台 */
+$('diffLink').addEventListener('click',()=>$('diffBox').classList.toggle('on'));
+$('revRound').addEventListener('click',()=>{
+  state.r2rev=true; $('fireNote').textContent='已还原 — 生成键回灰';
+  $('fixLine').textContent='第 2 轮预填已还原：'; apply(); flash('第 2 轮改动已还原');
+});
+
+
+/* 总账：存配方一击 · 清空二击确认（3 秒不点自动复原） */
+$('saveRecipe').addEventListener('click',()=>flash('已存为配方（接现有配方系统）'));
+$('clearAll').addEventListener('click',()=>{
+  const b=$('clearAll');
+  if(!b.classList.contains('clr-confirm')){
+    b.classList.add('clr-confirm'); b.textContent='确认清掉 6 处？';
+    b._t=setTimeout(()=>{b.classList.remove('clr-confirm');b.textContent='清掉助手的所有改动'},3000);
+    return;
+  }
+  clearTimeout(b._t);
+  document.querySelectorAll('.logi').forEach(li=>li.classList.add('undone'));
+  document.querySelectorAll('.badge').forEach(x=>x.classList.add('off'));
+  state.r2rev=true; apply();
+  b.classList.remove('clr-confirm'); b.textContent='已清掉';
+  const s=document.createElement('div'); s.className='sysline';
+  s.textContent='你清掉了助手的全部改动（6 处）— 助手已知晓';
+  $('thread').appendChild(s); flash('已全部清掉');
+});
+
+/* 附件 chip：点本体预览（图放大 / 音频播放 / 视频小窗） */
+$('attRow').addEventListener('click',e=>{
+  if(e.target.closest('.x')) return;
+  const c=e.target.closest('.attc'); if(!c) return;
+  flash('预览：图放大 · 音频直接播 · 视频循环小窗');
+});
+
+/* 扣扳机 */
+$('fire').addEventListener('pointerup',()=>{
+  if(state.dom!=='image')return;
+  if(state.scene===3){state.scene=4;state.open=false;apply();flash('生成中… 结果落地后胶囊会脉冲')}
+  else if(state.scene===4){state.scene=5;state.open=false;apply()}
+});
+
+$('prev').onclick=()=>{state.scene=Math.max(1,state.scene-1);state.open=true;apply()};
+$('next').onclick=()=>{state.scene=Math.min(state.MAX,state.scene+1);
+  state.open=state.scene<4;apply()};
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft')$('prev').click();
+  if(e.key==='ArrowRight')$('next').click();
+});
+apply();
+</script>
+</body>
+</html>

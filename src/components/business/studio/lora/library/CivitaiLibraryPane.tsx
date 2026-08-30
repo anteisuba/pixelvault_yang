@@ -47,6 +47,7 @@ import { ROUTES } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
+import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { Button } from '@/components/ui/button'
@@ -119,6 +120,8 @@ export function CivitaiCommunityBranch({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const stack = useActiveLoraStack()
+  // 挂载前的 Civitai 下载闸（与「＋添加 LoRA」库 modal 共用同一实现）。
+  const { ensureMountable } = useCivitaiDownloadGate()
   const initialFamilySlug = parseLoraLibraryFamilyParam(
     searchParams.get(LORA_LIBRARY_FAMILY_PARAM),
   )
@@ -238,7 +241,11 @@ export function CivitaiCommunityBranch({
   }, [historyOpen])
 
   const handleUse = useCallback(
-    (item: CivitaiLoraLibraryItem) => {
+    async (item: CivitaiLoraLibraryItem) => {
+      // ⛔ 作者在 Civitai 关掉下载的 LoRA 挂上去只是个陷阱——判据与原因写在
+      // useCivitaiDownloadGate 里（与库 modal 共用同一实现，别在这里再写一份）。
+      if (!(await ensureMountable(item))) return
+
       // External base models: no working inference endpoint / license forbids
       // hosted generation — send to Civitai rather than a guaranteed failure.
       if (!isCivitaiBaseModelGeneratable(item.baseModelFamily)) {
@@ -256,7 +263,7 @@ export function CivitaiCommunityBranch({
         `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.GENERATE}`,
       )
     },
-    [router, stack, t],
+    [ensureMountable, router, stack, t],
   )
 
   const handleFavoriteToggle = useCallback(
@@ -598,7 +605,7 @@ export function CivitaiCommunityBranch({
                         source="civitai"
                         item={item}
                         isFavorited={isFavorited(item.loraUrl)}
-                        onUse={handleUse}
+                        onUse={(target) => void handleUse(target)}
                         onFavorite={handleFavoriteToggle}
                         onCollapse={() => setExpandedItemId(null)}
                         sampleImages={sampleImages}

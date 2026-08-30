@@ -125,33 +125,34 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  generations        Generation[]
-  userApiKeys        UserApiKey[]
-  generationJobs     GenerationJob[]
-  apiUsageLedger     ApiUsageLedger[]
-  imageAnalyses      ImageAnalysis[]
-  arenaMatches       ArenaMatch[]
-  stories            Story[]
-  projects           Project[]
-  characterCards     CharacterCard[]
-  likesGiven         UserLike[]              @relation("LikesGiven")
-  followsGiven       UserFollow[]            @relation("FollowsGiven")
-  followsReceived    UserFollow[]            @relation("FollowsReceived")
-  collections        Collection[]
-  backgroundCards    BackgroundCard[]
-  styleCards         StyleCard[]
-  cardRecipes        CardRecipe[]
-  recipes            Recipe[]
-  voiceCards         VoiceCard[]
-  creativePreference UserCreativePreference?
-  videoPipelines     VideoPipeline[]
-  loraTrainingJobs   LoraTrainingJob[]
-  loraAssets         LoraAsset[]
-  videoScripts       VideoScript[]
-  extractedElements  ExtractedElement[]
-  nodeWorkflowProjects NodeWorkflowProject[]
+  generations            Generation[]
+  userApiKeys            UserApiKey[]
+  generationJobs         GenerationJob[]
+  apiUsageLedger         ApiUsageLedger[]
+  imageAnalyses          ImageAnalysis[]
+  arenaMatches           ArenaMatch[]
+  stories                Story[]
+  projects               Project[]
+  characterCards         CharacterCard[]
+  likesGiven             UserLike[]              @relation("LikesGiven")
+  followsGiven           UserFollow[]            @relation("FollowsGiven")
+  followsReceived        UserFollow[]            @relation("FollowsReceived")
+  collections            Collection[]
+  backgroundCards        BackgroundCard[]
+  styleCards             StyleCard[]
+  cardRecipes            CardRecipe[]
+  recipes                Recipe[]
+  voiceCards             VoiceCard[]
+  creativePreference     UserCreativePreference?
+  videoPipelines         VideoPipeline[]
+  loraTrainingJobs       LoraTrainingJob[]
+  loraAssets             LoraAsset[]
+  videoScripts           VideoScript[]
+  extractedElements      ExtractedElement[]
+  nodeWorkflowProjects   NodeWorkflowProject[]
   assistantConversations AssistantConversation[]
-  researchRuns       ResearchRun[]
+  researchRuns           ResearchRun[]
+  voiceRooms             VoiceRoom[]
 
   @@index([username])
   @@index([isDeleted])
@@ -160,9 +161,9 @@ model User {
 /// Persisted assistant chat (Node canvas and Studio). Messages are JSON
 /// text-only (plus remote media URLs) — never base64 payloads.
 model AssistantConversation {
-  id        String           @id @default(uuid())
+  id        String                       @id @default(uuid())
   userId    String
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
   surface   AssistantSurface
   /// NODE_CANVAS: NodeWorkflowProject.id (weak ref, no FK). STUDIO: null.
   projectId String?
@@ -171,8 +172,8 @@ model AssistantConversation {
   /// [{ id?, role, content, createdAt? }]
   messages  Json
   shares    AssistantConversationShare[]
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  createdAt DateTime                     @default(now())
+  updatedAt DateTime                     @updatedAt
 
   @@index([userId, surface, updatedAt(sort: Desc)])
   @@index([projectId])
@@ -180,13 +181,13 @@ model AssistantConversation {
 
 /// Unauthenticated, read-only snapshots shared by an assistant conversation owner.
 model AssistantConversationShare {
-  id             String              @id @default(uuid())
+  id             String                @id @default(uuid())
   conversationId String
   conversation   AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  tokenHash      String              @unique
+  tokenHash      String                @unique
   expiresAt      DateTime?
   revokedAt      DateTime?
-  createdAt      DateTime             @default(now())
+  createdAt      DateTime              @default(now())
 
   @@index([conversationId])
   @@index([expiresAt])
@@ -420,6 +421,7 @@ model GenerationJob {
 
   apiUsageLedger  ApiUsageLedger[] @relation("GenerationJobToUsage")
   executionOutbox ExecutionOutbox?
+  voiceLines      VoiceLine[]      @relation("VoiceLineJob")
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
@@ -503,12 +505,12 @@ model Recipe {
   //    （prisma/migrations/20260531090000_prompt_core_recipe_assets）。
   coverGenerationId   String?
   coverImageUrl       String?
-  favoriteCount       Int        @default(0)
+  favoriteCount       Int       @default(0)
   lastUsedAt          DateTime?
   remixSourceRecipeId String?
-  tags                String[]   @default([])
-  usageCount          Int        @default(0)
-  visibility          String     @default("PRIVATE")
+  tags                String[]  @default([])
+  usageCount          Int       @default(0)
+  visibility          String    @default("PRIVATE")
 
   @@index([userId, isDeleted, createdAt(sort: Desc)])
   @@index([visibility, isDeleted, createdAt(sort: Desc)])
@@ -541,6 +543,86 @@ model VoiceCard {
   updatedAt                DateTime @updatedAt
 
   @@index([userId, isDeleted, createdAt(sort: Desc)])
+}
+
+/// 配音间的一场戏。左列一个房间一行，各自带班底 / 底垫 / 台词。
+///
+/// 「一场戏 = 一个会话」是这个域的核心比喻：房间不是文件夹，是聊天室。
+model VoiceRoom {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// null = 未命名房间（左列灰字显示）。房间不强制命名——先开口，再起名。
+  name String?
+
+  /// 班底 = 这个房间里可以开口的人，**有序**。每项形如
+  /// `{ id, kind, voiceCardId?, name, coverImage? }`，kind ∈ voice | sfx | bgm。
+  ///
+  /// 用 Json 而不是关联表：班底是房间的一个属性，不是能被独立检索的实体，
+  /// 而且顺序有意义（输入行头像的排列就是它）——Json 数组天然带顺序，关联表
+  /// 还得再补一个 order 列。「哪些房间用了这个音色」当前没有需求，等真有了
+  /// 再拆表（届时直接改，不留兼容层）。
+  cast Json @default("[]")
+
+  /// 配乐底垫 `{ generationId, enabled, gainDb }`。房间级，**不进聊天流** ——
+  /// 音乐跨整场，做成气泡就是在时间轴上撒谎。null = 这场戏没有配乐。
+  bed Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines VoiceLine[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+}
+
+/// 一条台词 = 聊天流里的一个气泡 = 一次生成。
+model VoiceLine {
+  id     String    @id @default(cuid())
+  roomId String
+  room   VoiceRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  /// 聊天流顺序，也是「合成整场」的拼接顺序。
+  order Int
+
+  /// 指向 `VoiceRoom.cast` 里某一项的 id。⚠ Json 内的 id 没有外键保护：说话人
+  /// 被移出班底后这里会悬空，所以渲染**不依赖**它——名字和头像在下面自带快照，
+  /// 它只用来回答「点这条能不能跳回那个说话人」。
+  speakerId String
+
+  /// voice | sfx —— bgm 不会成为台词（它是房间级底垫）。音效条的样式与人声不同
+  /// （虚线胶囊），渲染要靠它分流。
+  speakerKind String @default("voice")
+
+  /// 说话人**快照**。音色卡删了、班底改了，这条台词仍然显示得出「谁说的」——
+  /// 聊天记录是既成事实，不该因为班底变动而失忆。
+  speakerName  String
+  speakerCover String? @db.Text
+
+  /// 净台词：情感括号已剥离（「（耳语）别回头」存的是「别回头」）。
+  /// 送给 provider 的完整提示词在 Generation.snapshot.providerPrompt 里。
+  text String @db.Text
+
+  /// AUDIO_EMOTION 之一；null = 自动（不注入括号提示词，交给模型自己判断）。
+  emotion String?
+
+  /// 这条台词最近一次生成任务。
+  ///
+  /// ⚠ 存的是 **jobId 而不是 generationId**：音频生成是异步的，「正在开口」
+  /// 和「失败了」都是要显示的状态，而它们只活在 GenerationJob 上。存
+  /// generationId 的话生成中就没有落点，刷新页面这条台词会变成一个空气泡。
+  /// 声音本体走 `job.generation` 一次 include 取到，不是 N+1。
+  ///
+  /// 重录是**覆盖**这个字段（owner 2026-08-29 拍板：剧本视图不做，多版本取舍
+  /// 没有消费者）。被换下来的 Generation 不删——它是用户资产，留在素材库里。
+  jobId String?
+  job   GenerationJob? @relation("VoiceLineJob", fields: [jobId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roomId, order])
 }
 
 model UserCreativePreference {
@@ -1155,7 +1237,6 @@ model InspirationPrompt {
   @@index([source])
 }
 
-
 /// L2 陈旧兜底：每个规范化查询只留最近一次成功结果的快照。
 ///
 /// 职责被刻意收窄成一件事——Civitai 搜索子系统不可用时，让搜过的词返回陈
@@ -1202,21 +1283,21 @@ model CivitaiLoraMirror {
   versionId   Int
   versionName String?
 
-  name        String
-  creator     String?
-  category    String?
+  name         String
+  creator      String?
+  category     String?
   /// 该模型所有图片 nsfwLevel 的最大值——三态过滤靠它
   nsfwLevelMax Int     @default(0)
   /// 名字本身命中 NSFW 关键词（safe 档的第二道防线，落库时算好）
-  nsfwNamed   Boolean @default(false)
+  nsfwNamed    Boolean @default(false)
 
   /// 版本的 baseModel（family 过滤靠它）
-  baseModel  String?
-  tags       String[] @default([])
+  baseModel    String?
+  tags         String[] @default([])
   /// version.trainedWords，触发词抽取的输入
   trainedWords String[] @default([])
   /// version.hashData 里的 AutoV3，挂载栈哈希匹配用
-  hashAutoV3 String?
+  hashAutoV3   String?
 
   downloadCount  Int @default(0)
   thumbsUpCount  Int @default(0)
@@ -1273,7 +1354,7 @@ model CivitaiMirrorSyncState {
   /// 最近一次完整走完的时刻
   lastCompletedAt DateTime?
   /// 最近一次失败的原因，失败要能看见而不是静静重试
-  lastError String?
+  lastError       String?
 
   updatedAt DateTime @updatedAt
 }

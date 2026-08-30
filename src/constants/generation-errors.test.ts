@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 
 import {
   GENERATION_ERROR_CODES,
+  getGenerationErrorI18nKeyForCode,
   normalizeErrorCode,
   parseGenerationErrorCode,
 } from './generation-errors'
@@ -186,5 +187,29 @@ describe('parseGenerationErrorCode', () => {
         }),
       ).toBe(GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT)
     })
+  })
+})
+
+// 2026-08-29 owner 真机：作者在 Civitai 关掉下载的 LoRA，两条线都以 401 收场，
+// 而 401 被通用规则说成「你的 API Key 无效或已过期」——把人送去查一把没坏的
+// key。服务端现在在派发前就用 `usageControl` 判定并抛这个专用码，客户端必须
+// 认得它，否则又落回那句假话。
+describe('LORA_DOWNLOAD_DISABLED', () => {
+  it('normalizes the backend code to its own client code, not invalid_api_key', () => {
+    expect(normalizeErrorCode('LORA_DOWNLOAD_DISABLED')).toBe(
+      GENERATION_ERROR_CODES.LORA_DOWNLOAD_DISABLED,
+    )
+    expect(normalizeErrorCode('LORA_DOWNLOAD_DISABLED')).not.toBe(
+      GENERATION_ERROR_CODES.INVALID_API_KEY,
+    )
+  })
+
+  it('resolves an i18n key of its own', () => {
+    expect(
+      getGenerationErrorI18nKeyForCode(
+        GENERATION_ERROR_CODES.LORA_DOWNLOAD_DISABLED,
+        'The creator disabled downloads for this LoRA on Civitai (Ananta).',
+      ),
+    ).toBe('errors.provider.loraDownloadDisabled')
   })
 })

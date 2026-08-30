@@ -11,7 +11,11 @@ import { uploadToR2 } from '@/services/storage/r2'
  * big. Anything under this still has to pass the provider's own limits
  * downstream.
  */
-export const REFERENCE_AUDIO_MAX_BYTES = 25 * 1024 * 1024
+// 唯一出处在 `constants/audio-options.ts`（客户端也要读它，而本文件是
+// `server-only`）。这里再导出一次是为了不动既有的 5 个服务端引用点。
+import { REFERENCE_AUDIO_MAX_BYTES } from '@/constants/audio-options'
+
+export { REFERENCE_AUDIO_MAX_BYTES }
 
 const SUPPORTED_AUDIO_MIMES = new Set([
   'audio/mpeg',

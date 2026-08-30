@@ -55,6 +55,7 @@ import { WorkflowModelPicker } from '../WorkflowModelPicker'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { MediaReviewButtons } from '../CanvasImageSelectionToolbar'
 import { CanvasPopIn } from '../CanvasPopIn'
+import { useSidecarPlacement } from '@/hooks/node/use-sidecar-placement'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { isRunnableModelOption } from '@/hooks/use-split-model-options'
 import {
@@ -664,6 +665,14 @@ export function GenerateComposer() {
   const composer = useGenerateComposer()
   const { screenToFlowPosition } = useReactFlow()
   const rootRef = useRef<HTMLDivElement>(null)
+  // 台账 N：避让要量面板的**实测尺寸**，所以用 state 而不是 ref —— ref 的赋值
+  // 不触发重渲染，hook 拿不到「面板已经挂上来了」这个事实。
+  const [panelEl, setPanelEl] = useState<HTMLDivElement | null>(null)
+  const placement = useSidecarPlacement(
+    composer.host?.nodeId,
+    panelEl,
+    composer.visibility === 'attached',
+  )
   const isMobile = useIsMobile()
 
   // 画布空白处唤起 —— 双击空白处（非节点/边/控件）打开，位置钉在点击点。
@@ -746,8 +755,12 @@ export function GenerateComposer() {
       <NodeToolbar
         nodeId={composer.host.nodeId}
         isVisible={composer.visibility === 'attached'}
-        position={Position.Right}
-        align="start"
+        // 台账 N（2026-08-29 真机 ⭐）：位置改成**视口避让**后的那一侧。放得下时
+        // 恒等于 `Right`/`start`（既有几何一像素不动），放不下才翻边/上翻 ——
+        // 此前写死右侧，宿主卡靠右缘时模型/规格/发送整行在屏幕外，唯一出路是把
+        // 节点拖回屏幕中间。判据与实现见 `useSidecarPlacement`。
+        position={placement.position}
+        align={placement.align}
         // 《画布修法》02 节刀 1（2026-08-26）：位置从贴下方改成右侧侧车，与
         // `SeedanceNode` 的视频侧车同款几何——offset 共读同一个常量，不各写
         // 一份数字。这个 offset 是 owner 在视频侧车上多轮真机验证过的
@@ -759,8 +772,16 @@ export function GenerateComposer() {
             : NODE_STUDIO_NODE_SIDECAR_OFFSET.desktop
         }
       >
-        <CanvasPopIn side="right">
-          <div ref={rootRef} className="canvas-composer-root">
+        <CanvasPopIn
+          side={placement.position === Position.Left ? 'left' : 'right'}
+        >
+          <div
+            ref={(element) => {
+              rootRef.current = element
+              setPanelEl(element)
+            }}
+            className="canvas-composer-root"
+          >
             {body}
           </div>
         </CanvasPopIn>

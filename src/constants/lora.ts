@@ -81,6 +81,22 @@ export const LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST = 3
 // 配方 extras 自动定位全部失败时的逃生口：跳 Civitai 站内搜索让用户自查。
 export const CIVITAI_MODEL_SEARCH_URL = 'https://civitai.com/search/models'
 
+// Civitai Creator Controls：version 详情（`/api/v1/model-versions/:id`）的
+// `usageControl` 字段。只有 `Download` 表示"权重可以被下走"；`Generation` /
+// `InternalGeneration` 表示作者只允许在 Civitai 站内出图，
+// `/api/download/models/:id` 对任何 token 都返 401
+// `The creator of this asset has disabled downloads on this file`。
+//
+// ⚠ 三个实测坑（2026-08-29 逐一 curl 验过）：
+//   1. **不可下载的版本照样带 `downloadUrl` 字段**——它只是个链接，不是许可，
+//      所以"有 downloadUrl"永远不能当作可下载的判据；
+//   2. **meilisearch 搜索索引（models_v9）不带 `usageControl`**，
+//      `availability`/`canGenerate`/`permissions` 对可下和不可下的两把 LoRA
+//      完全一样，浏览列表拿不到这个判据 —— 只有 version 详情端点有；
+//   3. `/api/v1/models/:id` 的 `modelVersions[]` 里也**没有**这个字段，
+//      只有 `/api/v1/model-versions/:id` 有。
+export const CIVITAI_USAGE_CONTROL_DOWNLOAD = 'Download'
+
 // §4.2「常与它同挂」：聚合当前分组全部来源图配方的 extraLoras 共现计数，
 // 取 Top N 且计数 ≥ 最小阈值——单例噪音（只在一张图里出现过一次）不显示。
 export const LORA_OFTEN_MOUNTED_MIN_COUNT = 2

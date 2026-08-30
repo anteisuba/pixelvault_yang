@@ -42,6 +42,7 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   audioTranscribe: false,
   sfxParams: false,
   script: false,
+  videoAudio: false,
   keepChange: false,
 }
 
@@ -308,6 +309,8 @@ function setupStudioForm(
     videoMode: 'keyframe',
     videoDuration: 5,
     videoResolution: '720p',
+    videoAudioRefs: [],
+    videoGenerateAudio: null,
     longVideoMode: false,
     longVideoTargetDuration: 10,
     generateRequestId: 0,
@@ -337,8 +340,11 @@ function getSubmittedVideoPayload(): Record<string, unknown> {
   return video
 }
 
-async function submitVideoFromPromptArea(workflowId: WorkflowId) {
-  setupStudioForm(workflowId)
+async function submitVideoFromPromptArea(
+  workflowId: WorkflowId,
+  overrides: Partial<StudioFormState> = {},
+) {
+  setupStudioForm(workflowId, overrides)
   render(<StudioPromptArea />)
 
   fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
@@ -969,5 +975,77 @@ describe('StudioPromptArea', () => {
     expect(screen.getByText('1001/1000')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
     expect(mockGenerate).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * 台账 A（owner 2026-08-29 拍板补齐）：视频工作台的音频通道。
+ *
+ * ⭐ 守的是**最容易白做的那一步**：schema / service / worker 三层早就收
+ * `audioUrls` + `audioBindings`，断点是 `buildVideoInput` 不填它们。只加面板
+ * 而不改这里，界面上挂得上、请求里一个字都没有 —— 而且三绿。
+ */
+describe('StudioPromptArea · 视频音频参考（台账 A）', () => {
+  beforeEach(() => {
+    mockGenerate.mockClear()
+    mockGenerate.mockResolvedValue(undefined)
+  })
+
+  it('把挂上的音频送进 audioUrls，并按归属填 audioBindings.characterName', async () => {
+    await submitVideoFromPromptArea(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, {
+      videoAudioRefs: [
+        {
+          id: 'a1',
+          url: 'https://cdn.example.com/hinata.mp3',
+          fileName: 'hinata.mp3',
+          ownerName: 'ひなた',
+        },
+        {
+          id: 'a2',
+          url: 'https://cdn.example.com/narration.mp3',
+          fileName: 'narration.mp3',
+        },
+      ],
+    })
+
+    const video = getSubmittedVideoPayload()
+    expect(video.audioUrls).toEqual([
+      'https://cdn.example.com/hinata.mp3',
+      'https://cdn.example.com/narration.mp3',
+    ])
+    // ⚠ 没归属的那条**不带** characterName —— schema 上它是 `.min(1).optional()`，
+    // 送空串会被服务端拒收；不带则退化成无标签 @Audio2。
+    expect(video.audioBindings).toEqual([
+      { url: 'https://cdn.example.com/hinata.mp3', characterName: 'ひなた' },
+      { url: 'https://cdn.example.com/narration.mp3' },
+    ])
+  })
+
+  it('一条都没挂时，两个字段都不出现在请求里', async () => {
+    await submitVideoFromPromptArea(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, {
+      videoAudioRefs: [],
+    })
+
+    const video = getSubmittedVideoPayload()
+    expect(video).not.toHaveProperty('audioUrls')
+    expect(video).not.toHaveProperty('audioBindings')
+  })
+
+  /**
+   * ⭐ `generateAudio` 的三态。发一个 `false` 与「没设过」在**目录默认为 true**
+   * 的模型上是相反的结果 —— 用两态布尔会把「没设过」当成用户主动关掉了声音。
+   */
+  it('没设过就不发 generateAudio —— 最终值留给模型目录默认', async () => {
+    await submitVideoFromPromptArea(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, {
+      videoGenerateAudio: null,
+    })
+    expect(getSubmittedVideoPayload()).not.toHaveProperty('generateAudio')
+  })
+
+  it('用户拨过就发那个显式布尔', async () => {
+    await submitVideoFromPromptArea(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, {
+      videoGenerateAudio: false,
+    })
+    expect(getSubmittedVideoPayload().generateAudio).toBe(false)
   })
 })

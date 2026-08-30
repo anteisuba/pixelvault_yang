@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { toast } from 'sonner'
 
-import type { HuggingFaceLoraSearchItem } from '@/types'
+import type { CivitaiLoraLibraryItem, HuggingFaceLoraSearchItem } from '@/types'
 
 import { LoraLibraryModal } from './LoraLibraryModal'
 
@@ -19,6 +20,7 @@ const mockUseCivitaiLoraLibrary = vi.hoisted(() => vi.fn())
 const mockUseHuggingFaceLoraLibrary = vi.hoisted(() => vi.fn())
 const mockFavoriteExternalLora = vi.hoisted(() => vi.fn())
 const mockStackPush = vi.hoisted(() => vi.fn())
+const mockFetchDownloadPolicy = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
@@ -73,6 +75,10 @@ vi.mock('@/hooks/use-huggingface-lora-library', () => ({
   useHuggingFaceLoraLibrary: mockUseHuggingFaceLoraLibrary,
 }))
 
+vi.mock('@/lib/api-client', () => ({
+  fetchCivitaiLoraDownloadPolicyAPI: mockFetchDownloadPolicy,
+}))
+
 const HF_ITEM: HuggingFaceLoraSearchItem = {
   repoId: 'ostris/ikea-instructions-lora-sdxl',
   name: 'IKEA Instructions',
@@ -97,6 +103,44 @@ const HF_ITEM: HuggingFaceLoraSearchItem = {
   license: 'creativeml-openrail-m',
   gated: false,
   private: false,
+}
+
+// 2026-08-29 真机根因那把：作者在 Civitai 关掉了下载（`usageControl` 是
+// `Generation`）。version id 照抄真实的那把，方便日后对回证据。
+const CIVITAI_ITEM: CivitaiLoraLibraryItem = {
+  id: 'civitai_2266398',
+  styleCode: 'ananta',
+  name: 'Ananta',
+  source: 'imported',
+  type: 'style',
+  baseModelFamily: 'Illustrious',
+  provider: 'civitai',
+  triggerWord: 'ananta',
+  loraUrl: 'https://civitai.com/api/download/models/2266398',
+  coverImageUrl: 'https://example.com/cover.png',
+  previewImageUrls: [],
+  defaultScale: 1,
+  isPublic: true,
+  isOwn: false,
+  createdAt: '2026-08-29T00:00:00.000Z',
+  modelId: 2002323,
+  modelVersionId: 2266398,
+  versionName: 'v1.0',
+  creatorName: 'creator',
+  creatorAvatarUrl: null,
+  modelPageUrl: 'https://civitai.com/models/2002323',
+  tags: [],
+  downloadCount: 0,
+  thumbsUpCount: 24,
+  allowCommercialUse: ['RentCivit'],
+  allowDerivatives: false,
+  thumbImageUrl: 'https://example.com/thumb.png',
+  coverImageUrlOriginal: 'https://example.com/cover-original.png',
+  triggerAlternates: [],
+  recommendedPrompt: null,
+  recommendedPromptAlternates: [],
+  triggerSource: 'official',
+  fileHashAutoV3: null,
 }
 
 function libraryShell(overrides: Record<string, unknown> = {}) {
@@ -124,6 +168,15 @@ function libraryShell(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockFetchDownloadPolicy.mockResolvedValue({
+    success: true,
+    data: {
+      modelVersionId: CIVITAI_ITEM.modelVersionId,
+      downloadDisabled: false,
+      usageControl: 'Download',
+      name: CIVITAI_ITEM.name,
+    },
+  })
   mockFavoriteExternalLora.mockResolvedValue({
     id: 'asset_1',
     name: HF_ITEM.name,
@@ -131,6 +184,7 @@ beforeEach(() => {
   })
   mockUseCivitaiLoraLibrary.mockReturnValue(
     libraryShell({
+      items: [CIVITAI_ITEM],
       baseModel: 'all',
       setBaseModel: vi.fn(),
       nsfwFilter: 'safe',
@@ -199,5 +253,101 @@ describe('LoraLibraryModal · HF「使用」带来源快照', () => {
     const snapshot = payload.sourceSnapshot as { retrievedAt: string }
 
     expect(Number.isNaN(Date.parse(snapshot.retrievedAt))).toBe(false)
+  })
+})
+
+// ── 挂载前的下载闸 ──────────────────────────────────────────────────────
+//
+// 2026-08-29 owner 真机：挂了一把作者在 Civitai 关掉下载的 LoRA，Runner 线和
+// 云端 API 线都在几十秒后以 401 收场，而 401 一路被翻成「你的 API Key 无效或
+// 已过期」。服务端已经在派发前拦下，这里是更早的一道：挂都不让挂。
+//
+// ⚠ 判不了时必须放行 —— 上游抽风不能变成「这把 LoRA 不能用」。
+describe('LoraLibraryModal · 挂载前的 Civitai 下载闸', () => {
+  async function clickUseOnCivitaiCard() {
+    render(<LoraLibraryModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'LoraWorkbench:library.use' }),
+    )
+  }
+
+  it('作者关掉下载时不挂载，并说出真实原因', async () => {
+    mockFetchDownloadPolicy.mockResolvedValue({
+      success: true,
+      data: {
+        modelVersionId: 2266398,
+        downloadDisabled: true,
+        usageControl: 'Generation',
+        name: 'Ananta',
+      },
+    })
+
+    await clickUseOnCivitaiCard()
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        'LoraWorkbench:library.mountBlockedDownloadDisabled',
+        expect.anything(),
+      )
+    })
+    expect(mockStackPush).not.toHaveBeenCalled()
+    // ⛔ 绝不能退回那句假话。
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.stringContaining('invalid_api_key'),
+      expect.anything(),
+    )
+  })
+
+  it('可下载时照常挂载', async () => {
+    await clickUseOnCivitaiCard()
+
+    await waitFor(() => {
+      expect(mockStackPush).toHaveBeenCalledWith(CIVITAI_ITEM)
+    })
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('判不了（上游没给判据）时放行，不把 Civitai 抽风变成挡路', async () => {
+    mockFetchDownloadPolicy.mockResolvedValue({
+      success: false,
+      error: 'Failed with status 502',
+    })
+
+    await clickUseOnCivitaiCard()
+
+    await waitFor(() => {
+      expect(mockStackPush).toHaveBeenCalledWith(CIVITAI_ITEM)
+    })
+  })
+
+  it('只问一次 —— 闸在飞时连点不会挂两把', async () => {
+    let resolvePolicy: (value: unknown) => void = () => {}
+    mockFetchDownloadPolicy.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePolicy = resolve
+      }),
+    )
+
+    render(<LoraLibraryModal open onOpenChange={vi.fn()} />)
+    const useButton = await screen.findByRole('button', {
+      name: 'LoraWorkbench:library.use',
+    })
+    fireEvent.click(useButton)
+    fireEvent.click(useButton)
+
+    resolvePolicy({
+      success: true,
+      data: {
+        modelVersionId: 2266398,
+        downloadDisabled: false,
+        usageControl: 'Download',
+        name: 'Ananta',
+      },
+    })
+
+    await waitFor(() => {
+      expect(mockStackPush).toHaveBeenCalledTimes(1)
+    })
+    expect(mockFetchDownloadPolicy).toHaveBeenCalledTimes(1)
   })
 })

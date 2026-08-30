@@ -398,6 +398,8 @@ export const ModelName = {
   FreeTierSlot: 'FreeTierSlot',
   Recipe: 'Recipe',
   VoiceCard: 'VoiceCard',
+  VoiceRoom: 'VoiceRoom',
+  VoiceLine: 'VoiceLine',
   UserCreativePreference: 'UserCreativePreference',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
@@ -441,7 +443,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState"
+    modelProps: "user" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1478,6 +1480,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.VoiceCardCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.VoiceCardCountAggregateOutputType> | number
+        }
+      }
+    }
+    VoiceRoom: {
+      payload: Prisma.$VoiceRoomPayload<ExtArgs>
+      fields: Prisma.VoiceRoomFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.VoiceRoomFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceRoomPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.VoiceRoomFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceRoomPayload>
+        }
+        findFirst: {
+          args: Prisma.VoiceRoomFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceRoomPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.VoiceRoomFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceRoomPayload>
+        }
+        findMany: {
+          args: Prisma.VoiceRoomFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceRoomPayload>[]
+        }
+        create: {
+          args: Prisma.VoiceRoomCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceRoomPayload>
+        }
+        createMany: {
+          args: Prisma.VoiceRoomCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.VoiceRoomCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceRoomPayload>[]
+        }
+        delete: {
+          args: Prisma.VoiceRoomDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceRoomPayload>
+        }
+        update: {
+          args: Prisma.VoiceRoomUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceRoomPayload>
+        }
+        deleteMany: {
+          args: Prisma.VoiceRoomDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.VoiceRoomUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.VoiceRoomUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceRoomPayload>[]
+        }
+        upsert: {
+          args: Prisma.VoiceRoomUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceRoomPayload>
+        }
+        aggregate: {
+          args: Prisma.VoiceRoomAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateVoiceRoom>
+        }
+        groupBy: {
+          args: Prisma.VoiceRoomGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VoiceRoomGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.VoiceRoomCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VoiceRoomCountAggregateOutputType> | number
+        }
+      }
+    }
+    VoiceLine: {
+      payload: Prisma.$VoiceLinePayload<ExtArgs>
+      fields: Prisma.VoiceLineFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.VoiceLineFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceLinePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.VoiceLineFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceLinePayload>
+        }
+        findFirst: {
+          args: Prisma.VoiceLineFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceLinePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.VoiceLineFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceLinePayload>
+        }
+        findMany: {
+          args: Prisma.VoiceLineFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceLinePayload>[]
+        }
+        create: {
+          args: Prisma.VoiceLineCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceLinePayload>
+        }
+        createMany: {
+          args: Prisma.VoiceLineCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.VoiceLineCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceLinePayload>[]
+        }
+        delete: {
+          args: Prisma.VoiceLineDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceLinePayload>
+        }
+        update: {
+          args: Prisma.VoiceLineUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceLinePayload>
+        }
+        deleteMany: {
+          args: Prisma.VoiceLineDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.VoiceLineUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.VoiceLineUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceLinePayload>[]
+        }
+        upsert: {
+          args: Prisma.VoiceLineUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceLinePayload>
+        }
+        aggregate: {
+          args: Prisma.VoiceLineAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateVoiceLine>
+        }
+        groupBy: {
+          args: Prisma.VoiceLineGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VoiceLineGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.VoiceLineCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VoiceLineCountAggregateOutputType> | number
         }
       }
     }
@@ -3883,6 +4033,37 @@ export const VoiceCardScalarFieldEnum = {
 export type VoiceCardScalarFieldEnum = (typeof VoiceCardScalarFieldEnum)[keyof typeof VoiceCardScalarFieldEnum]
 
 
+export const VoiceRoomScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  cast: 'cast',
+  bed: 'bed',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VoiceRoomScalarFieldEnum = (typeof VoiceRoomScalarFieldEnum)[keyof typeof VoiceRoomScalarFieldEnum]
+
+
+export const VoiceLineScalarFieldEnum = {
+  id: 'id',
+  roomId: 'roomId',
+  order: 'order',
+  speakerId: 'speakerId',
+  speakerKind: 'speakerKind',
+  speakerName: 'speakerName',
+  speakerCover: 'speakerCover',
+  text: 'text',
+  emotion: 'emotion',
+  jobId: 'jobId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VoiceLineScalarFieldEnum = (typeof VoiceLineScalarFieldEnum)[keyof typeof VoiceLineScalarFieldEnum]
+
+
 export const UserCreativePreferenceScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4807,6 +4988,8 @@ export type GlobalOmitConfig = {
   freeTierSlot?: Prisma.FreeTierSlotOmit
   recipe?: Prisma.RecipeOmit
   voiceCard?: Prisma.VoiceCardOmit
+  voiceRoom?: Prisma.VoiceRoomOmit
+  voiceLine?: Prisma.VoiceLineOmit
   userCreativePreference?: Prisma.UserCreativePreferenceOmit
   imageAnalysis?: Prisma.ImageAnalysisOmit
   arenaMatch?: Prisma.ArenaMatchOmit

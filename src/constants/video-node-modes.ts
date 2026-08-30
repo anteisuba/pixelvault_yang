@@ -115,17 +115,12 @@ export function resolveVideoModelId(
 }
 
 /**
- * 切换模式时，当前选中的模型还能不能留着。
+ * ⚠ 2026-08-29 删掉了 `modelSurvivesModeSwitch`（台账 U）。它拿**端点 id** 回答
+ * 「切档后这个模型还留不留」，而同一个型号在不同档下本来就是不同的端点 id
+ * （`seedance-2.5-volcengine` / `seedance-2.5-reference-volcengine`）—— 于是它对
+ * 每一次真正的切档都答 false，把用户刚选的 2.5 清成默认的 2.0 Fast。
  *
- * owner 2026-08-08 拍板：不能留的**直接消失并清空选择**（不是置灰）。调用方拿到
- * false 之后应当清掉 modelId 与模型相关的参数档（时长/分辨率），但**保留用户已传
- * 的素材** —— 素材留在数据层、当前模式不渲染、切回来还在，只是发送时要按模式过滤。
+ * 正确的问法不是「留不留」而是「同一个型号 × 渠道在新档下走哪个端点」，答案在
+ * `lib/video-node-model-resolver.ts` 的 `resolveVideoModelForMode` —— 提交链路与
+ * 容量预览一直用的就是它，切档现在也走同一条（`useVideoComposer.selectMode`）。
  */
-export function modelSurvivesModeSwitch(
-  modelId: string | undefined,
-  adapterType: AI_ADAPTER_TYPES | undefined,
-  nextMode: VideoNodeMode,
-): boolean {
-  if (!modelId) return false
-  return getNodeModeForModel(modelId, adapterType) === nextMode
-}

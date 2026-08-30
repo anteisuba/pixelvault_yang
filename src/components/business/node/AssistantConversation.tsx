@@ -74,6 +74,8 @@ interface AssistantConversationProps {
    * 「恰好一次」的判定要跨流式重渲染与浮卡开关，不能放在按消息渲染的卡里。
    */
   autoAppliedByMessageId?: Record<string, number>
+  /** 台账 K-2：自动落里连线没建成的条数，按消息 id。 */
+  autoFailedConnectsByMessageId?: Record<string, number>
   /** B3：自动落之后那一步「撤销」。B2.5 之后整批只占一个撤销步。 */
   onUndoAutoApply?(): void
 }
@@ -147,6 +149,7 @@ export function AssistantConversation({
   planAssistantOps,
   onApplyAssistantOps,
   autoAppliedByMessageId,
+  autoFailedConnectsByMessageId,
   onUndoAutoApply,
 }: AssistantConversationProps) {
   const t = useTranslations('StudioNode.conversation')
@@ -451,6 +454,9 @@ export function AssistantConversation({
                       getNodeLabel={getNodeLabel}
                       onApply={onApplyAssistantOps}
                       autoAppliedCount={autoAppliedByMessageId?.[message.id]}
+                      autoFailedConnects={
+                        autoFailedConnectsByMessageId?.[message.id]
+                      }
                       onUndoAutoApply={onUndoAutoApply}
                     />
                   ) : null}

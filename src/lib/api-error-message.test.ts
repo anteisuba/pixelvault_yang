@@ -151,4 +151,46 @@ describe('getGenerationErrorMessage', () => {
       ),
     ).toBe('limit reached')
   })
+
+  /**
+   * 台账 H（owner 2026-08-29 真机）：同一批角色设定图，「16岁女生」通过、
+   * 「男子高中生，17岁」被 Seedream 拒 —— 而 UI 只说「内容被服务商安全系统过滤」，
+   * 是哪个词触发的一个字都没有。上游原话是唯一能指向真因的信息。
+   */
+  describe('内容过滤：保留 provider 原话', () => {
+    it('把上游的拒绝理由接在本地化文案后面', () => {
+      expect(
+        getGenerationErrorMessage(
+          translator,
+          {
+            error:
+              'Your prompt was blocked by the safety system: minors in suggestive context',
+          },
+          'fallback',
+        ),
+      ).toBe(
+        'Content filtered — Your prompt was blocked by the safety system: minors in suggestive context',
+      )
+    })
+
+    it('原话与本地化文案相同时不重复拼', () => {
+      expect(
+        getGenerationErrorMessage(
+          translator,
+          { errorCode: 'CONTENT_FILTERED', error: 'Content filtered' },
+          'fallback',
+        ),
+      ).toBe('Content filtered')
+    })
+
+    it('⚠ 只对内容过滤这么做 —— 别的错误码不附英文技术噪音', () => {
+      expect(
+        getGenerationErrorMessage(
+          translator,
+          { errorCode: 'PROVIDER_TIMEOUT', error: 'ETIMEDOUT after 120000ms' },
+          'fallback',
+        ),
+      ).toBe('AI provider took too long')
+    })
+  })
 })

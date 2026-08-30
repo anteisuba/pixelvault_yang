@@ -59,6 +59,40 @@ export function getGenerationThumbnailUrl(
 }
 
 /**
+ * Persisted render frame for a 3D generation. The worker initially stores the
+ * GLB in both `url` and `modelUrl`; after the browser captures a frame, the
+ * poster endpoint replaces `url` with an image while `modelUrl` keeps the GLB.
+ */
+export function getGenerationModel3DPosterUrl(
+  generation: GenerationRecord,
+): string | null {
+  if (generation.outputType !== 'MODEL_3D') return null
+
+  const derivedPoster = generation.thumbnailUrl ?? generation.previewUrl
+  if (derivedPoster) return derivedPoster
+
+  const urlIsPoster =
+    generation.mimeType.startsWith('image/') &&
+    generation.url !== generation.modelUrl
+  return urlIsPoster ? generation.url : null
+}
+
+/**
+ * Best still image for a 3D tile/loading state. A source image is an honest
+ * fallback while a render poster has not been captured yet; the GLB itself is
+ * never a valid image source.
+ */
+export function getGenerationModel3DVisualUrl(
+  generation: GenerationRecord,
+): string | null {
+  return (
+    getGenerationModel3DPosterUrl(generation) ??
+    generation.referenceImageUrl ??
+    null
+  )
+}
+
+/**
  * Best source for a *full-size* view (detail sheet, gallery detail, modal).
  *
  * `thumbnailUrl` is a grid tile, long-edge capped by

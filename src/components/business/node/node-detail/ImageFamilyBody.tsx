@@ -35,6 +35,7 @@ import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import {
   resolveNodeDisplayName,
   stripFileExtension,
+  toNodeDisplayLabel,
 } from '@/lib/node-display-name'
 import { resolveNodePresentationType } from '@/lib/node-presentation'
 import {
@@ -220,9 +221,7 @@ export function ImageFamilyBody({
 
   const applyExistingImage = useCallback(
     (url: string, generationId: string | undefined, label: string) => {
-      const sourceLabel = label
-        .trim()
-        .slice(0, NODE_STUDIO_MEDIA_IMAGE_OUTPUT.maxSourceLabelLength)
+      const sourceLabel = toNodeDisplayLabel(label)
 
       updateNodeData(nodeId, {
         generationError: undefined,

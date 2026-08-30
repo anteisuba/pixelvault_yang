@@ -7,7 +7,6 @@ import {
   VIDEO_NODE_MODES,
   getModelsForNodeMode,
   getNodeModeForModel,
-  modelSurvivesModeSwitch,
   resolveVideoModelId,
   variantSupportsMode,
 } from '@/constants/video-node-modes'
@@ -102,24 +101,35 @@ describe('video node modes', () => {
     }
   })
 
-  it('drops the selection when the model cannot follow the new mode', () => {
-    // owner 拍板：不符合新模式的模型直接消失并清空选择，不置灰。
+  /**
+   * 台账 U（2026-08-29）：切档必须**跟着型号走**，不是跟着端点 id 走。
+   * 这两条是那条 bug 的回归闸 —— 第一条如果再回到「按 modelId 判留不留」就会红。
+   */
+  it('keeps the same variant across a mode switch by re-resolving its endpoint', () => {
+    const keyframeEndpoint = resolveVideoModelId(
+      getModelVariant(AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE)!,
+      AI_ADAPTER_TYPES.VOLCENGINE,
+      'keyframe',
+    )
+    const multimodalEndpoint = resolveVideoModelId(
+      getModelVariant(AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE)!,
+      AI_ADAPTER_TYPES.VOLCENGINE,
+      'multimodal',
+    )
+    // 同一个型号，两档下是两个不同的端点 —— 正是「按 id 判留不留」必然误判的原因。
+    expect(keyframeEndpoint).not.toBe(multimodalEndpoint)
+    expect(multimodalEndpoint).not.toBeNull()
+    expect(getNodeModeForModel(multimodalEndpoint!)).toBe('multimodal')
+  })
+
+  it('returns null when the variant has no endpoint in the target mode', () => {
+    // 真的解析不出来时才该清掉选择（`selectMode` 的回落分支）。
     expect(
-      modelSurvivesModeSwitch(
-        AI_MODELS.KLING_V3_PRO,
+      resolveVideoModelId(
+        getModelVariant(AI_MODELS.KLING_V3_PRO)!,
         AI_ADAPTER_TYPES.FAL,
         'multimodal',
       ),
-    ).toBe(false)
-    expect(
-      modelSurvivesModeSwitch(
-        AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
-        AI_ADAPTER_TYPES.VOLCENGINE,
-        'multimodal',
-      ),
-    ).toBe(true)
-    expect(modelSurvivesModeSwitch(undefined, undefined, 'keyframe')).toBe(
-      false,
-    )
+    ).toBeNull()
   })
 })

@@ -2434,6 +2434,66 @@ describe('harvestUpstreamAudioBindings', () => {
     ])
   })
 
+  /**
+   * 台账 X（owner 2026-08-29 拍板）：**绕过角色卡直挂**的音色此前恒无标签 ——
+   * 送出预览里两条都写「旁白」，多角色对白片在 UI 上钉不到角色，而这正是
+   * Seedance 2.5 官方推荐的写法（Images 1-2 are Character 1 … Audio 1）。
+   */
+  it('直挂的音色带上它自己声明的归属（audioOwnerName）', () => {
+    const nodes = [
+      makeNode('voiceA', NODE_TYPE_IDS.voice, {
+        voiceClipUrl: 'https://cdn/voice-a.mp3',
+        audioOwnerName: '湊',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e1', 'voiceA', 'seedance')]
+
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      {
+        url: 'https://cdn/voice-a.mp3',
+        nodeId: 'voiceA',
+        characterName: '湊',
+      },
+    ])
+  })
+
+  it('没声明归属时仍然不带 characterName（退化成无标签 @AudioN）', () => {
+    const nodes = [
+      makeNode('voiceA', NODE_TYPE_IDS.voice, {
+        voiceClipUrl: 'https://cdn/voice-a.mp3',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e1', 'voiceA', 'seedance')]
+
+    expect(
+      harvestUpstreamAudioBindings('seedance', edges, nodes)[0],
+    ).not.toHaveProperty('characterName')
+  })
+
+  it('⭐ 角色卡那条仍然优先 —— 同一段音频两路都连时不被直挂的归属盖掉', () => {
+    const nodes = [
+      makeNode('voiceA', NODE_TYPE_IDS.voice, {
+        voiceClipUrl: 'https://cdn/voice-a.mp3',
+        audioOwnerName: '手填的名字',
+      }),
+      makeNode('charA', NODE_TYPE_IDS.characterImage, {
+        characterName: '角色卡上的名字',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      makeEdge('e1', 'voiceA', 'charA'),
+      makeEdge('e2', 'charA', 'seedance'),
+      makeEdge('e3', 'voiceA', 'seedance'),
+    ]
+
+    const bindings = harvestUpstreamAudioBindings('seedance', edges, nodes)
+    expect(bindings).toHaveLength(1)
+    expect(bindings[0].characterName).toBe('角色卡上的名字')
+  })
+
   it('attaches character names to voices routed through a character node', () => {
     const nodes = [
       makeNode('voiceA', NODE_TYPE_IDS.voice, {

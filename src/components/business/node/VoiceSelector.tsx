@@ -14,8 +14,6 @@ import {
 import { useTranslations } from 'next-intl'
 
 import {
-  VOICE_API_ERROR_CODES,
-  VOICE_CARD_DEFAULT_PACE,
   VOICE_CARD_PROVIDER,
   VOICE_LIBRARY_LANGUAGE_FILTERS,
   VOICE_LIBRARY_LANGUAGES,
@@ -24,21 +22,21 @@ import {
   VOICE_LIBRARY_SORT_OPTIONS,
   VOICE_MARKET_SOURCE,
   VOICE_MARKET_SOURCES,
-  type VoiceCardProvider,
   type VoiceLibraryLanguage,
   type VoiceLibrarySortBy,
   type VoiceMarketSource,
 } from '@/constants/voice-cards'
-import { AI_MODELS } from '@/constants/models'
-import type { FishAudioVoice } from '@/services/fish-audio-voice.service'
 import type { VoiceCardRecord } from '@/types'
+import type { VoiceAsset } from '@/types/voice-library'
 import { useStudioFormOptional } from '@/contexts/studio-context'
-import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import {
-  createVoiceCardAPI,
+  getVoiceAssetId,
+  isClonedVoiceCard,
+  useVoiceLibrary,
+} from '@/hooks/use-voice-library'
+import {
   deleteVoiceCardAPI,
   getVoiceAPI,
-  listVoicesAPI,
   updateVoiceCardAPI,
 } from '@/lib/api-client'
 import { filterByQuery } from '@/lib/search-utils'
@@ -55,23 +53,12 @@ import {
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 
+/**
+ * ⚠ 数据、收藏、分流已经搬进 `useVoiceLibrary`（owner 2026-08-30 选 C）——
+ * 配音间要看同一批嗓子但长得不一样，共用的是事实与规则，不是渲染。
+ * 这个文件从此只负责**画布这一侧的皮肤**。
+ */
 type VoiceTab = 'public' | 'favorites' | 'cloned'
-
-interface VoiceAsset {
-  id: string
-  voiceId: string
-  provider: VoiceCardProvider
-  modelId: string
-  title: string
-  description: string | null
-  languages: string[]
-  tags: string[]
-  author: string | null
-  coverImage: string | null
-  sampleUrl: string | null
-  sampleText: string | null
-  sourceLabelKey: string
-}
 
 /**
  * Payload handed to consumers when a voice is picked. Carries the display name
@@ -106,10 +93,6 @@ function isVoiceMarketSource(value: string): value is VoiceMarketSource {
   return VOICE_MARKET_SOURCES.some((source) => source === value)
 }
 
-function getVoiceAssetId(provider: VoiceCardProvider, voiceId: string): string {
-  return `${provider}:${voiceId}`
-}
-
 function getVoiceInitial(title: string): string {
   return title.trim().charAt(0).toUpperCase() || 'V'
 }
@@ -128,31 +111,9 @@ function voiceCardSearchFields(
   ]
 }
 
-function isClonedVoiceCard(card: VoiceCardRecord): boolean {
-  return Boolean(card.referenceAudioUrl)
-}
-
 function getVoiceCardProviderLabelKey(provider: string): string {
   if (provider === VOICE_CARD_PROVIDER.FISH_AUDIO) return 'voiceCardFishAudio'
   return 'voiceCardFalF5Tts'
-}
-
-function mapFishVoiceToAsset(voice: FishAudioVoice): VoiceAsset {
-  return {
-    id: getVoiceAssetId(VOICE_CARD_PROVIDER.FISH_AUDIO, voice.id),
-    voiceId: voice.id,
-    provider: VOICE_CARD_PROVIDER.FISH_AUDIO,
-    modelId: AI_MODELS.FISH_AUDIO_S2_PRO,
-    title: voice.title,
-    description: voice.description,
-    languages: voice.languages,
-    tags: voice.tags,
-    author: voice.author?.nickname ?? null,
-    coverImage: voice.coverImage,
-    sampleUrl: voice.samples[0]?.audio ?? null,
-    sampleText: voice.samples[0]?.text ?? null,
-    sourceLabelKey: 'voiceCardFishAudio',
-  }
 }
 
 const VOICE_SELECTOR_FALLBACK_STATE = {
@@ -172,151 +133,73 @@ export const VoiceSelector = memo(function VoiceSelector({
   const state = formCtx?.state ?? VOICE_SELECTOR_FALLBACK_STATE
   const dispatch = formCtx?.dispatch ?? NOOP_DISPATCH
   const t = useTranslations('StudioPage')
-  const voiceCards = useVoiceCards()
+  /**
+   * 取消收藏时，如果被取消的正是当前选中的那张卡，就把选中清掉。
+   * 内核不认识画布的选中态，所以这一步由宿主自己接。
+   */
+  const library = useVoiceLibrary({
+    onFavoriteRemoved: (cardId) => {
+      if (state.voiceCardId === cardId) {
+        dispatch({ type: 'SET_VOICE_CARD_ID', payload: null })
+      }
+    },
+  })
+  const {
+    tab,
+    setTab,
+    publicVoices: voiceAssets,
+    total,
+    page,
+    setPage,
+    search,
+    setSearch,
+    language,
+    setLanguage,
+    sortBy,
+    setSortBy,
+    isLoading,
+    error,
+    favoritePendingId: favoritePendingVoiceId,
+    favoriteCardOf,
+    toggleFavorite: handleToggleFavorite,
+  } = library
+  const voiceCards = {
+    cards: library.cards,
+    refresh: library.refreshCards,
+    isLoading: library.isLoading,
+    error: library.error,
+  }
 
-  const [tab, setTab] = useState<VoiceTab>('public')
-  const [fishVoices, setFishVoices] = useState<FishAudioVoice[]>([])
-  const [total, setTotal] = useState(0)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [favoritePendingVoiceId, setFavoritePendingVoiceId] = useState<
-    string | null
-  >(null)
   const [pendingVoiceCardId, setPendingVoiceCardId] = useState<string | null>(
     null,
   )
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [page, setPage] = useState(1)
-  const [language, setLanguage] = useState<VoiceLibraryLanguage>('all')
+  /* 删卡与改名是画布自己的动作（内核只管收藏），错误也归自己显示。 */
+  const [localError, setLocalError] = useState<string | null>(null)
   const [source, setSource] = useState<VoiceMarketSource>(
     VOICE_MARKET_SOURCE.ALL,
   )
-  const [sortBy, setSortBy] = useState<VoiceLibrarySortBy>('score')
   const [failedCoverIds, setFailedCoverIds] = useState<Set<string>>(
     () => new Set(),
   )
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null)
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({})
-  const voiceRequestIdRef = useRef(0)
-
-  const fetchVoices = useCallback(async () => {
-    const requestId = voiceRequestIdRef.current + 1
-    voiceRequestIdRef.current = requestId
-
-    if (tab !== 'public') {
-      setFishVoices([])
-      setTotal(0)
-      setError(null)
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-    const result = await listVoicesAPI({
-      page,
-      pageSize: VOICE_LIBRARY_PAGE_SIZE,
-      search: debouncedSearch || undefined,
-      language: language === 'all' ? undefined : language,
-      sortBy,
-    })
-    if (voiceRequestIdRef.current !== requestId) return
-
-    if (result.success && result.data) {
-      setFishVoices(result.data.items)
-      setTotal(result.data.total)
-    } else {
-      setFishVoices([])
-      setTotal(0)
-      setError(
-        result.errorCode === VOICE_API_ERROR_CODES.MISSING_API_KEY
-          ? t('voiceApiKeyRequired')
-          : t('voiceLoadFailed'),
-      )
-    }
-    setIsLoading(false)
-  }, [tab, page, debouncedSearch, language, sortBy, t])
-
-  useEffect(() => {
-    const id = requestAnimationFrame(() => void fetchVoices())
-    return () => cancelAnimationFrame(id)
-  }, [fetchVoices])
-
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setDebouncedSearch(search.trim())
-      setPage(1)
-    }, 300)
-
-    return () => clearTimeout(id)
-  }, [search])
-
-  const handleTabChange = (nextTab: VoiceTab) => {
-    if (nextTab === tab) return
-    setTab(nextTab)
-    setPage(1)
-    setFishVoices([])
-    setTotal(0)
-    setError(null)
-  }
+  /* 切分栏 / 换筛选后的重置（回第一页、清列表清错误）都在内核里，这里只做类型守卫。 */
+  const handleTabChange = (nextTab: VoiceTab) => setTab(nextTab)
 
   const handleLanguageChange = (value: string) => {
     if (!isVoiceLibraryLanguage(value)) return
     setLanguage(value)
-    setPage(1)
   }
 
   const handleSortChange = (value: string) => {
     if (!isVoiceLibrarySortBy(value)) return
     setSortBy(value)
-    setPage(1)
   }
 
   const handleSourceChange = (value: string) => {
     if (!isVoiceMarketSource(value)) return
     setSource(value)
     setPage(1)
-  }
-
-  const handleToggleFavorite = async (asset: VoiceAsset) => {
-    const existingCard = voiceCards.cards.find(
-      (card) =>
-        card.voiceId === asset.voiceId && card.provider === asset.provider,
-    )
-
-    setFavoritePendingVoiceId(asset.id)
-    setError(null)
-
-    const result = existingCard
-      ? await deleteVoiceCardAPI(existingCard.id)
-      : await createVoiceCardAPI({
-          name: asset.title,
-          provider: asset.provider,
-          modelId: asset.modelId,
-          voiceId: asset.voiceId,
-          coverImage: asset.coverImage ?? undefined,
-          tone: [],
-          pace: VOICE_CARD_DEFAULT_PACE,
-          pronunciationDictionary: {},
-          // 收藏必须把示例音频一起带走。此前只存了 sampleText，音频当场丢掉，
-          // 于是「收藏 → 从收藏 tab 选中」得到的节点只有 voiceId、没有任何音频，
-          // 拿它当视频的参考音频时静默发不出去（真机四张卡全中）。
-          // ⚠ 不能写进 referenceAudioUrl —— 那是克隆 tab 的分流判据。
-          sampleAudioUrl: asset.sampleUrl ?? undefined,
-          sampleText: asset.sampleText ?? undefined,
-        })
-
-    if (result.success) {
-      if (existingCard && state.voiceCardId === existingCard.id) {
-        dispatch({ type: 'SET_VOICE_CARD_ID', payload: null })
-      }
-      await voiceCards.refresh()
-    } else {
-      setError(t('voiceFavoriteFailed'))
-    }
-
-    setFavoritePendingVoiceId(null)
   }
 
   const handleSelectVoiceCard = async (card: VoiceCardRecord) => {
@@ -379,7 +262,7 @@ export const VoiceSelector = memo(function VoiceSelector({
 
   const handleDeleteVoiceCard = async (card: VoiceCardRecord) => {
     setPendingVoiceCardId(card.id)
-    setError(null)
+    setLocalError(null)
 
     const result = await deleteVoiceCardAPI(card.id)
     if (result.success) {
@@ -391,7 +274,7 @@ export const VoiceSelector = memo(function VoiceSelector({
       }
       await voiceCards.refresh()
     } else {
-      setError(t('voiceDeleteFailed'))
+      setLocalError(t('voiceDeleteFailed'))
     }
 
     setPendingVoiceCardId(null)
@@ -457,15 +340,24 @@ export const VoiceSelector = memo(function VoiceSelector({
   const isLocalCardsTab = !isPublicTab
   const usesExternalSelection = Boolean(onSelectVoiceId)
   const activeVoiceId = usesExternalSelection ? selectedVoiceId : state.voiceId
-  const fishVoiceAssets = fishVoices.map(mapFishVoiceToAsset)
-  const publicVoiceAssets = fishVoiceAssets
+  const fishVoiceAssets = voiceAssets
+  /**
+   * 台账 F 顺带：「来源」下拉此前是**死控件** —— `source` 写进 state 之后既不
+   * 进 `fetchVoices` 的请求参数，也不参与任何过滤，改它零请求零变化。一个永远
+   * 改不动结果的筛选器比没有筛选器更糟：它正是让人以为「这个面板坏了」的东西。
+   *
+   * 今天公开档只有 fish-audio 一个来源，所以这条过滤在结果上多半是恒等的 ——
+   * 但它现在是**真的**：接入第二个公开来源时不用再改这里。
+   */
+  const publicVoiceAssets =
+    source === VOICE_MARKET_SOURCE.ALL
+      ? fishVoiceAssets
+      : fishVoiceAssets.filter((asset) => asset.provider === source)
   const publicVoiceTotal = total
   const totalPages = Math.max(1, Math.ceil(total / VOICE_LIBRARY_PAGE_SIZE))
   const localVoiceCards = filterByQuery(
-    voiceCards.cards.filter((card) =>
-      tab === 'cloned' ? isClonedVoiceCard(card) : !isClonedVoiceCard(card),
-    ),
-    debouncedSearch,
+    tab === 'cloned' ? library.cloned : library.favorites,
+    search.trim(),
     voiceCardSearchFields,
   )
   const listIsLoading = isLocalCardsTab ? voiceCards.isLoading : isLoading
@@ -620,7 +512,7 @@ export const VoiceSelector = memo(function VoiceSelector({
         ) : isLocalCardsTab ? (
           localVoiceCards.length === 0 ? (
             <div className="py-8 text-center text-xs text-muted-foreground">
-              {debouncedSearch
+              {search.trim()
                 ? t('voiceNoResults')
                 : tab === 'cloned'
                   ? t('voiceClonedEmpty')
@@ -926,7 +818,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             variant="outline"
             size="sm"
             disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
+            onClick={() => setPage(page - 1)}
             className="h-7 text-xs"
           >
             {t('voicePrev')}
@@ -942,7 +834,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             variant="outline"
             size="sm"
             disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => setPage(page + 1)}
             className="h-7 text-xs"
           >
             {t('voiceNext')}

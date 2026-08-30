@@ -1282,11 +1282,24 @@ export function harvestUpstreamAudioBindings(
     }
   }
 
-  // Pass 2 — voices wired directly into the focal node (unbound).
+  // Pass 2 — voices wired directly into the focal node.
+  //
+  // ⚠ 台账 X（owner 2026-08-29）：这一路此前恒**无标签** —— 送出预览里全写
+  // 「旁白」，多角色对白片在 UI 上钉不到角色。音色节点自己现在能声明归属
+  // （`data.audioOwnerName`，见它的 schema 注释），有就带上。绕过角色卡直挂
+  // 是完全合法的用法（不是每条音色都值得为它建一张角色卡），不该因此就丢掉
+  // 「谁在说话」这条信息。
+  //
+  // ⚠ pass 1 优先仍然成立：同一个 URL 既走角色卡又直挂时，`seenUrls` 让角色卡
+  // 那条先占位 —— 角色卡上的名字是更强的事实（它还带着图）。
   for (const node of directUpstream) {
     const url = readVoiceUrl(node)
     if (!url) continue
-    push(url, node)
+    const ownerName =
+      typeof node.data.audioOwnerName === 'string'
+        ? node.data.audioOwnerName.trim() || undefined
+        : undefined
+    push(url, node, ownerName)
   }
 
   return bindings

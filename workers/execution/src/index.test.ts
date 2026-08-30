@@ -1035,15 +1035,44 @@ describe('resolveFalImageModelId', () => {
     ).toBe('fal-ai/flux-lora/image-to-image')
   })
 
-  it('leaves other models alone', () => {
+  it('leaves models without a sibling edit endpoint alone', () => {
     expect(
       resolveFalImageModelId(
         makeFalImageContext({
-          externalModelId: 'fal-ai/flux-2/flash',
+          externalModelId: 'fal-ai/recraft/v4.1/pro/text-to-image',
           referenceImages: ['https://cdn/ref.png'],
         }),
       ),
-    ).toBe('fal-ai/flux-2/flash')
+    ).toBe('fal-ai/recraft/v4.1/pro/text-to-image')
+  })
+
+  it.each([
+    ['fal-ai/flux-2-pro', 'fal-ai/flux-2-pro/edit'],
+    ['fal-ai/flux-2/flash', 'fal-ai/flux-2/flash/edit'],
+    [
+      'bytedance/seedream/v5/pro/text-to-image',
+      'bytedance/seedream/v5/pro/edit',
+    ],
+    [
+      'fal-ai/bytedance/seedream/v5/lite/text-to-image',
+      'fal-ai/bytedance/seedream/v5/lite/edit',
+    ],
+  ] as const)('swaps %s to %s when references are attached', (t2i, edit) => {
+    expect(
+      resolveFalImageModelId(
+        makeFalImageContext({
+          externalModelId: t2i,
+          referenceImages: ['https://cdn/ref.png'],
+        }),
+      ),
+    ).toBe(edit)
+    expect(
+      resolveFalImageModelId(
+        makeFalImageContext({
+          externalModelId: t2i,
+        }),
+      ),
+    ).toBe(t2i)
   })
 })
 
@@ -1084,15 +1113,43 @@ describe('buildFalImageInput reference handling', () => {
     expect(input.strength).toBeUndefined()
   })
 
-  it('keeps pure text-to-image models free of reference fields', () => {
+  it('keeps fal T2I-only models without an edit sibling free of reference fields', () => {
     const input = buildFalImageInput(
       makeFalImageContext({
-        externalModelId: 'fal-ai/flux-2/flash',
+        externalModelId: 'fal-ai/recraft/v4.1/pro/text-to-image',
         referenceImages: ['https://cdn/ref.png'],
         advancedParams: { referenceStrength: 0.7 },
       }),
     )
 
+    expect(input.image_url).toBeUndefined()
+    expect(input.image_urls).toBeUndefined()
+  })
+
+  it('sends image_urls (not image_url) for fal /edit endpoints', () => {
+    const refs = ['https://cdn/a.png', 'https://cdn/b.png']
+    const input = buildFalImageInput(
+      makeFalImageContext({
+        externalModelId: 'bytedance/seedream/v5/pro/text-to-image',
+        referenceImages: refs,
+      }),
+    )
+
+    expect(input.image_urls).toEqual(refs)
+    expect(input.image_url).toBeUndefined()
+    expect(input.strength).toBeUndefined()
+  })
+
+  it('sends image_urls when the catalog id is already the /edit endpoint', () => {
+    const refs = ['https://cdn/a.png']
+    const input = buildFalImageInput(
+      makeFalImageContext({
+        externalModelId: 'fal-ai/flux-2-pro/edit',
+        referenceImages: refs,
+      }),
+    )
+
+    expect(input.image_urls).toEqual(refs)
     expect(input.image_url).toBeUndefined()
   })
 })

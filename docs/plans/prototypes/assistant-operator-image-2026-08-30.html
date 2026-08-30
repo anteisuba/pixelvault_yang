@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>助手操作员 · 图片页 mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #fff; --fg: #171717; --muted: #f6f6f6; --dim: #6b6b6b; --ghost: #b0b0b0;
+    --line: #ebebeb; --line-strong: #d8d8d8; --composer: #f6f3ec; --composer-fg: #1c1916;
+    --applied: #16794c; --applied-bg: #f0f7f2; --risk: #b3261e;
+    --radius: 10px; --review-h: 56px; --notes-w: 320px; --rail: 56px; --params: 288px; --dock: 360px;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --shadow-dock: 0 18px 48px rgb(23 23 23 / .12), 0 2px 8px rgb(23 23 23 / .06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    color: var(--fg); background: #e8eaed;
+    font: 13px/1.45 "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    overflow: hidden;
+  }
+  button, textarea { font: inherit; color: inherit; }
+  button { background: none; border: 0; cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: .38; }
+  :focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+  .review {
+    position: fixed; inset: 0 0 auto 0; z-index: 40; height: var(--review-h);
+    display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #111; color: #f4f4f1;
+  }
+  .review b { font-size: 13px; font-weight: 650; }
+  .review .sub { color: #b7b7b0; font-size: 11.5px; }
+  .sp { flex: 1; }
+  .scenes {
+    display: flex; gap: 2px; padding: 3px; border-radius: 9px; background: #242424; overflow-x: auto;
+  }
+  .scenes button {
+    height: 28px; padding: 0 9px; border-radius: 7px; color: #c9c9c2; font-size: 12px; white-space: nowrap;
+  }
+  .scenes button[aria-pressed="true"] { background: #f4f4f1; color: #111; font-weight: 600; }
+  .ghost-btn {
+    height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid #3a3a3a; color: #ddd; font-size: 12px;
+  }
+  .ghost-btn.on { background: #f4f4f1; color: #111; border-color: #f4f4f1; }
+  .ghost-btn.place { background: #c8f0d6; color: #0d3b24; border-color: #c8f0d6; font-weight: 650; }
+
+  .notes {
+    position: fixed; top: var(--review-h); bottom: 0; left: 0; z-index: 30; width: var(--notes-w);
+    background: #f7f6f2; border-right: 1px solid #d9d6ce; display: flex; flex-direction: column;
+    transition: transform 180ms var(--ease);
+  }
+  body.notes-off .notes { transform: translateX(-100%); }
+  .notes h2 {
+    padding: 14px 16px 8px; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: #7a776e;
+  }
+  .notes .scroll { flex: 1; overflow: auto; padding: 0 12px 24px; }
+  .note {
+    position: relative; margin: 0 0 8px; padding: 10px 10px 10px 36px;
+    background: #fff; border: 1px solid #e4e1d8; border-radius: 10px;
+  }
+  .note[data-open="true"] { border-color: #111; box-shadow: 0 0 0 1px #111; }
+  .note .n {
+    position: absolute; left: 10px; top: 10px; width: 18px; height: 18px; border-radius: 50%;
+    background: #111; color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center;
+  }
+  .note strong { display: block; font-size: 12.5px; font-weight: 650; margin-bottom: 4px; }
+  .note p { font-size: 12px; color: #4b4b46; line-height: 1.5; }
+  .tag {
+    display: inline-block; margin-top: 6px; padding: 1px 6px; border-radius: 999px;
+    font-size: 10px; font-weight: 650; letter-spacing: .04em; background: #ecece8; color: #555;
+  }
+  .tag.wait { background: #fff3cc; color: #6a4b00; }
+  .owner-note { padding-left: 10px; border-style: dashed; }
+  .owner-note .n { background: #0b6b3a; }
+  .owner-note textarea {
+    width: 100%; min-height: 64px; margin-top: 6px; padding: 8px;
+    border: 1px solid #e4e1d8; border-radius: 8px; resize: vertical; background: #fafaf7;
+  }
+  .owner-note .row { display: flex; gap: 6px; margin-top: 6px; }
+  .mini { height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #d5d2c9; font-size: 11.5px; }
+  .mini.danger { color: var(--risk); border-color: #ead2cf; }
+
+  .stage {
+    position: fixed; top: var(--review-h); right: 0; bottom: 0; left: 0;
+    display: flex; background: var(--bg); transition: left 180ms var(--ease);
+  }
+  body:not(.notes-off) .stage { left: var(--notes-w); }
+  body.placing .stage { cursor: crosshair; }
+
+  .app-rail {
+    width: var(--rail); flex: none; border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; align-items: center; padding: 10px 0; gap: 2px;
+  }
+  .logo {
+    width: 28px; height: 28px; border-radius: 8px; background: #111; color: #fff;
+    display: grid; place-items: center; font-size: 11px; font-weight: 800; margin-bottom: 8px;
+  }
+  .app-rail .it { width: 34px; height: 34px; border-radius: 8px; color: var(--dim); display: grid; place-items: center; }
+  .app-rail .it.on { background: var(--muted); color: var(--fg); }
+  .app-rail .div { width: 22px; height: 1px; background: var(--line); margin: 6px 0; }
+
+  .params {
+    width: var(--params); flex: none; background: var(--composer); color: var(--composer-fg);
+    border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 14px; gap: 12px;
+  }
+  .lab { font-size: 11px; font-weight: 550; color: #7a7468; letter-spacing: .02em; margin-bottom: 7px; }
+  .prompt {
+    width: 100%; min-height: 92px; resize: none; padding: 9px 11px; border-radius: var(--radius);
+    border: 1px solid #e4dfd4; background: #fff; color: inherit; line-height: 1.45;
+  }
+  .attach { display: flex; gap: 6px; margin-top: 7px; }
+  .chip-btn {
+    height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid #e4dfd4;
+    background: #fff; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip-btn .n {
+    min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px; background: #111; color: #fff;
+    font-size: 10px; font-weight: 700; display: grid; place-items: center;
+  }
+  .chip-btn.flash { animation: flash 700ms var(--ease); }
+  .mrow, .spec {
+    display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 10px;
+    background: #fff; border: 1px solid #e4dfd4; border-radius: 8px; font-size: 12px;
+  }
+  .mrow .pr { margin-left: auto; color: #7a7468; font-variant-numeric: tabular-nums; }
+  .go {
+    margin-top: auto; height: 44px; border-radius: var(--radius); background: #111; color: #fff;
+    font-weight: 550; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .costline { font-size: 11px; color: #7a7468; text-align: center; margin-top: -6px; }
+
+  .result { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; background: #fafafa; }
+  .topbar {
+    height: 48px; flex: none; display: flex; align-items: center; padding: 0 16px;
+    border-bottom: 1px solid var(--line); background: #fff; font-size: 12.5px; font-weight: 600;
+  }
+  .topbar span { margin-left: 8px; font-weight: 400; color: var(--dim); }
+  .wall { flex: 1; overflow: auto; padding: 14px 16px 72px; display: flex; flex-direction: column; gap: 12px; }
+  .ref-rail {
+    display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--line);
+  }
+  .ref-rail .lbl { font-size: 12px; color: var(--dim); flex: none; }
+  .ref-rail .thumbs { display: flex; gap: 8px; max-width: 420px; overflow-x: auto; }
+  .rthumb {
+    width: 44px; height: 44px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line-strong);
+    position: relative; flex: none;
+  }
+  .rthumb.on { outline: 2px solid #111; outline-offset: 2px; }
+  .rail-acts { display: flex; gap: 6px; }
+  .pill { height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: 12px; background: #fff; }
+  .row-label { font-size: 11.5px; color: var(--dim); }
+  .tiles { display: flex; gap: 10px; }
+  .tile {
+    position: relative; height: 220px; width: 165px; border-radius: 12px; background: #ececec;
+    border: 1px solid var(--line); overflow: hidden; display: grid; place-items: center;
+  }
+  .tile.sel { outline: 2px solid #111; outline-offset: 2px; }
+  .tile.run { background: #f3f3f3; }
+  .prog {
+    text-align: center; font-variant-numeric: tabular-nums;
+  }
+  .prog .t { font-size: 28px; font-weight: 650; letter-spacing: -.03em; }
+  .prog .s { font-size: 11.5px; color: var(--dim); margin-top: 4px; }
+  .frame {
+    position: absolute; inset: 6px; border: 1.5px solid #cfcfcf; border-radius: 8px;
+    border-top-color: #111; animation: spin 1.4s linear infinite;
+  }
+  .actions {
+    position: absolute; left: 16px; right: 380px; bottom: 14px; z-index: 6;
+    display: none; align-items: center; gap: 6px; padding: 8px; background: #fff;
+    border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-dock);
+  }
+  body[data-scene="done"] .actions.show { display: flex; }
+  .actions .id { font-size: 12px; color: var(--dim); margin-right: auto; padding-left: 6px; }
+
+  .dock {
+    position: absolute; top: 16px; right: 16px; bottom: 16px; width: var(--dock);
+    background: #fff; border: 1px solid #e6e6e6; border-radius: 14px;
+    box-shadow: var(--shadow-dock); display: flex; flex-direction: column; overflow: hidden; z-index: 5;
+  }
+  .dhead {
+    flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line);
+  }
+  .dhead .ttl { font-size: 13px; font-weight: 700; }
+  .dhead .sub { font-size: 11px; color: var(--dim); }
+  .dacts { margin-left: auto; display: flex; gap: 2px; }
+  .icon { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--dim); }
+  .thread { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .me { align-self: flex-end; background: #111; color: #fff; padding: 8px 11px; border-radius: 12px 12px 4px 12px; font-size: 12.5px; }
+  .ai { font-size: 12.5px; line-height: 1.55; }
+  .ai p + p { margin-top: 8px; }
+  .meta { font-size: 11px; color: var(--dim); margin-bottom: 6px; }
+  .receipt { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
+  .chip {
+    height: 22px; padding: 0 8px; border-radius: 999px; background: #f3f3f1; color: #444;
+    font-size: 11px; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .chip.ok { background: var(--applied-bg); color: var(--applied); }
+  .chip.miss { background: #eee; color: #888; text-decoration: line-through; }
+  .chip.vision { background: #eef2ff; color: #31407a; }
+  .applied-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+  .applied {
+    height: 28px; padding: 0 10px; border-radius: 999px; background: var(--applied-bg);
+    color: var(--applied); font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center;
+  }
+  .undo { font-size: 11.5px; color: var(--dim); text-decoration: underline; text-underline-offset: 3px; }
+  .ask { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .opt {
+    height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line-strong);
+    font-size: 12px; background: #fff;
+  }
+  .opt[aria-pressed="true"] { background: #111; color: #fff; border-color: #111; }
+  .after { opacity: 0; transform: translateY(4px); pointer-events: none; }
+  .after.on { opacity: 1; transform: none; pointer-events: auto; transition: opacity 220ms var(--ease), transform 220ms var(--ease); }
+
+  .gencard { margin-top: 10px; border: 1px solid #e4e4e0; border-radius: 12px; overflow: hidden; background: #fafaf8; }
+  .gencard .body { padding: 10px; display: flex; gap: 10px; }
+  .thumb { flex: none; width: 64px; border-radius: 8px; background: repeating-linear-gradient(135deg, #ecece8 0 8px, #e4e4de 8px 16px); display: grid; place-items: center; color: #8a8a82; font-size: 10px; }
+  .gencard .rows { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; }
+  .gencard .k { color: var(--dim); }
+  .gencard .cta {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 10px; border-top: 1px solid #ecece8; background: #fff;
+  }
+  .gencard .price { font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 650; }
+  .go-mini { height: 32px; padding: 0 12px; border-radius: 8px; background: #111; color: #fff; font-size: 12.5px; font-weight: 600; }
+  .gencard.disabled { opacity: .55; }
+  .gencard.disabled .go-mini { background: #bbb; }
+
+  .think { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12.5px; }
+  .dots { display: inline-flex; gap: 3px; }
+  .dots i {
+    width: 4px; height: 4px; border-radius: 50%; background: #888; display: block;
+    animation: blink 1s ease-in-out infinite;
+  }
+  .dots i:nth-child(2) { animation-delay: .15s; }
+  .dots i:nth-child(3) { animation-delay: .3s; }
+  .caret::after {
+    content: ""; display: inline-block; width: 1.5px; height: .9em; margin-left: 1px;
+    background: #111; vertical-align: -1px; animation: blink 1s step-end infinite;
+  }
+  .ai-prose { min-height: 1.5em; }
+
+  .composer { flex: none; border-top: 1px solid var(--line); padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .composer .lbl { font-size: 10.5px; color: var(--dim); letter-spacing: .04em; }
+  .box { min-height: 40px; border: 1px solid var(--line-strong); border-radius: 10px; padding: 8px 10px; color: var(--ghost); }
+  .sendrow { display: flex; align-items: center; gap: 6px; }
+  .send { margin-left: auto; height: 30px; padding: 0 12px; border-radius: 8px; background: #111; color: #fff; font-size: 12px; }
+
+  .lora-card { margin-top: 8px; border: 1px solid #e4e4e0; border-radius: 12px; overflow: hidden; }
+  .lora-card .pic { height: 86px; background: linear-gradient(45deg, #c9d6e3, #e7d2c3); }
+  .lora-card .pad { padding: 10px; }
+  .lora-card .nm { font-weight: 700; font-size: 13px; }
+  .lora-card .by { font-size: 11.5px; color: var(--dim); margin: 2px 0 8px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .lora-card .go-mini { width: 100%; }
+
+  .pin {
+    position: absolute; z-index: 12; width: 20px; height: 20px; border-radius: 50%;
+    background: #111; color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center;
+    box-shadow: 0 0 0 3px #fff, 0 6px 16px rgb(0 0 0 / .2); transform: translate(-50%, -50%);
+  }
+  .pin.owner { background: #0b6b3a; }
+  .pin[data-open="true"] { background: #c45c12; }
+  body.notes-off .pin { display: none; }
+  body.notes-off .pin.owner { display: grid; }
+
+  .portrait {
+    width: 100%; height: 100%;
+    background:
+      radial-gradient(circle at 50% 38%, #f2c9b0 0 18%, transparent 19%),
+      linear-gradient(180deg, #f0b7c8 0 28%, #2b1c22 28% 62%, #121014 62%);
+  }
+  .p2 { filter: hue-rotate(18deg) saturate(1.1); }
+  .p3 { filter: hue-rotate(-12deg) brightness(1.05); }
+  .p4 { filter: saturate(.8) contrast(1.1); }
+
+  .empty-hero {
+    flex: 1; min-height: 360px; border-radius: 14px; border: 1px dashed #d9d9d9;
+    display: grid; place-items: center; color: var(--dim);
+    background: radial-gradient(#d7d7d7 0.8px, transparent 0.8px) 0 0 / 18px 18px #f7f7f7;
+  }
+  .empty-hero .inner { text-align: center; background: #f7f7f7; padding: 18px 22px; border-radius: 12px; }
+  .hero-ref { width: 180px; height: 240px; margin: 0 auto 12px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+
+  .mobile-frame {
+    display: none; position: absolute; inset: 18px; margin: auto; width: 390px; height: min(780px, calc(100% - 36px));
+    border: 10px solid #111; border-radius: 36px; background: #fff; overflow: hidden; box-shadow: var(--shadow-dock);
+  }
+  .mbar { height: 48px; display: flex; align-items: center; padding: 0 14px; border-bottom: 1px solid var(--line); font-weight: 700; }
+  .mstage { height: 36%; background: #f4f4f4; display: grid; place-items: center; color: var(--dim); }
+  .mdrawer {
+    position: absolute; left: 0; right: 0; bottom: 0; top: 34%; background: #fff;
+    border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; display: flex; flex-direction: column;
+  }
+  body[data-scene="mobile"] .app-rail,
+  body[data-scene="mobile"] .params,
+  body[data-scene="mobile"] .result { display: none; }
+  body[data-scene="mobile"] .mobile-frame { display: flex; flex-direction: column; }
+  body[data-scene="mobile"] .dock { display: none; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes blink { 50% { opacity: .2; } }
+  @keyframes flash {
+    0% { box-shadow: 0 0 0 0 var(--applied); }
+    40% { box-shadow: 0 0 0 3px var(--applied); }
+    100% { box-shadow: none; }
+  }
+</style>
+</head>
+<body data-scene="command">
+  <header class="review">
+    <b>助手操作员</b>
+    <span class="sub">确认卡已锁混合 · 打字机 · 生成对照台 · 参考图三层</span>
+    <div class="scenes" role="tablist">
+      <button type="button" data-scene="analyze">1 分析</button>
+      <button type="button" data-scene="command" aria-pressed="true">2 口令出图</button>
+      <button type="button" data-scene="ask">3 硬槽位</button>
+      <button type="button" data-scene="lora">4 LoRA</button>
+      <button type="button" data-scene="running">5 生成中</button>
+      <button type="button" data-scene="done">6 完成</button>
+      <button type="button" data-scene="mobile">7 手机</button>
+    </div>
+    <span class="sp"></span>
+    <button type="button" class="ghost-btn on" id="toggle-notes" aria-pressed="true">设计备注</button>
+    <button type="button" class="ghost-btn" id="place-note">写备注</button>
+    <button type="button" class="ghost-btn" id="export-notes">导出你的备注</button>
+  </header>
+
+  <aside class="notes" id="notes">
+    <h2>已锁定</h2>
+    <div class="scroll" id="note-list"></div>
+  </aside>
+
+  <main class="stage" id="stage">
+    <nav class="app-rail">
+      <div class="logo">P</div>
+      <div class="it on">▣</div>
+      <div class="it">▶</div>
+      <div class="it">♪</div>
+      <div class="div"></div>
+      <div class="it">⬡</div>
+      <div class="it">L</div>
+    </nav>
+
+    <section class="params">
+      <div>
+        <div class="lab">提示词</div>
+        <textarea class="prompt" id="prompt" spellcheck="false"></textarea>
+        <div class="attach">
+          <button class="chip-btn" id="img-chip" type="button">图像 <span class="n" id="ref-count">1</span></button>
+          <button class="chip-btn" type="button">模板</button>
+        </div>
+      </div>
+      <div>
+        <div class="lab">模型</div>
+        <div class="mrow"><span id="model-name">Illustrious XL</span><span class="pr" id="model-price">4 积分</span></div>
+      </div>
+      <div>
+        <div class="lab">规格</div>
+        <div class="spec"><span id="spec-text">3:4 · 4 张</span></div>
+      </div>
+      <button class="go" type="button">生成 · <span id="go-cost">16</span> 积分</button>
+      <p class="costline">左栏「图像」只负责添加。舞台顶轨负责看着切、编、删。</p>
+    </section>
+
+    <section class="result">
+      <div class="topbar">图片工作台 <span id="result-caption"></span></div>
+      <div class="wall" id="wall"></div>
+      <div class="actions" id="actions">
+        <span class="id">Illustrious XL · 3:4</span>
+        <button class="pill" type="button">详情</button>
+        <button class="pill" type="button">编辑</button>
+        <button class="pill" id="use-ref" type="button">当参考图</button>
+        <button class="pill" type="button">下载</button>
+        <button class="pill" id="ask-ai" type="button">问助手</button>
+        <button class="pill" type="button">定最佳</button>
+      </div>
+    </section>
+
+    <aside class="dock" aria-label="助手">
+      <header class="dhead">
+        <div>
+          <div class="ttl">助手</div>
+          <div class="sub" id="dock-sub">图片 · Gemini 3.5 Flash · 联网自动</div>
+        </div>
+        <div class="dacts">
+          <span class="icon">＋</span><span class="icon">◎</span><span class="icon">▾</span><span class="icon">≡</span><span class="icon">–</span>
+        </div>
+      </header>
+      <div class="thread" id="thread"></div>
+      <div class="composer">
+        <div class="lbl">本轮给助手看 · 不是生成参考</div>
+        <div class="sendrow" id="vision-row"></div>
+        <div class="box">发送口令、附件或问题</div>
+        <div class="sendrow">
+          <span class="chip">图片</span>
+          <button class="send" type="button">发送</button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="mobile-frame">
+      <div class="mbar">图片</div>
+      <div class="mstage" id="mstage">对照台</div>
+      <div class="mdrawer">
+        <div class="dhead"><div><div class="ttl">助手</div><div class="sub">底部抽屉 · 打字机同一套</div></div></div>
+        <div class="thread" id="mobile-thread"></div>
+      </div>
+    </div>
+  </main>
+
+<script>
+const TW = { tickMs: 33, min: 1, max: 2, divisor: 50 };
+const NOTE_KEY = "pixelvault.assistant-operator-mock.v1";
+const PROMPT_NEW = "changli, wuthering waves, official character, gradient pink hair, gold eyes, looking back, cinematic lighting, masterpiece";
+const PROMPT_OLD = "终末地比基尼角色，全身立绘";
+
+const LOCKED = [
+  { title: "操作员 + 花钱仍确认", body: "摆台立刻写、可撤销。扣费只留确认生成。" },
+  { title: "口令优先 + 硬槽位", body: "出图 / 生成 / 就这个 / 直接做 → 立刻摆台。没口令只问硬缺口。" },
+  { title: "确认卡 = 混合", body: "3:4 块 + 快照 + 预估积分 + 确认。点下去不再改表单。" },
+  { title: "同一内核，只操作当前页", body: "图片页只摆图片工作台。" },
+];
+
+const DESIGNER = {
+  analyze: [
+    { id: "a1", n: "1", title: "先回执，再打字", body: "检索帧先出现。正文一个字一个字来，不整段蹦。现有 ASSISTANT_TYPEWRITER：33ms / 最多 2 字一拍。", tag: "lock", x: 86, y: 42 },
+    { id: "a2", n: "2", title: "给助手看 ≠ 生成参考", body: "本轮附件只给模型看。分析完不会自动写进左栏参考图。要出图再说「出图」或点「当参考图」。", tag: "wait", x: 86, y: 88 },
+  ],
+  command: [
+    { id: "c1", n: "1", title: "口令后才写入生成参考", body: "用户说「出图」。助手附件这才写进工作台参考图。左栏计数和顶轨是同一份数据。", tag: "wait", x: 18, y: 22 },
+    { id: "c2", n: "2", title: "两处不是两套", body: "左栏图像芯片 = 添加。舞台顶轨 = 看着切 / 编 / 删。不在助手里做第三份缩略图墙。", tag: "wait", x: 48, y: 22 },
+    { id: "c3", n: "3", title: "打完字才出确认卡", body: "思考中 → 打字 → 已应用 + 混合确认卡。卡不是一段话，不走打字机。", tag: "lock", x: 86, y: 58 },
+  ],
+  ask: [
+    { id: "q1", n: "1", title: "硬槽位也打字", body: "短问句照样打出来，再给选项。没有确认卡。", tag: "lock", x: 86, y: 48 },
+  ],
+  lora: [
+    { id: "l1", n: "1", title: "导入卡不是打字内容", body: "推荐卡整块出现。确认卡在导入前锁住。", tag: "lock", x: 86, y: 58 },
+  ],
+  running: [
+    { id: "r1", n: "1", title: "对照台按模型分行", body: "一行四张占位。图上没有按钮。格子里是经过时间和「出图中」，对齐现有裱框进度，不是转圈。", tag: "lock", x: 48, y: 48 },
+    { id: "r2", n: "2", title: "顶轨还在", body: "生成中参考轨不消失。08-23 的坑就是结果一出参考就没了。", tag: "lock", x: 42, y: 22 },
+    { id: "r3", n: "3", title: "确认卡变进度", body: "同一张卡改成已扣费 + 经过时间，不卸掉、不另开 toast。", tag: "lock", x: 86, y: 62 },
+  ],
+  done: [
+    { id: "d1", n: "1", title: "点格子 = 聚焦", body: "图上仍没有按钮。动作全在底栏。问助手 / 当参考图从这里分叉。", tag: "lock", x: 40, y: 48 },
+    { id: "d2", n: "2", title: "当参考图 → 工作台", body: "写入左栏 + 顶轨。不进助手附件。点一下看左上芯片闪。", tag: "wait", x: 18, y: 18 },
+    { id: "d3", n: "3", title: "问助手 → 只给模型看", body: "挂到助手「本轮给助手看」。不改生成参考。点一下看右下芯片。", tag: "wait", x: 70, y: 88 },
+  ],
+  mobile: [
+    { id: "m1", n: "1", title: "抽屉里同样打字", body: "确认卡仍在对话流，不另弹一层。", tag: "lock", x: 50, y: 68 },
+  ],
+};
+
+const state = {
+  scene: "command",
+  promptApplied: true,
+  modelApplied: true,
+  batchApplied: true,
+  loraImported: false,
+  selectedAsk: "",
+  openPin: "c3",
+  placing: false,
+  elapsed: 0,
+  focused: 1,
+  workbenchRefs: 1,
+  visionRefs: 1,
+  typed: {},
+  owner: JSON.parse(localStorage.getItem(NOTE_KEY) || "[]"),
+};
+
+let twTimer = null;
+let thinkTimer = null;
+let elapsedTimer = null;
+
+const $ = (s, r = document) => r.querySelector(s);
+const $all = (s, r = document) => [...r.querySelectorAll(s)];
+
+function workbench() {
+  const model = state.modelApplied ? "Illustrious XL" : "GPT Image 2";
+  const batch = state.batchApplied ? 4 : 1;
+  const unit = state.modelApplied ? 4 : 6;
+  return {
+    model, batch, unit, cost: unit * batch, ratio: "3:4",
+    prompt: state.promptApplied ? PROMPT_NEW : PROMPT_OLD,
+  };
+}
+
+function stopTypewriter() {
+  clearInterval(twTimer); twTimer = null;
+  clearTimeout(thinkTimer); thinkTimer = null;
+}
+
+function typeProse(text, after) {
+  stopTypewriter();
+  const nodes = $all(".ai-prose");
+  const afters = $all(".after");
+  afters.forEach((el) => el.classList.remove("on"));
+  if (state.typed[state.scene]) {
+    nodes.forEach((el) => { el.classList.remove("caret"); el.textContent = text; });
+    afters.forEach((el) => el.classList.add("on"));
+    after?.();
+    return;
+  }
+  nodes.forEach((el) => {
+    el.classList.remove("caret");
+    el.innerHTML = `<span class="think"><span class="dots"><i></i><i></i><i></i></span>思考中</span>`;
+  });
+  thinkTimer = setTimeout(() => {
+    let vis = 0;
+    nodes.forEach((el) => { el.classList.add("caret"); el.textContent = ""; });
+    twTimer = setInterval(() => {
+      const pending = text.length - vis;
+      if (pending <= 0) {
+        stopTypewriter();
+        nodes.forEach((el) => el.classList.remove("caret"));
+        afters.forEach((el) => el.classList.add("on"));
+        state.typed[state.scene] = true;
+        after?.();
+        return;
+      }
+      vis += Math.min(TW.max, Math.max(TW.min, Math.ceil(pending / TW.divisor)));
+      nodes.forEach((el) => { el.textContent = text.slice(0, vis); });
+    }, TW.tickMs);
+  }, 720);
+}
+
+function startElapsed() {
+  clearInterval(elapsedTimer);
+  if (state.scene !== "running") return;
+  elapsedTimer = setInterval(() => {
+    state.elapsed += 1;
+    $all("[data-elapsed]").forEach((el) => { el.textContent = state.elapsed + "s"; });
+  }, 1000);
+}
+
+function renderParams() {
+  const w = workbench();
+  $("#prompt").value = w.prompt;
+  $("#model-name").textContent = w.model;
+  $("#model-price").textContent = w.unit + " 积分";
+  $("#spec-text").textContent = w.ratio + " · " + w.batch + " 张";
+  $("#go-cost").textContent = String(w.cost);
+  $("#ref-count").textContent = String(state.workbenchRefs);
+}
+
+function railHTML() {
+  if (!state.workbenchRefs) return "";
+  return `<div class="ref-rail">
+    <span class="lbl">参考图</span>
+    <div class="thumbs">
+      <button class="rthumb on" type="button"><div class="portrait"></div></button>
+      ${state.workbenchRefs > 1 ? `<button class="rthumb" type="button"><div class="portrait p2"></div></button>` : ""}
+    </div>
+    <div class="rail-acts">
+      <button class="pill" type="button">编辑这张</button>
+      <button class="pill" type="button">移除</button>
+    </div>
+  </div>`;
+}
+
+function renderWall() {
+  const wall = $("#wall");
+  const cap = $("#result-caption");
+  const actions = $("#actions");
+  actions.classList.remove("show");
+  if (state.scene === "running") {
+    cap.textContent = "Illustrious XL · 生成中";
+    wall.innerHTML = railHTML() + `<div class="row-label">Illustrious XL</div>
+      <div class="tiles">${[0,1,2,3].map(() => `<div class="tile run">
+        <div class="frame"></div>
+        <div class="prog"><div class="t" data-elapsed>${state.elapsed}s</div><div class="s">出图中</div></div>
+      </div>`).join("")}</div>`;
+    return;
+  }
+  if (state.scene === "done") {
+    cap.textContent = "对照台 · 点格子聚焦";
+    wall.innerHTML = railHTML() + `<div class="row-label">Illustrious XL</div>
+      <div class="tiles">
+        ${["", "p2", "p3", "p4"].map((c, i) => `<button class="tile ${i === state.focused ? "sel" : ""}" data-focus="${i}" type="button"><div class="portrait ${c}"></div></button>`).join("")}
+      </div>`;
+    actions.classList.add("show");
+    return;
+  }
+  if (state.scene === "analyze") {
+    cap.textContent = "参考图放大 · 尚未生成";
+    wall.innerHTML = railHTML() + `<div class="empty-hero"><div class="inner">
+      <div class="hero-ref"><div class="portrait"></div></div>
+      <b>当前参考</b>舞台看图，左栏加图，助手只看本轮附件
+    </div></div>`;
+    return;
+  }
+  cap.textContent = state.workbenchRefs ? "对照台空着 · 参考图已挂" : "对照台空着";
+  wall.innerHTML = railHTML() + `<div class="empty-hero"><div class="inner"><b>还没有结果</b>确认生成后，四张按模型排成一行</div></div>`;
+}
+
+function genCard(opts = {}) {
+  const w = workbench();
+  const locked = opts.locked;
+  const running = opts.running;
+  const cta = running
+    ? `<div class="cta"><span class="price">已扣 ${w.cost} 积分 · <span data-elapsed>${state.elapsed}s</span></span><span class="chip">对照台可看</span></div>`
+    : `<div class="cta"><span class="price">${locked ? "还不能生成" : "预估 " + w.cost + " 积分"}</span>
+        <button class="go-mini" id="confirm-gen" ${locked ? "disabled" : ""}>${locked ? "先导入 LoRA" : "确认生成"}</button></div>`;
+  return `<div class="gencard ${locked ? "disabled" : ""}">
+    <div class="body">
+      <div class="thumb">3:4</div>
+      <div class="rows">
+        <div><span class="k">模型</span> ${w.model}</div>
+        <div><span class="k">规格</span> ${w.ratio} · ${w.batch} 张</div>
+        <div><span class="k">生成参考</span> ${state.workbenchRefs} 张 · 提示词 ${state.promptApplied ? "已写入" : "仍是旧稿"}</div>
+        ${locked ? "<div class='k'>缺库内 LoRA，身份对不上就不出。</div>" : ""}
+      </div>
+    </div>${cta}</div>`;
+}
+
+function appliedRows() {
+  const row = (ok, applied, undoKey, applyKey, applyLabel) => ok
+    ? `<div class="applied-row"><span class="applied">${applied}</span><button class="undo" data-undo="${undoKey}">撤销</button></div>`
+    : `<div class="applied-row"><button class="opt" data-reapply="${applyKey}">${applyLabel}</button></div>`;
+  return row(state.promptApplied, "已应用 提示词", "prompt", "prompt", "填入提示词")
+    + row(state.modelApplied, "已应用 模型 · Illustrious XL", "model", "model", "应用模型")
+    + row(state.batchApplied, "已应用 张数 1 → 4", "batch", "batch", "改回 4 张");
+}
+
+function proseFor(scene) {
+  return {
+    analyze: "构图和光线对得上：回眸半身、右侧城墙透视、左下暖橙轮廓光。眼睛偏了。图里是淡紫色，长离官方是金瞳。发尾也缺红黄挑染。要按官方修正，直接说「出图」。",
+    command: "已经写进左边工作台。本轮给你看的图，也写进生成参考了。点撤销只改那一项；点确认生成才扣费。",
+    ask: "还缺主体。画谁？",
+    lora: "库里还没有这只 LoRA，不能静默下载。导入并挂上之后才能确认生成。",
+    running: "生成已经开始。对照台按模型排成一行，参考轨还在。",
+    done: "四张都在对照台上。点格子聚焦。底栏「当参考图」写入工作台，「问助手」只给模型看。",
+    mobile: "已经写进工作台。点确认才扣费。",
+  }[scene];
+}
+
+function threadHTML() {
+  const prose = `<div class="ai-prose"></div>`;
+  if (state.scene === "analyze") {
+    return `<div class="bubble me">分析这张，对照官方设定指出哪里对哪里不对。</div>
+      <div class="bubble ai">
+        <div class="meta">检索先到 · 正文后打</div>
+        <div class="receipt">
+          <span class="chip ok">已联网 · 14 条</span>
+          <span class="chip ok">萌百</span>
+          <span class="chip ok">B站</span>
+          <span class="chip miss">Danbooru</span>
+        </div>
+        ${prose}
+      </div>`;
+  }
+  if (state.scene === "ask") {
+    return `<div class="bubble me">帮我想想做张图。</div>
+      <div class="bubble ai">
+        <div class="meta">只问硬缺口</div>
+        ${prose}
+        <div class="after">
+          <div class="ask"><div class="opts">
+            <button class="opt" data-ask="长离" aria-pressed="${state.selectedAsk === "长离"}">长离</button>
+            <button class="opt" data-ask="原图角色">用参考图里的人</button>
+            <button class="opt" data-ask="skip">先不说</button>
+          </div></div>
+        </div>
+      </div>`;
+  }
+  if (state.scene === "lora") {
+    return `<div class="bubble me">用那个水彩 LoRA 出图，就长离。</div>
+      <div class="bubble ai">${prose}
+        <div class="after">
+          <div class="lora-card"><div class="pic"></div><div class="pad">
+            <div class="nm">Fanciful Watercolor</div>
+            <div class="by">twirble · SDXL · 触发词 Fanciful</div>
+            <div class="facts">
+              <span class="chip">商用 允许</span>
+              <span class="chip">${state.loraImported ? "已挂载 ×0.70" : "未在库中"}</span>
+            </div>
+            ${state.loraImported ? '<span class="applied">已导入、已挂载、触发词已填入</span>' : '<button class="go-mini" id="import-lora">导入并挂载</button>'}
+          </div></div>
+          ${genCard({ locked: !state.loraImported })}
+        </div>
+      </div>`;
+  }
+  if (state.scene === "running") {
+    return `<div class="bubble me">就这个方向，出图。金瞳、粉发、3:4 立绘。</div>
+      <div class="bubble ai">${prose}<div class="after">${appliedRows()}${genCard({ running: true })}</div></div>`;
+  }
+  if (state.scene === "done") {
+    return `<div class="bubble me">就这个方向，出图。</div>
+      <div class="bubble ai">${prose}<div class="after">
+        <div class="applied-row"><span class="applied">本轮 4 张已落对照台</span></div>
+      </div></div>`;
+  }
+  return `<div class="bubble me">就这个方向，出图。金瞳、粉发、3:4 立绘。</div>
+    <div class="bubble ai">
+      <div class="meta">识别到口令「出图」</div>
+      ${prose}
+      <div class="after">${appliedRows()}${genCard()}</div>
+    </div>`;
+}
+
+function renderVision() {
+  const row = $("#vision-row");
+  row.innerHTML = state.visionRefs
+    ? `<span class="chip vision">给助手看 ×${state.visionRefs}</span>`
+    : `<span class="chip">本轮没有附件</span>`;
+}
+
+function renderNotes() {
+  const locked = LOCKED.map((item) =>
+    `<article class="note"><span class="n">✓</span><strong>${item.title}</strong><p>${item.body}</p><span class="tag">已锁定</span></article>`
+  ).join("");
+  const designer = (DESIGNER[state.scene] || []).map((item) =>
+    `<article class="note" data-pin="${item.id}" data-open="${state.openPin === item.id}">
+      <span class="n">${item.n}</span><strong>${item.title}</strong><p>${item.body}</p>
+      <span class="tag ${item.tag === "wait" ? "wait" : ""}">${item.tag === "wait" ? "待你选" : "契约"}</span>
+    </article>`
+  ).join("");
+  const owner = state.owner.filter((n) => n.scene === state.scene).map((item, i) =>
+    `<article class="note owner-note">
+      <span class="n">${i + 1}</span><strong>你的备注</strong>
+      <textarea data-owner-text="${item.id}">${item.text}</textarea>
+      <div class="row"><button class="mini danger" data-del="${item.id}">删除</button></div>
+    </article>`
+  ).join("");
+  $("#note-list").innerHTML = locked + `<h2>本场景</h2>` + designer + `<h2>你在这一幕钉的</h2>` +
+    (owner || `<p style="padding:0 4px 12px;color:#6b6b64;font-size:12px">点「写备注」，再点画面。</p>`);
+}
+
+function renderPins() {
+  $all(".pin").forEach((el) => el.remove());
+  const stage = $("#stage");
+  (DESIGNER[state.scene] || []).forEach((item) => {
+    const pin = document.createElement("button");
+    pin.className = "pin"; pin.type = "button"; pin.textContent = item.n;
+    pin.dataset.pin = item.id; pin.dataset.open = String(state.openPin === item.id);
+    pin.style.left = item.x + "%"; pin.style.top = item.y + "%";
+    stage.appendChild(pin);
+  });
+  state.owner.filter((n) => n.scene === state.scene).forEach((item, i) => {
+    const pin = document.createElement("button");
+    pin.className = "pin owner"; pin.type = "button"; pin.textContent = String(i + 1);
+    pin.dataset.ownerPin = item.id;
+    pin.style.left = item.x + "%"; pin.style.top = item.y + "%";
+    stage.appendChild(pin);
+  });
+}
+
+function render(opts = {}) {
+  document.body.dataset.scene = state.scene;
+  renderParams();
+  renderWall();
+  renderVision();
+  $("#thread").innerHTML = threadHTML();
+  $("#mobile-thread").innerHTML = threadHTML();
+  $("#mstage").textContent = state.scene === "running" ? "生成中 4 张" : "对照台 / 参考图";
+  $("#dock-sub").textContent = state.scene === "analyze" ? "图片 · 本轮已检索 · 打字机" : "图片 · Gemini 3.5 Flash · 打字机";
+  renderNotes();
+  renderPins();
+  if (!opts.skipType) typeProse(proseFor(state.scene));
+  startElapsed();
+}
+
+function setScene(scene) {
+  state.scene = scene;
+  state.openPin = (DESIGNER[scene] || [])[0]?.id || "";
+  if (scene === "command") {
+    state.promptApplied = state.modelApplied = state.batchApplied = true;
+    state.workbenchRefs = Math.max(1, state.workbenchRefs);
+  }
+  if (scene === "running") state.elapsed = 4;
+  if (scene === "analyze") state.visionRefs = Math.max(1, state.visionRefs);
+  $all(".scenes button").forEach((btn) => btn.setAttribute("aria-pressed", String(btn.dataset.scene === scene)));
+  render();
+}
+
+document.querySelector(".scenes").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-scene]");
+  if (btn) setScene(btn.dataset.scene);
+});
+$("#toggle-notes").addEventListener("click", () => {
+  const off = document.body.classList.toggle("notes-off");
+  $("#toggle-notes").classList.toggle("on", !off);
+});
+$("#place-note").addEventListener("click", () => {
+  state.placing = !state.placing;
+  document.body.classList.toggle("placing", state.placing);
+  $("#place-note").classList.toggle("place", state.placing);
+  $("#place-note").textContent = state.placing ? "点画面钉上…" : "写备注";
+});
+$("#stage").addEventListener("click", (e) => {
+  if (!state.placing) return;
+  e.preventDefault(); e.stopPropagation();
+  const rect = $("#stage").getBoundingClientRect();
+  const note = {
+    id: "n" + Date.now(), scene: state.scene,
+    x: +(((e.clientX - rect.left) / rect.width) * 100).toFixed(2),
+    y: +(((e.clientY - rect.top) / rect.height) * 100).toFixed(2), text: "",
+  };
+  state.owner.push(note);
+  localStorage.setItem(NOTE_KEY, JSON.stringify(state.owner));
+  state.placing = false;
+  document.body.classList.remove("placing");
+  $("#place-note").classList.remove("place");
+  $("#place-note").textContent = "写备注";
+  render({ skipType: true });
+  document.querySelector(`[data-owner-text="${note.id}"]`)?.focus();
+}, true);
+
+document.addEventListener("click", (e) => {
+  const pin = e.target.closest("[data-pin]");
+  if (pin) {
+    state.openPin = pin.dataset.pin;
+    render({ skipType: true });
+    document.querySelector(`.note[data-pin="${state.openPin}"]`)?.scrollIntoView({ block: "nearest" });
+  }
+  const undo = e.target.closest("[data-undo]");
+  if (undo) { state[undo.dataset.undo + "Applied"] = false; render({ skipType: true }); }
+  const re = e.target.closest("[data-reapply]");
+  if (re) { state[re.dataset.reapply + "Applied"] = true; render({ skipType: true }); }
+  if (e.target.id === "confirm-gen" && !e.target.disabled) setScene("running");
+  if (e.target.id === "import-lora") { state.loraImported = true; render({ skipType: true }); }
+  const ask = e.target.closest("[data-ask]");
+  if (ask) { state.selectedAsk = ask.dataset.ask; render({ skipType: true }); }
+  const focus = e.target.closest("[data-focus]");
+  if (focus) { state.focused = Number(focus.dataset.focus); render({ skipType: true }); }
+  if (e.target.id === "use-ref") {
+    state.workbenchRefs = Math.min(2, state.workbenchRefs + 1);
+    $("#img-chip").classList.remove("flash");
+    void $("#img-chip").offsetWidth;
+    $("#img-chip").classList.add("flash");
+    render({ skipType: true });
+  }
+  if (e.target.id === "ask-ai") {
+    state.visionRefs = 1;
+    render({ skipType: true });
+  }
+  const del = e.target.closest("[data-del]");
+  if (del) {
+    state.owner = state.owner.filter((n) => n.id !== del.dataset.del);
+    localStorage.setItem(NOTE_KEY, JSON.stringify(state.owner));
+    render({ skipType: true });
+  }
+});
+document.addEventListener("input", (e) => {
+  const field = e.target.closest("[data-owner-text]");
+  if (!field) return;
+  const item = state.owner.find((n) => n.id === field.dataset.ownerText);
+  if (!item) return;
+  item.text = field.value;
+  localStorage.setItem(NOTE_KEY, JSON.stringify(state.owner));
+});
+$("#export-notes").addEventListener("click", async () => {
+  const text = state.owner.length
+    ? state.owner.map((n) => `【${n.scene}】 ${n.text || "（空）"}`).join("\n")
+    : "还没有你的备注。";
+  try { await navigator.clipboard.writeText(text); $("#export-notes").textContent = "已复制"; }
+  catch { alert(text); }
+  setTimeout(() => { $("#export-notes").textContent = "导出你的备注"; }, 1200);
+});
+
+render();
+</script>
+</body>
+</html>

@@ -52,6 +52,11 @@ interface CanvasOpProposalCardProps {
    * 「点一下应用」那条路 —— 浮卡在提案到达时是关着的就会走到这里。
    */
   autoAppliedCount?: number
+  /**
+   * 台账 K-2：这批里**声明了却没建成**的连线条数。与 `autoAppliedCount` 分开传
+   * 是因为它们答的是两个问题——「落了几个」和「结构成没成形」。
+   */
+  autoFailedConnects?: number
   onUndoAutoApply?(): void
 }
 
@@ -97,6 +102,7 @@ export function CanvasOpProposalCard({
   getNodeLabel,
   onApply,
   autoAppliedCount,
+  autoFailedConnects,
   onUndoAutoApply,
 }: CanvasOpProposalCardProps) {
   const t = useTranslations('StudioNode.canvasOps')
@@ -458,6 +464,16 @@ export function CanvasOpProposalCard({
         <div className="mt-1.5 flex items-center justify-between gap-2 px-1.5">
           <span className="text-2xs text-node-subtle">
             {t('autoApplied', { count: landedCount })}
+            {/* 台账 K-2：连线没建成必须**点名**，不能只让「已落 N 个」那个数变小
+                —— 用户读不出少的那几个是什么。对比度实算（2026-08-29）：
+                #c0342e/白卡 5.57、#a32d2d/纸底 5.63、#c0342e/助手气泡 #f1f1f1
+                4.93，三种落地面都过 4.5 正文门槛。⛔ 不用 node-danger（canvas.css
+                已在 S4 删除该别名）。 */}
+            {autoFailedConnects && autoFailedConnects > 0 ? (
+              <span className="text-node-status-failed">
+                {` · ${t('autoConnectsFailed', { count: autoFailedConnects })}`}
+              </span>
+            ) : null}
           </span>
           {onUndoAutoApply ? (
             <Button

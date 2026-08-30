@@ -26,8 +26,8 @@ import {
   normalizeErrorCode,
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
-import { galleryGenerationPath } from '@/constants/routes'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import { requestStudioResultDetail } from '@/lib/studio-result-detail'
 import type {
   ActiveRun,
   GenerateAudioRequest,
@@ -47,7 +47,6 @@ import {
   checkVideoStatusAPI,
   generateAudioAPI,
 } from '@/lib/api-client'
-import { useRouter } from '@/i18n/navigation'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -269,10 +268,19 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   const tStudio = useTranslations('StudioV2')
   const tVideo = useTranslations('VideoGenerate')
   const tErrors = useTranslations('Errors')
-  const router = useRouter()
 
   // 审查 D1：完成提示必须给"去向"——附"查看作品"直达动作，用户不再
   // 以为结果丢了。以 generation.id 作 toast id，变体/对比多次完成时去重。
+  //
+  // ⚠ 台账 L（owner 2026-08-29 真机）：这颗按钮原先是
+  // `router.push(galleryGenerationPath(id))`，两处都错 ——
+  //   ① **必然 404**：`/gallery/[id]` 只服务 `isPublic: true` 的行，而生成默认
+  //      私有（schema `@default(false)`），所以它对每一张刚生成的图都注定
+  //      notFound，不是偶发；
+  //   ② **它是一次真导航**：工作台的全部编辑状态当场清空（参考图 / 提示词 /
+  //      模型与规格），返回也回不来。owner 一次丢了 5 张参考 + 约 500 字提示词。
+  // 改成在工作台内开详情浮层（`GenerationPreview` 早就持有那个
+  // `ImageDetailModal`，点预览图就是开它），工作区一个字都不动。
   const notifySaved = useCallback(
     (generation: GenerationRecord | null | undefined, message: string) => {
       if (generation?.id) {
@@ -280,14 +288,14 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           id: `generation-saved-${generation.id}`,
           action: {
             label: tStudio('viewInGallery'),
-            onClick: () => router.push(galleryGenerationPath(generation.id)),
+            onClick: () => requestStudioResultDetail(generation.id),
           },
         })
       } else {
         toast.success(message)
       }
     },
-    [router, tStudio],
+    [tStudio],
   )
 
   // ── Timer/polling lifecycle ────────────────────────────────────

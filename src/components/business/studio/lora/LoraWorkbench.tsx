@@ -2778,6 +2778,11 @@ function GenerateBranch({
                   </p>
                 ) : null}
                 {/* S2精修①-B：Runner 高级参数已迁到左装配栏（runnerParamsPanel）。 */}
+                {generateError ? (
+                  <p role="alert" className="text-xs text-destructive">
+                    {generateError}
+                  </p>
+                ) : null}
                 {/* CD：出图 = 整宽主按钮压在创作面最底（唯一主动作，不与修饰控件
                     同行争位；忠实还原/比例已收进提示词卡）。< md 仍走
                     `.lora-mobile-actionbar` 收成底部常驻条。 */}

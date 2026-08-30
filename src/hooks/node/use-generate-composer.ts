@@ -14,7 +14,10 @@ import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
 import { useNodeWorkflowActions } from '@/components/business/node/NodeWorkflowActionsContext'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { pushComposerHistory } from '@/lib/generate-composer-history'
-import { resolveNodeDisplayName } from '@/lib/node-display-name'
+import {
+  resolveNodeDisplayName,
+  toNodeDisplayLabel,
+} from '@/lib/node-display-name'
 import { resolveGenerateTargetKind } from '@/lib/node-workflow-graph'
 import type { GenerationRecord } from '@/types'
 import type {
@@ -374,7 +377,7 @@ export function useGenerateComposer(): UseGenerateComposerValue {
           id: createSlotId(),
           url: generation.url ?? '',
           thumbnailUrl: generation.thumbnailUrl ?? undefined,
-          label: generation.prompt || generation.model || undefined,
+          label: toNodeDisplayLabel(generation.prompt ?? generation.model),
           generationId: generation.id,
         }
         return { ...current, [draftKey]: [...existing, next] }

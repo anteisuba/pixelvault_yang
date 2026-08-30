@@ -779,15 +779,36 @@ export function useNodeWorkflow({
    */
   const hasReportedServerWriteFailure = useRef(false)
   const reportServerWriteFailure = useCallback(
-    (operation: ServerWriteOperation, error?: string) => {
+    (operation: ServerWriteOperation, error?: string, status?: number) => {
       logger.error('[node-workflow] server persist failed', {
         operation,
         error,
+        status,
       })
       if (hasReportedServerWriteFailure.current) {
         return
       }
       hasReportedServerWriteFailure.current = true
+      /**
+       * 台账 V（2026-08-29 真机）：**「服务端拒收 payload」和「连不上服务端」必须
+       * 说成两件事**。此前两条共用「连不上云端…请检查网络连接」，而真机上撞到的是
+       * `Too big: expected string to have <=160 characters, ×3` —— 一条 Zod 校验
+       * 失败被报成网络故障，用户去查网络查不出任何东西，画布却从那一刻起就不再
+       * 落库（整个项目的服务端状态停在最后一次成功写入）。
+       *
+       * 判据是 **4xx**，不是「有没有状态码」：
+       *   · 4xx = 请求到了，服务端说这份 payload 不行（校验失败 / 限流 / 越权）。
+       *     这是**用户这边有东西要改**的唯一一档，把服务端的原话带出来
+       *     （`description`）——它是唯一能指向真因的信息。
+       *   · 5xx 与「压根没响应」归同一档：都不是用户的 payload 的问题，重试是对的
+       *     处置，沿用原文案。
+       */
+      if (typeof status === 'number' && status >= 400 && status < 500) {
+        toast.error(tToastsRef.current('cloudSaveRejected'), {
+          description: error,
+        })
+        return
+      }
       toast.error(tToastsRef.current('cloudSaveFailed'))
     },
     [],
@@ -1154,6 +1175,7 @@ export function useNodeWorkflow({
             reportServerWriteFailure(
               SERVER_WRITE_OPERATIONS.migrate,
               created.error,
+              created.status,
             )
             break
           }
@@ -1237,6 +1259,7 @@ export function useNodeWorkflow({
           reportServerWriteFailure(
             SERVER_WRITE_OPERATIONS.update,
             response.error,
+            response.status,
           )
         }
       })
@@ -1479,6 +1502,7 @@ export function useNodeWorkflow({
           reportServerWriteFailure(
             SERVER_WRITE_OPERATIONS.create,
             response.error,
+            response.status,
           )
           return
         }
@@ -1606,6 +1630,7 @@ export function useNodeWorkflow({
             reportServerWriteFailure(
               SERVER_WRITE_OPERATIONS.rename,
               response.error,
+              response.status,
             )
           }
         })
@@ -1676,6 +1701,7 @@ export function useNodeWorkflow({
             reportServerWriteFailure(
               SERVER_WRITE_OPERATIONS.delete,
               response.error,
+              response.status,
             )
           }
         })

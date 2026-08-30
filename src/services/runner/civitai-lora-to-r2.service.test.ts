@@ -116,6 +116,36 @@ describe('civitai-lora-to-r2.service', () => {
     )
   })
 
+  it('falls back from an invalid user token to the platform token', async () => {
+    mockExists.mockResolvedValue(false)
+    mockUpload
+      .mockRejectedValueOnce(
+        new Error(
+          `Failed to fetch file for buffered upload (401): ${URL_3118200}`,
+        ),
+      )
+      .mockResolvedValueOnce({
+        publicUrl: 'x',
+        mimeType: 'application/octet-stream',
+        sizeBytes: 123,
+      })
+
+    await ensureCivitaiLoraInR2(URL_3118200, 'user-civitai-token')
+
+    expect(mockUpload).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        fetchHeaders: { Authorization: 'Bearer user-civitai-token' },
+      }),
+    )
+    expect(mockUpload).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        fetchHeaders: { Authorization: 'Bearer civitai-token' },
+      }),
+    )
+  })
+
   it('omits the auth header when no platform token is configured', async () => {
     mockExists.mockResolvedValue(false)
     mockToken.mockReturnValue(null)
@@ -139,6 +169,19 @@ describe('civitai-lora-to-r2.service', () => {
     await expect(ensureCivitaiLoraInR2(URL_3118200)).rejects.toMatchObject({
       code: 'DOWNLOAD_FAILED',
     })
+  })
+
+  it('classifies exhausted Civitai authentication attempts as AUTH_REQUIRED', async () => {
+    mockExists.mockResolvedValue(false)
+    mockUpload.mockRejectedValue(
+      new Error(
+        `Failed to fetch file for buffered upload (401): ${URL_3118200}`,
+      ),
+    )
+
+    await expect(
+      ensureCivitaiLoraInR2(URL_3118200, 'expired-user-token'),
+    ).rejects.toMatchObject({ code: 'AUTH_REQUIRED' })
   })
 
   it('maps oversized remote files to TOO_LARGE (base checkpoint mis-attached as LoRA)', async () => {

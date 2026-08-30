@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
+import { toNodeDisplayLabel } from '@/lib/node-display-name'
 import type { GenerationRecord } from '@/types'
 
 import {
@@ -95,6 +96,15 @@ export function ReferenceLandingTabs({
   const { spawnReference, listCanvasImageSources, connectReferenceNode } =
     useNodeWorkflowActions()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
+  /**
+   * 台账 B：Tabs 从非受控改成受控，只为了让「素材库」这一格在**被选中的那一刻**
+   * 就把对话框开出来（Tab 即动作）。其余三格行为一字未变。
+   */
+  const [activeTab, setActiveTab] = useState('upload')
+  const handleTabChange = useCallback((next: string) => {
+    setActiveTab(next)
+    if (next === 'asset') setAssetDialogOpen(true)
+  }, [])
   const inputRef = useRef<HTMLInputElement>(null)
   const pasteTargetRef = useRef<HTMLDivElement>(null)
   const { uploadFile, isUploading } = useNodeReferenceUpload()
@@ -222,7 +232,7 @@ export function ReferenceLandingTabs({
         land({
           url: generation.url,
           sourceId: generation.id,
-          name: generation.prompt || undefined,
+          name: toNodeDisplayLabel(generation.prompt),
           source: 'asset',
         })
       }
@@ -232,7 +242,19 @@ export function ReferenceLandingTabs({
 
   return (
     <>
-      <Tabs defaultValue="upload" className="p-3">
+      {/* 台账 B（owner 2026-08-29）：四格里只有「素材库」是两跳 —— 点了 Tab 之后
+          面板里还站着一个同名按钮「从素材库选择」，用户已经表达过一次的意图要再
+          表达一遍。另外三格（上传 / 粘贴 / 从画布）都是**直接可用的落区**。
+
+          收法取 owner 建议里的 ①「Tab 即动作」而不是 ②「内嵌缩略图网格」：素材库
+          是几百条 + 搜索 + 分页 + 类型过滤，把它塞进一个 ~200px 高的节点浮层等于
+          在 `AssetPickerBrowser` 之外再造第三套素材浏览面（「从画布」那格能用网格
+          是因为它只有画布上的几个节点）。这里换成**选中即开对话框**，四格于是统一
+          成「都是一跳」，而素材浏览仍然只有一份实现。
+
+          Tab 保持选中态并在面板里留一条「关掉了可以再开」的入口 —— 用户没选就关掉
+          对话框时，面板不会是一片空白。 */}
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="p-3">
         <TabsList className="grid h-9 grid-cols-4 rounded-2xl bg-node-panel-soft p-1">
           <TabsTrigger
             value="upload"
@@ -284,15 +306,20 @@ export function ReferenceLandingTabs({
           />
         </TabsContent>
         <TabsContent value="asset" className="mt-3">
-          <Button
-            type="button"
-            disabled={disabled}
-            onClick={() => setAssetDialogOpen(true)}
-            className="nodrag nopan nowheel h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground hover:border-node-edge hover:bg-node-panel-inner disabled:text-node-subtle"
-          >
-            <Library className="mr-2 size-4 text-node-muted" />
-            {t('selectAsset')}
-          </Button>
+          <div className="nodrag nopan nowheel flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-4 text-center">
+            <Library className="size-5 text-node-muted" />
+            <span className="text-2xs text-node-muted">
+              {t('assetDialogOpened')}
+            </span>
+            <Button
+              type="button"
+              disabled={disabled}
+              onClick={() => setAssetDialogOpen(true)}
+              className="nodrag nopan nowheel h-8 rounded-xl border border-node-panel-inner bg-node-panel text-2xs font-semibold text-node-foreground hover:border-node-edge hover:bg-node-panel-inner disabled:text-node-subtle"
+            >
+              {t('selectAsset')}
+            </Button>
+          </div>
         </TabsContent>
         <TabsContent value="paste" className="mt-3">
           <div

@@ -14,7 +14,10 @@ import {
 import { resolveReferenceAssetLimit } from '@/constants/node-studio'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useDownstreamUses } from '@/hooks/node/use-downstream-uses'
-import { resolveNodeDisplayName } from '@/lib/node-display-name'
+import {
+  resolveNodeDisplayName,
+  toNodeDisplayLabel,
+} from '@/lib/node-display-name'
 import {
   getNodePrimaryMediaUrl,
   getUpstreamNodes,
@@ -229,7 +232,7 @@ export function CharacterDetailBody({
         media: {
           url: generation.url,
           generationId: generation.id,
-          name: generation.prompt || generation.model || undefined,
+          name: toNodeDisplayLabel(generation.prompt ?? generation.model),
         },
       })
       setVoiceDialogOpen(false)
@@ -256,7 +259,7 @@ export function CharacterDetailBody({
         media: {
           url: generation.url,
           generationId: generation.id,
-          name: generation.prompt || generation.model || undefined,
+          name: toNodeDisplayLabel(generation.prompt ?? generation.model),
         },
       })
       setCloseupDialogOpen(false)

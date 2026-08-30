@@ -52,12 +52,11 @@ import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 import {
   VIDEO_NODE_MODES,
   getNodeModeForModel,
-  modelSurvivesModeSwitch,
   type VideoNodeMode,
 } from '@/constants/video-node-modes'
 import {
   VIDEO_ASPECT_RATIOS,
-  VIDEO_RESOLUTIONS,
+  DEFAULT_VIDEO_RESOLUTIONS,
   type VideoResolution,
 } from '@/constants/video-options'
 import {
@@ -75,6 +74,7 @@ import {
   buildDisplayNamePatch,
   buildFallbackNodeNames,
   resolveNodeDisplayName,
+  toNodeDisplayLabel,
 } from '@/lib/node-display-name'
 import {
   computeVideoRebindPreview,
@@ -441,33 +441,12 @@ export function VideoComposer({
     !composer.referenceTokens.some((token) => token.kind === 'keyframe')
 
   /**
-   * 切档（§9.3）：不符合新模式的模型**直接消失并清空选择**，模型相关的参数档一并
-   * 回默认（新模型未必支持旧档位）。**用户已传的素材一律保留在数据层** —— 素材是
-   * 用户的劳动，模式是可来回切的视图状态，切回来还在，只是当前模式下不发送。
+   * 切档（§9.3）。实现在 `useVideoComposer.selectMode` —— 模式的事实源在那边，
+   * 「同一个型号在新档下走哪个端点」也只该有一处答案（台账 U：这里原先自己判
+   * `modelSurvivesModeSwitch`，而那是拿**端点 id** 判「型号还在不在」，2.5 的
+   * 两个端点 id 天然不同，于是切一次档就把用户选的 2.5 换成了默认的 2.0 Fast）。
    */
-  const selectVideoMode = useCallback(
-    (next: VideoNodeMode) => {
-      if (next === videoMode) return
-      const keepModel = modelSurvivesModeSwitch(
-        data.model?.modelId,
-        data.model?.adapterType,
-        next,
-      )
-      updateNodeData(id, {
-        videoMode: next,
-        ...(keepModel
-          ? {}
-          : { model: undefined, duration: undefined, resolution: undefined }),
-      })
-    },
-    [
-      id,
-      videoMode,
-      data.model?.modelId,
-      data.model?.adapterType,
-      updateNodeData,
-    ],
-  )
+  const selectVideoMode = composer.selectMode
 
   /**
    * 模型列表按模式收窄 —— 不符合当前模式的模型**直接消失**（owner 拍板：不是置灰。
@@ -661,8 +640,16 @@ export function VideoComposer({
   const aspectRatioLockedByImages =
     Boolean(composer.sendPreview.contract?.imageAspectRatioLock) &&
     composer.sendPreview.images.length > 0
+  /**
+   * ⚠ 兜底必须是 `DEFAULT_VIDEO_RESOLUTIONS` 而不是 `VIDEO_RESOLUTIONS`
+   * （2026-08-29 顺手修）。后者是**所有模型加起来**的全集，里面的 `'2k'` 只有
+   * MiniMax H3 产得出来 —— 拿它当兜底等于给每一个没登记 capabilities 的模型
+   * 悄悄发一张 2K 的通行证，而 `constants/video-options.ts` 里那条常量的头注
+   * （「widening the union must not silently hand 2K to every model that never
+   * opted in」）说的正是这件事。
+   */
   const resolutionOptions =
-    capabilities?.supportedResolutions ?? VIDEO_RESOLUTIONS
+    capabilities?.supportedResolutions ?? DEFAULT_VIDEO_RESOLUTIONS
   const aspectOptions =
     capabilities?.supportedAspectRatios ?? VIDEO_ASPECT_RATIOS
 
@@ -927,7 +914,7 @@ export function VideoComposer({
         url: generation.url,
         generationId: generation.id,
         thumbnailUrl: generation.thumbnailUrl ?? undefined,
-        name: generation.prompt || generation.model || undefined,
+        name: toNodeDisplayLabel(generation.prompt ?? generation.model),
       },
     })
     setPendingAdd(null)

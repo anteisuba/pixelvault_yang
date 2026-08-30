@@ -953,31 +953,50 @@ body.home-v4-locked {
   color: var(--dim);
 }
 
-.home-v4 .fn-studio .prow {
+/* 左右分栏，同 04 视频页：左边打字，右边结果。 */
+.home-v4 .fn-studio .vrow {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--line);
+  align-items: stretch;
+  gap: 13px;
+  padding: 12px 15px 14px;
 }
 
-.home-v4 .fn-studio .prow .txt {
+/* 左列：提示词 + 生成键。宽度吃剩下的，高度由右边的方格决定。 */
+.home-v4 .fn-studio .ibox {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: var(--panel);
+  padding: 13px 14px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 光标跟着最后一个字走：这里的词会折到三四行，`flex` 会把它甩到行尾空白处。 */
+.home-v4 .fn-studio .ptxt {
+  margin: 0;
   font-family: var(--mono);
   font-size: 12.5px;
-  min-height: 19px;
-  flex: 1;
+  line-height: 1.65;
+  min-height: 21px;
 }
 
-.home-v4 .fn-studio .prow .cur {
+.home-v4 .fn-studio .cur {
+  display: inline-block;
   width: 8px;
-  height: 16px;
+  height: 13px;
+  margin-left: 2px;
+  vertical-align: -1px;
   background: var(--ink);
   animation: home-v4-blink 1s steps(2) infinite;
-  flex: none;
 }
 
 .home-v4 .fn-studio .go {
   flex: none;
+  align-self: flex-end;
+  margin-top: auto;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -995,23 +1014,38 @@ body.home-v4-locked {
   opacity: 1;
 }
 
+/* 右列：结果区。⚠ 宽度写死是有意的——方格是 1:1，所以宽度一定就把**高度**也
+   定死了，而这块正是整张窗高度的唯一来源。500px 让图片占据约六成工作台，
+   左边 `.ibox` 只保留足够读完提示词与看见生成动作的空间。 */
 .home-v4 .fn-quad {
+  flex: none;
+  width: 500px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
-  padding: 14px 16px 16px;
 }
 
-/* ⚠ 格子本身不做入场：四个空位在打字期间就立在那儿，`reveal` 动的是**结果**
-   ——出图盖上来、占位退下去。格子跟着一起淡入的话，「四家一起出」那一刻演的
-   就成了「格子出现」而不是「格子被填满」。 */
+/* ⭐ 空态就是**什么都不画**：`reveal` 之前底色、边框、角标、图全部不上，右半边
+   是真的空。格子本身留在流里只为撑住高度（`aspect-ratio` + `transparent` 的
+   边框照样占位），图到了整块也不会往下顶一格。
+   ⚠ 这是 owner 2026-08-29 推翻上一版的结果：上一版特意让四个「待生成」空位在
+   打字期间就立着，理由是「格子被填满」比「格子出现」更像出图。左右分栏之后那
+   条不再成立——右半边从空到有、四张陆续到达，演的是**结果在一张张回来**。 */
 .home-v4 .fn-quad .fq {
   position: relative;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 1 / 1;
   border-radius: 11px;
   overflow: hidden;
+  background: transparent;
+  border: 1px solid transparent;
+  transition:
+    background-color 0.6s ease,
+    border-color 0.6s ease;
+}
+
+.home-v4 .fn-studio.reveal .fq {
   background: var(--panel);
-  border: 1px solid var(--line);
+  border-color: var(--line);
 }
 
 /* 出图：`fill` 让 next/image 自己写 position/inset，这里只管盖法与登场。
@@ -1025,36 +1059,34 @@ body.home-v4-locked {
     transform 0.6s ease;
 }
 
-.home-v4 .fn-quad .fq .want {
-  transition: opacity 0.6s ease;
-}
-
 .home-v4 .fn-studio.reveal .fq img {
   opacity: 1;
   transform: none;
 }
 
-.home-v4 .fn-studio.reveal .fq .want {
-  opacity: 0;
-}
-
 /* 四格错开。延时挂在 `.fq` 的 `nth-child` 上，所以四格必须是 `.fn-quad` 的
-   直接子元素——中间夹一层包装就全部同时落下。 */
+   直接子元素——中间夹一层包装就全部同时落下。
+   ⚠ 三行选择器要一起改：格子的底与框、图、模型角标是同一张结果的三个部件，
+   漏掉任何一行，那一格就会先冒出个空框或先亮出个模型名再等图。 */
+.home-v4 .fn-studio.reveal .fq:nth-child(2),
 .home-v4 .fn-studio.reveal .fq:nth-child(2) img,
-.home-v4 .fn-studio.reveal .fq:nth-child(2) .want {
+.home-v4 .fn-studio.reveal .fq:nth-child(2) .mtag {
   transition-delay: 0.3s;
 }
 
+.home-v4 .fn-studio.reveal .fq:nth-child(3),
 .home-v4 .fn-studio.reveal .fq:nth-child(3) img,
-.home-v4 .fn-studio.reveal .fq:nth-child(3) .want {
+.home-v4 .fn-studio.reveal .fq:nth-child(3) .mtag {
   transition-delay: 0.6s;
 }
 
+.home-v4 .fn-studio.reveal .fq:nth-child(4),
 .home-v4 .fn-studio.reveal .fq:nth-child(4) img,
-.home-v4 .fn-studio.reveal .fq:nth-child(4) .want {
+.home-v4 .fn-studio.reveal .fq:nth-child(4) .mtag {
   transition-delay: 0.9s;
 }
 
+/* 模型角标跟着它那张图一起到——空态里它也不许先站出来。 */
 .home-v4 .fn-quad .fq .mtag {
   position: absolute;
   left: 8px;
@@ -1067,6 +1099,12 @@ body.home-v4-locked {
   background: rgba(10, 10, 10, 0.62);
   color: #f4f2ec;
   backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.home-v4 .fn-studio.reveal .fq .mtag {
+  opacity: 1;
 }
 
 .home-v4 .fn-quad .fq .want {
@@ -1173,17 +1211,54 @@ body.home-v4-locked {
   font-weight: 600;
 }
 
+/* ⭐ 左右分栏：左边整个工作台（库 + 机架），右边四张出图。比例偏右，因为**图是主体**
+   ——左边只是「怎么挂」的证据，右边才是「挂出来什么」。 */
 .home-v4 .fn-lora .cols {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  align-items: start;
 }
 
-.home-v4 .fn-lora .lib {
+/* 左栏：库在上、机架在下，竖着叠。原来这两块是并排的，占掉整幅宽度。 */
+.home-v4 .fn-lora .side {
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--line);
+}
+
+.home-v4 .fn-lora .outwrap {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px 16px;
+  gap: 6px;
+}
+
+/* ⭐ 库列封顶并裁切，**不是**为了省地方才这么写——真实的 LoRA 库是无限长的，
+   本来就该在折线处断掉。第六张卡露一半正好说了实话：库里不止这些，而它恰恰是
+   唯一一张异底模、挂不上的卡。
+   ⚠ 顺带这条也是版面的闸：卡片数一多，`.cols` 会把面板顶出视口（2026-08-30 实测
+   六张卡时面板 875px 而视口 855px）。封顶之后行高由 `.rig` 决定，加卡不再涨高。 */
+.home-v4 .fn-lora .lib {
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 0;
+  /* 封顶到约三张卡。改左右分栏后库与机架是**竖着叠**的，两者高度直接相加——不封顶
+     的话左栏 729px，整块面板顶到 774 而视口只有 855（还要留给标题约 150）。
+     ⚠ 值要正好容下**三张**卡（搜索框 34 + 三张 ×69 + 间隔 + 上下内边距 ≈ 289）：
+     第三张是 `water`，唯一一张异底模、始终不亮的卡（见 HOME_V4_FN_LORA_CARDS 的注释）。
+     切在它上面，这一页就少了「挂不上长什么样」这个论据。 */
+  max-height: 302px;
+  overflow: hidden;
+  /* ⚠ 底部渐隐是必需的，不是装饰：硬切会正好从某张卡的边框中间切过去，读起来像
+     渲染坏了而不是「列表还长着」。渐隐一加，同一个裁切就变成了「下面还有」。 */
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 34px),
+    transparent
+  );
 }
 
 .home-v4 .fn-lora .search {
@@ -1217,17 +1292,31 @@ body.home-v4-locked {
   flex: none;
 }
 
-/* 封面是纯色块，没有图 —— 所以配色属于皮肤，不写在标签的 style 上 */
-.home-v4 .fn-lora .lcard[data-cover='ghibli'] .cv {
-  background: linear-gradient(135deg, #9ab8d8, #41608a);
+/* 封面是纯色块，没有图 —— 所以配色属于皮肤，不写在标签的 style 上。
+   ⚠ 这里的 id 必须跟 `HOME_V4_FN_LORA_CARDS` 一一对应：2026-08-30 把卡片换成五把真实
+   Anima LoRA 时，旧的 ghibli / grain / mecha 三条成了死规则，而五个新 id 一条规则都没有
+   ——结果六张卡里五张的色块是**透明的**，只剩沿用旧 id 的 water 还亮着。属性选择器不
+   匹配时静默不生效，**tsc 和测试都不会说话**，只有真机目检看得见。
+   ⚠ 顺带一提：真实产品里这一格是 LoRA 的封面图，而 Anima 档的封面**实际就是全空的**
+   （台账 AW）。这里用色块是刻意的占位，不是在演「封面加载好了」。 */
+.home-v4 .fn-lora .lcard[data-cover='flatline'] .cv {
+  background: linear-gradient(135deg, #cfd8e2, #5c6b7d);
 }
 
-.home-v4 .fn-lora .lcard[data-cover='grain'] .cv {
-  background: linear-gradient(135deg, #d8b48f, #8a5f41);
+.home-v4 .fn-lora .lcard[data-cover='figure'] .cv {
+  background: linear-gradient(135deg, #e0cdb6, #8a6a45);
 }
 
-.home-v4 .fn-lora .lcard[data-cover='mecha'] .cv {
-  background: linear-gradient(135deg, #c39ad8, #5f418a);
+.home-v4 .fn-lora .lcard[data-cover='pose'] .cv {
+  background: linear-gradient(135deg, #c9a8d8, #6b4a8a);
+}
+
+.home-v4 .fn-lora .lcard[data-cover='detail'] .cv {
+  background: linear-gradient(135deg, #b8d8c4, #41785c);
+}
+
+.home-v4 .fn-lora .lcard[data-cover='light'] .cv {
+  background: linear-gradient(135deg, #e8d79a, #a08331);
 }
 
 .home-v4 .fn-lora .lcard[data-cover='water'] .cv {
@@ -1377,22 +1466,29 @@ body.home-v4-locked {
   color: var(--dim);
 }
 
+/* 出图区在 `.cols` **之外**，横跨整幅面板。挪出来的理由不是排版好看：四张竖图
+   塞在右栏里每张只剩 110px 宽，人物会缩成一团认不出——而这一页要证明的恰恰是
+   「四张是同一个人、画风却不同」，看不清就等于没证。 */
+.home-v4 .fn-lora .outk {
+  display: block;
+}
+
+/* ⚠ 2×2，不是一排四个。右栏只有半幅宽，四张横排每张只剩约 150px——比放在底部
+   一整排还小，「图片是主体」就成了空话。2×2 让每张宽出一倍。 */
 .home-v4 .fn-lora .outrow {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
 }
 
+/* ⚠ 3:4 竖版，跟着素材走：人物是站着的，横格里她只能占中间三分之一。 */
 .home-v4 .fn-lora .oq {
   position: relative;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 3 / 4;
   border-radius: 10px;
   overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   opacity: 0;
   transition: opacity 0.6s ease;
 }
@@ -1401,12 +1497,39 @@ body.home-v4-locked {
   opacity: 1;
 }
 
+.home-v4 .fn-lora .oq img {
+  object-fit: cover;
+}
+
+/* 四格错开。延时挂在 `.oq` 的 `nth-child` 上，所以四格必须是 `.outrow` 的直接
+   子元素——中间夹一层包装就全部同时落下。 */
+.home-v4 .fn-lora .oq:nth-child(2) {
+  transition-delay: 0.25s;
+}
+
+.home-v4 .fn-lora .oq:nth-child(3) {
+  transition-delay: 0.5s;
+}
+
+.home-v4 .fn-lora .oq:nth-child(4) {
+  transition-delay: 0.75s;
+}
+
+/* 权重角标。⭐ 这两个数字是这一页的论据本身——同一套挂载、同一个 seed，四格
+   之间只有它们动过——所以它压在图上，不是躲在图外的说明文字。 */
 .home-v4 .fn-lora .oq .k {
+  position: absolute;
+  left: 7px;
+  bottom: 7px;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  color: var(--dim);
-  text-transform: uppercase;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: rgba(16, 16, 16, 0.62);
+  padding: 2px 7px;
+  border-radius: 999px;
+  backdrop-filter: blur(3px);
 }
 
 /* ─── 03 声音：配音聊天室 ───────────────────────────────────────── */
@@ -1471,29 +1594,25 @@ body.home-v4-locked {
   flex-direction: row-reverse;
 }
 
+/* 头像：圆形裁切的图片位。三张脸是数据（`HOME_V4_FN_AUDIO_LINES.avatar`），
+   这里只负责裁圆与占位——原来那三条 `[data-voice]` 渐变已随真头像退役，
+   「哪个色 = 谁在说」现在由图里的主色自己承担。 */
 .home-v4 .fn-audio .ava {
   width: 38px;
   height: 38px;
   border-radius: 999px;
   flex: none;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
+  overflow: hidden;
+  display: block;
 }
 
-/* 三个说话人的头像色：数据是「谁在说」，颜色是皮肤 */
-.home-v4 .fn-audio [data-voice='qing'] {
-  background: linear-gradient(135deg, #c98da8, #8a4160);
-}
-
-.home-v4 .fn-audio [data-voice='lei'] {
-  background: linear-gradient(135deg, #7fa3c9, #33506b);
-}
-
-.home-v4 .fn-audio [data-voice='ke'] {
-  background: linear-gradient(135deg, #c9b47f, #8a6f33);
+.home-v4 .fn-audio .ava img,
+.home-v4 .fn-audio .pick img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 .home-v4 .fn-audio .msg .grp {
@@ -1536,6 +1655,15 @@ body.home-v4-locked {
   border-radius: 999px;
   padding: 7px 13px;
   background: var(--paper);
+  /* 0…1 of the clip already heard. Written from `timeupdate`; the default is
+     here so a bar always has a number to compare itself against. */
+  --progress: 0;
+}
+
+/* 正在放的那条：整颗药丸抬一档，好让「哪条在响」在一屏里一眼可辨 */
+.home-v4 .fn-audio .voice.live {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
 }
 
 .home-v4 .fn-audio .voice .play {
@@ -1543,12 +1671,31 @@ body.home-v4-locked {
   height: 22px;
   border-radius: 999px;
   flex: none;
+  border: 0;
   background: var(--ink);
   color: var(--paper);
   display: grid;
   place-items: center;
   font-size: 10.5px;
-  padding-left: 2px;
+  line-height: 1;
+  /* Optically centres ▶ inside the disc. The pause bars are symmetric and
+     must not inherit the nudge. */
+  padding: 0 0 0 2px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.home-v4 .fn-audio .voice.sounding .play {
+  padding-left: 0;
+  letter-spacing: 1px;
+  /* The two bars sit as one glyph pair; the tracking above pushes the second
+     one right, so give the pair its lost pixel back. */
+  text-indent: 1px;
+}
+
+.home-v4 .fn-audio .voice .play:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .home-v4 .fn-audio .voice .wv {
@@ -1556,6 +1703,8 @@ body.home-v4-locked {
   align-items: center;
   gap: 2px;
   height: 18px;
+  /* Bar count — the denominator each bar measures itself against. */
+  --n: 1;
 }
 
 .home-v4 .fn-audio .voice .wv i {
@@ -1572,6 +1721,16 @@ body.home-v4-locked {
 
 .home-v4 .fn-audio .msg.played .voice .wv i {
   transform: scaleY(1);
+}
+
+/* Playhead. `--lit` is 1 once this bar's share of the track (`--i / --n`) has
+   been passed and 0 before — the ×1000 turns the difference into a switch, so
+   the boundary lands on one bar rather than smearing across three. Only the
+   line holding the transport dims its unheard bars; a resting waveform keeps
+   the 0.75 it has always had. */
+.home-v4 .fn-audio .voice.live .wv i {
+  --lit: clamp(0, (var(--progress) - var(--i) / var(--n)) * 1000, 1);
+  opacity: calc(0.26 + var(--lit) * 0.74);
 }
 
 .home-v4 .fn-audio .voice .dur {
@@ -1593,10 +1752,14 @@ body.home-v4-locked {
   gap: 6px;
 }
 
+/* 音色选择器：同一张脸的 30px 版。⚠ `.add` 不是说话人，是「＋添加音色」，
+   所以它照旧是个写字的灰圆——下面那条规则要保住。 */
 .home-v4 .fn-audio .pick {
   width: 30px;
   height: 30px;
   border-radius: 999px;
+  flex: none;
+  overflow: hidden;
   display: grid;
   place-items: center;
   color: #fff;
@@ -2576,7 +2739,11 @@ body.home-v4-locked {
 
 /* 铺满不糊：单层 cover 占满整页，「不丢信息」由图的构图负责（代表作按 16:9
    满幅、主体偏右创作）。`--pos` 留着，逐图微调不用改结构。 */
-.home-v4 .m-bg img {
+/* ⚠ `video` 必须跟 `img` 走同一条规则。2026-08-30 视频幕改放真视频时漏了这一条，
+   结果 `<video>` 按自身固有尺寸渲染，右侧和下方露出大片白底——**而且 tsc 与测试全绿**，
+   只有真机目检看得出来。凡是往 `.m-bg` 里加新的媒体元素，都要一起加进这个选择器。 */
+.home-v4 .m-bg img,
+.home-v4 .m-bg video {
   display: block;
   width: 100%;
   height: 100%;
@@ -3410,12 +3577,18 @@ body.home-v4-locked {
     padding: 3px 9px;
   }
 
-  .home-v4 .fn-studio .prow {
-    padding: 10px 12px;
+  .home-v4 .fn-studio .vrow {
+    flex-direction: column;
     gap: 8px;
+    padding: 10px 10px 12px;
   }
 
-  .home-v4 .fn-studio .prow .txt {
+  .home-v4 .fn-studio .ibox {
+    min-height: 84px;
+    padding: 10px 11px 9px;
+  }
+
+  .home-v4 .fn-studio .ptxt {
     font-size: 11.5px;
   }
 
@@ -3429,9 +3602,9 @@ body.home-v4-locked {
   }
 
   .home-v4 .fn-quad {
+    width: 100%;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
-    padding: 10px 10px 12px;
   }
 
   .home-v4 .fn-quad .fq {

@@ -1,4 +1,5 @@
 import { ROUTES } from '@/constants/routes'
+import type { AppLocale } from '@/i18n/routing'
 
 /**
  * v4 marketing home — the paging deck.
@@ -221,6 +222,10 @@ export const HOME_V4_STORY = {
  */
 export const HOME_V4_GLYPHS = {
   play: '▶',
+  /* Two heavy bars, not U+23F8 ⏸ — that codepoint defaults to emoji
+     presentation, so it would come out as a colour glyph next to the black
+     ▶ it replaces. U+275A is dingbats: text presentation everywhere. */
+  pause: '❚❚',
   search: '⌕',
   note: '♪',
   plus: '＋',
@@ -289,57 +294,176 @@ export const HOME_V4_FN_IMAGE = {
  * category plus a product name, the same all-Latin shorthand the real library
  * prints, so it stays out of the message files.
  */
+/**
+ * The library rows. `base` is the base model the LoRA is cut for — an uppercase
+ * category plus a product name, the same all-Latin shorthand the real library
+ * prints, so it stays out of the message files.
+ *
+ * ⭐ Every one of these is a **real Civitai LoRA that this page's four shots
+ * were actually generated with** (except `water`, which stays unmounted — see
+ * `HOME_V4_FN_LORA_MOUNTS`). They are all cut for **Anima**, and that is the
+ * point: the previous cast was three LoRAs on three different base models
+ * (Illustrious / FLUX / Pony V6), a stack that **cannot be run** — mounting
+ * across architectures is not a quality problem, it fails to load. The page was
+ * advertising an impossible configuration. See findings ledger L3 for how the
+ * product let that happen: the LoRA library does not filter by the mounted base
+ * model, so its first screen offers SDXL/Pony rows to an Anima rack with no
+ * warning.
+ */
+/**
+ * ⚠ Order is not mount order — the rack lights cards in
+ * `HOME_V4_FN_LORA_MOUNTS` order wherever they sit. `water` is third **on
+ * purpose**: it is the one row cut for a different base, it never lights, and
+ * the library column is capped at roughly four rows, so anywhere below that it
+ * would be invisible and the one card that says something would say it under
+ * the fold.
+ */
 export const HOME_V4_FN_LORA_CARDS = [
-  { id: 'ghibli', base: 'STYLE · Illustrious' },
-  { id: 'grain', base: 'EFFECT · FLUX' },
-  { id: 'mecha', base: 'CHARACTER · Pony V6' },
+  { id: 'flatline', base: 'STYLE · Anima' },
+  { id: 'figure', base: 'STYLE · Anima' },
   { id: 'water', base: 'STYLE · SDXL' },
+  { id: 'pose', base: 'POSE · Anima' },
+  { id: 'detail', base: 'DETAIL · Anima' },
+  { id: 'light', base: 'LIGHT · Anima' },
 ] as const
 
 /**
- * The three the demo actually mounts, in mount order — the fourth card stays in
- * the library, because a rack that fills itself completely reads as a fixed
- * list rather than a choice. `trigger` is prompt syntax, never translated.
+ * The five the demo mounts, in mount order. The sixth card stays in the library
+ * — a rack that fills itself completely reads as a fixed list rather than a
+ * choice — and it is deliberately the one cut for a *different* base, which is
+ * what「挂不上」 actually looks like.
+ *
+ * `trigger` is prompt syntax, never translated. **`null` is not a gap**: a
+ * slider LoRA and a detail LoRA genuinely have no trigger word, and printing
+ * one for every mount would be a lie about how they work. Only the three that
+ * have one appear in the prompt row.
+ *
+ * `weight` is what the rack shows at rest. The two style LoRAs sit at the ends
+ * of their own axis instead — see `HOME_V4_FN_LORA_OUTS`.
  */
 export const HOME_V4_FN_LORA_MOUNTS = [
-  { id: 'ghibli', trigger: 'ghibli soft', weight: 1 },
-  { id: 'grain', trigger: 'film grain', weight: 0.6 },
-  { id: 'mecha', trigger: 'mecha musume', weight: 0.8 },
+  { id: 'flatline', trigger: '@flatline', weight: 2 },
+  { id: 'figure', trigger: 'f1gur3', weight: 0.1 },
+  { id: 'pose', trigger: null, weight: 0.3 },
+  { id: 'detail', trigger: null, weight: 0.6 },
+  { id: 'light', trigger: 'dispersion', weight: 0.4 },
 ] as const
 
-/** The two output tiles, in order. Ids double as message keys. */
-export const HOME_V4_FN_LORA_OUTS = ['stack', 'reweight'] as const
+/**
+ * The four output tiles, left to right. ⭐ All four come off **one mount list
+ * and one seed** — the only thing that changes across them is the pair of
+ * numbers in `cel` / `solid`, which is why the tile prints them. Four shots of
+ * the same character where only two numbers moved is the whole argument of the
+ * page: the weight is a continuous axis, not a toggle.
+ *
+ * ⚠ `0.1`, not `0`, at each end — the product's own floor
+ * (`LoraSchema.scale` is `z.number().min(0.1)`; 0 comes back 400). Printing the
+ * real floor keeps the tile honest about what the workbench can express.
+ */
+export const HOME_V4_FN_LORA_OUTS = [
+  {
+    id: 'w1',
+    cel: 2,
+    solid: 0.1,
+    shot: '/homepage/production/lora/lora-body-1.webp',
+  },
+  {
+    id: 'w2',
+    cel: 1.4,
+    solid: 0.7,
+    shot: '/homepage/production/lora/lora-body-2.webp',
+  },
+  {
+    id: 'w3',
+    cel: 0.7,
+    solid: 1.4,
+    shot: '/homepage/production/lora/lora-body-3.webp',
+  },
+  {
+    id: 'w4',
+    cel: 0.1,
+    solid: 2,
+    shot: '/homepage/production/lora/lora-body-4.webp',
+  },
+] as const
+
+/**
+ * ⚠ These are chained, not independent: mounts must finish before the trigger
+ * words drop, and the trigger words before the shots. Five mounts and four
+ * shots is more beats than the previous three-and-two, so the steps were cut to
+ * keep the whole run near five seconds — a page the reader scrolls past in
+ * three is not worth animating.
+ */
+/**
+ * The top of the weight scale the rack draws against — the product's own
+ * ceiling (`provider-capabilities.ts`, runner `loraScale: { min: 0.1, max: 2 }`).
+ *
+ * ⚠ The bar is `weight / MAX`, **not** `weight`. A mount at 2.0 is a legal,
+ * commonly-used value here — the shots on this page were generated at exactly
+ * that — and dividing by 1 sent the fill to 200% and pushed it straight through
+ * the end of the track and over its own number.
+ */
+export const HOME_V4_FN_LORA_WEIGHT_MAX = 2
 
 export const HOME_V4_FN_LORA = {
   ENTER_DELAY_MS: 400,
-  /** First mount lands, then one every `MOUNT_STEP_MS`. */
+  /** First mount lands, then one every `MOUNT_STEP_MS`. Five of them. */
   MOUNT_START_MS: 500,
-  MOUNT_STEP_MS: 620,
-  /** Trigger words drop into the prompt row after the last mount. */
-  TRIGGER_START_MS: 2500,
-  TRIGGER_STEP_MS: 260,
-  /** Output tiles fade up last. */
-  OUT_START_MS: 3500,
-  OUT_STEP_MS: 300,
+  MOUNT_STEP_MS: 420,
+  /** Trigger words drop into the prompt row after the last mount lands. */
+  TRIGGER_START_MS: 2700,
+  TRIGGER_STEP_MS: 200,
+  /** Shots fade up last, left to right. Four of them. */
+  OUT_START_MS: 3800,
+  OUT_STEP_MS: 250,
 } as const
 
 /* ── 03 声音：配音聊天室 ─────────────────────────────────────────── */
 
 /**
- * Three messages, each with the waveform its voice note draws. The bar heights
- * are percentages of the track and carry no meaning beyond looking like speech
- * — they are data, not layout, which is why they live here and not in the CSS.
+ * Three messages, each with the waveform its voice note draws and the clip it
+ * actually plays. The bar heights are percentages of the track and carry no
+ * meaning beyond looking like speech — they are data, not layout, which is why
+ * they live here and not in the CSS.
+ *
+ * `clips` is one real file per (line × locale): the visitor hears the line in
+ * the language they are reading, spoken by a Fish Audio S2.1 voice this product
+ * generated through `/api/generate-audio` (see `_manifest.md` in the folder for
+ * the nine voice ids). One row per line rather than two parallel structures —
+ * same call as `HOME_V4_FN_IMAGE_MODELS`: the waveform and the sound it draws
+ * must not be able to drift apart.
+ *
+ * `avatar` is that speaker's face — a cel-shaded portrait this product drew on
+ * GPT Image 2, one per line, and the same file serves both the chat bubble and
+ * the voice picker in the input row. Each picture is keyed to the hue the old
+ * gradient chips used (qing 粉紫 / lei 蓝 / ke 金), because 「颜色 = 谁在说」
+ * is the only thing tying the picker back to the messages above it.
+ *
+ * ⚠ The `satisfies` clause is the guard that a locale cannot be forgotten: drop
+ * one and this file stops compiling, rather than the page 404ing at play time.
  */
 export const HOME_V4_FN_AUDIO_LINES = [
   {
     id: 'qing',
     mine: false,
     wave: [87, 84, 54, 43, 78, 89, 71, 33, 63, 88, 83, 53, 44, 79, 89, 70],
+    avatar: '/homepage/production/voice/avatar-qing.webp',
+    clips: {
+      zh: '/homepage/production/voice/voice-qing-zh.mp3',
+      ja: '/homepage/production/voice/voice-qing-ja.mp3',
+      en: '/homepage/production/voice/voice-qing-en.mp3',
+    },
   },
   {
     id: 'lei',
     mine: true,
     wave: [59, 37, 74, 89, 75, 39, 58, 86, 86, 59, 38, 75, 89],
+    avatar: '/homepage/production/voice/avatar-lei.webp',
+    clips: {
+      zh: '/homepage/production/voice/voice-lei-zh.mp3',
+      ja: '/homepage/production/voice/voice-lei-ja.mp3',
+      en: '/homepage/production/voice/voice-lei-en.mp3',
+    },
   },
   {
     id: 'ke',
@@ -347,8 +471,20 @@ export const HOME_V4_FN_AUDIO_LINES = [
     wave: [
       78, 89, 71, 33, 63, 88, 83, 53, 44, 79, 89, 70, 32, 64, 88, 83, 52, 45,
     ],
+    avatar: '/homepage/production/voice/avatar-ke.webp',
+    clips: {
+      zh: '/homepage/production/voice/voice-ke-zh.mp3',
+      ja: '/homepage/production/voice/voice-ke-ja.mp3',
+      en: '/homepage/production/voice/voice-ke-en.mp3',
+    },
   },
-] as const
+] as const satisfies readonly {
+  id: string
+  mine: boolean
+  wave: readonly number[]
+  avatar: string
+  clips: Readonly<Record<AppLocale, string>>
+}[]
 
 export const HOME_V4_FN_AUDIO = {
   ENTER_DELAY_MS: 400,
@@ -357,6 +493,10 @@ export const HOME_V4_FN_AUDIO = {
   MSG_STEP_MS: 900,
   /** A bubble's waveform grows this long after the bubble itself arrives. */
   PLAY_DELAY_MS: 380,
+  /** Chat-bubble avatar, matching `.fn-audio .ava` in `home-v4.css`. */
+  AVATAR_PX: 38,
+  /** The same face in the voice picker, matching `.fn-audio .pick`. */
+  PICK_PX: 30,
 } as const
 
 /* ── 04 视频：全能参考输入框 ─────────────────────────────────────── */
@@ -610,6 +750,23 @@ export interface HomeV4Model {
    * and the shot still has to be generated in-app (task list in the manifest).
    */
   cover: string | null
+  /**
+   * ⭐ A video model's page plays the actual clip, not a still of it. `null` for
+   * everything else, and for a video model we could not run.
+   *
+   * `cover` stays required and is used as this video's `poster` — so the page
+   * has something to show the instant it lands, and the still is what a visitor
+   * sees if the clip is refused (a data-saver profile, a paused-media setting).
+   * ⚠ Only `layout: 'cover'` honours this; a `side` portrait or a `wall`
+   * triptych has nowhere to put a video.
+   *
+   * ⚠ These are the **source files, not re-encoded** — owner 2026-08-30:
+   * 「作为背景的素材都不要压缩清晰度」. The weight is carried by `preload="none"`
+   * plus the deck's own paging instead: only the page you are looking at ever
+   * fetches its clip, so a visitor who never opens the video station downloads
+   * zero video bytes.
+   */
+  clip: string | null
   /** Drawn brand mark, or `null` to print `mark` as a textmark instead. */
   logo: HomeV4ModelLogoKey | null
   /**
@@ -651,11 +808,16 @@ export const HOME_V4_STATIONS: Record<
       key: 'gpt',
       name: 'GPT Image 2',
       provider: 'IMAGE · OPENAI',
-      cover: '/homepage/v4/model-gpt-image-2.jpg',
+      /* ⚠ `.webp`，不是 `.jpg`：这张是 owner 2026-08-30 亲自出的 3840×2160，
+         按「背景素材不压清晰度」落成**无损** WebP（7.17MB，与源 PNG 逐像素一致，
+         RMSE 0，而且比 11MB 的源 PNG 还小）。有损档实测 RMSE 1.27–1.50 —— 这张是
+         平滑渐变的水墨，正是有损编码最容易起带状的那类画面。 */
+      cover: '/homepage/v4/model-gpt-image-2.webp',
       logo: 'openai',
       mark: null,
       layout: 'cover',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -667,6 +829,7 @@ export const HOME_V4_STATIONS: Record<
       mark: null,
       layout: 'cover',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -678,6 +841,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'FLUX',
       layout: 'cover',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -689,6 +853,7 @@ export const HOME_V4_STATIONS: Record<
       mark: null,
       layout: 'cover',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -700,6 +865,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'RECRAFT',
       layout: 'cover',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -714,6 +880,7 @@ export const HOME_V4_STATIONS: Record<
         '/homepage/v4/model-novelai-v5-b.jpg',
         '/homepage/v4/model-novelai-v5-c.jpg',
       ],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -728,6 +895,7 @@ export const HOME_V4_STATIONS: Record<
         '/homepage/v4/model-illustrious-xl-b.webp',
         '/homepage/v4/model-illustrious-xl-c.webp',
       ],
+      clip: null,
       wantPrompt: null,
     },
   ],
@@ -741,6 +909,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'ILLUSTRIOUS',
       layout: 'side',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -752,6 +921,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'WAI',
       layout: 'side',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -763,6 +933,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'PENCIL-XL',
       layout: 'side',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -774,6 +945,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'PONY V6',
       layout: 'side',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -785,6 +957,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'SDXL',
       layout: 'side',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -796,6 +969,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'ANIMA',
       layout: 'side',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
   ],
@@ -809,6 +983,7 @@ export const HOME_V4_STATIONS: Record<
       mark: null,
       layout: 'cover',
       wall: [],
+      clip: '/homepage/production/models/video/model-seedance.mp4',
       wantPrompt: null,
     },
     {
@@ -820,18 +995,22 @@ export const HOME_V4_STATIONS: Record<
       mark: 'MINIMAX',
       layout: 'cover',
       wall: [],
+      clip: '/homepage/production/models/video/model-minimax.mp4',
       wantPrompt: null,
     },
     {
       key: 'wan30',
       name: 'Wan 3.0',
       provider: 'VIDEO · ALIBABA',
-      cover: null,
+      /* Wan 3.0 出的 2 秒 720p 片子抽的第 1.93 秒帧，1280×720 是视频原生分辨率
+         ——没有放大，放大等于给一张 720p 的图编造细节。 */
+      cover: '/homepage/v4/model-wan-30.jpg',
       logo: null,
       mark: 'WAN 3.0',
       layout: 'cover',
       wall: [],
-      wantPrompt: '代表帧：茶馆窗外雨景，水汽氤氲，缓慢横摇，16:9',
+      clip: '/homepage/production/models/video/model-wan30.mp4',
+      wantPrompt: null,
     },
     {
       key: 'horse',
@@ -842,6 +1021,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'HAPPYHORSE',
       layout: 'cover',
       wall: [],
+      clip: '/homepage/production/models/video/model-horse.mp4',
       wantPrompt: null,
     },
     {
@@ -853,18 +1033,26 @@ export const HOME_V4_STATIONS: Record<
       mark: 'KLING',
       layout: 'cover',
       wall: [],
+      clip: '/homepage/production/models/video/model-kling.mp4',
       wantPrompt: null,
     },
     {
       key: 'gomni',
       name: 'Gemini Omni Flash',
       provider: 'VIDEO · GOOGLE',
-      cover: null,
+      /* ⚠ 唯一一张**不是该模型自己出**的站内图：Gemini Omni Flash 在本仓库跑不了
+         （`generate-video.service.ts` 的 `WORKER_CAPABLE_VIDEO_ADAPTERS` 里没有
+         `GEMINI`，每次提交恒 501——见台账 Z 条）。owner 2026-08-29 拍板：跑得了的
+         用自己出，跑不了的用 GPT Image 2 代画。出处徽标因此如实写「站内生成 ·
+         GPT Image 2」，不许写成 Gemini 出的。
+         ⚠ 哪天 501 修好了，这张要换成 Gemini 自己出的帧，徽标一起改。 */
+      cover: '/homepage/v4/model-gemini-omni-flash.jpg',
       logo: 'gemini',
       mark: null,
       layout: 'cover',
       wall: [],
-      wantPrompt: '代表帧：城市日转夜延时分镜草稿，快节奏，16:9',
+      clip: null,
+      wantPrompt: null,
     },
   ],
   audio: [
@@ -877,6 +1065,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'FISH AUDIO',
       layout: 'cover',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -888,6 +1077,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'ELEVENLABS',
       layout: 'cover',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
   ],
@@ -901,18 +1091,26 @@ export const HOME_V4_STATIONS: Record<
       mark: 'RODIN',
       layout: 'cover',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
       key: 'hunyuan',
       name: 'Hunyuan3D',
       provider: '3D · TENCENT',
-      cover: null,
+      /* 三跳出来的：GPT Image 2 出源图 → Hunyuan3D v3.1 Pro 出 45.6MB GLB →
+         `@google/model-viewer`（与 `ModelViewerInner.tsx` 同包）渲成 1600×900。
+         全站第一张真从 GLB 渲出来的图——`moon-lantern-fox-poster-v1.webp` 不是，
+         那是参考立绘的再编码。
+         ⚠ 跑通它当时要给 worker 打两个补丁（台账 AJ / AK：入参字段名与出参键都
+         写错了），补丁已还原——**照现在的代码再点 Hunyuan3D 仍然必失败**。 */
+      cover: '/homepage/v4/model-hunyuan3d.jpg',
       logo: null,
       mark: 'HUNYUAN',
       layout: 'cover',
       wall: [],
-      wantPrompt: '雕塑级角色半身 3D 渲染特写，中性灰棚，微距细节，16:9',
+      clip: null,
+      wantPrompt: null,
     },
     {
       key: 'trellis',
@@ -923,6 +1121,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'TRELLIS',
       layout: 'cover',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
     {
@@ -934,6 +1133,7 @@ export const HOME_V4_STATIONS: Record<
       mark: 'TRIPO',
       layout: 'cover',
       wall: [],
+      clip: null,
       wantPrompt: null,
     },
   ],

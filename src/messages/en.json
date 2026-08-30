@@ -651,8 +651,6 @@
           "meta": "1024×1365 · 1 each · same prompt",
           "prompt": "Ginger cat curator in round glasses at a museum desk, framed art behind, warm light",
           "generate": "Generate",
-          "pendingKicker": "To generate · same prompt",
-          "pendingLine": "The one line on the left",
           "moreModels": "{count} models"
         },
         "lora": {
@@ -662,16 +660,34 @@
           "add": "Load",
           "mountedKicker": "Loaded · weights",
           "promptKicker": "PROMPT · trigger words arrive on their own",
-          "freeText": ", a girl on a rooftop at dusk, trench coat, looking back",
+          "freeText": ", full body, standing, cream coat, holding a black book",
+          "outKicker": "One mount list · one seed · only the style weights move",
+          "outAlt": "The same character at flat-line weight {cel} and figure weight {solid}",
           "cards": {
-            "ghibli": { "name": "Ghibli Soft", "short": "Ghibli Soft" },
-            "grain": { "name": "Film Grain", "short": "Film Grain" },
-            "mecha": { "name": "Mecha Musume", "short": "Mecha Musume" },
-            "water": { "name": "Watercolor", "short": "Watercolor" }
-          },
-          "outs": {
-            "stack": "To generate · three LoRAs at once",
-            "reweight": "To generate · another pass, new weights"
+            "flatline": {
+              "name": "Flatline",
+              "short": "Flatline"
+            },
+            "figure": {
+              "name": "Anime Figure",
+              "short": "Anime Figure"
+            },
+            "pose": {
+              "name": "Dynamic Poses",
+              "short": "Dynamic Poses"
+            },
+            "detail": {
+              "name": "Detail Tweaker",
+              "short": "Detail Tweaker"
+            },
+            "light": {
+              "name": "Light Concepts",
+              "short": "Light Concepts"
+            },
+            "water": {
+              "name": "Watercolor",
+              "short": "Watercolor"
+            }
           }
         },
         "audio": {
@@ -682,19 +698,25 @@
               "avatar": "Q",
               "who": "Qing · Fish soft female",
               "text": "The show opens tonight at eight.",
-              "duration": "0:03"
+              "duration": "0:02",
+              "playLabel": "Play Qing's voice note",
+              "pauseLabel": "Pause Qing's voice note"
             },
             "lei": {
               "avatar": "L",
               "who": "Lei · Fish young male",
               "text": "Got it. I'll do one more pass on the poster.",
-              "duration": "0:02"
+              "duration": "0:03",
+              "playLabel": "Play Lei's voice note",
+              "pauseLabel": "Pause Lei's voice note"
             },
             "ke": {
               "avatar": "N",
               "who": "Narrator · cloned voice",
               "text": "And just then, the lamps in the hall came on one by one.",
-              "duration": "0:04"
+              "duration": "0:04",
+              "playLabel": "Play the narrator's voice note",
+              "pauseLabel": "Pause the narrator's voice note"
             }
           },
           "addVoice": "Add a voice",
@@ -795,7 +817,9 @@
         }
       },
       "pages": {
-        "opening": { "nav": "Opening" },
+        "opening": {
+          "nav": "Opening"
+        },
         "image": {
           "nav": "Image",
           "title": "One line. Four models answer."
@@ -820,12 +844,24 @@
           "nav": "Vault",
           "title": "Everything you keep can go back on stage."
         },
-        "modelsImage": { "nav": "Models · Image" },
-        "modelsLora": { "nav": "Models · LoRA" },
-        "modelsVideo": { "nav": "Models · Video" },
-        "modelsAudio": { "nav": "Models · Audio" },
-        "models3d": { "nav": "Models · 3D" },
-        "finale": { "nav": "Closing" }
+        "modelsImage": {
+          "nav": "Models · Image"
+        },
+        "modelsLora": {
+          "nav": "Models · LoRA"
+        },
+        "modelsVideo": {
+          "nav": "Models · Video"
+        },
+        "modelsAudio": {
+          "nav": "Models · Audio"
+        },
+        "models3d": {
+          "nav": "Models · 3D"
+        },
+        "finale": {
+          "nav": "Closing"
+        }
       },
       "modelPage": {
         "plus": "Strong at",
@@ -881,7 +917,11 @@
           "fare": "$0.03 / image · edit $0.04 · Flash $0.005",
           "routes": "On ANTEI · 5 routes",
           "src": "fal.ai official demo output",
-          "tags": { "0": "Product texture", "1": "Concept art", "2": "Value" },
+          "tags": {
+            "0": "Product texture",
+            "1": "Concept art",
+            "2": "Value"
+          },
           "plus": {
             "0": "Real texture: little of the plastic sheen, sharp on objects and materials",
             "1": "Dual-stream architecture holds long descriptive prompts precisely",
@@ -936,7 +976,7 @@
           "pos": "The newest anime specialist: 22 characters in one frame without blending, and a whole comic page in one pass.",
           "fare": "Usage-based · V4.5 tier from $0.01 / image",
           "routes": "On ANTEI · 4 routes (V5 ×2 + V4.5 ×2)",
-          "src": "novelai.net official samples",
+          "src": "Made here · NovelAI Diffusion V5",
           "tags": {
             "0": "Anime figures",
             "1": "Many characters",
@@ -956,7 +996,7 @@
           "pos": "The leading open anime base: enormous character knowledge and the busiest fine-tuning scene.",
           "fare": "$0.14 / image (direct API)",
           "routes": "On ANTEI · 1 API route + its own entry in LoRA",
-          "src": "illustriousxl.org official showcase",
+          "src": "Made here · Illustrious XL",
           "tags": {
             "0": "Anime characters",
             "1": "Fan work",
@@ -1077,7 +1117,11 @@
           "fare": "Usage-based (Runner)",
           "routes": "On ANTEI · self-hosted Runner (v4 pipeline)",
           "src": "In-app base-model cover",
-          "tags": { "0": "DiT architecture", "1": "Newcomer", "2": "Testbed" },
+          "tags": {
+            "0": "DiT architecture",
+            "1": "Newcomer",
+            "2": "Testbed"
+          },
           "plus": {
             "0": "A new DiT architecture with a high ceiling for detail",
             "1": "The v4 pipeline is already deployed here",
@@ -1092,7 +1136,7 @@
           "pos": "Reference generation in one go: the video workhorse, on 18 routes.",
           "fare": "$0.12–0.30 / second",
           "routes": "On ANTEI · 18 routes (fal / VolcEngine / BytePlus / Ark)",
-          "src": "fal.ai official demo frame · Seedance 2.0",
+          "src": "Made here · Seedance 2.0 Fast",
           "tags": {
             "0": "Reference input",
             "1": "Many routes",
@@ -1112,8 +1156,12 @@
           "pos": "The value workhorse: two regions, and reference input on both.",
           "fare": "$0.11–0.13 / second",
           "routes": "On ANTEI · 4 routes (overseas + China × reference)",
-          "src": "fal.ai official demo frame · MiniMax",
-          "tags": { "0": "Dual region", "1": "Value", "2": "Reference input" },
+          "src": "Made here · MiniMax H3",
+          "tags": {
+            "0": "Dual region",
+            "1": "Value",
+            "2": "Reference input"
+          },
           "plus": {
             "0": "A reference endpoint even at the low tier",
             "1": "The China routes are friendly on latency",
@@ -1128,8 +1176,12 @@
           "pos": "Alibaba's workhorse: shipped upstream, and we are still adding routes.",
           "fare": "$0.10 / second",
           "routes": "On ANTEI · 2 routes (text-to-video / reference) · more to come",
-          "src": "Pending in-app generation",
-          "tags": { "0": "Reference input", "1": "Low price", "2": "Growing" },
+          "src": "Made here · Wan 3.0",
+          "tags": {
+            "0": "Reference input",
+            "1": "Low price",
+            "2": "Growing"
+          },
           "plus": {
             "0": "The lowest unit price on the whole site, at $0.10 a second",
             "1": "The reference-to-video route is live",
@@ -1144,8 +1196,12 @@
           "pos": "The fast-tier dark horse: top-five value on the blind-test board.",
           "fare": "$0.14 / second",
           "routes": "On ANTEI · 1 route",
-          "src": "fal.ai official demo frame · HappyHorse 1.1",
-          "tags": { "0": "Fast tier", "1": "Blind-test board", "2": "Value" },
+          "src": "Made here · HappyHorse 1.1",
+          "tags": {
+            "0": "Fast tier",
+            "1": "Blind-test board",
+            "2": "Value"
+          },
           "plus": {
             "0": "Top five on the Artificial Analysis blind-test board (v1.1 and v1.0 share the ranking — our note)",
             "1": "Quick to finish a clip",
@@ -1160,8 +1216,12 @@
           "pos": "The camera one: the name people trust for movement and texture.",
           "fare": "$0.14–0.17 / second",
           "routes": "On ANTEI · 2 routes (3.0 Pro / O3 Pro Omni)",
-          "src": "fal.ai official demo frame · Kling O3",
-          "tags": { "0": "Camera work", "1": "Texture", "2": "Omni" },
+          "src": "Made here · Kling 3.0 Pro",
+          "tags": {
+            "0": "Camera work",
+            "1": "Texture",
+            "2": "Omni"
+          },
           "plus": {
             "0": "First rank for camera movement and physical texture",
             "1": "O3 Pro Omni is the all-round endpoint",
@@ -1176,8 +1236,12 @@
           "pos": "The quick all-rounder: get the idea moving, cheaply.",
           "fare": "Usage-based",
           "routes": "On ANTEI · 1 route",
-          "src": "Pending in-app generation",
-          "tags": { "0": "All-round", "1": "Fast", "2": "Usage-based" },
+          "src": "Made here · GPT Image 2",
+          "tags": {
+            "0": "All-round",
+            "1": "Fast",
+            "2": "Usage-based"
+          },
           "plus": {
             "0": "Text-to-video and image-to-video in one place",
             "1": "Fast and cheap — right for a rough pass",
@@ -1213,7 +1277,11 @@
           "fare": "Usage-based – $0.15 / second",
           "routes": "On ANTEI · 2 routes (SFX v2 + Music v2)",
           "src": "elevenlabs.io official artwork",
-          "tags": { "0": "Sound effects", "1": "Score", "2": "Two routes" },
+          "tags": {
+            "0": "Sound effects",
+            "1": "Score",
+            "2": "Two routes"
+          },
           "plus": {
             "0": "SFX: one sentence, one foley take",
             "1": "Music: the structure of a full cue stays under control",
@@ -1248,8 +1316,12 @@
           "pos": "The polygon king: a 1.5-million-face ceiling for the detail-minded.",
           "fare": "Usage-based",
           "routes": "On ANTEI · 2 routes (v3.1 Pro / v3)",
-          "src": "Pending in-app generation",
-          "tags": { "0": "High poly", "1": "Detail", "2": "Two versions" },
+          "src": "Made here · Hunyuan3D render",
+          "tags": {
+            "0": "High poly",
+            "1": "Detail",
+            "2": "Two versions"
+          },
           "plus": {
             "0": "40k to 1.5M faces, adjustable (500k by default)",
             "1": "Textured mesh in one pass",
@@ -1285,7 +1357,11 @@
           "fare": "Usage-based",
           "routes": "On ANTEI · 1 route",
           "src": "tripo3d.ai official artwork",
-          "tags": { "0": "Seconds", "1": "Lightweight", "2": "Mockups" },
+          "tags": {
+            "0": "Seconds",
+            "1": "Lightweight",
+            "2": "Mockups"
+          },
           "plus": {
             "0": "The fastest model here",
             "1": "Light grey models, right for a mockup",
@@ -1565,6 +1641,7 @@
     "modelLabel": "Video Model",
     "modelPlaceholder": "Select a video model",
     "durationLabel": "Duration",
+    "generateAudioLabel": "Generate audio",
     "aspectRatioLabel": "Aspect Ratio",
     "promptLabel": "Prompt",
     "promptPlaceholder": "Describe the video you want to create...",
@@ -2538,12 +2615,13 @@
     "search": "Search assets...",
     "uploadButton": "Upload",
     "uploadDropHint": "Drop to upload into \"{folder}\"",
-    "uploadInputLabel": "Upload image to local assets",
+    "uploadInputLabel": "Upload images or videos to local assets",
     "uploading": "Uploading...",
-    "uploadSuccess": "Image uploaded to local assets.",
+    "uploadSuccess": "Asset uploaded to local assets.",
     "uploadFailed": "Upload failed",
-    "uploadUnsupportedFile": "Only image files are supported.",
+    "uploadUnsupportedFile": "Upload a JPG, PNG, WebP, GIF, MP4, MOV, or WebM file.",
     "uploadFileTooLarge": "File is too large. Max {maxMb} MB.",
+    "uploadVideoTooLarge": "Video is too large. Max {maxGb} GB.",
     "uploadCompressing": "Optimizing large image…",
     "uploadCompressed": "Compressed {from} MB → {to} MB",
     "uploadGifTooLarge": "GIF too large to auto-compress. Max {maxMb} MB — please optimise it first.",
@@ -4285,7 +4363,8 @@
       "referenceUnsupported": "The selected model will not read reference images. Remove the reference image or switch to a reference-aware model.",
       "audioPromptTooLong": "Shorten the audio text to {max} characters or less",
       "audioReferenceTextRequired": "Add the transcript of your uploaded reference audio before generating.",
-      "videoQueueFull": "Up to {max} clips can render at once — wait for one to finish"
+      "videoQueueFull": "Up to {max} clips can render at once — wait for one to finish",
+      "videoAudioNeedsVisual": "Audio references on this route need at least one reference image. Add an image, or switch to a route that accepts audio-only references."
     },
     "audioPromptMeta": "{current} / {max} chars · ≈ {minutes} min · ≈ {credits, plural, one {# credit} other {# credits}}",
     "audioPromptMetaNoLimit": "{current} chars · ≈ {minutes} min · ≈ {credits, plural, one {# credit} other {# credits}}",
@@ -5182,6 +5261,10 @@
       "sourceSystem": "System voice",
       "sourceMine": "My voice",
       "emotionLabel": "Emotion",
+      "audioOwnerLabel": "Belongs to",
+      "audioOwnerNone": "Narration (no character)",
+      "audioOwnerCustom": "Type a name…",
+      "audioOwnerPlaceholder": "e.g. Hinata",
       "emotions": {
         "none": "None",
         "calm": "Calm",
@@ -5903,6 +5986,7 @@
     "referenceDisabledUnsupported": "Current model doesn't accept reference images",
     "reverse": "Image Reverse Engineer",
     "script": "Video Script",
+    "videoAudio": "Audio references",
     "advanced": "Advanced Settings",
     "enhance": "Prompt Assistant",
     "cards": "Cards",
@@ -6270,6 +6354,18 @@
     "needsKey": "Needs API key"
   },
   "Errors": {
+    "voiceRoom": {
+      "notFound": "Room not found",
+      "lineNotFound": "Line not found",
+      "castFull": "The cast is full — a room holds at most 8 voices",
+      "castDuplicate": "That voice is already in the cast",
+      "modelUnavailable": "No audio model is available right now",
+      "speakerNotInCast": "That speaker is not in this room",
+      "speakerCannotSpeak": "The score is a room-level bed, not a speaker",
+      "voiceCardUnavailable": "That voice is no longer available",
+      "roomFull": "This room is full — start a new one",
+      "lineEmpty": "A line needs something to say"
+    },
     "common": {
       "unexpected": "An unexpected error occurred. Please try again.",
       "databaseUnavailable": "Database service is temporarily unavailable. Please try again later."
@@ -6525,6 +6621,28 @@
     "statusCardRestore": "Restore settings",
     "statusCardDismiss": "Dismiss"
   },
+  "StudioVideoAudio": {
+    "pill": "Audio",
+    "hint": "Attach voices or dialogue — the model refers to them as @Audio1, @Audio2 in order",
+    "count": "{used}/{max}",
+    "upload": "Upload audio",
+    "fromAssets": "From assets",
+    "empty": "No audio references yet.",
+    "unsupported": "This model does not accept audio references.",
+    "pickModelFirst": "Pick a video model first — the audio slot count comes from it.",
+    "slotBadge": "Audio {index}",
+    "remove": "Remove",
+    "ownerLabel": "Belongs to",
+    "ownerNone": "Narration (no character)",
+    "ownerCustom": "Type a name…",
+    "ownerPlaceholder": "e.g. Hinata",
+    "assetDialogTitle": "Choose an audio asset",
+    "assetDialogDescription": "Pick an audio clip from your assets as a reference for this video.",
+    "uploadSuccess": "Audio uploaded",
+    "errorTooLarge": "The audio file exceeds {max}",
+    "errorNotAudio": "Please choose an audio file",
+    "errorUploadFailed": "Audio upload failed"
+  },
   "VideoScript": {
     "panelTitle": "Script",
     "listTitle": "Drafts",
@@ -6668,5 +6786,78 @@
     "itemDone": "#{index} done",
     "itemViewing": "#{index} playing",
     "hint": "Rendering does not lock the stage — change the params on the left and queue another."
+  },
+  "VoiceRoom": {
+    "joining": "Adding",
+    "noSample": "No preview",
+    "language": "Language",
+    "sortBy": "Sort",
+    "lang": {
+      "all": "All",
+      "zh": "Chinese",
+      "en": "English",
+      "ja": "Japanese",
+      "es": "Spanish"
+    },
+    "sort": {
+      "score": "Recommended",
+      "task_count": "Popular",
+      "created_at": "Newest"
+    },
+    "newRoom": "New room",
+    "untitledRoom": "Untitled room",
+    "emptyRoomTag": "empty",
+    "railFoot": "Each room keeps its own cast and clips",
+    "justNow": "just now",
+    "minutesAgo": "{count} min ago",
+    "hoursAgo": "{count} h ago",
+    "yesterday": "yesterday",
+    "daysAgo": "{count} d ago",
+    "roomNameLabel": "Room name",
+    "renameRoom": "Rename",
+    "roomMeta": "Multi-speaker · library + cloning",
+    "assetsLibrary": "Assets",
+    "emptyEyebrow": "The cast is empty",
+    "emptyTitle": "Invite a voice in.",
+    "emptySub": "Pick a voice from the library, or clone your own. Whoever is selected speaks what you type — every take lands in your assets automatically.",
+    "castFromLibrary": "Cast from library",
+    "dismiss": "Dismiss",
+    "linePlaceholder": "{name}: put the emotion in the sentence — (whisper) do not look back…",
+    "pickSpeakerFirst": "Pick a speaker first",
+    "lineInputLabel": "Line",
+    "sending": "Sending",
+    "generate": "Generate",
+    "addVoice": "Add a voice",
+    "play": "Play",
+    "pause": "Pause",
+    "speaking": "Speaking",
+    "failed": "Generation failed",
+    "retry": "Retry",
+    "retakeWith": "Retake with",
+    "emotion": {
+      "auto": "Auto",
+      "none": "Default",
+      "calm": "Calm",
+      "excited": "Excited",
+      "whisper": "Whisper",
+      "narration": "Narration",
+      "dialogue": "Dialogue",
+      "angry": "Angry",
+      "sad": "Sad",
+      "surprised": "Surprised"
+    },
+    "casting": "Casting",
+    "voiceLibrary": "Voice library",
+    "myVoices": "My voices",
+    "close": "Close",
+    "searchVoices": "Search voices — a low male voice, late-night radio…",
+    "preview": "Preview",
+    "joinRoom": "Invite in",
+    "alreadyInCast": "In the cast",
+    "loading": "Loading",
+    "noVoicesFound": "No voices matched",
+    "noVoiceCards": "No saved voices yet — pick one from the library",
+    "castingLoadFailed": "Could not load voices",
+    "castingJoinFailed": "Could not add that voice"
   }
 }

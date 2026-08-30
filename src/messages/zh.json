@@ -651,8 +651,6 @@
           "meta": "1024×1365 · 各 1 张 · 同题",
           "prompt": "一只戴圆框眼镜的橘猫馆长，坐在美术馆前台，胸牌写着「馆长」，身后挂满画框，暖光，浅景深",
           "generate": "生成",
-          "pendingKicker": "待生成 · 同题出图",
-          "pendingLine": "用左侧同一条词",
           "moreModels": "{count} 个模型"
         },
         "lora": {
@@ -662,19 +660,34 @@
           "add": "挂载",
           "mountedKicker": "已挂载 · 权重",
           "promptKicker": "PROMPT · 触发词自动进场",
-          "freeText": "，少女站在黄昏的天台，风衣，回头",
+          "freeText": "，全身站姿，米白大衣，抱着一本黑皮书",
+          "outKicker": "同一套挂载 · 同一个种子 · 只动画风权重",
+          "outAlt": "同一个角色：扁平线稿权重 {cel}、手办质感权重 {solid}",
           "cards": {
-            "ghibli": {
-              "name": "吉卜力软彩 Ghibli Soft",
-              "short": "吉卜力软彩"
+            "flatline": {
+              "name": "扁平线稿 Flatline",
+              "short": "扁平线稿"
             },
-            "grain": { "name": "胶片颗粒 Film Grain", "short": "胶片颗粒" },
-            "mecha": { "name": "机甲少女 Mecha Musume", "short": "机甲少女" },
-            "water": { "name": "水彩纸纹 Watercolor", "short": "水彩纸纹" }
-          },
-          "outs": {
-            "stack": "待生成 · 三 LoRA 同挂",
-            "reweight": "待生成 · 换权重再来一张"
+            "figure": {
+              "name": "手办质感 Anime Figure",
+              "short": "手办质感"
+            },
+            "pose": {
+              "name": "动态姿势 Dynamic Poses",
+              "short": "动态姿势"
+            },
+            "detail": {
+              "name": "细节增强 Detail Tweaker",
+              "short": "细节增强"
+            },
+            "light": {
+              "name": "光效 Light Concepts",
+              "short": "光效"
+            },
+            "water": {
+              "name": "水彩纸纹 Watercolor",
+              "short": "水彩纸纹"
+            }
           }
         },
         "audio": {
@@ -685,19 +698,25 @@
               "avatar": "晴",
               "who": "晴 · Fish 温柔女声",
               "text": "今晚的画展，八点开始。",
-              "duration": "0:03"
+              "duration": "0:02",
+              "playLabel": "播放晴的语音",
+              "pauseLabel": "暂停晴的语音"
             },
             "lei": {
               "avatar": "磊",
               "who": "磊 · Fish 少年音",
               "text": "好，我把海报再改一版。",
-              "duration": "0:02"
+              "duration": "0:02",
+              "playLabel": "播放磊的语音",
+              "pauseLabel": "暂停磊的语音"
             },
             "ke": {
               "avatar": "客",
               "who": "旁白 · 克隆音色",
               "text": "而此刻，馆里的灯一盏盏亮了。",
-              "duration": "0:04"
+              "duration": "0:03",
+              "playLabel": "播放旁白的语音",
+              "pauseLabel": "暂停旁白的语音"
             }
           },
           "addVoice": "添加音色",
@@ -708,9 +727,18 @@
           "workbench": "视频工作台",
           "meta": "Seedance 2.5 参考端点 · 单次 30s · 720p",
           "refs": {
-            "shot": { "label": "分镜01-昇降口", "say": "参考这个镜头" },
-            "anchor": { "label": "角色锚-她.webp", "say": "参考这个角色设定" },
-            "voice": { "label": "台词-她的伞 0:03", "say": "参考这个角色音频" }
+            "shot": {
+              "label": "分镜01-昇降口",
+              "say": "参考这个镜头"
+            },
+            "anchor": {
+              "label": "角色锚-她.webp",
+              "say": "参考这个角色设定"
+            },
+            "voice": {
+              "label": "台词-她的伞 0:03",
+              "say": "参考这个角色音频"
+            }
           },
           "prompt": "梅雨季的放学路。她没带伞，他把伞往她那边偏，自己右肩淋湿。三个分镜：昇降口、共伞坡道、商店街道别。赛璐璐 2D 动画，只留雨声。",
           "toolsMeta": "参考 4 · 不限类型 · 语音克隆 ×3",
@@ -789,19 +817,51 @@
         }
       },
       "pages": {
-        "opening": { "nav": "开场" },
-        "image": { "nav": "图片生成", "title": "一句话，四家一起出。" },
-        "lora": { "nav": "LoRA 生成", "title": "搜到就挂，挂几个都行。" },
-        "audio": { "nav": "声音生成", "title": "选个音色，打字就开口。" },
-        "video": { "nav": "视频生成", "title": "图、声、影、字，都能当参考。" },
-        "canvas": { "nav": "画布", "title": "聊出剧本，长成节点，连出片。" },
-        "vault": { "nav": "资源库", "title": "存下来的，都能再上场。" },
-        "modelsImage": { "nav": "模型 · 图片" },
-        "modelsLora": { "nav": "模型 · LoRA" },
-        "modelsVideo": { "nav": "模型 · 视频" },
-        "modelsAudio": { "nav": "模型 · 声音" },
-        "models3d": { "nav": "模型 · 3D" },
-        "finale": { "nav": "收尾" }
+        "opening": {
+          "nav": "开场"
+        },
+        "image": {
+          "nav": "图片生成",
+          "title": "一句话，四家一起出。"
+        },
+        "lora": {
+          "nav": "LoRA 生成",
+          "title": "搜到就挂，挂几个都行。"
+        },
+        "audio": {
+          "nav": "声音生成",
+          "title": "选个音色，打字就开口。"
+        },
+        "video": {
+          "nav": "视频生成",
+          "title": "图、声、影、字，都能当参考。"
+        },
+        "canvas": {
+          "nav": "画布",
+          "title": "聊出剧本，长成节点，连出片。"
+        },
+        "vault": {
+          "nav": "资源库",
+          "title": "存下来的，都能再上场。"
+        },
+        "modelsImage": {
+          "nav": "模型 · 图片"
+        },
+        "modelsLora": {
+          "nav": "模型 · LoRA"
+        },
+        "modelsVideo": {
+          "nav": "模型 · 视频"
+        },
+        "modelsAudio": {
+          "nav": "模型 · 声音"
+        },
+        "models3d": {
+          "nav": "模型 · 3D"
+        },
+        "finale": {
+          "nav": "收尾"
+        }
       },
       "modelPage": {
         "plus": "强在哪",
@@ -817,7 +877,11 @@
           "fare": "按用量计费",
           "routes": "在 ANTEI · 1 条线路",
           "src": "站内生成 · GPT Image 2",
-          "tags": { "0": "海报排版", "1": "复杂长指令", "2": "多语言文字" },
+          "tags": {
+            "0": "海报排版",
+            "1": "复杂长指令",
+            "2": "多语言文字"
+          },
           "plus": {
             "0": "图内文字排版几乎不出错，海报级可用",
             "1": "多条件长 prompt 忠实度最高，不丢要素",
@@ -833,7 +897,11 @@
           "fare": "$0.13 / 张 · Flash 档 $0.03–0.07",
           "routes": "在 ANTEI · 3 条线路",
           "src": "站内生成 · Gemini 3 Pro Image",
-          "tags": { "0": "快速迭代", "1": "局部编辑", "2": "真实场景" },
+          "tags": {
+            "0": "快速迭代",
+            "1": "局部编辑",
+            "2": "真实场景"
+          },
           "plus": {
             "0": "2–5 秒出图，改图不打断手感",
             "1": "局部重绘、打光、镜头变换控制最细",
@@ -849,7 +917,11 @@
           "fare": "$0.03 / 张 · 编辑 $0.04 · Flash $0.005",
           "routes": "在 ANTEI · 5 条线路",
           "src": "fal.ai 官方演示输出",
-          "tags": { "0": "产品质感", "1": "概念设定", "2": "高性价比" },
+          "tags": {
+            "0": "产品质感",
+            "1": "概念设定",
+            "2": "高性价比"
+          },
           "plus": {
             "0": "真实质感：少「塑料光」，物体与材质刻画锐利",
             "1": "双流架构，长描述型 prompt 跟随极稳",
@@ -865,7 +937,11 @@
           "fare": "$0.03–0.09 / 张 · 三条接入",
           "routes": "在 ANTEI · 5 条线路",
           "src": "站内生成 · Seedream 5.0",
-          "tags": { "0": "中文海报", "1": "信息图", "2": "设计排版" },
+          "tags": {
+            "0": "中文海报",
+            "1": "信息图",
+            "2": "设计排版"
+          },
           "plus": {
             "0": "设计级排版理解：杂志封面一把出",
             "1": "10+ 语言原生文字，中文最稳",
@@ -881,7 +957,11 @@
           "fare": "$0.21 / 张",
           "routes": "在 ANTEI · 1 条线路",
           "src": "站内生成 · Recraft V4 Pro",
-          "tags": { "0": "LOGO 矢量", "1": "品牌物料", "2": "整段文字" },
+          "tags": {
+            "0": "LOGO 矢量",
+            "1": "品牌物料",
+            "2": "整段文字"
+          },
           "plus": {
             "0": "唯一能原生生成矢量 SVG 的模型",
             "1": "整段可读文字：别家 2–3 词它能整段",
@@ -896,8 +976,12 @@
           "pos": "动漫专精最新代：22 个角色同画不串，整页漫画一把出。",
           "fare": "按用量 · V4.5 档 $0.01 / 张起",
           "routes": "在 ANTEI · 4 条线路（V5 ×2 ＋ V4.5 ×2）",
-          "src": "novelai.net 官方样图",
-          "tags": { "0": "动漫立绘", "1": "多角色同画", "2": "漫画分格" },
+          "src": "站内生成 · NovelAI Diffusion V5",
+          "tags": {
+            "0": "动漫立绘",
+            "1": "多角色同画",
+            "2": "漫画分格"
+          },
           "plus": {
             "0": "体积翻倍 + 32 通道 VAE：发丝饰品级细节",
             "1": "最多 22 个角色同画，多格漫画直接排",
@@ -912,8 +996,12 @@
           "pos": "开源动漫底模顶流：角色知识海量，微调生态最旺。",
           "fare": "$0.14 / 张（API 直连）",
           "routes": "在 ANTEI · API 1 条 + LoRA 侧另户口",
-          "src": "illustriousxl.org 官站展示",
-          "tags": { "0": "动漫角色", "1": "二创同人", "2": "LoRA 底模" },
+          "src": "站内生成 · Illustrious XL",
+          "tags": {
+            "0": "动漫角色",
+            "1": "二创同人",
+            "2": "LoRA 底模"
+          },
           "plus": {
             "0": "Danbooru 全量训练：角色认知量最大",
             "1": "手脚等结构稳定性远超同代开源",
@@ -929,7 +1017,11 @@
           "fare": "$0.14 / 张（API 直连）",
           "routes": "在 ANTEI · API + Runner 双户口",
           "src": "站内底模封面",
-          "tags": { "0": "动漫底座", "1": "生态最旺", "2": "双户口" },
+          "tags": {
+            "0": "动漫底座",
+            "1": "生态最旺",
+            "2": "双户口"
+          },
           "plus": {
             "0": "Civitai 生态最大：角色 / 画风 LoRA 最全",
             "1": "Danbooru 全量底子，角色词直接认",
@@ -945,7 +1037,11 @@
           "fare": "按用量（Runner）",
           "routes": "在 ANTEI · 自建 Runner",
           "src": "站内底模封面",
-          "tags": { "0": "人气调校", "1": "开箱即用", "2": "动漫角色" },
+          "tags": {
+            "0": "人气调校",
+            "1": "开箱即用",
+            "2": "动漫角色"
+          },
           "plus": {
             "0": "社区人气榜常客，默认出图就好看",
             "1": "吃 Illustrious 系 LoRA，角色再现稳",
@@ -961,7 +1057,11 @@
           "fare": "按用量（Runner）",
           "routes": "在 ANTEI · 自建 Runner",
           "src": "站内底模封面",
-          "tags": { "0": "清线风", "1": "线稿感", "2": "插画" },
+          "tags": {
+            "0": "清线风",
+            "1": "线稿感",
+            "2": "插画"
+          },
           "plus": {
             "0": "铅笔 / 清线质感独一份",
             "1": "线稿到上色两相宜",
@@ -977,7 +1077,11 @@
           "fare": "按用量（Runner）",
           "routes": "在 ANTEI · 自建 Runner",
           "src": "站内底模封面",
-          "tags": { "0": "风格生态", "1": "祖师爷", "2": "兼容广" },
+          "tags": {
+            "0": "风格生态",
+            "1": "祖师爷",
+            "2": "兼容广"
+          },
           "plus": {
             "0": "LoRA 兼容面最广的一支",
             "1": "风格触发词体系成熟",
@@ -993,7 +1097,11 @@
           "fare": "按用量（Runner）",
           "routes": "在 ANTEI · 自建 Runner",
           "src": "站内底模封面",
-          "tags": { "0": "通用", "1": "老将", "2": "写实可用" },
+          "tags": {
+            "0": "通用",
+            "1": "老将",
+            "2": "写实可用"
+          },
           "plus": {
             "0": "生态覆盖最全的开源底模",
             "1": "写实 / 设计 / 插画都能跑",
@@ -1009,7 +1117,11 @@
           "fare": "按用量（Runner）",
           "routes": "在 ANTEI · 自建 Runner（v4 管线）",
           "src": "站内底模封面",
-          "tags": { "0": "DiT 架构", "1": "新星", "2": "试验田" },
+          "tags": {
+            "0": "DiT 架构",
+            "1": "新星",
+            "2": "试验田"
+          },
           "plus": {
             "0": "DiT 新架构，细节上限高",
             "1": "站内 v4 管线已部署",
@@ -1024,8 +1136,12 @@
           "pos": "参考生成一梭子：18 条线路的视频主力。",
           "fare": "$0.12–0.30 / 秒",
           "routes": "在 ANTEI · 18 条线路（fal / 火山 / BytePlus / 方舟）",
-          "src": "fal.ai 官方演示帧 · Seedance 2.0",
-          "tags": { "0": "参考生成", "1": "多接入", "2": "语音克隆" },
+          "src": "站内生成 · Seedance 2.0 Fast",
+          "tags": {
+            "0": "参考生成",
+            "1": "多接入",
+            "2": "语音克隆"
+          },
           "plus": {
             "0": "参考端点：图 + 语音 ×3 一起喂",
             "1": "2.0 到 2.5 全档在架，四家接入互备",
@@ -1040,8 +1156,12 @@
           "pos": "性价比主力：国内外双线，参考也在。",
           "fare": "$0.11–0.13 / 秒",
           "routes": "在 ANTEI · 4 条线路（海外 + 国内 × 参考）",
-          "src": "fal.ai 官方演示帧 · MiniMax",
-          "tags": { "0": "双线互备", "1": "性价比", "2": "参考生成" },
+          "src": "站内生成 · MiniMax H3",
+          "tags": {
+            "0": "双线互备",
+            "1": "性价比",
+            "2": "参考生成"
+          },
           "plus": {
             "0": "低价档还带参考端点",
             "1": "国内线路延迟友好",
@@ -1056,8 +1176,12 @@
           "pos": "阿里主力：官方已上线，站内线路还在加。",
           "fare": "$0.10 / 秒",
           "routes": "在 ANTEI · 2 条线路（文生 / 参考）· 更多日后接入",
-          "src": "待站内生成",
-          "tags": { "0": "参考生成", "1": "低价", "2": "扩容中" },
+          "src": "站内生成 · Wan 3.0",
+          "tags": {
+            "0": "参考生成",
+            "1": "低价",
+            "2": "扩容中"
+          },
           "plus": {
             "0": "全站最低单价档 $0.10 / 秒",
             "1": "reference-to-video 参考线在架",
@@ -1072,8 +1196,12 @@
           "pos": "快档黑马：盲测榜前五的性价比。",
           "fare": "$0.14 / 秒",
           "routes": "在 ANTEI · 1 条线路",
-          "src": "fal.ai 官方演示帧 · HappyHorse 1.1",
-          "tags": { "0": "快档", "1": "盲测榜", "2": "性价比" },
+          "src": "站内生成 · HappyHorse 1.1",
+          "tags": {
+            "0": "快档",
+            "1": "盲测榜",
+            "2": "性价比"
+          },
           "plus": {
             "0": "Artificial Analysis 盲测榜前五（v1.1 与 v1.0 同榜，站内注记）",
             "1": "出片速度快",
@@ -1088,8 +1216,12 @@
           "pos": "镜头派：运镜与质感的口碑担当。",
           "fare": "$0.14–0.17 / 秒",
           "routes": "在 ANTEI · 2 条线路（3.0 Pro / O3 Pro Omni）",
-          "src": "fal.ai 官方演示帧 · Kling O3",
-          "tags": { "0": "运镜", "1": "质感", "2": "Omni" },
+          "src": "站内生成 · Kling 3.0 Pro",
+          "tags": {
+            "0": "运镜",
+            "1": "质感",
+            "2": "Omni"
+          },
           "plus": {
             "0": "运镜与物理质感第一梯队",
             "1": "O3 Pro Omni 全能端",
@@ -1104,8 +1236,12 @@
           "pos": "全能快手：便宜地把想法先动起来。",
           "fare": "按用量",
           "routes": "在 ANTEI · 1 条线路",
-          "src": "待站内生成",
-          "tags": { "0": "全能", "1": "快", "2": "按用量" },
+          "src": "站内生成 · GPT Image 2",
+          "tags": {
+            "0": "全能",
+            "1": "快",
+            "2": "按用量"
+          },
           "plus": {
             "0": "文生 / 图生一把抓",
             "1": "快且便宜，适合打草稿",
@@ -1121,7 +1257,11 @@
           "fare": "$0.20 / 千字符",
           "routes": "在 ANTEI · s2.1-pro-free 免费档在架",
           "src": "fish.audio 官方视觉",
-          "tags": { "0": "中文台词", "1": "音色库", "2": "免费档" },
+          "tags": {
+            "0": "中文台词",
+            "1": "音色库",
+            "2": "免费档"
+          },
           "plus": {
             "0": "中文口语自然度第一梯队",
             "1": "站内音色库直选 + 克隆",
@@ -1137,7 +1277,11 @@
           "fare": "按用量 – $0.15 / 秒",
           "routes": "在 ANTEI · 2 条线路（SFX v2 + Music v2）",
           "src": "elevenlabs.io 官方视觉",
-          "tags": { "0": "音效", "1": "配乐", "2": "双线" },
+          "tags": {
+            "0": "音效",
+            "1": "配乐",
+            "2": "双线"
+          },
           "plus": {
             "0": "SFX：一句话直出拟音",
             "1": "Music：整段配乐结构可控",
@@ -1153,7 +1297,11 @@
           "fare": "按用量",
           "routes": "在 ANTEI · 1 条线路",
           "src": "hyper3d.ai 官方视觉",
-          "tags": { "0": "多视图", "1": "可控", "2": "产线感" },
+          "tags": {
+            "0": "多视图",
+            "1": "可控",
+            "2": "产线感"
+          },
           "plus": {
             "0": "参考图最多 5 张（站内上限）",
             "1": "拓扑质量适合后期改",
@@ -1168,8 +1316,12 @@
           "pos": "面数王：150 万面上限的细节党。",
           "fare": "按用量",
           "routes": "在 ANTEI · 2 条线路（v3.1 Pro / v3）",
-          "src": "待站内生成",
-          "tags": { "0": "高面数", "1": "细节", "2": "双版本" },
+          "src": "站内生成 · Hunyuan3D 渲染帧",
+          "tags": {
+            "0": "高面数",
+            "1": "细节",
+            "2": "双版本"
+          },
           "plus": {
             "0": "面数 4 万–150 万可调（默认 50 万）",
             "1": "纹理网格一次出",
@@ -1185,7 +1337,11 @@
           "fare": "按用量",
           "routes": "在 ANTEI · 1 条线路",
           "src": "microsoft.github.io/TRELLIS 官方 teaser",
-          "tags": { "0": "参数全开", "1": "减面", "2": "游戏管线" },
+          "tags": {
+            "0": "参数全开",
+            "1": "减面",
+            "2": "游戏管线"
+          },
           "plus": {
             "0": "分辨率 512 / 1024 / 1536 三档",
             "1": "贴图 1K–4K 可选",
@@ -1201,7 +1357,11 @@
           "fare": "按用量",
           "routes": "在 ANTEI · 1 条线路",
           "src": "tripo3d.ai 官方视觉",
-          "tags": { "0": "秒出", "1": "轻量", "2": "打样" },
+          "tags": {
+            "0": "秒出",
+            "1": "轻量",
+            "2": "打样"
+          },
           "plus": {
             "0": "出模最快",
             "1": "轻量白模适合打样",
@@ -1481,6 +1641,7 @@
     "modelLabel": "视频模型",
     "modelPlaceholder": "选择视频模型",
     "durationLabel": "时长",
+    "generateAudioLabel": "生成音频",
     "aspectRatioLabel": "宽高比",
     "promptLabel": "提示词",
     "promptPlaceholder": "描述你想创建的视频...",
@@ -2454,12 +2615,13 @@
     "search": "搜索素材...",
     "uploadButton": "上传",
     "uploadDropHint": "松手上传到「{folder}」",
-    "uploadInputLabel": "上传图片到本地素材",
+    "uploadInputLabel": "上传图片或视频到本地素材",
     "uploading": "上传中...",
-    "uploadSuccess": "图片已上传到本地素材。",
+    "uploadSuccess": "素材已上传到本地素材。",
     "uploadFailed": "上传失败",
-    "uploadUnsupportedFile": "仅支持图像文件。",
+    "uploadUnsupportedFile": "支持 JPG、PNG、WebP、GIF、MP4、MOV 或 WebM 文件。",
     "uploadFileTooLarge": "文件太大，最大 {maxMb} MB。",
+    "uploadVideoTooLarge": "视频太大，最大 {maxGb} GB。",
     "uploadCompressing": "正在压缩大图…",
     "uploadCompressed": "已压缩：{from} MB → {to} MB",
     "uploadGifTooLarge": "GIF 太大无法自动压缩。最大 {maxMb} MB —— 请先用外部工具压缩。",
@@ -4201,7 +4363,8 @@
       "referenceUnsupported": "当前模型不会读取参考图。请先移除参考图，或切换到支持参考图的模型。",
       "audioPromptTooLong": "请把音频文本缩短到 {max} 字以内",
       "audioReferenceTextRequired": "请填写上传参考音频对应的文字稿后再生成。",
-      "videoQueueFull": "最多同时跑 {max} 条，等一条跑完再排"
+      "videoQueueFull": "最多同时跑 {max} 条，等一条跑完再排",
+      "videoAudioNeedsVisual": "这条线路的音频参考需要至少一张参考图。加一张图，或换到支持纯音频参考的线路。"
     },
     "audioPromptMeta": "{current} / {max} 字 · ≈ {minutes} 分钟 · ≈ {credits} 次生成额度",
     "audioPromptMetaNoLimit": "{current} 字 · ≈ {minutes} 分钟 · ≈ {credits} 次生成额度",
@@ -5098,6 +5261,10 @@
       "sourceSystem": "系统音色",
       "sourceMine": "我的音色",
       "emotionLabel": "情绪",
+      "audioOwnerLabel": "属于角色",
+      "audioOwnerNone": "旁白（无归属）",
+      "audioOwnerCustom": "手填角色名…",
+      "audioOwnerPlaceholder": "例如：ひなた",
       "emotions": {
         "none": "无",
         "calm": "沉稳",
@@ -5819,6 +5986,7 @@
     "referenceDisabledUnsupported": "当前模型不支持参考图",
     "reverse": "图片反向工程",
     "script": "视频剧本",
+    "videoAudio": "音频参考",
     "advanced": "高级设置",
     "enhance": "提示词助手",
     "cards": "卡片",
@@ -6186,6 +6354,18 @@
     "needsKey": "需要 API key"
   },
   "Errors": {
+    "voiceRoom": {
+      "notFound": "房间不存在",
+      "lineNotFound": "台词不存在",
+      "castFull": "班底满了，一个房间最多 8 个人声",
+      "castDuplicate": "这个音色已经在班底里了",
+      "modelUnavailable": "当前没有可用的音频模型",
+      "speakerNotInCast": "这位不在本房间的班底里",
+      "speakerCannotSpeak": "配乐是房间底垫，不能说台词",
+      "voiceCardUnavailable": "这个音色已不可用",
+      "roomFull": "这个房间的台词满了，新开一个吧",
+      "lineEmpty": "台词不能为空"
+    },
     "common": {
       "unexpected": "发生了意外错误，请重试。",
       "databaseUnavailable": "数据库服务暂时不可用，请稍后再试。"
@@ -6441,6 +6621,28 @@
     "statusCardRestore": "回填配置",
     "statusCardDismiss": "忽略"
   },
+  "StudioVideoAudio": {
+    "pill": "音频",
+    "hint": "挂上音色/对白，模型会按 @Audio1、@Audio2 的顺序引用它们",
+    "count": "{used}/{max}",
+    "upload": "上传音频",
+    "fromAssets": "从素材库选",
+    "empty": "还没有音频参考。",
+    "unsupported": "当前模型不支持音频参考。",
+    "pickModelFirst": "先选一个视频模型，才知道能挂几条音频。",
+    "slotBadge": "音{index}",
+    "remove": "移除",
+    "ownerLabel": "属于角色",
+    "ownerNone": "旁白（无归属）",
+    "ownerCustom": "手填角色名…",
+    "ownerPlaceholder": "例如：ひなた",
+    "assetDialogTitle": "选择音频素材",
+    "assetDialogDescription": "从素材库选一段音频作为本次视频的音频参考。",
+    "uploadSuccess": "音频已上传",
+    "errorTooLarge": "音频文件超过 {max}",
+    "errorNotAudio": "请选择音频文件",
+    "errorUploadFailed": "音频上传失败"
+  },
   "VideoScript": {
     "panelTitle": "剧本",
     "listTitle": "草稿",
@@ -6584,5 +6786,78 @@
     "itemDone": "#{index} 完成",
     "itemViewing": "#{index} 正在看",
     "hint": "生成中不占死舞台：左栏照样能改参数、再排一条。"
+  },
+  "VoiceRoom": {
+    "joining": "加入中",
+    "noSample": "无试听",
+    "language": "语言",
+    "sortBy": "排序",
+    "lang": {
+      "all": "全部",
+      "zh": "中文",
+      "en": "英文",
+      "ja": "日文",
+      "es": "西语"
+    },
+    "sort": {
+      "score": "推荐",
+      "task_count": "热门",
+      "created_at": "最新"
+    },
+    "newRoom": "新房间",
+    "untitledRoom": "未命名房间",
+    "emptyRoomTag": "空",
+    "railFoot": "每个房间自带班底与素材",
+    "justNow": "刚刚",
+    "minutesAgo": "{count} 分钟前",
+    "hoursAgo": "{count} 小时前",
+    "yesterday": "昨天",
+    "daysAgo": "{count} 天前",
+    "roomNameLabel": "房间名",
+    "renameRoom": "改名",
+    "roomMeta": "多说话人 · 音色库 + 克隆",
+    "assetsLibrary": "素材库",
+    "emptyEyebrow": "班底还空着",
+    "emptyTitle": "先请一位进来。",
+    "emptySub": "从音色库挑一副嗓子，或克隆一副自己的。选中谁，打的字就是谁的台词——生成完自动进素材库。",
+    "castFromLibrary": "从音色库选角",
+    "dismiss": "知道了",
+    "linePlaceholder": "{name} 的台词——情感可写在句里：（耳语）别回头…",
+    "pickSpeakerFirst": "先选一位说话人",
+    "lineInputLabel": "台词",
+    "sending": "派发中",
+    "generate": "生成",
+    "addVoice": "添加音色",
+    "play": "播放",
+    "pause": "暂停",
+    "speaking": "正在开口",
+    "failed": "生成失败",
+    "retry": "重试",
+    "retakeWith": "换情感重录这句",
+    "emotion": {
+      "auto": "自动",
+      "none": "默认",
+      "calm": "平静",
+      "excited": "兴奋",
+      "whisper": "耳语",
+      "narration": "旁白",
+      "dialogue": "对话",
+      "angry": "愤怒",
+      "sad": "悲伤",
+      "surprised": "惊讶"
+    },
+    "casting": "选角",
+    "voiceLibrary": "音色库",
+    "myVoices": "我的音色",
+    "close": "关闭",
+    "searchVoices": "搜嗓子——「低沉的男声」「像电台深夜节目」…",
+    "preview": "试听",
+    "joinRoom": "请进房间",
+    "alreadyInCast": "已在班底",
+    "loading": "加载中",
+    "noVoicesFound": "没有找到匹配的音色",
+    "noVoiceCards": "还没有收藏的音色——去音色库挑一个",
+    "castingLoadFailed": "音色列表加载失败",
+    "castingJoinFailed": "加入班底失败"
   }
 }

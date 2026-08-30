@@ -27,7 +27,7 @@ vi.mock('next-intl', () => {
   const translate = Object.assign((key: string) => key, {
     rich: (key: string) => key,
   })
-  return { useTranslations: () => translate }
+  return { useTranslations: () => translate, useLocale: () => 'zh' }
 })
 
 vi.mock('next/image', () => ({
@@ -67,6 +67,8 @@ function stage(page: (active: boolean) => ReactElement) {
       view.rerender(page(false))
       advance(HOME_V4_ENGINE.PAGE_MS + 100)
     },
+    /** Flip `active` without moving the clock — for what must happen *now*. */
+    rerender: (active: boolean) => view.rerender(page(active)),
     advance,
     count: (selector: string) =>
       view.container.querySelectorAll(selector).length,
@@ -211,13 +213,13 @@ describe('home v4 · feature page 01 图片', () => {
     const studio = view.container.querySelector('.fn-studio')
     expect(studio?.className).toContain('typed')
     expect(studio?.className).toContain('reveal')
-    expect(view.container.querySelector('.prow .txt')?.textContent).toBe(
+    expect(view.container.querySelector('.ptxt .txt')?.textContent).toBe(
       'v4.fn.image.prompt',
     )
     expect(view.count('.fn-quad .fq')).toBe(4)
 
     view.leave()
-    expect(view.container.querySelector('.prow .txt')?.textContent).toBe('')
+    expect(view.container.querySelector('.ptxt .txt')?.textContent).toBe('')
     expect(view.container.querySelector('.fn-studio')?.className).toBe(
       'fn-studio',
     )
@@ -247,17 +249,24 @@ describe('home v4 · feature page 02 LoRA', () => {
     vi.useRealTimers()
   })
 
-  it('mounts three of the four library cards, then drops in their triggers', () => {
+  it('mounts all but one library card, then drops in the triggers that exist', () => {
     const view = stage((active) => <HomeV4FnLora {...HEADER} active={active} />)
 
     view.play()
 
     const mounts = HOME_V4_FN_LORA_MOUNTS.length
     expect(view.count('.lcard.hot')).toBe(mounts)
-    /* The fourth card is deliberately left in the library. */
+    /* One card is deliberately left in the library — and it is the one cut for
+       a different base model, which is what「挂不上」 actually looks like. */
     expect(view.count('.lcard')).toBeGreaterThan(mounts)
     expect(view.count('.mrow.in')).toBe(mounts)
-    expect(view.count('.trig.in')).toBe(mounts)
+    /* ⚠ **Fewer chips than mounts, on purpose.** A slider LoRA and a detail
+       LoRA have no trigger word; printing one for every mount would misstate
+       how they are used. This asserts the gap is real rather than a dropped
+       chip — if `trigger: null` ever silently starts rendering, this fails. */
+    const triggered = HOME_V4_FN_LORA_MOUNTS.filter((m) => m.trigger).length
+    expect(triggered).toBeLessThan(mounts)
+    expect(view.count('.trig.in')).toBe(triggered)
     expect(view.count('.oq.in')).toBe(HOME_V4_FN_LORA_OUTS.length)
 
     view.leave()
@@ -269,12 +278,26 @@ describe('home v4 · feature page 02 LoRA', () => {
 describe('home v4 · feature page 03 声音', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(
+      () => undefined,
+    )
   })
 
   afterEach(() => {
     vi.runOnlyPendingTimers()
     vi.useRealTimers()
+    vi.restoreAllMocks()
   })
+
+  /** The three transport buttons, in message order. */
+  const keys = (view: ReturnType<typeof stage>) =>
+    Array.from(
+      view.container.querySelectorAll<HTMLButtonElement>('.voice .play'),
+    )
+
+  const notes = (view: ReturnType<typeof stage>) =>
+    Array.from(view.container.querySelectorAll<HTMLAudioElement>('audio'))
 
   it('lands each bubble before its waveform grows', () => {
     const view = stage((active) => (
@@ -293,6 +316,124 @@ describe('home v4 · feature page 03 声音', () => {
     view.advance(WHOLE_PERFORMANCE_MS)
     expect(view.count('.msg.in')).toBe(HOME_V4_FN_AUDIO_LINES.length)
     expect(view.count('.msg.played')).toBe(HOME_V4_FN_AUDIO_LINES.length)
+  })
+
+  /**
+   * ⭐ The page's contract with the visitor: it is silent until asked. The
+   * arrival choreography above runs on its own and must never touch `play()`
+   * — a homepage that speaks at you is worse than one with a fake button.
+   */
+  it('never plays on its own, and downloads nothing until clicked', () => {
+    const view = stage((active) => (
+      <HomeV4FnAudio {...HEADER} active={active} />
+    ))
+
+    view.play()
+
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+    expect(notes(view)).toHaveLength(HOME_V4_FN_AUDIO_LINES.length)
+    expect(notes(view).map((clip) => clip.getAttribute('preload'))).toEqual(
+      notes(view).map(() => 'none'),
+    )
+    expect(notes(view).map((clip) => clip.getAttribute('src'))).toEqual(
+      HOME_V4_FN_AUDIO_LINES.map((line) => line.clips.zh),
+    )
+  })
+
+  it('gives every note a real, labelled, focusable key', () => {
+    const view = stage((active) => (
+      <HomeV4FnAudio {...HEADER} active={active} />
+    ))
+    view.play()
+
+    expect(keys(view)).toHaveLength(HOME_V4_FN_AUDIO_LINES.length)
+    keys(view).forEach((key, index) => {
+      const line = HOME_V4_FN_AUDIO_LINES[index]
+      expect(key.tagName).toBe('BUTTON')
+      expect(key.type).toBe('button')
+      expect(key.disabled).toBe(false)
+      expect(key.getAttribute('aria-label')).toBe(
+        `v4.fn.audio.lines.${line.id}.playLabel`,
+      )
+    })
+  })
+
+  it('swaps the key to a pause control while a note sounds', async () => {
+    const view = stage((active) => (
+      <HomeV4FnAudio {...HEADER} active={active} />
+    ))
+    view.play()
+
+    await act(async () => {
+      fireEvent.click(keys(view)[0])
+    })
+
+    const [first] = keys(view)
+    expect(first.getAttribute('aria-label')).toBe(
+      'v4.fn.audio.lines.qing.pauseLabel',
+    )
+    expect(view.count('.voice.sounding')).toBe(1)
+
+    await act(async () => {
+      fireEvent.click(keys(view)[0])
+    })
+    expect(keys(view)[0].getAttribute('aria-label')).toBe(
+      'v4.fn.audio.lines.qing.playLabel',
+    )
+    /* Paused, not finished — the line keeps the transport and its progress. */
+    expect(view.count('.voice.sounding')).toBe(0)
+    expect(view.count('.voice.live')).toBe(1)
+  })
+
+  it('lets only one note sound at a time', async () => {
+    const view = stage((active) => (
+      <HomeV4FnAudio {...HEADER} active={active} />
+    ))
+    view.play()
+
+    await act(async () => {
+      fireEvent.click(keys(view)[0])
+    })
+    await act(async () => {
+      fireEvent.click(keys(view)[1])
+    })
+
+    expect(view.count('.voice.live')).toBe(1)
+    expect(view.count('.voice.sounding')).toBe(1)
+    expect(keys(view)[0].getAttribute('aria-label')).toBe(
+      'v4.fn.audio.lines.qing.playLabel',
+    )
+    expect(keys(view)[1].getAttribute('aria-label')).toBe(
+      'v4.fn.audio.lines.lei.pauseLabel',
+    )
+    /* The one that lost the transport is rewound, not merely paused. */
+    expect(notes(view)[0].currentTime).toBe(0)
+  })
+
+  /**
+   * ⭐ Leaving the page has to cut the sound *now*, not on the page's own
+   * rewind clock — a voice carrying across the slide is heard over the next
+   * page, which no amount of choreography can take back.
+   */
+  it('cuts the sound the instant the page starts leaving', async () => {
+    const view = stage((active) => (
+      <HomeV4FnAudio {...HEADER} active={active} />
+    ))
+    view.play()
+
+    await act(async () => {
+      fireEvent.click(keys(view)[0])
+    })
+    expect(view.count('.voice.sounding')).toBe(1)
+
+    act(() => {
+      view.rerender(false)
+    })
+    /* Before a single millisecond of the rewind clock has run. */
+    expect(view.count('.voice.sounding')).toBe(0)
+    expect(view.count('.voice.live')).toBe(0)
+    expect(notes(view)[0].paused).toBe(true)
+    expect(notes(view)[0].currentTime).toBe(0)
   })
 })
 

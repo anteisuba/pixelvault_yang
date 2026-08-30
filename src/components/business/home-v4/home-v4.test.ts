@@ -11,7 +11,6 @@ import {
   HOME_V4_FN_IMAGE_MODELS,
   HOME_V4_FN_LORA_CARDS,
   HOME_V4_FN_LORA_MOUNTS,
-  HOME_V4_FN_LORA_OUTS,
   HOME_V4_FN_VAULT_CELLS,
   HOME_V4_FN_VAULT_FILTERS,
   HOME_V4_FN_VIDEO_REFS,
@@ -255,7 +254,11 @@ describe('home v4 · copy', () => {
       ...HOME_V4_FN_LORA_MOUNTS.map(
         (mount) => `fn.lora.cards.${mount.id}.short`,
       ),
-      ...HOME_V4_FN_LORA_OUTS.map((out) => `fn.lora.outs.${out}`),
+      /* ⚠ The LoRA shots deliberately have **no per-tile copy**: what each tile
+         says is its own weight pair, printed from the numbers in the constant.
+         There is nothing here to look up, and adding a label per tile would put
+         a translated sentence where a measured value belongs. The row's one
+         piece of copy is `fn.lora.outKicker`, covered by the static sweep. */
       ...HOME_V4_FN_AUDIO_LINES.flatMap((line) =>
         ['avatar', 'who', 'text', 'duration'].map(
           (field) => `fn.audio.lines.${line.id}.${field}`,

@@ -373,6 +373,16 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
             >
               <HomeV4ModelPage
                 model={model}
+                /* Same condition `inert` runs on — one page is live, and only
+                   that one may play its clip. */
+                active={isLive && index === hIdx}
+                /* ⭐ One step either way, vertically and horizontally. The
+                   opening page is seven steps from the nearest station, so a
+                   visitor who never scrolls fetches **no** model shot at all —
+                   which is what makes full-quality covers affordable. */
+                near={
+                  Math.abs(pageIndex - vIdx) <= 1 && Math.abs(index - hIdx) <= 1
+                }
                 onOpenDetail={() => openSheet(station, index)}
               />
             </div>

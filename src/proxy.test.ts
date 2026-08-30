@@ -34,7 +34,9 @@ describe('proxy static media matcher', () => {
   it('does not route local video files through locale middleware', () => {
     expect(
       pageMatcher.test(
-        '/homepage/production/video/night-ferry-seedance-v1.mp4',
+        /* 一条真在架的片子——2026-08-30 前这里指着 `night-ferry-*`，那组素材早已随
+           占位故事退役、文件也删了，断言等于指着一个幽灵路径。 */
+        '/homepage/production/models/video/model-seedance.mp4',
       ),
     ).toBe(false)
     expect(pageMatcher.test('/homepage/demo.webm')).toBe(false)

@@ -22,7 +22,7 @@ vi.mock('next-intl', () => {
   const translate = Object.assign((key: string) => key, {
     rich: (key: string) => key,
   })
-  return { useTranslations: () => translate }
+  return { useTranslations: () => translate, useLocale: () => 'zh' }
 })
 
 vi.mock('next/image', () => ({

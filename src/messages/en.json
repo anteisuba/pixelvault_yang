@@ -6349,6 +6349,8 @@
     "labelPlaceholder": "A name to tell your keys apart",
     "labelHint": "Add the account or purpose, e.g. \"Gemini personal\"",
     "keyPlaceholder": "Paste your API key...",
+    "anthropicWorkspaceId": "Workspace ID (optional)",
+    "anthropicWorkspaceHint": "Required only when this Claude key is not scoped to a single workspace.",
     "verify": "Verify & activate",
     "verifying": "Verifying...",
     "verifyFailed": "Invalid API key. Please check and try again.",

@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import {
   AI_PROVIDER_ENDPOINTS,
+  ANTHROPIC_API,
   LLM_TEXT_DEFAULT_MAX_TOKENS,
   LLM_TEXT_MODEL_IDS,
   LLM_TEXT_TIMEOUTS_MS,
@@ -1613,7 +1614,7 @@ function buildAnthropicMessagesRequest(
     : input.systemPrompt
 
   return {
-    endpoint: `${baseUrl.replace(/\/$/, '')}/messages`,
+    endpoint: `${baseUrl.replace(/\/$/, '')}${ANTHROPIC_API.MESSAGES_PATH}`,
     modelId,
     body: JSON.stringify({
       model: modelId,
@@ -1636,12 +1637,17 @@ function buildAnthropicMessagesRequest(
 }
 
 /** Anthropic 的鉴权头与那四家不同（`x-api-key` + 版本号），两个消费者共用。 */
-function anthropicRequestInit(apiKey: string, body: string) {
+function anthropicRequestInit(
+  apiKey: string,
+  body: string,
+  workspaceId?: string,
+) {
   return {
     method: 'POST',
     headers: {
       'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+      'anthropic-version': ANTHROPIC_API.VERSION,
+      ...(workspaceId ? { 'anthropic-workspace-id': workspaceId } : {}),
       'content-type': 'application/json',
     },
     body,
@@ -1653,7 +1659,11 @@ async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
 
   const response = await fetchLlmTextBuffered(
     endpoint,
-    anthropicRequestInit(input.apiKey, body),
+    anthropicRequestInit(
+      input.apiKey,
+      body,
+      input.providerConfig.anthropicWorkspaceId,
+    ),
     { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
   )
 
@@ -1891,7 +1901,11 @@ async function* anthropicTextStream(
 
   const response = await fetchLlmTextStreaming(
     endpoint,
-    anthropicRequestInit(input.apiKey, body),
+    anthropicRequestInit(
+      input.apiKey,
+      body,
+      input.providerConfig.anthropicWorkspaceId,
+    ),
     { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
   )
 

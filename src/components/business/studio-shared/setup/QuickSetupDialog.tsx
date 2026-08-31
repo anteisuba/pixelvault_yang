@@ -140,6 +140,7 @@ export function QuickSetupDialog({
 }: QuickSetupDialogProps) {
   const [labelValue, setLabelValue] = useState('')
   const [keyValue, setKeyValue] = useState('')
+  const [anthropicWorkspaceId, setAnthropicWorkspaceId] = useState('')
   const [step, setStep] = useState<SetupStep>('guide')
   const [errorMsg, setErrorMsg] = useState('')
   const { refresh, verify } = useApiKeysContext()
@@ -181,7 +182,13 @@ export function QuickSetupDialog({
     // upstream check happens in step 2.
     const created = await createApiKey({
       adapterType,
-      providerConfig,
+      providerConfig: {
+        ...providerConfig,
+        ...(adapterType === AI_ADAPTER_TYPES.ANTHROPIC &&
+        anthropicWorkspaceId.trim()
+          ? { anthropicWorkspaceId: anthropicWorkspaceId.trim() }
+          : {}),
+      },
       modelId,
       label: finalLabel,
       keyValue: keyValue.trim(),
@@ -224,10 +231,12 @@ export function QuickSetupDialog({
       onOpenChange(false)
       setStep('guide')
       setKeyValue('')
+      setAnthropicWorkspaceId('')
       setLabelValue('')
     }, 1500)
   }, [
     keyValue,
+    anthropicWorkspaceId,
     labelValue,
     modelLabel,
     adapterType,
@@ -246,6 +255,7 @@ export function QuickSetupDialog({
     if (!v) {
       setStep('guide')
       setKeyValue('')
+      setAnthropicWorkspaceId('')
       setLabelValue('')
       setErrorMsg('')
     }
@@ -298,6 +308,34 @@ export function QuickSetupDialog({
               disabled={step === 'verifying' || step === 'success'}
             />
           </div>
+
+          {adapterType === AI_ADAPTER_TYPES.ANTHROPIC && (
+            <div className="space-y-2">
+              <label
+                htmlFor="quick-setup-anthropic-workspace"
+                className="text-sm font-medium"
+              >
+                {t('anthropicWorkspaceId')}
+              </label>
+              <input
+                id="quick-setup-anthropic-workspace"
+                type="text"
+                value={anthropicWorkspaceId}
+                onChange={(event) => {
+                  setAnthropicWorkspaceId(event.target.value)
+                  if (step === 'error') setStep('guide')
+                }}
+                placeholder="wrkspc_..."
+                autoComplete="off"
+                spellCheck={false}
+                className="flex h-10 w-full rounded-lg border border-border/60 bg-background px-3 py-2 font-mono text-sm placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
+                disabled={step === 'verifying' || step === 'success'}
+              />
+              <p className="text-2xs text-muted-foreground/70">
+                {t('anthropicWorkspaceHint')}
+              </p>
+            </div>
+          )}
 
           {/* Step 3: Custom label so the user can distinguish multiple keys
               that share the same provider (e.g. a personal + a work Gemini

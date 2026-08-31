@@ -511,6 +511,13 @@ export const AI_PROVIDER_ENDPOINTS = {
   RUNPOD: 'https://api.runpod.ai/v2',
 } as const
 
+/** Anthropic direct API contract shared by generation and key verification. */
+export const ANTHROPIC_API = {
+  VERSION: '2023-06-01',
+  MESSAGES_PATH: '/messages',
+  MODELS_PATH: '/models',
+} as const
+
 export const LLM_TEXT_MODEL_IDS = {
   // Gemini: 3.1-flash-lite retired 2026-08-23 — official shutdown 2027-05-07
   // (deprecations page), replaced by 3.5-flash-lite. 3.7-flash is the current

@@ -1249,6 +1249,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
   const ANTHROPIC_PROVIDER_CONFIG = {
     label: 'Claude',
     baseUrl: 'https://api.anthropic.com/v1',
+    anthropicWorkspaceId: 'wrkspc_test',
   }
 
   it('sends the managed ceiling as max_tokens when the provider manages the budget', async () => {
@@ -1304,6 +1305,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
         headers: expect.objectContaining({
           'x-api-key': 'sk-ant-test',
           'anthropic-version': '2023-06-01',
+          'anthropic-workspace-id': 'wrkspc_test',
         }),
       }),
     )

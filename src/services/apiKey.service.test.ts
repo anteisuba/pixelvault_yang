@@ -93,6 +93,23 @@ const DEEPSEEK_KEY_RECORD = {
   createdAt: new Date('2026-01-04T00:00:00.000Z'),
 }
 
+const ANTHROPIC_KEY_RECORD = {
+  id: 'key-5',
+  userId: 'user-1',
+  modelId: 'claude-sonnet-5',
+  adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+  providerConfig: {
+    label: 'Claude',
+    baseUrl: 'https://api.anthropic.com/v1',
+    anthropicWorkspaceId: 'wrkspc_test',
+  },
+  label: 'Claude',
+  encryptedKey: 'encrypted:anthropic-key',
+  maskedKey: 'sk-a****test',
+  isActive: true,
+  createdAt: new Date('2026-01-05T00:00:00.000Z'),
+}
+
 describe('apiKey.service createApiKey', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -280,6 +297,43 @@ describe('apiKey.service verifyApiKey', () => {
         headers: {
           Accept: 'application/json',
           Authorization: 'Bearer plain-deepseek-key',
+        },
+        redirect: 'manual',
+        signal: expect.any(AbortSignal),
+      }),
+    )
+  })
+
+  it('verifies Anthropic keys against the models endpoint with required headers', async () => {
+    mockFindUnique.mockResolvedValue(ANTHROPIC_KEY_RECORD)
+    mockDecryptApiKey.mockReturnValue('plain-anthropic-key')
+    const mockFetch = vi.fn()
+    vi.stubGlobal('fetch', mockFetch)
+    mockFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [{ id: 'claude-sonnet-5', type: 'model' }],
+          has_more: false,
+        }),
+        { status: 200 },
+      ),
+    )
+
+    const result = await verifyApiKey('key-5', 'user-1')
+
+    expect(result).toMatchObject({
+      id: 'key-5',
+      status: 'available',
+    })
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.anthropic.com/v1/models',
+      expect.objectContaining({
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          'anthropic-version': '2023-06-01',
+          'anthropic-workspace-id': 'wrkspc_test',
+          'x-api-key': 'plain-anthropic-key',
         },
         redirect: 'manual',
         signal: expect.any(AbortSignal),

@@ -60,6 +60,8 @@ export enum AI_ADAPTER_TYPES {
 export interface ProviderConfig {
   label: string
   baseUrl: string
+  /** Required by Anthropic identity-linked keys that are not scoped to one workspace. */
+  anthropicWorkspaceId?: string
 }
 
 export const AI_ADAPTER_TYPE_OPTIONS = [

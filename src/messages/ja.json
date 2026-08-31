@@ -6349,6 +6349,8 @@
     "labelPlaceholder": "キーを区別するための名前",
     "labelHint": "アカウントや用途を入れると分かりやすい（例：「Gemini メイン」）",
     "keyPlaceholder": "APIキーを貼り付け...",
+    "anthropicWorkspaceId": "ワークスペース ID（任意）",
+    "anthropicWorkspaceHint": "この Claude キーが単一のワークスペースに限定されていない場合のみ必要です。",
     "verify": "検証して有効化",
     "verifying": "検証中...",
     "verifyFailed": "無効なAPIキーです。確認してもう一度お試しください。",

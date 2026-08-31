@@ -11,6 +11,7 @@ import {
 } from '@/constants/providers'
 import {
   AI_PROVIDER_ENDPOINTS,
+  ANTHROPIC_API,
   HEALTH_CHECK,
   RUNWAY_API,
 } from '@/constants/config'
@@ -59,6 +60,9 @@ function toProviderConfigJson(
   return {
     label: providerConfig.label,
     baseUrl: providerConfig.baseUrl,
+    ...(providerConfig.anthropicWorkspaceId
+      ? { anthropicWorkspaceId: providerConfig.anthropicWorkspaceId }
+      : {}),
   }
 }
 
@@ -298,10 +302,11 @@ export async function deleteApiKey(id: string, userId: string): Promise<void> {
 async function verifyAdapterKey(
   adapterType: AI_ADAPTER_TYPES,
   apiKey: string,
-  baseUrl: string,
+  providerConfig: ProviderConfig,
 ): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
   const timeoutMs = HEALTH_CHECK.TIMEOUT_MS
   const start = Date.now()
+  const { baseUrl } = providerConfig
 
   try {
     let response: Response
@@ -338,6 +343,24 @@ async function verifyAdapterKey(
         response = await safeFetch(url, {
           method: 'GET',
           headers: { 'x-goog-api-key': apiKey },
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        break
+      }
+      case AI_ADAPTER_TYPES.ANTHROPIC: {
+        const url = `${baseUrl.replace(/\/$/, '')}${ANTHROPIC_API.MODELS_PATH}`
+        response = await safeFetch(url, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            'anthropic-version': ANTHROPIC_API.VERSION,
+            ...(providerConfig.anthropicWorkspaceId
+              ? {
+                  'anthropic-workspace-id': providerConfig.anthropicWorkspaceId,
+                }
+              : {}),
+            'x-api-key': apiKey,
+          },
           signal: AbortSignal.timeout(timeoutMs),
         })
         break
@@ -546,11 +569,7 @@ export async function verifyApiKey(
     return { id, status: 'no_key' }
   }
 
-  const result = await verifyAdapterKey(
-    adapterType,
-    plainKey,
-    providerConfig.baseUrl,
-  )
+  const result = await verifyAdapterKey(adapterType, plainKey, providerConfig)
 
   return {
     id,

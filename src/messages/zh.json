@@ -6349,6 +6349,8 @@
     "labelPlaceholder": "用来区分不同 key 的名称",
     "labelHint": "建议带上账号或用途，例如「Gemini 主账号」",
     "keyPlaceholder": "粘贴你的 API key...",
+    "anthropicWorkspaceId": "Workspace ID（可选）",
+    "anthropicWorkspaceHint": "仅当这个 Claude key 未绑定到单一 Workspace 时需要填写。",
     "verify": "验证并激活",
     "verifying": "验证中...",
     "verifyFailed": "API key 无效，请检查后重试。",

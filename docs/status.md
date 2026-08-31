@@ -111,6 +111,15 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
   UI 上限后所有新增入口禁用并显示移除提示，避免第 4 条音频或第 10 张图后才由 API 返回 400。
   相关 7 个定向 Vitest 文件共 63 项通过。
 
+### Claude API key 验证
+
+- 2026-08-31 补齐 `apiKey.service` 遗漏的 Anthropic 验证分支：按官方契约使用
+  `GET /v1/models`、`x-api-key` 与 `anthropic-version` 做无生成费用的鉴权探测；版本号和路径
+  收敛到 `ANTHROPIC_API`，生成与验证共用。Quick Setup 同时支持新式未绑定单一 Workspace 的
+  identity-linked key，可选 Workspace ID 会随验证和实际 Claude 请求发送。修复前真机稳定误报
+  “API key 无效”；两轮回归测试先红后绿，`apiKey.service` + `llm-text.service` 定向 Vitest
+  72/72、i18n 完整性 5/5、目标 ESLint / Prettier 通过。
+
 ### 素材详情浏览
 
 - 2026-08-30 图片详情补齐左右浏览：仅在当前筛选结果中至少有两张已加载图片时显示箭头，首尾禁用且不跨媒体；支持键盘方向键，预览与右侧元数据同步更新。图片切换使用项目统一的 200ms 方向淡入过渡，减弱动效偏好下关闭位移与缩放。

@@ -2111,6 +2111,7 @@ export const ProviderConfigSchema = z.object({
     .url()
     .max(300)
     .refine((v) => v.startsWith('https://'), 'baseUrl must use https'),
+  anthropicWorkspaceId: z.string().trim().min(1).optional(),
 })
 export type ProviderConfigInput = z.infer<typeof ProviderConfigSchema>
 

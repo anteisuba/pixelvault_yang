@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState, useEffect, useCallback, useRef } from 'react'
+import { memo, useState, useRef } from 'react'
 import {
   AlertCircle,
   Check,
@@ -29,11 +29,7 @@ import {
 import type { VoiceCardRecord } from '@/types'
 import type { VoiceAsset } from '@/types/voice-library'
 import { useStudioFormOptional } from '@/contexts/studio-context'
-import {
-  getVoiceAssetId,
-  isClonedVoiceCard,
-  useVoiceLibrary,
-} from '@/hooks/use-voice-library'
+import { useVoiceLibrary } from '@/hooks/use-voice-library'
 import {
   deleteVoiceCardAPI,
   getVoiceAPI,
@@ -160,7 +156,6 @@ export const VoiceSelector = memo(function VoiceSelector({
     isLoading,
     error,
     favoritePendingId: favoritePendingVoiceId,
-    favoriteCardOf,
     toggleFavorite: handleToggleFavorite,
   } = library
   const voiceCards = {
@@ -361,14 +356,16 @@ export const VoiceSelector = memo(function VoiceSelector({
     voiceCardSearchFields,
   )
   const listIsLoading = isLocalCardsTab ? voiceCards.isLoading : isLoading
+  /* 本地动作（删卡/改名）的失败排在加载类错误之前——它是用户刚做的那一下的直接反馈。 */
   const listError =
-    isLocalCardsTab && voiceCards.error
+    localError ??
+    (isLocalCardsTab && voiceCards.error
       ? tab === 'cloned'
         ? t('voiceClonedLoadFailed')
         : t('voiceFavoritesLoadFailed')
       : error && publicVoiceAssets.length === 0
         ? error
-        : null
+        : null)
   const selectedVoiceLabel =
     voiceCards.cards.find((card) =>
       usesExternalSelection

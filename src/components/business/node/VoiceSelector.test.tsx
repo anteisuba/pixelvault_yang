@@ -268,4 +268,19 @@ describe('VoiceSelector', () => {
       expect(deleteVoiceCardAPIMock).toHaveBeenCalledWith('fav-card-1')
     })
   })
+
+  /* 回归：`setLocalError` 曾经写进一个从没被渲染的 state，删除失败是静默的——
+   * 用户点了删除、卡还在、屏幕上什么都不说。断言它现在真的出现在列表区。 */
+  it('shows the failure message when deleting a saved voice fails', async () => {
+    voiceCardsRef.cards = [FAVORITE_CARD]
+    deleteVoiceCardAPIMock.mockResolvedValue({ success: false })
+    render(<VoiceSelector />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'voiceFavorites' }))
+    expect(await screen.findByText('男漂泊者')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'voiceUnfavorite' }))
+
+    expect(await screen.findByText('voiceDeleteFailed')).toBeInTheDocument()
+  })
 })

@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -329,10 +330,19 @@ function ComposerCore({ composer }: ComposerCoreProps) {
     resolveComposerPlaceholderKey(composer.mode ?? 'image', hasMedia),
   )
 
-  const modelOptions =
-    composer.mode === 'image'
-      ? (modelOptionsByType[NODE_TYPE_IDS.image] ?? [])
-      : (modelOptionsByType[NODE_TYPE_IDS.voice] ?? [])
+  /* 三元 + `?? []` 每渲染都新建数组，会让下面那段默认选模型的 effect 每次都重跑。 */
+  const modelOptions = useMemo(
+    () =>
+      composer.mode === 'image'
+        ? (modelOptionsByType[NODE_TYPE_IDS.image] ?? [])
+        : (modelOptionsByType[NODE_TYPE_IDS.voice] ?? []),
+    [composer.mode, modelOptionsByType],
+  )
+
+  /* 取出来单独用：写成 `composer.setModelSelection(...)` 的方法调用形式会让
+   * exhaustive-deps 要求把整个 `composer` 进依赖（对象每渲染都新），效果是这段
+   * 每次都重跑。它是 useState 的 setter，引用稳定，解构安全。 */
+  const { setModelSelection: setComposerModelSelection } = composer
 
   // §4/§5 清晰度弹层依赖 resolutionOptions，而 resolutionOptions 依赖已选模
   // 型——composer.modelSelection 原先永远从 undefined 起步，没人替它挑第一
@@ -351,12 +361,12 @@ function ComposerCore({ composer }: ComposerCoreProps) {
     if (composer.mode !== 'image') return
     if (composer.modelSelection) return
     const fallback = modelOptions.find(isRunnableModelOption) ?? modelOptions[0]
-    if (fallback) composer.setModelSelection(fallback)
+    if (fallback) setComposerModelSelection(fallback)
   }, [
     composer.mode,
     composer.modelSelection,
     modelOptions,
-    composer.setModelSelection,
+    setComposerModelSelection,
   ])
 
   const resolutionOptions = composer.modelSelection

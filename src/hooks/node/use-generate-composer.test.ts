@@ -166,6 +166,7 @@ const { graphState, actions } = vi.hoisted(() => ({
     // ⚠ 形参必须显式写出来。`vi.fn(async () => …)` 推出来的是**零参**函数，
     // 于是 `mock.calls[0]` 的类型是空元组 `[]`，下面读 `calls[0][0]` 会报
     // TS2493（运行期照样能拿到值，所以 vitest 绿而 tsc 红）。
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 形参只为撑出元组类型，见上方说明；项目 eslint 未开 argsIgnorePattern
     runGenerateComposer: vi.fn(async (_input: unknown) => ['new-node-1']),
     heavyOverlayOpen: false,
     transientLayerOpen: false,

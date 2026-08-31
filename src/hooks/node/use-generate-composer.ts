@@ -327,7 +327,11 @@ export function useGenerateComposer(): UseGenerateComposerValue {
   const [refsByHost, setRefsByHost] = useState<
     Record<string, ComposerReferenceSlot[]>
   >({})
-  const extraSlots = refsByHost[draftKey] ?? []
+  /* `?? []` 每渲染都新建一个数组，会让下面 useCallback 的依赖每次都变（eslint 已点名）。 */
+  const extraSlots = useMemo(
+    () => refsByHost[draftKey] ?? [],
+    [refsByHost, draftKey],
+  )
 
   // §7 owner 2026-07-28 defect ②: a send must carry the draft forward, never
   // wipe it — "可以立刻接着改下一版" requires the box to still show this
@@ -399,17 +403,23 @@ export function useGenerateComposer(): UseGenerateComposerValue {
 
   // Pinned host slot (§4) — derived, never stored: it disappears the instant
   // the host stops having media, and can't be removed by the user.
-  const pinnedSlot: ComposerReferenceSlot | null =
-    host && host.hasMedia && host.mediaUrl
-      ? {
-          id: `pinned-${host.nodeId}`,
-          url: host.mediaUrl,
-          thumbnailUrl: host.mediaUrl,
-          label: host.mediaLabel,
-          pinned: true,
-        }
-      : null
-  const referenceSlots = pinnedSlot ? [pinnedSlot, ...extraSlots] : extraSlots
+  const pinnedSlot: ComposerReferenceSlot | null = useMemo(
+    () =>
+      host && host.hasMedia && host.mediaUrl
+        ? {
+            id: `pinned-${host.nodeId}`,
+            url: host.mediaUrl,
+            thumbnailUrl: host.mediaUrl,
+            label: host.mediaLabel,
+            pinned: true,
+          }
+        : null,
+    [host],
+  )
+  const referenceSlots = useMemo(
+    () => (pinnedSlot ? [pinnedSlot, ...extraSlots] : extraSlots),
+    [pinnedSlot, extraSlots],
+  )
 
   // ---- Params — session-sticky, not reset per host (§5). ----
   const [modelSelection, setModelSelection] = useState<

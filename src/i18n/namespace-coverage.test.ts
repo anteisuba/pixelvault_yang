@@ -897,7 +897,9 @@ function collectReach(route: Route): RouteReach {
 
 /* ═══════════════════ 9. Assertions ═══════════════════ */
 
-describe('i18n namespace coverage', () => {
+// 全量闸门下这份文件会扫完整棵 `src/` AST。操作员包把源文件量抬高之后，
+// 「动态命名空间位点」那条在满负载里会超过全局 15s（隔离 5.3s / 36 绿）。
+describe('i18n namespace coverage', { timeout: 45_000 }, () => {
   const routes = discoverRoutes()
   const reachByRoute = new Map<string, RouteReach>(
     routes.map((route) => [route.id, collectReach(route)]),

@@ -37,9 +37,11 @@ import type {
   Model3DStatusResponse,
   Model3DSubmitResponse,
   DirectUploadImagePrepare,
+  DirectUploadAudioPrepare,
   DirectUploadVideoPrepare,
   UploadImageRequest,
   UploadImageResponse,
+  UploadAudioResponse,
   UploadVideoResponse,
   VideoStatusResponse,
   VideoSubmitResponse,
@@ -234,6 +236,12 @@ interface DirectUploadPrepareResponse {
 interface DirectUploadVideoPrepareResponse {
   success: boolean
   data?: DirectUploadVideoPrepare
+  error?: string
+}
+
+interface DirectUploadAudioPrepareResponse {
+  success: boolean
+  data?: DirectUploadAudioPrepare
   error?: string
 }
 
@@ -508,6 +516,91 @@ export async function uploadVideoFileAPI(
     return poster.success && poster.data
       ? { success: true, data: poster.data }
       : complete
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/** Browser-direct R2 upload for local audio selected in the asset library. */
+export async function uploadAudioFileAPI(
+  file: File,
+  options: {
+    duration?: number
+    note?: string
+    projectId?: string
+    onProgress?: (percent: number) => void
+    signal?: AbortSignal
+  },
+): Promise<UploadAudioResponse> {
+  try {
+    const prepare = await postJson<DirectUploadAudioPrepareResponse>(
+      API_ENDPOINTS.UPLOAD_AUDIO_DIRECT,
+      {
+        fileName: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        note: options.note,
+        projectId: options.projectId,
+      },
+      'Audio upload prepare failed',
+    )
+
+    if (!prepare.success || !prepare.data) {
+      return {
+        success: false,
+        error: prepare.error ?? 'Audio upload prepare failed',
+      }
+    }
+
+    let storageResponse: PutResult
+    try {
+      storageResponse = options.onProgress
+        ? await putFileWithProgress(
+            prepare.data.uploadUrl,
+            file,
+            prepare.data.headers,
+            options.onProgress,
+            options.signal,
+          )
+        : await fetch(prepare.data.uploadUrl, {
+            method: 'PUT',
+            headers: prepare.data.headers,
+            body: file,
+          })
+    } catch (error) {
+      return {
+        success: false,
+        error: `Could not reach audio storage: ${
+          error instanceof Error ? error.message : 'network error'
+        }`,
+        i18nKey: 'errors.upload.storageUnreachable',
+      }
+    }
+
+    if (!storageResponse.ok) {
+      return {
+        success: false,
+        error: `Audio storage rejected the upload (status ${storageResponse.status})`,
+        i18nKey: 'errors.upload.storageRejected',
+      }
+    }
+
+    return await postJson<UploadAudioResponse>(
+      API_ENDPOINTS.UPLOAD_AUDIO_DIRECT_COMPLETE,
+      {
+        storageKey: prepare.data.storageKey,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        duration: options.duration,
+        note: options.note,
+        projectId: options.projectId,
+      },
+      'Audio upload finalize failed',
+    )
   } catch (error) {
     return {
       success: false,

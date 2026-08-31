@@ -17,6 +17,7 @@ import {
   getReferenceCapability,
   getReferenceCapabilityMax,
 } from '@/constants/reference-image-capabilities'
+import { VIDEO_REFERENCE_LIMITS } from '@/constants/video-reference-limits'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -153,7 +154,10 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     adapterType,
     modelId,
   )
-  const maxRefImages = getReferenceCapabilityMax(referenceCapability)
+  const capabilityMaxRefImages = getReferenceCapabilityMax(referenceCapability)
+  const maxRefImages = isVideoMode
+    ? Math.min(capabilityMaxRefImages, VIDEO_REFERENCE_LIMITS.IMAGES)
+    : capabilityMaxRefImages
 
   useEffect(() => {
     imageUpload.setMaxImages(maxRefImages)

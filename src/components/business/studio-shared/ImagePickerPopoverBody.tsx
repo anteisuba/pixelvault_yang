@@ -21,6 +21,8 @@ interface ImagePickerPopoverBodyProps {
   onDropFile: (file: File) => void
   onPickAsset: (generation: GenerationRecord) => void
   onOpenLibrary: () => void
+  /** Disables every add source while keeping existing previews removable. */
+  disabledReason?: string
   /** Rendered above the dropzone — e.g. a multi-image preview strip. */
   headerSlot?: ReactNode
   /** Rendered below the "open library" row — e.g. the assistant's video slot. */
@@ -45,6 +47,7 @@ export function ImagePickerPopoverBody({
   onDropFile,
   onPickAsset,
   onOpenLibrary,
+  disabledReason,
   headerSlot,
   footerSlot,
   className,
@@ -68,6 +71,7 @@ export function ImagePickerPopoverBody({
   }, [])
 
   const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    if (disabledReason) return
     const file = getImageFileFromDataTransfer(event.clipboardData)
     if (!file) return
     event.preventDefault()
@@ -77,21 +81,31 @@ export function ImagePickerPopoverBody({
   return (
     <div
       tabIndex={0}
+      aria-disabled={Boolean(disabledReason)}
       onPaste={handlePaste}
       className={cn('space-y-3 focus:outline-none', className)}
     >
       {headerSlot}
 
+      {disabledReason ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {disabledReason}
+        </p>
+      ) : null}
+
       <button
         type="button"
+        disabled={Boolean(disabledReason)}
         onClick={onPickFile}
         onDragOver={(event) => {
+          if (disabledReason) return
           if (!event.dataTransfer.types.includes('Files')) return
           event.preventDefault()
           setIsDragOver(true)
         }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={(event) => {
+          if (disabledReason) return
           event.preventDefault()
           setIsDragOver(false)
           const file = getImageFileFromDataTransfer(event.dataTransfer)
@@ -124,6 +138,7 @@ export function ImagePickerPopoverBody({
               <button
                 key={generation.id}
                 type="button"
+                disabled={Boolean(disabledReason)}
                 onClick={() => onPickAsset(generation)}
                 className="group relative aspect-square overflow-hidden rounded-lg border border-border/60 bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
               >
@@ -144,6 +159,7 @@ export function ImagePickerPopoverBody({
         variant="outline"
         size="sm"
         onClick={onOpenLibrary}
+        disabled={Boolean(disabledReason)}
         className="h-8 w-full gap-1.5 rounded-lg text-xs"
       >
         <Library className="size-3.5" />

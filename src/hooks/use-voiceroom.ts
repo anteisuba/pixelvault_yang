@@ -68,6 +68,16 @@ export interface UseVoiceRoomResult {
   sending: boolean
   /** 正在换房间：旧聊天流据此退场，新的等它退完再进来。 */
   switching: boolean
+  /**
+   * 正在重录的台词 id。
+   *
+   * ⚠ 这是**独立的一份状态，不是往 `detail` 里塞假数据**。塞假数据会被轮询冲掉：
+   * 轮询每 2 秒重新拉整个房间，服务端那边这条台词还是上一次的 COMPLETED，
+   * 一拉就把乐观状态盖回去了。
+   */
+  retakingIds: ReadonlySet<string>
+  /** 刚发出、还没拿到回执的那句话。聊天流据此先摆一个「正在开口」的占位气泡。 */
+  pendingLine: { speakerId: string; text: string } | null
   error: string | null
   /** 「接下来怎么念」——会话级，不落库，不是某一句的属性。 */
   delivery: VoiceRoomDeliveryState
@@ -107,6 +117,13 @@ export function useVoiceRoom(): UseVoiceRoomResult {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [sending, setSending] = useState(false)
   const [switching, setSwitching] = useState(false)
+  const [retakingIds, setRetakingIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
+  const [pendingLine, setPendingLine] = useState<{
+    speakerId: string
+    text: string
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [delivery, setDeliveryState] =
     useState<VoiceRoomDeliveryState>(DEFAULT_DELIVERY)
@@ -271,6 +288,15 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     async (speakerId: string, text: string) => {
       if (!activeRoomId) return false
       setSending(true)
+      /*
+       * 先摆一个占位气泡再发请求。Fish 的语音是**同步生成**的，这个往返要好几秒——
+       * 不先落一个「正在开口」，用户点完生成会盯着一个毫无变化的屏幕。
+       *
+       * ⚠ 占位**不进 `detail.lines`**：真台词回来时 id 是服务端给的，混进列表会让
+       * React 换 key 重新挂载，入场动画再播一遍，看着像闪了一下。占位是它自己一个
+       * 元素，真气泡该有的入场它本来就该有。
+       */
+      setPendingLine({ speakerId, text })
       const result = await createVoiceLineAPI({
         roomId: activeRoomId,
         speakerId,
@@ -278,6 +304,7 @@ export function useVoiceRoom(): UseVoiceRoomResult {
         ...toDeliveryPayload(delivery),
       })
       setSending(false)
+      setPendingLine(null)
       if (!result.success || !result.data) {
         setError(result.error ?? null)
         return false
@@ -298,11 +325,18 @@ export function useVoiceRoom(): UseVoiceRoomResult {
       lineId: string,
       patch: { emotion?: AudioEmotion | null; text?: string },
     ) => {
+      // 这条台词立刻进入「正在开口」——同 `say`，不然点完角标屏幕上什么都不发生。
+      setRetakingIds((current) => new Set(current).add(lineId))
       // 重录沿用**当下**的念法设置——参数是「接下来怎么念」，不是当初怎么念。
       const result = await retakeVoiceLineAPI({
         lineId,
         ...toDeliveryPayload(delivery),
         ...patch,
+      })
+      setRetakingIds((current) => {
+        const next = new Set(current)
+        next.delete(lineId)
+        return next
       })
       if (!result.success || !result.data) {
         setError(result.error ?? null)
@@ -333,6 +367,8 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     loadingDetail,
     sending,
     switching,
+    retakingIds,
+    pendingLine,
     error,
     delivery,
     setDelivery,

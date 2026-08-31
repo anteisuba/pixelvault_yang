@@ -856,6 +856,17 @@ export function useStudioData(): StudioDataContextValue {
   return ctx
 }
 
+/**
+ * Generation state escape hatch — same dual-context need as
+ * `useStudioFormOptional`, for the operator panel (P4-C). The panel now hosts on
+ * `/studio/lora` too, and that route deliberately has no `<StudioProvider>`; its
+ * result-watching hook must degrade to "there is nothing to watch here" instead
+ * of throwing. Use the throwing `useStudioGen()` unless you have that need.
+ */
+export function useStudioGenOptional(): StudioGenContextValue | null {
+  return useContext(StudioGenContext)
+}
+
 /** Generation state — re-renders only during generation */
 export function useStudioGen(): StudioGenContextValue {
   const ctx = useContext(StudioGenContext)

@@ -55,6 +55,14 @@ interface VoiceLineBubbleProps {
   line: VoiceLineRecord
   /** 切房间时逐条接力的延迟；新落的单条是 0，不该排队等。 */
   staggerMs?: number
+  /**
+   * 这条正在重录。
+   *
+   * ⚠ 与 `line.audio.status` 分开：重录的请求在飞时，服务端记录还停在上一次的
+   * COMPLETED，只看 status 的话这几秒里气泡毫无变化（owner 2026-08-30 指出
+   * 「点击切换重新生成了，但看不到生成的过程」）。
+   */
+  retaking?: boolean
   onRetake: (
     lineId: string,
     patch: { emotion?: AudioEmotion | null },
@@ -64,6 +72,7 @@ interface VoiceLineBubbleProps {
 export function VoiceLineBubble({
   line,
   staggerMs = 0,
+  retaking = false,
   onRetake,
 }: VoiceLineBubbleProps) {
   const t = useTranslations('VoiceRoom')
@@ -81,7 +90,7 @@ export function VoiceLineBubble({
 
   const status = line.audio?.status
   const url = line.audio?.url ?? null
-  const pending = isPendingStatus(status)
+  const pending = isPendingStatus(status) || retaking
 
   /**
    * 「正在开口」→ 语音条的 180ms 交接。
@@ -184,7 +193,7 @@ export function VoiceLineBubble({
         <span className="vr-who">{line.speakerName}</span>
         <span className="vr-bubble">{line.text}</span>
 
-        {status === 'COMPLETED' && url ? (
+        {status === 'COMPLETED' && url && !retaking ? (
           <span className="vr-voice-row" ref={rowRef}>
             <span className="vr-voice" data-kind={line.speakerKind} data-drawn>
               <button

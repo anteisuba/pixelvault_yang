@@ -23,6 +23,7 @@ import {
   AUDIO_EXPRESSIVENESS,
   AUDIO_EXPRESSIVENESS_VALUES,
   AUDIO_KIND,
+  EXPRESSIVENESS_TO_FISH_TEMPERATURE,
   TTS_REFERENCE_TEXT_MAX_CHARS,
   type AudioExpressivenessTier,
 } from '@/constants/audio-options'
@@ -252,6 +253,12 @@ function applyPronunciationDictionary(
   }, prompt)
 }
 
+/**
+ * Fish 的短停标记。文档 Pause & Break Markers 一节只有两个：`[break]`（brief pause）
+ * 与 `[long-break]`（extended pause）。
+ */
+const FISH_PAUSE_MARKER = '[break]'
+
 function getPauseSentenceIndex(marker: string): number | null {
   const match = /^after_sentence_(\d+)$/.exec(marker)
   if (!match) {
@@ -281,23 +288,60 @@ function applyPauseMarkers(prompt: string, markers?: string[]): string {
     return prompt
   }
 
+  /*
+   * ⚠ 停顿用 Fish 的 `[break]` 标记，**不是换行符**。
+   *
+   * 原先这里插的是 `\n\n`，那是我们自己发明的——Fish 文档的 Pause & Break Markers
+   * 一节里只有 `[break]`（短停）与 `[long-break]`（长停），换行符不在任何一类标记
+   * 里，也没有任何一处说它会产生停顿。
+   *
+   * 用短停而不是长停：这个功能在界面上叫「停顿位置」（第 1/2/3 句后），是句间的
+   * 换气，不是段落级的静默。
+   */
+  /*
+   * ⚠ 每段**原样保留**、用空串拼回去，不要 `trim()` 再 `join(' ')`。
+   *
+   * 那样写在英文里看不出问题（句间本来就有空格），中文里却会凭空插进一堆空格：
+   * 「第一句。第二句。」变成「第一句。 第二句。」。同 `applyAudioStylePrompt` 的
+   * 那条原则——**别往用户的字里塞他没打的字符**。
+   *
+   * 正则把整段文本切完不丢字符，所以空串拼接 = 原文 + 插进去的标记。
+   */
   return sentenceParts
-    .map((part, index) => {
-      const normalized = part.trim()
-      return pauseIndexes.has(index) ? `${normalized}\n\n` : normalized
-    })
-    .join(' ')
-    .replace(/\n\n\s+/g, '\n\n')
+    .map((part, index) =>
+      pauseIndexes.has(index) ? `${part}${FISH_PAUSE_MARKER}` : part,
+    )
+    .join('')
 }
 
 /**
- * Inject the emotion cue as a bracket tag at the START OF EACH SENTENCE, not
- * once at the very top. Both providers apply emotion locally and let it decay,
- * so a single leading tag barely colours a multi-sentence clip. The regex
- * anchors on sentence boundaries (start of text, or after . ! ? 。 ！ ？ plus
- * any trailing whitespace) and inserts `[cue] ` before the first spoken
- * character — the captured whitespace (including the \n\n pause breaks added
- * upstream) is preserved.
+ * 首字属于**没有词间空格的书写系统**（中日文假名与汉字）。
+ *
+ * Fish 文档的示例全是英文（`[happy] What a wonderful day!`），那个空格本来就是英文的
+ * 词间分隔；中日文里它是凭空多出来的一个字符。
+ */
+const CJK_FIRST_CHAR = /^[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/
+
+/**
+ * 把情感编成 Fish S2 的 `[bracket]` 提示词，**只在开头插一次**。
+ *
+ * ⚠⚠ **别拿音频长度去证这两条。** 2026-08-30 我先用单样本的 mp3 字节数得出过
+ * 「逐句 +21%、空格 +7%」的结论，**是错的**：同一段文本、同一音色、同样不带标记
+ * 连跑五次是 68544 / 72306 / 78157 / 71052 / 73977——`temperature 0.7` 是采样，
+ * **噪声底就有 ±7%**。补足重复样本后三组区间几乎完全重叠（记录见
+ * `docs/plans/fish-audio-prosody-emotion-findings-2026-08-30.md`）。
+ *
+ * 所以下面两条的依据**只是 Fish 文档 + 取舍判断**，不是实测：
+ *
+ * ① **只插一次，不逐句。** 文档自相拉扯：Do 说「repeat the marker for each new
+ *    sentence if you want to maintain that emotion」，Don't 又说「Don't overuse
+ *    emotion tags in short text」。一条台词就是一句短文本，所以选了后者。
+ *    ⚠ 代价是很长的多句台词情感可能在后半段淡掉。**这条是可逆的取舍**，
+ *    要改回逐句就把 `/g` 加回去、并把 `^` 换成句边界。
+ *
+ * ② **中日文不加那个空格。** 理由不是「更快」，而是**别往用户的字里塞他没打的
+ *    字符**：文档示例里那个空格是英文的词间分隔，中文里它是一个可见的多余字符。
+ *    英文保留空格（文档示例如此）。
  */
 function applyAudioStylePrompt(prompt: string, emotion?: string): string {
   if (!emotion) {
@@ -310,12 +354,11 @@ function applyAudioStylePrompt(prompt: string, emotion?: string): string {
     return prompt
   }
 
-  const tag = `[${stylePrompt}]`
-  return prompt.replace(
-    /(^|[.!?。！？]\s*)(\S)/g,
-    (_match, boundary: string, firstChar: string) =>
-      `${boundary}${tag} ${firstChar}`,
-  )
+  // 无 `/g`：只替换第一处，也就是全文的第一个非空白字符。
+  return prompt.replace(/^(\s*)(\S)/, (_match, lead: string, first: string) => {
+    const gap = CJK_FIRST_CHAR.test(first) ? '' : ' '
+    return `${lead}[${stylePrompt}]${gap}${first}`
+  })
 }
 
 /**
@@ -360,6 +403,29 @@ function buildProviderPrompt(request: {
     ),
     request.emotion,
   )
+}
+
+/**
+ * 表现力折算成 Fish 的 `temperature`。
+ *
+ * ⚠ **必须在服务端折算，不能把 `expressiveness` 透传下去。**
+ *
+ * 同步路径（`adapter.generateAudio`）里 adapter 自己会折算，但 worker 那条路的
+ * `providerInput` 只认 `temperature`——2026-08-30 审计发现：worker 从来就没收到过
+ * `expressiveness`，也不做映射，于是**配音间参数面板里那四档表现力点了等于没点**，
+ * temperature 一直落在 Fish 默认 0.7。而 `canSubmitAudioViaExecutionWorker()` 只要
+ * 有可解析的 key 就走 worker，也就是绝大多数请求。
+ *
+ * 在这里折算 = 两条路语义一次对齐，且不用给 worker 契约加新字段。
+ * 用户在高级设置里手填的 `temperature` 永远优先。
+ */
+function resolveFishTemperature(request: {
+  emotion?: string
+  expressiveness?: string
+  temperature?: number
+}): number | undefined {
+  if (request.temperature !== undefined) return request.temperature
+  return EXPRESSIVENESS_TO_FISH_TEMPERATURE[resolveExpressivenessTier(request)]
 }
 
 function resolveAudioSpeed(request: {
@@ -1180,7 +1246,9 @@ async function submitAudioWorkerRun(params: {
       mp3Bitrate: request.mp3Bitrate,
       opusBitrate: request.opusBitrate,
       latency: request.latency,
-      temperature: request.temperature,
+      // ⚠ 折算过的值，不是 `request.temperature`——见 `resolveFishTemperature`。
+      // 直接透传原值会让表现力那四档在这条路上完全失效。
+      temperature: resolveFishTemperature(request),
       topP: request.topP,
       chunkLength: request.chunkLength,
       repetitionPenalty: request.repetitionPenalty,

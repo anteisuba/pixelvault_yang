@@ -1,6 +1,7 @@
 import { AI_MODELS, normalizeModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
+import { VIDEO_REFERENCE_LIMITS } from '@/constants/video-reference-limits'
 
 export type VideoReferenceMode =
   | 'text-or-first-frame'
@@ -116,9 +117,9 @@ const SEEDANCE_20_REFERENCE_SLOTS: VideoReferenceSlots = {
  * 也就是说**只有 2.5 支持纯音频参考**。
  */
 const SEEDANCE_25_REFERENCE_SLOTS: VideoReferenceSlots = {
-  images: 30,
+  images: VIDEO_REFERENCE_LIMITS.IMAGES,
   videos: 10,
-  audio: 10,
+  audio: VIDEO_REFERENCE_LIMITS.AUDIO,
   total: 50,
   audioRequiresVisual: false,
 }

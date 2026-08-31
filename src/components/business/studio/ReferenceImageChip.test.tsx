@@ -9,6 +9,7 @@ const mockDispatch = vi.hoisted(() => vi.fn())
 const mockImageUpload = vi.hoisted(() => ({
   referenceEntries: [{ id: 'reference-1' }],
   referenceImages: ['data:image/png;base64,reference'],
+  maxImages: 30,
   addReferenceImage: vi.fn(),
   addFromUrl: vi.fn(),
   removeReferenceImage: vi.fn(),
@@ -41,12 +42,17 @@ vi.mock('@/components/business/studio-shared/ImagePickerPopoverBody', () => ({
   ImagePickerPopoverBody: ({
     headerSlot,
     footerSlot,
+    disabledReason,
   }: {
     headerSlot?: ReactNode
     footerSlot?: ReactNode
+    disabledReason?: string
   }) => (
     <div data-testid="image-picker-popover-body">
       {headerSlot}
+      <button type="button" disabled={Boolean(disabledReason)}>
+        {disabledReason ?? 'picker-enabled'}
+      </button>
       {footerSlot}
     </div>
   ),
@@ -84,6 +90,7 @@ describe('ReferenceImageChip', () => {
     mockDispatch.mockClear()
     mockImageUpload.referenceEntries = [{ id: 'reference-1' }]
     mockImageUpload.referenceImages = ['data:image/png;base64,reference']
+    mockImageUpload.maxImages = 30
   })
 
   it('renders the shared image picker while empty', () => {
@@ -118,5 +125,23 @@ describe('ReferenceImageChip', () => {
 
     expect(mockImageUpload.handleFileChange).toHaveBeenCalledWith(file)
     expect(mockImageUpload.addReferenceImage).not.toHaveBeenCalled()
+  })
+
+  it('disables every add path and explains why when the image limit is full', () => {
+    mockImageUpload.referenceEntries = Array.from(
+      { length: mockImageUpload.maxImages },
+      (_, index) => ({ id: `reference-${index}` }),
+    )
+    mockImageUpload.referenceImages = mockImageUpload.referenceEntries.map(
+      ({ id }) => id,
+    )
+
+    render(
+      <Toolbar.Root>
+        <ReferenceImageChip />
+      </Toolbar.Root>,
+    )
+
+    expect(screen.getByRole('button', { name: 'limitReached' })).toBeDisabled()
   })
 })

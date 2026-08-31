@@ -9,6 +9,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { VIDEO_REFERENCE_LIMITS } from '@/constants/video-reference-limits'
 import type { ComposerReferenceToken } from '@/hooks/node/use-video-composer'
 import type { VideoSendSlotLimits } from '@/lib/node-video-send-slots'
 
@@ -84,16 +85,18 @@ describe('CanvasSlotRack · 分类区从容量契约派生（§4.4）', () => {
       <CanvasSlotRack
         tokens={[]}
         slotLimits={{
-          images: 30,
+          images: VIDEO_REFERENCE_LIMITS.IMAGES,
           videos: 10,
-          audio: 10,
+          audio: VIDEO_REFERENCE_LIMITS.AUDIO,
           imagesLimitedByTotal: false,
         }}
         defaultExpanded={true}
       />,
     )
     expect(
-      screen.getByText('zoneCount:{"held":0,"limit":30}'),
+      screen.getByText(
+        `zoneCount:{"held":0,"limit":${VIDEO_REFERENCE_LIMITS.IMAGES}}`,
+      ),
     ).toBeInTheDocument()
   })
 

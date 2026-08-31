@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 
 import { AssetDetailSheet } from '@/components/business/AssetDetailSheet'
@@ -36,7 +37,6 @@ import {
 } from '@/components/business/assets/AssetStateBlocks'
 import { AssetUploadQueuePanel } from '@/components/business/assets/AssetUploadQueuePanel'
 import { AssetUploadTile } from '@/components/business/assets/AssetUploadTile'
-import { AssetSearchBox } from '@/components/business/assets/AssetSearchBox'
 import { toMediaTransitionOrigin } from '@/components/business/MediaDetailViewer'
 import {
   AlertDialog,
@@ -66,6 +66,7 @@ import {
 import { useProjects } from '@/hooks/use-projects'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
 import { ROUTES } from '@/constants/routes'
+import { motionTransition } from '@/constants/motion'
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
 import {
   DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE,
@@ -85,10 +86,12 @@ import {
   type AssetGridDensity,
 } from '@/constants/assets-grid'
 import {
+  CLIENT_AUDIO_UPLOAD_MAX_BYTES,
   CLIENT_VIDEO_UPLOAD_MAX_BYTES,
   USER_UPLOAD_ACCEPTED_MIME_TYPES,
   CLIENT_UPLOAD_MAX_BYTES,
   USER_UPLOAD_PROVIDER,
+  USER_AUDIO_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES,
 } from '@/constants/uploads'
 import { Link } from '@/i18n/navigation'
@@ -100,9 +103,11 @@ import {
   fetchAssetSectionCounts,
 } from '@/lib/api-client/gallery'
 import {
+  uploadAudioFileAPI,
   uploadImageFileAPI,
   uploadVideoFileAPI,
 } from '@/lib/api-client/generation'
+import { readAudioFileMetadata } from '@/lib/audio-metadata'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { clearGalleryCache } from '@/lib/gallery-cache'
@@ -335,6 +340,8 @@ export function KreaAssetBrowser({
 }: KreaAssetBrowserProps) {
   const t = useTranslations('AssetsPage')
   const tErrors = useTranslations('Errors')
+  const reducedMotion = useReducedMotion()
+  const [isToolbarStuck, setIsToolbarStuck] = useState(false)
 
   const effectiveInitialFilters: GalleryFilters = initialFilters
   const {
@@ -432,6 +439,31 @@ export function KreaAssetBrowser({
     width: number
     height: number
   } | null>(null)
+  const [imageNavigationDirection, setImageNavigationDirection] = useState<
+    -1 | 1
+  >(1)
+  const imageGenerations = useMemo(
+    () => generations.filter((generation) => generation.outputType === 'IMAGE'),
+    [generations],
+  )
+  const selectedImageIndex = selectedGeneration
+    ? imageGenerations.findIndex(
+        (generation) => generation.id === selectedGeneration.id,
+      )
+    : -1
+  const showImageNavigation =
+    selectedGeneration?.outputType === 'IMAGE' && imageGenerations.length > 1
+  const selectSiblingImage = useCallback(
+    (offset: -1 | 1) => {
+      if (selectedImageIndex < 0) return
+      const nextGeneration = imageGenerations[selectedImageIndex + offset]
+      if (!nextGeneration) return
+      setImageNavigationDirection(offset)
+      setSelectedOriginRect(null)
+      setSelectedGeneration(nextGeneration)
+    },
+    [imageGenerations, selectedImageIndex],
+  )
   const [failedAudioPreviewUrls, setFailedAudioPreviewUrls] = useState<
     ReadonlySet<string>
   >(() => new Set())
@@ -946,9 +978,38 @@ export function KreaAssetBrowser({
       }
 
       try {
+        const isAudio = (
+          USER_AUDIO_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]
+        ).includes(file.type)
         const isVideo = (
           USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]
         ).includes(file.type)
+
+        if (isAudio) {
+          const maxGb = String(
+            CLIENT_AUDIO_UPLOAD_MAX_BYTES / 1024 / 1024 / 1024,
+          )
+          if (file.size > CLIENT_AUDIO_UPLOAD_MAX_BYTES) {
+            return {
+              ok: false,
+              error: t('uploadAudioTooLarge', { maxGb }),
+            }
+          }
+
+          const metadata = await readAudioFileMetadata(file)
+          const response = await uploadAudioFileAPI(file, {
+            duration: metadata?.duration,
+            projectId: options.projectId ?? undefined,
+            onProgress: options.onProgress,
+          })
+          if (!response.success || !response.data) {
+            return {
+              ok: false,
+              error: getApiErrorMessage(tErrors, response, t('uploadFailed')),
+            }
+          }
+          return { ok: true, generation: response.data.generation }
+        }
 
         if (isVideo) {
           const maxGb = String(
@@ -1408,12 +1469,29 @@ export function KreaAssetBrowser({
         {/* ─── Main grid area ────────────────────────────────────── */}
         {/* `assets-scroll-gutter`：滚动条一出现容器就缩水，会把按旧宽度排好
             的 justified 行挤成横向溢出（page §5.7）。 */}
-        <main className="studio-scrollbar assets-scroll-gutter flex-1 min-w-0 overflow-x-hidden overflow-y-auto py-4">
-          {/* ─── 顶栏（单行）──────────────────────────────────────
-              page §3：`素材 + 总数` · 搜索 · ——弹性—— · 上传 · 选择 · 密度。
-              ⛔ 这里不再放两组图标 segmented —— 筛选整体迁到内容区的分面栏
-              （§3.1）。 */}
-          <div className="mb-3 flex min-h-12 flex-wrap items-center gap-2">
+        <main
+          className="studio-scrollbar assets-scroll-gutter flex-1 min-w-0 overflow-x-hidden overflow-y-auto py-4"
+          onScroll={(event) => {
+            setIsToolbarStuck(event.currentTarget.scrollTop > 8)
+          }}
+        >
+          {/* ─── 顶栏（默认单行）──────────────────────────────────
+              page §3：`素材 + 总数` · 分面筛选 · ——弹性—— · 上传 · 选择 · 密度。
+              条件生效时，可删除的筛选 chips 留在同一个吸顶框内并自然增加一行。 */}
+          <motion.div
+            initial={
+              reducedMotion ? false : { opacity: 0, y: -6, scale: 0.995 }
+            }
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={motionTransition('slow', reducedMotion)}
+            data-stuck={isToolbarStuck || undefined}
+            className={cn(
+              'sticky top-0 z-30 mx-auto mb-3 flex min-h-14 w-full flex-wrap items-center gap-2 rounded-2xl border bg-background px-4 py-2 transition-[border-color,box-shadow] duration-(--duration-base) ease-standard sm:w-11/12 sm:max-w-screen-2xl',
+              isToolbarStuck
+                ? 'border-border shadow-md'
+                : 'border-border/70 shadow-sm',
+            )}
+          >
             <div className="flex min-w-0 items-center gap-1.5">
               <h1 className="truncate text-base font-semibold text-foreground">
                 {t('title')}
@@ -1424,12 +1502,21 @@ export function KreaAssetBrowser({
             </div>
 
             {!isPickerMode && (
-              <AssetSearchBox
-                value={filters.search}
-                onSearch={(next) => setFilters({ ...filters, search: next })}
-                projects={projects}
-                onSelectFolder={(id) => setSection({ kind: 'project', id })}
-                className="w-full max-w-72 sm:w-64"
+              <AssetFacetBar
+                filters={filters}
+                onFiltersChange={setFilters}
+                typeCounts={{
+                  image: imageCount,
+                  video: videoCount,
+                  audio: audioCount,
+                  model_3d: model3DCount,
+                }}
+                statusCounts={{
+                  favorites: favoritesCount,
+                  published: publishedCount,
+                }}
+                modelCounts={counts?.byModel ?? {}}
+                className="order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1"
               />
             )}
 
@@ -1440,7 +1527,7 @@ export function KreaAssetBrowser({
                   size="sm"
                   onClick={handleUploadClick}
                   disabled={isUploading}
-                  className="h-8 rounded-lg px-3"
+                  className="h-9 rounded-lg px-4 shadow-none transition-[transform,box-shadow] duration-(--duration-fast) ease-standard hover:-translate-y-px hover:shadow-sm active:translate-y-0"
                 >
                   {isUploading ? (
                     <Spinner size="sm" />
@@ -1461,9 +1548,9 @@ export function KreaAssetBrowser({
                     else setSelectionMode(true)
                   }}
                   className={cn(
-                    'h-8 rounded-lg px-3',
+                    'h-9 rounded-lg px-4 transition-transform duration-(--duration-fast) ease-standard hover:-translate-y-px active:translate-y-0',
                     selectionMode &&
-                      'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15',
+                      'border-foreground/20 bg-muted text-foreground hover:bg-muted/80',
                   )}
                 >
                   {selectionMode ? (
@@ -1481,7 +1568,7 @@ export function KreaAssetBrowser({
                 <DensityToggle density={density} onChange={changeDensity} />
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* ─── 段一 · 文件夹门牌行（page §3 / §4）──────────────────
               ⚠ 夹内页/总览页**不是全屏 overlay** —— 它们就在这块内容区里换一段，
@@ -1558,36 +1645,16 @@ export function KreaAssetBrowser({
             />
           )}
 
-          {/* ─── 段二段头 + 分面筛选栏（page §3.1）──────────────────
-              分面属于内容区不属于顶栏；手机上整行横滚，不另做一套移动 chips。 */}
-          {!isPickerMode && view === 'library' && (
-            <div className="mb-3 grid gap-2">
-              {!isFolderScoped && (
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <h2 className="text-sm font-medium text-foreground">
-                    {t('sectionAllAssets')}
-                  </h2>
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {total}
-                  </span>
-                </div>
-              )}
-              <AssetFacetBar
-                filters={filters}
-                onFiltersChange={setFilters}
-                typeCounts={{
-                  image: imageCount,
-                  video: videoCount,
-                  audio: audioCount,
-                  model_3d: model3DCount,
-                }}
-                statusCounts={{
-                  favorites: favoritesCount,
-                  published: publishedCount,
-                }}
-                modelCounts={counts?.byModel ?? {}}
-                className="-mx-2 overflow-x-auto px-2"
-              />
+          {/* ─── 段二段头（page §3.1）──────────────────────────────
+              分面筛选已合入吸顶顶栏，这里只保留当前内容口径。 */}
+          {!isPickerMode && view === 'library' && !isFolderScoped && (
+            <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 className="text-sm font-medium text-foreground">
+                {t('sectionAllAssets')}
+              </h2>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {total}
+              </span>
             </div>
           )}
 
@@ -1721,6 +1788,7 @@ export function KreaAssetBrowser({
                           event.currentTarget.getBoundingClientRect(),
                         ),
                       )
+                      setImageNavigationDirection(1)
                       setSelectedGeneration(gen)
                     }
                     const handleTileContextMenu = (
@@ -1813,6 +1881,7 @@ export function KreaAssetBrowser({
             if (!open) {
               setSelectedGeneration(null)
               setSelectedOriginRect(null)
+              setImageNavigationDirection(1)
             }
           }}
           projects={projects}
@@ -1820,6 +1889,17 @@ export function KreaAssetBrowser({
           onMoved={handleAssetMoved}
           onUpdated={handleAssetUpdated}
           transitionOrigin={selectedOriginRect}
+          imageNavigation={
+            showImageNavigation
+              ? {
+                  canGoPrevious: selectedImageIndex > 0,
+                  canGoNext: selectedImageIndex < imageGenerations.length - 1,
+                  direction: imageNavigationDirection,
+                  onPrevious: () => selectSiblingImage(-1),
+                  onNext: () => selectSiblingImage(1),
+                }
+              : undefined
+          }
         />
       )}
       {!isPickerMode && (
@@ -2040,6 +2120,7 @@ interface DensityToggleProps {
 
 function DensityToggle({ density, onChange }: DensityToggleProps) {
   const t = useTranslations('AssetsPage')
+  const reducedMotion = useReducedMotion()
   const labels: Record<AssetGridDensity, string> = {
     s: t('densitySmall'),
     m: t('densityMedium'),
@@ -2056,7 +2137,7 @@ function DensityToggle({ density, onChange }: DensityToggleProps) {
         onValueChange={(value) => {
           if (isDensity(value)) onChange(value)
         }}
-        className="rounded-lg bg-background/80 p-0.5 shadow-inner"
+        className="rounded-xl border border-border/60 bg-muted/60 p-0.5"
         aria-label={t('densityLabel')}
       >
         {ASSET_GRID_DENSITIES.map((d) => (
@@ -2065,9 +2146,16 @@ function DensityToggle({ density, onChange }: DensityToggleProps) {
             value={d}
             aria-label={labels[d]}
             title={labels[d]}
-            className="h-9 w-10 rounded-md px-0 text-sm font-medium uppercase data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:shadow-sm"
+            className="relative h-8 w-10 rounded-lg px-0 text-sm font-medium uppercase text-muted-foreground transition-colors duration-(--duration-base) ease-standard data-[state=on]:bg-transparent data-[state=on]:text-background"
           >
-            {d}
+            {density === d && (
+              <motion.span
+                layoutId="asset-density-indicator"
+                className="absolute inset-0 rounded-lg bg-foreground shadow-sm"
+                transition={motionTransition('base', reducedMotion)}
+              />
+            )}
+            <span className="relative z-10">{d}</span>
           </ToggleGroupItem>
         ))}
       </ToggleGroup>

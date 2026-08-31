@@ -14,6 +14,7 @@ import {
   StudioCommandPalette,
 } from '@/components/business/studio'
 import { StudioDockPanelArea } from '@/components/business/studio/StudioDockPanelArea'
+import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
 import { Button } from '@/components/ui/button'
 
@@ -22,6 +23,8 @@ import {
   useStudioForm,
   useStudioGen,
 } from '@/contexts/studio-context'
+import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
+import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
 import { useRouter } from '@/i18n/navigation'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
 import {
@@ -69,6 +72,23 @@ export function StudioWorkspaceUI() {
   const { lastGeneration } = useStudioGen()
   const router = useRouter()
   const [nodeHandoff, setNodeHandoff] = useState<StudioNodeHandoff | null>(null)
+  /**
+   * 操作员面板服务**图片与视频**两档（P4-A，拍板 8：一个助手跨域，域是头部一枚
+   * chip；切域换工具、不断会话）。
+   *
+   * ⛔ **音频档有意不挂**（owner 2026-08-31 拍板「P4 的声音那边不用管」）：
+   * 配音间已经是一套独立的对话式界面，再叠一个操作员就是同一件事两个入口。
+   * 所以这里是白名单而不是 `!== 'audio'` —— 将来多一个模态时，默认不给它助手
+   * 比默认给它一个拧不动任何旋钮的助手安全（拍板 19）。
+   */
+  const isOperatorSurface =
+    state.outputType === 'image' || state.outputType === 'video'
+  /**
+   * 操作员在**工作台**这个宿主上的那一份（P4-C）。面板的外壳（`StudioOperatorDock`）
+   * 与撤销链从 P4-C 起都读它，因此那颗外壳变成了页面无关的东西 —— 同一个 Dock
+   * 也挂在 LoRA 装配台上（那条路由没有 `<StudioProvider>`）。
+   */
+  const operatorHost = useStudioWorkbenchOperatorHost()
 
   // Phase 1C: hydrate prompt / seed / negativePrompt / aspectRatio from
   // the URL on mount when the user arrived via "Use this image" replay.
@@ -173,7 +193,16 @@ export function StudioWorkspaceUI() {
   )
 
   return (
-    <>
+    /**
+     * 操作员的**宿主**（P4-C）—— 面板从这里读表单、往这里落笔。
+     *
+     * ⚠ 必须包住 `StudioPromptArea`（参数栏里的归属标记 ✦ 与就地确认条走的是
+     * 同一份上下文）和 `StudioOperatorDock` 两者 —— 只包 dock 的话，✦ 那一侧会在
+     * 运行时抛「must be used within provider」。
+     * ⚠ 音频档也照包：`useStudioWorkbenchOperatorHost` 是纯读，包了不渲染面板
+     * 什么都不会发生；按 `isOperatorSurface` 条件包反而会让 hook 有条件地调。
+     */
+    <StudioOperatorHostProvider host={operatorHost}>
       <a
         href="#studio-prompt"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg"
@@ -239,10 +268,22 @@ export function StudioWorkspaceUI() {
             stage={<StudioCanvas />}
           />
         </div>
-        <StudioAssistantDock />
-        {/* 右上角助手浮标 —— 三个模态都有了。小屏没有它，抽屉宿主长在参数栏
-            那颗「助手」丸里（`lg:hidden`），两者不重复。 */}
-        <StudioAssistantFab />
+        {/* 助手 —— **图片工作台整体切到操作员面板**（任务包
+            `studio-assistant-operator-2026-08-30.md` P2）。它自带三态：展开的
+            覆盖层 + 收起的胶囊，所以图片档不再挂 `StudioAssistantFab`（那颗浮标
+            是旧面板的入口，两个同时在等于右上角摆两个助手）。
+            ⚠ 视频 / 音频仍走旧面板：统一底盘扩域是 P4，那之前两套并存。
+            ⛔ 不加 feature flag —— 本仓 flag 文化已死（只有 comfyRunner 活着）。 */}
+        {isOperatorSurface ? (
+          <StudioOperatorDock />
+        ) : (
+          <>
+            <StudioAssistantDock />
+            {/* 右上角助手浮标 —— 小屏没有它，抽屉宿主长在参数栏那颗「助手」丸里
+                （`lg:hidden`），两者不重复。 */}
+            <StudioAssistantFab />
+          </>
+        )}
       </div>
 
       {/* 工具面板 —— 原来挂在 `StudioBottomDock` 上，dock 一退役就必须改挂
@@ -267,6 +308,6 @@ export function StudioWorkspaceUI() {
       />
 
       <StudioCommandPalette />
-    </>
+    </StudioOperatorHostProvider>
   )
 }

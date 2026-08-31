@@ -55,6 +55,28 @@ const STEP_FIXTURES: Record<
       ],
     },
   },
+  /**
+   * 联网搜图（P3-B）。⭐ 注意 `result.images` 里**没有 assetId** —— 那正是它与
+   * 库内检索的全部区别：候选只是一串第三方地址，在用户点选转存之前它在本仓里
+   * 不存在，所以 `mount_reference`（只吃 assetId）在类型上就够不着它。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages]: {
+    payload: { query: 'pvc figure studio shot', limit: 8 },
+    result: {
+      totalFound: 1,
+      images: [
+        {
+          imageUrl: 'https://cdn.example.com/web-a.jpg',
+          thumbnailUrl: 'https://encrypted-tbn0.gstatic.com/web-a.jpg',
+          pageUrl: 'https://example.com/post/a',
+          domain: 'example.com',
+          title: 'PVC figure studio shot',
+          width: 1600,
+          height: 1200,
+        },
+      ],
+    },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]: {
     payload: {
       assetId: 'gen-1',
@@ -79,13 +101,163 @@ const STEP_FIXTURES: Record<
     payload: { aspectRatio: '16:9', resolution: '2K' },
     inverse: { aspectRatio: '1:1', resolution: 'auto' },
   },
+  /**
+   * 视频规格（P4-A）。⭐ 载荷与逆操作**都带齐三格**（没有的那格是 `null`）——
+   * 撤销因此一定落回一个真实存在过的三元组。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs]: {
+    payload: { durationSeconds: 5, aspectRatio: '16:9', resolution: '720p' },
+    inverse: {
+      durationSeconds: 10,
+      aspectRatio: '9:16',
+      resolution: null,
+    },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: {
     payload: { count: 2 },
     inverse: { count: 1 },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference]: {
+    payload: {
+      assetId: 'gen-audio-1',
+      url: 'https://cdn.example.com/line.mp3',
+      label: '我不走',
+      ownerName: '阿岚',
+    },
+    inverse: { assetId: 'gen-audio-1' },
+  },
+  /** ⚠ `inverse.enabled` 是 `null` —— 「用户没设过」那一档，撤销要回得去。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setSound]: {
+    payload: { enabled: false },
+    inverse: { enabled: null },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]: {
     payload: { primed: true },
     inverse: { primed: false },
+  },
+  /**
+   * 看图（P3-C）。⭐ 注意 `payload` 里带着 `imageUrl` —— 拍板 6「评价卡内嵌它评
+   * 的那张图」是**契约里就有的字段**，不是渲染层的自觉；而它是服务端从请求里那份
+   * `result` 抄过来的，模型给不出。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]: {
+    payload: {
+      imageUrl: 'https://cdn.example.com/result.png',
+      thumbnailUrl: 'https://cdn.example.com/result-thumb.png',
+      modelLabel: 'Seedream 4',
+      goal: 'a girl under a red umbrella',
+    },
+    result: {
+      findings: [
+        { ok: true, text: '红伞是画面唯一的暖色，主体立住了' },
+        { ok: false, text: '雨丝糊成一片，看不出方向' },
+      ],
+      advice: '下一轮把雨的方向写进提示词',
+      borrowedVisionRoute: false,
+    },
+  },
+  /**
+   * 用户递来的链接（P3-D，拍板 22）。⭐ 注意 `payload.url` 与 `inverse.url` 是
+   * **同一条源地址**：落地地址此刻还不存在（取图那一跳在客户端），撤销只能按
+   * 源地址反查。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl]: {
+    payload: {
+      url: 'https://upload.wikimedia.org/wikipedia/commons/a/a1/Example.jpg',
+      domain: 'upload.wikimedia.org',
+    },
+    inverse: {
+      url: 'https://upload.wikimedia.org/wikipedia/commons/a/a1/Example.jpg',
+    },
+  },
+  /**
+   * 找 LoRA（P4-C）。⭐ 注意候选投影里**没有 `importPayload`** —— 它只在真的要挂
+   * 那一把时才需要，所以住在 `mount_lora` 的载荷上。每条候选都驮着它的下场是一串
+   * 权重文件地址进日志、进上下文、再进历史。
+   * ⭐ `sources` 每源一条：**空不是挂**（一个源挂了 vs 两个源都没命中，是两句话）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchLoras]: {
+    payload: { query: 'ghibli watercolor', limit: 6 },
+    result: {
+      totalFound: 2,
+      candidates: [
+        {
+          candidateId: 'civitai:12345:67890',
+          source: 'civitai',
+          name: 'Watercolor Storybook',
+          author: 'someone',
+          family: 'illustrious',
+          triggerWords: ['watercolor', 'storybook'],
+          thumbnailUrl: 'https://cdn.example.com/lora-a.png',
+          pageUrl: 'https://civitai.com/models/12345',
+          downloads: 4200,
+          licenseLabel: null,
+          licenseKnown: true,
+          commercialUse: ['Image', 'Sell'],
+          importable: true,
+          compatible: true,
+          alreadyMounted: false,
+          alreadyImported: false,
+        },
+      ],
+      sources: [
+        { source: 'civitai', status: 'ok', count: 1 },
+        { source: 'huggingface', status: 'failed', count: 0 },
+      ],
+    },
+  },
+  /**
+   * 挂一把 LoRA（P4-C）。⭐ 与 `import_user_url` 同构：`inverse` 里是
+   * **candidateId** 而不是库记录 id —— 后者在服务端还不存在（导入那一跳在客户端）。
+   * ⭐ `importPayload` 由服务端从本轮检索结果里抄过来，模型碰不到它。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]: {
+    payload: {
+      candidateId: 'civitai:12345:67890',
+      name: 'Watercolor Storybook',
+      weight: 0.8,
+      triggerWords: ['watercolor'],
+      family: 'illustrious',
+      compatible: true,
+      importPayload: {
+        name: 'Watercolor Storybook',
+        triggerWord: 'watercolor',
+        loraUrl: 'https://civitai.com/api/download/models/67890',
+        type: 'style',
+        baseModelFamily: 'illustrious',
+        provider: 'civitai',
+        sourceSnapshot: {
+          source: 'civitai',
+          author: 'someone',
+          license: {
+            label: null,
+            commercialUse: ['Image', 'Sell'],
+            allowDerivatives: true,
+            allowNoCredit: false,
+            known: true,
+          },
+          pageUrl: 'https://civitai.com/models/12345',
+          revision: null,
+          retrievedAt: '2026-08-31T00:00:00.000Z',
+          fileSizeBytes: null,
+          metadataCompleteness: 'partial',
+        },
+      },
+    },
+    inverse: { candidateId: 'civitai:12345:67890' },
+  },
+  /** ⚠ 逆操作带着**改前的权重** —— 撤销要把它挂回原来那个数，不是挂回默认值。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]: {
+    payload: { loraId: 'lora-asset-1', name: 'Watercolor Storybook' },
+    inverse: { loraId: 'lora-asset-1', weight: 0.8 },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]: {
+    payload: {
+      loraId: 'lora-asset-1',
+      name: 'Watercolor Storybook',
+      weight: 1,
+    },
+    inverse: { loraId: 'lora-asset-1', weight: 0.8 },
   },
 }
 
@@ -151,6 +323,22 @@ describe('操作员工具表', () => {
     ].safeParse({ modelId: 'x', run: true })
     expect(primed.success).toBe(true)
     expect(primed.data).toEqual({})
+  })
+
+  /**
+   * 拍板 22 的 schema 那一侧。⚠ 「这条地址是不是用户给的」**不在这里** ——
+   * 那是规划器的活（`urlNotFromUser`），schema 只管形状。
+   */
+  it('import_user_url 只收 http(s)（⛔ file: / ftp: 一律拒）', () => {
+    const schema =
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl
+      ]
+    expect(
+      schema.safeParse({ url: 'https://upload.wikimedia.org/a/b.jpg' }).success,
+    ).toBe(true)
+    expect(schema.safeParse({ url: 'file:///etc/passwd' }).success).toBe(false)
+    expect(schema.safeParse({ url: 'not a url' }).success).toBe(false)
   })
 
   it('检索类型是 OUTPUT_TYPE_VALUES 的子集', () => {

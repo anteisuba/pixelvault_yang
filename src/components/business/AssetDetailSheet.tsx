@@ -75,6 +75,13 @@ interface AssetDetailSheetProps {
   /** Called after publish/favorite toggles so the grid mirrors the new state. */
   onUpdated?: (id: string, patch: Partial<GenerationRecord>) => void
   transitionOrigin?: MediaTransitionOrigin | null
+  imageNavigation?: {
+    canGoPrevious: boolean
+    canGoNext: boolean
+    direction: -1 | 1
+    onPrevious: () => void
+    onNext: () => void
+  }
 }
 
 type PublishScope = 'private' | 'asset' | 'assetAndPrompt'
@@ -139,6 +146,7 @@ export function AssetDetailSheet({
   onMoved,
   onUpdated,
   transitionOrigin,
+  imageNavigation,
 }: AssetDetailSheetProps) {
   const t = useTranslations('AssetsPage')
   const tCommon = useTranslations('Common')
@@ -606,10 +614,20 @@ export function AssetDetailSheet({
         description={t('detailDescription')}
         closeLabel={tCommon('close')}
         media={<Preview generation={generation} />}
+        mediaKey={generation.id}
         sideHeader={sideHeader}
         sideContent={sideContent}
         footerActions={footerActions}
         toolbarActions={toolbarActions}
+        navigation={
+          imageNavigation
+            ? {
+                previousLabel: t('detailPreviousImage'),
+                nextLabel: t('detailNextImage'),
+                ...imageNavigation,
+              }
+            : undefined
+        }
         transitionOrigin={transitionOrigin}
         transitionImageSrc={previewUrl}
         transitionImageAlt={generation.prompt || generation.id}

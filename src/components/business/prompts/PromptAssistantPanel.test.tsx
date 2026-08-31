@@ -739,7 +739,11 @@ describe('PromptAssistantPanel · LoRA 推荐卡', () => {
       <PromptAssistantPanel
         currentPrompt=""
         writeback={makeWriteback()}
-        loraConfirm={{ canMount: true, confirm: vi.fn() }}
+        loraConfirm={{
+          canMount: true,
+          confirm: vi.fn(),
+          confirmPayload: vi.fn(),
+        }}
       />,
     )
 
@@ -755,7 +759,11 @@ describe('PromptAssistantPanel · LoRA 推荐卡', () => {
       <PromptAssistantPanel
         currentPrompt=""
         writeback={makeWriteback()}
-        loraConfirm={{ canMount: true, confirm: vi.fn() }}
+        loraConfirm={{
+          canMount: true,
+          confirm: vi.fn(),
+          confirmPayload: vi.fn(),
+        }}
       />,
     )
 
@@ -771,7 +779,11 @@ describe('PromptAssistantPanel · LoRA 推荐卡', () => {
       <PromptAssistantPanel
         currentPrompt=""
         writeback={makeWriteback()}
-        loraConfirm={{ canMount: false, confirm: vi.fn() }}
+        loraConfirm={{
+          canMount: false,
+          confirm: vi.fn(),
+          confirmPayload: vi.fn(),
+        }}
       />,
     )
 
@@ -801,7 +813,11 @@ describe('PromptAssistantPanel · LoRA 推荐卡', () => {
       <PromptAssistantPanel
         currentPrompt=""
         writeback={makeWriteback()}
-        loraConfirm={{ canMount: true, confirm: vi.fn() }}
+        loraConfirm={{
+          canMount: true,
+          confirm: vi.fn(),
+          confirmPayload: vi.fn(),
+        }}
       />,
     )
 

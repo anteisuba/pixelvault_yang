@@ -51,6 +51,13 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
 
   const enabledReferenceCount = imageUpload.referenceImages.length
   const totalEntries = imageUpload.referenceEntries.length
+  const isFull =
+    Number.isFinite(imageUpload.maxImages) &&
+    imageUpload.maxImages > 0 &&
+    totalEntries >= imageUpload.maxImages
+  const limitReason = isFull
+    ? t('limitReached', { max: imageUpload.maxImages })
+    : undefined
   const isActive = totalEntries > 0
   const badgeWarning =
     totalEntries > 0 && enabledReferenceCount === 0
@@ -74,6 +81,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
    * 「never inlined as a multi-MB data URL in a generate request body」。
    */
   const handleFileSelect = (file: File) => {
+    if (isFull) return
     void imageUpload.handleFileChange(file)
   }
 
@@ -100,6 +108,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   }
 
   const handleSelectAsset = async (gen: GenerationRecord) => {
+    if (isFull) return
     // Defensive guard: even though AssetSelectorDialog is locked to
     // mediaType="image", a future caller wiring this chip up differently
     // could pass through a video/audio asset and addFromUrl would silently
@@ -109,6 +118,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   }
 
   const handleRequestAssetDialog = () => {
+    if (isFull) return
     closePopover()
     setAssetDialogOpen(true)
   }
@@ -157,7 +167,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             accept="image/*"
             className="hidden"
             onChange={handleFileChange}
-            disabled={disabled}
+            disabled={disabled || isFull}
           />
           <ImagePickerPopoverBody
             dropHint={t('dropHint')}
@@ -174,6 +184,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
               closePopover()
             }}
             onOpenLibrary={handleRequestAssetDialog}
+            disabledReason={limitReason}
             headerSlot={
               totalEntries > 0 ? (
                 <ImageAttachmentPreviewStrip

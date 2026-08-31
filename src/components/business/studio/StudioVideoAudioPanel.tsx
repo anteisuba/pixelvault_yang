@@ -10,6 +10,7 @@ import {
   REFERENCE_AUDIO_MAX_MB,
 } from '@/constants/audio-options'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
+import { VIDEO_REFERENCE_LIMITS } from '@/constants/video-reference-limits'
 import { uploadReferenceAudioAPI } from '@/lib/api-client/voices'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import type { VideoAudioReference } from '@/contexts/studio-context'
@@ -59,12 +60,13 @@ export function StudioVideoAudioPanel() {
    * ⚠ 上限问的是**当前选中的模型**。没选模型时给 0 —— 那时「能挂几条」这个问题
    * 还没有答案，摆一个上传口只会让用户传完才发现发不出去。
    */
-  const audioSlots = selectedModel
+  const modelAudioSlots = selectedModel
     ? getVideoModelSendContract(
         selectedModel.modelId,
         selectedModel.adapterType,
       ).slots.audio
     : 0
+  const audioSlots = Math.min(modelAudioSlots, VIDEO_REFERENCE_LIMITS.AUDIO)
   const isFull = refs.length >= audioSlots
   const ownerCandidates = characters.activeCards.map((card) => card.name)
 
@@ -77,6 +79,7 @@ export function StudioVideoAudioPanel() {
 
   const addRef = useCallback(
     (entry: Omit<VideoAudioReference, 'id'>) => {
+      if (isFull) return
       // 同一段音频挂两次对模型没有意义，而它会白占一个槽。
       if (refs.some((existing) => existing.url === entry.url)) return
       setRefs([
@@ -89,7 +92,7 @@ export function StudioVideoAudioPanel() {
         },
       ])
     },
-    [refs, setRefs],
+    [isFull, refs, setRefs],
   )
 
   const handlePickFile = useCallback(
@@ -185,9 +188,16 @@ export function StudioVideoAudioPanel() {
           type="file"
           accept="audio/*"
           className="hidden"
+          disabled={isFull || isUploading}
           onChange={handlePickFile}
         />
       </div>
+
+      {isFull ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {t('limitReached', { max: audioSlots })}
+        </p>
+      ) : null}
 
       {refs.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-xs text-muted-foreground">

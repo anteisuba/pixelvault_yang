@@ -464,7 +464,9 @@ describe('generateAudioForUser', () => {
 
     expect(mockGenerateAudio).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: 'Say koh-decks clearly.\n\nContinue now.',
+        // ⚠ 停顿是 Fish 的 `[break]` 标记，不是 `\n\n`——换行符不在 Fish 的任何
+        // 一类标记里，那是我们自己发明的写法（2026-08-30 对文档后退场）。
+        prompt: 'Say koh-decks clearly.[break] Continue now.',
         speed: 1.35,
       }),
     )
@@ -473,7 +475,37 @@ describe('generateAudioForUser', () => {
     )
   })
 
-  it('applies Fish S2-Pro bracket reading style to the provider prompt', async () => {
+  /** ⭐ 中文句间**不塞空格**——同 `applyAudioStylePrompt` 那条原则。 */
+  it('inserts pause markers into CJK text without adding spaces', async () => {
+    const mockGenerateAudio = vi.fn().mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'mp3',
+      duration: 2,
+      requestCount: 1,
+    })
+    setupSyncHappyPath(mockGenerateAudio)
+
+    await generateAudioForUser('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      prompt: '第一句。第二句。第三句。',
+      pauseMarkers: ['after_sentence_1', 'after_sentence_2'],
+    })
+
+    expect(mockGenerateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: '第一句。[break]第二句。[break]第三句。',
+      }),
+    )
+  })
+
+  /**
+   * ⭐ 每个提示词都必须能在 Fish 的标记表里查到。
+   *
+   * 「旁白」原先发的是 `narrating`——那个词在 Fish 的六类标记里**一个都对不上**，
+   * 是我们自造的。S2 支持自由描述所以不会报错，只会被静默当成别的东西处理，
+   * 表现就是「点了没反应」。改成语气与表达表里的 `soft tone`。
+   */
+  it('uses a documented Fish cue word for narration', async () => {
     const mockGenerateAudio = vi.fn().mockResolvedValue({
       audioUrl: 'https://provider.example.com/audio.mp3',
       format: 'mp3',
@@ -490,12 +522,19 @@ describe('generateAudioForUser', () => {
 
     expect(mockGenerateAudio).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: '[narrating] Speak kindly.',
+        prompt: '[soft tone] Speak kindly.',
       }),
     )
   })
 
-  it('injects the emotion cue at every sentence start and defaults to dramatic', async () => {
+  /**
+   * ⚠ 2026-08-30 起**只在开头插一次**，不再逐句。
+   *
+   * 依据是 Fish 文档的「Don't overuse emotion tags in short text」，**不是**音频长度
+   * ——那个指标噪声底 ±7%，我曾据此得出过错误结论，详见
+   * `docs/plans/fish-audio-prosody-emotion-findings-2026-08-30.md`。
+   */
+  it('injects the emotion cue once at the top and defaults to dramatic', async () => {
     const mockGenerateAudio = vi.fn().mockResolvedValue({
       audioUrl: 'https://provider.example.com/audio.mp3',
       format: 'mp3',
@@ -512,9 +551,36 @@ describe('generateAudioForUser', () => {
 
     expect(mockGenerateAudio).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: '[excited] First line. [excited] Second line.',
+        prompt: '[excited] First line. Second line.',
         expressiveness: 'dramatic',
       }),
+    )
+  })
+
+  /**
+   * ⭐ 中日文**不加标记后面那个空格**。
+   *
+   * 理由是别往用户的字里塞他没打的字符：文档示例里那个空格是英文的词间分隔，
+   * 中文里它是一个可见的多余字符。**不是**因为更快——音频长度证不了这个量级。
+   */
+  it('omits the space after the cue for CJK text but keeps it for Latin', async () => {
+    const mockGenerateAudio = vi.fn().mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'mp3',
+      duration: 2,
+      requestCount: 1,
+    })
+    setupSyncHappyPath(mockGenerateAudio)
+
+    await generateAudioForUser('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      prompt: '别回头，别出声。',
+      emotion: 'whisper',
+    })
+
+    expect(mockGenerateAudio).toHaveBeenCalledWith(
+      // ⚠ `whispering` 不是 `whispers`——后者不是 Fish 文档里的词形，实测方向相反。
+      expect.objectContaining({ prompt: '[whispering]别回头，别出声。' }),
     )
   })
 
@@ -854,6 +920,57 @@ describe('submitAudioGeneration', () => {
           providerBaseUrl: 'https://api.fish.audio',
           outputStorageKey: 'audio/user-1/gen.mp3',
         }),
+      }),
+    )
+  })
+
+  /**
+   * ⭐ 表现力必须**在服务端折算成 temperature** 再交给 worker。
+   *
+   * 2026-08-30 审计挖出来的 bug：`providerInput` 原先直接透传 `request.temperature`，
+   * 而 `expressiveness` 根本不在这个对象里、worker 也不认识它——于是配音间参数面板
+   * 里那四档表现力**点了等于没点**，temperature 一直是 Fish 默认 0.7。
+   * 而 `canSubmitAudioViaExecutionWorker()` 只要有可解析的 key 就走 worker，
+   * 也就是绝大多数请求。
+   *
+   * ⚠ 这个 bug 从界面上完全看不出来（照样出声），只有断言 payload 能锁住。
+   */
+  it('resolves expressiveness into a temperature for the worker payload', async () => {
+    vi.mocked(resolveGenerationRoute).mockResolvedValueOnce(
+      FAKE_SYNC_ROUTE as never,
+    )
+    vi.mocked(getProviderAdapter).mockReturnValue({} as never)
+
+    await submitAudioGeneration('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      voiceId: 'voice-1',
+      expressiveness: 'restrained',
+    })
+
+    expect(mockDispatchWorkerRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerInput: expect.objectContaining({ temperature: 0.5 }),
+      }),
+    )
+  })
+
+  /** 有情感但没显式选档时，走 dramatic(0.9)——与同步路径同一条推导。 */
+  it('falls back to the emotion-derived tier when expressiveness is auto', async () => {
+    vi.mocked(resolveGenerationRoute).mockResolvedValueOnce(
+      FAKE_SYNC_ROUTE as never,
+    )
+    vi.mocked(getProviderAdapter).mockReturnValue({} as never)
+
+    await submitAudioGeneration('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      voiceId: 'voice-1',
+      emotion: 'whisper',
+      expressiveness: 'auto',
+    })
+
+    expect(mockDispatchWorkerRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerInput: expect.objectContaining({ temperature: 0.9 }),
       }),
     )
   })

@@ -65,20 +65,40 @@ export const AUDIO_STYLES = [
 export type AudioStyle = (typeof AUDIO_STYLES)[number]
 
 /**
- * Canonical single-word bracket cues. The service wraps each as `[word]` and
- * injects it at the start of every sentence (see `applyAudioStylePrompt`).
- * Both providers are instruction-following: ElevenLabs v3 treats `[whispers]`
- * as an audio tag, Fish s2-pro accepts the same word as a free-form cue. Strong
- * canonical words (`excited`, `whispers`) land far harder than the old
- * descriptive phrases (`excited and energetic`), which read as flat narration.
+ * 送进 `[方括号]` 的提示词。服务端把它包成 `[word]` 放在文本开头
+ * （见 `applyAudioStylePrompt`）。
+ *
+ * ⭐ **每一个词都必须能在 Fish 的标记表里查到**（2026-08-30 owner 定：对不上的退场）。
+ * 表在 https://docs.fish.audio/developer-guide/core-features/emotions，六类：
+ * 基础情感 24 · 进阶情感 25 · 语气与表达 6 · 音效 11 · 停顿 2 · 特效 3。
+ *
+ * ⚠ 加新档位前先去那张表里找词。以前这里有三个查无此词的自造词——
+ * `whispers`（正确写法是 `whispering`）、`narrating`、`conversational`。
+ * S2 确实支持自由描述，所以它们不会报错，只会被**静默地当成别的东西**处理掉，
+ * 于是「点了没反应」而且没有任何日志能告诉你为什么。
+ *
+ * ⚠ 别拿音频时长去验这里的选词：Fish 输出是采样的，同输入长度方差就有 ±7%
+ * （实测五次极差 9613 字节），分辨不出选词差异。只能听。
  */
 export const AUDIO_STYLE_PROMPTS = {
   [AUDIO_STYLE.NONE]: null,
+  // 基础情感表里有
   [AUDIO_STYLE.CALM]: 'calm',
   [AUDIO_STYLE.EXCITED]: 'excited',
-  [AUDIO_STYLE.WHISPER]: 'whispers',
-  [AUDIO_STYLE.NARRATION]: 'narrating',
-  [AUDIO_STYLE.DIALOGUE]: 'conversational',
+  // 语气与表达表里有（`whispers` 不在任何一类里）
+  [AUDIO_STYLE.WHISPER]: 'whispering',
+  /*
+   * 旁白 → `soft tone`（语气与表达表：gentle, quiet）。
+   * 表里没有「narration」这一类；旁白要的是收着讲、不带情绪起伏，`soft tone` 是
+   * 最接近的一条，且与 `calm` 分得开（后者已经被「平静」占了）。
+   */
+  [AUDIO_STYLE.NARRATION]: 'soft tone',
+  /*
+   * 对话 → `relaxed`（基础情感表）。
+   * 表里没有「conversational」；日常对话要的是放松随意，`relaxed` 是表里唯一对得上
+   * 这个意思的词。
+   */
+  [AUDIO_STYLE.DIALOGUE]: 'relaxed',
 } as const satisfies Record<AudioStyle, string | null>
 
 /**

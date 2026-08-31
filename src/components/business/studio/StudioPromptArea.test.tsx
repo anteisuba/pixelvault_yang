@@ -10,6 +10,12 @@ import { WORKFLOW_IDS, type WorkflowId } from '@/constants/workflows'
 import type { StudioFormState } from '@/contexts/studio-context'
 import type { VoiceCardRecord } from '@/types'
 
+import {
+  getOperatorClaim,
+  setOperatorClaim,
+  setOperatorPrimed,
+} from '@/hooks/use-studio-operator-store'
+
 import { StudioPromptArea } from './StudioPromptArea'
 
 const mockDispatch = vi.hoisted(() => vi.fn())
@@ -1047,5 +1053,100 @@ describe('StudioPromptArea · 视频音频参考（台账 A）', () => {
       videoGenerateAudio: false,
     })
     expect(getSubmittedVideoPayload().generateAudio).toBe(false)
+  })
+})
+
+/**
+ * 归属追踪的**领票口**（P3-C，拍板 4「自动只看它自己备的那次 / 用户自己发的
+ * 不打扰」）。
+ *
+ * ⭐ 这里钉的是**判据本身**：整条闭环的入口就是这一下点击。领错票的后果是助手
+ * 去评一张不是它备的图 —— 而那是拍板 4 明令不许的打扰。
+ */
+describe('归属追踪 · 只有 primed 态打出去的那一枪才领票', () => {
+  const imageModel = {
+    optionId: 'image-option',
+    modelId: 'gpt-image-1',
+    keyId: 'openai-key-1',
+    keyLabel: 'OpenAI key',
+    adapterType: 'openai',
+    providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com' },
+    sourceType: 'saved',
+    requestCount: 1,
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGenerate.mockResolvedValue(null)
+    mockUseAudioModelOptions.mockReturnValue({
+      selectedModel: null,
+      modelOptions: [],
+    })
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: imageModel,
+      modelOptions: [imageModel],
+    })
+    mockUseVoiceCards.mockReturnValue({
+      cards: [],
+      isLoading: false,
+      error: null,
+      findCard: () => null,
+      refresh: vi.fn(),
+    })
+    localStorage.clear()
+    // 样例提示词的首访标记：不设的话组件会自己往输入框里塞一段。
+    localStorage.setItem(SAMPLE_PROMPT_FLAG_KEY, '1')
+    // ⚠ store 是模块级单例 —— 上一个用例的票和 primed 态会漏到下一个。
+    setOperatorClaim(null)
+    setOperatorPrimed(false)
+  })
+
+  function renderReadyImageWorkbench(): void {
+    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
+      outputType: 'image',
+      selectedOptionId: 'image-option',
+      prompt: 'a girl under a red umbrella',
+    })
+    render(<StudioPromptArea />)
+  }
+
+  it('primed 态点生成 → 领一张票', async () => {
+    setOperatorPrimed(true)
+    renderReadyImageWorkbench()
+
+    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
+
+    await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
+    expect(getOperatorClaim()).not.toBeNull()
+  })
+
+  /** ⭐ 拍板 4 的后半句 —— 用户自己配好表单点的那一枪，助手完全不知道。 */
+  it('不是 primed 态时不领票 —— 用户自己发的生成助手够不着', async () => {
+    renderReadyImageWorkbench()
+
+    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
+
+    await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
+    expect(getOperatorClaim()).toBeNull()
+  })
+
+  /**
+   * ⚠ 本仓的生成键是 Krea 式的「点了才告诉你缺什么」：被闸挡下的那一次只弹
+   * toast、什么都没生成。在那里领票，这张票就会飘到用户接下来自己发的那一枪上。
+   */
+  it('被闸挡下的那一次不领票（什么都没生成）', () => {
+    setOperatorPrimed(true)
+    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
+      outputType: 'image',
+      selectedOptionId: 'image-option',
+      // 空提示词 = blockedReason 非空
+      prompt: '',
+    })
+    render(<StudioPromptArea />)
+
+    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
+
+    expect(mockGenerate).not.toHaveBeenCalled()
+    expect(getOperatorClaim()).toBeNull()
   })
 })

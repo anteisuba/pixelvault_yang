@@ -161,9 +161,16 @@ import {
 } from '@/constants/provider-capabilities'
 import { adapterHasCapability } from '@/constants/llm-capability'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
+import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useImageUpload } from '@/hooks/use-image-upload'
+import { useLoraOperatorHost } from '@/hooks/use-lora-operator-host'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
+import { requestOperatorAttachment } from '@/hooks/use-studio-operator-store'
+import {
+  StudioOperatorChangeRail,
+  StudioOperatorDock,
+} from '@/components/business/studio/assistant-operator'
 import { LoraAspectRatioChip } from '@/components/business/studio/lora/LoraAspectRatioChip'
 import { LoraAssistantDock } from '@/components/business/studio/lora/LoraAssistantDock'
 import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseModelModal'
@@ -1409,12 +1416,9 @@ function GenerateBranch({
     [mountExtras],
   )
 
-  // ── F2 LoRA 助手 dock（docs/plans/lora-assistant-nl2tag-2026-07.md §1.2）──
-  // 装配 loraContext 的三份实时数据（挂载/tray/底模家族——每次渲染重算，
-  // PromptAssistantPanel 的 sendOpts() 在发送那一刻读到的永远是最新值）+
-  // 结果卡落地正文/负向框的回调。dock 开关状态在 root（按钮在模块 tab 行最右），
-  // 这里只收 props；dock 宽度由 LoraAssistantDock 自己订阅（正文不按宽度让位，
-  // 见下方「恒覆盖态」注）。
+  // ── 助手（P4-C 起是**操作员面板**，见下方 `operatorHost`）────────────────
+  // 开关状态在 root（按钮在模块 tab 行最右），这里只收 props；面板宽度由
+  // `StudioOperatorDock` 自己订阅（正文不按宽度让位，见下方「恒覆盖态」注）。
   // S3 库 modal：＋添加 LoRA / 空态「去库」唤起分类库对话框（覆盖生成页·即筛
   // 即挂），取代原先跳转到「库」tab。库 tab 仍在（HF/我的 全量浏览）。
   const [libraryModalOpen, setLibraryModalOpen] = useState(false)
@@ -1425,9 +1429,17 @@ function GenerateBranch({
   const [assemblyCollapsed, setAssemblyCollapsed] = useState(false)
   const isAssistantMobile = useIsMobile()
 
-  // owner 2026-07-25：助手 dock 恒「覆盖态」——叠在生成区上方，不再挤压正文
+  // owner 2026-07-25：助手面板恒「覆盖态」——叠在生成区上方，不再挤压正文
   // （原 R4 的「主台扣掉助手宽仍 ≥900px 就停靠 push」阈值逻辑连同宽度测量一并
-  // 移除）。dock 本身是 fixed 出流，正文保持全宽即可被盖住。
+  // 移除）。面板本身是 fixed 出流，正文保持全宽即可被盖住。
+  //
+  // ── ⚠ P4-C：桌面换操作员，**小屏仍走旧面板** ───────────────────────────
+  // `StudioOperatorDock` 在 `isMobile` 时 `return null`（它没有小屏宿主，工作台
+  // 那边小屏走的也是 `StudioEnhanceButton` 里的抽屉）。所以装配台这边保留
+  // `LoraAssistantDock` 的**移动端那一支**，并把它整颗按 `isAssistantMobile` 关掉
+  // ——两颗面板因此**永不同屏**（一个只在小屏、一个只在桌面），⛔ 不是并存。
+  // ⛔ 直接删掉旧 dock 的代价是小屏上装配台**整个没有助手**，那是功能回退不是清理。
+  // 下面这几份打包件因此还活着：它们只服务小屏那一支。
   const assistantMounts = useMemo<LoraAssistantMount[]>(
     () =>
       stack.items.map((item) => ({
@@ -1446,17 +1458,15 @@ function GenerateBranch({
         .map((selection) => selection.promptText),
     [promptTags.positive, promptTags.negative],
   )
-  // §3.0b：助手挂在 dock 里，看不见左边这张装配台——不喂状态它就只能反问用户
-  // 已经填好的底模 / 挂载 / 比例（owner 实测过三次同一个发作）。这里把「屏幕上
-  // 已经写着的事实」原样打包发出去。
+  // §3.0b：旧面板看不见左边这张装配台——不喂状态它就只能反问用户已经填好的底模 /
+  // 挂载 / 比例（owner 实测过三次同一个发作）。这里把「屏幕上已经写着的事实」原样
+  // 打包发出去。⚠ 操作员**不读它**：那一侧每一轮现读快照
+  // （`useLoraOperatorHost.buildSnapshot`），⛔ 别把两者接成一份。
   //
   // ⚠ 拿不到的字段一律留 undefined，**不塞占位值**：formatter 对 undefined 会
   //   照实沉默，对占位值会当真并拿它去解释画面。本域两条明确的空缺——
   //   - `lastRun`：LoRA 域没有 activeRun 那套批次追踪，无从填起；
   //   - `output.batchCount`：本域是单次出图，压根没有张数字段。
-  //
-  // 参考图张数用 imageUpload.referenceImages（它已滤掉被底模能力位停用的条目），
-  // 助手要的是真正会参与这次出图的张数，不是上传过几张。
   const assistantReferenceImageCount = imageUpload.referenceImages.length
   const assistantWorkbenchState = useMemo<AssistantWorkbenchState>(
     () => ({
@@ -1524,10 +1534,59 @@ function GenerateBranch({
     // 迁入前「自己搭配」escape 暂为空操作。
   }, [])
 
-  // CD①「加入搭配提醒」：助手建议不再直接落进输入框，而是与做同款走同一条
+  /**
+   * 操作员在**装配台**这个宿主上的那一份（P4-C）。
+   *
+   * ⚠ 底模标签用**界面上那一行**（`spine.<translationKey>` 优先）：助手在日志里
+   * 说的底模名与用户在装配栏上看到的必须逐字一致，否则「它说切到 XX 了」而画面上
+   * 写着另一个词。
+   * ⚠ `availableBases` 就是 `compatibleBases` —— 那正是 `LoraBaseModelModal` 里
+   * 列的那些（拍板 19：只给它界面上点得到的选项）。
+   */
+  const operatorBaseLabel = useCallback(
+    (base: LoraBaseModel) =>
+      base.translationKey
+        ? t(`spine.${base.translationKey}`)
+        : base.displayName,
+    [t],
+  )
+  const operatorBases = useMemo(
+    () =>
+      compatibleBases.map((base) => ({
+        id: base.id,
+        label: operatorBaseLabel(base),
+      })),
+    [compatibleBases, operatorBaseLabel],
+  )
+  const operatorHost = useLoraOperatorHost({
+    prompt,
+    setPrompt,
+    appendPrompt: handleAssistantAppendPrompt,
+    negativePrompt,
+    setNegativePrompt: handleAssistantFillNegative,
+    base: selectedBase
+      ? {
+          id: selectedBase.id,
+          label: operatorBaseLabel(selectedBase),
+          family: selectedBase.family ?? null,
+        }
+      : null,
+    availableBases: operatorBases,
+    selectBase: handleSelectBase,
+    stack,
+    imageUpload,
+    open: assistantOpen,
+    setOpen: onAssistantOpenChange,
+  })
+
+  // CD①「加入搭配提醒」：旧面板的建议不直接落进输入框，而是与做同款走同一条
   // 审阅通道——先写进主台，同时进「待审阅」并摊开变更卡，用户点应用才收敛、
   // 点撤销整批回滚。正向追加（不覆盖用户已写的正文）、负向填入（负向框内容
   // 是模板化的，覆盖比追加更符合预期，与既有 onUseNegativePrompt 一致）。
+  //
+  // ⚠ **操作员不走这条**（P4-C）：它的每一处改动自带 `inverse`，撤销粒度在登记簿
+  //   与日志条上（拍板 18 / 14）。两套都往 `assistantStaged` 里写的表现是同一条
+  //   建议有两个撤销入口，而它们撤的不是同一份快照。这条通道因此只剩小屏那一支。
   const handleStageAssistantSuggestion = useCallback(
     (payload: { positive: string; negative: string }) => {
       const addedTags = payload.positive
@@ -1757,23 +1816,32 @@ function GenerateBranch({
   /**
    * §3.0b 第 4 条「点这张生成图问助手」在 LoRA 装配台的落点。
    *
-   * ⚠ 不能复用 `useAskAssistantAboutImage` —— 它开面板那一步是
-   * `dispatch({ type: 'OPEN_PANEL' })`，走的是 studio reducer，而 /studio/lora
-   * 故意不挂 `<StudioProvider>`（见 LoraAssistantDock 顶部注释），调它会直接抛。
-   * 可复用的是**注入通道本身**：`useStudioAssistantReference` 背后是模块级
-   * store，不依赖任何 Provider；开合则用本页自己的 `onAssistantOpenChange`。
+   * ⚠ **P4-C 起要投两个口**，因为这张页上有两个宿主（桌面=操作员 / 小屏=旧面板），
+   * 而它们读的不是同一个通道：
+   *  · 操作员读 `requestOperatorAttachment`（落进与 📎 上传 / 素材库挑选**同一个**
+   *    attachments 数组，开面板由消费方顺手做掉）；
+   *  · 旧面板读 `useStudioAssistantReference` 那个模块 store，开合用本页的
+   *    `onAssistantOpenChange`（⚠ 不能复用 `useAskAssistantAboutImage`：它开面板
+   *    那一步是 studio reducer 的 dispatch，而这条路由没有 `<StudioProvider>`）。
+   * ⛔ 只投一个的表现是「在另一种屏幕上点了，面板开了、图没跟过来」——
+   *    本仓最难查的那一类失败。两条投递都是幂等的写入，同屏只有一个消费者。
    *
-   * ⚠ 两步顺序不能反：先注入，再开面板。移动端宿主是 Drawer，是在刚挂载的那
-   * 一帧去读注入值的——反过来的话 `token` 已经先于订阅建立之前变过，附件不会
-   * 出现。
+   * ⚠ 顺序不能反：先注入，再开面板。小屏宿主是 Drawer，在刚挂载的那一帧去读注入
+   *   值 —— 反过来的话 token 已经先于订阅建立之前变过，附件不会出现。
    *
    * ⚠ 只塞附件，不自动发送（owner 拍板）：vision token 是真钱，用户看到缩略图
-   * 后自己打字、自己按发送，走的还是既有那条 `references` 附件管线。
+   * 后自己打字、自己按发送。
    */
   const { injectReference } = useStudioAssistantReference()
   const handleAskAssistantAboutResult = useCallback(
     (url: string) => {
       if (!url) return
+      requestOperatorAttachment({
+        id: `lora-result:${url}`,
+        url,
+        label: url.split('/').pop() || url,
+        kind: 'image',
+      })
       injectReference(url)
       onAssistantOpenChange(true)
     },
@@ -2145,7 +2213,15 @@ function GenerateBranch({
   )
 
   return (
-    <>
+    /**
+     * 操作员的宿主（P4-C）—— 面板从这里读装配台、往这里落笔。
+     *
+     * ⚠ 必须包住**创作面**（那里有 ✦ 归属标记与就地确认条）与**面板**两者：
+     * 只包面板的话，✦ 那一侧会在运行时抛「must be used within provider」。
+     * ⚠ 这一层就是 `/studio/lora` 没有 `<StudioProvider>` 也能跑操作员的原因 ——
+     * 详见 `contexts/studio-operator-host.tsx` 的头注。
+     */
+    <StudioOperatorHostProvider host={operatorHost}>
       {/* 正文保持全宽——助手 dock 是 fixed 覆盖层，叠在上面而不是把这里挤窄
           （owner 2026-07-25）。 */}
       <section className="space-y-4 pb-24 md:flex md:min-h-0 md:flex-1 md:flex-col md:gap-4 md:space-y-0 md:overflow-hidden md:pb-0">
@@ -2675,6 +2751,12 @@ function GenerateBranch({
                       disabled={isGenerating}
                     />
                   </div>
+                  {/**
+                   * 归属标记（✦）与就地确认条（P4-C）—— 与工作台**同一颗组件**。
+                   * 拍板 3 要求覆写确认长在被改的那一栏上，所以它紧挨着提示词卡
+                   * 底部，⛔ 不躲进右边的面板里。
+                   */}
+                  <StudioOperatorChangeRail />
                 </div>
                 {/* CD：负面 Prompt 是一条可折叠的单行摘要（Negative + 内容预览 +
                     角标），不是「＋ 添加负面 Prompt」文字链接。 */}
@@ -2842,27 +2924,45 @@ function GenerateBranch({
           }
         </div>
       </section>
-      <LoraAssistantDock
-        open={assistantOpen}
-        onOpenChange={onAssistantOpenChange}
-        currentPrompt={prompt}
-        modelId={baseModelId ?? undefined}
-        llmApiKeys={assistantApiKeys}
-        referenceImageData={imageUpload.referenceImages[0]}
-        workbenchState={assistantWorkbenchState}
-        onUsePrompt={setPrompt}
-        persona={{
-          mounts: assistantMounts,
-          baseFamily: selectedBase?.family,
-          trayTags: assistantTrayTags,
-          onAppendPrompt: handleAssistantAppendPrompt,
-          onUseNegativePrompt: handleAssistantFillNegative,
-          onAppendNegativePrompt: handleAssistantAppendNegative,
-          onEscapeToSelfBuild: handleAssistantEscapeToSelfBuild,
-          onStageForReview: handleStageAssistantSuggestion,
-        }}
-      />
-    </>
+      {/**
+       * 助手 —— **桌面切到操作员面板**（P4-C）。与工作台**同一颗 Dock**：它从
+       * P4-C 起页面无关，开合 / 参考位上限 / 表单全从宿主拿。
+       * ⚠ 它在 `isMobile` 时自己 `return null`（操作员没有小屏宿主）。
+       */}
+      <StudioOperatorDock />
+      {/**
+       * 小屏那一支 —— 旧面板的 Drawer 宿主。
+       *
+       * ⭐ **两颗面板永不同屏**：这里按 `isAssistantMobile` 整颗关掉，而
+       * `StudioOperatorDock` 在小屏自己 return null。⛔ 去掉这个门就是桌面上右边
+       * 叠两层面板（`LoraAssistantDock` 内部有两处 render：小屏 Drawer + 桌面
+       * `AssistantShell`，桌面那一支在这里必须够不着）。
+       * ⛔ 也不能直接删掉整颗：删了小屏上装配台**一个助手都没有**，那是功能回退。
+       * 工作台那边同一个形状（小屏走 `StudioEnhanceButton` 里的抽屉宿主）。
+       */}
+      {isAssistantMobile ? (
+        <LoraAssistantDock
+          open={assistantOpen}
+          onOpenChange={onAssistantOpenChange}
+          currentPrompt={prompt}
+          modelId={baseModelId ?? undefined}
+          llmApiKeys={assistantApiKeys}
+          referenceImageData={imageUpload.referenceImages[0]}
+          workbenchState={assistantWorkbenchState}
+          onUsePrompt={setPrompt}
+          persona={{
+            mounts: assistantMounts,
+            baseFamily: selectedBase?.family,
+            trayTags: assistantTrayTags,
+            onAppendPrompt: handleAssistantAppendPrompt,
+            onUseNegativePrompt: handleAssistantFillNegative,
+            onAppendNegativePrompt: handleAssistantAppendNegative,
+            onEscapeToSelfBuild: handleAssistantEscapeToSelfBuild,
+            onStageForReview: handleStageAssistantSuggestion,
+          }}
+        />
+      ) : null}
+    </StudioOperatorHostProvider>
   )
 }
 

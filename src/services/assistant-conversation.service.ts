@@ -54,6 +54,24 @@ function sanitizeMessages(
     .slice(-ASSISTANT_CONVERSATION_LIMITS.maxMessages)
 }
 
+/**
+ * 这条消息带着操作员线程的可读痕迹吗（P4-B）。
+ *
+ * ⚠ 只判**在场**，不判形状：形状交给读取那一侧的 zod（那边 `.catch(undefined)`
+ * 会把读不出来的载荷退化成纯文本）。这里判形状只会让一条能读的历史因为一个装饰
+ * 字段过期而从列表里消失。
+ */
+function hasOperatorPayload(message: Prisma.JsonValue | undefined): boolean {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    !Array.isArray(message) &&
+    'operator' in message &&
+    message.operator !== null &&
+    message.operator !== undefined
+  )
+}
+
 function toRecord(row: {
   id: string
   surface: AssistantSurface
@@ -162,6 +180,14 @@ export async function listAssistantConversations(
       title: row.title,
       updatedAt: row.updatedAt.toISOString(),
       messageCount: messages.length,
+      /**
+       * 操作员线程认的是**消息上那格 `operator` 载荷**（P4-B）。
+       *
+       * ⚠ 判据放在服务端而不是客户端，是因为客户端拿不到 `messages` —— 这个
+       * 查询已经把它读出来了（`messageCount` 就是数它），所以这一行零额外代价。
+       * ⚠ 只看第一条：操作员线程的每一条都带这格，旧助手的一条都没有。
+       */
+      operatorThread: hasOperatorPayload(messages[0]),
     }
   })
 }

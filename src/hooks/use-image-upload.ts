@@ -171,6 +171,7 @@ export function useImageUpload(): UseImageUploadReturn {
   const addReferenceImage = useCallback((image: string) => {
     setReferenceEntries((prev) => {
       const max = maxImagesRef.current
+      if (Number.isFinite(max) && max > 0 && prev.length >= max) return prev
       if (max === 1) {
         return [{ url: image, disabledReason: null }]
       }
@@ -220,9 +221,14 @@ export function useImageUpload(): UseImageUploadReturn {
       // The server already normalizes both forms, so the client doesn't
       // need to materialize the bytes anymore.
       if (!url) return
+      const max = maxImagesRef.current
+      if (Number.isFinite(max) && max > 0 && referenceEntries.length >= max) {
+        toast.error(t('limitReached', { max }))
+        return
+      }
       addReferenceImage(url)
     },
-    [addReferenceImage],
+    [addReferenceImage, referenceEntries.length, t],
   )
 
   const clearAllImages = useCallback(() => {
@@ -254,6 +260,11 @@ export function useImageUpload(): UseImageUploadReturn {
   const uploadLocalFile = useCallback(
     async (file: File) => {
       if (!file.type.startsWith('image/')) return
+      const max = maxImagesRef.current
+      if (Number.isFinite(max) && max > 0 && referenceEntries.length >= max) {
+        toast.error(t('limitReached', { max }))
+        return
+      }
       setIsUploading(true)
       try {
         const maxMb = String(CLIENT_UPLOAD_MAX_BYTES / 1024 / 1024)
@@ -279,7 +290,7 @@ export function useImageUpload(): UseImageUploadReturn {
         setIsUploading(false)
       }
     },
-    [t, tErrors, addReferenceImage],
+    [t, tErrors, addReferenceImage, referenceEntries.length],
   )
 
   const handleFileChange = useCallback(

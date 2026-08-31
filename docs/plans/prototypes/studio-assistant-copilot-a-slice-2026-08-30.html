@@ -647,7 +647,7 @@ $('attRow').addEventListener('click',e=>{
   ATT.splice(+x.dataset.i,1); renderAtt();
 });
 $('dropZone').addEventListener('click',()=>flash('上传：图片 / 音频 / 视频（实现期接 /api/upload-*）'));
-$('openLib').addEventListener('click',()=>flash('跳完整素材库选择器（现有 AssetSelectorDialog）'));
+$('openLib').addEventListener('click',()=>flash('就地打开小框素材库弹层（复用现有素材选择器组件，⛔不跳 /assets —— owner 08-30 拍板 20）'));
 $('pasteHint').addEventListener('click',()=>flash('粘贴即挂件（实现期接 clipboard paste 事件）'));
 
 /* 模型 chip：点开=现有「自动路由」组件（复用，不另行设计） */

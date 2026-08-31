@@ -209,6 +209,12 @@ export const API_ENDPOINTS = {
   /** Complete a browser-direct R2 video upload and create its Generation row */
   UPLOAD_VIDEO_DIRECT_COMPLETE: '/api/upload-video/direct/complete',
 
+  /** Prepare a browser-direct R2 audio upload from the asset library */
+  UPLOAD_AUDIO_DIRECT: '/api/upload-audio/direct',
+
+  /** Complete a browser-direct R2 audio upload and create its Generation row */
+  UPLOAD_AUDIO_DIRECT_COMPLETE: '/api/upload-audio/direct/complete',
+
   /** Upload a poster PNG for a MODEL_3D generation (client-rendered thumbnail) */
   GENERATION_POSTER: '/api/generations',
 
@@ -291,6 +297,16 @@ export const API_ENDPOINTS = {
   STUDIO_GENERATE: '/api/studio/generate',
   STUDIO_GENERATE_STATUS: '/api/studio/generate/status',
   STUDIO_SELECT_WINNER: '/api/studio/select-winner',
+  /**
+   * 工作台助手的**工具环**（操作员化 P1/P2）。出的是结构化事件流，不是文本流 ——
+   * 与 `PROMPT_ASSISTANT_STREAM` 并存而不是替代它：那条流的载荷是文本增量。
+   */
+  STUDIO_ASSISTANT_OPERATOR: '/api/studio/assistant-operator',
+  /**
+   * 联网搜图的**确认转存**（P3-B 腿 B）。搜索只出预览候选，用户点选一张才走这条
+   * 路由把它转进 R2 —— ⛔ 助手的工具环里没有任何一条工具能调到它。
+   */
+  STUDIO_WEB_IMAGE_IMPORT: '/api/studio/web-image-import',
   GENERATION_PLAN: '/api/generation/plan',
   GENERATION_COMPILE: '/api/generation/compile',
   GENERATION_EVALUATE: '/api/generation/evaluate',

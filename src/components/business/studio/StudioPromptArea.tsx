@@ -101,6 +101,12 @@ import {
   type CostPreviewBasis,
 } from '@/components/business/studio/StudioCostPreview'
 import { StudioAudioKindSwitcher } from '@/components/business/studio/StudioAudioKindSwitcher'
+import { StudioOperatorChangeRail } from '@/components/business/studio/assistant-operator'
+import {
+  claimOperatorGeneration,
+  setOperatorPrimed,
+  useStudioOperatorState,
+} from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
 import { composeCharacterInjection } from '@/lib/character-card-injection'
 import { hasPlaceholders } from '@/lib/prompt-placeholders'
@@ -162,6 +168,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tVideoAudio = useTranslations('StudioVideoAudio')
   const tVideo = useTranslations('VideoGenerate')
   const locale = useLocale()
+  /**
+   * 助手「预填好的生成键」（任务包 `studio-assistant-operator-2026-08-30.md`
+   * 拍板 2：钱是唯一硬闸）。只读一个布尔 —— 价钱由上面那行既有的
+   * `StudioCostPreview` 报，⛔ 不在这里另算一个数（两处算价必然分叉）。
+   */
+  const { primed: isOperatorPrimed } = useStudioOperatorState()
 
   useEffect(() => {
     if (!localStorage.getItem(SAMPLE_PROMPT_STORAGE_KEY) && !state.prompt) {
@@ -1536,6 +1548,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           </span>
         </Toolbar.Root>
 
+        {/* 助手改了哪些字段（✦ 归属标记）+ 覆写用的就地确认条 —— 紧贴提示词框，
+            因为它们说的就是这一栏正在发生的事（任务包
+            `studio-assistant-operator-2026-08-30.md` 拍板 3 / 18）。
+            ⚠ 助手没改过东西、也没在问话时它整颗不渲染，不占位。 */}
+        <StudioOperatorChangeRail />
+
         {/* 卡片工作流的下拉组 —— 原来长在 `StudioBottomDock` 里，随 dock 一起
             退役，改挂这里。条件与旧版逐字一致（音频没有卡片）。 */}
         {state.workflowMode === 'card' && !isAudioMode ? (
@@ -1901,8 +1919,26 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           {/* 生成 —— 按钮上写清这一次会出几张 */}
           <button
             type="button"
+            data-operator-primed={isOperatorPrimed ? 'true' : undefined}
             onClick={(event) => {
               event.stopPropagation()
+              /**
+               * ⭐ 归属追踪（P3-C，拍板 4「自动只看它自己备的那次」）：**只有
+               * primed 态下真的打出去的那一枪**才领票。用户自己配好表单点的那些
+               * 一律不领 —— 于是助手根本拿不到它们的结果图，「不打扰」在结构上
+               * 成立，不靠模型自觉。
+               * ⚠ 三个前提与下面 `handleGenerate` 自己的守卫**逐条一致**：
+               *   被 `blockedReason` 挡下的那一次只弹 toast、什么都没生成，
+               *   在那里领票会让这张票飘到用户接下来自己发的那一枪上。
+               */
+              if (isOperatorPrimed && !isGenerating && !blockedReason) {
+                claimOperatorGeneration()
+              }
+              // 助手预填的那一枪打出去了 —— primed 是「等你来点」，点完就该灭
+              // （任务包 `studio-assistant-operator-2026-08-30.md` 拍板 2）。
+              // ⛔ 助手在服务端一条能创建 generation 的工具都没有：扣扳机的
+              //    永远是这一下点击。
+              setOperatorPrimed(false)
               void handleGenerate()
             }}
             disabled={
@@ -1926,6 +1962,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 isImagePromptOverLimit ||
                 isAudioPromptOverLimit) &&
                 'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:shadow-none',
+              // 助手把表单配好了、价钱就在上面那行 —— 这一圈是「等你来点」。
+              // ⚠ 只加一圈 ring，**不改按钮的文案与行为**：钱闸是这一下点击，
+              //   把它做得更像「已经在跑」只会让人以为不用点了。
+              isOperatorPrimed &&
+                !isGenerating &&
+                !blockedReason &&
+                'ring-2 ring-primary/60 ring-offset-2 ring-offset-background',
             )}
           >
             {isGenerating ? (

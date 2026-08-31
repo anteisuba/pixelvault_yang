@@ -88,7 +88,7 @@ export function AssetSearchBox({
             setOpen(false)
           }
         }}
-        className="h-8 w-full rounded-lg border border-border bg-background pl-8 pr-7 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground hover:border-border-strong focus-visible:border-foreground/40 focus-visible:ring-2 focus-visible:ring-ring/30 [&::-webkit-search-cancel-button]:hidden"
+        className="h-9 w-full rounded-lg border border-transparent bg-muted/55 pl-8 pr-7 text-xs text-foreground outline-none transition-[background-color,border-color,box-shadow] duration-(--duration-base) ease-standard placeholder:text-muted-foreground hover:bg-muted/75 focus-visible:border-foreground/25 focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-ring/25 [&::-webkit-search-cancel-button]:hidden"
       />
       {(draft || value) && (
         <button

@@ -37,8 +37,19 @@ export const CLIENT_UPLOAD_MAX_BYTES = 15 * 1024 * 1024
 export const USER_VIDEO_UPLOAD_MAX_BYTES = 5 * 1024 * 1024 * 1024
 export const CLIENT_VIDEO_UPLOAD_MAX_BYTES = USER_VIDEO_UPLOAD_MAX_BYTES
 
+/**
+ * Asset-library audio uploads use the same browser-direct single PUT path as
+ * videos. Keep them out of the buffered image path: audio files are preserved
+ * byte-for-byte and finalized from R2 metadata + signature bytes only.
+ */
+export const USER_AUDIO_UPLOAD_MAX_BYTES = 5 * 1024 * 1024 * 1024
+export const CLIENT_AUDIO_UPLOAD_MAX_BYTES = USER_AUDIO_UPLOAD_MAX_BYTES
+
 /** Bytes needed to identify the supported video containers safely. */
 export const USER_VIDEO_UPLOAD_SIGNATURE_BYTES = 4096
+
+/** Bytes needed to identify all supported audio containers safely. */
+export const USER_AUDIO_UPLOAD_SIGNATURE_BYTES = 4096
 
 /**
  * Short-lived presigned PUT URL window for browser-direct R2 uploads. Keep it
@@ -48,6 +59,9 @@ export const USER_UPLOAD_DIRECT_URL_EXPIRES_SECONDS = 5 * 60
 
 /** Large videos need a wider window than image uploads to finish one PUT. */
 export const USER_VIDEO_UPLOAD_DIRECT_URL_EXPIRES_SECONDS = 60 * 60
+
+/** Large audio files use the same one-hour direct-upload window as videos. */
+export const USER_AUDIO_UPLOAD_DIRECT_URL_EXPIRES_SECONDS = 60 * 60
 
 /**
  * Accepted image MIME types. Deliberately narrow — `image/svg+xml` is excluded
@@ -71,10 +85,26 @@ export const USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES = [
   'video/webm',
 ] as const
 
+export const USER_AUDIO_UPLOAD_ACCEPTED_MIME_TYPES = [
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/wave',
+  'audio/x-wav',
+  'audio/mp4',
+  'audio/m4a',
+  'audio/x-m4a',
+  'audio/flac',
+  'audio/x-flac',
+  'audio/ogg',
+  'audio/webm',
+] as const
+
 /** Accepted media for the full asset-library upload entrance. */
 export const USER_UPLOAD_ACCEPTED_MIME_TYPES = [
   ...USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES,
   ...USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES,
+  ...USER_AUDIO_UPLOAD_ACCEPTED_MIME_TYPES,
 ] as const
 
 export type AcceptedImageUploadMimeType =
@@ -82,6 +112,9 @@ export type AcceptedImageUploadMimeType =
 
 export type AcceptedVideoUploadMimeType =
   (typeof USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES)[number]
+
+export type AcceptedAudioUploadMimeType =
+  (typeof USER_AUDIO_UPLOAD_ACCEPTED_MIME_TYPES)[number]
 
 export type AcceptedUploadMimeType =
   (typeof USER_UPLOAD_ACCEPTED_MIME_TYPES)[number]

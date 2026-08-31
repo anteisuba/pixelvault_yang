@@ -188,7 +188,8 @@
     "compressed": "Compressed {from} MB → {to} MB",
     "gifTooLarge": "GIF too large to auto-compress. Max {maxMb} MB — please optimize it first.",
     "tooLarge": "Image too large. Max {maxMb} MB — please use a smaller one.",
-    "uploadFailed": "Reference image upload failed. Please try again."
+    "uploadFailed": "Reference image upload failed. Please try again.",
+    "limitReached": "This model accepts at most {max} reference images. Remove one to add another."
   },
   "Common": {
     "brand": "ANTEI",
@@ -2597,6 +2598,7 @@
     "referenceStrengthHint": "Higher stays closer to the reference",
     "disabledOverLimit": "Exceeds the current model's image limit",
     "disabledUnsupported": "Current model doesn't accept reference images",
+    "limitReached": "The reference image limit ({max}) is full. Remove one to add another.",
     "back": "Back",
     "selectAssetEmpty": "No saved assets yet",
     "selectFromArchive": "Pick from archive",
@@ -2615,13 +2617,14 @@
     "search": "Search assets...",
     "uploadButton": "Upload",
     "uploadDropHint": "Drop to upload into \"{folder}\"",
-    "uploadInputLabel": "Upload images or videos to local assets",
+    "uploadInputLabel": "Upload images, videos, or audio to local assets",
     "uploading": "Uploading...",
     "uploadSuccess": "Asset uploaded to local assets.",
     "uploadFailed": "Upload failed",
-    "uploadUnsupportedFile": "Upload a JPG, PNG, WebP, GIF, MP4, MOV, or WebM file.",
+    "uploadUnsupportedFile": "Upload a JPG, PNG, WebP, GIF, MP4, MOV, WebM, MP3, WAV, M4A, FLAC, or OGG file.",
     "uploadFileTooLarge": "File is too large. Max {maxMb} MB.",
     "uploadVideoTooLarge": "Video is too large. Max {maxGb} GB.",
+    "uploadAudioTooLarge": "Audio is too large. Max {maxGb} GB.",
     "uploadCompressing": "Optimizing large image…",
     "uploadCompressed": "Compressed {from} MB → {to} MB",
     "uploadGifTooLarge": "GIF too large to auto-compress. Max {maxMb} MB — please optimise it first.",
@@ -2694,6 +2697,8 @@
     "detailDownloading": "Downloading...",
     "detailDownloadFailed": "Download failed. Opening the original file.",
     "detailOpenOriginal": "Open original",
+    "detailPreviousImage": "Previous image",
+    "detailNextImage": "Next image",
     "detailMoveTo": "Move to folder",
     "detailMoveUnassigned": "Unassigned",
     "detailMoved": "Moved to folder",
@@ -2732,7 +2737,7 @@
     "detailDeleteConfirmDescription": "This permanently removes the file from your archive and cannot be undone.",
     "detailDeleted": "Asset deleted",
     "detailDeleteFailed": "Failed to delete this asset",
-    "densityLabel": "Grid density",
+    "densityLabel": "Density",
     "densitySmall": "Small rows",
     "densityMedium": "Medium rows",
     "densityLarge": "Large rows",
@@ -6370,6 +6375,12 @@
       "unexpected": "An unexpected error occurred. Please try again.",
       "databaseUnavailable": "Database service is temporarily unavailable. Please try again later."
     },
+    "webImageImport": {
+      "unreachable": "The site hosting that image refused the download. Try another candidate.",
+      "unsupported": "That link is not a supported image (JPEG, PNG, WebP, or GIF).",
+      "tooLarge": "That image is too large to import.",
+      "noImageOnPage": "That is a web page and it declares no main image. Send the address of the picture itself (right-click it, Copy image address)."
+    },
     "assistant": {
       "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
       "imageUnsupported": "This model cannot analyze images. Choose OpenAI or Gemini, or remove the image reference.",
@@ -6641,7 +6652,8 @@
     "uploadSuccess": "Audio uploaded",
     "errorTooLarge": "The audio file exceeds {max}",
     "errorNotAudio": "Please choose an audio file",
-    "errorUploadFailed": "Audio upload failed"
+    "errorUploadFailed": "Audio upload failed",
+    "limitReached": "The audio reference limit ({max}) is full. Remove one to add another."
   },
   "VideoScript": {
     "panelTitle": "Script",
@@ -6880,5 +6892,170 @@
     "deleteRoom": "Delete room",
     "deleteRoomTitle": "Delete this room?",
     "deleteRoomHint": "“{name}” and all its lines will be removed. Voices you already generated stay in your library."
+  },
+  "StudioOperator": {
+    "title": "Assistant",
+    "domainChip": {
+      "image": "on the image bench",
+      "video": "on the video bench",
+      "lora": "on the LoRA bench"
+    },
+    "domainName": {
+      "image": "the image bench",
+      "video": "the video bench",
+      "lora": "the LoRA bench"
+    },
+    "session": "Session",
+    "newThread": "New chat",
+    "history": {
+      "heading": "Earlier chats",
+      "empty": "No earlier chats yet",
+      "loading": "Loading…",
+      "untitled": "Untitled chat",
+      "readonlyNote": "Earlier — read only"
+    },
+    "more": "More",
+    "share": "Share this chat",
+    "feedback": "Send feedback",
+    "collapse": "Collapse assistant",
+    "resize": "Drag to resize the assistant",
+    "empty": "Say what you want. Anything free it just does; anything that costs credits stops at a pre-filled generate button for you to press.",
+    "planTitle": "Plan · the free steps happen right away",
+    "domainMark": "Switched to {domain} — new tools, same conversation",
+    "placeholderIdle": "Keep talking, or attach something…",
+    "placeholderWorking": "Go ahead, I am listening — cutting in redirects me",
+    "send": "Send",
+    "sendInterrupt": "Cut in — the assistant takes this and adjusts its plan",
+    "stop": "Stop the current work",
+    "lightboxLabel": "View full size",
+    "pill": {
+      "idle": "Assistant",
+      "working": "Assistant · working",
+      "workingCount": "Assistant · working {done}/{total}",
+      "awaitingConfirm": "Waiting on you · how to write the prompt",
+      "primed": "Ready · generate button is armed"
+    },
+    "log": {
+      "undo": "Undo"
+    },
+    "reject": {
+      "noSuchControl": "This bench has no such control",
+      "unknownModel": "That model is not in the list you can pick from",
+      "unknownValue": "That value is not one of the options",
+      "unknownAsset": "That asset was not in this run's search results",
+      "referencesFull": "Reference slots are full",
+      "emptyValue": "There was nothing to write",
+      "userDeclined": "You chose to keep yours, so this step was skipped",
+      "noModelSelected": "No model picked yet",
+      "emptyPrompt": "The prompt is still empty",
+      "malformedArgs": "The arguments had the wrong shape",
+      "searchUnavailable": "Web image search isn't available right now",
+      "noResultToCritique": "No result of its own is waiting to be reviewed",
+      "visionUnavailable": "No model available here can look at pictures",
+      "critiqueFailed": "It looked, but the review came back unreadable",
+      "urlNotFromUser": "That link did not come from you, so it cannot be taken directly",
+      "repeatedStep": "It already ran this exact step — skipped",
+      "unknownLora": "That LoRA was not in this run's search results",
+      "loraNotMounted": "That LoRA is not on the bench",
+      "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page"
+    },
+    "field": {
+      "prompt": "Prompt",
+      "negative": "Negative prompt",
+      "model": "Model",
+      "specs": "Specs",
+      "count": "Count",
+      "references": "References",
+      "audioReferences": "Voice references",
+      "sound": "Soundtrack",
+      "loras": "LoRA stack"
+    },
+    "changes": {
+      "originalValue": "Was: {value}",
+      "originalEmpty": "Was empty",
+      "revertOne": "Click to revert this field",
+      "revertAll": "Revert everything the assistant changed ({count})",
+      "clearConfirm": "Really clear {count} changes?"
+    },
+    "confirm": {
+      "have": {
+        "prompt": "You hand-wrote {count} characters in the prompt — what should happen to them?",
+        "negative": "You hand-wrote {count} characters in the negative prompt — what should happen to them?"
+      },
+      "choice": {
+        "append": "Append after",
+        "overwrite": "Overwrite",
+        "keep": "Keep mine"
+      }
+    },
+    "system": {
+      "undoStep": "You undid: {subject} (the assistant knows and will not redo it)",
+      "revertField": "You reverted: {subject} (the assistant knows)",
+      "revertAll": "You cleared every change the assistant made ({count}) — it knows",
+      "stopped": "You stopped the current work",
+      "interrupted": "You cut in — the assistant changed course",
+      "revertRound": "You reverted this round's {count} change(s) (the assistant knows)",
+      "resultArrived": "The run it armed came back — the assistant is looking at it",
+      "urlImportFailed": "The link you gave could not be fetched: {subject}",
+      "loraMountFailed": "Could not mount {subject} — nothing was added to the bench"
+    },
+    "suggestion": {
+      "setupShot": "Set this shot up for me",
+      "findReference": "Find a reference in my library",
+      "whyNotEnough": "What is this version still missing?",
+      "animateLast": "Bring this one to life",
+      "addVoice": "Give it her voice",
+      "splitShots": "Cut it into 3 shots",
+      "findStyle": "Find a LoRA that fits this look",
+      "stackConflict": "Will this stack fight itself?",
+      "sweepWeights": "Sweep the weights and compare"
+    },
+    "attach": {
+      "label": "Attach: upload / library / paste",
+      "uploadTitle": "Drop it here, or click to upload",
+      "uploadHint": "Image · audio · video",
+      "libraryLabel": "Library · recent",
+      "openLibrary": "Open the full library",
+      "libraryDialogTitle": "Pick something from your library",
+      "libraryDialogDescription": "One click attaches it to your next message — you stay on the workbench.",
+      "libraryEmpty": "Your library is still empty",
+      "pasteHint": "You can also paste an image straight into the box — it shows up as an attachment above",
+      "remove": "Remove this attachment",
+      "upload": {
+        "compressing": "Too big — squeezing it down to fit…",
+        "compressed": "Compressed: {from}MB → {to}MB",
+        "gifTooLarge": "This animated image is over {maxMb}MB and can't be shrunk — try another one",
+        "tooLargeImage": "Images max out at {maxMb}MB",
+        "tooLargeVideo": "Videos max out at {maxGb}GB",
+        "tooLargeAudio": "Audio maxes out at {maxGb}GB",
+        "unsupported": "Can't upload this kind of file (images / audio / video only)",
+        "failed": "Upload failed",
+        "retry": "Retry this upload",
+        "waiting": "Still uploading — you can send once it lands"
+      }
+    },
+    "web": {
+      "candidates": "From the web · previews, not in your library yet",
+      "pickHint": "Click a picture to see it big (nothing is downloaded) · press Use to file it and attach it",
+      "selectedHint": "{count}/{limit} chosen · press Use again to drop one and delete it from your library; when full, the next one replaces the oldest",
+      "viewLarge": "See it big",
+      "use": "Use",
+      "used": "In use",
+      "retry": "Retry",
+      "imported": "Saved",
+      "importFailedShort": "Blocked",
+      "importFailed": "That image could not be fetched",
+      "cleanupFailed": "The one you swapped out could not be deleted from your library — remove it on the assets page"
+    },
+    "critique": {
+      "title": "Auto-check · it set this up, so it reviews it",
+      "titleWithModel": "Auto-check · this one from {model}",
+      "borrowed": "Your model can't see pictures, so this look was borrowed from another one",
+      "revertRound": "Undo this round ({count})",
+      "nextRound": "Pre-filled for the next round:"
+    },
+    "error": {
+      "generic": "The assistant did not finish this round"
+    }
   }
 }

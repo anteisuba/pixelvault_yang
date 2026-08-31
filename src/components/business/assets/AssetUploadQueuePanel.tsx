@@ -1,6 +1,13 @@
 'use client'
 
-import { AlertCircle, Check, FolderInput, RotateCcw, X } from 'lucide-react'
+import {
+  AlertCircle,
+  Check,
+  FolderInput,
+  Music2,
+  RotateCcw,
+  X,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -122,12 +129,18 @@ export function AssetUploadQueuePanel({
             key={item.id}
             className="flex items-center gap-2 px-3 py-1.5 text-2xs"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element -- local object URL */}
-            <img
-              src={item.previewUrl}
-              alt=""
-              className="size-7 shrink-0 rounded-md border border-border object-cover"
-            />
+            {item.mimeType.startsWith('audio/') ? (
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
+                <Music2 className="size-3.5 text-muted-foreground" />
+              </span>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element -- local object URL
+              <img
+                src={item.previewUrl}
+                alt=""
+                className="size-7 shrink-0 rounded-md border border-border object-cover"
+              />
+            )}
             <span className="min-w-0 flex-1">
               <span className="block truncate text-foreground">
                 {item.fileName}

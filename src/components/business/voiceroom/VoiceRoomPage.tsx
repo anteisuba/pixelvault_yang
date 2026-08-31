@@ -29,6 +29,8 @@ export function VoiceRoomPage() {
     loadingRooms,
     sending,
     switching,
+    retakingIds,
+    pendingLine,
     error,
     delivery,
     setDelivery,
@@ -82,6 +84,8 @@ export function VoiceRoomPage() {
             detail={detail}
             sending={sending}
             switching={switching}
+            retakingIds={retakingIds}
+            pendingLine={pendingLine}
             error={error}
             delivery={delivery}
             onDeliveryChange={setDelivery}

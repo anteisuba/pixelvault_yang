@@ -15,6 +15,7 @@ import type {
 } from '@/types/voiceroom'
 
 import { VoiceLineBubble } from './VoiceLineBubble'
+import { VoiceLinePending } from './VoiceLinePending'
 import { VoiceRoomCasting } from './VoiceRoomCasting'
 import { VoiceRoomComposer } from './VoiceRoomComposer'
 import { VoiceRoomModelChip } from './VoiceRoomModelChip'
@@ -27,6 +28,10 @@ interface VoiceRoomStageProps {
   sending: boolean
   /** 正在换房间：聊天流据此整体退场。 */
   switching: boolean
+  /** 正在重录的台词 id。 */
+  retakingIds: ReadonlySet<string>
+  /** 刚发出、还没拿到回执的那句话。 */
+  pendingLine: { speakerId: string; text: string } | null
   error: string | null
   delivery: VoiceRoomDeliveryState
   onDeliveryChange: (patch: Partial<VoiceRoomDeliveryState>) => void
@@ -44,6 +49,8 @@ export function VoiceRoomStage({
   detail,
   sending,
   switching,
+  retakingIds,
+  pendingLine,
   error,
   delivery,
   onDeliveryChange,
@@ -178,9 +185,22 @@ export function VoiceRoomStage({
               staggerMs={
                 index < staggerUntil ? index * VOICE_ROOM_LINE_STAGGER_MS : 0
               }
+              retaking={retakingIds.has(line.id)}
               onRetake={onRetake}
             />
           ))}
+
+          {/*
+           * 占位气泡：话已经发出去了，声音还在路上。它长得和真气泡一样，只是
+           * 语音条的位置摆着「正在开口」——真气泡回来时它整个消失，一次干净的交接。
+           */}
+          {pendingLine ? (
+            <VoiceLinePending
+              cast={detail.cast}
+              speakerId={pendingLine.speakerId}
+              text={pendingLine.text}
+            />
+          ) : null}
         </div>
       )}
 

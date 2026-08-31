@@ -188,7 +188,8 @@
     "compressed": "已压缩 {from} MB → {to} MB",
     "gifTooLarge": "GIF 太大，无法自动压缩。上限 {maxMb} MB，请先自行压缩。",
     "tooLarge": "图片太大。上限 {maxMb} MB，请换一张更小的图。",
-    "uploadFailed": "参考图上传失败，请重试。"
+    "uploadFailed": "参考图上传失败，请重试。",
+    "limitReached": "当前模型最多接受 {max} 张参考图，请先移除一张再添加。"
   },
   "Common": {
     "brand": "ANTEI",
@@ -2597,6 +2598,7 @@
     "referenceStrengthHint": "越高越贴近参考图",
     "disabledOverLimit": "超出当前模型的参考图数量限制",
     "disabledUnsupported": "当前模型不支持参考图",
+    "limitReached": "参考图已达到 {max} 张上限，请先移除一张再添加。",
     "back": "返回",
     "selectAssetEmpty": "还没有保存的素材",
     "selectFromArchive": "从档案选择",
@@ -2615,13 +2617,14 @@
     "search": "搜索素材...",
     "uploadButton": "上传",
     "uploadDropHint": "松手上传到「{folder}」",
-    "uploadInputLabel": "上传图片或视频到本地素材",
+    "uploadInputLabel": "上传图片、视频或音频到本地素材",
     "uploading": "上传中...",
     "uploadSuccess": "素材已上传到本地素材。",
     "uploadFailed": "上传失败",
-    "uploadUnsupportedFile": "支持 JPG、PNG、WebP、GIF、MP4、MOV 或 WebM 文件。",
+    "uploadUnsupportedFile": "支持 JPG、PNG、WebP、GIF、MP4、MOV、WebM、MP3、WAV、M4A、FLAC 或 OGG 文件。",
     "uploadFileTooLarge": "文件太大，最大 {maxMb} MB。",
     "uploadVideoTooLarge": "视频太大，最大 {maxGb} GB。",
+    "uploadAudioTooLarge": "音频太大，最大 {maxGb} GB。",
     "uploadCompressing": "正在压缩大图…",
     "uploadCompressed": "已压缩：{from} MB → {to} MB",
     "uploadGifTooLarge": "GIF 太大无法自动压缩。最大 {maxMb} MB —— 请先用外部工具压缩。",
@@ -2694,6 +2697,8 @@
     "detailDownloading": "下载中...",
     "detailDownloadFailed": "下载失败，正在打开原始文件。",
     "detailOpenOriginal": "查看原图",
+    "detailPreviousImage": "上一张图片",
+    "detailNextImage": "下一张图片",
     "detailMoveTo": "移动到文件夹",
     "detailMoveUnassigned": "未分类",
     "detailMoved": "已移动",
@@ -2732,7 +2737,7 @@
     "detailDeleteConfirmDescription": "删除后文件将从你的存档中永久移除，无法恢复。",
     "detailDeleted": "已删除",
     "detailDeleteFailed": "删除失败",
-    "densityLabel": "网格密度",
+    "densityLabel": "密度",
     "densitySmall": "小行高",
     "densityMedium": "中行高",
     "densityLarge": "大行高",
@@ -6370,6 +6375,12 @@
       "unexpected": "发生了意外错误，请重试。",
       "databaseUnavailable": "数据库服务暂时不可用，请稍后再试。"
     },
+    "webImageImport": {
+      "unreachable": "这张图所在的站点不让我们下载它。换一张候选试试。",
+      "unsupported": "这个链接不是能收下的图片格式（支持 JPEG / PNG / WebP / GIF）。",
+      "tooLarge": "这张图太大了，收不下。",
+      "noImageOnPage": "这是一个网页，而它没有标出主图。把图片本身的地址给我（在图上右键「复制图片地址」）。"
+    },
     "assistant": {
       "videoUnsupported": "当前模型无法分析视频。请选择 Gemini，或移除视频参考。",
       "imageUnsupported": "当前模型无法分析图片。请选择 OpenAI 或 Gemini，或移除图片参考。",
@@ -6641,7 +6652,8 @@
     "uploadSuccess": "音频已上传",
     "errorTooLarge": "音频文件超过 {max}",
     "errorNotAudio": "请选择音频文件",
-    "errorUploadFailed": "音频上传失败"
+    "errorUploadFailed": "音频上传失败",
+    "limitReached": "音频参考已达到 {max} 条上限，请先移除一条再添加。"
   },
   "VideoScript": {
     "panelTitle": "剧本",
@@ -6880,5 +6892,170 @@
     "deleteRoom": "删除房间",
     "deleteRoomTitle": "删除这个房间？",
     "deleteRoomHint": "「{name}」和它的全部台词都会删掉。已经生成的声音不受影响，仍然在素材库里。"
+  },
+  "StudioOperator": {
+    "title": "助手",
+    "domainChip": {
+      "image": "在图片工作台",
+      "video": "在视频工作台",
+      "lora": "在 LoRA 工作台"
+    },
+    "domainName": {
+      "image": "图片工作台",
+      "video": "视频工作台",
+      "lora": "LoRA 工作台"
+    },
+    "session": "会话",
+    "newThread": "新对话",
+    "history": {
+      "heading": "以前的会话",
+      "empty": "还没有别的会话",
+      "loading": "读取中…",
+      "untitled": "未命名会话",
+      "readonlyNote": "以上是历史记录 · 只读"
+    },
+    "more": "更多",
+    "share": "分享这段会话",
+    "feedback": "问题反馈",
+    "collapse": "收起助手",
+    "resize": "拖动调整助手宽度",
+    "empty": "说一句你想要什么。不花积分的它直接做，花钱的停在预填好的生成键上，等你来点。",
+    "planTitle": "计划 · 不花积分的直接做",
+    "domainMark": "切到{domain} —— 工具已换，会话不断",
+    "placeholderIdle": "继续说，或把素材挂进来…",
+    "placeholderWorking": "说，我在听 —— 插话即转向",
+    "send": "发送",
+    "sendInterrupt": "插话即转向 —— 助手收下这句后调整计划继续",
+    "stop": "停止当前工作",
+    "lightboxLabel": "看大图",
+    "pill": {
+      "idle": "助手",
+      "working": "助手 · 干活中",
+      "workingCount": "助手 · 干活中 {done}/{total}",
+      "awaitingConfirm": "等你决定 · 提示词怎么写",
+      "primed": "已备好 · 生成键已亮"
+    },
+    "log": {
+      "undo": "撤销"
+    },
+    "reject": {
+      "noSuchControl": "这个工作台上没有这个控件",
+      "unknownModel": "这个模型不在你能选的名单里",
+      "unknownValue": "这个值不在可选档位里",
+      "unknownAsset": "这条素材不在本轮检索结果里",
+      "referencesFull": "参考图位已满",
+      "emptyValue": "要写的内容是空的",
+      "userDeclined": "你选了保留，这一步没做",
+      "noModelSelected": "还没选模型",
+      "emptyPrompt": "提示词还是空的",
+      "malformedArgs": "参数形状不对",
+      "searchUnavailable": "联网搜图暂时不可用",
+      "noResultToCritique": "现在没有它备的那一张可看",
+      "visionUnavailable": "没有能看图的模型可用",
+      "critiqueFailed": "看过了，但没读出可用的评价",
+      "urlNotFromUser": "这条链接不是你给的，助手不能自己收下",
+      "repeatedStep": "这一步刚才做过了，跳过",
+      "unknownLora": "这把 LoRA 不在这一轮搜到的结果里",
+      "loraNotMounted": "这把 LoRA 没挂在装配台上",
+      "loraNotImportable": "这把 LoRA 收不进你的库，只能去它的来源页看"
+    },
+    "field": {
+      "prompt": "提示词",
+      "negative": "负面提示词",
+      "model": "模型",
+      "specs": "规格",
+      "count": "张数",
+      "references": "参考图",
+      "audioReferences": "音频参考",
+      "sound": "出声",
+      "loras": "LoRA 挂载"
+    },
+    "changes": {
+      "originalValue": "原值：{value}",
+      "originalEmpty": "原来是空的",
+      "revertOne": "点一下还原这个字段",
+      "revertAll": "还原助手的全部改动（{count} 处）",
+      "clearConfirm": "确认清掉 {count} 处？"
+    },
+    "confirm": {
+      "have": {
+        "prompt": "提示词框里有你手写的 {count} 个字 —— 怎么处理？",
+        "negative": "负面提示词里有你手写的 {count} 个字 —— 怎么处理？"
+      },
+      "choice": {
+        "append": "追加在后",
+        "overwrite": "覆盖",
+        "keep": "保留"
+      }
+    },
+    "system": {
+      "undoStep": "你撤销了：{subject}（助手已知晓，下一轮不再重做）",
+      "revertField": "你还原了：{subject}（助手已知晓）",
+      "revertAll": "你清掉了助手的全部改动（{count} 处）—— 助手已知晓",
+      "stopped": "你叫停了当前工作",
+      "interrupted": "你插话了 —— 助手已转向",
+      "revertRound": "你还原了这一轮的 {count} 处改动（助手已知晓）",
+      "resultArrived": "它备的那一张回来了 —— 助手正在看",
+      "urlImportFailed": "你给的那条链接没取回来：{subject}",
+      "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来"
+    },
+    "suggestion": {
+      "setupShot": "帮我配好这张图",
+      "findReference": "从我库里找参考",
+      "whyNotEnough": "这版还差在哪？",
+      "animateLast": "把这张动起来",
+      "addVoice": "配上她的音色",
+      "splitShots": "切成 3 个镜头",
+      "findStyle": "找个对味的画风 LoRA",
+      "stackConflict": "这套挂载会打架吗",
+      "sweepWeights": "把权重扫一遍对比"
+    },
+    "attach": {
+      "label": "附件：上传 / 素材库 / 粘贴",
+      "uploadTitle": "拖进来，或点击上传",
+      "uploadHint": "图片 · 音频 · 视频",
+      "libraryLabel": "素材库 · 最近",
+      "openLibrary": "打开完整素材库",
+      "libraryDialogTitle": "从素材库挑一条挂上",
+      "libraryDialogDescription": "点一下就挂到下一条消息上，不离开工作台。",
+      "libraryEmpty": "素材库还是空的",
+      "pasteHint": "也可以把图片直接粘贴到输入框 — 会以附件形式出现在上面",
+      "remove": "摘掉这个附件",
+      "upload": {
+        "compressing": "图太大，正在压到能传的尺寸…",
+        "compressed": "已压缩：{from}MB → {to}MB",
+        "gifTooLarge": "这张动图超过 {maxMb}MB，压不动 —— 换一张吧",
+        "tooLargeImage": "图片最大 {maxMb}MB",
+        "tooLargeVideo": "视频最大 {maxGb}GB",
+        "tooLargeAudio": "音频最大 {maxGb}GB",
+        "unsupported": "这种文件传不了（支持图片 / 音频 / 视频）",
+        "failed": "上传失败",
+        "retry": "重试这次上传",
+        "waiting": "还有文件在传 —— 传完就能发"
+      }
+    },
+    "web": {
+      "candidates": "联网候选 · 预览，还没进你的库",
+      "pickHint": "点图看大图（不下载）· 点「选用」才收进素材库并挂上",
+      "selectedHint": "已选 {count}/{limit} · 再点「选用」= 取消并从素材库清掉；选满后再选会换掉最早那张",
+      "viewLarge": "看大图",
+      "use": "选用",
+      "used": "已选用",
+      "retry": "重试",
+      "imported": "已入库",
+      "importFailedShort": "取不到",
+      "importFailed": "这张没能取回来",
+      "cleanupFailed": "换下来的那张没能从素材库删掉，你可以去素材页手动删"
+    },
+    "critique": {
+      "title": "自动检查 · 它备的它负责看",
+      "titleWithModel": "自动检查 · {model} 出的这张",
+      "borrowed": "你选的模型看不了图，这一轮借了别的模型来看",
+      "revertRound": "还原这轮（{count} 处）",
+      "nextRound": "已预填下一轮："
+    },
+    "error": {
+      "generic": "助手这一轮没跑完"
+    }
   }
 }

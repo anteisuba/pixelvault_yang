@@ -13,6 +13,7 @@ import {
   AssistantSetupBlockSchema,
 } from '@/types/assistant-protocol'
 import { LoraCandidateSchema } from '@/types/lora-candidate'
+import { StudioOperatorHistoryEntrySchema } from '@/types/studio-operator-history'
 
 /**
  * 一段对话归谁 —— **每个域一个槽**（A1，owner 2026-08-08 拍板「四档」）。
@@ -129,6 +130,22 @@ export const AssistantConversationMessageSchema = z.object({
     .array(LoraCandidateSchema)
     .max(ASSISTANT_LORA_PICK_LIMITS.maxPicks)
     .optional(),
+  /**
+   * 操作员线程的那一条**可读痕迹**（P4-B）。
+   *
+   * ⭐ 判据仍是 `promptDraft` 那条**交付物 vs 交互态**，只是这里的答案更狠：
+   * 操作员线程里能点的东西（撤销 / 还原这轮 / 联网候选的「选用」/ primed 的生成键）
+   * **一个都不存**。它们不是交付物，是「对当前表单的控制权」，而重新加载之后表单
+   * 早就不是当时那张 —— 画布那边的原话是「一条几分钟前针对另一张图的提案，重新
+   * 加载后再点应用只会做错事」。恢复一段历史 = 恢复**对话可读性**，不恢复控制权。
+   * 结构上的保证见 `types/studio-operator-history.ts` 的头注：那个类型里没有任何
+   * 字段装得下 `inverse`。
+   *
+   * ⚠ `.catch(undefined)`：这一格是**只读装饰**。载荷哪天读不出来（旧版本写的、
+   * 或者协议改过），该退化成一条纯文本消息，⛔ 不该让整条消息在 `sanitizeMessages`
+   * 里被判非法丢掉 —— 那是「用户的历史凭空少一段」，比少一个图标坏得多。
+   */
+  operator: StudioOperatorHistoryEntrySchema.optional().catch(undefined),
 })
 
 export type AssistantConversationMessageStored = z.infer<
@@ -185,6 +202,16 @@ export interface AssistantConversationSummary {
   title: string | null
   updatedAt: string
   messageCount: number
+  /**
+   * 这条会话是**操作员线程**（P4-B），不是旧助手那种纯对白。
+   *
+   * ⚠ 存在的理由是两套助手**共用同一个 surface**：音频工作台的旧助手（域回落到
+   * `image`）与图片工作台的操作员，写进去的都是 `IMAGE_STUDIO`。不分开的表现是
+   * 操作员的会话菜单里混着一串点开只有白文本的旧对话 —— 而「点不动的历史比没有
+   * 历史更糟」这句话，P2 那颗壳的注释里已经写过一次。
+   * ⚠ 可选：老客户端 / 测试里现造的 summary 不必给这个键。
+   */
+  operatorThread?: boolean
 }
 
 export interface AssistantConversationShare {

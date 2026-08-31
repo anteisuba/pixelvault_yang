@@ -112,6 +112,13 @@ describe('generateStorageKey', () => {
     expect(key).toMatch(/\/audio\/.*\.opus$/)
   })
 
+  it('preserves supported uploaded audio container extensions', () => {
+    expect(generateStorageKey('AUDIO', 'user-789', 'm4a')).toMatch(/\.m4a$/)
+    expect(generateStorageKey('AUDIO', 'user-789', 'flac')).toMatch(/\.flac$/)
+    expect(generateStorageKey('AUDIO', 'user-789', 'ogg')).toMatch(/\.ogg$/)
+    expect(generateStorageKey('AUDIO', 'user-789', 'webm')).toMatch(/\.webm$/)
+  })
+
   it('generates unique keys on successive calls', () => {
     const k1 = generateStorageKey('IMAGE', 'u')
     const k2 = generateStorageKey('IMAGE', 'u')

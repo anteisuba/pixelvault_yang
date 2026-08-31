@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- transition overlay mirrors the clicked remote media */
 
 import {
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -9,7 +10,8 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react'
-import { X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
 import {
   Dialog,
@@ -19,6 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { motionTransition } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 export interface MediaTransitionOrigin {
@@ -28,6 +31,16 @@ export interface MediaTransitionOrigin {
   height: number
 }
 
+export interface MediaDetailNavigation {
+  previousLabel: string
+  nextLabel: string
+  canGoPrevious: boolean
+  canGoNext: boolean
+  direction: -1 | 1
+  onPrevious: () => void
+  onNext: () => void
+}
+
 interface MediaDetailViewerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -35,10 +48,12 @@ interface MediaDetailViewerProps {
   description?: string
   closeLabel: string
   media: ReactNode
+  mediaKey?: string
   sideHeader: ReactNode
   sideContent: ReactNode
   footerActions: ReactNode
   toolbarActions?: ReactNode
+  navigation?: MediaDetailNavigation
   thumbnails?: ReactNode
   overlayContent?: ReactNode
   transitionOrigin?: MediaTransitionOrigin | null
@@ -71,10 +86,12 @@ export function MediaDetailViewer({
   description,
   closeLabel,
   media,
+  mediaKey,
   sideHeader,
   sideContent,
   footerActions,
   toolbarActions,
+  navigation,
   thumbnails,
   overlayContent,
   transitionOrigin,
@@ -84,6 +101,7 @@ export function MediaDetailViewer({
   sideClassName,
 }: MediaDetailViewerProps) {
   const mediaFrameRef = useRef<HTMLDivElement>(null)
+  const reducedMotion = useReducedMotion()
   const [transitionOverlay, setTransitionOverlay] =
     useState<TransitionOverlayState | null>(null)
   const [hideMediaForTransition, setHideMediaForTransition] = useState(false)
@@ -146,6 +164,37 @@ export function MediaDetailViewer({
     onOpenChange(false)
   }
 
+  useEffect(() => {
+    if (!open || !navigation) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        (target instanceof HTMLElement &&
+          (target.isContentEditable ||
+            ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)))
+      ) {
+        return
+      }
+
+      if (event.key === 'ArrowLeft' && navigation.canGoPrevious) {
+        event.preventDefault()
+        navigation.onPrevious()
+      } else if (event.key === 'ArrowRight' && navigation.canGoNext) {
+        event.preventDefault()
+        navigation.onNext()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [navigation, open])
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -190,15 +239,69 @@ export function MediaDetailViewer({
               </DialogClose>
             </div>
 
-            <div
-              ref={mediaFrameRef}
-              className={cn(
-                'flex max-h-full max-w-full items-center justify-center transition-opacity duration-150',
-                hideMediaForTransition && 'opacity-0',
-              )}
+            <AnimatePresence
+              initial={false}
+              mode="popLayout"
+              custom={navigation?.direction ?? 1}
             >
-              {media}
-            </div>
+              <motion.div
+                key={mediaKey ?? 'media'}
+                ref={mediaFrameRef}
+                custom={navigation?.direction ?? 1}
+                variants={{
+                  enter: (direction: -1 | 1) => ({
+                    opacity: 0,
+                    x: reducedMotion ? 0 : direction * 28,
+                    scale: reducedMotion ? 1 : 0.985,
+                  }),
+                  center: { opacity: 1, x: 0, scale: 1 },
+                  exit: (direction: -1 | 1) => ({
+                    opacity: 0,
+                    x: reducedMotion ? 0 : direction * -20,
+                    scale: reducedMotion ? 1 : 0.99,
+                  }),
+                }}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={motionTransition('base', reducedMotion)}
+                className={cn(
+                  'flex max-h-full max-w-full items-center justify-center',
+                  hideMediaForTransition && 'opacity-0',
+                )}
+              >
+                {media}
+              </motion.div>
+            </AnimatePresence>
+
+            {navigation ? (
+              <div className="pointer-events-none absolute inset-x-3 top-1/2 z-20 flex -translate-y-1/2 justify-between sm:inset-x-5 lg:inset-x-8">
+                <Button
+                  data-viewer-chrome
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={navigation.previousLabel}
+                  disabled={!navigation.canGoPrevious}
+                  onClick={navigation.onPrevious}
+                  className="pointer-events-auto size-11 rounded-full border-border/70 bg-background/88 shadow-sm backdrop-blur-xl hover:bg-muted/70 disabled:opacity-30"
+                >
+                  <ChevronLeft className="size-5" />
+                </Button>
+                <Button
+                  data-viewer-chrome
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={navigation.nextLabel}
+                  disabled={!navigation.canGoNext}
+                  onClick={navigation.onNext}
+                  className="pointer-events-auto size-11 rounded-full border-border/70 bg-background/88 shadow-sm backdrop-blur-xl hover:bg-muted/70 disabled:opacity-30"
+                >
+                  <ChevronRight className="size-5" />
+                </Button>
+              </div>
+            ) : null}
 
             {thumbnails ? (
               <div className="pointer-events-none absolute right-4 bottom-4 left-4 z-20 flex justify-center lg:right-5 lg:bottom-auto lg:left-auto lg:top-1/2 lg:-translate-y-1/2 lg:flex-col">

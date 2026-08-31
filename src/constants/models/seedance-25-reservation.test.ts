@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { AI_MODELS, MODEL_OPTIONS } from '@/constants/models'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
+import { VIDEO_REFERENCE_LIMITS } from '@/constants/video-reference-limits'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 /**
@@ -110,9 +111,9 @@ describe('Seedance 2.5 contract', () => {
       expect(contract.family).toBe('seedance')
       expect(contract.referenceMode).toBe('multimodal-reference')
       expect(contract.slots).toMatchObject({
-        images: 30,
+        images: VIDEO_REFERENCE_LIMITS.IMAGES,
         videos: 10,
-        audio: 10,
+        audio: VIDEO_REFERENCE_LIMITS.AUDIO,
         total: 50,
       })
     }

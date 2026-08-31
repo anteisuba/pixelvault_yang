@@ -35,8 +35,13 @@ import {
   ASSISTANT_OPERATOR_WRITE_MODES,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
+import {
+  LORA_CANDIDATE_NOT_IMPORTABLE_REASON_VALUES,
+  LORA_CANDIDATE_SOURCE_VALUES,
+} from '@/constants/lora-candidate'
 import { PromptAssistantResponseLanguageSchema } from '@/types'
 import type { OutputTypeValue } from '@/types'
+import { LoraCandidateImportPayloadSchema } from '@/types/lora-candidate'
 
 // ─── 小件 ────────────────────────────────────────────────────────
 
@@ -100,11 +105,79 @@ export const AssistantOperatorSnapshotSpecsSchema = z.object({
   aspectRatio: ParamValueSchema.nullable(),
   resolution: ParamValueSchema.nullable(),
   /**
-   * 能选什么。⛔ 空表不等于「随便填」—— 空表时 `set_specs` 一律按 `unknownValue`
-   * 拒，与画布 `set_params` 同一条：不给可选列表，模型只会编一个。
+   * 能选什么。⛔ 空表不等于「随便填」——与画布 `set_params` 同一条：不给可选列表，
+   * 模型只会编一个。
+   * ⚠ 空表时 `set_specs` 在**进 args schema 之前**就被拒（`planSpecsPrecondition`）：
+   * 这两个字段都是必填非空串，空表下模型填什么都过不了，拒晚一步用户就只能看到
+   * 一条学不会的 `malformedArgs`。理由按成因分岔 —— 没选模型 → `noModelSelected`，
+   * 这台工作台就是没有这组档位 → `noSuchControl`。
    */
   aspectRatioOptions: z.array(ParamValueSchema).max(LIMITS.maxSpecOptions),
   resolutionOptions: z.array(ParamValueSchema).max(LIMITS.maxSpecOptions),
+})
+
+/**
+ * 视频档的规格三格（P4-A）。
+ *
+ * ⚠ 与图片的 `specs` **分开一张 schema**，不是给它加两个可选字段：
+ * 两边的必填规则相反。图片档比例与清晰度必须同时给（台账 AE/BG/BS）；视频档的
+ * 三个参数是 provider 的三个独立字段，而且**逐型号有无** —— Kling V3 Pro 与
+ * MiniMax H3 的契约里 `parameters.resolution === false`，HappyHorse 连
+ * `duration` 都没有（`constants/video-model-send-plan.ts`）。合成一张 schema 就
+ * 得把必填全放开，图片档那条硬性要求当场失效。
+ *
+ * ⚠ 三个「现值」都可以是 `null`：`resolution` 是用户主动清掉的（再点一次 = 交给
+ * provider 默认，界面上真有这条出路）；另两个是「档位表空 / 还没选模型」。
+ * ⚠ 三张档位表**都可能是空的**，空的那格 = 这个型号不吃这个参数。三张全空时
+ * 整个 `videoSpecs` 节缺席（那时界面上的规格浮层也整块不渲染）。
+ */
+export const AssistantOperatorSnapshotVideoSpecsSchema = z.object({
+  durationSeconds: z.number().int().positive().nullable(),
+  aspectRatio: ParamValueSchema.nullable(),
+  resolution: ParamValueSchema.nullable(),
+  durationOptions: z
+    .array(z.number().int().positive())
+    .max(LIMITS.maxSpecOptions),
+  aspectRatioOptions: z.array(ParamValueSchema).max(LIMITS.maxSpecOptions),
+  resolutionOptions: z.array(ParamValueSchema).max(LIMITS.maxSpecOptions),
+})
+
+/**
+ * 视频的**音频参考位**（P4-A，台账 A）。
+ *
+ * ⚠ `limit` 来自**选中线路**的契约（`slots.audio`），不是一个写死的数 ——
+ * 没选模型时是 0，那时界面上那个面板也只给一句「先选模型」。
+ * ⚠ `requiresVisual` 同样**按线路不按模型**：同一个 Seedance 2.5，火山 / BytePlus
+ * 允许纯音频参考，fal 那条不允许（`video-model-send-plan.ts` 里两条相反的声明）。
+ * 它进快照是为了让助手在只挂音频时**先去挂一张图**，而不是等用户点了生成才被
+ * 服务端 400 顶回来。
+ */
+export const AssistantOperatorSnapshotAudioReferenceSchema = z.object({
+  url: z.string().url(),
+  label: LabelSchema.optional(),
+  /** 这段声音属于哪个角色（界面上那颗 `AudioOwnerPicker`）。 */
+  ownerName: LabelSchema.optional(),
+})
+
+export const AssistantOperatorSnapshotAudioReferencesSchema = z.object({
+  items: z
+    .array(AssistantOperatorSnapshotAudioReferenceSchema)
+    .max(LIMITS.maxSnapshotReferences),
+  limit: z.number().int().nonnegative(),
+  requiresVisual: z.boolean(),
+})
+
+/**
+ * 视频**出不出声**的三态（P4-A）。
+ *
+ * ⚠ `value: null` = 用户没设过，最终值落到模型目录的默认；`effective` 就是那个
+ * 「现在实际是什么」—— 界面上的开关显示的正是它。两个都给是因为**它们回答的是
+ * 不同的问题**：助手要知道「用户表过态没有」（表过就别乱改），也要知道「现在
+ * 到底响不响」（用户说「静音」时，本来就没声就不必白花一步）。
+ */
+export const AssistantOperatorSnapshotSoundSchema = z.object({
+  value: z.boolean().nullable(),
+  effective: z.boolean(),
 })
 
 export const AssistantOperatorSnapshotCountSchema = z.object({
@@ -128,6 +201,55 @@ export const AssistantOperatorSnapshotReferencesSchema = z.object({
   limit: z.number().int().nonnegative(),
 })
 
+/**
+ * 装配台上**已经挂着的一把**（P4-C）。
+ *
+ * ⚠ `id` 是**库记录 id**（`LoraAssetRecord.id`），不是检索候选的 `candidateId` ——
+ * 两者是不同的东西：候选来自 Civitai/HF，挂载项来自用户自己的库。`unmount_lora` /
+ * `set_lora_weight` 收的是这个 id，`mount_lora` 收的是那个。合成一个的表现是助手
+ * 拿候选 id 去调摘除，然后连着撞两条拒绝。
+ * ⚠ `enabled` 是界面上那颗启停开关：`false` = 留在栈里但**这次不送去出图**
+ * （`handleGenerate` 里那条 `.filter(entry => entry.enabled !== false)`）。助手要知道
+ * 它，否则会对着一把被按住的 LoRA 调权重然后奇怪为什么画面没变。
+ */
+export const AssistantOperatorSnapshotLoraSchema = z.object({
+  id: IdSchema,
+  name: LabelSchema,
+  weight: z.number(),
+  enabled: z.boolean(),
+  /** 这把 LoRA 的底模家族（`sdxl` / `anima-dit` / `flux`…）。null = 库里没记。 */
+  family: ParamValueSchema.nullable(),
+  /**
+   * 与当前底模**架构对不对得上**。
+   *
+   * ⭐ 判据来自既有的 `isLoraBaseModelMountCompatible` —— ⛔ 别在提示词里让模型
+   * 自己按名字猜：Civitai 的 DiT 枚举值就叫 `"Anima"`，而 "Anima Pencil XL" /
+   * "Animagine" 报的是 `"SDXL 1.0"`，按子串猜必错（那条判据在
+   * `constants/lora-base-models.ts` 里是**精确相等**而不是 includes）。
+   */
+  compatible: z.boolean(),
+})
+
+/**
+ * 装配台的**挂载栈**（P4-C）。
+ *
+ * ⚠ **缺席 = 这个工作台没有挂载栈**（图片 / 视频档就是这一档：`LoraStackProvider`
+ * 只包 `/studio/lora`）。⛔ 不是「有但空着」—— 空着是 `items: []`。
+ * ⛔ **故意没有 `limit`**：本仓三个后端全不限挂载数，服务端不读 maxLoras 是故意的。
+ * 摆一个 limit 在这里，下一个人就会照着 `references.limit` 的样子加一条
+ * 「挂满了」的拒绝 —— 那是把一条产品决定反着实现一遍。
+ */
+export const AssistantOperatorSnapshotLorasSchema = z.object({
+  items: z
+    .array(AssistantOperatorSnapshotLoraSchema)
+    .max(LIMITS.maxSnapshotReferences),
+  /** 当前底模的家族 —— 检索时按它做**软偏好**排序（不是硬过滤）。 */
+  baseFamily: ParamValueSchema.nullable(),
+  /** 权重值域，与 `[[lora]]` 推荐块共用同一对数（见词表 `setLoraWeight`）。 */
+  minWeight: z.number(),
+  maxWeight: z.number(),
+})
+
 export const AssistantOperatorSnapshotSchema = z.object({
   /** 正面提示词现值。空串 = 空框（随便填，拍板 3）；非空 = 用户手写内容，写它要先确认。 */
   prompt: TextValueSchema,
@@ -144,8 +266,16 @@ export const AssistantOperatorSnapshotSchema = z.object({
     .max(LIMITS.maxAvailableModels)
     .default([]),
   specs: AssistantOperatorSnapshotSpecsSchema.optional(),
+  /** ⚠ 视频档的规格。与 `specs` **互斥** —— 两个都在就是构造快照的人写错了。 */
+  videoSpecs: AssistantOperatorSnapshotVideoSpecsSchema.optional(),
   count: AssistantOperatorSnapshotCountSchema.optional(),
   references: AssistantOperatorSnapshotReferencesSchema.optional(),
+  /** ⚠ 缺席 = 这个工作台挂不了音频参考（图片档、或视频档但线路不吃音频）。 */
+  audioReferences: AssistantOperatorSnapshotAudioReferencesSchema.optional(),
+  /** ⚠ 缺席 = 这条线路没有「出不出声」这个开关（界面上那颗 Switch 也不渲染）。 */
+  sound: AssistantOperatorSnapshotSoundSchema.optional(),
+  /** ⚠ 缺席 = 这个工作台没有 LoRA 挂载栈（图片 / 视频档）。见 schema 头注。 */
+  loras: AssistantOperatorSnapshotLorasSchema.optional(),
 })
 
 export type AssistantOperatorSnapshot = z.infer<
@@ -178,6 +308,59 @@ export const AssistantOperatorConfirmDecisionSchema = z.object({
   choice: AssistantOperatorConfirmChoiceSchema,
 })
 
+/**
+ * 「助手备的那一次生成」刚刚跑完的结果（P3-C，拍板 4）。
+ *
+ * ⭐ **这个字段的在场与否就是拍板 4 本身**：客户端只在归属追踪认定这一次生成
+ * 是助手 primed 的那一枪时才带它上来（`lib/studio-operator-claim.ts`）。用户
+ * 自己点的生成永远不填这里，于是「不打扰」在结构上成立 —— 服务端没有别的路
+ * 能拿到一张结果图，`critique_result` 也就无从被误用。
+ *
+ * ⚠ 与 `AssistantOperatorSnapshotReference` 分开：那是**挂在表单上的参考图**
+ * （输入），这是**刚出炉的产物**（输出）。合成一个的表现是助手把自己刚评过的
+ * 那张图当成参考图去数槽位。
+ */
+export const AssistantOperatorResultSchema = z.object({
+  /** 结果图的 https 地址 —— 视觉那一跳吃的就是它。 */
+  url: z.string().url(),
+  /** 卡片上画的那张缩略图；缺席时回落到 `url`。 */
+  thumbnailUrl: z.string().url().optional(),
+  /** 库里的 generation id —— 只用于日志归因，模型碰不到它。 */
+  generationId: IdSchema.optional(),
+  /** 出它的那个模型（卡片与观察里都要说清楚是谁画的）。 */
+  modelLabel: LabelSchema.optional(),
+  /** 当时用的提示词（截断）—— 评价要对着「想要什么」说，不是对着一张孤图说。 */
+  prompt: z.string().max(LIMITS.maxPromptChars).optional(),
+})
+
+export type AssistantOperatorResult = z.infer<
+  typeof AssistantOperatorResultSchema
+>
+
+/**
+ * 视觉那一跳的产出（**模型 → 服务端**，与 `AssistantOperatorTurnSchema` 同一档）。
+ *
+ * ⚠ 故意不含图片地址：地址是服务端填的，模型只负责说它看见了什么。
+ */
+export const AssistantOperatorCritiqueSchema = z.object({
+  findings: z
+    .array(
+      z.object({
+        /** `true` = 这一条达成了；`false` = 没达成（卡片上那个 ✗）。 */
+        ok: z.boolean(),
+        text: z.string().trim().min(1).max(LIMITS.maxCritiqueFindingChars),
+      }),
+    )
+    .min(1)
+    .max(LIMITS.maxCritiqueFindings),
+  /** 下一轮该怎么改，一句话。⚠ 允许 `null`：确实挺好时不硬编一条建议。 */
+  advice: z.string().trim().max(LIMITS.maxCritiqueAdviceChars).nullish(),
+})
+
+export type AssistantOperatorCritique = z.infer<
+  typeof AssistantOperatorCritiqueSchema
+>
+
 export const AssistantOperatorRequestSchema = z.object({
   messages: z.array(AssistantOperatorMessageSchema).min(1),
   domain: AssistantOperatorDomainSchema,
@@ -194,6 +377,11 @@ export const AssistantOperatorRequestSchema = z.object({
     .array(AssistantOperatorConfirmDecisionSchema)
     .max(Object.keys(ASSISTANT_OPERATOR_CONFIRM_FIELDS).length)
     .optional(),
+  /**
+   * 助手备的那一枪刚打完（P3-C）。缺席 = 这一轮没有东西可看，
+   * `critique_result` 按 `noResultToCritique` 拒。见 schema 头注。
+   */
+  result: AssistantOperatorResultSchema.optional(),
   /** 用户在设置里选的 LLM key；缺省走 `resolveLlmTextRoute` 的优先级。 */
   apiKeyId: z.string().optional(),
   /** 用户选的 LLM 档位（非生成模型），服务端对表校验。 */
@@ -229,6 +417,21 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     kind: AssistantOperatorSearchKindSchema.optional(),
     limit: z.number().int().positive().max(LIMITS.maxSearchResults).optional(),
   }),
+  /**
+   * ⚠ 只有一个查询词 —— **没有 `site:` / 域名过滤这类旋钮**。多给一个参数就是多
+   * 一件模型会写错的东西，而联网搜图的召回质量靠的是查询词本身（系统提示里让它
+   * 写短英文）。将来要接第二路召回（Wikimedia / Met）那是服务端的分派，不是这里
+   * 多一个字段。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages]: z.object({
+    query: z.string().trim().min(1).max(LIMITS.maxWebImageQueryChars),
+    limit: z
+      .number()
+      .int()
+      .positive()
+      .max(LIMITS.maxWebImageResults)
+      .optional(),
+  }),
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]: z.object({
     /** ⛔ 只有 id，没有 URL —— URL 由服务端从本轮检索结果里查出来填。 */
     assetId: IdSchema,
@@ -247,8 +450,84 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     aspectRatio: ParamValueSchema,
     resolution: ParamValueSchema,
   }),
+  /**
+   * 视频规格三格（P4-A）。
+   *
+   * ⚠ 三个字段**全是可选**，与图片那条相反 —— 理由见
+   * `AssistantOperatorSnapshotVideoSpecsSchema` 的头注：逐型号有无，
+   * 写成必填就等于在 Kling / MiniMax H3 上把这条工具变成无解。
+   * ⚠ 「至少给一个」与「给的那个必须在档位表里」都留在规划器
+   * （本文件头注 ②：schema 拒 = 整轮读不出来，规划器拒 = 助手读得到理由）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs]: z.object({
+    durationSeconds: z.number().optional(),
+    aspectRatio: ParamValueSchema.optional(),
+    resolution: ParamValueSchema.optional(),
+  }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: z.object({ count: z.number() }),
+  [ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference]: z.object({
+    /** ⛔ 同 `mount_reference`：只有 id，URL 由服务端从本轮检索结果里查出来填。 */
+    assetId: IdSchema,
+    /** 这段声音属于哪个角色 —— 界面上那颗归属选择器允许自由文本，所以这里也是。 */
+    ownerName: LabelSchema.optional(),
+  }),
+  [ASSISTANT_OPERATOR_TOOL_IDS.setSound]: z.object({ enabled: z.boolean() }),
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]: z.object({}),
+  /**
+   * ⛔ **没有图片地址这个参数** —— 地址来自请求里的 `result`（拍板 4 的归属
+   * 追踪填的），模型给不出、也不许给。它唯一能写的是「这一轮本来想要什么」，
+   * 让视觉那一跳有个对照物；不写就用线程里的提示词兜底。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]: z.object({
+    goal: z.string().trim().max(LIMITS.maxCritiqueGoalChars).optional(),
+  }),
+  /**
+   * 用户亲手递来的那条地址（P3-D，拍板 22）。
+   *
+   * ⚠ 这里**只管形状**（像不像一条 http(s) 地址），「是不是用户给的」由规划器逐字
+   * 比对用户消息（`urlNotFromUser`）—— 与本文件头注 ② 同一条：值域校验留在规划器，
+   * 因为 schema 拒 = 整轮读不出来，规划器拒 = 日志上写着为什么、助手还能改口。
+   * ⚠ `.url()` 放行 `ftp:` / `file:` 这类协议，所以补一道协议闸：非 http(s) 的地址
+   * 客户端那条导入路由根本取不到（它自己也只允许这两种），拦在这里省一步。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl]: z.object({
+    url: z
+      .string()
+      .trim()
+      .max(LIMITS.maxUserUrlChars)
+      .url()
+      .refine((value) => /^https?:\/\//i.test(value), {
+        message: 'url must be http(s)',
+      }),
+  }),
+  /**
+   * ⚠ 只有一个查询词，理由与 `search_web_images` 同源：多一个参数就是多一件模型会
+   * 写错的东西。底模家族**不由模型给** —— 服务端从快照里现取（那是「用户此刻选的
+   * 底模」，模型没有理由比快照更清楚）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchLoras]: z.object({
+    query: z.string().trim().min(1).max(LIMITS.maxLoraQueryChars),
+    limit: z.number().int().positive().max(LIMITS.maxLoraResults).optional(),
+  }),
+  /**
+   * ⛔ 只有 candidateId 与一个权重，**没有名字 / 地址 / 底模**：那些全由服务端从
+   * 本轮检索结果里查出来填（同 `mount_reference`）。
+   * ⚠ `weight` 可选：不给就用候选自带的推荐值 / 资产默认值 —— 编一个数不如不编。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]: z.object({
+    candidateId: IdSchema,
+    weight: z.number().optional(),
+  }),
+  [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]: z.object({ loraId: IdSchema }),
+  /**
+   * ⚠ 值域（0.1–2）**留在规划器**收窄，不写进 schema —— 与本文件头注 ② 同一条：
+   * schema 拒 = 整轮读不出来，规划器拒 = 日志上写着「权重得在 0.1 到 2 之间」，
+   * 助手还能改口再来一次。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]: z.object({
+    loraId: IdSchema,
+    weight: z.number(),
+  }),
 }
 
 export const AssistantOperatorTurnSchema = z.object({
@@ -346,6 +625,87 @@ export type AssistantOperatorSearchResultAsset = z.infer<
   typeof AssistantOperatorSearchResultAssetSchema
 >
 
+/**
+ * 一张**联网预览候选**（P3-B）。
+ *
+ * ⭐ 它与 `AssistantOperatorSearchResultAsset` 长得像但**故意没有 `assetId`** ——
+ * 那正是两者的全部区别：库里的素材已经是用户的（有 id、挂得上），联网候选只是
+ * 一串第三方地址，在用户点选转存之前它在本仓里**不存在**。少了这个字段，
+ * `mount_reference`（只吃 assetId）在类型上就够不着它。
+ *
+ * ⚠ `thumbnailUrl` 与 `imageUrl` 必须分开：Serper 给的缩略图是 gstatic 的、
+ * 不过期且一定取得到；原图直链来自任意第三方站，实测约三成会 403（Cloudflare
+ * JS challenge，补 Referer 无效）。**网格里画缩略图、转存时取原图** —— 反过来
+ * 就是「候选格子一半是碎图」。
+ *
+ * ⚠ `width` / `height` 是**搜索引擎报的数**，不是实到值（台账：库里的 width/height
+ * 曾被当成实到值用过，两个模型记错）。它只配在候选上写一行「1600×1200」当选图
+ * 参考；真正落库的尺寸由转存那条腿自己 `sharp` 量。
+ */
+export const AssistantOperatorWebImageSchema = z.object({
+  /** 原图直链 —— 转存时取的就是它。 */
+  imageUrl: z.string().url(),
+  /** 预览缩略图（gstatic，不过期）。缺席时网格回落到 `imageUrl`。 */
+  thumbnailUrl: z.string().url().optional(),
+  /** 图片所在页 —— 来源快照要它，界面上也要能点过去看出处。 */
+  pageUrl: z.string().url().optional(),
+  /** 站点域名，候选格子上的那行小字。 */
+  domain: LabelSchema.optional(),
+  title: z.string().max(LIMITS.maxPriorStepSummaryChars).optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+})
+
+export type AssistantOperatorWebImage = z.infer<
+  typeof AssistantOperatorWebImageSchema
+>
+
+/**
+ * 一条 **LoRA 候选**在操作员协议里的投影（P4-C）。
+ *
+ * ⭐ 它是 `LoraCandidate` 的**投影而不是别名**，两条理由各自独立：
+ *  ① `LoraCandidate` 上挂着 `importPayload`（来源快照 + 权重文件地址 + 落库入参）。
+ *    那份对象**不该跟着每条候选流到客户端的日志里** —— 它只在真的要挂那一把时
+ *    才需要，所以它住在 `mount_lora` 的载荷上，由服务端从本轮检索结果里查出来填。
+ *  ② 这里多出两位是**本工作台此刻**才算得出来的：`compatible`（与当前底模架构对
+ *    不对得上）。检索层不知道用户选了哪个底模，那是快照的事。
+ *
+ * ⚠ **许可原样透传，"不知道" 不软化**（`licenseKnown:false` 就是不知道）——
+ * 与 `buildAssistantLoraCandidateDirective` 里那条「Never soften unknown into
+ * probably fine」是同一条规矩的两侧。
+ */
+export const AssistantOperatorLoraCandidateSchema = z.object({
+  candidateId: IdSchema,
+  source: z.enum(LORA_CANDIDATE_SOURCE_VALUES),
+  name: LabelSchema,
+  /** null = 上游取不到作者（Civitai 作者注销 / HF repoId 没有命名空间段）。 */
+  author: LabelSchema.nullable(),
+  /** 底模家族。null = **定不出来**（那也正是 `importable:false` 的成因之一）。 */
+  family: ParamValueSchema.nullable(),
+  triggerWords: z.array(LabelSchema).max(LIMITS.maxSpecOptions),
+  thumbnailUrl: z.string().url().optional(),
+  pageUrl: z.string().url().optional(),
+  downloads: z.number().int().nonnegative().nullable(),
+  /** 上游写的那一行许可（HF 的 `cardData.license`）。null = 该源没有这个字段。 */
+  licenseLabel: LabelSchema.nullable(),
+  /** `label` 与 `commercialUse` 至少有一个非 null。⛔ false 就是「不知道」。 */
+  licenseKnown: z.boolean(),
+  /** Civitai 作者勾的商用范围（`Image` / `Rent` / `Sell`）。null = 该源没有。 */
+  commercialUse: z.array(LabelSchema).nullable(),
+  importable: z.boolean(),
+  notImportableReason: z
+    .enum(LORA_CANDIDATE_NOT_IMPORTABLE_REASON_VALUES)
+    .optional(),
+  /** 与当前底模架构对不对得上（判据见 `AssistantOperatorSnapshotLoraSchema`）。 */
+  compatible: z.boolean(),
+  alreadyMounted: z.boolean(),
+  alreadyImported: z.boolean(),
+})
+
+export type AssistantOperatorLoraCandidate = z.infer<
+  typeof AssistantOperatorLoraCandidateSchema
+>
+
 export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
   readStep(
     ASSISTANT_OPERATOR_TOOL_IDS.readState,
@@ -366,6 +726,25 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       assets: z
         .array(AssistantOperatorSearchResultAssetSchema)
         .max(LIMITS.maxSearchResults),
+    }),
+  ),
+  /**
+   * ⛔ 这一支是 `readStep` 不是 `mutatingStep`，而且**永远只能是 readStep**：
+   * 它一张图都没落下来，日志条上那几格是纯预览。转存由用户点选触发，走另一条
+   * API 路由（owner 拍板：预览优先）。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+    z.object({
+      query: z.string().trim().min(1).max(LIMITS.maxWebImageQueryChars),
+      limit: z.number().int().positive().max(LIMITS.maxWebImageResults),
+    }),
+    z.object({
+      /** 候选条数（拍板 18 的日志详情要它）。 */
+      totalFound: z.number().int().nonnegative(),
+      images: z
+        .array(AssistantOperatorWebImageSchema)
+        .max(LIMITS.maxWebImageResults),
     }),
   ),
   mutatingStep(
@@ -413,10 +792,83 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       resolution: ParamValueSchema.nullable(),
     }),
   ),
+  /**
+   * 视频规格（P4-A）。
+   *
+   * ⭐ **载荷与逆操作永远带齐三格**（没有的那格是 `null`）—— 这是台账 AE/BG/BS
+   * 那条教训在视频档的形态：撤销一次落回一个**真实存在过的三元组**，
+   * ⛔ 不会撤出「5s 配 1080p 配 21:9」这种从没有过的组合。
+   * 「这一步只改了时长」这件事看载荷与逆操作的差就知道，不必靠字段缺席来表达。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
+    z.object({
+      durationSeconds: z.number().int().positive().nullable(),
+      aspectRatio: ParamValueSchema.nullable(),
+      resolution: ParamValueSchema.nullable(),
+    }),
+    z.object({
+      durationSeconds: z.number().int().positive().nullable(),
+      aspectRatio: ParamValueSchema.nullable(),
+      resolution: ParamValueSchema.nullable(),
+    }),
+  ),
   mutatingStep(
     ASSISTANT_OPERATOR_TOOL_IDS.setCount,
     z.object({ count: z.number().int().positive() }),
     z.object({ count: z.number().int().positive() }),
+  ),
+  /**
+   * 挂音频参考（P4-A，台账 A）。形状照 `mount_reference`：`url` 由服务端从本轮
+   * 检索结果里查出来填，撤销按 id 摘。多的那个字段是**角色归属**。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
+    z.object({
+      assetId: IdSchema,
+      url: z.string().url(),
+      label: LabelSchema.optional(),
+      ownerName: LabelSchema.optional(),
+    }),
+    z.object({ assetId: IdSchema }),
+  ),
+  /**
+   * 出不出声（P4-A）。
+   *
+   * ⚠ `payload.enabled` 只能是 `true` / `false`（助手表得了态），而
+   * `inverse.enabled` **允许 `null`** —— 用户改之前很可能一次都没设过，
+   * 撤销必须能回到「没设过」那一档。把它也收窄成布尔，撤销之后表单会从
+   * 「跟目录默认走」变成「用户明确选了这个值」，两者在请求体里发出去的东西不同。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setSound,
+    z.object({ enabled: z.boolean() }),
+    z.object({ enabled: z.boolean().nullable() }),
+  ),
+  /**
+   * 看图（P3-C，拍板 6）。
+   *
+   * ⭐ 它是 `readStep`：评价不改表单。**`payload.imageUrl` 是服务端从请求里那份
+   * `result` 抄过来的**（模型碰不到），卡片左半边画的就是它 —— 拍板 6 的
+   * 「证据长在结论里」因此不是渲染层的自觉，而是契约里就带着的字段。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+    z.object({
+      imageUrl: z.string().url(),
+      thumbnailUrl: z.string().url().optional(),
+      modelLabel: LabelSchema.optional(),
+      /** 模型自己说的「这一轮想要什么」；没写就是 `null`。 */
+      goal: z.string().max(LIMITS.maxCritiqueGoalChars).nullable(),
+    }),
+    AssistantOperatorCritiqueSchema.extend({
+      /**
+       * 用户选的那条路看不了图、这一轮借了别的模型来看。
+       * ⚠ 如实说出来 —— 「你选的是 DeepSeek，但看图用的是 Gemini」
+       * （形态照 `ResolvedVisionRoute.borrowed`）。
+       */
+      borrowedVisionRoute: z.boolean(),
+    }),
   ),
   mutatingStep(
     ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
@@ -426,6 +878,97 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
      */
     z.object({ primed: z.literal(true) }),
     z.object({ primed: z.literal(false) }),
+  ),
+  /**
+   * 用户递来的地址（P3-D，拍板 22）。
+   *
+   * ⚠ 载荷里是**源地址**，不是落地地址 —— 落地地址此刻还不存在：取图 / 落 R2 /
+   * 落库那一跳发生在**客户端**（既有导入路由），服务端在这一步一个字节都没碰。
+   * 于是 `inverse` 也只能按源地址给，客户端拿「源地址 → 落地地址」的对照表反查
+   * 要摘哪一张（见 `use-studio-operator-revert.ts` 里那张模块级表）。
+   * ⚠ `domain` 是服务端从 URL 现算的（不是模型写的），只用于日志详情那行小字。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
+    z.object({
+      url: z.string().url(),
+      domain: LabelSchema.optional(),
+    }),
+    z.object({ url: z.string().url() }),
+  ),
+  /**
+   * 找 LoRA（P4-C）。⛔ **永远是 readStep**：它一把都没下载、一把都没挂上。
+   * 落地由 `mount_lora` 负责，撤销也撤在那一条上 —— 与 `search_web_images` 同构。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+    z.object({
+      query: z.string().trim().min(1).max(LIMITS.maxLoraQueryChars),
+      limit: z.number().int().positive().max(LIMITS.maxLoraResults),
+    }),
+    z.object({
+      totalFound: z.number().int().nonnegative(),
+      candidates: z
+        .array(AssistantOperatorLoraCandidateSchema)
+        .max(LIMITS.maxLoraResults),
+      /**
+       * 每个源一条回执（`ok` / `empty` / `failed` / `skipped`…）。
+       *
+       * ⭐ **空不是挂**：两个上游里有一个挂了、还是两个都好好的但没命中，用户看到的
+       * 该是两句不同的话（检索层本来就分得出来，见 `LoraCandidateSourceReceipt`）。
+       * 拍板 18 的「候选与放弃理由」在这一档就长这个样子。
+       */
+      sources: z
+        .array(
+          z.object({
+            source: z.enum(LORA_CANDIDATE_SOURCE_VALUES),
+            status: ParamValueSchema,
+            count: z.number().int().nonnegative(),
+          }),
+        )
+        .max(LORA_CANDIDATE_SOURCE_VALUES.length),
+    }),
+  ),
+  /**
+   * 挂一把 LoRA（P4-C）。
+   *
+   * ⚠ 载荷里带着 `importPayload` —— 那是**客户端导入那一跳的入参**（走既有
+   * `favoriteLoraAPI`）。服务端只是把它从本轮检索结果里抄过来，一个字节都没下载：
+   * 钱闸 / R2 闸与拍板 22 那条逐字同源。
+   * ⚠ `inverse` 只有 `candidateId`：库记录 id 在服务端还不存在（导入在客户端），
+   * 客户端拿「candidateId → 库记录」的对照表反查要摘哪一把。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+    z.object({
+      candidateId: IdSchema,
+      name: LabelSchema,
+      /** 最终用的权重（模型给了用模型的，没给用候选/资产默认值）。 */
+      weight: z.number(),
+      /** 挂上之后要写进提示词的触发词 —— 走宿主既有的追加路径，⛔ 不新造一条。 */
+      triggerWords: z.array(LabelSchema).max(LIMITS.maxSpecOptions),
+      family: ParamValueSchema.nullable(),
+      compatible: z.boolean(),
+      importPayload: LoraCandidateImportPayloadSchema,
+    }),
+    z.object({ candidateId: IdSchema }),
+  ),
+  /**
+   * 摘一把（P4-C）。
+   *
+   * ⚠ `inverse` 里只有 id 与权重：把它挂回去要的是那条**库记录**，而记录在客户端
+   * 手上（它此刻正挂在装配台上）。客户端在摘的那一刻把记录扣下来 —— 与 `mount_lora`
+   * 共用同一张模块级对照表。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
+    z.object({ loraId: IdSchema, name: LabelSchema }),
+    z.object({ loraId: IdSchema, weight: z.number() }),
+  ),
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+    z.object({ loraId: IdSchema, name: LabelSchema, weight: z.number() }),
+    z.object({ loraId: IdSchema, weight: z.number() }),
   ),
 ])
 
@@ -460,6 +1003,17 @@ export const AssistantOperatorStepSchema = z.union([
 export type AssistantOperatorStep = z.infer<typeof AssistantOperatorStepSchema>
 export type AssistantOperatorAppliedStep = z.infer<
   typeof AssistantOperatorAppliedStepSchema
+>
+
+/**
+ * 看图那一支（P3-C）—— 评价卡收的就是它。
+ *
+ * ⚠ 用 `Extract` 从判别联合里取，⛔ 别手写一份接口：手写的那份会在契约改动时
+ * 静默漂掉（编译器不会告诉你两份形状不一样了）。
+ */
+export type AssistantOperatorCritiqueStep = Extract<
+  AssistantOperatorAppliedStep,
+  { tool: typeof ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult }
 >
 
 // ─── ③ 事件 ─────────────────────────────────────────────────────

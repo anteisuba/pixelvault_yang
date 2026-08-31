@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertCircle, RotateCcw, X } from 'lucide-react'
+import { AlertCircle, Music2, RotateCcw, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import type { UploadQueueItem } from '@/hooks/use-asset-upload-queue'
@@ -31,6 +31,7 @@ export function AssetUploadTile({
 }: AssetUploadTileProps) {
   const t = useTranslations('AssetsPage')
   const isError = item.status === 'error'
+  const isAudio = item.mimeType.startsWith('audio/')
   // 进度环：周长按半径算，`strokeDashoffset` 走真实百分比（不是假动画）。
   const radius = 13
   const circumference = 2 * Math.PI * radius
@@ -43,15 +44,27 @@ export function AssetUploadTile({
         isError ? 'border-destructive' : 'border-border',
       )}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- local object URL, no remote optimization involved */}
-      <img
-        src={item.previewUrl}
-        alt=""
-        className={cn(
-          'absolute inset-0 size-full object-cover',
-          isError ? 'opacity-40' : 'opacity-60',
-        )}
-      />
+      {isAudio ? (
+        <span
+          aria-hidden="true"
+          className={cn(
+            'absolute inset-0 flex items-center justify-center bg-muted',
+            isError ? 'opacity-40' : 'opacity-60',
+          )}
+        >
+          <Music2 className="size-10 text-muted-foreground" />
+        </span>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- local object URL, no remote optimization involved
+        <img
+          src={item.previewUrl}
+          alt=""
+          className={cn(
+            'absolute inset-0 size-full object-cover',
+            isError ? 'opacity-40' : 'opacity-60',
+          )}
+        />
+      )}
 
       {!isError && (
         <span

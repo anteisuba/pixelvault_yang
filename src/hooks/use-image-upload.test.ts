@@ -65,10 +65,11 @@ describe('useImageUpload', () => {
     // 于是「改好这张再拿去生成」就变成了「改好的那张不参与生成」。
     it('replaces a slot in place, keeping its position and enabled state', () => {
       const { result } = renderHook(() => useImageUpload())
-      act(() => result.current.setMaxImages(2))
+      act(() => result.current.setMaxImages(3))
       act(() => result.current.addReferenceImage('a'))
       act(() => result.current.addReferenceImage('b'))
       act(() => result.current.addReferenceImage('c'))
+      act(() => result.current.setMaxImages(2))
 
       act(() => result.current.replaceReferenceImage(0, 'a-edited'))
 
@@ -99,17 +100,14 @@ describe('useImageUpload', () => {
       expect(result.current.referenceEntries).toBe(before)
     })
 
-    it('keeps extra adds disabled once the enabled count hits max', () => {
+    it('refuses new entries once the configured max is full', () => {
       const { result } = renderHook(() => useImageUpload())
       act(() => result.current.setMaxImages(2))
       act(() => result.current.addReferenceImage('a'))
       act(() => result.current.addReferenceImage('b'))
       act(() => result.current.addReferenceImage('c'))
       expect(result.current.referenceImages).toEqual(['a', 'b'])
-      expect(result.current.referenceEntries).toHaveLength(3)
-      expect(result.current.referenceEntries[2]?.disabledReason).toBe(
-        'over_limit',
-      )
+      expect(result.current.referenceEntries).toHaveLength(2)
     })
 
     it('removeReferenceImage uses the entries index and shifts disabled flags', () => {
@@ -132,12 +130,12 @@ describe('useImageUpload', () => {
   })
 
   describe('single-image mode (max=1)', () => {
-    it('replaces the existing entry on each add', () => {
+    it('requires removing the existing entry before another can be added', () => {
       const { result } = renderHook(() => useImageUpload())
       act(() => result.current.setMaxImages(1))
       act(() => result.current.addReferenceImage('a'))
       act(() => result.current.addReferenceImage('b'))
-      expect(result.current.referenceImages).toEqual(['b'])
+      expect(result.current.referenceImages).toEqual(['a'])
       expect(result.current.referenceEntries).toHaveLength(1)
     })
   })

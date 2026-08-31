@@ -9,9 +9,9 @@
 - 过滤：媒体类型 toggle；**搜索/排序/时间过滤引擎已存在**（`use-gallery.ts` 的 GalleryFilters 支持 search/model/sort/timeRange/provider）**但 UI 未露出**——这是 P0 优化方向之一。
 - 网格：密度 4/6/8（localStorage 持久化）+ 哨兵无限滚动；无虚拟化、无 blur-up。
 - 批量：选择模式逐张点选 + 底部操作条（删除/发布/收藏/移动）+ 拖拽入文件夹；无 shift 范围选。
-- 详情：`AssetDetailSheet`（remix/移动/删除/发布/收藏/下载/存提示词模板）。
+- 详情：`AssetDetailSheet`（remix/移动/删除/发布/收藏/下载/存提示词模板）；图片详情可在当前已加载、当前筛选结果的图片之间前后切换，首尾不循环。
 - 媒体表达：Generation 已有图片/视频宽高与音频时长；当前列表统一正方形裁切。声音已有详情设置封面 API 与默认图回退链，但封面规则尚未成为页面契约。
-- 上传：完整素材页接受 JPG / PNG / WebP / GIF 与 MP4 / MOV / WebM；图片沿既有压缩/直传链，视频由浏览器直接 PUT R2，按 `VIDEO` Generation 归档并保存客户端截取的 poster。视频单 PUT 上限 5 GiB、签名 1 小时；完成端以 HEAD 核对对象大小并只 Range 读取前 4 KiB 做容器签名校验。素材选择器仍保持图片上传入口，避免把视频送入图片压缩链。
+- 上传：完整素材页接受 JPG / PNG / WebP / GIF、MP4 / MOV / WebM，以及 MP3 / WAV / M4A / FLAC / OGG / audio-WebM。图片沿既有压缩/直传链；视频与音频由浏览器直接 PUT R2，分别按 `VIDEO` / `AUDIO` Generation 归档，视频额外保存客户端截取的 poster。大媒体单 PUT 上限 5 GiB、签名 1 小时；完成端以 HEAD 核对对象大小并只 Range 读取前 4 KiB 做容器签名校验。音频上传队列使用方形音频占位，不再误走图片解码/压缩。素材选择器仍保持图片上传入口。
 - 来源：Generation 已有 `sourceSurface`，但列表 select 与 Assets 筛选未接入；现有枚举也未完整覆盖 Video / Audio / 3D / Upload，暂时无法按所有真实来源分类。
 
 ## 素材选择器（跨域复用件，当前 16 个调用文件 / 19 个挂载点）
@@ -40,6 +40,8 @@
 
 ## Last Verified
 
+- 2026-08-30 · 图片详情补齐左右箭头与键盘方向键浏览；切换仅遍历当前已加载、当前筛选结果中的图片，首尾禁用，并使用遵循 reduced-motion 的方向淡入过渡。
+- 2026-08-30 · 音频上传端到端切片落地；素材页文件输入、上传队列、浏览器直传、服务端容器签名校验与 `AUDIO` 入库闭环。Vitest 定向 6 files / 64 tests、TypeScript、目标 ESLint 通过；Chrome 实查 3 项音频上传全部完成、详情可播放且控制台无上传错误。
 - 2026-08-29 · 视频上传端到端切片落地；移除误用的 50 MB 参考视频限制，采用 R2 5 GiB 单 PUT 边界；定向 Vitest 7 files / 62 tests 通过，Chrome 确认素材页文件输入已暴露四类图片与三类视频格式。
 - 2026-08-11 · Owner 选定方向 **B「大厅与展馆」**（推翻 08-09 的右侧 Dock），页面契约写入 `../pages/assets.md`，施工包已拆。⚠ 本轮实测两条硬事实：**比例谱 0.56–2.77**（方形裁切属实且严重）、**视频 thumbnail/preview 全空**（poster 派生是施工硬前置）。
 - 2026-08-09 · Owner 确认 Assets / picker 职责分工、“所有完成产物回流”、真实比例/声音封面需求与“共享行为、不同 shell”边界；~~选定右侧上下文 Dock 方向~~（已被 08-11 取代）；复核 picker 为 16 个调用文件 / 19 个挂载点。

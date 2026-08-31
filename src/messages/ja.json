@@ -188,7 +188,8 @@
     "compressed": "圧縮しました {from} MB → {to} MB",
     "gifTooLarge": "GIF が大きすぎて自動圧縮できません。上限 {maxMb} MB、先に圧縮してください。",
     "tooLarge": "画像が大きすぎます。上限 {maxMb} MB、より小さい画像をご使用ください。",
-    "uploadFailed": "参照画像のアップロードに失敗しました。もう一度お試しください。"
+    "uploadFailed": "参照画像のアップロードに失敗しました。もう一度お試しください。",
+    "limitReached": "このモデルの参照画像は最大 {max} 枚です。追加するには1枚削除してください。"
   },
   "Common": {
     "brand": "ANTEI",
@@ -2597,6 +2598,7 @@
     "referenceStrengthHint": "高いほど参照画像に近づきます",
     "disabledOverLimit": "現在のモデルが受け付ける枚数を超えています",
     "disabledUnsupported": "現在のモデルは参照画像を受け付けません",
+    "limitReached": "参照画像の上限（{max}枚）に達しました。追加するには1枚削除してください。",
     "back": "戻る",
     "selectAssetEmpty": "保存済みの画像がありません",
     "selectFromArchive": "アーカイブから選ぶ",
@@ -2615,13 +2617,14 @@
     "search": "アセットを検索...",
     "uploadButton": "アップロード",
     "uploadDropHint": "ドロップして「{folder}」にアップロード",
-    "uploadInputLabel": "画像または動画をローカル素材にアップロード",
+    "uploadInputLabel": "画像、動画、音声をローカル素材にアップロード",
     "uploading": "アップロード中...",
     "uploadSuccess": "素材をローカル素材に追加しました。",
     "uploadFailed": "アップロードに失敗しました",
-    "uploadUnsupportedFile": "JPG、PNG、WebP、GIF、MP4、MOV、WebM に対応しています。",
+    "uploadUnsupportedFile": "JPG、PNG、WebP、GIF、MP4、MOV、WebM、MP3、WAV、M4A、FLAC、OGG に対応しています。",
     "uploadFileTooLarge": "ファイルが大きすぎます。最大 {maxMb} MB です。",
     "uploadVideoTooLarge": "動画が大きすぎます。最大 {maxGb} GB です。",
+    "uploadAudioTooLarge": "音声が大きすぎます。最大 {maxGb} GB です。",
     "uploadCompressing": "大きな画像を最適化中…",
     "uploadCompressed": "圧縮しました：{from} MB → {to} MB",
     "uploadGifTooLarge": "GIF が大きすぎて自動圧縮できません。最大 {maxMb} MB — 先に外部ツールで圧縮してください。",
@@ -2694,6 +2697,8 @@
     "detailDownloading": "ダウンロード中...",
     "detailDownloadFailed": "ダウンロードに失敗しました。元ファイルを開きます。",
     "detailOpenOriginal": "元画像を開く",
+    "detailPreviousImage": "前の画像",
+    "detailNextImage": "次の画像",
     "detailMoveTo": "フォルダーへ移動",
     "detailMoveUnassigned": "未分類",
     "detailMoved": "移動しました",
@@ -2732,7 +2737,7 @@
     "detailDeleteConfirmDescription": "アーカイブから完全に削除され、元に戻すことはできません。",
     "detailDeleted": "削除しました",
     "detailDeleteFailed": "削除に失敗しました",
-    "densityLabel": "グリッド密度",
+    "densityLabel": "密度",
     "densitySmall": "小さい行",
     "densityMedium": "標準の行",
     "densityLarge": "大きい行",
@@ -6370,6 +6375,12 @@
       "unexpected": "予期しないエラーが発生しました。もう一度お試しください。",
       "databaseUnavailable": "データベースサービスを一時的に利用できません。しばらくしてから再度お試しください。"
     },
+    "webImageImport": {
+      "unreachable": "この画像を配信しているサイトがダウンロードを拒否しました。別の候補をお試しください。",
+      "unsupported": "このリンクは対応する画像形式ではありません（JPEG / PNG / WebP / GIF）。",
+      "tooLarge": "この画像は大きすぎて取り込めません。",
+      "noImageOnPage": "これはウェブページで、メイン画像が指定されていません。画像そのもののアドレスを送ってください（画像を右クリックして「画像アドレスをコピー」）。"
+    },
     "assistant": {
       "videoUnsupported": "このモデルは動画を分析できません。Geminiを選ぶか、動画の参考素材を削除してください。",
       "imageUnsupported": "このモデルは画像を分析できません。OpenAIまたはGeminiを選ぶか、画像の参考素材を削除してください。",
@@ -6641,7 +6652,8 @@
     "uploadSuccess": "音声をアップロードしました",
     "errorTooLarge": "音声ファイルが {max} を超えています",
     "errorNotAudio": "音声ファイルを選択してください",
-    "errorUploadFailed": "音声のアップロードに失敗しました"
+    "errorUploadFailed": "音声のアップロードに失敗しました",
+    "limitReached": "音声リファレンスの上限（{max}件）に達しました。追加するには1件削除してください。"
   },
   "VideoScript": {
     "panelTitle": "脚本",
@@ -6880,5 +6892,170 @@
     "deleteRoom": "ルームを削除",
     "deleteRoomTitle": "このルームを削除しますか？",
     "deleteRoomHint": "「{name}」とすべてのセリフが削除されます。生成済みの音声は素材ライブラリに残ります。"
+  },
+  "StudioOperator": {
+    "title": "アシスタント",
+    "domainChip": {
+      "image": "画像ワークベンチ",
+      "video": "動画ワークベンチ",
+      "lora": "LoRA ワークベンチ"
+    },
+    "domainName": {
+      "image": "画像ワークベンチ",
+      "video": "動画ワークベンチ",
+      "lora": "LoRA ワークベンチ"
+    },
+    "session": "セッション",
+    "newThread": "新しい会話",
+    "history": {
+      "heading": "これまでの会話",
+      "empty": "ほかの会話はまだありません",
+      "loading": "読み込み中…",
+      "untitled": "無題の会話",
+      "readonlyNote": "ここまでは履歴 · 読み取り専用"
+    },
+    "more": "その他",
+    "share": "この会話を共有",
+    "feedback": "フィードバック",
+    "collapse": "アシスタントを畳む",
+    "resize": "ドラッグで幅を変更",
+    "empty": "やりたいことを一言どうぞ。無料の操作はそのまま実行し、クレジットを使うものは「押すだけ」の生成ボタンで止めます。",
+    "planTitle": "計画 · 無料の手順はそのまま実行",
+    "domainMark": "{domain}に切り替え —— 道具は変わっても会話は続きます",
+    "placeholderIdle": "続けてどうぞ。素材を添付しても構いません…",
+    "placeholderWorking": "どうぞ、聞いています —— 割り込めば方向転換します",
+    "send": "送信",
+    "sendInterrupt": "割り込み —— 受け取って計画を組み直します",
+    "stop": "作業を止める",
+    "lightboxLabel": "拡大表示",
+    "pill": {
+      "idle": "アシスタント",
+      "working": "アシスタント · 作業中",
+      "workingCount": "アシスタント · 作業中 {done}/{total}",
+      "awaitingConfirm": "確認待ち · プロンプトの書き方",
+      "primed": "準備完了 · 生成ボタンが点灯"
+    },
+    "log": {
+      "undo": "取り消す"
+    },
+    "reject": {
+      "noSuchControl": "このワークベンチにその項目はありません",
+      "unknownModel": "そのモデルは選べる一覧にありません",
+      "unknownValue": "その値は選択肢にありません",
+      "unknownAsset": "その素材は今回の検索結果にありません",
+      "referencesFull": "参照画像の枠が埋まっています",
+      "emptyValue": "書き込む内容が空でした",
+      "userDeclined": "「そのまま」を選んだので実行しませんでした",
+      "noModelSelected": "モデルがまだ選ばれていません",
+      "emptyPrompt": "プロンプトがまだ空です",
+      "malformedArgs": "引数の形が正しくありません",
+      "searchUnavailable": "ウェブ画像検索は現在利用できません",
+      "noResultToCritique": "見るべき自前の結果がまだありません",
+      "visionUnavailable": "画像を見られるモデルがありません",
+      "critiqueFailed": "見ましたが、講評を読み取れませんでした",
+      "urlNotFromUser": "そのリンクはあなたが渡したものではないため、そのまま取り込めません",
+      "repeatedStep": "同じ手順をすでに実行済みのため、見送りました",
+      "unknownLora": "その LoRA は今回の検索結果にありません",
+      "loraNotMounted": "その LoRA はベンチに載っていません",
+      "loraNotImportable": "その LoRA はライブラリに取り込めません。配布元ページでのみ確認できます"
+    },
+    "field": {
+      "prompt": "プロンプト",
+      "negative": "ネガティブプロンプト",
+      "model": "モデル",
+      "specs": "仕様",
+      "count": "枚数",
+      "references": "参照画像",
+      "audioReferences": "参照音声",
+      "sound": "音声出力",
+      "loras": "LoRA 構成"
+    },
+    "changes": {
+      "originalValue": "元の値：{value}",
+      "originalEmpty": "元は空でした",
+      "revertOne": "クリックでこの項目を戻す",
+      "revertAll": "アシスタントの変更をすべて戻す（{count} 件）",
+      "clearConfirm": "{count} 件を本当に消しますか？"
+    },
+    "confirm": {
+      "have": {
+        "prompt": "プロンプト欄にあなたが書いた {count} 文字があります —— どうしますか？",
+        "negative": "ネガティブプロンプトにあなたが書いた {count} 文字があります —— どうしますか？"
+      },
+      "choice": {
+        "append": "後ろに追記",
+        "overwrite": "上書き",
+        "keep": "そのまま"
+      }
+    },
+    "system": {
+      "undoStep": "取り消しました：{subject}（アシスタントは把握済み、やり直しません）",
+      "revertField": "元に戻しました：{subject}（アシスタントは把握済み）",
+      "revertAll": "アシスタントの変更をすべて消しました（{count} 件）—— 把握済みです",
+      "stopped": "作業を止めました",
+      "interrupted": "割り込みました —— 方向を変えます",
+      "revertRound": "このラウンドの変更 {count} 件を元に戻しました（アシスタントは把握済み）",
+      "resultArrived": "用意した一枚が返ってきました —— アシスタントが見ています",
+      "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
+      "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）"
+    },
+    "suggestion": {
+      "setupShot": "この一枚を組み立てて",
+      "findReference": "ライブラリから参照を探して",
+      "whyNotEnough": "この版に足りないところは？",
+      "animateLast": "この一枚を動かして",
+      "addVoice": "彼女の声をのせて",
+      "splitShots": "3 カットに分けて",
+      "findStyle": "この画風に合う LoRA を探して",
+      "stackConflict": "この組み合わせはぶつかる？",
+      "sweepWeights": "ウェイトを振って比べて"
+    },
+    "attach": {
+      "label": "添付：アップロード / ライブラリ / 貼り付け",
+      "uploadTitle": "ここにドロップ、またはクリックでアップロード",
+      "uploadHint": "画像 · 音声 · 動画",
+      "libraryLabel": "ライブラリ · 最近",
+      "openLibrary": "ライブラリ全体を開く",
+      "libraryDialogTitle": "ライブラリから選んで添付",
+      "libraryDialogDescription": "クリックすると次のメッセージに添付されます。ワークベンチから離れません。",
+      "libraryEmpty": "ライブラリはまだ空です",
+      "pasteHint": "入力欄に画像を直接貼り付けることもできます — 添付として上に表示されます",
+      "remove": "この添付を外す",
+      "upload": {
+        "compressing": "大きすぎるので、送れるサイズまで圧縮しています…",
+        "compressed": "圧縮しました：{from}MB → {to}MB",
+        "gifTooLarge": "このアニメーション画像は {maxMb}MB を超えていて圧縮できません — 別のものをお試しください",
+        "tooLargeImage": "画像は最大 {maxMb}MB です",
+        "tooLargeVideo": "動画は最大 {maxGb}GB です",
+        "tooLargeAudio": "音声は最大 {maxGb}GB です",
+        "unsupported": "この種類のファイルはアップロードできません（画像 / 音声 / 動画のみ）",
+        "failed": "アップロードに失敗しました",
+        "retry": "このアップロードを再試行",
+        "waiting": "アップロード中です — 完了すると送信できます"
+      }
+    },
+    "web": {
+      "candidates": "ウェブの候補 · プレビューのみ、まだ保存されていません",
+      "pickHint": "画像を押すと大きく表示（ダウンロードなし）· 「使う」を押すとライブラリに保存して添付します",
+      "selectedHint": "{count}/{limit} 選択中 · もう一度「使う」で解除し、ライブラリからも削除します。上限に達した後はいちばん古いものと入れ替わります",
+      "viewLarge": "大きく見る",
+      "use": "使う",
+      "used": "使用中",
+      "retry": "再試行",
+      "imported": "保存済み",
+      "importFailedShort": "取得不可",
+      "importFailed": "この画像は取得できませんでした",
+      "cleanupFailed": "入れ替えた方をライブラリから削除できませんでした。素材ページで削除してください"
+    },
+    "critique": {
+      "title": "自動チェック · 用意した本人が見ます",
+      "titleWithModel": "自動チェック · {model} が出したこの一枚",
+      "borrowed": "選択中のモデルは画像を見られないため、今回は別のモデルを借りて見ました",
+      "revertRound": "このラウンドを元に戻す（{count} 件）",
+      "nextRound": "次のラウンドに先入力："
+    },
+    "error": {
+      "generic": "今回のラウンドは最後まで走りませんでした"
+    }
   }
 }

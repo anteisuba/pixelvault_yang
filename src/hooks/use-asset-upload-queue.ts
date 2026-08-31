@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { ASSET_UPLOAD_FALLBACK_ASPECT_RATIO } from '@/constants/assets-grid'
+import {
+  ASSET_GRID_AUDIO_ASPECT_RATIO,
+  ASSET_UPLOAD_FALLBACK_ASPECT_RATIO,
+} from '@/constants/assets-grid'
 import type { GenerationRecord } from '@/types'
 
 /**
@@ -21,6 +24,7 @@ export type UploadQueueItemStatus = 'uploading' | 'done' | 'error'
 export interface UploadQueueItem {
   id: string
   fileName: string
+  mimeType: string
   /** 本地 object URL —— 占位瓦片直接拿它显示，不用等服务端。 */
   previewUrl: string
   /** 本地读到的真实宽高比，占位瓦片按它参与 justified 排版（§7.3.6）。 */
@@ -69,6 +73,10 @@ export interface UseAssetUploadQueueReturn {
 
 /** 本地读取图片/视频的真实宽高比；读不到就按契约兜底 4:5。 */
 function readAspectRatio(objectUrl: string, mimeType: string): Promise<number> {
+  if (mimeType.startsWith('audio/')) {
+    return Promise.resolve(ASSET_GRID_AUDIO_ASPECT_RATIO)
+  }
+
   if (mimeType.startsWith('video/')) {
     return new Promise((resolve) => {
       const video = document.createElement('video')
@@ -186,6 +194,7 @@ export function useAssetUploadQueue({
         const item: UploadQueueItem = {
           id,
           fileName: file.name,
+          mimeType: file.type,
           previewUrl,
           aspectRatio: ASSET_UPLOAD_FALLBACK_ASPECT_RATIO,
           progress: 0,

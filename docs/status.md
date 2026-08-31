@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-08-30
+最后更新：2026-08-31
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
@@ -97,8 +97,29 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
 
 ## Completed / Stable Enough to Build On
 
+### LoRA 挂载持久化
+
+- 2026-08-31 修复 `use-active-lora-stack` 首帧水化会先把空栈写回用户分槽的竞态：
+  持久化现在跳过每次 Clerk 水化前的旧 `items`，避免 React Strict Mode 重放时把已挂 LoRA
+  稳定覆盖为空。回归测试断言水化期不再出现 `{ items: [] }` 写入；定向 Vitest 32/32、
+  目标 ESLint / Prettier 通过，登录态 Chrome 中助手切 SDXL 后挂载的 LoRA 连续两次刷新均保留。
+
+### 视频参考请求边界
+
+- 2026-08-31 视频参考图/音频的请求硬上限收敛到 `src/constants/video-reference-limits.ts`：
+  UI 模型槽位、公开请求 schema 与 Worker payload schema 共同读取 30 图 / 10 音频；达到
+  UI 上限后所有新增入口禁用并显示移除提示，避免第 4 条音频或第 10 张图后才由 API 返回 400。
+  相关 7 个定向 Vitest 文件共 63 项通过。
+
+### 素材详情浏览
+
+- 2026-08-30 图片详情补齐左右浏览：仅在当前筛选结果中至少有两张已加载图片时显示箭头，首尾禁用且不跨媒体；支持键盘方向键，预览与右侧元数据同步更新。图片切换使用项目统一的 200ms 方向淡入过渡，减弱动效偏好下关闭位移与缩放。
+
 ### 素材库上传
 
+- 2026-08-30 素材库上传入口继续扩到音频（MP3 / WAV / M4A / FLAC / OGG / audio-WebM）。
+  音频与视频一样浏览器直传 R2，完成端只读取对象元数据与前 4 KiB 验证真实容器，不进入图片压缩；
+  成功后按 `AUDIO` 归档并保留浏览器读取到的时长。队列中的音频使用方形音乐占位，支持进度、失败重试与查看。
 - 2026-08-29 素材库上传入口已从图片扩到图片 + 视频（MP4 / MOV / WebM）。视频走浏览器直传 R2，
   单次 PUT 上限采用 R2 的 5 GiB 平台边界，预签名窗口 1 小时；完成接口只用 HEAD 核对真实大小并
   Range 读取前 4 KiB 验证容器签名，不把整段大视频下载进应用服务器内存。视频记录按 `VIDEO`
@@ -164,6 +185,7 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
 
 ## Design Status
 
+- 2026-08-30 素材页顶栏按 owner 确认的第二轮 mock 与后续真机反馈收口：桌面为内容区 `11/12`、最大 `1536px` 的居中 `rounded-2xl` 实色工具条；顶部搜索框已移除，类型/状态/模型/时间/排序五个分面直接进入原区域，生效条件的可删除 chip 也留在吸顶框内。首次进入、吸顶与密度切换动效继续遵循减弱动效设置。稳定契约已写入 `docs/references/pages/assets.md` §3。
 - 2026-08-30 首页功能页 01 调整为图片优先：860px 工作台内输入列 315px、四宫格 500px，单图 245px；移动端补齐纵向回落，四宫格宽度 100%。未改变首页其他功能页、动效时钟或产品内页。
 - 2026-08-05 LoRA 域已按 owner 真机反馈统一为系统白色浅色工作台；无 `section` 的
   `/studio/lora` 默认入口改为 Generate，Library / Mine / Train 显式深链保持不变。
@@ -185,6 +207,20 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
 
 ## Validation
 
+- 2026-08-30 图片工作台助手附件面板：补齐 200ms 淡入/上移动效与 reduced-motion 降级；
+  面板内部、触发器及素材选择 Dialog 内点击不关闭，点击外部关闭；键盘打开后聚焦首个操作，
+  `Escape` 只关闭这一层并把焦点还给触发器。定向 Vitest 1 file / 10 tests、目标 ESLint、
+  全量 TypeScript 通过；现有 `/zh/studio/image` 真机确认动效起止态、内部点击保持、
+  参数区点击关闭附件面板并收起助手。
+- 2026-08-30 素材详情图片切换：`MediaDetailViewer` 定向交互测试与 i18n 完整性共 2 files / 9 tests 通过；全量 TypeScript、目标 ESLint、目标 Prettier 通过。Chrome 已刷新到最新 `/zh/assets` 并确认 111 条素材正常渲染；打开详情后的自动控制连续超时，因此箭头位置与真实切换动效未完成浏览器自动化复核。
+- 2026-08-30 素材页筛选合并顶栏：Chrome 1920×911 实测默认工具条 `x=215.5 / width=1536 / y=16 / height=56`，搜索输入数量为 0，五个分面全部在框内；选择“图像”后工具条高 86px，可删除 chip 与清除入口保持在框内，右侧上传/选择/密度未溢出，页面无横向溢出、控制台无 error。目标 Prettier、ESLint、全量 TypeScript 与 `git diff --check` 通过；owner 的 3000 dev 实例运行中，按规则未并行 build。
+- 2026-08-30 素材库音频上传：先以 `audio/mpeg` 不在素材入口白名单的回归用例稳定复现两次；修复后
+  定向 Vitest 6 files / 64 tests 通过，`npx tsc --noEmit`、目标 ESLint、目标 Prettier 通过；Chrome
+  实查 `/zh/assets` 文件输入已包含 MP3 / WAV / M4A / FLAC / OGG / audio-WebM，页面现有音频队列
+  `3 项 · 3 完成 · 0 失败`，详情存在可播放 `<audio>`、`user-upload` 与时长，控制台无上传错误。
+  全量 Vitest 为 562 files / 5673 tests 通过、1 条失败；失败只来自同工作树在飞且未纳入本任务的
+  `StudioOperatorLightbox` / `StudioOperatorLogItem` 缺三条 `StudioOperator` 消息键，素材上传相关用例无回退。
+  owner 的 3000 dev 实例运行中，按规则未并行 build。
 - 2026-08-30 首页图片功能页：Chrome 1920×855 实测输入 315px / 结果 500px / 单格 245px，页面 `scrollWidth === innerWidth`；`HomeV4Fn.test.tsx` 40/40 通过，目标 ESLint 0 error，`npm run typecheck` 通过，`git diff --check` 无空白错误。owner 的 3000 dev 实例运行中，按规则未并行 build。
 - 2026-08-29 素材库视频上传：定向 Vitest 7 files / 62 tests 通过（含 80 MB 完成校验与
   `bytes=0-4095` 范围读取断言）；本次改动文件 ESLint 0 error；`git diff --check` 无空白错误；

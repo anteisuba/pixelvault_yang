@@ -2,7 +2,11 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import { URL_READER, WEB_SEARCH } from '@/constants/web-search'
+import {
+  URL_READER,
+  WEB_IMAGE_SEARCH,
+  WEB_SEARCH,
+} from '@/constants/web-search'
 import { assertSafeUrl } from '@/lib/url-guard'
 import { logger } from '@/lib/logger'
 import { extractUrlsFromText, stripUrls } from '@/lib/research-intent'
@@ -129,6 +133,138 @@ export async function webSearch(
       }))
   } catch (error) {
     logger.warn('webSearch failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return []
+  }
+}
+
+// ─── Image search (Serper /images) ───────────────────────────────
+
+/**
+ * 一张联网**预览**候选。
+ *
+ * ⛔ 名字里的 preview 不是修辞：这里返回的东西**一个字节都没有落地**，
+ * 转存进 R2 是另一条腿（用户点选 → `POST /api/studio/web-image-import`）。
+ * owner 2026-08-30 原话：「主要是给个预览的功能，用户确定了再落 R2」。
+ */
+export interface WebImageSearchResult {
+  /** 原图直链 —— 用户点选后转存取的就是它。 */
+  imageUrl: string
+  /**
+   * gstatic 缩略图。🔬 选型报告：Serper 这一路的缩略图**不过期**（SerpApi 的 31 天
+   * 就会 404），所以网格里画它是安全的；而原图直链实测约三成 403，画它会得到
+   * 一半碎图。
+   */
+  thumbnailUrl?: string
+  /** 图片所在页。 */
+  pageUrl?: string
+  domain?: string
+  title?: string
+  /** ⚠ 搜索引擎报的数，不是实到值 —— 只配当选图参考。 */
+  width?: number
+  height?: number
+}
+
+const SerperImagesResponseSchema = z.object({
+  images: z
+    .array(
+      z.object({
+        title: z.string().optional(),
+        imageUrl: z.string().optional(),
+        imageWidth: z.number().optional(),
+        imageHeight: z.number().optional(),
+        thumbnailUrl: z.string().optional(),
+        source: z.string().optional(),
+        domain: z.string().optional(),
+        link: z.string().optional(),
+      }),
+    )
+    .optional(),
+})
+
+export function isWebImageSearchConfigured(): boolean {
+  return Boolean(process.env.SERPER_API_KEY)
+}
+
+function positiveIntOrUndefined(value: number | undefined): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+    ? value
+    : undefined
+}
+
+/**
+ * Serper `/images` —— 与 `webSearch` **同 key 同域、不同路径**，接它不需要任何新凭据。
+ *
+ * ⚠ 与 `webSearch` 同一条 best-effort 契约：失败返回 `[]` 并 `logger.warn`，
+ * **不抛**。理由是调用方（助手工具环）一步失败不该让整轮作废 —— 那条链上每一步
+ * 都是一次 LLM 往返，抛出去的表现是「跑到一半整段消失」。代价是「上游挂了」与
+ * 「真的一张都没搜到」在日志条上长得一样；⚠ 真要分辨看服务端日志，别在 UI 上猜。
+ *
+ * ⚠ 每调一次就是一个 Serper credit（免费池 2500）。⛔ 别在任何地方给它加自动重试
+ * 或"顺手预取" —— `withRetry` 在这里是**故意没用**的（`webSearch` 用了，因为那条
+ * 是一轮研究里的唯一一次调用；这条挂在助手的多步工具环上，重试会把额度按步数翻倍）。
+ */
+export async function webImageSearch(
+  query: string,
+  options: { num?: number } = {},
+): Promise<WebImageSearchResult[]> {
+  const apiKey = process.env.SERPER_API_KEY
+  if (!apiKey) {
+    logger.warn('webImageSearch skipped: SERPER_API_KEY not configured')
+    return []
+  }
+
+  const num = Math.min(
+    options.num ?? WEB_IMAGE_SEARCH.defaultNumResults,
+    WEB_IMAGE_SEARCH.maxNumResults,
+  )
+
+  try {
+    const response = await fetch(WEB_IMAGE_SEARCH.serperEndpoint, {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ q: query, num }),
+      signal: AbortSignal.timeout(WEB_IMAGE_SEARCH.timeoutMs),
+    })
+    if (!response.ok) {
+      throw markStatus(
+        new Error(`Serper image search failed: ${response.status}`),
+        response.status,
+      )
+    }
+    const data = SerperImagesResponseSchema.parse(await response.json())
+
+    return (
+      (data.images ?? [])
+        // 没有原图直链的那些直接丢：候选的全部意义就是「点它能转存」。
+        .filter((entry) => Boolean(entry.imageUrl))
+        .slice(0, num)
+        .map((entry) => ({
+          imageUrl: entry.imageUrl ?? '',
+          ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
+          ...(entry.link ? { pageUrl: entry.link } : {}),
+          // `domain` 有时缺席，`source` 是站点显示名 —— 两者取其一给人看。
+          ...(entry.domain || entry.source
+            ? { domain: entry.domain ?? entry.source ?? '' }
+            : {}),
+          ...(entry.title
+            ? { title: entry.title.slice(0, WEB_IMAGE_SEARCH.maxTitleLength) }
+            : {}),
+          ...(positiveIntOrUndefined(entry.imageWidth)
+            ? { width: entry.imageWidth }
+            : {}),
+          ...(positiveIntOrUndefined(entry.imageHeight)
+            ? { height: entry.imageHeight }
+            : {}),
+        }))
+    )
+  } catch (error) {
+    logger.warn('webImageSearch failed', {
+      query,
       error: error instanceof Error ? error.message : String(error),
     })
     return []

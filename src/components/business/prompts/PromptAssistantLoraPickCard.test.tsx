@@ -106,6 +106,14 @@ function adapter(
       mounted: true,
       triggerWordsApplied: true,
     }),
+    /** ⚠ 这张卡走的是 `confirm`（整条候选在手）；`confirmPayload` 是操作员那条路
+     *  的入口（P4-C），在这里只是把契约填满。 */
+    confirmPayload: vi.fn().mockResolvedValue({
+      status: 'ok',
+      imported: true,
+      mounted: true,
+      triggerWordsApplied: true,
+    }),
     ...over,
   }
 }

@@ -2,11 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
+import { WEB_IMAGE_SEARCH } from '@/constants/web-search'
 import {
   gatherWebContext,
   hasWebContext,
+  isWebImageSearchConfigured,
   isWebSearchConfigured,
   readUrl,
+  webImageSearch,
   webSearch,
 } from '@/services/web-research.service'
 
@@ -154,6 +157,107 @@ describe('gatherWebContext', () => {
     const ctx = await gatherWebContext('https://example.com')
     expect(ctx.results).toEqual([])
     expect(ctx.pages).toHaveLength(1)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('webImageSearch (Serper /images · P3-B 预览候选)', () => {
+  it('reflects SERPER_API_KEY presence — same key as /search', () => {
+    vi.stubEnv('SERPER_API_KEY', '')
+    expect(isWebImageSearchConfigured()).toBe(false)
+    vi.stubEnv('SERPER_API_KEY', 'k')
+    expect(isWebImageSearchConfigured()).toBe(true)
+  })
+
+  it('⛔ 没 key 时一次 fetch 都不发（credits 是真钱）', async () => {
+    vi.stubEnv('SERPER_API_KEY', '')
+    expect(await webImageSearch('pvc figure')).toEqual([])
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('打的是 /images 而不是 /search，且带上 key 与 num', async () => {
+    vi.stubEnv('SERPER_API_KEY', 'serper-key')
+    mockFetch.mockResolvedValue(jsonResponse({ images: [] }))
+
+    await webImageSearch('pvc figure studio shot', { num: 5 })
+
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe(WEB_IMAGE_SEARCH.serperEndpoint)
+    expect(url).toContain('/images')
+    expect((init.headers as Record<string, string>)['X-API-KEY']).toBe(
+      'serper-key',
+    )
+    expect(JSON.parse(init.body as string)).toEqual({
+      q: 'pvc figure studio shot',
+      num: 5,
+    })
+  })
+
+  it('把 Serper 的字段映成候选：原图 / 缩略图 / 页面 / 域名 / 尺寸', async () => {
+    vi.stubEnv('SERPER_API_KEY', 'serper-key')
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        images: [
+          {
+            title: 'PVC figure studio shot',
+            imageUrl: 'https://cdn.example.com/a.jpg',
+            imageWidth: 1600,
+            imageHeight: 1200,
+            thumbnailUrl: 'https://encrypted-tbn0.gstatic.com/a.jpg',
+            source: 'Example',
+            domain: 'example.com',
+            link: 'https://example.com/post/a',
+          },
+        ],
+      }),
+    )
+
+    const [hit] = await webImageSearch('pvc figure')
+    expect(hit).toEqual({
+      imageUrl: 'https://cdn.example.com/a.jpg',
+      thumbnailUrl: 'https://encrypted-tbn0.gstatic.com/a.jpg',
+      pageUrl: 'https://example.com/post/a',
+      domain: 'example.com',
+      title: 'PVC figure studio shot',
+      width: 1600,
+      height: 1200,
+    })
+  })
+
+  it('⛔ 没有原图直链的条目直接丢 —— 候选的全部意义就是「点它能转存」', async () => {
+    vi.stubEnv('SERPER_API_KEY', 'serper-key')
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        images: [
+          { title: 'no direct link', thumbnailUrl: 'https://tbn/x.jpg' },
+          { imageUrl: 'https://cdn.example.com/ok.jpg' },
+        ],
+      }),
+    )
+
+    const results = await webImageSearch('pvc figure')
+    expect(results.map((hit) => hit.imageUrl)).toEqual([
+      'https://cdn.example.com/ok.jpg',
+    ])
+  })
+
+  it('num 超过档位上限时收窄，⛔ 不把额度按模型写的大数烧掉', async () => {
+    vi.stubEnv('SERPER_API_KEY', 'serper-key')
+    mockFetch.mockResolvedValue(jsonResponse({ images: [] }))
+
+    await webImageSearch('pvc figure', { num: 500 })
+
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0][1] as RequestInit).body as string,
+    ) as { num: number }
+    expect(body.num).toBe(WEB_IMAGE_SEARCH.maxNumResults)
+  })
+
+  it('⛔ 上游挂了不抛也不重试 —— 一次调用就是一个 credit', async () => {
+    vi.stubEnv('SERPER_API_KEY', 'serper-key')
+    mockFetch.mockResolvedValue(jsonResponse({ error: 'boom' }, 429))
+
+    expect(await webImageSearch('pvc figure')).toEqual([])
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })

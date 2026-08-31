@@ -1,12 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 
-import { MediaDetailViewer } from '@/components/business/MediaDetailViewer'
+import {
+  MediaDetailViewer,
+  type MediaDetailNavigation,
+} from '@/components/business/MediaDetailViewer'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-function renderViewer(onOpenChange = vi.fn()) {
+function renderViewer(
+  onOpenChange = vi.fn(),
+  navigation?: MediaDetailNavigation,
+) {
   render(
     <MediaDetailViewer
       open
@@ -18,6 +24,7 @@ function renderViewer(onOpenChange = vi.fn()) {
       sideHeader={<div>Header</div>}
       sideContent={<div>Content</div>}
       footerActions={<div>Actions</div>}
+      navigation={navigation}
     />,
   )
 
@@ -49,5 +56,44 @@ describe('MediaDetailViewer', () => {
     fireEvent.click(mediaSection, { clientX: 200, clientY: 200 })
 
     expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('switches media with arrow controls and keyboard shortcuts', () => {
+    const onOpenChange = vi.fn()
+    const onPrevious = vi.fn()
+    const onNext = vi.fn()
+    renderViewer(onOpenChange, {
+      previousLabel: 'Previous image',
+      nextLabel: 'Next image',
+      canGoPrevious: true,
+      canGoNext: true,
+      direction: 1,
+      onPrevious,
+      onNext,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous image' }))
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+
+    expect(onPrevious).toHaveBeenCalledTimes(1)
+    expect(onNext).toHaveBeenCalledTimes(1)
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('disables navigation at the current image boundary', () => {
+    renderViewer(vi.fn(), {
+      previousLabel: 'Previous image',
+      nextLabel: 'Next image',
+      canGoPrevious: false,
+      canGoNext: true,
+      direction: 1,
+      onPrevious: vi.fn(),
+      onNext: vi.fn(),
+    })
+
+    expect(
+      screen.getByRole('button', { name: 'Previous image' }),
+    ).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Next image' })).toBeEnabled()
   })
 })

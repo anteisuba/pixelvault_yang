@@ -244,14 +244,14 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
   // Mirror of `items` for event-side dup/capacity checks in callbacks —
   // the setItems updater stays the single source of truth for mutations.
   const itemsRef = useRef<StoredEntry[]>([])
-  const hasHydrated = useRef(false)
+  const loadedForClerkId = useRef<string | null>(null)
+  const skipNextPersistenceForClerkId = useRef<string | null>(null)
   const searchParams = useSearchParams()
   // Clerk scopes every read and write. Until isLoaded === true we treat
   // the user as unknown — same parked-state contract as the Node
   // Workflow hook. activeClerkId is null while parked.
   const { isLoaded, userId } = useAuth()
   const activeClerkId: string | null = isLoaded ? userId : null
-  const loadedForClerkId = useRef<string | null>(null)
 
   // One-shot legacy wipe — independent of whoever is signed in.
   useEffect(() => {
@@ -262,18 +262,20 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
   // parked (null), clear in-memory state so the previous user's stack
   // doesn't render against the new session.
   useEffect(() => {
-    hasHydrated.current = false
     if (activeClerkId === null) {
       loadedForClerkId.current = null
+      skipNextPersistenceForClerkId.current = null
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setItems([])
       return
     }
 
     loadedForClerkId.current = activeClerkId
-
+    // The persistence effect in this same commit still sees the previous
+    // render's items. Skip that one write; the state update below triggers
+    // the first safe write with the hydrated snapshot.
+    skipNextPersistenceForClerkId.current = activeClerkId
     setItems(readFromStorage(activeClerkId))
-    hasHydrated.current = true
   }, [activeClerkId])
 
   // Resolve `?style=` tokens → fetch + push. Accepts the legacy
@@ -346,9 +348,12 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
   // that's intentional: don't leak unsigned-in edits into anyone's slot).
   useEffect(() => {
     itemsRef.current = items
-    if (!hasHydrated.current) return
     if (activeClerkId === null) return
     if (loadedForClerkId.current !== activeClerkId) return
+    if (skipNextPersistenceForClerkId.current === activeClerkId) {
+      skipNextPersistenceForClerkId.current = null
+      return
+    }
     writeToStorage(items, activeClerkId)
   }, [activeClerkId, items])
 

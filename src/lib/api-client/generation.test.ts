@@ -6,6 +6,7 @@ import {
   submit3DAPI,
   submitLongVideoAPI,
   submitVideoAPI,
+  uploadAudioFileAPI,
   uploadImageFileAPI,
   uploadVideoFileAPI,
 } from '@/lib/api-client/generation'
@@ -430,6 +431,72 @@ describe('uploadVideoFileAPI direct R2 flow', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       API_ENDPOINTS.UPLOAD_VIDEO_DIRECT_COMPLETE,
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+})
+
+describe('uploadAudioFileAPI direct R2 flow', () => {
+  it('prepares, uploads, and completes audio as an asset', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              uploadUrl: 'https://r2.example.com/audio?signature=ok',
+              storageKey: 'generations/db_user_123/audio/2026-08-30_abc.mp3',
+              publicUrl: 'https://cdn.example.com/audio.mp3',
+              headers: { 'Content-Type': 'audio/mpeg', 'If-None-Match': '*' },
+              expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+              maxBytes: 5 * 1024 * 1024 * 1024,
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              generation: {
+                id: 'audio-gen-1',
+                outputType: 'AUDIO',
+                url: 'https://cdn.example.com/audio.mp3',
+              },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const file = new File(['audio-bytes'], 'track.mp3', {
+      type: 'audio/mpeg',
+    })
+    const result = await uploadAudioFileAPI(file, { duration: 120.5 })
+
+    expect(result.success).toBe(true)
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      API_ENDPOINTS.UPLOAD_AUDIO_DIRECT,
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://r2.example.com/audio?signature=ok',
+      expect.objectContaining({
+        method: 'PUT',
+        headers: { 'Content-Type': 'audio/mpeg', 'If-None-Match': '*' },
+        body: file,
+      }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      API_ENDPOINTS.UPLOAD_AUDIO_DIRECT_COMPLETE,
       expect.objectContaining({ method: 'POST' }),
     )
   })

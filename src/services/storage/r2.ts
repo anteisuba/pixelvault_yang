@@ -41,8 +41,19 @@ export function generateStorageKey(
   const random = randomBytes(12).toString('hex') // 24-char cryptographically secure
 
   if (outputType === 'AUDIO') {
+    const supportedAudioExtensions = new Set([
+      'mp3',
+      'wav',
+      'opus',
+      'm4a',
+      'flac',
+      'ogg',
+      'webm',
+    ])
     const ext =
-      mediaFormat === 'wav' ? 'wav' : mediaFormat === 'opus' ? 'opus' : 'mp3'
+      mediaFormat && supportedAudioExtensions.has(mediaFormat)
+        ? mediaFormat
+        : 'mp3'
     return `generations/${userId}/audio/${date}_${random}.${ext}`
   }
 

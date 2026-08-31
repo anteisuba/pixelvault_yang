@@ -8,7 +8,10 @@ import {
 } from '@/constants/lora-candidate'
 import { favoriteLoraAPI } from '@/lib/api-client/lora-assets'
 import type { LoraAssetRecord } from '@/types'
-import type { LoraCandidate } from '@/types/lora-candidate'
+import type {
+  LoraCandidate,
+  LoraCandidateImportPayload,
+} from '@/types/lora-candidate'
 
 /**
  * 「一次确认」的三件事（任务包 §5「LoRA 一次确认链」）：
@@ -56,6 +59,22 @@ export interface LoraCandidateConfirmAdapter {
     /** `[[lora]]` 里模型给的建议权重；缺省用资产自己的默认值。 */
     suggestedWeight?: number
   }): Promise<LoraCandidateConfirmOutcome>
+  /**
+   * 同一条链的**低一层入口**（P4-C）：只要导入载荷与触发词，不要整个候选对象。
+   *
+   * ⭐ 抽出它是因为操作员的 `mount_lora` 手上**只有载荷**：服务端从本轮检索结果里
+   * 抄过来的是 `importPayload` + 名字 + 触发词，不是整条 `LoraCandidate`（那份对象
+   * 上还挂着样图、下载数、完整度这些跟挂载无关的东西，塞进 op 就是塞进日志和历史）。
+   * ⛔ 为此**不**在操作员那边另写一条导入-挂载-触发词的链：两份实现迟早说两句
+   * 不一样的话，而这条链的第一步是「把文件收进用户的库」。
+   * ⚠ `confirm` 现在就是它的一层薄壳 —— 上面那条路径一行判据都没变。
+   */
+  confirmPayload(input: {
+    importPayload: LoraCandidateImportPayload
+    /** 卡上/候选行上显示的那一份触发词（不是库记录里的原始字符串）。 */
+    triggerWords: readonly string[]
+    suggestedWeight?: number
+  }): Promise<LoraCandidateConfirmOutcome>
 }
 
 export interface UseLoraCandidateConfirmOptions {
@@ -84,27 +103,17 @@ export function useLoraCandidateConfirm({
   mount,
   applyTriggerWords,
 }: UseLoraCandidateConfirmOptions): LoraCandidateConfirmAdapter {
-  const confirm = useCallback(
+  const confirmPayload = useCallback(
     async ({
-      candidate,
+      importPayload,
+      triggerWords,
       suggestedWeight,
     }: {
-      candidate: LoraCandidate
+      importPayload: LoraCandidateImportPayload
+      triggerWords: readonly string[]
       suggestedWeight?: number
     }): Promise<LoraCandidateConfirmOutcome> => {
-      // 载荷缺席只有两种来历：候选本来就不可导入，或下发时掉到了最低档。
-      // 两种都不该走到这里（卡上的确认按钮已经禁用），走到了就当导入失败报出去。
-      if (!candidate.importPayload) {
-        return {
-          status: 'failed',
-          failedStep: LORA_CANDIDATE_CONFIRM_STEPS.import,
-          imported: false,
-          mounted: false,
-          triggerWordsApplied: false,
-        }
-      }
-
-      const imported = await favoriteLoraAPI(candidate.importPayload)
+      const imported = await favoriteLoraAPI(importPayload)
       if (!imported.success || !imported.data) {
         return {
           status: 'failed',
@@ -139,9 +148,9 @@ export function useLoraCandidateConfirm({
         }
       }
 
-      // 触发词用**卡上显示的那一份**（`candidate.triggerWords`），不是库记录里
-      // 的原始字符串：用户按卡上看到的词做的决定，写进去的就该是同一批词。
-      const triggerText = candidate.triggerWords.join(', ').trim()
+      // 触发词用**卡上显示的那一份**（候选给的），不是库记录里的原始字符串：
+      // 用户按卡上看到的词做的决定，写进去的就该是同一批词。
+      const triggerText = triggerWords.join(', ').trim()
       if (triggerText) {
         try {
           applyTriggerWords(triggerText)
@@ -172,8 +181,40 @@ export function useLoraCandidateConfirm({
     [applyTriggerWords, mount],
   )
 
+  /**
+   * 整条候选的那一层壳 —— **只做一件事**：把「不可导入」挡在链外，然后把载荷与
+   * 触发词交给上面那条链。⚠ 载荷缺席只有两种来历（候选本来就不可导入 / 下发时掉到
+   * 了最低档），两种都不该走到这里（卡上的确认按钮已经禁用），走到了就当导入失败
+   * 报出去。
+   */
+  const confirm = useCallback(
+    async ({
+      candidate,
+      suggestedWeight,
+    }: {
+      candidate: LoraCandidate
+      suggestedWeight?: number
+    }): Promise<LoraCandidateConfirmOutcome> => {
+      if (!candidate.importPayload) {
+        return {
+          status: 'failed',
+          failedStep: LORA_CANDIDATE_CONFIRM_STEPS.import,
+          imported: false,
+          mounted: false,
+          triggerWordsApplied: false,
+        }
+      }
+      return confirmPayload({
+        importPayload: candidate.importPayload,
+        triggerWords: candidate.triggerWords,
+        ...(suggestedWeight === undefined ? {} : { suggestedWeight }),
+      })
+    },
+    [confirmPayload],
+  )
+
   return useMemo(
-    () => ({ canMount: Boolean(mount), confirm }),
-    [confirm, mount],
+    () => ({ canMount: Boolean(mount), confirm, confirmPayload }),
+    [confirm, confirmPayload, mount],
   )
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
 
 import type { LoraAssetRecord } from '@/types'
 import {
@@ -74,6 +75,14 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return <LoraStackProvider>{children}</LoraStackProvider>
 }
 
+function strictWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <StrictMode>
+      <LoraStackProvider>{children}</LoraStackProvider>
+    </StrictMode>
+  )
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   window.localStorage.clear()
@@ -83,6 +92,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   window.localStorage.clear()
 })
 
@@ -112,6 +122,51 @@ describe('useActiveLoraStack', () => {
     expect(result.current.toActiveLoras()).toEqual([
       { assetId: 'a1', styleCode: 'pv-c-test-aa11', scale: 0.8 },
     ])
+  })
+
+  it('does not overwrite the stored stack with the pre-hydration empty state in Strict Mode', async () => {
+    const assets = [
+      makeAsset({ id: 'a1', styleCode: 'c1' }),
+      makeAsset({ id: 'a2', styleCode: 'c2' }),
+      makeAsset({ id: 'a3', styleCode: 'c3' }),
+    ]
+    window.localStorage.setItem(
+      getStorageKey(TEST_CLERK_ID),
+      JSON.stringify({
+        ownerClerkId: TEST_CLERK_ID,
+        items: assets.map((asset) => ({ asset })),
+      }),
+    )
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+
+    const { result } = renderHook(() => useActiveLoraStack(), {
+      wrapper: strictWrapper,
+    })
+
+    await waitFor(() => {
+      expect(result.current.items.map((entry) => entry.asset.id)).toEqual([
+        'a1',
+        'a2',
+        'a3',
+      ])
+    })
+
+    const stackWrites = setItemSpy.mock.calls
+      .filter(([key]) => key === getStorageKey(TEST_CLERK_ID))
+      .map(([, value]) => JSON.parse(String(value)))
+    expect(stackWrites).not.toContainEqual({
+      ownerClerkId: TEST_CLERK_ID,
+      items: [],
+    })
+
+    const persisted = JSON.parse(
+      window.localStorage.getItem(getStorageKey(TEST_CLERK_ID))!,
+    )
+    expect(
+      persisted.items.map(
+        (entry: { asset: LoraAssetRecord }) => entry.asset.id,
+      ),
+    ).toEqual(['a1', 'a2', 'a3'])
   })
 
   it('push adds an asset and persists it', async () => {

@@ -55,14 +55,18 @@ import type {
 } from '@/types/assistant-protocol'
 import type { ResearchReceipt } from '@/types/research'
 import {
+  USER_AUDIO_UPLOAD_ACCEPTED_MIME_TYPES,
+  USER_AUDIO_UPLOAD_MAX_BYTES,
   USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_UPLOAD_MAX_BYTES,
   USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_VIDEO_UPLOAD_MAX_BYTES,
+  type AcceptedAudioUploadMimeType,
   type AcceptedImageUploadMimeType,
   type AcceptedVideoUploadMimeType,
 } from '@/constants/uploads'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
+import { VIDEO_REFERENCE_LIMITS } from '@/constants/video-reference-limits'
 import {
   HUNYUAN3D_FACE_COUNT,
   MODEL_3D_GENERATE_TYPES,
@@ -542,13 +546,19 @@ export const GenerateVideoRequestSchema = z.object({
    * to wrapping the singular `referenceImage` so existing single-image
    * callers keep working unchanged.
    */
-  referenceImages: z.array(z.string()).max(9).optional(),
+  referenceImages: z
+    .array(z.string())
+    .max(VIDEO_REFERENCE_LIMITS.IMAGES)
+    .optional(),
   /**
-   * Reference audio URLs (mp3/wav, up to 15s each, up to 3 clips). Only
+   * Reference audio URLs (mp3/wav, up to 15s each). Only
    * consumed by video models whose audio.mode === 'reference' (currently
    * the Seedance 2.0 reference-to-video endpoints). Other models ignore.
    */
-  audioUrls: z.array(z.string().trim().min(1)).max(3).optional(),
+  audioUrls: z
+    .array(z.string().trim().min(1))
+    .max(VIDEO_REFERENCE_LIMITS.AUDIO)
+    .optional(),
   /**
    * Per-clip binding labels — character names attached to each audio URL
    * by the Node Studio harvest when a voice node is wired through a
@@ -564,7 +574,7 @@ export const GenerateVideoRequestSchema = z.object({
         characterName: z.string().trim().min(1).max(160).optional(),
       }),
     )
-    .max(3)
+    .max(VIDEO_REFERENCE_LIMITS.AUDIO)
     .optional(),
   /**
    * Reference video URLs (mp4 etc., combined duration 2-15s, ≤50MB total,
@@ -1072,6 +1082,56 @@ export interface DirectUploadVideoPrepare {
 }
 
 export interface UploadVideoResponse {
+  success: boolean
+  data?: { generation: GenerationRecord }
+  error?: string
+  errorCode?: string
+  i18nKey?: string
+}
+
+export const CreateUploadAudioDirectRequestSchema = z.object({
+  fileName: z.string().trim().max(240).optional(),
+  mimeType: z.enum(USER_AUDIO_UPLOAD_ACCEPTED_MIME_TYPES),
+  sizeBytes: z.number().int().positive().max(USER_AUDIO_UPLOAD_MAX_BYTES),
+  note: z.string().trim().max(500).optional(),
+  projectId: z.string().trim().min(1).optional(),
+})
+
+export type CreateUploadAudioDirectRequest = z.infer<
+  typeof CreateUploadAudioDirectRequestSchema
+>
+
+export const CompleteUploadAudioDirectRequestSchema = z.object({
+  storageKey: z.string().trim().min(1).max(1024),
+  mimeType: z.enum(USER_AUDIO_UPLOAD_ACCEPTED_MIME_TYPES),
+  sizeBytes: z.number().int().positive().max(USER_AUDIO_UPLOAD_MAX_BYTES),
+  duration: z
+    .number()
+    .finite()
+    .nonnegative()
+    .max(24 * 60 * 60)
+    .optional(),
+  note: z.string().trim().max(500).optional(),
+  projectId: z.string().trim().min(1).optional(),
+})
+
+export type CompleteUploadAudioDirectRequest = z.infer<
+  typeof CompleteUploadAudioDirectRequestSchema
+>
+
+export interface DirectUploadAudioPrepare {
+  uploadUrl: string
+  storageKey: string
+  publicUrl: string
+  headers: {
+    'Content-Type': AcceptedAudioUploadMimeType
+    'If-None-Match': '*'
+  }
+  expiresAt: string
+  maxBytes: number
+}
+
+export interface UploadAudioResponse {
   success: boolean
   data?: { generation: GenerationRecord }
   error?: string
@@ -1602,9 +1662,12 @@ const WorkerVideoProviderInputSchema = z.object({
     .optional(),
   referenceImage: z.string().optional(),
   /** Multi-reference array for Veo 3.1 reference-to-video. */
-  referenceImages: z.array(z.string()).max(9).optional(),
+  referenceImages: z
+    .array(z.string())
+    .max(VIDEO_REFERENCE_LIMITS.IMAGES)
+    .optional(),
   /** Reference audio clips for Seedance reference-to-video voice cloning. */
-  audioUrls: z.array(z.string()).max(3).optional(),
+  audioUrls: z.array(z.string()).max(VIDEO_REFERENCE_LIMITS.AUDIO).optional(),
   /**
    * Optional binding labels (character name per clip) for Seedance Reference.
    * When present, the worker builder emits "{Name} (@AudioN)" tokens.
@@ -1616,7 +1679,7 @@ const WorkerVideoProviderInputSchema = z.object({
         characterName: z.string().min(1).max(160).optional(),
       }),
     )
-    .max(3)
+    .max(VIDEO_REFERENCE_LIMITS.AUDIO)
     .optional(),
   /** Reference video clips for Seedance reference-to-video. */
   videoUrls: z.array(z.string()).max(3).optional(),

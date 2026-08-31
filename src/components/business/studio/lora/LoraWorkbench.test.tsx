@@ -93,6 +93,9 @@ vi.mock('next-intl', () => ({
   // CivitaiCommunityBranch 用它渲染降级横幅里的「X 分钟前」。手写镜像 mock
   // 漏一个导出不是漏一条断言——组件渲染直接抛，整个文件集体红。
   useFormatter: () => ({ relativeTime: () => 'relative-time' }),
+  // P4-C：装配台换成操作员面板之后，驱动 hook 要用 locale 决定助手说哪种语言。
+  // ⚠ 与上面两条同理——手写镜像 mock 漏一个导出 = 整个文件集体红。
+  useLocale: () => 'zh',
 }))
 
 // `warning` 是做同款补挂失败时唯一的用户可见反馈（recipeExtraApplyLimited）——
@@ -366,9 +369,30 @@ vi.mock('@/hooks/use-studio-assistant-reference', () => ({
   }),
 }))
 
+/**
+ * P4-C：操作员那一侧的投递口，同一条论据（模块级 store，从外面看不见）。
+ *
+ * ⚠ **部分桩**：这个模块里还有整颗操作员面板要用的一堆东西（线程、登记簿、
+ * 归属票）—— 整个换掉会让 `StudioOperatorDock` 在渲染期直接崩，表现是「整文件
+ * 集体红」而不是断言失败（`VideoComposer` 那条教训的同一个形状）。
+ */
+const mockRequestOperatorAttachment = vi.hoisted(() => vi.fn())
+vi.mock(
+  import('@/hooks/use-studio-operator-store'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    requestOperatorAttachment: (
+      ...args: Parameters<
+        Awaited<ReturnType<typeof importOriginal>>['requestOperatorAttachment']
+      >
+    ) => mockRequestOperatorAttachment(...args),
+  }),
+)
+
 beforeEach(() => {
   mockInjectReference.mockReset()
   mockClearReference.mockReset()
+  mockRequestOperatorAttachment.mockReset()
   mockReferenceImages = []
   mockRunnerUsage = null
   mockStackItems = [{ asset: stackAsset, scale: 1 }]
@@ -984,30 +1008,36 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
 
   // §3.0b 第 4 条在 LoRA 装配台的落点。
   //
-  // ⚠ 断言的是「递出去的是**这一格**的 URL」而不是「有个按钮在」：注入通道是
+  // ⚠ 断言的是「递出去的是**这一格**的 URL」而不是「有个按钮在」：投递通道是
   // 模块 store，按钮和面板之间没有任何编译期约束，把最新一张而不是当前展示的
   // 那张递出去，tsc / eslint / 其余单测全会放行，表现只是「问的和看到的不是同
   // 一张图」。
-  // ⚠ 同时断言 dock 真的展开了 —— 只注入不展开，用户点完屏幕上什么都不动。
-  it('§3.0b: the result image exposes 问助手 — injects that image and opens the dock', () => {
+  //
+  // ⭐ **P4-C 起要投两个口**：桌面是操作员面板（读
+  // `requestOperatorAttachment`），小屏是旧面板（读 `useStudioAssistantReference`）。
+  // 只投一个的表现是「在另一种屏幕上点了，面板开了、图没跟过来」—— 所以这条
+  // 用例把两条投递都钉住，⛔ 别因为「当前这块屏用不到」删掉其中一条。
+  it('§3.0b: the result image exposes 问助手 — 两个投递口都收到这一格的 URL', () => {
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
     mockLastGeneration = { url: 'https://example.com/result.png' }
 
-    const { container } = render(<LoraWorkbench />)
-
-    const dock = container.querySelector(
-      'aside[aria-label="PromptAssistant:dockLabel"]',
-    )
-    expect(dock).toHaveAttribute('aria-hidden', 'true')
+    render(<LoraWorkbench />)
 
     fireEvent.click(
       screen.getByRole('button', { name: 'StudioV3:toolAskAssistant' }),
     )
 
+    // 小屏那一支（旧面板）的口。
     expect(mockInjectReference).toHaveBeenCalledWith(
       'https://example.com/result.png',
     )
-    expect(dock).toHaveAttribute('aria-hidden', 'false')
+    // 桌面那一支（操作员）的口 —— 落进的是与 📎 上传 / 素材库挑选同一个附件数组。
+    expect(mockRequestOperatorAttachment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'https://example.com/result.png',
+        kind: 'image',
+      }),
+    )
   })
 })
 

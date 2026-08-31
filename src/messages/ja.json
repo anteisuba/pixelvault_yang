@@ -6945,6 +6945,7 @@
       "unknownModel": "そのモデルは選べる一覧にありません",
       "unknownValue": "その値は選択肢にありません",
       "unknownAsset": "その素材は今回の検索結果にありません",
+      "unknownFolder": "そのフォルダーは今回の一覧にありません",
       "referencesFull": "参照画像の枠が埋まっています",
       "emptyValue": "書き込む内容が空でした",
       "userDeclined": "「そのまま」を選んだので実行しませんでした",

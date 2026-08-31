@@ -19,6 +19,7 @@ import {
   Check,
   CircleDollarSign,
   Eye,
+  FolderSearch,
   Globe,
   ImagePlus,
   Layers,
@@ -74,6 +75,8 @@ const NO_PICKS: readonly StudioOperatorWebImportPick[] = []
 export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.readState]: Eye,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchAssets]: Search,
+  [ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders]: FolderSearch,
+  [ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder]: ScanEye,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages]: Globe,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]: ImagePlus,
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: Sparkles,
@@ -262,6 +265,41 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             className="aspect-[3/4] h-auto w-full object-cover"
           />
         </motion.button>
+      ) : null}
+
+      {/* 文件夹视觉检查的证据格：只画这次真正送进视觉模型的素材。
+          结果里的 inspectedImages / totalImages 负责说明覆盖率，格子负责让用户
+          复核「助手究竟看了哪几张」；截断时绝不拿未检查素材来凑数。 */}
+      {step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder &&
+      step.result &&
+      step.result.findings.length > 0 ? (
+        <div
+          className="mt-2 flex flex-wrap gap-1.5"
+          data-testid="operator-folder-vision-evidence"
+        >
+          {step.result.findings.map((finding) => (
+            <button
+              key={finding.assetId}
+              type="button"
+              data-testid="operator-folder-vision-image"
+              onClick={() =>
+                openOperatorLightbox(finding.url, finding.observation)
+              }
+              title={finding.observation}
+              aria-label={finding.observation}
+              className="size-14 cursor-zoom-in overflow-hidden rounded-lg border border-border/70 bg-muted transition-colors duration-fast ease-standard hover:border-primary/50"
+            >
+              <Image
+                src={finding.thumbnailUrl ?? finding.url}
+                alt={finding.observation}
+                width={112}
+                height={112}
+                className="size-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
       ) : null}
 
       {/* 联网候选（拍板 21）—— **看与选是两件事**：

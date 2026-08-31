@@ -67,6 +67,54 @@ const WEB_STEP: AssistantOperatorStep = {
   },
 }
 
+const FOLDER_VISION_STEP: AssistantOperatorStep = {
+  id: 'step-folder',
+  title: 'inspected the folder',
+  tool: ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
+  status: 'done',
+  payload: {
+    folderId: 'hero-folder',
+    instruction: '挑出适合做角色参考的图',
+  },
+  result: {
+    folder: {
+      folderId: 'hero-folder',
+      name: 'Hero',
+      path: 'Characters / Hero',
+      imageCount: 30,
+    },
+    totalImages: 30,
+    inspectedImages: 2,
+    truncated: true,
+    batchCount: 1,
+    findings: [
+      {
+        assetId: 'asset-1',
+        url: 'https://cdn.example.com/asset-1.png',
+        thumbnailUrl: 'https://cdn.example.com/asset-1-thumb.webp',
+        createdAt: '2026-08-31T00:00:00.000Z',
+        observation: 'front-facing portrait',
+        relevance: 'high',
+        reason: 'clear face',
+        tags: ['portrait'],
+      },
+      {
+        assetId: 'asset-2',
+        url: 'https://cdn.example.com/asset-2.png',
+        createdAt: '2026-08-30T00:00:00.000Z',
+        observation: 'full-body sheet',
+        relevance: 'medium',
+        reason: 'clear silhouette',
+        tags: ['full-body'],
+      },
+    ],
+    batchSummaries: ['two character references'],
+    uncertainties: [],
+    visionAdapter: 'gemini',
+    borrowedVisionRoute: false,
+  },
+}
+
 function renderItem(
   overrides: Partial<Parameters<typeof StudioOperatorLogItem>[0]> = {},
 ) {
@@ -220,6 +268,34 @@ describe('日志条 · 联网候选（P3-B）', () => {
   it('⛔ 这一条没有撤销按钮 —— 读类，一个字节都没落', () => {
     renderItem()
     expect(screen.queryByTestId('operator-log-undo')).toBeNull()
+  })
+})
+
+describe('日志条 · 文件夹视觉检查', () => {
+  it('只展示实际检查过的证据图，并用缩略图绘制', () => {
+    renderItem({ step: FOLDER_VISION_STEP })
+    const images = screen
+      .getAllByTestId('operator-folder-vision-image')
+      .map((tile) => tile.querySelector('img')?.getAttribute('src'))
+    expect(images).toEqual([
+      'https://cdn.example.com/asset-1-thumb.webp',
+      'https://cdn.example.com/asset-2.png',
+    ])
+    expect(screen.queryByTestId('operator-log-undo')).toBeNull()
+  })
+
+  it('点证据图打开原图，展开详情能复核 2/30 的覆盖率', () => {
+    renderItem({ step: FOLDER_VISION_STEP })
+    fireEvent.click(screen.getAllByTestId('operator-folder-vision-image')[0])
+    expect(openOperatorLightbox).toHaveBeenCalledWith(
+      'https://cdn.example.com/asset-1.png',
+      'front-facing portrait',
+    )
+
+    fireEvent.click(screen.getByTestId('operator-log-title'))
+    expect(screen.getByTestId('operator-log-detail').textContent).toContain(
+      '2/30',
+    )
   })
 })
 

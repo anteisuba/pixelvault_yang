@@ -6945,6 +6945,7 @@
       "unknownModel": "这个模型不在你能选的名单里",
       "unknownValue": "这个值不在可选档位里",
       "unknownAsset": "这条素材不在本轮检索结果里",
+      "unknownFolder": "这个文件夹不在本轮列出的结果里",
       "referencesFull": "参考图位已满",
       "emptyValue": "要写的内容是空的",
       "userDeclined": "你选了保留，这一步没做",

@@ -68,7 +68,7 @@ export type AssistantOperatorEventName =
  * P1 工具表。
  *
  * 分三类，判据是「谁承担后果」：
- *   · **读**（`read_state` / `search_assets`）—— 不改任何东西，客户端只画日志条。
+ *   · **读**（`read_state` / 素材检索 / 文件夹视觉检查）—— 不改任何东西，客户端只画日志条。
  *   · **写**（`set_*` / `mount_reference` / `prime_generate`）—— 吐一个 op 给客户端
  *     应用；服务端**不落任何状态**，所以这条流断在哪里都不会留下半个写入。
  *   · 花钱的 —— 一个都没有，见文件头注。
@@ -79,8 +79,12 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * 「用户此刻在输入框里打了一半的字」，而那正是覆写确认要判的东西（拍板 3）。
    */
   readState: 'read_state',
-  /** 检索用户自己的素材库。**P1 里唯一真的会碰数据库的工具。** */
+  /** 按关键词检索用户自己的素材库。 */
   searchAssets: 'search_assets',
+  /** 按名称查找用户自己的素材文件夹，并返回可验证的 folder id 与完整路径。 */
+  listAssetFolders: 'list_asset_folders',
+  /** 实际查看一个已列举文件夹里的图片；分批走视觉模型，不修改素材或表单。 */
+  inspectAssetFolder: 'inspect_asset_folder',
   /**
    * 联网搜图（P3-B）。**只出预览候选，什么都不落。**
    *
@@ -264,6 +268,8 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
 export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.readState,
   ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+  ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
+  ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
   ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setModel,
@@ -295,6 +301,8 @@ export type AssistantOperatorTool = (typeof ASSISTANT_OPERATOR_TOOLS)[number]
 export const ASSISTANT_OPERATOR_READ_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.readState,
   ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+  ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
+  ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
   /**
    * ⚠ 看图**也是读**：这一步只产生一段评价，表单一个字都没动。所以它没有
@@ -372,6 +380,21 @@ export const ASSISTANT_OPERATOR_SEARCH_KINDS = [
 
 export type AssistantOperatorSearchKind =
   (typeof ASSISTANT_OPERATOR_SEARCH_KINDS)[number]
+
+/** 文件夹视觉检查对每张图的相关度结论；不用虚假的百分比分数。 */
+export const ASSISTANT_FOLDER_VISION_RELEVANCE_IDS = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+  unknown: 'unknown',
+} as const
+
+export const ASSISTANT_FOLDER_VISION_RELEVANCES = Object.values(
+  ASSISTANT_FOLDER_VISION_RELEVANCE_IDS,
+)
+
+export const ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION =
+  'Describe each image accurately, identify the strongest recurring patterns, and call out important differences.'
 
 /**
  * `search_assets` **不指定类型时**默认搜什么。
@@ -480,6 +503,8 @@ export type AssistantOperatorDomain =
 const COMMON_DOMAIN_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.readState,
   ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+  ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
+  ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
   ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
   ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
@@ -599,6 +624,23 @@ export const ASSISTANT_OPERATOR_LIMITS = {
   maxSearchResults: 12,
   /** `search_assets` 的查询词长度，与 `GallerySearchSchema.search` 的 200 对齐。 */
   maxSearchQueryChars: 200,
+  /** 一次最多把多少个同名/近名文件夹交给模型消歧。 */
+  maxFolderMatches: 12,
+  /** 文件夹名称查询沿用 Project.name 的短字符串尺度。 */
+  maxFolderQueryChars: 120,
+  /** 一次文件夹视觉检查最多真的送进模型多少张图。 */
+  maxFolderVisionImages: 24,
+  /** 每次视觉补全的图片数；必须与 `VISION_LIMITS.maxMedia` 保持一致。 */
+  maxFolderVisionBatchImages: 8,
+  /** 模型转述给视觉线的本轮目标，例如“挑三张角色参考”。 */
+  maxFolderVisionInstructionChars: 600,
+  /** 逐图观察与理由的协议护栏，避免 24 张时事件体无界增长。 */
+  maxFolderVisionObservationChars: 400,
+  maxFolderVisionReasonChars: 300,
+  maxFolderVisionTags: 6,
+  maxFolderVisionTagChars: 40,
+  maxFolderVisionBatchSummaryChars: 800,
+  maxFolderVisionUncertainties: 8,
   /**
    * `search_web_images` 一次最多返回几张候选。
    *
@@ -692,6 +734,8 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    * ⛔ 不去补查一次：那等于承认模型可以凭空说出一个 id。
    */
   unknownAsset: 'unknownAsset',
+  /** `inspect_asset_folder` 引的 folder id 本轮从未由 `list_asset_folders` 返回。 */
+  unknownFolder: 'unknownFolder',
   /** 参考图位已满（上限由快照的 `references.limit` 给）。 */
   referencesFull: 'referencesFull',
   /** 写了个空字符串 —— 清空字段不是助手该干的事，要清用户自己清。 */
@@ -816,6 +860,10 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'read the workbench form the creator is looking at right now — every field, plus the values each one accepts. Costs nothing; call it first when you are unsure what is already filled in.',
   [ASSISTANT_OPERATOR_TOOL_IDS.searchAssets]:
     "search the creator's OWN asset library (images / videos they already made or uploaded). Returns real asset ids you may then mount. This is the only way to obtain an asset id — never invent one.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders]:
+    "find folders in the creator's OWN asset library by name. Returns real folder ids, full paths, and image counts. Call this before inspect_asset_folder, even when the creator gives an exact name; duplicate folder names can exist at different paths.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder]:
+    'actually LOOK at the images in one folder returned by list_asset_folders. Takes that real folderId plus a short instruction that preserves what the creator wants you to judge or select. It checks this folder only, never child folders; images only; newest first; at most 24 images in batches of 8. Read inspectedImages / totalImages / truncated before answering and never describe images that were not inspected.',
   /**
    * ⚠ 这段话在 P3-D 改过口径（拍板 21 + 22）：原文写着「there is no import tool
    * and never will be」，而 `import_user_url` 现在就在表里 —— 一条说谎的工具说明

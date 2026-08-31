@@ -41,6 +41,10 @@ import {
 } from '@/constants/lora-candidate'
 import { PromptAssistantResponseLanguageSchema } from '@/types'
 import type { OutputTypeValue } from '@/types'
+import {
+  AssistantAssetFolderCandidateSchema,
+  AssistantAssetFolderVisionResultSchema,
+} from '@/types/asset-folder-vision'
 import { LoraCandidateImportPayloadSchema } from '@/types/lora-candidate'
 
 // ─── 小件 ────────────────────────────────────────────────────────
@@ -417,6 +421,20 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     kind: AssistantOperatorSearchKindSchema.optional(),
     limit: z.number().int().positive().max(LIMITS.maxSearchResults).optional(),
   }),
+  [ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders]: z.object({
+    query: z.string().trim().min(1).max(LIMITS.maxFolderQueryChars),
+    limit: z.number().int().positive().max(LIMITS.maxFolderMatches).optional(),
+  }),
+  [ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder]: z.object({
+    /** ⛔ 只能来自本轮 `list_asset_folders`，规划器再做一次准入校验。 */
+    folderId: IdSchema,
+    instruction: z
+      .string()
+      .trim()
+      .min(1)
+      .max(LIMITS.maxFolderVisionInstructionChars)
+      .optional(),
+  }),
   /**
    * ⚠ 只有一个查询词 —— **没有 `site:` / 域名过滤这类旋钮**。多给一个参数就是多
    * 一件模型会写错的东西，而联网搜图的召回质量靠的是查询词本身（系统提示里让它
@@ -727,6 +745,29 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
         .array(AssistantOperatorSearchResultAssetSchema)
         .max(LIMITS.maxSearchResults),
     }),
+  ),
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
+    z.object({
+      query: z.string().trim().min(1).max(LIMITS.maxFolderQueryChars),
+      limit: z.number().int().positive().max(LIMITS.maxFolderMatches),
+    }),
+    z.object({
+      folders: z
+        .array(AssistantAssetFolderCandidateSchema)
+        .max(LIMITS.maxFolderMatches),
+    }),
+  ),
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
+    z.object({
+      folderId: IdSchema,
+      instruction: z
+        .string()
+        .min(1)
+        .max(LIMITS.maxFolderVisionInstructionChars),
+    }),
+    AssistantAssetFolderVisionResultSchema,
   ),
   /**
    * ⛔ 这一支是 `readStep` 不是 `mutatingStep`，而且**永远只能是 readStep**：

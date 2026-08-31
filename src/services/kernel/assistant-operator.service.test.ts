@@ -21,6 +21,15 @@ vi.mock('@/services/generation.service', () => ({
     mockGetPublicGenerationPage(...args),
 }))
 
+const mockListAssistantAssetFolders = vi.fn()
+const mockInspectAssistantAssetFolder = vi.fn()
+vi.mock('@/services/kernel/assistant-asset-folder-vision.service', () => ({
+  listAssistantAssetFolders: (...args: unknown[]) =>
+    mockListAssistantAssetFolders(...args),
+  inspectAssistantAssetFolder: (...args: unknown[]) =>
+    mockInspectAssistantAssetFolder(...args),
+}))
+
 /**
  * 联网搜图（P3-B）。⚠ **全程 mock，一个真 Serper credit 都不花** ——
  * 免费池只有 2500 次，让单元测试去打真接口是把额度当柴烧。
@@ -155,6 +164,44 @@ beforeEach(() => {
     total: 0,
     hasMore: false,
     nextCursor: null,
+  })
+  mockListAssistantAssetFolders.mockResolvedValue([])
+  mockInspectAssistantAssetFolder.mockResolvedValue({
+    folder: {
+      folderId: 'hero-folder',
+      name: 'Hero',
+      path: 'Characters / Hero',
+      imageCount: 30,
+    },
+    totalImages: 30,
+    inspectedImages: 2,
+    truncated: true,
+    batchCount: 1,
+    findings: [
+      {
+        assetId: 'asset-1',
+        url: 'https://cdn.example.test/asset-1.png',
+        thumbnailUrl: 'https://cdn.example.test/asset-1-thumb.webp',
+        createdAt: '2026-08-31T00:00:00.000Z',
+        observation: 'front-facing character portrait',
+        relevance: 'high',
+        reason: 'clear face and costume',
+        tags: ['portrait'],
+      },
+      {
+        assetId: 'asset-2',
+        url: 'https://cdn.example.test/asset-2.png',
+        createdAt: '2026-08-30T00:00:00.000Z',
+        observation: 'full-body character sheet',
+        relevance: 'medium',
+        reason: 'useful silhouette reference',
+        tags: ['full-body'],
+      },
+    ],
+    batchSummaries: ['two visible character references'],
+    uncertainties: [],
+    visionAdapter: 'gemini',
+    borrowedVisionRoute: false,
   })
   mockIsWebImageSearchConfigured.mockReturnValue(true)
   mockWebImageSearch.mockResolvedValue([])
@@ -475,6 +522,88 @@ describe('search_assets', () => {
     )
     expect((done?.result as { assets: unknown[] }).assets).toEqual([])
     expect(lastUserPrompt()).toContain('found NOTHING')
+  })
+})
+
+describe('素材文件夹视觉检查', () => {
+  it('先列真实文件夹，再按同一轮返回的 id 检查，并把覆盖率讲回给模型', async () => {
+    mockListAssistantAssetFolders.mockResolvedValue([
+      {
+        folderId: 'hero-folder',
+        name: 'Hero',
+        path: 'Characters / Hero',
+        imageCount: 30,
+      },
+    ])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
+          title: 'find the folder',
+          args: { query: 'hero' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
+          title: 'inspect the folder',
+          args: {
+            folderId: 'hero-folder',
+            instruction: '挑出最适合做角色参考的图',
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(mockListAssistantAssetFolders).toHaveBeenCalledWith({
+      userId: 'user-db-1',
+      query: 'hero',
+      limit: ASSISTANT_OPERATOR_LIMITS.maxFolderMatches,
+    })
+    expect(mockInspectAssistantAssetFolder).toHaveBeenCalledWith({
+      userId: 'user-db-1',
+      folderId: 'hero-folder',
+      instruction: '挑出最适合做角色参考的图',
+    })
+
+    const inspected = stepsOf(events).find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(inspected?.result).toMatchObject({
+      totalImages: 30,
+      inspectedImages: 2,
+      truncated: true,
+    })
+    expect(lastUserPrompt()).toContain('ACTUALLY VIEWED 2/30')
+    expect(lastUserPrompt()).toContain('28 image(s) were NOT viewed')
+  })
+
+  it('没列过就检查会按 unknownFolder 拒绝，视觉服务不会被调用', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
+          title: 'inspect a made-up folder',
+          args: { folderId: 'made-up-folder', instruction: '看看这里' },
+        },
+      },
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(stepsOf(events)[0]).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownFolder },
+    })
+    expect(mockInspectAssistantAssetFolder).not.toHaveBeenCalled()
   })
 })
 

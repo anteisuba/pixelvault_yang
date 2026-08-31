@@ -55,6 +55,53 @@ const STEP_FIXTURES: Record<
       ],
     },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders]: {
+    payload: { query: 'hero', limit: 12 },
+    result: {
+      folders: [
+        {
+          folderId: 'folder-1',
+          name: 'Hero',
+          path: 'Characters / Hero',
+          imageCount: 17,
+        },
+      ],
+    },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder]: {
+    payload: {
+      folderId: 'folder-1',
+      instruction: '挑出最适合做角色参考的三张',
+    },
+    result: {
+      folder: {
+        folderId: 'folder-1',
+        name: 'Hero',
+        path: 'Characters / Hero',
+        imageCount: 17,
+      },
+      totalImages: 17,
+      inspectedImages: 17,
+      truncated: false,
+      batchCount: 3,
+      findings: [
+        {
+          assetId: 'asset-1',
+          url: 'https://cdn.example.com/hero.png',
+          thumbnailUrl: 'https://cdn.example.com/hero-thumb.webp',
+          createdAt: '2026-08-31T00:00:00.000Z',
+          observation: '正面半身角色图，面部和服装细节清楚',
+          relevance: 'high',
+          reason: '身份特征完整且遮挡少',
+          tags: ['正面', '半身'],
+        },
+      ],
+      batchSummaries: ['这一批以正面角色图为主'],
+      uncertainties: [],
+      visionAdapter: 'gemini',
+      borrowedVisionRoute: false,
+    },
+  },
   /**
    * 联网搜图（P3-B）。⭐ 注意 `result.images` 里**没有 assetId** —— 那正是它与
    * 库内检索的全部区别：候选只是一串第三方地址，在用户点选转存之前它在本仓里

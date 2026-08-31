@@ -1,6 +1,7 @@
 import 'server-only'
 
 import {
+  ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION,
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
@@ -23,6 +24,10 @@ import {
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import { ASSISTANT_DOMAIN_BRIEFS } from '@/constants/assistant-protocol'
 import { resolveAssistantModelId } from '@/constants/node-studio'
+import {
+  inspectAssistantAssetFolder,
+  listAssistantAssetFolders,
+} from '@/services/kernel/assistant-asset-folder-vision.service'
 import {
   buildAssistantConversation,
   completeAssistantTextWithContextRetry,
@@ -72,6 +77,7 @@ import {
   type AssistantOperatorTurn,
 } from '@/types/assistant-operator'
 import type { OutputType, PromptAssistantResponseLanguage } from '@/types'
+import type { AssistantAssetFolderCandidate } from '@/types/asset-folder-vision'
 import type { LoraCandidate } from '@/types/lora-candidate'
 
 /**
@@ -82,8 +88,8 @@ import type { LoraCandidate } from '@/types/lora-candidate'
  * 每一步吐两个 `step` 事件（`running` / `done`），客户端边看边把 op 应用到表单。
  *
  * ── ⛔ 钱闸（本文件的宪法）────────────────────────────────────────
- * **这里没有任何一条路径能创建 generation。** 它只 import 了两个服务：
- * `user.service`（认 clerkId）与 `generation.service` 的**只读**分页查询。
+ * **这里没有任何一条路径能创建 generation。** 它只接只读检索、视觉补全与
+ * 表单操作规划服务；素材文件夹视觉检查也只读取既有 URL，不写库、不下载。
  * `prime_generate` 也只是吐一个 op 让生成键亮起来 —— 扣扳机的永远是用户（拍板 2）。
  * 有 `assistant-operator.money-gate.test.ts` 逐条锁住这份 import 名单：想在这里
  * 加一条会花钱的路，先过那道测试，而它是设计上过不去的。
@@ -217,6 +223,8 @@ interface OperatorRun {
    * 论据与画布 `attach_asset` 同源：让模型写地址就是让它编一个不存在的地址。
    */
   searchIndex: Map<string, AssistantOperatorSearchResultAsset>
+  /** 本轮 `list_asset_folders` 真实返回过的文件夹；视觉检查只认这张准入表。 */
+  folderIndex: Map<string, AssistantAssetFolderCandidate>
   /**
    * 本轮 `search_loras` 真的返回过的候选（P4-C）。
    *
@@ -644,7 +652,7 @@ function planSearchAssets(
     payload: { query: args.query, kind, limit },
     run: async () => {
       const page = await getPublicGenerationPage({
-        // ⭐ 唯一真的查库的地方，且**只查这个用户自己的**（`userId` 一给，
+        // ⭐ 素材关键词检索只查这个用户自己的库（`userId` 一给，
         //    `buildGalleryWhere` 就不再要求 isPublic）。复用现有分页查询，不新写。
         userId,
         search: args.query,
@@ -703,6 +711,95 @@ function planSearchAssets(
         result: { totalFound: page.total, assets },
         observation,
       }
+    },
+  }
+}
+
+function planListAssetFolders(
+  run: OperatorRun,
+  args: { query: string; limit?: number },
+  userId: string,
+): ToolPlan {
+  const limit = Math.min(
+    args.limit ?? LIMITS.maxFolderMatches,
+    LIMITS.maxFolderMatches,
+  )
+
+  return {
+    kind: 'read',
+    payload: { query: args.query, limit },
+    run: async () => {
+      const folders = await listAssistantAssetFolders({
+        userId,
+        query: args.query,
+        limit,
+      })
+      for (const folder of folders) {
+        run.folderIndex.set(folder.folderId, folder)
+      }
+
+      const observation =
+        folders.length === 0
+          ? `list_asset_folders("${args.query}") found NOTHING. Do not invent a folder id; ask for a different name.`
+          : `list_asset_folders("${args.query}") → ${folders.length} folder(s):\n${folders
+              .map(
+                (folder, index) =>
+                  `  ${index + 1}. folderId=${folder.folderId} · ${folder.path} · ${folder.imageCount} image(s)`,
+              )
+              .join(
+                '\n',
+              )}\nUse the full paths to disambiguate duplicates. inspect_asset_folder only accepts one of these folderIds.`
+
+      return { result: { folders }, observation }
+    },
+  }
+}
+
+function planInspectAssetFolder(
+  run: OperatorRun,
+  args: { folderId: string; instruction?: string },
+  userId: string,
+): ToolPlan {
+  const listedFolder = run.folderIndex.get(args.folderId)
+  if (!listedFolder) {
+    return reject(
+      REJECT.unknownFolder,
+      'Only folder ids returned by list_asset_folders in this run can be inspected. Call list_asset_folders first and use one of its exact ids.',
+    )
+  }
+
+  const instruction =
+    args.instruction ?? ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION
+
+  return {
+    kind: 'read',
+    payload: { folderId: listedFolder.folderId, instruction },
+    run: async () => {
+      const result = await inspectAssistantAssetFolder({
+        userId,
+        folderId: listedFolder.folderId,
+        instruction,
+        ...(run.request.apiKeyId ? { apiKeyId: run.request.apiKeyId } : {}),
+      })
+
+      const observation =
+        result.inspectedImages === 0
+          ? `inspect_asset_folder("${result.folder.path}") found 0 viewable images. Do not describe this folder as if you saw anything.`
+          : [
+              `inspect_asset_folder("${result.folder.path}") — ACTUALLY VIEWED ${result.inspectedImages}/${result.totalImages} image(s) in ${result.batchCount} batch(es).${result.truncated ? ` ${result.totalImages - result.inspectedImages} image(s) were NOT viewed; never describe them.` : ' The whole folder was covered.'}`,
+              ...result.findings.map(
+                (finding, index) =>
+                  `  ${index + 1}. assetId=${finding.assetId} · relevance=${finding.relevance} · ${finding.observation} · why: ${finding.reason}${finding.tags.length > 0 ? ` · tags: ${finding.tags.join(', ')}` : ''}`,
+              ),
+              ...result.batchSummaries.map(
+                (summary, index) => `  batch ${index + 1} summary: ${summary}`,
+              ),
+              ...(result.uncertainties.length > 0
+                ? [`  uncertainties: ${result.uncertainties.join(' | ')}`]
+                : []),
+            ].join('\n')
+
+      return { result, observation }
     },
   }
 }
@@ -1797,6 +1894,18 @@ async function planTool(
         },
         userId,
       )
+    case TOOL.listAssetFolders:
+      return planListAssetFolders(
+        run,
+        parsed.data as { query: string; limit?: number },
+        userId,
+      )
+    case TOOL.inspectAssetFolder:
+      return planInspectAssetFolder(
+        run,
+        parsed.data as { folderId: string; instruction?: string },
+        userId,
+      )
     case TOOL.searchWebImages:
       return planSearchWebImages(
         run,
@@ -1974,6 +2083,7 @@ HARD RULES — these are structural, not stylistic:
 - You CANNOT generate anything. No tool of yours spends the creator's credits. The most you can do is prime_generate, which arms the button; the creator presses it. Never claim you generated, rendered, or started anything.
 - You may only touch knobs that exist on this workbench. The state block tells you which ones exist; a field described as absent has no control behind it, and calling its tool will be refused.
 - Never invent a model id or an asset id. Model ids come from the state block, asset ids come from search_assets results. A made-up id is refused and wastes a step.
+- Never invent a folder id. Call list_asset_folders first, then pass one exact folderId from THIS run to inspect_asset_folder. Folder names alone are ambiguous.
 - THE CREATOR HANDED YOU A LINK → call import_user_url on it, right then. Their link is their yes. It works for a direct image address and for an ordinary web page alike. Never answer a link with a search, and never ask them to save it, upload it, or pick it out of a list — you have the tool, so you do it.
 - search_web_images (pictures YOU went looking for) is different: it downloads nothing. Each candidate is shown to the creator with a "use this" button, and only what they press is fetched and attached. So never claim you saved, imported, or mounted one of your own search results, and never paste one of those URLs into a prompt or a reference. Search the creator's own library first; go to the web only when they have nothing suitable. Keep web queries SHORT and in English (three or four words); a long sentence returns junk.
 ${domainRules}
@@ -2166,6 +2276,7 @@ export async function* runAssistantOperator(
     route,
     modelId,
     searchIndex: new Map(),
+    folderIndex: new Map(),
     loraIndex: new Map(),
     mountedLoraCandidateIds: new Set(),
     observations: [],

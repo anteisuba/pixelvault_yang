@@ -23,6 +23,11 @@ const SERVICE_PATH = join(
   'src/services/kernel/assistant-operator.service.ts',
 )
 const SOURCE = readFileSync(SERVICE_PATH, 'utf8')
+const FOLDER_VISION_SERVICE_PATH = join(
+  process.cwd(),
+  'src/services/kernel/assistant-asset-folder-vision.service.ts',
+)
+const FOLDER_VISION_SOURCE = readFileSync(FOLDER_VISION_SERVICE_PATH, 'utf8')
 
 /**
  * 工具环允许 import 的服务，逐条写明为什么。
@@ -36,6 +41,11 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
   // 只读分页查询（`search_assets`）。⚠ 同一个模块里有 `createGeneration`，
   // 所以下面还有一条「不许出现的标识符」名单兜着。
   '@/services/generation.service',
+  /**
+   * 素材文件夹视觉检查：只读用户文件夹与既有图片 URL，再走结构化视觉补全；
+   * 不创建 generation、不写库、不下载文件，也不触发图片 / 视频 / 音频生成。
+   */
+  '@/services/kernel/assistant-asset-folder-vision.service',
   // 选 LLM 路由（用户自己的 key / 平台兜底）。
   '@/services/llm-text.service',
   // 文本补全的重试策略，工具环每一步都走它。
@@ -117,6 +127,31 @@ describe('⛔ 助手工具环的钱闸', () => {
         false,
       )
     }
+  })
+
+  it('文件夹视觉服务只看既有素材，不具备生成、扣费或写入能力', () => {
+    for (const identifier of [
+      'createGeneration',
+      'generateImage',
+      'generateVideo',
+      'generateAudio',
+      'deductCredits',
+      'submitGeneration',
+      'execution-worker',
+      'uploadToR2',
+      'uploadFromHttpToR2',
+      '.create(',
+      '.update(',
+      '.delete(',
+      '.upsert(',
+    ]) {
+      expect(
+        FOLDER_VISION_SOURCE.includes(identifier),
+        `文件夹视觉服务里出现了 ${identifier}`,
+      ).toBe(false)
+    }
+    expect(FOLDER_VISION_SOURCE).toContain('db.generation.findMany')
+    expect(FOLDER_VISION_SOURCE).toContain('completeVisionStructured')
   })
 
   it('工具表里没有任何一条叫 generate 的（prime 除外，而它只置态）', () => {

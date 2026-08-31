@@ -63,6 +63,25 @@ export function describeOperatorStepDetail(
         .filter(Boolean)
         .join(' ')
     }
+    case ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders: {
+      const folders = step.result?.folders ?? []
+      return [`"${step.payload.query}"`, `· ${folders.length}`]
+        .concat(
+          folders.length > 0
+            ? [`· ${folders.map((folder) => folder.path).join(', ')}`]
+            : [],
+        )
+        .join(' ')
+    }
+    case ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder:
+      return [
+        step.result?.folder.path,
+        `· ${step.result?.inspectedImages ?? 0}/${step.result?.totalImages ?? 0}`,
+        `· ${step.result?.batchCount ?? 0} batch(es)`,
+        step.result?.truncated ? '· partial' : '· complete',
+      ]
+        .filter(Boolean)
+        .join(' ')
     case ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages: {
       // 详情里列**域名**：候选格子上只有图，看不出来自哪儿，而「这是从哪个站
       // 拿的」正是用户决定要不要收下它的依据。

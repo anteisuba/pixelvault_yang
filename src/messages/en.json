@@ -6945,6 +6945,7 @@
       "unknownModel": "That model is not in the list you can pick from",
       "unknownValue": "That value is not one of the options",
       "unknownAsset": "That asset was not in this run's search results",
+      "unknownFolder": "That folder was not listed in this run",
       "referencesFull": "Reference slots are full",
       "emptyValue": "There was nothing to write",
       "userDeclined": "You chose to keep yours, so this step was skipped",

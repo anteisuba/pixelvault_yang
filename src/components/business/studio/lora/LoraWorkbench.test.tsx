@@ -457,6 +457,8 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     mockMinedPreviewImages = []
   })
 
+  // P4-C 把操作员 Dock 挂进 GenerateBranch 后，满负载下这条会超过全局 15s。
+  // 隔离跑整文件 32/32；全量时 import 已经吃掉大部分预算。
   it('G3b: renders the source-image thumbnail band (opens the shared recipe modal)', () => {
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
     mockMinedRecipes = [
@@ -480,7 +482,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     expect(
       screen.getByRole('button', { name: 'LoraWorkbench:sourceRecipeRemake' }),
     ).toBeInTheDocument()
-  })
+  }, 45_000)
 
   it('shows a needs-key badge in the spine bar that opens QuickSetupDialog, without touching Generate', () => {
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })

@@ -8,6 +8,10 @@ import { AI_MODELS } from '@/constants/models'
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import { WORKFLOW_IDS, type WorkflowId } from '@/constants/workflows'
 import type { StudioFormState } from '@/contexts/studio-context'
+import {
+  StudioOperatorHostProvider,
+  type StudioOperatorHost,
+} from '@/contexts/studio-operator-host'
 import type { VoiceCardRecord } from '@/types'
 
 import {
@@ -17,6 +21,40 @@ import {
 } from '@/hooks/use-studio-operator-store'
 
 import { StudioPromptArea } from './StudioPromptArea'
+
+/**
+ * 生产树里 `StudioPromptArea` 长在 `StudioOperatorHostProvider` 里
+ * （`StudioWorkspaceUI`）。参数栏会渲染 `StudioOperatorChangeRail`，
+ * 没宿主就抛。本文件验的是提示词/生成载荷，宿主给一份空实现即可。
+ */
+const STUB_OPERATOR_HOST: StudioOperatorHost = {
+  domain: 'image',
+  buildSnapshot: () => ({ prompt: '', availableModels: [] }),
+  referenceLimit: 4,
+  open: false,
+  setOpen: () => {},
+  apply: {
+    getState: () => ({ prompt: '', advancedParams: {} }),
+    dispatch: () => {},
+    resolveOptionId: () => null,
+    addReference: () => {},
+    removeReference: () => {},
+    addAudioReference: () => {},
+    removeAudioReference: () => {},
+    setSound: () => {},
+    mountUserUrl: () => {},
+    unmountUserUrl: () => {},
+    setPrimed: setOperatorPrimed,
+  },
+}
+
+function renderPromptArea() {
+  return render(
+    <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
+      <StudioPromptArea />
+    </StudioOperatorHostProvider>,
+  )
+}
 
 const mockDispatch = vi.hoisted(() => vi.fn())
 const mockGenerate = vi.hoisted(() => vi.fn())
@@ -351,7 +389,7 @@ async function submitVideoFromPromptArea(
   overrides: Partial<StudioFormState> = {},
 ) {
   setupStudioForm(workflowId, overrides)
-  render(<StudioPromptArea />)
+  renderPromptArea()
 
   fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
 
@@ -396,7 +434,7 @@ describe('StudioPromptArea', () => {
 
     it('⭐ 图片参数栏里有入口（折叠行，收起时不渲染输入框）', () => {
       setupImagePanel()
-      render(<StudioPromptArea />)
+      renderPromptArea()
 
       const row = screen.getByRole('button', { name: /negativePromptLabel/ })
       expect(row).toHaveAttribute('aria-expanded', 'false')
@@ -419,7 +457,7 @@ describe('StudioPromptArea', () => {
 
     it('展开后能输入，且写回 advancedParams', () => {
       setupImagePanel()
-      render(<StudioPromptArea />)
+      renderPromptArea()
 
       fireEvent.click(
         screen.getByRole('button', { name: /negativePromptLabel/ }),
@@ -441,7 +479,7 @@ describe('StudioPromptArea', () => {
       // `SET_ADVANCED_PARAMS` 是**整体替换** —— 只发 negativePrompt 会把 seed
       // 这类同住一个对象的参数一起抹掉。
       setupImagePanel({ seed: 1234 })
-      render(<StudioPromptArea />)
+      renderPromptArea()
 
       fireEvent.click(
         screen.getByRole('button', { name: /negativePromptLabel/ }),
@@ -463,7 +501,7 @@ describe('StudioPromptArea', () => {
     // stopPropagation 防这一手。
     it('⛔ 点负面框时容器不许把焦点抢回主提示词框', () => {
       setupImagePanel()
-      render(<StudioPromptArea />)
+      renderPromptArea()
 
       fireEvent.click(
         screen.getByRole('button', { name: /negativePromptLabel/ }),
@@ -480,7 +518,7 @@ describe('StudioPromptArea', () => {
 
     it('⛔ 展开后不再重复同一句 placeholder（同一句话不许一屏两遍）', () => {
       setupImagePanel()
-      render(<StudioPromptArea />)
+      renderPromptArea()
 
       const row = screen.getByRole('button', { name: /negativePromptLabel/ })
       expect(row.textContent).toContain('negativePromptPlaceholder')
@@ -496,7 +534,7 @@ describe('StudioPromptArea', () => {
 
     it('清空写成 undefined 而不是空串（空串会被当成「设过一个空负面」带进请求）', () => {
       setupImagePanel({ negativePrompt: 'bad hands' })
-      render(<StudioPromptArea />)
+      renderPromptArea()
 
       fireEvent.click(
         screen.getByRole('button', { name: /negativePromptLabel/ }),
@@ -542,7 +580,7 @@ describe('StudioPromptArea', () => {
       prompt: '',
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
 
     await waitFor(() => expect(getSetPromptActions()).toHaveLength(1))
     const [setPromptAction] = getSetPromptActions()
@@ -558,7 +596,7 @@ describe('StudioPromptArea', () => {
       prompt: '',
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
 
     expect(getSetPromptActions()).toEqual([])
   })
@@ -570,7 +608,7 @@ describe('StudioPromptArea', () => {
       panels: { ...EMPTY_PANELS, refImage: true },
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
     mockDispatch.mockClear()
 
     fireEvent.pointerDown(screen.getByRole('button', { name: 'label' }))
@@ -587,7 +625,7 @@ describe('StudioPromptArea', () => {
       panels: { ...EMPTY_PANELS, spec: true },
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
     mockDispatch.mockClear()
 
     fireEvent.pointerDown(screen.getByRole('button', { name: 'specLabel' }))
@@ -603,7 +641,7 @@ describe('StudioPromptArea', () => {
       selectedOptionId: null,
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
 
     const promptGroup = screen.getByRole('group')
 
@@ -705,7 +743,7 @@ describe('StudioPromptArea', () => {
       audioSpeakerVoiceIds: ['fish-voice-1', 'fish-voice-2'],
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
     fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
 
     await waitFor(() =>
@@ -764,7 +802,7 @@ describe('StudioPromptArea', () => {
       audioMusicDurationSeconds: 95,
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
     fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
 
     await waitFor(() =>
@@ -793,7 +831,7 @@ describe('StudioPromptArea', () => {
       audioSfxDurationSeconds: 4,
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
     fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
 
     await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
@@ -819,7 +857,7 @@ describe('StudioPromptArea', () => {
       audioMusicDurationSeconds: 95,
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
     fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
 
     await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
@@ -863,7 +901,7 @@ describe('StudioPromptArea', () => {
       prompt: 'a'.repeat(promptLength),
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
   }
 
   it('lets Fish Audio past 5000 chars and prints no denominator (vendor documents no cap)', () => {
@@ -921,7 +959,7 @@ describe('StudioPromptArea', () => {
       prompt: 'a'.repeat(2932),
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
 
     expect(screen.queryByText(/^2932\//)).not.toBeInTheDocument()
     expect(
@@ -940,7 +978,7 @@ describe('StudioPromptArea', () => {
       prompt: 'a'.repeat(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH + 1),
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
 
     expect(
       screen.getByText(
@@ -976,7 +1014,7 @@ describe('StudioPromptArea', () => {
       prompt: 'a'.repeat(1001),
     })
 
-    render(<StudioPromptArea />)
+    renderPromptArea()
 
     expect(screen.getByText('1001/1000')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
@@ -1107,7 +1145,7 @@ describe('归属追踪 · 只有 primed 态打出去的那一枪才领票', () =
       selectedOptionId: 'image-option',
       prompt: 'a girl under a red umbrella',
     })
-    render(<StudioPromptArea />)
+    renderPromptArea()
   }
 
   it('primed 态点生成 → 领一张票', async () => {
@@ -1142,7 +1180,7 @@ describe('归属追踪 · 只有 primed 态打出去的那一枪才领票', () =
       // 空提示词 = blockedReason 非空
       prompt: '',
     })
-    render(<StudioPromptArea />)
+    renderPromptArea()
 
     fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
 

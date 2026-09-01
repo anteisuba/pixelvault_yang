@@ -25,6 +25,7 @@ import {
   NODE_WORKFLOW_FIELD_IDS,
 } from '@/constants/node-types'
 import {
+  SCRIPT_DOC_LIMITS,
   SCRIPT_DOC_MERGE_SOURCE_ID,
   SCRIPT_DOC_REF_KIND_IDS,
   type ScriptDocRefKind,
@@ -394,7 +395,14 @@ export function projectScriptDocToGraph(
       mediaKind: NODE_MEDIA_KIND_IDS.video,
       [NODE_WORKFLOW_FIELD_IDS.audioIntent]: '',
       [NODE_WORKFLOW_FIELD_IDS.camera]: shot.camera ?? '',
-      [NODE_WORKFLOW_FIELD_IDS.duration]: '',
+      // 画布对齐三梁 · 梁1：只在创建时从 ScriptDoc 播种初始时长——不进
+      // seedanceUpdate（下面），理由与 shotStill 的 prompt 相同（见下方
+      // 那段「never overwrites a still prompt」的先例）：节点一旦存在，
+      // duration 就由用户在节点上精修，并经 syncSeedanceDurationPatchToScriptDoc
+      // 回写 ScriptDoc；重新投影时让 ScriptDoc 的旧值覆盖节点上更新的值，
+      // 只会形成一个没有必要的竞态。
+      [NODE_WORKFLOW_FIELD_IDS.duration]:
+        shot.durationSeconds != null ? String(shot.durationSeconds) : '',
       [NODE_WORKFLOW_FIELD_IDS.motion]: '',
       scriptRef: {
         kind: SCRIPT_DOC_REF_KIND_IDS.seedance,
@@ -616,4 +624,51 @@ export function syncShotTextPatchToScriptDoc(
     }
   }
   return next
+}
+
+/**
+ * 把「在 seedance 节点上编辑的时长」同步回 ScriptDoc 对应镜头的
+ * `durationSeconds`（画布对齐三梁 · 梁1）。镜像上面 `syncShotTextPatchToScriptDoc`
+ * 的形状——节点上的 `duration` 是字符串（自由输入框），ScriptDoc 里的
+ * `durationSeconds` 是数值，这里做的就是那道 parse。
+ *
+ * 不做任何事的四种情况（都原样返回入参引用，调用方靠 `===` 判断没变化）：
+ * · 项目还没有 ScriptDoc；
+ * · 这个节点不是 seedance，或者没有指回某个 shot 的 `scriptRef`
+ *   （手工添加的节点就没有 —— 它不受投影管辖）；
+ * · patch 里没有 `duration` 字段（例如只是改了 `status`）；
+ * · `duration` 是空串/非法数字/越界（<0 或 >maxShotDurationSeconds）——
+ *   忽略不写，而不是夹取或清空：输入框此刻的字符可能只是打字过程中的
+ *   中间态（例如刚删完准备重打），不该在那一瞬间就静默改写 ScriptDoc。
+ */
+export function syncSeedanceDurationPatchToScriptDoc(
+  doc: ScriptDoc | undefined,
+  node: NodeWorkflowNode | undefined,
+  patch: Partial<NodeWorkflowNodeData>,
+): ScriptDoc | undefined {
+  if (!doc || !node || node.type !== NODE_TYPE_IDS.seedance) return doc
+  const ref = node.data.scriptRef
+  if (!ref || ref.kind !== SCRIPT_DOC_REF_KIND_IDS.seedance) return doc
+
+  const value = patch[NODE_WORKFLOW_FIELD_IDS.duration]
+  if (typeof value !== 'string') return doc
+
+  const trimmed = value.trim()
+  if (trimmed === '') return doc
+
+  const seconds = Number(trimmed)
+  if (
+    !Number.isFinite(seconds) ||
+    seconds < 0 ||
+    seconds > SCRIPT_DOC_LIMITS.maxShotDurationSeconds
+  ) {
+    return doc
+  }
+
+  return {
+    ...doc,
+    shots: doc.shots.map((shot) =>
+      shot.id === ref.sourceId ? { ...shot, durationSeconds: seconds } : shot,
+    ),
+  }
 }

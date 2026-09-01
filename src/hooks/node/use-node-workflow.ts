@@ -70,6 +70,7 @@ import { migrateImageRoles } from '@/lib/node-workflow-migrate-image-roles'
 import { migrateVoiceClip } from '@/lib/node-workflow-migrate-voice-clip'
 import {
   projectScriptDocToGraph,
+  syncSeedanceDurationPatchToScriptDoc,
   syncShotTextPatchToScriptDoc,
 } from '@/lib/node-workflow-script-doc'
 import type { ScriptDocDepth, ScriptDocStage } from '@/constants/script-doc'
@@ -1753,8 +1754,17 @@ export function useNodeWorkflow({
             // ⚠ 落点选在这里而不是各个编辑组件里：`scriptDoc` 与 `nodes` 同在
             // 一个 state 对象上，这一次 setState 就能把两者原子更新，且以后
             // 任何新增的编辑入口都自动一致，不必各自记得回写。
-            const scriptDoc = syncShotTextPatchToScriptDoc(
-              currentState.scriptDoc,
+            // 画布对齐三梁 · 梁1：镜头时长同一套道理——seedance 节点上的
+            // duration 是「一镜的显式时长」的另一个入口，编辑后必须回写
+            // ScriptDoc，否则下一次投影会把它覆盖掉。链在同一次 setState里，
+            // 两个 sync 函数各自只认自己的节点类型（shotText / seedance），
+            // 互不干扰，串行调用等价于同时生效。
+            const scriptDoc = syncSeedanceDurationPatchToScriptDoc(
+              syncShotTextPatchToScriptDoc(
+                currentState.scriptDoc,
+                currentState.nodes.find((node) => node.id === id),
+                patch,
+              ),
               currentState.nodes.find((node) => node.id === id),
               patch,
             )

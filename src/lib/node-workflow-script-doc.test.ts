@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   projectScriptDocToGraph,
+  syncSeedanceDurationPatchToScriptDoc,
   syncShotTextPatchToScriptDoc,
 } from '@/lib/node-workflow-script-doc'
 import {
@@ -450,6 +451,67 @@ describe('projectScriptDocToGraph', () => {
     expect(stillPatch?.data).not.toHaveProperty('prompt')
   })
 
+  // ── 画布对齐三梁 · 梁1：每镜显式时长 ─────────────────────────────────
+
+  it('seeds the seedance node duration from shot.durationSeconds on create', () => {
+    const withDuration: ScriptDoc = {
+      ...TWO_SHOT_DOC,
+      shots: [
+        { ...TWO_SHOT_DOC.shots[0], durationSeconds: 8 },
+        TWO_SHOT_DOC.shots[1],
+      ],
+    }
+    const result = projectScriptDocToGraph(withDuration, EMPTY_STATE, {
+      makeId: deterministicMakeId(),
+      anchor: ANCHOR,
+    })
+
+    const seedanceShot1 = findByRef(result.nodesToAdd, 'seedance', 'shot-1')
+    const seedanceShot2 = findByRef(result.nodesToAdd, 'seedance', 'shot-2')
+    expect(seedanceShot1?.data.duration).toBe('8')
+    // shot-2 没有显式时长 → 空串（未标注），不是 "0"。
+    expect(seedanceShot2?.data.duration).toBe('')
+  })
+
+  it('never overwrites an existing seedance node duration when the outline is redrafted', () => {
+    const makeId = deterministicMakeId()
+    const first = projectScriptDocToGraph(TWO_SHOT_DOC, EMPTY_STATE, {
+      makeId,
+      anchor: ANCHOR,
+    })
+    const seedance = findByRef(first.nodesToAdd, 'seedance', 'shot-1')
+    const appliedState: NodeWorkflowState = {
+      nodes: first.nodesToAdd,
+      edges: first.edgesToAdd,
+    }
+    const revised: ScriptDoc = {
+      ...TWO_SHOT_DOC,
+      shots: [
+        {
+          ...TWO_SHOT_DOC.shots[0],
+          durationSeconds: 15,
+          camera: 'slow push-in',
+        },
+        TWO_SHOT_DOC.shots[1],
+      ],
+    }
+
+    const result = projectScriptDocToGraph(revised, appliedState, {
+      makeId,
+      anchor: ANCHOR,
+    })
+
+    const seedancePatch = result.nodesToUpdate.find(
+      (update) => update.id === seedance?.id,
+    )
+    // Structural field follows the doc…
+    expect(seedancePatch?.data.camera).toBe('slow push-in')
+    // …but duration is now the node's own to own (synced back via
+    // syncSeedanceDurationPatchToScriptDoc) — re-drafting the outline must
+    // not silently overwrite what the node already carries.
+    expect(seedancePatch?.data).not.toHaveProperty('duration')
+  })
+
   it('reuses an Agent-path character node matched by character.characterId', () => {
     const existingState: NodeWorkflowState = {
       nodes: [
@@ -587,5 +649,125 @@ describe('syncShotTextPatchToScriptDoc', () => {
         action: 'x',
       }),
     ).toBeUndefined()
+  })
+})
+
+// 画布对齐三梁 · 梁1：seedance 节点上的 duration 是「一镜显式时长」的另一个
+// 入口，镜像 syncShotTextPatchToScriptDoc 的形状 —— 节点上编辑必须回写
+// ScriptDoc，否则下一次投影会把用户的修改覆盖掉。
+describe('syncSeedanceDurationPatchToScriptDoc', () => {
+  const DOC: ScriptDoc = {
+    title: 'T',
+    logline: '',
+    roles: [],
+    shots: [
+      { id: 'shot-1', summary: '原动作', roleIds: [], dialogue: [] },
+      { id: 'shot-2', summary: '别动我', roleIds: [], dialogue: [] },
+    ],
+  }
+
+  function seedanceNode(sourceId: string): NodeWorkflowNode {
+    return {
+      id: 'n-1',
+      type: NODE_TYPE_IDS.seedance,
+      position: { x: 0, y: 0 },
+      data: {
+        prompt: '',
+        status: NODE_STATUS_IDS.idle,
+        scriptRef: { kind: SCRIPT_DOC_REF_KIND_IDS.seedance, sourceId },
+      },
+    }
+  }
+
+  it('把合法的 duration 字符串 parse 成数字，写回对应的那一镜', () => {
+    const next = syncSeedanceDurationPatchToScriptDoc(
+      DOC,
+      seedanceNode('shot-1'),
+      { duration: '8' },
+    )
+    expect(next?.shots[0]?.durationSeconds).toBe(8)
+    // 只动 scriptRef 指向的那一镜
+    expect(next?.shots[1]?.durationSeconds).toBeUndefined()
+  })
+
+  it('越界值（超过 30s 上限）被忽略 —— 返回同一引用', () => {
+    expect(
+      syncSeedanceDurationPatchToScriptDoc(DOC, seedanceNode('shot-1'), {
+        duration: '999',
+      }),
+    ).toBe(DOC)
+  })
+
+  it('负数被忽略', () => {
+    expect(
+      syncSeedanceDurationPatchToScriptDoc(DOC, seedanceNode('shot-1'), {
+        duration: '-1',
+      }),
+    ).toBe(DOC)
+  })
+
+  it('非数字字符串被忽略', () => {
+    expect(
+      syncSeedanceDurationPatchToScriptDoc(DOC, seedanceNode('shot-1'), {
+        duration: 'abc',
+      }),
+    ).toBe(DOC)
+  })
+
+  it('空字符串被忽略 —— 打字中间态，不当成"清零"处理', () => {
+    expect(
+      syncSeedanceDurationPatchToScriptDoc(DOC, seedanceNode('shot-1'), {
+        duration: '',
+      }),
+    ).toBe(DOC)
+  })
+
+  it('手工添加的节点（无 scriptRef）不碰 ScriptDoc', () => {
+    const handAdded: NodeWorkflowNode = {
+      id: 'n-2',
+      type: NODE_TYPE_IDS.seedance,
+      position: { x: 0, y: 0 },
+      data: { prompt: '', status: NODE_STATUS_IDS.idle },
+    }
+    expect(
+      syncSeedanceDurationPatchToScriptDoc(DOC, handAdded, { duration: '8' }),
+    ).toBe(DOC)
+  })
+
+  it('非 duration 字段的 patch（如 status）不产生新 doc', () => {
+    expect(
+      syncSeedanceDurationPatchToScriptDoc(DOC, seedanceNode('shot-1'), {
+        status: NODE_STATUS_IDS.running,
+      }),
+    ).toBe(DOC)
+  })
+
+  it('项目还没有 ScriptDoc 时安全返回 undefined', () => {
+    expect(
+      syncSeedanceDurationPatchToScriptDoc(undefined, seedanceNode('shot-1'), {
+        duration: '8',
+      }),
+    ).toBeUndefined()
+  })
+
+  it('非 seedance 节点（如 shotText）不受影响', () => {
+    const shotTextNode: NodeWorkflowNode = {
+      id: 'n-3',
+      type: NODE_TYPE_IDS.shotText,
+      position: { x: 0, y: 0 },
+      data: {
+        prompt: '',
+        status: NODE_STATUS_IDS.idle,
+        scriptRef: {
+          kind: SCRIPT_DOC_REF_KIND_IDS.shotText,
+          sourceId: 'shot-1',
+        },
+      },
+    }
+    expect(
+      syncSeedanceDurationPatchToScriptDoc(DOC, shotTextNode, {
+        duration: '8',
+      }),
+    ).toBe(DOC)
   })
 })

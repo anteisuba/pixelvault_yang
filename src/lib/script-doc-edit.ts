@@ -7,11 +7,15 @@
  * rule: fields the user hand-edited (locked) survive a whole-doc AI regeneration.
  */
 
-import { SCRIPT_DOC_FOCUS_KIND_IDS } from '@/constants/script-doc'
+import {
+  SCRIPT_DOC_FOCUS_KIND_IDS,
+  SCRIPT_DOC_LIMITS,
+} from '@/constants/script-doc'
 import type {
   ScriptDoc,
   ScriptDocDialogueLine,
   ScriptDocFocus,
+  ScriptDocShot,
 } from '@/types/script-doc'
 
 export type ScriptDocTextField =
@@ -34,6 +38,7 @@ export type ScriptDocShotField =
   | 'camera'
   | 'sceneLabel'
   | 'composition'
+  | 'durationSeconds'
 
 /**
  * Field-key scheme shared by the lock set, the lock UI, and the merge. Built,
@@ -134,8 +139,34 @@ export function setShotField(
           return { ...shot, sceneLabel: value }
         case 'composition':
           return { ...shot, composition: value }
+        case 'durationSeconds':
+          // 数值字段，不走这条纯字符串通道 —— 用下面专门的 setShotDuration。
+          return shot
       }
     }),
+  }
+}
+
+/**
+ * 每镜显式时长（秒）。越界夹取到 `[0, maxShotDurationSeconds]`
+ * （Seedance 2.5 硬顶）而不是拒绝整次写入 —— 手填时长最常见的越界是「多打
+ * 一位数」，夹取比让输入原地不动更顺手，也和 UI 滑杆/步进器的习惯一致。
+ * `undefined` 清空这一镜的显式时长。
+ */
+export function setShotDuration(
+  doc: ScriptDoc,
+  shotId: string,
+  seconds: number | undefined,
+): ScriptDoc {
+  const clamped =
+    seconds === undefined
+      ? undefined
+      : Math.min(Math.max(seconds, 0), SCRIPT_DOC_LIMITS.maxShotDurationSeconds)
+  return {
+    ...doc,
+    shots: doc.shots.map((shot) =>
+      shot.id === shotId ? { ...shot, durationSeconds: clamped } : shot,
+    ),
   }
 }
 
@@ -210,6 +241,33 @@ export function removeShot(doc: ScriptDoc, shotId: string): ScriptDoc {
 }
 
 /**
+ * 显式重排：把 shotId 挪到 toIndex（越界夹取到 `[0, shots.length - 1]`）。
+ * shotId 不存在或落点与当前位置相同时原样返回入参引用 —— 调用方靠 `===`
+ * 判断没变化，与本文件其它「no-op 返回原引用」的函数
+ * （`mergeLockedFields` / `applyFocusedResult`）同一套约定。
+ *
+ * ⛔ 不动 `SCRIPT_DOC_LIMITS` 之外的东西 —— LLM 是否允许重排是后续第⑤步
+ * 的范围，这里只是纯数据层的顺序原语。
+ */
+export function moveShot(
+  doc: ScriptDoc,
+  shotId: string,
+  toIndex: number,
+): ScriptDoc {
+  const fromIndex = doc.shots.findIndex((shot) => shot.id === shotId)
+  if (fromIndex === -1) return doc
+
+  const lastIndex = doc.shots.length - 1
+  const clampedIndex = Math.min(Math.max(toIndex, 0), lastIndex)
+  if (clampedIndex === fromIndex) return doc
+
+  const shots = [...doc.shots]
+  const [moved] = shots.splice(fromIndex, 1)
+  shots.splice(clampedIndex, 0, moved as ScriptDocShot)
+  return { ...doc, shots }
+}
+
+/**
  * Append a dialogue line to a shot. `speakerRoleId` must be an existing role id
  * (the UI only enables this when at least one role exists); `line` is a
  * non-empty placeholder.
@@ -255,7 +313,19 @@ const ROLE_FIELDS: ScriptDocRoleField[] = [
   'personality',
   'goal',
 ]
-const SHOT_FIELDS: ScriptDocShotField[] = ['summary', 'emotion', 'camera']
+// ⚠ 2026-09-02 补 `sceneLabel` / `composition`：此前这两个字段漏在这份列表
+// 外，`mergeLockedFields` 的 shot 分支又只认这份列表 —— 结果这两个字段的锁
+// 从来没被合并器读到过，AI 整份重写照样覆盖，锁是空转的（见下面 mergeLockedFields
+// 的同批修复）。`durationSeconds` 不进这份列表：它只用于 `mergeLockedFields`
+// 的锁定态还原（画布对齐三梁 · 梁1），不参与「focus 重写清空锁」——AI 的
+// 结构化输出契约里没有这个字段，focus 重写不会产出它，谈不上要清它的锁。
+const SHOT_FIELDS: ScriptDocShotField[] = [
+  'summary',
+  'emotion',
+  'camera',
+  'sceneLabel',
+  'composition',
+]
 
 /**
  * Splice a focused AI result into the current doc: take ONLY the focused module
@@ -368,6 +438,22 @@ export function mergeLockedFields(
             camera: locked.has(scriptDocLockKey.shot(shot.id, 'camera'))
               ? current.camera
               : shot.camera,
+            // 顺手修：此前漏了这两个分支 —— 锁键存在但从未被这个函数读到，
+            // AI 重写永远覆盖，锁是空转的。
+            sceneLabel: locked.has(scriptDocLockKey.shot(shot.id, 'sceneLabel'))
+              ? current.sceneLabel
+              : shot.sceneLabel,
+            composition: locked.has(
+              scriptDocLockKey.shot(shot.id, 'composition'),
+            )
+              ? current.composition
+              : shot.composition,
+            // 画布对齐三梁 · 梁1：每镜显式时长同样走「锁定态还原」。
+            durationSeconds: locked.has(
+              scriptDocLockKey.shot(shot.id, 'durationSeconds'),
+            )
+              ? current.durationSeconds
+              : shot.durationSeconds,
           }
         : shot
       return {

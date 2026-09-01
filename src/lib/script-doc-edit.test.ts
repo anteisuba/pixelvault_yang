@@ -7,11 +7,13 @@ import {
   applyFocusedResult,
   focusLockKeys,
   mergeLockedFields,
+  moveShot,
   nextScriptDocId,
   removeDialogue,
   removeRole,
   removeShot,
   scriptDocLockKey,
+  setShotDuration,
   setShotField,
 } from '@/lib/script-doc-edit'
 import type { ScriptDoc } from '@/types/script-doc'
@@ -77,6 +79,81 @@ describe('structural edits', () => {
   })
 })
 
+describe('setShotDuration', () => {
+  it('sets an in-range duration', () => {
+    const next = setShotDuration(DOC, 'shot-1', 8)
+    expect(next.shots[0]?.durationSeconds).toBe(8)
+  })
+
+  it('clamps an over-range duration to the 30s Seedance 2.5 cap', () => {
+    const next = setShotDuration(DOC, 'shot-1', 999)
+    expect(next.shots[0]?.durationSeconds).toBe(30)
+  })
+
+  it('clamps a negative duration to 0', () => {
+    const next = setShotDuration(DOC, 'shot-1', -5)
+    expect(next.shots[0]?.durationSeconds).toBe(0)
+  })
+
+  it('clears the duration when given undefined', () => {
+    const withDuration = setShotDuration(DOC, 'shot-1', 8)
+    const cleared = setShotDuration(withDuration, 'shot-1', undefined)
+    expect(cleared.shots[0]?.durationSeconds).toBeUndefined()
+  })
+
+  it('only touches the targeted shot', () => {
+    const twoShot: ScriptDoc = {
+      ...DOC,
+      shots: [
+        DOC.shots[0]!,
+        { id: 'shot-2', summary: 'Theo waits', roleIds: [], dialogue: [] },
+      ],
+    }
+    const next = setShotDuration(twoShot, 'shot-1', 10)
+    expect(next.shots[0]?.durationSeconds).toBe(10)
+    expect(next.shots[1]?.durationSeconds).toBeUndefined()
+  })
+})
+
+describe('moveShot', () => {
+  const THREE_SHOT_DOC: ScriptDoc = {
+    ...DOC,
+    shots: [
+      { id: 'shot-1', summary: 'First', roleIds: [], dialogue: [] },
+      { id: 'shot-2', summary: 'Second', roleIds: [], dialogue: [] },
+      { id: 'shot-3', summary: 'Third', roleIds: [], dialogue: [] },
+    ],
+  }
+
+  it('moves a shot forward', () => {
+    const next = moveShot(THREE_SHOT_DOC, 'shot-1', 2)
+    expect(next.shots.map((s) => s.id)).toEqual(['shot-2', 'shot-3', 'shot-1'])
+  })
+
+  it('moves a shot backward', () => {
+    const next = moveShot(THREE_SHOT_DOC, 'shot-3', 0)
+    expect(next.shots.map((s) => s.id)).toEqual(['shot-3', 'shot-1', 'shot-2'])
+  })
+
+  it('clamps an out-of-range toIndex to the last valid slot', () => {
+    const next = moveShot(THREE_SHOT_DOC, 'shot-1', 999)
+    expect(next.shots.map((s) => s.id)).toEqual(['shot-2', 'shot-3', 'shot-1'])
+  })
+
+  it('clamps a negative toIndex to 0', () => {
+    const next = moveShot(THREE_SHOT_DOC, 'shot-3', -99)
+    expect(next.shots.map((s) => s.id)).toEqual(['shot-3', 'shot-1', 'shot-2'])
+  })
+
+  it('returns the same doc reference for a nonexistent shot id', () => {
+    expect(moveShot(THREE_SHOT_DOC, 'ghost', 0)).toBe(THREE_SHOT_DOC)
+  })
+
+  it('returns the same doc reference for a no-op move (already at toIndex)', () => {
+    expect(moveShot(THREE_SHOT_DOC, 'shot-2', 1)).toBe(THREE_SHOT_DOC)
+  })
+})
+
 describe('mergeLockedFields', () => {
   it('returns the AI doc unchanged when nothing is locked', () => {
     const aiDoc: ScriptDoc = { ...DOC, title: 'AI Title' }
@@ -126,6 +203,58 @@ describe('mergeLockedFields', () => {
     const locked = new Set([scriptDocLockKey.doc('title')])
     const merged = mergeLockedFields(aiDoc, DOC, locked)
     expect(merged.roles.map((r) => r.id)).toContain('role-9')
+  })
+
+  // ⚠ 顺手修：sceneLabel / composition 此前在 SHOT_FIELDS 列表里缺席，
+  // mergeLockedFields 的 shot 分支也没有对应字段 —— 锁键存在、能被设置，
+  // 但从来没被这个函数读到过，AI 重写永远覆盖。此前是空转，这里锁死。
+  it('restores locked sceneLabel / composition instead of taking the AI rewrite', () => {
+    const userDoc: ScriptDoc = {
+      ...DOC,
+      shots: [
+        {
+          ...DOC.shots[0]!,
+          sceneLabel: 'INT. GREENHOUSE - NIGHT',
+          composition: 'rule of thirds, subject left',
+        },
+      ],
+    }
+    const locked = new Set([
+      scriptDocLockKey.shot('shot-1', 'sceneLabel'),
+      scriptDocLockKey.shot('shot-1', 'composition'),
+    ])
+    const aiDoc: ScriptDoc = {
+      ...DOC,
+      shots: [
+        {
+          ...DOC.shots[0]!,
+          sceneLabel: 'AI rewrote the scene label',
+          composition: 'AI rewrote the composition',
+        },
+      ],
+    }
+
+    const merged = mergeLockedFields(aiDoc, userDoc, locked)
+    expect(merged.shots[0]?.sceneLabel).toBe('INT. GREENHOUSE - NIGHT')
+    expect(merged.shots[0]?.composition).toBe('rule of thirds, subject left')
+  })
+
+  // 画布对齐三梁 · 梁1：durationSeconds 同样走锁定态还原。
+  it('restores a locked durationSeconds instead of taking the AI rewrite', () => {
+    const userDoc = setShotDuration(DOC, 'shot-1', 12)
+    const locked = new Set([scriptDocLockKey.shot('shot-1', 'durationSeconds')])
+    const aiDoc = setShotDuration(DOC, 'shot-1', 6)
+
+    const merged = mergeLockedFields(aiDoc, userDoc, locked)
+    expect(merged.shots[0]?.durationSeconds).toBe(12)
+  })
+
+  it('takes the AI durationSeconds when it is not locked', () => {
+    const userDoc = setShotDuration(DOC, 'shot-1', 12)
+    const aiDoc = setShotDuration(DOC, 'shot-1', 6)
+
+    const merged = mergeLockedFields(aiDoc, userDoc, new Set(['title']))
+    expect(merged.shots[0]?.durationSeconds).toBe(6)
   })
 })
 
@@ -197,5 +326,13 @@ describe('focusLockKeys', () => {
     const keys = focusLockKeys(DOC, { kind: 'shot', id: 'shot-1' })
     expect(keys).toContain(scriptDocLockKey.shot('shot-1', 'camera'))
     expect(keys).toContain(scriptDocLockKey.line('line-1'))
+  })
+
+  // 顺手修的另一半：sceneLabel / composition 现在也在这份清单里——focus 重写
+  // 一个镜头时，它们的锁跟 summary/emotion/camera 一样被清空。
+  it('shot focus also clears sceneLabel / composition locks', () => {
+    const keys = focusLockKeys(DOC, { kind: 'shot', id: 'shot-1' })
+    expect(keys).toContain(scriptDocLockKey.shot('shot-1', 'sceneLabel'))
+    expect(keys).toContain(scriptDocLockKey.shot('shot-1', 'composition'))
   })
 })

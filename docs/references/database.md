@@ -11,18 +11,18 @@
 
 ## 域模型地图（38 模型 + 12 枚举，2026-07-23 对照 schema 清点）
 
-| 域          | 模型                                                                                                                               | 备注                                                                |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| 身份        | `User`                                                                                                                             | `clerkId` 映射外部身份；JIT 建档走 `ensureUser`                     |
-| 组织        | `Project`（`parentId` 层级）· `NodeWorkflowProject` · `Collection` / `CollectionItem`                                              | 普通 Project 与画布项目**分离**；Project 删除不删作品               |
-| 生成核心    | **`Generation`**（全模态统一资产记录，schema 中最大模型）· `GenerationJob` · `ExecutionOutbox` · `ApiUsageLedger` · `FreeTierSlot` | 异步执行骨架；Comfy runner 复用；`GenerationSourceSurface` 记来源面 |
-| BYOK        | `UserApiKey`                                                                                                                       | 加密存储 + masking；显式 keyId 不 fallback                          |
-| 卡片        | `CharacterCard` · `GenerationCharacterCard`（join）· `BackgroundCard` · `StyleCard` · `CardRecipe` · `VoiceCard`                   | 可复用创作上下文层                                                  |
-| 配方/提示词 | `Recipe`（`visibility=PUBLIC` 即共享库）· `InspirationPrompt` · `ExtractedElement` · `ImageAnalysis` · `UserCreativePreference`    |                                                                     |
-| 社交        | `UserLike` · `UserFollow`                                                                                                          |                                                                     |
-| 竞技场      | `ArenaMatch` · `ArenaEntry` · `ModelEloRating` · `ModelConfig`                                                                     |                                                                     |
-| 视频        | `VideoPipeline` / `VideoPipelineClip` · `VideoScript` / `VideoScriptScene` · `Story` / `StoryPanel`                                | 三代视频系统并存（收敛中，见 archive 路线图）                       |
-| LoRA        | `LoraAsset` · `LoraTrainingJob`                                                                                                    | Civitai 来源字段 2026-06-08 迁移加入                                |
+| 域          | 模型                                                                                                                               | 备注                                                                      |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 身份        | `User`                                                                                                                             | `clerkId` 映射外部身份；JIT 建档走 `ensureUser`                           |
+| 组织        | `Project`（`parentId` 层级）· `NodeWorkflowProject` · `Collection` / `CollectionItem`                                              | 普通 Project 与画布项目**分离**；Project 删除不删作品                     |
+| 生成核心    | **`Generation`**（全模态统一资产记录，schema 中最大模型）· `GenerationJob` · `ExecutionOutbox` · `ApiUsageLedger` · `FreeTierSlot` | 异步执行骨架；Comfy runner 复用；`GenerationSourceSurface` 记来源面       |
+| BYOK        | `UserApiKey`                                                                                                                       | 加密存储 + masking；显式 keyId 不 fallback                                |
+| 卡片        | `CharacterCard` · `GenerationCharacterCard`（join）· `BackgroundCard` · `StyleCard` · `CardRecipe` · `VoiceCard`                   | 可复用创作上下文层                                                        |
+| 配方/提示词 | `Recipe`（`visibility=PUBLIC` 即共享库）· `InspirationPrompt` · `ExtractedElement` · `ImageAnalysis` · `UserCreativePreference`    |                                                                           |
+| 社交        | `UserLike` · `UserFollow`                                                                                                          |                                                                           |
+| 竞技场      | `ArenaMatch` · `ArenaEntry` · `ModelEloRating` · `ModelConfig`                                                                     |                                                                           |
+| 视频        | `VideoPipeline` / `VideoPipelineClip` · `VideoScript` / `VideoScriptScene` · `Story` / `StoryPanel`                                | 三代视频系统并存（收敛中；旧 archive 路线图已删 2026-08-07，见 git 历史） |
+| LoRA        | `LoraAsset` · `LoraTrainingJob`                                                                                                    | Civitai 来源字段 2026-06-08 迁移加入                                      |
 
 核心执行枚举包括 OutputType · GenerationStatus · GenerationSourceSurface · GenerationJobStatus · ExecutionOutboxStatus；其余枚举直接以 `schema.prisma` 为准。
 

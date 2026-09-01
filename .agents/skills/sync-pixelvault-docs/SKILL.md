@@ -29,8 +29,8 @@ Keep PixelVault's planning maps, progress notes, and operating context aligned w
    - `docs/brand-dna.md` / `docs/forbidden.md` only when the owner confirms a standards change.
    - `docs/checklists/` for reusable P0/P1/P2 quality gates.
    - `docs/scenes/` for per-task-type workflows.
-   - `docs/plans/` only for active task packets; completed packets are deleted, moved to `docs/archive/`, or distilled into `docs/references/`.
-   - `docs/archive/` is append-only history; never edit archived decisions retroactively.
+   - `docs/plans/` only for active task packets; a completed packet is distilled into `docs/references/` and then deleted — grep the repo (including `src/` comments) and fix every pointer to it before deleting.
+   - There is no resident history directory: `docs/archive/` was deleted on 2026-08-07 (owner: "delete, don't archive"). Retrieve past decisions from git history instead.
    - `AGENTS.md` only for durable project rules, not transient task notes.
 
 4. Keep docs factual:

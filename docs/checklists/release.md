@@ -19,7 +19,7 @@ Ship / push / 部署前逐项过。
 
 - [ ] 视觉回归 `e2e/visual.spec.ts` 绿；基线按 OS 分套（-win32/-darwin）
 - [ ] Vercel 部署后 `deploy-check.yml`（Production smoke）通过
-- [ ] `docs/status.md` 已更新；完成的 plans/ 任务包已删 / 归档 / 沉淀
+- [ ] `docs/status.md` 已更新；完成的 plans/ 任务包已删（结论沉淀进 references/）
 
 ## P2（加分）
 

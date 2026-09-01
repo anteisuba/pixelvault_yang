@@ -1081,8 +1081,9 @@ model LoraAsset {
   civitaiFileHashAutoV3 String?
   recommendedPrompt     String? @db.Text
 
-  // 双源通用的来源快照（策略 C「自用优先」的记账面，见
-  // docs/plans/ai-director-kernel-2026-08-13.md 已拍板边界 7）：作者 / 许可 /
+  // 双源通用的来源快照。owner 已拍板的外部资源许可策略是「策略 C · 自用优先」：
+  // 记录来源 / 作者 / 许可 / 抓取时间 + 风险提示，不加确认门；技术不可得或明确
+  // 禁止仍然阻断。本字段就是那条策略的记账面：作者 / 许可 /
   // 来源页 / HF revision / 抓取时间 / 文件大小 / 元数据完整度。
   //
   // ⚠ 它与上面那四个 civitai 字段**不是重复**：那四个是 civitai 专用的**标识符**

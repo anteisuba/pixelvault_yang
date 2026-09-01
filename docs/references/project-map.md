@@ -104,7 +104,7 @@ flowchart LR
 
 - 🎯 你想做：最需要升级情感表达；UI 特定化升级。
 - 📍 现状：VoiceCard 角色声音库（可绑 CharacterCard）；services `audio-reference` / `fish-audio-voice`；`AudioTranscribeDialog` / `StudioAudioFeedback`。
-- 💡 衔接：**情感表达已有施工基准** `docs/plans/audio-domain-design-2026-07.md`（audioKind 属性 / 情绪默认有意图→Creative 无→Natural；**Phase A 情绪见效最先**）。你这条和已拍板方向完全一致，可直接进 Phase A。
+- 💡 衔接：**情感表达已有施工基准** `domains/audio.md`（audioKind 属性 / 情绪默认有意图→Creative 无→Natural；**Phase A 情绪见效最先**）。你这条和已拍板方向完全一致，可直接进 Phase A。
   ![](assets/project-map/voice-01.png)![](assets/project-map/voice-02.png)
   ![](assets/project-map/voice-03.png)
 

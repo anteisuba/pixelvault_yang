@@ -55,7 +55,7 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
   主请求加超时（`5c6c67f9`，根因是 08-23 接 Grok 时只写了缓冲补全那一半）。
 - **文档**：清掉六处与 Engineering Principle 1 相反的「只做向后兼容」指令、adapter 名册
   对齐 `registry.ts`、修三处坏指针（`98969039`）；修一处被 prettier 转义坏的加粗
-  （`41250dc4`，同样的伤在 `docs/plans/` 下还有五处未动）。
+  （`41250dc4`；任务包里的五处同类伤随 plans 全清一并了结）。
 
 ## 未决（等 owner 拍板）
 
@@ -78,18 +78,17 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
 
 ## Current Focus
 
-- **C+F 素材页与选择器 UI 正在做 Codex / Claude 设计对比**：域要求与 shared/dedicated shell 边界已确认；右侧 Dock 是当前工作方向。Owner 2026-08-11 否决 V1 视觉，Codex 已重做“编辑型私人档案馆”V2（文件夹/详情两态），并准备独立的 [`Claude 设计简报`](plans/assets-claude-design-brief-2026-08-11.md)。完整账本见 [`docs/plans/assets-cf-design-2026-08-09.md`](plans/assets-cf-design-2026-08-09.md)；`src/**` 继续冻结，待 owner 对比后选向。
-- **本周十条待办**（owner 2026-08-07 口述），索引 =
-  [`docs/plans/week-2026-08-07-backlog.md`](plans/week-2026-08-07-backlog.md)，交接 = 同目录
-  `week-backlog-session-handoff-2026-08-07.md`。
+- **C+F 素材页与选择器 UI 正在做 Codex / Claude 设计对比**：域要求与 shared/dedicated shell 边界已确认；右侧 Dock 是当前工作方向。Owner 2026-08-11 否决 V1 视觉，Codex 已重做“编辑型私人档案馆”V2（文件夹/详情两态），并准备独立的 Claude 设计简报（`assets-claude-design-brief-2026-08-11.md`）。完整账本 = `assets-cf-design-2026-08-09.md`（两份任务包均已随 plans 清理，git 历史可取）；`src/**` 继续冻结，待 owner 对比后选向。
+- **本周十条待办**（owner 2026-08-07 口述），索引 = 任务包
+  `week-2026-08-07-backlog.md`，交接 =
+  `week-backlog-session-handoff-2026-08-07.md`（均已随 plans 清理，git 历史可取）。
   已完成：**H** LoRA 挂载不设上限（`eb295d23` + `6c3add69`）· **C4** 上传图画质（`84487a71`）·
   **J4** 无依据常量普查（`f9522e44`）· **K** LoRA 库重构（`a77901db`）· **L** TTS 上限按 provider
-  拆分（`1cf1fe2a`）· **M** 角色图 LoRA 加号闸退役（`dafa2898`）· **E** 文档清理 + **J3** 悬空引用（`c2729530`，
-  见 `plans/docs-cleanup-2026-08-07.md`）。
+  拆分（`1cf1fe2a`）· **M** 角色图 LoRA 加号闸退役（`dafa2898`）· **E** 文档清理 + **J3** 悬空引用（`c2729530`）。
   C+F 已进入设计治理；其余并行条目的实时状态以各自 active plan 与代码为准：A 助手分域回复 · B 画布助手→节点 · D 图像优化 ·
   G 首页 UI · I 侧边栏 UI（前置 = J1 补视觉基线）· J1/J2。
-- **调研落地路线图主链 7 / 10 已交付**，入口 =
-  [`docs/plans/research-landing-plan-2026-07-30.md`](plans/research-landing-plan-2026-07-30.md) §6。
+- **调研落地路线图主链 7 / 10 已交付**，入口 = 任务包
+  `research-landing-plan-2026-07-30.md` §6（已随 plans 清理，git 历史可取）。
   已完成：包 1 文档止血 · 包 2 现状实测校准 · 包 2.5 剧本长度悬崖 ·
   包 3 分镜静帧投影 · 包 4 审核态门禁 · 包 4.5 显示名收口 · 包 5 助手写画布。
 - **下一个 = 包 6 审阅网格**，是主链上**第一个要过 `ui-page` 设计门**的包：
@@ -161,7 +160,7 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
 ### 画布管道（本轮主链产出）
 
 - **「聊 → 大纲 → 镜头 → 投影 → 出图」整链真机走通**（包 2 实测，两轮复跑）。
-  投影幂等成立；缺口清单 = [`canvas-pipeline-gap-2026-07-31.md`](plans/canvas-pipeline-gap-2026-07-31.md)，
+  投影幂等成立；缺口清单 = `canvas-pipeline-gap-2026-07-31.md`（已随 plans 清理，git 历史可取），
   它**取代** `canvas-assistant-pipeline` §0 的 07-26 断层表。
 - 剧本提示词改**按预算装配**，修掉 4000 字符静默悬崖（此前故事一丰富就全线 500）。
 - 分镜静帧已能投影（`role=shot`）；`role=background` **有意砍出**——它会渲染成身份卡，
@@ -214,7 +213,7 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
 - 移动端已确认在 `≤680px` 进入“媒体 → 提示词/模型 → 参考素材”的完整单列，主动作粘附底部。
 - 图片族主图与参考图保持不同数据语义，但来源入口不再重名堆叠；LoRA 存量字段未做破坏性迁移。
 - **包 6 审阅网格的造型同样未确认**，必须走完设计门再实现。
-- 稳定方向与未决问题见 `docs/plans/canvas-session-handoff-2026-07-30.md`；
+- 稳定方向与未决问题原记录在交接 `canvas-session-handoff-2026-07-30.md`（已随 plans 清理，git 历史可取）；
   详情页当前结构见 `docs/references/pages/canvas-node-detail.md`，
   其状态已升级为「已实现、待 owner 真机复核」。
 

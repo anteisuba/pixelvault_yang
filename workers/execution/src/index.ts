@@ -111,7 +111,7 @@ interface ExecutionEnv {
   /**
    * RunPod Serverless endpoint id for the Comfy Runner (pixelvault-runner).
    * Not secret by itself (protected by RUNPOD_KEY bearer auth) — set as a
-   * plain wrangler.jsonc var. See docs/plans/comfy-runner-HANDOFF-2026-07.md.
+   * plain wrangler.jsonc var. See docs/references/domains/runner.md.
    */
   RUNPOD_ENDPOINT?: string
   CINEMATIC_SHORT_VIDEO_WORKFLOW: Workflow<WorkerRunContext>
@@ -4642,8 +4642,8 @@ interface RunnerCheckpointSpecInput {
   targetDir?: 'checkpoints' | 'diffusion_models'
 }
 
-// v3 runner（docs/plans/comfy-runner-HANDOFF-2026-07.md）：app 侧
-// `prepareRunnerCheckpoint`（T1 忠实）把源图配方的精确底模解析成 {filename,
+// Runner 底模下发（docs/references/domains/runner.md）：app 侧
+// `prepareRunnerCheckpoint` 把源图配方的精确底模解析成 {filename,
 // downloadUrl}，放在 advancedParams.runnerCheckpoint。Worker 据此覆盖 workflow 的
 // ckpt_name + 发 checkpoint_to_fetch 给 fork（fork GPU 侧从 Civitai 直下到
 // models/checkpoints/）。无则用预烤底模（externalModelId）。

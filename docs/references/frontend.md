@@ -100,7 +100,7 @@ StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlow
 
 ### 画布域（`business/node/`）要点
 
-StudioNodeWorkbench（主工作台）· CanvasTopBar / CanvasBottomDock / CanvasMiniMap · StudioNodeAssistantDock + ScriptDocWorkspace（助手 = 剧本脑）· NodeCanvasEmptyGuide；节点卡片族在子目录。**改画布先读 `plans/canvas-baseline.md`。**
+StudioNodeWorkbench（主工作台）· CanvasTopBar / CanvasBottomDock / CanvasMiniMap · StudioNodeAssistantDock + ScriptDocWorkspace（助手 = 剧本脑）· NodeCanvasEmptyGuide；节点卡片族在子目录。**改画布先读 `pages/node-canvas.md`（长期行为与不变量）与 `pages/canvas-skin.md`（皮肤数值）。**
 
 ## 移动端范式
 

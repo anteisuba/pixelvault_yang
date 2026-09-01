@@ -5,8 +5,8 @@ import type { PromptAssistantLoraTag } from '@/types'
 import type { PromptTagDefinition } from '@/types/prompt-tags'
 
 /**
- * LoRA 转换引擎 v2 出参侧规范化管线（docs/plans/lora-assistant-nl2tag-2026-07.md
- * §2.1 + §2.3，F1 切片）。纯函数，无 server-only 依赖，可单测。
+ * LoRA 转换引擎 v2 的**出参侧规范化管线**（词库 grounding 的出参侧 +
+ * 结构化输出）。纯函数，无 server-only 依赖，可单测。
  *
  * 三态：
  *  - 精确命中（`canonical` 且无 `normalized`）：LLM 输出的文本本身就是某个

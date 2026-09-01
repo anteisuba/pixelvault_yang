@@ -271,8 +271,8 @@ describe('镜头图 · 空态让位（画布修法包 C）', () => {
 })
 
 /**
- * 画布修法包 E（2026-08-26）：散图空态先问「上传还是生成」——owner 确认见
- * docs/plans/prototypes/canvas-detail-empty-ui.html「收入口 01 · 图片」。
+ * 画布修法包 E（2026-08-26 owner 确认）：散图空态先问「上传还是生成」——
+ * 施工基准见 `docs/references/pages/canvas-node-detail.md` §3.2。
  * `LooseImageDetailBody` 是 `offerChoiceWhenEmpty` 唯一的调用方，其余三族
  * （镜头图/关键帧/背景）都不传，上面两组测试已经守住它们一像素不受影响。
  */

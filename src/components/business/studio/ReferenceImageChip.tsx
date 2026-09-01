@@ -30,7 +30,7 @@ interface ReferenceImageChipProps {
  *
  *   tap chip       → popover: drag/paste/upload dropzone + recent assets +
  *                     asset library (shared ImagePickerPopoverBody — same UI
- *                     as the prompt assistant's image entry, docs/plans/
+ *                     as the prompt assistant's image entry, see
  *                     docs/references/pages/assistant-shell.md)
  *   tap Upload     → native file picker → uploadLocalFile（压缩 + multipart
  *                     → R2 URL）。⛔ 绝不是 base64 data URL，见 handleFileSelect

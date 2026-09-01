@@ -3,7 +3,7 @@
 > **状态：施工基准（2026-08-18 owner 确认「分段浮岛」方向 + 关键切片，指示开工）。**
 > 范围：**只管壳** —— 侧栏 / 移动导航 / 默认页面表面（`bg-background`）/ 全局语义槽。
 > **不管**各业务域皮肤（画布 `canvas.css`、LoRA `lora.css`、首页 `home-v4.css`、legal `legal.css` 各自为政，见 `brand-dna.md`「共享行为不共享皮肤」）。
-> 设计原型（讨论期证据，非可合入代码）：`docs/plans/prototypes/sidebar-shell-directions-2026-08-18.html`（诊断 + 三方向）·`docs/plans/prototypes/sidebar-slice-drifting-islands-2026-08-18.html`（关键切片）。
+> 设计原型（讨论期证据：诊断 + 三方向稿、「分段浮岛」关键切片稿）已随任务包清理，git 历史可取；owner 确认的结论已全部写入本文。
 > 上一轮基准（2026-07-31「全浅 A'」）的未竟事项收在 §8。
 
 ---
@@ -182,7 +182,7 @@ M3 边缘手势（与画布 pan、画廊/素材横滑直接冲突）。
 - **EN / JA 语言切换未选中态 3.14:1 ❌** —— 2026-07-31 记录，2026-08-18 复测**一模一样**，从没修过。本轮解法：语言从常驻行**移进头像菜单**，选中/未选中都走 ≥5:1 墨阶。⚠ 别用「整体调暗 `--muted-foreground`」解决，要消掉 alpha 用法。
 - **底部账户区 167.5px（竖向 18%）四行各自带框** → 收成一行 46px：积分 + 头像。免费额度降级成头像上的一个点；**显示名撤掉**（144px 下必然压成「Y…」，而三个读数里它最没用），进头像菜单 + 保留 sr-only 给读屏。
 - **品牌名的 `HyperText` 逐字乱码 hover 动画撤掉** —— 每天看几百次的导航元素放炫技动画，与 `interaction.md §5`「动效只服务状态 / 连续性 / 反馈」冲突。
-- **深色岛**（`CardsPageContent` · `AssetSelectorDialog` · `StudioCardSection` · `assets/loading`）各有域级设计理由，**不属于壳**，逐个域另行决策。画布两处归 `canvas-skin-spec`。
+- **深色岛**（`CardsPageContent` · `AssetSelectorDialog` · `StudioCardSection` · `assets/loading`）各有域级设计理由，**不属于壳**，逐个域另行决策。画布两处归 `canvas-skin.md`。
 - **79 处 `dark:` 变体 / 20 文件** —— 失效 ≠ 出错，真机逐页扫出真坏的再改，别盲改。
 
 ---

@@ -1,10 +1,14 @@
 /*
  * v4 marketing home — skin lane.
  *
- * Construction spec: `docs/plans/prototypes/homepage-slide-v2-SPEC.html`. The
- * rules below are that file's `<style>`, migrated 1:1 for the P1 surface (engine,
- * navigation, opening, finale). The performance skins for the six feature pages
- * and the model stations land with P2/P3.
+ * Domain contract, page/station tables and asset manifest:
+ * `docs/references/pages/home.md`.
+ *
+ * The rules below started life as the accepted slide prototype's `<style>`,
+ * migrated 1:1; this file is now their only home. The `P1` / `P2` / `P3` labels
+ * on the sections below just mark the order they landed in — P1 = engine,
+ * navigation, opening and finale; P2 = the six feature pages; P3 = the model
+ * stations. All three have shipped.
  *
  * Scoping is strict: everything lives under `.home-v4` and nothing declares
  * domain tokens at `:root` — the canvas skin once leaked into two assistant

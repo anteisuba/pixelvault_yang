@@ -177,7 +177,7 @@ RULES:
 - Do not include explanations, markdown headings, JSON, or negative prompt unless the user explicitly asks for it`
   }
 
-  // A2 对话协议（docs/plans/assistant-ab-design-2026-08-08.md §1.2）。四段：
+  // 对话协议（域知识见 `constants/assistant-protocol.ts`）。四段：
   // ① 骨架（共享）② 域人格 ③ 该问什么 ④ 三档 + 输出契约（共享）。
   //
   // ⚠ 改之前这里是**一段**，三个域的差别只有一个名词短语，而且规则里只写了「被
@@ -288,7 +288,7 @@ function getAssistantMediaInputs(
   }
 }
 
-// ─── LoRA assistant v2 (F1, docs/plans/lora-assistant-nl2tag-2026-07.md §2) ──
+// ─── LoRA assistant v2 (word-list grounding + structured output) ─────────────
 //
 // Additive engine: only reached when a `mode:'lora'` request carries
 // `loraContext` (see `chatPromptAssistant` below). The legacy `buildAssistantSystemPrompt`
@@ -1476,7 +1476,7 @@ export async function chatPromptAssistant(
 ): Promise<PromptAssistantResponseData> {
   const dbUser = await ensureUser(clerkId)
 
-  // F1 v2 引擎（docs/plans/lora-assistant-nl2tag-2026-07.md §2）：加法式
+  // LoRA v2 引擎：加法式
   // opt-in——只有 `mode:'lora'` 且显式带 `loraContext` 才走新路径。任何其他
   // 组合（含 `/prompts` 页 presetLora 发的 `mode:'lora'` 不带 loraContext）
   // 原样落到下面的旧逻辑，逐字节不变。

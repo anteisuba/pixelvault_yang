@@ -61,8 +61,8 @@ function RatioGlyph({ ratio }: { ratio: string }) {
  * StudioSpecPopover —— 参数栏专用的「规格」单一触发器：比例 · 清晰度 · 每模型几张
  * 收进一个下拉，触发器上写全（`16:9 · 自动 · 每模型 1 张`）。
  *
- * 对标 LibTV 把生成数量做成与比例、分辨率同级的常规参数、压在一个下拉里
- * （`libtv-canvas-ui-teardown-2026-08-07.md` §四）；owner 2026-08-14 拍板照此做。
+ * 对标 LibTV 把生成数量做成与比例、分辨率同级的常规参数、压在一个下拉里；
+ * owner 2026-08-14 拍板照此做。
  *
  * ⚠ **不替代** dock 里那三颗独立的 chip（`StudioAspectRatioPopover` /
  * `StudioResolutionPopover` / `StudioBatchCountPopover`）—— 视频 / 音频仍走 dock，

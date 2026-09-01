@@ -93,7 +93,7 @@ describe('GET /api/lora-assets/civitai', () => {
     expect(mockListCivitaiLoras).not.toHaveBeenCalled()
   })
 
-  // Issue C (docs/plans/lora-search-image-audit-2026-07.md): the search
+  // Search-session backend lock: the search
   // pagination hook locks onto a backend after page 1 and threads it back
   // as `source` on subsequent pages so the session doesn't silently swap
   // pagination paradigms (offset vs. cursor-scan) mid-flight.

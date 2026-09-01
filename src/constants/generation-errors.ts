@@ -21,7 +21,7 @@ export const GENERATION_ERROR_CODES = {
    * present adapters") — the LoRA itself is fine, the hosted backend just
    * can't load its layer format. Distinct from generic MODEL_UNAVAILABLE so
    * the UI can point the user at a runner-backed model instead of "try
-   * again". See docs/plans/comfy-runner-HANDOFF-2026-07.md §1.1/§4.2.
+   * again". See docs/references/domains/runner.md.
    */
   LORA_INCOMPATIBLE_HOSTED: 'lora_incompatible_hosted',
   /**

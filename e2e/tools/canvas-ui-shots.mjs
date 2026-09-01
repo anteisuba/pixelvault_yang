@@ -1,8 +1,9 @@
 /**
  * 画布 UI 台账截图夹具
  * ────────────────────────────────────────────────────────────────────────
- * 按 `docs/plans/canvas-ui-inventory-2026-08-01.md` 的编号，逐个表面截图落盘到
- * `docs/plans/assets/canvas-ui-2026-08-01/<编号>-<名>.png`。
+ * 按画布 UI 台账（原 `docs/plans/canvas-ui-inventory-2026-08-01.md`，随 plans 全清
+ * 删除，编号表可从 git 历史取）的编号，逐个表面截图落盘到
+ * `docs/references/assets/canvas-ui/<编号>-<名>.png`。
  *
  * 为什么要这个夹具（台账 §11）：claude-in-chrome 的截图在本机**不落盘**，只活在
  * 会话里；手动截图又无法复现，「修一处审一处」的 before/after 对不齐。
@@ -33,7 +34,7 @@ import path from 'node:path'
 import { chromium } from '@playwright/test'
 
 const REPO = path.resolve(import.meta.dirname, '../..')
-const OUT_DIR = path.join(REPO, 'docs/plans/assets/canvas-ui-2026-08-01')
+const OUT_DIR = path.join(REPO, 'docs/references/assets/canvas-ui')
 const STORAGE_STATE = path.join(REPO, 'e2e/.auth/user.json')
 const BASE_URL = 'http://localhost:3000'
 const CANVAS_URL = `${BASE_URL}/zh/studio/node`

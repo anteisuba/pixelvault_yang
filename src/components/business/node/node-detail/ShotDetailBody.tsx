@@ -84,8 +84,8 @@ export function ShotDetailBody({
       type={type}
       data={data}
       // 画布修法包 C：空态让位只在镜头图开——写作台字段搬进主体台，
-      // 井退成预览带（对照 docs/plans/prototypes/canvas-detail-empty-ui.html
-      // 「重做 01 · 镜头图」）。散图/关键帧/背景走 ImageFamilyBody 默认档,
+      // 井退成预览带（见 docs/references/pages/canvas-node-detail.md §3.1
+      // 的「镜头图」一条）。散图/关键帧/背景走 ImageFamilyBody 默认档,
       // 不受影响。
       promoteFieldsWhenEmpty
       rackExtras={

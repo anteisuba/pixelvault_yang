@@ -9,7 +9,7 @@
  * globals.css（Tailwind 编译入口）。施工基准见 docs/references/pages/node-canvas.md。
  *
  * ⚠⚠（2026-07-27，owner 拍板方向 B 第二轮修订，施工基准
- * docs/plans/canvas-skin-spec-2026-07-26.md）：下面这批
+ * docs/references/pages/canvas-skin.md）：下面这批
  * --node-panel/-foreground/-muted/-subtle/-canvas/-focus-ring/-shadow/
  * -status-failed(-fg)/-status-done(-fg) 的**默认值已从旧深皮反转成 v0.2 浅色**。
  * 第一版把反转挂在 .domain-canvas 上，真机暴露系统性缺口：Radix
@@ -21,7 +21,7 @@
  * 体）——全站没有第二个域真的把它当颜色用，挂 :root 零跨域爆炸半径。
  * 值全部写字面量而非 var(--canvas-*)：--canvas-* 只在 .domain-canvas 内定义，
  * :root 这一层引用不到，字面量是唯一能跨传送门生效的写法（数值仍 1:1 抄自
- * canvas-skin-spec-2026-07-26.md，不是新造颜色）。
+ * references/pages/canvas-skin.md，不是新造颜色）。
  * 局部覆盖不受影响，挂在更近的元素上，级联照样赢：.node-card-paper（纸卡）·
  * .node-card-window（媒体深窗）· .canvas-glass（顶栏/底部胶囊/左侧面板的
  * strangler 重映射）· 下方 S3 段的 .domain-canvas 连线覆盖块。真机逐条验证
@@ -503,8 +503,8 @@
 
 /* ══════════════════════════════════════════════════════════════════════════
    S0 · 画布域皮肤 v0.2 —— token 地基（2026-07-26）
-   施工基准 docs/plans/canvas-skin-spec-2026-07-26.md（v0.2 = 真机取样值）。
-   分段计划 docs/plans/canvas-implementation-stages-2026-07-26.md §1 S0。
+   施工基准 docs/references/pages/canvas-skin.md（v0.2 = 真机取样值）。
+   S0 是分段落地的第一段：只铺 token、不接消费者。
 
    与上面遗留部分的关系：
    · 上面的 --node-* 与 --canvas-surface / --canvas-grid-dot / --canvas-safe-* /
@@ -687,21 +687,21 @@
   --canvas-stripe: rgba(0, 0, 0, 0.055);
 
   /* 11 · 字号（只三级）与几何
-     ── 阶段 6-A 全域形态对齐（2026-08-10，owner 批准度量表 §5 的 #4 #6）──────
-     实测基准 `plans/canvas-libtv-form-metrics-2026-08-09.md` §4 规则 3/6：
+     ── 全域形态对齐（2026-08-10 owner 批准）─────────────────────────────
+     实测基准（对标站真机取样）：
      字号三档 **13 UI · 14 输入 · 11 元信息** · 控件高三档 **24 / 28 / 32**。
      旧值 15/14/12 与 28/32/36 各自比基准高一档 —— 不是微调，是整条梯子平移，
      所以**必须整块换**，只改一个会把三档踩成两档。 */
   --canvas-text-body: 14px; /* 输入档，与基准一致，未动 */
   --canvas-text-body-lh: 1.6;
-  --canvas-text-name: 13px; /* 15 → 13（§5 #4，实测 13/20.15/400） */
+  --canvas-text-name: 13px; /* 15 → 13（实测 13/20.15/400） */
   --canvas-text-name-lh: 20px; /* 24 → 20；⚠ 有一处当 height 用（.canvas-card-label） */
   --canvas-text-meta: 11px; /* 12 → 11 */
   --canvas-text-meta-lh: 1.55; /* 11×1.55 ≈ 17.05，实测行高 */
   --canvas-rail-w: 56px; /* 左侧图标轨 */
   --canvas-panel-w: 240px; /* 左侧内容区（班底架） */
   --canvas-topbar-h: 48px;
-  --canvas-control-h-sm: 24px; /* 28 → 24（§5 #6） */
+  --canvas-control-h-sm: 24px; /* 28 → 24 */
   --canvas-control-h: 28px; /* 32 → 28 */
   --canvas-control-h-action: 32px; /* 36 → 32 */
 
@@ -728,8 +728,7 @@
   /* 15 · 语义脊柱映射（D7/D2 刀 1 · 2026-08-02 owner 拍板）——
      app 全局 <html class="dark">，画布是浅色孤岛：子树里共享组件
      （BaseModelPickerPanel / code-block 等）的脊柱令牌一直解析成暗值，
-     实拍病灶 = 视频框模型丸白字落白底、图片框模型丸深灰异类
-     （台账 canvas-ui-inventory-2026-08-01.md 发现 #27 / D7）。
+     实拍病灶 = 视频框模型丸白字落白底、图片框模型丸深灰异类。
      做法同 lora.css .domain-lora「语义脊柱映射」：提槽不提皮，全部
      var(--canvas-*) 间接引用 —— [data-scheme='dark'] 档重定义 --canvas-*
      后这批自动跟随翻面，无需重复声明。
@@ -863,7 +862,7 @@
 }
 
 /* ── S1 · 节点外壳语言（2026-07-26）────────────────────────────────────────
-   规格：canvas-skin-spec-2026-07-26.md §2 / §7 · 分段计划 §1 S1。
+   规格：docs/references/pages/canvas-skin.md §2（卡）/ §7（端口与连线）。
    写成类而非 Tailwind arbitrary value —— Hard Rule 5。
    ⚠ 只在 .domain-canvas 作用域内生效，旧皮 .node-card-paper 不受影响。 */
 
@@ -1835,7 +1834,7 @@
    S4 · 三族卡内视觉（2026-07-27）
    施工基准 docs/references/pages/canvas-image-card.md /
    canvas-voice-card.md / canvas-identity-card.md。数值唯一来源仍是
-   canvas-skin-spec-2026-07-26.md——本节只新增三族卡各自专属的布局类，颜色
+   docs/references/pages/canvas-skin.md——本节只新增三族卡各自专属的布局类，颜色
    一律引用上面已有的 --canvas-* token，不新造。
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -2443,8 +2442,8 @@
 
 /* ══════════════════════════════════════════════════════════════════════════
    S6 · Cast 卡匣 v0.2 玻璃皮（2026-07-27）
-   施工基准：docs/references/pages/assistant-shell.md 同轮任务书 +
-   canvas-skin-spec-2026-07-26.md。CastDock 的 panel 布局挂在 CanvasLeftPanel
+   施工基准：docs/references/pages/assistant-shell.md +
+   docs/references/pages/canvas-skin.md。CastDock 的 panel 布局挂在 CanvasLeftPanel
    的 .canvas-glass 容器内——大部分残留 node-* 类已经靠那层的 strangler 重
    映射读到 v0.2 值（见上方"玻璃容器内的前景色重映射"注释）；这里只补一处
    它没覆盖到的缺口：卡角徽标按钮的语义色 hover。只换皮，不改结构。
@@ -2655,8 +2654,8 @@
   color: var(--canvas-detail-ink-2);
 }
 
-/* ── 空态让位（画布修法包 C，2026-08-26）───────────────────────────────
-   owner 确认见 docs/plans/prototypes/canvas-detail-empty-ui.html。
+/* ── 空态让位（画布修法包 C，2026-08-26 owner 确认）─────────────────────
+   施工基准见 docs/references/pages/canvas-node-detail.md §3.1「空态几何」。
    镜头图 / 视频生成 / 视频合成三族在没有输出媒体时，把「下一步要做的事」
    （写作台字段 / 素材清单+提示词 / 九槽阵列）整块搬进 stage 槽渲染，
    井本体退成 `.canvas-detail-stage-band` 那条窄带；desk/rack 对应槽在
@@ -2712,8 +2711,8 @@
   }
 }
 
-/* 散图空态先问一句（画布修法包 E，2026-08-26）── owner 确认见
-   docs/plans/prototypes/canvas-detail-empty-ui.html「收入口 01 · 图片」。
+/* 散图空态先问一句（画布修法包 E，2026-08-26 owner 确认）── 施工基准见
+   docs/references/pages/canvas-node-detail.md §3.2。
    `!hasMedia` 时 stage 槽先渲染两颗选择卡，不把上传/生成两条路的控件同时
    铺开；选「用 AI 生成」后退场，改走上面 `.canvas-detail-stage-promoted`
    那一套（`ImageFamilyBody` 的 `showEmptyChoice`/`offerChoiceWhenEmpty`）。
@@ -3510,7 +3509,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
    Radix 传送门（Popover/Dialog/DropdownMenu/Select 内容渲染进
    document.body）够不到这个作用域的系统性缺口，第二轮改挂 :root（本文件
    顶部 :root 块直接反转默认值），详见该处的 ⚠⚠ 说明与
-   docs/plans/canvas-skin-spec-2026-07-26.md。这里不再重复
+   docs/references/pages/canvas-skin.md。这里不再重复
    一份 .domain-canvas 覆盖——两处同时存在只会制造「改一处漏一处」的风险，
    故整块移除，不留空选择器。 */
 

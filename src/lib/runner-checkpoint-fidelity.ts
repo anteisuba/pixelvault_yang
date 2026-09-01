@@ -10,7 +10,7 @@ import type { CivitaiCheckpointResolution } from '@/services/civitai-lora.servic
  *
  * 纯逻辑：`resolveCheckpoint` 由调用方注入（服务端才有 server-only 的 Civitai
  * 解析），所以本模块可单测、不碰 server-only。镜像 `mountRecipeExtraLoras` 的注入
- * 风格。设计：docs/plans/comfy-runner-HANDOFF-2026-07.md。
+ * 风格。设计：docs/references/domains/runner.md。
  */
 
 /**

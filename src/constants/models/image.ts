@@ -410,7 +410,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
   // run (community LoRA layer formats, dead/nonexistent hosted endpoints).
   // Gated behind FEATURE_FLAGS.comfyRunner — owner-only single endpoint with
   // a hard monthly budget cap (RUNNER_MONTHLY_LIMIT). See
-  // docs/plans/comfy-runner-HANDOFF-2026-07.md §4.2b/§8.
+  // docs/references/domains/runner.md.
   {
     id: AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE,
     cost: 3,

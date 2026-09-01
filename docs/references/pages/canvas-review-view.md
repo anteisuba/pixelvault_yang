@@ -1,7 +1,7 @@
 # 画布 · 审阅视图（施工基准）
 
 > **这是实现基准，也是审阅视图唯一的文档**。两份过程账本（`canvas-review-grid-2026-07-31.md` / `-2026-08-01.md`）已于 2026-08-08 一起废弃删除 —— 它们同题、互相矛盾、且都没写清谁取代谁。设计推理与被否方向从 git 历史取。
-> 数值唯一来源：[`canvas-skin-spec-2026-07-26.md`](../../plans/canvas-skin-spec-2026-07-26.md)。**本文不新造任何色值。**
+> 数值唯一来源：[`canvas-skin.md`](canvas-skin.md)。**本文不新造任何色值。**
 > 关键切片 owner 已确认（2026-08-01）。确认原型：[三方向](https://claude.ai/code/artifact/fad3576b-de79-409a-b6ff-8cfe73ba43ff) · [B 关键切片](https://claude.ai/code/artifact/c356abbe-ccff-48c5-8d76-e92f212627ad)
 > ⚠ **page 文档不等于实现授权**：按 `scenes/ui-page.md` 阶段 7，仍需 owner 另行明确授权才能动 `src/**`。
 > 相关：[生成提示词框](canvas-generate-composer.md)（审核动作今天的所在地） · [节点定位器](canvas-node-locator.md)（另一个「只找不改」的面）

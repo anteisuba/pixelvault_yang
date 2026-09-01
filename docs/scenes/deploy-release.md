@@ -8,7 +8,7 @@
 2. **发布闸门过了吗？**——`checklists/release.md` P0 全绿：全量 vitest + 全量 tsc + lint/build（dev 跑着时不 build）。没过 = 不 commit。
 3. **有 schema 迁移或环境变量变更吗？**——有迁移：确认生产库迁移策略与部署顺序（先迁库还是先发码，取决于兼容性方案）；有新 env：Vercel 控制台配好了吗（`NEXT_PUBLIC_` 白名单守住）？
 4. **部署后怎么确认、怎么回滚？**——`deploy-check` 自动冒烟之外，手动走一条主路径（端到端生成一张图）；出问题的回滚动作是什么（Vercel rollback 到上一 deployment）？
-5. **文档与任务包同步了吗？**——`status.md` 覆盖更新；完成的 `plans/` 任务包删/归档/沉淀；涉及模型的更新 `model-catalog.md`。
+5. **文档与任务包同步了吗？**——`status.md` 覆盖更新；完成的 `plans/` 任务包删除（结论沉淀进 references/）；涉及模型的更新 `model-catalog.md`。
 
 ## 本场景工作流
 

@@ -2,9 +2,9 @@
 
 > 状态：**当前 Canvas 业务收口与回归施工图**。已确认的节点关系、数据、交互和未完成业务继续执行。
 > 最高优先级限定（2026-07-19）：本文中的“导演制片桌”、深炭、纸卡、石绿、房间隐喻、圆角或其他外观只描述本轮已实现 UI，**不得成为业务完成后的 Canvas 改版依据，也不得传播到其他业务域**。未来视觉必须重新按 `docs/scenes/ui-page.md` 完成域定义、三个结构方向与关键切片确认。
-> 当前回归仍可对照本文和 `docs/plans/canvas-baseline.md`；这项许可只保障在飞业务不被换皮打断，不恢复任何旧全局视觉规则。
+> 当前回归仍可对照本文（v1 基准 `canvas-baseline.md` 已随任务包清理，细节 git 历史可取）；这项许可只保障在飞业务不被换皮打断，不恢复任何旧全局视觉规则。
 > **未来实现基准已拍板（2026-07-19）**：画布重设计施工基准 = [`canvas-workbench.md`](canvas-workbench.md)（方向 A 导演的工作台 · 成分坞/名册牌/成片托盘）。新实现以该文为准；本文迁移完成后归档。
-> ⚠ **该基准的色板已 superseded（2026-07-30 owner）**：**画布改浅**，「冷石墨舞台 `#101114` + 钨丝琥珀」不再是外观答案。浅色数值 SoT = `../../plans/canvas-skin-spec-2026-07-26.md` + 已落地的 `src/app/canvas.css`。**结构与交互语义仍以 workbench 为准。**
+> ⚠ **该基准的色板已 superseded（2026-07-30 owner）**：**画布改浅**，「冷石墨舞台 `#101114` + 钨丝琥珀」不再是外观答案。浅色数值 SoT = [`canvas-skin.md`](canvas-skin.md) + 已落地的 `src/app/canvas.css`。**结构与交互语义仍以 workbench 为准。**
 
 ---
 
@@ -16,22 +16,22 @@
 > | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
 > | **Cast 卡匣** = 角色复用注册表、分区、可新建、可拖拽投喂   | **已降级为「全部真实节点的定位器」**：分组 · 搜索 · 定位 · 选中。**不新建、不拖拽投喂、不在匣内编辑**。改名/换图/删除只在画布上那张真卡做                           | `status.md` · `CastDock.tsx` · `canvas-assistant-pipeline §2.4` |
 > | **吞噬 / 食物链** 作为绑定主叙事；`fusedInto` 隐藏被吞节点 | **吞噬折叠已退役**（2026-07-26 S3.5）；`fusedIntoNodeId` 隐藏通路**已退役**，旧项目走兼容迁移恢复节点与边。绑定叙事改为**成分坞 / 边 / 引用**                       | `status.md` · `canvas-assistant-pipeline §2.2`                  |
-> | 各处**暖炭桌 / 纸卡 / 石绿**外观数值                       | **画布已反转为浅色**（2026-07-27 token 反转，`:root` 上 `--node-panel:#fff`、`.domain-canvas` 默认 `color-scheme: light`、`--canvas-bg #f1f1f1`；外观预设只留浅色） | `src/app/canvas.css` · `canvas-skin-spec-2026-07-26.md`         |
+> | 各处**暖炭桌 / 纸卡 / 石绿**外观数值                       | **画布已反转为浅色**（2026-07-27 token 反转，`:root` 上 `--node-panel:#fff`、`.domain-canvas` 默认 `color-scheme: light`、`--canvas-bg #f1f1f1`；外观预设只留浅色） | `src/app/canvas.css` · `canvas-skin.md`                         |
 >
 > **仍然有效的是**：节点关系、数据契约、连线规则、未完成业务清单。**失效的是**：上述三项行为与全部外观数值。
 
 ## 0. 拍板记录（2026-07-10 概念稿会话）
 
-| 分叉                         | 拍板                                                                                                                                                                                                                                                                                                                                                                  |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 材质关系                     | **A · 深炭桌 + 纸质场记卡**（媒体裱深窗发色；只动卡片层材质，引擎全保留）                                                                                                                                                                                                                                                                                             |
-| 石绿用量                     | **克制档**（五处工具痕迹，连线保持中性炭墨）                                                                                                                                                                                                                                                                                                                          |
-| 纸质感实现                   | **结构表达**（色 + 装帧元素，不用位图纹理）                                                                                                                                                                                                                                                                                                                           |
-| 手写批注字                   | **域内小范围试**（仅装饰性文字，不动全局字体栈）                                                                                                                                                                                                                                                                                                                      |
-| 关联拍板                     | 画布交互第一增量 = Cast 卡组 dock（同日全项目审计，见 memory `project-canvas-cast-card-2026-07`）                                                                                                                                                                                                                                                                     |
-| **吞噬交互**（同日追加拍板） | 绑定手势 = **吞噬**（大鱼吃小鱼），~~连线彻底退场（透视模式也不做）~~ **← 2026-07-17 v3 修订**：手势=吞噬保留（重新拍板确认）；**连线两级回归为关系台账**（骨干边常显中性墨线 / 成分边选中显石绿细线）+「关系线」双态开关（受限透视复活）。施工基准 `docs/plans/canvas-relationship-v3-2026-07.md`。作用域 = **省略模式（紧凑卡）**，详细模式（⤢ 展开）= 胃的清单编辑 |
-| 吞噬食物链                   | 镜头图卡**留作中鱼**（产静帧可先审再喂视频）；音色卡/参考视频卡**进卡匣分区**；closeup→角色卡特写槽、frame→视频卡关键帧槽、shotText→剧本笺直填；composer/agent 删除                                                                                                                                                                                                   |
-| 吞噬动效                     | **游戏化档 + 幅度加强**（拉伸/压扁 ±8–10%、张口 1.08）；咬不动弹回**降弹性（更软）**                                                                                                                                                                                                                                                                                  |
+| 分叉                         | 拍板                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 材质关系                     | **A · 深炭桌 + 纸质场记卡**（媒体裱深窗发色；只动卡片层材质，引擎全保留）                                                                                                                                                                                                                                                                                                                                               |
+| 石绿用量                     | **克制档**（五处工具痕迹，连线保持中性炭墨）                                                                                                                                                                                                                                                                                                                                                                            |
+| 纸质感实现                   | **结构表达**（色 + 装帧元素，不用位图纹理）                                                                                                                                                                                                                                                                                                                                                                             |
+| 手写批注字                   | **域内小范围试**（仅装饰性文字，不动全局字体栈）                                                                                                                                                                                                                                                                                                                                                                        |
+| 关联拍板                     | 画布交互第一增量 = Cast 卡组 dock（同日全项目审计，见 memory `project-canvas-cast-card-2026-07`）                                                                                                                                                                                                                                                                                                                       |
+| **吞噬交互**（同日追加拍板） | 绑定手势 = **吞噬**（大鱼吃小鱼），~~连线彻底退场（透视模式也不做）~~ **← 2026-07-17 v3 修订**：手势=吞噬保留（重新拍板确认）；**连线两级回归为关系台账**（骨干边常显中性墨线 / 成分边选中显石绿细线）+「关系线」双态开关（受限透视复活）。施工基准 = v3 任务包 `canvas-relationship-v3-2026-07.md`（已随 plans 清理，git 历史可取；结论已写入本文）。作用域 = **省略模式（紧凑卡）**，详细模式（⤢ 展开）= 胃的清单编辑 |
+| 吞噬食物链                   | 镜头图卡**留作中鱼**（产静帧可先审再喂视频）；音色卡/参考视频卡**进卡匣分区**；closeup→角色卡特写槽、frame→视频卡关键帧槽、shotText→剧本笺直填；composer/agent 删除                                                                                                                                                                                                                                                     |
+| 吞噬动效                     | **游戏化档 + 幅度加强**（拉伸/压扁 ±8–10%、张口 1.08）；咬不动弹回**降弹性（更软）**                                                                                                                                                                                                                                                                                                                                    |
 
 ## 1. 设计基调
 
@@ -79,20 +79,20 @@ v1 诊断：全面去色后画布只剩中性灰面板 + 两个 Tailwind 默认�
 
 ## 3. 组件改动面（现状文件 → 目标形态）
 
-| 组件               | 文件                                                        | 改动                                                                                                                                                                                                                            |
-| ------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 节点壳             | `nodes/NodeShell.tsx`                                       | 卡面纸色、片头条（`paper-strong`）、圆角 6px、拖拽中微倾 1°（release 归位）                                                                                                                                                     |
-| 状态章             | `nodes/NodeStatusBadge.tsx`                                 | 视觉改「章」：描边矩形 + 微倾 2–3°，映射见 §4；组件可改名 `StampBadge`（保留旧导出别名）                                                                                                                                        |
-| 媒体区             | `nodes/NodeMediaPreview.tsx`                                | 深窗裱框（`card-window` + 内 `rounded-sm` 6px —— 原稿 4px 无对应刻度档，S2 拍板与卡同档，不为 2px 差新增 token），进度墨条石绿                                                                                                  |
-| 端口/成分栏        | NodeShell 内 Handle                                         | **端口锚点化退场**（v3 拍板 2026-07-17：视觉隐藏 + `isConnectable=false` + 类型色停止渲染 token 保留，墨点端标只在有可见边处）；片头条下新增**成分栏**（吃进的引用 chip 行，溢出 +N）；Handle 数据层保留                        |
-| 连线               | `edges/`                                                    | **两级墨线**（v3 拍板 2026-07-17 取代"渲染退场"）：骨干边（镜头图→视频→片盒）常显中性墨线，成分边选中显石绿细线（落点③），「关系线」双态开关；数据层边模型完整保留（§6.3）。规范见 `plans/canvas-relationship-v3-2026-07.md` §2 |
-| composer           | `composer/VideoComposer.tsx` 等                             | 面板挂 `paper-strong`；两级切换器结构不动；生成键 → `--node-paint`                                                                                                                                                              |
-| 顶栏               | `CanvasTopBar.tsx`                                          | ✅ S4：项目名改「片名条」（`bg-node-card-paper`/`text-node-card-ink`）+ 添加节点纸色反相丸 + 导航徽标 icon 换 `text-node-paint`；下拉菜单/节点数 chip/右侧图标钮组/容器不动                                                     |
-| 助手 dock          | `StudioNodeAssistantDock.tsx` + `AssistantConversation.tsx` | Haivis 对齐：默认窄态改全高稳定分栏、低 chrome 纸笺皮肤、共享 assistant shell/header/composer；收起让画布真实扩宽；ScriptDoc 展开能力保留但不得把 820px 直接作为窄视口 grid 列（见 §3.1）                                       |
-| 工具条             | `CanvasBottomDock.tsx`                                      | ✅ S4 核查：grep 0 处 v1 残留色，激活态反相（`bg-node-foreground text-node-canvas`）已是现状，未改动                                                                                                                            |
-| minimap            | `CanvasMiniMap.tsx`                                         | ✅ S4：蓝图纸 `--node-blueprint-bg: #101820` + `--node-blueprint-line: #2e4a5e`（token 化落地，回写值与本行一致）；`nodeColor`=bg 令节点填充融进底色，只留 `nodeStrokeColor` 线框感                                             |
-| 空态               | `NodeCanvasEmptyGuide.tsx`                                  | 制片桌摊开空场记卡 + 笔的石绿线稿插画；起手动作不变（A2 结构保留）                                                                                                                                                              |
-| **新增** Cast 卡匣 | `CastDock.tsx` + `CastCard.tsx`（新）                       | 见 §6                                                                                                                                                                                                                           |
+| 组件               | 文件                                                        | 改动                                                                                                                                                                                                                                 |
+| ------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 节点壳             | `nodes/NodeShell.tsx`                                       | 卡面纸色、片头条（`paper-strong`）、圆角 6px、拖拽中微倾 1°（release 归位）                                                                                                                                                          |
+| 状态章             | `nodes/NodeStatusBadge.tsx`                                 | 视觉改「章」：描边矩形 + 微倾 2–3°，映射见 §4；组件可改名 `StampBadge`（保留旧导出别名）                                                                                                                                             |
+| 媒体区             | `nodes/NodeMediaPreview.tsx`                                | 深窗裱框（`card-window` + 内 `rounded-sm` 6px —— 原稿 4px 无对应刻度档，S2 拍板与卡同档，不为 2px 差新增 token），进度墨条石绿                                                                                                       |
+| 端口/成分栏        | NodeShell 内 Handle                                         | **端口锚点化退场**（v3 拍板 2026-07-17：视觉隐藏 + `isConnectable=false` + 类型色停止渲染 token 保留，墨点端标只在有可见边处）；片头条下新增**成分栏**（吃进的引用 chip 行，溢出 +N）；Handle 数据层保留                             |
+| 连线               | `edges/`                                                    | **两级墨线**（v3 拍板 2026-07-17 取代"渲染退场"）：骨干边（镜头图→视频→片盒）常显中性墨线，成分边选中显石绿细线（落点③），「关系线」双态开关；数据层边模型完整保留（§6.3）。规范原文在 v3 任务包 §2（已随 plans 清理，git 历史可取） |
+| composer           | `composer/VideoComposer.tsx` 等                             | 面板挂 `paper-strong`；两级切换器结构不动；生成键 → `--node-paint`                                                                                                                                                                   |
+| 顶栏               | `CanvasTopBar.tsx`                                          | ✅ S4：项目名改「片名条」（`bg-node-card-paper`/`text-node-card-ink`）+ 添加节点纸色反相丸 + 导航徽标 icon 换 `text-node-paint`；下拉菜单/节点数 chip/右侧图标钮组/容器不动                                                          |
+| 助手 dock          | `StudioNodeAssistantDock.tsx` + `AssistantConversation.tsx` | Haivis 对齐：默认窄态改全高稳定分栏、低 chrome 纸笺皮肤、共享 assistant shell/header/composer；收起让画布真实扩宽；ScriptDoc 展开能力保留但不得把 820px 直接作为窄视口 grid 列（见 §3.1）                                            |
+| 工具条             | `CanvasBottomDock.tsx`                                      | ✅ S4 核查：grep 0 处 v1 残留色，激活态反相（`bg-node-foreground text-node-canvas`）已是现状，未改动                                                                                                                                 |
+| minimap            | `CanvasMiniMap.tsx`                                         | ✅ S4：蓝图纸 `--node-blueprint-bg: #101820` + `--node-blueprint-line: #2e4a5e`（token 化落地，回写值与本行一致）；`nodeColor`=bg 令节点填充融进底色，只留 `nodeStrokeColor` 线框感                                                  |
+| 空态               | `NodeCanvasEmptyGuide.tsx`                                  | 制片桌摊开空场记卡 + 笔的石绿线稿插画；起手动作不变（A2 结构保留）                                                                                                                                                                   |
+| **新增** Cast 卡匣 | `CastDock.tsx` + `CastCard.tsx`（新）                       | 见 §6                                                                                                                                                                                                                                |
 
 ### 3.1 Haivis 工作区对齐（2026-07-13 owner 确认）
 
@@ -180,7 +180,7 @@ L4 片盒 videoMerge（巨鱼）：吞成片，盒内保序胶片条可重排 �
 - **吃**：拖卡匣卡（或桌面小鱼卡）到目标卡热区 → 目标「张口」→ 松手入腹 → 片头条下**成分栏**新增 chip。**点选兜底**：选卡 → 可吃目标高亮 → 点目标落卡（触屏无拖拽依赖）。
 - **胃**：⤢ 展开详情 = 成分清单（v4 参考素材五分区就是胃的 UI，已存在），每项可「取出」（反向动画飞回卡匣，绑定解除）。
 - **咬不动**：超模型契约/类型不合 → 目标不张口、红描边 + 摇头 + 拖拽物软弹回 + 原因气泡（如「参考位已满 12/12」）。大声暴露，不静默丢；借此抽共享 payload 装配器（v4 遗留）。
-- **连线两级回归**（2026-07-17 v3 取代"连线退场"）：骨干边常显墨线、成分边选中显石绿细线、「关系线」双态开关（规范 `plans/canvas-relationship-v3-2026-07.md` §2）；**数据层边模型完整保留**（吞噬 = 建边），收割/autospawn/存档引擎零改动。折叠面收窄为散图（chip 常驻可拆回），收集器/镜头图/视频/片盒永在桌上。
+- **连线两级回归**（2026-07-17 v3 取代"连线退场"）：骨干边常显墨线、成分边选中显石绿细线、「关系线」双态开关（规范原文在 v3 任务包 §2，已随 plans 清理）；**数据层边模型完整保留**（吞噬 = 建边），收割/autospawn/存档引擎零改动。折叠面收窄为散图（chip 常驻可拆回），收集器/镜头图/视频/片盒永在桌上。
 - **实现要点**：吞噬是**纯渲染层折叠** —— ReactFlow 节点 hidden + 成分栏渲染；助手 autospawn 的图 = 出生即吃好。拖拽用**自定义 pointer 拖拽**（portal 渲染拖拽副本），不用 HTML5 DnD —— 三拍动画的挤压拉伸与磁吸都要求对拖拽物的完全控制（浏览器 ghost 不可编程）。
 - **增强三件套（2026-07-10 拍板进 S5b）**：①**磁吸** —— 拖拽时合法目标微亮，近距离最近目标张口加强 + 吸附指示，降瞄准成本；②**快投模式** —— 卡 hover 浮出投放钮（触屏长按）进入：合法目标全亮标序号、已含该卡目标标 ⊘、点一个投一个连续投、Esc/点空白退出（解决一卡多镜 + 触屏兜底）；③**张口预览** —— 张口时目标浮一行迷你清单「图集×N · 音色 · @名字（参考位 n/m）」，超限整行转红（契约校验前置；上限不可得则省略 n/m 不硬造）。backlog：反向投喂（成分栏＋就地速选）、批量投喂、把手计数跳字。
 
@@ -204,7 +204,7 @@ L4 片盒 videoMerge（巨鱼）：吞成片，盒内保序胶片条可重排 �
 | 盖章     | 状态切换          | scale 1.15→1 + opacity，`--duration-base`                                                                                                                          |
 | 面板形变 | dock/展开         | 沿用 `.node-canvas-panel-motion` + `data-resizing` 规则不变                                                                                                        |
 
-**v3 动效分流（2026-07-17 拍板）**：上表三拍吞噬只用于**折叠源**（散图/卡匣引用副本——真消失才吸入）；**非折叠源**（镜头图→视频、视频→片盒、收集器→镜头图等）落卡改「**墨线签署**」：目标轻咽 240ms + 墨线 stroke-dashoffset 画入 ~320ms + chip 落定，**被拖本体软回弹到拖拽起点**；解绑=墨线反向褪去。规格见 `plans/canvas-relationship-v3-2026-07.md` §2.7。
+**v3 动效分流（2026-07-17 拍板）**：上表三拍吞噬只用于**折叠源**（散图/卡匣引用副本——真消失才吸入）；**非折叠源**（镜头图→视频、视频→片盒、收集器→镜头图等）落卡改「**墨线签署**」：目标轻咽 240ms + 墨线 stroke-dashoffset 画入 ~320ms + chip 落定，**被拖本体软回弹到拖拽起点**；解绑=墨线反向褪去。规格原文在 v3 任务包 §2.7（已随 plans 清理，git 历史可取）；本段时长与动效即现存规格。
 
 红线：每个动画绑定真实状态变化（绑定成立/失败/解除），无纯装饰帧；不做嘴巴/咀嚼/粒子/光效。曲线若与 `motion.ts` 现有刻度冲突，**在 constants 新增具名曲线**（如 `--ease-ingest` / `--ease-soft-return`），不写 inline 魔法值。`prefers-reduced-motion` 全部降级淡入淡出（全局兜底已有）。交互 demo 存 2026-07-10 会话（可玩版含速率滑杆），实现按 demo keyframes 翻译。
 
@@ -287,16 +287,39 @@ L4 片盒 videoMerge（巨鱼）：吞成片，盒内保序胶片条可重排 �
 - a11y：焦点环（石绿选中描边兼任需过对比度）/ 自适应命中区（fine 32/36、coarse 44、绝对底线 24）/ 键盘可达 / 触屏软键盘策略。
 - UI-only：不碰 `src/app/api/**` / `prisma/**` / `src/services/**` / Clerk / credit / ScriptDoc·autospawn 引擎。
 
+## 10.1 v1 基准抢救：模型作用域 · 能力契约 · 持久化不变量
+
+**来源**：`canvas-baseline.md` §5.1（模型切换器 / 作用域 / 能力契约，owner 2026-06-16）与 §10（Do-Not-Break），该文件随 `docs/plans/` 于 2026-09-01 全清删除，原文从 git 历史取。
+**时效**：下列每条已对照 2026-09-01 的代码复核。v1 基准大半已被推翻，**只搬仍成立的**；被推翻的单列一节，标注现状。⛔ 「已被推翻」那节不是待办清单，是防止后人照着旧文施工的路标。
+
+### 仍然成立
+
+- **两级模型切换器 = 系列 → 型号**（§10 已列的「两级切换器」在此补齐机制）：第一层按 `getModelFamily()` 分组（`src/constants/models.ts`），第二层在系列内挑变体。⚠ **没有 family 的模型会掉出所有分组、变成用户永远选不到的孤儿**——`models.ts` 已就此留了警示注释，新增模型必须登记 family。
+- **参数由能力描述符驱动，不写死**：`src/constants/video-model-capabilities.ts`（`VIDEO_MODEL_CAPABILITIES` / `DEFAULT_VIDEO_MODEL_CAPABILITIES` / `getVideoModelCapabilities` / `getVideoAudioCapability`）+ `src/constants/video-model-send-plan.ts`（`VideoModelSendContract` / `getVideoModelSendContract` / `getVideoModelImageLimit` / `getVideoModelParameterOptions`）+ `src/constants/video-reference-limits.ts`。composer 的控件显隐（如 seed）读它，worker builder 另有同口径安全网。⛔ 不要在 composer 里按模型 id 写 if/else 分支。
+- **绑定挂在图上、与模型无关、可恢复**：角色 / 背景 / 声音 / 视频参考都是节点 + 边，切模型不改图结构。
+- **音色属角色、台词属镜头**：结论成立，但**实现形态不是基准原文写的 `CharacterCard.defaultVoiceCardId` 字段——那个字段从未存在，别去找**。现状是 `voice-profile → character → video` 的两跳边，音色参数族挂在 voice-profile 节点上（`src/types/node-workflow.ts`），角色名由角色卡自己给。
+- **持久化不变量**（§10 原条，仍成立）：服务端 `NodeWorkflowProject`（`prisma/schema.prisma`）是权威来源，`src/hooks/node/use-node-workflow.ts` 水化时 `serverProjects.length > 0` 即整体覆盖本地；localStorage 是 fallback；节点 `generationId` 弱引用（`src/types/node-workflow.ts`）与卡 / voice / reference 注水路径不得破坏。⚠ 配套坑见 memory `reference-canvas-local-overwrites-server`。
+- `/studio/node` 仍是 React Flow 渲染，`@xyflow/react/dist/style.css` 由 `src/app/globals.css` 全局引入。
+- `node-*` token domain-scoped 与 UI-only 纪律：见 §10，不重复。
+
+### 已被推翻 / 从未落地（别照着做）
+
+- **顶栏「默认模型 · X ▾」常驻 chip / 画布级默认模型**：❌ 已明确反转。`src/components/business/node/CanvasTopBar.test.tsx` 锁死了断言 `does not expose a global default-video-model control`；2026-08-02 owner「移出统一」后顶栏回归纯 chrome（项目管理搬左侧面板，添加节点入口在左 rail）。**画布级默认模型在当前实现里不存在，模型逐节点选。**
+- **镜头覆盖的 ⚠ 徽标 + 描边、切换前「将映射 / 将忽略」预览、不兼容绑定大声标灰**：未实现。能力契约本身在（见上），但基于它的**切换期重映射与预警 UI 没有落地**。这是设计意图记录，不是现状描述。
+- **v1 §10「待 owner 确认」三条**：卡宽已由 `--width-node-card` 400 定案（见 §10）；「暖灰中性化」与「`--node-lipsync` 紫是否降中性」随 v1 调色板一并作废——现行皮肤走 §2 的纸卡材质组，不再是 v1 的 `node-*` 调色板问题。
+
 ## 11. Source of Truth
 
 - 拍板：本文件 §0（2026-07-10 会话，概念稿三张图存会话记录）
-- 当前模块与施工顺序：`docs/plans/canvas-modular-redesign-2026-07.md`
-- 图片编辑纵向子计划：`docs/plans/canvas-image-edit-convergence-2026-07.md`
+- 当前模块与施工顺序：`canvas-modular-redesign-2026-07.md`（已随 plans 清理，git 历史可取）
+- 图片编辑纵向子计划：`canvas-image-edit-convergence-2026-07.md`（已随 plans 清理，git 历史可取）
 - 现状代码：`src/app/globals.css`（`--node-*` L286+ / `@theme` L24+）· `src/constants/node-tokens.ts` · `src/components/business/node/**`
-- v1 基准（未迁移组件仍守）：`docs/plans/canvas-baseline.md`
+- v1 基准（未迁移组件仍守）：`canvas-baseline.md`（已随 plans 清理，git 历史可取）——**仍成立的结论已抢救进本文件 §10.1，先看那里，别直接翻旧文施工**
 - 关联 memory：`project-canvas-cast-card-2026-07` · `project-canvas-ui-baseline`
 
 ## 12. Last Verified
+
+- 2026-09-01（§10.1）：`docs/plans/` 全清前抢救 `canvas-baseline.md` §5.1 + §10。方法 = 逐条对代码复核（`models.ts` family 分组 · `video-model-capabilities.ts` / `video-model-send-plan.ts` 能力契约 · `node-workflow.ts` voice-profile 字段族 · `use-node-workflow.ts` 服务端覆盖水化 · `CanvasTopBar.test.tsx` 默认模型断言 · `globals.css` xyflow 引入）。未改产品代码。
 
 - 2026-07-14 execution sync: assistant image/video reference chips and request context restored; `CanvasCapabilityRuntime`, I3 layer decomposition preview/batch lineage, video Generation/lineage, Audio Clip semantics, and AS1 capability markers are live. Legacy edit components/context are removed and `/studio/edit` keeps compatibility redirect. S6 still needs owner visual QA for history alignment/empty state and a real Fish provider request.
 

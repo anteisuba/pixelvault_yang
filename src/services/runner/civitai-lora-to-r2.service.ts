@@ -12,7 +12,7 @@ import {
 } from '@/services/storage/r2'
 import type { RunnerLoraSpec } from '@/types'
 
-// v2 ①a（docs/plans/comfy-runner-HANDOFF-2026-07.md）：把任意 Civitai/Hugging Face
+// 把任意 Civitai/Hugging Face
 // LoRA 缓存进 R2 权威仓库，供 fork worker 每次从 R2 拉。R2 前缀 + 确定性文件名——**文件名派生规则
 // 必须与 fork worker（②a）侧一致**（契约见设计包 §3）。
 const RUNNER_LORA_R2_PREFIX = 'runner-loras/'

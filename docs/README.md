@@ -16,8 +16,9 @@ docs/
 ├── references/      规则知识库：frontend · backend · database · cicd · testing · loading 等
 │   └── api/         CI 用的模型文档快照（`npm run models:check-docs` 读它，别手改）
 ├── templates/       任务起点：task-packet 与代码骨架
-└── plans/           在飞任务包（**完成即删** —— 2026-08-07 已按此清理一轮，见 plans/docs-cleanup-2026-08-07.md）
-    └── research/    调研/可行性结论（非实现授权；中文文件名；2026-07-31 起按模块分子目录，每模块一份「模块整理」；约定见 plans/research/说明.md）
+└── plans/           在飞任务包（**完成即删** —— 2026-08-07 清过一轮，2026-09-01 全清；
+    └── research/    目录当前不存在，下一轮任务包按此结构重新建即可）
+                     research/ = 调研/可行性结论（非实现授权；中文文件名；按模块分子目录，每模块一份「模块整理」）
 ```
 
 ## 怎么进入

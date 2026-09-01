@@ -143,8 +143,8 @@ function reducer(
  * a file hash (Civitai's search index doesn't expose files[].hashes), but
  * the mined-prompts endpoint only needs modelId+modelVersionId to locate
  * the version's source-image recipes; the hash (when present) is only used
- * server-side to attribute a matched image's real per-LoRA weight. See
- * Issue A in docs/plans/lora-search-image-audit-2026-07.md.
+ * server-side to attribute a matched image's real per-LoRA weight;
+ * search-hit LoRAs carry no file hash at all.
  *
  * Stale-while-revalidate friendly: a previous result keeps rendering
  * while a new selection is loading (`isLoading: true`, outfits kept).

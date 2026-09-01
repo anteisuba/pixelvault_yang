@@ -1,6 +1,5 @@
 /**
- * Two-tier edge classification (canvas-relationship-v3 §2.1,
- * docs/plans/canvas-relationship-v3-2026-07.md). Pure lookup on
+ * Two-tier edge classification: **backbone** vs **ingredient**. Pure lookup on
  * (sourceType/sourceRole → targetType), same layer + test style as
  * `node-connection-rules.ts` (which governs edge LEGALITY; this governs
  * render TIER only — a purely additive read on top of already-legal edges,
@@ -71,12 +70,12 @@ export function resolveNodeEdgeTier(
 
 export interface NodeEdgeVisibilityInputs {
   tier: NodeEdgeTier
-  /** Either endpoint node is currently selected (§2.2 row②，marquee union included). */
+  /** Either endpoint node is currently selected (marquee union included). */
   endpointSelected: boolean
-  /** The edge's target node is generating (§2.2 row③，forces a pulse regardless of tier). */
+  /** The edge's target node is generating (forces a pulse regardless of tier). */
   targetGenerating: boolean
   /**
-   * The bottom-dock「关系线」toggle (§2.5, FB-B 真机反馈后 owner 反转默认) is
+   * The bottom-dock「关系线」toggle (owner 在真机反馈后反转了默认) is
    * in its **收起** state. Default (`false`) = 全显：every two-ends-visible
    * edge (骨干 + 成分) renders, ingredient edges at the neutral stroke unless
    * `endpointSelected` upgrades them to the 石绿 "revealed" tint elsewhere.
@@ -87,18 +86,17 @@ export interface NodeEdgeVisibilityInputs {
 }
 
 /**
- * §2.2 渲染条件矩阵's "两端可见前提下，这条边该不该画" boolean — extracted out
- * of `StudioNodeWorkbench`'s `renderedEdges` memo (R3-2,
- * canvas-relationship-v3-2026-07.md §2.7/§2.8) so it has ONE definition
+ * The 渲染条件矩阵's "两端可见前提下，这条边该不该画" boolean — extracted out
+ * of `StudioNodeWorkbench`'s `renderedEdges` memo so it has ONE definition
  * shared by three call sites that all need the exact same answer: the memo
  * itself, the pre-delete "is this edge currently rendered" check that decides
  * whether an unbind gets the 墨线反向褪去 treatment, and the 墨线签署 hold
  * window's "will this edge still qualify once the grace period ends" check.
  * Pure — the caller supplies the two-ends-visible guard and the signing/
  * unsigning render-layer overrides separately; this function only knows the
- * four §2.2 conditions.
+ * four conditions below.
  *
- * FB-B（真机反馈，canvas-relationship-v3-2026-07 §2.2 反转）: owner 拍板把
+ * ⚠ 真机反馈后 owner 拍板把
  * 「选中才显」的默认改成「默认全显 + 开关可收」。骨干边永远显示；不收起
  * (`relationsCollapsed === false`, 会话默认) 时成分边也全部显示；收起后成
  * 分边收窄回旧默认——只在其端点被选中或目标正在生成时才显示。

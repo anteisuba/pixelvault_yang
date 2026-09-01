@@ -11,7 +11,7 @@
  * If you add/remove a checkpoint or allowlisted LoRA here, mirror the change
  * there too.
  *
- * See docs/plans/comfy-runner-HANDOFF-2026-07.md §4.2b/§7.1.
+ * See docs/references/domains/runner.md.
  */
 
 export const RUNNER_CHECKPOINT_FAMILIES = [

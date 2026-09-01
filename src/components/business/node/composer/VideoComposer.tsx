@@ -677,12 +677,12 @@ export function VideoComposer({
   const hasMedia = typeof data.mediaUrl === 'string' && data.mediaUrl.length > 0
   /**
    * 画布修法包 C（2026-08-26）：空态让位——`!hasMedia` 时素材清单 + 提示词
-   * 整块搬进主体台，井退成预览带；模型/模式/参数/发送预览留在编排台侧（对照
-   * docs/plans/prototypes/canvas-detail-empty-ui.html「重做 02 · 视频生成」）。
+   * 整块搬进主体台，井退成预览带；模型/模式/参数/发送预览留在编排台侧（见
+   * `docs/references/pages/canvas-node-detail.md` §3.1 的「视频生成」一条）。
    * 只在 `showMonitor` 为真（即 `density='detail'` 的节点详情路径）时生效——
    * 卡上紧凑侧车 `showMonitor={false}` 从不走到这个分支，一像素不受影响。
    *
-   * ⚠ **`!isPending` 是必要的第三个闸**：「空着的时候」（对照图标题原话）
+   * ⚠ **`!isPending` 是必要的第三个闸**：「空着的时候」
    * 指的是真正空闲的构思态，不含正在生成那一段——`VideoMonitor` 在生成期
    * 已经提供 REC 徽标 + 已耗时（`useElapsedSeconds`），promoted 带子的呼吸点
    * 说不出这些。生成一开始就应该看见监视器接管，而不是继续盯着写作台。

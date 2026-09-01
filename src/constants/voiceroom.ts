@@ -99,8 +99,7 @@ export const VOICE_ROOM_POLL_MS = 2_000
  *
  * ⚠ 只有「等一段时间再做下一件事」的才放在这里——纯 CSS 能表达的（气泡入场、
  * 波形逐条长出、面板开合）一律留在 `voiceroom.css`，搬到 TS 里只会制造两处
- * 需要对齐的数字。动效字典的完整版在
- * `docs/plans/prototypes/studio-audio-voiceroom-motion-2026-08-29.html`。
+ * 需要对齐的数字。**两处合起来就是配音间的完整动效字典**，没有第三份。
  */
 
 /** 切房间：旧聊天流退场，退完才换成新的。 */

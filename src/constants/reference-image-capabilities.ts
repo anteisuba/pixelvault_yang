@@ -186,7 +186,7 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
   // ⚠ 未决：2.5 支持**纯音频参考**（audioRequiresVisual: false），严格说图片
   // 可以是 0 张，故 min 理应为 0、models/video.ts 的 requiresReferenceImage 理应
   // 为 false。两者都还没动 —— 纯音频参考需要 UI 先支持「不传图只传音频」，不是
-  // 改个数字的事。见 docs/plans/seedance-25-ga-integration-2026-08.md §3.3。
+  // 改个数字的事。见 docs/references/model-catalog.md §⑬。
   [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: {
     kind: 'flexible',
     min: 1,

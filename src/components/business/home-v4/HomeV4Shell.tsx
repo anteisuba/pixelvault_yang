@@ -38,8 +38,8 @@ const MOTION_VARS = {
 } as CSSProperties
 
 /**
- * v4 marketing home. Construction spec:
- * `docs/plans/prototypes/homepage-slide-v2-SPEC.html`.
+ * v4 marketing home. Domain contract:
+ * `docs/references/pages/home.md`.
  *
  * A server component on purpose — the deck under it is the only client
  * boundary, so the headline, the model names and the whole page list are in the

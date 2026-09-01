@@ -4,7 +4,7 @@ import type { VideoResolution } from '@/constants/video-options'
 /**
  * 模型单价 —— 模型选择器**第三层「渠道比价」**的数据源。
  *
- * 设计见 `docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §8.4：同一个型号
+ * 设计见 `docs/references/pages/canvas-video-card.md` §6.4：同一个型号
  * 在不同渠道上价差可以很大（Seedance 2.5 在 fal 是 BytePlus 的 2.06 倍），不把
  * 这个差别摆到用户眼前，他会在毫不知情的情况下多付一倍。
  *

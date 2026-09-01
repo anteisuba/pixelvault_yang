@@ -4,15 +4,17 @@ import type { AppLocale } from '@/i18n/routing'
 /**
  * v4 marketing home — the paging deck.
  *
- * Construction spec: `docs/plans/prototypes/homepage-slide-v2-SPEC.html` (the
- * de-base64'd copy of the accepted prototype). Every number in this file is
- * lifted from that file's `<style>` / engine so the skin and the engine cannot
- * drift apart: the motion numbers below are written onto the domain root as CSS
- * custom properties by `HomeV4Deck`, and `home-v4.css` reads them from there.
- * One number, one home.
+ * Domain contract, page/station tables and hard constraints:
+ * `docs/references/pages/home.md`.
  *
- * Asset names come from `public/homepage/v4/_manifest.md` — the SPEC still spells
- * them `asset-NN.*`, that mapping table is the translation.
+ * Every number in this file was lifted from the accepted slide prototype's
+ * `<style>` / engine, and this file is now their only home so the skin and the
+ * engine cannot drift apart: the motion numbers below are written onto the
+ * domain root as CSS custom properties by `HomeV4Deck`, and `home-v4.css` reads
+ * them from there. One number, one home — change the constant, not the CSS.
+ *
+ * Asset names come from `public/homepage/v4/_manifest.md` — the prototype spelled
+ * them `asset-NN.*`, that manifest is the translation table.
  */
 
 /* ── 引擎：输入阈值与节拍 ─────────────────────────────────────────── */

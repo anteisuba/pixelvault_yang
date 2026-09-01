@@ -276,7 +276,7 @@ describe('listCivitaiLoras', () => {
     )
   })
 
-  // Issue B fix (docs/plans/lora-search-image-audit-2026-07.md): previously
+  // NSFW tri-state filter fix: previously
   // this LoRA stayed in `safe` results with just its cover swapped to the
   // SFW image — exactly the reported bug ("safe 档里内容 NSFW 的 LoRA 仍作
   // 为卡片出现，只是封面被挡成占位/换图"). A model with even one image
@@ -2473,7 +2473,7 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     expect(body.queries[0].filter).toEqual(['type = LoRA'])
   })
 
-  // Issue C (docs/plans/lora-search-image-audit-2026-07.md): the client
+  // Search-session backend lock: the client
   // (useCivitaiLoraLibrary) locks onto a backend after page 1 and passes it
   // back as `source` on subsequent pages so the session never silently
   // swaps between meilisearch's offset pagination and REST's cursor-scan
@@ -3403,7 +3403,7 @@ describe('mineCivitaiUserPrompts', () => {
     )
   })
 
-  // Issue A (docs/plans/lora-search-image-audit-2026-07.md): meilisearch
+  // Search hits carry no file hash: meilisearch
   // search-hit LoRAs never carry a fileHashAutoV3 (hitToLibraryItem writes
   // null — the search index doesn't expose files[].hashes). Recipes must
   // still come back from the model-version source images using only

@@ -110,7 +110,7 @@ owner 拍板把 NovelAI 从 `RETIRED_MODEL_IDS` 捞回，接到 **Image**（不�
 
 TTS —— Fish Audio S2 Pro（#11，$15/1M 字符）对 ElevenLabs v3（$100/1M）性价比压倒，且 Inworld / Gemini 3.1 Flash TTS 在质量上已超过 v3。
 
-LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA/LoRA底模与工作流调研-2026-07.md`](../plans/research/LoRA/LoRA底模与工作流调研-2026-07.md)）：
+LoRA 底模（2026-07-30 社区对账；调研全文《LoRA底模与工作流调研-2026-07》已随任务包清理，git 历史可取）：
 
 | 族                           | 社区角色（2026）                                                         | 本仓                                     |
 | ---------------------------- | ------------------------------------------------------------------------ | ---------------------------------------- |
@@ -172,7 +172,7 @@ LoRA 底模（2026-07-30 社区对账，详见 [`../plans/research/LoRA/LoRA底�
 
 ### ⑧ 2026-07-30 业界升级审计 — **已实现清单（别再当 backlog 排期）**
 
-> 来源：[`../plans/research/模型接入/全站模型升级审计-2026-07-30.md`](../plans/research/模型接入/全站模型升级审计-2026-07-30.md) §9。
+> 来源：《全站模型升级审计-2026-07-30》调研 §9（已随任务包清理，git 历史可取）。
 > **回写理由**：那份调研文首是「优先级/建议」口吻，但 §9 记着当天已落地——只读文首会把这五项重新排一遍期。
 
 | 项                         | 状态             | 代码事实（2026-07-31 复核）                                                                                                 |
@@ -364,7 +364,32 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
 | 分辨率          | 480p / 720p（无 1080p/4K）            | 480p / 720p / 1080p / 4K         |
 | 离线推理 `flex` | ✗                                     | ✗                                |
 
-30+10+10=50，与官方通稿「最高 50 个全模态素材」自洽。**另有三条既有文档里没有的约束**（ratio 在首帧/编辑/延长场景仅支持 `adaptive`、不接受含真人人脸的参考图/视频、2.5 与 2.0 的 480p 像素尺寸不同），见任务包 §3.3b / §3.7。
+30+10+10=50，与官方通稿「最高 50 个全模态素材」自洽。
+
+⚠ **代码里已按代分叉，但两条口径仍是欠账**（2026-09-01 复核仍成立）：
+
+- **纯音频参考**：2.5 的 `audioRequiresVisual: false`，严格说图片可以是 0 张，故
+  `reference-image-capabilities.ts` 的 `min` 理应为 0、`models/video.ts` 的 `requiresReferenceImage`
+  理应为 `false`。两者都还没动——**纯音频参考需要 UI 先支持「不传图只传音频」，不是改个数字的事。**
+- **上传数量与发送契约两处必须同步**：`reference-image-capabilities.ts` 卡的是上传数量，
+  `video-model-send-plan.ts` 卡的是发送契约，只改一处会让 UI 与请求对不上。
+
+**另有几条既有文档里没有、代码里也没有的官方约束**（2026-08-08 官方文档实读，按「是否会咬人」排序）：
+
+1. ⚠ **`ratio` 在首帧/首尾帧/视频编辑/视频延长场景下仅接受 `adaptive`**（自动保持与输入视频一致的宽高比），
+   传具体宽高比会 **400**。2.0 没有这条限制。**我们有首帧/首尾帧形态**（`referenceMode: 'text-or-first-frame'`
+   - `FIRST_FRAME_SLOTS`），所以这条是真会撞上的：用户选了 2.5 + 首帧图，UI 若还允许选 16:9，请求就是 400。
+     代码里目前**没有 `adaptive` 这个选项**。⏸ **待 owner 定**：是「选了首帧就把宽高比锁成自适应」，
+     还是按 Hard Rule 8 的气质「给提示不禁用」。⚠ 与画布首尾帧能力是同一块 UI，**两件事要一起设计**。
+2. ⚠ **不接受含真人人脸的参考图/视频**。官方原文对 **2.5 和 2.0 系列都成立** ——
+   也就是说这是既存问题，不是 2.5 引入的。用户拿真人照片当参考图会失败，我们目前没有任何提示。
+3. **不支持离线推理**（`service_tier: "flex"`，价格是在线的 50%）与**样片模式**（`draft: true`）——
+   2.5 与 2.0 系列都不支持，仅 1.5 pro / 1.0 系列支持。别照着省钱思路去接。
+4. **480p 像素尺寸与 2.0 不同**：2.5 的 480p 16:9 = `854×480`，2.0 是 `864×496`（9:16 同理）；720p 两代一致。
+   任何按 2.0 尺寸做的预设或裁剪计算都要按代分开。
+5. **图片格式**：官方只点名 1.5 pro 与 2.0 系列新增支持 heic/heif，**没有点名 2.5**。
+   可能是文档遗漏也可能确实不支持，**未确定，别当依据**；要用 heic 先实测一次。
+6. **未接的新能力**（2.5 与 2.0 系列都有）：编辑视频、延长视频、联网搜索工具、返回尾帧图。
 
 **三条通道当天全部 GA（08-08 实读），§⑨ 那张四通道表整体作废：**
 
@@ -377,7 +402,7 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
 
 > **2026-08-08 BytePlus 已端到端跑通**（真实生成 480p/4s，任务 `cgt-20260808075608-thsls` succeeded）：响应体与火山**逐字段同构**（`content.video_url` / `usage.total_tokens` / `status` / `seed` / `resolution`）→ 现有 volcengine request builder 可直接复用，已验证非推断。**实测成本 480p/4s = 38,830 tokens ≈ $0.42**（⚠ 比早前按火山定价的换算贵，credit 定价按实测走）。耗时 110s；`generate_audio` 上游默认 `true`；`video_url` 是 TOS 预签名，**24 小时 / 100 次下载上限**，落 R2 必须在窗口内完成。
 >
-> ⚠ **Seedance 全系在 BytePlus 的激活是硬门槛**：必须先买任一 Seedance 资源包且有余额才能激活（绑信用卡不构成条件），激活后才启用按量付费。见官方[资源包规则](https://docs.byteplus.com/en/docs/ModelArk/2191775)。2.5 最小包 5M token / $32 / 90 天，且**每个包只抵扣对应模型**。详见任务包 §3.9.1–3.9.2。
+> ⚠ **Seedance 全系在 BytePlus 的激活是硬门槛**：必须先买任一 Seedance 资源包且有余额才能激活（绑信用卡不构成条件），激活后才启用按量付费。见官方[资源包规则](https://docs.byteplus.com/en/docs/ModelArk/2191775)。2.5 最小包 5M token / $32 / 90 天，且**每个包只抵扣对应模型**。细账在任务包 `seedance-25-ga-integration-2026-08.md` §3.9.1–3.9.2（已随 plans 清理，git 历史可取）。
 
 **海外用户的正解是 BytePlus，不是 fal** —— 便宜一半，且 BytePlus 把个人用户写进了限流表（07-31 被 fal 的 B2B only 挡住就是卡在这）。fal 加价 2.06× 与 §⑪ 记的「字节系 1.6~2.2×」吻合。
 
@@ -398,7 +423,7 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
 > 但 fal 公开 OpenAPI 要求参考音频必须搭配图片或视频，Ark 原生线允许纯音频参考，发送契约已分开表达。
 > 目录、模式解析、应用/Worker fal builder 与 Ark builder 均有回归测试；本轮未执行新的付费生成。
 
-**接入任务包**：`docs/plans/seedance-25-ga-integration-2026-08.md`（已按三站扩容）。⚠ §⑫ 说「GA 时要改三件事」实际是**五件**——漏了 `video-model-send-plan.ts` 的 slots 按代分叉（2.0/2.5 现共用一个分支）和 tripwire 测试自身的改写（它第 79-85 行把 2.0 的 slots 钉死了，分叉后必挂，那是预期行为）。另有一个**待 owner 定的设计问题**：2.5 选了首帧图之后宽高比只能是 `adaptive`，UI 是锁死还是按 Hard Rule 8 给提示不禁用。
+⚠ §⑫ 说「GA 时要改三件事」实际是**五件**——漏了 `video-model-send-plan.ts` 的 slots 按代分叉（2.0/2.5 曾共用一个分支）和 tripwire 测试自身的改写（`seedance-25-reservation.test.ts` 曾把 2.0 的 slots 钉死，分叉后必挂，那是预期行为）。三站扩容与上述分叉均已落地；**仍未闭合的只剩本节上方那份约束清单**（`ratio: adaptive`、真人人脸、纯音频参考的 `min`/`requiresReferenceImage`）。
 
 ### ⑭ 按模态重做的三线调查（2026-08-21，全量上网核实）
 
@@ -489,9 +514,9 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
 ## Last Audited
 
 - Date: 2026-08-21 · 范围：**按模态重做的全量调查（§⑭）+ 档位判据立案（§⑮）+ 月审五问扩为六问**。三条模态线（LLM / 语音 / 视频）共 55 条动作建议，全部上网核实并附来源 URL + 查证日期。owner 点名两项已查实：**Wan 3 真已发布但 fal 未上线**（能真调的最新代是 2.7），**Grok 分文本线 `grok-4.6` 与视频线 `grok-imagine-video/v1.5` 两条**。查出四条待办：`gemini-3.1-flash-lite` 2027-05-07 停机须排期、enhance 线超配 25 倍、Fish 免费档 08-31 到期、Kling v3 extend 端点疑似 404（退役 Veo 3.1 的理由可能落空）。修正两条既有断言：Fish「6.7 倍」只在拉丁字母下成立（UTF-8 bytes 计价，中日文等效 2.2 倍）、Claude 限成 assistant 是策略非能力限制。⚠ 两块盲区如实登记：火山文档站 SPA、AA 榜单 JS 渲染，本轮均未复核。同时把「现役阵容」标为过期并补上代码实测计数（图 16+5 / 视频 26 / 音频 3 / 3D 5），逐条表格重建挂下次月审。**未改模型代码。**
-- Date: 2026-08-08 · 范围：**2026-08 月审（owner 口头交办四问）**——① Seedance 2.5 状态复核 → **已 GA 且零阻塞**（08-07 火山上线 API；当日用真浏览器读官方文档钉死 model id `doubao-seedance-2-5-260628` + 时长 [4,30] + 素材 30/10/10 + 纯音频可独存，**§⑫ 立案的冲突 A 就此裁决**），写入新 §⑬ 并作废 §⑫ 那条「第二道闸」（`b4ecf638` 08-01 已把火山 Seedance 迁进 execution worker，文档没跟上）；⚠ 顺带确认 07-31「拿不到规格」的真因是**文档站 SPA 挡住了 curl**，不是登录墙——下次复查直接开浏览器；② Krea 2 权重可下载性复核（HF 官方 Raw/Turbo + `Comfy-Org/Krea-2` 单文件档，许可 <$1M 且 <50 席位免费商用），③ Civitai 确认 `Krea 2` 是一级 baseModel 枚举 + 独立生态页；④ **Krea2 vs Anima 热度实测推翻「Krea2 全面更好」的说法**（LoRA 月榜 52/35 Krea2 领先，但周榜 35/47、checkpoint 24/38 均 Anima 领先，社区口碑是分工不是高下）；⑤ worker-comfyui 仍无新 tag，但 **upstream main 已于 07-30 把 ComfyUI 钉到 0.29.0**，Krea2 的版本闸从「时间不可控」变成「只差发版」。owner 拍板优先级 **Seedance 2.5 > r4a LRU 转正 > Krea2(r4b)**。产出任务包 `docs/plans/seedance-25-ga-integration-2026-08.md`，runner 侧结论回写 `docs/plans/runner-r4-krea2-multiref-2026-07.md` §2.5。**未改模型代码。**
+- Date: 2026-08-08 · 范围：**2026-08 月审（owner 口头交办四问）**——① Seedance 2.5 状态复核 → **已 GA 且零阻塞**（08-07 火山上线 API；当日用真浏览器读官方文档钉死 model id `doubao-seedance-2-5-260628` + 时长 [4,30] + 素材 30/10/10 + 纯音频可独存，**§⑫ 立案的冲突 A 就此裁决**），写入新 §⑬ 并作废 §⑫ 那条「第二道闸」（`b4ecf638` 08-01 已把火山 Seedance 迁进 execution worker，文档没跟上）；⚠ 顺带确认 07-31「拿不到规格」的真因是**文档站 SPA 挡住了 curl**，不是登录墙——下次复查直接开浏览器；② Krea 2 权重可下载性复核（HF 官方 Raw/Turbo + `Comfy-Org/Krea-2` 单文件档，许可 <$1M 且 <50 席位免费商用），③ Civitai 确认 `Krea 2` 是一级 baseModel 枚举 + 独立生态页；④ **Krea2 vs Anima 热度实测推翻「Krea2 全面更好」的说法**（LoRA 月榜 52/35 Krea2 领先，但周榜 35/47、checkpoint 24/38 均 Anima 领先，社区口碑是分工不是高下）；⑤ worker-comfyui 仍无新 tag，但 **upstream main 已于 07-30 把 ComfyUI 钉到 0.29.0**，Krea2 的版本闸从「时间不可控」变成「只差发版」。owner 拍板优先级 **Seedance 2.5 > r4a LRU 转正 > Krea2(r4b)**。产出任务包 `seedance-25-ga-integration-2026-08.md`，runner 侧结论回写 `runner-r4-krea2-multiref-2026-07.md` §2.5（两份任务包均已随 plans 清理，git 历史可取）。**未改模型代码。**
 - Date: 2026-07-31 · 范围：**MiniMax H3 调查（§⑩）+ fal 与原生逐模型比价（§⑪）+ Seedance 2.5 状态修正（§⑫）**。三条结论：H3 三通道全开且原生比 fal 便宜一半，owner 拍板先 fal 验质量再上原生；fal 加价按厂商分化（字节系 1.6~2.2× / FLUX·HappyHorse 持平），「全部迁原生」不成立；火山已给 2.5 定价但未放 model id。另查实 MiniMax 国内外站账号与 key **不通用**（推翻三方说法）。**未改模型代码。**
 - Date: 2026-07-31 · 范围：**Seedance 2.5 通道核查**——四条通道逐条实测，结论「上游未开门」写入 §⑨ 并修正 §⑥ 那行（fal 页面确实存在，卡点是 early access 白名单 + B2B only 条款，PixelVault 作为个人消费者产品不符合准入）。附带登记 2.0 三项欠账（mini 档 / 4K / 延长编辑），owner 拍板等 2.5 一并做。**未改模型代码。**
 - Date: 2026-07-31 · 范围：**回写补登**——把 2026-07-30 业界升级审计的**已实现**结果登记为 §⑧（Fish s2.1-pro / Kling O3 Pro / EL Music v2 / FLUX.2 Pro Edit 四项已落地，Gemini Omni GA 被上游卡住）。同日复核 `models/audio.ts` 确认 `s2.1-pro`、`music_v2`、`eleven_v3: available:false`。**未改模型代码。**
 - Date: 2026-07-26 · 范围：**首次全量**——全 provider 版本扫描 + 公开榜单主流度对账 + 生产库用量/成功率抽样。产出：修复 1 起线上失效（Gemini pro preview）、定位 1 起 CI 空转（周检脚本）、接入 4 个（Seedream 5.0 ×3 + Nano Banana 2 Lite）、升级 2 个（Recraft V4.1 / HappyHorse v1.1）、退役 7 个。下次月审：**2026-08 初**，重点跟进 Seedance 2.5 是否 GA 与 Gemini Omni Flash 接入排期。
-- Date: 2026-07-30 · **LoRA 底模/工作流社区调研**写入 `docs/plans/research/LoRA/LoRA底模与工作流调研-2026-07.md`（2026-07-31 起按模块归入 `LoRA/` 子目录），并回写本节 §④ LoRA 表；未改模型代码。
+- Date: 2026-07-30 · **LoRA 底模/工作流社区调研**写入《LoRA底模与工作流调研-2026-07》（调研文档已随任务包清理，git 历史可取），并回写本节 §④ LoRA 表；未改模型代码。

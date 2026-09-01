@@ -10,7 +10,7 @@ import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 /**
  * 模型选择器三层钻取（系列 → 型号 → 渠道）的数据不变量。
  *
- * 设计见 `docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §8。四个维度里
+ * 设计见 `docs/references/pages/canvas-video-card.md` §6.3。四个维度里
  * 只有型号是新数据，其余三个复用既有的 MODEL_FAMILIES / adapterType /
  * referenceMode —— 所以这里守的主要是「新数据与既有三者对得上」。
  */

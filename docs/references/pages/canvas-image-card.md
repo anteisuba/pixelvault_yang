@@ -1,7 +1,7 @@
 # 画布 · 图片卡（施工基准）
 
 > **这是实现基准**，不是过程账。设计推理与被否掉的选项在 canvas-image-card-design-2026-07-27.md（已删，见 git 历史）。
-> 数值唯一来源：[`canvas-skin-spec-2026-07-26.md`](../../plans/canvas-skin-spec-2026-07-26.md)。本文不新造任何色值。
+> 数值唯一来源：[`canvas-skin.md`](canvas-skin.md)。本文不新造任何色值。
 > 关键切片 owner 已确认（2026-07-27）。
 > ⚠ 同目录的 `node-canvas.md`（暖炭纸卡石绿）**已降为历史证据，不得作为造型依据**。
 
@@ -89,8 +89,6 @@
 
 §3 五态表里「空」态那行的主动作因此从「整卡即 dropzone（点击开文件选择器）」收窄为**只是 dropzone**。
 
-⚠ 修订结构条款，需同步 `canvas-visual-redesign-2026-07-25.md` §7.1。
-
 ### 4.1 · 画布级粘贴 ✅ owner 2026-07-27 拍板要做
 
 **现状：没做。** 全仓只有输入框内的 `onPaste`（`MentionInput` / `CharacterImageReferenceControls` 的粘贴 tab / `NodeMediaInspector`），**画布本身零监听**。上传节点与拖文件进画布都已实现（`ImageSourceStarter` · `StudioNodeWorkbench` 的 `handleCanvasDrop`），粘贴是这条链上唯一缺的一环。
@@ -145,7 +143,7 @@ owner 原话：「**画布级粘贴做。并且有上传中的 UI。上传后直
 ⚠ **2026-08-18 实况已变，本行原文（「消除 / 扩图 / 重绘 / 超分」，816 行）已过期**：`decompose` 与
 `outpaint`（扩图）**整条删除**，`object-replace` / `style-transfer` 因零实现退回 hidden。
 `canvas-image-edit-capabilities` 现在是**四条 ready**：超分辨率 · 去背景 · 局部重绘 · 提取元素。
-证据见 [`plans/image-edit-line-2026-08-18.md`](../../plans/image-edit-line-2026-08-18.md) §3.1。
+证据出自任务包 `image-edit-line-2026-08-18.md` §3.1（已随 plans 清理，git 历史可取）。
 **逻辑不重写，重新排进新基准的外壳。**
 
 ### P2 · 区域标注 + 指令
@@ -177,4 +175,4 @@ owner 原话：「**画布级粘贴做。并且有上传中的 UI。上传后直
 
 ## Last Verified
 
-- 2026-07-28 · Sonnet 5。owner 真机实测暴露四条缺陷中的③④落在本文：补第六态「生成中」（§3），端口显隐规则从「空态不露」扩到「只有真正空态不露」。其余基线不变——2026-07-27 · opus 5 关键切片经 owner 确认；卡边（有）与圆角（8）由 owner 同轮拍板。全部数值引自 `canvas-skin-spec-2026-07-26.md`，唯一例外是 §2 的卡宽——原规格的固定 250px 经参考图比对判定为取样错误，本文改为 min/max 钳制并记录理由。
+- 2026-07-28 · Sonnet 5。owner 真机实测暴露四条缺陷中的③④落在本文：补第六态「生成中」（§3），端口显隐规则从「空态不露」扩到「只有真正空态不露」。其余基线不变——2026-07-27 · opus 5 关键切片经 owner 确认；卡边（有）与圆角（8）由 owner 同轮拍板。全部数值引自 `canvas-skin.md`，唯一例外是 §2 的卡宽——原规格的固定 250px 经参考图比对判定为取样错误，本文改为 min/max 钳制并记录理由。

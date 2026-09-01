@@ -6,9 +6,8 @@
 > **路由**：`/[locale]/studio/node` 的 ⤢ 展开层（overlay，非独立路由）
 > **Last verified**：2026-08-05（Round 2 A 已实现；图片族来源入口收口、类型、定向测试、相关 lint 与真机验证通过）
 
-**确认证据**：`docs/plans/prototypes/canvas-detail-round2-directions-2026-08-04.html`（三方向）·
-`docs/plans/prototypes/canvas-detail-a-key-slice-2026-08-04.html`（A 关键切片）
-**决策账本**：[`../../plans/canvas-detail-panel-structure-ledger-2026-08-03.md`](../../plans/canvas-detail-panel-structure-ledger-2026-08-03.md)
+**确认证据**：Round 2 三方向原型 + A 关键切片原型（2026-08-04；证明「媒体优先」结构在真实内容密度下成立，owner 据此选定 A —— 原型文件已随任务包清理，git 历史可取）
+**决策账本**：`canvas-detail-panel-structure-ledger-2026-08-03.md`（已随任务包清理，git 历史可取）
 **方向谱系**：方向 E（当前实现）→ Round 2 A/B/C → **A 媒体优先**（owner 选定）
 
 ---
@@ -94,6 +93,30 @@ provider / 计费 / 持久化 / 图契约的改动 · 结果归档与片盒设�
 - **视频合成**：`subject-stage` = 九槽阵列（3×3，编号 1–9，前 `minClips` 格标「必须」、其余「可选」，已连接的 `clipCount` 段按序填上前几格）+ 预览带；`compose-desk`（裁剪按钮）/ 关系带 / 证据抽屉留在编辑栏不动；`source-rack` 同上传 `undefined`。
 - **预览带**：`.canvas-detail-stage-band`，固定 74–96px，内容 = 极淡字形（同族原本的空态字形）+ 一行 `stagePreviewHint`（`StudioNode.nodeDetail`，三语），**这是 R2「禁解释文案」在退成预览带之后的显式例外**，不适用于满七成的整块媒体井。
 - **响应式**：`>960px` 与 `681–960px` 沿用 §3 主文的两列/上下映射，只是右侧栏/ 下半区内容变少（原来的字段搬进了主体台）；`≤680px` 单列下预览带仍固定 74–96px，不随折叠吃掉半屏——断点数值本身不因这条改动而变。
+
+### 3.2 · 散图空态先问一句（画布修法包 E，2026-08-26 owner 确认）
+
+**只适用于散图（`LooseImageDetailBody`）**，镜头图 / 关键帧 / 背景三族一像素不受影响。
+
+`!hasMedia` 时 `subject-stage` 先渲染**两颗选择卡**（`.canvas-detail-fork` / `.canvas-detail-fork-opt`），
+不把上传、生成两条路的控件同时铺开：
+
+| 选项           | 副文案               | 选中后                                                                         |
+| -------------- | -------------------- | ------------------------------------------------------------------------------ |
+| **上传图片**   | 也可以直接拖文件进来 | 直接触发既有文件输入（`uploadHandlerProps`，走素材架同一条通路），不改任何开关 |
+| **用 AI 生成** | 写一句话，选个模型   | 选择卡退场，改走 §3.1 那套 promoted 写作台版式                                 |
+
+设计原话：**这一屏只回答一个问题，不预先铺开两条路的全部控件。**
+
+三条实现约束：
+
+- **两个开关分开**（`offerChoiceWhenEmpty` 与 `promoteFieldsWhenEmpty`）——「先问不问」与「问完给什么」是两件事；
+  散图两个都传，镜头图只传后者。
+- **选择结果是面板本地 state，不写节点数据**——它是一次性的入口分流，不是节点属性。
+- ⚠ **选择状态必须按 `nodeId` 归零**：族表提供者按 `presentationType` 而非 `nodeId` 挂载（见 `NodeDetailPanel.renderFrame` 头注），
+  同类型节点之间切换不会重新挂载组件实例。不归零的话，在节点 A 上选了「用 AI 生成」后切到同类型的另一个空节点 B，
+  会直接带着 A 的选择出现，B 不会再被问一次。
+- 样式复用既有 token（`s0` / `bd` / `ink` / `ink-2`），不新造色值（Hard Rule 5）。
 
 ---
 
@@ -368,6 +391,11 @@ Round 2 不能以“重构”为由回退这些已经成立的行为：十族穷
 ---
 
 ## Last Verified
+
+2026-09-01 · **散图空态先问一句（画布修法包 E）补记入 §3.2**。原先只在原型
+`canvas-detail-empty-ui.html`「收入口 01 · 图片」与代码注释里，随任务包清理沉淀到本文。
+代码事实未变（`ImageFamilyBody` 的 `showEmptyChoice` / `offerChoiceWhenEmpty`、
+`.canvas-detail-fork*`），本次只补文档。
 
 2026-08-26 · **空态让位（画布修法包 C）**。镜头图 / 视频生成 / 视频合成三族在
 `!hasMedia`（合成族为 `!mediaUrl`）时，主体台把「下一步要做的事」promote 到大位置，

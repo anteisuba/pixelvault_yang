@@ -268,11 +268,10 @@ export function StudioWorkspaceUI() {
             stage={<StudioCanvas />}
           />
         </div>
-        {/* 助手 —— **图片工作台整体切到操作员面板**（任务包
-            `studio-assistant-operator-2026-08-30.md` P2）。它自带三态：展开的
+        {/* 助手 —— **图片工作台整体切到操作员面板**。它自带三态：展开的
             覆盖层 + 收起的胶囊，所以图片档不再挂 `StudioAssistantFab`（那颗浮标
             是旧面板的入口，两个同时在等于右上角摆两个助手）。
-            ⚠ 视频 / 音频仍走旧面板：统一底盘扩域是 P4，那之前两套并存。
+            ⚠ 视频 / 音频仍走旧面板：把统一底盘扩到这两档是后续切片，那之前两套并存。
             ⛔ 不加 feature flag —— 本仓 flag 文化已死（只有 comfyRunner 活着）。 */}
         {isOperatorSurface ? (
           <StudioOperatorDock />

@@ -85,9 +85,9 @@ LoRA 的核心承诺是：
 
 ## 7.1 底模族与社区工作流（调研指针）
 
-社区主流底模、提示方言与 Comfy 工作流骨架的调研结论见：
+社区主流底模、提示方言与 Comfy 工作流骨架的调研结论：
 
-- [`../../plans/research/LoRA/LoRA底模与工作流调研-2026-07.md`](../../plans/research/LoRA/LoRA底模与工作流调研-2026-07.md)
+- 稳定结论已升格进下方 §7.1.1；调研全文《LoRA底模与工作流调研-2026-07》已随任务包清理，git 历史可取
 - 目录对账摘要：[`../model-catalog.md`](../model-catalog.md) §④
 
 实现侧底模表：`src/constants/lora-base-models.ts`。云端大模型（Seedream/GPT Image 等）**不是** Civitai LoRA 插槽，不得与底模族混谈。
@@ -111,13 +111,12 @@ LoRA 的核心承诺是：
 
 ## 8. 设计权力与文档分工
 
-| 文档                                         | 权力                                                                                                                           |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| 本文 `references/domains/lora.md`            | 稳定业务责任、术语、相邻域边界和不能破坏的事实；未来 LoRA UI 必读。                                                            |
-| `references/pages/lora-workbench.md`         | 当前 LoRA 业务施工、已确认功能和回归依据；其中现有造型不具备未来设计权力。                                                     |
-| 当前 active LoRA plan                        | 只在计划明确授权的功能范围内优先；不能覆盖本文的长期边界或全局 UI 治理。                                                       |
-| `docs/plans/lora-visual-redesign-2026-07.md` | LoRA 视觉讨论中的候选记录。只有逐项获得 owner 确认的结论才有权回写本文；其中 Claude 一次性生成的方向与切片目前只作无权重草稿。 |
-| `archive/`、参考截图与当前代码外观           | 仅作历史或现状证据，不能自动升级为规范。                                                                                       |
+| 文档                                                               | 权力                                                                                                                                  |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 本文 `references/domains/lora.md`                                  | 稳定业务责任、术语、相邻域边界和不能破坏的事实；未来 LoRA UI 必读。                                                                   |
+| `references/pages/lora-workbench.md`                               | 当前 LoRA 业务施工、已确认功能和回归依据；其中现有造型不具备未来设计权力。                                                            |
+| 当前 active LoRA plan                                              | 只在计划明确授权的功能范围内优先；不能覆盖本文的长期边界或全局 UI 治理。视觉讨论中的候选记录只有逐项获得 owner 确认后才有权回写本文。 |
+| `archive/`（已删 2026-08-07，见 git 历史）、参考截图与当前代码外观 | 仅作历史或现状证据，不能自动升级为规范。                                                                                              |
 
 Claude 或其他 AI 收到“重构 LoRA UI”时，必须先读本文并执行 UI 设计确认流程；在 owner 确认关键切片以前，只能调查、建模和提出方向，不能直接生成完整页面代码。
 
@@ -157,7 +156,7 @@ Claude 或其他 AI 收到“重构 LoRA UI”时，必须先读本文并执行 
 - ✅ **用户参考图已添加态已确认**：Prompt 上方使用较大的预览卡横排，而不是 64–72px 紧凑缩略图；支持单图预览/移除、末尾继续添加和一个全局参考强度。素材选择仍按需打开上传/粘贴/最近素材/素材库。该结论只约束参考图区域，不授权沿用确认图的完整 Generate 页面结构；视觉证据：[`../pages/assets/lora-generate-reference-images-added-desktop-2026-07.png`](../pages/assets/lora-generate-reference-images-added-desktop-2026-07.png)。
 - ✅ **Generate 输入层级已确认**：Prompt 是主编辑面，桌面默认高度约 200–240px，不能被参考图或参数压缩成短输入条。Negative Prompt 与生成参数默认折叠；已有内容/当前参数通过标题摘要保持可见。参数区是可展开的 disclosure，不是表示启用/停用的 Switch；展开只能向下延伸或进入滚动，不得挤压 Prompt。出图动作在折叠与展开状态下都必须容易触达。
 - ✅ **用户参考图空态已确认**：没有参考图时只显示低高度添加入口，不预留大卡片区域，也不显示无效的参考强度；加入第一张后原位置展开为大预览卡，删除最后一张后恢复紧凑空态。
-- ✅ **Generate 结构方向与桌面关键切片已确认**：owner 选择并确认 A「并排监视台」，即顶部轻量装配/来源证据、左侧完整输入、右侧稳定结果监视列。B「居中工作单」与 C「装配脊柱」只保留为比较证据。低保真方向证据见 [`../../plans/assets/lora-generate-direction-a-desktop-2026-07.png`](../../plans/assets/lora-generate-direction-a-desktop-2026-07.png) 与 [`../../plans/assets/lora-generate-direction-a-state-map-2026-07.png`](../../plans/assets/lora-generate-direction-a-state-map-2026-07.png)；owner 确认后的桌面关键切片与完整施工契约见 [`../pages/lora-generate.md`](../pages/lora-generate.md)。
+- ✅ **Generate 结构方向与桌面关键切片已确认**：owner 选择并确认 A「并排监视台」，即顶部轻量装配/来源证据、左侧完整输入、右侧稳定结果监视列。B「居中工作单」与 C「装配脊柱」只保留为比较证据。低保真方向证据图（direction-a 桌面稿与状态图）已随任务包清理，git 历史可取；owner 确认后的桌面关键切片与完整施工契约见 [`../pages/lora-generate.md`](../pages/lora-generate.md)。
 - ✅ **Generate 顶部层级已确认**：页面导航之下只保留一条无卡片装配行，平铺 LoRA、权重、容量、底模、执行通道与助手；下一行是独立来源图带。未挂载时来源图带消失。不得增加“当前装配”等重复标题、外层面板或常驻装配侧栏。
 - ✅ **Generate 桌面双栏比例已确认**：助手关闭时，左侧完整输入占 60%，右侧稳定结果列占 40%；该比例不外推到助手展开态或移动端。
 - ✅ **Generate 助手响应式阈值已确认**：助手约 380px；扣除助手后主台仍有至少 900px 才停靠，否则覆盖。停靠态不得让输入低于约 540px、结果低于约 360px；关闭后恢复 60/40 与原滚动位置。
@@ -165,14 +164,14 @@ Claude 或其他 AI 收到“重构 LoRA UI”时，必须先读本文并执行 
 - ✅ **Generate 桌面出图动作已确认**：出图只在左侧输入区。参数摘要与按钮同处自然流操作行，参数详情从行下展开；桌面不设常驻 sticky/fixed 底栏，也不在结果列重复动作。移动端规则另行确认。
 - ✅ **Generate 桌面页面依据已沉淀**：修订后的 A 关键切片已由 owner 确认并写入 [`../pages/lora-generate.md`](../pages/lora-generate.md)。该依据只覆盖已确认桌面结构及直接相关行为，不替代尚未确认的移动端、助手高保真状态与 token 数值。
 - ⏳ Train 尚无已确认关键切片。
-- ✅ **实现授权已限定到任务包**：owner 已要求将 Library、Generate 与共享 modal 的已确认桌面范围交给 Claude 实现，统一按 [`../../plans/lora-ui-refactor-claude-handoff-2026-07.md`](../../plans/lora-ui-refactor-claude-handoff-2026-07.md) 执行。该授权不包含 Train、移动端最终结构、未确认助手皮肤或业务/API/provider 契约。
+- ✅ **实现授权已限定到任务包**：owner 已要求将 Library、Generate 与共享 modal 的已确认桌面范围交给 Claude 实现，统一按任务包 `lora-ui-refactor-claude-handoff-2026-07.md`（已随 plans 清理，git 历史可取）执行；已确认契约本体在 [`../pages/lora-generate.md`](../pages/lora-generate.md) 与 [`../pages/lora-library.md`](../pages/lora-library.md)。该授权不包含 Train、移动端最终结构、未确认助手皮肤或业务/API/provider 契约。
 
 ## 10. 事实源
 
 - 产品定位：[`../product.md`](../product.md)
 - **Civitai 搜索的三级降级与实测事实**（改搜索前必读）：[`../backend.md`](../backend.md#civitai-搜索的三级降级2026-08-19-建全部数字实测)
 - 当前业务施工：[`../pages/lora-workbench.md`](../pages/lora-workbench.md)
-- 底模/工作流社区调研：[`../../plans/research/LoRA/LoRA底模与工作流调研-2026-07.md`](../../plans/research/LoRA/LoRA底模与工作流调研-2026-07.md)
+- 底模/工作流社区调研：《LoRA底模与工作流调研-2026-07》（已随任务包清理，git 历史可取）；对账摘要见 [`../model-catalog.md`](../model-catalog.md) §④
 - 底模目录实现：`src/constants/lora-base-models.ts`
 - 路由与页面：`src/app/[locale]/(main)/studio/lora/`
 - LoRA 工作台组件：`src/components/business/studio/lora/`

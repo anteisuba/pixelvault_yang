@@ -455,7 +455,7 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
   //
   // ⚠ 尚未实现的上游约束：2.5 在首帧/首尾帧/视频编辑/视频延长场景下 `ratio`
   // 仅接受 `adaptive`，传具体宽高比会 400。我们目前没有 adaptive 这个选项，
-  // 首帧场景撞得上 —— 见 docs/plans/seedance-25-ga-integration-2026-08.md §3.3b。
+  // 首帧场景撞得上 —— 见 docs/references/model-catalog.md §⑬。
   //
   {
     id: AI_MODELS.SEEDANCE_25_VOLCENGINE,

@@ -3,7 +3,7 @@
  *
  * 取代 `lib/video-model-resolver.ts` + `constants/video-brands.ts` 那套
  * brand → variant → provider 的旧分类（owner 2026-08-08 拍板收敛，见
- * `docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §9.9 / §9.10）。两者的
+ * `docs/references/pages/canvas-video-card.md` §6.1）。两者的
  * 根本差别只有一条：
  *
  * | | 旧 | 新 |

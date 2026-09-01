@@ -39,8 +39,9 @@ const CLERK_TEST_VERIFICATION_CODE = '424242'
  * **静默返回** —— 不抛错、不建 session，于是后面 `/en/studio` 被弹回 sign-in。
  *
  * Playwright 每次都是全新 browser context ⇒ 必然是新客户端 ⇒ 必然命中；而人在
- * 自己的浏览器里早已是受信客户端，从来遇不到。这个不对称是它极难查的原因，
- * 完整排查过程记在 `docs/plans/canvas-ui-inventory-2026-08-01.md` §11.2。
+ * 自己的浏览器里早已是受信客户端，从来遇不到。这个不对称是它极难查的原因。
+ * ⭐ 唯一可靠判据：`signIn` 对象上的 `clientTrustState === 'new'` —— 不是任何
+ * MFA 相关字段，查 MFA 设置只会得出「都关着啊」。
  *
  * 这里用 legacy `prepareSecondFactor` / `attemptSecondFactor`（已实测该 clerk-js
  * 版本上存在，且没有更新的 `signIn.mfa.*` 命名空间）。

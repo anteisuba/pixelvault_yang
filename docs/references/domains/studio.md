@@ -5,7 +5,7 @@
 ## 路由面
 
 - `/studio` → 重定向 `/studio/image`；`image` / `video` / `audio` 在共享 `(workspace)` route group 下，**UI 只挂载一次**（`(workspace)/layout.tsx`），各 page 只渲染 `StudioModeSync` 切模式——路由切换不重挂工作台。
-- `/studio/node`（画布，见 `plans/canvas-baseline.md`）· `/studio/lora` · `/studio/3d`（搁置）· `/studio/edit(/**)` · `/studio/enhance` / `analyze`（工具路由）。
+- `/studio/node`（画布，见 `../pages/node-canvas.md`）· `/studio/lora` · `/studio/3d`（搁置）· `/studio/edit(/**)` · `/studio/enhance` / `analyze`（工具路由）。
 - 全部 `/studio/*` 包在 `LoraStackProvider` + `ActiveLoraBar` 里（LoRA 挂栈贯穿）。
 
 ## 状态架构（高风险：`src/contexts/studio-context.tsx` 47 引用，见 `src/contexts/CLAUDE.md`）

@@ -1,6 +1,6 @@
 # Product 参考 — 产品边界与主线（长期契约）
 
-> 沉淀自 `archive/product/{scope,mainline}.md`（2026-06 拍板），2026-07-10 与 owner 重核并更新四项（用户定位 / 北极星 / 3D / Arena·Storyboard）。方向不明确时停下问 owner，不由 AI 补全路线。
+> 沉淀自 `archive/product/{scope,mainline}.md`（2026-06 拍板；该目录已删 2026-08-07，见 git 历史），2026-07-10 与 owner 重核并更新四项（用户定位 / 北极星 / 3D / Arena·Storyboard）。方向不明确时停下问 owner，不由 AI 补全路线。
 
 ## 一句话定位
 
@@ -49,7 +49,7 @@
 - **该投入的下一步（按价值，非承诺）**：导航/首页入口去「搁置」叙事 → Assets/Gallery 图「变 3D」深链且结果回 Assets → 角色卡多视角定妆（GLB 转台截帧回灌参考图）。
 - **远期方向（计划阶段，未到执行）**：3D 建模作为**导演台的视频控制手段**——用 3D 场景/机位控制视频镜头制作。届时 3D 的价值不是产出 3D 资产本身，而是给画布长视频提供空间控制。
 - 遗留未决（低优先级挂起）：3D 结果在 Gallery/Profile 的同级展示、GLB/poster 生命周期。
-- 依据：[`../plans/research/音频与3D/3D与音频扩展及Fish对齐-2026-07.md`](../plans/research/音频与3D/3D与音频扩展及Fish对齐-2026-07.md) §1、§8。
+- 依据：《3D与音频扩展及Fish对齐-2026-07》调研 §1、§8（调研文档已随任务包清理，git 历史可取）。
 
 ## 已确认方向要点
 
@@ -81,7 +81,7 @@
 
 ## Source of Truth
 
-- 本文件（现行契约）· `archive/product/{scope,mainline}.md`（详版历史）
+- 本文件（现行契约）· `archive/product/{scope,mainline}.md`（详版历史，已删 2026-08-07，见 git 历史）
 - 代码：`src/app/[locale]/(main)/**` 路由面 · `src/services/**` · `prisma/schema.prisma`
 
 ## Last Verified

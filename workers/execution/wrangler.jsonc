@@ -15,7 +15,7 @@
     "R2_PUBLIC_URL": "https://cdn.anteisuba.com",
     // Comfy Runner (RunPod Serverless) endpoint id — not secret by itself,
     // protected by the RUNPOD_KEY bearer token (wrangler secret, owner-set).
-    // See docs/plans/comfy-runner-HANDOFF-2026-07.md §6.
+    // See docs/references/domains/runner.md（基础设施标识 / 限额 / 已知坑）。
     //
     // EU-RO-1（2026-07-21 迁移）：US-CA-2 长期抢不到 GPU，模型从 CA 迁到 EU。
     // 端点 dt0wyuid7lywic（name=pixelvault-runner-eu-ro-1，template pmh4gs9eht，

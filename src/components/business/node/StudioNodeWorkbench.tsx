@@ -3731,7 +3731,7 @@ function StudioNodeCanvas() {
       ops: readonly PlannedNodeAssistantOp[],
     ): Promise<NodeAssistantOpRunResult> =>
       // B2.5：**整批只占一个撤销步**。实测过改之前的行为：应用「3 项」后按撤销是
-      // 3→2→1→0，一次退一个（`assistant-ab-design-2026-08-08.md` §B2）。一批 op 是
+      // 3→2→1→0，一次退一个（根因见 `use-node-workflow.ts` 的 `historySuppressed`）。一批 op 是
       // 一次用户决定，退它就该是一次动作。
       workflow.runAsSingleHistoryStep(async () => {
         const { assistantSpawn, topbarAddPosition } = NODE_STUDIO_NODE_PLACEMENT

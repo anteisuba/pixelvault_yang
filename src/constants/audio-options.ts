@@ -46,8 +46,9 @@ export type AudioLatency = (typeof AUDIO_LATENCIES)[number]
  * that is ~44 min of speech and would almost certainly hit the model's
  * `timeoutMs` (Fish: 60s) first. Where that wall actually stands is unmeasured —
  * measure it before turning this into a user-facing promise. Long text is meant
- * to go to the chunked pipeline instead (docs/plans/audio-domain-design-2026-07.md
- * §2.2), which is specced to trigger above the *resolved per-model* limit.
+ * to go to a chunked pipeline instead — one that splits above the *resolved
+ * per-model* limit rather than at a single platform-wide number. **That
+ * pipeline does not exist yet**; until it does, this guard is the only ceiling.
  *
  * History: this replaces `TTS_MAX_TEXT_LENGTH = 5000`, which was ElevenLabs
  * v3's number applied to every provider — including Fish Audio (publishes "no

@@ -13,7 +13,7 @@ import {
 
 /**
  * 视频节点三档模式与端点解析。设计见
- * `docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §8 / §9。
+ * `docs/references/pages/canvas-video-card.md` §6。
  */
 
 describe('video node modes', () => {

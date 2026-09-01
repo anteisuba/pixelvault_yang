@@ -96,7 +96,7 @@ describe('models', () => {
         // Comfy Runner (RunPod) models are unavailable-by-default behind
         // FEATURE_FLAGS.comfyRunner in test/CI envs — not permanently dead
         // like RETIRED_MODEL_IDS entries. See
-        // docs/plans/comfy-runner-HANDOFF-2026-07.md §4.2b.
+        // docs/references/domains/runner.md.
         const isFlagGatedRunnerModel =
           model.adapterType === AI_ADAPTER_TYPES.RUNNER
         // RESERVED = fully modelled but the provider hasn't opened the API, so

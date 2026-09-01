@@ -557,7 +557,7 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   // variants / isDualProvider / previewBrandModelId 全部删除 —— 模型选择早就交给
   // `CanvasRoutePicker`（→ `BaseModelPickerPanel` 三层钻取）了，这套 API 在 UI 上
   // **零消费**，只是还挂在返回值里，让人以为画布用的是另一套分类。
-  // 见 canvas-video-domain-cleanup-2026-08-08.md §9.8。
+  // 见 docs/references/pages/canvas-video-card.md §6.3。
 
   /**
    * 节点当前的模式 —— **这一份是唯一事实源**，`VideoComposer` 也从这里取，别在组件里

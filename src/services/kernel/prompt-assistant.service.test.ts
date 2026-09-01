@@ -1319,7 +1319,7 @@ describe('chatPromptAssistant', () => {
     })
   })
 
-  // ── F1 v2 engine (docs/plans/lora-assistant-nl2tag-2026-07.md §2) ──────
+  // ── LoRA conversion engine v2 ──────────────────────────────────────────
   // Additive opt-in: only reached when `mode:'lora'` carries `loraContext`.
 
   describe('loraContext (v2 structured engine)', () => {

@@ -1,5 +1,5 @@
 /**
- * 助手写画布的 op 词表（包 5 / `research-landing-plan-2026-07-30.md` §6.3）。
+ * 助手写画布的 op 词表。
  *
  * ── 为什么是 marker + JSON，而不是 tool-calling ──────────────────────
  * 助手今天有两条路由：gateway 走 `streamText` 纯文本流，BYOK 走缓冲文本补全，

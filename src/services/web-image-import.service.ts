@@ -28,8 +28,7 @@ import type { WebImageImportRequest } from '@/types/web-image-import'
 
 /**
  * 联网搜图的**第二条腿**：用户在助手日志条上点中一张预览候选，把它转存进自己的
- * R2 并落成一条 Generation（P3-B，`docs/plans/web-search-import-source-eval-2026-08-30.md`
- * 的 owner 拍板段）。
+ * R2 并落成一条 Generation。
  *
  * ── ⛔ 这条链与助手的工具环没有任何关系 ────────────────────────────
  * 助手**自己永远不落库**。它的工具环只能搜出预览候选（`search_web_images`），
@@ -40,7 +39,7 @@ import type { WebImageImportRequest } from '@/types/web-image-import'
  * ── 三条硬闸 ──────────────────────────────────────────────────────
  * ① **不花积分**：这里没有任何 provider 调用、没有扣费、`requestCount: 0`。
  *    导入只花存储，不是一次 generation 提交。
- * ② **`isPublic` 强制 false**（选型报告 §四）：通用图搜的图没有任何人给过许可，
+ * ② **`isPublic` 强制 false**（选型时定的硬闸）：通用图搜的图没有任何人给过许可，
  *    ⛔ 不进公开画廊。这里**不接受调用方传值** —— 写死是唯一守得住的方式。
  * ③ **来源快照必写**（策略 C，导演内核边界 7）：来源 / 页面 / 域名 / 抓取时间
  *    进现有的 `Generation.snapshot Json?` 字段，⛔ 零迁移、零 schema 改动。

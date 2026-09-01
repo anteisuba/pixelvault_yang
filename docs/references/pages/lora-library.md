@@ -1,6 +1,6 @@
 # LoRA Library 页面设计
 
-> 状态：**桌面关键切片已确认 / 已进入限定实施交接（2026-07-19）**。本文记录 owner 逐项确认后的 Library 结构与内容边界；页面文档本身不扩张修改范围，桌面实现只按 [`../../plans/lora-ui-refactor-claude-handoff-2026-07.md`](../../plans/lora-ui-refactor-claude-handoff-2026-07.md) 授权。响应式与未确认状态不得由实现会话自行补造。
+> 状态：**桌面关键切片已确认 / 已进入限定实施交接（2026-07-19）**。本文记录 owner 逐项确认后的 Library 结构与内容边界；页面文档本身不扩张修改范围，桌面实现只按实施交接任务包 `lora-ui-refactor-claude-handoff-2026-07.md`（已随 plans 清理，git 历史可取）授权。响应式与未确认状态不得由实现会话自行补造。
 >
 > 上游业务契约：[`../domains/lora.md`](../domains/lora.md)。当前可运行功能与回归依据：[`lora-workbench.md`](lora-workbench.md)。
 

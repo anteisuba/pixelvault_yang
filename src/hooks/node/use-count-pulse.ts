@@ -3,8 +3,8 @@
 import { useState } from 'react'
 
 /**
- * 回执脉冲的驱动源（画布修法 05 节「拖了必有回音」，`canvas-node-fix.html`
- * §08「拖了必有回音」同款诉求）：一个计数值每次**增加**时递增一个 key，
+ * 回执脉冲的驱动源（owner 的原始诉求：「拖了必有回音」）——
+ * 一个计数值每次**增加**时递增一个 key，
  * 供调用方把它喂给 framer-motion 元素的 `key` prop —— key 变化触发
  * 组件重新挂载，`initial`→`animate` 因此重放一次，实现「值变大就闪一下」
  * 而不用手写 keyframes 数组。数值不变或**减少**时 key 不动，不放回执

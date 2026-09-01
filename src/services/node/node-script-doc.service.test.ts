@@ -309,8 +309,7 @@ describe('createNodeScriptDoc', () => {
 // the user, so it was being measured against the wrong ruler:
 // `MAX_PROMPT_LENGTH` (4000). Any request carrying an existing ScriptDoc blew
 // past it once the story got even slightly rich — ~4018 characters — and the
-// rejection was swallowed into a generic 500. See
-// docs/plans/canvas-pipeline-gap-2026-07-31.md §2.
+// rejection was swallowed into a generic 500.
 
 function padded(prefix: string, length: number): string {
   return `${prefix} ${'detail '.repeat(length).slice(0, Math.max(0, length))}`.slice(

@@ -1725,8 +1725,7 @@ html:lang(zh) {
    没有任何定义（2026-08-01 真机遍历 document.styleSheets 返回空），而
    Tailwind v4 preflight 又把 h1–h6 重置成 font-size/font-weight: inherit、
    把 ol/ul 的 list-style 和缩进清零 —— 两件事叠起来的结果是 markdown
-   渲染出来的标题、列表、引用与正文完全同形。登记见
-   docs/plans/canvas-ui-inventory-2026-08-01.md §8 G3。
+   渲染出来的标题、列表、引用与正文完全同形。
 
    两条刻意的架构选择（都不是风格偏好，是为了这份配方能当共享原语用）：
 

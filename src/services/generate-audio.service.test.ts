@@ -531,8 +531,8 @@ describe('generateAudioForUser', () => {
    * ⚠ 2026-08-30 起**只在开头插一次**，不再逐句。
    *
    * 依据是 Fish 文档的「Don't overuse emotion tags in short text」，**不是**音频长度
-   * ——那个指标噪声底 ±7%，我曾据此得出过错误结论，详见
-   * `docs/plans/fish-audio-prosody-emotion-findings-2026-08-30.md`。
+   * ——那个指标噪声底 ±7%（`temperature 0.7` 是采样，同一段文本连跑五次就差得出来），
+   * 我曾据此得出过错误结论。详见 `generate-audio.service.ts` 里 emotion 编码那段的头注。
    */
   it('injects the emotion cue once at the top and defaults to dramatic', async () => {
     const mockGenerateAudio = vi.fn().mockResolvedValue({

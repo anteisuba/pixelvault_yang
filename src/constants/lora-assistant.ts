@@ -1,10 +1,10 @@
 /**
- * LoRA 转换引擎 v2（docs/plans/lora-assistant-nl2tag-2026-07.md §2）配置常量。
- * F1 切片：grounding 上限 + 出参规范化阈值 + 结构化输出校验错误码。
+ * LoRA「自然语言 → tag」转换引擎 v2 的配置常量：词库 grounding 上限 +
+ * 出参规范化阈值 + 结构化输出校验错误码。
  */
 
-/** 入参侧 grounding（§2.1）：对用户 NL 跑 searchPromptTags 时的候选上限，
- *  注入 `AVAILABLE TAGS` 系统提示块。 */
+/** 词库 grounding 的**入参侧**：对用户 NL 跑 searchPromptTags 时的候选上限，
+ *  注入 `AVAILABLE TAGS` 系统提示块——LLM 倾向抄现成的规范形，命中率因此大幅提升。 */
 export const LORA_ASSISTANT_GROUNDING_TAG_LIMIT = 30
 
 /** 出参侧规范化 + 触发词/tray 剔除共用：参与子串匹配的字段/词条最短长度——

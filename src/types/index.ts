@@ -185,7 +185,7 @@ export const LoraSchema = z.object({
   scale: z.number().min(0.1).max(2).optional(),
 })
 
-// v2 runner（docs/plans/comfy-runner-HANDOFF-2026-07.md）：app 侧 `prepareRunnerLoras`
+// app 侧 `prepareRunnerLoras`
 // 把每把 LoRA 确保进 R2 后产出的规格——文件名 + R2 预签名下载链 + 权重。经
 // advancedParams 透传给 Cloudflare Worker → RunPod fork（fork 据 downloadUrl 拉、
 // 据 filename 挂）。
@@ -272,7 +272,7 @@ export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>
 // Recipe→workflow mapping itself lives in the Cloudflare Worker (a separate
 // package that can't import these); these schemas describe the recipe shape
 // on the Next.js side — request validation and any future direct "clone this
-// recipe" API surface. See docs/plans/comfy-runner-HANDOFF-2026-07.md §7.1/§8.
+// recipe" API surface. See docs/references/domains/runner.md.
 
 export const RunnerCheckpointFamilySchema = z.enum([
   'illustrious',
@@ -2383,10 +2383,10 @@ export const PromptAssistantResponseLanguageSchema = z.enum([
 export const PromptAssistantModeSchema = z.enum(['general', 'lora'])
 export const PromptAssistantDomainSchema = z.enum(['image', 'video', 'lora'])
 
-// ─── LoRA assistant context (F1 转换引擎 v2, docs/plans/lora-assistant-nl2tag-2026-07.md §2.2) ───
+// ─── LoRA assistant context (the v2 engine's mount-context injection) ───────
 //
 // Additive-only: when a `mode:'lora'` request carries `loraContext`, the
-// service takes the new grounding + structured-output path (§2). When it's
+// service takes the new grounding + structured-output path. When it's
 // absent, `mode:'lora'` behaves exactly as before (code-block text output) —
 // the `/prompts` page's `presetLora` consumer relies on that legacy shape and
 // never sends this field.
@@ -4418,8 +4418,8 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // 声明。undefined/缺失（Civitai 省略该字段、旧缓存、旧测试 fixture）按
   // true（无需署名）处理——避免对没有该字段的历史数据误判出「需署名」警示。
   allowNoCredit: z.boolean().optional(),
-  // P1-6：civitai 模型级 NSFW 标记（原样透传，供 UI 展示用）。Issue B
-  // （docs/plans/lora-search-image-audit-2026-07.md）实测这个布尔值本身
+  // P1-6：civitai 模型级 NSFW 标记（原样透传，供 UI 展示用）。
+  // ⚠ 实测这个布尔值本身
   // 不可靠（双向误判：有 XXX-only 图片的模型仍标 false，也有全 SFW 图片
   // 的模型标 true）——三态分级的实际过滤改用图片级 nsfwLevel（REST 浏览
   // 路径用它 OR 这个布尔值兜底老 fixture；搜索路径下推到 meilisearch 的

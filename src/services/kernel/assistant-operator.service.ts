@@ -81,7 +81,7 @@ import type { AssistantAssetFolderCandidate } from '@/types/asset-folder-vision'
 import type { LoraCandidate } from '@/types/lora-candidate'
 
 /**
- * 工作台助手的**工具环**（P1，`docs/plans/studio-assistant-operator-2026-08-30.md` §2）。
+ * 工作台助手的**工具环**（词表见 `src/constants/assistant-operator.ts`）。
  *
  * ── 一句话形状 ─────────────────────────────────────────────────
  * 一轮 = 最多 `maxSteps` 次「问模型要一个工具调用 → 跑它 → 把结果讲给模型听」。

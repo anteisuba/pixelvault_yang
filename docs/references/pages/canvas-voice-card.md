@@ -1,7 +1,7 @@
 # 画布 · 声音卡（施工基准）
 
 > 五族卡内改造的**第二族**。owner 2026-07-27 确认关键切片。
-> 数值唯一来源：[`canvas-skin-spec-2026-07-26.md`](../../plans/canvas-skin-spec-2026-07-26.md)。
+> 数值唯一来源：[`canvas-skin.md`](canvas-skin.md)。
 > 相关：[图片卡](canvas-image-card.md) · [生成提示词框](canvas-generate-composer.md)
 > 现状实现：`src/components/business/node/nodes/VoiceNode.tsx`（294 行）
 
@@ -165,7 +165,7 @@ owner 2026-07-27 决定**保留**，理由是视觉特色。记录两点：
 
 ## 5 · 不在本文范围
 
-- `AUDIO_KIND` 的二级切换（语音/音效/音乐）—— 音频域有独立基准 `docs/plans/audio-domain-design-2026-07.md`，本文只负责 kind 在 meta 行的**显示**
+- `AUDIO_KIND` 的二级切换（语音/音效/音乐）—— 音频域有独立基准 [`../domains/audio.md`](../domains/audio.md)，本文只负责 kind 在 meta 行的**显示**
 - 身份卡上的「听觉身份」入口 —— 与本设计的「靠连线供给音色」是两条路，等**身份卡那一轮**统一，本轮不动
 - 音乐 kind：`AUDIO_KIND.MUSIC` 枚举存在但**零模型接入**，UI 不为它单独做形态
 

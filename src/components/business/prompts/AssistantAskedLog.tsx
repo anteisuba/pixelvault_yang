@@ -11,9 +11,9 @@ import type { AssistantAskedPair } from '@/types/assistant-protocol'
  * A2c ·「已询问」折叠块 —— 这一轮聊下来助手问过什么、你答了什么，收起来可回看。
  *
  * ⚠ **这是客户端的聚合视图，不是模型每轮重发的载荷。** 让模型每轮把问答对再吐一遍
- * 会让 payload 随轮次线性膨胀 —— 那正是 `canvas-pipeline-gap-2026-07-31.md` §2 那道
- * 「4000 字符静默悬崖」的病根（装配时根本没有字符预算，16 条 × 4000 理论上能进同一个
- * prompt）。这里零额外 token。
+ * 会让 payload 随轮次线性膨胀 —— 那正是剧本装配那条链踩过的「4000 字符静默悬崖」的
+ * 病根（装配时根本没有字符预算，16 条 × 4000 理论上能进同一个 prompt；见
+ * `node-script-doc.service.test.ts` 的 prompt budget 段）。这里零额外 token。
  *
  * 默认收起：它是「想不起来时翻一下」的东西，不是每轮都要读的东西。
  */

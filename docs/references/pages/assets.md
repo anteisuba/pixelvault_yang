@@ -2,16 +2,15 @@
 
 > 状态：**方向 B「大厅与展馆」已选定 · 桌面/1280/375/picker/状态矩阵已成稿 · 2026-08-11 交付施工**。
 > ⚠ 本文只记录**已确认的结构与契约**；未在此写明的造型、动效、文案不构成实现依据，实现会话不得自行补造。
-> 上游域契约：[`../domains/assets.md`](../domains/assets.md)。设计过程与被否方向：[`../../plans/assets-cf-design-2026-08-09.md`](../../plans/assets-cf-design-2026-08-09.md)、[`../../plans/assets-claude-directions-2026-08-11.md`](../../plans/assets-claude-directions-2026-08-11.md)。
-> 施工范围与切片：[`../../plans/assets-cf-task-packet-2026-08-11.md`](../../plans/assets-cf-task-packet-2026-08-11.md)。
-> **判断的来历 / 我错在哪 / owner 偏好 / 未决事项**：[`../../plans/assets-cf-session-handoff-2026-08-11.md`](../../plans/assets-cf-session-handoff-2026-08-11.md) ⭐ 接手先读它。
+> 上游域契约：[`../domains/assets.md`](../domains/assets.md)。
+> 设计过程账本（assets-cf-design-2026-08-09 / assets-claude-directions-2026-08-11）、施工切片包（assets-cf-task-packet-2026-08-11）与交接（assets-cf-session-handoff-2026-08-11，含判断来历 / owner 偏好 / 未决事项）均已随任务包清理，git 历史可取。
 
-**确认载体（可交互原型，非可合入代码）**
+**确认载体（可交互原型，非可合入代码；原型文件已随任务包清理，git 历史可取）**
 
 | 用途                                                    | 文件                                                                                                                                |
 | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| 主原型（含 dev 状态切换器：上传/失败/空态/错误/picker） | [`prototypes/assets-claude-b-atrium-2026-08-11.html`](../../plans/prototypes/assets-claude-b-atrium-2026-08-11.html)                |
-| 响应式三档并排（1440 / 1280 / 375，真实 iframe 视口）   | [`prototypes/assets-claude-b-responsive-2026-08-11.html`](../../plans/prototypes/assets-claude-b-responsive-2026-08-11.html)        |
+| 主原型（含 dev 状态切换器：上传/失败/空态/错误/picker） | `assets-claude-b-atrium-2026-08-11.html`                                                                                            |
+| 响应式三档并排（1440 / 1280 / 375，真实 iframe 视口）   | `assets-claude-b-responsive-2026-08-11.html`                                                                                        |
 | 被否方向（保留作比较证据，不进实现阅读链）              | `assets-claude-a-lighttable-*.html`（灯箱馆）· `assets-claude-c-bench-*.html`（装配抽屉）· Codex `assets-context-dock-v1/v2-*.html` |
 
 ---
@@ -353,7 +352,7 @@
 | **非画布** 8 个           | `ReferenceImageChip`(⚠错挂) · `Studio3DWorkspace` · `LoraTrainingDialog` · `LoraReferenceImageCards` · `AssetDetailSheet` · `AssistantReferencePicker` · `ReverseEngineerPanel` · `storyboard` | ✅ 动                                                                          |
 | **画布 `node/**`\*\* 8 个 | `GenerateComposer` · `VideoComposer` · `ReferenceLandingTabs` · `CanvasAppearancePanel` · `CanvasImageSelectionToolbar` · `CharacterDetailBody` · `ImageFamilyBody` · `VoiceDetailBody`        | ⛔ **只出清单与判据，交画布会话** —— 本包 Non-goals 明写「不接管画布并行任务」 |
 
-**`VideoComposer` ✅ owner 2026-08-11 已拍板：改多选，但必须避免刷屏。** 它选中后走 `spawnReference(...)` —— **每选一张 = 画布上 spawn 一个新节点并连线**，所以「改多选」等于「一次生成 N 个节点」。⚠ **多选只在同一个添加位内成立**（一次选的 N 张共享同一个 `role`，跨 role 批量没有语义）。落位四约束 + 一条「N 个节点会精确重叠」的高置信预测与证伪法：交接 [§六](../../plans/assets-cf-session-handoff-2026-08-11.md)。**施工归画布会话，不在本包。**
+**`VideoComposer` ✅ owner 2026-08-11 已拍板：改多选，但必须避免刷屏。** 它选中后走 `spawnReference(...)` —— **每选一张 = 画布上 spawn 一个新节点并连线**，所以「改多选」等于「一次生成 N 个节点」。⚠ **多选只在同一个添加位内成立**（一次选的 N 张共享同一个 `role`，跨 role 批量没有语义）。落位四约束 + 一条「N 个节点会精确重叠」的高置信预测与证伪法：交接 `assets-cf-session-handoff-2026-08-11.md` §六（已随任务包清理，git 历史可取）。**施工归画布会话，不在本包。**
 
 **顺带的实现简化**：`AssetSelectorDialog` 现在按 `multiSelect` 渲染**两整棵 `<KreaAssetBrowser>`**（两套 props、两条路径）。应合成一次渲染 + 一个 `mode` prop —— 两种模式在界面上本就只差 checkbox 与底部条。
 

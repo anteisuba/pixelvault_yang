@@ -93,13 +93,13 @@ Canvas 的核心承诺是：
 
 ## 8. 设计权力与文档分工
 
-| 文档                                                  | 权力                                                                                                                                   |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 本文 `references/domains/canvas.md`                   | 稳定业务责任、词汇、相邻域边界和不能破坏的事实；未来 Canvas UI 必读。**不含视觉答案。**                                                |
-| `references/pages/node-canvas.md`                     | 当前 Canvas 业务施工与回归依据；其暗炭/纸卡/石绿造型**只服务本轮业务收口与回归，不具备未来设计权力**（其头部 2026-07-19 注记已声明）。 |
-| `plans/canvas-relationship-v3-2026-07.md` 等在飞 plan | 只在计划授权的业务范围内优先；不覆盖本文长期边界或全局 UI 治理。                                                                       |
-| 未来 Canvas UI redesign plan                          | 记录 Fable 的设计性格、三个结构方向、选定方向、关键切片、owner 决策与实施切片；**现在尚未创建，也没有默认视觉答案**。                  |
-| `archive/`、UI inspiration（含 Haivis）、当前代码外观 | 仅作历史或现状证据，不能自动升级为规范。                                                                                               |
+| 文档                                                                                  | 权力                                                                                                                                   |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 本文 `references/domains/canvas.md`                                                   | 稳定业务责任、词汇、相邻域边界和不能破坏的事实；未来 Canvas UI 必读。**不含视觉答案。**                                                |
+| `references/pages/node-canvas.md`                                                     | 当前 Canvas 业务施工与回归依据；其暗炭/纸卡/石绿造型**只服务本轮业务收口与回归，不具备未来设计权力**（其头部 2026-07-19 注记已声明）。 |
+| 在飞 plans/ 任务包                                                                    | 只在计划授权的业务范围内优先；不覆盖本文长期边界或全局 UI 治理。                                                                       |
+| 未来 Canvas UI redesign plan                                                          | 记录 Fable 的设计性格、三个结构方向、选定方向、关键切片、owner 决策与实施切片；**现在尚未创建，也没有默认视觉答案**。                  |
+| `archive/`（已删 2026-08-07，见 git 历史）、UI inspiration（含 Haivis）、当前代码外观 | 仅作历史或现状证据，不能自动升级为规范。                                                                                               |
 
 AI 收到"重构 Canvas UI"时，必须先读本文并执行 `scenes/ui-page.md` 的设计确认流程；owner 确认关键切片以前，只能调查、建模和提出方向，不能直接生成完整页面代码。
 
@@ -117,7 +117,7 @@ AI 收到"重构 Canvas UI"时，必须先读本文并执行 `scenes/ui-page.md`
 ## 10. 事实源
 
 - 产品定位：[`../product.md`](../product.md)
-- 当前业务施工与回归：[`../pages/node-canvas.md`](../pages/node-canvas.md) · `plans/canvas-relationship-v3-2026-07.md` · `plans/canvas-modular-redesign-2026-07.md` · `plans/canvas-module-function-catalog-2026-07.md`
+- 当前业务施工与回归：[`../pages/node-canvas.md`](../pages/node-canvas.md)（关系呈现 v3 / 模块施工顺序等历史任务包已随 plans 清理，结论已沉淀该文，细节 git 历史可取）
 - 路由与页面：`src/app/[locale]/(main)/studio/node/`
 - 画布组件：`src/components/business/node/**`
 - 图数据/收割/装配：`src/lib/node-workflow-graph.ts` · `src/lib/node-reference-payload.ts` · `src/lib/node-connection-rules.ts` · `src/lib/node-edge-tier.ts`

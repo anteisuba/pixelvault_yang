@@ -135,8 +135,8 @@ function setStoredLayout(updater: (prev: DockLayout) => DockLayout): void {
 }
 
 /**
- * Exported so `LoraAssistantDock` (docs/plans/lora-assistant-nl2tag-2026-07.md
- * F2, `studio/lora/LoraAssistantDock.tsx`) can share the same width memory —
+ * Exported so `LoraAssistantDock` (`studio/lora/LoraAssistantDock.tsx`) can
+ * share the same width memory —
  * the `useSyncExternalStore`-backed module store below is safe to subscribe
  * to from more than one component; both stay in sync automatically.
  */

@@ -62,8 +62,8 @@ interface LoraAssistantDockProps {
 }
 
 /**
- * LoraAssistantDock — /studio/lora?section=generate 专属助手宿主（F2，
- * docs/plans/lora-assistant-nl2tag-2026-07.md §1.2）。
+ * LoraAssistantDock — /studio/lora?section=generate 专属助手宿主
+ * （LoRA 人格默认激活 + 对话内结果卡）。
  *
  * 复用 StudioAssistantDock 的两块真正跨页共享的 chrome（宽度记忆 store
  * `useDockLayout` + `AssistantShell`/`AssistantShellHeader` 头部规范），但

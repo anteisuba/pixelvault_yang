@@ -19,7 +19,7 @@ const CACHE_CONTROL = 'public, s-maxage=3600, stale-while-revalidate=86400'
 // file hash (Civitai's search index doesn't expose files[].hashes), but the
 // recipe miner only needs modelId+modelVersionId to find source images; the
 // hash (when present) just attributes a matched image's real per-LoRA
-// weight. See Issue A, docs/plans/lora-search-image-audit-2026-07.md. We
+// weight — search-hit LoRAs carry no file hash at all. We
 // accept any non-empty hex-ish string so a future change in Civitai's hash
 // length doesn't break us.
 const QuerySchema = z.object({

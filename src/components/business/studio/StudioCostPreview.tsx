@@ -38,8 +38,7 @@ interface StudioCostPreviewProps {
 }
 
 /**
- * 成本预览 —— 工作台参数栏底部、生成按钮上方（任务包
- * `studio-workbench-redesign-2026-08-14.md` §4.11 切片 4）。
+ * 成本预览 —— 工作台参数栏底部、生成按钮上方。
  *
  * ## 两条底线
  *

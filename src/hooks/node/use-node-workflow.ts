@@ -894,7 +894,7 @@ export function useNodeWorkflow({
   /**
    * B2.5：一批写入正在进行中，撤销栈只在批次开头记一次账。
    *
-   * ⚠ 实测出来的问题（2026-08-08，`assistant-ab-design-2026-08-08.md` §B2）：助手
+   * ⚠ 实测出来的问题（2026-08-08）：助手
    * 应用「3 项」后按撤销是 3→2→1→0，**一次只退一个节点**。根因是批次里每个
    * `add_node` 都各自走一遍 `commitCurrentProjectState`，而去重只比引用相等
    * （`storageRef.current` 同步更新，所以同一 tick 的连续调用不会被折叠）。

@@ -1,7 +1,7 @@
 # 画布 · 生成提示词框（施工基准）
 
 > **画布级共享组件**，不属于任何单一节点族。owner 2026-07-27 确认关键切片。
-> 数值唯一来源：[`canvas-skin-spec-2026-07-26.md`](../../plans/canvas-skin-spec-2026-07-26.md)。本文不新造色值。
+> 数值唯一来源：[`canvas-skin.md`](canvas-skin.md)。本文不新造色值。
 > 相关：[图片卡](canvas-image-card.md) · [声音卡](canvas-voice-card.md)
 
 ## 0 · 它是什么

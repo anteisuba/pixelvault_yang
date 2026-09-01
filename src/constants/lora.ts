@@ -479,7 +479,7 @@ export const CIVITAI_OTHER_BASE_MODEL_MEMBERS = [
 //          环境跑同一 checkpoint 不受此限制，已转 native
 //
 // Pony / Anima 2026-07 随 comfy runner（RunPod）交付翻转为 native，见
-// docs/plans/comfy-runner-HANDOFF-2026-07.md §4.2b。实际可生成性仍受
+// docs/references/domains/runner.md。实际可生成性仍受
 // FEATURE_FLAGS.comfyRunner 门控——flag 关闭时对应 AI_MODELS.available 为
 // false，isCivitaiBaseModelGeneratable() 只反映"有 native 路径"，不代表
 // flag 已开。
@@ -495,7 +495,7 @@ export const CIVITAI_BASE_MODEL_GENERATABILITY = {
   // Krea 2 原生支持需要 ComfyUI ≥0.27，runner 基础镜像 worker-comfyui 5.8.6
   // 内置 0.25.0（upstream main 已钉 0.29.0 但未发版）→ 现在没有可用端点，
   // 引导去 Civitai。发版接通 r4b 管线后翻 'native'，见
-  // docs/plans/runner-r4-krea2-multiref-2026-07.md §2.5。
+  // docs/references/domains/runner.md §5。
   'Krea 2': 'external',
   Qwen: 'external',
   'Z-Image': 'external',
@@ -1014,7 +1014,7 @@ export function isLoraNsfwFilter(value: string): value is LoraNsfwFilter {
   return (LORA_NSFW_FILTER_VALUES as readonly string[]).includes(value)
 }
 
-// Issue C（docs/plans/lora-search-image-audit-2026-07.md）：civitai 搜索有
+// civitai 搜索有
 // 两条互不兼容的分页范式——meilisearch 走 offset（client 用 page 号算
 // offset）、REST 回落走 cursor scan（client 用 cursorByPageRef 记录服务端
 // 发的 cursor）。服务端 listCivitaiLoras 每次请求独立决定走哪条，中途从

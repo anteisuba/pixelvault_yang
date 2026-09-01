@@ -238,7 +238,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.TRELLIS_2]: 'TRELLIS',
   [AI_MODELS.TRIPOSR]: 'TripoSR',
   // 2026-08-08 补登记：全模态盘点时发现它是唯一没有 family 的模型。选择器第一层
-  // 改成按系列分组之后（见 canvas-video-domain-cleanup-2026-08-08.md §8），没有
+  // 改成按系列分组之后（见 docs/references/pages/canvas-video-card.md §6.3），没有
   // family 的模型会掉出所有分组、变成用户选不到的孤儿。
   [AI_MODELS.RODIN_GEN_2_5]: 'Rodin',
 }
@@ -273,7 +273,7 @@ export const getModelFamily = (modelId: string): string | null =>
  * **跳过第二层**直接进第三层，同 `BaseModelPickerPanel` 现有的 singleProvider
  * 处理，别为了结构对称让用户多点一次。
  *
- * 设计出处：`docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §8。
+ * 设计出处：`docs/references/pages/canvas-video-card.md` §6.3。
  */
 export const MODEL_VARIANTS: Record<string, string> = {
   // Seedance：型号 × 渠道 × 隐藏端点；2.0/2.5 均有三条渠道。

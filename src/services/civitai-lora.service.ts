@@ -680,7 +680,7 @@ function buildCivitaiSearchFilters(
   return filters
 }
 
-// Issue B（docs/plans/lora-search-image-audit-2026-07.md）：push the P1-6
+// NSFW 三态分档过滤：push the P1-6
 // tri-state down into the meilisearch source filter instead of post-
 // filtering a fetched page (which used to shrink `nsfwOnly` pages to ~half
 // and let NSFW LoRAs leak into `safe`). `nsfwLevel` is a per-model ARRAY
@@ -935,7 +935,7 @@ export interface CivitaiCheckpointResolution {
  * resolver); public checkpoints resolve fine. TODO(v3): pass the system Civitai
  * token so gated-but-downloadable checkpoints resolve as T1 instead of T2.
  *
- * See docs/plans/comfy-runner-HANDOFF-2026-07.md.
+ * See docs/references/domains/runner.md.
  */
 export async function resolveCivitaiCheckpointByReference(
   modelVersionId: number,
@@ -1197,10 +1197,10 @@ export interface ListCivitaiLorasInput {
    *  `nsfwLevel` source filter（'safe' 用 `NOT nsfwLevel > N`，'nsfwOnly'
    *  用 `nsfwLevel > N`，'unrestricted' 不加）；REST 浏览路径用同一天花板
    *  客户端扫描 images[]（见 appendNsfwSearchFilter / fetchCivitaiLoraPage
-   *  的注释，Issue B，docs/plans/lora-search-image-audit-2026-07.md）。 */
+   *  的注释——同属 NSFW 三态分档过滤这条线）。 */
   nsfwFilter?: LoraNsfwFilter
   /**
-   * Issue C（docs/plans/lora-search-image-audit-2026-07.md）：调用方（搜索
+   * 一次搜索会话内锁定分页范式：调用方（搜索
    * 分页 hook）在同一次搜索会话内锁定的后端选择——首页决定 meilisearch 还
    * 是 REST 后，后续页把这里传回来，让服务端跳过另一条路径，不再中途切
    * 换分页范式（meilisearch=offset，REST 回落=cursor scan，混用会导致翻
@@ -2660,7 +2660,7 @@ async function listCivitaiLorasFromUpstream(
   // 忽略 sort）；端点非正式、公钥可能轮换，失败就回落现有 REST 搜索路径，
   // 结果打上 sortFellBackToRelevance 让 UI 把排序控件降级显示成「排序已降级」。
   //
-  // Issue C（docs/plans/lora-search-image-audit-2026-07.md）：这个选择每次
+  // 一次搜索会话内锁定分页范式：这个选择每次
   // 请求独立做，与上一页无关——但 meilisearch 走 offset 分页、REST 回落走
   // cursor scan 分页，client 的 page↔cursor 映射假设"同一搜索会话全程同一
   // 分页范式"。会话中途换后端（比如 page2 撞上 civitai 间歇 503 回落
@@ -3480,7 +3480,7 @@ export interface MineCivitaiUserPromptsInput {
    * needs modelId+modelVersionId to locate source images; the hash (when
    * present) is only used to attribute a matched image's real per-LoRA
    * weight via `resolveRecipeLoraSignals`, which already accepts a null
-   * `targetHashLower`. See Issue A, docs/plans/lora-search-image-audit-2026-07.md.
+   * `targetHashLower` — search-hit LoRAs carry no file hash at all.
    */
   fileHashAutoV3?: string | null
 }

@@ -52,7 +52,7 @@ export enum AI_ADAPTER_TYPES {
    * clones (checkpoint + LoRA stack) that hosted providers can't run. Not a
    * BYOK adapter: intentionally absent from `AI_ADAPTER_TYPE_OPTIONS` so it
    * never appears in the "Add API Key" picker. See
-   * docs/plans/comfy-runner-HANDOFF-2026-07.md.
+   * docs/references/domains/runner.md.
    */
   RUNNER = 'runner',
 }

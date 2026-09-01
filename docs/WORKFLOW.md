@@ -49,13 +49,13 @@
 
 **第二维：业务域 → 决定额外必读**
 
-| 业务域                                                           | 额外必读                                                                                                |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| studio / gallery / assets / prompts / cards / arena / profile 等 | references/domains/<域>.md（批 2 填充前以代码为事实源）                                                 |
-| 画布 node-workflow                                               | 当前业务收口读 plans/canvas-baseline.md；未来视觉改版重走 ui-page scene                                 |
-| LoRA                                                             | 先读 references/domains/lora.md；当前业务收口再读 references/pages/lora-workbench.md 与对应 active plan |
-| 音频                                                             | 业务与功能事实读 plans/audio-domain-design-2026-07.md；未来视觉方向独立确认                             |
-| Comfy runner                                                     | plans/comfy-runner-HANDOFF-2026-07.md                                                                   |
+| 业务域                                                           | 额外必读                                                                                                                            |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| studio / gallery / assets / prompts / cards / arena / profile 等 | references/domains/<域>.md（批 2 填充前以代码为事实源）                                                                             |
+| 画布 node-workflow                                               | 读 references/pages/node-canvas.md（长期行为与不变量）+ references/pages/canvas-skin.md（皮肤数值）；未来视觉改版重走 ui-page scene |
+| LoRA                                                             | 先读 references/domains/lora.md；当前业务收口再读 references/pages/lora-workbench.md 与对应 active plan                             |
+| 音频                                                             | 业务与功能事实读 references/domains/audio.md；未来视觉方向独立确认                                                                  |
+| Comfy runner                                                     | references/domains/runner.md                                                                                                        |
 
 **在飞任务包（plans/）的优先级高于长期文档，但只在自身已授权任务范围内生效。** 功能收口任务包不能覆盖现行 UI 治理，也不能把历史视觉描述恢复为下一版页面规范。
 
@@ -86,4 +86,4 @@
 
 ## 文档同步
 
-任务完成时：`status.md` 覆盖更新；完成的 plans/ 任务包必须删除、归档到 archive/ 或沉淀进 references/；能更新现有文档就不新建。
+任务完成时：`status.md` 覆盖更新；完成的 plans/ 任务包**完成即删**——结论先沉淀进 references/，删前 grep 全仓（含 `src/` 注释）改掉所有指向它的引用；能更新现有文档就不新建。

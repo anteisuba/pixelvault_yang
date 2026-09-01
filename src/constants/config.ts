@@ -507,7 +507,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   ANTHROPIC: 'https://api.anthropic.com/v1',
   // RunPod Serverless REST API — the execution worker POSTs
   // `${RUNPOD}/{endpoint}/run` and polls `${RUNPOD}/{endpoint}/status/{id}`.
-  // See docs/plans/comfy-runner-HANDOFF-2026-07.md §2.3/§7.
+  // See docs/references/domains/runner.md.
   RUNPOD: 'https://api.runpod.ai/v2',
 } as const
 
@@ -788,7 +788,7 @@ export const RUNAWAY_GENERATION_GUARD = {
  * month" — that has to live in application code (mirrors the FREE_TIER daily
  * cap above). 300/month is ≈ $1.8 at the measured ~$0.006/image ceiling,
  * leaving ~5x headroom under the $10/month prepaid budget for cold-start
- * variance and retries. See docs/plans/comfy-runner-HANDOFF-2026-07.md §4.3.
+ * variance and retries. See docs/references/domains/runner.md.
  */
 export const RUNNER_MONTHLY_LIMIT = {
   /** Maximum RUNNER-adapter generation attempts per calendar month (UTC). */

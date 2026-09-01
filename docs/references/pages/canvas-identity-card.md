@@ -3,7 +3,7 @@
 > 五族卡内改造的**第三族**。⚠ **本文只覆盖视觉半**，数据模型改造另开一片（见 §6）。
 > 关键切片 **v1 与 v2 均经 owner 确认**（2026-07-27）。v2 = 上方工具条（§5.5）+ 展开模态（§5.6）。
 > ⚠ **本文只覆盖视觉与结构**；身份卡的**数据模型改造**（归属标签、多归属、名下清单数据）仍另开一片，见 §6。
-> 数值唯一来源：[`canvas-skin-spec-2026-07-26.md`](../../plans/canvas-skin-spec-2026-07-26.md)。
+> 数值唯一来源：[`canvas-skin.md`](canvas-skin.md)。
 > 现状实现：`src/components/business/node/nodes/IdentityCollectorCard.tsx`（197 行）
 
 ## 0 · 域定义 ✅ 已拍板（owner 2026-07-27）
@@ -78,7 +78,7 @@ owner 原意是「把几张参考图 + 声音 + 背景打成一个整体喂给�
 
 ## 1.1 · 名片脸（2026-08-26 现行，取代上方 §1）
 
-> 施工基准：《画布修法》（`docs/plans/prototypes/canvas-node-fix.html` 05 节）。
+> 施工基准：《画布修法》原型 05 节（`canvas-node-fix.html`，已随任务包清理，git 历史可取）；其结论即下文名片脸规格。
 > 实现：`src/components/business/node/nodes/IdentityCollectorCard.tsx`；
 > 样式：`src/app/canvas.css` 的 `.canvas-identity-*` 块。
 
@@ -245,9 +245,9 @@ role、label、weight、onStage 等信息，所以暂时原样保存；未来多
 ## 7 · 验收（历史，对应已被取代的 §1/§2 原文）
 
 > ⚠ 第 1/3 条锚定的是旧「铺满 + 玻璃底条」版式，已被《画布修法》05 节取代——
-> 名片脸没有底条，也不再是「按图片比例」的可变尺寸。现行验收清单见任务包
-> `packet-3-identity.md` 或对应的实现报告；第 2/4/5/6 条（卡外名字、♪ 逻辑、
-> 端口色、闸门）在新版里继续成立，未变。
+> 名片脸没有底条，也不再是「按图片比例」的可变尺寸。现行验收清单原在《画布修法》
+> 包 3 的实现报告（`packet-3-identity.md`，会话期文件，未入库）；现行事实以 §1.1
+> 与代码为准。第 2/4/5/6 条（卡外名字、♪ 逻辑、端口色、闸门）在新版里继续成立，未变。
 
 1. 三态逐态真机截图，与切片 v1 比对
 2. 卡名在卡外、原地可编辑；卡内无名字
@@ -286,4 +286,4 @@ role、label、weight、onStage 等信息，所以暂时原样保存；未来多
 - 2026-07-30 · Codex。`migrateRetireFusedNodes` 已接入本地与服务端项目
   水合；运行时不再读写 `fusedIntoNodeId`，旧节点原位恢复且保留图数据。
   相关迁移/工作流/手势测试 58/58、typecheck 通过。
-- 2026-07-27 · opus 5。域定义与「打标签不搬家」「不画边」「可多归属」均为 owner 同轮拍板。`hasVoice` 由上游连接推出为 `IdentityCollectorCard.tsx:102-105` 实读。视频模型三形态与总闸数值引自 `canvas-node-family-capability-design-2026-07-26.md`。⚠ 我此前从截图误判「听觉身份是按钮、与声音卡是两条路」，实为徽章且本来就靠连线 —— 已更正。
+- 2026-07-27 · opus 5。域定义与「打标签不搬家」「不画边」「可多归属」均为 owner 同轮拍板。`hasVoice` 由上游连接推出为 `IdentityCollectorCard.tsx:102-105` 实读。视频模型三形态与总闸数值引自 `canvas-node-family-capability-design-2026-07-26.md`（已随任务包清理，git 历史可取）。⚠ 我此前从截图误判「听觉身份是按钮、与声音卡是两条路」，实为徽章且本来就靠连线 —— 已更正。

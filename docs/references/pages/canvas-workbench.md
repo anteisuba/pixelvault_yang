@@ -4,7 +4,7 @@
 >
 > ①主结构=方向 A 导演的工作台 ②域性格与禁区 ③关键结构切片（媒体即卡面/成分坞/名册牌/成片托盘）——**结构与交互语义继续以本文为准**。
 >
-> ⚠ **外观色板（2026-07-30）**：**画布改浅**，与实现一致。冷石墨舞台 `#101114`、钨丝琥珀作**唯一强调**等 **v1 深色数值不再作为施工色答案**。浅色数值 SoT = [`docs/plans/canvas-skin-spec-2026-07-26.md`](../../plans/canvas-skin-spec-2026-07-26.md) + 已落地的 `src/app/canvas.css`（2026-07-27 token 反转；默认仅浅色预设）。
+> ⚠ **外观色板（2026-07-30）**：**画布改浅**，与实现一致。冷石墨舞台 `#101114`、钨丝琥珀作**唯一强调**等 **v1 深色数值不再作为施工色答案**。浅色数值 SoT = [`canvas-skin.md`](canvas-skin.md) + 已落地的 `src/app/canvas.css`（2026-07-27 token 反转；默认仅浅色预设）。
 >
 > 分工：opus 调查（`../domains/canvas.md`）→ Fable 设计（本文结构）→ 执行。
 > 与旧文档：`node-canvas.md` 暖炭纸卡 = 更早实现/回归证据；**新色以 skin-spec/canvas.css 为准**。业务锁定区见 `../domains/canvas.md` §7。
@@ -112,7 +112,7 @@
 
 - 域契约（业务锁定区/词汇/边界）：`../domains/canvas.md`
 - 拍板记录：2026-07-19 本会话（三方向 widget + 关键切片 widget + owner 三连选择框）
-- 旧皮业务回归（迁移期并存）：`node-canvas.md` · `plans/canvas-relationship-v3-2026-07.md`
+- 旧皮业务回归（迁移期并存）：`node-canvas.md`（关系呈现 v3 任务包结论已沉淀于此，原包已随 plans 清理）
 - 治理：`../../brand-dna.md` · `../../scenes/ui-page.md`
 
 ## Last Verified

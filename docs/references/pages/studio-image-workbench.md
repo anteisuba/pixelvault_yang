@@ -2,10 +2,8 @@
 
 > **这是现行实现基准。** owner 2026-08-23 从同一组真实内容与状态中选择
 > **方向 A「对照台」打底，并采用方向 B 的“顶部常驻参考轨 + 底部唯一动作栏”**。
-> 三方向、问题证据与落地回验保存在
-> [`plans/prototypes/studio-result-stage-2026-08-23/`](../../plans/prototypes/studio-result-stage-2026-08-23/)；
-> 可直接查看完整导出
-> [`studio-result-stage.html`](../../plans/prototypes/studio-result-stage-2026-08-23/studio-result-stage.html)。
+> 三方向、问题证据与落地回验的设计画布（`studio-result-stage-2026-08-23/`，含完整导出
+> `studio-result-stage.html`）已随任务包清理，git 历史可取；owner 选定的结论已全部固化进本文。
 
 ## 0 · 作用域与非目标
 
@@ -133,7 +131,7 @@
 - 页面结构与交互契约：本文。
 - 编辑态：[`studio-image-edit.md`](studio-image-edit.md)。
 - 实现：`StudioCanvas.tsx`、`StudioReferenceRail.tsx`、`CompareGrid.tsx`、`globals.css`。
-- 方向与实测证据：[`studio-result-stage-2026-08-23`](../../plans/prototypes/studio-result-stage-2026-08-23/)。
+- 方向与实测证据：设计画布 `studio-result-stage-2026-08-23/`（已随任务包清理，git 历史可取）。
 
 ## Last Verified
 

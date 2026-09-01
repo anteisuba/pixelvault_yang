@@ -77,8 +77,8 @@ function posOf(index: number, current: number): 'before' | 'on' | 'after' {
  * `translateY`; five of them are *stations* that page sideways through their
  * models before releasing the deck downward again. Every number lives in
  * `HOME_V4_ENGINE` / `HOME_V4_PARALLAX`; every visual rule lives in
- * `home-v4.css`. Construction spec:
- * `docs/plans/prototypes/homepage-slide-v2-SPEC.html`.
+ * `home-v4.css`. Domain contract and page/station tables:
+ * `docs/references/pages/home.md`.
  *
  * Three things about the shape of this file are load-bearing:
  *

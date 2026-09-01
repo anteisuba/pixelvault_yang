@@ -29,7 +29,7 @@ export const FEATURE_FLAGS = {
    * Comfy Runner (RunPod Serverless ComfyUI) — faithful Civitai recipe
    * clones for Illustrious/Anima/Pony/SDXL. Owner-only single-endpoint infra
    * (scale-to-zero, $10/month prepaid budget), so it stays behind a flag even
-   * once the code ships. See docs/plans/comfy-runner-HANDOFF-2026-07.md.
+   * once the code ships. See docs/references/domains/runner.md.
    *
    * Enabled in production 2026-07-12 (Vercel env NEXT_PUBLIC_FF_COMFY_RUNNER=true).
    */

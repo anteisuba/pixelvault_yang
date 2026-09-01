@@ -9,7 +9,7 @@ import {
 /**
  * 视频节点的**模式** —— 决定节点长什么样、走哪个端点、模型选择器里出现谁。
  *
- * 设计见 `docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §8。三个要点：
+ * 设计见 `docs/references/pages/canvas-video-card.md` §6。三个要点：
  *
  * 1. **模式归节点，不归模型选择器。** 选择器只负责在模式已定的前提下选
  *    系列 → 型号 → 渠道。

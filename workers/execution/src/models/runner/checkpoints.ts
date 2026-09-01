@@ -8,7 +8,7 @@
  * add/remove a checkpoint or allowlisted LoRA on one side, mirror the change
  * on the other.
  *
- * See docs/plans/comfy-runner-HANDOFF-2026-07.md §4.2b/§7.1.
+ * Volume 布局与预置资产清单见 docs/references/domains/runner.md §3。
  */
 
 export interface RunnerCheckpointDefinition {

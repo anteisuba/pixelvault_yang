@@ -652,7 +652,7 @@ describe('useCivitaiLoraLibrary', () => {
     })
   })
 
-  // Issue C (docs/plans/lora-search-image-audit-2026-07.md): once a search
+  // Search-session backend lock: once a search
   // session falls back to REST, every subsequent page in that same session
   // must keep requesting the REST backend explicitly — letting a later page
   // silently retry meilisearch (and maybe succeed) would put that page on a

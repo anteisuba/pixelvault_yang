@@ -144,7 +144,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     backend: 'runner',
     fidelity: 'faithful',
     // SD 1.5 移出 runner 范围（2026-07-07 拍板）——保持 external 跳转，不再
-    // 做第二套分辨率/采样模板档。见 comfy-runner-HANDOFF-2026-07.md §4.2b。
+    // 做第二套分辨率/采样模板档。见 docs/references/domains/runner.md。
     available: false,
     recommended: true,
     coverImage: '/homepage/production/models/brand/stability.svg',

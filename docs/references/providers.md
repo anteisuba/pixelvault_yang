@@ -12,7 +12,7 @@
 
 ## Adapter 架构（2026-08-24 复核：registry 实到 13 个）
 
-- Registry `src/services/providers/registry.ts` 注册 **13 个 adapter**：huggingface · gemini · openai · fal · replicate · novelai · volcengine · **byteplus** · fish_audio · elevenlabs · **minimax** · **minimax_cn** · **runner**（Comfy Runner / RunPod ComfyUI，见 `docs/plans/comfy-runner-HANDOFF-2026-07.md`）。⚠ **名册的事实源是 `registry.ts` 里的 `PROVIDER_ADAPTERS` 那张表**，不是这里的数字——加/删 adapter 时以文件为准，别照抄本行。
+- Registry `src/services/providers/registry.ts` 注册 **13 个 adapter**：huggingface · gemini · openai · fal · replicate · novelai · volcengine · **byteplus** · fish_audio · elevenlabs · **minimax** · **minimax_cn** · **runner**（Comfy Runner / RunPod ComfyUI，见 `domains/runner.md`）。⚠ **名册的事实源是 `registry.ts` 里的 `PROVIDER_ADAPTERS` 那张表**，不是这里的数字——加/删 adapter 时以文件为准，别照抄本行。
 - `runway`（Runway gen4.5）2026-08-24 随死执行链清理**整删**：`runway.adapter.ts` 文件、registry 条目、`ADAPTER_PROMPT_HINTS`/`provider-capabilities.ts` 里的死细节全部移除。目录里从来没有过一个可选的 Runway 模型，adapter 本身在 registry 里存在的全部意义只剩 `healthCheck`——删除前已确认 `AI_ADAPTER_TYPES.RUNWAY` 枚举保留（退役≠删除）且 `apiKey.service.ts` 的 key 校验是自包含 switch（不依赖 registry），已有 Runway key 的用户仍能查看/校验/删除该 key，只是不能再新建。
 - **同一份实现挂多个 adapter type** 是既有形状，不是漏写：`byteplus` = `{ ...volcengineAdapter, adapterType: BYTEPLUS }`（BytePlus ModelArk 国际站 vs 火山 Ark 国内站）；`minimax` / `minimax_cn` 同理（`api.minimax.io` vs `api.minimaxi.com`）。分成两个 type 而不是一个 config flag 的原因只有一个——**两站账号独立、key 不可互换**，而 key 存储按 adapterType 分槽。
 - `runner` 是 BYOK 六步之外的特例：无 API key 可配（`AI_ADAPTER_TYPE_OPTIONS` 故意不含它），`resolveGenerationRoute()` 命中它就走独立分支——系统 key（`RUNPOD_KEY`）+ 月度限额（`RUNNER_MONTHLY_LIMIT`），不占用户每日 FREE_TIER 额度。真正的 provider 调用（RunPod submit/poll + recipe→ComfyUI workflow 映射）在 Worker（`workers/execution/src/models/runner/`），adapter 侧 `generateImage()` 只是契约占位（同步路径不支持，冷启动太长）。
@@ -72,11 +72,9 @@ adapter / Worker 抛错
 
 ## 原生 vs 聚合（调研指针）
 
-各模型走 **厂商原生 API** 还是 **fal/Replicate 等合法聚合**、以及「中转是否有更好原生」见：
+各模型走 **厂商原生 API** 还是 **fal/Replicate 等合法聚合**、以及「中转是否有更好原生」的取舍结论出自《模型接入原生与中转调研-2026-07》（调研文档已随任务包清理，git 历史可取）；原则 = 官方直连优先（owner 拍板）。
 
-[`../plans/research/模型接入/模型接入原生与中转调研-2026-07.md`](../plans/research/模型接入/模型接入原生与中转调研-2026-07.md)
-
-本文件仍以契约与错误处理为权威；路由类型以该调研 + `AI_PROVIDER_ENDPOINTS` 为准。
+本文件仍以契约与错误处理为权威；路由类型以 `AI_PROVIDER_ENDPOINTS` 为准。
 
 ### 新模型接入的默认路由策略（2026-07-31 从调研升格为规则）
 

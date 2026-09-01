@@ -25,7 +25,7 @@
 1. 读取 `references/product.md`、对应 `references/domains/<域>.md`、实际代码和运行页面；再读 `brand-dna.md`、`forbidden.md` UI 节、`references/frontend.md` 与 active plan。
 2. 盘点：核心对象、最高频任务、默认入口、真实能力、输入/输出、关键数据、现有共享行为和所有会改变布局的状态。
 3. 建立状态矩阵，至少覆盖默认、空、已有内容、loading、error、disabled/unsupported、overlay/assistant 展开以及桌面/移动端差异；只保留该页面真实存在的状态。
-4. 当前截图、代码皮肤、旧页面、`archive/` 和 UI inspiration 只作为功能或审美证据，不得直接成为新造型答案。
+4. 当前截图、代码皮肤、旧页面、`archive/`（已删 2026-08-07，见 git 历史）和 UI inspiration 只作为功能或审美证据，不得直接成为新造型答案。
 
 ### 阶段 2 · 定义业务域
 
@@ -86,7 +86,7 @@
 - `import-claude-design-from-url`：把某设计一键推成 Vercel 预览，适合阶段 6 给 owner 在真链接上点选比较。
 - 真正合进 `src/` 的仍是 Sonnet 按 `references/pages/<页>.md` 手工翻译——原型是方向证据，不是合入通道；合入前照常过 `checklists/ui.md` 与真机验证。
 
-**首个试点**：LoRA 生成页（门禁 ①–⑥ 已过、方向已锁、尚未实现，见 `docs/plans/lora-visual-redesign-2026-07.md`），用于验证工具链而非方向。
+**首个试点**：LoRA 生成页（门禁 ①–⑥ 已过、方向已锁、尚未实现，确认结论见 `references/pages/lora-generate.md`），用于验证工具链而非方向。
 
 ## 文档与设计稿的权力边界
 

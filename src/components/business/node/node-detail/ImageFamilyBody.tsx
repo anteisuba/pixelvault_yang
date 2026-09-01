@@ -125,7 +125,7 @@ export interface ImageFamilyBodyProps extends NodeDetailBodyProps {
   /**
    * 画布修法包 E（2026-08-26）：空态先问一句——`!hasMedia` 时 stage 槽先渲染
    * 「上传图片 / 用 AI 生成」两颗选择按钮，不把上传、生成两条路的控件同时铺开
-   * （对照 `docs/plans/prototypes/canvas-detail-empty-ui.html`「收入口 01 · 图片」）。
+   * （施工基准见 `docs/references/pages/canvas-node-detail.md` §3.2）。
    * 选「用 AI 生成」落地为**面板本地** state（不写节点数据），随后复用
    * `promoteFieldsWhenEmpty` 那套写作台渲染；选「上传图片」直接触发既有文件
    * 输入（`uploadHandlerProps`，走素材架同一条通路），不改这个开关。

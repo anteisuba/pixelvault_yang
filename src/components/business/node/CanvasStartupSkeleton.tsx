@@ -29,7 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton'
  * `Skeleton` blocks. No logo, no copy, no progress bar, no new colors
  * (reuses --canvas-bg / --canvas-dot / --canvas-dot-gap / --canvas-fill-
  * control, all already defined in canvas.css's `.domain-canvas` block —
- * canvas-skin-spec-2026-07-26.md §0.5 rule 6 "<2% chroma pixels" still
+ * canvas-skin.md §0.5 rule 6 "<2% chroma pixels" still
  * applies to this screen too, so the skeleton blocks stay neutral gray, not
  * accent-colored).
  */

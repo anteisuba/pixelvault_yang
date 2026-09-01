@@ -106,7 +106,7 @@ export async function listCivitaiLoraAssetsAPI(params: {
   sort?: CivitaiLoraSort
   nsfwFilter?: LoraNsfwFilter
   /**
-   * Issue C（docs/plans/lora-search-image-audit-2026-07.md）：本次搜索会话
+   * 本次搜索会话
    * 内锁定的 meilisearch/REST 后端选择，由 useCivitaiLoraLibrary 在首页拿
    * 到结果后回填，第 2+ 页原样带上，防止会话中途换后端打乱分页契约。
    */
@@ -262,7 +262,6 @@ export async function mineCivitaiLoraPromptsAPI(params: {
   modelId: number
   modelVersionId?: number
   // Optional — search-hit LoRAs (meilisearch path) never carry a file hash.
-  // See Issue A, docs/plans/lora-search-image-audit-2026-07.md.
   fileHash?: string
 }): Promise<CivitaiMinedPromptsResponse> {
   try {

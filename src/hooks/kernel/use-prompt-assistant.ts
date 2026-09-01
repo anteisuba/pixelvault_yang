@@ -62,8 +62,8 @@ export const STYLE_SHORTCUTS = {
 } as const
 
 /**
- * Display-only superset of `PromptAssistantMessage` — carries the F2
- * structured LoRA result (docs/plans/lora-assistant-nl2tag-2026-07.md §1.2)
+ * Display-only superset of `PromptAssistantMessage` — carries the structured
+ * LoRA result (the dock's in-conversation result card)
  * alongside the plain-text `content` fallback so `PromptAssistantPanel` can
  * render a result card instead of a text bubble. `lora` never leaves the
  * client: `toWireMessages` strips it before every network call (server
@@ -275,10 +275,10 @@ export function collectStudioConversationMediaReferences(
   })
 }
 
-/** Shared `send`/`applyPreset`/`retry` options. `loraContext` is the F2 LoRA
- *  persona's opt-in (docs/plans/lora-assistant-nl2tag-2026-07.md §1.2) — only
- *  meaningful together with `mode: 'lora'`; omitting it keeps the legacy
- *  `mode:'lora'` code-block behavior (F1 zero-regression contract). */
+/** Shared `send`/`applyPreset`/`retry` options. `loraContext` is the LoRA
+ *  persona's opt-in — only meaningful together with `mode: 'lora'`; omitting
+ *  it keeps the legacy `mode:'lora'` code-block behavior (the engine's
+ *  zero-regression contract). */
 export interface PromptAssistantSendOptions {
   modelId?: string
   references?: AssistantMediaReference[]

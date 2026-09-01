@@ -14,8 +14,8 @@ export const READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS = [
  * reach a runtime case.
  *
  * ⚠ 2026-08-18 `object-replace` / `style-transfer` 都因「全仓零执行路径」退到
- * 这里（点开是空面板，E0 真机验底见 `docs/plans/image-edit-line-2026-08-18.md`
- * §3.1）。2026-08-19 E3 把 `object-replace` 连同注释层一起建出来了，已提回
+ * 这里（注册表写着 ready、执行层没有 case，点开就是一块空面板；真机逐条验过）。
+ * 2026-08-19 把 `object-replace` 连同注释层一起建出来了，已提回
  * `ready`；`style-transfer` 仍然没有执行路径，留在这里。
  */
 export const HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITY_IDS = [

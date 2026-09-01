@@ -49,8 +49,8 @@ const ListCivitaiLoraQuerySchema = z.object({
         ? value
         : DEFAULT_LORA_NSFW_FILTER,
     ),
-  // Issue C：搜索分页 hook 在同一会话内锁定的 meilisearch/REST 后端选择
-  // （docs/plans/lora-search-image-audit-2026-07.md）。未知/缺失值静默落
+  // 搜索分页 hook 在同一会话内锁定的 meilisearch/REST 后端选择。
+  // 未知/缺失值静默落
   // 回 undefined（= 自由选择，与今天一致），不 400。
   source: z
     .string()

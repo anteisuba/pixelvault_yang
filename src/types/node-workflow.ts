@@ -267,7 +267,7 @@ export const NodeWorkflowNodeDataSchema = z
     /**
      * 视频节点的**模式**（关键帧 / 多图参考 / 全能参考）。它决定三件事：节点长
      * 什么样、走哪个端点、模型选择器里出现谁。设计见
-     * `docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §8.5–§8.7。
+     * `docs/references/pages/canvas-video-card.md` §6.1–§6.5。
      *
      * ⚠ **可选，且不写 migration**。存量节点没有这个字段，读的时候从它当前的模型
      * 反推（`getNodeModeForModel`）—— 契约里的 `referenceMode` 与模式一一对应，所以

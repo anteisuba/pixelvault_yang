@@ -1,8 +1,8 @@
 # LoRA Generate 页面设计
 
-> 状态：**桌面关键切片已确认 / 已进入限定实施交接（2026-07-19）**。本文记录 owner 逐项确认后的 Generate 结构、状态和行为边界；页面文档本身不扩张修改范围，桌面实现只按 [`../../plans/lora-ui-refactor-claude-handoff-2026-07.md`](../../plans/lora-ui-refactor-claude-handoff-2026-07.md) 授权。移动端结构、完整视觉 token 数值和全部高保真状态仍需后续补齐。
+> 状态：**桌面关键切片已确认 / 已进入限定实施交接（2026-07-19）**。本文记录 owner 逐项确认后的 Generate 结构、状态和行为边界；页面文档本身不扩张修改范围，桌面实现只按实施交接任务包 `lora-ui-refactor-claude-handoff-2026-07.md`（已随 plans 清理，git 历史可取）授权。移动端结构、完整视觉 token 数值和全部高保真状态仍需后续补齐。
 >
-> 上游业务契约：[`../domains/lora.md`](../domains/lora.md)。当前可运行功能与回归依据：[`lora-workbench.md`](lora-workbench.md)。Library 已确认方向：[`lora-library.md`](lora-library.md)。逐项决策账本与未选方向：[`../../plans/lora-visual-redesign-2026-07.md`](../../plans/lora-visual-redesign-2026-07.md)。
+> 上游业务契约：[`../domains/lora.md`](../domains/lora.md)。当前可运行功能与回归依据：[`lora-workbench.md`](lora-workbench.md)。Library 已确认方向：[`lora-library.md`](lora-library.md)。逐项决策账本与未选方向记录在 `lora-visual-redesign-2026-07.md`（已随 plans 清理，git 历史可取）。
 
 ## 1. 页面职责
 

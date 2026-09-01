@@ -11,7 +11,7 @@ import type { AdvancedParams } from '@/types'
  * the runner model instead of letting it fail with hosted's raw
  * `layer ... not supported` error.
  *
- * See docs/plans/comfy-runner-HANDOFF-2026-07.md §4.2 ("能力路由"). This is
+ * See docs/references/domains/runner.md ("能力路由"). This is
  * intentionally narrow (v1): it only recognizes LoRAs already verified
  * against the runner's allowlist. An unrecognized LoRA still gets a much
  * better error message via GENERATION_ERROR_CODES.LORA_INCOMPATIBLE_HOSTED

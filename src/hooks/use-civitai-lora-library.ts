@@ -245,7 +245,7 @@ export function useCivitaiLoraLibrary(
   const cursorByPageRef = useRef<Map<number, string | null>>(
     new Map([[1, null]]),
   )
-  // Issue C（docs/plans/lora-search-image-audit-2026-07.md）：一次搜索会话
+  // 一次搜索会话
   // 内锁定 meilisearch/REST 后端选择。首页拿到结果后写入这里；第 2+ 页把
   // 它原样回传给服务端，防止会话中途换后端打乱 page↔cursor 分页契约（两
   // 条路径分页范式不同——meilisearch=offset 靠 page 号，REST 回落=cursor

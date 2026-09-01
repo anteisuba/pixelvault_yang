@@ -169,8 +169,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tVideo = useTranslations('VideoGenerate')
   const locale = useLocale()
   /**
-   * 助手「预填好的生成键」（任务包 `studio-assistant-operator-2026-08-30.md`
-   * 拍板 2：钱是唯一硬闸）。只读一个布尔 —— 价钱由上面那行既有的
+   * 助手「预填好的生成键」（owner 拍板：**钱是唯一硬闸**，助手只能把参数铺好，
+   * 扣扳机的永远是用户）。只读一个布尔 —— 价钱由上面那行既有的
    * `StudioCostPreview` 报，⛔ 不在这里另算一个数（两处算价必然分叉）。
    */
   const { primed: isOperatorPrimed } = useStudioOperatorState()
@@ -1549,8 +1549,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         </Toolbar.Root>
 
         {/* 助手改了哪些字段（✦ 归属标记）+ 覆写用的就地确认条 —— 紧贴提示词框，
-            因为它们说的就是这一栏正在发生的事（任务包
-            `studio-assistant-operator-2026-08-30.md` 拍板 3 / 18）。
+            因为它们说的就是这一栏正在发生的事（owner 拍板：覆写确认是「字段上的
+            小条，不弹窗」，且改动必须看得见来源；详见 `StudioOperatorChangeRail`）。
             ⚠ 助手没改过东西、也没在问话时它整颗不渲染，不占位。 */}
         <StudioOperatorChangeRail />
 
@@ -1935,7 +1935,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 claimOperatorGeneration()
               }
               // 助手预填的那一枪打出去了 —— primed 是「等你来点」，点完就该灭
-              // （任务包 `studio-assistant-operator-2026-08-30.md` 拍板 2）。
+              // （owner 拍板：钱是唯一硬闸）。
               // ⛔ 助手在服务端一条能创建 generation 的工具都没有：扣扳机的
               //    永远是这一下点击。
               setOperatorPrimed(false)

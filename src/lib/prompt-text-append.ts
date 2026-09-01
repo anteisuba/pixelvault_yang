@@ -1,6 +1,5 @@
 /**
- * 逗号续接去重（LoRA 助手结果卡「追加到正文」§1.2，
- * docs/plans/lora-assistant-nl2tag-2026-07.md F2）。纯函数，无依赖，可单测。
+ * 逗号续接去重（LoRA 助手结果卡的「追加到正文」按钮）。纯函数，无依赖，可单测。
  *
  * 不复用 `prompt-tag-compiler.ts` 的 `uniqueFragments`——那个函数是模块内私有
  * 实现，且语义是"编译一组 PromptTagSelection"，这里只是两段自由文本按逗号

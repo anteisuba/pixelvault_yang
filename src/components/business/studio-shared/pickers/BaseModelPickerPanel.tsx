@@ -305,7 +305,7 @@ export interface BaseModelPickerPanelProps {
 
 /**
  * 三层钻取的模型选择器：**系列 → 型号 → 渠道**（设计见
- * `docs/plans/canvas-video-domain-cleanup-2026-08-08.md` §8.2 / §9.1）。
+ * `docs/references/pages/canvas-video-card.md` §6.3）。
  *
  * - 第 1 层 系列：`MODEL_FAMILIES`（Seedance / Kling / FLUX …）
  * - 第 2 层 型号：`MODEL_VARIANTS`（2.5 / 2.0 / 2.0 Fast）

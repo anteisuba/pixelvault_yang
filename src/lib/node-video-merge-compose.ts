@@ -1,6 +1,5 @@
 /**
- * Multi-select "一键成盒" eligibility + initial ordering (canvas-relationship
- * -v3 §3.0b/§7 R3-7, docs/plans/canvas-relationship-v3-2026-07.md). Pure
+ * Multi-select "一键成盒" eligibility + initial ordering. Pure
  * functions only — no React, no ReactFlow store reads — so the toolbar's
  * "should the 合成 entry render" gate and the compose handler's "which order
  * do the new edges get built in" logic are unit-testable in isolation from
@@ -15,7 +14,7 @@ import { NODE_CONNECTION_RULES } from '@/lib/node-connection-rules'
 
 /** The exact set of source types a `videoMerge` node's connection-matrix row
  *  already accepts (`node-connection-rules.ts`) — reused, not duplicated, so
- *  "入盒标准即现有连接矩阵不改" (§3.0b) stays a single definition. */
+ *  "入盒标准即现有连接矩阵不改" stays a single definition. */
 const VIDEO_MERGE_SOURCE_TYPES = new Set<NodeWorkflowNodeType>(
   NODE_CONNECTION_RULES[NODE_TYPE_IDS.videoMerge] ?? [],
 )

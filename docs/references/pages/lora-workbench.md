@@ -4,7 +4,7 @@
 > 页面：`/studio/lora`（库 COMMUNITY section + 生成 GENERATE section）。
 > 稳定业务域与未来设计边界：[`../domains/lora.md`](../domains/lora.md)。本文不替代域契约，只记录当前施工与回归事实。owner 已确认的未来页面方向分别见 [`lora-library.md`](lora-library.md) 与 [`lora-generate.md`](lora-generate.md)。
 > 设计权力限定（2026-07-19）：本文只负责当前 LoRA 检索、双源、组合和生成业务收口。文中 v1 暗房工作台、灰阶、徽标、反相 CTA、pill 或其他外观描述只用于当前代码回归，**不得成为新视觉依据，也不得传播到其他域**。未来实现必须按对应 page 文档范围执行，未覆盖状态继续走 `docs/scenes/ui-page.md` 的逐项确认门。
-> 上游简报：`docs/plans/lora-search-redesign-2026-07.md`（§4 缺口 G1–G4 → 本文 §2–§5）。
+> 上游简报：`lora-search-redesign-2026-07.md`（§4 缺口 G1–G4 → 本文 §2–§5；已随 plans 清理，git 历史可取）。
 
 > ⚠ **owner 复核调整（2026-07-17，本块优先级最高，覆盖文中对应表述）**：
 >
@@ -392,7 +392,7 @@ HF 卡面移除的键（file select/import 在卡上的文案）迁移到抽屉�
 ## Source of Truth
 
 - 代码现状：`LoraWorkbench.tsx`（4268 行，锚点见 §9）· `HuggingFaceLoraLibrary.tsx` · `use-civitai-lora-library.ts` / `use-huggingface-lora-library.ts` / `use-active-lora-stack.tsx` · `constants/lora.ts` · `lib/lora-model-compatibility.ts` · `lib/prompt-tag-search.ts` + `constants/prompt-tags.*` · `prompt-tags/PromptTagTray.tsx`
-- 上游决策：`docs/plans/lora-search-redesign-2026-07.md`（调查简报）· LoRA 域 UI review v1（已随 archive 清理删除，见 git 历史）（v1 施工基准，D1–D9/B1–B11）· `docs/plans/lora-search-image-audit-2026-07.md`（S0 工程前置）
+- 上游决策：`lora-search-redesign-2026-07.md`（调查简报）· LoRA 域 UI review v1（v1 施工基准，D1–D9/B1–B11，已随 archive 清理删除）· `lora-search-image-audit-2026-07.md`（S0 工程前置）—— 两份任务包均已随 plans 清理，全部见 git 历史
 - 规矩：当前功能施工读本文；未来视觉改版同时读 `lora-library.md` / `lora-generate.md`、`docs/brand-dna.md`、`docs/scenes/ui-page.md`、`docs/checklists/ui.md` 与 `docs/references/frontend.md`，不得从本文现有皮肤反推新方向。
 
 ## Last Verified

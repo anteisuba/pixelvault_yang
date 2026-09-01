@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import type { PromptAssistantLoraTag } from '@/types'
 
 /**
- * F2 结果卡（docs/plans/lora-assistant-nl2tag-2026-07.md §1.2）：把 `mode:
+ * LoRA 助手的**对话内结果卡**：把 `mode:
  * 'lora'` + `loraContext` 引擎返回的结构化 `{positive, negative, note}`
  * 渲染成 chips，替代 `PromptAssistantPanel` 默认的纯文本气泡。
  *

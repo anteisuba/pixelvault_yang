@@ -17,8 +17,10 @@ export const WEB_SEARCH = {
  * 联网**搜图**（工作台助手 P3-B）。
  *
  * ⚠ 与上面的 `WEB_SEARCH` **同 key 同域、不同路径** —— Serper 的 `/images` 与
- * `/search` 共用 `SERPER_API_KEY`，所以接这条不需要任何新凭据（选型报告
- * `docs/plans/web-search-import-source-eval-2026-08-30.md` 拍板段）。
+ * `/search` 共用 `SERPER_API_KEY`，所以接这条不需要任何新凭据。这也是选型拍板的
+ * 理由：三家 SERP 代理里 Serper 是项目已接的那家、最便宜（$1/1k），且是**唯一在
+ * ToS 里给保留权**的——SerpApi 的缩略图 31 天过期，SearchAPI 的保障条款点名排除
+ * storage。
  *
  * ⛔ **搜索只出预览候选，本身不落任何东西**（owner 2026-08-30 原话：「主要是给个
  * 预览的功能，用户确定了再落 R2」）。转存是另一条腿：用户点选 →

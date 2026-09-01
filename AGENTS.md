@@ -12,7 +12,7 @@
 2. 按类型进 `docs/scenes/<场景>.md`（自带专属工作流 / 5 问 / 必读清单 / 模板 / checklist / 禁改范围）。
 3. **UI 改版硬门**：用户说“重构 / 升级 / 重做页面 UI”时，默认先设计，不直接修改 `src/**`。必须依次完成业务域定义 → 三个结构明显不同的方向 → 一个关键切片 → owner 确认 → 写入 `docs/references/pages/<page>.md`，之后才可进入完整实现。只有约 10 行内机械小修，或 owner 明确要求按已确认 page 文档/task packet 实现时，才能直接改代码。
 4. Hard Rules 与高风险模块表见 [`claude.md`](claude.md)（对 Codex 同样生效）；禁忌见 [`docs/forbidden.md`](docs/forbidden.md)；收尾对照 `docs/checklists/` P0 打回制。
-5. 在飞任务包 `docs/plans/` 优先级高于长期文档，但只能约束自身任务范围；不得用旧 task packet 恢复已退役的全局视觉规则。
+5. `docs/plans/` 已于 2026-09-01 整目录删除，不再有在飞任务包目录——在飞约束只活在对话里，结论沉淀进 `docs/references/`；不得用 git 历史里的旧 task packet 恢复已退役的全局视觉规则。
 6. **不确定即停止**：产品方向 / API 契约 / provider 能力 / 计费 / 权限 / 数据持久化不许猜；provider/model/API 改动前必须查官方一手资料（细则在 WORKFLOW）。
 
 ## 工程实现原则（owner 决策）

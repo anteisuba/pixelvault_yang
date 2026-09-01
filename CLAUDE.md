@@ -88,9 +88,9 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 
 ## Docs
 
-文档导航 [`docs/README.md`](docs/README.md)；在飞任务包在 `docs/plans/`，优先级高于长期文档。
+文档导航 [`docs/README.md`](docs/README.md)；常驻结论全在 `docs/references/`。
 
-⚠ **`docs/archive/` 已于 2026-08-07 删除**（owner「删，不是归档」）。历史证据从 git 历史取，不再有常驻目录。`plans/` 的规矩同步改成**完成即删**：结论先沉淀进 `references/`，再删任务包，**删之前 grep 全仓（含 `src/` 注释）改掉所有指向它的引用**。
+⚠ **`docs/archive/` 已于 2026-08-07 删除，`docs/plans/` 已于 2026-09-01 整目录删除**（owner「删，不是归档」「plans 全部清除」）。历史证据从 git 历史取，不再有常驻归档目录，也不再有在飞任务包目录——在飞约束只活在对话里，结论直接沉淀进 `references/` 对应文档。
 
 ## Skill Routing
 

@@ -19,7 +19,7 @@ Keep PixelVault's planning maps, progress notes, and operating context aligned w
    - Read `AGENTS.md`.
    - Read `docs/README.md` and `docs/WORKFLOW.md`.
    - Read `docs/status.md`.
-   - Read the smallest relevant set from `docs/references/`, `docs/plans/`, `docs/brand-dna.md`, `docs/forbidden.md`, or `docs/checklists/`.
+   - Read the smallest relevant set from `docs/references/`, `docs/brand-dna.md`, `docs/forbidden.md`, or `docs/checklists/`.
    - For non-trivial implementation handoff, use `docs/templates/task-packet.md`.
    - Inspect the actual diff before writing docs.
 
@@ -29,8 +29,7 @@ Keep PixelVault's planning maps, progress notes, and operating context aligned w
    - `docs/brand-dna.md` / `docs/forbidden.md` only when the owner confirms a standards change.
    - `docs/checklists/` for reusable P0/P1/P2 quality gates.
    - `docs/scenes/` for per-task-type workflows.
-   - `docs/plans/` only for active task packets; a completed packet is distilled into `docs/references/` and then deleted — grep the repo (including `src/` comments) and fix every pointer to it before deleting.
-   - There is no resident history directory: `docs/archive/` was deleted on 2026-08-07 (owner: "delete, don't archive"). Retrieve past decisions from git history instead.
+   - There is no task-packet directory and no resident history directory: `docs/plans/` was deleted on 2026-09-01 (334 files) and `docs/archive/` on 2026-08-07 (owner: "delete, don't archive"). In-flight task notes stay in chat; conclusions land directly in the owning `docs/references/` doc; past decisions come from git history.
    - `AGENTS.md` only for durable project rules, not transient task notes.
 
 4. Keep docs factual:

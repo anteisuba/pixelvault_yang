@@ -13,7 +13,7 @@ Execute UI changes in PixelVault without drifting from its architecture, i18n mo
 
 1. Inspect context before editing:
    - Read `AGENTS.md`.
-   - Read the closest relevant docs under `docs/guides/`, `docs/plans/ui/`, and `docs/progress/` when the task is page-level or non-trivial.
+   - Read the closest relevant docs under `docs/references/pages/`, `docs/references/domains/`, `docs/scenes/ui-page.md`, and `docs/brand-dna.md` when the task is page-level or non-trivial. (`docs/guides/`, `docs/plans/`, and `docs/progress/` no longer exist.)
    - Locate the route entry, related components, hooks, message keys, and existing shared UI primitives.
 
 2. Audit the current UI:

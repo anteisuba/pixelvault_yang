@@ -1,16 +1,18 @@
 ---
 name: context-save
-description: Save the current session's working context to a handoff document so a later session can inherit it. Use when the user says 存进度 / 交接 / 我要开新会话继承这个 / context-save, or when a long session is about to end with unfinished work.
+description: Save the current session's working context into the project's resident docs (docs/references/) so a later session can inherit it. Use when the user says 存进度 / 交接 / 我要开新会话继承这个 / context-save, or when a long session is about to end with unfinished work.
 ---
 
 # 存进度
 
-把当前会话**写不进规格文档的那部分**留给下一个会话。
+把当前会话**写不进文档正文的那部分**留给下一个会话。
 
-## 核心判据：事实归文档，判断归交接
+⛔ **不要新建独立的交接文件。** `docs/plans/` 已于 2026-09-01 整目录删除（规矩：完成即删，结论沉淀进 `docs/references/`），独立 handoff 文件必然变成下一个空指针。落点只有一个：**该域的 `docs/references/` 常驻文档**。
 
-写规格文档（`docs/plans/`）能装的：进度、需求、设计结论、数值、落点。
-**交接文档只装这些**——它们只活在对话里：
+## 核心判据：事实归正文，判断归「判断与教训」
+
+常驻文档正文（`docs/references/<域>.md`）能装的：进度、需求、设计结论、数值、落点。
+**同一份文档末尾的「判断与教训」一节只装这些**——它们只活在对话里：
 
 1. **判错过什么，以及模式是什么**。不是"我错了"，是"我为什么会错、下次怎么避免"。这是最值钱的一条，因为下个会话最容易重犯同一个错。
 2. **关键结论是怎么推出来的**。规格只写结论，不写推理链。下个会话看不到推理就不敢改，或者乱改。
@@ -18,20 +20,21 @@ description: Save the current session's working context to a handoff document so
 4. **owner 的工作偏好**（这一轮实际生效的，不是泛泛的）。
 5. **悬而未决的问题**，每条标清"我倾向什么、为什么、拍板了没有"。
 
-## 不要写进交接的
+## 不要写进这一节的
 
-- 已经在规格文档里的事实（重复只会让两份文档发散）
+- 已经在同一份文档正文里的事实（重复只会让一份文档自己跟自己发散）
 - 代码细节（下个会话自己读）
 - 流水账式的过程复述
 
 ## 步骤
 
-1. 确认事实已经落进 `docs/plans/` 的正式文档。没有就先写那个——交接不是事实的替代品。
-2. 写 `docs/plans/<域>-session-handoff-<日期>.md`，按上面五节。
-3. 更新 memory 索引指向**入口文档**（不是分册），一行足够。
+1. 确认事实已经落进 `docs/references/` 对应那份常驻文档的正文。没有就先写那个——判断不是事实的替代品。
+2. 在**同一份**文档末尾追加/更新「判断与教训」一节，按上面五条写。⛔ 不另起 handoff 文件。
+3. 更新 memory 索引指向**那份 references 文档**，一行足够。
 4. 给出下一会话的**开场贴纸**：读哪几份、按什么顺序、第一件事做什么。
 
 ## 硬要求
 
-- 每条判断要能追到证据（哪次实测、哪行代码、owner 哪句话）。追不到的判断不要写进交接，那是猜测。
-- ⚠ **并行会话会让进度过期**。交接里必须提醒下个会话「先核对实际状态再信文档」。
+- 每条判断要能追到证据（哪次实测、哪行代码、owner 哪句话）。追不到的判断不要写进去，那是猜测。
+- ⚠ **并行会话会让进度过期**。这一节必须提醒下个会话「先核对实际状态再信文档」。
+- 任务收尾、结论已进正文后，「判断与教训」里过期的条目要一并删掉——常驻文档不留死条目。

@@ -492,6 +492,15 @@ export const NodeWorkflowNodeSchema = z
     data: NodeWorkflowNodeDataSchema,
     selected: z.boolean().optional(),
     dragging: z.boolean().optional(),
+    /**
+     * 容器字段，画布对齐三梁之一——框节点类型随 UI 落地，这里只铺数据层：
+     * 这个节点被哪个框节点收纳（框本身也是一个普通 node，id 相同的
+     * 命名空间）。纯加法、可选：存量节点没有它 = 未入框，与改动前行为逐字
+     * 相同。⚠ 本次不加新 NODE_TYPE_ID，框类型不在这次的范围内。
+     */
+    parentId: z.string().optional(),
+    /** 该节点（多为框节点）当前是否折叠。同上，纯加法、可选。 */
+    collapsed: z.boolean().optional(),
   })
   .passthrough()
 

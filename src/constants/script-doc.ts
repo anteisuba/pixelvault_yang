@@ -22,6 +22,13 @@ export const SCRIPT_DOC_LIMITS = {
   maxShots: 24,
   /** Dialogue lines per shot — keeps a single shot's voice fan-out sane. */
   maxDialoguePerShot: 6,
+  /**
+   * 每镜显式时长上限（秒）—— 画布对齐三梁之一。取自 Seedance 2.5 的硬顶
+   * （`SEEDANCE_25_DURATIONS`，见 `constants/video-model-capabilities.ts`）。
+   * 数值型，与自由文本的文档级 `targetDuration` 不同，好让 seedance 节点的
+   * `duration` 字段能在两边之间直接互转，不必解析散文。
+   */
+  maxShotDurationSeconds: 30,
   /** Clarifying questions the assistant may ask before drafting an outline. */
   maxClarifyQuestions: 4,
   maxClarifyOptions: 6,

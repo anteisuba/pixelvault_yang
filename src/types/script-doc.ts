@@ -77,6 +77,20 @@ export const ScriptDocShotSchema = z.object({
     .trim()
     .max(SCRIPT_DOC_LIMITS.fieldMaxLength)
     .optional(),
+  /**
+   * 每镜显式时长（秒）。画布对齐三梁之一 —— 与 seedance 节点的 `duration`
+   * 字段双向同步（投影写入 `node-workflow-script-doc.ts`，节点编辑回写走
+   * `syncSeedanceDurationPatchToScriptDoc`）。上限取自 Seedance 2.5 硬顶
+   * （`SCRIPT_DOC_LIMITS.maxShotDurationSeconds`）；数值型先例见
+   * `script-breakdown.ts` 的 `startSecond/endSecond`。
+   * ⚠ 必须 `.optional()`：理由同上面的 `composition` —— 收紧会让存量项目在
+   * 服务端读路径整体 parse 失败（见 `node-workflow.service.ts` validateState）。
+   */
+  durationSeconds: z
+    .number()
+    .min(0)
+    .max(SCRIPT_DOC_LIMITS.maxShotDurationSeconds)
+    .optional(),
   /** Role bindings (character node → seedance edges). */
   roleIds: z
     .array(ScriptDocIdSchema)

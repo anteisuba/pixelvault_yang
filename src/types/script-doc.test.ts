@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { NodeScriptDocRequestSchema, ScriptDocSchema } from '@/types/script-doc'
 import { NodeWorkflowStateDataSchema } from '@/types/node-workflow'
 
@@ -73,6 +74,76 @@ describe('ScriptDocSchema', () => {
 
   it('rejects an empty title', () => {
     expect(ScriptDocSchema.safeParse({ title: '' }).success).toBe(false)
+  })
+
+  // 画布对齐三梁 · 梁1：每镜显式时长（秒）。上限取自 Seedance 2.5 硬顶。
+  it('accepts an in-range per-shot durationSeconds', () => {
+    const withDuration = {
+      ...VALID_DOC,
+      shots: [{ ...VALID_DOC.shots[0], durationSeconds: 8 }],
+    }
+    expect(ScriptDocSchema.safeParse(withDuration).success).toBe(true)
+  })
+
+  it('rejects a durationSeconds beyond the Seedance 2.5 cap (30s)', () => {
+    const tooLong = {
+      ...VALID_DOC,
+      shots: [{ ...VALID_DOC.shots[0], durationSeconds: 31 }],
+    }
+    expect(ScriptDocSchema.safeParse(tooLong).success).toBe(false)
+  })
+
+  it('rejects a negative durationSeconds', () => {
+    const negative = {
+      ...VALID_DOC,
+      shots: [{ ...VALID_DOC.shots[0], durationSeconds: -1 }],
+    }
+    expect(ScriptDocSchema.safeParse(negative).success).toBe(false)
+  })
+
+  it('treats durationSeconds as optional (a shot with no explicit duration)', () => {
+    const parsed = ScriptDocSchema.parse(VALID_DOC)
+    expect(parsed.shots[0]?.durationSeconds).toBeUndefined()
+  })
+})
+
+// 画布对齐三梁 · 梁3：容器字段（parentId / collapsed）。框节点类型随 UI 落地，
+// 这里只验证数据层是纯加法——本次 schema 改动绝不能让存量项目 parse 失败
+// （`node-workflow.service.ts` 的 `validateState` 会把 parse 失败整个 state
+// 清空），也不能在 round-trip 时悄悄丢字段。
+describe('NodeWorkflowNodeSchema container fields (parentId / collapsed)', () => {
+  const OLD_NODE = {
+    id: 'node-1',
+    type: NODE_TYPE_IDS.shotText,
+    position: { x: 0, y: 0 },
+    data: { prompt: '', status: NODE_STATUS_IDS.idle },
+  }
+
+  it('兼容性不变量：不含 parentId/collapsed 的旧 state 原样 parse 通过', () => {
+    const parsed = NodeWorkflowStateDataSchema.parse({
+      nodes: [OLD_NODE],
+      edges: [],
+    })
+    expect(parsed.nodes).toHaveLength(1)
+    expect(parsed.nodes[0]?.parentId).toBeUndefined()
+    expect(parsed.nodes[0]?.collapsed).toBeUndefined()
+  })
+
+  it('round-trips parentId / collapsed without dropping them', () => {
+    const parsed = NodeWorkflowStateDataSchema.parse({
+      nodes: [{ ...OLD_NODE, parentId: 'frame-1', collapsed: true }],
+      edges: [],
+    })
+    expect(parsed.nodes[0]?.parentId).toBe('frame-1')
+    expect(parsed.nodes[0]?.collapsed).toBe(true)
+  })
+
+  it('rejects a non-boolean collapsed instead of silently coercing it', () => {
+    const parsed = NodeWorkflowStateDataSchema.safeParse({
+      nodes: [{ ...OLD_NODE, collapsed: 'yes' }],
+      edges: [],
+    })
+    expect(parsed.success).toBe(false)
   })
 })
 

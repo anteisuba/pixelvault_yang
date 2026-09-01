@@ -453,7 +453,13 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
   - 未接的档：`grok-4.5`（与 4.6 同价更旧，被严格支配）、`grok-4.3`（1M 上下文、$1.25/$2.50，是便宜档候选，owner 本轮决定不接）、`grok-4.20-*` 三变体、`grok-build-0.1`。
   - ⛔ 视频线 `xai/grok-imagine-video/v1.5`（fal，480p $0.08/s）仍未接：**违规请求照样计费**且只给 16:9 一种比例（本仓是五档）。
 - `qwen3-vl-plus` 是**死常量**：无任何路由表引用，唯一非测试消费者是一句 enhanceHint 文案。
-- 能力声明复核：DeepSeek V4 两变体经官方确认**确实纯文本无视觉**（仓内 no-enhance 判断成立）；但 Claude 官方明写全系支持 vision，所以仓内把 Sonnet 5 限成 `['assistant']` 是**策略选择而非能力限制**，注释里「无视觉」式的暗示不成立。
+- ✅ **2026-09-02 纠正旧审计结论**：DeepSeek 于 2026-08-21 新增实验视觉档
+  `deepseek-v4-flash-vision-exp`，支持 OpenAI-compatible `text + image_url` 输入；
+  `deepseek-v4-pro` 仍是纯文本。两者是能力不同的模型档位，因此共同进入助手目录，
+  能力按 `modelId` 判定，不能翻转整个 DeepSeek adapter。官方依据：
+  [Vision 指南](https://api-docs.deepseek.com/guides/vision/) ·
+  [发布公告](https://api-docs.deepseek.com/news/news260821/)。Claude 官方明写全系支持
+  vision，所以仓内把 Sonnet 5 限成 `['assistant']` 是**策略选择而非能力限制**。
 
 #### 语音 / 音频线
 

@@ -39,7 +39,7 @@
 
 - 头部控件在窄浮卡内必须可见；模型触发器允许截断。
 - 模型/历史弹层在浮卡内侧对齐并使用碰撞检测，不得向视口外或不可见方向展开。
-- 三处使用同一助手模型注册表：OpenAI GPT-5.6 Sol、Gemini 3.5 Flash、DeepSeek V4 Pro、Claude Sonnet 5；Qwen 不进入助手。
+- 三处使用同一助手模型注册表：OpenAI GPT-5.6 三档、Gemini 3.7 Flash、DeepSeek V4 Pro、DeepSeek V4 Flash Vision Exp、Claude Sonnet 5、Grok 4.6；Qwen 不进入助手。
 - 缺 key 时仍显示模型并打开 `QuickSetupDialog`，不得禁用整个入口。
 
 ## 3. 对话与领域上下文
@@ -74,7 +74,9 @@
 
 - Gemini：支持原生视频理解，处理视觉与音频流，可回答时间点相关问题；视频通过 Gemini Files API/`fileData` 输入。
 - OpenAI 当前助手实现：文本 + 图片；不宣称原生视频输入。
-- DeepSeek、Claude 当前 PixelVault 助手路由：文本。
+- DeepSeek V4 Pro、Claude 当前 PixelVault 助手路由：文本；DeepSeek V4 Flash Vision Exp
+  支持图片但不支持原生视频，菜单标为“图片视觉”。DeepSeek 的两个档位必须按具体
+  `modelId` 判断能力，禁止因为同属一个 adapter 而让 V4 Pro 接收图片。
 
 当附件超出当前模型能力时，发送按钮保持不可用并给出明确原因与可切换模型；禁止静默丢弃附件、只传 URL 文本或拿视频封面冒充视频分析。
 
@@ -145,6 +147,9 @@
 
 ## Last Verified
 
+- 2026-09-02：新增 DeepSeek V4 Flash Vision Exp 独立助手档位；工作台与画布附件闸按
+  `(adapterType, modelId)` 判断图片能力，DeepSeek 请求仅对该档构造 `image_url` 内容块，
+  V4 Pro 保持纯文本。定向 Vitest 7 文件 194 条、全量 TypeScript、目标 ESLint 通过。
 - 2026-08-31：工作台 operator 增加素材文件夹列举与只读视觉检查；当前文件夹、图片、24 张 / 8 张批次边界、真实 id 准入、覆盖率与证据格已由服务 / 工具环 / UI 回归测试锁定。TypeScript、目标 ESLint 与 6 个定向测试文件 161 条用例通过。
 - 2026-08-25：两条流式端点换成 SSE 帧协议（§6.5）。`open` 帧把响应头的 flush 与
   「模型开没开口」解耦，这条路由上的 504 因此在协议层被关死；回执与候选从响应头

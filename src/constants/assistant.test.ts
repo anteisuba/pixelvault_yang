@@ -10,6 +10,7 @@ import {
   assistantAdapterVideoTier,
   getAssistantMediaCapabilityLabel,
 } from '@/constants/assistant'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { VISION_CAPABLE_ADAPTERS } from '@/constants/vision'
 
@@ -41,6 +42,23 @@ describe('ASSISTANT_MEDIA_CAPABILITIES 三值化', () => {
     ]) {
       expect(assistantAdapterVideoTier(adapterType)).toBe(false)
     }
+  })
+
+  it('DeepSeek 视觉档能吃图但不冒充原生视频模型', () => {
+    const modelId = LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP
+    expect(
+      assistantAdapterSupportsImage(AI_ADAPTER_TYPES.DEEPSEEK, modelId),
+    ).toBe(true)
+    expect(assistantAdapterVideoTier(AI_ADAPTER_TYPES.DEEPSEEK, modelId)).toBe(
+      ASSISTANT_VIDEO_TIERS.frames,
+    )
+    expect(
+      assistantAdapterSatisfiesVideoTier(
+        AI_ADAPTER_TYPES.DEEPSEEK,
+        ASSISTANT_VIDEO_TIERS.native,
+        modelId,
+      ),
+    ).toBe(false)
   })
 
   it('⚠ 不变式：能吃视频的前提是能吃图（frames 档就是把视频降级成图）', () => {
@@ -113,6 +131,14 @@ describe('assistantAdapterAcceptsReferenceKind —— 附件闸', () => {
         ASSISTANT_VIDEO_TIERS.frames,
       ),
     ).toBe(false)
+    expect(
+      assistantAdapterAcceptsReferenceKind(
+        AI_ADAPTER_TYPES.DEEPSEEK,
+        'image',
+        ASSISTANT_VIDEO_TIERS.native,
+        LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+      ),
+    ).toBe(true)
   })
 
   it('聊天轮（要 native）不接受 frames 档路由上的视频附件', () => {
@@ -137,6 +163,12 @@ describe('getAssistantMediaCapabilityLabel', () => {
     expect(getAssistantMediaCapabilityLabel(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(
       'textOnly',
     )
+    expect(
+      getAssistantMediaCapabilityLabel(
+        AI_ADAPTER_TYPES.DEEPSEEK,
+        LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+      ),
+    ).toBe('imageOnly')
   })
 })
 

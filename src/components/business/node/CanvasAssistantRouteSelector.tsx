@@ -161,7 +161,10 @@ export function CanvasAssistantRouteSelector({
   const detailForOption = useCallback(
     (option: StudioModelOption) =>
       t(
-        `mediaCapabilities.${getAssistantMediaCapabilityLabel(option.adapterType)}`,
+        `mediaCapabilities.${getAssistantMediaCapabilityLabel(
+          option.adapterType,
+          option.modelId,
+        )}`,
       ),
     [t],
   )

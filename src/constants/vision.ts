@@ -191,7 +191,7 @@ const VISION_ADAPTER_PREFERENCE: readonly AI_ADAPTER_TYPES[] = [
 export const VISION_CAPABLE_ADAPTERS: readonly AI_ADAPTER_TYPES[] = (() => {
   const capable = (
     Object.keys(ASSISTANT_MEDIA_CAPABILITIES) as AI_ADAPTER_TYPES[]
-  ).filter(assistantAdapterSupportsImage)
+  ).filter((adapterType) => assistantAdapterSupportsImage(adapterType))
   const preferred = VISION_ADAPTER_PREFERENCE.filter((adapterType) =>
     capable.includes(adapterType),
   )

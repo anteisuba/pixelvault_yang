@@ -302,6 +302,13 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
     label: 'DeepSeek V4 Pro',
   },
   {
+    // DeepSeek's image contract belongs to this experimental model only.
+    // V4 Pro remains the first/default DeepSeek tier and stays text-only.
+    adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+    label: 'DeepSeek V4 Flash Vision Exp',
+  },
+  {
     // 2026-07-26: Qwen3 Max exits the assistant route (owner decree) — Claude
     // Sonnet 5 takes its slot as the structural-reasoning route (multi-scene
     // continuity, character arcs, shot planning). Text-only, same as the

@@ -50,9 +50,9 @@ const ADAPTER_CAPABILITIES: Record<
 > = {
   [AI_ADAPTER_TYPES.OPENAI]: ['enhance', 'planner', 'assistant'],
   [AI_ADAPTER_TYPES.GEMINI]: ['enhance', 'planner', 'assistant'],
-  // DeepSeek is text-only (no vision). It stays the strongest planner for
-  // Chinese scriptwriting / shot breakdowns and now also serves the canvas
-  // assistant, which is text-only today (node context + chat, no images).
+  // DeepSeek V4 Pro remains the default text-only planner / assistant route.
+  // The assistant separately exposes V4 Flash Vision Exp through model-specific
+  // media capabilities; planner routing still uses the text model.
   [AI_ADAPTER_TYPES.DEEPSEEK]: ['planner', 'assistant'],
   // DashScope (Qwen): cheap enhance + text planner. 2026-07-26: Qwen exits
   // the canvas assistant route (owner decree) — Claude takes its slot there.

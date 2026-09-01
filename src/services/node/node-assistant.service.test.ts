@@ -48,6 +48,7 @@ import {
   NODE_STUDIO_ASSISTANT_LIMITS,
   NODE_STUDIO_REFERENCE_ROLES,
 } from '@/constants/node-studio'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { createNodeAssistantStream } from '@/services/node/node-assistant.service'
 import type { NodeAssistantRequest } from '@/types/node-assistant'
@@ -294,6 +295,41 @@ describe('createNodeAssistantStream', () => {
     expect(mockLlmTextCompletion.mock.calls[0]?.[0]?.imageData).toEqual([
       'https://cdn.example.com/reference.png',
     ])
+  })
+
+  it('DeepSeek 视觉档收得下图片，V4 Pro 默认档仍不受影响', async () => {
+    mockResolveLlmTextRoute.mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      providerConfig: {
+        label: 'DeepSeek',
+        baseUrl: 'https://api.deepseek.com',
+      },
+      apiKey: 'deepseek-key',
+    })
+    mockLlmTextCompletion.mockResolvedValue('Ack.')
+
+    const stream = await createNodeAssistantStream('clerk_user_1', {
+      ...REQUEST,
+      llmModelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+      references: [
+        {
+          id: 'deepseek-image:1',
+          source: 'upload',
+          kind: 'image',
+          url: 'https://cdn.example.com/deepseek.png',
+          label: 'deepseek.png',
+        },
+      ],
+    })
+
+    await readStream(stream)
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+        imageData: ['https://cdn.example.com/deepseek.png'],
+      }),
+    )
   })
 
   it('native 档的路由（Gemini）收得下视频引用', async () => {

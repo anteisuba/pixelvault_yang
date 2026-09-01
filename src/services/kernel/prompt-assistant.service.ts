@@ -227,6 +227,7 @@ function getAssistantMediaInputs(
   references: readonly AssistantMediaReference[],
   adapterType: AI_ADAPTER_TYPES,
   legacyReferenceImageData?: string,
+  modelId?: string,
 ): AssistantMediaResolution {
   // ⚠ 能力校验按**全量** references 判，截断排在它后面。反过来（先截断、再拿截断
   //   后的数组统计）的表现是：第 9 个附件是视频、路由又不支持视频时，本该弹的
@@ -239,7 +240,7 @@ function getAssistantMediaInputs(
     references.some((reference) => reference.kind === 'image')
   const hasVideo = references.some((reference) => reference.kind === 'video')
 
-  if (hasImage && !assistantAdapterSupportsImage(adapterType)) {
+  if (hasImage && !assistantAdapterSupportsImage(adapterType, modelId)) {
     const spec = ASSISTANT_MEDIA_UNSUPPORTED_ERRORS.image
     throw new ApiRequestError(
       spec.code,
@@ -260,6 +261,7 @@ function getAssistantMediaInputs(
     !assistantAdapterSatisfiesVideoTier(
       adapterType,
       VIDEO_ANALYSIS_TASK_TIERS[VIDEO_ANALYSIS_TASKS.conversational],
+      modelId,
     )
   ) {
     const spec = ASSISTANT_MEDIA_UNSUPPORTED_ERRORS.video
@@ -1095,6 +1097,7 @@ async function prepareAssistantTurn(params: {
     [...params.references, ...videoLinks.references],
     route.adapterType,
     params.referenceImageData,
+    routeModelId,
   )
   const attachedLinks = attachedVideoLinks(videoLinks, media.references)
 

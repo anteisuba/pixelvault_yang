@@ -3694,7 +3694,7 @@
     "assistantStageHint": "建议不直接出图，应用前可在搭配提醒里审阅。",
     "referenceOnlyPrompt": "分析已添加的参考素材，并帮我继续完善这个想法。",
     "videoUnsupported": "当前模型无法分析视频。请选择 Gemini，或移除视频参考。",
-    "imageUnsupported": "当前模型无法分析图片。请选择 OpenAI 或 Gemini，或移除图片参考。",
+    "imageUnsupported": "当前模型无法分析图片。请选择标注为“图片视觉”的模型，或移除图片参考。",
     "routeAuto": "自动路由",
     "loraCandidate": {
       "sourceCivitai": "Civitai",
@@ -6385,7 +6385,7 @@
     },
     "assistant": {
       "videoUnsupported": "当前模型无法分析视频。请选择 Gemini，或移除视频参考。",
-      "imageUnsupported": "当前模型无法分析图片。请选择 OpenAI 或 Gemini，或移除图片参考。",
+      "imageUnsupported": "当前模型无法分析图片。请选择标注为“图片视觉”的模型，或移除图片参考。",
       "contentBlocked": "模型的安全策略拦下了这次请求。换个说法，或切换助手路由。",
       "outputTruncated": "模型还没写出正文就停了（输出预算用尽）。可以缩短对话后重试。",
       "noTextResponse": "模型返回了空回复。重试，或切换助手路由。",

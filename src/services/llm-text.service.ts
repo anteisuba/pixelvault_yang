@@ -72,8 +72,8 @@ export interface LlmTextInput {
    * provider:
    *  - Gemini: requires inline base64, so any http(s) URL is fetched
    *    server-side via `fetchAsBuffer` (which guards against SSRF).
-   *  - OpenAI: its chat API accepts both forms in `image_url.url`, so the
-   *    value is forwarded as-is.
+   *  - OpenAI-compatible vision routes (OpenAI, DeepSeek vision, Qwen VL,
+   *    Grok) accept both forms in `image_url.url`, so the value is forwarded.
    */
   imageData?: string | string[]
   /**
@@ -1261,9 +1261,6 @@ function buildDeepseekChatRequest(
   input: LlmTextInput,
   options: { stream?: boolean } = {},
 ): { endpoint: string; modelId: string; body: string } {
-  if (input.imageData) {
-    throw new Error('DeepSeek text completion does not support image input.')
-  }
   if (input.videoData) {
     throw new Error('DeepSeek text completion does not support video input.')
   }
@@ -1275,15 +1272,36 @@ function buildDeepseekChatRequest(
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DEEPSEEK]
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.DEEPSEEK
 
+  if (
+    input.imageData &&
+    modelId !== LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP
+  ) {
+    throw new Error(`DeepSeek model ${modelId} does not support image input.`)
+  }
+
+  const messages: Array<Record<string, unknown>> = [
+    { role: 'system', content: input.systemPrompt },
+  ]
+  if (input.imageData) {
+    const images = Array.isArray(input.imageData)
+      ? input.imageData
+      : [input.imageData]
+    const content: Array<Record<string, unknown>> = images.map((image) => ({
+      type: 'image_url',
+      image_url: { url: image },
+    }))
+    content.push({ type: 'text', text: input.userPrompt })
+    messages.push({ role: 'user', content })
+  } else {
+    messages.push({ role: 'user', content: input.userPrompt })
+  }
+
   return {
     endpoint: `${baseUrl.replace(/\/$/, '')}/chat/completions`,
     modelId,
     body: JSON.stringify({
       model: modelId,
-      messages: [
-        { role: 'system', content: input.systemPrompt },
-        { role: 'user', content: input.userPrompt },
-      ],
+      messages,
       ...(options.stream ? { stream: true } : {}),
       ...(!input.providerManagedOutput
         ? {

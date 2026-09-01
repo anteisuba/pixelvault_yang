@@ -331,6 +331,7 @@ export function PromptAssistantPanel({
         selectedAdapterType,
         reference.kind,
         VIDEO_ANALYSIS_TASK_TIERS[VIDEO_ANALYSIS_TASKS.conversational],
+        selectedLlmModelId,
       ),
   )
   const canSubmit = Boolean(

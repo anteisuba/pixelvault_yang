@@ -1762,7 +1762,10 @@ async function planCritiqueResult(
   }
 
   // 用户选的那条路看得见图就直接用它；看不见才去借（省得平白换掉他选的模型）。
-  const seesImages = assistantAdapterSupportsImage(run.route.adapterType)
+  const seesImages = assistantAdapterSupportsImage(
+    run.route.adapterType,
+    run.modelId,
+  )
   const visionRoute = seesImages
     ? run.route
     : await findVisionCapableRoute(userId)

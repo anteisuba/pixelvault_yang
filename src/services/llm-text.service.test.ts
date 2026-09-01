@@ -966,7 +966,7 @@ describe('llmTextCompletion - DeepSeek', () => {
     expect(payload.response_format?.type).toBe('json_object')
   })
 
-  it('rejects image input because DeepSeek text routes are text-only', async () => {
+  it('keeps DeepSeek V4 Pro text-only', async () => {
     await expect(
       llmTextCompletion({
         systemPrompt: 'sys',
@@ -980,6 +980,59 @@ describe('llmTextCompletion - DeepSeek', () => {
         apiKey: 'sk-deepseek',
       }),
     ).rejects.toThrow('does not support image input')
+  })
+
+  it('forwards image input for DeepSeek V4 Flash Vision Exp', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'image described' } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'You analyze images.',
+      userPrompt: 'Compare them.',
+      imageData: [
+        'https://cdn.example.com/a.png',
+        'data:image/webp;base64,abc',
+      ],
+      modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      providerConfig: {
+        label: 'DeepSeek',
+        baseUrl: 'https://api.deepseek.com',
+      },
+      apiKey: 'sk-deepseek',
+    })
+
+    const payload = readFetchJson(fetchMock) as {
+      model: string
+      messages: Array<{
+        role: string
+        content:
+          | string
+          | Array<{ type: string; text?: string; image_url?: { url: string } }>
+      }>
+    }
+    const userMessage = payload.messages[1]
+    expect(result).toBe('image described')
+    expect(payload.model).toBe('deepseek-v4-flash-vision-exp')
+    expect(userMessage.role).toBe('user')
+    expect(userMessage.content).toEqual([
+      {
+        type: 'image_url',
+        image_url: { url: 'https://cdn.example.com/a.png' },
+      },
+      {
+        type: 'image_url',
+        image_url: { url: 'data:image/webp;base64,abc' },
+      },
+      { type: 'text', text: 'Compare them.' },
+    ])
   })
 
   it('throws a structured balance error when DeepSeek reports insufficient balance', async () => {

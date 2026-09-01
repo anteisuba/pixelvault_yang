@@ -3694,7 +3694,7 @@
     "assistantStageHint": "Recommended over generating straight away — review the changes in the collocation bar before applying.",
     "referenceOnlyPrompt": "Analyze the attached reference and help me develop the idea.",
     "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
-    "imageUnsupported": "This model cannot analyze images. Choose OpenAI or Gemini, or remove the image reference.",
+    "imageUnsupported": "This model cannot analyze images. Choose a model labeled for image vision, or remove the image reference.",
     "routeAuto": "Auto route",
     "loraCandidate": {
       "sourceCivitai": "Civitai",
@@ -6385,7 +6385,7 @@
     },
     "assistant": {
       "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
-      "imageUnsupported": "This model cannot analyze images. Choose OpenAI or Gemini, or remove the image reference.",
+      "imageUnsupported": "This model cannot analyze images. Choose a model labeled for image vision, or remove the image reference.",
       "contentBlocked": "The provider blocked this request under its safety policy. Rephrase, or switch the assistant route.",
       "outputTruncated": "The model stopped before writing an answer (output budget exhausted). Try a shorter conversation or retry.",
       "noTextResponse": "The model returned an empty answer. Retry, or switch the assistant route.",

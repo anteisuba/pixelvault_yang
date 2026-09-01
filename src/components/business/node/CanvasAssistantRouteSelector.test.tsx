@@ -248,8 +248,21 @@ describe('CanvasAssistantRouteSelector', () => {
       'StudioNode.assistantRoute.mediaCapabilities.imageVideo',
     )
     expect(
-      detail?.(makeOption({ adapterType: AI_ADAPTER_TYPES.DEEPSEEK })),
+      detail?.(
+        makeOption({
+          adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+          modelId: 'deepseek-v4-pro',
+        }),
+      ),
     ).toBe('StudioNode.assistantRoute.mediaCapabilities.textOnly')
+    expect(
+      detail?.(
+        makeOption({
+          adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+          modelId: 'deepseek-v4-flash-vision-exp',
+        }),
+      ),
+    ).toBe('StudioNode.assistantRoute.mediaCapabilities.imageOnly')
     expect(
       detail?.(makeOption({ adapterType: AI_ADAPTER_TYPES.ANTHROPIC })),
     ).toBe('StudioNode.assistantRoute.mediaCapabilities.textOnly')

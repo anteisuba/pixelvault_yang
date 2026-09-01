@@ -140,7 +140,7 @@ describe('useLLMRoutePicker', () => {
   })
 
   describe('assistant scope', () => {
-    it('returns only saved routes present in the four-model assistant registry', () => {
+    it('returns only saved routes present in the assistant registry', () => {
       mockApiKeys([
         makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.GEMINI }),
         makeKey({ id: 'k2', adapterType: AI_ADAPTER_TYPES.OPENAI }),
@@ -149,12 +149,13 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k5', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
-      // OpenAI key expands to its 3 tiers; the rest stay single-tier.
+      // OpenAI expands to 3 tiers; DeepSeek exposes text + vision tiers.
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
         'k2',
         'k2',
         'k2',
+        'k4',
         'k4',
         'k5',
       ])
@@ -177,6 +178,7 @@ describe('useLLMRoutePicker', () => {
         AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.GEMINI,
+        AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.ANTHROPIC,
         AI_ADAPTER_TYPES.XAI,

@@ -250,8 +250,9 @@ export function StudioNodeAssistantDock({
         assistantRoute.adapterType,
         reference.kind,
         VIDEO_ANALYSIS_TASK_TIERS[VIDEO_ANALYSIS_TASKS.conversational],
+        assistantRoute.modelId,
       ),
-    [assistantRoute.adapterType],
+    [assistantRoute.adapterType, assistantRoute.modelId],
   )
 
   const buildConversationContext = useCallback(

@@ -1,3 +1,4 @@
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 /**
@@ -168,17 +169,43 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
   [AI_ADAPTER_TYPES.ELEVENLABS]: { image: false, video: false },
 }
 
+/**
+ * Adapter defaults describe the first assistant model for that provider. A
+ * provider may also expose a tier with a different modality contract; those
+ * exceptions live here so selecting one tier never changes its siblings.
+ */
+const ASSISTANT_MODEL_MEDIA_CAPABILITIES: Readonly<
+  Partial<Record<string, AssistantMediaCapability>>
+> = {
+  [LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP]: {
+    image: true,
+    video: ASSISTANT_VIDEO_TIERS.frames,
+  },
+}
+
+function getAssistantMediaCapability(
+  adapterType: AI_ADAPTER_TYPES,
+  modelId?: string,
+): AssistantMediaCapability {
+  return (
+    (modelId ? ASSISTANT_MODEL_MEDIA_CAPABILITIES[modelId] : undefined) ??
+    ASSISTANT_MEDIA_CAPABILITIES[adapterType]
+  )
+}
+
 export function assistantAdapterSupportsImage(
   adapterType: AI_ADAPTER_TYPES,
+  modelId?: string,
 ): boolean {
-  return ASSISTANT_MEDIA_CAPABILITIES[adapterType].image
+  return getAssistantMediaCapability(adapterType, modelId).image
 }
 
 /** 这条路能把视频看到哪一档。`false` = 一档都不行。 */
 export function assistantAdapterVideoTier(
   adapterType: AI_ADAPTER_TYPES,
+  modelId?: string,
 ): AssistantVideoTier | false {
-  return ASSISTANT_MEDIA_CAPABILITIES[adapterType].video
+  return getAssistantMediaCapability(adapterType, modelId).video
 }
 
 /**
@@ -195,8 +222,9 @@ export function assistantAdapterVideoTier(
 export function assistantAdapterSatisfiesVideoTier(
   adapterType: AI_ADAPTER_TYPES,
   requiredTier: AssistantVideoTier,
+  modelId?: string,
 ): boolean {
-  const tier = assistantAdapterVideoTier(adapterType)
+  const tier = assistantAdapterVideoTier(adapterType, modelId)
   if (tier === false) return false
   if (requiredTier === ASSISTANT_VIDEO_TIERS.native) {
     return tier === ASSISTANT_VIDEO_TIERS.native
@@ -215,10 +243,15 @@ export function assistantAdapterAcceptsReferenceKind(
   adapterType: AI_ADAPTER_TYPES,
   kind: 'image' | 'video',
   requiredVideoTier: AssistantVideoTier,
+  modelId?: string,
 ): boolean {
   return kind === 'image'
-    ? assistantAdapterSupportsImage(adapterType)
-    : assistantAdapterSatisfiesVideoTier(adapterType, requiredVideoTier)
+    ? assistantAdapterSupportsImage(adapterType, modelId)
+    : assistantAdapterSatisfiesVideoTier(
+        adapterType,
+        requiredVideoTier,
+        modelId,
+      )
 }
 
 /**
@@ -264,8 +297,9 @@ export type AssistantMediaCapabilityLabel =
  */
 export function getAssistantMediaCapabilityLabel(
   adapterType: AI_ADAPTER_TYPES,
+  modelId?: string,
 ): AssistantMediaCapabilityLabel {
-  const capability = ASSISTANT_MEDIA_CAPABILITIES[adapterType]
+  const capability = getAssistantMediaCapability(adapterType, modelId)
   if (capability.video === ASSISTANT_VIDEO_TIERS.native) return 'imageVideo'
   if (capability.image) return 'imageOnly'
   return 'textOnly'

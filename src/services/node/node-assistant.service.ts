@@ -244,6 +244,7 @@ function getNodeAssistantMediaInputs(
         adapterType,
         reference.kind,
         VIDEO_ANALYSIS_TASK_TIERS[VIDEO_ANALYSIS_TASKS.conversational],
+        request.llmModelId,
       ),
   )
   if (unsupported) {

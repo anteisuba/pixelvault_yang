@@ -30,8 +30,12 @@
   resumable upload → 状态轮询 → `fileData` 输入；稳定附件 URL 仅由服务端受控抓取。实现依据
   [Gemini 视频理解](https://ai.google.dev/gemini-api/docs/video-understanding) 与
   [Files API](https://ai.google.dev/api/files)。
-- DeepSeek 当前 Chat Completion 的用户内容契约是字符串，因此共享助手按文本路由处理；见
-  [DeepSeek Chat Completion](https://api-docs.deepseek.com/api/create-chat-completion)。Claude 厂商 API
+- DeepSeek 的 `deepseek-v4-pro` 继续按纯文本路由处理；2026-08-21 发布的实验模型
+  `deepseek-v4-flash-vision-exp` 可在同一 OpenAI-compatible Chat Completions 接口中接收
+  `text + image_url` 内容块，PixelVault 将它作为独立助手档位暴露，不能把 DeepSeek adapter
+  整体翻成视觉能力。图片只允许进入该视觉档，V4 Pro 仍在能力闸和请求构造器两层拒绝。依据：
+  [DeepSeek Vision](https://api-docs.deepseek.com/guides/vision/) 与
+  [发布公告](https://api-docs.deepseek.com/news/news260821/)。Claude 厂商 API
   本身支持图片输入（见 [Claude vision](https://platform.claude.com/docs/en/build-with-claude/vision)），但当前
   PixelVault Claude 助手调用尚未接入该图片内容块，所以菜单如实标为“仅文本”。Qwen 不进入共享助手模型注册表。
   能力不匹配时服务端和客户端都必须拒绝，不得丢弃附件、传 URL 文本或以视频封面静默降级。

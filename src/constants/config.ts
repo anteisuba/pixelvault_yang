@@ -533,6 +533,7 @@ export const LLM_TEXT_MODEL_IDS = {
   OPENAI_GPT_5_6_LUNA: 'gpt-5.6-luna',
   OPENAI_GPT_5_SEARCH_API: 'gpt-5-search-api',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
+  DEEPSEEK_V4_FLASH_VISION_EXP: 'deepseek-v4-flash-vision-exp',
   // Qwen (DashScope, intl). Text flagship + 1M-context default + cheap +
   // vision. IDs map to compatible-mode aliases; pin to dated snapshots if
   // alias drift becomes a problem.

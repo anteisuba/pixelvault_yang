@@ -108,3 +108,28 @@
 2. **C2 要不要 mock**：拍板 2 是「共组件独立实例」，`StudioOperatorDock` / `Panel` / `LogItem` 都是无域 props 的通用件。若 C2 只是把它们实例化进**现有**画布 dock 壳（几何、拖动、rail 历史全不变），是否可免 mock 直接实现？
 3. **CA signal 修复**是否随 C0 走（触 `llm-text.service.ts` 2019 行、六 adapter、全域受益）。
 4. **token 2× 门**保留还是改数。
+
+## 附录 A · 2026-09-01 owner 访谈结论（改变本任务书范围）
+
+owner 定位：**核心是创意搭档，但要与画布打通**。主战场 = 节点画布。痛点 = 瞎 · 慢 · 不听话/乱花钱 · 三处不一致 · 资料搜索找不到。
+
+已拍：
+1. 点输入框再点画布节点 → 节点进输入框：**媒体 + @引用两者都要**（图/视频节点带媒体，文本节点带正文，所有节点带 id）。
+2. 素材库文件夹上画布 → **一个收集节点装整个文件夹**，后续生成节点从它挂参考。
+3. 慢 → **接原生 tool-calling，模型分快慢路**（GPT / Gemini / Claude 快路，DeepSeek / Grok 留 JSON 慢路）。
+4. 面板形态：owner 无法确定 → C2 必须走 ui-page 三方向 + mock。
+
+## 附录 B · 「无限大」检索对比（2026-09-01 实测）
+
+外部搜索（本会话 WebSearch）一次命中：萌娘百科「无限大」条目 · zh.wikipedia「无限大 (游戏)」· 官网 ananta.163.com（27-01-15 全球上线）· 游民星空专区 · 百度百科 · en.wikipedia「Ananta (video game)」· ananta.fandom.com/wiki/Characters · anantadex · namu wiki。事实：网易 Naked Rain 工作室，Project Mugen 2024-11 改名 Ananta，无 gacha，已公开角色 Taffy / Richie / Seymour / Ringo / Aileen 等。
+
+PixelVault 检索链（子 agent 在容器内跑真实代码，网络被出口策略 403，源端真实返回拿不到）：
+
+| 输入 | 链路行为 | 结果 |
+| --- | --- | --- |
+| 「我想要无限大的资料」auto | `planResearchHeuristically` 判 `no retrieval signal`（「资料」不在任何词表，`research-intent.ts:61/123/156/188`） | **0 个请求**，`runResearch` 返回 null；模型凭记忆答「找不到」 |
+| 同句 forced | general 组只有 web_search；`SERPER_API_KEY` 缺 → 记 `empty` 不是 `failed`（`connector-runtime.ts:73-76`） | no_evidence；UI 说「换个关键词」；模型端零信号（`prompt-assistant.service.ts:737`） |
+| 「无限大 网易 游戏 角色设定」 | 命中 ip_character 六源；query = 整句原样、无英文 query；Fandom 写死 `wutheringwaves.fandom.com`（`constants/research.ts:460`） | opensearch 前缀匹配整句必空；danbooru 非 ASCII 跳过 |
+
+缺口排序：① 触发词表漏「资料」类泛请求 ② 缺 key 静默成 empty，模型与用户都不知道 ③ Fandom 单站写死、无按 IP 找站 ④ 无 key 时零改写零翻译 ⑤ 空结果不告诉模型「已检索且为空」。
+

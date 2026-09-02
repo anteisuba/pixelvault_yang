@@ -318,6 +318,11 @@ const STEP_FIXTURES: Record<
     payload: { nodeId: 'node-1' },
     result: { digest: '- image · character · 小林' },
   },
+  /** ⛔ 无参：整份文档只有一份，读的是工作副本上此刻那一份（C2-b）。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc]: {
+    payload: {},
+    result: { digest: 'Script doc "无限大" · 4 shot(s)' },
+  },
   /** ⭐ `alias` 在载荷里必填；`inverse.nodeIds` 是同一批别名（真实 id 客户端才有）。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.stageNodes]: {
     payload: {

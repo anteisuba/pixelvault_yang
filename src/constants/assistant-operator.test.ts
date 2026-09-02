@@ -96,11 +96,12 @@ describe('画布工具表（C0 §2.3 / §2.5 ①）', () => {
     }
   })
 
-  it('两条读 + 八条改 + update_script_doc + 三条读库通用件，一条不多', () => {
+  it('三条读 + 八条改 + update_script_doc + 三条读库通用件，一条不多', () => {
     expect([...CANVAS_TOOLS].sort()).toEqual(
       [
         ASSISTANT_OPERATOR_TOOL_IDS.readGraph,
         ASSISTANT_OPERATOR_TOOL_IDS.readNode,
+        ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc,
         ...CANVAS_MUTATING_TOOLS,
         ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
         ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
@@ -116,12 +117,22 @@ describe('画布工具表（C0 §2.3 / §2.5 ①）', () => {
     expect(CANVAS_TOOLS).toContain(ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc)
   })
 
-  it('读 / 改分类：两条读进 READ_TOOLS，八条改进 MUTATING_TOOLS', () => {
+  it('读 / 改分类：三条读进 READ_TOOLS，八条改进 MUTATING_TOOLS', () => {
     expect(ASSISTANT_OPERATOR_READ_TOOLS).toContain(
       ASSISTANT_OPERATOR_TOOL_IDS.readGraph,
     )
     expect(ASSISTANT_OPERATOR_READ_TOOLS).toContain(
       ASSISTANT_OPERATOR_TOOL_IDS.readNode,
+    )
+    /**
+     * ⭐ C2-b：读剧本与写剧本分属两档 —— 念一遍不产生 op，撤销撤的是
+     * `update_script_doc` 那一条。分错档的表现是日志上多出一行撤不掉的「撤销」。
+     */
+    expect(ASSISTANT_OPERATOR_READ_TOOLS).toContain(
+      ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc,
+    )
+    expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).not.toContain(
+      ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc,
     )
     for (const tool of [
       ...CANVAS_MUTATING_TOOLS,

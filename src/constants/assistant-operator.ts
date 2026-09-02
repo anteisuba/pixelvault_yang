@@ -314,6 +314,15 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   primeNodeGenerate: 'prime_node_generate',
   /**
+   * 读整份 ScriptDoc（C2-b）。与 `read_node` 同一条「按需读」原则：整份文档
+   * **进快照、不进提示**（K-4），概览里只有 `buildScriptDocSummary` 那一行骨架
+   * （标题 / 场次 / 镜头数 / 角色名），镜头正文与台词只从这条工具出。
+   *
+   * ⭐ 它是 `update_script_doc` 的前置：那条是**整份替换**，看不见正文就重写等于
+   * 把看不见的东西丢掉（C3 的 5 个契约问题之一，附录 J §1）。先读再整份写回。
+   */
+  readScriptDoc: 'read_script_doc',
+  /**
    * 写 ScriptDoc（C3 实现）。这条工具**只改文档本身**；把文档变成节点的那一跳
    * （投影）仍走 `previewScriptDocProjection` + 既有确认门，由用户按下。
    * ⚠ 逆操作是**改前的整份文档**（`null` = 改前这个项目没有 ScriptDoc）。
@@ -352,6 +361,7 @@ export const ASSISTANT_OPERATOR_CANVAS_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.attachRefs,
   ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
   ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+  ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc,
   ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
 ] as const
 
@@ -406,6 +416,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.attachRefs,
   ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
   ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+  ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc,
   ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
 ] as const
 
@@ -436,9 +447,14 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
    * 撤销也撤在那一条上。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-  /** 画布两条读：概览与单节点全量。都只从请求快照的工作副本取，不查库。 */
+  /**
+   * 画布三条读：概览、单节点全量、整份剧本。都只从请求快照的工作副本取，不查库。
+   * ⚠ `read_script_doc` 在这一档不是勉强归类：它只把工作副本里那份文档念出来，
+   * 一个字都没写回去 —— 写是 `update_script_doc` 的事，撤销也撤在那一条上。
+   */
   ASSISTANT_OPERATOR_TOOL_IDS.readGraph,
   ASSISTANT_OPERATOR_TOOL_IDS.readNode,
+  ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc,
 ] as const
 
 /**
@@ -787,6 +803,12 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
      * 往返）。现在两侧都通了 —— 服务端写文档，客户端经既有投影确认门落到画布。
      */
     ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
+    /**
+     * ⚠ C2-b 才补上：C3 把整份文档放进了快照，但只有摘要进提示 —— 模型看得见
+     * 「有这么一份剧本」，看不见镜头正文，而 `update_script_doc` 是整份替换。
+     * 少了这条读，唯一的改法就是凭摘要重写，把看不见的东西丢掉。
+     */
+    ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc,
     ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
     ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
     ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
@@ -1231,6 +1253,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     "mark ONE node's media as awaiting review or rejected, with a reason. You can never mark anything approved — approving is the creator's decision after they have looked.",
   [ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate]:
     "arm the generate button on ONE node so it is one click away. This does NOT generate anything, shows no price, and never spends the creator's credits — they press it themselves. Use it as the LAST step once the node is ready.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc]:
+    'read the project script document IN FULL: title, logline, style, the whole cast with their descriptions, and every shot with its scene label, camera, composition and dialogue lines. The state block shows you only a one-line skeleton of it — this is the only way to see the shot text. Costs nothing. Call it BEFORE update_script_doc whenever a document already exists, because that tool replaces the whole thing.',
   [ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc]:
     'write the project script document in ONE call: title, logline, the cast (each with a visual description), and the shots in order (each with its scene label, summary, camera, composition and dialogue lines). Use it for a real narrative — several shots with a cast — and the creator confirms one projection that builds and wires the whole chain. It replaces the whole document and does NOT touch the canvas by itself, so never say you created nodes with it.',
 }

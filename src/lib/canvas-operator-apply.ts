@@ -357,6 +357,7 @@ export function applyCanvasOperatorStep(
   switch (step.tool) {
     case ASSISTANT_OPERATOR_TOOL_IDS.readGraph:
     case ASSISTANT_OPERATOR_TOOL_IDS.readNode:
+    case ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc:
       return { kind: 'read', tool: step.tool }
 
     /**

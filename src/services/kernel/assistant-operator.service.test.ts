@@ -3377,13 +3377,91 @@ describe('画布域 · update_script_doc（C3）', () => {
     expect(firstUserPrompt()).toContain('Script doc: 雨夜 · 2 shot(s)')
   })
 
-  it('系统提示写着双路并存与「不整份重写」', async () => {
+  it('系统提示写着双路并存与「先读再整份写回」', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildCanvasRequest()))
     const system = systemPrompt()
     expect(system).toContain('TWO ROADS ONTO THIS CANVAS')
-    expect(system).toContain('do not rewrite it wholesale')
+    /**
+     * ⭐ C2-b 改口：原来写的是「别整份重写」，可 `update_script_doc` 本来就只有
+     * 整份替换这一种写法 —— 那句话等于让模型别用这条工具。现在给了读的路，
+     * 规矩改成「先读，再把改过的整份写回」。
+     */
+    expect(system).toContain('read_script_doc FIRST')
+    expect(system).toContain('send back the full revised document')
     expect(system).toContain('- update_script_doc:')
+    expect(system).toContain('- read_script_doc:')
+  })
+})
+
+describe('画布域 · read_script_doc（C2-b）', () => {
+  function withDoc(doc: unknown = SCRIPT_DOC) {
+    return buildCanvasRequest({
+      snapshot: {
+        ...CANVAS_SNAPSHOT,
+        canvas: {
+          ...CANVAS_SNAPSHOT.canvas!,
+          scriptDoc: { summary: '雨夜 · 2 shot(s)', doc } as never,
+        },
+      },
+    })
+  }
+
+  it('⭐ K-4 两向：镜头正文 / 台词 / 角色外观只从 read_script_doc 出，提示里一个字都没有', async () => {
+    queueTurns(canvasTurn(CANVAS_TOOL.readScriptDoc, {}), { finished: true })
+    const events = await collect(runAssistantOperator('clerk-1', withDoc()))
+
+    const step = doneSteps(events)[0]
+    const digest = (step.result as { digest: string }).digest
+    expect(digest).toContain('Script doc "雨夜"')
+    expect(digest).toContain('她在雨里找一把伞')
+    // 角色外观（投影出去就是角色卡的 prompt）与两镜的正文、台词都在。
+    expect(digest).toContain('短黑发，红大衣')
+    expect(digest).toContain('小林走进雨里')
+    expect(digest).toContain('她推门进去')
+    expect(digest).toContain('又下雨了。')
+    // 场次标记与顺序：整份替换要写回去，序号错一位就是重排镜头。
+    expect(digest).toContain('#1 s1 · scene "街头"')
+    expect(digest).toContain('#2 s2 · scene "便利店"')
+    // 读一步没有 inverse（撤销撤的是 update_script_doc 那一条）。
+    expect(step).not.toHaveProperty('inverse')
+
+    // 另一向：同一轮的提示里只有那一行骨架。
+    for (const prompt of [systemPrompt(), firstUserPrompt()]) {
+      expect(prompt).not.toContain('又下雨了。')
+      expect(prompt).not.toContain('短黑发，红大衣')
+      expect(prompt).not.toContain('小林走进雨里')
+    }
+    expect(firstUserPrompt()).toContain('Script doc: 雨夜 · 2 shot(s)')
+  })
+
+  it('这个项目还没有剧本时按 emptyValue 拒，并说清下一步', async () => {
+    queueTurns(canvasTurn(CANVAS_TOOL.readScriptDoc, {}), { finished: true })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.emptyValue,
+    )
+    expect((stepsOf(events)[0].error as { detail?: string }).detail).toContain(
+      'update_script_doc',
+    )
+  })
+
+  it('写完之后同一轮再读，读到的是**改后**那一份', async () => {
+    const prior = { ...SCRIPT_DOC, title: '旧标题', shots: [], roles: [] }
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.updateScriptDoc, { doc: SCRIPT_DOC }),
+      canvasTurn(CANVAS_TOOL.readScriptDoc, {}),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', withDoc(prior)),
+    )
+    const digest = (doneSteps(events)[1].result as { digest: string }).digest
+    expect(digest).toContain('Script doc "雨夜"')
+    expect(digest).toContain('小林走进雨里')
+    expect(digest).not.toContain('旧标题')
   })
 })
 

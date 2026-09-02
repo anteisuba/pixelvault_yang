@@ -134,9 +134,11 @@ export const isRetiredModelId = (modelId: string): boolean =>
  * distinct from retired (dead upstream) and from the runner's feature flag.
  *
  * A reserved entry is fully modelled (catalog row, capability matrix,
- * reference slots, i18n) but the provider has not opened the API yet, so it
- * carries a placeholder `externalModelId` and must not be selectable. Going
- * live is meant to be a small, reviewable diff rather than a fresh integration.
+ * reference slots, i18n) but cannot actually run — either the provider has not
+ * opened the API yet (placeholder `externalModelId`), or our own execution path
+ * for it was never finished (2026-09-02: Gemini Omni Flash video). Either way it
+ * must not be selectable. Going live is meant to be a small, reviewable diff
+ * rather than a fresh integration.
  *
  * Listing an id here is a promise that someone will come back for it — keep it
  * short, and delete the entry the moment the model ships or the plan dies.
@@ -146,11 +148,28 @@ export const isRetiredModelId = (modelId: string): boolean =>
  * RUNNER 特性开关）。往里加一个 id 等于承诺有人会回来收尾 ——
  * **模型一上线、或计划一死，就删掉那行。**
  *
- * 现在是空的：唯二的住户（Seedance 2.5 火山双变体）在火山 2026-08-07 开放 API
- * 之后已于 08-08 上线，按上面这条规矩清出。数组和 `isReservedModelId` 保留是
- * 因为机制本身还要用——下一个「已官宣、未开放」的模型直接往里加即可。
+ * 两种住户：① 上游还没开放 API（Seedance 2.5 火山双变体住到 2026-08-08 上线为止）；
+ * ② **上游开着、我们这侧没接完**（2026-09-02 进来的 Gemini Omni Flash 视频：
+ * worker 从来没 allowlist 过 Gemini，选中必 501）。两种都是「可用是假的」，
+ * 处置一样：目录留着、不可选、接完就删这一行。
  */
-export const RESERVED_MODEL_IDS = [] as const satisfies readonly AI_MODELS[]
+export const RESERVED_MODEL_IDS = [
+  /**
+   * Gemini Omni Flash（视频）—— 2026-09-02 下架。
+   *
+   * 🔬 端到端审计（附录 J）坐实的「假可用」：目录写着 `available: true`，而执行侧
+   * 一条路都没有 —— `canSubmitVideoViaExecutionWorker` 的
+   * `WORKER_CAPABLE_VIDEO_ADAPTERS` 里没有 GEMINI（`services/generate-video.service.ts`），
+   * worker 的 `submitProviderQueue` 也没有 Gemini 分支（`workers/execution/src/index.ts`），
+   * 所以选中它 = 选完、扣完注意力，最后吃一条 501。
+   *
+   * ⚠ 它是 RESERVED 的第二种形状：**上游开着，我们这侧没接完**。与「provider 还没
+   * 开放 API」同一条处置 —— 目录行、能力矩阵、i18n 全留着（存档生成仍要解析出
+   * 标签），只是不可选；补上 worker 分支那一刻把这行删掉、`available` 翻回 true。
+   * ⛔ 不删目录条目：删了存量视频的模型名就变成 id。
+   */
+  AI_MODELS.GEMINI_OMNI_FLASH,
+] as const satisfies readonly AI_MODELS[]
 
 const RESERVED_MODEL_ID_SET = new Set<string>(RESERVED_MODEL_IDS)
 

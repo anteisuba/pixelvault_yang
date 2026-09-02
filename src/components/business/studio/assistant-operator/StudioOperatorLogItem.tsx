@@ -16,6 +16,7 @@ import { memo, useState } from 'react'
 import {
   Ban,
   Blocks,
+  BookOpen,
   Cable,
   Check,
   CircleDollarSign,
@@ -136,6 +137,8 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.attachRefs]: Paperclip,
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]: Stamp,
   [ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate]: CircleDollarSign,
+  /** ⚠ 读剧本与写剧本**不同枚**：一枚翻开的书（读）对一张文稿（写）。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc]: BookOpen,
   [ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc]: FileText,
 }
 

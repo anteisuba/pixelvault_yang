@@ -3168,6 +3168,111 @@ function planPrimeNodeGenerate(
 }
 
 /**
+ * `read_script_doc` 的产出：**整份剧本**（C2-b）。
+ *
+ * ⛔ 与 `read_node` 同一条 K-4 规矩：镜头正文、台词、角色外观描述**只从这里出**，
+ * 一个字都不进系统提示 / 首轮用户提示（那两处只有 `buildScriptDocSummary` 的
+ * 一行骨架）。测试两向断言：这段产出含镜头正文，而提示里没有。
+ *
+ * ⚠ 每一段都**照原样念**，不再截断：整份文档的宽度已由 `ScriptDocSchema`
+ * 自己的字段上限管着，在这里再截一次等于让模型读到一份它随后要整份写回的
+ * 残本 —— 那正是这条工具要根治的毛病。
+ */
+function renderCanvasScriptDoc(doc: ScriptDoc): string {
+  const lines: string[] = [`Script doc "${doc.title}"`]
+  lines.push(`- Logline: ${doc.logline.trim() || '(empty)'}`)
+  if (doc.styleNote?.trim()) lines.push(`- Style: ${doc.styleNote.trim()}`)
+  if (doc.background?.trim())
+    lines.push(`- Background: ${doc.background.trim()}`)
+  if (doc.targetDuration?.trim())
+    lines.push(`- Target duration: ${doc.targetDuration.trim()}`)
+
+  const roleName = new Map(doc.roles.map((role) => [role.id, role.name]))
+  if (doc.roles.length === 0) {
+    lines.push('- Cast: none yet.')
+  } else {
+    lines.push(`- Cast (${doc.roles.length}):`)
+    for (const role of doc.roles) {
+      const extras = [
+        role.description.trim()
+          ? `looks like: ${role.description.trim()}`
+          : null,
+        role.personality?.trim()
+          ? `personality: ${role.personality.trim()}`
+          : null,
+        role.goal?.trim() ? `wants: ${role.goal.trim()}` : null,
+        role.voiceHint?.trim() ? `voice: ${role.voiceHint.trim()}` : null,
+      ].filter((part): part is string => part !== null)
+      lines.push(
+        `  - ${role.id} · "${role.name}"${extras.length > 0 ? ` — ${extras.join('; ')}` : ''}`,
+      )
+    }
+  }
+
+  if (doc.shots.length === 0) {
+    lines.push('- Shots: none yet.')
+  } else {
+    lines.push(`- Shots (${doc.shots.length}), in order:`)
+    for (const [index, shot] of doc.shots.entries()) {
+      lines.push(
+        `  - #${index + 1} ${shot.id}${shot.sceneLabel?.trim() ? ` · scene "${shot.sceneLabel.trim()}"` : ''}: ${shot.summary}`,
+      )
+      if (shot.emotion?.trim())
+        lines.push(`    · emotion: ${shot.emotion.trim()}`)
+      if (shot.camera?.trim()) lines.push(`    · camera: ${shot.camera.trim()}`)
+      if (shot.composition?.trim())
+        lines.push(`    · composition: ${shot.composition.trim()}`)
+      if (shot.roleIds.length > 0) {
+        lines.push(
+          `    · cast in shot: ${shot.roleIds
+            .map((id) =>
+              roleName.get(id) ? `${id} "${roleName.get(id)}"` : id,
+            )
+            .join(', ')}`,
+        )
+      }
+      for (const line of shot.dialogue) {
+        const speaker = roleName.get(line.speakerRoleId) ?? line.speakerRoleId
+        lines.push(`    · ${speaker}: "${line.line}"`)
+      }
+    }
+  }
+  return lines.join('\n')
+}
+
+/**
+ * 读整份剧本（C2-b）。
+ *
+ * ⚠ 没有文档时按 `emptyValue` 拒（⛔ 不新拍一条理由）：与「写了个空字符串」
+ * 同一句话 —— 这一步没有东西可念。理由文案指向下一步该干什么（先写一份），
+ * 让模型改得过来，而不是换个参数再撞一次。
+ */
+function planReadScriptDoc(run: OperatorRun): ToolPlan {
+  const canvas = requireCanvas(run)
+  if (isToolPlan(canvas)) return canvas
+  const doc = canvas.scriptDoc
+  if (!doc) {
+    return reject(
+      REJECT.emptyValue,
+      'This project has no script doc yet, so there is nothing to read. Write one with update_script_doc, or work on the nodes directly.',
+    )
+  }
+  return {
+    kind: 'read',
+    payload: {},
+    run: async () => {
+      const digest = renderCanvasScriptDoc(doc)
+      // ⚠ `result.digest` 过 `.max(maxMessageChars)`（同 `read_node`）；
+      //    观察给模型的是全文。
+      return {
+        result: { digest: clamp(digest, LIMITS.maxMessageChars) },
+        observation: `read_script_doc:\n${digest}`,
+      }
+    },
+  }
+}
+
+/**
  * 写剧本文档（C3）。
  *
  * ── 这条工具**只改文档**，⛔ 不投影 ────────────────────────────────
@@ -3181,7 +3286,8 @@ function planPrimeNodeGenerate(
  * 改前这个项目没有文档，撤销就是把它删回没有。
  *
  * ⚠ **整份替换**：`doc` 是完整文档，模型写什么就是什么。系统提示里因此写死了
- * 「已经有文档时别整份重写」—— 摘要里没有镜头正文，重写等于把看不见的东西丢掉。
+ * 「已有文档先 `read_script_doc` 再整份写回」（C2-b）—— 摘要里没有镜头正文，
+ * 不读就重写等于把看不见的东西丢掉。
  */
 function planUpdateScriptDoc(
   run: OperatorRun,
@@ -3388,6 +3494,8 @@ async function planTool(
       )
     case TOOL.primeNodeGenerate:
       return planPrimeNodeGenerate(run, parsed.data as { nodeId: string })
+    case TOOL.readScriptDoc:
+      return planReadScriptDoc(run)
     case TOOL.updateScriptDoc:
       return planUpdateScriptDoc(run, parsed.data as { doc: ScriptDoc })
     default:
@@ -3497,7 +3605,7 @@ HARD RULES — these are structural, not stylistic:
 - You can never mark anything approved. set_review_state may only send something back or return it to the queue, and the app asks the creator before it lands.
 - If the creator hand-wrote a title or text you want to replace, writing over it needs their say-so — call the tool anyway and the app will ask them; do not ask in prose.
 - TWO ROADS ONTO THIS CANVAS, and they do not mix. A long narrative (several shots with a cast, dialogue, a through-line) goes into the script doc first with update_script_doc — the creator then confirms one projection and gets the whole chain, nodes wired and named. A handful of loose nodes goes straight onto the board with stage_nodes. Never build a multi-shot story node by node; never open the script doc for two stray images.
-- update_script_doc REPLACES the whole document and does NOT touch the canvas: the creator confirms the projection themselves, because it can also remove nodes. So never say you created nodes with it. When a script doc already exists, do not rewrite it wholesale — the state block shows you only its skeleton (title, scenes, shot count, cast), so a rewrite silently drops the shot text you cannot see. Edit those shots on their nodes instead.
+- update_script_doc REPLACES the whole document and does NOT touch the canvas: the creator confirms the projection themselves, because it can also remove nodes. So never say you created nodes with it. When a script doc already exists, read_script_doc FIRST — the state block shows you only its skeleton (title, scenes, shot count, cast), and update_script_doc replaces the whole thing, so writing from the skeleton silently drops the shot text you never read. Read it, then send back the full revised document with your change in it.
 - Reply in ${language}.
 
 HOW YOUR "message" READS — first line is the conclusion:
@@ -3979,7 +4087,8 @@ async function requestOperatorTurn({
      * `parseTurnJson` + `toOperatorTurnResult` —— 只有正文里带 `"ask"` 记号的那
      * 一轮才降级去解，正常的一句话不付这个代价。
      */
-    const nativeText = result.kind === 'text' ? result.text : (result.text ?? '')
+    const nativeText =
+      result.kind === 'text' ? result.text : (result.text ?? '')
     if (nativeText.includes(OPERATOR_NATIVE_ASK_MARKER)) {
       const asked = parseTurnJson(nativeText)
       if (asked?.ask) {

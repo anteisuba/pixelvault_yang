@@ -142,14 +142,18 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
   },
   {
     // Tops all three Artificial Analysis video arenas (T2V ±audio and I2V).
-    // Runs on the Interactions API. ⚠ available:true but NOT actually
-    // reachable: canSubmitVideoViaExecutionWorker never allowlisted Gemini,
-    // so every request 501s. The Next.js-side implementation (formerly
+    // Runs on the Interactions API. ⚠ RESERVED (available:false, 2026-09-02):
+    // it is NOT reachable. `canSubmitVideoViaExecutionWorker`
+    // (services/generate-video.service.ts) never allowlisted GEMINI, and
+    // `submitProviderQueue` in workers/execution has no Gemini branch either,
+    // so every selection ended in the 501 at the bottom of
+    // submitVideoGenerationForUserId — after the picker had already offered it.
+    // The Next.js-side implementation (formerly
     // geminiAdapter.submitVideoToQueue/checkVideoQueueStatus) was deleted as
     // dead code 2026-08-24 (dead-chain cleanup) and was never migrated to
     // workers/execution — see docs/references/model-catalog.md §7 for the
-    // historical API-shape notes. Flip available:false or finish the worker
-    // migration before touching this entry.
+    // historical API-shape notes. Flip back to available:true (and drop the id
+    // from RESERVED_MODEL_IDS) in the same change that lands the worker branch.
     // Official docs still mark Omni Flash as preview (ai.google.dev, 2026-07-06
     // last-updated on page). There is no public non-preview id yet — keep
     // preview execution id until Google publishes GA.
@@ -159,7 +163,7 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
     externalModelId: 'gemini-omni-flash-preview',
     outputType: 'VIDEO',
-    available: true,
+    available: false,
     officialUrl: 'https://ai.google.dev/gemini-api/docs/omni',
     timeoutMs: 300_000,
     qualityTier: 'premium',

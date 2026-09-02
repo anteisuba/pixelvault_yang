@@ -383,6 +383,7 @@ export function applyOperatorStep(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.readGraph:
     case ASSISTANT_OPERATOR_TOOL_IDS.readNode:
+    case ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc:
     /**
      * ⚠ `search_web_images` **必须显式列在这里**，不能靠 switch 漏出去：
      * 本仓没开 `noImplicitReturns`，漏掉的分支会返回 `undefined` 而不是 `null`，
@@ -611,6 +612,7 @@ export function revertOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
     case ASSISTANT_OPERATOR_TOOL_IDS.readGraph:
     case ASSISTANT_OPERATOR_TOOL_IDS.readNode:
+    case ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc:
       return
 
     /**

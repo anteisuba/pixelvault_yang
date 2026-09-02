@@ -881,6 +881,8 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate]: z.object({
     nodeId: CanvasNodeRefSchema,
   }),
+  /** ⛔ 无参：整份文档就一份，读的是工作副本上此刻那一份（同 `read_graph`）。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc]: z.object({}),
   /** C3 实现。整份文档下发；投影仍走 `previewScriptDocProjection` + 既有确认门。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc]: z.object({
     doc: ScriptDocSchema,
@@ -1505,6 +1507,15 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
     z.object({ nodeId: CanvasNodeRefSchema, primed: z.literal(true) }),
     z.object({ nodeId: CanvasNodeRefSchema, primed: z.literal(false) }),
+  ),
+  /**
+   * 整份剧本（C2-b）—— 镜头正文与台词只从这里出（与 `read_node` 的 URL 同一条
+   * K-4 规矩：进快照、不进提示）。`digest` 是助手实际读到的那段文本。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc,
+    z.object({}),
+    z.object({ digest: z.string().max(LIMITS.maxMessageChars) }),
   ),
   /** 写 ScriptDoc（C3 实现）：逆操作是改前整份文档，`null` = 改前没有。 */
   mutatingStep(

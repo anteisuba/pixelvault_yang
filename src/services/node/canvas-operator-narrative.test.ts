@@ -499,7 +499,10 @@ describe('验收题 · 四镜叙事 · 原生快路（OpenAI）', () => {
       name: second.tool.name,
       args: second.tool.args,
     })
-    mockLlmTextToolCall.mockResolvedValue({ kind: 'text', text: '前两镜就位。' })
+    mockLlmTextToolCall.mockResolvedValue({
+      kind: 'text',
+      text: '前两镜就位。',
+    })
 
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest()),
@@ -510,12 +513,20 @@ describe('验收题 · 四镜叙事 · 原生快路（OpenAI）', () => {
 
     // ① 发出去的工具表跟着 canvas 域表，⛔ 不是工作台那张。
     const call = mockLlmTextToolCall.mock.calls[0]?.[0] as {
-      tools: { name: string }[]
+      tools: { name: string; parameters: unknown }[]
       responseFormat?: unknown
     }
     expect(call.tools.map((tool) => tool.name)).toEqual([
       ...ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN.canvas,
     ])
+    /**
+     * ⭐ C2-b：新加的读工具**不用碰这条链** —— 原生工具表跟着域表生成，参数由
+     * zod 出（`read_script_doc` 无参 = 空 object）。这条断言钉的就是「加一条工具
+     * 只改域表」，⛔ 别在别处再抄一份工具清单。
+     */
+    expect(
+      call.tools.find((tool) => tool.name === TOOL.readScriptDoc)?.parameters,
+    ).toMatchObject({ type: 'object' })
     expect(call.responseFormat).toBeUndefined()
 
     // ② 第一步仍是读同名角色卡，摘要里有卡上的外观与参考图。

@@ -149,19 +149,25 @@ describe('pickDefaultVideoModel', () => {
     ).toBe(AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE)
   })
 
-  it('默认型号在这一档无解时，退到该档下任意一条能跑的', () => {
-    // 「多图参考」档里没有任何 Seedance —— 但新节点仍必须拿到一个能跑的模型。
-    //
-    // ⚠ 这里用 Gemini Omni 而不是 Veo：cleanup §3 的表把 Veo 3.1 列在这一档，但
-    // **它在目录里 `available: false`**（LTX 2.3 同），`getModelsForNodeMode` 只返回
-    // available 的。文档写的是设计意图，不是当前目录事实 —— 我照表写这条期望，红了
-    // 才发现。**这一档目前只有 Gemini Omni 一个可用模型。**
+  /**
+   * ⚠ 2026-09-02 翻面：这条用例原本断言「退到 Gemini Omni」——「多图参考」档里
+   * 没有任何 Seedance，而 Veo 3.1 / LTX 2.3 早已 `available: false`，于是那一档
+   * 只剩 Gemini Omni 一个。**而它是假可用的**：worker 从来没 allowlist 过 GEMINI
+   * （`WORKER_CAPABLE_VIDEO_ADAPTERS`），选中必吃 501，所以它进了
+   * `RESERVED_MODEL_IDS`、`available` 翻成 false。
+   *
+   * 结论随之翻面：**「多图参考」档目前一条能跑的模型都没有**，`pickDefaultVideoModel`
+   * 只能返回 null。⛔ 这里不改成「退到别的档」—— 那正是本文件头注禁止的回退
+   * （用户以为在用多图参考、实际发的是首帧）。这条红字是给下一个人看的：要么给
+   * 这一档接一个真能跑的模型，要么把这一档从 UI 上收掉。
+   */
+  it('这一档一条能跑的模型都没有时返回 null（⛔ 不偷偷换档）', () => {
     const hit = pickDefaultVideoModel(
       DEFAULT_VIDEO_VARIANT,
       'image-reference',
       ALL_OPTIONS,
     )
-    expect(hit?.modelId).toBe(AI_MODELS.GEMINI_OMNI_FLASH)
+    expect(hit).toBeNull()
   })
 
   it('清单为空时返回 null 而不是抛', () => {

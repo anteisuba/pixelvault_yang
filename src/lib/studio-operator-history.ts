@@ -185,6 +185,7 @@ export function describeOperatorStepDetail(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.readGraph:
     case ASSISTANT_OPERATOR_TOOL_IDS.readNode:
+    case ASSISTANT_OPERATOR_TOOL_IDS.readScriptDoc:
       return step.result?.digest ?? null
     case ASSISTANT_OPERATOR_TOOL_IDS.stageNodes:
       return [

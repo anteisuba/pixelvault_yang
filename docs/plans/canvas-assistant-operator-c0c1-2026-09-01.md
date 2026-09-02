@@ -214,3 +214,11 @@ C0-b 自定的 8 个默认，全部接受：`priceLabel` 可选展示串 · `mod
 - `prime_node_generate`：节点卡生成键 primed 态（视觉 + 聚焦），不算价。
 - 测试：apply 单测覆盖 10 工具、别名、批撤、append 拼接；宿主单测 snapshot 形状（无 `prompt`、有 `modelOptions`）；money-gate ② 源码扫描禁 `handleGenerateMediaNode` / `NODE_GENERATION_SOURCE_IDS` / `generate-*` / `createGeneration` / `deductCredits`。
 - 本片不换 dock 里的 marker 链（C2 平价后整体退役）；宿主先以 hook 形式存在并在 `StudioNodeWorkbench` 挂载但不接 UI，用测试证明可用。
+
+## 附录 H · C1 正片 / 检索修复 R 验收（2026-09-02 10:10 UTC）
+
+**C1 ✅**（worktree `agent-abaeaa5243ae46f84`，基于 `9ee7b1e`）：`canvas-operator-apply.ts` 纯函数（patch 与 inverse 同为 `NodeWorkflowGraphPatch`，逆补丁按此刻的图算）· `node-workflow-graph-patch.ts` 施加原语 · `canvas-operator-snapshot.ts`（根无 `prompt`，`modelOptions` 只列可跑渠道并带相对价签）· `use-canvas-operator-host.ts`（`apply.canvas` 整步粒度四方法；批撤只在撤销栈顶仍是落笔引用时可点）· money-gate ② 两份源码扫描 · 删 `node-assistant-history.ts` 与 `CanvasAssistantToggle.tsx`。定向 212 文件 2566/2566，tsc 零错。C1 自定 5 条契约决定全部接受（`canUndoBatch` 收 step 对象 · 整步粒度 · `duration` 归 params · `attach_refs` 直接构条目 · 新增两条系统码）。遗留归 C2：`assistantPrimed` 视觉、画布步的 inverse 文案。
+
+**R ✅**（worktree `agent-a9eccce2158772537`，基于 `ef0a2c4`）：五个缺口逐一落地——泛请求词表 + 实体抽取 → ip_character 组；缺 key 抛 `WebSearchNotConfiguredError`、源级 `unavailable` 回执不喂熔断、UI「联网搜索未配置」不再劝换词；`buildResearchStatusBlock` 让模型知道「已检索且为空 / 失败 / 不可用」并禁编造；查询按源分派（主语给 wiki 类，整句给网搜），规划器要英文 / 罗马音别名；Fandom 由规划器给 `fandomHost` 按 host 组站，无 host 记 skipped。`prisma/schema.prisma` 只动过一行注释，已回退，新状态不落库。定向 23 文件 310/310，tsc 零错。网络被出口策略挡，全部 mock 验证，**真机命中待 owner 配好 SERPER key 后验**。
+
+**合并顺序**：C1 fast-forward → R 合并（与分支只在三份 messages json 相交）→ full-gate → 提交 → push。

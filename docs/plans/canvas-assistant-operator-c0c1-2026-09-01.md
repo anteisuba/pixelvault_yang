@@ -169,3 +169,26 @@ C0-a 提出的 6 个契约问题，裁定如下（C0-b 照此实现）：
 5. 确认复合键：service 的 `Set<ConfirmField>` 改为复合键集合；`maxConfirmDecisions` 24 接受。`set_review_state` 也走 `confirm_request`，`field: 'reviewState'`，choices 只有 overwrite / keep（客户端渲染为「确认 / 跳过」），`approved` 在规划器直接拒 `approvedForbidden`。
 6. `attach_refs` 每条 ref `sourceId` / `assetId` 二选一由规划器判：`sourceId` 必须是工作副本里带媒体的节点；`assetId` 必须是**本轮** `inspect_asset_folder` / `search_assets` 返回过的 id（与 `folderIndex` 同款准入表），否则拒（新增 `unknownAsset` 拒因）。载荷带 url 供客户端落引用架。
 7. 补：快照 `canvas.modelOptions[]`（按 nodeType 列 modelId + optionId + label + 相对价签），`set_node_model` 只认表内组合，缺 optionId 拒 `missingChannel`，不在表内拒 `unknownModel`。
+
+## 附录 E · 对话设计决定（owner 2026-09-02，第三轮访谈）
+
+owner 定性：助手设计是一项独立的大工程（回复怎么设计、反问怎么设计、怎么搜图、怎么入库）。本附录只记拍板，正式规范沉淀到 `references/pages/assistant-shell.md` 新开「对话设计」一节（完成即删本包时一并做）。
+
+| 题 | 拍板 | 落点 |
+| --- | --- | --- |
+| 何时反问 | **交给 AI 判断**：不确定用户想做什么时就反问；不设「先问一轮」硬门，也不禁问 | 系统提示写判据（意图不清 / 多解 / 会花钱或覆盖手写内容时问），协议层给 `ask` 一等事件而非正文标记（接「标记升帧」那片） |
+| 反问形式 | **选项卡 + 自由输入**：最多 3 个可点选项，每项一句后果，另留输入框；点选即回答并继续 | 统一成一张卡，`ClarifyingQuestionCard`（画布 ScriptDoc 用）与 `AssistantTurnOptions`（工作台用）两份合一，C2 面板重做时收口 |
+| 回复结构 | **结论一句 + 动作清单 + 可展开细节**；创意讨论允许展开成长文 | 操作员事件流天然给出「message + steps」；`message` 帧约束第一行为结论，细节折叠由面板渲染 |
+| 网图交互 | **点击 = 打开放大图**（灯箱），**入库是另一个动作**；入库落到素材库根「所有」，不进项目文件夹 | 现有 `search_web_images` 看/选分离保留；`web-image-import` 的目标夹改为根（当前实现按 `isPublic=false` 入库，folder 归属需核对）；灯箱复用 `StudioOperatorLightbox` |
+
+待设计（下一轮问 owner）：反问上限（一轮最多几问）· 反问未答时助手是否按默认继续 · 动作清单里撤销的粒度展示 · 入库去重规则（同 URL / 同哈希）。
+
+## 附录 F · 切片状态（2026-09-02 04:50 UTC）
+
+| 片 | 状态 | 证据 |
+| --- | --- | --- |
+| C0-a | ✅ 验收通过 | 定向 456/457（唯一失败归 C0-b 的旧过滤条件） |
+| C0-c | ✅ 验收通过 | `llm-text` 83/83 + `assistant-completion` 7/7；四文件 tsc 零错；取消抛 `signal.reason`，`isLlmTextAbortError` 识别 |
+| G-A | ✅ 验收通过 | 77 文件 756 用例全绿；arm=聚焦或「从画布选」钮，exit=Esc/空白/发送，不因失焦退出；快投优先；非媒体节点以 `selectedNodeIds` 进请求 |
+| C0-b | 🔄 进行中（首次因会话限额中断，04:42 重启） | — |
+| C1-pre | 待 C0-b | 目的：让 4 个 C1 文件的穷举 switch / Record 先过 tsc（画布 step 在工作台宿主上显式「不适用」，不是 stub），再跑 full-gate、提交 |

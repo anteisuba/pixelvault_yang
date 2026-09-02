@@ -476,6 +476,16 @@ export const NodeWorkflowNodeDataSchema = z
       .record(z.string(), NodeMediaReviewSchema)
       .optional()
       .catch(undefined),
+    /**
+     * 画布助手把**这个节点**的生成键置成 primed（C1，`prime_node_generate`）。
+     *
+     * 与工作台 `setOperatorPrimed` 同一条宪法：它只让生成键亮起来（视觉 + 聚焦），
+     * ⛔ 不创建 generation、不算价 —— 扣扳机的永远是用户。读侧是节点卡的生成键
+     * （`ShotGenerateButton` / composer 的发送键，C2 接视觉）；写侧只有
+     * `lib/canvas-operator-apply.ts`，撤销回 `undefined`。
+     * 可选且无迁移：存量节点没有它 = 没被 prime 过。
+     */
+    assistantPrimed: z.boolean().optional(),
   })
   .passthrough()
 
@@ -781,3 +791,23 @@ export interface NodeWorkflowProjectSummary {
 }
 export type NodeWorkflowNode = Node<NodeWorkflowNodeData, NodeWorkflowNodeType>
 export type NodeWorkflowEdge = Edge<Record<string, unknown>>
+
+/**
+ * 一次对图的**结构化改动**（C1，画布操作员的落笔与撤销共用的形状）。
+ *
+ * ⚠ 运行态不过线，所以没有 zod schema（与 `CanvasWorkingState` 同一条论据）。
+ * 施加顺序固定：删边 → 删节点（连带触边）→ 加节点 → 加边 → 改节点 data；
+ * 实现在 `lib/node-workflow-graph-patch.ts`。`nodeData` 是浅合并，值为
+ * `undefined` = 删掉这个键（撤销「改前没有这个键」靠它）。
+ * 空补丁（每个数组都空）施加后图**引用不变**。
+ */
+export interface NodeWorkflowGraphPatch {
+  addNodes: readonly NodeWorkflowNode[]
+  removeNodeIds: readonly string[]
+  addEdges: readonly NodeWorkflowEdge[]
+  removeEdgeIds: readonly string[]
+  nodeData: readonly {
+    nodeId: string
+    data: Partial<NodeWorkflowNodeData>
+  }[]
+}

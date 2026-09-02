@@ -6997,7 +6997,26 @@
     "confirm": {
       "have": {
         "prompt": "提示词框里有你手写的 {count} 个字 —— 怎么处理？",
-        "negative": "负面提示词里有你手写的 {count} 个字 —— 怎么处理？"
+        "negative": "负面提示词里有你手写的 {count} 个字 —— 怎么处理？",
+        "title": "这张卡的名字是你手写的 —— 怎么处理？",
+        "reviewState": "这条媒体已有审核态 —— 要按助手说的改吗？",
+        "scene": "场景栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "action": "动作栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "camera": "镜头栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "composition": "构图栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "location": "地点栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "mood": "氛围栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "lighting": "光线栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "frameIntent": "画面意图栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "dialogue": "台词栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "voiceName": "音色名里有你手写的 {count} 个字 —— 怎么处理？",
+        "voiceProvider": "音色服务商栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "voiceId": "音色 id 栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "voiceStyle": "音色风格栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "voiceEmotion": "音色情绪栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "motion": "运动栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "duration": "时长栏里有你手写的 {count} 个字 —— 怎么处理？",
+        "audioIntent": "音频意图栏里有你手写的 {count} 个字 —— 怎么处理？"
       },
       "choice": {
         "append": "追加在后",
@@ -7015,7 +7034,9 @@
       "resultArrived": "它备的那一张回来了 —— 助手正在看",
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
       "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
-      "stepNotApplicable": "{subject} 是画布上的动作——这台工作台落不了它，什么都没改"
+      "stepNotApplicable": "{subject} 是画布上的动作——这台工作台落不了它，什么都没改",
+      "canvasStepRefused": "{subject} 没落到画布上：图上对不上（节点被删了 / 别名没登记 / 渠道不在目录里 / 还没有媒体）",
+      "canvasStepDeferred": "{subject} 这一片还落不了 —— 剧本笺写入在下一片接"
     },
     "suggestion": {
       "setupShot": "帮我配好这张图",

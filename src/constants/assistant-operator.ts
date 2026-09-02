@@ -316,6 +316,47 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
  */
 export const ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX = 'new:'
 
+/**
+ * 画布域**独有**的十条（C1 `canvas-operator-apply.ts` 的输入域）：两读 + 八改。
+ *
+ * ⚠ 与 `ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN.canvas` 不是同一张表：那张还铺了三条
+ * 从通用件借的读库工具（搜素材 / 找文件夹 / 看文件夹），它们在任何宿主上都没有
+ * 东西可落。这张只列「画布宿主要认」的，类型上把 `applyOperatorStep` 的画布分支
+ * 与 `StudioOperatorCanvasContext.apply` 的入参钉成同一个联合。
+ */
+export const ASSISTANT_OPERATOR_CANVAS_TOOLS = [
+  ASSISTANT_OPERATOR_TOOL_IDS.readGraph,
+  ASSISTANT_OPERATOR_TOOL_IDS.readNode,
+  ASSISTANT_OPERATOR_TOOL_IDS.stageNodes,
+  ASSISTANT_OPERATOR_TOOL_IDS.connectNodes,
+  ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields,
+  ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel,
+  ASSISTANT_OPERATOR_TOOL_IDS.attachRefs,
+  ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+  ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+  ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
+] as const
+
+export type AssistantOperatorCanvasTool =
+  (typeof ASSISTANT_OPERATOR_CANVAS_TOOLS)[number]
+
+/**
+ * 「撤销这一批」（拍板 3）只对 `stage_nodes` / `connect_nodes` 成立：一批 = 一个
+ * 撤销步，且只在它仍是最近一步时可点。`set_*` 是字段级逐步 inverse，不走这道门。
+ */
+export const ASSISTANT_OPERATOR_CANVAS_BATCH_TOOLS = [
+  ASSISTANT_OPERATOR_TOOL_IDS.stageNodes,
+  ASSISTANT_OPERATOR_TOOL_IDS.connectNodes,
+] as const
+
+export function isAssistantOperatorCanvasBatchTool(
+  tool: AssistantOperatorTool,
+): boolean {
+  return (ASSISTANT_OPERATOR_CANVAS_BATCH_TOOLS as readonly string[]).includes(
+    tool,
+  )
+}
+
 export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.readState,
   ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,

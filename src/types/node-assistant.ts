@@ -223,3 +223,16 @@ export type NodeAssistantMediaReference = z.infer<
   typeof AssistantMediaReferenceSchema
 >
 export type NodeAssistantRequest = z.infer<typeof NodeAssistantRequestSchema>
+
+/**
+ * 画布助手历史菜单里的一条会话（C1 从已删的 `lib/node-assistant-history.ts` 搬来）。
+ *
+ * ⚠ 只有菜单要看的三样：那份 localStorage 会话库连同它的 `messages` 已经是死代码
+ * （画布会话早走 DB，`use-assistant-conversation.ts` 以 `surface:'NODE_CANVAS'` 持久化），
+ * 两个消费者（`CanvasAssistantHistory` / `StudioAssistantHeaderActions`）一个都不读正文。
+ */
+export interface NodeAssistantHistorySession {
+  id: string
+  title: string
+  updatedAt: string
+}

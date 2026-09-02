@@ -6,7 +6,6 @@
 export * from './AssistantConversation'
 export * from './CanvasAddMenu'
 export * from './CanvasAssistantRouteSelector'
-export * from './CanvasAssistantToggle'
 export * from './CanvasBottomDock'
 export * from './CanvasMiniMap'
 export * from './CanvasTopBar'

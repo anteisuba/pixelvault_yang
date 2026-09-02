@@ -12,6 +12,8 @@
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { USER_UPLOAD_ACCEPTED_MIME_TYPES } from '@/constants/uploads'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
+import type { NodeAssistantParamId } from '@/constants/node-assistant-ops'
+import type { NodeWorkflowFieldId } from '@/constants/node-types'
 
 /**
  * 覆盖层的宽度（拍板 9：默认 560，左缘拖拽 420–860，宽度记忆）。
@@ -214,6 +216,14 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * 里的落点 —— 真到了，用户看到的是一句话而不是一个谜。
    */
   'stepNotApplicable',
+  /**
+   * 画布宿主落不下去这一步（C1）：服务端放行了，图上却对不上 —— 节点被人手删了、
+   * 别名没登记、目录里没这条渠道、节点还没有主媒体。⛔ 不静默：日志条写着「已做」而
+   * 画布纹丝不动，是本仓最难查的那一类。
+   */
+  'canvasStepRefused',
+  /** 这一步归下一片（`update_script_doc` → C3）：画布宿主认得它，但本片不落。 */
+  'canvasStepDeferred',
 ] as const
 
 export type StudioOperatorSystemCode =
@@ -258,3 +268,58 @@ export const STUDIO_OPERATOR_PILL_TONES = {
 
 export type StudioOperatorPillTone =
   (typeof STUDIO_OPERATOR_PILL_TONES)[keyof typeof STUDIO_OPERATOR_PILL_TONES]
+
+/**
+ * 画布宿主的**改动粒度**（C1，任务书 §三）：`${nodeId}:${field}`。
+ *
+ * ⚠ 不塞进 `STUDIO_OPERATOR_FIELD_IDS`：那张是这台表单的格，画布上每一格都是
+ * 「某个节点的」。`field` 一半取节点自由文本字段名（`NODE_WORKFLOW_FIELDS`）与
+ * 档位名（`NODE_ASSISTANT_PARAMS`），另一半是下面这几条画布专有的格。
+ * `nodes` / `edges` 两格是**整批**的登记（`stage_nodes` / `connect_nodes`），
+ * 它们的 nodeId 位写批次里第一个真实 id，撤销走「撤销这一批」那道门。
+ */
+export const CANVAS_OPERATOR_FIELD_IDS = {
+  title: 'title',
+  imageCategory: 'imageCategory',
+  model: 'model',
+  references: 'references',
+  reviewState: 'reviewState',
+  primed: 'primed',
+  nodes: 'nodes',
+  edges: 'edges',
+} as const
+
+export type CanvasOperatorField =
+  | (typeof CANVAS_OPERATOR_FIELD_IDS)[keyof typeof CANVAS_OPERATOR_FIELD_IDS]
+  | NodeWorkflowFieldId
+  | NodeAssistantParamId
+
+export const CANVAS_OPERATOR_CHANGE_KEY_SEPARATOR = ':'
+
+export type CanvasOperatorChangeKey =
+  `${string}${typeof CANVAS_OPERATOR_CHANGE_KEY_SEPARATOR}${CanvasOperatorField}`
+
+export function buildCanvasOperatorChangeKey(
+  nodeId: string,
+  field: CanvasOperatorField,
+): CanvasOperatorChangeKey {
+  return `${nodeId}${CANVAS_OPERATOR_CHANGE_KEY_SEPARATOR}${field}`
+}
+
+/**
+ * 「撤销这一批」为什么点不了（拍板 3：只在它仍是最近一步时可点，否则置灰给理由）。
+ * 值是 i18n 键的后缀（C2 面板渲染），不是文案。
+ */
+export const CANVAS_OPERATOR_BATCH_UNDO_REASON_IDS = {
+  /** 这一步不是批（`set_*` 走字段级 inverse，不经这道门）。 */
+  notBatch: 'notBatch',
+  /** 宿主没有这一步的本钱：刷新后载回的历史、或从没在本宿主落过。 */
+  unknownStep: 'unknownStep',
+  /** 已经撤过了。 */
+  alreadyUndone: 'alreadyUndone',
+  /** 它之后画布又动过（另一批 / 人手 / 撤销重做），不再是最近一步。 */
+  notLatest: 'notLatest',
+} as const
+
+export type CanvasOperatorBatchUndoReason =
+  (typeof CANVAS_OPERATOR_BATCH_UNDO_REASON_IDS)[keyof typeof CANVAS_OPERATOR_BATCH_UNDO_REASON_IDS]

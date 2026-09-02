@@ -25,7 +25,7 @@ import {
 import { usePromptAssistant } from '@/hooks/kernel/use-prompt-assistant'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import { createAssistantConversationShareAPI } from '@/lib/api-client/assistant-conversation'
-import type { NodeAssistantHistorySession } from '@/lib/node-assistant-history'
+import type { NodeAssistantHistorySession } from '@/types/node-assistant'
 import type { AssistantProtocolDomain } from '@/constants/assistant-protocol'
 import {
   RESEARCH_MODES,
@@ -97,7 +97,6 @@ export function StudioAssistantHeaderActions({
         id: session.id,
         title: session.title?.trim() || tHistory('new'),
         updatedAt: session.updatedAt,
-        messages: [],
       })),
     [sessions, tHistory],
   )

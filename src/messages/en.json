@@ -6997,7 +6997,26 @@
     "confirm": {
       "have": {
         "prompt": "You hand-wrote {count} characters in the prompt — what should happen to them?",
-        "negative": "You hand-wrote {count} characters in the negative prompt — what should happen to them?"
+        "negative": "You hand-wrote {count} characters in the negative prompt — what should happen to them?",
+        "title": "You named this card yourself — what should happen to it?",
+        "reviewState": "This media already has a review state — change it as the assistant suggests?",
+        "scene": "You hand-wrote {count} characters in the scene field — what should happen to them?",
+        "action": "You hand-wrote {count} characters in the action field — what should happen to them?",
+        "camera": "You hand-wrote {count} characters in the camera field — what should happen to them?",
+        "composition": "You hand-wrote {count} characters in the composition field — what should happen to them?",
+        "location": "You hand-wrote {count} characters in the location field — what should happen to them?",
+        "mood": "You hand-wrote {count} characters in the mood field — what should happen to them?",
+        "lighting": "You hand-wrote {count} characters in the lighting field — what should happen to them?",
+        "frameIntent": "You hand-wrote {count} characters in the frame intent field — what should happen to them?",
+        "dialogue": "You hand-wrote {count} characters in the dialogue field — what should happen to them?",
+        "voiceName": "You hand-wrote {count} characters in the voice name — what should happen to them?",
+        "voiceProvider": "You hand-wrote {count} characters in the voice provider field — what should happen to them?",
+        "voiceId": "You hand-wrote {count} characters in the voice id field — what should happen to them?",
+        "voiceStyle": "You hand-wrote {count} characters in the voice style field — what should happen to them?",
+        "voiceEmotion": "You hand-wrote {count} characters in the voice emotion field — what should happen to them?",
+        "motion": "You hand-wrote {count} characters in the motion field — what should happen to them?",
+        "duration": "You hand-wrote {count} characters in the duration field — what should happen to them?",
+        "audioIntent": "You hand-wrote {count} characters in the audio intent field — what should happen to them?"
       },
       "choice": {
         "append": "Append after",
@@ -7015,7 +7034,9 @@
       "resultArrived": "The run it armed came back — the assistant is looking at it",
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
       "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
-      "stepNotApplicable": "{subject} is a canvas action — this workbench cannot apply it, nothing changed"
+      "stepNotApplicable": "{subject} is a canvas action — this workbench cannot apply it, nothing changed",
+      "canvasStepRefused": "{subject} did not land on the canvas: the board no longer matches (node deleted / alias unknown / channel not in the catalog / no media yet)",
+      "canvasStepDeferred": "{subject} cannot be applied in this slice yet — script-doc writes land in the next one"
     },
     "suggestion": {
       "setupShot": "Set this shot up for me",

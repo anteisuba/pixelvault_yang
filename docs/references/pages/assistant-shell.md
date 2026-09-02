@@ -145,6 +145,7 @@
 
 ## Last Verified
 
+- 2026-09-02（C1 正片）：操作员宿主契约有了第三份实现 —— 节点画布（`use-canvas-operator-host.ts`），`StudioOperatorApplyContext` 加 `canvas?:` 可选能力组（与 `lora?:` 同构，整步粒度：`apply / revert / canUndoBatch / changes`），`applyOperatorStep` 保持同步；画布改动粒度 `${nodeId}:${field}`（`CANVAS_OPERATOR_FIELD_IDS`），系统行新增 `canvasStepRefused` / `canvasStepDeferred`，确认条补齐画布字段的 `confirm.have.*` 三语键。死代码 `lib/node-assistant-history.ts` 与 `CanvasAssistantToggle.tsx` 已删（历史会话类型移到 `types/node-assistant.ts`）。
 - 2026-08-31：工作台 operator 增加素材文件夹列举与只读视觉检查；当前文件夹、图片、24 张 / 8 张批次边界、真实 id 准入、覆盖率与证据格已由服务 / 工具环 / UI 回归测试锁定。TypeScript、目标 ESLint 与 6 个定向测试文件 161 条用例通过。
 - 2026-08-25：两条流式端点换成 SSE 帧协议（§6.5）。`open` 帧把响应头的 flush 与
   「模型开没开口」解耦，这条路由上的 504 因此在协议层被关死；回执与候选从响应头

@@ -7,13 +7,17 @@ vi.mock('@/lib/logger', () => ({
 import {
   RESEARCH_EVIDENCE_MARKERS,
   RESEARCH_INJECTION_PLACEHOLDER,
+  RESEARCH_RUN_STATUSES,
+  RESEARCH_SOURCE_STATUSES,
+  RESEARCH_UNAVAILABLE_REASONS,
 } from '@/constants/research'
 import {
   buildEvidenceBlock,
+  buildResearchStatusBlock,
   RESEARCH_EVIDENCE_DIRECTIVE,
   sanitizeEvidenceItems,
 } from '@/lib/research-evidence-block'
-import type { EvidenceItem } from '@/types/research'
+import type { EvidenceItem, ResearchReceipt } from '@/types/research'
 
 const RETRIEVED_AT = '2026-08-20T10:00:00.000Z'
 
@@ -114,6 +118,101 @@ describe('buildEvidenceBlock', () => {
 
   it('returns an empty string when there is nothing to inject', () => {
     expect(buildEvidenceBlock([])).toBe('')
+  })
+})
+
+// ── 空结果 / 不可用也要告诉模型（2026-09-01 附录 B 缺口 ⑤ / ②）────────
+describe('buildResearchStatusBlock', () => {
+  function receipt(over: Partial<ResearchReceipt>): ResearchReceipt {
+    return {
+      runId: 'run_1',
+      grounded: false,
+      status: RESEARCH_RUN_STATUSES.noEvidence,
+      perSource: [],
+      queries: [],
+      evidenceCount: 0,
+      ...over,
+    }
+  }
+
+  it('is empty when evidence exists — the evidence block already speaks', () => {
+    expect(
+      buildResearchStatusBlock(
+        receipt({
+          status: RESEARCH_RUN_STATUSES.succeeded,
+          grounded: true,
+          evidenceCount: 2,
+        }),
+      ),
+    ).toBe('')
+  })
+
+  it('says web search is not configured — so the model neither claims to have searched nor invents', () => {
+    const block = buildResearchStatusBlock(
+      receipt({
+        runId: null,
+        status: RESEARCH_RUN_STATUSES.unavailable,
+        perSource: [
+          {
+            sourceId: 'web_search',
+            status: RESEARCH_SOURCE_STATUSES.unavailable,
+            reason: RESEARCH_UNAVAILABLE_REASONS.missingKey,
+            count: 0,
+            tookMs: 0,
+          },
+        ],
+      }),
+    )
+
+    expect(block).toContain('RESEARCH UNAVAILABLE')
+    expect(block).toContain('not configured')
+    expect(block).toMatch(/do not (say|claim)/i)
+  })
+
+  it('lists what was queried when the run executed and came back empty', () => {
+    const block = buildResearchStatusBlock(
+      receipt({
+        status: RESEARCH_RUN_STATUSES.noEvidence,
+        queries: ['无限大', '我想要无限大的资料'],
+        perSource: [
+          { sourceId: 'moegirl', status: 'empty', count: 0, tookMs: 120 },
+          { sourceId: 'wikipedia_zh', status: 'empty', count: 0, tookMs: 90 },
+          { sourceId: 'fandom', status: 'skipped', count: 0, tookMs: 0 },
+        ],
+      }),
+    )
+
+    expect(block).toContain('RESEARCH EXECUTED')
+    // 只数真打过的源
+    expect(block).toContain('2 source')
+    expect(block).toContain('moegirl')
+    expect(block).not.toContain('fandom')
+    expect(block).toContain('无限大')
+    expect(block).toContain('no usable evidence')
+  })
+
+  it('distinguishes failed and quota_exceeded from an honest empty', () => {
+    expect(
+      buildResearchStatusBlock(
+        receipt({
+          status: RESEARCH_RUN_STATUSES.failed,
+          perSource: [
+            {
+              sourceId: 'web_search',
+              status: 'failed',
+              count: 0,
+              tookMs: 5,
+              error: 'upstream 503',
+            },
+          ],
+        }),
+      ),
+    ).toContain('RESEARCH FAILED')
+    expect(
+      buildResearchStatusBlock(
+        receipt({ runId: null, status: RESEARCH_RUN_STATUSES.quotaExceeded }),
+      ),
+    ).toContain('quota')
   })
 })
 

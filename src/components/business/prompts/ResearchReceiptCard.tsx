@@ -10,6 +10,7 @@ import {
   Minus,
   Search,
   TriangleAlert,
+  Unplug,
   ZapOff,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -53,6 +54,7 @@ const STATUS_ICON: Record<
   [RESEARCH_RUN_STATUSES.noEvidence]: CircleSlash,
   [RESEARCH_RUN_STATUSES.failed]: TriangleAlert,
   [RESEARCH_RUN_STATUSES.quotaExceeded]: CircleAlert,
+  [RESEARCH_RUN_STATUSES.unavailable]: Unplug,
 }
 
 const STATUS_TONE: Record<ResearchRunStatus, string> = {
@@ -60,6 +62,7 @@ const STATUS_TONE: Record<ResearchRunStatus, string> = {
   [RESEARCH_RUN_STATUSES.noEvidence]: 'text-muted-foreground',
   [RESEARCH_RUN_STATUSES.failed]: 'text-status-risk',
   [RESEARCH_RUN_STATUSES.quotaExceeded]: 'text-status-risk',
+  [RESEARCH_RUN_STATUSES.unavailable]: 'text-status-risk',
 }
 
 const STATUS_LABEL_KEYS: Record<ResearchRunStatus, string> = {
@@ -67,13 +70,18 @@ const STATUS_LABEL_KEYS: Record<ResearchRunStatus, string> = {
   [RESEARCH_RUN_STATUSES.noEvidence]: 'research.statusNoEvidence',
   [RESEARCH_RUN_STATUSES.failed]: 'research.statusFailed',
   [RESEARCH_RUN_STATUSES.quotaExceeded]: 'research.statusQuotaExceeded',
+  [RESEARCH_RUN_STATUSES.unavailable]: 'research.statusUnavailable',
 }
 
-/** 状态说明。`succeeded` 没有说明 —— 成功不需要一句话解释自己。 */
+/**
+ * 状态说明。`succeeded` 没有说明 —— 成功不需要一句话解释自己。
+ * `unavailable` 是「没配联网」，⛔ 不许劝用户换关键词（2026-09-01 附录 B 缺口 ②）。
+ */
 const STATUS_HINT_KEYS: Partial<Record<ResearchRunStatus, string>> = {
   [RESEARCH_RUN_STATUSES.noEvidence]: 'research.noEvidenceNextSteps',
   [RESEARCH_RUN_STATUSES.failed]: 'research.failedHint',
   [RESEARCH_RUN_STATUSES.quotaExceeded]: 'research.quotaHint',
+  [RESEARCH_RUN_STATUSES.unavailable]: 'research.unavailableHint',
 }
 
 const SOURCE_STATUS_ICON: Record<
@@ -85,6 +93,7 @@ const SOURCE_STATUS_ICON: Record<
   [RESEARCH_SOURCE_STATUSES.failed]: TriangleAlert,
   [RESEARCH_SOURCE_STATUSES.circuitOpen]: ZapOff,
   [RESEARCH_SOURCE_STATUSES.skipped]: CircleSlash,
+  [RESEARCH_SOURCE_STATUSES.unavailable]: Unplug,
 }
 
 /**
@@ -100,6 +109,7 @@ const SOURCE_STATUS_TONE: Record<ResearchSourceStatus, string> = {
   [RESEARCH_SOURCE_STATUSES.failed]: 'text-status-risk',
   [RESEARCH_SOURCE_STATUSES.circuitOpen]: 'text-status-risk',
   [RESEARCH_SOURCE_STATUSES.skipped]: 'text-muted-foreground',
+  [RESEARCH_SOURCE_STATUSES.unavailable]: 'text-status-risk',
 }
 
 const SOURCE_STATUS_LABEL_KEYS: Record<ResearchSourceStatus, string> = {
@@ -108,6 +118,7 @@ const SOURCE_STATUS_LABEL_KEYS: Record<ResearchSourceStatus, string> = {
   [RESEARCH_SOURCE_STATUSES.failed]: 'research.sourceFailed',
   [RESEARCH_SOURCE_STATUSES.circuitOpen]: 'research.sourceCircuitOpen',
   [RESEARCH_SOURCE_STATUSES.skipped]: 'research.sourceSkipped',
+  [RESEARCH_SOURCE_STATUSES.unavailable]: 'research.sourceUnavailable',
 }
 
 function SourceChip({ entry }: { entry: ResearchSourceReceipt }) {

@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
   EVIDENCE_SOURCE_TIER_VALUES,
+  FANDOM_HOST_PATTERN,
   RESEARCH_CONCLUSION_BASIS_VALUES,
   RESEARCH_FRESHNESS_VALUES,
   RESEARCH_GOAL_VALUES,
@@ -10,6 +11,7 @@ import {
   RESEARCH_SOURCE_GROUP_VALUES,
   RESEARCH_SOURCE_ID_VALUES,
   RESEARCH_SOURCE_STATUS_VALUES,
+  RESEARCH_UNAVAILABLE_REASON_VALUES,
 } from '@/constants/research'
 
 // ─── EvidenceItem ───────────────────────────────────────────────
@@ -97,6 +99,8 @@ export const ResearchSourceReceiptSchema = z.object({
    * Serper `site:bilibili.com`（`via:'serper-fallback'`）。
    */
   via: z.string().trim().min(1).max(60).optional(),
+  /** `status:'unavailable'` 时缺的是什么（UI 文案按它分叉）。 */
+  reason: z.enum(RESEARCH_UNAVAILABLE_REASON_VALUES).optional(),
 })
 
 export type ResearchSourceReceipt = z.infer<typeof ResearchSourceReceiptSchema>
@@ -138,6 +142,11 @@ export const ResearchPlanSchema = z.object({
   freshness: z.enum(RESEARCH_FRESHNESS_VALUES),
   /** 用户消息里出现的 URL —— 有 URL 就直接读，不再打搜索。 */
   urls: z.array(z.string().trim().min(1).max(2000)).max(3).default([]),
+  /**
+   * 这个 IP 的 Fandom 子站（`ananta.fandom.com`）。只有 LLM 规划器会填；
+   * 没填 = 这一轮跳过 Fandom（不猜站，见 `FANDOM_SITE_CAPABILITY`）。
+   */
+  fandomHost: z.string().regex(FANDOM_HOST_PATTERN).optional(),
   /** 为什么这么定（进日志，便于事后归因规划错误）。 */
   reason: z.string().trim().max(300).optional(),
 })
@@ -161,6 +170,17 @@ export const ResearchPlannerOutputSchema = z.object({
     .max(RESEARCH_LIMITS.maxQueries)
     .default([]),
   freshness: z.enum(RESEARCH_FRESHNESS_VALUES).optional(),
+  /**
+   * 规划器给的 Fandom 子站。⚠ 不合法（不是 `*.fandom.com`）就**丢这一个字段**
+   * 而不是整份输出 —— 一个编出来的 host 不该把中英改写也一起作废。
+   */
+  fandomHost: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(FANDOM_HOST_PATTERN)
+    .optional()
+    .catch(undefined),
   reason: z.string().trim().max(300).optional(),
 })
 

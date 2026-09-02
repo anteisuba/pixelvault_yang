@@ -16,9 +16,11 @@ import {
   RESEARCH_EVIDENCE_MARKERS,
   RESEARCH_INJECTION_PLACEHOLDER,
   RESEARCH_LIMITS,
+  RESEARCH_RUN_STATUSES,
+  RESEARCH_SOURCE_STATUSES,
 } from '@/constants/research'
 import { detectInjectionPattern } from '@/services/kernel/prompt-guard'
-import type { EvidenceItem } from '@/types/research'
+import type { EvidenceItem, ResearchReceipt } from '@/types/research'
 
 /**
  * 扫一遍证据，把命中注入模式的条目降级。返回新数组，不改入参。
@@ -100,6 +102,55 @@ export function buildEvidenceBlock(items: readonly EvidenceItem[]): string {
 
   return `${RESEARCH_EVIDENCE_MARKERS.blockHeader} (${bounded.length} items — cite them as [1]…[${bounded.length}]):
 ${rendered.join('\n\n')}`
+}
+
+const NO_INVENTION_RULE =
+  'Do not claim to have searched more than this, do not say you "looked everywhere", and do not invent URLs, numbers, dates, or names to fill the gap — anything you add from memory must be labelled as unverified.'
+
+/**
+ * 检索**发生了但没有证据**时给模型的状态块（2026-09-01 附录 B 缺口 ② / ⑤）。
+ *
+ * 有证据时返回空串 —— 证据块自己会说话。没证据时四种情形各说各的：
+ *  - `unavailable` / `quota_exceeded`：一个请求都没发，模型不许说「我搜了」；
+ *  - `failed`：源全挂，模型要说「查询失败」而不是「查无此人」；
+ *  - `no_evidence`：列出打了哪些源、用了哪些查询，模型只能如实转述这个范围。
+ *
+ * ⚠ 放在**用户提示**（与工作台状态块同一位置）：它是这一轮的事实，不是规矩。
+ */
+export function buildResearchStatusBlock(receipt: ResearchReceipt): string {
+  if (receipt.evidenceCount > 0) return ''
+  const headers = RESEARCH_EVIDENCE_MARKERS.statusHeaders
+
+  if (receipt.status === RESEARCH_RUN_STATUSES.unavailable) {
+    return `${headers.unavailable}: live web search is not configured on this deployment (missing search API key) — no source was queried this turn. ${NO_INVENTION_RULE} Say plainly that live lookup was unavailable, then answer from your own knowledge if you can, marking it as such.`
+  }
+
+  if (receipt.status === RESEARCH_RUN_STATUSES.quotaExceeded) {
+    return `${headers.unavailable}: today's retrieval quota is used up — no source was queried this turn. ${NO_INVENTION_RULE} Say plainly that live lookup was unavailable, then answer from your own knowledge if you can, marking it as such.`
+  }
+
+  const attempted = receipt.perSource.filter(
+    (entry) =>
+      entry.status !== RESEARCH_SOURCE_STATUSES.skipped &&
+      entry.status !== RESEARCH_SOURCE_STATUSES.unavailable,
+  )
+  const sourceList = attempted.map((entry) => entry.sourceId).join(', ')
+  const count = `${attempted.length} source${attempted.length === 1 ? '' : 's'}`
+  const queries = receipt.queries.map((query) => `"${query}"`).join(', ')
+  // 部分源没配置（典型：wiki 打了但网搜缺 key）也要说 —— 否则模型以为网搜也查过了。
+  const unavailable = receipt.perSource
+    .filter((entry) => entry.status === RESEARCH_SOURCE_STATUSES.unavailable)
+    .map((entry) => entry.sourceId)
+  const unavailableNote =
+    unavailable.length > 0
+      ? ` Not queried because not configured on this deployment: ${unavailable.join(', ')}.`
+      : ''
+
+  if (receipt.status === RESEARCH_RUN_STATUSES.failed) {
+    return `${headers.failed}: ${count} attempted (${sourceList}) and every one errored — no evidence was retrieved.${unavailableNote} Tell the creator the lookup failed (not that nothing exists). ${NO_INVENTION_RULE}`
+  }
+
+  return `${headers.executed}: ${count} queried (${sourceList})${queries ? ` with ${queries}` : ''}; no usable evidence was found.${unavailableNote} State exactly that — what was searched and that nothing usable came back. ${NO_INVENTION_RULE}`
 }
 
 /**

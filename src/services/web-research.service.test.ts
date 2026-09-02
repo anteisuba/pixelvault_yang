@@ -11,6 +11,7 @@ import {
   readUrl,
   webImageSearch,
   webSearch,
+  WebSearchNotConfiguredError,
 } from '@/services/web-research.service'
 
 const mockFetch = vi.fn()
@@ -52,10 +53,13 @@ describe('isWebSearchConfigured', () => {
 })
 
 describe('webSearch', () => {
-  it('returns [] without a Serper key and does not call fetch', async () => {
+  it('throws WebSearchNotConfiguredError without a Serper key and does not call fetch', async () => {
+    // 缺 key 不是「搜到了空结果」—— 静默 [] 会让上游把「没配联网」记成「没搜到」
+    //（2026-09-01 附录 B 缺口 ②）。
     vi.stubEnv('SERPER_API_KEY', '')
-    const results = await webSearch('convenience store romance pacing')
-    expect(results).toEqual([])
+    await expect(
+      webSearch('convenience store romance pacing'),
+    ).rejects.toBeInstanceOf(WebSearchNotConfiguredError)
     expect(mockFetch).not.toHaveBeenCalled()
   })
 

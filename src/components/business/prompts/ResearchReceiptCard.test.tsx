@@ -5,6 +5,7 @@ import {
   RESEARCH_RUN_STATUSES,
   RESEARCH_SOURCE_IDS,
   RESEARCH_SOURCE_STATUSES,
+  RESEARCH_UNAVAILABLE_REASONS,
 } from '@/constants/research'
 import type {
   ResearchReceipt,
@@ -174,6 +175,35 @@ describe('ResearchReceiptCard', () => {
 
     expect(screen.getByText('research.statusQuotaExceeded')).toBeInTheDocument()
     expect(screen.getByText('research.quotaHint')).toBeInTheDocument()
+  })
+
+  it('renders the unavailable state — search was never configured, not「nothing found」', () => {
+    // 2026-09-01 附录 B 缺口 ②：缺 SERPER_API_KEY 曾静默成 empty，用户被劝「换个关键词」。
+    render(
+      <ResearchReceiptCard
+        receipt={receipt({
+          runId: null,
+          status: RESEARCH_RUN_STATUSES.unavailable,
+          grounded: false,
+          evidenceCount: 0,
+          perSource: [
+            source({
+              sourceId: RESEARCH_SOURCE_IDS.webSearch,
+              status: RESEARCH_SOURCE_STATUSES.unavailable,
+              reason: RESEARCH_UNAVAILABLE_REASONS.missingKey,
+              count: 0,
+            }),
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('research.statusUnavailable')).toBeInTheDocument()
+    expect(screen.getByText('research.unavailableHint')).toBeInTheDocument()
+    expect(screen.getByText('research.sourceUnavailable')).toBeInTheDocument()
+    expect(
+      screen.queryByText('research.noEvidenceNextSteps'),
+    ).not.toBeInTheDocument()
   })
 
   // ── 源级 chip ────────────────────────────────────────────────────

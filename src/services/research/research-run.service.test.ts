@@ -17,11 +17,11 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
-// 规划器在这里是恒等替身：本文件验的是**编排**（状态三态 / 配额 / 去重），
-// 规划本身由 research-intent 的测试覆盖。
+// 规划器默认是恒等替身：本文件验的是**编排**（状态三态 / 配额 / 去重），
+// 规划本身由 research-intent 的测试覆盖。个别用例把它换成「补了 fandomHost」的版本。
+const mockPlanner = vi.fn()
 vi.mock('@/services/research/research-planner.service', () => ({
-  planResearchWithLlm: async (params: { heuristic: unknown }) =>
-    params.heuristic,
+  planResearchWithLlm: (...args: unknown[]) => mockPlanner(...args),
 }))
 
 const mockMediaWiki = vi.fn()
@@ -57,13 +57,16 @@ import {
   RESEARCH_MODES,
   RESEARCH_RUN_STATUSES,
   RESEARCH_SOURCE_ID_VALUES,
+  RESEARCH_SOURCE_IDS,
+  RESEARCH_SOURCE_STATUSES,
+  RESEARCH_UNAVAILABLE_REASONS,
 } from '@/constants/research'
 import { resetResearchBreakers } from '@/services/research/connector-runtime'
 import {
   dedupeEvidence,
   runResearch,
 } from '@/services/research/research-run.service'
-import type { EvidenceItem } from '@/types/research'
+import type { EvidenceItem, ResearchPlan } from '@/types/research'
 
 const CHARACTER_QUESTION = '鸣潮长离的发色是什么'
 
@@ -93,6 +96,9 @@ function baseParams() {
 beforeEach(() => {
   vi.clearAllMocks()
   resetResearchBreakers([...RESEARCH_SOURCE_ID_VALUES])
+  mockPlanner.mockImplementation(
+    async (params: { heuristic: ResearchPlan }) => params.heuristic,
+  )
   mockCount.mockResolvedValue(0)
   mockCreate.mockResolvedValue({ id: 'run_1' })
   mockMediaWiki.mockResolvedValue({ items: [] })
@@ -175,9 +181,12 @@ describe('runResearch — 三态', () => {
 
     expect(outcome?.receipt.status).toBe(RESEARCH_RUN_STATUSES.noEvidence)
     expect(outcome?.receipt.grounded).toBe(false)
-    expect(outcome?.receipt.perSource.every((r) => r.status === 'empty')).toBe(
-      true,
+    // Fandom 没有规划器给的站 → skipped；其余真打过的源全是 empty
+    const attempted = outcome?.receipt.perSource.filter(
+      (r) => r.status !== RESEARCH_SOURCE_STATUSES.skipped,
     )
+    expect(attempted?.length).toBeGreaterThan(0)
+    expect(attempted?.every((r) => r.status === 'empty')).toBe(true)
     expect(outcome?.evidenceBlock).toBe('')
   })
 
@@ -192,9 +201,13 @@ describe('runResearch — 三态', () => {
 
     expect(outcome?.receipt.status).toBe(RESEARCH_RUN_STATUSES.failed)
     expect(outcome?.receipt.grounded).toBe(false)
-    // 每个源的失败都留了痕 —— 单源静默失败不允许
+    // 每个真打过的源的失败都留了痕 —— 单源静默失败不允许（Fandom 无站 → skipped）
+    const attempted = outcome?.receipt.perSource.filter(
+      (receipt) => receipt.status !== RESEARCH_SOURCE_STATUSES.skipped,
+    )
+    expect(attempted?.length).toBeGreaterThan(0)
     expect(
-      outcome?.receipt.perSource.every(
+      attempted?.every(
         (receipt) => receipt.status === 'failed' && receipt.error,
       ),
     ).toBe(true)
@@ -247,6 +260,130 @@ describe('runResearch — 三态', () => {
 
     expect(outcome?.receipt.runId).toBeNull()
     expect(outcome?.receipt.grounded).toBe(true)
+  })
+})
+
+// ── 2026-09-01 附录 B「无限大」实测缺口 ──────────────────────────────
+describe('runResearch — 「我想要无限大的资料」端到端（网络全 mock）', () => {
+  const INFO_REQUEST = '我想要无限大的资料'
+
+  it('plans the entity「无限大」as the wiki / danbooru query and keeps the sentence for web search only', async () => {
+    const outcome = await runResearch({ ...baseParams(), text: INFO_REQUEST })
+
+    expect(outcome?.plan.shouldSearch).toBe(true)
+    expect(outcome?.plan.queries[0]?.text).toBe('无限大')
+
+    // wiki 的 opensearch 是前缀匹配 —— 喂整句必空，必须喂主语
+    for (const call of mockMediaWiki.mock.calls) {
+      expect((call[0] as { query: string }).query).toBe('无限大')
+    }
+    expect(mockMediaWiki).toHaveBeenCalled()
+    expect(mockDanbooru).toHaveBeenCalledWith({ query: '无限大' })
+    // 网搜两条都拿：主语 + 整句（整句是网搜专用，不外泄给别的源）
+    expect(mockWebSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ queries: ['无限大', INFO_REQUEST] }),
+    )
+  })
+
+  it('unavailable: SERPER key absent on a web-only run — NOT「searched and found nothing」', async () => {
+    mockWebSearch.mockResolvedValue({
+      items: [],
+      unavailable: RESEARCH_UNAVAILABLE_REASONS.missingKey,
+    })
+
+    // 「是什么」问句走通用组 → 只有网搜一个源
+    const outcome = await runResearch({
+      ...baseParams(),
+      text: '无限大是什么',
+    })
+
+    expect(outcome?.receipt.status).toBe(RESEARCH_RUN_STATUSES.unavailable)
+    expect(outcome?.receipt.grounded).toBe(false)
+    expect(outcome?.receipt.perSource).toEqual([
+      expect.objectContaining({
+        sourceId: RESEARCH_SOURCE_IDS.webSearch,
+        status: RESEARCH_SOURCE_STATUSES.unavailable,
+        reason: RESEARCH_UNAVAILABLE_REASONS.missingKey,
+      }),
+    ])
+    // 一个请求都没发的 run 不落库、不吃配额（与 quota_exceeded 同款）
+    expect(outcome?.receipt.runId).toBeNull()
+    expect(mockCreate).not.toHaveBeenCalled()
+    // 模型端必须听得见：不是「没搜到」，是「没配联网」
+    expect(outcome?.evidenceBlock).toBe('')
+    expect(outcome?.statusBlock).toContain('RESEARCH UNAVAILABLE')
+  })
+
+  it('no_evidence when the wikis answered empty but web search was unavailable — the chip still says so', async () => {
+    mockWebSearch.mockResolvedValue({
+      items: [],
+      unavailable: RESEARCH_UNAVAILABLE_REASONS.missingKey,
+    })
+
+    const outcome = await runResearch({ ...baseParams(), text: INFO_REQUEST })
+
+    expect(outcome?.receipt.status).toBe(RESEARCH_RUN_STATUSES.noEvidence)
+    const web = outcome?.receipt.perSource.find(
+      (receipt) => receipt.sourceId === RESEARCH_SOURCE_IDS.webSearch,
+    )
+    expect(web?.status).toBe(RESEARCH_SOURCE_STATUSES.unavailable)
+    // 打了源但没料：模型要被告知「查了这些源、没有可用证据」，而不是什么都不说
+    expect(outcome?.statusBlock).toContain('RESEARCH EXECUTED')
+    expect(outcome?.statusBlock).toContain('moegirl')
+    expect(outcome?.statusBlock).toContain('无限大')
+  })
+
+  it('leaves statusBlock empty when evidence exists — the evidence block already speaks', async () => {
+    mockMediaWiki.mockResolvedValue({
+      items: [
+        evidence({ sourceId: 'moegirl' }),
+        evidence({ sourceId: 'moegirl', id: 'moegirl:2' }),
+      ],
+    })
+
+    const outcome = await runResearch({ ...baseParams(), text: INFO_REQUEST })
+
+    expect(outcome?.receipt.status).toBe(RESEARCH_RUN_STATUSES.succeeded)
+    expect(outcome?.statusBlock).toBe('')
+  })
+
+  it('skips Fandom honestly when the planner gave no host — no guessed wiki', async () => {
+    const outcome = await runResearch({ ...baseParams(), text: INFO_REQUEST })
+
+    const fandom = outcome?.receipt.perSource.find(
+      (receipt) => receipt.sourceId === RESEARCH_SOURCE_IDS.fandom,
+    )
+    expect(fandom?.status).toBe(RESEARCH_SOURCE_STATUSES.skipped)
+    const fandomCalls = mockMediaWiki.mock.calls.filter(
+      (call) =>
+        (call[0] as { site: { sourceId: string } }).site.sourceId ===
+        RESEARCH_SOURCE_IDS.fandom,
+    )
+    expect(fandomCalls).toHaveLength(0)
+  })
+
+  it('hits the Fandom host the planner named, nothing else', async () => {
+    mockPlanner.mockImplementation(
+      async (params: { heuristic: ResearchPlan }) => ({
+        ...params.heuristic,
+        fandomHost: 'ananta.fandom.com',
+        queries: [
+          ...params.heuristic.queries,
+          { text: 'Ananta', lang: 'en' as const },
+        ],
+      }),
+    )
+
+    await runResearch({ ...baseParams(), text: INFO_REQUEST })
+
+    const fandomCall = mockMediaWiki.mock.calls.find(
+      (call) =>
+        (call[0] as { site: { sourceId: string } }).site.sourceId ===
+        RESEARCH_SOURCE_IDS.fandom,
+    )?.[0] as { site: { api: string }; query: string } | undefined
+    expect(fandomCall?.site.api).toBe('https://ananta.fandom.com/api.php')
+    // Fandom 是英文站 —— 有英文查询就用英文的
+    expect(fandomCall?.query).toBe('Ananta')
   })
 })
 

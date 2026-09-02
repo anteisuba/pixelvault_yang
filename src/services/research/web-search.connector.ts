@@ -3,10 +3,15 @@ import 'server-only'
 import {
   RESEARCH_LIMITS,
   RESEARCH_SOURCE_IDS,
+  RESEARCH_UNAVAILABLE_REASONS,
   SERPER_TBS_BY_FRESHNESS,
   type ResearchFreshness,
 } from '@/constants/research'
-import { readUrl, webSearch } from '@/services/web-research.service'
+import {
+  isWebSearchConfigured,
+  readUrl,
+  webSearch,
+} from '@/services/web-research.service'
 import type { EvidenceItem } from '@/types/research'
 import {
   clampExcerpt,
@@ -33,6 +38,12 @@ export async function fetchWebSearchEvidence(params: {
   freshness: ResearchFreshness
   includeDomains?: string[]
 }): Promise<ConnectorResult> {
+  // ⚠ 缺 key 是「没法问」，不是「问了没料」—— 回执要记成 unavailable，
+  //   模型与用户都要听见（2026-09-01 附录 B 缺口 ②）。一个请求都不发。
+  if (!isWebSearchConfigured()) {
+    return { items: [], unavailable: RESEARCH_UNAVAILABLE_REASONS.missingKey }
+  }
+
   const tbs = SERPER_TBS_BY_FRESHNESS[params.freshness]
   const batches = await Promise.all(
     params.queries.slice(0, RESEARCH_LIMITS.maxQueries).map((query) =>

@@ -54,9 +54,10 @@ function fetchedUrls(): string[] {
 const MOEGIRL = MEDIAWIKI_SITES.find(
   (site) => site.sourceId === RESEARCH_SOURCE_IDS.moegirl,
 )!
-const FANDOM = MEDIAWIKI_SITES.find(
-  (site) => site.sourceId === RESEARCH_SOURCE_IDS.fandom,
-)!
+// Fandom 没有固定 host —— 站点由规划器按 IP 给出，测试里指定一个。
+const FANDOM = getMediaWikiSite(RESEARCH_SOURCE_IDS.fandom, {
+  fandomHost: 'wutheringwaves.fandom.com',
+})!
 
 describe('fetchMediaWikiEvidence — 萌娘百科', () => {
   it('turns categories into structured tag evidence and pageimages into image evidence', async () => {
@@ -254,6 +255,26 @@ describe('per-site query selection', () => {
 
     expect(pickQueryForSite(MOEGIRL, queries)).toBe('长离 鸣潮')
     expect(pickQueryForSite(FANDOM, queries)).toBe('changli wuthering waves')
+  })
+
+  it('builds the Fandom site from the planner host and refuses to guess one', () => {
+    // 2026-09-01 附录 B 缺口 ③：原先写死 wutheringwaves.fandom.com，问「无限大」
+    // 也去鸣潮站查 —— 猜站不诚实，没有站就跳过。
+    expect(getMediaWikiSite(RESEARCH_SOURCE_IDS.fandom)).toBeUndefined()
+    expect(
+      MEDIAWIKI_SITES.some(
+        (site) => site.sourceId === RESEARCH_SOURCE_IDS.fandom,
+      ),
+    ).toBe(false)
+
+    const ananta = getMediaWikiSite(RESEARCH_SOURCE_IDS.fandom, {
+      fandomHost: 'ananta.fandom.com',
+    })
+    expect(ananta?.api).toBe('https://ananta.fandom.com/api.php')
+    expect(ananta?.pageUrlPrefix).toBe('https://ananta.fandom.com/wiki/')
+    expect(ananta?.queryLanguage).toBe('en')
+    // 能力表（wikitext 路、无 TextExtracts）不随 host 变
+    expect(ananta?.contentRoutes).toEqual(FANDOM.contentRoutes)
   })
 
   it('knows every site in the capability table', () => {

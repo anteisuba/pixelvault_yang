@@ -35,12 +35,14 @@ const PLANNER_SYSTEM_PROMPT = `You plan retrieval for a creative AI workbench. O
   "sourceGroup": ${RESEARCH_SOURCE_GROUP_VALUES.map((value) => `"${value}"`).join(' | ')},
   "queries": [{ "text": string, "lang": "zh" | "en" | "ja" }],
   "freshness": "none" | "day" | "week" | "month" | "year",
+  "fandomHost": string (optional),
   "reason": string
 }
 
 RULES:
-- At most ${RESEARCH_LIMITS.maxQueries} queries. Each must be a search phrase, never a sentence or a question.
-- Pick the language per source, not per user: Chinese wikis (萌娘百科 / 维基百科) need Chinese terms; danbooru and Fandom need the English name. When the subject is an anime/game character, emit BOTH a Chinese query and an English one.
+- At most ${RESEARCH_LIMITS.maxQueries} queries. Each must be a search phrase, never a sentence or a question. The first query is the bare subject (a character, work, studio, or term) with request scaffolding stripped — wiki lookups are prefix matches and fail on full sentences.
+- Pick the language per source, not per user: Chinese wikis (萌娘百科 / 维基百科) need Chinese terms; danbooru and Fandom need the English name. ALWAYS add the English or romanized alias of the subject as a "lang":"en" query when you know it (e.g. 无限大 → "Ananta", 鸣潮 → "Wuthering Waves"); if you do not know it, omit it — never transliterate blindly.
+- "fandomHost": the Fandom wiki subdomain for the franchise, exactly "<name>.fandom.com" (e.g. "wutheringwaves.fandom.com"). Give it ONLY when you are sure that wiki exists; otherwise omit the field. A guessed host is worse than none.
 - "ip_character" for characters, franchises, official designs, appearance and lore. "ai_ecosystem" for models, LoRA, licences, providers. "general" otherwise.
 - freshness other than "none" ONLY when the question is explicitly about what is newest/current/today.
 - shouldSearch=false when the answer is stable, well-known ecosystem knowledge, or a pure writing request.`
@@ -177,6 +179,8 @@ export async function planResearchWithLlm(params: {
     urls: heuristic.urls,
     queries: queries.slice(0, RESEARCH_LIMITS.maxQueries),
     freshness: output.freshness ?? heuristic.freshness,
+    // Fandom 站只有规划器给得出（按 IP 找站）；不给就跳过，不猜。
+    ...(output.fandomHost ? { fandomHost: output.fandomHost } : {}),
     reason: output.reason ?? heuristic.reason,
   }
 }

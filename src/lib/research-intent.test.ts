@@ -4,8 +4,10 @@ import {
   RESEARCH_FRESHNESS,
   RESEARCH_GOALS,
   RESEARCH_SOURCE_GROUPS,
+  RESEARCH_SOURCE_IDS,
 } from '@/constants/research'
 import {
+  extractResearchEntity,
   extractUrlsFromText,
   planResearchHeuristically,
   stripUrls,
@@ -96,7 +98,11 @@ describe('planResearchHeuristically — 视频链接归视觉线', () => {
     expect(plan.urls).toEqual([])
     expect(plan.shouldSearch).toBe(true)
     expect(plan.sourceGroup).toBe(RESEARCH_SOURCE_GROUPS.ipCharacter)
-    expect(plan.queries).toHaveLength(1)
+    // 主语查询 + 整句（网搜专用）；链接本身不在任何一条里
+    expect(plan.queries.length).toBeGreaterThan(0)
+    expect(plan.queries.every((query) => !query.text.includes('http'))).toBe(
+      true,
+    )
   })
 })
 
@@ -139,7 +145,87 @@ describe('planResearchHeuristically — IP / 角色', () => {
     expect(plan.shouldSearch).toBe(true)
     expect(plan.sourceGroup).toBe(RESEARCH_SOURCE_GROUPS.ipCharacter)
     expect(plan.goal).toBe(RESEARCH_GOALS.analyzeCharacter)
-    expect(plan.queries[0]?.text).toBe('鸣潮长离的发色是什么')
+    // 主查询是剥掉问句脚手架后的主语；整句只留给网搜（opensearch 前缀匹配整句必空）
+    expect(plan.queries[0]).toEqual({ text: '鸣潮长离的发色', lang: 'zh' })
+    expect(plan.queries[1]).toEqual({
+      text: '鸣潮长离的发色是什么',
+      lang: 'zh',
+      sourceId: RESEARCH_SOURCE_IDS.webSearch,
+    })
+  })
+})
+
+// ── 「资料请求」泛请求（2026-09-01 附录 B 缺口 ①）────────────────────
+//
+// owner 原话「我想要无限大的资料」：既没有问号、也没有 IP 词表里的字，落到兜底
+// 分支判 `no retrieval signal` → 0 个请求 → 模型凭记忆答「找不到」。
+describe('planResearchHeuristically — 资料请求', () => {
+  it('⭐ 「我想要无限大的资料」→ 打源，主语是「无限大」', () => {
+    const plan = planResearchHeuristically('我想要无限大的资料')
+
+    expect(plan.shouldSearch).toBe(true)
+    expect(plan.sourceGroup).toBe(RESEARCH_SOURCE_GROUPS.ipCharacter)
+    expect(plan.queries[0]).toEqual({ text: '无限大', lang: 'zh' })
+    expect(plan.reason).toBe('information request')
+  })
+
+  it('整句只作为网搜专用查询保留，不再喂给 wiki 的 opensearch', () => {
+    const plan = planResearchHeuristically('我想要无限大的资料')
+
+    const webOnly = plan.queries.filter(
+      (query) => query.sourceId === RESEARCH_SOURCE_IDS.webSearch,
+    )
+    expect(webOnly).toEqual([
+      { text: '我想要无限大的资料', lang: 'zh', sourceId: 'web_search' },
+    ])
+    expect(
+      plan.queries.filter((query) => !query.sourceId).map((q) => q.text),
+    ).toEqual(['无限大'])
+  })
+
+  it('世界观 / 背景 / 百科 / lore 同属一族', () => {
+    for (const text of [
+      '给我鸣潮的世界观',
+      '介绍一下无限大的背景',
+      'ananta lore',
+      '查一下无限大 百科',
+    ]) {
+      const plan = planResearchHeuristically(text)
+      expect(plan.shouldSearch, text).toBe(true)
+      expect(plan.sourceGroup, text).toBe(RESEARCH_SOURCE_GROUPS.ipCharacter)
+    }
+  })
+
+  it('创作请求里出现「设定」仍按 IP 词表走（不回退成 no signal）', () => {
+    const plan = planResearchHeuristically('无限大 网易 游戏 角色设定')
+
+    expect(plan.shouldSearch).toBe(true)
+    expect(plan.queries[0]?.text).toBe('无限大 网易 游戏 角色设定')
+    // 主语与整句相同 → 不重复发一条网搜专用查询
+    expect(plan.queries).toHaveLength(1)
+  })
+})
+
+describe('extractResearchEntity — 剥请求脚手架', () => {
+  it.each([
+    ['我想要无限大的资料', '无限大'],
+    ['给我长离的设定', '长离'],
+    ['无限大是什么', '无限大'],
+    ['长离是谁？', '长离'],
+    ['请帮我查一下无限大的世界观', '无限大'],
+    ['介绍一下无限大的背景吧', '无限大'],
+    ['who is Changli', 'Changli'],
+    ['what is Ananta', 'Ananta'],
+    ['tell me about wuthering waves lore', 'wuthering waves'],
+  ])('%s → %s', (input, expected) => {
+    expect(extractResearchEntity(input)).toBe(expected)
+  })
+
+  it('没有脚手架时原样返回；剥空了也不返回空串', () => {
+    expect(extractResearchEntity('无限大 网易 游戏 角色设定')).toBe(
+      '无限大 网易 游戏 角色设定',
+    )
+    expect(extractResearchEntity('资料')).toBe('资料')
   })
 })
 

@@ -25,8 +25,12 @@ import {
   resolveLlmTextRoute,
   llmTextCompletion,
   llmTextStream,
+  llmTextToolCall,
+  LlmToolCallingUnsupportedError,
   LLM_TEXT_ADAPTERS,
   LLM_TEXT_STREAMS,
+  type LlmTextToolCallInput,
+  type LlmToolDefinition,
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -2197,5 +2201,281 @@ describe('LlmTextInput.signal —— 调用方取消', () => {
     expect(isLlmTextAbortError(timedOut)).toBe(false)
     expect(isLlmTextAbortError(new Error('ECONNREFUSED'))).toBe(false)
     expect(isLlmTextAbortError(null)).toBe(false)
+  })
+})
+
+/**
+ * 原生 function calling 的缓冲路（快路）。
+ *
+ * ⚠ 这一组只验**请求体形状**与**回程解析** —— 模型的判断力是操作员那一层的事
+ * （`assistant-operator.service.test.ts`）。
+ */
+describe('llmTextToolCall — 原生工具调用', () => {
+  const TOOLS: LlmToolDefinition[] = [
+    {
+      name: 'set_prompt',
+      description: 'write the prompt field',
+      parameters: {
+        type: 'object',
+        properties: { value: { type: 'string' } },
+        required: ['value'],
+      },
+    },
+  ]
+
+  function openAiInput(
+    over: Partial<LlmTextToolCallInput> = {},
+  ): LlmTextToolCallInput {
+    return {
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+      apiKey: 'sk-test',
+      tools: TOOLS,
+      ...over,
+    }
+  }
+
+  function geminiInput(
+    over: Partial<LlmTextToolCallInput> = {},
+  ): LlmTextToolCallInput {
+    return {
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: { label: 'Gemini', baseUrl: 'https://gemini.test/v1' },
+      apiKey: 'gemini-key',
+      tools: TOOLS,
+      ...over,
+    }
+  }
+
+  function respondWith(payload: unknown) {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(payload), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  it('OpenAI 请求体带 tools / tool_choice / parallel_tool_calls:false，且不带 response_format', async () => {
+    const fetchMock = respondWith({
+      choices: [
+        {
+          message: {
+            content: null,
+            tool_calls: [
+              {
+                function: {
+                  name: 'set_prompt',
+                  arguments: '{"value":"a red umbrella"}',
+                },
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    // ⚠ 故意把 responseFormat 一起传进来：原生路必须**结构性**地忽略它，
+    //    而不是靠调用方记得别传（见 `buildOpenAiChatRequest` 里那段头注）。
+    const result = await llmTextToolCall(
+      openAiInput({ responseFormat: 'json_object' }),
+    )
+
+    const payload = readFetchJson(fetchMock)
+    expect(payload.tools).toEqual([
+      {
+        type: 'function',
+        function: {
+          name: 'set_prompt',
+          description: 'write the prompt field',
+          parameters: TOOLS[0]?.parameters,
+        },
+      },
+    ])
+    expect(payload.tool_choice).toBe('auto')
+    expect(payload.parallel_tool_calls).toBe(false)
+    expect(payload.response_format).toBeUndefined()
+    expect(result).toEqual({
+      kind: 'tool',
+      name: 'set_prompt',
+      args: { value: 'a red umbrella' },
+    })
+  })
+
+  it('OpenAI 一边说话一边调工具时，两样都留下来', async () => {
+    respondWith({
+      choices: [
+        {
+          message: {
+            content: '这就来',
+            tool_calls: [
+              { function: { name: 'set_prompt', arguments: '{"value":"x"}' } },
+            ],
+          },
+        },
+      ],
+    })
+
+    await expect(llmTextToolCall(openAiInput())).resolves.toEqual({
+      kind: 'tool',
+      name: 'set_prompt',
+      args: { value: 'x' },
+      text: '这就来',
+    })
+  })
+
+  it('OpenAI 只说话不调工具 → kind:text', async () => {
+    respondWith({ choices: [{ message: { content: '我说完了' } }] })
+
+    await expect(llmTextToolCall(openAiInput())).resolves.toEqual({
+      kind: 'text',
+      text: '我说完了',
+    })
+  })
+
+  /** ⛔ 解不出来的入参**原样往下传**，不吞成 `{}` —— 吞了会变成「参数缺失」的假象。 */
+  it('OpenAI 的 arguments 不是合法 JSON 时原样带出，不静默变成空对象', async () => {
+    respondWith({
+      choices: [
+        {
+          message: {
+            content: null,
+            tool_calls: [
+              { function: { name: 'set_prompt', arguments: '{value:' } },
+            ],
+          },
+        },
+      ],
+    })
+
+    await expect(llmTextToolCall(openAiInput())).resolves.toEqual({
+      kind: 'tool',
+      name: 'set_prompt',
+      args: '{value:',
+    })
+  })
+
+  it('OpenAI 既不调工具也不说话时，报的是文本路那条同款可归因错误', async () => {
+    respondWith({
+      choices: [{ finish_reason: 'length', message: { content: null } }],
+    })
+
+    await expect(llmTextToolCall(openAiInput())).rejects.toMatchObject({
+      errorCode: 'PROVIDER_OUTPUT_BUDGET_EXHAUSTED',
+    })
+  })
+
+  it('Gemini 请求体带 function_declarations，且不带 google_search / responseMimeType', async () => {
+    const fetchMock = respondWith({
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                functionCall: {
+                  name: 'set_prompt',
+                  args: { value: 'a red umbrella' },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    // ⚠ grounding 与 json 模式一起塞进来：两样都必须被工具表挤掉（同时下发 API 会 400）。
+    const result = await llmTextToolCall(
+      geminiInput({ useGrounding: true, responseFormat: 'json_object' }),
+    )
+
+    const payload = readFetchJson(fetchMock) as {
+      tools?: Array<Record<string, unknown>>
+      generationConfig?: Record<string, unknown>
+    }
+    expect(payload.tools).toEqual([
+      {
+        function_declarations: [
+          {
+            name: 'set_prompt',
+            description: 'write the prompt field',
+            parameters: TOOLS[0]?.parameters,
+          },
+        ],
+      },
+    ])
+    expect(JSON.stringify(payload.tools)).not.toContain('google_search')
+    expect(payload.generationConfig?.responseMimeType).toBeUndefined()
+    expect(result).toEqual({
+      kind: 'tool',
+      name: 'set_prompt',
+      args: { value: 'a red umbrella' },
+    })
+  })
+
+  it('Gemini 的 parts 里 text 与 functionCall 并存时，两样都留下来', async () => {
+    respondWith({
+      candidates: [
+        {
+          content: {
+            parts: [
+              { text: '这就来' },
+              { functionCall: { name: 'set_prompt', args: { value: 'x' } } },
+            ],
+          },
+        },
+      ],
+    })
+
+    await expect(llmTextToolCall(geminiInput())).resolves.toEqual({
+      kind: 'tool',
+      name: 'set_prompt',
+      args: { value: 'x' },
+      text: '这就来',
+    })
+  })
+
+  it('Gemini 只说话不调工具 → kind:text', async () => {
+    respondWith({
+      candidates: [{ content: { parts: [{ text: '我说完了' }] } }],
+    })
+
+    await expect(llmTextToolCall(geminiInput())).resolves.toEqual({
+      kind: 'text',
+      text: '我说完了',
+    })
+  })
+
+  it('Gemini 空回复时仍走可归因错误，不退化成一句「没有回复」', async () => {
+    respondWith({
+      candidates: [{ finishReason: 'SAFETY', content: { parts: [] } }],
+    })
+
+    await expect(llmTextToolCall(geminiInput())).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_CONTENT_BLOCKED',
+    })
+  })
+
+  /**
+   * ⛔ **不静默降级**：JSON 路的 adapter 进原生入口是调用方的 bug，就地抛。
+   * 降级的下场是调用方以为拿到了结构化工具调用，实际拿到一段散文，然后在下游
+   * 某处解析失败 —— 错的地方离原因十万八千里。
+   */
+  it('JSON 路的 adapter 进来直接抛，且一次 fetch 都不发', async () => {
+    const fetchMock = respondWith({})
+
+    for (const adapterType of [
+      AI_ADAPTER_TYPES.DEEPSEEK,
+      AI_ADAPTER_TYPES.ANTHROPIC,
+      AI_ADAPTER_TYPES.DASHSCOPE,
+      AI_ADAPTER_TYPES.XAI,
+    ]) {
+      await expect(
+        llmTextToolCall(openAiInput({ adapterType })),
+      ).rejects.toBeInstanceOf(LlmToolCallingUnsupportedError)
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

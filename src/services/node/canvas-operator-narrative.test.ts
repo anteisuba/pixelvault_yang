@@ -34,9 +34,11 @@ vi.mock('@/services/user.service', () => ({
 }))
 
 const mockLlmTextCompletion = vi.fn()
+const mockLlmTextToolCall = vi.fn()
 const mockResolveLlmTextRoute = vi.fn()
 vi.mock('@/services/llm-text.service', () => ({
   llmTextCompletion: (...args: unknown[]) => mockLlmTextCompletion(...args),
+  llmTextToolCall: (...args: unknown[]) => mockLlmTextToolCall(...args),
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
   isLlmTextContextLimitError: () => false,
 }))
@@ -76,6 +78,7 @@ import {
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN,
 } from '@/constants/assistant-operator'
 import { NODE_TYPE_IDS } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -301,9 +304,14 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockLlmTextCompletion.mockReset()
   mockEnsureUser.mockResolvedValue({ id: 'user-db-1' })
+  /**
+   * ⚠ 这道题的主体走**JSON 慢路**，所以路由必须落在一条 json 模式的 adapter 上
+   * （片 T 之后 Gemini / OpenAI 是原生快路，走那条就没有这份 JSON 可解了）。
+   * 原生路的同题验收在文件末尾那组，自己改路由。
+   */
   mockResolveLlmTextRoute.mockResolvedValue({
-    adapterType: AI_ADAPTER_TYPES.GEMINI,
-    providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
+    adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    providerConfig: { label: 'Claude', baseUrl: 'https://example.test' },
     apiKey: 'test-key',
   })
 })
@@ -455,5 +463,83 @@ describe('token 用量对比 · 工具环 vs marker 链（验收 #12）', () => 
     // 整轮必然是倍数级（每一步一次完整往返）；只断言它没有失控到离谱。
     expect(totalRatio).toBeGreaterThan(1)
     expect(operatorTurns).toBe(8)
+  })
+})
+
+/**
+ * 同一道题的**原生快路**（片 T ＋ 合并时必做 ③）。
+ *
+ * ⭐ 只跑前两轮：读卡 → 台词落 `action`。这两轮已经足够钉住合并的那三件事 ——
+ * 画布域的工具表真的进了请求体（而不是工作台那张）、原生路上模型顺带说的话没被
+ * 丢掉、规划器与 JSON 路走的是同一份 zod 与同一条落库形状。整道七步题的账仍由
+ * 上面那条 JSON 路的用例算（两条路跑同一段脚本是片 T 的判据，不是这里的）。
+ */
+describe('验收题 · 四镜叙事 · 原生快路（OpenAI）', () => {
+  beforeEach(() => {
+    mockLlmTextToolCall.mockReset()
+    mockResolveLlmTextRoute.mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://example.test' },
+      apiKey: 'test-key',
+    })
+  })
+
+  it('⭐ 前两轮：工具表来自 canvas 域表，读卡与台词与 JSON 路逐字同一形状', async () => {
+    const [first, second] = scriptedTurns() as {
+      tool: { name: string; args: unknown }
+    }[]
+    mockLlmTextToolCall.mockResolvedValueOnce({
+      kind: 'tool',
+      name: first.tool.name,
+      args: first.tool.args,
+      text: '先读小林那张卡，再按卡上的样子写四镜。',
+    })
+    mockLlmTextToolCall.mockResolvedValueOnce({
+      kind: 'tool',
+      name: second.tool.name,
+      args: second.tool.args,
+    })
+    mockLlmTextToolCall.mockResolvedValue({ kind: 'text', text: '前两镜就位。' })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+
+    // ⛔ 走原生路就一次 JSON 补全都不该发（发了 = 分岔没走对，只有账单看得见）。
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+
+    // ① 发出去的工具表跟着 canvas 域表，⛔ 不是工作台那张。
+    const call = mockLlmTextToolCall.mock.calls[0]?.[0] as {
+      tools: { name: string }[]
+      responseFormat?: unknown
+    }
+    expect(call.tools.map((tool) => tool.name)).toEqual([
+      ...ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN.canvas,
+    ])
+    expect(call.responseFormat).toBeUndefined()
+
+    // ② 第一步仍是读同名角色卡，摘要里有卡上的外观与参考图。
+    const steps = doneSteps(events)
+    expect(steps[0].tool).toBe(TOOL.readNode)
+    expect((steps[0].payload as { nodeId: string }).nodeId).toBe('char-lin')
+    expect((steps[0].result as { digest: string }).digest).toContain(HERO_SEED)
+
+    // ③ 台词仍落在 `action`，一批仍是一步。
+    expect(steps[1].tool).toBe(TOOL.setNodeFields)
+    const items = (
+      steps[1].payload as {
+        items: { nodeId: string; fields: Record<string, string> }[]
+      }
+    ).items
+    expect(items.map((item) => item.nodeId)).toEqual(SHOT_IDS)
+    expect(items[1].fields.action).toBe(LINES[1])
+    expect(items[1].fields).not.toHaveProperty('prompt')
+
+    // ④ 与工具并存的那句话没丢 —— 那是 `message` 在原生路上的唯一通道。
+    expect(
+      events
+        .filter((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
+        .map((event) => (event as { text: string }).text),
+    ).toContain('先读小林那张卡，再按卡上的样子写四镜。')
   })
 })

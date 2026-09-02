@@ -8,9 +8,12 @@ vi.mock('@/services/user.service', () => ({
 }))
 
 const mockLlmTextCompletion = vi.fn()
+/** 原生工具路的那一跳（快路）。JSON 路的用例一次都不会碰它。 */
+const mockLlmTextToolCall = vi.fn()
 const mockResolveLlmTextRoute = vi.fn()
 vi.mock('@/services/llm-text.service', () => ({
   llmTextCompletion: (...args: unknown[]) => mockLlmTextCompletion(...args),
+  llmTextToolCall: (...args: unknown[]) => mockLlmTextToolCall(...args),
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
   isLlmTextContextLimitError: () => false,
 }))
@@ -83,6 +86,7 @@ import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN,
 } from '@/constants/assistant-operator'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
@@ -166,10 +170,20 @@ beforeEach(() => {
   //    剩下的那条会漏进下一个用例并压过它自己的 `mockImplementation`
   //    （本文件真踩过一次，表现是「abort 了却收到 done」）。
   mockLlmTextCompletion.mockReset()
+  mockLlmTextToolCall.mockReset()
   mockEnsureUser.mockResolvedValue({ id: 'user-db-1' })
+  /**
+   * ⚠ 缺省路是 **Grok（JSON 工具路 + 能看图）**，两条都要：
+   *  · JSON 路 —— 本文件几乎每条用例都用 `queueTurns` 喂一段 JSON 文本，那是
+   *    慢路的线上格式。缺省若是 openai / gemini（原生工具路，见
+   *    `LLM_TOOL_CALLING_MODE_BY_ADAPTER`），模型的回答就得改喂 tool_call。
+   *    原生路自己的用例在文件末尾单独有一组。
+   *  · 能看图 —— `critique_result` 那一组断言「用户这条路自己就能看图，不借」。
+   *    换成 DeepSeek 会让那几条变成「借了一条」。
+   */
   mockResolveLlmTextRoute.mockResolvedValue({
-    adapterType: AI_ADAPTER_TYPES.GEMINI,
-    providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
+    adapterType: AI_ADAPTER_TYPES.XAI,
+    providerConfig: { label: 'Grok', baseUrl: 'https://example.test' },
     apiKey: 'test-key',
   })
   mockGetPublicGenerationPage.mockResolvedValue({
@@ -4305,5 +4319,292 @@ describe('画布域 · 契约（验收 #1）', () => {
         `${entry.tool} 带 inverse 反而不过`,
       ).toBe(true)
     }
+  })
+})
+
+/**
+ * 原生 tool-calling 的快路（片 T）。
+ *
+ * ⭐ 这一组的判据是**同一段脚本、同一串结果**：换一条路不该换掉助手的行为。
+ * 两条路唯一说得清的差别写在下面第三条用例里（`plan` 在原生路上没有通道）。
+ */
+describe('工具环 · 原生快路 / JSON 慢路', () => {
+  const PROMPT_VALUE = 'a girl under a red umbrella'
+
+  /** JSON 慢路的剧本：模型写一份 JSON。 */
+  function queueJsonScript(): void {
+    queueTurns(
+      {
+        plan: ['写提示词'],
+        message: '这就来',
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: 'write the prompt',
+          args: { value: PROMPT_VALUE },
+        },
+      },
+      { message: '搞定', finished: true },
+    )
+  }
+
+  /**
+   * 原生快路的同一段剧本：模型调一条工具，顺带说一句话。
+   * ⚠ 第二轮「只说话不调工具」= JSON 路的 `finished:true`。
+   */
+  function queueNativeScript(): void {
+    mockLlmTextToolCall.mockReset()
+    mockLlmTextToolCall.mockResolvedValueOnce({
+      kind: 'tool',
+      name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      args: { value: PROMPT_VALUE },
+      text: '这就来',
+    })
+    mockLlmTextToolCall.mockResolvedValue({ kind: 'text', text: '搞定' })
+  }
+
+  function routeTo(adapterType: AI_ADAPTER_TYPES): void {
+    mockResolveLlmTextRoute.mockResolvedValue({
+      adapterType,
+      providerConfig: { label: adapterType, baseUrl: 'https://example.test' },
+      apiKey: 'test-key',
+    })
+  }
+
+  it('JSON 慢路（DeepSeek）：一次原生工具调用都不发，步骤与文案照旧', async () => {
+    routeTo(AI_ADAPTER_TYPES.DEEPSEEK)
+    queueJsonScript()
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+
+    expect(mockLlmTextToolCall).not.toHaveBeenCalled()
+    expect(events.map((event) => event.type)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.plan,
+      ASSISTANT_OPERATOR_EVENTS.message,
+      ASSISTANT_OPERATOR_EVENTS.step,
+      ASSISTANT_OPERATOR_EVENTS.step,
+      ASSISTANT_OPERATOR_EVENTS.message,
+      ASSISTANT_OPERATOR_EVENTS.done,
+    ])
+    expect(stepsOf(events).map((step) => step.tool)).toEqual([
+      ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+    ])
+  })
+
+  it('原生快路（OpenAI）：同一段脚本，同一批步骤、同一批话', async () => {
+    routeTo(AI_ADAPTER_TYPES.OPENAI)
+    queueNativeScript()
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+
+    // ⛔ 走原生路就一次 JSON 补全都不该发 —— 发了说明分岔没走对，
+    //    而症状会是「同一轮问了模型两次」，只有账单看得见。
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+    const steps = stepsOf(events)
+    expect(steps.map((step) => step.tool)).toEqual([
+      ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+    ])
+    // 改动型 step 的载荷仍由同一份 zod + 同一个规划器产出。
+    expect(steps[1]).toMatchObject({
+      payload: { value: PROMPT_VALUE },
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    })
+    // 模型在原生路上没写 title，服务端用工具名兜底（与 JSON 路同一条规则）。
+    expect(steps[0]?.title).toBe(ASSISTANT_OPERATOR_TOOL_IDS.setPrompt)
+    // 与工具并存的那句话没被丢掉 —— 这是 `message` 在原生路上的通道。
+    expect(
+      events
+        .filter((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
+        .map((event) => (event as { text: string }).text),
+    ).toEqual(['这就来', '搞定'])
+    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+  })
+
+  /**
+   * 两条路唯一说得清的差别：`plan` 在原生路上**没有通道**（不加伪工具的代价，
+   * 理由见 `OPERATOR_NATIVE_OUTPUT_ADDENDUM` 的头注）。模型想讲计划就讲进正文，
+   * 用户看到的是第一条 `message`。
+   */
+  it('原生路不发 plan 事件 —— 计划落在正文里', async () => {
+    routeTo(AI_ADAPTER_TYPES.OPENAI)
+    queueNativeScript()
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.plan),
+    ).toBe(false)
+  })
+
+  it('原生路发出去的工具表来自域工具表，参数是 zod 生成的 JSON Schema', async () => {
+    routeTo(AI_ADAPTER_TYPES.OPENAI)
+    queueNativeScript()
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const call = mockLlmTextToolCall.mock.calls[0]?.[0] as {
+      tools: Array<{ name: string; description: string; parameters: unknown }>
+      responseFormat?: unknown
+      systemPrompt: string
+    }
+    const names = call.tools.map((tool) => tool.name)
+    // 与 JSON 路提示词里那张 TOOLS 清单同源 —— 一张表，两条路。
+    expect(names).toEqual([
+      ...ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[buildRequest().domain],
+    ])
+    // 域外的（视频档专属）不在。
+    expect(names).not.toContain(ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs)
+    // ⛔ 参数是生成的，不是手抄的：`set_prompt` 的 `value` 必须在。
+    expect(
+      call.tools.find(
+        (tool) => tool.name === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      )?.parameters,
+    ).toMatchObject({
+      type: 'object',
+      properties: { value: { type: 'string' } },
+    })
+    // ⛔ 原生路永不发 responseFormat（强制 JSON 与工具调用互斥）。
+    expect(call.responseFormat).toBeUndefined()
+    // 系统提示的补丁只在原生路追加，JSON 路那份一个字节没动。
+    expect(call.systemPrompt).toContain('IGNORE the JSON-object format')
+  })
+
+  /**
+   * ⭐ **JSON 路的请求入参逐字不变**（片 T 的验收条件）。
+   *
+   * 这条快照锁的是接缝重构之后发给 provider 的那份入参 —— 系统提示、用户提示、
+   * `responseFormat`、模型 id 全在里面。它变了，就是慢路的行为变了，
+   * 而慢路上跑着 DeepSeek / Claude / Qwen / Grok 四条真实路由。
+   *
+   * 🔬 这份快照的基线是**实测**出来的（2026-09-02，片 T）：快照由改后的代码写出，
+   * 再把三个 service 文件回滚到改前跑同一条用例，逐字通过。所以它不只是「以后
+   * 别变」，它同时证明了「这一次没变」。
+   */
+  it('DeepSeek 的请求入参逐字锁死（快照）', async () => {
+    routeTo(AI_ADAPTER_TYPES.DEEPSEEK)
+    queueJsonScript()
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const call = mockLlmTextCompletion.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >
+    expect({
+      systemPrompt: call.systemPrompt,
+      userPrompt: call.userPrompt,
+      responseFormat: call.responseFormat,
+      modelId: call.modelId,
+      adapterType: call.adapterType,
+      providerManagedOutput: call.providerManagedOutput,
+      promptGuardMaxLength: call.promptGuardMaxLength,
+    }).toMatchSnapshot()
+  })
+
+  it('原生路上「既没调工具也不说话」连着两次 = 大声报错，不烧光步数', async () => {
+    routeTo(AI_ADAPTER_TYPES.OPENAI)
+    mockLlmTextToolCall.mockReset()
+    mockLlmTextToolCall.mockResolvedValue({ kind: 'text', text: '   ' })
+
+    await expect(
+      collect(runAssistantOperator('clerk-1', buildRequest())),
+    ).rejects.toThrow(/did not return usable JSON/)
+    // 连着两次就停 —— 剩下的 maxSteps 不会被烧在同一个坑里。
+    expect(mockLlmTextToolCall).toHaveBeenCalledTimes(2)
+  })
+
+  /**
+   * 合并时必做 ②：反问在原生路上的通道。
+   *
+   * OpenAI / Gemini 的 tool call 里没有「我要问你一句」这一档，加伪工具又会改到
+   * JSON 路的提示词（片 T 的验收条件），所以反问走**正文**：正文里带 `"ask"` 记号
+   * 的那一轮降级去跑 JSON 路那份解析，别的轮次一个字符都不解。
+   */
+  it('原生路：正文里回 ask 对象 → 同一串 ask + stopped(awaiting_answer)', async () => {
+    routeTo(AI_ADAPTER_TYPES.OPENAI)
+    mockLlmTextToolCall.mockReset()
+    mockLlmTextToolCall.mockResolvedValue({
+      kind: 'text',
+      text: JSON.stringify({
+        message: '先确认一件事。',
+        ask: {
+          question: '这一镜要几秒？',
+          options: [{ label: '5 秒', consequence: '节奏紧' }],
+        },
+      }),
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(events.map((event) => event.type)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.message,
+      ASSISTANT_OPERATOR_EVENTS.ask,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
+    ])
+    expect((events[1] as { question: string }).question).toBe('这一镜要几秒？')
+    expect((events[2] as { reason: string }).reason).toBe(
+      ASSISTANT_OPERATOR_STOP_REASONS.awaitingAnswer,
+    )
+    // 一轮就停 —— 反问不该再往下烧步数。
+    expect(mockLlmTextToolCall).toHaveBeenCalledTimes(1)
+  })
+
+  it('原生路：正文里没有 ask 记号的普通话不降级去解 JSON', async () => {
+    routeTo(AI_ADAPTER_TYPES.OPENAI)
+    mockLlmTextToolCall.mockReset()
+    mockLlmTextToolCall.mockResolvedValue({
+      kind: 'text',
+      text: '{"looks":"like json but has no ask"}',
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    // 照旧当成一句话说给用户听，不会被误读成一次反问。
+    expect(events.map((event) => event.type)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.message,
+      ASSISTANT_OPERATOR_EVENTS.done,
+    ])
+  })
+
+  it('原生路的提示补丁给了反问的出口', async () => {
+    routeTo(AI_ADAPTER_TYPES.OPENAI)
+    queueNativeScript()
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    expect(
+      (mockLlmTextToolCall.mock.calls[0]?.[0] as { systemPrompt: string })
+        .systemPrompt,
+    ).toContain('The ONE exception is asking')
+  })
+
+  it('原生路上编出来的工具名不进规划器，只换来一句纠正', async () => {
+    routeTo(AI_ADAPTER_TYPES.OPENAI)
+    mockLlmTextToolCall.mockReset()
+    mockLlmTextToolCall.mockResolvedValueOnce({
+      kind: 'tool',
+      name: 'make_me_a_sandwich',
+      args: {},
+    })
+    mockLlmTextToolCall.mockResolvedValue({ kind: 'text', text: '换个路子' })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    // 一条 step 都不该有：编出来的名字压根不是一次工具调用。
+    expect(stepsOf(events)).toHaveLength(0)
+    // 纠正话进了下一轮的语境，而不是把这一步丢进规划器。
+    expect(
+      (mockLlmTextToolCall.mock.calls[1]?.[0] as { userPrompt: string })
+        .userPrompt,
+    ).toContain('make_me_a_sandwich')
   })
 })

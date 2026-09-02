@@ -4,7 +4,10 @@ import {
   isLlmTextContextLimitError,
   llmTextCompletion,
   llmTextStream,
+  llmTextToolCall,
   type LlmTextInput,
+  type LlmToolCallResult,
+  type LlmToolDefinition,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
 
@@ -121,6 +124,47 @@ export function buildAssistantConversation(
   return `${marker}\n${summary}\n\n${recentLabel}\n${kept.join('\n\n')}`
 }
 
+interface ContextRetryPrompt {
+  build(maxLength?: number): string
+  compactionTargetLength: number
+  /**
+   * 调用方的取消信号。⚠ 只参与**重试判定**（已取消就直接抛，见下），真正把请求
+   * 打断的是它一路转发到 `LlmTextInput.signal` 的那一份。
+   */
+  signal?: AbortSignal
+}
+
+/**
+ * 上下文压缩重试的**策略本身**，与「这一跳去 provider 要什么」无关。
+ *
+ * 先发全量上下文；**只有** provider 明确报输入超限才压缩重试一次；压出来的串跟
+ * 原串一样（压不动）就把原错抛出去 —— 再发一次一模一样的请求只是多花一次钱。
+ *
+ * ⚠ 泛型在 `T` 上：文本补全要一段 string，原生工具路要一条 `LlmToolCallResult`，
+ * 但**重试的判据是同一条**。两条各写一份的下场很具体 —— 修了一处超限判定，另一
+ * 条路上的那份还留着旧行为，而它们看起来完全一样。
+ */
+async function withContextRetry<T>(
+  buildPrompt: ContextRetryPrompt,
+  call: (userPrompt: string) => Promise<T>,
+): Promise<T> {
+  const fullPrompt = buildPrompt.build()
+  try {
+    return await call(fullPrompt)
+  } catch (error) {
+    // 取消**不走**压缩重试：用户已经走了，再发一次只是白花一次 provider 调用。
+    if (buildPrompt.signal?.aborted || !isLlmTextContextLimitError(error)) {
+      throw error
+    }
+
+    const compactedPrompt = buildPrompt.build(
+      buildPrompt.compactionTargetLength,
+    )
+    if (compactedPrompt === fullPrompt) throw error
+    return call(compactedPrompt)
+  }
+}
+
 /**
  * Shared non-streaming assistant completion policy.
  *
@@ -141,34 +185,86 @@ export async function completeAssistantTextWithContextRetry({
   responseFormat,
   signal,
 }: CompleteAssistantTextOptions): Promise<string> {
-  const complete = (userPrompt: string) =>
-    llmTextCompletion({
-      systemPrompt,
-      userPrompt,
-      modelId,
-      imageData,
-      videoData,
-      videoAnalysis,
-      adapterType: route.adapterType,
-      providerConfig: route.providerConfig,
-      apiKey: route.apiKey,
-      useGrounding,
-      providerManagedOutput: true,
-      promptGuardMaxLength: null,
-      responseFormat,
+  return withContextRetry(
+    {
+      build: buildUserPrompt,
+      compactionTargetLength: contextCompactionTargetLength,
       signal,
-    })
+    },
+    (userPrompt) =>
+      llmTextCompletion({
+        systemPrompt,
+        userPrompt,
+        modelId,
+        imageData,
+        videoData,
+        videoAnalysis,
+        adapterType: route.adapterType,
+        providerConfig: route.providerConfig,
+        apiKey: route.apiKey,
+        useGrounding,
+        providerManagedOutput: true,
+        promptGuardMaxLength: null,
+        responseFormat,
+        signal,
+      }),
+  )
+}
 
-  const fullPrompt = buildUserPrompt()
-  try {
-    return await complete(fullPrompt)
-  } catch (error) {
-    if (signal?.aborted || !isLlmTextContextLimitError(error)) throw error
+export interface RequestToolCallOptions extends Omit<
+  CompleteAssistantTextOptions,
+  'responseFormat'
+> {
+  /** 这一轮模型能选的工具。⛔ `parameters` 从 zod 生成，别手抄。 */
+  tools: LlmToolDefinition[]
+}
 
-    const compactedPrompt = buildUserPrompt(contextCompactionTargetLength)
-    if (compactedPrompt === fullPrompt) throw error
-    return complete(compactedPrompt)
-  }
+/**
+ * 原生工具调用的那一跳，与文本补全共用同一条压缩重试策略。
+ *
+ * ⛔ 这里**不收 `responseFormat`**：强制 JSON 输出与原生工具调用互斥（见
+ * `buildOpenAiChatRequest` 里那段头注）。让调用方能传，等于给它一条能把快路悄悄
+ * 变回慢路的开关。
+ */
+export async function requestToolCallWithContextRetry({
+  systemPrompt,
+  buildUserPrompt,
+  route,
+  contextCompactionTargetLength,
+  modelId,
+  imageData,
+  videoData,
+  videoAnalysis,
+  useGrounding,
+  tools,
+  signal,
+}: RequestToolCallOptions): Promise<LlmToolCallResult> {
+  return withContextRetry(
+    {
+      build: buildUserPrompt,
+      compactionTargetLength: contextCompactionTargetLength,
+      signal,
+    },
+    (userPrompt) =>
+      llmTextToolCall({
+        systemPrompt,
+        userPrompt,
+        modelId,
+        imageData,
+        videoData,
+        videoAnalysis,
+        adapterType: route.adapterType,
+        providerConfig: route.providerConfig,
+        apiKey: route.apiKey,
+        useGrounding,
+        providerManagedOutput: true,
+        promptGuardMaxLength: null,
+        tools,
+        // 合并时必做 ①：取消信号与文本补全走同一条并联器（`combineAbortSignals`），
+        // 快路不能是唯一一条「用户点了停还在烧 provider 调用」的路。
+        signal,
+      }),
+  )
 }
 
 /**

@@ -104,3 +104,70 @@ export function adapterHasCapability(
 ): boolean {
   return ADAPTER_CAPABILITIES[adapter]?.includes(scope) ?? false
 }
+
+// ─── 工具调用模式（原生快路 vs JSON 慢路）───────────────────────
+
+/**
+ * 一家 provider 怎么让模型选工具。
+ *
+ * - `native` —— provider 有原生 function calling：工具表进**请求体**，模型回一条
+ *   结构化的 tool call。参数形状由 provider 侧约束，不再靠模型自己拼 JSON。
+ * - `json`   —— 没有（或本仓还没接）原生通道：工具表写进**提示词**，模型回一个
+ *   JSON 对象，我们自己剥围栏、自己解。
+ */
+export const LLM_TOOL_CALLING_MODES = {
+  native: 'native',
+  json: 'json',
+} as const
+
+export type LlmToolCallingMode =
+  (typeof LLM_TOOL_CALLING_MODES)[keyof typeof LLM_TOOL_CALLING_MODES]
+
+/**
+ * ⛔ **不许加 `default` / 索引签名 / `Partial`**：与 `LLM_TEXT_STREAMS` 那张表同
+ * 一条理由 —— 接第 N 家 adapter 时漏填，`tsc` 当场报「Property '<家>' is missing」，
+ * 而不是等生产上跑到一条没人想过的分支。
+ *
+ * ⚠ 非文本 adapter（fal / replicate / …）填 `json` **不是**在宣称它们有 JSON 工具
+ * 环 —— 它们根本到不了这条路（`LLM_TEXT_ADAPTERS` 先把它们挡掉）。`json` 是这张表
+ * 的保守缺省：**没证据说它有原生通道，就别替它宣称有。**
+ */
+export const LLM_TOOL_CALLING_MODE_BY_ADAPTER: Record<
+  AI_ADAPTER_TYPES,
+  LlmToolCallingMode
+> = {
+  // 原生：OpenAI `tools` + `tool_calls`，Gemini `function_declarations` +
+  // `functionCall`。两家都只走缓冲路 —— 流式的原生工具解析是另一片。
+  [AI_ADAPTER_TYPES.OPENAI]: LLM_TOOL_CALLING_MODES.native,
+  [AI_ADAPTER_TYPES.GEMINI]: LLM_TOOL_CALLING_MODES.native,
+  /**
+   * Claude 有原生 tool use，但它要求调用方维护**真实的 messages 历史**：
+   * assistant 那条 `tool_use` 块要原样回传，配对的 `tool_result` 才认。本仓的工具
+   * 环每一步都是「重建一份用户提示再发一次」的无状态往返，接不上这套历史——
+   * 所以 Claude 留在 JSON 路，原生那片单独做。
+   * **不是「Claude 不支持」，是我们这条链还没长出历史。**
+   */
+  [AI_ADAPTER_TYPES.ANTHROPIC]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.DASHSCOPE]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.XAI]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.VOLCENGINE]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.BYTEPLUS]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.MINIMAX]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.MINIMAX_CN]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.HUGGINGFACE]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.FAL]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.RUNWAY]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.REPLICATE]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.NOVELAI]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.FISH_AUDIO]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.HYPER3D_RODIN]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.RUNNER]: LLM_TOOL_CALLING_MODES.json,
+  [AI_ADAPTER_TYPES.ELEVENLABS]: LLM_TOOL_CALLING_MODES.json,
+}
+
+export function getLlmToolCallingMode(
+  adapter: AI_ADAPTER_TYPES,
+): LlmToolCallingMode {
+  return LLM_TOOL_CALLING_MODE_BY_ADAPTER[adapter]
+}

@@ -96,21 +96,24 @@ describe('画布工具表（C0 §2.3 / §2.5 ①）', () => {
     }
   })
 
-  it('C0 那九条 + 三条读库通用件，一条不多', () => {
+  it('两条读 + 八条改 + update_script_doc + 三条读库通用件，一条不多', () => {
     expect([...CANVAS_TOOLS].sort()).toEqual(
       [
         ASSISTANT_OPERATOR_TOOL_IDS.readGraph,
         ASSISTANT_OPERATOR_TOOL_IDS.readNode,
         ...CANVAS_MUTATING_TOOLS,
+        ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
         ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
         ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
         ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
       ].sort(),
     )
-    // C3 才实现，C0 只定义：它在全局工具表里、不在画布域表里。
-    expect(CANVAS_TOOLS).not.toContain(
-      ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
-    )
+    /**
+     * ⚠ C3 之后 `update_script_doc` 才进域表：C0 只定义了它，而一条在提示词里
+     * 看得见却必定被拒的工具只会白烧一步。现在服务端写文档、客户端经既有投影
+     * 确认门落到画布，两侧都通了。
+     */
+    expect(CANVAS_TOOLS).toContain(ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc)
   })
 
   it('读 / 改分类：两条读进 READ_TOOLS，八条改进 MUTATING_TOOLS', () => {

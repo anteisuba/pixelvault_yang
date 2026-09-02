@@ -55,6 +55,17 @@ export const ASSISTANT_OPERATOR_EVENTS = {
   confirmRequest: 'confirm_request',
   /** 普通对白。 */
   message: 'message',
+  /**
+   * 结构化反问（C3，附录 E 拍板「反问交给 AI 判断 + 选项卡 + 自由输入」）。
+   *
+   * ⭐ **一等事件，⛔ 不是正文里的标记**。marker 时代的 `[[ask]]` 块要靠流式安全的
+   * 抽取引擎从散文里剥出来，剥不出来就退化成一段带方括号的乱码（2026-08-21 真机
+   * 丢过两个问题六个选项）。事件形态没有这个失败面：它要么在流里，要么不在。
+   * ⚠ 它之后这条流**就结束了**（`stopped` / `awaiting_answer`）—— 与
+   * `confirm_request` 同一条机制：服务端没有会话态，答案由客户端作为下一条 user
+   * 消息带 `answeredAskId` 重发。
+   */
+  ask: 'ask',
   /** 正常收尾。 */
   done: 'done',
   /** 未跑完就停了 —— 载荷带 `reason`，与 `done` 分开是为了让 UI 说得出为什么。 */
@@ -303,8 +314,9 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   primeNodeGenerate: 'prime_node_generate',
   /**
-   * 写 ScriptDoc（定义在 C0，实现在 C3）。投影仍走 `previewScriptDocProjection`
-   * + 既有确认门，这条工具只改文档本身。
+   * 写 ScriptDoc（C3 实现）。这条工具**只改文档本身**；把文档变成节点的那一跳
+   * （投影）仍走 `previewScriptDocProjection` + 既有确认门，由用户按下。
+   * ⚠ 逆操作是**改前的整份文档**（`null` = 改前这个项目没有 ScriptDoc）。
    */
   updateScriptDoc: 'update_script_doc',
 } as const
@@ -315,6 +327,12 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
  * 真实 id（`CanvasWorkingState.aliases`）。⛔ 别名只活在一轮之内。
  */
 export const ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX = 'new:'
+
+/**
+ * 反问的 id 前缀（C3）。**服务端分配**，模型碰不到 —— 与 step id 同一条论据：
+ * 客户端要用它把答案钉回那张卡（`answeredAskId`），让模型编一个只会得到重号。
+ */
+export const ASSISTANT_OPERATOR_ASK_ID_PREFIX = 'ask-'
 
 /**
  * 画布域**独有**的十条（C1 `canvas-operator-apply.ts` 的输入域）：两读 + 八改。
@@ -555,6 +573,16 @@ export const ASSISTANT_OPERATOR_STOP_REASONS = {
   aborted: 'aborted',
   /** 等就地确认（拍板 3）。客户端带 `confirmations` 重发即可续跑。 */
   awaitingConfirm: 'awaiting_confirm',
+  /**
+   * 等用户回答助手的反问（C3）。客户端把答案作为下一条 user 消息 + `answeredAskId`
+   * 发出即续跑。
+   *
+   * ⚠ 与 `awaitingConfirm` **分开**，理由与那条注释里 `aborted` 的分家逐字同源：
+   * 前者问的是「你手写的这段要不要覆盖」（一个字段的三选一），这条问的是「你到底
+   * 想做什么」（一句开放问题 + 至多三个选项）。合成一个理由会让 UI 分不出该渲染
+   * 哪一张卡，也分不出该往哪儿写回答。
+   */
+  awaitingAnswer: 'awaiting_answer',
   /** 撞到步数上限。**不自动续跑** —— 台账 AH：这条链没有幂等键，不做任何自动重试。 */
   maxSteps: 'max_steps',
 } as const
@@ -753,6 +781,12 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.attachRefs,
     ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
     ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+    /**
+     * ⚠ C3 才进这张表：C0 定义了工具与 schema，但规划器与客户端都还落不了它，
+     * 而一条在提示词里看得见却必定被拒的工具只会白烧一步（每一步都是一次 LLM
+     * 往返）。现在两侧都通了 —— 服务端写文档，客户端经既有投影确认门落到画布。
+     */
+    ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
     ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
     ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
     ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
@@ -931,6 +965,20 @@ export const ASSISTANT_OPERATOR_LIMITS = {
    * modelId + optionId + label + 相对价签）。同一型号多条渠道各占一行。
    */
   maxCanvasModelOptions: 64,
+  /**
+   * 反问卡的形状（C3，附录 E 拍板「最多 3 个可点选项 + 一句后果 + 自由输入」）。
+   *
+   * ⚠ 3 **不是**从 `ASSISTANT_CLARIFY_LIMITS.maxOptions`（6）继承的：那张表服务的是
+   * marker 时代一轮问四个问题的反问块；操作员一轮**只问一个问题**，而三个已经能
+   * 覆盖「稳妥 / 激进 / 另一种」。给六个等于把选择成本原样退回给用户。
+   * ⚠ 自由输入永远在（输入框本来就在那儿），所以没有 `allowFreeText` 这个旋钮 ——
+   * 事件里那一格是 `z.literal(true)`，说的是「这张卡长什么样」而不是一个开关。
+   */
+  maxAskOptions: 3,
+  maxAskQuestionChars: 300,
+  maxAskOptionLabelChars: 80,
+  /** 每个选项那一句「选它会发生什么」—— 反问卡与散文追问的唯一区别就在这一句。 */
+  maxAskConsequenceChars: 160,
 } as const
 
 /**
@@ -1184,5 +1232,5 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate]:
     "arm the generate button on ONE node so it is one click away. This does NOT generate anything, shows no price, and never spends the creator's credits — they press it themselves. Use it as the LAST step once the node is ready.",
   [ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc]:
-    'rewrite the project script document (logline, characters, scenes, shots). The canvas is projected from it only after the creator confirms the projection preview — this call changes the document, not the board.',
+    'write the project script document in ONE call: title, logline, the cast (each with a visual description), and the shots in order (each with its scene label, summary, camera, composition and dialogue lines). Use it for a real narrative — several shots with a cast — and the creator confirms one projection that builds and wires the whole chain. It replaces the whole document and does NOT touch the canvas by itself, so never say you created nodes with it.',
 }

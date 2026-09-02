@@ -13,9 +13,13 @@ import type {
   NodeWorkflowNode,
   NodeWorkflowState,
 } from '@/types/node-workflow'
+import type { ScriptDoc } from '@/types/script-doc'
+import type { ApplyScriptDocResult } from '@/hooks/node/use-node-workflow'
 import {
+  getOperatorScriptDocProjection,
   getOperatorState,
   resetOperatorThread,
+  setOperatorScriptDocProjection,
 } from '@/hooks/use-studio-operator-store'
 import type { CanvasOperatorAppliedStep } from '@/lib/canvas-operator-apply'
 import { applyNodeWorkflowGraphPatch } from '@/lib/node-workflow-graph-patch'
@@ -66,6 +70,10 @@ const SEEDANCE_OPTION: NodeWorkflowModelOption = {
 interface FakeWorkflow extends CanvasOperatorWorkflow {
   past: NodeWorkflowState[]
   state(): NodeWorkflowState
+  /** 剧本文档那三只手的记账（C3）—— 断言「写了什么 / 投了几次」用。 */
+  scriptDocWrites: (ScriptDoc | undefined)[]
+  projections: number
+  preview: ApplyScriptDocResult
 }
 
 function makeWorkflow(nodes: NodeWorkflowNode[]): FakeWorkflow {
@@ -89,6 +97,28 @@ function makeWorkflow(nodes: NodeWorkflowNode[]): FakeWorkflow {
     currentProjectId: 'p1',
     currentProjectName: '雨夜',
     scriptDoc: undefined,
+    scriptDocWrites: [],
+    projections: 0,
+    /** 默认「有东西可投」；单个用例按需改成 refusal / 全零。 */
+    preview: {
+      created: 3,
+      updated: 1,
+      skipped: 0,
+      removed: 2,
+      removedEdges: 1,
+      refusal: null,
+    },
+    setScriptDoc(next) {
+      this.scriptDocWrites.push(next)
+      this.scriptDoc = next
+    },
+    previewScriptDocProjection() {
+      return this.preview
+    },
+    applyScriptDocToGraph() {
+      this.projections += 1
+      return this.preview
+    },
     readState: () => state,
     applyGraphPatch: (patch: NodeWorkflowGraphPatch) => {
       record()
@@ -174,6 +204,9 @@ async function stageAndConnect(host: ReturnType<typeof setup>['host']) {
 
 beforeEach(() => {
   resetOperatorThread()
+  // ⚠ 投影确认门是模块级的（与 `runner` / `pendingAttachment` 同一层），
+  //    不清会漏进下一个用例 —— 那正是本仓 mock 队列踩过的同一种坑。
+  setOperatorScriptDocProjection(null)
 })
 
 describe('useCanvasOperatorHost', () => {
@@ -319,7 +352,7 @@ describe('useCanvasOperatorHost', () => {
     expect(workflow.past).toHaveLength(2)
   })
 
-  it('落不下去 / 归 C3：往线程里插系统行，⛔ 不静默', async () => {
+  it('落不下去：往线程里插系统行，⛔ 不静默', async () => {
     const { host, workflow } = setup()
     await act(async () => {
       host().apply.canvas?.apply(
@@ -329,20 +362,141 @@ describe('useCanvasOperatorHost', () => {
           { nodeId: 'gone', primed: false },
         ),
       )
-      host().apply.canvas?.apply(
-        step(
-          ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
-          { doc: { title: 'Rain', logline: '', roles: [], shots: [] } },
-          { doc: null },
-        ),
-      )
     })
     expect(
       getOperatorState().entries.map((entry) =>
         entry.kind === 'system' ? entry.code : entry.kind,
       ),
-    ).toEqual(['canvasStepRefused', 'canvasStepDeferred'])
+    ).toEqual(['canvasStepRefused'])
     expect(workflow.past).toHaveLength(0)
+  })
+
+  // ─── update_script_doc（C3）───────────────────────────────────────
+
+  const SCRIPT_DOC: ScriptDoc = {
+    title: '雨夜',
+    logline: '她在雨里找一把伞',
+    roles: [],
+    shots: [{ id: 's1', summary: '走进雨里', roleIds: [], dialogue: [] }],
+  }
+
+  function scriptDocStep(doc: ScriptDoc = SCRIPT_DOC) {
+    return step(
+      ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
+      { doc },
+      {
+        doc: null,
+      },
+    )
+  }
+
+  it('⭐ 写文档 → 挂起投影确认门（⛔ 不自动投影：投影会删节点）', async () => {
+    const { host, workflow } = setup()
+    await act(async () => {
+      host().apply.canvas?.apply(scriptDocStep())
+    })
+
+    expect(workflow.scriptDocWrites).toEqual([SCRIPT_DOC])
+    // 写文档是一步撤销（包在 runAsSingleHistoryStep 里）。
+    expect(workflow.past).toHaveLength(1)
+    // ⛔ 没有自动落到画布上。
+    expect(workflow.projections).toBe(0)
+
+    const pending = getOperatorScriptDocProjection()
+    expect(pending).not.toBeNull()
+    expect(pending?.title).toBe('雨夜')
+    expect(pending?.created).toBe(3)
+    expect(pending?.removed).toBe(2)
+
+    // 线程里说明白了「写好了但还没投」，破坏性的那两个数进 count。
+    const entries = getOperatorState().entries
+    const system = entries.find((entry) => entry.kind === 'system')
+    expect(system).toMatchObject({
+      code: 'canvasScriptDocPending',
+      subject: '雨夜',
+      count: 3,
+    })
+  })
+
+  it('确认之后才走 applyScriptDocToGraph，门随即收掉', async () => {
+    const { host, workflow } = setup()
+    await act(async () => {
+      host().apply.canvas?.apply(scriptDocStep())
+    })
+    act(() => {
+      getOperatorScriptDocProjection()?.confirm()
+    })
+    expect(workflow.projections).toBe(1)
+    expect(getOperatorScriptDocProjection()).toBeNull()
+  })
+
+  it('取消只收门，文档留着（⚠ 取消的是这一次投影，不是那次写入）', async () => {
+    const { host, workflow } = setup()
+    await act(async () => {
+      host().apply.canvas?.apply(scriptDocStep())
+    })
+    act(() => {
+      getOperatorScriptDocProjection()?.cancel()
+    })
+    expect(workflow.projections).toBe(0)
+    expect(getOperatorScriptDocProjection()).toBeNull()
+    expect(workflow.scriptDoc).toEqual(SCRIPT_DOC)
+  })
+
+  it('投影无事可做时不挂门，⛔ 也不静默 —— 换一条系统行', async () => {
+    const { host, workflow } = setup()
+    workflow.preview = {
+      created: 0,
+      updated: 0,
+      skipped: 2,
+      removed: 0,
+      removedEdges: 0,
+      refusal: null,
+    }
+    await act(async () => {
+      host().apply.canvas?.apply(scriptDocStep())
+    })
+    expect(getOperatorScriptDocProjection()).toBeNull()
+    expect(
+      getOperatorState().entries.map((entry) =>
+        entry.kind === 'system' ? entry.code : entry.kind,
+      ),
+    ).toEqual(['canvasScriptDocNothing'])
+  })
+
+  it('撤销把文档写回改前那份，并收掉还没确认的那道门', async () => {
+    const { host, workflow } = setup()
+    const prior: ScriptDoc = {
+      title: '旧',
+      logline: '',
+      roles: [],
+      shots: [],
+    }
+    workflow.scriptDoc = prior
+    const entry = scriptDocStep()
+    await act(async () => {
+      host().apply.canvas?.apply(entry)
+    })
+    expect(getOperatorScriptDocProjection()).not.toBeNull()
+
+    await act(async () => {
+      expect(host().apply.canvas?.revert(entry)).toEqual({ ok: true })
+    })
+    expect(workflow.scriptDoc).toEqual(prior)
+    expect(getOperatorScriptDocProjection()).toBeNull()
+    // ⚠ 撤的是文档，⛔ 不是「撤销这一批」那道门（它不是批步）。
+    expect(host().apply.canvas?.canUndoBatch(entry)).toEqual({
+      ok: false,
+      reason: CANVAS_OPERATOR_BATCH_UNDO_REASON_IDS.notBatch,
+    })
+  })
+
+  it('登记簿粒度是 `${projectId}:scriptDoc`（项目级，不是某个节点的）', async () => {
+    const { host } = setup()
+    await act(async () => {
+      host().apply.canvas?.apply(scriptDocStep())
+    })
+    expect(host().apply.canvas?.changes()).toEqual(['p1:scriptDoc'])
   })
 
   it('经 applyOperatorStep / revertOperatorStep 分派：画布步落到图上、返回 null（登记簿归画布自己）', async () => {

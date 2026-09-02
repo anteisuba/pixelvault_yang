@@ -6945,6 +6945,7 @@
       "working": "アシスタント · 作業中",
       "workingCount": "アシスタント · 作業中 {done}/{total}",
       "awaitingConfirm": "確認待ち · プロンプトの書き方",
+      "awaitingAnswer": "あなた待ち · 質問があります",
       "primed": "準備完了 · 生成ボタンが点灯"
     },
     "log": {
@@ -7039,7 +7040,8 @@
       "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）",
       "stepNotApplicable": "{subject} はキャンバス側の操作です——このワークベンチでは適用できず、何も変わっていません",
       "canvasStepRefused": "{subject} はキャンバスに反映されませんでした：ボードと一致しません（ノード削除 / 未登録の別名 / カタログにないチャネル / メディア未生成）",
-      "canvasStepDeferred": "{subject} はこのスライスではまだ適用できません —— 脚本メモの書き込みは次のスライスで対応します"
+      "canvasScriptDocPending": "{subject} —— 脚本は書けました。キャンバスへ反映すると既存の {count} 件が削除されるので、確認してから適用してください",
+      "canvasScriptDocNothing": "{subject} —— 脚本は書けましたが、キャンバスはすでに一致しています。反映するものはありません"
     },
     "suggestion": {
       "setupShot": "この一枚を組み立てて",

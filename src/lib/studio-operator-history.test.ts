@@ -564,3 +564,60 @@ describe('画布域的日志进历史（C1-pre）', () => {
     ).toBe('雨夜 · 1 role(s) · 2 shot(s)')
   })
 })
+
+/**
+ * ⭐ 反问在历史里剩下**一条 message**，⛔ 不是一种新的历史条目（C3）。
+ * 论据与本模块头注同源（可读 ≠ 可操作）：历史里那张卡上的按钮点下去会发消息、
+ * 续跑一轮，而那一轮的语境早就不在了。留下的是真的发生过的那句话。
+ */
+describe('反问进历史（C3）', () => {
+  it('问题 + 选项 + 用户选的那一项 → 一条 message，⛔ 没有 askId、没有可点的东西', () => {
+    const history = toOperatorHistory([
+      {
+        kind: 'ask',
+        id: 'ask-1',
+        askId: 'ask-1',
+        question: '这一镜要几秒？',
+        options: [
+          { label: '5 秒', consequence: '一个动作，节奏紧' },
+          { label: '10 秒' },
+        ],
+        answer: '10 秒',
+      },
+    ])
+    expect(history).toEqual([
+      {
+        kind: 'message',
+        id: 'ask-1',
+        text: '这一镜要几秒？\n· 5 秒 — 一个动作，节奏紧\n· 10 秒\n→ 10 秒',
+      },
+    ])
+    expect(JSON.stringify(history)).not.toContain('askId')
+  })
+
+  it('还没回答的反问照样进历史（问过就是问过），⛔ 空问题整条丢掉', () => {
+    expect(
+      toOperatorHistory([
+        {
+          kind: 'ask',
+          id: 'ask-2',
+          askId: 'ask-2',
+          question: '横的还是竖的？',
+          options: [],
+        },
+      ]),
+    ).toEqual([{ kind: 'message', id: 'ask-2', text: '横的还是竖的？' }])
+
+    expect(
+      toOperatorHistory([
+        {
+          kind: 'ask',
+          id: 'ask-3',
+          askId: 'ask-3',
+          question: '   ',
+          options: [],
+        },
+      ]),
+    ).toEqual([])
+  })
+})

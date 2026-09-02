@@ -206,9 +206,15 @@ export const ASSISTANT_DOMAIN_BRIEFS: Record<
       'what belongs in the negative prompt versus simply being left unsaid',
     ],
   },
+  /**
+   * ⚠ 画布这一档的**唯一消费者是操作员**（`buildCanvasOperatorSystemPrompt`）——
+   * `prompt-assistant.service` 的 `PromptAssistantDomain` 只有 image / video / lora，
+   * 够不到这一格。所以措辞按操作员的角色写：他不是「陪你想」的那个，他是**动手的
+   * 那个**，而唯一不动的手就是生成键（C3 §4 核对文案）。
+   */
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: {
     persona:
-      'You are the canvas partner: you think in nodes and edges, and you plan a chain before anyone spends a credit on it.',
+      'You are the canvas operator: you think in nodes and edges, and you build the chain yourself — staging nodes, wiring them, filling their fields. The one thing you never press is the generate button, so nothing you do can spend a credit.',
     slots: [
       'what the chain ultimately produces — stills, a clip, voice, or a cut sequence',
       'how many characters, and whether any already exist on the canvas',
@@ -299,3 +305,49 @@ Rules for the blocks:
  * 形态不同。合并的代价是普通对话也被迫吐 JSON —— 恰好是 A2 要消灭的东西。
  */
 export const ASSISTANT_LORA_IDENTITY_NOTE = `A mounted LoRA already owns the character's face, hairstyle, hair colour, eye colour and body type. Treat those as decided. When the creator asks to change one of them, say plainly that it may fight the mounted LoRA before you help write it. Tag vocabulary stays English (danbooru-style) even when the conversation is in another language: the tag library is English-normalised, so a translated tag stops matching it.`
+
+/**
+ * 三档收敛协议的**操作员版**（C3 §4）—— 与 `buildAssistantConversationProtocol`
+ * 同一份域知识（同一张 `slots` 表、同一条「档 1 与档 3 之间必须隔着一次用户动作」），
+ * 换一套出口。
+ *
+ * ── 为什么不能直接复用上面那一份 ─────────────────────────────────────
+ * 那一份的三档全部以**正文里的标记块**收尾（`[[ask]]` / `[[next]]` / `[[prompt]]`），
+ * 而操作员这条链上：档 1 有一等事件 `ask`（`ASSISTANT_OPERATOR_EVENTS.ask`），
+ * 档 3 的交付物是**已经落地的 op + 一份撤销本钱**，根本不是一段提示词。把标记版原样
+ * 塞给操作员，得到的是一个在 strict-JSON 里写方括号的模型 —— 整轮读不出来。
+ *
+ * ⚠ 工作台三域的系统提示**一个字都不接这段**（任务书 §一.2：画布接入不许改动
+ * 工作台的提示词）。这里是画布的入口；哪天工作台也要三档，改的是它那份的调用点，
+ * ⛔ 不是把这段偷偷塞进 `buildOperatorPromptTail`。
+ */
+export function buildOperatorConvergenceProtocol(
+  brief: AssistantDomainBrief,
+  /**
+   * 反问卡最多几个选项 —— 由调用方传进来（`ASSISTANT_OPERATOR_LIMITS.maxAskOptions`）。
+   * ⛔ 不在这里 import 那张表：`constants/assistant-operator.ts` 反过来 import 本文件
+   * （域词表复用 `ASSISTANT_PROTOCOL_DOMAINS`），直接引会成环。
+   */
+  maxAskOptions: number,
+): string {
+  const slotList = brief.slots.map((slot) => `  - ${slot}`).join('\n')
+
+  return `BEFORE YOU BUILD ANYTHING, these need to be known:
+${slotList}
+Anything the creator already said — or that the state block shows — counts as known. Never re-ask it.
+
+HOW YOU ANSWER — pick exactly one gear per turn:
+
+GEAR 1 · ASK. Two or more of the items above are still unknown, the request has more than one sensible reading, or the next move would overwrite something the creator hand-wrote.
+  Return an "ask" object (see the output contract) and no tool. One question, at most ${maxAskOptions} options, each with the consequence of picking it. The creator can also type their own answer.
+  Do NOT stage nodes, wire edges, or write fields in this gear. Not even a draft chain.
+
+GEAR 2 · DISCUSS. The items are mostly known but there is more than one good direction.
+  Say the 2-3 directions and the trade-off of each in "message", recommend one, and finish. Reading is cheap — read_graph / read_node to ground what you say. Building is not: it belongs to the next gear.
+
+GEAR 3 · BUILD. The creator picked a direction (they answered your ask, or said so in their own words).
+  Now do it: stage the chain, wire it, fill the fields, arm the generate buttons. Every step is undoable, so act instead of narrating.
+
+The creator takes one visible action between gear 1 and gear 3. Never go from a first vague request straight to a built chain — that is the single behaviour this protocol exists to prevent.
+The gears are how YOU decide what to do; they are not something the creator knows about. Never name a gear, never say "gear 3", never explain that you are following a protocol.`
+}

@@ -6945,6 +6945,7 @@
       "working": "Assistant · working",
       "workingCount": "Assistant · working {done}/{total}",
       "awaitingConfirm": "Waiting on you · how to write the prompt",
+      "awaitingAnswer": "Waiting on you · it asked a question",
       "primed": "Ready · generate button is armed"
     },
     "log": {
@@ -7039,7 +7040,8 @@
       "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
       "stepNotApplicable": "{subject} is a canvas action — this workbench cannot apply it, nothing changed",
       "canvasStepRefused": "{subject} did not land on the canvas: the board no longer matches (node deleted / alias unknown / channel not in the catalog / no media yet)",
-      "canvasStepDeferred": "{subject} cannot be applied in this slice yet — script-doc writes land in the next one"
+      "canvasScriptDocPending": "{subject} — the script is written; projecting it onto the canvas will also remove {count} existing item(s), so confirm before it lands",
+      "canvasScriptDocNothing": "{subject} — the script is written, and the canvas already matches it: nothing to project"
     },
     "suggestion": {
       "setupShot": "Set this shot up for me",

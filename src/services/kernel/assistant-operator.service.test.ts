@@ -73,6 +73,7 @@ vi.mock('@/lib/node-connection-rules', () => ({
 }))
 
 import {
+  ASSISTANT_OPERATOR_ASK_ID_PREFIX,
   ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
@@ -3177,7 +3178,7 @@ describe('画布域 · 域闸与提示（C0-b）', () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildCanvasRequest()))
     const system = systemPrompt()
-    expect(system).toContain('You are the canvas partner')
+    expect(system).toContain('You are the canvas operator')
     expect(system).toContain('how many shots')
     expect(system).toContain('read_node the character card')
     expect(system).toContain('ONE batch and ONE step')
@@ -3213,7 +3214,7 @@ describe('画布域 · 域闸与提示（C0-b）', () => {
     )
   })
 
-  it('update_script_doc（C3）现在拒得明明白白，不假装写进去了', async () => {
+  it('update_script_doc 的形状不对时按 malformedArgs 拒（title 是必填）', async () => {
     queueTurns(
       canvasTurn(CANVAS_TOOL.updateScriptDoc, {
         doc: { logline: 'x', characters: [], scenes: [] },
@@ -3224,7 +3225,7 @@ describe('画布域 · 域闸与提示（C0-b）', () => {
       runAssistantOperator('clerk-1', buildCanvasRequest()),
     )
     expect(rejectionOf(events)).toBe(
-      ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.malformedArgs,
     )
     expect(
       events.some(
@@ -3234,6 +3235,288 @@ describe('画布域 · 域闸与提示（C0-b）', () => {
             ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
       ),
     ).toBe(false)
+  })
+})
+
+// ─── C3 · update_script_doc / ask / 收敛协议 ─────────────────────────
+
+const SCRIPT_DOC = {
+  title: '雨夜',
+  logline: '她在雨里找一把伞',
+  roles: [{ id: 'r1', name: '小林', description: '短黑发，红大衣' }],
+  shots: [
+    {
+      id: 's1',
+      sceneLabel: '街头',
+      summary: '小林走进雨里',
+      roleIds: ['r1'],
+      dialogue: [{ id: 'd1', speakerRoleId: 'r1', line: '又下雨了。' }],
+    },
+    {
+      id: 's2',
+      sceneLabel: '便利店',
+      summary: '她推门进去',
+      roleIds: ['r1'],
+      dialogue: [],
+    },
+  ],
+}
+
+describe('画布域 · update_script_doc（C3）', () => {
+  it('写文档：payload 是整份文档，inverse 是改前那份（快照里带的那一份）', async () => {
+    const prior = { ...SCRIPT_DOC, title: '旧标题', shots: [], roles: [] }
+    queueTurns(canvasTurn(CANVAS_TOOL.updateScriptDoc, { doc: SCRIPT_DOC }), {
+      finished: true,
+    })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildCanvasRequest({
+          snapshot: {
+            ...CANVAS_SNAPSHOT,
+            canvas: {
+              ...CANVAS_SNAPSHOT.canvas!,
+              scriptDoc: { summary: '旧标题 · 0 shots', doc: prior },
+            },
+          },
+        }),
+      ),
+    )
+    const done = doneSteps(events)[0]
+    expect(done.tool).toBe(CANVAS_TOOL.updateScriptDoc)
+    expect((done.payload as { doc: { title: string } }).doc.title).toBe('雨夜')
+    expect((done.inverse as { doc: { title: string } }).doc.title).toBe(
+      '旧标题',
+    )
+  })
+
+  it('项目本来没有文档时 inverse 是 null（撤销 = 删回没有）', async () => {
+    queueTurns(canvasTurn(CANVAS_TOOL.updateScriptDoc, { doc: SCRIPT_DOC }), {
+      finished: true,
+    })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildCanvasRequest({
+          snapshot: {
+            ...CANVAS_SNAPSHOT,
+            canvas: { ...CANVAS_SNAPSHOT.canvas!, scriptDoc: undefined },
+          },
+        }),
+      ),
+    )
+    expect(doneSteps(events)[0].inverse).toEqual({ doc: null })
+  })
+
+  it('空文档（没角色也没镜头）按 emptyValue 拒 —— 投影出来什么都没有', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.updateScriptDoc, {
+        doc: { title: '空', logline: '', roles: [], shots: [] },
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.emptyValue,
+    )
+  })
+
+  it('⭐ 写完之后同一轮的 read_graph 读到的是**改后**的摘要（同一份摘要算法）', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.updateScriptDoc, { doc: SCRIPT_DOC }),
+      canvasTurn(CANVAS_TOOL.readGraph, {}),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    const digest = (doneSteps(events)[1].result as { digest: string }).digest
+    expect(digest).toContain('"雨夜"')
+    expect(digest).toContain('2 scene(s): 街头, 便利店')
+    expect(digest).toContain('2 shot(s)')
+    expect(digest).toContain('cast: 小林')
+  })
+
+  it('⛔ 整份文档只进快照，一个字都不进首轮提示（与 URL 同一条 K-4 规矩）', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildCanvasRequest({
+          snapshot: {
+            ...CANVAS_SNAPSHOT,
+            canvas: {
+              ...CANVAS_SNAPSHOT.canvas!,
+              scriptDoc: { summary: '雨夜 · 2 shot(s)', doc: SCRIPT_DOC },
+            },
+          },
+        }),
+      ),
+    )
+    for (const prompt of [systemPrompt(), firstUserPrompt()]) {
+      expect(prompt).not.toContain('又下雨了。')
+      expect(prompt).not.toContain('短黑发，红大衣')
+      expect(prompt).not.toContain('小林走进雨里')
+    }
+    expect(firstUserPrompt()).toContain('Script doc: 雨夜 · 2 shot(s)')
+  })
+
+  it('系统提示写着双路并存与「不整份重写」', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildCanvasRequest()))
+    const system = systemPrompt()
+    expect(system).toContain('TWO ROADS ONTO THIS CANVAS')
+    expect(system).toContain('do not rewrite it wholesale')
+    expect(system).toContain('- update_script_doc:')
+  })
+})
+
+describe('反问 · ask 一等事件（C3）', () => {
+  it('turn 里的 ask → ask 事件 + stopped(awaiting_answer)，本轮到此为止', async () => {
+    queueTurns({
+      message: '先确认一件事。',
+      ask: {
+        question: '这一镜要几秒？',
+        options: [
+          { label: '5 秒', consequence: '一个动作，节奏紧' },
+          { label: '10 秒', consequence: '能塞一句台词' },
+        ],
+      },
+    })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(events.map((event) => event.type)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.message,
+      ASSISTANT_OPERATOR_EVENTS.ask,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
+    ])
+    const ask = events[1] as {
+      askId: string
+      question: string
+      options: { label: string; consequence?: string }[]
+      allowFreeText: boolean
+    }
+    expect(ask.askId).toBe(`${ASSISTANT_OPERATOR_ASK_ID_PREFIX}1`)
+    expect(ask.question).toBe('这一镜要几秒？')
+    expect(ask.options).toHaveLength(2)
+    expect(ask.options[0].consequence).toBe('一个动作，节奏紧')
+    expect(ask.allowFreeText).toBe(true)
+    expect((events[2] as { reason: string }).reason).toBe(
+      ASSISTANT_OPERATOR_STOP_REASONS.awaitingAnswer,
+    )
+  })
+
+  it('⭐ 同一轮既问又调工具时，问题赢 —— 不知道答案就动手正是这条协议要拦的', async () => {
+    queueTurns({
+      ask: { question: '要哪一版？' },
+      tool: {
+        name: CANVAS_TOOL.stageNodes,
+        title: 'stage',
+        args: { items: [{ type: 'shotText' }] },
+      },
+    })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(events.map((event) => event.type)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.ask,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
+    ])
+    expect(stepsOf(events)).toHaveLength(0)
+  })
+
+  it('归一化：选项截到上限、空标签丢掉、缺 consequence 照收', async () => {
+    queueTurns({
+      ask: {
+        question: '  挑一个  ',
+        options: [
+          { label: 'A' },
+          { label: '   ' },
+          { label: 'B', consequence: '  乙  ' },
+          { label: 'C' },
+          { label: 'D' },
+        ],
+      },
+    })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    const ask = events[0] as {
+      question: string
+      options: { label: string; consequence?: string }[]
+    }
+    expect(ask.question).toBe('挑一个')
+    expect(ask.options.map((option) => option.label)).toEqual(['A', 'B', 'C'])
+    expect(ask.options[1].consequence).toBe('乙')
+  })
+
+  it('问题是空串 = 不算一次反问，照常按 finished 收尾', async () => {
+    queueTurns({ ask: { question: '   ' }, finished: true })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(events.map((event) => event.type)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.done,
+    ])
+  })
+
+  it('答案回来时用户提示里点明「这句话是在回答那一问」', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildCanvasRequest({
+          answeredAskId: `${ASSISTANT_OPERATOR_ASK_ID_PREFIX}1`,
+          messages: [
+            { role: 'user', content: '帮我搭' },
+            { role: 'assistant', content: '这一镜要几秒？' },
+            { role: 'user', content: '10 秒' },
+          ],
+        }),
+      ),
+    )
+    expect(firstUserPrompt()).toContain(
+      `THE CREATOR ANSWERED THE QUESTION YOU ASKED (${ASSISTANT_OPERATOR_ASK_ID_PREFIX}1)`,
+    )
+  })
+
+  it('工作台三域也吐 ask（协议层共享，只是提示词里没写）', async () => {
+    queueTurns({ ask: { question: '横的还是竖的？' } })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest({ domain: 'image' })),
+    )
+    expect(events.map((event) => event.type)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.ask,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
+    ])
+  })
+})
+
+describe('三档收敛协议 · 画布（C3 §4）', () => {
+  it('画布系统提示带三档与收敛槽位；工作台三域一个字都没变', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildCanvasRequest()))
+    const canvasSystem = systemPrompt()
+    expect(canvasSystem).toContain('GEAR 1 · ASK')
+    expect(canvasSystem).toContain('GEAR 2 · DISCUSS')
+    expect(canvasSystem).toContain('GEAR 3 · BUILD')
+    expect(canvasSystem).toContain(
+      'BEFORE YOU BUILD ANYTHING, these need to be known:',
+    )
+    // 回复结构（C3 §2）
+    expect(canvasSystem).toContain('first line is the conclusion')
+
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const imageSystem = systemPrompt()
+    expect(imageSystem).not.toContain('GEAR 1 · ASK')
+    expect(imageSystem).not.toContain('first line is the conclusion')
+    expect(imageSystem).toContain(
+      'WHAT THIS DOMAIN TURNS ON — check these are settled before you arm anything:',
+    )
   })
 })
 

@@ -33,12 +33,14 @@ import {
   isAssistantOperatorToolInDomain,
   type AssistantOperatorConfirmChoice,
   type AssistantOperatorDomain,
+  type AssistantOperatorStopReason,
 } from '@/constants/assistant-operator'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
   appendOperatorEntry,
   getOperatorState,
+  markOperatorAskAnswered,
   nextOperatorEntryId,
   operatorStepEntryId,
   recordOperatorChange,
@@ -69,8 +71,26 @@ import type {
 } from '@/types/assistant-operator'
 import type {
   StudioOperatorAttachment,
+  StudioOperatorStatus,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
+
+/**
+ * 流停下来时状态落到哪一格（C3）。
+ *
+ * ⚠ 写成穷举的 `Record`：`ASSISTANT_OPERATOR_STOP_REASONS` 加一条而这里没跟上，
+ * 编译期就红。改前那个三元表达式的失败面很具体 —— 新理由静默落到 `idle`，
+ * 面板看起来「跑完了」，而实际上它正等着用户做点什么。
+ */
+const STOPPED_STATUS_BY_REASON: Record<
+  AssistantOperatorStopReason,
+  StudioOperatorStatus
+> = {
+  [ASSISTANT_OPERATOR_STOP_REASONS.aborted]: 'idle',
+  [ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm]: 'awaitingConfirm',
+  [ASSISTANT_OPERATOR_STOP_REASONS.awaitingAnswer]: 'awaitingAnswer',
+  [ASSISTANT_OPERATOR_STOP_REASONS.maxSteps]: 'idle',
+}
 
 function toResponseLanguage(locale: string): PromptAssistantResponseLanguage {
   if (locale === 'zh') return 'chinese'
@@ -100,6 +120,18 @@ function buildMessages(
       messages.push({ role: 'user', content: `${entry.text}${attachmentNote}` })
     } else if (entry.kind === 'message') {
       messages.push({ role: 'assistant', content: entry.text })
+    } else if (entry.kind === 'ask') {
+      /**
+       * ⭐ 反问**进对话**（C3），日志条不进。区别在于它是助手真的说出口的一句话：
+       * 服务端没有会话态，不带它的下场是模型下一轮把同一个问题原样再问一遍。
+       * ⚠ 选项一起带上：用户的答案常常只是一个短语（「红伞那版」），没有选项做
+       * 上下文，那句话单看读不出是在回答什么。
+       */
+      const options = entry.options.map((option) => option.label).join(' / ')
+      messages.push({
+        role: 'assistant',
+        content: options ? `${entry.question}\n(${options})` : entry.question,
+      })
     }
   }
   return messages
@@ -149,6 +181,11 @@ export interface UseAssistantOperatorResult {
   stop(): void
   /** 就地确认的三选一（拍板 3）：追加在后 / 覆盖 / 保留。 */
   answerConfirm(choice: AssistantOperatorConfirmChoice): void
+  /**
+   * 回答助手的反问（C3）—— 点选项传它的 label，自由输入传用户打的那句话。
+   * 两者走同一条路：答案作为下一条 user 消息发出，请求带 `answeredAskId`。
+   */
+  answerAsk(askId: string, answer: string): void
   /**
    * 它备的那一枪回来了 —— 投回线程并自动请一轮评价（P3-C，拍板 4）。
    *
@@ -217,7 +254,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 重发靠的就是它。
    */
   const run = useCallback(
-    async (confirmations?: AssistantOperatorConfirmDecision[]) => {
+    async (
+      confirmations?: AssistantOperatorConfirmDecision[],
+      /** 这一轮是在回答哪一张反问卡（C3）。缺席 = 不是在答题。 */
+      answeredAskId?: string,
+    ) => {
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -259,6 +300,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            */
           priorSteps: buildPriorSteps(entries, historyToPriorSteps(history)),
           ...(confirmations?.length ? { confirmations } : {}),
+          ...(answeredAskId ? { answeredAskId } : {}),
           // ⭐ 拍板 4 的落点：这个键在场 = 服务端才有图可看。用户自己发的生成
           //    永远不会走到这里（判据在 `lib/studio-operator-claim.ts`）。
           ...(pendingResultRef.current
@@ -338,12 +380,21 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 proposed: event.proposed,
               })
               break
+            /**
+             * 结构化反问（C3）—— 一条线程条目，⛔ 不是一句 `message`。
+             * 折成 message 就把选项和「哪一问」丢了，答案也就没处钉回去。
+             */
+            case ASSISTANT_OPERATOR_EVENTS.ask:
+              appendOperatorEntry({
+                kind: 'ask',
+                id: nextOperatorEntryId('ask'),
+                askId: event.askId,
+                question: event.question,
+                options: event.options,
+              })
+              break
             case ASSISTANT_OPERATOR_EVENTS.stopped:
-              setOperatorStatus(
-                event.reason === ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm
-                  ? 'awaitingConfirm'
-                  : 'idle',
-              )
+              setOperatorStatus(STOPPED_STATUS_BY_REASON[event.reason])
               break
             case ASSISTANT_OPERATOR_EVENTS.error:
               setOperatorStatus('error', event.error)
@@ -412,6 +463,37 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   )
 
   /**
+   * 回答那张反问卡（C3，附录 E）。
+   *
+   * ⭐ 答案**就是下一条用户消息** —— 点选项与自己打字走的是同一条路，因为对模型
+   * 而言它们是同一件事（一句话）。`answeredAskId` 只是记账，让服务端能在提示里
+   * 点明「这句话是在回答你刚才那个问题」。
+   * ⚠ 先把卡标成已答再发：那一排按钮点过之后不该还能再点（再点 = 又发一条消息）。
+   */
+  const answerAsk = useCallback(
+    (askId: string, answer: string) => {
+      const trimmed = answer.trim()
+      if (!trimmed) return
+      const entry = getOperatorState().entries.find(
+        (candidate) => candidate.kind === 'ask' && candidate.askId === askId,
+      )
+      // 已经答过 / 根本没有这一问 —— 静默不发（重复发送比不发坏）。
+      if (!entry || entry.kind !== 'ask' || entry.answer !== undefined) return
+      abortRef.current?.abort()
+      pendingResultRef.current = null
+      markOperatorAskAnswered(askId, trimmed)
+      appendOperatorEntry({
+        kind: 'user',
+        id: nextOperatorEntryId('user'),
+        text: trimmed,
+        attachments: [],
+      })
+      void run(undefined, askId)
+    },
+    [run],
+  )
+
+  /**
    * 看图闭环的**触发口**（P3-C，拍板 4）。
    *
    * 三件事，顺序有意义：
@@ -474,6 +556,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     send,
     stop,
     answerConfirm,
+    answerAsk,
     critique,
     newThread,
   }

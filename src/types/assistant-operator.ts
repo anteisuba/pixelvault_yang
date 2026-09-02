@@ -58,7 +58,7 @@ import {
   AssistantAssetFolderVisionResultSchema,
 } from '@/types/asset-folder-vision'
 import { LoraCandidateImportPayloadSchema } from '@/types/lora-candidate'
-import { ScriptDocSchema } from '@/types/script-doc'
+import { ScriptDocSchema, type ScriptDoc } from '@/types/script-doc'
 
 // ─── 小件 ────────────────────────────────────────────────────────
 
@@ -435,10 +435,22 @@ export const AssistantOperatorSnapshotCanvasSchema = z.object({
   modelOptions: z
     .array(AssistantOperatorCanvasModelOptionSchema)
     .max(LIMITS.maxCanvasModelOptions),
-  /** C3 填内容，C0 留位。缺席 = 这个项目没有 ScriptDoc。 */
+  /**
+   * 项目的剧本文档（C3）。缺席 = 这个项目没有 ScriptDoc。
+   *
+   * ⚠ **两格两个去处，别混**：
+   *   · `summary`（`lib/script-doc-summary.ts` 算的那一行）**进提示**：标题 /
+   *     logline / 场次 / 镜头数 / 角色名 —— 概览级，与画布概览同一条 K-4 规矩。
+   *   · `doc`（整份文档）**只进快照、不进任何提示**：它是 `update_script_doc` 的
+   *     `inverse`（改前整份文档）唯一的来源。服务端没有会话态，改前值只能由请求
+   *     带上来 —— 与画布节点的 URL 走同一条路（进快照、不进首轮提示）。
+   * ⚠ `doc` 可缺席：宿主拿不到完整文档时（不该发生）仍能发摘要，此时
+   *   `update_script_doc` 的 inverse 记 `null` = 「改前没有可恢复的文档」。
+   */
   scriptDoc: z
     .object({
       summary: z.string().max(LIMITS.maxCanvasScriptDocSummaryChars),
+      doc: ScriptDocSchema.optional(),
     })
     .optional(),
 })
@@ -474,6 +486,12 @@ export interface CanvasWorkingState {
   edges: AssistantOperatorCanvasEdge[]
   /** `new:<n>` → 本轮建出的节点（真实 id 由客户端 apply 时分配，这里只有别名）。 */
   aliases: Map<string, AssistantOperatorCanvasNode>
+  /**
+   * 改前的整份剧本文档（C3）。`null` = 这个项目还没有。
+   * ⚠ 与 `nodes` / `edges` 同一条：`update_script_doc` 的 `inverse` 以**副本当下值**
+   * 为准，所以同一轮里连写两次，第二次撤回到第一次写完之后。
+   */
+  scriptDoc: ScriptDoc | null
   scriptDocSummary: string | null
 }
 
@@ -623,6 +641,16 @@ export const AssistantOperatorRequestSchema = z.object({
    * `critique_result` 按 `noResultToCritique` 拒。见 schema 头注。
    */
   result: AssistantOperatorResultSchema.optional(),
+  /**
+   * 这一条用户消息是**在回答助手上一轮的反问**（C3）。
+   *
+   * ⚠ 只是记账：答案本体就是 `messages` 里最后那条 user 消息。带上 id 之后系统能在
+   * 用户提示里点明「这句话回答的是你刚才那个问题」—— 没有它，模型在下一轮很可能
+   * 把同一个问题再问一遍（服务端没有会话态，它自己不记得问过什么）。
+   * ⛔ 服务端**不校验它对不对**：一个对不上的 id 最坏就是那一句提示没写，
+   *   而拒掉整个请求会让用户的回答凭空消失。
+   */
+  answeredAskId: z.string().trim().max(LIMITS.maxIdChars).optional(),
   /** 用户在设置里选的 LLM key；缺省走 `resolveLlmTextRoute` 的优先级。 */
   apiKeyId: z.string().optional(),
   /** 用户选的 LLM 档位（非生成模型），服务端对表校验。 */
@@ -884,6 +912,31 @@ export const AssistantOperatorTurnSchema = z.object({
         .record(z.string(), z.unknown())
         .nullish()
         .transform((value) => value ?? {}),
+    })
+    .optional(),
+  /**
+   * 结构化反问（C3，附录 E）。**模型视角，一律宽松**（本文件头注 ②）：
+   * `consequence` 可缺、选项可多写几条 —— 归一化（trim / 去空 / 截到
+   * `maxAskOptions`）在服务端做，schema 拒等于整轮读不出来，而一个多写的选项
+   * 不值一整轮。
+   * ⚠ 没有 `allowFreeText` 这个旋钮：输入框本来就在那儿，模型关不掉它。
+   */
+  ask: z
+    .object({
+      question: z.string().trim().max(LIMITS.maxAskQuestionChars),
+      options: z
+        .array(
+          z.object({
+            label: z.string().trim().max(LIMITS.maxAskOptionLabelChars),
+            consequence: z
+              .string()
+              .trim()
+              .max(LIMITS.maxAskConsequenceChars)
+              .optional(),
+          }),
+        )
+        .nullish()
+        .transform((value) => value ?? []),
     })
     .optional(),
   /** 模型认为活干完了。没有 `tool` 时等价于 true。 */
@@ -1541,6 +1594,39 @@ export const AssistantOperatorConfirmRequestEventSchema = z.object({
   proposed: z.string().max(LIMITS.maxConfirmHaveChars),
 })
 
+/**
+ * 结构化反问（C3，附录 E 拍板「选项卡 + 自由输入」）。
+ *
+ * ⭐ **一等事件，⛔ 不是正文里的标记**：marker 时代的 `[[ask]]` 要从散文里剥出来，
+ * 剥不出来就退化成一段带方括号的乱码。事件形态没有这个失败面。
+ * ⚠ 它之后这条流**就结束了**（`stopped` / `awaiting_answer`）—— 与 `confirm_request`
+ * 同一条机制：服务端没有会话态，答案由客户端作为下一条 user 消息带 `answeredAskId`
+ * 重发。
+ * ⚠ 严格（与 `confirm_request` 同一档）：`askId` 是服务端分配的、`options` 已经过
+ * 归一化，模型碰不到这一层。
+ */
+export const AssistantOperatorAskOptionSchema = z.object({
+  label: z.string().trim().min(1).max(LIMITS.maxAskOptionLabelChars),
+  /** 选它会发生什么 —— 反问卡与一句散文追问的唯一区别就在这里。 */
+  consequence: z.string().trim().max(LIMITS.maxAskConsequenceChars).optional(),
+})
+
+export const AssistantOperatorAskEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.ask),
+  /** 服务端分配（`ASSISTANT_OPERATOR_ASK_ID_PREFIX` + 序号）；客户端答题时原样带回。 */
+  askId: IdSchema,
+  question: z.string().trim().min(1).max(LIMITS.maxAskQuestionChars),
+  options: z
+    .array(AssistantOperatorAskOptionSchema)
+    .max(LIMITS.maxAskOptions)
+    .default([]),
+  /**
+   * 永远是 `true`：输入框本来就在那儿，这一格说的是「这张卡长什么样」——
+   * ⛔ 不是一个开关，所以写成字面量而不是 `boolean`。
+   */
+  allowFreeText: z.literal(true),
+})
+
 export const AssistantOperatorMessageEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.message),
   text: z.string().max(LIMITS.maxMessageChars),
@@ -1568,6 +1654,7 @@ export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorPlanEventSchema,
   AssistantOperatorStepEventSchema,
   AssistantOperatorConfirmRequestEventSchema,
+  AssistantOperatorAskEventSchema,
   AssistantOperatorMessageEventSchema,
   AssistantOperatorDoneEventSchema,
   AssistantOperatorStoppedEventSchema,
@@ -1584,6 +1671,12 @@ export type AssistantOperatorStepEvent = z.infer<
 >
 export type AssistantOperatorConfirmRequestEvent = z.infer<
   typeof AssistantOperatorConfirmRequestEventSchema
+>
+export type AssistantOperatorAskEvent = z.infer<
+  typeof AssistantOperatorAskEventSchema
+>
+export type AssistantOperatorAskOption = z.infer<
+  typeof AssistantOperatorAskOptionSchema
 >
 export type AssistantOperatorPriorStep = z.infer<
   typeof AssistantOperatorPriorStepSchema

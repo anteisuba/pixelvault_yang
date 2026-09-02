@@ -301,6 +301,37 @@ export function toOperatorHistoryEntry(
       if (steps.length === 0) return null
       return { kind: 'plan', id: entry.id, steps }
     }
+    /**
+     * 反问（C3）→ 历史里剩下一条 **`message`**，⛔ 不是一种新的历史条目。
+     *
+     * ⭐ 与本文件头注同一条论据（可读 ≠ 可操作）：历史里那张卡上的按钮点下去会
+     * 发一条消息、续跑一轮 —— 而那一轮的语境（当时的图、当时的 priorSteps）早就
+     * 不在了。所以按钮不留。留下的是**这次对话真的发生过的那句话**：问题、当时
+     * 摆出来的选项、以及用户选了什么。少了它，历史里会出现一句没头没脑的回答。
+     */
+    case 'ask': {
+      const question = entry.question.trim()
+      if (!question) return null
+      const options = entry.options
+        .map((option) =>
+          option.consequence
+            ? `${option.label} — ${option.consequence}`
+            : option.label,
+        )
+        .filter(Boolean)
+      const text = [
+        question,
+        ...options.map((option) => `· ${option}`),
+        entry.answer ? `→ ${entry.answer}` : null,
+      ]
+        .filter((line): line is string => line !== null)
+        .join('\n')
+      return {
+        kind: 'message',
+        id: entry.id,
+        text: truncate(text, LIMITS.maxMessageChars),
+      }
+    }
     case 'step':
       return toOperatorHistoryStep(entry.id, entry.step, entry.undone)
     case 'system':

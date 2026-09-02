@@ -422,3 +422,83 @@ describe('画布一格', () => {
     expect(result.current.changes).toEqual({})
   })
 })
+
+describe('反问卡（C3）', () => {
+  function appendAsk(askId = 'ask-1') {
+    act(() =>
+      store.appendOperatorEntry({
+        kind: 'ask',
+        id: store.nextOperatorEntryId('ask'),
+        askId,
+        question: '这一镜要几秒？',
+        options: [{ label: '5 秒', consequence: '一个动作，节奏紧' }],
+      }),
+    )
+  }
+
+  it('回答落在条目上（那排按钮点过之后要变成「已选：××」）', () => {
+    const result = readState()
+    appendAsk()
+    act(() => store.markOperatorAskAnswered('ask-1', '10 秒'))
+    const entry = result.current.entries[0]
+    expect(entry.kind === 'ask' && entry.answer).toBe('10 秒')
+  })
+
+  it('⚠ 已经答过的不再覆盖 —— 第二下是误触，覆盖会让线程与真发出去的消息对不上', () => {
+    const result = readState()
+    appendAsk()
+    act(() => store.markOperatorAskAnswered('ask-1', '10 秒'))
+    act(() => store.markOperatorAskAnswered('ask-1', '5 秒'))
+    const entry = result.current.entries[0]
+    expect(entry.kind === 'ask' && entry.answer).toBe('10 秒')
+  })
+
+  it('askId 对不上就整个不动（⛔ 不猜是哪一问）', () => {
+    const result = readState()
+    appendAsk()
+    act(() => store.markOperatorAskAnswered('ask-9', '10 秒'))
+    const entry = result.current.entries[0]
+    expect(entry.kind === 'ask' && entry.answer).toBeUndefined()
+  })
+})
+
+describe('剧本投影确认门（C3）', () => {
+  it('挂起 / 读回 / 收掉；⛔ 不进 state（它装着两个闭包，进 state 就是每次挂载一次全面板重渲染）', () => {
+    const result = readState()
+    const gate = {
+      title: '雨夜',
+      created: 3,
+      updated: 1,
+      removed: 2,
+      removedEdges: 1,
+      confirm: () => {},
+      cancel: () => {},
+    }
+    store.setOperatorScriptDocProjection(gate)
+    expect(store.getOperatorScriptDocProjection()).toBe(gate)
+    expect(JSON.stringify(result.current)).not.toContain('雨夜')
+
+    store.setOperatorScriptDocProjection(null)
+    expect(store.getOperatorScriptDocProjection()).toBeNull()
+  })
+
+  it('订阅口在挂起与收掉时各通知一次', () => {
+    const seen: (string | null)[] = []
+    const unsubscribe = store.subscribeOperatorScriptDocProjection(() => {
+      seen.push(store.getOperatorScriptDocProjection()?.title ?? null)
+    })
+    store.setOperatorScriptDocProjection({
+      title: '雨夜',
+      created: 1,
+      updated: 0,
+      removed: 0,
+      removedEdges: 0,
+      confirm: () => {},
+      cancel: () => {},
+    })
+    store.setOperatorScriptDocProjection(null)
+    unsubscribe()
+    store.setOperatorScriptDocProjection(null)
+    expect(seen).toEqual(['雨夜', null])
+  })
+})

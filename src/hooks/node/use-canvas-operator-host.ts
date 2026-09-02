@@ -33,6 +33,8 @@ import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { NodeWorkflowNodeType } from '@/constants/node-types'
 import {
   CANVAS_OPERATOR_BATCH_UNDO_REASON_IDS,
+  CANVAS_OPERATOR_FIELD_IDS,
+  buildCanvasOperatorChangeKey,
   type CanvasOperatorChangeKey,
 } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
@@ -45,11 +47,15 @@ import type {
   NodeWorkflowState,
 } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
-import { createWorkflowId } from '@/hooks/node/use-node-workflow'
+import {
+  createWorkflowId,
+  type ApplyScriptDocResult,
+} from '@/hooks/node/use-node-workflow'
 import {
   appendOperatorEntry,
   nextOperatorEntryId,
   setOperatorPrimed,
+  setOperatorScriptDocProjection,
 } from '@/hooks/use-studio-operator-store'
 import {
   applyCanvasOperatorStep,
@@ -81,6 +87,17 @@ export interface CanvasOperatorWorkflow {
   runAsSingleHistoryStep<T>(run: () => T | Promise<T>): Promise<T>
   readUndoTarget(): NodeWorkflowState | undefined
   undo(): void
+  /**
+   * 剧本文档那三只手（C3）—— **与 `ScriptDocWorkspace` 用的是同一份**
+   * （`useNodeWorkflow` 的成员），⛔ 这里不复制投影逻辑：
+   *   · `setScriptDoc` 写文档（`update_script_doc` 落的就是这一下）；
+   *   · `previewScriptDocProjection` 不提交地算「将建 / 将更新 / 将移除」；
+   *   · `applyScriptDocToGraph` 是用户确认之后才走的那一下。
+   * 投影会删孤儿节点（B4），所以中间那道确认门不能省。
+   */
+  setScriptDoc(scriptDoc: ScriptDoc | undefined): void
+  previewScriptDocProjection(): ApplyScriptDocResult
+  applyScriptDocToGraph(): ApplyScriptDocResult
 }
 
 export interface UseCanvasOperatorHostInput {
@@ -105,14 +122,25 @@ export interface UseCanvasOperatorHostInput {
  * （`upsertOperatorStep` 原样收进去、`revertOperatorStep` 原样传回来）。刷新后
  * 载回的历史是新对象 → 查不到 → `unknownStep`，那正是「本钱丢了」的诚实答案。
  */
-interface CanvasOperatorLedgerEntry {
-  inverse: NodeWorkflowGraphPatch
-  /** 落笔那一刻的撤销栈顶（= 这一步之前的状态引用）；非批步不读它。 */
-  before: NodeWorkflowState | undefined
-  batch: boolean
+type CanvasOperatorLedgerEntry = {
   changes: readonly CanvasOperatorChangeKey[]
   undone: boolean
-}
+} & (
+  | {
+      kind: 'patch'
+      inverse: NodeWorkflowGraphPatch
+      /** 落笔那一刻的撤销栈顶（= 这一步之前的状态引用）；非批步不读它。 */
+      before: NodeWorkflowState | undefined
+      batch: boolean
+    }
+  /**
+   * `update_script_doc`（C3）：本钱是**改前那份文档**，不是一份逆补丁 ——
+   * 剧本文档不住在 `NodeWorkflowGraphPatch` 里。撤销 = 把文档写回去；⚠ 已经确认
+   * 投影出去的节点**不跟着回来**，那是用户按下的另一件事（与 `ScriptDocWorkspace`
+   * 手动投影之后的撤销语义一致：撤文档不撤节点，节点走画布自己的撤销栈）。
+   */
+  | { kind: 'scriptDoc'; priorDoc: ScriptDoc | undefined; batch: false }
+)
 
 export function useCanvasOperatorHost(
   input: UseCanvasOperatorHostInput,
@@ -153,6 +181,8 @@ export function useCanvasOperatorHost(
           (option) =>
             option.modelId === modelId && option.optionId === optionId,
         ) ?? null,
+      /** 撤销 `update_script_doc` 的本钱 —— 此刻宿主手上那一份，不是服务端以为的那一份。 */
+      readScriptDoc: () => latest.current.workflow.scriptDoc,
     }
 
     const gate = (
@@ -179,6 +209,7 @@ export function useCanvasOperatorHost(
         }
       }
       if (
+        entry.kind === 'patch' &&
         entry.batch &&
         entry.before !== latest.current.workflow.readUndoTarget()
       ) {
@@ -210,6 +241,7 @@ export function useCanvasOperatorHost(
               workflow.applyGraphPatch(outcome.patch)
             })
             ledger.current.set(step, {
+              kind: 'patch',
               inverse: outcome.inverse,
               before,
               batch: outcome.batch,
@@ -220,14 +252,69 @@ export function useCanvasOperatorHost(
           }
           case 'read':
             return outcome
-          case 'notApplicable':
+          /**
+           * 剧本文档（C3）—— **写文档，然后停在投影确认门前**。
+           *
+           * ⛔ 不自动投影：投影会删孤儿节点（B4），那个数必须让人先看见。这里走的
+           * 是 `ScriptDocWorkspace` 那条路的三步（写 → 预览 → 用户确认后落），
+           * ⛔ 不复制投影算法。
+           * ⛔ 也不静默：写完什么都不说，用户看到的是助手声称写了剧本而画布纹丝
+           * 不动 —— 本仓最难查的那一类。所以两条岔路各插一行系统行。
+           */
+          case 'scriptDoc': {
+            void workflow.runAsSingleHistoryStep(() => {
+              workflow.setScriptDoc(outcome.doc)
+            })
+            ledger.current.set(step, {
+              kind: 'scriptDoc',
+              priorDoc: outcome.priorDoc,
+              batch: false,
+              changes: [
+                buildCanvasOperatorChangeKey(
+                  workflow.currentProjectId,
+                  CANVAS_OPERATOR_FIELD_IDS.scriptDoc,
+                ),
+              ],
+              undone: false,
+            })
+            const preview = workflow.previewScriptDocProjection()
+            const nothingToDo =
+              preview.refusal !== null ||
+              (preview.created === 0 &&
+                preview.updated === 0 &&
+                preview.removed === 0 &&
+                preview.removedEdges === 0)
+            if (nothingToDo) {
+              setOperatorScriptDocProjection(null)
+              appendOperatorEntry({
+                kind: 'system',
+                id: nextOperatorEntryId('sys'),
+                code: 'canvasScriptDocNothing',
+                subject: outcome.doc.title,
+              })
+              return outcome
+            }
+            setOperatorScriptDocProjection({
+              title: outcome.doc.title,
+              created: preview.created,
+              updated: preview.updated,
+              removed: preview.removed,
+              removedEdges: preview.removedEdges,
+              confirm: () => {
+                latest.current.workflow.applyScriptDocToGraph()
+                setOperatorScriptDocProjection(null)
+              },
+              cancel: () => setOperatorScriptDocProjection(null),
+            })
             appendOperatorEntry({
               kind: 'system',
               id: nextOperatorEntryId('sys'),
-              code: 'canvasStepDeferred',
-              subject: step.title,
+              code: 'canvasScriptDocPending',
+              subject: outcome.doc.title,
+              count: preview.removed + preview.removedEdges,
             })
             return outcome
+          }
           case 'refused':
             appendOperatorEntry({
               kind: 'system',
@@ -249,7 +336,17 @@ export function useCanvasOperatorHost(
           }
         }
         const { workflow } = latest.current
-        if (entry.batch) {
+        if (entry.kind === 'scriptDoc') {
+          /**
+           * ⚠ 撤的是**文档**，不是已经投影出去的节点：那一跳是用户自己按下的
+           * 另一件事，走画布自己的撤销栈（与手动投影之后的语义一致）。还没确认
+           * 的那道门连同撤销一起收掉 —— 留着它，用户会确认一份已经被撤回的剧本。
+           */
+          setOperatorScriptDocProjection(null)
+          void workflow.runAsSingleHistoryStep(() => {
+            workflow.setScriptDoc(entry.priorDoc)
+          })
+        } else if (entry.batch) {
           workflow.undo()
         } else {
           void workflow.runAsSingleHistoryStep(() => {

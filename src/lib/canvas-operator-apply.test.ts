@@ -16,6 +16,7 @@ import type {
   NodeWorkflowModelOption,
   NodeWorkflowNode,
 } from '@/types/node-workflow'
+import type { ScriptDoc } from '@/types/script-doc'
 
 import {
   applyCanvasOperatorStep,
@@ -70,11 +71,14 @@ const MODEL_OPTION: NodeWorkflowModelOption = {
   freeTier: true,
 }
 
-function makeInput(): CanvasOperatorApplyInput & { ids: string[] } {
+function makeInput(
+  scriptDoc?: ScriptDoc,
+): CanvasOperatorApplyInput & { ids: string[] } {
   let seq = 0
   const ids: string[] = []
   return {
     ids,
+    readScriptDoc: () => scriptDoc,
     createId: (prefix) => {
       seq += 1
       const id = `${prefix}-${seq}`
@@ -156,22 +160,63 @@ describe('applyCanvasOperatorStep · 十条工具', () => {
     expect(input.ids).toEqual([])
   })
 
-  it('update_script_doc 归 C3：类型化 notApplicable，不是空补丁', () => {
+  /**
+   * ⚠ 剧本文档**不是图补丁**（C3）：它不住在 `NodeWorkflowGraphPatch` 里，而且
+   * 「写文档」与「把文档变成节点」是两件事 —— 后者经既有投影确认门由用户按下。
+   */
+  it('update_script_doc：第三种结果，带着改前那份文档当撤销本钱', () => {
+    const prior: ScriptDoc = {
+      title: 'Old',
+      logline: '',
+      roles: [],
+      shots: [],
+    }
+    const doc: ScriptDoc = { title: 'Rain', logline: '', roles: [], shots: [] }
+    const outcome = applyCanvasOperatorStep(
+      graphOf([HERO]),
+      step(ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc, { doc }, { doc: null }),
+      new Map(),
+      makeInput(prior),
+    )
+    expect(outcome).toEqual({
+      kind: 'scriptDoc',
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
+      doc,
+      priorDoc: prior,
+    })
+  })
+
+  /**
+   * ⭐ 撤销本钱取的是**宿主此刻手上那一份**，不是服务端 `step.inverse.doc` ——
+   * 与本模块头注「inverse 在客户端自己算」逐字同一条论据。
+   */
+  it('update_script_doc：撤销本钱来自宿主，不抄服务端的 inverse', () => {
+    const hostDoc: ScriptDoc = {
+      title: 'Host',
+      logline: '',
+      roles: [],
+      shots: [],
+    }
+    const serverPrior: ScriptDoc = {
+      title: 'Server',
+      logline: '',
+      roles: [],
+      shots: [],
+    }
     const outcome = applyCanvasOperatorStep(
       graphOf([HERO]),
       step(
         ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
         { doc: { title: 'Rain', logline: '', roles: [], shots: [] } },
-        { doc: null },
+        { doc: serverPrior },
       ),
       new Map(),
-      makeInput(),
+      makeInput(hostDoc),
     )
-    expect(outcome).toEqual({
-      kind: 'notApplicable',
-      tool: ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
-      slice: 'C3',
-    })
+    expect(outcome.kind).toBe('scriptDoc')
+    expect((outcome as { priorDoc: ScriptDoc | undefined }).priorDoc).toEqual(
+      hostDoc,
+    )
   })
 
   it('stage_nodes：真实 id 由注入的 helper 分配，形状与人手建节点一致，别名表随返回值走', () => {

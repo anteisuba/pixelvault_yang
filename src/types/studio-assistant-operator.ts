@@ -18,6 +18,7 @@ import type {
 } from '@/constants/studio-assistant-operator'
 import type {
   AssistantOperatorAppliedStep,
+  AssistantOperatorAskOption,
   AssistantOperatorConfirmRequestEvent,
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
@@ -93,6 +94,26 @@ export interface StudioOperatorSystemEntry {
   count?: number
 }
 
+/**
+ * 助手的**结构化反问**（C3，附录 E 拍板「选项卡 + 自由输入」）。
+ *
+ * ⭐ 它是线程里唯一一种**等着用户回答**的条目：流已经停了
+ * （`stopped` / `awaiting_answer`），面板渲染出至多三个选项按钮加一句后果，
+ * 用户点一个或者自己打字，答案作为下一条 user 消息带 `answeredAskId` 发出。
+ * ⚠ `answer` 落在这里而不是只留一条 user 气泡：那颗按钮点过之后要变成「已选：××」，
+ * 而不是一排还能再点一次的按钮（再点一次 = 又发一条消息）。
+ */
+export interface StudioOperatorAskEntry {
+  kind: 'ask'
+  id: string
+  /** 服务端分配的反问 id —— 回答时原样带回请求（`answeredAskId`）。 */
+  askId: string
+  question: string
+  options: readonly AssistantOperatorAskOption[]
+  /** 缺席 = 还没回答。有值 = 用户选的标签或自己打的那句话。 */
+  answer?: string
+}
+
 /** 切域标记（拍板 8：切域换工具不断会话）。 */
 export interface StudioOperatorDomainMarkEntry {
   kind: 'domainMark'
@@ -106,6 +127,7 @@ export type StudioOperatorThreadEntry =
   | StudioOperatorPlanEntry
   | StudioOperatorStepEntry
   | StudioOperatorSystemEntry
+  | StudioOperatorAskEntry
   | StudioOperatorDomainMarkEntry
 
 /**
@@ -194,5 +216,11 @@ export type StudioOperatorStatus =
   | 'working'
   /** 流停在就地确认上，等用户选（拍板 3）。 */
   | 'awaitingConfirm'
+  /**
+   * 流停在助手的反问上，等用户回答（C3）。
+   * ⚠ 与 `awaitingConfirm` **分开**：那是一个字段的三选一（覆盖 / 追加 / 保留），
+   * 这是一句开放问题 —— 胶囊要说的话与要渲染的卡都不是同一张。
+   */
+  | 'awaitingAnswer'
   /** 这一轮失败了 —— 线程里已经有一条错误消息。 */
   | 'error'

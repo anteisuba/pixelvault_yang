@@ -222,8 +222,23 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * 画布纹丝不动，是本仓最难查的那一类。
    */
   'canvasStepRefused',
-  /** 这一步归下一片（`update_script_doc` → C3）：画布宿主认得它，但本片不落。 */
-  'canvasStepDeferred',
+  /**
+   * 助手改写了剧本文档，投影**还没落到画布上**（C3）。
+   *
+   * ⭐ 这一行是「双路并存」在线程里的落点：`update_script_doc` 只改文档，把文档
+   * 变成节点要经既有的投影确认门（`previewScriptDocProjection` → 用户确认 →
+   * `applyScriptDocToGraph`，与 `ScriptDocWorkspace` 走同一条路）。⛔ 不静默：
+   * 助手说「剧本写好了」而画布上一个节点都没多出来，正是本仓最难查的那一类。
+   * ⚠ 计数是「将建 / 将更新 / 将移除」里那个**会被移除**的数 —— 投影会删孤儿节点
+   * （B4），确认之前必须让人看见。
+   */
+  'canvasScriptDocPending',
+  /**
+   * 剧本文档写进去了，但投影这一刻无事可做（文档空 / 与画布已经一致）。
+   * ⚠ 与上一条分开：那条要一颗确认钮，这条不需要 —— 合成一条会渲染出一颗按下去
+   * 什么都不会发生的按钮。
+   */
+  'canvasScriptDocNothing',
 ] as const
 
 export type StudioOperatorSystemCode =
@@ -287,6 +302,11 @@ export const CANVAS_OPERATOR_FIELD_IDS = {
   primed: 'primed',
   nodes: 'nodes',
   edges: 'edges',
+  /**
+   * 剧本文档（C3）。⚠ 它是**项目级**的一格，不是某个节点的 —— 改动键因此按
+   * 项目 id 拼（`buildCanvasOperatorChangeKey(projectId, 'scriptDoc')`）。
+   */
+  scriptDoc: 'scriptDoc',
 } as const
 
 export type CanvasOperatorField =

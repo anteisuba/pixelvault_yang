@@ -55,6 +55,8 @@ import {
   canCarryModel,
 } from '@/lib/node-assistant-context'
 import { resolveNodeDisplayName } from '@/lib/node-display-name'
+/** 摘要算法与服务端 `update_script_doc` 落笔后重算的那一份**是同一个函数**（C3）。 */
+import { buildScriptDocSummary } from '@/lib/script-doc-summary'
 import {
   getNodePrimaryMediaUrl,
   isIdentityCardNode,
@@ -254,7 +256,6 @@ export function buildCanvasOperatorSnapshotCanvas(
   input: CanvasOperatorSnapshotInput,
 ): AssistantOperatorSnapshotCanvas {
   const nodes = input.nodes.slice(0, LIMITS.maxCanvasNodes)
-  const logline = input.scriptDoc?.logline?.trim() ?? ''
   return {
     projectId: input.projectId,
     projectName: clamp(input.projectName.trim(), LIMITS.maxIdChars),
@@ -273,12 +274,22 @@ export function buildCanvasOperatorSnapshotCanvas(
       nodes,
       input.modelOptionsByType,
     ),
-    // C3 填内容，C0 留位：此刻只给 logline —— 有 ScriptDoc 就带键（空串 = 有文档但
-    // 还没写 logline），没有文档整个键不给。
+    /**
+     * 剧本文档（C3）—— 有文档就带这一节，没有整个键不给（控件不在整个键不给）。
+     *
+     * ⚠ **两格两个去处**：`summary`（`buildScriptDocSummary`：标题 / logline /
+     * 场次 / 镜头数 / 角色名）是进提示的那一行；`doc` 是整份文档，只给服务端算
+     * `update_script_doc` 的 `inverse`（改前整份），一个字都不进提示 —— 与画布
+     * 节点的 URL 走同一条 K-4 规矩。
+     */
     ...(input.scriptDoc
       ? {
           scriptDoc: {
-            summary: clamp(logline, LIMITS.maxCanvasScriptDocSummaryChars),
+            summary: clamp(
+              buildScriptDocSummary(input.scriptDoc),
+              LIMITS.maxCanvasScriptDocSummaryChars,
+            ),
+            doc: input.scriptDoc,
           },
         }
       : {}),

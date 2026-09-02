@@ -196,22 +196,46 @@ describe('buildCanvasOperatorSnapshot', () => {
     ).toBe(false)
   })
 
-  it('ScriptDoc 在时给 logline 摘要（C3 填内容，C0/C1 留位）', () => {
+  /**
+   * ⚠ 两格两个去处（C3）：`summary` 是进提示的那一行（标题 / logline / 场次 /
+   * 镜头数 / 角色名），`doc` 是整份文档，只给服务端算 `update_script_doc` 的
+   * `inverse` —— 一个字都不进提示（与节点 URL 同一条 K-4 规矩，service 侧有两向测试）。
+   */
+  it('ScriptDoc 在时给真摘要 + 整份文档（C3）', () => {
+    const scriptDoc = {
+      title: 'Rain',
+      logline: '  一个人走进雨里 ',
+      roles: [{ id: 'r1', name: '小林', description: '红大衣' }],
+      shots: [
+        {
+          id: 's1',
+          sceneLabel: '街头',
+          summary: '走进雨里',
+          roleIds: ['r1'],
+          dialogue: [],
+        },
+        {
+          id: 's2',
+          sceneLabel: '街头',
+          summary: '撑开伞',
+          roleIds: ['r1'],
+          dialogue: [],
+        },
+      ],
+    }
     const withDoc = buildCanvasOperatorSnapshot({
       projectId: 'p1',
       projectName: '雨夜',
       nodes: [],
       edges: [],
-      scriptDoc: {
-        title: 'Rain',
-        logline: '  一个人走进雨里 ',
-        roles: [],
-        shots: [],
-      },
+      scriptDoc,
       modelOptionsByType: {},
       getNodeTypeLabel,
     })
-    expect(withDoc.canvas?.scriptDoc).toEqual({ summary: '一个人走进雨里' })
+    expect(withDoc.canvas?.scriptDoc?.summary).toBe(
+      '"Rain" · 一个人走进雨里 · 1 scene(s): 街头 · 2 shot(s) · cast: 小林',
+    )
+    expect(withDoc.canvas?.scriptDoc?.doc).toEqual(scriptDoc)
     expect(withDoc.canvas?.modelOptions).toEqual([])
   })
 })

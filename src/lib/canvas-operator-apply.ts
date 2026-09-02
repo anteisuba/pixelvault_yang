@@ -67,6 +67,7 @@ import {
   type VideoResolution,
 } from '@/constants/video-options'
 import type { AssistantOperatorAppliedStep } from '@/types/assistant-operator'
+import type { ScriptDoc } from '@/types/script-doc'
 import type {
   NodeWorkflowEdge,
   NodeWorkflowGraphPatch,
@@ -118,6 +119,12 @@ export interface CanvasOperatorApplyInput {
     modelId: string,
     optionId: string,
   ): NodeWorkflowModelOption | null
+  /**
+   * 此刻这个项目的剧本文档（`update_script_doc` 的撤销本钱）。
+   * ⚠ 注入而不是从 `graph` 读：`NodeWorkflowGraph` 只有 nodes / edges —— 剧本文档
+   * 与它们平级住在项目状态里，把它塞进图的形状会污染每一个只关心节点的调用方。
+   */
+  readScriptDoc(): ScriptDoc | undefined
 }
 
 /** 落笔落不下去的理由 —— 每一条都是「服务端放行了、图上却对不上」的那种失败，⛔ 不静默。 */
@@ -152,13 +159,21 @@ export type CanvasOperatorApplyOutcome =
   /** 读类：服务端已从工作副本答过，图上没有东西可落 —— 与工作台 `read_state` 同一档。 */
   | { readonly kind: 'read'; readonly tool: AssistantOperatorCanvasTool }
   /**
-   * `update_script_doc` 归 C3：投影要走 `previewScriptDocProjection` + 既有确认门，
-   * 那条链本片没接。类型上分得开的第三种结果 —— 调用方在线程里说一句，⛔ 不折成空补丁。
+   * `update_script_doc`（C3）—— **不是图补丁**。
+   *
+   * ⭐ 分成第三种结果而不是折进 `patch`：剧本文档不住在 `NodeWorkflowGraphPatch` 里
+   * （那份补丁只有 nodes / edges / nodeData），而且写文档与把文档变成节点是**两件
+   * 事**：后者会删孤儿节点（B4），必须经既有的投影确认门由用户按下
+   * （`previewScriptDocProjection` → 确认 → `applyScriptDocToGraph`，与
+   * `ScriptDocWorkspace` 逐字同一条路）。宿主据此写文档、算预览、挂起确认。
+   * ⚠ `priorDoc` 是**撤销的本钱**：`undefined` = 改前这个项目没有文档，撤销就是
+   * 把它删回没有（所以它与「宿主没算」不能用同一个值表达 —— 用 `hasPriorDoc` 分开）。
    */
   | {
-      readonly kind: 'notApplicable'
-      readonly tool: AssistantOperatorCanvasTool
-      readonly slice: 'C3'
+      readonly kind: 'scriptDoc'
+      readonly tool: typeof ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc
+      readonly doc: ScriptDoc
+      readonly priorDoc: ScriptDoc | undefined
     }
   | {
       readonly kind: 'refused'
@@ -344,8 +359,19 @@ export function applyCanvasOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.readNode:
       return { kind: 'read', tool: step.tool }
 
+    /**
+     * 写文档，⛔ 不投影。逆操作用**此刻宿主手上那份**（`input.readScriptDoc()`）
+     * 而不是 `step.inverse.doc`：服务端的逆操作说的是它工作副本上的改前值，
+     * 真正要撤回去的是这台机器上此刻的那一份（与本文件头注「inverse 在客户端自己算」
+     * 逐字同一条论据）。
+     */
     case ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc:
-      return { kind: 'notApplicable', tool: step.tool, slice: 'C3' }
+      return {
+        kind: 'scriptDoc',
+        tool: step.tool,
+        doc: step.payload.doc,
+        priorDoc: input.readScriptDoc(),
+      }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.stageNodes: {
       const nextAliases = new Map(aliases)

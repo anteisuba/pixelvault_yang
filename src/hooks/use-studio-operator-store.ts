@@ -283,6 +283,58 @@ export function subscribeOperatorAttachment(listener: () => void): () => void {
   }
 }
 
+// ─── 剧本投影的确认门（C3）────────────────────────────────────────
+//
+// ⭐ **与 `runner` / `pendingAttachment` 同一个形状、同一条论据**：发起方（画布
+// 宿主，`use-canvas-operator-host.ts`）与消费方（面板上那张确认卡，C2）之间隔着
+// 整棵组件树，而这一格里装着两个闭包（确认 / 取消），进 `state` 只会让每次挂载
+// 都触发一次全面板重渲染。
+//
+// ⚠ 这道门**不是新发明的**：计数来自 `previewScriptDocProjection()`、确认那一下调的是
+// `applyScriptDocToGraph()` —— 与 `ScriptDocWorkspace` 的「确认镜头」逐字同一条路。
+// 存在的理由也一样：投影会删孤儿节点（B4），必须让人在按下之前看见那个数。
+
+/**
+ * 待确认的剧本投影。`null` = 此刻没有。
+ * ⚠ 只留**一份**：助手连写两次剧本，用户要确认的是最新那一版。
+ */
+export interface StudioOperatorScriptDocProjection {
+  /** 文档标题 —— 卡面上要说清「投的是哪一份」。 */
+  title: string
+  created: number
+  updated: number
+  /** ⚠ 破坏性的那两个数单独摆出来，⛔ 别混在中性计数里（`ScriptDocWorkspace` 同款）。 */
+  removed: number
+  removedEdges: number
+  /** 落到画布上 —— 宿主内部调 `applyScriptDocToGraph()`。 */
+  confirm(): void
+  /** 不投。⚠ 文档已经写进去了，取消的只是这一次投影。 */
+  cancel(): void
+}
+
+let pendingScriptDocProjection: StudioOperatorScriptDocProjection | null = null
+const scriptDocProjectionListeners = new Set<() => void>()
+
+export function setOperatorScriptDocProjection(
+  next: StudioOperatorScriptDocProjection | null,
+): void {
+  pendingScriptDocProjection = next
+  for (const listener of scriptDocProjectionListeners) listener()
+}
+
+export function getOperatorScriptDocProjection(): StudioOperatorScriptDocProjection | null {
+  return pendingScriptDocProjection
+}
+
+export function subscribeOperatorScriptDocProjection(
+  listener: () => void,
+): () => void {
+  scriptDocProjectionListeners.add(listener)
+  return () => {
+    scriptDocProjectionListeners.delete(listener)
+  }
+}
+
 // ─── 归属追踪（P3-C，拍板 4）──────────────────────────────────────
 //
 // ⛔ **和 `runner` 一样不进 `state`**：它不是渲染要读的数据，进了 state 只会让
@@ -380,6 +432,26 @@ export function upsertOperatorStep(
       ? state.stepsDone + 1
       : state.stepsDone
   emit({ ...state, entries, stepsDone })
+}
+
+/**
+ * 用户回答了那张反问卡（C3）。
+ *
+ * ⚠ 落在条目上而不是只留一条 user 气泡：那排选项按钮点过之后要变成「已选：××」。
+ * ⚠ 已经答过的**不再覆盖**：连点两下第二下是误触，而覆盖会让线程里的答案与真正
+ * 发出去的那条消息对不上。
+ */
+export function markOperatorAskAnswered(askId: string, answer: string): void {
+  const index = state.entries.findIndex(
+    (entry) => entry.kind === 'ask' && entry.askId === askId,
+  )
+  if (index < 0) return
+  const entry = state.entries[index]
+  if (entry.kind !== 'ask' || entry.answer !== undefined) return
+  const entries = state.entries.map((current, i) =>
+    i === index ? { ...entry, answer } : current,
+  )
+  emit({ ...state, entries })
 }
 
 export function markOperatorStepUndone(stepId: string): void {

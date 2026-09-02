@@ -6945,6 +6945,7 @@
       "working": "助手 · 干活中",
       "workingCount": "助手 · 干活中 {done}/{total}",
       "awaitingConfirm": "等你决定 · 提示词怎么写",
+      "awaitingAnswer": "等你回答 · 助手问了一个问题",
       "primed": "已备好 · 生成键已亮"
     },
     "log": {
@@ -7039,7 +7040,8 @@
       "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
       "stepNotApplicable": "{subject} 是画布上的动作——这台工作台落不了它，什么都没改",
       "canvasStepRefused": "{subject} 没落到画布上：图上对不上（节点被删了 / 别名没登记 / 渠道不在目录里 / 还没有媒体）",
-      "canvasStepDeferred": "{subject} 这一片还落不了 —— 剧本笺写入在下一片接"
+      "canvasScriptDocPending": "{subject} —— 剧本写好了；投到画布上会同时移除 {count} 项已有内容，确认后才落地",
+      "canvasScriptDocNothing": "{subject} —— 剧本写好了，画布已经和它一致，没有可投的东西"
     },
     "suggestion": {
       "setupShot": "帮我配好这张图",

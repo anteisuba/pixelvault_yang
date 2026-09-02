@@ -3,6 +3,7 @@ import 'server-only'
 import {
   ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION,
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
+  ASSISTANT_OPERATOR_ASK_ID_PREFIX,
   ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX,
   ASSISTANT_OPERATOR_CANVAS_CONFIRM_FIELD_IDS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
@@ -29,6 +30,7 @@ import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import {
   ASSISTANT_DOMAIN_BRIEFS,
   ASSISTANT_PROTOCOL_DOMAIN_IDS,
+  buildOperatorConvergenceProtocol,
 } from '@/constants/assistant-protocol'
 import { CANVAS_ADD_CATALOG } from '@/constants/canvas-add-catalog'
 import { NODE_ASSISTANT_PARAMS } from '@/constants/node-assistant-ops'
@@ -105,6 +107,12 @@ import { logger } from '@/lib/logger'
  * 在服务端（验收 #4 用 grep 钉着「规则表未被复制」）。
  */
 import { canConnectNodeTypes } from '@/lib/node-connection-rules'
+/**
+ * ⭐ 剧本摘要的**唯一算法**（C3）—— 画布宿主构快照时用同一份
+ * （`lib/canvas-operator-snapshot.ts`）。纯函数、不碰库、不花钱。
+ * 抄成两份的表现是：助手刚写完剧本，同一轮 `read_graph` 却仍报旧标题。
+ */
+import { buildScriptDocSummary } from '@/lib/script-doc-summary'
 import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
   AssistantOperatorCritiqueSchema,
@@ -123,6 +131,7 @@ import {
 import type { OutputType, PromptAssistantResponseLanguage } from '@/types'
 import type { AssistantAssetFolderCandidate } from '@/types/asset-folder-vision'
 import type { LoraCandidate } from '@/types/lora-candidate'
+import type { ScriptDoc } from '@/types/script-doc'
 
 /**
  * 工作台助手的**工具环**（词表见 `src/constants/assistant-operator.ts`）。
@@ -274,6 +283,12 @@ function toCanvasWorkingState(
     })),
     edges: canvas.edges.map((edge) => ({ ...edge })),
     aliases: new Map(),
+    /**
+     * ⚠ 整份文档只从快照进工作副本，**一个字都不进提示**（见
+     * `AssistantOperatorSnapshotCanvasSchema.scriptDoc` 的头注）：它在这里的唯一
+     * 职责是给 `update_script_doc` 算 `inverse`。
+     */
+    scriptDoc: canvas.scriptDoc?.doc ?? null,
     scriptDocSummary: canvas.scriptDoc?.summary ?? null,
   }
 }
@@ -348,6 +363,12 @@ interface OperatorRun {
    */
   executedStepKeys: Set<string>
   stepSeq: number
+  /**
+   * 本轮问过几次（C3）—— `ask` 事件的 id 序号。
+   * ⚠ 与 `stepSeq` 分开：反问不是一步（它不跑工具、不进 `priorSteps`），共用一个
+   * 计数器会让线程里的日志条与反问卡抢同一个号。
+   */
+  askSeq: number
   /** 调用方的取消信号，透传给每一次补全（含 `critique_result` 借路那一跳）。 */
   signal: AbortSignal | undefined
 }
@@ -3138,12 +3159,49 @@ function planPrimeNodeGenerate(
   }
 }
 
-/** 定义在 C0、实现在 C3：现在拒得明明白白，⛔ 不假装写进去了。 */
-function planUpdateScriptDoc(): ToolPlan {
-  return reject(
-    REJECT.noSuchControl,
-    'update_script_doc is not wired up yet. Work on the nodes directly with stage_nodes / set_node_fields instead.',
-  )
+/**
+ * 写剧本文档（C3）。
+ *
+ * ── 这条工具**只改文档**，⛔ 不投影 ────────────────────────────────
+ * 把文档变成节点的那一跳（`previewScriptDocProjection` → 用户确认 →
+ * `applyScriptDocToGraph`）留在客户端，与 `ScriptDocWorkspace` 走**同一条路**：
+ * 投影会删孤儿节点（B4），那必须让人在按下之前看见。所以服务端在这里落的是
+ * 「文档变了」，不是「画布变了」。
+ *
+ * ── `inverse` 从哪儿来 ─────────────────────────────────────────────
+ * 工作副本的 `scriptDoc`（由快照带上来，见 `toCanvasWorkingState`）。`null` =
+ * 改前这个项目没有文档，撤销就是把它删回没有。
+ *
+ * ⚠ **整份替换**：`doc` 是完整文档，模型写什么就是什么。系统提示里因此写死了
+ * 「已经有文档时别整份重写」—— 摘要里没有镜头正文，重写等于把看不见的东西丢掉。
+ */
+function planUpdateScriptDoc(
+  run: OperatorRun,
+  args: { doc: ScriptDoc },
+): ToolPlan {
+  const canvas = requireCanvas(run)
+  if (isToolPlan(canvas)) return canvas
+
+  const { doc } = args
+  if (doc.roles.length === 0 && doc.shots.length === 0) {
+    return reject(
+      REJECT.emptyValue,
+      'A script doc with no roles and no shots projects nothing. Write the cast and the shots, or work on the nodes directly.',
+    )
+  }
+
+  const prior = canvas.scriptDoc
+  const summary = buildScriptDocSummary(doc)
+  return {
+    kind: 'mutate',
+    payload: { doc },
+    inverse: { doc: prior },
+    observation: `The script doc now reads: ${summary}. It is written, but NOT on the canvas yet — the creator confirms the projection themselves (it can remove orphaned nodes, so they have to see the count first). Do not claim you created nodes.`,
+    apply: () => {
+      canvas.scriptDoc = doc
+      canvas.scriptDocSummary = summary
+    },
+  }
 }
 
 async function planTool(
@@ -3323,7 +3381,7 @@ async function planTool(
     case TOOL.primeNodeGenerate:
       return planPrimeNodeGenerate(run, parsed.data as { nodeId: string })
     case TOOL.updateScriptDoc:
-      return planUpdateScriptDoc()
+      return planUpdateScriptDoc(run, parsed.data as { doc: ScriptDoc })
     default:
       return assertNever(tool)
   }
@@ -3388,12 +3446,19 @@ OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outsi
 }
 
 /**
- * 画布域的系统提示（C0-b）。吃 `ASSISTANT_DOMAIN_BRIEFS.canvas`（persona + 收敛槽位，
- * 与工作台三域同一份三档收敛协议），硬规矩按画布的形状另写：
+ * 画布域的系统提示（C0-b + C3）。吃 `ASSISTANT_DOMAIN_BRIEFS.canvas`（persona +
+ * 收敛槽位），三档收敛协议由 `buildOperatorConvergenceProtocol` 拼进来（C3 §4：
+ * 与工作台同一份域知识、同一条「档 1 与档 3 之间隔着一次用户动作」，出口换成
+ * 操作员的 `ask` 事件与已落地的 op）。硬规矩按画布的形状另写：
  *   · **铺叙事节点前必须先 `read_node` 同名角色卡**，外观以卡为准，禁止自行描述
  *     （K-4 的另一半：URL 与外观只经 `read_node` 取，所以它必须真的去读）；
- *   · **数组载荷 = 一批 = 一步**（撤销粒度，拍板 3）。
+ *   · **数组载荷 = 一批 = 一步**（撤销粒度，拍板 3）；
+ *   · **双路并存**（C3 §3）：长叙事先落 ScriptDoc 再由用户确认投影，零散节点直接
+ *     `stage_nodes`；
+ *   · **回复第一行是结论**（C3 §2）与**什么时候该反问**（C3 §1）。
  * ⛔ 这里**没有任何 URL、外观字段或节点正文**：状态块只有 `read_graph` 级概览。
+ * ⚠ 工作台三域的提示词一个字都不受本函数影响（任务书 §一.2）：`ask` 的输出契约
+ *   只写在这里，`buildOperatorPromptTail` 逐字保持。
  */
 function buildCanvasOperatorSystemPrompt(
   request: AssistantOperatorRequest,
@@ -3404,15 +3469,11 @@ function buildCanvasOperatorSystemPrompt(
   const tools = ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[request.domain]
     .map((tool) => `  - ${tool}: ${ASSISTANT_OPERATOR_TOOL_HINTS[tool]}`)
     .join('\n')
-  const slots = brief.slots.map((slot) => `  - ${slot}`).join('\n')
-
   return `You are PixelVault's canvas operator. ${brief.persona}
 
-WHAT THIS DOMAIN TURNS ON — check these are settled before you build or arm anything:
-${slots}
-Anything the creator already said — or that is visible on the canvas — counts as known. Never re-ask it. When the request is genuinely ambiguous, would overwrite something they wrote, or would set up something that costs credits, ask ONE short question in "message" and finish; otherwise act.
+${buildOperatorConvergenceProtocol(brief, LIMITS.maxAskOptions)}
 
-You do not tell the creator which buttons to press — you press them. Every turn you either call ONE tool or finish.
+You do not tell the creator which buttons to press — you press them. Every turn you either call ONE tool, ask ONE question, or finish.
 
 HARD RULES — these are structural, not stylistic:
 - You CANNOT generate anything. No tool of yours spends the creator's credits. The most you can do is prime_node_generate, which arms one node's button; the creator presses it. Never claim you generated, rendered, or started anything.
@@ -3427,9 +3488,25 @@ HARD RULES — these are structural, not stylistic:
 - Never invent a folder id. Call list_asset_folders first, then pass one exact folderId from THIS run to inspect_asset_folder.
 - You can never mark anything approved. set_review_state may only send something back or return it to the queue, and the app asks the creator before it lands.
 - If the creator hand-wrote a title or text you want to replace, writing over it needs their say-so — call the tool anyway and the app will ask them; do not ask in prose.
+- TWO ROADS ONTO THIS CANVAS, and they do not mix. A long narrative (several shots with a cast, dialogue, a through-line) goes into the script doc first with update_script_doc — the creator then confirms one projection and gets the whole chain, nodes wired and named. A handful of loose nodes goes straight onto the board with stage_nodes. Never build a multi-shot story node by node; never open the script doc for two stray images.
+- update_script_doc REPLACES the whole document and does NOT touch the canvas: the creator confirms the projection themselves, because it can also remove nodes. So never say you created nodes with it. When a script doc already exists, do not rewrite it wholesale — the state block shows you only its skeleton (title, scenes, shot count, cast), so a rewrite silently drops the shot text you cannot see. Edit those shots on their nodes instead.
 - Reply in ${language}.
 
-${buildOperatorPromptTail(tools)}`
+HOW YOUR "message" READS — first line is the conclusion:
+- Line one is what you concluded or what you are doing, in one sentence. Not a preamble, not "let me think", not a restatement of the request.
+- The list of actions comes from the steps themselves — do not narrate them again in prose.
+- Detail, alternatives and caveats go AFTER that first line. Creative discussion may run long; a status report may not.
+
+WHEN TO ASK INSTEAD OF ACTING — return "ask" and no tool when, and only when:
+- you cannot tell what the creator wants to make (two readings of the request would build different chains), or
+- the next move would overwrite something they hand-wrote and it is not a straight improvement, or
+- the chain you are about to build ends in generations they would pay for and a wrong guess wastes that money.
+Otherwise ACT. Everything you do is free and undoable, so a reversible move beats a question. Never ask what the state block already answers, and never ask two questions in a row.
+
+${buildOperatorPromptTail(tools)}
+- To ask, put an "ask" object in the SAME JSON object and omit "tool":
+  {"message":"one line of orientation","ask":{"question":"the one thing you need to know","options":[{"label":"what they would pick","consequence":"what you would build if they pick it"}]}}
+  At most ${LIMITS.maxAskOptions} options, each with its consequence; they can also type their own answer. Your turn ends there and the creator's reply comes back as their next message — so ask only what changes what you build.`
 }
 
 function buildOperatorSystemPrompt(request: AssistantOperatorRequest): string {
@@ -3541,6 +3618,18 @@ ${run.request.confirmations
       `- ${entry.nodeId ? `${entry.nodeId} · ` : ''}${entry.field}: ${entry.choice}`,
   )
   .join('\n')}`)
+  }
+
+  /**
+   * 「这句话是在回答你刚才那个问题」（C3）。
+   *
+   * ⚠ 少了它，模型在下一轮很可能把同一个问题再问一遍 —— 服务端没有会话态，
+   * 它自己不记得问过什么，而对话里那句答案单看只是一个孤零零的短语（"红伞那版"）。
+   */
+  if (run.request.answeredAskId) {
+    sections.push(
+      `THE CREATOR ANSWERED THE QUESTION YOU ASKED (${run.request.answeredAskId}): their latest message below IS that answer. Act on it — do not ask it again.`,
+    )
   }
 
   if (run.observations.length > 0) {
@@ -3658,6 +3747,38 @@ function parseCritiqueJson(raw: string): AssistantOperatorCritique | null {
   return null
 }
 
+/**
+ * 模型写的 `ask` → 出得了流的那份（C3）。
+ *
+ * ⚠ **归一化在这里，不在 schema**（本文件与 `types/assistant-operator.ts` 头注 ② 同
+ * 一条）：模型多写一个选项、少写一句 consequence、把选项标签写成空串，都不该让
+ * 整轮作废退化成一次「读不出来」的重试。这里 trim、去空、截到 `maxAskOptions`。
+ * 返回 `null` = 问题本身是空的，那不是一次反问，按「这一轮没有 ask」继续走。
+ */
+function normalizeAsk(
+  ask: NonNullable<AssistantOperatorTurn['ask']>,
+  askId: string,
+): AssistantOperatorEvent | null {
+  const question = ask.question.trim()
+  if (!question) return null
+  const options = ask.options
+    .map((option) => ({
+      label: option.label.trim(),
+      ...(option.consequence?.trim()
+        ? { consequence: option.consequence.trim() }
+        : {}),
+    }))
+    .filter((option) => option.label.length > 0)
+    .slice(0, LIMITS.maxAskOptions)
+  return {
+    type: ASSISTANT_OPERATOR_EVENTS.ask,
+    askId,
+    question: clamp(question, LIMITS.maxAskQuestionChars),
+    options,
+    allowFreeText: true,
+  }
+}
+
 // ─── 工具环 ─────────────────────────────────────────────────────
 
 export interface AssistantOperatorRunOptions {
@@ -3698,6 +3819,7 @@ export async function* runAssistantOperator(
     assistantWrittenFields: new Set(),
     executedStepKeys: new Set(),
     stepSeq: 0,
+    askSeq: 0,
     signal: options.signal,
   }
 
@@ -3780,6 +3902,29 @@ export async function* runAssistantOperator(
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.message,
           text: turn.message.trim(),
+        }
+      }
+
+      /**
+       * 反问（C3，附录 E）—— **排在 `tool` 之前**：模型同一轮既问又做时，问题
+       * 才是它真正的意思（它不知道答案就动手，正是这条协议要拦的）。这条流到此
+       * 结束，答案由客户端作为下一条 user 消息带 `answeredAskId` 重发 —— 与
+       * `confirm_request` 复用同一条「无服务端会话态」的机制。
+       */
+      if (turn.ask) {
+        run.askSeq += 1
+        const askEvent = normalizeAsk(
+          turn.ask,
+          `${ASSISTANT_OPERATOR_ASK_ID_PREFIX}${run.askSeq}`,
+        )
+        if (askEvent) {
+          yield askEvent
+          yield {
+            type: ASSISTANT_OPERATOR_EVENTS.stopped,
+            reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingAnswer,
+          }
+          completed = true
+          return
         }
       }
 

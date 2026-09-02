@@ -7,6 +7,7 @@ import {
   RESEARCH_SOURCE_STATUSES,
   RESEARCH_USER_AGENT,
   type ResearchSourceId,
+  type ResearchUnavailableReason,
 } from '@/constants/research'
 import { CircuitOpenError, getCircuitBreaker } from '@/lib/circuit-breaker'
 import { logger } from '@/lib/logger'
@@ -31,6 +32,12 @@ export interface ConnectorResult {
   items: EvidenceItem[]
   /** 走了退路时如实标注（如 B站退到 Serper）。 */
   via?: string
+  /**
+   * 连接器**没法问**（缺 key）时声明原因，`items` 必为空。
+   * ⚠ 用返回值而不是抛错：抛错会喂给熔断器，三轮之后「缺 key」就被记成
+   * `circuit_open`，原因从回执里消失。
+   */
+  unavailable?: ResearchUnavailableReason
 }
 
 /** 连接器主动抛这个来表达「这个源坏了」，而不是「没料」。 */
@@ -65,6 +72,24 @@ export async function runConnector(
   const startedAt = Date.now()
   try {
     const result = await getResearchBreaker(sourceId).call(fn)
+    if (result.unavailable) {
+      // 大声记，带连接器名 —— 生产上「配没配 SERPER_API_KEY」要能从日志一眼看出。
+      logger.warn('Research connector unavailable', {
+        sourceId,
+        reason: result.unavailable,
+      })
+      return {
+        items: [],
+        receipt: {
+          sourceId,
+          status: RESEARCH_SOURCE_STATUSES.unavailable,
+          reason: result.unavailable,
+          count: 0,
+          tookMs: Date.now() - startedAt,
+          ...(result.via ? { via: result.via } : {}),
+        },
+      }
+    }
     const items = result.items.slice(0, RESEARCH_LIMITS.maxItemsPerSource)
     return {
       items,

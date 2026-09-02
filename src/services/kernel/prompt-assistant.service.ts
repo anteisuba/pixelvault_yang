@@ -690,6 +690,12 @@ interface PromptAssistantUserPromptOptions {
   messages: PromptAssistantMessage[]
   currentPrompt?: string
   evidenceBlock?: string
+  /**
+   * 检索**发生了但没证据**时的状态行（`ResearchOutcome.statusBlock`）。
+   * 没有它，空结果轮的用户提示与「根本没检索」一模一样 —— 模型要么说
+   * 「我到处搜了都没有」，要么凭记忆编（2026-09-01 附录 B 缺口 ⑤）。
+   */
+  researchStatusBlock?: string
   /** 平台页视频元数据块（切片 2 §4.2）。 */
   videoLinkBlock?: string | null
   maxLength?: number
@@ -711,6 +717,7 @@ function buildPromptAssistantUserPrompt({
   messages,
   currentPrompt,
   evidenceBlock,
+  researchStatusBlock,
   videoLinkBlock,
   maxLength,
   references = [],
@@ -724,6 +731,9 @@ function buildPromptAssistantUserPrompt({
   const prelude = [
     buildWorkbenchStateBlock(workbenchState),
     buildReferenceInventory(references, droppedReferenceCount),
+    // 检索状态行与证据块二选一非空：有证据走下面的证据分支，这里只在
+    // 「查了没料 / 没配联网 / 全挂」时出现。它是本轮事实，不是规矩，所以在用户提示。
+    researchStatusBlock ?? '',
     videoLinkBlock ?? '',
     // 候选清单也算「摆在用户眼前的事实」：它这一轮就要变成推荐卡。被压缩截没
     // 的后果比丢一句对话严重得多 —— 模型会去编 id。
@@ -1356,6 +1366,7 @@ export async function createPromptAssistantStream(
       messages: params.messages,
       currentPrompt: params.currentPrompt,
       evidenceBlock,
+      researchStatusBlock: setup.research?.statusBlock || undefined,
       videoLinkBlock: setup.videoLinkBlock,
       maxLength,
       // ⚠ 用 `setup.media.references` 不是 `params.references` —— 从链接补进来的
@@ -1532,6 +1543,7 @@ export async function chatPromptAssistant(
       messages,
       currentPrompt,
       evidenceBlock,
+      researchStatusBlock: setup.research?.statusBlock || undefined,
       videoLinkBlock: setup.videoLinkBlock,
       maxLength,
       references: setup.media.references,

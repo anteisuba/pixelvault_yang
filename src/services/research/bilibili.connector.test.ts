@@ -103,6 +103,17 @@ describe('fetchBilibiliEvidence — 搜索入口（风控路）', () => {
     expect(result.items[0]?.title).toContain('经网搜')
   })
 
+  it('⛔ fallback without a Serper key surfaces as a failure that names the key — never a silent empty', async () => {
+    mockFetch.mockResolvedValue(riskControlResponse())
+    mockWebSearch.mockRejectedValue(
+      new Error('web search is not configured: SERPER_API_KEY is missing'),
+    )
+
+    await expect(fetchBilibiliEvidence({ query: '鸣潮 长离' })).rejects.toThrow(
+      /SERPER_API_KEY/,
+    )
+  })
+
   it('treats HTTP 200 + code!=0 as a failure, not as an empty result', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({ code: -412, message: '请求被拦截' }),

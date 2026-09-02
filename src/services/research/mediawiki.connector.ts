@@ -1,9 +1,13 @@
 import 'server-only'
 
 import {
+  FANDOM_HOST_PATTERN,
+  FANDOM_SITE_CAPABILITY,
+  FANDOM_SITE_PATHS,
   MEDIAWIKI_CONTENT_ROUTES,
   MEDIAWIKI_SITES,
   RESEARCH_LIMITS,
+  RESEARCH_SOURCE_IDS,
   type MediaWikiSiteCapability,
   type ResearchSourceId,
 } from '@/constants/research'
@@ -274,9 +278,27 @@ async function fetchDetail(
 
 // ─── 公开入口 ───────────────────────────────────────────────────
 
+/**
+ * 按源 id 取站点能力表。
+ *
+ * Fandom 没有固定 host：只有规划器给了 `fandomHost` 才组得出站（`api` /
+ * `pageUrlPrefix` 由 host 派生），没给就返回 `undefined` —— 调用方据此**跳过**，
+ * 不猜站（2026-09-01 附录 B 缺口 ③）。host 合法性在 `ResearchPlanSchema` 里已过
+ * `FANDOM_HOST_PATTERN`，这里再守一道是因为本函数也被测试直接调。
+ */
 export function getMediaWikiSite(
   sourceId: ResearchSourceId,
+  options: { fandomHost?: string } = {},
 ): MediaWikiSiteCapability | undefined {
+  if (sourceId === RESEARCH_SOURCE_IDS.fandom) {
+    const host = options.fandomHost
+    if (!host || !FANDOM_HOST_PATTERN.test(host)) return undefined
+    return {
+      ...FANDOM_SITE_CAPABILITY,
+      api: `https://${host}${FANDOM_SITE_PATHS.api}`,
+      pageUrlPrefix: `https://${host}${FANDOM_SITE_PATHS.page}`,
+    }
+  }
   return MEDIAWIKI_SITES.find((site) => site.sourceId === sourceId)
 }
 

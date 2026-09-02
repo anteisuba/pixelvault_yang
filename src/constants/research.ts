@@ -166,6 +166,14 @@ export const RESEARCH_RUN_STATUSES = {
   failed: 'failed',
   /** 超出每日 run 配额 —— 明确返回，不静默降级成「没搜到」。 */
   quotaExceeded: 'quota_exceeded',
+  /**
+   * 打到的每个源都**没配置**（目前只有一种：缺 `SERPER_API_KEY`），一个请求都没发。
+   *
+   * 🔬 2026-09-01 附录 B 实测：缺 key 时 `webSearch` 静默返回 `[]`，回执记成
+   * `empty`，run 判成 `no_evidence`，UI 劝用户「换个关键词」，模型端零信号 ——
+   * 三方都以为「搜了没搜到」。它与 `quota_exceeded` 同款：不落库、不吃配额。
+   */
+  unavailable: 'unavailable',
 } as const
 
 export const RESEARCH_RUN_STATUS_VALUES = [
@@ -173,11 +181,12 @@ export const RESEARCH_RUN_STATUS_VALUES = [
   RESEARCH_RUN_STATUSES.noEvidence,
   RESEARCH_RUN_STATUSES.failed,
   RESEARCH_RUN_STATUSES.quotaExceeded,
+  RESEARCH_RUN_STATUSES.unavailable,
 ] as const
 
 export type ResearchRunStatus = (typeof RESEARCH_RUN_STATUS_VALUES)[number]
 
-/** 源级回执的四态（UI 下一批渲染 chip：「萌百 ✓ · danbooru ✗ 超时」）。 */
+/** 源级回执的状态（UI 渲染 chip：「萌百 ✓ · danbooru ✗ 超时 · 网搜 未配置」）。 */
 export const RESEARCH_SOURCE_STATUSES = {
   ok: 'ok',
   empty: 'empty',
@@ -185,6 +194,11 @@ export const RESEARCH_SOURCE_STATUSES = {
   /** 熔断器 OPEN —— 连挂即短路，没真发请求。 */
   circuitOpen: 'circuit_open',
   skipped: 'skipped',
+  /**
+   * 源没配置（缺 key），没真发请求。⚠ 与 `empty` 是两个事实：`empty` 是
+   * 「问了、没料」，这个是「根本没法问」。回执的 `reason` 说明缺的是什么。
+   */
+  unavailable: 'unavailable',
 } as const
 
 export const RESEARCH_SOURCE_STATUS_VALUES = [
@@ -193,10 +207,23 @@ export const RESEARCH_SOURCE_STATUS_VALUES = [
   RESEARCH_SOURCE_STATUSES.failed,
   RESEARCH_SOURCE_STATUSES.circuitOpen,
   RESEARCH_SOURCE_STATUSES.skipped,
+  RESEARCH_SOURCE_STATUSES.unavailable,
 ] as const
 
 export type ResearchSourceStatus =
   (typeof RESEARCH_SOURCE_STATUS_VALUES)[number]
+
+/** `unavailable` 的原因。目前只有缺 key 一种；留成枚举是为了回执与 UI 文案能按原因分叉。 */
+export const RESEARCH_UNAVAILABLE_REASONS = {
+  missingKey: 'missingKey',
+} as const
+
+export const RESEARCH_UNAVAILABLE_REASON_VALUES = [
+  RESEARCH_UNAVAILABLE_REASONS.missingKey,
+] as const
+
+export type ResearchUnavailableReason =
+  (typeof RESEARCH_UNAVAILABLE_REASON_VALUES)[number]
 
 /** 结论的依据分类（§3.4 第 3 闸）。 */
 export const RESEARCH_CONCLUSION_BASES = {
@@ -454,22 +481,91 @@ export const MEDIAWIKI_SITES: readonly MediaWikiSiteCapability[] = [
     supportsCategories: false,
     supportsPageImages: false,
   },
-  {
-    sourceId: RESEARCH_SOURCE_IDS.fandom,
-    label: 'Fandom',
-    api: 'https://wutheringwaves.fandom.com/api.php',
-    pageUrlPrefix: 'https://wutheringwaves.fandom.com/wiki/',
-    queryLanguage: 'en',
-    supportsOpenSearch: true,
-    supportsGeneratorSearch: true,
-    // 🔬 未装 TextExtracts，取正文只能走 wikitext
-    contentRoutes: [
-      MEDIAWIKI_CONTENT_ROUTES.revisions,
-      MEDIAWIKI_CONTENT_ROUTES.parse,
-    ],
-    supportsCategories: false,
-    supportsPageImages: false,
-  },
+]
+
+/**
+ * Fandom **没有固定 host**：每个 IP 一个子站（`wutheringwaves.fandom.com` /
+ * `ananta.fandom.com`…），站名由 LLM 规划器按 IP 给出（`ResearchPlan.fandomHost`）。
+ * 规划器没给 → 这一轮**跳过** Fandom；跳过是诚实的，猜站不是。
+ *
+ * 🔬 2026-09-01 附录 B：原先写死鸣潮站，问「无限大」也去鸣潮站 opensearch，
+ * 必空且还记成 `empty`。
+ *
+ * 能力表（英文站 · 未装 TextExtracts → 只能走 wikitext）不随 host 变，所以这里
+ * 只缺 `api` / `pageUrlPrefix` 两个 host 派生字段，由 `getMediaWikiSite` 补。
+ */
+export const FANDOM_HOST_PATTERN = /^[a-z0-9-]+\.fandom\.com$/
+
+export const FANDOM_SITE_CAPABILITY: Omit<
+  MediaWikiSiteCapability,
+  'api' | 'pageUrlPrefix'
+> = {
+  sourceId: RESEARCH_SOURCE_IDS.fandom,
+  label: 'Fandom',
+  queryLanguage: 'en',
+  supportsOpenSearch: true,
+  supportsGeneratorSearch: true,
+  contentRoutes: [
+    MEDIAWIKI_CONTENT_ROUTES.revisions,
+    MEDIAWIKI_CONTENT_ROUTES.parse,
+  ],
+  supportsCategories: false,
+  supportsPageImages: false,
+}
+
+export const FANDOM_SITE_PATHS = {
+  api: '/api.php',
+  page: '/wiki/',
+} as const
+
+// ─── 意图启发的「资料请求」词族（2026-09-01 附录 B 缺口 ①）─────────────
+
+/**
+ * 「我想要 X 的资料」这一族 —— 既没有问号也没有 IP 词表里的字，改动前落到兜底
+ * 分支判 `no retrieval signal`，0 个请求，模型凭记忆答「找不到」。
+ *
+ * 名词面：命中就进 IP / 百科源组（萌百 + zhwiki + Fandom + …）—— 「资料 / 设定 /
+ * 世界观 / lore」要的正是百科条目，通用网搜只是兜底。
+ * 问句面（是什么 / 是谁 / who is / what is）在 `lib/research-intent.ts` 的问句表里
+ * 已经触发通用检索；这里只把它们纳入**主语提取**（下面的脚手架模式）。
+ */
+export const RESEARCH_INFO_REQUEST_TERMS = [
+  '资料',
+  '设定',
+  '背景',
+  '介绍',
+  '世界观',
+  '百科',
+  '情报',
+  'wiki',
+  'lore',
+  'background',
+  'tell me about',
+] as const
+
+/**
+ * 请求脚手架 —— 剥掉后剩下的是主语（「我想要无限大的资料」→「无限大」）。
+ *
+ * ⚠ 为什么要剥：MediaWiki `opensearch` 是**前缀匹配**，喂整句必空；danbooru 的
+ * `other_names_match` 同理。整句只留给通用网搜（`ResearchQuery.sourceId`）。
+ * 前缀模式可能叠着出现（「请帮我查一下…」），所以按轮剥，直到不再变化。
+ */
+export const RESEARCH_REQUEST_LEAD_PATTERNS: readonly RegExp[] = [
+  /^(?:请问|请|麻烦|你好|hi|hey)[，,、\s]*/i,
+  /^(?:我想要|我想|我要|我需要|给我|帮我|替我|想要|想|要)[，,、\s]*/,
+  /^(?:查一查|查一下|查查|查下|查|找一找|找一下|找找|找下|找|搜一搜|搜一下|搜搜|搜下|搜|了解一下|了解下|了解|介绍一下|介绍下|介绍|讲一讲|讲一下|讲讲|讲|说一说|说一下|说说|说|看一看|看一下|看看|什么是|谁是)[，,、\s]*/,
+  /^(?:tell me about|give me|show me|find me|find|search for|search|look up|what is|what's|who is|who's|info on|information on)\s+/i,
+]
+
+/**
+ * 尾部脚手架：「…的资料」「…是什么」「…吧」「…？」。
+ * ⚠ 名词面要求前面有「的」/「相关」/分隔符：「角色设定」是一个词，「长离的设定」才是脚手架。
+ */
+export const RESEARCH_REQUEST_TAIL_PATTERNS: readonly RegExp[] = [
+  /(?:的|相关|[，,、:：\s]+)(?:相关)?(?:资料|设定|背景|介绍|世界观|百科|信息|情报|资讯|wiki|lore|info|information|background|profile)+[，,、\s]*$/i,
+  /[，,、\s]*(?:是什么|是谁|是啥|是哪个|是什么东西)$/,
+  /[，,、\s]*(?:吧|呢|啊|呀|吗|么)$/,
+  /[？?。！!，,、\s]+$/,
 ]
 
 // ─── 证据注入防护（§3.5 安全底线）───────────────────────────────
@@ -486,6 +582,16 @@ export const RESEARCH_EVIDENCE_MARKERS = {
   beginTemplate: '<<<EVIDENCE n>>>',
   end: '<<<END>>>',
   blockHeader: 'RETRIEVED EVIDENCE',
+  /**
+   * 检索**发生了但没有证据**时（空 / 全挂 / 没配置 / 超配额）给模型的状态行前缀。
+   * 没有这一行，模型看到的用户提示与「根本没检索」一模一样 —— 于是要么说
+   * 「我到处搜了都没有」，要么凭记忆编（2026-09-01 附录 B 缺口 ⑤）。
+   */
+  statusHeaders: {
+    executed: 'RESEARCH EXECUTED',
+    failed: 'RESEARCH FAILED',
+    unavailable: 'RESEARCH UNAVAILABLE',
+  },
 } as const
 
 /** 命中注入模式的证据条目，正文替换成这个占位（**标记并降级，不整体丢弃**）。 */

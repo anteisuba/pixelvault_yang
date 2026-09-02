@@ -645,6 +645,73 @@ describe('chatPromptAssistant', () => {
     expect(mockLlmCompletion).toHaveBeenCalledTimes(1)
   })
 
+  it('tells the model research was unavailable instead of rendering the turn as if nothing was searched', async () => {
+    // 2026-09-01 附录 B 缺口 ② + ⑤：缺 SERPER key 时模型端零信号，于是「我到处
+    // 都搜了没找到」或凭记忆编。现在 statusBlock 必须进用户提示。
+    mockRunResearch.mockResolvedValue({
+      receipt: {
+        runId: null,
+        grounded: false,
+        status: 'unavailable',
+        perSource: [
+          {
+            sourceId: 'web_search',
+            status: 'unavailable',
+            reason: 'missingKey',
+            count: 0,
+            tookMs: 0,
+          },
+        ],
+        queries: ['无限大'],
+        evidenceCount: 0,
+      },
+      evidenceBlock: '',
+      statusBlock:
+        'RESEARCH UNAVAILABLE: live web search is not configured on this deployment.',
+      items: [],
+      plan: { goal: 'fact_lookup' },
+    })
+    mockLlmCompletion.mockResolvedValue(
+      '联网检索当前未配置，以下基于我自身的知识。',
+    )
+
+    const { text, receipt } = await createPromptAssistantStream('clerk_1', {
+      messages: [{ role: 'user', content: '我想要无限大的资料' }],
+      research: true,
+    })
+    for await (const chunk of text) void chunk
+
+    expect(receipt).toMatchObject({ grounded: false, status: 'unavailable' })
+    const call = mockLlmCompletion.mock.calls[0]?.[0] as {
+      systemPrompt: string
+      userPrompt: string
+    }
+    expect(call.userPrompt).toContain('RESEARCH UNAVAILABLE')
+    // 没有证据 → 不该挂证据规矩（那段讲的是「标记之间是资料」），也没有围栏
+    expect(call.userPrompt).not.toContain('<<<EVIDENCE')
+    expect(mockLlmCompletion).toHaveBeenCalledTimes(1)
+  })
+
+  it('tells the model an executed run came back empty — no「searched everywhere」', async () => {
+    mockRunResearch.mockResolvedValue({
+      ...researchOutcome(0),
+      statusBlock:
+        'RESEARCH EXECUTED: 1 source queried (moegirl); no usable evidence was found.',
+    })
+    mockLlmCompletion.mockResolvedValue('我没查到相关资料。')
+
+    const { text } = await createPromptAssistantStream('clerk_1', {
+      messages: [{ role: 'user', content: '长离发色' }],
+      research: true,
+    })
+    for await (const chunk of text) void chunk
+
+    expect(
+      (mockLlmCompletion.mock.calls[0]?.[0] as { userPrompt: string })
+        .userPrompt,
+    ).toContain('RESEARCH EXECUTED')
+  })
+
   it('sends no receipt at all when the turn did not retrieve', async () => {
     mockRunResearch.mockResolvedValue(null)
     mockLlmCompletion.mockResolvedValue('a cat')

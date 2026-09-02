@@ -3,7 +3,6 @@ import 'server-only'
 import type { AssistantSurface, Prisma } from '@/lib/generated/prisma/client'
 
 import {
-  MEDIAWIKI_SITES,
   RESEARCH_DAILY_RUN_LIMIT,
   RESEARCH_FRESHNESS,
   RESEARCH_GROUP_SOURCES,
@@ -21,6 +20,7 @@ import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import {
   buildEvidenceBlock,
+  buildResearchStatusBlock,
   sanitizeEvidenceItems,
 } from '@/lib/research-evidence-block'
 import {
@@ -86,6 +86,11 @@ export interface ResearchOutcome {
   receipt: ResearchReceipt
   /** 可直接拼进用户提示的证据块（已过注入扫描 + 边界标记）。空串 = 无证据。 */
   evidenceBlock: string
+  /**
+   * 没证据时给模型的状态行（「查了这些源没料」/「没配联网」/「全挂」）。
+   * 有证据时为空串 —— 两块恰好一个非空。
+   */
+  statusBlock: string
   items: EvidenceItem[]
   plan: ResearchPlan
 }
@@ -190,11 +195,21 @@ export async function getResearchRunForUser(
 
 // ─── 打源 ───────────────────────────────────────────────────────
 
+/**
+ * 这个源能吃的查询：不带 `sourceId` 的给所有源，带的只给点名的那个。
+ * 启发式规划把**整句**只标给网搜（wiki 的 opensearch 是前缀匹配，整句必空）。
+ */
+function queriesForSource(sourceId: ResearchSourceId, plan: ResearchPlan) {
+  return plan.queries.filter(
+    (query) => !query.sourceId || query.sourceId === sourceId,
+  )
+}
+
 async function fetchFromSource(
   sourceId: ResearchSourceId,
   plan: ResearchPlan,
 ): Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }> {
-  const queries = plan.queries
+  const queries = queriesForSource(sourceId, plan)
   const primary = queries[0]?.text ?? ''
 
   if (sourceId === RESEARCH_SOURCE_IDS.webSearch) {
@@ -226,7 +241,15 @@ async function fetchFromSource(
     return runConnector(sourceId, () => fetchBilibiliEvidence({ query }))
   }
 
-  const site = getMediaWikiSite(sourceId)
+  // Fandom 按 IP 找站：规划器没给 host 就跳过，跳过是诚实的，猜站不是。
+  if (sourceId === RESEARCH_SOURCE_IDS.fandom && !plan.fandomHost) {
+    return {
+      items: [],
+      receipt: skippedReceipt(sourceId, 'no fandom host from planner'),
+    }
+  }
+
+  const site = getMediaWikiSite(sourceId, { fandomHost: plan.fandomHost })
   if (site) {
     const query = pickQueryForSite(site, queries)
     if (!query)
@@ -237,19 +260,10 @@ async function fetchFromSource(
   return { items: [], receipt: skippedReceipt(sourceId, 'unknown source') }
 }
 
-function resolveSourceList(plan: ResearchPlan): ResearchSourceId[] {
+function resolveSourceList(plan: ResearchPlan): readonly ResearchSourceId[] {
   // 用户贴了 URL：只读它，不打搜索（规划器那条启发式的落点）。
   if (plan.urls.length > 0) return [RESEARCH_SOURCE_IDS.urlReader]
-
-  const configured = RESEARCH_GROUP_SOURCES[plan.sourceGroup]
-  return configured.filter((sourceId) => {
-    // Fandom 的 API host 在 v1 是固定的（见 MEDIAWIKI_SITES 注释），
-    // 打不中的查询会自然返回空 —— 不会造假证据，只会得到 empty 回执。
-    if (getMediaWikiSite(sourceId)) {
-      return MEDIAWIKI_SITES.some((site) => site.sourceId === sourceId)
-    }
-    return true
-  })
+  return RESEARCH_GROUP_SOURCES[plan.sourceGroup]
 }
 
 /**
@@ -377,10 +391,17 @@ export function resolveRunStatus(
   )
   if (attempted.length === 0) return RESEARCH_RUN_STATUSES.noEvidence
 
+  // 打到的每个源都没配置 → 「没法问」，一个请求都没发（≠ 没搜到 ≠ 搜挂了）。
+  const allUnavailable = attempted.every(
+    (receipt) => receipt.status === RESEARCH_SOURCE_STATUSES.unavailable,
+  )
+  if (allUnavailable) return RESEARCH_RUN_STATUSES.unavailable
+
   const allBroken = attempted.every(
     (receipt) =>
       receipt.status === RESEARCH_SOURCE_STATUSES.failed ||
-      receipt.status === RESEARCH_SOURCE_STATUSES.circuitOpen,
+      receipt.status === RESEARCH_SOURCE_STATUSES.circuitOpen ||
+      receipt.status === RESEARCH_SOURCE_STATUSES.unavailable,
   )
   return allBroken
     ? RESEARCH_RUN_STATUSES.failed
@@ -390,16 +411,18 @@ export function resolveRunStatus(
 // ─── 入口 ───────────────────────────────────────────────────────
 
 function quotaOutcome(plan: ResearchPlan): ResearchOutcome {
+  const receipt: ResearchReceipt = {
+    runId: null,
+    grounded: false,
+    status: RESEARCH_RUN_STATUSES.quotaExceeded,
+    perSource: [],
+    queries: [],
+    evidenceCount: 0,
+  }
   return {
-    receipt: {
-      runId: null,
-      grounded: false,
-      status: RESEARCH_RUN_STATUSES.quotaExceeded,
-      perSource: [],
-      queries: [],
-      evidenceCount: 0,
-    },
+    receipt,
     evidenceBlock: '',
+    statusBlock: buildResearchStatusBlock(receipt),
     items: [],
     plan,
   }
@@ -482,25 +505,33 @@ export async function runResearch(
   const status = resolveRunStatus(bounded, receipts)
   const grounded = bounded.length > 0
 
-  const runId = await persistRun({
-    params,
-    plan: effectivePlan,
-    items: bounded,
-    receipts,
-    status,
+  // 一个请求都没发的 run（源全没配置）不落库、不吃配额 —— 与 quota_exceeded 同款。
+  // 回执照发：用户要看到「联网搜索未配置」，模型要听到「没搜过」。
+  const runId =
+    status === RESEARCH_RUN_STATUSES.unavailable
+      ? null
+      : await persistRun({
+          params,
+          plan: effectivePlan,
+          items: bounded,
+          receipts,
+          status,
+          grounded,
+        })
+
+  const receipt: ResearchReceipt = {
+    runId,
     grounded,
-  })
+    status,
+    perSource: receipts,
+    queries: effectivePlan.queries.map((query) => query.text),
+    evidenceCount: bounded.length,
+  }
 
   return {
-    receipt: {
-      runId,
-      grounded,
-      status,
-      perSource: receipts,
-      queries: effectivePlan.queries.map((query) => query.text),
-      evidenceCount: bounded.length,
-    },
+    receipt,
     evidenceBlock: buildEvidenceBlock(bounded),
+    statusBlock: buildResearchStatusBlock(receipt),
     items: bounded,
     plan: effectivePlan,
   }

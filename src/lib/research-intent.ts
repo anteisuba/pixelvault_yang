@@ -12,13 +12,17 @@
 import {
   RESEARCH_FRESHNESS,
   RESEARCH_GOALS,
+  RESEARCH_INFO_REQUEST_TERMS,
   RESEARCH_LIMITS,
+  RESEARCH_REQUEST_LEAD_PATTERNS,
+  RESEARCH_REQUEST_TAIL_PATTERNS,
   RESEARCH_SOURCE_GROUPS,
+  RESEARCH_SOURCE_IDS,
   type ResearchFreshness,
 } from '@/constants/research'
 import { ASSISTANT_PIPELINE_LINES } from '@/constants/video-link'
 import { resolveVideoLinkLine } from '@/lib/video-link'
-import type { ResearchPlan } from '@/types/research'
+import type { ResearchPlan, ResearchQuery } from '@/types/research'
 
 const URL_PATTERN = /https?:\/\/[^\s<>"')]+/gi
 
@@ -237,6 +241,50 @@ function toSearchQuery(text: string): string {
     .slice(0, RESEARCH_LIMITS.maxQueryLength)
 }
 
+/** 最多剥几轮前缀脚手架（「请」「帮我」「查一下」可以叠着出现）。 */
+const MAX_SCAFFOLD_ROUNDS = 4
+
+/**
+ * 剥掉请求脚手架，留下主语：「我想要无限大的资料」→「无限大」，
+ * 「长离是谁？」→「长离」，「who is Changli」→「Changli」。
+ *
+ * ⚠ 为什么必须有这一步（2026-09-01 附录 B 缺口 ④）：MediaWiki `opensearch` 是
+ * **前缀匹配**，喂整句必空；danbooru 的别名反查同理。整句只该留给通用网搜。
+ * 剥空了就原样返回 —— 宁可查整句也不能查空串。
+ */
+export function extractResearchEntity(query: string): string {
+  let entity = query.trim()
+  for (let round = 0; round < MAX_SCAFFOLD_ROUNDS; round += 1) {
+    const before = entity
+    for (const pattern of RESEARCH_REQUEST_LEAD_PATTERNS) {
+      entity = entity.replace(pattern, '')
+    }
+    for (const pattern of RESEARCH_REQUEST_TAIL_PATTERNS) {
+      entity = entity.replace(pattern, '')
+    }
+    entity = entity.trim()
+    if (entity === before) break
+  }
+  return entity || query.trim()
+}
+
+/**
+ * 启发式规划的查询清单：主语给所有源；整句（若与主语不同）只给通用网搜。
+ * `sourceId` 的语义见 `ResearchQuerySchema` —— 不填 = 喂给源组里的所有源。
+ */
+function buildHeuristicQueries(query: string): ResearchQuery[] {
+  const entity = extractResearchEntity(query)
+  const queries: ResearchQuery[] = [{ text: entity, lang: 'zh' }]
+  if (entity !== query) {
+    queries.push({
+      text: query,
+      lang: 'zh',
+      sourceId: RESEARCH_SOURCE_IDS.webSearch,
+    })
+  }
+  return queries
+}
+
 /**
  * 用户把「联网」手动拨到开 —— 保证这个 plan 真的会去打源。
  *
@@ -271,7 +319,7 @@ export function withForcedSearch(
         ? RESEARCH_SOURCE_GROUPS.general
         : plan.sourceGroup,
     queries:
-      plan.queries.length > 0 ? plan.queries : [{ text: query, lang: 'zh' }],
+      plan.queries.length > 0 ? plan.queries : buildHeuristicQueries(query),
     reason: 'forced by the creator',
   }
 }
@@ -359,7 +407,7 @@ export function planResearchHeuristically(text: string): ResearchPlan {
       goal: isIpCharacter
         ? RESEARCH_GOALS.analyzeCharacter
         : RESEARCH_GOALS.factLookup,
-      queries: [{ text: query, lang: 'zh' }],
+      queries: buildHeuristicQueries(query),
       freshness: hasFreshness ? freshness : RESEARCH_FRESHNESS.week,
       urls: [],
       reason: hasFreshness
@@ -374,7 +422,7 @@ export function planResearchHeuristically(text: string): ResearchPlan {
       shouldSearch: true,
       sourceGroup: RESEARCH_SOURCE_GROUPS.ipCharacter,
       goal: RESEARCH_GOALS.analyzeCharacter,
-      queries: [{ text: query, lang: 'zh' }],
+      queries: buildHeuristicQueries(query),
       freshness: RESEARCH_FRESHNESS.none,
       urls: [],
       reason: 'ip/character intent',
@@ -394,6 +442,22 @@ export function planResearchHeuristically(text: string): ResearchPlan {
     }
   }
 
+  // ④a 「我想要 X 的资料 / 设定 / 世界观」—— 百科类泛请求，打 IP / 百科源组。
+  //     🔬 2026-09-01 附录 B：「我想要无限大的资料」既无问号也无 IP 词，落到兜底
+  //     判 no signal → 0 个请求，模型凭记忆答「找不到」。放在生态常识之后：
+  //     「介绍一下 LoRA」仍归模型自己答。
+  if (includesAny(lowered, RESEARCH_INFO_REQUEST_TERMS)) {
+    return {
+      shouldSearch: true,
+      sourceGroup: RESEARCH_SOURCE_GROUPS.ipCharacter,
+      goal: RESEARCH_GOALS.factLookup,
+      queries: buildHeuristicQueries(query),
+      freshness: RESEARCH_FRESHNESS.none,
+      urls: [],
+      reason: 'information request',
+    }
+  }
+
   // ④b 要链接 —— 打源。放在创作请求之前：「给我一个参考图网站」里没有创作动词，
   //     但万一将来词表相交，「要链接」的优先级更高（编 URL 的代价远大于多搜一次）。
   if (
@@ -406,7 +470,7 @@ export function planResearchHeuristically(text: string): ResearchPlan {
         ? RESEARCH_SOURCE_GROUPS.ipCharacter
         : RESEARCH_SOURCE_GROUPS.general,
       goal: RESEARCH_GOALS.factLookup,
-      queries: [{ text: query, lang: 'zh' }],
+      queries: buildHeuristicQueries(query),
       freshness: RESEARCH_FRESHNESS.none,
       urls: [],
       reason: 'asked for a link — the model would otherwise invent one',
@@ -433,7 +497,7 @@ export function planResearchHeuristically(text: string): ResearchPlan {
       ? RESEARCH_SOURCE_GROUPS.general
       : RESEARCH_SOURCE_GROUPS.none,
     goal: RESEARCH_GOALS.factLookup,
-    queries: isQuestion ? [{ text: query, lang: 'zh' }] : [],
+    queries: isQuestion ? buildHeuristicQueries(query) : [],
     freshness: RESEARCH_FRESHNESS.none,
     urls: [],
     reason: isQuestion ? 'factual question' : 'no retrieval signal',

@@ -65,9 +65,21 @@ export function isWebSearchConfigured(): boolean {
 }
 
 /**
- * Run a Google search via Serper. Best-effort: returns [] (never throws) when
- * the key is missing or the call fails, so a research turn degrades gracefully
- * to URL excerpts and/or model knowledge.
+ * 缺 `SERPER_API_KEY`。**抛，不返回 `[]`**（2026-09-01 附录 B 缺口 ②）：静默的空数组
+ * 会被上游记成「搜了没搜到」，用户被劝换关键词、模型以为自己搜过了。
+ * 想先探路的调用方用 `isWebSearchConfigured()`。
+ */
+export class WebSearchNotConfiguredError extends Error {
+  constructor() {
+    super('web search is not configured: SERPER_API_KEY is missing')
+    this.name = 'WebSearchNotConfiguredError'
+  }
+}
+
+/**
+ * Run a Google search via Serper. Best-effort on the wire: returns [] (never
+ * throws) when the call itself fails. A missing key is not a wire failure —
+ * it throws `WebSearchNotConfiguredError` so callers can report it as such.
  */
 export async function webSearch(
   query: string,
@@ -84,8 +96,8 @@ export async function webSearch(
 ): Promise<WebSearchResult[]> {
   const apiKey = process.env.SERPER_API_KEY
   if (!apiKey) {
-    logger.warn('webSearch skipped: SERPER_API_KEY not configured')
-    return []
+    logger.warn('webSearch unavailable: SERPER_API_KEY not configured')
+    throw new WebSearchNotConfiguredError()
   }
 
   const q = options.includeDomains?.length
@@ -345,7 +357,9 @@ export async function gatherWebContext(query: string): Promise<WebContext> {
     Promise.all(urls.map(readUrl)).then((list) =>
       list.filter((page): page is FetchedPage => page !== null),
     ),
-    searchQuery
+    // node 助手这条路是「能搜就搜，不能搜就只读 URL」：缺 key 时不去撞
+    // `WebSearchNotConfiguredError`（那是检索线要大声暴露的状态，这里是可选加分项）。
+    searchQuery && isWebSearchConfigured()
       ? webSearch(searchQuery)
       : Promise.resolve<WebSearchResult[]>([]),
   ])

@@ -11,7 +11,7 @@ import {
   ResponsivePopoverContent,
   ResponsivePopoverTrigger,
 } from '@/components/ui/responsive-popover'
-import type { NodeAssistantHistorySession } from '@/lib/node-assistant-history'
+import type { NodeAssistantHistorySession } from '@/types/node-assistant'
 import { cn } from '@/lib/utils'
 
 interface CanvasAssistantHistoryProps {

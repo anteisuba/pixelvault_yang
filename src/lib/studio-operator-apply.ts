@@ -40,10 +40,18 @@ import {
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
 import { AdvancedParamsSchema } from '@/types'
 import type {
+  CanvasOperatorBatchUndoReason,
+  CanvasOperatorChangeKey,
+} from '@/constants/studio-assistant-operator'
+import type {
   AssistantOperatorAppliedStep,
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type { LoraCandidateImportPayload } from '@/types/lora-candidate'
+import type {
+  CanvasOperatorAppliedStep,
+  CanvasOperatorApplyOutcome,
+} from '@/lib/canvas-operator-apply'
 
 /**
  * LoRA 装配台**专属**的那几只手（P4-C）。
@@ -140,6 +148,45 @@ export interface StudioOperatorApplyContext {
   setPrimed(primed: boolean): void
   /** ⚠ 缺席 = 这个宿主没有 LoRA 挂载栈。见 `StudioOperatorLoraContext` 头注。 */
   lora?: StudioOperatorLoraContext
+  /** ⚠ 缺席 = 这个宿主没有节点图。见 `StudioOperatorCanvasContext` 头注。 */
+  canvas?: StudioOperatorCanvasContext
+}
+
+/** 「撤销这一批」能不能点（拍板 3）—— `ok: false` 时带一个可渲染的理由。 */
+export type CanvasOperatorBatchUndoGate =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: CanvasOperatorBatchUndoReason }
+
+/**
+ * 节点画布**专属**的那只手（C1）—— 与 `lora?:` 同构的可选能力组。
+ *
+ * ── 为什么整只手只有三个方法 ──────────────────────────────────────
+ * 画布上没有「这台表单的某一格」：每一步都是「某个节点的」，而且落笔要经
+ * `runAsSingleHistoryStep`（一批 = 一个撤销步）。把它拆成 `addNode` / `connect` /
+ * `updateNodeData` 一堆小手再让 `applyOperatorStep` 编排，等于把旧执行块那 400 行
+ * 搬回这里。所以手是**整步**粒度：宿主内部调纯函数
+ * `applyCanvasOperatorStep(graph, step, aliases)` 算出 `{ patch, inverse }`，再一次
+ * 施加。别名表、撤销本钱、撤销栈序号全在宿主那只手里。
+ *
+ * ⚠ `apply` / `revert` 是同步的（`applyOperatorStep` 保持同步纯函数，两个调用方）：
+ * `runAsSingleHistoryStep` 的 `run` 同步执行到第一个 await，而落笔里没有 await，
+ * 所以补丁在返回前已经在图上。异步只在宿主那只手里，⛔ 不把它带回这条函数。
+ * ⚠ 缺席在运行时不会发生：画布工具锁在 `canvas` 域，只有画布宿主会送。类型层的诚实。
+ */
+export interface StudioOperatorCanvasContext {
+  /** 落一步。落不下去（别名没登记 / 节点被人手删了）的结果由宿主往线程里交代，⛔ 不静默。 */
+  apply(step: CanvasOperatorAppliedStep): CanvasOperatorApplyOutcome
+  /** 撤一步 —— 用的是宿主在落笔那一刻算好的逆补丁。批步先过 `canUndoBatch`。 */
+  revert(step: CanvasOperatorAppliedStep): CanvasOperatorBatchUndoGate
+  /**
+   * `stage_nodes` / `connect_nodes` 只给「撤销这一批」，仅当它仍是最近一步
+   * （`useNodeWorkflow` 的撤销栈序号）可点，否则置灰并给理由。
+   * ⚠ 收 step 对象而不是 `step.id`：服务端每轮从 `step-1` 重编号，id 在线程里不唯一；
+   *   线程条目里存的正是这个对象（`upsertOperatorStep` 原样收进去）。
+   */
+  canUndoBatch(step: CanvasOperatorAppliedStep): CanvasOperatorBatchUndoGate
+  /** 登记簿（`${nodeId}:${field}`）—— 这一轮之内助手动过的格，C2 面板渲染 ✦。 */
+  changes(): readonly CanvasOperatorChangeKey[]
 }
 
 /**
@@ -518,10 +565,11 @@ export function applyOperatorStep(
     }
 
     /**
-     * 画布域的八条改动型（C1-pre）—— **工作台宿主落不了**，表单一个字不动。
+     * 画布域的八条改动型（C1）—— 有 `ctx.canvas` 就整步交给它落
+     * （`canvas-operator-apply.ts`：`(graph, step, aliases) → { patch, inverse }`），
+     * 记账粒度是画布宿主自己的 `${nodeId}:${field}`，工作台登记簿没有格 → 返回 `null`。
      *
-     * 它们的落点是节点画布宿主（C1 的 `canvas-operator-apply.ts`：`(graph, step)
-     * → { patch, inverse }`，零 React），与这份表单上下文没有一只手是相通的。
+     * 没有 `ctx.canvas`（工作台 / 装配台宿主，C1-pre）—— 表单一个字不动。
      * ⛔ 不折成 `null`（那是「处理过了」），⛔ 不抛（这不是故障，是分工）——
      * 返回类型上分得开的第三种结果，让调用方在线程里说一句。
      */
@@ -532,8 +580,11 @@ export function applyOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.attachRefs:
     case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
     case ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate:
-    case ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc:
-      return canvasStepNotApplicable(step.tool)
+    case ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc: {
+      if (!ctx.canvas) return canvasStepNotApplicable(step.tool)
+      ctx.canvas.apply(step)
+      return null
+    }
   }
 }
 
@@ -563,8 +614,9 @@ export function revertOperatorStep(
       return
 
     /**
-     * 画布八条改动型：`applyOperatorStep` 在本宿主从没落过它们（见那边的头注），
-     * 所以也没有东西可撤 —— 撤的是画布宿主自己的 inverse（C1），不经这里。
+     * 画布八条改动型：撤的是画布宿主自己在落笔那一刻算好的逆补丁（C1）。
+     * 没有 `ctx.canvas` 的宿主从没落过它们（见 `applyOperatorStep`），也就没有东西可撤。
+     * ⚠ 批步（建 / 连）的「只在最近一步可撤」那道门在宿主的 `revert` 里，这里不复判。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.stageNodes:
     case ASSISTANT_OPERATOR_TOOL_IDS.connectNodes:
@@ -574,6 +626,7 @@ export function revertOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
     case ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate:
     case ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc:
+      ctx.canvas?.revert(step)
       return
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setPrompt:

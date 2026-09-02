@@ -876,6 +876,54 @@ const CANVAS_READ_STEPS: readonly AssistantOperatorAppliedStep[] = [
   },
 ]
 
+describe('画布域的八条改动型在画布宿主上（C1：`apply.canvas` 能力组）', () => {
+  function makeCanvasContext() {
+    const applied: AssistantOperatorTool[] = []
+    const reverted: AssistantOperatorTool[] = []
+    const { ctx: base } = makeContext()
+    const ctx: StudioOperatorApplyContext = {
+      ...base,
+      canvas: {
+        apply: (step) => {
+          applied.push(step.tool)
+          return { kind: 'read', tool: step.tool }
+        },
+        revert: (step) => {
+          reverted.push(step.tool)
+          return { ok: true }
+        },
+        canUndoBatch: () => ({ ok: true }),
+        changes: () => [],
+      },
+    }
+    return { ctx, applied, reverted }
+  }
+
+  it('有 `canvas` 那只手：整步交给它落，返回 null（登记簿归画布自己）', () => {
+    const { ctx, applied } = makeCanvasContext()
+    for (const step of CANVAS_MUTATING_STEPS) {
+      const outcome = applyOperatorStep(step, ctx)
+      expect(outcome).toBeNull()
+      expect(isOperatorStepNotApplicable(outcome)).toBe(false)
+    }
+    expect(applied).toEqual(CANVAS_MUTATING_STEPS.map((step) => step.tool))
+  })
+
+  it('两条读不经那只手 —— 服务端已从工作副本答过', () => {
+    const { ctx, applied } = makeCanvasContext()
+    for (const step of CANVAS_READ_STEPS) {
+      expect(applyOperatorStep(step, ctx)).toBeNull()
+    }
+    expect(applied).toEqual([])
+  })
+
+  it('撤销同样整步交给那只手', () => {
+    const { ctx, reverted } = makeCanvasContext()
+    for (const step of CANVAS_MUTATING_STEPS) revertOperatorStep(step, ctx)
+    expect(reverted).toEqual(CANVAS_MUTATING_STEPS.map((step) => step.tool))
+  })
+})
+
 describe('画布域的十条在工作台宿主上（C1-pre）', () => {
   it('八条改动型 → 「不归本宿主落」，表单一个 dispatch 都不发', () => {
     const { ctx, dispatched, references, primed, userUrls, audioReferences } =

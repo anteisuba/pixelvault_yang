@@ -43,6 +43,7 @@ import {
   type CanvasAppearance,
   type NodeWorkflowEdge,
   type NodeWorkflowEdgeData,
+  type NodeWorkflowGraphPatch,
   type NodeWorkflowNode,
   type NodeWorkflowNodeData,
   type NodeWorkflowProject,
@@ -63,6 +64,10 @@ import {
   activateNodeWorkflowProjectAPI,
 } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import {
+  applyNodeWorkflowGraphPatch,
+  isEmptyNodeWorkflowGraphPatch,
+} from '@/lib/node-workflow-graph-patch'
 import { applyDagreLayout } from '@/lib/node-workflow-layout'
 import { migrateRetireFusedNodes } from '@/lib/node-workflow-migrate-fused-nodes'
 import { migrateRetirePlanner } from '@/lib/node-workflow-migrate-planner'
@@ -161,6 +166,25 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
    * hook 的返回值。
    */
   runAsSingleHistoryStep<T>(run: () => T | Promise<T>): Promise<T>
+  /**
+   * **此刻**的项目状态（不是 render 快照）—— C1 画布操作员在同一轮里连做几步时，
+   * 上一步刚建的节点这一步就要连线，读 `nodes` 那份 render 快照会查不到（旧执行块
+   * 的台账 K-2 就是这个坑）。与 `runAsSingleHistoryStep` 同理只给 workbench 一级。
+   */
+  readState(): NodeWorkflowState
+  /**
+   * 一次施加一份结构化补丁（C1）：建 / 删节点、连 / 断边、改 data 合成**一次**
+   * 提交 —— 也就是一个撤销步（批次里再被 `runAsSingleHistoryStep` 折成一步）。
+   * 施加语义在 `lib/node-workflow-graph-patch.ts`；空补丁不提交。
+   */
+  applyGraphPatch(patch: NodeWorkflowGraphPatch): void
+  /**
+   * 撤销栈顶 —— **按一次撤销会回到的那份状态**（没有可撤的就是 `undefined`）。
+   * 画布操作员用它判「这一批还是不是最近一步」（拍板 3：批撤只在最近一步可点）：
+   * 落笔那一刻扣下这个引用，之后只要栈顶还是它，撤销栈就没被别人动过。
+   * ⚠ 引用比较，⛔ 别按内容比：两份相同内容的状态对象是两步不同的历史。
+   */
+  readUndoTarget(): NodeWorkflowState | undefined
   /** True only after both local and server hydration finish for this user. */
   isHydrated: boolean
   state: NodeWorkflowState
@@ -209,7 +233,12 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
 
 let fallbackIdSequence = 0
 
-function createWorkflowId(prefix: string): string {
+/**
+ * 画布上一切 id 的**唯一出处**（节点 / 边 / 项目）。导出是为了让画布操作员的
+ * 纯函数（`lib/canvas-operator-apply.ts`）以参数注入的方式用同一把 —— 它自己
+ * 不许造第二种 id 形状。
+ */
+export function createWorkflowId(prefix: string): string {
   const randomId = globalThis.crypto?.randomUUID?.()
   if (randomId) {
     return `${prefix}-${randomId}`
@@ -1332,6 +1361,28 @@ export function useNodeWorkflow({
     [recordCurrentProjectHistory],
   )
 
+  const readState = useCallback(
+    (): NodeWorkflowState =>
+      getCurrentProject(storageRef.current, defaultProjectName).state,
+    [defaultProjectName],
+  )
+
+  const applyGraphPatch = useCallback(
+    (patch: NodeWorkflowGraphPatch) => {
+      if (isEmptyNodeWorkflowGraphPatch(patch)) return
+      commitCurrentProjectState((currentState) =>
+        applyNodeWorkflowGraphPatch(currentState, patch),
+      )
+    },
+    [commitCurrentProjectState],
+  )
+
+  const readUndoTarget = useCallback(
+    (): NodeWorkflowState | undefined =>
+      workflowHistory.current.past[workflowHistory.current.past.length - 1],
+    [],
+  )
+
   const addNode = useCallback(
     (type: NodeWorkflowNodeType, position: XYPosition) => {
       const nodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
@@ -2295,7 +2346,10 @@ export function useNodeWorkflow({
       redo,
       canUndo: historyAvailability.canUndo,
       canRedo: historyAvailability.canRedo,
+      readUndoTarget,
       runAsSingleHistoryStep,
+      readState,
+      applyGraphPatch,
       getOutgoingTargetByType,
       onNodesChange,
       onEdgesChange,
@@ -2315,6 +2369,9 @@ export function useNodeWorkflow({
       getOutgoingTargetByType,
       historyAvailability.canRedo,
       historyAvailability.canUndo,
+      readUndoTarget,
+      readState,
+      applyGraphPatch,
       isHydrated,
       onConnect,
       onEdgesChange,

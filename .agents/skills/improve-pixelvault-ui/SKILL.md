@@ -13,12 +13,12 @@ Execute UI changes in PixelVault without drifting from its architecture, i18n mo
 
 1. Inspect context before editing:
    - Read `AGENTS.md`.
-   - Read the closest relevant docs under `docs/references/pages/`, `docs/references/domains/`, `docs/scenes/ui-page.md`, and `docs/brand-dna.md` when the task is page-level or non-trivial. (`docs/guides/`, `docs/plans/`, and `docs/progress/` no longer exist.)
+   - Read the closest relevant docs under `docs/references/pages/`, `docs/references/domains/`, `docs/scenes/ui-page.md`, and `docs/brand-dna.md` when the task is page-level or non-trivial.
    - Locate the route entry, related components, hooks, message keys, and existing shared UI primitives.
 
 2. Audit the current UI:
    - Check hierarchy, spacing rhythm, typography scale, CTA clarity, responsiveness, accessibility, and visual noise.
-   - Identify whether existing project skills such as `frontend-design`, `audit`, `critique`, `normalize`, `polish`, `adapt`, `harden`, or `clarify` should also be used.
+   - Identify whether `frontend-design`, `audit`, `critique`, or `polish` should also be used (the UI skill selection lives in `docs/scenes/ui-page.md`).
    - State the weak points briefly before implementation when the task is exploratory or page-level.
 
 3. Implement through the existing layer boundaries:

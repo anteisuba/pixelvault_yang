@@ -3,7 +3,7 @@
 Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久归档。
 
 **Stack**: Next.js 16 (App Router + Turbopack) · TypeScript · Clerk · Prisma 7 + PostgreSQL (Neon) · Cloudflare R2 · next-intl (en/ja/zh)
-**AI Providers**: 多 adapter 架构——**名册与个数一律以 `src/services/providers/registry.ts` 的 `PROVIDER_ADAPTERS` 为准**（2026-08-24 清点为 13 个，同日死执行链清理整删 runway 后从 14 降为 13），接入契约与逐 provider 现状见 `docs/references/providers.md`
+**AI Providers**: 多 adapter 架构——**名册与个数一律以 `src/services/providers/registry.ts` 的 `PROVIDER_ADAPTERS` 为准**，接入契约与逐 provider 现状见 `docs/references/providers.md`
 
 冲突时优先级：用户明确指令 > Hard Rules > `docs/WORKFLOW.md` > 默认行为。
 
@@ -47,7 +47,7 @@ Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久�
 | `src/hooks/`               | Client-side state management                          |
 | `src/components/business/` | Stateful UI (uses hooks, no direct API)               |
 | `src/components/ui/`       | Stateless shadcn primitives                           |
-| `src/app/api/`             | API routes（149，工厂式）                             |
+| `src/app/api/`             | API routes（工厂式）                                  |
 | `src/messages/`            | i18n JSON (en/ja/zh — 三个必须同步)                   |
 
 命名：Component=PascalCase · Hook=`use`+camelCase · Service=`<name>.service.ts` · Constant=SCREAMING_SNAKE。Resilience 工具清单（logger/withRetry/breaker/prompt-guard/llm-output-validator）见 `docs/references/backend.md`。
@@ -56,12 +56,12 @@ Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久�
 
 改这些前先 `grep -r "import.*from.*<模块>" src/` 确认影响范围。**grep 的目的是把所有调用方在同一个改动里一起改完**，不是给旧签名留垫片（见 Engineering Principles 1）：
 
-- `src/types/index.ts` — 333 files (see `src/types/CLAUDE.md`)
-- `src/services/user.service.ts` — 141 files
-- `src/services/image/generate-image.service.ts` — 路由解析+上传模块（非 orchestrator，2026-08-24 死执行链清理删掉了 provider 调用/fallback/落库路径后现状），~480 行，8+ deps
-- `src/contexts/studio-context.tsx` — 47 files (see `src/contexts/CLAUDE.md`)
-- `src/constants/models.ts` — 99 files (see `src/constants/CLAUDE.md`)
-- `src/services/storage/r2.ts` — 55 importers
+- `src/types/index.ts`（see `src/types/CLAUDE.md`）
+- `src/services/user.service.ts`
+- `src/services/image/generate-image.service.ts` — 路由解析 + 上传模块（不是 orchestrator；provider 调用走 execution worker）
+- `src/contexts/studio-context.tsx`（see `src/contexts/CLAUDE.md`）
+- `src/constants/models.ts`（see `src/constants/CLAUDE.md`）
+- `src/services/storage/r2.ts`
 
 Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/business/studio/`、`hooks/`、`constants/`、`services/`、`app/api/`、`prisma/`。
 
@@ -94,7 +94,7 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 
 ## Skill Routing
 
-匹配到 skill 用 Skill tool 调用。**下表只列实际装了的**（2026-07-26 首核删了 7 个空指针；**2026-08-08 复核：表内 21 个 skill 全部在位，零空指针**。留着比没有更糟，每个新会话都会去调一个不存在的东西然后自己兜底）：
+匹配到 skill 用 Skill tool 调用。**下表只列实际装了的**——列了却不存在的 skill 比没有更糟，每个新会话都会去调它然后自己兜底。改表前 `ls .claude/skills`：
 
 | 意图                           | skill                                                                                                                    |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
@@ -112,11 +112,7 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 | 改 `workers/execution`         | `wrangler`（CLI 语法）· `workers-best-practices`（streaming / 悬空 promise / 全局态 / bindings 反模式）                  |
 | Code review                    | `/code-review`（内建命令，非 skill）· `/review` 走 GitHub PR                                                             |
 
-UI 类 skill 选型已内嵌在 `docs/scenes/ui-page.md` / `ui-marketing.md`。
-
-Skill 安装注记：design-taste-frontend / redesign-existing-projects / ui-ux-pro-max / ui-styling / design-system / frontend-design / polish / audit 已装在 `.claude/skills/`。
-
-✅ **2026-08-08 已清**：13 个冗余审美变体（adapt · animate · bolder · clarify · colorize · delight · distill · extract · harden · normalize · onboard · optimize · quieter，正是当初警告会被带出来的那批）+ 4 个 off-scope 件（to-issues · to-prd · triage · setup-matt-pocock-skills）从 `.claude/skills/` 与 `.agents/skills/` **两边**删除。`audit` / `critique` 的「推荐命令」清单同步改掉——它们原本会向用户推荐这 13 个，删了不改就是新的空指针。
+UI 类 skill（design-taste-frontend / redesign-existing-projects / ui-ux-pro-max / ui-styling / design-system / frontend-design / polish / audit / critique）由 `docs/scenes/ui-page.md` / `ui-marketing.md` 选型；删 skill 时同步改掉 `audit` / `critique` 里的「推荐命令」清单，否则就是新的空指针。
 
 ### ⚠ 两个 skills 目录不是一回事
 

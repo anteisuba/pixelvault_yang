@@ -11,7 +11,7 @@ description: Restore a previous session's context from the domain's resident doc
 2. **该域的常驻文档** `docs/references/<域>.md`（或 `references/domains/` `references/pages/` 下对应那份）—— 正文是进度/需求/设计结论，末尾的「判断与教训」一节是判断链与教训，一次读完
 3. 相邻域文档按需，做到哪块查哪块
 
-⚠ **不存在独立的交接文件。** `docs/plans/` 已于 2026-09-01 整目录删除，`*-session-handoff-*.md` / `*-master-*.md` 全部不在了——别去找，也别新建，要旧件从 git 历史取。
+**不存在独立的交接文件**——别去找，也别新建；旧件从 git 历史取。
 
 ## 开工前必做：核对实际状态
 

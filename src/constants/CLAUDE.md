@@ -1,6 +1,6 @@
 # src/constants/ — Configuration & Enums
 
-## Risk Level: HIGH (515 files import from this directory)
+## Risk Level: HIGH (imported by most of `src/` — run the grep before changing)
 
 Constants are imported throughout the entire codebase. Changes here affect provider selection, UI display, billing, and validation rules.
 
@@ -25,13 +25,7 @@ Constants are imported throughout the entire codebase. Changes here affect provi
 
 ### Adding a New AI Model (most common change)
 
-Use the `add-model` skill (checklist also in root CLAUDE.md → Common Pitfalls 1). Summary:
-
-1. Add model to `AI_MODELS` enum in `models.ts`
-2. Add `ModelOption` config (provider, credit cost, capabilities)
-3. Update i18n — all 3 files: `src/messages/en.json`, `ja.json`, `zh.json`
-4. Add/update provider adapter if needed
-5. Run `npx vitest run src/constants/` to verify
+Follow `docs/scenes/new-model.md` (workflow, 5 questions, checklist). The four things that must move together: `AI_MODELS` enum + `ModelOption` config here, the i18n entry in all three of `src/messages/{en,ja,zh}.json`, and the provider adapter in `src/services/providers/`. Verify with `npx vitest run src/constants/`.
 
 ### Modifying config.ts (limits, timeouts, pagination)
 

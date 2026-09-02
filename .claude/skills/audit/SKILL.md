@@ -46,7 +46,7 @@ Run comprehensive checks across multiple dimensions:
 
 5. **Anti-Patterns (CRITICAL)** - Check against ALL the **DON'T** guidelines in the frontend-design skill. Look for AI slop tells (AI color palette, gradient text, glassmorphism, hero metrics, card grids, generic fonts) and general design anti-patterns (gray on color, nested cards, bounce easing, redundant copy).
 
-**CRITICAL**: This is an audit, not a fix. Document issues thoroughly with clear explanations of impact. Use other commands (normalize, optimize, harden, etc.) to fix issues after audit.
+This is an audit, not a fix: document each issue with its impact, then hand the fixes to `polish` or `critique` (or an implementation session) after the audit.
 
 ## Generate Comprehensive Report
 

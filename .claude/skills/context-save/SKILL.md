@@ -7,7 +7,7 @@ description: Save the current session's working context into the project's resid
 
 把当前会话**写不进文档正文的那部分**留给下一个会话。
 
-⛔ **不要新建独立的交接文件。** `docs/plans/` 已于 2026-09-01 整目录删除（规矩：完成即删，结论沉淀进 `docs/references/`），独立 handoff 文件必然变成下一个空指针。落点只有一个：**该域的 `docs/references/` 常驻文档**。
+**不要新建独立的交接文件**——独立 handoff 文件必然变成下一个空指针。落点只有一个：**该域的 `docs/references/` 常驻文档**。
 
 ## 核心判据：事实归正文，判断归「判断与教训」
 

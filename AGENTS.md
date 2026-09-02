@@ -1,6 +1,6 @@
 # AGENTS.md — PixelVault 项目规则（Codex 入口）
 
-本文件是 Codex 在本仓库的操作入口。**规则本体已全部迁入 `docs/` 新体系**（2026-07-10 文档重建，历史全文见 git 历史 `cddc4384^` 之前版本）。本文件只做角色定义与路由，除用户明确覆盖外具约束力。
+本文件是 Codex 在本仓库的操作入口。规则本体在 `docs/`；本文件只做角色定义与路由，除用户明确覆盖外具约束力。
 
 ## 你在做什么项目
 
@@ -45,4 +45,4 @@
 
 ## 文档同步
 
-用 `sync-pixelvault-docs` skill；`docs/status.md` 是唯一活跃状态（覆盖更新）；完成的 plans/ 任务包删 / 归档 / 沉淀。
+用 `sync-pixelvault-docs` skill；`docs/status.md` 是唯一活跃状态（覆盖更新）；结论沉淀进 `docs/references/`，不新建交接文件。

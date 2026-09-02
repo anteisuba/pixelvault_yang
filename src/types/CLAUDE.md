@@ -1,16 +1,15 @@
 # src/types/ — Central Type Hub
 
-## Risk Level: CRITICAL (333 files depend on this)
+## Risk Level: CRITICAL (the most widely imported module in the repo — the grep in Rule 1 gives today's number)
 
 This is the most widely imported module in the project. Changes here cascade to virtually every service, hook, component, and API route.
 
 ## Rules
 
 1. **Before modifying any type**: run `grep -r "import.*from.*@/types" src/ --include="*.ts" --include="*.tsx" -l | wc -l` to confirm impact scope
-2. **Only add optional fields** to existing types — adding required fields breaks all existing call sites
-3. **Never rename or remove** existing exported types without updating ALL consumers first
-4. All types must be Zod-schema-first: define `z.object(...)`, then `z.infer<typeof Schema>`
-5. No `any` — use `unknown` + type guards if the shape is uncertain
+2. **Change every consumer in the same change** when you add a required field, rename, or remove a type — the grep above is the list of files to edit, not a reason to keep the old shape alive (Engineering Principle 1: no compat layers, no shims)
+3. All types must be Zod-schema-first: define `z.object(...)`, then `z.infer<typeof Schema>`
+4. No `any` — use `unknown` + type guards if the shape is uncertain
 
 ## Core Types (highest impact — touch with extreme care)
 
@@ -36,6 +35,6 @@ When modifying a type in this file:
 
 ## File Structure
 
-- `index.ts` — All Zod schemas + TypeScript types (single file, ~3850 lines)
+- `index.ts` — All Zod schemas + TypeScript types (single large file)
 - `next-intl.d.ts` — next-intl augmentation
 - `advanced-params.test.ts` — Tests for AdvancedParams schema

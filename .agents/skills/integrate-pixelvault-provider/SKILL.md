@@ -46,7 +46,7 @@ Change PixelVault's media generation stack through the project layers instead of
 ## Model Catalog Rules
 
 - `src/constants/models.ts` is authoritative.
-- Preserve aliases for legacy IDs when removing or replacing public model identifiers.
+- When removing or replacing a public model identifier, delete it and update every reference (constants, i18n, adapters, tests, docs) in the same change; no alias layer (Engineering Principle 1).
 - Treat credits/requestCount semantics as server-owned policy, not UI decoration.
 - When pruning models, check live availability, retirement status, adapter support, docs, and user-facing migration impact.
 - For image/video/audio model additions, verify whether the existing adapter can support the provider before creating a new adapter.

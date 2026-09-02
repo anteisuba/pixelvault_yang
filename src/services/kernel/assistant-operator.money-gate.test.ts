@@ -5,8 +5,11 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ASSISTANT_OPERATOR_MUTATING_TOOLS,
+  ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOLS,
+  ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN,
 } from '@/constants/assistant-operator'
+import { AssistantOperatorStepSchema } from '@/types/assistant-operator'
 
 /**
  * **钱闸的结构性证明**（拍板 2 · 任务包 §2「服务端没有任何工具能创建 generation」）。
@@ -154,13 +157,80 @@ describe('⛔ 助手工具环的钱闸', () => {
     expect(FOLDER_VISION_SOURCE).toContain('completeVisionStructured')
   })
 
-  it('工具表里没有任何一条叫 generate 的（prime 除外，而它只置态）', () => {
+  /**
+   * ⚠ 允许沾 generate 字样的**只有两条 prime**：工作台的 `prime_generate` 与画布的
+   * `prime_node_generate`（C0）。两条都只置态 —— 让键亮起来，扣扳机的永远是用户。
+   */
+  const PRIME_TOOLS: readonly string[] = [
+    ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+    ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+  ]
+
+  it('工具表里没有任何一条叫 generate 的（两条 prime 除外，而它们只置态）', () => {
     const generating = ASSISTANT_OPERATOR_TOOLS.filter(
-      (tool) => tool.includes('generate') && tool !== 'prime_generate',
+      (tool) => tool.includes('generate') && !PRIME_TOOLS.includes(tool),
     )
     expect(generating).toEqual([])
     // prime 是改动型的（因此可撤销），但它改的是按钮的样子，不是账单。
     expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).toContain('prime_generate')
+    expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).toContain('prime_node_generate')
+  })
+
+  /**
+   * ⭐ 钱闸 ①（任务书 §2.5 / 验收 #2）：画布工具表里**零 `generate`**，唯一沾字的
+   * `prime_node_generate` 载荷只允许 `{ nodeId, primed: true }` —— 多一个键被剥掉，
+   * `primed: false` 进不了载荷。画布执行在客户端，这条锁的是服务端能吐出的形状。
+   */
+  it('画布工具表零 generate；prime_node_generate 载荷只有 { nodeId, primed: true }', () => {
+    const canvasTools = ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN.canvas
+    expect(canvasTools).not.toContain('generate')
+    expect(
+      canvasTools.filter(
+        (tool) =>
+          tool.includes('generate') &&
+          tool !== ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+      ),
+    ).toEqual([])
+
+    const base = {
+      id: 'step-1',
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+      title: 'arm it',
+      status: 'done',
+      inverse: { nodeId: 'node-2', primed: false },
+    }
+    const parsed = AssistantOperatorStepSchema.safeParse({
+      ...base,
+      payload: { nodeId: 'node-2', primed: true, count: 4, run: true },
+    })
+    expect(parsed.success).toBe(true)
+    expect(
+      parsed.data && 'payload' in parsed.data ? parsed.data.payload : null,
+    ).toEqual({ nodeId: 'node-2', primed: true })
+    expect(
+      AssistantOperatorStepSchema.safeParse({
+        ...base,
+        payload: { nodeId: 'node-2', primed: false },
+      }).success,
+    ).toBe(false)
+    expect(
+      AssistantOperatorStepSchema.safeParse({
+        ...base,
+        payload: { primed: true },
+      }).success,
+    ).toBe(false)
+  })
+
+  /**
+   * 验收 #4 的另一半：连线合法性只**查**表。规则模块在服务端只被这一处 import，
+   * 而它的规则表名字（`NODE_CONNECTION_RULES`）一个字都不出现在工具环里。
+   */
+  it('连线规则只查不抄：一处 import canConnectNodeTypes，规则表本身不出现', () => {
+    expect([
+      ...SOURCE.matchAll(/from '@\/lib\/node-connection-rules'/g),
+    ]).toHaveLength(1)
+    expect(SOURCE).toContain('canConnectNodeTypes')
+    expect(SOURCE).not.toContain('NODE_CONNECTION_RULES')
   })
 
   /**

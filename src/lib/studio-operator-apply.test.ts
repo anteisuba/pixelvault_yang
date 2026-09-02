@@ -1,12 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { ASSISTANT_OPERATOR_TOOL_IDS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_TOOL_IDS,
+  type AssistantOperatorTool,
+} from '@/constants/assistant-operator'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { STUDIO_OPERATOR_FIELD_IDS } from '@/constants/studio-assistant-operator'
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
 import {
   applyOperatorStep,
   describeOperatorInverse,
   getOperatorStepField,
+  isOperatorStepNotApplicable,
   revertOperatorStep,
   type StudioOperatorApplyContext,
 } from '@/lib/studio-operator-apply'
@@ -774,5 +779,152 @@ describe('LoRA 装配台的三条改动型（P4-C）', () => {
         inverse: { loraId: 'lora-1', weight: 0.8 },
       } as unknown as AssistantOperatorAppliedStep),
     ).toBe('0.8')
+  })
+})
+
+/**
+ * 画布域的十条在**工作台宿主**上（C1-pre）。
+ *
+ * 它们的落点是节点画布宿主（C1 的 `canvas-operator-apply.ts`），这份表单上下文
+ * 没有一只手能落它们。这里钉的是「落不了」的**形状**：⛔ 不是 `null`（那是
+ * 「处理过了、没字段可记」），⛔ 不抛，⛔ 表单一个 dispatch 都不发 —— 而是一个
+ * 类型上分得开的第三种结果，让调用方在线程里说一句。
+ */
+function canvasStep(
+  tool: AssistantOperatorTool,
+  payload: Record<string, unknown>,
+  inverse: Record<string, unknown>,
+): AssistantOperatorAppliedStep {
+  return {
+    ...BASE,
+    tool,
+    payload,
+    inverse,
+  } as unknown as AssistantOperatorAppliedStep
+}
+
+const CANVAS_MUTATING_STEPS: readonly AssistantOperatorAppliedStep[] = [
+  canvasStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.stageNodes,
+    { items: [{ alias: 'new:1', type: 'image', title: 'Hero' }] },
+    { nodeIds: ['new:1'] },
+  ),
+  canvasStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.connectNodes,
+    { items: [{ source: 'n1', target: 'new:1' }] },
+    { items: [{ source: 'n1', target: 'new:1' }] },
+  ),
+  canvasStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields,
+    {
+      items: [
+        { nodeId: 'n1', fields: { prompt: 'cold blue' }, mode: 'replace' },
+      ],
+    },
+    { items: [{ nodeId: 'n1', fields: { prompt: null } }] },
+  ),
+  canvasStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel,
+    { nodeId: 'n1', modelId: 'seedream-4', optionId: 'workspace:seedream-4' },
+    { nodeId: 'n1', model: null },
+  ),
+  canvasStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.attachRefs,
+    {
+      nodeId: 'n1',
+      refs: [
+        {
+          id: 'ref-1',
+          url: 'https://cdn.example.com/a.png',
+          role: 'identity',
+          source: 'canvas',
+          sourceId: 'n2',
+        },
+      ],
+    },
+    { nodeId: 'n1', refIds: ['ref-1'] },
+  ),
+  canvasStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+    { nodeId: 'n1', state: 'rejected', reason: 'hands' },
+    { nodeId: 'n1', state: null },
+  ),
+  canvasStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+    { nodeId: 'n1', primed: true },
+    { nodeId: 'n1', primed: false },
+  ),
+  canvasStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
+    { doc: { title: 'Rain', logline: '', roles: [], shots: [] } },
+    { doc: null },
+  ),
+]
+
+const CANVAS_READ_STEPS: readonly AssistantOperatorAppliedStep[] = [
+  {
+    ...BASE,
+    tool: ASSISTANT_OPERATOR_TOOL_IDS.readGraph,
+    payload: {},
+    result: { digest: '3 nodes, 2 edges' },
+  },
+  {
+    ...BASE,
+    tool: ASSISTANT_OPERATOR_TOOL_IDS.readNode,
+    payload: { nodeId: 'n1' },
+    result: { digest: 'image "Hero"' },
+  },
+]
+
+describe('画布域的十条在工作台宿主上（C1-pre）', () => {
+  it('八条改动型 → 「不归本宿主落」，表单一个 dispatch 都不发', () => {
+    const { ctx, dispatched, references, primed, userUrls, audioReferences } =
+      makeContext()
+    for (const step of CANVAS_MUTATING_STEPS) {
+      const outcome = applyOperatorStep(step, ctx)
+      expect(isOperatorStepNotApplicable(outcome)).toBe(true)
+      expect(outcome).toEqual({
+        notApplicable: true,
+        tool: step.tool,
+        hostDomain: ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+      })
+    }
+    expect(dispatched).toEqual([])
+    expect(references).toEqual([])
+    expect(userUrls).toEqual([])
+    expect(audioReferences).toEqual([])
+    // ⭐ `prime_node_generate` 也不点亮**这台工作台**的生成键 —— 它说的是某个节点的。
+    expect(primed.value).toBe(false)
+  })
+
+  it('两条读与其它读类同一档：`null`，⛔ 不是「不归本宿主」', () => {
+    const { ctx, dispatched } = makeContext()
+    for (const step of CANVAS_READ_STEPS) {
+      const outcome = applyOperatorStep(step, ctx)
+      expect(outcome).toBeNull()
+      expect(isOperatorStepNotApplicable(outcome)).toBe(false)
+    }
+    expect(dispatched).toEqual([])
+  })
+
+  it('`isOperatorStepNotApplicable` 分得开三种结果 —— 字段与 null 都不是它', () => {
+    expect(isOperatorStepNotApplicable(STUDIO_OPERATOR_FIELD_IDS.prompt)).toBe(
+      false,
+    )
+    expect(isOperatorStepNotApplicable(null)).toBe(false)
+  })
+
+  it('撤销：从没落过就没有东西可撤 —— 不抛、不发 dispatch', () => {
+    const { ctx, dispatched } = makeContext()
+    for (const step of [...CANVAS_MUTATING_STEPS, ...CANVAS_READ_STEPS]) {
+      expect(() => revertOperatorStep(step, ctx)).not.toThrow()
+    }
+    expect(dispatched).toEqual([])
+  })
+
+  it('工作台登记簿里没有它们的格 —— 十条的字段都是 null', () => {
+    for (const step of [...CANVAS_MUTATING_STEPS, ...CANVAS_READ_STEPS]) {
+      expect(getOperatorStepField(step)).toBeNull()
+    }
   })
 })

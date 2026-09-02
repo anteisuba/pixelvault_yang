@@ -2,10 +2,16 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ASSISTANT_OPERATOR_TOOL_IDS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_TOOL_IDS,
+  ASSISTANT_OPERATOR_TOOLS,
+} from '@/constants/assistant-operator'
 import type { AssistantOperatorStep } from '@/types/assistant-operator'
 
-import { StudioOperatorLogItem } from './StudioOperatorLogItem'
+import {
+  OPERATOR_TOOL_ICONS,
+  StudioOperatorLogItem,
+} from './StudioOperatorLogItem'
 
 /**
  * 联网候选在日志条上的回归闸（P3-B → 2026-08-31 按拍板 21 重做）。
@@ -326,5 +332,37 @@ describe('日志条 · 一格失败不该弄脏别格', () => {
     expect(tiles[1].getAttribute('data-state')).toBe('error')
     expect(tiles[0].getAttribute('data-selected')).toBe('true')
     expect(screen.getByTestId('operator-web-import-error')).toBeTruthy()
+  })
+})
+
+/**
+ * 图标表穷举（C1-pre）。`Record<Tool, …>` 在编译期已经锁了一次；这里再锁运行时
+ * 那一面 —— 表里每一格都真是一枚 lucide 图标，而不是 `undefined` 混过了类型
+ * （历史条那边 `?? Sparkles` 的兜底只该给**退役**的工具名用）。
+ */
+describe('图标表 · 画布十条（C1-pre）', () => {
+  it('工具表里每一条都有图标', () => {
+    for (const tool of ASSISTANT_OPERATOR_TOOLS) {
+      expect(OPERATOR_TOOL_ICONS[tool], tool).toBeDefined()
+    }
+  })
+
+  it('`prime_node_generate` 与 `prime_generate` 同一枚 💲、同一身钱色', () => {
+    expect(OPERATOR_TOOL_ICONS.prime_node_generate).toBe(
+      OPERATOR_TOOL_ICONS.prime_generate,
+    )
+    renderItem({
+      step: {
+        id: 'step-9',
+        title: 'armed the hero node',
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+        status: 'done',
+        payload: { nodeId: 'n1', primed: true },
+        inverse: { nodeId: 'n1', primed: false },
+      },
+    })
+    const item = screen.getByTestId('operator-log-item')
+    expect(item.getAttribute('data-tool')).toBe('prime_node_generate')
+    expect(item.className).toContain('amber')
   })
 })

@@ -94,6 +94,15 @@ export interface LlmTextInput {
   apiKey: string
   /** Enable web search grounding (Gemini google_search / OpenAI web_search) */
   useGrounding?: boolean
+  /**
+   * 调用方的取消信号（客户端断开 / ⏹ 插话）。触发时**掐断在飞的主请求**：
+   * 缓冲补全整次请求、流式的连接与之后的 body 读取都跟着停。
+   *
+   * 与内建超时并联（`AbortSignal.any`），两者互不替代。取消不是 provider 错误，
+   * 抛出去的就是 `signal.reason`（照原样），用 `isLlmTextAbortError` 识别，
+   * 绝不会被误报成 `PROVIDER_TIMEOUT`。
+   */
+  signal?: AbortSignal
 }
 
 export interface ResolvedLlmTextRoute {
@@ -602,36 +611,98 @@ function toLlmTextTimeoutError(context: {
 /**
  * signal 触发时 fetch 抛的是 `DOMException`，名字随触发方式变
  * （手动 `controller.abort()` → `AbortError`；`AbortSignal.timeout()` → `TimeoutError`）。
- *
+ */
+const ABORT_ERROR_NAMES = {
+  abort: 'AbortError',
+  timeout: 'TimeoutError',
+} as const
+
+function readErrorName(error: unknown): unknown {
+  if (typeof error !== 'object' || error === null) return undefined
+  return (error as { name?: unknown }).name
+}
+
+/**
  * ⚠ 只认 `name` 不用 `instanceof Error`：`DOMException` 在 Node 里虽然继承自
  * `Error`，但跨 realm（undici / 测试替身）时那个判断会漏。
  */
 function isAbortError(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null) return false
-  const name = (error as { name?: unknown }).name
-  return name === 'AbortError' || name === 'TimeoutError'
+  const name = readErrorName(error)
+  return name === ABORT_ERROR_NAMES.abort || name === ABORT_ERROR_NAMES.timeout
+}
+
+/**
+ * 调用方通过 `LlmTextInput.signal` 主动取消后，从这条链抛出来的错。
+ *
+ * 取消**不是** provider 错误，所以不裹成 `ApiRequestError`——抛的是调用方自己的
+ * `signal.reason`（默认是 `AbortError` 的 `DOMException`）。上层拿它来区分
+ * 「用户不要了」和「上游没答话」（后者才是 `PROVIDER_TIMEOUT`）。
+ */
+export function isLlmTextAbortError(error: unknown): boolean {
+  return readErrorName(error) === ABORT_ERROR_NAMES.abort
+}
+
+interface LlmTextFetchContext {
+  adapterType: AI_ADAPTER_TYPES
+  modelId: string
+  /** 调用方的取消信号；与内建超时并联。 */
+  signal?: AbortSignal
+}
+
+/**
+ * 把调用方的 signal 与内建超时并联；没给 signal 就只剩超时那一路。
+ */
+function combineAbortSignals(
+  callerSignal: AbortSignal | undefined,
+  builtInSignal: AbortSignal,
+): AbortSignal {
+  return callerSignal
+    ? AbortSignal.any([callerSignal, builtInSignal])
+    : builtInSignal
+}
+
+/**
+ * fetch 被 signal 打断后的归因：调用方主动取消 → 原样抛 `signal.reason`；
+ * 否则就是我们自己的超时。判断顺序不能反 —— 取消与超时同时成立时，
+ * 用户的意愿优先，不该给一个已经离开的人报 504。
+ */
+function rethrowLlmTextAbort(
+  error: unknown,
+  context: LlmTextFetchContext & { timeoutMs: number },
+): never {
+  if (!isAbortError(error)) throw error
+  if (context.signal?.aborted) throw context.signal.reason
+  throw toLlmTextTimeoutError({
+    adapterType: context.adapterType,
+    modelId: context.modelId,
+    timeoutMs: context.timeoutMs,
+  })
 }
 
 /**
  * 缓冲补全的 fetch —— 计时盖住**整次请求**，包括调用方后面 `.json()` 读响应体
- * 那一段（`AbortSignal` 一直有效到 body 读完）。
+ * 那一段（`AbortSignal` 一直有效到 body 读完）。调用方的 `signal` 与它并联，
+ * 同样盖住整次请求。
  *
  * 每个 provider 分支都必须走它而不是裸 `fetch`：没有超时时上游挂住只能等平台
- * 杀函数，那条路径回给客户端的是一个不带任何信息的 504。
+ * 杀函数，那条路径回给客户端的是一个不带任何信息的 504；绕开它也就绕开了
+ * 取消信号，用户按了 ⏹ 请求照跑照计费。
  */
 async function fetchLlmTextBuffered(
   endpoint: string,
   init: Omit<RequestInit, 'signal'>,
-  context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
+  context: LlmTextFetchContext,
 ): Promise<Response> {
   try {
     return await fetch(endpoint, {
       ...init,
-      signal: AbortSignal.timeout(LLM_TEXT_TIMEOUTS_MS.COMPLETION),
+      signal: combineAbortSignals(
+        context.signal,
+        AbortSignal.timeout(LLM_TEXT_TIMEOUTS_MS.COMPLETION),
+      ),
     })
   } catch (error) {
-    if (!isAbortError(error)) throw error
-    throw toLlmTextTimeoutError({
+    rethrowLlmTextAbort(error, {
       ...context,
       timeoutMs: LLM_TEXT_TIMEOUTS_MS.COMPLETION,
     })
@@ -645,11 +716,15 @@ async function fetchLlmTextBuffered(
  * 于是一条正常但写得久的回答会被自己的超时掐断——正是流式要解决的问题。
  * 要保护的只有「连不上 / 不回头」这一段，所以自己管 controller，
  * `finally` 里撤掉计时器，之后这条流爱读多久读多久。
+ *
+ * 调用方的 `signal` 与它并联，但**不**随计时器一起撤：并联出来的 signal 跟着
+ * `Response` 活到 body 读完，所以用户在流中途按 ⏹，正在读的 body 也会被掐断
+ * （reader 抛 `AbortError`，与这里抛的是同一种，`isLlmTextAbortError` 都认）。
  */
 async function fetchLlmTextStreaming(
   endpoint: string,
   init: Omit<RequestInit, 'signal'>,
-  context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
+  context: LlmTextFetchContext,
 ): Promise<Response> {
   const controller = new AbortController()
   const timer = setTimeout(
@@ -657,10 +732,12 @@ async function fetchLlmTextStreaming(
     LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS,
   )
   try {
-    return await fetch(endpoint, { ...init, signal: controller.signal })
+    return await fetch(endpoint, {
+      ...init,
+      signal: combineAbortSignals(context.signal, controller.signal),
+    })
   } catch (error) {
-    if (!isAbortError(error)) throw error
-    throw toLlmTextTimeoutError({
+    rethrowLlmTextAbort(error, {
       ...context,
       timeoutMs: LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS,
     })
@@ -1133,7 +1210,7 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
         },
         body,
       },
-      { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId },
+      { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId, signal: input.signal },
     )
   } finally {
     await Promise.allSettled(
@@ -1231,7 +1308,11 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
       },
       body,
     },
-    { adapterType: AI_ADAPTER_TYPES.OPENAI, modelId: requestModelId },
+    {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      modelId: requestModelId,
+      signal: input.signal,
+    },
   )
 
   if (!response.ok) {
@@ -1310,7 +1391,7 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
       },
       body,
     },
-    { adapterType: AI_ADAPTER_TYPES.DEEPSEEK, modelId },
+    { adapterType: AI_ADAPTER_TYPES.DEEPSEEK, modelId, signal: input.signal },
   )
 
   if (!response.ok) {
@@ -1417,7 +1498,7 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
       },
       body,
     },
-    { adapterType: AI_ADAPTER_TYPES.DASHSCOPE, modelId },
+    { adapterType: AI_ADAPTER_TYPES.DASHSCOPE, modelId, signal: input.signal },
   )
 
   if (!response.ok) {
@@ -1522,7 +1603,7 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
       },
       body,
     },
-    { adapterType: AI_ADAPTER_TYPES.XAI, modelId },
+    { adapterType: AI_ADAPTER_TYPES.XAI, modelId, signal: input.signal },
   )
 
   if (!response.ok) {
@@ -1664,7 +1745,7 @@ async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
       body,
       input.providerConfig.anthropicWorkspaceId,
     ),
-    { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
+    { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId, signal: input.signal },
   )
 
   if (!response.ok) {
@@ -1725,7 +1806,7 @@ async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
         },
         body,
       },
-      { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId },
+      { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId, signal: input.signal },
     )
 
     if (!response.ok) {
@@ -1782,6 +1863,7 @@ async function* streamOpenAiCompatibleChat(options: {
   adapterType: AI_ADAPTER_TYPES
   modelId: string
   label: string
+  signal?: AbortSignal
 }): AsyncIterable<string> {
   const response = await fetchLlmTextStreaming(
     options.endpoint,
@@ -1793,7 +1875,11 @@ async function* streamOpenAiCompatibleChat(options: {
       },
       body: options.body,
     },
-    { adapterType: options.adapterType, modelId: options.modelId },
+    {
+      adapterType: options.adapterType,
+      modelId: options.modelId,
+      signal: options.signal,
+    },
   )
 
   if (!response.ok) {
@@ -1842,6 +1928,7 @@ export async function* openAiTextStream(
     adapterType: AI_ADAPTER_TYPES.OPENAI,
     modelId: requestModelId,
     label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.OPENAI],
+    signal: input.signal,
   })
 }
 
@@ -1857,6 +1944,7 @@ async function* deepseekTextStream(input: LlmTextInput): AsyncIterable<string> {
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
     modelId,
     label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.DEEPSEEK],
+    signal: input.signal,
   })
 }
 
@@ -1874,6 +1962,7 @@ async function* dashscopeTextStream(
     adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
     modelId,
     label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.DASHSCOPE],
+    signal: input.signal,
   })
 }
 
@@ -1906,7 +1995,7 @@ async function* anthropicTextStream(
       body,
       input.providerConfig.anthropicWorkspaceId,
     ),
-    { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
+    { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId, signal: input.signal },
   )
 
   if (!response.ok) {
@@ -1946,6 +2035,7 @@ async function* xaiTextStream(input: LlmTextInput): AsyncIterable<string> {
     adapterType: AI_ADAPTER_TYPES.XAI,
     modelId,
     label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.XAI],
+    signal: input.signal,
   })
 }
 

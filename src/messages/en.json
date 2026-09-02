@@ -5626,7 +5626,12 @@
       "galleryVideoLabel": "Gallery video",
       "referenceUploadFailed": "Reference upload failed",
       "referenceOnlyPrompt": "Analyze the attached reference media and suggest the next practical canvas steps.",
-      "opsMalformed": "The assistant tried to change the canvas but the instruction wasn't readable — nothing was changed."
+      "opsMalformed": "The assistant tried to change the canvas but the instruction wasn't readable — nothing was changed.",
+      "pickFromCanvas": "Pick from canvas",
+      "pickArmedHint": "Click a canvas node to add it · Esc to stop",
+      "pickedNodeLimit": "Node limit reached",
+      "pickedReferenceLimit": "Reference limit reached",
+      "removePickedNode": "Remove node"
     },
     "minimapTitle": "Minimap",
     "castDock": {
@@ -6900,12 +6905,14 @@
     "domainChip": {
       "image": "on the image bench",
       "video": "on the video bench",
-      "lora": "on the LoRA bench"
+      "lora": "on the LoRA bench",
+      "canvas": "on the node canvas"
     },
     "domainName": {
       "image": "the image bench",
       "video": "the video bench",
-      "lora": "the LoRA bench"
+      "lora": "the LoRA bench",
+      "canvas": "node canvas"
     },
     "session": "Session",
     "newThread": "New chat",
@@ -6960,7 +6967,14 @@
       "repeatedStep": "It already ran this exact step — skipped",
       "unknownLora": "That LoRA was not in this run's search results",
       "loraNotMounted": "That LoRA is not on the bench",
-      "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page"
+      "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page",
+      "unknownNode": "There is no such node on the canvas",
+      "unknownNodeType": "That node type is not in the add menu, so the assistant will not create it",
+      "illegalConnection": "Those two nodes cannot be connected",
+      "unknownField": "That node has no such field",
+      "missingChannel": "Switching a model needs the channel too — this step left it out",
+      "aliasUnresolved": "That temporary alias was never created in this run",
+      "approvedForbidden": "The assistant cannot approve for you — that is yours after you have looked"
     },
     "field": {
       "prompt": "Prompt",
@@ -7000,7 +7014,8 @@
       "revertRound": "You reverted this round's {count} change(s) (the assistant knows)",
       "resultArrived": "The run it armed came back — the assistant is looking at it",
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
-      "loraMountFailed": "Could not mount {subject} — nothing was added to the bench"
+      "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
+      "stepNotApplicable": "{subject} is a canvas action — this workbench cannot apply it, nothing changed"
     },
     "suggestion": {
       "setupShot": "Set this shot up for me",
@@ -7011,7 +7026,10 @@
       "splitShots": "Cut it into 3 shots",
       "findStyle": "Find a LoRA that fits this look",
       "stackConflict": "Will this stack fight itself?",
-      "sweepWeights": "Sweep the weights and compare"
+      "sweepWeights": "Sweep the weights and compare",
+      "layoutShots": "Lay out these shots for me",
+      "wireReferences": "Wire the character refs into the shots",
+      "whatIsMissing": "Which slot is still empty?"
     },
     "attach": {
       "label": "Attach: upload / library / paste",

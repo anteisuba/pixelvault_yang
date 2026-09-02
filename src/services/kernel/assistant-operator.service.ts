@@ -3,6 +3,8 @@ import 'server-only'
 import {
   ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION,
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
+  ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX,
+  ASSISTANT_OPERATOR_CANVAS_CONFIRM_FIELD_IDS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_DEFAULT_SEARCH_KINDS,
@@ -15,15 +17,48 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN,
   ASSISTANT_OPERATOR_WRITE_MODES,
+  buildAssistantOperatorCanvasConfirmKey,
   isAssistantOperatorToolInDomain,
+  type AssistantOperatorCanvasConfirmField,
   type AssistantOperatorConfirmField,
   type AssistantOperatorRejectReason,
   type AssistantOperatorSearchKind,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
-import { ASSISTANT_DOMAIN_BRIEFS } from '@/constants/assistant-protocol'
-import { resolveAssistantModelId } from '@/constants/node-studio'
+import {
+  ASSISTANT_DOMAIN_BRIEFS,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS,
+} from '@/constants/assistant-protocol'
+import { CANVAS_ADD_CATALOG } from '@/constants/canvas-add-catalog'
+import { NODE_ASSISTANT_PARAMS } from '@/constants/node-assistant-ops'
+import {
+  NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
+  NODE_STUDIO_REFERENCE_SOURCE_IDS,
+  isNodeStudioReferenceRole,
+  resolveAssistantModelId,
+  type NodeStudioReferenceRole,
+} from '@/constants/node-studio'
+import {
+  NODE_AUDIO_MODEL_NODE_TYPES,
+  NODE_IMAGE_MODEL_NODE_TYPES,
+  NODE_IMAGE_ROLE_IDS,
+  NODE_MEDIA_KIND_BY_NODE_TYPE,
+  NODE_MEDIA_KIND_IDS,
+  NODE_REVIEW_STATE_IDS,
+  NODE_REVIEW_STATES,
+  NODE_STATUS_IDS,
+  NODE_TYPE_IDS,
+  NODE_VIDEO_MODEL_NODE_TYPES,
+  NODE_WORKFLOW_FIELD_IDS,
+  NODE_WORKFLOW_FIELDS_BY_IMAGE_ROLE,
+  NODE_WORKFLOW_FIELDS_BY_NODE_TYPE,
+  NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE,
+  type NodeImageRole,
+  type NodeReviewState,
+  type NodeWorkflowFieldId,
+  type NodeWorkflowNodeType,
+} from '@/constants/node-types'
 import {
   inspectAssistantAssetFolder,
   listAssistantAssetFolders,
@@ -64,17 +99,26 @@ import {
 } from '@/services/web-research.service'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { logger } from '@/lib/logger'
+/**
+ * ⭐ 连线合法性的**唯一事实源**（任务书 §一.4 禁改：只查表，⛔ 不复制）。
+ * 它是纯函数模块 —— 不碰库、不碰 provider、不花钱；全仓对它的 import 就这一处
+ * 在服务端（验收 #4 用 grep 钉着「规则表未被复制」）。
+ */
+import { canConnectNodeTypes } from '@/lib/node-connection-rules'
 import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
   AssistantOperatorCritiqueSchema,
   AssistantOperatorStepSchema,
   AssistantOperatorTurnSchema,
+  type AssistantOperatorCanvasModelOption,
+  type AssistantOperatorCanvasNode,
   type AssistantOperatorCritique,
   type AssistantOperatorEvent,
   type AssistantOperatorRequest,
   type AssistantOperatorSearchResultAsset,
   type AssistantOperatorSnapshot,
   type AssistantOperatorTurn,
+  type CanvasWorkingState,
 } from '@/types/assistant-operator'
 import type { OutputType, PromptAssistantResponseLanguage } from '@/types'
 import type { AssistantAssetFolderCandidate } from '@/types/asset-folder-vision'
@@ -168,7 +212,9 @@ function toWorkingState(
   snapshot: AssistantOperatorSnapshot,
 ): OperatorWorkingState {
   return {
-    prompt: snapshot.prompt,
+    // ⚠ 附录 D §1：画布宿主不发 `prompt`（画布上没有「这台工作台的提示词框」）；
+    //    工作台三域照发。缺席按空串处理 —— 工作台的判据（非空 = 用户手写）不受影响。
+    prompt: snapshot.prompt ?? '',
     negativePrompt: snapshot.negativePrompt,
     // ⚠ 字段缺席 = 没有这个控件，不是「有但空着」（2026-08-22 真机实证）。
     hasNegativeControl: snapshot.negativePrompt !== undefined,
@@ -203,9 +249,43 @@ function toWorkingState(
   }
 }
 
+/**
+ * 画布快照 → 图的**工作副本**（与 `toWorkingState` 同一条理由：`inverse` 要能撤回到
+ * 上一步写完之后的值，所以每一步都改这份副本，不改请求里那份）。
+ *
+ * ⚠ `nodes` / `edges` / 每个节点的 `fields` / `references` 都拷一层：`stage_nodes`
+ * 往 nodes 里推、`set_node_fields` 改 fields、`attach_refs` 往 references 里推，
+ * 一处共享原始数组就会把请求快照改脏（同一轮里 `read_node` 读到的就不是改前值了）。
+ */
+function toCanvasWorkingState(
+  snapshot: AssistantOperatorSnapshot,
+): CanvasWorkingState | null {
+  const canvas = snapshot.canvas
+  if (!canvas) return null
+  return {
+    projectId: canvas.projectId,
+    projectName: canvas.projectName,
+    selectedNodeIds: [...canvas.selectedNodeIds],
+    nodes: canvas.nodes.map((node) => ({
+      ...node,
+      fields: { ...node.fields },
+      ...(node.params ? { params: { ...node.params } } : {}),
+      references: node.references.map((reference) => ({ ...reference })),
+    })),
+    edges: canvas.edges.map((edge) => ({ ...edge })),
+    aliases: new Map(),
+    scriptDocSummary: canvas.scriptDoc?.summary ?? null,
+  }
+}
+
 interface OperatorRun {
   request: AssistantOperatorRequest
   state: OperatorWorkingState
+  /**
+   * 画布图的工作副本（C0-b）。`null` = 请求里没有 `canvas` 节 —— 画布域的工具一律按
+   * `noSuchControl` 拒（与「这台工作台没有这个控件」同一件事）。
+   */
+  canvas: CanvasWorkingState | null
   /**
    * 这一轮说话用的那条路。
    *
@@ -226,6 +306,17 @@ interface OperatorRun {
   /** 本轮 `list_asset_folders` 真实返回过的文件夹；视觉检查只认这张准入表。 */
   folderIndex: Map<string, AssistantAssetFolderCandidate>
   /**
+   * 本轮 `inspect_asset_folder` **真的看过**的素材（附录 D §6）。
+   *
+   * ⛔ 与 `searchIndex` **分开一张表**：那张是工作台 `mount_reference` 的准入名单，
+   * 往里塞文件夹看到的图会让工作台三域的行为跟着变（任务书 §一.2 要求零变化）。
+   * 画布 `attach_refs` 两张表都认 —— 两条路上的素材都是用户自己的、都带服务端填的 URL。
+   */
+  inspectedAssetIndex: Map<
+    string,
+    { assetId: string; url: string; thumbnailUrl?: string }
+  >
+  /**
    * 本轮 `search_loras` 真的返回过的候选（P4-C）。
    *
    * ⛔ 与 `searchIndex` **分开一张表**：那张表是 `mount_reference` 的准入名单
@@ -242,8 +333,12 @@ interface OperatorRun {
   mountedLoraCandidateIds: Set<string>
   /** 讲给模型听的「刚才发生了什么」。 */
   observations: string[]
-  /** 本轮里助手自己写过的字段 —— 覆写自己的东西不需要再问用户一次。 */
-  assistantWrittenFields: Set<AssistantOperatorConfirmField>
+  /**
+   * 本轮里助手自己写过的字段 —— 覆写自己的东西不需要再问用户一次。
+   * ⚠ 键是**确认键**（附录 D §5）：工作台三域就是字段名（`prompt` / `negative`），
+   * 画布是 `${nodeId}:${field}` 复合键（`buildAssistantOperatorCanvasConfirmKey`）。
+   */
+  assistantWrittenFields: Set<string>
   /**
    * 本轮**真的执行过**的步（`工具名 + 规范化 args`，见 `operatorStepKey`）。
    *
@@ -253,6 +348,8 @@ interface OperatorRun {
    */
   executedStepKeys: Set<string>
   stepSeq: number
+  /** 调用方的取消信号，透传给每一次补全（含 `critique_result` 借路那一跳）。 */
+  signal: AbortSignal | undefined
 }
 
 /**
@@ -288,7 +385,9 @@ type ToolPlan =
   | { kind: 'rejected'; reason: AssistantOperatorRejectReason; detail?: string }
   | {
       kind: 'confirm'
-      field: AssistantOperatorConfirmField
+      field: AssistantOperatorConfirmField | AssistantOperatorCanvasConfirmField
+      /** 画布域的复合键另一半（§2.4）；工作台三域缺席。 */
+      nodeId?: string
       have: string
       proposed: string
     }
@@ -782,6 +881,17 @@ function planInspectAssetFolder(
         ...(run.request.apiKeyId ? { apiKeyId: run.request.apiKeyId } : {}),
       })
 
+      // ⭐ 看过的每一张都进画布的准入表（附录 D §6）—— URL 是服务端从结果里抄的。
+      for (const finding of result.findings) {
+        run.inspectedAssetIndex.set(finding.assetId, {
+          assetId: finding.assetId,
+          url: finding.url,
+          ...(finding.thumbnailUrl
+            ? { thumbnailUrl: finding.thumbnailUrl }
+            : {}),
+        })
+      }
+
       const observation =
         result.inspectedImages === 0
           ? `inspect_asset_folder("${result.folder.path}") found 0 viewable images. Do not describe this folder as if you saw anything.`
@@ -1012,8 +1122,9 @@ function planSetText(
   if (!args.value.trim()) return reject(REJECT.emptyValue)
 
   const current = isPrompt ? run.state.prompt : (run.state.negativePrompt ?? '')
+  // ⚠ 只认**没有 nodeId** 的决定：画布的决定按复合键存，`prompt` 两边都有这个名字。
   const decision = run.request.confirmations?.find(
-    (entry) => entry.field === field,
+    (entry) => entry.field === field && entry.nodeId === undefined,
   )?.choice
 
   if (current.trim() && !run.assistantWrittenFields.has(field)) {
@@ -1795,6 +1906,7 @@ async function planCritiqueResult(
     // ⭐ 唯一真的「看」的那一下。地址来自 `result`，模型碰不到它。
     imageData: result.url,
     responseFormat: 'json_object',
+    ...(run.signal ? { signal: run.signal } : {}),
   })
 
   const critique = parseCritiqueJson(raw)
@@ -1833,6 +1945,1205 @@ async function planCritiqueResult(
       }\nNow change the form to act on what you saw — the creator presses generate again themselves.`,
     }),
   }
+}
+
+// ─── 画布域（C0-b，任务书 §2.2 / §2.3 + 附录 D）──────────────────────
+//
+// 与工作台三域**同一条宪法**：这里没有任何一条路径能创建 generation。画布上离生成
+// 最近的一步是 `prime_node_generate`，它只让某个节点的键亮起来，点的人永远是用户
+// （owner 两次拍：画布不做积分 / 价签预览，所以连价都不算）。
+//
+// ── 工作副本与别名 ─────────────────────────────────────────────────
+// `stage_nodes` 建的节点在服务端**没有真实 id**（分配发生在客户端 apply 那一跳），
+// 所以它们以别名 `new:<n>` 进工作副本，同一轮后面的 `connect_nodes` /
+// `set_node_fields` / `attach_refs` 按别名引用。别名只活在一轮之内。
+
+type CanvasFieldValue = string | number | boolean
+
+interface CanvasCreatableKind {
+  type: NodeWorkflowNodeType
+  role: NodeImageRole | undefined
+}
+
+/**
+ * 用户在 ＋添加 菜单里**建得出来**的 (type, role) 组合 —— `stage_nodes` 只认这张表
+ * （任务书 §2.3：「只能建 `CanvasAddMenu` 里有的类型」）。⛔ 不从 `NODE_TYPES` 全集
+ * 放行：`composer` / `agent` 早已退役，`frameImage` 之类的旧族用户自己也建不出来。
+ */
+const CANVAS_CREATABLE_KINDS: readonly CanvasCreatableKind[] =
+  CANVAS_ADD_CATALOG.flatMap((group) =>
+    group.items.map((item) => ({ type: item.nodeType, role: item.role })),
+  )
+
+function describeCreatableKinds(): string {
+  return CANVAS_CREATABLE_KINDS.map((kind) =>
+    kind.role ? `${kind.type} (role ${kind.role})` : kind.type,
+  ).join(', ')
+}
+
+/** 这类节点身上有没有「选模型」这一格（与快照 `model` 键在不在同一个判据）。 */
+function nodeTypeHasModelControl(type: NodeWorkflowNodeType): boolean {
+  return (
+    (NODE_IMAGE_MODEL_NODE_TYPES as readonly NodeWorkflowNodeType[]).includes(
+      type,
+    ) ||
+    (NODE_VIDEO_MODEL_NODE_TYPES as readonly NodeWorkflowNodeType[]).includes(
+      type,
+    ) ||
+    (NODE_AUDIO_MODEL_NODE_TYPES as readonly NodeWorkflowNodeType[]).includes(
+      type,
+    )
+  )
+}
+
+/**
+ * 生成档位长不长在这个节点上。⚠ 今天只有视频节点（见 `NODE_ASSISTANT_PARAM_IDS`
+ * 头注：图片节点的档位跟着合成条走，不在节点上）。
+ */
+function nodeTypeCarriesParams(type: NodeWorkflowNodeType): boolean {
+  return (
+    NODE_VIDEO_MODEL_NODE_TYPES as readonly NodeWorkflowNodeType[]
+  ).includes(type)
+}
+
+/** 引用架只长在带图 / 带视频的节点上（文本 / 音色节点没有）。 */
+function nodeTypeHasReferenceRack(type: NodeWorkflowNodeType): boolean {
+  const kind = NODE_MEDIA_KIND_BY_NODE_TYPE[type]
+  return (
+    kind === NODE_MEDIA_KIND_IDS.image || kind === NODE_MEDIA_KIND_IDS.video
+  )
+}
+
+/**
+ * 这个节点**真有**的自由文本字段（族表按 role → type 查，与客户端
+ * `buildAssistantPromptPatch` 同一条回落：没登记的类型只有 `prompt`）。
+ */
+function canvasTextFieldsFor(
+  node: Pick<AssistantOperatorCanvasNode, 'type' | 'role'>,
+): readonly NodeWorkflowFieldId[] {
+  const fields = node.role
+    ? NODE_WORKFLOW_FIELDS_BY_IMAGE_ROLE[node.role]
+    : NODE_WORKFLOW_FIELDS_BY_NODE_TYPE[node.type]
+  return fields ?? [NODE_WORKFLOW_FIELD_IDS.prompt]
+}
+
+function isCanvasAlias(ref: string): boolean {
+  return ref.startsWith(ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX)
+}
+
+type CanvasNodeLookup =
+  | { node: AssistantOperatorCanvasNode }
+  | { rejected: ToolPlan }
+
+/**
+ * 按真实 id **或**本轮别名找节点。两种查不到分两个理由（都可教）：别名没登记过是
+ * `aliasUnresolved`（那一步大概被拒了），真实 id 不在快照里是 `unknownNode`。
+ * ⛔ 不做前缀 / 模糊匹配：猜错一个节点，改动就落在别人的卡上。
+ */
+function lookupCanvasNode(
+  canvas: CanvasWorkingState,
+  ref: string,
+): CanvasNodeLookup {
+  if (isCanvasAlias(ref)) {
+    const staged = canvas.aliases.get(ref)
+    return staged
+      ? { node: staged }
+      : {
+          rejected: reject(
+            REJECT.aliasUnresolved,
+            `${ref} was never created in this run. Aliases only come from a stage_nodes call that actually succeeded this turn.`,
+          ),
+        }
+  }
+  const node = canvas.nodes.find((entry) => entry.id === ref)
+  return node
+    ? { node }
+    : {
+        rejected: reject(
+          REJECT.unknownNode,
+          `There is no node "${clamp(ref, LIMITS.maxLabelChars)}" on the canvas. Use an id from read_graph, or a new:<n> alias from stage_nodes in this run.`,
+        ),
+      }
+}
+
+function requireCanvas(run: OperatorRun): CanvasWorkingState | ToolPlan {
+  return (
+    run.canvas ??
+    reject(
+      REJECT.noSuchControl,
+      'This request carries no canvas. Canvas tools only work on the node canvas.',
+    )
+  )
+}
+
+function isToolPlan(value: CanvasWorkingState | ToolPlan): value is ToolPlan {
+  return 'kind' in value
+}
+
+function describeCanvasNodeKind(
+  node: Pick<AssistantOperatorCanvasNode, 'type' | 'role'>,
+): string {
+  return node.role ? `${node.type}/${node.role}` : node.type
+}
+
+/**
+ * `read_graph` 级的**紧凑概览** —— 也是画布域每轮状态块的正文（K-4 根治）。
+ *
+ * ⛔ 这里**永远不出现** URL、外观字段（`character.*`）、任何自由文本字段的内容。
+ * 首轮系统提示 / 用户提示只吃这一级；节点全量事实只经 `read_node` 按需取。
+ * 测试两向断言：`read_node` 的产出含 URL，而系统提示与首轮用户提示不含。
+ */
+function renderCanvasOverview(canvas: CanvasWorkingState): string {
+  const lines: string[] = []
+  lines.push(
+    `- Project: "${clamp(canvas.projectName || '(untitled)', LIMITS.maxLabelChars)}" (id ${canvas.projectId})`,
+  )
+  if (canvas.nodes.length === 0) {
+    lines.push('- Nodes: NONE — the canvas is empty.')
+  } else {
+    lines.push(`- Nodes (${canvas.nodes.length}):`)
+    for (const node of canvas.nodes) {
+      const staged = canvas.aliases.has(node.id)
+      lines.push(
+        `  - ${node.id} · ${describeCanvasNodeKind(node)} · "${clamp(node.title, LIMITS.maxLabelChars)}" · ${node.status}${
+          staged ? ' · STAGED THIS TURN (gets a real id when applied)' : ''
+        }`,
+      )
+    }
+  }
+  lines.push(
+    canvas.edges.length === 0
+      ? '- Edges: none.'
+      : `- Edges (${canvas.edges.length}): ${canvas.edges
+          .map((edge) => `${edge.source} → ${edge.target}`)
+          .join(' | ')}`,
+  )
+  lines.push(
+    canvas.selectedNodeIds.length === 0
+      ? '- Selected: nothing.'
+      : `- Selected: ${canvas.selectedNodeIds.join(', ')}`,
+  )
+  lines.push(
+    canvas.scriptDocSummary
+      ? `- Script doc: ${clamp(canvas.scriptDocSummary, LIMITS.maxCanvasScriptDocSummaryChars)}`
+      : '- Script doc: this project has none.',
+  )
+  return lines.join('\n')
+}
+
+function describeModelOption(
+  option: AssistantOperatorCanvasModelOption,
+): string {
+  return `modelId=${option.modelId} optionId=${option.optionId} — ${option.label}${
+    option.priceLabel ? ` (${option.priceLabel})` : ''
+  }`
+}
+
+/**
+ * 画布域的状态块 = 概览 + 模型目录（按 nodeType 分组，每行带渠道与相对价签）。
+ * 目录只有 id 与标签，没有 URL —— 与概览同一条 K-4 规矩。
+ */
+function renderCanvasState(run: OperatorRun): string {
+  const canvas = run.canvas
+  if (!canvas) {
+    return '- Canvas: this request carries no canvas. Every canvas tool will be refused.'
+  }
+  const lines: string[] = [renderCanvasOverview(canvas)]
+  const options = run.request.snapshot.canvas?.modelOptions ?? []
+  if (options.length === 0) {
+    lines.push(
+      '- Model catalog: EMPTY — no runnable model channel is available, so set_node_model will be refused.',
+    )
+  } else {
+    const byType = new Map<
+      NodeWorkflowNodeType,
+      AssistantOperatorCanvasModelOption[]
+    >()
+    for (const option of options) {
+      const bucket = byType.get(option.nodeType) ?? []
+      bucket.push(option)
+      byType.set(option.nodeType, bucket)
+    }
+    lines.push(
+      '- Model catalog (set_node_model copies BOTH modelId and optionId verbatim from here):',
+    )
+    for (const [nodeType, bucket] of byType) {
+      lines.push(
+        `  - for ${nodeType} nodes: ${bucket.map(describeModelOption).join(' | ')}`,
+      )
+    }
+  }
+  return lines.join('\n')
+}
+
+/**
+ * `read_node` 的产出：**全量事实**。URL 与外观字段（附录 D §2：`character.{name,
+ * visualSeed}` + 参考图 URL）只从这里出。
+ */
+function renderCanvasNode(
+  run: OperatorRun,
+  node: AssistantOperatorCanvasNode,
+): string {
+  const lines: string[] = []
+  lines.push(
+    `${node.id} · ${describeCanvasNodeKind(node)} · "${clamp(node.title, LIMITS.maxLabelChars)}" · status ${node.status}`,
+  )
+
+  // 带档位的节点上，档位名（如 duration）从文本栏里剔掉 —— 它在下面的 Settings 行里。
+  const textFields = canvasTextFieldsFor(node).filter(
+    (field) =>
+      !node.params ||
+      !(NODE_ASSISTANT_PARAMS as readonly string[]).includes(field),
+  )
+  lines.push(`- Text fields this node actually has: ${textFields.join(', ')}`)
+  for (const field of textFields) {
+    const value = node.fields[field]
+    lines.push(
+      `  - ${field}: ${value?.trim() ? `"${clamp(value, LIMITS.maxConfirmHaveChars)}"` : '(empty)'}`,
+    )
+  }
+  const landing = NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE[node.type]
+  if (landing) {
+    lines.push(
+      `  (this node type has no "prompt" field — its free text lives in "${landing}".)`,
+    )
+  } else if (landing === null) {
+    lines.push(
+      '  (this node type has NO free-text field at all — do not try to write prose onto it.)',
+    )
+  }
+
+  if (node.character) {
+    lines.push(
+      `- Character card: name ${node.character.name ? `"${node.character.name}"` : '(unnamed)'}, visual seed ${
+        node.character.visualSeed?.trim()
+          ? `"${clamp(node.character.visualSeed, LIMITS.maxConfirmHaveChars)}"`
+          : '(empty)'
+      }${node.character.cardId ? `, cardId ${node.character.cardId}` : ''}. Appearance comes from THIS card — never describe the character yourself.`,
+    )
+  }
+
+  if (node.type === NODE_TYPE_IDS.image && node.role === undefined) {
+    lines.push(
+      `- Image category: ${node.imageCategory ?? '(not set)'}${
+        node.imageCategoryLabel ? ` "${node.imageCategoryLabel}"` : ''
+      }`,
+    )
+  }
+
+  if (node.model === undefined) {
+    lines.push('- Model: this node does not pick a model.')
+  } else if (node.model === null) {
+    lines.push('- Model: NOT SELECTED YET.')
+  } else {
+    lines.push(
+      `- Model: ${node.model.modelId} via channel ${node.model.optionId}`,
+    )
+  }
+  if (node.model !== undefined) {
+    const options = (run.request.snapshot.canvas?.modelOptions ?? []).filter(
+      (option) => option.nodeType === node.type,
+    )
+    lines.push(
+      options.length === 0
+        ? '- Models you can switch this node to: none listed — do not call set_node_model on it.'
+        : `- Models you can switch this node to: ${options.map(describeModelOption).join(' | ')}`,
+    )
+  }
+
+  if (node.params) {
+    const entries = Object.entries(node.params)
+    lines.push(
+      entries.length === 0
+        ? `- Settings: none set (settable keys: ${NODE_ASSISTANT_PARAMS.join(', ')})`
+        : `- Settings: ${entries.map(([key, value]) => `${key}=${String(value)}`).join(', ')} (settable keys: ${NODE_ASSISTANT_PARAMS.join(', ')})`,
+    )
+  } else {
+    lines.push('- Settings: generation settings do not live on this node.')
+  }
+
+  if (!nodeTypeHasReferenceRack(node.type)) {
+    lines.push('- References: this node has no reference rack.')
+  } else if (node.references.length === 0) {
+    lines.push('- References: none attached.')
+  } else {
+    lines.push(`- References (${node.references.length}):`)
+    for (const reference of node.references) {
+      lines.push(
+        `  - ${reference.id} · ${reference.role}${
+          reference.sourceId ? ` · from node ${reference.sourceId}` : ''
+        } · ${reference.url}`,
+      )
+    }
+  }
+
+  lines.push(
+    node.mediaUrl
+      ? `- Media: ${node.mediaUrl}${
+          node.reviewState
+            ? ` (review: ${node.reviewState})`
+            : ' (review: no record)'
+        }`
+      : '- Media: nothing produced yet.',
+  )
+  return lines.join('\n')
+}
+
+function planReadGraph(run: OperatorRun): ToolPlan {
+  const canvas = requireCanvas(run)
+  if (isToolPlan(canvas)) return canvas
+  return {
+    kind: 'read',
+    payload: {},
+    run: async () => {
+      const digest = renderCanvasOverview(canvas)
+      // ⚠ `result.digest` 过 `.max(maxMessageChars)`（见 `clamp` 头注的那次真机）；
+      //    观察给模型的是全文。
+      return {
+        result: { digest: clamp(digest, LIMITS.maxMessageChars) },
+        observation: `Canvas overview:\n${digest}`,
+      }
+    },
+  }
+}
+
+function planReadNode(run: OperatorRun, args: { nodeId: string }): ToolPlan {
+  const canvas = requireCanvas(run)
+  if (isToolPlan(canvas)) return canvas
+  const found = lookupCanvasNode(canvas, args.nodeId)
+  if ('rejected' in found) return found.rejected
+  const { node } = found
+  return {
+    kind: 'read',
+    payload: { nodeId: node.id },
+    run: async () => {
+      const digest = renderCanvasNode(run, node)
+      return {
+        result: { digest: clamp(digest, LIMITS.maxMessageChars) },
+        observation: `read_node(${node.id}):\n${digest}`,
+      }
+    },
+  }
+}
+
+/** 下一个还没用过的 `new:<n>`（模型自己给的别名可能已经占了某个序号）。 */
+function nextFreeAlias(canvas: CanvasWorkingState, taken: Set<string>): string {
+  for (let index = 1; ; index += 1) {
+    const alias = `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}${index}`
+    if (!canvas.aliases.has(alias) && !taken.has(alias)) return alias
+  }
+}
+
+function planStageNodes(
+  run: OperatorRun,
+  args: {
+    items: {
+      alias?: string
+      type: string
+      role?: string
+      title?: string
+      fields?: Record<string, string>
+    }[]
+  },
+): ToolPlan {
+  const canvas = requireCanvas(run)
+  if (isToolPlan(canvas)) return canvas
+
+  const taken = new Set<string>()
+  const staged: {
+    alias: string
+    type: NodeWorkflowNodeType
+    role?: NodeImageRole
+    title?: string
+    fields?: Record<string, string>
+  }[] = []
+
+  for (const item of args.items) {
+    const kind = CANVAS_CREATABLE_KINDS.find(
+      (entry) => entry.type === item.type && entry.role === item.role,
+    )
+    if (!kind) {
+      return reject(
+        REJECT.unknownNodeType,
+        `"${clamp(item.type, LIMITS.maxLabelChars)}"${item.role ? ` with role "${clamp(item.role, LIMITS.maxLabelChars)}"` : ''} is not something the creator's add-menu can create. Creatable: ${describeCreatableKinds()}.`,
+      )
+    }
+    const alias = item.alias ?? nextFreeAlias(canvas, taken)
+    if (canvas.aliases.has(alias) || taken.has(alias)) {
+      return reject(
+        REJECT.unknownValue,
+        `Alias ${alias} is already taken in this run. Pick the next free number or omit alias and it is assigned for you.`,
+      )
+    }
+    taken.add(alias)
+
+    const allowedFields = canvasTextFieldsFor(kind)
+    for (const key of Object.keys(item.fields ?? {})) {
+      if (!(allowedFields as readonly string[]).includes(key)) {
+        return reject(
+          REJECT.unknownField,
+          `A ${describeCanvasNodeKind(kind)} node has no "${clamp(key, LIMITS.maxLabelChars)}" field. Its text fields are: ${allowedFields.join(', ')}.`,
+        )
+      }
+    }
+    staged.push({
+      alias,
+      type: kind.type,
+      ...(kind.role ? { role: kind.role } : {}),
+      ...(item.title ? { title: item.title } : {}),
+      ...(item.fields ? { fields: item.fields } : {}),
+    })
+  }
+
+  return {
+    kind: 'mutate',
+    payload: { items: staged },
+    // ⚠ 逆操作是**这一批别名**（附录 D §4）：真实 id 在服务端不存在，客户端按别名表反查删。
+    inverse: { nodeIds: staged.map((item) => item.alias) },
+    observation: `Staged ${staged.length} node(s) in one batch: ${staged
+      .map(
+        (item) =>
+          `${item.alias} = ${describeCanvasNodeKind(item)}${item.title ? ` "${clamp(item.title, LIMITS.maxLabelChars)}"` : ''}`,
+      )
+      .join(
+        ', ',
+      )}. Refer to them by these aliases for the rest of this turn; they get real ids when the creator's app applies the batch.`,
+    apply: () => {
+      for (const item of staged) {
+        const fields: Record<string, string> = {}
+        for (const field of canvasTextFieldsFor(item)) fields[field] = ''
+        for (const [key, value] of Object.entries(item.fields ?? {})) {
+          fields[key] = value
+          // 助手自己写的 —— 本轮再改不用问（它是空卡，本来也没有用户手写内容）。
+          run.assistantWrittenFields.add(
+            buildAssistantOperatorCanvasConfirmKey(
+              item.alias,
+              key as AssistantOperatorCanvasConfirmField,
+            ),
+          )
+        }
+        const node: AssistantOperatorCanvasNode = {
+          id: item.alias,
+          type: item.type,
+          title: item.title ?? item.alias,
+          status: NODE_STATUS_IDS.idle,
+          ...(item.role ? { role: item.role } : {}),
+          fields,
+          ...(nodeTypeHasModelControl(item.type) ? { model: null } : {}),
+          ...(nodeTypeCarriesParams(item.type) ? { params: {} } : {}),
+          references: [],
+        }
+        canvas.nodes.push(node)
+        canvas.aliases.set(item.alias, node)
+      }
+    },
+  }
+}
+
+function planConnectNodes(
+  run: OperatorRun,
+  args: { items: { source: string; target: string }[] },
+): ToolPlan {
+  const canvas = requireCanvas(run)
+  if (isToolPlan(canvas)) return canvas
+
+  const pairs: { source: string; target: string }[] = []
+  for (const item of args.items) {
+    const source = lookupCanvasNode(canvas, item.source)
+    if ('rejected' in source) return source.rejected
+    const target = lookupCanvasNode(canvas, item.target)
+    if ('rejected' in target) return target.rejected
+    if (source.node.id === target.node.id) {
+      return reject(
+        REJECT.illegalConnection,
+        `${item.source} cannot connect to itself.`,
+      )
+    }
+    const alreadyConnected =
+      canvas.edges.some(
+        (edge) =>
+          edge.source === source.node.id && edge.target === target.node.id,
+      ) ||
+      pairs.some(
+        (pair) =>
+          pair.source === source.node.id && pair.target === target.node.id,
+      )
+    if (alreadyConnected) {
+      return reject(
+        REJECT.repeatedStep,
+        `${source.node.id} → ${target.node.id} is already connected.`,
+      )
+    }
+    /**
+     * ⭐ 合法性**只**问 `canConnectNodeTypes`（`lib/node-connection-rules.ts`，任务书禁改：
+     * 唯一事实源）。⛔ 这里不写任何一条「谁能连谁」—— 那张表放开或收紧，这里自动跟着。
+     */
+    if (
+      !canConnectNodeTypes(
+        source.node.type,
+        target.node.type,
+        target.node.role,
+        source.node.role,
+      )
+    ) {
+      return reject(
+        REJECT.illegalConnection,
+        `The connection rules do not allow ${describeCanvasNodeKind(source.node)} → ${describeCanvasNodeKind(target.node)}. Do not retry this pair.`,
+      )
+    }
+    pairs.push({ source: source.node.id, target: target.node.id })
+  }
+
+  return {
+    kind: 'mutate',
+    payload: { items: pairs },
+    // 边 id 由客户端分配，撤销按 (source, target) 对反查 —— 载荷与逆操作是同一组对。
+    inverse: { items: pairs },
+    observation: `Connected ${pairs.length} edge(s) in one batch: ${pairs
+      .map((pair) => `${pair.source} → ${pair.target}`)
+      .join(', ')}.`,
+    apply: () => {
+      for (const pair of pairs) {
+        canvas.edges.push({
+          id: `${pair.source}->${pair.target}`,
+          source: pair.source,
+          target: pair.target,
+        })
+      }
+    },
+  }
+}
+
+/** 一条按复合键存的决定（附录 D §5）。 */
+function canvasDecision(
+  run: OperatorRun,
+  nodeId: string,
+  field: AssistantOperatorCanvasConfirmField,
+): string | undefined {
+  return run.request.confirmations?.find(
+    (entry) => entry.nodeId === nodeId && entry.field === field,
+  )?.choice
+}
+
+type CanvasFieldWrite =
+  | { kind: 'title'; key: 'title'; next: string; previous: string }
+  | {
+      kind: 'text'
+      key: NodeWorkflowFieldId
+      value: string
+      next: string
+      previous: string
+      appended: boolean
+    }
+  | {
+      kind: 'category'
+      key: 'imageCategory'
+      next: NodeStudioReferenceRole
+      previous: NodeStudioReferenceRole | null
+    }
+  | {
+      kind: 'param'
+      key: string
+      next: CanvasFieldValue
+      previous: CanvasFieldValue | null
+    }
+
+/**
+ * `set_node_fields`：按族类型化字段表改一批节点。
+ *
+ * 一条键可以是：`title` · 这个节点真有的自由文本字段（族表查，`unknownField`）·
+ * `imageCategory`（只在散图上）· 生成档位（只在带档位的节点上）。
+ *
+ * ── 确认闸（§2.4 + 拍板 3）────────────────────────────────────────
+ * 覆写**用户手写**的 title / 自由文本 → `confirm`，键 `${nodeId}:${field}`。一次只问
+ * 一个字段（流就停在那里，客户端带决定重发）；同一批里其它字段跟着下一次重发一起落。
+ * 决定 `keep` = 那个字段跳过（不是整步作废：同批其它节点的改动不该陪葬）；一个字段都
+ * 不剩才按 `userDeclined` 拒。`mode` 只对自由文本有意义；title / 分类 / 档位一律替换。
+ */
+function planSetNodeFields(
+  run: OperatorRun,
+  args: {
+    items: {
+      nodeId: string
+      fields: Record<string, CanvasFieldValue>
+      mode?: string
+    }[]
+  },
+): ToolPlan {
+  const canvas = requireCanvas(run)
+  if (isToolPlan(canvas)) return canvas
+
+  const planned: {
+    node: AssistantOperatorCanvasNode
+    writes: CanvasFieldWrite[]
+    appended: boolean
+    skipped: string[]
+  }[] = []
+
+  for (const item of args.items) {
+    const found = lookupCanvasNode(canvas, item.nodeId)
+    if ('rejected' in found) return found.rejected
+    const { node } = found
+    const textFields = canvasTextFieldsFor(node)
+    const writes: CanvasFieldWrite[] = []
+    const skipped: string[] = []
+    let appended = false
+
+    for (const [key, raw] of Object.entries(item.fields)) {
+      const isTitle = key === ASSISTANT_OPERATOR_CANVAS_CONFIRM_FIELD_IDS.title
+      const isParam = (NODE_ASSISTANT_PARAMS as readonly string[]).includes(key)
+      const isText = (textFields as readonly string[]).includes(key)
+
+      /**
+       * ⚠ 档位**先于**自由文本判：`duration` 同时是视频节点的工作流字段名与档位名
+       * （同一个数据键，两张表各登记一次）。快照把它放在 `params` 里，所以带档位的
+       * 节点上按档位处理（改前值 `null` = 没设过），不带档位的节点上它才是文本。
+       */
+      if (isParam && node.params) {
+        writes.push({
+          kind: 'param',
+          key,
+          next: raw,
+          previous: node.params[key] ?? null,
+        })
+        continue
+      }
+
+      if (isTitle || isText) {
+        if (typeof raw !== 'string') {
+          return reject(
+            REJECT.unknownValue,
+            `"${key}" on ${node.id} takes text, not ${typeof raw}.`,
+          )
+        }
+        const value = raw
+        if (!value.trim())
+          return reject(REJECT.emptyValue, `"${key}" on ${node.id} is empty.`)
+
+        const confirmField = key as AssistantOperatorCanvasConfirmField
+        const confirmKey = buildAssistantOperatorCanvasConfirmKey(
+          node.id,
+          confirmField,
+        )
+        const current = isTitle ? node.title : (node.fields[key] ?? '')
+        const decision = canvasDecision(run, node.id, confirmField)
+        // ⚠ 标题永远有值（快照里 min(1)），但那是卡的默认名不一定是用户写的；
+        //    没法从快照分辨，所以覆写标题也问 —— 宁可多问一次，不悄悄改人家的卡名。
+        if (current.trim() && !run.assistantWrittenFields.has(confirmKey)) {
+          if (!decision) {
+            return {
+              kind: 'confirm',
+              field: confirmField,
+              nodeId: node.id,
+              have: clamp(current, LIMITS.maxConfirmHaveChars),
+              proposed: clamp(value, LIMITS.maxConfirmHaveChars),
+            }
+          }
+          if (decision === ASSISTANT_OPERATOR_CONFIRM_CHOICES.keep) {
+            skipped.push(key)
+            continue
+          }
+        }
+
+        if (isTitle) {
+          writes.push({
+            kind: 'title',
+            key: 'title',
+            next: value,
+            previous: node.title,
+          })
+          continue
+        }
+        const appendRequested =
+          item.mode === ASSISTANT_OPERATOR_WRITE_MODES.append ||
+          decision === ASSISTANT_OPERATOR_CONFIRM_CHOICES.append
+        const doAppend = appendRequested && Boolean(current.trim())
+        appended = appended || doAppend
+        writes.push({
+          kind: 'text',
+          key: key as NodeWorkflowFieldId,
+          value,
+          next: doAppend
+            ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${value}`
+            : value,
+          previous: current,
+          appended: doAppend,
+        })
+        continue
+      }
+
+      if (key === 'imageCategory') {
+        if (node.type !== NODE_TYPE_IDS.image || node.role !== undefined) {
+          return reject(
+            REJECT.unknownField,
+            `Only a loose image node has an imageCategory; ${node.id} is ${describeCanvasNodeKind(node)}.`,
+          )
+        }
+        if (typeof raw !== 'string' || !isNodeStudioReferenceRole(raw)) {
+          return reject(
+            REJECT.unknownValue,
+            `imageCategory "${String(raw)}" is not one of the categories.`,
+          )
+        }
+        if (raw === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID) {
+          return reject(
+            REJECT.unknownValue,
+            'A custom category needs a label the creator types themselves — pick one of the preset categories instead.',
+          )
+        }
+        writes.push({
+          kind: 'category',
+          key: 'imageCategory',
+          next: raw,
+          previous: node.imageCategory ?? null,
+        })
+        continue
+      }
+
+      if (isParam) {
+        return reject(
+          REJECT.unknownField,
+          `Generation settings do not live on ${node.id} (${describeCanvasNodeKind(node)}); only video nodes carry them.`,
+        )
+      }
+
+      const landing = NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE[node.type]
+      return reject(
+        REJECT.unknownField,
+        `${node.id} (${describeCanvasNodeKind(node)}) has no "${clamp(key, LIMITS.maxLabelChars)}" field. Its text fields are: ${textFields.join(', ')}${
+          key === NODE_WORKFLOW_FIELD_IDS.prompt && landing
+            ? ` — its free text goes in "${landing}"`
+            : ''
+        }${
+          key === NODE_WORKFLOW_FIELD_IDS.prompt && landing === null
+            ? ' — this node type has no free-text field at all'
+            : ''
+        }. Other writable keys: title${
+          node.params ? `, ${NODE_ASSISTANT_PARAMS.join(', ')}` : ''
+        }${node.type === NODE_TYPE_IDS.image && node.role === undefined ? ', imageCategory' : ''}.`,
+      )
+    }
+
+    planned.push({ node, writes, appended, skipped })
+  }
+
+  const effective = planned.filter((entry) => entry.writes.length > 0)
+  if (effective.length === 0) {
+    return reject(
+      REJECT.userDeclined,
+      'The creator chose to keep what they wrote on every field in this call.',
+    )
+  }
+
+  const payloadItems = effective.map((entry) => ({
+    nodeId: entry.node.id,
+    fields: Object.fromEntries(
+      entry.writes.map((write) => [
+        write.key,
+        // ⚠ 自由文本在 append 模式下载荷是**模型写的那一段**（客户端自己拼），
+        //    与 `set_prompt` 同一条；其它三类永远是最终值。
+        write.kind === 'text' ? write.value : write.next,
+      ]),
+    ),
+    mode: entry.appended
+      ? ASSISTANT_OPERATOR_WRITE_MODES.append
+      : ASSISTANT_OPERATOR_WRITE_MODES.replace,
+  }))
+  const inverseItems = effective.map((entry) => ({
+    nodeId: entry.node.id,
+    // ⚠ 逆操作永远是改前的完整原值；`null` = 改前没有这个键（撤销 = 删键）。
+    fields: Object.fromEntries(
+      entry.writes.map((write) => [write.key, write.previous]),
+    ),
+  }))
+
+  const skippedNote = planned
+    .filter((entry) => entry.skipped.length > 0)
+    .map(
+      (entry) =>
+        `${entry.node.id}: kept the creator's ${entry.skipped.join(', ')}`,
+    )
+  return {
+    kind: 'mutate',
+    payload: { items: payloadItems },
+    inverse: { items: inverseItems },
+    observation: `Wrote fields on ${effective.length} node(s): ${effective
+      .map(
+        (entry) =>
+          `${entry.node.id} ← ${entry.writes
+            .map(
+              (write) =>
+                `${write.key}${write.kind === 'text' && write.appended ? ' (appended)' : ''}=${
+                  typeof write.next === 'string'
+                    ? `"${clamp(write.next, LIMITS.maxPriorStepSummaryChars)}"`
+                    : String(write.next)
+                }`,
+            )
+            .join(', ')}`,
+      )
+      .join(
+        '; ',
+      )}.${skippedNote.length > 0 ? ` ${skippedNote.join('; ')}.` : ''}`,
+    apply: () => {
+      for (const entry of effective) {
+        for (const write of entry.writes) {
+          switch (write.kind) {
+            case 'title':
+              entry.node.title = write.next
+              run.assistantWrittenFields.add(
+                buildAssistantOperatorCanvasConfirmKey(entry.node.id, 'title'),
+              )
+              break
+            case 'text':
+              entry.node.fields[write.key] = write.next
+              run.assistantWrittenFields.add(
+                buildAssistantOperatorCanvasConfirmKey(
+                  entry.node.id,
+                  write.key,
+                ),
+              )
+              break
+            case 'category':
+              entry.node.imageCategory = write.next
+              delete entry.node.imageCategoryLabel
+              break
+            case 'param':
+              if (entry.node.params) entry.node.params[write.key] = write.next
+              break
+            default:
+              assertNever(write)
+          }
+        }
+      }
+    },
+  }
+}
+
+/**
+ * `set_node_model`：模型与渠道**成对**（K-3 根治）。只认 `canvas.modelOptions` 表内的
+ * (nodeType, modelId, optionId) 组合：modelId 不在表里 → `unknownModel`；modelId 在、
+ * optionId 对不上 → `missingChannel`（模型对了、路没指明）。⛔ 不替它挑「第一条能跑的」。
+ */
+function planSetNodeModel(
+  run: OperatorRun,
+  args: { nodeId: string; modelId: string; optionId: string },
+): ToolPlan {
+  const canvas = requireCanvas(run)
+  if (isToolPlan(canvas)) return canvas
+  const found = lookupCanvasNode(canvas, args.nodeId)
+  if ('rejected' in found) return found.rejected
+  const { node } = found
+  if (node.model === undefined) {
+    return reject(
+      REJECT.noSuchControl,
+      `${node.id} (${describeCanvasNodeKind(node)}) does not pick a model.`,
+    )
+  }
+
+  const candidates = (run.request.snapshot.canvas?.modelOptions ?? []).filter(
+    (option) =>
+      option.nodeType === node.type && option.modelId === args.modelId,
+  )
+  if (candidates.length === 0) {
+    return reject(
+      REJECT.unknownModel,
+      `"${clamp(args.modelId, LIMITS.maxLabelChars)}" is not in the model catalog for ${node.type} nodes. Copy a modelId from the catalog in the state block.`,
+    )
+  }
+  const match = candidates.find((option) => option.optionId === args.optionId)
+  if (!match) {
+    return reject(
+      REJECT.missingChannel,
+      `${args.modelId} exists, but channel "${clamp(args.optionId, LIMITS.maxLabelChars)}" is not one of its channels. Its channels: ${candidates
+        .map((option) => option.optionId)
+        .join(', ')}.`,
+    )
+  }
+
+  const previous = node.model ? { ...node.model } : null
+  return {
+    kind: 'mutate',
+    payload: {
+      nodeId: node.id,
+      modelId: match.modelId,
+      optionId: match.optionId,
+      modelLabel: match.label,
+    },
+    inverse: { nodeId: node.id, model: previous },
+    observation: `${node.id} now uses ${match.label} (${match.modelId} via ${match.optionId}).`,
+    apply: () => {
+      node.model = { modelId: match.modelId, optionId: match.optionId }
+    },
+  }
+}
+
+/** 从画布节点挂参考时的默认分类：角色卡 → identity，场景卡 → background，其它 → identity。 */
+function defaultReferenceRoleFor(
+  source: AssistantOperatorCanvasNode | null,
+): NodeStudioReferenceRole {
+  if (source?.role === NODE_IMAGE_ROLE_IDS.background) return 'background'
+  return 'identity'
+}
+
+/**
+ * `attach_refs`（附录 D §6）：每条 ref `sourceId` / `assetId` 二选一。
+ *   · `sourceId` 必须是工作副本里**带媒体**的节点（本轮 staged 的空卡不行）；
+ *   · `assetId` 必须是本轮 `search_assets` / `inspect_asset_folder` 返回过的 id。
+ * URL 全部由服务端从工作副本 / 准入表里抄，模型碰不到（与 `mount_reference` 同一条论据）。
+ */
+function planAttachRefs(
+  run: OperatorRun,
+  args: {
+    nodeId: string
+    refs: { sourceId?: string; assetId?: string; role?: string }[]
+  },
+): ToolPlan {
+  const canvas = requireCanvas(run)
+  if (isToolPlan(canvas)) return canvas
+  const found = lookupCanvasNode(canvas, args.nodeId)
+  if ('rejected' in found) return found.rejected
+  const { node } = found
+  if (!nodeTypeHasReferenceRack(node.type)) {
+    return reject(
+      REJECT.noSuchControl,
+      `${node.id} (${describeCanvasNodeKind(node)}) has no reference rack — only image and video nodes take references.`,
+    )
+  }
+  if (
+    node.references.length + args.refs.length >
+    LIMITS.maxCanvasNodeReferences
+  ) {
+    return reject(
+      REJECT.referencesFull,
+      `${node.id} can hold at most ${LIMITS.maxCanvasNodeReferences} references (${node.references.length} already attached).`,
+    )
+  }
+
+  const refs: {
+    id: string
+    url: string
+    role: NodeStudioReferenceRole
+    source: string
+    sourceId?: string
+    name?: string
+  }[] = []
+
+  for (const [index, ref] of args.refs.entries()) {
+    if ((ref.sourceId === undefined) === (ref.assetId === undefined)) {
+      return reject(
+        REJECT.malformedArgs,
+        'Each ref carries exactly one of sourceId (a canvas node) or assetId (from search_assets / inspect_asset_folder in this run).',
+      )
+    }
+    if (ref.role !== undefined) {
+      if (!isNodeStudioReferenceRole(ref.role)) {
+        return reject(
+          REJECT.unknownValue,
+          `role "${clamp(ref.role, LIMITS.maxLabelChars)}" is not a reference category.`,
+        )
+      }
+      if (ref.role === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID) {
+        return reject(
+          REJECT.unknownValue,
+          'A custom category needs a label the creator types themselves — pick a preset category.',
+        )
+      }
+    }
+    const id = `ref-${run.stepSeq}-${index + 1}`
+
+    if (ref.sourceId !== undefined) {
+      const source = lookupCanvasNode(canvas, ref.sourceId)
+      if ('rejected' in source) return source.rejected
+      if (source.node.id === node.id) {
+        return reject(
+          REJECT.unknownAsset,
+          `${node.id} cannot reference itself.`,
+        )
+      }
+      if (!source.node.mediaUrl) {
+        return reject(
+          REJECT.unknownAsset,
+          `${source.node.id} has no media yet, so there is nothing to attach from it. Only nodes that already produced or hold a picture can be used as references.`,
+        )
+      }
+      refs.push({
+        id,
+        url: source.node.mediaUrl,
+        role:
+          (ref.role as NodeStudioReferenceRole | undefined) ??
+          defaultReferenceRoleFor(source.node),
+        source: NODE_STUDIO_REFERENCE_SOURCE_IDS.canvas,
+        sourceId: source.node.id,
+        name: clamp(source.node.title, LIMITS.maxLabelChars),
+      })
+      continue
+    }
+
+    const assetId = ref.assetId as string
+    const asset =
+      run.searchIndex.get(assetId) ?? run.inspectedAssetIndex.get(assetId)
+    if (!asset) {
+      return reject(
+        REJECT.unknownAsset,
+        'Only asset ids returned by search_assets or inspect_asset_folder in this run can be attached. Search or inspect first and use one of those exact ids.',
+      )
+    }
+    if ('kind' in asset && asset.kind !== 'image') {
+      return reject(
+        REJECT.unknownAsset,
+        `${assetId} is ${asset.kind}, not a picture — the reference rack only takes images.`,
+      )
+    }
+    refs.push({
+      id,
+      url: asset.url,
+      role:
+        (ref.role as NodeStudioReferenceRole | undefined) ??
+        defaultReferenceRoleFor(null),
+      source: NODE_STUDIO_REFERENCE_SOURCE_IDS.asset,
+      sourceId: assetId,
+    })
+  }
+
+  return {
+    kind: 'mutate',
+    payload: { nodeId: node.id, refs },
+    inverse: { nodeId: node.id, refIds: refs.map((ref) => ref.id) },
+    observation: `Attached ${refs.length} reference(s) to ${node.id} (${
+      node.references.length + refs.length
+    }/${LIMITS.maxCanvasNodeReferences}): ${refs
+      .map(
+        (ref) =>
+          `${ref.id} · ${ref.role}${ref.sourceId ? ` from ${ref.sourceId}` : ''}`,
+      )
+      .join(', ')}.`,
+    apply: () => {
+      for (const ref of refs) {
+        node.references.push({
+          id: ref.id,
+          role: ref.role,
+          ...(ref.sourceId ? { sourceId: ref.sourceId } : {}),
+          url: ref.url,
+        })
+      }
+    },
+  }
+}
+
+/**
+ * `set_review_state`（附录 D §3 / §5）：节点级（主媒体）。`approved` 在这里**硬禁**
+ * （`approvedForbidden`，与 `canAssistantSetReviewState` 同一条判据：放行是人看过之后
+ * 的决定）；其余两态每次都走 `confirm_request`（`field: 'reviewState'`），choices 只有
+ * overwrite / keep —— 客户端渲染成「确认 / 跳过」。
+ */
+function planSetReviewState(
+  run: OperatorRun,
+  args: { nodeId: string; state: string; reason?: string },
+): ToolPlan {
+  const canvas = requireCanvas(run)
+  if (isToolPlan(canvas)) return canvas
+  const found = lookupCanvasNode(canvas, args.nodeId)
+  if ('rejected' in found) return found.rejected
+  const { node } = found
+
+  if (!(NODE_REVIEW_STATES as readonly string[]).includes(args.state)) {
+    return reject(
+      REJECT.unknownValue,
+      `"${clamp(args.state, LIMITS.maxLabelChars)}" is not a review state. Use ${NODE_REVIEW_STATES.filter(
+        (state) => state !== NODE_REVIEW_STATE_IDS.approved,
+      ).join(' or ')}.`,
+    )
+  }
+  const state = args.state as NodeReviewState
+  if (state === NODE_REVIEW_STATE_IDS.approved) {
+    return reject(
+      REJECT.approvedForbidden,
+      "You can never mark anything approved. Approving is the creator's decision after they have looked; you may only send something back (rejected) or return it to the queue (awaiting_review).",
+    )
+  }
+  if (!node.mediaUrl) {
+    return reject(
+      REJECT.noSuchControl,
+      `${node.id} has no media to review yet.`,
+    )
+  }
+
+  const field = ASSISTANT_OPERATOR_CANVAS_CONFIRM_FIELD_IDS.reviewState
+  const confirmKey = buildAssistantOperatorCanvasConfirmKey(node.id, field)
+  const decision = canvasDecision(run, node.id, field)
+  if (!run.assistantWrittenFields.has(confirmKey)) {
+    if (!decision) {
+      return {
+        kind: 'confirm',
+        field,
+        nodeId: node.id,
+        have: node.reviewState ?? '',
+        proposed: state,
+      }
+    }
+    if (decision === ASSISTANT_OPERATOR_CONFIRM_CHOICES.keep) {
+      return reject(
+        REJECT.userDeclined,
+        'The creator chose to leave the review state alone.',
+      )
+    }
+  }
+
+  const previous = node.reviewState ?? null
+  const reason = args.reason?.trim()
+  return {
+    kind: 'mutate',
+    payload: { nodeId: node.id, state, ...(reason ? { reason } : {}) },
+    inverse: { nodeId: node.id, state: previous },
+    observation: `${node.id} is now marked ${state}${reason ? ` (${clamp(reason, LIMITS.maxReasonChars)})` : ''}.`,
+    apply: () => {
+      node.reviewState = state
+      run.assistantWrittenFields.add(confirmKey)
+    },
+  }
+}
+
+/**
+ * ⛔ 与 `prime_generate` 同一条宪法：这一步只让**那个节点**的生成键亮起来，服务端
+ * 一次外部调用都不发、一分钱都不算（owner 两次拍：画布不做积分 / 价签预览）。
+ */
+function planPrimeNodeGenerate(
+  run: OperatorRun,
+  args: { nodeId: string },
+): ToolPlan {
+  const canvas = requireCanvas(run)
+  if (isToolPlan(canvas)) return canvas
+  const found = lookupCanvasNode(canvas, args.nodeId)
+  if ('rejected' in found) return found.rejected
+  const { node } = found
+  if (node.model === undefined) {
+    return reject(
+      REJECT.noSuchControl,
+      `${node.id} (${describeCanvasNodeKind(node)}) has no generate button.`,
+    )
+  }
+  if (node.model === null) {
+    return reject(
+      REJECT.noModelSelected,
+      `${node.id} has no model picked yet — call set_node_model first.`,
+    )
+  }
+
+  return {
+    kind: 'mutate',
+    payload: { nodeId: node.id, primed: true },
+    inverse: { nodeId: node.id, primed: false },
+    observation: `The generate button on ${node.id} is armed. The creator presses it themselves — you cannot, and it costs nothing until they do.`,
+    apply: () => {},
+  }
+}
+
+/** 定义在 C0、实现在 C3：现在拒得明明白白，⛔ 不假装写进去了。 */
+function planUpdateScriptDoc(): ToolPlan {
+  return reject(
+    REJECT.noSuchControl,
+    'update_script_doc is not wired up yet. Work on the nodes directly with stage_nodes / set_node_fields instead.',
+  )
 }
 
 async function planTool(
@@ -1974,6 +3285,45 @@ async function planTool(
         run,
         parsed.data as { loraId: string; weight: number },
       )
+    // ── 画布域（C0-b）────────────────────────────────────────────
+    case TOOL.readGraph:
+      return planReadGraph(run)
+    case TOOL.readNode:
+      return planReadNode(run, parsed.data as { nodeId: string })
+    case TOOL.stageNodes:
+      return planStageNodes(
+        run,
+        parsed.data as Parameters<typeof planStageNodes>[1],
+      )
+    case TOOL.connectNodes:
+      return planConnectNodes(
+        run,
+        parsed.data as Parameters<typeof planConnectNodes>[1],
+      )
+    case TOOL.setNodeFields:
+      return planSetNodeFields(
+        run,
+        parsed.data as Parameters<typeof planSetNodeFields>[1],
+      )
+    case TOOL.setNodeModel:
+      return planSetNodeModel(
+        run,
+        parsed.data as { nodeId: string; modelId: string; optionId: string },
+      )
+    case TOOL.attachRefs:
+      return planAttachRefs(
+        run,
+        parsed.data as Parameters<typeof planAttachRefs>[1],
+      )
+    case TOOL.setReviewState:
+      return planSetReviewState(
+        run,
+        parsed.data as { nodeId: string; state: string; reason?: string },
+      )
+    case TOOL.primeNodeGenerate:
+      return planPrimeNodeGenerate(run, parsed.data as { nodeId: string })
+    case TOOL.updateScriptDoc:
+      return planUpdateScriptDoc()
     default:
       return assertNever(tool)
   }
@@ -2013,7 +3363,79 @@ const OPERATOR_STUCK_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
       '我在同一步上打转了，先停下来，不再耗你的时间。说一句下一步想怎么办，我换个路子。',
   }
 
+/**
+ * 四个域共用的后半段：说话方式 + 工具表 + 输出契约。
+ * ⚠ 逐字保持 —— 工作台三域的提示词不因画布接入而变一个字（任务书 §一.2）。
+ */
+function buildOperatorPromptTail(tools: string): string {
+  return `HOW YOU TALK — the creator hired an operator, not a rulebook:
+- NEVER recite your own constraints to them. Not what you cannot do, not why, not "as I mentioned". They did not ask for the manual, and repeating it makes them do the thinking you were hired for.
+- If a tool in your list can do a thing, DO IT. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The one exception is the generate button itself, which is theirs by design.
+- When a call is refused, change the approach silently. Say what you are doing next, not which rule stopped you. Never explain the same rule twice.
+- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.
+
+TOOLS:
+${tools}
+
+OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outside it, no code fence:
+{"plan":["short step","short step"],"message":"what you are telling the creator","tool":{"name":"set_prompt","title":"one short line for the log","reason":"why, in one line","args":{"value":"..."}},"finished":false}
+
+- "plan" only on your FIRST turn, at most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
+- "message" is optional; use it to say something worth saying, not to narrate every step.
+- Omit "tool" (or set "finished":true) when the work is done. Do that as soon as the form is ready — an extra step costs the creator time.
+- One tool per turn. You get at most ${LIMITS.maxSteps} steps for the whole request.
+- After each tool you will be told what actually happened. If a call was refused, read the reason and adapt — do not repeat the same call.`
+}
+
+/**
+ * 画布域的系统提示（C0-b）。吃 `ASSISTANT_DOMAIN_BRIEFS.canvas`（persona + 收敛槽位，
+ * 与工作台三域同一份三档收敛协议），硬规矩按画布的形状另写：
+ *   · **铺叙事节点前必须先 `read_node` 同名角色卡**，外观以卡为准，禁止自行描述
+ *     （K-4 的另一半：URL 与外观只经 `read_node` 取，所以它必须真的去读）；
+ *   · **数组载荷 = 一批 = 一步**（撤销粒度，拍板 3）。
+ * ⛔ 这里**没有任何 URL、外观字段或节点正文**：状态块只有 `read_graph` 级概览。
+ */
+function buildCanvasOperatorSystemPrompt(
+  request: AssistantOperatorRequest,
+): string {
+  const brief = ASSISTANT_DOMAIN_BRIEFS[request.domain]
+  const language =
+    RESPONSE_LANGUAGE_LABELS[request.responseLanguage ?? 'english']
+  const tools = ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[request.domain]
+    .map((tool) => `  - ${tool}: ${ASSISTANT_OPERATOR_TOOL_HINTS[tool]}`)
+    .join('\n')
+  const slots = brief.slots.map((slot) => `  - ${slot}`).join('\n')
+
+  return `You are PixelVault's canvas operator. ${brief.persona}
+
+WHAT THIS DOMAIN TURNS ON — check these are settled before you build or arm anything:
+${slots}
+Anything the creator already said — or that is visible on the canvas — counts as known. Never re-ask it. When the request is genuinely ambiguous, would overwrite something they wrote, or would set up something that costs credits, ask ONE short question in "message" and finish; otherwise act.
+
+You do not tell the creator which buttons to press — you press them. Every turn you either call ONE tool or finish.
+
+HARD RULES — these are structural, not stylistic:
+- You CANNOT generate anything. No tool of yours spends the creator's credits. The most you can do is prime_node_generate, which arms one node's button; the creator presses it. Never claim you generated, rendered, or started anything.
+- The state block is a compact overview only: node ids, types, titles, statuses, edges, selection, and the model catalog. It never contains a node's text, appearance, or picture URLs — read_node is the only way to see those. Never guess what a node contains; read it.
+- BEFORE you write any narrative node (a shot, a shot text, a clip) that features a character, you MUST read_node the character card with that name first. The character's appearance comes from that card — its visual seed and its reference pictures — and you use it as written. Never describe a character from your own imagination, and never paraphrase the card into something else.
+- An array payload is ONE batch and ONE step: stage every node of a chain in a single stage_nodes call, connect every edge in a single connect_nodes call, write every field of a batch in a single set_node_fields call. The creator undoes a batch as a whole; scattering it across steps wastes steps and undo.
+- Only create node types the add-menu offers (stage_nodes refuses others). Refer to nodes you staged this turn by their new:<n> alias.
+- connect_nodes is checked against the canvas connection rules; a refused pair stays refused — do not retry it.
+- set_node_fields writes only fields that node type actually has (read_node lists them). Some types keep their free text in a field that is not called "prompt"; the refusal tells you which.
+- set_node_model needs BOTH modelId and optionId copied verbatim from the model catalog in the state block. Never invent either.
+- attach_refs takes another canvas node id (its picture is used) or an assetId from search_assets / inspect_asset_folder in THIS run. Never a URL, never an id you made up.
+- Never invent a folder id. Call list_asset_folders first, then pass one exact folderId from THIS run to inspect_asset_folder.
+- You can never mark anything approved. set_review_state may only send something back or return it to the queue, and the app asks the creator before it lands.
+- If the creator hand-wrote a title or text you want to replace, writing over it needs their say-so — call the tool anyway and the app will ask them; do not ask in prose.
+- Reply in ${language}.
+
+${buildOperatorPromptTail(tools)}`
+}
+
 function buildOperatorSystemPrompt(request: AssistantOperatorRequest): string {
+  if (request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas) {
+    return buildCanvasOperatorSystemPrompt(request)
+  }
   const brief = ASSISTANT_DOMAIN_BRIEFS[request.domain]
   const language =
     RESPONSE_LANGUAGE_LABELS[request.responseLanguage ?? 'english']
@@ -2090,30 +3512,19 @@ ${domainRules}
 - If the creator already hand-wrote a prompt, writing over it needs their say-so — call the tool anyway and the app will ask them; do not ask in prose.
 - Reply in ${language}.
 
-HOW YOU TALK — the creator hired an operator, not a rulebook:
-- NEVER recite your own constraints to them. Not what you cannot do, not why, not "as I mentioned". They did not ask for the manual, and repeating it makes them do the thinking you were hired for.
-- If a tool in your list can do a thing, DO IT. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The one exception is the generate button itself, which is theirs by design.
-- When a call is refused, change the approach silently. Say what you are doing next, not which rule stopped you. Never explain the same rule twice.
-- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.
-
-TOOLS:
-${tools}
-
-OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outside it, no code fence:
-{"plan":["short step","short step"],"message":"what you are telling the creator","tool":{"name":"set_prompt","title":"one short line for the log","reason":"why, in one line","args":{"value":"..."}},"finished":false}
-
-- "plan" only on your FIRST turn, at most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
-- "message" is optional; use it to say something worth saying, not to narrate every step.
-- Omit "tool" (or set "finished":true) when the work is done. Do that as soon as the form is ready — an extra step costs the creator time.
-- One tool per turn. You get at most ${LIMITS.maxSteps} steps for the whole request.
-- After each tool you will be told what actually happened. If a call was refused, read the reason and adapt — do not repeat the same call.`
+${buildOperatorPromptTail(tools)}`
 }
 
 function buildOperatorUserPrompt(run: OperatorRun, maxLength?: number): string {
   const sections: string[] = []
 
-  sections.push(`CURRENT WORKBENCH STATE (the creator is looking at this right now):
-${renderState(run)}`)
+  sections.push(
+    run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas
+      ? `CURRENT CANVAS (compact overview — call read_node for any node's content):
+${renderCanvasState(run)}`
+      : `CURRENT WORKBENCH STATE (the creator is looking at this right now):
+${renderState(run)}`,
+  )
 
   if (run.request.priorSteps?.length) {
     sections.push(`WHAT YOU ALREADY DID EARLIER IN THIS THREAD:
@@ -2125,7 +3536,10 @@ ${run.request.priorSteps
   if (run.request.confirmations?.length) {
     sections.push(`THE CREATOR ANSWERED YOUR OVERWRITE QUESTION:
 ${run.request.confirmations
-  .map((entry) => `- ${entry.field}: ${entry.choice}`)
+  .map(
+    (entry) =>
+      `- ${entry.nodeId ? `${entry.nodeId} · ` : ''}${entry.field}: ${entry.choice}`,
+  )
   .join('\n')}`)
   }
 
@@ -2250,10 +3664,9 @@ export interface AssistantOperatorRunOptions {
   /**
    * 客户端断开时触发（拍板 13 的插话 / ⏹）。
    *
-   * ⚠ 它只能拦住**还没开始**的下一步：`llmTextCompletion` 这条链不吃 signal，
-   * 在飞的那次补全会跑完然后被丢弃（它是 await 出来的，不是悬空 promise）。
-   * 要真正掐断在飞请求得让 `LlmTextInput` 收 signal —— 那是另一片的事，别在这里
-   * 顺手给这条链造第二套超时机制。
+   * 两处都吃它：循环顶部拦住**还没开始**的下一步；每一次补全（含 `critique_result`
+   * 借路那一跳）把它透传到 `LlmTextInput.signal`，**在飞的 provider 请求跟着停**
+   * （C0-c）。取消时上游抛 `signal.reason`，这里的 `finally` 只记一行日志。
    */
   signal?: AbortSignal
 }
@@ -2273,16 +3686,19 @@ export async function* runAssistantOperator(
   const run: OperatorRun = {
     request,
     state: toWorkingState(request.snapshot),
+    canvas: toCanvasWorkingState(request.snapshot),
     route,
     modelId,
     searchIndex: new Map(),
     folderIndex: new Map(),
+    inspectedAssetIndex: new Map(),
     loraIndex: new Map(),
     mountedLoraCandidateIds: new Set(),
     observations: [],
     assistantWrittenFields: new Set(),
     executedStepKeys: new Set(),
     stepSeq: 0,
+    signal: options.signal,
   }
 
   const systemPrompt = buildOperatorSystemPrompt(request)
@@ -2311,6 +3727,7 @@ export async function* runAssistantOperator(
           OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
         modelId,
         responseFormat: 'json_object',
+        ...(options.signal ? { signal: options.signal } : {}),
       })
 
       // ⚠ abort 可能发生在这次 await 期间：结果已经拿到但客户端早就走了。
@@ -2428,6 +3845,7 @@ export async function* runAssistantOperator(
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
           field: plan.field,
+          ...(plan.nodeId ? { nodeId: plan.nodeId } : {}),
           have: plan.have,
           proposed: plan.proposed,
         }

@@ -410,6 +410,21 @@ export const NODE_STUDIO_INGEST_REJECT_REASON_IDS = {
 export type NodeStudioIngestRejectReason =
   (typeof NODE_STUDIO_INGEST_REJECT_REASON_IDS)[keyof typeof NODE_STUDIO_INGEST_REJECT_REASON_IDS]
 
+/**
+ * 手势 A（画布助手 · 2026-09-01 owner 拍板「点输入框，再点节点，节点进输入框」）：
+ * 一次拾取为什么没进输入框。与吞噬的 reject 表分开 —— 拾取不是连线，判据是
+ * 「输入框还装不装得下」而不是「这两个节点能不能连」。
+ */
+export const NODE_STUDIO_ASSISTANT_PICK_REJECT_REASON_IDS = {
+  unknownNode: 'unknownNode',
+  alreadyPicked: 'alreadyPicked',
+  referenceLimit: 'referenceLimit',
+  nodeLimit: 'nodeLimit',
+} as const
+
+export type NodeStudioAssistantPickRejectReason =
+  (typeof NODE_STUDIO_ASSISTANT_PICK_REJECT_REASON_IDS)[keyof typeof NODE_STUDIO_ASSISTANT_PICK_REJECT_REASON_IDS]
+
 /** B2 快投模式（§6.3 增强三件套②）。 */
 export const NODE_STUDIO_INGEST_QUICK_THROW = {
   /** 触屏长按等效阈值 — 桌面用 hover 浮出投放钮，不用此值。 */

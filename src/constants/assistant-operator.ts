@@ -6,7 +6,8 @@
  * 剥出来渲染成一张提案卡」；这里是**多步工具环**：服务端一步一步地跑，每跑一步
  * 就吐一个 `step` 事件，客户端边看边应用。区别的根源是 owner 拍板 2 —— 免费动作
  * 直做，不再攒成一张要点的卡。
- * ⛔ 别去改 `node-assistant-ops.ts`：画布对齐是 P4 的事，那之前两套并存。
+ * 画布正在并入这条工具环（C0/C1，`docs/plans/canvas-assistant-operator-c0c1-2026-09-01.md`）；
+ * marker 链在 C2 平价后整体退役，⛔ 那之前别去改 `node-assistant-ops.ts`。
  *
  * ── 这个文件为什么不放 Zod ─────────────────────────────────────────
  * 全仓 `src/constants/` 零个文件 import zod（2026-08-30 清点），schema 一律住
@@ -25,6 +26,7 @@ import {
   type AssistantProtocolDomain,
 } from '@/constants/assistant-protocol'
 import { ASSISTANT_STREAM_EVENTS } from '@/constants/assistant-stream'
+import { NODE_WORKFLOW_FIELDS } from '@/constants/node-types'
 
 /**
  * 操作员流的事件名。
@@ -263,7 +265,56 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * 合法、助手直接设 1.5 被拒」。
    */
   setLoraWeight: 'set_lora_weight',
+  // ── 画布域（C0，任务书 §2.3）──────────────────────────────────────
+  /**
+   * 读整张图的**紧凑概览**：节点 id / type / title / status + 边 + 选中 + 项目名
+   * + ScriptDoc 摘要。⚠ 首轮系统提示里放的就是这一级，⛔ 不含 URL、不含外观字段
+   * （K-4 根治：全量事实只经 `read_node` 按需取）。
+   */
+  readGraph: 'read_graph',
+  /** 读单个节点的**全量事实**：自由文本字段、外观字段、参考图（含 URL）、模型与渠道、档位。 */
+  readNode: 'read_node',
+  /**
+   * 批量建节点 —— **一步一批**，撤销也是撤这一批。只能建 `CANVAS_ADD_CATALOG`
+   * 里有的类型（规划器按 `unknownNodeType` 拒）。每项可带 `alias`
+   * （`ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX` + 序号），同一 run 后续步骤可引用。
+   */
+  stageNodes: 'stage_nodes',
+  /** 批量连边。合法性**只**查 `node-connection-rules.ts`（`illegalConnection`），⛔ 不复制规则表。 */
+  connectNodes: 'connect_nodes',
+  /**
+   * 按族类型化字段表改节点：title / 自由文本（落点按
+   * `NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE`）/ imageCategory / 档位。
+   * ⚠ 覆写用户手写自由文本走确认通道，键是 `${nodeId}:${field}`（§2.4）。
+   */
+  setNodeFields: 'set_node_fields',
+  /**
+   * 给节点换模型 —— **modelId 与 optionId（渠道）一起下**（K-3 根治）。
+   * ⛔ 缺渠道整步拒：同一个型号可能有工作区内置与用户 key 两条路由。
+   */
+  setNodeModel: 'set_node_model',
+  /** 把参考（画布卡图集 / 素材库 id）挂到媒体节点的引用架。⛔ URL 由服务端填，模型不写。 */
+  attachRefs: 'attach_refs',
+  /** 改审核态。沿用逐条确认；`approved` **硬禁**（`approvedForbidden`）—— 助手不能替人放行。 */
+  setReviewState: 'set_review_state',
+  /**
+   * 把**某个节点**的生成键置成 primed。与 `prime_generate` 同一条宪法：
+   * 服务端什么都不做，⛔ 不算价（owner 两次拍：画布不做积分 / 价签预览），点的人永远是用户。
+   */
+  primeNodeGenerate: 'prime_node_generate',
+  /**
+   * 写 ScriptDoc（定义在 C0，实现在 C3）。投影仍走 `previewScriptDocProjection`
+   * + 既有确认门，这条工具只改文档本身。
+   */
+  updateScriptDoc: 'update_script_doc',
 } as const
+
+/**
+ * 画布批内新建节点的**临时 id 前缀**：`stage_nodes` 给每项一个 `new:<n>` 别名，
+ * 同一 run 后续 `connect_nodes` / `set_node_fields` 可引用；客户端 apply 时映射成
+ * 真实 id（`CanvasWorkingState.aliases`）。⛔ 别名只活在一轮之内。
+ */
+export const ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX = 'new:'
 
 export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.readState,
@@ -287,6 +338,16 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+  ASSISTANT_OPERATOR_TOOL_IDS.readGraph,
+  ASSISTANT_OPERATOR_TOOL_IDS.readNode,
+  ASSISTANT_OPERATOR_TOOL_IDS.stageNodes,
+  ASSISTANT_OPERATOR_TOOL_IDS.connectNodes,
+  ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields,
+  ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel,
+  ASSISTANT_OPERATOR_TOOL_IDS.attachRefs,
+  ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+  ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+  ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
 ] as const
 
 export type AssistantOperatorTool = (typeof ASSISTANT_OPERATOR_TOOLS)[number]
@@ -316,6 +377,9 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
    * 撤销也撤在那一条上。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+  /** 画布两条读：概览与单节点全量。都只从请求快照的工作副本取，不查库。 */
+  ASSISTANT_OPERATOR_TOOL_IDS.readGraph,
+  ASSISTANT_OPERATOR_TOOL_IDS.readNode,
 ] as const
 
 /**
@@ -353,6 +417,19 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+  /**
+   * 画布域那八条改动型（C0）。撤法各不相同，全部写在 `AppliedStepSchema` 上：
+   * `stage_nodes` / `connect_nodes` 撤的是**这一批**（拍板 3：批撤只在最近一步可用），
+   * `set_*` 撤到改前值，`attach_refs` 摘掉这次挂的，`prime_node_generate` 回灰。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.stageNodes,
+  ASSISTANT_OPERATOR_TOOL_IDS.connectNodes,
+  ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields,
+  ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel,
+  ASSISTANT_OPERATOR_TOOL_IDS.attachRefs,
+  ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+  ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+  ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
 ] as const
 
 export function isMutatingAssistantOperatorTool(
@@ -444,7 +521,7 @@ export const ASSISTANT_OPERATOR_STOP_REASONS = {
 export type AssistantOperatorStopReason =
   (typeof ASSISTANT_OPERATOR_STOP_REASONS)[keyof typeof ASSISTANT_OPERATOR_STOP_REASONS]
 
-/** 会触发就地确认的字段 —— 只有这两个是「用户手写的自由文本」。 */
+/** 会触发就地确认的字段 —— 工作台上只有这两个是「用户手写的自由文本」。 */
 export const ASSISTANT_OPERATOR_CONFIRM_FIELDS = {
   prompt: 'prompt',
   negative: 'negative',
@@ -452,6 +529,44 @@ export const ASSISTANT_OPERATOR_CONFIRM_FIELDS = {
 
 export type AssistantOperatorConfirmField =
   (typeof ASSISTANT_OPERATOR_CONFIRM_FIELDS)[keyof typeof ASSISTANT_OPERATOR_CONFIRM_FIELDS]
+
+/**
+ * 画布域会触发就地确认的**节点字段**（任务书 §2.4）：节点 title 与 prompt 族自由
+ * 文本字段（`NODE_WORKFLOW_FIELDS`）。确认键是 `${nodeId}:${field}` 复合键，
+ * 由 `buildAssistantOperatorCanvasConfirmKey` 拼；`confirm_request` 载荷带
+ * `nodeId`，decisions 也按复合键存。结构 op 一律不确认（08-08 拍板）。
+ */
+export const ASSISTANT_OPERATOR_CANVAS_CONFIRM_FIELD_IDS = {
+  title: 'title',
+  /**
+   * 审核态也走这条确认通道（附录 D §5）：`set_review_state` 每次都问，choices 只有
+   * overwrite / keep（客户端渲染成「确认 / 跳过」）。`approved` 到不了这里 ——
+   * 规划器先按 `approvedForbidden` 拒。
+   */
+  reviewState: 'reviewState',
+} as const
+
+export const ASSISTANT_OPERATOR_CANVAS_CONFIRM_FIELDS = [
+  ASSISTANT_OPERATOR_CANVAS_CONFIRM_FIELD_IDS.title,
+  ASSISTANT_OPERATOR_CANVAS_CONFIRM_FIELD_IDS.reviewState,
+  ...NODE_WORKFLOW_FIELDS,
+] as const
+
+export type AssistantOperatorCanvasConfirmField =
+  (typeof ASSISTANT_OPERATOR_CANVAS_CONFIRM_FIELDS)[number]
+
+/** 复合确认键的分隔符。节点 id 里不会出现冒号（nanoid / cuid），所以拆得回去。 */
+export const ASSISTANT_OPERATOR_CANVAS_CONFIRM_KEY_SEPARATOR = ':'
+
+export type AssistantOperatorCanvasConfirmKey =
+  `${string}${typeof ASSISTANT_OPERATOR_CANVAS_CONFIRM_KEY_SEPARATOR}${AssistantOperatorCanvasConfirmField}`
+
+export function buildAssistantOperatorCanvasConfirmKey(
+  nodeId: string,
+  field: AssistantOperatorCanvasConfirmField,
+): AssistantOperatorCanvasConfirmKey {
+  return `${nodeId}${ASSISTANT_OPERATOR_CANVAS_CONFIRM_KEY_SEPARATOR}${field}`
+}
 
 /** 就地确认小条上的三个选择（拍板 3，逐字对应切片 v4 的「追加在后 / 覆盖 / 保留」）。 */
 export const ASSISTANT_OPERATOR_CONFIRM_CHOICES = {
@@ -480,14 +595,17 @@ export type AssistantOperatorWriteMode =
 export const ASSISTANT_OPERATOR_APPEND_SEPARATOR = ', '
 
 /**
- * P1 的域 —— 工作台三域，**取值来自 `ASSISTANT_PROTOCOL_DOMAINS`**（域简报已分域，
- * 复用不重造）。`canvas` 有意不在这里：画布对齐是 P4，那之前它走自己的 ops。
+ * 操作员的域 —— 工作台三域 + 画布，**取值来自 `ASSISTANT_PROTOCOL_DOMAINS`**（域简报
+ * 已分域，复用不重造）。`canvas` 自 C0 起接入（任务书
+ * `docs/plans/canvas-assistant-operator-c0c1-2026-09-01.md` §2.1），
+ * `ASSISTANT_DOMAIN_BRIEFS.canvas` 从此由 `buildOperatorSystemPrompt('canvas')` 消费。
  * `satisfies` 保证有人改域词表时这里编译期就红。
  */
 export const ASSISTANT_OPERATOR_DOMAINS = [
   ASSISTANT_PROTOCOL_DOMAIN_IDS.image,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
 ] as const satisfies readonly AssistantProtocolDomain[]
 
 export type AssistantOperatorDomain =
@@ -572,6 +690,31 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
     ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+  ],
+  /**
+   * 节点画布（C0，任务书 §2.3）。
+   *
+   * ⛔ **不铺 `COMMON_DOMAIN_TOOLS`**：`set_prompt` / `set_model` / `prime_generate` /
+   * `mount_reference` 动的都是「这台工作台的那一格」，而画布上每一格都是「某个
+   * 节点的」—— 形状不同即非通用件（`COMMON_DOMAIN_TOOLS` 头注的判据）。画布各自
+   * 一条：`set_node_fields` / `set_node_model` / `prime_node_generate` / `attach_refs`。
+   * 从通用件里只借三条**读库**的：搜素材、找文件夹、看文件夹（C3 接内容）。
+   * ⛔ 表里**没有任何一条叫 generate 的**，`prime_node_generate` 是唯一沾字的，
+   * 载荷只有 `{ nodeId, primed: true }`（money-gate 测试 ① 锁）。
+   */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: [
+    ASSISTANT_OPERATOR_TOOL_IDS.readGraph,
+    ASSISTANT_OPERATOR_TOOL_IDS.readNode,
+    ASSISTANT_OPERATOR_TOOL_IDS.stageNodes,
+    ASSISTANT_OPERATOR_TOOL_IDS.connectNodes,
+    ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields,
+    ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel,
+    ASSISTANT_OPERATOR_TOOL_IDS.attachRefs,
+    ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+    ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+    ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
+    ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
   ],
 }
 
@@ -708,6 +851,45 @@ export const ASSISTANT_OPERATOR_LIMITS = {
   maxLoraResults: 6,
   /** LoRA 检索词长度 —— 与库内检索同量级（上游吃的是短查询）。 */
   maxLoraQueryChars: 120,
+  /**
+   * 就地确认回执的条数上限。
+   *
+   * ⚠ 此前是 `Object.keys(ASSISTANT_OPERATOR_CONFIRM_FIELDS).length`（= 2），
+   * 那在工作台上成立（一个域只有两个自由文本框）；画布按 `${nodeId}:${field}`
+   * 复合键存决定（§2.4），一轮里可能问到好几个节点，2 会把第三条决定整包拒掉。
+   * 24 与 `maxPriorSteps` 同量级 —— 一轮最多 8 步，问不到这个数。
+   */
+  maxConfirmDecisions: 24,
+  // ── 画布快照（C0，§2.2）────────────────────────────────────────────
+  /** 快照里最多带多少个节点 / 边 —— 与 `NODE_STUDIO_ASSISTANT_LIMITS.maxNodes`（32）对齐上探。 */
+  maxCanvasNodes: 64,
+  maxCanvasEdges: 128,
+  /** 一个节点的自由文本字段数上限（`NODE_WORKFLOW_FIELDS` 是 18 个）。 */
+  maxCanvasNodeFields: 24,
+  /** 一个节点上的档位数上限（今天视频节点是 5 个）。 */
+  maxCanvasNodeParams: 12,
+  /** 一个节点引用架上最多带几条（纯载荷护栏，真上限由模型契约给）。 */
+  maxCanvasNodeReferences: 16,
+  /** 参考图 / 媒体地址长度 —— 与 `NodeWorkflowReferenceAssetSchema.url` 的 4000 对齐。 */
+  maxCanvasUrlChars: 4000,
+  /** ScriptDoc 摘要长度（C3 填内容，C0 留位）。 */
+  maxCanvasScriptDocSummaryChars: 2000,
+  /**
+   * 一步里最多建几个节点 / 连几条边 / 改几个节点。
+   *
+   * ⚠ 「一步一批」是撤销粒度（拍板 3：批撤只在最近一步可用），不是吞吐承诺。
+   * 8 与 `NODE_ASSISTANT_OP_LIMITS.maxOps` 同量级 —— 再大，一次撤掉的东西用户就看不过来了。
+   */
+  maxCanvasBatchItems: 8,
+  /** 别名 `new:<n>` 的长度（前缀 + 序号），远小于 `maxIdChars`。 */
+  maxCanvasAliasChars: 16,
+  /** 渠道 id（`optionId`）长度 —— 与 `NodeWorkflowModelSelectionSchema.optionId` 的 240 对齐。 */
+  maxCanvasOptionIdChars: 240,
+  /**
+   * 快照 `canvas.modelOptions[]` 的行数上限（附录 D §7：按 nodeType 列
+   * modelId + optionId + label + 相对价签）。同一型号多条渠道各占一行。
+   */
+  maxCanvasModelOptions: 64,
 } as const
 
 /**
@@ -839,6 +1021,33 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    * 来源页看」，而不是换个参数再挂一次。
    */
   loraNotImportable: 'loraNotImportable',
+  // ── 画布域（C0）──────────────────────────────────────────────────
+  /**
+   * 引的节点 id **不在快照里**，也不是本轮 `stage_nodes` 给出的别名。
+   * ⛔ 不做前缀 / 模糊匹配：猜错一个节点，改动就落在别人的卡上。
+   */
+  unknownNode: 'unknownNode',
+  /** `stage_nodes` 要建的类型不在 `CANVAS_ADD_CATALOG` 里（用户自己也建不出来的类型，助手也不建）。 */
+  unknownNodeType: 'unknownNodeType',
+  /**
+   * `connect_nodes` 这条边不合法 —— 判据**只**来自 `node-connection-rules.ts`
+   * 查表（任务书禁改：唯一事实源，只查不复制）。detail 里带那张表给的理由。
+   */
+  illegalConnection: 'illegalConnection',
+  /** `set_node_fields` 写的字段这个节点类型 / 角色上没有（按族字段表查）。 */
+  unknownField: 'unknownField',
+  /**
+   * `set_node_model` 缺 `optionId`（渠道）或渠道不属于那个模型（K-3 根治）。
+   * ⚠ 与 `unknownModel` 分开：那条是「模型不在名单」，这条是「模型对了、路没指明」。
+   */
+  missingChannel: 'missingChannel',
+  /** 引了一个 `new:<n>` 别名，但本轮 `stage_nodes` 没给出过它（或那一步被拒了）。 */
+  aliasUnresolved: 'aliasUnresolved',
+  /**
+   * `set_review_state` 想写 `approved`。**硬禁**：放行是人看过之后的决定，助手替人
+   * 放行等于把审核门拆了（`canAssistantSetReviewState` 同一条判据）。
+   */
+  approvedForbidden: 'approvedForbidden',
 } as const
 
 export type AssistantOperatorRejectReason =
@@ -914,4 +1123,25 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'take one LoRA off the assembly bench. The id comes from the mounted list in the state block — that is a different list from search results. Use it when two mounted LoRAs are fighting over the same thing, and say which one you dropped and why.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]:
     'change how strongly one already-mounted LoRA applies. The id comes from the mounted list in the state block. Weight is a plain number in the range the state block gives.',
+  // ── 画布域（C0）──────────────────────────────────────────────────
+  [ASSISTANT_OPERATOR_TOOL_IDS.readGraph]:
+    'read a compact overview of the whole canvas: every node (id, type, title, status), every edge, which nodes are selected, the project name, and the script-doc summary. Costs nothing; call it first when you are unsure what is on the board.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.readNode]:
+    "read everything about ONE node by id: its text fields, appearance details, reference images (with URLs), model and channel, and generation settings. This is the only way to see a node's full content — read_graph deliberately omits it.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.stageNodes]:
+    "create one or more nodes in ONE call. Only the node types the creator's add-menu offers are allowed. Give each item an alias like new:1 so later steps in this run (connect_nodes, set_node_fields) can refer to it before it has a real id. One call is one undo step.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.connectNodes]:
+    'connect nodes in ONE call as a list of source → target pairs. Ids may be real node ids or new:<n> aliases from stage_nodes in this run. Illegal pairs are refused with the reason from the connection rules — do not retry the same pair.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields]:
+    'write fields on one or more nodes in ONE call: title, the free-text fields that node type actually has (read_node lists them), imageCategory, and generation settings. If the creator hand-wrote the text you want to replace, you will be asked which they want (append / overwrite / keep) before it lands.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel]:
+    'switch the generation model on ONE node. You must send BOTH modelId and optionId (the channel), copied verbatim from the catalog in the state block — the same model can be reachable through several channels and the step is refused without one.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.attachRefs]:
+    "attach reference images to ONE node's reference rack. Each reference is either another canvas node id (its primary image is used) or an assetId from a search_assets result in this run. Never a URL — the app looks the picture up itself.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
+    "mark ONE node's media as awaiting review or rejected, with a reason. You can never mark anything approved — approving is the creator's decision after they have looked.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate]:
+    "arm the generate button on ONE node so it is one click away. This does NOT generate anything, shows no price, and never spends the creator's credits — they press it themselves. Use it as the LAST step once the node is ready.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc]:
+    'rewrite the project script document (logline, characters, scenes, shots). The canvas is projected from it only after the creator confirms the projection preview — this call changes the document, not the board.',
 }

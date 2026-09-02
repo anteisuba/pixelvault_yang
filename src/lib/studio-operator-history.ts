@@ -176,6 +176,60 @@ export function describeOperatorStepDetail(
       return step.payload.name
     case ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight:
       return `${step.payload.name} · ${step.payload.weight}`
+    /**
+     * 画布域（C0 / C1-pre）。历史条目的 `tool` 是自由字符串、`detail` 是一行字，
+     * 所以这十条**照常落库**（`toOperatorHistoryStep` 不按工具分支）；这里只负责
+     * 那一行字 —— 与工作台各条同一条规矩：印用户认得出的东西（节点 id / 类型 /
+     * 标题 / 字段名），⛔ 不印 URL（`attach_refs` 的 `url` 是服务端填的落地地址，
+     * 用户从没见过它）。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.readGraph:
+    case ASSISTANT_OPERATOR_TOOL_IDS.readNode:
+      return step.result?.digest ?? null
+    case ASSISTANT_OPERATOR_TOOL_IDS.stageNodes:
+      return [
+        `${step.payload.items.length}`,
+        `· ${step.payload.items
+          .map((item) =>
+            item.title ? `${item.type} "${item.title}"` : item.type,
+          )
+          .join(', ')}`,
+      ].join(' ')
+    case ASSISTANT_OPERATOR_TOOL_IDS.connectNodes:
+      return [
+        `${step.payload.items.length}`,
+        `· ${step.payload.items
+          .map((item) => `${item.source} → ${item.target}`)
+          .join(', ')}`,
+      ].join(' ')
+    /** 每个节点印**改了哪些键**，不印值：自由文本会很长，而历史里那一行只回答「动了哪儿」。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields:
+      return step.payload.items
+        .map((item) => `${item.nodeId}: ${Object.keys(item.fields).join(', ')}`)
+        .join(' · ')
+    case ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel:
+      return `${step.payload.nodeId} · ${step.payload.modelLabel ?? step.payload.modelId}`
+    case ASSISTANT_OPERATOR_TOOL_IDS.attachRefs:
+      return [
+        step.payload.nodeId,
+        `· ${step.payload.refs.length}`,
+        `· ${step.payload.refs
+          .map((ref) => ref.name ?? ref.sourceId ?? ref.role)
+          .join(', ')}`,
+      ].join(' ')
+    case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
+      return [step.payload.nodeId, step.payload.state, step.payload.reason]
+        .filter(Boolean)
+        .join(' · ')
+    /** 与 `prime_generate` 同一档，只多一个「哪个节点」。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate:
+      return step.payload.nodeId
+    case ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc:
+      return [
+        step.payload.doc.title,
+        `· ${step.payload.doc.roles.length} role(s)`,
+        `· ${step.payload.doc.shots.length} shot(s)`,
+      ].join(' ')
   }
 }
 

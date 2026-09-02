@@ -121,6 +121,12 @@ export const STUDIO_OPERATOR_SUGGESTIONS: Record<
     { id: 'stackConflict', minChanges: 0 },
     { id: 'sweepWeights', minChanges: 1 },
   ],
+  /** 画布（C0）：先读图、再搭结构、改过之后才问「哪一格还没齐」。 */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: [
+    { id: 'layoutShots', minChanges: 0 },
+    { id: 'wireReferences', minChanges: 0 },
+    { id: 'whatIsMissing', minChanges: 1 },
+  ],
 }
 
 /**
@@ -199,6 +205,15 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * 而言下一步都一样（换一把），分成三条只会多两句他读不懂的话。
    */
   'loraMountFailed',
+  /**
+   * 这一步归**另一个宿主**落（C1-pre）：画布域的改动型工具送到了工作台宿主上，
+   * `applyOperatorStep` 返回 `StudioOperatorStepNotApplicable`，表单一个字没动。
+   *
+   * ⛔ 不静默：日志条上写着「已建节点」而画布 / 表单纹丝不动，是本仓最难查的
+   * 那一类。运行时到不了（域工具表 + 服务端硬闸），这一行是那条类型出口在线程
+   * 里的落点 —— 真到了，用户看到的是一句话而不是一个谜。
+   */
+  'stepNotApplicable',
 ] as const
 
 export type StudioOperatorSystemCode =

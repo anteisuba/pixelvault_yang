@@ -23,9 +23,11 @@ import {
   NODE_IMAGE_MODEL_NODE_TYPES,
   NODE_TYPE_IDS,
   NODE_VIDEO_MODEL_NODE_TYPES,
+  NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE,
 } from '@/constants/node-types'
 import { isIdentityCardNode } from '@/lib/node-workflow-graph'
 import { resolveNodeDisplayName } from '@/lib/node-display-name'
+import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import type { NodeAssistantNodeContext } from '@/types/node-assistant'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
@@ -144,6 +146,28 @@ function buildParamsContext(
   }
 }
 
+/**
+ * 节点的**自由文本现值** —— `promptExcerpt` 的来源。
+ *
+ * 与写侧同一张表（`NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE`，台账 K-1）：
+ *   · 表里没有这个类型 = 自由文本就是 `data.prompt`（图 / 视频 / 卡）。
+ *   · 表里是 `null`     = 这个类型真的没有自由文本（音色卡五栏全是配置）——
+ *     一个字都不投影，否则模型会把 `voiceName` 当成可写的提示词。
+ *   · 表里是某个字段   = 正文住在别的栏（镜头文本的 scene / action / camera /
+ *     composition，没有 prompt）。投影走 `buildNodeWorkflowPrompt` —— 那正是
+ *     下游视频节点收割这段文本时看到的形状（四栏按表序换行拼接），模型看到的
+ *     和最终进提示词的是同一段话。
+ *
+ * ⚠ 手势 A（2026-09-01）之前这里只读 `data.prompt`：用户点一个镜头文本节点，
+ * id 进了请求，正文却一个字都没到模型 —— 「文本节点带正文」在读侧是空的。
+ */
+export function resolveNodeAssistantFreeText(node: NodeWorkflowNode): string {
+  const freeTextField = NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE[node.type]
+  if (freeTextField === null) return ''
+  if (freeTextField === undefined) return node.data.prompt?.trim() ?? ''
+  return buildNodeWorkflowPrompt(node.type, node.data).trim()
+}
+
 export interface BuildNodeAssistantNodeContextsOptions {
   /** 没有显示名时兜底用的本地化类型标签（`StudioNode.nodeTypes`）。 */
   getNodeTypeLabel(type: NodeWorkflowNode['type']): string
@@ -162,7 +186,7 @@ export function buildNodeAssistantNodeContexts(
   { getNodeTypeLabel }: BuildNodeAssistantNodeContextsOptions,
 ): NodeAssistantNodeContext[] {
   return nodes.slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodes).map((node) => {
-    const prompt = node.data.prompt?.trim()
+    const prompt = resolveNodeAssistantFreeText(node)
     const category = canCarryImageCategory(node)
       ? (node.data.imageCategory ?? NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID)
       : undefined

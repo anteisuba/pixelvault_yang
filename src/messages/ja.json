@@ -5626,7 +5626,12 @@
       "galleryVideoLabel": "ギャラリー動画",
       "referenceUploadFailed": "参照素材のアップロードに失敗しました",
       "referenceOnlyPrompt": "添付した参照素材を分析し、キャンバスで次に行う具体的な手順を提案してください。",
-      "opsMalformed": "アシスタントがキャンバスを変更しようとしましたが、指示を読み取れませんでした——変更は行われていません。"
+      "opsMalformed": "アシスタントがキャンバスを変更しようとしましたが、指示を読み取れませんでした——変更は行われていません。",
+      "pickFromCanvas": "キャンバスから選ぶ",
+      "pickArmedHint": "キャンバスのノードをクリックして追加 · Esc で終了",
+      "pickedNodeLimit": "ノード数が上限です",
+      "pickedReferenceLimit": "参照素材が上限です",
+      "removePickedNode": "ノードを外す"
     },
     "minimapTitle": "ミニマップ",
     "castDock": {
@@ -6900,12 +6905,14 @@
     "domainChip": {
       "image": "画像ワークベンチ",
       "video": "動画ワークベンチ",
-      "lora": "LoRA ワークベンチ"
+      "lora": "LoRA ワークベンチ",
+      "canvas": "ノードキャンバスで"
     },
     "domainName": {
       "image": "画像ワークベンチ",
       "video": "動画ワークベンチ",
-      "lora": "LoRA ワークベンチ"
+      "lora": "LoRA ワークベンチ",
+      "canvas": "ノードキャンバス"
     },
     "session": "セッション",
     "newThread": "新しい会話",
@@ -6960,7 +6967,14 @@
       "repeatedStep": "同じ手順をすでに実行済みのため、見送りました",
       "unknownLora": "その LoRA は今回の検索結果にありません",
       "loraNotMounted": "その LoRA はベンチに載っていません",
-      "loraNotImportable": "その LoRA はライブラリに取り込めません。配布元ページでのみ確認できます"
+      "loraNotImportable": "その LoRA はライブラリに取り込めません。配布元ページでのみ確認できます",
+      "unknownNode": "キャンバスにそのノードはありません",
+      "unknownNodeType": "追加メニューにないノード種別なので、アシスタントは作成しません",
+      "illegalConnection": "この 2 つのノードは接続できません",
+      "unknownField": "このノードにその項目はありません",
+      "missingChannel": "モデルの切替にはチャネルも必要です。このステップにはありません",
+      "aliasUnresolved": "その一時エイリアスは今回のランで作成されていません",
+      "approvedForbidden": "アシスタントは代わりに承認できません。ご自身で確認してから承認してください"
     },
     "field": {
       "prompt": "プロンプト",
@@ -7000,7 +7014,8 @@
       "revertRound": "このラウンドの変更 {count} 件を元に戻しました（アシスタントは把握済み）",
       "resultArrived": "用意した一枚が返ってきました —— アシスタントが見ています",
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
-      "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）"
+      "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）",
+      "stepNotApplicable": "{subject} はキャンバス側の操作です——このワークベンチでは適用できず、何も変わっていません"
     },
     "suggestion": {
       "setupShot": "この一枚を組み立てて",
@@ -7011,7 +7026,10 @@
       "splitShots": "3 カットに分けて",
       "findStyle": "この画風に合う LoRA を探して",
       "stackConflict": "この組み合わせはぶつかる？",
-      "sweepWeights": "ウェイトを振って比べて"
+      "sweepWeights": "ウェイトを振って比べて",
+      "layoutShots": "このショットを組み立てて",
+      "wireReferences": "キャラ参照をショットにつないで",
+      "whatIsMissing": "どの枠がまだ空いてる？"
     },
     "attach": {
       "label": "添付：アップロード / ライブラリ / 貼り付け",

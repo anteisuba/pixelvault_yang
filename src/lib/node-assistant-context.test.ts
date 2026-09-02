@@ -10,6 +10,7 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 import {
   buildNodeAssistantNodeContexts,
   canCarryImageCategory,
+  resolveNodeAssistantFreeText,
 } from './node-assistant-context'
 
 function makeNode(
@@ -88,6 +89,71 @@ describe('buildNodeAssistantNodeContexts · 提示词现值', () => {
 
     expect(context).not.toHaveProperty('promptExcerpt')
     expect(JSON.stringify(context)).not.toContain('cdn.example.com')
+  })
+})
+
+// 手势 A（2026-09-01）：读侧接上写侧同一张表 `NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE`。
+// 此前只读 `data.prompt`，镜头文本节点（四栏、没有 prompt）的正文一个字都到不了
+// 模型 —— 用户点它进输入框，id 进了请求，内容是空的。
+describe('buildNodeAssistantNodeContexts · 自由文本按落点表读', () => {
+  it('镜头文本节点：四栏按表序拼成 promptExcerpt（与下游收割看到的同一段话）', () => {
+    const [context] = buildNodeAssistantNodeContexts(
+      [
+        makeNode('text-1', NODE_TYPE_IDS.shotText, {
+          scene: '雨夜巷口',
+          action: '她推门走进雨里',
+          camera: '跟拍',
+          composition: '中景',
+        }),
+      ],
+      OPTIONS,
+    )
+    expect(context?.promptExcerpt).toBe('雨夜巷口\n她推门走进雨里\n跟拍\n中景')
+  })
+
+  it('镜头文本只填了 action（助手写入的落点）也能读出来', () => {
+    const [context] = buildNodeAssistantNodeContexts(
+      [
+        makeNode('text-1', NODE_TYPE_IDS.shotText, {
+          action: '她推门走进雨里',
+        }),
+      ],
+      OPTIONS,
+    )
+    expect(context?.promptExcerpt).toBe('她推门走进雨里')
+  })
+
+  it('镜头文本 data.prompt 里的残值不算正文（四栏才是它的字段）', () => {
+    const [context] = buildNodeAssistantNodeContexts(
+      [makeNode('text-1', NODE_TYPE_IDS.shotText, { prompt: '旧残值' })],
+      OPTIONS,
+    )
+    expect(context).not.toHaveProperty('promptExcerpt')
+  })
+
+  it('音色节点（表里是 null）一个字都不投影，五栏配置不会冒充提示词', () => {
+    const [context] = buildNodeAssistantNodeContexts(
+      [
+        makeNode('voice-1', NODE_TYPE_IDS.voice, {
+          voiceName: '小林',
+          voiceStyle: '低沉',
+          prompt: '不该出现',
+        }),
+      ],
+      OPTIONS,
+    )
+    expect(context).not.toHaveProperty('promptExcerpt')
+  })
+
+  it('resolveNodeAssistantFreeText：表里没有的类型仍读 data.prompt', () => {
+    expect(
+      resolveNodeAssistantFreeText(
+        makeNode('img-1', NODE_TYPE_IDS.image, { prompt: '  雨夜  ' }),
+      ),
+    ).toBe('雨夜')
+    expect(
+      resolveNodeAssistantFreeText(makeNode('vid-1', NODE_TYPE_IDS.seedance)),
+    ).toBe('')
   })
 })
 

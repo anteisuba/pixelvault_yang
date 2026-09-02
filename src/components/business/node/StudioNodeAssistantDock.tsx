@@ -1,6 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from 'react'
 import { createPortal } from 'react-dom'
 import {
   Bot,
@@ -16,10 +23,11 @@ import { useTranslations } from 'next-intl'
 
 import {
   NODE_STUDIO_ASSISTANT_LIMITS,
+  NODE_STUDIO_ASSISTANT_PICK_REJECT_REASON_IDS,
   NODE_STUDIO_ASSISTANT_ROUTE_MODELS,
   NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS,
+  type NodeStudioAssistantPickRejectReason,
 } from '@/constants/node-studio'
-import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { assistantAdapterAcceptsReferenceKind } from '@/constants/assistant'
 import {
@@ -35,11 +43,15 @@ import {
 } from '@/hooks/use-assistant-conversation'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useCanvasAssistantDrag } from '@/hooks/node/use-canvas-assistant-drag'
+import {
+  useCanvasAssistantPick,
+  type CanvasAssistantPickApi,
+} from '@/hooks/node/use-canvas-assistant-pick'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
+import { buildCanvasAssistantMediaReference } from '@/lib/canvas-assistant-pick'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import { buildNodeAssistantNodeContexts } from '@/lib/node-assistant-context'
-import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import {
   planNodeAssistantOps,
   type PlannedNodeAssistantOp,
@@ -58,6 +70,7 @@ import type {
 import type { ScriptDoc } from '@/types/script-doc'
 
 import { AssistantConversation } from './AssistantConversation'
+import type { MentionInputHandle } from './composer/MentionInput'
 import {
   CanvasAssistantHistory,
   CanvasAssistantHistoryPanel,
@@ -95,74 +108,27 @@ interface StudioNodeAssistantDockProps {
   onExpandedChange(expanded: boolean): void
   onFocusNode(nodeId: string): void
   historyPortalTarget?: HTMLElement | null
+  /**
+   * 手势 A：dock 把拾取 API 写进这个 ref，workbench 的 `onNodeClick` /
+   * `onPaneClick` / Esc 栈在事件时读（同 `quickThrowApiRef`）。
+   */
+  pickApiRef?: MutableRefObject<CanvasAssistantPickApi | null>
 }
 
-function isHttpMediaUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value)
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
+/**
+ * 选择器 / `@` 菜单的候选池。⚠ 末尾按 `maxReferences` 截断 —— 手势 A 的拾取
+ * **不查这张表**（第 9 个媒体节点不在里面），而是按节点直接构造，构造器与这里
+ * 共用 `buildCanvasAssistantMediaReference`。
+ */
 function getAssistantMediaReferences(
   nodes: NodeWorkflowNode[],
   getNodeTypeLabel: (type: NodeWorkflowNode['type']) => string,
 ): NodeAssistantMediaReference[] {
   const references: NodeAssistantMediaReference[] = []
-
   for (const node of nodes) {
-    const url =
-      typeof node.data.mediaUrl === 'string' && node.data.mediaUrl.trim()
-        ? node.data.mediaUrl.trim()
-        : typeof node.data.imageUrl === 'string' && node.data.imageUrl.trim()
-          ? node.data.imageUrl.trim()
-          : ''
-    // Schema requires absolute http(s) URLs — skip data/blob/relative paths.
-    if (!url || !isHttpMediaUrl(url)) continue
-
-    const kind =
-      node.data.mediaKind === NODE_MEDIA_KIND_IDS.video ||
-      node.type === NODE_TYPE_IDS.seedance ||
-      node.type === NODE_TYPE_IDS.videoReference ||
-      node.type === NODE_TYPE_IDS.videoMerge
-        ? 'video'
-        : node.data.mediaKind === NODE_MEDIA_KIND_IDS.image ||
-            node.type === NODE_TYPE_IDS.image ||
-            node.type === NODE_TYPE_IDS.characterImage ||
-            node.type === NODE_TYPE_IDS.backgroundImage ||
-            node.type === NODE_TYPE_IDS.frameImage ||
-            node.type === NODE_TYPE_IDS.shot
-          ? 'image'
-          : null
-    if (!kind) continue
-
-    // 画布修法 08-A：直接读 mediaLabel/sourceLabel 绕开了机器值守卫——
-    // 「选已有图」写入口把上传备注常量当名字写进这两个字段时，@ 菜单候选名
-    // 会照单展示那串机器备注。改走共享解析器，顺带也能认出 characterName 等
-    // 专有身份字段（原逻辑不认）。
-    const label =
-      resolveNodeDisplayName(node.data) || getNodeTypeLabel(node.type)
-    const videoThumb =
-      typeof node.data.videoThumbnailUrl === 'string'
-        ? node.data.videoThumbnailUrl.trim()
-        : ''
-    references.push({
-      id: `node-reference:${node.id}`,
-      nodeId: node.id,
-      source: 'canvas',
-      kind,
-      url,
-      ...(kind === 'video' && videoThumb && isHttpMediaUrl(videoThumb)
-        ? { thumbnailUrl: videoThumb }
-        : kind === 'image'
-          ? { thumbnailUrl: url }
-          : {}),
-      label,
-    })
+    const reference = buildCanvasAssistantMediaReference(node, getNodeTypeLabel)
+    if (reference) references.push(reference)
   }
-
   return references.slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxReferences)
 }
 
@@ -180,6 +146,7 @@ export function StudioNodeAssistantDock({
   onExpandedChange,
   onFocusNode,
   historyPortalTarget,
+  pickApiRef,
 }: StudioNodeAssistantDockProps) {
   const t = useTranslations('StudioNode.dock')
   const tAssistant = useTranslations('StudioNode.assistant')
@@ -200,6 +167,14 @@ export function StudioNodeAssistantDock({
   const [lastReferences, setLastReferences] = useState<
     NodeAssistantMediaReference[]
   >([])
+  /**
+   * 手势 A：下一轮要挂的媒体引用，从 `AssistantConversation` 提上来 —— 画布上的
+   * 一次点击要能把引用推进来，而那个点击的 handler 在会话组件外面。
+   */
+  const [selectedReferences, setSelectedReferences] = useState<
+    NodeAssistantMediaReference[]
+  >([])
+  const composerRef = useRef<MentionInputHandle>(null)
   const isMobile = useIsMobile()
   const dockRef = useRef<HTMLElement>(null)
   const dockDrag = useCanvasAssistantDrag(dockRef, open && !isMobile)
@@ -224,17 +199,67 @@ export function StudioNodeAssistantDock({
     [nodes, tNodeTypes],
   )
 
-  const selectedNodeIds = useMemo(
-    () =>
-      selection.nodes
-        .map((node) => node.id)
-        .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxSelectedNodes),
-    [selection.nodes],
+  const getNodeTypeLabel = useCallback(
+    (type: NodeWorkflowNode['type']) => tNodeTypes(type),
+    [tNodeTypes],
   )
 
+  const handleAddPickedReference = useCallback(
+    (reference: NodeAssistantMediaReference) => {
+      setSelectedReferences((current) =>
+        current.some((item) => item.id === reference.id)
+          ? current
+          : [...current, reference].slice(
+              0,
+              NODE_STUDIO_ASSISTANT_LIMITS.maxReferences,
+            ),
+      )
+    },
+    [],
+  )
+  const handlePicked = useCallback(() => {
+    // 拾完焦点回输入框：用户下一步要么继续拾、要么接着打字。
+    composerRef.current?.focus()
+  }, [])
+  // 上限被拒要**大声说**（brand-dna：失败暴露）；「已经拾过」静默 —— 节点上的
+  // ⊘ 已经说了这件事。
+  const handlePickRejected = useCallback(
+    (reason: NodeStudioAssistantPickRejectReason) => {
+      if (reason === NODE_STUDIO_ASSISTANT_PICK_REJECT_REASON_IDS.nodeLimit) {
+        toast.error(tConversation('pickedNodeLimit'))
+      } else if (
+        reason === NODE_STUDIO_ASSISTANT_PICK_REJECT_REASON_IDS.referenceLimit
+      ) {
+        toast.error(tConversation('pickedReferenceLimit'))
+      }
+    },
+    [tConversation],
+  )
+  const pick = useCanvasAssistantPick({
+    nodes,
+    getNodeTypeLabel,
+    selectedReferences,
+    onAddReference: handleAddPickedReference,
+    apiRef: pickApiRef,
+    onPicked: handlePicked,
+    onRejected: handlePickRejected,
+  })
+
+  /**
+   * 请求里的 `selectedNodeIds` = 画布选中 + 手势 A 拾进来的非媒体节点（去重）。
+   * 拾取的排在后面：截断线 `maxSelectedNodes` 先保画布上的显式选中。
+   */
+  const selectedNodeIds = useMemo(() => {
+    const ids = selection.nodes.map((node) => node.id)
+    for (const id of pick.pickedNodeIds) {
+      if (!ids.includes(id)) ids.push(id)
+    }
+    return ids.slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxSelectedNodes)
+  }, [pick.pickedNodeIds, selection.nodes])
+
   const referenceOptions = useMemo(
-    () => getAssistantMediaReferences(nodes, tNodeTypes),
-    [nodes, tNodeTypes],
+    () => getAssistantMediaReferences(nodes, getNodeTypeLabel),
+    [nodes, getNodeTypeLabel],
   )
 
   /**
@@ -275,15 +300,20 @@ export function StudioNodeAssistantDock({
     ],
   )
 
+  const { clearPicks, exit: exitPick } = pick
   const handleSend = useCallback(
     async (content: string, references?: NodeAssistantMediaReference[]) => {
       setLastReferences(references ?? [])
+      // 发送 = 手势 A 的一条出口：拾进去的节点随这一轮送出，模式收起。
+      exitPick()
+      const context = buildConversationContext()
+      clearPicks()
       await conversation.send(content, {
-        ...buildConversationContext(),
+        ...context,
         references: references ?? [],
       })
     },
-    [buildConversationContext, conversation],
+    [buildConversationContext, clearPicks, conversation, exitPick],
   )
 
   const handleRetry = useCallback(async () => {
@@ -447,7 +477,10 @@ export function StudioNodeAssistantDock({
 
   const handleNewConversation = useCallback(() => {
     conversation.clear()
-  }, [conversation])
+    setSelectedReferences([])
+    clearPicks()
+    exitPick()
+  }, [clearPicks, conversation, exitPick])
 
   const handleSelectHistory = useCallback(
     (id: string) => {
@@ -501,6 +534,15 @@ export function StudioNodeAssistantDock({
       return nodeContext?.title
     },
     [nodeContexts],
+  )
+
+  const pickedNodes = useMemo(
+    () =>
+      pick.pickedNodeIds.map((id) => ({
+        id,
+        label: getNodeLabel(id) ?? tConversation('unknownNodeReference'),
+      })),
+    [getNodeLabel, pick.pickedNodeIds, tConversation],
   )
 
   const dockStarters = useMemo(() => {
@@ -708,7 +750,15 @@ export function StudioNodeAssistantDock({
                 emptyHint={opener}
                 starters={dockStarters}
                 referenceOptions={referenceOptions}
+                selectedReferences={selectedReferences}
+                onSelectedReferencesChange={setSelectedReferences}
                 canUseReference={canUseReference}
+                pickedNodes={pickedNodes}
+                onRemovePickedNode={pick.unpickNode}
+                pickArmed={pick.armed}
+                onPickToggle={pick.toggle}
+                onComposerFocus={pick.arm}
+                composerRef={composerRef}
                 onRunCapability={handleRunCapability}
                 planAssistantOps={planAssistantOps}
                 onApplyAssistantOps={handleApplyAssistantOps}
@@ -739,7 +789,15 @@ export function StudioNodeAssistantDock({
               emptyHint={opener}
               starters={dockStarters}
               referenceOptions={referenceOptions}
+              selectedReferences={selectedReferences}
+              onSelectedReferencesChange={setSelectedReferences}
               canUseReference={canUseReference}
+              pickedNodes={pickedNodes}
+              onRemovePickedNode={pick.unpickNode}
+              pickArmed={pick.armed}
+              onPickToggle={pick.toggle}
+              onComposerFocus={pick.arm}
+              composerRef={composerRef}
               onRunCapability={handleRunCapability}
               planAssistantOps={planAssistantOps}
               onApplyAssistantOps={handleApplyAssistantOps}

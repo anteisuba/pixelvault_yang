@@ -21,6 +21,8 @@
 import { z } from 'zod'
 
 import {
+  ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX,
+  ASSISTANT_OPERATOR_CANVAS_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_DOMAINS,
@@ -39,6 +41,16 @@ import {
   LORA_CANDIDATE_NOT_IMPORTABLE_REASON_VALUES,
   LORA_CANDIDATE_SOURCE_VALUES,
 } from '@/constants/lora-candidate'
+import {
+  NODE_STUDIO_REFERENCE_ROLES,
+  NODE_STUDIO_REFERENCE_SOURCES,
+} from '@/constants/node-studio'
+import {
+  NODE_IMAGE_ROLES,
+  NODE_REVIEW_STATES,
+  NODE_STATUSES,
+  NODE_TYPES,
+} from '@/constants/node-types'
 import { PromptAssistantResponseLanguageSchema } from '@/types'
 import type { OutputTypeValue } from '@/types'
 import {
@@ -46,6 +58,7 @@ import {
   AssistantAssetFolderVisionResultSchema,
 } from '@/types/asset-folder-vision'
 import { LoraCandidateImportPayloadSchema } from '@/types/lora-candidate'
+import { ScriptDocSchema } from '@/types/script-doc'
 
 // ─── 小件 ────────────────────────────────────────────────────────
 
@@ -54,6 +67,58 @@ const LabelSchema = z.string().trim().min(1).max(LIMITS.maxLabelChars)
 const ParamValueSchema = z.string().trim().min(1).max(LIMITS.maxParamValueChars)
 /** ⚠ 允许空串：它是「这个框现在是空的」，与「没有这个框」（字段缺席）不是一回事。 */
 const TextValueSchema = z.string().max(LIMITS.maxPromptChars)
+
+// ─── 画布小件（C0）─────────────────────────────────────────────────
+
+/**
+ * 批内新建节点的别名：`new:<n>`（前缀是 `ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX`）。
+ * 正则从常量拼出来，⛔ 别手写 `/^new:/` —— 前缀改了这里就会静默漂掉。
+ */
+const CANVAS_ALIAS_PATTERN = new RegExp(
+  `^${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}\\d+$`,
+)
+export const AssistantOperatorCanvasAliasSchema = z
+  .string()
+  .trim()
+  .max(LIMITS.maxCanvasAliasChars)
+  .regex(CANVAS_ALIAS_PATTERN, {
+    message: `alias must look like ${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}<n>`,
+  })
+/**
+ * 一个节点引用：真实 id **或**本轮别名。哪一种由规划器按工作副本 + 别名表判
+ * （`unknownNode` / `aliasUnresolved`），schema 只管形状。
+ */
+const CanvasNodeRefSchema = IdSchema
+/** 节点 / 参考图地址 —— 与 `NodeWorkflowReferenceAssetSchema.url` 同尺度（不是 `.url()`：画布上有 data: / blob: 地址）。 */
+const CanvasUrlSchema = z.string().trim().min(1).max(LIMITS.maxCanvasUrlChars)
+/** 一个档位值：档位是离散的短值（`'6'` / `'auto'` / `true` / 42）。 */
+const CanvasParamValueSchema = z.union([
+  ParamValueSchema,
+  z.number(),
+  z.boolean(),
+])
+/** `set_node_fields` 一次能写的值：自由文本（可空）或档位。 */
+const CanvasFieldValueSchema = z.union([
+  TextValueSchema,
+  z.number(),
+  z.boolean(),
+])
+/** 一批的条数：`min(1)`（空批什么都不做，与其静默不如拒）+ 上限。 */
+function canvasBatch<T extends z.ZodType>(item: T) {
+  return z.array(item).min(1).max(LIMITS.maxCanvasBatchItems)
+}
+
+export const AssistantOperatorCanvasNodeTypeSchema = z.enum(NODE_TYPES)
+export const AssistantOperatorCanvasNodeStatusSchema = z.enum(NODE_STATUSES)
+export const AssistantOperatorCanvasImageRoleSchema = z.enum(NODE_IMAGE_ROLES)
+export const AssistantOperatorCanvasReferenceRoleSchema = z.enum(
+  NODE_STUDIO_REFERENCE_ROLES,
+)
+export const AssistantOperatorCanvasReferenceSourceSchema = z.enum(
+  NODE_STUDIO_REFERENCE_SOURCES,
+)
+export const AssistantOperatorCanvasReviewStateSchema =
+  z.enum(NODE_REVIEW_STATES)
 
 export const AssistantOperatorDomainSchema = z.enum(ASSISTANT_OPERATOR_DOMAINS)
 export const AssistantOperatorToolSchema = z.enum(ASSISTANT_OPERATOR_TOOLS)
@@ -68,6 +133,21 @@ export const AssistantOperatorWriteModeSchema = z.enum(
 export const AssistantOperatorConfirmFieldSchema = z.enum(
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
 )
+/**
+ * 画布域的确认字段（任务书 §2.4）：节点 `title` + `NODE_WORKFLOW_FIELDS`。
+ * 确认键是 `${nodeId}:${field}`，`confirm_request` / decision 各带 `nodeId`。
+ */
+export const AssistantOperatorCanvasConfirmFieldSchema = z.enum(
+  ASSISTANT_OPERATOR_CANVAS_CONFIRM_FIELDS,
+)
+/**
+ * 两个域的确认字段并集 —— `confirm_request` 与 decision 上用它。
+ * ⚠ `prompt` 两边都有：工作台那条没有 `nodeId`，画布那条必带；分辨靠 `nodeId` 在不在。
+ */
+export const AssistantOperatorAnyConfirmFieldSchema = z.union([
+  AssistantOperatorConfirmFieldSchema,
+  AssistantOperatorCanvasConfirmFieldSchema,
+])
 export const AssistantOperatorConfirmChoiceSchema = z.enum(
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
 )
@@ -254,9 +334,156 @@ export const AssistantOperatorSnapshotLorasSchema = z.object({
   maxWeight: z.number(),
 })
 
+// ─── ① 画布快照节（C0，任务书 §2.2）──────────────────────────────
+//
+// 与工作台各节同一条规矩：**控件不在整个键不给**，⛔ 别 `?? null`。
+// 字段名一律取自 `types/node-workflow.ts` / `constants/node-types.ts`，不另起名。
+
+/** 引用架上的一条（`NodeWorkflowReferenceAssetSchema` 的投影：只带助手要看的）。 */
+export const AssistantOperatorCanvasReferenceSchema = z.object({
+  id: IdSchema,
+  role: AssistantOperatorCanvasReferenceRoleSchema,
+  /** 来自画布另一个节点时是那个节点的 id（`source === 'canvas'`）。 */
+  sourceId: IdSchema.optional(),
+  /**
+   * ⭐ URL **进快照、不进首轮提示**（K-4 根治）：`read_node` 从工作副本按需取，
+   * `read_graph` 级概览与系统提示一个字都不带它（测试两向断言）。
+   */
+  url: CanvasUrlSchema,
+})
+
+/** 节点上选的模型 —— **modelId 与 optionId（渠道）成对**（K-3）。 */
+export const AssistantOperatorCanvasModelSchema = z.object({
+  modelId: IdSchema,
+  optionId: z.string().trim().min(1).max(LIMITS.maxCanvasOptionIdChars),
+})
+
+/**
+ * 角色卡 / 场景卡的**外观字段** —— 取自 `NodeWorkflowNodeDataSchema.character`
+ * （`name` / `visualSeed`）与 `cardId`。⚠ 缺席 = 这个节点不是身份卡。
+ * 与 URL 同一条规矩：只经 `read_node` 取，不进首轮提示。
+ */
+export const AssistantOperatorCanvasCharacterSchema = z.object({
+  name: LabelSchema.optional(),
+  visualSeed: TextValueSchema.optional(),
+  cardId: IdSchema.optional(),
+})
+
+export const AssistantOperatorCanvasNodeSchema = z.object({
+  id: IdSchema,
+  type: AssistantOperatorCanvasNodeTypeSchema,
+  /** 画布上显示的那个名字（`resolveNodeDisplayName`），不是类型标签。 */
+  title: z.string().trim().min(1).max(LIMITS.maxIdChars),
+  status: AssistantOperatorCanvasNodeStatusSchema,
+  /** 统一 `image` 节点的角色；其它类型缺席。 */
+  role: AssistantOperatorCanvasImageRoleSchema.optional(),
+  /** 散图节点自己的分类；缺席 = 这个节点没有分类控件，或还没设。 */
+  imageCategory: AssistantOperatorCanvasReferenceRoleSchema.optional(),
+  imageCategoryLabel: LabelSchema.optional(),
+  /**
+   * 这个节点**真有**的自由文本字段现值（`NODE_WORKFLOW_FIELDS_BY_NODE_TYPE` /
+   * `_BY_IMAGE_ROLE` 那张族表里的键 + `prompt`）。⚠ 键不在 = 这个节点没有那一栏；
+   * 值为空串 = 有栏但空着（覆写确认只看非空的，拍板 3）。
+   */
+  fields: z.record(z.string(), TextValueSchema),
+  /** 缺席 = 这个节点不选模型（身份卡 / 参考视频 / 合并节点）；在但没选由规划器按 `noModelSelected` 说。 */
+  model: AssistantOperatorCanvasModelSchema.nullable().optional(),
+  /** 生成档位（`NODE_ASSISTANT_PARAM_IDS` 那几个键）。缺席 = 这类节点档位不长在节点上。 */
+  params: z.record(z.string(), CanvasParamValueSchema).optional(),
+  references: z
+    .array(AssistantOperatorCanvasReferenceSchema)
+    .max(LIMITS.maxCanvasNodeReferences),
+  character: AssistantOperatorCanvasCharacterSchema.optional(),
+  /** 节点自己的主媒体地址 —— `attach_refs` 从画布节点挂参考时服务端从这里取 URL。 */
+  mediaUrl: CanvasUrlSchema.optional(),
+  /** 主媒体的审核态（`mediaReview[mediaUrl].state`）。缺席 = 没有审核记录（祖父条款 = 通过）。 */
+  reviewState: AssistantOperatorCanvasReviewStateSchema.optional(),
+})
+
+export const AssistantOperatorCanvasEdgeSchema = z.object({
+  id: IdSchema,
+  source: IdSchema,
+  target: IdSchema,
+})
+
+/**
+ * 模型目录的一行（附录 D §7）：**按 nodeType 列，modelId + optionId 成对**。
+ * `set_node_model` 只认表内组合：modelId 不在表里拒 `unknownModel`，modelId 在而
+ * optionId 对不上拒 `missingChannel`。⚠ 只放用户此刻真能跑的渠道（绑了 key 或
+ * 平台出资）—— 与工作台 `availableModels` 同一条判据。
+ * `priceLabel` 是宿主算好的相对价签（展示用短字符串）；缺席 = 宿主没算。
+ */
+export const AssistantOperatorCanvasModelOptionSchema = z.object({
+  nodeType: AssistantOperatorCanvasNodeTypeSchema,
+  modelId: IdSchema,
+  optionId: z.string().trim().min(1).max(LIMITS.maxCanvasOptionIdChars),
+  label: LabelSchema,
+  priceLabel: LabelSchema.optional(),
+})
+
+export type AssistantOperatorCanvasModelOption = z.infer<
+  typeof AssistantOperatorCanvasModelOptionSchema
+>
+
+export const AssistantOperatorSnapshotCanvasSchema = z.object({
+  projectId: IdSchema,
+  projectName: z.string().trim().max(LIMITS.maxIdChars),
+  selectedNodeIds: z.array(IdSchema).max(LIMITS.maxCanvasNodes),
+  nodes: z.array(AssistantOperatorCanvasNodeSchema).max(LIMITS.maxCanvasNodes),
+  edges: z.array(AssistantOperatorCanvasEdgeSchema).max(LIMITS.maxCanvasEdges),
+  /** 空数组 = 这张画布上此刻没有一条能跑的模型渠道（`set_node_model` 全拒）。 */
+  modelOptions: z
+    .array(AssistantOperatorCanvasModelOptionSchema)
+    .max(LIMITS.maxCanvasModelOptions),
+  /** C3 填内容，C0 留位。缺席 = 这个项目没有 ScriptDoc。 */
+  scriptDoc: z
+    .object({
+      summary: z.string().max(LIMITS.maxCanvasScriptDocSummaryChars),
+    })
+    .optional(),
+})
+
+export type AssistantOperatorCanvasNode = z.infer<
+  typeof AssistantOperatorCanvasNodeSchema
+>
+export type AssistantOperatorCanvasEdge = z.infer<
+  typeof AssistantOperatorCanvasEdgeSchema
+>
+export type AssistantOperatorCanvasReference = z.infer<
+  typeof AssistantOperatorCanvasReferenceSchema
+>
+export type AssistantOperatorSnapshotCanvas = z.infer<
+  typeof AssistantOperatorSnapshotCanvasSchema
+>
+
+/**
+ * 画布图的**工作副本**（与 service 里的 `OperatorWorkingState` 平行，⛔ 不塞进它
+ * 的表单字段里）。`inverse` 以副本当下值为准：第二条改动撤回到第一条之后。
+ *
+ * ⚠ 它是**运行态**，不是线上的载荷，所以没有 zod schema：`aliases` 是一张
+ * `Map`（别名 → 本轮 `stage_nodes` 造出的节点），线上不会出现。三个成员的元素
+ * 类型全部从上面的 zod 推导，不另写一份形状。
+ * ⚠ `nodes` / `edges` 必须是**可变拷贝**：`stage_nodes` 往里推、`set_node_fields`
+ * 改现值，都发生在这份副本上。
+ */
+export interface CanvasWorkingState {
+  projectId: string
+  projectName: string
+  selectedNodeIds: string[]
+  nodes: AssistantOperatorCanvasNode[]
+  edges: AssistantOperatorCanvasEdge[]
+  /** `new:<n>` → 本轮建出的节点（真实 id 由客户端 apply 时分配，这里只有别名）。 */
+  aliases: Map<string, AssistantOperatorCanvasNode>
+  scriptDocSummary: string | null
+}
+
 export const AssistantOperatorSnapshotSchema = z.object({
-  /** 正面提示词现值。空串 = 空框（随便填，拍板 3）；非空 = 用户手写内容，写它要先确认。 */
-  prompt: TextValueSchema,
+  /**
+   * 正面提示词现值。空串 = 空框（随便填，拍板 3）；非空 = 用户手写内容，写它要先确认。
+   * ⚠ 可选（附录 D §1）：画布宿主**不发**它（画布上没有「这台工作台的提示词框」，
+   * 每一格都是某个节点的）；工作台三域照常必发，service 对缺席按空串处理。
+   */
+  prompt: TextValueSchema.optional(),
   /** ⚠ 缺席 = 这个工作台没有负面框。见本节头注。 */
   negativePrompt: TextValueSchema.optional(),
   /** `null` = 明确「还没选模型」；缺席 = 这个工作台不选模型。两者不同。 */
@@ -280,6 +507,11 @@ export const AssistantOperatorSnapshotSchema = z.object({
   sound: AssistantOperatorSnapshotSoundSchema.optional(),
   /** ⚠ 缺席 = 这个工作台没有 LoRA 挂载栈（图片 / 视频档）。见 schema 头注。 */
   loras: AssistantOperatorSnapshotLorasSchema.optional(),
+  /**
+   * 节点画布（C0，§2.2）。⚠ 缺席 = 这不是画布域的请求；`domain: 'canvas'` 而这节
+   * 缺席，画布工具一律按 `noSuchControl` 拒（规划器判）。
+   */
+  canvas: AssistantOperatorSnapshotCanvasSchema.optional(),
 })
 
 export type AssistantOperatorSnapshot = z.infer<
@@ -308,8 +540,13 @@ export const AssistantOperatorPriorStepSchema = z.object({
 })
 
 export const AssistantOperatorConfirmDecisionSchema = z.object({
-  field: AssistantOperatorConfirmFieldSchema,
+  field: AssistantOperatorAnyConfirmFieldSchema,
   choice: AssistantOperatorConfirmChoiceSchema,
+  /**
+   * 画布域的复合键另一半（§2.4）：decision 按 `${nodeId}:${field}` 存。
+   * 工作台三域缺席 —— 那里一个域只有一个提示词框。
+   */
+  nodeId: IdSchema.optional(),
 })
 
 /**
@@ -379,7 +616,7 @@ export const AssistantOperatorRequestSchema = z.object({
    */
   confirmations: z
     .array(AssistantOperatorConfirmDecisionSchema)
-    .max(Object.keys(ASSISTANT_OPERATOR_CONFIRM_FIELDS).length)
+    .max(LIMITS.maxConfirmDecisions)
     .optional(),
   /**
    * 助手备的那一枪刚打完（P3-C）。缺席 = 这一轮没有东西可看，
@@ -545,6 +782,80 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]: z.object({
     loraId: IdSchema,
     weight: z.number(),
+  }),
+  // ── 画布域（C0）。一律宽松：type / field / state / role 都是 string，值域在规划器收窄。
+  [ASSISTANT_OPERATOR_TOOL_IDS.readGraph]: z.object({}),
+  [ASSISTANT_OPERATOR_TOOL_IDS.readNode]: z.object({
+    nodeId: CanvasNodeRefSchema,
+  }),
+  /**
+   * 一步一批。`alias` 可选：模型没给时服务端按顺序补 `new:<n>`，所以载荷里永远有。
+   * `type` 是 `string` 不是 `enum(NODE_TYPES)`：写错一个类型不该让同批其它节点陪葬
+   * （`unknownNodeType` 只点名那一项）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.stageNodes]: z.object({
+    items: canvasBatch(
+      z.object({
+        alias: AssistantOperatorCanvasAliasSchema.optional(),
+        type: IdSchema,
+        role: IdSchema.optional(),
+        title: z.string().trim().min(1).max(LIMITS.maxIdChars).optional(),
+        fields: z.record(z.string(), TextValueSchema).optional(),
+      }),
+    ),
+  }),
+  [ASSISTANT_OPERATOR_TOOL_IDS.connectNodes]: z.object({
+    items: canvasBatch(
+      z.object({ source: CanvasNodeRefSchema, target: CanvasNodeRefSchema }),
+    ),
+  }),
+  /**
+   * 按节点分组的字段写入。`fields` 的键是 `title` / 自由文本字段 / `imageCategory` /
+   * 档位名 —— 哪些键这个节点真有，规划器按族表查（`unknownField`）。
+   * `mode` 只对自由文本有意义（追加 / 替换），档位一律替换。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields]: z.object({
+    items: canvasBatch(
+      z.object({
+        nodeId: CanvasNodeRefSchema,
+        fields: z.record(z.string(), CanvasFieldValueSchema),
+        mode: AssistantOperatorWriteModeSchema.optional(),
+      }),
+    ),
+  }),
+  /** ⛔ `optionId` **必填**（K-3 根治）：缺渠道整步拒，不由服务端「挑第一条能跑的」。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel]: z.object({
+    nodeId: CanvasNodeRefSchema,
+    modelId: IdSchema,
+    optionId: z.string().trim().min(1).max(LIMITS.maxCanvasOptionIdChars),
+  }),
+  /**
+   * 每条参考**二选一**：`sourceId`（画布节点，取它的主媒体）或 `assetId`
+   * （本轮 `search_assets` 返回过的）。⛔ 没有 URL 字段。「至少给一个、不能都给」
+   * 留在规划器判（`malformedArgs` 学不会，`unknownNode` / `unknownAsset` 学得会）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.attachRefs]: z.object({
+    nodeId: CanvasNodeRefSchema,
+    refs: canvasBatch(
+      z.object({
+        sourceId: CanvasNodeRefSchema.optional(),
+        assetId: IdSchema.optional(),
+        role: IdSchema.optional(),
+      }),
+    ),
+  }),
+  /** `state` 收全部三态（含 `approved`），规划器按 `approvedForbidden` 拒 —— 同一个禁令，可教的那种。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]: z.object({
+    nodeId: CanvasNodeRefSchema,
+    state: IdSchema,
+    reason: z.string().trim().min(1).max(LIMITS.maxReasonChars).optional(),
+  }),
+  [ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate]: z.object({
+    nodeId: CanvasNodeRefSchema,
+  }),
+  /** C3 实现。整份文档下发；投影仍走 `previewScriptDocProjection` + 既有确认门。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc]: z.object({
+    doc: ScriptDocSchema,
   }),
 }
 
@@ -1011,6 +1322,143 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     z.object({ loraId: IdSchema, name: LabelSchema, weight: z.number() }),
     z.object({ loraId: IdSchema, weight: z.number() }),
   ),
+  // ── 画布域（C0，任务书 §2.3）──────────────────────────────────────
+  /** 概览：与 `read_state` 同构，`digest` 就是助手实际读到的那段文本。⛔ 不含 URL / 外观字段。 */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.readGraph,
+    z.object({}),
+    z.object({ digest: z.string().max(LIMITS.maxMessageChars) }),
+  ),
+  /** 单节点全量 —— URL 与外观字段只从这里出（K-4）。 */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.readNode,
+    z.object({ nodeId: IdSchema }),
+    z.object({ digest: z.string().max(LIMITS.maxMessageChars) }),
+  ),
+  /**
+   * 建一批。`alias` 在载荷里**必填**（模型没给的由服务端补齐）—— 客户端 apply 按它
+   * 分配真实 id 并登记别名表。`type` / `role` 到这里已经过规划器收窄，所以是 enum。
+   * `inverse.nodeIds` 里是**这些别名**：真实 id 在服务端不存在，客户端按别名表反查删。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.stageNodes,
+    z.object({
+      items: canvasBatch(
+        z.object({
+          alias: AssistantOperatorCanvasAliasSchema,
+          type: AssistantOperatorCanvasNodeTypeSchema,
+          role: AssistantOperatorCanvasImageRoleSchema.optional(),
+          title: z.string().trim().min(1).max(LIMITS.maxIdChars).optional(),
+          fields: z.record(z.string(), TextValueSchema).optional(),
+        }),
+      ),
+    }),
+    z.object({ nodeIds: canvasBatch(AssistantOperatorCanvasAliasSchema) }),
+  ),
+  /**
+   * 连一批。边 id 由客户端 apply 时分配（服务端没有），所以撤销按 (source, target)
+   * 对反查 —— 载荷与逆操作是同一组对。id 可以是别名（同 run 里 `stage_nodes` 给的）。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.connectNodes,
+    z.object({
+      items: canvasBatch(
+        z.object({ source: CanvasNodeRefSchema, target: CanvasNodeRefSchema }),
+      ),
+    }),
+    z.object({
+      items: canvasBatch(
+        z.object({ source: CanvasNodeRefSchema, target: CanvasNodeRefSchema }),
+      ),
+    }),
+  ),
+  /**
+   * 改字段。`inverse` 是每个字段**改前的值**，`null` = 改前没有这个键（撤销 = 删键）。
+   * 自由文本 append / replace 撤法相同（改前完整原文），与 `set_prompt` 同一条。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields,
+    z.object({
+      items: canvasBatch(
+        z.object({
+          nodeId: CanvasNodeRefSchema,
+          fields: z.record(z.string(), CanvasFieldValueSchema),
+          mode: AssistantOperatorWriteModeSchema,
+        }),
+      ),
+    }),
+    z.object({
+      items: canvasBatch(
+        z.object({
+          nodeId: CanvasNodeRefSchema,
+          fields: z.record(z.string(), CanvasFieldValueSchema.nullable()),
+        }),
+      ),
+    }),
+  ),
+  /** 换模型：载荷与逆操作都是 **modelId + optionId 成对**；`null` = 改前没选。 */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel,
+    z.object({
+      nodeId: CanvasNodeRefSchema,
+      modelId: IdSchema,
+      optionId: z.string().trim().min(1).max(LIMITS.maxCanvasOptionIdChars),
+      modelLabel: LabelSchema.optional(),
+    }),
+    z.object({
+      nodeId: CanvasNodeRefSchema,
+      model: AssistantOperatorCanvasModelSchema.nullable(),
+    }),
+  ),
+  /**
+   * 挂参考：`url` 由服务端从工作副本（画布节点的 `mediaUrl`）或本轮检索结果里填，
+   * 模型碰不到。`id` 是这条参考在引用架上的 id（服务端分配），撤销按它摘。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.attachRefs,
+    z.object({
+      nodeId: CanvasNodeRefSchema,
+      refs: canvasBatch(
+        z.object({
+          id: IdSchema,
+          url: CanvasUrlSchema,
+          role: AssistantOperatorCanvasReferenceRoleSchema,
+          source: AssistantOperatorCanvasReferenceSourceSchema,
+          sourceId: IdSchema.optional(),
+          name: LabelSchema.optional(),
+        }),
+      ),
+    }),
+    z.object({ nodeId: CanvasNodeRefSchema, refIds: canvasBatch(IdSchema) }),
+  ),
+  /** 审核态：载荷的 `state` 永远不会是 `approved`（规划器拒），逆操作 `null` = 改前没有记录。 */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+    z.object({
+      nodeId: CanvasNodeRefSchema,
+      state: AssistantOperatorCanvasReviewStateSchema,
+      reason: z.string().trim().min(1).max(LIMITS.maxReasonChars).optional(),
+    }),
+    z.object({
+      nodeId: CanvasNodeRefSchema,
+      state: AssistantOperatorCanvasReviewStateSchema.nullable(),
+    }),
+  ),
+  /**
+   * ⛔ 与 `prime_generate` 同一条宪法：载荷只有 `{ nodeId, primed: true }`，
+   * 服务端不创建任何 generation、不算价（money-gate 测试 ① 锁死这个形状）。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+    z.object({ nodeId: CanvasNodeRefSchema, primed: z.literal(true) }),
+    z.object({ nodeId: CanvasNodeRefSchema, primed: z.literal(false) }),
+  ),
+  /** 写 ScriptDoc（C3 实现）：逆操作是改前整份文档，`null` = 改前没有。 */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc,
+    z.object({ doc: ScriptDocSchema }),
+    z.object({ doc: ScriptDocSchema.nullable() }),
+  ),
 ])
 
 /**
@@ -1084,7 +1532,9 @@ export const AssistantOperatorStepEventSchema = z.object({
  */
 export const AssistantOperatorConfirmRequestEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.confirmRequest),
-  field: AssistantOperatorConfirmFieldSchema,
+  field: AssistantOperatorAnyConfirmFieldSchema,
+  /** 画布域的复合键另一半（§2.4）：问的是「这个节点的这一栏」。工作台三域缺席。 */
+  nodeId: IdSchema.optional(),
   /** 用户已经写在那儿的东西（截断）—— 小条上要让人认出「哦是我写的那段」。 */
   have: z.string().max(LIMITS.maxConfirmHaveChars),
   /** 助手想写进去的东西（截断同上）。 */

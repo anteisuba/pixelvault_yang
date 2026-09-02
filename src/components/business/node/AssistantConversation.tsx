@@ -1,11 +1,19 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type Ref,
+} from 'react'
 import type { Components } from 'react-markdown'
 import {
   ChevronDown,
   ChevronUp,
   Image as ImageIcon,
+  MousePointerClick,
   RefreshCcw,
   SendHorizontal,
   Video,
@@ -25,7 +33,11 @@ import {
 } from '@/constants/node-studio'
 import { collectConversationMediaReferences } from '@/lib/assistant-media-selection'
 import { buildReferenceHandles } from '@/lib/assistant-reference-handles'
-import { MentionInput, type MentionToken } from './composer/MentionInput'
+import {
+  MentionInput,
+  type MentionInputHandle,
+  type MentionToken,
+} from './composer/MentionInput'
 import { cn } from '@/lib/utils'
 import type {
   NodeAssistantOpPlan,
@@ -58,7 +70,30 @@ interface AssistantConversationProps {
   starters?: { id: string; label: string; prompt: string }[]
   /** Image/video nodes available as references for the next assistant turn. */
   referenceOptions?: NodeAssistantMediaReference[]
+  /**
+   * 手势 A：下一轮要挂的媒体引用 —— **由 dock 持有**（受控）。此前是组件私有
+   * state，画布上的一次点击没有任何入口能把引用推进来；提上去之后拾取 hook 与
+   * 选择器 / `@` 三条路写的是同一份列表。
+   */
+  selectedReferences: NodeAssistantMediaReference[]
+  onSelectedReferencesChange(references: NodeAssistantMediaReference[]): void
   canUseReference?(reference: NodeAssistantMediaReference): boolean
+  /**
+   * 手势 A：拾进输入框的**非媒体**节点（镜头文本等），渲染成可摘的胶囊；它们的
+   * id 由 dock 并进 `selectedNodeIds` 送进请求（服务端渲染成 `[[node:id]] 标题`，
+   * 正文走节点投影）。`@名字` 那套 token 只认媒体引用的 label、也不携带 id，
+   * 所以文本节点不走它。
+   */
+  pickedNodes?: { id: string; label: string }[]
+  onRemovePickedNode?(nodeId: string): void
+  /** 手势 A：输入框正在等画布上的一次点击。 */
+  pickArmed?: boolean
+  /** 「从画布选」按钮 —— 显式 arm / 退出。不传就不渲染按钮。 */
+  onPickToggle?(): void
+  /** 输入框聚焦即 arm（owner 拍板的手势本体：「点输入框，再点节点」）。 */
+  onComposerFocus?(): void
+  /** dock 用它在一次拾取之后把焦点送回输入框。 */
+  composerRef?: Ref<MentionInputHandle>
   onRunCapability?(reference: AssistantCapabilityReference): Promise<void>
   /**
    * 包 5：把一份提案排成「哪些能做、哪些不能以及为什么」。由 dock 提供 —— 只有
@@ -144,7 +179,15 @@ export function AssistantConversation({
   emptyHint,
   starters,
   referenceOptions = [],
+  selectedReferences,
+  onSelectedReferencesChange,
   canUseReference = () => true,
+  pickedNodes = [],
+  onRemovePickedNode,
+  pickArmed = false,
+  onPickToggle,
+  onComposerFocus,
+  composerRef,
   onRunCapability,
   planAssistantOps,
   onApplyAssistantOps,
@@ -158,9 +201,6 @@ export function AssistantConversation({
   const [expandedMessageIds, setExpandedMessageIds] = useState<Set<string>>(
     () => new Set(),
   )
-  const [selectedReferences, setSelectedReferences] = useState<
-    NodeAssistantMediaReference[]
-  >([])
   const unsupportedReference = selectedReferences.find(
     (reference) => !canUseReference(reference),
   )
@@ -217,19 +257,25 @@ export function AssistantConversation({
     return [...byName.values()]
   }, [referenceOptions, selectedReferences])
 
-  const addReference = useCallback((reference: NodeAssistantMediaReference) => {
-    setSelectedReferences((current) =>
-      current.some((item) => item.id === reference.id)
-        ? current
-        : [...current, reference].slice(0, 8),
-    )
-    if (!mentionPendingRef.current) return
-    mentionPendingRef.current = false
-    // 用户敲的那个 `@` 是触发符，替换成完整的 `@名字 ` —— 直接算出新字符串，
-    // 不去 DOM 里插节点：MentionInput 是半受控的，外部 value 变了它自己会重渲
-    // 成胶囊，省掉一次插入与重渲的先后之争。
-    setDraft((current) => `${current.replace(/@$/, '')}@${reference.label} `)
-  }, [])
+  const addReference = useCallback(
+    (reference: NodeAssistantMediaReference) => {
+      if (!selectedReferences.some((item) => item.id === reference.id)) {
+        onSelectedReferencesChange(
+          [...selectedReferences, reference].slice(
+            0,
+            NODE_STUDIO_ASSISTANT_LIMITS.maxReferences,
+          ),
+        )
+      }
+      if (!mentionPendingRef.current) return
+      mentionPendingRef.current = false
+      // 用户敲的那个 `@` 是触发符，替换成完整的 `@名字 ` —— 直接算出新字符串，
+      // 不去 DOM 里插节点：MentionInput 是半受控的，外部 value 变了它自己会重渲
+      // 成胶囊，省掉一次插入与重渲的先后之争。
+      setDraft((current) => `${current.replace(/@$/, '')}@${reference.label} `)
+    },
+    [onSelectedReferencesChange, selectedReferences],
+  )
 
   /**
    * 敲出一个新的 `@` 就把选择器打开。判据是**新增了一个 @**，不是「以 @ 结尾」——
@@ -248,11 +294,14 @@ export function AssistantConversation({
     [draft, isLoading],
   )
 
-  const removeReference = useCallback((referenceId: string) => {
-    setSelectedReferences((current) =>
-      current.filter((reference) => reference.id !== referenceId),
-    )
-  }, [])
+  const removeReference = useCallback(
+    (referenceId: string) => {
+      onSelectedReferencesChange(
+        selectedReferences.filter((reference) => reference.id !== referenceId),
+      )
+    },
+    [onSelectedReferencesChange, selectedReferences],
+  )
 
   const toggleMessageExpanded = useCallback((messageId: string) => {
     setExpandedMessageIds((current) => {
@@ -282,9 +331,17 @@ export function AssistantConversation({
       } else {
         await onSend(nextDraft)
       }
-      setSelectedReferences([])
+      onSelectedReferencesChange([])
     },
-    [draft, isLoading, onSend, selectedReferences, t, unsupportedReference],
+    [
+      draft,
+      isLoading,
+      onSelectedReferencesChange,
+      onSend,
+      selectedReferences,
+      t,
+      unsupportedReference,
+    ],
   )
 
   return (
@@ -509,8 +566,30 @@ export function AssistantConversation({
         className="px-3 pb-3 pt-2 md:px-4 md:pb-4 md:pt-3"
       >
         <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2 shadow-sm focus-within:border-node-edge">
-          {selectedReferences.length > 0 ? (
+          {selectedReferences.length > 0 || pickedNodes.length > 0 ? (
             <div className="mb-1.5 flex flex-wrap gap-1.5 px-1">
+              {pickedNodes.map((node) => (
+                // 手势 A：拾进来的非媒体节点。没有缩略图、没有 #n 编号（编号是
+                // 媒体载荷的位置，文本节点不占位），只有名字 + 摘除。
+                <span
+                  key={`picked-node:${node.id}`}
+                  className="inline-flex max-w-full items-center gap-1 rounded-full border border-node-panel-inner bg-node-canvas/60 px-2 py-1 text-2xs font-medium text-node-muted"
+                  data-picked-node-id={node.id}
+                >
+                  <MousePointerClick className="size-3 shrink-0" />
+                  <span className="max-w-32 truncate">{node.label}</span>
+                  {onRemovePickedNode ? (
+                    <button
+                      type="button"
+                      onClick={() => onRemovePickedNode(node.id)}
+                      aria-label={t('removePickedNode')}
+                      className="rounded-full p-0.5 hover:bg-node-panel-inner hover:text-node-foreground"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  ) : null}
+                </span>
+              ))}
               {selectedReferences.map((reference) => {
                 const Icon = reference.kind === 'video' ? Video : ImageIcon
                 return (
@@ -549,14 +628,20 @@ export function AssistantConversation({
           {/* A4：`@名字` 在句子中间渲染成带缩略图的胶囊 —— 复用节点提示词那台
               `MentionInput`（cast-redesign §6），不另造一个富文本输入。
               value 仍是纯文本（`@名字` 内联），所以发送链路一个字节没变。 */}
-          <MentionInput
-            value={draft}
-            onValueChange={handleDraftChange}
-            tokens={mentionTokens}
-            placeholder={t('placeholder')}
-            aria-label={t('placeholder')}
-            className="min-h-20 px-2 py-1.5 text-sm leading-6 text-node-foreground md:min-h-24"
-          />
+          {/* 手势 A：聚焦即 arm。React 的 onFocus 会从 contentEditable 冒上来，
+              所以包一层就够，不用改 MentionInput 的 props。⛔ 没有 onBlur —— 点
+              节点本身就会让输入框失焦，失焦退出等于手势永远触发不了。 */}
+          <div onFocus={onComposerFocus}>
+            <MentionInput
+              ref={composerRef}
+              value={draft}
+              onValueChange={handleDraftChange}
+              tokens={mentionTokens}
+              placeholder={t('placeholder')}
+              aria-label={t('placeholder')}
+              className="min-h-20 px-2 py-1.5 text-sm leading-6 text-node-foreground md:min-h-24"
+            />
+          </div>
           <div className="mt-1 flex items-center justify-between gap-2 px-1">
             <div className="flex min-w-0 items-center gap-0.5">
               <CanvasAssistantReferencePicker
@@ -567,8 +652,32 @@ export function AssistantConversation({
                 open={pickerOpen}
                 onOpenChange={setPickerOpen}
               />
-              <span className="min-w-0 truncate text-2xs font-medium text-node-subtle">
-                {t('modeHint')}
+              {onPickToggle ? (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={t('pickFromCanvas')}
+                  title={t('pickFromCanvas')}
+                  aria-pressed={pickArmed}
+                  disabled={isLoading}
+                  onClick={onPickToggle}
+                  className={cn(
+                    'canvas-assistant-ghost-btn rounded-xl',
+                    pickArmed && 'canvas-assistant-action',
+                  )}
+                >
+                  <MousePointerClick className="size-4" />
+                </Button>
+              ) : null}
+              <span
+                className={cn(
+                  'min-w-0 truncate text-2xs font-medium',
+                  pickArmed ? 'text-node-foreground' : 'text-node-subtle',
+                )}
+                aria-live="polite"
+              >
+                {pickArmed ? t('pickArmedHint') : t('modeHint')}
               </span>
             </div>
             <Button

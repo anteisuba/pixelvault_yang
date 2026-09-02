@@ -107,6 +107,7 @@ import {
   prefersReducedMotion,
   type CastIngestEvaluation,
 } from '@/hooks/node/use-cast-ingest'
+import type { CanvasAssistantPickApi } from '@/hooks/node/use-canvas-assistant-pick'
 import { useCanvasImageDrop } from '@/hooks/node/use-canvas-image-drop'
 import {
   createDefaultNodeData,
@@ -851,6 +852,14 @@ function StudioNodeCanvas() {
       if (event.key !== 'Escape' || event.isComposing) return
       if (openNodeId || imageEditWorkspaceOpen) return
 
+      // 手势 A 拾取模式：模式在最外层，Esc 先退模式。快投正激活时让位 —— 它是
+      // 显式的拖拽手势，自己的 Esc 监听器（IngestDragLayer）先收；下一次 Esc 才
+      // 轮到拾取。ref 手法同下面的 reviewModeRef。
+      const pick = canvasPickApiRef.current
+      if (pick?.armed && !quickThrowApiRef.current?.quickThrowSource) {
+        pick.exit()
+        return
+      }
       if (assistantDockOpen && assistantExpanded) {
         setAssistantExpanded(false)
         return
@@ -896,6 +905,8 @@ function StudioNodeCanvas() {
   // S5f B2 快投模式: the provider publishes its live API here; canvas event
   // handlers below read it at click time (they live outside the provider).
   const quickThrowApiRef = useRef<QuickThrowApi | null>(null)
+  // 手势 A（画布助手）：dock 发布拾取 API，节点点击 / 空白点击 / Esc 在事件时读。
+  const canvasPickApiRef = useRef<CanvasAssistantPickApi | null>(null)
 
   const handleNodeClick = useCallback(
     (_event: ReactMouseEvent, node: NodeWorkflowNode) => {
@@ -918,6 +929,17 @@ function StudioNodeCanvas() {
         ])
         return
       }
+      // 手势 A：输入框 armed 时节点点击 = 把节点送进输入框，不是选中 / 展开。
+      // 快投在前：它是显式拖拽手势，两者同时激活时快投赢。同样撤掉 React Flow
+      // 在 pointer-down 时顺手做的选中 —— 拾取有自己的胶囊表达，不和选中态叠。
+      const pick = canvasPickApiRef.current
+      if (pick?.armed) {
+        pick.feed(node.id)
+        workflow.onNodesChange([
+          { id: node.id, type: 'select', selected: false },
+        ])
+        return
+      }
     },
     [workflow],
   )
@@ -930,6 +952,12 @@ function StudioNodeCanvas() {
     const api = quickThrowApiRef.current
     if (api?.quickThrowSource) {
       api.exitQuickThrow()
+      return
+    }
+    // 手势 A：点空白画布 = 退出拾取模式（三条出口之一：Esc / 空白 / 发送）。
+    const pick = canvasPickApiRef.current
+    if (pick?.armed) {
+      pick.exit()
       return
     }
     closeAddMenu()
@@ -5060,6 +5088,7 @@ function StudioNodeCanvas() {
             onExpandedChange={setAssistantExpanded}
             onFocusNode={handleFocusNode}
             historyPortalTarget={assistantHistoryHost}
+            pickApiRef={canvasPickApiRef}
           />
         }
       >

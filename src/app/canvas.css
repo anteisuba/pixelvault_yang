@@ -340,6 +340,39 @@
   font-weight: 700;
   box-shadow: 0 1px 4px var(--node-shadow);
 }
+/* 手势 A 拾取模式（画布助手 · 2026-09-01）：输入框聚焦 / 「从画布选」后，
+   还能拾进输入框的节点虚线描边 + copy 光标，已在输入框里的 ⊘ 半透明。
+   同快投一套命令式 classList 纪律，类名由 use-canvas-assistant-pick 写入。
+   虚线与快投的实线故意不同：两个模式可以同时存在（快投优先），描边语言
+   必须一眼分得开。 */
+.node-assistant-pick-target {
+  outline: 2px dashed var(--node-paint);
+  outline-offset: 4px;
+  border-radius: inherit;
+  cursor: copy;
+}
+.node-assistant-pick-included {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.node-assistant-pick-included::after {
+  content: '⊘';
+  position: absolute;
+  top: -0.625rem;
+  left: -0.625rem;
+  z-index: var(--z-index-canvas-selection);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: var(--node-panel);
+  color: var(--node-muted);
+  font-size: 0.875rem;
+  box-shadow: 0 1px 4px var(--node-shadow);
+}
+
 .node-quick-throw-included {
   opacity: 0.45;
 }

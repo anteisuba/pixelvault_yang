@@ -20,6 +20,7 @@ vi.mock('@/lib/db', () => ({
 }))
 
 import {
+  isLlmTextAbortError,
   isLlmTextContextLimitError,
   resolveLlmTextRoute,
   llmTextCompletion,
@@ -1993,5 +1994,208 @@ describe('Gemini 空回复的归因', () => {
       // 「没有回复」，还是查不动。
       message: expect.stringContaining('RECITATION'),
     })
+  })
+})
+
+describe('LlmTextInput.signal —— 调用方取消', () => {
+  // 没有这条时 ⏹ 只能拦住「还没开始」的下一步：在飞的 provider 请求照跑照计费，
+  // 跑完再被丢掉。这里验的是六家 adapter 的主请求都真的收到了取消信号，
+  // 并且取消**不会**被误报成 PROVIDER_TIMEOUT（那是「上游没答话」，是另一件事）。
+  const ROUTES = {
+    [AI_ADAPTER_TYPES.GEMINI]: {
+      label: 'Gemini',
+      baseUrl: 'https://generativelanguage.googleapis.com',
+    },
+    [AI_ADAPTER_TYPES.OPENAI]: {
+      label: 'OpenAI',
+      baseUrl: 'https://api.openai.com/v1',
+    },
+    [AI_ADAPTER_TYPES.DEEPSEEK]: {
+      label: 'DeepSeek',
+      baseUrl: 'https://api.deepseek.com',
+    },
+    [AI_ADAPTER_TYPES.DASHSCOPE]: {
+      label: 'Qwen',
+      baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+    },
+    [AI_ADAPTER_TYPES.ANTHROPIC]: {
+      label: 'Claude',
+      baseUrl: 'https://api.anthropic.com/v1',
+    },
+    [AI_ADAPTER_TYPES.XAI]: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+  } as const
+
+  /** 照真 fetch 的行为：收到已触发的 signal 就以 `signal.reason` 拒绝。 */
+  function fetchHonoringSignal(response: () => Response) {
+    return vi.fn((_endpoint: string, init?: RequestInit) => {
+      if (init?.signal?.aborted) return Promise.reject(init.signal.reason)
+      return Promise.resolve(response())
+    })
+  }
+
+  function readFetchSignal(
+    fetchMock: ReturnType<typeof vi.fn>,
+  ): AbortSignal | undefined {
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    return init?.signal ?? undefined
+  }
+
+  function sseResponse(lines: string[]): Response {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder()
+        for (const line of lines) controller.enqueue(encoder.encode(line))
+        controller.close()
+      },
+    })
+    return new Response(body, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    })
+  }
+
+  async function collect(stream: AsyncIterable<string>): Promise<string[]> {
+    const chunks: string[] = []
+    for await (const chunk of stream) chunks.push(chunk)
+    return chunks
+  }
+
+  it('六家 adapter 齐全 —— 表漏一家这组 it.each 就少跑一家', () => {
+    expect(Object.keys(ROUTES).sort()).toEqual([...LLM_TEXT_ADAPTERS].sort())
+  })
+
+  it.each(LLM_TEXT_ADAPTERS)(
+    '缓冲补全 %s：已触发的 signal 传到 fetch，抛的是调用方的 abort 而非超时',
+    async (adapterType) => {
+      const fetchMock = fetchHonoringSignal(
+        () => new Response('{}', { status: 200 }),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+      const controller = new AbortController()
+      controller.abort()
+
+      const attempt = llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType,
+        providerConfig: ROUTES[adapterType],
+        apiKey: 'test-key',
+        signal: controller.signal,
+      })
+
+      await expect(attempt).rejects.toSatisfy(isLlmTextAbortError)
+      await expect(attempt).rejects.not.toMatchObject({
+        errorCode: 'PROVIDER_TIMEOUT',
+      })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(readFetchSignal(fetchMock)?.aborted).toBe(true)
+    },
+  )
+
+  it.each(LLM_TEXT_ADAPTERS)(
+    '流式 %s：已触发的 signal 传到 fetch，抛的是调用方的 abort 而非超时',
+    async (adapterType) => {
+      const fetchMock = fetchHonoringSignal(() => sseResponse([]))
+      vi.stubGlobal('fetch', fetchMock)
+      const controller = new AbortController()
+      controller.abort()
+
+      const attempt = collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType,
+          providerConfig: ROUTES[adapterType],
+          apiKey: 'test-key',
+          signal: controller.signal,
+        }),
+      )
+
+      await expect(attempt).rejects.toSatisfy(isLlmTextAbortError)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(readFetchSignal(fetchMock)?.aborted).toBe(true)
+    },
+  )
+
+  it('流式：并联出来的 signal 活过响应头 —— 流中途 ⏹ 仍能掐断 body', async () => {
+    const fetchMock = fetchHonoringSignal(() =>
+      sseResponse([
+        'data: {"choices":[{"delta":{"content":"a"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"b"}}]}\n\n',
+        'data: [DONE]\n\n',
+      ]),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+
+    const iterator = llmTextStream({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig: ROUTES[AI_ADAPTER_TYPES.XAI],
+      apiKey: 'test-key',
+      signal: controller.signal,
+    })[Symbol.asyncIterator]()
+
+    await expect(iterator.next()).resolves.toEqual({ value: 'a', done: false })
+    const fetchSignal = readFetchSignal(fetchMock)
+    expect(fetchSignal?.aborted).toBe(false)
+
+    controller.abort()
+    expect(fetchSignal?.aborted).toBe(true)
+    await iterator.return?.()
+  })
+
+  it('signal 没触发时的超时照旧归因为 PROVIDER_TIMEOUT', async () => {
+    const timedOut = new Error('The operation timed out')
+    timedOut.name = 'TimeoutError'
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(timedOut))
+    const controller = new AbortController()
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.XAI,
+        providerConfig: ROUTES[AI_ADAPTER_TYPES.XAI],
+        apiKey: 'test-key',
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ errorCode: 'PROVIDER_TIMEOUT', httpStatus: 504 })
+  })
+
+  it('不传 signal：fetch 拿到的仍是超时那一路的 AbortSignal', async () => {
+    const fetchMock = fetchHonoringSignal(
+      () =>
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+          { status: 200 },
+        ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig: ROUTES[AI_ADAPTER_TYPES.XAI],
+      apiKey: 'test-key',
+    })
+
+    const fetchSignal = readFetchSignal(fetchMock)
+    expect(fetchSignal).toBeInstanceOf(AbortSignal)
+    expect(fetchSignal?.aborted).toBe(false)
+  })
+
+  it('isLlmTextAbortError 只认 AbortError，不把 PROVIDER_TIMEOUT 当取消', () => {
+    const controller = new AbortController()
+    controller.abort()
+    expect(isLlmTextAbortError(controller.signal.reason)).toBe(true)
+
+    const timedOut = new Error('The operation timed out')
+    timedOut.name = 'TimeoutError'
+    expect(isLlmTextAbortError(timedOut)).toBe(false)
+    expect(isLlmTextAbortError(new Error('ECONNREFUSED'))).toBe(false)
+    expect(isLlmTextAbortError(null)).toBe(false)
   })
 })

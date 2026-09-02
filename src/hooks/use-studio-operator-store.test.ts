@@ -386,3 +386,39 @@ describe('会话历史 · 载入与新对话', () => {
     expect(result.current.changes.prompt?.stepId).toBe('step-a')
   })
 })
+
+/**
+ * 画布一格（C1-pre，任务书 §三）：store 按域分槽，画布只是多一格 —— 与图片 /
+ * 视频 / LoRA 同一套规矩（切过去是干净的，切回来原样还在）。
+ */
+describe('画布一格', () => {
+  it('切到画布是干净的一槽；画布上备好的那一枪不会点亮图片档的生成键', () => {
+    const result = readState()
+    act(() =>
+      store.recordOperatorChange({
+        field: STUDIO_OPERATOR_FIELD_IDS.prompt,
+        stepId: 'image-step',
+        firstInverse: DONE,
+        previousLabel: '图片域原文',
+      }),
+    )
+    act(() => store.setOperatorPrimed(true))
+
+    act(() => store.switchOperatorDomain('canvas'))
+    expect(result.current.domain).toBe('canvas')
+    expect(result.current.changes).toEqual({})
+    expect(result.current.primed).toBe(false)
+    expect(result.current.confirm).toBeNull()
+
+    act(() => store.setOperatorPrimed(true))
+    act(() => store.switchOperatorDomain('image'))
+    // 图片域那笔账与那一枪原样还在，⛔ 没被画布那一槽顶掉。
+    expect(result.current.changes.prompt?.stepId).toBe('image-step')
+    expect(result.current.primed).toBe(true)
+
+    // 再切回画布：它自己那一枪也还在。
+    act(() => store.switchOperatorDomain('canvas'))
+    expect(result.current.primed).toBe(true)
+    expect(result.current.changes).toEqual({})
+  })
+})

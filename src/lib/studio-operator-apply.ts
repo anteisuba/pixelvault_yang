@@ -26,7 +26,10 @@ import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_WRITE_MODES,
+  type AssistantOperatorDomain,
+  type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { isAspectRatio } from '@/constants/config'
 import { isImageBatchCount } from '@/constants/studio'
 import { isVideoResolution } from '@/constants/video-options'
@@ -139,6 +142,53 @@ export interface StudioOperatorApplyContext {
   lora?: StudioOperatorLoraContext
 }
 
+/**
+ * 「这一步不归本宿主落」（C1-pre）。
+ *
+ * ── 为什么不是 `null` ────────────────────────────────────────────────
+ * `null` 在这个模块里的意思是「本宿主处理过、只是没有字段可记」：读类工具、
+ * 查不到 optionId、`prime_generate`。画布那八条改动型不是这一种 —— 它们落在
+ * **另一个宿主**（节点画布，C1 的 `canvas-operator-apply.ts`）上，工作台表单上
+ * 没有任何一只手能落它们。把它们也折成 `null` 就是一次静默吞掉：日志条写着
+ * 「已建 3 个节点」，画布上什么都没多出来，而没有任何人会去查（本仓最讨厌的
+ * 那种失败）。所以它是一个**类型上分得开**的第三种结果，调用方必须显式处理
+ * （往线程里插一行 `stepNotApplicable` 系统行）。
+ * ⚠ 运行时到不了这里：域工具表把画布工具锁在 `canvas` 域，工作台宿主只送三域。
+ *    这条出口是类型层的诚实，不是运行时兜底 —— 与 `lora?` 缺席那条同一个论据。
+ */
+export interface StudioOperatorStepNotApplicable {
+  readonly notApplicable: true
+  readonly tool: AssistantOperatorTool
+  /** 能落这一步的宿主所在的域。 */
+  readonly hostDomain: AssistantOperatorDomain
+}
+
+/**
+ * `applyOperatorStep` 的三种结果：动了哪一格 / 什么都没动 / 不归本宿主落。
+ * ⚠ 调用方先问 `isOperatorStepNotApplicable`，再按 truthy 记账 —— 直接 `if (outcome)`
+ *    会把第三种当成一个字段写进登记簿。
+ */
+export type StudioOperatorApplyOutcome =
+  | StudioOperatorField
+  | StudioOperatorStepNotApplicable
+  | null
+
+export function isOperatorStepNotApplicable(
+  outcome: StudioOperatorApplyOutcome,
+): outcome is StudioOperatorStepNotApplicable {
+  return typeof outcome === 'object' && outcome !== null
+}
+
+function canvasStepNotApplicable(
+  tool: AssistantOperatorTool,
+): StudioOperatorStepNotApplicable {
+  return {
+    notApplicable: true,
+    tool,
+    hostDomain: ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+  }
+}
+
 /** 清晰度的收窄 —— 直接问 schema，不在这里抄一份 `['auto','1K','2K','4K']`。 */
 function toResolution(
   value: string,
@@ -191,6 +241,20 @@ export function getOperatorStepField(
     case ASSISTANT_OPERATOR_TOOL_IDS.unmountLora:
     case ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight:
       return STUDIO_OPERATOR_FIELD_IDS.loras
+    /**
+     * 画布那八条改动型在工作台登记簿里**没有格**（C1-pre）：`STUDIO_OPERATOR_FIELDS`
+     * 是这台表单的字段，而画布的改动粒度是 `${nodeId}:${field}`，由画布宿主自建
+     * 枚举（任务书 §三）。这里显式列出而不是靠 `default` 兜：漏一条是决定，不是遗忘。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.stageNodes:
+    case ASSISTANT_OPERATOR_TOOL_IDS.connectNodes:
+    case ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields:
+    case ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel:
+    case ASSISTANT_OPERATOR_TOOL_IDS.attachRefs:
+    case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
+    case ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate:
+    case ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc:
+      return null
     default:
       // `prime_generate` 有意不算「字段」：生成键不是表单的一格，它的还原由
       // 「清掉全部改动」顺手做掉（拍板 14 要求清完不能留一个亮着的生成键）。
@@ -253,17 +317,25 @@ export function describeOperatorInverse(
 }
 
 /**
- * 应用一步。返回它动了哪个字段（登记簿据此记账），什么都没动就返回 `null`。
+ * 应用一步。返回它动了哪个字段（登记簿据此记账），什么都没动就返回 `null`，
+ * 不归本宿主落的返回 `StudioOperatorStepNotApplicable`（见其头注）。
  */
 export function applyOperatorStep(
   step: AssistantOperatorAppliedStep,
   ctx: StudioOperatorApplyContext,
-): StudioOperatorField | null {
+): StudioOperatorApplyOutcome {
   switch (step.tool) {
     case ASSISTANT_OPERATOR_TOOL_IDS.readState:
     case ASSISTANT_OPERATOR_TOOL_IDS.searchAssets:
     case ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders:
     case ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder:
+    /**
+     * ⚠ 画布两条读（`read_graph` / `read_node`）与其它读类同一档：服务端已从
+     * 快照的工作副本答过，任何宿主上都没有东西可落。它们**不是**「不归本宿主」——
+     * 那一档留给下面八条改动型，读一步不该在线程里多出一行「落不了」。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.readGraph:
+    case ASSISTANT_OPERATOR_TOOL_IDS.readNode:
     /**
      * ⚠ `search_web_images` **必须显式列在这里**，不能靠 switch 漏出去：
      * 本仓没开 `noImplicitReturns`，漏掉的分支会返回 `undefined` 而不是 `null`，
@@ -444,6 +516,24 @@ export function applyOperatorStep(
       ctx.setPrimed(true)
       return null
     }
+
+    /**
+     * 画布域的八条改动型（C1-pre）—— **工作台宿主落不了**，表单一个字不动。
+     *
+     * 它们的落点是节点画布宿主（C1 的 `canvas-operator-apply.ts`：`(graph, step)
+     * → { patch, inverse }`，零 React），与这份表单上下文没有一只手是相通的。
+     * ⛔ 不折成 `null`（那是「处理过了」），⛔ 不抛（这不是故障，是分工）——
+     * 返回类型上分得开的第三种结果，让调用方在线程里说一句。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.stageNodes:
+    case ASSISTANT_OPERATOR_TOOL_IDS.connectNodes:
+    case ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields:
+    case ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel:
+    case ASSISTANT_OPERATOR_TOOL_IDS.attachRefs:
+    case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
+    case ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate:
+    case ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc:
+      return canvasStepNotApplicable(step.tool)
   }
 }
 
@@ -468,6 +558,22 @@ export function revertOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages:
     case ASSISTANT_OPERATOR_TOOL_IDS.searchLoras:
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
+    case ASSISTANT_OPERATOR_TOOL_IDS.readGraph:
+    case ASSISTANT_OPERATOR_TOOL_IDS.readNode:
+      return
+
+    /**
+     * 画布八条改动型：`applyOperatorStep` 在本宿主从没落过它们（见那边的头注），
+     * 所以也没有东西可撤 —— 撤的是画布宿主自己的 inverse（C1），不经这里。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.stageNodes:
+    case ASSISTANT_OPERATOR_TOOL_IDS.connectNodes:
+    case ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields:
+    case ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel:
+    case ASSISTANT_OPERATOR_TOOL_IDS.attachRefs:
+    case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
+    case ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate:
+    case ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc:
       return
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setPrompt:

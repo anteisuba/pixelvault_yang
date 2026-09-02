@@ -62,7 +62,18 @@ vi.mock('@/services/lora/lora-candidates.service', () => ({
     mockSearchLoraCandidates(...args),
 }))
 
+/**
+ * 连线规则（C0-b）。桩掉是因为真表今天**全部放开**（owner 2026-07-28「全部放开」，
+ * `canConnectNodeTypes` 恒 true）——要验「非法边被拒且判据只来自查表」，只能让
+ * 桩说一次 false。默认照真表放行。
+ */
+const mockCanConnectNodeTypes = vi.fn()
+vi.mock('@/lib/node-connection-rules', () => ({
+  canConnectNodeTypes: (...args: unknown[]) => mockCanConnectNodeTypes(...args),
+}))
+
 import {
+  ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_EVENTS,
@@ -76,6 +87,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
 import {
   AssistantOperatorEventSchema,
+  AssistantOperatorStepSchema,
   type AssistantOperatorEvent,
   type AssistantOperatorRequest,
 } from '@/types/assistant-operator'
@@ -206,6 +218,7 @@ beforeEach(() => {
   mockIsWebImageSearchConfigured.mockReturnValue(true)
   mockWebImageSearch.mockResolvedValue([])
   mockFindVisionCapableRoute.mockResolvedValue(null)
+  mockCanConnectNodeTypes.mockReturnValue(true)
   // ⚠ 默认「两个源都好好的但没命中」—— 与「源挂了」是两句不同的话，见下面那条用例。
   mockSearchLoraCandidates.mockResolvedValue({
     query: '',
@@ -2975,5 +2988,1039 @@ describe('LoRA 装配台域（P4-C）', () => {
     expect(steps[0]).toMatchObject({
       error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
     })
+  })
+})
+
+// ─── 画布域（C0-b，任务书 §2 / §四 + 附录 D）──────────────────────
+
+const CANVAS_TOOL = ASSISTANT_OPERATOR_TOOL_IDS
+const NEW_1 = `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}1`
+const NEW_2 = `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}2`
+const HERO_URL = 'https://cdn.example.test/hero.png'
+const HERO_SEED = 'short black hair, red coat, silver earring'
+const HAND_WRITTEN_ACTION = '她撑着红伞走进雨里'
+
+/**
+ * ⚠ 根字段 `prompt` **不发**（附录 D §1：画布宿主没有「这台工作台的提示词框」）。
+ * 节点 1 是带媒体的角色卡（外观字段 + 参考图 URL 都在快照里，⛔ 不该进首轮提示）；
+ * 节点 2 是选了模型的视频节点；节点 3 是**用户手写过**的镜头文本（确认闸用）；
+ * 节点 4 是散图（分类控件用）。
+ */
+const CANVAS_SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
+  availableModels: [],
+  canvas: {
+    projectId: 'proj-1',
+    projectName: '雨夜',
+    selectedNodeIds: ['node-1'],
+    nodes: [
+      {
+        id: 'node-1',
+        type: 'image',
+        title: '小林',
+        status: 'done',
+        role: 'character',
+        fields: { prompt: 'a girl with a red umbrella' },
+        references: [{ id: 'ref-a', role: 'identity', url: HERO_URL }],
+        character: { name: '小林', visualSeed: HERO_SEED },
+        mediaUrl: HERO_URL,
+        reviewState: 'awaiting_review',
+      },
+      {
+        id: 'node-2',
+        type: 'seedance',
+        title: '镜头 1',
+        status: 'idle',
+        fields: { prompt: '', motion: '' },
+        model: { modelId: 'seedance-2.5', optionId: 'volcengine:seedance-2.5' },
+        params: { duration: '6' },
+        references: [],
+      },
+      {
+        id: 'node-3',
+        type: 'shotText',
+        title: '镜头文本 1',
+        status: 'idle',
+        fields: {
+          scene: '',
+          action: HAND_WRITTEN_ACTION,
+          camera: '',
+          composition: '',
+        },
+        references: [],
+      },
+      {
+        id: 'node-4',
+        type: 'image',
+        title: '散图',
+        status: 'idle',
+        fields: { prompt: '' },
+        model: null,
+        references: [],
+      },
+    ],
+    edges: [{ id: 'edge-1', source: 'node-1', target: 'node-2' }],
+    modelOptions: [
+      {
+        nodeType: 'seedance',
+        modelId: 'seedance-2.5',
+        optionId: 'volcengine:seedance-2.5',
+        label: 'Seedance 2.5 · 火山',
+        priceLabel: '≈1×',
+      },
+      {
+        nodeType: 'seedance',
+        modelId: 'seedance-2.5',
+        optionId: 'fal:seedance-2.5',
+        label: 'Seedance 2.5 · fal',
+        priceLabel: '≈1.4×',
+      },
+      {
+        nodeType: 'seedance',
+        modelId: 'kling-v3',
+        optionId: 'kling:v3',
+        label: 'Kling V3',
+      },
+    ],
+    scriptDoc: { summary: '雨夜 · 1 role · 2 shots' },
+  },
+}
+
+function buildCanvasRequest(
+  overrides: Partial<AssistantOperatorRequest> = {},
+): AssistantOperatorRequest {
+  return buildRequest({
+    domain: 'canvas',
+    snapshot: CANVAS_SNAPSHOT,
+    messages: [{ role: 'user', content: '帮我把小林的第一镜搭出来' }],
+    ...overrides,
+  })
+}
+
+function canvasTurn(name: string, args: unknown) {
+  return { tool: { name, title: name, args } }
+}
+
+function doneSteps(events: AssistantOperatorEvent[]) {
+  return stepsOf(events).filter(
+    (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+  )
+}
+
+function rejectionOf(events: AssistantOperatorEvent[], index = 0): string {
+  return (stepsOf(events)[index].error as { reason: string }).reason
+}
+
+function firstUserPrompt(): string {
+  const call = mockLlmTextCompletion.mock.calls[0]?.[0] as {
+    userPrompt: string
+  }
+  return call.userPrompt
+}
+
+describe('画布域 · 域闸与提示（C0-b）', () => {
+  it('⛔ 工作台三域调画布工具按 noSuchControl 拒（域闸在参数之前）', async () => {
+    queueTurns(canvasTurn(CANVAS_TOOL.readGraph, {}), { finished: true })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest({ domain: 'image' })),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+    )
+  })
+
+  it('domain: canvas 却没带 canvas 节 → 画布工具按 noSuchControl 拒', async () => {
+    queueTurns(canvasTurn(CANVAS_TOOL.readGraph, {}), { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildCanvasRequest({ snapshot: { availableModels: [] } }),
+      ),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+    )
+  })
+
+  it('⭐ K-4 两向：首轮系统提示 / 用户提示不含 URL 与外观字段；read_node 才给', async () => {
+    queueTurns(canvasTurn(CANVAS_TOOL.readNode, { nodeId: 'node-1' }), {
+      finished: true,
+    })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+
+    const system = systemPrompt()
+    const user = firstUserPrompt()
+    for (const prompt of [system, user]) {
+      expect(prompt).not.toContain('https://')
+      expect(prompt).not.toContain(HERO_SEED)
+      expect(prompt).not.toContain(HAND_WRITTEN_ACTION)
+      expect(prompt).not.toContain('a girl with a red umbrella')
+    }
+    // 概览级内容在状态块里：id / 类型 / 标题 / 状态 / 边 / 选中 / 项目名 / 目录
+    expect(user).toContain('node-1 · image/character · "小林" · done')
+    expect(user).toContain('node-1 → node-2')
+    expect(user).toContain('Selected: node-1')
+    expect(user).toContain('"雨夜"')
+    expect(user).toContain('optionId=volcengine:seedance-2.5')
+    expect(user).toContain('(≈1×)')
+
+    const read = doneSteps(events)[0]
+    const digest = (read.result as { digest: string }).digest
+    expect(digest).toContain(HERO_URL)
+    expect(digest).toContain(HERO_SEED)
+    expect(digest).toContain('name "小林"')
+    expect(read).not.toHaveProperty('inverse')
+  })
+
+  it('画布系统提示吃域简报的收敛槽位 + 两条操作员习惯（先读角色卡 / 一批一步）', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildCanvasRequest()))
+    const system = systemPrompt()
+    expect(system).toContain('You are the canvas partner')
+    expect(system).toContain('how many shots')
+    expect(system).toContain('read_node the character card')
+    expect(system).toContain('ONE batch and ONE step')
+    expect(system).toContain('prime_node_generate')
+    // 画布提示里只列画布的工具，工作台件不在
+    expect(system).toContain('- stage_nodes:')
+    expect(system).not.toContain('- set_prompt:')
+    expect(system).not.toContain('- prime_generate:')
+  })
+
+  it('read_graph 的 digest 是紧凑概览：含边 / 选中 / 剧本摘要，不含 URL', async () => {
+    queueTurns(canvasTurn(CANVAS_TOOL.readGraph, {}), { finished: true })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    const digest = (doneSteps(events)[0].result as { digest: string }).digest
+    expect(digest).toContain('node-3 · shotText · "镜头文本 1" · idle')
+    expect(digest).toContain('node-1 → node-2')
+    expect(digest).toContain('Script doc: 雨夜 · 1 role · 2 shots')
+    expect(digest).not.toContain('https://')
+    expect(digest).not.toContain(HAND_WRITTEN_ACTION)
+  })
+
+  it('read_node 编的 id 按 unknownNode 拒', async () => {
+    queueTurns(canvasTurn(CANVAS_TOOL.readNode, { nodeId: 'node-99' }), {
+      finished: true,
+    })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownNode,
+    )
+  })
+
+  it('update_script_doc（C3）现在拒得明明白白，不假装写进去了', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.updateScriptDoc, {
+        doc: { logline: 'x', characters: [], scenes: [] },
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+    )
+    expect(
+      events.some(
+        (event) =>
+          event.type === ASSISTANT_OPERATOR_EVENTS.step &&
+          (event as { step: { status: string } }).step.status ===
+            ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      ),
+    ).toBe(false)
+  })
+})
+
+describe('画布域 · stage_nodes / connect_nodes 与批内别名', () => {
+  it('建一批：没给别名的按序补 new:<n>，类型 / 角色收窄成 enum，inverse 是这批别名', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.stageNodes, {
+        items: [
+          {
+            type: 'shotText',
+            title: '镜头文本 2',
+            fields: { action: '雨停了' },
+          },
+          { type: 'image', role: 'shot', title: '镜头 2 画面' },
+        ],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    const done = doneSteps(events)[0]
+    expect(done.payload).toEqual({
+      items: [
+        {
+          alias: NEW_1,
+          type: 'shotText',
+          title: '镜头文本 2',
+          fields: { action: '雨停了' },
+        },
+        { alias: NEW_2, type: 'image', role: 'shot', title: '镜头 2 画面' },
+      ],
+    })
+    expect(done.inverse).toEqual({ nodeIds: [NEW_1, NEW_2] })
+  })
+
+  it('⛔ 加号菜单里没有的类型按 unknownNodeType 拒（退役的 composer 也建不出来）', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.stageNodes, {
+        items: [{ type: 'composer' }],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownNodeType,
+    )
+  })
+
+  it('⭐ 别名跨步：stage_nodes 之后同一轮 connect_nodes / set_node_fields 认 new:1；别名建出来的卡改字段不问', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.stageNodes, {
+        items: [{ alias: NEW_1, type: 'seedance', title: '镜头 2' }],
+      }),
+      canvasTurn(CANVAS_TOOL.connectNodes, {
+        items: [
+          { source: 'node-1', target: NEW_1 },
+          { source: 'node-3', target: NEW_1 },
+        ],
+      }),
+      canvasTurn(CANVAS_TOOL.setNodeFields, {
+        items: [
+          {
+            nodeId: NEW_1,
+            fields: { prompt: '雨停之后的街道', duration: '8' },
+          },
+        ],
+      }),
+      canvasTurn(CANVAS_TOOL.readGraph, {}),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(
+      events.some(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+      ),
+    ).toBe(false)
+    const [staged, connected, written, graph] = doneSteps(events)
+    expect(staged.tool).toBe(CANVAS_TOOL.stageNodes)
+    expect(connected.payload).toEqual({
+      items: [
+        { source: 'node-1', target: NEW_1 },
+        { source: 'node-3', target: NEW_1 },
+      ],
+    })
+    expect(connected.inverse).toEqual(connected.payload)
+    expect(mockCanConnectNodeTypes).toHaveBeenCalledWith(
+      'image',
+      'seedance',
+      undefined,
+      'character',
+    )
+    expect(written.payload).toEqual({
+      items: [
+        {
+          nodeId: NEW_1,
+          fields: { prompt: '雨停之后的街道', duration: '8' },
+          mode: 'replace',
+        },
+      ],
+    })
+    // 新卡：文本改前是空串，档位改前没有这个键
+    expect(written.inverse).toEqual({
+      items: [{ nodeId: NEW_1, fields: { prompt: '', duration: null } }],
+    })
+    const digest = (graph.result as { digest: string }).digest
+    expect(digest).toContain(`${NEW_1} · seedance · "镜头 2" · idle · STAGED`)
+    expect(digest).toContain(`node-3 → ${NEW_1}`)
+  })
+
+  it('没登记过的别名按 aliasUnresolved 拒；真实 id 不存在按 unknownNode 拒', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.connectNodes, {
+        items: [
+          {
+            source: 'node-1',
+            target: `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}9`,
+          },
+        ],
+      }),
+      canvasTurn(CANVAS_TOOL.connectNodes, {
+        items: [{ source: 'node-1', target: 'node-404' }],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events, 0)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.aliasUnresolved,
+    )
+    expect(rejectionOf(events, 1)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownNode,
+    )
+  })
+
+  it('⛔ 非法边按 illegalConnection 拒，判据只来自 canConnectNodeTypes（规则表放开 / 收紧这里自动跟着）', async () => {
+    mockCanConnectNodeTypes.mockReturnValue(false)
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.connectNodes, {
+        items: [{ source: 'node-3', target: 'node-1' }],
+      }),
+      // 自环不用问规则表
+      canvasTurn(CANVAS_TOOL.connectNodes, {
+        items: [{ source: 'node-2', target: 'node-2' }],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events, 0)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.illegalConnection,
+    )
+    expect(rejectionOf(events, 1)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.illegalConnection,
+    )
+    expect(mockCanConnectNodeTypes).toHaveBeenCalledTimes(1)
+    expect(mockCanConnectNodeTypes).toHaveBeenCalledWith(
+      'shotText',
+      'image',
+      'character',
+      undefined,
+    )
+  })
+
+  it('已经连着的边再连按 repeatedStep 拒（不静默重复）', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.connectNodes, {
+        items: [{ source: 'node-1', target: 'node-2' }],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+    )
+  })
+})
+
+describe('画布域 · set_node_fields 与确认复合键', () => {
+  const OVERWRITE_ACTION = canvasTurn(CANVAS_TOOL.setNodeFields, {
+    items: [{ nodeId: 'node-3', fields: { action: '助手改写的镜头动作' } }],
+  })
+
+  it('字段不在族表里按 unknownField 拒，且理由指出自由文本真正的落点（K-1）', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.setNodeFields, {
+        items: [{ nodeId: 'node-3', fields: { prompt: '写错了地方' } }],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownField,
+    )
+    expect((stepsOf(events)[0].error as { detail: string }).detail).toContain(
+      'goes in "action"',
+    )
+  })
+
+  it('档位只长在视频节点上：给角色卡写 duration 按 unknownField 拒', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.setNodeFields, {
+        items: [{ nodeId: 'node-1', fields: { duration: '6' } }],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownField,
+    )
+  })
+
+  it('散图的分类：写得上，值不在分类表里按 unknownValue 拒', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.setNodeFields, {
+        items: [{ nodeId: 'node-4', fields: { imageCategory: 'frameStart' } }],
+      }),
+      canvasTurn(CANVAS_TOOL.setNodeFields, {
+        items: [{ nodeId: 'node-4', fields: { imageCategory: 'hero-shot' } }],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    const done = doneSteps(events)[0]
+    expect(done.payload).toEqual({
+      items: [
+        {
+          nodeId: 'node-4',
+          fields: { imageCategory: 'frameStart' },
+          mode: 'replace',
+        },
+      ],
+    })
+    expect(done.inverse).toEqual({
+      items: [{ nodeId: 'node-4', fields: { imageCategory: null } }],
+    })
+    expect(rejectionOf(events, 2)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownValue,
+    )
+  })
+
+  it('⭐ 覆写用户手写文本先问：confirm_request 带 nodeId + field，流就此结束', async () => {
+    queueTurns(OVERWRITE_ACTION, { finished: true })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(events.map((event) => event.type)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
+    ])
+    expect(events[0]).toMatchObject({
+      nodeId: 'node-3',
+      field: 'action',
+      have: HAND_WRITTEN_ACTION,
+      proposed: '助手改写的镜头动作',
+    })
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+  })
+
+  it('带着复合键的「追加」重发就续跑：载荷 mode append，inverse 是改前原文', async () => {
+    queueTurns(OVERWRITE_ACTION, { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildCanvasRequest({
+          confirmations: [
+            {
+              nodeId: 'node-3',
+              field: 'action',
+              choice: ASSISTANT_OPERATOR_CONFIRM_CHOICES.append,
+            },
+          ],
+        }),
+      ),
+    )
+    const done = doneSteps(events)[0]
+    expect(done.payload).toEqual({
+      items: [
+        {
+          nodeId: 'node-3',
+          fields: { action: '助手改写的镜头动作' },
+          mode: 'append',
+        },
+      ],
+    })
+    expect(done.inverse).toEqual({
+      items: [{ nodeId: 'node-3', fields: { action: HAND_WRITTEN_ACTION } }],
+    })
+    // 决定按复合键进了提示
+    expect(lastUserPrompt()).toContain('node-3 · action: append')
+  })
+
+  it('⛔ 复合键不串台：别的节点的决定不算数，照样要问', async () => {
+    queueTurns(OVERWRITE_ACTION, { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildCanvasRequest({
+          confirmations: [
+            {
+              nodeId: 'node-2',
+              field: 'action',
+              choice: ASSISTANT_OPERATOR_CONFIRM_CHOICES.overwrite,
+            },
+          ],
+        }),
+      ),
+    )
+    expect(events[0].type).toBe(ASSISTANT_OPERATOR_EVENTS.confirmRequest)
+  })
+
+  it('选「保留」时那个字段跳过；整批一个都不剩才按 userDeclined 拒', async () => {
+    queueTurns(OVERWRITE_ACTION, { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildCanvasRequest({
+          confirmations: [
+            {
+              nodeId: 'node-3',
+              field: 'action',
+              choice: ASSISTANT_OPERATOR_CONFIRM_CHOICES.keep,
+            },
+          ],
+        }),
+      ),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.userDeclined,
+    )
+  })
+
+  it('⭐ 连改两次：第二次的 inverse 撤回到第一次写完之后的值，且覆盖自己写的不再问', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.setNodeFields, {
+        items: [{ nodeId: 'node-2', fields: { prompt: '第一稿' } }],
+      }),
+      canvasTurn(CANVAS_TOOL.setNodeFields, {
+        items: [
+          { nodeId: 'node-2', fields: { prompt: '第二稿' }, mode: 'append' },
+        ],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(
+      events.some(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+      ),
+    ).toBe(false)
+    const [first, second] = doneSteps(events)
+    expect(first.inverse).toEqual({
+      items: [{ nodeId: 'node-2', fields: { prompt: '' } }],
+    })
+    expect(second.payload).toMatchObject({
+      items: [{ nodeId: 'node-2', mode: 'append' }],
+    })
+    expect(second.inverse).toEqual({
+      items: [{ nodeId: 'node-2', fields: { prompt: '第一稿' } }],
+    })
+    // 第三步之前，模型看到的 observation 是拼好的全文
+    expect(lastUserPrompt()).toContain('第一稿, 第二稿')
+  })
+})
+
+describe('画布域 · set_node_model（K-3）', () => {
+  it('缺 optionId 整步拒（malformedArgs，args schema 那道）', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.setNodeModel, {
+        nodeId: 'node-2',
+        modelId: 'kling-v3',
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.malformedArgs,
+    )
+  })
+
+  it('模型不在目录里 → unknownModel；模型对了渠道对不上 → missingChannel', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.setNodeModel, {
+        nodeId: 'node-2',
+        modelId: 'sora-9',
+        optionId: 'x',
+      }),
+      canvasTurn(CANVAS_TOOL.setNodeModel, {
+        nodeId: 'node-2',
+        modelId: 'kling-v3',
+        optionId: 'fal:kling-v3',
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events, 0)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownModel,
+    )
+    expect(rejectionOf(events, 1)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.missingChannel,
+    )
+    expect((stepsOf(events)[1].error as { detail: string }).detail).toContain(
+      'kling:v3',
+    )
+  })
+
+  it('表内组合成对下发；不选模型的节点按 noSuchControl 拒；连换两次 inverse 落回上一步', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.setNodeModel, {
+        nodeId: 'node-2',
+        modelId: 'seedance-2.5',
+        optionId: 'fal:seedance-2.5',
+      }),
+      canvasTurn(CANVAS_TOOL.setNodeModel, {
+        nodeId: 'node-2',
+        modelId: 'kling-v3',
+        optionId: 'kling:v3',
+      }),
+      canvasTurn(CANVAS_TOOL.setNodeModel, {
+        nodeId: 'node-3',
+        modelId: 'kling-v3',
+        optionId: 'kling:v3',
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    const [first, second] = doneSteps(events)
+    expect(first.payload).toEqual({
+      nodeId: 'node-2',
+      modelId: 'seedance-2.5',
+      optionId: 'fal:seedance-2.5',
+      modelLabel: 'Seedance 2.5 · fal',
+    })
+    expect(first.inverse).toEqual({
+      nodeId: 'node-2',
+      model: { modelId: 'seedance-2.5', optionId: 'volcengine:seedance-2.5' },
+    })
+    expect(second.inverse).toEqual({
+      nodeId: 'node-2',
+      model: { modelId: 'seedance-2.5', optionId: 'fal:seedance-2.5' },
+    })
+    expect(rejectionOf(events, 4)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+    )
+  })
+})
+
+describe('画布域 · attach_refs（附录 D §6）', () => {
+  it('⛔ 没搜过的 assetId 按 unknownAsset 拒（URL 永远不由模型写）', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.attachRefs, {
+        nodeId: 'node-2',
+        refs: [{ assetId: 'asset-made-up' }],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownAsset,
+    )
+  })
+
+  it('从画布节点挂：URL 来自工作副本的 mediaUrl，source=canvas；没媒体的节点挂不上', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.attachRefs, {
+        nodeId: 'node-2',
+        refs: [{ sourceId: 'node-1' }],
+      }),
+      canvasTurn(CANVAS_TOOL.attachRefs, {
+        nodeId: 'node-2',
+        refs: [{ sourceId: 'node-4' }],
+      }),
+      canvasTurn(CANVAS_TOOL.readNode, { nodeId: 'node-2' }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    const done = doneSteps(events)[0]
+    expect(done.payload).toEqual({
+      nodeId: 'node-2',
+      refs: [
+        {
+          id: 'ref-1-1',
+          url: HERO_URL,
+          role: 'identity',
+          source: 'canvas',
+          sourceId: 'node-1',
+          name: '小林',
+        },
+      ],
+    })
+    expect(done.inverse).toEqual({ nodeId: 'node-2', refIds: ['ref-1-1'] })
+    expect(rejectionOf(events, 2)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownAsset,
+    )
+    // 工作副本更新了：read_node 看得到刚挂上的那条
+    const digest = (doneSteps(events)[1].result as { digest: string }).digest
+    expect(digest).toContain('ref-1-1 · identity · from node node-1')
+  })
+
+  it('search_assets / inspect_asset_folder 返回过的 id 都挂得上，URL 由服务端填', async () => {
+    mockGetPublicGenerationPage.mockResolvedValue({
+      generations: [
+        {
+          id: 'gen-1',
+          url: 'https://cdn.example.test/gen-1.png',
+          thumbnailUrl: null,
+          outputType: 'IMAGE',
+          prompt: 'red umbrella',
+          model: 'seedream',
+          createdAt: new Date('2026-08-31T00:00:00Z'),
+        },
+      ],
+      total: 1,
+      hasMore: false,
+      nextCursor: null,
+    })
+    mockListAssistantAssetFolders.mockResolvedValue([
+      {
+        folderId: 'hero-folder',
+        name: 'Hero',
+        path: 'Characters / Hero',
+        imageCount: 30,
+      },
+    ])
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.searchAssets, { query: 'umbrella' }),
+      canvasTurn(CANVAS_TOOL.listAssetFolders, { query: 'hero' }),
+      canvasTurn(CANVAS_TOOL.inspectAssetFolder, { folderId: 'hero-folder' }),
+      canvasTurn(CANVAS_TOOL.attachRefs, {
+        nodeId: 'node-1',
+        refs: [{ assetId: 'gen-1', role: 'style' }, { assetId: 'asset-2' }],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    const attached = doneSteps(events).find(
+      (step) => step.tool === CANVAS_TOOL.attachRefs,
+    )
+    expect(attached?.payload).toEqual({
+      nodeId: 'node-1',
+      refs: [
+        {
+          id: 'ref-4-1',
+          url: 'https://cdn.example.test/gen-1.png',
+          role: 'style',
+          source: 'asset',
+          sourceId: 'gen-1',
+        },
+        {
+          id: 'ref-4-2',
+          url: 'https://cdn.example.test/asset-2.png',
+          role: 'identity',
+          source: 'asset',
+          sourceId: 'asset-2',
+        },
+      ],
+    })
+  })
+
+  it('没有引用架的节点（镜头文本）按 noSuchControl 拒', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.attachRefs, {
+        nodeId: 'node-3',
+        refs: [{ sourceId: 'node-1' }],
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+    )
+  })
+})
+
+describe('画布域 · set_review_state 与 prime_node_generate', () => {
+  it('⛔ approved 硬禁：approvedForbidden，一次确认都不问', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.setReviewState, {
+        nodeId: 'node-1',
+        state: 'approved',
+      }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(rejectionOf(events)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.approvedForbidden,
+    )
+    expect(
+      events.some(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+      ),
+    ).toBe(false)
+  })
+
+  it('打回走 confirm_request（field: reviewState）；带 overwrite 重发落地，inverse 是改前态', async () => {
+    const turn = canvasTurn(CANVAS_TOOL.setReviewState, {
+      nodeId: 'node-1',
+      state: 'rejected',
+      reason: '发色与卡不符',
+    })
+    queueTurns(turn, { finished: true })
+    const asked = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    expect(asked[0]).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+      nodeId: 'node-1',
+      field: 'reviewState',
+      have: 'awaiting_review',
+      proposed: 'rejected',
+    })
+
+    queueTurns(turn, { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildCanvasRequest({
+          confirmations: [
+            {
+              nodeId: 'node-1',
+              field: 'reviewState',
+              choice: ASSISTANT_OPERATOR_CONFIRM_CHOICES.overwrite,
+            },
+          ],
+        }),
+      ),
+    )
+    const done = doneSteps(events)[0]
+    expect(done.payload).toEqual({
+      nodeId: 'node-1',
+      state: 'rejected',
+      reason: '发色与卡不符',
+    })
+    expect(done.inverse).toEqual({ nodeId: 'node-1', state: 'awaiting_review' })
+
+    queueTurns(turn, { finished: true })
+    const kept = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildCanvasRequest({
+          confirmations: [
+            {
+              nodeId: 'node-1',
+              field: 'reviewState',
+              choice: ASSISTANT_OPERATOR_CONFIRM_CHOICES.keep,
+            },
+          ],
+        }),
+      ),
+    )
+    expect(rejectionOf(kept)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.userDeclined,
+    )
+  })
+
+  it('⛔ prime_node_generate 只让那个节点的键亮起来：载荷 { nodeId, primed: true }，逆操作回灰，零外部调用', async () => {
+    queueTurns(
+      canvasTurn(CANVAS_TOOL.primeNodeGenerate, { nodeId: 'node-2' }),
+      canvasTurn(CANVAS_TOOL.primeNodeGenerate, { nodeId: 'node-4' }),
+      canvasTurn(CANVAS_TOOL.primeNodeGenerate, { nodeId: 'node-3' }),
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildCanvasRequest()),
+    )
+    const done = doneSteps(events)[0]
+    expect(done.payload).toEqual({ nodeId: 'node-2', primed: true })
+    expect(done.inverse).toEqual({ nodeId: 'node-2', primed: false })
+    expect(rejectionOf(events, 2)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.noModelSelected,
+    )
+    expect(rejectionOf(events, 3)).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+    )
+    expect(mockGetPublicGenerationPage).not.toHaveBeenCalled()
+    expect(mockInspectAssistantAssetFolder).not.toHaveBeenCalled()
+  })
+})
+
+describe('画布域 · 契约（验收 #1）', () => {
+  it('⛔ 每条画布改动型工具少了 inverse 就过不了 AssistantOperatorStepSchema —— 出流前就被拦', () => {
+    const cases: { tool: string; payload: unknown; inverse: unknown }[] = [
+      {
+        tool: CANVAS_TOOL.stageNodes,
+        payload: { items: [{ alias: NEW_1, type: 'seedance' }] },
+        inverse: { nodeIds: [NEW_1] },
+      },
+      {
+        tool: CANVAS_TOOL.connectNodes,
+        payload: { items: [{ source: 'node-1', target: NEW_1 }] },
+        inverse: { items: [{ source: 'node-1', target: NEW_1 }] },
+      },
+      {
+        tool: CANVAS_TOOL.setNodeFields,
+        payload: {
+          items: [
+            { nodeId: 'node-2', fields: { prompt: 'x' }, mode: 'replace' },
+          ],
+        },
+        inverse: { items: [{ nodeId: 'node-2', fields: { prompt: '' } }] },
+      },
+      {
+        tool: CANVAS_TOOL.setNodeModel,
+        payload: {
+          nodeId: 'node-2',
+          modelId: 'kling-v3',
+          optionId: 'kling:v3',
+        },
+        inverse: { nodeId: 'node-2', model: null },
+      },
+      {
+        tool: CANVAS_TOOL.attachRefs,
+        payload: {
+          nodeId: 'node-2',
+          refs: [
+            {
+              id: 'ref-1-1',
+              url: HERO_URL,
+              role: 'identity',
+              source: 'canvas',
+            },
+          ],
+        },
+        inverse: { nodeId: 'node-2', refIds: ['ref-1-1'] },
+      },
+      {
+        tool: CANVAS_TOOL.setReviewState,
+        payload: { nodeId: 'node-1', state: 'rejected' },
+        inverse: { nodeId: 'node-1', state: null },
+      },
+      {
+        tool: CANVAS_TOOL.primeNodeGenerate,
+        payload: { nodeId: 'node-2', primed: true },
+        inverse: { nodeId: 'node-2', primed: false },
+      },
+    ]
+    for (const entry of cases) {
+      const base = {
+        id: 'step-1',
+        tool: entry.tool,
+        title: 't',
+        status: 'done',
+        payload: entry.payload,
+      }
+      expect(
+        AssistantOperatorStepSchema.safeParse(base).success,
+        `${entry.tool} 没有 inverse 也过了`,
+      ).toBe(false)
+      expect(
+        AssistantOperatorStepSchema.safeParse({
+          ...base,
+          inverse: entry.inverse,
+        }).success,
+        `${entry.tool} 带 inverse 反而不过`,
+      ).toBe(true)
+    }
   })
 })

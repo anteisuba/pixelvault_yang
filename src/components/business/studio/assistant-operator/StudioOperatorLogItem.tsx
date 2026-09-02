@@ -16,21 +16,30 @@ import { memo, useState } from 'react'
 import {
   Ban,
   Blocks,
+  Cable,
   Check,
   CircleDollarSign,
+  Cpu,
   Eye,
+  FileText,
   FolderSearch,
   Globe,
   ImagePlus,
   Layers,
   Link2,
   Music2,
+  Network,
+  Paperclip,
   Pencil,
+  PencilLine,
+  Plus,
   RectangleHorizontal,
   ScanEye,
+  ScanSearch,
   Search,
   SlidersHorizontal,
   Sparkles,
+  Stamp,
   TriangleAlert,
   Unplug,
   Volume2,
@@ -109,7 +118,36 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]: Blocks,
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]: Unplug,
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]: SlidersHorizontal,
+  /**
+   * 画布那十条（C0 / C1-pre）。
+   * ⚠ 两条读**不复用 👁**（`read_state`）：那枚说的是「读这张表单」，画布读的是
+   * 一张图 —— 概览用网络图、单节点用放大镜，日志流里一眼分得出读的是整图还是一格。
+   * ⚠ 连边用 🔌 线缆而不是 `Link`：`Link2` 已经是「用户递来的链接」，两枚链条并排
+   * 会让「连了两个节点」读成「又贴了个网址」。
+   * ⚠ `prime_node_generate` 与 `prime_generate` **同一枚 💲**：同一条宪法（服务端
+   * 什么都不做、不算价、点的人永远是用户），只多一个「哪个节点」—— 钱色也同享。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.readGraph]: Network,
+  [ASSISTANT_OPERATOR_TOOL_IDS.readNode]: ScanSearch,
+  [ASSISTANT_OPERATOR_TOOL_IDS.stageNodes]: Plus,
+  [ASSISTANT_OPERATOR_TOOL_IDS.connectNodes]: Cable,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields]: PencilLine,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel]: Cpu,
+  [ASSISTANT_OPERATOR_TOOL_IDS.attachRefs]: Paperclip,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]: Stamp,
+  [ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate]: CircleDollarSign,
+  [ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc]: FileText,
 }
+
+/**
+ * 钱色的两条：整条日志里唯一花钱相关的条目（拍板 2）—— 工作台一条、画布一条，
+ * 同一条宪法。⚠ 写成集合而不是 `===` 两次：再加一个域的 prime 时这里跟着一行，
+ * 而不是在 JSX 里多一个 `||`。
+ */
+const MONEY_TOOLS: ReadonlySet<AssistantOperatorTool> = new Set([
+  ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+  ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate,
+])
 
 interface StudioOperatorLogItemProps {
   /**
@@ -149,8 +187,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
   const Icon = OPERATOR_TOOL_ICONS[step.tool]
   const isRunning = step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running
   const isRejected = step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
-  const isMoney =
-    step.tool === ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate && !isRejected
+  const isMoney = MONEY_TOOLS.has(step.tool) && !isRejected
   // 撤销只对**落地了的改动**开放：读类没有东西可撤，被拒的什么都没应用。
   // ⚠ 判据取**词表**不是手列三条：加一条读工具而这里没跟上，表现是那条日志上
   //    多出一个撤不掉任何东西的「撤销」（`search_web_images` 就是新加的那条）。

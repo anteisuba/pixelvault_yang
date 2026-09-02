@@ -5626,7 +5626,12 @@
       "galleryVideoLabel": "素材库视频",
       "referenceUploadFailed": "参考素材上传失败",
       "referenceOnlyPrompt": "分析已附加的参考素材，并建议接下来在画布上的具体操作。",
-      "opsMalformed": "助手想改画布，但这段指令没写清楚——画布没有任何改动。"
+      "opsMalformed": "助手想改画布，但这段指令没写清楚——画布没有任何改动。",
+      "pickFromCanvas": "从画布选",
+      "pickArmedHint": "点画布上的节点加入输入框 · Esc 退出",
+      "pickedNodeLimit": "节点已到上限",
+      "pickedReferenceLimit": "参考素材已到上限",
+      "removePickedNode": "移除节点"
     },
     "minimapTitle": "小地图",
     "castDock": {
@@ -6900,12 +6905,14 @@
     "domainChip": {
       "image": "在图片工作台",
       "video": "在视频工作台",
-      "lora": "在 LoRA 工作台"
+      "lora": "在 LoRA 工作台",
+      "canvas": "在节点画布"
     },
     "domainName": {
       "image": "图片工作台",
       "video": "视频工作台",
-      "lora": "LoRA 工作台"
+      "lora": "LoRA 工作台",
+      "canvas": "节点画布"
     },
     "session": "会话",
     "newThread": "新对话",
@@ -6960,7 +6967,14 @@
       "repeatedStep": "这一步刚才做过了，跳过",
       "unknownLora": "这把 LoRA 不在这一轮搜到的结果里",
       "loraNotMounted": "这把 LoRA 没挂在装配台上",
-      "loraNotImportable": "这把 LoRA 收不进你的库，只能去它的来源页看"
+      "loraNotImportable": "这把 LoRA 收不进你的库，只能去它的来源页看",
+      "unknownNode": "画布上没有这个节点",
+      "unknownNodeType": "这种节点用户自己也建不出来，助手不建",
+      "illegalConnection": "这两个节点连不到一起",
+      "unknownField": "这个节点上没有这一栏",
+      "missingChannel": "换模型要连渠道一起给，这步缺了渠道",
+      "aliasUnresolved": "这个临时别名本轮没有建出来",
+      "approvedForbidden": "助手不能替你放行，通过要你自己看过"
     },
     "field": {
       "prompt": "提示词",
@@ -7000,7 +7014,8 @@
       "revertRound": "你还原了这一轮的 {count} 处改动（助手已知晓）",
       "resultArrived": "它备的那一张回来了 —— 助手正在看",
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
-      "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来"
+      "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
+      "stepNotApplicable": "{subject} 是画布上的动作——这台工作台落不了它，什么都没改"
     },
     "suggestion": {
       "setupShot": "帮我配好这张图",
@@ -7011,7 +7026,10 @@
       "splitShots": "切成 3 个镜头",
       "findStyle": "找个对味的画风 LoRA",
       "stackConflict": "这套挂载会打架吗",
-      "sweepWeights": "把权重扫一遍对比"
+      "sweepWeights": "把权重扫一遍对比",
+      "layoutShots": "帮我把这几镜搭出来",
+      "wireReferences": "把角色参考接到镜头上",
+      "whatIsMissing": "哪一格还没齐？"
     },
     "attach": {
       "label": "附件：上传 / 素材库 / 粘贴",

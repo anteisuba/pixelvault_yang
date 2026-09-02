@@ -130,6 +130,12 @@ const slices: Record<AssistantOperatorDomain, StudioOperatorDomainSlice> = {
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.image]: EMPTY_SLICE,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: EMPTY_SLICE,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: EMPTY_SLICE,
+  /**
+   * 画布一格（C1-pre，任务书 §三）。`changes` 在这一槽里**永远是空的**：
+   * `StudioOperatorField` 是工作台表单的字段，画布的改动粒度是 `${nodeId}:${field}`，
+   * 登记在画布宿主自己的枚举上（C1）。`confirm` / `primed` 两样照常按域分槽。
+   */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: EMPTY_SLICE,
 }
 
 let state: StudioOperatorState = INITIAL_STATE

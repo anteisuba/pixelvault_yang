@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_EVENTS,
@@ -20,8 +21,10 @@ import {
 import { ASSISTANT_STREAM_EVENTS } from '@/constants/assistant-stream'
 import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
+  AssistantOperatorCanvasAliasSchema,
   AssistantOperatorEventSchema,
   AssistantOperatorRequestSchema,
+  AssistantOperatorSnapshotCanvasSchema,
   AssistantOperatorSnapshotSchema,
   AssistantOperatorStepSchema,
   AssistantOperatorTurnSchema,
@@ -305,6 +308,110 @@ const STEP_FIXTURES: Record<
       weight: 1,
     },
     inverse: { loraId: 'lora-asset-1', weight: 0.8 },
+  },
+  // ── 画布域（C0）──────────────────────────────────────────────────
+  [ASSISTANT_OPERATOR_TOOL_IDS.readGraph]: {
+    payload: {},
+    result: { digest: '- 3 nodes, 2 edges, 1 selected' },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.readNode]: {
+    payload: { nodeId: 'node-1' },
+    result: { digest: '- image · character · 小林' },
+  },
+  /** ⭐ `alias` 在载荷里必填；`inverse.nodeIds` 是同一批别名（真实 id 客户端才有）。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.stageNodes]: {
+    payload: {
+      items: [
+        {
+          alias: `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}1`,
+          type: 'image',
+          role: 'character',
+          title: '小林',
+          fields: { prompt: 'a girl with a red umbrella' },
+        },
+        {
+          alias: `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}2`,
+          type: 'seedance',
+        },
+      ],
+    },
+    inverse: {
+      nodeIds: [
+        `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}1`,
+        `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}2`,
+      ],
+    },
+  },
+  /** ⭐ 边可以引用同 run 的别名；撤销按 (source, target) 对反查。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.connectNodes]: {
+    payload: {
+      items: [
+        {
+          source: `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}1`,
+          target: `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}2`,
+        },
+      ],
+    },
+    inverse: {
+      items: [
+        {
+          source: `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}1`,
+          target: `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}2`,
+        },
+      ],
+    },
+  },
+  /** ⚠ 逆操作里 `null` = 改前没有这个键。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields]: {
+    payload: {
+      items: [
+        {
+          nodeId: 'node-1',
+          fields: { title: '雨夜开场镜', action: '她撑伞走进雨里' },
+          mode: 'replace',
+        },
+      ],
+    },
+    inverse: {
+      items: [{ nodeId: 'node-1', fields: { title: '镜头 1', action: null } }],
+    },
+  },
+  /** ⭐ K-3：载荷与逆操作都是 modelId + optionId 成对。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel]: {
+    payload: {
+      nodeId: 'node-2',
+      modelId: 'seedance-2.5',
+      optionId: 'volcengine:seedance-2.5',
+      modelLabel: 'Seedance 2.5',
+    },
+    inverse: { nodeId: 'node-2', model: null },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.attachRefs]: {
+    payload: {
+      nodeId: 'node-1',
+      refs: [
+        {
+          id: 'ref-1',
+          url: 'https://cdn.example.com/hero.png',
+          role: 'identity',
+          source: 'canvas',
+          sourceId: 'node-9',
+        },
+      ],
+    },
+    inverse: { nodeId: 'node-1', refIds: ['ref-1'] },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]: {
+    payload: { nodeId: 'node-1', state: 'rejected', reason: '脸崩了' },
+    inverse: { nodeId: 'node-1', state: 'awaiting_review' },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate]: {
+    payload: { nodeId: 'node-2', primed: true },
+    inverse: { nodeId: 'node-2', primed: false },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.updateScriptDoc]: {
+    payload: { doc: { title: '雨夜', logline: '', roles: [], shots: [] } },
+    inverse: { doc: null },
   },
 }
 
@@ -600,11 +707,11 @@ describe('请求与快照契约', () => {
     }
   })
 
-  it('canvas 不在 P1 的域里', () => {
+  it('域词表是封闭的：不认识的域不给过', () => {
     expect(
       AssistantOperatorRequestSchema.safeParse({
         messages: [{ role: 'user', content: 'x' }],
-        domain: 'canvas',
+        domain: 'audio',
         snapshot: SNAPSHOT,
       }).success,
     ).toBe(false)
@@ -649,5 +756,228 @@ describe('模型这一轮写的东西（宽松层）', () => {
       ASSISTANT_OPERATOR_TOOL_IDS.setSpecs
     ].safeParse({ aspectRatio: '21:9', resolution: '8K' })
     expect(parsed.success).toBe(true)
+  })
+})
+
+// ─── 画布域（C0，任务书 §2 / §四）────────────────────────────────
+
+const CANVAS_SNAPSHOT = {
+  ...SNAPSHOT,
+  canvas: {
+    projectId: 'proj-1',
+    projectName: '雨夜',
+    selectedNodeIds: ['node-1'],
+    nodes: [
+      {
+        id: 'node-1',
+        type: 'image',
+        title: '小林',
+        status: 'idle',
+        role: 'character',
+        fields: { prompt: 'a girl with a red umbrella' },
+        references: [
+          {
+            id: 'ref-1',
+            role: 'identity',
+            url: 'https://cdn.example.com/hero.png',
+          },
+        ],
+        character: { name: '小林', visualSeed: 'short black hair, red coat' },
+        mediaUrl: 'https://cdn.example.com/hero.png',
+      },
+      {
+        id: 'node-2',
+        type: 'seedance',
+        title: '镜头 1',
+        status: 'idle',
+        fields: { prompt: '', motion: '' },
+        model: { modelId: 'seedance-2.5', optionId: 'volcengine:seedance-2.5' },
+        params: { duration: '6', generateAudio: true, seed: 42 },
+        references: [],
+      },
+    ],
+    edges: [{ id: 'edge-1', source: 'node-1', target: 'node-2' }],
+    modelOptions: [
+      {
+        nodeType: 'seedance',
+        modelId: 'seedance-2.5',
+        optionId: 'volcengine:seedance-2.5',
+        label: 'Seedance 2.5 · 火山',
+        priceLabel: '≈1×',
+      },
+    ],
+    scriptDoc: { summary: '雨夜 · 2 roles · 4 shots' },
+  },
+}
+
+describe('画布域契约（C0）', () => {
+  it('canvas 节可选：缺席 = 不是画布请求；在场时整节可解析', () => {
+    expect(AssistantOperatorSnapshotSchema.safeParse(SNAPSHOT).success).toBe(
+      true,
+    )
+    const parsed = AssistantOperatorSnapshotSchema.safeParse(CANVAS_SNAPSHOT)
+    expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true)
+    expect(parsed.data?.canvas?.nodes).toHaveLength(2)
+  })
+
+  it('画布请求以 domain: canvas 走同一条请求 schema', () => {
+    expect(
+      AssistantOperatorRequestSchema.safeParse({
+        messages: [{ role: 'user', content: '帮我把这几镜搭出来' }],
+        domain: 'canvas',
+        snapshot: CANVAS_SNAPSHOT,
+      }).success,
+    ).toBe(true)
+  })
+
+  it('节点 model 必须 modelId + optionId 成对（K-4 快照侧）', () => {
+    const missingChannel = AssistantOperatorSnapshotCanvasSchema.safeParse({
+      ...CANVAS_SNAPSHOT.canvas,
+      nodes: [
+        {
+          ...CANVAS_SNAPSHOT.canvas.nodes[1],
+          model: { modelId: 'seedance-2.5' },
+        },
+      ],
+    })
+    expect(missingChannel.success).toBe(false)
+  })
+
+  it('⭐ K-3：set_node_model 入参缺 optionId 整步不合法', () => {
+    const schema =
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_TOOL_IDS.setNodeModel
+      ]
+    expect(
+      schema.safeParse({ nodeId: 'node-2', modelId: 'seedance-2.5' }).success,
+    ).toBe(false)
+    expect(
+      schema.safeParse({
+        nodeId: 'node-2',
+        modelId: 'seedance-2.5',
+        optionId: 'volcengine:seedance-2.5',
+      }).success,
+    ).toBe(true)
+  })
+
+  it('批内别名只认 `new:<n>`，前缀来自常量而不是手写', () => {
+    expect(
+      AssistantOperatorCanvasAliasSchema.safeParse(
+        `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}3`,
+      ).success,
+    ).toBe(true)
+    expect(AssistantOperatorCanvasAliasSchema.safeParse('tmp:3').success).toBe(
+      false,
+    )
+    expect(
+      AssistantOperatorCanvasAliasSchema.safeParse(
+        `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}abc`,
+      ).success,
+    ).toBe(false)
+
+    const stage =
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_TOOL_IDS.stageNodes
+      ]
+    expect(
+      stage.safeParse({ items: [{ alias: 'node-7', type: 'image' }] }).success,
+    ).toBe(false)
+    expect(
+      stage.safeParse({
+        items: [
+          {
+            alias: `${ASSISTANT_OPERATOR_CANVAS_ALIAS_PREFIX}1`,
+            type: 'image',
+          },
+        ],
+      }).success,
+    ).toBe(true)
+  })
+
+  it('一步一批：stage / connect / set_node_fields 的空批与超批都拒', () => {
+    for (const tool of [
+      ASSISTANT_OPERATOR_TOOL_IDS.stageNodes,
+      ASSISTANT_OPERATOR_TOOL_IDS.connectNodes,
+      ASSISTANT_OPERATOR_TOOL_IDS.setNodeFields,
+    ] as const) {
+      expect(
+        ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[tool].safeParse({ items: [] })
+          .success,
+        `${tool} 空批应拒`,
+      ).toBe(false)
+    }
+    const tooMany = Array.from(
+      { length: ASSISTANT_OPERATOR_LIMITS.maxCanvasBatchItems + 1 },
+      (_, index) => ({ source: `n-${index}`, target: `n-${index + 1}` }),
+    )
+    expect(
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_TOOL_IDS.connectNodes
+      ].safeParse({ items: tooMany }).success,
+    ).toBe(false)
+  })
+
+  it('⛔ 钱闸：prime_node_generate 载荷只有 { nodeId, primed: true }', () => {
+    const base = buildStep(ASSISTANT_OPERATOR_TOOL_IDS.primeNodeGenerate)
+    expect(
+      AssistantOperatorStepSchema.safeParse({
+        ...base,
+        payload: { nodeId: 'node-2', primed: false },
+      }).success,
+    ).toBe(false)
+    const parsed = AssistantOperatorStepSchema.safeParse({
+      ...base,
+      payload: { nodeId: 'node-2', primed: true, run: true, count: 4 },
+    })
+    expect(parsed.success).toBe(true)
+    expect(
+      parsed.data && 'payload' in parsed.data ? parsed.data.payload : null,
+    ).toEqual({ nodeId: 'node-2', primed: true })
+  })
+
+  it('set_review_state 载荷收三态；approved 的拒绝留给规划器（approvedForbidden 在词表里）', () => {
+    const schema =
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_TOOL_IDS.setReviewState
+      ]
+    expect(
+      schema.safeParse({ nodeId: 'node-1', state: 'approved' }).success,
+    ).toBe(true)
+    expect(ASSISTANT_OPERATOR_REJECT_REASON_IDS.approvedForbidden).toBe(
+      'approvedForbidden',
+    )
+  })
+
+  it('confirm_request 与 decision 带 nodeId 走复合键；画布字段（title / action）认，档位不认', () => {
+    expect(
+      AssistantOperatorEventSchema.safeParse({
+        type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+        nodeId: 'node-1',
+        field: 'title',
+        have: '镜头 1',
+        proposed: '雨夜开场镜',
+      }).success,
+    ).toBe(true)
+    expect(
+      AssistantOperatorEventSchema.safeParse({
+        type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+        nodeId: 'node-1',
+        field: 'aspectRatio',
+        have: 'x',
+        proposed: 'y',
+      }).success,
+    ).toBe(false)
+    expect(
+      AssistantOperatorRequestSchema.safeParse({
+        messages: [{ role: 'user', content: 'x' }],
+        domain: 'canvas',
+        snapshot: CANVAS_SNAPSHOT,
+        confirmations: [
+          { nodeId: 'node-1', field: 'action', choice: 'overwrite' },
+          { nodeId: 'node-2', field: 'prompt', choice: 'append' },
+          { nodeId: 'node-2', field: 'title', choice: 'keep' },
+        ],
+      }).success,
+    ).toBe(true)
   })
 })

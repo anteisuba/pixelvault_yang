@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
 import {
+  describeOperatorStepDetail,
   fromStoredOperatorMessages,
   historyToOperatorMessages,
   historyToPriorSteps,
@@ -370,5 +371,196 @@ describe('历史 → 下一轮的语境', () => {
         prior.tool.startsWith('retired'),
       ),
     ).toBe(false)
+  })
+})
+
+/**
+ * 画布域的日志进历史（C0 / C1-pre）。
+ *
+ * 历史条目的 `tool` 是自由字符串、`detail` 是一行字，所以画布十条**照常落库**
+ * —— 与工作台各条同一条约束：一个字节的 `payload` / `inverse` 都不带（撤的是
+ * 画布宿主自己的 inverse，刷新之后它不存在）。
+ */
+const STAGE_NODES_STEP = step({
+  id: 'step-3',
+  tool: 'stage_nodes',
+  title: '搭了两个节点',
+  reason: '先把主角与镜头立起来',
+  status: 'done',
+  payload: {
+    items: [
+      { alias: 'new:1', type: 'characterImage', title: '主角' },
+      { alias: 'new:2', type: 'shot' },
+    ],
+  },
+  inverse: { nodeIds: ['new:1', 'new:2'] },
+})
+
+describe('画布域的日志进历史（C1-pre）', () => {
+  it('照常落库：标题 / 工具名 / 理由 / 一行详情，⛔ 没有 payload / inverse', () => {
+    const history = toOperatorHistory([
+      {
+        kind: 'step',
+        id: 'run-2:step-3',
+        step: STAGE_NODES_STEP,
+        runKey: 'run-2',
+        undone: false,
+      },
+    ])
+    expect(history).toEqual([
+      {
+        kind: 'step',
+        id: 'run-2:step-3',
+        tool: 'stage_nodes',
+        title: '搭了两个节点',
+        reason: '先把主角与镜头立起来',
+        undone: false,
+        status: 'done',
+        detail: '2 · characterImage "主角", shot',
+      },
+    ])
+    const serialized = JSON.stringify(toStoredOperatorMessages(history))
+    expect(serialized).not.toContain('inverse')
+    expect(serialized).not.toContain('payload')
+    expect(serialized).not.toContain('new:1')
+    // 存了再读回来，一条不差；下一轮的 priorSteps 也带上它（工具在词表里）。
+    expect(
+      fromStoredOperatorMessages(toStoredOperatorMessages(history)),
+    ).toEqual(history)
+    expect(historyToPriorSteps(history)).toEqual([
+      { tool: 'stage_nodes', status: 'done', summary: '搭了两个节点' },
+    ])
+  })
+
+  it('详情印用户认得出的东西（节点 id / 类型 / 字段名），⛔ 不印落地 URL', () => {
+    expect(
+      describeOperatorStepDetail(
+        step({
+          id: 's',
+          tool: 'read_graph',
+          title: 'x',
+          status: 'done',
+          payload: {},
+          result: { digest: '3 nodes · 2 edges' },
+        }),
+      ),
+    ).toBe('3 nodes · 2 edges')
+    expect(
+      describeOperatorStepDetail(
+        step({
+          id: 's',
+          tool: 'connect_nodes',
+          title: 'x',
+          status: 'done',
+          payload: { items: [{ source: 'new:1', target: 'n9' }] },
+          inverse: { items: [{ source: 'new:1', target: 'n9' }] },
+        }),
+      ),
+    ).toBe('1 · new:1 → n9')
+    expect(
+      describeOperatorStepDetail(
+        step({
+          id: 's',
+          tool: 'set_node_fields',
+          title: 'x',
+          status: 'done',
+          payload: {
+            items: [
+              {
+                nodeId: 'n1',
+                fields: { prompt: '很长的一段', title: '主角' },
+                mode: 'replace',
+              },
+            ],
+          },
+          inverse: {
+            items: [{ nodeId: 'n1', fields: { prompt: null, title: null } }],
+          },
+        }),
+      ),
+    ).toBe('n1: prompt, title')
+    expect(
+      describeOperatorStepDetail(
+        step({
+          id: 's',
+          tool: 'set_node_model',
+          title: 'x',
+          status: 'done',
+          payload: {
+            nodeId: 'n1',
+            modelId: 'seedream-4',
+            optionId: 'ws:seedream-4',
+            modelLabel: 'Seedream 4',
+          },
+          inverse: { nodeId: 'n1', model: null },
+        }),
+      ),
+    ).toBe('n1 · Seedream 4')
+    const attach = describeOperatorStepDetail(
+      step({
+        id: 's',
+        tool: 'attach_refs',
+        title: 'x',
+        status: 'done',
+        payload: {
+          nodeId: 'n1',
+          refs: [
+            {
+              id: 'r1',
+              url: 'https://cdn.example.com/secret-key.png',
+              role: 'identity',
+              source: 'canvas',
+              sourceId: 'n2',
+            },
+          ],
+        },
+        inverse: { nodeId: 'n1', refIds: ['r1'] },
+      }),
+    )
+    expect(attach).toBe('n1 · 1 · n2')
+    expect(attach).not.toContain('https://')
+    expect(
+      describeOperatorStepDetail(
+        step({
+          id: 's',
+          tool: 'set_review_state',
+          title: 'x',
+          status: 'done',
+          payload: { nodeId: 'n1', state: 'rejected', reason: '手指糊了' },
+          inverse: { nodeId: 'n1', state: null },
+        }),
+      ),
+    ).toBe('n1 · rejected · 手指糊了')
+    expect(
+      describeOperatorStepDetail(
+        step({
+          id: 's',
+          tool: 'prime_node_generate',
+          title: 'x',
+          status: 'done',
+          payload: { nodeId: 'n1', primed: true },
+          inverse: { nodeId: 'n1', primed: false },
+        }),
+      ),
+    ).toBe('n1')
+    expect(
+      describeOperatorStepDetail(
+        step({
+          id: 's',
+          tool: 'update_script_doc',
+          title: 'x',
+          status: 'done',
+          payload: {
+            doc: {
+              title: '雨夜',
+              logline: '',
+              roles: [{ id: 'r' }],
+              shots: [{ id: 'a' }, { id: 'b' }],
+            },
+          },
+          inverse: { doc: null },
+        }),
+      ),
+    ).toBe('雨夜 · 1 role(s) · 2 shot(s)')
   })
 })

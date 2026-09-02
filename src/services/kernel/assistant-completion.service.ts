@@ -31,6 +31,13 @@ interface CompleteAssistantTextOptions {
   useGrounding?: boolean
   /** Request strict JSON where the provider supports it (F1 结构化输出). */
   responseFormat?: LlmTextInput['responseFormat']
+  /**
+   * 调用方的取消信号，原样转给 `LlmTextInput.signal`——在飞的 provider 请求跟着停。
+   *
+   * ⚠ 取消**不走**压缩重试：signal 已触发时不管上游报的是什么错都直接抛。
+   * 用户已经离开了，再发一次压缩过的请求只是白花一次 provider 调用。
+   */
+  signal?: AbortSignal
 }
 
 export function truncateAssistantContextBlock(
@@ -132,6 +139,7 @@ export async function completeAssistantTextWithContextRetry({
   videoAnalysis,
   useGrounding,
   responseFormat,
+  signal,
 }: CompleteAssistantTextOptions): Promise<string> {
   const complete = (userPrompt: string) =>
     llmTextCompletion({
@@ -148,13 +156,14 @@ export async function completeAssistantTextWithContextRetry({
       providerManagedOutput: true,
       promptGuardMaxLength: null,
       responseFormat,
+      signal,
     })
 
   const fullPrompt = buildUserPrompt()
   try {
     return await complete(fullPrompt)
   } catch (error) {
-    if (!isLlmTextContextLimitError(error)) throw error
+    if (signal?.aborted || !isLlmTextContextLimitError(error)) throw error
 
     const compactedPrompt = buildUserPrompt(contextCompactionTargetLength)
     if (compactedPrompt === fullPrompt) throw error
@@ -169,6 +178,8 @@ export async function completeAssistantTextWithContextRetry({
  * ⚠ **已经吐出过字就绝不重试**（照搬画布 gateway 分支用真机换来的规则）：重试会把
  * 同一段开场白再流一遍，用户看到的是重复的半截话。超上下文这种错必然发生在任何
  * 可见输出之前，所以「吐过字」等价于「这个错不是超上下文」，直接抛。
+ *
+ * 取消同理：signal 已触发就直接抛，不重试（见 `CompleteAssistantTextOptions.signal`）。
  */
 export async function* streamAssistantTextWithContextRetry({
   systemPrompt,
@@ -181,6 +192,7 @@ export async function* streamAssistantTextWithContextRetry({
   videoAnalysis,
   useGrounding,
   responseFormat,
+  signal,
 }: CompleteAssistantTextOptions): AsyncIterable<string> {
   const stream = (userPrompt: string) =>
     llmTextStream({
@@ -197,6 +209,7 @@ export async function* streamAssistantTextWithContextRetry({
       providerManagedOutput: true,
       promptGuardMaxLength: null,
       responseFormat,
+      signal,
     })
 
   const fullPrompt = buildUserPrompt()
@@ -209,7 +222,9 @@ export async function* streamAssistantTextWithContextRetry({
     }
     return
   } catch (error) {
-    if (emittedText || !isLlmTextContextLimitError(error)) throw error
+    if (emittedText || signal?.aborted || !isLlmTextContextLimitError(error)) {
+      throw error
+    }
 
     const compactedPrompt = buildUserPrompt(contextCompactionTargetLength)
     if (compactedPrompt === fullPrompt) throw error

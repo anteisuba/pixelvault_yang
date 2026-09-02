@@ -54,6 +54,7 @@ import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
 import {
   applyOperatorStep,
   describeOperatorInverse,
+  isOperatorStepNotApplicable,
 } from '@/lib/studio-operator-apply'
 import {
   historyToOperatorMessages,
@@ -307,10 +308,19 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               // ⚠ `status === 'done'` 同时把类型收窄成「应用过的那一支」——
               //    被拒的那支是 `status: 'error'`，它没有 payload / inverse。
               if (step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) {
-                const field = applyOperatorStep(step, applyContext)
-                if (field) {
+                const outcome = applyOperatorStep(step, applyContext)
+                if (isOperatorStepNotApplicable(outcome)) {
+                  // ⛔ 不静默：这一步归另一个宿主落（画布），这台工作台什么都没改。
+                  //    日志条上写着「已做」而表单纹丝不动，线程里必须有一行说明白。
+                  appendOperatorEntry({
+                    kind: 'system',
+                    id: nextOperatorEntryId('sys'),
+                    code: 'stepNotApplicable',
+                    subject: step.title,
+                  })
+                } else if (outcome) {
                   recordOperatorChange({
-                    field,
+                    field: outcome,
                     // 归属标记要指回**线程里的那一条**，不是服务端的步号。
                     stepId: operatorStepEntryId(runKey, step.id),
                     ...(step.reason ? { reason: step.reason } : {}),

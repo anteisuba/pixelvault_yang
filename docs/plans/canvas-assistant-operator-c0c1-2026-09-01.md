@@ -243,3 +243,19 @@ C0-b 自定的 8 个默认，全部接受：`priceLabel` 可选展示串 · `mod
 范围：`services/llm-text.service.ts`（新入口 `llmTextToolCall`，OpenAI + Gemini 缓冲路）· `constants/llm-capability.ts`（`LLM_TOOL_CALLING_MODES` + 穷举 `Record<AI_ADAPTER_TYPES, …>`：openai / gemini = native，anthropic / deepseek / dashscope / xai = json）· `services/kernel/assistant-completion.service.ts`（把上下文压缩重试抽成泛型 `withContextRetry`，两条路共用）· `services/kernel/assistant-operator.service.ts` **只改** :2306-2340 那十几行 → `requestOperatorTurn(input) → {kind:'tool'|'message'|'done'|'ask', plan?}`，JSON 实现 = 现有代码原样，native 实现 = 新入口。
 硬约束：`ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS` 用 `z.toJSONSchema()` 生成 function 参数（不手抄）；OpenAI `parallel_tool_calls:false`，native 路停发 `responseFormat`；Gemini `function_declarations` 与 `google_search` 不并用；args 仍过 zod；`consecutiveParseFailures` 在 native 路语义改为「不调工具也不说话」；money-gate 白名单只允许新增 `@/constants/llm-capability`；`llm-text.service.test.ts` 既有断言零改动；`LLM_TEXT_STREAMS` 不动（native 只做缓冲路）。Claude 原生路（需 messages 历史）**不在本片**。
 验收：对同一 operator 脚本，openai / gemini 走 native 时请求体含 tools 且无 response_format；deepseek / xai 请求体与改前逐字一致；操作员 32 条画布用例 + 工作台用例零改动全绿。
+
+## 附录 J · C3 / T 验收 + 端到端审计（2026-09-02 11:30 UTC）
+
+**C3 ✅**（主检出，未提交→本轮合并提交）：`ask` 一等事件（服务端归一、`awaitingAnswer` 停止理由、客户端 `answerAsk` 重发带 `answeredAskId`，四域协议共享、提示只写画布）· 回复结构规则 · `update_script_doc` 真实现（inverse = 改前整份；客户端复用 `ScriptDocWorkspace` 同三只手，投影确认门在 store）· 三档收敛协议画布接入，工作台三域提示逐字未变 · 四镜叙事题 7 步脚本测试 · token 比值首轮 1.09×、整轮 9.25×（结构成本，只记录）。定向 242 文件 2894/2894，tsc 零错，money-gate 白名单未动。
+
+C3 的 5 个契约问题裁定：
+1. 模型看不到剧本正文 → **加 `read_script_doc` 读工具**（与 `read_node` 同一「按需读」原则），归下一片 C2-b（后端小项），不进本轮合并。
+2. ScriptDoc 无「幕」字段 → 接受按 `sceneLabel` 去重当场次，不改 schema。
+3. 投影确认门 UI → C2。
+4. 反问进历史降级为 message → 接受（可读 ≠ 可操作）。
+5. 撤 `update_script_doc` 只撤文档不撤已投影节点 → 接受，与手动投影语义一致。
+
+**T ✅**（worktree `agent-a08b4ffa39f24fcad`，⚠ 基线 `ef0a2c4`，早于 C0/C1/C3）：`LLM_TOOL_CALLING_MODE_BY_ADAPTER` 穷举（openai / gemini = native，其余 json）· `llmTextToolCall`（OpenAI `parallel_tool_calls:false` 无 `response_format`；Gemini `function_declarations` 不与 grounding 并用）· `withContextRetry` 泛型 · `requestOperatorTurn` 接缝，JSON 路原样、DeepSeek 请求体逐字快照 · 28 条新用例，既有断言零改动 · Claude 留 JSON 路（原生 tool use 需真实 messages 历史，工具环无状态重建接不上）。T 自定：原生路 plan / message 走「正文与工具调用同一条回复」不加伪工具（接受，慢路提示词因此逐字不变）。
+合并时必做：① `llmTextToolCall` 透传 C0-c 的 `signal`；② `requestOperatorTurn` union 加 C3 的 `ask` 支；③ 原生工具表自动跟随 `canvas` 域表，补一条 canvas 域原生路用例。
+
+**端到端审计（「无限大二创」四镜 30 秒）**：剧本 / 出图 / 镜头→视频 **能**；资料图、角色一致性、合成、助手代劳 **半能**。P0：台词从未进 TTS、配音间无整场导出无混轨；Fish 免费档标注 08-31 到期未复核（owner 亲自查官方博客）。P1：缺 `SERPER_API_KEY`；`GEMINI_OMNI_FLASH` 假可用（worker 未 allowlist，选中必 501，应下架）。方向建议：C2 之后开「成片链」片（投影写台词进语音节点 → TTS → 混轨进合成），待 owner 点头。

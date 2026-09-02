@@ -14,6 +14,10 @@ import {
   GENERATION_ERROR_CODES,
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
+import {
+  LLM_TOOL_CALLING_MODES,
+  getLlmToolCallingMode,
+} from '@/constants/llm-capability'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
   VIDEO_ANALYSIS,
@@ -28,6 +32,7 @@ import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
 import { buildYoutubeWatchUrl, classifyVideoLink } from '@/lib/video-link'
 import { readSseData } from '@/lib/sse'
+import type { JsonSchemaObject } from '@/lib/zod-json-schema'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { fetchAsBuffer } from '@/services/storage/r2'
 
@@ -96,6 +101,51 @@ export interface LlmTextInput {
   useGrounding?: boolean
 }
 
+/**
+ * 一条工具在 provider 请求体里的样子。三家的形状不同（OpenAI 包一层
+ * `{type:'function', function:{…}}`，Gemini 直接进 `function_declarations`），
+ * 但需要的信息就这三样，差异留在各自的 build 里。
+ *
+ * ⛔ `parameters` **不许手写**：用 `toToolParametersJsonSchema` 从 zod 生成，
+ * 理由见那个 helper 的头注。
+ */
+export interface LlmToolDefinition {
+  name: string
+  description: string
+  parameters: JsonSchemaObject
+}
+
+export type LlmTextToolCallInput = LlmTextInput & {
+  tools: LlmToolDefinition[]
+}
+
+/**
+ * 原生工具调用这一轮的产出。
+ *
+ * ⚠ `kind:'tool'` 上的 `text` 是**同一条回复里模型顺带说的话** —— OpenAI 与
+ * Gemini 都允许「一边说话一边调工具」，这就是本仓 `message` 在原生路上的通道
+ * （见 `assistant-operator.service.ts` 里 `requestOperatorTurn` 的头注）。丢掉它
+ * 等于把助手变成哑巴。
+ */
+export type LlmToolCallResult =
+  | { kind: 'tool'; name: string; args: unknown; text?: string }
+  | { kind: 'text'; text: string }
+
+/**
+ * 调用方没先查 `getLlmToolCallingMode` 就把 JSON 路的 adapter 送进原生入口。
+ *
+ * ⛔ 这里**不静默降级到文本补全**：降级的下场是调用方以为拿到了结构化工具调用，
+ * 实际拿到一段散文，然后在下游某处解析失败——错的地方离原因十万八千里。
+ */
+export class LlmToolCallingUnsupportedError extends Error {
+  constructor(readonly adapterType: AI_ADAPTER_TYPES) {
+    super(
+      `Native tool calling is not available for adapter: ${adapterType}. Check getLlmToolCallingMode() before calling llmTextToolCall().`,
+    )
+    this.name = 'LlmToolCallingUnsupportedError'
+  }
+}
+
 export interface ResolvedLlmTextRoute {
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
@@ -113,6 +163,17 @@ const GeminiTextResponseSchema = z.object({
             parts: z.array(
               z.object({
                 text: z.string().optional(),
+                /**
+                 * 原生 function calling 的回程（`llmTextToolCall`）。⚠ 以前这里
+                 * 没这一条，Gemini 真的调了工具时整个 part 被 schema 静默丢掉，
+                 * 表现是「模型什么都没说」。**schema 丢字段 = 沉默的失败。**
+                 */
+                functionCall: z
+                  .object({
+                    name: z.string(),
+                    args: z.record(z.string(), z.unknown()).optional(),
+                  })
+                  .optional(),
               }),
             ),
           })
@@ -162,6 +223,24 @@ const OpenAiChatResponseSchema = z.object({
           .optional(),
         content_parts: z.array(OpenAiChatTextPartSchema).nullable().optional(),
         refusal: z.string().nullable().optional(),
+        /**
+         * 原生 function calling 的回程（`llmTextToolCall`）。⚠ 与 Gemini 那条同
+         * 理由：schema 里没有的字段会被静默丢掉，模型明明调了工具，上层却读到
+         * 「一句话都没有」。`arguments` 是**字符串**，由调用方 `JSON.parse`。
+         */
+        tool_calls: z
+          .array(
+            z.object({
+              id: z.string().optional(),
+              type: z.string().optional(),
+              function: z.object({
+                name: z.string(),
+                arguments: z.string().optional(),
+              }),
+            }),
+          )
+          .nullable()
+          .optional(),
       }),
     }),
   ),
@@ -999,7 +1078,10 @@ function resolveGeminiMaxOutputTokens(
     : input.maxTokens
 }
 
-async function buildGeminiRequest(input: LlmTextInput): Promise<{
+async function buildGeminiRequest(
+  input: LlmTextInput,
+  options: { tools?: LlmToolDefinition[] } = {},
+): Promise<{
   modelId: string
   baseUrl: string
   body: string
@@ -1045,6 +1127,20 @@ async function buildGeminiRequest(input: LlmTextInput): Promise<{
   parts.push({ text: input.userPrompt })
 
   const maxOutputTokens = resolveGeminiMaxOutputTokens(input, hasVideoPart)
+  const hasFunctionDeclarations = Boolean(options.tools?.length)
+
+  /**
+   * ⛔ `google_search` 与 `function_declarations` **不能同时出现**在 Gemini 的
+   * `tools` 里（API 直接 400）。落地搜索是别人的工具，我们的工具表是我们的 ——
+   * 这一轮只能有一个主人。撞上了**大声说一句再丢**：静默丢掉的话，联网检索
+   * 悄悄失效，表现是模型开始编事实，而日志里一个字都没有。
+   */
+  if (hasFunctionDeclarations && input.useGrounding) {
+    logger.warn(
+      'Gemini grounding dropped: google_search cannot be combined with function_declarations in one request',
+      { modelId, toolCount: options.tools?.length ?? 0 },
+    )
+  }
 
   return {
     modelId,
@@ -1059,11 +1155,26 @@ async function buildGeminiRequest(input: LlmTextInput): Promise<{
       generationConfig: {
         responseModalities: ['TEXT'],
         ...(maxOutputTokens ? { maxOutputTokens } : {}),
-        ...(input.responseFormat === 'json_object'
+        // 同一条：强制 JSON 输出与原生工具调用互斥，工具表在场时它让位。
+        ...(input.responseFormat === 'json_object' && !hasFunctionDeclarations
           ? { responseMimeType: 'application/json' }
           : {}),
       },
-      ...(input.useGrounding ? { tools: [{ google_search: {} }] } : {}),
+      ...(hasFunctionDeclarations
+        ? {
+            tools: [
+              {
+                function_declarations: (options.tools ?? []).map((tool) => ({
+                  name: tool.name,
+                  description: tool.description,
+                  parameters: tool.parameters,
+                })),
+              },
+            ],
+          }
+        : input.useGrounding
+          ? { tools: [{ google_search: {} }] }
+          : {}),
     }),
   }
 }
@@ -1116,9 +1227,21 @@ function buildGeminiNoTextError(
   )
 }
 
-async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
+/**
+ * `:generateContent` 那一次往返 —— 文本补全与原生工具调用共用。
+ *
+ * ⚠ 共用一份而不是各写各的：两条各自建 body / 各自翻错误，迟早漂移，而漂移的表现
+ * 是「同一个模型，走工具路时报的错跟走文本路不一样」。
+ */
+async function geminiGenerateContent(
+  input: LlmTextInput,
+  options: { tools?: LlmToolDefinition[] } = {},
+): Promise<{
+  modelId: string
+  data: z.infer<typeof GeminiTextResponseSchema>
+}> {
   const { modelId, baseUrl, body, uploadedVideoNames, hasLinkedVideo } =
-    await buildGeminiRequest(input)
+    await buildGeminiRequest(input, options)
   const endpoint = `${baseUrl}/${modelId}:generateContent`
 
   let response: Response
@@ -1152,7 +1275,14 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
     })
   }
 
-  const data = GeminiTextResponseSchema.parse(await response.json())
+  return {
+    modelId,
+    data: GeminiTextResponseSchema.parse(await response.json()),
+  }
+}
+
+async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
+  const { modelId, data } = await geminiGenerateContent(input)
   const textPart = data.candidates?.[0]?.content?.parts?.find((p) => p.text)
 
   if (!textPart?.text) {
@@ -1162,13 +1292,40 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
   return textPart.text.trim()
 }
 
+async function geminiToolCall(
+  input: LlmTextToolCallInput,
+): Promise<LlmToolCallResult> {
+  const { modelId, data } = await geminiGenerateContent(input, {
+    tools: input.tools,
+  })
+
+  const parts = data.candidates?.[0]?.content?.parts ?? []
+  const call = parts.find((part) => part.functionCall)?.functionCall
+  const text = parts
+    .map((part) => part.text ?? '')
+    .join('')
+    .trim()
+
+  if (call) {
+    return {
+      kind: 'tool',
+      name: call.name,
+      args: call.args ?? {},
+      ...(text ? { text } : {}),
+    }
+  }
+  // 既没调工具也没说话 —— 与文本路同一条：真因只在 finishReason 里，别丢。
+  if (!text) throw buildGeminiNoTextError(data, modelId)
+  return { kind: 'text', text }
+}
+
 /**
  * OpenAI `/chat/completions` 的请求，缓冲与流式共用一份 —— 同 Gemini 那条的理由：
  * 两条各建各的 body 迟早漂移，而漂移的表现是「流式的回答和缓冲的不一样」。
  */
 function buildOpenAiChatRequest(
   input: LlmTextInput,
-  options: { stream?: boolean } = {},
+  options: { stream?: boolean; tools?: LlmToolDefinition[] } = {},
 ): { endpoint: string; requestModelId: string; body: string } {
   if (input.videoData) {
     throw new Error('OpenAI assistant route does not support video input.')
@@ -1210,16 +1367,71 @@ function buildOpenAiChatRequest(
             resolveOpenAiCompletionBudget(requestModelId, input.maxTokens),
           )
         : {}),
-      ...(input.responseFormat === 'json_object'
+      /**
+       * ⛔ 原生工具路**不发 `response_format`**：强制 JSON 输出与 tool calling
+       * 是两套互斥的出口约束，同时下发时模型会被逼着把工具调用写成正文里的
+       * JSON —— 那正是这一片要拿掉的东西。
+       */
+      ...(input.responseFormat === 'json_object' && !options.tools
         ? { response_format: { type: 'json_object' } }
         : {}),
       ...(input.useGrounding ? { web_search_options: {} } : {}),
+      ...(options.tools
+        ? {
+            tools: options.tools.map((tool) => ({
+              type: 'function',
+              function: {
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters,
+              },
+            })),
+            tool_choice: 'auto',
+            /**
+             * 工具环一轮只跑一步（`maxSteps` 是按步算的，每一步都要把结果喂回
+             * 去再问）。允许并行调用就会拿到一批我们无处安放的 tool_call，
+             * 只能丢掉 —— 丢掉的那几个是模型以为已经做过的事。
+             */
+            parallel_tool_calls: false,
+          }
+        : {}),
     }),
   }
 }
 
-async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
-  const { endpoint, requestModelId, body } = buildOpenAiChatRequest(input)
+/** OpenAI 把 function 入参当**字符串**回传，必须自己解。 */
+function parseOpenAiToolArguments(raw: string | undefined): unknown {
+  if (!raw) return {}
+  try {
+    return JSON.parse(raw) as unknown
+  } catch {
+    /**
+     * ⚠ 解不出来时**原样往下传**，不吞成 `{}`：下游用同一份 zod 再校验一次，
+     * 拿到字符串会给出一条「args 不是对象」的拒因，调用方看得见。吞成空对象则
+     * 会变成一条「参数缺失」的假象，指错方向。
+     */
+    logger.warn('OpenAI tool call arguments were not valid JSON', {
+      length: raw.length,
+    })
+    return raw
+  }
+}
+
+/**
+ * `/chat/completions` 那一次往返 —— 文本补全与原生工具调用共用（同
+ * `geminiGenerateContent` 的理由：两条各写各的迟早漂移）。
+ */
+async function openAiChatCompletion(
+  input: LlmTextInput,
+  options: { tools?: LlmToolDefinition[] } = {},
+): Promise<{
+  requestModelId: string
+  data: z.infer<typeof OpenAiChatResponseSchema>
+}> {
+  const { endpoint, requestModelId, body } = buildOpenAiChatRequest(
+    input,
+    options,
+  )
 
   const response = await fetchLlmTextBuffered(
     endpoint,
@@ -1242,7 +1454,14 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
     })
   }
 
-  const data = OpenAiChatResponseSchema.parse(await response.json())
+  return {
+    requestModelId,
+    data: OpenAiChatResponseSchema.parse(await response.json()),
+  }
+}
+
+async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
+  const { requestModelId, data } = await openAiChatCompletion(input)
   const content = getOpenAiChatText(data)
 
   if (!content) {
@@ -1250,6 +1469,31 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
   }
 
   return content
+}
+
+async function openAiToolCall(
+  input: LlmTextToolCallInput,
+): Promise<LlmToolCallResult> {
+  const { requestModelId, data } = await openAiChatCompletion(input, {
+    tools: input.tools,
+  })
+
+  const call = data.choices[0]?.message?.tool_calls?.[0]
+  const text = getOpenAiChatText(data)
+
+  if (call) {
+    return {
+      kind: 'tool',
+      name: call.function.name,
+      args: parseOpenAiToolArguments(call.function.arguments),
+      ...(text ? { text } : {}),
+    }
+  }
+  // 既没调工具也没说话 —— 与文本路同一条错误，真因（refusal / length）不丢。
+  if (!text) {
+    throwNoOpenAiTextResponse(data, requestModelId)
+  }
+  return { kind: 'text', text }
 }
 
 /**
@@ -1990,6 +2234,38 @@ export async function* llmTextStream(
 
   guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
   yield* LLM_TEXT_STREAMS[input.adapterType](input)
+}
+
+/**
+ * 原生 function calling 的**缓冲**入口（快路）。
+ *
+ * 与 `llmTextCompletion` 的关系：同一套超时 / 错误翻译 / prompt guard，只是把工具
+ * 表放进请求体、把 provider 回的 tool call 读出来。⛔ **没有流式版本** ——
+ * `LLM_TEXT_STREAMS` 保持原样，原生工具的流式解析是另一片的事。
+ *
+ * ⚠ 调用方**必须先查 `getLlmToolCallingMode`**：JSON 路的 adapter 进来直接抛
+ * `LlmToolCallingUnsupportedError`，不静默降级（理由见那个类的头注）。
+ */
+export async function llmTextToolCall(
+  input: LlmTextToolCallInput,
+): Promise<LlmToolCallResult> {
+  if (
+    getLlmToolCallingMode(input.adapterType) !== LLM_TOOL_CALLING_MODES.native
+  ) {
+    throw new LlmToolCallingUnsupportedError(input.adapterType)
+  }
+
+  guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
+
+  switch (input.adapterType) {
+    case AI_ADAPTER_TYPES.OPENAI:
+      return openAiToolCall(input)
+    case AI_ADAPTER_TYPES.GEMINI:
+      return geminiToolCall(input)
+    default:
+      // 能力表说它是 native，这里却没有实现 —— 两张表漂了，别猜。
+      throw new LlmToolCallingUnsupportedError(input.adapterType)
+  }
 }
 
 /**

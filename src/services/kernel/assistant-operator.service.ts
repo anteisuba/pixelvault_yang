@@ -23,6 +23,10 @@ import {
 } from '@/constants/assistant-operator'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import { ASSISTANT_DOMAIN_BRIEFS } from '@/constants/assistant-protocol'
+import {
+  LLM_TOOL_CALLING_MODES,
+  getLlmToolCallingMode,
+} from '@/constants/llm-capability'
 import { resolveAssistantModelId } from '@/constants/node-studio'
 import {
   inspectAssistantAssetFolder,
@@ -31,9 +35,11 @@ import {
 import {
   buildAssistantConversation,
   completeAssistantTextWithContextRetry,
+  requestToolCallWithContextRetry,
 } from '@/services/kernel/assistant-completion.service'
 import {
   resolveLlmTextRoute,
+  type LlmToolDefinition,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
 import { getPublicGenerationPage } from '@/services/generation.service'
@@ -64,10 +70,12 @@ import {
 } from '@/services/web-research.service'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { logger } from '@/lib/logger'
+import { toToolParametersJsonSchema } from '@/lib/zod-json-schema'
 import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
   AssistantOperatorCritiqueSchema,
   AssistantOperatorStepSchema,
+  AssistantOperatorToolSchema,
   AssistantOperatorTurnSchema,
   type AssistantOperatorCritique,
   type AssistantOperatorEvent,
@@ -2244,6 +2252,196 @@ function parseCritiqueJson(raw: string): AssistantOperatorCritique | null {
   return null
 }
 
+// ─── 一轮 LLM 往返：原生快路 / JSON 慢路的唯一接缝 ────────────────
+
+/**
+ * 模型这一轮的决定，**两条路收敛之后**的形状。
+ *
+ * ⚠ 与 `AssistantOperatorTurn` 的区别：那是 JSON 路的线上格式（模型写什么），
+ * 这是工具环消费的语义（模型决定了什么）。原生路上根本没有那份 JSON。
+ */
+export type OperatorTurnDecision =
+  | {
+      kind: 'tool'
+      tool: AssistantOperatorTool
+      /** ⚠ 故意是 `unknown`：值域校验统一由 `planTool` 里的那份 zod 做。 */
+      args: unknown
+      title?: string
+      reason?: string
+    }
+  /** 说了话但没调工具 —— 调用方发完这句就收尾（与 JSON 路「没有 tool」等价）。 */
+  | { kind: 'message'; text: string }
+  | { kind: 'done' }
+  /**
+   * 既没调工具也没说话。JSON 路 = 解不出那个对象；原生路 = 一条 tool call 和一个
+   * 字都没有。`observation` 是要讲给模型听的那句纠正话 —— 两条路的说法不一样。
+   */
+  | { kind: 'unusable'; observation: string }
+
+export interface OperatorTurnResult {
+  /** 计划条。⚠ 只有 JSON 路给得出（原生路没有它的通道，见下面头注）。 */
+  plan?: string[]
+  /** 与 `tool` 并存的一句话。`kind:'message'` 时为空（话在 `text` 里）。 */
+  message?: string
+  decision: OperatorTurnDecision
+}
+
+const OPERATOR_UNUSABLE_JSON_OBSERVATION =
+  'Your last reply was not a single valid JSON object. Reply with ONE JSON object and nothing else.'
+
+const OPERATOR_UNUSABLE_NATIVE_OBSERVATION =
+  'Your last reply called no tool and said nothing. Either call exactly one tool, or say what you are telling the creator.'
+
+/**
+ * 原生路给系统提示打的补丁。
+ *
+ * ⚠ **追加**而不是改 `buildOperatorSystemPrompt`：那个函数产出的字节是 JSON 路的
+ * 请求体的一部分，动它一个字，deepseek / Claude 那条路的请求就跟改前不一样了
+ * （本片的验收条件之一就是那条路逐字不变）。追加只在 native 分支发生。
+ *
+ * ⭐ 这也是「`message` 怎么在原生路上活着」的答案：**正文与工具调用同一条回复**
+ * （OpenAI 的 `message.content` 与 `tool_calls` 并存，Gemini 的 parts 里 text 与
+ * functionCall 并存）。⛔ 不走「加两个伪工具 `emit_plan` / `say`」那条：伪工具要
+ * 进域工具表，而域工具表是 `buildOperatorSystemPrompt` 里那份 TOOLS 清单的来源
+ * —— 加进去 JSON 路的提示词当场就变了；而且 `parallel_tool_calls:false` 之下模型
+ * 一轮只能调一个，说一句话就得多烧一整步。代价是 `plan` 在原生路上没有通道：
+ * 模型想讲计划就讲进正文，客户端看到的是第一条 `message` —— 与 JSON 路上
+ * 「第二次之后的 plan 折叠成一句 message」落在同一个形状里。
+ */
+const OPERATOR_NATIVE_OUTPUT_ADDENDUM = `OUTPUT — IGNORE the JSON-object format described above. This provider gives you real tools:
+- Call EXACTLY ONE of the tools listed above per turn, through the tool-calling interface.
+- Anything you want to tell the creator goes in your plain reply text, alongside the call. Keep it to what is worth saying.
+- When the work is done, call no tool and just say the closing line.`
+
+/**
+ * 按域把工具表变成 provider 要的 function 声明。
+ *
+ * ⭐ 名字、描述、参数全部**从既有的三张表生成**：域工具表（列哪些）、
+ * `ASSISTANT_OPERATOR_TOOL_HINTS`（描述，与 JSON 路提示词里那份逐字同源）、
+ * `ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS`（参数，`z.toJSONSchema`）。
+ * ⛔ 一处都别手抄 —— 抄一份就多一份会跟 zod 漂移的东西。
+ */
+function buildOperatorNativeTools(
+  domain: AssistantOperatorRequest['domain'],
+): LlmToolDefinition[] {
+  return ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[domain].map((tool) => ({
+    name: tool,
+    description: ASSISTANT_OPERATOR_TOOL_HINTS[tool],
+    parameters: toToolParametersJsonSchema(
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[tool],
+    ),
+  }))
+}
+
+/** JSON 路解出来的那个对象 → 收敛后的决定。 */
+function toOperatorTurnResult(turn: AssistantOperatorTurn): OperatorTurnResult {
+  const plan = turn.plan?.length ? { plan: turn.plan } : {}
+  if (!turn.tool || turn.finished) {
+    const text = turn.message?.trim()
+    return {
+      ...plan,
+      decision: text ? { kind: 'message', text } : { kind: 'done' },
+    }
+  }
+  const { name, title, reason, args } = turn.tool
+  return {
+    ...plan,
+    ...(turn.message?.trim() ? { message: turn.message.trim() } : {}),
+    decision: {
+      kind: 'tool',
+      tool: name,
+      args,
+      ...(title ? { title } : {}),
+      ...(reason ? { reason } : {}),
+    },
+  }
+}
+
+/**
+ * 问模型要这一轮的决定。**工具环里唯一一次 LLM 往返**，两条路的分岔只在这里。
+ *
+ * - `json`   —— 原样搬来的老代码：`responseFormat:'json_object'` + `parseTurnJson`。
+ *   请求体逐字不变（本片的验收条件）。
+ * - `native` —— 工具表进请求体，模型回一条 tool call。`consecutiveParseFailures`
+ *   的语义在这条路上变成「既没调工具也没说话」。
+ */
+async function requestOperatorTurn({
+  run,
+  systemPrompt,
+}: {
+  run: OperatorRun
+  systemPrompt: string
+}): Promise<OperatorTurnResult> {
+  const shared = {
+    buildUserPrompt: (maxLength?: number) =>
+      buildOperatorUserPrompt(run, maxLength),
+    route: run.route,
+    contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
+    modelId: run.modelId,
+  }
+
+  if (
+    getLlmToolCallingMode(run.route.adapterType) ===
+    LLM_TOOL_CALLING_MODES.native
+  ) {
+    const result = await requestToolCallWithContextRetry({
+      ...shared,
+      systemPrompt: `${systemPrompt}\n\n${OPERATOR_NATIVE_OUTPUT_ADDENDUM}`,
+      tools: buildOperatorNativeTools(run.request.domain),
+    })
+
+    if (result.kind === 'text') {
+      const text = result.text.trim()
+      return {
+        decision: text
+          ? { kind: 'message', text: clamp(text, LIMITS.maxMessageChars) }
+          : {
+              kind: 'unusable',
+              observation: OPERATOR_UNUSABLE_NATIVE_OBSERVATION,
+            },
+      }
+    }
+
+    /**
+     * 工具表是我们发出去的，名字不在表里就是模型编的。⚠ 走 `unusable` 而不是
+     * `planTool` 的 `noSuchControl`：后者要一个 `AssistantOperatorTool`，而这里
+     * 拿到的正是「不是那个类型」的东西。
+     */
+    const tool = AssistantOperatorToolSchema.safeParse(result.name)
+    if (!tool.success) {
+      return {
+        decision: {
+          kind: 'unusable',
+          observation: `There is no tool called "${result.name}". Call one of the tools you were given, or say what you are telling the creator.`,
+        },
+      }
+    }
+
+    const text = result.text?.trim()
+    return {
+      ...(text ? { message: clamp(text, LIMITS.maxMessageChars) } : {}),
+      decision: { kind: 'tool', tool: tool.data, args: result.args },
+    }
+  }
+
+  const raw = await completeAssistantTextWithContextRetry({
+    ...shared,
+    systemPrompt,
+    responseFormat: 'json_object',
+  })
+
+  const turn = parseTurnJson(raw)
+  if (!turn) {
+    return {
+      decision: {
+        kind: 'unusable',
+        observation: OPERATOR_UNUSABLE_JSON_OBSERVATION,
+      },
+    }
+  }
+  return toOperatorTurnResult(turn)
+}
+
 // ─── 工具环 ─────────────────────────────────────────────────────
 
 export interface AssistantOperatorRunOptions {
@@ -2303,14 +2501,13 @@ export async function* runAssistantOperator(
         return
       }
 
-      const raw = await completeAssistantTextWithContextRetry({
+      const {
+        plan: turnPlan,
+        message,
+        decision,
+      } = await requestOperatorTurn({
+        run,
         systemPrompt,
-        buildUserPrompt: (maxLength) => buildOperatorUserPrompt(run, maxLength),
-        route,
-        contextCompactionTargetLength:
-          OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
-        modelId,
-        responseFormat: 'json_object',
       })
 
       // ⚠ abort 可能发生在这次 await 期间：结果已经拿到但客户端早就走了。
@@ -2324,19 +2521,19 @@ export async function* runAssistantOperator(
         return
       }
 
-      const turn = parseTurnJson(raw)
-      if (!turn) {
+      if (decision.kind === 'unusable') {
         consecutiveParseFailures += 1
         // 连着两次读不出来就不是抖动了 —— 大声报错，别把剩下的步数烧在同一个坑里。
         if (consecutiveParseFailures >= 2) {
           throw new Error('The assistant model did not return usable JSON.')
         }
-        run.observations.push(
-          'Your last reply was not a single valid JSON object. Reply with ONE JSON object and nothing else.',
-        )
+        run.observations.push(decision.observation)
         continue
       }
       consecutiveParseFailures = 0
+
+      /** 本轮说给用户听的话 —— 与工具并存的那句，或「只说话」那一档的正文。 */
+      const spoken = decision.kind === 'message' ? decision.text : message
 
       /**
        * 计划条**一轮一条**（P3-D 降噪）。
@@ -2348,31 +2545,31 @@ export async function* runAssistantOperator(
        * 那句话是用户唯一能看到的解释。⛔ 但本轮已经有 `message` 时就丢掉它 ——
        * 同一件事说两遍又变回刷屏。
        */
-      if (turn.plan?.length) {
+      if (turnPlan?.length) {
         if (!planEmitted) {
           planEmitted = true
-          yield { type: ASSISTANT_OPERATOR_EVENTS.plan, steps: turn.plan }
-        } else if (!turn.message?.trim()) {
+          yield { type: ASSISTANT_OPERATOR_EVENTS.plan, steps: turnPlan }
+        } else if (!spoken) {
           yield {
             type: ASSISTANT_OPERATOR_EVENTS.message,
-            text: clamp(turn.plan.join(' · '), LIMITS.maxMessageChars),
+            text: clamp(turnPlan.join(' · '), LIMITS.maxMessageChars),
           }
         }
       }
-      if (turn.message?.trim()) {
+      if (spoken) {
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.message,
-          text: turn.message.trim(),
+          text: spoken,
         }
       }
 
-      if (!turn.tool || turn.finished) {
+      if (decision.kind !== 'tool') {
         yield { type: ASSISTANT_OPERATOR_EVENTS.done }
         completed = true
         return
       }
 
-      const { name, title, reason, args } = turn.tool
+      const { tool: name, title, reason, args } = decision
       run.stepSeq += 1
       const base = {
         id: `step-${run.stepSeq}`,

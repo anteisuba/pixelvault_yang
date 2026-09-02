@@ -155,3 +155,17 @@ owner 追加拍板：收集节点不承担文件夹批次，**新做一个「素
 - 顺序 C0 → C1 → C3 → C2，手势 A 并行；C2 走三方向 mock（owner 对形态「无法确定」）。
 - CA signal 随 C0 走，独立 commit。token 2× 门保留。
 - 文件夹节点是新类型而非收集节点属性：它的本质是「一批外部素材的来源」，与「一个角色的身份卡」不是同一件事，不违反「属性不建成类型」。
+
+## 附录 D · C0-a 验收与契约裁定（2026-09-02）
+
+C0-a 交付：`canvas` 域 + 10 个工具 id + args / AppliedStep schema + 快照 `canvas?` 节 + `CanvasWorkingState` + 三语键 + 20 条新用例；定向 456/457 通过，唯一失败在 money-gate 测试的旧过滤条件（归 C0-b）。tsc 剩余 6 处全在 C0-b / C1 范围（穷举 switch / Record 缺 canvas 分支），属预期。
+
+C0-a 提出的 6 个契约问题，裁定如下（C0-b 照此实现）：
+
+1. 快照根字段 `prompt` 改为可选；service 工作副本对缺席按空串处理。画布宿主**不发** `prompt`（控件不在整个键不给）。
+2. 角色外观 = 节点真实字段 `character.{name, visualSeed}` + 参考图 URL；`read_node` 把这两样都给模型。不另造 appearance 结构。
+3. `set_review_state` 按节点级（主媒体）；载荷 `{nodeId, state, reason?}`，inverse 改前状态。
+4. `stage_nodes` / `connect_nodes` 的 inverse 用别名列表 / (source,target) 对，客户端按别名表反查真实 id。接受。
+5. 确认复合键：service 的 `Set<ConfirmField>` 改为复合键集合；`maxConfirmDecisions` 24 接受。`set_review_state` 也走 `confirm_request`，`field: 'reviewState'`，choices 只有 overwrite / keep（客户端渲染为「确认 / 跳过」），`approved` 在规划器直接拒 `approvedForbidden`。
+6. `attach_refs` 每条 ref `sourceId` / `assetId` 二选一由规划器判：`sourceId` 必须是工作副本里带媒体的节点；`assetId` 必须是**本轮** `inspect_asset_folder` / `search_assets` 返回过的 id（与 `folderIndex` 同款准入表），否则拒（新增 `unknownAsset` 拒因）。载荷带 url 供客户端落引用架。
+7. 补：快照 `canvas.modelOptions[]`（按 nodeType 列 modelId + optionId + label + 相对价签），`set_node_model` 只认表内组合，缺 optionId 拒 `missingChannel`，不在表内拒 `unknownModel`。

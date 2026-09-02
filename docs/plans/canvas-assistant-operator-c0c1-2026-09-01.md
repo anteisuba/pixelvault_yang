@@ -259,3 +259,16 @@ C3 的 5 个契约问题裁定：
 合并时必做：① `llmTextToolCall` 透传 C0-c 的 `signal`；② `requestOperatorTurn` union 加 C3 的 `ask` 支；③ 原生工具表自动跟随 `canvas` 域表，补一条 canvas 域原生路用例。
 
 **端到端审计（「无限大二创」四镜 30 秒）**：剧本 / 出图 / 镜头→视频 **能**；资料图、角色一致性、合成、助手代劳 **半能**。P0：台词从未进 TTS、配音间无整场导出无混轨；Fish 免费档标注 08-31 到期未复核（owner 亲自查官方博客）。P1：缺 `SERPER_API_KEY`；`GEMINI_OMNI_FLASH` 假可用（worker 未 allowlist，选中必 501，应下架）。方向建议：C2 之后开「成片链」片（投影写台词进语音节点 → TTS → 混轨进合成），待 owner 点头。
+
+## 附录 K · 合并落地 ②（2026-09-02 16:10 UTC）
+
+`01f84b0` C3 · `f732645` T · `626a811` merge。冲突 5 处全部按「两片语义并存」解：`requestOperatorTurn` 重落到 C3 改写后的唯一 LLM 调用点；`withContextRetry` 泛型保留并恢复 C0-c 的 abort 短路；`OperatorTurnDecision` 加 `ask` 支，归一化与「问题赢过工具」两路共用；原生路的反问走正文降级（只在正文含 `"ask"` 记号时才解 JSON，理由在 `requestOperatorTurn` 头注）；原生工具表按域表生成，四镜题加 openai 原生路用例。四镜叙事题路由从 Gemini 改到 Anthropic（T 之后 Gemini 是原生路，慢路脚本喂不进）。
+闸门：tsc 0 错 · lint 0 · 全量 vitest 599 文件 6232/6232（1 skipped）· pre-push 通过 · 已推送。T worktree 已删。
+
+**已落地的全部切片**：C0-a/b/c · G-A · C1-pre · C1 · R · C3 · T。**未接 UI**：dock 仍走 marker 链，操作员宿主已挂载但不渲染 —— 用户可见的变化只有手势 A 与检索修复；其余全部等 C2。
+
+**下一步（按依赖）**：
+- C2-b（后端小项，可先行）：`read_script_doc` 读工具；`GEMINI_OMNI_FLASH` 假可用下架（先在代码里坐实 501）。
+- C2（面板，等 owner 批原型）：dock 内容换成操作员线程；投影确认门与反问卡渲染；`assistantPrimed` 生成键视觉；marker 链与 `CanvasOpProposalCard` 平价后整体退役。
+- F（文件夹节点，等 owner 定形态）。
+- 成片链（等 owner 点头）。

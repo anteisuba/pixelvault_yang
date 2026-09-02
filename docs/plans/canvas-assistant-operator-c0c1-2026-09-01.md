@@ -190,5 +190,27 @@ owner 定性：助手设计是一项独立的大工程（回复怎么设计、�
 | C0-a | ✅ 验收通过 | 定向 456/457（唯一失败归 C0-b 的旧过滤条件） |
 | C0-c | ✅ 验收通过 | `llm-text` 83/83 + `assistant-completion` 7/7；四文件 tsc 零错；取消抛 `signal.reason`，`isLlmTextAbortError` 识别 |
 | G-A | ✅ 验收通过 | 77 文件 756 用例全绿；arm=聚焦或「从画布选」钮，exit=Esc/空白/发送，不因失焦退出；快投优先；非媒体节点以 `selectedNodeIds` 进请求 |
-| C0-b | 🔄 进行中（首次因会话限额中断，04:42 重启） | — |
-| C1-pre | 待 C0-b | 目的：让 4 个 C1 文件的穷举 switch / Record 先过 tsc（画布 step 在工作台宿主上显式「不适用」，不是 stub），再跑 full-gate、提交 |
+| C0-b | ✅ 验收通过 | 见附录 G |
+| C1-pre | ✅ 验收通过 | 见附录 G |
+
+## 附录 G · C0-b / C1-pre 验收（2026-09-02 05:10 UTC）
+
+**C0-b ✅**：service +1630/−212，32 条画布用例，定向 55 文件 708 用例全绿，money-gate 10/10，tsc 零错。验收表 §四 逐条：#1 inverse 缺失出流前被拒（有测）· #2 画布工具表零 generate、prime 载荷只 `{nodeId, primed:true}`（money-gate 新断言）· #4 连线只查 `canConnectNodeTypes`，源码不含规则表名（money-gate 新断言）· #5 `set_node_model` 缺渠道拒 `missingChannel` · #6 系统提示与首轮用户提示零 URL、零 visualSeed、零字段正文，`read_node` 才给（两向测试）· #7 别名跨步解析 · #9 signal 透传 · #10 工作台三域旧用例零改动全绿 · #11 tsc 零错。#3 / #8 归 C1，#12 token 对比归 C3 真机。
+
+C0-b 自定的 8 个默认，全部接受：`priceLabel` 可选展示串 · `modelOptions` 必填数组（宿主至少发 `[]`）· `attach_refs` 默认分类按来源卡 role · `set_node_fields.mode` 只作用自由文本，append 载荷是增量（C1 按 `ASSISTANT_OPERATOR_APPEND_SEPARATOR` 拼，空框视同 replace）· 标题覆写也确认 · `duration` 在带 params 节点上按档位 · 来源无媒体 / 自引用复用 `unknownAsset` · 客户端 i18n 归 C1/C2。
+
+**C1-pre ✅**：四个工作台文件穷举补齐；画布 step 在工作台宿主上返回类型化 `notApplicable` 并由 `use-assistant-operator` 插系统行 `stepNotApplicable`（三语已补）；历史落库不印 URL；116/116；全仓 tsc exit 0。
+
+**下一步**：full-gate（全量 tsc + 全量 vitest）→ 提交本片（C0-a/b/c + C1-pre + G-A）→ C1 正片。
+
+### C1 正片任务书（派工用）
+
+范围：`src/lib/canvas-operator-apply.ts`（新）+ `src/hooks/node/use-canvas-operator-host.ts`（新）+ `contexts/studio-operator-host.tsx`（`apply.canvas?:` 可选能力组）+ `lib/studio-operator-apply.ts`（把 C1-pre 的 notApplicable 分支改为分派到 canvas 能力组，缺能力组仍 notApplicable）+ money-gate 测试 ②（新文件 `canvas-operator-apply.money-gate.test.ts`）+ 删 `lib/node-assistant-history.ts` 与 `CanvasAssistantToggle.tsx`。
+
+契约：
+- `applyCanvasOperatorStep(graph, step, aliases) → { patch: NodeWorkflowPatch, inverse: CanvasInverse, aliases }` 纯函数，零 React、零生成标识符；`new:<n>` → 真实 id 映射在此完成，映射表随 run 存活。
+- 宿主 `use-canvas-operator-host`：`domain:'canvas'`，`buildSnapshot()` 产 `canvas` 节（含 `modelOptions`，从 `NODE_STUDIO_*` 目录按 nodeType 生成，`priceLabel` 按相对价签；**不发 `prompt`**），`apply.canvas` 把 patch 交给 `runAsSingleHistoryStep` 内的 workflow 写入；`applyOperatorStep` 保持同步，异步只在宿主那只手里。
+- 撤销：`set_*` 字段级 inverse；`stage_nodes` / `connect_nodes` 只给「撤销这一批」，仅当它仍是最近一步（`useNodeWorkflow` 的 history 指针）可点，否则置灰给理由。
+- `prime_node_generate`：节点卡生成键 primed 态（视觉 + 聚焦），不算价。
+- 测试：apply 单测覆盖 10 工具、别名、批撤、append 拼接；宿主单测 snapshot 形状（无 `prompt`、有 `modelOptions`）；money-gate ② 源码扫描禁 `handleGenerateMediaNode` / `NODE_GENERATION_SOURCE_IDS` / `generate-*` / `createGeneration` / `deductCredits`。
+- 本片不换 dock 里的 marker 链（C2 平价后整体退役）；宿主先以 hook 形式存在并在 `StudioNodeWorkbench` 挂载但不接 UI，用测试证明可用。

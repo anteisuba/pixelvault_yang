@@ -222,3 +222,24 @@ C0-b 自定的 8 个默认，全部接受：`priceLabel` 可选展示串 · `mod
 **R ✅**（worktree `agent-a9eccce2158772537`，基于 `ef0a2c4`）：五个缺口逐一落地——泛请求词表 + 实体抽取 → ip_character 组；缺 key 抛 `WebSearchNotConfiguredError`、源级 `unavailable` 回执不喂熔断、UI「联网搜索未配置」不再劝换词；`buildResearchStatusBlock` 让模型知道「已检索且为空 / 失败 / 不可用」并禁编造；查询按源分派（主语给 wiki 类，整句给网搜），规划器要英文 / 罗马音别名；Fandom 由规划器给 `fandomHost` 按 host 组站，无 host 记 skipped。`prisma/schema.prisma` 只动过一行注释，已回退，新状态不落库。定向 23 文件 310/310，tsc 零错。网络被出口策略挡，全部 mock 验证，**真机命中待 owner 配好 SERPER key 后验**。
 
 **合并顺序**：C1 fast-forward → R 合并（与分支只在三份 messages json 相交）→ full-gate → 提交 → push。
+
+## 附录 I · 合并落地 + C3 / T 任务书（2026-09-02 10:30 UTC）
+
+**已落地**：`a302788`（C1）· `9924f75`（R）· 两次 `--no-ff` 合并零冲突 · 全量闸门 tsc 0 错、eslint 0、vitest 597 文件 6166/6167（1 skipped）· 已推 `12939fa`。C2 原型已出（artifact「画布操作员台」，四态），待 owner 批。
+
+### C3 · 上下文根治 + 对话协议（派工用，Opus 5）
+
+范围：`services/kernel/assistant-operator.service.ts` 画布分支 · `types/assistant-operator.ts` · `constants/assistant-operator.ts` · `constants/assistant-protocol.ts` · `lib/canvas-operator-apply.ts` · `lib/canvas-operator-snapshot.ts` · `hooks/node/use-canvas-operator-host.ts` · `hooks/use-assistant-operator.ts` · `hooks/use-studio-operator-store.ts` · 相应测试与三语键。⛔ 不动面板组件（C2）、不动 llm-text（T）。
+
+1. **`ask` 一等事件**（附录 E 拍板）：模型 turn JSON 可返回 `ask: { question, options: [{label, consequence}] ≤3, allowFreeText: true }`；服务端校验后吐 `ask` 事件并以 `stopped:awaitingAnswer` 结束本 run；客户端线程条目 `ask`，答案（点选 label 或自由文本）作为下一条 user 消息发出，附 `answeredAskId`。系统提示写判据：意图不清 / 多解 / 将花钱或覆盖手写内容时问，否则先做再给撤销。工作台三域同样获得该事件（协议层共享），但本片只加画布提示。
+2. **回复结构**：系统提示规定 `message` 第一行是结论、随后是动作清单（由 steps 自然形成）、细节放后段；`message` schema 不变，渲染归 C2。
+3. **`update_script_doc`**：服务端 mutating step（inverse = 改前文档），客户端 apply 走既有 `previewScriptDocProjection` + 投影确认门；快照 `canvas.scriptDoc` 由宿主给摘要（标题 / 幕数 / 镜头数 / 角色名）。双路并存原则写进系统提示：长叙事先落 ScriptDoc 再投影，零散节点直接 stage。
+4. **三档收敛协议**接入画布（与工作台同一实现），`ASSISTANT_DOMAIN_BRIEFS.canvas` 消费者已存在，核对文案。
+5. **验收题**：把 2026-08-29 的「四镜叙事题」做成服务级测试（mock LLM 按脚本返回 turn，断言：第一步是 `read_node` 同名角色卡 · `set_node_model` 带 BytePlus optionId 而非 fal · `attach_refs` 挂到四个视频节点 · 首轮提示零 URL · 台词字段落在 `action` 而非 `prompt`）。真机复跑留给 owner。
+6. token 用量对比（验收 #12）：在测试里统计同题 marker 链 vs 工具环的提示字符数，记进报告；超过 2× 回来重议。
+
+### T · 原生 tool-calling 快慢路（派工用，Opus 5，worktree）
+
+范围：`services/llm-text.service.ts`（新入口 `llmTextToolCall`，OpenAI + Gemini 缓冲路）· `constants/llm-capability.ts`（`LLM_TOOL_CALLING_MODES` + 穷举 `Record<AI_ADAPTER_TYPES, …>`：openai / gemini = native，anthropic / deepseek / dashscope / xai = json）· `services/kernel/assistant-completion.service.ts`（把上下文压缩重试抽成泛型 `withContextRetry`，两条路共用）· `services/kernel/assistant-operator.service.ts` **只改** :2306-2340 那十几行 → `requestOperatorTurn(input) → {kind:'tool'|'message'|'done'|'ask', plan?}`，JSON 实现 = 现有代码原样，native 实现 = 新入口。
+硬约束：`ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS` 用 `z.toJSONSchema()` 生成 function 参数（不手抄）；OpenAI `parallel_tool_calls:false`，native 路停发 `responseFormat`；Gemini `function_declarations` 与 `google_search` 不并用；args 仍过 zod；`consecutiveParseFailures` 在 native 路语义改为「不调工具也不说话」；money-gate 白名单只允许新增 `@/constants/llm-capability`；`llm-text.service.test.ts` 既有断言零改动；`LLM_TEXT_STREAMS` 不动（native 只做缓冲路）。Claude 原生路（需 messages 历史）**不在本片**。
+验收：对同一 operator 脚本，openai / gemini 走 native 时请求体含 tools 且无 response_format；deepseek / xai 请求体与改前逐字一致；操作员 32 条画布用例 + 工作台用例零改动全绿。

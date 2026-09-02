@@ -133,3 +133,25 @@ PixelVault 检索链（子 agent 在容器内跑真实代码，网络被出口�
 
 缺口排序：① 触发词表漏「资料」类泛请求 ② 缺 key 静默成 empty，模型与用户都不知道 ③ Fandom 单站写死、无按 IP 找站 ④ 无 key 时零改写零翻译 ⑤ 空结果不告诉模型「已检索且为空」。
 
+
+## 附录 C · 路线图 v2（2026-09-01 第二轮访谈后，owner 定「画布操作员化先落地」）
+
+owner 追加拍板：收集节点不承担文件夹批次，**新做一个「素材文件夹节点」**；文件夹入口放在**助手输入框的附件菜单**（选中后成为一条文件夹胶囊，再说「分析」或「放到画布」）；生产是否配了 `SERPER_API_KEY` 不清楚，需查名单。
+
+| 片 | 内容 | 依赖 | 状态 |
+| --- | --- | --- | --- |
+| C0-a | 常量 + 类型：`canvas` 域、画布工具表、args schema、`AppliedStep` 联合、快照 `canvas?` 节、`CanvasWorkingState`、别名常量 | — | 开工 |
+| C0-c | `LlmTextInput.signal`：六 adapter 主请求可中断，`completeAssistantTextWithContextRetry` 透传 | — | 开工（与 C0-a 并行，文件不相交） |
+| C0-b | `assistant-operator.service` 画布分支：工作副本、`planTool` 各 case、inverse、确认复合键、money-gate 测试 ① | C0-a | 待 C0-a |
+| C1 | `canvas-operator-apply.ts` 抽出 + `use-canvas-operator-host` + store 加 canvas 槽 + money-gate 测试 ② + 删死代码 | C0-b | — |
+| G-A | 手势 A：输入框聚焦即 arm pick mode（照 `QuickThrowApi` 形状，挂 `handleNodeClick`）；`selectedReferences` 提升到 dock；读侧接 `NODE_WORKFLOW_FREE_TEXT_FIELD_BY_NODE_TYPE` 让文本节点正文进上下文 | 独立于操作员化 | 可与 C0 并行 |
+| C3 | 上下文根治：`read_graph` / `read_node` 内容、角色外观、ScriptDoc 摘要、三档收敛协议；真机重跑「四镜叙事题」 | C1 | — |
+| F | **素材文件夹节点**（新 node type，装一批 asset 引用，按 Generation id + URL，输出给下游生成节点；`node-connection-rules` 加行）+ 附件菜单文件夹胶囊 + 画布工具 `list_asset_folders` / `inspect_asset_folder` / `stage_folder_node` | C1 + 手势 A 的胶囊 | 另立任务书 |
+| R | 检索修复：触发词表补泛请求词、缺 key 大声暴露、Fandom 按 IP 找站、无 key 时仍做中英改写、空结果告知模型 | 独立 | 另立任务书 |
+| T | 原生 tool-calling：`requestOperatorTurn` 接缝；OpenAI + Gemini 先（缓冲路、`parallel_tool_calls:false`、停发 `responseFormat`）；Claude 需要 operator 维护真实 messages 历史，第二片 | C0-b | 另立任务书 |
+| C2 | 面板 UI：ui-page 三方向 + mock → owner 选 → 共组件独立实例；`CanvasOpProposalCard` 与 marker 链平价后整体退役 | C1 + C3 | 最后 |
+
+判断记录：
+- 顺序 C0 → C1 → C3 → C2，手势 A 并行；C2 走三方向 mock（owner 对形态「无法确定」）。
+- CA signal 随 C0 走，独立 commit。token 2× 门保留。
+- 文件夹节点是新类型而非收集节点属性：它的本质是「一批外部素材的来源」，与「一个角色的身份卡」不是同一件事，不违反「属性不建成类型」。

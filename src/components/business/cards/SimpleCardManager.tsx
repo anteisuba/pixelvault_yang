@@ -248,9 +248,7 @@ export function SimpleCardManager({
     <div className="rounded-xl border border-border/60 bg-background/30">
       <div className="flex items-center gap-2.5 px-4 py-3">
         <Icon className={cn('size-4', color)} />
-        <span className="text-sm font-medium font-display text-foreground">
-          {title}
-        </span>
+        <span className="text-sm font-medium text-foreground">{title}</span>
         <span className="text-xs text-muted-foreground">({cards.length})</span>
 
         {activeCardId && (
@@ -336,7 +334,7 @@ export function SimpleCardManager({
                   onChange={(e) => setNewPrompt(e.target.value)}
                   placeholder={promptPlaceholder ?? t('descriptionPlaceholder')}
                   rows={2}
-                  className="w-full rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs font-serif focus:border-primary/40 focus:outline-none resize-none"
+                  className="w-full rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs focus:border-primary/40 focus:outline-none resize-none"
                 />
               )}
 
@@ -509,7 +507,7 @@ export function SimpleCardManager({
           !showCreateForm && (
             <div className="flex flex-col items-center gap-1.5 py-6 text-center">
               <Palette className="size-5 text-muted-foreground/30" />
-              <p className="text-xs text-muted-foreground/60 font-serif">
+              <p className="text-xs text-muted-foreground/60">
                 {tv2('cardSearchEmpty')}
               </p>
             </div>
@@ -571,7 +569,7 @@ export function SimpleCardManager({
                         value={editPrompt}
                         onChange={(e) => setEditPrompt(e.target.value)}
                         rows={4}
-                        className="w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-xs font-serif focus:border-primary/40 focus:outline-none resize-none"
+                        className="w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-xs focus:border-primary/40 focus:outline-none resize-none"
                       />
                       <div className="flex gap-1.5">
                         <button
@@ -591,7 +589,7 @@ export function SimpleCardManager({
                       </div>
                     </div>
                   ) : (
-                    <p className="text-xs font-serif text-foreground/80">
+                    <p className="text-xs text-foreground/80">
                       {detailCard.prompt}
                     </p>
                   )}

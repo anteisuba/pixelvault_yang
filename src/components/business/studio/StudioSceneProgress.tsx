@@ -82,7 +82,7 @@ export const StudioSceneProgress = memo(function StudioSceneProgress({
         <div>
           <h3
             id="studio-scene-progress-title"
-            className="font-display text-sm font-medium text-foreground"
+            className="text-sm font-medium text-foreground"
           >
             {t('title')}
           </h3>

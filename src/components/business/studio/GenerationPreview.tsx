@@ -253,7 +253,7 @@ export const GenerationPreview = memo(function GenerationPreview({
         <p className="text-sm font-medium text-foreground">
           {t('previewErrorTitle')}
         </p>
-        <p className="mt-1 font-serif text-sm text-muted-foreground">{error}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{error}</p>
         {onRetry && (
           <Button
             variant="outline"
@@ -398,7 +398,7 @@ export const GenerationPreview = memo(function GenerationPreview({
           <AudioPlayer src={generation.url} segments={audioSegments} />
         </div>
         {generation.duration && (
-          <p className="font-serif text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {formatDuration(generation.duration)}
           </p>
         )}
@@ -455,7 +455,7 @@ export const GenerationPreview = memo(function GenerationPreview({
       <p className="text-sm font-medium text-foreground">
         {t('previewErrorTitle')}
       </p>
-      <p className="mt-1 font-serif text-xs text-muted-foreground">{error}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{error}</p>
       {onRetry && !isGenerating && (
         <Button
           variant="outline"
@@ -628,7 +628,7 @@ export const GenerationPreview = memo(function GenerationPreview({
             }}
           >
             <DrawerHeader>
-              <DrawerTitle className="font-display text-base">
+              <DrawerTitle className="text-base">
                 {t('toolDrawerTitle')}
               </DrawerTitle>
             </DrawerHeader>

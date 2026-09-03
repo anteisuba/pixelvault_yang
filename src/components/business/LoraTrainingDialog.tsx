@@ -440,9 +440,7 @@ export function LoraTrainingForm({
     <TooltipProvider delayDuration={200}>
       <div className="space-y-4">
         {showHeading ? (
-          <h2 className="font-display text-lg font-semibold tracking-tight">
-            {t('title')}
-          </h2>
+          <h2 className="text-lg font-semibold tracking-tight">{t('title')}</h2>
         ) : null}
 
         {showCelebration && latestCompletedJob ? (
@@ -1022,7 +1020,7 @@ export function LoraTrainingHistorySidebar() {
 
   return (
     <aside className="flex h-full min-h-0 flex-col gap-3">
-      <h3 className="font-display text-sm font-semibold tracking-tight">
+      <h3 className="text-sm font-semibold tracking-tight">
         {t('historyTitle')}
       </h3>
 
@@ -1246,7 +1244,7 @@ export function LoraTrainingDialog({
       )}
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display">{t('title')}</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
           <p className="text-sm text-muted-foreground">{t('description')}</p>
         </DialogHeader>
 

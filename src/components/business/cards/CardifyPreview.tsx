@@ -37,7 +37,7 @@ export function CardifyPreview({
     <div className="space-y-4 rounded-lg border border-border/60 bg-background/50 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-medium font-display">{t('title')}</h3>
+          <h3 className="text-sm font-medium">{t('title')}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {t('subtitle')}
           </p>

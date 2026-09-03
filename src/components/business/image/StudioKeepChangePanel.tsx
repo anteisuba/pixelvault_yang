@@ -72,7 +72,7 @@ export function StudioKeepChangePanel({
         className="max-h-svh md:bottom-auto md:left-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:border-l md:border-t-0"
       >
         <SheetHeader>
-          <SheetTitle className="font-display">{t('title')}</SheetTitle>
+          <SheetTitle>{t('title')}</SheetTitle>
         </SheetHeader>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-4 pb-4">
@@ -148,7 +148,7 @@ export function StudioKeepChangePanel({
               value={freeText}
               onChange={(event) => setFreeText(event.target.value)}
               placeholder={t('freeTextPlaceholder')}
-              className="min-h-24 resize-none bg-background/70 font-serif text-sm"
+              className="min-h-24 resize-none bg-background/70 text-sm"
             />
           </div>
 

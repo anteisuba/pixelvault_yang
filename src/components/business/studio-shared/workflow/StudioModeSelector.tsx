@@ -77,7 +77,7 @@ export const StudioModeSelector = memo(function StudioModeSelector() {
 
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Gift className="size-3.5 text-chart-3" />
-        <span className="font-serif">
+        <span>
           {tStudio('freeQuota', {
             remaining: Math.max(0, freeRemaining),
             limit: summary.freeGenerationLimit,

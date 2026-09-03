@@ -46,10 +46,10 @@ export default function GlobalError({
             <section className="editorial-panel mx-auto max-w-xl text-center">
               <div className="space-y-4">
                 <p className="editorial-eyebrow mx-auto">{copy.title}</p>
-                <h1 className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl">
+                <h1 className="text-3xl font-medium tracking-tight text-balance sm:text-4xl">
                   {copy.title}
                 </h1>
-                <p className="font-serif text-sm leading-7 text-muted-foreground sm:text-base">
+                <p className="text-sm leading-7 text-muted-foreground sm:text-base">
                   {copy.description}
                 </p>
                 <button

@@ -63,10 +63,10 @@ export function StudioWorkflowPicker({
               )}
             >
               <CardContent className="grid gap-2 px-4 py-4">
-                <div className="font-display text-sm font-semibold leading-tight text-foreground">
+                <div className="text-sm font-semibold leading-tight text-foreground">
                   {copy.name}
                 </div>
-                <p className="font-serif text-xs leading-5 text-muted-foreground">
+                <p className="text-xs leading-5 text-muted-foreground">
                   {copy.description}
                 </p>
               </CardContent>

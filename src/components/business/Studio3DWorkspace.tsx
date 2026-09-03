@@ -1115,13 +1115,13 @@ export function Studio3DWorkspace({
       <header className="flex flex-col gap-1 border-b border-border/40 px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center gap-2">
           <Box className="size-4 text-primary" />
-          <h1 className="font-display text-lg font-medium tracking-tight sm:text-xl">
+          <h1 className="text-lg font-medium tracking-tight sm:text-xl">
             {t('title')}
           </h1>
         </div>
         {/* Hide subtitle on mobile to save vertical room; the title is
             self-explanatory once you're on /studio/3d. */}
-        <p className="hidden font-serif text-sm leading-6 text-muted-foreground sm:block">
+        <p className="hidden text-sm leading-6 text-muted-foreground sm:block">
           {t('description')}
         </p>
       </header>
@@ -1436,7 +1436,7 @@ export function Studio3DWorkspace({
                   ? t('rodinApiKeyMissingTitle')
                   : t('apiKeyMissingTitle')}
               </div>
-              <p className="font-serif text-xs leading-5 text-muted-foreground">
+              <p className="text-xs leading-5 text-muted-foreground">
                 {isRodin
                   ? t('rodinApiKeyMissingDescription')
                   : t('apiKeyMissingDescription')}
@@ -1498,7 +1498,7 @@ export function Studio3DWorkspace({
               </div>
               {/* One-line contextual hint so the three modes aren't visually
                   identical — explains how the current pick actually behaves. */}
-              <p className="font-serif text-[11px] italic leading-snug text-muted-foreground">
+              <p className="text-[11px] italic leading-snug text-muted-foreground">
                 {t(
                   rodinMode === 'image'
                     ? 'rodinModeImageHint'
@@ -2147,7 +2147,7 @@ export function Studio3DWorkspace({
                     )
                   })}
                 </div>
-                <p className="mt-1.5 font-serif text-[11px] italic text-muted-foreground">
+                <p className="mt-1.5 text-[11px] italic text-muted-foreground">
                   ~{Math.round(RODIN_TIER_ESTIMATED_SECONDS[rodinTier] / 60)}{' '}
                   min ·{' '}
                   {RODIN_TIER_CREDITS[rodinTier] +
@@ -2197,7 +2197,7 @@ export function Studio3DWorkspace({
                     }),
                   )}
                 </div>
-                <p className="mt-1.5 font-serif text-[11px] italic text-muted-foreground">
+                <p className="mt-1.5 text-[11px] italic text-muted-foreground">
                   {t('rodinMeshModeHint')}
                 </p>
               </div>
@@ -2360,7 +2360,7 @@ export function Studio3DWorkspace({
                     </button>
                   ))}
                 </div>
-                <p className="mt-1.5 font-serif text-[11px] italic text-muted-foreground">
+                <p className="mt-1.5 text-[11px] italic text-muted-foreground">
                   {t('rodinGeometryInstructModeHint')}
                 </p>
               </div>

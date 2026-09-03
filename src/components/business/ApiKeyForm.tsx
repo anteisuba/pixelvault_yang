@@ -143,7 +143,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h3 className="font-display text-base font-medium text-foreground">
+          <h3 className="text-base font-medium text-foreground">
             {t('addForm.title')}
           </h3>
           <p className="text-sm leading-5 text-muted-foreground">

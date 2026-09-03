@@ -182,10 +182,8 @@ export function PromptTemplateCreatePanel({
               <FileText className="size-4" />
             </span>
             <div className="min-w-0">
-              <h2 className="font-display text-lg font-medium">
-                {t('createTitle')}
-              </h2>
-              <p className="mt-1 font-serif text-sm leading-6 text-muted-foreground">
+              <h2 className="text-lg font-medium">{t('createTitle')}</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {t('createDescription')}
               </p>
             </div>
@@ -209,10 +207,8 @@ export function PromptTemplateCreatePanel({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <p className="editorial-eyebrow">{t('createEyebrow')}</p>
-            <h2 className="font-display text-2xl font-medium">
-              {t('createTitle')}
-            </h2>
-            <p className="font-serif text-sm leading-7 text-muted-foreground">
+            <h2 className="text-2xl font-medium">{t('createTitle')}</h2>
+            <p className="text-sm leading-7 text-muted-foreground">
               {t('createDescription')}
             </p>
           </div>

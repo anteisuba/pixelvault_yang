@@ -2170,10 +2170,8 @@ function EmptyState() {
       <div className="flex size-12 items-center justify-center rounded-2xl bg-muted/40 text-muted-foreground">
         <ImageIcon className="size-6" />
       </div>
-      <h2 className="font-display text-xl font-medium">{t('emptyTitle')}</h2>
-      <p className="font-serif text-sm text-muted-foreground">
-        {t('emptyDescription')}
-      </p>
+      <h2 className="text-xl font-medium">{t('emptyTitle')}</h2>
+      <p className="text-sm text-muted-foreground">{t('emptyDescription')}</p>
       <Link
         href={ROUTES.STUDIO_IMAGE}
         className="mt-2 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90"

@@ -57,7 +57,7 @@ export function ToolPlaceholder({ toolKey, className }: ToolPlaceholderProps) {
         <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl bg-primary/8 text-primary/70">
           <Icon className="size-8" strokeWidth={1.5} />
         </div>
-        <h1 className="mb-3 font-display text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="mb-3 text-3xl font-bold tracking-tight text-foreground">
           {t('title')}
         </h1>
         <p className="mb-6 leading-relaxed text-muted-foreground">

@@ -141,7 +141,7 @@ function AppSidebarHeader() {
           {/* 静态字。改版前这里挂着 HyperText 的逐字乱码 hover 动画 ——
               一个每天要看几百次的导航元素上放炫技动画，与
               `interaction.md §5`「动效只服务状态 / 连续性 / 反馈」冲突。 */}
-          <span className="font-display text-base font-bold leading-none tracking-brand">
+          <span className="text-base font-bold leading-none tracking-brand">
             {t('brand')}
           </span>
         </Link>
@@ -567,11 +567,11 @@ function SidebarFooterUserMenu() {
       <Sheet open={apiKeysOpen} onOpenChange={setApiKeysOpen}>
         <SheetContent className="w-full overflow-y-auto border-l bg-background/95 px-0 sm:max-w-2xl">
           <SheetHeader className="gap-3 border-b px-6 pb-5 pt-6">
-            <SheetTitle className="flex items-center gap-2 font-display text-lg font-medium">
+            <SheetTitle className="flex items-center gap-2 text-lg font-medium">
               <KeyRound className="size-4" />
               {tApiKeys('sheetTitle')}
             </SheetTitle>
-            <SheetDescription className="max-w-md font-serif leading-6">
+            <SheetDescription className="max-w-md leading-6">
               {tApiKeys('sheetDescription')}
             </SheetDescription>
           </SheetHeader>

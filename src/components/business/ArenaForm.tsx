@@ -430,7 +430,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
           onChange={(e) => setPrompt(e.target.value)}
           rows={3}
           disabled={isCreating}
-          className="resize-none rounded-2xl border-border/75 bg-background/72 px-4 py-3 font-serif"
+          className="resize-none rounded-2xl border-border/75 bg-background/72 px-4 py-3"
         />
       </div>
 

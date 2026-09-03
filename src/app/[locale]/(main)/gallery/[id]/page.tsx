@@ -233,7 +233,7 @@ export default async function ImageDetailPage({
               <>
                 <div className="space-y-2">
                   <p className={labelClass}>{t('promptLabel')}</p>
-                  <p className="font-serif text-base leading-7 text-foreground">
+                  <p className="text-base leading-7 text-foreground">
                     {generation.prompt}
                   </p>
                 </div>
@@ -241,7 +241,7 @@ export default async function ImageDetailPage({
                 {generation.negativePrompt ? (
                   <div className="space-y-2">
                     <p className={labelClass}>{t('negativePromptLabel')}</p>
-                    <p className="font-serif text-sm leading-6 text-muted-foreground">
+                    <p className="text-sm leading-6 text-muted-foreground">
                       {generation.negativePrompt}
                     </p>
                   </div>

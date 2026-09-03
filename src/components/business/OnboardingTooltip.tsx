@@ -194,10 +194,10 @@ export function OnboardingTooltip({
 
         {/* Content */}
         <div className="space-y-2 pr-6">
-          <p className="font-display text-sm font-semibold text-foreground">
+          <p className="text-sm font-semibold text-foreground">
             {t(`steps.${step}.title`)}
           </p>
-          <p className="font-serif text-sm leading-6 text-muted-foreground">
+          <p className="text-sm leading-6 text-muted-foreground">
             {t(`steps.${step}.description`)}
           </p>
         </div>

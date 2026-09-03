@@ -40,9 +40,7 @@ export function PolaroidGrid({
         <div className="size-16 rounded-full bg-primary/5 flex items-center justify-center mb-5">
           <ImageIcon className="size-7 text-primary/40" />
         </div>
-        <p className="text-muted-foreground font-serif text-lg">
-          {t('noPublicImages')}
-        </p>
+        <p className="text-muted-foreground text-lg">{t('noPublicImages')}</p>
         <Link href="/studio" className="mt-5">
           <Button
             variant="outline"

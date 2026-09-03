@@ -179,7 +179,7 @@ export function StudioCardPicker() {
       <header className="border-b border-border/40 px-4 py-3">
         <div className="flex items-center gap-2">
           <PanelsTopLeft className="size-4 text-muted-foreground" />
-          <h2 className="font-display text-sm font-semibold">{t('cards')}</h2>
+          <h2 className="text-sm font-semibold">{t('cards')}</h2>
           {selectedCardCount > 0 ? (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               {selectedCardCount}
@@ -307,7 +307,7 @@ export function StudioCardPicker() {
           </div>
         ) : visibleCards.length === 0 ? (
           query.trim() ? (
-            <p className="px-3 py-10 text-center font-serif text-sm text-muted-foreground">
+            <p className="px-3 py-10 text-center text-sm text-muted-foreground">
               {t('cardSearchEmpty')}
             </p>
           ) : (

@@ -36,7 +36,7 @@ function ErrorFallback({
         <p className="text-sm font-medium text-foreground">
           {section ? t('sectionError', { section }) : t('title')}
         </p>
-        <p className="text-xs text-muted-foreground font-serif">
+        <p className="text-xs text-muted-foreground">
           {errorMessage ?? t('description')}
         </p>
       </div>

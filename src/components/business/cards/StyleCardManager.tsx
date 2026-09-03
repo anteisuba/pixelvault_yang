@@ -195,7 +195,7 @@ export function StyleCardManager({
     <div className="rounded-xl border border-border/60 bg-background/30">
       <div className="flex items-center gap-2.5 px-4 py-3">
         <Palette className="size-4 text-chart-4" />
-        <span className="text-sm font-medium font-display text-foreground">
+        <span className="text-sm font-medium text-foreground">
           {tStyle('title')}
         </span>
         <span className="text-xs text-muted-foreground">({cards.length})</span>
@@ -297,7 +297,7 @@ export function StyleCardManager({
                   <p className="text-xs text-amber-500">{t('noModel')}</p>
                 )}
                 {detailCard.stylePrompt && (
-                  <p className="text-xs font-serif text-foreground/80">
+                  <p className="text-xs text-foreground/80">
                     {detailCard.stylePrompt}
                   </p>
                 )}

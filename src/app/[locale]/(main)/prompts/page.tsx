@@ -122,10 +122,10 @@ async function MineTab({ clerkId, createQuery, locale, t }: MineTabProps) {
     return (
       <div className="editorial-panel text-center">
         <div className="mx-auto max-w-xl space-y-4">
-          <h1 className="font-display text-3xl font-medium tracking-tight">
+          <h1 className="text-3xl font-medium tracking-tight">
             {t('emptyTitle')}
           </h1>
-          <p className="font-serif text-sm leading-7 text-muted-foreground">
+          <p className="text-sm leading-7 text-muted-foreground">
             {t('emptyDescription')}
           </p>
           <Button asChild className="rounded-full px-5">
@@ -157,10 +157,8 @@ async function MineTab({ clerkId, createQuery, locale, t }: MineTabProps) {
         <section className="editorial-panel">
           <div className="mx-auto max-w-xl space-y-4 text-center">
             <FileText className="mx-auto size-10 text-primary/75" />
-            <h2 className="font-display text-2xl font-medium">
-              {t('emptyTitle')}
-            </h2>
-            <p className="font-serif text-sm leading-7 text-muted-foreground">
+            <h2 className="text-2xl font-medium">{t('emptyTitle')}</h2>
+            <p className="text-sm leading-7 text-muted-foreground">
               {t('emptyDescription')}
             </p>
             <div className="flex flex-wrap justify-center gap-2">

@@ -208,9 +208,7 @@ export function ModelSelector({
           <label className="text-sm font-semibold text-foreground">
             {t('label')}
           </label>
-          <p className="font-serif text-sm leading-6 text-muted-foreground">
-            {t('hint')}
-          </p>
+          <p className="text-sm leading-6 text-muted-foreground">{t('hint')}</p>
         </div>
         <div className="flex items-center gap-2">
           {needsScroll ? (
@@ -355,7 +353,7 @@ export function ModelSelector({
                             </Badge>
                           ) : null}
                         </div>
-                        <span className="mt-0.5 block truncate font-serif text-xs text-muted-foreground">
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                           {getProviderLabel(option.providerConfig)}
                           {isSaved && option.maskedKey
                             ? ` · ${option.maskedKey}`
@@ -401,7 +399,7 @@ export function ModelSelector({
                           )}
                         </span>
                         {description && isSelected ? (
-                          <span className="mt-1 block font-serif text-xs leading-relaxed text-muted-foreground/70">
+                          <span className="mt-1 block text-xs leading-relaxed text-muted-foreground/70">
                             {description}
                           </span>
                         ) : null}

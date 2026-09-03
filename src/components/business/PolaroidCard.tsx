@@ -167,7 +167,7 @@ export function PolaroidCard({
         </div>
         {/* Like indicator below polaroid */}
         <div className="flex items-center justify-between px-1 mt-1 text-xs text-muted-foreground">
-          <span className="truncate font-serif">{model}</span>
+          <span className="truncate">{model}</span>
           <span className="flex items-center gap-0.5">
             <Heart
               className={cn('size-3', isLiked && 'fill-primary text-primary')}
@@ -245,7 +245,7 @@ export function PolaroidCard({
               style={{ color: '#7a7668' }}
             >
               <div className="flex items-center gap-3">
-                <span className="font-serif">{dateStr}</span>
+                <span>{dateStr}</span>
                 <span className="font-medium">{model}</span>
               </div>
               <div className="flex items-center gap-3">
@@ -288,7 +288,7 @@ export function PolaroidCard({
             {/* Prompt preview */}
             {isPromptPublic && (
               <div className="mt-2 max-w-[80vw] px-1">
-                <p className="text-xs text-muted-foreground line-clamp-2 font-serif italic">
+                <p className="text-xs text-muted-foreground line-clamp-2 italic">
                   &ldquo;{prompt}&rdquo;
                 </p>
               </div>

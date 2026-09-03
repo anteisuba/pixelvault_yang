@@ -47,15 +47,12 @@ body.home-v4-locked {
      owner 2026-08-28「小字号都看不清，中文尤其丑」的根因就是这一条。`--cjk`
      自带 PingFang / 微软雅黑 的系统回落，并在 `[data-locale='ja']` 上整段换成
      日文面，所以 /ja 也不会掉进明朝体。 */
-  --mono: var(--font-home-mono), ui-monospace, Consolas, var(--cjk), monospace;
-  --sans:
-    var(--font-home-sans), var(--cjk), -apple-system, 'PingFang SC', sans-serif;
+  /* 2026-09-03 并入全站三槽（ui-defaults.md §1）：不再自带 Noto Sans / IBM Plex Mono */
+  --mono: var(--font-stack-mono);
+  --sans: var(--font-stack-sans);
   /* 2026-08-28 字体拍板 B：标题走衬线（刊物重量），正文与数据字不变 */
-  /* `--serif-cjk` is a next/font variable, so it already ends in its own
-     system-serif fallbacks — repeating them here would only duplicate them. */
-  --serif: var(--serif-cjk), serif;
-  --cjk: var(--font-chinese-sans);
-  --serif-cjk: var(--font-home-serif);
+  --serif: var(--font-stack-display);
+  --cjk: var(--font-noto-sans-sc);
 
   --gut: clamp(22px, 5vw, 80px);
   --bar: 54px;
@@ -86,8 +83,7 @@ body.home-v4-locked {
 /* Keyed off the domain root's own attribute, not `<html lang>`: the root layout
    owns `lang` and never re-renders across client navigations. */
 .home-v4[data-locale='ja'] {
-  --cjk: var(--font-japanese-sans);
-  --serif-cjk: var(--font-home-serif-jp);
+  --cjk: var(--font-noto-sans-jp);
 }
 
 .home-v4 *,

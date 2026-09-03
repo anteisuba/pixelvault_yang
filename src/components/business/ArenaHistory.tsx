@@ -70,7 +70,7 @@ function MatchCard({
 
       {/* Match info */}
       <div className="space-y-2 p-3">
-        <p className="line-clamp-2 font-serif text-sm text-foreground/80">
+        <p className="line-clamp-2 text-sm text-foreground/80">
           {match.prompt}
         </p>
         <div className="flex items-center justify-between text-2xs text-muted-foreground">
@@ -115,7 +115,7 @@ export function ArenaHistory() {
 
   return (
     <div className="space-y-6">
-      <p className="font-serif text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {t('totalMatches', { count: total })}
       </p>
 

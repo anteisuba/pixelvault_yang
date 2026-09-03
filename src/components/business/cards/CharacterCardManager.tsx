@@ -128,7 +128,7 @@ export function CharacterCardManager({
     <div className="rounded-xl border border-border/60 bg-background/30">
       <div className="flex items-center gap-2.5 px-4 py-3">
         <User className="size-4 text-chart-3" />
-        <span className="text-sm font-medium font-display text-foreground">
+        <span className="text-sm font-medium text-foreground">
           {t('title')}
         </span>
         <span className="text-xs text-muted-foreground">({cards.length})</span>

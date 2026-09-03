@@ -3954,7 +3954,7 @@ function MineHeader({ totalCount, isLoading, onRefresh }: MineHeaderProps) {
     <header className="flex flex-row items-start justify-between gap-3 sm:items-end">
       <div className="min-w-0 space-y-1">
         <div className="flex items-baseline gap-2">
-          <h2 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
+          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
             {t('myLorasTitle')}
           </h2>
           {!isLoading && totalCount > 0 ? (
@@ -4138,7 +4138,7 @@ function EmptyHero({ onSwitchSection }: EmptyHeroProps) {
         </div>
 
         <div className="space-y-2">
-          <h3 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          <h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             {t('myLorasEmptyTitle')}
           </h3>
           <p className="text-sm text-muted-foreground sm:text-base">
@@ -4226,7 +4226,7 @@ function PresetRailPanel({
       )}
     >
       <div className="mb-3 space-y-0.5">
-        <h3 className="font-display text-sm font-semibold tracking-tight">
+        <h3 className="text-sm font-semibold tracking-tight">
           {t('presetRailTitle')}
         </h3>
         <p className="text-2xs text-muted-foreground">

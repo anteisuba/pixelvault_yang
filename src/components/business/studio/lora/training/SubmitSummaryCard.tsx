@@ -44,7 +44,7 @@ export function SubmitSummaryCard({
       )}
     >
       <header className="flex items-center justify-between gap-2">
-        <p className="font-display text-sm font-semibold text-foreground">
+        <p className="text-sm font-semibold text-foreground">
           {t('submitSummaryTitle')}
         </p>
         {presetName ? (

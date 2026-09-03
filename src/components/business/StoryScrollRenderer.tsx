@@ -31,7 +31,7 @@ export function StoryScrollRenderer({ panels }: StoryScrollRendererProps) {
           {/* Narration text */}
           {panel.narration && (
             <div className="mx-auto mt-6 max-w-2xl px-4">
-              <p className="font-serif text-lg leading-relaxed text-foreground/90">
+              <p className="text-lg leading-relaxed text-foreground/90">
                 {panel.narration}
               </p>
             </div>

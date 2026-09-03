@@ -27,7 +27,7 @@ export function LegalPage({ doc }: LegalPageProps) {
         <div className="mx-auto flex min-h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6">
           <Link
             href={ROUTES.HOME}
-            className="font-display text-base font-semibold tracking-[0.08em]"
+            className="text-base font-semibold tracking-[0.08em]"
             aria-label={tCommon('brand')}
           >
             {tCommon('brand')}

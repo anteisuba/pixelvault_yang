@@ -43,7 +43,7 @@ export function CollapsiblePanel({
         <div className="space-y-1">
           <p className="text-sm font-semibold text-foreground">{title}</p>
           {description && (
-            <p className="font-serif text-sm leading-6 text-muted-foreground">
+            <p className="text-sm leading-6 text-muted-foreground">
               {description}
             </p>
           )}

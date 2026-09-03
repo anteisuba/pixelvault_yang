@@ -187,7 +187,7 @@ export const StudioGallery = memo(function StudioGallery() {
     <section className="studio-history space-y-2">
       {/* Header + filters + layout toggle */}
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-display">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {tProj('history')}
         </h3>
         <div className="flex items-center gap-2">

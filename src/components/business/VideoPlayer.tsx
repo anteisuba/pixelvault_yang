@@ -78,9 +78,7 @@ export default function VideoPlayer({
       <div
         className={`flex items-center justify-center rounded-3xl border border-destructive/35 bg-destructive/8 p-8 ${className ?? ''}`}
       >
-        <p className="font-serif text-sm text-destructive">
-          {t('errorPlayback')}
-        </p>
+        <p className="text-sm text-destructive">{t('errorPlayback')}</p>
       </div>
     )
   }

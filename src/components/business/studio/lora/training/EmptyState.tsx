@@ -38,7 +38,7 @@ export function EmptyState({
     >
       <EmptyIllustration />
       <div className="max-w-md space-y-2">
-        <h3 className="font-display text-xl font-semibold tracking-tight">
+        <h3 className="text-xl font-semibold tracking-tight">
           {t('emptyTitle')}
         </h3>
         <p className="text-sm text-muted-foreground">{t('emptyDescription')}</p>

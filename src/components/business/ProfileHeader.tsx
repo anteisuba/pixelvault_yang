@@ -152,7 +152,7 @@ export function ProfileHeader({
               />
             ) : (
               <div className="size-24 rounded-full bg-primary/8 flex items-center justify-center border-4 border-background shadow-md ring-1 ring-border/40">
-                <span className="text-2xl font-display font-bold text-primary/60">
+                <span className="text-2xl font-bold text-primary/60">
                   {initial}
                 </span>
               </div>
@@ -162,7 +162,7 @@ export function ProfileHeader({
           {/* Name + actions row */}
           <div className="flex-1 min-w-0 text-center sm:text-left pb-1">
             <div className="flex flex-col sm:flex-row items-center sm:items-baseline gap-1 sm:gap-3">
-              <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground truncate">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate">
                 {displayName}
               </h1>
               <span className="text-sm text-muted-foreground font-mono">
@@ -171,7 +171,7 @@ export function ProfileHeader({
             </div>
 
             {profile.bio && (
-              <p className="mt-1.5 text-sm text-muted-foreground font-serif max-w-md leading-relaxed">
+              <p className="mt-1.5 text-sm text-muted-foreground max-w-md leading-relaxed">
                 {profile.bio}
               </p>
             )}
@@ -220,21 +220,21 @@ export function ProfileHeader({
         <div className="flex items-center justify-center sm:justify-start gap-5 mt-4 sm:ml-30">
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <ImageIcon className="size-3.5 text-primary/60" />
-            <span className="font-display font-semibold text-foreground">
+            <span className="font-semibold text-foreground">
               {profile.publicImageCount}
             </span>
             <span>{t('works')}</span>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Heart className="size-3.5 text-primary/60" />
-            <span className="font-display font-semibold text-foreground">
+            <span className="font-semibold text-foreground">
               {profile.likeCount}
             </span>
             <span>{t('likes')}</span>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Users className="size-3.5 text-primary/60" />
-            <span className="font-display font-semibold text-foreground">
+            <span className="font-semibold text-foreground">
               {profile.followerCount}
             </span>
             <span>{t('followers')}</span>

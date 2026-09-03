@@ -17,7 +17,7 @@ export function StudioWorkflowSummary() {
   if (!workflow) {
     return (
       <section className="grid gap-1" aria-live="polite">
-        <p className="font-serif text-sm leading-6 text-muted-foreground">
+        <p className="text-sm leading-6 text-muted-foreground">
           {tStudio('workflowEmptyHint')}
         </p>
       </section>
@@ -27,16 +27,16 @@ export function StudioWorkflowSummary() {
   return (
     <section className="grid gap-1 sm:grid-cols-2 sm:items-end">
       <div className="grid gap-1">
-        <h2 className="font-display text-xl font-semibold leading-tight text-foreground sm:text-2xl">
+        <h2 className="text-xl font-semibold leading-tight text-foreground sm:text-2xl">
           {t(workflow.publicNameKey)}
         </h2>
         {showInitialHint ? (
-          <p className="font-serif text-sm leading-6 text-muted-foreground">
+          <p className="text-sm leading-6 text-muted-foreground">
             {tStudio('workflowEmptyHint')}
           </p>
         ) : null}
       </div>
-      <p className="font-serif text-sm leading-6 text-muted-foreground">
+      <p className="text-sm leading-6 text-muted-foreground">
         {t(workflow.descriptionKey)}
       </p>
     </section>

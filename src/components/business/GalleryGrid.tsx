@@ -221,10 +221,10 @@ export function GalleryGrid({
             <Sparkles className="size-5" />
           </span>
           <div className="space-y-2">
-            <h3 className="font-display text-2xl font-medium tracking-tight text-foreground">
+            <h3 className="text-2xl font-medium tracking-tight text-foreground">
               {emptyTitle}
             </h3>
-            <p className="font-serif text-sm leading-7 text-muted-foreground">
+            <p className="text-sm leading-7 text-muted-foreground">
               {emptyDescription}
             </p>
           </div>

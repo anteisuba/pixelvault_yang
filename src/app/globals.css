@@ -73,10 +73,10 @@
      补第三档，让浅底有正经落点。 */
   --color-node-status-failed-tint: var(--node-status-failed-tint);
   --shadow-node-panel: 0 20px 60px var(--node-shadow);
-  --font-sans: var(--font-app-sans);
-  --font-display: var(--font-app-display);
-  --font-serif: var(--font-app-serif);
-  --font-mono: var(--font-geist-mono);
+  /* 字体三槽（ui-defaults.md §1）。栈在下方 :root / html:lang() 组装。 */
+  --font-sans: var(--font-stack-sans);
+  --font-display: var(--font-stack-display);
+  --font-mono: var(--font-stack-mono);
   /* Custom scale tokens */
   --text-hero-title: clamp(2.25rem, 5vw, 4rem);
   --text-hero-subtitle: clamp(1.125rem, 2.5vw, 1.5rem);
@@ -289,14 +289,17 @@
 }
 
 :root {
-  --font-app-sans:
-    var(--font-app-sans), 'Geist', ui-sans-serif, system-ui, sans-serif;
-  --font-app-display:
-    var(--font-app-display), 'Geist', ui-sans-serif, system-ui, sans-serif;
-  --font-app-serif:
-    var(--font-app-serif), 'Geist', ui-sans-serif, system-ui, sans-serif;
-  --font-hero:
-    var(--font-app-display), 'Geist', ui-sans-serif, system-ui, sans-serif;
+  /* ── 字体三槽 · 三语栈（ui-defaults.md §1）──────────────────────────
+     拉丁字体永远排第一，CJK 排第二；三语只换 CJK 那一位。next/font 变量挂在
+     <html>（layout.tsx），所以这里 :root 上能取到。 */
+  --font-stack-sans:
+    var(--font-geist), var(--font-noto-sans-sc), 'PingFang SC',
+    'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
+  --font-stack-display:
+    var(--font-fraunces), var(--font-noto-serif-sc), 'Songti SC', serif;
+  --font-stack-mono:
+    var(--font-geist-mono), ui-monospace, Consolas, var(--font-noto-sans-sc),
+    monospace;
   --radius: 0.625rem;
   --keyboard-inset: 0px;
   --keyboard-safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -413,25 +416,15 @@
 }
 
 html:lang(ja) {
-  --font-app-sans: var(--font-japanese-sans), 'Hiragino Sans', sans-serif;
-  --font-app-display:
-    var(--font-app-display), var(--font-japanese-sans), 'Hiragino Sans',
-    sans-serif;
-  --font-app-serif:
-    var(--font-app-serif), var(--font-japanese-sans), 'Hiragino Sans', serif;
-  --font-hero:
-    var(--font-app-display), var(--font-japanese-sans), 'Hiragino Sans',
-    sans-serif;
-}
-
-html:lang(zh) {
-  --font-app-sans: var(--font-chinese-sans), 'PingFang SC', sans-serif;
-  --font-app-display:
-    var(--font-app-display), var(--font-chinese-sans), 'PingFang SC', sans-serif;
-  --font-app-serif:
-    var(--font-app-serif), var(--font-chinese-sans), 'PingFang SC', serif;
-  --font-hero:
-    var(--font-app-display), var(--font-chinese-sans), 'PingFang SC', sans-serif;
+  --font-stack-sans:
+    var(--font-geist), var(--font-noto-sans-jp), 'Hiragino Sans',
+    'Yu Gothic UI', ui-sans-serif, system-ui, sans-serif;
+  --font-stack-display:
+    var(--font-fraunces), var(--font-noto-serif-jp), 'Hiragino Mincho ProN',
+    'Yu Mincho', serif;
+  --font-stack-mono:
+    var(--font-geist-mono), ui-monospace, Consolas, var(--font-noto-sans-jp),
+    monospace;
 }
 
 .dark {
@@ -724,7 +717,7 @@ html:lang(zh) {
 
   .editorial-title {
     max-width: 18ch;
-    font-family: var(--font-display);
+    font-family: var(--font-sans);
     font-size: clamp(2.6rem, 5.5vw, 4.2rem);
     font-weight: 500;
     line-height: 0.95;
@@ -734,7 +727,7 @@ html:lang(zh) {
 
   .editorial-copy {
     max-width: 43rem;
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
     font-size: clamp(1.03rem, 1.65vw, 1.18rem);
     line-height: 1.8;
     color: var(--muted-foreground);
@@ -779,7 +772,7 @@ html:lang(zh) {
   }
 
   .editorial-metric-value {
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
     font-size: 0.99rem;
     line-height: 1.72;
     color: color-mix(in oklab, var(--foreground) 88%, var(--background));
@@ -828,7 +821,7 @@ html:lang(zh) {
   }
 
   .editorial-section-title {
-    font-family: var(--font-display);
+    font-family: var(--font-sans);
     font-size: clamp(1.5rem, 3vw, 2.2rem);
     font-weight: 500;
     line-height: 1;
@@ -837,7 +830,7 @@ html:lang(zh) {
   }
 
   .editorial-section-copy {
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
     font-size: 1rem;
     line-height: 1.75;
     color: var(--muted-foreground);
@@ -885,7 +878,7 @@ html:lang(zh) {
   }
 
   .editorial-summary-value {
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
     font-size: 0.95rem;
     line-height: 1.65;
     color: color-mix(in oklab, var(--foreground) 88%, var(--background));
@@ -1337,7 +1330,7 @@ html:lang(zh) {
     width: 100%;
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
-    font-family: var(--font-display);
+    font-family: var(--font-sans);
     border: none;
     border-bottom: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
     background: transparent;
@@ -1362,7 +1355,7 @@ html:lang(zh) {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--muted-foreground);
-    font-family: var(--font-display);
+    font-family: var(--font-sans);
   }
 
   [cmdk-item] {
@@ -1426,7 +1419,7 @@ html:lang(zh) {
   }
 
   .cl-headerTitle {
-    font-family: var(--font-display);
+    font-family: var(--font-sans);
     font-size: clamp(1.6rem, 3.2vw, 2.15rem);
     font-weight: 500;
     letter-spacing: -0.04em;
@@ -1438,7 +1431,7 @@ html:lang(zh) {
   .cl-dividerText,
   .cl-footerActionText,
   .cl-formResendCodeLink {
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
     line-height: 1.7;
     color: var(--muted-foreground);
   }

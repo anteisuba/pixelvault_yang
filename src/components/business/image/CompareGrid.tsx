@@ -250,7 +250,7 @@ export const CompareGrid = memo(function CompareGrid({
                       {item.status === 'failed' && (
                         <div className="flex size-full flex-col items-center justify-center gap-2 px-4">
                           <AlertTriangle className="size-5 text-destructive/60" />
-                          <p className="text-center font-serif text-xs text-muted-foreground">
+                          <p className="text-center text-xs text-muted-foreground">
                             {item.error ?? t('generateFailed')}
                           </p>
                         </div>

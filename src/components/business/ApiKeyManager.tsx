@@ -144,7 +144,7 @@ export function ApiKeyManager() {
       <div className="rounded-2xl border border-border/70 bg-secondary/10 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <h2 className="font-display text-base font-medium text-foreground">
+            <h2 className="text-base font-medium text-foreground">
               {t('title')}
             </h2>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -200,7 +200,7 @@ export function ApiKeyManager() {
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-display text-sm font-medium text-foreground">
+                <h3 className="text-sm font-medium text-foreground">
                   {t('sections.builtInTitle')}
                 </h3>
                 <Badge variant="outline" className="rounded-full px-3 py-1">
@@ -218,7 +218,7 @@ export function ApiKeyManager() {
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="font-display text-sm font-medium text-foreground">
+                        <h4 className="text-sm font-medium text-foreground">
                           {group.providerLabel}
                         </h4>
                         {group.coverageCount > 0 ? (

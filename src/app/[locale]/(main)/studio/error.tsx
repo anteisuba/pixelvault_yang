@@ -28,10 +28,10 @@ export default function StudioErrorPage({ error, reset }: ErrorPageProps) {
             <AlertTriangle className="size-8" />
           </span>
           <div className="space-y-2">
-            <h1 className="font-display text-2xl font-medium tracking-tight">
+            <h1 className="text-2xl font-medium tracking-tight">
               {t('title')}
             </h1>
-            <p className="max-w-md font-serif text-sm leading-6 text-muted-foreground">
+            <p className="max-w-md text-sm leading-6 text-muted-foreground">
               {t('description')}
             </p>
           </div>

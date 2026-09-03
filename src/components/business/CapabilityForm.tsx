@@ -137,7 +137,7 @@ function CapabilityField({
             rows={2}
             maxLength={2000}
             disabled={disabled}
-            className="min-h-16 resize-none rounded-xl border-border/75 bg-background/72 px-3 py-2 font-serif text-sm"
+            className="min-h-16 resize-none rounded-xl border-border/75 bg-background/72 px-3 py-2 text-sm"
           />
         </div>
       )

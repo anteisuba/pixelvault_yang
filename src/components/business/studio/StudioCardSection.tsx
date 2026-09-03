@@ -107,7 +107,7 @@ export const StudioCardSection = memo(function StudioCardSection() {
             className="w-full justify-start gap-2 border-border/60 text-muted-foreground hover:text-foreground"
           >
             <Settings2 className="size-3.5" />
-            <span className="font-display text-sm">{t('cardManagement')}</span>
+            <span className="text-sm">{t('cardManagement')}</span>
           </Button>
         </SheetTrigger>
         <SheetContent
@@ -116,7 +116,7 @@ export const StudioCardSection = memo(function StudioCardSection() {
           showCloseButton={false}
         >
           <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-white/10 bg-sidebar/95 px-6 pb-5 pt-6 backdrop-blur supports-[backdrop-filter]:bg-sidebar/80">
-            <SheetTitle className="font-display text-lg font-medium text-sidebar-foreground">
+            <SheetTitle className="text-lg font-medium text-sidebar-foreground">
               {t('cardManagement')}
             </SheetTitle>
             <SheetClose

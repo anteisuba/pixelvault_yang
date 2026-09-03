@@ -95,7 +95,7 @@ export function InspirationCard({
             />
           ) : (
             <div className="flex size-full flex-col justify-end bg-muted/20 p-4">
-              <p className="line-clamp-6 whitespace-pre-wrap font-serif text-sm leading-6 text-muted-foreground/85">
+              <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-muted-foreground/85">
                 {inspiration.prompt}
               </p>
             </div>
@@ -174,7 +174,7 @@ export function InspirationCard({
             />
           ) : (
             <div className="relative z-10 flex max-h-[calc(48dvh-4rem)] w-full max-w-md items-end rounded-2xl bg-muted/20 p-6 lg:max-h-[calc(100dvh-8rem)]">
-              <p className="line-clamp-6 whitespace-pre-wrap font-serif text-sm leading-7 text-muted-foreground/90">
+              <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-7 text-muted-foreground/90">
                 {inspiration.prompt}
               </p>
             </div>
@@ -213,7 +213,7 @@ export function InspirationCard({
         }
         sideContent={
           <div className="space-y-4">
-            <p className="whitespace-pre-wrap font-serif text-sm leading-7 text-foreground">
+            <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">
               {inspiration.prompt}
             </p>
             <div className="flex flex-wrap items-center gap-1.5">

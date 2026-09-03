@@ -72,14 +72,14 @@ export const AudioVariantGrid = memo(function AudioVariantGrid({
             {item.status === 'generating' && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Spinner size="md" />
-                <span className="font-serif text-xs">{t('generating')}</span>
+                <span className="text-xs">{t('generating')}</span>
               </div>
             )}
 
             {item.status === 'failed' && (
               <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
                 <AlertTriangle className="size-4 shrink-0 text-destructive/60" />
-                <span className="font-serif text-xs">
+                <span className="text-xs">
                   {item.error ?? t('generateFailed')}
                 </span>
               </div>

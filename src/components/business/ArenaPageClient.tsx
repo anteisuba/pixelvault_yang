@@ -76,7 +76,7 @@ export function ArenaPageClient() {
                 <p className="mt-3 text-sm font-medium text-foreground">
                   {t('generatingEntries')}
                 </p>
-                <p className="mt-1 font-serif text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {entryProgress.filter((e) => e.status === 'completed').length}
                   {' / '}
                   {entryProgress.length} {t('entriesCompleted')}
@@ -130,9 +130,7 @@ export function ArenaPageClient() {
                 <p className="text-xs font-medium text-muted-foreground">
                   {t('promptUsed')}
                 </p>
-                <p className="mt-1 font-serif text-sm text-foreground">
-                  {match.prompt}
-                </p>
+                <p className="mt-1 text-sm text-foreground">{match.prompt}</p>
               </div>
 
               {step === 'voting' && (

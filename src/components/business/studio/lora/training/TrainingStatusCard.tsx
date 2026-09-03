@@ -80,7 +80,7 @@ export function TrainingStatusCard({
 
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-baseline gap-2">
-            <h3 className="font-display text-sm font-semibold tracking-tight text-foreground">
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">
               {isFailed
                 ? t('statusCardFailedTitle')
                 : isTraining

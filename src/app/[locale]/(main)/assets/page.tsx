@@ -219,7 +219,7 @@ export default async function AssetsPage({
           {/* ─── Centered CTA overlay ─────────────────────────── */}
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6">
             <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-border/70 bg-background/70 p-8 text-center shadow-2xl backdrop-blur-xl">
-              <h1 className="font-display text-2xl font-medium tracking-tight">
+              <h1 className="text-2xl font-medium tracking-tight">
                 {t('signedOutTitle')}
               </h1>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">

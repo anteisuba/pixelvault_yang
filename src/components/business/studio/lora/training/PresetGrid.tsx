@@ -121,7 +121,7 @@ function PresetCard({ preset, isSelected, onSelect }: PresetCardProps) {
         )}
         aria-hidden
       />
-      <span className="min-w-0 flex-1 truncate font-display text-xs font-semibold leading-tight">
+      <span className="min-w-0 flex-1 truncate text-xs font-semibold leading-tight">
         {t(preset.nameKey)}
       </span>
       {disabled ? (

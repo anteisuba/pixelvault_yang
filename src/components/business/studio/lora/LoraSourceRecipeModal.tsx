@@ -320,7 +320,7 @@ export function LoraSourceRecipeModal({
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
                 <div className="space-y-1">
                   <RecipeSourceBadge source={recipe.source} />
-                  <h3 className="font-display text-base font-semibold leading-tight text-foreground">
+                  <h3 className="text-base font-semibold leading-tight text-foreground">
                     {assetName}
                   </h3>
                 </div>

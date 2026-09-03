@@ -57,7 +57,7 @@ export function CanvasTopBar({
               顶栏不再承担它。保存也是自动的，所以这里只留「正在保存」的
               spinner，独立的保存按钮一并移除。 */}
           <div className="flex h-8 min-w-0 items-center gap-1.5 px-2">
-            <span className="truncate font-display text-sm font-semibold text-node-foreground">
+            <span className="truncate text-sm font-semibold text-node-foreground">
               {projectName}
             </span>
             {isSaving ? (

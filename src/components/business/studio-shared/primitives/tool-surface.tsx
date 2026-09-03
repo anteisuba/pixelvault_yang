@@ -28,7 +28,7 @@ export const studioDialogBodyClass = cn(
   'overflow-y-auto',
   studioDialogBodyPaddingClass,
 )
-export const studioDialogHeaderClass = `flex items-center gap-2 border-b border-border/40 ${studioDialogHeaderPaddingClass} font-display text-sm font-medium`
+export const studioDialogHeaderClass = `flex items-center gap-2 border-b border-border/40 ${studioDialogHeaderPaddingClass} text-sm font-medium`
 
 interface StudioPanelHeaderProps extends React.ComponentProps<
   typeof ResponsiveDialogTitle

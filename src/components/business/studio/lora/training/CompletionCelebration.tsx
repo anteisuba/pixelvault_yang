@@ -77,7 +77,7 @@ export function CompletionCelebration({
           <CheckCircle2 className="size-5" aria-hidden />
         </div>
         <div className="min-w-0 space-y-1">
-          <h3 className="font-display text-base font-semibold tracking-tight text-foreground">
+          <h3 className="text-base font-semibold tracking-tight text-foreground">
             {t('completionTitle')}
           </h3>
           <p className="text-sm text-muted-foreground">

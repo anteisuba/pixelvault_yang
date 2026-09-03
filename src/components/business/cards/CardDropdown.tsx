@@ -251,14 +251,14 @@ export function CardDropdown({
           <div className="max-h-48 overflow-y-auto">
             {cards.length === 0 && (
               <div className="px-3 py-4 text-center">
-                <p className="text-xs text-muted-foreground/60 font-serif">
+                <p className="text-xs text-muted-foreground/60">
                   {t('noCards')}
                 </p>
               </div>
             )}
             {cards.length > 0 && visibleCards.length === 0 && (
               <div className="px-3 py-4 text-center">
-                <p className="text-xs text-muted-foreground/60 font-serif">
+                <p className="text-xs text-muted-foreground/60">
                   {t('cardSearchEmpty')}
                 </p>
               </div>

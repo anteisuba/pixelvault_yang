@@ -407,7 +407,7 @@ export function ReverseEngineerPanel({
                     </Button>
                   )}
                 </div>
-                <p className="font-serif text-sm leading-relaxed text-foreground/85">
+                <p className="text-sm leading-relaxed text-foreground/85">
                   {dimensions[key]}
                 </p>
               </div>
@@ -429,7 +429,7 @@ export function ReverseEngineerPanel({
               onChange={(e) => updatePrompt(e.target.value)}
               rows={4}
               disabled={step === 'generating'}
-              className="resize-none rounded-2xl border-border/75 bg-background/72 px-4 py-3 font-serif text-sm"
+              className="resize-none rounded-2xl border-border/75 bg-background/72 px-4 py-3 text-sm"
             />
           </div>
         )

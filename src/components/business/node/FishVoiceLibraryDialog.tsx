@@ -40,9 +40,7 @@ export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({
         className="flex h-[100svh] min-h-0 flex-col !max-w-5xl p-0 sm:h-[85vh]"
       >
         <DialogHeader className="border-b border-border/60 px-4 py-3 sm:px-5 sm:py-4">
-          <DialogTitle className="font-display text-base">
-            {t('voiceMarket')}
-          </DialogTitle>
+          <DialogTitle className="text-base">{t('voiceMarket')}</DialogTitle>
           <DialogDescription className="max-w-2xl text-xs">
             {t('voiceLibraryDescription')}
           </DialogDescription>

@@ -107,10 +107,8 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/60 bg-card/50 p-10 text-center">
       <Sparkles className="size-8 text-primary/70" />
-      <h3 className="font-display text-lg font-medium">
-        {t('inspirationEmptyTitle')}
-      </h3>
-      <p className="max-w-sm font-serif text-sm leading-6 text-muted-foreground">
+      <h3 className="text-lg font-medium">{t('inspirationEmptyTitle')}</h3>
+      <p className="max-w-sm text-sm leading-6 text-muted-foreground">
         {t('inspirationEmptyDescription')}
       </p>
     </div>

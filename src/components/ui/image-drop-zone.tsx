@@ -50,7 +50,7 @@ export function ImageDropZone({
     >
       <Upload className="size-5 text-muted-foreground" />
       <p className="text-sm font-medium text-foreground">{uploadLabel}</p>
-      <p className="font-serif text-xs text-muted-foreground">{formatsLabel}</p>
+      <p className="text-xs text-muted-foreground">{formatsLabel}</p>
     </div>
   )
 }

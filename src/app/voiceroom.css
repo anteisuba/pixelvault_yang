@@ -46,14 +46,10 @@
   --vr-panel-2: #ebebe7;
   --vr-alarm: #a03a2e;
 
-  --vr-mono:
-    var(--font-geist-mono), ui-monospace, Consolas, var(--font-chinese-sans),
-    monospace;
-  --vr-sans:
-    var(--font-app-sans), var(--font-chinese-sans), -apple-system,
-    'PingFang SC', sans-serif;
-  /* 标题的刊物重量。复用首页那份 Noto Serif SC，不另开字体开销。 */
-  --vr-serif: var(--font-home-serif), 'Songti SC', serif;
+  --vr-mono: var(--font-stack-mono);
+  --vr-sans: var(--font-stack-sans);
+  /* 标题的刊物重量 = 全站展示槽（Fraunces + Noto Serif SC）。 */
+  --vr-serif: var(--font-stack-display);
 
   /*
    * 动效字典（owner 2026-08-29 拍板「利落 + 峰值有戏」）。
@@ -1930,12 +1926,12 @@
  * 就写的是字面色值，在 body 上照样成立，于是「飞过去的那张脸」和落地后的那张
  * 一定同色。这里只补它作为飞行体独有的那几条。
  *
- * ⚠ `--font-home-serif` 是 next/font 挂在 `:root` 上的，不是域变量，body 上取得到。
+ * ⚠ `--font-stack-display` 定义在 `:root`，不是域变量，body 上取得到。
  */
 .vr-flier {
   position: fixed;
   z-index: 99;
-  font-family: var(--font-home-serif), 'Songti SC', serif;
+  font-family: var(--font-stack-display);
   font-size: 30px;
   font-weight: 600;
   pointer-events: none;

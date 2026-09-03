@@ -136,7 +136,7 @@ export function ProfileEditModal({
         }}
       >
         <DialogHeader className="space-y-2 border-b border-border/70 px-6 py-5 text-left">
-          <DialogTitle className="font-display text-xl font-semibold tracking-tight">
+          <DialogTitle className="text-xl font-semibold tracking-tight">
             {t('editProfile')}
           </DialogTitle>
           <DialogDescription className="text-sm leading-6 text-muted-foreground">
@@ -163,7 +163,7 @@ export function ProfileEditModal({
                 />
               ) : (
                 <div className="flex size-full items-center justify-center bg-primary/8">
-                  <span className="font-display text-xl text-primary/60">
+                  <span className="text-xl text-primary/60">
                     {(currentProfile.displayName ?? currentProfile.username)
                       .charAt(0)
                       .toUpperCase()}

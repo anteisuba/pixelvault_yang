@@ -394,7 +394,7 @@ export function AssetDetailSheet({
   )
   const sideHeader = (
     <div className="space-y-1.5">
-      <h2 className="font-display text-base font-medium">{t('detailTitle')}</h2>
+      <h2 className="text-base font-medium">{t('detailTitle')}</h2>
       <p className="text-xs leading-5 text-muted-foreground">
         {generation.model}
       </p>
@@ -654,7 +654,7 @@ export function AssetDetailSheet({
           className="mx-auto max-w-lg gap-0 rounded-t-2xl border-border/70 p-0"
         >
           <SheetHeader className="px-5 pt-5 pb-3 text-left">
-            <SheetTitle className="font-display text-base">
+            <SheetTitle className="text-base">
               {t('detailPublishScopeTitle')}
             </SheetTitle>
             <SheetDescription>

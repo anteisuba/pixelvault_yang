@@ -110,7 +110,7 @@ export function PlaceholderFillDialog({
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {t('placeholderPreviewLabel')}
           </p>
-          <div className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/30 p-3 font-serif text-sm leading-6 text-foreground/85">
+          <div className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/30 p-3 text-sm leading-6 text-foreground/85">
             {previewPrompt}
           </div>
         </div>

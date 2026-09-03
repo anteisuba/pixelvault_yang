@@ -36,10 +36,10 @@ export default async function CardsPage({ params }: CardsPageProps) {
         <div className="editorial-container">
           <div className="editorial-panel text-center">
             <div className="mx-auto max-w-xl space-y-4">
-              <h1 className="font-display text-3xl font-medium tracking-tight">
+              <h1 className="text-3xl font-medium tracking-tight">
                 {t('cardManagement')}
               </h1>
-              <p className="font-serif text-sm leading-7 text-muted-foreground">
+              <p className="text-sm leading-7 text-muted-foreground">
                 {t('cardManagementSignInDescription')}
               </p>
               <Button asChild size="lg" className="h-11 rounded-full px-6">

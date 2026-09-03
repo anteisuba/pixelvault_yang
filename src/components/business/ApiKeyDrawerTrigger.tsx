@@ -84,7 +84,7 @@ export function ApiKeyDrawerTrigger({
       >
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-background/95 px-5 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
           <div className="flex flex-col gap-1.5">
-            <SheetTitle className="flex items-center gap-2 font-display text-base font-medium">
+            <SheetTitle className="flex items-center gap-2 text-base font-medium">
               <KeyRound className="size-4" />
               {t('sheetTitle')}
             </SheetTitle>

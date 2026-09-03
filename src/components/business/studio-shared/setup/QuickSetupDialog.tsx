@@ -266,7 +266,7 @@ export function QuickSetupDialog({
     <ResponsiveDialog open={open} onOpenChange={handleClose}>
       <ResponsiveDialogContent className="sm:max-w-md">
         <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle className="font-display">
+          <ResponsiveDialogTitle>
             {t('title', { model: modelLabel })}
           </ResponsiveDialogTitle>
           <ResponsiveDialogDescription>

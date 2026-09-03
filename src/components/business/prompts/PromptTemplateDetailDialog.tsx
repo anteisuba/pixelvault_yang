@@ -293,7 +293,7 @@ export function PromptTemplateDetailDialog({
   const galleryPanel = (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-display text-sm font-medium text-foreground">
+        <h3 className="text-sm font-medium text-foreground">
           {t('generatedAssets')}
         </h3>
         {generations.length > 0 && (
@@ -349,7 +349,7 @@ export function PromptTemplateDetailDialog({
           onChange={(event) => setCompiledPrompt(event.target.value)}
           placeholder={t('createPromptPlaceholder')}
           maxLength={5000}
-          className="h-48 max-h-[42svh] resize-y overflow-y-auto rounded-xl font-serif text-sm leading-7"
+          className="h-48 max-h-[42svh] resize-y overflow-y-auto rounded-xl text-sm leading-7"
         />
       </div>
       <div className="space-y-2">
@@ -440,13 +440,13 @@ export function PromptTemplateDetailDialog({
           onChange={(event) => setNegativePrompt(event.target.value)}
           placeholder={t('createNegativePromptPlaceholder')}
           maxLength={1000}
-          className="min-h-24 resize-y rounded-xl font-serif text-sm leading-7"
+          className="min-h-24 resize-y rounded-xl text-sm leading-7"
         />
       </div>
     </div>
   ) : (
     <div className="max-h-[60svh] overflow-y-auto rounded-2xl border border-border/60 bg-card/70 p-4">
-      <p className="whitespace-pre-wrap font-serif text-sm leading-7 text-foreground">
+      <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">
         {compiledPrompt}
       </p>
     </div>
@@ -477,10 +477,10 @@ export function PromptTemplateDetailDialog({
               onChange={(event) => setName(event.target.value)}
               placeholder={t('createNamePlaceholder')}
               maxLength={200}
-              className="h-auto rounded-xl px-3 py-2 font-display text-xl font-medium tracking-tight"
+              className="h-auto rounded-xl px-3 py-2 text-xl font-medium tracking-tight"
             />
           ) : (
-            <ResponsiveDialogTitle className="font-display text-xl font-medium tracking-tight">
+            <ResponsiveDialogTitle className="text-xl font-medium tracking-tight">
               {title}
             </ResponsiveDialogTitle>
           )}

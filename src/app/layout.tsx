@@ -2,19 +2,7 @@ import type { Metadata } from 'next'
 import { getLocale } from 'next-intl/server'
 
 import { HOMEPAGE_METADATA } from '@/constants/homepage'
-import {
-  appSans,
-  chineseSans,
-  displayFont,
-  editorialSerif,
-  geistMono,
-  homepageMono,
-  homepageSans,
-  homepageSerif,
-  homepageSerifJapanese,
-  japaneseSans,
-  serifFont,
-} from '@/i18n/fonts'
+import { FONT_VARIABLE_CLASSES } from '@/i18n/fonts'
 
 import './globals.css'
 import './canvas.css'
@@ -32,12 +20,13 @@ export default async function RootLayout({
   const locale = await getLocale()
 
   return (
-    <html lang={locale} suppressHydrationWarning data-scroll-behavior="smooth">
-      <body
-        className={`${appSans.variable} ${displayFont.variable} ${serifFont.variable} ${editorialSerif.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} ${homepageSans.variable} ${homepageMono.variable} ${homepageSerif.variable} ${homepageSerifJapanese.variable} font-sans antialiased`}
-      >
-        {children}
-      </body>
+    <html
+      lang={locale}
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
+      className={FONT_VARIABLE_CLASSES}
+    >
+      <body className="font-sans antialiased">{children}</body>
     </html>
   )
 }

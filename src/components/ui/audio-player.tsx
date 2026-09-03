@@ -357,7 +357,7 @@ export function AudioPlayer({
               />
             </div>
           )}
-          <div className="flex justify-between font-display text-[10px] text-muted-foreground">
+          <div className="flex justify-between text-[10px] text-muted-foreground">
             <span>{formatTime(currentTime)}</span>
             <span>{duration > 0 ? formatTime(duration) : '--:--'}</span>
           </div>
@@ -368,7 +368,7 @@ export function AudioPlayer({
             value={playbackRate}
             onChange={(event) => setPlaybackRate(Number(event.target.value))}
             aria-label={t('playbackRate')}
-            className="h-8 shrink-0 rounded-lg border border-border/60 bg-background px-2 font-display text-xs text-foreground outline-none transition-colors hover:bg-border/45 focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-8 shrink-0 rounded-lg border border-border/60 bg-background px-2 text-xs text-foreground outline-none transition-colors hover:bg-border/45 focus-visible:ring-2 focus-visible:ring-ring"
           >
             {PLAYBACK_RATES.map((rate) => (
               <option key={rate} value={rate}>

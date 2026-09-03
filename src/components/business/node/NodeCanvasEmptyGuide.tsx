@@ -28,7 +28,7 @@ export function NodeCanvasEmptyGuide({
 
   return (
     <div className="pointer-events-auto w-full max-w-md rounded-3xl border border-node-panel-inner/80 bg-node-panel/80 px-8 py-10 text-center shadow-node-panel backdrop-blur-xl">
-      <h2 className="font-display text-lg font-semibold text-node-foreground">
+      <h2 className="text-lg font-semibold text-node-foreground">
         {t('title')}
       </h2>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-node-muted">

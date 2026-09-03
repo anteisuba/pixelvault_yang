@@ -14,9 +14,7 @@
   --primary-foreground: oklch(100% 0 0);
   --home-border: color-mix(in oklab, var(--border) 72%, transparent);
   --home-muted: color-mix(in oklab, var(--foreground) 68%, var(--background));
-  --home-serif:
-    var(--font-editorial), 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC',
-    'Songti TC', 'SimSun', 'Yu Mincho', 'Hiragino Mincho ProN', serif;
+  --home-serif: var(--font-stack-display);
 
   min-height: 100svh;
   background: var(--background);

@@ -95,7 +95,7 @@ export function PromptTemplateList({
       </nav>
 
       {visibleItems.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border/60 bg-card/50 px-5 py-10 text-center font-serif text-sm leading-6 text-muted-foreground">
+        <p className="rounded-2xl border border-dashed border-border/60 bg-card/50 px-5 py-10 text-center text-sm leading-6 text-muted-foreground">
           {t('typeFilterEmpty')}
         </p>
       ) : (
@@ -233,7 +233,7 @@ function PromptTemplateCard({
                   FALLBACK_ICON_CLASSES[recipe.outputType],
                 )}
               />
-              <p className="line-clamp-4 whitespace-pre-wrap font-serif text-sm leading-6 text-muted-foreground/85">
+              <p className="line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-muted-foreground/85">
                 {recipe.compiledPrompt}
               </p>
             </div>
@@ -246,7 +246,7 @@ function PromptTemplateCard({
         </button>
 
         <div className="flex flex-1 flex-col gap-2 p-4">
-          <h2 className="line-clamp-2 font-display text-lg font-medium tracking-tight">
+          <h2 className="line-clamp-2 text-lg font-medium tracking-tight">
             {title}
           </h2>
           <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">

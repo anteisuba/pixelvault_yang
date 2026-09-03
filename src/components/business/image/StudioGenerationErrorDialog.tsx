@@ -229,7 +229,7 @@ export function StudioGenerationErrorDialog({
               <DialogTitle className="font-sans">
                 {t('generationError.title')}
               </DialogTitle>
-              <DialogDescription className="mt-1 font-serif">
+              <DialogDescription className="mt-1">
                 {tErrors(reasonKey)}
               </DialogDescription>
             </div>

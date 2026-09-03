@@ -49,9 +49,7 @@ export function ArenaGrid({
               loading="lazy"
             />
           </div>
-          <p className="font-serif text-xs text-muted-foreground">
-            {t('referenceImage')}
-          </p>
+          <p className="text-xs text-muted-foreground">{t('referenceImage')}</p>
         </div>
       )}
       <div

@@ -69,7 +69,7 @@ export function GalleryFeed({
     <div className="space-y-5 sm:space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-2xl">
-          <h1 className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-3xl">
             {t('feedEyebrow')}
           </h1>
         </div>
@@ -130,7 +130,7 @@ export function GalleryFeed({
           )}
         </div>
       ) : generations.length > 0 ? (
-        <div className="rounded-3xl border border-border/70 bg-secondary/18 px-4 py-3 text-center font-serif text-sm text-muted-foreground">
+        <div className="rounded-3xl border border-border/70 bg-secondary/18 px-4 py-3 text-center text-sm text-muted-foreground">
           {t('endOfArchive')}
         </div>
       ) : null}

@@ -224,7 +224,7 @@ function CivitaiRowDetail({
     <div className="space-y-3">
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-display text-lg font-semibold leading-tight text-foreground">
+          <h3 className="text-lg font-semibold leading-tight text-foreground">
             {item.name}
           </h3>
           <span className="rounded border border-border/60 px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
@@ -484,7 +484,7 @@ function HuggingFaceRowDetail({
     <div className="space-y-3">
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-display text-lg font-semibold leading-tight text-foreground">
+          <h3 className="text-lg font-semibold leading-tight text-foreground">
             {item.name}
           </h3>
           <span className="rounded border border-border/60 px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">

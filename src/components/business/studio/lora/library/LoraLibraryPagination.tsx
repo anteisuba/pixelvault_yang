@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 interface LoraLibraryPaginationProps {
   page: number
@@ -25,9 +26,55 @@ export function LoraLibraryPagination({
   onNextPage,
 }: LoraLibraryPaginationProps) {
   const t = useTranslations('LoraWorkbench')
+  // ⚠ useIsMobile() 恒为 false 直到 mount 后的 effect 跑完（SSR 无 matchMedia）。
+  // 桌面单行条在服务端先渲染出来，挂载后手机再切成胶囊——本页可接受这一帧切换。
+  const isMobile = useIsMobile()
   const pageStatus = total
     ? t('communityPageStatusKnown', { page, total })
     : t('communityPageStatus', { page })
+
+  if (isMobile) {
+    const pageLabel = total ? `${page} / ${total}` : `${page}`
+    return (
+      <nav
+        aria-label={pageStatus}
+        // 手机改悬浮胶囊：40px 高、贴底安全区，不再占内容区一整行
+        // （owner 2026-09-03，接续上面 mt-1 那条记录的堆行问题）。
+        className="bg-background/85 border-border sticky bottom-safe-bottom z-10 mx-auto flex h-10 w-fit shrink-0 items-center gap-1 rounded-full border px-1 shadow-sm backdrop-blur"
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-lg"
+          disabled={page <= 1 || isBusy}
+          onClick={onPreviousPage}
+          aria-label={t('communityPrevious')}
+          className="shrink-0 rounded-full"
+        >
+          <ChevronLeft className="size-4" aria-hidden />
+        </Button>
+
+        <span
+          className="text-foreground px-2 text-xs font-medium tabular-nums whitespace-nowrap"
+          aria-live="polite"
+        >
+          {pageLabel}
+        </span>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-lg"
+          disabled={!hasNextPage || isBusy}
+          onClick={onNextPage}
+          aria-label={t('communityNext')}
+          className="shrink-0 rounded-full"
+        >
+          <ChevronRight className="size-4" aria-hidden />
+        </Button>
+      </nav>
+    )
+  }
 
   return (
     <nav

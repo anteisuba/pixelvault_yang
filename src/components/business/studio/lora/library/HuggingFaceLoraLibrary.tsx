@@ -13,6 +13,7 @@ import {
   LORA_CONTENT_TYPE_VALUES_BY_SOURCE,
   LORA_LIBRARY_FAMILY_PARAM,
   LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE,
+  LORA_LIBRARY_MOBILE_GRID_CLASS,
   LORA_LIBRARY_SEARCH_PARAM,
   LORA_LIBRARY_SORT_PARAM,
   LORA_LIBRARY_SOURCES,
@@ -26,12 +27,14 @@ import {
   isHuggingFaceLoraSort,
   parseLoraLibraryFamilyParam,
   parseLoraLibraryTypeParam,
+  type LoraLibrarySource,
 } from '@/constants/lora'
 import { getCompatibleBases } from '@/constants/lora-base-models'
 import { ROUTES } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useHuggingFaceLoraLibrary } from '@/hooks/use-huggingface-lora-library'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { buildHuggingFaceSourceSnapshot } from '@/lib/lora-source-snapshot'
 import { cn } from '@/lib/utils'
 import type {
@@ -51,8 +54,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { LoraCoverPreviewDialog } from './LoraCoverPreviewDialog'
+import { LoraLibraryGridCard } from './LoraLibraryCard'
+import { LoraLibraryDetailDrawer } from './LoraLibraryDetailDrawer'
 import { LoraLibraryDetailReveal } from './LoraLibraryDetailReveal'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
+import { LoraLibraryMobileFilters } from './LoraLibraryMobileFilters'
 import { LoraLibraryPagination } from './LoraLibraryPagination'
 import { LoraLibraryRow } from './LoraLibraryRow'
 import { LoraLibraryRowDetail } from './LoraLibraryRowDetail'
@@ -73,6 +79,9 @@ interface HuggingFaceLoraLibraryProps {
    *  searchSlot；排序/刷新 portal 进 controlsSlot。HF 无分级数据，不渲染 NSFW。 */
   searchSlotNode: HTMLDivElement | null
   controlsSlotNode: HTMLDivElement | null
+  /** 源切换：桌面走顶栏 segmented，手机走筛选 sheet 的「来源」分区。 */
+  source: LoraLibrarySource
+  onSourceChange: (value: LoraLibrarySource) => void
 }
 
 export function HuggingFaceLoraLibrary({
@@ -81,6 +90,8 @@ export function HuggingFaceLoraLibrary({
   isFavorited,
   searchSlotNode,
   controlsSlotNode,
+  source,
+  onSourceChange,
 }: HuggingFaceLoraLibraryProps) {
   const t = useTranslations('LoraWorkbench')
   const router = useRouter()
@@ -115,6 +126,8 @@ export function HuggingFaceLoraLibrary({
     url: string
     name: string
   } | null>(null)
+  // <1024：结果区改成封面网格 + 底部详情抽屉（与 Civitai pane 同一形制）。
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString())
@@ -169,6 +182,12 @@ export function HuggingFaceLoraLibrary({
     },
     [detailOpen, selectedItem],
   )
+
+  // 网格形态没有「点同一格收起」（详情是盖上来的抽屉），所以是纯打开。
+  const handleOpenItem = useCallback((item: HuggingFaceLoraSearchItem) => {
+    setSelectedItem(item)
+    setDetailOpen(true)
+  }, [])
 
   /**
    * 导入载荷（含出处快照，策略 C）。
@@ -285,43 +304,84 @@ export function HuggingFaceLoraLibrary({
       })),
     [t],
   )
+  const sortOptions = useMemo(
+    () =>
+      HUGGINGFACE_LORA_SORT_OPTIONS.map((option) => ({
+        value: option.value as string,
+        label: t(option.labelKey),
+      })),
+    [t],
+  )
+  // HF 没有分级数据，「安全」维度不参与计数（sheet 里也不渲染那一节）。
+  const activeFilterCount =
+    (library.contentType !== DEFAULT_LORA_CONTENT_TYPE ? 1 : 0) +
+    (library.baseModelFamily !== 'all' ? 1 : 0)
 
   return (
     <section className="space-y-3">
-      <div className="flex min-h-0 flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <LoraLibraryFilterCombobox
-            label={t('libraryTypeFilter')}
-            ariaLabel={t('typeFilterLabel')}
-            value={library.contentType}
-            options={typeOptions}
-            onChange={library.setContentType}
-          />
-          <LoraLibraryFilterCombobox
-            label={t('libraryFamilyFilter')}
-            ariaLabel={t('baseModelFilterLabel')}
-            value={huggingFaceFamilyToFamilySlug(library.baseModelFamily)}
-            options={familyOptions}
-            onChange={(slug) =>
+      <div className="flex min-h-0 flex-col gap-2 lg:gap-3">
+        {/* <1024：来源/排序/类型/底模/刷新收成一行 chip + 底部 sheet（与
+            Civitai pane 同一组件，只是没有「安全」分区）。 */}
+        {isMobile ? (
+          <LoraLibraryMobileFilters
+            source={source}
+            onSourceChange={onSourceChange}
+            sortValue={library.sort}
+            sortOptions={sortOptions}
+            onSortChange={(value) => {
+              if (isHuggingFaceLoraSort(value)) library.setSort(value)
+            }}
+            contentType={library.contentType}
+            typeOptions={typeOptions}
+            onContentTypeChange={library.setContentType}
+            familySlug={huggingFaceFamilyToFamilySlug(library.baseModelFamily)}
+            familyOptions={familyOptions}
+            onFamilyChange={(slug) =>
               library.setBaseModelFamily(familySlugToHuggingFaceFamily(slug))
             }
-            searchable
-            searchPlaceholder={t('baseModelSearchPlaceholder')}
-            emptyText={t('baseModelSearchEmpty')}
+            nsfwFilter={null}
+            nsfwOptions={[]}
+            onNsfwFilterChange={() => {}}
+            total={library.total}
+            activeFilterCount={activeFilterCount}
+            onClearFilters={handleClearFilters}
+            onRefresh={() => void library.refresh()}
           />
-          {/* 刷新推到最右：它不是筛选条件，是「按当前条件重拉」的动作。与
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <LoraLibraryFilterCombobox
+              label={t('libraryTypeFilter')}
+              ariaLabel={t('typeFilterLabel')}
+              value={library.contentType}
+              options={typeOptions}
+              onChange={library.setContentType}
+            />
+            <LoraLibraryFilterCombobox
+              label={t('libraryFamilyFilter')}
+              ariaLabel={t('baseModelFilterLabel')}
+              value={huggingFaceFamilyToFamilySlug(library.baseModelFamily)}
+              options={familyOptions}
+              onChange={(slug) =>
+                library.setBaseModelFamily(familySlugToHuggingFaceFamily(slug))
+              }
+              searchable
+              searchPlaceholder={t('baseModelSearchPlaceholder')}
+              emptyText={t('baseModelSearchEmpty')}
+            />
+            {/* 刷新推到最右：它不是筛选条件，是「按当前条件重拉」的动作。与
               Civitai 源那一行同构（那边多一个安全档，HF 没有分级筛选）。 */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => void library.refresh()}
-            aria-label={t('refresh')}
-            className="ml-auto shrink-0"
-          >
-            <RefreshCw className="size-3.5" aria-hidden />
-          </Button>
-        </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => void library.refresh()}
+              aria-label={t('refresh')}
+              className="ml-auto shrink-0"
+            >
+              <RefreshCw className="size-3.5" aria-hidden />
+            </Button>
+          </div>
+        )}
 
         {library.error ? (
           <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive sm:flex-row sm:items-center sm:justify-between">
@@ -363,6 +423,34 @@ export function HuggingFaceLoraLibrary({
               >
                 {t('clearFilters')}
               </Button>
+            ) : null}
+          </div>
+        ) : isMobile ? (
+          <div
+            className={cn(
+              'flex flex-col gap-3',
+              library.isRevalidating ? 'opacity-60' : 'opacity-100',
+            )}
+            aria-busy={library.isRevalidating}
+          >
+            <div className={LORA_LIBRARY_MOBILE_GRID_CLASS}>
+              {library.items.map((item) => (
+                <LoraLibraryGridCard
+                  key={item.repoId}
+                  source="huggingface"
+                  item={item}
+                  onOpen={() => handleOpenItem(item)}
+                />
+              ))}
+            </div>
+            {library.contentType !== 'all' &&
+            library.items.length <= 5 &&
+            activeTypeSearchFallbackTerm ? (
+              <LoraLibraryTypeSparseCard
+                source={LORA_LIBRARY_SOURCES.HUGGINGFACE}
+                searchFallbackTerm={activeTypeSearchFallbackTerm}
+                onSearchFallback={handleTypeSearchFallback}
+              />
             ) : null}
           </div>
         ) : (
@@ -460,8 +548,9 @@ export function HuggingFaceLoraLibrary({
           )
         : null}
 
-      {/* 顶栏右端控件：排序 Select + 刷新，portal 进控件槽。HF 无 NSFW。 */}
-      {controlsSlotNode
+      {/* 顶栏右端控件：排序 Select + 刷新，portal 进控件槽。HF 无 NSFW。
+          手机上排序进筛选 sheet，这里不渲染。 */}
+      {!isMobile && controlsSlotNode
         ? createPortal(
             <>
               <Select
@@ -490,6 +579,39 @@ export function HuggingFaceLoraLibrary({
             controlsSlotNode,
           )
         : null}
+
+      {/* 移动端详情抽屉：与桌面原位展开同一份 LoraLibraryRowDetail、同一批
+          handler（含多文件仓库的文件选择门），只换外壳。 */}
+      {isMobile ? (
+        <LoraLibraryDetailDrawer
+          open={detailOpen && selectedItem !== null}
+          onOpenChange={(open) => {
+            if (!open) setDetailOpen(false)
+          }}
+          title={selectedItem?.name ?? ''}
+        >
+          {selectedItem ? (
+            <LoraLibraryRowDetail
+              source="huggingface"
+              layout="drawer"
+              item={selectedItem}
+              isFavorited={isFavorited}
+              onUse={handleUse}
+              onFavorite={handleFavorite}
+              onUnfavorite={handleUnfavorite}
+              onCollapse={() => setDetailOpen(false)}
+              onPreviewCover={(target) => {
+                if (target.coverImageUrl) {
+                  setCoverPreview({
+                    url: target.coverImageUrl,
+                    name: target.name,
+                  })
+                }
+              }}
+            />
+          ) : null}
+        </LoraLibraryDetailDrawer>
+      ) : null}
 
       <LoraCoverPreviewDialog
         preview={coverPreview}

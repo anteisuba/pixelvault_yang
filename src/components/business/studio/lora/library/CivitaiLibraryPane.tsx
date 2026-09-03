@@ -23,6 +23,7 @@ import {
   LORA_CONTENT_TYPE_VALUES_BY_SOURCE,
   LORA_LIBRARY_FAMILY_PARAM,
   LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE,
+  LORA_LIBRARY_MOBILE_GRID_CLASS,
   LORA_LIBRARY_NSFW_PARAM,
   LORA_LIBRARY_SEARCH_PARAM,
   LORA_LIBRARY_SORT_PARAM,
@@ -41,6 +42,7 @@ import {
   parseLoraLibraryFamilyParam,
   parseLoraLibraryTypeParam,
   type CivitaiLoraBaseModel,
+  type LoraLibrarySource,
   type LoraNsfwFilter,
 } from '@/constants/lora'
 import { ROUTES } from '@/constants/routes'
@@ -50,6 +52,7 @@ import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -70,8 +73,11 @@ import { deferEffectTask } from '@/lib/defer-effect-task'
 import { cn } from '@/lib/utils'
 import { LoraSourceRecipeModal } from '@/components/business/studio/lora/LoraSourceRecipeModal'
 import { LoraCoverPreviewDialog } from './LoraCoverPreviewDialog'
+import { LoraLibraryGridCard } from './LoraLibraryCard'
+import { LoraLibraryDetailDrawer } from './LoraLibraryDetailDrawer'
 import { LoraLibraryDetailReveal } from './LoraLibraryDetailReveal'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
+import { LoraLibraryMobileFilters } from './LoraLibraryMobileFilters'
 import { LoraLibraryPagination } from './LoraLibraryPagination'
 import { LoraLibraryRow } from './LoraLibraryRow'
 import {
@@ -99,6 +105,10 @@ export interface CivitaiCommunityBranchProps {
 interface CivitaiCommunityBranchOwnProps extends CivitaiCommunityBranchProps {
   searchSlotNode: HTMLDivElement | null
   controlsSlotNode: HTMLDivElement | null
+  /** 源切换：桌面走顶栏 segmented（在 LoraLibraryTabs），手机走筛选 sheet 的
+   *  「来源」分区——所以值和 setter 要下发到 pane 里来。 */
+  source: LoraLibrarySource
+  onSourceChange: (value: LoraLibrarySource) => void
 }
 
 const NSFW_FILTER_LABEL_KEYS: Record<LoraNsfwFilter, string> = {
@@ -113,6 +123,8 @@ export function CivitaiCommunityBranch({
   isFavorited,
   searchSlotNode,
   controlsSlotNode,
+  source,
+  onSourceChange,
 }: CivitaiCommunityBranchOwnProps) {
   const t = useTranslations('LoraWorkbench')
   const format = useFormatter()
@@ -219,6 +231,10 @@ export function CivitaiCommunityBranch({
   // 是收起 → 表现为「第一下点不开」（owner 2026-08-07 实拍）。
   // 与 HuggingFaceLoraLibrary 的写法对齐（那边本来就是局部 state、无兜底）。
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
+  // <1024：结果区改成封面网格，详情走底部抽屉（ui-defaults.md §6「LoRA 降级」）。
+  // 展开态复用同一个 expandedItemId——两种形态只是同一个「当前选中项」的两种
+  // 外壳，不再养第二份选中状态。
+  const isMobile = useIsMobile()
   const searchWrapperRef = useRef<HTMLDivElement>(null)
   const { isLoaded, userId } = useAuth()
   const activeClerkId: string | null = isLoaded ? userId : null
@@ -291,6 +307,15 @@ export function CivitaiCommunityBranch({
       setExpandedItemId(item.id)
     },
     [expandedItemId, library],
+  )
+
+  // 网格形态没有「点同一格收起」这回事（详情是盖上来的抽屉），所以是纯打开。
+  const handleOpenItem = useCallback(
+    (item: CivitaiLoraLibraryItem) => {
+      library.selectItem(item)
+      setExpandedItemId(item.id)
+    },
+    [library],
   )
 
   const handleSortChange = useCallback(
@@ -408,6 +433,31 @@ export function CivitaiCommunityBranch({
     [t],
   )
 
+  // 移动端 chip 行 / 筛选 sheet 的选项集（与桌面下拉、顶栏 Select 同一批值域，
+  // 只是换了呈现）。
+  const sortOptions = useMemo(
+    () =>
+      CIVITAI_LORA_SORT_OPTIONS.map((option) => ({
+        value: option.value as string,
+        label: t(option.labelKey),
+      })),
+    [t],
+  )
+  const nsfwOptions = useMemo(
+    () =>
+      LORA_NSFW_FILTER_VALUES.map((value) => ({
+        value,
+        label: t(NSFW_FILTER_LABEL_KEYS[value]),
+      })),
+    [t],
+  )
+  // chip 上的 ●N 只数「筛选」sheet 里那三个缩小结果集的维度（类型/底模/安全）——
+  // 排序不缩小结果集，搜索有自己的输入框，都不进这个数。
+  const activeFilterCount =
+    (library.contentType !== DEFAULT_LORA_CONTENT_TYPE ? 1 : 0) +
+    (library.baseModel !== 'all' ? 1 : 0) +
+    (library.nsfwFilter !== DEFAULT_LORA_NSFW_FILTER ? 1 : 0)
+
   // 展开详情的样例带：优先逐图配方（带完整 recipe，R2 modal 用），其次纯
   // 预览兜底图，最后 item 自带的 previewImageUrls。
   const sampleImages = useMemo<LoraLibrarySampleImage[]>(() => {
@@ -453,6 +503,11 @@ export function CivitaiCommunityBranch({
     [minedPrompts.recipes, sampleImages, library.selectedItem],
   )
 
+  // ⚠ 用 `find` 而不是 `library.selectedItem`：hook 里那个带「回落到第一项」的
+  // 兜底，列表一变（换排序/翻页/重拉）抽屉就会静默换成另一个 LoRA 的详情。
+  const drawerItem =
+    library.items.find((item) => item.id === expandedItemId) ?? null
+
   return (
     <section className="space-y-3">
       {/* 结果区：单列宽幅效果流 + 原位展开详情 + 真实分页。
@@ -462,64 +517,92 @@ export function CivitaiCommunityBranch({
           ⚠ owner 2026-08-07：安全（NSFW 分级）本来在顶栏和排序并列，但它**是
           筛选**——缩小结果集，和类型/底模同类；排序不缩小只重排，两者混在一行
           读不出层次。 */}
-      <div className="flex min-h-0 flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <LoraLibraryFilterCombobox
-            label={t('libraryTypeFilter')}
-            ariaLabel={t('typeFilterLabel')}
-            value={library.contentType}
-            options={typeOptions}
-            onChange={library.setContentType}
-          />
-          <LoraLibraryFilterCombobox
-            label={t('libraryFamilyFilter')}
-            ariaLabel={t('baseModelFilterLabel')}
-            value={civitaiBaseModelToFamilySlug(library.baseModel)}
-            options={familyOptions}
-            onChange={(slug) =>
+      <div className="flex min-h-0 flex-col gap-2 lg:gap-3">
+        {/* <1024：上面那一行（类型/底模/安全/刷新）＋顶栏的来源/排序全部收成
+            一行 chip + 底部 sheet。375 上原来这些要 256px 头部，只剩 2 张卡
+            看得全（owner 2026-09-03）。 */}
+        {isMobile ? (
+          <LoraLibraryMobileFilters
+            source={source}
+            onSourceChange={onSourceChange}
+            sortValue={library.sort}
+            sortOptions={sortOptions}
+            onSortChange={handleSortChange}
+            contentType={library.contentType}
+            typeOptions={typeOptions}
+            onContentTypeChange={library.setContentType}
+            familySlug={civitaiBaseModelToFamilySlug(library.baseModel)}
+            familyOptions={familyOptions}
+            onFamilyChange={(slug) =>
               handleBaseModelChange(familySlugToCivitaiBaseModel(slug))
             }
-            searchable
-            searchPlaceholder={t('baseModelSearchPlaceholder')}
-            emptyText={t('baseModelSearchEmpty')}
+            nsfwFilter={library.nsfwFilter}
+            nsfwOptions={nsfwOptions}
+            onNsfwFilterChange={library.setNsfwFilter}
+            total={library.total}
+            activeFilterCount={activeFilterCount}
+            onClearFilters={handleClearFilters}
+            onRefresh={() => void library.refresh()}
           />
-          <button
-            type="button"
-            onClick={handleNsfwToggle}
-            aria-label={`${t('nsfwToggleHint')}：${t(
-              NSFW_FILTER_LABEL_KEYS[library.nsfwFilter],
-            )}`}
-            title={t('nsfwToggleHint')}
-            className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-xs font-medium transition-colors',
-              library.nsfwFilter === 'nsfwOnly'
-                ? 'border-status-warning/40 bg-status-warning-surface text-status-warning'
-                : library.nsfwFilter === 'safe'
-                  ? 'border-primary/40 bg-primary/10 text-primary'
-                  : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
-            )}
-          >
-            {library.nsfwFilter === 'nsfwOnly' ? (
-              <ShieldAlert className="size-3.5" aria-hidden />
-            ) : library.nsfwFilter === 'safe' ? (
-              <ShieldCheck className="size-3.5" aria-hidden />
-            ) : (
-              <Shield className="size-3.5" aria-hidden />
-            )}
-            {t(NSFW_FILTER_LABEL_KEYS[library.nsfwFilter])}
-          </button>
-          {/* 刷新推到最右：它不是筛选条件，是「按当前条件重拉」的动作。 */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => void library.refresh()}
-            aria-label={t('refresh')}
-            className="ml-auto shrink-0"
-          >
-            <RefreshCw className="size-3.5" aria-hidden />
-          </Button>
-        </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <LoraLibraryFilterCombobox
+              label={t('libraryTypeFilter')}
+              ariaLabel={t('typeFilterLabel')}
+              value={library.contentType}
+              options={typeOptions}
+              onChange={library.setContentType}
+            />
+            <LoraLibraryFilterCombobox
+              label={t('libraryFamilyFilter')}
+              ariaLabel={t('baseModelFilterLabel')}
+              value={civitaiBaseModelToFamilySlug(library.baseModel)}
+              options={familyOptions}
+              onChange={(slug) =>
+                handleBaseModelChange(familySlugToCivitaiBaseModel(slug))
+              }
+              searchable
+              searchPlaceholder={t('baseModelSearchPlaceholder')}
+              emptyText={t('baseModelSearchEmpty')}
+            />
+            <button
+              type="button"
+              onClick={handleNsfwToggle}
+              aria-label={`${t('nsfwToggleHint')}：${t(
+                NSFW_FILTER_LABEL_KEYS[library.nsfwFilter],
+              )}`}
+              title={t('nsfwToggleHint')}
+              className={cn(
+                'inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-xs font-medium transition-colors',
+                library.nsfwFilter === 'nsfwOnly'
+                  ? 'border-status-warning/40 bg-status-warning-surface text-status-warning'
+                  : library.nsfwFilter === 'safe'
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+              )}
+            >
+              {library.nsfwFilter === 'nsfwOnly' ? (
+                <ShieldAlert className="size-3.5" aria-hidden />
+              ) : library.nsfwFilter === 'safe' ? (
+                <ShieldCheck className="size-3.5" aria-hidden />
+              ) : (
+                <Shield className="size-3.5" aria-hidden />
+              )}
+              {t(NSFW_FILTER_LABEL_KEYS[library.nsfwFilter])}
+            </button>
+            {/* 刷新推到最右：它不是筛选条件，是「按当前条件重拉」的动作。 */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => void library.refresh()}
+              aria-label={t('refresh')}
+              className="ml-auto shrink-0"
+            >
+              <RefreshCw className="size-3.5" aria-hidden />
+            </Button>
+          </div>
+        )}
 
         {library.isStale && library.staleFetchedAt ? (
           <div
@@ -581,6 +664,28 @@ export function CivitaiCommunityBranch({
                 >
                   {t('clearFilters')}
                 </Button>
+              ) : null}
+            </div>
+          ) : isMobile ? (
+            <div className="flex flex-col gap-3">
+              <div className={LORA_LIBRARY_MOBILE_GRID_CLASS}>
+                {library.items.map((item) => (
+                  <LoraLibraryGridCard
+                    key={item.id}
+                    source="civitai"
+                    item={item}
+                    onOpen={() => handleOpenItem(item)}
+                  />
+                ))}
+              </div>
+              {library.contentType !== 'all' &&
+              library.items.length <= 5 &&
+              activeTypeSearchFallbackTerm ? (
+                <LoraLibraryTypeSparseCard
+                  source={LORA_LIBRARY_SOURCES.CIVITAI}
+                  searchFallbackTerm={activeTypeSearchFallbackTerm}
+                  onSearchFallback={handleTypeSearchFallback}
+                />
               ) : null}
             </div>
           ) : (
@@ -734,8 +839,9 @@ export function CivitaiCommunityBranch({
         : null}
 
       {/* 顶栏右端控件：排序 Select + NSFW 三态 chip + 刷新，portal 进
-          LoraWorkbench 顶栏的控件槽。 */}
-      {controlsSlotNode
+          LoraWorkbench 顶栏的控件槽。手机上排序进了筛选 sheet，这里不渲染
+          （渲染就等于顶栏又多一行）。 */}
+      {!isMobile && controlsSlotNode
         ? createPortal(
             <>
               <Select value={library.sort} onValueChange={handleSortChange}>
@@ -768,6 +874,42 @@ export function CivitaiCommunityBranch({
             controlsSlotNode,
           )
         : null}
+
+      {/* 移动端详情抽屉：与桌面原位展开同一份 LoraLibraryRowDetail、同一批
+          handler，只换外壳。关闭即清选中，结果网格的滚动位置不动。 */}
+      {isMobile ? (
+        <LoraLibraryDetailDrawer
+          open={drawerItem !== null}
+          onOpenChange={(open) => {
+            if (!open) setExpandedItemId(null)
+          }}
+          title={drawerItem?.name ?? ''}
+        >
+          {drawerItem ? (
+            <LoraLibraryRowDetail
+              source="civitai"
+              layout="drawer"
+              item={drawerItem}
+              isFavorited={isFavorited(drawerItem.loraUrl)}
+              onUse={(target) => void handleUse(target)}
+              onFavorite={handleFavoriteToggle}
+              onCollapse={() => setExpandedItemId(null)}
+              sampleImages={sampleImages}
+              onSampleClick={handleSampleClick}
+              onPreviewCover={(target) => {
+                const fullUrl =
+                  target.coverImageUrlOriginal ?? target.coverImageUrl
+                if (fullUrl) {
+                  setCoverPreview({
+                    url: proxyCivitaiImageUrl(fullUrl),
+                    name: target.name,
+                  })
+                }
+              }}
+            />
+          ) : null}
+        </LoraLibraryDetailDrawer>
+      ) : null}
 
       <LoraCoverPreviewDialog
         preview={coverPreview}

@@ -61,6 +61,33 @@ export function isLoraLibrarySource(value: string): value is LoraLibrarySource {
   )
 }
 
+// ── 库结果区移动端形制（<1024 走封面网格 + 底部详情抽屉）────────────────
+// 列数写在这里而不是散在组件里：2 列是 375 下「封面还看得出效果」的下限
+// （171px 宽 3:4 封面），sm(640) 起放到 3 列。间隙 8px（gap-2）。
+// ⚠ Tailwind 不吃运行期拼出来的类名，所以这里存的是**整串类**，不是数字。
+export const LORA_LIBRARY_MOBILE_GRID_CLASS =
+  'grid grid-cols-2 gap-2 sm:grid-cols-3'
+/** 详情抽屉高度：留 8% 视口缺口露出底下的结果网格（几何在 .lora-detail-drawer）。 */
+export const LORA_LIBRARY_DETAIL_DRAWER_CLASS = 'lora-detail-drawer'
+
+// ── 库筛选行移动端形制（<1024：桌面那几行控件收成一条 chip 行 + 底部 sheet）──
+// 375 上原来的头部要 256px（应用条 44 + 模式 tab + 搜索/来源/排序换行成 80 +
+// 类型/底模/安全一行），结果区只剩 2 张卡看得全。收成一行 32px chip 后头部
+// ≤180px。chip 行横向可滚、不换行——换行就等于又长回两行。
+export const LORA_LIBRARY_MOBILE_CHIP_ROW_CLASS =
+  'flex items-center gap-2 overflow-x-auto whitespace-nowrap'
+/** chip 本体：32px 高（触区靠 touch-target-y 撑到 44），胶囊，单行。 */
+export const LORA_LIBRARY_MOBILE_CHIP_CLASS =
+  'touch-target-y inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-border/60 bg-background px-3 text-xs font-medium text-foreground transition-[background-color,border-color] duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+/**
+ * 筛选 sheet 的高度：按内容自撑，只给一个不超出视口的上限。
+ * ⚠ 不用 `max-h-[60svh]`（Tailwind arbitrary value 禁用），也不新造 CSS 类。
+ */
+export const LORA_LIBRARY_FILTER_SHEET_CLASS = 'max-h-svh'
+/** sheet 内每个分区里的选项 chip。 */
+export const LORA_LIBRARY_SHEET_OPTION_CLASS =
+  'touch-target-y inline-flex h-8 items-center rounded-full border px-3 text-xs transition-[background-color,border-color] duration-150 active:scale-95'
+
 // ── 挂载可见性（M2a，配方还原主线，见 docs/references/domains/lora.md）──
 // Studio chip 卡片 48px 缩略图请求宽度，96 覆盖 2x 屏。
 export const LORA_CHIP_THUMBNAIL_WIDTH = 96

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { HuggingFaceLoraSearchItem } from '@/types'
@@ -17,6 +23,7 @@ const mockStackPush = vi.hoisted(() => vi.fn())
 const mockSetBaseModelFamily = vi.hoisted(() => vi.fn())
 const mockSetSort = vi.hoisted(() => vi.fn())
 const mockSetContentType = vi.hoisted(() => vi.fn())
+const mockSetSource = vi.hoisted(() => vi.fn())
 
 // S1 统一外壳：pane 现在自己读/写 family·q·sort 到 URL（与 civitai pane 同
 // 一套约定），所以需要和 LoraWorkbench.library.test.tsx 一样 mock 导航钩子。
@@ -45,8 +52,11 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }))
 
+// <1024 时结果区换成封面网格 + 底部详情抽屉；桌面仍是行 + 原位展开。默认桌面，
+// 单个用例把它翻成 true 来验移动端形态。
+let mockIsMobile = false
 vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => false,
+  useIsMobile: () => mockIsMobile,
 }))
 
 vi.mock('@/hooks/use-active-lora-stack', () => ({
@@ -141,6 +151,8 @@ function renderLibrary(
       isFavorited={isFavorited}
       searchSlotNode={searchSlotNode}
       controlsSlotNode={controlsSlotNode}
+      source="huggingface"
+      onSourceChange={mockSetSource}
     />,
   )
 }
@@ -160,12 +172,14 @@ describe('HuggingFaceLoraLibrary', () => {
         ResizeObserverStub as unknown as typeof ResizeObserver
     }
     mockLibraryQuery = ''
+    mockIsMobile = false
     mockImport.mockReset().mockResolvedValue(null)
     mockUnfavoriteByUrl.mockReset().mockResolvedValue(true)
     mockStackPush.mockReset()
     mockSetBaseModelFamily.mockReset()
     mockSetSort.mockReset()
     mockSetContentType.mockReset()
+    mockSetSource.mockReset()
     mockUseHuggingFaceLoraLibrary.mockReset().mockReturnValue(libraryState())
   })
 
@@ -187,6 +201,116 @@ describe('HuggingFaceLoraLibrary', () => {
     expect(
       screen.getByRole('button', { name: 'LoraWorkbench:useThisLora' }),
     ).toBeInTheDocument()
+  })
+
+  it('opens the detail in a bottom drawer (not in place) on mobile, keeping the same primary action', async () => {
+    mockIsMobile = true
+    renderLibrary()
+
+    // 网格形态：整张卡是一个按钮，卡上没有第二动作。
+    expect(
+      screen.queryByRole('button', { name: 'LoraWorkbench:useThisLora' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'anima style' }))
+
+    // 抽屉（vaul → Radix Dialog）承载与桌面同一份详情：同一个主动作、同一个
+    // 多文件选择门。
+    const drawer = await screen.findByRole('dialog')
+    expect(
+      screen.getByRole('button', { name: 'LoraWorkbench:useThisLora' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('combobox', {
+        name: 'LoraWorkbench:huggingFaceSelectFile',
+      }),
+    ).toBeInTheDocument()
+    expect(drawer).toBeInTheDocument()
+  })
+
+  // <1024：顶栏那几行控件收成一行 chip + 底部筛选 sheet（pages/lora-library.md
+  // 「移动端」）。桌面的类型/底模下拉与排序 Select 在这一档必须**不渲染**——
+  // 渲染就等于头部又长回去，本轮改动的全部理由就没了。
+  it('collapses the desktop filter rows into a single chip row on mobile', () => {
+    mockIsMobile = true
+    renderLibrary()
+
+    expect(
+      screen.queryByRole('button', {
+        name: /LoraWorkbench:baseModelFilterLabel/,
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('combobox', {
+        name: 'LoraWorkbench:communitySortFilter',
+      }),
+    ).not.toBeInTheDocument()
+
+    expect(
+      screen.getByRole('group', { name: 'LoraWorkbench:mobileFilterBar' }),
+    ).toBeInTheDocument()
+    // 来源 / 排序 / 筛选 / 刷新 —— 刷新不能在收敛里被丢掉。
+    expect(
+      screen.getByRole('button', {
+        name: 'LoraWorkbench:librarySourceLabel：LoraWorkbench:librarySourceHuggingFace',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', {
+        name: 'LoraWorkbench:communitySortFilter：LoraWorkbench:sortMostDownloaded',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'LoraWorkbench:refresh' }),
+    ).toBeInTheDocument()
+  })
+
+  it('opens the filter sheet from the chip row and applies a type immediately (no draft state)', async () => {
+    mockIsMobile = true
+    renderLibrary()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'LoraWorkbench:mobileFilters' }),
+    )
+
+    const sheet = await screen.findByRole('dialog')
+    // 分区标签：来源 / 排序 / 类型 / 底模（HF 无分级，安全分区不渲染）。
+    for (const label of [
+      'LoraWorkbench:librarySourceLabel',
+      'LoraWorkbench:communitySortFilter',
+      'LoraWorkbench:libraryTypeFilter',
+      'LoraWorkbench:libraryFamilyFilter',
+    ]) {
+      expect(
+        within(sheet).getByRole('heading', { name: label }),
+      ).toBeInTheDocument()
+    }
+    expect(
+      within(sheet).queryByRole('heading', {
+        name: 'LoraWorkbench:safetyLabel',
+      }),
+    ).not.toBeInTheDocument()
+
+    // 点选项即生效（状态归 hook 所有，没有本地草稿）。
+    fireEvent.click(
+      within(sheet).getByRole('button', { name: 'LoraWorkbench:typeStyle' }),
+    )
+    expect(mockSetContentType).toHaveBeenCalledWith('style')
+  })
+
+  it('shows the non-default filter count on the filter chip', () => {
+    mockIsMobile = true
+    mockUseHuggingFaceLoraLibrary.mockReturnValue({
+      ...libraryState(),
+      contentType: 'style' as const,
+      baseModelFamily: 'flux' as const,
+    })
+    renderLibrary()
+
+    expect(screen.getByTestId('lora-mobile-filter-badge')).toHaveTextContent(
+      '2',
+    )
   })
 
   it('imports the exact SafeTensors file selected in the expanded detail (never files[0] silently)', async () => {

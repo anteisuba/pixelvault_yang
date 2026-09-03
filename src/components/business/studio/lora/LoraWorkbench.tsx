@@ -295,12 +295,15 @@ export function LoraWorkbench() {
   return (
     <div
       className={cn(
-        'domain-lora w-full px-4 py-5 sm:px-6 lg:px-8',
+        // <1024 的竖向预算（pages/lora-library.md 移动端）：外距/行距各让出
+        // 一档，头部（应用条 + tab + 搜索 + chip 行）压到 180px 以内，结果区
+        // 首屏才能站满 4 张封面卡。`lg:` 把桌面原值一字不差地还回去。
+        'domain-lora w-full px-4 py-2 sm:px-6 lg:px-8 lg:py-5',
         // S2精修②：生成页桌面 = flex-col + h-svh + overflow-hidden（链头）；库/
         // 训练/移动保持 min-h-svh 正常滚。
         isGenerate
-          ? 'min-h-svh space-y-5 md:flex md:h-svh md:min-h-0 md:flex-col md:space-y-0 md:gap-4 md:overflow-hidden'
-          : 'min-h-svh space-y-5',
+          ? 'min-h-svh space-y-2 lg:space-y-5 md:flex md:h-svh md:min-h-0 md:flex-col md:space-y-0 md:gap-4 md:overflow-hidden'
+          : 'min-h-svh space-y-2 lg:space-y-5',
       )}
     >
       {/* CD 装配台：模块 tab = 左对齐下划线 tabs（无图标·variant=line），助手
@@ -312,7 +315,7 @@ export function LoraWorkbench() {
         className="md:shrink-0"
       >
         <div className="flex w-full items-center gap-3">
-          <TabsList variant="line" className="h-9">
+          <TabsList variant="line" className="h-8 lg:h-9">
             <TabsTrigger
               value={LORA_WORKBENCH_SECTIONS.GENERATE}
               className="px-3 text-sm"
@@ -377,7 +380,7 @@ export function LoraWorkbench() {
         ) : null}
 
         {isLibrary ? (
-          <section className="space-y-3">
+          <section className="space-y-2 lg:space-y-3">
             {/* R1 顶栏（lora-library.md §3）：搜索占左侧主位，来源 + 排序/安全/
                 刷新在右侧低层级，同一条顶栏。搜索槽 / 来源槽 / 控件槽由各源 pane
                 通过 portal 挂内容进来（state 仍留原层级）。

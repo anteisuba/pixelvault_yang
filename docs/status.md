@@ -1,15 +1,29 @@
 # 项目状态
 
-最后更新：2026-09-02
+最后更新：2026-09-03
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
-## ⚠ 待推：本地 main 领先 origin/main 18 笔
+## ⚠ 待推：本地 main 领先 origin/main 13 笔（2026-09-03 核对）
 
-08-24 21:54 ~ 08-25 20:40 的提交**线上一笔都没有**。push `main` = 生产部署，先过
-`docs/checklists/release.md` P0。⚠ 部署顺序有硬约束：`bf965440` 要求 **fork 镜像先上
-RunPod、app 才能上线**；反了的话新字段无人认领而 `images` 又是空的，参考图静默消失、
-img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考图。
+push `main` = 生产部署，先过 `docs/checklists/release.md` P0。旧的部署顺序硬约束
+（`bf965440` 要求 fork 镜像先上 RunPod）**已解除**——那批提交连同 `29bef566` 都早已
+在 `origin/main` 上。当前 13 笔是：docs · UI 收口（字体/颜色/status token）· script-doc
+schema 与编辑原语 · DeepSeek 图片视觉模型 · 画廊与素材库窗口化 · Seedance 规划器 2.5。
+
+## 🔥 worker 部署此前不在 CI 里，已补上（2026-09-03）
+
+`ci.yml` 新增 **deploy-worker** job（needs worker-test，仅 main 的 push / 手动触发）。
+起因：`29bef566`（08-29）修好 NovelAI 的 ZIP 解包、推上 main、回归测试也补了，但
+`workers/execution` 只能手动 `wrangler deploy`，CI 从不部署它——线上跑了 5 天修复前的
+代码、NovelAI 出图全数失败，09-03 才被发现。Vercel 那半边自动跟 push 更新，worker 这
+半边停在原地，**没有任何信号**。
+
+⚠ **这个 job 在配好 secret 之前会红**：仓库还缺 `CLOUDFLARE_API_TOKEN`（Cloudflare
+"Edit Cloudflare Workers" 模板）和 `CLOUDFLARE_ACCOUNT_ID`。刻意不做静默跳过——静默
+跳过等于把这次要修的漂移原样请回来。配好后可用 `gh workflow run ci.yml --ref main`
+把积压的 worker 修复推上去（本机 wrangler 登录态已失效，这是当前唯一的部署入口）。
+细节见 `docs/references/cicd.md`「Execution Worker 部署」。
 
 - **部署链路**：Preview 不再跑 `migrate deploy`（`bb9e7bae`——buildCommand 改指
   `scripts/vercel-build.sh`，只有 `VERCEL_ENV=production` 才迁移；此前任何碰 `prisma/`
@@ -221,6 +235,7 @@ img2img 悄悄退化成 txt2img——出图会「成功」但完全不像参考�
 
 ## Validation
 
+- 2026-09-01 素材夹内页补齐「新建文件夹」：入口位于面包屑行末，复用现有创建弹窗并以当前夹为 `parentId`，成功后进入新子夹；根目录和总览页入口不变。`AssetFolderBreadcrumb` 定向 Vitest 1/1、目标 ESLint、Prettier、全量 TypeScript 通过；本地 dev 未运行，未做修改后页面真机目检。
 - 2026-08-30 图片工作台助手附件面板：补齐 200ms 淡入/上移动效与 reduced-motion 降级；
   面板内部、触发器及素材选择 Dialog 内点击不关闭，点击外部关闭；键盘打开后聚焦首个操作，
   `Escape` 只关闭这一层并把焦点还给触发器。定向 Vitest 1 file / 10 tests、目标 ESLint、

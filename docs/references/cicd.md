@@ -1,22 +1,47 @@
 # CI/CD 参考 — 流水线与部署现状
 
-> 定位：CI/CD 现状事实（按现状写，不引入新 CI——owner 2026-07-10 拍板）。本地闸门见 `testing.md`；环境红线见 `forbidden.md` CI/CD 节。
+> 定位：CI/CD 现状事实（按现状写，不引入新 CI——owner 2026-07-10 拍板；2026-09-03 owner 明确要求例外，加了 worker 部署 job，见下方「Execution Worker 部署」）。本地闸门见 `testing.md`；环境红线见 `forbidden.md` CI/CD 节。
 
 ## GitHub Actions（6 workflows，2026-07-10 核验；2026-08-25 新增 cron-monitor）
 
-| Workflow                | 触发                                                                                                                               | 内容                                                                                                                                                                                                                    |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`                | push main/feat/\* · PR→main                                                                                                        | **五个 job**：lint（prisma generate → `tsc --noEmit` → eslint）· app test · Execution Worker test · audit（high 报告、critical 阻断、Prisma drift、空库迁移重放）· build（needs lint + 两套 test）；Node 22 + npm cache |
-| `deploy-check.yml`      | deployment_status（仅 **Production** 成功后）                                                                                      | 等 45s CDN 传播 → **内联 curl 冒烟**（`/api/health`、`/en`、`/en/gallery` 各重试 3 次；`/api/models/health` 失败不阻塞）；失败自动开/追评 issue（`deploy-failure` label；preview 部署有保护不跑，恒 401）               |
-| `health-monitor.yml`    | cron `17 */6 * * *`（每 6 小时）+ 手动                                                                                             | POST `/api/health/providers`（HEALTH_CHECK_TOKEN 鉴权）；有模型 unavailable → 开 issue（`provider-outage` label，已有 open 则不重复）；endpoint 非 200 → workflow 失败                                                  |
-| `model-doc-monitor.yml` | cron `17 0 * * 1`（每周一）+ 手动                                                                                                  | `npm run models:check-docs`：模型文档/接口检查，报告进 job summary + artifact（用 OPENAI/GEMINI key 做探测）；errorCount 或 changeCount ≠ 0 时自动开/更新 issue（`model-doc-monitor` label）                            |
-| `post-deploy-smoke.yml` | **独立 workflow**（不是被 deploy-check 调用）：workflow_dispatch（手动传 base_url）+ deployment_status（同样仅 Production 成功后） | 跑 `scripts/smoke.ts`（带 Vercel protection bypass secret）；与 deploy-check 的内联冒烟是并行两套                                                                                                                       |
-| `cron-monitor.yml`      | cron `37 13 * * *`（每日）+ 手动                                                                                                   | GET `/api/health/crons`（HEALTH_CHECK_TOKEN 鉴权，与 health-monitor 同一把，无需新 secret）；`healthy:false` → 开/追评 issue（`cron-failure` label）；端点非 200 → workflow 失败。见下方「Vercel cron 的可见性」        |
+| Workflow                | 触发                                                                                                                               | 内容                                                                                                                                                                                                                                                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                | push main/feat/\* · PR→main · workflow_dispatch                                                                                    | **六个 job**：lint（prisma generate → `tsc --noEmit` → eslint）· app test · Execution Worker test · audit（high 报告、critical 阻断、Prisma drift、空库迁移重放）· build（needs lint + 两套 test）· **deploy-worker**（needs worker-test，仅 main；见下方「Execution Worker 部署」）；Node 22 + npm cache |
+| `deploy-check.yml`      | deployment_status（仅 **Production** 成功后）                                                                                      | 等 45s CDN 传播 → **内联 curl 冒烟**（`/api/health`、`/en`、`/en/gallery` 各重试 3 次；`/api/models/health` 失败不阻塞）；失败自动开/追评 issue（`deploy-failure` label；preview 部署有保护不跑，恒 401）                                                                                                 |
+| `health-monitor.yml`    | cron `17 */6 * * *`（每 6 小时）+ 手动                                                                                             | POST `/api/health/providers`（HEALTH_CHECK_TOKEN 鉴权）；有模型 unavailable → 开 issue（`provider-outage` label，已有 open 则不重复）；endpoint 非 200 → workflow 失败                                                                                                                                    |
+| `model-doc-monitor.yml` | cron `17 0 * * 1`（每周一）+ 手动                                                                                                  | `npm run models:check-docs`：模型文档/接口检查，报告进 job summary + artifact（用 OPENAI/GEMINI key 做探测）；errorCount 或 changeCount ≠ 0 时自动开/更新 issue（`model-doc-monitor` label）                                                                                                              |
+| `post-deploy-smoke.yml` | **独立 workflow**（不是被 deploy-check 调用）：workflow_dispatch（手动传 base_url）+ deployment_status（同样仅 Production 成功后） | 跑 `scripts/smoke.ts`（带 Vercel protection bypass secret）；与 deploy-check 的内联冒烟是并行两套                                                                                                                                                                                                         |
+| `cron-monitor.yml`      | cron `37 13 * * *`（每日）+ 手动                                                                                                   | GET `/api/health/crons`（HEALTH_CHECK_TOKEN 鉴权，与 health-monitor 同一把，无需新 secret）；`healthy:false` → 开/追评 issue（`cron-failure` label）；端点非 200 → workflow 失败。见下方「Vercel cron 的可见性」                                                                                          |
 
 ### model-doc-monitor 基线与已知退化
 
 - **基线已补**（2026-07-10，commit `206df3d6`）：`docs/reference/api/model-doc-monitor.snapshot.json` 已提交，每周一起有 diff 对比。本地生成时未带 OPENAI/GEMINI key（探测被干净 skip，快照 `apis:[]`），首次 CI 运行会把 2 个 API 探测报为 "added"——一次性噪音。
 - **⚠ 已知退化：模型清单为 0**。`scripts/check-model-docs.mjs` 只解析单文件 `src/constants/models.ts` 里的 `AI_MODELS` enum + `MODEL_OPTIONS` 数组字面量；模型拆进 `src/constants/models/{enum,image,video,audio,model-3d}.ts` 后该文件只剩 barrel，脚本静默解析出 **0 个模型**——per-model officialUrl 监控全部失效，当前只监控 9 个硬编码 EXTRA_WATCH_PAGES。修法：脚本改读 `src/constants/models/` 拆分文件后跑 `models:update-doc-snapshot` 重建基线；建议纳入 `model-catalog.md` 月审动作（待 owner 决定）。
+
+### Execution Worker 部署（2026-09-03 接进 CI）
+
+`workers/execution` 由 `ci.yml` 的 **deploy-worker** job 部署：`needs: worker-test`，
+`if` 限定 `refs/heads/main` 且事件为 push 或 workflow_dispatch，工作目录
+`workers/execution`，跑 `npm run deploy`（= `wrangler deploy`，用 worker 自己
+devDependencies 里 pin 的 wrangler，保证 CI 与本机同版本；没走官方
+`cloudflare/wrangler-action`，就是为了不让 CI 和本机跑在两个 wrangler 版本上）。
+
+**前置**：仓库 secret `CLOUDFLARE_API_TOKEN`（Cloudflare 后台 "Edit Cloudflare
+Workers" 模板）+ `CLOUDFLARE_ACCOUNT_ID`。缺任一 wrangler 直接失败退出——**刻意
+不静默跳过**，静默跳过等于把这个 job 要修的那个漂移原样请回来。
+
+⚠ **不按路径过滤，每次 main push 都重新部署。** `workers/execution/src` 不 import
+任何该目录之外的东西（自包含），所以按路径过滤本来是安全的；仍然不加，是因为
+「main 上的 worker 代码 = 线上代码」要是**无条件**不变量——任何「决定不部署」的
+机制都是漂移重新长出来的入口。代价是无关的 docs/UI push 也会重推一次 worker
+（约 40s + 一个新版本号），等版本噪音真的变烦了再谈过滤。
+
+🔥 **这个 job 的由来（2026-09-03）**：`29bef566`（08-29）修好了 NovelAI 的 ZIP
+解包——线上报错 `Trailing bytes after end of compressed data`——推上 main、回归
+测试也补了。**但 worker 此前只能手动 `wrangler deploy`，CI 从不部署它**，于是
+生产一直跑修复前的代码，NovelAI 出图全数失败，5 天后才被发现。Vercel 那半边跟着
+push 自动更新，worker 这半边停在原地，两边悄悄分叉且**没有任何信号**——绿的 CI
+在这类问题上不构成任何证据（同族判断见下方「约束型迁移：CI 结构性地看不见」）。
 
 ## 部署（Vercel）
 
@@ -273,9 +298,10 @@ npx wrangler whoami
 
 ## Source of Truth
 
-- `.github/workflows/*.yml`（5 个）· `.husky/` · `package.json`（scripts）· `scripts/check-model-docs.mjs` · Vercel 项目设置 · `workers/execution/wrangler.jsonc`（远端绑定声明，`GENERATION_BUCKET` 的 `"remote": true`）
+- `.github/workflows/*.yml`（6 个）· `.husky/` · `package.json`（scripts）· `workers/execution/package.json`（`deploy` = `wrangler deploy`）· `scripts/check-model-docs.mjs` · Vercel 项目设置 · GitHub 仓库 secrets · `workers/execution/wrangler.jsonc`（远端绑定声明，`GENERATION_BUCKET` 的 `"remote": true`）
 
 ## Last Verified
 
 - Date: 2026-07-23 · Method: 读取并解析 `ci.yml`；Execution Worker tests 已成为 build 前置，critical audit 阻断、high audit 报告，Prisma 同时检查 drift 与 fresh-database replay。当前本地审计为 0 critical；high/moderate 仍需按上游与 breaking-change 风险分批治理。
+- Date: 2026-09-03 · Scope: 仅「Execution Worker 部署」那一节 + `ci.yml` job 数 · Method: 全仓 grep `wrangler deploy` 在 `.github/` 与 `scripts/` 下**零命中**，确认 CI 此前从不部署 worker；`gh secret list` 实查仓库只有 `HEALTH_CHECK_TOKEN` / `PROD_URL`，两个 Cloudflare secret **尚未配置**；`29bef566` 已是 `origin/main` 祖先（`merge-base --is-ancestor` 验证），本地跑该修复的回归测试通过——即「源码已修、线上未部署」。⚠ **未核实的一点**：`wrangler deployments list` 因本机 OAuth 刷新失败（`Failed to fetch auth token: 400`）跑不通，**没有直接读到线上部署时间戳**，「线上是旧代码」是从上述四条推的。
 - Date: 2026-08-22 · Scope: 仅「本地执行 worker」那一节 · Method: 真机实测 —— 8787 LISTENING + `/health` 返 `{"ok":true}` 与 `wrangler whoami` 报 `Not logged in.` **同时成立**；wrangler 运行日志里三环失败（ECONNRESET → OAuth 授权码超时 → Network connection lost）时间线逐条读出；`"remote": true` 与 `--local` 的代价取自 `wrangler.jsonc` 注释。⚠ **未实测的一点**：没有真跑一次生成去证「写 R2 必失败」（会花钱），那一步是从 remote 绑定语义推的。

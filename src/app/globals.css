@@ -88,6 +88,10 @@
   --tracking-hero: -0.04em;
   --h-hero-btn: 2.85rem;
   --max-width-content: 75rem;
+  /* 移动端底部悬浮控件（如 LoraLibraryPagination 胶囊）避开安全区 + 留 12px
+     呼吸——`bottom-safe-bottom` 工具类消费。env() 不能塞进纯 Tailwind 间距刻度，
+     故单开一个 token（Hard Rule 5：禁 arbitrary value，非禁自定义 token）。 */
+  --spacing-safe-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
   --width-studio-left: 20rem;
   --width-studio-right: 28rem;
   --width-studio-sidebar: 13rem;
@@ -1154,6 +1158,15 @@ html:lang(ja) {
       backdrop-filter: none;
       padding: 0;
     }
+  }
+
+  /* LoRA 库移动端详情抽屉（vaul）：92svh 高，留 8% 缺口露出底下的封面网格，
+     让「我还在列表里」这件事保持可见。几何写在这里而不是 Tailwind 任意值类；
+     抽屉 portal 到 body、跑在 .domain-lora 之外，所以类不加域前缀作用域。
+     内部动作条自己 sticky，不复用 .lora-mobile-actionbar（那条是 fixed 到
+     视口的，放进抽屉会脱离抽屉贴到屏幕底）。 */
+  .lora-detail-drawer {
+    max-height: 92svh;
   }
 
   /* ── Touch-device utility: make hover-only elements always visible ── */

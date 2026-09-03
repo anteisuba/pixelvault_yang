@@ -50,8 +50,20 @@ export interface LoraLibrarySampleImage {
   label: string
 }
 
+/**
+ * 同一份详情内容的两种外壳：
+ * - `inline`（默认，桌面 ≥1024）——原位展开卡片，三栏（封面 / 判断字段 / 动作列）。
+ * - `drawer`（移动端 <1024）——底部抽屉：内容整段竖排可滚，动作压成底部常驻条。
+ *
+ * ⚠ 只有**外壳**分叉：封面 / 判断字段 / 样例带 / 动作语义都由同一段分支代码
+ * 算出来（HF 的文件选择状态、civitai 的描述懒加载都只有一份），别为了抽屉再
+ * 抄一遍——两份会立刻在「哪个按钮该在什么时候变成打开来源」上漂移。
+ */
+export type LoraLibraryDetailLayout = 'inline' | 'drawer'
+
 interface CivitaiDetailProps {
   source: 'civitai'
+  layout?: LoraLibraryDetailLayout
   item: CivitaiLoraLibraryItem
   isFavorited: boolean
   onUse: (item: CivitaiLoraLibraryItem) => void
@@ -66,6 +78,7 @@ interface CivitaiDetailProps {
 
 interface HuggingFaceDetailProps {
   source: 'huggingface'
+  layout?: LoraLibraryDetailLayout
   item: HuggingFaceLoraSearchItem
   isFavorited: (loraUrl: string) => boolean
   onUse: (item: HuggingFaceLoraSearchItem, file: HuggingFaceLoraFile) => void
@@ -145,6 +158,160 @@ function DetailShell({
   )
 }
 
+/**
+ * 抽屉外壳：上半段内容整段滚动，下半段是常驻动作条。
+ * 收起控件不在这里——抽屉自带抓手，下滑或点遮罩即关（`onCollapse` 由抽屉宿主
+ * 的 `onOpenChange` 走同一条路）。
+ */
+function DetailDrawerBody({
+  cover,
+  info,
+  actions,
+  samples,
+}: {
+  cover: ReactNode
+  info: ReactNode
+  actions: ReactNode
+  samples?: ReactNode
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4 pt-2">
+        {/* 封面在抽屉里收到 192px 居中：4:5 的 `w-full` 在 375 上是 469px 高，
+            会把名称/触发词整块顶到折叠线以下（与 DetailShell 同一教训）。 */}
+        <div className="mx-auto w-48">{cover}</div>
+        {info}
+        {samples}
+      </div>
+      {actions}
+    </div>
+  )
+}
+
+// 动作三件套的语义（两个源各自算出来，两种外壳共用）：主动作在不可生成时
+// 翻成「打开来源」，收藏是开关，外链永远是真 `<a>`。
+interface DetailActionModel {
+  primaryLabel: string
+  /** 主动作实际是外跳（不可生成的底模）——图标与语义都换掉。 */
+  primaryExternal: boolean
+  onPrimary: () => void
+  isFavorited: boolean
+  favoriteLabel: string
+  onFavoriteToggle: () => void
+  sourceUrl: string
+  sourceLabel: string
+  /** 主动作已经是「打开来源」时不再并排放第二个同义外链。 */
+  showSource: boolean
+}
+
+function InlineActions({ model }: { model: DetailActionModel }) {
+  return (
+    <>
+      <Button
+        type="button"
+        onClick={model.onPrimary}
+        className={PRESS_ANIMATION}
+      >
+        {model.primaryExternal ? (
+          <ExternalLink className="size-4" aria-hidden />
+        ) : (
+          <Sparkles className="size-4" aria-hidden />
+        )}
+        {model.primaryLabel}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={model.onFavoriteToggle}
+        className={PRESS_ANIMATION}
+      >
+        <Heart
+          className={cn(
+            'size-4',
+            model.isFavorited && 'fill-rose-500 text-rose-500',
+          )}
+          aria-hidden
+        />
+        {model.favoriteLabel}
+      </Button>
+      {model.showSource ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          asChild
+          className={PRESS_ANIMATION}
+        >
+          <a href={model.sourceUrl} target="_blank" rel="noreferrer">
+            <ArrowUpRight className="size-4" aria-hidden />
+            {model.sourceLabel}
+          </a>
+        </Button>
+      ) : null}
+    </>
+  )
+}
+
+/**
+ * 抽屉底部常驻动作条：主动作占满剩余宽，收藏与外链各是一个 44px 方钮
+ * （ui-defaults §5 coarse 命中区）。sticky 而不是 fixed——`.lora-mobile-actionbar`
+ * 是 fixed 到视口的，放进抽屉会脱离抽屉贴到屏幕底、并压住抽屉外的东西。
+ */
+function DrawerActionBar({ model }: { model: DetailActionModel }) {
+  return (
+    <div className="keyboard-aware-bottom-padding sticky bottom-0 flex shrink-0 items-center gap-2 border-t border-border bg-background px-4 pt-3">
+      <Button
+        type="button"
+        onClick={model.onPrimary}
+        className={cn('h-11 min-h-11 flex-1', PRESS_ANIMATION)}
+      >
+        {model.primaryExternal ? (
+          <ExternalLink className="size-4" aria-hidden />
+        ) : (
+          <Sparkles className="size-4" aria-hidden />
+        )}
+        {model.primaryLabel}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        aria-label={model.favoriteLabel}
+        title={model.favoriteLabel}
+        onClick={model.onFavoriteToggle}
+        className={cn('size-11 shrink-0', PRESS_ANIMATION)}
+      >
+        <Heart
+          className={cn(
+            'size-4',
+            model.isFavorited && 'fill-rose-500 text-rose-500',
+          )}
+          aria-hidden
+        />
+      </Button>
+      {model.showSource ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          asChild
+          className={cn('size-11 shrink-0', PRESS_ANIMATION)}
+        >
+          <a
+            href={model.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={model.sourceLabel}
+            title={model.sourceLabel}
+          >
+            <ArrowUpRight className="size-4" aria-hidden />
+          </a>
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
 function FieldRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline gap-3 text-xs">
@@ -173,6 +340,7 @@ function Metrics({ downloads, likes }: { downloads: number; likes: number }) {
 
 function CivitaiRowDetail({
   item,
+  layout = 'inline',
   isFavorited,
   onUse,
   onFavorite,
@@ -334,48 +502,19 @@ function CivitaiRowDetail({
     </div>
   )
 
-  const actions = (
-    <>
-      <Button
-        type="button"
-        onClick={() => onUse(item)}
-        className={PRESS_ANIMATION}
-      >
-        {isGeneratable ? (
-          <Sparkles className="size-4" aria-hidden />
-        ) : (
-          <ExternalLink className="size-4" aria-hidden />
-        )}
-        {isGeneratable ? t('useThisLora') : t('communityOpenInCivitai')}
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => onFavorite(item)}
-        className={PRESS_ANIMATION}
-      >
-        <Heart
-          className={cn('size-4', isFavorited && 'fill-rose-500 text-rose-500')}
-          aria-hidden
-        />
-        {isFavorited ? t('unfavorite') : t('favorite')}
-      </Button>
-      {isGeneratable ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          asChild
-          className={PRESS_ANIMATION}
-        >
-          <a href={item.modelPageUrl} target="_blank" rel="noreferrer">
-            <ArrowUpRight className="size-4" aria-hidden />
-            {t('communityOpenSource')}
-          </a>
-        </Button>
-      ) : null}
-    </>
-  )
+  const actionModel: DetailActionModel = {
+    primaryLabel: isGeneratable
+      ? t('useThisLora')
+      : t('communityOpenInCivitai'),
+    primaryExternal: !isGeneratable,
+    onPrimary: () => onUse(item),
+    isFavorited,
+    favoriteLabel: isFavorited ? t('unfavorite') : t('favorite'),
+    onFavoriteToggle: () => onFavorite(item),
+    sourceUrl: item.modelPageUrl,
+    sourceLabel: t('communityOpenSource'),
+    showSource: isGeneratable,
+  }
 
   const samples =
     sampleImages.length > 0 ? (
@@ -406,12 +545,23 @@ function CivitaiRowDetail({
       </div>
     ) : null
 
+  if (layout === 'drawer') {
+    return (
+      <DetailDrawerBody
+        cover={cover}
+        info={info}
+        actions={<DrawerActionBar model={actionModel} />}
+        samples={samples}
+      />
+    )
+  }
+
   return (
     <DetailShell
       onCollapse={onCollapse}
       cover={cover}
       info={info}
-      actions={actions}
+      actions={<InlineActions model={actionModel} />}
       samples={samples}
     />
   )
@@ -425,6 +575,7 @@ function fileLabel(filename: string): string {
 
 function HuggingFaceRowDetail({
   item,
+  layout = 'inline',
   isFavorited,
   onUse,
   onFavorite,
@@ -591,72 +742,51 @@ function HuggingFaceRowDetail({
   // 未选文件时 loud 引导（toast），不静默选 files[0]——多文件 repo 文件差异
   // = 不同底模家族，选错会挂错桶（拍板②）。
   const requireSelection = () => toast.error(t('hfSelectFileFirst'))
-  const actions = (
-    <>
-      <Button
-        type="button"
-        className={PRESS_ANIMATION}
-        onClick={() => {
-          if (!selectedFile) return requireSelection()
-          if (!isGeneratable) {
-            window.open(item.modelPageUrl, '_blank', 'noopener,noreferrer')
-            return
-          }
-          onUse(item, selectedFile)
-        }}
-      >
-        {selectedFile && !isGeneratable ? (
-          <ExternalLink className="size-4" aria-hidden />
-        ) : (
-          <Sparkles className="size-4" aria-hidden />
-        )}
-        {selectedFile && !isGeneratable
-          ? t('huggingFaceOpenRepo')
-          : t('useThisLora')}
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        className={PRESS_ANIMATION}
-        onClick={() => {
-          if (!selectedFile) return requireSelection()
-          if (selectedIsFavorited) {
-            onUnfavorite(selectedFile)
-          } else {
-            onFavorite(item, selectedFile)
-          }
-        }}
-      >
-        <Heart
-          className={cn(
-            'size-4',
-            selectedIsFavorited && 'fill-rose-500 text-rose-500',
-          )}
-          aria-hidden
-        />
-        {selectedIsFavorited ? t('unfavorite') : t('favorite')}
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        asChild
-        className={PRESS_ANIMATION}
-      >
-        <a href={item.modelPageUrl} target="_blank" rel="noreferrer">
-          <ArrowUpRight className="size-4" aria-hidden />
-          {t('huggingFaceOpenRepo')}
-        </a>
-      </Button>
-    </>
-  )
+  const actionModel: DetailActionModel = {
+    primaryLabel:
+      selectedFile && !isGeneratable
+        ? t('huggingFaceOpenRepo')
+        : t('useThisLora'),
+    primaryExternal: Boolean(selectedFile) && !isGeneratable,
+    onPrimary: () => {
+      if (!selectedFile) return requireSelection()
+      if (!isGeneratable) {
+        window.open(item.modelPageUrl, '_blank', 'noopener,noreferrer')
+        return
+      }
+      onUse(item, selectedFile)
+    },
+    isFavorited: selectedIsFavorited,
+    favoriteLabel: selectedIsFavorited ? t('unfavorite') : t('favorite'),
+    onFavoriteToggle: () => {
+      if (!selectedFile) return requireSelection()
+      if (selectedIsFavorited) {
+        onUnfavorite(selectedFile)
+      } else {
+        onFavorite(item, selectedFile)
+      }
+    },
+    sourceUrl: item.modelPageUrl,
+    sourceLabel: t('huggingFaceOpenRepo'),
+    showSource: true,
+  }
+
+  if (layout === 'drawer') {
+    return (
+      <DetailDrawerBody
+        cover={cover}
+        info={info}
+        actions={<DrawerActionBar model={actionModel} />}
+      />
+    )
+  }
 
   return (
     <DetailShell
       onCollapse={onCollapse}
       cover={cover}
       info={info}
-      actions={actions}
+      actions={<InlineActions model={actionModel} />}
     />
   )
 }

@@ -60,6 +60,7 @@
     "@prisma/client": "7.7.0",
     "@radix-ui/react-toolbar": "^1.1.11",
     "@sentry/nextjs": "^10.46.0",
+    "@tanstack/react-virtual": "^3.14.10",
     "@types/dagre": "^0.7.54",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",

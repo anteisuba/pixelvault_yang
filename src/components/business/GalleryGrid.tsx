@@ -1,17 +1,20 @@
 'use client'
 
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
+import { useWindowVirtualizer } from '@tanstack/react-virtual'
 
 import type { Route } from '@/constants/routes'
+import {
+  GALLERY_GRID_COLUMN_BREAKPOINTS,
+  GALLERY_GRID_GAP_X,
+  GALLERY_GRID_GAP_X_BREAKPOINT,
+  GALLERY_GRID_GAP_Y,
+  GALLERY_GRID_LEAD_TILE_CHROME_PX,
+  GALLERY_GRID_OVERSCAN,
+  GALLERY_GRID_SSR_ITEM_COUNT,
+  GALLERY_GRID_TILE_CHROME_PX,
+} from '@/constants/gallery-grid'
 import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
@@ -36,23 +39,7 @@ interface GalleryGridProps {
   onDelete?: (id: string) => void
 }
 
-const INITIAL_VISIBLE_COUNT = 12
-const RENDER_BATCH_SIZE = 12
-const INITIAL_EAGER_IMAGE_INDEXES = new Set([0])
-const EAGER_VIEWPORT_MARGIN_PX = 80
 const SPATIAL_CROSS_AXIS_WEIGHT = 4
-const MASONRY_GRID_ROW_HEIGHT_PX = 1
-
-function areIndexSetsEqual(
-  a: ReadonlySet<number>,
-  b: ReadonlySet<number>,
-): boolean {
-  if (a.size !== b.size) return false
-  for (const value of a) {
-    if (!b.has(value)) return false
-  }
-  return true
-}
 
 function getRectCenter(rect: DOMRect) {
   return {
@@ -111,6 +98,37 @@ function getSpatialNavigationTarget(
   return bestItem
 }
 
+/** 取最后一个满足 `viewportWidth >= minWidth` 的档。 */
+function getColumnCount(viewportWidth: number): number {
+  let columns: number = GALLERY_GRID_COLUMN_BREAKPOINTS[0].columns
+  for (const step of GALLERY_GRID_COLUMN_BREAKPOINTS) {
+    if (viewportWidth >= step.minWidth) columns = step.columns
+  }
+  return columns
+}
+
+function getGapX(viewportWidth: number): number {
+  return viewportWidth >= GALLERY_GRID_GAP_X_BREAKPOINT.minWidth
+    ? GALLERY_GRID_GAP_X.wide
+    : GALLERY_GRID_GAP_X.narrow
+}
+
+/**
+ * 画廊图墙（2026-09-03 起窗口化）。
+ *
+ * 退役的实现是「分批挂载 + 逐卡量高写 grid-row-end」：卡只增不减，滚到底就是
+ * 全量卡都挂在 DOM 里。实测 300 张卡挂载阶段约 5.3–5.9s 脚本时间（每张约 20ms）、
+ * 约 13900 个 DOM 节点 —— 瓶颈在挂载而不是布局，所以只有真正把不可见的卡
+ * **卸载**才有意义。
+ *
+ * 高度用 `generation.width/height` 先估（画廊态的卡没有页脚，高度就是
+ * `列宽 ÷ 宽高比`），挂载后交给 `measureElement` 换成实测值，所以估错也只是
+ * 滚动条长度短暂不准，不会错位。
+ *
+ * ⚠ 首帧（含 SSR）走非窗口化的静态网格渲染前 `GALLERY_GRID_SSR_ITEM_COUNT` 张：
+ * `/gallery` 是公开可索引路由，窗口化会把内容从 SSR HTML 里拿掉。等客户端量到
+ * 容器宽度后再切窗口化，两条路径的列宽与间距同源，切换时位置对得上。
+ */
 export function GalleryGrid({
   generations,
   emptyTitle,
@@ -123,72 +141,82 @@ export function GalleryGrid({
   showDelete = false,
   onDelete,
 }: GalleryGridProps) {
-  // Progressive rendering: render in batches via IntersectionObserver
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT)
-  const [eagerIndexes, setEagerIndexes] = useState<ReadonlySet<number>>(
-    () => INITIAL_EAGER_IMAGE_INDEXES,
-  )
-  const sentinelRef = useRef<HTMLDivElement>(null)
   const feedRef = useRef<HTMLElement>(null)
+  const [metrics, setMetrics] = useState({
+    containerWidth: 0,
+    viewportWidth: 0,
+    scrollMargin: 0,
+  })
 
   useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisibleCount((prev) =>
-            Math.min(prev + RENDER_BATCH_SIZE, generations.length),
-          )
-        }
-      },
-      { rootMargin: '200px' },
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [generations.length])
+    const element = feedRef.current
+    if (!element) return
 
-  const visibleGenerations = useMemo(
-    () => generations.slice(0, visibleCount),
-    [generations, visibleCount],
-  )
-
-  useEffect(() => {
-    const measureEagerImages = () => {
-      const feed = feedRef.current
-      if (!feed) return
-
-      const nextIndexes = new Set<number>()
-      const items = feed.querySelectorAll<HTMLElement>('[data-gallery-index]')
-      items.forEach((item) => {
-        const index = Number(item.dataset.galleryIndex)
-        if (!Number.isFinite(index)) return
-
-        const rect = item.getBoundingClientRect()
-        if (rect.top <= window.innerHeight + EAGER_VIEWPORT_MARGIN_PX) {
-          nextIndexes.add(index)
-        }
-      })
-
-      if (nextIndexes.size === 0) {
-        INITIAL_EAGER_IMAGE_INDEXES.forEach((index) => nextIndexes.add(index))
-      }
-
-      setEagerIndexes((currentIndexes) =>
-        areIndexSetsEqual(currentIndexes, nextIndexes)
-          ? currentIndexes
-          : nextIndexes,
+    const readMetrics = () => {
+      const containerWidth = element.getBoundingClientRect().width
+      // 列表在切换排序/筛选时会被父级藏起来（display:none），此时量到的是 0 宽、
+      // 0 offsetTop。照单全收就会退回首帧的静态网格，而 ResizeObserver 之后
+      // 不一定再补一次回调 —— 于是整页永远卡在 12 张。0 宽一律当作「没量到」。
+      if (containerWidth <= 0) return
+      const viewportWidth = window.innerWidth
+      const scrollMargin = element.offsetTop
+      setMetrics((previous) =>
+        previous.containerWidth === containerWidth &&
+        previous.viewportWidth === viewportWidth &&
+        previous.scrollMargin === scrollMargin
+          ? previous
+          : { containerWidth, viewportWidth, scrollMargin },
       )
     }
 
-    const frameId = window.requestAnimationFrame(measureEagerImages)
-    window.addEventListener('resize', measureEagerImages)
+    readMetrics()
+
+    const observer = new ResizeObserver(readMetrics)
+    observer.observe(element)
+    window.addEventListener('resize', readMetrics)
 
     return () => {
-      window.cancelAnimationFrame(frameId)
-      window.removeEventListener('resize', measureEagerImages)
+      observer.disconnect()
+      window.removeEventListener('resize', readMetrics)
     }
-  }, [visibleGenerations.length])
+  }, [])
+
+  const isVirtualized = metrics.containerWidth > 0
+  const columnCount = getColumnCount(metrics.viewportWidth)
+  const gapX = getGapX(metrics.viewportWidth)
+  const columnWidth = isVirtualized
+    ? (metrics.containerWidth - gapX * (columnCount - 1)) / columnCount
+    : 0
+
+  const estimateSize = useCallback(
+    (index: number) => {
+      const generation = generations[index]
+      if (!generation || columnWidth <= 0) return 1
+      const width = Math.max(generation.width, 1)
+      const height = Math.max(generation.height, 1)
+      return (
+        Math.round((columnWidth * height) / width) +
+        GALLERY_GRID_TILE_CHROME_PX +
+        (index === 0 ? GALLERY_GRID_LEAD_TILE_CHROME_PX : 0)
+      )
+    },
+    [generations, columnWidth],
+  )
+
+  const virtualizer = useWindowVirtualizer({
+    count: isVirtualized ? generations.length : 0,
+    estimateSize,
+    lanes: columnCount,
+    gap: GALLERY_GRID_GAP_Y,
+    overscan: GALLERY_GRID_OVERSCAN,
+    scrollMargin: metrics.scrollMargin,
+    getItemKey: (index) => generations[index]?.id ?? index,
+  })
+
+  // 列宽一变，之前实测的高度全部作废（同一张图换列宽就换高），得整体重量。
+  useEffect(() => {
+    if (columnWidth > 0) virtualizer.measure()
+  }, [columnWidth, columnCount, virtualizer])
 
   // Spatial keyboard navigation follows the visible grid positions.
   const handleGalleryKeyDown = useCallback(
@@ -211,6 +239,11 @@ export function GalleryGrid({
       }
     },
     [],
+  )
+
+  const ssrGenerations = useMemo(
+    () => generations.slice(0, GALLERY_GRID_SSR_ITEM_COUNT),
+    [generations],
   )
 
   if (generations.length === 0) {
@@ -238,19 +271,17 @@ export function GalleryGrid({
     )
   }
 
-  return (
-    <section
-      ref={feedRef}
-      role="feed"
-      aria-label={feedLabel}
-      // 列数随宽度增加，而不是把同样几列拉宽 —— 容器去掉 1280 封顶后，
-      // 3 列在 1900 宽下每列会涨到 ~550px，那是把图放大不是多给内容。
-      className="grid grid-cols-1 items-start gap-x-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
-      style={{ gridAutoRows: `${MASONRY_GRID_ROW_HEIGHT_PX}px` }}
-      onKeyDown={handleGalleryKeyDown}
-    >
-      {visibleGenerations.map((generation, index) => {
-        return (
+  if (!isVirtualized) {
+    // 首帧 / SSR：静态网格。列数与间距要和上面那组常量逐档对齐。
+    return (
+      <section
+        ref={feedRef}
+        role="feed"
+        aria-label={feedLabel}
+        className="grid grid-cols-2 items-start gap-x-2 gap-y-6 sm:gap-x-6 xl:grid-cols-3 2xl:grid-cols-4"
+        onKeyDown={handleGalleryKeyDown}
+      >
+        {ssrGenerations.map((generation, index) => (
           <GalleryGridItem
             key={generation.id}
             generation={generation}
@@ -260,69 +291,54 @@ export function GalleryGrid({
             showVisibility={showVisibility}
             showDelete={showDelete}
             onDelete={onDelete}
-            priority={eagerIndexes.has(index)}
+            priority={index < 2}
             isLeadItem={index === 0}
           />
+        ))}
+      </section>
+    )
+  }
+
+  return (
+    <section
+      ref={feedRef}
+      role="feed"
+      aria-label={feedLabel}
+      className="relative w-full"
+      style={{ height: virtualizer.getTotalSize() }}
+      onKeyDown={handleGalleryKeyDown}
+    >
+      {virtualizer.getVirtualItems().map((virtualItem) => {
+        const generation = generations[virtualItem.index]
+        if (!generation) return null
+        return (
+          <div
+            key={virtualItem.key}
+            data-index={virtualItem.index}
+            ref={virtualizer.measureElement}
+            className="absolute top-0"
+            style={{
+              width: columnWidth,
+              left: virtualItem.lane * (columnWidth + gapX),
+              transform: `translateY(${virtualItem.start - metrics.scrollMargin}px)`,
+            }}
+          >
+            <GalleryGridItem
+              generation={generation}
+              index={virtualItem.index}
+              total={generations.length}
+              itemFallbackLabel={itemFallbackLabel}
+              showVisibility={showVisibility}
+              showDelete={showDelete}
+              onDelete={onDelete}
+              priority={virtualItem.index < columnCount}
+              isLeadItem={virtualItem.index === 0}
+            />
+          </div>
         )
       })}
-      {/* Sentinel for progressive loading */}
-      {visibleCount < generations.length && (
-        <div ref={sentinelRef} className="col-span-full h-px" />
-      )}
     </section>
   )
-}
-
-// 每个 item 一个 window resize 监听器时，滚几批之后页面上会挂着上百个 handler，
-// 一次窗口缩放就是上百轮「读 getComputedStyle + 读 getBoundingClientRect +
-// 写 gridRowEnd」的读写交错，也就是上百次强制同步布局。
-// 收成一个共享订阅：先把所有 item 量完，再统一提交 gridRowEnd，一轮缩放只剩一次回流。
-// ⚠ resize 监听不能删 —— ResizeObserver 只盯 content 自身的盒子，断点切换后
-// 浏览器还会再排一轮（滚动条出现/消失、图片重新布局），漏掉那一轮就会留下过期的
-// 跨度，表现为砌体布局重叠/空洞。下面的补量保留了原来 setTimeout(0) 的语义。
-type RowSpanMeasure = () => (() => void) | null
-
-const rowSpanMeasures = new Set<RowSpanMeasure>()
-let rowSpanSettleTimeoutId: number | null = null
-
-function flushRowSpans() {
-  // 读写分离：measure 阶段只读，commit 阶段只写，中间不交错。
-  const commits: Array<() => void> = []
-  for (const measure of rowSpanMeasures) {
-    const commit = measure()
-    if (commit) commits.push(commit)
-  }
-  for (const commit of commits) commit()
-}
-
-function handleRowSpanResize() {
-  flushRowSpans()
-  // 补一次宏任务尾量。区别是整页只排一个定时器，不是每个 item 一个。
-  if (rowSpanSettleTimeoutId !== null) {
-    window.clearTimeout(rowSpanSettleTimeoutId)
-  }
-  rowSpanSettleTimeoutId = window.setTimeout(() => {
-    rowSpanSettleTimeoutId = null
-    flushRowSpans()
-  }, 0)
-}
-
-function subscribeRowSpan(measure: RowSpanMeasure): () => void {
-  if (rowSpanMeasures.size === 0) {
-    window.addEventListener('resize', handleRowSpanResize)
-  }
-  rowSpanMeasures.add(measure)
-
-  return () => {
-    rowSpanMeasures.delete(measure)
-    if (rowSpanMeasures.size > 0) return
-
-    window.removeEventListener('resize', handleRowSpanResize)
-    if (rowSpanSettleTimeoutId !== null) {
-      window.clearTimeout(rowSpanSettleTimeoutId)
-      rowSpanSettleTimeoutId = null
-    }
-  }
 }
 
 interface GalleryGridItemProps {
@@ -348,85 +364,35 @@ const GalleryGridItem = memo(function GalleryGridItem({
   priority,
   isLeadItem,
 }: GalleryGridItemProps) {
-  const itemRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
-
-  useLayoutEffect(() => {
-    const item = itemRef.current
-    const content = contentRef.current
-    const grid = item?.parentElement
-    if (!item || !content || !grid) return
-
-    const measureRowSpan: RowSpanMeasure = () => {
-      const rowHeight = Number.parseFloat(getComputedStyle(grid).gridAutoRows)
-      if (!Number.isFinite(rowHeight) || rowHeight <= 0) return null
-
-      const contentHeight = content.getBoundingClientRect().height
-      const gridRowEnd = `span ${Math.max(
-        1,
-        Math.ceil(contentHeight / rowHeight),
-      )}`
-
-      return () => {
-        // 跨度没变就别写，免得把刚算好的布局重新标脏。
-        if (item.style.gridRowEnd === gridRowEnd) return
-        item.style.gridRowEnd = gridRowEnd
-      }
-    }
-
-    const updateRowSpan = () => {
-      measureRowSpan()?.()
-    }
-
-    updateRowSpan()
-
-    const unsubscribeResize = subscribeRowSpan(measureRowSpan)
-
-    const resizeObserver =
-      typeof ResizeObserver === 'undefined'
-        ? null
-        : new ResizeObserver(updateRowSpan)
-    resizeObserver?.observe(content)
-
-    return () => {
-      unsubscribeResize()
-      resizeObserver?.disconnect()
-    }
-  }, [])
-
   return (
-    <div ref={itemRef} className="self-start">
-      <div ref={contentRef} className="pb-6">
-        <BlurFade
-          delay={Math.min(index * 0.025, 0.2)}
-          duration={0.22}
-          offset={4}
-          blur="0px"
-          inView
-        >
-          <div
-            role="article"
-            tabIndex={0}
-            aria-posinset={index + 1}
-            aria-setsize={total}
-            aria-label={generation.prompt?.slice(0, 80) || itemFallbackLabel}
-            data-gallery-index={index}
-            className={cn(
-              'rounded-xl transition-all duration-300 hover:z-10 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none',
-              isLeadItem && 'bg-primary/6 p-1 ring-1 ring-primary/20',
-            )}
-          >
-            <ImageCard
-              generation={generation}
-              showVisibility={showVisibility}
-              showDelete={showDelete}
-              onDelete={onDelete}
-              priority={priority}
-              presentation={IMAGE_CARD_PRESENTATIONS.GALLERY}
-            />
-          </div>
-        </BlurFade>
+    <BlurFade
+      delay={Math.min(index * 0.025, 0.2)}
+      duration={0.22}
+      offset={4}
+      blur="0px"
+      inView
+    >
+      <div
+        role="article"
+        tabIndex={0}
+        aria-posinset={index + 1}
+        aria-setsize={total}
+        aria-label={generation.prompt?.slice(0, 80) || itemFallbackLabel}
+        data-gallery-index={index}
+        className={cn(
+          'rounded-xl transition-all duration-300 hover:z-10 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none',
+          isLeadItem && 'bg-primary/6 p-1 ring-1 ring-primary/20',
+        )}
+      >
+        <ImageCard
+          generation={generation}
+          showVisibility={showVisibility}
+          showDelete={showDelete}
+          onDelete={onDelete}
+          priority={priority}
+          presentation={IMAGE_CARD_PRESENTATIONS.GALLERY}
+        />
       </div>
-    </div>
+    </BlurFade>
   )
 })

@@ -11,27 +11,14 @@
 .domain-lora {
   color-scheme: light;
 
-  /* 1 · 表面梯度（白色 page / panel / overlay + 轻灰 well）·投影 */
-  --lora-page: oklch(1 0 0);
-  --lora-well: oklch(0.97 0 0);
-  --lora-panel: oklch(1 0 0);
-  --lora-overlay: oklch(1 0 0);
+  /* 1 · 表面：2026-09-03 起直接用脊柱三层（ui-defaults.md §2.2），域内不再另给白/灰。
+        遮罩与投影是材质，保留。 */
   --lora-scrim: oklch(0.145 0 0 / 0.38);
   --lora-shadow-panel:
     0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 16px rgba(0, 0, 0, 0.06);
   --lora-shadow-raise: 0 1px 3px rgba(0, 0, 0, 0.08);
   --lora-shadow-modal:
     0 2px 8px rgba(0, 0, 0, 0.08), 0 16px 48px rgba(0, 0, 0, 0.16);
-
-  /* 2 · 发丝线（与系统浅色 border 同档） */
-  --lora-hairline: oklch(0.922 0 0);
-  --lora-hairline-strong: oklch(0.84 0 0);
-
-  /* 3 · 文本与数值（数值走 Geist Mono，见组件层） */
-  --lora-ink: oklch(0.145 0 0);
-  --lora-ink-2: oklch(0.4 0 0);
-  --lora-muted: oklch(0.556 0 0);
-  --lora-faint: oklch(0.708 0 0);
 
   /* 4 · 功能语义色（仅两组·浅底可读档，效果图是唯一饱和色源） */
   --lora-ok: oklch(0.62 0.095 158);
@@ -41,32 +28,8 @@
   --lora-warn-tint: oklch(0.972 0.025 85);
   --lora-warn-line: oklch(0.88 0.055 82);
 
-  /* 5 · 主动作与交互态（与系统一致的黑底白字） */
-  --lora-primary: oklch(0 0 0);
-  --lora-primary-hi: oklch(0.2 0 0);
-  --lora-primary-fg: oklch(1 0 0);
-  --lora-ring: oklch(0.708 0 0);
-
-  /* ── 语义脊柱映射（提槽不提皮·仅在 LoRA 域内覆盖）── */
-  --background: var(--lora-page);
-  --foreground: var(--lora-ink);
-  --card: var(--lora-panel);
-  --card-foreground: var(--lora-ink);
-  --popover: var(--lora-overlay);
-  --popover-foreground: var(--lora-ink);
-  --primary: var(--lora-primary);
-  --primary-foreground: var(--lora-primary-fg);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: var(--lora-ink);
-  --muted: var(--lora-well);
-  --muted-foreground: var(--lora-muted);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: var(--lora-ink);
-  /* 错误走琥珀，不引入红 */
-  --destructive: var(--lora-warn);
-  --border: var(--lora-hairline);
-  --input: var(--lora-hairline);
-  --ring: var(--lora-ring);
+  /* 5 · 主动作 hover 提亮档：派生自脊柱 --primary，不另给黑。 */
+  --lora-primary-hi: color-mix(in oklab, var(--primary) 80%, white);
 
   /* 6 · 动效（CD 四轴之四「柔顺连续」：220–280ms 柔缓·强调空间连续）。
    *    全局 prefers-reduced-motion 块会把它降成直切，无需在此重复。 */
@@ -74,8 +37,8 @@
   --lora-motion-ease: var(--ease-standard);
 
   /* 域根表面：整个 LoRA 工作台统一为系统白底。 */
-  background: var(--lora-page);
-  color: var(--lora-ink);
+  background: var(--background);
+  color: var(--foreground);
 }
 
 /* 装配栏折叠/展开：三栏列宽在 300px ↔ 56px 之间连续滑动，而不是瞬跳。 */

@@ -17,8 +17,7 @@ import { SimpleCardManager } from '@/components/business/cards/SimpleCardManager
 
 /**
  * /cards 页面内容：复用 CardDrawerContent 的三个卡管理器，但以页面形式呈现。
- * 套用 `dark` 类切到 Krea Overlay 表面 — 卡片缩略图为主体，匹配 sidebar /
- * AssetSelectorDialog 的视觉体系（参见 CLAUDE.md「Krea Overlay surfaces」）。
+ * 浅色页面（ui-defaults.md §2.1：`.dark` 只给媒体观看面，2026-09-03 去掉整页暗色）。
  */
 export function CardsPageContent() {
   const t = useTranslations('StudioV2')
@@ -35,13 +34,13 @@ export function CardsPageContent() {
     : 'characters'
 
   return (
-    <main className="dark min-h-[calc(100svh-3rem)] bg-sidebar text-sidebar-foreground">
+    <main className="min-h-[calc(100svh-3rem)] bg-background text-foreground">
       <div className="mx-auto flex h-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6">
         <header className="space-y-2">
-          <h1 className="font-display text-3xl font-medium tracking-tight">
+          <h1 className="text-3xl font-medium tracking-tight">
             {t('cardManagement')}
           </h1>
-          <p className="font-serif text-sm leading-7 text-sidebar-foreground/70">
+          <p className="text-sm leading-7 text-muted-foreground">
             {t('cardManagementHint')}
           </p>
         </header>

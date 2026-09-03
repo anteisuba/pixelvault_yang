@@ -21,6 +21,8 @@
   --color-foreground: var(--foreground);
   --color-surface-composer: var(--surface-composer);
   --color-surface-composer-foreground: var(--surface-composer-foreground);
+  /* 浅底第三层：应用壳底，主卡浮在其上（ui-defaults.md §2.2） */
+  --color-surface-sunken: var(--surface-sunken);
   --color-node-canvas: var(--node-canvas);
   --color-node-panel: var(--node-panel);
   --color-node-panel-inner: var(--node-panel-inner);
@@ -320,7 +322,9 @@
   --secondary-foreground: oklch(20.5% 0 0);
 
   --muted: oklch(97% 0 0);
-  --muted-foreground: oklch(55.6% 0 0);
+  /* 2026-09-03 由 55.6% 压到 52%：原值在 --muted(#f5f5f5) 上只有 4.35，不到 AA。
+     现值 #696969：对白 5.49 · 对 muted(#f5f5f5) 5.04 · 对 surface-sunken(#ebebeb) 4.61。 */
+  --muted-foreground: oklch(52% 0 0);
 
   --accent: oklch(97% 0 0);
   --accent-foreground: oklch(20.5% 0 0);
@@ -337,21 +341,26 @@
   --chart-4: oklch(82.8% 0.189 84.429);
   --chart-5: oklch(76.9% 0.188 70.08);
 
+  /* ── 浅底三层（ui-defaults.md §2.2，owner 2026-09-03）────────────────
+     --background 纯白 · --muted 97% · --surface-sunken 94%。全站只有这三种浅底；
+     首页 / LoRA / 壳都 alias 到它们，域不得再造第四种。 */
+  --surface-sunken: #ebebeb; /* = oklch(94% 0 0)，写 hex 是为了下面的对比度表可复算 */
+
   /* ── 应用壳「分段浮岛」— 施工基准 docs/references/pages/app-shell.md §4 ──
-     值写 sRGB 十六进制而不是 oklch：§4 的对比度表就是在这些精确值上算的，
-     换算成 oklch 会引入舍入，验收复算时对不上。
+     壳底 2026-09-03 从冷灰 #e4e7ec 改为中性 --surface-sunken(#ebebeb)，
+     对比度已在 #ebebeb 上重算（scratchpad contrast.mjs，WCAG 2.x 公式）。
      ⚠ hover 与 active 必须反极性 —— accent 往暗走、active-surface 往亮走。
      两者同向时只有 1.1:1（算过），等于把「hover 任一项都长得像当前项」
      这个 bug 换身浅色衣服重犯一遍。 */
-  --sidebar: #e4e7ec; /* 壳底，主卡浮在它上面 */
-  --sidebar-foreground: #454c55; /* 未选中标签 7.01:1 */
-  --sidebar-subtle: #555d67; /* 段标题 11px 大写 5.38:1 */
-  --sidebar-primary: #0b0e12; /* 激活墨 / 竖条 / focus 环 15.60:1 */
+  --sidebar: var(--surface-sunken); /* 壳底，主卡浮在它上面 */
+  --sidebar-foreground: #454c55; /* 未选中标签 7.29:1 */
+  --sidebar-subtle: #555d67; /* 段标题 11px 大写 5.60:1 */
+  --sidebar-primary: #0b0e12; /* 激活墨 / 竖条 / focus 环 16.22:1 */
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: rgb(11 14 18 / 0.055); /* hover：往暗 */
   --sidebar-accent-strong: rgb(11 14 18 / 0.09); /* pressed */
   --sidebar-accent-foreground: #0b0e12;
-  /* 激活浮片。⚠ 对壳底只有 1.24:1 —— 浅壳里「面对面」物理上到不了 3:1
+  /* 激活浮片。⚠ 对壳底只有 1.19:1 —— 浅壳里「面对面」物理上到不了 3:1
      （试到 #dce1e8 也只有 1.31），所以它只做材质、不承重状态语义。
      承重的是 --sidebar-primary 的竖条与墨色跃迁。 */
   --sidebar-active-surface: #ffffff;
@@ -470,7 +479,8 @@ html:lang(ja) {
   --chart-4: oklch(62.7% 0.265 303.9);
   --chart-5: oklch(64.5% 0.246 16.439);
 
-  --sidebar: oklch(0% 0 0);
+  --surface-sunken: oklch(0% 0 0);
+  --sidebar: var(--surface-sunken);
   --sidebar-foreground: oklch(98.5% 0 0);
   --sidebar-primary: oklch(48.8% 0.243 264.376);
   --sidebar-primary-foreground: oklch(98.5% 0 0);

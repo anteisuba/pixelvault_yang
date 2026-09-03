@@ -31,16 +31,16 @@ body.home-v4-locked {
      native scrollbar and form controls render dark on this white page. */
   color-scheme: light;
 
-  --paper: #ffffff;
-  --ink: #0a0a0a;
-  --dim: #616167;
-  --line: #e6e6e2;
-  /* Not in the SPEC's :root — it uses `--line-2` in fourteen places and never
-     declares it, so every one of them fell back to nothing (the page dots were
-     invisible until they went active). One step darker than `--line`. */
-  --line-2: #d3d3ce;
-  --panel: #f4f4f1;
-  --panel2: #ebebe7;
+  /* 2026-09-03 并入全站浅底三层（ui-defaults.md §2.2）：首页不再自带一套暖白。
+     这些名字保留只是因为下面 200 多处在用；值一律 alias 脊柱。 */
+  --paper: var(--background);
+  --ink: var(--foreground);
+  --dim: var(--muted-foreground);
+  --line: var(--border);
+  /* 比 --line 深一档，给翻页点阵和分隔用；派生自脊柱，不另给灰。 */
+  --line-2: color-mix(in oklab, var(--border) 60%, var(--muted-foreground));
+  --panel: var(--muted);
+  --panel2: var(--surface-sunken);
 
   /* ⚠ `var(--cjk)` 必须排在 monospace 之前：IBM Plex Mono 一个汉字字形都没有，
      少了这一段，凡是走 `--mono` 的中文都掉进系统 monospace 的宋体回落 ——

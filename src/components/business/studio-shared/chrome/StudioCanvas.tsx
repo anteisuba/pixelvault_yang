@@ -20,6 +20,7 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { promptCreatePath } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { fetchGenerationByIdAPI } from '@/lib/api-client'
@@ -68,6 +69,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
     isGenerating,
     elapsedSeconds,
     retryVideoQueueItem,
+    cancelVideoQueueItem,
   } = useStudioGen()
   const tAudioFeedback = useTranslations('audioFeedback')
   const tEdit = useTranslations('StudioImageEdit')
@@ -336,6 +338,31 @@ export const StudioCanvas = memo(function StudioCanvas() {
     ? focusedQueueItemId
     : null
 
+  /**
+   * 结果到达后把结果卡滚到舞台顶部（**每轮一次**，需求卡交互表最后一组）。
+   *
+   * ⚠ 只在移动端做：桌面舞台本来就在视口里，桌面滚一次是平白把人挪走。
+   * ⚠ 判据是「这一轮的结果 id 变了且不在生成中」，用 ref 记住已经滚过的那一个 ——
+   *   放在依赖里让 effect 每次 render 都跑会变成「一直往回滚」，用户手动往下翻
+   *   看第二张时会被拽回去。
+   */
+  const isMobile = useIsMobile()
+  const resultAnchorRef = useRef<HTMLDivElement>(null)
+  const scrolledResultIdRef = useRef<string | null>(null)
+  const resultId =
+    lastGeneration?.id ??
+    activeRun?.items.find((item) => item.generation)?.generation?.id ??
+    null
+  useEffect(() => {
+    if (!isMobile || isGenerating || !resultId) return
+    if (scrolledResultIdRef.current === resultId) return
+    scrolledResultIdRef.current = resultId
+    resultAnchorRef.current?.scrollIntoView({
+      block: 'start',
+      behavior: 'smooth',
+    })
+  }, [isMobile, isGenerating, resultId])
+
   const handleEdit = useCallback((generation: GenerationRecord) => {
     setEditTarget({ url: generation.url, generationId: generation.id })
   }, [])
@@ -386,6 +413,20 @@ export const StudioCanvas = memo(function StudioCanvas() {
         />
       )}
 
+      {/* 视频队列 —— **移动端在舞台顶部**（整宽卡片列）。桌面那条横滑留在
+          结果下面（见文件末尾那处）：手机上横滑读不了，第二条起就在屏幕外，
+          而「排了几条 / 各排到哪了」正是等 2–5 分钟时唯一要看的东西。 */}
+      {isMobile && videoQueueItems.length > 0 ? (
+        <StudioVideoQueueStrip
+          variant="cards"
+          items={videoQueueItems}
+          focusedItemId={activeFocusedQueueItemId}
+          onFocus={setFocusedQueueItemId}
+          onRetry={(itemId) => void retryVideoQueueItem(itemId)}
+          onCancel={cancelVideoQueueItem}
+        />
+      ) : null}
+
       {/* Content layer = fluid: the canvas fills the full padded width so
           the empty-state guide card and the Compare/Variant grids use the
           whole screen instead of floating in a narrow centred column. The
@@ -394,6 +435,8 @@ export const StudioCanvas = memo(function StudioCanvas() {
           without overflowing the viewport vertically, so it stays framed
           and centred rather than stranded in full-bleed dead space. */}
       <div
+        ref={resultAnchorRef}
+        data-testid="studio-canvas-content"
         className={cn(
           'w-full',
           editTarget ? 'flex min-h-0 flex-1 flex-col' : 'mx-auto',
@@ -470,7 +513,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
 
       {/* 视频队列条 —— 在内容层**外面**：它属于舞台底部的常驻一条，
           与结果并存（编辑态没有视频，所以不必再加 editTarget 守卫）。 */}
-      {videoQueueItems.length > 0 ? (
+      {!isMobile && videoQueueItems.length > 0 ? (
         <StudioVideoQueueStrip
           items={videoQueueItems}
           focusedItemId={activeFocusedQueueItemId}

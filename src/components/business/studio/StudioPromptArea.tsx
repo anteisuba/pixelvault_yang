@@ -10,7 +10,6 @@ import {
   type ClipboardEvent,
   type DragEvent,
 } from 'react'
-import { toast } from 'sonner'
 import {
   ChevronDown,
   FileAudio2,
@@ -21,63 +20,30 @@ import {
   X,
 } from 'lucide-react'
 import * as Toolbar from '@radix-ui/react-toolbar'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import {
   STUDIO_PROMPT_TEXTAREA_ID,
   STUDIO_REFERENCE_DRAG_TYPE,
 } from '@/constants/studio'
-import {
-  getWorkflowById,
-  WORKFLOW_IDS,
-  WORKFLOW_MEDIA_GROUPS,
-} from '@/constants/workflows'
+import { WORKFLOW_IDS } from '@/constants/workflows'
 import {
   SAMPLE_PROMPT_KEYS,
   SAMPLE_PROMPT_STORAGE_KEY,
 } from '@/constants/sample-prompts'
-import { CARD_RECIPE } from '@/constants/cards/card-types'
-import {
-  AUDIO_KIND,
-  TTS_ESTIMATED_CHARS_PER_MINUTE,
-  TTS_MIN_PREVIEW_MINUTES,
-  TTS_PROMPT_WARNING_RATIO,
-} from '@/constants/audio-options'
-import { resolveAudioTextLimit } from '@/constants/models/audio'
+import { AUDIO_KIND } from '@/constants/audio-options'
 import {
   STUDIO_TOOL_PANEL_NAMES,
   useStudioForm,
   useStudioData,
-  useStudioGen,
 } from '@/contexts/studio-context'
-import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
-import { useVideoModelOptions } from '@/hooks/use-video-model-options'
-import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
-import { getModelById, modelSupportsLora } from '@/constants/models'
-import { VIDEO_UNIT_PRICE_BASE_RESOLUTION } from '@/constants/models/unit-prices'
-import { isVideoResolution } from '@/constants/video-options'
-import {
-  getVideoModelParameterOptions,
-  getVideoModelSendContract,
-} from '@/constants/video-model-send-plan'
-import { PLATFORM_GENERATION_GUARD, VIDEO_GENERATION } from '@/constants/config'
-import type { AspectRatio } from '@/constants/config'
-import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
-import { getNodeModeForModel } from '@/constants/video-node-modes'
-import { useStudioVideoMode } from '@/hooks/use-studio-video-mode'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
+import { modelSupportsLora } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
-import {
-  getReferenceCapability,
-  getReferenceCapabilityMax,
-} from '@/constants/reference-image-capabilities'
-import { AUDIO_PACE_SPEED } from '@/constants/voice-cards'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
-import { getStylePresetById } from '@/constants/style-presets'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
@@ -96,10 +62,7 @@ import { StudioVideoModeToggle } from '@/components/business/studio/StudioVideoM
 import { StudioSfxSpecPopover } from '@/components/business/studio/StudioSfxSpecPopover'
 import { StudioMusicSpecPopover } from '@/components/business/studio/StudioMusicSpecPopover'
 import { StudioAudioSpeechParams } from '@/components/business/studio/StudioAudioSpeechParams'
-import {
-  StudioCostPreview,
-  type CostPreviewBasis,
-} from '@/components/business/studio/StudioCostPreview'
+import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioAudioKindSwitcher } from '@/components/business/studio/StudioAudioKindSwitcher'
 import { StudioOperatorChangeRail } from '@/components/business/studio/assistant-operator'
 import {
@@ -108,9 +71,7 @@ import {
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
-import { composeCharacterInjection } from '@/lib/character-card-injection'
 import { hasPlaceholders } from '@/lib/prompt-placeholders'
-import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
 import type {
   InspirationRecord,
   OutputType as RecipeOutputType,
@@ -152,12 +113,8 @@ const STUDIO_FLOATING_SURFACE_SELECTOR = [
  */
 export const StudioPromptArea = memo(function StudioPromptArea() {
   const { state, dispatch } = useStudioForm()
-  const { styles, characters, backgrounds, imageUpload, projects } =
-    useStudioData()
-  const { isGenerating, generate, elapsedSeconds, canQueueMoreVideo } =
-    useStudioGen()
+  const { styles, imageUpload } = useStudioData()
   const t = useTranslations('StudioV2')
-  const tV3 = useTranslations('StudioV3')
   const tForm = useTranslations('StudioForm')
   const tPromptArea = useTranslations('StudioPromptArea')
   const tImageChip = useTranslations('ImageChip')
@@ -167,7 +124,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tScript = useTranslations('VideoScript')
   const tVideoAudio = useTranslations('StudioVideoAudio')
   const tVideo = useTranslations('VideoGenerate')
-  const locale = useLocale()
   /**
    * 助手「预填好的生成键」（owner 拍板：**钱是唯一硬闸**，助手只能把参数铺好，
    * 扣扳机的永远是用户）。只读一个布尔 —— 价钱由上面那行既有的
@@ -189,128 +145,37 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const selectedStyleCard = styles.activeCard
   const isAudioMode = state.outputType === 'audio'
   const isVideoMode = state.outputType === 'video'
-  const voiceCards = useVoiceCards({ enabled: isAudioMode })
-  const { selectedModel: imageModel, modelOptions: imageModelOptions } =
-    useImageModelOptions()
-  const { selectedModel: audioModel, modelOptions: audioModelOptions } =
-    useAudioModelOptions()
-  const { selectedModel: videoModel, modelOptions: videoModelOptions } =
-    useVideoModelOptions(state.selectedOptionId ?? '')
-  const selectedModel = isAudioMode
-    ? audioModel
-    : isVideoMode
-      ? videoModel
-      : imageModel
 
   /**
-   * 视频选择器只列**当前用途**的端点 —— 与 `StudioVideoModeToggle` 配对：
-   * 用途拆到工具条上之后，第三栏就只剩渠道（Seedance 2.0 Fast 从 6 行降到 3 行）。
-   * 画布用的是同一条路数（`VideoComposer` 的 `filterModelByMode`）。
-   *
-   * ⚠ 必须 memo：谓词的引用每次 render 变一次的话，选择器拿到的 `options` 数组
-   * 身份也跟着变 —— 那正是 `BaseModelPickerPanel` 注释里记的「视图被重置回第一层」
-   * 那个坑。
-   * ⚠ 非视频模态传 `undefined` 而不是恒真谓词：恒真谓词一样会每帧换引用。
-   * ⚠ 用途取自 `useStudioVideoMode`（与工具条上的分段控件同一个源）。**没选模型
-   *   时它落在 `DEFAULT_VIDEO_NODE_MODE`，不能退化成「不过滤」** —— 首次打开
-   *   选择器恰恰是没有选中项的那一刻，退化就等于这个功能在最该生效的场景里不
-   *   生效。实测过一版正是如此：闸门全绿，真机第三栏照旧 6 行。
+   * 「这一枪能不能打、打出去发什么」整块住在 `useStudioGenerateAction`
+   * （2026-09-03 移动端切片抽出）。**移动端底部 composer 的方形生成键调的是同一个
+   * hook** —— 禁用判据、toast 文案、请求组装三件事只有一份实现。
+   * ⚠ 该 hook 内含 `REQUEST_GENERATE` 的执行端副作用，所以本组件与
+   * `StudioMobileComposer` 必须二选一渲染（见 `StudioWorkbenchLayout`）。
    */
-  const { mode: videoMode } = useStudioVideoMode()
-  const filterVideoModelByMode = useMemo(
-    () =>
-      isVideoMode
-        ? (option: StudioModelOption) =>
-            getNodeModeForModel(option.modelId, option.adapterType) ===
-            videoMode
-        : undefined,
-    [isVideoMode, videoMode],
-  )
-  const trimmedPrompt = state.prompt.trim()
-  const hasPromptForImage = Boolean(trimmedPrompt)
-  const audioPromptLength = isAudioMode ? trimmedPrompt.length : 0
-  // Per-model, not per-app: the ceiling belongs to whichever vendor this model
-  // routes to, and most of them publish none (then only the payload guard
-  // applies). Mirrors the server check in generate-audio.service.ts.
-  const audioTextLimit = resolveAudioTextLimit(
-    isAudioMode ? getModelById(selectedModel?.modelId ?? '') : undefined,
-  )
-  const isAudioPromptOverLimit =
-    isAudioMode && audioPromptLength > audioTextLimit.enforced
-  const isAudioPromptNearLimit =
-    isAudioMode &&
-    audioPromptLength >= audioTextLimit.enforced * TTS_PROMPT_WARNING_RATIO
-  // Image free-prompt cap mirrors StudioGenerateSchema's
-  // freePrompt.max(FREE_PROMPT_MAX_LENGTH); gate before the request 400s with
-  // a generic VALIDATION_ERROR the user can't act on.
-  const isImageMode = !isAudioMode && !isVideoMode
-  const imagePromptLength = isImageMode ? trimmedPrompt.length : 0
-  /**
-   * 图片提示词的上限 —— **只认模型自己声明的那个数**（owner 2026-08-24）。
-   *
-   * ⚠ 这里以前是 `?? CARD_RECIPE.FREE_PROMPT_MAX_LENGTH`，也就是模型没声明就
-   * 兜到 **2000**。那个 2000 的主人是**卡片配方**（`CreateCardRecipeSchema` 里
-   * 「动作 / 姿势」那个输入框），被借来当了 quick 模式的默认上限 —— 于是一串
-   * 正常的风格标签就能顶到 `2932/2000` 并把生成按钮锁死，而真正的请求边界
-   * （`StudioGenerateSchema` 的 `FREE_PROMPT_ABSOLUTE_MAX_LENGTH`）是 **32000**。
-   * 常量注释本来就写着「per-model gates decide the real quick-mode cap」。
-   *
-   * ⭐ 与音频那两层同构（`resolveAudioTextLimit`）：**declared** 是厂商声明的
-   * 上限，没声明就没有 —— 给未知模型编一个保守数正是音频侧早就修掉的病
-   * （那边的原话：refusing to invent a ceiling is the point）。超出请求边界时
-   * 由服务端报错，走既有的错误对话框。
-   *
-   * card 模式不变：那条 freePrompt 就是卡片配方自己的字段，2000 是它的数。
-   */
-  const imagePromptMaxChars = !isImageMode
-    ? undefined
-    : state.workflowMode === 'quick'
-      ? getModelById(selectedModel?.modelId ?? '')?.maxPromptChars
-      : CARD_RECIPE.FREE_PROMPT_MAX_LENGTH
-  const isImagePromptOverLimit =
-    imagePromptMaxChars !== undefined && imagePromptLength > imagePromptMaxChars
-  const audioEstimatedMinutesLabel = useMemo(() => {
-    const estimatedMinutes =
-      audioPromptLength > 0
-        ? Math.max(
-            TTS_MIN_PREVIEW_MINUTES,
-            audioPromptLength / TTS_ESTIMATED_CHARS_PER_MINUTE,
-          )
-        : 0
-
-    return new Intl.NumberFormat(locale, {
-      maximumFractionDigits: 1,
-      minimumFractionDigits:
-        estimatedMinutes > 0 && estimatedMinutes < 1 ? 1 : 0,
-    }).format(estimatedMinutes)
-  }, [audioPromptLength, locale])
-  // No model → no vendor → no known ceiling; a model whose vendor publishes no
-  // limit gets a plain character count. Printing the payload guard as a
-  // denominator would read as "you may write 40,000 characters", which is a
-  // promise nobody verified.
-  const audioPromptMeta = !selectedModel
-    ? tPromptArea('audioPromptMetaNoModel', {
-        current: audioPromptLength,
-        minutes: audioEstimatedMinutesLabel,
-      })
-    : audioTextLimit.declared !== undefined
-      ? tPromptArea('audioPromptMeta', {
-          current: audioPromptLength,
-          max: audioTextLimit.declared,
-          minutes: audioEstimatedMinutesLabel,
-          credits: selectedModel.requestCount ?? 1,
-        })
-      : tPromptArea('audioPromptMetaNoLimit', {
-          current: audioPromptLength,
-          minutes: audioEstimatedMinutesLabel,
-          credits: selectedModel.requestCount ?? 1,
-        })
-  type SelectedModelOption = NonNullable<typeof selectedModel>
-  const modelOptions = isAudioMode
-    ? audioModelOptions
-    : isVideoMode
-      ? videoModelOptions
-      : imageModelOptions
+  const {
+    selectedModel,
+    modelOptions,
+    runModels,
+    runModelIds,
+    filterVideoModelByMode,
+    handleSelectSingleModel,
+    handleToggleRunModel,
+    handleRemoveRunModel,
+    isImageMode,
+    canGenerate,
+    blockedReason,
+    handleGenerate,
+    isGenerating,
+    elapsedSeconds,
+    imagePromptLength,
+    imagePromptMaxChars,
+    isImagePromptOverLimit,
+    isAudioPromptOverLimit,
+    isAudioPromptNearLimit,
+    audioPromptMeta,
+    videoCostBasis,
+  } = useStudioGenerateAction()
 
   const getRecipePrompt = useCallback(
     (recipe: RecipeRecord) => recipe.compiledPrompt.trim(),
@@ -465,144 +330,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     [tModels],
   )
 
-  const selectedCharId =
-    characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
-
-  // ── canGenerate ────────────────────────────────────────────────
-  // Video / audio always use the quick-picked model (no style-card routing).
-  const usesStyleCardForModel =
-    !isVideoMode && !isAudioMode && state.workflowMode === 'card'
-  const currentModelId = usesStyleCardForModel
-    ? selectedStyleCard?.modelId
-    : selectedModel?.modelId
-  const modelRequiresRef = currentModelId
-    ? (getModelById(currentModelId)?.requiresReferenceImage ?? false)
-    : false
-  const hasRefImage = imageUpload.referenceImages.length > 0
-  const currentAdapterType = usesStyleCardForModel
-    ? (selectedStyleCard?.adapterType as AI_ADAPTER_TYPES | undefined)
-    : selectedModel?.adapterType
-  // Surface-aware capability lookup: video mode reads from the video pool
-  // (Veo 3.1 exposes 3, others 1); image stays on the image pool.
-  const currentMaxReferenceImages =
-    currentAdapterType && currentModelId
-      ? getReferenceCapabilityMax(
-          getReferenceCapability(
-            isVideoMode ? 'video' : 'image',
-            currentAdapterType,
-            currentModelId,
-          ),
-        )
-      : 1
-  const modelRejectsRefImages =
-    hasRefImage && !isAudioMode && currentMaxReferenceImages === 0
-  // A half-filled reference (audio without transcript) would 400 at the API
-  // boundary; gate the generate button before it gets there.
-  const isAudioReferenceIncomplete =
-    isAudioMode &&
-    Boolean(state.audioReferenceUrl) &&
-    state.audioReferenceText.trim().length === 0
-  /**
-   * 台账 A ②（owner 2026-08-29 拍板「加，按选中线路的契约判」）：挂了音频参考
-   * 但一张图/一段视频都没挂时，有些线路会 400。
-   *
-   * ⚠ **判据按线路走，不按模型走** —— 同一个 Seedance 2.5，火山/BytePlus 那条
-   * 允许纯音频参考（`audioRequiresVisual: false`），fal 那条不允许。所以这里读
-   * `getVideoModelSendContract(modelId, adapterType)`，与服务端
-   * `video-generation-validation.service.ts` 的同一份契约。
-   *
-   * ⚠ 服务端那道 400 在派发和扣费**之前**，所以不加这道闸也不会花钱 —— 加它是
-   * 为了让用户在点「生成」**之前**就知道差什么，而不是等一次往返换回一句英文。
-   * 画布那边同款（`sendPreview.blockers` 的 `audio-requires-visual`）。
-   */
-  const videoAudioNeedsVisual =
-    isVideoMode &&
-    state.videoAudioRefs.length > 0 &&
-    !hasRefImage &&
-    Boolean(
-      selectedModel &&
-      getVideoModelSendContract(
-        selectedModel.modelId,
-        selectedModel.adapterType as AI_ADAPTER_TYPES,
-      ).slots.audioRequiresVisual,
-    )
-  const canGenerate =
-    (usesStyleCardForModel
-      ? !!styles.activeCardId && !!selectedStyleCard?.modelId
-      : !!selectedModel?.modelId &&
-        (isAudioMode || isVideoMode ? !!trimmedPrompt : hasPromptForImage)) &&
-    (!modelRequiresRef || hasRefImage) &&
-    !modelRejectsRefImages &&
-    !isAudioPromptOverLimit &&
-    !isImagePromptOverLimit &&
-    !isAudioReferenceIncomplete &&
-    !videoAudioNeedsVisual
-
-  // ── Reset selectedOptionId when outputType changes ─────────────
-  // image/video/audio each have their own model pools; carrying a stale
-  // image model id into audio mode causes UNSUPPORTED_MODEL on generate.
-  // If the current selection doesn't exist in the active mode's options,
-  // clear it so the UI / backend pick a sensible default.
-  const prevOutputTypeRef = useRef(state.outputType)
-  useEffect(() => {
-    if (prevOutputTypeRef.current !== state.outputType) {
-      prevOutputTypeRef.current = state.outputType
-      const stillValid =
-        state.selectedOptionId &&
-        modelOptions.some((o) => o.optionId === state.selectedOptionId)
-      if (!stillValid) {
-        // Prefer the first available option in the new mode, or clear.
-        const fallback = modelOptions.find(
-          (o) => o.sourceType === 'saved' || o.freeTier,
-        )
-        dispatch({
-          type: 'SET_OPTION_ID',
-          payload: fallback?.optionId ?? null,
-        })
-      }
-    }
-  }, [state.outputType, state.selectedOptionId, modelOptions, dispatch])
-
-  // ── Reset advancedParams when adapter changes ─────────────────
-  const prevAdapterRef = useRef(selectedStyleCard?.adapterType)
-  useEffect(() => {
-    const currentAdapter = selectedStyleCard?.adapterType
-    if (
-      prevAdapterRef.current !== undefined &&
-      currentAdapter !== undefined &&
-      prevAdapterRef.current !== currentAdapter
-    ) {
-      dispatch({ type: 'RESET_ADVANCED_PARAMS' })
-    }
-    prevAdapterRef.current = currentAdapter
-  }, [selectedStyleCard?.adapterType, dispatch])
-
-  // ── Style preset prompt composition ────────────────────────────
-  const activePreset = useMemo(
-    () => getStylePresetById(state.stylePresetId),
-    [state.stylePresetId],
-  )
-
-  const selectedVoiceCard = useMemo(
-    () => (state.voiceCardId ? voiceCards.findCard(state.voiceCardId) : null),
-    [state.voiceCardId, voiceCards],
-  )
-
-  const audioPronunciationDictionary = useMemo(
-    () => ({
-      ...(selectedVoiceCard?.pronunciationDictionary ?? {}),
-      ...state.pronunciationDictionary,
-    }),
-    [selectedVoiceCard?.pronunciationDictionary, state.pronunciationDictionary],
-  )
-
-  const audioSpeed = useMemo(() => {
-    if (state.audioPace in AUDIO_PACE_SPEED) {
-      return AUDIO_PACE_SPEED[state.audioPace as keyof typeof AUDIO_PACE_SPEED]
-    }
-
-    return undefined
-  }, [state.audioPace])
   const composerContainerRef = useRef<HTMLDivElement>(null)
   const hasOpenToolPanel = STUDIO_TOOL_PANEL_NAMES.some(
     (panel) => state.panels[panel],
@@ -649,683 +376,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       document.removeEventListener('pointerdown', handleDocumentPointerDown)
     }
   }, [dispatch, hasOpenToolPanel])
-
-  /** Prepend style preset prefix to user prompt */
-  const composePrompt = useCallback(
-    (userPrompt: string): string | undefined => {
-      const trimmed = userPrompt.trim()
-      if (!activePreset || !trimmed) return trimmed || undefined
-      return `${activePreset.promptPrefix} ${trimmed}`
-    },
-    [activePreset],
-  )
-
-  /** Merge style preset negative prompt into advancedParams */
-  const composeAdvancedParams = useCallback(
-    (negativePrompt?: string) => {
-      const params = { ...state.advancedParams }
-      const negativePrompts = [
-        params.negativePrompt,
-        activePreset?.negativePrompt,
-        negativePrompt,
-      ]
-        .map((prompt) => prompt?.trim())
-        .filter((prompt): prompt is string => !!prompt)
-
-      if (negativePrompts.length > 0) {
-        params.negativePrompt = negativePrompts.join(', ')
-      }
-      return Object.keys(params).length > 0 ? params : undefined
-    },
-    [state.advancedParams, activePreset],
-  )
-
-  // ── Generate handler ──────────────────────────────────────────
-  // ── Video input builder ──────────────────────────────────────
-  const buildVideoInput = useCallback(() => {
-    if (!selectedModel) return null
-    // Video reference capacity is per-model: Veo 3.1 accepts up to 3 subject
-    // references, everything else takes the single i2v starting frame.
-    const videoCap = getReferenceCapability(
-      'video',
-      selectedModel.adapterType as AI_ADAPTER_TYPES,
-      selectedModel.modelId,
-    )
-    const videoMax = getReferenceCapabilityMax(videoCap)
-    const refs = imageUpload.referenceImages.slice(0, videoMax)
-    const firstRef = refs[0]
-    // 台账 A：音频参考的 URL 清单。面板已按选中端点的槽位上限挡过，这里不再裁。
-    const videoAudioUrls = state.videoAudioRefs.map((ref) => ref.url)
-
-    // When workflowMode='card' with character cards applied, prepend character prompt.
-    let finalPrompt = composePrompt(state.prompt) ?? ''
-    const appliedCharacterIds: string[] = []
-    if (
-      state.workflowMode === 'card' &&
-      characters.activeCards.length > 0 &&
-      finalPrompt
-    ) {
-      const charPrompts = characters.activeCards
-        .map((c) => c.characterPrompt?.trim())
-        .filter((p): p is string => !!p)
-      if (charPrompts.length > 0) {
-        const base =
-          charPrompts.length === 1
-            ? charPrompts[0]
-            : charPrompts
-                .map(
-                  (p, i) =>
-                    `[Character ${i + 1}: ${characters.activeCards[i].name}]\n${p}`,
-                )
-                .join('\n\n')
-        finalPrompt = `${base}\n\n${finalPrompt}`
-        appliedCharacterIds.push(...characters.activeCards.map((c) => c.id))
-      }
-    }
-    const selectedWorkflow = getWorkflowById(state.selectedWorkflowId)
-    const videoWorkflowId =
-      selectedWorkflow?.mediaGroup === WORKFLOW_MEDIA_GROUPS.VIDEO
-        ? selectedWorkflow.id
-        : undefined
-
-    // ⚠ 档位按当前模型夹取，**夹在这里而不是只夹在面板里**：面板（
-    // `StudioVideoParams`）可能一次都没被打开过，而残留值来自「切模型」——
-    // 先在支持 1080p 的模型上选了 1080p，再切到只到 720p 的
-    // `SEEDANCE_25_REFERENCE`，state 里那个 1080p 原样发出去就是 400。这里是
-    // 这两个值离开客户端的唯一出口，夹在出口才挡得住所有来路。
-    //   · duration —— 落到最接近的合法档；契约不支持这个参数时发 `'auto'`
-    //     （载荷里 duration 必填，而 `'auto'` 的语义正是「交给模型定」）
-    //   · resolution —— 直接省略（本来就可空），让模型走自己的默认档，
-    //     比擅自换一个用户没选过的档诚实
-    const { durations: allowedDurations, resolutions: allowedResolutions } =
-      getVideoModelParameterOptions(
-        selectedModel.modelId,
-        selectedModel.adapterType,
-      )
-    const duration: number | 'auto' =
-      allowedDurations.length === 0
-        ? 'auto'
-        : allowedDurations.includes(state.videoDuration)
-          ? state.videoDuration
-          : allowedDurations.reduce((closest, candidate) =>
-              Math.abs(candidate - state.videoDuration) <
-              Math.abs(closest - state.videoDuration)
-                ? candidate
-                : closest,
-            )
-    const resolution =
-      state.videoResolution &&
-      allowedResolutions.includes(state.videoResolution)
-        ? state.videoResolution
-        : undefined
-
-    return {
-      prompt: finalPrompt,
-      modelId: selectedModel.modelId,
-      apiKeyId: selectedModel.keyId,
-      aspectRatio: state.aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
-      duration,
-      referenceImage: firstRef,
-      // Only emit the array form when the model genuinely takes multiple —
-      // single-image i2v models keep their existing payload shape so we
-      // don't accidentally send unused fields to fal.
-      ...(videoMax > 1 && refs.length > 0 ? { referenceImages: refs } : {}),
-      negativePrompt: state.advancedParams.negativePrompt ?? undefined,
-      resolution: resolution as '480p' | '540p' | '720p' | '1080p' | undefined,
-      ...(videoWorkflowId ? { workflowId: videoWorkflowId } : {}),
-      characterCardIds:
-        appliedCharacterIds.length > 0 ? appliedCharacterIds : undefined,
-      /**
-       * 台账 A（owner 2026-08-29 拍板）—— **真正的断点就是这两行**。
-       *
-       * 只加「音频」面板而不改这里等于白做：schema / service / worker 三层早就
-       * 收这两个字段，是 `buildVideoInput` 从来不填它们，所以工作台这条路一直
-       * 做不出带指定音色的对白视频。
-       *
-       * ⚠ 两个字段都要送：`audioUrls` 是发给 provider 的音频清单，
-       * `audioBindings` 只多带一个 `characterName` —— worker 据此生成
-       * `{Name} (@AudioN)` 提示词 token（`workers/execution/src/index.ts`）。
-       * 只送前者，多角色对白片里模型拿不到「谁在说话」。
-       * ⚠ 容量不在这里裁：服务端按选中端点的契约校验（超槽 400），前端在面板
-       * 里就按同一份契约挡住了 —— 这里再裁一刀会让两处的数悄悄分叉。
-       */
-      /**
-       * 原生出声（台账 A「顺带」）。`null` = 用户没设过 → **不发这个字段**，最终
-       * 值落到模型目录的 `videoDefaults.generateAudio`（服务端原样透传、worker 兜
-       * 底）。发一个 `false` 上去与「没设过」在目录默认为 true 的模型上结果相反，
-       * 所以这里必须区分三态，不能 `?? false`。
-       */
-      ...(state.videoGenerateAudio === null
-        ? {}
-        : { generateAudio: state.videoGenerateAudio }),
-      ...(videoAudioUrls.length > 0
-        ? {
-            audioUrls: videoAudioUrls,
-            audioBindings: state.videoAudioRefs.map((ref) => ({
-              url: ref.url,
-              ...(ref.ownerName ? { characterName: ref.ownerName } : {}),
-            })),
-          }
-        : {}),
-    }
-  }, [
-    selectedModel,
-    state.selectedWorkflowId,
-    state.prompt,
-    state.aspectRatio,
-    state.videoDuration,
-    state.videoResolution,
-    state.advancedParams.negativePrompt,
-    state.videoAudioRefs,
-    state.videoGenerateAudio,
-    state.workflowMode,
-    characters.activeCards,
-    composePrompt,
-    imageUpload.referenceImages,
-  ])
-
-  /**
-   * 这一轮要跑的模型名单 = 主模型 + 额外模型，按名单顺序去重。
-   * 额外模型里可能有已经不在当前 options 里的（切模态、key 被删），过滤掉 ——
-   * 名单上留一条点不动也发不出的行，比少一行更糟。
-   */
-  const runModels = useMemo(() => {
-    const byId = new Map(imageModelOptions.map((o) => [o.optionId, o]))
-    const ids = [
-      ...(state.selectedOptionId ? [state.selectedOptionId] : []),
-      ...state.extraModelOptionIds,
-    ]
-    const seen = new Set<string>()
-    return ids
-      .filter((id) => (seen.has(id) ? false : (seen.add(id), true)))
-      .map((id) => byId.get(id))
-      .filter((o): o is NonNullable<typeof o> => Boolean(o))
-  }, [imageModelOptions, state.selectedOptionId, state.extraModelOptionIds])
-
-  const runModelIds = useMemo(
-    () => new Set(runModels.map((o) => o.optionId)),
-    [runModels],
-  )
-
-  /**
-   * 视频档的成本预览基准。
-   *
-   * ⚠ 必须按**真正会发出去的那两个值**算，不是 state 里的原始值 —— 切模型后
-   * 残留的时长/分辨率会在出口被夹（见 `buildVideoInput` 的同名逻辑），按未夹的
-   * 值报价就是报一个用户根本不会被收的数。两处的夹法写成同一个表达式，好让
-   * 它们不一致时一眼看得出来。
-   *
-   * 契约不支持 duration（`durations` 为空 → 出口发 `'auto'`）时返回 null：
-   * 长度未知就算不出总价，隐藏比编一个数诚实。
-   */
-  const videoCostBasis = useMemo<CostPreviewBasis | null>(() => {
-    if (!isVideoMode || !selectedModel) return null
-
-    const { durations, resolutions } = getVideoModelParameterOptions(
-      selectedModel.modelId,
-      selectedModel.adapterType,
-    )
-    if (durations.length === 0) return null
-
-    const durationSeconds = durations.includes(state.videoDuration)
-      ? state.videoDuration
-      : durations.reduce((closest, candidate) =>
-          Math.abs(candidate - state.videoDuration) <
-          Math.abs(closest - state.videoDuration)
-            ? candidate
-            : closest,
-        )
-
-    // 用户没选档（或选的档被夹掉）时出口发的是 `undefined` —— 服务端走模型
-    // 自己的 `videoDefaults.resolution`，所以报价也要按那一档算。
-    const picked =
-      state.videoResolution && resolutions.includes(state.videoResolution)
-        ? state.videoResolution
-        : (getModelById(selectedModel.modelId)?.videoDefaults?.resolution ??
-          VIDEO_UNIT_PRICE_BASE_RESOLUTION)
-
-    return {
-      kind: 'video',
-      durationSeconds,
-      resolution: isVideoResolution(picked)
-        ? picked
-        : VIDEO_UNIT_PRICE_BASE_RESOLUTION,
-    }
-  }, [isVideoMode, selectedModel, state.videoDuration, state.videoResolution])
-
-  /**
-   * 视频 / 音频的单选换型号。除了 `SET_OPTION_ID`，还要**把规格收窄到新型号真
-   * 支持的档位** —— 否则从 30 秒的型号切到 10 秒的型号，时长仍是 24，服务端按
-   * `supportedDurations` 精确比对，「什么都没动只换了个模型」就 400。
-   * 收窄规则与判据在 `clampVideoSpecToModel`（纯函数，有单测）。
-   */
-  const handleSelectSingleModel = useCallback(
-    (option: SelectedModelOption) => {
-      dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
-      if (!isVideoMode) return
-
-      const next = getVideoModelParameterOptions(
-        option.modelId,
-        option.adapterType,
-      )
-      const patch = clampVideoSpecToModel({
-        durations: next.durations,
-        resolutions: next.resolutions,
-        aspectRatios: next.aspectRatios,
-        current: {
-          duration: state.videoDuration,
-          resolution: state.videoResolution,
-          aspectRatio: state.aspectRatio,
-        },
-        fallbackAspectRatio: VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
-      })
-      if (patch.duration !== undefined) {
-        dispatch({ type: 'SET_VIDEO_DURATION', payload: patch.duration })
-      }
-      if (patch.resolution !== undefined) {
-        dispatch({ type: 'SET_VIDEO_RESOLUTION', payload: patch.resolution })
-      }
-      if (patch.aspectRatio !== undefined) {
-        dispatch({
-          type: 'SET_ASPECT_RATIO',
-          payload: patch.aspectRatio as AspectRatio,
-        })
-      }
-    },
-    [
-      dispatch,
-      isVideoMode,
-      state.aspectRatio,
-      state.videoDuration,
-      state.videoResolution,
-    ],
-  )
-
-  const handleToggleRunModel = useCallback(
-    (option: SelectedModelOption) => {
-      // 还没有主模型时，第一次点选就当选主模型 —— 否则名单有条目却没有主模型，
-      // 清晰度/字数上限这些按主模型算的能力就无从取值。
-      if (!state.selectedOptionId) {
-        dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
-        return
-      }
-      dispatch({ type: 'TOGGLE_EXTRA_MODEL', payload: option.optionId })
-    },
-    [dispatch, state.selectedOptionId],
-  )
-
-  const handleRemoveRunModel = useCallback(
-    (optionId: string) => {
-      if (optionId !== state.selectedOptionId) {
-        dispatch({ type: 'REMOVE_EXTRA_MODEL', payload: optionId })
-        return
-      }
-      // 移除主模型：把名单里下一条顶上来，别让主模型变空。
-      const next = state.extraModelOptionIds[0] ?? null
-      dispatch({ type: 'SET_OPTION_ID', payload: next })
-      if (next) dispatch({ type: 'REMOVE_EXTRA_MODEL', payload: next })
-    },
-    [dispatch, state.selectedOptionId, state.extraModelOptionIds],
-  )
-
-  const buildImageInput = useCallback(
-    (overrides?: {
-      selectedModel?: SelectedModelOption
-      compiledPrompt?: string
-      negativePrompt?: string
-    }) => {
-      const imageModelForGeneration = overrides?.selectedModel ?? selectedModel
-
-      if (state.workflowMode === 'quick' && imageModelForGeneration) {
-        const injection = composeCharacterInjection(characters.activeCards)
-        const basePrompt =
-          overrides?.compiledPrompt ?? composePrompt(state.prompt)
-        const freePrompt = injection.promptPrefix
-          ? `${injection.promptPrefix}\n\n${basePrompt ?? ''}`.trim() ||
-            undefined
-          : basePrompt
-        const mergedReferenceImages =
-          imageUpload.referenceImages.length > 0
-            ? imageUpload.referenceImages
-            : injection.referenceImageUrl
-              ? [injection.referenceImageUrl]
-              : undefined
-        const baseAdvancedParams = composeAdvancedParams(
-          overrides?.negativePrompt,
-        )
-        return {
-          modelId: imageModelForGeneration.modelId,
-          apiKeyId: imageModelForGeneration.keyId,
-          freePrompt,
-          aspectRatio: state.aspectRatio,
-          projectId: projects.activeProjectId ?? undefined,
-          referenceImages: mergedReferenceImages,
-          advancedParams: baseAdvancedParams,
-          recipeUsage: state.recipeUsage ?? undefined,
-          characterCardIds:
-            injection.appliedCardIds.length > 0
-              ? injection.appliedCardIds
-              : undefined,
-        }
-      }
-      if (state.workflowMode === 'card' && styles.activeCardId) {
-        return {
-          characterCardId: selectedCharId ?? undefined,
-          backgroundCardId: backgrounds.activeCardId ?? undefined,
-          styleCardId: styles.activeCardId,
-          freePrompt: composePrompt(state.prompt),
-          aspectRatio: state.aspectRatio,
-          projectId: projects.activeProjectId ?? undefined,
-          referenceImages:
-            imageUpload.referenceImages.length > 0
-              ? imageUpload.referenceImages
-              : undefined,
-          advancedParams: composeAdvancedParams(),
-          recipeUsage: state.recipeUsage ?? undefined,
-        }
-      }
-      return null
-    },
-    [
-      state.workflowMode,
-      state.prompt,
-      state.recipeUsage,
-      state.aspectRatio,
-      composePrompt,
-      composeAdvancedParams,
-      selectedModel,
-      selectedCharId,
-      backgrounds.activeCardId,
-      styles.activeCardId,
-      projects.activeProjectId,
-      imageUpload.referenceImages,
-      characters.activeCards,
-    ],
-  )
-
-  const executeGenerate = useCallback(async () => {
-    if (!canGenerate) return
-    if (isAudioMode && selectedModel) {
-      const isSfx = state.audioKind === AUDIO_KIND.SFX
-      const isMusic = state.audioKind === AUDIO_KIND.MUSIC
-      // Audio clip + transcript must ship as a coherent pair (schema refine);
-      // resolve them from one source so a card clip without a transcript never
-      // 400s the request.
-      const audioReference = resolveInlineAudioReference({
-        cardReferenceAudioUrl: selectedVoiceCard?.referenceAudioUrl,
-        cardSampleText: selectedVoiceCard?.sampleText,
-        adHocReferenceUrl: state.audioReferenceUrl,
-        adHocReferenceText: state.audioReferenceText,
-      })
-      await generate({
-        mode: 'audio',
-        audio: {
-          modelId: selectedModel.modelId,
-          apiKeyId: selectedModel.keyId,
-          freePrompt: state.prompt || undefined,
-          voiceId: selectedVoiceCard?.voiceId ?? state.voiceId ?? undefined,
-          // The voice card's avatar rides along BY REFERENCE so the generated
-          // clip carries a cover into 素材库. Only a valid http URL — a malformed
-          // cover must never 400 the generation.
-          coverImageUrl:
-            typeof selectedVoiceCard?.coverImage === 'string' &&
-            selectedVoiceCard.coverImage.startsWith('http')
-              ? selectedVoiceCard.coverImage
-              : undefined,
-          // Preset reference (from a saved voice card) wins; otherwise fall
-          // back to whatever ad-hoc clip the user uploaded for this run.
-          // The Fish adapter's priority chain (speakerVoiceIds > voiceId >
-          // references) takes care of the rest at the provider call site.
-          referenceAudioUrl: audioReference.referenceAudioUrl,
-          referenceText: audioReference.referenceText,
-          emotion: state.audioEmotion,
-          expressiveness: state.audioExpressiveness,
-          // ⚠ 音效与音乐**共用**这一个字段，但取值来自各自的 state：音效 0.5–30 秒、
-          //   音乐 5–600 秒。语音没有时长可言（由正文长度决定），传 undefined。
-          durationSeconds: isSfx
-            ? state.audioSfxDurationSeconds
-            : isMusic
-              ? state.audioMusicDurationSeconds
-              : undefined,
-          loop: isSfx ? state.audioSfxLoop : undefined,
-          promptInfluence: isSfx ? state.audioSfxPromptInfluence : undefined,
-          variantCount: isSfx ? state.audioSfxVariantCount : undefined,
-          pace: state.audioPace,
-          pauseMarkers: state.audioPauseMarkers,
-          pronunciationDictionary: audioPronunciationDictionary,
-          speed: audioSpeed,
-          volume: state.audioVolume,
-          normalizeLoudness: state.audioNormalizeLoudness,
-          normalizeText: state.audioNormalizeText,
-          withTimestamps: state.audioWithTimestamps,
-          format: state.audioFormat,
-          sampleRate: state.audioSampleRate,
-          mp3Bitrate: state.audioMp3Bitrate,
-          opusBitrate: state.audioOpusBitrate,
-          latency: state.audioLatency,
-          temperature: state.audioTemperature,
-          topP: state.audioTopP,
-          chunkLength: state.audioChunkLength,
-          repetitionPenalty: state.audioRepetitionPenalty,
-          speakerVoiceIds:
-            state.audioSpeakerVoiceIds.length > 0
-              ? state.audioSpeakerVoiceIds
-              : undefined,
-        },
-      })
-      return
-    }
-    if (isVideoMode && selectedModel) {
-      const video = buildVideoInput()
-      if (!video) return
-      await generate({ mode: 'video', video })
-      return
-    }
-    const image = buildImageInput()
-    if (!image) return
-    const result = await generate({
-      mode: 'image',
-      image,
-      variantCount: state.imageBatchCount,
-      // 只有一条时不送名单 —— 让它走原来的单模型路径，请求逐字节不变。
-      compareModels:
-        runModels.length > 1
-          ? runModels.map((o) => ({ modelId: o.modelId, apiKeyId: o.keyId }))
-          : undefined,
-    })
-
-    // Nudge: after 3 successful quick-mode generations, suggest Pro mode
-    if (result && state.workflowMode === 'quick') {
-      const NUDGE_KEY = 'studio-quick-gen-count'
-      const NUDGE_DISMISSED_KEY = 'studio-pro-nudge-dismissed'
-      if (!localStorage.getItem(NUDGE_DISMISSED_KEY)) {
-        const count = Number(localStorage.getItem(NUDGE_KEY) || '0') + 1
-        localStorage.setItem(NUDGE_KEY, String(count))
-        if (count === 3) {
-          toast(tV3('cardMode'), {
-            description: t('proModeNudge'),
-            action: {
-              label: t('tryProMode'),
-              onClick: () => {
-                dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
-                localStorage.setItem(NUDGE_DISMISSED_KEY, '1')
-              },
-            },
-            onDismiss: () => localStorage.setItem(NUDGE_DISMISSED_KEY, '1'),
-          })
-        }
-      }
-    }
-  }, [
-    canGenerate,
-    isAudioMode,
-    isVideoMode,
-    selectedModel,
-    state.prompt,
-    state.imageBatchCount,
-    runModels,
-    state.voiceId,
-    state.audioKind,
-    state.audioEmotion,
-    state.audioExpressiveness,
-    state.audioSfxDurationSeconds,
-    state.audioMusicDurationSeconds,
-    state.audioSfxLoop,
-    state.audioSfxPromptInfluence,
-    state.audioSfxVariantCount,
-    state.audioPace,
-    state.audioPauseMarkers,
-    state.audioVolume,
-    state.audioNormalizeLoudness,
-    state.audioNormalizeText,
-    state.audioWithTimestamps,
-    state.audioFormat,
-    state.audioSampleRate,
-    state.audioMp3Bitrate,
-    state.audioOpusBitrate,
-    state.audioLatency,
-    state.audioTemperature,
-    state.audioTopP,
-    state.audioChunkLength,
-    state.audioRepetitionPenalty,
-    state.audioSpeakerVoiceIds,
-    state.audioReferenceUrl,
-    state.audioReferenceText,
-    state.workflowMode,
-    selectedVoiceCard?.voiceId,
-    selectedVoiceCard?.coverImage,
-    selectedVoiceCard?.referenceAudioUrl,
-    selectedVoiceCard?.sampleText,
-    audioPronunciationDictionary,
-    audioSpeed,
-    buildImageInput,
-    buildVideoInput,
-    generate,
-    dispatch,
-    t,
-    tV3,
-  ])
-
-  /**
-   * 挡住生成的那一条原因（`canGenerate` 为假时必有一条）。
-   *
-   * 抽出来是因为它有**两个**消费者：点击时的 toast，和参数栏生成按钮上的
-   * 文案。两边各写一串 if/else 必然漂 —— 改了一处忘了另一处，用户看到的
-   * 按钮和点出来的提示就会说两件事。
-   */
-  const blockedReason = useMemo((): {
-    message: string
-    focusPrompt?: 'now' | 'nextFrame'
-  } | null => {
-    // ⚠ 队列闸排在 `canGenerate` 之前：表单本身完全合法，挡住它的是「已经有 4 条
-    //   在跑」。放在后面就永远轮不到 —— `canGenerate` 为真时这个函数直接返回 null。
-    if (isVideoMode && !canQueueMoreVideo) {
-      return {
-        message: tPromptArea('blocked.videoQueueFull', {
-          max: PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER,
-        }),
-      }
-    }
-    if (canGenerate) return null
-    if (usesStyleCardForModel && !styles.activeCardId) {
-      return { message: tPromptArea('blocked.styleCardRequired') }
-    }
-    if (!usesStyleCardForModel && !selectedModel?.modelId) {
-      return { message: tPromptArea('blocked.modelRequired') }
-    }
-    if (
-      !usesStyleCardForModel &&
-      !(isAudioMode || isVideoMode ? trimmedPrompt : hasPromptForImage)
-    ) {
-      return {
-        message: tPromptArea('blocked.promptRequired'),
-        focusPrompt: 'now',
-      }
-    }
-    if (isAudioPromptOverLimit) {
-      return {
-        message: tPromptArea('blocked.audioPromptTooLong', {
-          max: audioTextLimit.enforced,
-        }),
-        focusPrompt: 'now',
-      }
-    }
-    if (isImagePromptOverLimit && imagePromptMaxChars !== undefined) {
-      return {
-        message: tPromptArea('blocked.promptTooLong', {
-          max: imagePromptMaxChars,
-        }),
-        focusPrompt: 'now',
-      }
-    }
-    if (isAudioReferenceIncomplete) {
-      return { message: tPromptArea('blocked.audioReferenceTextRequired') }
-    }
-    if (modelRequiresRef && !hasRefImage) {
-      return {
-        message: tPromptArea('blocked.referenceRequired'),
-        focusPrompt: 'nextFrame',
-      }
-    }
-    if (modelRejectsRefImages) {
-      return { message: tPromptArea('blocked.referenceUnsupported') }
-    }
-    if (videoAudioNeedsVisual) {
-      return {
-        message: tPromptArea('blocked.videoAudioNeedsVisual'),
-        focusPrompt: 'nextFrame',
-      }
-    }
-    return null
-  }, [
-    canGenerate,
-    canQueueMoreVideo,
-    usesStyleCardForModel,
-    styles.activeCardId,
-    selectedModel?.modelId,
-    modelRequiresRef,
-    hasRefImage,
-    modelRejectsRefImages,
-    videoAudioNeedsVisual,
-    isAudioPromptOverLimit,
-    audioTextLimit.enforced,
-    isImagePromptOverLimit,
-    imagePromptMaxChars,
-    isAudioReferenceIncomplete,
-    trimmedPrompt,
-    hasPromptForImage,
-    isAudioMode,
-    isVideoMode,
-    tPromptArea,
-  ])
-
-  const handleGenerate = useCallback(async () => {
-    if (isGenerating) return
-    if (blockedReason) {
-      // Krea-style: button stays clickable; click surfaces the missing piece
-      // instead of silently doing nothing.
-      toast.info(blockedReason.message)
-      if (blockedReason.focusPrompt === 'now') {
-        focusStudioPrompt()
-      } else if (blockedReason.focusPrompt === 'nextFrame') {
-        requestAnimationFrame(() => {
-          focusStudioPrompt()
-        })
-      }
-      return
-    }
-    await executeGenerate()
-  }, [blockedReason, isGenerating, executeGenerate])
-
-  const handledGenerateRequestRef = useRef(state.generateRequestId)
-  useEffect(() => {
-    if (state.generateRequestId === handledGenerateRequestRef.current) {
-      return
-    }
-
-    handledGenerateRequestRef.current = state.generateRequestId
-    void handleGenerate()
-  }, [state.generateRequestId, handleGenerate])
 
   const handlePromptPaste = useCallback(
     (event: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -1484,7 +534,9 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               aria-label={tForm('promptLabel')}
               placeholder={placeholder}
               onPaste={handlePromptPaste}
-              className="min-h-20 px-1 py-1 font-sans text-sm leading-5 disabled:opacity-100"
+              // ⚠ `text-base` 在 <768 是硬要求：iOS Safari 对小于 16px 的可聚焦
+              //    输入框会自动放大整页。桌面照旧 14px。
+              className="min-h-20 px-1 py-1 font-sans text-base leading-5 disabled:opacity-100 md:text-sm"
             />
           </div>
           {/* 音频的字数 / 分钟数 / 上限 —— 从 dock 搬进来（切片 A）。音效那一档
@@ -1773,7 +825,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                     placeholder={tPromptArea('negativePromptPlaceholder')}
                     rows={2}
                     disabled={isGenerating}
-                    className="h-[46px] w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-2xs outline-none transition-colors duration-fast ease-standard placeholder:text-muted-foreground/60 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    // ⚠ 见提示词框那条：<768 必须 ≥16px，否则 iOS 聚焦即放大。
+                    className="h-[46px] w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-base outline-none md:text-2xs transition-colors duration-fast ease-standard placeholder:text-muted-foreground/60 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
               </div>

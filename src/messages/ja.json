@@ -381,6 +381,10 @@
         "e3": {
           "label": "水彩の猫",
           "prompt": "窓辺でうたた寝する茶トラ猫、水彩イラスト風、余白を活かした構図、ゆるい筆致、透明感のある色彩"
+        },
+        "e4": {
+          "label": "サイバー工房",
+          "prompt": "深夜の機械工房、作業台に半分解されたロボットアーム、冷たい青の補助光と暖色のデスクランプが交差する、金属の質感が緻密"
         }
       },
       "video": {
@@ -395,6 +399,10 @@
         "e3": {
           "label": "雨夜のネオン",
           "prompt": "雨の夜の街角、水たまりに映るネオン、透明な傘がフレームに入り、カメラはゆっくりティルトダウン"
+        },
+        "e4": {
+          "label": "コンロ前の手元",
+          "prompt": "キッチンのコンロ前の手元クローズアップ、熱した鍋で具材を返す、油の照りと立ちのぼる湯気、わずかな手持ちの揺れ、暖色の光"
         }
       },
       "audio": {
@@ -2214,6 +2222,8 @@
       "runnerUnavailable": "Runner 生成は現在無効です（プラットフォーム生成が未有効）。生成は失敗します。ホスト型モデルをご利用いただくか、サイト管理者に有効化をご依頼ください",
       "resultEmptyTitle": "まだ生成結果がありません",
       "resultEmptyHint": "プロンプトを入力して「生成」を押してください",
+      "resultFailedRetry": "再試行",
+      "resultFailedQuotaNote": "残数は発行済みのジョブ単位で計上され、失敗しても返却されません",
       "resultPreviewLabel": "生成結果を拡大表示",
       "promptModeLabel": "プロンプトの出所",
       "promptModeRecommend": "おすすめ",
@@ -5892,6 +5902,28 @@
       }
     }
   },
+  "StudioMobile": {
+    "modelChipEmpty": "モデルを選ぶ",
+    "modelChipMulti": "モデル {count} 件",
+    "modelSheetDone": "完了 · モデル {count} 件",
+    "modelSheetTitle": "モデルを選択",
+    "specSheetTitle": "仕様",
+    "negativePromptLabel": "ネガティブプロンプト",
+    "negativePromptPlaceholder": "出したくない要素…",
+    "promptPlaceholder": "作りたい画を書いてください",
+    "generate": "生成",
+    "regenerate": "再生成",
+    "emptyTitle": "何を描きますか？",
+    "emptyTitleVideo": "何を撮りますか？",
+    "promptPlaceholderVideo": "撮りたいカットを書いてください",
+    "sheetDone": "完了",
+    "actionDownload": "保存",
+    "actionOriginal": "原寸",
+    "actionShare": "共有",
+    "actionRemix": "再構成",
+    "actionEdit": "編集",
+    "actionMore": "その他"
+  },
   "StudioV2": {
     "none": "未選択",
     "noCards": "カードがまだありません。作成して始めましょう。",
@@ -5937,6 +5969,7 @@
     "specLabel": "仕様",
     "costLabel": "概算コスト",
     "costApprox": "約 {amount}",
+    "costVideoRate": "{duration}s × {rate}/s",
     "costApproxFrom": "約 {amount}〜",
     "costUnpriced": "{count, plural, other {# 件のモデルは価格未掲載}}",
     "costRange": "他にティア変動あり：約 {min} – {max}",
@@ -6805,7 +6838,9 @@
     "itemFailed": "#{index} 失敗",
     "itemDone": "#{index} 完了",
     "itemViewing": "#{index} 再生中",
-    "hint": "生成中でもステージは塞がりません。左でパラメータを変えて次を追加できます。"
+    "hint": "生成中でもステージは塞がりません。左でパラメータを変えて次を追加できます。",
+    "cancel": "キャンセル",
+    "mobileHint": "生成には約 2〜5 分かかります。このページを離れずにお待ちください。完了時にお知らせします"
   },
   "VoiceRoom": {
     "joining": "追加中",

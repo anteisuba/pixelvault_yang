@@ -101,6 +101,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioV3')
   const tModels = useTranslations('Models')
+  const tMobile = useTranslations('StudioMobile')
   const isMobile = useIsMobile()
   // §3.0b 第 4 条：把这张结果图作为附件引用进助手对话（不自动发送、不自动喂图）。
   const askAssistantAboutImage = useAskAssistantAboutImage()
@@ -421,9 +422,33 @@ export const GenerationPreview = memo(function GenerationPreview({
   )
 
   // ── Video container ───────────────────────────────────────────────
+  /**
+   * 播放器上那枚 pill —— `模型 · 5s · 720p`。三段全部读**这一条记录自己**的字段
+   * （`model` / `duration` / `height`），一个都不猜：分辨率印的是实到的高度，
+   * 不是请求里那一档（素材域记过「库里 width/height 是请求值不是实到值」，所以
+   * 这里只在真有值时印）。
+   */
+  const videoBadgeParts = [
+    generation.model
+      ? getTranslatedModelLabel(tModels, generation.model)
+      : null,
+    generation.duration ? `${Math.round(generation.duration)}s` : null,
+    generation.height ? `${generation.height}p` : null,
+  ].filter((part): part is string => Boolean(part))
+
   const videoContainer = (
     <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-muted/10 p-2">
       <VideoPlayer src={generation.url ?? ''} className="rounded-xl" />
+      {videoBadgeParts.length > 0 && !showGeneratingOverlay ? (
+        <span
+          data-testid="studio-video-result-badge"
+          // ⚠ `right-4` + `w-fit` + `truncate` 一起给：型号名可以很长，而 9:16 的
+          //    播放器只有 200 出头的宽 —— 不封边它会横着捅出画面。
+          className="pointer-events-none absolute inset-x-4 top-4 w-fit max-w-full truncate rounded-full bg-background/85 px-2.5 py-1 font-mono text-2xs tabular-nums text-foreground shadow-sm backdrop-blur-sm"
+        >
+          {videoBadgeParts.join(' · ')}
+        </span>
+      ) : null}
 
       {showGeneratingOverlay && (
         <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-2xl">
@@ -551,8 +576,78 @@ export const GenerationPreview = memo(function GenerationPreview({
     </>
   )
 
-  // ── Mobile layout: full-width image + peek row + drawer ───────────
+  // ── Mobile layout: full-width media + peek row + meta + drawer ────
   if (isMobile) {
+    /**
+     * 动作行的格子 —— **图上标下、等宽、永不换行**。
+     *
+     * ⚠ 之前是「图标 + 长文案挤一行」，「查看原图」「AI 编辑」在 375 上各折成
+     * 两行，于是这一行的格子高度参差不齐。移动端用短标签（原图 / 编辑），且
+     * `whitespace-nowrap` + `basis-0` 保证等宽 —— 折行不是被容忍的降级，它会让
+     * 整行读起来像坏掉了。
+     * ⛔ 视频没有「编辑」也没有「用作参考」（后者本来就只在抽屉里、且 IMAGE 限定）。
+     */
+    const peekActions = [
+      {
+        key: 'download',
+        icon: Download,
+        label: tMobile('actionDownload'),
+        onClick: handleDownload,
+      },
+      {
+        key: 'original',
+        icon: Maximize2,
+        label: tMobile('actionOriginal'),
+        onClick: () => setDetailOpen(true),
+      },
+      {
+        key: 'share',
+        icon: Share2,
+        label: tMobile('actionShare'),
+        onClick: handleShare,
+      },
+      ...(onRemix
+        ? [
+            {
+              key: 'remix',
+              icon: RotateCcw,
+              label: tMobile('actionRemix'),
+              onClick: () => onRemix(generation),
+            },
+          ]
+        : []),
+      ...(onEdit && generation.outputType === 'IMAGE'
+        ? [
+            {
+              key: 'edit',
+              icon: PenTool,
+              label: tMobile('actionEdit'),
+              onClick: () => onEdit(generation),
+            },
+          ]
+        : []),
+      {
+        key: 'more',
+        icon: Sparkles,
+        label: tMobile('actionMore'),
+        onClick: () => setToolDrawerOpen(true),
+      },
+    ]
+
+    /**
+     * mono 元信息行 —— **只印这条记录上真有的字段**。
+     *
+     * ⛔ 「用时」与「费用」不在 `GenerationRecord` 上（前者从没落库，后者扣费在
+     * 服务端的 credit policy 里），所以这里不印 —— 编一个数比不印更糟。
+     */
+    const metaParts = [
+      lockableSeed !== null ? `seed ${lockableSeed}` : null,
+      generation.width && generation.height
+        ? `${generation.width}×${generation.height}`
+        : null,
+      generation.duration ? `${Math.round(generation.duration)}s` : null,
+    ].filter((part): part is string => Boolean(part))
+
     return (
       <>
         <div className="space-y-2">
@@ -561,60 +656,32 @@ export const GenerationPreview = memo(function GenerationPreview({
 
           {/* Peek action row — always visible */}
           {!isGenerating && (
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/40 bg-background/80 py-2 text-xs transition-colors active:scale-95"
+            <>
+              <div
+                data-testid="studio-mobile-action-row"
+                className="flex items-stretch gap-1"
               >
-                <Download className="size-3.5" />
-                {t('toolDownload')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDetailOpen(true)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/40 bg-background/80 py-2 text-xs transition-colors active:scale-95"
-              >
-                <Maximize2 className="size-3.5" />
-                {t('toolViewOriginal')}
-              </button>
-              <button
-                type="button"
-                onClick={handleShare}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/40 bg-background/80 py-2 text-xs transition-colors active:scale-95"
-              >
-                <Share2 className="size-3.5" />
-                {t('toolShare')}
-              </button>
-              {onRemix && generation && (
-                <button
-                  type="button"
-                  onClick={() => onRemix(generation)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/40 bg-background/80 py-2 text-xs transition-colors active:scale-95"
+                {peekActions.map(({ key, icon: Icon, label, onClick }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={onClick}
+                    className="flex min-h-11 flex-1 basis-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-border/40 bg-background/80 px-1 py-1.5 text-2xs whitespace-nowrap transition-colors active:scale-95"
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {metaParts.length > 0 ? (
+                <p
+                  data-testid="studio-mobile-result-meta"
+                  className="truncate font-mono text-2xs tabular-nums text-muted-foreground"
                 >
-                  <RotateCcw className="size-3.5" />
-                  {t('toolRemix')}
-                </button>
-              )}
-              {onEdit && generation && generation.outputType === 'IMAGE' && (
-                <button
-                  type="button"
-                  onClick={() => onEdit(generation)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/40 bg-background/80 py-2 text-xs transition-colors active:scale-95"
-                >
-                  <PenTool className="size-3.5" />
-                  {t('toolEdit')}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setToolDrawerOpen(true)}
-                className="flex items-center justify-center rounded-lg border border-border/40 bg-background/80 px-2.5 py-2 text-xs transition-colors active:scale-95"
-                aria-label={t('toolMore')}
-              >
-                <Sparkles className="size-3.5" />
-              </button>
-            </div>
+                  {metaParts.join(' · ')}
+                </p>
+              ) : null}
+            </>
           )}
         </div>
 

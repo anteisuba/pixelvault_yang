@@ -381,6 +381,10 @@
         "e3": {
           "label": "水彩小猫",
           "prompt": "一只蜷在窗台上打盹的橘猫，水彩插画风格，留白构图，笔触松弛，色彩清透"
+        },
+        "e4": {
+          "label": "赛博工坊",
+          "prompt": "深夜的机械工坊，一台半拆开的机械臂躺在工作台上，冷蓝色补光与暖色台灯交错，细节丰富的金属质感"
         }
       },
       "video": {
@@ -395,6 +399,10 @@
         "e3": {
           "label": "雨夜霓虹",
           "prompt": "雨夜的城市街头，霓虹灯在积水中倒映，一把透明雨伞入画，镜头缓慢下摇"
+        },
+        "e4": {
+          "label": "灶前手部",
+          "prompt": "厨房灶台前的手部特写，热锅里的食材翻动，油光与蒸汽向上升腾，镜头轻微手持晃动，暖光"
         }
       },
       "audio": {
@@ -2214,6 +2222,8 @@
       "runnerUnavailable": "Runner 生成当前已关闭（平台生成未启用），出图会失败——改用托管底模，或联系站点管理员开启",
       "resultEmptyTitle": "还没有生成结果",
       "resultEmptyHint": "输入提示词后点「出图」",
+      "resultFailedRetry": "重试",
+      "resultFailedQuotaNote": "额度按已发起的任务计，失败不返还",
       "resultPreviewLabel": "放大查看生成结果",
       "promptModeLabel": "提示词来源",
       "promptModeRecommend": "推荐",
@@ -5892,6 +5902,28 @@
       }
     }
   },
+  "StudioMobile": {
+    "modelChipEmpty": "选个模型",
+    "modelChipMulti": "{count} 个模型",
+    "modelSheetDone": "完成 · {count} 个模型",
+    "modelSheetTitle": "选择模型",
+    "specSheetTitle": "规格",
+    "negativePromptLabel": "负面提示词",
+    "negativePromptPlaceholder": "不想出现的元素…",
+    "promptPlaceholder": "描述你想要的画面",
+    "generate": "生成",
+    "regenerate": "重新生成",
+    "emptyTitle": "想画什么？",
+    "emptyTitleVideo": "想拍什么？",
+    "promptPlaceholderVideo": "描述你想要的镜头",
+    "sheetDone": "完成",
+    "actionDownload": "下载",
+    "actionOriginal": "原图",
+    "actionShare": "分享",
+    "actionRemix": "重混",
+    "actionEdit": "编辑",
+    "actionMore": "更多"
+  },
   "StudioV2": {
     "none": "不选择",
     "noCards": "还没有卡片，创建一张开始吧。",
@@ -5945,6 +5977,7 @@
     "specLabel": "规格",
     "costLabel": "预计费用",
     "costApprox": "约 {amount}",
+    "costVideoRate": "{duration}s × {rate}/s",
     "costApproxFrom": "约 {amount} 起",
     "costUnpriced": "{count, plural, other {# 个模型未标价}}",
     "costRange": "另按档位浮动：约 {min} – {max}",
@@ -6805,7 +6838,9 @@
     "itemFailed": "#{index} 失败",
     "itemDone": "#{index} 完成",
     "itemViewing": "#{index} 正在看",
-    "hint": "生成中不占死舞台：左栏照样能改参数、再排一条。"
+    "hint": "生成中不占死舞台：左栏照样能改参数、再排一条。",
+    "cancel": "取消",
+    "mobileHint": "生成约需 2–5 分钟，请留在本页；完成后会有提示"
   },
   "VoiceRoom": {
     "joining": "加入中",

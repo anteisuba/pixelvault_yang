@@ -61,6 +61,11 @@ interface CommonProps {
    * 默认的 `drill`。契约见 `BaseModelPickerPanel` 的 prop 注释。
    */
   layout?: BaseModelPickerPanelProps['layout']
+  /**
+   * 只渲染面板本体（不带触发器 / 浮层），原样透传。移动端「chip → vaul 抽屉」的
+   * 宿主用它 —— 抽屉的开合归宿主，面板只是内容。契约见 `BaseModelPickerPanel`。
+   */
+  inline?: BaseModelPickerPanelProps['inline']
   /** 多选，原样透传（两个要一起给才生效）。契约见 BaseModelPickerPanel。 */
   selectedOptionIds?: BaseModelPickerPanelProps['selectedOptionIds']
   onToggleOption?: BaseModelPickerPanelProps['onToggleOption']

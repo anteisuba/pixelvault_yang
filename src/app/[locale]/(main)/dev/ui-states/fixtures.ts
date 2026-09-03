@@ -116,8 +116,72 @@ export const UI_STATE_REFERENCE_ENTRIES: ReferenceImageEntry[] = [
   { url: SHOWCASE[6], disabledReason: 'over_limit' },
 ]
 
+/**
+ * 视频结果 —— 走仓库里那段本地样片，不依赖账号、网络或任何 provider key。
+ *
+ * ⭐ 存在理由与图墙那几条同源，但更硬：视频模型在本机**全部缺 key**，于是
+ * 「排队中」与「结果」这两屏在真机上根本走不到（选择器里每一行都路由去
+ * `QuickSetupDialog`）。移动端队列卡的几何、播放器的 45vh 封顶、动作行有没有
+ * 折行 —— 不摆在这里就只能靠读代码猜。
+ */
+export const UI_STATE_VIDEO_GENERATION: GenerationRecord = {
+  id: 'fixture-video-1',
+  createdAt: new Date('2026-09-03T10:00:00Z'),
+  outputType: 'VIDEO',
+  status: 'COMPLETED',
+  url: '/homepage/production/models/video/model-seedance.mp4',
+  storageKey: 'fixture/video-1',
+  mimeType: 'video/mp4',
+  width: 1280,
+  height: 720,
+  duration: 5,
+  prompt: PROMPT,
+  model: AI_MODELS.SEEDANCE_20_VOLCENGINE,
+  provider: 'fixture',
+  requestCount: 1,
+  isPublic: false,
+  isPromptPublic: true,
+}
+
+/**
+ * 视频队列的三态同屏：**跑着的**（带计时锚点，进度条按已用时长推）、**失败的**
+ * （可单条重试）、**完成的**（可拿去播放器里看）。
+ * ⚠ `startedAt` 用「现在减 N 秒」而不是写死时间戳：队列卡的计时与进度都从它推，
+ *   写死一个 2026 年的时刻会让进度条永远顶在封顶值上。
+ */
+export function makeVideoQueueItems(): RunItem[] {
+  const now = Date.now()
+  return [
+    {
+      id: 'fixture-video-item-1',
+      modelId: AI_MODELS.SEEDANCE_20_VOLCENGINE,
+      status: 'generating',
+      generation: null,
+      error: null,
+      startedAt: now - 42_000,
+    },
+    {
+      id: 'fixture-video-item-2',
+      modelId: AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+      status: 'failed',
+      generation: null,
+      error: '模型返回了空结果，请重试',
+      startedAt: now - 96_000,
+    },
+    {
+      id: 'fixture-video-item-3',
+      modelId: AI_MODELS.SEEDANCE_20_VOLCENGINE,
+      status: 'completed',
+      generation: UI_STATE_VIDEO_GENERATION,
+      error: null,
+      startedAt: now - 150_000,
+    },
+  ]
+}
+
 export const UI_STATE_CASES = [
   {
+    kind: 'matrix',
     key: 'matrix-2x2-portrait',
     title: '2 模型 × 2 张 · 9:16（owner 截图那轮）',
     items: makeRunItems({
@@ -127,6 +191,7 @@ export const UI_STATE_CASES = [
     selectedIndex: null,
   },
   {
+    kind: 'matrix',
     key: 'matrix-2x1-square',
     title: '2 模型 × 1 张 · 1:1',
     items: makeRunItems({
@@ -137,6 +202,7 @@ export const UI_STATE_CASES = [
     selectedIndex: null,
   },
   {
+    kind: 'matrix',
     key: 'matrix-4x2-mixed',
     title: '4 模型 × 2 张 · 混合态（生成中 / 失败 / 完成）',
     items: makeRunItems({
@@ -153,6 +219,7 @@ export const UI_STATE_CASES = [
     selectedIndex: null,
   },
   {
+    kind: 'matrix',
     key: 'matrix-2x2-selected',
     title: '2 模型 × 2 张 · 已选中第 2 格',
     items: makeRunItems({
@@ -160,5 +227,19 @@ export const UI_STATE_CASES = [
       perModel: 2,
     }),
     selectedIndex: 1,
+  },
+  {
+    kind: 'video-queue',
+    key: 'video-queue-mobile',
+    title: '视频队列 · 移动端卡片列（跑着 / 失败 / 完成）',
+    items: makeVideoQueueItems(),
+    selectedIndex: null,
+  },
+  {
+    kind: 'video-result',
+    key: 'video-result-mobile',
+    title: '视频结果 · 播放器 + 动作行 + 元信息',
+    items: [],
+    selectedIndex: null,
   },
 ] as const

@@ -129,6 +129,17 @@ export interface StudioFormState {
   outputType: OutputType
   workflowMode: WorkflowMode
   selectedOptionId: string | null
+  /**
+   * 用户是否**显式**动过主模型（选中 / 换掉 / 把最后一行删掉）。
+   *
+   * 图片工作台的默认模型自动补位（`useDefaultImageModel`）只在这面旗还没立起来
+   * 时开火：删掉最后一行模型回到空态是用户的明确意图，不能被自动补位撤销。
+   * `AUTO_SELECT_OPTION_ID` 因此不立旗，`SET_OPTION_ID` 立。
+   *
+   * ⚠ 可选是为了不让既有构造完整 `StudioFormState` 字面量的测试夹具全部失效；
+   * 语义上 `undefined` 等同 `false`。
+   */
+  modelSelectionTouched?: boolean
   prompt: string
   recipeUsage: RecipeUsage | null
   aspectRatio: AspectRatio
@@ -265,6 +276,12 @@ export type StudioAction =
   | { type: 'SET_OUTPUT_TYPE'; payload: OutputType }
   | { type: 'SET_WORKFLOW_MODE'; payload: WorkflowMode }
   | { type: 'SET_OPTION_ID'; payload: string | null }
+  /**
+   * 默认模型自动补位专用（图片档）。与 `SET_OPTION_ID` 的唯一区别是**不算
+   * 用户的选择**：不立 `modelSelectionTouched`，也就不会被当成「上次使用的
+   * 模型」写回 localStorage。
+   */
+  | { type: 'AUTO_SELECT_OPTION_ID'; payload: string }
   | { type: 'SET_PROMPT'; payload: string }
   | { type: 'SET_RECIPE_USAGE'; payload: RecipeUsage | null }
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
@@ -395,6 +412,7 @@ const initialFormState: StudioFormState = {
   outputType: initialWorkflowDefaults.outputType,
   workflowMode: initialWorkflowDefaults.workflowMode ?? 'quick',
   selectedOptionId: null,
+  modelSelectionTouched: false,
   prompt: '',
   recipeUsage: null,
   aspectRatio: '1:1',
@@ -553,6 +571,12 @@ export function studioFormReducer(
     case 'SET_WORKFLOW_MODE':
       return { ...state, workflowMode: action.payload }
     case 'SET_OPTION_ID':
+      return {
+        ...state,
+        selectedOptionId: action.payload,
+        modelSelectionTouched: true,
+      }
+    case 'AUTO_SELECT_OPTION_ID':
       return { ...state, selectedOptionId: action.payload }
     case 'SET_PROMPT':
       return { ...state, prompt: action.payload }

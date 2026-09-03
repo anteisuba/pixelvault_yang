@@ -937,6 +937,12 @@ html:lang(ja) {
   /* ── Studio layout V2: canvas-centric vertical layout ───────────────── */
 
   .studio-layout-v2 {
+    /* 移动端底部固定 composer 的预留高度：pt 8 + chip 行 32 + gap 8 + 输入行 44
+       + pb 16 ≈ 108px。提示词长到 3 行时 composer 会超过这个数 —— 那是舞台
+       自己滚动的事，不把预留值做成 JS 量出来的动态值（一个 ResizeObserver
+       换来的抖动比它解决的问题大）。 */
+    --studio-mobile-composer-height: 7rem;
+
     min-height: calc(100svh - 3.5rem);
     display: flex;
     flex-direction: column;
@@ -958,6 +964,43 @@ html:lang(ja) {
   /* Canvas — natural height based on content */
   .studio-canvas {
     min-height: 0;
+  }
+
+  /* ── Studio 移动端画布优先形态（<1024，图片档）─────────────────────
+     施工基准 `docs/references/pages/studio-image-mobile-request.md`
+     （owner 2026-09-03 拍板方向 A）。几何写在这里而不是 Tailwind 任意值：
+     composer 预留高度、92svh 抽屉、drill 行的触屏高度都不在间距刻度上。 */
+
+  /* 视频档的 composer 在 chip 行与提示词之间多一行 mono 费用（≈18px + gap 8）。
+     ⚠ 变量必须落在 `.studio-layout-v2` 上：舞台是它的子元素、composer 是舞台的
+     兄弟，写在 composer 自己身上舞台读不到。 */
+  .studio-layout-v2:has(.studio-mobile-composer--video) {
+    --studio-mobile-composer-height: 8.75rem;
+  }
+
+  /* 舞台给底部 composer 让位（含 iOS 安全区）。 */
+  .studio-mobile-stage {
+    padding-bottom: calc(
+      var(--studio-mobile-composer-height, 7rem) +
+        var(--keyboard-safe-area-bottom, 0px)
+    );
+  }
+
+  /* chip 行：32px 丸 + 44px 触屏命中区（同 .touch-target-y 的手法）。
+     ⚠ 直接写在行上而不是逐颗 chip 上 —— 参考图 / 优化两颗是既有组件
+     （`studioToolTriggerClass` 在窄屏是 h-11），它们的桌面外观不能动，
+     只在这个宿主里压成 32px。 */
+  /* 模型 / 规格抽屉：92svh，留 8% 缺口露出底下的舞台，让「我还在画布上」
+     这件事保持可见（与 .lora-detail-drawer 同一条规矩）。 */
+  .studio-mobile-drawer {
+    height: 92svh;
+    max-height: 92svh;
+  }
+
+  /* drill 的型号行按桌面定高，触屏要 56px 才好点（需求卡表 5）。
+     只在移动端抽屉这个宿主里生效，不动选择器自身的桌面外观。 */
+  .studio-mobile-model-rows [data-slot='command-item'] {
+    min-height: 3.5rem;
   }
 
   /* ── 结果图墙（CompareGrid）的格子高度 ────────────────────────────
@@ -1743,6 +1786,67 @@ html:lang(ja) {
    坍缩成 0。
    ⚠ 2026-08-23 切片 A：`.studio-canvas-slot` 那一份已删 —— 那个槽位属于退役的
    `StudioFlowLayout`，三个模态统一走横向工作台后 DOM 里不再有这个类。 */
+/* ── 图墙在移动壳里换成真栅格（<1024，有意放在 @layer 之外）────────
+   桌面那套是「一行等高、宽度由各自长宽比推」，扫一行就是在比同一件事。
+   那套在 375 宽上会退化成一行一张：竖构图按 30vh 高推出来就有 ~180px 宽，
+   两张加间距 376 > 351 可用宽。所以移动壳换成列数固定的栅格，高度交回给每格
+   自己的 `aspect-ratio`（完成态是内联的真实长宽比，未完成态是 3/4）。
+   ⚠ **必须未分层**：格子容器上挂着 Tailwind 的 `flex`（utilities layer），
+   写在 @layer components 里的 `display: grid` 压不过它 —— 真机实测过一版，
+   375 宽照旧一行一张。
+   ⚠ 上界写死 1023.98：桌面 ≥1024 必须逐像素不变。 */
+@media (max-width: 1023.98px) {
+  .studio-result-tiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .studio-result-tiles > .studio-result-tile {
+    height: auto;
+    width: 100%;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023.98px) {
+  .studio-result-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ── Studio 移动端 composer 的 chip 行（有意放在 @layer 之外）──────
+   32px 丸 + 44px 触屏命中区。**必须是未分层样式**：参考图与优化两颗是既有
+   组件，它们的 `h-11`（窄屏）是 utilities layer 的工具类，layered 规则不论
+   specificity 都压不过它 —— 真机实测过一版写在 @layer components 里，chip
+   行照旧量到 44px，composer 高度 135 而不是 108。
+   ⚠ 只在这个宿主里压成 32px，不动那两颗组件自身的桌面外观。
+   ⚠ 横向滚动条不占高度：触屏没有常驻滚动条，桌面型滚动条会再顶高 15px。 */
+.studio-mobile-chip-row {
+  scrollbar-width: none;
+}
+
+.studio-mobile-chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.studio-mobile-chip-row > button {
+  height: 2rem;
+  min-height: 2rem;
+  flex-shrink: 0;
+  position: relative;
+}
+
+@media (pointer: coarse) {
+  .studio-mobile-chip-row > button::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
+}
+
 .studio-workbench-stage:has(.studio-empty-state) .studio-canvas,
 .studio-workbench-stage:has(.studio-empty-state) .studio-canvas > div {
   display: flex;

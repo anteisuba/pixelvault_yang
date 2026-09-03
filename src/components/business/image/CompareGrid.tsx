@@ -185,7 +185,11 @@ export const CompareGrid = memo(function CompareGrid({
                 <span className="h-px flex-1 bg-border/60" />
               </div>
 
-              <div className="flex flex-wrap items-start gap-3">
+              {/* ⚠ `studio-result-tiles` 不是装饰：桌面这条行是「等高 + 宽度按
+                  各自长宽比推」的横排（`--studio-tile-h`），在 375 宽的手机上
+                  一行只放得下一张。globals.css 里那条 `<1024` 的媒体查询把它换成
+                  真栅格（<640 两列 / 640–1023 三列），桌面 ≥1024 一个像素不变。 */}
+              <div className="studio-result-tiles flex flex-wrap items-start gap-3">
                 {row.items.map((item, takeIndex) => {
                   const isCompleted =
                     item.status === 'completed' && item.generation != null

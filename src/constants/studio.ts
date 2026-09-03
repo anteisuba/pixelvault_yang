@@ -18,6 +18,18 @@ export const STUDIO_NODE_RESULT_STORAGE_KEY =
 /** Cap reference images carried into Studio from a node handoff. */
 export const STUDIO_NODE_HANDOFF_MAX_REFERENCES = 4 as const
 
+/**
+ * 图片工作台「上次使用的模型」——记的是 `StudioModelOption.optionId`
+ * （`workspace:<modelId>` 或 `key:<keyId>`），不是裸 modelId：同一型号在不同
+ * 渠道上是两条不同的路由，只记型号会把用户选的渠道丢掉。
+ *
+ * owner 2026-09-03 拍板：`/studio/image` 不许以空模型起手 —— 先读这条记录，
+ * 读不到再按「已配置 key 的最便宜图片模型」兜底，两条都不成立才留空态。
+ * ⚠ 只服务图片档；视频/音频的默认值不受影响。
+ */
+export const STUDIO_LAST_IMAGE_MODEL_STORAGE_KEY =
+  'pixelvault:studio-last-image-model' as const
+
 export const STUDIO_IMAGE_ASPECT_RATIOS = [
   '1:1',
   '16:9',

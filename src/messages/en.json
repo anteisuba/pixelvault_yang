@@ -381,6 +381,10 @@
         "e3": {
           "label": "Watercolor cat",
           "prompt": "An orange cat napping on a windowsill, watercolor illustration, generous negative space, loose brushwork, clear translucent colors"
+        },
+        "e4": {
+          "label": "Cyber workshop",
+          "prompt": "A late-night mechanical workshop, a half-disassembled robotic arm on the bench, cool blue fill against a warm desk lamp, richly detailed metal surfaces"
         }
       },
       "video": {
@@ -395,6 +399,10 @@
         "e3": {
           "label": "Neon rain",
           "prompt": "City street on a rainy night, neon signs reflected in puddles, a transparent umbrella enters the frame, camera tilts down slowly"
+        },
+        "e4": {
+          "label": "Hands at the stove",
+          "prompt": "Close-up of hands at a kitchen stove, ingredients tossed in a hot pan, oil sheen and steam rising, slight handheld sway, warm light"
         }
       },
       "audio": {
@@ -2214,6 +2222,8 @@
       "runnerUnavailable": "Runner generation is switched off (platform generation disabled) — generating will fail. Use a hosted base model, or ask the site admin to enable it",
       "resultEmptyTitle": "No result yet",
       "resultEmptyHint": "Enter a prompt, then hit Generate",
+      "resultFailedRetry": "Retry",
+      "resultFailedQuotaNote": "Quota counts jobs that were dispatched; failed runs are not refunded",
       "resultPreviewLabel": "Enlarge generation result",
       "promptModeLabel": "Prompt source",
       "promptModeRecommend": "Recommended",
@@ -5892,6 +5902,28 @@
       }
     }
   },
+  "StudioMobile": {
+    "modelChipEmpty": "Pick a model",
+    "modelChipMulti": "{count} models",
+    "modelSheetDone": "Done · {count} models",
+    "modelSheetTitle": "Select model",
+    "specSheetTitle": "Spec",
+    "negativePromptLabel": "Negative prompt",
+    "negativePromptPlaceholder": "Things to keep out…",
+    "promptPlaceholder": "Describe what you want",
+    "generate": "Generate",
+    "regenerate": "Regenerate",
+    "emptyTitle": "What do you want to make?",
+    "emptyTitleVideo": "What do you want to shoot?",
+    "promptPlaceholderVideo": "Describe the shot you want",
+    "sheetDone": "Done",
+    "actionDownload": "Save",
+    "actionOriginal": "Full",
+    "actionShare": "Share",
+    "actionRemix": "Remix",
+    "actionEdit": "Edit",
+    "actionMore": "More"
+  },
   "StudioV2": {
     "none": "None",
     "noCards": "No cards yet. Create one to get started.",
@@ -5945,6 +5977,7 @@
     "specLabel": "Spec",
     "costLabel": "Est. cost",
     "costApprox": "≈ {amount}",
+    "costVideoRate": "{duration}s × {rate}/s",
     "costApproxFrom": "≈ {amount}+",
     "costUnpriced": "{count, plural, one {# model has no listed price} other {# models have no listed price}}",
     "costRange": "Plus, varying by tier: ~{min} – {max}",
@@ -6805,7 +6838,9 @@
     "itemFailed": "#{index} failed",
     "itemDone": "#{index} done",
     "itemViewing": "#{index} playing",
-    "hint": "Rendering does not lock the stage — change the params on the left and queue another."
+    "hint": "Rendering does not lock the stage — change the params on the left and queue another.",
+    "cancel": "Cancel",
+    "mobileHint": "This takes about 2–5 minutes. Stay on this page — you'll be notified when it's done."
   },
   "VoiceRoom": {
     "joining": "Adding",

@@ -133,6 +133,18 @@
 - 实现：`StudioCanvas.tsx`、`StudioReferenceRail.tsx`、`CompareGrid.tsx`、`globals.css`。
 - 方向与实测证据：设计画布 `studio-result-stage-2026-08-23/`（已随任务包清理，git 历史可取）。
 
+## 移动端（2026-09-03 owner 拍板）
+
+配方见 `../ui-defaults.md §6`；`domains/studio.md` 移动端等级表 `/studio/image` 一行降级到本节。落卡版：[`studio-image-mobile-request.md`](studio-image-mobile-request.md)。
+
+- 方向 A 画布优先：舞台占满屏，底部固定 composer（第 1 行模型/规格/参考图 chip，第 2 行 prompt 输入 + 生成方形按钮），键盘安全区用 `--keyboard-safe-area-bottom` / `.keyboard-aware-bottom-padding`。
+- 空态 = 起手屏：「想画什么？」+ 2×2 示例卡 + 继续创作；教程轮播不得遮挡 composer。
+- 模型选择只走 `MainModelPicker layout="drill"` 全屏 vaul 抽屉；负面提示词收进规格 sheet 的折叠区。
+- 默认模型：上次使用（localStorage）→ 无则取已配 key 里最便宜的图片模型 → 都没有则留空，生成点击路由 `QuickSetupDialog`（Hard Rule 8）；禁用按钮文案不得与选择器占位文案重复（今天两处都是「请先选择模型」，需改）。
+- 结果到达后自动滚动结果卡到舞台顶部（每轮一次），图仍受 `--studio-generation-media-max-height`（45vh）约束，动作行沿用既有移动端 peek + 更多抽屉。
+- 本轮只验证图片模式；视频/音频/enhance/analyze 同壳复用但未验收；`StudioOperatorDock` 移动端继续 `return null`；`LoraWorkbench` 已完成不在本轮范围。
+
 ## Last Verified
 
 - 2026-08-23 · owner 选定 A 打底 + B 的顶部参考轨与底部唯一动作栏；实现和同视口几何回验完成。
+- 2026-09-03 · 新增「移动端」节（owner 拍板方向 A 画布优先，落卡见 `studio-image-mobile-request.md`）。

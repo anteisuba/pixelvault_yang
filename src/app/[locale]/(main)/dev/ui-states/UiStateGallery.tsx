@@ -4,10 +4,16 @@ import { useState } from 'react'
 
 import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'
+import { StudioVideoQueueStrip } from '@/components/business/studio-shared/chrome/StudioVideoQueueStrip'
+import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
 import { StudioProvider } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 
-import { UI_STATE_CASES, UI_STATE_REFERENCE_ENTRIES } from './fixtures'
+import {
+  UI_STATE_CASES,
+  UI_STATE_REFERENCE_ENTRIES,
+  UI_STATE_VIDEO_GENERATION,
+} from './fixtures'
 
 /**
  * 结果区状态样板间 —— 用假数据把「只有生成完才存在」的界面摆出来。
@@ -68,27 +74,51 @@ export function UiStateGallery() {
           data-ui-case={active.key}
           className="studio-workbench-stage studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-3 lg:p-6"
         >
-          {/* 参考轨与结果**并存** —— 旧版参考图区的渲染条件是「还没有结果」，
-              第一张图落地就整块消失。这里两者同屏，量的是它们真实的相对位置
-              （尤其是右上角那颗固定的助手浮标会不会压住轨上的按钮）。 */}
-          <StudioReferenceRail
-            label="参考图"
-            entries={UI_STATE_REFERENCE_ENTRIES}
-            activeIndex={referenceIndex}
-            onActiveIndexChange={setReferenceIndex}
-            onEdit={() => {}}
-            onRemove={() => {}}
-          />
-          <div className="mx-auto w-full">
-            <CompareGrid
+          {active.kind === 'video-queue' ? (
+            /* 移动端队列卡片列 —— 视频模型在本机全部缺 key，这一屏在真机上
+               走不到（选择器每一行都路由去 QuickSetupDialog）。 */
+            <StudioVideoQueueStrip
+              variant="cards"
               items={[...active.items]}
-              selectedItemId={selectedId ?? presetSelected}
-              onSelect={setSelectedId}
-              elapsedSeconds={12}
-              onEdit={() => {}}
-              onUseAsReference={() => {}}
+              focusedItemId={null}
+              onFocus={() => {}}
+              onRetry={() => {}}
+              onCancel={() => {}}
             />
-          </div>
+          ) : active.kind === 'video-result' ? (
+            /* 播放器 + 动作行 + mono 元信息。⚠ 参考轨故意不画：它会占掉一段
+               纵向，量「播放器有没有超过 45vh」时那段就是噪音。 */
+            <GenerationPreview
+              generation={UI_STATE_VIDEO_GENERATION}
+              isLatestResult
+              onRemix={() => {}}
+              onSaveRecipe={() => {}}
+            />
+          ) : (
+            <>
+              {/* 参考轨与结果**并存** —— 旧版参考图区的渲染条件是「还没有结果」，
+                  第一张图落地就整块消失。这里两者同屏，量的是它们真实的相对位置
+                  （尤其是右上角那颗固定的助手浮标会不会压住轨上的按钮）。 */}
+              <StudioReferenceRail
+                label="参考图"
+                entries={UI_STATE_REFERENCE_ENTRIES}
+                activeIndex={referenceIndex}
+                onActiveIndexChange={setReferenceIndex}
+                onEdit={() => {}}
+                onRemove={() => {}}
+              />
+              <div className="mx-auto w-full">
+                <CompareGrid
+                  items={[...active.items]}
+                  selectedItemId={selectedId ?? presetSelected}
+                  onSelect={setSelectedId}
+                  elapsedSeconds={12}
+                  onEdit={() => {}}
+                  onUseAsReference={() => {}}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </StudioProvider>

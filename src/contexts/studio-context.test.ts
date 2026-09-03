@@ -255,6 +255,32 @@ describe('studioFormReducer', () => {
     expect(next.selectedOptionId).toBeNull()
   })
 
+  it('SET_OPTION_ID marks the model selection as user-touched (both directions)', () => {
+    const picked = studioFormReducer(makeInitialState(), {
+      type: 'SET_OPTION_ID',
+      payload: 'workspace:some-model',
+    })
+    expect(picked.modelSelectionTouched).toBe(true)
+
+    // 删掉最后一行模型 = 用户就是要空态，自动补位此后不得再开火。
+    const cleared = studioFormReducer(picked, {
+      type: 'SET_OPTION_ID',
+      payload: null,
+    })
+    expect(cleared.modelSelectionTouched).toBe(true)
+  })
+
+  // ── AUTO_SELECT_OPTION_ID ──
+
+  it('AUTO_SELECT_OPTION_ID selects without marking the selection as touched', () => {
+    const next = studioFormReducer(makeInitialState(), {
+      type: 'AUTO_SELECT_OPTION_ID',
+      payload: 'workspace:auto-picked',
+    })
+    expect(next.selectedOptionId).toBe('workspace:auto-picked')
+    expect(next.modelSelectionTouched).toBeFalsy()
+  })
+
   // ── SET_PROMPT ──
 
   it('SET_PROMPT changes prompt', () => {

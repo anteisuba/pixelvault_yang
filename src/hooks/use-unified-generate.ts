@@ -137,6 +137,8 @@ export interface UseUnifiedGenerateReturn {
   canQueueMoreVideo: boolean
   /** 用某一条自己的参数重放它；原地把失败那条换成新排的一条。 */
   retryVideoQueueItem: (itemId: string) => Promise<void>
+  /** 不再等某一条：摘掉条目并中止它自己的轮询（服务端那条任务照跑）。 */
+  cancelVideoQueueItem: (itemId: string) => void
 }
 
 function isAudioEmotion(value: string | undefined): value is AudioEmotion {
@@ -264,6 +266,17 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
    * 第 1 条时，拿到的会是第 3 条的参数 —— 重试出来的东西跟失败的那条无关。
    */
   const videoJobParamsRef = useRef(new Map<string, GenerateVideoRequest>())
+  /**
+   * 已被用户取消的队列条目 id。
+   *
+   * ⚠ 是 ref 而不是 state：轮询循环是一个跑在 `useCallback` 闭包里的 `for`，
+   * 它读到的 state 永远是提交那一刻的快照 —— 用 state 做取消标记等于没做。
+   * ⚠ 只中止**这一条**的轮询：视频的队列语义是「失败/取消只影响它自己」
+   * （见 `generateVideo` 文件注释），不碰同批次的其它条目。
+   * ⛔ 中止的只有前端轮询：服务端那条任务照跑（没有取消端点），所以取消 = 「我
+   *    不再等它了」，不是「不扣费了」。
+   */
+  const cancelledVideoItemsRef = useRef(new Set<string>())
 
   const tStudio = useTranslations('StudioV2')
   const tVideo = useTranslations('VideoGenerate')
@@ -649,6 +662,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         attempt += 1
       ) {
         await waitForPollInterval(VIDEO_GENERATION.POLL_INTERVAL_MS)
+
+        // 用户按了「取消」—— 这一条的条目已经被摘掉，继续轮询只会把结果写回
+        // 一个不存在的格子（或者更糟：把它设成 lastGeneration 弹上舞台）。
+        if (cancelledVideoItemsRef.current.has(itemId)) {
+          cancelledVideoItemsRef.current.delete(itemId)
+          return null
+        }
 
         try {
           const statusResponse = await checkVideoStatusAPI(jobId)
@@ -1460,6 +1480,22 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     [generateVideo],
   )
 
+  /**
+   * 取消队列里的某一条 —— 摘掉条目 + 让它的轮询在下一拍自己退出。
+   *
+   * ⛔ 不调 `finish(err)`：那会 `setError` 弹全局错误框并替**还在跑的其它条**
+   * 宣布整轮结束（与 `generateVideo` 里那条注释同一个理由）。
+   */
+  const cancelVideoQueueItem = useCallback((itemId: string): void => {
+    cancelledVideoItemsRef.current.add(itemId)
+    setActiveRun((prev) =>
+      prev
+        ? { ...prev, items: prev.items.filter((item) => item.id !== itemId) }
+        : null,
+    )
+    videoJobParamsRef.current.delete(itemId)
+  }, [])
+
   const reset = useCallback(() => {
     setError(null)
     setErrorCode(null)
@@ -1487,5 +1523,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     activeVideoJobCount,
     canQueueMoreVideo,
     retryVideoQueueItem,
+    cancelVideoQueueItem,
   }
 }

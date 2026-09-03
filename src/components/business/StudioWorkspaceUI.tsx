@@ -14,6 +14,7 @@ import {
   StudioCommandPalette,
 } from '@/components/business/studio'
 import { StudioDockPanelArea } from '@/components/business/studio/StudioDockPanelArea'
+import { StudioMobileComposer } from '@/components/business/studio/StudioMobileComposer'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,7 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
 import { useRouter } from '@/i18n/navigation'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
@@ -89,6 +91,21 @@ export function StudioWorkspaceUI() {
    * 也挂在 LoRA 装配台上（那条路由没有 `<StudioProvider>`）。
    */
   const operatorHost = useStudioWorkbenchOperatorHost()
+  /**
+   * 移动端画布优先形态（owner 2026-09-03 拍板方向 A，需求卡
+   * `docs/references/pages/studio-image-mobile-request.md` +
+   * `studio-video-mobile-request.md`）：`<1024` 且**图片 / 视频档**时参数栏整颗
+   * 不渲染，参数收进底部固定 composer 的 chip 行。
+   *
+   * ⚠ 白名单而不是 `!== 'audio'`：音频的移动端仍走既有纵向栈（参数栏在上、
+   * 结果在下），它的音色 / 朗读 / 高级三栏还没有对应的 chip 与 sheet ——
+   * 默认不给一个新模态 composer，比默认给它一个拧不动一半旋钮的 composer 安全。
+   * ⚠ 二选一而不是 CSS 隐藏 —— `StudioPromptArea` 与 `StudioMobileComposer` 各自
+   * 调 `useStudioGenerateAction`，同时挂载会让 `REQUEST_GENERATE` 发两遍请求。
+   */
+  const isMobile = useIsMobile()
+  const useMobileComposer =
+    isMobile && (state.outputType === 'image' || state.outputType === 'video')
 
   // Phase 1C: hydrate prompt / seed / negativePrompt / aspectRatio from
   // the URL on mount when the user arrived via "Use this image" replay.
@@ -264,8 +281,9 @@ export function StudioWorkspaceUI() {
               `StudioToolbarPanels` / `StudioToolbar` 已整条退役，不留兼容层。
               栏位差异归 `StudioPromptArea` 自己按 outputType 分。 */}
           <StudioWorkbenchLayout
-            params={<StudioPromptArea />}
+            params={useMobileComposer ? null : <StudioPromptArea />}
             stage={<StudioCanvas />}
+            composer={useMobileComposer ? <StudioMobileComposer /> : null}
           />
         </div>
         {/* 助手 —— **图片工作台整体切到操作员面板**。它自带三态：展开的

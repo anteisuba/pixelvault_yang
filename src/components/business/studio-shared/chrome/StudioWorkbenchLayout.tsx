@@ -2,9 +2,23 @@
 
 import { memo } from 'react'
 
+import { STUDIO_MOBILE_STAGE_CLASS } from '@/constants/studio-mobile'
+import { cn } from '@/lib/utils'
+
 interface StudioWorkbenchLayoutProps {
+  /**
+   * 左侧常驻参数栏。**`null` = 这一屏没有参数栏**（移动端画布优先形态），
+   * 那一列整个不进 DOM —— 不是 CSS 隐藏：`StudioPromptArea` 里那颗
+   * `useStudioGenerateAction` 带着 `REQUEST_GENERATE` 的执行端副作用，
+   * 与底部 composer 同时挂载会让一次请求发两遍。
+   */
   params: React.ReactNode
   stage: React.ReactNode
+  /**
+   * 固定在视口底部的移动端 composer。非空时舞台按 composer 高度 + 键盘安全区
+   * 留出底部内边距（`.studio-mobile-stage`，几何在 globals.css）。
+   */
+  composer?: React.ReactNode
 }
 
 /**
@@ -26,6 +40,7 @@ interface StudioWorkbenchLayoutProps {
 export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
   params,
   stage,
+  composer,
 }: StudioWorkbenchLayoutProps) {
   return (
     // 移动端退回纵向（参数在上、结果在下）：288px 的常驻栏在手机上会把结果区
@@ -37,16 +52,24 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
     // 下面那条 `overflow-y-auto` 永远触发不了，滚的是整页。
     // 2026-08-23 真机实测：编辑态下这一层量到 1976px（视口 911）。
     <div className="flex min-h-0 flex-1 flex-col lg:h-svh lg:flex-none lg:flex-row">
-      <div className="studio-param-panel flex shrink-0 flex-col gap-3 border-b border-border/60 p-3 lg:w-72 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:p-4">
-        {params}
-      </div>
+      {params ? (
+        <div className="studio-param-panel flex shrink-0 flex-col gap-3 border-b border-border/60 p-3 lg:w-72 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:p-4">
+          {params}
+        </div>
+      ) : null}
       {/* ⚠ 结果区要把高度传给 StudioCanvas，否则空态的 `grow + justify-center`
           没有可撑的高度就贴顶。globals.css 里
           `.studio-workbench-stage:has(.studio-empty-state)` 负责把
           `.studio-canvas` 撑成满高的 flex 列。 */}
-      <div className="studio-workbench-stage studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-3 lg:p-6">
+      <div
+        className={cn(
+          'studio-workbench-stage studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-3 lg:p-6',
+          composer && STUDIO_MOBILE_STAGE_CLASS,
+        )}
+      >
         {stage}
       </div>
+      {composer}
     </div>
   )
 })

@@ -12,10 +12,17 @@ import {
   STUDIO_EMPTY_RECENT_COUNT,
   STUDIO_GUIDE_SEEN_STORAGE_KEY,
 } from '@/constants/studio'
+import {
+  STUDIO_MOBILE_EXAMPLE_KEYS,
+  STUDIO_MOBILE_RECENT_COUNT,
+} from '@/constants/studio-mobile'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
+import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
+import { StudioVideoModeToggle } from '@/components/business/studio/StudioVideoModeToggle'
 import { XiaoheiGuideCarousel } from '@/components/business/studio-shared/XiaoheiGuideCarousel'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import {
@@ -52,9 +59,20 @@ const EXPECTED_OUTPUT_TYPE: Record<StudioEmptyMode, string> = {
  */
 export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   const t = useTranslations('StudioEmptyState')
+  const tMobile = useTranslations('StudioMobile')
   const { state, dispatch } = useStudioForm()
   const { projects, imageUpload } = useStudioData()
   const [guideOpen, setGuideOpen] = useState(false)
+  /**
+   * 移动端起手屏（owner 2026-09-03 方向 A + 视频需求卡）：
+   * 「用途分段（仅视频）+ 标题 + 2×2 示例卡 + 继续创作」。
+   *
+   * ⚠ 只在图片 / 视频两档换形态 —— 音频的移动端本轮不动，它的示例文案里也没有
+   * 第四条（`e4` 只登记在 image / video 两组下）。
+   */
+  const isMobile = useIsMobile()
+  const isMobileStart = isMobile && (mode === 'image' || mode === 'video')
+  const isVideo = mode === 'video'
 
   // Audio splits into speech / sfx: swap the copy + example chips for sound
   // effects so the empty state isn't voice-only. Recent works + tutorial stay
@@ -104,8 +122,11 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
         const genKind = model ? resolveAudioKind(model) : DEFAULT_AUDIO_KIND
         return genKind === state.audioKind
       })
-      .slice(0, STUDIO_EMPTY_RECENT_COUNT)
-  }, [projects.history, mode, state.audioKind])
+      .slice(
+        0,
+        isMobileStart ? STUDIO_MOBILE_RECENT_COUNT : STUDIO_EMPTY_RECENT_COUNT,
+      )
+  }, [projects.history, mode, state.audioKind, isMobileStart])
 
   const handleExample = (prompt: string) => {
     dispatch({ type: 'SET_PROMPT', payload: prompt })
@@ -130,28 +151,74 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
 
   return (
     <div className="studio-empty-state flex w-full grow flex-col items-center justify-center gap-8 px-4 py-6 sm:gap-10">
-      <div className="flex max-w-2xl flex-col items-center gap-4 text-center sm:gap-5">
-        <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground/70">
-          {t(`modeLabel.${contentKey}`)}
-        </p>
-        <p className="text-sm text-muted-foreground sm:text-base">
-          {t(`hint.${contentKey}`)}
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {STUDIO_EMPTY_EXAMPLE_KEYS.map((exampleKey) => (
-            <button
-              key={exampleKey}
-              type="button"
-              onClick={() =>
-                handleExample(t(`examples.${contentKey}.${exampleKey}.prompt`))
-              }
-              className="min-h-11 rounded-full border border-border/60 bg-muted/40 px-4 text-xs text-foreground/90 transition-colors hover:bg-muted sm:min-h-9 sm:text-sm"
+      {isMobileStart ? (
+        /* 移动端起手屏：（视频档多一条用途分段）+ 一句问句 + 2×2 示例卡。
+           卡片封面优先借「继续创作」里那几张真图 —— 没有历史时退回按序号变化的
+           token 渐变底，不摆一个假缩略图、也不留一块灰。 */
+        <div className="flex w-full max-w-md flex-col gap-5">
+          {/* 用途是**栏首第一决策**：它决定这一次发哪个端点、模型 chip 列哪些
+              候选。放在示例卡下面就等于让人先选完再回头改前提。
+              ⚠ 组件自己判「目录里真有 ≥2 档」，少于 2 档整颗不渲染。 */}
+          {isVideo ? (
+            <div
+              data-testid="studio-mobile-video-mode"
+              className="flex justify-center"
             >
-              {t(`examples.${contentKey}.${exampleKey}.label`)}
-            </button>
-          ))}
+              <StudioVideoModeToggle />
+            </div>
+          ) : null}
+          <h2 className="text-center text-xl font-semibold text-foreground">
+            {isVideo ? tMobile('emptyTitleVideo') : tMobile('emptyTitle')}
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            {STUDIO_MOBILE_EXAMPLE_KEYS.map((exampleKey, index) => (
+              <ExampleCard
+                key={exampleKey}
+                index={index}
+                wide={isVideo}
+                label={t(`examples.${mode}.${exampleKey}.label`)}
+                excerpt={t(`examples.${mode}.${exampleKey}.prompt`)}
+                // ⚠ 视频借的是缩略图不是 `url`：把 mp4 塞进 <img> 只会得到一个
+                //    坏掉的图标。素材域记过「视频零缩略图」，所以常态是 null →
+                //    走渐变底。
+                coverUrl={
+                  (isVideo
+                    ? recent[index]?.thumbnailUrl
+                    : recent[index]?.url) ?? null
+                }
+                onSelect={() =>
+                  handleExample(t(`examples.${mode}.${exampleKey}.prompt`))
+                }
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex max-w-2xl flex-col items-center gap-4 text-center sm:gap-5">
+          <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground/70">
+            {t(`modeLabel.${contentKey}`)}
+          </p>
+          <p className="text-sm text-muted-foreground sm:text-base">
+            {t(`hint.${contentKey}`)}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {STUDIO_EMPTY_EXAMPLE_KEYS.map((exampleKey) => (
+              <button
+                key={exampleKey}
+                type="button"
+                onClick={() =>
+                  handleExample(
+                    t(`examples.${contentKey}.${exampleKey}.prompt`),
+                  )
+                }
+                className="min-h-11 rounded-full border border-border/60 bg-muted/40 px-4 text-xs text-foreground/90 transition-colors hover:bg-muted sm:min-h-9 sm:text-sm"
+              >
+                {t(`examples.${contentKey}.${exampleKey}.label`)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {recent.length > 0 && (
         <div className="w-full max-w-3xl">
@@ -191,6 +258,92 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
         </ResponsiveDialogContent>
       </ResponsiveDialog>
     </div>
+  )
+}
+
+// ── 移动端示例卡（图片 3:4 / 视频 16:9）────────────────────────────
+
+interface ExampleCardProps {
+  label: string
+  /** 提示词的一行摘录 —— 光有标题看不出「点下去会填进去什么」。 */
+  excerpt: string
+  /** 第几张：渐变的色相按序号错开，四张才不是同一块底。 */
+  index: number
+  /** 视频档的封面是 16:9，图片档是 3:4。 */
+  wide?: boolean
+  /** 封面：借「继续创作」里的真图；没有则用 token 渐变底。 */
+  coverUrl: string | null
+  onSelect: () => void
+}
+
+/**
+ * 没有历史图时的底 —— **不是一块灰**。四张各自的主色浓度按序号错开，一眼看得
+ * 出是四张卡而不是四个待加载的占位。
+ *
+ * ⚠ 只用 `color-mix` 拌既有 token（`--primary` / `--muted` / `--secondary`），
+ * 不引入新色值：暗色档跟着 token 一起翻，不需要第二套写法。
+ * ⚠ 写在 `style` 里而不是 Tailwind 类：百分比随序号变，做成工具类就是 Hard
+ * Rule 5 禁的任意值。
+ */
+function exampleCardGradient(index: number): string {
+  const primaryPct = 10 + index * 7
+  const tailPct = 6 + index * 4
+  return [
+    'linear-gradient(140deg,',
+    `color-mix(in oklab, var(--primary) ${primaryPct}%, var(--muted)) 0%,`,
+    `color-mix(in oklab, var(--secondary) ${100 - tailPct}%, var(--primary)) 100%)`,
+  ].join(' ')
+}
+
+function ExampleCard({
+  label,
+  excerpt,
+  index,
+  wide,
+  coverUrl,
+  onSelect,
+}: ExampleCardProps) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      data-testid="studio-mobile-example-card"
+      className={cn(
+        'group flex w-full flex-col overflow-hidden rounded-xl border border-border/60 bg-background text-left',
+        'transition-transform duration-fast ease-standard active:scale-[0.98]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+      )}
+    >
+      <span
+        className={cn(
+          'relative block w-full',
+          wide ? 'aspect-video' : 'aspect-[3/4]',
+        )}
+        style={
+          coverUrl ? undefined : { background: exampleCardGradient(index) }
+        }
+      >
+        {coverUrl ? (
+          <OptimizedImage
+            src={coverUrl}
+            alt=""
+            fill
+            sizes="50vw"
+            className="object-cover"
+            loading="lazy"
+          />
+        ) : null}
+      </span>
+      <span className="flex flex-col gap-0.5 px-2.5 pb-2 pt-1.5">
+        <span className="truncate text-xs font-medium text-foreground">
+          {label}
+        </span>
+        {/* 一行摘录 —— 超出就截断，永远只占一行，四张卡才等高。 */}
+        <span className="truncate text-2xs text-muted-foreground">
+          {excerpt}
+        </span>
+      </span>
+    </button>
   )
 }
 

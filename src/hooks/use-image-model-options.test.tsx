@@ -27,7 +27,15 @@ vi.mock('@/contexts/api-keys-context', () => ({
 }))
 
 vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: vi.fn(() => ({ state: { selectedOptionId: null } })),
+  useStudioForm: vi.fn(() => ({
+    state: { selectedOptionId: null, outputType: 'image' },
+    dispatch: vi.fn(),
+  })),
+}))
+
+// 默认模型自动补位只在 `/studio/image` 路由上开火；这个用例只关心目录过滤。
+vi.mock('next/navigation', () => ({
+  usePathname: vi.fn(() => '/zh/studio/video'),
 }))
 
 vi.mock('@/lib/model-options', () => ({

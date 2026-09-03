@@ -296,6 +296,14 @@ export interface BaseModelPickerPanelProps {
    */
   layout?: 'drill' | 'columns'
   /**
+   * 只渲染面板本体，**不渲染触发器、也不自己开浮层**（2026-09-03 移动端切片）。
+   *
+   * 起因：Studio 移动端的模型选择是「chip → vaul 抽屉」，抽屉的开合归调用方，
+   * 面板只是抽屉里的内容。让它照旧带一个 Popover 就变成「抽屉里再套一个浮层」。
+   * ⚠ 只对 `layout='drill'` 有意义；`columns` 是居中 modal，本来就不该塞进抽屉。
+   */
+  inline?: boolean
+  /**
    * 多选（opt-in）。**同时**给这两个才进多选：渠道行变成可勾选、选完面板不关。
    * 不给则维持单选的 `value` / `onChange`，四个现有调用方零改动。
    */
@@ -346,6 +354,7 @@ export function BaseModelPickerPanel({
   triggerLabelForOption,
   detailForOption,
   layout = 'drill',
+  inline = false,
   selectedOptionIds,
   onToggleOption,
 }: BaseModelPickerPanelProps) {
@@ -1288,6 +1297,12 @@ export function BaseModelPickerPanel({
       </CommandList>
     </Command>
   )
+
+  // 内联：面板本体就是全部产出，开合与容器归调用方（移动端抽屉宿主）。
+  // ⚠ 放在 `trigger` 之前返回 —— 内联时根本不该存在触发器。
+  if (inline) {
+    return <div className={className}>{panelBody}</div>
+  }
 
   const trigger = (
     <button

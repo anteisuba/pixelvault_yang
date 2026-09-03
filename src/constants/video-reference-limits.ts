@@ -6,5 +6,6 @@
  */
 export const VIDEO_REFERENCE_LIMITS = {
   IMAGES: 30,
+  VIDEOS: 10,
   AUDIO: 10,
 } as const

@@ -118,7 +118,7 @@ const SEEDANCE_20_REFERENCE_SLOTS: VideoReferenceSlots = {
  */
 const SEEDANCE_25_REFERENCE_SLOTS: VideoReferenceSlots = {
   images: VIDEO_REFERENCE_LIMITS.IMAGES,
-  videos: 10,
+  videos: VIDEO_REFERENCE_LIMITS.VIDEOS,
   audio: VIDEO_REFERENCE_LIMITS.AUDIO,
   total: 50,
   audioRequiresVisual: false,

@@ -5,7 +5,10 @@ import { NODE_TYPE_IDS } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
-import { buildVideoSendPreview } from './node-video-send-preview'
+import {
+  buildVideoSendPreview,
+  summarizeVideoSendReferences,
+} from './node-video-send-preview'
 
 function makeNode(
   id: string,
@@ -524,5 +527,82 @@ describe('buildVideoSendPreview (R3-6b §2 发送图例预览)', () => {
     expect(preview.request.audioUrls).toBeUndefined()
     expect(preview.blockers).toContain('execution-not-migrated')
     expect(preview.canSubmit).toBe(false)
+  })
+})
+
+describe('summarizeVideoSendReferences', () => {
+  it('projects the shipped slots (name / kind / category, video count, audio owners)', () => {
+    expect(
+      summarizeVideoSendReferences({
+        images: [
+          {
+            url: 'https://cdn/a.png',
+            index: 1,
+            name: '凛',
+            kind: 'character',
+            category: undefined,
+          },
+          {
+            url: 'https://cdn/b.png',
+            index: 2,
+            name: '首帧1',
+            kind: undefined,
+            category: '首帧',
+          },
+        ],
+        videoUrls: ['https://cdn/v1.mp4', 'https://cdn/v2.mp4'],
+        audioEntries: [
+          {
+            index: 1,
+            label: '角色「凛」的音色',
+            url: 'https://cdn/a.mp3',
+            characterName: '凛',
+          },
+          { index: 2, label: '旁白', url: 'https://cdn/b.mp3' },
+        ],
+      }),
+    ).toEqual({
+      images: [
+        { index: 1, name: '凛', kind: 'character' },
+        { index: 2, name: '首帧1', category: '首帧' },
+      ],
+      videoCount: 2,
+      audio: [{ characterName: '凛' }, {}],
+    })
+  })
+
+  it('returns empty collections when nothing ships', () => {
+    expect(
+      summarizeVideoSendReferences({
+        images: [],
+        videoUrls: [],
+        audioEntries: [],
+      }),
+    ).toEqual({ images: [], videoCount: 0, audio: [] })
+  })
+
+  it('follows the real send projection end to end (2.5 slots, not a hand count)', () => {
+    const nodes = [
+      makeNode('char1', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/char.png',
+        characterName: '凛',
+      }),
+      makeNode('video1', NODE_TYPE_IDS.seedance, { prompt: '@凛 走进房间' }),
+    ]
+    const edges = [makeEdge('e-char', 'char1', 'video1')]
+    const preview = buildVideoSendPreview({
+      nodeId: 'video1',
+      data: nodes[1].data,
+      edges,
+      nodes,
+      maxReferenceImages: undefined,
+      autoNamePrefix: AUTO_NAME_PREFIX,
+    })
+
+    expect(summarizeVideoSendReferences(preview)).toEqual({
+      images: [{ index: 1, name: '凛', kind: 'character' }],
+      videoCount: 0,
+      audio: [],
+    })
   })
 })

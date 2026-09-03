@@ -34,9 +34,17 @@ function buildReferenceBlock(
 
   const lines: string[] = []
 
-  if (references.imageCount > 0) {
+  if (references.images.length > 0) {
+    const slots = references.images
+      .map((image) => {
+        const slot = `@Image${image.index}`
+        const label = [image.kind, image.category].filter(Boolean).join(' / ')
+        const name = image.name ? `"${image.name}"` : 'unnamed'
+        return `  ${slot} = ${name}${label ? ` (${label})` : ''}`
+      })
+      .join('\n')
     lines.push(
-      `- ${references.imageCount} reference image(s): use as opening frame, character likeness, or scene anchor as the idea requires. Images bind automatically — do not invent @Image tokens.`,
+      `- ${references.images.length} reference image(s), already bound to these slots in order:\n${slots}\n  Give each image ONE scoped job in finalPrompt — what it controls and what it must not affect (a character image fixes face/hair/costume only; a background image fixes layout, materials and light direction only; a shot/keyframe image fixes composition or the opening frame; a closeup fixes facial detail). Cite a named image as @<name> exactly as listed (the workflow rewrites it to its slot); cite an unnamed one by its slot token. Never invent a slot that is not listed.`,
     )
   }
 
@@ -46,7 +54,7 @@ function buildReferenceBlock(
       (_, index) => `@Video${index + 1}`,
     ).join(', ')
     lines.push(
-      `- ${references.videoCount} reference video(s) (${tokens}): cite each token in finalPrompt to replicate its camera language, motion, or effects, e.g. "replicate @Video1's camera movement".`,
+      `- ${references.videoCount} reference video(s) (${tokens}): give each ONE scoped job — camera path and timing only, or motion/performance only, or style only — and say it must not affect subject or scene content, e.g. "@Video1 supplies only the camera path and cut rhythm".`,
     )
   }
 
@@ -68,7 +76,7 @@ function buildReferenceBlock(
   return [
     'PRODUCTION REFERENCES (the workflow includes these reference assets — weave them into the timeline and finalPrompt with intent):',
     ...lines,
-    'Only use @VideoN / @AudioN tokens for the references listed above; never emit a token for a modality not listed.',
+    'Only use the tokens for the references listed above; never emit a token for a modality or slot not listed.',
   ].join('\n')
 }
 

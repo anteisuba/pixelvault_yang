@@ -20,7 +20,6 @@ import type {
   NodeWorkflowNodeData,
   NodeWorkflowReferenceAsset,
 } from '@/types/node-workflow'
-import type { SeedancePromptPlanReferences } from '@/types/seedance-prompt-plan'
 
 import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
 import { resolveNodeDisplayName } from './node-display-name'
@@ -1352,34 +1351,4 @@ export function mergePromptWithUpstreamText(
   if (!upstream) return base
   if (!base) return upstream
   return `${upstream}\n\n${base}`
-}
-
-/**
- * Summarise the reference assets feeding a focal Seedance node so the prompt
- * planner can orchestrate Seedance's multimodal @VideoN / @AudioN tokens with
- * intent. Counts are capped to the fal endpoint limits (≤9 images, ≤3 videos,
- * ≤3 audio). Audio carries the routing character name when one is wired, so
- * the planner can label `Alice (@Audio1)`. Returns zeros when nothing is wired.
- */
-export function summarizeUpstreamSeedanceReferences(
-  focalNodeId: string,
-  edges: readonly NodeWorkflowEdge[],
-  nodes: readonly NodeWorkflowNode[],
-): SeedancePromptPlanReferences {
-  const upstream = getUpstreamNodes(focalNodeId, edges, nodes)
-
-  return {
-    // 包 4：数的是**过审后真会送出去的**张数。planner 拿到的数量必须和实际
-    // 载荷一致，否则它会按 5 张图去编排 @Image1..5 而真实只发出 3 张。
-    imageCount: Math.min(
-      9,
-      harvestUpstreamImageUrls(upstream, edges, focalNodeId).urls.length,
-    ),
-    videoCount: Math.min(3, harvestUpstreamVideoUrls(upstream).length),
-    audio: harvestUpstreamAudioBindings(focalNodeId, edges, nodes)
-      .slice(0, 3)
-      .map((binding) =>
-        binding.characterName ? { characterName: binding.characterName } : {},
-      ),
-  }
 }

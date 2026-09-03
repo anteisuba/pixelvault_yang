@@ -167,7 +167,6 @@ import {
   isShotNode,
   mergeComposerReferenceAssets,
   mergePromptWithUpstreamText,
-  summarizeUpstreamSeedanceReferences,
   type UpstreamImageReference,
   type VideoLegendImageReference,
 } from '@/lib/node-workflow-graph'
@@ -175,7 +174,10 @@ import {
   buildReferenceImageIndexByName,
   translatePromptTokensToPositional,
 } from '@/lib/node-video-prompt-translation'
-import { buildVideoSendPreview } from '@/lib/node-video-send-preview'
+import {
+  buildVideoSendPreview,
+  summarizeVideoSendReferences,
+} from '@/lib/node-video-send-preview'
 import { resolveNodeVideoDuration } from '@/lib/node-video-duration'
 import { assembleReferenceImagePayload } from '@/lib/node-reference-payload'
 import { planVideoKeyframeImages } from '@/lib/node-video-keyframe-plan'
@@ -1279,7 +1281,7 @@ function StudioNodeCanvas() {
       )
       const idea = seedanceNode?.data.prompt?.trim() ?? ''
 
-      if (!idea) {
+      if (!seedanceNode || !idea) {
         toast.info(t('videoComposer.enhanceEmptyTip'), {
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
           position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
@@ -1287,13 +1289,41 @@ function StudioNodeCanvas() {
         return
       }
 
-      const referenceSummary = summarizeUpstreamSeedanceReferences(
-        seedanceNodeId,
-        workflow.edges,
-        workflow.nodes,
-      )
+      // 参考素材走**和发送路径同一份**投影（`buildVideoSendPreview`）：模式 →
+      // 端点 → 容量 → 过审 → 槽位，规划器拿到的就是真会发出去的 @ImageN /
+      // @VideoN / @AudioN 清单，带名字和分类，而不是一个手数的计数。
+      const seedanceModel = seedanceNode.data.model
+      const effectiveVideoModel = seedanceModel
+        ? resolveVideoModelForMode(
+            seedanceModel,
+            seedanceNode.data.videoMode ??
+              getNodeModeForModel(
+                seedanceModel.modelId,
+                seedanceModel.adapterType,
+              ),
+            modelOptionsByType[NODE_TYPE_IDS.seedance] ?? [],
+          )
+        : null
+      const sendPreview = buildVideoSendPreview({
+        nodeId: seedanceNodeId,
+        data: seedanceNode.data,
+        edges: workflow.edges,
+        nodes: workflow.nodes,
+        modelId: effectiveVideoModel?.modelId ?? seedanceModel?.modelId,
+        adapterType:
+          effectiveVideoModel?.adapterType ?? seedanceModel?.adapterType,
+        maxReferenceImages: undefined,
+        autoNamePrefix: {
+          character: t('videoComposer.autoName.character'),
+          background: t('videoComposer.autoName.background'),
+          shot: t('videoComposer.autoName.shot'),
+          closeup: t('videoComposer.autoName.closeup'),
+          video: t('videoComposer.autoName.video'),
+        },
+      })
+      const referenceSummary = summarizeVideoSendReferences(sendPreview)
       const references =
-        referenceSummary.imageCount > 0 ||
+        referenceSummary.images.length > 0 ||
         referenceSummary.videoCount > 0 ||
         referenceSummary.audio.length > 0
           ? referenceSummary
@@ -1345,7 +1375,7 @@ function StudioNodeCanvas() {
         position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
       })
     },
-    [appLocale, seedancePromptPlan, t, tErrors, workflow],
+    [appLocale, modelOptionsByType, seedancePromptPlan, t, tErrors, workflow],
   )
 
   const handleGenerateCharacterImage = useCallback(

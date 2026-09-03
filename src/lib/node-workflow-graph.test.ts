@@ -45,7 +45,6 @@ import {
   mergeComposerReferenceAssets,
   mergePromptWithUpstreamText,
   resolveGenerateTargetKind,
-  summarizeUpstreamSeedanceReferences,
   type UpstreamImageReference,
   type VideoLegendImageReference,
   type VideoReferenceLegendLabels,
@@ -2712,101 +2711,5 @@ describe('harvestUpstreamAudioBindings', () => {
         coverImage: 'https://cdn/reference-cover.png',
       },
     ])
-  })
-})
-
-describe('summarizeUpstreamSeedanceReferences', () => {
-  it('counts images / videos and names character-routed audio', () => {
-    const nodes = [
-      makeNode('seedance', NODE_TYPE_IDS.seedance),
-      makeNode('char', NODE_TYPE_IDS.characterImage, {
-        imageUrl: 'https://cdn/char.png',
-        characterName: 'Alice',
-      }),
-      makeNode('frame', NODE_TYPE_IDS.frameImage, {
-        imageUrl: 'https://cdn/frame.png',
-      }),
-      makeNode('clip', NODE_TYPE_IDS.videoReference, {
-        mediaUrl: 'https://cdn/clip.mp4',
-      }),
-      makeNode('voice', NODE_TYPE_IDS.voice, {
-        voiceClipUrl: 'https://cdn/voice.mp3',
-      }),
-    ]
-    const edges = [
-      makeEdge('e1', 'char', 'seedance'),
-      makeEdge('e2', 'frame', 'seedance'),
-      makeEdge('e3', 'clip', 'seedance'),
-      makeEdge('e4', 'voice', 'char'),
-    ]
-
-    expect(
-      summarizeUpstreamSeedanceReferences('seedance', edges, nodes),
-    ).toEqual({
-      imageCount: 2,
-      videoCount: 1,
-      audio: [{ characterName: 'Alice' }],
-    })
-  })
-
-  it('returns zeros when nothing is wired upstream', () => {
-    const nodes = [makeNode('seedance', NODE_TYPE_IDS.seedance)]
-    expect(summarizeUpstreamSeedanceReferences('seedance', [], nodes)).toEqual({
-      imageCount: 0,
-      videoCount: 0,
-      audio: [],
-    })
-  })
-
-  it('omits characterName for voices wired directly into the node', () => {
-    const nodes = [
-      makeNode('seedance', NODE_TYPE_IDS.seedance),
-      makeNode('voice', NODE_TYPE_IDS.voice, {
-        voiceClipUrl: 'https://cdn/voice.mp3',
-      }),
-    ]
-    const edges = [makeEdge('e1', 'voice', 'seedance')]
-
-    expect(
-      summarizeUpstreamSeedanceReferences('seedance', edges, nodes),
-    ).toEqual({
-      imageCount: 0,
-      videoCount: 0,
-      audio: [{}],
-    })
-  })
-
-  // R3-6b §3: the image count reflects a per-edge stage override, not just
-  // the card's own onStage curation — this is the same harvest the actual
-  // send path (harvestUpstreamImageUrls with edges+focalNodeId) uses.
-  it('counts a per-edge stageOverrideUrls expansion, not the card onStage set', () => {
-    const nodes = [
-      makeNode('seedance', NODE_TYPE_IDS.seedance),
-      makeNode('char', NODE_TYPE_IDS.characterImage, {
-        imageUrl: 'https://cdn/char.png',
-        referenceAssets: [
-          {
-            id: 'r1',
-            url: 'https://cdn/card-default.png',
-            role: 'pose',
-            weight: 0.72,
-            source: 'upload',
-            onStage: true,
-          },
-        ],
-      }),
-    ]
-    const edges = [
-      makeEdge('e1', 'char', 'seedance', {
-        stageOverrideUrls: [
-          'https://cdn/override1.png',
-          'https://cdn/override2.png',
-        ],
-      }),
-    ]
-
-    expect(
-      summarizeUpstreamSeedanceReferences('seedance', edges, nodes).imageCount,
-    ).toBe(3)
   })
 })

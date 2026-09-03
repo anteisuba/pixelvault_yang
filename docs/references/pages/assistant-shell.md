@@ -39,7 +39,7 @@
 
 - 头部控件在窄浮卡内必须可见；模型触发器允许截断。
 - 模型/历史弹层在浮卡内侧对齐并使用碰撞检测，不得向视口外或不可见方向展开。
-- 三处使用同一助手模型注册表：OpenAI GPT-5.6 三档、Gemini 3.7 Flash、DeepSeek V4 Pro、DeepSeek V4 Flash Vision Exp、Claude Sonnet 5、Grok 4.6；Qwen 不进入助手。
+- 三处使用同一助手模型注册表：OpenAI GPT-5.6 三档、Gemini 3.7 Flash、DeepSeek V4 Pro、DeepSeek V4 Flash Vision Exp、Claude Fable 5.1、Grok 4.6；Qwen 不进入助手。
 - 缺 key 时仍显示模型并打开 `QuickSetupDialog`，不得禁用整个入口。
 
 ## 3. 对话与领域上下文
@@ -136,6 +136,49 @@
 - 该能力只读取现有文件夹、Generation URL 并调用视觉补全；不创建 generation、不写库、不下载或上传素材，也不改工作台表单。后续动作仍须走既有 `set_*` / `mount_*` 工具。
 - 空文件夹不借视觉路由、不调用模型；文件夹所有权在服务端按内部 `User.id` 收敛。
 
+## 6.7 画布对话助手 · 视频提示词（现状与待改，2026-09-03 记）
+
+> 视频卡上的「AI 增强」按钮已在本日升到 Seedance 2.5 口径（见
+> `canvas-video-card.md` §7）；画布**对话**助手（`services/node/node-assistant.service.ts`
+>
+> - `StudioNodeAssistantDock`）**一行未动**。它是画布上写视频提示词的另一条路
+>   （`add_node` / `set_prompt`），现状与增强按钮之间有明确落差，先记账再改。
+
+### 现状（读代码核过）
+
+- **没有电影语法与 Seedance 规则。** 系统提示词里关于 prompt 的规则只有：写完整而非
+  标签、变体要重述不变量、纯文本、字数上限（`buildNodeAssistantOpsInstructions`）。
+  `CINEMATIC_SHOT_GRAMMAR` / `SEEDANCE_25_CONTROL_RULES` 只喂给了增强按钮。
+- **看不到视频节点接了什么。** 节点上下文（`lib/node-assistant-context.ts`）不带边、
+  不做上游收割；节点行里的 `refs:` 只对能挂参考资产的收集器卡渲染（role + 源节点 id）。
+  一个视频生成节点在助手眼里只有 `model / params / prompt`——它不知道上游有
+  `@凛`、`@场景1`、`@Video1`、`凛 (@Audio1)`，所以写不出 `@名字` 引用，也不会给参考分工。
+- **不知道 @token 的两层。** 没人告诉它「具名参考用 `@名字`，发送时自动翻成
+  `@ImageN`」；它若自己写 `@Image1` 也能跑（图例会对上），但参考顺序一变就错位。
+
+### 待改（三件，都是复用不是新造）
+
+1. **规则注入**：视频生成节点的 prompt 规则追加同一份 `CINEMATIC_SHOT_GRAMMAR` +
+   `SEEDANCE_25_CONTROL_RULES`（import，不复制文案），并说明 @引用两层与「一个参考
+   一个职责」。落点 `node-assistant.service.ts` 的 ops 指令段；注意上下文预算
+   （`streamGatewayWithContextCompaction` 的截断顺序，别让规则把节点清单挤掉）。
+2. **视频节点行加 `sends:`**：seedance 节点的上下文加一个只读字段——直接调
+   `summarizeVideoSendReferences(buildVideoSendPreview(...))`，渲染成
+   `sends: @凛 (character), @场景1 (background), @Video1, 凛 (@Audio1)`。⛔ 一个 URL
+   都不进 payload（与 `refs:` 同一条铁律）。落点 `lib/node-assistant-context.ts` +
+   `types/node-assistant.ts` 的 schema；需要把 `edges` 与模式解析
+   （`resolveVideoModelForMode` + `getNodeModeForModel`）带进上下文构建，客户端组装
+   `autoNamePrefix` 要用和编排器同一组 i18n key（`videoComposer.autoName.*`）。
+3. **口径对齐测试**：`node-assistant.service.test.ts` 断言视频节点规则段与
+   `sends:` 行；`node-assistant-context.test.ts` 断言无边时不渲染 `sends:`、
+   有边时与 `buildVideoSendPreview` 的 `images/videoUrls/audioEntries` 一致。
+
+### 边界
+
+- 不动 `add_node` / `set_prompt` 的 op 契约；不给助手新增「替我增强」这类 op——
+  增强按钮已是那条路，两处各写各的 prompt 会分叉，助手应**写出符合同一规则的 prompt**。
+- 图片节点的 prompt 规则不在本片范围。
+
 ## 7. 验收证据
 
 - `/zh/studio/image`、视频 Studio、`/zh/studio/lora?section=generate`、`/zh/studio/node` 的普通对话态几何与头部顺序一致。
@@ -147,6 +190,8 @@
 
 ## Last Verified
 
+- 2026-09-03：§6.7 记账——画布对话助手写视频提示词的现状（无电影语法 / 无 Seedance
+  规则 / 看不到视频节点上游 / 不知 @token 两层）与三件待改。代码未动，只补文档。
 - 2026-09-02：新增 DeepSeek V4 Flash Vision Exp 独立助手档位；工作台与画布附件闸按
   `(adapterType, modelId)` 判断图片能力，DeepSeek 请求仅对该档构造 `image_url` 内容块，
   V4 Pro 保持纯文本。定向 Vitest 7 文件 194 条、全量 TypeScript、目标 ESLint 通过。

@@ -205,8 +205,39 @@
 - ⬜ fal / MiniMax / BytePlus 的单价补齐（各自接入时顺手做，别单独立项）；周检脚本扩到
   `verifiedAt` 超期告警。
 
+## 7 · AI 增强 = Seedance 提示词规划器（2026-09-03 落地）
+
+视频卡上的「AI 增强」按钮（`enhanceSeedancePrompt`，`StudioNodeWorkbench`）把节点
+正文当粗想法，交给 `services/prompts/seedance-prompt-plan.service.ts` 规划成
+`timeline / motion / camera / duration / audioIntent / finalPrompt` 写回节点。本轮把它
+从 2.0 口径升到 2.5，并接上真实的 @引用槽位：
+
+- **方法论两层，一个事实一个家**：模型中立的电影语法在
+  `constants/cinematic-grammar.ts`（`CINEMATIC_SHOT_GRAMMAR`：景别/角度/运镜词汇、
+  Z 轴空间描述、身体表演白描、光线连续性、按秒分节拍）；2.5 专属的稳定性杠杆在
+  `constants/seedance-prompt-plan.ts` 的 `SEEDANCE_25_CONTROL_RULES`——全局锁定行
+  先声明一次、一镜一动作且绑定事件而非计时、转场必须命名、每镜重述站位与结束态、
+  易漂事实在易漂镜头重复、20–30s 用四段节奏（开场/发展/升级/收束）、单次直出不拼接。
+- **参考素材走和发送路径同一份投影**：规划器收到的 `references` 由
+  `summarizeVideoSendReferences(buildVideoSendPreview(...))` 产出——模式 → 端点 →
+  容量 → 过审 → 槽位之后**真会发出去**的 `@ImageN`（带名字 / kind / category）、
+  `@VideoN` 数量、`@AudioN` 的说话人。旧的 `summarizeUpstreamSeedanceReferences`
+  （手数计数、写死 2.0 的 9/3/3）已删。schema 上限统一读
+  `VIDEO_REFERENCE_LIMITS`（30 / 10 / 10，新增 `VIDEOS`）。
+- **@引用的两层不变**：规划器被要求用 `@名字` 原样引用具名图（创作层 token，
+  MentionInput 渲染成胶囊；发送时 `translatePromptTokensToPositional` 改写成
+  `@ImageN（名字）`，参考顺序变了也不失联）；未命名的用槽位 token。每个参考必须领
+  **一个**职责——控制什么、不影响什么（角色图只定脸/发/服装；场景图只定布局、材质、
+  光向；镜头/关键帧图定构图或首帧；特写定面部细节；参考视频只给运镜或只给动作或只给
+  风格）。
+- **未实测**：规则措辞按 2.5 第三方指南与官方公式写，尚未用真实生成校准；先跑一两条
+  看 finalPrompt 形态再调。
+
 ## Last Verified
 
+- 2026-09-03 · §7 落地：规划器升 2.5 规则 + 参考槽位改走发送投影；删旧计数函数。
+  闸门：全量 tsc 0 错、全量 vitest 585 文件 0 FAIL、目标 eslint / prettier 通过。
+  真实生成未跑（措辞待校准）。
 - 2026-09-01 · §6 由任务包 `canvas-video-domain-cleanup-2026-08-08.md` §8–§9 沉淀而来
   （拍板、三层钻取、比价口径、切换处置、未竟项）。代码事实未变，本次只补文档。
 - 2026-07-30 · owner 确认右侧方向、固定间距和紧凑信息密度并授权落地。

@@ -120,6 +120,11 @@ describe('createSeedancePromptPlan', () => {
         systemPrompt: expect.stringContaining('rear-right blind spot'),
       }),
     )
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemPrompt: expect.stringContaining('SEEDANCE 2.5 CONTROL RULES'),
+      }),
+    )
   })
 
   it('threads reference assets into the planner prompt with @VideoN / @AudioN tokens', async () => {
@@ -130,7 +135,10 @@ describe('createSeedancePromptPlan', () => {
       plannerProvider: 'auto',
       locale: 'en',
       references: {
-        imageCount: 2,
+        images: [
+          { index: 1, name: 'Alice', kind: 'character' },
+          { index: 2, name: '首帧1', category: '首帧' },
+        ],
         videoCount: 1,
         audio: [{ characterName: 'Alice' }, {}],
       },
@@ -144,6 +152,16 @@ describe('createSeedancePromptPlan', () => {
     expect(mockLlmTextCompletion).toHaveBeenCalledWith(
       expect.objectContaining({
         userPrompt: expect.stringContaining('2 reference image(s)'),
+      }),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.stringContaining('@Image1 = "Alice" (character)'),
+      }),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.stringContaining('@Image2 = "首帧1" (首帧)'),
       }),
     )
     expect(mockLlmTextCompletion).toHaveBeenCalledWith(

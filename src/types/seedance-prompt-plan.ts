@@ -7,6 +7,7 @@ import {
 } from '@/constants/script-breakdown'
 import { SEEDANCE_PROMPT_PLAN_LIMITS } from '@/constants/seedance-prompt-plan'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { VIDEO_REFERENCE_LIMITS } from '@/constants/video-reference-limits'
 import { LOCALES } from '@/i18n/routing'
 
 export const SeedancePromptTimelineItemSchema = z.object({
@@ -37,18 +38,50 @@ export const SeedancePromptTimelineItemSchema = z.object({
   maxReferences: z.number().int().min(0).max(9).optional(),
 })
 
-// Summary of the reference assets wired into the downstream Seedance node at
-// plan time. Lets the planner orchestrate Seedance's multimodal @VideoN /
-// @AudioN tokens with intent instead of leaving the fal builder to prepend
-// semantically-empty tokens. Best-effort: empty when the graph has no refs yet.
+// The reference assets that will ACTUALLY ship with the downstream Seedance
+// request, in slot order — derived from the same `buildVideoSendPreview`
+// projection the send path uses (`summarizeVideoSendReferences`), never
+// re-counted here. Names/kinds let the planner give every @ImageN a scoped
+// job ("@Image2 fixes the room layout and light direction, nothing else")
+// instead of a bare count; the ceilings are the request-level ones in
+// `VIDEO_REFERENCE_LIMITS` (Seedance 2.5 reaches all three).
+export const SEEDANCE_PROMPT_PLAN_IMAGE_KINDS = [
+  'character',
+  'background',
+  'shot',
+  'closeup',
+] as const
+
+export const SeedancePromptPlanReferenceImageSchema = z.object({
+  /** 1-based `@ImageN` slot — the position Seedance resolves. */
+  index: z.number().int().min(1).max(VIDEO_REFERENCE_LIMITS.IMAGES),
+  /** Creation-layer name (`@name` token the composer renders); undefined for
+   *  a category-only entry such as a keyframe. */
+  name: z.string().trim().min(1).max(80).optional(),
+  kind: z.enum(SEEDANCE_PROMPT_PLAN_IMAGE_KINDS).optional(),
+  /** Category label (e.g. 首帧 / 关键帧 / pose) when the slot carries one. */
+  category: z.string().trim().min(1).max(80).optional(),
+})
+
 export const SeedancePromptPlanReferenceAudioSchema = z.object({
   characterName: z.string().trim().min(1).max(80).optional(),
 })
 
 export const SeedancePromptPlanReferencesSchema = z.object({
-  imageCount: z.number().int().min(0).max(9).default(0),
-  videoCount: z.number().int().min(0).max(3).default(0),
-  audio: z.array(SeedancePromptPlanReferenceAudioSchema).max(3).default([]),
+  images: z
+    .array(SeedancePromptPlanReferenceImageSchema)
+    .max(VIDEO_REFERENCE_LIMITS.IMAGES)
+    .default([]),
+  videoCount: z
+    .number()
+    .int()
+    .min(0)
+    .max(VIDEO_REFERENCE_LIMITS.VIDEOS)
+    .default(0),
+  audio: z
+    .array(SeedancePromptPlanReferenceAudioSchema)
+    .max(VIDEO_REFERENCE_LIMITS.AUDIO)
+    .default([]),
 })
 
 export const SeedancePromptPlanRequestSchema = z.object({
@@ -122,6 +155,9 @@ export const SeedancePromptPlanApiSuccessResponseSchema = z.object({
 
 export type SeedancePromptTimelineItem = z.infer<
   typeof SeedancePromptTimelineItemSchema
+>
+export type SeedancePromptPlanReferenceImage = z.infer<
+  typeof SeedancePromptPlanReferenceImageSchema
 >
 export type SeedancePromptPlanReferences = z.infer<
   typeof SeedancePromptPlanReferencesSchema

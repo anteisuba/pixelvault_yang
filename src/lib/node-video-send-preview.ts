@@ -27,6 +27,7 @@ import type {
   NodeWorkflowNode,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
+import type { SeedancePromptPlanReferences } from '@/types/seedance-prompt-plan'
 
 import {
   assembleReferenceImagePayload,
@@ -439,5 +440,31 @@ export function buildVideoSendPreview({
     },
     canSubmit: blockers.length === 0,
     blockers,
+  }
+}
+
+/**
+ * Project a send preview into what the Seedance prompt planner needs to know
+ * about the references: every `@ImageN` slot with its creation-layer name /
+ * kind / category, how many `@VideoN` clips ride along, and who speaks on
+ * each `@AudioN`. Reads the SAME post-cap, post-review `images` /
+ * `videoUrls` / `audioEntries` the request ships, so the planner never
+ * orchestrates a slot the payload does not contain (the old count-based
+ * summary capped at 2.0's 9/3/3 by hand and drifted from 2.5's 30/10/10).
+ */
+export function summarizeVideoSendReferences(
+  preview: Pick<VideoSendPreview, 'images' | 'videoUrls' | 'audioEntries'>,
+): SeedancePromptPlanReferences {
+  return {
+    images: preview.images.map((image) => ({
+      index: image.index,
+      ...(image.name ? { name: image.name } : {}),
+      ...(image.kind ? { kind: image.kind } : {}),
+      ...(image.category ? { category: image.category } : {}),
+    })),
+    videoCount: preview.videoUrls.length,
+    audio: preview.audioEntries.map((entry) =>
+      entry.characterName ? { characterName: entry.characterName } : {},
+    ),
   }
 }

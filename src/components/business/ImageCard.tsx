@@ -330,7 +330,7 @@ export const ImageCard = memo(function ImageCard({
                     {creatorName}
                   </span>
                   {showCreatorHandle ? (
-                    <span className="block truncate text-[10px] text-white/70">
+                    <span className="block truncate text-[10px] text-white/70 max-sm:hidden">
                       {creatorHandle}
                     </span>
                   ) : null}

@@ -920,6 +920,14 @@
   box-shadow: var(--canvas-card-shadow-hover);
 }
 
+/* 手机「查看画布」态的返回按钮：贴在顶栏**正下方**。
+   ⚠ 2026-09-03 owner 报「画布返回列表这边重叠了」——原来写 `top-3`(12px)，
+   正好落在 `--canvas-topbar-h`(48px) 的顶栏里，和项目名叠在一起。
+   与 `.canvas-review-bar` 同源同一条基线，改高度只需改顶栏那个变量。 */
+.domain-canvas .canvas-peek-exit {
+  top: calc(var(--canvas-topbar-h) + 12px);
+}
+
 /* 模式条：视口固定的一条窄条，贴在顶栏正下方居中。只在模式里存在。 */
 .domain-canvas .canvas-review-bar {
   top: calc(var(--canvas-topbar-h) + 12px);

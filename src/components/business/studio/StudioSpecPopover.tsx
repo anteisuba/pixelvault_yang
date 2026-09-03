@@ -116,7 +116,7 @@ export function StudioSpecPopover({ disabled }: StudioSpecPopoverProps) {
           disabled={disabled}
           aria-label={t('specLabel')}
           className={cn(
-            'flex h-9 w-full items-center gap-2 rounded-lg border border-border/60 bg-background px-3 text-xs font-medium text-foreground',
+            'touch-target-y flex h-9 w-full items-center gap-2 rounded-lg border border-border/60 bg-background px-3 text-xs font-medium text-foreground',
             'transition-colors duration-fast ease-standard hover:border-primary/25',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
             'disabled:pointer-events-none disabled:opacity-50',

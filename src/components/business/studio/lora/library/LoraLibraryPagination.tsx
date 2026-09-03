@@ -32,7 +32,9 @@ export function LoraLibraryPagination({
   return (
     <nav
       aria-label={pageStatus}
-      className="mt-1 flex shrink-0 flex-col gap-2 rounded-xl border border-border/60 bg-muted/20 p-2 sm:flex-row sm:items-center sm:justify-between"
+      // ⚠ 手机上别再堆成三整行：375×812 里那是 150px，占了内容区的 27%，
+      // 库里一页只剩 6 行结果（owner 2026-09-03）。三个控件本来就只要 250px 宽。
+      className="mt-1 flex shrink-0 items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/20 p-2"
     >
       <Button
         type="button"
@@ -40,14 +42,14 @@ export function LoraLibraryPagination({
         size="sm"
         disabled={page <= 1 || isBusy}
         onClick={onPreviousPage}
-        className="h-9 justify-center text-xs sm:min-w-24"
+        className="touch-target-y h-9 justify-center px-2.5 text-xs sm:min-w-24 sm:px-3"
       >
         <ChevronLeft className="size-3.5" aria-hidden />
         {t('communityPrevious')}
       </Button>
 
       <span
-        className="inline-flex h-9 items-center justify-center rounded-lg bg-background px-3 text-xs font-medium text-foreground ring-1 ring-border/60"
+        className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-background px-2.5 text-xs font-medium whitespace-nowrap text-foreground ring-1 ring-border/60 sm:px-3"
         aria-live="polite"
       >
         {pageStatus}
@@ -59,7 +61,7 @@ export function LoraLibraryPagination({
         size="sm"
         disabled={!hasNextPage || isBusy}
         onClick={onNextPage}
-        className="h-9 justify-center text-xs sm:min-w-24"
+        className="touch-target-y h-9 justify-center px-2.5 text-xs sm:min-w-24 sm:px-3"
       >
         {t('communityNext')}
         <ChevronRight className="size-3.5" aria-hidden />

@@ -125,7 +125,7 @@ import { QuickSetupDialog } from '@/components/business/studio-shared/setup/Quic
  * 是切片 B / D 的事，那时这两个常量会一起消失。
  */
 const modalityPillClass =
-  'flex h-9 items-center gap-2 rounded-lg border border-border/60 px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:border-primary/25 hover:text-foreground disabled:pointer-events-none disabled:opacity-50'
+  'touch-target-y flex h-9 items-center gap-2 rounded-lg border border-border/60 px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:border-primary/25 hover:text-foreground disabled:pointer-events-none disabled:opacity-50'
 const modalityPillActiveClass = 'border-primary/30 bg-primary/10 text-primary'
 
 const STUDIO_FLOATING_SURFACE_SELECTOR = [

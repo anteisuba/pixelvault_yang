@@ -283,12 +283,12 @@ export function CanvasMobileView({
     // 桌面 chrome 与 ReactFlow 从未卸载，只是被上面这层不透明覆盖层盖住过；
     // 收起覆盖层本身即可露出，不需要重新挂载任何东西。
     return (
-      <div className="pointer-events-none absolute inset-0 z-canvas-workspace">
+      <div className="domain-canvas pointer-events-none absolute inset-0 z-canvas-workspace">
         <button
           type="button"
           onClick={onExitPeek}
           aria-label={tMobile('backToList')}
-          className="canvas-glass pointer-events-auto absolute left-3 top-3 flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-node-foreground"
+          className="canvas-glass canvas-peek-exit pointer-events-auto absolute left-3 flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-node-foreground"
         >
           <ChevronLeft className="size-4" aria-hidden />
           {tMobile('backToList')}

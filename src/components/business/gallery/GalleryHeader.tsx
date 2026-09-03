@@ -44,7 +44,9 @@ function PillGroup<T extends string>({
   return (
     <div
       className={cn(
-        'inline-flex rounded-full border border-border/60 p-0.5',
+        // shrink-0：外层窄屏是 flex-nowrap 的滚动行，不锁的话组会被压扁、
+        // 「最新优先」四个字被挤成竖排。
+        'inline-flex shrink-0 rounded-full border border-border/60 p-0.5',
         className,
       )}
     >
@@ -53,7 +55,7 @@ function PillGroup<T extends string>({
           key={opt.value}
           type="button"
           className={cn(
-            'min-h-8 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors',
+            'touch-target-y min-h-8 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors',
             value === opt.value
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:text-foreground',
@@ -163,8 +165,10 @@ export const GalleryHeader = memo(function GalleryHeader({
 
   return (
     <div className="space-y-3">
-      {/* Pill row — visually grouped: [sort] · [type] · [time]   [search + advanced + clear] */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Pill row — visually grouped: [sort] · [type] · [time]   [search + advanced + clear]
+          窄屏收成一行横向滚动（ui-defaults.md §6「筛选条横向滚动 chip」）：
+          原来 wrap 成三行，在 375 上把首屏全吃掉，图一张都看不到。 */}
+      <div className="flex items-center gap-2 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:pb-1 sm:flex-wrap">
         {/* Group 1: ordering */}
         <PillGroup
           options={sortOptions}
@@ -197,10 +201,10 @@ export const GalleryHeader = memo(function GalleryHeader({
 
         {/* Spacer — pushes the action cluster to the right edge so search /
             advanced feel like a separate tool group from the filter pills. */}
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2 sm:flex-wrap">
           {/* Search toggle */}
           {searchOpen ? (
-            <div className="flex min-h-9 items-center gap-1.5 rounded-full border border-border/60 px-3.5 py-1">
+            <div className="touch-target-y flex min-h-9 items-center gap-1.5 rounded-full border border-border/60 px-3.5 py-1">
               <Search className="size-3.5 text-muted-foreground shrink-0" />
               <input
                 type="text"

@@ -127,7 +127,12 @@
   --z-index-canvas-chrome: 40; /* L4 工作区 chrome：顶栏/底部工具条/卡匣/minimap */
   --z-index-canvas-transient: 50; /* L5 瞬时浮层：添加菜单/卡匣展开浮层 */
   --z-index-canvas-panel: 60; /* L6 对象任务面板：NodeDetailPanel（唯一 backdrop） */
-  --z-index-canvas-workspace: 70; /* L7 手机默认覆盖层 CanvasMobileView（首个消费者，见上方说明） */
+  /* L7 手机默认覆盖层 CanvasMobileView。⚠ **必须留在共享 UI 的 z-50 之下**：
+     2026-09-03 owner 报「画布页点顶部『画布』后分类被盖住」——原值 70 让这层
+     盖住了 MobileShell 的导航 Sheet（Radix portal，z-50）。它自己是
+     `pointer-events-none`，于是 elementFromPoint 查不到它、只有肉眼看得见，
+     排查时极易误判成「面板没渲染」。45 足够压过 chrome(40) 与助手 rail(20)。 */
+  --z-index-canvas-workspace: 45;
   --z-index-canvas-drag: 80; /* L8 拖拽 ghost / 吞噬 portal，恒压过共享 UI z-50 */
   --text-brand: 1.12rem;
   --text-nav: 0.6875rem;
@@ -564,6 +569,27 @@ html:lang(ja) {
 }
 
 @layer components {
+  /* ── 触屏纵向命中区（ui-defaults.md §5：coarse 44px）─────────────────
+     把画布域已在用的 `coarse:before:-inset-y-1` 手法收成一个类，值也从
+     「猜一个 -inset-y」改成「无论基准多高都补到 44」。
+     ⚠ **只撑高度不撑宽度**：横向相邻的 chip 之间若也外扩会互相重叠，
+     那是把「点不中」换成「点错」。纵向相邻控件的间距 ≥12px 时不会重叠。 */
+  .touch-target-y {
+    position: relative;
+  }
+
+  @media (pointer: coarse) {
+    .touch-target-y::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 44px;
+      transform: translateY(-50%);
+    }
+  }
+
   /* ── 应用壳导航的两块滑片 —— docs/references/pages/app-shell.md §4.1 / §5.1 ──
      几何写在这里而不是 Tailwind 类里：3px 竖条不在间距刻度上，而这两块是壳
      独占的构件，没有第二个消费者。位置由 use-nav-indicator 量出来后经内联

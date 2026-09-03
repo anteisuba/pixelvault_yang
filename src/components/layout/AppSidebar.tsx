@@ -352,7 +352,11 @@ function SidebarFooterQuotaDot() {
       aria-hidden
       className={cn(
         'absolute -bottom-px -right-px size-2.5 rounded-full ring-2 ring-sidebar',
-        isOut ? 'bg-destructive' : isLow ? 'bg-amber-500' : 'bg-emerald-500',
+        isOut
+          ? 'bg-destructive'
+          : isLow
+            ? 'bg-status-warning'
+            : 'bg-status-applied',
       )}
     />
   )

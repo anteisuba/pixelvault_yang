@@ -2149,7 +2149,7 @@ function GenerateBranch({
                   className={cn(
                     'mt-2 text-2xs',
                     upscaleOutputIsLarge
-                      ? 'text-amber-700 dark:text-amber-400'
+                      ? 'text-status-warning'
                       : 'text-muted-foreground',
                   )}
                 >
@@ -2324,7 +2324,7 @@ function GenerateBranch({
               >
                 <span
                   aria-hidden
-                  className="size-1.5 shrink-0 rounded-full bg-emerald-500/70 dark:bg-emerald-400/70"
+                  className="size-1.5 shrink-0 rounded-full bg-status-applied"
                 />
                 <span className="truncate">{item.asset.name}</span>
               </span>
@@ -2813,7 +2813,7 @@ function GenerateBranch({
                 {/* §4.1 不兼容挂载警示：不阻断出图，与 runner 额度提示同区同形制
                 （琥珀 text-2xs）。互斥时退化成"卸载其一"，不给假建议。 */}
                 {incompatibleCount > 0 ? (
-                  <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-2xs text-amber-600 dark:text-amber-400">
+                  <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-2xs text-status-warning">
                     <AlertTriangle className="size-3 shrink-0" aria-hidden />
                     <span>
                       {t('generate.incompatibleMountsWarning', {
@@ -2826,7 +2826,7 @@ function GenerateBranch({
                       <button
                         type="button"
                         onClick={handleSwitchToSuggestedBase}
-                        className="underline underline-offset-2 hover:text-amber-700 dark:hover:text-amber-300"
+                        className="underline underline-offset-2 hover:text-status-warning"
                       >
                         {t('generate.switchToSuggestedBase', {
                           base: suggestedBaseLabel,
@@ -2845,7 +2845,7 @@ function GenerateBranch({
                     className={cn(
                       'text-2xs',
                       !runnerUsage.platformEnabled || runnerUsage.remaining <= 0
-                        ? 'text-amber-600 dark:text-amber-400'
+                        ? 'text-status-warning'
                         : 'text-muted-foreground',
                     )}
                   >
@@ -3120,9 +3120,7 @@ function LoraSpineBar({
                   aria-hidden
                   className={cn(
                     'absolute right-0.5 top-0.5 size-1.5 rounded-full ring-1 ring-card',
-                    compatible
-                      ? 'bg-emerald-500/80 dark:bg-emerald-400/80'
-                      : 'bg-amber-500 dark:bg-amber-400',
+                    compatible ? 'bg-status-applied/80' : 'bg-status-warning',
                   )}
                 />
               ) : null}
@@ -3235,7 +3233,7 @@ function LoraSpineBar({
             <button
               type="button"
               onClick={onRequestKeySetup}
-              className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-2xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
+              className="inline-flex items-center gap-1 rounded-full border border-status-warning/40 bg-status-warning-surface px-2 py-1 text-2xs font-medium text-status-warning transition-colors hover:bg-status-warning-surface"
             >
               <Key className="size-3" aria-hidden />
               {tSetup('needsKey')}
@@ -3303,7 +3301,7 @@ function LoraSpineBar({
               className={cn(
                 'w-full rounded-lg border p-2.5 transition-colors',
                 compatible === false
-                  ? 'border-amber-500/30 bg-amber-500/10'
+                  ? 'border-status-warning/40 bg-status-warning-surface'
                   : isActiveGroup
                     ? 'border-primary/40 bg-primary/5'
                     : 'border-border/60 bg-background',
@@ -3359,14 +3357,14 @@ function LoraSpineBar({
                 {compatible === true ? (
                   <span
                     aria-hidden
-                    className="size-1.5 shrink-0 rounded-full bg-emerald-500/70 dark:bg-emerald-400/70"
+                    className="size-1.5 shrink-0 rounded-full bg-status-applied"
                   />
                 ) : compatible === false ? (
                   <span
                     role="img"
                     aria-label={t('spine.compatDotWarning')}
                     title={t('spine.compatDotWarning')}
-                    className="size-1.5 shrink-0 rounded-full bg-amber-500 dark:bg-amber-400"
+                    className="size-1.5 shrink-0 rounded-full bg-status-warning"
                   />
                 ) : null}
                 {/* B10-8：长名（Civitai 全名带 | 段）截断，全名进 title；停用划删。 */}
@@ -3434,7 +3432,7 @@ function LoraSpineBar({
               ) : null}
               {/* 不兼容警示行（CD：整行琥珀 + 说明「出图时该 LoRA 不会生效」）。 */}
               {compatible === false ? (
-                <p className="mt-1.5 text-2xs text-amber-600 dark:text-amber-400">
+                <p className="mt-1.5 text-2xs text-status-warning">
                   {t('spine.compatDotWarning')}
                 </p>
               ) : null}
@@ -3492,7 +3490,7 @@ function LoraSpineBar({
                       'size-1 shrink-0 rounded-full',
                       isDisabled
                         ? 'bg-muted-foreground/40'
-                        : 'bg-emerald-500/80 dark:bg-emerald-400/80',
+                        : 'bg-status-applied/80',
                     )}
                   />
                   {entry.triggerWord}
@@ -3549,10 +3547,7 @@ function LoraOftenMountedWithRow({
               {extraLoraLabel(extra)} ×{count}
             </span>
             {status === 'mounted' ? (
-              <Check
-                className="size-3 text-emerald-600 dark:text-emerald-400"
-                aria-hidden
-              />
+              <Check className="size-3 text-status-applied" aria-hidden />
             ) : status === 'failed' ? (
               <a
                 href={`${CIVITAI_MODEL_SEARCH_URL}?query=${encodeURIComponent(

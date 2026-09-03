@@ -242,7 +242,7 @@ function CivitaiRowDetail({
             </code>
             {item.triggerSource === 'inferred' ? (
               <span
-                className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-2xs font-medium text-amber-700 dark:text-amber-300"
+                className="inline-flex items-center gap-1 rounded-full bg-status-warning-surface px-1.5 py-0.5 text-2xs font-medium text-status-warning"
                 title={t('triggerSourceInferredHint')}
               >
                 <Info className="size-2.5" aria-hidden />
@@ -268,7 +268,7 @@ function CivitaiRowDetail({
         <FieldRow label={t('licenseLabel')}>
           <span className="inline-flex flex-wrap items-center gap-1.5">
             {isCommercial ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-2xs font-medium text-emerald-700 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1 rounded-full bg-status-applied-surface px-1.5 py-0.5 text-2xs font-medium text-status-applied">
                 <ShieldCheck className="size-2.5" aria-hidden />
                 {t('licenseCommercial')}
               </span>
@@ -294,12 +294,12 @@ function CivitaiRowDetail({
         </FieldRow>
         <FieldRow label={t('safetyLabel')}>
           {item.isNsfw ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-2xs font-medium text-amber-700 dark:text-amber-300">
+            <span className="inline-flex items-center gap-1 rounded-full bg-status-warning-surface px-1.5 py-0.5 text-2xs font-medium text-status-warning">
               <Shield className="size-2.5" aria-hidden />
               {t('safetySensitive')}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-2xs font-medium text-emerald-700 dark:text-emerald-300">
+            <span className="inline-flex items-center gap-1 rounded-full bg-status-applied-surface px-1.5 py-0.5 text-2xs font-medium text-status-applied">
               <ShieldCheck className="size-2.5" aria-hidden />
               {t('safetySafe')}
             </span>
@@ -320,7 +320,7 @@ function CivitaiRowDetail({
       </p>
 
       {!isGeneratable ? (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-2xs leading-relaxed text-amber-700 dark:text-amber-300">
+        <div className="rounded-lg border border-status-warning/40 bg-status-warning-surface px-3 py-2 text-2xs leading-relaxed text-status-warning">
           {t('externalInspectorHint', { family: item.baseModelFamily })}
         </div>
       ) : null}
@@ -572,7 +572,7 @@ function HuggingFaceRowDetail({
       ) : null}
 
       {selectedFile && !isGeneratable ? (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-2xs leading-relaxed text-amber-700 dark:text-amber-300">
+        <div className="rounded-lg border border-status-warning/40 bg-status-warning-surface px-3 py-2 text-2xs leading-relaxed text-status-warning">
           {t('huggingFaceExternalInspectorHint', {
             family: selectedFile.baseModelFamily,
           })}

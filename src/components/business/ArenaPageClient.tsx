@@ -99,8 +99,8 @@ export function ArenaPageClient() {
                         className={cn(
                           'size-2.5 shrink-0 rounded-full',
                           ep.status === 'pending' &&
-                            'animate-pulse bg-amber-400',
-                          ep.status === 'completed' && 'bg-emerald-500',
+                            'animate-pulse bg-status-warning',
+                          ep.status === 'completed' && 'bg-status-applied',
                           ep.status === 'failed' && 'bg-red-500',
                         )}
                       />

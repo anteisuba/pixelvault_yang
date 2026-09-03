@@ -185,7 +185,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
       className={cn(
         'group relative rounded-xl border border-border/70 bg-background px-2.5 py-2 text-xs transition-colors duration-fast ease-standard',
         isRunning && 'border-primary/40 bg-primary/5',
-        isMoney && 'border-amber-500/40 bg-amber-500/5',
+        isMoney && 'border-status-warning/40 bg-status-warning-surface',
         isRejected && 'border-destructive/40 bg-destructive/5',
         undone && 'opacity-55',
       )}
@@ -194,7 +194,8 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
         <span
           className={cn(
             'mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border border-primary/30 bg-primary/10 text-primary',
-            isMoney && 'border-amber-500/40 bg-amber-500/10 text-amber-600',
+            isMoney &&
+              'border-status-warning/40 bg-status-warning-surface text-status-warning',
             isRejected &&
               'border-destructive/40 bg-destructive/10 text-destructive',
           )}
@@ -211,7 +212,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             data-testid="operator-log-title"
             className={cn(
               'block font-medium text-foreground',
-              isMoney && 'text-amber-600',
+              isMoney && 'text-status-warning',
               undone && 'line-through',
             )}
           >

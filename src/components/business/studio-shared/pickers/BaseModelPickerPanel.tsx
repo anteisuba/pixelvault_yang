@@ -145,9 +145,9 @@ function variantKeyOf(option: StudioModelOption): string {
  */
 const FAMILY_SWATCHES = [
   'bg-blue-500/15 text-blue-700 dark:text-blue-300',
-  'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+  'bg-status-applied-surface text-status-applied',
   'bg-violet-500/15 text-violet-700 dark:text-violet-300',
-  'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+  'bg-status-warning-surface text-status-warning',
   'bg-rose-500/15 text-rose-700 dark:text-rose-300',
   'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300',
 ] as const
@@ -818,7 +818,7 @@ export function BaseModelPickerPanel({
             </>
           ) : platformOpt ? (
             <>
-              <span className="size-2 rounded-full bg-emerald-500" />
+              <span className="size-2 rounded-full bg-status-applied" />
               <span className="hidden sm:inline">
                 {tSetup('platformQuota')}
               </span>
@@ -921,7 +921,7 @@ export function BaseModelPickerPanel({
             {columns ? null : indicatorKeyId ? (
               <ApiKeyHealthDot status={healthMap[indicatorKeyId]} />
             ) : option.freeTier ? (
-              <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+              <span className="size-1.5 shrink-0 rounded-full bg-status-applied" />
             ) : null}
             <span
               className={cn(
@@ -1103,7 +1103,7 @@ export function BaseModelPickerPanel({
   const triggerHealthIndicator = selectedOption?.keyId ? (
     <ApiKeyHealthDot status={healthMap[selectedOption.keyId]} />
   ) : selectedOption?.freeTier ? (
-    <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+    <span className="size-1.5 shrink-0 rounded-full bg-status-applied" />
   ) : null
 
   // Shared between the flat search results and the drilled-in 渠道 view — both

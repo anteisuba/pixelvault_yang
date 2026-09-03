@@ -1280,7 +1280,7 @@ export function Studio3DWorkspace({
                 )}
               </div>
               {isDisplayingMeshOnlyPreview && (
-                <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 shadow-sm backdrop-blur-sm dark:text-amber-300">
+                <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-status-warning/40 bg-status-warning-surface px-3 py-1.5 text-xs font-medium text-status-warning shadow-sm backdrop-blur-sm">
                   <Box className="size-3.5" />
                   <span>{t('rodinMeshOnlyPreviewBadge')}</span>
                 </div>
@@ -1303,7 +1303,7 @@ export function Studio3DWorkspace({
                 loadingLabel={t('viewerLoading')}
                 className="h-full w-full"
               />
-              <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-sm backdrop-blur-sm dark:text-emerald-300">
+              <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-status-applied/40 bg-status-applied-surface px-3 py-1.5 text-xs font-medium text-status-applied shadow-sm backdrop-blur-sm">
                 <Check className="size-3.5" />
                 <span>{t('provisionalSavingLabel')}</span>
               </div>
@@ -1429,8 +1429,8 @@ export function Studio3DWorkspace({
 
           {/* API key missing banner — shown below the model card, specific to selected adapter */}
           {!isLoadingKeys && (isRodin ? !hasRodinKey : !hasFalKey) && (
-            <div className="flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <div className="flex flex-col gap-2 rounded-lg border border-status-warning/40 bg-status-warning-surface p-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-status-warning">
                 <AlertTriangle className="size-3.5" />
                 {isRodin
                   ? t('rodinApiKeyMissingTitle')
@@ -1520,7 +1520,7 @@ export function Studio3DWorkspace({
                 className="flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground"
               >
                 {t('rodinPromptLabel')}
-                <span className="text-[10px] normal-case tracking-normal text-amber-700 dark:text-amber-400">
+                <span className="text-[10px] normal-case tracking-normal text-status-warning">
                   {t('rodinPromptRequiredBadge')}
                 </span>
               </Label>

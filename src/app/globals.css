@@ -62,6 +62,8 @@
   --color-status-applied: var(--status-applied);
   --color-status-applied-surface: var(--status-applied-surface);
   --color-status-risk: var(--status-risk);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-surface: var(--status-warning-surface);
   /* S4 minimap 蓝图纸（§3）：与 node-canvas 暖炭形成材质区分的独立深青底。 */
   --color-node-blueprint-bg: var(--node-blueprint-bg);
   --color-node-blueprint-line: var(--node-blueprint-line);
@@ -422,6 +424,10 @@
   /* 风险 / 破坏性说明文字。比 --destructive（≈#e7000b，对白 4.77）稳，
      且不像报错色那么跳；对白 6.54。 */
   --status-risk: #b3261e;
+  /* 「警告 / 待处理」语义（2026-09-03 收口业务代码里的 amber 调色板类）。
+     #a04f00：对白 5.81 · 对 --muted 5.33 · 对自身 surface 5.28 · 对 surface-sunken 4.88。 */
+  --status-warning: #a04f00;
+  --status-warning-surface: #fdf3e1;
 }
 
 html:lang(ja) {
@@ -468,6 +474,9 @@ html:lang(ja) {
   --status-applied: #5cc998;
   --status-applied-surface: #163024;
   --status-risk: #e06c65;
+  /* 暗面警告档：#f0b25a 对 background 8.19 · 对 secondary(#404040) 5.54 · 对纯黑 11.22。 */
+  --status-warning: #f0b25a;
+  --status-warning-surface: #3a2a10;
 
   --border: oklch(100% 0 0 / 0.1);
   --input: oklch(100% 0 0 / 0.15);

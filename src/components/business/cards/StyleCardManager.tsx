@@ -294,7 +294,7 @@ export function StyleCardManager({
                     ) : null}
                   </div>
                 ) : (
-                  <p className="text-xs text-amber-500">{t('noModel')}</p>
+                  <p className="text-xs text-status-warning">{t('noModel')}</p>
                 )}
                 {detailCard.stylePrompt && (
                   <p className="text-xs text-foreground/80">

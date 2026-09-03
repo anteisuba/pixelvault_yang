@@ -105,7 +105,7 @@ export function ImageCardMedia({
             // a Krea-style badge with a subtle category cue, not a sticker.
             'absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2 py-1 text-xs text-white shadow-sm ring-1 backdrop-blur-md',
             isAudio
-              ? 'bg-emerald-500/45 ring-emerald-200/50'
+              ? 'bg-status-applied/45 ring-status-applied/50'
               : isVideo
                 ? 'bg-violet-500/45 ring-violet-200/50'
                 : 'bg-sky-500/45 ring-sky-200/50',

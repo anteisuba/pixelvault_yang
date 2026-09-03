@@ -452,21 +452,21 @@ export function AssetFolderTree({
           'group/unassigned relative mx-1 flex items-center gap-2 rounded-lg py-1.5 pl-3 pr-2 text-sm transition-colors',
           'before:absolute before:left-1 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:transition-colors',
           dragOverId === UNASSIGNED_DROP_ID &&
-            'bg-amber-500/15 text-amber-100 ring-1 ring-inset ring-amber-400/50',
+            'bg-status-warning-surface text-status-warning ring-1 ring-inset ring-status-warning/50',
           isUnassignedActive
-            ? 'bg-amber-500/12 text-amber-100 before:bg-amber-500'
-            : 'text-amber-200/70 before:bg-amber-500/40 hover:bg-amber-500/10 hover:text-amber-100',
+            ? 'bg-status-warning-surface text-status-warning before:bg-status-warning'
+            : 'text-status-warning before:bg-status-warning-surface hover:bg-status-warning-surface hover:text-status-warning',
         )}
       >
         <FolderX className="size-4 shrink-0" />
         <span className="flex min-w-0 flex-1 flex-col items-start leading-tight text-left">
           <span className="truncate">{t('sidebarUnassigned')}</span>
-          <span className="text-3xs text-amber-200/50">
+          <span className="text-3xs text-status-warning">
             {t('sidebarUnassignedHint')}
           </span>
         </span>
         {typeof unassignedCount === 'number' && (
-          <span className="shrink-0 font-mono text-3xs tabular-nums text-amber-200/70">
+          <span className="shrink-0 font-mono text-3xs tabular-nums text-status-warning">
             {unassignedCount}
           </span>
         )}

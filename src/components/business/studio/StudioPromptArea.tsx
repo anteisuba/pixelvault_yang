@@ -1496,7 +1496,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 isAudioPromptOverLimit
                   ? 'text-destructive'
                   : isAudioPromptNearLimit
-                    ? 'text-amber-600'
+                    ? 'text-status-warning'
                     : 'text-muted-foreground/70',
               )}
             >

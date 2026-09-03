@@ -574,7 +574,7 @@ export function LoraSourceRecipeModal({
                   的还原边界——底模引用会尽量还原，但 runner 不支持 hires 等，
                   效果可能与源图有差。仅 generate variant 显示。 */}
                 {variant === 'generate' && onApplyRecipe ? (
-                  <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-2xs leading-relaxed text-amber-700 dark:text-amber-300">
+                  <p className="rounded-lg border border-status-warning/40 bg-status-warning-surface px-2.5 py-2 text-2xs leading-relaxed text-status-warning">
                     {t('sourceRecipeRemakeHint')}
                   </p>
                 ) : null}
@@ -664,7 +664,7 @@ function RecipeSourceBadge({
   const t = useTranslations('LoraWorkbench')
   if (source === 'ai_inferred') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-2xs font-medium text-amber-700 dark:text-amber-300">
+      <span className="inline-flex items-center gap-1 rounded-full bg-status-warning-surface px-1.5 py-0.5 text-2xs font-medium text-status-warning">
         <Wand2 className="size-2.5" aria-hidden />
         {t('sourceRecipeInferredBadge')}
       </span>
@@ -679,7 +679,7 @@ function RecipeSourceBadge({
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-2xs font-medium text-emerald-700 dark:text-emerald-300">
+    <span className="inline-flex items-center gap-1 rounded-full bg-status-applied-surface px-1.5 py-0.5 text-2xs font-medium text-status-applied">
       <Sparkles className="size-2.5" aria-hidden />
       {t('sourceRecipeModelBadge')}
     </span>

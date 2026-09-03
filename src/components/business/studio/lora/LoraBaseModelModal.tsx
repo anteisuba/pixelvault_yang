@@ -143,7 +143,7 @@ export function LoraBaseModelModal({
                 {t('spine.comingSoon')}
               </span>
             ) : incompatible ? (
-              <span className="text-3xs text-amber-600 dark:text-amber-400">
+              <span className="text-3xs text-status-warning">
                 {t('baseModal.incompatible')}
               </span>
             ) : null}

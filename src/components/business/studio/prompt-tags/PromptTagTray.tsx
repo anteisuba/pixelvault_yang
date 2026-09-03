@@ -125,7 +125,7 @@ function PromptTagChip({ selection }: { selection: PromptTagSelection }) {
   const { removeTag, setWeight } = usePromptTagStack()
   const tone =
     selection.polarity === 'negative'
-      ? 'border-amber-300 bg-amber-50 text-amber-800'
+      ? 'border-status-warning/40 bg-status-warning-surface text-status-warning'
       : 'border-neutral-300 bg-neutral-100 text-neutral-800'
 
   return (

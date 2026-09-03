@@ -76,9 +76,9 @@ export function StageStepperBar({
                 className={cn(
                   'flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-medium leading-none',
                   s === 'done' &&
-                    'border-emerald-400 bg-emerald-400 text-neutral-900',
+                    'border-status-applied/40 bg-status-applied text-white',
                   s === 'active' &&
-                    'border-emerald-400 bg-emerald-400/20 text-emerald-300 animate-pulse',
+                    'border-status-applied/40 bg-status-applied-surface text-status-applied animate-pulse',
                   s === 'pending' &&
                     'border-white/30 bg-transparent text-white/40',
                   s === 'failed' && 'border-red-400 bg-red-400/20 text-red-300',
@@ -98,7 +98,7 @@ export function StageStepperBar({
                 <span
                   className={cn(
                     'h-px flex-1 rounded-full transition-colors',
-                    s === 'done' ? 'bg-emerald-400/70' : 'bg-white/15',
+                    s === 'done' ? 'bg-status-applied/70' : 'bg-white/15',
                   )}
                 />
               )}

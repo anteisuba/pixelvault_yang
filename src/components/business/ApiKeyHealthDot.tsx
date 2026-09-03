@@ -6,8 +6,8 @@ import type { ApiKeyHealthStatus } from '@/types'
 import { cn } from '@/lib/utils'
 
 const HEALTH_COLORS: Record<ApiKeyHealthStatus, string> = {
-  available: 'bg-emerald-500',
-  no_key: 'bg-amber-500',
+  available: 'bg-status-applied',
+  no_key: 'bg-status-warning',
   failed: 'bg-red-500',
   unknown: 'bg-muted-foreground/40',
 }

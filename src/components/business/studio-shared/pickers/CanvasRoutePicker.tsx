@@ -134,7 +134,7 @@ function CanvasRouteLLMPicker({
 
   const badgeToneClass =
     badge?.tone === 'amber'
-      ? 'text-amber-500'
+      ? 'text-status-warning'
       : badge?.tone === 'sky'
         ? 'text-sky-400'
         : 'text-muted-foreground'

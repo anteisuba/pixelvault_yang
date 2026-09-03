@@ -574,9 +574,7 @@ export function PromptAssistantPanel({
         <div
           className={cn(
             'flex flex-wrap items-center gap-2 text-xs',
-            loraPersona
-              ? 'text-amber-700 dark:text-amber-400'
-              : 'text-destructive',
+            loraPersona ? 'text-status-warning' : 'text-destructive',
           )}
           role="alert"
         >

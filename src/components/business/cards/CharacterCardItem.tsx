@@ -33,7 +33,7 @@ function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
     DRAFT: 'bg-muted text-muted-foreground',
     REFINING: 'bg-chart-3/10 text-chart-3',
-    STABLE: 'bg-emerald-500/10 text-emerald-600',
+    STABLE: 'bg-status-applied-surface text-status-applied',
     ARCHIVED: 'bg-muted text-muted-foreground/60',
   }
   const labels: Record<string, string> = {

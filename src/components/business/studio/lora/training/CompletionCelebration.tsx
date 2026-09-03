@@ -59,7 +59,7 @@ export function CompletionCelebration({
       role="status"
       aria-live="polite"
       className={cn(
-        'relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-primary/5 to-transparent p-5 shadow-sm',
+        'relative overflow-hidden rounded-2xl border border-status-applied/40 bg-gradient-to-br from-emerald-500/10 via-primary/5 to-transparent p-5 shadow-sm',
         className,
       )}
     >
@@ -73,7 +73,7 @@ export function CompletionCelebration({
       </button>
 
       <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-status-applied-surface text-status-applied">
           <CheckCircle2 className="size-5" aria-hidden />
         </div>
         <div className="min-w-0 space-y-1">

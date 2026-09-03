@@ -41,9 +41,9 @@ const STATUS_CLASSES: Record<VideoScriptSceneStatus, string> = {
   [VideoScriptSceneStatus.FRAME_READY]:
     'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300',
   [VideoScriptSceneStatus.CLIP_GENERATING]:
-    'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300',
+    'border-status-warning/40 bg-status-warning-surface text-status-warning',
   [VideoScriptSceneStatus.CLIP_READY]:
-    'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300',
+    'border-status-applied/40 bg-status-applied-surface text-status-applied',
   [VideoScriptSceneStatus.FAILED]:
     'border-destructive/30 bg-destructive/10 text-destructive',
 }

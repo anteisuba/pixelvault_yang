@@ -55,8 +55,8 @@ export function StoryComicRenderer({ panels }: StoryComicRendererProps) {
 
             {/* Narration box at bottom */}
             {panel.narration && (
-              <div className="border-t-2 border-foreground/80 bg-amber-50/80 px-3 py-2 dark:bg-amber-950/30">
-                <p className="font-serif text-xs leading-relaxed text-foreground/80 italic">
+              <div className="border-t-2 border-foreground/80 bg-status-warning-surface px-3 py-2">
+                <p className="text-xs leading-relaxed text-foreground/80 italic">
                   {panel.narration}
                 </p>
               </div>

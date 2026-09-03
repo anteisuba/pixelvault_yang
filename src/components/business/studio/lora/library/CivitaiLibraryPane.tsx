@@ -493,7 +493,7 @@ export function CivitaiCommunityBranch({
             className={cn(
               'inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-xs font-medium transition-colors',
               library.nsfwFilter === 'nsfwOnly'
-                ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                ? 'border-status-warning/40 bg-status-warning-surface text-status-warning'
                 : library.nsfwFilter === 'safe'
                   ? 'border-primary/40 bg-primary/10 text-primary'
                   : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',

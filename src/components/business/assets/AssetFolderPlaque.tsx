@@ -163,7 +163,7 @@ export function AssetFolderPlaque({
             ),
           )}
           {isUnassigned && (
-            <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-3xs font-medium text-amber-900">
+            <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-md bg-status-warning-surface px-1.5 py-0.5 text-3xs font-medium text-status-warning">
               <FolderX className="size-2.5" />
               {t('sidebarUnassignedHint')}
             </span>

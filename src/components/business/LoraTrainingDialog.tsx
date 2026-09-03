@@ -672,9 +672,9 @@ export function LoraTrainingForm({
                   : n < LORA_TRAINING.MIN_IMAGES
                     ? 'text-destructive'
                     : n < LORA_TRAINING.RECOMMENDED_MIN
-                      ? 'text-amber-600 dark:text-amber-400'
+                      ? 'text-status-warning'
                       : n <= LORA_TRAINING.RECOMMENDED_MAX
-                        ? 'text-emerald-600 dark:text-emerald-400'
+                        ? 'text-status-applied'
                         : 'text-sky-600 dark:text-sky-400'
               return (
                 <span className={cn('text-2xs font-medium', tone)}>
@@ -824,8 +824,8 @@ export function LoraTrainingForm({
             have one. Points at the provider buttons above instead, and
             makes clear Submit itself also opens the same setup dialog. */}
         {!hasAnyKey && (
-          <div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2">
-            <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+          <div className="rounded-lg border border-dashed border-status-warning/40 bg-status-warning-surface px-3 py-2">
+            <p className="text-xs font-medium text-status-warning">
               {t('noApiKey', {
                 provider: TRAINING_PROVIDER_QUICK_SETUP[provider].modelLabel,
               })}
@@ -857,7 +857,7 @@ export function LoraTrainingForm({
                 className={cn(
                   'rounded-lg border px-3 py-2.5 space-y-1.5',
                   job.status === 'COMPLETED'
-                    ? 'border-emerald-500/30 bg-emerald-500/5'
+                    ? 'border-status-applied/40 bg-status-applied-surface'
                     : job.status === 'FAILED'
                       ? 'border-destructive/30 bg-destructive/5'
                       : 'border-primary/20 bg-primary/5',
@@ -865,7 +865,7 @@ export function LoraTrainingForm({
               >
                 <div className="flex items-center gap-2">
                   {job.status === 'COMPLETED' && (
-                    <CheckCircle2 className="size-3.5 text-emerald-500" />
+                    <CheckCircle2 className="size-3.5 text-status-applied" />
                   )}
                   {(job.status === 'QUEUED' || job.status === 'TRAINING') && (
                     <Spinner size="sm" className="text-primary" />
@@ -892,7 +892,7 @@ export function LoraTrainingForm({
 
                 {job.status === 'COMPLETED' && (
                   <div className="space-y-1 rounded-md bg-background/60 p-2">
-                    <p className="text-2xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <p className="text-2xs font-medium text-status-applied">
                       {t('trainedLoraReady')}
                     </p>
                     <p className="text-2xs text-muted-foreground">
@@ -1040,7 +1040,7 @@ export function LoraTrainingHistorySidebar() {
               className={cn(
                 'space-y-1 rounded-md border px-2.5 py-2',
                 job.status === 'COMPLETED'
-                  ? 'border-emerald-500/30 bg-emerald-500/5'
+                  ? 'border-status-applied/40 bg-status-applied-surface'
                   : job.status === 'FAILED'
                     ? 'border-destructive/30 bg-destructive/5'
                     : job.status === 'CANCELED'
@@ -1050,7 +1050,7 @@ export function LoraTrainingHistorySidebar() {
             >
               <div className="flex items-center gap-1.5">
                 {job.status === 'COMPLETED' && (
-                  <CheckCircle2 className="size-3 shrink-0 text-emerald-500" />
+                  <CheckCircle2 className="size-3 shrink-0 text-status-applied" />
                 )}
                 {(job.status === 'QUEUED' || job.status === 'TRAINING') && (
                   <Spinner size="sm" className="shrink-0 text-primary" />

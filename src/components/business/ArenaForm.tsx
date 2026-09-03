@@ -156,8 +156,8 @@ function buildModelOptions(
 }
 
 const STATUS_DOT_CLASSES: Record<ModelKeyStatus, string> = {
-  ready: 'bg-emerald-500',
-  nokey: 'bg-amber-400',
+  ready: 'bg-status-applied',
+  nokey: 'bg-status-warning',
   unavailable: 'bg-red-500',
 }
 

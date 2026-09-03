@@ -17,7 +17,13 @@ primitive → semantic → domain/component → page
 
 ## CSS 与 token 现状
 
-- 入口：`src/app/globals.css`（全局枢纽，@theme inline + 语义变量 + 组件层）+ 域皮肤 `src/app/canvas.css` / `src/app/home-v4.css` / `src/app/legal.css`（域内局部，令牌一律写在域根上**不准写 `:root`**——canvas.css 就是这么泄漏到两个助手 dock 的）。
+- 入口：`src/app/globals.css`（全局枢纽，@theme inline + 语义变量 + 组件层，**唯一挂根 `layout.tsx` 的样式表**）+ 域皮肤 `src/app/canvas.css` / `src/app/home-v4.css` / `src/app/legal.css` / `src/app/lora.css` / `src/app/voiceroom.css` / `src/app/auth.css`（域内局部，令牌一律写在域根上**不准写 `:root`**）。
+- **域皮肤只由自己的域入口 import**，不进根 layout：`canvas.css` + `@xyflow/react/dist/style.css` → `src/app/[locale]/(main)/studio/node/layout.tsx`（2026-09-03 从根 layout / `globals.css` 的 `@import` 下沉，此前那 173 KB 皮肤进每一个路由的首屏 CSS）；`home-v4.css` → `HomeV4Shell.tsx`；`lora.css` → `LoraWorkbench.tsx`；`voiceroom.css` → `VoiceRoomPage.tsx`；`legal.css` → `LegalPage.tsx` + `not-found.tsx`。
+- ⚠ **canvas.css 泄漏的那一小部分留在 `globals.css` 脊柱上**（皮肤当年写 `:root` 的代价，2026-09-03 下沉时按真实消费者逐条查证后拆分，别搬回去也别两边各留一份）：
+  - 8 个 `--node-*` 定值（`panel` / `panel-inner` / `panel-soft` / `foreground` / `muted` / `edge` / `focus-ring` / `shadow`）——`studio-shared/editor/ImageEditSurface`、`studio-shared/pickers/CanvasRoutePicker`、`node/CanvasAssistantReferencePicker`（由 `prompts/PromptAssistantPanel` 渲染）在画布路由之外读它们。
+  - `.node-canvas-panel-motion`——`StudioAssistantDock` / `LoraAssistantDock` 两个域外 dock 也挂这个类。
+  - `.canvas-assistant-popover*` 整块——`node/CanvasAssistantHistory` 被 `assistant/StudioAssistantHeaderActions` 渲染进**三个** dock，两个在画布路由外。
+  - 其余 `--node-*` / `--canvas-*` / `.domain-canvas *` / `.node-card-*` 等仍住 canvas.css；`@theme inline` 的 `--color-node-*` 映射照旧留在 `globals.css`（Tailwind 编译入口只有一个）。
 - 首页域皮肤 2026-08-28 从 `home-v3.css` 换成 `home-v4.css`（`.home-v4` 翻页站），v3 的皮肤 + 20 个 `HomeV3*` 组件 + `constants/home-v3.ts` 已整体删除。此前 2026-07-27 曾从 `homepage.css`（`.homepage-*`）换到 v3。
 - 运行时默认 `.dark`（根 html className）。⚠ `.dark` 只换色 token 不设 color-scheme——暗面组件需显式 `color-scheme: dark`。
 - **Tailwind 4：无 `tailwind.config.ts`**，token 扩展一律在 `globals.css` 的 `@theme inline`（2026-07-10 核验；CLAUDE.md 旧口径已修正）。
@@ -36,17 +42,24 @@ primitive → semantic → domain/component → page
 - **弱/孤 token**（2026-06-02 审计口径，构建新 UI 前先核实用量）：`--text-hero-*`、`--h-hero-btn`、`--text-tab`、`--overlay-chip`、`--surface-highlight`、`--home-surface-soft`、`--width-studio-left/sidebar`。
 - 任意值治理：`text-[10px]`（60 处）→ `text-3xs`；`text-[11px]`（27 处）→ `text-2xs`；`tracking-[0.16em]` 等 → `tracking-nav` 族。视口/运行时约束（`calc()`/`svh`/radix 变量/`duration-[…]`）属合法保留，不盲目归一。
 
-## 字体现状（2026-07-10 核验 `src/i18n/fonts.ts`）
+## 字体现状（2026-09-03 核验 `src/i18n/fonts.ts`）
 
-| 变量                                           | 实际字体                                 | 用途                                                |
-| ---------------------------------------------- | ---------------------------------------- | --------------------------------------------------- |
-| `--font-app-sans`                              | **Geist**                                | 正文主字体（en）                                    |
-| `--font-app-display`                           | Geist                                    | 展示字（映射 `--font-display`）                     |
-| `--font-app-serif`                             | **Geist ——名叫 serif 实为 sans（陷阱）** | 勿当衬线用                                          |
-| `--font-editorial`                             | Fraunces 400/500                         | 现仅 `legal.css` 在读（营销 hero 已随 v2 首页删除） |
-| `--font-geist-mono`                            | Geist Mono                               | 代码 / 参数                                         |
-| `--font-japanese-sans` / `--font-chinese-sans` | Noto Sans JP / SC                        | `html:lang(ja/zh)` 覆盖 sans/display 栈             |
+| 变量                                           | 实际字体                  | 挂载点（`.variable` 挂在哪）       | 用途                                     |
+| ---------------------------------------------- | ------------------------- | ---------------------------------- | ---------------------------------------- |
+| `--font-app-sans`                              | **Geist** 400/500/600/700 | 根 `<body>`                        | 全站唯一 Latin 正文/标题面               |
+| `--font-geist-mono`                            | Geist Mono                | 根 `<body>`                        | 代码 / 参数                              |
+| `--font-japanese-sans` / `--font-chinese-sans` | Noto Sans JP / SC         | 根 `<body>`（`preload: false`）    | `html:lang(ja/zh)` 覆盖 sans 栈          |
+| `--font-home-serif`                            | Noto Serif SC 600/900     | 根 `<body>`（`preload: false`）    | 首页标题衬线；**VoiceRoom 也读**（见下） |
+| `--font-home-sans` / `--font-home-mono`        | Noto Sans / IBM Plex Mono | `.home-v4`（`HomeV4Shell`）        | 仅营销首页                               |
+| `--font-home-serif-jp`                         | Noto Serif JP 600/900     | `.home-v4`（`HomeV4Shell`）        | 仅营销首页 `ja`                          |
+| `--font-editorial`                             | Fraunces 400/500          | `.legal-page`（`LegalPage` / 404） | 仅法律页 + 404 的标题                    |
 
+- **Geist 只声明一次**（2026-09-03）。此前 `appSans` / `displayFont` / `serifFont` 是**三份配置完全相同**的 `Geist()` 调用——next/font 按调用点而不是按参数缓存，于是每个路由都拿到三套 `@font-face` + 三条 `preload`。`--font-app-display` / `--font-app-serif` 两个变量已删除，`@theme inline` 里的 `--font-display` / `--font-serif` / `--font-hero` 现在直接指向 `--font-app-sans`。
+  - `font-display` / `font-serif` 这两个 Tailwind utility **保留**（约 40 个文件用它们表达意图），但它们**不承诺不同的字面**——原来那个「名叫 serif 实为 sans」的陷阱现在写在 `globals.css` 的映射处。真要衬线签名就加**一支真字体**（`--font-editorial` 就是范例），不要再加第三个 Geist 别名。
+- **路由专属字体不挂根 `<body>`**：挂在那里等于每个路由都为一支它不画的字体付 `preload` + `@font-face`。首页三支挂 `.home-v4`、法律页那支挂 `.legal-page`，都是各自 CSS 读令牌的那个元素（最近的可行祖先）。
+- ⚠ **`--font-home-serif` 是唯一必须留在根 `<body>` 的例外**：VoiceRoom 也读它（`voiceroom.css` 的 `--vr-serif`，以及挂在 `<body>` 上以逃出面板 overflow 的 `.vr-flier`，见 `voiceroom.css:1933`）。域级声明不在那个元素的祖先链上，自定义属性只向下继承。
+- 除 `appSans` / `geistMono` 外全部 `preload: false`：它们只在特定路由出现，浏览器碰到第一条用到的规则时自会去取。
+- ⚠ 组件测试渲染这些页面时需要 `next/font/google` 的 mock（`vitest.setup.ts` 里一份，逐个列出导出名）——`next/font` 的运行时导出是 Next 编译期生成的，plain vitest 里直接 `is not a function`。
 - zh / ja 当前没有独立标题字体身份（衬线场景由系统栈兜底）。这是实现事实；各业务域可在页级设计确认后定义自己的字体表达。
 
 ## 布局壳（2026-07-10 核验 `(main)/layout.tsx`）

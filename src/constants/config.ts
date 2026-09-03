@@ -314,8 +314,10 @@ export const API_ENDPOINTS = {
 
   /** LoRA Training */
   LORA_TRAINING: '/api/lora-training',
-  /** Per-image upload for LoRA training (stage-3 base64 → R2 URL path) */
+  /** Presign one browser-direct R2 PUT for a LoRA training image */
   LORA_TRAINING_UPLOADS: '/api/lora-training/uploads',
+  /** Verify a training image the browser PUT straight to R2 */
+  LORA_TRAINING_UPLOADS_COMPLETE: '/api/lora-training/uploads/complete',
 
   /** LoRA Asset library (curated + user-trained) */
   LORA_ASSETS: '/api/lora-assets',
@@ -355,6 +357,14 @@ export const DOWNLOAD_PROXY_ALLOWED_PROVIDER_HOST_SUFFIXES = [
   'fal.media',
   'replicate.delivery',
 ] as const
+
+/**
+ * Lifetime of the presigned R2 GET URL `/api/download` hands back for our own
+ * objects. The browser follows it immediately, so keep the window tight —
+ * long enough to survive a slow click-to-navigate, short enough that a URL
+ * leaking out of history/logs is worthless.
+ */
+export const DOWNLOAD_URL_TTL_SECONDS = 300
 
 /** Client-side API request guardrails */
 export const CLIENT_API = {
@@ -814,6 +824,13 @@ export const PAGINATION = {
   DEFAULT_PAGE: 1,
   DEFAULT_LIMIT: 20,
 } as const
+
+/**
+ * URLs per generated sitemap segment (`/sitemap/<id>.xml`). Google's own
+ * per-file cap is 50,000 — 1,000 keeps each segment light while still
+ * needing very few segments at current scale.
+ */
+export const SITEMAP_PAGE_SIZE = 1000
 
 // ─── Studio Refactoring Constants ────────────────────────────────
 

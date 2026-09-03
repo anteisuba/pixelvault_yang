@@ -115,3 +115,17 @@ export const ASSET_UPLOAD_FALLBACK_ASPECT_RATIO = 4 / 5
 
 /** 「已移动 N 项 · 撤销」toast 的存活时长（page §7.2 明写 6 秒）。 */
 export const BULK_MOVE_UNDO_DURATION_MS = 6000
+
+// ─── 列表降载（离屏瓦片）───────────────────────────────────────────
+
+/**
+ * `/assets` 与素材选择器每页拉多少条。⚠ 别按「一屏放得下几张」调 —— 排版是
+ * justified 的，一屏张数随密度与视口变；这个值只决定一次请求的粒度。
+ */
+export const ASSET_BROWSER_PAGE_SIZE = 24
+
+/**
+ * 视频瓦片提前多远挂 `<video>`（`IntersectionObserver` 的 `rootMargin`）。
+ * 离屏时瓦片只画封面 `<img>`：一张图 vs 一个带解码器的媒体元素。
+ */
+export const ASSET_TILE_VIDEO_MOUNT_ROOT_MARGIN = '300px'

@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { promises as dns } from 'node:dns'
 import { isIP } from 'node:net'
 
 const PRIVATE_IPV4_PATTERNS: RegExp[] = [
@@ -34,6 +35,21 @@ function isPrivateIPv6(addr: string): boolean {
     if (isIP(v4) === 4 && isPrivateIPv4(v4)) return true
   }
   return false
+}
+
+/**
+ * 一个具体地址（IP 字面量，或域名的某条解析结果）是否落在禁区。
+ * IP 字面量校验与 DNS 解析后校验共用这一份判据——两套判据必然漂移。
+ */
+function assertSafeAddress(address: string, source?: string): void {
+  const from = source && source !== address ? ` (resolved from ${source})` : ''
+  const ipKind = isIP(address)
+  if (ipKind === 4 && isPrivateIPv4(address)) {
+    throw new Error(`Blocked private IPv4: ${address}${from}`)
+  }
+  if (ipKind === 6 && isPrivateIPv6(address)) {
+    throw new Error(`Blocked private IPv6: ${address}${from}`)
+  }
 }
 
 const BLOCKED_HOSTNAMES = new Set([
@@ -72,14 +88,41 @@ export function assertSafeUrl(
   if (BLOCKED_HOSTNAMES.has(bareHost)) {
     throw new Error(`Blocked hostname: ${bareHost}`)
   }
-  const ipKind = isIP(bareHost)
-  if (ipKind === 4 && isPrivateIPv4(bareHost)) {
-    throw new Error(`Blocked private IPv4: ${bareHost}`)
-  }
-  if (ipKind === 6 && isPrivateIPv6(bareHost)) {
-    throw new Error(`Blocked private IPv6: ${bareHost}`)
-  }
+  assertSafeAddress(bareHost)
   return parsed
+}
+
+/**
+ * DNS 解析后的 IP 校验。`assertSafeUrl` 只能看 URL 里写的东西——hostname 是域名
+ * 时它无从判断，放行后由 `fetch` 自己解析，于是 `evil.example.com A 127.0.0.1`
+ * （DNS rebinding）能整条穿过防护。这里把 hostname 的**全部**解析结果都过一遍
+ * 同一份判据，任一条命中禁区即整体拒绝。
+ *
+ * ⚠ **残余风险：TOCTOU。** 校验用的是这次 `lookup` 的结果，真正发请求的是
+ * `fetch` 自己的第二次解析——中间那一瞬 DNS 换答案仍可绕过。彻底堵住需要把
+ * 已校验的地址钉进连接层（undici `Agent({ connect: { lookup } })` 作为
+ * `dispatcher`），但本仓没有 undici 依赖（Node 内置的那份不可 import），而
+ * Engineering Principle「加包之前先翻已有依赖」下不值得为此新增一个包。
+ * 用 TTL≈0 的攻击者域名做 rebinding 的窗口仍然存在，只是从「必中」降到
+ * 「要卡在两次解析之间」。
+ */
+async function assertSafeResolvedHost(hostname: string): Promise<void> {
+  const bareHost = hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  // IP 字面量在 assertSafeUrl 里已经判过，没有解析这一步。
+  if (isIP(bareHost)) return
+
+  let records: Array<{ address: string }>
+  try {
+    records = await dns.lookup(bareHost, { all: true })
+  } catch {
+    throw new Error(`DNS resolution failed: ${bareHost}`)
+  }
+  if (records.length === 0) {
+    throw new Error(`DNS resolution failed: ${bareHost}`)
+  }
+  for (const record of records) {
+    assertSafeAddress(record.address, bareHost)
+  }
 }
 
 export function isSafeUrl(rawUrl: string, options?: UrlGuardOptions): boolean {
@@ -139,6 +182,7 @@ export async function safeFetch(
   } = options
 
   const initialUrl = assertSafeUrl(rawUrl, { allowedProtocols })
+  await assertSafeResolvedHost(initialUrl.hostname)
   let currentUrl = initialUrl.toString()
   let currentHeaders = fetchOptions.headers
 
@@ -165,6 +209,7 @@ export async function safeFetch(
     const nextUrl = assertSafeUrl(resolveRedirectUrl(location, currentUrl), {
       allowedProtocols,
     })
+    await assertSafeResolvedHost(nextUrl.hostname)
     // 判据用「首跳的源」而不是「上一跳的源」：一旦摘掉就不再恢复，两种写法
     // 结果等价，而这种写法不需要额外的状态位。
     if (nextUrl.origin !== initialUrl.origin) {

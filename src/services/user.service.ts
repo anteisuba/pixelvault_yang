@@ -6,7 +6,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import { PROFILE } from '@/constants/config'
+import { PAGINATION, PROFILE } from '@/constants/config'
 import { fetchAsBuffer, uploadToR2, deleteFromR2 } from '@/services/storage/r2'
 import type { User } from '@/lib/generated/prisma/client'
 import type {
@@ -661,6 +661,39 @@ export async function getCreatorProfile(
       isOwnProfile,
     },
   }
+}
+
+/**
+ * Count public, non-deleted creator profiles (for sitemap pagination).
+ */
+export async function countPublicCreators(): Promise<number> {
+  return db.user.count({
+    where: { isPublic: true, isDeleted: false, username: { not: null } },
+  })
+}
+
+/**
+ * List usernames of public, non-deleted creators for sitemap generation.
+ * Username-only select, offset-paginated — no profile or generation data.
+ */
+export async function listPublicCreatorUsernames({
+  page = PAGINATION.DEFAULT_PAGE,
+  limit = PAGINATION.DEFAULT_LIMIT,
+}: {
+  page?: number
+  limit?: number
+} = {}): Promise<string[]> {
+  const users = await db.user.findMany({
+    where: { isPublic: true, isDeleted: false, username: { not: null } },
+    select: { username: true },
+    orderBy: { username: 'asc' },
+    skip: (page - 1) * limit,
+    take: limit,
+  })
+
+  return users
+    .map((user) => user.username)
+    .filter((username): username is string => username !== null)
 }
 
 /**

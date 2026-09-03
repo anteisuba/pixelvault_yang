@@ -128,6 +128,23 @@ describe('proxy internal execution routes', () => {
     expect(protect).not.toHaveBeenCalled()
   })
 
+  it('lets a signed-out social crawler fetch /api/og', async () => {
+    // gallery/[id] and u/[username] both point their og:image metadata at
+    // this route. Google/Twitter/Discord fetch that URL with no Clerk
+    // session — the route itself checks `isPublic` before rendering.
+    await middleware(
+      {
+        nextUrl: {
+          pathname: '/api/og',
+          origin: 'https://pixelvault.example.com',
+        },
+      } as never,
+      {} as never,
+    )
+
+    expect(protect).not.toHaveBeenCalled()
+  })
+
   it('protects nested /api/users routes that are not public profiles', async () => {
     await middleware(
       {

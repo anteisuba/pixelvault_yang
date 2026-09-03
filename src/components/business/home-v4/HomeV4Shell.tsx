@@ -12,6 +12,7 @@ import {
   type HomeV4ShowcaseShot,
 } from '@/constants/homepage-v4'
 import { AuthDialogProvider } from '@/components/business/auth/AuthDialog'
+import { homepageMono, homepageSans, homepageSerifJapanese } from '@/i18n/fonts'
 
 import { HomeV4Deck } from './HomeV4Deck'
 
@@ -45,6 +46,13 @@ const MOTION_VARS = {
  * boundary, so the headline, the model names and the whole page list are in the
  * first HTML response and the page stays edge-cacheable.
  *
+ * The three marketing-only faces are declared **here** rather than on the root
+ * `<body>` (2026-09-03 font pass) — `home-v4.css` reads `--font-home-sans` /
+ * `--font-home-mono` / `--font-home-serif-jp` off this same `.home-v4` element,
+ * so this is the closest ancestor that works, and every other route stops
+ * paying for three faces it never draws. `--font-home-serif` is the exception
+ * that stays on `<body>`: VoiceRoom reads it too (see `src/i18n/fonts.ts`).
+ *
  * `data-locale` picks the CJK face. It reads the locale segment rather than
  * `<html lang>` because a root layout never re-renders on client navigation, and
  * the previous marketing home spent a while drawing Japanese in Noto Sans SC
@@ -63,7 +71,11 @@ export function HomeV4Shell({ shots }: HomeV4ShellProps) {
 
   return (
     <AuthDialogProvider>
-      <div className="home-v4" data-locale={locale} style={MOTION_VARS}>
+      <div
+        className={`home-v4 ${homepageSans.variable} ${homepageMono.variable} ${homepageSerifJapanese.variable}`}
+        data-locale={locale}
+        style={MOTION_VARS}
+      >
         <HomeV4Deck locale={locale} shots={shots} />
       </div>
     </AuthDialogProvider>

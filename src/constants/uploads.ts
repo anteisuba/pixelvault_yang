@@ -52,6 +52,14 @@ export const USER_VIDEO_UPLOAD_SIGNATURE_BYTES = 4096
 export const USER_AUDIO_UPLOAD_SIGNATURE_BYTES = 4096
 
 /**
+ * Per-image cap for LoRA training images. The browser PUTs each pick straight
+ * to R2 through a presigned URL, so this is enforced twice against numbers we
+ * trust: on the prepare request's declared size, and again on the object's
+ * real byte length when the upload is confirmed.
+ */
+export const LORA_TRAINING_IMAGE_MAX_BYTES = 8 * 1024 * 1024
+
+/**
  * Short-lived presigned PUT URL window for browser-direct R2 uploads. Keep it
  * tight: the client only needs enough time to send one prepared image file.
  */

@@ -14,6 +14,7 @@ import {
 } from '@/constants/studio'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
+import { getGenerationVideoPosterUrl } from '@/lib/generation-media'
 import type { GenerationRecord } from '@/types'
 
 import { XiaoheiGuideCarousel } from '@/components/business/studio-shared/XiaoheiGuideCarousel'
@@ -219,7 +220,7 @@ function RecentTile({ gen, onSelect, label }: RecentTileProps) {
       ) : gen.outputType === 'VIDEO' && gen.url ? (
         <video
           src={gen.url}
-          poster={gen.thumbnailUrl ?? gen.previewUrl ?? undefined}
+          poster={getGenerationVideoPosterUrl(gen) ?? undefined}
           muted
           playsInline
           preload="none"

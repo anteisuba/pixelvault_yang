@@ -1,18 +1,22 @@
 'use client'
 
-import { useState } from 'react'
 import { Box, CheckCircle2, Circle, Film, Heart, Mic, Play } from 'lucide-react'
 import NextImage from 'next/image'
 import { useTranslations } from 'next-intl'
 
+import { ASSET_TILE_VIDEO_MOUNT_ROOT_MARGIN } from '@/constants/assets-grid'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
+import { useNearViewport } from '@/hooks/use-near-viewport'
 import {
   getGenerationModel3DVisualUrl,
   getGenerationThumbnailUrl,
+  getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import { formatDuration } from '@/lib/video-utils'
 import type { GenerationRecord } from '@/types'
+
+import styles from './AssetTile.module.css'
 
 /**
  * 一张素材瓦片 —— 媒体表达契约见 `docs/references/pages/assets.md` §6。
@@ -85,6 +89,7 @@ export function AssetTile({
       onContextMenu={onContextMenu}
       style={{ width, height }}
       className={cn(
+        styles.tile,
         'group relative shrink-0 overflow-hidden rounded-lg border bg-muted/40 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
         selected
           ? 'border-primary ring-2 ring-primary/40'
@@ -234,62 +239,67 @@ function Model3DTileMedia({ generation }: { generation: GenerationRecord }) {
 }
 
 /**
- * 视频瓦片。⚠ **切片 0（poster 派生）还没落地** —— 实测 7/7 条视频的
- * `thumbnailUrl`/`previewUrl` 全空，所以这里仍要靠「加载元数据后跳到 0.12s」
- * 自己抠一帧当封面。派生管线补上后，`poster` 会直接命中，`preload` 也就
- * 退回 `none`（省一次视频请求）。
+ * 视频瓦片。封面来自 `getGenerationVideoPosterUrl`：派生列优先，缺了就走
+ * Cloudflare Media Transformations 让 CDN 现场抽一帧（`src/lib/video-poster.ts`）。
+ * 所以这里**不再自己抠帧** —— 以前是「挂 `<video preload="metadata">` → 等元数据
+ * → 跳到 0.12s」，列表里每段视频都要为一张封面拉真实视频字节。
+ * ⚠ 上线前置条件：Cloudflare 该 zone 必须打开 Transformations，否则封面 URL 404。
  *
- * ⚠ 台账 I（owner 2026-08-29 真机）：在那之前，**抠帧失败就是一格纯空白** ——
- * 无图、无占位文案、无类型角标，看起来像坏了。owner 在 21 格的参考图选择对话框
- * 里数到 2 格是这样的。抠帧会失败的原因不止一种（元数据没到、浏览器拒绝解码、
- * URL 过期），所以不能靠「让抠帧更可靠」来收 —— 底下垫一层**永远存在**的占位，
- * 抠到帧就被视频盖住，抠不到至少还认得出这是一段视频。
+ * 离屏时只画封面 `<img>`，进视口（提前 `ASSET_TILE_VIDEO_MOUNT_ROOT_MARGIN`）才挂
+ * `<video>` —— 一张图 vs 一个带解码器的媒体元素状态机。hover 静音预览不变。
+ *
+ * ⚠ 台账 I（owner 2026-08-29 真机）：封面拿不到时**不能是一格纯空白** ——
+ * 无图、无占位文案、无类型角标，看起来像坏了（owner 在 21 格的参考图选择对话框
+ * 里数到 2 格是这样的）。所以底下永远垫一层占位：有封面就被完全盖住，没有
+ * 至少还认得出这是一段视频。
  */
 function VideoTileMedia({ generation }: { generation: GenerationRecord }) {
   const t = useTranslations('AssetsPage')
-  const poster = generation.thumbnailUrl ?? generation.previewUrl ?? undefined
-  // `poster` 命中时直接算「有画面」——那张图不需要等解码就会渲染。
-  const [hasFrame, setHasFrame] = useState(Boolean(poster))
+  const poster = getGenerationVideoPosterUrl(generation) ?? undefined
+  const { setNode, isNearViewport } = useNearViewport(
+    ASSET_TILE_VIDEO_MOUNT_ROOT_MARGIN,
+  )
 
   return (
-    <>
-      {/* 垫在视频**下面**：有画面时被完全盖住，零视觉代价。 */}
-      {hasFrame ? null : (
-        <span
-          className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-muted/40 text-muted-foreground"
-          aria-hidden
-        >
-          <Film className="size-5" />
-          <span className="text-3xs font-medium">{t('sidebarVideos')}</span>
-        </span>
-      )}
-      <video
-        src={generation.url}
-        poster={poster}
-        muted
-        loop
-        playsInline
-        preload={poster ? 'none' : 'metadata'}
-        onLoadedData={() => setHasFrame(true)}
-        onError={() => setHasFrame(false)}
-        onLoadedMetadata={(event) => {
-          if (poster) return
-          const video = event.currentTarget
-          if (!Number.isFinite(video.duration) || video.duration <= 0) return
-          video.currentTime = Math.min(0.12, video.duration / 2)
-        }}
-        // hover 静音预览（§6）。移开就回到封面帧，不留在半路。
-        onMouseEnter={(event) => {
-          void event.currentTarget.play().catch(() => {})
-        }}
-        onMouseLeave={(event) => {
-          const video = event.currentTarget
-          video.pause()
-          video.currentTime = Math.min(0.12, video.duration / 2 || 0.12)
-        }}
-        className="absolute inset-0 size-full object-cover"
-      />
-    </>
+    <span ref={setNode} className="absolute inset-0">
+      {/* 垫在媒体**下面**：有封面时被完全盖住，零视觉代价。 */}
+      <span
+        className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-muted/40 text-muted-foreground"
+        aria-hidden
+      >
+        <Film className="size-5" />
+        <span className="text-3xs font-medium">{t('sidebarVideos')}</span>
+      </span>
+
+      {isNearViewport ? (
+        <video
+          src={generation.url}
+          poster={poster}
+          muted
+          loop
+          playsInline
+          preload="none"
+          // hover 静音预览（§6）。移开就回到开头，不留在半路。
+          onMouseEnter={(event) => {
+            void event.currentTarget.play().catch(() => {})
+          }}
+          onMouseLeave={(event) => {
+            const video = event.currentTarget
+            video.pause()
+            video.currentTime = 0
+          }}
+          className="absolute inset-0 size-full object-cover"
+        />
+      ) : poster ? (
+        // eslint-disable-next-line @next/next/no-img-element -- CDN 抽帧 URL 不走 next/image 优化器。
+        <img
+          src={poster}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 size-full object-cover"
+        />
+      ) : null}
+    </span>
   )
 }
 

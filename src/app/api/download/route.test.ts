@@ -7,6 +7,7 @@ import {
   parseJSON,
 } from '@/test/api-helpers'
 import { logger } from '@/lib/logger'
+import { DOWNLOAD_URL_TTL_SECONDS } from '@/constants/config'
 
 vi.mock('@/lib/logger', () => ({
   logger: {
@@ -14,15 +15,35 @@ vi.mock('@/lib/logger', () => ({
   },
 }))
 
+const createPresignedR2GetUrl =
+  vi.fn<
+    (params: {
+      key: string
+      expiresInSeconds: number
+      contentDisposition?: string
+    }) => Promise<string>
+  >()
+
+vi.mock('@/services/storage/r2', () => ({
+  createPresignedR2GetUrl: (params: {
+    key: string
+    expiresInSeconds: number
+    contentDisposition?: string
+  }) => createPresignedR2GetUrl(params),
+}))
+
 import { GET } from './route'
 
 const STORAGE_BASE_URL = 'https://cdn.test.com'
 const ASSET_URL = `${STORAGE_BASE_URL}/generations/video.mp4`
 const FAL_ASSET_URL = 'https://v3b.fal.media/files/b/0a9ab613/upscaled.png'
+const PRESIGNED_URL =
+  'https://account.r2.cloudflarestorage.com/bucket/generations/video.mp4?X-Amz-Signature=abc'
 
 interface ApiEnvelope {
   success: boolean
   error?: string
+  data?: { downloadUrl?: string }
 }
 
 describe('GET /api/download', () => {
@@ -33,6 +54,7 @@ describe('GET /api/download', () => {
     vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', STORAGE_BASE_URL)
     vi.stubGlobal('fetch', fetchMock)
     mockAuthenticated()
+    createPresignedR2GetUrl.mockResolvedValue(PRESIGNED_URL)
     fetchMock.mockResolvedValue(
       new Response('asset-body', {
         status: 200,
@@ -96,24 +118,52 @@ describe('GET /api/download', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('proxies a valid storage asset as an attachment', async () => {
+  it('returns a presigned attachment URL for our own storage asset', async () => {
     const req = createGET('/api/download', {
       url: ASSET_URL,
       filename: 'pixelvault-video.mp4',
     })
     const res = await GET(req)
+    const body = await parseJSON<ApiEnvelope>(res)
 
     expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('video/mp4')
-    expect(res.headers.get('Content-Disposition')).toBe(
-      'attachment; filename="pixelvault-video.mp4"',
+    expect(body.success).toBe(true)
+    expect(body.data?.downloadUrl).toBe(PRESIGNED_URL)
+    expect(createPresignedR2GetUrl).toHaveBeenCalledWith({
+      key: 'generations/video.mp4',
+      expiresInSeconds: DOWNLOAD_URL_TTL_SECONDS,
+      contentDisposition: 'attachment; filename="pixelvault-video.mp4"',
+    })
+    // The whole point: no bytes pass through the function.
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('sanitizes the filename it signs into the disposition', async () => {
+    const req = createGET('/api/download', {
+      url: ASSET_URL,
+      filename: 'a/b\\c".mp4',
+    })
+    await GET(req)
+
+    expect(createPresignedR2GetUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentDisposition: 'attachment; filename="a-b-c.mp4"',
+      }),
     )
-    expect(res.headers.get('Cache-Control')).toBe('private, no-cache')
-    expect(await res.text()).toBe('asset-body')
-    expect(fetchMock).toHaveBeenCalledWith(
-      ASSET_URL,
-      expect.objectContaining({ redirect: 'manual' }),
-    )
+  })
+
+  it('returns 500 when signing the storage download fails', async () => {
+    createPresignedR2GetUrl.mockRejectedValue(new Error('no credentials'))
+
+    const req = createGET('/api/download', {
+      url: ASSET_URL,
+      filename: 'video.mp4',
+    })
+    const res = await GET(req)
+    const body = await parseJSON<ApiEnvelope>(res)
+
+    expect(res.status).toBe(500)
+    expect(body.success).toBe(false)
   })
 
   it('proxies a trusted fal.ai temporary asset as an attachment', async () => {
@@ -143,8 +193,8 @@ describe('GET /api/download', () => {
     )
 
     const req = createGET('/api/download', {
-      url: ASSET_URL,
-      filename: 'missing.mp4',
+      url: FAL_ASSET_URL,
+      filename: 'missing.png',
     })
     const res = await GET(req)
     const body = await parseJSON<ApiEnvelope>(res)
@@ -153,7 +203,7 @@ describe('GET /api/download', () => {
     expect(body.success).toBe(false)
     expect(logger.error).toHaveBeenCalledWith(
       'Download proxy upstream failed',
-      { url: ASSET_URL, status: 404 },
+      { url: FAL_ASSET_URL, status: 404 },
     )
   })
 })

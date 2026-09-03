@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 
 import { CRON_JOBS } from '@/constants/cron'
 import { CIVITAI_MIRROR_SYNC_MAX_BATCHES_PER_RUN } from '@/constants/lora'
+import { isValidBearerToken } from '@/lib/bearer-token'
 import { recordCronRun } from '@/lib/cron-heartbeat'
 import { logger } from '@/lib/logger'
 import {
@@ -50,7 +51,7 @@ export async function GET(
       { status: 503 },
     )
   }
-  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+  if (!isValidBearerToken(request.headers.get('authorization'), cronSecret)) {
     return NextResponse.json<ErrorBody>(
       { success: false, error: 'Invalid or missing token' },
       { status: 401 },

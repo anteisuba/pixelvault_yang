@@ -5,6 +5,7 @@ import '@/app/legal.css'
 
 import type { LegalDoc, LegalSection } from '@/constants/legal'
 import { ROUTES } from '@/constants/routes'
+import { editorialSerif } from '@/i18n/fonts'
 import { Link } from '@/i18n/navigation'
 
 interface LegalPageProps {
@@ -15,6 +16,11 @@ interface LegalPageProps {
  * Renders a legal document (privacy / terms) in the ivory "white hall" surface.
  * Title, intro and the `sections` array come from the `Legal` i18n namespace so
  * all copy stays in `src/messages/*`. Server component — no client state.
+ *
+ * `editorialSerif` is declared on the page root rather than the app's `<body>`
+ * (2026-09-03 font pass): `legal.css` reads `--font-editorial` off
+ * `.legal-page`, and these two documents plus the 404 are its only consumers,
+ * so no other route should be preloading Fraunces.
  */
 export function LegalPage({ doc }: LegalPageProps) {
   const t = useTranslations('Legal')
@@ -22,7 +28,7 @@ export function LegalPage({ doc }: LegalPageProps) {
   const sections = t.raw(`${doc}.sections`) as LegalSection[]
 
   return (
-    <div className="legal-page">
+    <div className={`legal-page ${editorialSerif.variable}`}>
       <header className="legal-header sticky top-0 z-20">
         <div className="mx-auto flex min-h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6">
           <Link

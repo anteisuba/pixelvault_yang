@@ -12,7 +12,10 @@ const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
 })
 
-// LoRA training sends base64 images (up to 50 images), needs large body limit.
+// Headroom for the remaining multipart upload routes that still stream through
+// a function: reference video (50 MB) and reference audio (25 MB). Image,
+// LoRA-training and asset-library uploads all go browser → R2 presigned PUT and
+// need nothing here.
 const PROXY_CLIENT_MAX_BODY_SIZE = '100mb'
 
 const storageHost = process.env.NEXT_PUBLIC_STORAGE_BASE_URL

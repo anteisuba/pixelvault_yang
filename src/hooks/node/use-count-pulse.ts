@@ -5,7 +5,7 @@ import { useState } from 'react'
 /**
  * 回执脉冲的驱动源（owner 的原始诉求：「拖了必有回音」）——
  * 一个计数值每次**增加**时递增一个 key，
- * 供调用方把它喂给 framer-motion 元素的 `key` prop —— key 变化触发
+ * 供调用方把它喂给 motion 元素的 `key` prop —— key 变化触发
  * 组件重新挂载，`initial`→`animate` 因此重放一次，实现「值变大就闪一下」
  * 而不用手写 keyframes 数组。数值不变或**减少**时 key 不动，不放回执
  * （减少通常是删除/撤销，不是「拖了新素材进来」那类值得庆祝的动作）。
@@ -52,7 +52,7 @@ export function useCountPulse(count: number): number {
  *   注释）：`0.2s` 落在 150–250 区间中点，缓动用 `--canvas-ease-state`
  *   （`cubic-bezier(0.4, 0, 0.2, 1)`）的数组形式——这条曲线在 canvas.css
  *   里明确标注给「状态过渡」用，计数跳变正是一次状态过渡，不是入场/出场，
- *   所以不借 `--canvas-ease-in`。CSS 自定义属性没法直接喂给 framer-motion
+ *   所以不借 `--canvas-ease-in`。CSS 自定义属性没法直接喂给 motion
  *   的 transition，这里手动转成同值的数组，和 `constants/motion.ts` 里
  *   `EASE_STANDARD_CSS`/`EASE_STANDARD` 两份并存同一原因。
  */

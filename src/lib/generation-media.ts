@@ -1,3 +1,4 @@
+import { getVideoPosterUrl } from '@/lib/video-poster'
 import type { GenerationRecord } from '@/types'
 
 export interface GenerationAudioSegment {
@@ -52,9 +53,35 @@ export function getGenerationAudioSegments(
     .filter((segment): segment is GenerationAudioSegment => segment !== null)
 }
 
+/**
+ * 视频封面。派生列（`thumbnailUrl` / `previewUrl`）优先 —— provider 自带缩略图
+ * 时它才是最准的一帧；都没有就让 CDN 现场抽一帧（Media Transformations）。
+ *
+ * ⚠ 返回 `null` 是**正常结果**（第三方域、非 mp4/webm、缺 CDN 域配置），调用方
+ * 必须能画出占位，不许把视频 URL 塞给 `<img>`。
+ */
+export function getGenerationVideoPosterUrl(
+  generation: Pick<
+    GenerationRecord,
+    'thumbnailUrl' | 'previewUrl' | 'url'
+  > | null,
+): string | null {
+  if (!generation) return null
+  return (
+    generation.thumbnailUrl ??
+    generation.previewUrl ??
+    getVideoPosterUrl(generation.url)
+  )
+}
+
 export function getGenerationThumbnailUrl(
   generation: GenerationRecord,
 ): string {
+  // VIDEO 的 `url` 是一段视频，塞进 `<img>` 只会是一格空白 —— 这一档的最后
+  // 一站是 CDN 抽帧，不是原文件。
+  if (generation.outputType === 'VIDEO') {
+    return getGenerationVideoPosterUrl(generation) ?? generation.url
+  }
   return generation.thumbnailUrl ?? generation.previewUrl ?? generation.url
 }
 

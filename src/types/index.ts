@@ -4063,6 +4063,7 @@ export type SelectVariantWinnerRequest = z.infer<
 export const LORA_TRAINING_SUBMIT_ERROR_CODES = [
   'INSUFFICIENT_CREDITS',
   'IMAGE_TOO_LARGE',
+  'IMAGE_INVALID',
   'BASE_MODEL_UNSUPPORTED',
   'NAMING_CONFLICT',
   'UPSTREAM_TIMEOUT',
@@ -4097,6 +4098,42 @@ export const LoraTrainingErrorResponseSchema = z.object({
 export type LoraTrainingErrorResponse = z.infer<
   typeof LoraTrainingErrorResponseSchema
 >
+
+/**
+ * Stage 1 of the browser-direct LoRA training-image upload: ask for a
+ * presigned R2 PUT. The bytes never pass through a Next function — same
+ * shape as `/api/upload-image/direct`, but the confirmed object stays out of
+ * the asset library (a training image is not a Generation).
+ */
+export const CreateLoraTrainingUploadRequestSchema = z.object({
+  mimeType: z.enum(USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES),
+  // Deliberately unbounded here: the service rejects an oversized pick with a
+  // typed `IMAGE_TOO_LARGE` the form can localize, which beats a generic
+  // schema-validation 400.
+  sizeBytes: z.number().int().positive(),
+})
+export type CreateLoraTrainingUploadRequest = z.infer<
+  typeof CreateLoraTrainingUploadRequestSchema
+>
+
+/** Stage 3: the server re-reads the uploaded object and validates it. */
+export const CompleteLoraTrainingUploadRequestSchema = z.object({
+  storageKey: z.string().trim().min(1).max(1024),
+  sizeBytes: z.number().int().positive(),
+})
+export type CompleteLoraTrainingUploadRequest = z.infer<
+  typeof CompleteLoraTrainingUploadRequestSchema
+>
+
+export interface LoraTrainingUploadPrepare {
+  uploadUrl: string
+  storageKey: string
+  headers: {
+    'Content-Type': AcceptedImageUploadMimeType
+    'If-None-Match': '*'
+  }
+  maxBytes: number
+}
 
 export const SubmitLoraTrainingSchema = z.object({
   name: z.string().trim().min(1).max(100),

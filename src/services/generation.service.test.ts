@@ -54,7 +54,7 @@ import {
   createGeneration,
   deleteGeneration,
   getAssetSectionCounts,
-  getGenerationById,
+  getOwnedGenerationWithSnapshot,
   getGenerationByIdForUser,
   getGenerationsByCharacterCard,
   getGenerationsByCharacterCombination,
@@ -241,7 +241,7 @@ describe('generation.service', () => {
       expect(result[0]).toMatchObject(BASE_GENERATION)
       // List paths intentionally skip the snapshot column, so we no
       // longer derive a referenceImages array here — that lives on
-      // getGenerationById which still loads the full row.
+      // getOwnedGenerationWithSnapshot which still loads the full row.
       expect(result[0].referenceImages).toBeUndefined()
       expect(mockGenerationFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -415,28 +415,28 @@ describe('generation.service', () => {
     })
   })
 
-  describe('getGenerationById', () => {
-    it('finds a generation by id', async () => {
-      mockGenerationFindUnique.mockResolvedValue(BASE_GENERATION)
+  describe('getOwnedGenerationWithSnapshot', () => {
+    it('finds an owner-scoped generation by id', async () => {
+      mockGenerationFindFirst.mockResolvedValue(BASE_GENERATION)
 
-      const result = await getGenerationById('gen-1')
+      const result = await getOwnedGenerationWithSnapshot('gen-1', 'user-1')
 
       expect(result).toMatchObject(BASE_GENERATION)
       expect(result?.referenceImages).toEqual([])
-      expect(mockGenerationFindUnique).toHaveBeenCalledWith({
-        where: { id: 'gen-1' },
+      expect(mockGenerationFindFirst).toHaveBeenCalledWith({
+        where: { id: 'gen-1', userId: 'user-1' },
       })
     })
 
     it('normalizes legacy snapshot referenceImages to ReferenceAsset records', async () => {
-      mockGenerationFindUnique.mockResolvedValue({
+      mockGenerationFindFirst.mockResolvedValue({
         ...BASE_GENERATION,
         snapshot: {
           referenceImages: ['https://example.com/ref.png'],
         },
       })
 
-      const result = await getGenerationById('gen-1')
+      const result = await getOwnedGenerationWithSnapshot('gen-1', 'user-1')
 
       expect(result?.referenceImages).toEqual([
         {
@@ -447,7 +447,7 @@ describe('generation.service', () => {
     })
 
     it('passes through snapshot referenceAssets records', async () => {
-      mockGenerationFindUnique.mockResolvedValue({
+      mockGenerationFindFirst.mockResolvedValue({
         ...BASE_GENERATION,
         snapshot: {
           referenceAssets: [
@@ -460,7 +460,7 @@ describe('generation.service', () => {
         },
       })
 
-      const result = await getGenerationById('gen-1')
+      const result = await getOwnedGenerationWithSnapshot('gen-1', 'user-1')
 
       expect(result?.referenceImages).toEqual([
         {
@@ -472,13 +472,13 @@ describe('generation.service', () => {
     })
 
     it('falls back to referenceImageUrl when snapshot has no reference assets', async () => {
-      mockGenerationFindUnique.mockResolvedValue({
+      mockGenerationFindFirst.mockResolvedValue({
         ...BASE_GENERATION,
         referenceImageUrl: 'https://example.com/single-ref.png',
         snapshot: null,
       })
 
-      const result = await getGenerationById('gen-1')
+      const result = await getOwnedGenerationWithSnapshot('gen-1', 'user-1')
 
       expect(result?.referenceImages).toEqual([
         {
@@ -489,9 +489,11 @@ describe('generation.service', () => {
     })
 
     it('returns null when the generation does not exist', async () => {
-      mockGenerationFindUnique.mockResolvedValue(null)
+      mockGenerationFindFirst.mockResolvedValue(null)
 
-      await expect(getGenerationById('missing-gen')).resolves.toBeNull()
+      await expect(
+        getOwnedGenerationWithSnapshot('missing-gen', 'user-1'),
+      ).resolves.toBeNull()
     })
   })
 

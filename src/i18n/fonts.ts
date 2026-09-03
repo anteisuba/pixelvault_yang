@@ -10,22 +10,22 @@ import {
   Noto_Serif_SC,
 } from 'next/font/google'
 
+/**
+ * The app's one Latin face. Everything in the product UI is set in it.
+ *
+ * ⚠ 2026-09-03: there used to be **three** identical `Geist()` declarations
+ * here — `appSans` / `displayFont` / `serifFont`, byte-for-byte the same
+ * config behind `--font-app-sans` / `--font-app-display` / `--font-app-serif`.
+ * next/font keys its cache on the call site, not on the arguments, so that was
+ * three `<link rel=preload>` + three `@font-face` sets of the same four
+ * weights on every route. The two extra variables are gone; `globals.css` maps
+ * the `font-display` / `font-serif` / `font-hero` Tailwind keys straight onto
+ * `--font-app-sans`. **Don't reintroduce a second Geist declaration** — if a
+ * surface ever needs a real display or serif face, add that *face*, not another
+ * alias of this one.
+ */
 export const appSans = Geist({
   variable: '--font-app-sans',
-  subsets: ['latin'],
-  display: 'swap',
-  weight: ['400', '500', '600', '700'],
-})
-
-export const displayFont = Geist({
-  variable: '--font-app-display',
-  subsets: ['latin'],
-  display: 'swap',
-  weight: ['400', '500', '600', '700'],
-})
-
-export const serifFont = Geist({
-  variable: '--font-app-serif',
   subsets: ['latin'],
   display: 'swap',
   weight: ['400', '500', '600', '700'],
@@ -36,11 +36,17 @@ export const serifFont = Geist({
  * hero it was added for is gone (v3 sets everything in Noto Sans). Latin glyphs
  * use Fraunces; CJK falls back to a Song/Mincho system stack so we don't ship a
  * heavy CJK webfont for a serif that appears on two legal pages.
+ *
+ * `preload: false` because those two pages (+ the 404) are the only consumers:
+ * the variable is now mounted on `.legal-page` by `LegalPage` /
+ * `LocaleNotFound`, not on the root `<body>`, so preloading it from every route
+ * in the app would spend critical-path bandwidth on a face nobody there draws.
  */
 export const editorialSerif = Fraunces({
   variable: '--font-editorial',
   subsets: ['latin'],
   display: 'swap',
+  preload: false,
   weight: ['400', '500'],
 })
 
@@ -73,11 +79,20 @@ export const chineseSans = Noto_Sans_SC({
  * Latin gets drawn by the looser Latin bundled inside Noto Sans SC.
  *
  * The app's own Latin stays Geist; nothing outside `home-v4.css` reads these.
+ *
+ * `preload: false` on both (matching `homepageSerif` / `japaneseSans`): the
+ * marketing home is the only route that draws them, and their variables are
+ * mounted on `HomeV4Shell`'s `.home-v4` domain root rather than the app-wide
+ * `<body>` — preloading from every route would put two faces the app UI never
+ * uses on the critical path. The home still preloads nothing *less* than
+ * before: it declares the fonts on its own subtree, so the browser fetches
+ * them as soon as it hits the first rule that uses them.
  */
 export const homepageSans = Noto_Sans({
   variable: '--font-home-sans',
   subsets: ['latin'],
   display: 'swap',
+  preload: false,
   weight: ['400', '500', '600', '700'],
 })
 
@@ -85,6 +100,7 @@ export const homepageMono = IBM_Plex_Mono({
   variable: '--font-home-mono',
   subsets: ['latin'],
   display: 'swap',
+  preload: false,
   weight: ['400', '500'],
 })
 
@@ -100,6 +116,14 @@ export const homepageMono = IBM_Plex_Mono({
  *
  * Latin is drawn by this face too — unlike the sans pair, where Noto Sans has to
  * come first, Noto Serif SC's own Latin *is* Noto Serif and needs no partner.
+ *
+ * ⚠ **This one variable has to stay on the root `<body>`** — the other home
+ * faces moved down onto `.home-v4` in 2026-09-03's font pass, this one can't:
+ * VoiceRoom reads it too (`voiceroom.css` `--vr-serif`, and `.vr-flier` which
+ * is mounted on `<body>` itself so it can escape the panel's overflow — see the
+ * ⚠ at `voiceroom.css:1933`). A domain-scoped declaration would be out of that
+ * element's ancestor chain, and custom properties only inherit down. It costs
+ * nothing on other routes: `preload: false` keeps it off their critical path.
  */
 export const homepageSerif = Noto_Serif_SC({
   variable: '--font-home-serif',

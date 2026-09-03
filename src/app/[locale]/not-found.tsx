@@ -5,17 +5,21 @@ import '@/app/legal.css'
 
 import { Button } from '@/components/ui/button'
 import { ROUTES } from '@/constants/routes'
+import { editorialSerif } from '@/i18n/fonts'
 import { Link } from '@/i18n/navigation'
 
 /**
  * Branded 404 for unmatched routes under a locale. Reuses the ivory
- * "white hall" surface from legal.css and always offers a way back home.
+ * "white hall" surface from legal.css and always offers a way back home —
+ * including `--font-editorial`, which means declaring `editorialSerif` here the
+ * same way `LegalPage` does (it is no longer on the app's `<body>`; see the
+ * 2026-09-03 note in `src/app/layout.tsx`).
  */
 export default function LocaleNotFound() {
   const t = useTranslations('NotFound')
 
   return (
-    <div className="legal-page flex flex-col">
+    <div className={`legal-page ${editorialSerif.variable} flex flex-col`}>
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-6 px-4 py-24 text-center">
         <p className="legal-updated font-mono">404</p>
         <h1 className="legal-title text-foreground text-balance">

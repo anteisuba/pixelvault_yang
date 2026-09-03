@@ -36,8 +36,9 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 
 - Provider：`ClerkProvider` 按 locale 配置（localization / sign-in URL / redirect origins）。
 - Middleware = `src/proxy.ts`（Clerk + next-intl 合体）：API 路由跳过 i18n；非公开路由默认执行 `auth.protect()`。仅 development 且显式设置 `AUTH_BYPASS_FOR_E2E=true` 时允许 E2E 绕过；普通本地开发与生产使用同一认证边界。
-- 公开路由（2026-06-02 口径）：首页 / gallery(+详情) / sign-in / sign-up / creator profile；公开 API：`/api/images`、`/api/voices(/*)`、`/api/webhooks/clerk`、`/api/health(/providers)`、`/api/internal/*`（走签名不走 Clerk）。`/api/users/:username` 公开、`/api/users/me/*` 要登录。
+- 公开路由（2026-09-03 口径）：首页 / gallery(+详情) / sign-in / sign-up / creator profile；公开 API：`/api/images`、`/api/og`（og:image，社交爬虫无 Clerk 会话，路由内部按 `isPublic` 判断）、`/api/voices(/*)`、`/api/webhooks/clerk`、`/api/health(/providers)`、`/api/internal/*`（走签名不走 Clerk）。`/api/users/:username` 公开、`/api/users/me/*` 要登录。
 - 内部签名：`src/lib/signature-verifiers/`（`internal-execution`、`fal-webhook`）；Clerk webhook 走 svix 三头验签（`CLERK_WEBHOOK_SECRET`）。Execution v1 签名绑定 timestamp、nonce、HTTP method、pathname 与 body SHA-256；应用侧通过 Upstash Redis 原子消费 nonce，拒绝过期、重放和跨路由请求，生产缺 Redis 时 fail closed。
+- 出站 URL 边界（SSRF）：`src/lib/url-guard.ts`。`assertSafeUrl` 只看 URL 字面量（协议白名单 + 主机名黑名单 + IP 字面量私网段）；**取外部资源一律走 `safeFetch`**——它手动跟重定向（默认 ≤3 跳），每一跳都先 `assertSafeUrl`、再 `dns.lookup(host, { all: true })` 把**全部**解析结果过同一份私网/环回/link-local/metadata 判据（挡 DNS rebinding），并在跨源跳转时摘掉 `Authorization` / `Cookie` / `Proxy-Authorization`。⚠ 残余风险：校验用的解析结果与 `fetch` 自己的解析是两次，TOCTOU 窗口仍在——钉死地址需要 undici `Agent({ connect: { lookup } })` 作 dispatcher，本仓无此依赖故未做。
 - 用户映射：`User.clerkId`；`user.service.ensureUser(clerkId)` JIT 建档（查→补同步→缺则建）；service 层收 clerkId，经 `ensureUser` 解析内部 `User.id`。Clerk Production 切换实例时，`provisionVerifiedClerkUser` 只接受已验证的主邮箱，并按邮箱原子更新旧记录的 `clerkId`，保持内部 `User.id` 与全部资产关系不变；该同邮箱重绑定仅允许在 `VERCEL_ENV=production`，Preview/Development 遇到已有邮箱会拒绝，避免测试与生产 Clerk ID 来回覆盖。
 
 ## Service 纪律

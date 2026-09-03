@@ -5,12 +5,12 @@
  * 规则：
  * - 缓动全站统一 EASE_STANDARD 一条曲线；退出动画用更短时长，不换曲线。
  * - 时长走四档刻度，不要自创数值。
- * - framer-motion 调用方必须配合 useReducedMotion（from 'motion/react'）：
+ * - motion 调用方必须配合 useReducedMotion（from 'motion/react'）：
  *   `transition={motionTransition('base', useReducedMotion())}`。
  * - CSS 侧对应 token 在 globals.css @theme：--ease-standard / --duration-*。
  */
 
-/** 全站唯一缓动曲线（framer-motion 数组形式） */
+/** 全站唯一缓动曲线（motion 数组形式） */
 export const EASE_STANDARD: [number, number, number, number] = [
   0.22, 1, 0.36, 1,
 ]
@@ -18,7 +18,7 @@ export const EASE_STANDARD: [number, number, number, number] = [
 /** 同一曲线的 CSS 字符串（行内 style 优先用 var(--ease-standard)） */
 export const EASE_STANDARD_CSS = 'cubic-bezier(0.22, 1, 0.36, 1)'
 
-/** 时长刻度（秒，framer-motion 用） */
+/** 时长刻度（秒，motion 用） */
 export const DURATION = {
   /** hover / 按压 / 图标与 chip 状态切换 */
   fast: 0.12,
@@ -50,7 +50,7 @@ export function staggerDelay(index: number): number {
 }
 
 /**
- * framer-motion transition 预设。
+ * motion transition 预设。
  * reducedMotion 传 useReducedMotion() 的返回值（true 时时长归零）。
  */
 export function motionTransition(

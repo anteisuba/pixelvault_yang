@@ -1,0 +1,18 @@
+/*
+ * 离屏瓦片跳过渲染（样式/布局/绘制都不做），滚进视口前后自动切换。
+ *
+ * ⚠ 只能用在**外框尺寸由外部写死**的瓦片上：`AssetTile` 的 `<button>` 带
+ * 内联 `width`/`height`（justified 排版算出来的），所以跳过内容不会改变
+ * 任何盒子的大小，也就不会有布局抖动。`contain-intrinsic-size` 只是没有
+ * 内联尺寸时的保险丝。
+ *
+ * ⛔ 别照抄到 GalleryGrid —— 那边靠 JS 量真实内容高度算 masonry 跨行，
+ * 内容被跳过就量成占位高度，砌体会重叠。
+ *
+ * 放在 CSS module 而不是 Tailwind：项目禁任意值，而 `content-visibility`
+ * 是单点用一次的降载开关，不值得往全局 `@theme` 里加一档 utility。
+ */
+.tile {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
+}

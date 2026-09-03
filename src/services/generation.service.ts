@@ -145,8 +145,8 @@ export interface GalleryGenerationPage {
  * heavy JSON columns (`snapshot`, `recipeSnapshot`, `evaluation`) — a
  * single generation row can be 7 MB when the user uploaded base64
  * dataURL reference images, so a 24-item page balloons to 30 MB+.
- * Detail-style queries (`getGenerationById`, studio remix) still load
- * the full row.
+ * Detail-style queries (`getOwnedGenerationWithSnapshot`, studio remix)
+ * still load the full row.
  */
 export const LIST_GENERATION_SELECT = {
   id: true,
@@ -651,7 +651,7 @@ async function getPublicGenerationSlice({
   // Owner sees full data; public viewers get redacted prompts.
   // No referenceImage normalization in list paths — that's derived from
   // the (intentionally excluded) snapshot column. Detail views still go
-  // through getGenerationById which keeps the full row.
+  // through getOwnedGenerationWithSnapshot which keeps the full row.
   const generations = userId ? mapped : redactPrompts(mapped)
 
   return {
@@ -700,13 +700,23 @@ export async function getPublicGenerationPage(
 }
 
 /**
- * Get a single generation by its ID.
+ * Owner-scoped fetch of the **full** generation row, heavy JSON columns
+ * (`snapshot`, `recipeSnapshot`, `evaluation`) included.
+ *
+ * The snapshot is what the Studio remix flow rebuilds the original preset
+ * from, so this is the one detail query that can't use
+ * `LIST_GENERATION_SELECT`. Ownership is part of the query — there is
+ * deliberately no unscoped `findUnique({ where: { id } })` variant to
+ * reach for, because every caller that had one ended up re-checking
+ * `userId` / `isPublic` by hand afterwards. Public reads go through
+ * `getPublicGenerationById`.
  */
-export async function getGenerationById(
+export async function getOwnedGenerationWithSnapshot(
   id: string,
+  userId: string,
 ): Promise<GenerationRecord | null> {
-  const generation = await db.generation.findUnique({
-    where: { id },
+  const generation = await db.generation.findFirst({
+    where: { id, userId },
   })
 
   return generation ? normalizeGenerationReferenceImages(generation) : null

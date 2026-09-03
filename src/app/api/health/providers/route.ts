@@ -2,6 +2,7 @@ import 'server-only'
 
 import { NextResponse } from 'next/server'
 
+import { isValidBearerToken } from '@/lib/bearer-token'
 import { getAllModelConfigs } from '@/services/model-config.service'
 import { checkAllModelsHealth } from '@/services/model-health.service'
 import type { ModelHealthResponse } from '@/types'
@@ -23,8 +24,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader || authHeader !== `Bearer ${token}`) {
+    if (!isValidBearerToken(request.headers.get('authorization'), token)) {
       return NextResponse.json(
         { success: false, error: 'Invalid or missing token' },
         { status: 401 },

@@ -1,9 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   CheckCircle2,
   FolderInput,
+  FolderPlus,
   Globe,
   Heart,
   Image as ImageIcon,
@@ -79,6 +88,7 @@ import {
   ASSET_GRID_DENSITIES,
   ASSET_GRID_DENSITY_STORAGE_KEY,
   ASSET_GRID_GAP,
+  ASSET_GRID_ROW_OVERSCAN,
   ASSET_GRID_SKELETON_ASPECT_RATIOS,
   ASSET_GRID_TARGET_ROW_HEIGHT,
   ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO,
@@ -1281,6 +1291,54 @@ export function KreaAssetBrowser({
     targetRowHeight,
   })
 
+  // ─── justified 行的窗口化（2026-09-03）──────────────────────────
+  // 素材库是「滚到底就再追加 24 条」的无限流，退役前所有瓦片都留在 DOM 里，
+  // 翻几屏就是几百个 `<img>`。这里比画廊简单得多：justified 排版**已经**把每行
+  // 的精确高度算出来了（`row.height`），不用挂进 DOM 再量，估高即真值。
+  // ⚠ 滚动容器是下面那个 `<main>`（`overflow-y-auto`），不是窗口。
+  const scrollElementRef = useRef<HTMLElement | null>(null)
+  const gridElementRef = useRef<HTMLDivElement | null>(null)
+  const [gridOffsetTop, setGridOffsetTop] = useState(0)
+
+  // 网格上方还有顶栏/面包屑/门牌行，高度会变（筛选条换行、门牌行出现），
+  // 所以偏移量得跟着量，否则整片行会整体错位。
+  const setGridElement = useCallback(
+    (node: HTMLDivElement | null) => {
+      gridElementRef.current = node
+      gridContainerRef(node)
+    },
+    [gridContainerRef],
+  )
+
+  useLayoutEffect(() => {
+    const grid = gridElementRef.current
+    const scroller = scrollElementRef.current
+    if (!grid || !scroller) return
+
+    const measure = () => {
+      const next =
+        grid.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top +
+        scroller.scrollTop
+      setGridOffsetTop((previous) => (previous === next ? previous : next))
+    }
+    measure()
+
+    const observer = new ResizeObserver(measure)
+    observer.observe(scroller)
+    observer.observe(grid)
+    return () => observer.disconnect()
+  }, [gridRows, view, isEmpty])
+
+  const rowVirtualizer = useVirtualizer({
+    count: gridRows.length,
+    getScrollElement: () => scrollElementRef.current,
+    estimateSize: (index) => gridRows[index]?.height ?? 0,
+    gap: ASSET_GRID_GAP,
+    overscan: ASSET_GRID_ROW_OVERSCAN,
+    scrollMargin: gridOffsetTop,
+  })
+
   // Per-section counts — fall back to live `total` only for the bucket the
   // user is currently viewing so the sidebar still moves on add/delete
   // before the next refreshCounts() lands.
@@ -1470,6 +1528,7 @@ export function KreaAssetBrowser({
         {/* `assets-scroll-gutter`：滚动条一出现容器就缩水，会把按旧宽度排好
             的 justified 行挤成横向溢出（page §5.7）。 */}
         <main
+          ref={scrollElementRef}
           className="studio-scrollbar assets-scroll-gutter flex-1 min-w-0 overflow-x-hidden overflow-y-auto py-4"
           onScroll={(event) => {
             setIsToolbarStuck(event.currentTarget.scrollTop > 8)
@@ -1601,6 +1660,20 @@ export function KreaAssetBrowser({
                 crumbs={breadcrumbCrumbs}
                 current={breadcrumbCurrent}
                 count={view === 'folders' ? projects.length : total}
+                action={
+                  view === 'library' && section.kind === 'project' ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setCreateFolderParentId(section.id)}
+                      className="h-8 rounded-lg px-3"
+                    >
+                      <FolderPlus className="size-3.5" />
+                      {t('folderCreate')}
+                    </Button>
+                  ) : undefined
+                }
               />
               {/* 路径二：子夹小门牌置顶。 */}
               {view === 'library' && currentFolderChildren.length > 0 && (
@@ -1708,147 +1781,158 @@ export function KreaAssetBrowser({
             )
           ) : (
             <div
-              ref={gridContainerRef}
-              className="flex flex-col"
-              style={{ gap: ASSET_GRID_GAP }}
+              ref={setGridElement}
+              className="relative"
+              style={{ height: rowVirtualizer.getTotalSize() }}
             >
-              {gridRows.map((row, rowIndex) => (
-                <div
-                  key={rowIndex}
-                  className="flex"
-                  style={{ gap: ASSET_GRID_GAP }}
-                >
-                  {row.boxes.map((box) => {
-                    // 行内每格的尺寸由 justified 排版算出来，瓦片按它自己的
-                    // 真实比例占位 —— 所以 object-cover 在这里不裁任何东西。
-                    const boxStyle = { width: box.width, height: box.height }
-                    if (showSkeleton) {
-                      return (
-                        <div
-                          key={`skeleton-${box.index}`}
-                          style={boxStyle}
-                          className="shrink-0 animate-pulse rounded-lg bg-muted/40"
-                        />
-                      )
-                    }
-                    const item = gridItems[box.index]
-                    if (!item) return null
-                    if (item.kind === 'pending') {
-                      return (
-                        <AssetUploadTile
-                          key={item.item.id}
-                          item={item.item}
-                          width={box.width}
-                          height={box.height}
-                          onRetry={uploadQueue.retry}
-                          onRemove={uploadQueue.remove}
-                        />
-                      )
-                    }
-                    // Picker inline upload: drop/click uploads an image and
-                    // selects it, so users don't have to leave the dialog.
-                    if (item.kind === 'upload') {
-                      return (
-                        <button
-                          key="upload-cell"
-                          type="button"
-                          onClick={handleUploadClick}
-                          disabled={isUploading}
-                          aria-label={t('uploadButton')}
-                          style={boxStyle}
-                          className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
-                        >
-                          {isUploading ? (
-                            <Spinner size="lg" />
-                          ) : (
-                            <UploadCloud className="size-5" />
-                          )}
-                          <span className="text-2xs font-medium">
-                            {t('uploadButton')}
-                          </span>
-                        </button>
-                      )
-                    }
-                    const gen = item.generation
-                    const isSelected = selectedIds.has(gen.id)
-                    const audioCoverUrl = getAudioPreviewCandidates(gen).find(
-                      (url) => !failedAudioPreviewUrls.has(url),
-                    )
-                    const handleTileClick = (
-                      event: React.MouseEvent<HTMLButtonElement>,
-                    ) => {
-                      if (selectionMode) {
-                        // Shift 点 = 从锚点到这里整段选中（§7.1）。
-                        if (event.shiftKey) selectRangeTo(gen.id)
-                        else toggleSelection(gen.id)
-                        return
-                      }
-                      setSelectedOriginRect(
-                        toMediaTransitionOrigin(
-                          event.currentTarget.getBoundingClientRect(),
-                        ),
-                      )
-                      setImageNavigationDirection(1)
-                      setSelectedGeneration(gen)
-                    }
-                    const handleTileContextMenu = (
-                      e: React.MouseEvent<HTMLButtonElement>,
-                    ) => {
-                      e.preventDefault()
-                      if (selectionMode) toggleSelection(gen.id)
-                      else enterSelectionWith(gen.id)
-                    }
-                    // Drag-to-folder: outside picker mode a tile can be dragged
-                    // onto a folder in the sidebar. Dragging a selected tile
-                    // carries the whole selection; otherwise just this asset.
-                    const handleTileDragStart = (
-                      event: React.DragEvent<HTMLButtonElement>,
-                    ) => {
-                      const ids =
-                        selectionMode && isSelected
-                          ? Array.from(selectedIds)
-                          : [gen.id]
-                      event.dataTransfer.setData(
-                        ASSET_DND_MIME,
-                        JSON.stringify(ids),
-                      )
-                      event.dataTransfer.setData('text/plain', ids.join(','))
-                      event.dataTransfer.effectAllowed = 'move'
-                      // Multi-select batch: show a "N selected" chip instead of
-                      // a single tile ghost so the user sees the drag scope.
-                      if (ids.length > 1 && dragGhostRef.current) {
-                        dragGhostRef.current.textContent = t('selectedCount', {
-                          count: ids.length,
-                        })
-                        event.dataTransfer.setDragImage(
-                          dragGhostRef.current,
-                          16,
-                          16,
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const row = gridRows[virtualRow.index]
+                if (!row) return null
+                return (
+                  <div
+                    key={virtualRow.index}
+                    className="absolute top-0 left-0 flex w-full"
+                    style={{
+                      gap: ASSET_GRID_GAP,
+                      height: row.height,
+                      transform: `translateY(${virtualRow.start - gridOffsetTop}px)`,
+                    }}
+                  >
+                    {row.boxes.map((box) => {
+                      // 行内每格的尺寸由 justified 排版算出来，瓦片按它自己的
+                      // 真实比例占位 —— 所以 object-cover 在这里不裁任何东西。
+                      const boxStyle = { width: box.width, height: box.height }
+                      if (showSkeleton) {
+                        return (
+                          <div
+                            key={`skeleton-${box.index}`}
+                            style={boxStyle}
+                            className="shrink-0 animate-pulse rounded-lg bg-muted/40"
+                          />
                         )
                       }
-                    }
-                    return (
-                      <AssetTile
-                        key={gen.id}
-                        generation={gen}
-                        width={box.width}
-                        height={box.height}
-                        selected={isSelected}
-                        showSelectionMark={selectionMode}
-                        selectionMode={selectionMode}
-                        draggable={!isPickerMode && !isTouchPrimary()}
-                        audioCoverUrl={audioCoverUrl}
-                        onAudioCoverError={handleAudioPreviewError}
-                        onClick={handleTileClick}
-                        onContextMenu={handleTileContextMenu}
-                        onDragStart={
-                          isPickerMode ? undefined : handleTileDragStart
+                      const item = gridItems[box.index]
+                      if (!item) return null
+                      if (item.kind === 'pending') {
+                        return (
+                          <AssetUploadTile
+                            key={item.item.id}
+                            item={item.item}
+                            width={box.width}
+                            height={box.height}
+                            onRetry={uploadQueue.retry}
+                            onRemove={uploadQueue.remove}
+                          />
+                        )
+                      }
+                      // Picker inline upload: drop/click uploads an image and
+                      // selects it, so users don't have to leave the dialog.
+                      if (item.kind === 'upload') {
+                        return (
+                          <button
+                            key="upload-cell"
+                            type="button"
+                            onClick={handleUploadClick}
+                            disabled={isUploading}
+                            aria-label={t('uploadButton')}
+                            style={boxStyle}
+                            className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                          >
+                            {isUploading ? (
+                              <Spinner size="lg" />
+                            ) : (
+                              <UploadCloud className="size-5" />
+                            )}
+                            <span className="text-2xs font-medium">
+                              {t('uploadButton')}
+                            </span>
+                          </button>
+                        )
+                      }
+                      const gen = item.generation
+                      const isSelected = selectedIds.has(gen.id)
+                      const audioCoverUrl = getAudioPreviewCandidates(gen).find(
+                        (url) => !failedAudioPreviewUrls.has(url),
+                      )
+                      const handleTileClick = (
+                        event: React.MouseEvent<HTMLButtonElement>,
+                      ) => {
+                        if (selectionMode) {
+                          // Shift 点 = 从锚点到这里整段选中（§7.1）。
+                          if (event.shiftKey) selectRangeTo(gen.id)
+                          else toggleSelection(gen.id)
+                          return
                         }
-                      />
-                    )
-                  })}
-                </div>
-              ))}
+                        setSelectedOriginRect(
+                          toMediaTransitionOrigin(
+                            event.currentTarget.getBoundingClientRect(),
+                          ),
+                        )
+                        setImageNavigationDirection(1)
+                        setSelectedGeneration(gen)
+                      }
+                      const handleTileContextMenu = (
+                        e: React.MouseEvent<HTMLButtonElement>,
+                      ) => {
+                        e.preventDefault()
+                        if (selectionMode) toggleSelection(gen.id)
+                        else enterSelectionWith(gen.id)
+                      }
+                      // Drag-to-folder: outside picker mode a tile can be dragged
+                      // onto a folder in the sidebar. Dragging a selected tile
+                      // carries the whole selection; otherwise just this asset.
+                      const handleTileDragStart = (
+                        event: React.DragEvent<HTMLButtonElement>,
+                      ) => {
+                        const ids =
+                          selectionMode && isSelected
+                            ? Array.from(selectedIds)
+                            : [gen.id]
+                        event.dataTransfer.setData(
+                          ASSET_DND_MIME,
+                          JSON.stringify(ids),
+                        )
+                        event.dataTransfer.setData('text/plain', ids.join(','))
+                        event.dataTransfer.effectAllowed = 'move'
+                        // Multi-select batch: show a "N selected" chip instead of
+                        // a single tile ghost so the user sees the drag scope.
+                        if (ids.length > 1 && dragGhostRef.current) {
+                          dragGhostRef.current.textContent = t(
+                            'selectedCount',
+                            {
+                              count: ids.length,
+                            },
+                          )
+                          event.dataTransfer.setDragImage(
+                            dragGhostRef.current,
+                            16,
+                            16,
+                          )
+                        }
+                      }
+                      return (
+                        <AssetTile
+                          key={gen.id}
+                          generation={gen}
+                          width={box.width}
+                          height={box.height}
+                          selected={isSelected}
+                          showSelectionMark={selectionMode}
+                          selectionMode={selectionMode}
+                          draggable={!isPickerMode && !isTouchPrimary()}
+                          audioCoverUrl={audioCoverUrl}
+                          onAudioCoverError={handleAudioPreviewError}
+                          onClick={handleTileClick}
+                          onContextMenu={handleTileContextMenu}
+                          onDragStart={
+                            isPickerMode ? undefined : handleTileDragStart
+                          }
+                        />
+                      )
+                    })}
+                  </div>
+                )
+              })}
             </div>
           )}
           {/* ⭐ 分页失败只挡这一段：已加载的内容一个都不动。 */}

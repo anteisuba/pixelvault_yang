@@ -47,6 +47,9 @@ export const ASSET_PICKER_TARGET_ROW_HEIGHT: Record<
 /** 瓦片间距（原型 `assets-claude-b-atrium` 的 `.row-j{gap:6px}`）。 */
 export const ASSET_GRID_GAP = 6
 
+/** 窗口化时视口上下各多画几行，滚动时不至于看见空白再填。 */
+export const ASSET_GRID_ROW_OVERSCAN = 4
+
 /**
  * 比例安全阀：只防脏数据，真实数据（实测 0.56–2.77）全部原样参与排版。
  * ⛔ 不是裁切策略 —— 落在区间内的比例一律不裁。

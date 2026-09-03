@@ -1,5 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AI_MODELS } from '@/constants/models'
@@ -118,8 +126,12 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ replace: mockRouterReplace, push: mockRouterPush }),
 }))
 
+// 断点 <1024 的移动端形态（装配 sheet / 底部出图条 / 结果在上输入在下）全部由
+// 这一个 hook 决定。默认 false = 桌面，既有用例不受影响；移动端用例在自己的
+// describe 里翻成 true，并在 beforeEach 里翻回来。
+let mockIsMobile = false
 vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => false,
+  useIsMobile: () => mockIsMobile,
 }))
 
 vi.mock('@/hooks/use-lora-assets', () => ({
@@ -240,10 +252,13 @@ vi.mock('@/hooks/use-prompt-tag-stack', () => ({
 
 let mockLastGeneration: { url: string } | null = null
 let mockGenerateError: string | null = null
+let mockIsGenerating = false
 vi.mock('@/hooks/use-unified-generate', () => ({
   useUnifiedGenerate: () => ({
     generate: mockGenerate,
-    isGenerating: false,
+    get isGenerating() {
+      return mockIsGenerating
+    },
     get lastGeneration() {
       return mockLastGeneration
     },
@@ -453,6 +468,8 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     mockAddTag.mockReset()
     mockLastGeneration = null
     mockGenerateError = null
+    mockIsGenerating = false
+    mockIsMobile = false
     mockMinedRecipes = []
     mockMinedPreviewImages = []
   })
@@ -1436,5 +1453,141 @@ describe('LoraWorkbench module tab bar — P2-4/P2-7', () => {
       expect.stringContaining('section=train'),
       expect.objectContaining({ scroll: false }),
     )
+  })
+})
+
+// ── 移动端 Generate（owner 2026-09-03「结果在眼前、输入在拇指区」）───────────
+// 手机上（<1024，useIsMobile）结果卡排在 composer 之上、底栏摘要点开装配 sheet、
+// 失败态带就地重试。⚠ 顺序是**CSS order 类**（DOM 顺序不动，桌面 md:order-none
+// 原样回到 60/40 网格），所以断言的就是 order 类本身。
+describe('LoraWorkbench GenerateBranch — mobile generate layout', () => {
+  beforeEach(() => {
+    mockGenerate.mockReset()
+    quickSetupSpy.mockReset()
+    mockLastGeneration = null
+    mockGenerateError = null
+    mockIsGenerating = false
+    mockMinedRecipes = []
+    mockMinedPreviewImages = []
+    mockRunnerUsage = null
+    mockIsMobile = true
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+  })
+
+  afterEach(() => {
+    // 别把 true 漏给后面的文件/用例——桌面是默认形态。
+    mockIsMobile = false
+  })
+
+  // ⚠ 别用 `closest('[class*="order-"]')` 找卡片：`border-border` 里也含
+  // "order-"，closest 会先命中里层任何一个带边框的 div。用 testid。
+  const resultCard = () => screen.getByTestId('lora-result-card')
+  const composerCard = () => screen.getByTestId('lora-composer-card')
+
+  it('puts the result card above the composer on mobile (order-1 / order-2)', () => {
+    render(<LoraWorkbench />)
+
+    expect(resultCard().className).toContain('order-1')
+    expect(composerCard().className).toContain('order-2')
+    // 桌面网格的定位类必须原样还在——移动端排序只能靠 order，不能改列位。
+    expect(resultCard().className).toContain('md:col-start-4')
+    expect(resultCard().className).toContain('md:row-span-2')
+    expect(resultCard().className).toContain('md:order-none')
+  })
+
+  it('turns the bottom-bar summary into a button that opens the assembly sheet', async () => {
+    render(<LoraWorkbench />)
+
+    // 两个入口共用同一个 aria-label / 同一个 Drawer：顶部紧凑条 + 底栏摘要。
+    const openers = screen.getAllByRole('button', {
+      name: 'LoraWorkbench:spine.openAssembly',
+    })
+    expect(openers.length).toBe(2)
+
+    const summary = openers[openers.length - 1]
+    expect(summary.textContent).toContain('×')
+    expect(summary.className).toContain('min-h-11')
+
+    fireEvent.click(summary)
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText('LoraWorkbench:spine.currentLora').length,
+      ).toBeGreaterThan(0)
+    })
+  })
+
+  it('renders the failure inside the result card with an in-card retry', () => {
+    // 重试走的是与「出图」**同一个** handleGenerateClick，所以这里要和其它
+    // 出图用例一样先给一把可用 key——否则那个 handler 会按 Hard Rule 8 路由到
+    // QuickSetupDialog（那条分支本身也是对的，只是测不到「真的重发」）。
+    mockUseApiKeysContext.mockReturnValue({
+      keys: [
+        {
+          id: 'key-1',
+          modelId: AI_MODELS.ILLUSTRIOUS_XL,
+          adapterType: AI_ADAPTER_TYPES.REPLICATE,
+          providerConfig: { label: 'Replicate', baseUrl: '' },
+          label: 'My Replicate key',
+          maskedKey: '****abcd',
+          isActive: true,
+          createdAt: new Date(),
+        },
+      ],
+      healthMap: { 'key-1': 'available' },
+    })
+    mockGenerateError = 'Runner dispatch failed'
+
+    render(<LoraWorkbench />)
+
+    const retry = screen.getByRole('button', {
+      name: 'LoraWorkbench:generate.resultFailedRetry',
+    })
+    expect(resultCard()).toContainElement(retry)
+    expect(resultCard()).toHaveTextContent('Runner dispatch failed')
+    expect(retry).not.toBeDisabled()
+
+    fireEvent.click(retry)
+    expect(mockGenerate).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the failure out of the result card on desktop', () => {
+    mockIsMobile = false
+    mockGenerateError = 'Runner dispatch failed'
+
+    render(<LoraWorkbench />)
+
+    expect(
+      screen.queryByRole('button', {
+        name: 'LoraWorkbench:generate.resultFailedRetry',
+      }),
+    ).not.toBeInTheDocument()
+    // 桌面的失败文案仍在 composer 的 role="alert" 那一行（回归保护）。
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Runner dispatch failed',
+    )
+  })
+
+  it('scrolls the result card to the top of the viewport when a run starts (mobile only)', () => {
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView')
+    mockIsGenerating = true
+
+    render(<LoraWorkbench />)
+
+    expect(scrollIntoView).toHaveBeenCalledWith(
+      expect.objectContaining({ block: 'start' }),
+    )
+    scrollIntoView.mockRestore()
+  })
+
+  it('does not auto-scroll on desktop', () => {
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView')
+    mockIsMobile = false
+    mockIsGenerating = true
+
+    render(<LoraWorkbench />)
+
+    expect(scrollIntoView).not.toHaveBeenCalled()
+    scrollIntoView.mockRestore()
   })
 })

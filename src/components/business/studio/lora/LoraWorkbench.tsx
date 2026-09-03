@@ -28,6 +28,7 @@ import {
   PanelLeftOpen,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -40,9 +41,12 @@ import { toast } from 'sonner'
 import {
   CIVITAI_MODEL_SEARCH_URL,
   DEFAULT_LORA_WORKBENCH_SECTION,
+  LORA_MOBILE_RESULT_SCROLL_OPTIONS,
+  LORA_MOBILE_RESULT_SCROLL_OPTIONS_REDUCED,
   LORA_RESULT_HISTORY_MAX,
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
+  REDUCED_MOTION_MEDIA_QUERY,
   isLoraWorkbenchSection,
   type LoraWorkbenchSection,
 } from '@/constants/lora'
@@ -1817,6 +1821,33 @@ function GenerateBranch({
   const displayedResultUrl = selectedResult?.url ?? lastGeneration?.url ?? null
 
   /**
+   * 移动端自动滚动（owner 2026-09-03「结果在眼前、输入在拇指区」）。
+   *
+   * 手机上结果卡排在 composer **上面**，按下「出图」时它已经滚出视口——不滚的话
+   * 用户按完看不到任何东西在动。所以生成**开始**时把结果卡顶到视口顶（那一刻卡
+   * 里已经是 `StudioGeneratingProgress`：裱框显影 + 计时 + 参数行）。
+   *
+   * ⚠ 一轮只滚一次：依赖里只有 `isGenerating`，翻到 `true` 才进这一支，翻回
+   * `false`（完成/失败）直接 return——完成时结果已在原位，二次滚动会打断正在读
+   * 元信息或缩略历史的人。
+   * ⚠ 桌面（≥1024）整条不生效：那边是 60/40 并排，结果一直在视野里。
+   */
+  const resultCardRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!isAssistantMobile || !isGenerating) return
+    const card = resultCardRef.current
+    if (!card) return
+    const prefersReducedMotion =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia(REDUCED_MOTION_MEDIA_QUERY).matches
+    card.scrollIntoView(
+      prefersReducedMotion
+        ? LORA_MOBILE_RESULT_SCROLL_OPTIONS_REDUCED
+        : LORA_MOBILE_RESULT_SCROLL_OPTIONS,
+    )
+  }, [isAssistantMobile, isGenerating])
+
+  /**
    * §3.0b 第 4 条「点这张生成图问助手」在 LoRA 装配台的落点。
    *
    * ⚠ **P4-C 起要投两个口**，因为这张页上有两个宿主（桌面=操作员 / 小屏=旧面板），
@@ -1948,7 +1979,7 @@ function GenerateBranch({
                     inputMode="numeric"
                     placeholder={t('generate.advanced.modelDefault')}
                     aria-label={t('generate.advanced.seed')}
-                    className="h-8 border-border bg-transparent font-mono text-xs"
+                    className="h-8 border-border bg-transparent font-mono text-base md:text-xs"
                   />
                   <Button
                     type="button"
@@ -1992,7 +2023,7 @@ function GenerateBranch({
                     onChange={(event) => setRunnerSteps(event.target.value)}
                     placeholder={t('generate.advanced.modelDefault')}
                     aria-label={t('generate.advanced.steps')}
-                    className="h-8 w-16 shrink-0 border-border bg-transparent text-xs"
+                    className="h-8 w-24 shrink-0 border-border bg-transparent text-base md:w-16 md:text-xs"
                   />
                 </div>
               </label>
@@ -2019,7 +2050,7 @@ function GenerateBranch({
                     onChange={(event) => setRunnerCfg(event.target.value)}
                     placeholder={t('generate.advanced.modelDefault')}
                     aria-label={t('generate.advanced.cfg')}
-                    className="h-8 w-16 shrink-0 border-border bg-transparent text-xs"
+                    className="h-8 w-24 shrink-0 border-border bg-transparent text-base md:w-16 md:text-xs"
                   />
                 </div>
               </label>
@@ -2036,7 +2067,7 @@ function GenerateBranch({
                 >
                   <SelectTrigger
                     aria-label={t('generate.advanced.sampler')}
-                    className="h-8 border-border bg-transparent text-xs"
+                    className="h-8 border-border bg-transparent text-base md:text-xs"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -2065,7 +2096,7 @@ function GenerateBranch({
                 >
                   <SelectTrigger
                     aria-label={t('generate.advanced.scheduler')}
-                    className="h-8 border-border bg-transparent text-xs"
+                    className="h-8 border-border bg-transparent text-base md:text-xs"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -2094,7 +2125,7 @@ function GenerateBranch({
                     onChange={(event) => setRunnerWidth(event.target.value)}
                     placeholder={String(previewDimensions.width)}
                     aria-label={t('generate.advanced.width')}
-                    className="h-8 border-border bg-transparent text-xs"
+                    className="h-8 border-border bg-transparent text-base md:text-xs"
                   />
                 </label>
 
@@ -2109,7 +2140,7 @@ function GenerateBranch({
                     onChange={(event) => setRunnerHeight(event.target.value)}
                     placeholder={String(previewDimensions.height)}
                     aria-label={t('generate.advanced.height')}
-                    className="h-8 border-border bg-transparent text-xs"
+                    className="h-8 border-border bg-transparent text-base md:text-xs"
                   />
                 </label>
               </div>
@@ -2135,7 +2166,7 @@ function GenerateBranch({
                 >
                   <SelectTrigger
                     aria-label={t('generate.advanced.upscaler')}
-                    className="h-8 w-full border-border bg-transparent text-xs"
+                    className="h-8 w-full border-border bg-transparent text-base md:text-xs"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -2214,6 +2245,50 @@ function GenerateBranch({
       {assemblyCollapsed ? null : runnerParamsPanel}
     </>
   )
+
+  /**
+   * 结果卡第四态「失败」——**仅移动端**（owner 2026-09-03）。
+   *
+   * 桌面上失败文案在 composer 里（`generateError` 的 `role="alert"` 那一行），
+   * 而手机上 composer 排在结果卡**下面**：出图失败时用户眼前是结果卡，报错在
+   * 屏幕外，等于「按了没反应」。所以手机上把失败**也**画进结果卡，并给一颗就地
+   * 「重试」——调的是同一个 `handleGenerateClick`（含缺 key 时路由到
+   * QuickSetupDialog 的兜底），不是第二条生成链路。
+   *
+   * ⚠ 不加 `role="alert"`：composer 里那条已经是 alert 且始终在 DOM 里，这里再
+   * 挂一个等于同一条错误读屏播两遍。这块只补**可见**的动作。
+   * ⚠ 额度文案只说「按已发起的任务计、失败不返还」——`getRunnerMonthlyGenerationCount`
+   * 数的是本月创建的 `generationJob` 行数，全仓没有任何回退/返还路径；派发前就
+   * 被拒的失败（缺 key / 总闸关 / 撞上限）根本没建 job，也就无从「扣」。写
+   * 「未扣次数」或「本次已计入」都会在另一半情况里说谎。
+   * ⛔ 不放「做同款 / 重出 / 更多菜单」（`lora-generate.md:57`）——重试是失败态
+   * 专属动作，不是普通结果上的再生成入口。
+   */
+  const mobileGenerateFailure =
+    isAssistantMobile && generateError ? (
+      <div className="w-full space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-left">
+        <p className="flex items-start gap-1.5 text-xs text-destructive">
+          <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span className="min-w-0">{generateError}</span>
+        </p>
+        {isRunnerBase && runnerUsage?.enabled ? (
+          <p className="text-2xs text-muted-foreground">
+            {t('generate.resultFailedQuotaNote')}
+          </p>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-11 w-full text-sm"
+          disabled={!canGenerate}
+          onClick={handleGenerateClick}
+        >
+          <RotateCcw className="size-4" aria-hidden />
+          {t('generate.resultFailedRetry')}
+        </Button>
+      </div>
+    ) : null
 
   return (
     /**
@@ -2372,7 +2447,10 @@ function GenerateBranch({
                   （owner 2026-07-25「中间的框和另外两个不一样」）。 */}
               <div
                 className={cn(
-                  'order-1 min-w-0 md:order-none md:col-span-3 md:row-start-1',
+                  // <md 排最后（owner 2026-09-03）：手机上顺序是 结果 → 输入 →
+                  // 来源证据。来源图带是「参考材料」不是输入，压在 composer 下面
+                  // 才不会把拇指区的输入顶出屏幕。桌面 md:order-none 回到原位。
+                  'order-3 min-w-0 md:order-none md:col-span-3 md:row-start-1',
                   !hasLora && 'hidden md:hidden',
                 )}
               >
@@ -2471,7 +2549,15 @@ function GenerateBranch({
               </div>
               {/* 桌面锁高时结果列是 flex 列：标题/元信息/缩略历史按内容高，
                   中间的结果图 flex-1 吃满剩余高度（CD：随页面高度伸缩）。 */}
-              <div className="order-3 min-w-0 space-y-3 rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-2 md:col-start-4 md:row-span-2 md:row-start-1 md:flex md:min-h-0 md:flex-col md:gap-3 md:space-y-0 md:overflow-y-auto">
+              {/* ⚠ <md 是 `order-1`（结果排第一屏，owner 2026-09-03「结果在眼前、
+                  输入在拇指区」，与 image/video 同一套手机心智）；桌面 60/40 网格
+                  由 `md:order-none` + `md:col-start-4 md:row-span-2` 原样保留。
+                  `resultCardRef` 供生成开始时的自动滚动用（仅移动端）。 */}
+              <div
+                ref={resultCardRef}
+                data-testid="lora-result-card"
+                className="order-1 min-w-0 scroll-mt-2 space-y-3 rounded-xl border border-border bg-card p-3 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-2 md:col-start-4 md:row-span-2 md:row-start-1 md:flex md:min-h-0 md:flex-col md:gap-3 md:space-y-0 md:overflow-y-auto"
+              >
                 {/* G3d 结果/历史 头：结果标题 + 会话历史计数（>1 张时）。 */}
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -2489,7 +2575,19 @@ function GenerateBranch({
                 G3d：有结果时纵横比取自快照，full 图不裁；无快照退回方形。 */}
                 <div
                   className={cn(
-                    'relative w-full overflow-hidden rounded-xl bg-cover bg-center',
+                    // `lora-result-media`：<1024 给一条 max-height 上限（lora.css），
+                    // 否则竖版 1024×1360 在 375 宽上要 500px 高，元信息行和缩略
+                    // 历史全被推到折叠线以下。桌面无上限，行为不变。
+                    'lora-result-media relative w-full overflow-hidden rounded-xl bg-cover bg-center',
+                    // 空态**再收一档**（owner 2026-09-03 追加）：手机上结果卡排第
+                    // 一，还没出过图时这个虚线盒会把提示词输入框整个压到折叠线以
+                    // 下——用户进页面第一眼看不到能打字的地方。只收空态：生成中要
+                    // 给进度卡留位置，完成/失败态那张图是主角，都还按上面那条 480
+                    // 的上限走。判据与下面渲染分支同一条，改一处必须改两处。
+                    !showGeneratingOverlay &&
+                      !displayedResultUrl &&
+                      !mobileGenerateFailure &&
+                      'lora-result-media--empty',
                     // CD：结果图默认竖版 1024/1360，桌面锁高时 flex-1 吃满列高
                     // （不随列宽变高）；有出图快照时改用快照自身比例。
                     !displayedAspect && 'aspect-[1024/1360] md:aspect-auto',
@@ -2538,17 +2636,24 @@ function GenerateBranch({
                       }
                     />
                   ) : !displayedResultUrl ? (
-                    <div className="flex size-full flex-col items-center justify-center gap-2 text-center">
-                      <Sparkles
-                        className="size-7 text-muted-foreground/40"
-                        aria-hidden
-                      />
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {t('generate.resultEmptyTitle')}
-                      </p>
-                      <p className="text-xs text-muted-foreground/70">
-                        {t('generate.resultEmptyHint')}
-                      </p>
+                    // 四态之三/四：还没有任何结果时，有失败就画失败（带重试），
+                    // 没失败才是空态。⚠ `mobileGenerateFailure` 在桌面恒 null，
+                    // 桌面永远走空态那一支，与改动前一致。
+                    <div className="flex size-full flex-col items-center justify-center gap-2 p-3 text-center">
+                      {mobileGenerateFailure ?? (
+                        <>
+                          <Sparkles
+                            className="size-7 text-muted-foreground/40"
+                            aria-hidden
+                          />
+                          <p className="text-sm font-medium text-muted-foreground">
+                            {t('generate.resultEmptyTitle')}
+                          </p>
+                          <p className="text-xs text-muted-foreground/70">
+                            {t('generate.resultEmptyHint')}
+                          </p>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <button
@@ -2581,6 +2686,10 @@ function GenerateBranch({
                     </button>
                   ) : null}
                 </div>
+
+                {/* 已有旧图时新一轮失败：旧图保留在上面（还能看、还能问助手），
+                    失败与重试排在图下。无旧图那一支画在框内（见上）。 */}
+                {displayedResultUrl ? mobileGenerateFailure : null}
 
                 {/* G3d 结果元信息：① 尺寸 · 步数 · 种子 ② 主 LoRA×强度 · 底模。
                 取自选中结果的 gen-time 快照；仅有结果时显示。 */}
@@ -2657,7 +2766,9 @@ function GenerateBranch({
               / 白丸出图）——不再依赖已退役、且从未编译进样式表的 .lora-generate-input
               象牙 token 重定义（G3 contrast 修）。左栏层级/参考图大卡见 G3c。 */}
               <div
+                data-testid="lora-composer-card"
                 className={cn(
+                  // <md 排第二（结果之后、来源证据之前）；桌面回到 60/40 左列。
                   'order-2 space-y-3 rounded-xl border border-border bg-card p-4 shadow-[var(--lora-shadow-panel)] md:order-none md:col-span-3 md:col-start-1 md:min-h-0 md:overflow-y-auto',
                   // 有来源图带 → 占第 2 行；没有 → 跨两行从顶开始，顶边与左右两
                   // 栏齐平（不被空行 + gap 顶下去）。
@@ -2724,7 +2835,7 @@ function GenerateBranch({
                       onChange={(event) => setPrompt(event.target.value)}
                       onScroll={handlePromptScroll}
                       placeholder={t('generate.promptPlaceholder')}
-                      className="relative min-h-52 w-full resize-y bg-transparent text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
+                      className="relative min-h-52 w-full resize-y bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
                     />
                   </div>
                   <PromptTagAutocomplete
@@ -2801,7 +2912,7 @@ function GenerateBranch({
                           }
                           placeholder={t('generate.negativePromptPlaceholder')}
                           rows={2}
-                          className="w-full resize-none bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                          className="w-full resize-none bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-xs"
                         />
                         <PromptTagAutocomplete
                           textareaRef={negativePromptTextareaRef}
@@ -2877,17 +2988,35 @@ function GenerateBranch({
                       CD 样图里的「1024」是像素尺寸，本域只有比例档，照实写比例。 */}
                   {isAssistantMobile ? (
                     <>
-                      <span className="min-w-0 truncate font-mono text-2xs text-muted-foreground">
-                        {[
-                          selectedBase
-                            ? selectedBase.translationKey
-                              ? t(`spine.${selectedBase.translationKey}`)
-                              : selectedBase.displayName
-                            : t('spine.baseModelPending'),
-                          `×${stack.items.length}`,
-                          aspectRatio,
-                        ].join(' · ')}
-                      </span>
+                      {/* 摘要 = 装配 sheet 的第二个入口（owner 2026-09-03）。
+                          底栏是手机上唯一常驻的东西，摘要念的就是装配内容，读到
+                          「不对」的那一刻手指已经在它上面——再让用户滚回顶上找
+                          紧凑条纯属绕路。开的是**同一个** `assemblySheetOpen`
+                          Drawer，不是第二套面板。
+                          命中区用 `min-h-11`（44px）而不是 `.touch-target-y`：
+                          后者的 44px ::before 只在 `pointer: coarse` 下存在，窄
+                          视口 + 鼠标（以及所有非 coarse 的 e2e）量到的仍是 ~16px。
+                          底栏本来就被 h-11 的出图按钮撑到 44px，这里 min-h-11 不
+                          增加任何高度。 */}
+                      <button
+                        type="button"
+                        data-testid="lora-mobile-summary"
+                        onClick={() => setAssemblySheetOpen(true)}
+                        aria-label={t('spine.openAssembly')}
+                        className="flex min-h-11 min-w-0 items-center text-left font-mono text-2xs text-muted-foreground"
+                      >
+                        <span className="min-w-0 truncate">
+                          {[
+                            selectedBase
+                              ? selectedBase.translationKey
+                                ? t(`spine.${selectedBase.translationKey}`)
+                                : selectedBase.displayName
+                              : t('spine.baseModelPending'),
+                            `×${stack.items.length}`,
+                            aspectRatio,
+                          ].join(' · ')}
+                        </span>
+                      </button>
                       <button
                         type="button"
                         aria-pressed={assistantOpen}
@@ -3150,7 +3279,10 @@ function LoraSpineBar({
     // CD 装配台（近炭暖灰）：脊柱条升为浮起纸面面板——左装配栏雏形，S2b 竖化成
     // 竖向 LoRA 栈 + 底模卡 + 触发词。（原 D8「去盒化·底部白 8% 发丝线」为冷瓷前
     // 旧线，深底上白发丝线本就近隐形，此处反转成 bg-card 浮起面板 + token 发丝边。）
-    <div className="flex flex-col items-start gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 shadow-[var(--lora-shadow-panel)]">
+    <div
+      data-testid="lora-spine-bar"
+      className="flex flex-col items-start gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 shadow-[var(--lora-shadow-panel)]"
+    >
       {/* CD 装配栏：面板标题（「装配栏」）+ 折叠开关同行；下面按 底模 → LoRA 栈 →
           添加 → 触发词 的顺序（先定底模·再挂 LoRA）。 */}
       <div className="flex w-full items-center gap-2">
@@ -4009,7 +4141,7 @@ function MineToolbar({
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder={t('myLorasSearchPlaceholder')}
-          className="h-9 pl-9 pr-9 text-xs"
+          className="h-9 pl-9 pr-9 text-base md:text-xs"
         />
         {query ? (
           <button
@@ -4025,7 +4157,7 @@ function MineToolbar({
       <Select value={sort} onValueChange={(v) => onSortChange(v as MineSort)}>
         <SelectTrigger
           size="sm"
-          className="w-full border-border/60 text-xs sm:w-40"
+          className="w-full border-border/60 text-base sm:w-40 md:text-xs"
           aria-label={t('myLorasSortLabel')}
         >
           <SelectValue />

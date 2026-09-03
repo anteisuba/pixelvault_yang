@@ -1223,3 +1223,26 @@ export const CIVITAI_MIRROR_FETCH_TIMEOUT_MS = 30_000
  */
 export const CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER = 24
 export const CIVITAI_LORA_SEARCH_MAX_FETCH_LIMIT = 480
+
+/**
+ * 移动端（<1024，`useIsMobile`）结果卡自动滚动 —— `LoraWorkbench` GenerateBranch。
+ *
+ * 时机取「生成**开始**」而不是「生成完成」：开始的那一刻结果卡里已经是
+ * `StudioGeneratingProgress`（裱框显影 + 计时 + 参数行），把它顶到视口顶，用户
+ * 才看得见自己按下去的那一下有反应；等完成再滚，整轮生成里用户只能盯着输入框
+ * 空等。完成时**不再滚第二次**——那时结果已经在原位，二次滚动只会打断正在读
+ * 元信息 / 缩略历史的人。
+ */
+export const LORA_MOBILE_RESULT_SCROLL_OPTIONS = {
+  block: 'start',
+  behavior: 'smooth',
+} as const satisfies ScrollIntoViewOptions
+
+/** 同上，`prefers-reduced-motion: reduce` 下的降级：直接跳过去，不做平滑位移。 */
+export const LORA_MOBILE_RESULT_SCROLL_OPTIONS_REDUCED = {
+  block: 'start',
+  behavior: 'auto',
+} as const satisfies ScrollIntoViewOptions
+
+/** reduced-motion 判据（自动滚动降级用）。 */
+export const REDUCED_MOTION_MEDIA_QUERY = '(prefers-reduced-motion: reduce)'

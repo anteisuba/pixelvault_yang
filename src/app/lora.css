@@ -31,6 +31,14 @@
   /* 5 · 主动作 hover 提亮档：派生自脊柱 --primary，不另给黑。 */
   --lora-primary-hi: color-mix(in oklab, var(--primary) 80%, white);
 
+  /* 结果卡**空态**的高度上限（移动端，owner 2026-09-03 追加）。
+   * 手机上结果卡排第一，还没出过图时那个虚线盒按 1024×1360 比例要 466px，
+   * 加上壳/页签/摘要条，提示词输入框整个掉到折叠线以下——第一眼看不到能打字
+   * 的地方。40svh = 812 高上 325px，实测把 textarea 顶边从 ~710 提到 ~569，
+   * 稳稳落在固定出图条（顶边 ~744）之上。⚠ 只收空态：生成中要给进度卡留位置，
+   * 完成/失败态那张图是主角，都仍走 `min(60svh, 30rem)`。 */
+  --lora-result-empty-max-h: 40svh;
+
   /* 6 · 动效（CD 四轴之四「柔顺连续」：220–280ms 柔缓·强调空间连续）。
    *    全局 prefers-reduced-motion 块会把它降成直切，无需在此重复。 */
   --lora-motion: 240ms;
@@ -93,5 +101,39 @@
     padding: 0.75rem 1rem;
     bottom: var(--keyboard-safe-area-bottom, 0px);
     left: 0;
+  }
+}
+
+/* 结果图上限（移动端，owner 2026-09-03「结果在眼前、输入在拇指区」）：
+ * 手机上结果卡排在 composer 之上，图按 displayedAspect 铺满整宽——竖版
+ * 1024×1360 在 375 宽上就是 498px 高，加上卡片内距/标题，元信息行和缩略历史
+ * 直接掉出首屏。这里给高度封顶，比例仍由 JSX 的 aspect-ratio 决定。
+ * `background-size: contain` 是配套的：封顶生效那一刻盒子比图更宽，cover 会把
+ * 人物裁掉；contain 在未封顶时与 cover 完全等价（同比例），封顶后则是完整出图
+ * 居中留侧边——宁可留白也不裁用户刚生成的那张。
+ * 断点 1023 与本域其它移动端形态（装配 sheet / 出图条 / useIsMobile）同界。 */
+@media (max-width: 1023px) {
+  .domain-lora .lora-result-media {
+    max-height: min(60svh, 30rem);
+    background-size: contain;
+    background-repeat: no-repeat;
+  }
+
+  /* 空态专档（见 --lora-result-empty-max-h 处的说明）。虚线提示仍居中——
+   * 盒子内部本来就是 `flex items-center justify-center`，只是变矮。 */
+  .domain-lora .lora-result-media--empty {
+    max-height: var(--lora-result-empty-max-h);
+  }
+}
+
+/* iOS 输入聚焦缩放（owner 2026-09-03 报）：Safari 在聚焦一个字号 <16px 的表单
+ * 控件时会整页放大。可见控件已在 JSX 里按 `text-base md:text-<原值>` 逐个抬到
+ * 16px；这里补的是 Radix Select 为表单冒泡渲染的**隐藏原生 `<select>`**——它是
+ * SelectTrigger 的兄弟节点，字号从外层 `text-2xs` 标签继承（11px），够不到
+ * trigger 上的类。本域没有任何可见的原生 select，所以整档抬到 16px 无视觉影响。
+ * ⛔ 不用 `maximum-scale=1` 那种解法：那会连带禁掉用户自己的缩放。 */
+@media (max-width: 767px) {
+  .domain-lora select {
+    font-size: 1rem;
   }
 }

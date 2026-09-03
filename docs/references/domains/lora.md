@@ -182,7 +182,14 @@ Claude 或其他 AI 收到“重构 LoRA UI”时，必须先读本文并执行 
 ## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
 
 - **降级**：Library（看库、搜索、进入 Generate）、训练进度、Generate（用已训模型生成）三条路径完整；**训练创建流程不做**，`/studio/lora` 的「新建训练」入口在手机上渲染「请在桌面创建训练」提示 + 返回库。
-- 375px：Generate 左右双栏改为上下，输入在上、结果列在下；助手保持已确认的「近全屏 sheet」；来源图配方 modal 走 `ResponsiveDialog` 底部抽屉，配方区独立滚动。
+- 375px：Generate 左右双栏改为上下，**结果在上、输入在下（2026-09-03 owner 改拍，与 image/video 同一套手机心智「结果在眼前、输入在拇指区」）**；来源图证据带落到 composer 之下（它是参考材料，不该把输入顶出屏幕）。桌面 60/40 网格不变——顺序只由 `<md` 的 `order-*` 类切换，`md:order-none` 回到原位。
+- 375px：**生成开始**（不是完成）时把结果卡 `scrollIntoView({block:'start'})` 顶到视口顶，一轮一次，`prefers-reduced-motion` 下降级为直跳。开始时滚是因为那一刻卡里已经是进度态；完成时结果已在原位，二次滚动只会打断正在读元信息的人。
+- 375px：底部出图条左侧的 mono 摘要（底模 · ×N · 比例）是**按钮**，点开的是顶部紧凑条同一个装配 Drawer（≥44px 命中区）。底栏是手机上唯一常驻的东西，摘要念的就是装配内容。
+- 375px：结果卡四态齐全——空 / 生成中（`StudioGeneratingProgress` + 计时）/ 完成（图 + 元信息 + 缩略历史）/ **失败**（卡内失败文案 + 就地「重试」，调同一个出图 handler；额度说明只说「按已发起的任务计，失败不返还」）。桌面失败仍只在 composer 的 `role="alert"` 行，不变。
+- 375px：结果图仍走 background-image，但 `<1024` 由 `.lora-result-media` 封顶 `min(60svh,30rem)` 并改 `background-size: contain`，保证元信息行与缩略历史留在首屏、且封顶时不裁图。
+- 375px：**空态再收一档** —— `.lora-result-media--empty` 用 `--lora-result-empty-max-h: 40svh`（812 高上 = 325px）。结果卡排第一屏不能把提示词输入框顶出视口：实测 textarea 顶边 608 < 固定出图条顶边 743 < 视口 812。⚠ 只收空态；生成中要给进度卡留位置，完成/失败态那张图是主角，都仍走 480 那档。虚线提示仍居中。
+- 375px：**表单控件字号 <768 一律 ≥16px**（`text-base md:text-<原值>`）——iOS Safari 聚焦字号 <16px 的控件会整页放大。覆盖提示词 / 负面提示词 textarea、Runner 参数面板 5 个 Input + 3 个 SelectTrigger、我的 LoRA 搜索框与排序。⚠ 提示词的触发词高亮背板（`PromptTriggerHighlight`）必须跟着改同一档，否则高亮块错位。Radix Select 为表单冒泡渲染的隐藏原生 `<select>` 够不到 trigger 的类，由 `lora.css` 的 `@media (max-width:767px) .domain-lora select` 兜住。⛔ 不用 `maximum-scale=1`。
+- 375px：助手保持已确认的「近全屏 sheet」；来源图配方 modal 走 `ResponsiveDialog` 底部抽屉，配方区独立滚动。
 - 上文「响应式仍待实施前确认」的条目以本节为准。
 
 ## Last Verified

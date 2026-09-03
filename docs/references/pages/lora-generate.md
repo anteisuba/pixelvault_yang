@@ -108,7 +108,12 @@ LoRA Generate 由 `.domain-lora` 负责工作区表面、发丝分隔、输入�
 
 ## 9. 尚未确认与实现门
 
-- 移动端主结构、移动端是否使用底部 sticky 出图，以及软键盘下的操作可达性。
+- ~~移动端主结构、移动端是否使用底部 sticky 出图，以及软键盘下的操作可达性。~~ **已确认（2026-09-03 owner）**：
+  1. `<1024` 顺序 = 结果卡 → 提示词 composer → 来源证据带（「结果在眼前、输入在拇指区」，与 image/video 同一心智）；桌面 60/40 网格不动，只切 `order-*`。
+  2. 底部 sticky 出图条**保留**（`.lora-mobile-actionbar`，`bottom: var(--keyboard-safe-area-bottom)` 已让位软键盘）；左侧 mono 摘要变按钮，点开与顶部紧凑条同一个装配 Drawer，命中区 ≥44px。
+  3. 生成**开始**时结果卡 `scrollIntoView({block:'start'})`，一轮一次，reduced-motion 降级直跳；桌面不做。
+  4. 结果图 `<1024` 封顶 `min(60svh,30rem)` + `background-size: contain`，元信息与缩略历史保证在首屏；**空态另收到 `--lora-result-empty-max-h: 40svh`（325px）**，保证没出过图时提示词输入框不用滚动就能看见（实测 textarea 顶边 608 < 出图条顶边 743）。
+- ~~loading、error、空结果态~~ **结果卡四态已确认（移动端）**：空（虚线 + 提示）/ 生成中（`StudioGeneratingProgress` + 计时）/ 完成（图 + 元信息 + filmstrip）/ 失败（卡内文案 + 就地「重试」，同一出图 handler；额度句只说「按已发起的任务计，失败不返还」——计数源是本月创建的 `generationJob` 行，无返还路径）。⛔ 重试是失败态专属，普通结果仍不得出现「做同款 / 重出 / 更多菜单」（§3.3 第 5 条）。
 - 助手停靠态与覆盖态的高保真切片、移动端近全屏 sheet。
 - loading、error、disabled、空结果、多挂载和参数展开态的最终视觉细节。
 - 页面级组件 variants 与未覆盖状态的动效细节。
@@ -117,5 +122,6 @@ LoRA Generate 由 `.domain-lora` 负责工作区表面、发丝分隔、输入�
 
 ## Last Verified
 
+- 2026-09-03：owner 拍板移动端 Generate 主结构（结果在上/输入在下 · 底栏摘要开装配 sheet · 生成开始自动滚 · 结果卡四态含卡内重试），已落地 `LoraWorkbench.tsx` + `src/app/lora.css`（`.lora-result-media`）+ `src/constants/lora.ts`；§9 对应条目已解除待确认。
 - 2026-08-05：owner 确认 LoRA 整域与系统统一为白色浅色工作台，并将无 `section` 的默认入口改为 Generate；结构与行为契约不变。
 - 2026-07-19：owner 逐项确认顶部装配、来源图、参考图、Prompt/参数、结果列、助手阈值和桌面出图动作，并确认修订后的 A「并排监视台」桌面关键切片。

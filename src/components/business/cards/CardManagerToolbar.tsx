@@ -39,7 +39,7 @@ export function CardManagerToolbar({
             value={searchQuery}
             onChange={(event) => onSearchQueryChange(event.target.value)}
             placeholder={t('searchCardsPlaceholder')}
-            className="h-8 w-full rounded-md border border-border/60 bg-background pl-8 pr-2 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30 focus:outline-none focus:ring-1 focus:ring-primary/20"
+            className="h-8 w-full rounded-md border border-border/60 bg-background pl-8 pr-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30 focus:outline-none focus:ring-1 focus:ring-primary/20"
           />
         </div>
         <label className="sr-only" htmlFor={sortId}>

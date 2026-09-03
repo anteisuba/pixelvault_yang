@@ -97,7 +97,7 @@ export function AssetFolderOverview({
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('folderSearch')}
             aria-label={t('folderSearch')}
-            className="h-8 w-full rounded-lg border border-border bg-background pl-8 pr-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground hover:border-border-strong focus-visible:border-foreground/40 focus-visible:ring-2 focus-visible:ring-ring/30"
+            className="h-8 w-full rounded-lg border border-border bg-background pl-8 pr-2 text-base md:text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground hover:border-border-strong focus-visible:border-foreground/40 focus-visible:ring-2 focus-visible:ring-ring/30"
           />
         </div>
         <DropdownMenu>

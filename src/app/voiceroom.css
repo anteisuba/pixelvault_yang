@@ -287,6 +287,14 @@
   background: none;
 }
 
+/* iOS 触摸/窄视口下 <16px 的可编辑控件会触发系统自动放大（focus-zoom），
+   这里只放大真正可编辑的 input，静态标题 `.vr-bar-title` 不受影响。 */
+@media (max-width: 767px) {
+  .vr-bar-title-input {
+    font-size: 1rem;
+  }
+}
+
 .vr-bar-title {
   color: inherit;
   cursor: text;
@@ -1033,6 +1041,12 @@
   padding: 6px 0;
 }
 
+@media (max-width: 767px) {
+  .vr-input {
+    font-size: 1rem;
+  }
+}
+
 .vr-input::placeholder {
   color: var(--vr-dim);
 }
@@ -1346,6 +1360,12 @@
   font-family: inherit;
 }
 
+@media (max-width: 767px) {
+  .vr-search {
+    font-size: 1rem;
+  }
+}
+
 .vr-search::placeholder {
   color: var(--vr-dim);
 }
@@ -1375,6 +1395,14 @@
     color var(--vr-t-fast) ease,
     background var(--vr-t-fast) ease,
     transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+/* `.vr-sort` 是真 `<select>`，窄屏 <16px 会触发 iOS focus-zoom；`.vr-filter`
+   只是 `<button>`，不受影响，不跟着改。 */
+@media (max-width: 767px) {
+  .vr-sort {
+    font-size: 1rem;
+  }
 }
 
 .vr-filter:hover,

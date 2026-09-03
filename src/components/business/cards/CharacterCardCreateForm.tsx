@@ -218,7 +218,7 @@ export function CharacterCardCreateForm({
           onChange={(e) => setName(e.target.value)}
           placeholder={t('namePlaceholder')}
           maxLength={CHARACTER_CARD.NAME_MAX_LENGTH}
-          className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus:border-primary/40 focus:outline-none"
+          className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-base md:text-sm focus:border-primary/40 focus:outline-none"
           required
         />
         <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
@@ -238,7 +238,7 @@ export function CharacterCardCreateForm({
             onChange={(e) => setVariantLabel(e.target.value)}
             placeholder={t('variantLabelPlaceholder')}
             maxLength={CHARACTER_CARD.VARIANT_LABEL_MAX_LENGTH}
-            className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus:border-primary/40 focus:outline-none"
+            className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-base md:text-sm focus:border-primary/40 focus:outline-none"
           />
         </div>
       )}
@@ -253,7 +253,7 @@ export function CharacterCardCreateForm({
           placeholder={t('descriptionPlaceholder')}
           maxLength={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
           rows={2}
-          className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus:border-primary/40 focus:outline-none"
+          className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-base md:text-sm focus:border-primary/40 focus:outline-none"
         />
       </div>
 

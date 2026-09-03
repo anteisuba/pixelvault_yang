@@ -459,7 +459,8 @@ function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
           placeholder={t('inspirationSearchPlaceholder')}
           maxLength={200}
           className={cn(
-            'h-10 w-full rounded-md border-0 bg-transparent px-3 text-sm outline-none',
+            // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
+            'h-10 w-full rounded-md border-0 bg-transparent px-3 text-base outline-none md:text-sm',
             'placeholder:text-muted-foreground/70',
             'focus-visible:ring-0',
           )}

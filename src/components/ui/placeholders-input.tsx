@@ -58,7 +58,7 @@ export function PlaceholdersInput({
         type="text"
         value={value}
         onChange={handleChange}
-        className="h-9 w-full rounded-full border border-border/70 bg-card/60 pl-10 pr-4 text-sm text-foreground outline-none transition-[color,box-shadow] placeholder:text-transparent focus:ring-[3px] focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-9 w-full rounded-full border border-border/70 bg-card/60 pl-10 pr-4 text-base md:text-sm text-foreground outline-none transition-[color,box-shadow] placeholder:text-transparent focus:ring-[3px] focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
         {...props}
       />
       {/* Animated placeholder */}

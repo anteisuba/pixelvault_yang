@@ -657,7 +657,7 @@ export function CharacterImageReferenceControls({
                       }
                       placeholder={t('customLabelPlaceholder')}
                       aria-label={t('customLabelPlaceholder')}
-                      className="nodrag nopan nowheel h-7 w-full rounded-xl border border-node-panel-inner bg-node-panel px-2 text-xs text-node-foreground"
+                      className="nodrag nopan nowheel h-7 w-full rounded-xl border border-node-panel-inner bg-node-panel px-2 text-base md:text-xs text-node-foreground"
                     />
                   ) : null}
                   <ReferenceWeightSlider

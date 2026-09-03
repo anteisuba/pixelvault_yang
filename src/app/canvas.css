@@ -1356,6 +1356,11 @@
   font-size: 12px;
   line-height: 1.65;
 }
+@media (max-width: 767px) {
+  .domain-canvas .canvas-video-composer-prompt-input {
+    font-size: 1rem;
+  }
+}
 
 .domain-canvas .canvas-video-composer-prompt-input:focus-visible {
   outline: 2px solid var(--canvas-stroke-focus);
@@ -2954,6 +2959,14 @@
   font-size: 13px;
   line-height: 1.65;
 }
+/* iOS 触摸/窄视口 focus-zoom 修复：两条规则逐条对齐，这里也一起改，
+   保持 textarea 与 contenteditable 版本长得一样。 */
+@media (max-width: 767px) {
+  .domain-canvas .canvas-detail-prompt-block textarea,
+  .domain-canvas .canvas-detail-prompt-input {
+    font-size: 1rem;
+  }
+}
 .domain-canvas .canvas-detail-krow {
   display: flex;
   align-items: center;
@@ -2975,6 +2988,11 @@
   color: var(--canvas-detail-ink);
   font-size: 13px;
   box-shadow: var(--canvas-detail-shadow-card);
+}
+@media (max-width: 767px) {
+  .domain-canvas .canvas-detail-krow-input {
+    font-size: 1rem;
+  }
 }
 .domain-canvas .canvas-detail-stack {
   display: flex;
@@ -3283,6 +3301,16 @@
   .domain-canvas .canvas-assistant-surface {
     border-radius: var(--canvas-pop-radius);
     box-shadow: var(--canvas-pop-shadow);
+  }
+}
+
+/* 助手输入框（MentionInput 的 contenteditable）手机端满 16px：小于 16px 的可编辑
+   控件会让 iOS Safari 一聚焦就整页放大，且缩不回去。组件那边是 Tailwind 的
+   `text-sm`（14px），这里按域皮肤在窄口覆盖，桌面档保持 14px 不动。
+   与 `.canvas-video-composer-prompt-input` / `.canvas-detail-prompt-input` 同款处理。 */
+@media (max-width: 767px) {
+  .domain-canvas .mention-input {
+    font-size: 1rem;
   }
 }
 
@@ -3762,6 +3790,11 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   line-height: 1.5;
   color: var(--canvas-ink);
 }
+@media (max-width: 767px) {
+  .domain-canvas .canvas-composer-input {
+    font-size: 1rem;
+  }
+}
 .domain-canvas .canvas-composer-input:focus-visible {
   outline: none;
 }
@@ -3936,6 +3969,11 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   background: rgba(0, 0, 0, 0.04);
   font-size: 12px;
   color: #0a0a0a;
+}
+@media (max-width: 767px) {
+  .canvas-composer-template-search {
+    font-size: 1rem;
+  }
 }
 .canvas-composer-template-search::placeholder {
   color: #737373;

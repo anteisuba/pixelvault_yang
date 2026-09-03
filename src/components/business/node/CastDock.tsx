@@ -190,7 +190,7 @@ export function CastDock({
           onChange={(event) => onQueryChange(event.target.value)}
           aria-label={t('searchLabel')}
           placeholder={t('searchPlaceholder')}
-          className="h-9 w-full rounded-lg border bg-transparent pl-8 pr-2 text-xs outline-none transition-colors placeholder:text-node-subtle focus:border-node-foreground"
+          className="h-9 w-full rounded-lg border bg-transparent pl-8 pr-2 text-base md:text-xs outline-none transition-colors placeholder:text-node-subtle focus:border-node-foreground"
           style={{
             borderColor: 'var(--canvas-stroke-regular)',
             color: 'var(--canvas-ink)',

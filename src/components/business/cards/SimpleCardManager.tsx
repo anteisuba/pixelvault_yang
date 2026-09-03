@@ -377,7 +377,7 @@ export function SimpleCardManager({
                           )
                         }
                         placeholder="https://civitai.com/api/download/models/..."
-                        className="flex-1 rounded border border-border/60 bg-background px-2 py-1 text-xs font-mono focus:border-primary/40 focus:outline-none"
+                        className="flex-1 rounded border border-border/60 bg-background px-2 py-1 text-base md:text-xs font-mono focus:border-primary/40 focus:outline-none"
                       />
                       <button
                         type="button"
@@ -569,7 +569,7 @@ export function SimpleCardManager({
                         value={editPrompt}
                         onChange={(e) => setEditPrompt(e.target.value)}
                         rows={4}
-                        className="w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-xs focus:border-primary/40 focus:outline-none resize-none"
+                        className="w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-base md:text-xs focus:border-primary/40 focus:outline-none resize-none"
                       />
                       <div className="flex gap-1.5">
                         <button

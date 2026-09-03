@@ -1530,7 +1530,7 @@ export function Studio3DWorkspace({
                 onChange={(e) => setRodinPrompt(e.target.value)}
                 placeholder={t('rodinPromptPlaceholder')}
                 rows={4}
-                className="w-full resize-none rounded-md border border-border/60 bg-background px-3 py-2 text-xs leading-5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                className="w-full resize-none rounded-md border border-border/60 bg-background px-3 py-2 text-base md:text-xs leading-5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
               />
             </div>
           )}
@@ -2511,7 +2511,7 @@ export function Studio3DWorkspace({
                           onChange={(e) => setRodinPrompt(e.target.value)}
                           placeholder={t('rodinPromptPlaceholder')}
                           rows={2}
-                          className="w-full resize-none rounded-md border border-border/60 bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                          className="w-full resize-none rounded-md border border-border/60 bg-background px-2 py-1.5 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                         />
                       </div>
                     )}
@@ -2568,7 +2568,7 @@ export function Studio3DWorkspace({
                           value={rodinSeedInput}
                           onChange={(e) => setRodinSeedInput(e.target.value)}
                           placeholder="-1"
-                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                         />
                       </div>
                       <div className="flex flex-col gap-1">
@@ -2587,7 +2587,7 @@ export function Studio3DWorkspace({
                             setRodinQualityOverrideInput(e.target.value)
                           }
                           placeholder="auto"
-                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                         />
                       </div>
                     </div>
@@ -2604,7 +2604,7 @@ export function Studio3DWorkspace({
                           value={rodinBboxWidth}
                           onChange={(e) => setRodinBboxWidth(e.target.value)}
                           placeholder="W"
-                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                         />
                         <input
                           type="number"
@@ -2612,7 +2612,7 @@ export function Studio3DWorkspace({
                           value={rodinBboxHeight}
                           onChange={(e) => setRodinBboxHeight(e.target.value)}
                           placeholder="H"
-                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                         />
                         <input
                           type="number"
@@ -2620,7 +2620,7 @@ export function Studio3DWorkspace({
                           value={rodinBboxLength}
                           onChange={(e) => setRodinBboxLength(e.target.value)}
                           placeholder="L"
-                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                         />
                       </div>
                     </div>

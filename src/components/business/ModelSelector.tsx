@@ -237,7 +237,7 @@ export function ModelSelector({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('searchPlaceholder')}
-            className="h-9 w-full rounded-2xl border border-border/60 bg-background/80 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30 focus:outline-none focus:ring-1 focus:ring-primary/20"
+            className="h-9 w-full rounded-2xl border border-border/60 bg-background/80 pl-9 pr-3 text-base md:text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30 focus:outline-none focus:ring-1 focus:ring-primary/20"
           />
         </div>
       )}

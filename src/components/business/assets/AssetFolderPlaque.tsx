@@ -208,7 +208,7 @@ export function AssetFolderPlaque({
                   }
                 }}
                 onBlur={() => setRenameDraft(null)}
-                className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:border-foreground/40"
+                className="h-7 w-full rounded-md border border-border bg-background px-2 text-base md:text-xs text-foreground outline-none focus-visible:border-foreground/40"
               />
             </form>
           ) : (

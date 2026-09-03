@@ -136,7 +136,8 @@ export function ScriptTopicInput({
             value={characterCardId}
             onChange={(e) => setCharacterCardId(e.target.value)}
             placeholder={t('characterCardMissing')}
-            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+            // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
+            className="h-10 rounded-md border border-border bg-background px-3 text-base md:text-sm"
           />
         </div>
       )}

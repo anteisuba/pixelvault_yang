@@ -255,7 +255,8 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                   })
                 }
                 placeholder={t('tokenPlaceholder')}
-                className="w-full rounded-md border border-border/60 bg-background px-2.5 py-2 text-xs font-mono focus:border-primary/40 focus:outline-none"
+                // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
+                className="w-full rounded-md border border-border/60 bg-background px-2.5 py-2 font-mono text-base focus:border-primary/40 focus:outline-none md:text-xs"
               />
               <div className="flex gap-2">
                 <button

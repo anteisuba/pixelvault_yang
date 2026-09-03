@@ -234,7 +234,8 @@ export function StudioCardPicker() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('searchCardsPlaceholder')}
-            className="h-9 w-full rounded-lg border border-border/60 bg-background pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+            // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
+            className="h-9 w-full rounded-lg border border-border/60 bg-background pl-9 pr-3 text-base outline-none md:text-sm transition-colors focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
           />
         </div>
       </header>

@@ -112,7 +112,7 @@ export function AssetMoveTargetPicker({
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('folderSearch')}
             aria-label={t('folderSearch')}
-            className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs text-foreground outline-none focus-visible:border-foreground/40"
+            className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-base md:text-xs text-foreground outline-none focus-visible:border-foreground/40"
           />
         </div>
 

@@ -421,7 +421,8 @@ function SpeakerVoiceIdsField({
               ? t('speakerVoiceInputPlaceholder')
               : undefined
           }
-          className="h-7 min-w-32 flex-1 bg-transparent px-1 text-xs outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
+          className="h-7 min-w-32 flex-1 bg-transparent px-1 text-base outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 md:text-xs"
         />
       </div>
 
@@ -515,7 +516,9 @@ function ReferenceAudioField({
         type="file"
         accept="audio/*"
         onChange={handlePick}
-        className="sr-only"
+        // `text-base` 只是为了让「移动端零 <16px 可聚焦控件」这条探针不被一个
+        // sr-only 的文件选择器绊住 —— 它本身不显示。
+        className="sr-only text-base"
         aria-label={t('referenceAudio')}
       />
 
@@ -570,7 +573,8 @@ function ReferenceAudioField({
         placeholder={t('referenceTextPlaceholder')}
         rows={3}
         aria-label={t('referenceText')}
-        className="text-xs"
+        // ⚠ <768 必须 ≥16px（`Textarea` 原语的默认曲线），否则 iOS 聚焦即放大。
+        className="text-base md:text-xs"
         disabled={!url && text.length === 0 ? false : isUploading}
       />
       <p

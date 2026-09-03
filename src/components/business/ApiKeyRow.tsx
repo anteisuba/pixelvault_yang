@@ -117,7 +117,7 @@ export function ApiKeyRow({
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               placeholder={t('editKeyPlaceholder')}
-              className="flex-1 rounded-md border border-border/60 bg-background px-2 py-1 font-mono text-xs focus:border-primary/40 focus:outline-none"
+              className="flex-1 rounded-md border border-border/60 bg-background px-2 py-1 font-mono text-base md:text-xs focus:border-primary/40 focus:outline-none"
               autoFocus={!isTouchPrimary()}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void handleSaveKey()

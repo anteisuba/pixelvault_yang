@@ -231,7 +231,8 @@ export function ImageAnnotationEditor({
                       ),
                     )
                   }
-                  className="min-w-0 flex-1 border-0 border-b border-dashed border-border bg-transparent text-sm outline-none focus:border-primary"
+                  // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
+                  className="min-w-0 flex-1 border-0 border-b border-dashed border-border bg-transparent text-base outline-none focus:border-primary md:text-sm"
                 />
                 <button
                   type="button"

@@ -410,7 +410,7 @@ export function AssetPickerBrowser({
                   search: (event.target as HTMLInputElement).value.trim(),
                 })
               }}
-              className="h-8 w-full rounded-lg border border-border/60 bg-background/40 pl-8 pr-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40"
+              className="h-8 w-full rounded-lg border border-border/60 bg-background/40 pl-8 pr-2 text-base md:text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40"
             />
           </div>
 

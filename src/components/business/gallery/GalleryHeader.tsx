@@ -211,7 +211,7 @@ export const GalleryHeader = memo(function GalleryHeader({
                 value={searchInput}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder={t('searchPlaceholder')}
-                className="w-40 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                className="w-40 bg-transparent text-base md:text-xs outline-none placeholder:text-muted-foreground"
                 autoFocus={!isTouchPrimary()}
               />
               {searchInput && (

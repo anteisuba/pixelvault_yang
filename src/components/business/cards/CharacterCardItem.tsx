@@ -312,7 +312,7 @@ export function CharacterCardItem({
                       value={editPrompt}
                       onChange={(e) => setEditPrompt(e.target.value)}
                       rows={4}
-                      className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-xs focus:border-primary/40 focus:outline-none"
+                      className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-base md:text-xs focus:border-primary/40 focus:outline-none"
                     />
                     <button
                       type="button"

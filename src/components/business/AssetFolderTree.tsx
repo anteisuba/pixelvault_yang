@@ -360,7 +360,7 @@ export function AssetFolderTree({
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t('folderSearch')}
               aria-label={t('folderSearch')}
-              className="h-7 rounded-md bg-background/60 pl-7 pr-6 text-xs"
+              className="h-7 rounded-md bg-background/60 pl-7 pr-6 md:text-xs"
             />
             {isSearching && (
               <button

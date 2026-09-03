@@ -61,6 +61,10 @@ export const EXECUTION_WORKER = {
   HYPER3D_RODIN_PATH: '/workflows/hyper3d-rodin',
   HUNYUAN3D_PATH: '/workflows/hunyuan3d',
   IMAGE_QUEUE_PATH: '/workflows/image-queue',
+  /** Best-effort cancel: app → worker, to terminate a running workflow instance / provider job. */
+  CANCEL_PATH: '/cancel',
+  /** Short timeout for the best-effort cancel notify — the DB-side cancel has already succeeded by the time this fires. */
+  CANCEL_TIMEOUT_MS: 5_000,
   DEFAULT_POLL_INTERVAL_MS: 3_000,
   DEFAULT_MAX_ATTEMPTS: 200,
   DEFAULT_TIMEOUT_MS: 600_000,

@@ -434,6 +434,11 @@ export async function checkVideoGenerationStatusForUserId(
     }
   }
 
+  // User-cancelled (see generation-cancel.service.ts)
+  if (job.status === 'CANCELLED') {
+    return { jobId: job.id, status: 'CANCELLED' }
+  }
+
   if (!job.externalRequestId) {
     throw new GenerateImageServiceError(
       'INVALID_JOB',

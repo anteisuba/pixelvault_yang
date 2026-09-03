@@ -453,6 +453,10 @@ export async function checkImageGenerationStatus(
     }
   }
 
+  if (job.status === 'CANCELLED') {
+    return { jobId: job.id, status: 'CANCELLED' }
+  }
+
   return { jobId: job.id, status: 'IN_PROGRESS' }
 }
 

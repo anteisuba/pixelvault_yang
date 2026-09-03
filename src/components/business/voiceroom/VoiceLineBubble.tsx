@@ -63,17 +63,29 @@ interface VoiceLineBubbleProps {
    * 「点击切换重新生成了，但看不到生成的过程」）。
    */
   retaking?: boolean
+  /** 正在取消这条的音频 job——按钮据此禁用，避免连点发出两次取消请求。 */
+  cancelling?: boolean
   onRetake: (
     lineId: string,
     patch: { emotion?: AudioEmotion | null },
   ) => Promise<void> | void
+  /**
+   * 取消这条还在 QUEUED / RUNNING 的音频 job。不带参数——宿主
+   * （`VoiceRoomStage`）已经知道是哪一条、它的 `jobId` 是什么。
+   *
+   * 可选：只有 `line.audio?.jobId` 存在时宿主才会传（历史台词可能没有这个
+   * 字段），按钮本身也只在 pending 态渲染，双重判据见下方渲染处。
+   */
+  onCancel?: () => void
 }
 
 export function VoiceLineBubble({
   line,
   staggerMs = 0,
   retaking = false,
+  cancelling = false,
   onRetake,
+  onCancel,
 }: VoiceLineBubbleProps) {
   const t = useTranslations('VoiceRoom')
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -295,6 +307,30 @@ export function VoiceLineBubble({
               <i />
             </span>
             {t('speaking')}
+            {/*
+             * 只在**原始生成**还在排队/跑着时给取消——重录（`retaking`）没有
+             * 独立的 jobId 可取消，且 `onCancel` 在没有 `line.audio?.jobId`
+             * 时宿主根本不会传。
+             */}
+            {isPendingStatus(status) && !retaking && onCancel ? (
+              <button
+                type="button"
+                className="vr-speaking-cancel"
+                disabled={cancelling}
+                aria-label={t('cancel')}
+                title={t('cancel')}
+                onClick={onCancel}
+              >
+                <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden>
+                  <path
+                    d="M0.5 0.5l7 7M7.5 0.5l-7 7"
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                    fill="none"
+                  />
+                </svg>
+              </button>
+            ) : null}
           </span>
         ) : null}
 

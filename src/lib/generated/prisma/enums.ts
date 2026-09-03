@@ -42,7 +42,8 @@ export const GenerationJobStatus = {
   QUEUED: 'QUEUED',
   RUNNING: 'RUNNING',
   COMPLETED: 'COMPLETED',
-  FAILED: 'FAILED'
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
 } as const
 
 export type GenerationJobStatus = (typeof GenerationJobStatus)[keyof typeof GenerationJobStatus]

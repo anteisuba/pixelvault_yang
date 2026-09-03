@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Share2,
   Sparkles,
+  X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -97,9 +98,11 @@ export const GenerationPreview = memo(function GenerationPreview({
   onSaveRecipe,
   onRetry,
 }: GenerationPreviewProps) {
-  const { error, isGenerating, elapsedSeconds, activeRun } = useStudioGen()
+  const { error, isGenerating, elapsedSeconds, activeRun, cancelRunItem } =
+    useStudioGen()
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioV3')
+  const tCancel = useTranslations('GenerationCancel')
   const tModels = useTranslations('Models')
   const tMobile = useTranslations('StudioMobile')
   const isMobile = useIsMobile()
@@ -242,6 +245,17 @@ export const GenerationPreview = memo(function GenerationPreview({
             variant="full"
             cornerRadiusVar="--radius-xl"
           />
+          {activeRun?.mode === 'single' && activeRun.items[0] && (
+            <button
+              type="button"
+              onClick={() => cancelRunItem(activeRun.items[0].id)}
+              data-testid="generation-preview-cancel"
+              className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
+            >
+              <X className="size-4" />
+              <span className="sr-only">{tCancel('cancel')}</span>
+            </button>
+          )}
         </div>
       </div>
     )

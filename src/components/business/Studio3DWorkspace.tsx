@@ -78,6 +78,7 @@ import { WireframeModelPreview } from '@/components/business/WireframeModelPrevi
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { XiaoheiGuideCarousel } from '@/components/business/studio-shared/XiaoheiGuideCarousel'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -422,6 +423,7 @@ export function Studio3DWorkspace({
     generatedGeneration,
     generate,
     reset,
+    cancelRun,
   } = useGenerate3D()
 
   // Fetch + hydrate a MODEL_3D row from the deeplink. Runs once per id so
@@ -1383,6 +1385,38 @@ export function Studio3DWorkspace({
                     : t('uploadProgressUnknown')
                   : generationStageLabel
               }
+            />
+          )}
+
+          {isGenerating && (
+            /*
+             * PR3-α: silent abort — `cancelRun()` marks the job FAILED +
+             * cancelled server-side, the hook just calls finish() without an
+             * error toast (see use-generate-3d.ts). The confirm copy here
+             * (cancel3DLabel/-Confirm/-ConfirmYes/-ConfirmNo/-Toast) already
+             * shipped in Model3DGenerate messages ahead of this UI landing.
+             */
+            <ConfirmDialog
+              trigger={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="absolute right-6 top-6 rounded-full bg-background/80 backdrop-blur-sm"
+                >
+                  <X className="mr-1.5 size-3.5" />
+                  {t('cancel3DLabel')}
+                </Button>
+              }
+              title={t('cancel3DLabel')}
+              description={t('cancel3DConfirm')}
+              cancelLabel={t('cancel3DConfirmNo')}
+              confirmLabel={t('cancel3DConfirmYes')}
+              onConfirm={() => {
+                void cancelRun().then(() => {
+                  toast.success(t('cancelled3DToast'))
+                })
+              }}
             />
           )}
         </main>

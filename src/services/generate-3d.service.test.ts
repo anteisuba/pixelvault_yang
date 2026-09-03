@@ -55,6 +55,7 @@ vi.mock('@/services/execution-worker.service', () => ({
   dispatchHunyuan3DWorkerRun: vi.fn().mockResolvedValue({
     workflowInstanceId: 'wf-hunyuan-1',
   }),
+  notifyWorkerCancel: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/services/user.service', () => ({
@@ -95,16 +96,19 @@ import {
 import {
   dispatchHunyuan3DWorkerRun,
   ExecutionWorkerDispatchError,
+  notifyWorkerCancel,
 } from '@/services/execution-worker.service'
 
 const mockFindJob = vi.mocked(db.generationJob.findUnique)
 const mockUpdateJob = vi.mocked(db.generationJob.update)
+const mockUpdateManyJob = vi.mocked(db.generationJob.updateMany)
 const mockResolveRoute = vi.mocked(resolveGenerationRoute)
 const mockInspectSourceQuality = vi.mocked(inspect3DSourceImageQuality)
 const mockPrepareSourceImage = vi.mocked(prepare3DSourceImage)
 const mockCreateJob = vi.mocked(createGenerationJob)
 const mockFailJob = vi.mocked(failGenerationJob)
 const mockDispatchHunyuan3D = vi.mocked(dispatchHunyuan3DWorkerRun)
+const mockNotifyWorkerCancel = vi.mocked(notifyWorkerCancel)
 
 // Fixture shape mirrors a job created by the retired fal.ai inline path
 // (no `workerDispatched` flag). Every FAL/Hyper3D-Rodin 3D model now
@@ -289,19 +293,17 @@ describe('check3DGenerationStatusForUserId', () => {
     ).rejects.toThrow('3D status check is not supported for this provider')
   })
 
-  it('surfaces cancelled flag when errorMessage is the marker', async () => {
+  it('surfaces CANCELLED status for a user-cancelled job', async () => {
     mockFindJob.mockResolvedValue({
       ...LEGACY_INLINE_RUNNING_JOB,
-      status: 'FAILED',
-      errorMessage: 'CANCELLED_BY_USER',
+      status: 'CANCELLED',
     } as never)
 
     const result = await check3DGenerationStatusForUserId('user-1', 'job-1')
 
     expect(result).toMatchObject({
       jobId: 'job-1',
-      status: 'FAILED',
-      cancelled: true,
+      status: 'CANCELLED',
     })
   })
 
@@ -430,16 +432,25 @@ describe('cancel3DGenerationForUserId', () => {
     vi.clearAllMocks()
   })
 
-  it('marks job FAILED with cancelled flag', async () => {
-    mockFindJob.mockResolvedValue({
-      ...LEGACY_INLINE_RUNNING_JOB,
-      externalRequestId: JSON.stringify({
-        stage: MODEL_3D_JOB_STAGE.MESH_READY,
-        sourceImageUrl: 'https://cdn.test/source.png',
-        prompt: '',
-        apiKeyId: 'fal-key-id',
-      }),
-    } as never)
+  it('CAS-cancels a RUNNING job and best-effort notifies the worker', async () => {
+    mockFindJob
+      .mockResolvedValueOnce({
+        ...LEGACY_INLINE_RUNNING_JOB,
+        provider: 'fal',
+        externalRequestId: JSON.stringify({
+          stage: MODEL_3D_JOB_STAGE.MESH_READY,
+          sourceImageUrl: 'https://cdn.test/source.png',
+          prompt: '',
+          apiKeyId: 'fal-key-id',
+        }),
+      } as never)
+      .mockResolvedValueOnce({
+        ...LEGACY_INLINE_RUNNING_JOB,
+        provider: 'fal',
+        status: 'CANCELLED',
+        generation: null,
+      } as never)
+    mockUpdateManyJob.mockResolvedValue({ count: 1 })
 
     const result = await cancel3DGenerationForUserId('user-1', {
       jobId: 'job-1',
@@ -447,12 +458,34 @@ describe('cancel3DGenerationForUserId', () => {
 
     expect(result).toMatchObject({
       jobId: 'job-1',
-      status: 'FAILED',
-      cancelled: true,
+      status: 'CANCELLED',
     })
-    expect(mockFailJob).toHaveBeenCalledWith(
-      'job-1',
-      expect.objectContaining({ errorMessage: 'CANCELLED_BY_USER' }),
-    )
+    expect(mockUpdateManyJob).toHaveBeenCalledWith({
+      where: { id: 'job-1', status: { in: ['QUEUED', 'RUNNING'] } },
+      data: { status: 'CANCELLED' },
+    })
+    expect(mockNotifyWorkerCancel).toHaveBeenCalledWith({
+      jobId: 'job-1',
+      workflowInstanceId: 'job-1',
+      provider: 'fal',
+    })
+    expect(mockFailJob).not.toHaveBeenCalled()
+  })
+
+  it('is a no-op for an already-terminal job (no CAS, no worker notify)', async () => {
+    mockFindJob.mockResolvedValue({
+      ...LEGACY_INLINE_RUNNING_JOB,
+      provider: 'fal',
+      status: 'CANCELLED',
+      generation: null,
+    } as never)
+
+    const result = await cancel3DGenerationForUserId('user-1', {
+      jobId: 'job-1',
+    })
+
+    expect(result).toMatchObject({ jobId: 'job-1', status: 'CANCELLED' })
+    expect(mockUpdateManyJob).not.toHaveBeenCalled()
+    expect(mockNotifyWorkerCancel).not.toHaveBeenCalled()
   })
 })

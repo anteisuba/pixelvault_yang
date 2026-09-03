@@ -31,6 +31,7 @@ import type {
   PromptFeedbackResponse,
   RetryMesh3DRequest,
   ImageStatusResponse,
+  CancelGenerationsResponse,
   StudioGenerateRequest,
   StudioGenerateResponse,
   ToggleVisibilityResponse,
@@ -748,6 +749,45 @@ export async function cancel3DAPI(
           response,
           `3D cancellation failed with status ${response.status}`,
         ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/**
+ * Cancel one or more in-flight `GenerationJob` rows (image/video/audio/3D),
+ * regardless of which domain submitted them. Distinct from the older
+ * per-domain `cancel3DAPI` / `cancelLongVideoAPI`, which target their own
+ * cancel endpoints and status shapes.
+ */
+export async function cancelGenerationsAPI(
+  jobIds: string[],
+): Promise<CancelGenerationsResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATIONS_CANCEL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobIds }),
+    })
+
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Generation cancellation failed with status ${response.status}`,
+      )
+      return {
+        success: false,
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
       }
     }
 

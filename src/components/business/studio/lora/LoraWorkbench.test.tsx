@@ -253,6 +253,11 @@ vi.mock('@/hooks/use-prompt-tag-stack', () => ({
 let mockLastGeneration: { url: string } | null = null
 let mockGenerateError: string | null = null
 let mockIsGenerating = false
+// 取消交互测试专用：默认 null（无批次），单张出图测试按需把它设成单条
+// single-item 批次，镜像 use-unified-generate 真实的 generateImage 分支
+// （单次提交即建单 item activeRun 并登记 jobId，见 hook 正文）。
+let mockActiveRun: { mode: 'single'; items: { id: string }[] } | null = null
+const mockCancelRunItem = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/use-unified-generate', () => ({
   useUnifiedGenerate: () => ({
     generate: mockGenerate,
@@ -266,6 +271,10 @@ vi.mock('@/hooks/use-unified-generate', () => ({
       return mockGenerateError
     },
     elapsedSeconds: 0,
+    get activeRun() {
+      return mockActiveRun
+    },
+    cancelRunItem: mockCancelRunItem,
   }),
 }))
 
@@ -472,6 +481,8 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     mockIsMobile = false
     mockMinedRecipes = []
     mockMinedPreviewImages = []
+    mockActiveRun = null
+    mockCancelRunItem.mockReset()
   })
 
   // P4-C 把操作员 Dock 挂进 GenerateBranch 后，满负载下这条会超过全局 15s。
@@ -1589,5 +1600,34 @@ describe('LoraWorkbench GenerateBranch — mobile generate layout', () => {
 
     expect(scrollIntoView).not.toHaveBeenCalled()
     scrollIntoView.mockRestore()
+  })
+
+  // 生成任务可取消第三波：LoRA 出图单次无批次，取消键读的是
+  // use-unified-generate 为单次出图建的 single-item activeRun（同一条
+  // jobId 登记链路，见 hook 的 generateImage）。这里只锁 UI 一侧的两条
+  // 契约——按钮只在生成中出现、点击把 item id 转给 cancelRunItem——jobId
+  // 登记本身已由 hook 单测覆盖，不在本文件重复。
+  it('shows a cancel button while generating and calls cancelRunItem with the active item id', () => {
+    mockIsGenerating = true
+    mockActiveRun = { mode: 'single', items: [{ id: 'run-item-1' }] }
+
+    render(<LoraWorkbench />)
+
+    const cancelButton = screen.getByTestId('lora-generation-cancel')
+    fireEvent.click(cancelButton)
+
+    expect(mockCancelRunItem).toHaveBeenCalledTimes(1)
+    expect(mockCancelRunItem).toHaveBeenCalledWith('run-item-1')
+  })
+
+  it('does not show a cancel button when idle (not generating)', () => {
+    mockIsGenerating = false
+    mockActiveRun = null
+
+    render(<LoraWorkbench />)
+
+    expect(
+      screen.queryByTestId('lora-generation-cancel'),
+    ).not.toBeInTheDocument()
   })
 })

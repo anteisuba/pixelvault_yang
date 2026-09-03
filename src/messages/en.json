@@ -7101,5 +7101,12 @@
     "error": {
       "generic": "The assistant did not finish this round"
     }
+  },
+  "GenerationCancel": {
+    "cancel": "Cancel",
+    "cancelAll": "Cancel all",
+    "cancelling": "Cancelling…",
+    "cancelled": "Cancelled",
+    "cancelFailed": "Cancel failed — the task is still running"
   }
 }

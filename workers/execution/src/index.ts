@@ -1,5 +1,10 @@
 import { WorkflowEntrypoint } from 'cloudflare:workers'
-import type { Workflow, WorkflowEvent, WorkflowStep } from 'cloudflare:workers'
+import type {
+  Workflow,
+  WorkflowEvent,
+  WorkflowInstance,
+  WorkflowStep,
+} from 'cloudflare:workers'
 
 import {
   WORKER_GENERATION_ERROR_CODES,
@@ -65,6 +70,14 @@ const HUNYUAN3D_WORKFLOW_ID = 'HUNYUAN3D'
 const HYPER3D_BASE_URL = 'https://api.hyper3d.com'
 const IMAGE_QUEUE_PATH = '/workflows/image-queue'
 const IMAGE_QUEUE_WORKFLOW_ID = 'IMAGE_QUEUE'
+/** Best-effort cancel: app → worker. Mirrors `EXECUTION_WORKER.CANCEL_PATH`. */
+const CANCEL_PATH = '/cancel'
+/**
+ * Mirrors `EXECUTION_INTERNAL.RESOLVE_KEY_PATH` in `src/constants/execution.ts`.
+ * The worker bundle can't import from `src/` (separate build), so this is a
+ * documented literal copy — keep the two in sync if that path ever moves.
+ */
+const RESOLVE_KEY_PATH = '/api/internal/execution/resolve-key'
 const OPENAI_BASE_URL = 'https://api.openai.com'
 const GEMINI_IMAGE_BASE_URL =
   'https://generativelanguage.googleapis.com/v1beta/models'
@@ -6028,20 +6041,26 @@ async function pollRunnerImageJob(
 /**
  * Best-effort cancel：工作流停止轮询（窗口耗尽或僵死快败）时把 RunPod 侧
  * job 撤出队列，不留孤儿。失败静默——调用方正在抛真正的错误，取消失败
- * 还有 TTL 兜底。
+ * 还有 TTL 兜底。也被 `/cancel` 路由（用户主动取消）复用，那边关心结果，
+ * 所以返回是否成功而不是吞掉。
  */
 async function cancelRunnerImageJob(
   jobId: string,
   env: ExecutionEnv,
   apiKey: string,
-): Promise<void> {
+): Promise<boolean> {
   try {
-    await fetch(`${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/cancel/${jobId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}` },
-    })
+    const response = await fetch(
+      `${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/cancel/${jobId}`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}` },
+      },
+    )
+    return response.ok
   } catch {
     // 主错误由调用方抛出；这里只是队列卫生。
+    return false
   }
 }
 
@@ -6948,6 +6967,359 @@ async function handleImageQueueDispatch(
   return jsonResponse({ workflowInstanceId: instance.id })
 }
 
+// ─── Cancel (best-effort: app → worker) ────────────────────────────────────
+//
+// Mirrors `WorkerCancelRequest` / `workerCancelRequestSchema` in
+// `src/types/index.ts` (contract owned by the app side, not duplicated here
+// beyond this parser). Every field but `jobId` is optional and none is
+// guaranteed to carry a value the worker can act on — this route is a
+// best-effort helper, not a guarantee, so every step degrades instead of
+// failing the whole request.
+
+export interface WorkerCancelRequestBody {
+  jobId: string
+  workflowInstanceId?: string
+  provider?: string
+  providerJobId?: string
+}
+
+export function parseCancelRequest(
+  input: unknown,
+): WorkerCancelRequestBody | null {
+  if (!isRecord(input)) return null
+
+  const jobId = readStringField(input, 'jobId')
+  if (!jobId) return null
+
+  return {
+    jobId,
+    workflowInstanceId:
+      readStringField(input, 'workflowInstanceId') ?? undefined,
+    provider: readStringField(input, 'provider') ?? undefined,
+    providerJobId: readStringField(input, 'providerJobId') ?? undefined,
+  }
+}
+
+interface CancelWorkflowResult {
+  attempted: boolean
+  terminated: boolean
+  detail: string
+}
+
+/**
+ * The cancel payload carries a bare `workflowInstanceId`, not which of the 5
+ * Workflow bindings it belongs to (instance ids are namespaced per binding).
+ * Try each binding's `.get()` in turn — wrong-binding lookups just throw
+ * "not found", which is cheap — and terminate the first instance found.
+ *
+ * `terminate()` rejecting for an instance that's already
+ * completed/errored/terminated is expected, not an error: degrade to
+ * `terminated: false` instead of surfacing it as a cancel failure.
+ */
+export async function terminateWorkflowInstanceById(
+  env: ExecutionEnv,
+  workflowInstanceId: string,
+): Promise<CancelWorkflowResult> {
+  const lookups: Array<() => Promise<WorkflowInstance>> = [
+    () => env.CINEMATIC_SHORT_VIDEO_WORKFLOW.get(workflowInstanceId),
+    () => env.LONG_VIDEO_PIPELINE_WORKFLOW.get(workflowInstanceId),
+    () => env.HYPER3D_RODIN_WORKFLOW.get(workflowInstanceId),
+    () => env.HUNYUAN3D_WORKFLOW.get(workflowInstanceId),
+    () => env.IMAGE_QUEUE_WORKFLOW.get(workflowInstanceId),
+  ]
+
+  for (const lookup of lookups) {
+    let instance: WorkflowInstance
+    try {
+      instance = await lookup()
+    } catch {
+      continue // Not this binding's namespace — try the next one.
+    }
+
+    try {
+      await instance.terminate()
+      return { attempted: true, terminated: true, detail: 'terminated' }
+    } catch (error) {
+      return {
+        attempted: true,
+        terminated: false,
+        detail: `instance found but terminate failed (likely already finished): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      }
+    }
+  }
+
+  return {
+    attempted: false,
+    terminated: false,
+    detail: 'workflow instance not found on any binding',
+  }
+}
+
+/**
+ * Resolves a *system* provider API key for a best-effort cancel call. The
+ * cancel payload never carries `apiKeyId` (only the app's normal dispatch
+ * contexts do — see `resolveApiKey`/`resolveApiKeyModel3D`), so a
+ * user-supplied key can't be resolved here. This only succeeds for jobs
+ * running on the platform's own system key for that adapter; see this
+ * route's report to the caller for how that limits provider-side cancel.
+ */
+async function resolveSystemApiKeyForCancel(
+  env: ExecutionEnv,
+  jobId: string,
+  provider: string,
+): Promise<string | null> {
+  if (!env.INTERNAL_CALLBACK_URL || !env.INTERNAL_CALLBACK_SECRET) return null
+
+  try {
+    const resolveKeyUrl = new URL(
+      RESOLVE_KEY_PATH,
+      env.INTERNAL_CALLBACK_URL,
+    ).toString()
+    const response = await postSignedJson(
+      resolveKeyUrl,
+      env.INTERNAL_CALLBACK_SECRET,
+      { runId: jobId, adapterType: provider, useSystemKey: true },
+    )
+    if (!response.ok) return null
+
+    const payload = (await response.json()) as {
+      success?: boolean
+      data?: { apiKey?: unknown }
+    }
+    if (payload.success !== true || typeof payload.data?.apiKey !== 'string') {
+      return null
+    }
+    return payload.data.apiKey
+  } catch {
+    return null
+  }
+}
+
+interface CancelProviderResult {
+  attempted: boolean
+  ok: boolean
+  detail: string
+}
+
+const RUNNER_PROVIDER_ID = 'runner'
+const FAL_CANCEL_PROVIDER_ID = 'fal'
+const REPLICATE_PROVIDER_ID = 'replicate'
+
+/**
+ * Best-effort upstream provider cancel. Single-provider failure never throws
+ * — every branch reports `{ attempted, ok, detail }` instead.
+ */
+async function cancelProviderJob(
+  env: ExecutionEnv,
+  jobId: string,
+  provider: string,
+  providerJobId: string,
+): Promise<CancelProviderResult> {
+  if (provider === RUNNER_PROVIDER_ID) {
+    if (!env.RUNPOD_ENDPOINT) {
+      return {
+        attempted: false,
+        ok: false,
+        detail: 'RUNPOD_ENDPOINT is not configured.',
+      }
+    }
+    const apiKey = await resolveSystemApiKeyForCancel(env, jobId, provider)
+    if (!apiKey) {
+      return {
+        attempted: false,
+        ok: false,
+        detail: 'No RunPod system API key available for cancel.',
+      }
+    }
+    const ok = await cancelRunnerImageJob(providerJobId, env, apiKey)
+    return {
+      attempted: true,
+      ok,
+      detail: ok ? 'RunPod cancel requested.' : 'RunPod cancel request failed.',
+    }
+  }
+
+  if (provider === FAL_CANCEL_PROVIDER_ID) {
+    const apiKey = await resolveSystemApiKeyForCancel(env, jobId, provider)
+    if (!apiKey) {
+      return {
+        attempted: false,
+        ok: false,
+        detail: 'No fal.ai system API key available for cancel.',
+      }
+    }
+    try {
+      // fal's queue cancel is per-model: PUT
+      // https://queue.fal.run/{model_id}/requests/{request_id}/cancel — the
+      // model id isn't part of `WorkerCancelRequest` (only `providerJobId`
+      // is), so the caller is expected to populate `providerJobId` as the
+      // `{model_id}/requests/{request_id}` path segment: exactly what fal's
+      // own submit response's `cancel_url` contains, minus the
+      // `https://queue.fal.run/` prefix and `/cancel` suffix. A bare
+      // request id here will 404 and degrade like any other failed attempt.
+      const response = await fetch(
+        `https://queue.fal.run/${providerJobId}/cancel`,
+        { method: 'PUT', headers: { Authorization: `Key ${apiKey}` } },
+      )
+      return {
+        attempted: true,
+        ok: response.ok,
+        detail: `fal.ai responded ${response.status}.`,
+      }
+    } catch (error) {
+      return {
+        attempted: true,
+        ok: false,
+        detail: `fal.ai cancel request failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      }
+    }
+  }
+
+  if (provider === REPLICATE_PROVIDER_ID) {
+    const apiKey = await resolveSystemApiKeyForCancel(env, jobId, provider)
+    if (!apiKey) {
+      return {
+        attempted: false,
+        ok: false,
+        detail: 'No Replicate system API key available for cancel.',
+      }
+    }
+    try {
+      const response = await fetch(
+        `${REPLICATE_BASE_URL}/predictions/${providerJobId}/cancel`,
+        { method: 'POST', headers: { Authorization: `Bearer ${apiKey}` } },
+      )
+      return {
+        attempted: true,
+        ok: response.ok,
+        detail: `Replicate responded ${response.status}.`,
+      }
+    } catch (error) {
+      return {
+        attempted: true,
+        ok: false,
+        detail: `Replicate cancel request failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      }
+    }
+  }
+
+  if (isVolcEngineProviderId(provider)) {
+    const apiKey = await resolveSystemApiKeyForCancel(env, jobId, provider)
+    if (!apiKey) {
+      return {
+        attempted: false,
+        ok: false,
+        detail: 'No VolcEngine/BytePlus system API key available for cancel.',
+      }
+    }
+    try {
+      // Ark's task API does have a DELETE cancel/delete endpoint, but it only
+      // *cancels* a task still 'queued' — a 'running' task has no interrupt
+      // and the call errors there by design. That's the provider's own
+      // limit, not a bug in this branch: report the response status as-is
+      // and let the caller treat a failed status as "already running,
+      // nothing to do" rather than a real error.
+      const response = await fetch(
+        `${VOLCENGINE_DEFAULT_BASE_URL}/contents/generations/tasks/${providerJobId}`,
+        { method: 'DELETE', headers: { Authorization: `Bearer ${apiKey}` } },
+      )
+      return {
+        attempted: true,
+        ok: response.ok,
+        detail: `VolcEngine/BytePlus responded ${response.status} (only cancels tasks still queued).`,
+      }
+    } catch (error) {
+      return {
+        attempted: true,
+        ok: false,
+        detail: `VolcEngine/BytePlus cancel request failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      }
+    }
+  }
+
+  return {
+    attempted: false,
+    ok: false,
+    detail: `Provider "${provider}" has no cancel dispatch (unsupported, or synchronous with nothing to cancel — e.g. Fish Audio).`,
+  }
+}
+
+async function handleCancel(
+  request: Request,
+  env: ExecutionEnv,
+): Promise<Response> {
+  const secret = readRequiredSecret(env)
+  if (!secret) {
+    return jsonResponse(
+      { ok: false, error: 'Internal callback secret is not configured.' },
+      { status: 500 },
+    )
+  }
+
+  const rawBody = await verifySignedBody(request, secret)
+  if (!rawBody) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid signature.' },
+      { status: 401 },
+    )
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawBody)
+  } catch {
+    return jsonResponse(
+      { ok: false, error: 'Invalid JSON body.' },
+      { status: 400 },
+    )
+  }
+
+  const cancelRequest = parseCancelRequest(parsed)
+  if (!cancelRequest) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid cancel request.' },
+      { status: 400 },
+    )
+  }
+
+  const workflow = cancelRequest.workflowInstanceId
+    ? await terminateWorkflowInstanceById(env, cancelRequest.workflowInstanceId)
+    : ({
+        attempted: false,
+        terminated: false,
+        detail: 'No workflowInstanceId supplied.',
+      } satisfies CancelWorkflowResult)
+
+  const provider =
+    cancelRequest.provider && cancelRequest.providerJobId
+      ? await cancelProviderJob(
+          env,
+          cancelRequest.jobId,
+          cancelRequest.provider,
+          cancelRequest.providerJobId,
+        )
+      : ({
+          attempted: false,
+          ok: false,
+          detail: 'No provider/providerJobId supplied.',
+        } satisfies CancelProviderResult)
+
+  return jsonResponse({
+    ok: true,
+    jobId: cancelRequest.jobId,
+    workflow,
+    provider,
+  })
+}
+
 const executionWorker = {
   async fetch(request: Request, env: ExecutionEnv): Promise<Response> {
     const url = new URL(request.url)
@@ -6985,6 +7357,10 @@ const executionWorker = {
 
     if (request.method === 'POST' && url.pathname === IMAGE_QUEUE_PATH) {
       return handleImageQueueDispatch(request, env)
+    }
+
+    if (request.method === 'POST' && url.pathname === CANCEL_PATH) {
+      return handleCancel(request, env)
     }
 
     return jsonResponse({ ok: false, error: 'Not found.' }, { status: 404 })

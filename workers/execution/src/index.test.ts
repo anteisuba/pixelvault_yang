@@ -17,6 +17,7 @@ import {
   isLongVideoPipelineWorkflowId,
   isModel3DWorkflowId,
   isWorkerWorkflowId,
+  parseCancelRequest,
   parseLongVideoPipelineRunContext,
   parseModel3DRunContext,
   parseWorkerRunContext,
@@ -1151,5 +1152,303 @@ describe('buildFalImageInput reference handling', () => {
 
     expect(input.image_urls).toEqual(refs)
     expect(input.image_url).toBeUndefined()
+  })
+})
+
+describe('parseCancelRequest', () => {
+  it('accepts jobId alone', () => {
+    expect(parseCancelRequest({ jobId: 'job-1' })).toEqual({
+      jobId: 'job-1',
+      workflowInstanceId: undefined,
+      provider: undefined,
+      providerJobId: undefined,
+    })
+  })
+
+  it('accepts every optional identifier populated', () => {
+    expect(
+      parseCancelRequest({
+        jobId: 'job-1',
+        workflowInstanceId: 'wf-1',
+        provider: 'fal',
+        providerJobId: 'req-1',
+      }),
+    ).toEqual({
+      jobId: 'job-1',
+      workflowInstanceId: 'wf-1',
+      provider: 'fal',
+      providerJobId: 'req-1',
+    })
+  })
+
+  it('rejects a missing jobId', () => {
+    expect(parseCancelRequest({})).toBeNull()
+  })
+
+  it('rejects a non-object body', () => {
+    expect(parseCancelRequest('job-1')).toBeNull()
+  })
+})
+
+describe('/cancel route', () => {
+  const secret = 'test-execution-secret'
+  const url = 'https://execution.example.com/cancel'
+  const callbackUrl = 'https://app.example.com/api/internal/execution/callback'
+
+  async function signedCancelRequest(body: string) {
+    return new Request(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await createSignedRequestHeaders({ secret, body, url })),
+      },
+      body,
+    })
+  }
+
+  it('rejects a request with an invalid signature', async () => {
+    const request = new Request(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId: 'job-1' }),
+    })
+
+    const response = await executionWorker.fetch(request, {
+      INTERNAL_CALLBACK_SECRET: secret,
+    } as never)
+
+    expect(response.status).toBe(401)
+  })
+
+  it('terminates the workflow instance found on its binding', async () => {
+    const terminate = vi.fn().mockResolvedValue(undefined)
+    const notFound = vi.fn().mockRejectedValue(new Error('not found'))
+    const body = JSON.stringify({
+      jobId: 'job-1',
+      workflowInstanceId: 'wf-1',
+    })
+
+    const response = await executionWorker.fetch(
+      await signedCancelRequest(body),
+      {
+        INTERNAL_CALLBACK_SECRET: secret,
+        CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
+        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
+        HYPER3D_RODIN_WORKFLOW: { get: notFound },
+        HUNYUAN3D_WORKFLOW: { get: notFound },
+        IMAGE_QUEUE_WORKFLOW: {
+          get: vi.fn().mockResolvedValue({ id: 'wf-1', terminate }),
+        },
+      } as never,
+    )
+
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload.workflow).toEqual({
+      attempted: true,
+      terminated: true,
+      detail: 'terminated',
+    })
+    expect(payload.provider).toEqual({
+      attempted: false,
+      ok: false,
+      detail: 'No provider/providerJobId supplied.',
+    })
+    expect(terminate).toHaveBeenCalledTimes(1)
+  })
+
+  it('degrades when the workflow instance is not found on any binding', async () => {
+    const notFound = vi.fn().mockRejectedValue(new Error('not found'))
+    const body = JSON.stringify({
+      jobId: 'job-1',
+      workflowInstanceId: 'wf-missing',
+    })
+
+    const response = await executionWorker.fetch(
+      await signedCancelRequest(body),
+      {
+        INTERNAL_CALLBACK_SECRET: secret,
+        CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
+        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
+        HYPER3D_RODIN_WORKFLOW: { get: notFound },
+        HUNYUAN3D_WORKFLOW: { get: notFound },
+        IMAGE_QUEUE_WORKFLOW: { get: notFound },
+      } as never,
+    )
+
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload.workflow.attempted).toBe(false)
+    expect(payload.workflow.terminated).toBe(false)
+  })
+
+  it('degrades (not an error) when terminate rejects on an already-finished instance', async () => {
+    const terminate = vi
+      .fn()
+      .mockRejectedValue(new Error('instance already completed'))
+    const notFound = vi.fn().mockRejectedValue(new Error('not found'))
+    const body = JSON.stringify({
+      jobId: 'job-1',
+      workflowInstanceId: 'wf-1',
+    })
+
+    const response = await executionWorker.fetch(
+      await signedCancelRequest(body),
+      {
+        INTERNAL_CALLBACK_SECRET: secret,
+        CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
+        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
+        HYPER3D_RODIN_WORKFLOW: { get: notFound },
+        HUNYUAN3D_WORKFLOW: { get: notFound },
+        IMAGE_QUEUE_WORKFLOW: {
+          get: vi.fn().mockResolvedValue({ id: 'wf-1', terminate }),
+        },
+      } as never,
+    )
+
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload.workflow.attempted).toBe(true)
+    expect(payload.workflow.terminated).toBe(false)
+  })
+
+  it('dispatches a RunPod provider cancel using the resolved system key', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async (input: RequestInfo | URL, init?: RequestInit) => {
+          const requestUrl = String(input)
+          if (requestUrl.endsWith('/resolve-key')) {
+            expect(init?.method).toBe('POST')
+            const parsedBody = JSON.parse(String(init?.body))
+            expect(parsedBody).toEqual({
+              runId: 'job-1',
+              adapterType: 'runner',
+              useSystemKey: true,
+            })
+            return new Response(
+              JSON.stringify({ success: true, data: { apiKey: 'runpod-key' } }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            )
+          }
+          if (requestUrl.includes('/cancel/provider-job-1')) {
+            expect(init?.method).toBe('POST')
+            expect(
+              (init?.headers as Record<string, string>).Authorization,
+            ).toBe('Bearer runpod-key')
+            return new Response(null, { status: 200 })
+          }
+          throw new Error(`Unexpected fetch: ${requestUrl}`)
+        },
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const notFound = vi.fn().mockRejectedValue(new Error('not found'))
+    const body = JSON.stringify({
+      jobId: 'job-1',
+      provider: 'runner',
+      providerJobId: 'provider-job-1',
+    })
+
+    const response = await executionWorker.fetch(
+      await signedCancelRequest(body),
+      {
+        INTERNAL_CALLBACK_SECRET: secret,
+        INTERNAL_CALLBACK_URL: callbackUrl,
+        RUNPOD_ENDPOINT: 'endpoint-1',
+        CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
+        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
+        HYPER3D_RODIN_WORKFLOW: { get: notFound },
+        HUNYUAN3D_WORKFLOW: { get: notFound },
+        IMAGE_QUEUE_WORKFLOW: { get: notFound },
+      } as never,
+    )
+
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload.provider).toEqual({
+      attempted: true,
+      ok: true,
+      detail: 'RunPod cancel requested.',
+    })
+  })
+
+  it('reports an unsupported provider without throwing', async () => {
+    const notFound = vi.fn().mockRejectedValue(new Error('not found'))
+    const body = JSON.stringify({
+      jobId: 'job-1',
+      provider: 'fish_audio',
+      providerJobId: 'whatever',
+    })
+
+    const response = await executionWorker.fetch(
+      await signedCancelRequest(body),
+      {
+        INTERNAL_CALLBACK_SECRET: secret,
+        INTERNAL_CALLBACK_URL: callbackUrl,
+        CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
+        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
+        HYPER3D_RODIN_WORKFLOW: { get: notFound },
+        HUNYUAN3D_WORKFLOW: { get: notFound },
+        IMAGE_QUEUE_WORKFLOW: { get: notFound },
+      } as never,
+    )
+
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload.provider.attempted).toBe(false)
+    expect(payload.provider.ok).toBe(false)
+  })
+
+  it('resolves the volcengine cancel task URL and reports the upstream status', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async (input: RequestInfo | URL, init?: RequestInit) => {
+          const requestUrl = String(input)
+          if (requestUrl.endsWith('/resolve-key')) {
+            return new Response(
+              JSON.stringify({ success: true, data: { apiKey: 'ark-key' } }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            )
+          }
+          if (
+            requestUrl ===
+            'https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/task-1'
+          ) {
+            expect(init?.method).toBe('DELETE')
+            // Ark's own limit: only a still-queued task can actually be
+            // cancelled — a running one 400s here, and that's not a bug.
+            return new Response(null, { status: 400 })
+          }
+          throw new Error(`Unexpected fetch: ${requestUrl}`)
+        },
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const notFound = vi.fn().mockRejectedValue(new Error('not found'))
+    const body = JSON.stringify({
+      jobId: 'job-1',
+      provider: 'volcengine',
+      providerJobId: 'task-1',
+    })
+
+    const response = await executionWorker.fetch(
+      await signedCancelRequest(body),
+      {
+        INTERNAL_CALLBACK_SECRET: secret,
+        INTERNAL_CALLBACK_URL: callbackUrl,
+        CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
+        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
+        HYPER3D_RODIN_WORKFLOW: { get: notFound },
+        HUNYUAN3D_WORKFLOW: { get: notFound },
+        IMAGE_QUEUE_WORKFLOW: { get: notFound },
+      } as never,
+    )
+
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload.provider.attempted).toBe(true)
+    expect(payload.provider.ok).toBe(false)
   })
 })

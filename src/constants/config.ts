@@ -118,6 +118,9 @@ export const API_ENDPOINTS = {
   /** Generation management */
   GENERATIONS: '/api/generations',
 
+  /** Cancel one or more in-flight GenerationJob rows (image/video/audio/3D) */
+  GENERATIONS_CANCEL: '/api/generations/cancel',
+
   /** Prompt enhancement */
   ENHANCE_PROMPT: '/api/prompt/enhance',
 
@@ -830,6 +833,8 @@ export const RATE_LIMIT_CONFIGS = {
   generateAudio: { limit: 5, windowSeconds: 60 },
   generateLongVideo: { limit: 3, windowSeconds: 60 },
   longVideoCancel: { limit: 10, windowSeconds: 60 },
+  /** Cross-domain GenerationJob cancel — batch of up to GENERATION_CANCEL_MAX_BATCH per call */
+  generationsCancel: { limit: 20, windowSeconds: 60 },
   longVideoRetry: { limit: 5, windowSeconds: 60 },
   longVideoStatus: { limit: 30, windowSeconds: 60 },
   imageEdit: { limit: 10, windowSeconds: 60 },

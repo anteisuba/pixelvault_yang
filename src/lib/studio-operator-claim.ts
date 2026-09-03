@@ -53,7 +53,7 @@ export interface StudioOperatorClaim {
 /** run item 里这段逻辑真正要读的那几样（`RunItem` 直接可赋值）。 */
 export interface StudioOperatorClaimItem {
   id: string
-  status: 'pending' | 'generating' | 'completed' | 'failed'
+  status: 'pending' | 'generating' | 'completed' | 'failed' | 'cancelled'
   generation: GenerationRecord | null
 }
 
@@ -102,7 +102,11 @@ export function bindOperatorClaim(
   return { kind: 'bound', claim: { ...claim, boundItemIds: fresh } }
 }
 
-/** 这一枪打完了没有 —— 每一条都有了结局（成了或失败了）才算（头注 ③）。 */
+/**
+ * 这一枪打完了没有 —— 每一条都有了结局（成了 / 失败了 / 被取消了）才算
+ * （头注 ③）。⚠ `cancelled` 与 `failed` 同等对待：都是不会再变的终态，
+ * 缺了它助手会为一条已经被用户取消的条目永远等一张永远不会来的图。
+ */
 export function isOperatorClaimSettled(
   claim: StudioOperatorClaim,
   items: readonly StudioOperatorClaimItem[],
@@ -113,7 +117,10 @@ export function isOperatorClaimSettled(
   // 条目整个消失了（换了模态 / 清了批次）= 这一枪没有结果可看，别一直等下去。
   if (mine.length === 0) return true
   return mine.every(
-    (item) => item.status === 'completed' || item.status === 'failed',
+    (item) =>
+      item.status === 'completed' ||
+      item.status === 'failed' ||
+      item.status === 'cancelled',
   )
 }
 

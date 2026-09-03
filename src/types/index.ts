@@ -48,6 +48,7 @@ import {
 } from '@/constants/lora-candidate'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import { GENERATION_CANCEL_MAX_BATCH } from '@/constants/generation-cancel'
 import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
 import type {
   AssistantClarifyingQuestion,
@@ -366,7 +367,12 @@ export type GenerationSnapshot = z.infer<typeof GenerationSnapshotSchema>
 
 // ─── ActiveRun State Model (B0) ──────────────────────────────────
 
-export type RunItemStatus = 'pending' | 'generating' | 'completed' | 'failed'
+export type RunItemStatus =
+  | 'pending'
+  | 'generating'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
 export type RunGroupMode = 'single' | 'compare' | 'variant'
 
 interface RunItemBase {
@@ -400,7 +406,22 @@ export type FailedRunItem = RunItemBase & {
   error: string
 }
 
-export type RunItem = PendingRunItem | CompletedRunItem | FailedRunItem
+/**
+ * User cancelled this item before it finished — distinct from `failed`
+ * (which reports a provider/validation error). Grids render it as "已取消",
+ * not as a red error state.
+ */
+export type CancelledRunItem = RunItemBase & {
+  status: 'cancelled'
+  generation: null
+  error: null
+}
+
+export type RunItem =
+  | PendingRunItem
+  | CompletedRunItem
+  | FailedRunItem
+  | CancelledRunItem
 
 export interface ActiveRun {
   id: string
@@ -744,6 +765,7 @@ export const AsyncJobStatusSchema = z.enum([
   'IN_PROGRESS',
   'COMPLETED',
   'FAILED',
+  'CANCELLED',
 ])
 export type AsyncJobStatus = z.infer<typeof AsyncJobStatusSchema>
 
@@ -781,6 +803,11 @@ export type AudioStatusResponseData =
       i18nKey?: string
       hasReferenceImage?: boolean
     }
+  | {
+      jobId: string
+      status: 'CANCELLED'
+      generation?: never
+    }
 
 export interface AudioStatusResponse {
   success: boolean
@@ -813,6 +840,12 @@ export type ImageStatusResponseData =
       errorCode?: string
       i18nKey?: string
       hasReferenceImage?: boolean
+    }
+  | {
+      jobId: string
+      status: 'CANCELLED'
+      generation?: never
+      error?: never
     }
 
 export interface ImageStatusResponse {
@@ -1409,11 +1442,17 @@ export type Model3DStatusResponseData =
       generation?: never
       previewModelUrl?: string
       stage?: (typeof MODEL_3D_PROGRESS_STAGES)[number]
-      cancelled?: boolean
       error?: string
       errorCode?: string
       i18nKey?: string
       hasReferenceImage?: boolean
+    }
+  | {
+      jobId: string
+      status: 'CANCELLED'
+      generation?: never
+      previewModelUrl?: string
+      stage?: (typeof MODEL_3D_PROGRESS_STAGES)[number]
     }
 
 // ─── Multi-View Generation (reference-edit chain for 3D inputs) ─────
@@ -1915,6 +1954,61 @@ export const WorkerModel3DRunContextSchema = z.object({
 export type WorkerModel3DRunContext = z.infer<
   typeof WorkerModel3DRunContextSchema
 >
+
+// ─── Generation Cancel (contract layer — GenerationJob.CANCELLED) ────
+//
+// Cross-domain "cancel this job" for anything backed by a `GenerationJob`
+// row (image / video / audio / 3D, dispatched through the execution
+// worker). Distinct from the older per-domain cancel endpoints
+// (`/api/generate-3d/cancel`, `/api/generate-long-video/cancel`), which
+// mark the row FAILED with a sentinel rather than the new CANCELLED
+// status — those are untouched by this contract.
+
+/** POST /api/generations/cancel request body. */
+export const cancelGenerationsRequestSchema = z.object({
+  jobIds: z.array(z.string().min(1)).min(1).max(GENERATION_CANCEL_MAX_BATCH),
+})
+
+export type CancelGenerationsRequest = z.infer<
+  typeof cancelGenerationsRequestSchema
+>
+
+/** POST /api/generations/cancel response body. */
+export const cancelGenerationsResponseSchema = z.object({
+  /** Jobs that were QUEUED/RUNNING and are now CANCELLED. */
+  cancelled: z.array(z.string()),
+  /** Jobs already in a terminal state (COMPLETED/FAILED/CANCELLED) — no-op. */
+  alreadyFinished: z.array(z.string()),
+  /** Jobs not owned by the caller, or that don't exist. */
+  notFound: z.array(z.string()),
+})
+
+export type CancelGenerationsResponseData = z.infer<
+  typeof cancelGenerationsResponseSchema
+>
+
+export interface CancelGenerationsResponse {
+  success: boolean
+  data?: CancelGenerationsResponseData
+  error?: string
+  errorCode?: string
+  i18nKey?: string
+}
+
+/**
+ * Best-effort cancel request from the app to the execution worker
+ * (`EXECUTION_WORKER.CANCEL_PATH`). The worker uses whichever identifiers it
+ * has to terminate the in-flight workflow instance / provider job; none are
+ * individually guaranteed to be set, so the app sends everything it knows.
+ */
+export const workerCancelRequestSchema = z.object({
+  jobId: z.string().min(1),
+  workflowInstanceId: z.string().min(1).optional(),
+  provider: z.string().min(1).optional(),
+  providerJobId: z.string().min(1).optional(),
+})
+
+export type WorkerCancelRequest = z.infer<typeof workerCancelRequestSchema>
 
 // ─── Long Video Pipeline ──────────────────────────────────────────
 

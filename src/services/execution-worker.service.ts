@@ -4,6 +4,7 @@ import { EXECUTION_WORKER, LOOPBACK_HOSTNAMES } from '@/constants/execution'
 import { createInternalExecutionHeaders } from '@/lib/signature-verifiers/internal-execution'
 import type {
   LongVideoPipelineWorkerRunContext,
+  WorkerCancelRequest,
   WorkerDispatchResult,
   WorkerModel3DRunContext,
   WorkerRunContext,
@@ -237,6 +238,44 @@ async function dispatchSignedWorkerRunOnce(
       `Execution worker returned an invalid acknowledgement: ${message}`,
       'unknown',
       response.status,
+    )
+  }
+}
+
+/**
+ * Best-effort "stop what you're doing" notify to the execution worker for a
+ * job the app has already CAS-transitioned to `CANCELLED` in the DB. Unlike
+ * `dispatchSignedWorkerRun`, this is a single attempt with a short timeout —
+ * the DB-side cancel is already the source of truth, so a slow/unreachable
+ * worker must never block or fail the caller. Throws on failure; callers
+ * (see `generation-cancel.service.ts`) are expected to catch and log rather
+ * than propagate.
+ */
+export async function notifyWorkerCancel(
+  request: WorkerCancelRequest,
+): Promise<void> {
+  const body = JSON.stringify(request)
+  const url = `${getWorkerBaseUrl()}${EXECUTION_WORKER.CANCEL_PATH}`
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...createInternalExecutionHeaders({
+        body,
+        method: 'POST',
+        url,
+        secret: getInternalCallbackSecret(),
+      }),
+    },
+    body,
+    signal: AbortSignal.timeout(EXECUTION_WORKER.CANCEL_TIMEOUT_MS),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw new Error(
+      `Execution worker cancel notify failed (${response.status}): ${errorBody.slice(0, 200)}`,
     )
   }
 }

@@ -36,6 +36,7 @@ enum GenerationJobStatus {
   RUNNING
   COMPLETED
   FAILED
+  CANCELLED
 }
 
 enum ExecutionOutboxStatus {

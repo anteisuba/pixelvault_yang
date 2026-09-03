@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useEffect, useState } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Ban } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { PLATFORM_GENERATION_GUARD } from '@/constants/config'
@@ -30,6 +30,8 @@ interface StudioVideoQueueStripProps {
   variant?: 'strip' | 'cards'
   /** 取消这一条（只中止它自己的轮询）。给了才画「取消」。 */
   onCancel?: (itemId: string) => void
+  /** 取消队列里所有还在跑的条目。给了且确有条目在跑才画「全部取消」。 */
+  onCancelAll?: () => void
 }
 
 /** `mm:ss`，给每条自己的已用时长用。 */
@@ -65,8 +67,10 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
   onRetry,
   variant = 'strip',
   onCancel,
+  onCancelAll,
 }: StudioVideoQueueStripProps) {
   const t = useTranslations('StudioVideoQueue')
+  const tCancel = useTranslations('GenerationCancel')
   const tStages = useTranslations('StudioV3')
   const hasRunning = items.some((item) => item.status === 'generating')
 
@@ -202,12 +206,25 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
         {/* 说明文案在移动端**必须出现**：桌面把它挂在 `xl:block` 上，于是手机端
             「要等多久 / 能不能离开这一页」完全无处可知，而那正是视频档等待时
             唯一的问题。 */}
-        <p
-          data-testid="studio-video-queue-hint"
-          className="text-2xs leading-relaxed text-muted-foreground"
-        >
-          {t('mobileHint')}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p
+            data-testid="studio-video-queue-hint"
+            className="text-2xs leading-relaxed text-muted-foreground"
+          >
+            {t('mobileHint')}
+          </p>
+          {runningCount > 0 && onCancelAll && (
+            <button
+              type="button"
+              onClick={onCancelAll}
+              data-testid="studio-video-queue-cancel-all"
+              className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-2xs text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted"
+            >
+              <Ban className="size-3" />
+              {tCancel('cancelAll')}
+            </button>
+          )}
+        </div>
       </div>
     )
   }
@@ -224,6 +241,16 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
             max: PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER,
           })}
         </span>
+        {runningCount > 0 && onCancelAll && (
+          <button
+            type="button"
+            onClick={onCancelAll}
+            data-testid="studio-video-queue-cancel-all"
+            className="w-fit text-2xs text-muted-foreground underline underline-offset-2 transition-colors duration-fast ease-standard hover:text-foreground"
+          >
+            {tCancel('cancelAll')}
+          </button>
+        )}
       </div>
 
       {/* ⚠ 一律左对齐、自己横滑：助手浮标是 fixed 在结果区右上角的（owner
@@ -237,13 +264,24 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
           return (
             <div key={item.id} className="flex w-32 shrink-0 flex-col gap-1.5">
               {item.status === 'generating' ? (
-                <div className="flex h-[72px] flex-col items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-muted/20">
+                <div className="relative flex h-[72px] flex-col items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-muted/20">
                   <Spinner size="sm" className="text-muted-foreground" />
                   {elapsed !== null ? (
                     <span className="font-mono text-2xs tabular-nums text-muted-foreground">
                       {formatElapsed(elapsed)}
                     </span>
                   ) : null}
+                  {onCancel && (
+                    <button
+                      type="button"
+                      onClick={() => onCancel(item.id)}
+                      aria-label={t('cancel')}
+                      data-testid="studio-video-queue-strip-cancel"
+                      className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-background/85 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
               ) : item.status === 'failed' ? (
                 <div className="flex h-[72px] flex-col items-center justify-center gap-1 rounded-lg border border-border/60 bg-background px-2">

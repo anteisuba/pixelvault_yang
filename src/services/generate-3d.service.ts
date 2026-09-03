@@ -37,6 +37,7 @@ import {
   failGenerationJob,
 } from '@/services/usage.service'
 import { buildGenerationFailureResponseFields } from '@/services/generation-failure-response.service'
+import { notifyWorkerCancelBestEffort } from '@/services/generation-cancel.service'
 import { ensureUser } from '@/services/user.service'
 import {
   GenerateImageServiceError,
@@ -145,15 +146,6 @@ type GenerationExecutionRoute = Awaited<
 const finalizing3DJobs = new Set<string>()
 
 /**
- * PR3-α: marker written to GenerationJob.errorMessage when the user cancels
- * a staged job. The status check uses it to surface `cancelled: true` to the
- * client (suppressing the error toast). Repurposes the existing text column
- * instead of adding a CANCELLED value to the GenerationJobStatus enum (which
- * would require a Prisma migration).
- */
-const CANCELLED_BY_USER_MARKER = 'CANCELLED_BY_USER'
-
-/**
  * PR2-B3: in-memory upload progress per job. Best-effort — readable when the
  * status poll hits the same worker that's running the R2 upload. On a cold
  * start or a different Fluid Compute instance the entry won't be visible and
@@ -168,11 +160,6 @@ interface Model3DStatusJob {
   status: string
   modelId: string
   createdAt: Date
-  /**
-   * PR3-α: when status is FAILED and errorMessage matches CANCELLED_BY_USER
-   * marker, we surface `cancelled: true` instead of an error toast. No Prisma
-   * schema change — repurposes the existing nullable text column.
-   */
   errorMessage?: string | null
   errorCode?: string | null
   generation?: {
@@ -302,18 +289,18 @@ export async function check3DGenerationStatusForUserId(
   }
 
   if (job.status === 'FAILED') {
-    const cancelled = job.errorMessage === CANCELLED_BY_USER_MARKER
     return {
       jobId: job.id,
       status: 'FAILED',
-      ...(cancelled ? { cancelled: true } : {}),
-      ...(!cancelled
-        ? buildGenerationFailureResponseFields({
-            ...job,
-            hasReferenceImage: has3DSourceImage(job.externalRequestId),
-          })
-        : {}),
+      ...buildGenerationFailureResponseFields({
+        ...job,
+        hasReferenceImage: has3DSourceImage(job.externalRequestId),
+      }),
     }
+  }
+
+  if (job.status === 'CANCELLED') {
+    return { jobId: job.id, status: 'CANCELLED' }
   }
 
   if (!job.externalRequestId) {
@@ -453,10 +440,12 @@ export async function retryMesh3DGenerationForUserId(
 }
 
 /**
- * Abort an in-flight 3D job. Allowed in any non-terminal state; idempotent on
- * already-FAILED jobs. Writes a sentinel into errorMessage so the status
- * check can surface `cancelled: true` (skipping the error toast on the
- * client) without requiring a new GenerationJobStatus enum value.
+ * Abort an in-flight 3D job. Allowed in any non-completed state; idempotent
+ * on already-terminal jobs (no-op, just reflects current state back). CAS to
+ * `CANCELLED` — see `generation-cancel.service.ts`'s
+ * `cancelGenerationJobs`, which this mirrors for the single-job 3D route
+ * (kept separate rather than delegated to, since this one takes `userId`
+ * directly and `cancelGenerationJobs` resolves it from `clerkId`).
  */
 export async function cancel3DGeneration(
   clerkId: string,
@@ -487,16 +476,24 @@ export async function cancel3DGenerationForUserId(
       400,
     )
   }
-  if (job.status !== 'FAILED') {
-    await failGenerationJob(job.id, {
-      errorMessage: CANCELLED_BY_USER_MARKER,
+
+  if (job.status === 'QUEUED' || job.status === 'RUNNING') {
+    const { count } = await db.generationJob.updateMany({
+      where: { id: job.id, status: { in: ['QUEUED', 'RUNNING'] } },
+      data: { status: 'CANCELLED' },
     })
+    if (count > 0) {
+      await notifyWorkerCancelBestEffort({
+        id: job.id,
+        provider: job.provider,
+      })
+    }
   }
 
   finalUploadProgress.delete(job.id)
   finalizing3DJobs.delete(job.id)
 
-  return { jobId: job.id, status: 'FAILED', cancelled: true }
+  return check3DGenerationStatusForUserId(userId, job.id)
 }
 
 /**

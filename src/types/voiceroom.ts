@@ -77,7 +77,7 @@ const AudioEmotionSchema = z.enum(AUDIO_EMOTIONS)
  */
 export const VoiceLineAudioSchema = z.object({
   jobId: z.string(),
-  status: z.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED']),
+  status: z.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   /** COMPLETED 才有。 */
   url: z.string().nullable(),
   /** 秒。provider 不一定给，给不出就是 null。 */

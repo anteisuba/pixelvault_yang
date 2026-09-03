@@ -28,6 +28,7 @@ import {
 } from '@/constants/generation-errors'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { requestStudioResultDetail } from '@/lib/studio-result-detail'
+import { GENERATION_CANCEL_MAX_BATCH } from '@/constants/generation-cancel'
 import type {
   ActiveRun,
   GenerateAudioRequest,
@@ -46,6 +47,7 @@ import {
   submitVideoAPI,
   checkVideoStatusAPI,
   generateAudioAPI,
+  cancelGenerationsAPI,
 } from '@/lib/api-client'
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -137,8 +139,13 @@ export interface UseUnifiedGenerateReturn {
   canQueueMoreVideo: boolean
   /** 用某一条自己的参数重放它；原地把失败那条换成新排的一条。 */
   retryVideoQueueItem: (itemId: string) => Promise<void>
-  /** 不再等某一条：摘掉条目并中止它自己的轮询（服务端那条任务照跑）。 */
-  cancelVideoQueueItem: (itemId: string) => void
+  /**
+   * 真取消这一条：调服务端 `cancelGenerationsAPI` + 本地立刻反馈（视频摘条 /
+   * 图片&音频原地标 cancelled）。
+   */
+  cancelRunItem: (itemId: string) => void
+  /** 取消当前这一轮里所有还没结束的条目（pending / generating），按 16 条一批发。 */
+  cancelAllRunItems: () => void
 }
 
 function isAudioEmotion(value: string | undefined): value is AudioEmotion {
@@ -232,6 +239,30 @@ function toFailedRunItem<T extends RunItem>(item: T, error: string) {
   }
 }
 
+function toCancelledRunItem<T extends RunItem>(item: T) {
+  return {
+    ...item,
+    status: 'cancelled' as const,
+    generation: null,
+    error: null,
+  }
+}
+
+/**
+ * 竞态回滚用：把一条本地已经标成 `cancelled`（或已被摘掉）的条目翻回
+ * `generating`。用于 `cancelGenerationsAPI` 返回 `alreadyFinished`
+ * ——服务端 CAS 判定这条任务已经到终态，取消请求打了个空，本地不能继续
+ * 停在「已取消」，得回滚成「还在等结果」再重新拉起轮询。
+ */
+function toGeneratingRunItem<T extends RunItem>(item: T) {
+  return {
+    ...item,
+    status: 'generating' as const,
+    generation: null,
+    error: null,
+  }
+}
+
 // Outcome of polling an async image job. `pending` means the poll window ran
 // out while the worker was still producing the image — that is NOT a failure
 // (the image lands in the gallery via callback), so it must never be surfaced
@@ -240,6 +271,7 @@ type ImageJobPollOutcome =
   | { status: 'completed'; generation: GenerationRecord }
   | { status: 'failed'; message: string; code: GenerationErrorCode }
   | { status: 'pending' }
+  | { status: 'cancelled' }
 
 // ─── Hook ────────────────────────────────────────────────────────
 
@@ -267,20 +299,29 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
    */
   const videoJobParamsRef = useRef(new Map<string, GenerateVideoRequest>())
   /**
-   * 已被用户取消的队列条目 id。
+   * 已被用户取消的 run item id（图片 / 视频 / 音频，任意批次）。
    *
    * ⚠ 是 ref 而不是 state：轮询循环是一个跑在 `useCallback` 闭包里的 `for`，
    * 它读到的 state 永远是提交那一刻的快照 —— 用 state 做取消标记等于没做。
-   * ⚠ 只中止**这一条**的轮询：视频的队列语义是「失败/取消只影响它自己」
-   * （见 `generateVideo` 文件注释），不碰同批次的其它条目。
-   * ⛔ 中止的只有前端轮询：服务端那条任务照跑（没有取消端点），所以取消 = 「我
-   *    不再等它了」，不是「不扣费了」。
+   * ⚠ 只中止**这一条**的轮询：队列语义是「取消/失败只影响它自己」（见
+   * `generateVideo` 文件注释），不碰同批次的其它条目。
+   * ⚠ 2026-09：真取消已接服务端（`cancelGenerationsAPI`），这个 ref 现在只管
+   * 「前端别再等它」；服务端那条任务会被 CAS 成 CANCELLED，下一拍轮询大概率会
+   * 先读到 CANCELLED（见各 `status === 'CANCELLED'` 分支），这个 ref 是那条
+   * 状态还没落库前的本地兜底。
    */
-  const cancelledVideoItemsRef = useRef(new Set<string>())
+  const cancelledRunItemsRef = useRef(new Set<string>())
+  /**
+   * run item id → 服务端 `GenerationJob.id`（`jobId`）。取消要传给
+   * `cancelGenerationsAPI` 的就是这个，不是 `item.id`（那是纯前端生成的
+   * `crypto.randomUUID()`，服务端不认）。
+   */
+  const activeJobIdsRef = useRef(new Map<string, string>())
 
   const tStudio = useTranslations('StudioV2')
   const tVideo = useTranslations('VideoGenerate')
   const tErrors = useTranslations('Errors')
+  const tCancel = useTranslations('GenerationCancel')
 
   // 审查 D1：完成提示必须给"去向"——附"查看作品"直达动作，用户不再
   // 以为结果丢了。以 generation.id 作 toast id，变体/对比多次完成时去重。
@@ -390,6 +431,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     [updateActiveRunItem],
   )
 
+  const markActiveRunItemCancelled = useCallback(
+    (itemId: string) => {
+      updateActiveRunItem(itemId, (item) => toCancelledRunItem(item))
+    },
+    [updateActiveRunItem],
+  )
+
   // Resolve an API error payload into both a localized message (for display)
   // and a classification code (for the error dialog to pick its reason).
   const resolveGenerationError = useCallback(
@@ -435,6 +483,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             markActiveRunItemFailed(itemId, failure.message)
             return { status: 'failed', ...failure }
           }
+          if (statusResponse.data.status === 'CANCELLED') {
+            markActiveRunItemCancelled(itemId)
+            return { status: 'cancelled' }
+          }
         }
       } catch {
         // Unknown — treat as still-pending, never a confirmed failure.
@@ -445,6 +497,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       tStudio,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
+      markActiveRunItemCancelled,
       resolveGenerationError,
     ],
   )
@@ -487,6 +540,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
         if (result.success && hasJobId(result.data)) {
           const { jobId } = result.data
+          activeJobIdsRef.current.set(itemId, jobId)
           setStage('processing')
           pollCountRef.current = 0
 
@@ -507,6 +561,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   resolve(outcome.generation)
                 } else if (outcome.status === 'failed') {
                   finish(outcome.message, outcome.code)
+                  resolve(null)
+                } else if (outcome.status === 'cancelled') {
+                  // User-initiated cancel — clean termination, no error toast.
+                  finish()
                   resolve(null)
                 } else {
                   // Still running on the worker — it will finish and land in
@@ -545,6 +603,15 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   )
                   markActiveRunItemFailed(itemId, message)
                   finish(message, code)
+                  resolve(null)
+                  return
+                }
+
+                if (statusData.status === 'CANCELLED') {
+                  // User-initiated cancel — the item is already updated
+                  // (or removed) by `cancelRunItem`; just stop cleanly here,
+                  // no error toast for a state the user asked for.
+                  finish()
                   resolve(null)
                   return
                 }
@@ -601,6 +668,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       ) {
         await waitForPollInterval(IMAGE_GENERATION.POLL_INTERVAL_MS)
 
+        // 用户按了「取消」—— 本地已经把这一格标成 cancelled，继续轮询只会
+        // 拿到服务端还没落库的旧状态、把它盖回 completed/failed。
+        if (cancelledRunItemsRef.current.has(itemId)) {
+          cancelledRunItemsRef.current.delete(itemId)
+          return { status: 'cancelled' }
+        }
+
         try {
           const statusResponse = await checkImageGenerationStatusAPI(jobId)
 
@@ -624,6 +698,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             markActiveRunItemFailed(itemId, failure.message)
             return { status: 'failed', ...failure }
           }
+
+          if (statusData.status === 'CANCELLED') {
+            markActiveRunItemCancelled(itemId)
+            return { status: 'cancelled' }
+          }
         } catch {
           // Transient network blip — skip this tick, keep polling.
           continue
@@ -638,6 +717,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       tStudio,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
+      markActiveRunItemCancelled,
       resolveImageJobFromStatus,
       resolveGenerationError,
     ],
@@ -665,8 +745,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
         // 用户按了「取消」—— 这一条的条目已经被摘掉，继续轮询只会把结果写回
         // 一个不存在的格子（或者更糟：把它设成 lastGeneration 弹上舞台）。
-        if (cancelledVideoItemsRef.current.has(itemId)) {
-          cancelledVideoItemsRef.current.delete(itemId)
+        if (cancelledRunItemsRef.current.has(itemId)) {
+          cancelledRunItemsRef.current.delete(itemId)
           return null
         }
 
@@ -702,6 +782,14 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             markActiveRunItemFailed(itemId, message)
             return null
           }
+
+          if (statusData.status === 'CANCELLED') {
+            // Server confirmed the cancel before our local ref caught it
+            // (e.g. cancelled via "取消全部" on the same tick) — clean
+            // termination, no error toast.
+            markActiveRunItemCancelled(itemId)
+            return null
+          }
         } catch {
           // 网络抖一下：跳过这一拍继续轮询，不把整条判死。
           continue
@@ -717,6 +805,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       resolveGenerationError,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
+      markActiveRunItemCancelled,
     ],
   )
 
@@ -786,6 +875,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           return null
         }
 
+        activeJobIdsRef.current.set(itemId, submitResponse.data.jobId)
         setStage('processing')
         // 不 await：让按钮立刻可用，轮询自己把结果写回那一格。
         void pollVideoJobForRunItem(submitResponse.data.jobId, itemId)
@@ -871,6 +961,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               runGroupIndex: item.index,
             })
             if (result.success && hasJobId(result.data)) {
+              activeJobIdsRef.current.set(item.id, result.data.jobId)
               setStage('processing')
               const outcome = await pollImageJobForRunItem(
                 result.data.jobId,
@@ -885,6 +976,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   code: outcome.code,
                 }
               }
+              // 'cancelled' 与 'pending' 都不算失败——已在 pollImageJobForRunItem
+              // 里标好格子状态，这里什么都不用做。
             } else {
               const failure = resolveGenerationError(
                 result,
@@ -1048,6 +1141,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               runGroupIndex: item.index,
             })
             if (result.success && hasJobId(result.data)) {
+              activeJobIdsRef.current.set(item.id, result.data.jobId)
               setStage('processing')
               const outcome = await pollImageJobForRunItem(
                 result.data.jobId,
@@ -1062,6 +1156,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   code: outcome.code,
                 }
               }
+              // 'cancelled' 与 'pending' 都不算失败——已在 pollImageJobForRunItem
+              // 里标好格子状态，这里什么都不用做。
             } else {
               const failure = resolveGenerationError(
                 result,
@@ -1152,6 +1248,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
         if (result.success && hasJobId(result.data)) {
           const { jobId } = result.data
+          activeJobIdsRef.current.set(itemId, jobId)
           setStage('queued')
           pollCountRef.current = 0
 
@@ -1200,6 +1297,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   )
                   markActiveRunItemFailed(itemId, message)
                   finish(message, code)
+                  resolve(null)
+                  return
+                }
+
+                if (statusData.status === 'CANCELLED') {
+                  finish()
                   resolve(null)
                   return
                 }
@@ -1305,12 +1408,20 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           return
         }
         const { jobId } = submit.data
+        activeJobIdsRef.current.set(itemId, jobId)
         for (
           let attempt = 0;
           attempt < AUDIO_GENERATION.MAX_POLL_ATTEMPTS;
           attempt += 1
         ) {
           await waitForPollInterval(AUDIO_GENERATION.POLL_INTERVAL_MS)
+
+          // 用户按了「取消」—— 本地已经把这一格标成 cancelled。
+          if (cancelledRunItemsRef.current.has(itemId)) {
+            cancelledRunItemsRef.current.delete(itemId)
+            return
+          }
+
           let statusResponse
           try {
             statusResponse = await checkAudioStatusAPI(jobId)
@@ -1349,6 +1460,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             firstFailure.current ??= failure
             return
           }
+          if (statusData.status === 'CANCELLED') {
+            markActiveRunItemCancelled(itemId)
+            return
+          }
         }
         markActiveRunItemFailed(itemId, timeoutFailure().message)
         firstFailure.current ??= timeoutFailure()
@@ -1362,11 +1477,14 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           finish()
           return firstSuccess
         }
-        const failure = firstFailure.current ?? {
-          message: tStudio('generateFailed'),
-          code: GENERATION_ERROR_CODES.UNKNOWN,
+        if (firstFailure.current) {
+          finish(firstFailure.current.message, firstFailure.current.code)
+          return null
         }
-        finish(failure.message, failure.code)
+        // 没有成功也没有真失败——要么全被取消，要么还在跑（不该发生：
+        // `runOne` 只在成功/失败/取消三种终态之一才返回）。取消是干净收尾，
+        // 不弹通用错误。
+        finish()
         return null
       } finally {
         stopTimer()
@@ -1383,6 +1501,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       finish,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
+      markActiveRunItemCancelled,
       resolveGenerationError,
     ],
   )
@@ -1481,20 +1600,252 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   )
 
   /**
-   * 取消队列里的某一条 —— 摘掉条目 + 让它的轮询在下一拍自己退出。
+   * 竞态收尾：`cancelGenerationsAPI` 返回 `alreadyFinished` 里的一条 —— 服务端
+   * CAS 判定这个 job 已经到终态（COMPLETED / FAILED，或它自己就是别的入口
+   * 抢先 CANCELLED 掉的），取消请求打了个空。本地在发请求前已经乐观地把它标成
+   * `cancelled`（视频甚至整条摘掉了），不回滚的话用户会以为「取消成功」，其实
+   * 图已经生成、credit 也扣了——这里把它翻回 `generating` 再重新拉起那条自己
+   * 的轮询，直到真落到 completed/failed/cancelled 之一。
+   *
+   * ⚠ 先把 `cancelledRunItemsRef` 里这条的标记摘掉：不摘的话重新拉起的轮询
+   * 循环第一拍就会读到「已取消」直接短路退出，回滚等于白做。
+   */
+  const restoreAlreadyFinishedItem = useCallback(
+    (
+      itemId: string,
+      jobId: string,
+      outputType: ActiveRun['outputType'],
+      snapshot: RunItem | undefined,
+    ) => {
+      cancelledRunItemsRef.current.delete(itemId)
+      activeJobIdsRef.current.set(itemId, jobId)
+
+      if (outputType === 'VIDEO') {
+        // 视频取消时整条被摘掉了（见下方 setActiveRun 的 VIDEO 分支）——
+        // 回滚要把它重新塞回队列，不是原地翻状态。
+        const restored = toGeneratingRunItem<RunItem>(
+          snapshot ?? {
+            id: itemId,
+            modelId: 'unknown',
+            status: 'generating',
+            generation: null,
+            error: null,
+          },
+        )
+        setActiveRun((prev) => {
+          if (!prev) {
+            return {
+              id: crypto.randomUUID(),
+              mode: 'single',
+              items: [restored],
+              selectedItemId: null,
+              prompt: '',
+              startedAt: Date.now(),
+              outputType: 'VIDEO',
+            }
+          }
+          if (prev.items.some((item) => item.id === itemId)) return prev
+          return { ...prev, items: [...prev.items, restored] }
+        })
+        // 自成一体的轮询循环，复用 `generateVideo` 排队时用的那条。
+        void pollVideoJobForRunItem(jobId, itemId)
+        return
+      }
+
+      // 图片 / 音频：原地从 cancelled 翻回 generating（格数不变，栅格不塌陷）。
+      updateActiveRunItem(itemId, (item) => toGeneratingRunItem(item))
+
+      if (outputType === 'IMAGE') {
+        // 复用 `generateVariants` 排队时用的那条单条轮询；它不碰共享的
+        // `pollRef`，完成态直接落在 `markActiveRunItemCompleted` 里，这里只
+        // 补一句 `notifySaved`（单图模式下原来的 toast 走的是 `generateImage`
+        // 自己那段内联 promise，取消回滚绕开了那条路径，得手动补上）。
+        void pollImageJobForRunItem(jobId, itemId).then((outcome) => {
+          if (outcome.status === 'completed') {
+            setLastGeneration(outcome.generation)
+            notifySaved(outcome.generation, tStudio('generateSuccess'))
+          }
+        })
+        return
+      }
+
+      // AUDIO：没有像图片/视频那样抽出的单条轮询函数（现存的音频轮询要么在
+      // `generateAudio` 里用共享 `pollRef`，要么在 variants 的 `runOne` 里内联
+      // 成一次性闭包），单独抽一条出来超出这次修的范围。`alreadyFinished` 已经
+      // 保证服务端是终态，这里单发一次状态检查就够，不需要真的再等一轮循环。
+      void checkAudioStatusAPI(jobId)
+        .then((statusResponse) => {
+          if (!statusResponse.success || !statusResponse.data) {
+            markActiveRunItemFailed(itemId, tStudio('generateFailed'))
+            return
+          }
+          const statusData = statusResponse.data
+          if (statusData.status === 'COMPLETED') {
+            markActiveRunItemCompleted(itemId, statusData.generation)
+            setLastGeneration(statusData.generation)
+            notifySaved(statusData.generation, tStudio('generateSuccess'))
+            return
+          }
+          if (statusData.status === 'FAILED') {
+            const failure = resolveGenerationError(
+              statusData,
+              tStudio('generateFailed'),
+            )
+            markActiveRunItemFailed(itemId, failure.message)
+            return
+          }
+          if (statusData.status === 'CANCELLED') {
+            markActiveRunItemCancelled(itemId)
+            return
+          }
+          // `alreadyFinished` 保证是终态，真走到这里说明状态还没落库——没有
+          // 循环兜底，与其让它永远停在 generating，不如报一次失败让用户重试。
+          markActiveRunItemFailed(itemId, tStudio('generateFailed'))
+        })
+        .catch(() => {
+          markActiveRunItemFailed(itemId, tStudio('generateFailed'))
+        })
+    },
+    [
+      pollVideoJobForRunItem,
+      pollImageJobForRunItem,
+      updateActiveRunItem,
+      notifySaved,
+      tStudio,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+      markActiveRunItemCancelled,
+      resolveGenerationError,
+    ],
+  )
+
+  /**
+   * 真取消一批 run item —— 本地即时反馈（摘条 / 标 cancelled）+ 服务端
+   * `cancelGenerationsAPI`（fire-and-forget，失败给 toast 不静默）。
+   *
+   * ## 视频 vs 图片/音频：本地反馈不一样
+   *
+   * 视频队列是横滑/纵列条目，摘掉一条不影响版面；图片/音频的 compare / variant
+   * 是**固定格数**的矩阵/图墙，摘掉一格会让栅格塌陷、错位到看不出「取消了第几
+   * 张」。所以视频照旧摘条，图片/音频原地把那格标成 `cancelled`（灰底 + 文案，
+   * 见 `CompareGrid` / `AudioVariantGrid`）。
+   *
+   * ## 批量 + 分片
+   *
+   * `cancelGenerationsAPI` 单次请求上限 `GENERATION_CANCEL_MAX_BATCH`（16），
+   * 「取消全部」可能一次收集超过 16 个 jobId，按这个上限切片、逐片各发一次。
    *
    * ⛔ 不调 `finish(err)`：那会 `setError` 弹全局错误框并替**还在跑的其它条**
    * 宣布整轮结束（与 `generateVideo` 里那条注释同一个理由）。
+   *
+   * ## `alreadyFinished` 竞态
+   *
+   * 服务端返回的不只是「成功/失败」，还按 job 分了三桶（见
+   * `cancelGenerationsResponseSchema`）——`alreadyFinished` 是本地这边判断
+   * 「还能取消」和服务端 CAS 判断「已经到终态」之间的竞态：本地已经乐观地标
+   * 成 cancelled，服务端却说这条其实已经跑完/失败了。不回滚就是一次静默的
+   * 「用户以为取消了，其实钱花了」。回滚逻辑在 `restoreAlreadyFinishedItem`。
    */
-  const cancelVideoQueueItem = useCallback((itemId: string): void => {
-    cancelledVideoItemsRef.current.add(itemId)
-    setActiveRun((prev) =>
-      prev
-        ? { ...prev, items: prev.items.filter((item) => item.id !== itemId) }
-        : null,
-    )
-    videoJobParamsRef.current.delete(itemId)
-  }, [])
+  const cancelRunItems = useCallback(
+    (itemIds: string[]): void => {
+      if (itemIds.length === 0) return
+      const idSet = new Set(itemIds)
+      const outputType = activeRun?.outputType
+      // 取消前的快照——`alreadyFinished` 回滚视频条目时它已经被摘出队列，
+      // 需要原来的 modelId/startedAt 才能塞回去。
+      const snapshotByItemId = new Map<string, RunItem>()
+      activeRun?.items.forEach((item) => {
+        if (idSet.has(item.id)) snapshotByItemId.set(item.id, item)
+      })
+      const jobIds: string[] = []
+      const jobIdToItemId = new Map<string, string>()
+      itemIds.forEach((id) => {
+        cancelledRunItemsRef.current.add(id)
+        const jobId = activeJobIdsRef.current.get(id)
+        if (jobId) {
+          jobIds.push(jobId)
+          jobIdToItemId.set(jobId, id)
+        }
+        activeJobIdsRef.current.delete(id)
+        videoJobParamsRef.current.delete(id)
+      })
+
+      setActiveRun((prev) => {
+        if (!prev) return prev
+        if (prev.outputType === 'VIDEO') {
+          return {
+            ...prev,
+            items: prev.items.filter((item) => !idSet.has(item.id)),
+          }
+        }
+        return {
+          ...prev,
+          items: prev.items.map((item) =>
+            idSet.has(item.id) ? toCancelledRunItem(item) : item,
+          ),
+        }
+      })
+
+      // 单张图片/音频共用一个 `pollRef`（唯一在跑的那条）——取消它就是取消
+      // 整轮的等待态，不然那个 interval 还会继续戳一个服务端已经杀掉的 job。
+      // ⚠ 视频的 `mode` 也长期是 'single'（`generateVideo` 排队时不改它），
+      // 但视频走的是各自独立的 `pollVideoJobForRunItem` 循环，不碰共享的
+      // `pollRef`/`timerRef` —— 这里必须把它排除，否则取消队列里一条会误
+      // 把还在跑的同批其它条的计时/生成态一起拍平。
+      if (activeRun?.mode === 'single' && activeRun.outputType !== 'VIDEO') {
+        stopPolling()
+        stopTimer()
+        setIsGenerating(false)
+        setStage('idle')
+      }
+
+      for (let i = 0; i < jobIds.length; i += GENERATION_CANCEL_MAX_BATCH) {
+        const chunk = jobIds.slice(i, i + GENERATION_CANCEL_MAX_BATCH)
+        void cancelGenerationsAPI(chunk).then((res) => {
+          if (!res.success) {
+            toast.error(res.error ?? tCancel('cancelFailed'))
+            return
+          }
+          if (!res.data || !outputType) return
+          res.data.alreadyFinished.forEach((jobId) => {
+            const itemId = jobIdToItemId.get(jobId)
+            if (!itemId) return
+            restoreAlreadyFinishedItem(
+              itemId,
+              jobId,
+              outputType,
+              snapshotByItemId.get(itemId),
+            )
+          })
+          // notFound：既不属于这个用户也没有这一行——同样不是「真取消掉了」，
+          // 按失败提示，不能让用户以为它被取消了。
+          if (res.data.notFound.length > 0) {
+            toast.error(tCancel('cancelFailed'))
+          }
+        })
+      }
+    },
+    [activeRun, stopPolling, stopTimer, tCancel, restoreAlreadyFinishedItem],
+  )
+
+  const cancelRunItem = useCallback(
+    (itemId: string): void => cancelRunItems([itemId]),
+    [cancelRunItems],
+  )
+
+  /**
+   * 取消整轮里**还没结束**的条目（pending / generating）——「全部取消」按钮
+   * 用的就是它。已完成 / 已失败 / 已取消的条目原地不动。
+   */
+  const cancelAllRunItems = useCallback((): void => {
+    if (!activeRun) return
+    const ids = activeRun.items
+      .filter(
+        (item) => item.status === 'pending' || item.status === 'generating',
+      )
+      .map((item) => item.id)
+    cancelRunItems(ids)
+  }, [activeRun, cancelRunItems])
 
   const reset = useCallback(() => {
     setError(null)
@@ -1523,6 +1874,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     activeVideoJobCount,
     canQueueMoreVideo,
     retryVideoQueueItem,
-    cancelVideoQueueItem,
+    cancelRunItem,
+    cancelAllRunItems,
   }
 }

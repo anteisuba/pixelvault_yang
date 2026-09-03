@@ -7101,5 +7101,12 @@
     "error": {
       "generic": "今回のラウンドは最後まで走りませんでした"
     }
+  },
+  "GenerationCancel": {
+    "cancel": "キャンセル",
+    "cancelAll": "すべてキャンセル",
+    "cancelling": "キャンセル中…",
+    "cancelled": "キャンセル済み",
+    "cancelFailed": "キャンセルに失敗しました。処理は続行中です"
   }
 }

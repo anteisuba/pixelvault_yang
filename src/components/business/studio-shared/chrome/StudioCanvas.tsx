@@ -69,7 +69,8 @@ export const StudioCanvas = memo(function StudioCanvas() {
     isGenerating,
     elapsedSeconds,
     retryVideoQueueItem,
-    cancelVideoQueueItem,
+    cancelRunItem,
+    cancelAllRunItems,
   } = useStudioGen()
   const tAudioFeedback = useTranslations('audioFeedback')
   const tEdit = useTranslations('StudioImageEdit')
@@ -423,7 +424,8 @@ export const StudioCanvas = memo(function StudioCanvas() {
           focusedItemId={activeFocusedQueueItemId}
           onFocus={setFocusedQueueItemId}
           onRetry={(itemId) => void retryVideoQueueItem(itemId)}
-          onCancel={cancelVideoQueueItem}
+          onCancel={cancelRunItem}
+          onCancelAll={cancelAllRunItems}
         />
       ) : null}
 
@@ -457,7 +459,11 @@ export const StudioCanvas = memo(function StudioCanvas() {
           />
         ) : activeRun?.mode === 'compare' || activeRun?.mode === 'variant' ? (
           state.outputType === 'audio' ? (
-            <AudioVariantGrid items={activeRun.items} />
+            <AudioVariantGrid
+              items={activeRun.items}
+              onCancel={cancelRunItem}
+              onCancelAll={cancelAllRunItems}
+            />
           ) : (
             <CompareGrid
               items={activeRun.items}
@@ -466,6 +472,8 @@ export const StudioCanvas = memo(function StudioCanvas() {
               elapsedSeconds={elapsedSeconds}
               onEdit={handleEdit}
               onUseAsReference={handleUseAsReference}
+              onCancel={cancelRunItem}
+              onCancelAll={cancelAllRunItems}
             />
           )
         ) : !lastGeneration && stageReference ? (
@@ -519,6 +527,8 @@ export const StudioCanvas = memo(function StudioCanvas() {
           focusedItemId={activeFocusedQueueItemId}
           onFocus={setFocusedQueueItemId}
           onRetry={(itemId) => void retryVideoQueueItem(itemId)}
+          onCancel={cancelRunItem}
+          onCancelAll={cancelAllRunItems}
         />
       ) : null}
 

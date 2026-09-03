@@ -43,6 +43,7 @@ vi.mock('@/lib/api-client', () => ({
   generateAudioAPI: vi.fn(),
   checkAudioStatusAPI: vi.fn(),
   studioSelectWinnerAPI: vi.fn(),
+  cancelGenerationsAPI: vi.fn(),
 }))
 
 vi.mock('@/lib/api-error-message', () => ({
@@ -72,6 +73,7 @@ import {
   checkAudioStatusAPI,
   submitVideoAPI,
   checkVideoStatusAPI,
+  cancelGenerationsAPI,
 } from '@/lib/api-client'
 import { toast } from 'sonner'
 
@@ -81,6 +83,7 @@ const mockGenerateAudio = vi.mocked(generateAudioAPI)
 const mockCheckAudioStatus = vi.mocked(checkAudioStatusAPI)
 const mockSubmitVideo = vi.mocked(submitVideoAPI)
 const mockCheckVideoStatus = vi.mocked(checkVideoStatusAPI)
+const mockCancelGenerations = vi.mocked(cancelGenerationsAPI)
 
 function wrapper({ children }: { children: ReactNode }) {
   return createElement(LoraStackProvider, null, children)
@@ -136,6 +139,10 @@ describe('useUnifiedGenerate', () => {
         status: 'COMPLETED',
         generation: FAKE_GENERATION,
       },
+    })
+    mockCancelGenerations.mockResolvedValue({
+      success: true,
+      data: { cancelled: [], alreadyFinished: [], notFound: [] },
     })
   })
 
@@ -965,6 +972,113 @@ describe('useUnifiedGenerate', () => {
       expect(result.current.activeRun?.items[0].status).toBe('failed')
       // `error` 是全局错误对话框的开关 —— 队列里单条失败不该弹它
       expect(result.current.error).toBeNull()
+    })
+
+    it('⭐ 取消这一条会真调服务端 cancelGenerationsAPI，传的是它的 jobId 不是本地 item.id', async () => {
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      await queueVideo(result)
+      const itemId = result.current.activeRun!.items[0].id
+
+      await act(async () => {
+        result.current.cancelRunItem(itemId)
+        await Promise.resolve()
+      })
+
+      // 本地立刻反馈：视频队列摘条（保留既有 UX）。
+      expect(
+        result.current.activeRun?.items.some((item) => item.id === itemId),
+      ).toBe(false)
+      // 真取消：服务端 jobId（`job-video-1`，来自 mockSubmitVideo），不是
+      // 前端自己生成的 itemId。
+      expect(mockCancelGenerations).toHaveBeenCalledWith(['job-video-1'])
+      expect(itemId).not.toBe('job-video-1')
+    })
+
+    it('⭐ alreadyFinished 竞态：服务端说任务已经跑完了，本地不能停在 cancelled——回滚成 generating 并把最终结果接回来', async () => {
+      vi.useFakeTimers()
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      await queueVideo(result)
+      const itemId = result.current.activeRun!.items[0].id
+
+      // 竞态：本地已经乐观地把它摘出队列，但服务端 CAS 判定这个 job
+      // 早就到了终态——取消请求打了个空。
+      mockCancelGenerations.mockResolvedValueOnce({
+        success: true,
+        data: { cancelled: [], alreadyFinished: ['job-video-1'], notFound: [] },
+      })
+
+      await act(async () => {
+        result.current.cancelRunItem(itemId)
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      // 回滚：条目被塞回队列，状态是 generating——不是消失、也不是停在 cancelled。
+      const restored = result.current.activeRun?.items.find(
+        (item) => item.id === itemId,
+      )
+      expect(restored).toBeDefined()
+      expect(restored?.status).toBe('generating')
+
+      // 重新拉起的轮询最终真的拿到了结果。
+      mockCheckVideoStatus.mockResolvedValue({
+        success: true,
+        data: {
+          jobId: 'job-video-1',
+          status: 'COMPLETED',
+          generation: FAKE_GENERATION,
+        },
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(VIDEO_GENERATION.POLL_INTERVAL_MS)
+      })
+
+      const finalItem = result.current.activeRun?.items.find(
+        (item) => item.id === itemId,
+      )
+      expect(finalItem?.status).toBe('completed')
+      expect(finalItem?.generation?.id).toBe(FAKE_GENERATION.id)
+    })
+
+    it('取消失败时给 toast 提示，不静默', async () => {
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+      mockCancelGenerations.mockResolvedValueOnce({
+        success: false,
+        error: 'cancel blew up',
+      })
+
+      await queueVideo(result)
+      const itemId = result.current.activeRun!.items[0].id
+
+      await act(async () => {
+        result.current.cancelRunItem(itemId)
+        await Promise.resolve()
+      })
+
+      expect(toast.error).toHaveBeenCalledWith('cancel blew up')
+    })
+
+    it('轮询收到 CANCELLED 时干净收尾：不落进失败态、不弹全局错误', async () => {
+      vi.useFakeTimers()
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      mockCheckVideoStatus.mockResolvedValue({
+        success: true,
+        data: { jobId: 'job-video-1', status: 'CANCELLED' },
+      })
+
+      await queueVideo(result)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(VIDEO_GENERATION.POLL_INTERVAL_MS)
+      })
+
+      // 服务端在本地取消标记生效前就已经把状态吐成 CANCELLED —— 这一条
+      // 被标成 cancelled，不是 failed，也不弹全局错误。
+      expect(result.current.activeRun?.items[0]?.status).not.toBe('failed')
+      expect(result.current.error).toBeNull()
+      expect(toast.error).not.toHaveBeenCalled()
     })
   })
 

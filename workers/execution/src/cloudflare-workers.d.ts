@@ -66,9 +66,21 @@ declare module 'cloudflare:workers' {
     instanceId: string
   }
 
+  /**
+   * A running (or finished) workflow instance handle. `terminate()` stops a
+   * still-running instance immediately; it rejects for an instance that's
+   * already completed/errored/terminated — callers doing a best-effort
+   * cancel must treat that rejection as "nothing to do", not a hard error.
+   * See https://developers.cloudflare.com/workflows/build/workers-api/#instance.
+   */
+  export interface WorkflowInstance {
+    id: string
+    terminate(): Promise<void>
+  }
+
   export interface Workflow<TParams = unknown> {
-    create(options: { id?: string; params: TParams }): Promise<{ id: string }>
-    get(id: string): Promise<{ id: string }>
+    create(options: { id?: string; params: TParams }): Promise<WorkflowInstance>
+    get(id: string): Promise<WorkflowInstance>
   }
 
   export abstract class WorkflowEntrypoint<TEnv = unknown, TParams = unknown> {

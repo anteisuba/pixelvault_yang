@@ -938,6 +938,31 @@
   animation-delay: 0.48s;
 }
 
+/* 讲话丸里的取消——只在原始生成排队/跑着时出现，见 VoiceLineBubble。 */
+.vr-speaking-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vr-dim);
+  cursor: pointer;
+  transition: color var(--vr-t-fast) ease;
+}
+
+.vr-speaking-cancel:hover:not(:disabled) {
+  color: var(--vr-alarm);
+}
+
+.vr-speaking-cancel:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 @keyframes vr-talk {
   0%,
   100% {

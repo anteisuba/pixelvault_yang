@@ -6,10 +6,9 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 export const maxDuration = 30
 
 /**
- * PR3-α: abort an in-flight 3D job. Allowed in any non-COMPLETED state;
- * idempotent on already-FAILED jobs. Marks the job FAILED with a
- * CANCELLED_BY_USER sentinel so the status check can surface
- * `cancelled: true` to the client (suppressing the error toast).
+ * Abort an in-flight 3D job. Allowed in any non-COMPLETED state; idempotent
+ * on already-terminal jobs. CAS-transitions QUEUED/RUNNING jobs to the
+ * `CANCELLED` `GenerationJobStatus` — see `cancel3DGenerationForUserId`.
  */
 export const POST = createApiRoute({
   schema: Cancel3DRequestSchema,

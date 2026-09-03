@@ -219,16 +219,16 @@ export function useGenerate3D(): UseGenerate3DReturn {
             return
           }
 
+          if (status === 'CANCELLED') {
+            // Real cancel (`GenerationJob.CANCELLED`, 2026-09) — a clean
+            // termination the user asked for, no error toast. The old
+            // `FAILED` + `cancelled: true` sentinel this replaced is gone
+            // from the server; don't resurrect that check here.
+            finish()
+            return
+          }
+
           if (status === 'FAILED') {
-            // PR3-α: user-initiated cancel surfaces as FAILED + cancelled.
-            // Treat it like a clean termination (no error toast).
-            const cancelled =
-              statusResponse.data.status === 'FAILED' &&
-              statusResponse.data.cancelled === true
-            if (cancelled) {
-              finish()
-              return
-            }
             finish(
               getGenerationErrorMessage(
                 tErrors,

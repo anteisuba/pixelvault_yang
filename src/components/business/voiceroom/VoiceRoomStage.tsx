@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import {
   VOICE_ROOM_LINE_STAGGER_MS,
   VOICE_ROOM_NAME_MAX_LENGTH,
 } from '@/constants/voiceroom'
+import { cancelGenerationsAPI } from '@/lib/api-client'
 import type { AudioEmotion } from '@/constants/voice-cards'
 import type {
   VoiceRoomCastMember,
@@ -66,6 +68,35 @@ export function VoiceRoomStage({
   const [renaming, setRenaming] = useState(false)
   const [pickedId, setPickedId] = useState<string | null>(null)
   const flowRef = useRef<HTMLDivElement | null>(null)
+  /**
+   * 正在取消的台词 id——独立状态，理由同 `retakingIds`（见宿主 hook）：不能
+   * 借 `detail.lines` 里的字段乐观标记，2s 一轮的房间轮询会用服务端当时还没
+   * 翻过去的 status 把乐观态盖回去。按钮据此禁用，避免连点发出两次取消请求。
+   */
+  const [cancellingIds, setCancellingIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
+
+  /**
+   * 取消一条还在 QUEUED / RUNNING 的台词——直接调统一取消端点
+   * `cancelGenerationsAPI`（image/video/audio/3D 共用，见
+   * `src/lib/api-client/generation.ts`），不经 `useVoiceRoom`：这条 hook 目前
+   * 唯一的推进方式是 2s 一轮轮询整个房间（见其顶部注释），取消之后同一轮
+   * 轮询会把 `audio.status` 更新成 `CANCELLED`——`VoiceLineBubble` 的
+   * `isPendingStatus` 本来就不认 CANCELLED，讲话丸自己静默收掉，不当失败。
+   */
+  const handleCancelAudio = async (line: VoiceRoomDetail['lines'][number]) => {
+    const jobId = line.audio?.jobId
+    if (!jobId || cancellingIds.has(line.id)) return
+    setCancellingIds((current) => new Set(current).add(line.id))
+    const result = await cancelGenerationsAPI([jobId])
+    setCancellingIds((current) => {
+      const next = new Set(current)
+      next.delete(line.id)
+      return next
+    })
+    if (!result.success) toast.error(result.error ?? t('cancel'))
+  }
 
   /**
    * 谁在开口 = **派生值**，不是要跟班底同步的一份 state。
@@ -186,7 +217,9 @@ export function VoiceRoomStage({
                 index < staggerUntil ? index * VOICE_ROOM_LINE_STAGGER_MS : 0
               }
               retaking={retakingIds.has(line.id)}
+              cancelling={cancellingIds.has(line.id)}
               onRetake={onRetake}
+              onCancel={() => void handleCancelAudio(line)}
             />
           ))}
 

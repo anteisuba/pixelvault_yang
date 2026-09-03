@@ -7101,5 +7101,12 @@
     "error": {
       "generic": "助手这一轮没跑完"
     }
+  },
+  "GenerationCancel": {
+    "cancel": "取消",
+    "cancelAll": "全部取消",
+    "cancelling": "取消中…",
+    "cancelled": "已取消",
+    "cancelFailed": "取消失败，任务仍在进行"
   }
 }

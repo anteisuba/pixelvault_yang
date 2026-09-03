@@ -1,15 +1,20 @@
 'use client'
 
 import { memo } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Ban, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import type { RunItem } from '@/types'
+import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
 interface AudioVariantGridProps {
   items: RunItem[]
+  /** 取消这一条正在跑的音频。给了才画每行的取消按钮。 */
+  onCancel?: (itemId: string) => void
+  /** 取消这一轮里所有还没结束的条目。给了且确有条目在跑才画「全部取消」。 */
+  onCancelAll?: () => void
 }
 
 /** `m:ss`。时长缺席时（provider 没回）不印，不猜。 */
@@ -40,11 +45,29 @@ function formatClipLength(seconds: number | null | undefined): string | null {
  */
 export const AudioVariantGrid = memo(function AudioVariantGrid({
   items,
+  onCancel,
+  onCancelAll,
 }: AudioVariantGridProps) {
   const t = useTranslations('StudioV3')
+  const tCancel = useTranslations('GenerationCancel')
+  const hasRunning = items.some((item) => item.status === 'generating')
 
   return (
     <div className="flex flex-col gap-2">
+      {hasRunning && onCancelAll && (
+        <div className="flex items-center justify-end">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="rounded-full text-muted-foreground"
+            onClick={onCancelAll}
+          >
+            <Ban className="size-3.5" />
+            {tCancel('cancelAll')}
+          </Button>
+        </div>
+      )}
       {items.map((item, idx) => {
         const isCompleted =
           item.status === 'completed' && item.generation != null
@@ -55,7 +78,9 @@ export const AudioVariantGrid = memo(function AudioVariantGrid({
             key={item.id}
             className={cn(
               'flex min-h-16 items-center gap-3 rounded-xl border border-border/60 px-4 py-3',
-              item.status === 'failed' ? 'bg-muted/10' : 'bg-background',
+              item.status === 'failed' || item.status === 'cancelled'
+                ? 'bg-muted/10'
+                : 'bg-background',
             )}
           >
             <div className="flex w-20 shrink-0 flex-col gap-0.5">
@@ -70,9 +95,19 @@ export const AudioVariantGrid = memo(function AudioVariantGrid({
             </div>
 
             {item.status === 'generating' && (
-              <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="flex min-w-0 flex-1 items-center gap-2 text-muted-foreground">
                 <Spinner size="md" />
                 <span className="text-xs">{t('generating')}</span>
+                {onCancel && (
+                  <button
+                    type="button"
+                    onClick={() => onCancel(item.id)}
+                    data-testid="audio-variant-cancel"
+                    className="ml-auto min-h-8 shrink-0 rounded-lg px-2.5 text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground"
+                  >
+                    {tCancel('cancel')}
+                  </button>
+                )}
               </div>
             )}
 
@@ -82,6 +117,13 @@ export const AudioVariantGrid = memo(function AudioVariantGrid({
                 <span className="text-xs">
                   {item.error ?? t('generateFailed')}
                 </span>
+              </div>
+            )}
+
+            {item.status === 'cancelled' && (
+              <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                <X className="size-4 shrink-0 text-muted-foreground/60" />
+                <span className="text-xs">{tCancel('cancelled')}</span>
               </div>
             )}
 

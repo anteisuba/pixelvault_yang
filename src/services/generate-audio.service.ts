@@ -182,7 +182,7 @@ interface AudioExecutionOutboxState {
 interface AudioJobState {
   id: string
   userId: string
-  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
   modelId: string
   adapterType: string
   provider: string
@@ -1378,6 +1378,10 @@ export async function checkAudioGenerationStatus(
     }
   }
 
+  if (job.status === 'CANCELLED') {
+    return { jobId: job.id, status: 'CANCELLED' }
+  }
+
   if (!job.externalRequestId) {
     throw new GenerateImageServiceError(
       'INVALID_JOB',
@@ -1420,6 +1424,10 @@ export async function checkAudioGenerationStatus(
           hasReferenceImage: getImageInputCount(metadata) > 0,
         }),
       }
+    }
+
+    if (freshJob?.status === 'CANCELLED') {
+      return { jobId: job.id, status: 'CANCELLED' }
     }
 
     return { jobId: job.id, status: 'IN_QUEUE' }
@@ -1519,6 +1527,10 @@ export async function checkAudioGenerationStatus(
           hasReferenceImage: getImageInputCount(metadata) > 0,
         }),
       }
+    }
+
+    if (freshJob?.status === 'CANCELLED') {
+      return { jobId: job.id, status: 'CANCELLED' }
     }
 
     return { jobId: job.id, status: 'IN_PROGRESS' }
@@ -1659,7 +1671,7 @@ function buildAudioSubmitOutboxPayload(
 function toAudioJobState(job: {
   id: string
   userId: string
-  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
   modelId: string
   adapterType: string
   provider: string

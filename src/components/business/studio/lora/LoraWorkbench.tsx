@@ -592,8 +592,11 @@ function GenerateBranch({
     lastGeneration,
     elapsedSeconds,
     error: generateError,
+    activeRun,
+    cancelRunItem,
   } = useUnifiedGenerate()
   const tStudioV3 = useTranslations('StudioV3')
+  const tCancel = useTranslations('GenerationCancel')
   const generatingStageLabel = tStudioV3(
     `generatingOverlayStages.${getGeneratingStageKey(elapsedSeconds)}` as const,
   )
@@ -2663,6 +2666,26 @@ function GenerateBranch({
                       className="absolute inset-0 cursor-zoom-in"
                     />
                   )}
+                  {/* 取消：LoRA 出图是单次无批次（无 variant/compare），
+                      `activeRun` 恒为 hook 内部为这次单图请求建的 single-item
+                      批次（见 use-unified-generate 的 generateImage），jobId 在
+                      提交成功那一刻就登记进 `activeJobIdsRef`——不需要在这里
+                      额外补登记。位置/尺寸与 GenerationPreview 的取消键同款，
+                      只在生成中显示，与下面「问助手」（生成中不给）互斥不重叠。 */}
+                  {showGeneratingOverlay &&
+                  activeRun?.mode === 'single' &&
+                  activeRun.items[0] ? (
+                    <button
+                      type="button"
+                      onClick={() => cancelRunItem(activeRun.items[0].id)}
+                      data-testid="lora-generation-cancel"
+                      aria-label={tCancel('cancel')}
+                      className="absolute right-2 top-2 z-10 grid size-7 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors hover:text-foreground"
+                    >
+                      <X className="size-3.5" aria-hidden />
+                      <span className="sr-only">{tCancel('cancel')}</span>
+                    </button>
+                  ) : null}
                   {/* 「问助手」：把**当前展示的**那张结果图挂进助手输入区并把
                       助手展开（§3.0b 第 4 条在装配台的落点）。缩略条切哪张，
                       这里就问哪张——URL 取 displayedResultUrl 而不是最新一张。

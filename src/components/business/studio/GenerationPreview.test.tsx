@@ -64,6 +64,7 @@ vi.mock('@/contexts/studio-context', () => ({
     isGenerating: false,
     elapsedSeconds: 0,
     activeRun: null,
+    cancelRunItem: vi.fn(),
   }),
   useStudioForm: () => ({
     state: {

@@ -4,12 +4,14 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import {
   AlertTriangle,
+  Ban,
   Bot,
   Check,
   Download,
   Maximize2,
   Images,
   Wand2,
+  X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -45,6 +47,10 @@ interface CompareGridProps {
   elapsedSeconds: number
   onEdit: (generation: GenerationRecord) => void
   onUseAsReference: (url: string) => void
+  /** 取消格里正在跑的这一条。给了才画每格右上角的取消按钮。 */
+  onCancel?: (itemId: string) => void
+  /** 取消这一轮里所有还没结束的条目。给了且确有条目在跑才画「全部取消」。 */
+  onCancelAll?: () => void
 }
 
 interface ModelRow {
@@ -81,8 +87,11 @@ export const CompareGrid = memo(function CompareGrid({
   elapsedSeconds,
   onEdit,
   onUseAsReference,
+  onCancel,
+  onCancelAll,
 }: CompareGridProps) {
   const t = useTranslations('StudioV3')
+  const tCancel = useTranslations('GenerationCancel')
   const tModels = useTranslations('Models')
   const tGallery = useTranslations('GalleryCard')
   const tErrors = useTranslations('Errors')
@@ -156,8 +165,24 @@ export const CompareGrid = memo(function CompareGrid({
     }
   }, [focusedGeneration, isDownloading, tErrors, tGallery])
 
+  const hasRunning = items.some((item) => item.status === 'generating')
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {hasRunning && onCancelAll && (
+        <div className="mb-3 flex items-center justify-end">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="rounded-full text-muted-foreground"
+            onClick={onCancelAll}
+          >
+            <Ban className="size-3.5" />
+            {tCancel('cancelAll')}
+          </Button>
+        </div>
+      )}
       <div
         className="studio-result-row flex flex-col gap-5"
         role="listbox"
@@ -248,6 +273,20 @@ export const CompareGrid = memo(function CompareGrid({
                             stageLabel={t('generating')}
                             variant="compact"
                           />
+                          {onCancel && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                onCancel(item.id)
+                              }}
+                              aria-label={tCancel('cancel')}
+                              data-testid="compare-grid-cancel"
+                              className="absolute right-1.5 top-1.5 z-10 grid size-7 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
+                            >
+                              <X className="size-3.5" />
+                            </button>
+                          )}
                         </>
                       )}
 
@@ -256,6 +295,15 @@ export const CompareGrid = memo(function CompareGrid({
                           <AlertTriangle className="size-5 text-destructive/60" />
                           <p className="text-center text-xs text-muted-foreground">
                             {item.error ?? t('generateFailed')}
+                          </p>
+                        </div>
+                      )}
+
+                      {item.status === 'cancelled' && (
+                        <div className="flex size-full flex-col items-center justify-center gap-2 px-4 text-muted-foreground">
+                          <Ban className="size-5 text-muted-foreground/60" />
+                          <p className="text-center text-xs">
+                            {tCancel('cancelled')}
                           </p>
                         </div>
                       )}

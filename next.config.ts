@@ -20,6 +20,14 @@ const storageHost = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
   : 'pub-5346558f8dc549f9ba5217489fe5395e.r2.dev'
 
 const nextConfig: NextConfig = {
+  // Next dev-only route indicator defaults to bottom-left, which is exactly
+  // where mobile bottom sheets/drawers put their primary action (LoRA detail
+  // drawer, training sheet, asset sheet, …) — it paints on top and eats taps
+  // on the left end of the button. Doesn't exist in production builds; move
+  // it out of the way here instead of fighting it with app-side z-index.
+  devIndicators: {
+    position: 'bottom-right',
+  },
   experimental: {
     proxyClientMaxBodySize: PROXY_CLIENT_MAX_BODY_SIZE,
     // Tree-shake barrel imports for heavy icon/UI packages. Without this, a

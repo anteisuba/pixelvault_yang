@@ -84,16 +84,20 @@ export function LoraLibraryRow(props: LoraLibraryRowProps) {
       className={cn(
         // R1 close-review（owner 2026-07-19「这个尺寸下看着这么小」）：整行放大
         // ——更高行、更大缩略图、元数据升到 text-xs，宽视口下更有存在感。
-        'group flex w-full items-center gap-3.5 rounded-xl border border-transparent px-2.5 py-2.5 text-left transition-colors',
+        // ⚠ 手机（<640）是另一套配比，不是同一行的缩水：375 下这一行原本
+        // 只给名字留 99px，全都是 `Detail Twea…`，看不出是哪个 LoRA
+        // （owner 2026-09-03）。所以窄屏砍掉序号与装饰性外链图标、缩略图
+        // 56→44、底模徽章下沉第二行 —— 名字拿到约 235px，行高 76→64。
+        'group flex w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2.5 text-left transition-colors sm:gap-3.5',
         'hover:border-border/60 hover:bg-muted/30',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
       )}
     >
-      <span className="w-6 shrink-0 text-center text-sm tabular-nums text-muted-foreground/70">
+      <span className="w-6 shrink-0 text-center text-sm tabular-nums text-muted-foreground/70 max-sm:hidden">
         {index}
       </span>
 
-      <span className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+      <span className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-muted sm:size-14">
         {thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -115,11 +119,14 @@ export function LoraLibraryRow(props: LoraLibraryRowProps) {
       </span>
 
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex min-w-0 items-center gap-2">
+        {/* ⚠ 窄屏这一列别用 items-start：那会让名字按内容宽排版，`truncate`
+            永远不触发，长名直接顶出行外被视口切掉。默认 stretch 才有宽度可截，
+            徽章因此得自己 self-start。 */}
+        <span className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
           <span className="min-w-0 truncate text-sm font-medium text-foreground">
             {name}
           </span>
-          <span className="shrink-0 rounded border border-border/60 px-1.5 py-px text-2xs font-medium text-muted-foreground">
+          <span className="shrink-0 self-start rounded border border-border/60 px-1.5 py-px text-2xs font-medium text-muted-foreground sm:self-auto">
             {familyLabel}
           </span>
         </span>
@@ -136,7 +143,9 @@ export function LoraLibraryRow(props: LoraLibraryRowProps) {
         </span>
       </span>
 
-      <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+      {/* 窄屏整组收起：源标签本来就 `hidden sm:inline`，只剩一个装饰性图标，
+          真正的「打开来源」动作在展开详情里 —— 不值窄屏的 28px。 */}
+      <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground max-sm:hidden">
         <span className="hidden sm:inline">
           {t(isCivitai ? 'librarySourceCivitai' : 'librarySourceHuggingFace')}
         </span>

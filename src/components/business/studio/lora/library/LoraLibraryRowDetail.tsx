@@ -113,12 +113,19 @@ function DetailShell({
     // 平滑高度揭示由外层 `.lora-detail-reveal`（globals.css）负责——这里只
     // 管卡片本身的视觉。
     <div className="rounded-2xl border border-primary/40 bg-muted/10 p-3 ring-1 ring-primary/20 sm:p-4">
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <div className="w-full shrink-0 lg:w-64">{cover}</div>
+      {/* ⚠ 封面是 4:5 定比，`w-full` 在窄视口下等于「容器多宽它就多高」：
+          618 宽实机上它 675px 高，把名称、底模、触发词整块顶出屏外，展开一行
+          等于什么都看不见（owner 2026-09-03）。所以两道收窄：
+          <640 仍上下堆但封面收到 192px 居中；≥640 就改成封面在左的两栏，
+          动作列换行到下面独占一行；≥1024 才回到原来的三栏。 */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap lg:flex-nowrap">
+        <div className="w-48 shrink-0 max-sm:mx-auto sm:w-40 lg:w-64">
+          {cover}
+        </div>
         <div className="min-w-0 flex-1">{info}</div>
         {/* 收起控件挪进动作列顶部右对齐——不再 absolute 叠在「使用此 LoRA」
             按钮上（owner 反馈重叠）。 */}
-        <div className="flex shrink-0 flex-col gap-2 lg:w-44">
+        <div className="flex shrink-0 flex-col gap-2 max-lg:w-full lg:w-44">
           <div className="flex justify-end">
             <button
               type="button"

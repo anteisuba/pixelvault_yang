@@ -826,11 +826,20 @@ export const PAGINATION = {
 } as const
 
 /**
- * URLs per generated sitemap segment (`/sitemap/<id>.xml`). Google's own
- * per-file cap is 50,000 — 1,000 keeps each segment light while still
- * needing very few segments at current scale.
+ * Rows pulled per query while `sitemap.ts` walks the public catalogue. It is a
+ * database batch size, not a URL budget — every batch lands in the same
+ * `/sitemap.xml`.
  */
-export const SITEMAP_PAGE_SIZE = 1000
+export const SITEMAP_QUERY_BATCH_SIZE = 1000
+
+/**
+ * Hard ceiling on the URLs one sitemap file may carry (sitemaps.org / Google
+ * both cap a single file at 50,000). Each entity contributes one URL per
+ * locale, so the ceiling is applied to the flattened list. Splitting into a
+ * sitemap index only becomes worth its complexity once this is actually hit —
+ * the catalogue is three orders of magnitude away from it today.
+ */
+export const SITEMAP_MAX_URLS = 50000
 
 // ─── Studio Refactoring Constants ────────────────────────────────
 

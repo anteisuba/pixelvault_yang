@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 
-import { SITEMAP_PAGE_SIZE } from '@/constants/config'
+import { SITEMAP_MAX_URLS, SITEMAP_QUERY_BATCH_SIZE } from '@/constants/config'
 import {
   ROUTES,
   creatorProfilePath,
@@ -8,36 +8,27 @@ import {
 } from '@/constants/routes'
 import { LOCALES } from '@/i18n/routing'
 import { logger } from '@/lib/logger'
-import {
-  countPublicGenerations,
-  getPublicGenerations,
-} from '@/services/generation.service'
-import {
-  countPublicCreators,
-  listPublicCreatorUsernames,
-} from '@/services/user.service'
+import { getPublicGenerations } from '@/services/generation.service'
+import { listPublicCreatorUsernames } from '@/services/user.service'
 
+/**
+ * `/sitemap.xml` — one file, every public URL.
+ *
+ * ⚠ Deliberately **not** `generateSitemaps`. That convention moves the real
+ * documents to `/sitemap/<id>.xml` while still claiming `/sitemap.xml` as a
+ * metadata route, so a hand-written index at that path is a build-time route
+ * collision (`Conflicting route and metadata at /sitemap.xml`) — and the path
+ * Search Console already has on file would stop being the sitemap. A single
+ * file also stays correct up to `SITEMAP_MAX_URLS`, which the catalogue is
+ * nowhere near.
+ *
+ * The catalogue is walked in `SITEMAP_QUERY_BATCH_SIZE` batches so no single
+ * query loads the whole table; a short batch ends the walk.
+ */
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 const sitemapLogger = logger.child({ route: '/sitemap.xml' })
 
 export const dynamic = 'force-dynamic'
-
-// Sitemap is split into segments via `generateSitemaps` (see
-// /sitemap.xml/route.ts for the index that lists them):
-// - `static`          — static routes, one URL per locale
-// - `generations-<n>` — one page (SITEMAP_PAGE_SIZE) of public generations
-// - `creators-<n>`    — one page (SITEMAP_PAGE_SIZE) of public creator profiles
-const STATIC_SEGMENT_ID = 'static'
-const GENERATIONS_SEGMENT_PATTERN = /^generations-(\d+)$/
-const CREATORS_SEGMENT_PATTERN = /^creators-(\d+)$/
-
-function generationsSegmentId(page: number): string {
-  return `generations-${page}`
-}
-
-function creatorsSegmentId(page: number): string {
-  return `creators-${page}`
-}
 
 function getLocalizedUrl(locale: string, route: string): string {
   return route === ROUTES.HOME
@@ -45,27 +36,36 @@ function getLocalizedUrl(locale: string, route: string): string {
     : `${APP_URL}/${locale}${route}`
 }
 
-export async function generateSitemaps(): Promise<{ id: string }[]> {
-  const [generationTotal, creatorTotal] = await Promise.all([
-    countPublicGenerations().catch(() => 0),
-    countPublicCreators().catch(() => 0),
-  ])
+/**
+ * Walk an offset-paginated reader until it returns a short batch. A failing
+ * batch ends the walk and keeps whatever was already collected: a sitemap
+ * missing its tail still beats Search Console fetching a 500.
+ */
+async function collectAllPages<T>(
+  read: (page: number) => Promise<T[]>,
+  label: string,
+): Promise<T[]> {
+  const collected: T[] = []
 
-  const generationPageCount = Math.max(
-    1,
-    Math.ceil(generationTotal / SITEMAP_PAGE_SIZE),
-  )
-  const creatorPageCount = Math.ceil(creatorTotal / SITEMAP_PAGE_SIZE)
+  for (let page = 1; ; page += 1) {
+    let batch: T[]
+    try {
+      batch = await read(page)
+    } catch (error) {
+      sitemapLogger.warn('Sitemap walk stopped early', {
+        label,
+        page,
+        collected: collected.length,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })
+      return collected
+    }
 
-  return [
-    { id: STATIC_SEGMENT_ID },
-    ...Array.from({ length: generationPageCount }, (_, i) => ({
-      id: generationsSegmentId(i + 1),
-    })),
-    ...Array.from({ length: creatorPageCount }, (_, i) => ({
-      id: creatorsSegmentId(i + 1),
-    })),
-  ]
+    collected.push(...batch)
+
+    if (batch.length < SITEMAP_QUERY_BATCH_SIZE) return collected
+    if (collected.length >= SITEMAP_MAX_URLS) return collected
+  }
 }
 
 function getStaticEntries(): MetadataRoute.Sitemap {
@@ -86,49 +86,28 @@ function getStaticEntries(): MetadataRoute.Sitemap {
   )
 }
 
-async function getGenerationEntries(
-  page: number,
-): Promise<MetadataRoute.Sitemap> {
-  let generations: Awaited<ReturnType<typeof getPublicGenerations>> = []
-
-  try {
-    generations = await getPublicGenerations({
-      page,
-      limit: SITEMAP_PAGE_SIZE,
-    })
-  } catch (error) {
-    sitemapLogger.warn('Falling back to an empty generations segment', {
-      page,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    })
-    return []
-  }
+async function getGenerationEntries(): Promise<MetadataRoute.Sitemap> {
+  const generations = await collectAllPages(
+    (page) => getPublicGenerations({ page, limit: SITEMAP_QUERY_BATCH_SIZE }),
+    'generations',
+  )
 
   return LOCALES.flatMap((locale) =>
-    generations.map((gen) => ({
-      url: getLocalizedUrl(locale, galleryGenerationPath(gen.id)),
-      lastModified: new Date(gen.createdAt),
+    generations.map((generation) => ({
+      url: getLocalizedUrl(locale, galleryGenerationPath(generation.id)),
+      lastModified: new Date(generation.createdAt),
       changeFrequency: 'monthly' as const,
       priority: 0.6,
     })),
   )
 }
 
-async function getCreatorEntries(page: number): Promise<MetadataRoute.Sitemap> {
-  let usernames: string[] = []
-
-  try {
-    usernames = await listPublicCreatorUsernames({
-      page,
-      limit: SITEMAP_PAGE_SIZE,
-    })
-  } catch (error) {
-    sitemapLogger.warn('Falling back to an empty creators segment', {
-      page,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    })
-    return []
-  }
+async function getCreatorEntries(): Promise<MetadataRoute.Sitemap> {
+  const usernames = await collectAllPages(
+    (page) =>
+      listPublicCreatorUsernames({ page, limit: SITEMAP_QUERY_BATCH_SIZE }),
+    'creators',
+  )
 
   return LOCALES.flatMap((locale) =>
     usernames.map((username) => ({
@@ -139,26 +118,25 @@ async function getCreatorEntries(page: number): Promise<MetadataRoute.Sitemap> {
   )
 }
 
-export default async function sitemap({
-  id,
-}: {
-  id: Promise<string>
-}): Promise<MetadataRoute.Sitemap> {
-  const segmentId = await id
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const [generationEntries, creatorEntries] = await Promise.all([
+    getGenerationEntries(),
+    getCreatorEntries(),
+  ])
 
-  if (segmentId === STATIC_SEGMENT_ID) {
-    return getStaticEntries()
+  const entries = [
+    ...getStaticEntries(),
+    ...generationEntries,
+    ...creatorEntries,
+  ]
+
+  if (entries.length > SITEMAP_MAX_URLS) {
+    sitemapLogger.warn('Sitemap truncated at the single-file URL ceiling', {
+      total: entries.length,
+      ceiling: SITEMAP_MAX_URLS,
+    })
+    return entries.slice(0, SITEMAP_MAX_URLS)
   }
 
-  const generationsMatch = segmentId.match(GENERATIONS_SEGMENT_PATTERN)
-  if (generationsMatch) {
-    return getGenerationEntries(Number(generationsMatch[1]))
-  }
-
-  const creatorsMatch = segmentId.match(CREATORS_SEGMENT_PATTERN)
-  if (creatorsMatch) {
-    return getCreatorEntries(Number(creatorsMatch[1]))
-  }
-
-  return []
+  return entries
 }

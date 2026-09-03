@@ -664,15 +664,6 @@ export async function getCreatorProfile(
 }
 
 /**
- * Count public, non-deleted creator profiles (for sitemap pagination).
- */
-export async function countPublicCreators(): Promise<number> {
-  return db.user.count({
-    where: { isPublic: true, isDeleted: false, username: { not: null } },
-  })
-}
-
-/**
  * List usernames of public, non-deleted creators for sitemap generation.
  * Username-only select, offset-paginated — no profile or generation data.
  */

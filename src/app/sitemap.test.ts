@@ -1,146 +1,130 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SITEMAP_PAGE_SIZE } from '@/constants/config'
+import { SITEMAP_MAX_URLS, SITEMAP_QUERY_BATCH_SIZE } from '@/constants/config'
 
-const countPublicGenerations = vi.fn()
 const getPublicGenerations = vi.fn()
-const countPublicCreators = vi.fn()
 const listPublicCreatorUsernames = vi.fn()
 
 vi.mock('@/services/generation.service', () => ({
-  countPublicGenerations: (...args: unknown[]) =>
-    countPublicGenerations(...args),
   getPublicGenerations: (...args: unknown[]) => getPublicGenerations(...args),
 }))
 
 vi.mock('@/services/user.service', () => ({
-  countPublicCreators: (...args: unknown[]) => countPublicCreators(...args),
   listPublicCreatorUsernames: (...args: unknown[]) =>
     listPublicCreatorUsernames(...args),
 }))
 
-import sitemap, { generateSitemaps } from './sitemap'
+vi.mock('@/lib/logger', () => ({
+  logger: { child: () => ({ warn: vi.fn(), error: vi.fn(), info: vi.fn() }) },
+}))
 
-describe('generateSitemaps', () => {
+const LOCALE_COUNT = 3
+const STATIC_ROUTES_PER_LOCALE = 4
+
+function makeGenerations(count: number, offset = 0) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `gen-${offset + i}`,
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+  }))
+}
+
+async function runSitemap() {
+  const { default: sitemap } = await import('./sitemap')
+  return sitemap()
+}
+
+describe('sitemap', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetModules()
+    getPublicGenerations.mockReset()
+    listPublicCreatorUsernames.mockReset()
+    getPublicGenerations.mockResolvedValue([])
+    listPublicCreatorUsernames.mockResolvedValue([])
   })
 
-  it('emits exactly one generations page at the SITEMAP_PAGE_SIZE boundary', async () => {
-    countPublicGenerations.mockResolvedValue(SITEMAP_PAGE_SIZE)
-    countPublicCreators.mockResolvedValue(0)
+  it('emits the static routes for every locale', async () => {
+    const entries = await runSitemap()
 
-    const segments = await generateSitemaps()
-
-    expect(segments).toEqual([{ id: 'static' }, { id: 'generations-1' }])
-  })
-
-  it('spills into a second generations page one URL past the boundary', async () => {
-    countPublicGenerations.mockResolvedValue(SITEMAP_PAGE_SIZE + 1)
-    countPublicCreators.mockResolvedValue(0)
-
-    const segments = await generateSitemaps()
-
-    expect(segments).toEqual([
-      { id: 'static' },
-      { id: 'generations-1' },
-      { id: 'generations-2' },
-    ])
-  })
-
-  it('always includes at least one generations page even with zero public generations', async () => {
-    countPublicGenerations.mockResolvedValue(0)
-    countPublicCreators.mockResolvedValue(0)
-
-    const segments = await generateSitemaps()
-
-    expect(segments).toEqual([{ id: 'static' }, { id: 'generations-1' }])
-  })
-
-  it('omits the creators segment entirely when there are no public creators', async () => {
-    countPublicGenerations.mockResolvedValue(0)
-    countPublicCreators.mockResolvedValue(0)
-
-    const segments = await generateSitemaps()
-
-    expect(segments.some((s) => s.id.startsWith('creators-'))).toBe(false)
-  })
-
-  it('paginates creators the same way as generations', async () => {
-    countPublicGenerations.mockResolvedValue(0)
-    countPublicCreators.mockResolvedValue(SITEMAP_PAGE_SIZE + 1)
-
-    const segments = await generateSitemaps()
-
-    expect(segments).toEqual([
-      { id: 'static' },
-      { id: 'generations-1' },
-      { id: 'creators-1' },
-      { id: 'creators-2' },
-    ])
-  })
-
-  it('falls back to zero counts when the count queries reject', async () => {
-    countPublicGenerations.mockRejectedValue(new Error('db down'))
-    countPublicCreators.mockRejectedValue(new Error('db down'))
-
-    const segments = await generateSitemaps()
-
-    expect(segments).toEqual([{ id: 'static' }, { id: 'generations-1' }])
-  })
-})
-
-describe('sitemap()', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('renders one static entry per locale for the static segment', async () => {
-    const entries = await sitemap({ id: Promise.resolve('static') })
-
-    // 3 locales x 4 static routes
-    expect(entries).toHaveLength(12)
-    expect(getPublicGenerations).not.toHaveBeenCalled()
-    expect(listPublicCreatorUsernames).not.toHaveBeenCalled()
-  })
-
-  it('fetches the requested page for a generations segment', async () => {
-    getPublicGenerations.mockResolvedValue([
-      { id: 'gen-1', createdAt: new Date('2026-01-01') },
-    ])
-
-    const entries = await sitemap({ id: Promise.resolve('generations-2') })
-
+    expect(entries).toHaveLength(LOCALE_COUNT * STATIC_ROUTES_PER_LOCALE)
     expect(getPublicGenerations).toHaveBeenCalledWith({
-      page: 2,
-      limit: SITEMAP_PAGE_SIZE,
+      page: 1,
+      limit: SITEMAP_QUERY_BATCH_SIZE,
     })
-    expect(entries).toHaveLength(3) // 1 generation x 3 locales
-  })
-
-  it('fetches the requested page for a creators segment', async () => {
-    listPublicCreatorUsernames.mockResolvedValue(['alice'])
-
-    const entries = await sitemap({ id: Promise.resolve('creators-1') })
-
     expect(listPublicCreatorUsernames).toHaveBeenCalledWith({
       page: 1,
-      limit: SITEMAP_PAGE_SIZE,
+      limit: SITEMAP_QUERY_BATCH_SIZE,
     })
-    expect(entries).toHaveLength(3) // 1 creator x 3 locales
   })
 
-  it('returns an empty sitemap for an unrecognized segment id', async () => {
-    const entries = await sitemap({ id: Promise.resolve('bogus') })
+  it('stops walking after a short batch', async () => {
+    getPublicGenerations.mockResolvedValueOnce(makeGenerations(2))
 
-    expect(entries).toEqual([])
+    const entries = await runSitemap()
+
+    expect(getPublicGenerations).toHaveBeenCalledTimes(1)
+    expect(entries).toHaveLength(
+      LOCALE_COUNT * STATIC_ROUTES_PER_LOCALE + 2 * LOCALE_COUNT,
+    )
   })
 
-  it('falls back to an empty segment when the generations query rejects', async () => {
+  it('keeps paging while batches come back full', async () => {
+    getPublicGenerations
+      .mockResolvedValueOnce(makeGenerations(SITEMAP_QUERY_BATCH_SIZE))
+      .mockResolvedValueOnce(makeGenerations(1, SITEMAP_QUERY_BATCH_SIZE))
+
+    await runSitemap()
+
+    expect(getPublicGenerations).toHaveBeenCalledTimes(2)
+    expect(getPublicGenerations).toHaveBeenNthCalledWith(2, {
+      page: 2,
+      limit: SITEMAP_QUERY_BATCH_SIZE,
+    })
+  })
+
+  it('keeps the entries collected before a failing batch', async () => {
+    getPublicGenerations
+      .mockResolvedValueOnce(makeGenerations(SITEMAP_QUERY_BATCH_SIZE))
+      .mockRejectedValueOnce(new Error('db down'))
+
+    const entries = await runSitemap()
+
+    expect(entries).toHaveLength(
+      LOCALE_COUNT * STATIC_ROUTES_PER_LOCALE +
+        SITEMAP_QUERY_BATCH_SIZE * LOCALE_COUNT,
+    )
+  })
+
+  it('still emits the static routes when both readers fail', async () => {
     getPublicGenerations.mockRejectedValue(new Error('db down'))
+    listPublicCreatorUsernames.mockRejectedValue(new Error('db down'))
 
-    const entries = await sitemap({ id: Promise.resolve('generations-1') })
+    const entries = await runSitemap()
 
-    expect(entries).toEqual([])
+    expect(entries).toHaveLength(LOCALE_COUNT * STATIC_ROUTES_PER_LOCALE)
+  })
+
+  it('includes public creator profiles', async () => {
+    listPublicCreatorUsernames.mockResolvedValueOnce(['alice', 'bob'])
+
+    const entries = await runSitemap()
+    const creatorUrls = entries.filter((entry) => entry.url.includes('/u/'))
+
+    expect(creatorUrls).toHaveLength(2 * LOCALE_COUNT)
+    expect(creatorUrls.some((entry) => entry.url.endsWith('/u/alice'))).toBe(
+      true,
+    )
+  })
+
+  it('truncates at the single-file URL ceiling', async () => {
+    const fullBatches = Math.ceil(SITEMAP_MAX_URLS / SITEMAP_QUERY_BATCH_SIZE)
+    for (let i = 0; i < fullBatches; i += 1) {
+      getPublicGenerations.mockResolvedValueOnce(
+        makeGenerations(SITEMAP_QUERY_BATCH_SIZE, i * SITEMAP_QUERY_BATCH_SIZE),
+      )
+    }
+
+    const entries = await runSitemap()
+
+    expect(entries).toHaveLength(SITEMAP_MAX_URLS)
   })
 })

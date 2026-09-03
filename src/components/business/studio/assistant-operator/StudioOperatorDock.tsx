@@ -357,7 +357,9 @@ export function StudioOperatorDock() {
             duration: reduceMotion ? 0 : 0.28,
             ease: [0.3, 0.9, 0.3, 1],
           }}
-          className="fixed bottom-4 right-4 top-4 z-40 hidden flex-col overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm lg:flex"
+          // bottom-6/right-6/top-6 而不是 -4：工作台脊柱接入后舞台内缩 18px
+          // （`.workbench-card`），面板贴视口边会压住卡片圆角。
+          className="fixed bottom-6 right-6 top-6 z-40 hidden flex-col overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm lg:flex"
         >
           <div
             role="separator"
@@ -420,7 +422,8 @@ export function StudioOperatorDock() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.2 }}
           className={cn(
-            'fixed right-4 top-4 z-50 hidden items-center gap-2 rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background shadow-md lg:inline-flex',
+            // right-6/top-6 而不是 -4：同上，收进 `.workbench-card` 的右上角。
+            'fixed right-6 top-6 z-50 hidden items-center gap-2 rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background shadow-md lg:inline-flex',
             primed &&
               'ring-2 ring-primary ring-offset-2 ring-offset-background',
           )}

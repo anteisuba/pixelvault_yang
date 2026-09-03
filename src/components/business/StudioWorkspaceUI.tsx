@@ -274,7 +274,7 @@ export function StudioWorkspaceUI() {
          * desktop shell is a fixed overlay so opening it never subtracts
          * width from the work surface.
          */}
-        <div className="studio-layout-v2 min-w-0 flex-1">
+        <div className="studio-layout-v2 workbench-ground min-w-0 flex-1">
           {/* 三个模态共用一套外壳（切片 A，owner 2026-08-23）。此前只有图片走
               横向工作台，视频 / 音频还留在「纵向 canvas + 底部丸」那条路上；
               那条路连同 `StudioFlowLayout` / `StudioBottomDock` /

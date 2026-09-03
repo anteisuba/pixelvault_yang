@@ -2,6 +2,10 @@
 
 > 上游：[`studio-image-workbench.md`](studio-image-workbench.md) 「移动端（2026-09-03 owner 拍板）」节记录了本卡对应的方向结论；本卡是该结论的 `ui-request.md` 落卡版，供实现会话直接开工。默认值按 [`../ui-defaults.md`](../ui-defaults.md)（字体/颜色/动效/移动端配方/8 项完成定义）；对应 `domains/studio.md` 「移动端等级」表中 `/studio/image` 一行。
 
+> 2026-09-03 起画布区为白卡、参数栏躺灰底，共用工作台脊柱 `.workbench-*`（见
+> `../ui-defaults.md` §2.2）；<1024 时地台 padding 收到 10px，舞台仍是一张
+> 带圆角描边投影的小卡，本卡下方的移动端结构不变。
+
 ## UI 需求卡
 
 1. 页面 / 域： `/studio/image`（Studio Image，生成模式）· `<1024`（`useIsMobile`）。桌面 `≥1024` 不变（左参数栏 + 右结果区）。

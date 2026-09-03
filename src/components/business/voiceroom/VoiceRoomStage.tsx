@@ -134,7 +134,7 @@ export function VoiceRoomStage({
   ).length
 
   return (
-    <div className="vr-stage">
+    <div className="vr-stage workbench-card">
       <div className="vr-bar">
         {renaming ? (
           <input

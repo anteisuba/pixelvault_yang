@@ -2,6 +2,10 @@
 
 > 上游：本卡复用 [`studio-image-mobile-request.md`](studio-image-mobile-request.md) 定义的底部固定 composer 结构（chip 行 + prompt 输入 + 生成按钮），换成视频专属 chip 与等待态；方向结论见本卡正文。默认值按 [`../ui-defaults.md`](../ui-defaults.md)（字体/颜色/动效/移动端配方/8 项完成定义）；对应 `domains/studio.md` 「移动端等级」表中 `/studio/video` 一行（与 `/studio/image` 共用「降级」等级，落卡指针分开）。
 
+> 2026-09-03 起画布区为白卡、参数栏躺灰底，共用工作台脊柱 `.workbench-*`（见
+> `../ui-defaults.md` §2.2）；<1024 时地台 padding 收到 10px，舞台仍是一张
+> 带圆角描边投影的小卡，本卡下方的移动端结构不变。
+
 ## UI 需求卡
 
 1. 页面 / 域： `/studio/video`（Studio Video，生成模式）· `<1024`（`useIsMobile`）。桌面 `≥1024` 不变。

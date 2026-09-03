@@ -358,7 +358,9 @@ export function StudioAssistantDock() {
       onDragLeave={handleNativeDragLeave}
       onDrop={handleNativeDrop}
       className={cn(
-        'node-canvas-panel-motion fixed bottom-4 right-4 top-4 z-40 hidden overflow-hidden rounded-xl bg-background lg:flex lg:flex-col',
+        // bottom-6/right-6/top-6 而不是 -4：工作台脊柱接入后舞台内缩 18px
+        // （`.workbench-card`），面板贴视口边会压住卡片圆角。
+        'node-canvas-panel-motion fixed bottom-6 right-6 top-6 z-40 hidden overflow-hidden rounded-xl bg-background lg:flex lg:flex-col',
         open && 'border border-border/60 shadow-sm',
       )}
     >

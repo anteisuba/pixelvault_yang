@@ -62,13 +62,23 @@
   --vr-t-fly: 420ms; /* 峰值：选角飞行 */
 }
 
+/*
+ * 灰底地台（display/gap/padding/background）由 `.workbench-ground`
+ * （globals.css，工作台脊柱，owner 2026-09-03）提供，四个工作台共用一份值。
+ * 这里只留域内不共享的部分：撑满父级高度 + 域颜色/字体 token。
+ *
+ * ⚠ 2026-09-03 由 `position:absolute; inset:0` 改为 `flex:1; min-height:0`
+ * ——绝对定位的 containing block 是最近定位祖先的 **padding box**（padding 本身
+ * 也算在这个盒子里），`inset:0` 落的是 padding box 的顶边，也就是 padding 生效
+ * 之前那条线，于是 `SidebarInset`（`.voiceroom` 的父级 `<main>`）在 <1024
+ * 给手机顶栏让的 `pt-11`（44px）被直接吃掉，卡顶盖到顶栏底下。
+ * `SidebarInset` 本身是 `flex w-full flex-1 flex-col`，改成让 `.voiceroom` 当它
+ * 唯一的 flex 子级正常撑满（`flex:1; min-height:0`），padding-top 就会像任何
+ * 普通盒子一样把它推下去——这是 `.studio-layout-v2` 已经在用的同一套「父级给
+ * 高度、子级用 flex/min-height 认领」的契约，不再新开一种算法。 */
 .voiceroom {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  gap: 14px;
-  padding: 18px;
-  background: var(--vr-panel);
+  flex: 1;
+  min-height: 0;
   color: var(--vr-ink);
   font-family: var(--vr-sans);
 }
@@ -244,18 +254,16 @@
 
 /* ── 房间本体 ───────────────────────────────────────────────────── */
 
+/*
+ * 白卡的结构（flex/overflow/position/圆角/投影）由 `.workbench-card`
+ * （globals.css）提供——数值与这里删掉的原值逐项相同。这里只覆盖颜色：
+ * `.workbench-card` 走主题令牌（`--card` / `--border`），配音间锁浅色
+ * （owner 2026-08-29），app 处于暗色主题时也不能跟着变暗，所以背景/边框色
+ * 仍由域自己的纸墨 token 钉死。
+ */
 .vr-stage {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
   background: var(--vr-paper);
-  border: 1px solid var(--vr-line);
-  border-radius: 18px;
-  box-shadow: 0 30px 80px -40px rgba(10, 10, 10, 0.28);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  position: relative;
+  border-color: var(--vr-line);
 }
 
 .vr-bar {
@@ -2044,10 +2052,6 @@
 /* ── 小屏：房间列收进抽屉之前，先让它整体让位 ───────────────────── */
 
 @media (max-width: 900px) {
-  .voiceroom {
-    padding: 10px;
-  }
-
   .vr-rail {
     display: none;
   }

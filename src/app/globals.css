@@ -398,6 +398,13 @@
   --surface-composer: oklch(96% 0.008 95);
   --surface-composer-foreground: oklch(20% 0 0);
 
+  /* ── 工作台脊柱地台（owner 2026-09-03）── 配音间「灰底 + 白卡」推广给图像/
+     视频工作台共用，见下方 `.workbench-ground` / `.workbench-card`。
+     底色未直接复用 `--sidebar`：真机实测应用侧栏计算值 #ebebeb，配音间
+     `.voiceroom` 渲染值 rgb(244,244,241)=#f4f4f1，通道差 (9,9,6)，超过
+     「肉眼几乎一样」的 ≤6 判据，故单独开一个语义变量，值与配音间原样对齐。 */
+  --surface-workbench: #f4f4f1;
+
   /* ── 冻结脊柱 · node/canvas 域皮肤已清场平移到 canvas.css（2026-07-24）──
      画布域的 :root 变量 + 全部 .node-* 类/keyframe 现在住 src/app/canvas.css，
      由 layout.tsx 紧跟本文件之后 import（全局可用 + node 类维持级联最后位）。
@@ -437,6 +444,22 @@
      #a04f00：对白 5.81 · 对 --muted 5.33 · 对自身 surface 5.28 · 对 surface-sunken 4.88。 */
   --status-warning: #a04f00;
   --status-warning-surface: #fdf3e1;
+
+  /* ── 工作台脊柱地台数值（owner 2026-09-03）── 唯一事实源：`.workbench-ground` /
+     `.workbench-card`（globals.css）与 `.domain-lora` / `.lora-panel-shell`
+     （lora.css）此前把 padding / gap / radius / shadow 各写了一遍，字面值同源
+     不同处。升成变量后两处都只引用这里。<1024 的 10px 档见下方媒体块覆盖。 */
+  --workbench-pad: 18px;
+  --workbench-gap: 14px;
+  --workbench-card-radius: 18px;
+  --workbench-card-shadow: 0 30px 80px -40px rgba(10, 10, 10, 0.28);
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --workbench-pad: 10px;
+    --workbench-gap: 10px;
+  }
 }
 
 html:lang(ja) {
@@ -499,6 +522,9 @@ html:lang(ja) {
 
   --surface-sunken: oklch(0% 0 0);
   --sidebar: var(--surface-sunken);
+  /* 暗色工作台地台：配音间锁浅色（owner 2026-08-29），没有暗档可对齐，沿用
+     壳底既有的沉降黑，不另造第二套暗色地台。 */
+  --surface-workbench: var(--surface-sunken);
   --sidebar-foreground: oklch(98.5% 0 0);
   --sidebar-primary: oklch(48.8% 0.243 264.376);
   --sidebar-primary-foreground: oklch(98.5% 0 0);
@@ -934,9 +960,42 @@ html:lang(ja) {
     text-wrap: pretty;
   }
 
+  /* ── 工作台脊柱（owner 2026-09-03）── 全站四个工作台（配音间 / 图像 / 视频 /
+     LoRA 待接）共用一层：灰底地台 `.workbench-ground` + 白卡 `.workbench-card`。
+     值以配音间原实现为准（`src/app/voiceroom.css` 的 `.voiceroom` /
+     `.vr-stage`），色板见上方 `--surface-workbench`。
+     `.workbench-ground` 只管颜色 / padding / gap / flex，**不管高度** ——
+     配音间用 `position:absolute; inset:0` 自撑满，图像/视频工作台的高度契约
+     仍由 `.studio-layout-v2` 的 `min-height` 持有（见下方，别重复定义）。 */
+  .workbench-ground {
+    display: flex;
+    gap: var(--workbench-gap);
+    padding: var(--workbench-pad);
+    min-width: 0;
+    background: var(--surface-workbench);
+  }
+
+  .workbench-card {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--workbench-card-radius);
+    box-shadow: var(--workbench-card-shadow);
+  }
+
   /* ── Studio layout V2: canvas-centric vertical layout ───────────────── */
 
+  /* ⚠ 灰底地台的颜色/padding/gap 由 `.workbench-ground`（上方，工作台脊柱）
+     提供 —— 组件侧同时挂 `studio-layout-v2 workbench-ground` 两个类名，这里
+     不重复声明 background/padding，只留这一层自己的高度契约与定位。 */
   .studio-layout-v2 {
+    --studio-generation-media-max-height: 45vh;
     /* 移动端底部固定 composer 的预留高度：pt 8 + chip 行 32 + gap 8 + 输入行 44
        + pb 16 ≈ 108px。提示词长到 3 行时 composer 会超过这个数 —— 那是舞台
        自己滚动的事，不把预留值做成 JS 量出来的动态值（一个 ResizeObserver
@@ -944,10 +1003,8 @@ html:lang(ja) {
     --studio-mobile-composer-height: 7rem;
 
     min-height: calc(100svh - 3.5rem);
-    display: flex;
     flex-direction: column;
     position: relative;
-    background: var(--background);
   }
 
   /* Desktop (≥lg = MOBILE_BREAKPOINT): SidebarInset drops all chrome
@@ -957,8 +1014,37 @@ html:lang(ja) {
      dead space below the dock, so reclaim the full height here. */
   @media (min-width: 1024px) {
     .studio-layout-v2 {
+      --studio-generation-media-max-height: 72vh;
+
       min-height: 100svh;
     }
+  }
+
+  /* `StudioWorkbenchLayout` 根行的显式高度（替代 Tailwind `h-svh`，见组件里的
+     `lg:flex-basis` 坑注释）。地台加了 18px padding 之后单纯的 100svh 会把
+     `.workbench-ground` 撑穿、多出一条整页滚动条 —— 两侧 padding 各 18px，这里
+     扣掉 2.25rem 对账。 */
+  @media (min-width: 1024px) {
+    .studio-workbench-shell {
+      height: calc(100svh - 2.25rem);
+    }
+  }
+
+  /* Studio 的竖屏视频按可用高度缩放，不再按结果栏全宽放大。
+     外框跟随媒体宽度，播放器控件始终与实际视频边缘对齐。 */
+  .video-player--contain {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .video-player-media--contain {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: var(--studio-generation-media-max-height);
+    object-fit: contain;
   }
 
   /* Canvas — natural height based on content */
@@ -1179,35 +1265,15 @@ html:lang(ja) {
     display: none;
   }
 
-  /* R5 移动端「出图」常驻底部动作条（iOS 式）：< md 固定视口底、模糊玻璃 +
-     底部安全区；≥ md 退回内联（桌面保持自然流单出图动作，不双出图）。作用域
-     仅 LoRA composer 动作行。 */
-  .lora-mobile-actionbar {
-    position: fixed;
-    inset-inline: 0;
-    bottom: 0;
-    z-index: 30;
-    border-top: 1px solid var(--border);
-    background: color-mix(in oklab, var(--background) 90%, transparent);
-    backdrop-filter: blur(12px);
-    padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
-  }
-  @media (min-width: 768px) {
-    .lora-mobile-actionbar {
-      position: static;
-      z-index: auto;
-      border-top: 0;
-      background: transparent;
-      backdrop-filter: none;
-      padding: 0;
-    }
-  }
+  /* ⚠ 退役（B 稿 2026-09-03）：`.lora-mobile-actionbar`（R5 移动端出图常驻
+     底部动作条，< md fixed、≥ md 内联）已随 LoraWorkbench.tsx / lora.css 的
+     domain-scoped 覆盖一起摘除——B 稿把生成 tab 在所有断点锁高，composer 靠
+     flex 天然钉在卡底，不再需要 position:fixed 的浮条。JSX 里已无消费者，
+     规则一并删除，不留死代码。 */
 
   /* LoRA 库移动端详情抽屉（vaul）：92svh 高，留 8% 缺口露出底下的封面网格，
      让「我还在列表里」这件事保持可见。几何写在这里而不是 Tailwind 任意值类；
-     抽屉 portal 到 body、跑在 .domain-lora 之外，所以类不加域前缀作用域。
-     内部动作条自己 sticky，不复用 .lora-mobile-actionbar（那条是 fixed 到
-     视口的，放进抽屉会脱离抽屉贴到屏幕底）。 */
+     抽屉 portal 到 body、跑在 .domain-lora 之外，所以类不加域前缀作用域。 */
   .lora-detail-drawer {
     max-height: 92svh;
   }

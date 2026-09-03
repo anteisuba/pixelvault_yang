@@ -70,7 +70,7 @@ export function VoiceRoomPage() {
    */
   return (
     <ApiKeysProvider>
-      <div className="voiceroom">
+      <div className="voiceroom workbench-ground">
         <VoiceRoomRail
           rooms={rooms}
           activeRoomId={activeRoomId}
@@ -96,7 +96,7 @@ export function VoiceRoomPage() {
             onDismissError={dismissError}
           />
         ) : (
-          <div className="vr-stage">
+          <div className="vr-stage workbench-card">
             <div className="vr-empty">
               <span className="vr-empty-eyebrow">{t('loading')}</span>
             </div>

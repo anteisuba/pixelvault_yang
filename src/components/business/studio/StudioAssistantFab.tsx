@@ -37,7 +37,10 @@ export function StudioAssistantFab() {
       aria-pressed={open}
       className={cn(
         studioToolTriggerClass,
-        'fixed right-4 top-4 z-50 hidden pl-3 pr-4 lg:inline-flex',
+        // top-6/right-6 而不是 top-4/right-4：工作台脊柱接入后舞台是内缩 18px
+        // 的白卡（`.workbench-card`），浮标贴视口角会落进灰色地台的缺口、盖住
+        // 卡片圆角，往里收 8px 让它落在卡内右上角。
+        'fixed right-6 top-6 z-50 hidden pl-3 pr-4 lg:inline-flex',
         'border border-border/70 bg-background/85 text-foreground shadow-sm backdrop-blur-sm',
         'hover:bg-muted/60',
         'transition-[transform,opacity,background-color] duration-fast ease-standard',

@@ -46,25 +46,38 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
     // 移动端退回纵向（参数在上、结果在下）：288px 的常驻栏在手机上会把结果区
     // 压到没有。断点用 lg（1024）与 `useIsMobile` 对齐 —— 平板 768–1023 那段
     // 若用 md 会出现「列位按 768 预留但内容到 1024 才渲染」的空沟。
-    // ⚠ `lg:flex-none` 不是装饰：本组件是 `.studio-layout-v2`（column flex，
-    // `min-height:100svh` 无上限）的子项，只写 `flex-1` 会把 flex-basis 定成 0，
-    // **`h-svh` 就被忽略**，高度反过来由内容决定 —— 于是外壳跟着内容一起长，
-    // 下面那条 `overflow-y-auto` 永远触发不了，滚的是整页。
+    // ⚠ `lg:flex-none` 不是装饰：本组件是 `.studio-layout-v2`（= `.workbench-ground`，
+    // column flex，`min-height:100svh` 无上限）的子项，只写 `flex-1` 会把
+    // flex-basis 定成 0，**桌面端高度就被忽略**，高度反过来由内容决定 —— 于是
+    // 外壳跟着内容一起长，下面那条 `overflow-y-auto` 永远触发不了，滚的是整页。
     // 2026-08-23 真机实测：编辑态下这一层量到 1976px（视口 911）。
-    <div className="flex min-h-0 flex-1 flex-col lg:h-svh lg:flex-none lg:flex-row">
+    // ⚠ 2026-09-03 工作台脊柱接入后地台四边各带 18px padding
+    // （`.workbench-ground`）——桌面端显式高度改成 `.studio-workbench-shell`
+    // （globals.css，`calc(100svh - 36px)`），不能再用 `h-svh` 原样撑满，
+    // 否则子级仍按整屏高度算，会把卡片顶出地台的下边距，出现整页滚动条。
+    <div className="studio-workbench-shell flex min-h-0 flex-1 flex-col lg:flex-none lg:flex-row">
       {params ? (
-        <div className="studio-param-panel flex shrink-0 flex-col gap-3 border-b border-border/60 p-3 lg:w-72 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:p-4">
+        <div className="studio-param-panel flex shrink-0 flex-col gap-3 border-b border-border/60 p-3 lg:w-72 lg:overflow-y-auto lg:border-b-0 lg:p-4">
           {params}
         </div>
       ) : null}
-      {/* ⚠ 结果区要把高度传给 StudioCanvas，否则空态的 `grow + justify-center`
+      {/* 结果区 = 白卡（`.workbench-card`，工作台脊柱，owner 2026-09-03）。
+          ⚠ 结果区要把高度传给 StudioCanvas，否则空态的 `grow + justify-center`
           没有可撑的高度就贴顶。globals.css 里
           `.studio-workbench-stage:has(.studio-empty-state)` 负责把
           `.studio-canvas` 撑成满高的 flex 列。 */}
       <div
         className={cn(
-          'studio-workbench-stage studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-3 lg:p-6',
-          composer && STUDIO_MOBILE_STAGE_CLASS,
+          // ⚠ 2026-09-03 owner 报「查看操作教程」被底部固定 composer 压住：底边距
+          // 在此拆成 px/pt + 条件 pb，不再用一把 `p-3 lg:p-6` 兜到底——`.studio-mobile-stage`
+          // 在 globals.css `@layer components` 里给 padding-bottom 算的
+          // `--studio-mobile-composer-height` 预留值，被 Tailwind `p-3`/`lg:p-6`
+          // 在 `@layer utilities`（永远压过 components，与写法先后/特异度无关）
+          // 整条覆盖成了字面 12px，composer 越高盖得越多。没有 composer 的场景
+          // （桌面、或压根不挂移动端 composer）用 `pb-3 lg:pb-6` 原样保留旧观感；
+          // 有 composer 时把 pb-* 让给 `.studio-mobile-stage`，两者不再抢同一个属性。
+          'studio-workbench-stage workbench-card studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 pt-3 lg:px-6 lg:pt-6',
+          composer ? STUDIO_MOBILE_STAGE_CLASS : 'pb-3 lg:pb-6',
         )}
       >
         {stage}

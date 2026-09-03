@@ -1468,9 +1468,12 @@ describe('LoraWorkbench module tab bar — P2-4/P2-7', () => {
 })
 
 // ── 移动端 Generate（owner 2026-09-03「结果在眼前、输入在拇指区」）───────────
-// 手机上（<1024，useIsMobile）结果卡排在 composer 之上、底栏摘要点开装配 sheet、
-// 失败态带就地重试。⚠ 顺序是**CSS order 类**（DOM 顺序不动，桌面 md:order-none
-// 原样回到 60/40 网格），所以断言的就是 order 类本身。
+// 手机上（<1024，useIsMobile）结果卡排在 composer 之上、composer 顶部 chip 行
+// 点开装配 sheet、失败态带就地重试。
+// ⚠ B 稿（owner 2026-09-03，和配音间同构）：三栏 grid 换成单张卡内的
+// flow + composer 垂直堆叠，顺序改回**纯 DOM 顺序**（composer 靠 flex 天然
+// 钉底），26ead0d3 那次「结果优先」写的 order-1/order-2/md:col-*/md:row-*
+// 已随 JSX 一起删除——不再有 order 类可断言。
 describe('LoraWorkbench GenerateBranch — mobile generate layout', () => {
   beforeEach(() => {
     mockGenerate.mockReset()
@@ -1495,31 +1498,36 @@ describe('LoraWorkbench GenerateBranch — mobile generate layout', () => {
   const resultCard = () => screen.getByTestId('lora-result-card')
   const composerCard = () => screen.getByTestId('lora-composer-card')
 
-  it('puts the result card above the composer on mobile (order-1 / order-2)', () => {
+  it('renders the result card before the composer, with no CSS order classes left', () => {
     render(<LoraWorkbench />)
 
-    expect(resultCard().className).toContain('order-1')
-    expect(composerCard().className).toContain('order-2')
-    // 桌面网格的定位类必须原样还在——移动端排序只能靠 order，不能改列位。
-    expect(resultCard().className).toContain('md:col-start-4')
-    expect(resultCard().className).toContain('md:row-span-2')
-    expect(resultCard().className).toContain('md:order-none')
+    // B 稿：不再是三栏 grid，两块是同一个 flex 列里的兄弟，DOM 顺序本身就是
+    // 视觉顺序——不需要、也不应该再挂 order-*/md:col-*/md:row-* 之类的定位类。
+    expect(resultCard().className).not.toMatch(/\border-\d/)
+    expect(resultCard().className).not.toContain('md:col-start-4')
+    expect(resultCard().className).not.toContain('md:row-span-2')
+    expect(resultCard().className).not.toContain('workbench-card')
+    expect(composerCard().className).not.toMatch(/\border-\d/)
+    expect(composerCard().className).toContain('lora-composer')
+
+    // 结果卡在文档顺序里排在 composer 之前。
+    const position = resultCard().compareDocumentPosition(composerCard())
+     
+    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('turns the bottom-bar summary into a button that opens the assembly sheet', async () => {
+  it('opens the assembly sheet from the composer chip-row summary button', async () => {
     render(<LoraWorkbench />)
 
-    // 两个入口共用同一个 aria-label / 同一个 Drawer：顶部紧凑条 + 底栏摘要。
-    const openers = screen.getAllByRole('button', {
+    // B 稿：桌面常驻左栏 + 移动端紧凑条曾各有一个「打开装配」入口，现在装配栏
+    // 挪去 root 的 rail（移动端不渲染），composer 顶部只留**一个**摘要 chip 行。
+    const opener = screen.getByRole('button', {
       name: 'LoraWorkbench:spine.openAssembly',
     })
-    expect(openers.length).toBe(2)
+    // 摘要 chip 行挂在 composer 里，不是独立的底部浮条。
+    expect(composerCard().contains(opener)).toBe(true)
 
-    const summary = openers[openers.length - 1]
-    expect(summary.textContent).toContain('×')
-    expect(summary.className).toContain('min-h-11')
-
-    fireEvent.click(summary)
+    fireEvent.click(opener)
 
     await waitFor(() => {
       expect(

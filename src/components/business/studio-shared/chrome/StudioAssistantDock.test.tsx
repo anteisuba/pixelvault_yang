@@ -167,11 +167,13 @@ describe('StudioAssistantDock', () => {
     render(<StudioAssistantDock />)
 
     const dock = screen.getByRole('complementary', { name: 'dockLabel' })
+    // top/right/bottom 从 -4 改成 -6（owner 2026-09-03 工作台脊柱）：舞台内缩
+    // 18px 变成白卡（`.workbench-card`）之后，浮层贴视口边会压住卡片圆角。
     expect(dock).toHaveClass(
       'fixed',
-      'bottom-4',
-      'right-4',
-      'top-4',
+      'bottom-6',
+      'right-6',
+      'top-6',
       'z-40',
       'rounded-xl',
     )

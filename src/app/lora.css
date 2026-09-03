@@ -11,7 +11,8 @@
 .domain-lora {
   color-scheme: light;
 
-  /* 1 · 表面：2026-09-03 起直接用脊柱三层（ui-defaults.md §2.2），域内不再另给白/灰。
+  /* 1 · 表面：地台与面板框走 globals.css 的 `.workbench-ground` / `.workbench-card`
+        （owner 2026-09-03 拍板，把配音间的灰底+白卡外观推到本页）。
         遮罩与投影是材质，保留。 */
   --lora-scrim: oklch(0.145 0 0 / 0.38);
   --lora-shadow-panel:
@@ -44,14 +45,120 @@
   --lora-motion: 240ms;
   --lora-motion-ease: var(--ease-standard);
 
-  /* 域根表面：整个 LoRA 工作台统一为系统白底。 */
-  background: var(--background);
+  /* 域根表面：方向 A 定的白底换灰底延续到方向 B（owner 2026-09-03）——这一层
+     是「共用层契约」，不随三栏 grid → 单卡+rail 的结构调整而变。背景引用与
+     `.workbench-ground` 同一枚工作台灰 token（globals.css `--surface-workbench`），
+     不写死色值、不在本文件另开 :root。 */
+  background: var(--surface-workbench);
   color: var(--foreground);
+
+  /* 地台外距与 `.workbench-ground` 同值（18px 桌面 / 10px <1024）——两处共用
+     globals.css `:root` 的 `--workbench-pad` 变量，媒体块覆盖同名变量即可，
+     本文件不再自己维护一份 1024 断点。方向 B 起 `.domain-lora` 本身就是唯一
+     的地台容器（tab 头已挪进卡内 `.lora-bar`，不再是独立的外层行），padding
+     直接围住下方的 `.lora-ground`。 */
+  padding: var(--workbench-pad);
 }
 
-/* 装配栏折叠/展开：三栏列宽在 300px ↔ 56px 之间连续滑动，而不是瞬跳。 */
-.domain-lora .lora-motion-cols {
-  transition: grid-template-columns var(--lora-motion) var(--lora-motion-ease);
+/* 方向 B（owner 2026-09-03，和配音间同构）：整页只有**一张** `.workbench-card`
+ * （bar + flow + composer 都在这张卡里），不再是方向 A 的「三块面板各自套白卡」
+ * ——那一版给装配栏 / 结果卡 / composer 卡各挂一份 `workbench-card` 的写法已随
+ * JSX 一起删除（`.lora-panel-shell` 这层更早的重复皮肤本来就已经退役，见下方
+ * S2 分区注）。装配栏现在是卡外的 rail，宽度由本文件的 `.lora-ground` grid 给，
+ * 不再自己挂 `workbench-card`。
+ *
+ * 下面四个语义类是这次新加的骨架，命名沿用既有 `lora-*` 前缀：
+ * `.lora-ground`  地台行（rail + 卡），<1024 是纵向 flex，≥1024 是 250px/56px
+ *                 两列 grid——只放这里管不了的精确像素值（Tailwind 默认刻度没有
+ *                 250 这个整数倍），flex/gap 等能用 Tailwind 的都留在 JSX。
+ * `.lora-bar`     卡内页头（tab 行 + meta + 助手），精确高度/横内距不在 Tailwind
+ *                 默认刻度里（52/46、18/10），住这里。
+ * `.lora-flow`    结果流：22px/24px（桌面）· 14px/12px（<1024）内距，同理不在
+ *                 默认刻度。
+ * `.lora-composer` 输入条，边框/间距都能用 Tailwind 表达，这里不需要另开值——
+ *                 类名本身只用来在 JSX 里定位，不代表这里必须有样式。 */
+/* 生成 tab 锁高：值与 `.editorial-page` / `.studio-layout-v2`（globals.css）
+ * 同一枚已验证的移动端顶栏预留（3.5rem）——`/studio/lora` 在 <1024 上方有一条
+ * 不属于 domain-lora 的 App 顶栏，`h-dvh` 会把这段也算进来、把卡片顶出视口
+ * 底部造成整页滚动（真机验证发现）。≥1024 是侧栏壳，没有顶栏，回到满高。 */
+.domain-lora.lora-locked-height {
+  height: calc(100svh - 3.5rem);
+}
+@media (min-width: 1024px) {
+  .domain-lora.lora-locked-height {
+    height: 100svh;
+  }
+}
+
+.domain-lora .lora-ground {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+@media (min-width: 1024px) {
+  .domain-lora .lora-ground {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    gap: var(--workbench-gap);
+    align-items: stretch;
+    /* 装配栏折叠/展开：列宽在 250px ↔ 56px 之间连续滑动，不瞬跳
+       （CD 动效轴「柔顺连续」）——原 `.lora-motion-cols` 并到这里，
+       JSX 不再需要单独挂那个类名。 */
+    transition: grid-template-columns var(--lora-motion) var(--lora-motion-ease);
+  }
+  .domain-lora .lora-ground[data-collapsed='true'] {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+  /* owner 验收发现（2026-09-04）：库/收藏/训练三个 tab 不渲染 rail 节点
+     （root 组件只在 `isGenerate` 时挂 `.lora-rail`），但两列 grid 是写死的——
+     卡片是网格唯一子级，隐式落进第一条 250px 轨道，右边整片空白。`data-rail`
+     由 root 标记「这一刻有没有 rail」，没有就收成一列，卡片占满剩余全宽。
+     ⚠ 不用 flex 改写（owner 给的另一个选项）：grid 版本改动只多这一条规则 +
+     一个属性，flex 版本要连带把折叠动效（`grid-template-columns` 过渡）整段
+     换成 rail 自身 `width` 过渡，改面更大——选了「改动小、不留两套」的这条。 */
+  .domain-lora .lora-ground[data-rail='false'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.domain-lora .lora-bar {
+  height: 52px;
+  padding-inline: 18px;
+}
+/* owner 验收发现（2026-09-04）：meta 文字（"底模名 · N LoRA · 比例"）被
+ * `StudioOperatorDock` 的收起态胶囊（`fixed right-6 top-6`，真机量得 zh 文案下
+ * 宽 92px）盖住一半——胶囊是 viewport-fixed 定位，不在这张卡的布局流里，bar 的
+ * 18px 右内距只够到卡边，够不到胶囊。真机量出胶囊左边缘 = 卡右边缘 - 98px
+ * （两者都锚定在 viewport 右边，18px vs 24px+92px 宽的差值是常量，不随视口宽度
+ * 变化）；这里在 18px 基础上再留出胶囊宽度 + 间距，让 meta 的可用宽度在碰到胶囊
+ * 之前先截断（`truncate` 已有）。⚠ 值按 zh 胶囊宽度 + 英文「Assistant」这类更长
+ * label 的余量给，不是精确贴死——meta 本来就会 truncate，留多不留少。 */
+.domain-lora .lora-bar-meta {
+  margin-right: 130px;
+}
+.domain-lora .lora-flow {
+  padding: 22px 24px;
+}
+@media (max-width: 1023px) {
+  .domain-lora .lora-bar {
+    height: 46px;
+    padding-inline: 10px;
+  }
+  .domain-lora .lora-flow {
+    padding: 14px 12px;
+  }
+
+  /* 安全网（真机验证发现，2026-09-03）：composer 是 flex 列里的 shrink-0
+     兄弟，`.lora-flow` 让不动它，遇到长负面 prompt / 多条警示这类内容比
+     375 视口还高的边缘情况时，如果只靠上面把 textarea 收矮（JSX 的
+     `min-h-24`）估算余量，估算一旦不够，`.workbench-card` 的
+     `overflow:hidden` 会把超出部分悄悄裁掉、连出图按钮都摸不到，且没有任何
+     视觉提示「还有内容」。这里给 composer 自己一个上限 + 内部滚动兜底——
+     多数时候用不到（内容量正常时够放），仅在真的超限时接管。 */
+  .domain-lora .lora-composer {
+    max-height: 60svh;
+    overflow-y: auto;
+  }
 }
 
 /* 可折叠区（负面 Prompt / Runner 参数 / 变更审阅卡）：grid-rows 0fr→1fr —— 本项目
@@ -80,29 +187,12 @@
     color-mix(in oklab, var(--primary) 55%, transparent);
 }
 
-/* 移动端出图条（域内接管）：
- * ① 断点统一到 1024——globals 的出图条 768 就退回内联，但本域的「移动端形态」
- *    （装配 sheet / 紧凑摘要条 / MobileShell / useIsMobile）全部以 1024 为界；
- *    768–1023 的平板带里装配栏已经进 sheet、出图条却提前内联，两个边界对不上。
- *    这里把 fixed 形态延到 1023，JSX 就只需按 useIsMobile 一个条件分支。
- * ② 2026-08-18：这里原本给两块 app chrome 让位，两块**都已不存在**——
- *    底部 TabBar 在 2026-08-07 删了（那条 3rem 从那天起就是空的），
- *    44px 常驻左轨在本次壳改版（方向 M2「顶栏当切换器」）里删了。
- *    现在出图条直接贴底贴左，只留自己的安全区。⚠ 这不是改 LoRA 的视觉答案，
- *    是拆掉对已删壳构件的悬空引用。 */
-@media (max-width: 1023px) {
-  .domain-lora .lora-mobile-actionbar {
-    position: fixed;
-    inset-inline: 0;
-    z-index: 30;
-    border-top: 1px solid var(--border);
-    background: color-mix(in oklab, var(--background) 90%, transparent);
-    backdrop-filter: blur(12px);
-    padding: 0.75rem 1rem;
-    bottom: var(--keyboard-safe-area-bottom, 0px);
-    left: 0;
-  }
-}
+/* ⚠ 退役（B 稿 2026-09-03）：`.lora-mobile-actionbar` 曾把出图条钉成
+ * `position:fixed` 的底部浮条，用来在「整页自然滚动」的旧移动端布局里保证
+ * composer 常驻可见。B 稿把生成 tab 在所有断点都锁高（`.lora-ground` 撑满
+ * 视口剩余高度，卡内 `.lora-flow` 内滚、`.lora-composer` 靠 flex 天然钉底），
+ * composer 已经不需要 fixed 定位就能常驻——JSX 里的这个类名已摘掉，这条规则
+ * 连带删除，不留死代码。 */
 
 /* 结果图上限（移动端，owner 2026-09-03「结果在眼前、输入在拇指区」）：
  * 手机上结果卡排在 composer 之上，图按 displayedAspect 铺满整宽——竖版
@@ -124,6 +214,20 @@
   .domain-lora .lora-result-media--empty {
     max-height: var(--lora-result-empty-max-h);
   }
+}
+
+/* 提示词行内输入（owner 反馈 2026-09-04，对照 lora-b-mock.html）：composer 不再
+ * 是带标签的高输入卡，是单行起、跟内容长高的行内 textarea——`field-sizing:
+ * content` 让它自己撑高，不用 JS 量 ResizeObserver。封顶约 4 行（1.6 行高 ×
+ * 4 ≈ 6.4em）后转内部滚动，避免一段长 prompt 把整条 composer 顶穿卡片。
+ * 不支持 field-sizing 的浏览器（判据：属性值被忽略）退回 `min-height` 那一行，
+ * 仍可用只是不会跟手长高，不会比改之前更差。 */
+.domain-lora .lora-prompt-input {
+  field-sizing: content;
+  min-height: 1.6em;
+  max-height: 6.4em;
+  overflow-y: auto;
+  padding: 6px 2px;
 }
 
 /* iOS 输入聚焦缩放（owner 2026-09-03 报）：Safari 在聚焦一个字号 <16px 的表单

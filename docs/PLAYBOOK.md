@@ -7,7 +7,7 @@
 **1 · 重构/升级一个页面 UI（改版级）**
 开口："重做 XX 页" / "XX 页太普通了，想让它有自己的特色"。
 我先做：冻结整页代码改动 → 审计真实能力和全部关键状态 → 讨论域定义 → 每次只确认一个结构问题并同步决策账本 → 确认审美方法与禁区 → 用同一内容出三个结构方向 → 你选向后只深化一个关键切片 → 写 `references/pages/<页>.md` → 你授权后才实施。
-流程：`scenes/ui-page.md` ｜ 新设计任务/可选 Fable 升级简报：`templates/ui-redesign-brief.md` ｜ 你拍：单项结构、三方向、关键切片、实现授权 ｜ 验收：`checklists/ui.md` P0。
+流程：`scenes/ui-page.md` ｜ 新设计任务/可选 Fable 升级简报：`templates/ui-redesign-brief.md` ｜ 你拍：单项结构、三方向、关键切片、实现授权 ｜ 验收：`checklists/ui.md` 8 项 + 机器门；日常小任务用 `templates/ui-request.md` 需求卡，默认值读 `references/ui-defaults.md`。
 
 **2 · 小 UI 调整（按钮/文案/间距，非改版）**
 开口："XX 按钮太挤" / "这文案改成…"。

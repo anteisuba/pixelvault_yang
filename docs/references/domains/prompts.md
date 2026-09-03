@@ -62,6 +62,12 @@ owner 已确认共享提示词库及其专用数据可以删除。后续独立 t
 
 `src/app/[locale]/(main)/prompts/**` · `src/services/prompts/`（recipe / inspiration service）· `src/hooks/prompts/`；历史详版 `git show cddc4384:docs/domains/prompts.md`。
 
+## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
+
+- **完整**。
+- 375px：双 tab 保留在顶部；模板卡单列；`/prompts/[id]` 编辑器全宽，血缘作品区在编辑器下方；灵感 clone 动作固定在底部。
+
 ## Last Verified
 
+- 2026-09-03 · 新增「移动端等级」节（owner 拍板，配方见 ui-defaults.md §6）。
 2026-07-19 · 代码现状仍是双 Tab/共享库路线 A；owner 已拍板后续删除共享发现面与 `InspirationPrompt` 专用链路，公共配方发现合并进 Gallery，尚未实施。

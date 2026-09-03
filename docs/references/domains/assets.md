@@ -49,8 +49,15 @@
 
 `src/components/business/KreaAssetBrowser.tsx` · `AssetSelectorDialog.tsx` · `AssetDetailSheet.tsx` · `AssetFolderTree.tsx` · `src/hooks/use-gallery.ts`；方向调研 素材优化方向调研（已删，见 git 历史）（含 P0–P2 路线图）。
 
+## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
+
+- **完整**。`/assets` 是浏览与整理面，手机是主要场景之一。
+- 375px：图墙 2 列；右栏「目录 / 详情」Dock 改为底部 vaul 抽屉；批量操作条固定在 `safe-area-inset-bottom` 之上；拖拽入文件夹在触屏上降为「移动到…」overlay（已有）；`AssetDetailSheet` 走 `ResponsiveDialog` 底部抽屉。
+- 验收：`checklists/ui.md` 第 3、4 项，375 图能完成「筛选 → 选中 → 移动到文件夹」主路径。
+
 ## Last Verified
 
+- 2026-09-03 · 新增「移动端等级」节（owner 拍板，配方见 ui-defaults.md §6）。
 - 2026-08-31 · 工作台助手文件夹视觉检查落地：真实文件夹 id / 完整路径准入、当前文件夹非递归、仅图片、最新 24 张、8 张分批、覆盖率与只读钱闸已由定向测试锁定。
 - 2026-08-30 · 图片详情补齐左右箭头与键盘方向键浏览；切换仅遍历当前已加载、当前筛选结果中的图片，首尾禁用，并使用遵循 reduced-motion 的方向淡入过渡。
 - 2026-08-30 · 音频上传端到端切片落地；素材页文件输入、上传队列、浏览器直传、服务端容器签名校验与 `AUDIO` 入库闭环。Vitest 定向 6 files / 64 tests、TypeScript、目标 ESLint 通过；Chrome 实查 3 项音频上传全部完成、详情可播放且控制台无上传错误。

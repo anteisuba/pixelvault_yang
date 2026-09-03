@@ -13,7 +13,7 @@ docs/
 ├── status.md        唯一活跃状态（覆盖更新，不追加历史）
 ├── checklists/      P0/P1/P2 质检：ui · backend · database · release
 ├── scenes/          任务类型场景：专属工作流 + 专属 5 问（批 3 填充）
-├── references/      规则知识库：frontend · backend · database · cicd · testing · loading 等
+├── references/      规则知识库：ui-defaults（UI 默认食谱，动 UI 必读）· frontend · backend · database · cicd · testing · loading 等
 │   └── api/         CI 用的模型文档快照（`npm run models:check-docs` 读它，别手改）
 ├── templates/       任务起点：task-packet 与代码骨架
 └── plans/           在飞任务包（**完成即删** —— 2026-08-07 清过一轮，2026-09-01 全清；

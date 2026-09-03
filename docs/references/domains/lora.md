@@ -179,7 +179,14 @@ Claude 或其他 AI 收到“重构 LoRA UI”时，必须先读本文并执行 
 - 当前挂载状态：`src/hooks/use-active-lora-stack.tsx`
 - 生成来源与 LoRA 数据结构：`prisma/schema.prisma`
 
+## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
+
+- **降级**：Library（看库、搜索、进入 Generate）、训练进度、Generate（用已训模型生成）三条路径完整；**训练创建流程不做**，`/studio/lora` 的「新建训练」入口在手机上渲染「请在桌面创建训练」提示 + 返回库。
+- 375px：Generate 左右双栏改为上下，输入在上、结果列在下；助手保持已确认的「近全屏 sheet」；来源图配方 modal 走 `ResponsiveDialog` 底部抽屉，配方区独立滚动。
+- 上文「响应式仍待实施前确认」的条目以本节为准。
+
 ## Last Verified
 
+- 2026-09-03 · 新增「移动端等级」节（owner 拍板，配方见 ui-defaults.md §6）。
 - 2026-08-05：owner 确认 LoRA 整域改为与系统统一的白色浅色工作台，并将无 `section` 的默认入口改为 Generate；对应实现事实源为 `src/app/lora.css` 与 `src/constants/lora.ts`。
 - 2026-07-19：建立稳定域契约与文档路由，并确认整域范围、工作流层级、Library 聚焦浏览和 Generate A「并排监视台」桌面关键切片。

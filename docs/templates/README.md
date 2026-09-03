@@ -5,6 +5,7 @@
 | 模板                       | 用途                                                 | 状态 |
 | -------------------------- | ---------------------------------------------------- | ---- |
 | task-packet.md             | 非 trivial 任务执行包（Goal/Non-goals/验收等）       | ✅   |
+| ui-request.md              | 日常 UI 任务需求卡（375 列 + 交互动作表为硬门）      | ✅   |
 | ui-redesign-brief.md       | 改版级 UI 的新任务交接；也可用于可选 Fable 升级      | ✅   |
 | api-route.md               | route 骨架：工厂式 GET/POST + 全链五件套提醒         | ✅   |
 | service.md                 | service 骨架：server-only + ensureUser + retry       | ✅   |

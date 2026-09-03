@@ -34,6 +34,17 @@
 
 `src/app/[locale]/(main)/studio/**` · `src/contexts/studio-context.tsx` · `src/hooks/use-unified-generate.ts` · `src/services/studio-generate.service.ts` · `src/constants/workflows.ts`；历史详版 `git show cddc4384:docs/domains/studio.md`。
 
+## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
+
+| 路由 | 等级 | 375px 结构 |
+| --- | --- | --- |
+| `/studio/image` `/video` `/audio` `/enhance` `/analyze` `/edit` | **降级** | 预览占满，参数面板进底部 vaul 抽屉，生成栏固定在 `safe-area-inset-bottom` 之上；模型选择只用 `layout="drill"`；助手 dock 改全屏 Sheet |
+| `/studio/node` | **降级** | 见 `canvas.md` 移动端节 |
+| `/studio/lora` | **降级** | 见 `lora.md` 移动端节，训练创建不做 |
+| `/studio/3d` | 搁置 | 随 3D 搁置，不做移动端 |
+| `/arena/**` | **不做** | 已闲置，待整体删除（owner 2026-09-03） |
+
 ## Last Verified
 
+- 2026-09-03 · 新增「移动端等级」节（owner 拍板，配方见 ui-defaults.md §6）。
 2026-07-10 · 路径与状态架构沿用 2026-06-03 口径 + 07-10 浏览器目检（dock/空态/composer/助手 dock）。

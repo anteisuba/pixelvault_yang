@@ -80,7 +80,7 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 
 ## Design / Testing / Ship（指针）
 
-- **UI 任务（现行设计治理）**：先读 `docs/brand-dna.md`，再按 `docs/scenes/ui-page.md`（或 ui-marketing.md）进入对应业务域，并过 `docs/checklists/ui.md`。改版必须先完成域定义 → 三方向 → 关键切片 → owner 确认，之后才实现。全局只统一薄品牌脊柱、行为与品质底线；旧方向、当前页面和共享组件皮肤均不能充当新设计答案。
+- **UI 任务（现行设计治理）**：**动任何 UI 先读 `docs/references/ui-defaults.md`（字体三槽 / 颜色脊柱 / 动效配方 / 移动端配方 / 8 项完成定义）**；日常 UI 任务用 `docs/templates/ui-request.md` 需求卡开工（缺 375 列或交互动作表不开工）。改版级再读 `docs/brand-dna.md`，按 `docs/scenes/ui-page.md`（或 ui-marketing.md）进入对应业务域，并过 `docs/checklists/ui.md`。改版必须先完成域定义 → 三方向 → 关键切片 → owner 确认，之后才实现。全局只统一薄品牌脊柱、行为与品质底线；旧方向、当前页面和共享组件皮肤均不能充当新设计答案。
 - **⚠ demo / 原型是例外（2026-07-27 owner 定）**：探索阶段的原型**不受**上述任何设计文档约束——`brand-dna.md`、`forbidden.md`、`docs/references/pages/*`、现有 token 体系、现有页面皮肤全部不适用，可以换配色、换字体、换材质、换整个视觉世界。闸门只管**要合入 `src/` 的代码**。起因：首页滑动原型复用了真机取到的令牌，结果「除了滑法什么新东西都没看到」——约束把探索的价值抵消了。同一轮宁可并排给几个视觉世界，也别只给一个安全版本。
 - **测试**：策略与闸门见 `docs/references/testing.md`；声称绿之前全量 vitest；视觉基线按 OS 分套；测试 key 一次性 dev 实例。
 - **Commit / Push**：规则见 `docs/WORKFLOW.md`——owner 点头才提交；push main = 生产部署，先过 `docs/checklists/release.md`。

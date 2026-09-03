@@ -108,3 +108,11 @@ B/C 可并行于 D；A 独立最先。每个 Phase 完成走 UI 确认阶梯（l
 - 常量全进 `src/constants/`（情绪词表、kind 枚举、时长上限、credit）；Zod schema 同步 `src/types/`；i18n 三语必须同步。
 - 所有新外部调用：`withRetry()` + circuit breaker + logger；LLM 产物（情绪导演、对话稿）过 `llm-output-validator`。
 - credit 定价（sfx 3/变体、music 15–20/曲）是**建议值，上线前 owner 复核**。
+
+## 7. 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
+
+- **降级**。对话式配音间在手机上：对话流占满，输入条固定底部，情绪 / 音色参数进底部抽屉；播放器控件命中区 44px。
+
+## Last Verified
+
+- 2026-09-03 · 新增 §7 移动端等级。

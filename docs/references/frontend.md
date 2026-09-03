@@ -27,7 +27,7 @@ primitive → semantic → domain/component → page
 
 | 层                | 当前内容                                                                 | 新设计使用规则                               |
 | ----------------- | ------------------------------------------------------------------------ | -------------------------------------------- |
-| Semantic fallback | `bg-background` / `bg-card` / `border-border` / `bg-muted`…              | 无域级方向时的中性实现，不是视觉上限         |
+| Semantic（脊柱，锁死） | `bg-background` / `bg-muted` / `bg-surface-sunken`（壳底）/ `bg-card` / `border-border` / `text-muted-foreground`… | 全站唯一浅底三层与文字语义，域不覆盖（ui-defaults.md §2，2026-09-03） |
 | Domain            | `sidebar-*` · `node-*` · `--surface-composer` · `--width-studio-*`       | 只在所属域使用；当前值不外溢为全站默认       |
 | Page              | `.home-v4` 域内令牌（首页域）                                            | 留在页内；第二个页面需要同模式时仍先分别验证 |
 | Utility           | `max-w-content` / `max-w-gallery` · `text-3xs` / `text-2xs` / `text-nav` | 共享尺度工具，不表达品牌性格                 |

@@ -226,7 +226,7 @@ L4 片盒 videoMerge（巨鱼）：吞成片，盒内保序胶片条可重排 �
 
 依赖：S5b 依赖 S5a 与 S2 的成分栏；其余可按序独立验收。连线渲染退场发生在 S5b（吞噬可用之前不拆现有连线，避免中间态无绑定手势）。
 
-每片：`npm run lint && npm run build`（dev 跑着不并行 build）→ `e2e/visual.spec.ts`（基线按 OS 分套，有意改动 `--update-snapshots` 并点名）→ 交互态 claude-in-chrome 实跑 → `checklists/ui.md` 过 P0。
+每片：`npm run lint && npm run build`（dev 跑着不并行 build）→ `e2e/visual.spec.ts`（基线按 OS 分套，有意改动 `--update-snapshots` 并点名）→ 交互态 claude-in-chrome 实跑 → `checklists/ui.md` 8 项全过。
 
 ### 9a. S5b B0+B1 实现偏差回写（2026-07-10 执行会话）
 

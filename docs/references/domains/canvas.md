@@ -124,6 +124,15 @@ AI 收到"重构 Canvas UI"时，必须先读本文并执行 `scenes/ui-page.md`
 - 类型与常量：`src/types/node-workflow.ts` · `src/constants/node-*`
 - 项目状态与持久化：`src/hooks/use-node-workflow.ts` · `prisma/schema.prisma`（`NodeWorkflowProject`）
 
+## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
+
+- **降级，要做**（参考 updream.cn 手机画布的结构，不借皮肤）。
+- 375px：视口全屏可 pan/zoom；节点卡放大到 `calc(100vw - 2rem)` 宽、单指拖动；左侧竖排浮动工具栏（素材 / 新节点 / 历史 / 剪辑）；composer 是底部 vaul 抽屉，收起只露一行输入，拉起露出模式 chip、媒体类型、模型与参数；小地图缩到左下角可折叠；撤销 / 重做 / 全屏 / 预览压成底部一条 44px 工具条；助手 dock 改全屏 Sheet；节点详情改底部抽屉。
+- 连线：「点端口 → 点目标端口」两步点击，不用拖拽，避开与 pan 的手势冲突。
+- 不做：多选框选、键盘快捷键、右键菜单。
+- 验收：375 图能完成「打开项目 → 在节点里输入 → 生成 → 看结果」主路径。
+
 ## Last Verified
 
+- 2026-09-03 · 新增「移动端等级」节（owner 拍板，配方见 ui-defaults.md §6）。
 - 2026-07-19 · 依据 product.md、node-canvas.md、canvas 在飞 plan、node 组件与 lib/types/constants 事实源，以及本轮 R3/A 业务落地范围复核。只建立稳定域契约与文档路由；未修改运行代码，未确认视觉方向。

@@ -500,14 +500,18 @@ export const StudioCanvas = memo(function StudioCanvas() {
               onSaveRecipe={handleSaveRecipe}
               onRetry={retry}
             />
-            {lastGeneration?.outputType === 'IMAGE' && !activeRun?.mode && (
+            {/* 走到这个分支时外层三元已经排除了 compare / variant —— 这里剩下
+                的 activeRun?.mode 只可能是 undefined 或 'single'，两种都该
+                出反馈条（曾经的 `!activeRun?.mode` 会连 'single' 一起挡掉，
+                导致单张生成永远看不到反馈条）。 */}
+            {lastGeneration?.outputType === 'IMAGE' && (
               <StudioResultFeedback
                 generationId={lastGeneration.id}
                 evaluation={lastEvaluation}
                 onFeedback={handleFeedback}
               />
             )}
-            {lastGeneration?.outputType === 'AUDIO' && !activeRun?.mode && (
+            {lastGeneration?.outputType === 'AUDIO' && (
               <StudioAudioFeedback
                 generationId={lastGeneration.id}
                 onFeedback={handleFeedback}

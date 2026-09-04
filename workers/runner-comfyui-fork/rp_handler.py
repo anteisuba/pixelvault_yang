@@ -14,8 +14,10 @@ job 交给官方 handler 之前：
   /runpod-volume/models/checkpoints/（同样缓存）。
 - v6：把 allowlist 中的后处理放大模型从 **Hugging Face** 拉到
   /runpod-volume/models/upscale_models/，并在落盘前校验 SHA-256。
-ComfyUI 的 folder_paths 按目录 mtime 失效缓存，故新下载的 LoRA/checkpoint 当次请求即可
-被 LoraLoader / CheckpointLoaderSimple 找到。
+下载完成**不等于** ComfyUI 看得见：folder_paths 的文件清单缓存活在 ComfyUI 自己的进程里
+（按目录 mtime 失效），而模型目录是网络卷，属性还有客户端缓存。2026-09-04 生产上首次使用
+的 LoRA 就因此被 `value_not_in_list` 挡回，原样重点一次即成功。所以交给官方 handler 之前
+先过 `wait_for_workflow_models`——按 ComfyUI 自己的 /object_info 视角验收每个权重。
 
 安全：
 - LoRA 只认 source == "r2"（app 生成的短时效预签名链）；checkpoint 只认 source ==
@@ -33,11 +35,13 @@ import base64
 import hashlib
 import importlib.util
 import os
+import time
 from urllib.parse import urlparse
 
 import requests
 import runpod
 
+from comfy_models import wait_for_workflow_models
 from runner_payload import (
     build_input_image_specs,
     normalize_workflow_seeds,
@@ -73,6 +77,16 @@ BASE_HANDLER_PATH = os.environ.get("RUNNER_BASE_HANDLER", "/handler_base.py")
 # v7：参考图走 URL 后，唯一还需要的护栏是「别让一张异常巨图把 worker 撑爆」。
 # 正常参考图是几 MB，64MB 远超任何真实用例，只用来兜住畸形输入。
 INPUT_IMAGE_MAX_BYTES = 64 * 1024 * 1024
+# 新下载的权重进入 ComfyUI 候选清单的等待窗口。等的是另一个进程的目录清单缓存 + 网络卷
+# 属性缓存过期，秒级；给到 3 分钟是为了把冷启动（ComfyUI 还没起来）也一并覆盖。
+COMFY_HOST = os.environ.get("COMFY_HOST", "127.0.0.1:8188")
+MODEL_VISIBILITY_TIMEOUT_SECONDS = int(
+    os.environ.get("RUNNER_MODEL_VISIBILITY_TIMEOUT", "180")
+)
+MODEL_VISIBILITY_POLL_SECONDS = float(
+    os.environ.get("RUNNER_MODEL_VISIBILITY_POLL", "1")
+)
+OBJECT_INFO_TIMEOUT_SECONDS = 10
 ALLOWED_LORA_SOURCE = "r2"
 ALLOWED_CHECKPOINT_SOURCE = "civitai"
 # v3：worker 发的是不带 token 的 civitai URL，fork 用自己的 secret 加鉴权。
@@ -430,6 +444,36 @@ def ensure_input_images(images_to_fetch) -> list:
     return images
 
 
+def fetch_object_info(class_type: str) -> dict:
+    """ComfyUI 对某个节点当前的输入规格——combo 候选清单即它这一刻看到的模型文件。"""
+    response = requests.get(
+        f"http://{COMFY_HOST}/object_info/{class_type}",
+        timeout=OBJECT_INFO_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def await_model_visibility(workflow) -> None:
+    """提交前确认 workflow 引用的每个权重都已进 ComfyUI 的候选清单。
+
+    ⛔ 别把这步去掉换成「下完就提交」：下载与 ComfyUI 的清单缓存分属两个进程，那正是
+    首次使用的 LoRA 必失败一次的原因（2026-09-04）。
+    """
+    requirements = wait_for_workflow_models(
+        workflow,
+        fetch_object_info,
+        timeout_seconds=MODEL_VISIBILITY_TIMEOUT_SECONDS,
+        poll_interval_seconds=MODEL_VISIBILITY_POLL_SECONDS,
+        sleep=time.sleep,
+        monotonic=time.monotonic,
+    )
+    print(
+        f"[runner-fork] ComfyUI lists all {len(requirements)} workflow model file(s)",
+        flush=True,
+    )
+
+
 def handler(job):
     inp = (job or {}).get("input", {}) or {}
     os.makedirs(LORA_DIR, exist_ok=True)
@@ -479,6 +523,7 @@ def handler(job):
     if fetched_images:
         inp.setdefault("images", []).extend(fetched_images)
     normalize_workflow_seeds(job)
+    await_model_visibility(inp.get("workflow"))
     inventory = cache_inventory(LORA_DIR, CHECKPOINT_DIR, DIFFUSION_MODELS_DIR)
     print(f"[runner-fork] cache inventory after job: {inventory}", flush=True)
     _persist_cache_manifest(inventory)

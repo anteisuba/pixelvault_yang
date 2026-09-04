@@ -12,6 +12,7 @@ RUN mv /handler.py /handler_base.py
 # rp_handler imports sibling modules at import time — copy them next to /handler.py.
 COPY rp_handler.py /handler.py
 COPY runner_payload.py /runner_payload.py
+COPY comfy_models.py /comfy_models.py
 COPY cache_policy.py /cache_policy.py
 COPY cache_manifest.py /cache_manifest.py
 

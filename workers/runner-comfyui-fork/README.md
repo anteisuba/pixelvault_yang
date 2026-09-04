@@ -24,7 +24,7 @@ handler 包一层下载再 `serverless.start`。
 | `serverless.start` 有卫 | `if __name__ == "__main__":`（第 900 行）→ import 安全复用 | 官方 handler.py 尾                       |
 | 入口                    | `CMD ["/start.sh"]`（后台起 ComfyUI + 跑 handler）         | 官方 Dockerfile / start.sh               |
 | LoRA 目录               | `/runpod-volume/models/loras/`                             | `extra_model_paths.yaml`（base_path 卷） |
-| 新下载的 LoRA 当次可见  | ComfyUI `folder_paths` 按目录 mtime 失效缓存               | ComfyUI 行为                             |
+| 新下载的 LoRA 当次可见  | ⚠ 不自动成立——提交前由 wrapper 轮询 `/object_info` 验收    | 见下「模型可见性闸」                     |
 
 ## 契约（Cloudflare Worker 发的 job input）
 
@@ -55,6 +55,30 @@ handler 包一层下载再 `serverless.start`。
 - `filename` 由 app `prepareRunnerLoras` 派生（Civitai 使用 version id，HF 使用来源哈希 + 文件名），workflow 的
   LoraLoader 也用它。
 - `source` 恒为 `"r2"`——handler 拒绝其它来源（防 SSRF）；文件名须纯 basename（防目录穿越）。
+
+### 模型可见性闸（v8）
+
+**下载完成不等于 ComfyUI 看得见。** `folder_paths` 的文件清单缓存活在 ComfyUI 自己的进程里
+（按目录 mtime 失效），wrapper 是另一个进程，模型目录又是网络卷（属性有客户端缓存）——写完
+文件那一刻，ComfyUI 手上的清单可能还是旧的。2026-09-04 生产：首次使用的 LoRA
+`civitai-2797481.safetensors` 提交即被挡回
+
+```
+Node lora-1 (errors): value_not_in_list — lora_name: 'civitai-2797481.safetensors' not in (list of length 39)
+```
+
+原样再点一次就成功——典型的「首次使用必失败一次」。
+
+修法在 `comfy_models.py`：交给官方 handler 之前，按 workflow 里每个 model-loader 节点
+（`MODEL_FILE_FIELDS`：LoraLoader / LoraLoaderModelOnly / CheckpointLoaderSimple /
+UNETLoader / CLIPLoader / VAELoader / UpscaleModelLoader）问 ComfyUI 的
+`/object_info/<class_type>`，直到引用的文件名出现在候选清单里才放行。
+
+- 超时 `RUNNER_MODEL_VISIBILITY_TIMEOUT`（默认 180s）、轮询 `RUNNER_MODEL_VISIBILITY_POLL`（默认 1s）。
+- 等不到就抛 `ComfyModelNotVisibleError` 并列出文件名——不降级、不改 workflow、不静默跳过。
+- ComfyUI 冷启动没起来（请求失败）也在同一个窗口内重试；响应形状不认识则立即抛。
+- ⛔ 别把这步删掉「省一个请求」：缓存命中的 LoRA 同样要验（可能是别的 worker 写进共享卷的，
+  本机 ComfyUI 一样没列过）。
 
 ### `images_to_fetch`（v7，img2img 参考图）
 
@@ -97,8 +121,9 @@ Cloudflare Worker 完全不碰图片字节，和几百 MB 的 LoRA 走同一条�
 接 GitHub 自动构建，控制台里 Import Git Repository 那条路本项目没在用。
 
 ⚠ 小仓的文件是从本目录**手工同步**过去的。同步时对着 Dockerfile 的 `COPY` 行核对：
-`Dockerfile` + `rp_handler.py` · `runner_payload.py` · `cache_policy.py` · `cache_manifest.py`
-——**四个 .py 缺一不可**，少一个构建就在那一步失败。`README.md` 与测试文件不进镜像。
+`Dockerfile` + `rp_handler.py` · `runner_payload.py` · `comfy_models.py` · `cache_policy.py` ·
+`cache_manifest.py`——**五个 .py 缺一不可**，少一个构建就在那一步失败。`README.md` 与测试
+文件不进镜像。
 
 ## 改了 fork 代码，怎么上线
 

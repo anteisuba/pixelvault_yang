@@ -452,7 +452,11 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   const videoContainer = (
     <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-muted/10 p-2">
-      <VideoPlayer src={generation.url ?? ''} className="rounded-xl" />
+      <VideoPlayer
+        src={generation.url ?? ''}
+        className="rounded-xl"
+        fit="contain"
+      />
       {videoBadgeParts.length > 0 && !showGeneratingOverlay ? (
         <span
           data-testid="studio-video-result-badge"

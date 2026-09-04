@@ -12,6 +12,7 @@ interface VideoPlayerProps {
   width?: number
   height?: number
   className?: string
+  fit?: 'fill' | 'contain'
 }
 
 export default function VideoPlayer({
@@ -20,6 +21,7 @@ export default function VideoPlayer({
   width,
   height,
   className,
+  fit = 'fill',
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -85,7 +87,7 @@ export default function VideoPlayer({
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-3xl border border-border/75 bg-foreground/5 ${className ?? ''}`}
+      className={`group relative overflow-hidden rounded-3xl border border-border/75 bg-foreground/5 ${fit === 'contain' ? 'video-player--contain' : ''} ${className ?? ''}`}
     >
       <video
         ref={videoRef}
@@ -93,7 +95,7 @@ export default function VideoPlayer({
         poster={poster}
         width={width}
         height={height}
-        className="w-full"
+        className={fit === 'contain' ? 'video-player-media--contain' : 'w-full'}
         preload="metadata"
         playsInline
         onTimeUpdate={handleTimeUpdate}

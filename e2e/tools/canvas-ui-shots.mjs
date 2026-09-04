@@ -509,14 +509,39 @@ async function fitView(page) {
   await settle(page, 900)
 }
 
+/**
+ * 登录态过期：中间件把画布那一跳重定向到 `/zh/sign-in?...`。这是整批共用的
+ * 根因，主循环见到它就停，不再逐个白等 30 秒。
+ */
+class AuthExpiredError extends Error {
+  constructor(url) {
+    super(`被弹到登录页（${url}）—— storageState 过期，重跑 auth setup`)
+    this.name = 'AuthExpiredError'
+  }
+}
+
+function assertNotSignIn(page) {
+  const url = page.url()
+  if (url.includes('sign-in')) throw new AuthExpiredError(url)
+}
+
 /** 换一份夹具并重载 —— 每张图一个受控场景（见文件头约束 3）。 */
 function makeSceneLoader(page, holder) {
   return async (scene) => {
     holder.record = buildProjectRecord(scene)
     await page.goto(CANVAS_URL, { waitUntil: 'load' })
-    await page.waitForSelector('[data-testid="canvas-stage"]', {
-      timeout: 30_000,
-    })
+    // 服务端重定向：导航一落地 URL 就已经是 sign-in，先于等选择器识别。
+    assertNotSignIn(page)
+    // 客户端晚到的跳转：让「落到登录页」与「舞台出现」赛跑，谁先到算谁，
+    // 别让 30 秒超时把「登录态过期」盖成「选择器失效」。
+    await Promise.race([
+      page.waitForSelector('[data-testid="canvas-stage"]', {
+        timeout: 30_000,
+      }),
+      page
+        .waitForURL(/sign-in/, { timeout: 30_000 })
+        .then(() => assertNotSignIn(page)),
+    ])
     await settle(page, 2200)
     if (scene.nodes.length > 0) await fitView(page)
   }
@@ -1664,9 +1689,6 @@ async function main() {
       mock.uploadFail = false
 
       await loadScene(shot.scene)
-      if (page.url().includes('sign-in')) {
-        throw new Error('被弹到登录页 —— storageState 过期，重跑 auth setup')
-      }
 
       if (shot.sequence) {
         // 一条流程连拍多张（如真实生成：生成中 → 出图 / 失败）。
@@ -1700,6 +1722,10 @@ async function main() {
       ).split('\n')[0]
       failures.push(`${shot.id}: ${reason}`)
       console.log(`  ✘ ${shot.id} 失败 —— ${reason}`)
+      if (error instanceof AuthExpiredError) {
+        console.log('  ⛔ 登录态过期是整批共用的根因，终止剩余镜头')
+        break
+      }
     }
   }
 

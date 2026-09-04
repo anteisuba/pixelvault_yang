@@ -141,8 +141,6 @@
     "deny": [
       "Edit(apps/**)",
       "Write(apps/**)",
-      "Edit(.github/workflows/**)",
-      "Write(.github/workflows/**)",
       "Edit(.husky/**)",
       "Write(.husky/**)",
       "Edit(package-lock.json)",
@@ -182,6 +180,8 @@
       "Write(.env.*.local)"
     ],
     "ask": [
+      "Edit(.github/workflows/**)",
+      "Write(.github/workflows/**)",
       "Edit(e2e/**)",
       "Write(e2e/**)",
       "Edit(playwright.config.ts)",

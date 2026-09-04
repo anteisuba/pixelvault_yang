@@ -24,6 +24,8 @@ interface AssetFolderBreadcrumbProps {
   current: string
   /** 当前层的计数（可选）。 */
   count?: number
+  /** 当前文件夹范围的主要动作，例如新建子文件夹。 */
+  action?: React.ReactNode
   className?: string
 }
 
@@ -31,6 +33,7 @@ export function AssetFolderBreadcrumb({
   crumbs,
   current,
   count,
+  action,
   className,
 }: AssetFolderBreadcrumbProps) {
   return (
@@ -63,6 +66,7 @@ export function AssetFolderBreadcrumb({
           </span>
         )}
       </span>
+      {action ? <span className="ml-auto shrink-0">{action}</span> : null}
     </nav>
   )
 }

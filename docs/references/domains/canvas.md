@@ -100,6 +100,20 @@ Canvas 的核心承诺是：
 | 在飞 plans/ 任务包                                                                    | 只在计划授权的业务范围内优先；不覆盖本文长期边界或全局 UI 治理。                                                                       |
 | 未来 Canvas UI redesign plan                                                          | 记录 Fable 的设计性格、三个结构方向、选定方向、关键切片、owner 决策与实施切片；**现在尚未创建，也没有默认视觉答案**。                  |
 | `archive/`（已删 2026-08-07，见 git 历史）、UI inspiration（含 Haivis）、当前代码外观 | 仅作历史或现状证据，不能自动升级为规范。                                                                                               |
+| `references/assets/canvas-ui/`（54 张，2026-09-03）                                   | 重设计前的**现状截图证据**，同上一行性质，不能自动升级为规范。                                                                         |
+
+### 现状截图基线（2026-09-03，重设计前）
+
+`docs/references/assets/canvas-ui/` 下 54 张截图，由 `e2e/tools/canvas-ui-shots.mjs` 落盘，命名分七组：A 画布 · B 节点 · C 工具 · D 输入框 · E 壳 · F 详情 · G 助手。仅作重设计前的现状证据，不是规范，不能替代 §9 的设计确认流程。
+
+推荐首看 6 张：
+
+- 常态：![](../assets/canvas-ui/A8-ingredients-and-edges.png)
+- 选中：![](../assets/canvas-ui/B2b-image-card-selected.png)
+- 上传中：![](../assets/canvas-ui/A10a-upload-in-progress.png)
+- 失败：![](../assets/canvas-ui/B1-image-starter-empty-failed.png)
+- 助手工作区：![](../assets/canvas-ui/G9-scriptdoc-workspace.png)
+- 卡详情：![](../assets/canvas-ui/F1b-detail-panel-character.png)
 
 AI 收到"重构 Canvas UI"时，必须先读本文并执行 `scenes/ui-page.md` 的设计确认流程；owner 确认关键切片以前，只能调查、建模和提出方向，不能直接生成完整页面代码。
 

@@ -31,7 +31,11 @@ vi.mock('@/components/ui/drawer', () => ({
 }))
 
 vi.mock('@/components/ui/audio-player', () => ({ AudioPlayer: () => null }))
-vi.mock('@/components/business/VideoPlayer', () => ({ default: () => null }))
+vi.mock('@/components/business/VideoPlayer', () => ({
+  default: ({ fit }: { fit?: string }) => (
+    <div data-testid="video-player" data-fit={fit} />
+  ),
+}))
 vi.mock('@/components/business/ImageDetailModal', () => ({
   ImageDetailModal: () => null,
 }))
@@ -130,6 +134,25 @@ describe('GenerationPreview — 问助手 entry', () => {
     fireEvent.click(screen.getByRole('button', { name: 'toolAskAssistant' }))
     expect(askAssistantMock).toHaveBeenCalledWith(
       'https://cdn.example.com/gen-1.png',
+    )
+  })
+})
+
+describe('GenerationPreview — video sizing', () => {
+  it('contains a video result inside the available stage', () => {
+    render(
+      <GenerationPreview
+        generation={makeGeneration({
+          outputType: 'VIDEO',
+          url: 'https://cdn.example.com/gen-1.mp4',
+        })}
+        isLatestResult
+      />,
+    )
+
+    expect(screen.getByTestId('video-player')).toHaveAttribute(
+      'data-fit',
+      'contain',
     )
   })
 })

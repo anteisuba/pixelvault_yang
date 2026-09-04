@@ -61,6 +61,38 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 - 模型执行目录由 `model-config.service` 解析：数据库 `ModelConfig` 覆盖内置 bootstrap 配置，并把 `available`、adapter、external model ID、cost、timeout 与 provider config 一致传入实际执行面；后台变更会失效模型缓存。
 - 存储：`storage/r2.ts`（55 importers，高风险）；provider URL 只能作 ingestion source，成功作品永久保存进 R2。
 
+### 生成任务取消（2026-09-04，commit `205026c9` + 收尾）
+
+五层，自上而下：
+
+1. **状态机**：`GenerationJobStatus` 新增终态 `CANCELLED`（`QUEUED`/`RUNNING` → `CANCELLED`）。
+2. **`generation-cancel.service.ts`**：三分区 image / video / audio-3d；命中 `alreadyFinished`（job 已经完成/失败）必须回滚，前端 `use-unified-generate.ts` 同步回滚，不留假取消态。
+3. **Worker `terminate`**：`workers/execution/src/index.ts` 的 cancel 处理，托底关闭执行。
+4. **Provider 侧取消**：靠 worker 上报 `providerJobId` 才能打到 provider——`reportProviderJobId()`（worker 侧，best-effort）→ app `execution-callback.service.ts` 的 `persistProviderJobIdFromStatusCallback` 用 `status in [QUEUED, RUNNING]` 做 CAS 落库到 `GenerationJob.providerJobId`（迁移 `20260903201844_generation_job_provider_job_id`）；取消时读出这个值喂给 `cancelProviderJob`。
+5. **五入口取消 UI**：取消相关文案只集中在 `GenerationCancel` 组件。
+
+`providerJobId` 上报点（谁报、报什么）：
+
+| Provider         | 上报值                             |
+| ---------------- | ---------------------------------- |
+| 视频 fal         | `{model_id}/requests/{request_id}` |
+| MiniMax          | `taskId`                           |
+| VolcEngine       | `taskId`                           |
+| 图片 Replicate   | `prediction.id`                    |
+| RunPod           | job id                             |
+| 图片 fal         | fal request id                     |
+| Hunyuan3D（fal） | fal request id                     |
+
+**不上报**（故意）：Rodin（无取消分支）· Fish 音频（无取消分支，靠 terminate 兜底）· 长视频逐片 fal（合成 `runId` 没有对应的单条 job 行，故意不报）。
+
+边界：
+
+- 用户自带 key 的任务，取消只能解系统 key，不能解用户 key。
+- 火山 / MiniMax 只能取消 `queued` 态，`running` 态取消不了。
+- `multiview-generate.service.ts` 把 `CANCELLED` 映射到 `FAILED` 让轮询终止。
+
+判断与教训：第 4 层「打不到 provider」的真因几乎总是 **DB 里没有 `providerJobId`**，不是 provider 本身不支持取消。新增 provider 派发路径时必须同时接 `reportProviderJobId`，否则取消只能停在 terminate 这一层（进程级兜底，打不到 provider 那端的排队/执行）。
+
 ## Provider 接入（现状）
 
 - Adapter 目录 `src/services/providers/`（2026-08-24 清点，`runway.adapter.ts` 已随死执行链清理整删）：elevenlabs · fal（含子目录）· fish-audio · gemini · huggingface · minimax（`minimaxAdapter`/`minimaxCnAdapter` 两个 type）· novelai · openai · replicate · runner · volcengine（`volcengineAdapter`/`byteplusAdapter` 两个 type）+ `registry.ts` + `types.ts`；11 个文件、13 个 registry 条目；adapter type 集中 `src/constants/providers.ts`。
@@ -145,3 +177,4 @@ Civitai 官网搜索（`ModelSearchIndexSortBy`）是**全局排序**，不是�
 ## Last Verified
 
 - Date: 2026-07-23 · Method: 核验执行 Worker 幂等创建、应用派发分类、回调 CAS、DB-first 模型解析、平台免费体验闸门、Execution v1 防重放协议、日志脱敏、认证边界、Clerk Production 已验证邮箱重绑定和对应回归测试。route/service 数量与高风险引用计数仍沿用 2026-07-10 快照；据此改动前先对实际代码。
+- Date: 2026-09-04 · Method: 核验生成任务取消五层链路（状态机 CANCELLED、`generation-cancel.service`、worker terminate、`providerJobId` 上报 + CAS 落库、五入口 UI），对照 commit `205026c9` 与 `providerJobIdFromStatusCallback` 实现补「生成任务取消」一节。

@@ -310,6 +310,73 @@ describe('checkMultiViewGenerationStatus', () => {
     expect(result.views).toEqual([])
   })
 
+  it('reports FAILED (not stuck IN_PROGRESS) when a sub-job was cancelled mid-flight', async () => {
+    mockFindMany.mockResolvedValue([
+      {
+        id: 'job-back',
+        userId: 'db-user-1',
+        status: 'CANCELLED',
+        generationId: null,
+        modelId: AI_MODELS.FLUX_KONTEXT_MAX,
+        provider: 'fal.ai',
+        prompt: MULTI_VIEW_PROMPTS.back,
+        errorMessage: null,
+        externalRequestId: multiViewMetadata('back'),
+      },
+    ] as never)
+
+    const result = await checkMultiViewGenerationStatus('clerk_test', {
+      batchId: 'batch-1',
+      jobIds: ['job-back'],
+    })
+
+    expect(result.status).toBe('FAILED')
+    expect(result.jobs[0]?.status).toBe('FAILED')
+    expect(result.views).toEqual([])
+    expect(mockCheckImageGenerationStatus).not.toHaveBeenCalled()
+  })
+
+  it('completes a batch once its remaining sub-jobs finish even if one was cancelled', async () => {
+    mockFindMany.mockResolvedValue([
+      {
+        id: 'job-back',
+        userId: 'db-user-1',
+        status: 'COMPLETED',
+        generationId: 'gen-back',
+        modelId: AI_MODELS.FLUX_KONTEXT_MAX,
+        provider: 'fal.ai',
+        prompt: MULTI_VIEW_PROMPTS.back,
+        errorMessage: null,
+        externalRequestId: multiViewMetadata('back'),
+      },
+      {
+        id: 'job-left',
+        userId: 'db-user-1',
+        status: 'CANCELLED',
+        generationId: null,
+        modelId: AI_MODELS.FLUX_KONTEXT_MAX,
+        provider: 'fal.ai',
+        prompt: MULTI_VIEW_PROMPTS.left,
+        errorMessage: null,
+        externalRequestId: multiViewMetadata('left'),
+      },
+    ] as never)
+    mockCheckImageGenerationStatus.mockResolvedValue(generationFor('back'))
+
+    const result = await checkMultiViewGenerationStatus('clerk_test', {
+      batchId: 'batch-1',
+      jobIds: ['job-back', 'job-left'],
+    })
+
+    // Terminal: must not remain IN_PROGRESS forever waiting on the
+    // cancelled sub-job to "finish".
+    expect(result.status).toBe('COMPLETED')
+    expect(result.views.map((view) => view.view)).toEqual(['back'])
+    expect(result.jobs.find((job) => job.view === 'left')?.status).toBe(
+      'FAILED',
+    )
+  })
+
   it('rejects jobs that are missing, owned by another user, or not in the batch', async () => {
     mockFindMany.mockResolvedValue([
       {

@@ -11,6 +11,7 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 const mockFindUnique = vi.fn()
+const mockUpdateMany = vi.fn()
 const mockStreamUploadToR2 = vi.fn()
 const mockCreateVideoPosterAsset = vi.fn()
 const mockGenerateStorageKey = vi.fn()
@@ -37,6 +38,7 @@ vi.mock('@/lib/db', () => ({
   db: {
     generationJob: {
       findUnique: (...args: unknown[]) => mockFindUnique(...args),
+      updateMany: (...args: unknown[]) => mockUpdateMany(...args),
     },
     $transaction: (...args: Parameters<typeof mockDbTransaction>) =>
       mockDbTransaction(...args),
@@ -78,7 +80,7 @@ import { handleExecutionCallback } from './execution-callback.service'
 // ─── Fixtures ───────────────────────────────────────────────────
 
 type CallbackKind = ExecutionCallbackPayload['kind']
-type JobStatus = 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+type JobStatus = 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
 
 function buildPayload(
   kind: CallbackKind,
@@ -116,6 +118,7 @@ describe('execution-callback.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockTxUpdateMany.mockResolvedValue({ count: 1 })
+    mockUpdateMany.mockResolvedValue({ count: 1 })
     mockStreamUploadToR2.mockResolvedValue({
       publicUrl: 'https://cdn.example.com/video.mp4',
       sizeBytes: 1024,
@@ -210,6 +213,79 @@ describe('execution-callback.service', () => {
       action: 'logged',
     })
     expect(mockCompleteGenerationJob).not.toHaveBeenCalled()
+  })
+
+  it('persists providerJobId from a status callback for a non-terminal job', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+
+    await handleExecutionCallback({
+      ...buildPayload('status'),
+      data: { providerJobId: 'fal-req-123' },
+    })
+
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'job-1', status: { in: ['QUEUED', 'RUNNING'] } },
+      data: { providerJobId: 'fal-req-123' },
+    })
+  })
+
+  it('does not write providerJobId when the status callback omits it', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+
+    await handleExecutionCallback(buildPayload('status'))
+
+    expect(mockUpdateMany).not.toHaveBeenCalled()
+  })
+
+  it('does not write providerJobId when the status callback data fails validation', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+
+    await handleExecutionCallback({
+      ...buildPayload('status'),
+      data: { providerJobId: '' },
+    })
+
+    expect(mockUpdateMany).not.toHaveBeenCalled()
+  })
+
+  it('ignores status callbacks entirely for an already-terminal job (no providerJobId write)', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('COMPLETED'))
+
+    const result = await handleExecutionCallback({
+      ...buildPayload('status'),
+      data: { providerJobId: 'fal-req-123' },
+    })
+
+    expect(result.action).toBe('ignored-terminal')
+    expect(mockUpdateMany).not.toHaveBeenCalled()
+  })
+
+  it('treats CANCELLED as terminal and ignores status callbacks without throwing or writing', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('CANCELLED'))
+
+    const result = await handleExecutionCallback({
+      ...buildPayload('status'),
+      data: { providerJobId: 'fal-req-123' },
+    })
+
+    expect(result).toEqual({
+      runId: 'job-1',
+      jobStatus: 'CANCELLED',
+      action: 'ignored-terminal',
+    })
+    expect(mockUpdateMany).not.toHaveBeenCalled()
+  })
+
+  it('treats CANCELLED as terminal and ignores ping callbacks', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('CANCELLED'))
+
+    const result = await handleExecutionCallback(buildPayload('ping'))
+
+    expect(result).toEqual({
+      runId: 'job-1',
+      jobStatus: 'CANCELLED',
+      action: 'ignored-terminal',
+    })
   })
 
   it('finalizes result callbacks for a pending job', async () => {
@@ -632,6 +708,29 @@ describe('execution-callback.service', () => {
       action: 'ignored-terminal',
     })
     expect(mockStreamUploadToR2).not.toHaveBeenCalled()
+  })
+
+  it('ignores result callbacks for an already CANCELLED job without writing or throwing 500 (best-effort worker terminate race)', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('CANCELLED'))
+
+    const result = await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://provider.example.com/video.mp4',
+        requestCount: 1,
+      },
+    })
+
+    expect(result).toEqual({
+      runId: 'job-1',
+      jobStatus: 'CANCELLED',
+      action: 'ignored-terminal',
+    })
+    expect(mockStreamUploadToR2).not.toHaveBeenCalled()
+    expect(mockCreateGeneration).not.toHaveBeenCalled()
+    expect(mockCompleteGenerationJob).not.toHaveBeenCalled()
+    expect(mockFailActiveGenerationJob).not.toHaveBeenCalled()
+    expect(mockCreateApiUsageEntry).not.toHaveBeenCalled()
   })
 
   it('returns 400 VALIDATION_ERROR when result data is missing artifactUrl', async () => {

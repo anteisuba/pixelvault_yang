@@ -79,7 +79,11 @@ function toStatusRecordStatus(
   status: string,
   hasGeneration: boolean,
 ): MultiViewJobStatusRecord['status'] {
-  if (status === 'FAILED') return 'FAILED'
+  // CANCELLED has no dedicated slot in this public status union (see
+  // MultiViewJobStatusRecord in @/types) — mapping it to FAILED (rather than
+  // falling through to IN_PROGRESS) is what makes the batch terminal so
+  // use-generate-multiview.ts's poll loop actually stops.
+  if (status === 'FAILED' || status === 'CANCELLED') return 'FAILED'
   if (status === 'QUEUED') return 'IN_QUEUE'
   if (status === 'COMPLETED' && hasGeneration) return 'COMPLETED'
   return 'IN_PROGRESS'

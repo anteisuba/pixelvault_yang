@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import type { ExecutionCallbackPayload } from '@/types'
 import {
+  executionCallbackStatusDataSchema,
   ExecutionCallbackErrorDataSchema,
   ExecutionCallbackResultDataSchema,
   GenerationSourceSurfaceSchema,
@@ -37,9 +38,14 @@ const GENERATION_JOB_STATUSES = [
   'RUNNING',
   'COMPLETED',
   'FAILED',
+  'CANCELLED',
 ] as const
 
-const TERMINAL_GENERATION_JOB_STATUSES = ['COMPLETED', 'FAILED'] as const
+const TERMINAL_GENERATION_JOB_STATUSES = [
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+] as const
 
 export type ExecutionCallbackJobStatus =
   (typeof GENERATION_JOB_STATUSES)[number]
@@ -212,6 +218,28 @@ function buildProviderFailureJson(params: {
   })
 }
 
+/**
+ * Best-effort persist of the upstream provider job id reported by a worker
+ * `status` callback. Uses `updateMany` with a non-terminal status filter as a
+ * CAS guard so a late/duplicate status callback can never clobber a job a
+ * concurrent finalize/cancel has already moved past QUEUED/RUNNING. Parse
+ * failures and missing `providerJobId` are silent no-ops — a status callback
+ * must never fail the generation's main path.
+ */
+async function persistProviderJobIdFromStatusCallback(
+  jobId: string,
+  data: unknown,
+): Promise<void> {
+  const result = executionCallbackStatusDataSchema.safeParse(data)
+
+  if (!result.success || !result.data.providerJobId) return
+
+  await db.generationJob.updateMany({
+    where: { id: jobId, status: { in: ['QUEUED', 'RUNNING'] } },
+    data: { providerJobId: result.data.providerJobId },
+  })
+}
+
 export async function handleExecutionCallback(
   payload: ExecutionCallbackPayload,
 ): Promise<CallbackResult> {
@@ -274,6 +302,7 @@ export async function handleExecutionCallback(
         jobStatus,
         ts: payload.ts,
       })
+      await persistProviderJobIdFromStatusCallback(job.id, payload.data)
       break
     case 'result':
       return finalizeExecutionResult(payload, job, jobStatus)

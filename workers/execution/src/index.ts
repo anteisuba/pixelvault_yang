@@ -1762,6 +1762,63 @@ function buildFalModel3DQueueRequest(context: WorkerModel3DRunContext): {
   return { endpointModelId: providerInput.externalModelId, input }
 }
 
+/**
+ * Hunyuan3D's fal queue submit. Extracted from `Hunyuan3DWorkflow` so the
+ * providerJobId report below is reachable from tests — the workflow step body
+ * itself isn't.
+ */
+export async function submitFalModel3DQueue(
+  context: WorkerModel3DRunContext,
+  apiKey: string,
+  env: ExecutionEnv,
+): Promise<FalQueueSubmitResult> {
+  const queueBody = buildFalModel3DQueueRequest(context)
+  const endpoint = `https://queue.fal.run/${queueBody.endpointModelId}`
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Key ${apiKey}`,
+      'Content-Type': JSON_CONTENT_TYPE,
+    },
+    body: JSON.stringify(queueBody.input),
+  })
+
+  if (!response.ok) {
+    throw await createProviderResponseError(response, {
+      provider: 'fal',
+      phase: 'model_3d_queue_submit',
+      fallbackMessage: `fal.ai 3D queue submit failed with status ${response.status}`,
+    })
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const submitFailure = createProviderPayloadError(data, {
+    provider: 'fal',
+    phase: 'model_3d_queue_submit',
+    fallbackMessage: 'fal.ai 3D queue submit reported failure.',
+  })
+  if (submitFailure) throw submitFailure
+
+  const requestId = readStringField(data, 'request_id')
+  const statusUrl = readStringField(data, 'status_url')
+  const responseUrl = readStringField(data, 'response_url')
+
+  if (!requestId || !statusUrl || !responseUrl) {
+    throw new Error('fal.ai 3D queue submit returned invalid response.')
+  }
+
+  // Same `{model_id}/requests/{request_id}` shape cancelProviderJob's fal
+  // branch expects — a bare request id would 404 there.
+  await reportProviderJobId(
+    env,
+    context,
+    `${queueBody.endpointModelId}/requests/${requestId}`,
+  )
+
+  return { requestId, statusUrl, responseUrl }
+}
+
 function readFalModel3DResult(resultData: Record<string, unknown>): {
   artifactUrl: string | null
   mimeType: string
@@ -2092,9 +2149,22 @@ function buildFalWorkerQueueRequest(context: WorkerRunContext): {
   return buildFalWorkerVideoQueueRequest(context)
 }
 
-async function submitFalQueue(
+export async function submitFalQueue(
   context: WorkerRunContext,
   apiKey: string,
+  env: ExecutionEnv,
+  /**
+   * The long-video per-clip path (`submitFalLongVideoClipQueue`) reuses this
+   * function but its `context.callbackUrl` is actually
+   * `LongVideoPipelineRunContext.advanceUrl` — a distinct, strictly-validated
+   * endpoint (`LongVideoPipelineAdvanceRequestSchema`) that 400s on an
+   * unrecognized `kind:'status'` payload. Its synthetic per-clip `runId`
+   * (`${runId}:clip-${clipIndex}`) also doesn't correspond to any
+   * GenerationJob row, so there's nowhere for the app to persist
+   * `providerJobId` even if the request succeeded. Callers on that path must
+   * pass `false` here; every other caller passes `true`.
+   */
+  reportProviderJob: boolean,
 ): Promise<FalQueueSubmitResult> {
   const queueBody = buildFalWorkerQueueRequest(context)
   const baseUrl = 'https://queue.fal.run'
@@ -2143,6 +2213,15 @@ async function submitFalQueue(
     throw new Error('fal.ai queue submit returned an invalid response.')
   }
 
+  if (reportProviderJob) {
+    // fal's cancel endpoint is per-model (PUT
+    // https://queue.fal.run/{model_id}/requests/{request_id}/cancel), so the
+    // bare request_id alone can't address it — report the full path segment
+    // that cancelProviderJob already expects in `providerJobId`.
+    const providerJobId = `${queueBody.endpointModelId}/requests/${requestId}`
+    await reportProviderJobId(env, context, providerJobId)
+  }
+
   return { requestId, statusUrl, responseUrl }
 }
 
@@ -2150,9 +2229,10 @@ async function submitFalQueue(
 // The second video provider on this workflow. fal stays the default; anything
 // routed here goes to MiniMax's own async face instead of queue.fal.run.
 
-async function submitMiniMaxQueue(
+export async function submitMiniMaxQueue(
   context: WorkerRunContext,
   apiKey: string,
+  env: ExecutionEnv,
 ): Promise<FalQueueSubmitResult> {
   if (context.outputType !== 'VIDEO') {
     throw new Error('MiniMax adapter handles VIDEO output only.')
@@ -2201,6 +2281,8 @@ async function submitMiniMaxQueue(
   if (!taskId) {
     throw new Error('MiniMax submit returned no task_id.')
   }
+
+  await reportProviderJobId(env, context, taskId)
 
   // MiniMax has a single query endpoint — status and result come back
   // together, so statusUrl and responseUrl are deliberately the same URL.
@@ -2272,9 +2354,10 @@ async function pollMiniMaxQueue(
 // at ~2.2× the Ark price, and until this branch landed the Ark route was
 // catalog-only (the service 501'd on anything that wasn't fal).
 
-async function submitVolcEngineQueue(
+export async function submitVolcEngineQueue(
   context: WorkerRunContext,
   apiKey: string,
+  env: ExecutionEnv,
 ): Promise<FalQueueSubmitResult> {
   if (context.outputType !== 'VIDEO') {
     throw new Error('VolcEngine video branch handles VIDEO output only.')
@@ -2329,6 +2412,8 @@ async function submitVolcEngineQueue(
   if (!taskId) {
     throw new Error('VolcEngine submit returned no task id.')
   }
+
+  await reportProviderJobId(env, context, taskId)
 
   // Ark serves status and result from one endpoint, so both URLs are the same.
   const taskUrl = `${baseUrl}/contents/generations/tasks/${taskId}`
@@ -2408,14 +2493,15 @@ async function pollVolcEngineQueue(
 async function submitProviderQueue(
   context: WorkerRunContext,
   apiKey: string,
+  env: ExecutionEnv,
 ): Promise<FalQueueSubmitResult> {
   if (isMiniMaxProviderId(context.providerId)) {
-    return submitMiniMaxQueue(context, apiKey)
+    return submitMiniMaxQueue(context, apiKey, env)
   }
   if (isVolcEngineProviderId(context.providerId)) {
-    return submitVolcEngineQueue(context, apiKey)
+    return submitVolcEngineQueue(context, apiKey, env)
   }
-  return submitFalQueue(context, apiKey)
+  return submitFalQueue(context, apiKey, env, true)
 }
 
 async function pollProviderQueue(
@@ -2552,12 +2638,13 @@ async function submitFalLongVideoExtendQueue(
   return { requestId, statusUrl, responseUrl }
 }
 
-async function submitFalLongVideoClipQueue(
+export async function submitFalLongVideoClipQueue(
   context: LongVideoPipelineRunContext,
   apiKey: string,
   clipIndex: number,
   previousVideoUrl: string | undefined,
   previousFrameUrl: string | undefined,
+  env: ExecutionEnv,
 ): Promise<{
   queue: FalQueueSubmitResult
   inputVideoUrl?: string
@@ -2604,7 +2691,7 @@ async function submitFalLongVideoClipQueue(
   )
 
   return {
-    queue: await submitFalQueue(queueContext, apiKey),
+    queue: await submitFalQueue(queueContext, apiKey, env, false),
     inputFrameUrl: clipIndex > 0 ? referenceImage : undefined,
   }
 }
@@ -3145,6 +3232,47 @@ async function emitCallback(
   }
 }
 
+/**
+ * Best-effort upstream-id report: fired right after a provider submit
+ * returns an id, before the workflow starts polling, so the app can persist
+ * `GenerationJob.providerJobId` in time for a user-initiated cancel to find
+ * it. Mirrors `cancelRunnerImageJob`'s best-effort shape — swallow every
+ * failure (missing secret, network error, non-2xx) and just log a warning.
+ * Never throw: a failed report must not take down the provider submission
+ * that already succeeded.
+ */
+export async function reportProviderJobId(
+  env: ExecutionEnv,
+  context: { runId: string; callbackUrl: string },
+  providerJobId: string,
+): Promise<void> {
+  if (!env.INTERNAL_CALLBACK_SECRET) return
+
+  try {
+    const response = await postSignedJson(
+      context.callbackUrl,
+      env.INTERNAL_CALLBACK_SECRET,
+      {
+        runId: context.runId,
+        kind: 'status',
+        ts: new Date().toISOString(),
+        data: { providerJobId },
+      },
+    )
+    if (!response.ok) {
+      console.warn('reportProviderJobId: callback responded non-2xx', {
+        runId: context.runId,
+        status: response.status,
+      })
+    }
+  } catch (error) {
+    console.warn('reportProviderJobId: callback request failed', {
+      runId: context.runId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
 export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
   ExecutionEnv,
   WorkerRunContext
@@ -3215,7 +3343,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
         },
         async () => {
           const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return submitProviderQueue(context, apiKey)
+          return submitProviderQueue(context, apiKey, this.env)
         },
       )
 
@@ -3509,6 +3637,7 @@ export class LongVideoPipelineWorkflow extends WorkflowEntrypoint<
               clipIndex,
               previousVideoUrl,
               previousFrameUrl,
+              this.env,
             )
           },
         )
@@ -3853,43 +3982,7 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
         },
         async () => {
           const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          const queueBody = buildFalModel3DQueueRequest(context)
-          const endpoint = `https://queue.fal.run/${queueBody.endpointModelId}`
-
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              Authorization: `Key ${apiKey}`,
-              'Content-Type': JSON_CONTENT_TYPE,
-            },
-            body: JSON.stringify(queueBody.input),
-          })
-
-          if (!response.ok) {
-            throw await createProviderResponseError(response, {
-              provider: 'fal',
-              phase: 'model_3d_queue_submit',
-              fallbackMessage: `fal.ai 3D queue submit failed with status ${response.status}`,
-            })
-          }
-
-          const data = (await response.json()) as Record<string, unknown>
-          const submitFailure = createProviderPayloadError(data, {
-            provider: 'fal',
-            phase: 'model_3d_queue_submit',
-            fallbackMessage: 'fal.ai 3D queue submit reported failure.',
-          })
-          if (submitFailure) throw submitFailure
-
-          const requestId = readStringField(data, 'request_id')
-          const statusUrl = readStringField(data, 'status_url')
-          const responseUrl = readStringField(data, 'response_url')
-
-          if (!requestId || !statusUrl || !responseUrl) {
-            throw new Error('fal.ai 3D queue submit returned invalid response.')
-          }
-
-          return { requestId, statusUrl, responseUrl }
+          return submitFalModel3DQueue(context, apiKey, this.env)
         },
       )
 
@@ -4821,22 +4914,21 @@ export function buildFalImageInput(
   return input
 }
 
-async function submitFalImageQueue(
+export async function submitFalImageQueue(
   context: WorkerImageRunContext,
   apiKey: string,
+  env: ExecutionEnv,
   civitaiToken: string | null = null,
 ): Promise<FalQueueSubmitResult> {
-  const response = await fetch(
-    `https://queue.fal.run/${resolveFalImageModelId(context)}`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Key ${apiKey}`,
-        'Content-Type': JSON_CONTENT_TYPE,
-      },
-      body: JSON.stringify(buildFalImageInput(context, civitaiToken)),
+  const endpointModelId = resolveFalImageModelId(context)
+  const response = await fetch(`https://queue.fal.run/${endpointModelId}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Key ${apiKey}`,
+      'Content-Type': JSON_CONTENT_TYPE,
     },
-  )
+    body: JSON.stringify(buildFalImageInput(context, civitaiToken)),
+  })
 
   if (!response.ok) {
     throw await createProviderResponseError(response, {
@@ -4861,6 +4953,16 @@ async function submitFalImageQueue(
   if (!requestId || !statusUrl || !responseUrl) {
     throw new Error('fal.ai image queue submit returned an invalid response.')
   }
+
+  // Same shape the video path reports: fal's cancel endpoint is per-model
+  // (PUT https://queue.fal.run/{model_id}/requests/{request_id}/cancel), so
+  // `providerJobId` must carry the whole `{model_id}/requests/{request_id}`
+  // path segment cancelProviderJob concatenates.
+  await reportProviderJobId(
+    env,
+    context,
+    `${endpointModelId}/requests/${requestId}`,
+  )
 
   return { requestId, statusUrl, responseUrl }
 }
@@ -5573,7 +5675,7 @@ async function buildReplicatePredictionBody(
   return { version: latestVersion, input }
 }
 
-async function submitReplicateImagePrediction(
+export async function submitReplicateImagePrediction(
   context: WorkerImageRunContext,
   env: ExecutionEnv,
   apiKey: string,
@@ -5598,7 +5700,9 @@ async function submitReplicateImagePrediction(
     })
   }
 
-  return readReplicatePrediction(await response.json())
+  const prediction = readReplicatePrediction(await response.json())
+  await reportProviderJobId(env, context, prediction.id)
+  return prediction
 }
 
 async function pollReplicateImagePrediction(
@@ -5773,7 +5877,7 @@ function readRunnerUpscaler(advancedParams: Record<string, unknown>) {
  * lookup call — the checkpoint/LoRA manifest is fully static (models/runner/
  * checkpoints.ts), so this is a single request.
  */
-async function submitRunnerImageJob(
+export async function submitRunnerImageJob(
   context: WorkerImageRunContext,
   env: ExecutionEnv,
   apiKey: string,
@@ -5941,6 +6045,7 @@ async function submitRunnerImageJob(
   if (!id) {
     throw new Error('Runner submit response did not include a job id.')
   }
+  await reportProviderJobId(env, context, id)
   const outputScale = upscaler?.scale ?? 1
   return {
     id,
@@ -6519,7 +6624,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
             const civitaiToken = hasCivitaiLora(context)
               ? await resolveCivitaiTokenImage(this.env, context)
               : null
-            return submitFalImageQueue(context, apiKey, civitaiToken)
+            return submitFalImageQueue(context, apiKey, this.env, civitaiToken)
           },
         )
 
@@ -7111,7 +7216,7 @@ const REPLICATE_PROVIDER_ID = 'replicate'
  * Best-effort upstream provider cancel. Single-provider failure never throws
  * — every branch reports `{ attempted, ok, detail }` instead.
  */
-async function cancelProviderJob(
+export async function cancelProviderJob(
   env: ExecutionEnv,
   jobId: string,
   provider: string,
@@ -7239,6 +7344,41 @@ async function cancelProviderJob(
         attempted: true,
         ok: false,
         detail: `VolcEngine/BytePlus cancel request failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      }
+    }
+  }
+
+  if (isMiniMaxProviderId(provider)) {
+    const apiKey = await resolveSystemApiKeyForCancel(env, jobId, provider)
+    if (!apiKey) {
+      return {
+        attempted: false,
+        ok: false,
+        detail: 'No MiniMax system API key available for cancel.',
+      }
+    }
+    try {
+      // DELETE {base}/video_generation/{task_id} (base already ends in /v2 —
+      // see miniMaxBaseUrl). Per MiniMax's docs this only *cancels* a task
+      // still 'queued'; a 'running' task returns an error by design, same
+      // shape as the VolcEngine/Ark branch above — report status as-is.
+      const baseUrl = miniMaxBaseUrl(provider)
+      const response = await fetch(
+        `${baseUrl}/video_generation/${providerJobId}`,
+        { method: 'DELETE', headers: { Authorization: `Bearer ${apiKey}` } },
+      )
+      return {
+        attempted: true,
+        ok: response.ok,
+        detail: `MiniMax responded ${response.status} (only cancels tasks still queued).`,
+      }
+    } catch (error) {
+      return {
+        attempted: true,
+        ok: false,
+        detail: `MiniMax cancel request failed: ${
           error instanceof Error ? error.message : String(error)
         }`,
       }

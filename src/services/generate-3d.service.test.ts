@@ -472,6 +472,38 @@ describe('cancel3DGenerationForUserId', () => {
     expect(mockFailJob).not.toHaveBeenCalled()
   })
 
+  it('passes providerJobId through to the worker cancel notify when the job has one', async () => {
+    mockFindJob
+      .mockResolvedValueOnce({
+        ...LEGACY_INLINE_RUNNING_JOB,
+        provider: 'fal',
+        providerJobId: 'fal-req-123',
+        externalRequestId: JSON.stringify({
+          stage: MODEL_3D_JOB_STAGE.MESH_READY,
+          sourceImageUrl: 'https://cdn.test/source.png',
+          prompt: '',
+          apiKeyId: 'fal-key-id',
+        }),
+      } as never)
+      .mockResolvedValueOnce({
+        ...LEGACY_INLINE_RUNNING_JOB,
+        provider: 'fal',
+        providerJobId: 'fal-req-123',
+        status: 'CANCELLED',
+        generation: null,
+      } as never)
+    mockUpdateManyJob.mockResolvedValue({ count: 1 })
+
+    await cancel3DGenerationForUserId('user-1', { jobId: 'job-1' })
+
+    expect(mockNotifyWorkerCancel).toHaveBeenCalledWith({
+      jobId: 'job-1',
+      workflowInstanceId: 'job-1',
+      provider: 'fal',
+      providerJobId: 'fal-req-123',
+    })
+  })
+
   it('is a no-op for an already-terminal job (no CAS, no worker notify)', async () => {
     mockFindJob.mockResolvedValue({
       ...LEGACY_INLINE_RUNNING_JOB,

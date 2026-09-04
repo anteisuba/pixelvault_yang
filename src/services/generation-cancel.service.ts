@@ -28,11 +28,13 @@ const CANCELLABLE_STATUSES = ['QUEUED', 'RUNNING'] as const
 export async function notifyWorkerCancelBestEffort(job: {
   id: string
   provider: string
+  providerJobId?: string | null
 }): Promise<void> {
   const request: WorkerCancelRequest = {
     jobId: job.id,
     workflowInstanceId: job.id,
     provider: job.provider,
+    ...(job.providerJobId ? { providerJobId: job.providerJobId } : {}),
   }
 
   try {
@@ -77,7 +79,7 @@ export async function cancelGenerationJobs(
 
   const ownedJobs = await db.generationJob.findMany({
     where: { id: { in: jobIds }, userId: dbUser.id },
-    select: { id: true, status: true, provider: true },
+    select: { id: true, status: true, provider: true, providerJobId: true },
   })
 
   const ownedById = new Map(ownedJobs.map((job) => [job.id, job]))
@@ -117,7 +119,7 @@ export async function cancelGenerationJobs(
     // the race to a concurrent worker callback finalizing the job first".
     const settled = await db.generationJob.findMany({
       where: { id: { in: candidateIds } },
-      select: { id: true, status: true, provider: true },
+      select: { id: true, status: true, provider: true, providerJobId: true },
     })
 
     for (const job of settled) {

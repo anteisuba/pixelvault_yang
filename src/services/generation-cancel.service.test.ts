@@ -29,8 +29,13 @@ const mockUpdateMany = vi.mocked(db.generationJob.updateMany)
 const mockEnsureUser = vi.mocked(ensureUser)
 const mockLoggerWarn = vi.mocked(logger.warn)
 
-function job(id: string, status: string, provider = 'fal') {
-  return { id, status, provider }
+function job(
+  id: string,
+  status: string,
+  provider = 'fal',
+  providerJobId: string | null = null,
+) {
+  return { id, status, provider, providerJobId }
 }
 
 describe('cancelGenerationJobs', () => {
@@ -193,6 +198,55 @@ describe('cancelGenerationJobs', () => {
       cancelled: ['job-1'],
       alreadyFinished: ['job-2'],
       notFound: ['job-3'],
+    })
+  })
+
+  it('includes providerJobId in the worker cancel payload when the job has one', async () => {
+    mockFindMany
+      .mockResolvedValueOnce([job('job-1', 'RUNNING')] as never)
+      .mockResolvedValueOnce([
+        job('job-1', 'CANCELLED', 'fal', 'fal-req-123'),
+      ] as never)
+    mockUpdateMany.mockResolvedValue({ count: 1 })
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await cancelGenerationJobs('clerk-1', ['job-1'])
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(init.body as string)).toEqual({
+      jobId: 'job-1',
+      workflowInstanceId: 'job-1',
+      provider: 'fal',
+      providerJobId: 'fal-req-123',
+    })
+  })
+
+  it('omits providerJobId from the worker cancel payload when the job has none', async () => {
+    mockFindMany
+      .mockResolvedValueOnce([job('job-1', 'RUNNING')] as never)
+      .mockResolvedValueOnce([job('job-1', 'CANCELLED')] as never)
+    mockUpdateMany.mockResolvedValue({ count: 1 })
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await cancelGenerationJobs('clerk-1', ['job-1'])
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const parsedBody = JSON.parse(init.body as string)
+    expect(parsedBody).not.toHaveProperty('providerJobId')
+    expect(parsedBody).toEqual({
+      jobId: 'job-1',
+      workflowInstanceId: 'job-1',
+      provider: 'fal',
     })
   })
 })

@@ -3916,6 +3916,7 @@ export const GenerationJobScalarFieldEnum = {
   errorCode: 'errorCode',
   providerFailure: 'providerFailure',
   externalRequestId: 'externalRequestId',
+  providerJobId: 'providerJobId',
   startedAt: 'startedAt',
   completedAt: 'completedAt',
   createdAt: 'createdAt',

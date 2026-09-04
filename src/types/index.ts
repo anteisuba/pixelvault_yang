@@ -1637,6 +1637,19 @@ export type ExecutionCallbackErrorData = z.infer<
   typeof ExecutionCallbackErrorDataSchema
 >
 
+/**
+ * Worker `status` callback payload — reports the upstream provider job id
+ * once the worker has dispatched the request, so the app can persist it
+ * (`GenerationJob.providerJobId`) for a later cancel to target.
+ */
+export const executionCallbackStatusDataSchema = z.object({
+  providerJobId: z.string().trim().min(1).optional(),
+})
+
+export type ExecutionCallbackStatusData = z.infer<
+  typeof executionCallbackStatusDataSchema
+>
+
 export const ResolveKeyRequestSchema = z
   .object({
     runId: z.string().trim().min(1, 'Run ID is required'),

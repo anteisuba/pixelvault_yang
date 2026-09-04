@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildFalImageInput,
   bytesToBase64,
+  cancelProviderJob,
   computeTieredDimensions,
   getImageReferenceInputs,
   createSignedRequestHeaders,
@@ -22,7 +23,16 @@ import {
   parseModel3DRunContext,
   parseWorkerRunContext,
   pollAndPersistRunnerImageJob,
+  reportProviderJobId,
   resolveFalImageModelId,
+  submitFalImageQueue,
+  submitFalLongVideoClipQueue,
+  submitFalModel3DQueue,
+  submitFalQueue,
+  submitMiniMaxQueue,
+  submitReplicateImagePrediction,
+  submitRunnerImageJob,
+  submitVolcEngineQueue,
   tieredGeminiDimensions,
   tieredOpenAISize,
   timingSafeEqualHex,
@@ -1450,5 +1460,504 @@ describe('/cancel route', () => {
     const payload = await response.json()
     expect(payload.provider.attempted).toBe(true)
     expect(payload.provider.ok).toBe(false)
+  })
+
+  it('resolves the MiniMax cancel task URL and reports the upstream status', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async (input: RequestInfo | URL, init?: RequestInit) => {
+          const requestUrl = String(input)
+          if (requestUrl.endsWith('/resolve-key')) {
+            return new Response(
+              JSON.stringify({ success: true, data: { apiKey: 'mm-key' } }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            )
+          }
+          if (
+            requestUrl === 'https://api.minimax.io/v2/video_generation/task-1'
+          ) {
+            expect(init?.method).toBe('DELETE')
+            // MiniMax's own limit (same shape as VolcEngine/Ark above): only
+            // a still-queued task can be cancelled — a running one errors,
+            // and that's not a bug in this branch.
+            return new Response(null, { status: 400 })
+          }
+          throw new Error(`Unexpected fetch: ${requestUrl}`)
+        },
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const notFound = vi.fn().mockRejectedValue(new Error('not found'))
+    const body = JSON.stringify({
+      jobId: 'job-1',
+      provider: 'minimax',
+      providerJobId: 'task-1',
+    })
+
+    const response = await executionWorker.fetch(
+      await signedCancelRequest(body),
+      {
+        INTERNAL_CALLBACK_SECRET: secret,
+        INTERNAL_CALLBACK_URL: callbackUrl,
+        CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
+        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
+        HYPER3D_RODIN_WORKFLOW: { get: notFound },
+        HUNYUAN3D_WORKFLOW: { get: notFound },
+        IMAGE_QUEUE_WORKFLOW: { get: notFound },
+      } as never,
+    )
+
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload.provider.attempted).toBe(true)
+    expect(payload.provider.ok).toBe(false)
+  })
+
+  it('reports unsupported for a provider with no cancel dispatch (e.g. Fish Audio)', async () => {
+    const env = {
+      INTERNAL_CALLBACK_SECRET: secret,
+      INTERNAL_CALLBACK_URL: callbackUrl,
+    } as unknown as Parameters<typeof cancelProviderJob>[0]
+
+    const result = await cancelProviderJob(env, 'job-1', 'fish_audio', 'x')
+    expect(result).toEqual({
+      attempted: false,
+      ok: false,
+      detail:
+        'Provider "fish_audio" has no cancel dispatch (unsupported, or synchronous with nothing to cancel — e.g. Fish Audio).',
+    })
+  })
+})
+
+/**
+ * 上游取消需要 providerJobId，而 app 侧发来的 providerJobId 此前恒为空——本节
+ * 补的是「拿到上游 id 就立刻回写」这条链：四个提交点各自算出 providerJobId 后
+ * 调 reportProviderJobId 发一次 kind:'status' 回调，让 app 侧 CAS 写
+ * GenerationJob.providerJobId，取消时才有 id 可用。
+ */
+describe('reportProviderJobId', () => {
+  const context = { runId: 'run-1', callbackUrl: 'https://cb.example.com' }
+
+  it('posts a kind:status callback with the providerJobId', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await reportProviderJobId(
+      { INTERNAL_CALLBACK_SECRET: 'secret-1' } as never,
+      context,
+      'provider-job-1',
+    )
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('https://cb.example.com')
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body.runId).toBe('run-1')
+    expect(body.kind).toBe('status')
+    expect(body.data).toEqual({ providerJobId: 'provider-job-1' })
+  })
+
+  it('is a no-op when the callback secret is not configured', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await reportProviderJobId({} as never, context, 'provider-job-1')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('swallows a failed callback and never throws', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('network down'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      reportProviderJobId(
+        { INTERNAL_CALLBACK_SECRET: 'secret-1' } as never,
+        context,
+        'provider-job-1',
+      ),
+    ).resolves.toBeUndefined()
+  })
+
+  it('swallows a non-2xx callback response and never throws', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 500 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      reportProviderJobId(
+        { INTERNAL_CALLBACK_SECRET: 'secret-1' } as never,
+        context,
+        'provider-job-1',
+      ),
+    ).resolves.toBeUndefined()
+  })
+})
+
+describe('provider submit reports providerJobId', () => {
+  const env = { INTERNAL_CALLBACK_SECRET: 'secret-1' } as never
+
+  it('fal: reports the {model_id}/requests/{request_id} path segment cancelProviderJob expects', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const requestUrl = String(input)
+        if (requestUrl === 'https://queue.fal.run/ext-1') {
+          return new Response(
+            JSON.stringify({
+              request_id: 'req-1',
+              status_url: 'https://queue.fal.run/ext-1/requests/req-1/status',
+              response_url: 'https://queue.fal.run/ext-1/requests/req-1',
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          )
+        }
+        // The report callback — reply ok so the call resolves cleanly.
+        return new Response(null, { status: 200 })
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = parseWorkerRunContext(
+      makeVideoInput({ providerInput: { modelId: 'kling-v3-pro' } }),
+    )
+    if (!context) throw new Error('expected a valid video context')
+
+    await submitFalQueue(context, 'fal-key', env, true)
+
+    const reportCall = fetchMock.mock.calls.find(
+      ([input]) => String(input) === context.callbackUrl,
+    )
+    if (!reportCall) throw new Error('expected a report callback fetch call')
+    const body = JSON.parse(String(reportCall[1]?.body)) as Record<
+      string,
+      unknown
+    >
+    expect(body.kind).toBe('status')
+    // endpointModelId for this context resolves to providerInput.externalModelId
+    // ('ext-1') since there's no i2vModelId/referenceImage override.
+    expect(body.data).toEqual({ providerJobId: 'ext-1/requests/req-1' })
+  })
+
+  it('fal image: reports the {model_id}/requests/{request_id} path segment', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const requestUrl = String(input)
+        if (requestUrl === 'https://queue.fal.run/fal-ai/flux-lora') {
+          return new Response(
+            JSON.stringify({
+              request_id: 'img-req-1',
+              status_url:
+                'https://queue.fal.run/fal-ai/flux-lora/requests/img-req-1/status',
+              response_url:
+                'https://queue.fal.run/fal-ai/flux-lora/requests/img-req-1',
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          )
+        }
+        return new Response(null, { status: 200 })
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = makeFalImageContext() as Parameters<
+      typeof submitFalImageQueue
+    >[0]
+
+    await submitFalImageQueue(context, 'fal-key', env)
+
+    const reportCall = fetchMock.mock.calls.find(
+      ([input]) => String(input) === context.callbackUrl,
+    )
+    if (!reportCall) throw new Error('expected a report callback fetch call')
+    const body = JSON.parse(String(reportCall[1]?.body)) as Record<
+      string,
+      unknown
+    >
+    expect(body.kind).toBe('status')
+    expect(body.data).toEqual({
+      providerJobId: 'fal-ai/flux-lora/requests/img-req-1',
+    })
+  })
+
+  it('fal 3D (Hunyuan3D): reports the {model_id}/requests/{request_id} path segment', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const requestUrl = String(input)
+        if (requestUrl === 'https://queue.fal.run/ext-3d') {
+          return new Response(
+            JSON.stringify({
+              request_id: '3d-req-1',
+              status_url:
+                'https://queue.fal.run/ext-3d/requests/3d-req-1/status',
+              response_url: 'https://queue.fal.run/ext-3d/requests/3d-req-1',
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          )
+        }
+        return new Response(null, { status: 200 })
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = parseModel3DRunContext(makeModel3DInput())
+    if (!context) throw new Error('expected a valid 3D context')
+
+    await submitFalModel3DQueue(context, 'fal-key', env)
+
+    const reportCall = fetchMock.mock.calls.find(
+      ([input]) => String(input) === context.callbackUrl,
+    )
+    if (!reportCall) throw new Error('expected a report callback fetch call')
+    const body = JSON.parse(String(reportCall[1]?.body)) as Record<
+      string,
+      unknown
+    >
+    expect(body.kind).toBe('status')
+    expect(body.data).toEqual({
+      providerJobId: 'ext-3d/requests/3d-req-1',
+    })
+  })
+
+  it('MiniMax: reports the bare task_id', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const requestUrl = String(input)
+        if (requestUrl === 'https://api.minimax.io/v2/video_generation') {
+          return new Response(JSON.stringify({ task_id: 'mm-task-1' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        }
+        return new Response(null, { status: 200 })
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = parseWorkerRunContext(
+      makeVideoInput({ providerId: 'minimax' }),
+    )
+    if (!context) throw new Error('expected a valid video context')
+
+    await submitMiniMaxQueue(context, 'mm-key', env)
+
+    const reportCall = fetchMock.mock.calls.find(
+      ([input]) => String(input) === context.callbackUrl,
+    )
+    if (!reportCall) throw new Error('expected a report callback fetch call')
+    const body = JSON.parse(String(reportCall[1]?.body)) as Record<
+      string,
+      unknown
+    >
+    expect(body.kind).toBe('status')
+    expect(body.data).toEqual({ providerJobId: 'mm-task-1' })
+  })
+
+  it('VolcEngine: reports the bare task id', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const requestUrl = String(input)
+        if (
+          requestUrl ===
+          'https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks'
+        ) {
+          return new Response(JSON.stringify({ id: 'volc-task-1' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        }
+        return new Response(null, { status: 200 })
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = parseWorkerRunContext(
+      makeVideoInput({ providerId: 'volcengine' }),
+    )
+    if (!context) throw new Error('expected a valid video context')
+
+    await submitVolcEngineQueue(context, 'volc-key', env)
+
+    const reportCall = fetchMock.mock.calls.find(
+      ([input]) => String(input) === context.callbackUrl,
+    )
+    if (!reportCall) throw new Error('expected a report callback fetch call')
+    const body = JSON.parse(String(reportCall[1]?.body)) as Record<
+      string,
+      unknown
+    >
+    expect(body.kind).toBe('status')
+    expect(body.data).toEqual({ providerJobId: 'volc-task-1' })
+  })
+
+  it('Replicate: reports the bare prediction id', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const requestUrl = String(input)
+        if (requestUrl === 'https://api.replicate.com/v1/predictions') {
+          return new Response(
+            JSON.stringify({ id: 'replicate-pred-1', status: 'starting' }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          )
+        }
+        return new Response(null, { status: 200 })
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = makeFalImageContext({
+      modelId: 'flux-dev',
+      externalModelId: 'black-forest-labs/flux-dev',
+    }) as Parameters<typeof submitReplicateImagePrediction>[0]
+
+    await submitReplicateImagePrediction(
+      { ...context, providerId: 'replicate' },
+      env,
+      'replicate-key',
+    )
+
+    const reportCall = fetchMock.mock.calls.find(
+      ([input]) => String(input) === context.callbackUrl,
+    )
+    if (!reportCall) throw new Error('expected a report callback fetch call')
+    const body = JSON.parse(String(reportCall[1]?.body)) as Record<
+      string,
+      unknown
+    >
+    expect(body.kind).toBe('status')
+    expect(body.data).toEqual({ providerJobId: 'replicate-pred-1' })
+  })
+
+  it('RunPod (runner): reports the bare job id', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const requestUrl = String(input)
+        if (requestUrl === 'https://api.runpod.ai/v2/runner-endpoint/run') {
+          return new Response(JSON.stringify({ id: 'runpod-job-1' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        }
+        return new Response(null, { status: 200 })
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = makeFalImageContext({
+      externalModelId: 'waiIllustriousSDXL_v150',
+      aspectRatio: '1:1',
+    }) as Parameters<typeof submitRunnerImageJob>[0]
+    const runnerEnv = {
+      INTERNAL_CALLBACK_SECRET: 'secret-1',
+      RUNPOD_ENDPOINT: 'runner-endpoint',
+    } as unknown as Parameters<typeof submitRunnerImageJob>[1]
+
+    await submitRunnerImageJob(
+      { ...context, providerId: 'runner' },
+      runnerEnv,
+      'runpod-key',
+    )
+
+    const reportCall = fetchMock.mock.calls.find(
+      ([input]) => String(input) === context.callbackUrl,
+    )
+    if (!reportCall) throw new Error('expected a report callback fetch call')
+    const body = JSON.parse(String(reportCall[1]?.body)) as Record<
+      string,
+      unknown
+    >
+    expect(body.kind).toBe('status')
+    expect(body.data).toEqual({ providerJobId: 'runpod-job-1' })
+  })
+
+  it('a failed report callback does not affect the returned submit result', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const requestUrl = String(input)
+        if (requestUrl === 'https://queue.fal.run/ext-1') {
+          return new Response(
+            JSON.stringify({
+              request_id: 'req-1',
+              status_url: 'https://queue.fal.run/ext-1/requests/req-1/status',
+              response_url: 'https://queue.fal.run/ext-1/requests/req-1',
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          )
+        }
+        // The report callback fails outright — must not surface as a thrown
+        // error from submitFalQueue, which has already succeeded upstream.
+        throw new Error('callback host unreachable')
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = parseWorkerRunContext(
+      makeVideoInput({ providerInput: { modelId: 'kling-v3-pro' } }),
+    )
+    if (!context) throw new Error('expected a valid video context')
+
+    await expect(
+      submitFalQueue(context, 'fal-key', env, true),
+    ).resolves.toEqual({
+      requestId: 'req-1',
+      statusUrl: 'https://queue.fal.run/ext-1/requests/req-1/status',
+      responseUrl: 'https://queue.fal.run/ext-1/requests/req-1',
+    })
+  })
+
+  it('long-video clip path never reports providerJobId (its callbackUrl is the pipeline advanceUrl, not a GenerationJob callback)', async () => {
+    // owner 2026-09-04: LongVideoPipelineAdvanceRequestSchema (see
+    // src/app/api/internal/execution/long-video/advance/route.ts) 400s on an
+    // unrecognized kind:'status' payload, and the per-clip synthetic runId
+    // (`${runId}:clip-${clipIndex}`) doesn't correspond to any GenerationJob
+    // row anyway — so this path must never call reportProviderJobId. That's
+    // wired via submitFalLongVideoClipQueue → submitFalQueue(..., false);
+    // this test locks the call-site wiring itself, not just submitFalQueue's
+    // own reportProviderJob flag, since a flipped `false` → `true` at the
+    // call site is exactly the regression that shipped for a day.
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const requestUrl = String(input)
+        if (requestUrl === 'https://queue.fal.run/e') {
+          return new Response(
+            JSON.stringify({
+              request_id: 'req-clip-1',
+              status_url: 'https://queue.fal.run/e/requests/req-clip-1/status',
+              response_url: 'https://queue.fal.run/e/requests/req-clip-1',
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          )
+        }
+        // Any other call (in particular a report POST to advanceUrl) is the
+        // exact bug this test guards against.
+        throw new Error(`Unexpected fetch: ${requestUrl}`)
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = parseLongVideoPipelineRunContext(
+      makeLongVideoInput({ providerInput: { modelId: 'kling-v3-pro' } }),
+    )
+    if (!context) throw new Error('expected a valid long-video context')
+
+    const result = await submitFalLongVideoClipQueue(
+      context,
+      'fal-key',
+      0,
+      undefined,
+      undefined,
+      env,
+    )
+
+    expect(result.queue.requestId).toBe('req-clip-1')
+    expect(
+      fetchMock.mock.calls.some(
+        ([input]) => String(input) === context.advanceUrl,
+      ),
+    ).toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

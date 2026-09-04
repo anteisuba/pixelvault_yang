@@ -486,6 +486,7 @@ export async function cancel3DGenerationForUserId(
       await notifyWorkerCancelBestEffort({
         id: job.id,
         provider: job.provider,
+        providerJobId: job.providerJobId,
       })
     }
   }

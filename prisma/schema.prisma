@@ -415,6 +415,7 @@ model GenerationJob {
   errorCode         String?
   providerFailure   Json?
   externalRequestId String?
+  providerJobId     String?
   startedAt         DateTime?
   completedAt       DateTime?
   createdAt         DateTime            @default(now())

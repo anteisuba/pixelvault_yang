@@ -3128,7 +3128,7 @@
       },
       "anthropic": {
         "label": "Claude",
-        "description": "Use Anthropic Claude Sonnet 5 for the canvas assistant's structural reasoning — multi-scene continuity, character arcs, and shot planning."
+        "description": "Use Anthropic Claude Fable 5.1 for the canvas assistant's structural reasoning — multi-scene continuity, character arcs, and shot planning."
       },
       "xai": {
         "label": "Grok",
@@ -6452,6 +6452,7 @@
       "accountLimitReached": "The provider account has hit the usage limit configured for this model, and the model service is paused. Retrying will not help — raise or remove that limit in the provider's console, or switch to a different model.",
       "outputBudgetExhausted": "This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.",
       "contextLimitExceeded": "This model's context window is still too small after PixelVault compacted older history and retried once. Start a new conversation or remove large references.",
+      "refused": "The selected model declined this request under its content policy. Rephrase the request or choose another Agent Key.",
       "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",
       "callbackTimeout": "The generation worker did not report back in time. Try again or check the worker logs.",
       "storageUploadFailed": "The provider returned media, but saving it failed. Try again.",

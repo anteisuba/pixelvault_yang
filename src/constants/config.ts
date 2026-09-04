@@ -519,6 +519,17 @@ export const ANTHROPIC_API = {
   VERSION: '2023-06-01',
   MESSAGES_PATH: '/messages',
   MODELS_PATH: '/models',
+  /**
+   * Beta header that unlocks `fallbacks: 'default'` on `/messages`. Claude
+   * Fable 5.1 runs safety classifiers that can decline a request (HTTP 200 +
+   * `stop_reason: 'refusal'`); with this header the API re-runs a declined
+   * request on an Opus-tier model server-side instead of stopping. The
+   * `'default'` scalar form needs exactly this header value — the array form
+   * uses a different (earlier-dated) one; do not "correct" the date.
+   */
+  SERVER_SIDE_FALLBACK_BETA: 'server-side-fallback-2026-07-01',
+  /** `stop_reason` value the classifiers return when they decline a request. */
+  REFUSAL_STOP_REASON: 'refusal',
 } as const
 
 export const LLM_TEXT_MODEL_IDS = {
@@ -544,9 +555,12 @@ export const LLM_TEXT_MODEL_IDS = {
   QWEN_PLUS: 'qwen-plus',
   QWEN_FLASH: 'qwen-flash',
   QWEN3_VL_PLUS: 'qwen3-vl-plus',
-  // Anthropic (Claude). Sonnet 5 only — owner 2026-07-26 decree, no Opus
-  // tier on this route. Canvas-assistant structural reasoning.
-  CLAUDE_SONNET_5: 'claude-sonnet-5',
+  // Anthropic (Claude). Fable 5.1 only — owner 2026-09-02 decision, replacing
+  // the 2026-07-26 "Sonnet 5 only" decree. Canvas-assistant structural
+  // reasoning. $10/$50 per MTok, 1M context, 128k output, thinking always on
+  // (no `thinking` config accepted), no assistant prefill, no forced
+  // `tool_choice`, requires 30-day data retention on the key's org.
+  CLAUDE_FABLE_5_1: 'claude-fable-5-1',
   /**
    * xAI (Grok). grok-4.6 only — owner 2026-08-23 decree. 500k context,
    * text+image input, function calling / structured outputs / reasoning.
@@ -563,9 +577,12 @@ export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   OPENAI_REASONING: 4096,
   // Anthropic's Messages API requires `max_tokens` on every request — there
   // is no "omit for provider-managed" option like OpenAI/DeepSeek/Qwen. This
-  // is the wide ceiling used when the caller asks for provider-managed
-  // output (providerManagedOutput: true).
-  ANTHROPIC_MANAGED: 8192,
+  // is both the provider-managed ceiling and the *floor* for explicit
+  // budgets: Claude Fable 5.1 always thinks (thinking cannot be disabled),
+  // and `max_tokens` caps thinking + answer together, so a caller budget
+  // sized for a non-thinking adapter (the 1024 default) could be spent
+  // entirely on reasoning and truncate the reply. It is a cap, not spend.
+  ANTHROPIC: 16_000,
 } as const
 
 /**

@@ -29,6 +29,7 @@ import {
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
+  ANTHROPIC_API,
   LLM_TEXT_DEFAULT_MAX_TOKENS,
   LLM_TEXT_MODEL_IDS,
   LLM_TEXT_TIMEOUTS_MS,
@@ -1328,8 +1329,42 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     // Anthropic's Messages API requires max_tokens on every request — unlike
     // OpenAI/DeepSeek/Qwen, providerManagedOutput can't mean "omit the field."
     expect(readFetchJson(fetchMock).max_tokens).toBe(
-      LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_MANAGED,
+      LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC,
     )
+  })
+
+  it('raises an explicit max_tokens below the Anthropic floor, keeps one above it', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async () =>
+          new Response(
+            JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }),
+            { status: 200 },
+          ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const base = {
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+      apiKey: 'sk-ant-test',
+    }
+    await llmTextCompletion({ ...base, maxTokens: 512 })
+    await llmTextCompletion({
+      ...base,
+      maxTokens: LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC + 1,
+    })
+
+    // Fable 5.1 always thinks and `max_tokens` caps thinking + answer
+    // together, so a budget sized for a non-thinking adapter is raised to
+    // the floor. Larger explicit budgets pass through untouched.
+    const first = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)
+    const second = JSON.parse(fetchMock.mock.calls[1]?.[1]?.body as string)
+    expect(first.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC)
+    expect(second.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC + 1)
   })
 
   it('calls the Messages API with the system prompt as a top-level field', async () => {
@@ -1370,8 +1405,9 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     }
 
     expect(result).toBe('hello from claude')
-    expect(payload.model).toBe(LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5)
-    expect(payload.max_tokens).toBe(512)
+    expect(payload.model).toBe(LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1)
+    // 512 is below the Anthropic floor (thinking + answer share max_tokens).
+    expect(payload.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC)
     // System prompt goes on the top-level `system` field — Anthropic has no
     // role:'system' message.
     expect(payload.system).toBe('You are helpful.')
@@ -1404,7 +1440,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
       messages: Array<{ role: string; content: unknown }>
     }
 
-    // ⚠ Regression guard: an assistant-turn prefill **400s on Sonnet 5**, so
+    // ⚠ Regression guard: an assistant-turn prefill **400s on Fable 5.1**, so
     // JSON mode must never add one. The instruction rides the system prompt.
     expect(payload.messages).toEqual([
       { role: 'user', content: 'Write a script outline.' },
@@ -1417,7 +1453,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     expect(() => JSON.parse(result)).not.toThrow()
   })
 
-  it('disables thinking so max_tokens is not spent on it', async () => {
+  it('sends no thinking config and opts into the server-side refusal fallback', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }),
@@ -1437,13 +1473,55 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
       maxTokens: 2000,
     })
 
-    // Sonnet 5 thinks by default when `thinking` is omitted, and max_tokens
-    // caps thinking + answer together — every caller's budget here was sized
-    // against non-thinking adapters, so it must be explicitly off.
+    // ⚠ Regression guard: Fable 5.1 rejects `thinking: {type:'disabled'}` and
+    // `budget_tokens` with a 400 — the field must be absent. The refusal
+    // fallback is the `'default'` scalar, which needs exactly the
+    // `-2026-07-01` beta header (the array form uses a different one).
     const payload = readFetchJson(fetchMock) as {
-      thinking?: { type: string }
+      thinking?: unknown
+      fallbacks?: unknown
     }
-    expect(payload.thinking).toEqual({ type: 'disabled' })
+    expect(payload.thinking).toBeUndefined()
+    expect(payload.fallbacks).toBe('default')
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.anthropic.com/v1/messages',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'anthropic-beta': ANTHROPIC_API.SERVER_SIDE_FALLBACK_BETA,
+        }),
+      }),
+    )
+  })
+
+  it('throws PROVIDER_REFUSED when the classifiers decline (HTTP 200, stop_reason refusal)', async () => {
+    // A refusal is a *successful* response with empty (pre-output) content —
+    // reading content[0] unconditionally would surface "No text response".
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            content: [],
+            stop_reason: 'refusal',
+            stop_details: { type: 'refusal', category: 'cyber' },
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'hi',
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+        apiKey: 'sk-ant-test',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: 'PROVIDER_REFUSED',
+      i18nKey: 'errors.provider.refused',
+    })
   })
 
   it('rejects image input because the Claude route is text-only', async () => {
@@ -1729,8 +1807,8 @@ describe('llmTextStream', () => {
   it('Claude：只取 text_delta —— thinking_delta 绝不当正文念出去', async () => {
     // ⚠ Anthropic 是自己的事件格式，不与那四家共用解析。同一个
     //   `content_block_delta` 还会驮思考与工具调用的增量；把它们 yield 出去就是
-    //   把模型的思考过程念给用户听。本仓恒 `thinking:{type:'disabled'}`，但这道
-    //   判据不能靠那个配置兜着——配置是能改的。
+    //   把模型的思考过程念给用户听。Fable 5.1 的 thinking 恒开（关不掉），默认
+    //   `display: "omitted"` 时 thinking_delta 为空串，但这道判据不能靠那个默认兜着。
     const frame = (delta: Record<string, unknown>) =>
       `event: content_block_delta\ndata: ${JSON.stringify({
         type: 'content_block_delta',
@@ -1787,6 +1865,50 @@ describe('llmTextStream', () => {
     )
 
     expect(readFetchJson(fetchMock).stream).toBe(true)
+  })
+
+  it('Claude：流中途 stop_reason=refusal 抛 PROVIDER_REFUSED，不把半截当完整回复', async () => {
+    // 分类器可以在已经吐了一部分正文之后才拒绝：`message_delta` 带
+    // `stop_reason: 'refusal'`。这时要抛错让上层丢掉半截，而不是静默收尾。
+    const refusalFrame =
+      'event: message_delta\ndata: ' +
+      JSON.stringify({
+        type: 'message_delta',
+        delta: { stop_reason: 'refusal', stop_sequence: null },
+        usage: { output_tokens: 3 },
+      }) +
+      '\n\n'
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'event: content_block_delta\ndata: ' +
+            JSON.stringify({
+              type: 'content_block_delta',
+              index: 0,
+              delta: { type: 'text_delta', text: '半截' },
+            }) +
+            '\n\n',
+          refusalFrame,
+          CLAUDE_MESSAGE_STOP_FRAME,
+        ]),
+      ),
+    )
+
+    await expect(
+      collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+          providerConfig: {
+            label: 'Claude',
+            baseUrl: 'https://api.anthropic.com/v1',
+          },
+          apiKey: 'test-key',
+        }),
+      ),
+    ).rejects.toMatchObject({ errorCode: 'PROVIDER_REFUSED' })
   })
 
   // ─── OpenAI 兼容的另外三家（2026-08-24 补齐） ──────────────────

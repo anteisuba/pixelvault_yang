@@ -216,8 +216,8 @@ describe('CanvasAssistantRouteSelector', () => {
       pickerProps?.onRequestSetup?.(
         makeOption({
           adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-          optionId: 'llm-route:assistant:setup:claude-sonnet-4-5',
-          modelId: 'claude-sonnet-4-5',
+          optionId: 'llm-route:assistant:setup:claude-fable-5-1',
+          modelId: 'claude-fable-5-1',
         }),
       )
     })

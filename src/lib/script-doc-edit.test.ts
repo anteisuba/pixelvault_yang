@@ -309,6 +309,61 @@ describe('applyFocusedResult', () => {
     expect(result.title).toBe(DOC.title)
   })
 
+  it('shot focus keeps fields the output contract never emits', () => {
+    // SCRIPT_DOC_OUTPUT_CONTRACT's shot template has no composition /
+    // durationSeconds (and sceneLabel is optional) — a focused rewrite must
+    // not wipe the user's manual values with undefined.
+    const withManualFields: ScriptDoc = {
+      ...DOC,
+      shots: [
+        {
+          ...DOC.shots[0]!,
+          sceneLabel: 'INT. GARDEN — NIGHT',
+          composition: 'low-angle close-up',
+          durationSeconds: 8,
+        },
+      ],
+    }
+    const aiDoc: ScriptDoc = {
+      ...withManualFields,
+      shots: [
+        {
+          id: 'shot-1',
+          summary: 'AI rewrote the beat.',
+          emotion: 'calm · dread',
+          camera: 'slow dolly-in',
+          roleIds: ['role-1'],
+          dialogue: [],
+        },
+      ],
+    }
+    const result = applyFocusedResult(withManualFields, aiDoc, {
+      kind: 'shot',
+      id: 'shot-1',
+    })
+    expect(result.shots[0]?.summary).toBe('AI rewrote the beat.')
+    expect(result.shots[0]?.emotion).toBe('calm · dread')
+    expect(result.shots[0]?.sceneLabel).toBe('INT. GARDEN — NIGHT')
+    expect(result.shots[0]?.composition).toBe('low-angle close-up')
+    expect(result.shots[0]?.durationSeconds).toBe(8)
+  })
+
+  it('shot focus still takes the AI sceneLabel when the model emits one', () => {
+    const withLabel: ScriptDoc = {
+      ...DOC,
+      shots: [{ ...DOC.shots[0]!, sceneLabel: 'INT. GARDEN — NIGHT' }],
+    }
+    const aiDoc: ScriptDoc = {
+      ...withLabel,
+      shots: [{ ...withLabel.shots[0]!, sceneLabel: 'EXT. GARDEN — DAWN' }],
+    }
+    const result = applyFocusedResult(withLabel, aiDoc, {
+      kind: 'shot',
+      id: 'shot-1',
+    })
+    expect(result.shots[0]?.sceneLabel).toBe('EXT. GARDEN — DAWN')
+  })
+
   it('returns the current doc when the focused shot id is missing', () => {
     const result = applyFocusedResult(DOC, DOC, { kind: 'shot', id: 'ghost' })
     expect(result).toEqual(DOC)

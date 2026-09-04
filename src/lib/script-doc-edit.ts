@@ -332,6 +332,12 @@ const SHOT_FIELDS: ScriptDocShotField[] = [
  * (the whole cast, or one shot by id) from the AI's doc and keep everything else
  * exactly as the user has it. Deterministic — "only this part changes" does not
  * depend on the model behaving.
+ *
+ * Shot focus merges rather than replaces the whole object:
+ * `SCRIPT_DOC_OUTPUT_CONTRACT` 的 shot 模板里没有 `composition` /
+ * `durationSeconds`（`sceneLabel` 有但 optional，模型常省略）——这些字段 AI
+ * 不会稳定产出，整对象替换等于用 undefined 静默清空用户手动值。目标字段
+ * （summary/emotion/camera/roleIds/dialogue）照旧全量取 AI。
  */
 export function applyFocusedResult(
   currentDoc: ScriptDoc,
@@ -347,9 +353,15 @@ export function applyFocusedResult(
   if (!aiShot) return currentDoc
   return {
     ...currentDoc,
-    shots: currentDoc.shots.map((shot) =>
-      shot.id === focus.id ? aiShot : shot,
-    ),
+    shots: currentDoc.shots.map((shot) => {
+      if (shot.id !== focus.id) return shot
+      return {
+        ...aiShot,
+        sceneLabel: aiShot.sceneLabel ?? shot.sceneLabel,
+        composition: aiShot.composition ?? shot.composition,
+        durationSeconds: aiShot.durationSeconds ?? shot.durationSeconds,
+      }
+    }),
   }
 }
 

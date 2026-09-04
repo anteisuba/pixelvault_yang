@@ -31,8 +31,9 @@ export enum AI_ADAPTER_TYPES {
    */
   MINIMAX_CN = 'minimax_cn',
   /**
-   * Claude (Anthropic Messages API) — BYOK, text-only. Sonnet 5 is the only
-   * model on this route (owner 2026-07-26 decree — no Opus): structural
+   * Claude (Anthropic Messages API) — BYOK, text-only. Fable 5.1 is the only
+   * model on this route (owner 2026-09-02, replacing the 07-26 Sonnet 5
+   * decree): structural
    * reasoning (multi-scene continuity, character arcs, shot planning) for
    * the canvas assistant. See
    * docs/references/pages/assistant-shell.md.
@@ -224,7 +225,7 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   // Same tier as OPENAI — both premium-priced text/reasoning routes.
   [AI_ADAPTER_TYPES.ANTHROPIC]: 3,
   // grok-4.6 is $2/$6 per MTok — cheaper than every other flagship text route
-  // here (gpt-5.6-sol $4/$20, terra $2/$12, Sonnet 5 $2/$10), so it sits in
+  // here (gpt-5.6-sol $4/$20, terra $2/$12, Fable 5.1 $10/$50), so it sits in
   // the cheap text tier with Gemini/DeepSeek rather than the premium one.
   [AI_ADAPTER_TYPES.XAI]: 2,
   // Faithful recipe clone — heavier than a plain hosted call (cold-start
@@ -249,7 +250,7 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.ELEVENLABS]: 'eleven_v3',
   [AI_ADAPTER_TYPES.MINIMAX]: 'MiniMax-H3',
   [AI_ADAPTER_TYPES.MINIMAX_CN]: 'MiniMax-H3',
-  [AI_ADAPTER_TYPES.ANTHROPIC]: 'claude-sonnet-5',
+  [AI_ADAPTER_TYPES.ANTHROPIC]: 'claude-fable-5-1',
   [AI_ADAPTER_TYPES.XAI]: 'grok-4.6',
   [AI_ADAPTER_TYPES.RUNNER]: 'waiIllustriousSDXL_v150',
 }

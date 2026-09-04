@@ -96,7 +96,7 @@ const DEEPSEEK_KEY_RECORD = {
 const ANTHROPIC_KEY_RECORD = {
   id: 'key-5',
   userId: 'user-1',
-  modelId: 'claude-sonnet-5',
+  modelId: 'claude-fable-5-1',
   adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
   providerConfig: {
     label: 'Claude',
@@ -312,7 +312,7 @@ describe('apiKey.service verifyApiKey', () => {
     mockFetch.mockResolvedValue(
       new Response(
         JSON.stringify({
-          data: [{ id: 'claude-sonnet-5', type: 'model' }],
+          data: [{ id: 'claude-fable-5-1', type: 'model' }],
           has_more: false,
         }),
         { status: 200 },

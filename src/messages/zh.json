@@ -3128,7 +3128,7 @@
       },
       "anthropic": {
         "label": "Claude",
-        "description": "使用 Anthropic Claude Sonnet 5，负责画布助手的结构化推理——多场戏连贯、角色弧光与分镜规划。"
+        "description": "使用 Anthropic Claude Fable 5.1，负责画布助手的结构化推理——多场戏连贯、角色弧光与分镜规划。"
       },
       "xai": {
         "label": "Grok",
@@ -6452,6 +6452,7 @@
       "accountLimitReached": "服务商账号为该模型设置的用量上限已触顶，模型服务已被暂停。重试不会有变化——请到服务商控制台调高或关闭该模型的用量限额，或先改用其它模型。",
       "outputBudgetExhausted": "该推理模型在写出回复前就用尽了输出额度。请重试、换非推理模型（如 Gemini / Qwen），或缩短提示词。",
       "contextLimitExceeded": "PixelVault 已压缩较早历史并自动重试一次，但仍超过该模型的上下文上限。请新建对话或移除较大的参考内容。",
+      "refused": "所选模型依据其内容政策拒绝了本次请求。请换个说法，或选择其他 Agent Key。",
       "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",
       "callbackTimeout": "生成 Worker 没有按时回报结果。请重试，或检查 Worker 日志。",
       "storageUploadFailed": "服务商已返回媒体，但保存失败。请重试。",

@@ -210,7 +210,7 @@ const LLM_TEXT_MODELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
   [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
   [AI_ADAPTER_TYPES.DASHSCOPE]: LLM_TEXT_MODEL_IDS.QWEN_PLUS,
-  [AI_ADAPTER_TYPES.ANTHROPIC]: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5,
+  [AI_ADAPTER_TYPES.ANTHROPIC]: LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
   [AI_ADAPTER_TYPES.XAI]: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
 }
 
@@ -248,6 +248,12 @@ const LLM_TEXT_PROVIDER_ERROR_CODES = {
   contextLimitExceeded: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
   /** We gave up waiting on the provider before the platform killed the function. */
   timeout: 'PROVIDER_TIMEOUT',
+  /**
+   * The provider's safety classifiers declined the request (Claude Fable 5.1:
+   * HTTP 200 + `stop_reason: 'refusal'`, even after the server-side fallback
+   * chain). Retrying the same prompt won't help.
+   */
+  refused: 'PROVIDER_REFUSED',
 } as const
 
 const LLM_TEXT_PROVIDER_ERROR_I18N_KEYS = {
@@ -259,6 +265,7 @@ const LLM_TEXT_PROVIDER_ERROR_I18N_KEYS = {
   outputBudgetExhausted: 'errors.provider.outputBudgetExhausted',
   contextLimitExceeded: 'errors.provider.contextLimitExceeded',
   timeout: 'errors.provider.timeout',
+  refused: 'errors.provider.refused',
 } as const
 
 const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
@@ -278,6 +285,8 @@ const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
     'The selected model rejected the input because its context window was exceeded. PixelVault already compacted older history and retried once; start a new conversation or remove large references.',
   timeout:
     'The selected provider did not answer in time. Retry, shorten the conversation, or choose another Agent Key.',
+  refused:
+    'The selected model declined this request under its content policy. Rephrase the request or choose another Agent Key.',
 } as const
 
 const LLM_TEXT_CONTEXT_LIMIT_PATTERNS = [
@@ -1563,31 +1572,34 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
 
 /**
  * Claude (Anthropic) text completion — the Messages API, NOT an
- * OpenAI-compatible drop-in. Four deliberate differences from the branches
- * above (docs/references/pages/assistant-shell.md):
+ * OpenAI-compatible drop-in. Model: Claude Fable 5.1 (`claude-fable-5-1`).
+ * Deliberate differences from the branches above
+ * (docs/references/pages/assistant-shell.md):
  *  1. `max_tokens` is required on every request — `providerManagedOutput`
  *     can't mean "omit the field" the way it does for OpenAI/DeepSeek/Qwen,
- *     so it maps to a wide managed ceiling instead.
+ *     so it maps to a wide ceiling. Fable 5.1 always thinks and `max_tokens`
+ *     caps thinking + answer together, so that ceiling is also the floor
+ *     for explicit caller budgets (`resolveAnthropicMaxTokens`).
  *  2. The system prompt is a top-level `system` field, not a `role:'system'`
  *     message.
- *  3. There is no `response_format`. JSON mode is forced via an assistant
- *     prefill: append `{role:'assistant', content:'{'}`, then stitch the
- *     leading `'{'` back onto the model's continuation. This is required,
- *     not optional — node-script-doc.service.ts always requests
- *     `responseFormat: 'json_object'`, so ScriptDoc drafting breaks on the
- *     Claude route without it.
- *     ⚠ UNVERIFIED AGAINST THE LIVE API: current Anthropic docs describe
- *     last-assistant-turn prefill as rejected with a 400 on the Claude 4.6+
- *     model family, Claude Sonnet 5 included — see the model-migration notes
- *     for Claude Sonnet 5 ("assistant-turn prefills still return a 400 …
- *     unchanged from Sonnet 4.6"). Implemented exactly as specified in the
- *     plan doc above; if the live API does reject this, the fix is
- *     `output_config.format` (structured outputs — needs a real JSON schema
- *     threaded through `LlmTextInput`, not just the `'json_object'` flag) or
- *     a system-prompt instruction instead of the prefill. Flagged, not
- *     changed — see canvas-assistant-anthropic-route implementation report.
- *  4. No vision, no grounding — both hard-throw, same guard style as
+ *  3. There is no `response_format` and assistant-turn prefill is a 400, so
+ *     JSON mode is a system-prompt instruction (see the builder).
+ *  4. No `thinking` configuration is sent: Fable 5.1 rejects
+ *     `{type:'disabled'}` and `budget_tokens` with a 400, and runs adaptive
+ *     thinking when the field is omitted. The stream parser only forwards
+ *     `text_delta`, so thinking never leaks into the reply.
+ *  5. Refusals: the safety classifiers can decline a request with HTTP 200
+ *     and `stop_reason: 'refusal'` (empty or partial `content`). We opt into
+ *     the server-side fallback chain (`fallbacks: 'default'` + beta header),
+ *     which re-runs a declined request on an Opus-tier model; if the whole
+ *     chain declines, both consumers throw `PROVIDER_REFUSED` instead of
+ *     returning empty/partial text. Branch on `stop_reason` only —
+ *     `stop_details` is informational and may be null.
+ *  6. No vision, no grounding — both hard-throw, same guard style as
  *     `deepseekTextCompletion` above.
+ *  7. Fable 5.1 requires 30-day data retention on the key's organization; a
+ *     zero-data-retention org gets a 400 on every request, which surfaces
+ *     through `toLlmTextProviderError` like any other 400.
  */
 const AnthropicTextResponseSchema = z.object({
   content: z.array(
@@ -1596,7 +1608,42 @@ const AnthropicTextResponseSchema = z.object({
       text: z.string().optional(),
     }),
   ),
+  stop_reason: z.string().nullable().optional(),
+  stop_details: z
+    .object({ category: z.string().nullable().optional() })
+    .nullable()
+    .optional(),
 })
+
+function toLlmTextRefusalError(context: {
+  modelId: string
+  category?: string | null
+}): ApiRequestError {
+  logger.warn('LLM provider declined the request', {
+    adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    modelId: context.modelId,
+    category: context.category ?? null,
+  })
+  return new ApiRequestError(
+    LLM_TEXT_PROVIDER_ERROR_CODES.refused,
+    LLM_TEXT_PROVIDER_HTTP_STATUS.invalidRequest,
+    LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.refused,
+    `${LLM_TEXT_PROVIDER_ERROR_MESSAGES.refused} (model=${context.modelId}, category=${context.category ?? 'unknown'})`,
+  )
+}
+
+/**
+ * Fable 5.1 always thinks and `max_tokens` caps thinking + answer together,
+ * so every explicit budget is raised to the Anthropic floor — it is a cap,
+ * not spend, so the floor costs nothing on short replies.
+ */
+function resolveAnthropicMaxTokens(input: LlmTextInput): number {
+  if (input.providerManagedOutput) return LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC
+  return Math.max(
+    input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
+    LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC,
+  )
+}
 
 function buildAnthropicMessagesRequest(
   input: LlmTextInput,
@@ -1619,7 +1666,7 @@ function buildAnthropicMessagesRequest(
 
   const wantsJson = input.responseFormat === 'json_object'
   // ⚠ Anthropic has NO `response_format`, and **assistant-turn prefill returns
-  // a 400 on Sonnet 5** (removed across the 4.6+ family) — so the usual
+  // a 400 on Fable 5.1** (removed across the 4.6+ family) — so the usual
   // "prefill a `{`" trick is not available here; don't reintroduce it.
   // The real structured-output surface is `output_config.format` with a
   // *json_schema*, but `LlmTextInput.responseFormat` only carries the
@@ -1637,17 +1684,14 @@ function buildAnthropicMessagesRequest(
     body: JSON.stringify({
       model: modelId,
       ...(options.stream ? { stream: true } : {}),
-      max_tokens: input.providerManagedOutput
-        ? LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_MANAGED
-        : (input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT),
-      // ⚠ Sonnet 5 runs **adaptive thinking when `thinking` is omitted**, and
-      // `max_tokens` caps thinking + answer *together* — a 1024-token default
-      // could be spent entirely on thinking and truncate the reply. The other
-      // four adapters here don't think, and every caller's token budget was
-      // sized against that, so keep parity and turn it off. (Accepted only at
-      // effort `high` or below; we never set `effort`, and its default is
-      // `high` — pairing disabled thinking with `xhigh`/`max` would 400.)
-      thinking: { type: 'disabled' },
+      max_tokens: resolveAnthropicMaxTokens(input),
+      // ⛔ No `thinking` field: Fable 5.1 400s on `{type:'disabled'}` and on
+      // `budget_tokens`, and thinks adaptively when the field is omitted.
+      // Effort is left at the API default (`high`); tune via
+      // `output_config.effort` only after re-measuring the assistant route.
+      // Server-side refusal fallback — routes a classifier decline to an
+      // Opus-tier model in the same round trip (needs the beta header below).
+      fallbacks: 'default',
       system: systemPrompt,
       messages: [{ role: 'user', content: input.userPrompt }],
     }),
@@ -1665,6 +1709,7 @@ function anthropicRequestInit(
     headers: {
       'x-api-key': apiKey,
       'anthropic-version': ANTHROPIC_API.VERSION,
+      'anthropic-beta': ANTHROPIC_API.SERVER_SIDE_FALLBACK_BETA,
       ...(workspaceId ? { 'anthropic-workspace-id': workspaceId } : {}),
       'content-type': 'application/json',
     },
@@ -1694,6 +1739,14 @@ async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
   }
 
   const data = AnthropicTextResponseSchema.parse(await response.json())
+  // Check `stop_reason` before touching `content`: a refusal is HTTP 200 with
+  // an empty (pre-output) or partial (mid-output) content array.
+  if (data.stop_reason === ANTHROPIC_API.REFUSAL_STOP_REASON) {
+    throw toLlmTextRefusalError({
+      modelId,
+      category: data.stop_details?.category,
+    })
+  }
   const textBlock = data.content.find((block) => block.type === 'text')
 
   if (!textBlock?.text) {
@@ -1907,8 +1960,8 @@ async function* dashscopeTextStream(
  *
  * ⚠ 只取 `text_delta`。同一个 `content_block_delta` 还会驮 `thinking_delta` /
  * `signature_delta`（扩展思考）与 `input_json_delta`（工具调用）—— 把它们当正文
- * yield 出去，就是把模型的思考过程念给用户听。本仓的 Claude 分支恒
- * `thinking: {type:'disabled'}`，但这道判据不能靠那个配置兜着：配置是能改的。
+ * yield 出去，就是把模型的思考过程念给用户听。Fable 5.1 的 thinking 恒开（关不掉），
+ * 默认 `display: "omitted"` 时 `thinking_delta` 为空串，但这道判据不能靠那个默认兜着。
  */
 async function* anthropicTextStream(
   input: LlmTextInput,
@@ -1945,9 +1998,24 @@ async function* anthropicTextStream(
     } catch {
       continue
     }
-    const delta = (
-      parsed as { delta?: { type?: string; text?: string | null } }
-    ).delta
+    const event = parsed as {
+      type?: string
+      delta?: {
+        type?: string
+        text?: string | null
+        stop_reason?: string | null
+      }
+    }
+    // A refusal can land mid-stream after partial text: `message_delta`
+    // carries `stop_reason: 'refusal'`. Throw so the caller discards the
+    // partial output instead of showing it as a finished reply.
+    if (
+      event.type === 'message_delta' &&
+      event.delta?.stop_reason === ANTHROPIC_API.REFUSAL_STOP_REASON
+    ) {
+      throw toLlmTextRefusalError({ modelId })
+    }
+    const delta = event.delta
     if (delta?.type === 'text_delta' && delta.text) yield delta.text
   }
 }

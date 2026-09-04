@@ -346,7 +346,7 @@ describe('ImageCard', () => {
     expect(video).toHaveAttribute('src', 'https://r2.example.com/video.mp4')
   })
 
-  it('loads video metadata for a first-frame preview when no poster exists', () => {
+  it('does not preload video bytes when no poster exists', () => {
     const { container } = renderCard({
       generation: {
         ...BASE_GEN,
@@ -363,15 +363,7 @@ describe('ImageCard', () => {
     })
 
     const video = container.querySelector('video')
-    expect(video).toHaveAttribute('preload', 'metadata')
+    expect(video).toHaveAttribute('preload', 'none')
     expect(video).not.toHaveAttribute('poster')
-
-    Object.defineProperty(video, 'duration', {
-      configurable: true,
-      value: 5,
-    })
-    fireEvent.loadedMetadata(video!)
-
-    expect(video?.currentTime).toBe(0.12)
   })
 })

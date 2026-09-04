@@ -29,6 +29,10 @@ const isPublicRoute = createRouteMatcher([
   '/',
   ...publicLocaleRoutes,
   '/api/images',
+  // Social crawlers (Google, Twitter/X, Discord, ...) fetch og:image URLs
+  // with no Clerk session. The route itself checks `isPublic` per
+  // generation/profile before rendering, so exposing it here is safe.
+  '/api/og',
   '/api/assistant/share',
   '/api/voices',
   '/api/voices/(.*)',

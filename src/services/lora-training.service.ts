@@ -9,15 +9,26 @@ import { logger } from '@/lib/logger'
 import { decryptApiKey } from '@/lib/crypto'
 import { GenerationError } from '@/lib/errors'
 import {
+  createPresignedR2PutUrl,
+  deleteFromR2,
   detectTrustedImageMime,
-  fetchAsBuffer,
+  getR2ObjectBuffer,
+  getR2PublicUrl,
+  parseOwnedStorageKey,
   uploadToR2,
 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import { LORA_TRAINING } from '@/constants/config'
+import {
+  LORA_TRAINING_IMAGE_MAX_BYTES,
+  USER_UPLOAD_DIRECT_URL_EXPIRES_SECONDS,
+} from '@/constants/uploads'
 import type {
+  CompleteLoraTrainingUploadRequest,
+  CreateLoraTrainingUploadRequest,
   LoraTrainingRecord,
   LoraTrainingSubmitErrorCode,
+  LoraTrainingUploadPrepare,
   SubmitLoraTrainingRequest,
 } from '@/types'
 
@@ -72,6 +83,7 @@ const LORA_TRAINING_ERROR_HTTP_STATUS: Record<
 > = {
   INSUFFICIENT_CREDITS: 402,
   IMAGE_TOO_LARGE: 413,
+  IMAGE_INVALID: 400,
   BASE_MODEL_UNSUPPORTED: 400,
   NAMING_CONFLICT: 409,
   UPSTREAM_TIMEOUT: 504,
@@ -159,6 +171,7 @@ export function mapLoraTrainingError(err: unknown): {
 const SUBMIT_ERROR_MESSAGE_KEYS: Record<LoraTrainingSubmitErrorCode, string> = {
   INSUFFICIENT_CREDITS: 'errorInsufficientCredits',
   IMAGE_TOO_LARGE: 'errorImageTooLarge',
+  IMAGE_INVALID: 'errorImageInvalid',
   BASE_MODEL_UNSUPPORTED: 'errorBaseModelUnsupported',
   NAMING_CONFLICT: 'errorNamingConflict',
   UPSTREAM_TIMEOUT: 'errorUpstreamTimeout',
@@ -168,14 +181,6 @@ const SUBMIT_ERROR_MESSAGE_KEYS: Record<LoraTrainingSubmitErrorCode, string> = {
   INTERNAL: 'errorGeneric',
 }
 
-/**
- * Per-image cap for client-uploaded training images. Streaming each pick
- * to R2 instead of round-tripping a 30-image base64 payload (which would
- * blow past Next.js's body size limit) is the whole point of stage 3.
- * Anything under this still goes through `detectTrustedImageMime` so we
- * never store a buffer the renderer can't decode.
- */
-export const LORA_TRAINING_IMAGE_MAX_BYTES = 8 * 1024 * 1024
 import {
   submitReplicateLoraTraining,
   checkReplicateLoraTrainingStatus,
@@ -327,48 +332,141 @@ export interface UploadedTrainingImage {
   sizeBytes: number
 }
 
-/**
- * Persist a single client-uploaded training image to R2 under the user's
- * namespace and return its public URL. Called by the LoRA training form
- * one file at a time so the user sees per-image progress and we sidestep
- * the body-size limit a 30-image base64 POST would hit.
- *
- * `detectTrustedImageMime` re-derives the format from libvips magic bytes
- * — never trust the client-supplied MIME — and rejects anything that isn't
- * a real raster image. The storage key shape mirrors the one
- * `submitLoraTraining` produces, so this file is a drop-in replacement
- * for the in-line upload that submit does today.
- */
-export async function uploadTrainingImage(params: {
-  userId: string
-  fileBuffer: Buffer
-  claimedMimeType: string
-}): Promise<UploadedTrainingImage> {
-  if (params.fileBuffer.byteLength > LORA_TRAINING_IMAGE_MAX_BYTES) {
+const MIME_TO_TRAINING_IMAGE_EXTENSION: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+}
+
+function trainingImageStorageKeyPrefix(userId: string): string {
+  return `lora-training/${userId}/`
+}
+
+function assertTrainingImageStorageKeyForUser(
+  storageKey: string,
+  userId: string,
+) {
+  const hasUnsafePath =
+    storageKey.includes('..') ||
+    storageKey.startsWith('/') ||
+    storageKey.endsWith('/')
+
+  if (
+    !storageKey.startsWith(trainingImageStorageKeyPrefix(userId)) ||
+    hasUnsafePath
+  ) {
     throw new LoraTrainingError(
-      'IMAGE_TOO_LARGE',
-      `Image exceeds the ${Math.round(
-        LORA_TRAINING_IMAGE_MAX_BYTES / 1024 / 1024,
-      )} MB limit`,
+      'IMAGE_INVALID',
+      'Upload storage key is not valid for this user',
     )
   }
-  const detected = await detectTrustedImageMime(params.fileBuffer)
-  const ext = detected.format === 'jpeg' ? 'jpg' : detected.format
-  const storageKey = `lora-training/${params.userId}/${Date.now()}-${randomBytes(
+}
+
+function assertTrainingImageSize(sizeBytes: number) {
+  if (sizeBytes <= LORA_TRAINING_IMAGE_MAX_BYTES) return
+
+  throw new LoraTrainingError(
+    'IMAGE_TOO_LARGE',
+    `Image exceeds the ${Math.round(
+      LORA_TRAINING_IMAGE_MAX_BYTES / 1024 / 1024,
+    )} MB limit`,
+  )
+}
+
+/**
+ * Stage 1 — hand the browser a short-lived presigned PUT so the image bytes
+ * go straight to R2. Nothing about the file is trusted yet: the declared size
+ * only gates the signature, and the real format is derived on confirm.
+ */
+export async function createTrainingImageDirectUpload(
+  clerkId: string,
+  input: CreateLoraTrainingUploadRequest,
+): Promise<LoraTrainingUploadPrepare> {
+  assertTrainingImageSize(input.sizeBytes)
+
+  const dbUser = await ensureUser(clerkId)
+  const ext = MIME_TO_TRAINING_IMAGE_EXTENSION[input.mimeType] ?? 'png'
+  const storageKey = `${trainingImageStorageKeyPrefix(dbUser.id)}${Date.now()}-${randomBytes(
     6,
   ).toString('hex')}.${ext}`
-  const url = await uploadToR2({
-    data: params.fileBuffer,
+
+  const uploadUrl = await createPresignedR2PutUrl({
     key: storageKey,
-    mimeType: detected.mimeType,
+    mimeType: input.mimeType,
+    expiresInSeconds: USER_UPLOAD_DIRECT_URL_EXPIRES_SECONDS,
   })
+
   return {
-    url,
+    uploadUrl,
     storageKey,
+    headers: {
+      'Content-Type': input.mimeType,
+      'If-None-Match': '*',
+    },
+    maxBytes: LORA_TRAINING_IMAGE_MAX_BYTES,
+  }
+}
+
+/**
+ * Stage 3 — read the object the browser just PUT and decide whether to keep
+ * it. `detectTrustedImageMime` re-derives the format from libvips magic bytes
+ * (never trust a client-supplied MIME), and a mismatch against the prepared
+ * size means the client sent something other than what it declared. Either
+ * way the object is deleted so a rejected upload leaves no orphan in R2.
+ */
+export async function completeTrainingImageDirectUpload(
+  clerkId: string,
+  input: CompleteLoraTrainingUploadRequest,
+): Promise<UploadedTrainingImage> {
+  assertTrainingImageSize(input.sizeBytes)
+
+  const dbUser = await ensureUser(clerkId)
+  assertTrainingImageStorageKeyForUser(input.storageKey, dbUser.id)
+
+  const cleanup = async () => {
+    await deleteFromR2(input.storageKey).catch(() => undefined)
+  }
+
+  const { buffer } = await getR2ObjectBuffer({
+    key: input.storageKey,
+    maxBytes: LORA_TRAINING_IMAGE_MAX_BYTES,
+  }).catch(async (error: unknown) => {
+    await cleanup()
+    throw new LoraTrainingError(
+      'IMAGE_INVALID',
+      error instanceof Error
+        ? error.message
+        : 'Failed to read the uploaded image',
+    )
+  })
+
+  if (buffer.byteLength !== input.sizeBytes) {
+    await cleanup()
+    throw new LoraTrainingError(
+      'IMAGE_INVALID',
+      'Uploaded image size does not match the prepared upload',
+    )
+  }
+
+  let detected: Awaited<ReturnType<typeof detectTrustedImageMime>>
+  try {
+    detected = await detectTrustedImageMime(buffer)
+  } catch (error) {
+    await cleanup()
+    throw new LoraTrainingError(
+      'IMAGE_INVALID',
+      error instanceof Error ? error.message : 'Invalid image file',
+    )
+  }
+
+  return {
+    url: getR2PublicUrl(input.storageKey),
+    storageKey: input.storageKey,
     mimeType: detected.mimeType,
     width: detected.width,
     height: detected.height,
-    sizeBytes: params.fileBuffer.byteLength,
+    sizeBytes: buffer.byteLength,
   }
 }
 
@@ -421,16 +519,30 @@ export async function submitLoraTraining(
   // Decrypt user's Replicate API key
   const apiKey = await getDecryptedApiKey(dbUser.id, data.apiKeyId)
 
-  // Upload training images to R2 and package as ZIP
+  // Package the already-uploaded training images as a ZIP. Both trainers
+  // (fal `flux-lora-fast-training`, Replicate `flux-dev-lora-trainer`) take a
+  // single archive URL, not a list of images — so the zip is the provider's
+  // contract, not our own waste. The images already live in R2 from the
+  // browser-direct upload, so read them back over the S3 API instead of
+  // pulling our own bytes through the public CDN, and don't re-upload them.
   const imageKeys: string[] = []
   const zip = new JSZip()
 
   for (let i = 0; i < data.trainingImages.length; i++) {
-    const { buffer, mimeType } = await fetchAsBuffer(data.trainingImages[i])
-    const key = `lora-training/${dbUser.id}/${Date.now()}-${i}.png`
-    await uploadToR2({ data: buffer, key, mimeType })
+    const key = parseOwnedStorageKey(data.trainingImages[i])
+    if (!key || !key.startsWith(trainingImageStorageKeyPrefix(dbUser.id))) {
+      throw new LoraTrainingError(
+        'IMAGE_INVALID',
+        'Training images must be uploaded through the training image upload endpoint',
+      )
+    }
+
+    const { buffer } = await getR2ObjectBuffer({
+      key,
+      maxBytes: LORA_TRAINING_IMAGE_MAX_BYTES,
+    })
     imageKeys.push(key)
-    zip.file(`image_${i}.png`, buffer)
+    zip.file(`image_${i}.${key.slice(key.lastIndexOf('.') + 1)}`, buffer)
   }
 
   // Upload ZIP to R2

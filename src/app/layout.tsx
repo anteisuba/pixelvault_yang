@@ -5,7 +5,10 @@ import { HOMEPAGE_METADATA } from '@/constants/homepage'
 import { FONT_VARIABLE_CLASSES } from '@/i18n/fonts'
 
 import './globals.css'
-import './canvas.css'
+// ⚠ canvas.css（173 KB 域皮肤）自 2026-09-03 起只由画布路由 import
+// （`src/app/[locale]/(main)/studio/node/layout.tsx`），不再挂根 layout——
+// 它原本进每个路由的首屏 CSS。画布域外仍要用的 8 个 --node-* 定值留在
+// globals.css 的脊柱段。
 
 export const metadata: Metadata = {
   title: HOMEPAGE_METADATA.title,

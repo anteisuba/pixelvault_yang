@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { NextRequest } from 'next/server'
 
-import { getGenerationById } from '@/services/generation.service'
+import { getPublicGenerationById } from '@/services/generation.service'
 import { getCreatorProfile } from '@/services/user.service'
 
 export const runtime = 'nodejs'
@@ -49,8 +49,10 @@ async function generateGenerationOG(id: string | null) {
     return new Response('Missing id', { status: 400 })
   }
 
-  const generation = await getGenerationById(id)
-  if (!generation || !generation.isPublic) {
+  // 公开读取：可见性判据在查询里（`isPublic: true`），拿不到行就是没有可
+  // 公开的东西可画。
+  const generation = await getPublicGenerationById(id)
+  if (!generation) {
     return fallbackOG()
   }
 

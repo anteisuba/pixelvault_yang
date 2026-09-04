@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { GenerationRecord } from '@/types'
 
@@ -6,7 +6,11 @@ import {
   getGenerationAudioSegments,
   getGenerationPreviewUrl,
   getGenerationThumbnailUrl,
+  getGenerationVideoPosterUrl,
 } from './generation-media'
+
+const CDN = 'https://cdn.test.com'
+const VIDEO = `${CDN}/generations/video/clip.mp4`
 
 const ORIGINAL = 'https://r2.example.com/source.png'
 const THUMBNAIL = 'https://r2.example.com/source.thumbnail.webp'
@@ -87,6 +91,53 @@ describe('getGenerationThumbnailUrl', () => {
       getGenerationThumbnailUrl(makeGeneration({ previewUrl: PREVIEW })),
     ).toBe(PREVIEW)
     expect(getGenerationThumbnailUrl(makeGeneration())).toBe(ORIGINAL)
+  })
+})
+
+describe('getGenerationVideoPosterUrl', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('prefers a derived thumbnail over the CDN frame extraction', () => {
+    vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', CDN)
+    const generation = makeGeneration({
+      outputType: 'VIDEO',
+      url: VIDEO,
+      thumbnailUrl: THUMBNAIL,
+    })
+
+    expect(getGenerationVideoPosterUrl(generation)).toBe(THUMBNAIL)
+  })
+
+  it('falls back to a Media Transformations frame when no derivative exists', () => {
+    vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', CDN)
+    const poster = getGenerationVideoPosterUrl(
+      makeGeneration({ outputType: 'VIDEO', url: VIDEO }),
+    )
+
+    expect(poster).toContain('/cdn-cgi/media/mode=frame')
+    expect(poster).toContain(VIDEO)
+  })
+
+  it('never hands a video file to an image consumer', () => {
+    vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', 'https://other.example.com')
+
+    expect(
+      getGenerationVideoPosterUrl(
+        makeGeneration({ outputType: 'VIDEO', url: VIDEO }),
+      ),
+    ).toBeNull()
+  })
+
+  it('feeds the thumbnail chain for VIDEO records', () => {
+    vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', CDN)
+
+    expect(
+      getGenerationThumbnailUrl(
+        makeGeneration({ outputType: 'VIDEO', url: VIDEO }),
+      ),
+    ).toContain('/cdn-cgi/media/mode=frame')
   })
 })
 

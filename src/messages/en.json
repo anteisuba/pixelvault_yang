@@ -60,6 +60,10 @@
           "body": "Sentry receives a report when something breaks: the error, the page, browser and version, and an account identifier so we can tell whether one person hit a problem or everyone did. Reports can include the URL you were on. We do not send prompts or generated files into error reports."
         },
         {
+          "heading": "Session replay",
+          "body": "Session replay (Sentry Session Replay) reconstructs what happened in the interface before a problem: clicks, navigation, console and network activity. It is off until you accept it in the privacy banner, and you can withdraw consent by clearing this site's data. All text is masked and all media blocked before anything is sent, so prompts, generated images and file names are never captured. We sample 1% of sessions and keep a replay for up to 90 days, alongside the matching error report."
+        },
+        {
           "heading": "Your rights",
           "body": "Wherever you live, you can ask us to do the following, and we answer within 30 days:",
           "items": [
@@ -182,6 +186,13 @@
         }
       ]
     }
+  },
+  "PrivacyConsent": {
+    "label": "Privacy notice",
+    "body": "We use cookies to keep you signed in and remember your language, and Sentry to report errors — that much ANTEI needs to run. Optional session replay records how you use the app, with every text masked, so we can see what broke.",
+    "policyLink": "Privacy Policy",
+    "rejectAction": "Essential only",
+    "acceptAction": "Accept"
   },
   "ImageUpload": {
     "compressing": "Optimizing large image…",
@@ -6655,6 +6666,7 @@
     },
     "errorInsufficientCredits": "Not enough credits to start this training. Top up and try again.",
     "errorImageTooLarge": "One of the images is too large. Keep individual files under 8 MB.",
+    "errorImageInvalid": "That file isn't a usable image. Use a JPEG, PNG, WebP or GIF.",
     "errorBaseModelUnsupported": "That base model isn't wired up yet. Switch to FLUX-D for now.",
     "errorNamingConflict": "A LoRA with this name already exists. Pick a different name.",
     "errorUpstreamTimeout": "The training provider timed out. Wait a moment and retry.",

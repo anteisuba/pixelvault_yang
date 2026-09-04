@@ -2,7 +2,7 @@ import 'server-only'
 
 import {
   deleteGeneration,
-  getGenerationById,
+  getOwnedGenerationWithSnapshot,
 } from '@/services/generation.service'
 import { deleteManyFromR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
@@ -24,9 +24,7 @@ export const GET = createApiGetByIdRoute<GenerationRecord>({
   notFoundMessage: 'Generation not found or access denied',
   handler: async (clerkId, id) => {
     const user = await ensureUser(clerkId)
-    const generation = await getGenerationById(id)
-    if (!generation || generation.userId !== user.id) return null
-    return generation
+    return getOwnedGenerationWithSnapshot(id, user.id)
   },
 })
 

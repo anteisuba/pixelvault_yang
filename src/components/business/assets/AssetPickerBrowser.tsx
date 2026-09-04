@@ -18,6 +18,7 @@ import {
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
 import {
+  ASSET_BROWSER_PAGE_SIZE,
   ASSET_GRID_AUDIO_ASPECT_RATIO,
   ASSET_GRID_GAP,
   ASSET_PICKER_TARGET_ROW_HEIGHT,
@@ -156,7 +157,7 @@ export function AssetPickerBrowser({
     initialNextCursor,
     initialFilters: { types: mediaType ? [mediaType] : [] },
     mine: true,
-    limit: 24,
+    limit: ASSET_BROWSER_PAGE_SIZE,
   })
 
   const toggleNav = useCallback(() => {

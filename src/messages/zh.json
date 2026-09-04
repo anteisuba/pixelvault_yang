@@ -60,6 +60,10 @@
           "body": "出问题时 Sentry 会收到一份报告：错误本身、所在页面、浏览器与版本，以及一个账号标识，好让我们分清是一个人遇到还是所有人都遇到。报告可能包含你当时所在的 URL。我们不会把提示词或生成文件放进错误报告。"
         },
         {
+          "heading": "会话录制",
+          "body": "会话录制（Sentry Session Replay）会还原问题发生前界面上的操作：点击、页面跳转、控制台与网络活动。它在你于隐私横幅点击同意之前不会开启，清除本站数据即可撤回同意。发送前所有文本都会被遮罩、所有媒体都会被屏蔽，因此提示词、生成的图片和文件名都不会被采集。采样比例为会话的 1%，录制与对应的错误报告一起最多保留 90 天。"
+        },
+        {
           "heading": "你的权利",
           "body": "无论你身在何处，都可以要求我们做以下事情，我们会在 30 天内答复：",
           "items": [
@@ -182,6 +186,13 @@
         }
       ]
     }
+  },
+  "PrivacyConsent": {
+    "label": "隐私提示",
+    "body": "保持登录状态和记住语言的 Cookie、以及用于错误上报的 Sentry，是 ANTEI 运行所必需的。可选的会话录制会在全部文本遮罩的前提下记录你的操作，帮我们看清哪里出了问题。",
+    "policyLink": "隐私政策",
+    "rejectAction": "仅必要",
+    "acceptAction": "接受"
   },
   "ImageUpload": {
     "compressing": "正在优化大图…",
@@ -6655,6 +6666,7 @@
     },
     "errorInsufficientCredits": "积分不足，无法开始这次训练。充值后再试。",
     "errorImageTooLarge": "有一张图片太大，单张请控制在 8 MB 以内。",
+    "errorImageInvalid": "这个文件不是可用的图片，请用 JPEG / PNG / WebP / GIF。",
     "errorBaseModelUnsupported": "这个底模 trainer 还没接入。先切回 FLUX-D。",
     "errorNamingConflict": "已经有同名 LoRA 了。换个名字。",
     "errorUpstreamTimeout": "训练服务超时，稍后重试。",

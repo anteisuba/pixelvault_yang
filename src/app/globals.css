@@ -1,7 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@xyflow/react/dist/style.css';
 
 @source not "../../.codex-artifacts";
 @source not "../../.codex-dev.err.log";
@@ -405,11 +404,36 @@
      「肉眼几乎一样」的 ≤6 判据，故单独开一个语义变量，值与配音间原样对齐。 */
   --surface-workbench: #f4f4f1;
 
-  /* ── 冻结脊柱 · node/canvas 域皮肤已清场平移到 canvas.css（2026-07-24）──
-     画布域的 :root 变量 + 全部 .node-* 类/keyframe 现在住 src/app/canvas.css，
-     由 layout.tsx 紧跟本文件之后 import（全局可用 + node 类维持级联最后位）。
-     域皮肤各去自己的 <domain>.css（canvas / homepage / lora）；三域 chat 不改
-     本文件脊柱段。@theme inline 的 --color-node-* 映射保留在本文件。 */
+  /* ── 冻结脊柱 · node/canvas 域皮肤住 canvas.css（2026-07-24 清场平移）──
+     画布域的域内变量 + 全部 .node-* 类/keyframe 住 src/app/canvas.css，自
+     2026-09-03 起**只由画布路由**（`src/app/[locale]/(main)/studio/node/
+     layout.tsx`）import，不再挂根 layout —— 那一份 173 KB 皮肤原本进每个路由
+     的首屏 CSS。域皮肤各去自己的 <domain>.css（canvas / home-v4 / lora /
+     voiceroom / legal / auth）；域内 chat 不改本文件脊柱段。@theme inline 的
+     --color-node-* 映射保留在本文件（Tailwind 编译入口只有一个）。
+
+     ⚠ 下面这 8 个 --node-* **定值**是画布皮肤搬走时留在脊柱的那一小部分：
+     它们有画布域外的真实消费者，随 canvas.css 一起下沉会直接失色 ——
+       · StudioAssistantDock / LoraAssistantDock（`.node-canvas-panel-motion`，
+         同下方组件层那条规则）
+       · studio-shared/editor/ImageEditSurface（panel-inner / panel-soft /
+         muted / foreground）
+       · studio-shared/pickers/CanvasRoutePicker（另加 panel / edge /
+         focus-ring / shadow-node-panel → --node-shadow）
+     值 1:1 抄自 canvas.css 2026-07-27 反转后的字面量（施工基准
+     docs/references/pages/canvas-skin.md），不是新造颜色；画布域内的所有
+     重映射（.node-card-paper / .domain-canvas / 详情面板…）都写在更近的选择器
+     上，级联照样赢，画布内观感零变化。
+     ⛔ 别把这 8 个搬回 canvas.css，也别给 canvas.css 留一份重复定义 ——
+     「一个事实只有一个家」。画布域**只在这里没有的 token** 才写在 canvas.css。 */
+  --node-panel: #ffffff; /* = --canvas-card-bg 字面量 */
+  --node-panel-inner: rgba(0, 0, 0, 0.04); /* = --canvas-fill-control 字面量 */
+  --node-panel-soft: #f1f1f1; /* = --canvas-bg 字面量 */
+  --node-foreground: #0a0a0a; /* = --canvas-ink 字面量 */
+  --node-muted: #525252; /* = --canvas-ink-regular 字面量 */
+  --node-edge: #6f6a63; /* = subtle，连线默认中性灰 */
+  --node-focus-ring: rgba(10, 10, 10, 0.4);
+  --node-shadow: rgba(0, 0, 0, 0.08);
 
   /* 模态语义色（提示词库等跟随主题的页面用）：与画布端口色同族色相
      （image 紫 292 / video 蓝 255 / audio 玫瑰 10），低饱和守 anti-slop。
@@ -1919,6 +1943,79 @@ html:lang(ja) {
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+}
+
+/* ── 助手「历史对话」浮层 · 脊柱（原 canvas.css，2026-09-03 提上来）──────
+   `CanvasAssistantHistory` 住在画布目录，但 `StudioAssistantHeaderActions`
+   把它渲染进三个 dock：StudioNodeAssistantDock（画布）·
+   StudioAssistantDock（studio 工作台）· LoraAssistantDock（/studio/lora）。
+   canvas.css 现在只由画布路由 import，规则留在那里后两个 dock 的浮层就掉皮，
+   所以整块住这里。以下原注释保持原样（字面值的来源逐条对应仍然成立）。 */
+
+/* 助手「历史对话」浮层（CanvasAssistantHistory.tsx）——Radix Popover 传送门到
+   document.body，脱离 .domain-canvas 的 DOM 子树，var(--canvas-*) 够不到（自定义
+   属性靠 DOM 祖先链继承，传送门跳过了原来的祖先），只能用字面值。逐条对应来源：
+   #ffffff = --canvas-card-bg，12px = --canvas-pop-radius，投影 =
+   --canvas-pop-shadow，rgba(0,0,0,.08) = --canvas-stroke-regular，
+   rgba(0,0,0,.04) = --canvas-fill-control，rgba(0,0,0,.06) =
+   --canvas-fill-control-hover，#0a0a0a/#737373/#8f8f8f =
+   --canvas-ink/-muted/-subtle——不是新造颜色，是同一批已定值的字面量落地。
+   （触发这个浮层的 <Button> 本身没有传送门问题，仍走
+   .canvas-assistant-ghost-btn，见组件文件。） */
+.canvas-assistant-popover {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.06);
+  color: #0a0a0a;
+}
+.canvas-assistant-popover-divider {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+.canvas-assistant-popover-subtle {
+  color: #8f8f8f;
+}
+.canvas-assistant-popover-input {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #0a0a0a;
+}
+.canvas-assistant-popover-empty {
+  background: rgba(0, 0, 0, 0.04);
+  color: #737373;
+}
+.canvas-assistant-popover-item {
+  color: #737373;
+  transition:
+    background 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.canvas-assistant-popover-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0a0a0a;
+}
+.canvas-assistant-popover-item--active {
+  background: rgba(0, 0, 0, 0.04);
+  color: #0a0a0a;
+}
+
+/* ── 助手 dock 宽度形变（原 canvas.css，2026-09-03 提到脊柱）────────
+   开合只改自身宽度的浮层 dock 用这一条：宽度过渡必须是 `width` 而不是
+   transform（transform 复现不了宽度形变），配上 `data-resizing` 时关过渡，
+   拖拽手柄才能 1:1 跟手而不是落在光标后面。
+   ⚠ 类名保留 `node-canvas-` 前缀是因为它有三个消费者，两个在画布域外：
+   StudioNodeAssistantDock（画布）· StudioAssistantDock（studio 工作台）·
+   LoraAssistantDock（/studio/lora）。canvas.css 现在只由画布路由 import，
+   规则留在那里另外两个 dock 就没有过渡了 —— 所以它住这里。
+   reduced-motion 由文件末尾全局 `*` 块统一降级。 */
+.node-canvas-panel-motion {
+  transition: width var(--duration-slow) var(--ease-standard);
+}
+
+.node-canvas-panel-motion[data-resizing='true'] {
+  transition: none;
 }
 
 /* ── LoRA 库 · 详情原位展开/收起的平滑高度过渡 ────────────────────

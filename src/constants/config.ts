@@ -317,8 +317,10 @@ export const API_ENDPOINTS = {
 
   /** LoRA Training */
   LORA_TRAINING: '/api/lora-training',
-  /** Per-image upload for LoRA training (stage-3 base64 → R2 URL path) */
+  /** Presign one browser-direct R2 PUT for a LoRA training image */
   LORA_TRAINING_UPLOADS: '/api/lora-training/uploads',
+  /** Verify a training image the browser PUT straight to R2 */
+  LORA_TRAINING_UPLOADS_COMPLETE: '/api/lora-training/uploads/complete',
 
   /** LoRA Asset library (curated + user-trained) */
   LORA_ASSETS: '/api/lora-assets',
@@ -358,6 +360,14 @@ export const DOWNLOAD_PROXY_ALLOWED_PROVIDER_HOST_SUFFIXES = [
   'fal.media',
   'replicate.delivery',
 ] as const
+
+/**
+ * Lifetime of the presigned R2 GET URL `/api/download` hands back for our own
+ * objects. The browser follows it immediately, so keep the window tight —
+ * long enough to survive a slow click-to-navigate, short enough that a URL
+ * leaking out of history/logs is worthless.
+ */
+export const DOWNLOAD_URL_TTL_SECONDS = 300
 
 /** Client-side API request guardrails */
 export const CLIENT_API = {
@@ -835,6 +845,22 @@ export const PAGINATION = {
   DEFAULT_PAGE: 1,
   DEFAULT_LIMIT: 20,
 } as const
+
+/**
+ * Rows pulled per query while `sitemap.ts` walks the public catalogue. It is a
+ * database batch size, not a URL budget — every batch lands in the same
+ * `/sitemap.xml`.
+ */
+export const SITEMAP_QUERY_BATCH_SIZE = 1000
+
+/**
+ * Hard ceiling on the URLs one sitemap file may carry (sitemaps.org / Google
+ * both cap a single file at 50,000). Each entity contributes one URL per
+ * locale, so the ceiling is applied to the flattened list. Splitting into a
+ * sitemap index only becomes worth its complexity once this is actually hit —
+ * the catalogue is three orders of magnitude away from it today.
+ */
+export const SITEMAP_MAX_URLS = 50000
 
 // ─── Studio Refactoring Constants ────────────────────────────────
 

@@ -56,6 +56,7 @@ import { useLoraTraining } from '@/hooks/use-lora-training'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
 import { useTrainingSubmitGate } from '@/hooks/use-training-submit-gate'
 import { LORA_TRAINING } from '@/constants/config'
+import { USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES } from '@/constants/uploads'
 import {
   DEFAULT_LORA_TRAINING_BASE_MODEL,
   LORA_TRAINING_BASE_MODELS,
@@ -775,7 +776,10 @@ export function LoraTrainingForm({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            // Narrower than `image/*` on purpose: the presigned-PUT flow only
+            // signs these MIME types, so a HEIC/AVIF pick would fail at the
+            // prepare step instead of at the OS picker.
+            accept={USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES.join(',')}
             multiple
             onChange={handleFileChange}
             className="hidden"

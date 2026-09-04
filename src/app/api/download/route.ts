@@ -5,70 +5,30 @@ import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
 import { safeFetch } from '@/lib/url-guard'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
-  DOWNLOAD_PROXY_ALLOWED_PROVIDER_HOST_SUFFIXES,
-  RATE_LIMIT_CONFIGS,
-} from '@/constants/config'
+  buildContentDisposition,
+  createOwnedAssetDownloadUrl,
+  resolveDownloadTarget,
+} from '@/services/download.service'
 
 const QuerySchema = z.object({
   url: z.string().url(),
   filename: z.string().trim().min(1).optional(),
 })
 
-function isAllowedStorageUrl(assetUrl: string): boolean {
-  const storageBaseUrl = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
-  if (!storageBaseUrl) {
-    return false
-  }
-
-  try {
-    const parsedAssetUrl = new URL(assetUrl)
-    const parsedStorageBaseUrl = new URL(storageBaseUrl)
-    const normalizedBasePath = parsedStorageBaseUrl.pathname.endsWith('/')
-      ? parsedStorageBaseUrl.pathname
-      : `${parsedStorageBaseUrl.pathname}/`
-
-    return (
-      parsedAssetUrl.origin === parsedStorageBaseUrl.origin &&
-      (parsedAssetUrl.pathname === parsedStorageBaseUrl.pathname ||
-        parsedAssetUrl.pathname.startsWith(normalizedBasePath))
-    )
-  } catch {
-    return false
-  }
-}
-
-function matchesHostSuffix(hostname: string, suffix: string): boolean {
-  return hostname === suffix || hostname.endsWith(`.${suffix}`)
-}
-
-function isAllowedProviderAssetUrl(assetUrl: string): boolean {
-  try {
-    const parsedAssetUrl = new URL(assetUrl)
-    if (parsedAssetUrl.protocol !== 'https:') return false
-
-    const hostname = parsedAssetUrl.hostname.toLowerCase()
-    return DOWNLOAD_PROXY_ALLOWED_PROVIDER_HOST_SUFFIXES.some((suffix) =>
-      matchesHostSuffix(hostname, suffix),
-    )
-  } catch {
-    return false
-  }
-}
-
-function isAllowedDownloadUrl(assetUrl: string): boolean {
-  return isAllowedStorageUrl(assetUrl) || isAllowedProviderAssetUrl(assetUrl)
-}
-
-function buildContentDisposition(filename?: string): string {
-  const safeFilename = (filename ?? 'download')
-    .replace(/[\r\n"]/g, '')
-    .replace(/[\\/]/g, '-')
-    .trim()
-
-  return `attachment; filename="${safeFilename || 'download'}"`
-}
-
+/**
+ * GET /api/download
+ *
+ * Two shapes, decided by who owns the asset:
+ *
+ * - our own R2 object → `{ success: true, data: { downloadUrl } }`, a
+ *   presigned GET the browser follows itself. The bytes never touch a Vercel
+ *   function (they used to enter and leave it once per download).
+ * - a provider's temporary CDN asset → the bytes streamed through with an
+ *   attachment disposition, because those hosts allow neither CORS nor
+ *   signing.
+ */
 export async function GET(request: NextRequest) {
   const { userId } = await auth()
   if (!userId) {
@@ -101,11 +61,35 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  if (!isAllowedDownloadUrl(parsed.data.url)) {
+  const target = resolveDownloadTarget(parsed.data.url)
+  if (target.kind === 'forbidden') {
     return NextResponse.json(
       { success: false, error: 'Download URL is not allowed' },
       { status: 403 },
     )
+  }
+
+  if (target.kind === 'owned') {
+    try {
+      const downloadUrl = await createOwnedAssetDownloadUrl({
+        storageKey: target.storageKey,
+        filename: parsed.data.filename,
+      })
+
+      return NextResponse.json(
+        { success: true, data: { downloadUrl } },
+        { headers: { 'Cache-Control': 'private, no-store' } },
+      )
+    } catch (error) {
+      logger.error('Download presign failed', {
+        storageKey: target.storageKey,
+        error,
+      })
+      return NextResponse.json(
+        { success: false, error: 'Failed to sign download URL' },
+        { status: 500 },
+      )
+    }
   }
 
   try {

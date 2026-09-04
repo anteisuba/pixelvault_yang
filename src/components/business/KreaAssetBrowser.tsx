@@ -82,6 +82,7 @@ import {
   getAudioAssetPreviewImage,
 } from '@/constants/asset-previews'
 import {
+  ASSET_BROWSER_PAGE_SIZE,
   ASSET_GRID_AUDIO_ASPECT_RATIO,
   BULK_MOVE_UNDO_DURATION_MS,
   ASSET_GRID_DEFAULT_DENSITY,
@@ -377,7 +378,7 @@ export function KreaAssetBrowser({
     initialTotal,
     initialFilters: effectiveInitialFilters,
     mine: true,
-    limit: 24,
+    limit: ASSET_BROWSER_PAGE_SIZE,
     // Page-level callers (AssetsPage) supply SSR data — the additional
     // initial fetch was double-loading every visit. Dialog callers pass
     // no SSR data, so we only refetch when the initial list is empty

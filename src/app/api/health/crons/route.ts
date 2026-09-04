@@ -2,6 +2,7 @@ import 'server-only'
 
 import { NextResponse } from 'next/server'
 
+import { isValidBearerToken } from '@/lib/bearer-token'
 import { logger } from '@/lib/logger'
 import { readCronHeartbeats, type CronHeartbeat } from '@/lib/cron-heartbeat'
 
@@ -50,7 +51,7 @@ export async function GET(
     )
   }
 
-  if (request.headers.get('authorization') !== `Bearer ${token}`) {
+  if (!isValidBearerToken(request.headers.get('authorization'), token)) {
     return NextResponse.json<ErrorBody>(
       { success: false, error: 'Invalid or missing token' },
       { status: 401 },

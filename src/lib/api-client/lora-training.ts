@@ -41,32 +41,99 @@ export interface UploadLoraTrainingImageResult {
   errorCode?: string
 }
 
+interface LoraTrainingUploadPrepareResult {
+  success: boolean
+  data?: {
+    uploadUrl: string
+    storageKey: string
+    headers: Record<string, string>
+    maxBytes: number
+  }
+  error?: string
+  errorCode?: string
+}
+
 /**
- * Upload a single training image to R2 and return its public URL. Called
- * once per file from `LoraTrainingForm.handleFileChange` instead of the
- * legacy FileReader → base64 path that would bloat the eventual submit
- * body past Next.js's size limit.
+ * Upload a single training image and return its R2 URL. Three steps:
+ *
+ *   1. POST `/uploads`          → presigned R2 PUT (no bytes)
+ *   2. PUT  presigned URL       → browser → R2, the only place bytes travel
+ *   3. POST `/uploads/complete` → server verifies size + magic bytes
+ *
+ * Called once per file from `useLoraTraining.uploadImages` so the form keeps
+ * per-image progress and a single bad file can't poison the batch. The bytes
+ * no longer pass through a Next function (the old multipart route did).
  */
 export async function uploadLoraTrainingImageAPI(
   file: File,
 ): Promise<UploadLoraTrainingImageResult> {
   try {
-    const formData = new FormData()
-    formData.append('image', file)
-    const response = await fetch(API_ENDPOINTS.LORA_TRAINING_UPLOADS, {
+    const prepareResponse = await fetch(API_ENDPOINTS.LORA_TRAINING_UPLOADS, {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mimeType: file.type, sizeBytes: file.size }),
     })
-    if (!response.ok) {
+    if (!prepareResponse.ok) {
       return {
         success: false,
         error: await getErrorMessage(
-          response,
-          `Upload failed with status ${response.status}`,
+          prepareResponse,
+          `Upload prepare failed with status ${prepareResponse.status}`,
         ),
       }
     }
-    return (await response.json()) as UploadLoraTrainingImageResult
+    const prepare =
+      (await prepareResponse.json()) as LoraTrainingUploadPrepareResult
+    if (!prepare.success || !prepare.data) {
+      return { success: false, error: prepare.error ?? 'Upload prepare failed' }
+    }
+
+    // The one cross-origin request in this flow: browser → R2 presigned PUT.
+    // A *thrown* fetch here is almost always the bucket's CORS policy, not a
+    // bad file — say so instead of surfacing "Failed to fetch".
+    let storageResponse: Response
+    try {
+      storageResponse = await fetch(prepare.data.uploadUrl, {
+        method: 'PUT',
+        headers: prepare.data.headers,
+        body: file,
+      })
+    } catch (error) {
+      return {
+        success: false,
+        error: `Could not reach image storage: ${
+          error instanceof Error ? error.message : 'network error'
+        }`,
+      }
+    }
+    if (!storageResponse.ok) {
+      return {
+        success: false,
+        error: `Image storage rejected the upload (status ${storageResponse.status})`,
+      }
+    }
+
+    const completeResponse = await fetch(
+      API_ENDPOINTS.LORA_TRAINING_UPLOADS_COMPLETE,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storageKey: prepare.data.storageKey,
+          sizeBytes: file.size,
+        }),
+      },
+    )
+    if (!completeResponse.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          completeResponse,
+          `Upload finalize failed with status ${completeResponse.status}`,
+        ),
+      }
+    }
+    return (await completeResponse.json()) as UploadLoraTrainingImageResult
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Network error during upload'

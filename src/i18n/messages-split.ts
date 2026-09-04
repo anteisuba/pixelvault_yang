@@ -29,6 +29,10 @@ export const MARKETING_NAMESPACES = [
   'NotFound',
   'Models',
   'Navbar',
+  // The privacy-consent banner is mounted in `[locale]/layout.tsx`, i.e.
+  // under *this* provider, on every route — marketing and `(main)` alike.
+  // It therefore must not join `OUTSIDE_APP_NAMESPACES`.
+  'PrivacyConsent',
   'Toasts',
 ] as const
 

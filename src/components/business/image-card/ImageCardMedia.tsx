@@ -1,7 +1,10 @@
 import { ImageIcon, Music, Play } from 'lucide-react'
 
 import { OptimizedImage } from '@/components/ui/optimized-image'
-import { getGenerationThumbnailUrl } from '@/lib/generation-media'
+import {
+  getGenerationThumbnailUrl,
+  getGenerationVideoPosterUrl,
+} from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 import {
@@ -33,8 +36,9 @@ export function ImageCardMedia({
   priority,
 }: ImageCardMediaProps) {
   const imageSrc = getGenerationThumbnailUrl(generation)
-  const videoPoster =
-    generation.thumbnailUrl ?? generation.previewUrl ?? undefined
+  // 派生列优先，缺了走 CDN 现场抽帧 —— 以前这里靠 `preload="metadata"` +
+  // `currentTime` 自己抠一帧，等于为一张封面拉真实视频字节。
+  const videoPoster = getGenerationVideoPosterUrl(generation) ?? undefined
 
   return (
     <>
@@ -70,15 +74,7 @@ export function ImageCardMedia({
             poster={videoPoster}
             muted
             playsInline
-            preload={videoPoster ? 'none' : 'metadata'}
-            onLoadedMetadata={(event) => {
-              if (videoPoster) return
-              const video = event.currentTarget
-              if (!Number.isFinite(video.duration) || video.duration <= 0) {
-                return
-              }
-              video.currentTime = Math.min(0.12, video.duration / 2)
-            }}
+            preload="none"
             className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
             style={{ aspectRatio }}
           />

@@ -19,6 +19,7 @@ import {
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
+import { getGenerationVideoPosterUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
@@ -372,7 +373,7 @@ function RecentTile({ gen, onSelect, label }: RecentTileProps) {
       ) : gen.outputType === 'VIDEO' && gen.url ? (
         <video
           src={gen.url}
-          poster={gen.thumbnailUrl ?? gen.previewUrl ?? undefined}
+          poster={getGenerationVideoPosterUrl(gen) ?? undefined}
           muted
           playsInline
           preload="none"

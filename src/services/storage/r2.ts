@@ -294,18 +294,27 @@ export async function createPresignedR2PutUrl(params: {
 }
 
 /**
- * 预签名 GET —— v2 runner：app 为 R2 里的 LoRA 生成短时效下载链，交给 Cloudflare
- * Worker 塞进 RunPod job，fork worker 据此从 R2 拉（worker 不需 R2 凭证）。
+ * 预签名 GET —— 两个用途：
+ * 1. v2 runner：app 为 R2 里的 LoRA 生成短时效下载链，交给 Cloudflare Worker
+ *    塞进 RunPod job，fork worker 据此从 R2 拉（worker 不需 R2 凭证）。
+ * 2. `/api/download`：把自家资源的下载改成浏览器直连 R2 的 S3 端点，不再经
+ *    Vercel 函数进出两次带宽。`contentDisposition` 走 SigV4 签名的
+ *    `response-content-disposition` 查询参数——public bucket / custom domain
+ *    (`cdn.anteisuba.com`) 不接受任意改头查询参数，presigned S3 端点接受。
  */
 export async function createPresignedR2GetUrl(params: {
   key: string
   expiresInSeconds: number
+  contentDisposition?: string
 }): Promise<string> {
   return await getSignedUrl(
     r2,
     new GetObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME!,
       Key: params.key,
+      ...(params.contentDisposition && {
+        ResponseContentDisposition: params.contentDisposition,
+      }),
     }),
     { expiresIn: params.expiresInSeconds },
   )
@@ -617,6 +626,34 @@ function ownedStorageHostnames(): Set<string> {
   // still our bucket, just a different public CDN host.
   hosts.add('pub-5346558f8dc549f9ba5217489fe5395e.r2.dev')
   return hosts
+}
+
+/**
+ * Resolve a public CDN URL back into the bucket key it was served from, or
+ * `null` when the URL isn't one of ours. Callers that already hold an object
+ * in R2 use this to reach it through the S3 API (presign / GetObject) instead
+ * of round-tripping through the public CDN.
+ */
+export function parseOwnedStorageKey(url: string): string | null {
+  if (!isOwnedStorageUrl(url)) return null
+
+  let key: string
+  try {
+    const pathname = new URL(url).pathname
+    const base = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
+    // The public base may itself carry a path prefix; the key is what follows it.
+    const basePath = base ? new URL(base).pathname.replace(/\/+$/, '') : ''
+    const relative =
+      basePath && pathname.startsWith(`${basePath}/`)
+        ? pathname.slice(basePath.length)
+        : pathname
+    key = decodeURIComponent(relative.replace(/^\/+/, ''))
+  } catch {
+    return null
+  }
+
+  if (!key || key.includes('..')) return null
+  return key
 }
 
 export function isOwnedStorageUrl(url: string): boolean {

@@ -1,5 +1,21 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// DNS 一律走 mock：这些用例不许发真实网络请求，而 safeFetch 现在会在每一跳
+// 之前解析 hostname。
+const { lookupMock } = vi.hoisted(() => ({ lookupMock: vi.fn() }))
+// ⚠ `default` 必须一起给：`node:dns` 是 CJS 内置模块，被测源码里的
+// `import { promises as dns }` 经 vite 的 CJS interop 后读的是 default 上的
+// 那份。只返回具名 `promises` 时源码拿到 undefined；把真实模块塞进 default
+// （`importOriginal`）则会静默走真实 DNS——两种写法都曾在这里踩过。
+vi.mock('node:dns', () => {
+  const mocked = { promises: { lookup: lookupMock } }
+  return { ...mocked, default: mocked }
+})
+
 import { assertSafeUrl, isSafeUrl, safeFetch } from './url-guard'
+
+/** 一条无害的公网解析结果，用作 safeFetch 用例的默认答案。 */
+const PUBLIC_LOOKUP = [{ address: '93.184.216.34', family: 4 }]
 
 describe('url-guard', () => {
   describe('valid public URLs', () => {
@@ -84,6 +100,11 @@ describe('url-guard', () => {
   })
 
   describe('safeFetch', () => {
+    beforeEach(() => {
+      lookupMock.mockReset()
+      lookupMock.mockResolvedValue(PUBLIC_LOOKUP)
+    })
+
     it('follows safe redirects after validating each hop', async () => {
       const fetchMock = vi
         .spyOn(global, 'fetch')
@@ -172,6 +193,105 @@ describe('url-guard', () => {
       expect(new Headers(secondInit.headers).get('authorization')).toBe(
         'Bearer secret',
       )
+      fetchMock.mockRestore()
+    })
+  })
+
+  // DNS rebinding：hostname 是个合法域名，assertSafeUrl 无从判断，只有解析后
+  // 才看得见它指向内网。safeFetch 必须在发请求之前自己解析并校验。
+  describe('safeFetch DNS resolution guard', () => {
+    beforeEach(() => {
+      lookupMock.mockReset()
+    })
+
+    it.each([
+      ['127.0.0.1', 4, /private IPv4/],
+      ['169.254.169.254', 4, /private IPv4/],
+      ['10.1.2.3', 4, /private IPv4/],
+      ['::1', 6, /private IPv6/],
+      ['fd00::1', 6, /private IPv6/],
+    ])(
+      'rejects a hostname that resolves to %s without fetching it',
+      async (address, family, expected) => {
+        lookupMock.mockResolvedValue([{ address, family }])
+        const fetchMock = vi.spyOn(global, 'fetch')
+
+        await expect(safeFetch('https://rebind.example.com/x')).rejects.toThrow(
+          expected,
+        )
+        expect(fetchMock).not.toHaveBeenCalled()
+        fetchMock.mockRestore()
+      },
+    )
+
+    it('rejects when any one of several resolved addresses is private', async () => {
+      lookupMock.mockResolvedValue([
+        { address: '93.184.216.34', family: 4 },
+        { address: '169.254.169.254', family: 4 },
+      ])
+      const fetchMock = vi.spyOn(global, 'fetch')
+
+      await expect(safeFetch('https://rebind.example.com/x')).rejects.toThrow(
+        /private IPv4/,
+      )
+      expect(fetchMock).not.toHaveBeenCalled()
+      fetchMock.mockRestore()
+    })
+
+    it('allows a hostname that resolves to public addresses', async () => {
+      lookupMock.mockResolvedValue([
+        { address: '93.184.216.34', family: 4 },
+        { address: '2606:2800:220:1:248:1893:25c8:1946', family: 6 },
+      ])
+      const fetchMock = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce(new Response('ok', { status: 200 }))
+
+      const response = await safeFetch('https://example.com/image.png')
+
+      expect(response.status).toBe(200)
+      expect(lookupMock).toHaveBeenCalledWith('example.com', { all: true })
+      fetchMock.mockRestore()
+    })
+
+    it('validates the resolved address of every redirect hop', async () => {
+      lookupMock
+        .mockResolvedValueOnce([{ address: '93.184.216.34', family: 4 }])
+        .mockResolvedValueOnce([{ address: '10.0.0.5', family: 4 }])
+      const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+        new Response(null, {
+          status: 302,
+          headers: { location: 'https://rebind.example.com/admin' },
+        }),
+      )
+
+      await expect(safeFetch('https://example.com/redirect')).rejects.toThrow(
+        /private IPv4/,
+      )
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      fetchMock.mockRestore()
+    })
+
+    it('rejects when DNS resolution fails or returns nothing', async () => {
+      lookupMock.mockRejectedValueOnce(new Error('ENOTFOUND'))
+      await expect(safeFetch('https://nope.example.com/x')).rejects.toThrow(
+        /DNS resolution failed/,
+      )
+
+      lookupMock.mockResolvedValueOnce([])
+      await expect(safeFetch('https://empty.example.com/x')).rejects.toThrow(
+        /DNS resolution failed/,
+      )
+    })
+
+    it('skips DNS resolution for IP literals', async () => {
+      const fetchMock = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce(new Response('ok', { status: 200 }))
+
+      await safeFetch('https://1.1.1.1/test')
+
+      expect(lookupMock).not.toHaveBeenCalled()
       fetchMock.mockRestore()
     })
   })

@@ -15,6 +15,7 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useLike } from '@/hooks/use-like'
 import { batchGetLikesAPI } from '@/lib/api-client/profile'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
+import { getGenerationVideoPosterUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
@@ -362,7 +363,7 @@ const GalleryItem = memo(function GalleryItem({
   preserveAspectRatio,
   priority,
 }: GalleryItemProps) {
-  const videoPoster = gen.thumbnailUrl ?? gen.previewUrl ?? undefined
+  const videoPoster = getGenerationVideoPosterUrl(gen) ?? undefined
   const dragRef = useStudioDraggable({
     url: gen.url ?? undefined,
     generationId: gen.id,

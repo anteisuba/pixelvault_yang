@@ -3,6 +3,7 @@ import 'server-only'
 import { NextResponse } from 'next/server'
 
 import { CRON_JOBS } from '@/constants/cron'
+import { isValidBearerToken } from '@/lib/bearer-token'
 import { recordCronRun } from '@/lib/cron-heartbeat'
 import { logger } from '@/lib/logger'
 import {
@@ -34,8 +35,7 @@ export async function GET(
     )
   }
 
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  if (!isValidBearerToken(request.headers.get('authorization'), cronSecret)) {
     return NextResponse.json<ErrorBody>(
       { success: false, error: 'Invalid or missing token' },
       { status: 401 },

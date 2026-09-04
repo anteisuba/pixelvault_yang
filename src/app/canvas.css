@@ -2,10 +2,23 @@
  * 2026-07-24 从 globals.css 清场平移（纯搬家，零改值）。node/canvas 的 :root
  * 变量定值 + 全部 .node-* 类/keyframe 住这里；画布 chat 迭代视觉只改本文件，
  * 不碰 globals.css 脊柱段。
- * ⚠ node-* 保持全局 :root 常量，未 scope 成 .domain-canvas —— 它被
- * LoraAssistantDock / StudioAssistantDock 两处画布域外消费者引用，scope 会破。
- * 由 src/app/layout.tsx 紧跟 globals.css 之后 import：全局可用 + node 类在级联里
- * 维持"最后"位置（零 cascade 变化）。@theme inline 的 --color-node-* 映射留在
+ * ⚠⚠ 2026-09-03：本文件（173 KB）**只由画布路由 import** ——
+ * `src/app/[locale]/(main)/studio/node/layout.tsx`，不再挂根 layout。此前它进
+ * 每一个路由的首屏 CSS，而唯一渲染它的是 /studio/node 那一颗
+ * StudioNodeWorkbench。`@xyflow/react/dist/style.css` 同批从 globals.css 的
+ * @import 挪到同一个 layout（React Flow 也只有画布用）。
+ * 搬家时留在 globals.css 脊柱的那一小部分（**别搬回来，也别在这里重复定义**）：
+ *   · --node-panel/-panel-inner/-panel-soft/-foreground/-muted/-edge/
+ *     -focus-ring/-shadow 的**定值** —— 画布域外的 ImageEditSurface /
+ *     CanvasRoutePicker 读它们（后者经 --shadow-node-panel 读 -shadow）。
+ *   · `.node-canvas-panel-motion` —— StudioAssistantDock / LoraAssistantDock
+ *     两个画布域外的 dock 也挂这个类。
+ * 本文件里这些 token 只剩**域内重映射**（.node-card-paper / .domain-canvas /
+ * 详情面板…），全都写在更近的选择器上，级联照旧。
+ * ⚠ 其余 node-* 仍是 :root 常量、未 scope 成 .domain-canvas —— Radix 传送门
+ * 把内容挂到 document.body，自定义属性不跨那个边界，scope 会破（详见下方 ⚠⚠）。
+ * 级联位置：由画布路由 layout import，排在根 layout 的 globals.css 之后，node
+ * 类仍在级联"最后"（零 cascade 变化）。@theme inline 的 --color-node-* 映射留在
  * globals.css（Tailwind 编译入口）。施工基准见 docs/references/pages/node-canvas.md。
  *
  * ⚠⚠（2026-07-27，owner 拍板方向 B 第二轮修订，施工基准
@@ -16,9 +29,11 @@
  * Popover/Dialog/DropdownMenu/Select 的内容传送到 document.body，在
  * .domain-canvas 的 DOM 子树之外，CSS 自定义属性不跨这个边界，14 个传送门文件
  * 因此全部回退到这里、也就是当年 #191612 那批旧值。验证过 --node-* 在画布
- * 目录外只有 4 类非视觉消费者（globals.css 的 @theme inline 桥接、
- * CanvasRoutePicker、constants/node-*、health-status-utils 的 'node' 变
- * 体）——全站没有第二个域真的把它当颜色用，挂 :root 零跨域爆炸半径。
+ * 目录外的消费者极少（globals.css 的 @theme inline 桥接、CanvasRoutePicker、
+ * ImageEditSurface、constants/node-*、health-status-utils 的 'node' 变体）——
+ * 挂 :root 零跨域爆炸半径。2026-09-03 复核：真把它当颜色用的只有
+ * CanvasRoutePicker / ImageEditSurface 两处，两者用到的 8 个 token 已随本文件
+ * 下沉一并提到 globals.css 的 :root（见上方 ⚠⚠），其余仍住这里。
  * 值全部写字面量而非 var(--canvas-*)：--canvas-* 只在 .domain-canvas 内定义，
  * :root 这一层引用不到，字面量是唯一能跨传送门生效的写法（数值仍 1:1 抄自
  * references/pages/canvas-skin.md，不是新造颜色）。
@@ -50,11 +65,10 @@
   --canvas-top-inset: 4.5rem;
   --canvas-bottom-inset: 4rem;
   --canvas-minimap-width: 12rem;
-  --node-panel: #ffffff; /* = --canvas-card-bg 字面量 */
-  --node-panel-inner: rgba(0, 0, 0, 0.04); /* = --canvas-fill-control 字面量 */
-  --node-panel-soft: #f1f1f1; /* = --canvas-bg 字面量 */
-  --node-foreground: #0a0a0a; /* = --canvas-ink 字面量 */
-  --node-muted: #525252; /* = --canvas-ink-regular 字面量 */
+  /* ⚠ --node-panel/-panel-inner/-panel-soft/-foreground/-muted 的**定值**
+     2026-09-03 提到 globals.css 的 :root（本文件下沉到画布路由后，画布域外
+     的 ImageEditSurface / CanvasRoutePicker 还要读它们）。这里只保留域内
+     重映射（.node-card-paper / .domain-canvas / 详情面板等更近的选择器）。 */
   --node-subtle: #737373; /* = --canvas-ink-muted 字面量 */
   /* node-amber 已全部分流到中性 token（node-muted/foreground/edge/focus-ring/
      panel-inner）并于 2026-06-20 删除。node-danger strangler 别名已于 S4
@@ -75,7 +89,9 @@
   --node-card-line: #c9c0ab;
   --node-paint: #3e8c6c;
   --node-paint-fg: #ebf3ee;
-  --node-shadow: rgba(0, 0, 0, 0.08); /* 2026-07-27 反转，原 rgb(0 0 0 / 0.5) */
+  /* ⚠ --node-shadow 定值 2026-09-03 提到 globals.css 的 :root：globals 的
+     @theme inline 把它编译进 --shadow-node-panel，而 CanvasRoutePicker
+     （画布域外）用的正是 shadow-node-panel。 */
   --shadow-canvas-control: 0 10px 28px rgb(0 0 0 / 0.22);
   --shadow-canvas-menu: 0 12px 26px rgb(0 0 0 / 0.2);
   --shadow-canvas-task: 0 18px 44px rgb(0 0 0 / 0.28);
@@ -83,14 +99,10 @@
      ⚠ --node-edge / --node-edge-active 不在本次反转范围——画布域内的连线颜色
      另有 .domain-canvas 的 S3 覆盖块单独接管（见下方），这里的字面量只是
      传送门/域外场景的兜底，本轮不动它。 */
-  --node-edge: #6f6a63; /* = subtle，连线默认中性灰 */
+  /* ⚠ --node-edge / --node-focus-ring 定值 2026-09-03 提到 globals.css 的
+     :root（CanvasRoutePicker 在画布域外读这两个）。--node-edge-active 没有
+     域外消费者，留在这里。 */
   --node-edge-active: #e8e6de; /* = foreground，流动/hover/选中提亮 */
-  --node-focus-ring: rgba(
-    10,
-    10,
-    10,
-    0.4
-  ); /* 2026-07-27 反转，原 rgba(232,230,222,.4) */
   /* 端口类型色（极淡·功能性例外 · 草稿 fill-5 §2.3）：靠图标 + 低饱和类型色配对 */
   --node-port-character: #6f6a86;
   --node-port-background: #5f7a73;
@@ -216,12 +228,9 @@
    global prefers-reduced-motion block above. New canvas components that morph
    size should reuse this class; transform/opacity morphs compose the Tailwind
    `duration-slow ease-standard` utilities instead. */
-.node-canvas-panel-motion {
-  transition: width var(--duration-slow) var(--ease-standard);
-}
-.node-canvas-panel-motion[data-resizing='true'] {
-  transition: none;
-}
+/* ⚠ `.node-canvas-panel-motion` 本体 2026-09-03 搬到 globals.css：它的三个
+   消费者里有两个（StudioAssistantDock / LoraAssistantDock）在画布域外，本文件
+   下沉到画布路由后规则跟着走它们就没有过渡了。新的画布面板形变仍复用那个类。 */
 
 /* §2.3 edge "running" state — neutral pulse (brightness via stroke-opacity, never
    hue). Applied by NodeWorkflowStatusEdge when the target node is generating; the
@@ -3549,54 +3558,12 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
    一份 .domain-canvas 覆盖——两处同时存在只会制造「改一处漏一处」的风险，
    故整块移除，不留空选择器。 */
 
-/* 助手「历史对话」浮层（CanvasAssistantHistory.tsx）——Radix Popover 传送门到
-   document.body，脱离 .domain-canvas 的 DOM 子树，var(--canvas-*) 够不到（自定义
-   属性靠 DOM 祖先链继承，传送门跳过了原来的祖先），只能用字面值。逐条对应来源：
-   #ffffff = --canvas-card-bg，12px = --canvas-pop-radius，投影 =
-   --canvas-pop-shadow，rgba(0,0,0,.08) = --canvas-stroke-regular，
-   rgba(0,0,0,.04) = --canvas-fill-control，rgba(0,0,0,.06) =
-   --canvas-fill-control-hover，#0a0a0a/#737373/#8f8f8f =
-   --canvas-ink/-muted/-subtle——不是新造颜色，是同一批已定值的字面量落地。
-   （触发这个浮层的 <Button> 本身没有传送门问题，仍走
-   .canvas-assistant-ghost-btn，见组件文件。） */
-.canvas-assistant-popover {
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.06);
-  color: #0a0a0a;
-}
-.canvas-assistant-popover-divider {
-  border-color: rgba(0, 0, 0, 0.08);
-}
-.canvas-assistant-popover-subtle {
-  color: #8f8f8f;
-}
-.canvas-assistant-popover-input {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.08);
-  color: #0a0a0a;
-}
-.canvas-assistant-popover-empty {
-  background: rgba(0, 0, 0, 0.04);
-  color: #737373;
-}
-.canvas-assistant-popover-item {
-  color: #737373;
-  transition:
-    background 150ms cubic-bezier(0.4, 0, 0.2, 1),
-    color 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.canvas-assistant-popover-item:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: #0a0a0a;
-}
-.canvas-assistant-popover-item--active {
-  background: rgba(0, 0, 0, 0.04);
-  color: #0a0a0a;
-}
+/* ⚠ 助手「历史对话」浮层（`.canvas-assistant-popover*`）2026-09-03 整块搬到
+   globals.css：CanvasAssistantHistory 虽然住在画布目录，却被
+   StudioAssistantHeaderActions 渲染进**三个** dock —— StudioNodeAssistantDock
+   （画布）· StudioAssistantDock（studio 工作台）· LoraAssistantDock，后两个在
+   画布路由之外。这批规则本来就是无作用域的（Radix 传送门到 document.body），
+   跟着本文件下沉那两个 dock 的浮层就掉皮了。 */
 
 /* ══════════════════════════════════════════════════════════════════════════
    S11 · 画布助手浮动卡（2026-07-27）

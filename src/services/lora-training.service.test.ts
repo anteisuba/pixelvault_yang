@@ -1,6 +1,25 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { LORA_TRAINING_IMAGE_MAX_BYTES } from '@/constants/uploads'
+
+const r2Mocks = vi.hoisted(() => ({
+  createPresignedR2PutUrl: vi.fn(),
+  deleteFromR2: vi.fn(),
+  detectTrustedImageMime: vi.fn(),
+  getR2ObjectBuffer: vi.fn(),
+  getR2PublicUrl: vi.fn(),
+  parseOwnedStorageKey: vi.fn(),
+  uploadToR2: vi.fn(),
+}))
+
+vi.mock('@/services/storage/r2', () => r2Mocks)
+vi.mock('@/services/user.service', () => ({
+  ensureUser: vi.fn(async () => ({ id: 'user-1' })),
+}))
 
 import {
+  completeTrainingImageDirectUpload,
+  createTrainingImageDirectUpload,
   LoraTrainingError,
   mapLoraTrainingError,
 } from './lora-training.service'
@@ -102,5 +121,117 @@ describe('mapLoraTrainingError', () => {
       const result = mapLoraTrainingError(new LoraTrainingError(code, 'msg'))
       expect(result.messageKey).toMatch(/^error/)
     }
+  })
+})
+
+describe('training image direct upload', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    r2Mocks.createPresignedR2PutUrl.mockResolvedValue('https://r2/put?sig=1')
+    r2Mocks.deleteFromR2.mockResolvedValue(undefined)
+    r2Mocks.getR2PublicUrl.mockImplementation(
+      (key: string) => `https://cdn.test.com/${key}`,
+    )
+  })
+
+  it('presigns a PUT under the user-scoped training prefix', async () => {
+    const prepare = await createTrainingImageDirectUpload('clerk-1', {
+      mimeType: 'image/jpeg',
+      sizeBytes: 1024,
+    })
+
+    expect(prepare.uploadUrl).toBe('https://r2/put?sig=1')
+    expect(prepare.storageKey).toMatch(
+      /^lora-training\/user-1\/\d+-[0-9a-f]{12}\.jpg$/,
+    )
+    expect(prepare.headers).toEqual({
+      'Content-Type': 'image/jpeg',
+      'If-None-Match': '*',
+    })
+    expect(prepare.maxBytes).toBe(LORA_TRAINING_IMAGE_MAX_BYTES)
+    expect(r2Mocks.createPresignedR2PutUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: prepare.storageKey,
+        mimeType: 'image/jpeg',
+      }),
+    )
+  })
+
+  it('rejects an oversized pick with the localizable typed error', async () => {
+    await expect(
+      createTrainingImageDirectUpload('clerk-1', {
+        mimeType: 'image/png',
+        sizeBytes: LORA_TRAINING_IMAGE_MAX_BYTES + 1,
+      }),
+    ).rejects.toMatchObject({ code: 'IMAGE_TOO_LARGE', httpStatus: 413 })
+    expect(r2Mocks.createPresignedR2PutUrl).not.toHaveBeenCalled()
+  })
+
+  it('confirms an upload with the format derived from magic bytes', async () => {
+    r2Mocks.getR2ObjectBuffer.mockResolvedValue({ buffer: Buffer.alloc(64) })
+    r2Mocks.detectTrustedImageMime.mockResolvedValue({
+      format: 'png',
+      mimeType: 'image/png',
+      width: 512,
+      height: 768,
+    })
+
+    const uploaded = await completeTrainingImageDirectUpload('clerk-1', {
+      storageKey: 'lora-training/user-1/1-abc.png',
+      sizeBytes: 64,
+    })
+
+    expect(uploaded).toEqual({
+      url: 'https://cdn.test.com/lora-training/user-1/1-abc.png',
+      storageKey: 'lora-training/user-1/1-abc.png',
+      mimeType: 'image/png',
+      width: 512,
+      height: 768,
+      sizeBytes: 64,
+    })
+    expect(r2Mocks.deleteFromR2).not.toHaveBeenCalled()
+  })
+
+  it("rejects a storage key outside the caller's own prefix", async () => {
+    await expect(
+      completeTrainingImageDirectUpload('clerk-1', {
+        storageKey: 'lora-training/user-2/1-abc.png',
+        sizeBytes: 64,
+      }),
+    ).rejects.toMatchObject({ code: 'IMAGE_INVALID', httpStatus: 400 })
+    expect(r2Mocks.getR2ObjectBuffer).not.toHaveBeenCalled()
+  })
+
+  it('deletes the object and fails when the real size disagrees', async () => {
+    r2Mocks.getR2ObjectBuffer.mockResolvedValue({ buffer: Buffer.alloc(99) })
+
+    await expect(
+      completeTrainingImageDirectUpload('clerk-1', {
+        storageKey: 'lora-training/user-1/1-abc.png',
+        sizeBytes: 64,
+      }),
+    ).rejects.toMatchObject({ code: 'IMAGE_INVALID' })
+    expect(r2Mocks.deleteFromR2).toHaveBeenCalledWith(
+      'lora-training/user-1/1-abc.png',
+    )
+    expect(r2Mocks.detectTrustedImageMime).not.toHaveBeenCalled()
+  })
+
+  it('deletes the object and fails when the bytes are not a usable image', async () => {
+    r2Mocks.getR2ObjectBuffer.mockResolvedValue({ buffer: Buffer.alloc(64) })
+    r2Mocks.detectTrustedImageMime.mockRejectedValue(
+      new Error('Unsupported or corrupted image file'),
+    )
+
+    await expect(
+      completeTrainingImageDirectUpload('clerk-1', {
+        storageKey: 'lora-training/user-1/1-abc.png',
+        sizeBytes: 64,
+      }),
+    ).rejects.toMatchObject({
+      code: 'IMAGE_INVALID',
+      message: 'Unsupported or corrupted image file',
+    })
+    expect(r2Mocks.deleteFromR2).toHaveBeenCalled()
   })
 })

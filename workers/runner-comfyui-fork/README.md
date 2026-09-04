@@ -106,15 +106,15 @@ Cloudflare Worker 完全不碰图片字节，和几百 MB 的 LoRA 走同一条�
 
 ## 现状（2026-08-25 全部经 RunPod / GitHub API 实读，不是回忆）
 
-| 项             | 值                                                            |
-| -------------- | ------------------------------------------------------------- |
-| 生产端点       | `dt0wyuid7lywic` · `pixelvault-runner-eu-ro-1`（EU-RO-1）     |
-| Template       | `pmh4gs9eht`                                                  |
-| 当前镜像       | `ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-v7`           |
-| Network Volume | `ivchraoqjv`                                                  |
-| 构建来源仓     | GitHub 私有仓 `anteisuba/pixelvault-runner-fork`（main 分支） |
-| 构建方式       | 该仓 `.github/workflows/build.yml` → GitHub Actions → 推 GHCR |
-| Worker 接线    | `workers/execution/wrangler.jsonc` 的 `RUNPOD_ENDPOINT`       |
+| 项             | 值                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------- |
+| 生产端点       | `dt0wyuid7lywic` · `pixelvault-runner-eu-ro-1`（EU-RO-1）                               |
+| Template       | `pmh4gs9eht`                                                                            |
+| 当前镜像       | `ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-17324ce`（2026-09-04 起，模型可见性闸） |
+| Network Volume | `ivchraoqjv`                                                                            |
+| 构建来源仓     | GitHub 私有仓 `anteisuba/pixelvault-runner-fork`（main 分支）                           |
+| 构建方式       | 该仓 `.github/workflows/build.yml` → GitHub Actions → 推 GHCR                           |
+| Worker 接线    | `workers/execution/wrangler.jsonc` 的 `RUNPOD_ENDPOINT`                                 |
 
 ⚠ **不需要本机 Docker**，也不用 Docker Hub。base 镜像 11.9GB（解压 20GB+），在 GitHub
 托管 runner 上构建，本机一个字节都不用传。RunPod 只负责按 tag 拉 GHCR 镜像——它**没有**

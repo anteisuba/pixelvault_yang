@@ -23,6 +23,19 @@ import {
 } from '@/constants/assistant-operator'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import { ASSISTANT_DOMAIN_BRIEFS } from '@/constants/assistant-protocol'
+/**
+ * ⭐ 生成器方言（提示词准确性 P0）。与旧助手 `prompt-assistant.service` **同源同一个
+ * 常量**，不是抄一份字符串 —— 两处各写一份的下场是改了一处忘另一处，而「哪一处对」
+ * 从代码上看不出来。
+ * ⚠ 钱闸（`assistant-operator.money-gate.test.ts`）只管 `@/services/` 的 import；
+ * 这三个来自 `@/constants/`，是纯数据，不碰 provider、不落库、不扣费。
+ */
+import {
+  getModelEnhanceHint,
+  isTagBasedPromptModel,
+  TAG_BASED_GENERATION_PROMPT_RULE,
+} from '@/constants/model-strengths'
+import { resolveAdapterType } from '@/constants/models'
 import { resolveAssistantModelId } from '@/constants/node-studio'
 import {
   inspectAssistantAssetFolder,
@@ -2016,6 +2029,29 @@ const OPERATOR_STUCK_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
       '我在同一步上打转了，先停下来，不再耗你的时间。说一句下一步想怎么办，我换个路子。',
   }
 
+/**
+ * 当前快照选中的那个模型**吃什么方言**。
+ *
+ * 没有这一段的时候，操作员会给 NovelAI 写一段电影感散文再按 `set_prompt` 塞进去 ——
+ * 表单填对了，出图是废的。旧的提示词助手一直有这一段（见
+ * `prompt-assistant.service.ts` 的 `buildAssistantSystemPrompt`），操作员漏了。
+ */
+function buildModelDialectSection(request: AssistantOperatorRequest): string {
+  const modelId = request.snapshot.model?.id
+  if (!modelId) return ''
+
+  const adapterType = resolveAdapterType(modelId)
+  const hint = getModelEnhanceHint(modelId, adapterType ?? undefined)
+  const dialect = isTagBasedPromptModel(modelId)
+    ? `\n${TAG_BASED_GENERATION_PROMPT_RULE}`
+    : ''
+  if (!hint && !dialect) return ''
+
+  return `\n\nWHAT THE PROMPT MUST LOOK LIKE ON THIS MODEL — set_prompt and set_negative write into ${modelId}${adapterType ? ` (${adapterType})` : ''}, and the wrong dialect wastes the run even when every other knob is right:${
+    hint ? `\n- ${hint}` : ''
+  }${dialect}`
+}
+
 function buildOperatorSystemPrompt(request: AssistantOperatorRequest): string {
   const brief = ASSISTANT_DOMAIN_BRIEFS[request.domain]
   const language =
@@ -2091,7 +2127,7 @@ HARD RULES — these are structural, not stylistic:
 - search_web_images (pictures YOU went looking for) is different: it downloads nothing. Each candidate is shown to the creator with a "use this" button, and only what they press is fetched and attached. So never claim you saved, imported, or mounted one of your own search results, and never paste one of those URLs into a prompt or a reference. Search the creator's own library first; go to the web only when they have nothing suitable. Keep web queries SHORT and in English (three or four words); a long sentence returns junk.
 ${domainRules}
 - If the creator already hand-wrote a prompt, writing over it needs their say-so — call the tool anyway and the app will ask them; do not ask in prose.
-- Reply in ${language}.
+- Reply in ${language}.${buildModelDialectSection(request)}
 
 HOW YOU TALK — the creator hired an operator, not a rulebook:
 - NEVER recite your own constraints to them. Not what you cannot do, not why, not "as I mentioned". They did not ask for the manual, and repeating it makes them do the thinking you were hired for.

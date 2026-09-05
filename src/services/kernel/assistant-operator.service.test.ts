@@ -72,6 +72,8 @@ import {
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
+import { TAG_BASED_GENERATION_PROMPT_RULE } from '@/constants/model-strengths'
+import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
 import {
@@ -2975,5 +2977,81 @@ describe('LoRA 装配台域（P4-C）', () => {
     expect(steps[0]).toMatchObject({
       error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
     })
+  })
+})
+
+/**
+ * ⭐ 生成器方言（提示词准确性 P0）。
+ *
+ * 操作员按的是 `set_prompt` 这颗按钮，而按钮后面那台机器吃什么方言，以前它不知道 ——
+ * 于是给 NovelAI 写电影感散文，表单填得漂亮，出图是废的。这一组锁住「快照选了哪台
+ * 机器，系统提示里就有那台机器的方言」。
+ */
+describe('目标模型的提示词方言进系统提示', () => {
+  function buildModelRequest(modelId: string): AssistantOperatorRequest {
+    return buildRequest({
+      snapshot: {
+        ...SNAPSHOT,
+        model: { id: modelId, label: modelId },
+        availableModels: [{ id: modelId, label: modelId }],
+      },
+    })
+  }
+
+  it('NovelAI 上带 NovelAI 的 :: 数值强调，而不是 A1111 的括号权重', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildModelRequest(AI_MODELS.NOVELAI_V45_FULL),
+      ),
+    )
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain('1.3::tag ::')
+    expect(prompt).toContain('{tag}')
+    // tag 方言硬规矩与旧助手同一个常量，不是抄的第二份字符串。
+    expect(prompt).toContain(TAG_BASED_GENERATION_PROMPT_RULE)
+  })
+
+  it('gpt-image 上不挂 tag 规矩（自然语言模型别被赶去写 danbooru）', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildModelRequest(AI_MODELS.OPENAI_GPT_IMAGE_2),
+      ),
+    )
+
+    const prompt = systemPrompt()
+    expect(prompt).not.toContain(TAG_BASED_GENERATION_PROMPT_RULE)
+    expect(prompt).not.toContain('danbooru')
+    // 但方言段本身还是要在：它带的是这台机器的自然语言写法。
+    expect(prompt).toContain('WHAT THE PROMPT MUST LOOK LIKE ON THIS MODEL')
+    expect(prompt).toContain(AI_MODELS.OPENAI_GPT_IMAGE_2)
+  })
+
+  it('Pony 上带上必带的 score_ 前缀（漏了它画面直接垮）', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildModelRequest(AI_MODELS.PONY_DIFFUSION_V6),
+      ),
+    )
+    expect(systemPrompt()).toContain('score_9, score_8_up, score_7_up')
+  })
+
+  it('快照没选模型时不印方言段（别对着一台还没定的机器讲方言）', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ snapshot: { ...SNAPSHOT, model: null } }),
+      ),
+    )
+    expect(systemPrompt()).not.toContain(
+      'WHAT THE PROMPT MUST LOOK LIKE ON THIS MODEL',
+    )
   })
 })

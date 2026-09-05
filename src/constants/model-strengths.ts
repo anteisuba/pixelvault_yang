@@ -70,7 +70,34 @@ export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
     'Target model: Stable Diffusion. Prefer comma-separated descriptive phrases with quality modifiers.',
   [AI_ADAPTER_TYPES.REPLICATE]:
     'Target model: Replicate hosted model. Prefer detailed natural language descriptions.',
+  [AI_ADAPTER_TYPES.BYTEPLUS]:
+    'Target model: Seedream / Seedance (BytePlus ModelArk — same family as VolcEngine). Prefer structured, concrete clauses in a fixed order: subject, action, environment, camera, lighting, style. Chinese and English both work equally well. Do not mix in tag or weight syntax.',
+  [AI_ADAPTER_TYPES.FISH_AUDIO]:
+    'Target model: Fish Audio S2 (text-to-speech). The prompt IS the spoken script — write the exact words to be said, with real punctuation, and nothing else. Delivery is steered by square-bracket emotion tags such as [sad], [excited], [whispering]: put one at the start of the sentence it colours, and use at most three in a script. No stage directions, no visual language.',
+  [AI_ADAPTER_TYPES.ELEVENLABS]:
+    'Target model: ElevenLabs v3 (speech), SFX v2, and Music v2. For speech the prompt IS the spoken script; delivery comes from inline audio tags in square brackets such as [whispers], [laughs], [sighs], [sarcastic] — only audible events, never visual direction. SSML is not supported: shape pacing with punctuation and tags instead. For sound effects and music, describe the sound itself, not a picture of it.',
+  [AI_ADAPTER_TYPES.MINIMAX]:
+    'Target model: MiniMax H3 (video). Prefer plain natural-language sentences in shot order: what is in frame, what moves, how the camera moves. No tag syntax and no weight brackets.',
+  // 两个站同一个模型，方言自然也是同一条（见 registry 的 MINIMAX_CN 注释）。
+  [AI_ADAPTER_TYPES.MINIMAX_CN]:
+    'Target model: MiniMax H3 (video, CN station — same model as the global one). Prefer plain natural-language sentences in shot order: what is in frame, what moves, how the camera moves. Chinese works as well as English. No tag syntax and no weight brackets.',
+  [AI_ADAPTER_TYPES.RUNNER]:
+    'Target model: self-hosted SDXL / Illustrious / Pony checkpoint on the Comfy runner. Prefer English comma-separated danbooru-style tags with quality tags first, then subject, then scene. Parenthesised weights such as (tag:1.2) are parsed here. Negatives are tags, not sentences.',
+  /**
+   * ⛔ 纯文本 LLM 线路（ANTHROPIC / XAI）**有意不列**：`ADAPTER_PROMPT_HINTS` 说的是
+   * 「送进生成器的那段文字该长什么样」，而这两条线路不出图/不出声，只做结构化推理，
+   * 由各自的任务系统提示词管形状。给它们编一条「提示词方言」等于凭空多一条约束。
+   * DEEPSEEK / DASHSCOPE 上面有条目是因为它们同时承担有输出形状要求的文本任务。
+   */
 }
+
+/**
+ * NovelAI 的权重语法 —— **不是** A1111 那套圆括号加冒号数字。写错的代价很具体：
+ * 那串括号不会被当成权重，而是被当作普通 token 喂进 tokenizer，用户看到的是
+ * 「加了权重但画面没反应，还多了奇怪的东西」。
+ */
+const NOVELAI_PROMPT_SYNTAX =
+  'Emphasis is NovelAI-specific: {tag} multiplies a tag weight by 1.05 per brace layer and [tag] divides it by 1.05 per bracket layer; V4 and later also take numeric emphasis written as 1.3::tag :: where the trailing :: closes the span, and V4.5 and later take negative emphasis the same way, -1::tag ::. A1111-style parenthesised weights are NOT parsed here — they are read as literal text. Multiple characters: write the shared scene first, then separate the base segment and each character segment with |. Anything that must be rendered as letters goes last, as Text: the words.'
 
 /** Per-model strengths and enhancement hints */
 export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
@@ -125,8 +152,7 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
   [AI_MODELS.NOVELAI_V45_FULL]: {
     bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
     promptStyle: 'tag-based',
-    enhanceHint:
-      'NovelAI V4.5 Full. Use danbooru tags with emphasis like (feature:1.3). Quality tags first, then character details, then style and scene. Reference image is optional img2img, not character lock.',
+    enhanceHint: `NovelAI V4.5 Full. Emit English danbooru tags, comma separated: subject and character first, then outfit, pose, expression, then scene, background and lighting. ${NOVELAI_PROMPT_SYNTAX} The V4.5 Full quality string is appended at the END of the prompt, not the front: location, very aesthetic, masterpiece, no text. Reference image is optional img2img, not character lock.`,
     routerWeights: {
       referenceFit: 0.55,
       costEfficiency: 0.55,
@@ -137,8 +163,7 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
   [AI_MODELS.NOVELAI_V45_CURATED]: {
     bestFor: ['anime', 'illustration', 'character-design'],
     promptStyle: 'tag-based',
-    enhanceHint:
-      'NovelAI V4.5 Curated. Same tag dialect as Full, cleaner dataset. Quality tags first, then character, then scene. Reference image is optional img2img.',
+    enhanceHint: `NovelAI V4.5 Curated. Same tag dialect and same emphasis syntax as Full, cleaner dataset. Subject and character first, then outfit and pose, then scene. ${NOVELAI_PROMPT_SYNTAX} Curated ships its own quality preset — do not paste Full's quality string here. Reference image is optional img2img.`,
     routerWeights: {
       referenceFit: 0.5,
       costEfficiency: 0.55,
@@ -149,8 +174,7 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
   [AI_MODELS.NOVELAI_V5_FULL]: {
     bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
     promptStyle: 'tag-based',
-    enhanceHint:
-      'NovelAI V5 Full. Prefer danbooru tags; short natural-language clauses are also understood. Quality tags first, then character, then scene. Do not rely on Director, Vibe Transfer, or Precise Reference — they are not on V5 yet. One optional reference image is img2img only.',
+    enhanceHint: `NovelAI V5 Full. Prefer danbooru tags; short natural-language clauses are also understood. Subject and character first, then outfit and pose, then scene. ${NOVELAI_PROMPT_SYNTAX} Do not rely on Director, Vibe Transfer, or Precise Reference — they are not on V5 yet. One optional reference image is img2img only.`,
     routerWeights: {
       referenceFit: 0.45,
       costEfficiency: 0.4,
@@ -161,8 +185,7 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
   [AI_MODELS.NOVELAI_V5_CURATED]: {
     bestFor: ['anime', 'illustration', 'character-design'],
     promptStyle: 'tag-based',
-    enhanceHint:
-      'NovelAI V5 Curated. Tag dialect first; short natural-language clauses are ok. Cleaner dataset, easier to steer. No Director / Vibe Transfer on V5 yet. One optional reference image is img2img only.',
+    enhanceHint: `NovelAI V5 Curated. Tag dialect first; short natural-language clauses are ok. Cleaner dataset, easier to steer. ${NOVELAI_PROMPT_SYNTAX} No Director / Vibe Transfer on V5 yet. One optional reference image is img2img only.`,
     routerWeights: {
       referenceFit: 0.4,
       costEfficiency: 0.4,
@@ -176,13 +199,52 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
     promptStyle: 'tag-based',
     enhanceHint:
-      'NoobAI/Illustrious-family anime model driven by danbooru tags. Emit comma-separated tags with quality tags first, then character tags, then style and scene. Emphasis syntax like (feature:1.3) works.',
+      'NoobAI/Illustrious-family anime model driven by danbooru tags. Lead with the quality prefix masterpiece, best quality, then character tags, then style and scene, comma separated. Emphasis syntax like (feature:1.3) works here — this family uses the A1111/Comfy parser, unlike NovelAI.',
     routerWeights: {
       referenceFit: 0.6,
       costEfficiency: 0.9,
       latency: 0.6,
       health: 0.8,
     },
+  },
+  [AI_MODELS.ANIMA_PENCIL_XL]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    enhanceHint:
+      'Anima Pencil-XL, an SDXL anime checkpoint driven by danbooru tags. Lead with the quality prefix masterpiece, best quality, then character tags, then style and scene, comma separated. A1111/Comfy emphasis like (feature:1.2) is parsed. Negatives are tags, not sentences.',
+  },
+  // ─── Comfy Runner 上的自托管 checkpoint ───────────────────────────
+  // 它们与上面那些托管模型共享同一条 tag 方言，但每个底模有**自己的必带前缀** ——
+  // 漏掉前缀不是「效果差一点」，是画面直接垮（Pony 尤其明显）。
+  [AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE]: {
+    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
+    promptStyle: 'tag-based',
+    enhanceHint:
+      'WAI-Illustrious recipe clone on the Comfy runner. Lead with the quality prefix masterpiece, best quality, then character tags, then style and scene, comma separated. A1111/Comfy emphasis like (feature:1.2) is parsed. Negatives are tags, not sentences.',
+  },
+  [AI_MODELS.ANIMA_PENCIL_XL_RUNNER]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    enhanceHint:
+      'Anima Pencil-XL on the Comfy runner. Same dialect as the hosted entry: quality prefix masterpiece, best quality first, then character tags, then style and scene, comma separated. A1111/Comfy emphasis like (feature:1.2) is parsed.',
+  },
+  [AI_MODELS.PONY_DIFFUSION_V6]: {
+    bestFor: ['anime', 'illustration', 'character-design', 'stylized'],
+    promptStyle: 'tag-based',
+    enhanceHint:
+      'Pony Diffusion V6 XL on the Comfy runner. It is score-conditioned: EVERY positive prompt must start with score_9, score_8_up, score_7_up, immediately followed by a source tag — source_anime, source_cartoon, source_furry or source_pony. Only then the danbooru tags. Without that prefix the output collapses; it is not an optional quality booster. A1111/Comfy emphasis like (feature:1.2) is parsed. Negatives are tags (commonly score_6, score_5, score_4, worst quality, low quality).',
+  },
+  [AI_MODELS.SDXL_10_RUNNER]: {
+    bestFor: ['general', 'concept', 'illustration'],
+    promptStyle: 'tag-based',
+    enhanceHint:
+      'Plain SDXL 1.0 on the Comfy runner. Emit comma-separated English tags and short descriptive phrases, quality modifiers first. It is NOT danbooru-trained, so anime character tags will not resolve — describe the subject in ordinary vocabulary. A1111/Comfy emphasis like (feature:1.2) is parsed.',
+  },
+  [AI_MODELS.ANIMA_DIT_RUNNER]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    enhanceHint:
+      'Anima (Cosmos-Predict2 DiT) on the Comfy runner. Danbooru tags remain the reliable dialect; short natural-language clauses are also understood because the text encoder is Qwen-Image, not CLIP. Tags first, then a clause or two of scene description. Keep tag vocabulary English.',
   },
   [AI_MODELS.IDEOGRAM_3]: {
     bestFor: ['logo', 'typography', 'graphic-design', 'text-in-image'],
@@ -294,8 +356,30 @@ export function getModelEnhanceHint(
   return null
 }
 
+/**
+ * Tag 方言模型的**显式名册**。
+ *
+ * ⚠ 这里**不能**退回「在 `MODEL_STRENGTHS` 里有条目且 promptStyle 是 tag-based
+ * 就算」那条判定：漏的是每一个还没写 strength 条目的 tag 模型，而漏判的表现是
+ * 助手给 Pony / Illustrious 写了一段电影感散文，用户拿到一张糊图。名册显式列出，
+ * 加模型时漏了这里，下面那条一致性测试会红。
+ */
+export const TAG_BASED_PROMPT_MODEL_IDS: ReadonlySet<string> = new Set<string>([
+  AI_MODELS.NOVELAI_V45_FULL,
+  AI_MODELS.NOVELAI_V45_CURATED,
+  AI_MODELS.NOVELAI_V5_FULL,
+  AI_MODELS.NOVELAI_V5_CURATED,
+  AI_MODELS.ILLUSTRIOUS_XL,
+  AI_MODELS.ANIMA_PENCIL_XL,
+  AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE,
+  AI_MODELS.ANIMA_PENCIL_XL_RUNNER,
+  AI_MODELS.PONY_DIFFUSION_V6,
+  AI_MODELS.SDXL_10_RUNNER,
+  AI_MODELS.ANIMA_DIT_RUNNER,
+])
+
 export function isTagBasedPromptModel(modelId: string): boolean {
-  return MODEL_STRENGTHS[modelId as AI_MODELS]?.promptStyle === 'tag-based'
+  return TAG_BASED_PROMPT_MODEL_IDS.has(modelId)
 }
 
 /**

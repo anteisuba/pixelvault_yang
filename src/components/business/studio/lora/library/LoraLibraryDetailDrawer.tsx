@@ -27,6 +27,7 @@ export function LoraLibraryDetailDrawer({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
+        aria-describedby={undefined}
         className={cn(
           'flex flex-col overflow-hidden',
           LORA_LIBRARY_DETAIL_DRAWER_CLASS,

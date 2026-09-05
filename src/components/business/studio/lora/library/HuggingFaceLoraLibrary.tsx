@@ -56,11 +56,9 @@ import {
 import { LoraCoverPreviewDialog } from './LoraCoverPreviewDialog'
 import { LoraLibraryGridCard } from './LoraLibraryCard'
 import { LoraLibraryDetailDrawer } from './LoraLibraryDetailDrawer'
-import { LoraLibraryDetailReveal } from './LoraLibraryDetailReveal'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibraryMobileFilters } from './LoraLibraryMobileFilters'
 import { LoraLibraryPagination } from './LoraLibraryPagination'
-import { LoraLibraryRow } from './LoraLibraryRow'
 import { LoraLibraryRowDetail } from './LoraLibraryRowDetail'
 import {
   LoraLibraryTypeEmptyState,
@@ -168,22 +166,6 @@ export function HuggingFaceLoraLibrary({
     searchParams,
   ])
 
-  // 原位展开切换：点已展开当前项 → 收起；点其它项 → 切换并展开。
-  const handleToggleItem = useCallback(
-    (item: HuggingFaceLoraSearchItem) => {
-      const isCurrentlyExpanded =
-        detailOpen && selectedItem?.repoId === item.repoId
-      if (isCurrentlyExpanded) {
-        setDetailOpen(false)
-        return
-      }
-      setSelectedItem(item)
-      setDetailOpen(true)
-    },
-    [detailOpen, selectedItem],
-  )
-
-  // 网格形态没有「点同一格收起」（详情是盖上来的抽屉），所以是纯打开。
   const handleOpenItem = useCallback((item: HuggingFaceLoraSearchItem) => {
     setSelectedItem(item)
     setDetailOpen(true)
@@ -318,8 +300,8 @@ export function HuggingFaceLoraLibrary({
     (library.baseModelFamily !== 'all' ? 1 : 0)
 
   return (
-    <section className="space-y-3">
-      <div className="flex min-h-0 flex-col gap-2 lg:gap-3">
+    <section className="flex min-h-0 flex-1 flex-col lg:block lg:space-y-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:gap-3">
         {/* <1024：来源/排序/类型/底模/刷新收成一行 chip + 底部 sheet（与
             Civitai pane 同一组件，只是没有「安全」分区）。 */}
         {isMobile ? (
@@ -397,119 +379,65 @@ export function HuggingFaceLoraLibrary({
           </div>
         ) : null}
 
-        {library.isLoading ? (
-          <div
-            className="flex min-h-40 items-center justify-center text-sm text-muted-foreground"
-            role="status"
-          >
-            <Spinner size="md" className="mr-2" aria-hidden />
-            {t('huggingFaceLoading')}
-          </div>
-        ) : library.items.length === 0 && isTypeOnlyFilter ? (
-          <LoraLibraryTypeEmptyState
-            onSearchFallback={handleTypeSearchFallback}
-            onClearType={handleClearFilters}
-          />
-        ) : library.items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-border/60 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
-            <span>{t('huggingFaceNoResults')}</span>
-            {hasActiveFilters ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleClearFilters}
-                className="h-8 text-xs"
-              >
-                {t('clearFilters')}
-              </Button>
-            ) : null}
-          </div>
-        ) : isMobile ? (
-          <div
-            className={cn(
-              'flex flex-col gap-3',
-              library.isRevalidating ? 'opacity-60' : 'opacity-100',
-            )}
-            aria-busy={library.isRevalidating}
-          >
-            <div className={LORA_LIBRARY_MOBILE_GRID_CLASS}>
-              {library.items.map((item) => (
-                <LoraLibraryGridCard
-                  key={item.repoId}
-                  source="huggingface"
-                  item={item}
-                  onOpen={() => handleOpenItem(item)}
-                />
-              ))}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain lg:flex-none lg:overflow-visible">
+          {library.isLoading ? (
+            <div
+              className="flex min-h-40 items-center justify-center text-sm text-muted-foreground"
+              role="status"
+            >
+              <Spinner size="md" className="mr-2" aria-hidden />
+              {t('huggingFaceLoading')}
             </div>
-            {library.contentType !== 'all' &&
-            library.items.length <= 5 &&
-            activeTypeSearchFallbackTerm ? (
-              <LoraLibraryTypeSparseCard
-                source={LORA_LIBRARY_SOURCES.HUGGINGFACE}
-                searchFallbackTerm={activeTypeSearchFallbackTerm}
-                onSearchFallback={handleTypeSearchFallback}
-              />
-            ) : null}
-          </div>
-        ) : (
-          <div
-            className={cn(
-              'flex flex-col gap-1',
-              library.isRevalidating ? 'opacity-60' : 'opacity-100',
-            )}
-            aria-busy={library.isRevalidating}
-          >
-            {library.items.map((item, index) => {
-              const isExpanded =
-                detailOpen && selectedItem?.repoId === item.repoId
-              return (
-                <LoraLibraryDetailReveal
-                  key={item.repoId}
-                  isExpanded={isExpanded}
-                  row={
-                    <LoraLibraryRow
-                      source="huggingface"
-                      item={item}
-                      index={index + 1}
-                      isExpanded={false}
-                      onToggle={() => handleToggleItem(item)}
-                    />
-                  }
-                  detail={
-                    <LoraLibraryRowDetail
-                      source="huggingface"
-                      item={item}
-                      isFavorited={isFavorited}
-                      onUse={handleUse}
-                      onFavorite={handleFavorite}
-                      onUnfavorite={handleUnfavorite}
-                      onCollapse={() => setDetailOpen(false)}
-                      onPreviewCover={(target) => {
-                        if (target.coverImageUrl) {
-                          setCoverPreview({
-                            url: target.coverImageUrl,
-                            name: target.name,
-                          })
-                        }
-                      }}
-                    />
-                  }
+          ) : library.items.length === 0 && isTypeOnlyFilter ? (
+            <LoraLibraryTypeEmptyState
+              onSearchFallback={handleTypeSearchFallback}
+              onClearType={handleClearFilters}
+            />
+          ) : library.items.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-border/60 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+              <span>{t('huggingFaceNoResults')}</span>
+              {hasActiveFilters ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="h-8 text-xs"
+                >
+                  {t('clearFilters')}
+                </Button>
+              ) : null}
+            </div>
+          ) : (
+            <div
+              className={cn(
+                'flex flex-col gap-3',
+                library.isRevalidating ? 'opacity-60' : 'opacity-100',
+              )}
+              aria-busy={library.isRevalidating}
+            >
+              <div className={LORA_LIBRARY_MOBILE_GRID_CLASS}>
+                {library.items.map((item) => (
+                  <LoraLibraryGridCard
+                    key={item.repoId}
+                    source="huggingface"
+                    item={item}
+                    onOpen={() => handleOpenItem(item)}
+                  />
+                ))}
+              </div>
+              {library.contentType !== 'all' &&
+              library.items.length <= 5 &&
+              activeTypeSearchFallbackTerm ? (
+                <LoraLibraryTypeSparseCard
+                  source={LORA_LIBRARY_SOURCES.HUGGINGFACE}
+                  searchFallbackTerm={activeTypeSearchFallbackTerm}
+                  onSearchFallback={handleTypeSearchFallback}
                 />
-              )
-            })}
-            {library.contentType !== 'all' &&
-            library.items.length <= 5 &&
-            activeTypeSearchFallbackTerm ? (
-              <LoraLibraryTypeSparseCard
-                source={LORA_LIBRARY_SOURCES.HUGGINGFACE}
-                searchFallbackTerm={activeTypeSearchFallbackTerm}
-                onSearchFallback={handleTypeSearchFallback}
-              />
-            ) : null}
-          </div>
-        )}
+              ) : null}
+            </div>
+          )}
+        </div>
 
         <LoraLibraryPagination
           page={library.page}
@@ -580,38 +508,34 @@ export function HuggingFaceLoraLibrary({
           )
         : null}
 
-      {/* 移动端详情抽屉：与桌面原位展开同一份 LoraLibraryRowDetail、同一批
-          handler（含多文件仓库的文件选择门），只换外壳。 */}
-      {isMobile ? (
-        <LoraLibraryDetailDrawer
-          open={detailOpen && selectedItem !== null}
-          onOpenChange={(open) => {
-            if (!open) setDetailOpen(false)
-          }}
-          title={selectedItem?.name ?? ''}
-        >
-          {selectedItem ? (
-            <LoraLibraryRowDetail
-              source="huggingface"
-              layout="drawer"
-              item={selectedItem}
-              isFavorited={isFavorited}
-              onUse={handleUse}
-              onFavorite={handleFavorite}
-              onUnfavorite={handleUnfavorite}
-              onCollapse={() => setDetailOpen(false)}
-              onPreviewCover={(target) => {
-                if (target.coverImageUrl) {
-                  setCoverPreview({
-                    url: target.coverImageUrl,
-                    name: target.name,
-                  })
-                }
-              }}
-            />
-          ) : null}
-        </LoraLibraryDetailDrawer>
-      ) : null}
+      <LoraLibraryDetailDrawer
+        open={detailOpen && selectedItem !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailOpen(false)
+        }}
+        title={selectedItem?.name ?? ''}
+      >
+        {selectedItem ? (
+          <LoraLibraryRowDetail
+            source="huggingface"
+            layout="drawer"
+            item={selectedItem}
+            isFavorited={isFavorited}
+            onUse={handleUse}
+            onFavorite={handleFavorite}
+            onUnfavorite={handleUnfavorite}
+            onCollapse={() => setDetailOpen(false)}
+            onPreviewCover={(target) => {
+              if (target.coverImageUrl) {
+                setCoverPreview({
+                  url: target.coverImageUrl,
+                  name: target.name,
+                })
+              }
+            }}
+          />
+        ) : null}
+      </LoraLibraryDetailDrawer>
 
       <LoraCoverPreviewDialog
         key={coverPreview?.url ?? 'closed'}

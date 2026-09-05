@@ -183,7 +183,7 @@ describe('HuggingFaceLoraLibrary', () => {
     mockUseHuggingFaceLoraLibrary.mockReset().mockReturnValue(libraryState())
   })
 
-  it('expands the detail in place when a row is clicked, with no file-select chrome on the collapsed row', () => {
+  it('opens desktop grid cards in the detail drawer', () => {
     renderLibrary()
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -196,8 +196,7 @@ describe('HuggingFaceLoraLibrary', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'anima style' }))
 
-    // In-place detail — not a dialog — with the confirmed primary action.
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'LoraWorkbench:useThisLora' }),
     ).toBeInTheDocument()
@@ -462,6 +461,6 @@ describe('HuggingFaceLoraLibrary', () => {
         }),
       }),
     )
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })

@@ -66,7 +66,7 @@ export function isLoraLibrarySource(value: string): value is LoraLibrarySource {
 // （171px 宽 3:4 封面），sm(640) 起放到 3 列。间隙 8px（gap-2）。
 // ⚠ Tailwind 不吃运行期拼出来的类名，所以这里存的是**整串类**，不是数字。
 export const LORA_LIBRARY_MOBILE_GRID_CLASS =
-  'grid grid-cols-2 gap-2 sm:grid-cols-3'
+  'grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
 /** 详情抽屉高度：留 8% 视口缺口露出底下的结果网格（几何在 .lora-detail-drawer）。 */
 export const LORA_LIBRARY_DETAIL_DRAWER_CLASS = 'lora-detail-drawer'
 

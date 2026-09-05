@@ -7,7 +7,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
-import { NodeToolbar, Position, useReactFlow } from '@xyflow/react'
+import { NodeToolbar, Position } from '@xyflow/react'
 import {
   ChevronDown,
   Expand,
@@ -668,12 +668,11 @@ function ModePicker({
  *     ——与视频侧车（`SeedanceNode`）同款位置几何，offset 共读
  *     `NODE_STUDIO_NODE_SIDECAR_OFFSET`（《画布修法》02 节刀 1，
  *     2026-08-26 取代此前「贴下方」，见 canvas-generate-composer.md §1）。
- *   - 无宿主（画布空白处双击唤起）：固定屏幕坐标的浮层，出现模式二选一，
+ *   - 无宿主：固定屏幕坐标的浮层，出现模式二选一，
  *     这条腿不受本次改动影响。
  */
 export function GenerateComposer() {
   const composer = useGenerateComposer()
-  const { screenToFlowPosition } = useReactFlow()
   const rootRef = useRef<HTMLDivElement>(null)
   // 台账 N：避让要量面板的**实测尺寸**，所以用 state 而不是 ref —— ref 的赋值
   // 不触发重渲染，hook 拿不到「面板已经挂上来了」这个事实。
@@ -684,35 +683,6 @@ export function GenerateComposer() {
     composer.visibility === 'attached',
   )
   const isMobile = useIsMobile()
-
-  // 画布空白处唤起 —— 双击空白处（非节点/边/控件）打开，位置钉在点击点。
-  // 只在 canvasRef 之外用一个独立的 document 级监听，不改
-  // StudioNodeWorkbench 里既有的 onPaneClick/onPaneContextMenu，避免碰到
-  // 另一路会话正在改的 Esc 阶梯与 transientLayerOpen。
-  useEffect(() => {
-    const handleDoubleClick = (event: MouseEvent) => {
-      const target = event.target
-      if (!(target instanceof Element)) return
-      // Exclude anything that isn't bare canvas background: nodes, edges,
-      // the library's own chrome (controls/minimap/panels), and our own
-      // floating surfaces.
-      if (
-        target.closest(
-          '.react-flow__node, .react-flow__edge, .react-flow__controls, .react-flow__minimap, .react-flow__panel, .canvas-composer-root',
-        )
-      ) {
-        return
-      }
-      if (!target.closest('.react-flow__pane')) return
-      const flowPosition = screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      })
-      composer.openBlank(flowPosition, { x: event.clientX, y: event.clientY })
-    }
-    document.addEventListener('dblclick', handleDoubleClick)
-    return () => document.removeEventListener('dblclick', handleDoubleClick)
-  }, [composer, screenToFlowPosition])
 
   // 空白态点外部关闭（贴 NodeToolbar 的 attached 态靠"选中别的东西"自然消
   // 失，不需要这套——见 use-generate-composer 的 visibility 推导）。

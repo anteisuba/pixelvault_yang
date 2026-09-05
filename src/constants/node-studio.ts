@@ -888,6 +888,11 @@ export const NODE_STUDIO_CHARACTER_IMAGE_LORAS = {
   customBaseFamily: 'custom',
 } as const
 
+export const NODE_STUDIO_DOUBLE_TAP = {
+  maxIntervalMs: 350,
+  maxDistancePx: 24,
+} as const
+
 export const NODE_STUDIO_NODE_PLACEMENT = {
   // ⚠《画布修法》02 节刀 1 task A（2026-08-26）之后，`topbarAddPosition` 只剩
   // 两个**旧**兜底调用方在用（图片编辑 handoff 建节点 / handleSpawnReference

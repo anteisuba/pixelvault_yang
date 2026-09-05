@@ -445,7 +445,9 @@ export function LoraWorkbench() {
               'min-h-0 flex-1 animate-in fade-in duration-200',
               isGenerate
                 ? 'flex min-h-0 flex-col overflow-hidden'
-                : 'overflow-y-auto p-3 lg:p-4',
+                : activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY
+                  ? 'flex flex-col overflow-hidden p-3 lg:block lg:overflow-y-auto lg:p-4'
+                  : 'overflow-y-auto p-3 lg:p-4',
             )}
           >
             {activeSection === LORA_WORKBENCH_SECTIONS.GENERATE ? (
@@ -460,7 +462,13 @@ export function LoraWorkbench() {
             ) : null}
 
             {isLibrary ? (
-              <section className="space-y-2 lg:space-y-3">
+              <section
+                className={cn(
+                  'space-y-2 lg:space-y-3',
+                  activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY &&
+                    'flex min-h-0 flex-1 flex-col lg:block',
+                )}
+              >
                 {/* R1 顶栏（lora-library.md §3）：搜索占左侧主位，来源 + 排序/安全/
                     刷新在右侧低层级，同一条顶栏。搜索槽 / 来源槽 / 控件槽由各源 pane
                     通过 portal 挂内容进来（state 仍留原层级）。
@@ -496,7 +504,11 @@ export function LoraWorkbench() {
                 {/* 公开↔我的：顶栏是壳保持不动，只让内层结果 crossfade。 */}
                 <div
                   key={activeSection}
-                  className="animate-in fade-in duration-200"
+                  className={cn(
+                    'animate-in fade-in duration-200',
+                    activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY &&
+                      'flex min-h-0 flex-1 flex-col lg:block',
+                  )}
                 >
                   {activeSection === LORA_WORKBENCH_SECTIONS.MINE ? (
                     <MyLoraBranch

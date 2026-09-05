@@ -176,12 +176,14 @@ function DetailDrawerBody({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4 pt-2">
-        {/* 封面在抽屉里收到 192px 居中：4:5 的 `w-full` 在 375 上是 469px 高，
-            会把名称/触发词整块顶到折叠线以下（与 DetailShell 同一教训）。 */}
-        <div className="mx-auto w-48">{cover}</div>
-        {info}
-        {samples}
+      <div className="grid min-h-0 flex-1 grid-cols-2 items-start gap-4 overflow-y-auto px-4 pb-4 pt-2">
+        <div className="min-w-0 w-full [&>button>img]:max-h-[45svh] [&>button>img]:object-contain [&>button>div]:max-h-[45svh]">
+          {cover}
+        </div>
+        <div className="contents">
+          <div className="min-w-0 break-words">{info}</div>
+          <div className="col-span-2 min-w-0">{samples}</div>
+        </div>
       </div>
       {actions}
     </div>
@@ -358,24 +360,27 @@ function CivitaiRowDetail({
   // 库侧只读展示、不带复制块（复制归 Generate 上下文）。
   const { descriptionText } = useCivitaiModelDescription(item.modelId)
 
+  const coverUrl = item.coverImageUrl ?? sampleImages[0]?.url
+
   const cover = (
     <button
       type="button"
-      onClick={() => onPreviewCover(item)}
-      disabled={!item.coverImageUrl}
+      onClick={() => {
+        if (item.coverImageUrl) onPreviewCover(item)
+        else if (sampleImages.length > 0) onSampleClick(0)
+      }}
+      disabled={!coverUrl}
       aria-label={t('viewCover')}
       className={cn(
         'block w-full overflow-hidden rounded-xl border border-border/60 bg-muted',
-        item.coverImageUrl && !coverLoaded && 'animate-pulse',
-        item.coverImageUrl
-          ? 'cursor-zoom-in hover:opacity-95'
-          : 'cursor-default',
+        coverUrl && !coverLoaded && 'animate-pulse',
+        coverUrl ? 'cursor-zoom-in hover:opacity-95' : 'cursor-default',
       )}
     >
-      {item.coverImageUrl ? (
+      {coverUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={proxyCivitaiImageUrl(item.coverImageUrl)}
+          src={proxyCivitaiImageUrl(coverUrl)}
           alt={item.name}
           width={512}
           height={640}
@@ -537,7 +542,7 @@ function CivitaiRowDetail({
                 alt=""
                 loading="lazy"
                 decoding="async"
-                className="h-24 w-32 object-cover"
+                className="h-24 w-32 bg-muted/30 object-contain"
               />
             </button>
           ))}

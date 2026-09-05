@@ -75,11 +75,9 @@ import { LoraSourceRecipeModal } from '@/components/business/studio/lora/LoraSou
 import { LoraCoverPreviewDialog } from './LoraCoverPreviewDialog'
 import { LoraLibraryGridCard } from './LoraLibraryCard'
 import { LoraLibraryDetailDrawer } from './LoraLibraryDetailDrawer'
-import { LoraLibraryDetailReveal } from './LoraLibraryDetailReveal'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibraryMobileFilters } from './LoraLibraryMobileFilters'
 import { LoraLibraryPagination } from './LoraLibraryPagination'
-import { LoraLibraryRow } from './LoraLibraryRow'
 import {
   LoraLibraryRowDetail,
   type LoraLibrarySampleImage,
@@ -293,23 +291,6 @@ export function CivitaiCommunityBranch({
     [isFavorited, onFavorite, onUnfavoriteByUrl],
   )
 
-  // 原位展开切换：点已展开的当前项 → 收起；点其它项 → 切换选中并展开。
-  // 判据是「这一行的 id 是不是当前展开的那个」，与 library.selectedItem 的兜底
-  // 无关（见 expandedItemId 处的注释）。
-  const handleToggleItem = useCallback(
-    (item: CivitaiLoraLibraryItem) => {
-      if (expandedItemId === item.id) {
-        setExpandedItemId(null)
-        return
-      }
-      // selectItem 仍要调：样例图 / 来源配方 modal 读的是 library.selectedItem。
-      library.selectItem(item)
-      setExpandedItemId(item.id)
-    },
-    [expandedItemId, library],
-  )
-
-  // 网格形态没有「点同一格收起」这回事（详情是盖上来的抽屉），所以是纯打开。
   const handleOpenItem = useCallback(
     (item: CivitaiLoraLibraryItem) => {
       library.selectItem(item)
@@ -509,7 +490,7 @@ export function CivitaiCommunityBranch({
     library.items.find((item) => item.id === expandedItemId) ?? null
 
   return (
-    <section className="space-y-3">
+    <section className="flex min-h-0 flex-1 flex-col lg:block lg:space-y-3">
       {/* 结果区：单列宽幅效果流 + 原位展开详情 + 真实分页。
           顶栏（portal 进 LoraWorkbench）只留「在哪 / 找什么 / 怎么排」＝
           搜索 + 来源 + 排序；这一行是「筛到什么」＝类型 / 底模 / 安全，末尾跟
@@ -517,7 +498,7 @@ export function CivitaiCommunityBranch({
           ⚠ owner 2026-08-07：安全（NSFW 分级）本来在顶栏和排序并列，但它**是
           筛选**——缩小结果集，和类型/底模同类；排序不缩小只重排，两者混在一行
           读不出层次。 */}
-      <div className="flex min-h-0 flex-col gap-2 lg:gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:gap-3">
         {/* <1024：上面那一行（类型/底模/安全/刷新）＋顶栏的来源/排序全部收成
             一行 chip + 底部 sheet。375 上原来这些要 256px 头部，只剩 2 张卡
             看得全（owner 2026-09-03）。 */}
@@ -620,7 +601,7 @@ export function CivitaiCommunityBranch({
 
         <div
           className={cn(
-            'min-h-0 transition-opacity',
+            'min-h-0 flex-1 overflow-y-auto overscroll-contain transition-opacity lg:flex-none lg:overflow-visible',
             library.isRevalidating && library.items.length > 0
               ? 'opacity-60'
               : 'opacity-100',
@@ -666,7 +647,7 @@ export function CivitaiCommunityBranch({
                 </Button>
               ) : null}
             </div>
-          ) : isMobile ? (
+          ) : (
             <div className="flex flex-col gap-3">
               <div className={LORA_LIBRARY_MOBILE_GRID_CLASS}>
                 {library.items.map((item) => (
@@ -678,59 +659,6 @@ export function CivitaiCommunityBranch({
                   />
                 ))}
               </div>
-              {library.contentType !== 'all' &&
-              library.items.length <= 5 &&
-              activeTypeSearchFallbackTerm ? (
-                <LoraLibraryTypeSparseCard
-                  source={LORA_LIBRARY_SOURCES.CIVITAI}
-                  searchFallbackTerm={activeTypeSearchFallbackTerm}
-                  onSearchFallback={handleTypeSearchFallback}
-                />
-              ) : null}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              {library.items.map((item, index) => {
-                const isExpanded = expandedItemId === item.id
-                return (
-                  <LoraLibraryDetailReveal
-                    key={item.id}
-                    isExpanded={isExpanded}
-                    row={
-                      <LoraLibraryRow
-                        source="civitai"
-                        item={item}
-                        index={index + 1}
-                        isExpanded={false}
-                        onToggle={() => handleToggleItem(item)}
-                      />
-                    }
-                    detail={
-                      <LoraLibraryRowDetail
-                        source="civitai"
-                        item={item}
-                        isFavorited={isFavorited(item.loraUrl)}
-                        onUse={(target) => void handleUse(target)}
-                        onFavorite={handleFavoriteToggle}
-                        onCollapse={() => setExpandedItemId(null)}
-                        sampleImages={sampleImages}
-                        onSampleClick={handleSampleClick}
-                        onPreviewCover={(target) => {
-                          const fullUrl =
-                            target.coverImageUrlOriginal ?? target.coverImageUrl
-                          if (fullUrl) {
-                            setCoverPreview({
-                              url: proxyCivitaiImageUrl(fullUrl),
-                              name: target.name,
-                            })
-                          }
-                        }}
-                      />
-                    }
-                  />
-                )
-              })}
-              {/* 稀疏态（本页 1–5 条）：列表尾部追加一条引导行。 */}
               {library.contentType !== 'all' &&
               library.items.length <= 5 &&
               activeTypeSearchFallbackTerm ? (
@@ -875,41 +803,37 @@ export function CivitaiCommunityBranch({
           )
         : null}
 
-      {/* 移动端详情抽屉：与桌面原位展开同一份 LoraLibraryRowDetail、同一批
-          handler，只换外壳。关闭即清选中，结果网格的滚动位置不动。 */}
-      {isMobile ? (
-        <LoraLibraryDetailDrawer
-          open={drawerItem !== null}
-          onOpenChange={(open) => {
-            if (!open) setExpandedItemId(null)
-          }}
-          title={drawerItem?.name ?? ''}
-        >
-          {drawerItem ? (
-            <LoraLibraryRowDetail
-              source="civitai"
-              layout="drawer"
-              item={drawerItem}
-              isFavorited={isFavorited(drawerItem.loraUrl)}
-              onUse={(target) => void handleUse(target)}
-              onFavorite={handleFavoriteToggle}
-              onCollapse={() => setExpandedItemId(null)}
-              sampleImages={sampleImages}
-              onSampleClick={handleSampleClick}
-              onPreviewCover={(target) => {
-                const fullUrl =
-                  target.coverImageUrlOriginal ?? target.coverImageUrl
-                if (fullUrl) {
-                  setCoverPreview({
-                    url: proxyCivitaiImageUrl(fullUrl),
-                    name: target.name,
-                  })
-                }
-              }}
-            />
-          ) : null}
-        </LoraLibraryDetailDrawer>
-      ) : null}
+      <LoraLibraryDetailDrawer
+        open={drawerItem !== null}
+        onOpenChange={(open) => {
+          if (!open) setExpandedItemId(null)
+        }}
+        title={drawerItem?.name ?? ''}
+      >
+        {drawerItem ? (
+          <LoraLibraryRowDetail
+            source="civitai"
+            layout="drawer"
+            item={drawerItem}
+            isFavorited={isFavorited(drawerItem.loraUrl)}
+            onUse={(target) => void handleUse(target)}
+            onFavorite={handleFavoriteToggle}
+            onCollapse={() => setExpandedItemId(null)}
+            sampleImages={sampleImages}
+            onSampleClick={handleSampleClick}
+            onPreviewCover={(target) => {
+              const fullUrl =
+                target.coverImageUrlOriginal ?? target.coverImageUrl
+              if (fullUrl) {
+                setCoverPreview({
+                  url: proxyCivitaiImageUrl(fullUrl),
+                  name: target.name,
+                })
+              }
+            }}
+          />
+        ) : null}
+      </LoraLibraryDetailDrawer>
 
       <LoraCoverPreviewDialog
         key={coverPreview?.url ?? 'closed'}

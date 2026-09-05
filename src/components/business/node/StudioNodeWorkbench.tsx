@@ -48,6 +48,7 @@ import {
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_INGEST_REJECT_REASON_IDS,
   NODE_STUDIO_NODE_PLACEMENT,
+  NODE_STUDIO_DOUBLE_TAP,
   NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_REACT_FLOW_PRO_OPTIONS,
   NODE_STUDIO_REFERENCE_SOURCE_IDS,
@@ -925,16 +926,6 @@ function StudioNodeCanvas() {
 
   // Node double-click is deliberately unbound. Detail has one entry point:
   // the explicit expand button rendered by each node's toolbar.
-  const handlePaneClick = useCallback(() => {
-    // Clicking empty canvas exits quick-throw mode if active; otherwise it
-    // keeps its existing job of closing the add-node menu.
-    const api = quickThrowApiRef.current
-    if (api?.quickThrowSource) {
-      api.exitQuickThrow()
-      return
-    }
-    closeAddMenu()
-  }, [closeAddMenu])
 
   const getCanvasLocalPosition = useCallback(
     (position: XYPosition): XYPosition => {
@@ -1066,6 +1057,35 @@ function StudioNodeCanvas() {
       )
     },
     [getCanvasLocalPosition, openAddMenu, screenToFlowPosition],
+  )
+
+  const lastPaneTapRef = useRef<{ time: number; x: number; y: number } | null>(
+    null,
+  )
+  const handlePaneClick = useCallback(
+    (event: ReactMouseEvent<Element>) => {
+      const api = quickThrowApiRef.current
+      if (api?.quickThrowSource) {
+        lastPaneTapRef.current = null
+        api.exitQuickThrow()
+        return
+      }
+      const previous = lastPaneTapRef.current
+      const tap = { time: event.timeStamp, x: event.clientX, y: event.clientY }
+      if (
+        previous &&
+        tap.time - previous.time <= NODE_STUDIO_DOUBLE_TAP.maxIntervalMs &&
+        Math.hypot(tap.x - previous.x, tap.y - previous.y) <=
+          NODE_STUDIO_DOUBLE_TAP.maxDistancePx
+      ) {
+        lastPaneTapRef.current = null
+        handlePaneContextMenu(event)
+        return
+      }
+      lastPaneTapRef.current = tap
+      closeAddMenu()
+    },
+    [closeAddMenu, handlePaneContextMenu],
   )
 
   const createCanvasObject = useCallback(
@@ -5194,7 +5214,7 @@ function StudioNodeCanvas() {
             {/* canvas-generate-composer.md：画布级共享组件，挂载一次——同
                 VideoMergeComposeToolbar 的手法，自己内部用 NodeToolbar(nodeId)
                 贴宿主卡右侧（《画布修法》02 节刀 1，与视频侧车同款位置几何），
-                或在无宿主（画布空白双击）时浮在固定屏幕坐标。 */}
+                或在无宿主时浮在固定屏幕坐标。 */}
             <GenerateComposer />
           </ReactFlow>
           {workflow.nodes.length === 0 && (

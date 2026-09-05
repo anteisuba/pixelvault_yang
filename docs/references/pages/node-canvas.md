@@ -327,3 +327,7 @@ L4 片盒 videoMerge（巨鱼）：吞成片，盒内保序胶片条可重排 �
 - 同日吞噬 v2：现役节点全量盘点（node-types.ts / node-connection-rules.ts / CanvasAddMenu 实读）+ 食物链/卡匣分区/镜头图去留选择框拍板 + 可玩动效 demo 手感定稿（幅度加强、软弹回）。
 - 2026-07-13：Haivis 登录页 DOM/computed style 与可逆交互实测；PixelVault `/studio/node`、`/studio/image` 同屏比对；两套助手源码只读审查。新增 §3.1 稳定分栏、共享 shell/业务隔离、响应策略与会话先修风险；未改产品代码。
 - 2026-07-13：补做当前 `/zh/studio/node` 模块级 live audit 与图片/视频/声音线路源码盘点；总施工顺序转由 `canvas-modular-redesign-2026-07.md` 管理，本文继续只维护长期可见行为和不变量。
+
+## 移动端入口（2026-09-05）
+
+`CanvasMobileView` 在 stage 内覆盖桌面画布，助手 rail 保持可触达。列表顶栏可切换节点、当前项目和历史；项目面板复用 `CanvasProjectPanel`，历史通过助手已有 portal 渲染。切换项目后回到新项目节点列表，查看画布与审阅行为保持不变。

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
 import {
   ArrowDownRight,
@@ -27,6 +27,10 @@ import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import { MediaReviewButtons } from './CanvasImageSelectionToolbar'
 import { CastDock } from './CastDock'
+import {
+  CANVAS_LEFT_PANEL_VIEW_IDS,
+  type CanvasLeftPanelView,
+} from './CanvasLeftPanel'
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
 import { NodeStatusBadge } from './nodes/NodeStatusBadge'
 import { NodeVideoSurface } from './nodes/NodeVideoSurface'
@@ -35,13 +39,9 @@ import { NodeVideoSurface } from './nodes/NodeVideoSurface'
  * 包 H（画布修法《手机 390px：能看、能审，不假装能编》，2026-08-26）。
  *
  * ── 为什么是「浮在画布上方的独立覆盖层」，而不是「桌面画布的移动分支」 ──────
- * 任务包硬边界：⛔ 不做「把桌面画布重写成移动组件树」。这个组件因此**不改**
- * `StudioNodeWorkbench` 下面那整棵桌面树一个字符——`<ReactFlow>`、顶栏/底部
- * 工具条/左栏/GenerateComposer 全部照常挂载、照常同步 `useNodes()/useEdges()`
- * 的 store。手机默认形态只是在**同一个 `<section>`** 里多铺一层不透明覆盖层，
- * 盖住那张「看得到、点不中」的缩微画布——`z-canvas-workspace`（L7「重编辑
- * 工作区」，globals.css 原文「占位，留给未来自建 workspace host 时用」，今天
- * 第一次被消费）压过桌面 chrome 顶格的 L4(40)，也压过助手 rail 的 z-20。
+ * 桌面 ReactFlow 保持挂载，移动列表复用同一份节点和边。
+ * 覆盖层放在 CanvasWorkspaceLayout 的 stage 内，受 stage 的层叠上下文约束；
+ * 这样它盖住桌面 chrome，但不会盖住 stage 外的助手 rail。
  * 用户点「查看画布」时这层覆盖层本身收起，露出的就是桌面那张缩微图——
  * 调查原话「能看到，很难做」在那条路径上原样保留，因为那条路径本来就没有
  * 被这个任务包要求重做，只是从默认路径退到了一个要主动点进去的入口后面。
@@ -66,6 +66,8 @@ import { NodeVideoSurface } from './nodes/NodeVideoSurface'
 interface CanvasMobileViewProps {
   /** 用户主动点了「查看画布」，正停在桌面缩微画布上。 */
   peeking: boolean
+  projectPanel?: ReactNode
+  assistantHistoryPanel?: ReactNode
   onEnterPeek(): void
   onExitPeek(): void
 }
@@ -242,6 +244,8 @@ export function CanvasMobileView({
   peeking,
   onEnterPeek,
   onExitPeek,
+  projectPanel,
+  assistantHistoryPanel,
 }: CanvasMobileViewProps) {
   const t = useTranslations('StudioNode')
   const tReviewMode = useTranslations('StudioNode.reviewMode')
@@ -251,6 +255,9 @@ export function CanvasMobileView({
   const { reviewMode } = useNodeWorkflowActions()
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [view, setView] = useState<CanvasLeftPanelView>(
+    CANVAS_LEFT_PANEL_VIEW_IDS.cast,
+  )
 
   // 审阅模式接管预览目标：进审阅时 `reviewMode.current` 才是「现在该看哪张」，
   // 翻页（goNext/goPrev）也会改它——这里跟着走而不是自己另维护一份游标，
@@ -337,7 +344,34 @@ export function CanvasMobileView({
         </button>
       </header>
 
-      {!previewNode &&
+      {projectPanel && assistantHistoryPanel ? (
+        <nav className="flex shrink-0 gap-1 border-b border-node-panel-inner px-2 py-1">
+          {[
+            { id: CANVAS_LEFT_PANEL_VIEW_IDS.cast, label: t('castDock.title') },
+            {
+              id: CANVAS_LEFT_PANEL_VIEW_IDS.projects,
+              label: t('projectMenu.current'),
+            },
+            {
+              id: CANVAS_LEFT_PANEL_VIEW_IDS.assistantHistory,
+              label: t('history.title'),
+            },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={view === item.id}
+              onClick={() => setView(item.id)}
+              className="min-h-11 min-w-0 flex-1 rounded-lg px-2 text-sm font-medium text-node-muted aria-pressed:bg-node-panel-inner aria-pressed:text-node-foreground"
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      ) : null}
+
+      {view === CANVAS_LEFT_PANEL_VIEW_IDS.cast &&
+      !previewNode &&
       !reviewMode?.active &&
       (reviewMode?.remaining ?? 0) > 0 ? (
         <button
@@ -351,7 +385,11 @@ export function CanvasMobileView({
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {previewNodeId && !previewNode ? (
+        {view === CANVAS_LEFT_PANEL_VIEW_IDS.projects ? (
+          projectPanel
+        ) : view === CANVAS_LEFT_PANEL_VIEW_IDS.assistantHistory ? (
+          assistantHistoryPanel
+        ) : previewNodeId && !previewNode ? (
           <p className="p-4 text-sm text-node-subtle">
             {tMobile('removedNotice')}
           </p>
@@ -371,7 +409,9 @@ export function CanvasMobileView({
         )}
       </div>
 
-      {reviewMode?.active && previewNode ? (
+      {view === CANVAS_LEFT_PANEL_VIEW_IDS.cast &&
+      reviewMode?.active &&
+      previewNode ? (
         <footer className="flex h-14 shrink-0 items-center justify-center gap-4 border-t border-node-panel-inner bg-node-panel px-2">
           <button
             type="button"

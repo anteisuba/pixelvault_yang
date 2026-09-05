@@ -134,7 +134,7 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
       <ResponsiveDialogContent
         className={cn(
           studioDialogBaseClass,
-          'max-h-[min(86svh,720px)] w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] sm:w-[min(860px,calc(100vw-4rem))] sm:!max-w-[860px]',
+          'max-h-[min(86svh,720px)] w-full !max-w-none lg:w-[min(860px,calc(100vw-4rem))] lg:!max-w-[860px]',
         )}
         mobileBodyClassName="overflow-hidden px-3 pb-3 pt-1"
         onClick={(event) => event.stopPropagation()}

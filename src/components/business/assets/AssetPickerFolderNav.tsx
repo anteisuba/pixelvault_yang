@@ -134,14 +134,14 @@ export function AssetPickerFolderNav({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t('folderSearch')}
           aria-label={t('folderSearch')}
-          className="h-7 w-full rounded-md border border-border/60 bg-background/40 pl-7 pr-1.5 text-2xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40"
+          className="h-11 md:h-7 w-full rounded-md border border-border/60 bg-background/40 pl-7 pr-1.5 text-sm md:text-2xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40"
         />
       </div>
 
       <div className="studio-scrollbar min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
         {q ? (
           flatMatches.length === 0 ? (
-            <p className="px-2 py-3 text-center text-2xs text-muted-foreground">
+            <p className="px-2 py-3 text-center text-sm md:text-2xs text-muted-foreground">
               {t('folderSearchEmpty')}
             </p>
           ) : (
@@ -225,7 +225,7 @@ export function AssetPickerFolderNav({
 
 function NavGroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-2 pb-0.5 pt-2 text-3xs font-medium uppercase tracking-wide text-muted-foreground">
+    <p className="px-2 pb-0.5 pt-2 text-xs md:text-3xs font-medium uppercase tracking-wide text-muted-foreground">
       {children}
     </p>
   )
@@ -257,7 +257,7 @@ function NavRow({
   return (
     <div
       className={cn(
-        'relative flex h-7 items-center rounded-md pr-1.5 transition-colors',
+        'relative flex h-11 md:h-7 items-center rounded-md pr-1.5 transition-colors',
         active ? 'bg-muted/60' : 'hover:bg-muted/40',
       )}
       style={{ paddingLeft: 6 + depth * 10 }}
@@ -275,7 +275,7 @@ function NavRow({
           onClick={onToggle}
           aria-expanded={expanded}
           aria-label={label}
-          className="flex size-4 shrink-0 items-center justify-center text-muted-foreground"
+          className="flex h-full w-6 md:w-4 shrink-0 items-center justify-center text-muted-foreground"
         >
           <ChevronRight
             className={cn(
@@ -290,7 +290,7 @@ function NavRow({
       <button
         type="button"
         onClick={onSelect}
-        className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+        className="flex h-full min-w-0 flex-1 items-center gap-2 text-left"
       >
         <span
           className={cn('text-muted-foreground', active && 'text-foreground')}
@@ -299,19 +299,21 @@ function NavRow({
         </span>
         <span
           className={cn(
-            'min-w-0 flex-1 truncate text-2xs',
+            'min-w-0 flex-1 truncate text-sm md:text-2xs',
             active ? 'font-medium text-foreground' : 'text-foreground/80',
           )}
         >
           {label}
         </span>
         {path && (
-          <span className="max-w-16 shrink-0 truncate text-3xs text-muted-foreground">
+          <span className="max-w-16 shrink-0 truncate text-xs md:text-3xs text-muted-foreground">
             {path}
           </span>
         )}
         {typeof count === 'number' && (
-          <span className="text-soft-count shrink-0 text-3xs">{count}</span>
+          <span className="text-soft-count shrink-0 text-xs md:text-3xs">
+            {count}
+          </span>
         )}
       </button>
     </div>

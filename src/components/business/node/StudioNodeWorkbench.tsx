@@ -5068,6 +5068,21 @@ function StudioNodeCanvas() {
     [workflow.canvasAppearance],
   )
 
+  const projectPanel = (
+    <CanvasProjectPanel
+      projectName={workflow.currentProjectName}
+      projects={workflow.projects}
+      currentProjectId={workflow.currentProjectId}
+      nodeCount={workflow.nodes.length}
+      isSaving={isSaving}
+      onSave={handleSaveNow}
+      onCreateProject={handleCreateProject}
+      onRenameProject={handleRenameProject}
+      onDeleteProject={handleDeleteProject}
+      onSwitchProject={handleSwitchProject}
+    />
+  )
+
   return (
     <NodeWorkflowActionsProvider value={workflowActions}>
       <CanvasWorkspaceLayout
@@ -5260,22 +5275,12 @@ function StudioNodeCanvas() {
               onViewChange={setLeftPanelView}
               nodeCount={nodeLocatorCount}
               onAddClick={handleTopbarAddClick}
-              projectPanel={
-                <CanvasProjectPanel
-                  projectName={workflow.currentProjectName}
-                  projects={workflow.projects}
-                  currentProjectId={workflow.currentProjectId}
-                  nodeCount={workflow.nodes.length}
-                  isSaving={isSaving}
-                  onSave={handleSaveNow}
-                  onCreateProject={handleCreateProject}
-                  onRenameProject={handleRenameProject}
-                  onDeleteProject={handleDeleteProject}
-                  onSwitchProject={handleSwitchProject}
-                />
-              }
+              projectPanel={projectPanel}
               assistantHistoryPanel={
-                <div ref={setAssistantHistoryHost} className="h-full" />
+                <div
+                  ref={isMobile ? undefined : setAssistantHistoryHost}
+                  className="h-full"
+                />
               }
             >
               <CanvasRosterRail />
@@ -5373,20 +5378,20 @@ function StudioNodeCanvas() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          {isMobile ? (
+            <CanvasMobileView
+              key={workflow.currentProjectId}
+              peeking={canvasPeek}
+              onEnterPeek={() => setCanvasPeek(true)}
+              onExitPeek={() => setCanvasPeek(false)}
+              projectPanel={projectPanel}
+              assistantHistoryPanel={
+                <div ref={setAssistantHistoryHost} className="h-full" />
+              }
+            />
+          ) : null}
         </IngestDragProvider>
       </CanvasWorkspaceLayout>
-      {/* 包 H（画布修法《手机 390px》）：<1024 默认盖一层不透明覆盖层——上面
-          那整棵桌面树（含 <ReactFlow>）不受影响地继续挂载/同步，覆盖层只是
-          挡住那张「看得到、点不中」的缩微画布，换成列表 + 只读预览。
-          z-canvas-workspace 稳赢桌面 chrome 顶格的 z-canvas-chrome 与助手 rail
-          的 z-20，与 DOM 顺序无关（见该组件顶部长注）。 */}
-      {isMobile ? (
-        <CanvasMobileView
-          peeking={canvasPeek}
-          onEnterPeek={() => setCanvasPeek(true)}
-          onExitPeek={() => setCanvasPeek(false)}
-        />
-      ) : null}
     </NodeWorkflowActionsProvider>
   )
 }

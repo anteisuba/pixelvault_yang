@@ -151,12 +151,12 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   }
 
   return (
-    <div className="studio-empty-state flex w-full grow flex-col items-center justify-center gap-8 px-4 py-6 sm:gap-10">
+    <div className="studio-empty-state flex w-full grow flex-col items-center justify-center gap-5 px-3 py-4 lg:gap-10 lg:px-4 lg:py-6">
       {isMobileStart ? (
         /* 移动端起手屏：（视频档多一条用途分段）+ 一句问句 + 2×2 示例卡。
            卡片封面优先借「继续创作」里那几张真图 —— 没有历史时退回按序号变化的
            token 渐变底，不摆一个假缩略图、也不留一块灰。 */
-        <div className="flex w-full max-w-md flex-col gap-5">
+        <div className="flex w-full max-w-md flex-col gap-3">
           {/* 用途是**栏首第一决策**：它决定这一次发哪个端点、模型 chip 列哪些
               候选。放在示例卡下面就等于让人先选完再回头改前提。
               ⚠ 组件自己判「目录里真有 ≥2 档」，少于 2 档整颗不渲染。 */}
@@ -226,7 +226,7 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
           <p className="mb-2 text-center text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t('recentLabel')}
           </p>
-          <div className="flex justify-center gap-2 overflow-x-auto pb-1">
+          <div className="flex justify-start gap-2 overflow-x-auto pb-1 sm:justify-center">
             {recent.map((gen) => (
               <RecentTile
                 key={gen.id}
@@ -262,7 +262,7 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   )
 }
 
-// ── 移动端示例卡（图片 3:4 / 视频 16:9）────────────────────────────
+// ── 移动端示例卡（图片 4:3 / 视频 16:9，封面限高）────────────────────────────
 
 interface ExampleCardProps {
   label: string
@@ -270,7 +270,7 @@ interface ExampleCardProps {
   excerpt: string
   /** 第几张：渐变的色相按序号错开，四张才不是同一块底。 */
   index: number
-  /** 视频档的封面是 16:9，图片档是 3:4。 */
+  /** 视频档的封面是 16:9，图片档是 4:3；均限高 128px。 */
   wide?: boolean
   /** 封面：借「继续创作」里的真图；没有则用 token 渐变底。 */
   coverUrl: string | null
@@ -318,7 +318,7 @@ function ExampleCard({
       <span
         className={cn(
           'relative block w-full',
-          wide ? 'aspect-video' : 'aspect-[3/4]',
+          wide ? 'aspect-video max-h-32' : 'aspect-[4/3] max-h-32',
         )}
         style={
           coverUrl ? undefined : { background: exampleCardGradient(index) }
@@ -364,7 +364,7 @@ function RecentTile({ gen, onSelect, label }: RecentTileProps) {
       onClick={() => onSelect(gen)}
       title={label}
       aria-label={`${label} ${promptExcerpt}`.trim()}
-      className="group relative size-20 shrink-0 overflow-hidden rounded-lg border border-border/50 transition-transform duration-200 hover:-translate-y-0.5 sm:size-24"
+      className="group relative size-20 shrink-0 overflow-hidden rounded-lg border border-border/50 transition-transform duration-200 hover:-translate-y-0.5 lg:size-24"
     >
       {gen.outputType === 'AUDIO' ? (
         <span className="flex size-full items-center justify-center bg-muted/20 text-muted-foreground">

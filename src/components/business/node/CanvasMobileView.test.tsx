@@ -109,6 +109,25 @@ describe('CanvasMobileView', () => {
     )
   }
 
+  it('opens project and assistant history panels and returns to nodes', () => {
+    render(
+      <CanvasMobileView
+        peeking={false}
+        onEnterPeek={vi.fn()}
+        onExitPeek={vi.fn()}
+        projectPanel={<div>Project choices</div>}
+        assistantHistoryPanel={<div>Saved conversations</div>}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'projectMenu.current' }))
+    expect(screen.getByText('Project choices')).toBeVisible()
+    expect(screen.queryByTestId('canvas-node-locator')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'history.title' }))
+    expect(screen.getByText('Saved conversations')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'castDock.title' }))
+    expect(screen.getByTestId('canvas-node-locator')).toBeVisible()
+  })
+
   it('defaults to the node list, not a shrunk canvas', () => {
     flowState.nodes = [
       makeNode('image-1', NODE_TYPE_IDS.image, {

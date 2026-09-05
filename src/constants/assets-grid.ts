@@ -35,13 +35,13 @@ export const ASSET_GRID_TARGET_ROW_HEIGHT: Record<
   mobile: { s: 92, m: 124, l: 168 },
 }
 
-/** picker 的小网格自成一档（page §8.2：桌面 132 / 移动 104），不吃密度控制。 */
+/** picker 的小网格自成一档（page §8.2：桌面 132 / 移动 220），不吃密度控制。 */
 export const ASSET_PICKER_TARGET_ROW_HEIGHT: Record<
   'desktop' | 'mobile',
   number
 > = {
   desktop: 132,
-  mobile: 104,
+  mobile: 220,
 }
 
 /** 瓦片间距（原型 `assets-claude-b-atrium` 的 `.row-j{gap:6px}`）。 */

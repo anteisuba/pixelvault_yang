@@ -3613,11 +3613,11 @@ body.home-v4-locked {
 
   /* 02 LoRA：焦点=挂载态（库列表收起） */
   .home-v4 .fn-lora {
-    width: 100%;
+    width: min(600px, 100%);
   }
 
   .home-v4 .fn-lora .cols {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .home-v4 .fn-lora .lib {
@@ -3625,7 +3625,40 @@ body.home-v4-locked {
   }
 
   .home-v4 .fn-lora .rig {
-    padding: 11px 12px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 10px 12px;
+  }
+
+  .home-v4 .fn-lora .rig > .rk,
+  .home-v4 .fn-lora .prow2 {
+    grid-column: 1 / -1;
+  }
+
+  .home-v4 .fn-lora .mrow {
+    gap: 6px;
+    padding: 5px 8px;
+  }
+
+  .home-v4 .fn-lora .mrow .track2 {
+    width: clamp(24px, 6vw, 44px);
+  }
+
+  .home-v4 .fn-lora .outwrap {
+    padding: 10px 12px 12px;
+  }
+
+  .home-v4 .fn-lora .outrow {
+    gap: 6px;
+  }
+
+  .home-v4 .fn-lora .oq {
+    aspect-ratio: 4 / 3;
+  }
+
+  .home-v4 .fn-lora .oq img {
+    object-fit: contain;
   }
 
   .home-v4 .fn-lora .outrow .oq .k {
@@ -3659,7 +3692,11 @@ body.home-v4-locked {
 
   /* 04 视频：回竖排（PC 左右是桌面拍板），输入框上、成片下 */
   .home-v4 .fn-video {
-    width: 100%;
+    width: min(420px, 100%);
+  }
+
+  .home-v4 .fn-video .bar {
+    padding: 8px 12px;
   }
 
   .home-v4 .fn-video .bar .p {
@@ -3674,6 +3711,9 @@ body.home-v4-locked {
 
   .home-v4 .fn-video .ibox {
     width: auto;
+    min-width: 0;
+    padding: 8px 10px;
+    gap: 6px;
   }
 
   .home-v4 .fn-video .iline {
@@ -3683,6 +3723,30 @@ body.home-v4-locked {
 
   .home-v4 .fn-video .say {
     font-size: 11px;
+  }
+
+  .home-v4 .fn-video .iline.ptxt {
+    display: block;
+  }
+
+  .home-v4 .fn-video .cur3 {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .home-v4 .fn-video .itools {
+    gap: 8px;
+  }
+
+  .home-v4 .fn-video .itools .meta {
+    min-width: 0;
+    font-size: 9px;
+  }
+
+  .home-v4 .fn-video .out .src2 {
+    max-width: calc(100% - 18px);
+    font-size: 9px;
+    letter-spacing: 0;
   }
 
   .home-v4 .fn-video .out {
@@ -3936,5 +4000,33 @@ body.home-v4-locked {
   .home-v4 .pcl {
     max-height: none;
     overflow: visible;
+  }
+}
+
+@media (min-width: 560px) and (max-width: 768px) {
+  .home-v4 .fn-lora .outrow {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .home-v4 .fn-lora .oq {
+    aspect-ratio: 3 / 4;
+  }
+}
+
+@media (max-width: 430px) {
+  .home-v4 .fn-lora .rk {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  .home-v4 .fn-lora .mrow .track2,
+  .home-v4 .fn-lora .free {
+    display: none;
+  }
+
+  .home-v4 .fn-lora .prow2 {
+    min-height: 0;
+    padding: 7px 8px;
   }
 }

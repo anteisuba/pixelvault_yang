@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 // Load .env.local exactly like Next.js does, so Clerk keys (clerkSetup) and the
 // E2E_CLERK_USER_* credentials (auth.setup.ts) are available to the test runner.
-loadEnvConfig(process.cwd())
+loadEnvConfig(process.cwd(), true)
 
 const SETUP_FILES = /.*\.setup\.ts/
 const STUDIO_VISUAL = /studio\.visual\.spec\.ts/

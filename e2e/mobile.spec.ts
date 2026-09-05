@@ -80,13 +80,35 @@ test.describe('Mobile Responsive', () => {
     })
   }
 
-  test('mobile navigation exposes gallery access', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 })
+  test('homepage LoRA feature fits a short mobile viewport', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 701, height: 781 })
     await page.goto(localizedPath(ROUTES.HOME), {
       waitUntil: 'domcontentloaded',
     })
 
-    const galleryLinks = page.locator(`a[href*="${ROUTES.GALLERY}"]`)
-    await expect(galleryLinks.first()).toBeVisible()
+    const pageIndex = page.getByRole('button', { name: 'Page index' })
+    await expect(pageIndex).toBeVisible()
+    await pageIndex.click()
+
+    const loraPage = page
+      .locator('.mtoc')
+      .getByRole('button', { name: /^03\s*LoRA$/ })
+    await expect(loraPage).toBeVisible()
+    await loraPage.click()
+
+    const feature = page.locator(
+      'section[data-name="lora"][data-pos="on"] .imgfn',
+    )
+    await expect(feature).toBeVisible()
+    await expect
+      .poll(async () => {
+        const bounds = await feature.boundingBox()
+        return Boolean(
+          bounds && bounds.y >= 0 && bounds.y + bounds.height <= 781,
+        )
+      })
+      .toBe(true)
   })
 })

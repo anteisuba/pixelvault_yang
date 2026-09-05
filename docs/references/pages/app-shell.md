@@ -1,5 +1,7 @@
 # 全局应用壳施工图 — app-shell
 
+> 2026-09-05 owner 确认竞技场退役：移除导航、站点地图、页面和对战 API、专用客户端/组件/服务及未使用的常量、请求类型和三语页面文案；不迁移或删除 ArenaMatch/ArenaEntry 历史数据。模型路由仍可通过 arena-winrate.service 读取历史胜率。
+
 > **状态：施工基准（2026-08-18 owner 确认「分段浮岛」方向 + 关键切片，指示开工）。**
 > 范围：**只管壳** —— 侧栏 / 移动导航 / 默认页面表面（`bg-background`）/ 全局语义槽。
 > **不管**各业务域皮肤（画布 `canvas.css`、LoRA `lora.css`、首页 `home-v4.css`、legal `legal.css` 各自为政，见 `brand-dna.md`「共享行为不共享皮肤」）。

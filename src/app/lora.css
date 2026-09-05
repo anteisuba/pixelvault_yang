@@ -107,7 +107,8 @@
     transition: grid-template-columns var(--lora-motion) var(--lora-motion-ease);
   }
   .domain-lora .lora-ground[data-collapsed='true'] {
-    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 8px;
   }
   /* owner 验收发现（2026-09-04）：库/收藏/训练三个 tab 不渲染 rail 节点
      （root 组件只在 `isGenerate` 时挂 `.lora-rail`），但两列 grid 是写死的——

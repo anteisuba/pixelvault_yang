@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { CanvasTopBar } from './CanvasTopBar'
@@ -41,7 +41,7 @@ describe('CanvasTopBar', () => {
 
   // 2026-08-02 owner「移出统一」：项目管理整体搬进左侧面板，保存本就是自动的，
   // 「添加节点」的唯一常驻入口改为左侧 rail。顶栏因此不再有主动作，回归纯 chrome。
-  it('顶栏不再承担项目管理 / 保存 / 添加节点', () => {
+  it('顶栏保留项目名，不重复保存和添加节点操作', () => {
     renderTopBar()
 
     // 项目名还在，但只是只读面包屑，不是下拉触发器
@@ -75,5 +75,23 @@ describe('CanvasTopBar', () => {
   it('没在保存时不显示进行态', () => {
     renderTopBar({ isSaving: false })
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+  it('项目名打开项目面板，助手入口复用开启回调', () => {
+    const onOpenProjects = vi.fn()
+    const onOpenAssistant = vi.fn()
+    render(
+      <CanvasTopBar
+        nodeCount={3}
+        projectName="Storyboard"
+        canvasAppearance={undefined}
+        onCanvasAppearanceChange={vi.fn()}
+        onOpenProjects={onOpenProjects}
+        onOpenAssistant={onOpenAssistant}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'projectMenu.current' }))
+    fireEvent.click(screen.getByRole('button', { name: 'assistant.toggle' }))
+    expect(onOpenProjects).toHaveBeenCalledOnce()
+    expect(onOpenAssistant).toHaveBeenCalledOnce()
   })
 })

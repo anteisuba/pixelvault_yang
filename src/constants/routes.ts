@@ -32,9 +32,6 @@ export const ROUTES = {
   ASSETS: '/assets',
   CARDS: '/cards',
   PROMPTS: '/prompts',
-  ARENA: '/arena',
-  ARENA_LEADERBOARD: '/arena/leaderboard',
-  ARENA_HISTORY: '/arena/history',
   STORYBOARD: '/storyboard',
 
   /** Creator profile (public) */

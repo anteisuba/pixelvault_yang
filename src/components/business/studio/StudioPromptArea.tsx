@@ -562,180 +562,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           )}
         </div>
 
-        {/* 往提示词里加东西的两个动作：模板 / 参考图。紧贴输入框，不进「参数」。
-              ⚠ 必须裹 Toolbar.Root —— 这几颗 chip 底下是 Radix `Toolbar.Button`，
-              没有 roving-focus context 会直接抛 `RovingFocusGroupItem must be used
-              within RovingFocusGroup`。dock 那边由 StudioToolbar 提供，参数栏得自己给。 */}
-        <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
-          <PromptTemplatePicker
-            currentModelId={selectedModel?.modelId}
-            currentOutputType={currentTemplateOutputType}
-            currentParams={currentTemplateParams}
-            currentPrompt={state.prompt}
-            currentProvider={
-              selectedModel
-                ? getProviderLabel(selectedModel.providerConfig)
-                : undefined
-            }
-            onApply={handleApplyRecipe}
-            onApplyInspiration={handleApplyInspiration}
-          />
-          {/* ⚠ 音频没有参考图这回事 —— dock 时代它的工具条里本来就没有这颗
-              （`StudioToolbarPanels` 的音频分支只有 助手 / 音色 / 克隆 / 转脚本）。
-              参数栏这一行是三模态共用的，不加这个闸就等于给语音凭空多一个
-              点了没用的入口。音频要传的是**参考音频**，在音色面板里。 */}
-          {!isAudioMode ? <ReferenceImageChip disabled={isGenerating} /> : null}
-          {/* 卡片入口 —— 切片 A 从退役的 `StudioToolbar` 搬过来的唯一一颗。
-              其余四颗（助手 / 参考图 / 比例 / 张数）参数栏本来就有：比例与张数
-              在「规格」浮层里，参考图就在左边，助手是右上角浮标。
-              ⚠ 不搬这一颗的话，卡片工作流在工作台里**没有任何入口** ——
-              `workflowMode` 从 localStorage 恢复成 `card` 时，模型名单被
-              `workflowMode === 'quick'` 挡掉，而卡片选择器又不在，整栏是死的。 */}
-          {isImageMode ? <StudioCardsButton disabled={isGenerating} /> : null}
-          {/* 助手在 lg 以上由右上角的 StudioAssistantFab 承担（owner
-                2026-08-14），这里只留小屏那份 —— 不是重复：小屏没有浮标，
-                抽屉宿主就长在这颗丸里面，删了小屏就没有助手入口了。 */}
-          <span className="contents lg:hidden">
-            <StudioEnhanceButton disabled={isGenerating} />
-          </span>
-        </Toolbar.Root>
-
-        {/* 助手改了哪些字段（✦ 归属标记）+ 覆写用的就地确认条 —— 紧贴提示词框，
-            因为它们说的就是这一栏正在发生的事（owner 拍板：覆写确认是「字段上的
-            小条，不弹窗」，且改动必须看得见来源；详见 `StudioOperatorChangeRail`）。
-            ⚠ 助手没改过东西、也没在问话时它整颗不渲染，不占位。 */}
-        <StudioOperatorChangeRail />
-
-        {/* 卡片工作流的下拉组 —— 原来长在 `StudioBottomDock` 里，随 dock 一起
-            退役，改挂这里。条件与旧版逐字一致（音频没有卡片）。 */}
-        {state.workflowMode === 'card' && !isAudioMode ? (
-          <StudioCardSection />
-        ) : null}
-
-        {/* ── 模态专属的「另一条线」────────────────────────────────────
-            视频只剩「剧本」（分镜编排那条线，切片 C 才给它形态）；音频那排
-            仍是切片 A 原样搬来的丸，按 `ParamIdiom` 重排是切片 D 的事。
-            ⚠ 规格类的参数不在这里：视频的时长 / 分辨率 / 比例已并进下面的
-            「规格」浮层，反向提示词并进折叠行 —— 参数区回答「下一版长什么样」，
-            这一行回答「我现在要做什么」。 */}
-        {isVideoMode ? (
-          <>
-            <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() =>
-                  dispatch({ type: 'TOGGLE_PANEL', payload: 'script' })
-                }
-                disabled={isGenerating}
-                className={cn(
-                  modalityPillClass,
-                  state.panels.script && modalityPillActiveClass,
-                )}
-              >
-                <FileText className="size-4" />
-                {tScript('panelTitle')}
-              </button>
-              {/*
-                台账 A（owner 2026-08-29）：**挂音频参考的入口**。此前这一行只有
-                「剧本」一颗丸，整个工作台找不到任何挂音频的地方 —— 而「全能参考」
-                那一档选得到、Seedance 2.5 的音频槽有 10 个、后端三层全通。
-                ⚠ 挂了几条要显示出来：不显示的话，用户切走再回来根本不知道这次
-                请求还带着音频（图片参考那颗丸同款处理）。
-              */}
-              <button
-                type="button"
-                onClick={() =>
-                  dispatch({ type: 'TOGGLE_PANEL', payload: 'videoAudio' })
-                }
-                disabled={isGenerating}
-                className={cn(
-                  modalityPillClass,
-                  state.panels.videoAudio && modalityPillActiveClass,
-                )}
-              >
-                <Music2 className="size-4" />
-                {tVideoAudio('pill')}
-                {state.videoAudioRefs.length > 0 ? (
-                  <span className="tabular-nums">
-                    {state.videoAudioRefs.length}
-                  </span>
-                ) : null}
-              </button>
-            </Toolbar.Root>
-          </>
-        ) : null}
-
-        {isAudioMode ? (
-          <>
-            <StudioAudioKindSwitcher />
-            {/* ⚠ 音色 / 克隆 / 音频转脚本**只属于语音档**。今天工具条只判了音效
-                一个分支，于是切到「音乐」显示的仍是这三颗 —— 对一段配乐来说
-                「换音色」「克隆」都没有意义（Main 板 E7）。判据改成正列语音，
-                新增档位默认不继承语音的栏位。 */}
-            {state.audioKind === AUDIO_KIND.SPEECH ? (
-              <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
-                <>
-                  {/* ⚠ 音色**不在这一行** —— 它已经是下面「音色」那一栏（形态 3
-                      的行），在这里再放一颗丸就是同一条信息一屏两遍。留在这行的
-                      两颗是**动作**不是参数：克隆一个新音色、把一段音频转成稿子。 */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (state.panels.voiceSelector) {
-                        dispatch({
-                          type: 'CLOSE_PANEL',
-                          payload: 'voiceSelector',
-                        })
-                      }
-                      dispatch({
-                        type: 'TOGGLE_PANEL',
-                        payload: 'voiceTrainer',
-                      })
-                    }}
-                    disabled={isGenerating}
-                    className={cn(
-                      modalityPillClass,
-                      state.panels.voiceTrainer && modalityPillActiveClass,
-                    )}
-                  >
-                    <Plus className="size-4" />
-                    {tBar('clone')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (state.panels.voiceSelector) {
-                        dispatch({
-                          type: 'CLOSE_PANEL',
-                          payload: 'voiceSelector',
-                        })
-                      }
-                      if (state.panels.voiceTrainer) {
-                        dispatch({
-                          type: 'CLOSE_PANEL',
-                          payload: 'voiceTrainer',
-                        })
-                      }
-                      dispatch({
-                        type: 'TOGGLE_PANEL',
-                        payload: 'audioTranscribe',
-                      })
-                    }}
-                    disabled={isGenerating}
-                    className={cn(
-                      modalityPillClass,
-                      state.panels.audioTranscribe && modalityPillActiveClass,
-                    )}
-                  >
-                    <FileAudio2 className="size-4" />
-                    {tBar('transcribe')}
-                  </button>
-                </>
-              </Toolbar.Root>
-            ) : null}
-          </>
-        ) : null}
-
         {/* 负面提示词 —— 折叠行 + 内容预览，与 LoRA 工作台同一形态（那边是这个
               字段在本项目里的既有落点）。
               ⭐ 2026-08-22 补：**图片工作台此前根本没有输入它的地方** ——
@@ -832,6 +658,198 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               </div>
             </div>
           </div>
+        ) : null}
+
+        {/* 往提示词里加东西的两个动作：模板 / 参考图。紧贴输入框，不进「参数」。
+              ⚠ 必须裹 Toolbar.Root —— 这几颗 chip 底下是 Radix `Toolbar.Button`，
+              没有 roving-focus context 会直接抛 `RovingFocusGroupItem must be used
+              within RovingFocusGroup`。dock 那边由 StudioToolbar 提供，参数栏得自己给。 */}
+        <Toolbar.Root
+          className={cn(
+            isVideoMode
+              ? 'grid grid-cols-2 gap-2 [&>button]:w-full [&>button]:justify-start'
+              : 'flex flex-wrap items-center gap-1.5',
+          )}
+        >
+          <PromptTemplatePicker
+            currentModelId={selectedModel?.modelId}
+            currentOutputType={currentTemplateOutputType}
+            currentParams={currentTemplateParams}
+            currentPrompt={state.prompt}
+            currentProvider={
+              selectedModel
+                ? getProviderLabel(selectedModel.providerConfig)
+                : undefined
+            }
+            onApply={handleApplyRecipe}
+            onApplyInspiration={handleApplyInspiration}
+          />
+          {/* ⚠ 音频没有参考图这回事 —— dock 时代它的工具条里本来就没有这颗
+              （`StudioToolbarPanels` 的音频分支只有 助手 / 音色 / 克隆 / 转脚本）。
+              参数栏这一行是三模态共用的，不加这个闸就等于给语音凭空多一个
+              点了没用的入口。音频要传的是**参考音频**，在音色面板里。 */}
+          {!isAudioMode ? <ReferenceImageChip disabled={isGenerating} /> : null}
+          {/* 卡片入口 —— 切片 A 从退役的 `StudioToolbar` 搬过来的唯一一颗。
+              其余四颗（助手 / 参考图 / 比例 / 张数）参数栏本来就有：比例与张数
+              在「规格」浮层里，参考图就在左边，助手是右上角浮标。
+              ⚠ 不搬这一颗的话，卡片工作流在工作台里**没有任何入口** ——
+              `workflowMode` 从 localStorage 恢复成 `card` 时，模型名单被
+              `workflowMode === 'quick'` 挡掉，而卡片选择器又不在，整栏是死的。 */}
+          {isImageMode ? <StudioCardsButton disabled={isGenerating} /> : null}
+          {/* 助手在 lg 以上由右上角的 StudioAssistantFab 承担（owner
+                2026-08-14），这里只留小屏那份 —— 不是重复：小屏没有浮标，
+                抽屉宿主就长在这颗丸里面，删了小屏就没有助手入口了。 */}
+          <span className="contents lg:hidden">
+            <StudioEnhanceButton disabled={isGenerating} />
+          </span>
+        </Toolbar.Root>
+
+        {/* 助手改了哪些字段（✦ 归属标记）+ 覆写用的就地确认条 —— 紧贴提示词框，
+            因为它们说的就是这一栏正在发生的事（owner 拍板：覆写确认是「字段上的
+            小条，不弹窗」，且改动必须看得见来源；详见 `StudioOperatorChangeRail`）。
+            ⚠ 助手没改过东西、也没在问话时它整颗不渲染，不占位。 */}
+        <StudioOperatorChangeRail />
+
+        {/* 卡片工作流的下拉组 —— 原来长在 `StudioBottomDock` 里，随 dock 一起
+            退役，改挂这里。条件与旧版逐字一致（音频没有卡片）。 */}
+        {state.workflowMode === 'card' && !isAudioMode ? (
+          <StudioCardSection />
+        ) : null}
+
+        {/* ── 模态专属的「另一条线」────────────────────────────────────
+            视频只剩「剧本」（分镜编排那条线，切片 C 才给它形态）；音频那排
+            仍是切片 A 原样搬来的丸，按 `ParamIdiom` 重排是切片 D 的事。
+            ⚠ 规格类的参数不在这里：视频的时长 / 分辨率 / 比例已并进下面的
+            「规格」浮层，反向提示词并进折叠行 —— 参数区回答「下一版长什么样」，
+            这一行回答「我现在要做什么」。 */}
+        {isVideoMode ? (
+          <>
+            <Toolbar.Root
+              className={cn(
+                isVideoMode
+                  ? 'grid grid-cols-2 gap-2 [&>button]:w-full [&>button]:justify-start'
+                  : 'flex flex-wrap items-center gap-1.5',
+              )}
+            >
+              <button
+                type="button"
+                onClick={() =>
+                  dispatch({ type: 'TOGGLE_PANEL', payload: 'script' })
+                }
+                disabled={isGenerating}
+                className={cn(
+                  modalityPillClass,
+                  state.panels.script && modalityPillActiveClass,
+                )}
+              >
+                <FileText className="size-4" />
+                {tScript('panelTitle')}
+              </button>
+              {/*
+                台账 A（owner 2026-08-29）：**挂音频参考的入口**。此前这一行只有
+                「剧本」一颗丸，整个工作台找不到任何挂音频的地方 —— 而「全能参考」
+                那一档选得到、Seedance 2.5 的音频槽有 10 个、后端三层全通。
+                ⚠ 挂了几条要显示出来：不显示的话，用户切走再回来根本不知道这次
+                请求还带着音频（图片参考那颗丸同款处理）。
+              */}
+              <button
+                type="button"
+                onClick={() =>
+                  dispatch({ type: 'TOGGLE_PANEL', payload: 'videoAudio' })
+                }
+                disabled={isGenerating}
+                className={cn(
+                  modalityPillClass,
+                  state.panels.videoAudio && modalityPillActiveClass,
+                )}
+              >
+                <Music2 className="size-4" />
+                {tVideoAudio('pill')}
+                {state.videoAudioRefs.length > 0 ? (
+                  <span className="tabular-nums">
+                    {state.videoAudioRefs.length}
+                  </span>
+                ) : null}
+              </button>
+            </Toolbar.Root>
+          </>
+        ) : null}
+
+        {isAudioMode ? (
+          <>
+            <StudioAudioKindSwitcher />
+            {/* ⚠ 音色 / 克隆 / 音频转脚本**只属于语音档**。今天工具条只判了音效
+                一个分支，于是切到「音乐」显示的仍是这三颗 —— 对一段配乐来说
+                「换音色」「克隆」都没有意义（Main 板 E7）。判据改成正列语音，
+                新增档位默认不继承语音的栏位。 */}
+            {state.audioKind === AUDIO_KIND.SPEECH ? (
+              <Toolbar.Root
+                className={cn(
+                  isVideoMode
+                    ? 'grid grid-cols-2 gap-2 [&>button]:w-full [&>button]:justify-start'
+                    : 'flex flex-wrap items-center gap-1.5',
+                )}
+              >
+                <>
+                  {/* ⚠ 音色**不在这一行** —— 它已经是下面「音色」那一栏（形态 3
+                      的行），在这里再放一颗丸就是同一条信息一屏两遍。留在这行的
+                      两颗是**动作**不是参数：克隆一个新音色、把一段音频转成稿子。 */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (state.panels.voiceSelector) {
+                        dispatch({
+                          type: 'CLOSE_PANEL',
+                          payload: 'voiceSelector',
+                        })
+                      }
+                      dispatch({
+                        type: 'TOGGLE_PANEL',
+                        payload: 'voiceTrainer',
+                      })
+                    }}
+                    disabled={isGenerating}
+                    className={cn(
+                      modalityPillClass,
+                      state.panels.voiceTrainer && modalityPillActiveClass,
+                    )}
+                  >
+                    <Plus className="size-4" />
+                    {tBar('clone')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (state.panels.voiceSelector) {
+                        dispatch({
+                          type: 'CLOSE_PANEL',
+                          payload: 'voiceSelector',
+                        })
+                      }
+                      if (state.panels.voiceTrainer) {
+                        dispatch({
+                          type: 'CLOSE_PANEL',
+                          payload: 'voiceTrainer',
+                        })
+                      }
+                      dispatch({
+                        type: 'TOGGLE_PANEL',
+                        payload: 'audioTranscribe',
+                      })
+                    }}
+                    disabled={isGenerating}
+                    className={cn(
+                      modalityPillClass,
+                      state.panels.audioTranscribe && modalityPillActiveClass,
+                    )}
+                  >
+                    <FileAudio2 className="size-4" />
+                    {tBar('transcribe')}
+                  </button>
+                </>
+              </Toolbar.Root>
+            ) : null}
+          </>
         ) : null}
 
         {/* 模型（视频 / 音频）—— **单选**。这两个模态没有对比路径：

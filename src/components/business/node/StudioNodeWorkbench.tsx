@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
   type ChangeEvent as ReactChangeEvent,
-  type CSSProperties,
   type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
@@ -757,7 +756,7 @@ function StudioNodeCanvas() {
   const activeImageEditRequestKeyRef = useRef<string | null>(null)
   const pendingImageEditRequestKeyRef = useRef<string | null>(null)
   const [toolMode, setToolMode] = useState<NodeStudioToolMode>(
-    NODE_STUDIO_TOOL_MODE_IDS.pointer,
+    NODE_STUDIO_TOOL_MODE_IDS.hand,
   )
   const [projectDialogMode, setProjectDialogMode] = useState<
     'create' | 'rename' | null
@@ -5216,6 +5215,12 @@ function StudioNodeCanvas() {
               token 盖过顶栏/底部工具条，互不外泄到这个 div 的数值本身。 */}
           <div className="pointer-events-none absolute inset-0 z-canvas-chrome">
             <CanvasTopBar
+              assistantOpen={assistantDockOpen}
+              onOpenAssistant={() => setAssistantDockOpen(true)}
+              onOpenProjects={() => {
+                setLeftPanelView(CANVAS_LEFT_PANEL_VIEW_IDS.projects)
+                setLeftPanelExpanded(true)
+              }}
               nodeCount={workflow.nodes.length}
               projectName={workflow.currentProjectName}
               canvasAppearance={workflow.canvasAppearance}
@@ -5254,20 +5259,7 @@ function StudioNodeCanvas() {
             {/* S2b（2026-07-26）：卡匣从底部横匣搬进左侧合体面板。底部那行现在
                 只剩视图控制（选择·手/缩放/适应/撤销重做），符合规格 §12.2
                 「左 = 内容动作，底 = 视图控制」的职责分栏。 */}
-            {/* minimap 让开左侧面板：把它的左偏移做成变量挂在 chrome 层，
-                面板展开/收起时同一条 --canvas-dur-slow 一起动，不会错位。 */}
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={
-                {
-                  '--canvas-minimap-left': leftPanelExpanded
-                    ? 'calc(var(--canvas-panel-w) + var(--canvas-rail-w) + 2rem)'
-                    : 'calc(var(--canvas-rail-w) + 2rem)',
-                } as CSSProperties
-              }
-            >
-              <CanvasMiniMap />
-            </div>
+            <CanvasMiniMap />
             <CanvasLeftPanel
               expanded={leftPanelExpanded}
               onExpandedChange={setLeftPanelExpanded}

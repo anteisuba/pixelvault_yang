@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { API_KEY_MASK } from '@/constants/api-keys'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { logger } from '@/lib/logger'
 
 const mockFindUnique = vi.hoisted(() => vi.fn())
+const mockFindMany = vi.hoisted(() => vi.fn())
 const mockUpsert = vi.hoisted(() => vi.fn())
 const mockDecryptApiKey = vi.hoisted(() => vi.fn())
 
@@ -14,6 +16,7 @@ vi.mock('@/lib/logger', () => ({
 vi.mock('@/lib/db', () => ({
   db: {
     userApiKey: {
+      findMany: (...args: unknown[]) => mockFindMany(...args),
       findUnique: (...args: unknown[]) => mockFindUnique(...args),
       upsert: (...args: unknown[]) => mockUpsert(...args),
     },
@@ -25,7 +28,7 @@ vi.mock('@/lib/crypto', () => ({
   decryptApiKey: (...args: unknown[]) => mockDecryptApiKey(...args),
 }))
 
-import { createApiKey, verifyApiKey } from './apiKey.service'
+import { createApiKey, verifyApiKey, listUserApiKeys } from './apiKey.service'
 
 const KEY_RECORD = {
   id: 'key-1',
@@ -56,7 +59,7 @@ const FISH_KEY_RECORD = {
   providerConfig: FISH_PROVIDER_CONFIG,
   label: 'Fish Audio',
   encryptedKey: 'encrypted:fish-api-key-1234',
-  maskedKey: 'fish****...****1234',
+  maskedKey: API_KEY_MASK,
   isActive: true,
   createdAt: new Date('2026-01-02T00:00:00.000Z'),
 }
@@ -141,14 +144,14 @@ describe('apiKey.service createApiKey', () => {
         providerConfig: FISH_PROVIDER_CONFIG,
         label: 'Fish Audio',
         encryptedKey: 'encrypted:fish-api-key-1234',
-        maskedKey: 'fish****...****1234',
+        maskedKey: API_KEY_MASK,
         isActive: true,
       },
       update: {
         providerConfig: FISH_PROVIDER_CONFIG,
         label: 'Fish Audio',
         encryptedKey: 'encrypted:fish-api-key-1234',
-        maskedKey: 'fish****...****1234',
+        maskedKey: API_KEY_MASK,
         isActive: true,
       },
     })
@@ -158,7 +161,7 @@ describe('apiKey.service createApiKey', () => {
       adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
       providerConfig: FISH_PROVIDER_CONFIG,
       label: 'Fish Audio',
-      maskedKey: 'fish****...****1234',
+      maskedKey: API_KEY_MASK,
       isActive: true,
       createdAt: new Date('2026-01-02T00:00:00.000Z'),
     })
@@ -339,5 +342,58 @@ describe('apiKey.service verifyApiKey', () => {
         signal: expect.any(AbortSignal),
       }),
     )
+  })
+})
+
+describe('listUserApiKeys credential privacy', () => {
+  it('groups matching FAL credentials without exposing key material or dropping routes', async () => {
+    mockFindMany.mockResolvedValue([
+      KEY_RECORD,
+      {
+        ...KEY_RECORD,
+        id: 'same',
+        modelId: 'other-model',
+        encryptedKey: 'same-secret',
+      },
+      { ...KEY_RECORD, id: 'different', encryptedKey: 'different-secret' },
+      {
+        ...KEY_RECORD,
+        id: 'endpoint',
+        providerConfig: {
+          ...KEY_RECORD.providerConfig,
+          baseUrl: 'https://other.example',
+        },
+      },
+    ])
+    mockDecryptApiKey.mockImplementation((key: string) =>
+      key === 'different-secret' ? 'secret-two' : 'secret-one',
+    )
+    const result = await listUserApiKeys('user-1')
+    expect(result).toHaveLength(4)
+    expect(result.map((r) => r.credentialGroupId)).toEqual([
+      'key-1',
+      'key-1',
+      'different',
+      'endpoint',
+    ])
+    expect(result.every((r) => r.maskedKey === API_KEY_MASK)).toBe(true)
+    expect(JSON.stringify(result)).not.toMatch(
+      /secret-one|secret-two|encryptedKey|fal_\*\*\*\*test/,
+    )
+    expect(mockFindMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+      orderBy: { createdAt: 'desc' },
+    })
+  })
+  it('keeps unreadable credentials separate', async () => {
+    mockFindMany.mockResolvedValue([
+      KEY_RECORD,
+      { ...KEY_RECORD, id: 'broken' },
+    ])
+    mockDecryptApiKey.mockImplementation(() => {
+      throw new Error('unreadable')
+    })
+    const result = await listUserApiKeys('user-1')
+    expect(result.map((r) => r.credentialGroupId)).toEqual(['key-1', 'broken'])
   })
 })

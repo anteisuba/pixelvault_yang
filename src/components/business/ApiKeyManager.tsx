@@ -51,8 +51,17 @@ function labelOf(adapterType: string, sample?: UserApiKeyRecord): string {
 }
 
 export function ApiKeyManager() {
-  const { keys, isLoading, error, healthMap, create, update, remove, verify } =
-    useApiKeysContext()
+  const {
+    keys,
+    isLoading,
+    error,
+    healthMap,
+    create,
+    update,
+    remove,
+    verify,
+    refresh,
+  } = useApiKeysContext()
   const t = useTranslations('StudioApiKeys')
   const tCommon = useTranslations('Common')
   const [showAddForm, setShowAddForm] = useState(false)
@@ -124,15 +133,16 @@ export function ApiKeyManager() {
 
     if (isSuccessful) {
       setShowAddForm(false)
+      await refresh()
     }
   }
 
   const handleUpdate = async (id: string, data: UpdateApiKeyRequest) => {
-    await update(id, data)
+    if (await update(id, data)) await refresh()
   }
 
   const handleDelete = async (id: string) => {
-    await remove(id)
+    if (await remove(id)) await refresh()
   }
 
   const handleVerify = async (id: string) => {
@@ -246,16 +256,39 @@ export function ApiKeyManager() {
 
                     <div className="mt-3 space-y-2">
                       {group.keys.length ? (
-                        group.keys.map((record) => (
-                          <ApiKeyRow
-                            key={record.id}
-                            record={record}
-                            healthStatus={healthMap[record.id]}
-                            onToggle={handleUpdate}
-                            onDelete={handleDelete}
-                            onVerify={handleVerify}
-                          />
-                        ))
+                        Array.from(
+                          Map.groupBy(
+                            group.keys,
+                            (record) => record.credentialGroupId ?? record.id,
+                          ).entries(),
+                        ).map(([id, records]) => {
+                          const rows = records.map((record) => (
+                            <ApiKeyRow
+                              key={record.id}
+                              record={record}
+                              healthStatus={healthMap[record.id]}
+                              onToggle={handleUpdate}
+                              onDelete={handleDelete}
+                              onVerify={handleVerify}
+                            />
+                          ))
+                          return records.length > 1 ? (
+                            <details
+                              key={id}
+                              className="rounded-xl border border-border p-3"
+                            >
+                              <summary className="cursor-pointer text-sm font-medium">
+                                {group.providerLabel} ·{' '}
+                                {t('summary.routeCount', {
+                                  count: records.length,
+                                })}
+                              </summary>
+                              <div className="mt-3 space-y-2">{rows}</div>
+                            </details>
+                          ) : (
+                            <div key={id}>{rows}</div>
+                          )
+                        })
                       ) : (
                         <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 px-4 py-4 text-sm text-muted-foreground">
                           {t('emptyModel', { model: group.providerLabel })}

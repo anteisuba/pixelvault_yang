@@ -42,7 +42,6 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
-  SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
 import {
@@ -510,7 +509,7 @@ function SidebarFooterUserMenu() {
               'absolute z-50 rounded-xl border border-sidebar-border/60 bg-sidebar/95 py-1 shadow-lg backdrop-blur-xl',
               isCompact
                 ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
-                : 'bottom-full left-0 right-0 mb-2 origin-bottom',
+                : 'bottom-full left-0 mb-2 w-48 origin-bottom-left',
             )}
           >
             {/* 从轨里撤下来的两样东西在这里落地：显示名与免费额度读数。 */}
@@ -569,17 +568,12 @@ function SidebarFooterUserMenu() {
       </AnimatePresence>
 
       <Sheet open={apiKeysOpen} onOpenChange={setApiKeysOpen}>
-        <SheetContent className="w-full overflow-y-auto border-l bg-background/95 px-0 sm:max-w-2xl">
-          <SheetHeader className="gap-3 border-b px-6 pb-5 pt-6">
-            <SheetTitle className="flex items-center gap-2 text-lg font-medium">
-              <KeyRound className="size-4" />
-              {tApiKeys('sheetTitle')}
-            </SheetTitle>
-            <SheetDescription className="max-w-md leading-6">
-              {tApiKeys('sheetDescription')}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="px-6 py-6">
+        <SheetContent className="inset-y-2 right-2 h-auto w-[calc(100%-1rem)] gap-0 overflow-hidden rounded-2xl border bg-background/95 p-0 shadow-xl sm:max-w-2xl">
+          <SheetTitle className="sr-only">{tApiKeys('sheetTitle')}</SheetTitle>
+          <SheetDescription className="sr-only">
+            {tApiKeys('sheetDescription')}
+          </SheetDescription>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-12 sm:px-6">
             <ApiKeyManager />
           </div>
         </SheetContent>

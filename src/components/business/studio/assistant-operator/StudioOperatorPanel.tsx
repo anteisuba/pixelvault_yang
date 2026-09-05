@@ -213,7 +213,7 @@ export function StudioOperatorPanel({
   return (
     <>
       {/* ── 头部：身份 + 域 chip · 会话 · ⋯ · 收起（拍板 10）─────── */}
-      <header className="flex shrink-0 items-center gap-2 border-b border-border/60 px-3 py-2.5">
+      <header className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-background/95 px-3 py-2.5">
         <span
           className={cn(
             'size-2 shrink-0 rounded-full bg-primary',
@@ -347,7 +347,7 @@ export function StudioOperatorPanel({
         className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-3"
       >
         {entries.length === 0 && historyEntries.length === 0 ? (
-          <p className="my-auto px-4 text-center text-xs text-muted-foreground">
+          <p className="my-auto rounded-xl bg-background/90 px-4 py-3 text-center text-xs leading-relaxed text-foreground">
             {t('empty')}
           </p>
         ) : null}
@@ -412,7 +412,7 @@ export function StudioOperatorPanel({
               return (
                 <p
                   key={entry.id}
-                  className="mr-6 whitespace-pre-wrap rounded-xl rounded-bl-sm bg-muted/60 px-3 py-2 text-xs text-foreground"
+                  className="mr-6 whitespace-pre-wrap rounded-xl rounded-bl-sm bg-background/95 px-3 py-2 text-xs text-foreground"
                 >
                   {entry.text}
                 </p>
@@ -673,7 +673,7 @@ export function StudioOperatorPanel({
       ) : null}
 
       {/* ── 输入区：上行工具条 + 下行输入（拍板 12）──────────────── */}
-      <div className="flex shrink-0 flex-col gap-1.5 border-t border-border/60 px-3 py-2.5">
+      <div className="flex shrink-0 flex-col gap-1.5 border-t border-border/60 bg-background/95 px-3 py-2.5">
         <div data-testid="operator-toolbar" className="flex items-center gap-2">
           <button
             ref={attachTriggerRef}

@@ -17,8 +17,6 @@ export function MainProviders({ children }: { children: ReactNode }) {
   const shouldLoadApiKeys =
     pathname === ROUTES.STUDIO ||
     pathname.startsWith(`${ROUTES.STUDIO}/`) ||
-    pathname === ROUTES.ARENA ||
-    pathname.startsWith(`${ROUTES.ARENA}/`) ||
     pathname === ROUTES.STORYBOARD ||
     pathname.startsWith(`${ROUTES.STORYBOARD}/`)
 

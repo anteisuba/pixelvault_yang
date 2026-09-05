@@ -1,5 +1,7 @@
 # LoRA 域施工图 — lora-workbench.md「检索与组合」
 
+> 2026-09-05 局部维护：装配栏展开时独立成框，收起为 44px 竖条、与结果区间距 8px；生成/库/收藏/训练的现有布局和能力保持。
+
 > 状态：**v1.1（2026-07-17，Fable）**，§11 拍板项当日已过 owner（4/5 拍板，见 §11 记录），可交 Sonnet 按 §10 切片执行；唯一遗留 = 第 7 类「场景」待点头（不阻塞其他切片）。
 > 页面：`/studio/lora`（库 COMMUNITY section + 生成 GENERATE section）。
 > 稳定业务域与未来设计边界：[`../domains/lora.md`](../domains/lora.md)。本文不替代域契约，只记录当前施工与回归事实。owner 已确认的未来页面方向分别见 [`lora-library.md`](lora-library.md) 与 [`lora-generate.md`](lora-generate.md)。

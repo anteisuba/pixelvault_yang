@@ -1,77 +1,15 @@
 # 项目状态
 
-最后更新：2026-09-03
+最后更新：2026-09-05
 
 唯一活跃进度文档。保持短，覆盖更新，不追加历史。
 
-## ⚠ 待推：本地 main 领先 origin/main 13 笔（2026-09-03 核对）
+## 当前交付
 
-push `main` = 生产部署，先过 `docs/checklists/release.md` P0。旧的部署顺序硬约束
-（`bf965440` 要求 fork 镜像先上 RunPod）**已解除**——那批提交连同 `29bef566` 都早已
-在 `origin/main` 上。当前 13 笔是：docs · UI 收口（字体/颜色/status token）· script-doc
-schema 与编辑原语 · DeepSeek 图片视觉模型 · 画廊与素材库窗口化 · Seedance 规划器 2.5。
-
-## 🔥 worker 部署此前不在 CI 里，已补上（2026-09-03）
-
-`ci.yml` 新增 **deploy-worker** job（needs worker-test，仅 main 的 push / 手动触发）。
-起因：`29bef566`（08-29）修好 NovelAI 的 ZIP 解包、推上 main、回归测试也补了，但
-`workers/execution` 只能手动 `wrangler deploy`，CI 从不部署它——线上跑了 5 天修复前的
-代码、NovelAI 出图全数失败，09-03 才被发现。Vercel 那半边自动跟 push 更新，worker 这
-半边停在原地，**没有任何信号**。
-
-⚠ **这个 job 在配好 secret 之前会红**：仓库还缺 `CLOUDFLARE_API_TOKEN`（Cloudflare
-"Edit Cloudflare Workers" 模板）和 `CLOUDFLARE_ACCOUNT_ID`。刻意不做静默跳过——静默
-跳过等于把这次要修的漂移原样请回来。配好后可用 `gh workflow run ci.yml --ref main`
-把积压的 worker 修复推上去（本机 wrangler 登录态已失效，这是当前唯一的部署入口）。
-细节见 `docs/references/cicd.md`「Execution Worker 部署」。
-
-- **部署链路**：Preview 不再跑 `migrate deploy`（`bb9e7bae`——buildCommand 改指
-  `scripts/vercel-build.sh`，只有 `VERCEL_ENV=production` 才迁移；此前任何碰 `prisma/`
-  的功能分支一 push 就已在合并前把 schema 改到生产库上）。迁移改走 Neon direct 端点
-  （`533679e2`，新增 `DIRECT_URL`；运行时继续用 pooler，缺失即大声抛错、**刻意不回落**，
-  否则静默退回 pooler 正好掩盖要修的问题）。三条 cron 上心跳（`d083ba0c` +
-  `.github/workflows/cron-monitor.yml`）——Hobby 的 runtime log 只活 1 小时，实查生产
-  过去 24h 三条 cron 一条痕迹都不剩。
-  ⚠ 代价（有意接受）：Preview 从此跑在生产 schema 上，带新迁移的分支在 Preview 上相关
-  代码路径会报错——这是期望行为，正解是给 Preview 配 Neon 分支库，独立一件事。
-- **画布数据安全**：堵住「本地 state 覆盖服务端」整条链（`6388ca13`——只 PUT 本会话
-  服务端确认过的项目 · 服务端拒收「非空 → 空」的覆盖 · localStorage 与云端两侧的静默
-  失败都接上 logger + 一次性抑制的 toast）。燃料是 localStorage 配额静默截断：Chromium
-  按 UTF-16 计费，约第 36 个中等项目就爆。另一半是「内容从未上过云」——新用户的首个
-  项目现在真的会在服务端建行（`acc8a668`），此前整个首次会话只活在 localStorage。
-  ⚠ 同族已知未处理：`deleteProject` 删掉最后一个项目时本地新建的默认项目，其 id 同样
-  不在确认集合里。
-- **死代码收敛**：src 侧死执行链整删（`4dbb2724`，46 文件 −7433 行；生产自 2026-06-03
-  起全量走 execution worker，那份第二实现自那时起不可达，测试绿断言的是死的那份）；
-  fal 的 3D inline 死路径随后补删（`8c7b7814`，当时留下的顾虑逐条复验后被证伪）。
-  ⛔ 别再去 src 找 `generateImage` / 视频方法，只存在于 git 历史；防线在
-  `src/test/worker-contracts/`。
-- **i18n**：(main) 不再下发 5 个只在它之外用的命名空间（`48de10e1`，每次 (main) 页面
-  加载省约 8.6% 的 RSC payload，`src/messages/*.json` 一个键没动，用 denylist 而非
-  allowlist）。配套 AST 守卫断言每条路由 **client 可达**的命名空间都被下发（`7d22a799`，
-  36 用例）——堵的正是「漏发一个 → 页面原样吐 message key，编译不报错、旧全量测试全过」
-  这个盲区，关键设计是 RSC 边界建模。
-- **模型**：接入 Wan 3.0（`08f27813`，fal 三端点；走 fal 而非百炼原生是因为原生这次没有
-  价格优势，逐档价与「这是个案不是新默认」记进 `model-pricing.md`）。顺带把成本预览扩到
-  视频档并修好「没有分辨率旋钮的模型价格会凭空消失」——24 个有价视频模型填了 14 个，
-  其余官方只公布 720p 一档，留空显示「起」，⛔不按比例推。重建模型文档监控基线
-  （`69d787ca`，真实 54 模型；旧基线是空数组 = 六周检测盲区，另加空基线守卫）。
-- **worker / runner**：参考图改走 URL（`bf965440`）——修 execution worker 128MB OOM
-  与 RunPod `/run` 的 10MiB 请求体拒收，并删掉那条把两种真实失败都判成「今日免费生成
-  次数已用完」的兜底正则。`errorCode` 跨不过 Cloudflare Workflows 的 step 边界，改由
-  step 返回值带出（`d1de9c4a`，`guardWorkflowStep`；⚠ 本地 wrangler dev 不复现，端到端
-  会以错误的理由变绿，契约只能靠单元测试锁）。runner fork README 按 API 实读值重写
-  （`75ce8fa8`，端点 / 卷 / 构建链路原本全是错的，照做会走进死路）。
-- **助手 / LLM**：助手流换成 SSE 帧协议（`2321dbf5`）——`open` 帧把响应头 flush 与
-  「模型开没开口」解耦，这条路由上的 504 在协议层关死（超时最多是一条截断的 200）；
-  为「没有帧」而生的响应头塞载荷那 185 行连同三档降级阶梯整个删掉。前一笔补上 Grok /
-  DeepSeek / Qwen 的 SSE、把三条助手路由 `maxDuration` 提到 300、并给所有 provider 的
-  主请求加超时（`5c6c67f9`，根因是 08-23 接 Grok 时只写了缓冲补全那一半）。本地待核：
-  新增 `DeepSeek V4 Flash Vision Exp` 独立看图档，V4 Pro 继续纯文本；附件能力、请求 payload
-  与路由标签均按具体 `modelId` 分流，定向 Vitest 194/194、全量 TypeScript、目标 ESLint 通过。
-- **文档**：清掉六处与 Engineering Principle 1 相反的「只做向后兼容」指令、adapter 名册
-  对齐 `registry.ts`、修三处坏指针（`98969039`）；修一处被 prettier 转义坏的加粗
-  （`41250dc4`；任务包里的五处同类伤随 plans 全清一并了结）。
+- 上一批已推送 main（8d0168af）：GitHub CI、Worker 部署、Vercel Production 和两套线上冒烟均通过。
+- 本地待提交：保留现有 Studio 布局，调整助手入口、参数栏、负面提示词顺序、参考图大小、素材弹窗与 LoRA 窄栏。
+- 竞技场按 owner 确认退役；历史数据库记录保留，模型路由历史胜率读取保留。
+- 本轮验证：类型检查、lint、89 项相关测试及 28 项移动端测试通过；真实页面已核对 LoRA 44px 收起栏及竞技场 404。弹窗后续纠正：最近素材恢复直接显示，240px 宽并受参数栏边界限制，点击内部内容不关闭；22 项定向测试通过。
 
 ## 未决（等 owner 拍板）
 

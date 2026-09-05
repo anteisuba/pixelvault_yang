@@ -5,6 +5,8 @@ import {
   AI_ADAPTER_TYPE_OPTIONS,
 } from '@/constants/providers'
 
+export const API_KEY_MASK = '••••••••'
+
 export const API_KEY_ADAPTER_OPTIONS = AI_ADAPTER_TYPE_OPTIONS
 
 const LLM_API_KEY_ADAPTERS = new Set<AI_ADAPTER_TYPES>([

@@ -561,7 +561,7 @@ export function StudioNodeAssistantDock({
           // 内容被压到最窄 —— 逐字换行。中文「助手」两字压成两行看着像是
           // 刻意的竖排（台账 G1 一度就是这么记的），日文「アシスタント」六字
           // 才把它暴露成明显的溢出：内容需要 67px 高，而 lg:h-10 只有 40px。
-          className="canvas-assistant-fab pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 whitespace-nowrap rounded-full border shadow-sm transition-colors lg:bottom-auto lg:right-6 lg:top-20 lg:size-auto lg:h-10 lg:rounded-lg lg:px-3 lg:text-xs lg:font-semibold lg:shadow-none"
+          className="canvas-assistant-fab pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 whitespace-nowrap rounded-full border shadow-sm transition-colors lg:hidden"
         >
           <Bot
             className="size-5 lg:size-4"

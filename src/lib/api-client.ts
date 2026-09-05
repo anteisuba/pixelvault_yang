@@ -1,5 +1,4 @@
 export * from '@/lib/api-client/api-keys'
-export * from '@/lib/api-client/arena'
 export * from '@/lib/api-client/cards'
 export * from '@/lib/api-client/gallery'
 export * from '@/lib/api-client/generation'

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -27,5 +27,15 @@ describe('CanvasMiniMap', () => {
     expect(minimap).toHaveAttribute('data-pannable', 'true')
     expect(minimap).toHaveAttribute('data-zoomable', 'true')
     expect(minimap).toHaveClass('pointer-events-auto')
+  })
+  it('默认展开，点击收起后仍能重新打开', () => {
+    render(<CanvasMiniMap />)
+    const toggle = screen.getByRole('button', { name: 'minimapTitle' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(toggle)
+    expect(screen.queryByTestId('minimap')).not.toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('minimap')).toBeInTheDocument()
   })
 })

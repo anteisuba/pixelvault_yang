@@ -69,12 +69,7 @@ async function collectAllPages<T>(
 }
 
 function getStaticEntries(): MetadataRoute.Sitemap {
-  const staticRoutes = [
-    ROUTES.HOME,
-    ROUTES.GALLERY,
-    ROUTES.ARENA,
-    ROUTES.ARENA_LEADERBOARD,
-  ] as const
+  const staticRoutes = [ROUTES.HOME, ROUTES.GALLERY] as const
 
   return LOCALES.flatMap((locale) =>
     staticRoutes.map((route) => ({

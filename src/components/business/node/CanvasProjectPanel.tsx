@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  Check,
   Clock3,
   FolderOpen,
   FolderPlus,
@@ -80,15 +79,9 @@ export function CanvasProjectPanel({
   return (
     <div className="flex flex-col gap-3 p-3">
       <section className="space-y-2">
-        <h3 className="px-1 text-2xs uppercase tracking-nav-dense text-node-muted">
-          {t('projectMenu.current')}
-        </h3>
-        <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
-          <div className="flex items-start gap-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-node-panel-inner text-node-foreground">
-              <Check className="size-4" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
+        <div className="border-b border-node-panel-inner pb-3">
+          <div className="flex flex-col gap-2">
+            <div className="min-w-0 w-full">
               <p className="truncate text-sm font-semibold text-node-foreground">
                 {projectName}
               </p>
@@ -117,7 +110,7 @@ export function CanvasProjectPanel({
                 ) : null}
               </p>
             </div>
-            <span className="shrink-0 rounded-lg bg-node-panel-inner px-2 py-1 text-2xs font-semibold text-node-muted">
+            <span className="shrink-0 text-2xs font-semibold text-node-muted">
               {t('nodeCount', { count: nodeCount })}
             </span>
           </div>
@@ -127,7 +120,7 @@ export function CanvasProjectPanel({
               隔开——不改删除本身的确认流程，只做位置与视觉上的隔离；危险色
               （text-destructive / hover:bg-destructive/10）在这之前已经在用，
               不是新加的。 */}
-          <div className="mt-3 flex items-stretch gap-2">
+          <div className="mt-2 flex items-stretch gap-2">
             <button
               type="button"
               onClick={onRenameProject}
@@ -166,7 +159,7 @@ export function CanvasProjectPanel({
                 <button
                   type="button"
                   onClick={() => onSwitchProject(project.id)}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-left text-sm text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground"
                 >
                   <FolderOpen className="size-3.5 shrink-0" aria-hidden />
                   <span className="min-w-0 flex-1 truncate">
@@ -185,7 +178,7 @@ export function CanvasProjectPanel({
       <button
         type="button"
         onClick={onCreateProject}
-        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-node-panel-inner text-xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
+        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-node-panel-inner text-xs font-semibold text-node-muted transition-colors hover:border-node-edge hover:text-node-foreground"
       >
         <FolderPlus className="size-3.5" aria-hidden />
         {t('projectMenu.create')}

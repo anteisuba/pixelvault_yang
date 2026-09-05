@@ -361,7 +361,10 @@ export function LoraWorkbench() {
         {isGenerate ? (
           <div
             ref={setRailSlotNode}
-            className="lora-rail hidden lg:flex lg:min-h-0 lg:flex-col lg:gap-3.5 lg:overflow-y-auto"
+            className={cn(
+              'lora-rail hidden rounded-2xl border border-border bg-card lg:flex lg:min-h-0 lg:flex-col lg:gap-3.5 lg:overflow-y-auto',
+              assemblyCollapsed ? 'py-2' : 'p-3',
+            )}
           />
         ) : null}
 

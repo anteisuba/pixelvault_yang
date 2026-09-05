@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
 import Image from 'next/image'
-import { ChevronDown, Coins, LogOut, UserCircle } from 'lucide-react'
+import { ChevronDown, Coins, KeyRound, LogOut, UserCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -15,6 +15,8 @@ import {
 } from '@/constants/navigation'
 import { ROUTES } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
+import { useApiKeysContext } from '@/contexts/api-keys-context'
+import { ApiKeyManager } from '@/components/business/ApiKeyManager'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import {
   Sheet,
@@ -103,7 +105,13 @@ function PanelSectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function MobileAccountSection({ onNavigate }: { onNavigate: () => void }) {
+function MobileAccountSection({
+  onNavigate,
+  onOpenApiKeys,
+}: {
+  onNavigate: () => void
+  onOpenApiKeys: () => void
+}) {
   const t = useTranslations('Navbar')
   const tStudio = useTranslations('StudioPage')
   const { profile } = useMyProfile()
@@ -148,6 +156,14 @@ function MobileAccountSection({ onNavigate }: { onNavigate: () => void }) {
       </div>
 
       <LocaleSwitcher tone="sidebar" size="compact" className="w-full" />
+      <button
+        type="button"
+        onClick={onOpenApiKeys}
+        className="flex h-11 items-center gap-2.5 rounded-lg px-2 text-sm text-sidebar-foreground transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent-strong"
+      >
+        <KeyRound className="size-4" aria-hidden />
+        {t('apiKeys')}
+      </button>
 
       <button
         type="button"
@@ -171,6 +187,8 @@ export function MobileShell() {
   const tTools = useTranslations('StudioTools')
   const tCommon = useTranslations('Common')
   const [open, setOpen] = useState(false)
+  const [apiKeysOpen, setApiKeysOpen] = useState(false)
+  const { refresh: refreshApiKeys } = useApiKeysContext()
   const hasHydrated = useHasHydrated()
   const { isLoaded } = useUser()
   const { profile } = useMyProfile()
@@ -279,10 +297,30 @@ export function MobileShell() {
           {hasHydrated && isLoaded && (
             <SignedIn>
               <div className="mt-4 border-t border-sidebar-border pt-3">
-                <MobileAccountSection onNavigate={close} />
+                <MobileAccountSection
+                  onNavigate={close}
+                  onOpenApiKeys={() => {
+                    setOpen(false)
+                    setApiKeysOpen(true)
+                    void refreshApiKeys()
+                  }}
+                />
               </div>
             </SignedIn>
           )}
+        </SheetContent>
+      </Sheet>
+      <Sheet open={apiKeysOpen} onOpenChange={setApiKeysOpen}>
+        <SheetContent className="inset-y-2 right-2 h-auto w-[calc(100%-1rem)] gap-0 overflow-hidden rounded-2xl border bg-background/95 p-0 shadow-xl sm:max-w-2xl">
+          <SheetTitle className="sr-only">
+            {t('StudioApiKeys.sheetTitle')}
+          </SheetTitle>
+          <SheetDescription className="sr-only">
+            {t('StudioApiKeys.sheetDescription')}
+          </SheetDescription>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-12 sm:px-6">
+            {apiKeysOpen ? <ApiKeyManager /> : null}
+          </div>
         </SheetContent>
       </Sheet>
     </>

@@ -479,8 +479,8 @@ export const StudioCanvas = memo(function StudioCanvas() {
         ) : !lastGeneration && stageReference ? (
           /* 还没有结果时，当前参考图占住舞台。位置与编辑入口都归参考轨管，
              这里只负责把那一张放大 —— 计数与「编辑这张」不再重复一遍。 */
-          <div className="m-auto flex flex-col items-center gap-3">
-            <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+          <div className="m-auto flex w-full flex-col items-center gap-3">
+            <div className="w-full overflow-hidden rounded-xl bg-card">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={stageReference.url}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useRef, useState, type ChangeEvent } from 'react'
 import { Image as ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -46,6 +46,10 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
+  const [panelBoundary, setPanelBoundary] = useState<Element | null>(null)
+  const bindTrigger = useCallback((element: HTMLButtonElement | null) => {
+    setPanelBoundary(element?.closest('.studio-param-panel') ?? null)
+  }, [])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const popoverOpen = state.panels.refImage
 
@@ -136,6 +140,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
       >
         <StudioToolSurfaceTrigger asChild>
           <Toolbar.Button
+            ref={bindTrigger}
             type="button"
             disabled={disabled}
             aria-label={t('label')}
@@ -157,6 +162,9 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
 
         <StudioToolPopoverContent
           size="action"
+          collisionBoundary={panelBoundary}
+          collisionPadding={8}
+          className="w-60 max-h-[min(28rem,var(--radix-popover-content-available-height))] overflow-y-auto overscroll-contain"
           side="top"
           align="center"
           label={t('label')}

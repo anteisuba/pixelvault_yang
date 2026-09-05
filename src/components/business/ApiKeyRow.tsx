@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Pencil, ShieldCheck, Trash2, X, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { API_KEY_MASK } from '@/constants/api-keys'
 import { getProviderLabel } from '@/constants/providers'
 import type {
   ApiKeyHealthStatus,
@@ -113,7 +114,8 @@ export function ApiKeyRow({
         {isEditing ? (
           <div className="flex items-center gap-1.5">
             <input
-              type="text"
+              type="password"
+              autoComplete="new-password"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               placeholder={t('editKeyPlaceholder')}
@@ -152,7 +154,7 @@ export function ApiKeyRow({
           </div>
         ) : (
           <p className="font-mono text-xs text-muted-foreground">
-            {record.maskedKey}
+            {API_KEY_MASK}
           </p>
         )}
       </div>

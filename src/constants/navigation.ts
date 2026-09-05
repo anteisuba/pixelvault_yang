@@ -10,7 +10,6 @@ import {
   ScanSearch,
   Sparkles,
   SwatchBook,
-  Trophy,
   Video,
   Waypoints,
   type LucideIcon,
@@ -116,14 +115,6 @@ export const SHELL_NAV_TOOLS: readonly ShellNavItem[] = [
     href: ROUTES.STUDIO_NODE,
     icon: Waypoints,
     labelKey: 'StudioTools.tools.node.label',
-  },
-  {
-    id: 'arena',
-    href: ROUTES.ARENA,
-    icon: Trophy,
-    labelKey: 'Navbar.links.arena',
-    activePaths: [ROUTES.ARENA, ROUTES.ARENA_HISTORY, ROUTES.ARENA_LEADERBOARD],
-    match: 'prefix',
   },
 ] as const
 

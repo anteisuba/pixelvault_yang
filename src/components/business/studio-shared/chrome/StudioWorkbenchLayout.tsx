@@ -55,9 +55,9 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
     // （`.workbench-ground`）——桌面端显式高度改成 `.studio-workbench-shell`
     // （globals.css，`calc(100svh - 36px)`），不能再用 `h-svh` 原样撑满，
     // 否则子级仍按整屏高度算，会把卡片顶出地台的下边距，出现整页滚动条。
-    <div className="studio-workbench-shell flex min-h-0 flex-1 flex-col lg:flex-none lg:flex-row">
+    <div className="studio-workbench-shell flex min-h-0 flex-1 flex-col lg:flex-none lg:flex-row lg:gap-3">
       {params ? (
-        <div className="studio-param-panel flex shrink-0 flex-col gap-3 border-b border-border/60 p-3 lg:w-72 lg:overflow-y-auto lg:border-b-0 lg:p-4">
+        <div className="studio-param-panel flex shrink-0 flex-col gap-3 rounded-2xl border border-border bg-card p-3 lg:w-72 lg:overflow-y-auto lg:p-4">
           {params}
         </div>
       ) : null}

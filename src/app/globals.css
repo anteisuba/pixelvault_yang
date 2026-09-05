@@ -1172,11 +1172,11 @@ html:lang(ja) {
     }
   }
 
-  /* 无结果时占住舞台的那张参考图。
-     ⚠ 56vh 不是 62vh：参考轨现在常驻在它上面，按旧值算这张图会把动作区顶出
-     首屏。 */
+  /* 参考图等比占据参考轨下方的可用舞台，不裁切原图。 */
   .studio-reference-stage-image {
-    max-height: 56vh;
+    width: 100%;
+    height: calc(100svh - 12rem);
+    max-height: none;
     max-width: 100%;
   }
 

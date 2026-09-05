@@ -359,7 +359,7 @@ export function StudioOperatorDock() {
           }}
           // bottom-6/right-6/top-6 而不是 -4：工作台脊柱接入后舞台内缩 18px
           // （`.workbench-card`），面板贴视口边会压住卡片圆角。
-          className="fixed bottom-6 right-6 top-6 z-40 hidden flex-col overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm lg:flex"
+          className="fixed bottom-6 right-6 top-6 z-40 hidden flex-col overflow-hidden rounded-xl border border-border/60 bg-background/55 shadow-sm backdrop-blur-sm lg:flex"
         >
           <div
             role="separator"
@@ -423,7 +423,7 @@ export function StudioOperatorDock() {
           transition={{ duration: reduceMotion ? 0 : 0.2 }}
           className={cn(
             // right-6/top-6 而不是 -4：同上，收进 `.workbench-card` 的右上角。
-            'fixed right-6 top-6 z-50 hidden items-center gap-2 rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background shadow-md lg:inline-flex',
+            'fixed right-6 top-6 z-50 hidden items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:inline-flex',
             primed &&
               'ring-2 ring-primary ring-offset-2 ring-offset-background',
           )}
@@ -431,6 +431,7 @@ export function StudioOperatorDock() {
           <span
             className={cn(
               'size-1.5 rounded-full bg-primary',
+              status !== 'working' && 'hidden',
               status === 'working' && 'animate-pulse',
             )}
             aria-hidden

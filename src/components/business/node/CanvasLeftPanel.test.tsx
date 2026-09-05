@@ -64,7 +64,9 @@ describe('CanvasLeftPanel', () => {
     const panel = screen.getByTestId('canvas-left-panel')
     expect(panel).toHaveAttribute('data-expanded', 'false')
     expect(panel.style.width).toBe(`${CANVAS_LEFT_PANEL_RAIL_PX}px`)
-    expect(screen.queryByTestId('panel-content')).not.toBeInTheDocument()
+    expect(
+      screen.getByTestId('panel-content').closest('[inert]'),
+    ).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('toggles from the rail icon and closes from the header button', () => {

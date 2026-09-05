@@ -110,7 +110,7 @@ export function CanvasLeftPanel({
       data-expanded={expanded ? 'true' : 'false'}
       // 展开 / 收起共用 16px 圆角：它们是同一个侧栏壳的两种宽度，不在一次
       // 展开手势前后切换成两套形状语言（见 canvas.css .canvas-left-panel）。
-      className="pointer-events-auto absolute bottom-4 left-4 z-canvas-chrome hidden flex-col md:flex canvas-glass canvas-left-panel"
+      className="pointer-events-auto absolute left-4 z-canvas-chrome hidden flex-col md:flex canvas-glass canvas-left-panel"
       // 宽度走内联值而不是 CSS 类：真机上旧的 [data-expanded='false'] 规则里
       // width 曾被别处级联压掉，与其猜不如钉死。
       // ⚠ 宽度过渡在 canvas.css 的 `.canvas-left-panel` 上（批 4 补的）。
@@ -126,7 +126,7 @@ export function CanvasLeftPanel({
           : CANVAS_LEFT_PANEL_RAIL_PX,
       }}
     >
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* 图标轨 */}
         <div
           className="flex shrink-0 flex-col items-center gap-2 border-r border-node-panel-inner py-2"
@@ -195,41 +195,44 @@ export function CanvasLeftPanel({
           </button>
         </div>
 
-        {/* 内容区：展开才渲染，收起时整块不占宽（不是 hidden，是不存在，
-            免得内部的滚动容器还在测量一个 0 宽的盒子）。 */}
-        {expanded ? (
-          <div className="canvas-left-panel-body flex min-w-0 flex-1 flex-col">
-            <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-node-panel-inner px-3">
-              <span className="truncate text-node-foreground canvas-panel-title">
-                {viewTitle}
-              </span>
-              <div className="flex shrink-0 items-center gap-1">
-                {/* 节点数只对班底架有意义 —— 项目视图里每个项目各有自己的计数 */}
-                {view === CANVAS_LEFT_PANEL_VIEW_IDS.cast ? (
-                  <span className="tabular-nums text-2xs text-node-subtle">
-                    {nodeCount}
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  aria-label={t('collapsePanel')}
-                  title={t('collapsePanel')}
-                  onClick={() => onExpandedChange(false)}
-                  className="flex size-6 items-center justify-center rounded-md text-node-muted transition-colors hover:text-node-foreground"
-                >
-                  <PanelLeftClose className="size-3.5" aria-hidden />
-                </button>
-              </div>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {view === CANVAS_LEFT_PANEL_VIEW_IDS.cast
-                ? children
-                : view === CANVAS_LEFT_PANEL_VIEW_IDS.projects
-                  ? projectPanel
-                  : assistantHistoryPanel}
+        <div
+          inert={!expanded}
+          aria-hidden={!expanded}
+          className="canvas-left-panel-body flex min-w-0 shrink-0 flex-col"
+          style={{
+            width: CANVAS_LEFT_PANEL_WIDTH_PX - CANVAS_LEFT_PANEL_RAIL_PX,
+          }}
+        >
+          <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-node-panel-inner px-3">
+            <span className="truncate text-node-foreground canvas-panel-title">
+              {viewTitle}
+            </span>
+            <div className="flex shrink-0 items-center gap-1">
+              {/* 节点数只对班底架有意义 —— 项目视图里每个项目各有自己的计数 */}
+              {view === CANVAS_LEFT_PANEL_VIEW_IDS.cast ? (
+                <span className="tabular-nums text-2xs text-node-subtle">
+                  {nodeCount}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                aria-label={t('collapsePanel')}
+                title={t('collapsePanel')}
+                onClick={() => onExpandedChange(false)}
+                className="flex size-6 items-center justify-center rounded-md text-node-muted transition-colors hover:text-node-foreground"
+              >
+                <PanelLeftClose className="size-3.5" aria-hidden />
+              </button>
             </div>
           </div>
-        ) : null}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {view === CANVAS_LEFT_PANEL_VIEW_IDS.cast
+              ? children
+              : view === CANVAS_LEFT_PANEL_VIEW_IDS.projects
+                ? projectPanel
+                : assistantHistoryPanel}
+          </div>
+        </div>
       </div>
     </aside>
   )

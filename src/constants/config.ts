@@ -168,12 +168,6 @@ export const API_ENDPOINTS = {
   /** Image transform (style / pose / background — Phase 1: style only) */
   IMAGE_TRANSFORM: '/api/image-transform',
 
-  /** Arena */
-  ARENA_MATCHES: '/api/arena/matches',
-  ARENA_LEADERBOARD: '/api/arena/leaderboard',
-  ARENA_HISTORY: '/api/arena/history',
-  ARENA_PERSONAL_STATS: '/api/arena/personal-stats',
-
   /** Stories */
   STORIES: '/api/stories',
 
@@ -448,16 +442,6 @@ export const PROFILE = {
     'signup',
     'register',
   ] as readonly string[],
-} as const
-
-/** Arena configuration */
-export const ARENA = {
-  INITIAL_ELO: 1500,
-  K_FACTOR: 32,
-  MIN_MODELS_FOR_MATCH: 2,
-  POLL_INTERVAL_MS: 2000,
-  PROVIDER_TIMEOUT_MS: 45000,
-  HISTORY_PAGE_SIZE: 20,
 } as const
 
 /** Prompt enhancement configuration */

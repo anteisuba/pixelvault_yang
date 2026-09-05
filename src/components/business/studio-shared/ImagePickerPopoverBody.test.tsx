@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ImagePickerPopoverBody } from './ImagePickerPopoverBody'
@@ -34,5 +34,28 @@ describe('ImagePickerPopoverBody', () => {
     expect(screen.getByRole('button', { name: 'Upload image' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Open library' })).toBeDisabled()
     expect(await screen.findByText('Empty')).toBeVisible()
+  })
+  it('keeps clicks inside the picker from focusing its parent prompt', async () => {
+    const parentClick = vi.fn()
+    const openLibrary = vi.fn()
+    render(
+      <div onClick={parentClick}>
+        <ImagePickerPopoverBody
+          dropHint="Upload image"
+          recentLabel="Recent"
+          recentEmptyLabel="Empty"
+          openLibraryLabel="Open library"
+          onPickFile={vi.fn()}
+          onDropFile={vi.fn()}
+          onPickAsset={vi.fn()}
+          onOpenLibrary={openLibrary}
+        />
+      </div>,
+    )
+    expect(await screen.findByText('Empty')).toBeVisible()
+    fireEvent.click(screen.getByText('Recent'))
+    expect(parentClick).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Open library' }))
+    expect(openLibrary).toHaveBeenCalledOnce()
   })
 })

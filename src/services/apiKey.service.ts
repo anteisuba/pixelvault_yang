@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { API_KEY_MASK } from '@/constants/api-keys'
 import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import { encryptApiKey, decryptApiKey } from '@/lib/crypto'
@@ -19,15 +20,6 @@ import { logger } from '@/lib/logger'
 import { safeFetch } from '@/lib/url-guard'
 import { ProviderConfigSchema } from '@/types'
 import type { UserApiKeyRecord, ApiKeyVerifyResult } from '@/types'
-
-// ─── Masking Helper ───────────────────────────────────────────────
-
-function maskKey(plaintext: string): string {
-  if (plaintext.length <= 8) return '****'
-  const prefix = plaintext.slice(0, 4)
-  const suffix = plaintext.slice(-4)
-  return `${prefix}****...****${suffix}`
-}
 
 export interface ResolvedApiKeyValue {
   id: string
@@ -106,35 +98,35 @@ export async function listUserApiKeys(
     orderBy: { createdAt: 'desc' },
   })
 
-  // Lazy backfill: rows created before the maskedKey column still carry '****'.
-  // Decrypt once and persist so future list calls pay zero crypto cost.
-  const needBackfill = records.filter((r) => r.maskedKey === '****')
-  if (needBackfill.length > 0) {
-    await Promise.all(
-      needBackfill.map(async (r) => {
-        try {
-          const mask = maskKey(decryptApiKey(r.encryptedKey))
-          r.maskedKey = mask
-          await db.userApiKey.update({
-            where: { id: r.id },
-            data: { maskedKey: mask },
-          })
-        } catch {
-          // leave as '****' if decryption fails
-        }
-      }),
-    )
-  }
+  const credentialGroups = new Map<string, string>()
 
   return records.map((r) => {
     const adapterType = normalizeAdapterType(r.adapterType)
+    const providerConfig = normalizeProviderConfig(
+      adapterType,
+      r.providerConfig,
+    )
+    let credentialGroupId = r.id
+    if (adapterType === AI_ADAPTER_TYPES.FAL) {
+      try {
+        const identity = JSON.stringify([
+          providerConfig.baseUrl,
+          decryptApiKey(r.encryptedKey),
+        ])
+        credentialGroupId = credentialGroups.get(identity) ?? r.id
+        credentialGroups.set(identity, credentialGroupId)
+      } catch {
+        logger.warn('API key grouping unavailable', { id: r.id })
+      }
+    }
     return {
       id: r.id,
       modelId: r.modelId,
       adapterType,
       providerConfig: normalizeProviderConfig(adapterType, r.providerConfig),
       label: r.label,
-      maskedKey: r.maskedKey,
+      maskedKey: API_KEY_MASK,
+      credentialGroupId,
       isActive: r.isActive,
       createdAt: r.createdAt,
     }
@@ -202,7 +194,7 @@ export async function createApiKey(
   keyValue: string,
 ): Promise<UserApiKeyRecord> {
   const encryptedKey = encryptApiKey(keyValue)
-  const maskedKeyValue = maskKey(keyValue)
+  const maskedKeyValue = API_KEY_MASK
   const providerConfigJson = toProviderConfigJson(providerConfig)
 
   const record = await db.userApiKey.upsert({
@@ -243,7 +235,7 @@ export async function createApiKey(
       record.providerConfig,
     ),
     label: record.label,
-    maskedKey: record.maskedKey,
+    maskedKey: API_KEY_MASK,
     isActive: record.isActive,
     createdAt: record.createdAt,
   }
@@ -264,7 +256,7 @@ export async function updateApiKey(
   if (data.isActive !== undefined) updatePayload.isActive = data.isActive
   if (data.keyValue !== undefined) {
     updatePayload.encryptedKey = encryptApiKey(data.keyValue)
-    updatePayload.maskedKey = maskKey(data.keyValue)
+    updatePayload.maskedKey = API_KEY_MASK
   }
 
   const updated = await db.userApiKey.update({
@@ -283,7 +275,7 @@ export async function updateApiKey(
       updated.providerConfig,
     ),
     label: updated.label,
-    maskedKey: updated.maskedKey,
+    maskedKey: API_KEY_MASK,
     isActive: updated.isActive,
     createdAt: updated.createdAt,
   }

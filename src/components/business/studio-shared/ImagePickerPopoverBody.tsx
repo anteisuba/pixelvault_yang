@@ -83,6 +83,7 @@ export function ImagePickerPopoverBody({
       tabIndex={0}
       aria-disabled={Boolean(disabledReason)}
       onPaste={handlePaste}
+      onClick={(event) => event.stopPropagation()}
       className={cn('space-y-3 focus:outline-none', className)}
     >
       {headerSlot}

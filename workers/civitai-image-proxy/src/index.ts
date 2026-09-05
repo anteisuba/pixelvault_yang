@@ -35,6 +35,58 @@ const BROWSER_CACHE_CONTROL = 'public, max-age=604800, immutable' // 浏览器�
 const CIVITAI_IMAGE_PATH_RE =
   /^\/[^/]+\/[^/]+\/[^/]+\/[^/]+\.(?:jpe?g|png|webp|gif|avif)$/i
 
+async function resolveImageContentType(
+  upstream: Response,
+  ctx: ExecutionContext,
+): Promise<string | null> {
+  const declared = upstream.headers
+    .get('content-type')
+    ?.split(';')[0]
+    .trim()
+    .toLowerCase()
+  if (declared?.startsWith('image/')) return declared
+  if (
+    declared &&
+    declared !== 'application/octet-stream' &&
+    declared !== 'binary/octet-stream'
+  ) {
+    return null
+  }
+  if (!upstream.body) return null
+
+  const reader = upstream.clone().body!.getReader()
+  const prefix = new Uint8Array(16)
+  let length = 0
+  try {
+    while (length < prefix.length) {
+      const { done, value } = await reader.read()
+      if (done) break
+      const part = value.subarray(0, prefix.length - length)
+      prefix.set(part, length)
+      length += part.length
+    }
+  } finally {
+    ctx.waitUntil(reader.cancel())
+  }
+
+  const matches = (bytes: number[], offset = 0) =>
+    length >= offset + bytes.length &&
+    bytes.every((byte, i) => prefix[offset + i] === byte)
+  if (matches([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    return 'image/png'
+  if (matches([0xff, 0xd8, 0xff])) return 'image/jpeg'
+  const text = String.fromCharCode(...prefix.subarray(0, length))
+  if (text.startsWith('GIF87a') || text.startsWith('GIF89a')) return 'image/gif'
+  if (text.startsWith('RIFF') && text.slice(8, 12) === 'WEBP')
+    return 'image/webp'
+  if (
+    text.slice(4, 8) === 'ftyp' &&
+    ['avif', 'avis'].includes(text.slice(8, 12))
+  )
+    return 'image/avif'
+  return null
+}
+
 export default {
   async fetch(request, _env, ctx): Promise<Response> {
     // HEAD 也放行 —— README 的验证命令用 `curl -sI`，且 Workers runtime 会自动
@@ -87,8 +139,9 @@ export default {
       })
     }
 
-    const contentType = upstream.headers.get('content-type') ?? 'image/jpeg'
-    if (!contentType.startsWith('image/')) {
+    const contentType = await resolveImageContentType(upstream, ctx)
+    if (!contentType) {
+      await upstream.body?.cancel()
       return new Response('Unsupported Media Type', { status: 415 })
     }
 

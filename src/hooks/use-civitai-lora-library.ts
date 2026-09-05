@@ -284,6 +284,8 @@ export function useCivitaiLoraLibrary(
     setTotal(null)
     setHasNextPage(false)
     setSortFellBackToRelevance(false)
+    setIsStale(false)
+    setStaleFetchedAt(null)
     setOffsetPaginationSupported(false)
     setError(null)
     setIsRevalidating(true)
@@ -429,18 +431,15 @@ export function useCivitaiLoraLibrary(
       // 先作废在飞请求再改 state：旧的第 6 页响应回来不能盖掉新搜索。
       // requestId 必须先加——abort 会让 fetch 立刻以 success:false 回来，
       // 若不先加，refresh 会把 AbortError 当成真正的加载失败。
-      requestIdRef.current += 1
-      inFlightRef.current?.abort()
-      inFlightRef.current = null
+      clearFacetResults()
       cursorByPageRef.current = new Map([[1, null]])
       // Issue C: a new search term starts a new session — unlock the
       // backend so the next page 1 is free to pick meilisearch/REST again.
       searchBackendRef.current = null
       setDebouncedSearch(trimmed)
       setPage(1)
-      setIsRevalidating(true)
     },
-    [debouncedSearch],
+    [clearFacetResults, debouncedSearch],
   )
 
   /** 回车 / 点搜索按钮时调用。 */

@@ -134,6 +134,50 @@ describe('useCivitaiLoraLibrary', () => {
     expect(result.current.isRevalidating).toBe(false)
   })
 
+  it('clears the previous query while a submitted search is pending or fails', async () => {
+    const oldItem = createItem('browse-1', '巅峰技艺 Apex Force')
+    let resolveSearch!: (
+      value: Awaited<ReturnType<typeof listCivitaiLoraAssetsAPI>>,
+    ) => void
+    mockListCivitaiLoraAssetsAPI
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          ...createResult(oldItem, 1),
+          total: 200,
+          stale: true,
+          fetchedAt: '2026-09-01T00:00:00Z',
+        },
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSearch = resolve
+        }),
+      )
+
+    const { result } = renderHook(() => useCivitaiLoraLibrary())
+    await waitFor(() => expect(result.current.items).toEqual([oldItem]))
+    act(() => result.current.setSearch('从零开始的'))
+    act(() => result.current.submitSearch())
+
+    expect(result.current.debouncedSearch).toBe('从零开始的')
+    expect(result.current.items).toEqual([])
+    expect(result.current.selectedItem).toBeNull()
+    expect(result.current.total).toBeNull()
+    expect(result.current.hasNextPage).toBe(false)
+    expect(result.current.isStale).toBe(false)
+    expect(result.current.isLoading).toBe(true)
+    await waitFor(() =>
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(2),
+    )
+    await act(async () =>
+      resolveSearch({ success: false, error: 'Search unavailable' }),
+    )
+    expect(result.current.items).toEqual([])
+    expect(result.current.error).toBe('Search unavailable')
+    expect(result.current.isLoading).toBe(false)
+  })
+
   it('does not apply a stale in-flight page after a new search is submitted', async () => {
     const browseItem = createItem('browse-1', 'Browse page 1')
     const searchItem = createItem('search-1', '鸣潮 Search LoRA')
@@ -239,7 +283,7 @@ describe('useCivitaiLoraLibrary', () => {
     )
   })
 
-  it('keeps stale items visible when a fetch fails and surfaces error', async () => {
+  it('does not display previous results when a new search fails', async () => {
     const itemA = createItem('err-a', 'A')
 
     mockListCivitaiLoraAssetsAPI
@@ -257,8 +301,7 @@ describe('useCivitaiLoraLibrary', () => {
     })
 
     await waitFor(() => expect(result.current.error).toBe('upstream blip'))
-    // Items not wiped — user can keep browsing what they already had.
-    expect(result.current.items).toEqual([itemA])
+    expect(result.current.items).toEqual([])
     expect(result.current.isRevalidating).toBe(false)
   })
 

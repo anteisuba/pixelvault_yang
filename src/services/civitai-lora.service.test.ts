@@ -1812,6 +1812,7 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
       )
       const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
       expect(body.queries).toHaveLength(1)
+      expect(body.queries[0].matchingStrategy).toBe('all')
       expect(body.queries[0].sort).toEqual(expected)
     },
   )

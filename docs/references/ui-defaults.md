@@ -30,7 +30,7 @@
 
 ---
 
-## 2. 颜色 — semantic 全站一套，域只有一个强调色
+## 2. 颜色 — semantic 全站一套，强调色只有 `--primary`
 
 ### 2.1 脊柱（锁死，任何域不得覆盖）
 
@@ -45,7 +45,7 @@
 | 破坏             | `bg-destructive` / `text-destructive`                                                        | 红                                                                                |
 | 边/输入/焦点     | `border-border` `border-input` `ring-ring`                                                   | oklch(92.2%) / 70.8%                                                              |
 | 已应用/警告/风险 | `--status-applied` / `--status-warning` / `--status-risk`，各带 `-surface` 浅底（risk 除外） | 绿 #16794c · 琥珀 #a04f00 · 红 #b3261e；对比度见 globals.css 注释                 |
-| 模态             | `bg-modality-image` / `-video` / `-audio`                                                    | 紫 292 / 蓝 255 / 玫瑰 10，低饱和                                                 |
+| 模态             | `bg-modality-image` / `-video` / `-audio`（**只给 prompts 域**，见 §2.3）                    | 紫 292 / 蓝 255 / 玫瑰 10，低饱和                                                 |
 
 **应用默认浅色。** html 根没有 `.dark`；`ds-bundle/README.md` 里"dark-only"是过时口径。`.dark` 只允许出现在**媒体观看面**：lightbox、`MediaDetailViewer`、画布图片编辑工作台、node 画布视口。页面本身不做暗色。cards 页与 assets loading 现在整页 `.dark`，**改回浅色（owner 2026-09-03 拍板）**；它们不是媒体观看面。
 
@@ -54,22 +54,12 @@
 现状五种浅底（首页暖白 `#f4f4f1` · 壳冷灰 `#e4e7ec` · LoRA 中性 oklch · 画布米纸 `#ebe5d8` · composer 象牙 oklch(96% .008 95)）收成两层：
 
 - **页面底 = `--background` 纯白；分组/次级面 = `--muted` 中性灰。** 首页 `--paper/--panel`、LoRA `--lora-page/--lora-well`、壳 `--sidebar` 全部 alias 到这两个，不再各自给值。**壳底例外（owner 2026-09-03 拍板保住浮岛层次）**：脊柱新增第三层 `--surface-sunken: oklch(94% 0 0)`，只给应用壳 `--sidebar` 用，主卡浮在它上面；域不得再造第四种浅底。三层就是全部：`--background` 纯白 · `--muted` 97% · `--surface-sunken` 94%。
-- **画布米纸与 composer 象牙是"材质"，不是页面底**：作为 canvas 域和 studio 域各自的 `--domain-accent-surface` 保留，只贴在卡片/输入条那一件东西上，不铺整页。
+- **画布米纸与 composer 象牙是"材质"，不是页面底**：作为 canvas 域和 studio 域各自的材质 token 保留，只贴在卡片/输入条那一件东西上，不铺整页。
 - **第四层 `--surface-workbench`（owner 2026-09-03，配音间灰底+白卡推广到工作台）**：配音间原实现是 `#f4f4f1`，真机实测与壳底 `--sidebar`（计算值 #ebebeb）通道差 (9,9,6)，超过「肉眼几乎一样」的 ≤6 判据，没有直接复用 `--sidebar`，单独开了这一档（暗色沿用 `--surface-sunken`，即壳底暗档，配音间锁浅色没有暗档可对齐）。工作台框 = `.workbench-ground`（灰底地台）+ `.workbench-card`（白卡），四个工作台（配音间 / 图像 / 视频 / LoRA）共用一份值，值以 `src/app/globals.css` 为准，不在域内各自维护。
 
-### 2.3 域强调色（每域一个）
+### 2.3 强调色
 
-每个业务域只能定义 **`--domain-accent`** 和 **`--domain-accent-surface`** 两个变量，写在域根（`.domain-canvas` / `.domain-lora` / `.home-v4`），**不写 `:root`**。默认取值：
-
-| 域                           | accent                 | accent-surface |
-| ---------------------------- | ---------------------- | -------------- |
-| Studio Image                 | `--modality-image`     | composer 象牙  |
-| Studio Video                 | `--modality-video`     | 同上           |
-| Studio Audio                 | `--modality-audio`     | 同上           |
-| Canvas                       | `--node-port-image` 紫 | 米纸 `#ebe5d8` |
-| LoRA                         | `--primary`（黑）      | 无             |
-| Gallery/Assets/Cards/Prompts | `--primary`            | 无             |
-| Home                         | `--primary`            | 无             |
+**全站强调色只用 `--primary`（2026-09-06 owner 定）**；`--modality-*` 仅 prompts 域使用。⛔ 不新造域强调色变量。
 
 强调色只出现在三个位置：**当前选中态、主 CTA 的 hover/focus 环、进度**。不做大面积填色，不做渐变。
 
@@ -93,6 +83,8 @@
 ## 4. 动效配方 — 每个交互一行，直接照抄
 
 时长/曲线只用 `globals.css` 的 token：`--duration-fast` 120 · `--duration-base` 200 · `--duration-slow` 320 · `--duration-reveal` 500；曲线 `--ease-standard`。只动 `transform` / `opacity`。**每条都带 `motion-reduce:` 降级**。
+
+> 真值 SoT = `src/app/globals.css:198-202`（`--ease-standard: cubic-bezier(0.22, 1, 0.36, 1)` + 上述四个时长），2026-09-06 逐行核过与本表一致。⛔ 别信任何写着 `150 / 300 / 400ms` 或 `cubic-bezier(.2,0,0,1)` 的设计稿——那是 2026-09-06 助手改版简报里的一处错值，已在 `pages/assistant-shell.md` §11.5 订正。
 
 | 交互                         | 配方                                                                                                                                    | 库                 |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |

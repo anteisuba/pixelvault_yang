@@ -96,6 +96,8 @@ export function LoraHuggingFaceShowcaseStrip({
       ) : null}
 
       <LoraCoverPreviewDialog
+        key={preview?.url ?? 'closed'}
+        images={images}
         preview={preview}
         onClose={() => setPreview(null)}
       />

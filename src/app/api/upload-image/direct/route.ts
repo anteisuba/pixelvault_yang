@@ -7,7 +7,7 @@ export const maxDuration = 10
 
 export const POST = createApiRoute({
   schema: CreateUploadImageDirectRequestSchema,
-  rateLimit: RATE_LIMIT_CONFIGS.generateVideo,
+  rateLimit: RATE_LIMIT_CONFIGS.assetUpload,
   routeName: 'POST /api/upload-image/direct',
   handler: async (clerkId, data) => {
     return await createUserImageDirectUpload(clerkId, data)

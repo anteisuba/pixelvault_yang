@@ -142,9 +142,12 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
       >
         {/* 可见头部 — 与 StudioDockPanelArea 的 Dialog 型面板同规范（决议 5 契约） */}
         <StudioPanelHeader
-          icon={<Sparkles className="size-3.5 text-primary" />}
+          className="gap-1 sm:gap-2"
+          icon={<Sparkles className="size-3.5 shrink-0 text-primary" />}
         >
-          <span className="mr-auto">{t('enhance')}</span>
+          <span className="mr-auto shrink-0 whitespace-nowrap">
+            {t('enhance')}
+          </span>
           <StudioAssistantHeaderActions
             mobile
             assistantDomain={assistantDomain}

@@ -501,3 +501,93 @@ describe('uploadAudioFileAPI direct R2 flow', () => {
     )
   })
 })
+
+describe('upload rate-limit recovery', () => {
+  it.each(['prepare', 'complete'])(
+    'waits and retries only the limited %s step',
+    async (step) => {
+      vi.useFakeTimers()
+      try {
+        const prepare = () =>
+          new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                uploadUrl: 'https://r2.example.com/upload',
+                storageKey: 'test.png',
+                headers: {},
+              },
+            }),
+          )
+        const complete = () =>
+          new Response(
+            JSON.stringify({
+              success: true,
+              data: { generation: { id: 'uploaded' } },
+            }),
+          )
+        let limited = false
+        const fetchMock = vi.fn(async (url: string) => {
+          const endpoint =
+            step === 'prepare'
+              ? API_ENDPOINTS.UPLOAD_IMAGE_DIRECT
+              : API_ENDPOINTS.UPLOAD_IMAGE_DIRECT_COMPLETE
+          if (url === endpoint && !limited) {
+            limited = true
+            return new Response(JSON.stringify({ error: 'limited' }), {
+              status: 429,
+              headers: { 'Retry-After': '60' },
+            })
+          }
+          if (url === API_ENDPOINTS.UPLOAD_IMAGE_DIRECT) return prepare()
+          if (url === API_ENDPOINTS.UPLOAD_IMAGE_DIRECT_COMPLETE)
+            return complete()
+          return new Response(null, { status: 200 })
+        })
+        vi.stubGlobal('fetch', fetchMock)
+        const pending = uploadImageFileAPI(
+          new File(['test'], 'test.png', { type: 'image/png' }),
+          { projectId: 'folder-a' },
+        )
+        await vi.advanceTimersByTimeAsync(59_999)
+        expect(fetchMock).toHaveBeenCalledTimes(step === 'prepare' ? 1 : 3)
+        await vi.advanceTimersByTimeAsync(1)
+        expect((await pending).success).toBe(true)
+        expect(
+          fetchMock.mock.calls.filter(
+            (c) => c[0] === 'https://r2.example.com/upload',
+          ),
+        ).toHaveLength(1)
+        expect(fetchMock).toHaveBeenLastCalledWith(
+          API_ENDPOINTS.UPLOAD_IMAGE_DIRECT_COMPLETE,
+          expect.objectContaining({
+            body: expect.stringContaining('folder-a'),
+          }),
+        )
+      } finally {
+        vi.useRealTimers()
+      }
+    },
+  )
+  it('stops after bounded retries when rate limiting persists', async () => {
+    vi.useFakeTimers()
+    try {
+      const fetchMock = vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: 'limited' }), {
+            status: 429,
+            headers: { 'Retry-After': '60' },
+          }),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+      const pending = uploadImageFileAPI(
+        new File(['test'], 'test.png', { type: 'image/png' }),
+      )
+      await vi.runAllTimersAsync()
+      expect((await pending).success).toBe(false)
+      expect(fetchMock).toHaveBeenCalledTimes(4)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

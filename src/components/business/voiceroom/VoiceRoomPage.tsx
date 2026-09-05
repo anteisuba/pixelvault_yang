@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 
+import { Button } from '@/components/ui/button'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { useVoiceRoom } from '@/hooks/use-voiceroom'
 
@@ -42,6 +43,7 @@ export function VoiceRoomPage() {
     say,
     retake,
     dismissError,
+    refreshRooms,
   } = useVoiceRoom()
 
   /**
@@ -54,11 +56,11 @@ export function VoiceRoomPage() {
    */
   const bootstrappedRef = useRef(false)
   useEffect(() => {
-    if (loadingRooms || bootstrappedRef.current) return
+    if (loadingRooms || error || bootstrappedRef.current) return
     bootstrappedRef.current = true
     if (rooms.length > 0) void openRoom(rooms[0].id)
     else void createRoom()
-  }, [loadingRooms, rooms, openRoom, createRoom])
+  }, [loadingRooms, error, rooms, openRoom, createRoom])
 
   /*
    * ⚠ 只挂 `ApiKeysProvider`，**不是** `StudioProvider`。
@@ -98,7 +100,26 @@ export function VoiceRoomPage() {
         ) : (
           <div className="vr-stage workbench-card">
             <div className="vr-empty">
-              <span className="vr-empty-eyebrow">{t('loading')}</span>
+              {error ? (
+                <div className="flex flex-col items-center gap-4" role="alert">
+                  <p>{t('loadFailed')}</p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      dismissError()
+                      if (activeRoomId) void openRoom(activeRoomId)
+                      else {
+                        bootstrappedRef.current = false
+                        void refreshRooms()
+                      }
+                    }}
+                  >
+                    {t('retry')}
+                  </Button>
+                </div>
+              ) : (
+                <span className="vr-empty-eyebrow">{t('loading')}</span>
+              )}
             </div>
           </div>
         )}

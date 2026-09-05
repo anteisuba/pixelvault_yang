@@ -614,6 +614,7 @@ export function HuggingFaceLoraLibrary({
       ) : null}
 
       <LoraCoverPreviewDialog
+        key={coverPreview?.url ?? 'closed'}
         preview={coverPreview}
         onClose={() => setCoverPreview(null)}
       />

@@ -7,7 +7,7 @@ export const maxDuration = 10
 
 export const POST = createApiRoute({
   schema: CreateUploadAudioDirectRequestSchema,
-  rateLimit: RATE_LIMIT_CONFIGS.generateAudio,
+  rateLimit: RATE_LIMIT_CONFIGS.assetUpload,
   routeName: 'POST /api/upload-audio/direct',
   handler: async (clerkId, data) => {
     return await createUserAudioDirectUpload(clerkId, data)

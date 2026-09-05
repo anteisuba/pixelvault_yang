@@ -70,6 +70,7 @@ describe('POST /api/upload-image/direct', () => {
     )
 
     expect(response.status).toBe(200)
+    expect(response.headers.get('X-RateLimit-Limit')).toBe('120')
     const body = await parseJSON<{
       success: true
       data: { uploadUrl: string; storageKey: string }

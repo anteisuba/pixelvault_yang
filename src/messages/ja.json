@@ -2167,6 +2167,8 @@
     }
   },
   "LoraWorkbench": {
+    "coverPreviewPrevious": "前の画像",
+    "coverPreviewNext": "次の画像",
     "tabs": {
       "generate": "生成",
       "library": "ライブラリ",
@@ -6855,6 +6857,7 @@
     "mobileHint": "生成には約 2〜5 分かかります。このページを離れずにお待ちください。完了時にお知らせします"
   },
   "VoiceRoom": {
+    "loadFailed": "音声ルームを読み込めませんでした。再試行してください。",
     "joining": "追加中",
     "noSample": "試聴なし",
     "language": "言語",

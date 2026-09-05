@@ -52,6 +52,10 @@ import {
   type AssistantStreamMessage,
 } from '@/lib/assistant-stream-client'
 import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
+import {
+  UPLOAD_RATE_LIMIT_MAX_RETRIES,
+  UPLOAD_RATE_LIMIT_FALLBACK_MS,
+} from '@/constants/uploads'
 
 import {
   downloadRemoteAsset,
@@ -251,11 +255,36 @@ async function postJson<TResponse>(
   body: Record<string, unknown>,
   fallbackMessage: string,
 ): Promise<TResponse | { success: false; error: string }> {
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  const send = () =>
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  let response = await send()
+  for (
+    let retry = 0;
+    response.status === 429 && retry < UPLOAD_RATE_LIMIT_MAX_RETRIES;
+    retry++
+  ) {
+    const header = response.headers.get('Retry-After')
+    const delay =
+      header && /^\d+$/.test(header)
+        ? Number(header) * 1000
+        : header
+          ? Date.parse(header) - Date.now()
+          : NaN
+    await response.body?.cancel()
+    await new Promise((resolve) =>
+      setTimeout(
+        resolve,
+        Number.isFinite(delay)
+          ? Math.max(0, delay)
+          : UPLOAD_RATE_LIMIT_FALLBACK_MS,
+      ),
+    )
+    response = await send()
+  }
 
   if (!response.ok) {
     return {

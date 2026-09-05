@@ -774,7 +774,10 @@ describe('llmTextCompletion - OpenAI', () => {
     expect(isLlmTextContextLimitError(caught)).toBe(false)
   })
 
-  it('floors low maxTokens for gpt-5 reasoning models', async () => {
+  it.each([
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA,
+  ])('floors low maxTokens for %s reasoning models', async (modelId) => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -791,7 +794,7 @@ describe('llmTextCompletion - OpenAI', () => {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
       apiKey: 'sk-test',
-      modelId: 'gpt-5.6-terra',
+      modelId,
       maxTokens: 900,
     })
 

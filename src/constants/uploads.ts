@@ -137,3 +137,6 @@ export const USER_UPLOAD_ACCEPTED_SHARP_FORMATS = new Set([
   'webp',
   'gif',
 ])
+
+export const UPLOAD_RATE_LIMIT_MAX_RETRIES = 3
+export const UPLOAD_RATE_LIMIT_FALLBACK_MS = 60_000

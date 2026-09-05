@@ -183,61 +183,63 @@ export function MobileShell() {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-40 flex h-11 items-center gap-2 border-b border-sidebar-border bg-background/90 px-2 backdrop-blur-xl backdrop-saturate-150 lg:hidden">
-        {/* 左侧留白只为把切换器压在正中 —— 中间是拇指之外最容易命中的位置，
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-40 flex h-11 items-center px-2 lg:hidden">
+        <div className="pointer-events-auto flex h-9 w-full items-center gap-2 rounded-full bg-sidebar-active-surface px-1 shadow-sidebar-chip">
+          {/* 左侧留白只为把切换器压在正中 —— 中间是拇指之外最容易命中的位置，
             而这颗按钮是整个手机档唯一的导航入口。 */}
-        <span className="size-9 shrink-0" aria-hidden />
-
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-sidebar-active-surface px-3 text-sm font-semibold text-sidebar-accent-foreground shadow-sidebar-chip transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent"
-        >
-          {CurrentIcon ? <CurrentIcon className="size-4 shrink-0" /> : null}
-          <span className="truncate">{currentLabel}</span>
-          <ChevronDown className="size-3.5 shrink-0 text-sidebar-subtle" />
-        </button>
-
-        {hasHydrated && isLoaded ? (
-          <>
-            <SignedIn>
-              <button
-                type="button"
-                onClick={() => setOpen(true)}
-                aria-label={tNav('viewProfile')}
-                className="flex size-9 shrink-0 items-center justify-center rounded-full"
-              >
-                <span className="flex size-7 items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground">
-                  {profile?.avatarUrl ? (
-                    <Image
-                      src={profile.avatarUrl}
-                      alt=""
-                      width={28}
-                      height={28}
-                      unoptimized
-                      className="size-full object-cover"
-                    />
-                  ) : (
-                    <UserCircle className="size-4" />
-                  )}
-                </span>
-              </button>
-            </SignedIn>
-            <SignedOut>
-              <Link
-                href={ROUTES.SIGN_IN}
-                aria-label={tNav('signIn')}
-                className="flex size-9 shrink-0 items-center justify-center rounded-full text-sidebar-foreground"
-              >
-                <UserCircle className="size-5" />
-              </Link>
-            </SignedOut>
-          </>
-        ) : (
           <span className="size-9 shrink-0" aria-hidden />
-        )}
+
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold text-sidebar-accent-foreground transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent"
+          >
+            {CurrentIcon ? <CurrentIcon className="size-4 shrink-0" /> : null}
+            <span className="truncate">{currentLabel}</span>
+            <ChevronDown className="size-3.5 shrink-0 text-sidebar-subtle" />
+          </button>
+
+          {hasHydrated && isLoaded ? (
+            <>
+              <SignedIn>
+                <button
+                  type="button"
+                  onClick={() => setOpen(true)}
+                  aria-label={tNav('viewProfile')}
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full"
+                >
+                  <span className="flex size-7 items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground">
+                    {profile?.avatarUrl ? (
+                      <Image
+                        src={profile.avatarUrl}
+                        alt=""
+                        width={28}
+                        height={28}
+                        unoptimized
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      <UserCircle className="size-4" />
+                    )}
+                  </span>
+                </button>
+              </SignedIn>
+              <SignedOut>
+                <Link
+                  href={ROUTES.SIGN_IN}
+                  aria-label={tNav('signIn')}
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full text-sidebar-foreground"
+                >
+                  <UserCircle className="size-5" />
+                </Link>
+              </SignedOut>
+            </>
+          ) : (
+            <span className="size-9 shrink-0" aria-hidden />
+          )}
+        </div>
       </header>
 
       {/* 面板从顶栏落下。用 Radix Sheet 而不是自己搭浮层 —— focus trap、Esc、

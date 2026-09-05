@@ -3325,8 +3325,11 @@ body.home-v4-locked {
     padding-left: 16px;
   }
 
-  .home-v4 .topbar .locales {
-    display: none;
+  .home-v4 .topbar .locales a {
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 4px 7px;
   }
 
   .home-v4 .dots {
@@ -3845,7 +3848,7 @@ body.home-v4-locked {
 
   /* 06 资源库：网格 3×3（文字卡收起），回流条横排在下 */
   .home-v4 .fn-vault {
-    width: 100%;
+    width: min(400px, 100%);
   }
 
   .home-v4 .fn-vault .bar .p {

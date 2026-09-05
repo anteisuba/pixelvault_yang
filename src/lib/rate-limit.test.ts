@@ -23,11 +23,28 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 import { rateLimit } from './rate-limit'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 describe('rate-limit memory fallback', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRedisLimit.mockRejectedValue(new Error('redis unavailable'))
+  })
+
+  it('allows a 60-image batch and still blocks sustained per-account floods', async () => {
+    const config = RATE_LIMIT_CONFIGS.assetUpload
+    for (const stage of ['prepare', 'complete']) {
+      const key = `upload-${stage}:account-a`
+      for (let index = 0; index < 60; index++) {
+        expect((await rateLimit(key, config)).success).toBe(true)
+      }
+      for (let index = 60; index < config.limit; index++)
+        await rateLimit(key, config)
+      expect((await rateLimit(key, config)).success).toBe(false)
+      expect(
+        (await rateLimit(`upload-${stage}:account-b`, config)).success,
+      ).toBe(true)
+    }
   })
 
   it('evicts old keys instead of growing the process store without bound', async () => {

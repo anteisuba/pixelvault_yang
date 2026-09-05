@@ -552,6 +552,7 @@ export const LLM_TEXT_MODEL_IDS = {
   // newer flagship sol ($4/$20), strictly dominated. GPT-5.6 ships as three
   // price tiers with identical spec cards (sol flagship / terra balanced /
   // luna high-volume cheap); route tables pick the tier per use case.
+  OPENAI_GPT_6_ASTRA: 'gpt-6-astra',
   OPENAI_GPT_5_6_SOL: 'gpt-5.6-sol',
   OPENAI_GPT_5_6_TERRA: 'gpt-5.6-terra',
   OPENAI_GPT_5_6_LUNA: 'gpt-5.6-luna',
@@ -870,6 +871,7 @@ export type StudioMode = (typeof STUDIO_MODES)[number]
 
 /** Centralized rate limit configs (previously scattered across route files) */
 export const RATE_LIMIT_CONFIGS = {
+  assetUpload: { limit: 120, windowSeconds: 60 },
   generate: { limit: 10, windowSeconds: 60 },
   studioGenerate: { limit: 10, windowSeconds: 60 },
   generateVideo: { limit: 5, windowSeconds: 60 },

@@ -23,6 +23,11 @@ export const LLM_ENHANCE_ROUTE_MODELS = [
     label: 'OpenAI GPT-5.6 Sol',
   },
   {
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA,
+    label: 'OpenAI GPT-6 Astra',
+  },
+  {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
     modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH_LITE,
     label: 'Gemini 3.5 Flash Lite',

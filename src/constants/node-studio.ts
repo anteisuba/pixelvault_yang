@@ -283,6 +283,11 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA,
+    label: 'OpenAI GPT-6 Astra',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
     modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
     label: 'OpenAI GPT-5.6 Terra',
   },

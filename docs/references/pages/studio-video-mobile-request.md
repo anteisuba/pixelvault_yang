@@ -10,7 +10,7 @@
 
 1. 页面 / 域： `/studio/video`（Studio Video，生成模式）· `<1024`（`useIsMobile`）。桌面 `≥1024` 不变。
 2. 用户来这里完成的一件事： 选好用途（文生 / 首帧生 / 多图参考）和模型 → 写提示词（视频必填，即使已挂参考图）→ 点生成 → 等 2–5 分钟（留在本页看进度）→ 看结果 → 重混或换参数再生成。
-3. 改什么（范围）： 空态起手屏（用途分段控件置顶 + 2×2 示例卡 + 继续创作）、底部固定 composer（模型/规格/出声/参考图/音频参考/剧本 chip + prompt 输入 + 生成按钮）、排队中态（`StudioVideoQueueStrip` 移动端可见优先 + 说明文案解除 `hidden xl:block`）、结果态（16:9/9:16 播放器 + 动作行 + 反馈行）。不改 `StudioOperatorDock`（移动端本轮维持 `return null`）、不做后台任务（离开页面丢失该任务，owner 本轮接受）、不加相机 `capture` 属性（记为后续）。
+3. 改什么（范围）： 空态起手屏（用途分段控件置顶 + 2×2 示例卡 + 继续创作）、底部固定 composer（模型/规格/出声/参考图/音频参考/剧本/助手 chip + prompt 输入 + 生成按钮）、排队中态（`StudioVideoQueueStrip` 移动端可见优先 + 说明文案解除 `hidden xl:block`）、结果态（16:9/9:16 播放器 + 动作行 + 反馈行）。不改 `StudioOperatorDock`（移动端本轮维持 `return null`）、不做后台任务（离开页面丢失该任务，owner 本轮接受）、不加相机 `capture` 属性（记为后续）。
 4. 状态矩阵： 空（未生成，起手屏 + 用途分段 + 示例卡）· 排队中（`StudioVideoQueueStrip` 卡片：缩略图/spinner、标题、`mm:ss · 阶段`、进度条、取消）· 有内容（结果已出，播放器 + 动作行）· 错误（生成失败 → 队列卡内重试；缺 API key → `QuickSetupDialog`；模型不支持 worker 提交 → 提交时 toast 报错，已知缺口见第 7 条）· 禁用（生成按钮：`videoQueueFull` / `promptRequired`（视频即使挂了参考图也必须有提示词）/ `videoAudioNeedsVisual` / `referenceRequired`/`referenceUnsupported`，均以 toast 报因）· 选中（用途分段、模型/规格/出声 chip 的已选态、各 sheet/抽屉打开态）。
 5. 375px 结构（三态，配方见 `../ui-defaults.md §6` 与 `domains/studio.md` 移动端等级表）：
 

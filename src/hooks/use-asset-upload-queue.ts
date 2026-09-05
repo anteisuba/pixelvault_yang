@@ -118,6 +118,15 @@ export function useAssetUploadQueue({
   onUploaded,
 }: UseAssetUploadQueueOptions): UseAssetUploadQueueReturn {
   const [items, setItems] = useState<UploadQueueItem[]>([])
+  const itemsRef = useRef<UploadQueueItem[]>([])
+  const activeIdRef = useRef<string | null>(null)
+  const updateItems = useCallback(
+    (update: (current: UploadQueueItem[]) => UploadQueueItem[]) => {
+      itemsRef.current = update(itemsRef.current)
+      setItems(itemsRef.current)
+    },
+    [],
+  )
   // 文件对象不进 state：它不参与渲染，只在重试时要用。
   const filesRef = useRef<Map<string, File>>(new Map())
   const runningRef = useRef(false)
@@ -131,11 +140,11 @@ export function useAssetUploadQueue({
 
   const patchItem = useCallback(
     (id: string, patch: Partial<UploadQueueItem>) => {
-      setItems((current) =>
+      updateItems((current) =>
         current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
       )
     },
-    [],
+    [updateItems],
   )
 
   /**
@@ -151,29 +160,33 @@ export function useAssetUploadQueue({
         if (!id) continue
         const file = filesRef.current.get(id)
         if (!file) continue
-        let target: string | null = null
-        setItems((current) => {
-          const item = current.find((entry) => entry.id === id)
-          target = item?.targetProjectId ?? null
-          return current.map((entry) =>
-            entry.id === id
-              ? { ...entry, status: 'uploading', progress: 0, error: undefined }
-              : entry,
-          )
-        })
-        const result = await uploadRef.current(file, {
-          projectId: target,
-          onProgress: (percent) => patchItem(id, { progress: percent }),
-        })
-        if (result.ok && result.generation) {
-          patchItem(id, {
-            status: 'done',
-            progress: 100,
-            generation: result.generation,
+        const item = itemsRef.current.find((entry) => entry.id === id)
+        if (!item) continue
+        activeIdRef.current = id
+        patchItem(id, { status: 'uploading', progress: 0, error: undefined })
+        try {
+          const result = await uploadRef.current(file, {
+            projectId: item.targetProjectId,
+            onProgress: (percent) => patchItem(id, { progress: percent }),
           })
-          onUploadedRef.current?.(result.generation)
-        } else {
-          patchItem(id, { status: 'error', error: result.error })
+          if (result.ok && result.generation) {
+            patchItem(id, {
+              status: 'done',
+              progress: 100,
+              generation: result.generation,
+            })
+            filesRef.current.delete(id)
+            onUploadedRef.current?.(result.generation)
+          } else {
+            patchItem(id, { status: 'error', error: result.error })
+          }
+        } catch (error) {
+          patchItem(id, {
+            status: 'error',
+            error: error instanceof Error ? error.message : undefined,
+          })
+        } finally {
+          activeIdRef.current = null
         }
       }
     } finally {
@@ -203,16 +216,21 @@ export function useAssetUploadQueue({
         }
         return item
       })
-      setItems((current) => [...current, ...created])
+      updateItems((current) => [...current, ...created])
       queueRef.current.push(...created.map((item) => item.id))
       void drain()
     },
-    [drain, patchItem],
+    [drain, patchItem, updateItems],
   )
 
   const retry = useCallback(
     (id: string) => {
-      if (!filesRef.current.has(id)) return
+      if (
+        !filesRef.current.has(id) ||
+        activeIdRef.current === id ||
+        queueRef.current.includes(id)
+      )
+        return
       patchItem(id, { status: 'uploading', progress: 0, error: undefined })
       queueRef.current.push(id)
       void drain()
@@ -221,30 +239,25 @@ export function useAssetUploadQueue({
   )
 
   const retryAll = useCallback(() => {
-    setItems((current) => {
-      const failed = current.filter((item) => item.status === 'error')
-      queueRef.current.push(...failed.map((item) => item.id))
-      void drain()
-      return current.map((item) =>
-        item.status === 'error'
-          ? { ...item, status: 'uploading', progress: 0, error: undefined }
-          : item,
-      )
-    })
-  }, [drain])
+    const failed = itemsRef.current.filter((item) => item.status === 'error')
+    for (const item of failed) retry(item.id)
+  }, [retry])
 
-  const remove = useCallback((id: string) => {
-    queueRef.current = queueRef.current.filter((entry) => entry !== id)
-    filesRef.current.delete(id)
-    setItems((current) => {
-      const target = current.find((item) => item.id === id)
-      if (target) URL.revokeObjectURL(target.previewUrl)
-      return current.filter((item) => item.id !== id)
-    })
-  }, [])
+  const remove = useCallback(
+    (id: string) => {
+      queueRef.current = queueRef.current.filter((entry) => entry !== id)
+      filesRef.current.delete(id)
+      updateItems((current) => {
+        const target = current.find((item) => item.id === id)
+        if (target) URL.revokeObjectURL(target.previewUrl)
+        return current.filter((item) => item.id !== id)
+      })
+    },
+    [updateItems],
+  )
 
   const clearCompleted = useCallback(() => {
-    setItems((current) => {
+    updateItems((current) => {
       current
         .filter((item) => item.status === 'done')
         .forEach((item) => {
@@ -253,21 +266,28 @@ export function useAssetUploadQueue({
         })
       return current.filter((item) => item.status !== 'done')
     })
-  }, [])
+  }, [updateItems])
 
-  const changeTarget = useCallback((projectId: string | null) => {
-    setItems((current) =>
-      current.map((item) =>
-        // 已经传完的改不了目标 —— 那是「移动」，不是「上传到哪」。
-        item.status === 'done' ? item : { ...item, targetProjectId: projectId },
-      ),
-    )
-  }, [])
+  const changeTarget = useCallback(
+    (projectId: string | null) => {
+      updateItems((current) =>
+        current.map((item) =>
+          // 已经传完的改不了目标 —— 那是「移动」，不是「上传到哪」。
+          item.status === 'done' || item.id === activeIdRef.current
+            ? item
+            : { ...item, targetProjectId: projectId },
+        ),
+      )
+    },
+    [updateItems],
+  )
 
   // 组件卸载时把 object URL 还回去，避免长会话里堆内存。
   useEffect(() => {
     const urls = filesRef.current
     return () => {
+      queueRef.current = []
+      for (const item of itemsRef.current) URL.revokeObjectURL(item.previewUrl)
       urls.clear()
     }
   }, [])

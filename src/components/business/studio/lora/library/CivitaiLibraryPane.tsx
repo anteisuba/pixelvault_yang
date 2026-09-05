@@ -912,6 +912,8 @@ export function CivitaiCommunityBranch({
       ) : null}
 
       <LoraCoverPreviewDialog
+        key={coverPreview?.url ?? 'closed'}
+        images={sampleImages.map((image) => proxyCivitaiImageUrl(image.url))}
         preview={coverPreview}
         onClose={() => setCoverPreview(null)}
       />

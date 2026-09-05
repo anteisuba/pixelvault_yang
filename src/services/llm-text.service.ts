@@ -376,12 +376,12 @@ function getOpenAiChatBaseUrl(baseUrl?: string): string {
 }
 
 function isOpenAiReasoningModel(modelId: string): boolean {
-  return /^(gpt-5|o[134])(?:[.-]|$)/i.test(modelId)
+  return /^(gpt-[56]|o[134])(?:[.-]|$)/i.test(modelId)
 }
 
 /**
  * Resolve completion token budget for OpenAI chat.
- * Reasoning models (gpt-5*, o1/o3/o4) bill hidden reasoning against
+ * Reasoning models (gpt-5/6*, o1/o3/o4) bill hidden reasoning against
  * max_completion_tokens; callers that pass a small maxTokens often get
  * empty content with finish_reason=length. Floor those models at
  * OPENAI_REASONING so assistant / planner routes stay reliable.
@@ -1477,7 +1477,7 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
  * `useGrounding` it swaps `modelId` for `OPENAI_GPT_5_SEARCH_API` — i.e. a
  * grounded Grok turn would be billed to OpenAI. Copying the DeepSeek/DashScope
  * shape keeps this route's host and model ids its own; it also sidesteps
- * `isOpenAiReasoningModel`, whose `/^(gpt-5|o[134])/` regex never matches a
+ * `isOpenAiReasoningModel`, whose `/^(gpt-[56]|o[134])/` regex never matches a
  * `grok-*` id and would hand Grok a too-small token budget.
  *
  * Image input IS supported (grok-4.6 takes `text, image → text`; 20MiB max,

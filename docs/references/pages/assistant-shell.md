@@ -39,7 +39,7 @@
 
 - 头部控件在窄浮卡内必须可见；模型触发器允许截断。
 - 模型/历史弹层在浮卡内侧对齐并使用碰撞检测，不得向视口外或不可见方向展开。
-- 三处使用同一助手模型注册表：OpenAI GPT-5.6 三档、Gemini 3.7 Flash、DeepSeek V4 Pro、DeepSeek V4 Flash Vision Exp、Claude Fable 5.1、Grok 4.6；Qwen 不进入助手。
+- 三处使用同一助手模型注册表：OpenAI GPT-6 Astra 与 GPT-5.6 三档、Gemini 3.7 Flash、DeepSeek V4 Pro、DeepSeek V4 Flash Vision Exp、Claude Fable 5.1、Grok 4.6；Qwen 不进入助手。
 - 缺 key 时仍显示模型并打开 `QuickSetupDialog`，不得禁用整个入口。
 
 ## 3. 对话与领域上下文

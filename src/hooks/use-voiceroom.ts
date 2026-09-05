@@ -92,6 +92,7 @@ export interface UseVoiceRoomResult {
     lineId: string,
     patch: { emotion?: AudioEmotion | null; text?: string },
   ) => Promise<void>
+  refreshRooms: () => Promise<void>
   dismissError: () => void
 }
 
@@ -136,6 +137,8 @@ export function useVoiceRoom(): UseVoiceRoomResult {
   const activeRoomRef = useRef<string | null>(null)
 
   const refreshRooms = useCallback(async () => {
+    setLoadingRooms(true)
+    setError(null)
     const result = await listVoiceRoomsAPI()
     if (result.success && result.data) setRooms(result.data)
     else if (result.error) setError(result.error)
@@ -379,6 +382,7 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     removeRoom,
     say,
     retake,
+    refreshRooms,
     dismissError,
   }
 }

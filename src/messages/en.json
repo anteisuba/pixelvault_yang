@@ -2167,6 +2167,8 @@
     }
   },
   "LoraWorkbench": {
+    "coverPreviewPrevious": "Previous image",
+    "coverPreviewNext": "Next image",
     "tabs": {
       "generate": "Generate",
       "library": "Library",
@@ -6855,6 +6857,7 @@
     "mobileHint": "This takes about 2–5 minutes. Stay on this page — you'll be notified when it's done."
   },
   "VoiceRoom": {
+    "loadFailed": "Could not load the voice room. Please retry.",
     "joining": "Adding",
     "noSample": "No preview",
     "language": "Language",

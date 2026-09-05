@@ -261,9 +261,8 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
               {tScript('panelTitle')}
             </button>
           </>
-        ) : (
-          <StudioEnhanceButton disabled={isGenerating} />
-        )}
+        ) : null}
+        <StudioEnhanceButton disabled={isGenerating} />
       </Toolbar.Root>
 
       {/* 费用行（视频档）—— 一行 mono，说清「多少钱 + 怎么算出来的」。

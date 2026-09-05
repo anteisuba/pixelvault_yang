@@ -48,8 +48,9 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k3', adapterType: AI_ADAPTER_TYPES.VOLCENGINE }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('enhance'))
-      // One key × N registry tiers → N options (OpenAI 3, Gemini 2).
+      // One key × N registry tiers → N options (OpenAI 4, Gemini 2).
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
+        'k1',
         'k1',
         'k1',
         'k1',
@@ -65,6 +66,7 @@ describe('useLLMRoutePicker', () => {
       ])
       const { result } = renderHook(() => useLLMRoutePicker('enhance'))
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
+        'k1',
         'k1',
         'k1',
         'k1',
@@ -101,6 +103,7 @@ describe('useLLMRoutePicker', () => {
           'OpenAI GPT-5.6 Luna',
           'OpenAI GPT-5.6 Terra',
           'OpenAI GPT-5.6 Sol',
+          'OpenAI GPT-6 Astra',
           'Gemini 3.5 Flash Lite',
           'Gemini 3.7 Flash',
           'Qwen Flash',
@@ -149,9 +152,10 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k5', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
-      // OpenAI expands to 3 tiers; DeepSeek exposes text + vision tiers.
+      // OpenAI expands to 4 tiers; DeepSeek exposes text + vision tiers.
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
+        'k2',
         'k2',
         'k2',
         'k2',
@@ -177,6 +181,7 @@ describe('useLLMRoutePicker', () => {
         AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.OPENAI,
+        AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.DEEPSEEK,
@@ -185,6 +190,25 @@ describe('useLLMRoutePicker', () => {
       ])
     })
   })
+
+  it.each(['enhance', 'assistant'] as const)(
+    'exposes GPT-6 with the saved OpenAI key in %s',
+    (scope) => {
+      mockApiKeys([
+        makeKey({ id: 'openai-key', adapterType: AI_ADAPTER_TYPES.OPENAI }),
+      ])
+      const { result } = renderHook(() => useLLMRoutePicker(scope))
+      expect(result.current.savedRoutes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            modelId: 'gpt-6-astra',
+            apiKeyId: 'openai-key',
+            label: 'OpenAI GPT-6 Astra',
+          }),
+        ]),
+      )
+    },
+  )
 
   describe('common behavior', () => {
     it('allRoutes equals savedRoutes + lockedRoutes', () => {

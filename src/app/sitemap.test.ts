@@ -19,7 +19,7 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 const LOCALE_COUNT = 3
-const STATIC_ROUTES_PER_LOCALE = 4
+const STATIC_ROUTES_PER_LOCALE = 2
 
 function makeGenerations(count: number, offset = 0) {
   return Array.from({ length: count }, (_, i) => ({

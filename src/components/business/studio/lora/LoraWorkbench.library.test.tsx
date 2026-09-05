@@ -188,7 +188,7 @@ function makeLibraryItem(
   }
 }
 
-describe('LoraWorkbench CivitaiCommunityBranch — single-column flow + in-place detail', () => {
+describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail drawer', () => {
   beforeEach(() => {
     mockSection = 'community'
     mockLibraryQuery = ''
@@ -289,19 +289,16 @@ describe('LoraWorkbench CivitaiCommunityBranch — single-column flow + in-place
     }))
   })
 
-  it('renders one collapsed row per library item (not a cover grid)', () => {
+  it('renders a grid card per library item', () => {
     render(<LoraWorkbench />)
 
-    // Each item is a single expandable row button keyed by name.
-    expect(screen.getByRole('button', { name: 'Perlica' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    )
+    // Each item is a card button keyed by name.
+    expect(screen.getByRole('button', { name: 'Perlica' })).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Detail Tweaker' }),
-    ).toHaveAttribute('aria-expanded', 'false')
+    ).toBeInTheDocument()
     // Collapsed rows do NOT carry the favorite action — that lives in the
-    // in-place expanded detail only (confirmed Library key slice).
+    // detail drawer only.
     expect(
       screen.queryByRole('button', { name: 'LoraWorkbench:favorite' }),
     ).not.toBeInTheDocument()
@@ -321,7 +318,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — single-column flow + in-place
     expect(screen.queryByText('Perlica')).not.toBeInTheDocument()
   })
 
-  it('expands the detail in place when a row is clicked — no dialog, no jump', () => {
+  it('opens the detail drawer when a card is clicked', () => {
     render(<LoraWorkbench />)
 
     // Nothing is expanded and no dialog exists before interaction.
@@ -334,13 +331,10 @@ describe('LoraWorkbench CivitaiCommunityBranch — single-column flow + in-place
     expect(mockSelectItem).toHaveBeenCalledWith(
       expect.objectContaining({ id: '1', name: 'Perlica' }),
     )
-    // In-place detail exposes the three confirmed actions; it is NOT a dialog.
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // Card details share the same drawer on desktop and mobile.
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'LoraWorkbench:useThisLora' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'LoraWorkbench:collapseDetail' }),
     ).toBeInTheDocument()
   })
 
@@ -359,35 +353,19 @@ describe('LoraWorkbench CivitaiCommunityBranch — single-column flow + in-place
     expect(mockFavoriteCivitaiLora).toHaveBeenCalledWith(
       expect.objectContaining({ id: '1', name: 'Perlica' }),
     )
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
-  it('collapses the expanded detail back to a row', async () => {
+  it('closes the detail drawer with Escape', async () => {
     render(<LoraWorkbench />)
-
     fireEvent.click(screen.getByRole('button', { name: 'Perlica' }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    const drawer = screen.getByRole('dialog')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(drawer).toHaveAttribute('data-state', 'closed'))
     expect(
-      screen.getByRole('button', { name: 'LoraWorkbench:useThisLora' }),
-    ).toBeInTheDocument()
-
-    // Collapse plays a height transition, then unmounts the detail
-    // (LoraLibraryDetailReveal keeps it mounted until the transition/fallback
-    // completes so the row doesn't flash in over the shrinking detail).
-    fireEvent.click(
-      screen.getByRole('button', { name: 'LoraWorkbench:collapseDetail' }),
-    )
-    // The detail unmounts after the collapse transition's fallback timer
-    // (~340ms); allow generous headroom so a loaded box (timers starved by a
-    // heavy module-transform graph or a concurrent typecheck) doesn't flake
-    // this. 3000ms proved too tight once the workbench's import graph grew
-    // (S3 库 modal)，故拉到 8000ms——只是给异步卸载更多余量，断言不变。
-    await waitFor(
-      () =>
-        expect(
-          screen.queryByRole('button', { name: 'LoraWorkbench:useThisLora' }),
-        ).not.toBeInTheDocument(),
-      { timeout: 8000 },
-    )
+      screen.queryByRole('button', { name: 'LoraWorkbench:useThisLora' }),
+    ).not.toBeInTheDocument()
   })
 
   it('disables Previous on page 1 and enables Next when hasNextPage is true', () => {
@@ -698,7 +676,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
 
 // R1 单列行视觉：未展开行显示序号 + 名称 + 家族标 + 源，external 家族
 // （Pony）行照常渲染、不崩，且行内不带收藏心（收藏在展开详情里）。
-describe('LoraWorkbench CivitaiCommunityBranch — single-column row visuals', () => {
+describe('LoraWorkbench CivitaiCommunityBranch — cover grid visuals', () => {
   beforeEach(() => {
     mockSection = 'community'
     mockLibraryQuery = ''
@@ -749,11 +727,11 @@ describe('LoraWorkbench CivitaiCommunityBranch — single-column row visuals', (
     }))
   })
 
-  it('renders an external-family row as a collapsed expandable row', () => {
+  it('renders an external-family card with its family label', () => {
     render(<LoraWorkbench />)
 
     const row = screen.getByRole('button', { name: 'Pony Card' })
-    expect(row).toHaveAttribute('aria-expanded', 'false')
+    expect(row).toBeInTheDocument()
     // Family label shown verbatim on the row.
     expect(within(row).getByText('Pony')).toBeInTheDocument()
   })

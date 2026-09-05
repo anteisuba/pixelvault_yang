@@ -343,6 +343,14 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           }
         }
       } catch {
+        /**
+         * ⚠ abort 会**穿透 `for await`**：插话 / ⏹ 掐掉的是底下那个 `reader.read()`，
+         * 它以 `AbortError` 拒绝，于是循环不是 `break` 出来的而是抛出来的。
+         * 没有这一判的表现是：插一句话 → 新一轮已经置 `working`，旧循环的这个
+         * catch 随后把状态改成 `error`，而下面那句收尾只在 `working` 时归 idle ——
+         * 错误态就永久挂在胶囊上，新一轮跑完也擦不掉。
+         */
+        if (controller.signal.aborted) return
         setOperatorStatus('error', null)
         return
       }
@@ -385,6 +393,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     abortRef.current?.abort()
     abortRef.current = null
     setOperatorStatus('idle')
+    // ⚠ 计划数也得清：胶囊上那个 `3/7` 的分母来自上一轮的计划条，不清的表现是
+    //    按了 ⏹ 之后胶囊继续挂着「还有四步没跑」，而根本不会再有那四步。
+    setOperatorPlannedSteps(0)
     appendOperatorEntry({
       kind: 'system',
       id: nextOperatorEntryId('sys'),

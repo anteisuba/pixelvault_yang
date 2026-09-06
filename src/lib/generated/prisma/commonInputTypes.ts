@@ -460,6 +460,23 @@ export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedIntNullableFilter<$PrismaModel>
 }
 
+export type EnumProjectRuleSourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.ProjectRuleSource | Prisma.EnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.ProjectRuleSource[] | Prisma.ListEnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ProjectRuleSource[] | Prisma.ListEnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumProjectRuleSourceFilter<$PrismaModel> | $Enums.ProjectRuleSource
+}
+
+export type EnumProjectRuleSourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ProjectRuleSource | Prisma.EnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.ProjectRuleSource[] | Prisma.ListEnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ProjectRuleSource[] | Prisma.ListEnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumProjectRuleSourceWithAggregatesFilter<$PrismaModel> | $Enums.ProjectRuleSource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumProjectRuleSourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumProjectRuleSourceFilter<$PrismaModel>
+}
+
 export type FloatFilter<$PrismaModel = never> = {
   equals?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   in?: number[] | Prisma.ListFloatFieldRefInput<$PrismaModel>
@@ -981,6 +998,23 @@ export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
   _sum?: Prisma.NestedIntNullableFilter<$PrismaModel>
   _min?: Prisma.NestedIntNullableFilter<$PrismaModel>
   _max?: Prisma.NestedIntNullableFilter<$PrismaModel>
+}
+
+export type NestedEnumProjectRuleSourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.ProjectRuleSource | Prisma.EnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.ProjectRuleSource[] | Prisma.ListEnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ProjectRuleSource[] | Prisma.ListEnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumProjectRuleSourceFilter<$PrismaModel> | $Enums.ProjectRuleSource
+}
+
+export type NestedEnumProjectRuleSourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ProjectRuleSource | Prisma.EnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.ProjectRuleSource[] | Prisma.ListEnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ProjectRuleSource[] | Prisma.ListEnumProjectRuleSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumProjectRuleSourceWithAggregatesFilter<$PrismaModel> | $Enums.ProjectRuleSource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumProjectRuleSourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumProjectRuleSourceFilter<$PrismaModel>
 }
 
 export type NestedFloatWithAggregatesFilter<$PrismaModel = never> = {

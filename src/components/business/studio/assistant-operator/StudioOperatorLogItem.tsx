@@ -25,9 +25,11 @@ import {
   Layers,
   Link2,
   Music2,
+  NotebookPen,
   Pencil,
   RectangleHorizontal,
   ScanEye,
+  ScrollText,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -109,6 +111,13 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]: Blocks,
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]: Unplug,
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]: SlidersHorizontal,
+  /**
+   * 规则两条（§10）。⚠ 读与记**不共用一枚**：日志流里这两条常常前后脚出现
+   * （先翻一遍旧规则，再记下新的一条），长一样就分不出哪条是哪条 ——
+   * 与上面挂/摘 LoRA 那一对同一条论据。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules]: ScrollText,
+  [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]: NotebookPen,
 }
 
 interface StudioOperatorLogItemProps {

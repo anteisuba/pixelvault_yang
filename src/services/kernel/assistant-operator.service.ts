@@ -17,9 +17,21 @@ import {
   ASSISTANT_OPERATOR_WRITE_MODES,
   isAssistantOperatorToolInDomain,
   type AssistantOperatorConfirmField,
+  type AssistantOperatorDomain,
   type AssistantOperatorRejectReason,
   type AssistantOperatorSearchKind,
   type AssistantOperatorTool,
+} from '@/constants/assistant-operator'
+import {
+  ASSISTANT_PERSONA_LANGUAGE_IDS,
+  ASSISTANT_PERSONA_PLAN_MODE_IDS,
+  ASSISTANT_PERSONA_TONE_IDS,
+  ASSISTANT_PERSONA_VERBOSITY_IDS,
+  ASSISTANT_PERSONA_LIMITS as PERSONA_LIMITS,
+} from '@/constants/assistant-persona'
+import {
+  ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
+  PROJECT_RULE_SOURCE_IDS,
 } from '@/constants/assistant-operator'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import { ASSISTANT_DOMAIN_BRIEFS } from '@/constants/assistant-protocol'
@@ -53,6 +65,27 @@ import {
 } from '@/services/llm-text.service'
 import { getPublicGenerationPage } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
+/**
+ * ⭐ 助手人设（§8.5）。加它进钱闸白名单的判据：它读写的是**一张只有文本列的
+ * 1:1 侧表**——不创建 generation、不扣 credit、不调 provider、够不着 R2。
+ * ⛔ 自定义头像那条腿（会写 R2）**有意不在这里**：它住在另一个文件里，工具环因此
+ * 在 import 表上就够不着上传。⚠ 那个文件与那两个函数的名字逐字写在钱闸的用例里，
+ * 所以这段注释里也不写出来 —— 那份测试扫的是源码文本，注释也算数。
+ */
+import {
+  getAssistantPersonaByUserId,
+  sanitizeToneCustom,
+} from '@/services/assistant-persona.service'
+/**
+ * ⭐ 项目规则（§10，拍板 23）。判据与上一条逐字同源：一张只有文本列的表，
+ * 读写它花不掉一分钱。⚠ 它是这份名单里**唯一一条会往库里写**的服务 ——
+ * 写的是用户自己说过的一句话，与「创建 generation」不是一回事。
+ */
+import {
+  ProjectRuleLimitError,
+  addProjectRule,
+  listProjectRules,
+} from '@/services/project-rule.service'
 /**
  * ⭐ 借一条**能看图**的路（P3-C）。加它进钱闸白名单的判据与
  * `web-research.service` 同一条：它是**路由解析**模块 —— 产出是一把 key 加一个
@@ -92,6 +125,7 @@ import {
   type AssistantOperatorTurn,
 } from '@/types/assistant-operator'
 import type { OutputType, PromptAssistantResponseLanguage } from '@/types'
+import type { AssistantPersona, ProjectRule } from '@/types/assistant-persona'
 import type { AssistantAssetFolderCandidate } from '@/types/asset-folder-vision'
 import type { LoraCandidate } from '@/types/lora-candidate'
 
@@ -268,6 +302,19 @@ interface OperatorRun {
    */
   executedStepKeys: Set<string>
   stepSeq: number
+  /**
+   * 这个用户的助手人设（§8.5）。**服务端自己按 clerkId 读**，⛔ 不从客户端收 ——
+   * 它直连系统提示。缺行时是 `ASSISTANT_PERSONA_DEFAULTS`，不是 null。
+   */
+  persona: AssistantPersona
+  /**
+   * 本轮**读到过**的项目规则，按 id 索引（§10）。
+   *
+   * ⛔ `rule_hit` 只认这张表里的 id：让模型转述规则，转述出来的那句话就不再是
+   * 用户写下的那句 —— 而规则薄卡的价值恰恰在于「这是你当时写的原话」。
+   * ⚠ 开跑前就把进系统提示的那几条塞进来（模型引用它们时不必先调工具）。
+   */
+  ruleIndex: Map<string, ProjectRule>
 }
 
 /**
@@ -1804,7 +1851,7 @@ async function planCritiqueResult(
     null
 
   const raw = await completeAssistantTextWithContextRetry({
-    systemPrompt: buildCritiqueSystemPrompt(run.request),
+    systemPrompt: buildCritiqueSystemPrompt(run.request, run.persona),
     buildUserPrompt: (maxLength) =>
       buildCritiquePrompt(run, goal, result.modelLabel, maxLength),
     route: visionRoute,
@@ -1850,6 +1897,107 @@ async function planCritiqueResult(
         advice ? `\n  next: ${advice}` : ''
       }\nNow change the form to act on what you saw — the creator presses generate again themselves.`,
     }),
+  }
+}
+
+// ─── 项目规则（§10，拍板 23）────────────────────────────────────
+
+function planReadProjectRules(
+  run: OperatorRun,
+  args: { scope?: AssistantOperatorDomain },
+  userId: string,
+): ToolPlan {
+  const scope = args.scope ?? null
+
+  return {
+    kind: 'read',
+    payload: { scope },
+    run: async () => {
+      const rules = await listProjectRules(userId, {
+        scope,
+        limit: RULE_LIMITS.maxReadResults,
+      })
+      for (const rule of rules) run.ruleIndex.set(rule.id, rule)
+
+      const observation =
+        rules.length === 0
+          ? // 空结果说出来 —— 静默的空结果会让模型接着编一条规则出来引用。
+            'read_project_rules found NO standing rules for this creator. Do not invent one, and do not cite a rule id.'
+          : `read_project_rules → ${rules.length} rule(s):\n${rules
+              .map(
+                (rule) =>
+                  `  - id=${rule.id} · ${rule.scope ?? 'all workbenches'} · recorded ${rule.createdAt.slice(0, 10)} · "${rule.text}"`,
+              )
+              .join('\n')}`
+
+      return { result: { rules }, observation }
+    },
+  }
+}
+
+/**
+ * 记一条规则。
+ *
+ * ⚠ 它是全表**唯一一条后果落在服务端**的改动型工具（其余每一条都只是吐一个 op
+ * 让客户端应用）。所以**写发生在规划期** —— 与 `critique_result` 的视觉那一跳
+ * 同一个位置，理由也一样：`payload` 里那条 `ruleId` 是库里刚写出来的那一行，
+ * 而 `payload` 必须在第一个 `running` 事件里就是真的。先吐 `running` 再去写，
+ * 日志上那一条就得先带着一个假 id，撤销拿它什么都删不掉。
+ * ⚠ 上限撞到时在这里拒，⛔ 不静默丢弃、也不挤掉最老的一条。
+ */
+async function planAddProjectRule(
+  run: OperatorRun,
+  args: { text: string; scope?: AssistantOperatorDomain },
+  userId: string,
+): Promise<ToolPlan> {
+  const scope = args.scope ?? null
+  const text = args.text.trim()
+
+  /**
+   * ⚠ 同一句话记两遍**在这里拒**：`executedStepKeys` 按参数比对，模型换一个标点
+   * 就绕过去了 —— 而「上一步好像没生效，再记一次」正是它最爱做的事。
+   */
+  for (const existing of run.ruleIndex.values()) {
+    if (existing.text.trim() === text) {
+      return reject(
+        REJECT.repeatedStep,
+        `That rule is already recorded (id=${existing.id}). Cite it instead of writing it again.`,
+      )
+    }
+  }
+
+  let rule: ProjectRule
+  try {
+    rule = await addProjectRule(userId, {
+      text,
+      scope,
+      source: PROJECT_RULE_SOURCE_IDS.assistant,
+    })
+  } catch (error) {
+    if (error instanceof ProjectRuleLimitError) {
+      return reject(
+        REJECT.ruleLimitReached,
+        `The creator already has ${error.limit} standing rules — the most this app keeps. Tell them plainly that an old one has to go before a new one fits; do not pick which.`,
+      )
+    }
+    throw error
+  }
+
+  run.ruleIndex.set(rule.id, rule)
+
+  return {
+    kind: 'mutate',
+    payload: {
+      ruleId: rule.id,
+      scope: rule.scope,
+      text: rule.text,
+      source: rule.source,
+      createdAt: rule.createdAt,
+    },
+    inverse: { ruleId: rule.id },
+    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}). It now applies to ${rule.scope ?? 'every workbench'}. Do not record it again.`,
+    // 后果已经落在库里了 —— 客户端这一步没有任何表单字段要改。
+    apply: () => {},
   }
 }
 
@@ -1992,6 +2140,18 @@ async function planTool(
         run,
         parsed.data as { loraId: string; weight: number },
       )
+    case TOOL.readProjectRules:
+      return planReadProjectRules(
+        run,
+        parsed.data as { scope?: AssistantOperatorDomain },
+        userId,
+      )
+    case TOOL.addProjectRule:
+      return planAddProjectRule(
+        run,
+        parsed.data as { text: string; scope?: AssistantOperatorDomain },
+        userId,
+      )
     default:
       return assertNever(tool)
   }
@@ -2010,6 +2170,25 @@ const RESPONSE_LANGUAGE_LABELS: Record<
   english: 'English',
   japanese: 'Japanese',
   chinese: 'Simplified Chinese',
+}
+
+/**
+ * 这一轮说哪种语言 —— **persona 的语言档覆盖请求里的那个**（§8.2 / §8.5）。
+ *
+ * ⚠ `ui` 是「跟界面走」，也就是请求里带上来的那一档；另外两档是用户在助手设置里
+ * 明确说过的话，⛔ 不该被界面语言压过去（那正是他去设置里改它的原因）。
+ */
+function resolveResponseLanguage(
+  request: AssistantOperatorRequest,
+  persona: AssistantPersona,
+): PromptAssistantResponseLanguage {
+  if (persona.language === ASSISTANT_PERSONA_LANGUAGE_IDS.chinese) {
+    return 'chinese'
+  }
+  if (persona.language === ASSISTANT_PERSONA_LANGUAGE_IDS.english) {
+    return 'english'
+  }
+  return request.responseLanguage ?? 'english'
 }
 
 /**
@@ -2062,10 +2241,104 @@ function buildModelDialectSection(request: AssistantOperatorRequest): string {
   }`
 }
 
-function buildOperatorSystemPrompt(request: AssistantOperatorRequest): string {
+/**
+ * persona 的**风格段**（§8.5）——「这个助手是谁、怎么说话」。
+ *
+ * 拼在 `HOW YOU TALK` 末尾、`TOOLS:` 之前：它说的是口吻，不是能力，
+ * ⛔ 别插进 HARD RULES（那一段是结构性的，用户改不了）。
+ *
+ * ⚠ 整段有硬上限（`PERSONA_LIMITS.maxStyleSectionChars`）。系统提示不参与
+ * `OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH` 那段压缩，所以这里不封顶就是真的
+ * 不封顶 —— 而 `toneCustom` 是一段用户自由文本。
+ */
+const TONE_DIRECTIVES: Record<
+  Exclude<AssistantPersona['tone'], typeof ASSISTANT_PERSONA_TONE_IDS.custom>,
+  string
+> = {
+  [ASSISTANT_PERSONA_TONE_IDS.professional]:
+    'Keep it professional and even — plain working language, no filler warmth.',
+  [ASSISTANT_PERSONA_TONE_IDS.friendly]:
+    'Be warm and conversational, the way a colleague talks — still concrete, never gushing.',
+  [ASSISTANT_PERSONA_TONE_IDS.terse]:
+    'Be terse. Say the thing and stop; no preamble, no sign-off.',
+}
+
+/**
+ * 长度三档 → **字数区间**。
+ * ⛔ 不给「简短点」这类无边界形容词：模型对它的解读每一轮都不一样。
+ */
+const VERBOSITY_DIRECTIVES: Record<AssistantPersona['verbosity'], string> = {
+  [ASSISTANT_PERSONA_VERBOSITY_IDS.concise]: 'Answer in under 2 sentences.',
+  [ASSISTANT_PERSONA_VERBOSITY_IDS.standard]: 'Answer in 2–4 sentences.',
+  [ASSISTANT_PERSONA_VERBOSITY_IDS.detailed]: 'Answer in up to 6 sentences.',
+}
+
+/**
+ * 默认行为（「先问我」的初始态）。
+ * ⚠ `auto` **什么都不写** —— 那就是今天的行为，写一句反而是在改它。
+ * ⚠ 单轮的「先问我」永远压过 persona，那道闸在面板那一侧，不在这里。
+ */
+const PLAN_MODE_DIRECTIVES: Record<
+  AssistantPersona['planMode'],
+  string | null
+> = {
+  [ASSISTANT_PERSONA_PLAN_MODE_IDS.always]:
+    'Always open with a plan card before touching anything.',
+  [ASSISTANT_PERSONA_PLAN_MODE_IDS.auto]: null,
+  [ASSISTANT_PERSONA_PLAN_MODE_IDS.direct]:
+    'Skip the plan unless the request spends credits or needs more than three steps.',
+}
+
+function buildPersonaStyleSection(persona: AssistantPersona): string {
+  const toneCustom = sanitizeToneCustom(persona)
+  const lines = [
+    persona.tone === ASSISTANT_PERSONA_TONE_IDS.custom
+      ? toneCustom
+        ? `- the creator described how they want you to sound: '${toneCustom}'`
+        : null
+      : `- ${TONE_DIRECTIVES[persona.tone]}`,
+    `- ${VERBOSITY_DIRECTIVES[persona.verbosity]}`,
+    PLAN_MODE_DIRECTIVES[persona.planMode]
+      ? `- ${PLAN_MODE_DIRECTIVES[persona.planMode]}`
+      : null,
+  ].filter((line): line is string => line !== null)
+
+  return clamp(`\n${lines.join('\n')}`, PERSONA_LIMITS.maxStyleSectionChars)
+}
+
+/**
+ * 项目规则段（§10，拍板 23）—— 把用户写下的规矩摆进系统提示。
+ *
+ * ⭐ **为什么不是只给一条工具**：一条助手从没读过的规则等于没有。最近
+ * `RULE_LIMITS.maxInPrompt` 条直接进提示，更早的那些靠 `read_project_rules` 翻。
+ * ⭐ **为什么要求引用时吐 `rule_hit`**：规则薄卡要显示的是用户当时写下的原话，
+ * 而模型只给 id —— 原文由服务端从这张表里查出来填（转述过的规则就不是规则了）。
+ */
+function buildProjectRulesSection(rules: readonly ProjectRule[]): string {
+  if (rules.length === 0) return ''
+
+  const lines = rules
+    .map(
+      (rule) =>
+        `  - [${rule.id}] (${rule.scope ?? 'all workbenches'}, recorded ${rule.createdAt.slice(0, 10)}) ${rule.text}`,
+    )
+    .join('\n')
+
+  return `\n\nSTANDING RULES THIS CREATOR WROTE DOWN — they outrank your own defaults, and they are not suggestions:
+${lines}
+- Whenever one of these actually shaped what you did or said, put its id in "ruleHits" for that turn. The app shows the creator the rule you followed, in their own words.
+- Cite only ids from the list above (or from a read_project_rules result this turn). Never invent one, and never re-word a rule — quote it by id and let the app print it.
+- When the creator states a NEW standing rule, record it with add_project_rule. A one-off instruction for this run is not a standing rule.`
+}
+
+function buildOperatorSystemPrompt(
+  request: AssistantOperatorRequest,
+  persona: AssistantPersona,
+  rules: readonly ProjectRule[],
+): string {
   const brief = ASSISTANT_DOMAIN_BRIEFS[request.domain]
   const language =
-    RESPONSE_LANGUAGE_LABELS[request.responseLanguage ?? 'english']
+    RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
   /**
    * ⭐ **只列这个域有的工具**（P4-A，拍板 8）。列全集的代价是实打实的：
    * 视频档上看得见 `set_count`，模型就会去试，而每一步都是一次完整的 LLM 往返，
@@ -2121,7 +2394,15 @@ function buildOperatorSystemPrompt(request: AssistantOperatorRequest): string {
     .filter((rule): rule is string => rule !== null)
     .join('\n')
 
-  return `You are PixelVault's workbench operator. ${brief.persona}
+  /**
+   * ⚠ 名字**只换首句的主语**，⛔ 不覆盖域人设（`brief.persona` 说的是「这台工作台
+   * 上的助手懂什么」，与「他叫什么」是两件事）。
+   */
+  const opening = persona.name
+    ? `You are ${persona.name}, PixelVault's workbench operator.`
+    : "You are PixelVault's workbench operator."
+
+  return `${opening} ${brief.persona}
 
 WHAT THIS DOMAIN TURNS ON — check these are settled before you arm anything:
 ${slots}
@@ -2143,7 +2424,7 @@ HOW YOU TALK — the creator hired an operator, not a rulebook:
 - NEVER recite your own constraints to them. Not what you cannot do, not why, not "as I mentioned". They did not ask for the manual, and repeating it makes them do the thinking you were hired for.
 - If a tool in your list can do a thing, DO IT. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The one exception is the generate button itself, which is theirs by design.
 - When a call is refused, change the approach silently. Say what you are doing next, not which rule stopped you. Never explain the same rule twice.
-- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.
+- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.${buildPersonaStyleSection(persona)}${buildProjectRulesSection(rules)}
 
 TOOLS:
 ${tools}
@@ -2205,9 +2486,12 @@ const OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH = 24_000
  * 路看不见图时这一跳是借来的（`findVisionCapableRoute`）。把工具表塞给它只会
  * 让它去调一个它这一跳根本没有的工具。
  */
-function buildCritiqueSystemPrompt(request: AssistantOperatorRequest): string {
+function buildCritiqueSystemPrompt(
+  request: AssistantOperatorRequest,
+  persona: AssistantPersona,
+): string {
   const language =
-    RESPONSE_LANGUAGE_LABELS[request.responseLanguage ?? 'english']
+    RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
 
   return `You are looking at a picture that PixelVault just produced for its creator, and judging it against what they were going for.
 
@@ -2319,8 +2603,25 @@ export async function* runAssistantOperator(
   )
   const modelId = resolveAssistantModelId(route.adapterType, request.llmModelId)
 
+  /**
+   * persona 与规则**在开跑前一次性读出来**（§8.5 / §10）。
+   *
+   * ⚠ 不在每一步重读：系统提示每一步都要重发，但它每一步都是同一份 —— 重读只是
+   * 给每一步多加一次库查询。⚠ 也不从客户端收：这两样直连系统提示。
+   */
+  const [persona, rules] = await Promise.all([
+    getAssistantPersonaByUserId(user.id),
+    listProjectRules(user.id, {
+      scope: request.domain,
+      limit: RULE_LIMITS.maxInPrompt,
+    }),
+  ])
+
   const run: OperatorRun = {
     request,
+    persona,
+    // 进了系统提示的那几条一开始就在索引里 —— 引用它们不必先调一次工具。
+    ruleIndex: new Map(rules.map((rule) => [rule.id, rule])),
     state: toWorkingState(request.snapshot),
     route,
     modelId,
@@ -2334,8 +2635,10 @@ export async function* runAssistantOperator(
     stepSeq: 0,
   }
 
-  const systemPrompt = buildOperatorSystemPrompt(request)
+  const systemPrompt = buildOperatorSystemPrompt(request, persona, rules)
   let planEmitted = false
+  /** 本轮已经吐过薄卡的规则 —— 同一条不重复贴（见下面那段）。 */
+  const emittedRuleHits = new Set<string>()
   let consecutiveParseFailures = 0
   /** 连着撞了几次「同一步重复」—— 执行成功一次就归零（见下面那段）。 */
   let repeatedStepStrikes = 0
@@ -2415,6 +2718,35 @@ export async function* runAssistantOperator(
         }
       }
 
+      /**
+       * 规则薄卡（§10，拍板 23）。
+       *
+       * ⚠ 原文从 `run.ruleIndex` 里查，**不用模型写的那一版**：转述过的规则就不再
+       * 是用户写下的那句话，而薄卡的全部价值就在「这是你当时写的原话」。
+       * ⚠ 查不到的 id **剥掉 + `logger.warn`**，⛔ 不作废这一轮（同 §9 图示词表的
+       * 纪律）：模型写错一个 id 不该让一整轮读不出来。
+       * ⚠ 同一轮同一条规则只吐一次 —— 模型每一步都把它再报一遍是常见形状。
+       */
+      for (const ruleId of turn.ruleHits ?? []) {
+        if (emittedRuleHits.has(ruleId)) continue
+        const rule = run.ruleIndex.get(ruleId)
+        if (!rule) {
+          logger.warn('assistant operator cited an unknown project rule', {
+            userId: clerkId,
+            ruleId,
+          })
+          continue
+        }
+        emittedRuleHits.add(ruleId)
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.ruleHit,
+          ruleId: rule.id,
+          text: rule.text,
+          source: rule.source,
+          createdAt: rule.createdAt,
+        }
+      }
+
       if (!turn.tool || turn.finished) {
         yield { type: ASSISTANT_OPERATOR_EVENTS.done }
         completed = true
@@ -2458,7 +2790,7 @@ export async function* runAssistantOperator(
           yield {
             type: ASSISTANT_OPERATOR_EVENTS.message,
             text: OPERATOR_STUCK_MESSAGES[
-              request.responseLanguage ?? 'english'
+              resolveResponseLanguage(request, persona)
             ],
           }
           yield { type: ASSISTANT_OPERATOR_EVENTS.done }

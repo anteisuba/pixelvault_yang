@@ -401,6 +401,8 @@ export const ModelName = {
   VoiceRoom: 'VoiceRoom',
   VoiceLine: 'VoiceLine',
   UserCreativePreference: 'UserCreativePreference',
+  AssistantPersona: 'AssistantPersona',
+  ProjectRule: 'ProjectRule',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
   ArenaEntry: 'ArenaEntry',
@@ -443,7 +445,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState"
+    modelProps: "user" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1702,6 +1704,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.UserCreativePreferenceCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.UserCreativePreferenceCountAggregateOutputType> | number
+        }
+      }
+    }
+    AssistantPersona: {
+      payload: Prisma.$AssistantPersonaPayload<ExtArgs>
+      fields: Prisma.AssistantPersonaFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AssistantPersonaFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantPersonaPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AssistantPersonaFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantPersonaPayload>
+        }
+        findFirst: {
+          args: Prisma.AssistantPersonaFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantPersonaPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AssistantPersonaFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantPersonaPayload>
+        }
+        findMany: {
+          args: Prisma.AssistantPersonaFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantPersonaPayload>[]
+        }
+        create: {
+          args: Prisma.AssistantPersonaCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantPersonaPayload>
+        }
+        createMany: {
+          args: Prisma.AssistantPersonaCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AssistantPersonaCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantPersonaPayload>[]
+        }
+        delete: {
+          args: Prisma.AssistantPersonaDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantPersonaPayload>
+        }
+        update: {
+          args: Prisma.AssistantPersonaUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantPersonaPayload>
+        }
+        deleteMany: {
+          args: Prisma.AssistantPersonaDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AssistantPersonaUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AssistantPersonaUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantPersonaPayload>[]
+        }
+        upsert: {
+          args: Prisma.AssistantPersonaUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantPersonaPayload>
+        }
+        aggregate: {
+          args: Prisma.AssistantPersonaAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAssistantPersona>
+        }
+        groupBy: {
+          args: Prisma.AssistantPersonaGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantPersonaGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AssistantPersonaCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantPersonaCountAggregateOutputType> | number
+        }
+      }
+    }
+    ProjectRule: {
+      payload: Prisma.$ProjectRulePayload<ExtArgs>
+      fields: Prisma.ProjectRuleFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ProjectRuleFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectRulePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ProjectRuleFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectRulePayload>
+        }
+        findFirst: {
+          args: Prisma.ProjectRuleFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectRulePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ProjectRuleFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectRulePayload>
+        }
+        findMany: {
+          args: Prisma.ProjectRuleFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectRulePayload>[]
+        }
+        create: {
+          args: Prisma.ProjectRuleCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectRulePayload>
+        }
+        createMany: {
+          args: Prisma.ProjectRuleCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ProjectRuleCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectRulePayload>[]
+        }
+        delete: {
+          args: Prisma.ProjectRuleDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectRulePayload>
+        }
+        update: {
+          args: Prisma.ProjectRuleUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectRulePayload>
+        }
+        deleteMany: {
+          args: Prisma.ProjectRuleDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ProjectRuleUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ProjectRuleUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectRulePayload>[]
+        }
+        upsert: {
+          args: Prisma.ProjectRuleUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectRulePayload>
+        }
+        aggregate: {
+          args: Prisma.ProjectRuleAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateProjectRule>
+        }
+        groupBy: {
+          args: Prisma.ProjectRuleGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProjectRuleGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ProjectRuleCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProjectRuleCountAggregateOutputType> | number
         }
       }
     }
@@ -4080,6 +4230,37 @@ export const UserCreativePreferenceScalarFieldEnum = {
 export type UserCreativePreferenceScalarFieldEnum = (typeof UserCreativePreferenceScalarFieldEnum)[keyof typeof UserCreativePreferenceScalarFieldEnum]
 
 
+export const AssistantPersonaScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  avatarPreset: 'avatarPreset',
+  avatarUrl: 'avatarUrl',
+  avatarStorageKey: 'avatarStorageKey',
+  tone: 'tone',
+  toneCustom: 'toneCustom',
+  verbosity: 'verbosity',
+  planMode: 'planMode',
+  language: 'language',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssistantPersonaScalarFieldEnum = (typeof AssistantPersonaScalarFieldEnum)[keyof typeof AssistantPersonaScalarFieldEnum]
+
+
+export const ProjectRuleScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  scope: 'scope',
+  text: 'text',
+  source: 'source',
+  createdAt: 'createdAt'
+} as const
+
+export type ProjectRuleScalarFieldEnum = (typeof ProjectRuleScalarFieldEnum)[keyof typeof ProjectRuleScalarFieldEnum]
+
+
 export const ImageAnalysisScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4798,6 +4979,20 @@ export type ListEnumExecutionOutboxStatusFieldRefInput<$PrismaModel> = FieldRefI
 
 
 /**
+ * Reference to a field of type 'ProjectRuleSource'
+ */
+export type EnumProjectRuleSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProjectRuleSource'>
+    
+
+
+/**
+ * Reference to a field of type 'ProjectRuleSource[]'
+ */
+export type ListEnumProjectRuleSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProjectRuleSource[]'>
+    
+
+
+/**
  * Reference to a field of type 'CharacterCardStatus'
  */
 export type EnumCharacterCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CharacterCardStatus'>
@@ -4992,6 +5187,8 @@ export type GlobalOmitConfig = {
   voiceRoom?: Prisma.VoiceRoomOmit
   voiceLine?: Prisma.VoiceLineOmit
   userCreativePreference?: Prisma.UserCreativePreferenceOmit
+  assistantPersona?: Prisma.AssistantPersonaOmit
+  projectRule?: Prisma.ProjectRuleOmit
   imageAnalysis?: Prisma.ImageAnalysisOmit
   arenaMatch?: Prisma.ArenaMatchOmit
   arenaEntry?: Prisma.ArenaEntryOmit

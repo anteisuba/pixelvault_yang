@@ -53,6 +53,17 @@ export const ASSISTANT_OPERATOR_EVENTS = {
   confirmRequest: 'confirm_request',
   /** 普通对白。 */
   message: 'message',
+  /**
+   * 助手**引用了一条项目规则**（§10，拍板 23）。载荷是规则 id + 原文 + 记录日期，
+   * 客户端据此在动作卡下贴一张规则薄卡。
+   *
+   * ⚠ 它**不是**一步（没有 step id、没有 payload / inverse）：引用一条规则什么都没改，
+   * 也就没有东西可撤。⛔ 别把它塞进 `step` 事件里当装饰字段 —— 一条规则可能横跨
+   * 好几步，绑在某一步上就得挑一步来绑，而挑哪一步没有判据。
+   * ⚠ 规则原文由**服务端**从本轮读到的规则里填，模型只给 id：让模型转述规则，
+   * 转述出来的那句话就不再是用户写下的那句了。
+   */
+  ruleHit: 'rule_hit',
   /** 正常收尾。 */
   done: 'done',
   /** 未跑完就停了 —— 载荷带 `reason`，与 `done` 分开是为了让 UI 说得出为什么。 */
@@ -263,6 +274,26 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * 合法、助手直接设 1.5 被拒」。
    */
   setLoraWeight: 'set_lora_weight',
+  /**
+   * 读用户记下来的**项目规则**（§10，拍板 23）。
+   *
+   * ⭐ 为什么要一条工具，而不是把规则全量拼进系统提示：规则是会长的（每用户
+   * `ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser` 条），而系统提示每一步都要重发。
+   * ⚠ 但**也不是只有工具**：最近的几条仍然进系统提示（`buildProjectRulesSection`）
+   * —— 一条助手从没读过的规则等于没有。工具管的是「把剩下的翻出来」。
+   * ⚠ 只读：一个字都不改。
+   */
+  readProjectRules: 'read_project_rules',
+  /**
+   * 记一条项目规则（§10，拍板 23）。
+   *
+   * ⚠ 它是本表里**唯一一条真的往库里写**的工具 —— 写的是用户自己的一句话，
+   * 不创建 generation、不扣 credit、不调 provider（钱闸的判据逐条不变）。
+   * ⚠ 因此它是**改动型**：`inverse` 里放刚记下那条的 id，撤销 = 删掉它。
+   * ⛔ 别让模型自己编 `source`：这条工具记下的一律是 `ASSISTANT`，用户自己写的
+   * 那些走设置界面（`CREATOR`）。来源写错的表现是规则薄卡上的出处对不上。
+   */
+  addProjectRule: 'add_project_rule',
 } as const
 
 export const ASSISTANT_OPERATOR_TOOLS = [
@@ -287,6 +318,8 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+  ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
+  ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
 ] as const
 
 export type AssistantOperatorTool = (typeof ASSISTANT_OPERATOR_TOOLS)[number]
@@ -316,6 +349,8 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
    * 撤销也撤在那一条上。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+  /** 读规则就是读：翻出用户写下的几句话，表单一个字都没动。 */
+  ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
 ] as const
 
 /**
@@ -353,6 +388,12 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+  /**
+   * ⚠ 全表唯一一条后果落在**服务端**的改动型工具（其余都是吐一个 op 让客户端应用）。
+   * 所以它的 `inverse` 里放的是**库记录 id**（服务端刚写出来的那条），
+   * 而不是像 `mount_lora` 那样放一个客户端要自己反查的候选 id。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
 ] as const
 
 export function isMutatingAssistantOperatorTool(
@@ -512,6 +553,13 @@ const COMMON_DOMAIN_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.setNegative,
   ASSISTANT_OPERATOR_TOOL_IDS.setModel,
   ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+  /**
+   * 规则两条**全域可用**（§10）：一条「负面词永远带 worst quality」的规则在图片、
+   * 视频、LoRA 三台工作台上说的是同一件事。⛔ 别按域裁 —— 那等于让用户在每个
+   * 工作台上把同一条规则再写一遍。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
+  ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
 ] as const satisfies readonly AssistantOperatorTool[]
 
 /**
@@ -839,6 +887,11 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    * 来源页看」，而不是换个参数再挂一次。
    */
   loraNotImportable: 'loraNotImportable',
+  /**
+   * 规则表满了（§10）。⛔ 不静默丢弃、也不悄悄挤掉最老的一条 —— 用户写下的
+   * 每一条都是他自己的决定，该由他去删。助手读到这条理由该把话转给用户。
+   */
+  ruleLimitReached: 'ruleLimitReached',
 } as const
 
 export type AssistantOperatorRejectReason =
@@ -914,4 +967,45 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'take one LoRA off the assembly bench. The id comes from the mounted list in the state block — that is a different list from search results. Use it when two mounted LoRAs are fighting over the same thing, and say which one you dropped and why.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]:
     'change how strongly one already-mounted LoRA applies. The id comes from the mounted list in the state block. Weight is a plain number in the range the state block gives.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules]:
+    "read the standing rules this creator has written down for their work. The newest ones are already quoted in your instructions — call this only when you need the older ones, or the ones scoped to another workbench. Returns each rule's id, its exact wording, and the date it was recorded.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
+    'write down ONE standing rule the creator just stated — something that should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice.',
 }
+
+/**
+ * 项目规则的上限与形状（§10，拍板 23）。
+ *
+ * ⚠ `maxPerUser` 是一条**真的会拒**的闸（`project-rule.service.ts`），不是装饰：
+ * 规则会全量拼进系统提示的一部分，没有上限的规则表等于一条会无限长的系统提示。
+ * ⚠ `maxInPrompt` 与它分开：库里可以存 `maxPerUser` 条，每一轮只有最近
+ * `maxInPrompt` 条进系统提示，剩下的靠 `read_project_rules` 翻。
+ */
+export const ASSISTANT_PROJECT_RULE_LIMITS = {
+  /** 每用户最多几条。撞上限时 `add_project_rule` 按 `ruleLimitReached` 拒。 */
+  maxPerUser: 50,
+  /** 一条规则最长多少字。 */
+  maxTextChars: 280,
+  /** 每一轮拼进系统提示的条数（最近的在前）。 */
+  maxInPrompt: 12,
+  /** 一次 `read_project_rules` 最多返回几条。 */
+  maxReadResults: 50,
+} as const
+
+/**
+ * 一条规则是谁记下来的。⚠ 值逐字对应 `prisma/schema.prisma` 的
+ * `enum ProjectRuleSource`（那边是 SCREAMING_SNAKE，这里是协议侧的小写形态）。
+ */
+export const PROJECT_RULE_SOURCE_IDS = {
+  /** 助手在对话里通过 `add_project_rule` 记的。 */
+  assistant: 'assistant',
+  /** 用户自己在设置里写的。 */
+  creator: 'creator',
+} as const
+
+export const PROJECT_RULE_SOURCES = [
+  PROJECT_RULE_SOURCE_IDS.assistant,
+  PROJECT_RULE_SOURCE_IDS.creator,
+] as const
+
+export type ProjectRuleSourceId = (typeof PROJECT_RULE_SOURCES)[number]

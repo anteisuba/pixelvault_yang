@@ -68,6 +68,8 @@ export const ModelName = {
   VoiceRoom: 'VoiceRoom',
   VoiceLine: 'VoiceLine',
   UserCreativePreference: 'UserCreativePreference',
+  AssistantPersona: 'AssistantPersona',
+  ProjectRule: 'ProjectRule',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
   ArenaEntry: 'ArenaEntry',
@@ -449,6 +451,37 @@ export const UserCreativePreferenceScalarFieldEnum = {
 } as const
 
 export type UserCreativePreferenceScalarFieldEnum = (typeof UserCreativePreferenceScalarFieldEnum)[keyof typeof UserCreativePreferenceScalarFieldEnum]
+
+
+export const AssistantPersonaScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  avatarPreset: 'avatarPreset',
+  avatarUrl: 'avatarUrl',
+  avatarStorageKey: 'avatarStorageKey',
+  tone: 'tone',
+  toneCustom: 'toneCustom',
+  verbosity: 'verbosity',
+  planMode: 'planMode',
+  language: 'language',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssistantPersonaScalarFieldEnum = (typeof AssistantPersonaScalarFieldEnum)[keyof typeof AssistantPersonaScalarFieldEnum]
+
+
+export const ProjectRuleScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  scope: 'scope',
+  text: 'text',
+  source: 'source',
+  createdAt: 'createdAt'
+} as const
+
+export type ProjectRuleScalarFieldEnum = (typeof ProjectRuleScalarFieldEnum)[keyof typeof ProjectRuleScalarFieldEnum]
 
 
 export const ImageAnalysisScalarFieldEnum = {

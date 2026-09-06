@@ -145,6 +145,12 @@ export const API_ENDPOINTS = {
   NODE_ASSISTANT: '/api/studio/node-assistant',
   /** Persisted assistant chat transcripts (Node canvas + Studio) */
   ASSISTANT_CONVERSATION: '/api/assistant/conversation',
+  /** Assistant persona — one per user, shared by all four workbench domains */
+  ASSISTANT_PERSONA: '/api/assistant/persona',
+  /** Custom AI avatar upload / removal (separate R2 leg from the account avatar) */
+  ASSISTANT_PERSONA_AVATAR: '/api/assistant/persona/avatar',
+  /** Standing project rules the assistant reads and records */
+  ASSISTANT_RULES: '/api/assistant/rules',
   /** Node Studio structured ScriptDoc draft (assistant → outline) */
   NODE_SCRIPT_DOC: '/api/studio/node-script-doc',
   /** Generation feedback (iterative refinement) */
@@ -528,10 +534,10 @@ export const ANTHROPIC_API = {
 
 export const LLM_TEXT_MODEL_IDS = {
   // Gemini: 3.1-flash-lite retired 2026-08-23 — official shutdown 2027-05-07
-  // (deprecations page), replaced by 3.5-flash-lite. 3.7-flash is the current
+  // (deprecations page), replaced by 3.5-flash-lite. 3.8-flash is the current
   // Flash flagship (promo pricing through 2026-12-31, doubles 2027-01-01).
   GEMINI_3_5_FLASH_LITE: 'gemini-3.5-flash-lite',
-  GEMINI_3_7_FLASH: 'gemini-3.7-flash',
+  GEMINI_3_8_FLASH: 'gemini-3.8-flash',
   // OpenAI: gpt-5.5 retired 2026-08-23 — at $5/$30 it costs more than the
   // newer flagship sol ($4/$20), strictly dominated. GPT-5.6 ships as three
   // price tiers with identical spec cards (sol flagship / terra balanced /

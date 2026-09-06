@@ -38,6 +38,14 @@ export const GenerationSourceSurface = {
 export type GenerationSourceSurface = (typeof GenerationSourceSurface)[keyof typeof GenerationSourceSurface]
 
 
+export const ProjectRuleSource = {
+  ASSISTANT: 'ASSISTANT',
+  CREATOR: 'CREATOR'
+} as const
+
+export type ProjectRuleSource = (typeof ProjectRuleSource)[keyof typeof ProjectRuleSource]
+
+
 export const GenerationJobStatus = {
   QUEUED: 'QUEUED',
   RUNNING: 'RUNNING',

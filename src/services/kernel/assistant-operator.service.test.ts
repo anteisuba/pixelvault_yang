@@ -68,6 +68,44 @@ vi.mock('@/services/lora/lora-candidates.service', () => ({
     mockSearchLoraCandidates(...args),
 }))
 
+/**
+ * persona 与项目规则（§8.5 / §10）。⚠ **必须桩掉**：`runAssistantOperator` 开跑前
+ * 就会各读一次库，不桩的话这份测试的每一条用例都会撞真 Prisma 客户端。
+ * 默认返回「代码默认值 + 零条规则」= 今天绝大多数用户的真实形状。
+ */
+const mockGetAssistantPersonaByUserId = vi.fn()
+vi.mock('@/services/assistant-persona.service', async () => {
+  const { ASSISTANT_PERSONA_DEFAULTS } =
+    await import('@/constants/assistant-persona')
+  const { sanitizePrompt } = await import('@/services/kernel/prompt-guard')
+  return {
+    getAssistantPersonaByUserId: (...args: unknown[]) =>
+      mockGetAssistantPersonaByUserId(...args),
+    // 清洗那一跳是真的跑 —— 它决定风格段里那句话长什么样。
+    sanitizeToneCustom: (persona: {
+      tone: string
+      toneCustom: string | null
+    }) =>
+      persona.tone === 'custom' && persona.toneCustom
+        ? sanitizePrompt(persona.toneCustom).trim()
+        : null,
+    ASSISTANT_PERSONA_DEFAULTS,
+  }
+})
+
+const mockListProjectRules = vi.fn()
+const mockAddProjectRule = vi.fn()
+vi.mock('@/services/project-rule.service', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/services/project-rule.service')
+  >('@/services/project-rule.service')
+  return {
+    ProjectRuleLimitError: actual.ProjectRuleLimitError,
+    listProjectRules: (...args: unknown[]) => mockListProjectRules(...args),
+    addProjectRule: (...args: unknown[]) => mockAddProjectRule(...args),
+  }
+})
+
 import {
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
@@ -78,6 +116,12 @@ import {
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_PERSONA_DEFAULTS,
+  ASSISTANT_PERSONA_PLAN_MODE_IDS,
+  ASSISTANT_PERSONA_TONE_IDS,
+  ASSISTANT_PERSONA_VERBOSITY_IDS,
+} from '@/constants/assistant-persona'
 import { TAG_BASED_GENERATION_PROMPT_RULE } from '@/constants/model-strengths'
 import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -173,6 +217,11 @@ beforeEach(() => {
     hasMore: false,
     nextCursor: null,
   })
+  mockGetAssistantPersonaByUserId.mockResolvedValue({
+    ...ASSISTANT_PERSONA_DEFAULTS,
+    avatarUrl: null,
+  })
+  mockListProjectRules.mockResolvedValue([])
   mockListAssistantAssetFolders.mockResolvedValue([])
   mockInspectAssistantAssetFolder.mockResolvedValue({
     folder: {
@@ -3133,5 +3182,271 @@ describe('目标模型的提示词方言进系统提示', () => {
     expect(systemPrompt()).not.toContain(
       'WHAT THE PROMPT MUST LOOK LIKE ON THIS MODEL',
     )
+  })
+})
+
+// ─── persona 风格段（§8.5）与项目规则段（§10）────────────────────
+
+describe('persona 风格段', () => {
+  it('默认 persona 不改开场白，只印长度那一句', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain("You are PixelVault's workbench operator.")
+    // standard 档 = 2–4 句
+    expect(prompt).toContain('Answer in 2–4 sentences.')
+    // auto 档什么都不写 —— 那就是今天的行为
+    expect(prompt).not.toContain('Always open with a plan card')
+    expect(prompt).not.toContain('Skip the plan unless')
+  })
+
+  it('名字非空时只换首句主语，⛔ 不覆盖域人设', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      name: 'Mika',
+    })
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain("You are Mika, PixelVault's workbench operator.")
+    // 域人设照旧在（图片档那句）
+    expect(prompt).toContain('WHAT THIS DOMAIN TURNS ON')
+  })
+
+  it('长度三档各自映射成字数区间，⛔ 不给无边界形容词', async () => {
+    for (const [verbosity, expected] of [
+      [ASSISTANT_PERSONA_VERBOSITY_IDS.concise, 'Answer in under 2 sentences.'],
+      [
+        ASSISTANT_PERSONA_VERBOSITY_IDS.detailed,
+        'Answer in up to 6 sentences.',
+      ],
+    ] as const) {
+      mockLlmTextCompletion.mockReset()
+      mockGetAssistantPersonaByUserId.mockResolvedValue({
+        ...ASSISTANT_PERSONA_DEFAULTS,
+        avatarUrl: null,
+        verbosity,
+      })
+      queueTurns({ finished: true })
+      await collect(runAssistantOperator('clerk-1', buildRequest()))
+      expect(systemPrompt()).toContain(expected)
+    }
+  })
+
+  it('默认行为 always / direct 各印一句', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.always,
+    })
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(systemPrompt()).toContain('Always open with a plan card')
+  })
+
+  it('自定义语气原样单引号引入，且带那句前缀', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      tone: ASSISTANT_PERSONA_TONE_IDS.custom,
+      toneCustom: 'Talk like a film editor',
+    })
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    expect(systemPrompt()).toContain(
+      "the creator described how they want you to sound: 'Talk like a film editor'",
+    )
+  })
+
+  it('persona 的语言档覆盖请求里的那一档', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      language: 'chinese',
+    })
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ responseLanguage: 'english' }),
+      ),
+    )
+    expect(systemPrompt()).toContain('Reply in Simplified Chinese.')
+  })
+
+  it('风格段插在 HOW YOU TALK 之后、TOOLS 之前', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const prompt = systemPrompt()
+    expect(prompt.indexOf('HOW YOU TALK')).toBeLessThan(
+      prompt.indexOf('Answer in 2–4 sentences.'),
+    )
+    expect(prompt.indexOf('Answer in 2–4 sentences.')).toBeLessThan(
+      prompt.indexOf('TOOLS:'),
+    )
+  })
+})
+
+describe('项目规则（§10，拍板 23）', () => {
+  const RULE = {
+    id: 'rule-1',
+    scope: null,
+    text: 'Never put text inside the picture.',
+    source: 'creator' as const,
+    createdAt: '2026-09-01T10:00:00.000Z',
+  }
+
+  it('零条规则时不印规则段', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(systemPrompt()).not.toContain('STANDING RULES THIS CREATOR WROTE')
+  })
+
+  it('有规则时逐条印进系统提示，并要求引用时吐 id', async () => {
+    mockListProjectRules.mockResolvedValue([RULE])
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain('STANDING RULES THIS CREATOR WROTE DOWN')
+    expect(prompt).toContain('[rule-1]')
+    expect(prompt).toContain(RULE.text)
+    expect(prompt).toContain('recorded 2026-09-01')
+    expect(prompt).toContain('"ruleHits"')
+  })
+
+  it('引用一条已知规则 → 吐一帧 rule_hit，原文来自库不是模型', async () => {
+    mockListProjectRules.mockResolvedValue([RULE])
+    queueTurns({
+      ruleHits: ['rule-1'],
+      message: 'Keeping the frame text-free.',
+      finished: true,
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const hits = events.filter(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ruleHit,
+    )
+    expect(hits).toEqual([
+      {
+        type: ASSISTANT_OPERATOR_EVENTS.ruleHit,
+        ruleId: 'rule-1',
+        text: RULE.text,
+        source: 'creator',
+        createdAt: RULE.createdAt,
+      },
+    ])
+  })
+
+  it('编出来的规则 id 被剥掉，⛔ 不作废这一轮', async () => {
+    mockListProjectRules.mockResolvedValue([RULE])
+    queueTurns({ ruleHits: ['rule-nope'], message: 'ok', finished: true })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(
+      events.filter(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ruleHit,
+      ),
+    ).toEqual([])
+    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+  })
+
+  it('add_project_rule 落库并吐一条带 ruleId 的改动型 step', async () => {
+    mockAddProjectRule.mockResolvedValue({
+      id: 'rule-9',
+      scope: 'image',
+      text: 'Skin tones stay warm.',
+      source: 'assistant',
+      createdAt: '2026-09-06T10:00:00.000Z',
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+          title: 'Note the rule',
+          args: { text: 'Skin tones stay warm.', scope: 'image' },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(done).toBeDefined()
+    expect(done?.payload).toMatchObject({
+      ruleId: 'rule-9',
+      source: 'assistant',
+    })
+    // 撤销的本钱：inverse 里放的是库记录 id
+    expect(done?.inverse).toEqual({ ruleId: 'rule-9' })
+    // ⛔ 来源由服务端写死，不从模型收
+    expect(mockAddProjectRule).toHaveBeenCalledWith('user-db-1', {
+      text: 'Skin tones stay warm.',
+      scope: 'image',
+      source: 'assistant',
+    })
+  })
+
+  it('撞上限时按 ruleLimitReached 拒，⛔ 不静默丢弃', async () => {
+    const { ProjectRuleLimitError } =
+      await import('@/services/project-rule.service')
+    mockAddProjectRule.mockRejectedValue(new ProjectRuleLimitError(50))
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+          args: { text: 'one more rule' },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const rejected = steps.find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+    )
+    expect((rejected?.error as { reason: string } | undefined)?.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.ruleLimitReached,
+    )
+  })
+
+  it('同一句规则记两遍在规划期就被拒（换标点也绕不过去）', async () => {
+    mockListProjectRules.mockResolvedValue([RULE])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+          args: { text: RULE.text },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(mockAddProjectRule).not.toHaveBeenCalled()
+    expect(
+      steps.some(
+        (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      ),
+    ).toBe(true)
   })
 })

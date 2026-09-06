@@ -113,6 +113,28 @@ export type VoiceLine = Prisma.VoiceLineModel
  */
 export type UserCreativePreference = Prisma.UserCreativePreferenceModel
 /**
+ * Model AssistantPersona
+ * 助手人设（`docs/references/pages/assistant-shell.md` §8）——用户**显式声明**
+ * 的「这个助手是谁、怎么说话」，一个用户一份，四域共用。
+ * 
+ * ⛔ 有意不并进 `UserCreativePreference`：那张表是系统**学出来**的创作偏好
+ * （五个字段全 Json、由行为推断并覆写），而这里每个字段都是有限枚举或短字符串，
+ * 该是列不是 Json；两者的读写时机、所有权、能否被系统改写三条全不同。
+ * ⛔ 也不往 `User` 加列（全仓最热的表）：1:1 侧表按需 join，**缺行就用代码默认值**
+ * `ASSISTANT_PERSONA_DEFAULTS`，不做首次访问自动建行。
+ */
+export type AssistantPersona = Prisma.AssistantPersonaModel
+/**
+ * Model ProjectRule
+ * 项目规则（`docs/references/pages/assistant-shell.md` §10，拍板 23）——用户在
+ * 工作里沉淀下来的一条硬约束，助手读得到、也记得回。
+ * 
+ * `scope` 为空 = 全域生效；非空时存的是 `ASSISTANT_OPERATOR_DOMAINS` 里的域 id。
+ * ⛔ 不做成 Prisma 枚举：域词表住在 `constants/assistant-protocol.ts`，
+ * 两处枚举必然漂移，边界校验交给 Zod。
+ */
+export type ProjectRule = Prisma.ProjectRuleModel
+/**
  * Model ImageAnalysis
  * 
  */

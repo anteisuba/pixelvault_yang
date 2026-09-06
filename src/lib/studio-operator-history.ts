@@ -176,6 +176,11 @@ export function describeOperatorStepDetail(
       return step.payload.name
     case ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight:
       return `${step.payload.name} · ${step.payload.weight}`
+    /** 规则两条（§10）：读的显示条数，记的显示原文 —— 用户认的是那句话。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules:
+      return `${step.result?.rules.length ?? 0}`
+    case ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule:
+      return step.payload.text
   }
 }
 

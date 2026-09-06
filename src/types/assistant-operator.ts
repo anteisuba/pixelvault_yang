@@ -33,6 +33,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOLS,
   ASSISTANT_OPERATOR_WRITE_MODES,
+  ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import {
@@ -46,6 +47,10 @@ import {
   AssistantAssetFolderVisionResultSchema,
 } from '@/types/asset-folder-vision'
 import { LoraCandidateImportPayloadSchema } from '@/types/lora-candidate'
+import {
+  ProjectRuleSchema,
+  ProjectRuleScopeSchema,
+} from '@/types/assistant-persona'
 
 // ─── 小件 ────────────────────────────────────────────────────────
 
@@ -546,6 +551,24 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     loraId: IdSchema,
     weight: z.number(),
   }),
+  /**
+   * ⚠ 只有一个可选的作用域过滤 —— **没有查询词**：规则总共只有几十条，全量读回来
+   * 比让模型猜一个关键词靠谱（猜错的表现是「明明写过的规则助手说没有」）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules]: z.object({
+    scope: ProjectRuleScopeSchema.optional(),
+  }),
+  /**
+   * ⛔ **没有 `source` 参数**：这条工具记下的一律是 `assistant`，服务端写死。
+   * 让模型自己声明来源，来源就不再是证据（论据与 `import_user_url` 的
+   * 「是不是用户给的由服务端逐字比对」同源）。
+   * ⚠ `scope` 可选，缺省 = 全域：一条规则默认对四台工作台都成立，缩小它是一个
+   * 有意的动作。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]: z.object({
+    text: z.string().trim().min(1).max(RULE_LIMITS.maxTextChars),
+    scope: ProjectRuleScopeSchema.optional(),
+  }),
 }
 
 export const AssistantOperatorTurnSchema = z.object({
@@ -575,6 +598,15 @@ export const AssistantOperatorTurnSchema = z.object({
         .transform((value) => value ?? {}),
     })
     .optional(),
+  /**
+   * 这一轮**引用了哪几条项目规则**（§10，拍板 23）。只收 id。
+   *
+   * ⭐ 只收 id 是这条契约的全部要点：规则原文由服务端从本轮读到的规则里查出来填，
+   * 模型转述出来的那句话就不再是用户写下的那句了 —— 而规则薄卡的价值恰恰在于
+   * 「这是你当时写的原话」。不在本轮规则表里的 id 被剥掉并 `logger.warn`，
+   * ⛔ 不让整轮因为一个写错的 id 而作废（同 §9 的图示词表纪律）。
+   */
+  ruleHits: z.array(IdSchema).max(RULE_LIMITS.maxInPrompt).optional(),
   /** 模型认为活干完了。没有 `tool` 时等价于 true。 */
   finished: z.boolean().optional(),
 })
@@ -1011,6 +1043,23 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     z.object({ loraId: IdSchema, name: LabelSchema, weight: z.number() }),
     z.object({ loraId: IdSchema, weight: z.number() }),
   ),
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
+    z.object({ scope: ProjectRuleScopeSchema.nullable() }),
+    z.object({ rules: z.array(ProjectRuleSchema).max(RULE_LIMITS.maxPerUser) }),
+  ),
+  /**
+   * 记一条规则（§10）。
+   *
+   * ⚠ 全表唯一一条后果**落在服务端**的改动型 step：`payload` 里那条 `ruleId`
+   * 是库里刚写出来的那一行，所以 `inverse` 直接放它 —— ⛔ 不像 `mount_lora`
+   * 那样放一个候选 id 让客户端反查，这里没有「落地地址在客户端才产生」那回事。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+    ProjectRuleSchema.extend({ ruleId: IdSchema }).omit({ id: true }),
+    z.object({ ruleId: IdSchema }),
+  ),
 ])
 
 /**
@@ -1096,6 +1145,23 @@ export const AssistantOperatorMessageEventSchema = z.object({
   text: z.string().max(LIMITS.maxMessageChars),
 })
 
+/**
+ * 助手引用了一条项目规则（§10，拍板 23）—— 规则薄卡收的就是它。
+ *
+ * ⚠ 载荷里的 `text` / `createdAt` **由服务端填**（模型只给 id），所以这里可以、
+ * 也必须写成必填：薄卡上要显示的是用户当时写下的原话与日期，不是模型的转述。
+ * ⚠ 它没有 step id：引用一条规则不是一步，见 `ASSISTANT_OPERATOR_EVENTS.ruleHit`。
+ */
+export const AssistantOperatorRuleHitEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.ruleHit),
+  ruleId: IdSchema,
+  /** 规则原文，逐字。 */
+  text: z.string().trim().min(1).max(RULE_LIMITS.maxTextChars),
+  source: ProjectRuleSchema.shape.source,
+  /** ISO 串 —— 薄卡上那行「记于 YYYY-MM-DD」取它的日期段。 */
+  createdAt: z.string(),
+})
+
 export const AssistantOperatorDoneEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.done),
 })
@@ -1119,6 +1185,7 @@ export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorStepEventSchema,
   AssistantOperatorConfirmRequestEventSchema,
   AssistantOperatorMessageEventSchema,
+  AssistantOperatorRuleHitEventSchema,
   AssistantOperatorDoneEventSchema,
   AssistantOperatorStoppedEventSchema,
   AssistantOperatorErrorEventSchema,
@@ -1134,6 +1201,10 @@ export type AssistantOperatorStepEvent = z.infer<
 >
 export type AssistantOperatorConfirmRequestEvent = z.infer<
   typeof AssistantOperatorConfirmRequestEventSchema
+>
+/** 规则薄卡（§2.21 / §4.2）收的那一帧。 */
+export type AssistantOperatorRuleHitEvent = z.infer<
+  typeof AssistantOperatorRuleHitEventSchema
 >
 export type AssistantOperatorPriorStep = z.infer<
   typeof AssistantOperatorPriorStepSchema

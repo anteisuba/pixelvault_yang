@@ -306,6 +306,30 @@ const STEP_FIXTURES: Record<
     },
     inverse: { loraId: 'lora-asset-1', weight: 0.8 },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules]: {
+    payload: { scope: null },
+    result: {
+      rules: [
+        {
+          id: 'rule-1',
+          scope: null,
+          text: 'Never put text inside the picture.',
+          source: 'creator',
+          createdAt: '2026-09-01T10:00:00.000Z',
+        },
+      ],
+    },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]: {
+    payload: {
+      ruleId: 'rule-2',
+      scope: 'image',
+      text: 'Skin tones stay warm on this project.',
+      source: 'assistant',
+      createdAt: '2026-09-06T10:00:00.000Z',
+    },
+    inverse: { ruleId: 'rule-2' },
+  },
 }
 
 function buildStep(tool: AssistantOperatorTool, omitInverse = false) {

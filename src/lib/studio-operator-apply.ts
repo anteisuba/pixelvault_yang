@@ -137,6 +137,16 @@ export interface StudioOperatorApplyContext {
   setPrimed(primed: boolean): void
   /** ⚠ 缺席 = 这个宿主没有 LoRA 挂载栈。见 `StudioOperatorLoraContext` 头注。 */
   lora?: StudioOperatorLoraContext
+  /**
+   * 撤销一条**刚被助手记下的项目规则**（§10，拍板 23）。
+   *
+   * ⚠ 与这份上下文里其他每一条都不同：`add_project_rule` 的后果**落在服务端**
+   * （库里多了一行），表单一个字都没动。所以「应用」这一步在客户端是空操作，
+   * 只有撤销要真的做一件事 —— 把那一行删掉（走 `deleteProjectRuleAPI`）。
+   * ⚠ 缺席 = 这个宿主还没接规则那条线；缺席时撤销是**静默不做**，⛔ 不抛：
+   * 少一个可选的手不该让整条撤销链断掉。
+   */
+  deleteProjectRule?(ruleId: string): void
 }
 
 /** 清晰度的收窄 —— 直接问 schema，不在这里抄一份 `['auto','1K','2K','4K']`。 */
@@ -282,6 +292,13 @@ export function applyOperatorStep(
      * 与 `search_web_images` 逐字同源 —— 落地由 `mount_lora` 负责。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.searchLoras:
+    /**
+     * ⚠ 规则两条也不动表单（§10）：读规则是读；**记一条规则的后果落在服务端**
+     * （库里多一行），客户端这一步没有任何字段要改。返回 null = 登记簿不记账，
+     * 归属标记（✦）因此不会亮在一个它没改过的字段上。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules:
+    case ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule:
       return null
 
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
@@ -467,7 +484,16 @@ export function revertOperatorStep(
     // （见 `applyOperatorStep`）。
     case ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages:
     case ASSISTANT_OPERATOR_TOOL_IDS.searchLoras:
+    case ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules:
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
+      return
+
+    /**
+     * ⚠ 唯一一条撤销要**打一次网络**的：记下的那一行在库里，删它得走路由。
+     * 宿主没接这条线时静默不做（见 `deleteProjectRule` 头注）。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule:
+      ctx.deleteProjectRule?.(step.inverse.ruleId)
       return
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setPrompt:

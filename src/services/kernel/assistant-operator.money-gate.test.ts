@@ -76,6 +76,22 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * 哪天有人想把它加进来「省一次往返」，那就是这道闸破的那一天。
    */
   '@/services/lora/lora-candidates.service',
+  /**
+   * 助手人设（§8.5）。⭐ 判据：它读写的是**一张只有文本列的 1:1 侧表**——
+   * 不创建 generation、不扣 credit、不调任何 provider。
+   * ⛔ 自定义头像那条腿**有意不在这份名单里**：它会写 R2，所以它住在另一个文件
+   * （`assistant-persona-avatar.service`）。工具环因此在 import 表上就够不着上传 ——
+   * 与联网搜图「搜索在名单里、转存不在」是同一条论据的第二次应用。
+   */
+  '@/services/assistant-persona.service',
+  /**
+   * 项目规则（§10，拍板 23）。⭐ 判据同上：一张只有文本列的表。
+   * ⚠ 它是这份名单里**唯一一条会往库里写**的服务 —— 写的是用户自己说过的一句话
+   * （`add_project_rule`），与「创建 generation」不是一回事：没有 provider、
+   * 没有 credit、没有字节落地。哪天有人想把别的写操作挂到这个模块上「顺路存一下」，
+   * 那就是这条判据破的那一天。
+   */
+  '@/services/project-rule.service',
 ])
 
 /** 出现即失败的标识符 —— 每一条都是一条能花掉用户钱的路。 */
@@ -213,6 +229,56 @@ describe('⛔ 助手工具环的钱闸', () => {
     // LoRA 训练是另一条会扣钱的链 —— 它连名字都不该出现在这里。
     expect(SOURCE).not.toContain('lora-training')
     expect(SOURCE).not.toContain('startLoraTraining')
+  })
+
+  /**
+   * ⭐ 第三次值得复核的改动（前两次是 `import_user_url` 与 `mount_lora`）：
+   * `add_project_rule` 名字里就有 add，做的事也确实是**往库里写一行** —— 而它照样
+   * 进得来，判据只有一条：那一行是**用户自己说过的一句话**，没有 provider、没有
+   * credit、没有字节落地。
+   *
+   * ⛔ 与此同时，persona 的**头像上传**那条腿一个字都不许出现在工具环里：它会写
+   * R2，所以它住在另一个文件。下面两条把这件事锁死。
+   */
+  it('规则可写、persona 可读，而工具环仍然够不着头像上传那条腿', () => {
+    expect(ASSISTANT_OPERATOR_TOOLS).toContain('read_project_rules')
+    expect(ASSISTANT_OPERATOR_TOOLS).toContain('add_project_rule')
+    expect(SOURCE).toContain('addProjectRule')
+    expect(SOURCE).toContain('getAssistantPersonaByUserId')
+    // 头像那条腿的三个名字，一个都不许出现。
+    expect(SOURCE).not.toContain('assistant-persona-avatar')
+    expect(SOURCE).not.toContain('uploadAssistantAvatar')
+    expect(SOURCE).not.toContain('removeAssistantAvatar')
+  })
+
+  /**
+   * 两个新服务**自己**也得够不着花钱的那几条路 —— 上面那份 import 白名单只管
+   * 工具环这一个文件，不管它 import 进来的模块里有什么。形状照抄文件夹视觉那一条。
+   */
+  it('persona / 规则两个服务都不具备生成、扣费或上传能力', () => {
+    for (const path of [
+      'src/services/assistant-persona.service.ts',
+      'src/services/project-rule.service.ts',
+    ]) {
+      const source = readFileSync(join(process.cwd(), path), 'utf8')
+      for (const identifier of [
+        'createGeneration',
+        'generateImage',
+        'generateVideo',
+        'generateAudio',
+        'deductCredits',
+        'submitGeneration',
+        'execution-worker',
+        'uploadToR2',
+        'uploadFromHttpToR2',
+        'deleteFromR2',
+      ]) {
+        expect(
+          source.includes(identifier),
+          `${path} 里出现了 ${identifier}`,
+        ).toBe(false)
+      }
+    }
   })
 
   it('查库只有一处，且一定按 userId 收敛（不许翻别人的库）', () => {

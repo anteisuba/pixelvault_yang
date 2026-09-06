@@ -3612,20 +3612,44 @@ export async function* runAssistantOperator(
            * 判据要用的三样东西摆出来 —— 阶段、反问题、预估。
            * ⚠ 顺序是硬要求：`plan` → `plan_request` → 第一个 `step`。客户端要在
            *   任何一步落地之前就能决定「先问一句」，晚一帧那一步已经落到表单上了。
+           *
+           * ⭐ **已批准的那一轮不摆这一帧**（2026-09-07）：客户端点「开始」重发时带
+           * `planApproved: true`，`shouldShowPlanCard` 见到它直接返 false —— 服务端
+           * 再摆一帧就是白算一份规划、白花一份 token。
+           * ⚠ 只认 `=== true`：「修改」那一支带的是 `planApproved: false`，它要的
+           * 正是**重新规划**，照旧出卡。
+           * ⚠ `plan` 帧照旧发 —— 进度带要用。
            */
-          const modelId = run.state.modelId
-          const estimate: AssistantOperatorPlanEstimate = modelId
-            ? buildGenerationRequestPayload(run, modelId).estimate
-            : {}
-          yield {
-            type: ASSISTANT_OPERATOR_EVENTS.planRequest,
-            steps: turn.plan.map((label, index) => ({
-              id: `plan-${index + 1}`,
-              label,
-            })),
-            questions: normalizePlanQuestions(turn, clerkId),
-            estimate,
-            reason: planRequestReason(turn, request),
+          const planApproved = request.planApproved === true
+          if (planApproved) {
+            /**
+             * ⛔ 用户已经批过了，⛔ 不要再拦一次：模型这一轮又给出的反问题一律丢掉，
+             * 只留一条 warn —— 它意味着提示词那一侧没把「答复是既定事实」说到位。
+             */
+            if (turn.questions?.length) {
+              logger.warn(
+                'assistant operator asked new plan questions after approval',
+                {
+                  userId: clerkId,
+                  questionCount: turn.questions.length,
+                },
+              )
+            }
+          } else {
+            const modelId = run.state.modelId
+            const estimate: AssistantOperatorPlanEstimate = modelId
+              ? buildGenerationRequestPayload(run, modelId).estimate
+              : {}
+            yield {
+              type: ASSISTANT_OPERATOR_EVENTS.planRequest,
+              steps: turn.plan.map((label, index) => ({
+                id: `plan-${index + 1}`,
+                label,
+              })),
+              questions: normalizePlanQuestions(turn, clerkId),
+              estimate,
+              reason: planRequestReason(turn, request),
+            }
           }
         } else if (!turn.message?.trim()) {
           yield {

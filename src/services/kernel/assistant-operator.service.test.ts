@@ -181,6 +181,7 @@ import { ASSISTANT_PLAN_VISUALS } from '@/constants/assistant-plan-visuals'
 import { AI_MODELS, getModelById } from '@/constants/models'
 import { getAppOrigin } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { logger } from '@/lib/logger'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
 import {
   AssistantOperatorEventSchema,
@@ -4131,6 +4132,85 @@ describe('计划卡协议 · plan_request', () => {
     // ⭐ 多选题答了两项就喂回两项 —— ⛔ 不许只渲染第一个。
     expect(prompt).toContain('question-1: option-1-1, option-1-3')
     expect(prompt).toContain('other: "再暗一点"')
+  })
+
+  it('⭐ planApproved=true 那一轮⛔ 不再摆 plan_request（plan 帧照旧）', async () => {
+    queueTurns(
+      {
+        plan: ['照计划走', '写提示词'],
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'a girl under a red umbrella' },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          planApproved: true,
+          planAnswers: [
+            { questionId: 'question-1', optionIds: ['option-1-1'] },
+          ],
+        }),
+      ),
+    )
+    // ⛔ 白跑一次规划、白花一份 token 的那一帧没有了。
+    expect(
+      events.some(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
+      ),
+    ).toBe(false)
+    // ⚠ `plan` 帧照旧 —— 进度带要用。
+    expect(events[0]?.type).toBe(ASSISTANT_OPERATOR_EVENTS.plan)
+    // ⚠ 用户选的答复照旧进上下文。
+    expect(lastUserPrompt()).toContain('question-1: option-1-1')
+  })
+
+  it('planApproved=false 那一支照旧摆 plan_request（那就是要重新规划）', async () => {
+    queueTurns({ plan: ['重新来一版', '再写一遍提示词'] }, { finished: true })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest({ planApproved: false })),
+    )
+    expect(
+      events.some(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
+      ),
+    ).toBe(true)
+  })
+
+  it('⭐ 已批准的那一轮模型又给 questions —— 丢掉并 warn，⛔ 不再拦一次用户', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+    queueTurns(
+      {
+        plan: ['照计划走'],
+        questions: [
+          {
+            header: '取景',
+            question: '取多少身？',
+            options: [
+              { label: '半身', description: '腰以上，脸看得清。' },
+              { label: '全身', description: '连鞋一起，服装看得全。' },
+            ],
+          },
+        ],
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest({ planApproved: true })),
+    )
+    expect(
+      events.some(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
+      ),
+    ).toBe(false)
+    expect(warn).toHaveBeenCalledWith(
+      'assistant operator asked new plan questions after approval',
+      expect.objectContaining({ questionCount: 1 }),
+    )
+    warn.mockRestore()
   })
 
   it('⭐ 「先问我」开着时系统提示要求这一轮必须先出计划', async () => {

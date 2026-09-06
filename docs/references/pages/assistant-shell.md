@@ -13,11 +13,11 @@
 
 **定位**：助手是工作台上唯一那只「替你拧旋钮的手」——它不生成媒体，它把参数、提示词、参考图和 LoRA 铺到你看得见的控件上，然后把扳机留给你。
 
-**第一期范围**：桌面 `≥1024`，图片域纵向打穿——新 UI 骨架（图标轨 / 进度带 / 卡型 / 双行输入 / @ 选择器 / 灯箱）+ 模型方言注入 + 计划卡 + @ 看图评审 + 确认后触发生成 + 项目规则卡 + 助手设置（§8）+ 计划卡图示词表（§9）。声音本轮只做「声音库 + Fish Audio 音色库检索与挂载」。
+**第一期范围**：桌面 `≥1024` 图片域纵向打穿——新 UI 骨架（图标轨 / 进度带 / 卡型 / 双行输入 / @ 选择器 / 灯箱）+ 模型方言注入 + 计划卡 + @ 看图评审 + 确认后触发生成 + 项目规则卡 + 助手设置（§8）+ 计划卡图示词表（§9）+ 检索链（§7.1）+ **图片 / 视频档的移动端全屏 Sheet（§11.6，`adb0a008` 已落地）**。声音本轮只做「声音库 + Fish Audio 音色库检索与挂载」。
 
 **非目标**：
 
-- ❌ 移动端。`StudioOperatorDock.tsx:320` 的 `if (isMobile) return null` **原样保留**，移动端下一轮。
+- ❌ 音频档与 LoRA 的手机形态：这两条路由的小屏助手仍是旧 `PromptAssistantPanel` / `LoraAssistantDock`，收编排在第四期（§11.6）。⛔ 原「移动端整体下一轮、`isMobile` 一律 `return null`」已作废——图片 / 视频档的手机外壳已于 `adb0a008` 落地。
 - ❌ 网上搜声音并提取（`fish-audio-voice.service.ts` 的音色检索除外）。
 - ❌ 自动全量评审——只在被点名时看图。
 - ❌ 改生成模型 / 计费 / 归档 / LoRA 训练流程。
@@ -34,7 +34,7 @@
 
 **助手负责**：① 读表单快照（数据源是请求带上来的客户端快照，服务端不查库）；② 按目标模型方言写提示词（§13）；③ 检索素材库 / 联网参考 / LoRA / 音色，结果一律候选态，点「选用」才落地；④ 写回看得见的控件，每步留逆操作；⑤ `prime_generate` 算价备键（`ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate`）；⑥ 被点名时看图给评审卡；⑦ 读项目规则、记一条规则（§10，第一期两条新工具）。
 
-**助手不负责**：不创建 generation、不扣 credit、不写库、不下载上传素材；不动这台工作台上没有的旋钮（没槽就 `noSuchControl` 拒，判据见 `src/constants/assistant-operator.ts:367`）；不做跨域全局编排（域由宿主定）。
+**助手不负责**：不创建 generation、不扣 credit、不写库、不下载上传素材；不动这台工作台上没有的旋钮（没槽就 `noSuchControl` 拒，判据见 `src/constants/assistant-operator.ts` 的 `ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl`）；不做跨域全局编排（域由宿主定）。
 
 | 邻居       | 边界                                                                                                                                     |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
@@ -46,32 +46,32 @@
 
 ## 2. 结构账本（`scenes/ui-page.md` 阶段 3 · 一次只确认一项）
 
-| #    | 层                         | 作用                                                                                                                           | 必要性判据                                                                                   | 去掉会怎样                                          |
-| ---- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| 2.1  | **覆盖式面板几何**         | 右侧 fixed，top/right/bottom 各 24px，`rounded-xl`，默认 560                                                                   | 开合前后主区宽度不变                                                                         | 回到挤压式，每次开助手结果区重排                    |
-| 2.2  | **左缘拖宽 420–860**       | `role=separator` 拖拽 + ←/→ 步进 + 宽度记忆                                                                                    | 现值已在 `src/constants/studio-assistant-operator.ts:25-32`                                  | 窄屏被 560 卡死；宽屏一行放不下 4 张                |
-| 2.3  | **收起态 = 图标轨 48px**   | 域图标 · 状态点 · 进度环/计数 · 展开按钮                                                                                       | 收起后仍要能说「3/6」「4 张就绪」                                                            | 退回胶囊：横向占位不可预期，或状态全丢              |
-| 2.4  | **顶部进度带 ~40px**       | 运行中 `3/6 · 正在挂 LoRA`，点开展清单；空闲退化为 `域 chip · 会话名 · ⋯ · 收起`                                               | 长任务里「还剩几步」是唯一的耐心来源                                                         | 过程折叠后进度完全不可见                            |
-| 2.5  | **用户消息卡**             | 回显本轮说了什么，带 @chip 缩略图；沟里挂账户头像（§2.22）                                                                     | 多轮上下文的锚                                                                               | @ 指的哪张事后无法复核                              |
-| 2.6  | **计划卡**                 | 阶段列表 + 1–3 待定项 + 预估 credits + 「修改 / 开始」；**出卡时机由客户端硬判**（§5）                                         | 生成前反问的唯一载体                                                                         | 退回「先做了再说」                                  |
-| 2.7  | **ToolGroup 折叠行**       | 「5 个操作 · 4 成功 1 失败」，点开逐条                                                                                         | 结果优先、过程自动折叠                                                                       | 日志刷屏，结果被淹没                                |
-| 2.8  | **反问单选卡**             | 中途缺一个决定就地问，选项即按钮                                                                                               | 比「请回复 1/2/3」少一次打字                                                                 | 多一轮 LLM 往返                                     |
-| 2.9  | **确认卡（三档）**         | 覆盖手写三选 / 花钱硬确认（带「不再问」）                                                                                      | 拍板 3 + 新增花钱档                                                                          | 手写被静默覆盖，或每次生成点两遍                    |
-| 2.10 | **候选网格卡**             | 缩略 + **URL（域名可点）· 发布者 · 可否作生成输入** + 勾选                                                                     | 拍板 21「浏览零下载」+ 溯源三字段                                                            | 来源不可见，版权与可用性无从判断                    |
-| 2.11 | **结果行卡**               | 每轮 2–4 张缩略，点选=当前，hover 出「问助手 / 放大」，卡底「按这张继续」                                                      | 面板内能判好坏，是 @ 闭环入口                                                                | 面板与结果区来回扫视                                |
-| 2.12 | **评审卡**                 | 内嵌被评那张图 + 否定 / 异常 / 建议三段                                                                                        | 拍板 6「证据长在结论里」                                                                     | 评语脱离图                                          |
-| 2.13 | **checkpoint 薄卡**        | 每轮一张：`已改 N 项 · 只回参数 / 连对话一起回`                                                                                | 拍板 18 + 14 的合并形态                                                                      | 撤不到「这一轮之前」                                |
-| 2.14 | **系统行**                 | 「你撤销了：××（助手已知晓）」「停顿点 · 接住排队消息」                                                                        | 撤销与排队后上下文不脱节                                                                     | 助手基于已撤状态继续说话                            |
-| 2.15 | **输入区上行**             | `📎 附件 · 模型 chip · 先问我 · ⏹ Stop`                                                                                        | 四个高频开关明面化；模型 chip 复用自动路由组件                                               | 另造选择器 = 2026-08-19 生产事故重演                |
-| 2.16 | **输入区下行**             | 输入框 + 发送；运行中不锁，回车=排队                                                                                           | 拍板 13 改口后的唯一入口                                                                     | 运行中不能打字，或打字即打断                        |
-| 2.17 | **排队条**                 | 浮在输入框上方，可撤回，停顿点 = **每个工具步跑完的那一刻**（已落地 `f074605d`）                                               | 「已排队」必须看得见才敢排                                                                   | 用户以为丢了，重复发送                              |
-| 2.18 | **@ 选择器**               | 打 `@` 唤出：最近生成在前、素材库可搜，成带缩略图 chip；**不设硬上限**，超 8 张提示「可能不准」不拦截                          | 四入口中的键盘入口                                                                           | 只剩 hover 一条路，无键盘可达                       |
-| 2.19 | **灯箱**                   | 结果缩略 / 参考图 / 评审证据图共用同一个（拍板 17 现值）                                                                       | 一份实现三处复用                                                                             | 三种放大交互各写各的                                |
-| 2.20 | **建议药丸**               | 语境化、点即发送、`minChanges` 门（已实现，`studio-assistant-operator.ts:97` 起）                                              | 空态起手势                                                                                   | 空态无可点动作                                      |
-| 2.21 | **项目规则薄卡**           | 助手引用了某条项目规则时出现：规则原文 + 来源日期 + 「查看规则」                                                               | 规则是助手为什么这么做的唯一可核对证据                                                       | 规则命中不可见，用户以为助手在瞎猜                  |
-| 2.22 | **时间线沟里的头像**       | 用户回合 = Clerk 账户头像 / 首字母圆标；助手回合 = AI 头像。工具步 / 系统行 / 计划 / 结果仍是形状节点。时间戳退到 hover 或行尾 | 「谁在说话」是对话流唯一必须一眼看出的事；时间戳一天里全是同一分钟，占了最贵的 78px 却零信息 | 20 行下来全是同款小圆点，用户回合与助手回合靠缩进猜 |
-| 2.23 | **助手设置弹层**（§8）     | ⋯ 菜单「助手设置」→ `ResponsiveDialog`：名字 / AI 头像 / 语气 / 长度 / 默认行为 / 语言。用户级，一份，四域共用                 | AI 头像必须有地方选；「先问我」需要跨会话默认态                                              | 头像写死一个，语气不可调，「先问我」永远从关开始    |
-| 2.24 | **计划卡待定项图示**（§9） | 待定项从「三个纯文字按钮」升为「34px 图示 + 标签」，图示取自封闭词表，词表外退化纯文字                                         | 一个线描比四个字快得多；封闭词表是不让模型自由发挥图标的唯一办法                             | 计划卡回到三段文字，扫读成本与聊天框持平            |
+| #    | 层                         | 作用                                                                                                                      | 必要性判据                                                                                                                                  | 去掉会怎样                                          |
+| ---- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 2.1  | **覆盖式面板几何**         | 右侧 fixed，top/right/bottom 各 24px，`rounded-xl`，默认 560                                                              | 开合前后主区宽度不变                                                                                                                        | 回到挤压式，每次开助手结果区重排                    |
+| 2.2  | **左缘拖宽 420–860**       | `role=separator` 拖拽 + ←/→ 步进 + 宽度记忆                                                                               | 现值已在 `src/constants/studio-assistant-operator.ts:25-32`                                                                                 | 窄屏被 560 卡死；宽屏一行放不下 4 张                |
+| 2.3  | **收起态 = 图标轨 48px**   | 域图标 · 状态点 · 进度环/计数 · 展开按钮                                                                                  | 收起后仍要能说「3/6」「4 张就绪」                                                                                                           | 退回胶囊：横向占位不可预期，或状态全丢              |
+| 2.4  | **顶部进度带 ~40px**       | 运行中 `3/6 · 正在挂 LoRA`，点开展清单；空闲退化为 `域 chip · 会话名 · ⋯ · 收起`                                          | 长任务里「还剩几步」是唯一的耐心来源                                                                                                        | 过程折叠后进度完全不可见                            |
+| 2.5  | **用户消息卡**             | 回显本轮说了什么，带 @chip 缩略图；沟里挂账户头像（§2.22）                                                                | 多轮上下文的锚                                                                                                                              | @ 指的哪张事后无法复核                              |
+| 2.6  | **计划卡**                 | 阶段列表 + 1–3 待定项 + 预估 credits + 「修改 / 开始」；**出卡时机由客户端硬判**（§5）                                    | 生成前反问的唯一载体                                                                                                                        | 退回「先做了再说」                                  |
+| 2.7  | **ToolGroup 折叠行**       | 「5 个操作 · 4 成功 1 失败」，点开逐条                                                                                    | 结果优先、过程自动折叠                                                                                                                      | 日志刷屏，结果被淹没                                |
+| 2.8  | **反问单选卡**             | 中途缺一个决定就地问，选项即按钮                                                                                          | 比「请回复 1/2/3」少一次打字                                                                                                                | 多一轮 LLM 往返                                     |
+| 2.9  | **确认卡（三档）**         | 覆盖手写三选 / 花钱硬确认（带「不再问」）                                                                                 | 拍板 3 + 新增花钱档                                                                                                                         | 手写被静默覆盖，或每次生成点两遍                    |
+| 2.10 | **候选网格卡**             | 缩略 + **URL（域名可点）· 发布者 · 可否作生成输入** + 勾选                                                                | 拍板 21「浏览零下载」+ 溯源三字段                                                                                                           | 来源不可见，版权与可用性无从判断                    |
+| 2.11 | **结果行卡**               | 每轮 2–4 张缩略，点选=当前，hover 出「问助手 / 放大」，卡底「按这张继续」                                                 | 面板内能判好坏，是 @ 闭环入口                                                                                                               | 面板与结果区来回扫视                                |
+| 2.12 | **评审卡**                 | 内嵌被评那张图 + 否定 / 异常 / 建议三段                                                                                   | 拍板 6「证据长在结论里」                                                                                                                    | 评语脱离图                                          |
+| 2.13 | **checkpoint 薄卡**        | 每轮一张：`已改 N 项 · 只回参数 / 连对话一起回`                                                                           | 拍板 18 + 14 的合并形态                                                                                                                     | 撤不到「这一轮之前」                                |
+| 2.14 | **系统行**                 | 「你撤销了：××（助手已知晓）」「停顿点 · 接住排队消息」                                                                   | 撤销与排队后上下文不脱节                                                                                                                    | 助手基于已撤状态继续说话                            |
+| 2.15 | **输入区上行**             | `📎 附件 · 模型 chip · 先问我 · ⏹ Stop`                                                                                   | 四个高频开关明面化；模型 chip 复用自动路由组件                                                                                              | 另造选择器 = 2026-08-19 生产事故重演                |
+| 2.16 | **输入区下行**             | 输入框 + 发送；运行中不锁，回车=排队                                                                                      | 拍板 13 改口后的唯一入口                                                                                                                    | 运行中不能打字，或打字即打断                        |
+| 2.17 | **排队条**                 | 浮在输入框上方，可撤回，停顿点 = **每个工具步跑完的那一刻**（已落地 `f074605d`）                                          | 「已排队」必须看得见才敢排                                                                                                                  | 用户以为丢了，重复发送                              |
+| 2.18 | **@ 选择器**               | 打 `@` 唤出：最近生成在前、素材库可搜，成带缩略图 chip；**不设硬上限**，超 8 张提示「可能不准」不拦截                     | 四入口中的键盘入口                                                                                                                          | 只剩 hover 一条路，无键盘可达                       |
+| 2.19 | **灯箱**                   | 结果缩略 / 参考图 / 评审证据图共用同一个（拍板 17 现值）                                                                  | 一份实现三处复用                                                                                                                            | 三种放大交互各写各的                                |
+| 2.20 | **建议药丸**               | 语境化、点即发送、`minChanges` 门（已实现，`studio-assistant-operator.ts` 的 `STUDIO_OPERATOR_SUGGESTIONS`）              | 空态起手势                                                                                                                                  | 空态无可点动作                                      |
+| 2.21 | **项目规则薄卡**           | 助手引用了某条项目规则时出现：规则原文 + 来源日期 + 「查看规则」                                                          | 规则是助手为什么这么做的唯一可核对证据                                                                                                      | 规则命中不可见，用户以为助手在瞎猜                  |
+| 2.22 | **时间线沟里的头像**       | 用户回合 = Clerk 账户头像 / 首字母圆标；助手回合 = AI 头像。工具步 / 系统行 / 计划 / 结果仍是形状节点。对话行不显示时间戳 | 「谁在说话」是对话流唯一必须一眼看出的事；时间戳一天里全是同一分钟，占的是沟里最贵的那点宽度却零信息（沟因此由 78 收到 24，时间戳整段删除） | 20 行下来全是同款小圆点，用户回合与助手回合靠缩进猜 |
+| 2.23 | **助手设置弹层**（§8）     | ⋯ 菜单「助手设置」→ `ResponsiveDialog`：名字 / AI 头像 / 语气 / 长度 / 默认行为 / 语言。用户级，一份，四域共用            | AI 头像必须有地方选；「先问我」需要跨会话默认态                                                                                             | 头像写死一个，语气不可调，「先问我」永远从关开始    |
+| 2.24 | **计划卡待定项图示**（§9） | 待定项从「三个纯文字按钮」升为「34px 图示 + 标签」，图示取自封闭词表，词表外退化纯文字                                    | 一个线描比四个字快得多；封闭词表是不让模型自由发挥图标的唯一办法                                                                            | 计划卡回到三段文字，扫读成本与聊天框持平            |
 
 ---
 
@@ -121,16 +121,16 @@
 
 ### 3.2 面板与撤销（8 行）
 
-| 触发                            | 即时反馈                                        | 动效                           | 结果                                                                                    |
-| ------------------------------- | ----------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------- |
-| 拖左缘 separator                | 光标 col-resize，实时跟手，左上角 mono 宽度提示 | 无（精密档）                   | 宽度写 `storageKey`，缩略图列数换档                                                     |
-| 键盘聚焦 separator 按 ←/→       | 焦点环可见，每次 20px（`widthStepPx`）          | 无                             | 同上，键盘可达                                                                          |
-| 点提示词框 / 面板内部           | 无变化                                          | 无                             | **不收起**（`data-operator-keep` + 提示词 textarea id）                                 |
-| 点 checkpoint「撤销」           | 就地展开二选：只回参数 / 连对话一起回 / 取消    | 元素替换 fast                  | 不弹窗，不跳焦点                                                                        |
-| 选「只回参数」                  | 薄卡变灰「已撤销 · 只回参数」+ 系统行           | 列表项进入 base                | 按 `inverse` 逆序回滚，对话保留，**结果不删**                                           |
-| 选「连对话一起回」              | 本轮消息整体淡出                                | 元素移除 fast                  | 参数回滚 + 本轮对话截断                                                                 |
-| 顶部「清掉助手全部改动」第 1 击 | 按钮变 destructive 并改文案                     | 选中态 fast                    | 进 3s 二击窗口（`STUDIO_OPERATOR_CLEAR_CONFIRM_MS`，`studio-assistant-operator.ts:41`） |
-| 3s 内第 2 击 / 3s 不点          | 参数栏多处回落 + 生成键熄灭 / 自动变回原文案    | 回落值高亮一拍 / 颜色过渡 fast | 只清当前域；超时什么都没发生                                                            |
+| 触发                            | 即时反馈                                        | 动效                           | 结果                                                    |
+| ------------------------------- | ----------------------------------------------- | ------------------------------ | ------------------------------------------------------- |
+| 拖左缘 separator                | 光标 col-resize，实时跟手，左上角 mono 宽度提示 | 无（精密档）                   | 宽度写 `storageKey`，缩略图列数换档                     |
+| 键盘聚焦 separator 按 ←/→       | 焦点环可见，每次 20px（`widthStepPx`）          | 无                             | 同上，键盘可达                                          |
+| 点提示词框 / 面板内部           | 无变化                                          | 无                             | **不收起**（`data-operator-keep` + 提示词 textarea id） |
+| 点 checkpoint「撤销」           | 就地展开二选：只回参数 / 连对话一起回 / 取消    | 元素替换 fast                  | 不弹窗，不跳焦点                                        |
+| 选「只回参数」                  | 薄卡变灰「已撤销 · 只回参数」+ 系统行           | 列表项进入 base                | 按 `inverse` 逆序回滚，对话保留，**结果不删**           |
+| 选「连对话一起回」              | 本轮消息整体淡出                                | 元素移除 fast                  | 参数回滚 + 本轮对话截断                                 |
+| 顶部「清掉助手全部改动」第 1 击 | 按钮变 destructive 并改文案                     | 选中态 fast                    | 进 3s 二击窗口（`STUDIO_OPERATOR_CLEAR_CONFIRM_MS`）    |
+| 3s 内第 2 击 / 3s 不点          | 参数栏多处回落 + 生成键熄灭 / 自动变回原文案    | 回落值高亮一拍 / 颜色过渡 fast | 只清当前域；超时什么都没发生                            |
 
 ### 3.3 @ 四入口 与「先问我」（7 行）
 
@@ -152,9 +152,8 @@
 
 | 触发                                          | 即时反馈                                                  | 动效                           | 结果                                           |
 | --------------------------------------------- | --------------------------------------------------------- | ------------------------------ | ---------------------------------------------- |
-| 用户消息落位                                  | 沟里 20px 圆头像淡入（`avatarUrl`；无则首字母圆标）       | `entryIn` base，仅 opacity     | 与 8px 大节点**同轴**（沟内 x=18px），不改沟宽 |
-| 助手消息 / 计划卡 / 评审卡落位                | 沟里 20px AI 头像淡入                                     | 同上                           | 一轮里连续助手行**只第一行挂头像**，避免头像柱 |
-| hover 一行                                    | 行尾 mono 时间戳 `opacity-0` → 1                          | fast                           | 时间戳不占常驻视觉预算                         |
+| 用户消息落位                                  | 沟里 32px 圆头像淡入（`avatarUrl`；无则首字母圆标）       | `entryIn` base，仅 opacity     | 与 8px 大节点**同轴**（沟内 x=18px），不改沟宽 |
+| 助手消息 / 计划卡 / 评审卡落位                | 沟里 32px AI 头像淡入                                     | 同上                           | 一轮里连续助手行**只第一行挂头像**，避免头像柱 |
 | 头像加载失败 / 无头像                         | 直接渲染首字母圆标（`FL` 式两位）                         | 无                             | 不出破图、不出骨架屏                           |
 | 点 ⋯ →「助手设置」                            | `ResponsiveDialog` 打开，焦点落「助手名字」               | 弹层自带                       | 面板不收起（`data-operator-keep`）             |
 | 选一款预设 AI 头像                            | 格子 `ring-2 ring-primary`，沟里助手头像即时换掉          | 选中态 fast                    | 乐观更新，保存失败回滚并出错误行               |
@@ -164,7 +163,7 @@
 | 计划卡待定项渲染                              | 每格 34px 图示 + 标签                                     | `cardIn` reveal + stagger 30ms | `visual` 在词表内才画图示                      |
 | `visual` 不在词表 / 缺失 / 是「选哪张参考图」 | 退化为纯文字 chip（等高）/ 换成素材缩略图（`aspect-3/4`） | 同上                           | ⛔ 不猜、不回退到「随便一个图标」              |
 
-**375px 列**：本轮 **不渲染**（`StudioOperatorDock.tsx:320` `return null`），移动端下一轮（owner 2026-09-06）。
+**375px 列**：图片 / 视频档走**全屏 Sheet + 右下浮标**，配方与取舍见 §11.6；音频档与 LoRA 手机端仍是旧面板（第四期）。
 
 ---
 
@@ -184,6 +183,18 @@
 - **`awaitingPlan` 接线中（3a）**——名字按本表写，⛔ 不另起一个 `planning` / `awaitingUser`。
 - `queued` 不是一档状态而是**正交的一格**：队列是 `state.queue`（`use-studio-operator-store.ts`），与 `status` 同时成立（working + 排队条）。
 - `stopped` 由 `stopped` 事件的 `reason` 说清楚（`ASSISTANT_OPERATOR_STOP_REASONS`：`aborted` / `awaiting_confirm` / `max_steps`），status 本身回 `idle`。
+
+**流式与加载态（目标态，接线中）**——这五条说的是「从按下发送到第一个字出现之间，屏幕上有什么」。今天这一段是空的：发出去之后时间线什么都不长，用户不知道它收到没有。
+
+| 目标                      | 口径                                                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **正文按帧累积**          | 助手正文由 `message_delta` 逐帧累加渲染（`StreamingText`），⛔ 不等整条 `message` 到齐再一次性刷出                                     |
+| **发送即回显**            | 用户那一行在请求发出的同一帧就落进时间线，紧跟一条**助手占位行**（头像 + 空正文）——占位行是「它收到了」的唯一凭证                      |
+| **进度带「思考中」**      | 还没有任何工具步时进度带写「思考中」，⛔ 不显示 `0/0`：一个没有分母的计数比一句话更让人以为它卡住了                                    |
+| **ToolGroup pending**     | 工具步在**开跑时**就进组（状态字符走 pending 档），跑完再改成 `✓` / `✕`；⛔ 不做「跑完才出现」——那正是「它到底在干什么」这个问题的来源 |
+| **`awaitingPlan` 带文案** | 计划卡钉住那一刻进度带与图标轨都写「待你定」（§4.1 该列），⛔ 不留在「思考中」上——两件事对用户要做的动作完全不同                       |
+
+⚠ 五条都**接线中**：`message_delta` 事件与占位行在 `StudioOperatorPanel` 那一侧接，`StreamingText` 是它的正文渲染件（按词淡入用 §11.5 的 `fast` 配方）。
 
 ### 4.2 卡片态
 
@@ -338,7 +349,7 @@ flowchart LR
 
 ---
 
-## 7. @ 与看图
+## 7. @ · 看图 · 检索链
 
 **四入口**（§3.3）：键盘 `@` 选择器 · 结果缩略 hover「问助手」· 拖图进输入框 · 助手歧义反问单选。四条走**同一条 chip 管线**（`use-studio-operator-mention.ts` 的 `addChip`，已落地 `f074605d`），chip = 缩略图 + 文本 + `×`，与 📎 附件按 `id` 去重合并进现有的 `send(text, attachments)`。第四条那张卡（`StudioOperatorAssetChoiceCard`）组件已就位，驱动它的 `choice_request` 事件**接线中（3a）**。
 
@@ -347,6 +358,39 @@ flowchart LR
 **归属票不再是看图唯一凭证**（拍板 4 推翻）：`@` 指定任意图一律可看。归属票保留作**自动开场白**路径（用户点了助手备的那一枪之后助手主动开口），不再作为 `critique_result` 的准入。
 
 **评审卡**固定三段：**否定**（`--status-risk`）/ **异常**（`--status-warning`）/ **建议**（`--status-applied`），卡上内嵌被评的那张图（拍板 6 现值，`StudioOperatorCritiqueCard.tsx:4` 的注释就是这条）。视频域第二期扩成三帧抽帧版。
+
+### 7.1 检索链：`research` / `read_url` / 官方优先搜图（已落地 `7513c267`）
+
+> 🔬 起因是 owner 的真机用例：让助手查一部作品里某个角色的官方设定图与外貌服饰，它调了一次 `search_web`、拿回一句台词就停下来问用户要图。三件事一起坏了——**只打了一个源、只发了一条查询、只跑了一轮**。这三条工具逐条对着修。
+
+| 工具                    | 入参                                                                                                                                                     | 出参                                                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **`research`**          | `goal`（一句话，`maxGoalChars`）· `entities?`（角色名 / 作品名，`maxEntities` 4）· `sources?`（**粗粒度四组** `web` / `wiki` / `bilibili` / `danbooru`） | `totalFound` + `evidence[]`（`maxEvidenceItems` 10）；载荷另记 `round` 与**服务端真的打了哪几组** |
+| **`read_url`**          | `url`（协议闸与 `import_user_url` 逐字同源，只放行 http(s)）· `focus?`（如「外貌与服饰」）                                                               | 页标题 + 正文摘录（`maxReadUrlExcerptChars`，**服务端按 `focus` 截段**）                          |
+| **`search_web_images`** | 原有 `query` / `limit` + **新** `subject?`（作品名 + 角色名）· `preferOfficial?`                                                                         | 候选行；载荷里带 `queries`（服务端真的发出去的那几条）· `subject` · `preferOfficial`              |
+
+**证据卡六个字段**（`AssistantOperatorEvidenceSchema`，`src/types/assistant-operator.ts`）：`title` · `url?` · `publisher` · `snippet` · `kind` · `confidence`。
+
+- ⚠ `publisher` 在这里是**必填**（网搜那条是可选）：证据卡的全部意义是「谁说的」，取不到站名时服务端回落成域名。
+- ⚠ `confidence`（`high` / `medium` / `low`）由**源的层级**算出来，⛔ 不由模型写——让模型给自己找的东西打分，它给的永远是 high。
+- ⚠ `kind` 三档 `text` / `tags` / `image`。**`tags` 那一档是这条链最值钱的东西**：图库与百科分类给的已经是结构化外观词，提示词直接吃得下，⛔ 不需要再过一次模型提取。
+- ⚠ `url` 可选：共现标签这类证据没有单一页面可点。
+
+**两轮上限**（`ASSISTANT_RESEARCH_LIMITS.maxRoundsPerTurn = 2`）是硬闸不是提示：第一轮定「官方名怎么写、哪个站是出处」，第二轮拿着那个答案问「外貌与服饰」。给 1 就退回成「搜一次就放弃」，给 4 则整轮 `maxSteps`（8）全烧在检索上。⚠ **打过就算一轮**，不管有没有收获；撞上限按 `researchRoundsExhausted` 拒并说清下一步该干什么，⛔ 不静默返回空结果——空结果会让模型以为「这个角色查不到」，然后开始编。⚠ 每一源的回执逐条带出（`ok` / `empty` / `failed` / `circuit_open`）：「打了但没料」与「源挂了」下一步该做的事完全不同。
+
+**官方优先搜图**：给了 `subject` 且 `preferOfficial` 时，服务端把主体铺成**中 / 日 / 英三条**官方限定查询（`WEB_IMAGE_OFFICIAL_QUERY_SUFFIXES`，上限 `maxImageQueryVariants` 3，两边取小），再按来源优先级**稳定排序**把官方与 wiki 排到前面（`webImageSourceRank`，`src/constants/web-image-sources.ts`）。⚠ 一手立绘常常只发在中文 / 日文渠道，一条英文查询只搜得到二手转载。⚠ **每条变体 = 一个 Serper credit**，所以不给 `subject` 的普通搜图仍是一条查询一个 credit，成本形状与切片 3b 不变。⚠ 只在 `preferOfficial` 时排序，⛔ 不无条件排；`blocked` 档排最后而**不是剔除**（与格子上「禁用而不是移除」同一条纪律）。
+
+**候选行的两个新动作**：
+
+- **「全部可用的挂上」**（`operator-web-use-all`）：搜到一行官方设定图之后，用户要的是「都挂上」而不是点四次「选用」。三条闸与格子上那颗逐条同源——`usableAsInput=false` 的不在名单里（⛔ 也不为此弹拒绝理由）· 已选过的跳过（再点一次是取消选用）· 名额满了一张都不动（⛔ 不挤掉用户自己挑好的）。数量写在按钮上（「挂上 3 张」），⛔ 不写无数字的「全部挂上」；名额为 0 时**禁用而不是移除**。
+- **用户说了「挂上」之后**，助手可以对**本轮候选**调 `import_user_url`（拍板 22「你递的就是确认」的延长线：用户已经开口了）。⚠ 这些候选进的是 `run.webImageIndex` 而 **⛔ 不是 `run.searchIndex`**——后者是 `mount_reference` 的名单，里面的东西已经是用户的素材，而候选还只是地址。⛔ 助手永远不得把候选 URL 粘进提示词，也不得导入用户没点名的那些。
+
+**系统提示里的两段硬话**（`buildOperatorSystemPrompt`）：
+
+1. **找角色设定图链路，四步按序、助手自己跑完**：① `research` 先行（作品 + 角色作 `entities`），定官方名、本语言写法与出处站；⛔ 不要拿 `search_web` 起手。② `search_web_images` 带 `subject` + `preferOfficial: true`。③ 对第一步找到的最好那页 `read_url`，`focus` 写成真正要的东西（「外貌与服饰」「服装配色」）——发色瞳色衣着就住在那里，搜索摘要里从来没有。④ `set_prompt` 写进去，并告诉用户去点候选上的「选用」。
+2. **「一次空搜索不是答案」**：`research` 或搜图回得薄时，必须**换一个东西再来一次**（本语言写法 / 官方原名而不是民间译名 / 换一组源 / 换另一条工具）才能说「找不到」。查一次就回来说「我没找到」是失败，不是诚实汇报。
+
+**钱闸**：`research` / `read_url` **永远是 `readStep`**——打的是只读接口，一个字节不落、表单一个字不改，`applyOperatorStep` / `revertOperatorStep` 两侧都是 no-op。扇出那一段单独住在 `src/services/research/research-fanout.service.ts` 并进了钱闸 import 白名单（`assistant-operator.money-gate.test.ts`），判据与 `web-research.service` 逐字同源：它只搜索与归并，一行库都不碰。⛔ `research-run.service` **有意不在白名单里**——那条会读配额、写 `ResearchRun`，也就是会 import 库客户端，而禁字表那条 import 是硬拦。哪天有人想「复用现成的」把它换进来，这份名单就是那个看得见的动作。
 
 ---
 
@@ -357,7 +401,12 @@ flowchart LR
 ### 8.1 入口与容器
 
 - **主入口**：面板头部 ⋯ 菜单加一项「助手设置」。现有 ⋯ 菜单在 `src/components/business/studio/assistant-operator/StudioOperatorPanel.tsx:314-329`（今天只有停用的「分享 / 反馈」两项）；⛔ 不要塞进 `:236-260` 那个**会话菜单**（「新对话」住在那里，两个菜单职责不同）。触发器带 `data-operator-keep`。
-- **容器**：`src/components/ui/responsive-dialog.tsx`（已存在），`max-w-lg` 单列，⛔ 不分栏。
+- **容器**（实际形态，已落地 `7a4cf2ae`）：`src/components/ui/responsive-dialog.tsx`，**头固定 / 身滚动 / 脚固定**，容器高度封在视口内。⛔ **原「`max-w-lg` 单列、不分栏」作废**（owner 2026-09-06 当面定两栏）——旧版一列到底、六张头像各占 44px 挤成一行，实测 806px 高而视口只有 757px，头尾一起被裁。
+  - **两页走 `Tabs` 原语**（助手 / 项目规则），⛔ 不是两颗与下面分段控件长得一样的大圆按钮。开哪一页是**入参**不是内部 state（规则薄卡的「查看规则」要直接落到规则页）。
+  - **桌面 `lg:max-w-2xl` 两栏**：左「身份」= 64px 大预览 + 预设格 + 传/撤 + 名字；右「说话方式」= 语气 / 长度 / 默认行为 / 语言。⚠ `lg:` 起才分栏（`ResponsiveDialog` 在 <1024 走抽屉，375 宽分栏等于两条挤扁的窄柱）。
+  - **分段控件走现成 `ToggleGroup` 原语**，每组 = `text-2xs tracking-nav` 小标题 + `h-8` 控件，选中 `bg-primary text-primary-foreground`。⛔ 不再有 40px 圆胶囊。
+  - **保存失败就地说话**：footer 一颗**常驻** `role="alert"`（失败前是空的——live region 得先在树上，插进来的那一条读屏不念）。⛔ 旧版 `save()` 返回 false 什么都不发生，用户只看到弹层不关。
+  - **辅助说明只留一句**：头部 description 已经在说「一个用户一份、四域共用」，body 末尾那句重复的作用域说明删掉。
 - **第二入口**：仓库没有 `/settings` 路由，账户编辑就是 `src/components/business/ProfileEditModal.tsx`（由 `ProfileHeader.tsx:251` 传值打开）——在它底部加一行打开**同一个** `AssistantSettingsDialog`，⛔ 不把 persona 字段抄进它的表单。
 
 ### 8.2 字段表
@@ -442,8 +491,8 @@ export const UpdateAssistantPersonaSchema = AssistantPersonaShapeSchema.omit({ a
 ### 8.6 i18n key 清单（`StudioOperator.persona.*`，en / ja / zh 三份同步）
 
 ```
-壳    title description save saved cancel reset saveFailed scopeNote
-名字  nameLabel namePlaceholder nameHint
+壳    title description save saved cancel reset saveFailed
+名字  nameLabel namePlaceholder
 头像  avatarLabel avatarPresets avatarUpload avatarUploading avatarRemove
       avatarTooLarge avatarUnsupported
 语气  toneLabel tone.{professional,friendly,terse,custom}
@@ -456,6 +505,7 @@ export const UpdateAssistantPersonaSchema = AssistantPersonaShapeSchema.omit({ a
 ```
 
 ⚠ zh 最长：420 窄档下三段分段控件不得换行——`planMode.*` 三个标签各 ≤5 字。
+⚠ `scopeNote` / `nameHint` 两条**已不再渲染**（`7a4cf2ae`）：作用域说明并进头部 description，名字长度由输入框自己的上限说。
 
 ---
 
@@ -530,7 +580,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 | 折叠态   | 宽 **48**，内容 `opacity 0 + pointer-events:none`，图标轨 `absolute inset-0`                                                                                                                       | 拍板 7                                             |
 | 容器皮   | `bg-card` + `border` + `shadow-lg` + `rounded-xl`                                                                                                                                                  | 全站脊柱，无自造材质（`ui-defaults.md §3`）        |
 | 三段     | 进度带（`flex-shrink-0` + 下 1px border）/ 时间线（`flex-1 min-h-0 overflow-y-auto`）/ 输入区（`flex-shrink-0` + 上 1px border）                                                                   | 只有中段滚                                         |
-| 时间线沟 | `grid-cols-[78px_1fr] gap-x-2`；贯穿竖线 = `::before` 1px `bg-border`，`left: 18px`                                                                                                                | 节点与头像同轴                                     |
+| 时间线沟 | `grid-cols-[24px_1fr] gap-x-2`；贯穿竖线 = `::before` 1px `bg-border`，`left: 18px`                                                                                                                | 节点与头像同轴                                     |
 | 拖拽把手 | `absolute inset-y-0 left-0 w-[10px]`，内 6×56 圆条；hover/拖拽 `primary 40%/60%`                                                                                                                   | `role=separator` + `aria-valuenow`                 |
 | 宽档     | `STUDIO_OPERATOR_SHELL.wideAtPx = 700`（`src/constants/studio-assistant-operator.ts`）：结果网格 2 列 → 4 列，候选 3 列不变。⚠ 判据是 **`@container`（面板宽）不是视口断点**——面板宽是用户拖出来的 | 拍板 9「不留白」                                   |
 
@@ -553,12 +603,12 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 
 ### 11.3 时间线沟：头像 + 形状节点分级
 
-> 层级靠形状与缩进，不靠颜色和底色块。**会说话的两方用头像，其余仍用形状**。头像与形状节点**同轴**（沟内 x=18px），沟宽 78px 一格不动。
+> 层级靠形状与缩进，不靠颜色和底色块。**会说话的两方用头像，其余仍用形状**。头像与形状节点**同轴**（沟内 x=18px，`STUDIO_OPERATOR_TIMELINE.linePx`），**沟宽 24px**（`gutterPx`，owner 2026-09-06 由 78 收到 24），头像 **32px**（由 20 放大）。⚠ 沟宽走行内 `gridTemplateColumns` 而不是 Tailwind arbitrary value（Hard Rule 5；24 这个数是面板私有的，不配进 `globals.css` 的 `@theme inline`）。
 
 | 沟位       | 形态     | 尺寸 / 样式                                            | 承载                                             | 上间距 |
 | ---------- | -------- | ------------------------------------------------------ | ------------------------------------------------ | ------ |
-| **用户**   | 账户头像 | 20px 圆，`ring-2 ring-card`；无头像 = 首字母圆标       | 用户消息                                         | 16px   |
-| **助手**   | AI 头像  | 20px 圆，`ring-2 ring-card`                            | 助手消息 / 计划卡 / 评审卡（一轮只挂第一行）     | 16px   |
+| **用户**   | 账户头像 | 32px 圆，`ring-2 ring-card`；无头像 = 首字母圆标       | 用户消息                                         | 16px   |
+| **助手**   | AI 头像  | 32px 圆，`ring-2 ring-card`                            | 助手消息 / 计划卡 / 评审卡（一轮只挂第一行）     | 16px   |
 | **大节点** | 实心圆   | 8px，`bg-primary`，3px `card` 描边环                   | 确认卡 / 候选卡 / 结果卡 / 动作卡                | 16px   |
 | **工具步** | 空心圆   | 6px，`bg-card` + 1px `border-muted-foreground`，3px 环 | ToolGroup 折叠行 / 思考区                        | 8px    |
 | **系统行** | 短横     | 8×2px，`bg-muted-foreground`                           | 系统行 / checkpoint 薄卡 / 规则薄卡 / 免确认薄卡 | 8px    |
@@ -567,22 +617,36 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 
 ⛔ **用户方块节点（7×7 `bg-foreground`）删除**，被账户头像整体取代，不做「有头像走头像、没头像走方块」的双形态——首字母圆标就是没头像那一档（Principles 1）。
 
-**`TimelineAvatar` 配方**（沟内绝对定位，与竖线同轴）：
+**`TimelineAvatar` 配方**（32px，沟内绝对定位回到与竖线同一条轴上）：
 
 ```
-容器  absolute left-2 top-0 size-5 shrink-0 overflow-hidden rounded-full ring-2 ring-card bg-muted
-图片  size-full object-cover     // next/image unoptimized，同 AppSidebar.tsx:481-493 的写法
-兜底  flex size-full items-center justify-center font-mono text-3xs tracking-nav uppercase text-muted-foreground
+容器  grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted ring-2 ring-card
+      + absolute left-1/2 top-0 -translate-x-1/2   // 头像比 8px 节点盒宽，靠它回到同轴
+图片  size-full object-cover                        // next/image unoptimized，同侧栏头像那条路
+兜底  grid size-full place-items-center font-mono text-xs uppercase leading-none tracking-nav text-muted-foreground
 ```
+
+⚠ `ring-card` 而不是 `ring-background`：头像盖在贯穿竖线上，而那条线画在面板的 `bg-card` 上——用 background 会在卡底上留一圈更白的环。
 
 - **用户头像源**：`useMyProfile()`（`src/hooks/use-my-profile.ts:53`）的 `avatarUrl`——Clerk 的 `imageUrl` 首次入库时同步进 `User.avatarUrl`（`src/services/user.service.ts:283` / `:327`），之后可被自传头像覆盖。⛔ 面板内不另调 Clerk `useUser()`：两个真相源在用户换过头像后会各说各话。
 - **首字母**：`(displayName ?? username).charAt(0).toUpperCase()`，同 `src/components/business/ProfileHeader.tsx:87`；本轮扩到两位（`FL` 式），中日文取一个字。
-- **⚠ 仓库现状**：没有 `UserAvatar` 组件。`src/components/ui/avatar.tsx` 是 Radix 三件套（只有 `src/components/ui/message.tsx` 在用，三档 24/32/40），侧栏是裸 `span` + `UserCircle`（`AppSidebar.tsx:481-493`）。20px 不在那三档里，**本轮不为它改共享原语**，`TimelineAvatar` 自己写这几行。
-- **AI 头像源**：`persona.avatarPreset`（内联 SVG）或 `persona.avatarUrl`（`next/image`），见 §8。未加载完先画首字母，⛔ 不出骨架屏。
-- **时间戳**：头像行的挂行尾，`font-mono text-2xs tracking-nav tabular-nums text-muted-foreground`，默认 `opacity-0`，`group-hover:` / `focus-within:opacity-100`，过渡 `duration-(--duration-fast)`；`title` 带完整时刻供无 hover 设备与读屏。形状节点行不变：右侧常显 `font-mono text-3xs`。
-  🔬 **订正（contrast-check，落地于 `e6ceadf3`）**：⛔ 不用本文早先写的 `text-muted-foreground/75`——合成后是 `#8f8f8f`，对卡背只有 **3.23:1**，而 11px 正文要 4.5（`ui-defaults.md §2.4`）。足色 `text-muted-foreground`（`#696969`）= **5.49:1**；「不抢视线」交给默认的 `opacity-0` 去做，不靠减对比度。
+- **⚠ 仓库现状**：没有 `UserAvatar` 组件。`src/components/ui/avatar.tsx` 是 Radix 三件套（只有 `src/components/ui/message.tsx` 在用，三档 24/32/40），侧栏是裸 `span` + `UserCircle`（`AppSidebar.tsx:481-493`）。时间线头像为 32px，**不改共享原语**，`TimelineAvatar` 自己写这几行。
+- **AI 头像源**：历史消息与当前消息均接收同一份 persona；设置保存、头像上传/移除成功后，`useAssistantPersona` 通知已挂载的使用方同步更新。`persona.avatarPreset`（内联 SVG）或 `persona.avatarUrl`（`next/image`），见 §8。未加载完先画首字母，⛔ 不出骨架屏。
+- **时间戳整体删除**（owner 2026-09-06，落地 `7a4cf2ae`）：用户行 / 助手行 / 形状节点行**都不显示时间**，⛔ 也**不保留 hover 才出**那一档。工作日志读的是「做了什么、按什么顺序」，一列灰时间只是往每一行右端挂一个没人看的数。⛔ 本文早先那条「hover 才显示 + `text-muted-foreground/75` 对比度订正」连同它订正的对象一起作废——那个元素已经不存在了。
+
+**读屏（落地 `7a4cf2ae`；容器接线中）**——⭐ 时间戳删掉之后，这一段是读屏用户**唯一**能分辨「谁在说这句话」的地方：整条时间线的层级只有缩进与形状，而这两样读屏都读不到，20 行下来听上去是一段没有说话人的独白。
+
+| 落点                                     | 做法                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **行**（`StudioOperatorTimelineRow`）    | `role="article"` + 三语 `aria-label`（`StudioOperator.timeline.row{User,Assistant,Action,Tool,System}`）。⚠ 必须给角色：裸 `div` 上的 `aria-label` 大多数读屏直接忽略（无角色元素不参与名称计算）。助手行念的是**用户给助手起的名字**，没起名念 `assistantFallback`                                                                     |
+| **容器**（`StudioOperatorTimelineList`） | `role="log"` + `aria-live="polite"` + `aria-relevant="additions text"` + `aria-label`。⚠ `polite` 不是 `assertive`：它不该打断用户正在读的话。**⬜ 接线中**——组件已导出，把面板里那颗 `threadRef` 容器原地换成它是 `StudioOperatorPanel` 那一侧的一行                                                                                   |
+| **头像 `alt`**                           | ⛔ **不是空串**（2026-09-06 真机：读屏走到助手回合只念得出一个「图片」）。助手 = `avatarAssistant`（带名字，无名字用「助手」），用户 = `avatarUser`（「你的头像」）。⚠ 预设款是 `aria-hidden` 的纯图形 SVG，名字挂在外层 `span` 的 `role="img" aria-label` 上；首字母圆标同理——读屏念「FL」没有意义，念「你的头像」才是这颗圆标想说的话 |
+
+⚠ 首字母取两位（`FL` 式），CJK 取一个字；切分用 `Array.from` 而不是 `slice(0,2)`——按 UTF-16 码元切会把 emoji 或 CJK 扩展字劈成半个字符然后渲染成豆腐块。
 
 ### 11.4 卡型配方
+
+调查展示：历史与当前对话中的连续文字搜索、状态读取、文件夹列表、规则读取及紧接其前的过渡说明，合并到默认关闭的「调查过程」中，可手动展开。最终结论、失败、改动、计划/确认、搜图与素材候选、评价仍直接显示；只改变展示，不删除历史或请求上下文。
 
 > 容器统一 `.card` = `rounded-xl border border-border bg-card overflow-hidden`，三段 head(`px-3 py-2` + 下 border) / body(`p-3 flex flex-col gap-3`) / foot(`px-3 py-2` + 上 border + muted 45% 底)。标题 `text-xs font-semibold`，右侧注 `font-mono text-3xs text-muted-foreground`。已处理的卡加 `.resolved`（`opacity-[.92]` + 标题转 muted）。
 
@@ -593,7 +657,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 | **反问单选卡**      | 同计划卡的选项网格；歧义反问用 `grid-cols-4 gap-1.5`，格 `aspect-3/4 rounded-md`，hover 出 2px primary 外环                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | **覆盖三选**        | body 上半 diff：`旧` 行 `line-through` + muted，`新` 行 foreground，标签列 46px mono；下半三等分连体按钮（`grid-cols-3` 内嵌 1px 分隔，选中格 `bg-primary text-primary-foreground`）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | **花钱确认**        | `rounded-xl border border-status-warning/40 bg-card`，标题 `text-status-warning`；body `dl` `grid-cols-[auto_1fr] gap-x-3.5` 四行（模型 / 张数 / 规格 / 预估）；勾选「本会话此类不再问」（accent-color = primary）；foot「取消」+「生成」primary。🔬 contrast-check（`c2e14460`）：标题对卡底 浅 5.81 / 深 9.58 ✓ · 值 `text-foreground` 19.80 / 17.18 · 注脚对 `bg-muted/45` 5.31 / 6.45 · 主按钮 21.00。⚠ 那圈 `/40` 描边 浅 1.85 / 深 2.84 **不到 3:1**，但它是**装饰性强化**不是警示信号本身（警示由标题文字承担），所以这里**保留 40%**——⛔ 别与排队条那条订正混为一谈：排队条那条边是它唯一的边界，所以必须 `/70`。⚠ **算不出金额时不画预估那一行，也不给勾选**（§6.3/§6.4：没有金额就没有可比的上限，那颗勾选点了也不会命中；摆一颗永远无效的勾选比没有它坏） |
-| **候选网格**        | body `grid-cols-3 gap-2`；每格 `role=checkbox`：`aspect-square rounded-lg border`，右上 14px 勾选框（选中 = `ring-2 ring-primary ring-offset-2 ring-offset-card`）+ **三行元信息**：域名（mono 3xs，可点开新窗）· 发布者（2xs muted，缺失写「未知」）· 可否作生成输入（`✓ 可作输入` applied / `✕ 仅参考` risk）；foot「已选 N 张」+「跳过」+「选用」                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **候选网格**        | body `grid-cols-3 gap-2`；每格 `role=checkbox`：`aspect-square rounded-lg border`，右上 14px 勾选框（选中 = `ring-2 ring-primary ring-offset-2 ring-offset-card`）+ **三行元信息**：域名（mono 3xs，可点开新窗）· 发布者（2xs muted，缺失写「未知」）· 可否作生成输入（`✓ 可作输入` applied / `✕ 仅参考` risk）；foot「已选 N 张」+「跳过」+「选用」+ **「挂上 N 张」**（全部可用的一次挂上，三条闸与取舍见 §7.1；无可挂时**禁用不移除**）                                                                                                                                                                                                                                                                                                                           |
 | **结果行卡**        | body `grid-cols-2`（`.wide` 下 4 列）；格 `aspect-3/4 rounded-lg border`，左上 mono 序号，选中 `border-primary` + inset ring 2px；hover/focus-within 出底部渐变浮层两颗（「问助手」「放大」）；foot「未选定 / 已选 ②」+「按这张继续」                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **评审卡**          | body `flex gap-2.5`：左 `80×112 rounded-lg` 嵌图（带序号），右三段，标签列 26px mono——`否定` risk · `异常` warning · `建议` applied；建议里的语法片段套 `<code>`(`bg-muted rounded-[3px] px-[3px]`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | **checkpoint 薄卡** | 不是 `.card`：`border-l-2 border-status-applied bg-status-applied-surface rounded-r-md px-2.5 py-1.5 text-2xs`；右侧「撤销」ghost，点击**就地**替换为三颗（只回参数 / 连对话一起回 danger / 取消），完成后替换为 mono「已撤销 · 只回参数」                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -617,6 +681,29 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 | `prefers-reduced-motion` | 全部降为无动画；卡 / 结果格 / 候选格 / 入场行 / chip 强制 `opacity:1 transform:none` | 硬门（`checklists/ui.md` 第 5 项）                                                                            |
 
 ⛔ 只动 `transform` / `opacity` / `grid-template-rows`；进度环例外（`stroke-dashoffset`）。
+
+### 11.6 移动端（第一期已做，落地 `adb0a008`）
+
+> 375 上的助手 = **全屏 Sheet + 右下浮标**。⛔ 原「移动端一律 `return null`、下一轮再说」作废。配方口径见 `../ui-defaults.md §6`。
+
+| 项             | 做法                                                                                                                                                                                                                                                                              |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **判据**       | `useIsMobile()` + **宿主的域**（图片 / 视频）。⛔ 不按路由判：域是宿主说了算的                                                                                                                                                                                                    |
+| **容器**       | `StudioOperatorMobileSheet` = vaul 抽屉（`components/ui/drawer.tsx`）撑满 `100dvh`。⛔ 不用 Radix `Sheet`：vaul 多给的正是**下拉关闭**那一下，全屏面板上那是最顺手的退出手势。Esc / 点遮罩 / focus trap / focus return 全由原语给                                                 |
+| **面板复用**   | ⭐ **面板一行没改**：桌面那颗 `<aside>` 与这张 Sheet 装的是**同一个 `StudioOperatorPanel` 元素、同一份 props**（Dock 里那一个变量，两条分支共用）。内部疏密由 `@container` 按容器宽度自己收，⛔ 不为手机再写一套内容                                                              |
+| **软键盘**     | `DrawerContent` 把 `bottom` 钉在 `--keyboard-inset`（`KeyboardInsetBridge` 供值），Sheet 再把 `maxHeight` 一起扣掉。⚠ 只钉 bottom 不扣高，键盘弹起时整张 Sheet 会被顶出屏幕上沿，而输入区在最下面。⚠ `dvh` 不是 `vh`（iOS 地址栏）                                                |
+| **入口浮标**   | `StudioOperatorMobileFab` = **桌面 48px 图标轨在手机上的对应物**：命中区 **44px**（`ui-defaults.md §5` 触屏档，⛔ 无「紧凑版」），带状态点与读数（干活中报 `3/6`，否则报那一档的名字 / 「已备好」）。⚠ 四档配色**直接复用图标轨那张表**（`RAIL_TONE_CLASS`），⛔ 不在这里重抄一份 |
+| **浮标位置**   | 右缘 16px；下缘 **96px 净空**——图片 / 视频档底部钉着 `StudioMobileComposer`（`fixed bottom-0 z-40`），贴 16px 会正好压在生成键上。⚠ 这是个**取舍不是留白**：浮标另用 `z-30` 兜底，净空万一不够，让位的是浮标不是生成键                                                            |
+| **收放法则**   | 拍板 7 在手机上**只剩一半**：Sheet 关闭即收，⛔ 没有「点工作台收起」那条——全屏 Sheet 底下根本没有工作台可点（实现上也自动成立：那条 `pointerdown` 监听本来就不在移动端挂）                                                                                                        |
+| **拖宽把手**   | **不渲染**。宽度记忆整套不参与，⛔ 不写 `storageKey`——手机上拖不出宽度，往那个键里写数会污染用户在桌面拖出来的那一份                                                                                                                                                              |
+| **设置与灯箱** | 两条**手机上照样挂**：前者是 ⋯ 菜单的落点，后者是面板里点图看大图的唯一去处。⛔ 别只挂在桌面分支上                                                                                                                                                                                |
+
+**旧抽屉的去留**：`StudioEnhanceButton` 里图片 / 视频档的旧 `PromptAssistantPanel` 抽屉分支**已删**，不留 fallback（Engineering Principles 1）——它装的是旧助手，留着就是「手机上点开的是另一套东西」。⚠ 白名单与 `StudioWorkspaceUI` 的 `isOperatorSurface` 逐字一致；两份判据漂开的表现是「点助手没反应」。⛔ 不写 `!== 'audio'`：将来多一个模态时，默认不给它助手比默认给它一个拧不动任何旋钮的助手安全（拍板 19）。
+
+**仍走旧面板的两处（第四期收编）**：
+
+- **音频档**：手机上仍是 `StudioEnhanceButton` 的 `ResponsiveDialog` 抽屉 + 旧面板。音频**没有**操作员（`StudioWorkspaceUI` 白名单只放图片 / 视频），删掉这一支等于音频手机上一个助手都没有——那是功能回退不是清理。
+- **LoRA 装配台**：小屏助手仍是 `LoraAssistantDock`。「两颗面板永不同屏」那道门长在 `LoraWorkbench` 里，判据是「Dock 在小屏什么都不渲染」——所以 Dock 的手机外壳**按域收窄**，否则 LoRA 手机上会同时弹出两张面板。
 
 ---
 
@@ -651,32 +738,33 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 
 ### 12.1 operator 范式的 20 条代码注释拍板（落点表）
 
-> 这 20 条从来只活在源码注释里，docs 从未收录。改这些行为前先读它旁边那段注释——每条都写了「去掉会怎样」。行号 2026-09-06 核过。
+> 这 20 条从来只活在源码注释里，docs 从未收录。改这些行为前先读它旁边那段注释——每条都写了「去掉会怎样」。
+> ⚠ **本表只写文件 + 符号名，不写行号**（2026-09-06 改口径）：上一版记的行号在同一天的三笔改动之后已经全部漂掉（`assistant-operator.ts:367` 原指 `noSuchControl` 判据，现在指到 `search_loras`），而一个指错地方的行号比没有行号更费时间。找注释靠 `grep` 符号名。
 
-| #   | 一句话                                                                                       | 代码落点（代表处）                                                                      |
-| --- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| 2   | `prime_generate` 不是生成：服务端只吐 op，点的人永远是用户；它仍算「写」类，照样带 `inverse` | `ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate`（钱闸总纲在 `assistant-operator.ts:17-21`） |
-| 3   | 目标字段已有用户手写内容时先走确认通道                                                       | `src/constants/assistant-operator.ts:109` · `StudioOperatorChangeRail.tsx:94`           |
-| 4   | 归属追踪的「领票口」：自动只看它自己备的那次，用户自己发的不打扰                             | `src/components/business/studio/StudioPromptArea.test.tsx:1098`（判据钉在测试里）       |
-| 6   | 证据长在结论里——评价卡内嵌它评的那张图                                                       | `StudioOperatorCritiqueCard.tsx:4` · `StudioOperatorLogItem.tsx:94`                     |
-| 7   | 收起不掐在飞的那一轮：驱动 hook 调在**外壳**层，不在面板里                                   | `StudioOperatorDock.tsx:126` · `:132`                                                   |
-| 8   | 一个助手跨域，域是头部一枚 chip；切域换工具、不断会话（音频档有意不挂）                      | `src/components/business/StudioWorkspaceUI.tsx:78` · `assistant-operator.ts:518`        |
-| 9   | 覆盖层 560 / 420–860 / 宽度记忆，**记忆键必须与旧 dock 分开**                                | `src/constants/studio-assistant-operator.ts:17-32`                                      |
-| 10  | 会话历史住在外壳里：水化每次页面加载只跑一次，收放会反复卸载面板                             | `StudioOperatorPanel.tsx:122` · `:215` · `:235`                                         |
-| 11  | 模型 chip 点开就是现有「自动路由」组件——⛔ 不另造选择器                                      | `StudioOperatorPanel.tsx:9` · `:696`                                                    |
-| 12  | 输入区双行：上行 📎 + 模型 chip + ⏹，下行 输入框 + 发送                                      | `StudioOperatorPanel.tsx:12` · `:675`                                                   |
-| 13  | 工作态占位语「说，我在听 — 插话即转向」；发送键在工作态就是插话                              | `StudioOperatorPanel.tsx:13` · `:757`（⛔ 本轮被排队引导取代，见 §12 拍板 13）          |
-| 14  | 「清掉全部改动」二击 3s 窗口；⛔ 别做「反清掉」                                              | `src/constants/studio-assistant-operator.ts:35-41`                                      |
-| 15  | 建议药丸语境化、点即发送；值是 i18n 键后缀不是文案                                           | `src/constants/studio-assistant-operator.ts:97`                                         |
-| 16  | 📎 素材库就地预览，不做「按钮→弹窗」两跳，一屏 6 格                                          | `StudioOperatorAttachMenu.tsx:4` · `StudioOperatorPanel.tsx:193`                        |
-| 17  | 灯箱是全屏单例：参考缩略、评价卡证据图、附件 chip 共用一个，状态放模块级                     | `StudioOperatorLightbox.tsx:4` · `StudioOperatorLogItem.tsx:244`                        |
-| 18  | 改动必须看得见来源：标记长在被改的那一栏，不躲在面板里                                       | `StudioOperatorChangeRail.tsx:7` · `StudioOperatorLogItem.tsx:4`                        |
-| 19  | 判据只有一条——**工作台上有没有把它挂上去的槽**；「有这个类型」不等于「哪个域都能挂」         | `src/constants/assistant-operator.ts:367`                                               |
-| 20  | 「打开完整素材库」就地开弹层，不跳页                                                         | `StudioOperatorAttachMenu.tsx:254`                                                      |
-| 21  | 联网候选的「选用」走**同一个 `attachments` 数组**：搜来的、传上来的、库里挑的往后分不出来    | `StudioOperatorDock.tsx:200` · `:215`                                                   |
-| 22  | 「你递的就是确认」：用户自己粘的地址取图入库直接挂；助手搜出来的仍要点「选用」               | `src/constants/assistant-operator.ts:205` · `:231`                                      |
+| #   | 一句话                                                                                       | 代码落点（代表处）                                                                                                     |
+| --- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 2   | `prime_generate` 不是生成：服务端只吐 op，点的人永远是用户；它仍算「写」类，照样带 `inverse` | `src/constants/assistant-operator.ts` 的 `ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate`（钱闸总纲在同文件顶部的文件头注） |
+| 3   | 目标字段已有用户手写内容时先走确认通道                                                       | `assistant-operator.ts` 的 `ASSISTANT_OPERATOR_EVENTS.confirmRequest` · `StudioOperatorChangeRail`                     |
+| 4   | 归属追踪的「领票口」：自动只看它自己备的那次，用户自己发的不打扰                             | `src/components/business/studio/StudioPromptArea.test.tsx`（判据钉在测试里）                                           |
+| 6   | 证据长在结论里——评价卡内嵌它评的那张图                                                       | `StudioOperatorCritiqueCard` 文件头注 · `StudioOperatorLogItem` 的 `critique_result` 分支                              |
+| 7   | 收起不掐在飞的那一轮：驱动 hook 调在**外壳**层，不在面板里                                   | `StudioOperatorDock`（`useAssistantOperator` 的调用点）                                                                |
+| 8   | 一个助手跨域，域是头部一枚 chip；切域换工具、不断会话（音频档有意不挂）                      | `StudioWorkspaceUI` 的 `isOperatorSurface` · `assistant-operator.ts` 的 `ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN`           |
+| 9   | 覆盖层 560 / 420–860 / 宽度记忆，**记忆键必须与旧 dock 分开**                                | `src/constants/studio-assistant-operator.ts` 的 `STUDIO_OPERATOR_PANEL_RESIZE`                                         |
+| 10  | 会话历史住在外壳里：水化每次页面加载只跑一次，收放会反复卸载面板                             | `StudioOperatorPanel`（会话水化那段 effect）                                                                           |
+| 11  | 模型 chip 点开就是现有「自动路由」组件——⛔ 不另造选择器                                      | `StudioOperatorPanel`（模型 chip 那一处 import）                                                                       |
+| 12  | 输入区双行：上行 📎 + 模型 chip + ⏹，下行 输入框 + 发送                                      | `StudioOperatorPanel` 文件头注 + 输入区                                                                                |
+| 13  | 工作态占位语「说，我在听 — 插话即转向」；发送键在工作态就是插话                              | `StudioOperatorPanel`（⛔ 本轮被排队引导取代，见 §12 拍板 13）                                                         |
+| 14  | 「清掉全部改动」二击 3s 窗口；⛔ 别做「反清掉」                                              | `src/constants/studio-assistant-operator.ts` 的 `STUDIO_OPERATOR_CLEAR_CONFIRM_MS`                                     |
+| 15  | 建议药丸语境化、点即发送；值是 i18n 键后缀不是文案                                           | `src/constants/studio-assistant-operator.ts` 的 `STUDIO_OPERATOR_SUGGESTIONS`                                          |
+| 16  | 📎 素材库就地预览，不做「按钮→弹窗」两跳，一屏 6 格                                          | `StudioOperatorAttachMenu` 文件头注 · `StudioOperatorPanel`（附件面板挂载处）                                          |
+| 17  | 灯箱是全屏单例：参考缩略、评价卡证据图、附件 chip 共用一个，状态放模块级                     | `StudioOperatorLightbox` 文件头注 · `StudioOperatorLogItem`（证据图入口）                                              |
+| 18  | 改动必须看得见来源：标记长在被改的那一栏，不躲在面板里                                       | `StudioOperatorChangeRail` 文件头注 · `StudioOperatorLogItem` 文件头注                                                 |
+| 19  | 判据只有一条——**工作台上有没有把它挂上去的槽**；「有这个类型」不等于「哪个域都能挂」         | `assistant-operator.ts` 的 `ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl`                                        |
+| 20  | 「打开完整素材库」就地开弹层，不跳页                                                         | `StudioOperatorAttachMenu`（「打开完整素材库」那颗按钮）                                                               |
+| 21  | 联网候选的「选用」走**同一个 `attachments` 数组**：搜来的、传上来的、库里挑的往后分不出来    | `StudioOperatorDock` 的 `handleWebImported` / `handleWebRemoved`                                                       |
+| 22  | 「你递的就是确认」：用户自己粘的地址取图入库直接挂；助手搜出来的仍要点「选用」               | `assistant-operator.ts` 的 `ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl`（与 `mountReference` 的头注对读）               |
 
-⚠ 一条现状债记在这里：评价卡的历史条目**没有 `runKey`**，所以历史里那张卡画不出「还原这轮」——那颗钮撤的是内存登记簿，刷新之后不存在（`src/lib/studio-operator-history.ts:319-321`）。第一期的 checkpoint 薄卡要么解决它，要么明确不在历史里渲染撤销入口。
+⚠ 一条现状债记在这里：评价卡的历史条目**没有 `runKey`**，所以历史里那张卡画不出「还原这轮」——那颗钮撤的是内存登记簿，刷新之后不存在（`src/lib/studio-operator-history.ts`）。第一期的 checkpoint 薄卡要么解决它，要么明确不在历史里渲染撤销入口。
 
 ---
 
@@ -702,23 +790,23 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 
 ### 第一期 · 图片域面板（方向 C）+ 项目规则卡 + 准确性 P0 + 助手设置 + 计划卡图示词表
 
-> **状态标注**（2026-09-06 按 `git log` 与 import 图核过）：**已落地（commit）** = 文件在仓里且被挂进渲染树；**接线中（3a）** = 文件与用例已就位，但还没有调用方（面板那一侧由第 3 轮接）。实现起点 `e6ceadf3`。
+> **状态标注**（2026-09-06 按 `git log` 与 import 图核过，末笔 `7a4cf2ae`）：**已落地（commit）** = 文件在仓里且被挂进渲染树；**接线中** = 文件与用例已就位，但还没有调用方。实现起点 `e6ceadf3`。
 
-| 层         | 文件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| constants  | `studio-assistant-operator.ts`（图标轨 48 · 进度带 40 · 面板 inset 24 · `wideAtPx` 700 · 排队条 · @ 提及 · 时间线节点尺寸）**已落地 `e6ceadf3`+`f074605d`** · `assistant-operator.ts`（计划卡 / 三档确认 / 规则工具两条 / 不再问三要素 / 花钱工具表）**已落地 `31a8d78a`+`c2e14460`** · **新** `assistant-plan-visuals.ts`（32 项词表 + `ASSISTANT_PLAN_SWATCH_MIX`）**已落地 `c2e14460`** · **新** `assistant-persona.ts`（预设头像 SVG + 默认值 + 取值表）**已落地 `31a8d78a`** · `model-strengths.ts`（§13 a·b）**已落地**（`5eca1478` 31 个图片模型逐模型方言 + `aa751491` 视频 / 音频方言，⚠ 两笔都在 `e6ceadf3` 之前，不属于本轮四笔）                                                                                                               |
-| prisma     | **新** `AssistantPersona` + `ProjectRule` 两张表 + `ProjectRuleSource` 枚举（§8.4）**已落地 `31a8d78a`**（含 migration）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| types      | `types/studio-assistant-operator.ts`（排队项 · 结果行卡 · 提及 chip）**已落地 `f074605d`** · `types/assistant-operator.ts`（`plan_request` / `spend_request` / `rule_hit` 事件；确认三档；计划卡待定项 `visual` / `assetUrl`；请求加 `planAnswers` / `planApproved` / `forcePlan` / `autoApprove`）**已落地 `31a8d78a`+`c2e14460`** · **新** `types/assistant-persona.ts` **已落地 `31a8d78a`**。⬜ `choice_request` 事件与 `StudioOperatorStatus.awaitingPlan` **接线中（3a）**                                                                                                                                                                                                                                                                           |
-| services   | `assistant-operator.service.ts`（计划卡素材 · 花钱档只吐载荷 · 规则两条工具 · §8.5 风格段 · §9 词表段）**已落地 `31a8d78a`+`c2e14460`**；§13d 方言注入 **已落地**（`aa751491`：`buildOperatorSystemPrompt` 现在 import `getModelEnhanceHint` / `isTagBasedPromptModel`）· **新** `project-rule.service.ts` · **新** `assistant-persona.service.ts` · **新** `assistant-persona-avatar.service.ts`（§8.3，⚠ 原设计没有这一条，为了把 R2 写入挡在钱闸 import 白名单外而单立）**已落地 `31a8d78a`**                                                                                                                                                                                                                                                           |
-| lib        | **新** `studio-operator-plan.ts`（`shouldShowPlanCard` 三条判据，§5）**已落地 `c2e14460`** · `studio-operator-apply.ts`（宿主契约加 `triggerGeneration` / `deleteProjectRule`）· `studio-operator-history.ts`（新条目类型）**已落地 `31a8d78a`+`c2e14460`**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| hooks      | `use-assistant-operator.ts`（排队队列 + Stop 语义分离）· `use-studio-operator-store.ts`（进度带 · 结果行卡选中 · 提及 chips · 队列）· `use-studio-operator-revert.ts`（checkpoint 二选）**已落地 `e6ceadf3`+`f074605d`** · **新** `use-studio-operator-mention.ts` **已落地 `f074605d`** · **新** `use-assistant-persona.ts` **已落地 `31a8d78a`**（只被 `AssistantSettingsDialog` 用）· **新** `use-project-rules.ts` **接线中（3a）**（还没有调用方）· `use-studio-operator-critique.ts`（@ 任意图，去归属票硬绑）**未做**                                                                                                                                                                                                                               |
-| components | **已挂进渲染树**：`StudioOperatorDock.tsx`（胶囊 → 图标轨）+ **新** `StudioOperatorIconRail` · `StudioOperatorPanel.tsx` + **新** `StudioOperatorProgressBand` / `StudioOperatorTimelineRow` / `TimelineAvatar` / `StudioOperatorToolGroup` / `StudioOperatorCheckpointCard` / `StudioOperatorQueueBar` / `StudioOperatorMentionPicker` / `StudioOperatorResultRow`。**接线中（3a，文件+用例已就位、暂无调用方）**：`StudioOperatorPlanCard` / `PlanOptionVisual` / `StudioOperatorSpendConfirmCard` / `StudioOperatorAssetChoiceCard` / `AssistantSettingsDialog` / `AssistantAvatarGlyph` / `RuleChip`。**未做**：`StudioOperatorCritiqueCard`（@ 任意图）· `StudioOperatorLightbox`（范围扩容）· `ProfileEditModal.tsx` 第二入口 · ⋯ 菜单挂「助手设置」 |
-| api        | **新** `/api/assistant/persona`（GET/PUT）· `/api/assistant/persona/avatar`（POST/DELETE）· `/api/assistant/rules`（GET/POST）· `/api/assistant/rules/[id]`（DELETE）**已落地 `31a8d78a`**，路径与常量见 §8.3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| i18n       | `src/messages/{en,ja,zh}.json` 三语同步——`StudioOperator.persona.*` / `.plan.*` / `.spend.*` / `.queue.*` / `.mention.*` / `.result.*` / `.choice.*` / `.rule.*` + 一级键 `StudioOperator.assistantSettings` **已落地**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 层         | 文件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| constants  | `studio-assistant-operator.ts`（图标轨 48 · 进度带 40 · 面板 inset 24 · `wideAtPx` 700 · 排队条 · @ 提及 · 时间线节点尺寸）**已落地 `e6ceadf3`+`f074605d`** · `assistant-operator.ts`（计划卡 / 三档确认 / 规则工具两条 / 不再问三要素 / 花钱工具表）**已落地 `31a8d78a`+`c2e14460`** · **新** `assistant-plan-visuals.ts`（32 项词表 + `ASSISTANT_PLAN_SWATCH_MIX`）**已落地 `c2e14460`** · **新** `assistant-persona.ts`（预设头像 SVG + 默认值 + 取值表）**已落地 `31a8d78a`** · `model-strengths.ts`（§13 a·b）**已落地**（`5eca1478` 31 个图片模型逐模型方言 + `aa751491` 视频 / 音频方言，⚠ 两笔都在 `e6ceadf3` 之前，不属于本轮）· **新** `ASSISTANT_RESEARCH_*`（源分组 / 置信度 / 证据形状 / `maxRoundsPerTurn` 等上限）+ `web-search.ts` 官方查询变体 + `web-image-sources.ts` 来源优先级 **已落地 `7513c267`** · `STUDIO_OPERATOR_MOBILE_SHELL`（`100dvh` · 浮标 44 / 右 16 / 下 96）**已落地 `adb0a008`**                                                                                                                                                                                                                                                          |
+| prisma     | **新** `AssistantPersona` + `ProjectRule` 两张表 + `ProjectRuleSource` 枚举（§8.4）**已落地 `31a8d78a`**（含 migration）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| types      | `types/studio-assistant-operator.ts`（排队项 · 结果行卡 · 提及 chip）**已落地 `f074605d`** · `types/assistant-operator.ts`（`plan_request` / `spend_request` / `rule_hit` 事件；确认三档；计划卡待定项 `visual` / `assetUrl`；请求加 `planAnswers` / `planApproved` / `forcePlan` / `autoApprove`）**已落地 `31a8d78a`+`c2e14460`** · **新** `types/assistant-persona.ts` **已落地 `31a8d78a`**。**新** `AssistantOperatorEvidenceSchema` + `research` / `read_url` 两条工具的入参与 applied step + 搜图入参加 `subject` / `preferOfficial` **已落地 `7513c267`**。⬜ `choice_request` 事件与 `StudioOperatorStatus.awaitingPlan` **接线中**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| services   | `assistant-operator.service.ts`（计划卡素材 · 花钱档只吐载荷 · 规则两条工具 · §8.5 风格段 · §9 词表段）**已落地 `31a8d78a`+`c2e14460`**；§13d 方言注入 **已落地**（`aa751491`：`buildOperatorSystemPrompt` 现在 import `getModelEnhanceHint` / `isTagBasedPromptModel`）· **新** `project-rule.service.ts` · **新** `assistant-persona.service.ts` · **新** `assistant-persona-avatar.service.ts`（§8.3，⚠ 原设计没有这一条，为了把 R2 写入挡在钱闸 import 白名单外而单立）**已落地 `31a8d78a`** · **新** `research/research-fanout.service.ts`（多源扇出，一行库都不碰，进钱闸 import 白名单）+ `web-research.service.ts`（`read_url` 走既有 Jina reader、多语言变体搜图）+ `assistant-operator.service.ts`（`planResearch` / `planReadUrl` / 官方优先排序 / 系统提示两段硬话，§7.1）**已落地 `7513c267`**                                                                                                                                                                                                                                                                                                                                                                    |
+| lib        | **新** `studio-operator-plan.ts`（`shouldShowPlanCard` 三条判据，§5）**已落地 `c2e14460`** · `studio-operator-apply.ts`（宿主契约加 `triggerGeneration` / `deleteProjectRule`）· `studio-operator-history.ts`（新条目类型）**已落地 `31a8d78a`+`c2e14460`**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| hooks      | `use-assistant-operator.ts`（排队队列 + Stop 语义分离）· `use-studio-operator-store.ts`（进度带 · 结果行卡选中 · 提及 chips · 队列）· `use-studio-operator-revert.ts`（checkpoint 二选）**已落地 `e6ceadf3`+`f074605d`** · **新** `use-studio-operator-mention.ts` **已落地 `f074605d`** · **新** `use-assistant-persona.ts` **已落地 `31a8d78a`**（只被 `AssistantSettingsDialog` 用）· **新** `use-project-rules.ts` **接线中（3a）**（还没有调用方）· `use-assistant-operator.ts` 错误码本地化映射（operator 码 + provider 码复用生成错误表）**已落地 `7a4cf2ae`** · `use-studio-operator-critique.ts`（@ 任意图，去归属票硬绑）**未做**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| components | **已挂进渲染树**：`StudioOperatorDock.tsx`（胶囊 → 图标轨）+ **新** `StudioOperatorIconRail` · `StudioOperatorPanel.tsx` + **新** `StudioOperatorProgressBand` / `StudioOperatorTimelineRow` / `TimelineAvatar` / `StudioOperatorToolGroup` / `StudioOperatorCheckpointCard` / `StudioOperatorQueueBar` / `StudioOperatorMentionPicker` / `StudioOperatorResultRow` / `StudioOperatorWebCandidateGrid`（候选三字段 + 「挂上 N 张」，`7513c267`）· **新** `StudioOperatorPlanCard` + `PlanOptionVisual` / `StudioOperatorSpendConfirmCard` / `RuleChip`（`c2e14460` 起已由面板渲染）· **新** `AssistantSettingsDialog` + `AssistantAvatarGlyph`（⋯ 菜单 → `onOpenAssistantSettings` → Dock 持有开合，两栏改版 `7a4cf2ae`）· **新** `StudioOperatorMobileSheet` / `StudioOperatorMobileFab`（`adb0a008`，§11.6）。**接线中（文件+用例已就位、暂无调用方）**：`StudioOperatorTimelineList`（`role=log`，等面板把 `threadRef` 容器换成它）· `StudioOperatorAssetChoiceCard`（等 `choice_request` 事件）· `StreamingText`（§4 流式正文，**文件待落仓**）。**未做**：`StudioOperatorCritiqueCard`（@ 任意图）· `StudioOperatorLightbox`（范围扩容）· `ProfileEditModal.tsx` 第二入口 |
+| api        | **新** `/api/assistant/persona`（GET/PUT）· `/api/assistant/persona/avatar`（POST/DELETE）· `/api/assistant/rules`（GET/POST）· `/api/assistant/rules/[id]`（DELETE）**已落地 `31a8d78a`**，路径与常量见 §8.3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| i18n       | `src/messages/{en,ja,zh}.json` 三语同步——`StudioOperator.persona.*` / `.plan.*` / `.spend.*` / `.queue.*` / `.mention.*` / `.result.*` / `.choice.*` / `.rule.*` / **新** `.timeline.*`（行标签 + 头像 alt，`7a4cf2ae`）/ **新** `.evidence.*`（证据 `kind` / `confidence`，`7513c267`）/ **新** 手机 Sheet 与浮标文案（`adb0a008`）+ 一级键 `StudioOperator.assistantSettings` **已落地**。⚠ `persona.scopeNote` / `persona.nameHint` 两条已不再被渲染（§8.6）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
-⚠ **原设计里没落地的名字**，别照着找：`record_project_rule`（实际叫 `add_project_rule`，§10）。⚠ 候选网格**已于切片 3b 拆出**，落点是 `StudioOperatorWebCandidateGrid.tsx`（不叫原设计里的 `WebCandidateGrid`），同轮加了来源三字段（域名可点 / 发布者 / 可否作输入）与全域文字搜索工具 `search_web`。
+⚠ **原设计里没落地的名字**，别照着找：`record_project_rule`（实际叫 `add_project_rule`，§10）。⚠ 候选网格**已于切片 3b 拆出**，落点是 `StudioOperatorWebCandidateGrid.tsx`（不叫原设计里的 `WebCandidateGrid`），同轮加了来源三字段（域名可点 / 发布者 / 可否作输入）与全域文字搜索工具 `search_web`；`7513c267` 又给它加了「挂上 N 张」（§7.1）。
 
-**删掉什么**：胶囊态渲染分支与 `STUDIO_OPERATOR_PILL_TONES` 的胶囊文案用法（语义迁状态点，不留 fallback）；`StudioOperatorPanel.tsx:13` / `:757` 「工作态发送即插话」整段分支（被排队引导取代）；归属票作为看图唯一凭证的硬绑。
+**删掉什么**：胶囊态渲染分支与 `STUDIO_OPERATOR_PILL_TONES` 的胶囊文案用法（语义迁状态点，不留 fallback）；`StudioOperatorPanel` 的「工作态发送即插话」整段分支（被排队引导取代）；归属票作为看图唯一凭证的硬绑；**`StudioEnhanceButton` 里图片 / 视频档的旧 `PromptAssistantPanel` 抽屉分支**（`adb0a008` 已删，不留 fallback）；**时间线上的时间戳整段**（`7a4cf2ae` 已删，连 hover 那一档一起）。
 
 ### 第二期 · 视频域
 
@@ -740,16 +828,16 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 
 ## 15. 完成定义（`checklists/ui.md` 8 项 + 机器门）
 
-| #   | 项                          | 本轮口径                                                      |
-| --- | --------------------------- | ------------------------------------------------------------- |
-| 1   | lint + typecheck 绿         | `npm run lint && npm run typecheck` 贴输出                    |
-| 2   | 对比度过                    | `contrast-check` 输出；强调只用 `--primary`，状态只用四 token |
-| 3   | 移动端 e2e                  | 本轮 375 = 不渲染，e2e 断言「桌面助手在移动端不出现」         |
-| 4   | 真机三截图 1440 / 820 / 375 | 375 图证明「本路由移动端等级 = 助手不渲染」                   |
-| 5   | reduced-motion 目检         | width 过渡 / stagger / 按词淡入 / 边脉冲全部降静态            |
-| 6   | i18n 三语同步               | 新键三语齐；zh 长文本在 420 窄档不破版                        |
-| 7   | 状态矩阵每格实跑            | §4.1 的 3×7 + §4.2 的 8 组卡片态                              |
-| 8   | 交互动作表每行实跑          | §3 的 27 + 8 + 7 + 11 = 53 行，动效引用 §11.5 配方名          |
+| #   | 项                          | 本轮口径                                                                                                          |
+| --- | --------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 1   | lint + typecheck 绿         | `npm run lint && npm run typecheck` 贴输出                                                                        |
+| 2   | 对比度过                    | `contrast-check` 输出；强调只用 `--primary`，状态只用四 token                                                     |
+| 3   | 移动端 e2e                  | 375：图片 / 视频档断言「浮标可见 → 点开是全屏 Sheet → 装的是同一个面板」；音频 / LoRA 断言仍走各自旧面板（§11.6） |
+| 4   | 真机三截图 1440 / 820 / 375 | 375 图要同时证明**浮标没压住生成键**（96px 净空）与**键盘弹起后输入区仍在屏内**                                   |
+| 5   | reduced-motion 目检         | width 过渡 / stagger / 按词淡入 / 边脉冲全部降静态                                                                |
+| 6   | i18n 三语同步               | 新键三语齐；zh 长文本在 420 窄档不破版                                                                            |
+| 7   | 状态矩阵每格实跑            | §4.1 的 3×7 + §4.2 的 8 组卡片态                                                                                  |
+| 8   | 交互动作表每行实跑          | §3 的 27 + 8 + 7 + 11 = 53 行，动效引用 §11.5 配方名                                                              |
 
 **机器门**：`font-family` / `font-serif` / Tailwind 调色板类 / `^:root` 四条 grep 零命中（`checklists/ui.md` 机器门原文）。
 **额外**：全量 vitest（`full-gate` skill），受影响 operator 测试约 20 个文件。
@@ -766,7 +854,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 | 2026-08-05         | 桌面几何：距顶 `64px`、右/下 `16px`，普通对话态默认宽 `360px`                                                                             | ⛔ **推翻**：改 inset 24px + 默认 560 / 420–860（拍板 9，`studio-assistant-operator.ts:25-32`）                                                                                |
 | 2026-08-05         | 共享头部顺序：新对话 → 联网研究 → 模型选择 → 历史 → 分享 → 展开 → 收起                                                                    | ⛔ **推翻**：头部改进度带，会话/历史/新对话收进 `⋯`（拍板 10 / §2.4）                                                                                                          |
 | 2026-08-05         | 助手不会直接生成媒体，也不会未经用户确认修改编辑器内容                                                                                    | ✅ **仍有效**，且被本轮细化成三档（§6）。钱闸一字不动                                                                                                                          |
-| 2026-08-05         | 移动端 `<1024px` 用接近全屏的底部抽屉                                                                                                     | ⛔ **推翻（本轮不做）**：`isMobile → return null`（`StudioOperatorDock.tsx:320`），移动端下一轮                                                                                |
+| 2026-08-05         | 移动端 `<1024px` 用接近全屏的底部抽屉                                                                                                     | ✅ **恢复并落地**（`adb0a008`）：图片 / 视频档走 vaul 全屏 Sheet + 44px 浮标，配方见 §11.6。⛔ 中途那条「本轮不做、`isMobile → return null`」作废                              |
 | 2026-08-05         | 多附件契约：单轮最多 8 个，图片视频混合，稳定 `http(s)` URL 进请求，不写 data URL                                                         | ✅ **仍有效**（= 拍板 16）。⚠ 注意与 §7 的区别：**@ 看图不设上限**是另一件事，附件仍是 8                                                                                       |
 | 2026-08-05         | 模型能力真实性：按 `(adapterType, modelId)` 判能力，禁止用视频封面冒充视频分析                                                            | ✅ **仍有效**，是硬底线                                                                                                                                                        |
 | 2026-08-05         | 缺 key 仍显示模型并开 `QuickSetupDialog`，不禁用整个入口                                                                                  | ✅ **仍有效**（Hard Rule 8 / §4.3）                                                                                                                                            |
@@ -827,6 +915,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 
 ## Last Verified
 
+- **2026-09-06 · 口径对齐第二批已提交实现**（`adb0a008` / `7513c267` / `7a4cf2ae` 三笔 + 另一会话已进 HEAD 的 owner 改动，`git show --stat` + 读码核过）：§0/§3.4/§16 移动端由「下一轮不渲染」改为**第一期已做**，新增 **§11.6 移动端**（vaul 全屏 Sheet 复用同一 Panel · 44px 浮标 · `safe-area` / `--keyboard-inset` / 96px 净空取舍 · 不渲染拖宽把手 · 音频与 LoRA 仍走旧面板）· 新增 **§7.1 检索链**（`research` 入出参与两轮上限、证据卡六字段、`read_url` 的 `focus` 截段、`subject`/`preferOfficial` 多语言官方优先、「挂上 N 张」、说了「挂上」才允许对本轮候选 `import_user_url`、系统提示四步链路与「一次空搜索不是答案」、`research-fanout.service` 进钱闸白名单的判据）· §8.1 作废「`max-w-lg` 单列不分栏」改为实际（头固定/身滚动/脚固定 · `Tabs` 两页 · `lg:max-w-2xl` 两栏 · `ToggleGroup` `h-8` · 失败就地 `role=alert`），§8.6 删 `scopeNote` / `nameHint` · §11.3 头像 20→**32px**、沟宽 78→**24**、**时间戳整体删除**（连 hover 那一档），补 `role=article` + 三语行标签 / `role=log` 容器（接线中）/ 头像 `alt` 规则 · §4 补流式与加载态五条目标（全部接线中）· §11.4 候选网格补「挂上 N 张」· §12.1 落点表**改为只写文件 + 符号名不写行号**（旧行号当天全漂）· §14 第一期清单与 §15 完成定义按实际重列。**只改文档，代码未动。**
 - **2026-09-06 · 口径对齐已提交实现**（`e6ceadf3` → `c2e14460` 四笔，`git show --stat` + 读码核过）：§10 工具名 `record_project_rule` → **`add_project_rule`** · §8.3 头像路由 → **`POST/DELETE /api/assistant/persona/avatar`**（独立 service，不在 `user.service.ts`） · §8.6 菜单键 → **`StudioOperator.assistantSettings`**（一级键，`more` 是字符串） · §8.4 补两张表的实际列名与 `ProjectRuleSource` 枚举 · §5 补 `plan_request` 载荷四格与 `shouldShowPlanCard` 三条判据 + `planAnswers` / `planApproved` / `forcePlan` · §6 拆 6.1–6.4（`spend_request` 独立帧 · `request_generation` 无 `inverse` · `estimate.credits` 现算即缺席 · `autoApprove` 三字段） · §3.1/§3.3/§7 补排队停顿点与 chip 去重合并 · §11.1 `wideAtPx = 700`（容器查询） · §11.3/§11.4 三处 contrast-check 订正 + `ASSISTANT_PLAN_SWATCH_MIX` · §14 第一期清单按实际文件名与「已落地 / 接线中（3a）」重列。**只改文档，代码未动。**⚠ 本轮新增引用一律写**文件 + 符号名**不写行号：第 3 轮接线正在同步改这些文件，行号当天就会漂。
 - **2026-09-06 · 本文整体重写**：owner 定方向 C「工作日志」+ 四期次序（图片 → 视频 → 画布 → LoRA）+ 助手设置 persona + 计划卡图示封闭词表 + 项目规则卡进第一期 + @ 看图不设上限 + 移动端下一轮。新增 §12.1「20 条代码注释拍板落点表」（docs 此前从未收录）。所有 `文件:行号` 于本日读码核过；三处与设计稿不符已就地订正：`OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH` 在 `:2153`（不是 2157）· 面板宽度常量在 `studio-assistant-operator.ts:25-32`（不是 26-33）· ⋯ 菜单在 `StudioOperatorPanel.tsx:314-329`（`:236-260` 是会话菜单）。**代码未动，只改文档。**
 - 2026-09-03 · 旧文 §6.7 记账（画布对话助手视频提示词现状）——本轮改走法，见 §16。

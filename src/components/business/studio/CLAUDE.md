@@ -25,22 +25,26 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── CompareGrid (image/ — 共享图墙：多模型 / 多张 / 矩阵)
         │       ├── AudioVariantGrid (studio/ — 音频变体，内联播放器)
         │       └── StudioResultFeedback / StudioAudioFeedback / StudioGenerationErrorDialog
-        ├── StudioAssistantDock + StudioAssistantFab (studio-shared/chrome/ + studio/ — 旧助手，视频/音频仍走它)
+        ├── StudioAssistantDock + StudioAssistantFab (studio-shared/chrome/ + studio/ — 旧助手，只剩音频档走它；图片/视频已归 operator)
         ├── StudioOperatorDock (studio/assistant-operator/ — 操作员面板外壳：宽度/收放；图片+视频档)
         │   ├── StudioOperatorIconRail (收起态 48px 图标轨：域图标 / 状态点 / 进度环)
+        │   ├── StudioOperatorMobileFab (手机入口浮标 44px —— 图标轨的手机对应物，复用同一张 tone 表)
+        │   ├── StudioOperatorMobileSheet (手机全屏 vaul Sheet 100dvh —— 装的是下面同一个 Panel 元素)
         │   └── StudioOperatorPanel (同目录 — 面板内容：进度带 / 时间线 / 双行输入区)
         │       ├── StudioOperatorProgressBand (顶部进度带 ~40px，空闲退化为头部)
         │       ├── StudioOperatorTimelineRow (时间线沟一行，五档节点)
-        │       │   └── TimelineAvatar (用户 / 助手 20px 头像，与竖线同轴)
+        │       │   └── TimelineAvatar (用户 / 助手 32px 头像，与竖线同轴)
         │       ├── StudioOperatorToolGroup (「5 个操作 · 4 成功 1 失败」折叠行)
         │       ├── StudioOperatorCheckpointCard (每轮 checkpoint 薄卡，就地二选撤销)
         │       ├── StudioOperatorQueueBar (排队条，浮在输入框上方)
         │       ├── StudioOperatorMentionPicker (@ 选择器：最近生成 + 素材库搜索)
         │       ├── StudioOperatorResultRow (结果行卡 2/4 列，@ 闭环入口)
-        │       ├── StudioOperatorLogItem (时间线一行：工具步 / 动作 / 系统行 / 候选网格)
+        │       ├── StudioOperatorLogItem (时间线一行：工具步 / 动作 / 系统行 / 证据卡)
+        │       ├── StudioOperatorWebCandidateGrid (联网候选网格：来源三字段 + 「挂上 N 张」)
         │       ├── StudioOperatorCritiqueCard (评价卡，内嵌被评的那张图)
         │       ├── StudioOperatorAttachMenu (📎 附件面板，素材库就地预览)
         │       ├── StudioOperatorHistoryItem (会话历史条目)
+        │       ├── StreamingText (助手正文按帧累积渲染 —— ⬜ 接线中，文件待落仓)
         │       └── StudioOperatorLightbox (全屏单例，模块级 store，三处共用)
         ├── StudioDockPanelArea (studio/ — 工具面板宿主，见下方规则 3)
         ├── StudioKeepChangePanel (image/)
@@ -48,9 +52,11 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 ```
 
 ⚠ **operator 系对外只有两颗入口**（`assistant-operator/index.ts`）：`StudioOperatorDock`（`StudioWorkspaceUI` 挂）与 `StudioOperatorChangeRail`（`StudioPromptArea.tsx:711` 挂，改动标记长在被改的那一栏）。其余是面板内部件，不从 index 导出。LoRA 工作台也挂这两颗（`studio/lora/LoraWorkbench.tsx:176-177`）。
-⚠ **文件已就位但还没有调用方（3a 接线中）** —— 别以为它们没写：`StudioOperatorPlanCard` + `PlanOptionVisual`（计划卡与图示词表）· `StudioOperatorSpendConfirmCard`（花钱硬确认）· `StudioOperatorAssetChoiceCard`（歧义单选卡，等 `choice_request` 事件）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（助手设置弹层，等 ⋯ 菜单挂入口）· `RuleChip`（项目规则薄卡）。⛔ 要用它们时**先 import 现成的**，别再写一个。
+⚠ **文件已就位但还没有调用方（接线中）** —— 别以为它们没写：`StudioOperatorAssetChoiceCard`（歧义单选卡，等 `choice_request` 事件）· `StudioOperatorTimelineList`（时间线流容器，`role="log" aria-live="polite"`，等面板把 `threadRef` 那颗 `div` 原地换成它，与 `StudioOperatorTimelineRow` 同文件导出）· `StreamingText`（`message_delta` 逐帧累积的正文渲染件，**文件尚未落仓**）。⛔ 要用它们时**先 import 现成的**，别再写一个。
+⚠ **已接线，别再按「接线中」找**：`StudioOperatorPlanCard` + `PlanOptionVisual` · `StudioOperatorSpendConfirmCard` · `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（⋯ 菜单 → `onOpenAssistantSettings`，开合 state 在 Dock）。
+⚠ **手机形态（2026-09-06 `adb0a008`）**：Dock 在 `isMobile` 时**不再 `return null`**——图片 / 视频档改渲染 `StudioOperatorMobileFab` + `StudioOperatorMobileSheet`，装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。
 
-⚠ **目标态：方向 C「工作日志」面板**——收起态改 48px 图标轨、顶部进度带、计划卡 / 三档确认 / 结果行卡 / checkpoint 薄卡、时间线沟用头像、助手设置弹层。施工基准 `docs/references/pages/assistant-shell.md`（owner 2026-09-06 定）；⛔ 动这一系之前先读它，别照现状扩。
+⚠ **目标态：方向 C「工作日志」面板**——收起态 48px 图标轨、顶部进度带、计划卡 / 三档确认 / 结果行卡 / checkpoint 薄卡、时间线沟用 **32px 头像 + 24px 沟宽且不显示任何时间戳**、助手设置弹层（两栏 + `Tabs`）、手机全屏 Sheet、检索链（`research` / `read_url` / 官方优先搜图）。施工基准 `docs/references/pages/assistant-shell.md`（owner 2026-09-06 定，§7.1 检索链 / §11.3 时间线沟 / §11.6 移动端）；⛔ 动这一系之前先读它，别照现状扩。
 
 按需挂载、不在主树固定位置的常用单元：StudioModeSelector / StudioGenerateBar / StudioWorkflowPicker
 （studio-shared/workflow/）、StudioAspectRatioPopover / StudioSpecPopover /

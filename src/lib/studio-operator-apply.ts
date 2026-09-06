@@ -304,6 +304,11 @@ export function applyOperatorStep(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages:
     /**
+     * ⚠ 联网查文字（切片 3b）同理：它只产生一段可读的来源列表，表单一个字都没动。
+     * 要照查到的东西改提示词是之后那条 `set_*` 的事——那条各自可撤销、各自记账。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.searchWeb:
+    /**
      * ⚠ 看图（P3-C）也是读：它只产生一段评价，表单一个字都没动 —— 要改什么由
      * 它之后那几条 `set_*` 各自负责（因此各自可撤销、各自进登记簿）。
      * 让评价这一步也「记一笔改动」的表现是：还原时多撤一格，而那一格什么都没改过。

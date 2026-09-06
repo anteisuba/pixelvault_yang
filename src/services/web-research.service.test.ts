@@ -193,7 +193,7 @@ describe('webImageSearch (Serper /images · P3-B 预览候选)', () => {
     })
   })
 
-  it('把 Serper 的字段映成候选：原图 / 缩略图 / 页面 / 域名 / 尺寸', async () => {
+  it('把 Serper 的字段映成候选：原图 / 缩略图 / 页面 / 域名 / 发布者 / 尺寸', async () => {
     vi.stubEnv('SERPER_API_KEY', 'serper-key')
     mockFetch.mockResolvedValue(
       jsonResponse({
@@ -218,10 +218,33 @@ describe('webImageSearch (Serper /images · P3-B 预览候选)', () => {
       thumbnailUrl: 'https://encrypted-tbn0.gstatic.com/a.jpg',
       pageUrl: 'https://example.com/post/a',
       domain: 'example.com',
+      // ⚠ 站名与域名**各归各位**（切片 3b）：早先两者塞进同一个 `domain`，
+      //    候选卡上那行小字于是时而域名时而站名，而它们答的是两个问题。
+      publisher: 'Example',
       title: 'PVC figure studio shot',
       width: 1600,
       height: 1200,
     })
+  })
+
+  it('`domain` 缺席时从页面地址现算，⛔ 不再拿站名顶替', async () => {
+    vi.stubEnv('SERPER_API_KEY', 'serper-key')
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        images: [
+          {
+            imageUrl: 'https://cdn.example.com/a.jpg',
+            source: 'Example',
+            link: 'https://blog.example.com/post/a',
+          },
+        ],
+      }),
+    )
+
+    const [hit] = await webImageSearch('pvc figure')
+    // 拿站名当域名的下场：下游那张来源判定表一条都匹配不上，全落进「未知」。
+    expect(hit.domain).toBe('blog.example.com')
+    expect(hit.publisher).toBe('Example')
   })
 
   it('⛔ 没有原图直链的条目直接丢 —— 候选的全部意义就是「点它能转存」', async () => {

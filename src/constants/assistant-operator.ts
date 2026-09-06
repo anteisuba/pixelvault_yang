@@ -149,6 +149,18 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   searchWebImages: 'search_web_images',
   /**
+   * 联网**查文字**（切片 3b）。⛔ 与 `search_web_images` 是两件事，判据是「要的是
+   * 图还是话」：这一条回的是标题 + 摘要 + 出处，一张图都不出。
+   *
+   * ⭐ 它存在的理由是**准确性**（§13）：模型对具体作品的设定、官方名称、版本规则
+   * 记得半对半错，而工作台上那句提示词恰恰要写对这些。以前它只能凭记忆编，
+   * 现在它能去查一句。
+   *
+   * ⚠ 它**只搜不读**：本片没有抓正文那一跳（`readUrl`）。摘要不够就把来源摆给
+   * 用户，⛔ 别让模型照着标题脑补正文。
+   */
+  searchWeb: 'search_web',
+  /**
    * 把素材挂成参考图。
    *
    * ⛔ **载荷里的 URL 不由模型写**：模型只能给 `assetId`，而且只能是本轮
@@ -369,6 +381,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
   ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+  ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
   ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setModel,
   ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -405,6 +418,12 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
   ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+  /**
+   * ⚠ 联网**查文字**也是读（切片 3b）：它回的是标题 + 摘要 + 出处，不落任何东西、
+   * 也不改表单。真要照查到的内容改提示词，那是之后那条 `set_*` 的事——撤销也撤在
+   * 那一条上（与 `search_web_images` 逐字同构）。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
   /**
    * ⚠ 看图**也是读**：这一步只产生一段评价，表单一个字都没动。所以它没有
    * `inverse`，日志条上也不该出现「撤销」（撤一条评价什么都撤不掉）。
@@ -733,6 +752,11 @@ const COMMON_DOMAIN_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
   ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+  /**
+   * ⚠ 联网查文字**全域通用**（切片 3b）：「这个角色官方名怎么写」在图片、视频、
+   * LoRA 三台工作台上是同一个问题，⛔ 别按域裁。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
   ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
   ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -897,6 +921,31 @@ export const ASSISTANT_OPERATOR_LIMITS = {
    * 一段两百字的描述只会让召回崩掉（系统提示里也这么告诉模型）。
    */
   maxWebImageQueryChars: 120,
+  /**
+   * `search_web`（文字）一次最多回几条来源（切片 3b）。
+   *
+   * ⚠ 与 `maxWebImageResults` 分开是因为它们的成本形状不同吗——不是，两条都是一个
+   * Serper credit。分开是因为**读的人不同**：图那条是给用户挑的，8 张摆两行；
+   * 这条是给模型读的，每条都带一段摘要，6 条已经是一屏 token。真上限在
+   * `WEB_SEARCH.maxNumResults`（10），两边取小。
+   */
+  maxWebSearchResults: 6,
+  /**
+   * 文字查询词的长度。
+   *
+   * ⚠ **比图搜那条（120）宽**是有理由的：图搜引擎吃短查询，一整句会让召回崩掉；
+   * 文字搜索恰恰相反，「鸣潮 忌炎 官方设定 配色」这种带限定词的长查询才查得准。
+   * 与库内检索的 200 对齐。
+   */
+  maxWebSearchQueryChars: 200,
+  /**
+   * 一条来源的摘要长度。
+   *
+   * ⚠ 上游给到 600（`WEB_SEARCH.maxSnippetLength`），这里砍到 300：6 条 × 600
+   * 字塞进工具环的观察里，等于每一步都多花一次长上下文的钱，而摘要后半段基本是
+   * 页脚。要更多内容得去读正文，而本片没有那一跳。
+   */
+  maxWebSearchSnippetChars: 300,
   /**
    * 重发时能带回来的「前情 steps」条数。
    *
@@ -1086,6 +1135,16 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    * 每一条都是他自己的决定，该由他去删。助手读到这条理由该把话转给用户。
    */
   ruleLimitReached: 'ruleLimitReached',
+  /**
+   * 这条地址的来源站**不能当生成输入**（切片 3b）。
+   *
+   * 判据是域名判定表（`constants/web-image-sources.ts`）里的 `blocked` 一档：
+   * 站方明令禁 AI，或整站是溯源不到原作者的转载聚合。
+   * ⚠ 它**不是版权判断**（那张表的头注写着这条），是一句「这个站我们不替你按」。
+   * ⛔ 不静默换一张：助手读到这条理由该把话转给用户——换个来源，或者他自己去
+   * 原页确认之后把地址递过来（那条路仍然通，判据是「地址是谁给的」）。
+   */
+  sourceNotUsable: 'sourceNotUsable',
 } as const
 
 export type AssistantOperatorRejectReason =
@@ -1118,6 +1177,13 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages]:
     "search the open web for reference pictures the creator does NOT already own. Returns PREVIEWS ONLY — thumbnails plus their source pages, and nothing is downloaded by this call. Each candidate is shown to the creator with a 'use this' button; they press it and the app files that one into their library and attaches it. So: never claim you saved, imported, or mounted a web result of your own search, and never paste one of these URLs into a prompt or a reference. Short English queries work far better than long descriptions. Use it only when the creator's own library has nothing suitable. ⚠ A URL the creator typed themselves is NOT this tool's business — use import_user_url for that.",
+  /**
+   * ⚠ 这段话的全部工作是**把它和搜图分开**：两条工具的名字只差一个词，而模型
+   * 在「找一张参考图」和「查一句设定」之间选错的代价是一整步（每一步都是一次
+   * 完整 LLM 往返）。所以第一句就写清楚它不出图。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWeb]:
+    "look something UP on the web — words, not pictures. Returns page titles, short extracts and where each came from. Use it when the creator's request turns on a fact you are not certain of: how an official name is spelled, what a character or product actually looks like per its source, a game's own terminology, current rules of a platform. Prefer it over guessing: a confidently wrong detail in a prompt is worse than a search step. You get the extract only, not the full page — if the extracts disagree or do not cover it, say so and cite what you saw instead of filling the gap yourself. Long, specific queries work well here (unlike search_web_images, which wants three or four words). ⚠ This is NOT how you find reference pictures — that is search_web_images.",
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]:
     "attach one asset from a previous search_assets result to the workbench as a reference image. Takes an assetId, never a URL. ⚠ Web search results have no assetId and can never be mounted this way — only the creator's own library can.",
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]:

@@ -37,16 +37,32 @@ const CANDIDATE_A: AssistantOperatorWebImage = {
   thumbnailUrl: 'https://tbn.example.com/a.jpg',
   pageUrl: 'https://example.com/a',
   domain: 'example.com',
+  publisher: 'Example',
+  usableAsInput: true,
+  sourceVerdict: 'unknownLicense',
   title: 'candidate A',
 }
 const CANDIDATE_B: AssistantOperatorWebImage = {
   imageUrl: 'https://cdn.other.com/b.jpg',
   pageUrl: 'https://other.com/b',
   domain: 'other.com',
+  usableAsInput: true,
+  sourceVerdict: 'unknownLicense',
 }
 const CANDIDATE_C: AssistantOperatorWebImage = {
   imageUrl: 'https://cdn.third.com/c.jpg',
   domain: 'third.com',
+  usableAsInput: true,
+  sourceVerdict: 'unknownLicense',
+}
+/** 来源判定为 `blocked` 的那一张（切片 3b）——「选用」应当被就地拒掉。 */
+const CANDIDATE_BLOCKED: AssistantOperatorWebImage = {
+  imageUrl: 'https://i.pinimg.com/blocked.jpg',
+  pageUrl: 'https://www.pinterest.com/pin/1',
+  domain: 'pinterest.com',
+  publisher: 'Pinterest',
+  usableAsInput: false,
+  sourceVerdict: 'blocked',
 }
 
 function generation(id: string): GenerationRecord {
@@ -330,6 +346,22 @@ describe('联网候选 · 失败与隔离', () => {
     })
     expect(removed).toEqual([])
     expect(deleteGenerationAPI).not.toHaveBeenCalled()
+  })
+
+  /**
+   * ⭐ 来源闸（切片 3b）：格子上那颗按钮已经是禁用的，这一条钉的是**它背后那道**。
+   * ⚠ 判据是「一次导入都没发出去」+「拒绝理由说出来了」——静默 return 会让
+   * 「我点了但什么都没发生」重新长回来。
+   */
+  it('⛔ 来源不可作输入的候选：一次导入都不发，理由就地说出来', () => {
+    const { hook } = setup()
+    act(() => {
+      hook.result.current.toggleCandidate('entry-1', CANDIDATE_BLOCKED)
+    })
+
+    expect(importWebImageAPI).not.toHaveBeenCalled()
+    expect(picksOf(hook)).toHaveLength(0)
+    expect(hook.result.current.states['entry-1']?.refusalError).toBeTruthy()
   })
 
   it('两条日志条各自记自己的选中项（按 entryId 存，不串台）', async () => {

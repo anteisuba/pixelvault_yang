@@ -168,7 +168,10 @@ import { adapterHasCapability } from '@/constants/llm-capability'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useImageUpload } from '@/hooks/use-image-upload'
-import { useLoraOperatorHost } from '@/hooks/use-lora-operator-host'
+import {
+  toLoraOperatorResults,
+  useLoraOperatorHost,
+} from '@/hooks/use-lora-operator-host'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
 import { requestOperatorAttachment } from '@/hooks/use-studio-operator-store'
@@ -1671,6 +1674,17 @@ function GenerateBranch({
       })),
     [compatibleBases, operatorBaseLabel],
   )
+  /**
+   * 装配台自己那条结果列 → 结果行卡（§2.11，切片 3b）。
+   *
+   * ⚠ `useMemo` 不是洁癖：`operatorHost` 内部按 `results` 的引用做 memo，这里每次
+   * render 新建一个数组会让整个宿主对象跟着换引用，面板的每一条都白重渲染一遍。
+   * ⚠ 映射函数在 hook 那边（宿主契约的一部分），⛔ 别把「收哪些」的判据抄到这里。
+   */
+  const operatorResults = useMemo(
+    () => toLoraOperatorResults(resultHistory),
+    [resultHistory],
+  )
   const operatorHost = useLoraOperatorHost({
     prompt,
     setPrompt,
@@ -1688,6 +1702,7 @@ function GenerateBranch({
     selectBase: handleSelectBase,
     stack,
     imageUpload,
+    results: operatorResults,
     open: assistantOpen,
     setOpen: onAssistantOpenChange,
   })

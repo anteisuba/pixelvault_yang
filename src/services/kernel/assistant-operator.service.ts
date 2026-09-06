@@ -61,6 +61,10 @@ import {
 } from '@/constants/assistant-plan-visuals'
 import { resolveAssistantModelId } from '@/constants/node-studio'
 import {
+  isWebImageSourceUsableAsInput,
+  judgeWebImageSource,
+} from '@/constants/web-image-sources'
+import {
   inspectAssistantAssetFolder,
   listAssistantAssetFolders,
 } from '@/services/kernel/assistant-asset-folder-vision.service'
@@ -117,7 +121,9 @@ import { findVisionCapableRoute } from '@/services/vision/vision-route.service'
 import { searchLoraCandidates } from '@/services/lora/lora-candidates.service'
 import {
   isWebImageSearchConfigured,
+  isWebSearchConfigured,
   webImageSearch,
+  webSearch,
 } from '@/services/web-research.service'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { logger } from '@/lib/logger'
@@ -427,6 +433,21 @@ function reject(
  */
 function clamp(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, Math.max(0, max - 1))}…` : value
+}
+
+/**
+ * 一条地址的主机名。
+ *
+ * ⚠ **现算，⛔ 不让模型写**：模型写的域名与地址不符是常态（它按印象填），而这个
+ * 值下游要拿去做「能不能当输入」的判定与界面上那行可点的小字。取不到就是取不到，
+ * ⛔ 不猜一个。
+ */
+function hostnameOf(url: string): string | null {
+  try {
+    return new URL(url).hostname || null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -939,19 +960,33 @@ function planSearchWebImages(
     payload: { query: args.query, limit },
     run: async () => {
       const found = await webImageSearch(args.query, { num: limit })
-      const images = found.slice(0, limit).map((image) => ({
-        imageUrl: image.imageUrl,
-        ...(image.thumbnailUrl ? { thumbnailUrl: image.thumbnailUrl } : {}),
-        ...(image.pageUrl ? { pageUrl: image.pageUrl } : {}),
-        ...(image.domain
-          ? { domain: clamp(image.domain, LIMITS.maxLabelChars) }
-          : {}),
-        ...(image.title
-          ? { title: clamp(image.title, LIMITS.maxPriorStepSummaryChars) }
-          : {}),
-        ...(image.width ? { width: image.width } : {}),
-        ...(image.height ? { height: image.height } : {}),
-      }))
+      const images = found.slice(0, limit).map((image) => {
+        /**
+         * ⭐ 三字段在**服务端**算（切片 3b）：判定表是一份会长的常量，客户端算的
+         * 表现是「同一张图在面板里说可用、在服务端拒了」——而那两句话用户都读得到。
+         * ⚠ 判定喂的是 `domain`，不是 `imageUrl` 的主机名：图床与作品页常常不同域
+         * （`i.pinimg.com` ↔ `pinterest.com`），而用户看的、站方声明约束的是后者。
+         */
+        const verdict = judgeWebImageSource(image.domain ?? image.pageUrl)
+        return {
+          imageUrl: image.imageUrl,
+          ...(image.thumbnailUrl ? { thumbnailUrl: image.thumbnailUrl } : {}),
+          ...(image.pageUrl ? { pageUrl: image.pageUrl } : {}),
+          ...(image.domain
+            ? { domain: clamp(image.domain, LIMITS.maxLabelChars) }
+            : {}),
+          ...(image.publisher
+            ? { publisher: clamp(image.publisher, LIMITS.maxLabelChars) }
+            : {}),
+          usableAsInput: isWebImageSourceUsableAsInput(verdict),
+          sourceVerdict: verdict,
+          ...(image.title
+            ? { title: clamp(image.title, LIMITS.maxPriorStepSummaryChars) }
+            : {}),
+          ...(image.width ? { width: image.width } : {}),
+          ...(image.height ? { height: image.height } : {}),
+        }
+      })
 
       // ⭐ 观察里**每次都要重申一遍「这只是预览」**：模型看到一串 URL 的第一反应
       //    是拿去用（挂参考 / 写进提示词），而那些地址在本仓里还不存在任何东西。
@@ -961,15 +996,84 @@ function planSearchWebImages(
           : `search_web_images("${args.query}") → ${images.length} PREVIEW candidate(s) shown to the creator:\n${images
               .map(
                 (image, index) =>
-                  `  ${index + 1}. ${image.domain ?? 'web'}${
+                  `  ${index + 1}. ${image.publisher ?? image.domain ?? 'web'}${
                     image.title ? ` · "${image.title}"` : ''
-                  }`,
+                  }${image.usableAsInput ? '' : ' · REFERENCE ONLY (this site cannot be used as an input)'}`,
               )
               .join(
                 '\n',
               )}\nThese are previews only — nothing was saved. You cannot mount, import, or reference any of them. The creator picks one in the log entry and the app files it into their library; tell them to pick, then move on.`
 
       return { result: { totalFound: images.length, images }, observation }
+    },
+  }
+}
+
+/**
+ * 联网**查文字**（切片 3b）。
+ *
+ * ── 它与 `search_web_images` 的分工 ─────────────────────────────────
+ * 判据只有一条：要的是图还是话。搜图出的是一串**待用户点选**的第三方地址（拍板
+ * 21），这条出的是**给模型读的**标题 + 摘要 + 出处 —— 它落地在提示词里，不落地在
+ * 参考图位上。⛔ 别让它俩共用一条实现：那样「限多少条」「查询词多长」这两件在两
+ * 条路上恰好相反的事就只能取一个折中值（图搜吃短查询，文字搜吃长查询）。
+ *
+ * ⚠ **只搜不读**（本片范围）：`readUrl`（Jina 抓正文）有意没接进来。摘要说不清楚
+ * 的时候，正确的行为是把来源摆给用户，⛔ 不是让模型照着标题脑补。
+ * ⚠ 与搜图同一条 best-effort 契约：上游失败返回 `[]`，这一步照样成功、只是零条 ——
+ * 抛出去的表现是整轮跑到一半消失。
+ */
+function planSearchWeb(
+  run: OperatorRun,
+  args: { query: string; limit?: number },
+): ToolPlan {
+  if (!isWebSearchConfigured()) {
+    return reject(
+      REJECT.searchUnavailable,
+      'Web search is not wired up on this deployment. Answer from what you know, and say plainly when you are unsure.',
+    )
+  }
+
+  const limit = Math.min(
+    args.limit ?? LIMITS.maxWebSearchResults,
+    LIMITS.maxWebSearchResults,
+  )
+
+  return {
+    kind: 'read',
+    payload: { query: args.query, limit },
+    run: async () => {
+      const found = await webSearch(args.query, { num: limit })
+      const results = found.slice(0, limit).map((entry) => {
+        // 出处**现算**（⛔ 不让模型写、也不编）—— 界面上那行小字与模型引用时说的
+        // 是同一个词。上游的 organic 结果没有站名字段，域名是这里唯一的真值。
+        const publisher = hostnameOf(entry.url)
+        return {
+          title: clamp(entry.title, LIMITS.maxTitleChars),
+          url: entry.url,
+          snippet: clamp(entry.snippet, LIMITS.maxWebSearchSnippetChars),
+          ...(publisher ? { publisher } : {}),
+        }
+      })
+
+      /**
+       * ⭐ 观察里**逐条带上出处**：模型接下来要在对白里说「按官方站的说法……」，
+       * 而它只有在这里看得见来源时才说得出口。⛔ 别只喂摘要 —— 那等于让它把三个
+       * 站的说法揉成一句无主语的断言。
+       */
+      const observation =
+        results.length === 0
+          ? `search_web("${args.query}") came back empty. Do not invent facts to fill the gap — say plainly what you are unsure of, or try different words once.`
+          : `search_web("${args.query}") → ${results.length} source(s):\n${results
+              .map(
+                (entry, index) =>
+                  `  ${index + 1}. [${entry.publisher ?? 'web'}] ${entry.title}\n     ${entry.snippet}`,
+              )
+              .join(
+                '\n',
+              )}\nThese are extracts, not full pages. Use them, name the source when it matters, and say so when they do not answer the question.`
+
+      return { result: { totalFound: results.length, results }, observation }
     },
   }
 }
@@ -1005,12 +1109,22 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
     return reject(REJECT.referencesFull)
   }
 
-  // ⚠ 现算，⛔ 不让模型写：它只用于日志详情那行小字，而模型写的域名会与地址不符。
-  let domain: string | null = null
-  try {
-    domain = new URL(args.url).hostname || null
-  } catch {
-    domain = null
+  const domain = hostnameOf(args.url)
+
+  /**
+   * ⭐ **用户递的地址也过来源判定**（切片 3b）。
+   *
+   * ⚠ 这与拍板 22 的「你递的就是确认」不冲突：那条说的是**谁来决定要不要这张图**
+   * （用户，不用助手再问一遍）。这条说的是站方自己写明「不许拿去喂模型」——
+   * 那不是用户能替它同意的事。⛔ 所以这一档不给「确认一下就放行」的口子：
+   * 判定表里 `blocked` 的那几个站，助手不替他按。
+   */
+  const verdict = judgeWebImageSource(domain ?? args.url)
+  if (!isWebImageSourceUsableAsInput(verdict)) {
+    return reject(
+      REJECT.sourceNotUsable,
+      `${domain ?? 'That site'} asks not to be used as AI input, or republishes work without a traceable source. Tell the creator plainly and ask for another source — do not fetch it and do not look for the same picture elsewhere.`,
+    )
   }
 
   return {
@@ -2343,6 +2457,11 @@ async function planTool(
         run,
         parsed.data as { query: string; limit?: number },
       )
+    case TOOL.searchWeb:
+      return planSearchWeb(
+        run,
+        parsed.data as { query: string; limit?: number },
+      )
     case TOOL.mountReference:
       return planMountReference(run, parsed.data as { assetId: string })
     case TOOL.setModel:
@@ -2700,6 +2819,8 @@ HARD RULES — these are structural, not stylistic:
 - Never invent a model id or an asset id. Model ids come from the state block, asset ids come from search_assets results. A made-up id is refused and wastes a step.
 - Never invent a folder id. Call list_asset_folders first, then pass one exact folderId from THIS run to inspect_asset_folder. Folder names alone are ambiguous.
 - THE CREATOR HANDED YOU A LINK → call import_user_url on it, right then. Their link is their yes. It works for a direct image address and for an ordinary web page alike. Never answer a link with a search, and never ask them to save it, upload it, or pick it out of a list — you have the tool, so you do it.
+- When a request turns on a fact you are not sure of — how an official name is spelled, what a character or product actually looks like in its source, a game's own terminology, a platform's current rules — call search_web and look it up before you write it into the form. One search step is cheaper than a prompt full of confident inventions. It returns extracts, not whole pages: name the source when it matters, and say plainly when the extracts do not answer the question. It finds words, never pictures.
+- A web result may be marked REFERENCE ONLY: that site asks not to be used as AI input, or republishes work without a traceable source. The creator can still open it, but the app will not file it into their library and neither will you. Say so once and offer another source; never go hunting for the same picture on another site to get around it.
 - search_web_images (pictures YOU went looking for) is different: it downloads nothing. Each candidate is shown to the creator with a "use this" button, and only what they press is fetched and attached. So never claim you saved, imported, or mounted one of your own search results, and never paste one of those URLs into a prompt or a reference. Search the creator's own library first; go to the web only when they have nothing suitable. Keep web queries SHORT and in English (three or four words); a long sentence returns junk.
 ${domainRules}
 - If the creator already hand-wrote a prompt, writing over it needs their say-so — call the tool anyway and the app will ask them; do not ask in prose.

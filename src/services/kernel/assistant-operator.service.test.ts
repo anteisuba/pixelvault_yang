@@ -42,9 +42,14 @@ vi.mock('@/services/kernel/assistant-asset-folder-vision.service', () => ({
  */
 const mockWebImageSearch = vi.fn()
 const mockIsWebImageSearchConfigured = vi.fn()
+/** 联网**查文字**（切片 3b）—— 同一条论据、同一份 mock 家族，一个 credit 都不花。 */
+const mockWebSearch = vi.fn()
+const mockIsWebSearchConfigured = vi.fn()
 vi.mock('@/services/web-research.service', () => ({
   webImageSearch: (...args: unknown[]) => mockWebImageSearch(...args),
   isWebImageSearchConfigured: () => mockIsWebImageSearchConfigured(),
+  webSearch: (...args: unknown[]) => mockWebSearch(...args),
+  isWebSearchConfigured: () => mockIsWebSearchConfigured(),
 }))
 
 /**
@@ -263,6 +268,8 @@ beforeEach(() => {
   })
   mockIsWebImageSearchConfigured.mockReturnValue(true)
   mockWebImageSearch.mockResolvedValue([])
+  mockIsWebSearchConfigured.mockReturnValue(true)
+  mockWebSearch.mockResolvedValue([])
   mockFindVisionCapableRoute.mockResolvedValue(null)
   // ⚠ 默认「两个源都好好的但没命中」—— 与「源挂了」是两句不同的话，见下面那条用例。
   mockSearchLoraCandidates.mockResolvedValue({
@@ -3971,5 +3978,193 @@ describe('确认三档 · 花钱档（§6）', () => {
       (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirmRequest,
     ) as Extract<AssistantOperatorEvent, { type: 'confirm_request' }>
     expect(confirm.tier).toBe('overwrite')
+  })
+})
+
+/**
+ * ⭐ 切片 3b · 候选卡三字段（owner 定）。
+ *
+ * 钉两件事：**判定在服务端算**（客户端只画结果），以及**不可用的候选照样返回** ——
+ * 用户仍然要能点开原页去看，只是「选用」那颗按钮我们不替他按。
+ */
+describe('联网候选 · 来源三字段（切片 3b）', () => {
+  function queueWebImageSearch(query = 'jiyan official art'): void {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: 'search the web',
+          args: { query },
+        },
+      },
+      { finished: true },
+    )
+  }
+
+  it('三字段由服务端填：发布者与域名各归各位，未知许可仍然可用', async () => {
+    mockWebImageSearch.mockResolvedValue([
+      {
+        imageUrl: 'https://cdn.example.test/a.jpg',
+        pageUrl: 'https://blog.example.test/post/a',
+        domain: 'blog.example.test',
+        publisher: 'Example Blog',
+      },
+    ])
+    queueWebImageSearch()
+
+    const done = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )[1]
+    const [image] = (done.result as { images: Record<string, unknown>[] })
+      .images
+    expect(image.domain).toBe('blog.example.test')
+    // ⛔ 发布者不拿域名冒充：两者答的不是同一个问题。
+    expect(image.publisher).toBe('Example Blog')
+    // 未知 → 可用，但标出来（拒绝一切未知等于把这个功能关掉）。
+    expect(image.usableAsInput).toBe(true)
+    expect(image.sourceVerdict).toBe('unknownLicense')
+  })
+
+  it('⛔ 判定为 blocked 的候选照样返回，只是 usableAsInput=false 且观察里说明', async () => {
+    mockWebImageSearch.mockResolvedValue([
+      {
+        imageUrl: 'https://i.pinimg.test/blocked.jpg',
+        pageUrl: 'https://www.pinterest.com/pin/1',
+        domain: 'www.pinterest.com',
+        publisher: 'Pinterest',
+      },
+    ])
+    queueWebImageSearch()
+
+    const done = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )[1]
+    const images = (done.result as { images: Record<string, unknown>[] }).images
+    // ⛔ 不静默丢掉：用户仍要能点开原页。
+    expect(images).toHaveLength(1)
+    expect(images[0].usableAsInput).toBe(false)
+    expect(images[0].sourceVerdict).toBe('blocked')
+    // 模型也要读得到，否则它会在对白里承诺一张挂不上的图。
+    expect(lastUserPrompt()).toContain('REFERENCE ONLY')
+  })
+
+  it('⛔ 用户递来的地址也过这道闸：blocked 的站按 sourceNotUsable 拒', async () => {
+    const url = 'https://www.artstation.com/artwork/abc.jpg'
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
+          title: '收下你给的这张',
+          args: { url },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            messages: [{ role: 'user', content: `就这张 ${url}` }],
+          }),
+        ),
+      ),
+    )
+    expect(steps).toHaveLength(1)
+    expect((steps[0] as { error: { reason: string } }).error.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.sourceNotUsable,
+    )
+  })
+})
+
+/**
+ * ⭐ 切片 3b · 联网**查文字**（`search_web`）。
+ *
+ * 它存在的理由是准确性：模型对具体作品的设定记得半对半错，而提示词恰恰要写对
+ * 这些。钉三件事：读类无 inverse、出处逐条落进观察、没配 key 时不发请求。
+ */
+describe('search_web · 联网查文字（切片 3b）', () => {
+  const HITS = [
+    {
+      title: 'Jiyan — official character page',
+      url: 'https://wiki.example.test/jiyan',
+      snippet: 'General of the Midnight Rangers, teal hair, dragon motifs.',
+    },
+    {
+      title: 'Patch notes 2.4',
+      url: 'https://news.example.test/2-4',
+      snippet: 'Adds the new outfit.',
+    },
+  ]
+
+  function queueSearch(query = 'jiyan official design'): void {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+          title: 'look it up',
+          args: { query },
+        },
+      },
+      { finished: true },
+    )
+  }
+
+  it('读类：没有 inverse，结果带标题 / 地址 / 摘要 / 出处', async () => {
+    mockWebSearch.mockResolvedValue(HITS)
+    queueSearch()
+
+    const [running, done] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(running.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.running)
+    expect(done.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect(done.inverse).toBeUndefined()
+
+    const result = done.result as {
+      totalFound: number
+      results: Record<string, unknown>[]
+    }
+    expect(result.totalFound).toBe(2)
+    expect(result.results[0].title).toBe(HITS[0].title)
+    expect(result.results[0].snippet).toBe(HITS[0].snippet)
+    // 出处**现算**：上游的 organic 结果没有站名字段，域名是唯一的真值。
+    expect(result.results[0].publisher).toBe('wiki.example.test')
+  })
+
+  it('⭐ 观察里逐条带出处，并说明这只是摘要不是全文', async () => {
+    mockWebSearch.mockResolvedValue(HITS)
+    queueSearch()
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('wiki.example.test')
+    expect(prompt).toContain('extracts, not full pages')
+  })
+
+  it('平台没配 key → 按 searchUnavailable 拒，⛔ 一次上游调用都不发', async () => {
+    mockIsWebSearchConfigured.mockReturnValue(false)
+    queueSearch()
+
+    const [step] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(step.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.error)
+    expect((step.error as { reason: string }).reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.searchUnavailable,
+    )
+    expect(mockWebSearch).not.toHaveBeenCalled()
+  })
+
+  it('一条都没查到时说出来，并明确禁止拿编造去补空', async () => {
+    mockWebSearch.mockResolvedValue([])
+    queueSearch('something nobody wrote about')
+
+    const done = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )[1]
+    expect((done.result as { totalFound: number }).totalFound).toBe(0)
+    expect(lastUserPrompt()).toContain('Do not invent facts')
   })
 })

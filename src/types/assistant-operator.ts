@@ -42,6 +42,7 @@ import {
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PLAN_VISUAL_IDS } from '@/constants/assistant-plan-visuals'
+import { WEB_IMAGE_SOURCE_VERDICTS } from '@/constants/web-image-sources'
 import {
   LORA_CANDIDATE_NOT_IMPORTABLE_REASON_VALUES,
   LORA_CANDIDATE_SOURCE_VALUES,
@@ -615,6 +616,19 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
       .max(LIMITS.maxWebImageResults)
       .optional(),
   }),
+  /**
+   * 联网查文字（切片 3b）。形状与搜图那条**故意逐字同构**（`query` + 可选 `limit`）：
+   * 两条工具在模型眼里长得一样、只是要的东西不同，多一个参数就是多一件它会写错的东西。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWeb]: z.object({
+    query: z.string().trim().min(1).max(LIMITS.maxWebSearchQueryChars),
+    limit: z
+      .number()
+      .int()
+      .positive()
+      .max(LIMITS.maxWebSearchResults)
+      .optional(),
+  }),
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]: z.object({
     /** ⛔ 只有 id，没有 URL —— URL 由服务端从本轮检索结果里查出来填。 */
     assetId: IdSchema,
@@ -938,12 +952,53 @@ export const AssistantOperatorWebImageSchema = z.object({
   thumbnailUrl: z.string().url().optional(),
   /** 图片所在页 —— 来源快照要它，界面上也要能点过去看出处。 */
   pageUrl: z.string().url().optional(),
-  /** 站点域名，候选格子上的那行小字。 */
+  /** 站点域名，候选格子上那行可点的小字（点它开原页，⛔ 不是选用）。 */
   domain: LabelSchema.optional(),
+  /**
+   * **发布者**——站点显示名（Serper 的 `source`），取不到时由服务端回落成域名。
+   *
+   * ⚠ 与 `domain` 分开而不是二选一（切片 3b 改的口径）：早先服务端把两者塞进同一
+   * 个 `domain` 字段（`entry.domain ?? entry.source`），于是格子上那行字有时是
+   * `pixiv.net`、有时是「pixiv」——而用户要判断的两件事**恰恰是这两个**：这是哪个
+   * 站（点得开、认得出），以及谁发的。合并的表现是两条信息各丢一半。
+   */
+  publisher: LabelSchema.optional(),
+  /**
+   * 这张能不能当**生成输入**（切片 3b，owner 定）。
+   *
+   * ⭐ 判据在 `constants/web-image-sources.ts`，**是启发式不是法律判断**（那边头注
+   * 写着）。`false` 的候选照样画出来、照样点得开原页，只是「选用」那颗按钮关掉，
+   * 服务端那一侧也按 `sourceNotUsable` 拒——⛔ 一个闸两处写，是因为按钮是给人看的，
+   * 服务端那道才是真的守得住。
+   * ⚠ 写成**必填**：缺席就成了「不知道能不能用」，而那是第三种状态，界面上没有
+   * 它的位置。未知许可的那一档在 `sourceVerdict` 里，值仍然是可用。
+   */
+  usableAsInput: z.boolean(),
+  /** 落在哪一档（`allowed` / `unknownLicense` / `blocked`）——格子上那行小字按它写。 */
+  sourceVerdict: z.enum(WEB_IMAGE_SOURCE_VERDICTS),
   title: z.string().max(LIMITS.maxPriorStepSummaryChars).optional(),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
 })
+
+/**
+ * 一条**文字**搜索结果（切片 3b）。
+ *
+ * ⚠ 它与 `AssistantOperatorWebImageSchema` 是两张表不是一张带可选字段的表：图那条
+ * 的中心是一个可以被转存的字节流（`imageUrl` 必填），这条的中心是一句可以被引用的
+ * 话（`snippet` + 出处）。合成一张的表现是两边各有一半字段永远是 `undefined`。
+ */
+export const AssistantOperatorWebSearchResultSchema = z.object({
+  title: z.string().max(LIMITS.maxTitleChars),
+  url: z.string().url(),
+  snippet: z.string().max(LIMITS.maxWebSearchSnippetChars),
+  /** 站点显示名/域名——时间线上那行小字，也是模型引用来源时该说的那个词。 */
+  publisher: LabelSchema.optional(),
+})
+
+export type AssistantOperatorWebSearchResult = z.infer<
+  typeof AssistantOperatorWebSearchResultSchema
+>
 
 export type AssistantOperatorWebImage = z.infer<
   typeof AssistantOperatorWebImageSchema
@@ -1057,6 +1112,24 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       images: z
         .array(AssistantOperatorWebImageSchema)
         .max(LIMITS.maxWebImageResults),
+    }),
+  ),
+  /**
+   * 联网查文字（切片 3b）。⛔ **永远是 readStep**：它一个字节都不落、一个字段都
+   * 不改——与 `search_web_images` 逐字同构。真要照查到的东西改表单，那是之后那条
+   * `set_*` 的事，撤销也撤在那一条上。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+    z.object({
+      query: z.string().trim().min(1).max(LIMITS.maxWebSearchQueryChars),
+      limit: z.number().int().positive().max(LIMITS.maxWebSearchResults),
+    }),
+    z.object({
+      totalFound: z.number().int().nonnegative(),
+      results: z
+        .array(AssistantOperatorWebSearchResultSchema)
+        .max(LIMITS.maxWebSearchResults),
     }),
   ),
   mutatingStep(

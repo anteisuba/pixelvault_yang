@@ -6936,7 +6936,8 @@
       "repeatedStep": "It already ran this exact step — skipped",
       "unknownLora": "That LoRA was not in this run's search results",
       "loraNotMounted": "That LoRA is not on the bench",
-      "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page"
+      "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page",
+      "sourceNotUsable": "That site asks not to be used as AI input, or republishes work without a traceable source"
     },
     "field": {
       "prompt": "Prompt",
@@ -7027,7 +7028,14 @@
       "imported": "Saved",
       "importFailedShort": "Blocked",
       "importFailed": "That image could not be fetched",
-      "cleanupFailed": "The one you swapped out could not be deleted from your library — remove it on the assets page"
+      "cleanupFailed": "The one you swapped out could not be deleted from your library — remove it on the assets page",
+      "publisherUnknown": "Unknown",
+      "openPage": "Open the source page",
+      "usable": "Can be used as input",
+      "usableUnknownLicense": "Usable · licence unknown",
+      "referenceOnly": "Reference only",
+      "cannotUse": "Not usable",
+      "notUsable": "This site asks not to be used as AI input, or republishes work without a traceable source — open it if you like, but it will not be filed into your library."
     },
     "critique": {
       "title": "Auto-check · it set this up, so it reviews it",

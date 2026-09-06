@@ -159,7 +159,17 @@ export interface WebImageSearchResult {
   thumbnailUrl?: string
   /** 图片所在页。 */
   pageUrl?: string
+  /** 站点域名（`example.com`）——界面上那行可点的小字。 */
   domain?: string
+  /**
+   * **发布者**——站点显示名（Serper 的 `source`，例如「Pixiv」「Wikimedia Commons」）。
+   *
+   * ⚠ 与 `domain` 分开（切片 3b 改的口径）：早先两者被塞进同一个字段（取到哪个算
+   * 哪个），于是同一行小字有时是域名、有时是站名，而候选卡上要答的是两个问题——
+   * 「这是哪个站」（点得开）与「谁发的」。取不到 `source` 时由调用方回落到域名，
+   * ⛔ 不在这里编一个。
+   */
+  publisher?: string
   title?: string
   /** ⚠ 搜索引擎报的数，不是实到值 —— 只配当选图参考。 */
   width?: number
@@ -185,6 +195,16 @@ const SerperImagesResponseSchema = z.object({
 
 export function isWebImageSearchConfigured(): boolean {
   return Boolean(process.env.SERPER_API_KEY)
+}
+
+/** 从一条 URL 取主机名；取不到就是取不到，⛔ 不猜。 */
+function hostnameOf(url: string | undefined): string | undefined {
+  if (!url) return undefined
+  try {
+    return new URL(url).hostname || undefined
+  } catch {
+    return undefined
+  }
 }
 
 function positiveIntOrUndefined(value: number | undefined): number | undefined {
@@ -247,9 +267,17 @@ export async function webImageSearch(
           imageUrl: entry.imageUrl ?? '',
           ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
           ...(entry.link ? { pageUrl: entry.link } : {}),
-          // `domain` 有时缺席，`source` 是站点显示名 —— 两者取其一给人看。
-          ...(entry.domain || entry.source
-            ? { domain: entry.domain ?? entry.source ?? '' }
+          /**
+           * ⚠ `domain` 缺席时**从页面地址现算**，⛔ 不再拿 `source` 顶替：那两个
+           * 字段答的不是同一个问题（见 `WebImageSearchResult.publisher` 头注），
+           * 而下游要拿 `domain` 去做「能不能当输入」的判定——喂一个站名进去，
+           * 判定表一条都匹配不上，全部落进「未知」。
+           */
+          ...(entry.domain || entry.link
+            ? { domain: entry.domain ?? hostnameOf(entry.link) ?? '' }
+            : {}),
+          ...(entry.source || entry.domain
+            ? { publisher: entry.source ?? entry.domain ?? '' }
             : {}),
           ...(entry.title
             ? { title: entry.title.slice(0, WEB_IMAGE_SEARCH.maxTitleLength) }

@@ -57,11 +57,16 @@ const WEB_STEP: AssistantOperatorStep = {
         thumbnailUrl: 'https://tbn.example.com/a.jpg',
         pageUrl: 'https://example.com/a',
         domain: 'example.com',
+        publisher: 'Example',
+        usableAsInput: true,
+        sourceVerdict: 'unknownLicense',
         title: 'candidate A',
       },
       {
         imageUrl: 'https://cdn.other.com/b.jpg',
         domain: 'other.com',
+        usableAsInput: true,
+        sourceVerdict: 'unknownLicense',
       },
     ],
   },
@@ -174,6 +179,8 @@ describe('日志条 · 联网候选（P3-B）', () => {
     expect(onToggleWebImage).toHaveBeenCalledWith('run-1:step-1', {
       imageUrl: 'https://cdn.other.com/b.jpg',
       domain: 'other.com',
+      usableAsInput: true,
+      sourceVerdict: 'unknownLicense',
     })
     expect(openOperatorLightbox).not.toHaveBeenCalled()
   })

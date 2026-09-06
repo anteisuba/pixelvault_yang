@@ -16,7 +16,6 @@ import { memo, useState } from 'react'
 import {
   Ban,
   Blocks,
-  Check,
   CircleDollarSign,
   Eye,
   FolderSearch,
@@ -33,7 +32,7 @@ import {
   Search,
   SlidersHorizontal,
   Sparkles,
-  TriangleAlert,
+  TextSearch,
   Unplug,
   Volume2,
   type LucideIcon,
@@ -48,25 +47,16 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
-import {
-  STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS,
-  STUDIO_OPERATOR_WEB_CANDIDATE_PIXELS,
-} from '@/constants/studio-assistant-operator'
+import { STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS } from '@/constants/studio-assistant-operator'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
-import { Spinner } from '@/components/ui/spinner'
+import { StudioOperatorWebCandidateGrid } from '@/components/business/studio/assistant-operator/StudioOperatorWebCandidateGrid'
 import { describeOperatorStepDetail } from '@/lib/studio-operator-history'
 import { cn } from '@/lib/utils'
 import type {
   AssistantOperatorStep,
   AssistantOperatorWebImage,
 } from '@/types/assistant-operator'
-import type {
-  StudioOperatorWebImportPick,
-  StudioOperatorWebImportState,
-} from '@/hooks/use-studio-operator-web-import'
-
-/** 一张都没选时共用这一份，⛔ 别写成行内 `[]`（每次 render 换引用）。 */
-const NO_PICKS: readonly StudioOperatorWebImportPick[] = []
+import type { StudioOperatorWebImportState } from '@/hooks/use-studio-operator-web-import'
 
 /**
  * ⚠ `Record<Tool, …>`：工具表加一条而图标没跟上，编译期就红。
@@ -80,6 +70,11 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders]: FolderSearch,
   [ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder]: ScanEye,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages]: Globe,
+  /**
+   * 联网查文字（切片 3b）—— 与搜图的 🌐 **分开**：日志流里这两条常常前后脚出现
+   * （先查一句设定，再去找参考图），长一样就分不出哪条是哪条（同挂/摘 LoRA 那一对）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWeb]: TextSearch,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]: ImagePlus,
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: Sparkles,
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]: Pencil,
@@ -186,11 +181,6 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
     !isRejected && step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done
       ? describeOperatorStepDetail(step)
       : null
-
-  // 联网候选行的三个派生量（拍板 21）。⚠ 空数组常量化，免得每次 render 换引用。
-  const picks = webImport?.picks ?? NO_PICKS
-  const failedPicks = picks.filter((pick) => pick.status === 'error')
-  const usedCount = picks.length - failedPicks.length
 
   return (
     <div
@@ -319,144 +309,52 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
         </div>
       ) : null}
 
-      {/* 联网候选（拍板 21）—— **看与选是两件事**：
-          · 点缩略图 = 灯箱看大图，零网络零入库；
-          · 点「选用」= 才导入进素材库并挂上（取消选用会把它一并清掉）。
-          🔬 owner 2026-08-31 真机打回的就是这两件事合成一个手势：浏览即采购。 */}
+      {/* 联网候选（拍板 21）—— 网格搬去了 `StudioOperatorWebCandidateGrid`
+          （切片 3b）：那一块有自己的交互与自己的每格状态机，⛔ 别搬回来。 */}
       {step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
       step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages &&
+      step.result ? (
+        <StudioOperatorWebCandidateGrid
+          entryId={entryId}
+          images={step.result.images}
+          webImport={webImport}
+          limit={webImportLimit}
+          onToggle={onToggleWebImage}
+        />
+      ) : null}
+
+      {/* 联网**查文字**的来源列表（切片 3b）。
+          ⚠ 它长在日志条里而不是自己一张卡：这一步是过程不是结论，折叠归 ToolGroup
+            管（§11.4「ToolGroup」那一行），展开之后看到的就是这份来源。
+          ⚠ 标题**可点开原页**（新窗）——摘要只有一两句，判断可信度靠的是出处。 */}
+      {step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWeb &&
       step.result &&
-      step.result.images.length > 0 ? (
-        <div className="mt-2" data-testid="operator-web-candidates">
-          <p className="mb-1 text-2xs text-muted-foreground">
-            {t('web.candidates')}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {step.result.images.map((image) => {
-              const pick = picks.find(
-                (item) => item.imageUrl === image.imageUrl,
-              )
-              const importing = pick?.status === 'importing'
-              const failed = pick?.status === 'error'
-              const imported = pick?.status === 'imported'
-              // ⚠ 每格算自己的态：一行里可以同时有「已选用」「在飞」「取不到」
-              //    三种格子，把整行的状态印到每一格会让没出事的那些也标红。
-              const tileState = importing
-                ? 'importing'
-                : failed
-                  ? 'error'
-                  : imported
-                    ? 'imported'
-                    : 'idle'
-              const caption =
-                image.title ?? image.domain ?? (image.pageUrl || image.imageUrl)
-              return (
-                <div
-                  key={image.imageUrl}
-                  className="flex w-14 shrink-0 flex-col gap-1"
-                >
-                  {/* 看 —— ⛔ 这一颗不发任何网络请求，它只开灯箱。
-                      ⚠ 灯箱吃的是**原图直链**（看大图的意义就在这儿）；缩略图
-                        只画在格子里。取不到的那三成会在灯箱里显形，而那正是
-                        用户在按「选用」之前该知道的事。 */}
-                  <button
-                    type="button"
-                    data-testid="operator-web-candidate"
-                    data-selected={pick ? 'true' : 'false'}
-                    data-state={tileState}
-                    onClick={() =>
-                      openOperatorLightbox(image.imageUrl, caption)
-                    }
-                    title={caption}
-                    aria-label={t('web.viewLarge')}
-                    className={cn(
-                      'relative size-14 cursor-zoom-in overflow-hidden rounded-lg border border-border/70 bg-muted transition-colors duration-fast ease-standard hover:border-primary/50',
-                      imported && 'border-primary ring-1 ring-primary',
-                      failed && 'border-destructive ring-1 ring-destructive',
-                    )}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element -- 任意第三方图床，进不了 next.config 的 remotePatterns 白名单；而且画的是 gstatic 缩略图（原图直链约三成 403）。 */}
-                    <img
-                      src={image.thumbnailUrl ?? image.imageUrl}
-                      alt={image.title ?? image.domain ?? ''}
-                      width={STUDIO_OPERATOR_WEB_CANDIDATE_PIXELS}
-                      height={STUDIO_OPERATOR_WEB_CANDIDATE_PIXELS}
-                      loading="lazy"
-                      className="size-full object-cover"
-                    />
-                    {importing ? (
-                      <span className="absolute inset-0 grid place-items-center bg-background/70">
-                        <Spinner className="size-4 text-primary" />
-                      </span>
-                    ) : null}
-                    {imported ? (
-                      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 bg-primary/90 py-px text-3xs text-primary-foreground">
-                        <Check className="size-2.5" aria-hidden />
-                        {t('web.imported')}
-                      </span>
-                    ) : null}
-                    {/* ⚠ 失败角标底色用 `bg-background` 而不是实心 destructive：
-                        本仓没有 `--color-destructive-foreground` 这枚 token，实心
-                        红上没有配得上的字色（暗档会变成深红压深底）。 */}
-                    {failed ? (
-                      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 bg-background/90 py-px text-3xs text-destructive">
-                        <TriangleAlert className="size-2.5" aria-hidden />
-                        {t('web.importFailedShort')}
-                      </span>
-                    ) : null}
-                  </button>
-                  {/* 选 —— 这一颗才花钱（花的是存储与一次下载）。 */}
-                  <button
-                    type="button"
-                    data-testid="operator-web-candidate-use"
-                    data-state={tileState}
-                    aria-pressed={imported}
-                    onClick={() => onToggleWebImage(entryId, image)}
-                    className={cn(
-                      'rounded-md border px-1 py-0.5 text-3xs transition-colors duration-fast ease-standard',
-                      imported
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-primary',
-                      failed && 'border-destructive/50 text-destructive',
-                    )}
-                  >
-                    {imported
-                      ? t('web.used')
-                      : failed
-                        ? t('web.retry')
-                        : t('web.use')}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-          {/* ⛔ 失败不静默：每一条原因都写出来 —— 「我点了但什么都没发生」
-              是本仓最难查的那一类。 */}
-          {failedPicks.length > 0 ? (
-            <p
-              data-testid="operator-web-import-error"
-              className="mt-1 text-2xs text-destructive"
-            >
-              {failedPicks[0]?.error ?? t('web.importFailed')}
-            </p>
-          ) : null}
-          {webImport?.cleanupError ? (
-            <p
-              data-testid="operator-web-cleanup-error"
-              className="mt-1 text-2xs text-destructive"
-            >
-              {webImport.cleanupError}
-            </p>
-          ) : null}
-          <p className="mt-1 text-2xs text-muted-foreground">
-            {usedCount > 0
-              ? t('web.selectedHint', {
-                  count: usedCount,
-                  limit: webImportLimit,
-                })
-              : t('web.pickHint')}
-          </p>
-        </div>
+      step.result.results.length > 0 ? (
+        <ul
+          data-testid="operator-web-sources"
+          className="mt-2 flex flex-col gap-1.5"
+        >
+          {step.result.results.map((entry) => (
+            <li key={entry.url} className="min-w-0">
+              <a
+                href={entry.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="operator-web-source"
+                className="block truncate text-2xs text-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
+              >
+                {entry.title}
+              </a>
+              <span className="block truncate font-mono text-3xs tracking-nav text-muted-foreground">
+                {entry.publisher ?? t('web.publisherUnknown')}
+              </span>
+              <span className="mt-0.5 block text-2xs text-muted-foreground">
+                {entry.snippet}
+              </span>
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       {open && detail ? (

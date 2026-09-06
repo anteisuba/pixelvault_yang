@@ -94,6 +94,20 @@ export function describeOperatorStepDetail(
         .concat(domains.length > 0 ? [`· ${domains.join(', ')}`] : [])
         .join(' ')
     }
+    /**
+     * 联网查文字（切片 3b）。详情列**出处**，与搜图那条列域名同一条论据：
+     * 折叠行上只有一句「查了 3 条」，而用户要判断的是「它信的是哪几个站」。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.searchWeb: {
+      const publishers = [
+        ...new Set(
+          (step.result?.results ?? []).map((entry) => entry.publisher ?? 'web'),
+        ),
+      ]
+      return [`"${step.payload.query}"`, `· ${step.result?.totalFound ?? 0}`]
+        .concat(publishers.length > 0 ? [`· ${publishers.join(', ')}`] : [])
+        .join(' ')
+    }
     case ASSISTANT_OPERATOR_TOOL_IDS.setPrompt:
     case ASSISTANT_OPERATOR_TOOL_IDS.setNegative:
       return `${step.payload.mode} · ${step.payload.value}`

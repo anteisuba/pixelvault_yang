@@ -93,6 +93,41 @@ export interface UseLoraOperatorHostInput {
 }
 
 /**
+ * 装配台结果列的**最小形状**——只要这三样。
+ *
+ * ⚠ 有意不 import `LoraWorkbench` 里那个 `LoraResultHistoryItem`：那是一条带着
+ * seed / steps / 底模名的生成台账，结果行卡一样都用不上。按结构对齐而不是按类型
+ * 绑定，装配台那边给那条台账加字段时这个 hook 一行都不用动。
+ */
+export interface LoraOperatorResultSource {
+  id: string
+  url: string
+  /** 灯箱标题与 @chip 上写的那句；装配台这边给的是 LoRA 名。 */
+  loraName?: string | null
+}
+
+/**
+ * 装配台 `resultHistory` → 结果行卡（§2.11，切片 3b）。
+ *
+ * ⭐ 映射住在这里而不是 `LoraWorkbench` 里：那个文件已经三千行，而这条映射是
+ * **宿主契约的一部分**（「结果行卡吃什么形状」）。写在调用点的表现是下一次改契约
+ * 要去两个文件里找。
+ * ⚠ **只收跑完且真有地址的那些**：`url` 为空的条目在装配台上是「这一格还在跑」，
+ * 画进结果行卡就是一格永远加载不出来的灰块。⛔ 不拿占位图凑数。
+ */
+export function toLoraOperatorResults(
+  history: readonly LoraOperatorResultSource[],
+): readonly StudioOperatorResultItem[] {
+  return history
+    .filter((item) => Boolean(item.id) && Boolean(item.url.trim()))
+    .map((item) => ({
+      id: item.id,
+      url: item.url,
+      ...(item.loraName ? { label: item.loraName } : {}),
+    }))
+}
+
+/**
  * ⚠ 摘除按**索引**（`removeReferenceImage` 的契约），所以要先按 URL 找位。
  * 与工作台那份宿主里的同名函数逐字同源 —— 两个宿主的参考图 API 本来就是同一个
  * （`useImageUpload`），只是拿到它的路不同。

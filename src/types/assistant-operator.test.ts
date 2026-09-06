@@ -120,9 +120,26 @@ const STEP_FIXTURES: Record<
           thumbnailUrl: 'https://encrypted-tbn0.gstatic.com/web-a.jpg',
           pageUrl: 'https://example.com/post/a',
           domain: 'example.com',
+          publisher: 'Example',
+          usableAsInput: true,
+          sourceVerdict: 'unknownLicense',
           title: 'PVC figure studio shot',
           width: 1600,
           height: 1200,
+        },
+      ],
+    },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWeb]: {
+    payload: { query: 'wuthering waves jiyan official design', limit: 6 },
+    result: {
+      totalFound: 1,
+      results: [
+        {
+          title: 'Jiyan — official character page',
+          url: 'https://example.com/jiyan',
+          snippet: 'General of the Midnight Rangers…',
+          publisher: 'example.com',
         },
       ],
     },

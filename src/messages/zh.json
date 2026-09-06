@@ -6936,7 +6936,8 @@
       "repeatedStep": "这一步刚才做过了，跳过",
       "unknownLora": "这把 LoRA 不在这一轮搜到的结果里",
       "loraNotMounted": "这把 LoRA 没挂在装配台上",
-      "loraNotImportable": "这把 LoRA 收不进你的库，只能去它的来源页看"
+      "loraNotImportable": "这把 LoRA 收不进你的库，只能去它的来源页看",
+      "sourceNotUsable": "这个站点声明不接受作为 AI 输入，或是溯源不到原作者的转载"
     },
     "field": {
       "prompt": "提示词",
@@ -7027,7 +7028,14 @@
       "imported": "已入库",
       "importFailedShort": "取不到",
       "importFailed": "这张没能取回来",
-      "cleanupFailed": "换下来的那张没能从素材库删掉，你可以去素材页手动删"
+      "cleanupFailed": "换下来的那张没能从素材库删掉，你可以去素材页手动删",
+      "publisherUnknown": "未知",
+      "openPage": "打开原页",
+      "usable": "可作输入",
+      "usableUnknownLicense": "可作输入 · 许可未知",
+      "referenceOnly": "仅参考",
+      "cannotUse": "不可用",
+      "notUsable": "这个站点声明不接受作为 AI 输入，或整站是溯源不到原作者的转载——你可以点开原页去看，但它不会被收进你的素材库。"
     },
     "critique": {
       "title": "自动检查 · 它备的它负责看",

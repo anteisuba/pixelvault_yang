@@ -9,6 +9,23 @@ import { AI_MODELS } from '@/constants/models'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
+/**
+ * 负向提示的能力档位 —— 这是**产品事实**，不是偏好：
+ * - `unsupported` 请求体里根本没有这个字段，写了就是静默丢弃（FLUX / gpt-image /
+ *   Gemini / Ideogram / Recraft 都是这一档，官方文档明写「用正向说法代替」）；
+ * - `supported` 有常规 negative_prompt 字段；
+ * - `nouns-only` 有字段但**禁止否定词**，只能写名词（Veo 一类）；
+ * - `undesired-content` NovelAI 的 UC 字段，自带一套强调语法。
+ */
+export const NEGATIVE_PROMPT_SUPPORTS = [
+  'unsupported',
+  'supported',
+  'nouns-only',
+  'undesired-content',
+] as const
+
+export type NegativePromptSupport = (typeof NEGATIVE_PROMPT_SUPPORTS)[number]
+
 export interface ModelStrength {
   /** What this model excels at */
   bestFor: string[]
@@ -16,6 +33,13 @@ export interface ModelStrength {
   promptStyle: 'natural-language' | 'tag-based'
   /** Hint injected into prompt enhancement system prompt */
   enhanceHint: string
+  /** Whether the target takes a negative prompt, and in which dialect */
+  negativePrompt: NegativePromptSupport
+  /**
+   * Editing dialect, for models whose image-edit path is written differently
+   * from their generation path. Absent on generation-only models.
+   */
+  editHint?: string
   /** Static Round-1 routing weights. Values are normalized 0.0-1.0. */
   routerWeights?: Partial<ModelRouterWeights>
 }
@@ -95,17 +119,97 @@ export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
  * NovelAI 的权重语法 —— **不是** A1111 那套圆括号加冒号数字。写错的代价很具体：
  * 那串括号不会被当成权重，而是被当作普通 token 喂进 tokenizer，用户看到的是
  * 「加了权重但画面没反应，还多了奇怪的东西」。
+ * 来源 https://docs.novelai.net/en/image/
  */
 const NOVELAI_PROMPT_SYNTAX =
-  'Emphasis is NovelAI-specific: {tag} multiplies a tag weight by 1.05 per brace layer and [tag] divides it by 1.05 per bracket layer; V4 and later also take numeric emphasis written as 1.3::tag :: where the trailing :: closes the span, and V4.5 and later take negative emphasis the same way, -1::tag ::. A1111-style parenthesised weights are NOT parsed here — they are read as literal text. Multiple characters: write the shared scene first, then separate the base segment and each character segment with |. Anything that must be rendered as letters goes last, as Text: the words.'
+  'Emphasis is NovelAI-specific: {tag} multiplies weight by 1.05 per brace layer, [tag] divides by 1.05; V4+ also takes numeric emphasis 1.3::tag :: and V4.5+ negative emphasis -1::tag ::. A1111 parenthesised weights are read as literal text. Multiple characters: shared scene first, then base and per-character segments split by |, each without a count tag. Our layer sends no character positions, so | is ordering only, never placement. Letters to render go last as Text: the words. Unwanted content goes in the Undesired Content field as tags, where {tag} means avoid harder.'
+
+// ── 各家官方 prompt 指南的共用方言片段 ─────────────────────────────
+// 同族模型共享一份写法，逐 id 只补自己的差异（档位、站点、能力边界）。
+
+/** 来源 https://docs.bfl.ai/guides/prompting_guide_flux2 */
+const FLUX2_PROMPT_SYNTAX =
+  'Write 30-80 words of plain English. Word order carries weight: the subject and its single most important detail go first, background last. Structured JSON prompts are officially supported and are the better shape once several subjects must be placed — {"scene": ..., "subjects": [{"description": ..., "position": ...}], "style": ..., "lighting": ...}. The API takes no negative prompt, so state the positive fact instead: sharp focus, clean background, even skin tone.'
+
+/** 来源 https://docs.bfl.ai/guides/prompting_guide_kontext_i2i */
+const FLUX_EDIT_DIALECT =
+  'Change the named thing and nothing else: Change the car to red. Replace "OPEN" with "CLOSED". Name the target with a noun, never a pronoun, and spell out what must survive — while maintaining the same facial features, pose, framing and lighting. One change per sentence; vague verbs such as improve or enhance move the whole frame. Quote any text exactly as it should appear.'
+
+/** 来源 https://ai.google.dev/gemini-api/docs/image-generation */
+const GEMINI_PROMPT_FORMULA =
+  'Write a narrative paragraph, never a comma-separated attribute list: subject, action, location, composition, then style and lighting as full sentences. Describe what should be in frame in positive terms — "an empty street at dawn" works, asking for the absence of cars does not, because a negated thing tends to appear. Aspect ratio is a request parameter, never prose. With several reference images say what each one contributes: the jacket from the second image worn by the person in the first. When editing, name the single element that changes and close with "Do not change any other elements." The API does not take a negative prompt.'
+
+/** 来源 https://www.volcengine.com/docs/82379/1829186 */
+const SEEDREAM_PROMPT_SYNTAX =
+  'Chinese and English both work; stay under roughly 300 characters. Generation prompts read subject + action + environment, then camera, lighting and style as short clauses — not tags, not weights. Text to be rendered goes inside English double quotes. For a set, say how many images and what varies between them, e.g. a 4-image set, one per season. A negative prompt field exists here: fill it with plain nouns and short phrases.'
+
+/** 来源 https://www.volcengine.com/docs/82379/1829186 */
+const SEEDREAM_EDIT_DIALECT =
+  'Edits read change-verb + target + attribute: Change the jacket to red leather. Replace the background with a rainy street. Name what must stay identical (face, pose, framing) in the same sentence, and quote any text to be rewritten exactly as it should appear.'
+
+/** 来源 https://civitai.com/models/257749 · https://huggingface.co/OnomaAIResearch */
+const SDXL_TAG_NEGATIVE_DIALECT =
+  'Negatives are a long comma-separated tag string (worst quality, low quality, bad anatomy, jpeg artifacts, watermark, signature), never a sentence.'
 
 /** Per-model strengths and enhancement hints */
 export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
+  // ── OpenAI ──────────────────────────────────────────────────────
+  // 来源 https://developers.openai.com/api/docs/guides/image-generation
+  [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
+    bestFor: ['general', 'concept', 'creative', 'editing', 'text-in-image'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
+    enhanceHint:
+      'GPT Image 2. Write detailed natural language: subject, setting, composition, lighting, mood. Words that must be rendered go in quotes or ALL CAPS and stay short — long strings degrade. With multiple references, address them by position: Image 1: the model. Image 2: the jacket. Then instruct across them — put the jacket from Image 2 on the person in Image 1. Masks are prompt-guided rather than pixel-exact, so state the change and then write Do not change anything else. The API takes no negative prompt field: describe the wanted result, not the unwanted one.',
+    editHint:
+      'Editing is the same prompt box. Address each input as Image 1 / Image 2 in the order attached, say exactly what changes, and end with Do not change anything else. With a mask, the mask narrows the region but the sentence still has to name the change. Replace rendered words by quoting both: replace "SALE" with "SOLD".',
+    routerWeights: {
+      referenceFit: 0.9,
+      costEfficiency: 0.45,
+      latency: 0.6,
+      health: 0.95,
+    },
+  },
+  // ── Google Gemini ───────────────────────────────────────────────
+  // 来源 https://ai.google.dev/gemini-api/docs/image-generation
+  [AI_MODELS.GEMINI_PRO_IMAGE]: {
+    bestFor: ['general', 'concept', 'text-in-image', 'instruction-following'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
+    enhanceHint: `Gemini 3 Pro Image. ${GEMINI_PROMPT_FORMULA} This tier holds the most references: up to 6 objects, 5 characters and 3 style images in one request — give each a role in the sentence instead of listing them.`,
+    editHint:
+      'Say which element changes and leave the rest alone: Change the mug on the desk to a glass tumbler. Do not change any other elements. For composites, name the role of every input image in the instruction.',
+  },
+  [AI_MODELS.GEMINI_FLASH_IMAGE]: {
+    bestFor: ['general', 'concept', 'text-in-image', 'instruction-following'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
+    enhanceHint: `Gemini 3.1 Flash Image. ${GEMINI_PROMPT_FORMULA} It accepts up to 14 reference images, so it is the tier for busy composites — still describe each one's role rather than listing them.`,
+    editHint:
+      'Say which element changes and leave the rest alone: Change the sky to overcast. Do not change any other elements. Name the role of each input image when combining several.',
+    routerWeights: {
+      referenceFit: 0.85,
+      costEfficiency: 0.85,
+      latency: 0.9,
+      health: 0.9,
+    },
+  },
+  [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: {
+    bestFor: ['general', 'quick-iteration', 'draft', 'instruction-following'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
+    enhanceHint: `Gemini 3.1 Flash-Lite Image, the cheapest Gemini tier — best for drafts and variations. ${GEMINI_PROMPT_FORMULA} Keep the paragraph tight; this tier rewards one clear scene over a dense stack of clauses.`,
+    editHint:
+      'Say which element changes and leave the rest alone: Change the shirt to navy. Do not change any other elements.',
+  },
+  // ── Black Forest Labs (FLUX) ────────────────────────────────────
+  // 来源 https://docs.bfl.ai/guides/prompting_guide_flux2
   [AI_MODELS.FLUX_2_PRO]: {
     bestFor: ['photorealistic', 'portrait', 'product', 'architecture'],
     promptStyle: 'natural-language',
-    enhanceHint:
-      'This model excels at photorealism. Use camera terminology (lens, focal length, aperture), lighting setups (golden hour, studio softbox), and film stock references. Avoid anime/cartoon descriptors.',
+    negativePrompt: 'unsupported',
+    enhanceHint: `FLUX.2 Pro, the photoreal flagship. Use camera terminology (lens, focal length, aperture), a named lighting setup and a film stock reference; skip anime and cartoon descriptors. ${FLUX2_PROMPT_SYNTAX}`,
+    editHint: `Attaching references routes this id to the same /edit endpoint as FLUX.2 Pro Edit. ${FLUX_EDIT_DIALECT}`,
     routerWeights: {
       referenceFit: 0.7,
       costEfficiency: 0.55,
@@ -116,8 +220,8 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
   [AI_MODELS.FLUX_2_FLASH]: {
     bestFor: ['quick-iteration', 'draft', 'general'],
     promptStyle: 'natural-language',
-    enhanceHint:
-      'This fast FLUX.2 model is best for quick iterations and budget previews. Keep prompts concise but specific, with the core subject, composition, and lighting up front.',
+    negativePrompt: 'unsupported',
+    enhanceHint: `FLUX.2 Flash, the fast budget tier — for previews and iteration. Put the core subject, composition and lighting up front and keep the tail short. ${FLUX2_PROMPT_SYNTAX}`,
     routerWeights: {
       referenceFit: 0.35,
       costEfficiency: 1,
@@ -125,168 +229,45 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
       health: 0.86,
     },
   },
-  [AI_MODELS.GEMINI_FLASH_IMAGE]: {
-    bestFor: ['general', 'concept', 'text-in-image', 'instruction-following'],
+  [AI_MODELS.FLUX_2_PRO_EDIT]: {
+    bestFor: ['editing', 'multi-reference', 'product', 'retouch'],
     promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
+    enhanceHint: `FLUX.2 Pro Edit — up to 8 input images, prompt-driven transform. The prompt is an instruction, not a scene description: say what changes and what is preserved. JSON prompts are supported for placement-heavy edits, same schema as generation. ${FLUX2_PROMPT_SYNTAX}`,
+    editHint: FLUX_EDIT_DIALECT,
+  },
+  [AI_MODELS.FLUX_KONTEXT_MAX]: {
+    bestFor: ['editing', 'style-transfer', 'character-consistency', 'general'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
     enhanceHint:
-      'This model follows complex instructions well. Use rich natural language with detailed scene descriptions, spatial relationships, and specific visual requirements.',
+      'FLUX.1 Kontext Max, an in-context editor: it takes one or more images plus an instruction. Keep the instruction short and literal — one edit per sentence, nouns instead of pronouns, and an explicit preservation clause so identity and framing survive. Style transfer works by naming the target style and stating that composition and subject stay unchanged. Structured prompt objects belong to FLUX.2, not here — this is plain instruction text — and there is no negative prompt, so phrase everything as what the result should be.',
+    editHint: FLUX_EDIT_DIALECT,
     routerWeights: {
       referenceFit: 0.85,
-      costEfficiency: 0.85,
-      latency: 0.9,
-      health: 0.9,
-    },
-  },
-  [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
-    bestFor: ['general', 'concept', 'creative', 'editing'],
-    promptStyle: 'natural-language',
-    enhanceHint:
-      'This model handles diverse generation and editing tasks well. Use detailed natural language with explicit composition, visual intent, and image-editing instructions when relevant.',
-    routerWeights: {
-      referenceFit: 0.9,
-      costEfficiency: 0.45,
-      latency: 0.6,
-      health: 0.95,
-    },
-  },
-  [AI_MODELS.NOVELAI_V45_FULL]: {
-    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
-    promptStyle: 'tag-based',
-    enhanceHint: `NovelAI V4.5 Full. Emit English danbooru tags, comma separated: subject and character first, then outfit, pose, expression, then scene, background and lighting. ${NOVELAI_PROMPT_SYNTAX} The V4.5 Full quality string is appended at the END of the prompt, not the front: location, very aesthetic, masterpiece, no text. Reference image is optional img2img, not character lock.`,
-    routerWeights: {
-      referenceFit: 0.55,
-      costEfficiency: 0.55,
-      latency: 0.45,
-      health: 0.78,
-    },
-  },
-  [AI_MODELS.NOVELAI_V45_CURATED]: {
-    bestFor: ['anime', 'illustration', 'character-design'],
-    promptStyle: 'tag-based',
-    enhanceHint: `NovelAI V4.5 Curated. Same tag dialect and same emphasis syntax as Full, cleaner dataset. Subject and character first, then outfit and pose, then scene. ${NOVELAI_PROMPT_SYNTAX} Curated ships its own quality preset — do not paste Full's quality string here. Reference image is optional img2img.`,
-    routerWeights: {
-      referenceFit: 0.5,
-      costEfficiency: 0.55,
-      latency: 0.45,
-      health: 0.78,
-    },
-  },
-  [AI_MODELS.NOVELAI_V5_FULL]: {
-    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
-    promptStyle: 'tag-based',
-    enhanceHint: `NovelAI V5 Full. Prefer danbooru tags; short natural-language clauses are also understood. Subject and character first, then outfit and pose, then scene. ${NOVELAI_PROMPT_SYNTAX} Do not rely on Director, Vibe Transfer, or Precise Reference — they are not on V5 yet. One optional reference image is img2img only.`,
-    routerWeights: {
-      referenceFit: 0.45,
       costEfficiency: 0.4,
-      latency: 0.45,
-      health: 0.7,
+      latency: 0.5,
+      health: 0.88,
     },
   },
-  [AI_MODELS.NOVELAI_V5_CURATED]: {
-    bestFor: ['anime', 'illustration', 'character-design'],
-    promptStyle: 'tag-based',
-    enhanceHint: `NovelAI V5 Curated. Tag dialect first; short natural-language clauses are ok. Cleaner dataset, easier to steer. ${NOVELAI_PROMPT_SYNTAX} No Director / Vibe Transfer on V5 yet. One optional reference image is img2img only.`,
-    routerWeights: {
-      referenceFit: 0.4,
-      costEfficiency: 0.4,
-      latency: 0.45,
-      health: 0.7,
-    },
-  },
-  // Illustrious/NoobAI carries the hosted LoRA anime line. NovelAI is a
-  // closed API — same tag dialect, no Civitai LoRA slot.
-  [AI_MODELS.ILLUSTRIOUS_XL]: {
-    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
-    promptStyle: 'tag-based',
-    enhanceHint:
-      'NoobAI/Illustrious-family anime model driven by danbooru tags. Lead with the quality prefix masterpiece, best quality, then character tags, then style and scene, comma separated. Emphasis syntax like (feature:1.3) works here — this family uses the A1111/Comfy parser, unlike NovelAI.',
-    routerWeights: {
-      referenceFit: 0.6,
-      costEfficiency: 0.9,
-      latency: 0.6,
-      health: 0.8,
-    },
-  },
-  [AI_MODELS.ANIMA_PENCIL_XL]: {
-    bestFor: ['anime', 'illustration', 'character-design'],
-    promptStyle: 'tag-based',
-    enhanceHint:
-      'Anima Pencil-XL, an SDXL anime checkpoint driven by danbooru tags. Lead with the quality prefix masterpiece, best quality, then character tags, then style and scene, comma separated. A1111/Comfy emphasis like (feature:1.2) is parsed. Negatives are tags, not sentences.',
-  },
-  // ─── Comfy Runner 上的自托管 checkpoint ───────────────────────────
-  // 它们与上面那些托管模型共享同一条 tag 方言，但每个底模有**自己的必带前缀** ——
-  // 漏掉前缀不是「效果差一点」，是画面直接垮（Pony 尤其明显）。
-  [AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE]: {
-    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
-    promptStyle: 'tag-based',
-    enhanceHint:
-      'WAI-Illustrious recipe clone on the Comfy runner. Lead with the quality prefix masterpiece, best quality, then character tags, then style and scene, comma separated. A1111/Comfy emphasis like (feature:1.2) is parsed. Negatives are tags, not sentences.',
-  },
-  [AI_MODELS.ANIMA_PENCIL_XL_RUNNER]: {
-    bestFor: ['anime', 'illustration', 'character-design'],
-    promptStyle: 'tag-based',
-    enhanceHint:
-      'Anima Pencil-XL on the Comfy runner. Same dialect as the hosted entry: quality prefix masterpiece, best quality first, then character tags, then style and scene, comma separated. A1111/Comfy emphasis like (feature:1.2) is parsed.',
-  },
-  [AI_MODELS.PONY_DIFFUSION_V6]: {
-    bestFor: ['anime', 'illustration', 'character-design', 'stylized'],
-    promptStyle: 'tag-based',
-    enhanceHint:
-      'Pony Diffusion V6 XL on the Comfy runner. It is score-conditioned: EVERY positive prompt must start with score_9, score_8_up, score_7_up, immediately followed by a source tag — source_anime, source_cartoon, source_furry or source_pony. Only then the danbooru tags. Without that prefix the output collapses; it is not an optional quality booster. A1111/Comfy emphasis like (feature:1.2) is parsed. Negatives are tags (commonly score_6, score_5, score_4, worst quality, low quality).',
-  },
-  [AI_MODELS.SDXL_10_RUNNER]: {
-    bestFor: ['general', 'concept', 'illustration'],
-    promptStyle: 'tag-based',
-    enhanceHint:
-      'Plain SDXL 1.0 on the Comfy runner. Emit comma-separated English tags and short descriptive phrases, quality modifiers first. It is NOT danbooru-trained, so anime character tags will not resolve — describe the subject in ordinary vocabulary. A1111/Comfy emphasis like (feature:1.2) is parsed.',
-  },
-  [AI_MODELS.ANIMA_DIT_RUNNER]: {
-    bestFor: ['anime', 'illustration', 'character-design'],
-    promptStyle: 'tag-based',
-    enhanceHint:
-      'Anima (Cosmos-Predict2 DiT) on the Comfy runner. Danbooru tags remain the reliable dialect; short natural-language clauses are also understood because the text encoder is Qwen-Image, not CLIP. Tags first, then a clause or two of scene description. Keep tag vocabulary English.',
-  },
-  [AI_MODELS.IDEOGRAM_3]: {
-    bestFor: ['logo', 'typography', 'graphic-design', 'text-in-image'],
+  // FLUX.1 dev + LoRA。⚠ 它**不是** FLUX.2：没有 JSON prompt 那套结构化输入。
+  // 来源 https://fal.ai/models/fal-ai/flux-lora
+  [AI_MODELS.FLUX_LORA]: {
+    bestFor: ['general', 'stylized', 'character-consistency', 'lora'],
     promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
     enhanceHint:
-      'This model excels at typography and graphic design. When the subject involves text, specify the exact text, font style, and layout. Use design terminology (minimalist, bold, geometric).',
-    routerWeights: {
-      referenceFit: 0.4,
-      costEfficiency: 0.65,
-      latency: 0.7,
-      health: 0.84,
-    },
+      'FLUX.1 dev with community LoRAs. Plain descriptive English sentences, roughly one to three of them: subject, then setting, then lighting and style. When a LoRA is attached its trigger word must appear verbatim in the prompt, near the front — a missing trigger silently produces the base model. Do not stack many LoRA triggers in one prompt; they fight. The model is guidance-distilled and takes no negative prompt, so write the positive fact instead.',
   },
-  [AI_MODELS.RECRAFT_V4_PRO]: {
-    bestFor: ['illustration', 'icon', 'brand', 'vector-style'],
-    promptStyle: 'natural-language',
-    enhanceHint:
-      'This model produces clean, professional illustrations. Use design terminology with emphasis on style consistency, color harmony, and visual hierarchy.',
-    routerWeights: {
-      referenceFit: 0.45,
-      costEfficiency: 0.65,
-      latency: 0.7,
-      health: 0.84,
-    },
-  },
-  [AI_MODELS.SEEDREAM_45]: {
-    bestFor: ['general', 'cinematic', 'landscape', 'portrait'],
-    promptStyle: 'natural-language',
-    enhanceHint:
-      'Advanced model good at cinematic composition. Use film terminology (wide shot, depth of field), describe lighting mood, and specify color grading references.',
-    routerWeights: {
-      referenceFit: 0.7,
-      costEfficiency: 0.65,
-      latency: 0.7,
-      health: 0.86,
-    },
-  },
+  // ── Seedream (ByteDance) ────────────────────────────────────────
+  // 同一个模型三个站：fal / 火山方舟 / BytePlus ModelArk。方言同源，逐条只补站点差异。
+  // 来源 https://www.volcengine.com/docs/82379/1829186
   [AI_MODELS.SEEDREAM_50_PRO]: {
-    bestFor: ['general', 'cinematic', 'landscape', 'portrait'],
+    bestFor: ['general', 'cinematic', 'landscape', 'portrait', 'text-in-image'],
     promptStyle: 'natural-language',
-    enhanceHint:
-      'Reasoning-based model that plans before it draws. Give it dense layout and typography instructions — it renders native text in 14 languages and holds structured designs together.',
+    negativePrompt: 'supported',
+    enhanceHint: `Seedream 5.0 Pro on fal — reasoning model that plans a layout before drawing, so dense layout and typography instructions pay off and native text renders in 14 languages. ${SEEDREAM_PROMPT_SYNTAX}`,
+    editHint: SEEDREAM_EDIT_DIALECT,
     routerWeights: {
       referenceFit: 0.72,
       costEfficiency: 0.6,
@@ -297,8 +278,9 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
   [AI_MODELS.SEEDREAM_50_LITE]: {
     bestFor: ['general', 'landscape', 'portrait'],
     promptStyle: 'natural-language',
-    enhanceHint:
-      'Value tier of Seedream 5.0. Keep prompts concise and concrete; it can ground time-sensitive subjects with a web search.',
+    negativePrompt: 'supported',
+    enhanceHint: `Seedream 5.0 Lite on fal — the value tier; it can ground a time-sensitive subject with a web search, so naming the real thing beats describing it. Keep prompts concise and concrete. ${SEEDREAM_PROMPT_SYNTAX}`,
+    editHint: SEEDREAM_EDIT_DIALECT,
     routerWeights: {
       referenceFit: 0.65,
       costEfficiency: 0.85,
@@ -306,8 +288,198 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
       health: 0.86,
     },
   },
+  [AI_MODELS.SEEDREAM_50_VOLCENGINE]: {
+    bestFor: ['general', 'cinematic', 'portrait', 'chinese-text-in-image'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'supported',
+    enhanceHint: `Seedream 5.0 on 火山方舟 (cn station) — the entry that still does 组图生成, so say the panel count in the prompt. Chinese prompts are first-class here. ${SEEDREAM_PROMPT_SYNTAX}`,
+    editHint: SEEDREAM_EDIT_DIALECT,
+  },
+  [AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE]: {
+    bestFor: ['general', 'cinematic', 'portrait', 'chinese-text-in-image'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'supported',
+    enhanceHint: `Seedream 5.0 Pro on 火山方舟 (cn station) — single-image only (text-to-image, one-image edit, multi-reference), so do not ask it for a panel set; use the base 5.0 id for that. Dense layout and typography instructions pay off. ${SEEDREAM_PROMPT_SYNTAX}`,
+    editHint: SEEDREAM_EDIT_DIALECT,
+  },
+  [AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE]: {
+    bestFor: ['general', 'landscape', 'portrait'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'supported',
+    enhanceHint: `Seedream 5.0 Lite on 火山方舟 (cn station) — the cheap tier; keep prompts short and concrete, Chinese or English. ${SEEDREAM_PROMPT_SYNTAX}`,
+    editHint: SEEDREAM_EDIT_DIALECT,
+  },
+  [AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS]: {
+    bestFor: ['general', 'cinematic', 'portrait', 'text-in-image'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'supported',
+    enhanceHint: `Seedream 5.0 Pro on BytePlus ModelArk (international station) — same model and same dialect as the 火山 entry, different keys and region. Dense layout and typography instructions pay off. ${SEEDREAM_PROMPT_SYNTAX}`,
+    editHint: SEEDREAM_EDIT_DIALECT,
+  },
+  [AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS]: {
+    bestFor: ['general', 'landscape', 'portrait'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'supported',
+    enhanceHint: `Seedream 5.0 Lite on BytePlus ModelArk (international station) — the cheap tier; keep prompts short and concrete. ${SEEDREAM_PROMPT_SYNTAX}`,
+    editHint: SEEDREAM_EDIT_DIALECT,
+  },
+  // 4.5 两条已退役（RETIRED_MODEL_IDS），条目保留是为了历史生成还能解析出方言。
+  [AI_MODELS.SEEDREAM_45]: {
+    bestFor: ['general', 'cinematic', 'landscape', 'portrait'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'supported',
+    enhanceHint: `Seedream 4.5 on fal (retired — kept so archived generations still resolve a dialect). Film terminology works well: wide shot, depth of field, colour grading reference. ${SEEDREAM_PROMPT_SYNTAX}`,
+    editHint: SEEDREAM_EDIT_DIALECT,
+    routerWeights: {
+      referenceFit: 0.7,
+      costEfficiency: 0.65,
+      latency: 0.7,
+      health: 0.86,
+    },
+  },
+  [AI_MODELS.SEEDREAM_45_VOLCENGINE]: {
+    bestFor: ['general', 'cinematic', 'landscape', 'portrait'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'supported',
+    enhanceHint: `Seedream 4.5 on 火山方舟 (retired — kept so archived generations still resolve a dialect). Chinese prompts are first-class. ${SEEDREAM_PROMPT_SYNTAX}`,
+    editHint: SEEDREAM_EDIT_DIALECT,
+  },
+  // ── Ideogram / Recraft（排版与品牌线）───────────────────────────
+  // 来源 https://docs.ideogram.ai/using-ideogram/prompting-guide
+  [AI_MODELS.IDEOGRAM_3]: {
+    bestFor: ['logo', 'typography', 'graphic-design', 'text-in-image'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
+    enhanceHint:
+      'Ideogram 3. Natural language, at most about 150 words — past that it starts dropping details. The words to render go in double quotes and near the front: Poster with the headline "GRAND OPENING" above a neon storefront. Then layout, typography feel, palette, background. Keep the rendered string short and spell it exactly as it should appear. Magic Prompt rewrites thin prompts, so a detailed prompt is also how you keep control. The API takes no negative prompt: describe what should be there.',
+    routerWeights: {
+      referenceFit: 0.4,
+      costEfficiency: 0.65,
+      latency: 0.7,
+      health: 0.84,
+    },
+  },
+  // 来源 https://www.recraft.ai/docs/api-reference/styles
+  [AI_MODELS.RECRAFT_V4_PRO]: {
+    bestFor: ['illustration', 'icon', 'brand', 'vector-style'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
+    enhanceHint:
+      'Recraft V4 Pro. Describe content only — the look comes from the style / style_id request parameter, so style adjectives such as flat vector illustration duplicate and fight the selected style_id. Name the subject, the layout and the colour roles, and keep the sentence short. Words to render go in double quotes. This is the vector/SVG-capable model, so it is the one to use when the same style_id must hold across a whole icon or brand set. The API takes no negative prompt.',
+    routerWeights: {
+      referenceFit: 0.45,
+      costEfficiency: 0.65,
+      latency: 0.7,
+      health: 0.84,
+    },
+  },
+  // ── NovelAI ─────────────────────────────────────────────────────
+  // 来源 https://docs.novelai.net/en/image/
+  [AI_MODELS.NOVELAI_V45_FULL]: {
+    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'undesired-content',
+    enhanceHint: `NovelAI V4.5 Full. English danbooru tags, comma separated: subject and character first, then outfit, pose, expression, then scene and lighting. ${NOVELAI_PROMPT_SYNTAX} The V4.5 Full quality string is appended at the END, not the front: location, very aesthetic, masterpiece, no text. A reference image is img2img, not a character lock.`,
+    routerWeights: {
+      referenceFit: 0.55,
+      costEfficiency: 0.55,
+      latency: 0.45,
+      health: 0.78,
+    },
+  },
+  [AI_MODELS.NOVELAI_V45_CURATED]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'undesired-content',
+    enhanceHint: `NovelAI V4.5 Curated. Same tag dialect and emphasis syntax as Full on a cleaner dataset. Subject and character first, then outfit and pose, then scene. ${NOVELAI_PROMPT_SYNTAX} Curated ships its own quality preset — do not paste Full's quality string here. A reference image is img2img only.`,
+    routerWeights: {
+      referenceFit: 0.5,
+      costEfficiency: 0.55,
+      latency: 0.45,
+      health: 0.78,
+    },
+  },
+  [AI_MODELS.NOVELAI_V5_FULL]: {
+    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'undesired-content',
+    enhanceHint: `NovelAI V5 Full. Tags first; short natural-language clauses are also understood. Subject and character, then outfit and pose, then scene. ${NOVELAI_PROMPT_SYNTAX} Quality string is , very aesthetic, masterpiece, no text. Director, Vibe Transfer and Precise Reference are not on V5 yet; one reference image is img2img only.`,
+    routerWeights: {
+      referenceFit: 0.45,
+      costEfficiency: 0.4,
+      latency: 0.45,
+      health: 0.7,
+    },
+  },
+  [AI_MODELS.NOVELAI_V5_CURATED]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'undesired-content',
+    enhanceHint: `NovelAI V5 Curated. Tag dialect first, short natural-language clauses are fine; cleaner dataset, easier to steer. ${NOVELAI_PROMPT_SYNTAX} Quality string is , very aesthetic, masterpiece, no text. No Director / Vibe Transfer on V5 yet; one reference image is img2img only.`,
+    routerWeights: {
+      referenceFit: 0.4,
+      costEfficiency: 0.4,
+      latency: 0.45,
+      health: 0.7,
+    },
+  },
+  // ── SDXL 系（托管 + Comfy Runner）────────────────────────────────
+  // Illustrious/NoobAI carries the hosted LoRA anime line. NovelAI is a
+  // closed API — same tag dialect, no Civitai LoRA slot.
+  // 来源 https://civitai.com/models/257749 · https://huggingface.co/OnomaAIResearch
+  [AI_MODELS.ILLUSTRIOUS_XL]: {
+    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint: `NoobAI/Illustrious-family anime model driven by danbooru tags. Lead with the quality prefix masterpiece, best quality, then character tags, then style and scene, comma separated. Emphasis syntax like (feature:1.3) works here — this family uses the A1111/Comfy parser, unlike NovelAI. ${SDXL_TAG_NEGATIVE_DIALECT}`,
+    routerWeights: {
+      referenceFit: 0.6,
+      costEfficiency: 0.9,
+      latency: 0.6,
+      health: 0.8,
+    },
+  },
+  [AI_MODELS.ANIMA_PENCIL_XL]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint: `Anima Pencil-XL, an SDXL anime checkpoint driven by danbooru tags. Lead with the quality prefix masterpiece, best quality, then character tags, then style and scene, comma separated. A1111/Comfy emphasis like (feature:1.2) is parsed. ${SDXL_TAG_NEGATIVE_DIALECT}`,
+  },
+  // ─── Comfy Runner 上的自托管 checkpoint ───────────────────────────
+  // 它们与上面那些托管模型共享同一条 tag 方言，但每个底模有**自己的必带前缀** ——
+  // 漏掉前缀不是「效果差一点」，是画面直接垮（Pony 尤其明显）。
+  [AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE]: {
+    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint: `WAI-Illustrious recipe clone on the Comfy runner. Lead with the quality prefix masterpiece, best quality, then character tags, then style and scene, comma separated. A1111/Comfy emphasis like (feature:1.2) is parsed. ${SDXL_TAG_NEGATIVE_DIALECT}`,
+  },
+  [AI_MODELS.ANIMA_PENCIL_XL_RUNNER]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint: `Anima Pencil-XL on the Comfy runner. Same dialect as the hosted entry: quality prefix masterpiece, best quality first, then character tags, then style and scene, comma separated. A1111/Comfy emphasis like (feature:1.2) is parsed. ${SDXL_TAG_NEGATIVE_DIALECT}`,
+  },
+  [AI_MODELS.PONY_DIFFUSION_V6]: {
+    bestFor: ['anime', 'illustration', 'character-design', 'stylized'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint:
+      'Pony Diffusion V6 XL on the Comfy runner. It is score-conditioned: EVERY positive prompt must start with score_9, score_8_up, score_7_up, immediately followed by a source tag — source_anime, source_cartoon, source_furry or source_pony. Only then the danbooru tags. Without that prefix the output collapses; it is not an optional quality booster. A1111/Comfy emphasis like (feature:1.2) is parsed. Negatives are barely used on Pony — the whole convention is score_6, score_5, score_4 plus worst quality, low quality.',
+  },
+  [AI_MODELS.SDXL_10_RUNNER]: {
+    bestFor: ['general', 'concept', 'illustration'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint: `Plain SDXL 1.0 on the Comfy runner. Emit comma-separated English tags and short descriptive phrases, quality modifiers first. It is NOT danbooru-trained, so anime character tags will not resolve — describe the subject in ordinary vocabulary. A1111/Comfy emphasis like (feature:1.2) is parsed. ${SDXL_TAG_NEGATIVE_DIALECT}`,
+  },
+  [AI_MODELS.ANIMA_DIT_RUNNER]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint: `Anima (Cosmos-Predict2 DiT) on the Comfy runner. Danbooru tags remain the reliable dialect; short natural-language clauses are also understood because the text encoder is Qwen-Image, not CLIP. Tags first, then a clause or two of scene description. Keep tag vocabulary English. ${SDXL_TAG_NEGATIVE_DIALECT}`,
+  },
 }
-
 /**
  * Per-text-model strengths for the Qwen (DashScope) LLM line. These models are
  * not generation models (not in `AI_MODELS`), so they live in a separate map
@@ -318,24 +490,28 @@ export const TEXT_MODEL_STRENGTHS: Record<string, ModelStrength> = {
   [LLM_TEXT_MODEL_IDS.QWEN3_MAX]: {
     bestFor: ['chinese-script', 'storyboard', 'recipe-fusion', 'reasoning'],
     promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
     enhanceHint:
       'Flagship Qwen text model — strongest for Chinese scriptwriting, shot breakdowns, and recipe fusion. Prefer rich, concrete natural language; structure output as the requested JSON when asked.',
   },
   [LLM_TEXT_MODEL_IDS.QWEN_PLUS]: {
     bestFor: ['chinese-text', 'long-context', 'storyboard', 'general'],
     promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
     enhanceHint:
       'Balanced 1M-context Qwen model — the default workhorse for most text tasks (keywords, storyboard JSON, enhancement). Prefer clear natural language; long source material is fine given the large context window.',
   },
   [LLM_TEXT_MODEL_IDS.QWEN_FLASH]: {
     bestFor: ['keyword-extraction', 'quick-rewrite', 'intent-parse'],
     promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
     enhanceHint:
       'Cheap, fast Qwen model for high-frequency near-deterministic tasks (keyword extraction, quick rewrites). Keep instructions concise and the expected output shape explicit.',
   },
   [LLM_TEXT_MODEL_IDS.QWEN3_VL_PLUS]: {
     bestFor: ['image-breakdown', 'vision', 'chinese-text-in-image'],
     promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
     enhanceHint:
       'Vision-capable Qwen model — good for reverse-engineering images and reading text-in-image, with strong Chinese understanding. Describe what to extract from the image in plain natural language.',
   },
@@ -354,6 +530,21 @@ export function getModelEnhanceHint(
   if (textModelHint) return textModelHint
   if (adapterType) return ADAPTER_PROMPT_HINTS[adapterType] ?? null
   return null
+}
+
+/**
+ * 目标模型到底吃不吃负向提示。**返回 null 表示「不知道」**，不是「不支持」——
+ * 编不出来的默认值会让调用方把一段负向文本喂给一个根本没有这个字段的模型，
+ * 然后静默丢弃。调用方自己决定未知时怎么办。
+ */
+export function getModelNegativePromptSupport(
+  modelId: string,
+): NegativePromptSupport | null {
+  return (
+    MODEL_STRENGTHS[modelId as AI_MODELS]?.negativePrompt ??
+    TEXT_MODEL_STRENGTHS[modelId]?.negativePrompt ??
+    null
+  )
 }
 
 /**

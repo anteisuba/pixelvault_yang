@@ -6,20 +6,23 @@ Constants are imported throughout the entire codebase. Changes here affect provi
 
 ## Key Files
 
-| File                          | Impact   | What It Controls                                                                                          |
-| ----------------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
-| `models.ts`                   | CRITICAL | AI_MODELS enum + ModelOption configs — drives model selection, provider routing, credit costs, UI display |
-| `providers.ts`                | HIGH     | AI_ADAPTER_TYPES enum + ProviderConfig — maps models to provider adapters                                 |
-| `config.ts`                   | HIGH     | API_USAGE limits, FREE_TIER config, PAGINATION, PROFILE limits, timeouts                                  |
-| `routes.ts`                   | MEDIUM   | URL route constants                                                                                       |
-| `studio.ts`                   | MEDIUM   | Studio-specific constants (prompt textarea ID, variant count)                                             |
-| `character-card.ts`           | MEDIUM   | CHARACTER_CARD validation limits                                                                          |
-| `card-types.ts`               | MEDIUM   | BACKGROUND_CARD, STYLE_CARD, CARD_RECIPE limits                                                           |
-| `video-options.ts`            | MEDIUM   | Video duration, resolution constraints                                                                    |
-| `audio-options.ts`            | MEDIUM   | Audio format, duration constraints                                                                        |
-| `feature-flags.ts`            | LOW      | Feature toggle flags                                                                                      |
-| `provider-capabilities.ts`    | MEDIUM   | Per-provider feature matrix                                                                               |
-| `video-model-capabilities.ts` | MEDIUM   | Per-model video feature matrix                                                                            |
+| File                          | Impact   | What It Controls                                                                                           |
+| ----------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `models.ts`                   | CRITICAL | AI_MODELS enum + ModelOption configs — drives model selection, provider routing, credit costs, UI display  |
+| `providers.ts`                | HIGH     | AI_ADAPTER_TYPES enum + ProviderConfig — maps models to provider adapters                                  |
+| `config.ts`                   | HIGH     | API_USAGE limits, FREE_TIER config, PAGINATION, PROFILE limits, timeouts                                   |
+| `routes.ts`                   | MEDIUM   | URL route constants                                                                                        |
+| `studio.ts`                   | MEDIUM   | Studio-specific constants (prompt textarea ID, variant count)                                              |
+| `character-card.ts`           | MEDIUM   | CHARACTER_CARD validation limits                                                                           |
+| `card-types.ts`               | MEDIUM   | BACKGROUND_CARD, STYLE_CARD, CARD_RECIPE limits                                                            |
+| `video-options.ts`            | MEDIUM   | Video duration, resolution constraints                                                                     |
+| `audio-options.ts`            | MEDIUM   | Audio format, duration constraints                                                                         |
+| `feature-flags.ts`            | LOW      | Feature toggle flags                                                                                       |
+| `provider-capabilities.ts`    | MEDIUM   | Per-provider feature matrix                                                                                |
+| `video-model-capabilities.ts` | MEDIUM   | Per-model video feature matrix                                                                             |
+| `assistant-operator.ts`       | HIGH     | 统一助手工具表 · SSE 事件名 · 确认三档 · 花钱工具表 · 项目规则限额。⚠ 钱闸总纲那段注释是宪法，改前读它     |
+| `assistant-plan-visuals.ts`   | MEDIUM   | 计划卡待定项图示**封闭词表**（7 组 32 项）+ `ASSISTANT_PLAN_SWATCH_MIX`。词表外一律退化纯文字，⛔ 不猜图标 |
+| `assistant-persona.ts`        | MEDIUM   | 助手 persona 取值表 + `ASSISTANT_PERSONA_DEFAULTS` + 预设 AI 头像内联 SVG（⛔ 不放静态图片文件）           |
 
 ## Change Checklist
 

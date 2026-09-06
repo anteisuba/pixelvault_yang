@@ -57,6 +57,14 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 - `use-lora-training.ts` — LoRA training jobs
 - `use-my-profile.ts` / `use-creator-profile.ts` — Profile data
 
+### Studio Operator（统一助手 · 施工基准 `docs/references/pages/assistant-shell.md`）
+
+- `use-assistant-operator.ts` — SSE 工具环驱动：排队（停顿点 = 一步跑完）与 Stop（abort）**语义分离**
+- `use-studio-operator-store.ts` — 模块级 store：进度带 / 结果行卡选中 / @ chips / 队列（面板收放会卸载组件，这些不能住组件 state）
+- `use-studio-operator-mention.ts` — **@ 四入口唯一一条 chip 管线**（`addChip`）；chip 就是 `StudioOperatorAttachment`，发送时与 📎 附件按 `id` 去重合并
+- `use-assistant-persona.ts` — 助手设置 persona 读 / 写 / 传头像（`/api/assistant/persona`）。⚠ 初值是 `ASSISTANT_PERSONA_DEFAULTS` 不是 null，⛔ 不做「加载中什么都不显示」的空窗
+- `use-project-rules.ts` — 项目规则 CRUD（`/api/assistant/rules`）。⚠ 目前**还没有调用方**，3a 接线中
+
 ## Critical Hook: useUnifiedGenerate
 
 This hook is the central generation orchestrator. It routes between image/video/audio generation, manages generation state, and is injected into StudioDataContext. Changing it affects ALL generation flows in Studio.

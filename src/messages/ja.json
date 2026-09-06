@@ -7127,6 +7127,73 @@
       "sourceCreator": "自分で記入",
       "view": "ルールを見る",
       "scopeAll": "全ワークベンチ"
+    },
+    "plan": {
+      "title": "プラン · 確認待ち",
+      "meta": "{steps} ステップ · 未定 {pending} 件",
+      "estimate": "約 {credits} クレジット",
+      "revise": "修正",
+      "start": "開始"
+    },
+    "spend": {
+      "title": "これを送信しますか（クレジットを消費します）",
+      "model": "モデル",
+      "count": "枚数",
+      "specs": "仕様",
+      "estimate": "概算",
+      "credits": "約 {credits} クレジット",
+      "seconds": "{seconds}秒",
+      "remember": "このセッションでは同じ内容の送信を今後確認しない",
+      "cancel": "キャンセル",
+      "confirm": "送信"
+    },
+    "planVisual": {
+      "comp": {
+        "fullBody": "全身",
+        "halfBody": "半身",
+        "closeUp": "クローズアップ",
+        "birdsEye": "俯瞰",
+        "wormsEye": "あおり",
+        "fromBehind": "後ろ姿"
+      },
+      "ratio": {
+        "1x1": "1:1 スクエア",
+        "3x4": "3:4 縦",
+        "4x3": "4:3 横",
+        "16x9": "16:9 ワイド",
+        "9x16": "9:16 縦長"
+      },
+      "time": {
+        "day": "昼",
+        "dusk": "夕暮れ",
+        "night": "夜",
+        "dawn": "夜明け"
+      },
+      "weather": {
+        "clear": "晴れ",
+        "rain": "雨",
+        "snow": "雪",
+        "fog": "霧"
+      },
+      "cam": {
+        "push": "寄り",
+        "pull": "引き",
+        "pan": "パン",
+        "track": "トラック",
+        "static": "フィックス"
+      },
+      "light": {
+        "front": "順光",
+        "back": "逆光",
+        "side": "サイド光",
+        "soft": "柔らかい光"
+      },
+      "style": {
+        "anime": "アニメ",
+        "realistic": "リアル",
+        "painterly": "絵画的",
+        "lineart": "線画"
+      }
     }
   },
   "GenerationCancel": {

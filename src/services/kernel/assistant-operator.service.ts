@@ -14,7 +14,11 @@ import {
   ASSISTANT_OPERATOR_TOOL_HINTS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN,
+  ASSISTANT_OPERATOR_CONFIRM_TIER_IDS,
   ASSISTANT_OPERATOR_WRITE_MODES,
+  ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
+  ASSISTANT_PLAN_PENDING_KINDS,
+  ASSISTANT_PLAN_REQUEST_REASON_IDS as PLAN_REASON,
   isAssistantOperatorToolInDomain,
   type AssistantOperatorConfirmField,
   type AssistantOperatorDomain,
@@ -49,7 +53,11 @@ import {
   TAG_BASED_GENERATION_PROMPT_RULE,
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
-import { resolveAdapterType } from '@/constants/models'
+import { getModelById, resolveAdapterType } from '@/constants/models'
+import {
+  buildAssistantPlanVisualCatalog,
+  getAssistantPlanVisual,
+} from '@/constants/assistant-plan-visuals'
 import { resolveAssistantModelId } from '@/constants/node-studio'
 import {
   inspectAssistantAssetFolder,
@@ -119,6 +127,9 @@ import {
   AssistantOperatorTurnSchema,
   type AssistantOperatorCritique,
   type AssistantOperatorEvent,
+  type AssistantOperatorGenerationRequest,
+  type AssistantOperatorPlanEstimate,
+  type AssistantOperatorPlanPending,
   type AssistantOperatorRequest,
   type AssistantOperatorSearchResultAsset,
   type AssistantOperatorSnapshot,
@@ -365,6 +376,20 @@ type ToolPlan =
       inverse: unknown
       observation: string
       apply(): void
+    }
+  /**
+   * 花钱档放行（§6）—— 只吐载荷，⛔ 没有 `inverse`、没有 `apply`：服务端在这一步
+   * 什么都不做，扣扳机在客户端（见词表 `requestGeneration` 头注）。
+   */
+  | {
+      kind: 'spend'
+      payload: AssistantOperatorGenerationRequest
+      observation: string
+    }
+  /** 花钱档要先问一句 —— 流停在硬确认卡上，与 `confirm` 同一条机制。 */
+  | {
+      kind: 'confirmSpend'
+      request: AssistantOperatorGenerationRequest
     }
 
 function reject(
@@ -1791,6 +1816,126 @@ function planPrimeGenerate(run: OperatorRun): ToolPlan {
 }
 
 /**
+ * 这一枪**大概几个 credit**。
+ *
+ * ⭐ 口径只有一条：模型目录里那个 `cost`（`AI_MODELS[].cost` —— 出图那条链拿去当
+ * 扣费基数的同一个数）× 张数。
+ * ⚠ 它是**估算不是账单**：真正的扣费口径在服务端 credit policy（自带 key /
+ * 免费额度那几条支线在这里一概看不见）。所以卡上永远带「约」。
+ * ⚠ 目录里查不到就返回 `null`，⛔ 不回落成 1 —— 缺价的模型宁可不写那一行，
+ * 论据与 `StudioCostPreview`「缺价不折进合计」逐字同源。
+ * ⛔ 这条路径**一分钱都花不掉**：读的是常量目录，不碰任何服务。
+ */
+function estimateGenerationCredits(
+  modelId: string,
+  count: number,
+): number | null {
+  const cost = getModelById(modelId)?.cost
+  if (typeof cost !== 'number' || !Number.isFinite(cost)) return null
+  return Math.max(0, Math.round(cost * count))
+}
+
+/** 这一枪的张数 —— 没有张数控件的域（视频 / 装配台）恒 1。 */
+function currentGenerationCount(run: OperatorRun): number {
+  if (!run.state.hasCountControl) return 1
+  return run.state.count && run.state.count > 0 ? run.state.count : 1
+}
+
+/**
+ * 硬确认卡上那几行 = `request_generation` 的载荷（**一份形状两处用**）。
+ *
+ * ⚠ 全部取自**快照**，一个字段都不让模型写（工具入参是空对象）：卡上写 4 张而
+ * 表单里是 1 张，是花钱档最不能出的那种错。
+ */
+function buildGenerationRequestPayload(
+  run: OperatorRun,
+  modelId: string,
+): AssistantOperatorGenerationRequest {
+  const count = currentGenerationCount(run)
+  const credits = estimateGenerationCredits(modelId, count)
+  const label = run.state.modelLabel ?? modelId
+  const estimate: AssistantOperatorPlanEstimate = {
+    model: label,
+    count,
+    ...(credits === null ? {} : { credits }),
+  }
+  return {
+    model: { id: modelId, label },
+    count,
+    /** ⚠ 三格永远带齐（没有的那格是 `null`）—— 论据同 `set_video_specs`。 */
+    specs: {
+      aspectRatio: run.state.hasVideoSpecsControl
+        ? run.state.videoAspectRatio
+        : run.state.aspectRatio,
+      resolution: run.state.hasVideoSpecsControl
+        ? run.state.videoResolution
+        : run.state.resolution,
+      durationSeconds: run.state.videoDurationSeconds,
+    },
+    estimate,
+  }
+}
+
+/**
+ * 「本会话此类不再问」命中了吗（§6 拍板 24）。
+ *
+ * ⭐ **服务端不存任何记忆** —— 三要素里的「同会话」由客户端负责（换条会话它就
+ * 不再带这张条子上来），服务端只核另外两条：同模型、金额不超上次。
+ * ⚠ `estimate.credits` 缺席时**一律不命中**：拿一个算不出来的数去跟上限比，
+ * 只能得到「反正没超」这种最不该有的结论。缺价 = 重新硬确认，安全的那个方向。
+ */
+function isSpendAutoApproved(
+  run: OperatorRun,
+  payload: AssistantOperatorGenerationRequest,
+): boolean {
+  const auto = run.request.autoApprove
+  if (!auto) return false
+  if (auto.tier !== ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.spend) return false
+  if (auto.model !== payload.model.id) return false
+  const credits = payload.estimate.credits
+  if (credits === undefined) return false
+  return credits <= auto.maxCredits
+}
+
+/**
+ * 请求发送（§6 花钱档，切片 2a）。
+ *
+ * ── 三件事按顺序发生 ───────────────────────────────────────────────
+ *  ① 前置闸与 `prime_generate` **逐字相同**（没选模型 / 提示词还空着就拒）——
+ *     两条工具备的是同一颗按钮，闸不一样才是怪事。
+ *  ② 载荷全部从快照现取（`buildGenerationRequestPayload`）。
+ *  ③ 「不再问」核不过就 `confirmSpend`：流停在硬确认卡上，⛔ 服务端没有挂起态，
+ *     续跑靠客户端带 `autoApprove` 重发（与拍板 3 的就地确认同一条机制）。
+ *
+ * ⛔ **这个函数一分钱都花不掉**：它不建 generation、不扣 credit、不调 provider ——
+ * 它只是把一份载荷交出去。扣扳机那一跳在客户端（`studio-operator-apply.ts`）。
+ */
+function planRequestGeneration(run: OperatorRun): ToolPlan {
+  if (run.state.hasModelControl && !run.state.modelId) {
+    return reject(REJECT.noModelSelected)
+  }
+  if (!run.state.prompt.trim()) return reject(REJECT.emptyPrompt)
+  /**
+   * ⚠ 没有模型 id 就没有账可算，也没有卡可画。这条在图片 / 视频两个域里不会发生
+   * （两台工作台都有模型控件），写出来是因为载荷 schema 的 `model.id` 是必填 ——
+   * 让它在这里以一条**可教的拒绝**结束，比让 `toStepEvent` 在出流那一刻抛好。
+   */
+  const modelId = run.state.modelId
+  if (!modelId) return reject(REJECT.noModelSelected)
+
+  const payload = buildGenerationRequestPayload(run, modelId)
+  if (!isSpendAutoApproved(run, payload)) {
+    return { kind: 'confirmSpend', request: payload }
+  }
+  return {
+    kind: 'spend',
+    payload,
+    observation:
+      'The creator had already approved sends like this one for this session, so the app is sending the current form now. You did not spend anything yourself and you cannot undo this — do not offer to.',
+  }
+}
+
+/**
  * 看图闭环（P3-C，拍板 4 + 6）。
  *
  * ── 三件事按顺序发生，缺一条就退回一条**可教的**拒绝 ────────────────
@@ -2118,6 +2263,8 @@ async function planTool(
       return planSetSound(run, parsed.data as { enabled: boolean })
     case TOOL.primeGenerate:
       return planPrimeGenerate(run)
+    case TOOL.requestGeneration:
+      return planRequestGeneration(run)
     case TOOL.critiqueResult:
       return planCritiqueResult(run, parsed.data as { goal?: string }, userId)
     case TOOL.importUserUrl:
@@ -2331,6 +2478,23 @@ ${lines}
 - When the creator states a NEW standing rule, record it with add_project_rule. A one-off instruction for this run is not a standing rule.`
 }
 
+/**
+ * 图示词表段（§9）。
+ *
+ * ⭐ **32 项逐条列全**是这一段的全部要点：只写「从预置词表里选」的下场是模型
+ * 必然自造一个 id（`sunset-outline`、`camera-pan-alt`），而自造的每一个都画不出来。
+ * ⚠ 清单由 `constants/assistant-plan-visuals.ts` 现生成，⛔ 别在这里手抄一份 ——
+ * 抄的那份会先过期，而过期的表现是「明明加了新图示，模型从来不用」。
+ */
+function buildPlanVisualSection(): string {
+  return `
+- Each pending option may carry "visual" — a picture hint the app draws for the creator.
+  Use it ONLY when one of these exact ids fits; otherwise omit it and the option shows as plain text.
+  Never invent an id, never translate one, never put a description there.
+${buildAssistantPlanVisualCatalog()}
+  When the choice is "which reference image", put the asset URL in "assetUrl" instead — the thumbnail IS the option.`
+}
+
 function buildOperatorSystemPrompt(
   request: AssistantOperatorRequest,
   persona: AssistantPersona,
@@ -2433,6 +2597,11 @@ OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outsi
 {"plan":["short step","short step"],"message":"what you are telling the creator","tool":{"name":"set_prompt","title":"one short line for the log","reason":"why, in one line","args":{"value":"..."}},"finished":false}
 
 - "plan" only on your FIRST turn, at most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
+${
+  request.forcePlan
+    ? '- THE CREATOR TURNED ON "ask me first" FOR THIS MESSAGE. Your FIRST turn must carry a "plan" (and "pending" for anything genuinely open) — the app shows it to them and waits. Do not skip straight to a tool.\n'
+    : ''
+}- "pending" rides along with that first "plan" and ONLY there: at most ${PLAN_LIMITS.maxPendingItems} things you genuinely cannot settle from what they told you, each with 2–${PLAN_LIMITS.maxPendingOptions} concrete options. The app turns them into one tap. Leave it out when you can settle everything yourself — a question you already know the answer to costs them a round trip. Never ask about something the state block already answers.${buildPlanVisualSection()}
 - "message" is optional; use it to say something worth saying, not to narrate every step.
 - Omit "tool" (or set "finished":true) when the work is done. Do that as soon as the form is ready — an extra step costs the creator time.
 - One tool per turn. You get at most ${LIMITS.maxSteps} steps for the whole request.
@@ -2450,6 +2619,32 @@ ${renderState(run)}`)
 ${run.request.priorSteps
   .map((step) => `- [${step.status}] ${step.tool}: ${step.summary}`)
   .join('\n')}`)
+  }
+
+  /**
+   * 计划卡的回答（§2.6 / §3.1 ③–⑤）。⚠ 与 `confirmations` 走同一条通道 ——
+   * 「带上下文重发」，服务端照旧零会话态。
+   * ⭐ **「修改」那一支要说得出口**：`planApproved === false` 时这一段的最后一行
+   * 明确要求重新规划一次。少了它，模型看到答复只会照着原计划继续跑 ——
+   * 而用户点「修改」正是在说「别照那个跑」。
+   */
+  if (
+    run.request.planAnswers?.length ||
+    run.request.planApproved !== undefined
+  ) {
+    const answers = (run.request.planAnswers ?? []).map(
+      (entry) => `- ${entry.pendingId}: ${entry.optionId}`,
+    )
+    const heading =
+      run.request.planApproved === false
+        ? 'THE CREATOR WANTS A DIFFERENT PLAN. Re-plan from scratch this turn: send a NEW "plan" (and new "pending" if anything is still open) BEFORE calling any tool, and fold their answers below into it.'
+        : 'THE CREATOR APPROVED YOUR PLAN AND ANSWERED THE OPEN QUESTIONS. Treat these answers as settled facts — do not ask again.'
+    sections.push(
+      [
+        heading,
+        ...(answers.length > 0 ? answers : ['- (no answers given)']),
+      ].join('\n'),
+    )
   }
 
   if (run.request.confirmations?.length) {
@@ -2704,6 +2899,30 @@ export async function* runAssistantOperator(
         if (!planEmitted) {
           planEmitted = true
           yield { type: ASSISTANT_OPERATOR_EVENTS.plan, steps: turn.plan }
+          /**
+           * **计划卡的素材**（§2.6 / §5）—— 紧跟在 `plan` 之后、第一个 `step`
+           * 之前，一轮一帧。
+           *
+           * ⛔ 它不决定出不出卡：那条判据在客户端（`lib/studio-operator-plan.ts`
+           * 的 `shouldShowPlanCard`，owner 2026-09-06「客户端硬判」）。这里只把
+           * 判据要用的三样东西摆出来 —— 阶段、待定项、预估。
+           * ⚠ 顺序是硬要求：`plan` → `plan_request` → 第一个 `step`。客户端要在
+           *   任何一步落地之前就能决定「先问一句」，晚一帧那一步已经落到表单上了。
+           */
+          const modelId = run.state.modelId
+          const estimate: AssistantOperatorPlanEstimate = modelId
+            ? buildGenerationRequestPayload(run, modelId).estimate
+            : {}
+          yield {
+            type: ASSISTANT_OPERATOR_EVENTS.planRequest,
+            steps: turn.plan.map((label, index) => ({
+              id: `plan-${index + 1}`,
+              label,
+            })),
+            pending: normalizePlanPending(turn, clerkId),
+            estimate,
+            reason: planRequestReason(turn, request),
+          }
         } else if (!turn.message?.trim()) {
           yield {
             type: ASSISTANT_OPERATOR_EVENTS.message,
@@ -2808,6 +3027,8 @@ export async function* runAssistantOperator(
         // 与打断复用同一条机制，服务端因此不需要任何挂起态。
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+          // §6 三档里的第二档 —— ⛔ 服务端从不发空的 `tier`（见事件 schema 头注）。
+          tier: ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.overwrite,
           field: plan.field,
           have: plan.have,
           proposed: plan.proposed,
@@ -2818,6 +3039,39 @@ export async function* runAssistantOperator(
         }
         completed = true
         return
+      }
+
+      if (plan.kind === 'confirmSpend') {
+        /**
+         * 花钱硬确认（§6 第三档）。形态与拍板 3 的就地确认**逐字同构**：吐一帧、
+         * 停流、客户端带上下文重发 —— 只是重发时带的不是 `confirmations` 而是
+         * `autoApprove`。⛔ 服务端照旧一个挂起态都没有。
+         */
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.spendRequest,
+          tier: ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.spend,
+          request: plan.request,
+        }
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+        }
+        completed = true
+        return
+      }
+
+      if (plan.kind === 'spend') {
+        /**
+         * 「不再问」命中，直接吐那一步。⚠ 没有 `apply()` 也没有 `inverse`：
+         * 服务端在这一步什么都不做，客户端拿着载荷去按宿主那颗生成键。
+         */
+        const spend = { ...base, tool: name, payload: plan.payload }
+        yield toStepEvent({ ...spend, status: STATUS.running })
+        yield toStepEvent({ ...spend, status: STATUS.done })
+        run.observations.push(plan.observation)
+        run.executedStepKeys.add(stepKey)
+        repeatedStepStrikes = 0
+        continue
       }
 
       if (plan.kind === 'rejected') {
@@ -2892,6 +3146,75 @@ export async function* runAssistantOperator(
       })
     }
   }
+}
+
+/**
+ * 模型写的待定项 → 出帧用的那份（§9 校验纪律）。
+ *
+ * 三条纪律，逐条对应一种模型常犯的错：
+ *  ① **`visual` 不在词表就剥掉**并 `logger.warn` —— ⛔ 不作废整张卡，也 ⛔ 不猜一个
+ *     近似图标。前端于是退化成纯文字 chip，那是词表外唯一诚实的画法。
+ *  ② **`assetUrl` 必须是 http(s)**：模型很爱写 `"the second reference"` 这种描述，
+ *     那东西喂给 `<Image>` 就是一个碎图标。
+ *  ③ **少于两个选项的待定项整条丢掉**：一个选项的「单选」不是问题，是通知，
+ *     而通知已经有 `message` 那条路了。
+ * ⚠ id 一律由服务端补：模型给的 id 会在重规划之间漂，而客户端的 `planAnswers`
+ *   要按 id 认回来。
+ */
+function normalizePlanPending(
+  turn: AssistantOperatorTurn,
+  clerkId: string,
+): AssistantOperatorPlanPending[] {
+  const out: AssistantOperatorPlanPending[] = []
+  for (const [index, item] of (turn.pending ?? []).entries()) {
+    const options: AssistantOperatorPlanPending['options'] = []
+    for (const [optionIndex, option] of item.options.entries()) {
+      const visual = getAssistantPlanVisual(option.visual ?? undefined)
+      if (option.visual && !visual) {
+        logger.warn('assistant operator used an unknown plan visual', {
+          userId: clerkId,
+          visual: option.visual,
+        })
+      }
+      const assetUrl = /^https?:\/\//.test(option.assetUrl ?? '')
+        ? (option.assetUrl ?? undefined)
+        : undefined
+      options.push({
+        id: option.id?.trim() || `option-${index + 1}-${optionIndex + 1}`,
+        label: clamp(option.label, PLAN_LIMITS.maxPendingLabelChars),
+        ...(visual ? { visual: visual.id } : {}),
+        ...(assetUrl ? { assetUrl } : {}),
+      })
+    }
+    if (options.length < 2) continue
+    out.push({
+      id: item.id?.trim() || `pending-${index + 1}`,
+      label: clamp(item.label, LIMITS.maxPlanItemChars),
+      // 目前只有单选一种（词表里就一项），模型写别的一律归到它。
+      kind: ASSISTANT_PLAN_PENDING_KINDS[0],
+      options,
+    })
+  }
+  return out
+}
+
+/**
+ * 服务端**观察到**的出卡理由（`plan_request.reason`）。
+ *
+ * ⛔ 它不是判定 —— 出不出卡由客户端 `shouldShowPlanCard` 说了算（owner 2026-09-06）。
+ * ⚠ `multi-step` 是兜底档：客户端那一侧还要过一道「步数 ≥
+ *   `ASSISTANT_PLAN_CARD_MIN_STEPS`」的闸，所以短计划上这个值根本不会被读到。
+ */
+function planRequestReason(
+  turn: AssistantOperatorTurn,
+  request: AssistantOperatorRequest,
+) {
+  if (request.forcePlan) return PLAN_REASON.userRequested
+  const tool = turn.tool?.name
+  if (tool === TOOL.requestGeneration || tool === TOOL.primeGenerate) {
+    return PLAN_REASON.spend
+  }
+  return PLAN_REASON.multiStep
 }
 
 /**

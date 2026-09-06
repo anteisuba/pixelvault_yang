@@ -41,6 +41,19 @@ export const ASSISTANT_OPERATOR_EVENTS = {
   /** 计划条，最多一次，排在第一个 `step` 之前。载荷 `{ steps: string[] }`。 */
   plan: 'plan',
   /**
+   * **计划卡的素材**（§2.6 / §5，切片 2a）—— 紧跟在 `plan` 之后、第一个 `step`
+   * 之前吐一次，载荷是阶段列表 + 至多三个待定项 + 预估 + 服务端观察到的理由。
+   *
+   * ⛔ **它不是「出卡」的命令**：出不出卡由**客户端硬判**（owner 2026-09-06），
+   * 判据写在 `lib/studio-operator-plan.ts` 的 `shouldShowPlanCard` 里。服务端只
+   * 负责把「这一轮打算分几步、还有什么没定、大概花多少」摆出来 —— 让模型自己
+   * 决定要不要出卡既不稳定，也与「服务端零会话态」相冲。
+   * ⚠ 它与 `plan` **分两帧**而不是往 `plan` 上加字段：`plan` 是一行给人看的字，
+   * 早就有客户端在读；计划卡要的是结构化的待定项。合帧的代价是让一条已经在跑
+   * 的帧变形。
+   */
+  planRequest: 'plan_request',
+  /**
    * 一步。同一个 `id` 会出现两次：`running` 一次、`done` / `error` 一次。
    *
    * ⚠ 客户端按 `id` 覆盖而不是追加 —— 追加的表现是日志流里每步重复两行。
@@ -51,6 +64,19 @@ export const ASSISTANT_OPERATOR_EVENTS = {
    * 见 `ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm`。
    */
   confirmRequest: 'confirm_request',
+  /**
+   * **花钱硬确认**（§6 第三档，拍板 2 的新形态）。它之后这条流同样结束
+   * （`awaitingConfirm`），用户点「生成」= 客户端带 `autoApprove` 重发。
+   *
+   * ── 为什么不是 `confirm_request` 上的一个 `tier` 分支 ────────────────
+   * `confirm_request` 的三个字段（`field` / `have` / `proposed`）是**覆盖档专属**
+   * 的，而花钱档一个都没有：它要说的是模型 / 张数 / 规格 / 预估。塞进同一帧就得把
+   * 那三个字段改成可选，而客户端那张确认条（`StudioOperatorConfirm`）正是
+   * `Omit<ConfirmRequestEvent,'type'>` —— 改成可选等于让覆盖三选卡去处理
+   * 「没有 field 的确认」。两张卡（§11.4「覆盖三选」/「花钱确认」）本来就是两帧。
+   * ⚠ 两帧都带 `tier`，第 3 轮接线时按它分派到两张卡上。
+   */
+  spendRequest: 'spend_request',
   /** 普通对白。 */
   message: 'message',
   /**
@@ -200,6 +226,32 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   primeGenerate: 'prime_generate',
   /**
+   * **请求生成**（§6 花钱档，切片 2a）。
+   *
+   * ── ⭐ 它为什么进得来，而钱闸一字未动 ──────────────────────────────
+   * 服务端在这一步**只吐一个载荷**（模型 / 张数 / 规格 / 预估），一分钱不扣、
+   * 一条 generation 不建、一个 provider 不调。真正扣扳机的那一跳在**客户端**：
+   * `studio-operator-apply.ts` 把它交给宿主的 `triggerGeneration`，宿主按的是
+   * 用户自己那颗生成键（工作台上是 `REQUEST_GENERATE`）。形状与拍板 22 的
+   * `import_user_url`、P4-C 的 `mount_lora` 逐字同源 —— 服务端吐地址 / 吐候选 /
+   * 吐载荷，落地永远在客户端。
+   *
+   * ── ⚠ 名字为什么是 `request_generation` 而不是 `start_generate` ─────
+   * 钱闸那份结构性证明逐字扫工具名（`assistant-operator.money-gate.test.ts`）：
+   * 「工具表里没有任何一条叫 generate 的（prime 除外）」。`generation` 里没有
+   * `generate` 这个词（少了那个结尾的 e），所以这条工具**天然过闸，那条规则一个
+   * 字都不用改** —— 而这不是钻空子：规则的本意是「服务端不得创建 generation」，
+   * 而这条工具的服务端实现里确实没有任何一条创建 generation 的路。
+   * ⛔ 下一个人「顺手统一命名」把它改成 `start_generate` / `run_generate`，
+   *    钱闸当场红 —— 那时该改的是名字，不是钱闸。
+   *
+   * ── ⚠ 它**不可撤销** ─────────────────────────────────────────────
+   * 因此它既不是「读」也不是「改动型」，而是第三档
+   * （`ASSISTANT_OPERATOR_SPEND_TOOLS`）：没有 `inverse`，撤销的位置由**结果卡**
+   * 顶上（生成出来的东西删不掉、钱退不回，给一颗撤销钮才是骗人）。
+   */
+  requestGeneration: 'request_generation',
+  /**
    * 看它自己备的那张图（P3-C，拍板 4）。
    *
    * ⭐ **图不由模型给**：地址来自请求里的 `result`，而那份 `result` 只有在客户端
@@ -312,6 +364,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setSound,
   ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+  ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
   ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
   ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
   ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
@@ -396,11 +449,116 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
 ] as const
 
+/**
+ * **花钱档工具**（§6 第三档，切片 2a）—— 读 / 改动型之外的第三张表。
+ *
+ * ── 为什么要第三张表，而不是塞进改动型 ────────────────────────────
+ * 改动型那张表的全部意义是「每一条都必须带 `inverse`」（拍板 18）。这一档带不出
+ * `inverse` 来 —— 生成出来的东西删不掉、钱退不回。硬给它一个空 `inverse` 的下场
+ * 很具体：日志条上出现一颗撤销钮，点了什么都不会发生。撤销的位置由**结果卡**
+ * 顶上（§11.4「结果行卡」），那才是这一档真正的回头路。
+ *
+ * ⚠ 服务端在这一档里照样**一分钱都花不掉**：它只吐载荷，扣扳机在客户端
+ * （见 `requestGeneration` 的头注）。这张表分的是「能不能撤」，不是「谁花钱」。
+ */
+export const ASSISTANT_OPERATOR_SPEND_TOOLS = [
+  ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+] as const
+
 export function isMutatingAssistantOperatorTool(
   tool: AssistantOperatorTool,
 ): boolean {
   return (ASSISTANT_OPERATOR_MUTATING_TOOLS as readonly string[]).includes(tool)
 }
+
+export function isSpendAssistantOperatorTool(tool: string): boolean {
+  return (ASSISTANT_OPERATOR_SPEND_TOOLS as readonly string[]).includes(tool)
+}
+
+/**
+ * 这一步**撤得掉吗**。
+ *
+ * ⚠ 判据从「不是读类」改成「是改动型」——两者在花钱档出现之前是同一件事，
+ * 之后不是了。`use-studio-operator-revert.ts` / `StudioOperatorLogItem.tsx` 现在
+ * 还在用 `!READ_TOOLS.includes(...)`，第 3 轮接线时换成这条（那之前 UI 够不着
+ * `request_generation`，因为它要等 2b 的面板接上才会被渲染）。
+ */
+export function isRevertibleAssistantOperatorTool(tool: string): boolean {
+  return (ASSISTANT_OPERATOR_MUTATING_TOOLS as readonly string[]).includes(tool)
+}
+
+/**
+ * **确认三档**（§6，切片 2a 明确成常量）。
+ *
+ * | 档          | 触发                          | 载体                                        |
+ * | ----------- | ----------------------------- | ------------------------------------------- |
+ * | `free`      | 改提示词 / 参数 / 挂 LoRA     | **没有事件** —— 直落，留 checkpoint 薄卡     |
+ * | `overwrite` | 目标字段已有用户手写内容      | `confirm_request`（追加 / 覆盖 / 保留三选） |
+ * | `spend`     | 请求生成                      | `spend_request` + 硬确认卡，客户端扣扳机    |
+ *
+ * ⚠ `free` 在表里**不是凑数**：它是「什么时候什么都不问」这条判据的名字，没有它
+ * 就只能靠「另外两档都不匹配」来表达 —— 而那是一句读不出意图的话。
+ */
+export const ASSISTANT_OPERATOR_CONFIRM_TIER_IDS = {
+  free: 'free',
+  overwrite: 'overwrite',
+  spend: 'spend',
+} as const
+
+export const ASSISTANT_OPERATOR_CONFIRM_TIERS = [
+  ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.free,
+  ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.overwrite,
+  ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.spend,
+] as const
+
+export type AssistantOperatorConfirmTier =
+  (typeof ASSISTANT_OPERATOR_CONFIRM_TIERS)[number]
+
+/**
+ * 服务端**观察到**的出卡理由（`plan_request.reason`）。
+ *
+ * ⛔ 它不是判定 —— 判定在客户端（`shouldShowPlanCard`）。它是证据：这一轮的工具
+ * 是花钱档（`spend`）/ 这一轮分了好几步（`multiStep`）/ 用户开了「先问我」
+ * （`userRequested`）。⚠ 三者不是互斥的优先级链，服务端按这个顺序取第一条命中的。
+ */
+export const ASSISTANT_PLAN_REQUEST_REASON_IDS = {
+  spend: 'spend',
+  multiStep: 'multi-step',
+  userRequested: 'user-requested',
+} as const
+
+export const ASSISTANT_PLAN_REQUEST_REASONS = [
+  ASSISTANT_PLAN_REQUEST_REASON_IDS.spend,
+  ASSISTANT_PLAN_REQUEST_REASON_IDS.multiStep,
+  ASSISTANT_PLAN_REQUEST_REASON_IDS.userRequested,
+] as const
+
+export type AssistantPlanRequestReason =
+  (typeof ASSISTANT_PLAN_REQUEST_REASONS)[number]
+
+/**
+ * 步数到几就值得先出一张计划卡（§5 客户端硬判的第二条判据）。
+ *
+ * ⚠ 3 不是随手拍的：一步（改个提示词）和两步（改提示词 + 换模型）出卡是纯打扰 ——
+ * 用户看着一张卡上写着一句他刚说过的话。三步起才是「它要替我做一串事」，那时
+ * 「开始 / 修改」才有得选。⛔ 调这个数之前先想清楚：调小 = 每次说话都先弹一张卡。
+ */
+export const ASSISTANT_PLAN_CARD_MIN_STEPS = 3
+
+/** 待定项（§2.6：1–3 项）与每项选项数的协议护栏。 */
+export const ASSISTANT_PLAN_CARD_LIMITS = {
+  /** ⚠ 上限 3 是**设计**不是护栏：一次问四件事就不是「反问」，是问卷。 */
+  maxPendingItems: 3,
+  /** 一格 `grid-cols-3`，两行封顶。 */
+  maxPendingOptions: 6,
+  maxPendingLabelChars: 40,
+} as const
+
+/** 待定项目前只有单选一种。⚠ 写成常量而不是字面量，加多选时这里是唯一的落点。 */
+export const ASSISTANT_PLAN_PENDING_KINDS = ['single'] as const
+
+export type AssistantPlanPendingKind =
+  (typeof ASSISTANT_PLAN_PENDING_KINDS)[number]
 
 /**
  * `search_assets` 能检索的媒体类型。
@@ -584,6 +742,13 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
     ASSISTANT_OPERATOR_TOOL_IDS.setCount,
     /**
+     * 花钱档（§6）**只给两台工作台**。⛔ 装配台没有：它的出图键住在
+     * `GenerateBranch` 的局部 state 里，宿主契约上还没有那只手
+     * （`triggerGeneration` 在 LoRA 宿主上有意缺席）。摆一条这个域里无解的工具，
+     * 正是 `set_count` / `set_specs` 当初被裁掉的同一个形状。
+     */
+    ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+    /**
      * ⭐ 看图闭环**只在图片域**：借来的那条视觉线吃的是一张静态图
      * （`imageData: result.url`）。把一条 mp4 地址喂给它，得到的是一份格式完整、
      * 内容全编的评价 —— 正是 `vision-route.service.ts` 头注里说的那种，比说不出话
@@ -596,6 +761,7 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
     ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
     ASSISTANT_OPERATOR_TOOL_IDS.setSound,
+    ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
   ],
   /**
    * LoRA 装配台（P4-C）。
@@ -950,6 +1116,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'turn the clip\'s own soundtrack on or off. Only call it when the creator asked for silence or for sound — leaving it alone means "whatever this model normally does", which is usually what they want.',
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]:
     "arm the generate button so it is one click away, with the price shown. This does NOT generate anything and never spends the creator's credits — they press it themselves. Use it as the LAST step once the form is ready.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]:
+    'ask the creator to send the current form. This does NOT generate anything and never spends their credits — the app shows them the model, the count and the price, and THEY press send. Use it only when they asked you to run it, and only once the form is ready; the plain prime_generate is the right call when they have not asked. It cannot be undone once they confirm, so never call it to "see what happens".',
   [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]:
     'actually LOOK at the picture that came back from the run you armed, and say what worked and what did not. Only callable when the state block shows a fresh result — you never get to look at runs the creator started on their own. Call it first when a result is waiting, then fix the form with set_* based on what you saw.',
   [ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl]:

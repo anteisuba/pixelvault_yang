@@ -38,6 +38,7 @@ import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
 import { AdvancedParamsSchema } from '@/types'
 import type {
   AssistantOperatorAppliedStep,
+  AssistantOperatorGenerationRequest,
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type { LoraCandidateImportPayload } from '@/types/lora-candidate'
@@ -135,6 +136,24 @@ export interface StudioOperatorApplyContext {
   unmountUserUrl(sourceUrl: string): void
   /** 生成键的 primed 态（拍板 2：这是整条链离「生成」最近的地方）。 */
   setPrimed(primed: boolean): void
+  /**
+   * **扣扳机的那只手**（§6 花钱档，拍板 2 的新形态）。
+   *
+   * ⭐ 服务端到 `request_generation` 那一步为止只吐了一份载荷；真正把这一枪打出去
+   * 的动作发生在这里，而且走的是**用户自己那颗生成键的同一条路**（工作台上是
+   * `REQUEST_GENERATE`，即 `useStudioGenerateAction` 的执行端）。⛔ 别在宿主里
+   * 另调一次 `studioGenerateAPI`：那条路上的闸门、请求组装、报价、队列上限全在
+   * `useStudioGenerateAction` 里，抄第二份必然与按钮说两句不一样的话
+   * （这正是那个 hook 当初被抽出来的理由）。
+   *
+   * ⚠ 与 `mountUserUrl` 同样是「交出去就不管」而不是 `Promise`：`applyOperatorStep`
+   * 是同步纯函数。结果回灌由既有的生成链自己完成（结果进 `useStudioGen` 的
+   * `activeRun`，归属追踪 `lib/studio-operator-claim.ts` 照旧认得出这一枪）。
+   * ⚠ **缺席 = 这个宿主没有生成键**（LoRA 装配台的出图键住在 `GenerateBranch` 的
+   * 局部 state 里，宿主契约上还没有这只手）。缺席不会在运行时发生：域工具表已经
+   * 把 `request_generation` 锁在图片 / 视频两个域里。这里的可选是类型层的诚实。
+   */
+  triggerGeneration?(request: AssistantOperatorGenerationRequest): void
   /** ⚠ 缺席 = 这个宿主没有 LoRA 挂载栈。见 `StudioOperatorLoraContext` 头注。 */
   lora?: StudioOperatorLoraContext
   /**
@@ -204,6 +223,8 @@ export function getOperatorStepField(
     default:
       // `prime_generate` 有意不算「字段」：生成键不是表单的一格，它的还原由
       // 「清掉全部改动」顺手做掉（拍板 14 要求清完不能留一个亮着的生成键）。
+      // `request_generation` 同样落在这里，理由更硬一层：它撤不掉（§6 花钱档），
+      // 给它一格 = 在 checkpoint 上摆一颗点了没反应的撤销钮。
       return null
   }
 }
@@ -461,6 +482,20 @@ export function applyOperatorStep(
       ctx.setPrimed(true)
       return null
     }
+
+    /**
+     * 请求发送（§6 花钱档）—— 这一跳就是「客户端扣扳机」本身。
+     *
+     * ⚠ 返回 `null`：它没有动表单的任何一格，因此不进登记簿、不算进 checkpoint
+     * 的「已改 N 项」。⛔ 更不该记账的理由是撤销：登记簿里的每一条都配着一个
+     * `inverse`，而这一条撤不掉。
+     * ⚠ 宿主没有这只手时**什么都不做**（LoRA 装配台）—— 域工具表已经拦在前面，
+     * 这里不抛：一条走不到的路不值得让整轮崩掉。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration: {
+      ctx.triggerGeneration?.(step.payload)
+      return null
+    }
   }
 }
 
@@ -609,6 +644,16 @@ export function revertOperatorStep(
 
     case ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate:
       ctx.setPrimed(false)
+      return
+
+    /**
+     * ⛔ **撤不掉，也不假装撤得掉**（§6 花钱档）。这一枪打出去之后：钱扣了、
+     * 队列里多了一条、结果迟早会回来 —— 客户端这一侧没有任何一个动作能把这三件事
+     * 收回去。回头路是结果卡（「按这张继续」/ 重新调参再打一枪），不是撤销钮。
+     * ⚠ 写出这个空分支是有意的：不写的话 switch 漏出去，而本仓没开
+     * `noImplicitReturns`，编译器一声不吭（同 `search_web_images` 那条头注）。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration:
       return
   }
 }

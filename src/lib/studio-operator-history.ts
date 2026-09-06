@@ -134,6 +134,23 @@ export function describeOperatorStepDetail(
     case ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate:
       return null
     /**
+     * 请求发送（§6 花钱档）—— 详情是**卡上写的那三样**（模型 · N 张 · 规格）。
+     * ⚠ 预估金额有意不进这一行：它在硬确认卡上，而那张卡是决定发生的地方；
+     * 日志里再写一遍只会让「当时到底确认了多少」出现第二个说法。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration:
+      return [
+        step.payload.model.label,
+        `${step.payload.count}`,
+        step.payload.specs.aspectRatio,
+        step.payload.specs.resolution,
+        step.payload.specs.durationSeconds === null
+          ? null
+          : `${step.payload.specs.durationSeconds}s`,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    /**
      * ⚠ 看图那一条的详情就是评价本身，而评价长在**评价卡**上（拍板 6）——
      * 日志条只会拿到被拒的那一支，那一支根本走不到这里。
      * 这里返回 `null` 而不是攒一段摘要：攒了就是同一份内容的第二个说法。

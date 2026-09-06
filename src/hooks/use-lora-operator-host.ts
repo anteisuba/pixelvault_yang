@@ -315,6 +315,17 @@ export function useLoraOperatorHost(
     }
   }, [confirmChain, downloadGate, userUrl])
 
+  /**
+   * ⛔ **装配台没有 `triggerGeneration`**（§6 花钱档，切片 2a）。
+   *
+   * 判据与它没有 `set_count` / `set_specs` 逐字同源：出图那一跳住在 `GenerateBranch`
+   * 的局部 state 里（自己的一套闸门 + 自己的 `resultHistory`），宿主契约上还没有
+   * 这只手。实现成一个空函数才是本仓最讨厌的那种失败 —— 用户点了「生成」，卡收起来，
+   * 什么都没发生，而且三绿。
+   * ⚠ 缺席在运行时够不着：域工具表把 `request_generation` 锁在图片 / 视频两个域里
+   * （`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN`），装配台的模型压根看不见这条工具。
+   * 补它是独立一件事：先让装配台把「能不能发、发什么」抽成一份共用实现。
+   */
   const referenceLimit = Number.isFinite(input.imageUpload.maxImages)
     ? input.imageUpload.maxImages
     : ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences

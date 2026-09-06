@@ -10,7 +10,10 @@ import {
   revertOperatorStep,
   type StudioOperatorApplyContext,
 } from '@/lib/studio-operator-apply'
-import type { AssistantOperatorAppliedStep } from '@/types/assistant-operator'
+import type {
+  AssistantOperatorAppliedStep,
+  AssistantOperatorGenerationRequest,
+} from '@/types/assistant-operator'
 
 /**
  * 只搭这条链真的会读的那几个键 —— 整个 `StudioFormState` 有 60+ 字段，全填一遍
@@ -27,6 +30,7 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
   unmounted: string[]
   audioReferences: { url: string; fileName: string; ownerName?: string }[]
   sound: { value: boolean | null }
+  triggered: AssistantOperatorGenerationRequest[]
 } {
   const state = {
     prompt: '',
@@ -53,6 +57,7 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
   }[] = []
   // ⚠ 初值是 `null` 而不是 `false` —— 那是「用户没设过」那一档，本文件专门验它。
   const sound: { value: boolean | null } = { value: null }
+  const triggered: AssistantOperatorGenerationRequest[] = []
 
   const ctx: StudioOperatorApplyContext = {
     getState: () => state,
@@ -97,6 +102,10 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
     setPrimed: (value) => {
       primed.value = value
     },
+    /** §6 花钱档：这一层只记账 —— 要验的是「谁被调、带的是不是那份载荷」。 */
+    triggerGeneration: (request) => {
+      triggered.push(request)
+    },
   }
 
   return {
@@ -109,6 +118,7 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
     unmounted,
     audioReferences,
     sound,
+    triggered,
   }
 }
 
@@ -237,6 +247,91 @@ describe('applyOperatorStep', () => {
     ).toBeNull()
     expect(primed.value).toBe(true)
     expect(dispatched).toHaveLength(0)
+  })
+
+  /**
+   * §6 花钱档 —— **客户端扣扳机**那一跳。
+   *
+   * ⭐ 钉的是「它把服务端那份载荷原样交给宿主」：卡上写的、发出去的、日志里记的
+   * 必须是同一个对象。
+   * ⭐ 同时钉「它不动表单一格」：返回 `null` = 不进登记簿、不算进 checkpoint 的
+   * 「已改 N 项」—— 登记簿里的每一条都配着一个 `inverse`，而这一条撤不掉。
+   */
+  it('⭐ request_generation 把载荷原样交给宿主，且一格表单都不动', () => {
+    const { ctx, dispatched, triggered, primed } = makeContext()
+    const payload = {
+      model: { id: 'seedream-4', label: 'Seedream 4' },
+      count: 2,
+      specs: {
+        aspectRatio: '1:1',
+        resolution: '2K',
+        durationSeconds: null,
+      },
+      estimate: { credits: 6, model: 'Seedream 4', count: 2 },
+    }
+    expect(
+      applyOperatorStep(
+        {
+          ...BASE,
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+          payload,
+        } satisfies AssistantOperatorAppliedStep,
+        ctx,
+      ),
+    ).toBeNull()
+    expect(triggered).toEqual([payload])
+    expect(dispatched).toHaveLength(0)
+    // ⛔ 它不顺手点亮生成键：那是 `prime_generate` 的活，两条工具各撤各的。
+    expect(primed.value).toBe(false)
+  })
+
+  /**
+   * ⛔ **撤不掉，也不假装撤得掉**。这条用例是写给下一个「顺手补一个 inverse」
+   * 的人看的：钱花出去了，客户端这一侧没有任何动作能收回来。
+   */
+  it('⛔ 撤销 request_generation 什么都不做（钱退不回来）', () => {
+    const { ctx, dispatched, triggered, primed } = makeContext()
+    revertOperatorStep(
+      {
+        ...BASE,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+        payload: {
+          model: { id: 'seedream-4', label: 'Seedream 4' },
+          count: 1,
+          specs: { aspectRatio: null, resolution: null, durationSeconds: null },
+          estimate: {},
+        },
+      } satisfies AssistantOperatorAppliedStep,
+      ctx,
+    )
+    expect(triggered).toHaveLength(0)
+    expect(dispatched).toHaveLength(0)
+    expect(primed.value).toBe(false)
+  })
+
+  it('宿主没有生成键时（装配台）静默不做，⛔ 不抛', () => {
+    const { ctx, triggered } = makeContext()
+    const withoutTrigger = { ...ctx, triggerGeneration: undefined }
+    expect(
+      applyOperatorStep(
+        {
+          ...BASE,
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+          payload: {
+            model: { id: 'seedream-4', label: 'Seedream 4' },
+            count: 1,
+            specs: {
+              aspectRatio: null,
+              resolution: null,
+              durationSeconds: null,
+            },
+            estimate: {},
+          },
+        } satisfies AssistantOperatorAppliedStep,
+        withoutTrigger,
+      ),
+    ).toBeNull()
+    expect(triggered).toHaveLength(0)
   })
 
   it('读类工具不产生任何改动', () => {

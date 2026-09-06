@@ -7,6 +7,7 @@ import {
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_MUTATING_TOOLS,
   ASSISTANT_OPERATOR_READ_TOOLS,
+  ASSISTANT_OPERATOR_SPEND_TOOLS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
   ASSISTANT_OPERATOR_SEARCH_KINDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
@@ -15,6 +16,8 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOLS,
   isMutatingAssistantOperatorTool,
+  isRevertibleAssistantOperatorTool,
+  isSpendAssistantOperatorTool,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_STREAM_EVENTS } from '@/constants/assistant-stream'
@@ -181,6 +184,18 @@ const STEP_FIXTURES: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]: {
     payload: { primed: true },
     inverse: { primed: false },
+  },
+  /**
+   * 花钱档（§6）。⚠ **没有 `inverse`** —— 这一条撤不掉，下面「读 / 改动型 / 花钱
+   * 三张表恰好覆盖全表」那条用例就是这件事的证明。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]: {
+    payload: {
+      model: { id: 'seedream-4', label: 'Seedream 4' },
+      count: 2,
+      specs: { aspectRatio: '1:1', resolution: '2K', durationSeconds: null },
+      estimate: { credits: 6, model: 'Seedream 4', count: 2 },
+    },
   },
   /**
    * 看图（P3-C）。⭐ 注意 `payload` 里带着 `imageUrl` —— 拍板 6「评价卡内嵌它评
@@ -363,16 +378,41 @@ const SNAPSHOT = {
 }
 
 describe('操作员工具表', () => {
-  it('读 / 改动型两张表恰好覆盖全部工具且互不重叠', () => {
+  it('读 / 改动型 / 花钱三张表恰好覆盖全部工具且两两不重叠', () => {
     const read = new Set<string>(ASSISTANT_OPERATOR_READ_TOOLS)
     const mutating = new Set<string>(ASSISTANT_OPERATOR_MUTATING_TOOLS)
+    const spend = new Set<string>(ASSISTANT_OPERATOR_SPEND_TOOLS)
 
     expect([...read].filter((tool) => mutating.has(tool))).toEqual([])
-    expect([...read, ...mutating].sort()).toEqual(
+    expect([...read].filter((tool) => spend.has(tool))).toEqual([])
+    expect([...mutating].filter((tool) => spend.has(tool))).toEqual([])
+    expect([...read, ...mutating, ...spend].sort()).toEqual(
       [...ASSISTANT_OPERATOR_TOOLS].sort(),
     )
     for (const tool of ASSISTANT_OPERATOR_TOOLS) {
       expect(isMutatingAssistantOperatorTool(tool)).toBe(mutating.has(tool))
+      expect(isSpendAssistantOperatorTool(tool)).toBe(spend.has(tool))
+      // ⭐ 「撤得掉」= 改动型，⛔ 不再是「不是读类」——花钱档两条都不是。
+      expect(isRevertibleAssistantOperatorTool(tool)).toBe(mutating.has(tool))
+    }
+  })
+
+  /**
+   * ⛔ 花钱档**不许长出 `inverse`**（§6）。这条用例是写给下一个「顺手统一形状」
+   * 的人看的：生成出去的东西删不掉、钱退不回，一个空 `inverse` 换来的是日志条上
+   * 一颗点了没反应的撤销钮。
+   */
+  it('花钱档的 step 带上 inverse 反而校验失败', () => {
+    for (const tool of ASSISTANT_OPERATOR_SPEND_TOOLS) {
+      const legal = AssistantOperatorStepSchema.safeParse(buildStep(tool))
+      expect(legal.success).toBe(true)
+      const withInverse = AssistantOperatorStepSchema.safeParse({
+        ...buildStep(tool),
+        inverse: {},
+      })
+      // Zod 默认剥掉多余键 —— 所以它「通过」，但解析结果里一定没有 inverse。
+      expect(withInverse.success).toBe(true)
+      expect(withInverse.data).not.toHaveProperty('inverse')
     }
   })
 

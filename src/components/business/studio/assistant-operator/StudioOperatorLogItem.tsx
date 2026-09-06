@@ -93,6 +93,12 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.setSound]: Volume2,
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]: CircleDollarSign,
   /**
+   * 请求发送（§6 花钱档）—— 与 `prime_generate` **共用 💲**：两条说的是同一件事
+   * 的两个力度（备着 / 请你按），日志流里该是同一族。区别写在标题与那张硬确认卡上。
+   * ⚠ 这一条正常也不会走到这颗组件：面板把它渲染成硬确认卡 / 结果卡（第 3 轮接线）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]: CircleDollarSign,
+  /**
    * ⚠ 看图那一条**正常不会走到这颗组件**：面板把它渲染成评价卡（拍板 6）。
    * 这里仍要有一枚图标 —— 被拒的那一支（没有结果可看 / 借不到视觉线）走的是
    * 普通日志条，它照样要有脸。

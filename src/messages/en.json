@@ -7127,6 +7127,73 @@
       "sourceCreator": "written by you",
       "view": "View rule",
       "scopeAll": "all workbenches"
+    },
+    "plan": {
+      "title": "Plan · needs your say",
+      "meta": "{steps} steps · {pending} open",
+      "estimate": "≈ {credits} credits",
+      "revise": "Change",
+      "start": "Start"
+    },
+    "spend": {
+      "title": "Send this? It spends credits",
+      "model": "Model",
+      "count": "Images",
+      "specs": "Specs",
+      "estimate": "Estimate",
+      "credits": "≈ {credits} credits",
+      "seconds": "{seconds}s",
+      "remember": "Don't ask again for sends like this in this session",
+      "cancel": "Cancel",
+      "confirm": "Send"
+    },
+    "planVisual": {
+      "comp": {
+        "fullBody": "Full body",
+        "halfBody": "Half body",
+        "closeUp": "Close-up",
+        "birdsEye": "Bird's eye",
+        "wormsEye": "Worm's eye",
+        "fromBehind": "From behind"
+      },
+      "ratio": {
+        "1x1": "Square 1:1",
+        "3x4": "Portrait 3:4",
+        "4x3": "Landscape 4:3",
+        "16x9": "Wide 16:9",
+        "9x16": "Vertical 9:16"
+      },
+      "time": {
+        "day": "Daytime",
+        "dusk": "Dusk",
+        "night": "Night",
+        "dawn": "Dawn"
+      },
+      "weather": {
+        "clear": "Clear",
+        "rain": "Rain",
+        "snow": "Snow",
+        "fog": "Fog"
+      },
+      "cam": {
+        "push": "Push in",
+        "pull": "Pull out",
+        "pan": "Pan",
+        "track": "Track",
+        "static": "Static"
+      },
+      "light": {
+        "front": "Front light",
+        "back": "Back light",
+        "side": "Side light",
+        "soft": "Soft light"
+      },
+      "style": {
+        "anime": "Anime",
+        "realistic": "Realistic",
+        "painterly": "Painterly",
+        "lineart": "Line art"
+      }
     }
   },
   "GenerationCancel": {

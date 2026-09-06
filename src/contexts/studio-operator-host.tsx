@@ -46,7 +46,18 @@ export interface StudioOperatorHost {
    * 应用第 5 步时用的必须是此刻的表单，不是发消息那一刻的。
    */
   buildSnapshot(): AssistantOperatorSnapshot
-  /** op 往哪落、撤销从哪撤 —— 应用与撤销共用同一份判据的两侧。 */
+  /**
+   * op 往哪落、撤销从哪撤 —— 应用与撤销共用同一份判据的两侧。
+   *
+   * ⭐ **「扣扳机的手」也住在这里**（`apply.triggerGeneration`，§6 花钱档，切片 2a）：
+   * `request_generation` 那一步由 `applyOperatorStep` 分派，而它只拿得到这份
+   * apply 上下文（它是个脱离 React 的纯函数，两个调用方谁都不该为它变成 async）。
+   * 把扳机挂在宿主根上、再从面板往下传一条线，只会让同一只手有两个入口。
+   * ⚠ 它**可选**：装配台的出图键住在 `GenerateBranch` 的局部 state 里，宿主契约
+   * 上还没有这只手 —— 缺席是诚实，实现成空函数才是「点了没反应、三绿」的失败。
+   * 域工具表已经把 `request_generation` 锁在图片 / 视频两个域里，所以缺席在运行时
+   * 不会发生。
+   */
   apply: StudioOperatorApplyContext
   /**
    * 参考位上限（拍板 21：联网候选一行能选几张）。

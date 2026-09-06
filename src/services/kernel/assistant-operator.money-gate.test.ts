@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ASSISTANT_OPERATOR_MUTATING_TOOLS,
+  ASSISTANT_OPERATOR_SPEND_TOOLS,
   ASSISTANT_OPERATOR_TOOLS,
 } from '@/constants/assistant-operator'
 
@@ -177,6 +178,57 @@ describe('⛔ 助手工具环的钱闸', () => {
     expect(generating).toEqual([])
     // prime 是改动型的（因此可撤销），但它改的是按钮的样子，不是账单。
     expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).toContain('prime_generate')
+  })
+
+  /**
+   * ⭐ **第四次值得复核的改动**（前三次是 `import_user_url` / `mount_lora` /
+   * `add_project_rule`）：`request_generation` 是名字离「花钱」最近的一条，
+   * 而它照样进得来。判据仍然只有一条 —— **服务端只吐载荷，扣扳机在客户端**。
+   *
+   * ── 这条规则**没有被改**，一个字都没有 ──────────────────────────────
+   * 上面那条用例扫的是 `tool.includes('generate')`：`generation` 里没有 `generate`
+   * 这个词（少了结尾那个 e），所以这条工具天然过闸。这不是钻空子 —— 规则的本意是
+   * 「服务端不得创建 generation」，而下面三条断言把那个本意逐条钉住：允许名单没变、
+   * 禁字表没松、这个模块里没有任何一条能把 generation 建出来的路。
+   * ⛔ 下一个人「顺手统一命名」把它改成 `start_generate`，上面那条当场红 ——
+   *    那时该改的是名字，不是钱闸。
+   */
+  it('⭐ request_generation 在表里，而服务端仍然只吐载荷（扳机在客户端）', () => {
+    expect(ASSISTANT_OPERATOR_TOOLS).toContain('request_generation')
+    // 它既不是「读」也不是「改动型」—— 它撤不掉，所以它自己一档。
+    expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).not.toContain(
+      'request_generation',
+    )
+    expect(ASSISTANT_OPERATOR_SPEND_TOOLS).toContain('request_generation')
+    // 服务端确实接了这条工具（switch 分派）……
+    expect(SOURCE).toContain('planRequestGeneration')
+    // ……而它的实现里没有任何一条能花钱的路：禁字表那条用例逐条扫着同一份源码，
+    // 允许名单那条用例逐条扫着同一份 import 表。这里再补两条 provider 侧的：
+    expect(SOURCE).not.toContain('studioGenerateAPI')
+    expect(SOURCE).not.toContain('submit-image.service')
+    expect(SOURCE).not.toContain('creditCost')
+  })
+
+  /**
+   * 「本会话不再问」（拍板 24）**的记忆不在服务端**。
+   *
+   * ⭐ 服务端存一份「这个用户说过不用问了」的记忆，就等于把「花不花钱」这件事的
+   * 状态挪到了客户端够不着的地方 —— 而本仓这条链的全部安全感来自「服务端零会话
+   * 态」。这里锁的是：作用域三要素靠请求里那张条子（`autoApprove`）逐次核，
+   * ⛔ 不查库、⛔ 不进 persona、⛔ 不进项目规则。
+   */
+  it('⛔ 「不再问」不在服务端留任何记忆', () => {
+    expect(SOURCE).toContain('isSpendAutoApproved')
+    expect(SOURCE).toContain('request.autoApprove')
+    for (const identifier of [
+      'saveAutoApprove',
+      'rememberAutoApprove',
+      'autoApproveStore',
+    ]) {
+      expect(SOURCE.includes(identifier), `源码里出现了 ${identifier}`).toBe(
+        false,
+      )
+    }
   })
 
   /**

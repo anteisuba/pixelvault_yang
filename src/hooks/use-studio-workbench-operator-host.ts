@@ -192,6 +192,24 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       unmountUserUrl: userUrl.unmountUserUrl,
       setPrimed: setOperatorPrimed,
       /**
+       * **扣扳机**（§6 花钱档，拍板 2 的新形态）—— 走的是**用户自己那颗生成键的
+       * 同一条路**：`REQUEST_GENERATE` 的执行端是 `useStudioGenerateAction`
+       * （`state.generateRequestId` 那条 effect），也就是「保留 / 改变」面板与音频
+       * 反馈重试一直在走的那一跳。
+       *
+       * ⛔ **不在这里调 `studioGenerateAPI`**：那条路上的闸门（模型必选、提示词长度、
+       * 参考图能力、视频队列上限）、请求组装、报价全在 `useStudioGenerateAction`
+       * 里 —— 抄第二份必然与按钮说两句不一样的话，而那正是那个 hook 当初被抽出来
+       * 的理由（两个生成按钮共用一份实现）。助手这一枪与人手点的那一枪因此**逐字
+       * 相同**，连被挡住时弹的那句 toast 都一样。
+       * ⚠ 载荷（模型 / 张数 / 规格）在服务端出帧时就是从**这份表单的快照**里取的，
+       *   所以这里不必、也不该再拿它去覆盖一遍表单：卡上写的和发出去的本来就是
+       *   同一份。真要改参数，前面那几步 `set_*` 已经改过了。
+       * ⚠ 结果回灌不由这里做：生成结果照旧进 `useStudioGen` 的 `activeRun`，
+       *   归属追踪（`lib/studio-operator-claim.ts`）认得出这一枪是助手备的。
+       */
+      triggerGeneration: () => dispatch({ type: 'REQUEST_GENERATE' }),
+      /**
        * ⛔ **工作台没有 `lora`**：`LoraStackProvider` 只包 `/studio/lora`，这里
        * 结构性拿不到挂载栈。缺席是诚实 —— 实现成空函数才是那种「点了没反应、
        * 三绿」的失败。域工具表本来就不给工作台那三条 LoRA 工具。

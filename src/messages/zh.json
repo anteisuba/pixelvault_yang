@@ -7127,6 +7127,73 @@
       "sourceCreator": "你写的",
       "view": "查看规则",
       "scopeAll": "全部工作台"
+    },
+    "plan": {
+      "title": "计划 · 待确认",
+      "meta": "{steps} 阶段 · {pending} 个待定",
+      "estimate": "预估 {credits} credits",
+      "revise": "修改",
+      "start": "开始"
+    },
+    "spend": {
+      "title": "这一枪要花钱，确认一下",
+      "model": "模型",
+      "count": "张数",
+      "specs": "规格",
+      "estimate": "预估",
+      "credits": "约 {credits} credits",
+      "seconds": "{seconds} 秒",
+      "remember": "本会话此类不再问",
+      "cancel": "取消",
+      "confirm": "生成"
+    },
+    "planVisual": {
+      "comp": {
+        "fullBody": "全身",
+        "halfBody": "半身",
+        "closeUp": "特写",
+        "birdsEye": "俯视",
+        "wormsEye": "仰视",
+        "fromBehind": "背影"
+      },
+      "ratio": {
+        "1x1": "1:1 方形",
+        "3x4": "3:4 竖幅",
+        "4x3": "4:3 横幅",
+        "16x9": "16:9 宽幅",
+        "9x16": "9:16 竖屏"
+      },
+      "time": {
+        "day": "白天",
+        "dusk": "黄昏",
+        "night": "夜晚",
+        "dawn": "拂晓"
+      },
+      "weather": {
+        "clear": "晴",
+        "rain": "雨",
+        "snow": "雪",
+        "fog": "雾"
+      },
+      "cam": {
+        "push": "推镜",
+        "pull": "拉镜",
+        "pan": "摇镜",
+        "track": "移镜",
+        "static": "固定"
+      },
+      "light": {
+        "front": "顺光",
+        "back": "逆光",
+        "side": "侧光",
+        "soft": "柔光"
+      },
+      "style": {
+        "anime": "动画",
+        "realistic": "写实",
+        "painterly": "绘画",
+        "lineart": "线稿"
+      }
     }
   },
   "GenerationCancel": {

@@ -50,8 +50,21 @@ export async function fetchWebSearchEvidence(params: {
   const seen = new Set<string>()
   const items: EvidenceItem[] = []
 
-  for (const results of batches) {
-    for (const result of results) {
+  /**
+   * ⭐ **按名次交叉取，⛔ 不是一条查询接一条查询**（2026-09-07 修）。
+   *
+   * 🔬 owner 真机的根因之一就在这几行：三条查询的结果原先首尾相接，而
+   * `runConnector` 只留前 `maxItemsPerSource`（8）条 —— 第一条查询回 10 条就把
+   * 名额吃光，后两条（正是**角色级**的那两条）一条都进不来。回执上写着
+   * `web_search:ok · 8`，看不出后两条被整段丢掉。
+   * 现在按名次轮转：每条查询的第 1 名先进，再第 2 名…… 截断落在每条查询的**尾巴**
+   * 上，而不是落在某一整条查询上。
+   */
+  const depth = Math.max(0, ...batches.map((results) => results.length))
+  for (let rank = 0; rank < depth; rank += 1) {
+    for (const results of batches) {
+      const result = results[rank]
+      if (!result) continue
       if (seen.has(result.url)) continue
       seen.add(result.url)
       items.push({

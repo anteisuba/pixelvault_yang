@@ -20,7 +20,9 @@ import {
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   ASSISTANT_PLAN_REQUEST_REASON_IDS as PLAN_REASON,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
+  ASSISTANT_RESEARCH_SCOPE_IDS,
   isAssistantOperatorToolInDomain,
+  isUnfinishedClosingMessage,
   type AssistantOperatorConfirmField,
   type AssistantOperatorDomain,
   type AssistantOperatorRejectReason,
@@ -1275,19 +1277,51 @@ async function planResearch(
    * 而它只有在这里看得见来源时才说得出口。空结果那一支**必须给出下一步** ——
    * 一句「没查到」是模型放弃的许可证，而放弃正是这条工具要消灭的行为。
    */
+  /**
+   * ⭐ **角色级证据单独数一遍**（2026-09-07）。
+   *
+   * 🔬 owner 真机的那一轮回了 10 条证据、每条都「相关」，而**没有一条在说那个
+   * 角色**（官网首页 / 维基条目 / 预约页 / danbooru 的 game tag 统计）。模型看到
+   * 「10 条」就以为查到了，于是把话停在「正在检索……」。所以这里给的不是一个数
+   * 而是两个：总数，以及**其中几条真的在说这个人**。
+   * ⚠ `scope` 由服务端算（`research-fanout` 的 `scopeOfEvidence`），⛔ 不由模型写。
+   */
+  const characterEvidence = outcome.evidence.filter(
+    (item) => item.scope === ASSISTANT_RESEARCH_SCOPE_IDS.character,
+  )
+  const scopedCount = outcome.evidence.filter(
+    (item) => item.scope !== ASSISTANT_RESEARCH_SCOPE_IDS.unknown,
+  ).length
+  /**
+   * 一条都没查到这个人时该说什么。⚠ 它**同时**是给收尾那句话的硬要求 ——
+   * 「查不到」是一个合法的结论，「正在检索……」不是。
+   */
+  const characterGap =
+    scopedCount > 0 && characterEvidence.length === 0
+      ? `\n0 of these are about the character itself — they describe the work, not the person. ${
+          roundsLeft > 0
+            ? 'Research again with the character name written the way its own language writes it, or read_url the most likely page above with focus on the character. '
+            : ''
+        }If you still cannot confirm the character when you finish, SAY SO PLAINLY in "message": that the official design has not been published (or that you could not find it), name where you looked (${outcome.receipts
+          .map((receipt) => receipt.sourceId)
+          .join(
+            ', ',
+          )}), and offer the creator a concrete next step. Do NOT end on "I am searching…" and do NOT invent an appearance.`
+      : ''
+
   const observation =
     outcome.evidence.length === 0
       ? `research("${args.goal}") found nothing. Sources: ${receiptLine}.${
           roundsLeft > 0
             ? ' Do NOT give up and do NOT invent details. Go again from a different angle: the name written in its own language, the work\'s official title instead of a fan translation, or a different source mix (sources:["web"] reaches sites the encyclopedias do not).'
-            : ' You are out of research rounds. Say plainly which parts you could not confirm instead of inventing them.'
+            : ' You are out of research rounds. Say plainly which parts you could not confirm instead of inventing them — a plain "the official design is not published" is a real answer; "I am still searching" is not.'
         }`
-      : `research("${args.goal}") → ${outcome.evidence.length} piece(s) of evidence (round ${round}/${RESEARCH_LIMITS.maxRoundsPerTurn}). Sources: ${receiptLine}.\n${outcome.evidence
+      : `research("${args.goal}") → ${outcome.evidence.length} piece(s) of evidence (round ${round}/${RESEARCH_LIMITS.maxRoundsPerTurn}), ${characterEvidence.length} of them about the character itself. Sources: ${receiptLine}.\n${outcome.evidence
           .map(
             (item, index) =>
-              `  ${index + 1}. [${item.publisher} · ${item.confidence} confidence · ${item.kind}] ${item.title}\n     ${item.snippet}`,
+              `  ${index + 1}. [${item.publisher} · ${item.credibility} · ${item.scope}-level · ${item.kind}] ${item.title}\n     ${item.snippet}`,
           )
-          .join('\n')}\n${
+          .join('\n')}${characterGap}\n${
           roundsLeft > 0
             ? 'If this pinned down the official name or the site of record but not the details you need, research ONE more time with a narrower goal, or read_url the best page above. Tag-kind evidence is already prompt-ready vocabulary — use those words.'
             : 'This was your last research round. Use it, name the source when it matters, and say plainly what is still unconfirmed.'
@@ -3187,6 +3221,8 @@ HARD RULES — these are structural, not stylistic:
   4. set_prompt with what you read, and tell the creator to press "use this" on the candidates worth keeping.
 - ONE EMPTY SEARCH IS NOT AN ANSWER. If a research or an image search comes back thin, you change something and go again before you say there is nothing: the name in its own language, the official title instead of a fan translation, a different source mix, or the other tool. Coming back to the creator with "I could not find it" after a single query is a failure, not an honest report. You may research twice per turn — the second round, aimed by what the first one told you, is usually where the answer is.
 - Never fill a gap with invention. Say which parts are confirmed and by whom, and name the parts you could not confirm.
+- EVIDENCE ABOUT THE WORK IS NOT EVIDENCE ABOUT THE CHARACTER. research tells you, per piece, whether it is character-level or work-level, and how credible the domain is (official / officialMirror / reference / communityDigest). Ten work-level pieces answer nothing about how a person looks — treat that as an empty result and go again with the character name in its own language, or read_url the page most likely to carry the character section.
+- FINISH ON A CONCLUSION, NEVER ON A PROGRESSIVE. The last thing you say cannot be "I am searching…", "正在检索…", or an empty message. When you could not confirm something, that IS the conclusion: say the official design has not been published (or that you could not find it), name where you looked, and offer one concrete next step — a different name spelling, a look you can build from what IS known, or a question for the creator. The app will hand a half-finished closing line back to you and ask for the conclusion.
 ${domainRules}
 - If the creator already hand-wrote a prompt, writing over it needs their say-so — call the tool anyway and the app will ask them; do not ask in prose.
 - Reply in ${language}.${buildModelDialectSection(request)}
@@ -3473,6 +3509,8 @@ export async function* runAssistantOperator(
   let consecutiveParseFailures = 0
   /** 连着撞了几次「同一步重复」—— 执行成功一次就归零（见下面那段）。 */
   let repeatedStepStrikes = 0
+  /** 收尾那句话已经被退回去要过一次结论了。⛔ 只退一次，不做开放循环。 */
+  let conclusionRetried = false
   let completed = false
 
   try {
@@ -3496,6 +3534,12 @@ export async function* runAssistantOperator(
        *   见那颗的头注），所以这里无条件把增量往外吐。
        */
       const messageStreamer = createOperatorMessageStreamer()
+      /**
+       * 这一步有没有**真的往外流过字**。判据见下面「一轮只吐一次正文」那段：
+       * 工具轮按契约（`tool` 键在 `message` 之前）会被流式器静音，那时客户端
+       * 一个字都没收到，服务端也就不该再补一颗气泡。
+       */
+      let streamedThisStep = false
       let raw = ''
       for await (const chunk of streamAssistantTextWithContextRetry({
         systemPrompt,
@@ -3511,6 +3555,7 @@ export async function* runAssistantOperator(
         if (options.signal?.aborted) break
         const delta = messageStreamer.push(chunk)
         if (delta) {
+          streamedThisStep = true
           yield { type: ASSISTANT_OPERATOR_EVENTS.messageDelta, text: delta }
         }
       }
@@ -3589,7 +3634,50 @@ export async function* runAssistantOperator(
           }
         }
       }
-      if (turn.message?.trim()) {
+      /** 这一轮是不是收尾轮 —— 下面两道闸的判据都是它。 */
+      const closingTurn = !turn.tool || turn.finished === true
+
+      /**
+       * ⭐ **收尾必须是一个结论**（2026-09-07，owner 打回的那一条）。
+       *
+       * 🔬 真机：助手最后留下的整句是「正在检索……的角色立绘与外貌描述。」——
+       * 没有结论，也没有说「这个角色查不到」。提示词里那两句（ONE EMPTY SEARCH IS
+       * NOT AN ANSWER / Never fill a gap with invention）是请求，这里是闸。
+       *
+       * ⚠ 命中就**把这一轮退回去再要一次**（只退一次，⛔ 不做开放循环），
+       * 并且**在吐正文之前**退：半句话不该先落进线程再被下一句盖掉。
+       * ⚠ 客户端那边这是同一颗气泡 —— 流式增量已经写进去的半句，会被下一轮的
+       * `message` 事件整体覆盖（`finalizeOperatorMessage`），所以退回是无痕的。
+       * ⛔ 服务端不替它编结论：只说「话没说完」，怎么收尾是模型的事。
+       */
+      if (
+        closingTurn &&
+        // ⚠ 这一轮吐了计划卡（含反问题）时不判：用户拿到的是要点的那张卡，
+        //   不是一句空话 —— 那是**另一种**收尾，⛔ 别逼它再写一段正文。
+        !turn.plan?.length &&
+        !conclusionRetried &&
+        isUnfinishedClosingMessage(turn.message ?? '')
+      ) {
+        conclusionRetried = true
+        run.observations.push(
+          'YOUR CLOSING LINE WAS NOT AN ANSWER. You ended the turn on a progressive ("I am searching…", "正在检索…") or on nothing at all, which leaves the creator with no conclusion. Write the closing "message" again as a conclusion: what you established, what you could NOT confirm and where you looked for it, and one concrete next step you are offering. "The official design has not been published yet" is a real answer; "I am still looking" is not. Do not invent details to fill the gap.',
+        )
+        continue
+      }
+
+      /**
+       * **一轮只吐一次正文**（P2 降噪，2026-09-07）。
+       *
+       * 🔬 owner 真机：同一个动作连出三条近义正文（「已为你写入夜景提示词…」
+       * 「已根据所选方向更新了…」「已将提示词更新为…」）—— 因为每个工具步的
+       * `message` 都被无条件吐了一颗气泡，而每一步本来就已经有一条 step 事件在
+       * 说同一件事。
+       * ⚠ 判据是 `streamedThisStep` 而不是「有没有工具」：模型把 `message` 写在
+       * `tool` 前面时，那半句**已经流到客户端了**，这时不吐 `message` 事件就没有
+       * 任何东西去定稿它（客户端靠这一帧覆盖累积值）。契约里的键序（tool 先）
+       * 本来就要求工具轮不流字，所以守规矩的那些轮次在这里静音。
+       */
+      if (turn.message?.trim() && (closingTurn || streamedThisStep)) {
         /**
          * ⚠ `detail` 只在**有正文**时跟着走：一条只有「为什么」没有结论的消息，
          * 在流上表现为一颗点开才有东西的空气泡。
@@ -3631,6 +3719,7 @@ export async function* runAssistantOperator(
         }
       }
 
+      // ⚠ 这里重写一遍判据而不是用 `closingTurn`：TS 靠这一句把 `turn.tool` 收窄。
       if (!turn.tool || turn.finished) {
         yield { type: ASSISTANT_OPERATOR_EVENTS.done }
         completed = true

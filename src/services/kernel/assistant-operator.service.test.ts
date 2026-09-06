@@ -364,19 +364,26 @@ describe('工具环 · 逐事件顺序', () => {
         },
         message: '这就来',
       },
-      { finished: true },
+      { finished: true, message: '写好了，看看要不要改。' },
     )
 
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest()),
     )
+    /**
+     * ⚠ 工具轮那句「这就来」**不出现在这里**（2026-09-07 降噪）：一轮只在收尾
+     * 吐一次正文，中间步骤只走 step 事件 —— 🔬 owner 真机里同一个动作连出三条
+     * 近义正文，就是每个工具步都吐了一颗气泡。
+     */
     expect(events.map((event) => event.type)).toEqual([
       ASSISTANT_OPERATOR_EVENTS.plan,
       // 切片 2a：计划条之后紧跟一帧计划卡素材（§2.6），排在第一个 step 之前。
       ASSISTANT_OPERATOR_EVENTS.planRequest,
+      ASSISTANT_OPERATOR_EVENTS.step,
+      ASSISTANT_OPERATOR_EVENTS.step,
+      // 收尾那一轮没有 `tool`，所以它的正文是**流出去**的，然后由一帧定稿。
+      ASSISTANT_OPERATOR_EVENTS.messageDelta,
       ASSISTANT_OPERATOR_EVENTS.message,
-      ASSISTANT_OPERATOR_EVENTS.step,
-      ASSISTANT_OPERATOR_EVENTS.step,
       ASSISTANT_OPERATOR_EVENTS.done,
     ])
 
@@ -399,10 +406,12 @@ describe('工具环 · 逐事件顺序', () => {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
           args: { value: 'a girl under a red umbrella' },
         },
+      },
+      {
+        finished: true,
         message: '提示词写好了，下一步挂参考图。',
         detail: '红伞是画面里唯一的暖色，所以其余部分压成冷调，反差才立得住。',
       },
-      { finished: true },
     )
     const withDetail = (
       await collect(runAssistantOperator('clerk-1', buildRequest()))
@@ -516,7 +525,7 @@ describe('工具环 · 逐事件顺序', () => {
         },
         message: '这就来',
       },
-      { finished: true },
+      { finished: true, message: '写好了。' },
     )
     mockLlmTextStreamChunks.mockImplementation((raw) =>
       raw.match(/[\s\S]{1,6}/g),
@@ -525,16 +534,20 @@ describe('工具环 · 逐事件顺序', () => {
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest()),
     )
+    const deltas = events.filter(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.messageDelta,
+    )
+    // 工具轮一个字都不流（判据是键序：`tool` 在 `message` 之前）。
+    expect(deltas.map((event) => event.text).join('')).toBe('写好了。')
+    /**
+     * ⭐ 工具轮那句旁白**整帧也不发**（2026-09-07 降噪）：客户端一个字都没收到，
+     * 服务端就不该补一颗气泡 —— 那一步已经有 step 事件在说同一件事。
+     */
     expect(
-      events.filter(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.messageDelta,
-      ),
-    ).toEqual([])
-    // 旁白本身照旧整帧到达。
-    expect(
-      events.find((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
-        ?.text,
-    ).toBe('这就来')
+      events
+        .filter((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
+        .map((event) => event.text),
+    ).toEqual(['写好了。'])
   })
 
   it('连着两轮读不出 JSON 就大声失败，而不是把步数烧完', async () => {
@@ -4517,6 +4530,77 @@ describe('search_web · 联网查文字（切片 3b）', () => {
   })
 })
 
+/**
+ * **收尾必须是一个结论**（2026-09-07，owner 打回的那一条）。
+ *
+ * 🔬 真机：助手最后留下的整句是「正在检索……的角色立绘与外貌描述。」——
+ * 没有结论，也没有说这个角色查不到。
+ */
+describe('收尾闸 · 半句话不算收尾', () => {
+  it('⭐ 停在进行时 → 退回去再要一次结论，⛔ 半句话不落进线程', async () => {
+    queueTurns(
+      {
+        finished: true,
+        message: '正在检索《无限大》时夜的角色立绘与外貌描述。',
+      },
+      {
+        finished: true,
+        message:
+          '官方还没有公开时夜的外貌设定，我在萌百、中文维基和 danbooru 都找过了。要不要先按已知气质写一版？',
+      },
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const messages = events
+      .filter((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
+      .map((event) => event.text)
+
+    // ⛔ 那半句一帧都没发出去（客户端那颗气泡由下一轮整体覆盖）。
+    expect(messages).toEqual([
+      '官方还没有公开时夜的外貌设定，我在萌百、中文维基和 danbooru 都找过了。要不要先按已知气质写一版？',
+    ])
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+    expect(lastUserPrompt()).toContain('YOUR CLOSING LINE WAS NOT AN ANSWER')
+  })
+
+  it('⚠ 只退一次 —— 模型第二次还是半句就照发，⛔ 不做开放循环', async () => {
+    mockLlmTextCompletion.mockResolvedValue(
+      JSON.stringify({ finished: true, message: '正在检索…' }),
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+  })
+
+  it('⛔ 这一轮吐了计划卡时不判：卡本身就是收尾', async () => {
+    queueTurns({
+      plan: ['先定画风'],
+      questions: [
+        {
+          header: '画风',
+          question: '要哪种画风？',
+          options: [
+            { label: '3D 游戏画风', description: '接近官方立绘。' },
+            { label: '电影 CG', description: '景深更重。' },
+          ],
+        },
+      ],
+      finished: true,
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest({ forcePlan: true })),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+  })
+})
+
 describe('research · 有目标的多轮检索（2026-09-06）', () => {
   const EVIDENCE = [
     {
@@ -4526,6 +4610,8 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       snippet: '黑色长发，金色瞳孔，改良中式长衫。',
       kind: 'text' as const,
       confidence: 'medium' as const,
+      credibility: 'reference' as const,
+      scope: 'character' as const,
     },
     {
       title: 'danbooru tags',
@@ -4533,6 +4619,8 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       snippet: '共现: black_hair, yellow_eyes, chinese_clothes',
       kind: 'tags' as const,
       confidence: 'medium' as const,
+      credibility: 'reference' as const,
+      scope: 'character' as const,
     },
   ]
 
@@ -4589,7 +4677,8 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     await collect(runAssistantOperator('clerk-1', buildRequest()))
     const prompt = lastUserPrompt()
     expect(prompt).toContain('zh.moegirl.org.cn')
-    expect(prompt).toContain('medium confidence')
+    // 每条带**出处 · 可信度档 · 是不是这个角色 · 形状**四样。
+    expect(prompt).toContain('reference · character-level')
     expect(prompt).toContain('moegirl:ok')
     expect(prompt).toContain('prompt-ready vocabulary')
   })
@@ -4669,6 +4758,37 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     // 缺 key 只让 web_search 这一个源标 skipped，百科腿照样出证据。
     expect(lastUserPrompt()).toContain('web_search:skipped')
     expect(lastUserPrompt()).toContain('moegirl:ok')
+  })
+
+  it('⭐ 全是作品级证据时，观察里点名「0 条是这个角色」并要求收尾说实话', async () => {
+    /**
+     * 🔬 owner 真机：10 条证据条条「相关」，条条只讲游戏本身 —— 模型看到「10 条」
+     * 就以为查到了，然后把话停在「正在检索……」。
+     */
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: ['无限大 时夜'],
+      sources: ['wiki', 'web'],
+      evidence: [
+        {
+          title: '无限大(游戏) - 维基百科',
+          url: 'https://zh.wikipedia.org/wiki/x',
+          publisher: 'zh.wikipedia.org',
+          snippet: '开放世界动作角色扮演游戏。',
+          kind: 'text' as const,
+          confidence: 'medium' as const,
+          credibility: 'reference' as const,
+          scope: 'work' as const,
+        },
+      ],
+      receipts: [{ sourceId: 'moegirl', status: 'ok', count: 1, tookMs: 5 }],
+    })
+    queueTurns(researchTurn('外貌'), { finished: true, message: '查不到。' })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('1 piece(s) of evidence')
+    expect(prompt).toContain('0 of these are about the character itself')
+    expect(prompt).toContain('SAY SO PLAINLY')
   })
 
   it('⚠ 上游全挂（零证据）时**不吃掉那一轮**——轮次照记，免得无限重试', async () => {

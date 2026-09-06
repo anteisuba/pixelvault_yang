@@ -41,10 +41,12 @@ import {
   ASSISTANT_RESEARCH_CONFIDENCES,
   ASSISTANT_RESEARCH_EVIDENCE_KINDS,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
+  ASSISTANT_RESEARCH_SCOPES,
   ASSISTANT_RESEARCH_SOURCES,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PLAN_VISUAL_IDS } from '@/constants/assistant-plan-visuals'
+import { EVIDENCE_CREDIBILITY_VALUES } from '@/constants/research'
 import { WEB_IMAGE_SOURCE_VERDICTS } from '@/constants/web-image-sources'
 import {
   LORA_CANDIDATE_NOT_IMPORTABLE_REASON_VALUES,
@@ -1132,6 +1134,18 @@ export const AssistantOperatorEvidenceSchema = z.object({
   snippet: z.string().max(RESEARCH_LIMITS.maxEvidenceSnippetChars),
   kind: z.enum(ASSISTANT_RESEARCH_EVIDENCE_KINDS),
   confidence: z.enum(ASSISTANT_RESEARCH_CONFIDENCES),
+  /**
+   * 官方 / 官方转载 / 资料 / 玩家整理 —— 由**发布域名**算出来
+   * （`judgeEvidenceCredibility`）。⚠ 它与 `confidence` 不是两张表：三档皮肤是
+   * 这四档压出来的，细的那一档留在这里给工具环与卡片上的那行小字。
+   */
+  credibility: z.enum(EVIDENCE_CREDIBILITY_VALUES),
+  /**
+   * 这一条答的是**这个角色**还是只答了作品。
+   * 🔬 owner 真机的 10 条证据条条「相关」而条条只讲游戏本身 —— 「有没有证据」
+   * 分不出这件事，所以判据独立成一个字段，由服务端算，⛔ 不由模型写。
+   */
+  scope: z.enum(ASSISTANT_RESEARCH_SCOPES),
 })
 
 export type AssistantOperatorEvidence = z.infer<

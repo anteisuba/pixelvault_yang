@@ -316,6 +316,30 @@ function sameShapeVariant(a: string, b: string): boolean {
   return diff === 1
 }
 
+/**
+ * 一段文字里**出现过这个词**（含简繁异体）。
+ *
+ * 🔬 2026-09-07：`时夜` 的角色资料几乎全在日文页上写作 `時夜`，官网日文页那两条
+ * 正是这样被判成「只说了作品」的。所以严格相等在这里判不出来。
+ *
+ * ⚠ **异体容差只给三字以上的词**，与 `sameShapeVariant`（同长、至多差一字）同一条
+ * 判据但更紧一格。🔬 理由是实测打脸：两字词放开容差之后，中文维基那条《无限大
+ * (游戏)》里的「时代」命中了「时夜」—— 一条只讲作品的条目被标成了角色级，而这个
+ * 标签正是「有没有查到这个人」的判据。⛔ 宁可少标一条（表现是「我没查到」，
+ * 说的是实话），也不能多标一条（表现是「查到了」，而那是编的）。
+ */
+export function includesTermVariant(text: string, term: string): boolean {
+  if (term.length === 0) return false
+  if (text.includes(term)) return true
+  if (term.length < 3) return false
+  for (let start = 0; start + term.length <= text.length; start += 1) {
+    if (sameShapeVariant(term, text.slice(start, start + term.length))) {
+      return true
+    }
+  }
+  return false
+}
+
 /** 查询串 → 比对用的实体词（空白切分，⛔ 不切 CJK：那要分词器）。 */
 export function researchTermsOf(
   query: string,

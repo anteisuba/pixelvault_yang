@@ -54,8 +54,9 @@ import { MEDIAWIKI_SOURCE_IDS, RESEARCH_SOURCE_IDS } from '@/constants/research'
 import type { EvidenceItem } from '@/types/research'
 import {
   buildResearchQueryPlan,
-  confidenceOfTier,
+  confidenceOfCredibility,
   runAssistantResearch,
+  scopeOfEvidence,
   toAssistantEvidence,
 } from '@/services/research/research-fanout.service'
 
@@ -85,11 +86,25 @@ beforeEach(() => {
 })
 
 describe('buildResearchQueryPlan（A3：查询表不截角色名）', () => {
-  it('⭐ maxQueries=3 时保底三条：作品名 / 角色名 / 作品+角色', () => {
+  it('⭐ 有角色名时三条**全是角色级**，⛔ 不再单发一条只有作品名的查询', () => {
     const plan = buildResearchQueryPlan('外貌 服饰', ['无限大', '时夜'])
-    // 🔬 旧实现在这里把「时夜」挤掉了：长查询占第一条、别名占后两条。
-    expect(plan.queries).toEqual(['无限大', '时夜', '无限大 时夜'])
-    expect(plan.queries).toContain('时夜')
+    /**
+     * 🔬 2026-09-07 实测：裸的「无限大 时夜」首屏仍是游戏本身，而加了中文/日文
+     * 限定词的那两条才带回官网角色页与外貌描述。所以三条都带角色名。
+     */
+    expect(plan.queries).toEqual([
+      '无限大 时夜',
+      '无限大 时夜 角色 设定',
+      '无限大 时夜 キャラクター',
+    ])
+    expect(plan.queries.every((query) => query.includes('时夜'))).toBe(true)
+    expect(plan.character).toBe('时夜')
+    expect(plan.work).toBe('无限大')
+  })
+
+  it('⭐ 日文那条优先用别名 —— 日文圈用的是原名（Ananta）', () => {
+    const plan = buildResearchQueryPlan('外貌', ['无限大', 'Ananta', '时夜'])
+    expect(plan.queries[2]).toBe('Ananta 时夜 キャラクター')
   })
 
   it('⭐ wiki 腿吃的是「作品 + 角色」，⛔ 不再是 queries.at(-1)', () => {
@@ -111,18 +126,43 @@ describe('buildResearchQueryPlan（A3：查询表不截角色名）', () => {
     expect(plan.wikiQuery).toBe('ananta official site')
   })
 
-  it('空白实体被丢掉；单实体时 wiki 腿就查它', () => {
+  it('空白实体被丢掉；单实体时 wiki 腿就查它（⛔ 没有角色名就不铺角色级查询）', () => {
     const plan = buildResearchQueryPlan('goal', ['  ', 'x'])
     expect(plan.queries).toEqual(['x', 'x goal', 'goal'])
     expect(plan.wikiQuery).toBe('x')
+    expect(plan.character).toBeUndefined()
   })
 })
 
-describe('confidenceOfTier', () => {
-  it('官方 → high · 百科 → medium · 社区 → low', () => {
-    expect(confidenceOfTier('official')).toBe('high')
-    expect(confidenceOfTier('community')).toBe('medium')
-    expect(confidenceOfTier('social')).toBe('low')
+describe('confidenceOfCredibility', () => {
+  it('官方 → high · 官方转载/资料 → medium · 玩家整理 → low', () => {
+    expect(confidenceOfCredibility('official')).toBe('high')
+    expect(confidenceOfCredibility('officialMirror')).toBe('medium')
+    expect(confidenceOfCredibility('reference')).toBe('medium')
+    expect(confidenceOfCredibility('communityDigest')).toBe('low')
+  })
+})
+
+describe('scopeOfEvidence（A5：作品级 ≠ 角色级）', () => {
+  it('⭐ 只讲作品的条目判 work —— 🔬 owner 那 10 条全是这一档', () => {
+    const item = textItem({
+      sourceId: RESEARCH_SOURCE_IDS.webSearch,
+      title: '无限大(游戏) - 维基百科',
+      url: 'https://zh.wikipedia.org/wiki/无限大',
+      excerpt: '《无限大》是一款由 Naked Rain 工作室开发的开放世界游戏。',
+    } as Partial<EvidenceItem>)
+    expect(scopeOfEvidence(item, '时夜')).toBe('work')
+  })
+
+  it('角色名出现在摘要里就判 character（官网首页的台词那条正是这样）', () => {
+    const item = textItem({
+      excerpt: '队长. 我不堵车。 · 时夜. 我负责出钱， 你负责出力。',
+    })
+    expect(scopeOfEvidence(item, '时夜')).toBe('character')
+  })
+
+  it('⛔ 没给角色名时不判 —— 不拿空判据去标签所有证据', () => {
+    expect(scopeOfEvidence(textItem(), undefined)).toBe('unknown')
   })
 })
 
@@ -219,7 +259,11 @@ describe('runAssistantResearch', () => {
 
     expect(mockFetchWebSearchEvidence).toHaveBeenCalledWith(
       expect.objectContaining({
-        queries: ['无限大', '时夜', '无限大 时夜'],
+        queries: [
+          '无限大 时夜',
+          '无限大 时夜 角色 设定',
+          'Ananta 时夜 キャラクター',
+        ],
       }),
     )
     // ⛔ 不再是 `queries.at(-1)` 漂到的那个别名。
@@ -353,5 +397,92 @@ describe('runAssistantResearch', () => {
       limit: 1,
     })
     expect(outcome.evidence).toHaveLength(1)
+  })
+})
+
+describe('runAssistantResearch · 角色级（2026-09-07）', () => {
+  it('⭐ danbooru 收到的是**角色名 + 作品名**，⛔ 不再是 queries[0]（作品名）', async () => {
+    await runAssistantResearch({
+      goal: '外貌 服饰',
+      entities: ['无限大', 'Ananta', '时夜'],
+      sources: ['danbooru'],
+    })
+
+    // 🔬 旧实现喂作品名，回来的是 game tag 的全作品统计（别人的兔耳朵）。
+    expect(mockFetchDanbooruEvidence).toHaveBeenCalledWith({
+      query: '时夜',
+      work: '无限大',
+    })
+  })
+
+  it('没有角色名时 danbooru 照旧查作品本身（那时问的就是作品）', async () => {
+    await runAssistantResearch({
+      goal: '这游戏是什么',
+      entities: ['无限大'],
+      sources: ['danbooru'],
+    })
+    expect(mockFetchDanbooruEvidence).toHaveBeenCalledWith({ query: '无限大' })
+  })
+
+  it('⭐ 官方域出 official/high，未知域回落玩家整理/low', async () => {
+    mockFetchWebSearchEvidence.mockResolvedValue({
+      items: [
+        textItem({
+          id: 'web_search:official',
+          sourceId: RESEARCH_SOURCE_IDS.webSearch,
+          title: '无限大 - 网易',
+          url: 'https://ananta.163.com/m/',
+          excerpt: '时夜. 我负责出钱，你负责出力。',
+        } as Partial<EvidenceItem>),
+        textItem({
+          id: 'web_search:blog',
+          sourceId: RESEARCH_SOURCE_IDS.webSearch,
+          title: '某人的整理',
+          url: 'https://mugendai-matome.com/260/',
+          excerpt: '主人公の幼馴染。',
+        } as Partial<EvidenceItem>),
+      ],
+    })
+
+    const outcome = await runAssistantResearch({
+      goal: '外貌',
+      entities: ['无限大', '时夜'],
+      sources: ['web'],
+    })
+
+    // 🔬 打回的那一轮里 `ananta.163.com` 与个人整理页都显示「资料」。
+    expect(outcome.evidence[0]).toMatchObject({
+      credibility: 'official',
+      confidence: 'high',
+      scope: 'character',
+    })
+    expect(outcome.evidence[1]).toMatchObject({
+      credibility: 'communityDigest',
+      confidence: 'low',
+      scope: 'work',
+    })
+  })
+
+  it('⭐ danbooru 的证据钉死角色级 —— 它的字面是英文 tag，判不出中文名', async () => {
+    mockFetchDanbooruEvidence.mockResolvedValue({
+      items: [
+        textItem({
+          id: 'danbooru:tag',
+          sourceId: RESEARCH_SOURCE_IDS.danbooru,
+          kind: 'tags',
+          title: 'danbooru · shiye_(ananta)',
+          url: 'https://danbooru.donmai.us/wiki_pages/shiye',
+          tags: ['black_hair', 'red_streaks'],
+          provenance: '共现统计',
+        } as Partial<EvidenceItem>),
+      ],
+    })
+
+    const outcome = await runAssistantResearch({
+      goal: '外貌',
+      entities: ['无限大', '时夜'],
+      sources: ['danbooru'],
+    })
+    expect(outcome.evidence[0]?.scope).toBe('character')
   })
 })

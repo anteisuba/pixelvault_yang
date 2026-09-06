@@ -57,6 +57,34 @@ function danbooruUrl(path: string, params: Record<string, string>): string {
   return `${DANBOORU_REQUEST.baseUrl}${path}?${search.toString()}`
 }
 
+/** 一个 tag 的 danbooru 分类（4 = 角色，3 = 版权/作品）。查不到时 null。 */
+async function fetchTagCategory(tag: string): Promise<number | null> {
+  const tags = await researchFetchJson<DanbooruTag[]>(
+    RESEARCH_SOURCE_IDS.danbooru,
+    danbooruUrl('/tags.json', { 'search[name]': tag, limit: '1' }),
+  ).catch((): DanbooruTag[] => [])
+  return tags[0]?.category ?? null
+}
+
+/**
+ * 这个角色 tag 是不是**这部作品**里的那个人。
+ *
+ * 🔬 2026-09-07 实测：查「时夜」的英文写法 `Tokiya`，模糊匹配回的是
+ * `ichinose_tokiya`（《歌之王子殿下》的一之濑时也）—— 一条长得完全像答案的
+ * 假证据。判据只能是**共现**：这个角色 tag 与作品的版权 tag 同时出现在同一张图上。
+ * ⚠ 匿名用户一次只能查两个 tag，所以这一跳恰好是上限，⛔ 别再往里加第三个。
+ */
+async function coOccursWithWork(
+  tag: string,
+  workTag: string,
+): Promise<boolean> {
+  const posts = await researchFetchJson<DanbooruPost[]>(
+    RESEARCH_SOURCE_IDS.danbooru,
+    danbooruUrl('/posts.json', { tags: `${tag} ${workTag}`, limit: '1' }),
+  ).catch((): DanbooruPost[] => [])
+  return posts.length > 0
+}
+
 /** ASCII 名走 name_matches 模糊，中日文名走 other_names_match —— 两条都试。 */
 async function resolveCharacterTag(query: string): Promise<string | null> {
   const trimmed = query.trim()
@@ -101,10 +129,47 @@ async function fetchTagWiki(tag: string): Promise<DanbooruWikiPage | null> {
 }
 
 export async function fetchDanbooruEvidence(params: {
+  /** 要查的**那个人**（给了 `work` 时）或那部作品（没给时）。 */
   query: string
+  /**
+   * 作品名。**给了它就等于说「`query` 是这部作品里的角色」**，于是这里多做两件事：
+   *  ① 解析出来的 tag 必须是角色分类（category 4）——否则回来的是 game tag 的
+   *    全作品统计（🔬 owner 真机：`ananta` 的 71 张样本里 `rabbit_ears 39/71`
+   *    是别人的耳朵）；
+   *  ② 该角色 tag 必须与作品的版权 tag 共现（🔬 `Tokiya` → `ichinose_tokiya`）。
+   * ⚠ 两条任一不过就**不出证据**，并在 `unrelated` 里说清楚是哪一条不过 ——
+   * 「danbooru 上没有这个角色」与「danbooru 挂了」是两件事。
+   */
+  work?: string
 }): Promise<ConnectorResult> {
   const tag = await resolveCharacterTag(params.query)
-  if (!tag) return { items: [] }
+  const workTag = params.work ? await resolveCharacterTag(params.work) : null
+
+  if (!tag) {
+    if (!params.work) return { items: [] }
+    return {
+      items: [],
+      unrelated: workTag
+        ? `danbooru has no character tag for "${params.query}"; only the work tag "${workTag}" exists, and its posts describe the whole title, not this character`
+        : `danbooru has no character tag for "${params.query}"`,
+    }
+  }
+
+  if (params.work) {
+    const category = await fetchTagCategory(tag)
+    if (category !== DANBOORU_REQUEST.characterTagCategory) {
+      return {
+        items: [],
+        unrelated: `danbooru resolved "${params.query}" to "${tag}", which is not a character tag (category ${category ?? 'unknown'}) — that would have been a whole-title tag statistic, not this character`,
+      }
+    }
+    if (workTag && workTag !== tag && !(await coOccursWithWork(tag, workTag))) {
+      return {
+        items: [],
+        unrelated: `danbooru's "${tag}" never appears together with "${workTag}", so it is a character from another work, not "${params.query}" of ${params.work}`,
+      }
+    }
+  }
 
   const [wiki, posts] = await Promise.all([
     fetchTagWiki(tag).catch(() => null),

@@ -7254,6 +7254,17 @@
         "high": "官方",
         "medium": "资料",
         "low": "社区"
+      },
+      "credibility": {
+        "official": "官方",
+        "officialMirror": "官方转载",
+        "reference": "资料",
+        "communityDigest": "玩家整理"
+      },
+      "scope": {
+        "character": "这个角色",
+        "work": "作品级",
+        "unknown": "未判定"
       }
     },
     "research": {

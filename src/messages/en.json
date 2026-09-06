@@ -7254,6 +7254,17 @@
         "high": "official",
         "medium": "reference",
         "low": "community"
+      },
+      "credibility": {
+        "official": "official",
+        "officialMirror": "official mirror",
+        "reference": "reference",
+        "communityDigest": "fan-compiled"
+      },
+      "scope": {
+        "character": "this character",
+        "work": "the work",
+        "unknown": "unspecified"
       }
     },
     "research": {

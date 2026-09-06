@@ -7254,6 +7254,17 @@
         "high": "公式",
         "medium": "資料",
         "low": "コミュニティ"
+      },
+      "credibility": {
+        "official": "公式",
+        "officialMirror": "公式転載",
+        "reference": "資料",
+        "communityDigest": "ファンまとめ"
+      },
+      "scope": {
+        "character": "このキャラ",
+        "work": "作品全体",
+        "unknown": "不明"
       }
     },
     "research": {

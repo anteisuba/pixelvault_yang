@@ -1485,6 +1485,72 @@ export const ASSISTANT_RESEARCH_CONFIDENCES = [
 export type AssistantResearchConfidence =
   (typeof ASSISTANT_RESEARCH_CONFIDENCES)[number]
 
+/**
+ * 一条证据**答的是作品还是人**（2026-09-07）。
+ *
+ * 🔬 owner 真机：问「《无限大》里时夜的外貌服饰」，回来的 10 条**全是游戏本身**
+ * （官网首页 / 维基条目 / 预约页 / danbooru 的 game tag 统计）—— 每一条都「相关」，
+ * 没有一条答了问题。助手于是把话停在「正在检索……」。
+ *
+ * ⚠ 所以「有没有证据」不是判据，「有没有**角色级**证据」才是：
+ *  · `character` —— 标题 / 摘要 / URL 里出现了角色名，这一条真的在说这个人；
+ *  · `work` —— 只说得出作品；
+ *  · `unknown` —— 没给角色名时不判（⛔ 不拿一条空判据去标签所有证据）。
+ *
+ * ⚠ 它由**服务端算**（`research-fanout` 的 `scopeOfEvidence`），⛔ 不由模型写。
+ */
+export const ASSISTANT_RESEARCH_SCOPE_IDS = {
+  character: 'character',
+  work: 'work',
+  unknown: 'unknown',
+} as const
+
+export const ASSISTANT_RESEARCH_SCOPES = [
+  ASSISTANT_RESEARCH_SCOPE_IDS.character,
+  ASSISTANT_RESEARCH_SCOPE_IDS.work,
+  ASSISTANT_RESEARCH_SCOPE_IDS.unknown,
+] as const
+
+export type AssistantResearchScope = (typeof ASSISTANT_RESEARCH_SCOPES)[number]
+
+/**
+ * **收尾那句话不许停在进行时**（2026-09-07）。
+ *
+ * 🔬 owner 真机：问「《无限大》时夜的外貌服饰」，助手最后留在线程里的一整句是
+ * 「正在检索……的角色立绘与外貌描述。」——**没有结论，也没有说这个角色查不到**。
+ * 系统提示里早写着「ONE EMPTY SEARCH IS NOT AN ANSWER」与「Never fill a gap with
+ * invention」，但那是两句请求，挡不住模型把话停在半句上。这张表是闸。
+ *
+ * ⚠ 判据是**开头的进行时/将来时**，⛔ 不是「有没有句号」：一句
+ * 「我这就去查」写得再完整也仍然不是结论。
+ * ⚠ 只在**收尾那一轮**判（还要调工具的轮次说「接下来我去查」是对的）。
+ * ⚠ 命中不作废整轮：服务端把它退回给模型再要一次结论（只退一次），
+ * ⛔ 不静默收尾、⛔ 不替模型编一句结论。
+ */
+export const OPERATOR_UNFINISHED_CLOSING_PATTERNS: readonly RegExp[] = [
+  // 中文：正在… / 我将… / 我会… / 接下来我… / 让我… / 稍等…
+  /^(正在|我正在|我这就|我先去|我将|我会|我来|接下来我|下面我|让我|稍等|请稍)/,
+  // 日文：ただいま… / これから… / 今から… / 探しています。
+  /^(ただいま|只今|これから|今から|まず|少々お待ち)/,
+  /(しています|していきます|します)[。.…]*$/,
+  // 英文：I'm searching… / Let me… / I will… / Currently…
+  /^(i['’]?m\s|i am\s|let me\s|i['’]?ll\s|i will\s|currently\s|now\s+(searching|looking|checking))/i,
+  // 任何语言：以省略号收尾的半句。
+  /(\.\.\.|…)\s*$/,
+]
+
+/**
+ * 收尾那句话是不是「话说了一半」。
+ * ⚠ **空正文也算**：一个什么都不说就结束的助手，是本仓最难查的那种失败。
+ */
+export function isUnfinishedClosingMessage(message: string): boolean {
+  const text = message.trim()
+  if (text.length === 0) return true
+  return OPERATOR_UNFINISHED_CLOSING_PATTERNS.some((pattern) =>
+    pattern.test(text),
+  )
+}
+
 /** 证据条的形状 —— 与 `EvidenceItem.kind` 逐字同名（文字 / 标签 / 图）。 */
 export const ASSISTANT_RESEARCH_EVIDENCE_KINDS = [
   'text',

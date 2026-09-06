@@ -79,8 +79,13 @@ export const WEB_IMAGE_SOURCE_ALLOWLIST = [
   'hoyolab.com',
 ] as const
 
-/** `www.` 只是个门牌，判定前先摘掉。 */
-function normalizeHost(host: string): string {
+/**
+ * `www.` 只是个门牌，判定前先摘掉。
+ *
+ * ⚠ 导出是给 `constants/research.ts` 的证据分级用的（同一套「域名 → 这是谁」的
+ * 读法），⛔ 别在第二处再抄一份 —— 两份 host 归一化迟早在 `www.` 这种小事上分岔。
+ */
+export function normalizeHostname(host: string): string {
   const lower = host.trim().toLowerCase()
   return lower.startsWith('www.') ? lower.slice(4) : lower
 }
@@ -91,7 +96,7 @@ function normalizeHost(host: string): string {
  * ⚠ 用 `endsWith('.' + p)` 而不是 `includes(p)`：`notpinterest.com` 不该命中
  * `pinterest.*`，而 `includes` 会。
  */
-function matchesPattern(host: string, pattern: string): boolean {
+export function matchesHostPattern(host: string, pattern: string): boolean {
   if (pattern.endsWith('.*')) {
     const label = pattern.slice(0, -2)
     return (
@@ -122,16 +127,20 @@ export function judgeWebImageSource(
       return WEB_IMAGE_SOURCE_VERDICT_IDS.unknownLicense
     }
   }
-  host = normalizeHost(host)
+  host = normalizeHostname(host)
   if (!host) return WEB_IMAGE_SOURCE_VERDICT_IDS.unknownLicense
 
   if (
-    WEB_IMAGE_SOURCE_BLOCKLIST.some((pattern) => matchesPattern(host, pattern))
+    WEB_IMAGE_SOURCE_BLOCKLIST.some((pattern) =>
+      matchesHostPattern(host, pattern),
+    )
   ) {
     return WEB_IMAGE_SOURCE_VERDICT_IDS.blocked
   }
   if (
-    WEB_IMAGE_SOURCE_ALLOWLIST.some((pattern) => matchesPattern(host, pattern))
+    WEB_IMAGE_SOURCE_ALLOWLIST.some((pattern) =>
+      matchesHostPattern(host, pattern),
+    )
   ) {
     return WEB_IMAGE_SOURCE_VERDICT_IDS.allowed
   }

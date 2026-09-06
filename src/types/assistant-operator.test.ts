@@ -161,6 +161,8 @@ const STEP_FIXTURES: Record<
           snippet: '黑色长发，金色瞳孔，身着改良中式长衫…',
           kind: 'text',
           confidence: 'medium',
+          credibility: 'reference',
+          scope: 'character',
         },
         {
           // ⚠ 标签档**没有 url** —— danbooru 的共现标签不指向单一页面。
@@ -169,6 +171,8 @@ const STEP_FIXTURES: Record<
           snippet: '100 张样本共现: black_hair, yellow_eyes, chinese_clothes',
           kind: 'tags',
           confidence: 'medium',
+          credibility: 'reference',
+          scope: 'character',
         },
       ],
     },

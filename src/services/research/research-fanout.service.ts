@@ -3,18 +3,23 @@ import 'server-only'
 import {
   ASSISTANT_RESEARCH_CONFIDENCE_IDS,
   ASSISTANT_RESEARCH_LIMITS,
+  ASSISTANT_RESEARCH_SCOPE_IDS,
   ASSISTANT_RESEARCH_SOURCE_IDS,
   type AssistantResearchConfidence,
+  type AssistantResearchScope,
   type AssistantResearchSource,
 } from '@/constants/assistant-operator'
 import {
-  EVIDENCE_SOURCE_TIERS,
+  EVIDENCE_CREDIBILITY_IDS,
   MEDIAWIKI_SOURCE_IDS,
+  RESEARCH_CHARACTER_QUERY_SUFFIXES,
   RESEARCH_FRESHNESS,
   RESEARCH_LIMITS,
   RESEARCH_SOURCE_IDS,
   RESEARCH_SOURCE_META,
   RESEARCH_SOURCE_STATUSES,
+  judgeEvidenceCredibility,
+  type EvidenceCredibility,
   type ResearchSourceId,
 } from '@/constants/research'
 import type { EvidenceItem, ResearchSourceReceipt } from '@/types/research'
@@ -27,6 +32,8 @@ import { fetchDanbooruEvidence } from '@/services/research/danbooru.connector'
 import {
   fetchMediaWikiEvidence,
   getMediaWikiSite,
+  includesTermVariant,
+  normalizeResearchTerm,
   resolveFandomSite,
 } from '@/services/research/mediawiki.connector'
 import { fetchWebSearchEvidence } from '@/services/research/web-search.connector'
@@ -59,8 +66,12 @@ export interface AssistantResearchEvidence {
   publisher: string
   snippet: string
   kind: EvidenceItem['kind']
-  /** 由源的层级算出来，⛔ 不由模型写。 */
+  /** 由**发布域名**算出来（`judgeEvidenceCredibility`），⛔ 不由模型写。 */
   confidence: AssistantResearchConfidence
+  /** 官方 / 官方转载 / 资料 / 玩家整理 —— 四档的那一档，卡片与工具环都读它。 */
+  credibility: EvidenceCredibility
+  /** 这一条答的是**这个角色**还是只答了作品。⛔ 不由模型写。 */
+  scope: AssistantResearchScope
 }
 
 export interface AssistantResearchOutcome {
@@ -118,18 +129,26 @@ const DEFAULT_SOURCES: readonly AssistantResearchSource[] = [
 /**
  * 目标 + 实体 → 一份**查询计划**。
  *
- * ── 修的是什么（2026-09-06）────────────────────────────────────────
+ * ── 第一次修的是什么（2026-09-06）──────────────────────────────────
  * 🔬 owner 真机：`entities:['无限大','Ananta','时夜']` 进来，旧实现先拼一条
  * 「全部实体 + 目标」的长查询，再把实体逐个排在后面，最后 `slice(maxQueries=3)`
  * —— **正好把角色名切掉**，而 wiki 腿又取 `queries.at(-1)`，于是三个百科站全被
  * 拿去查「Ananta」。查错了名字，后面每一条证据都是错的。
  *
- * ── 现在的形状 ────────────────────────────────────────────────────
- * 前三条是**保底**：作品名 / 角色名 / 作品+角色。它们是三种源各自吃得下的形状 ——
- * 单名喂 wiki 的标题解析、组合喂网搜与消歧。带目标的长查询与其余别名排在后面，
- * 有位置才发。⛔ 别再让「截断」决定查什么。
+ * ── 第二次修的是什么（2026-09-07）──────────────────────────────────
+ * 🔬 角色名没被切掉了，回来的 10 条**仍然全是游戏本身**。原因是查询的形状：
+ * 「无限大」「时夜」「无限大 时夜」三条里，前两条一个查作品一个是通用词，
+ * 第三条裸组合的首屏也是官网首页 / 维基条目 / 预约页。**问题不在查没查角色名，
+ * 在没问「这个角色是谁」**。本轮实测（同一把 Serper key）：
+ *  · 「无限大 时夜 角色 设定」→ 官网角色页 + 百度百科「角色设定」段；
+ *  · 「Ananta 时夜 キャラクター」→ 官网日文角色页 + `gamerch.com` 的
+ *    「ビジュアル：ダークトーンの髪に赤いメッシュ…」——**外貌那句话只在这条里**。
  *
- * ⚠ 没有实体时只发目标本身，⛔ 不编一个实体出来。
+ * ── 现在的形状 ────────────────────────────────────────────────────
+ * 有角色名时，三条**全部是角色级**：作品+角色 / 中文限定 / 日文限定（别名优先，
+ * 因为日文圈用的是原名 `Ananta`）。⛔ 不再单发一条只有作品名的查询 —— 作品级的
+ * 条目照样会在这三条里出现（实测每条都带官网与维基），少的只是「只答作品」那半屏。
+ * ⚠ 没有角色名时退回老形状（作品名 / 目标），⛔ 不编一个角色出来。
  */
 export interface ResearchQueryPlan {
   /** 服务端真的发出去的那几条，顺序即优先级。 */
@@ -138,6 +157,13 @@ export interface ResearchQueryPlan {
   wikiQuery: string
   /** 判相关性 / 解析 Fandom 子站用的实体词（清洗过的原样实体）。 */
   entities: string[]
+  /** 第一个实体 = 作品。没给实体时缺席。 */
+  work?: string
+  /**
+   * 最后一个实体 = 角色。**它在不在决定三件事**：查询是不是角色级、danbooru
+   * 查的是角色 tag 还是作品 tag、证据的 `scope` 判不判。
+   */
+  character?: string
 }
 
 export function buildResearchQueryPlan(
@@ -156,15 +182,22 @@ export function buildResearchQueryPlan(
       ? cleanEntities[cleanEntities.length - 1]
       : undefined
   const combo = work && character ? `${work} ${character}` : undefined
+  /** 中间那些是别名（`Ananta`）—— 日文圈用的就是原名，所以日文那条优先用它。 */
+  const alias = cleanEntities.slice(1, -1)[0]
 
-  const ordered = [
-    work,
-    character,
-    combo,
-    [...cleanEntities, cleanGoal].join(' ').trim(),
-    ...cleanEntities.slice(1, -1),
-    cleanGoal,
-  ]
+  const ordered =
+    combo && character
+      ? [
+          combo,
+          `${combo} ${RESEARCH_CHARACTER_QUERY_SUFFIXES.zh}`,
+          `${alias ?? work} ${character} ${RESEARCH_CHARACTER_QUERY_SUFFIXES.ja}`,
+        ]
+      : [
+          work,
+          [...cleanEntities, cleanGoal].join(' ').trim(),
+          ...cleanEntities.slice(1),
+          cleanGoal,
+        ]
 
   const queries: string[] = []
   for (const candidate of ordered) {
@@ -177,6 +210,8 @@ export function buildResearchQueryPlan(
     queries: queries.slice(0, RESEARCH_LIMITS.maxQueries),
     wikiQuery: combo ?? work ?? cleanGoal,
     entities: cleanEntities,
+    ...(work ? { work } : {}),
+    ...(character ? { character } : {}),
   }
 }
 
@@ -217,8 +252,20 @@ async function fetchOne(
   }
 
   if (sourceId === RESEARCH_SOURCE_IDS.danbooru) {
+    /**
+     * ⭐ **danbooru 查的是角色，不是作品**（2026-09-07 修）。
+     *
+     * 🔬 旧实现喂 `queries[0]`，而那一条是**作品名**：「无限大」经
+     * `other_names_match` 命中的是 game tag `ananta`，于是回来的「共现标签」是
+     * 整部作品 71 张样图的统计（`rabbit_ears 39/71` —— 那是别的角色的耳朵）。
+     * 一条长得像答案的假证据，比查不到坏得多。
+     * ⚠ 没给角色名时才退回作品名（那时问的本来就是作品）。
+     */
     return runConnector(sourceId, () =>
-      fetchDanbooruEvidence({ query: primary }),
+      fetchDanbooruEvidence({
+        query: plan.character ?? primary,
+        ...(plan.character && plan.work ? { work: plan.work } : {}),
+      }),
     )
   }
 
@@ -331,17 +378,25 @@ function dedupe(items: readonly EvidenceItem[]): EvidenceItem[] {
   )
 }
 
-/** 源层级 → 置信度。⛔ 模型碰不到这三个字。 */
-export function confidenceOfTier(
-  tier: EvidenceItem['sourceTier'],
+/**
+ * 可信度分级 → 卡片上那三档。
+ *
+ * ⚠ **判据是域名不是源**（2026-09-07 改）：旧实现只看 `sourceTier`，于是
+ * `ananta.163.com`（发行方自己的站）与一篇个人整理在卡片上都写着「资料」。
+ * 官方那一档必须看得出来，而只有域名说得出「这是谁发的」。
+ * ⚠ 四档压成三档是因为卡片只有三档皮肤：官方 → high，官方转载 / 资料 → medium，
+ * 玩家整理（含**一切未知域名**）→ low。细的那一档跟着 `credibility` 一起走。
+ */
+export function confidenceOfCredibility(
+  credibility: EvidenceCredibility,
 ): AssistantResearchConfidence {
-  if (tier === EVIDENCE_SOURCE_TIERS.official) {
+  if (credibility === EVIDENCE_CREDIBILITY_IDS.official) {
     return ASSISTANT_RESEARCH_CONFIDENCE_IDS.high
   }
-  if (tier === EVIDENCE_SOURCE_TIERS.community) {
-    return ASSISTANT_RESEARCH_CONFIDENCE_IDS.medium
+  if (credibility === EVIDENCE_CREDIBILITY_IDS.communityDigest) {
+    return ASSISTANT_RESEARCH_CONFIDENCE_IDS.low
   }
-  return ASSISTANT_RESEARCH_CONFIDENCE_IDS.low
+  return ASSISTANT_RESEARCH_CONFIDENCE_IDS.medium
 }
 
 function hostnameOf(url: string | undefined): string | undefined {
@@ -353,6 +408,45 @@ function hostnameOf(url: string | undefined): string | undefined {
   }
 }
 
+/** 一条证据身上所有可以拿来判「说的是不是这个人」的文字。 */
+function evidenceText(item: EvidenceItem): string {
+  const parts = [item.title, item.url ? safeDecode(item.url) : '']
+  if (item.kind === 'text') parts.push(item.excerpt)
+  if (item.kind === 'tags') parts.push(item.tags.join(' '), item.provenance)
+  return normalizeResearchTerm(parts.join(' '))
+}
+
+/** URL 里的中文是百分号编码的（`%E6%97%B6%E5%A4%9C`），不解就判不出角色名。 */
+function safeDecode(url: string): string {
+  try {
+    return decodeURIComponent(url)
+  } catch {
+    return url
+  }
+}
+
+/**
+ * 这一条答的是**角色**还是只答了作品（2026-09-07）。
+ *
+ * ⚠ 判据是「角色名在不在这条证据的字里」—— 标题、摘要 / 标签、URL 三处任一。
+ * 官网首页的摘要里出现「时夜 我负责出钱」时它**确实**在说这个角色，所以那条算
+ * `character`；只写作品的条目算 `work`。
+ * ⚠ 没给角色名时一律 `unknown`：⛔ 不拿一条空判据去标签所有证据（同
+ * `isRelevantToTerms` 的纪律）。
+ */
+export function scopeOfEvidence(
+  item: EvidenceItem,
+  character: string | undefined,
+  forced?: AssistantResearchScope,
+): AssistantResearchScope {
+  if (forced) return forced
+  const term = character ? normalizeResearchTerm(character) : ''
+  if (term.length < 2) return ASSISTANT_RESEARCH_SCOPE_IDS.unknown
+  return includesTermVariant(evidenceText(item), term)
+    ? ASSISTANT_RESEARCH_SCOPE_IDS.character
+    : ASSISTANT_RESEARCH_SCOPE_IDS.work
+}
+
 /**
  * 一条 `EvidenceItem` → 助手读得懂的证据条。
  *
@@ -362,8 +456,15 @@ function hostnameOf(url: string | undefined): string | undefined {
  */
 export function toAssistantEvidence(
   item: EvidenceItem,
+  options: {
+    /** 判 `scope` 用的角色名。缺省时 `scope` 恒为 `unknown`。 */
+    character?: string
+    /** 连接器已经确认过是角色级时钉死（danbooru 命中角色 tag 那一支）。 */
+    forcedScope?: AssistantResearchScope
+  } = {},
 ): AssistantResearchEvidence {
   const publisher = hostnameOf(item.url) ?? item.sourceId.replace(/_/g, ' ')
+  const credibility = judgeEvidenceCredibility(item.url)
   const snippet =
     item.kind === 'text'
       ? item.excerpt
@@ -383,7 +484,9 @@ export function toAssistantEvidence(
       ASSISTANT_RESEARCH_LIMITS.maxEvidenceSnippetChars,
     ),
     kind: item.kind,
-    confidence: confidenceOfTier(item.sourceTier),
+    confidence: confidenceOfCredibility(credibility),
+    credibility,
+    scope: scopeOfEvidence(item, options.character, options.forcedScope),
   }
 }
 
@@ -419,9 +522,21 @@ export async function runAssistantResearch(
   return {
     queries: plan.queries,
     sources: groups,
+    /**
+     * ⚠ danbooru 那一支**钉死角色级**：它现在只在确认到角色 tag（且该 tag 与
+     * 作品共现）时才出证据，而那些证据的字面是英文 tag（`ichinose_tokiya`），
+     * 中文角色名永远匹配不上 —— 让文本判据去判它只会把真的角色证据判成作品级。
+     */
     evidence: dedupe(settled.flatMap((entry) => entry.items))
       .slice(0, limit)
-      .map(toAssistantEvidence),
+      .map((item) =>
+        toAssistantEvidence(item, {
+          ...(plan.character ? { character: plan.character } : {}),
+          ...(plan.character && item.sourceId === RESEARCH_SOURCE_IDS.danbooru
+            ? { forcedScope: ASSISTANT_RESEARCH_SCOPE_IDS.character }
+            : {}),
+        }),
+      ),
     receipts: settled.map((entry) => entry.receipt),
   }
 }

@@ -207,3 +207,79 @@ describe('fetchDanbooruEvidence', () => {
     expect(result.items).toHaveLength(0)
   })
 })
+
+/**
+ * **给了作品名 = 「query 是这部作品里的角色」**（2026-09-07）。
+ *
+ * 🔬 两条真机：查作品名「无限大」拿回 game tag `ananta` 的全作品统计；查
+ * 「Tokiya」拿回《歌之王子殿下》的 `ichinose_tokiya`。两条都长得像答案。
+ */
+describe('fetchDanbooruEvidence · 角色级判据', () => {
+  it('⭐ 解析出来的不是角色 tag（game tag）→ 不出证据，回执说得出为什么', async () => {
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('other_names_match')) {
+        return jsonResponse([{ title: 'ananta' }])
+      }
+      // tags.json?search[name]=ananta —— category 3 = 版权/作品
+      if (url.includes('search%5Bname%5D=')) {
+        return jsonResponse([{ name: 'ananta', category: 3 }])
+      }
+      throw new Error(`unexpected fetch: ${url}`)
+    })
+
+    const result = await fetchDanbooruEvidence({
+      query: '时夜',
+      work: '无限大',
+    })
+
+    expect(result.items).toEqual([])
+    // ⛔ 「没料」与「查到的是作品不是人」下一步该做的事不同。
+    expect(result.unrelated).toContain('not a character tag')
+  })
+
+  it('⭐ 角色 tag 与作品 tag 从不共现 → 是别部作品的同名角色，判掉', async () => {
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('=Tokiya')) {
+        return jsonResponse([{ title: 'ichinose_tokiya' }])
+      }
+      if (url.includes('other_names_match'))
+        return jsonResponse([{ title: 'ananta' }])
+      if (url.includes('search%5Bname%5D=')) {
+        return jsonResponse([{ name: 'ichinose_tokiya', category: 4 }])
+      }
+      // 共现查询：一张都没有
+      if (url.includes('posts.json')) return jsonResponse([])
+      throw new Error(`unexpected fetch: ${url}`)
+    })
+
+    const result = await fetchDanbooruEvidence({
+      query: 'Tokiya',
+      work: '无限大',
+    })
+
+    expect(result.items).toEqual([])
+    expect(result.unrelated).toContain('never appears together')
+  })
+
+  it('⭐ 完全没有角色 tag 时，回执点名「只有作品 tag」', async () => {
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('=%E6%97%B6%E5%A4%9C')) {
+        return jsonResponse([])
+      }
+      if (url.includes('other_names_match')) {
+        return jsonResponse([{ title: 'ananta' }])
+      }
+      if (url.includes('tags.json')) return jsonResponse([])
+      throw new Error(`unexpected fetch: ${url}`)
+    })
+
+    const result = await fetchDanbooruEvidence({
+      query: '时夜',
+      work: '无限大',
+    })
+
+    expect(result.items).toEqual([])
+    expect(result.unrelated).toContain('no character tag')
+    expect(result.unrelated).toContain('ananta')
+  })
+})

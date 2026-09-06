@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * 时间线沟里那颗 20px 头像（方向 C · `pages/assistant-shell.md` §11.3）。
+ * 时间线沟里那颗 32px 头像（方向 C · `pages/assistant-shell.md` §11.3）。
  *
  * ⭐ **只有会说话的两方用头像**：用户回合 = 账户头像，助手回合 = AI 头像。
  * 工具步 / 系统行 / 卡片仍是形状节点 —— 20 行下来全是同款小圆点，用户回合与
@@ -13,11 +13,10 @@
  * 头像之后会各说各话。
  *
  * ⚠ 没头像就是**首字母圆标**这一档，⛔ 不出破图也不出骨架屏（§3.4）。
- * ⚠ 20px 不在 `components/ui/avatar.tsx` 的三档（24/32/40）里，本轮**不为它改
- * 共享原语**（§11.3 明写）—— 这几行自己写。
  */
 
 import Image from 'next/image'
+import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
@@ -36,7 +35,7 @@ import type { AssistantPersona } from '@/types/assistant-persona'
 export function timelineInitials(name: string): string {
   const chars = Array.from(name.trim())
   if (chars.length === 0) return '?'
-  // CJK 一个字已经够认人了，两个字反而挤不下 20px。
+  // CJK 一个字已经够认人了，两个字反而挤不下 32px。
   const isCjk = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/.test(chars[0] ?? '')
   return chars
     .slice(0, isCjk ? 1 : 2)
@@ -63,12 +62,13 @@ export function TimelineAvatar({
   persona,
   className,
 }: TimelineAvatarProps) {
+  const t = useTranslations('StudioOperator.timeline')
   const { profile } = useMyProfile()
 
   const shell = cn(
     // ⚠ `ring-card` 而不是 `ring-background`：头像盖在贯穿竖线上，而那条线画在
     //   面板的 `bg-card` 上 —— 用 background 会在卡片底上留一圈更白的环。
-    'grid size-5 shrink-0 place-items-center overflow-hidden rounded-full bg-muted ring-2 ring-card',
+    'grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted ring-2 ring-card',
     className,
   )
 
@@ -78,6 +78,14 @@ export function TimelineAvatar({
      * 传过）。⚠ `unoptimized`：R2 上那张图与侧栏头像同一条路（`AppSidebar` 的写法）。
      */
     const avatarUrl = persona?.avatarUrl ?? null
+    /**
+     * ⚠ `alt` / `aria-label` 不是空串（2026-09-06 真机：读屏走到助手回合只念得
+     * 出一个「图片」）。有名字就念名字，没名字念「助手」—— 这一行是读屏用户
+     * **唯一**能分辨「谁在说这句话」的地方（时间线不显示时间也不写发言人）。
+     */
+    const label = t('avatarAssistant', {
+      name: persona?.name?.trim() || t('assistantFallback'),
+    })
     return (
       <span
         data-testid="operator-timeline-avatar"
@@ -87,26 +95,30 @@ export function TimelineAvatar({
         {avatarUrl ? (
           <Image
             src={avatarUrl}
-            alt=""
-            width={40}
-            height={40}
+            alt={label}
+            width={64}
+            height={64}
             unoptimized
             className="size-full object-cover"
           />
         ) : (
-          <AssistantAvatarGlyph
-            presetId={
-              persona?.avatarPreset ?? ASSISTANT_PERSONA_DEFAULTS.avatarPreset
-            }
-            initial={persona?.name ?? ''}
-            className="size-full"
-          />
+          // 预设款是纯图形（`aria-hidden` 的 SVG）—— 名字挂在外层 span 上。
+          <span role="img" aria-label={label} className="size-full">
+            <AssistantAvatarGlyph
+              presetId={
+                persona?.avatarPreset ?? ASSISTANT_PERSONA_DEFAULTS.avatarPreset
+              }
+              initial={persona?.name ?? ''}
+              className="size-full"
+            />
+          </span>
         )}
       </span>
     )
   }
 
   const name = profile?.displayName ?? profile?.username ?? ''
+  const userLabel = t('avatarUser')
 
   return (
     <span
@@ -117,15 +129,21 @@ export function TimelineAvatar({
       {profile?.avatarUrl ? (
         <Image
           src={profile.avatarUrl}
-          alt=""
-          width={40}
-          height={40}
+          alt={userLabel}
+          width={64}
+          height={64}
           unoptimized
           className="size-full object-cover"
         />
       ) : (
-        <span className="grid size-full place-items-center font-mono text-3xs uppercase leading-none tracking-nav text-muted-foreground">
-          {timelineInitials(name)}
+        // ⚠ 首字母是**图形替代**不是文字：读屏念「FL」没有意义，念「你的头像」
+        //    才是这颗圆标想说的话。
+        <span
+          role="img"
+          aria-label={userLabel}
+          className="grid size-full place-items-center font-mono text-xs uppercase leading-none tracking-nav text-muted-foreground"
+        >
+          <span aria-hidden>{timelineInitials(name)}</span>
         </span>
       )}
     </span>

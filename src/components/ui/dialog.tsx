@@ -68,6 +68,14 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        /**
+         * ⚠ radix 只在 `modal`（默认）时给内容加 `aria-modal`——**它不加**，
+         * 靠的是给外面所有兄弟节点挂 `aria-hidden`。那套在实践中会被
+         * portal 之外的第三方节点（toast / 灯箱 / 浏览器扩展）漏掉，读屏用户
+         * 于是能「走出」对话框而不知道自己走出来了。显式写上是**正确性修复**，
+         * ⛔ 不是装饰：这颗原语是全仓所有对话框的地基。
+         */
+        aria-modal="true"
         className={cn(
           'fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 duration-200 ease-standard sm:max-w-lg',
           className,

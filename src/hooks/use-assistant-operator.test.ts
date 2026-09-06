@@ -44,9 +44,18 @@ vi.mock('@/lib/api-client/assistant-operator', () => ({
   streamAssistantOperatorAPI,
 }))
 
-vi.mock('next-intl', () => ({
-  useLocale: () => 'zh',
-}))
+/**
+ * 词表桩回键名 —— 错误文案映射（bug 5）那几条断言按键名读。
+ * ⚠ `has` 必须在：`getGenerationErrorMessage` 收的是带 `.has()` 的翻译器
+ *   （`lib/api-error-message.ts` 的 `ErrorTranslator`）。这里一律答「没有这个键」，
+ *   于是 provider 那一档自然落到「原文」，正好是本文件要验的两条边界。
+ */
+vi.mock('next-intl', () => {
+  const t = Object.assign((key: string) => `i18n:${key}`, {
+    has: () => false,
+  })
+  return { useLocale: () => 'zh', useTranslations: () => t }
+})
 
 /**
  * 落笔的那几只手由宿主给（P4-C）。这一层验的是「状态机怎么收尾」，
@@ -404,7 +413,31 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     await settle()
 
     expect(store.getOperatorState().status).toBe('error')
+    // 没有 errorCode = 认不得 → 原文照用（⛔ 不吞成一句「出错了」）。
     expect(store.getOperatorState().errorText).toBe('模型没回话')
+  })
+
+  /**
+   * **bug 5**（2026-09-06 真机）：zh 界面上显示的是服务端那句英文兜底
+   * 「The assistant operator run failed midway.」。服务端只给码，三语文案在
+   * 客户端取 —— 认得的码走词表，认不得的照原文。
+   */
+  it('d″) 认得的 errorCode 走词表，认不得的回退原文', async () => {
+    const { result } = render()
+
+    act(() => {
+      result.current.send('画一张海报')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.error,
+      error: 'The assistant operator run failed midway.',
+      errorCode: 'ASSISTANT_OPERATOR_FAILED',
+    })
+    await settle()
+
+    expect(store.getOperatorState().errorText).toBe('i18n:failed')
   })
 })
 

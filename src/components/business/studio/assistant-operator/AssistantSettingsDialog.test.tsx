@@ -29,16 +29,28 @@ let personaState = {
   ...ASSISTANT_PERSONA_DEFAULTS,
   avatarUrl: null as string | null,
 }
+let isSavingState = false
 
 vi.mock('@/hooks/use-assistant-persona', () => ({
   useAssistantPersona: () => ({
     persona: personaState,
     isLoading: false,
-    isSaving: false,
+    isSaving: isSavingState,
     error: null,
     save: mockSave,
     uploadAvatar: mockUploadAvatar,
     removeAvatar: mockRemoveAvatar,
+    reload: vi.fn(),
+  }),
+}))
+
+/** 规则页在本文件里只是「另一页」，拉不拉规则跟这几条断言无关。 */
+vi.mock('@/hooks/use-project-rules', () => ({
+  useProjectRules: () => ({
+    rules: [],
+    isLoading: false,
+    error: null,
+    remove: vi.fn(),
     reload: vi.fn(),
   }),
 }))
@@ -64,6 +76,7 @@ describe('AssistantSettingsDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     personaState = { ...ASSISTANT_PERSONA_DEFAULTS, avatarUrl: null }
+    isSavingState = false
     mockSave.mockResolvedValue(true)
   })
 
@@ -146,5 +159,65 @@ describe('AssistantSettingsDialog', () => {
 
     await waitFor(() => expect(mockRemoveAvatar).toHaveBeenCalledTimes(1))
     expect(mockSave).not.toHaveBeenCalled()
+  })
+
+  /**
+   * **bug 1**（2026-09-06 真机）：`save()` 失败时旧版一个字都不说 —— 弹层不关、
+   * 没有 toast、没有红字，用户只能反复点「保存」。失败必须**就地**说出来，
+   * 而且草稿要留在原地（关掉就没了）。
+   */
+  it('保存失败时就地报错、⛔ 不关弹层', async () => {
+    mockSave.mockResolvedValue(false)
+    const onOpenChange = vi.fn()
+    render(
+      <AssistantSettingsDialog
+        open
+        onOpenChange={onOpenChange}
+        fallbackInitial="图"
+      />,
+    )
+
+    fireEvent.click(screen.getByText('save'))
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('assistant-persona-save-error'),
+      ).toHaveTextContent('saveFailed'),
+    )
+    expect(screen.getByTestId('assistant-persona-save-error')).toHaveAttribute(
+      'role',
+      'alert',
+    )
+    // ⛔ 没有 `onOpenChange(false)`：关掉等于把用户刚填的几格连同错误一起吞掉。
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  /** 再动一格就把上一次那条红字收掉 —— 它说的是上一个草稿。 */
+  it('改一格之后上一次的失败提示消失', async () => {
+    mockSave.mockResolvedValue(false)
+    renderDialog()
+
+    fireEvent.click(screen.getByText('save'))
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('assistant-persona-save-error'),
+      ).toHaveTextContent('saveFailed'),
+    )
+
+    clickOption(`tone.${ASSISTANT_PERSONA_TONE_IDS.friendly}`)
+    // ⚠ 槽本身**留着**（live region 得常驻），空的是它的内容。
+    expect(
+      screen.getByTestId('assistant-persona-save-error'),
+    ).toBeEmptyDOMElement()
+  })
+
+  /** 保存中按钮里那颗 spinner 有**常驻的槽**——宽度不跳（`ui-defaults.md §5`）。 */
+  it('保存中按钮禁用并显示 spinner', () => {
+    isSavingState = true
+    renderDialog()
+
+    const button = screen.getByText('save').closest('button')
+    expect(button).toBeDisabled()
+    expect(button?.querySelector('[role="status"]')).not.toBeNull()
   })
 })

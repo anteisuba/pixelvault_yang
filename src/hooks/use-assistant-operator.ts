@@ -34,7 +34,7 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import {
   ASSISTANT_OPERATOR_CONFIRM_TIER_IDS,
@@ -78,6 +78,7 @@ import {
   takeOperatorQueue,
   upsertOperatorStep,
 } from '@/hooks/use-studio-operator-store'
+import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
 import {
   applyOperatorStep,
@@ -101,6 +102,31 @@ import type {
   StudioOperatorAttachment,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
+
+/**
+ * **操作员自己那几个码** → `StudioOperator.error.*` 的词表键。
+ *
+ * ⭐ 由来（2026-09-06 真机）：zh 界面上助手失败时显示的是英文原文
+ * 「The assistant operator run failed midway.」——那句话是**服务端**成帧器的兜底
+ * （`lib/assistant-operator-stream.ts` 的 `ASSISTANT_OPERATOR_FALLBACK_ERROR`），
+ * 服务端不知道用户的界面语言，也不该知道。所以翻译发生在这里：服务端只负责给
+ * 一个**稳定的码**，客户端按码取三语文案。
+ *
+ * ⚠ 这张表**只收操作员自己的码**（路由与成帧器发的那几个）。provider 侧的
+ * `GenerationError` 码不进来 —— 它们的三语文案早就在 `Errors.generation.*` 里
+ * （`constants/generation-errors.i18n.test.ts` 逐码把关），本 hook 走
+ * `getGenerationErrorMessage` 复用那一条现成的阶梯（顺带白拿 `i18nKey` 这一档）。
+ * ⛔ 别在这里给 `invalid_api_key` 一类再抄一份文案：两处迟早说两句不一样的话。
+ * ⚠ 这张表住在这里而不是 `src/constants/`：它是**这一颗 hook 的展示层映射**
+ * （码 → 词表键），没有第二个消费方。
+ */
+const OPERATOR_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
+  ASSISTANT_OPERATOR_FAILED: 'failed',
+  EMPTY_STREAM: 'emptyStream',
+  UNAUTHORIZED: 'unauthorized',
+  RATE_LIMIT_EXCEEDED: 'rateLimited',
+  VALIDATION_ERROR: 'invalidRequest',
+}
 
 function toResponseLanguage(locale: string): PromptAssistantResponseLanguage {
   if (locale === 'zh') return 'chinese'
@@ -259,6 +285,30 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   const applyContext = host.apply
   const { route } = useStudioAssistantControls()
   const locale = useLocale()
+  const tError = useTranslations('StudioOperator.error')
+  const tErrors = useTranslations('Errors')
+  /**
+   * 一句给用户看的失败文案（见 `OPERATOR_ERROR_MESSAGE_KEYS` 头注）。
+   *
+   * 三级阶梯：操作员自己的码 → `getGenerationErrorMessage`（`i18nKey` →
+   * `Errors.generation.{码}`）→ **原文**。
+   * ⛔ 最后那一级不吞成一句「出错了」：原文里常有 provider 给的具体理由，
+   * 吞掉它等于让用户和我们都失去唯一的线索。
+   */
+  const describeError = useCallback(
+    (payload: {
+      error: string
+      errorCode?: string
+      i18nKey?: string
+    }): string => {
+      const key = payload.errorCode
+        ? OPERATOR_ERROR_MESSAGE_KEYS[payload.errorCode]
+        : undefined
+      if (key) return tError(key)
+      return getGenerationErrorMessage(tErrors, payload, payload.error)
+    },
+    [tError, tErrors],
+  )
 
   const abortRef = useRef<AbortController | null>(null)
   /**
@@ -467,7 +517,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           setOperatorStatus('idle')
           return
         }
-        setOperatorStatus('error', result.error)
+        setOperatorStatus('error', describeError(result))
         return
       }
 
@@ -644,7 +694,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               )
               break
             case ASSISTANT_OPERATOR_EVENTS.error:
-              setOperatorStatus('error', event.error)
+              setOperatorStatus('error', describeError(event))
               break
             default:
               break
@@ -680,6 +730,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     [
       applyContext,
       buildSnapshot,
+      describeError,
       domain,
       flushQueue,
       locale,

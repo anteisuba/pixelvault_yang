@@ -5,6 +5,7 @@ import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
 
 import {
   STUDIO_OPERATOR_NODE_KINDS,
+  StudioOperatorTimelineList,
   StudioOperatorTimelineRow,
 } from './StudioOperatorTimelineRow'
 
@@ -17,12 +18,18 @@ import {
  *  ③ 头像行的时间戳退到行尾且默认 `opacity-0`（hover 才出），形状节点行不长头像。
  */
 
+// 词表桩回键名 + 参数，行标签那几条断言按键名读。
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    values?.name ? `${key}:${values.name}` : key,
+}))
+
 vi.mock('@/hooks/use-my-profile', () => ({
   useMyProfile: () => ({ profile: null, isLoading: false, refresh: vi.fn() }),
 }))
 
 describe('StudioOperatorTimelineRow', () => {
-  it('沟宽 78px，五档 data-node 都落在行上', () => {
+  it('沟宽 24px，五档 data-node 都落在行上', () => {
     render(
       <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.tool}>
         <span>tool</span>
@@ -64,7 +71,7 @@ describe('StudioOperatorTimelineRow', () => {
     )
   })
 
-  it('会说话的两方挂 20px 头像，且没有形状节点', () => {
+  it('会说话的两方挂 32px 头像，且没有形状节点', () => {
     const { rerender } = render(
       <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.user}>
         <span />
@@ -74,7 +81,7 @@ describe('StudioOperatorTimelineRow', () => {
       'user',
     )
     expect(screen.getByTestId('operator-timeline-avatar').className).toContain(
-      'size-5',
+      'size-8',
     )
     expect(screen.queryByTestId('operator-timeline-node')).toBeNull()
 
@@ -88,24 +95,77 @@ describe('StudioOperatorTimelineRow', () => {
     )
   })
 
-  it('头像行的时间戳退到行尾并默认透明；历史行可以整条关掉', () => {
+  /**
+   * 读屏那一条（2026-09-06 真机：整条线只听得到内容，听不出谁在说）。
+   * 行标签必须**跟着 `data-node` 走**，助手行念的是用户给助手起的名字。
+   */
+  it('每一档都有 aria-label，助手行念 persona 名字', () => {
     const { rerender } = render(
       <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.user}>
         <span />
       </StudioOperatorTimelineRow>,
     )
-    expect(screen.getByTestId('operator-timeline-time').className).toContain(
-      'opacity-0',
+    expect(screen.getByTestId('operator-timeline-row')).toHaveAttribute(
+      'aria-label',
+      'rowUser:assistantFallback',
+    )
+
+    rerender(
+      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.tool}>
+        <span />
+      </StudioOperatorTimelineRow>,
+    )
+    expect(screen.getByTestId('operator-timeline-row')).toHaveAttribute(
+      'aria-label',
+      'rowTool:assistantFallback',
     )
 
     rerender(
       <StudioOperatorTimelineRow
-        node={STUDIO_OPERATOR_NODE_KINDS.user}
-        withTimestamp={false}
+        node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+        persona={{
+          name: '小满',
+          avatarPreset: 'spark',
+          avatarUrl: null,
+          tone: 'professional',
+          toneCustom: null,
+          verbosity: 'standard',
+          planMode: 'auto',
+          language: 'ui',
+        }}
       >
         <span />
       </StudioOperatorTimelineRow>,
     )
-    expect(screen.queryByTestId('operator-timeline-time')).toBeNull()
+    expect(screen.getByTestId('operator-timeline-row')).toHaveAttribute(
+      'aria-label',
+      'rowAssistant:小满',
+    )
   })
+
+  /** 流容器是 live region —— 一步一步长出来的东西，读屏得自己听见。 */
+  it('StudioOperatorTimelineList 是 role=log 的 polite live region', () => {
+    render(
+      <StudioOperatorTimelineList data-testid="operator-thread">
+        <span />
+      </StudioOperatorTimelineList>,
+    )
+    const list = screen.getByTestId('operator-thread')
+    expect(list).toHaveAttribute('role', 'log')
+    expect(list).toHaveAttribute('aria-live', 'polite')
+    expect(list).toHaveAttribute('aria-label', 'listLabel')
+  })
+
+  it.each(Object.values(STUDIO_OPERATOR_NODE_KINDS))(
+    '%s 行不显示时间',
+    (node) => {
+      const { container } = render(
+        <StudioOperatorTimelineRow node={node}>
+          <span>内容</span>
+        </StudioOperatorTimelineRow>,
+      )
+      expect(container.querySelector('time')).toBeNull()
+      expect(container.textContent).not.toMatch(/\d{2}:\d{2}/)
+    },
+  )
 })

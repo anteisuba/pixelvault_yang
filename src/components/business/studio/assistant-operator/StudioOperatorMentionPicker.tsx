@@ -141,6 +141,12 @@ export function StudioOperatorMentionPicker({
     } = latestPick.current
     if (event.key === 'Escape') {
       event.preventDefault()
+      // ⚠ Studio 在 window 上还有一层 Escape 快捷键（同
+      //   `StudioOperatorAttachMenu.tsx` 那条）：这一下已经被这颗弹层消费掉，
+      //   不截断冒泡的表现是「按 Esc 关掉 @ 选择器，顺手把整个助手面板也收了」。
+      //   ⛔ 别改成 `stopImmediatePropagation`：同一颗 window 上还挂着别的
+      //   捕获监听（附件面板 / 灯箱），把它们一起掐掉是另一个 bug。
+      event.stopPropagation()
       dismiss()
       return
     }

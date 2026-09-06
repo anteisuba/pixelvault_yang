@@ -3,18 +3,17 @@
 /**
  * 时间线沟里的一行（方向 C · `pages/assistant-shell.md` §11.3）。
  *
- * ⭐ **层级靠形状与缩进，不靠颜色和底色块**：会说话的两方（用户 / 助手）挂 20px
+ * ⭐ **层级靠形状与缩进，不靠颜色和底色块**：会说话的两方（用户 / 助手）挂 32px
  * 头像，其余按「大节点 8px 实心 / 工具步 6px 空心 / 系统行 8×2 短横」分级。
  * 五种形态共用**同一条沟**（`STUDIO_OPERATOR_TIMELINE.gutterPx`），节点与贯穿
  * 竖线同轴 —— 沟宽一格不动是这条线读得下去的前提。
  *
- * ⚠ 时间戳分两档（§11.3）：形状节点行常显在沟里；头像行退到**行尾 hover**，
- * 因为一天里那一列全是同一分钟，占了最贵的 78px 却零信息。
  * ⚠ 这一颗**不画贯穿竖线** —— 线是流容器的一条 `absolute` span（跨行、跨行间距），
  * 逐行各画一截会在 `mt-4` 的间距里断掉。
  */
 
-import { useState, type ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
 import { TimelineAvatar } from '@/components/business/studio/assistant-operator/TimelineAvatar'
@@ -51,19 +50,53 @@ function isAvatarNode(node: StudioOperatorNodeKind): boolean {
   )
 }
 
+/**
+ * 沟位 → 行标签的词表键（`StudioOperator.timeline.*`）。
+ *
+ * ⭐ 由来（2026-09-06 真机）：整条时间线对读屏是哑的 —— 行与行之间只有缩进和
+ * 形状的区别，而这两样读屏都读不到，20 行下来听上去是一段没有说话人的独白。
+ * 时间戳又已经按 §11.3 全部删掉，于是**这一行标签是唯一的发言人信息**。
+ */
+const NODE_LABEL_KEYS: Record<StudioOperatorNodeKind, string> = {
+  [STUDIO_OPERATOR_NODE_KINDS.user]: 'rowUser',
+  [STUDIO_OPERATOR_NODE_KINDS.assistant]: 'rowAssistant',
+  [STUDIO_OPERATOR_NODE_KINDS.big]: 'rowAction',
+  [STUDIO_OPERATOR_NODE_KINDS.tool]: 'rowTool',
+  [STUDIO_OPERATOR_NODE_KINDS.system]: 'rowSystem',
+}
+
+/**
+ * 时间线的**流容器**（`role="log"` + `aria-live="polite"`）。
+ *
+ * ⚠ 助手的回合是**一条一条长出来的**：没有 live region，读屏用户要靠反复往回
+ * 翻才知道又出了一步。`polite` 而不是 `assertive` —— 它不该打断用户正在读的话。
+ * ⚠ 一颗普通 `div` 的全部属性都收着（`ref` / `className` / `data-*` / 滚动
+ * 处理器），所以 `StudioOperatorPanel` 那个 `threadRef` 容器可以原地换成它。
+ *
+ * ⚠ **本轮还没接线**：`StudioOperatorPanel.tsx` 由另一条改动占着，接线是它那边
+ * 的一行（把 `<div ref={threadRef} data-testid="operator-thread" …>` 换成
+ * `<StudioOperatorTimelineList ref={threadRef} data-testid="operator-thread" …>`）。
+ */
+export function StudioOperatorTimelineList({
+  children,
+  ...props
+}: ComponentProps<'div'>) {
+  const t = useTranslations('StudioOperator.timeline')
+  return (
+    <div
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions text"
+      aria-label={t('listLabel')}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
+
 interface StudioOperatorTimelineRowProps {
   node: StudioOperatorNodeKind
-  /**
-   * 画不画时刻。
-   *
-   * ⚠ 时刻是**这一行落位的那一刻**（首次挂载时抓一次），⛔ 不是 render 时现取：
-   * 现取的话每次重渲染整列时间戳都会跳。
-   * ⚠ 载回来的只读历史传 `false`：库里那份没有逐条时刻，拿「现在」去填是在编一个
-   * 假时间戳（`ui-defaults.md`：状态不靠猜）。
-   */
-  withTimestamp?: boolean
-  /** 形状节点行沟里那一小截常显文字（耗时 / 序号），⛔ 不给头像行用。 */
-  gutterNote?: ReactNode
   /**
    * 助手那一档的头像来源（§8.2）—— 外壳拉一次往下传，见 `TimelineAvatar` 头注。
    * ⚠ 缺席时画默认预设，⛔ 不出空圈。
@@ -74,31 +107,34 @@ interface StudioOperatorTimelineRowProps {
 
 export function StudioOperatorTimelineRow({
   node,
-  withTimestamp = true,
-  gutterNote,
   persona,
   children,
 }: StudioOperatorTimelineRowProps) {
+  const t = useTranslations('StudioOperator.timeline')
   const avatar = isAvatarNode(node)
-  const [landedAt] = useState(() => new Date())
-  const timestamp = withTimestamp ? landedAt : null
-  const time = timestamp
-    ? `${String(timestamp.getHours()).padStart(2, '0')}:${String(
-        timestamp.getMinutes(),
-      ).padStart(2, '0')}`
-    : null
+  /**
+   * ⚠ `role="article"` 是为了让 `aria-label` 真的被念出来：裸 `div` 上的
+   * `aria-label` 大多数读屏直接忽略（无角色元素不参与名称计算）。
+   * ⚠ 助手行念的是**用户给助手起的名字**（§8.2），没起名就念「助手」。
+   */
+  const rowLabel = t(NODE_LABEL_KEYS[node], {
+    name: persona?.name?.trim() || t('assistantFallback'),
+  })
 
   return (
     <div
       data-testid="operator-timeline-row"
       data-node={node}
+      role="article"
+      aria-label={rowLabel}
       style={{
-        // ⚠ 走 style 不是 `grid-cols-[78px_1fr]`：Hard Rule 5 禁 arbitrary value，
-        //   而 78 这个数是面板私有的，不配进 `globals.css` 的 `@theme inline`。
+        // ⚠ 走 style 不是 `grid-cols-[24px_1fr]`：Hard Rule 5 禁 arbitrary value，
+        //   而 24 这个数是面板私有的，不配进 `globals.css` 的 `@theme inline`。
         gridTemplateColumns: `${STUDIO_OPERATOR_TIMELINE.gutterPx}px minmax(0, 1fr)`,
       }}
       className={cn(
         'group grid gap-x-2 first:mt-0',
+        avatar && 'min-h-8',
         avatar || node === STUDIO_OPERATOR_NODE_KINDS.big ? 'mt-4' : 'mt-2',
       )}
     >
@@ -141,28 +177,10 @@ export function StudioOperatorTimelineRow({
             />
           ) : null}
         </span>
-        {avatar ? null : (
-          <span className="min-w-0 truncate font-mono text-3xs leading-4 tracking-nav tabular-nums text-muted-foreground">
-            {gutterNote ?? time}
-          </span>
-        )}
       </div>
 
       <div className="flex min-w-0 items-start gap-2">
         <div className="min-w-0 flex-1">{children}</div>
-        {avatar && time ? (
-          <time
-            data-testid="operator-timeline-time"
-            dateTime={timestamp?.toISOString()}
-            title={timestamp?.toLocaleString()}
-            // ⚠ 不用 §11.3 写的 `text-muted-foreground/75`：合成后是 #8f8f8f，
-            //   对卡背只有 3.23:1，11px 正文要 4.5（`ui-defaults.md §2.4`）。
-            //   足色 #696969 = 5.49，「不抢视线」交给默认 `opacity-0` 去做。
-            className="shrink-0 pt-px font-mono text-2xs tracking-nav tabular-nums text-muted-foreground opacity-0 transition-opacity duration-(--duration-fast) ease-standard group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none"
-          >
-            {time}
-          </time>
-        ) : null}
       </div>
     </div>
   )

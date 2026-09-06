@@ -134,6 +134,31 @@ describe('StudioOperatorMentionPicker', () => {
     expect(onDismiss).toHaveBeenCalled()
   })
 
+  /**
+   * 2026-09-06 真机抓到的 bug 2：Esc 只 `preventDefault()` 不 `stopPropagation()`，
+   * 于是同一下按键先被这颗弹层消费、再冒到 Studio 那层全局 Escape 上，表现是
+   * 「关掉 @ 选择器时整个助手面板一起收起来」。对照 `StudioOperatorAttachMenu` 的
+   * 同名用例。⚠ 事件从 `document` 发（真实按键的 target 是输入框，不是 window）：
+   * 直接在 window 上 dispatch 时 window 只出现在「at target」阶段，
+   * `stopPropagation` 按规范拦不住同一节点上的其它监听。
+   */
+  it('消费 Escape 后不再冒泡到 Studio 的全局收起快捷键', async () => {
+    const studioEscapeLadder = vi.fn()
+    window.addEventListener('keydown', studioEscapeLadder)
+
+    try {
+      const { onDismiss } = await renderPicker()
+      act(() => {
+        fireEvent.keyDown(document, { key: 'Escape' })
+      })
+
+      expect(onDismiss).toHaveBeenCalledTimes(1)
+      expect(studioEscapeLadder).not.toHaveBeenCalled()
+    } finally {
+      window.removeEventListener('keydown', studioEscapeLadder)
+    }
+  })
+
   it('没有候选时 ⛔ 不吞回车（否则打了 @ 就再也发不出消息）', async () => {
     fetchGalleryImages.mockResolvedValue({
       success: true,

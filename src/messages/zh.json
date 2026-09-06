@@ -6874,17 +6874,17 @@
     "planTitle": "计划 · 不花积分的直接做",
     "domainMark": "切到{domain} —— 工具已换，会话不断",
     "placeholderIdle": "继续说，或把素材挂进来…",
-    "placeholderWorking": "说，我在听 —— 插话即转向",
+    "placeholderWorking": "说，我在听 —— 你打的这句会排队，下一个停顿点处理",
     "send": "发送",
-    "sendInterrupt": "插话即转向 —— 助手收下这句后调整计划继续",
     "stop": "停止当前工作",
     "lightboxLabel": "看大图",
     "rail": {
       "idle": "待命",
       "working": "干活中",
-      "awaiting": "待你定",
+      "awaiting": "待确认",
       "error": "出错了",
-      "primed": "已备好"
+      "primed": "已备好",
+      "planning": "待你定"
     },
     "band": {
       "working": "正在干活",
@@ -6978,7 +6978,8 @@
       "queuePicked": "停顿点到了 —— 接住你排的 {count} 句",
       "queueDropped": "你撤回了排着的那句：{subject}",
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
-      "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来"
+      "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
+      "autoApproved": "按你的设置直接生成 · {count} credits"
     },
     "suggestion": {
       "setupShot": "帮我配好这张图",
@@ -7067,7 +7068,8 @@
     },
     "choice": {
       "title": "你说的是哪一张？",
-      "resolved": "已选定"
+      "resolved": "已选定",
+      "answer": "就这张：{label}"
     },
     "error": {
       "generic": "助手这一轮没跑完"
@@ -7119,7 +7121,13 @@
         "ui": "跟界面",
         "chinese": "中文",
         "english": "英文"
-      }
+      },
+      "tabPersona": "助手",
+      "tabRules": "项目规则",
+      "rulesHint": "助手动手之前会先读这些规则。你说了值得记下来的事，它就记一条。",
+      "rulesLoading": "加载中…",
+      "rulesEmpty": "还没有规则 — 说一句值得记下来的话，助手会记下来。",
+      "ruleDelete": "删掉这条规则"
     },
     "rule": {
       "recordedOn": "记于 {date}",
@@ -7133,7 +7141,8 @@
       "meta": "{steps} 阶段 · {pending} 个待定",
       "estimate": "预估 {credits} credits",
       "revise": "修改",
-      "start": "开始"
+      "start": "开始",
+      "revisePrefill": "修改计划："
     },
     "spend": {
       "title": "这一枪要花钱，确认一下",
@@ -7145,7 +7154,8 @@
       "seconds": "{seconds} 秒",
       "remember": "本会话此类不再问",
       "cancel": "取消",
-      "confirm": "生成"
+      "confirm": "生成",
+      "resolved": "已生成 · 已扣 credits"
     },
     "planVisual": {
       "comp": {
@@ -7194,7 +7204,8 @@
         "painterly": "绘画",
         "lineart": "线稿"
       }
-    }
+    },
+    "sendQueue": "排队 — 下一个停顿点处理"
   },
   "GenerationCancel": {
     "cancel": "取消",

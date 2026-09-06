@@ -1,0 +1,256 @@
+// ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
+import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
+import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
+
+/**
+ * **接线闸**（切片 3a）：四种卡真的出现在时间线里。
+ *
+ * ⭐ 这份用例存在的理由：前四片把 `StudioOperatorPlanCard` /
+ * `StudioOperatorSpendConfirmCard` / `RuleChip` / `StudioOperatorAssetChoiceCard`
+ * 各自写完并单测过了，但**没有任何调用方** —— 四个组件全绿、面板里一张都不出。
+ * 组件级用例永远发现不了这种失败，只有「把 store 摆成那个状态、看面板画了什么」
+ * 才发现得了。
+ *
+ * 钉五件事：
+ *  ① 计划卡（`awaitingPlan`）· ② 花钱硬确认卡 · ③ 歧义反问单选卡 · ④ 规则薄卡；
+ *  ⑤ 结果行卡的数据源是**宿主契约的 `results`**，⛔ 不是 `useStudioGen`
+ *     （LoRA 装配台上那条 context 根本不存在）。
+ */
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => {
+    const t = (key: string) => key
+    return t
+  },
+  useFormatter: () => ({ dateTime: () => '09-06 12:00' }),
+}))
+
+vi.mock('next/image', () => ({
+  default: ({ src, alt }: { src: string; alt: string }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={alt} />
+  ),
+}))
+
+vi.mock('motion/react', () => ({
+  motion: { div: 'div' },
+  useReducedMotion: () => true,
+}))
+
+/** 模型 chip 点开的是现有「自动路由」组件（拍板 11）—— 这里不验它。 */
+vi.mock('@/components/business/node/CanvasAssistantRouteSelector', () => ({
+  CanvasAssistantRouteSelector: () => <span data-testid="route-selector" />,
+}))
+
+vi.mock('@/hooks/use-studio-assistant-controls', () => ({
+  useStudioAssistantControls: () => ({
+    route: { apiKeyId: null, modelId: null },
+    setRoute: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/use-my-profile', () => ({
+  useMyProfile: () => ({ profile: null }),
+}))
+
+const HOST_RESULTS = [
+  { id: 'gen-1', url: 'https://cdn.test/a.png', label: '第一张' },
+  { id: 'gen-2', url: 'https://cdn.test/b.png', label: '第二张' },
+]
+
+vi.mock('@/contexts/studio-operator-host', () => ({
+  useStudioOperatorHost: () => ({
+    domain: 'image' as const,
+    buildSnapshot: () => ({ prompt: '', availableModels: [] }),
+    results: HOST_RESULTS,
+    referenceLimit: 4,
+    open: true,
+    setOpen: vi.fn(),
+    apply: {},
+  }),
+}))
+
+type Store = typeof import('@/hooks/use-studio-operator-store')
+type PanelModule = typeof import('./StudioOperatorPanel')
+
+let store: Store
+let Panel: PanelModule['StudioOperatorPanel']
+
+const answerPlan = vi.fn()
+const revisePlan = vi.fn()
+const answerSpend = vi.fn()
+const answerChoice = vi.fn()
+
+/**
+ * ⚠ store 是**模块级单例**，用例之间必须换新的一份，而面板也要在同一次 reset
+ * 之后 import —— 顶层 import 拿到的是同一份（照抄 store 用例的头注）。
+ */
+beforeEach(async () => {
+  vi.resetModules()
+  vi.clearAllMocks()
+  store = await import('@/hooks/use-studio-operator-store')
+  Panel = (await import('./StudioOperatorPanel')).StudioOperatorPanel
+})
+
+const HISTORY = {
+  sessions: [],
+  currentSessionId: null,
+  isHydrating: false,
+  error: null,
+  selectSession: vi.fn(),
+} as unknown as UseStudioOperatorHistoryResult
+
+const UPLOAD = {
+  uploads: [],
+  uploadFiles: vi.fn(),
+  retryUpload: vi.fn(),
+  dismissUpload: vi.fn(),
+} as unknown as UseStudioOperatorUploadResult
+
+const WEB_IMPORT = {
+  states: {},
+  limit: 4,
+  toggleCandidate: vi.fn(),
+} as unknown as UseStudioOperatorWebImportResult
+
+const onOpenProjectRules = vi.fn()
+
+function renderPanel() {
+  render(
+    <Panel
+      operator={
+        {
+          domain: 'image',
+          routeModelId: undefined,
+          send: vi.fn(),
+          stop: vi.fn(),
+          cancelQueued: vi.fn(),
+          answerConfirm: vi.fn(),
+          answerPlan,
+          revisePlan,
+          answerSpend,
+          cancelSpend: vi.fn(),
+          answerChoice,
+          critique: vi.fn(),
+          newThread: vi.fn(),
+        } as unknown as Parameters<typeof Panel>[0]['operator']
+      }
+      draft=""
+      onDraftChange={vi.fn()}
+      attachments={[]}
+      onAttachmentsChange={vi.fn()}
+      upload={UPLOAD}
+      webImport={WEB_IMPORT}
+      history={HISTORY}
+      onOpenAssistantSettings={vi.fn()}
+      onOpenProjectRules={onOpenProjectRules}
+      onCollapse={vi.fn()}
+    />,
+  )
+}
+
+describe('StudioOperatorPanel 接线（切片 3a）', () => {
+  it('① 计划卡钉在流末尾，「开始」把答复交给驱动 hook', () => {
+    store.setOperatorPlan({
+      id: 'plancard-1',
+      steps: [
+        { id: 'plan-1', label: '写提示词' },
+        { id: 'plan-2', label: '挂参考图' },
+        { id: 'plan-3', label: '备好生成键' },
+      ],
+      pending: [],
+      estimate: { credits: 4 },
+      resolved: false,
+    })
+    store.setOperatorStatus('awaitingPlan')
+    renderPanel()
+
+    expect(screen.getByTestId('operator-plan-card')).toBeTruthy()
+    expect(screen.getAllByTestId('operator-plan-step')).toHaveLength(3)
+    fireEvent.click(screen.getByTestId('operator-plan-start'))
+    // 没有待定项 → 空数组，⛔ 不是 undefined（服务端那边按数组读）。
+    expect(answerPlan).toHaveBeenCalledWith([])
+  })
+
+  it('② 花钱硬确认卡出现，四要素齐；点「生成」把「不再问」一起交出去', () => {
+    store.setOperatorSpend({
+      id: 'spend-1',
+      request: {
+        model: { id: 'seedream-4', label: 'Seedream 4' },
+        count: 2,
+        specs: { aspectRatio: '3:4', resolution: '2K', durationSeconds: null },
+        estimate: { credits: 8 },
+      },
+      resolved: false,
+    })
+    renderPanel()
+
+    expect(screen.getByTestId('operator-spend-model').textContent).toBe(
+      'Seedream 4',
+    )
+    expect(screen.getByTestId('operator-spend-count').textContent).toBe('2')
+    fireEvent.click(screen.getByTestId('operator-spend-remember'))
+    fireEvent.click(screen.getByTestId('operator-spend-confirm'))
+    expect(answerSpend).toHaveBeenCalledWith({ rememberForSession: true })
+  })
+
+  it('③ 歧义反问单选卡出现，点一张走 `answerChoice`', () => {
+    const options = [
+      {
+        id: 'gen-1',
+        url: 'https://cdn.test/a.png',
+        label: '结果①',
+        kind: 'image' as const,
+        thumbnailUrl: 'https://cdn.test/a.png',
+      },
+      {
+        id: 'gen-2',
+        url: 'https://cdn.test/b.png',
+        label: '结果②',
+        kind: 'image' as const,
+        thumbnailUrl: 'https://cdn.test/b.png',
+      },
+    ]
+    store.setOperatorChoice({
+      id: 'choice-1',
+      question: '你说的是哪一张？',
+      options,
+      chosenId: null,
+    })
+    renderPanel()
+
+    const grid = screen.getAllByTestId('operator-asset-choice-option')
+    expect(grid).toHaveLength(2)
+    fireEvent.click(grid[1] as HTMLElement)
+    expect(answerChoice).toHaveBeenCalledTimes(1)
+    expect(answerChoice.mock.calls[0]?.[0]).toMatchObject({ id: 'gen-2' })
+  })
+
+  it('④ 规则薄卡长在时间线里；「查看规则」开设置弹层的规则页', () => {
+    store.appendOperatorEntry({
+      kind: 'rule',
+      id: 'rule-entry-1',
+      ruleId: 'rule-1',
+      text: '主角的耳环永远在左边',
+      source: 'creator',
+      createdAt: '2026-08-14T02:00:00.000Z',
+    })
+    renderPanel()
+
+    expect(screen.getByText('主角的耳环永远在左边')).toBeTruthy()
+    fireEvent.click(screen.getByText('view'))
+    expect(onOpenProjectRules).toHaveBeenCalledTimes(1)
+  })
+
+  it('⑤ 结果行卡读的是**宿主的 results**（⛔ 不是 useStudioGen）', () => {
+    renderPanel()
+    expect(screen.getByTestId('operator-result-row')).toBeTruthy()
+    expect(screen.getAllByTestId('operator-result-tile')).toHaveLength(
+      HOST_RESULTS.length,
+    )
+  })
+})

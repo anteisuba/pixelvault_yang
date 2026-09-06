@@ -14,7 +14,7 @@
 import { useCallback } from 'react'
 
 import {
-  ASSISTANT_OPERATOR_READ_TOOLS,
+  isRevertibleAssistantOperatorTool,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
 } from '@/constants/assistant-operator'
 import {
@@ -95,8 +95,10 @@ export interface UseStudioOperatorRevertResult {
 /**
  * 一条日志**能不能撤**。
  *
- * ⚠ 判据取词表不是手列：读类工具没有 inverse，撤它什么都撤不掉（`critique_result`
- * 就是新加的那条 —— 评价本身撤不掉，要撤的是它之后那几条 `set_*`）。
+ * ⚠ 判据是 `isRevertibleAssistantOperatorTool`（切片 3a 换的），⛔ 不再是
+ * 「不是读类」：花钱档出现之后两者不再是同一件事 —— `request_generation` 既不是
+ * 读类，也没有任何东西可撤（钱已经花出去了，服务端那一步什么都没应用）。用旧判据
+ * 的表现是那条日志上挂着一颗撤销钮，点下去什么都不会发生。
  * 与 `StudioOperatorLogItem` 里 `canUndo` 的判据逐字同源。
  */
 function isRevertableStepEntry(entry: StudioOperatorThreadEntry): boolean {
@@ -104,9 +106,7 @@ function isRevertableStepEntry(entry: StudioOperatorThreadEntry): boolean {
     entry.kind === 'step' &&
     !entry.undone &&
     entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
-    !(ASSISTANT_OPERATOR_READ_TOOLS as readonly string[]).includes(
-      entry.step.tool,
-    )
+    isRevertibleAssistantOperatorTool(entry.step.tool)
   )
 }
 

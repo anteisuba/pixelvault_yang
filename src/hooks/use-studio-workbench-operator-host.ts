@@ -16,7 +16,11 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import { useStudioData, useStudioForm } from '@/contexts/studio-context'
+import {
+  useStudioData,
+  useStudioForm,
+  useStudioGenOptional,
+} from '@/contexts/studio-context'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
@@ -28,12 +32,16 @@ import {
   buildVideoOperatorSnapshot,
 } from '@/lib/studio-operator-snapshot'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
+import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
 
 /**
  * ⚠ 摘除按**索引**（`removeReferenceImage` 的契约），所以要先按 URL 找位。
  * ⚠ 参数写成结构类型而不是 `ReturnType<typeof useImageUpload>`：这个函数只用到
  * 两样东西，把整个上传 API 拖进签名只会让它看起来依赖更多。
  */
+/** 结果格 chip / 灯箱标题上那句话截多长 —— 一行放得下的长度。 */
+const RESULT_LABEL_CHARS = 40
+
 function removeReferenceByUrl(
   imageUpload: {
     referenceEntries: readonly { url: string }[]
@@ -242,8 +250,45 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
     ? imageUpload.maxImages
     : ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences
 
+  /**
+   * **这一批结果**（§2.11 结果行卡）—— 数据源是工作台本来就在跑的那条回流
+   * （`activeRun`），⛔ 没有新轮询器：与 `use-studio-operator-critique.ts` 读的是
+   * 同一处。此前这一段长在面板里（`useStudioGenOptional()`），搬到宿主上是因为
+   * LoRA 装配台也要有结果行卡，而那条路由拿不到 `useStudioGen`。
+   * ⚠ 只收**跑完且有地址**的那些：`pending` / `generating` 的格子画出来是一个
+   *   永远转着的骨架，而这张卡的意义是「这一批出来了，挑一张说话」。
+   */
+  const activeRun = useStudioGenOptional()?.activeRun
+  const results = useMemo<readonly StudioOperatorResultItem[]>(() => {
+    const items = activeRun?.items ?? []
+    return items.flatMap((item) => {
+      const generation = item.generation
+      if (item.status !== 'completed' || !generation?.url) return []
+      return [
+        {
+          id: generation.id,
+          url: generation.url,
+          ...(generation.thumbnailUrl
+            ? { thumbnailUrl: generation.thumbnailUrl }
+            : {}),
+          ...(generation.prompt
+            ? { label: generation.prompt.slice(0, RESULT_LABEL_CHARS) }
+            : {}),
+        },
+      ]
+    })
+  }, [activeRun])
+
   return useMemo(
-    () => ({ domain, buildSnapshot, apply, referenceLimit, open, setOpen }),
-    [apply, buildSnapshot, domain, open, referenceLimit, setOpen],
+    () => ({
+      domain,
+      buildSnapshot,
+      apply,
+      results,
+      referenceLimit,
+      open,
+      setOpen,
+    }),
+    [apply, buildSnapshot, domain, open, referenceLimit, results, setOpen],
   )
 }

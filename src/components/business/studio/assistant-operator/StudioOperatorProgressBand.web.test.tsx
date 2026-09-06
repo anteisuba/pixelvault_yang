@@ -67,6 +67,7 @@ function renderBand(
       steps={[]}
       history={HISTORY}
       onNewThread={vi.fn()}
+      onOpenAssistantSettings={vi.fn()}
       onCollapse={vi.fn()}
       {...overrides}
     />,

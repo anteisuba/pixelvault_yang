@@ -90,6 +90,21 @@ export const ASSISTANT_OPERATOR_EVENTS = {
    * 转述出来的那句话就不再是用户写下的那句了。
    */
   ruleHit: 'rule_hit',
+  /**
+   * **歧义反问单选**（§3.3 第 5 行 / §7 四入口之四，切片 3a）。
+   *
+   * 用户说「把那张改一下」而候选不止一张时，助手就地列出缩略图让他点一张。
+   * 它之后这条流同样结束（`awaitingConfirm`），点中 = 客户端插一枚 @chip 并带
+   * 上下文重发 —— 与拍板 3 的就地确认逐字同构。
+   *
+   * ── 为什么不是 `confirm_request` 的第四个 tier ────────────────────
+   * `confirm_request` 的三个字段（`field` / `have` / `proposed`）说的是「你手写的
+   * 那段字要怎么办」；这一帧要说的是「这几张图里是哪一张」。塞进同一帧就得把那三
+   * 个字段全改成可选，而客户端那张确认条正是 `Omit<ConfirmRequestEvent,'type'>`
+   * —— 覆盖三选卡从此要处理「没有 field 的确认」。三档确认（§6）里也没有它的位置：
+   * 它一分钱都不花，也不覆盖任何东西，它只是在问路。
+   */
+  choiceRequest: 'choice_request',
   /** 正常收尾。 */
   done: 'done',
   /** 未跑完就停了 —— 载荷带 `reason`，与 `done` 分开是为了让 UI 说得出为什么。 */
@@ -555,6 +570,19 @@ export const ASSISTANT_PLAN_CARD_LIMITS = {
 } as const
 
 /** 待定项目前只有单选一种。⚠ 写成常量而不是字面量，加多选时这里是唯一的落点。 */
+/**
+ * 歧义反问单选卡（`choice_request`）的护栏。
+ *
+ * ⚠ `maxOptions` 是 8 而不是「不设上限」：卡是 `grid-cols-4`（§11.4），两行封顶。
+ * 候选比这还多说明问题问错了 —— 该先缩小范围，而不是铺一屏缩略图。
+ * ⚠ `minOptions` 2：一个候选的「单选」不是问题，是通知（同计划卡待定项那条）。
+ */
+export const ASSISTANT_CHOICE_REQUEST_LIMITS = {
+  minOptions: 2,
+  maxOptions: 8,
+  maxQuestionChars: 160,
+} as const
+
 export const ASSISTANT_PLAN_PENDING_KINDS = ['single'] as const
 
 export type AssistantPlanPendingKind =
@@ -1118,8 +1146,13 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     "arm the generate button so it is one click away, with the price shown. This does NOT generate anything and never spends the creator's credits — they press it themselves. Use it as the LAST step once the form is ready.",
   [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]:
     'ask the creator to send the current form. This does NOT generate anything and never spends their credits — the app shows them the model, the count and the price, and THEY press send. Use it only when they asked you to run it, and only once the form is ready; the plain prime_generate is the right call when they have not asked. It cannot be undone once they confirm, so never call it to "see what happens".',
+  /**
+   * ⚠ 「归属票是唯一凭证」那句已作废（拍板 4 推翻，2026-09-06）：`@` 指定的任意
+   * 一张一律可看。⛔ 但**名单仍然是硬闸**：`targetIds` 只能是这一轮 `@` 上来的那
+   * 几张，模型自己写一条地址会被 `unknownAsset` 拒。
+   */
   [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]:
-    'actually LOOK at the picture that came back from the run you armed, and say what worked and what did not. Only callable when the state block shows a fresh result — you never get to look at runs the creator started on their own. Call it first when a result is waiting, then fix the form with set_* based on what you saw.',
+    'actually LOOK at a picture and say what worked and what did not. Two ways to get one: pass "targetIds" with the id or the exact address of a picture the creator attached to THIS message (that is them pointing at it), or call it with no target when a run you armed has just come back. You may never invent an address — anything the creator did not reference this turn is refused. If they said "that one" and more than one picture is in play, call it with no target and the app will ask them which. Call it first when a picture is waiting, then fix the form with set_* based on what you saw.',
   [ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl]:
     'take ONE web address the creator typed in this conversation, fetch that picture into their library, and mount it as a reference — all in one step. Use it the moment they hand you a link; that is them saying yes. The url must be copied VERBATIM from their own message (a link you found yourself is refused). Plain image links work, and so does a normal web page — the picture on it is taken. ⛔ Never tell the creator to download, upload, or click anything for a link they already gave you: that is what this tool is for.',
   /**

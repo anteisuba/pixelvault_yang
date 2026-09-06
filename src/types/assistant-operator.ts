@@ -21,10 +21,10 @@
 import { z } from 'zod'
 
 import {
+  ASSISTANT_CHOICE_REQUEST_LIMITS as CHOICE_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_CONFIRM_TIER_IDS,
-  ASSISTANT_OPERATOR_CONFIRM_TIERS,
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
@@ -536,6 +536,30 @@ export const AssistantOperatorRequestSchema = z.object({
   forcePlan: z.boolean().optional(),
   /** 「本会话此类不再问」的条子（§6 拍板 24）。见 schema 头注。 */
   autoApprove: AssistantOperatorAutoApproveSchema.optional(),
+  /**
+   * 用户这一轮 `@` 引用的那几张图（§7 四入口共用的 chip 管线，切片 3a）。
+   *
+   * ⭐ **拍板 4 推翻的落点**：归属票不再是看图的唯一凭证 —— `@` 指定的任意一张都
+   * 能直接作 `critique_result` 的目标。它与 `result` 是两条来源，不是一条的两种写法：
+   * `result` 是「助手自己备的那一枪回来了」（客户端归属追踪填的），这一格是
+   * 「用户指着说这张」。
+   * ⛔ **它同时是那条闸**：`critique_result.targetIds` 只能从这张名单里挑，模型
+   * 写一条名单外的地址一律 `unknownAsset` 拒。没有这张名单，「看图」就变成了
+   * 「模型说看哪张就看哪张」。
+   * ⚠ 用户消息里那句 `[attached: …]` 是**给模型读的展示文本**，不是这张名单 ——
+   * ⛔ 别去解析它：一段给人看的字符串当成权限清单用，是最容易被提示词注入撬开的
+   * 那一类。
+   */
+  mentionedAssets: z
+    .array(
+      z.object({
+        id: IdSchema,
+        url: z.string().url(),
+        label: LabelSchema.optional(),
+      }),
+    )
+    .max(LIMITS.maxSnapshotReferences)
+    .optional(),
 })
 
 export type AssistantOperatorRequest = z.infer<
@@ -640,12 +664,28 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]: z.object({}),
   /**
-   * ⛔ **没有图片地址这个参数** —— 地址来自请求里的 `result`（拍板 4 的归属
-   * 追踪填的），模型给不出、也不许给。它唯一能写的是「这一轮本来想要什么」，
-   * 让视觉那一跳有个对照物；不写就用线程里的提示词兜底。
+   * ⛔ **仍然没有图片地址这个参数**：模型只能从两处**已有的名单**里挑，⛔ 不许
+   * 自己写一条 URL。两处是——
+   *  · `targetIds`（切片 3a，拍板 4 推翻）：用户 `@` 引用的那几张（`mentionedAssets`）。
+   *    值可以是那张图的 id（generation id / assetId）**或**它的 URL，服务端两样都认。
+   *    不在名单里的 id 按 `unknownAsset` 拒 —— 这条是「不许自己编一张图来评」的闸。
+   *  · 缺席时回落到请求里的 `result`（归属票：助手自己 primed 的那一枪）。
+   *
+   * `goal` 仍是「这一轮本来想要什么」，让视觉那一跳有个对照物；不写就用线程里的
+   * 提示词兜底。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]: z.object({
     goal: z.string().trim().max(LIMITS.maxCritiqueGoalChars).optional(),
+    targetIds: z
+      .array(
+        z
+          .string()
+          .trim()
+          .min(1)
+          .max(LIMITS.maxIdChars * 4),
+      )
+      .max(LIMITS.maxSnapshotReferences)
+      .optional(),
   }),
   /**
    * 用户亲手递来的那条地址（P3-D，拍板 22）。
@@ -1385,15 +1425,15 @@ export const AssistantOperatorStepEventSchema = z.object({
 export const AssistantOperatorConfirmRequestEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.confirmRequest),
   /**
-   * 三档里的哪一档（§6）。服务端**从切片 2a 起永远显式发** `overwrite`。
+   * 三档里的哪一档（§6）—— **恒 `overwrite`**（切片 3a 收成必填）。
    *
-   * ⚠ 写成可选，只有一个理由：`StudioOperatorConfirm = Omit<本事件,'type'>`，而那
-   * 个类型的读取方（`use-assistant-operator.ts`）本轮由另一片在改 —— 写成必填会在
-   * 一个本片碰不得的文件里当场编译失败。第 3 轮接线时把它收成必填。
-   * ⛔ 它**不是**「缺席就当 overwrite」的兼容层：服务端那一侧一条不发空的路都没有，
-   * 由 `assistant-operator.service.test` 钉着。
+   * ⛔ 不是 `z.enum(三档)`：花钱档有自己的帧（`spend_request`），免费档压根不发帧。
+   * 写成三选一等于允许一个「这张覆盖三选卡其实说的是花钱」的载荷存在，而那张卡
+   * 的三颗按钮（追加 / 覆盖 / 保留）对花钱一件都答不上。
+   * ⚠ 从可选收成必填是有意的（切片 2a 的注释里写着到这一片收）：可选意味着客户端
+   * 得回答「缺席算哪一档」，而那正是兼容层的形状。
    */
-  tier: z.enum(ASSISTANT_OPERATOR_CONFIRM_TIERS).optional(),
+  tier: z.literal(ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.overwrite),
   field: AssistantOperatorConfirmFieldSchema,
   /** 用户已经写在那儿的东西（截断）—— 小条上要让人认出「哦是我写的那段」。 */
   have: z.string().max(LIMITS.maxConfirmHaveChars),
@@ -1423,6 +1463,32 @@ export const AssistantOperatorRuleHitEventSchema = z.object({
   createdAt: z.string(),
 })
 
+/**
+ * **歧义反问单选**（§3.3 第 5 行 / §7，切片 3a）—— `StudioOperatorAssetChoiceCard`
+ * 收的就是它。它之后这条流结束（`awaiting_confirm`）。
+ *
+ * ⚠ `options[].assetUrl` **必填**：这张卡的每一格就是一张缩略图（§11.4「反问单选
+ * 卡」的 `grid-cols-4` + `aspect-3/4`），没有图的选项在这张卡上画不出来 ——
+ * 那种问题该走计划卡的待定项，不是这里。
+ * ⚠ `id` 是**客户端要拿去插 @chip 的那个身份**：素材库里的 assetId，或没有 id 时
+ * 服务端拿 URL 兜的一个稳定串。
+ */
+export const AssistantOperatorChoiceRequestEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.choiceRequest),
+  /** 助手问的那句原话。 */
+  question: z.string().trim().min(1).max(CHOICE_LIMITS.maxQuestionChars),
+  options: z
+    .array(
+      z.object({
+        id: IdSchema,
+        label: LabelSchema,
+        assetUrl: z.string().url(),
+      }),
+    )
+    .min(CHOICE_LIMITS.minOptions)
+    .max(CHOICE_LIMITS.maxOptions),
+})
+
 export const AssistantOperatorDoneEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.done),
 })
@@ -1449,6 +1515,7 @@ export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorSpendRequestEventSchema,
   AssistantOperatorMessageEventSchema,
   AssistantOperatorRuleHitEventSchema,
+  AssistantOperatorChoiceRequestEventSchema,
   AssistantOperatorDoneEventSchema,
   AssistantOperatorStoppedEventSchema,
   AssistantOperatorErrorEventSchema,
@@ -1476,6 +1543,10 @@ export type AssistantOperatorConfirmRequestEvent = z.infer<
 /** 规则薄卡（§2.21 / §4.2）收的那一帧。 */
 export type AssistantOperatorRuleHitEvent = z.infer<
   typeof AssistantOperatorRuleHitEventSchema
+>
+/** 歧义反问单选卡（§11.4「反问单选卡」）收的那一帧。 */
+export type AssistantOperatorChoiceRequestEvent = z.infer<
+  typeof AssistantOperatorChoiceRequestEventSchema
 >
 export type AssistantOperatorPriorStep = z.infer<
   typeof AssistantOperatorPriorStepSchema

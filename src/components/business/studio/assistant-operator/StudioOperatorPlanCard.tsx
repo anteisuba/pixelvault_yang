@@ -33,6 +33,14 @@ interface StudioOperatorPlanCardProps {
   steps: readonly { id: string; label: string }[]
   pending: readonly AssistantOperatorPlanPending[]
   estimate: AssistantOperatorPlanEstimate
+  /**
+   * 点过「开始」了没有 —— 卡收成一行摘要（§3.1 ④）。
+   *
+   * ⭐ **受控**（切片 3a 接线时改的）：这一位住在 store。卡自己 `useState` 记的
+   * 下场是收放法则（拍板 7）把面板卸载一次，再展开时它又变回可点的「开始」——
+   * 而那一轮其实早就跑起来了。
+   */
+  started: boolean
   /** 「开始」—— 带着答复重发（§3.1 ④）。 */
   onStart(answers: AssistantOperatorPlanAnswer[]): void
   /** 「修改」—— ⚠ 就地回到可编辑态，**不发请求**（§3.1 ⑤）。 */
@@ -43,13 +51,12 @@ export function StudioOperatorPlanCard({
   steps,
   pending,
   estimate,
+  started,
   onStart,
   onRevise,
 }: StudioOperatorPlanCardProps) {
   const t = useTranslations('StudioOperator')
   const [answers, setAnswers] = useState<Record<string, string>>({})
-  /** 点过「开始」之后收成一行摘要（§3.1 ④）；「修改」把它放回来。 */
-  const [started, setStarted] = useState(false)
 
   /**
    * ⚠ 每一格都必须有答案「开始」才亮（§3.1 ③）—— 没有待定项时它一开始就是亮的。
@@ -73,10 +80,7 @@ export function StudioOperatorPlanCard({
         <button
           type="button"
           data-testid="operator-plan-revise"
-          onClick={() => {
-            setStarted(false)
-            onRevise?.()
-          }}
+          onClick={() => onRevise?.()}
           className="shrink-0 rounded-md px-1.5 py-0.5 text-2xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {t('plan.revise')}
@@ -194,15 +198,14 @@ export function StudioOperatorPlanCard({
           type="button"
           data-testid="operator-plan-start"
           disabled={!ready}
-          onClick={() => {
-            setStarted(true)
+          onClick={() =>
             onStart(
               pending.map((item) => ({
                 pendingId: item.id,
                 optionId: answers[item.id] as string,
               })),
             )
-          }}
+          }
           className="shrink-0 rounded-md bg-primary px-2 py-1 text-2xs text-primary-foreground transition-opacity duration-(--duration-fast) ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
         >
           {t('plan.start')}

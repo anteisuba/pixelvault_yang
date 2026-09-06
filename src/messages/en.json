@@ -6874,17 +6874,17 @@
     "planTitle": "Plan · the free steps happen right away",
     "domainMark": "Switched to {domain} — new tools, same conversation",
     "placeholderIdle": "Keep talking, or attach something…",
-    "placeholderWorking": "Go ahead, I am listening — cutting in redirects me",
+    "placeholderWorking": "Go ahead, I am listening — what you type gets queued for the next pause point",
     "send": "Send",
-    "sendInterrupt": "Cut in — the assistant takes this and adjusts its plan",
     "stop": "Stop the current work",
     "lightboxLabel": "View full size",
     "rail": {
       "idle": "Idle",
       "working": "Working",
-      "awaiting": "Your call",
+      "awaiting": "Needs confirming",
       "error": "Failed",
-      "primed": "Ready"
+      "primed": "Ready",
+      "planning": "Your call"
     },
     "band": {
       "working": "Working",
@@ -6978,7 +6978,8 @@
       "queuePicked": "Pause point — picking up the {count} message(s) you queued",
       "queueDropped": "You pulled back the queued message: {subject}",
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
-      "loraMountFailed": "Could not mount {subject} — nothing was added to the bench"
+      "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
+      "autoApproved": "Sent straight away per your setting · {count} credits"
     },
     "suggestion": {
       "setupShot": "Set this shot up for me",
@@ -7067,7 +7068,8 @@
     },
     "choice": {
       "title": "Which one did you mean?",
-      "resolved": "Picked"
+      "resolved": "Picked",
+      "answer": "This one: {label}"
     },
     "error": {
       "generic": "The assistant did not finish this round"
@@ -7119,7 +7121,13 @@
         "ui": "Interface",
         "chinese": "Chinese",
         "english": "English"
-      }
+      },
+      "tabPersona": "Assistant",
+      "tabRules": "Project rules",
+      "rulesHint": "Standing rules the assistant reads before it touches anything. It writes them down when you tell it something worth keeping.",
+      "rulesLoading": "Loading…",
+      "rulesEmpty": "No rules yet — tell the assistant something worth keeping and it records one.",
+      "ruleDelete": "Delete this rule"
     },
     "rule": {
       "recordedOn": "recorded {date}",
@@ -7133,7 +7141,8 @@
       "meta": "{steps} steps · {pending} open",
       "estimate": "≈ {credits} credits",
       "revise": "Change",
-      "start": "Start"
+      "start": "Start",
+      "revisePrefill": "Change the plan: "
     },
     "spend": {
       "title": "Send this? It spends credits",
@@ -7145,7 +7154,8 @@
       "seconds": "{seconds}s",
       "remember": "Don't ask again for sends like this in this session",
       "cancel": "Cancel",
-      "confirm": "Send"
+      "confirm": "Send",
+      "resolved": "Sent · it spent credits"
     },
     "planVisual": {
       "comp": {
@@ -7194,7 +7204,8 @@
         "painterly": "Painterly",
         "lineart": "Line art"
       }
-    }
+    },
+    "sendQueue": "Queue this — it lands at the next pause point"
   },
   "GenerationCancel": {
     "cancel": "Cancel",

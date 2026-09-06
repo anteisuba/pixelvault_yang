@@ -6874,17 +6874,17 @@
     "planTitle": "計画 · 無料の手順はそのまま実行",
     "domainMark": "{domain}に切り替え —— 道具は変わっても会話は続きます",
     "placeholderIdle": "続けてどうぞ。素材を添付しても構いません…",
-    "placeholderWorking": "どうぞ、聞いています —— 割り込めば方向転換します",
+    "placeholderWorking": "どうぞ、聞いています —— 入力は次の区切りまで順番待ちに入ります",
     "send": "送信",
-    "sendInterrupt": "割り込み —— 受け取って計画を組み直します",
     "stop": "作業を止める",
     "lightboxLabel": "拡大表示",
     "rail": {
       "idle": "待機",
       "working": "作業中",
-      "awaiting": "確認待ち",
+      "awaiting": "確認が必要",
       "error": "失敗",
-      "primed": "準備完了"
+      "primed": "準備完了",
+      "planning": "あなた次第"
     },
     "band": {
       "working": "作業中",
@@ -6978,7 +6978,8 @@
       "queuePicked": "区切りです —— 並べておいた {count} 件を受け取りました",
       "queueDropped": "並んでいたメッセージを取り消しました：{subject}",
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
-      "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）"
+      "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）",
+      "autoApproved": "設定に従いそのまま送信 · {count} クレジット"
     },
     "suggestion": {
       "setupShot": "この一枚を組み立てて",
@@ -7067,7 +7068,8 @@
     },
     "choice": {
       "title": "どれのことですか？",
-      "resolved": "選びました"
+      "resolved": "選びました",
+      "answer": "これです：{label}"
     },
     "error": {
       "generic": "今回のラウンドは最後まで走りませんでした"
@@ -7119,7 +7121,13 @@
         "ui": "画面に合わせる",
         "chinese": "中国語",
         "english": "英語"
-      }
+      },
+      "tabPersona": "アシスタント",
+      "tabRules": "プロジェクトのルール",
+      "rulesHint": "アシスタントが手を動かす前に読む決めごとです。残す価値のあることを伝えると書き留めます。",
+      "rulesLoading": "読み込み中…",
+      "rulesEmpty": "まだルールはありません — 残したいことを伝えると記録します。",
+      "ruleDelete": "このルールを削除"
     },
     "rule": {
       "recordedOn": "{date} に記録",
@@ -7133,7 +7141,8 @@
       "meta": "{steps} ステップ · 未定 {pending} 件",
       "estimate": "約 {credits} クレジット",
       "revise": "修正",
-      "start": "開始"
+      "start": "開始",
+      "revisePrefill": "計画を変更："
     },
     "spend": {
       "title": "これを送信しますか（クレジットを消費します）",
@@ -7145,7 +7154,8 @@
       "seconds": "{seconds}秒",
       "remember": "このセッションでは同じ内容の送信を今後確認しない",
       "cancel": "キャンセル",
-      "confirm": "送信"
+      "confirm": "送信",
+      "resolved": "送信済み · クレジットを消費しました"
     },
     "planVisual": {
       "comp": {
@@ -7194,7 +7204,8 @@
         "painterly": "絵画的",
         "lineart": "線画"
       }
-    }
+    },
+    "sendQueue": "順番待ちに入れる — 次の区切りで処理されます"
   },
   "GenerationCancel": {
     "cancel": "キャンセル",

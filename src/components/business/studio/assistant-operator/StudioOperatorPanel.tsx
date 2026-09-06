@@ -13,8 +13,10 @@
  *  · **模型 chip 住输入框上方工具条明面**，点开是现有「自动路由」组件（拍板 11）——
  *    ⛔ 没有另行设计一个选择器：那件事 2026-08-19 出过生产事故（界面显示 GPT、
  *    实际打 Gemini），复用是唯一不会再犯的做法
- *  · 输入区双行：上行 📎 + 模型 chip + 工作态 ⏹，下行 输入框 + 发送（拍板 12）
- *  · 工作态占位语「说，我在听 — 插话即转向」；发送键在工作态**就是插话**（拍板 13）
+ *  · 输入区双行：上行 📎 + 模型 chip + 「先问我」+ 工作态 ⏹，下行 输入框 + 发送（拍板 12）
+ *  · 运行中回车 = **排队**（§3.1 ㉒，拍板 13 改口）——⛔ 「发送即插话」那条分支
+ *    已删（切片 3a / §14「删掉什么」）：只有 ⏹ 才 abort
+ *  · 三张「等你定」的卡钉在流末尾：计划 / 花钱硬确认 / 歧义反问单选（§4.1）
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -38,6 +40,10 @@ import {
   STUDIO_OPERATOR_SUGGESTIONS,
   STUDIO_OPERATOR_TIMELINE,
 } from '@/constants/studio-assistant-operator'
+import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
+import { StudioOperatorAssetChoiceCard } from '@/components/business/studio/assistant-operator/StudioOperatorAssetChoiceCard'
+import { StudioOperatorPlanCard } from '@/components/business/studio/assistant-operator/StudioOperatorPlanCard'
+import { StudioOperatorSpendConfirmCard } from '@/components/business/studio/assistant-operator/StudioOperatorSpendConfirmCard'
 import { CanvasAssistantRouteSelector } from '@/components/business/node/CanvasAssistantRouteSelector'
 import {
   AttachKindGlyph,
@@ -71,7 +77,7 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { Spinner } from '@/components/ui/spinner'
-import { useStudioGenOptional } from '@/contexts/studio-context'
+import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import type { UseAssistantOperatorResult } from '@/hooks/use-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
@@ -85,6 +91,7 @@ import {
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
+import type { AssistantPersona } from '@/types/assistant-persona'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
 import type {
   StudioOperatorAttachment,
@@ -147,6 +154,16 @@ interface StudioOperatorPanelProps {
    * ⚠ 必传：可选 prop 漏传 = 三绿而会话菜单又变回空壳。
    */
   history: UseStudioOperatorHistoryResult
+  /**
+   * 助手设置里那份 persona（§8）—— **外壳拉一次往下传**，⛔ 面板不自己拉：
+   * 它一轮里会渲染几十次，每次都开一个 `GET /api/assistant/persona` 是账单也是
+   * 竞态。⚠ 缺席（还没拉到）时头像画默认预设、问候语用域名（§8.2）。
+   */
+  persona?: AssistantPersona
+  /** ⋯ 菜单 →「助手设置」（§8.1 主入口）。弹层住在外壳里（收放法则会卸载面板）。 */
+  onOpenAssistantSettings(): void
+  /** 规则薄卡上的「查看规则」（§10）—— 打开助手设置并落到规则那一页。 */
+  onOpenProjectRules(): void
   onCollapse(): void
 }
 
@@ -159,6 +176,9 @@ export function StudioOperatorPanel({
   upload,
   webImport,
   history,
+  persona,
+  onOpenAssistantSettings,
+  onOpenProjectRules,
   onCollapse,
 }: StudioOperatorPanelProps) {
   const t = useTranslations('StudioOperator')
@@ -173,8 +193,22 @@ export function StudioOperatorPanel({
     queue,
     selectedResultId,
     askFirst,
+    plan,
+    spend,
+    choice,
   } = useStudioOperatorState()
-  const { domain, send, stop, cancelQueued, newThread } = operator
+  const {
+    domain,
+    send,
+    stop,
+    cancelQueued,
+    newThread,
+    answerPlan,
+    revisePlan,
+    answerSpend,
+    cancelSpend,
+    answerChoice,
+  } = operator
   /**
    * `@` 的那条 chip 管线（§3.3 四入口）—— chips 住在 store（收放法则会卸载这颗
    * 组件），触发解析与选择器开合住在 hook 里。
@@ -202,32 +236,13 @@ export function StudioOperatorPanel({
   /**
    * 「最近生成」那一批（§3.3：@ 选择器最近生成在前 · §3.1 ⑱ 结果行卡）。
    *
-   * ⭐ 数据源是工作台**本来就在跑**的那条回流（`activeRun`），⛔ 没有新轮询器 ——
-   * 与 `use-studio-operator-critique.ts` 读的是同一处。
-   * ⚠ 走 `useStudioGenOptional()`：面板也挂在 `/studio/lora` 上，而那条路由故意
-   * 不挂 `<StudioProvider>`，会抛的那版会把整颗面板打红。装配台那边这一段恒空
-   * （结果行卡整块不渲染），接它自己的结果列是第 3 轮的事。
+   * ⭐ **数据源改成宿主契约的 `results`**（切片 3a）：此前这里直接
+   * `useStudioGenOptional()?.activeRun`，而 `/studio/lora` 故意不挂
+   * `<StudioProvider>` —— 那条路上这一段恒空，结果行卡在装配台上**结构性地**
+   * 永远不可能出现。映射搬到两个宿主各自那边之后，两边就都有了。
+   * ⛔ 面板从此不认识 `useStudioGen`：它挂在哪台工作台上不该由它自己去猜。
    */
-  const activeRun = useStudioGenOptional()?.activeRun
-  const resultItems = useMemo<readonly StudioOperatorResultItem[]>(() => {
-    const items = activeRun?.items ?? []
-    return items.flatMap((item) => {
-      const generation = item.generation
-      if (item.status !== 'completed' || !generation?.url) return []
-      return [
-        {
-          id: generation.id,
-          url: generation.url,
-          ...(generation.thumbnailUrl
-            ? { thumbnailUrl: generation.thumbnailUrl }
-            : {}),
-          ...(generation.prompt
-            ? { label: generation.prompt.slice(0, 40) }
-            : {}),
-        },
-      ]
-    })
-  }, [activeRun])
+  const resultItems = useStudioOperatorHost().results
 
   /**
    * 结果格 → chip。
@@ -261,6 +276,17 @@ export function StudioOperatorPanel({
    * ⚠ 失败的那些**不拦**：它们摆在那儿带着原因，用户看得见自己在少发什么。
    */
   const uploading = upload.uploads.some((item) => item.status === 'uploading')
+
+  /**
+   * 发送键写什么（§3.1 ㉒）—— 三档：还在传 / 运行中排队 / 直接发。
+   * ⚠ 运行中那一档说的是「排队」而不是「插话」（拍板 13 改口）：按钮上写着
+   * 「插话即转向」而实际是排队，正是本仓最讨厌的那种「界面说一套、代码做一套」。
+   */
+  const sendLabel = uploading
+    ? t('attach.upload.waiting')
+    : working
+      ? t('sendQueue')
+      : t('send')
 
   // 新条目进来就滚到底 —— 日志是逐条落地的，不跟着滚等于让用户一直手动拖。
   // ⚠ 载回历史也要滚（P4-B）：刷新之后停在几十条之前的开头，用户以为对话丢了。
@@ -437,6 +463,7 @@ export function StudioOperatorPanel({
         steps={bandSteps}
         history={history}
         onNewThread={newThread}
+        onOpenAssistantSettings={onOpenAssistantSettings}
         onCollapse={onCollapse}
       />
 
@@ -584,6 +611,7 @@ export function StudioOperatorPanel({
                   <StudioOperatorTimelineRow
                     key={entry.id}
                     node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+                    {...(persona ? { persona } : {})}
                   >
                     <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground">
                       {entry.text}
@@ -595,6 +623,7 @@ export function StudioOperatorPanel({
                   <StudioOperatorTimelineRow
                     key={entry.id}
                     node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+                    {...(persona ? { persona } : {})}
                   >
                     <div
                       data-testid="operator-plan"
@@ -637,6 +666,7 @@ export function StudioOperatorPanel({
                   <StudioOperatorTimelineRow
                     key={entry.id}
                     node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+                    {...(persona ? { persona } : {})}
                   >
                     <StudioOperatorCritiqueCard
                       step={{ ...step, result: step.result }}
@@ -671,6 +701,25 @@ export function StudioOperatorPanel({
                   </StudioOperatorTimelineRow>
                 )
               /**
+               * 规则薄卡（§2.21 / §10，拍板 23）—— **系统行档**，⛔ 不用状态色：
+               * 规则不是成功也不是警告。
+               */
+              case 'rule':
+                return (
+                  <StudioOperatorTimelineRow
+                    key={entry.id}
+                    node={STUDIO_OPERATOR_NODE_KINDS.system}
+                  >
+                    <RuleChip
+                      ruleId={entry.ruleId}
+                      text={entry.text}
+                      source={entry.source}
+                      createdAt={entry.createdAt}
+                      onView={onOpenProjectRules}
+                    />
+                  </StudioOperatorTimelineRow>
+                )
+              /**
                * 切域标记（拍板 8：切域换工具，会话不断）。
                *
                * ⚠ `entry.domain` 存的是**域 id**，印之前必须过词表 —— 直接塞进
@@ -696,6 +745,68 @@ export function StudioOperatorPanel({
             }
           })}
 
+          {/* ── 三张「等你定」的卡（§4.1「钉在流末尾」）──────────────────
+              ⚠ 顺序是**计划 → 反问 → 花钱**，与它们在一轮里出现的先后一致：
+                计划卡在任何一步之前，反问在中途，花钱在最后一步。三张同时在场
+                在协议上不可能（每一帧之后流都停了），顺序只是为了「万一」时读起来
+                仍然像一条时间线。 */}
+          {plan ? (
+            <StudioOperatorTimelineRow
+              node={STUDIO_OPERATOR_NODE_KINDS.big}
+              {...(persona ? { persona } : {})}
+            >
+              <StudioOperatorPlanCard
+                steps={plan.steps}
+                pending={plan.pending}
+                estimate={plan.estimate}
+                started={plan.resolved}
+                onStart={answerPlan}
+                /* 「修改」= 预填「修改计划：」并聚焦（§3.1 ⑤）——⛔ 不发请求，
+                   下一条消息才带 `planApproved: false`（hook 那一侧记着）。 */
+                onRevise={() => {
+                  revisePlan()
+                  if (!draft.trim()) onDraftChange(t('plan.revisePrefill'))
+                  inputRef.current?.focus()
+                }}
+              />
+            </StudioOperatorTimelineRow>
+          ) : null}
+
+          {choice ? (
+            <StudioOperatorTimelineRow
+              node={STUDIO_OPERATOR_NODE_KINDS.big}
+              {...(persona ? { persona } : {})}
+            >
+              <StudioOperatorAssetChoiceCard
+                question={choice.question}
+                options={choice.options}
+                chosenId={choice.chosenId}
+                onChoose={(option) =>
+                  answerChoice(
+                    option,
+                    t('choice.answer', {
+                      label: option.label,
+                    }),
+                  )
+                }
+              />
+            </StudioOperatorTimelineRow>
+          ) : null}
+
+          {spend ? (
+            <StudioOperatorTimelineRow
+              node={STUDIO_OPERATOR_NODE_KINDS.big}
+              {...(persona ? { persona } : {})}
+            >
+              <StudioOperatorSpendConfirmCard
+                request={spend.request}
+                resolved={spend.resolved}
+                onConfirm={answerSpend}
+                onCancel={cancelSpend}
+              />
+            </StudioOperatorTimelineRow>
+          ) : null}
+
           {/* ── 结果行卡（§3.1 ⑱）────────────────────────────────────
               ⚠ 钉在流末尾而不是插进 `blocks`：那一批结果不是线程条目（它来自
                 工作台的在飞回流，不落线程、不进上下文）。真正把它变成对话的是
@@ -704,6 +815,7 @@ export function StudioOperatorPanel({
           {resultItems.length > 0 ? (
             <StudioOperatorTimelineRow
               node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+              {...(persona ? { persona } : {})}
             >
               <StudioOperatorResultRow
                 items={resultItems}
@@ -1100,25 +1212,18 @@ export function StudioOperatorPanel({
           <button
             type="button"
             data-testid="operator-send"
-            // 工作态下发送 = 插话即转向（拍板 13）：`send` 内部先 abort 再带着
-            // 新消息重发，所以这里不需要第二条分支。
-            // 等上传是**说出来的**等待：停用 + 一句「还有文件在传」，
-            // ⛔ 不做「点了没反应」（那正是本片在修的病）。
+            /**
+             * ⚠ 工作态下发送 = **排队**（§3.1 ㉒，拍板 13 改口）：`send()` 把这一句
+             * 放进队列，到下一个工具步跑完才接住。⛔ 「发送即插话」那条分支已删
+             * （§14「删掉什么」）—— 它此前的实现是 abort + 重发，代价是用户想补
+             * 一句「顺便把比例改成 3:4」会把已经付过钱的三步整个掐掉重跑一遍。
+             * 真要掐掉走 ⏹（`operator-stop`）。
+             * 等上传是**说出来的**等待：停用 + 一句「还有文件在传」，
+             * ⛔ 不做「点了没反应」。
+             */
             disabled={uploading}
-            title={
-              uploading
-                ? t('attach.upload.waiting')
-                : working
-                  ? t('sendInterrupt')
-                  : t('send')
-            }
-            aria-label={
-              uploading
-                ? t('attach.upload.waiting')
-                : working
-                  ? t('sendInterrupt')
-                  : t('send')
-            }
+            title={sendLabel}
+            aria-label={sendLabel}
             onClick={() => submit(draft)}
             className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >

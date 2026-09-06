@@ -544,7 +544,7 @@ describe('step 契约 · inverse 完备性', () => {
 })
 
 describe('事件契约', () => {
-  it('八种事件都能解析', () => {
+  it('每一种事件都能解析', () => {
     const events: unknown[] = [
       { type: ASSISTANT_OPERATOR_EVENTS.open },
       { type: ASSISTANT_OPERATOR_EVENTS.plan, steps: ['查素材', '填表单'] },
@@ -554,9 +554,19 @@ describe('事件契约', () => {
       },
       {
         type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+        // §6 第二档 —— 切片 3a 起 `tier` 必填（花钱档有自己那一帧）。
+        tier: 'overwrite',
         field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
         have: '我自己写的一段',
         proposed: '助手想写的一段',
+      },
+      {
+        type: ASSISTANT_OPERATOR_EVENTS.choiceRequest,
+        question: 'Which one do you mean?',
+        options: [
+          { id: 'gen-1', label: '结果①', assetUrl: 'https://cdn.test/a.png' },
+          { id: 'gen-2', label: '结果②', assetUrl: 'https://cdn.test/b.png' },
+        ],
       },
       { type: ASSISTANT_OPERATOR_EVENTS.message, text: '好的' },
       { type: ASSISTANT_OPERATOR_EVENTS.done },
@@ -584,9 +594,53 @@ describe('事件契约', () => {
     expect(
       AssistantOperatorEventSchema.safeParse({
         type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+        tier: 'overwrite',
         field: 'aspectRatio',
         have: 'x',
         proposed: 'y',
+      }).success,
+    ).toBe(false)
+  })
+
+  /**
+   * ⭐ `tier` 从可选收成必填（切片 3a）：可选意味着客户端得回答「缺席算哪一档」，
+   * 而那正是兼容层的形状。⛔ 也不许发 `spend` —— 花钱有自己那一帧。
+   */
+  it('confirm_request 的 tier 是必填的 overwrite，⛔ 不收缺席也不收 spend', () => {
+    const base = {
+      type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+      field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
+      have: 'x',
+      proposed: 'y',
+    }
+    expect(AssistantOperatorEventSchema.safeParse(base).success).toBe(false)
+    expect(
+      AssistantOperatorEventSchema.safeParse({ ...base, tier: 'spend' })
+        .success,
+    ).toBe(false)
+    expect(
+      AssistantOperatorEventSchema.safeParse({ ...base, tier: 'overwrite' })
+        .success,
+    ).toBe(true)
+  })
+
+  /** 歧义反问单选卡（§7）：每一格都得有图，少于两个不是「问题」是「通知」。 */
+  it('choice_request 的每个选项都必须带 assetUrl，且至少两个', () => {
+    const one = {
+      type: ASSISTANT_OPERATOR_EVENTS.choiceRequest,
+      question: '哪一张？',
+      options: [
+        { id: 'a', label: '结果①', assetUrl: 'https://cdn.test/a.png' },
+      ],
+    }
+    expect(AssistantOperatorEventSchema.safeParse(one).success).toBe(false)
+    expect(
+      AssistantOperatorEventSchema.safeParse({
+        ...one,
+        options: [
+          { id: 'a', label: '结果①', assetUrl: 'https://cdn.test/a.png' },
+          { id: 'b', label: '结果②' },
+        ],
       }).success,
     ).toBe(false)
   })

@@ -281,6 +281,8 @@ describe('切域', () => {
     const result = readState()
     act(() =>
       store.setOperatorConfirm({
+        // §6 第二档 —— 切片 3a 起 `tier` 是必填（花钱档走自己那一帧）。
+        tier: 'overwrite',
         field: 'prompt',
         have: '用户手写的原文',
         proposed: '助手想写的',

@@ -30,6 +30,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
+import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
 
 export interface StudioOperatorHost {
   /**
@@ -59,6 +60,17 @@ export interface StudioOperatorHost {
    * 不会发生。
    */
   apply: StudioOperatorApplyContext
+  /**
+   * **这一批刚出来的结果**（§2.11 结果行卡 / §3.3 `@` 选择器「最近生成在前」）。
+   *
+   * ⭐ 从宿主来而不是面板自己去 context 摸（切片 3a）：面板同时挂在工作台与 LoRA
+   * 装配台上，而 `/studio/lora` 故意不挂 `<StudioProvider>` —— 面板里那句
+   * `useStudioGenOptional()` 在装配台上恒空，于是结果行卡在那边**结构性地**永远
+   * 不可能出现。宿主各自把自己的结果列映射成同一个形状，两边就都有了。
+   * ⚠ **只读**：面板不往里写，选中态住在 store（`selectedResultId`）。
+   * ⚠ 空数组 = 这一轮还没有结果，结果行卡整块不渲染（⛔ 不做空占位）。
+   */
+  results: readonly StudioOperatorResultItem[]
   /**
    * 参考位上限（拍板 21：联网候选一行能选几张）。
    *

@@ -43,7 +43,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import {
-  ASSISTANT_OPERATOR_READ_TOOLS,
+  isRevertibleAssistantOperatorTool,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
   type AssistantOperatorTool,
@@ -166,13 +166,14 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
   const isRejected = step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
   const isMoney =
     step.tool === ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate && !isRejected
-  // 撤销只对**落地了的改动**开放：读类没有东西可撤，被拒的什么都没应用。
-  // ⚠ 判据取**词表**不是手列三条：加一条读工具而这里没跟上，表现是那条日志上
-  //    多出一个撤不掉任何东西的「撤销」（`search_web_images` 就是新加的那条）。
+  // 撤销只对**落地了的改动**开放：被拒的那一步什么都没应用。
+  // ⚠ 判据是 `isRevertibleAssistantOperatorTool`（切片 3a 换的），⛔ 不再是
+  //    「不是读类」：`request_generation` 两者都不是 —— 它不读，也没有 inverse
+  //    （钱已经花出去了）。用旧判据的表现是那条日志上挂着一颗点了没反应的撤销钮。
   const canUndo =
     !undone &&
     step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
-    !(ASSISTANT_OPERATOR_READ_TOOLS as readonly string[]).includes(step.tool)
+    isRevertibleAssistantOperatorTool(step.tool)
 
   /**
    * 详情文本。

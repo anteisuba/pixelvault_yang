@@ -21,11 +21,15 @@ import {
   MessageSquarePlus,
   MoreHorizontal,
   PanelRightClose,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
+import {
+  STUDIO_OPERATOR_KEEP_OPEN_ATTR,
+  STUDIO_OPERATOR_SHELL,
+} from '@/constants/studio-assistant-operator'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import {
   DropdownMenu,
@@ -88,6 +92,13 @@ interface StudioOperatorProgressBandProps {
   steps: readonly StudioOperatorBandStep[]
   history: UseStudioOperatorHistoryResult
   onNewThread(): void
+  /**
+   * 「助手设置」（§8.1 主入口）—— 挂在这个 ⋯ 菜单里，⛔ **不挂进会话菜单**：
+   * 那两个菜单本轮已经合成一个，但职责仍然分明 —— 上半是「这条会话」，下半是
+   * 「这个助手是谁」。⚠ 弹层住在外壳（`StudioOperatorDock`）：收放法则（拍板 7）
+   * 随时会把面板卸载，弹层跟着面板走的下场是它自己突然消失。
+   */
+  onOpenAssistantSettings(): void
   onCollapse(): void
 }
 
@@ -100,6 +111,7 @@ export function StudioOperatorProgressBand({
   steps,
   history,
   onNewThread,
+  onOpenAssistantSettings,
   onCollapse,
 }: StudioOperatorProgressBandProps) {
   const t = useTranslations('StudioOperator')
@@ -263,6 +275,17 @@ export function StudioOperatorProgressBand({
                 {history.error}
               </DropdownMenuItem>
             ) : null}
+            <DropdownMenuSeparator />
+            {/* 助手设置（§8.1）—— ⚠ 触发器带 `data-operator-keep`：点开弹层不该
+                把面板收掉（收放法则的判据就是这个属性）。 */}
+            <DropdownMenuItem
+              data-testid="operator-assistant-settings"
+              {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+              onSelect={() => onOpenAssistantSettings()}
+            >
+              <SlidersHorizontal className="size-4" aria-hidden />
+              {t('assistantSettings')}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             {/* 分享要有一条落了库的会话才有东西可分享 —— 现在诚实地停用。 */}
             <DropdownMenuItem disabled>{t('share')}</DropdownMenuItem>

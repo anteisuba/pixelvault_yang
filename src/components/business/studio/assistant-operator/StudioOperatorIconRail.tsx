@@ -48,6 +48,13 @@ const RAIL_TONE_CLASS: Record<StudioOperatorRailTone, string> = {
   [STUDIO_OPERATOR_RAIL_TONES.idle]: 'bg-muted-foreground',
   [STUDIO_OPERATOR_RAIL_TONES.working]:
     'bg-primary animate-pulse motion-reduce:animate-none',
+  /**
+   * 「待你定」（`awaitingPlan`，§4.1 图标轨那一行写着「状态点闪烁」）。
+   * ⚠ 用 `--primary` 的脉冲而不是 warning：等一张计划卡不是警告 —— 什么都还没
+   * 发生，也没有任何东西会花钱。warning 那一档留给真的要拍板的三张（§11.2）。
+   */
+  [STUDIO_OPERATOR_RAIL_TONES.planning]:
+    'bg-primary animate-pulse motion-reduce:animate-none',
   [STUDIO_OPERATOR_RAIL_TONES.awaiting]: 'bg-status-warning',
   [STUDIO_OPERATOR_RAIL_TONES.error]: 'bg-destructive',
 }
@@ -63,6 +70,7 @@ export function studioOperatorRailTone(
   status: StudioOperatorStatus,
 ): StudioOperatorRailTone {
   if (status === 'working') return STUDIO_OPERATOR_RAIL_TONES.working
+  if (status === 'awaitingPlan') return STUDIO_OPERATOR_RAIL_TONES.planning
   if (status === 'awaitingConfirm') return STUDIO_OPERATOR_RAIL_TONES.awaiting
   if (status === 'error') return STUDIO_OPERATOR_RAIL_TONES.error
   return STUDIO_OPERATOR_RAIL_TONES.idle

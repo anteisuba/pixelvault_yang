@@ -18,6 +18,7 @@ import { useState, type ReactNode } from 'react'
 
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
 import { TimelineAvatar } from '@/components/business/studio/assistant-operator/TimelineAvatar'
+import type { AssistantPersona } from '@/types/assistant-persona'
 import { cn } from '@/lib/utils'
 
 /**
@@ -63,6 +64,11 @@ interface StudioOperatorTimelineRowProps {
   withTimestamp?: boolean
   /** 形状节点行沟里那一小截常显文字（耗时 / 序号），⛔ 不给头像行用。 */
   gutterNote?: ReactNode
+  /**
+   * 助手那一档的头像来源（§8.2）—— 外壳拉一次往下传，见 `TimelineAvatar` 头注。
+   * ⚠ 缺席时画默认预设，⛔ 不出空圈。
+   */
+  persona?: AssistantPersona
   children: ReactNode
 }
 
@@ -70,6 +76,7 @@ export function StudioOperatorTimelineRow({
   node,
   withTimestamp = true,
   gutterNote,
+  persona,
   children,
 }: StudioOperatorTimelineRowProps) {
   const avatar = isAvatarNode(node)
@@ -103,6 +110,7 @@ export function StudioOperatorTimelineRow({
               speaker={
                 node === STUDIO_OPERATOR_NODE_KINDS.user ? 'user' : 'assistant'
               }
+              {...(persona ? { persona } : {})}
               // 头像比节点盒宽，靠绝对定位回到同一条轴上。
               className="absolute left-1/2 top-0 -translate-x-1/2"
             />

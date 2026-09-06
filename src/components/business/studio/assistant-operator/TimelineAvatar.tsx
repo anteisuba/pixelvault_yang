@@ -19,30 +19,11 @@
 
 import Image from 'next/image'
 
+import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
+import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { cn } from '@/lib/utils'
-
-/**
- * 助手的默认头像 —— 黑底白星。
- *
- * ⚠ 内联 SVG 而不是图片文件：它跟着 `--primary` / `--primary-foreground` 走，
- * 换主题不用换资源；persona 自定义头像是后续切片的事（§8），这一颗是那之前的
- * 唯一一档，⛔ 不留「暂时用个 emoji」的过渡形态。
- */
-function AssistantGlyph() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      className="size-full bg-primary text-primary-foreground"
-      aria-hidden
-    >
-      <path
-        d="M10 3.4l1.5 3.6 3.6 1.5-3.6 1.5L10 13.6 8.5 10 4.9 8.5l3.6-1.5L10 3.4z"
-        fill="currentColor"
-      />
-    </svg>
-  )
-}
+import type { AssistantPersona } from '@/types/assistant-persona'
 
 /**
  * 首字母圆标的文字。
@@ -64,12 +45,24 @@ export function timelineInitials(name: string): string {
 }
 
 interface TimelineAvatarProps {
-  /** 谁在说话 —— 用户回合读账户头像，助手回合画默认 AI 头像。 */
+  /** 谁在说话 —— 用户回合读账户头像，助手回合读 persona（§8.2）。 */
   speaker: 'user' | 'assistant'
+  /**
+   * 助手那一档的头像来源（§8.2 / §11.3）—— **由外壳拉一次往下传**。
+   *
+   * ⚠ ⛔ 这颗组件不自己调 `useAssistantPersona()`：它一轮里要渲染好几次，
+   * 每一次都会开一个 `GET /api/assistant/persona`。⚠ 缺席（还没拉到）时画默认
+   * 预设那一款 —— ⛔ 不出骨架屏，⛔ 不留空圈（§3.4「未加载完先画首字母」）。
+   */
+  persona?: AssistantPersona
   className?: string
 }
 
-export function TimelineAvatar({ speaker, className }: TimelineAvatarProps) {
+export function TimelineAvatar({
+  speaker,
+  persona,
+  className,
+}: TimelineAvatarProps) {
   const { profile } = useMyProfile()
 
   const shell = cn(
@@ -80,13 +73,35 @@ export function TimelineAvatar({ speaker, className }: TimelineAvatarProps) {
   )
 
   if (speaker === 'assistant') {
+    /**
+     * 自传头像优先于预设（§8.2：`avatarPreset` 或 `avatarUrl` 二选一，传过就是
+     * 传过）。⚠ `unoptimized`：R2 上那张图与侧栏头像同一条路（`AppSidebar` 的写法）。
+     */
+    const avatarUrl = persona?.avatarUrl ?? null
     return (
       <span
         data-testid="operator-timeline-avatar"
         data-speaker="assistant"
         className={shell}
       >
-        <AssistantGlyph />
+        {avatarUrl ? (
+          <Image
+            src={avatarUrl}
+            alt=""
+            width={40}
+            height={40}
+            unoptimized
+            className="size-full object-cover"
+          />
+        ) : (
+          <AssistantAvatarGlyph
+            presetId={
+              persona?.avatarPreset ?? ASSISTANT_PERSONA_DEFAULTS.avatarPreset
+            }
+            initial={persona?.name ?? ''}
+            className="size-full"
+          />
+        )}
       </span>
     )
   }

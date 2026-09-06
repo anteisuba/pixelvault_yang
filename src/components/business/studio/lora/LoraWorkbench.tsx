@@ -210,14 +210,14 @@ export function LoraWorkbench() {
   // CD：助手开关移到模块 tab 行最右 → 状态提到 root，GenerateBranch 收 props
   // （dock 本体仍挂在 GenerateBranch 里，那里才有 persona 上下文）。
   const [assistantOpen, setAssistantOpen] = useState(false)
-  // 真机验证发现（2026-09-03）：桌面态已经有 `StudioOperatorDock` 自带的收起态
-  // 胶囊（`data-testid="operator-pill"`，`fixed right-6 top-6`）——它的坐标是
-  // 特意调过、贴住每个 `.workbench-card` 右上角的（见该组件内注释），与本页头
-  // `.lora-bar` 右端几乎是同一块屏幕。桌面上再摆一颗自己的「助手」按钮会跟胶囊
-  // 重叠、互相抢点击（Playwright 实测：点头部按钮命中的是胶囊，因为胶囊
-  // `z-50` fixed 层级更高）。两者驱动的是同一个 `assistantOpen` state
+  // 真机验证发现（2026-09-03，胶囊已于 2026-09-06 换成图标轨）：桌面态已经有
+  // `StudioOperatorDock` 自带的收起态**48px 图标轨**（同一个 `<aside>` 收窄，
+  // `fixed bottom-6 right-6 top-6`，`data-testid="operator-panel"`），它贴着视口
+  // 右缘、与本页头 `.lora-bar` 右端几乎是同一块屏幕。桌面上再摆一颗自己的
+  // 「助手」按钮会跟它重叠、互相抢点击（Playwright 实测：点头部按钮命中的是那条
+  // 轨，因为它 `z-40` fixed 层级更高）。两者驱动的是同一个 `assistantOpen` state
   // （`useLoraOperatorHost` 的 `open`/`setOpen` 就是它），功能不重复，只是**桌面
-  // 不需要再画第二个入口**——移动端没有这颗胶囊（`StudioOperatorDock` 在
+  // 不需要再画第二个入口**——移动端没有这条轨（`StudioOperatorDock` 在
   // `isMobile` 时自己 `return null`），头部按钮在那里仍是唯一入口，必须留着。
   const isMobileHeaderAssistant = useIsMobile()
   // B 稿（owner 2026-09-03）：装配栏（底模/LoRA栈/参考图/尺寸）从「生成」tab 内部

@@ -52,14 +52,18 @@ vi.mock('next-intl', () => ({
  * 落笔的那几只手由宿主给（P4-C）。这一层验的是「状态机怎么收尾」，
  * 表单侧一个都不需要真的动，所以整份桩成空手。
  */
+const triggerGeneration = vi.hoisted(() => vi.fn())
+
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
     domain: 'image' as const,
     buildSnapshot: () => ({ prompt: '', availableModels: [] }),
+    results: [],
     referenceLimit: 4,
     open: true,
     setOpen: () => {},
     apply: {
+      triggerGeneration,
       getState: () => ({ prompt: '', advancedParams: {} }),
       dispatch: () => {},
       resolveOptionId: () => null,
@@ -401,5 +405,361 @@ describe('useAssistantOperator 的四条收尾路径', () => {
 
     expect(store.getOperatorState().status).toBe('error')
     expect(store.getOperatorState().errorText).toBe('模型没回话')
+  })
+})
+
+// ─── 切片 3a：三张「等你定」的卡 + 规则薄卡 + 「不再问」──────────────
+
+/** 计划帧的最小载荷。⚠ 阶段数决定 `shouldShowPlanCard` 的第三条判据（≥3）。 */
+function planRequestEvent(
+  steps: number,
+  reason: 'spend' | 'multi-step' | 'user-requested' = 'multi-step',
+): AssistantOperatorEvent {
+  return {
+    type: ASSISTANT_OPERATOR_EVENTS.planRequest,
+    steps: Array.from({ length: steps }, (_, index) => ({
+      id: `plan-${index + 1}`,
+      label: `第 ${index + 1} 步`,
+    })),
+    pending: [
+      {
+        id: 'pending-1',
+        label: '取多少身？',
+        kind: 'single',
+        options: [
+          { id: 'half', label: '半身' },
+          { id: 'full', label: '全身' },
+        ],
+      },
+    ],
+    estimate: { credits: 4, model: 'Seedream 4', count: 1 },
+    reason,
+  }
+}
+
+const SPEND_REQUEST = {
+  model: { id: 'seedream-4', label: 'Seedream 4' },
+  count: 1,
+  specs: { aspectRatio: '3:4', resolution: '2K', durationSeconds: null },
+  estimate: { credits: 4, model: 'Seedream 4', count: 1 },
+} as const
+
+describe('计划卡（§2.6 / §5 客户端硬判）', () => {
+  it('步数 ≥ 3 → 出卡、进 awaitingPlan，并**掐掉这条流**（⛔ 不让后面的步偷偷落地）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把这张改成三步')
+    })
+    await settle()
+
+    streams[0].emit(planRequestEvent(3))
+    await settle()
+
+    const state = store.getOperatorState()
+    expect(state.status).toBe('awaitingPlan')
+    expect(state.plan?.steps).toHaveLength(3)
+    expect(state.plan?.resolved).toBe(false)
+    /**
+     * ⭐ 掐流是这一条最要紧的断言：不掐的话卡钉在流末尾等你确认，而它要问的那
+     * 几步已经落到表单上了 —— 那张卡就成了一句事后通知。
+     */
+    streams[0].emit(doneStepEvent('step-1'))
+    await settle()
+    expect(
+      store.getOperatorState().entries.some((entry) => entry.kind === 'step'),
+    ).toBe(false)
+  })
+
+  it('步数不够、也不花钱、也没开「先问我」→ ⛔ 不出卡，直接接着跑', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词改一下')
+    })
+    await settle()
+
+    streams[0].emit(planRequestEvent(2))
+    await settle()
+
+    expect(store.getOperatorState().plan).toBeNull()
+    expect(store.getOperatorState().status).toBe('working')
+  })
+
+  it('「先问我」开着 → 一步也出卡；请求带 forcePlan，且发完自动复位', async () => {
+    const { result } = render()
+    act(() => store.setOperatorAskFirst(true))
+    act(() => {
+      result.current.send('随便改一个字')
+    })
+    await settle()
+
+    expect(streamAssistantOperatorAPI.mock.calls[0]?.[0].forcePlan).toBe(true)
+    // ⚠ 复位发生在**请求发出去之后**，⛔ 不是在计划帧到达之后。
+    expect(store.getOperatorState().askFirst).toBe(false)
+
+    streams[0].emit(planRequestEvent(1))
+    await settle()
+    expect(store.getOperatorState().status).toBe('awaitingPlan')
+  })
+
+  it('persona 的「默认行为 = 总是先出计划」→ 发完**不复位**（它是长期设置）', async () => {
+    const { result } = render()
+    act(() => store.setOperatorPlanMode('always'))
+    // 设成 always 时开关自己就开了（§3.4）。
+    expect(store.getOperatorState().askFirst).toBe(true)
+
+    act(() => {
+      result.current.send('随便改一个字')
+    })
+    await settle()
+    expect(store.getOperatorState().askFirst).toBe(true)
+  })
+
+  it('「开始」带 planAnswers + planApproved 重发，并把卡收成摘要（⛔ 不再 forcePlan）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('分三步做')
+    })
+    await settle()
+    streams[0].emit(planRequestEvent(3))
+    await settle()
+
+    act(() => {
+      result.current.answerPlan([{ pendingId: 'pending-1', optionId: 'half' }])
+    })
+    await settle()
+
+    expect(streams).toHaveLength(2)
+    const sent = streamAssistantOperatorAPI.mock.calls[1]?.[0]
+    expect(sent.planAnswers).toEqual([
+      { pendingId: 'pending-1', optionId: 'half' },
+    ])
+    expect(sent.planApproved).toBe(true)
+    // ⛔ 不带 forcePlan：带了会让服务端再摆一帧，用户点完「开始」看到同一张卡又回来。
+    expect(sent.forcePlan).toBeUndefined()
+    expect(store.getOperatorState().plan?.resolved).toBe(true)
+    expect(store.getOperatorState().status).toBe('working')
+  })
+
+  it('「修改」⛔ 不发请求；下一条消息才带 planApproved: false，且只带一次', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('分三步做')
+    })
+    await settle()
+    streams[0].emit(planRequestEvent(3))
+    await settle()
+
+    act(() => {
+      result.current.revisePlan()
+    })
+    await settle()
+    expect(streams).toHaveLength(1)
+
+    act(() => {
+      result.current.send('修改计划：先挂参考图')
+    })
+    await settle()
+    expect(streamAssistantOperatorAPI.mock.calls[1]?.[0].planApproved).toBe(
+      false,
+    )
+
+    // ⚠ 一次性：再说一句就不是「改计划」了。
+    streams[1].close()
+    await settle()
+    act(() => {
+      result.current.send('再补一句')
+    })
+    await settle()
+    expect(
+      streamAssistantOperatorAPI.mock.calls[2]?.[0].planApproved,
+    ).toBeUndefined()
+  })
+})
+
+describe('花钱硬确认卡（§6 第三档 / 拍板 24）', () => {
+  it('spend_request → 摆卡；点「生成」带 autoApprove 重发并交给宿主扣扳机', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我发一枪')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.spendRequest,
+      tier: 'spend',
+      request: SPEND_REQUEST,
+    })
+    await settle()
+    expect(store.getOperatorState().spend?.request.model.label).toBe(
+      'Seedream 4',
+    )
+
+    act(() => {
+      result.current.answerSpend({ rememberForSession: true })
+    })
+    await settle()
+
+    // ⚠ 条子必须**在重发之前**记进 store，否则这一轮自己带不上它。
+    expect(streamAssistantOperatorAPI.mock.calls[1]?.[0].autoApprove).toEqual({
+      tier: 'spend',
+      model: 'seedream-4',
+      maxCredits: 4,
+    })
+    expect(store.getOperatorState().spend?.resolved).toBe(true)
+
+    // 服务端放行 → `request_generation` 那一步 → 客户端扣扳机。
+    streams[1].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.step,
+      step: {
+        id: 'step-1',
+        title: '请求发送',
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+        payload: SPEND_REQUEST,
+      },
+    })
+    await settle()
+    expect(triggerGeneration).toHaveBeenCalledWith(SPEND_REQUEST)
+    // ⭐ 命中自动通过时插一行系统行 —— ⛔ 不静默过（这一枪真的花了钱）。
+    expect(
+      store
+        .getOperatorState()
+        .entries.some(
+          (entry) => entry.kind === 'system' && entry.code === 'autoApproved',
+        ),
+    ).toBe(true)
+  })
+
+  it('算不出金额时⛔ 不记条子 —— 一张永远匹配不上的条子比没有更糟', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我发一枪')
+    })
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.spendRequest,
+      tier: 'spend',
+      request: { ...SPEND_REQUEST, estimate: { model: 'Seedream 4' } },
+    })
+    await settle()
+
+    act(() => {
+      result.current.answerSpend({ rememberForSession: true })
+    })
+    await settle()
+    expect(store.getOperatorState().autoApprove).toBeNull()
+  })
+
+  it('「＋新对话」把条子清掉 —— 作用域第一条要素是「同会话」', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我发一枪')
+    })
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.spendRequest,
+      tier: 'spend',
+      request: SPEND_REQUEST,
+    })
+    await settle()
+    act(() => {
+      result.current.answerSpend({ rememberForSession: true })
+    })
+    await settle()
+    expect(store.getOperatorState().autoApprove).not.toBeNull()
+
+    act(() => {
+      result.current.newThread()
+    })
+    expect(store.getOperatorState().autoApprove).toBeNull()
+    expect(store.getOperatorState().spend).toBeNull()
+  })
+})
+
+describe('规则薄卡与歧义反问（§10 / §7）', () => {
+  it('rule_hit → 时间线插一条规则条目（原文/日期原样，⛔ 不是一步）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('按老规矩来')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.ruleHit,
+      ruleId: 'rule-1',
+      text: '主角的耳环永远在左边',
+      source: 'creator',
+      createdAt: '2026-08-14T02:00:00.000Z',
+    })
+    await settle()
+
+    const rule = store
+      .getOperatorState()
+      .entries.find((entry) => entry.kind === 'rule')
+    expect(rule).toMatchObject({
+      ruleId: 'rule-1',
+      text: '主角的耳环永远在左边',
+      createdAt: '2026-08-14T02:00:00.000Z',
+    })
+  })
+
+  it('choice_request → 摆卡；点一张 = 插 @chip + 带 mentionedAssets 重发', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把那张改一下')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.choiceRequest,
+      question: '你说的是哪一张？',
+      options: [
+        { id: 'gen-1', label: '结果①', assetUrl: 'https://cdn.test/a.png' },
+        { id: 'gen-2', label: '结果②', assetUrl: 'https://cdn.test/b.png' },
+      ],
+    })
+    await settle()
+    expect(store.getOperatorState().choice?.options).toHaveLength(2)
+
+    const picked = store.getOperatorState().choice?.options[1]
+    act(() => {
+      result.current.answerChoice(picked!, '就这张：结果②')
+    })
+    await settle()
+
+    const state = store.getOperatorState()
+    // ⭐ 与另外三个入口同一条 chip 管线。
+    expect(state.mentions.map((chip) => chip.id)).toEqual(['gen-2'])
+    expect(state.choice?.chosenId).toBe('gen-2')
+    // ⭐ 服务端那一侧的**准入名单**：`critique_result.targetIds` 只能从这里挑。
+    expect(
+      streamAssistantOperatorAPI.mock.calls[1]?.[0].mentionedAssets,
+    ).toEqual([{ id: 'gen-2', url: 'https://cdn.test/b.png', label: '结果②' }])
+  })
+
+  it('用户改口 → 三张卡一起收（⛔ 别留一张还能点的花钱卡）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我发一枪')
+    })
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.spendRequest,
+      tier: 'spend',
+      request: SPEND_REQUEST,
+    })
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: 'awaiting_confirm',
+    })
+    await settle()
+    expect(store.getOperatorState().spend).not.toBeNull()
+
+    act(() => {
+      result.current.send('算了，换个别的')
+    })
+    await settle()
+    expect(store.getOperatorState().spend).toBeNull()
   })
 })

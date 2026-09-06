@@ -16,6 +16,7 @@ import {
   ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN,
   ASSISTANT_OPERATOR_CONFIRM_TIER_IDS,
   ASSISTANT_OPERATOR_WRITE_MODES,
+  ASSISTANT_CHOICE_REQUEST_LIMITS as CHOICE_LIMITS,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   ASSISTANT_PLAN_PENDING_KINDS,
   ASSISTANT_PLAN_REQUEST_REASON_IDS as PLAN_REASON,
@@ -131,6 +132,7 @@ import {
   type AssistantOperatorPlanEstimate,
   type AssistantOperatorPlanPending,
   type AssistantOperatorRequest,
+  type AssistantOperatorResult,
   type AssistantOperatorSearchResultAsset,
   type AssistantOperatorSnapshot,
   type AssistantOperatorTurn,
@@ -390,6 +392,18 @@ type ToolPlan =
   | {
       kind: 'confirmSpend'
       request: AssistantOperatorGenerationRequest
+    }
+  /**
+   * **歧义反问**（§3.3 第 5 行 / §7，切片 3a）—— 「你说的是哪一张？」
+   *
+   * ⚠ 与 `confirm` / `confirmSpend` 同一条机制（吐一帧、停流、客户端带上下文重发），
+   * 但它既不覆盖什么也不花钱：它只是在问路。⛔ 所以它不是三档确认里的一档，
+   * 见 `ASSISTANT_OPERATOR_EVENTS.choiceRequest` 的头注。
+   */
+  | {
+      kind: 'choice'
+      question: string
+      options: { id: string; label: string; assetUrl: string }[]
     }
 
 function reject(
@@ -1936,6 +1950,99 @@ function planRequestGeneration(run: OperatorRun): ToolPlan {
 }
 
 /**
+ * 助手问「你说的是哪一张」时那句话。
+ *
+ * ⚠ 英文写死在服务端**是有意的**：这一帧到客户端之后原样显示在卡上，而助手本来
+ * 就按 `responseLanguage` 说话 —— 这句由模型说不出来（它是服务端在模型没给出
+ * 目标时替它问的）。⚠ 与 `OPERATOR_STUCK_MESSAGES` 那张三语表不同的是，这一句
+ * 挂在一张有缩略图的卡上，图本身已经把问题说清楚了。
+ */
+const CRITIQUE_CHOICE_QUESTION = 'Which one do you mean?'
+
+/**
+ * **看哪一张**（拍板 4 推翻，§7，切片 3a）—— 三条来源，按序：
+ *  ① `targetIds`：用户 `@` 引用的那几张（`request.mentionedAssets`）。值可以是那张图
+ *     的 id，也可以是它的 URL —— 模型从消息里那句 `[attached: …]` 读到的是地址，
+ *     强迫它转成 id 只会多一次它会写错的转换。
+ *  ② 归属票：`request.result`（助手自己 primed 的那一枪回来了）。
+ *  ③ 都没有，但用户这一轮 `@` 上来 / 参考位上摆着**两张以上**候选 —— 那不是拒绝的
+ *     时候，是**问一句**的时候（歧义反问单选卡）。
+ *
+ * ⛔ **名单之外一律拒**（`unknownAsset`）：模型不许自己写一条地址来看。没有这道闸，
+ * 「看图」就变成了「它说看哪张就看哪张」—— 而那条视觉线是要花 token 的，且它看到
+ * 什么用户完全无从核对。
+ */
+type CritiqueTarget =
+  | { kind: 'result'; result: AssistantOperatorResult }
+  | { kind: 'none' }
+  | { kind: 'unknown' }
+  | {
+      kind: 'ambiguous'
+      options: { id: string; label: string; assetUrl: string }[]
+    }
+
+function resolveCritiqueTarget(
+  run: OperatorRun,
+  targetIds: string[] | undefined,
+): CritiqueTarget {
+  const mentioned = run.request.mentionedAssets ?? []
+
+  if (targetIds?.length) {
+    const wanted = targetIds[0] as string
+    const hit = mentioned.find(
+      (asset) => asset.id === wanted || asset.url === wanted,
+    )
+    if (!hit) return { kind: 'unknown' }
+    /**
+     * ⚠ 一次只看一张（同 `readOperatorClaimEvidence` 的「只取一张」）：评价卡内嵌
+     * 的是**它评的那张图**，单数（拍板 6）。多给几个 id 就看第一个 —— ⛔ 不静默
+     * 把四张拼成一份评价，那是一张卡上四份证据。
+     */
+    return {
+      kind: 'result',
+      result: {
+        url: hit.url,
+        generationId: hit.id,
+        ...(hit.label ? { prompt: hit.label } : {}),
+      },
+    }
+  }
+
+  if (run.request.result) {
+    return { kind: 'result', result: run.request.result }
+  }
+
+  /**
+   * 没票也没指名 —— 手上有两张以上候选时**问一句**而不是拒绝（§3.3 第 5 行）。
+   * ⚠ 候选先取 `@` 上来的那些，再取参考位上摆着的（那是这台工作台上此刻看得见的
+   * 图）。⛔ 不去翻素材库：那不是「你指的哪一张」，那是重新挑一张。
+   */
+  const candidates = [
+    ...mentioned.map((asset) => ({
+      id: asset.id,
+      label: asset.label ?? asset.url,
+      assetUrl: asset.url,
+    })),
+    ...(run.request.snapshot.references?.items ?? []).map((item, index) => ({
+      id: item.assetId ?? item.url,
+      label: item.label ?? `reference ${index + 1}`,
+      assetUrl: item.url,
+    })),
+  ]
+    // ⚠ 按地址去重：同一张图既被 @ 又挂在参考位上时，卡上会出现两个一模一样的格子。
+    .filter(
+      (option, index, all) =>
+        all.findIndex((other) => other.assetUrl === option.assetUrl) === index,
+    )
+    .slice(0, CHOICE_LIMITS.maxOptions)
+
+  if (candidates.length >= CHOICE_LIMITS.minOptions) {
+    return { kind: 'ambiguous', options: candidates }
+  }
+  return { kind: 'none' }
+}
+
+/**
  * 看图闭环（P3-C，拍板 4 + 6）。
  *
  * ── 三件事按顺序发生，缺一条就退回一条**可教的**拒绝 ────────────────
@@ -1957,16 +2064,30 @@ function planRequestGeneration(run: OperatorRun): ToolPlan {
  */
 async function planCritiqueResult(
   run: OperatorRun,
-  args: { goal?: string },
+  args: { goal?: string; targetIds?: string[] },
   userId: string,
 ): Promise<ToolPlan> {
-  const result = run.request.result
-  if (!result) {
+  const target = resolveCritiqueTarget(run, args.targetIds)
+  if (target.kind === 'ambiguous') {
+    return {
+      kind: 'choice',
+      question: CRITIQUE_CHOICE_QUESTION,
+      options: target.options,
+    }
+  }
+  if (target.kind === 'none') {
     return reject(
       REJECT.noResultToCritique,
-      'No result from a run you armed is attached to this turn. You only ever review your own armed runs — wait until one comes back.',
+      'Nothing is attached for you to look at: no run you armed came back, and the creator did not @ any picture this turn. Ask them which picture you should look at.',
     )
   }
+  if (target.kind === 'unknown') {
+    return reject(
+      REJECT.unknownAsset,
+      'That target was not one of the pictures the creator referenced this turn. You may only look at pictures they @-mentioned, or the run you armed yourself.',
+    )
+  }
+  const result = target.result
 
   // 用户选的那条路看得见图就直接用它；看不见才去借（省得平白换掉他选的模型）。
   const seesImages = assistantAdapterSupportsImage(
@@ -3032,6 +3153,25 @@ export async function* runAssistantOperator(
           field: plan.field,
           have: plan.have,
           proposed: plan.proposed,
+        }
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+        }
+        completed = true
+        return
+      }
+
+      if (plan.kind === 'choice') {
+        /**
+         * **歧义反问**（§3.3 第 5 行 / §7）—— 与拍板 3 的就地确认逐字同构：
+         * 吐一帧、停流、客户端点一张之后插 @chip 带上下文重发。
+         * ⛔ 服务端照旧一个挂起态都没有。
+         */
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.choiceRequest,
+          question: plan.question,
+          options: plan.options,
         }
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,

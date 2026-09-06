@@ -56,6 +56,7 @@ function renderCard(
       steps={STEPS}
       pending={PENDING}
       estimate={{ credits: 6, model: 'Seedream 4', count: 2 }}
+      started={false}
       onStart={onStart}
       onRevise={onRevise}
       {...overrides}
@@ -80,7 +81,7 @@ describe('StudioOperatorPlanCard', () => {
     ).toBe(true)
   })
 
-  it('选完之后「开始」把答复成对交出去，卡收成一行摘要', () => {
+  it('选完之后「开始」把答复成对交出去', () => {
     const { onStart } = renderCard()
     const [firstOption] = screen.getAllByTestId('operator-plan-option')
     fireEvent.click(firstOption as HTMLElement)
@@ -92,9 +93,21 @@ describe('StudioOperatorPlanCard', () => {
     expect(onStart).toHaveBeenCalledWith([
       { pendingId: 'pending-1', optionId: 'option-1-1' },
     ])
+  })
+
+  /**
+   * ⭐ `started` 是**受控**的（切片 3a）：它住在 store，⛔ 不是卡自己的 state。
+   * 卡自己记的下场是收放法则（拍板 7）卸载一次面板，再展开时那一轮明明在跑，
+   * 卡却又变回可点的「开始」。
+   */
+  it('⭐ started 由外面说了算 —— 收成一行摘要，只剩「修改」', () => {
+    const { onRevise } = renderCard({ started: true })
     expect(screen.getByTestId('operator-plan-card').dataset.started).toBe(
       'true',
     )
+    expect(screen.queryByTestId('operator-plan-start')).toBeNull()
+    fireEvent.click(screen.getByTestId('operator-plan-revise'))
+    expect(onRevise).toHaveBeenCalledTimes(1)
   })
 
   it('没有待定项时「开始」一开始就亮着', () => {

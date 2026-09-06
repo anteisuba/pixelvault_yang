@@ -37,7 +37,11 @@ import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import { buildLoraOperatorSnapshot } from '@/lib/studio-operator-snapshot'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
+import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
 import type { LoraAssetRecord } from '@/types'
+
+/** ⚠ 常量化：空数组字面量每次 render 换引用，会把下面那个 `useMemo` 打穿。 */
+const NO_RESULTS: readonly StudioOperatorResultItem[] = []
 
 /**
  * 装配台上一条挂载的**最小形状** —— ⚠ 有意不写成 `StoredEntry`：这个 hook 只用到
@@ -76,6 +80,14 @@ export interface UseLoraOperatorHostInput {
     addReferenceImage(url: string): void
     removeReferenceImage(index: number): void
   }
+  /**
+   * 装配台自己那条结果列（`resultHistory`）—— 映射成结果行卡的形状（§2.11）。
+   *
+   * ⚠ **可选，缺省空数组**：宿主契约上这一格是必填（两个宿主形状一致才叫契约），
+   * 但装配台把 `resultHistory` 接上来是 `LoraWorkbench` 那一侧的事。缺席时结果
+   * 行卡整块不渲染 —— 与「装配台还没出过图」是同一种表现，⛔ 不做空占位。
+   */
+  results?: readonly StudioOperatorResultItem[]
   open: boolean
   setOpen(open: boolean): void
 }
@@ -330,15 +342,18 @@ export function useLoraOperatorHost(
     ? input.imageUpload.maxImages
     : ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences
 
+  const results = input.results ?? NO_RESULTS
+
   return useMemo(
     () => ({
       domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
       buildSnapshot,
       apply,
+      results,
       referenceLimit,
       open: input.open,
       setOpen: input.setOpen,
     }),
-    [apply, buildSnapshot, input.open, input.setOpen, referenceLimit],
+    [apply, buildSnapshot, input.open, input.setOpen, referenceLimit, results],
   )
 }

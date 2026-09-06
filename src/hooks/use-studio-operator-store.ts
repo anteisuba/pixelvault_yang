@@ -18,7 +18,12 @@
 
 import { useSyncExternalStore } from 'react'
 
+import {
+  ASSISTANT_PERSONA_DEFAULTS,
+  ASSISTANT_PERSONA_PLAN_MODE_IDS,
+} from '@/constants/assistant-persona'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import type { StudioOperatorField } from '@/constants/studio-assistant-operator'
 import {
@@ -28,14 +33,20 @@ import {
 import type {
   StudioOperatorAttachment,
   StudioOperatorChange,
+  StudioOperatorChoicePrompt,
   StudioOperatorConfirm,
+  StudioOperatorPlanPrompt,
   StudioOperatorQueuedMessage,
+  StudioOperatorSpendPrompt,
   StudioOperatorStatus,
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
 import type { AssistantOperatorConfirmChoice } from '@/constants/assistant-operator'
-import type { AssistantOperatorStep } from '@/types/assistant-operator'
+import type {
+  AssistantOperatorAutoApprove,
+  AssistantOperatorStep,
+} from '@/types/assistant-operator'
 import type { AssistantSurfaceId } from '@/types/assistant-conversation'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
 
@@ -130,6 +141,36 @@ export interface StudioOperatorState {
    * ⚠ 跨域不分槽：它说的是「这个助手这一轮先问不问我」，与站在哪台工作台无关。
    */
   askFirst: boolean
+  /**
+   * persona 的「默认行为」（§8.2 `planMode`）—— **store 里存一份的唯一理由**是
+   * 驱动 hook 要在事件处理器里同步读它（`getOperatorState()`），而 persona 是
+   * 一次异步拉取的结果。
+   *
+   * ⚠ ⛔ 别在驱动 hook 里再调一次 `useAssistantPersona()`：那会在同一棵树上开出
+   * 第二个 `GET /api/assistant/persona`，两份数据还会各说各话。外壳拉一次、
+   * 写进来一次，读的人都读这一个。
+   * ⚠ `always` 时「先问我」发完**不复位**（§3.3 / 拍板：单轮关掉只对本轮生效）。
+   */
+  planMode: AssistantPersonaPlanMode
+  /**
+   * 钉在流末尾的三张「等你定」的卡（§4.1）。
+   *
+   * ⚠ 三张各自最多一张，且**跨域不分槽**：它们属于「此刻这条流停在哪儿」，而流
+   * 本来就只有一条。切域时由驱动 hook 一起清（同 `confirm` 的理由）。
+   */
+  plan: StudioOperatorPlanPrompt | null
+  spend: StudioOperatorSpendPrompt | null
+  choice: StudioOperatorChoicePrompt | null
+  /**
+   * 「本会话此类不再问」的条子（§6 拍板 24）—— **会话级**。
+   *
+   * ⭐ 作用域三要素里的「同会话」由这里负责：换一条线程（`resetOperatorThread`）
+   * 它就没了，于是下一次生成重新硬确认。另外两条（同模型 / 不超上次金额）由服务端
+   * 逐条核 —— 客户端只是把条子原样带上去。
+   * ⛔ **不落 localStorage**：跨刷新还记着「不再问」，等于用一次点击买断了以后
+   * 每一次花钱的确认，而用户当时同意的是「本会话」。
+   */
+  autoApprove: AssistantOperatorAutoApprove | null
 }
 
 const EMPTY_SLICE: StudioOperatorDomainSlice = {
@@ -158,6 +199,11 @@ const INITIAL_STATE: StudioOperatorState = {
   mentions: [],
   selectedResultId: null,
   askFirst: false,
+  planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
+  plan: null,
+  spend: null,
+  choice: null,
+  autoApprove: null,
 }
 
 /**
@@ -538,10 +584,88 @@ export function setOperatorSelectedResult(id: string | null): void {
   emit({ ...state, selectedResultId: id })
 }
 
-/** 「先问我」（§3.3）—— 见 `askFirst` 头注：本片只存值，强制出卡是下一片。 */
+/**
+ * 「先问我」（§3.3）—— 开着时下一条消息带 `forcePlan: true`。
+ *
+ * ⚠ 发完之后由驱动 hook 复位，**除非** persona 的 `planMode === 'always'`
+ * （§3.4「单轮仍可关，关只对本轮生效」的另一半）。
+ */
 export function setOperatorAskFirst(askFirst: boolean): void {
   if (state.askFirst === askFirst) return
   emit({ ...state, askFirst })
+}
+
+/**
+ * persona 的「默认行为」落进 store（§8.2）。
+ *
+ * ⚠ **顺手把「先问我」的初始态定下来**（§3.4「『默认行为』= 总是先出计划 →
+ * 『先问我』开关默认开」）：⛔ 只在 `always` 这一档写，别在 `auto` / `direct` 时
+ * 顺手把它关掉 —— 用户可能刚刚亲手打开了它，而 persona 是异步到达的。
+ */
+export function setOperatorPlanMode(planMode: AssistantPersonaPlanMode): void {
+  if (state.planMode === planMode) return
+  const askFirst = planMode === ASSISTANT_PERSONA_PLAN_MODE_IDS.always
+  emit({ ...state, planMode, askFirst: askFirst || state.askFirst })
+}
+
+// ─── 三张「等你定」的卡（§4.1 / §2.6 / §6 / §7）──────────────────
+
+/** 计划卡到货（§2.6）。⚠ 出不出由 `shouldShowPlanCard` 判，这里只管存。 */
+export function setOperatorPlan(plan: StudioOperatorPlanPrompt | null): void {
+  emit({ ...state, plan })
+}
+
+/** 点过「开始」—— 卡收成一行摘要（§3.1 ④），⛔ 不删掉它。 */
+export function resolveOperatorPlan(): void {
+  if (!state.plan || state.plan.resolved) return
+  emit({ ...state, plan: { ...state.plan, resolved: true } })
+}
+
+export function setOperatorSpend(
+  spend: StudioOperatorSpendPrompt | null,
+): void {
+  emit({ ...state, spend })
+}
+
+export function resolveOperatorSpend(): void {
+  if (!state.spend || state.spend.resolved) return
+  emit({ ...state, spend: { ...state.spend, resolved: true } })
+}
+
+export function setOperatorChoice(
+  choice: StudioOperatorChoicePrompt | null,
+): void {
+  emit({ ...state, choice })
+}
+
+/** 点中了一格 —— 卡转 `.resolved`（§11.4 卡型通则），⛔ 不消失。 */
+export function resolveOperatorChoice(optionId: string): void {
+  if (!state.choice || state.choice.chosenId) return
+  emit({ ...state, choice: { ...state.choice, chosenId: optionId } })
+}
+
+/**
+ * 「本会话此类不再问」（§6 拍板 24）。
+ *
+ * ⚠ 传 `null` = 「改回每次确认」。⛔ 不做 merge：条子只有一张，第二次确认的
+ * 模型 / 金额整体顶掉第一张 —— 两张条子并存就得回答「哪张先匹配」，而那正是
+ * 「明明换了模型却没再问我」的来源。
+ */
+export function setOperatorAutoApprove(
+  autoApprove: AssistantOperatorAutoApprove | null,
+): void {
+  emit({ ...state, autoApprove })
+}
+
+/**
+ * 三张卡一起清 —— 切域（拍板 8）与 ⏹ Stop 用。
+ *
+ * ⚠ `autoApprove` **不在这里清**：它的作用域是「本会话」，切一下域不该让用户
+ * 刚点过的「不再问」失效（那颗勾选说的是这条会话，不是这台工作台）。
+ */
+export function clearOperatorPrompts(): void {
+  if (!state.plan && !state.spend && !state.choice) return
+  emit({ ...state, plan: null, spend: null, choice: null })
 }
 
 /**
@@ -656,5 +780,14 @@ export function resetOperatorThread(): void {
     selectedResultId: null,
     // ⚠ `mentions` **不清**：它属于用户此刻正在写的那条消息（与草稿同命），
     //   而「＋新对话」清的是已经说完的那些。顺手清掉 = 挂好的三张图凭空消失。
+    plan: null,
+    spend: null,
+    choice: null,
+    /**
+     * ⭐ 「不再问」跟着会话走（§6 拍板 24 的第一条要素）—— 新话题重新硬确认。
+     * ⛔ 留着它的表现是：用户为上一个话题批过一次 4 credits，新话题里助手直接
+     * 又发了一枪，而他这一次根本没看见过任何确认卡。
+     */
+    autoApprove: null,
   })
 }

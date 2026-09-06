@@ -30,6 +30,8 @@ import { StudioPromptArea } from './StudioPromptArea'
 const STUB_OPERATOR_HOST: StudioOperatorHost = {
   domain: 'image',
   buildSnapshot: () => ({ prompt: '', availableModels: [] }),
+  // 结果行卡的数据源（切片 3a 起是宿主契约的一格）—— 这份桩里没有结果。
+  results: [],
   referenceLimit: 4,
   open: false,
   setOpen: () => {},

@@ -12,6 +12,7 @@
  * 按 id 覆盖；漏了 id 就变成追加，表现是每一步在日志流里出现两遍。
  */
 
+import type { ProjectRuleSourceId } from '@/constants/assistant-operator'
 import type {
   StudioOperatorField,
   StudioOperatorSystemCode,
@@ -19,6 +20,9 @@ import type {
 import type {
   AssistantOperatorAppliedStep,
   AssistantOperatorConfirmRequestEvent,
+  AssistantOperatorGenerationRequest,
+  AssistantOperatorPlanEstimate,
+  AssistantOperatorPlanPending,
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
 
@@ -93,6 +97,24 @@ export interface StudioOperatorSystemEntry {
   count?: number
 }
 
+/**
+ * 助手引用了一条项目规则（§2.21 / §10，拍板 23）—— 时间线里那张规则薄卡。
+ *
+ * ⚠ 它是**线程条目**而不是钉在流末尾的那一类（计划 / 花钱 / 反问三张卡）：规则薄卡
+ * 说的是「刚才那一步是照着这条规则做的」，贴在那一步下面才有意义，飘到最后就成了
+ * 一句没有出处的话。
+ * ⚠ 原文 / 日期由服务端填（`rule_hit` 事件），⛔ 不是模型转述的那一版。
+ */
+export interface StudioOperatorRuleEntry {
+  kind: 'rule'
+  id: string
+  ruleId: string
+  text: string
+  source: ProjectRuleSourceId
+  /** ISO 串；薄卡上只显示日期段。 */
+  createdAt: string
+}
+
 /** 切域标记（拍板 8：切域换工具不断会话）。 */
 export interface StudioOperatorDomainMarkEntry {
   kind: 'domainMark'
@@ -106,6 +128,7 @@ export type StudioOperatorThreadEntry =
   | StudioOperatorPlanEntry
   | StudioOperatorStepEntry
   | StudioOperatorSystemEntry
+  | StudioOperatorRuleEntry
   | StudioOperatorDomainMarkEntry
 
 /**
@@ -218,12 +241,55 @@ export type StudioOperatorConfirm = Omit<
   'type'
 >
 
+/**
+ * 钉在流末尾的**计划卡**（§2.6 / §4.1 `awaitingPlan`，切片 3a）。
+ *
+ * ⚠ 它**不是线程条目**：三张「等你定」的卡（计划 / 花钱 / 歧义反问）一轮最多各
+ * 一张，且永远钉在流末尾（§4.1 状态矩阵逐字写着「钉在流末尾」）。做成线程条目
+ * 就得回答「上一轮那张卡还留在中间做什么」，而答案是它不该留。
+ * ⚠ `resolved` 存在 store 而不是卡自己的 `useState`：收放法则（拍板 7）随时会把
+ * 面板卸载 —— 卡自己记的话，点完「开始」收一下面板再展开，它又变回可点的了。
+ */
+export interface StudioOperatorPlanPrompt {
+  id: string
+  steps: readonly { id: string; label: string }[]
+  pending: readonly AssistantOperatorPlanPending[]
+  estimate: AssistantOperatorPlanEstimate
+  /** 已经点过「开始」——卡收成一行摘要（§3.1 ④）。 */
+  resolved: boolean
+}
+
+/** 钉在流末尾的**花钱硬确认卡**（§6 第三档 / §3.1 ⑮–⑰）。 */
+export interface StudioOperatorSpendPrompt {
+  id: string
+  request: AssistantOperatorGenerationRequest
+  resolved: boolean
+}
+
+/** 钉在流末尾的**歧义反问单选卡**（§3.3 第 5 行 / §7）。 */
+export interface StudioOperatorChoicePrompt {
+  id: string
+  question: string
+  options: readonly StudioOperatorAttachment[]
+  /** 点过的那一格；`null` = 还没选。 */
+  chosenId: string | null
+}
+
 export type StudioOperatorStatus =
   /** 没在跑。 */
   | 'idle'
   /** 流开着。 */
   | 'working'
-  /** 流停在就地确认上，等用户选（拍板 3）。 */
+  /**
+   * 流停在**计划卡**上，等用户按「开始 / 修改」（§4.1 新增态，切片 3a）。
+   *
+   * ⚠ 与 `awaitingConfirm` **分开**：那一档说的是「有一件事等你拍板才能继续」，
+   * 这一档说的是「一整轮还没开始跑」。合成一档的表现是图标轨上「待确认」与
+   * 「待你定」永远只剩一种说法，而两者的下一步动作完全不同（§4.1 图标轨那一行）。
+   * ⚠ 输入框在这一档**仍可打字**（§4.1）：用户可以不理那张卡，直接改口。
+   */
+  | 'awaitingPlan'
+  /** 流停在就地确认 / 花钱确认 / 歧义反问上，等用户选（拍板 3 / §6 / §7）。 */
   | 'awaitingConfirm'
   /** 这一轮失败了 —— 线程里已经有一条错误消息。 */
   | 'error'

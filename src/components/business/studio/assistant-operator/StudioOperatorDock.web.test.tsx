@@ -16,7 +16,9 @@ import {
  *
  * 钉四件事：
  *  ① 展开态宽 = `defaultWidthPx`（560），fixed 四边 inset 24（`top-6/right-6/bottom-6`）；
- *  ② 收起态是**同一个 `<aside>` 收到 48px**，⛔ 不再有另一颗 fixed 在别处的胶囊；
+ *  ② 收起态是**同一个 `<aside>` 收到 48px**，⛔ 不再有另一颗 fixed 在别处的胶囊
+ *     （胶囊连同它的 testid 已于切片 3a 全仓删净，所以这里不再断言它不存在 ——
+ *      一条永远不会失败的断言只是噪音）；
  *  ③ 收起态渲染图标轨，展开态不渲染；
  *  ④ 点轨展开（收放法则的「点图标轨 → 展开」那一半）。
  */
@@ -34,6 +36,8 @@ vi.mock('@/contexts/studio-operator-host', () => ({
     setOpen,
     referenceLimit: 4,
     apply: {},
+    // 结果行卡的数据源（切片 3a 起是宿主契约的一格）。
+    results: [],
   }),
 }))
 
@@ -50,6 +54,35 @@ vi.mock('@/hooks/use-assistant-operator', () => ({
 vi.mock('@/hooks/use-studio-operator-critique', () => ({
   useStudioOperatorCritique: () => undefined,
 }))
+// 助手设置 persona（§8）—— 外壳拉一次往下传，这里给一份不发请求的默认值。
+vi.mock('@/hooks/use-assistant-persona', () => ({
+  useAssistantPersona: () => ({
+    persona: {
+      name: null,
+      avatarPreset: 'spark',
+      avatarUrl: null,
+      tone: 'professional',
+      toneCustom: null,
+      verbosity: 'standard',
+      planMode: 'auto',
+      language: 'ui',
+    },
+    isLoading: false,
+    isSaving: false,
+    error: null,
+    save: vi.fn(),
+    uploadAvatar: vi.fn(),
+    removeAvatar: vi.fn(),
+    reload: vi.fn(),
+  }),
+}))
+vi.mock(
+  '@/components/business/studio/assistant-operator/AssistantSettingsDialog',
+  () => ({
+    ASSISTANT_SETTINGS_SECTIONS: { persona: 'persona', rules: 'rules' },
+    AssistantSettingsDialog: () => null,
+  }),
+)
 vi.mock('@/hooks/use-studio-operator-history', () => ({
   useStudioOperatorHistory: () => ({
     sessions: [],
@@ -122,7 +155,6 @@ describe('StudioOperatorDock', () => {
     expect(panel.dataset.open).toBe('false')
     expect(panel.style.width).toBe(`${STUDIO_OPERATOR_SHELL.railWidthPx}px`)
     expect(screen.getByTestId('operator-rail')).toBeTruthy()
-    expect(screen.queryByTestId('operator-pill')).toBeNull()
     expect(screen.queryByTestId('operator-panel-content')).toBeNull()
   })
 

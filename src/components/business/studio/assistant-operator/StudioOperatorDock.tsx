@@ -44,15 +44,22 @@ import {
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAssistantOperator } from '@/hooks/use-assistant-operator'
+import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useStudioOperatorCritique } from '@/hooks/use-studio-operator-critique'
 import { useStudioOperatorHistory } from '@/hooks/use-studio-operator-history'
 import {
+  setOperatorPlanMode,
   subscribeOperatorAttachment,
   takeOperatorAttachment,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { useStudioOperatorUpload } from '@/hooks/use-studio-operator-upload'
 import { useStudioOperatorWebImport } from '@/hooks/use-studio-operator-web-import'
+import {
+  ASSISTANT_SETTINGS_SECTIONS,
+  AssistantSettingsDialog,
+  type AssistantSettingsSection,
+} from '@/components/business/studio/assistant-operator/AssistantSettingsDialog'
 import { StudioOperatorIconRail } from '@/components/business/studio/assistant-operator/StudioOperatorIconRail'
 import { StudioOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { StudioOperatorPanel } from '@/components/business/studio/assistant-operator/StudioOperatorPanel'
@@ -148,6 +155,30 @@ export function StudioOperatorDock() {
    * 常常发生在面板已经让位之后（点生成键 = 点工作台 = 收面板）。
    */
   const history = useStudioOperatorHistory()
+  /**
+   * ⭐ **persona 全树只拉这一次**（§8）：头像（时间线沟）、问候语、以及「先问我」
+   * 的初始态读的都是它。⛔ 别在面板 / 头像组件里各调一次 `useAssistantPersona()`
+   * —— 那会开出好几个 `GET /api/assistant/persona`，而且它们还会各说各话。
+   * ⚠ 住在外壳而不是面板里，理由同驱动 hook：收放法则（拍板 7）随时卸载面板，
+   *   挂在那里的下场是每展开一次就重新拉一遍。
+   */
+  const { persona } = useAssistantPersona()
+  /**
+   * 助手设置弹层（§8.1）。**状态住在外壳**：面板会被收放法则卸载，而弹层是它开
+   * 出来的 —— 挂在面板里的表现是「点开设置、鼠标滑出面板，弹层自己没了」。
+   * ⚠ `null` = 关着；非 null 时同时说明**开在哪一页**（规则薄卡的「查看规则」
+   *   直接落到规则那一页，§10）。
+   */
+  const [settingsSection, setSettingsSection] =
+    useState<AssistantSettingsSection | null>(null)
+  /**
+   * persona 的「默认行为」落进 store（§8.2）—— 驱动 hook 要在事件处理器里同步
+   * 读它（`always` 时「先问我」发完不复位）。
+   * ⚠ 走 effect 而不是 render 阶段调用：那是一次 store 写入（会触发订阅者重渲染）。
+   */
+  useEffect(() => {
+    setOperatorPlanMode(persona.planMode)
+  }, [persona.planMode])
   const width = useSyncExternalStore(
     subscribeWidth,
     getWidthSnapshot,
@@ -399,6 +430,13 @@ export function StudioOperatorDock() {
               upload={upload}
               webImport={webImport}
               history={history}
+              persona={persona}
+              onOpenAssistantSettings={() =>
+                setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.persona)
+              }
+              onOpenProjectRules={() =>
+                setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.rules)
+              }
               onCollapse={() => setOpen(false)}
             />
           </>
@@ -413,6 +451,18 @@ export function StudioOperatorDock() {
           />
         )}
       </aside>
+
+      {/* 助手设置（§8.1）—— ⚠ 弹层挂在**外壳**里，与面板同生共死会被收放法则
+          随手卸载掉。⛔ 别把它塞进面板：那是「点开设置、光标滑出面板，弹层
+          自己没了」。 */}
+      <AssistantSettingsDialog
+        open={settingsSection !== null}
+        section={settingsSection ?? ASSISTANT_SETTINGS_SECTIONS.persona}
+        onOpenChange={(next) => {
+          if (!next) setSettingsSection(null)
+        }}
+        fallbackInitial={t(`domainName.${domain}`)}
+      />
 
       <StudioOperatorLightbox />
     </>

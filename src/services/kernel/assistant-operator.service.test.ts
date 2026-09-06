@@ -1524,6 +1524,152 @@ describe('看图闭环 · critique_result', () => {
     expect(visionCalls()[0]?.imageData).toBe(RESULT.url)
   })
 
+  /**
+   * ⭐ **拍板 4 推翻（2026-09-06）的服务端一半**：`@` 指定的任意一张一律可看。
+   * 三条来源各钉一条 —— ① `@` 的 id、② `@` 的地址、③ 归属票。
+   * ⛔ 第四条不存在：名单外的目标一律 `unknownAsset`，模型不许自己写一条地址。
+   */
+  it('来源① —— targetIds 给的是 @ 那张图的 id，看的就是它', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+          title: 'look at the one they pointed at',
+          args: { targetIds: ['asset-7'] },
+        },
+      },
+      CRITIQUE_JSON,
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          mentionedAssets: [
+            {
+              id: 'asset-7',
+              url: 'https://cdn.example.com/mentioned.png',
+              label: '结果②',
+            },
+          ],
+        }),
+      ),
+    )
+    const [, done] = stepsOf(events)
+    expect(done.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect(done.payload).toMatchObject({
+      imageUrl: 'https://cdn.example.com/mentioned.png',
+    })
+    expect(visionCalls()[0]?.imageData).toBe(
+      'https://cdn.example.com/mentioned.png',
+    )
+  })
+
+  it('来源② —— targetIds 给的是地址本身（模型从 [attached: …] 里读到的就是它）', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+          title: 'look',
+          args: { targetIds: ['https://cdn.example.com/mentioned.png'] },
+        },
+      },
+      CRITIQUE_JSON,
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          mentionedAssets: [
+            { id: 'asset-7', url: 'https://cdn.example.com/mentioned.png' },
+          ],
+        }),
+      ),
+    )
+    expect(stepsOf(events)[1]?.status).toBe(
+      ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(visionCalls()[0]?.imageData).toBe(
+      'https://cdn.example.com/mentioned.png',
+    )
+  })
+
+  it('⛔ 名单外的目标一律拒（unknownAsset），且一次视觉往返都不发', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+          title: 'look at something I made up',
+          args: { targetIds: ['https://evil.example.com/whatever.png'] },
+        },
+      },
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          mentionedAssets: [
+            { id: 'asset-7', url: 'https://cdn.example.com/mentioned.png' },
+          ],
+        }),
+      ),
+    )
+    const [step] = stepsOf(events)
+    expect(step.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.error)
+    expect((step.error as { reason: string }).reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownAsset,
+    )
+    expect(visionCalls()).toHaveLength(0)
+  })
+
+  /**
+   * ⭐ 没票也没指名，而手上有两张以上候选 —— 那不是拒绝的时候，是**问一句**的
+   * 时候（§3.3 第 5 行 / §7）。⛔ 别在这里挑一张「最可能的」：挑错了用户看到的是
+   * 一份煞有介事、对着另一张图写的评价。
+   */
+  it('来源都缺、但候选 ≥2 → 吐 choice_request 并停流（⛔ 不猜一张）', async () => {
+    queueCritiqueRound()
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: {
+            ...SNAPSHOT,
+            references: {
+              items: [
+                { url: 'https://cdn.example.com/ref-a.png', label: '参考 A' },
+                { url: 'https://cdn.example.com/ref-b.png', label: '参考 B' },
+              ],
+              limit: 4,
+            },
+          },
+        }),
+      ),
+    )
+    const choice = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.choiceRequest,
+    )
+    expect(choice).toBeDefined()
+    expect(
+      (choice as { options: { assetUrl: string }[] }).options.map(
+        (option) => option.assetUrl,
+      ),
+    ).toEqual([
+      'https://cdn.example.com/ref-a.png',
+      'https://cdn.example.com/ref-b.png',
+    ])
+    expect(
+      events.find((event) => event.type === ASSISTANT_OPERATOR_EVENTS.stopped),
+    ).toMatchObject({ reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm })
+    expect(visionCalls()).toHaveLength(0)
+  })
+
   it('评价随后进了下一轮的语境，助手据此改表单', async () => {
     queueTurns(
       {

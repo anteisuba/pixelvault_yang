@@ -3,9 +3,10 @@
 import { useId, useRef, useState, type ChangeEvent } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import { Camera } from 'lucide-react'
+import { Camera, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { AssistantSettingsDialog } from '@/components/business/studio/assistant-operator/AssistantSettingsDialog'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { PROFILE } from '@/constants/config'
@@ -41,6 +42,9 @@ export function ProfileEditModal({
 }: ProfileEditModalProps) {
   const t = useTranslations('CreatorProfile')
   const tErrors = useTranslations('Errors')
+  const tOperator = useTranslations('StudioOperator')
+  /** 助手设置（§8.1 第二入口）—— ⚠ 与账户表单各存各的，两者互不影响保存。 */
+  const [assistantSettingsOpen, setAssistantSettingsOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const usernameInputRef = useRef<HTMLInputElement>(null)
   const [username, setUsername] = useState(currentProfile.username)
@@ -290,6 +294,29 @@ export function ProfileEditModal({
             </div>
           </div>
 
+          {/* ── 助手设置的**第二入口**（`pages/assistant-shell.md` §8.1）──────
+              ⭐ 打开的是**同一个** `AssistantSettingsDialog`，⛔ 不把 persona 的
+                七个字段抄进这张表单：抄一份就有两处要同步，而它们迟早说两句不
+                一样的话。§8.1 逐字写着这一条。
+              ⚠ 仓库没有 `/settings` 路由，账户编辑就是这张弹层 —— 所以它是助手
+                设置在工作台之外唯一够得着的地方。 */}
+          <button
+            type="button"
+            data-testid="profile-assistant-settings"
+            onClick={() => setAssistantSettingsOpen(true)}
+            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border/70 px-4 py-3 text-left transition-colors hover:border-primary/40"
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">
+                {tOperator('persona.title')}
+              </span>
+              <span className="block text-xs leading-5 text-muted-foreground">
+                {tOperator('persona.description')}
+              </span>
+            </span>
+            <Sparkles className="size-4 shrink-0 text-muted-foreground" />
+          </button>
+
           {error ? (
             <p className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
               {error}
@@ -307,6 +334,11 @@ export function ProfileEditModal({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AssistantSettingsDialog
+        open={assistantSettingsOpen}
+        onOpenChange={setAssistantSettingsOpen}
+      />
     </Dialog>
   )
 }

@@ -37,6 +37,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { useLocale } from 'next-intl'
 
 import {
+  ASSISTANT_OPERATOR_CONFIRM_TIER_IDS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
@@ -46,10 +47,13 @@ import {
   type AssistantOperatorConfirmChoice,
   type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
+import { ASSISTANT_PERSONA_PLAN_MODE_IDS } from '@/constants/assistant-persona'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
+  addOperatorMention,
   appendOperatorEntry,
+  clearOperatorPrompts,
   clearOperatorQueue,
   enqueueOperatorMessage,
   getOperatorState,
@@ -59,8 +63,16 @@ import {
   registerOperatorRunner,
   removeOperatorQueued,
   resetOperatorThread,
+  resolveOperatorChoice,
+  resolveOperatorPlan,
+  resolveOperatorSpend,
+  setOperatorAskFirst,
+  setOperatorAutoApprove,
+  setOperatorChoice,
   setOperatorConfirm,
+  setOperatorPlan,
   setOperatorPlannedSteps,
+  setOperatorSpend,
   setOperatorStatus,
   switchOperatorDomain,
   takeOperatorQueue,
@@ -75,11 +87,14 @@ import {
   historyToOperatorMessages,
   historyToPriorSteps,
 } from '@/lib/studio-operator-history'
+import { shouldShowPlanCard } from '@/lib/studio-operator-plan'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
   AssistantOperatorConfirmDecision,
   AssistantOperatorMessage,
+  AssistantOperatorPlanAnswer,
   AssistantOperatorPriorStep,
+  AssistantOperatorRequest,
   AssistantOperatorResult,
 } from '@/types/assistant-operator'
 import type {
@@ -155,6 +170,42 @@ function buildPriorSteps(
   return steps.slice(-ASSISTANT_OPERATOR_LIMITS.maxPriorSteps)
 }
 
+/**
+ * 用户这一轮 `@` 上来的那几张图 —— **只取最后一条用户消息上的**。
+ *
+ * ⭐ 判据是「这一轮他指着说的是哪几张」：把整条线程里所有附件都端上去，助手会
+ * 拿三轮之前那张图去回答现在这句话，而 `targetIds` 的准入名单也会一路膨胀 ——
+ * 「@ 指定任意图可看」（拍板 4 推翻）随即退化成「历史上出现过的都能看」。
+ * ⚠ 只收图：视频 / 音频 / 3D 那条视觉线吃不下（`vision-route.service.ts` 头注），
+ * 端上去只会换来一份格式完整、内容全编的评价。
+ */
+function buildMentionedAssets(
+  entries: readonly StudioOperatorThreadEntry[],
+): NonNullable<AssistantOperatorRequest['mentionedAssets']> {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index]
+    if (entry?.kind !== 'user') continue
+    return entry.attachments
+      .filter((attachment) => attachment.kind === 'image')
+      .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences)
+      .map((attachment) => ({
+        id: attachment.id,
+        url: attachment.url,
+        label: attachment.label,
+      }))
+  }
+  return []
+}
+
+/** 跑一轮时那几样「带上下文重发」的东西（拍板 3 / §2.6 / §6 共用一条通道）。 */
+interface RunOptions {
+  confirmations?: AssistantOperatorConfirmDecision[]
+  planAnswers?: AssistantOperatorPlanAnswer[]
+  planApproved?: boolean
+  /** 缺省读 store 的「先问我」；计划卡续跑时显式给 `false`（那张卡已经问过了）。 */
+  forcePlan?: boolean
+}
+
 export interface UseAssistantOperatorResult {
   domain: AssistantOperatorDomain
   /** 助手实际会用哪个模型说话（chip 上写的那个）—— null = 自动路由。 */
@@ -172,6 +223,16 @@ export interface UseAssistantOperatorResult {
   cancelQueued(id: string): void
   /** 就地确认的三选一（拍板 3）：追加在后 / 覆盖 / 保留。 */
   answerConfirm(choice: AssistantOperatorConfirmChoice): void
+  /** 计划卡「开始」（§3.1 ④）—— 带 `planAnswers` + `planApproved: true` 重发。 */
+  answerPlan(answers: AssistantOperatorPlanAnswer[]): void
+  /** 计划卡「修改」（§3.1 ⑤）—— ⛔ 不发请求，只记下「下一条消息是改计划」。 */
+  revisePlan(): void
+  /** 花钱硬确认卡「生成」（§3.1 ⑰）—— 勾了「不再问」就顺手记条子。 */
+  answerSpend(input: { rememberForSession: boolean }): void
+  /** 花钱硬确认卡「取消」—— 流已经停了，只把卡收掉。 */
+  cancelSpend(): void
+  /** 歧义反问单选卡点中一格（§7）—— 插 @chip 并带上下文重发。 */
+  answerChoice(option: StudioOperatorAttachment, text: string): void
   /**
    * 它备的那一枪回来了 —— 投回线程并自动请一轮评价（P3-C，拍板 4）。
    *
@@ -210,6 +271,14 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    *  ⚠ 走 ref 不走 state：它只在事件处理器里被读，进 state 只会多一次重渲染。
    */
   const pendingResultRef = useRef<AssistantOperatorResult | null>(null)
+  /**
+   * 「下一条消息是一次改计划」（§3.1 ⑤）。
+   *
+   * ⚠ 走 ref 不走 state：它只在 `send()` 里被读一次然后清掉，进 state 只会多一次
+   * 重渲染。⚠ **一次性**：改完计划那一轮之后它就不再是「改计划」了，留着的表现是
+   * 此后每一条消息都在要求助手重新规划。
+   */
+  const reviseRef = useRef(false)
 
   /**
    * 切模态 = 切域（拍板 8：**换工具，不断会话**）。
@@ -229,6 +298,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     abortRef.current?.abort()
     abortRef.current = null
     pendingResultRef.current = null
+    /**
+     * ④ **三张「等你定」的卡也一起扔**（切片 3a）：它们属于上一个域那一轮。
+     * 留着的表现最贵的是花钱卡 —— 它上面写的模型 / 张数来自切走之前那份表单，
+     * 在新域里点「生成」发出去的是一枪谁也没确认过的东西。
+     */
+    clearOperatorPrompts()
     if (getOperatorState().status !== 'idle') setOperatorStatus('idle')
     switchOperatorDomain(domain)
   }, [domain])
@@ -240,9 +315,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 里要写它自己，是个解不开的环。停顿点接住排队消息之后要立刻起下一轮，
    * 而那一刻正在 `run` 的 `for await` 里。
    */
-  const runRef = useRef<
-    ((confirmations?: AssistantOperatorConfirmDecision[]) => void) | null
-  >(null)
+  const runRef = useRef<((options?: RunOptions) => void) | null>(null)
 
   /**
    * 把排着的那些话接进线程（§3.1 ㉓）—— 返回「有没有接到」。
@@ -288,7 +361,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 重发靠的就是它。
    */
   const run = useCallback(
-    async (confirmations?: AssistantOperatorConfirmDecision[]) => {
+    async (options: RunOptions = {}) => {
+      const { confirmations, planAnswers, planApproved } = options
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -309,6 +383,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * ⚠ 只带最后几条对白（`historyToOperatorMessages` 自己截），显示是全部。
        */
       const { entries, history } = getOperatorState()
+      const mentionedAssets = buildMentionedAssets(entries)
       const messages = [
         ...historyToOperatorMessages(history),
         ...buildMessages(entries),
@@ -317,6 +392,14 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         setOperatorStatus('idle')
         return
       }
+
+      /**
+       * 「先问我」（§3.3）—— **本轮的值先定下来，⛔ 别在事件里现读**：计划帧到达
+       * 时用户可能已经把开关关了，而这一轮的判定该用发出去的那一份
+       * （`shouldShowPlanCard` 与服务端收到的 `forcePlan` 必须是同一个值）。
+       */
+      const forcePlan = options.forcePlan ?? getOperatorState().askFirst
+      const autoApprove = getOperatorState().autoApprove
 
       const result = await streamAssistantOperatorAPI(
         {
@@ -329,18 +412,54 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            * 上限由 `buildPriorSteps` 那一刀统一截（取最后 N 条）。
            */
           priorSteps: buildPriorSteps(entries, historyToPriorSteps(history)),
-          ...(confirmations?.length ? { confirmations } : {}),
-          // ⭐ 拍板 4 的落点：这个键在场 = 服务端才有图可看。用户自己发的生成
-          //    永远不会走到这里（判据在 `lib/studio-operator-claim.ts`）。
+          /**
+           * ⭐ 归属票那条来源（拍板 4 的**保留**那一半）：这个键在场 = 助手自己
+           * primed 的那一枪回来了，服务端因此允许它主动开口评一张图。用户自己发的
+           * 生成永远不会填这个键（判据在 `lib/studio-operator-claim.ts`）。
+           * ⚠ 它**不再是看图的唯一凭证**：`@` 指定的任意一张走 `mentionedAssets`
+           *   那条路（拍板 4 推翻，§7）。两条来源并存，缺一条不影响另一条。
+           */
           ...(pendingResultRef.current
             ? { result: pendingResultRef.current }
             : {}),
+          /**
+           * ⭐ **`@` 引用的那几张图**（§7，拍板 4 推翻的落点）：它同时是
+           * `critique_result.targetIds` 的**准入名单** —— 服务端只认这张名单里的
+           * 目标。⛔ 别指望服务端去解析消息里那句 `[attached: …]`：那是给模型读的
+           * 展示文本，当成权限清单用就是一条提示词注入的路。
+           */
+          ...(mentionedAssets.length ? { mentionedAssets } : {}),
+          ...(confirmations?.length ? { confirmations } : {}),
+          ...(planAnswers?.length ? { planAnswers } : {}),
+          ...(planApproved === undefined ? {} : { planApproved }),
+          ...(forcePlan ? { forcePlan: true } : {}),
+          /**
+           * 「本会话此类不再问」的条子（§6 拍板 24）。⚠ 服务端**逐条核**（同模型 +
+           * 金额不超上次），核不过就照旧吐 `spend_request` —— 客户端这一侧不做任何
+           * 判断，⛔ 别在这里先比一次：两处判据迟早说两句不一样的话，而说错的那
+           * 一次是真的花了钱。
+           */
+          ...(autoApprove ? { autoApprove } : {}),
           ...(route.apiKeyId ? { apiKeyId: route.apiKeyId } : {}),
           ...(route.modelId ? { llmModelId: route.modelId } : {}),
           responseLanguage: toResponseLanguage(locale),
         },
         { signal: controller.signal },
       )
+
+      /**
+       * 发出去了才复位「先问我」（§3.3 最后两行）。
+       *
+       * ⚠ persona 的「默认行为 = 总是先出计划」时**不复位**（§3.4）：那是一条
+       * 长期设置，每轮自己关掉等于让设置只生效一次。单轮想跳过仍然可以手动关，
+       * 关只对那一轮生效 —— 下一轮它自己回来。
+       */
+      if (
+        forcePlan &&
+        getOperatorState().planMode !== ASSISTANT_PERSONA_PLAN_MODE_IDS.always
+      ) {
+        setOperatorAskFirst(false)
+      }
 
       if (!result.success) {
         // abort 是用户按的，不是故障 —— 状态回 idle，线程里不插红字。
@@ -364,6 +483,29 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 steps: event.steps,
               })
               break
+            /**
+             * **计划卡**（§2.6 / §5，切片 3a）—— 出不出由客户端硬判。
+             *
+             * ⭐ 三件事必须在**这一帧**做完：判定 → 摆卡 → 掐流。掐流是关键的
+             * 那一条：服务端并不知道客户端要不要出卡，它会接着往下跑；不掐掉的
+             * 表现是「计划卡钉在流末尾等你确认，而它要问的那几步已经落到表单上
+             * 了」——那张卡就成了一句事后通知。
+             * ⚠ `return` 而不是 `break`：本函数就此结束，旧流的 `AbortError` 由
+             *   下面那个 catch 的 `aborted` 判据吞掉。
+             */
+            case ASSISTANT_OPERATOR_EVENTS.planRequest: {
+              if (!shouldShowPlanCard(event, { forcePlan })) break
+              setOperatorPlan({
+                id: nextOperatorEntryId('plancard'),
+                steps: event.steps,
+                pending: event.pending,
+                estimate: event.estimate,
+                resolved: false,
+              })
+              setOperatorStatus('awaitingPlan')
+              controller.abort()
+              return
+            }
             case ASSISTANT_OPERATOR_EVENTS.message:
               appendOperatorEntry({
                 kind: 'message',
@@ -379,6 +521,28 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               // ⚠ `status === 'done'` 同时把类型收窄成「应用过的那一支」——
               //    被拒的那支是 `status: 'error'`，它没有 payload / inverse。
               if (step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) {
+                /**
+                 * 「按你的设置直接生成」那一行（§6 拍板 24 / §5 流程图 TH）。
+                 *
+                 * ⭐ **命中自动通过时不静默过**：这一枪真的花了钱，而用户这一轮
+                 * 一张卡都没看见。少了这一行，界面上就是「它自己发了一枪」——
+                 * 而那正是钱闸这条链最不能给人的手感。
+                 * ⚠ 判据是「条子在场」而不是「服务端说它命中了」：服务端那一侧
+                 *   没有会话态，也就没有第二个可信来源；条子本来就是客户端发上去
+                 *   的那一张，命中与否由这一步吐没吐出来说了算。
+                 */
+                if (
+                  step.tool === ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration &&
+                  getOperatorState().autoApprove
+                ) {
+                  const credits = step.payload.estimate.credits
+                  appendOperatorEntry({
+                    kind: 'system',
+                    id: nextOperatorEntryId('sys'),
+                    code: 'autoApproved',
+                    ...(credits === undefined ? {} : { count: credits }),
+                  })
+                }
                 const field = applyOperatorStep(step, applyContext)
                 if (field) {
                   recordOperatorChange({
@@ -416,9 +580,60 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             }
             case ASSISTANT_OPERATOR_EVENTS.confirmRequest:
               setOperatorConfirm({
+                // §6 第二档 —— 服务端恒发 `overwrite`（事件 schema 已收成必填）。
+                tier: event.tier,
                 field: event.field,
                 have: event.have,
                 proposed: event.proposed,
+              })
+              break
+            /**
+             * **花钱硬确认卡**（§6 第三档 / §3.1 ⑮–⑰）。
+             *
+             * ⚠ 服务端在这一帧之后自己就 `stopped/awaitingConfirm` 了 —— 这里只
+             * 摆卡，⛔ 不用像计划卡那样掐流（那一帧是客户端单方面决定不往下走）。
+             */
+            case ASSISTANT_OPERATOR_EVENTS.spendRequest:
+              setOperatorSpend({
+                id: nextOperatorEntryId('spend'),
+                request: event.request,
+                resolved: false,
+              })
+              break
+            /**
+             * **歧义反问单选卡**（§3.3 第 5 行 / §7 四入口之四）。
+             *
+             * ⚠ 候选原样转成 chip 形状（`StudioOperatorAttachment`）：点中那一格
+             * 直接进 `mentions`，与另外三个入口**同一条管线**。⛔ 别为这张卡另立
+             * 一种「被选中的候选」——那正是「反问选出来的图与 @ 选出来的行为不
+             * 一样」这类不对称的来源。
+             */
+            case ASSISTANT_OPERATOR_EVENTS.choiceRequest:
+              setOperatorChoice({
+                id: nextOperatorEntryId('choice'),
+                question: event.question,
+                options: event.options.map((option) => ({
+                  id: option.id,
+                  url: option.assetUrl,
+                  label: option.label,
+                  kind: 'image' as const,
+                  thumbnailUrl: option.assetUrl,
+                })),
+                chosenId: null,
+              })
+              break
+            /**
+             * **规则薄卡**（§2.21 / §10，拍板 23）—— 时间线里插一条，⛔ 不是一步。
+             * 原文与日期是服务端从规则表里查出来的原话（见事件 schema 头注）。
+             */
+            case ASSISTANT_OPERATOR_EVENTS.ruleHit:
+              appendOperatorEntry({
+                kind: 'rule',
+                id: nextOperatorEntryId('rule'),
+                ruleId: event.ruleId,
+                text: event.text,
+                source: event.source,
+                createdAt: event.createdAt,
               })
               break
             case ASSISTANT_OPERATOR_EVENTS.stopped:
@@ -476,8 +691,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   // 自引用口挂上（见 `runRef` 头注）。⚠ 同步写在 effect 里，⛔ 不在 render 阶段
   //    改 ref（`react-hooks/refs` 会拦）。
   useEffect(() => {
-    runRef.current = (confirmations) => {
-      void run(confirmations)
+    runRef.current = (options) => {
+      void run(options)
     }
     return () => {
       runRef.current = null
@@ -507,13 +722,25 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       flushQueue()
       // 用户开口了：那张刚评过的图不再随每一轮上传（见 `pendingResultRef` 头注）。
       pendingResultRef.current = null
+      /**
+       * ⭐ 三张「等你定」的卡一起收（§4.1「钉在流末尾」）：用户改口了，上一轮那张
+       * 计划 / 花钱 / 反问就此作废。⛔ 留着的表现是流末尾挂着一张还能点的卡，
+       * 点下去发出的是**上一个话题**的确认 —— 而花钱那张是真的会花钱。
+       */
+      clearOperatorPrompts()
       appendOperatorEntry({
         kind: 'user',
         id: nextOperatorEntryId('user'),
         text: trimmed,
         attachments,
       })
-      void run()
+      /**
+       * 计划卡「修改」之后的第一条消息带 `planApproved: false` —— 服务端据此把
+       * 答复并进上下文**重新规划一次**（§3.1 ⑤）。⚠ 读完就清（见 `reviseRef`）。
+       */
+      const revising = reviseRef.current
+      reviseRef.current = false
+      void run(revising ? { planApproved: false } : {})
     },
     [flushQueue, run],
   )
@@ -549,6 +776,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
      * 刚刚明确叫停的东西。
      */
     clearOperatorQueue()
+    // ⏹ 说的是「接下来的一切都别做了」—— 那三张还等着回答的卡也在「接下来」里。
+    clearOperatorPrompts()
     appendOperatorEntry({
       kind: 'system',
       id: nextOperatorEntryId('sys'),
@@ -560,7 +789,100 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     (choice: AssistantOperatorConfirmChoice) => {
       const confirm = getOperatorState().confirm
       if (!confirm) return
-      void run([{ field: confirm.field, choice }])
+      void run({ confirmations: [{ field: confirm.field, choice }] })
+    },
+    [run],
+  )
+
+  /**
+   * 计划卡「开始」（§3.1 ④）—— 带 `planAnswers` + `planApproved: true` 重发。
+   *
+   * ⚠ `forcePlan: false` 是硬要求：这一轮的计划卡**已经问过了**，再带一次
+   * 「先问我」会让服务端再摆一帧、客户端再出一张卡 —— 用户点「开始」之后看到的
+   * 是同一张卡又回来了（一个自己喂自己的环）。
+   */
+  const answerPlan = useCallback(
+    (answers: AssistantOperatorPlanAnswer[]) => {
+      if (!getOperatorState().plan) return
+      resolveOperatorPlan()
+      void run({ planAnswers: answers, planApproved: true, forcePlan: false })
+    },
+    [run],
+  )
+
+  /**
+   * 计划卡「修改」（§3.1 ⑤）—— ⛔ **不发请求**。
+   *
+   * 面板把输入框预填成「修改计划：」并聚焦；用户按发送时那条消息带
+   * `planApproved: false`（= 把答复并进上下文**重新规划一次**）。这里只负责
+   * 记下「下一条消息是一次改计划」，⛔ 别顺手替用户发出去：他还没写要改什么。
+   */
+  const revisePlan = useCallback(() => {
+    if (!getOperatorState().plan) return
+    reviseRef.current = true
+    setOperatorStatus('idle')
+  }, [])
+
+  /**
+   * 花钱硬确认卡「生成」（§3.1 ⑰）。
+   *
+   * 两步，顺序有意义：
+   *  ① 勾了「不再问」就先把条子记进 store（会话级，§6 拍板 24）——
+   *    ⚠ 必须在重发**之前**，否则这一轮自己带不上它，用户会看到「我明明勾了，
+   *    它还是问了我一次」；
+   *  ② 带条子重发 —— 服务端这次放行并吐 `request_generation`，`applyOperatorStep`
+   *    把它交给宿主那只手（`host.triggerGeneration`）。扳机仍然是客户端扣的。
+   * ⚠ 算不出金额（`credits === undefined`）时**不记条子**：作用域第三条要素是
+   *   「不超上次金额」，没有金额就没有可比的上限，记一张永远匹配不上的条子只会
+   *   让用户以为自己已经关掉了确认。
+   */
+  const answerSpend = useCallback(
+    (input: { rememberForSession: boolean }) => {
+      const spend = getOperatorState().spend
+      if (!spend || spend.resolved) return
+      const credits = spend.request.estimate.credits
+      if (input.rememberForSession && credits !== undefined) {
+        setOperatorAutoApprove({
+          tier: ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.spend,
+          model: spend.request.model.id,
+          maxCredits: credits,
+        })
+      }
+      resolveOperatorSpend()
+      void run({ forcePlan: false })
+    },
+    [run],
+  )
+
+  /** 花钱卡「取消」—— 流已经停了，什么都不用发；把卡收掉即可。 */
+  const cancelSpend = useCallback(() => {
+    setOperatorSpend(null)
+    setOperatorStatus('idle')
+  }, [])
+
+  /**
+   * 歧义反问单选卡点中一格（§3.3 第 5 行 / §7）。
+   *
+   * ⭐ 走的是**四入口那条同一条 chip 管线**：插一枚 @chip、把它作为这一轮的
+   * `mentionedAssets` 端上去，然后带上下文重发。⛔ 没有第二条「被选中的候选」
+   * 通道 —— 服务端那一侧只认 `mentionedAssets` 这一张名单。
+   * ⚠ `text` 由面板给（i18n 在那一层）：hook 里没有词表，硬编一句中文会在英文
+   *   界面上原样印出来。
+   */
+  const answerChoice = useCallback(
+    (option: StudioOperatorAttachment, text: string) => {
+      const choice = getOperatorState().choice
+      if (!choice || choice.chosenId) return
+      resolveOperatorChoice(option.id)
+      addOperatorMention(option)
+      pendingResultRef.current = null
+      appendOperatorEntry({
+        kind: 'user',
+        id: nextOperatorEntryId('user'),
+        text,
+        attachments: [option],
+      })
+      void run({ forcePlan: false })
     },
     [run],
   )
@@ -629,6 +951,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     stop,
     cancelQueued,
     answerConfirm,
+    answerPlan,
+    revisePlan,
+    answerSpend,
+    cancelSpend,
+    answerChoice,
     critique,
     newThread,
   }

@@ -271,6 +271,15 @@ export function toOperatorHistoryEntry(
     }
     case 'step':
       return toOperatorHistoryStep(entry.id, entry.step, entry.undone)
+    /**
+     * 规则薄卡**不进历史**（切片 3a）。
+     *
+     * ⭐ 它引的是规则表里那条**活的**记录：用户可以在助手设置里删掉它。把原文抄进
+     * 会话历史，刷新之后那张薄卡还挂在那儿说「依据项目规则：××」，而那条规则已经
+     * 不存在了 —— 一条会说谎的痕迹比没有痕迹坏。要复看规则去规则列表，那才是它的家。
+     */
+    case 'rule':
+      return null
     case 'system':
       return {
         kind: 'system',

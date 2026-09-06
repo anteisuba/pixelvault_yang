@@ -299,6 +299,49 @@ export async function webImageSearch(
   }
 }
 
+/**
+ * 同一次搜图跑**几条查询变体**并归并（2026-09-06）。
+ *
+ * ── 为什么要它 ────────────────────────────────────────────────────
+ * 🔬 owner 的用例（找《无限大》「时夜」的官方设定图）：一条英文查询召回的全是
+ * 二手转载与攻略站截图，一手立绘（发在中/日文官方渠道）一张都进不来。问题不在
+ * 引擎，在于**只问了一种语言**。
+ *
+ * ── 归并方式：轮转，不是拼接 ─────────────────────────────────────
+ * 三条变体各取第一张、再各取第二张……⛔ 不是「第一条的全部 + 第二条的全部」：
+ * 后者的表现是候选行第一屏仍然只有一种语言的结果，铺变体等于白花了两个 credit。
+ *
+ * ⚠ **每条查询一个 Serper credit**，调用方负责封顶（`maxImageQueryVariants`）。
+ * ⚠ 与 `webImageSearch` 同一条 best-effort 契约：单条失败只是少几张，不抛。
+ */
+export async function webImageSearchMulti(
+  queries: readonly string[],
+  options: { num?: number } = {},
+): Promise<WebImageSearchResult[]> {
+  const unique = [...new Set(queries.map((query) => query.trim()))].filter(
+    (query) => query.length > 0,
+  )
+  if (unique.length === 0) return []
+  if (unique.length === 1) return webImageSearch(unique[0] ?? '', options)
+
+  const batches = await Promise.all(
+    unique.map((query) => webImageSearch(query, options)),
+  )
+
+  const merged: WebImageSearchResult[] = []
+  const seen = new Set<string>()
+  const longest = Math.max(...batches.map((batch) => batch.length))
+  for (let index = 0; index < longest; index += 1) {
+    for (const batch of batches) {
+      const entry = batch[index]
+      if (!entry || seen.has(entry.imageUrl)) continue
+      seen.add(entry.imageUrl)
+      merged.push(entry)
+    }
+  }
+  return merged
+}
+
 // ─── URL reader (Jina) ───────────────────────────────────────────
 
 /**
@@ -383,4 +426,92 @@ export async function gatherWebContext(query: string): Promise<WebContext> {
 
 export function hasWebContext(context: WebContext): boolean {
   return context.results.length > 0 || context.pages.length > 0
+}
+
+// ─── Focused excerpt ─────────────────────────────────────────────
+
+/**
+ * 把 `focus` 拆成可比对的词元。
+ *
+ * ⚠ 中日文**不分词**，所以拉丁词按空白切、CJK 串按**二元组**切
+ * （「外貌服饰」→ 外貌 / 貌服 / 服饰）。逐字切的表现是「的」「和」这种字命中
+ * 每一段，等于没有筛选；整串比对则一个字不差才算命中，等于永远不命中。
+ */
+function focusTokens(focus: string): string[] {
+  const tokens = new Set<string>()
+  for (const latin of focus.toLowerCase().match(/[a-z0-9]{2,}/g) ?? []) {
+    tokens.add(latin)
+  }
+  for (const cjk of focus.match(/[\u3040-\u30ff\u3400-\u9fff]{2,}/g) ?? []) {
+    for (let index = 0; index + 2 <= cjk.length; index += 1) {
+      tokens.add(cjk.slice(index, index + 2))
+    }
+  }
+  return [...tokens]
+}
+
+/**
+ * 按 `focus` 从一页正文里**截出相关段落**（2026-09-06）。
+ *
+ * ── 为什么这一步在服务端 ──────────────────────────────────────────
+ * Jina 一页能回六千字。整页塞进助手工具环 = **之后每一步都要重付一次这段上下文
+ * 的钱**（每一步都是一次完整 LLM 往返），而模型真正要的往往只有「外貌与服饰」
+ * 那两三段。指望模型自己跳读是把成本问题当成注意力问题。
+ *
+ * ── 三条纪律 ──────────────────────────────────────────────────────
+ *  · **保持原文顺序**：命中的段落按它们在页面里的先后拼回去，⛔ 不按得分重排 ——
+ *    重排会让「她的外套是……」跑到「她的发色是……」前面，读起来像另一个人。
+ *  · **一段都没命中就退回页首**，⛔ 不返回空串：页首通常是导语/信息框，比什么
+ *    都不给强，而「读了但没有相关段落」这件事由调用方去说。
+ *  · **只截不改**：⛔ 不做摘要、不做改写 —— 那是模型的活，在这里做等于多一处幻觉面。
+ */
+export function extractFocusedExcerpt(
+  content: string,
+  focus: string | undefined,
+  maxChars: number,
+): string {
+  const normalized = content.trim()
+  if (normalized.length <= maxChars) return normalized
+
+  const tokens = focus ? focusTokens(focus) : []
+  if (tokens.length === 0) return normalized.slice(0, maxChars).trim()
+
+  const paragraphs = normalized
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph.length > 0)
+
+  const scored = paragraphs.map((paragraph, index) => {
+    const haystack = paragraph.toLowerCase()
+    const score = tokens.reduce(
+      (total, token) => (haystack.includes(token) ? total + 1 : total),
+      0,
+    )
+    return { paragraph, index, score }
+  })
+
+  const hits = scored.filter((entry) => entry.score > 0)
+  if (hits.length === 0) return normalized.slice(0, maxChars).trim()
+
+  // 得分高的先被选中（预算有限），但拼回去时**按原文顺序**。
+  const picked = new Set<number>()
+  let budget = maxChars
+  for (const entry of [...hits].sort((a, b) => b.score - a.score)) {
+    if (entry.paragraph.length > budget) continue
+    picked.add(entry.index)
+    budget -= entry.paragraph.length + 2
+    if (budget <= 0) break
+  }
+  if (picked.size === 0) {
+    // 命中的那段自己就超预算 —— 截它，⛔ 不换一段不相关的。
+    const best = hits.reduce((a, b) => (b.score > a.score ? b : a))
+    return best.paragraph.slice(0, maxChars).trim()
+  }
+
+  return scored
+    .filter((entry) => picked.has(entry.index))
+    .map((entry) => entry.paragraph)
+    .join('\n\n')
+    .slice(0, maxChars)
+    .trim()
 }

@@ -20,12 +20,14 @@ import {
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   ASSISTANT_PLAN_PENDING_KINDS,
   ASSISTANT_PLAN_REQUEST_REASON_IDS as PLAN_REASON,
+  ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   isAssistantOperatorToolInDomain,
   type AssistantOperatorConfirmField,
   type AssistantOperatorDomain,
   type AssistantOperatorRejectReason,
   type AssistantOperatorSearchKind,
   type AssistantOperatorTool,
+  type AssistantResearchSource,
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_PERSONA_LANGUAGE_IDS,
@@ -63,7 +65,13 @@ import { resolveAssistantModelId } from '@/constants/node-studio'
 import {
   isWebImageSourceUsableAsInput,
   judgeWebImageSource,
+  webImageSourceRank,
 } from '@/constants/web-image-sources'
+import {
+  WEB_IMAGE_OFFICIAL_QUERY_SUFFIXES,
+  WEB_IMAGE_SUBJECT_QUERY_SUFFIXES,
+} from '@/constants/web-search'
+import { getAppOrigin } from '@/constants/config'
 import {
   inspectAssistantAssetFolder,
   listAssistantAssetFolders,
@@ -120,11 +128,24 @@ import { findVisionCapableRoute } from '@/services/vision/vision-route.service'
  */
 import { searchLoraCandidates } from '@/services/lora/lora-candidates.service'
 import {
+  extractFocusedExcerpt,
   isWebImageSearchConfigured,
   isWebSearchConfigured,
-  webImageSearch,
+  readUrl,
+  webImageSearchMulti,
   webSearch,
 } from '@/services/web-research.service'
+/**
+ * ⭐ **有目标的检索**（2026-09-06）。加它进钱闸白名单的判据与
+ * `web-research.service` 那条**逐字同源**：它是**搜索 + 归并**模块 —— 打萌百 /
+ * 中文维基 / Fandom / danbooru / Serper 的只读接口，出一串证据对象，一个字节都
+ * 不下载、一分钱都不扣、一行 generation 都不创建，**也一行库都不碰**。
+ * ⛔ `research-run.service` **有意不在这里**：那条会读配额、写 `ResearchRun`，
+ * 也就是会 import 库客户端 —— 而工具环里禁库直连（禁字表里逐字写着那条 import，
+ * 所以这段注释里不复述它：那份测试扫的是源码文本，注释也算数）。
+ * 扇出那一段因此单独住在 `research-fanout.service`，它一行库都不碰。
+ */
+import { runAssistantResearch } from '@/services/research/research-fanout.service'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { logger } from '@/lib/logger'
 import {
@@ -308,6 +329,27 @@ interface OperatorRun {
    * 换了 `weight` 就绕过去了，而那正是模型「上一步好像没生效，再来一次」的形状）。
    */
   mountedLoraCandidateIds: Set<string>
+  /**
+   * 本轮 `search_web_images` **真的展示给用户看过**的那些候选（2026-09-06）。
+   *
+   * ⭐ 它是 `import_user_url` 的**第二张准入名单**（第一张是「逐字出现在用户
+   * 消息里」，拍板 22）。加它的判据：用户说「都挂上」时，那几张地址他**看见了**，
+   * 只是没有一条一条按 —— 而助手手里唯一能表达「就是屏幕上那几张」的东西就是
+   * 这份服务端自己算出来的表。
+   * ⛔ 它仍然**不放宽任何一道实体闸**：`blocked` 的照旧拒（站方声明不是用户能
+   * 替它同意的事），参考位上限照旧、逐字比对那条路照旧。模型编一条没搜到过的
+   * 地址仍然按 `urlNotFromUser` 拒。
+   * ⚠ 键是**原图直链**（候选行认自己那一格用的也是它）。
+   */
+  webImageIndex: Map<string, { domain?: string; usableAsInput: boolean }>
+  /**
+   * 本轮已经发过几次 `research`（2026-09-06）。
+   *
+   * ⚠ 它**不能**靠 `executedStepKeys` 代替：那张表按「工具名 + 参数」比对，
+   * 而多轮检索的正当形态恰恰是**换一个目标再来一次** —— 参数不同就绕过去了。
+   * 轮次上限管的是「一共能打几次外部源」，与「别原地打转」是两件事。
+   */
+  researchRounds: number
   /** 讲给模型听的「刚才发生了什么」。 */
   observations: string[]
   /** 本轮里助手自己写过的字段 —— 覆写自己的东西不需要再问用户一次。 */
@@ -939,9 +981,46 @@ function planInspectAssetFolder(
  * 塞一个没有 assetId 的东西，等于让模型可以把一串第三方地址当成用户的素材挂上去
  * （画布 `attach_asset` 那条论据的同一个坑）。
  */
+/**
+ * 一次搜图**真的发出去的那几条查询**（2026-09-06）。
+ *
+ * ⚠ 只有给了 `subject`（作品 + 角色）才铺变体 —— 不给就是一条查询一个 credit，
+ * 与切片 3b 的成本形状不变。铺的时候三条覆盖中/日/英：🔬 owner 的用例里，
+ * 一手立绘发在中文与日文官方渠道，纯英文查询一张都召不回来。
+ * ⛔ 变体表在 `constants/web-search.ts`，⛔ 别在这里硬编码词。
+ */
+export function buildWebImageQueries(args: {
+  query: string
+  subject?: string
+  preferOfficial?: boolean
+}): string[] {
+  const base = args.query.trim()
+  const subject = args.subject?.trim()
+  if (!subject) return base ? [base] : []
+
+  const suffixes = args.preferOfficial
+    ? WEB_IMAGE_OFFICIAL_QUERY_SUFFIXES
+    : WEB_IMAGE_SUBJECT_QUERY_SUFFIXES
+
+  const queries = [
+    // 第一条永远是模型自己写的那句 + 主体 —— 它知道这一轮要什么样的图。
+    [subject, base].filter(Boolean).join(' '),
+    ...suffixes.map((suffix) => `${subject} ${suffix}`),
+  ]
+
+  return [...new Set(queries.map((query) => query.trim()))]
+    .filter((query) => query.length > 0)
+    .slice(0, RESEARCH_LIMITS.maxImageQueryVariants)
+}
+
 function planSearchWebImages(
   run: OperatorRun,
-  args: { query: string; limit?: number },
+  args: {
+    query: string
+    subject?: string
+    preferOfficial?: boolean
+    limit?: number
+  },
 ): ToolPlan {
   if (!isWebImageSearchConfigured()) {
     return reject(
@@ -954,13 +1033,42 @@ function planSearchWebImages(
     args.limit ?? LIMITS.maxWebImageResults,
     LIMITS.maxWebImageResults,
   )
+  const queries = buildWebImageQueries(args)
 
   return {
     kind: 'read',
-    payload: { query: args.query, limit },
+    payload: {
+      query: args.query,
+      ...(queries.length > 1 ? { queries } : {}),
+      ...(args.subject
+        ? { subject: clamp(args.subject, LIMITS.maxLabelChars) }
+        : {}),
+      ...(args.preferOfficial ? { preferOfficial: true } : {}),
+      limit,
+    },
     run: async () => {
-      const found = await webImageSearch(args.query, { num: limit })
-      const images = found.slice(0, limit).map((image) => {
+      const found = await webImageSearchMulti(queries, { num: limit })
+      /**
+       * ⭐ **官方 / wiki 来源排前**（2026-09-06）。
+       *
+       * ⚠ 只在 `preferOfficial` 时排，⛔ 不无条件排：找「赛博朋克街景参考」时把
+       * wikipedia 顶到第一行是帮倒忙。判据表与「能不能选用」共用同一张
+       * （`web-image-sources.ts`），⛔ 不是第二份名单。
+       * ⚠ **稳定排序**：同一档内保持轮转归并的顺序，否则铺多语言变体的效果
+       * 会被一次重排洗掉。
+       */
+      const ordered = args.preferOfficial
+        ? found
+            .map((image, index) => ({ image, index }))
+            .sort(
+              (a, b) =>
+                webImageSourceRank(a.image.domain ?? a.image.pageUrl) -
+                  webImageSourceRank(b.image.domain ?? b.image.pageUrl) ||
+                a.index - b.index,
+            )
+            .map((entry) => entry.image)
+        : found
+      const images = ordered.slice(0, limit).map((image) => {
         /**
          * ⭐ 三字段在**服务端**算（切片 3b）：判定表是一份会长的常量，客户端算的
          * 表现是「同一张图在面板里说可用、在服务端拒了」——而那两句话用户都读得到。
@@ -992,7 +1100,7 @@ function planSearchWebImages(
       //    是拿去用（挂参考 / 写进提示词），而那些地址在本仓里还不存在任何东西。
       const observation =
         images.length === 0
-          ? `search_web_images("${args.query}") came back empty. Do not invent image URLs; try different words or work with what the creator already has.`
+          ? `search_web_images ran ${queries.length} quer${queries.length === 1 ? 'y' : 'ies'} (${queries.map((query) => `"${query}"`).join(' · ')}) and came back empty. Do not invent image URLs. One empty search is not an answer: change the wording — the character's name in its own language, the work's official title, or "subject" plus preferOfficial — and try once more before you tell the creator there is nothing.`
           : `search_web_images("${args.query}") → ${images.length} PREVIEW candidate(s) shown to the creator:\n${images
               .map(
                 (image, index) =>
@@ -1002,7 +1110,19 @@ function planSearchWebImages(
               )
               .join(
                 '\n',
-              )}\nThese are previews only — nothing was saved. You cannot mount, import, or reference any of them. The creator picks one in the log entry and the app files it into their library; tell them to pick, then move on.`
+              )}\nThese are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the candidate (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url on the ones above that are not marked REFERENCE ONLY. ⛔ Never paste one of these URLs into a prompt, and never import one they did not ask for.`
+
+      /**
+       * ⭐ 进准入名单（2026-09-06）：用户说「挂上」时，助手得有办法指着屏幕上
+       * 那几张说「就是这些」。⛔ 它们**不进 `run.searchIndex`** —— 那张表是
+       * `mount_reference` 的名单，里面的东西已经是用户的素材；这些还只是地址。
+       */
+      for (const image of images) {
+        run.webImageIndex.set(image.imageUrl, {
+          ...(image.domain ? { domain: image.domain } : {}),
+          usableAsInput: image.usableAsInput,
+        })
+      }
 
       return { result: { totalFound: images.length, images }, observation }
     },
@@ -1079,13 +1199,209 @@ function planSearchWeb(
 }
 
 /**
+ * **有目标的检索**（2026-09-06）。
+ *
+ * ── 它修的是什么 ──────────────────────────────────────────────────
+ * 🔬 owner 真机：让助手「查《无限大》角色时夜的官方设定图与外貌服饰」，它调了
+ * 一次 `search_web`，拿回一句台词，然后停下来问用户要图。三件事一起坏了 ——
+ * 只打了一个源、只发了一条查询、只跑了一轮。这条工具逐条对着修：
+ *  · **多源**：萌百 / 中文维基 / Fandom / danbooru / Serper 并行（`research-fanout`）；
+ *  · **多查询**：目标 + 实体铺成几条（长查询喂网搜、干净页名喂 wiki）；
+ *  · **多轮**：第一轮定官方名与出处，第二轮拿着答案问外貌服饰。
+ *
+ * ── 轮次上限为什么是硬闸而不是提示 ────────────────────────────────
+ * 每一轮都在打真实外部源（还带 Serper credit），而 `maxSteps` 只有 8。撞上限按
+ * `researchRoundsExhausted` 拒并**说清楚下一步该干什么**（去写已经知道的那些），
+ * ⛔ 不静默返回空结果 —— 空结果会让模型以为「这个角色查不到」，然后开始编。
+ *
+ * ⛔ 与 `search_web_images` 同一条纪律：它一个字节都不落。证据里那些 URL 是给
+ * 用户点开看的、给模型引用出处的，⛔ **不是**可以挂上去的图。
+ */
+async function planResearch(
+  run: OperatorRun,
+  args: {
+    goal: string
+    entities?: string[]
+    sources?: AssistantResearchSource[]
+  },
+): Promise<ToolPlan> {
+  if (!isWebSearchConfigured()) {
+    return reject(
+      REJECT.searchUnavailable,
+      'Live research is not wired up on this deployment. Answer from what you know, and say plainly when you are unsure.',
+    )
+  }
+
+  if (run.researchRounds >= RESEARCH_LIMITS.maxRoundsPerTurn) {
+    return reject(
+      REJECT.researchRoundsExhausted,
+      `You have already researched ${RESEARCH_LIMITS.maxRoundsPerTurn} times this turn. Work with what those rounds gave you: write the parts you are sure of, name what you could not confirm, and move on to the form.`,
+    )
+  }
+
+  const round = run.researchRounds + 1
+  const entities = (args.entities ?? [])
+    .map((entity) => clamp(entity, RESEARCH_LIMITS.maxEntityChars))
+    .filter((entity) => entity.length > 0)
+
+  const outcome = await runAssistantResearch({
+    goal: args.goal,
+    entities,
+    ...(args.sources?.length ? { sources: args.sources } : {}),
+  })
+  /**
+   * ⚠ **打过就算一轮**，不管有没有收获：这一轮确实打了外部源（也确实花了
+   * Serper credit）。⛔ 别做成「没查到就不计数」—— 那等于给「同一个查不到的
+   * 问题」开了无限重试，而 `maxSteps` 只有 8，代价是整轮步数全烧光、表单没动。
+   */
+  run.researchRounds = round
+
+  const roundsLeft = RESEARCH_LIMITS.maxRoundsPerTurn - round
+  /**
+   * ⚠ 回执逐源列出来（`ok` / `empty` / `failed` / `circuit_open`）：「打了但没料」
+   * 与「源挂了」下一步该做的事完全不同，合成一句「没搜到」会让模型换个词再查一遍
+   * 一个已经挂掉的源。
+   */
+  const receiptLine = outcome.receipts
+    .map((receipt) => `${receipt.sourceId}:${receipt.status}`)
+    .join(' · ')
+
+  /**
+   * ⭐ 观察里**逐条带出处与置信度**：模型接下来要在对白里说「按萌百的说法……」，
+   * 而它只有在这里看得见来源时才说得出口。空结果那一支**必须给出下一步** ——
+   * 一句「没查到」是模型放弃的许可证，而放弃正是这条工具要消灭的行为。
+   */
+  const observation =
+    outcome.evidence.length === 0
+      ? `research("${args.goal}") found nothing. Sources: ${receiptLine}.${
+          roundsLeft > 0
+            ? ' Do NOT give up and do NOT invent details. Go again from a different angle: the name written in its own language, the work\'s official title instead of a fan translation, or a different source mix (sources:["web"] reaches sites the encyclopedias do not).'
+            : ' You are out of research rounds. Say plainly which parts you could not confirm instead of inventing them.'
+        }`
+      : `research("${args.goal}") → ${outcome.evidence.length} piece(s) of evidence (round ${round}/${RESEARCH_LIMITS.maxRoundsPerTurn}). Sources: ${receiptLine}.\n${outcome.evidence
+          .map(
+            (item, index) =>
+              `  ${index + 1}. [${item.publisher} · ${item.confidence} confidence · ${item.kind}] ${item.title}\n     ${item.snippet}`,
+          )
+          .join('\n')}\n${
+          roundsLeft > 0
+            ? 'If this pinned down the official name or the site of record but not the details you need, research ONE more time with a narrower goal, or read_url the best page above. Tag-kind evidence is already prompt-ready vocabulary — use those words.'
+            : 'This was your last research round. Use it, name the source when it matters, and say plainly what is still unconfirmed.'
+        }`
+
+  return {
+    kind: 'read',
+    /**
+     * ⚠ 载荷里的 `sources` 是**服务端真的打了哪几组**（模型不给时有默认组合），
+     * ⛔ 不是模型请求的那几组：日志上该显示发生过的事。
+     */
+    payload: {
+      goal: clamp(args.goal, RESEARCH_LIMITS.maxGoalChars),
+      entities,
+      sources: outcome.sources,
+      round,
+    },
+    run: async () => ({
+      result: {
+        totalFound: outcome.evidence.length,
+        evidence: outcome.evidence,
+      },
+      observation,
+    }),
+  }
+}
+
+/**
+ * **读一页正文**（2026-09-06）。
+ *
+ * ⚠ 它补的正是切片 3b 有意留下的洞：`search_web` 只搜不读，而「她穿什么」的答案
+ * 就在那一页的角色介绍段里，摘要里那两句永远答不了。
+ *
+ * ── 两道来源闸 ────────────────────────────────────────────────────
+ *  · **协议**：非 http(s) 一律拒（schema 已挡一道，这里是第二道）。
+ *  · **本站**：指向本应用自己的地址一律拒 —— 助手去读自己的页面拿不到任何新
+ *    信息，却能把内部地址读进模型上下文。
+ * ⚠ SSRF 那一道在 `readUrl` 内部（`assertSafeUrl`），⛔ 别在这里重写一份。
+ *
+ * ── 为什么抓取跑在**规划期**而不是 `run()` 里 ─────────────────────
+ * 与 `critique_result` 逐字同源：`run()` 里失败只能抛，而抛出去的表现是整轮以
+ * 一句笼统的「跑到一半失败了」结束、那条日志永远停在 `running`。跑在这里，
+ * 读不出来就是一条普通的被拒步 —— 模型读得到理由，还有步数去换一个来源。
+ *
+ * ⛔ 它**只读文字**：一张图都不取。图仍然走 `search_web_images` + 用户点「选用」。
+ */
+async function planReadUrl(
+  run: OperatorRun,
+  args: { url: string; focus?: string },
+): Promise<ToolPlan> {
+  void run
+
+  let target: URL
+  try {
+    target = new URL(args.url)
+  } catch {
+    return reject(REJECT.urlNotReadable, 'That is not a readable web address.')
+  }
+
+  if (target.protocol !== 'http:' && target.protocol !== 'https:') {
+    return reject(
+      REJECT.urlNotReadable,
+      'Only ordinary web pages (http/https) can be read.',
+    )
+  }
+
+  if (target.origin === getAppOrigin()) {
+    return reject(
+      REJECT.urlNotReadable,
+      'That address belongs to this app itself — reading it tells you nothing new. Use read_state for the form, or search_assets for the library.',
+    )
+  }
+
+  const focus = args.focus?.trim()
+  const page = await readUrl(args.url)
+  if (!page) {
+    return reject(
+      REJECT.urlUnreadable,
+      'That page could not be read (blocked, timed out, or it renders nothing without a browser). Do not guess what it says from its title — try a different source; encyclopedia and official pages usually read fine.',
+    )
+  }
+
+  const excerpt = extractFocusedExcerpt(
+    page.content,
+    focus,
+    RESEARCH_LIMITS.maxReadUrlExcerptChars,
+  )
+
+  return {
+    kind: 'read',
+    payload: {
+      url: page.url,
+      focus: focus ? clamp(focus, RESEARCH_LIMITS.maxFocusChars) : null,
+    },
+    run: async () => ({
+      result: {
+        title: clamp(page.url, RESEARCH_LIMITS.maxEvidenceTitleChars),
+        url: page.url,
+        excerpt,
+      },
+      observation: `read_url(${page.url})${focus ? ` focused on "${focus}"` : ''} → the passages that matched:\n${excerpt}\nThis is an extract of that page, not the whole thing. Quote it, name the page when it matters, and say so if it does not answer the question.`,
+    }),
+  }
+}
+
+/**
  * 用户亲手递来的地址 → 取图入库并挂上（P3-D，拍板 22）。
  *
  * ── 「你递的就是确认」为什么是**结构性**的 ────────────────────────
- * 唯一的准入判据：这条 URL 逐字出现在本次请求的某条**用户消息**里。
+ * 准入判据是**两张服务端自己算得出的名单**，⛔ 不是模型的一句话：
+ *  ① 这条 URL 逐字出现在本次请求的某条**用户消息**里（拍板 22 原判据）；
+ *  ② 或者它是本轮 `search_web_images` **真的展示给用户看过**的候选之一
+ *     （2026-09-06 加）—— 用户说「都挂上」时，那几张地址他看见了，只是没有
+ *     一格一格按。逐格点「选用」那条路一个字都没改（拍板 21 仍是默认动作），
+ *     这条只是在他明确说「挂上」时省掉四次点击。
  * ⛔ 不问模型「这是用户给的吗」—— 那是一句它编得出来的话，等于没有闸。
  * ⛔ 不放宽成同域名 / 前缀匹配：用户给一张图的地址，不等于把那个站交出去。
- * 助手自己搜来的候选照旧要用户点「选用」（拍板 21），两条路的区别只有这一条。
+ * ⛔ 两条路都**不松实体闸**：`blocked` 的站照旧拒（下面那一段），参考位上限照旧。
  *
  * ── 服务端在这一步做了什么 ──────────────────────────────────────
  * **一个字节都没碰。** 它只吐一个带着源地址的 op；取图 / 落 R2 / 落库全部发生在
@@ -1098,10 +1414,22 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
   const fromCreator = run.request.messages.some(
     (message) => message.role === 'user' && message.content.includes(args.url),
   )
-  if (!fromCreator) {
+  const shownCandidate = run.webImageIndex.get(args.url)
+  if (!fromCreator && !shownCandidate) {
     return reject(
       REJECT.urlNotFromUser,
-      'That address is not in anything the creator wrote. Only links they typed themselves can be imported directly — for pictures you found, call search_web_images and let them press "use this".',
+      'That address is neither one the creator typed nor one of the candidates you actually put on screen this turn. Search first with search_web_images, then you may attach from what came back.',
+    )
+  }
+
+  /**
+   * ⚠ 候选那条路上**判定用的是服务端已经算好的那一位**，⛔ 不重算一次：
+   * 格子上写着「仅参考」而这里放行，是用户读得到的两句相反的话。
+   */
+  if (shownCandidate && !shownCandidate.usableAsInput) {
+    return reject(
+      REJECT.sourceNotUsable,
+      'That candidate is marked reference-only: the site asks not to be used as AI input, or republishes work without a traceable source. Attach the others and say plainly why that one stayed out.',
     )
   }
 
@@ -1109,7 +1437,11 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
     return reject(REJECT.referencesFull)
   }
 
-  const domain = hostnameOf(args.url)
+  /**
+   * ⚠ 候选那条路用**搜图时记下的站点域名**，⛔ 不拿图床主机名现算：图床与作品页
+   * 常常不同域（`i.pinimg.com` ↔ `pinterest.com`），而站方声明约束的是后者。
+   */
+  const domain = shownCandidate?.domain ?? hostnameOf(args.url)
 
   /**
    * ⭐ **用户递的地址也过来源判定**（切片 3b）。
@@ -2455,8 +2787,24 @@ async function planTool(
     case TOOL.searchWebImages:
       return planSearchWebImages(
         run,
-        parsed.data as { query: string; limit?: number },
+        parsed.data as {
+          query: string
+          subject?: string
+          preferOfficial?: boolean
+          limit?: number
+        },
       )
+    case TOOL.research:
+      return planResearch(
+        run,
+        parsed.data as {
+          goal: string
+          entities?: string[]
+          sources?: AssistantResearchSource[]
+        },
+      )
+    case TOOL.readUrl:
+      return planReadUrl(run, parsed.data as { url: string; focus?: string })
     case TOOL.searchWeb:
       return planSearchWeb(
         run,
@@ -2821,7 +3169,14 @@ HARD RULES — these are structural, not stylistic:
 - THE CREATOR HANDED YOU A LINK → call import_user_url on it, right then. Their link is their yes. It works for a direct image address and for an ordinary web page alike. Never answer a link with a search, and never ask them to save it, upload it, or pick it out of a list — you have the tool, so you do it.
 - When a request turns on a fact you are not sure of — how an official name is spelled, what a character or product actually looks like in its source, a game's own terminology, a platform's current rules — call search_web and look it up before you write it into the form. One search step is cheaper than a prompt full of confident inventions. It returns extracts, not whole pages: name the source when it matters, and say plainly when the extracts do not answer the question. It finds words, never pictures.
 - A web result may be marked REFERENCE ONLY: that site asks not to be used as AI input, or republishes work without a traceable source. The creator can still open it, but the app will not file it into their library and neither will you. Say so once and offer another source; never go hunting for the same picture on another site to get around it.
-- search_web_images (pictures YOU went looking for) is different: it downloads nothing. Each candidate is shown to the creator with a "use this" button, and only what they press is fetched and attached. So never claim you saved, imported, or mounted one of your own search results, and never paste one of those URLs into a prompt or a reference. Search the creator's own library first; go to the web only when they have nothing suitable. Keep web queries SHORT and in English (three or four words); a long sentence returns junk.
+- search_web_images (pictures YOU went looking for) is different: it downloads nothing. Each candidate is shown to the creator with a "use this" button, and by default THEY press it — say which ones are worth keeping and let them pick. The one exception: once they have told you to attach them ("mount those", "use them all"), call import_user_url on the candidates you just showed, one per picture, skipping any marked REFERENCE ONLY. Until they say that, never claim you saved, imported, or mounted a search result of yours, and never paste one of those URLs into a prompt. Search the creator's own library first; go to the web only when they have nothing suitable. Keep the "query" SHORT and in English (three or four words); a long sentence returns junk.
+- FINDING WHAT A CHARACTER ACTUALLY LOOKS LIKE — this is the chain, in this order, and you run it yourself:
+  1. research first, with the work and the character as "entities". That is what settles the official name, the spelling used in its own language, and which site is the source of record. Do NOT start with search_web here; one extract about a character is almost never the description you need.
+  2. search_web_images with "subject" set to the work plus the character and preferOfficial true. The server then searches in several languages and puts official and wiki sources first — official art is very often published only in Chinese or Japanese, so an English-only query finds fan reposts and nothing else.
+  3. read_url on the best page research found, with "focus" set to what you actually need ("appearance and outfit", "costume colours"). That is where hair, eyes, clothing and colours live; a search extract never contains them.
+  4. set_prompt with what you read, and tell the creator to press "use this" on the candidates worth keeping.
+- ONE EMPTY SEARCH IS NOT AN ANSWER. If a research or an image search comes back thin, you change something and go again before you say there is nothing: the name in its own language, the official title instead of a fan translation, a different source mix, or the other tool. Coming back to the creator with "I could not find it" after a single query is a failure, not an honest report. You may research twice per turn — the second round, aimed by what the first one told you, is usually where the answer is.
+- Never fill a gap with invention. Say which parts are confirmed and by whom, and name the parts you could not confirm.
 ${domainRules}
 - If the creator already hand-wrote a prompt, writing over it needs their say-so — call the tool anyway and the app will ask them; do not ask in prose.
 - Reply in ${language}.${buildModelDialectSection(request)}
@@ -2844,6 +3199,7 @@ ${
     ? '- THE CREATOR TURNED ON "ask me first" FOR THIS MESSAGE. Your FIRST turn must carry a "plan" (and "pending" for anything genuinely open) — the app shows it to them and waits. Do not skip straight to a tool.\n'
     : ''
 }- "pending" rides along with that first "plan" and ONLY there: at most ${PLAN_LIMITS.maxPendingItems} things you genuinely cannot settle from what they told you, each with 2–${PLAN_LIMITS.maxPendingOptions} concrete options. The app turns them into one tap. Leave it out when you can settle everything yourself — a question you already know the answer to costs them a round trip. Never ask about something the state block already answers.${buildPlanVisualSection()}
+- Every "pending" item MUST have a non-empty "label" and an "options" array of objects, each with its own non-empty "label": {"label":"Which visual direction?","options":[{"label":"3D game render"},{"label":"Stylized 3D"}]}. Labels must be in the creator's language. The question belongs in "label", not "question" or "title". Keep each question within ${LIMITS.maxPlanItemChars} characters and each option label within ${PLAN_LIMITS.maxPendingLabelChars} characters. Item and option "id" fields are optional; the server assigns them when omitted.
 - "message" is optional; use it to say something worth saying, not to narrate every step.
 - Omit "tool" (or set "finished":true) when the work is done. Do that as soon as the form is ready — an extra step costs the creator time.
 - One tool per turn. You get at most ${LIMITS.maxSteps} steps for the whole request.
@@ -2985,18 +3341,32 @@ function jsonCandidates(raw: string): string[] {
   ].filter((candidate): candidate is string => Boolean(candidate))
 }
 
-function parseTurnJson(raw: string): AssistantOperatorTurn | null {
+function parseTurnJson(
+  raw: string,
+):
+  | { success: true; turn: AssistantOperatorTurn }
+  | { success: false; error: string } {
+  let validationError: string | undefined
   for (const candidate of jsonCandidates(raw)) {
     try {
       const parsed = AssistantOperatorTurnSchema.safeParse(
         JSON.parse(candidate) as unknown,
       )
-      if (parsed.success) return parsed.data
+      if (parsed.success) return { success: true, turn: parsed.data }
+      validationError = parsed.error.issues
+        .slice(0, 8)
+        .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+        .join('; ')
     } catch {
       // 下一个候选
     }
   }
-  return null
+  return {
+    success: false,
+    error: validationError
+      ? `The JSON object has invalid fields: ${validationError}. Correct these fields using the OUTPUT format.`
+      : 'Your last reply was not a single valid JSON object. Reply with ONE JSON object and nothing else.',
+  }
 }
 
 /** 同上，但吃的是视觉那一跳的产出（P3-C）。解不出来 = 一条被拒的步，不是抛错。 */
@@ -3062,6 +3432,8 @@ export async function* runAssistantOperator(
     state: toWorkingState(request.snapshot),
     route,
     modelId,
+    webImageIndex: new Map(),
+    researchRounds: 0,
     searchIndex: new Map(),
     folderIndex: new Map(),
     loraIndex: new Map(),
@@ -3113,18 +3485,22 @@ export async function* runAssistantOperator(
         return
       }
 
-      const turn = parseTurnJson(raw)
-      if (!turn) {
+      const parsedTurn = parseTurnJson(raw)
+      if (!parsedTurn.success) {
+        logger.warn('assistant operator model response validation failed', {
+          modelId,
+          adapterType: route.adapterType,
+          error: parsedTurn.error,
+        })
         consecutiveParseFailures += 1
         // 连着两次读不出来就不是抖动了 —— 大声报错，别把剩下的步数烧在同一个坑里。
         if (consecutiveParseFailures >= 2) {
           throw new Error('The assistant model did not return usable JSON.')
         }
-        run.observations.push(
-          'Your last reply was not a single valid JSON object. Reply with ONE JSON object and nothing else.',
-        )
+        run.observations.push(parsedTurn.error)
         continue
       }
+      const turn = parsedTurn.turn
       consecutiveParseFailures = 0
 
       /**

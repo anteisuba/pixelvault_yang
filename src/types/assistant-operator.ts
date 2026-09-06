@@ -39,6 +39,10 @@ import {
   ASSISTANT_PLAN_PENDING_KINDS,
   ASSISTANT_PLAN_REQUEST_REASONS,
   ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
+  ASSISTANT_RESEARCH_CONFIDENCES,
+  ASSISTANT_RESEARCH_EVIDENCE_KINDS,
+  ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
+  ASSISTANT_RESEARCH_SOURCES,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PLAN_VISUAL_IDS } from '@/constants/assistant-plan-visuals'
@@ -609,12 +613,66 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages]: z.object({
     query: z.string().trim().min(1).max(LIMITS.maxWebImageQueryChars),
+    /**
+     * **谁**（作品名 + 角色名），2026-09-06 加。
+     *
+     * ⚠ 它与 `query` 分开而不是「让模型把这些词写进 query」：服务端要拿它去铺
+     * 多语言变体（中/日/英各一条），而拆一句自由文本拆不出「哪部分是主体」。
+     * 🔬 起因是 owner 的用例：只发一条英文 query 时，一手立绘（中/日文官方渠道）
+     * 一张都进不了召回。
+     * ⚠ 不给就是不给 —— 服务端退回单条查询，与切片 3b 的成本形状不变。
+     */
+    subject: z.string().trim().max(RESEARCH_LIMITS.maxSubjectChars).optional(),
+    /**
+     * 要不要把「官方 / 设定图 / 公式資料」这类限定词铺进变体，并把官方与 wiki
+     * 来源排到前面。⚠ 找角色设定图时**必须给 true**，系统提示里写着。
+     */
+    preferOfficial: z.boolean().optional(),
     limit: z
       .number()
       .int()
       .positive()
       .max(LIMITS.maxWebImageResults)
       .optional(),
+  }),
+  /**
+   * 有目标的检索（2026-09-06）。
+   *
+   * ⚠ 与 `search_web` 的形状**故意不同构**：那条是「一句查询」，这条是
+   * 「一个目标 + 几个实体 + 打哪些源」——三个字段各自答一个模型真的知道的问题，
+   * 而把它们揉成一句查询正是「搜到一句台词就放弃」的成因。
+   * ⚠ `sources` 是**粗粒度分组**（web / wiki / bilibili / danbooru），⛔ 不是真源
+   * 表：让模型挑「萌百还是中文维基」是让它猜一件它不可能知道的事。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.research]: z.object({
+    goal: z.string().trim().min(1).max(RESEARCH_LIMITS.maxGoalChars),
+    entities: z
+      .array(z.string().trim().min(1).max(RESEARCH_LIMITS.maxEntityChars))
+      .max(RESEARCH_LIMITS.maxEntities)
+      .optional(),
+    sources: z
+      .array(z.enum(ASSISTANT_RESEARCH_SOURCES))
+      .max(ASSISTANT_RESEARCH_SOURCES.length)
+      .optional(),
+  }),
+  /**
+   * 读一页正文（2026-09-06）。
+   *
+   * ⚠ 协议闸与 `import_user_url` 逐字同源（`.url()` 放行 `ftp:` / `file:`）。
+   * 「这条地址该不该读」（本站 / 读不出来）留在规划器：schema 拒 = 整轮读不出来，
+   * 规划器拒 = 助手读得到理由还能换一个来源。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]: z.object({
+    url: z
+      .string()
+      .trim()
+      .max(LIMITS.maxUserUrlChars)
+      .url()
+      .refine((value) => /^https?:\/\//i.test(value), {
+        message: 'url must be http(s)',
+      }),
+    /** 「外貌与服饰」这类一句话 —— 服务端按它在正文里截段。 */
+    focus: z.string().trim().max(RESEARCH_LIMITS.maxFocusChars).optional(),
   }),
   /**
    * 联网查文字（切片 3b）。形状与搜图那条**故意逐字同构**（`query` + 可选 `limit`）：
@@ -996,6 +1054,34 @@ export const AssistantOperatorWebSearchResultSchema = z.object({
   publisher: LabelSchema.optional(),
 })
 
+/**
+ * 一条**证据**（`research`，2026-09-06）。
+ *
+ * ⚠ 它与 `AssistantOperatorWebSearchResultSchema` 是两张表不是一张带可选字段的表 ——
+ * 判据是**多出来的那三个字段都是服务端算的、而且用户读得到**：
+ *  · `publisher` 在这里是**必填**（网搜那条可选）：证据卡的全部意义是「谁说的」，
+ *    一条没有出处的证据在卡上没有位置；取不到站名时服务端回落成域名。
+ *  · `confidence` 由**源的层级**算出来（官方 / 百科 / 社区），⛔ 不由模型写 ——
+ *    让模型给自己找的东西打分，它给的永远是 high。
+ *  · `kind` 说这条是**一段话、一串标签、还是一张图**。标签那一档是这条链最值钱的
+ *    东西：danbooru / 萌百分类给的「粉发 · 金瞳 · 下双马尾」是已经结构化的外观词，
+ *    提示词直接吃得下，⛔ 不需要再过一次模型提取（少一次提取少一处幻觉）。
+ *
+ * ⚠ `url` 可选：danbooru 的共现标签这类证据没有单一页面可点。
+ */
+export const AssistantOperatorEvidenceSchema = z.object({
+  title: z.string().max(RESEARCH_LIMITS.maxEvidenceTitleChars),
+  url: z.string().url().optional(),
+  publisher: z.string().max(RESEARCH_LIMITS.maxEvidencePublisherChars),
+  snippet: z.string().max(RESEARCH_LIMITS.maxEvidenceSnippetChars),
+  kind: z.enum(ASSISTANT_RESEARCH_EVIDENCE_KINDS),
+  confidence: z.enum(ASSISTANT_RESEARCH_CONFIDENCES),
+})
+
+export type AssistantOperatorEvidence = z.infer<
+  typeof AssistantOperatorEvidenceSchema
+>
+
 export type AssistantOperatorWebSearchResult = z.infer<
   typeof AssistantOperatorWebSearchResultSchema
 >
@@ -1103,7 +1189,18 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
   readStep(
     ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
     z.object({
+      /**
+       * ⚠ 这里是**服务端真的发出去的那几条**（带 subject 时是多语言变体），
+       * 不是模型写的那一条。日志详情按它列 —— 「它到底查了什么」是用户判断
+       * 「为什么没找到官方图」的唯一依据。
+       */
       query: z.string().trim().min(1).max(LIMITS.maxWebImageQueryChars),
+      queries: z
+        .array(z.string().min(1))
+        .max(RESEARCH_LIMITS.maxImageQueryVariants)
+        .optional(),
+      subject: LabelSchema.optional(),
+      preferOfficial: z.boolean().optional(),
       limit: z.number().int().positive().max(LIMITS.maxWebImageResults),
     }),
     z.object({
@@ -1130,6 +1227,49 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       results: z
         .array(AssistantOperatorWebSearchResultSchema)
         .max(LIMITS.maxWebSearchResults),
+    }),
+  ),
+  /**
+   * 有目标的检索（2026-09-06）。⛔ **永远是 readStep**：它打的是只读接口，
+   * 一个字节都不落、表单一个字都不改。
+   *
+   * ⚠ 载荷里带 `round`：多轮是这条工具的核心（第一轮定官方站、第二轮问外貌），
+   * 而「这是第几轮」既是日志上要说的事，也是那道上限闸判的东西。
+   * ⚠ `sources` 是**服务端真的打了哪几组**，不是模型请求的那几组 —— 模型不给时
+   * 服务端自己挑，日志上该显示实际发生的事。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.research,
+    z.object({
+      goal: z.string().min(1).max(RESEARCH_LIMITS.maxGoalChars),
+      entities: z
+        .array(z.string().min(1).max(RESEARCH_LIMITS.maxEntityChars))
+        .max(RESEARCH_LIMITS.maxEntities),
+      sources: z.array(z.enum(ASSISTANT_RESEARCH_SOURCES)),
+      round: z.number().int().positive().max(RESEARCH_LIMITS.maxRoundsPerTurn),
+    }),
+    z.object({
+      totalFound: z.number().int().nonnegative(),
+      evidence: z
+        .array(AssistantOperatorEvidenceSchema)
+        .max(RESEARCH_LIMITS.maxEvidenceItems),
+    }),
+  ),
+  /**
+   * 读一页正文（2026-09-06）。⛔ 也永远是 readStep —— 它只把一段文字摆到桌上。
+   * ⚠ `focus` 在载荷里是 `null` 而不是缺席：日志上「他带着什么问题去读的」
+   * 与「他没带问题」是两件不同的事，缺席表达不了后者（同 `critiqueResult.goal`）。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
+    z.object({
+      url: z.string().url(),
+      focus: z.string().max(RESEARCH_LIMITS.maxFocusChars).nullable(),
+    }),
+    z.object({
+      title: z.string().max(RESEARCH_LIMITS.maxEvidenceTitleChars),
+      url: z.string().url(),
+      excerpt: z.string().max(RESEARCH_LIMITS.maxReadUrlExcerptChars),
     }),
   ),
   mutatingStep(

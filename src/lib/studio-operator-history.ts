@@ -108,6 +108,35 @@ export function describeOperatorStepDetail(
         .concat(publishers.length > 0 ? [`· ${publishers.join(', ')}`] : [])
         .join(' ')
     }
+    /**
+     * 有目标的检索（2026-09-06）。详情列**轮次 + 打了哪几组源 + 出处**：
+     * 折叠行上只有一句「查了一次」，而用户要判断的是「它打了哪儿、信了谁」——
+     * 与搜图列域名、`search_web` 列出处是同一条论据。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.research: {
+      const publishers = [
+        ...new Set((step.result?.evidence ?? []).map((item) => item.publisher)),
+      ]
+      return [
+        `"${step.payload.goal}"`,
+        `· round ${step.payload.round}`,
+        `· ${step.payload.sources.join(', ')}`,
+        `· ${step.result?.totalFound ?? 0}`,
+      ]
+        .concat(publishers.length > 0 ? [`· ${publishers.join(', ')}`] : [])
+        .join(' ')
+    }
+    /**
+     * 读正文（2026-09-06）。详情列**地址 + 带着什么问题去读的** ——
+     * 「他读了哪一页」与「他找的是什么」是用户复核这一步的两件事。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.readUrl:
+      return [
+        step.payload.url,
+        step.payload.focus ? `· ${step.payload.focus}` : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
     case ASSISTANT_OPERATOR_TOOL_IDS.setPrompt:
     case ASSISTANT_OPERATOR_TOOL_IDS.setNegative:
       return `${step.payload.mode} · ${step.payload.value}`

@@ -149,3 +149,23 @@ export function isWebImageSourceUsableAsInput(
 ): boolean {
   return verdict !== WEB_IMAGE_SOURCE_VERDICT_IDS.blocked
 }
+
+/**
+ * 排序用的**来源优先级**（助手检索线，2026-09-06）。
+ *
+ * ⚠ 它与 `judgeWebImageSource` 是同一张表的两种读法，⛔ 不是第二张名单：
+ * 那个函数答「这一张能不能按下选用」，这个答「先给用户看哪一张」。
+ * 找角色官方设定图时，wiki / 官方社区那几张必须排在转载站前面 —— 不排的表现是
+ * 候选行第一屏全是图床缩略图，用户以为「没找到官方图」而其实它在第三行。
+ *
+ * 数越小越靠前。`blocked` 排最后而**不是剔除**：用户照样有权点开原页去看
+ * （与格子上「禁用而不是移除」是同一条纪律）。
+ */
+export function webImageSourceRank(
+  hostOrUrl: string | null | undefined,
+): number {
+  const verdict = judgeWebImageSource(hostOrUrl)
+  if (verdict === WEB_IMAGE_SOURCE_VERDICT_IDS.allowed) return 0
+  if (verdict === WEB_IMAGE_SOURCE_VERDICT_IDS.unknownLicense) return 1
+  return 2
+}

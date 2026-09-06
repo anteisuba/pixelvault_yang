@@ -22,6 +22,7 @@ import {
   Globe,
   ImagePlus,
   Layers,
+  Library,
   Link2,
   Music2,
   NotebookPen,
@@ -30,6 +31,7 @@ import {
   ScanEye,
   ScrollText,
   Search,
+  ScanText,
   SlidersHorizontal,
   Sparkles,
   TextSearch,
@@ -75,6 +77,14 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
    * （先查一句设定，再去找参考图），长一样就分不出哪条是哪条（同挂/摘 LoRA 那一对）。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWeb]: TextSearch,
+  /**
+   * 有目标的检索（2026-09-06）—— 与 `search_web` 的 🔤 **分开**：日志流里这两条
+   * 常常前后脚出现（先查一句拼写、再去弄清整件事），长一样就分不出哪条是哪条
+   * （同挂/摘 LoRA 那一对）。📚 的意思是「翻了好几个来源」。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.research]: Library,
+  /** 读正文 —— 「把那一页看完了」，与「去搜」是两个动作，两枚图标。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]: ScanText,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]: ImagePlus,
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: Sparkles,
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]: Pencil,
@@ -355,6 +365,108 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {/* 证据卡（2026-09-06）—— `research` 的来源列表。
+          ⚠ 它**复用 `search_web` 那份来源列表的骨架**（标题可点 / 出处小字 /
+            摘要），多的只有两枚标：`kind`（一段话 / 一串标签 / 一张图）与
+            `confidence`（这个源有多权威）。⛔ 别为它另起一张卡：日志流里
+            「查了一下」的形状该是一个，两张卡会让用户以为发生了两种不同的事。
+          ⚠ `url` 可选 —— danbooru 的共现标签没有单一页面可点，那种没有链接，
+            ⛔ 不渲染成一颗点不开的链接。 */}
+      {step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+      step.result &&
+      step.result.evidence.length > 0 ? (
+        <ul
+          data-testid="operator-evidence-list"
+          className="mt-2 flex flex-col gap-1.5"
+        >
+          {step.result.evidence.map((item, index) => (
+            <li
+              key={`${item.url ?? item.title}-${index}`}
+              data-testid="operator-evidence-item"
+              data-kind={item.kind}
+              data-confidence={item.confidence}
+              className="min-w-0"
+            >
+              {item.url ? (
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="operator-evidence-link"
+                  className="block truncate text-2xs text-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
+                >
+                  {item.title}
+                </a>
+              ) : (
+                <span className="block truncate text-2xs text-foreground">
+                  {item.title}
+                </span>
+              )}
+              <span className="flex min-w-0 items-center gap-1">
+                <span
+                  data-testid="operator-evidence-publisher"
+                  className="truncate font-mono text-3xs tracking-nav text-muted-foreground"
+                >
+                  {item.publisher}
+                </span>
+                {/* 两枚标 —— 一眼看出「这是标签还是一段话」「信得过几分」。
+                    ⚠ `high` 用 applied 绿、`low` 用 risk 橙，中间档走
+                      `muted-foreground`：三档各有各的颜色会让整片证据变成灯泡墙。 */}
+                <span
+                  data-testid="operator-evidence-kind"
+                  className="shrink-0 rounded-sm border border-border/70 px-1 text-3xs text-muted-foreground"
+                >
+                  {t(`evidence.kind.${item.kind}`)}
+                </span>
+                <span
+                  data-testid="operator-evidence-confidence"
+                  className={cn(
+                    'shrink-0 text-3xs',
+                    item.confidence === 'high'
+                      ? 'text-status-applied'
+                      : item.confidence === 'low'
+                        ? 'text-status-risk'
+                        : 'text-muted-foreground',
+                  )}
+                >
+                  {t(`evidence.confidence.${item.confidence}`)}
+                </span>
+              </span>
+              <span className="mt-0.5 block text-2xs text-muted-foreground">
+                {item.snippet}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {/* 读回来的正文段（2026-09-06）。
+          ⚠ 它**默认折叠在详情里**是不行的：这一段正是助手接下来写进提示词的
+            原文，用户要能当场对照。所以摊开画，但夹在一条可点开原页的地址下面。
+          ⚠ `whitespace-pre-wrap` —— 服务端截的是**段落**，换行是内容的一部分。 */}
+      {step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.readUrl &&
+      step.result ? (
+        <div data-testid="operator-read-url" className="mt-2 min-w-0">
+          <a
+            href={step.result.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="operator-read-url-link"
+            className="block truncate font-mono text-3xs tracking-nav text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
+          >
+            {step.result.title}
+          </a>
+          <p
+            data-testid="operator-read-url-excerpt"
+            className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-2xs text-muted-foreground"
+          >
+            {step.result.excerpt}
+          </p>
+        </div>
       ) : null}
 
       {open && detail ? (

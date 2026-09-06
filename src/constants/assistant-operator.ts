@@ -161,6 +161,31 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   searchWeb: 'search_web',
   /**
+   * **有目标的检索**（2026-09-06）——多连接器并行 + 归并，出的是**证据条**。
+   *
+   * ⛔ 与 `search_web` 的分工写死在这里，别让它们互相顶替：
+   *  · `search_web` = 一条查询 → 一串 Google 摘要。快、便宜、答得了「这个词怎么拼」。
+   *  · `research` = 一个**目标 + 实体**（角色名 / 作品名）→ 同时打萌百 / 维基 /
+   *    B站 / danbooru / 网搜，归并成带 `publisher` / `confidence` / `kind` 的证据条。
+   *    答的是「这个角色官方长什么样、官方站在哪」这类**一条摘要答不完**的问题。
+   *
+   * ⭐ 它是**多轮**的：模型可以拿第一轮的证据缩小目标再发一次
+   * （上限 `ASSISTANT_RESEARCH_LIMITS.maxRoundsPerTurn`）。这一条是 owner 那个用例
+   * 的关键 —— 第一轮定「《无限大》官方站是哪个」，第二轮才问「时夜的外貌服饰」。
+   * ⛔ 别把它降级成一次性：一次性检索的表现就是「搜到一句台词就放弃」。
+   */
+  research: 'research',
+  /**
+   * **读一个网页的正文**（2026-09-06）。
+   *
+   * ⚠ 它补的正是切片 3b 有意留下的那个洞（`search_web` 只搜不读）：摘要里那两句
+   * 答不了「她穿什么」，而答案就在那一页的角色介绍段里。
+   * ⛔ 它**只读文字**，一张图都不取 —— 图仍然走 `search_web_images` + 用户点选。
+   * ⚠ `focus`（如「外貌与服饰」）在**服务端**截段，⛔ 不把整页六千字塞进工具环：
+   * 每一步都是一次完整 LLM 往返，整页正文会让后面的步数全烧在读上下文上。
+   */
+  readUrl: 'read_url',
+  /**
    * 把素材挂成参考图。
    *
    * ⛔ **载荷里的 URL 不由模型写**：模型只能给 `assetId`，而且只能是本轮
@@ -382,6 +407,8 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+  ASSISTANT_OPERATOR_TOOL_IDS.research,
+  ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
   ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setModel,
   ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -424,6 +451,17 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
    * 那一条上（与 `search_web_images` 逐字同构）。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+  /**
+   * ⚠ **有目标的检索也是读**（2026-09-06）：它并行打几个源、归并出证据条，
+   * 一个字节都不落、表单一个字都不改。要照证据改提示词是之后那条 `set_*` 的事，
+   * 撤销也撤在那一条上 —— 与 `search_web` 逐字同构。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.research,
+  /**
+   * ⚠ 读正文也是读：Jina 把一页渲染成 markdown，服务端按 `focus` 截一段给模型看。
+   * ⛔ 它不下载图片、不落 R2、不碰素材库 —— 那条腿仍然只由用户点「选用」触发。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
   /**
    * ⚠ 看图**也是读**：这一步只产生一段评价，表单一个字都没动。所以它没有
    * `inverse`，日志条上也不该出现「撤销」（撤一条评价什么都撤不掉）。
@@ -757,6 +795,12 @@ const COMMON_DOMAIN_TOOLS = [
    * LoRA 三台工作台上是同一个问题，⛔ 别按域裁。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+  /**
+   * ⚠ 检索与读正文**全域通用**（2026-09-06）：「这个角色官方长什么样」在图片、
+   * 视频、LoRA 三台工作台上是同一个问题，⛔ 别按域裁。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.research,
+  ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
   ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
   ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -1145,6 +1189,34 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    * 原页确认之后把地址递过来（那条路仍然通，判据是「地址是谁给的」）。
    */
   sourceNotUsable: 'sourceNotUsable',
+  /**
+   * 这一轮的 `research` **轮次用完了**（2026-09-06）。
+   *
+   * ⚠ 与 `repeatedStep` 分开：那条说「你刚跑过一模一样的一步」，这条说
+   * 「换了目标也不能再查了」。多轮检索的价值在于「拿上一轮的证据缩小目标」，
+   * 但它每一轮都在打真实的外部源（还带着 Serper credit），没有硬上限的表现是
+   * 一个查不到答案的问题把整轮步数全烧在检索上，表单一个字都没写。
+   * ⛔ 读到这条理由该去写它已经知道的那些，⛔ 不是换个词再查一遍。
+   */
+  researchRoundsExhausted: 'researchRoundsExhausted',
+  /**
+   * `read_url` 拿到的地址**不能读**（2026-09-06）。
+   *
+   * 判据两条，都在服务端：非 http(s)，或指向本站自己（助手去读自己的页面
+   * 拿不到任何新信息，却能把内部地址喂进模型上下文）。
+   * ⚠ 与 `sourceNotUsable` 分开：那条说的是版权/来源，这条说的是「这条地址
+   * 本来就不该走这条工具」。
+   */
+  urlNotReadable: 'urlNotReadable',
+  /**
+   * 读了，但那一页**没取回正文**（2026-09-06）。
+   *
+   * 站点挡了、超时了、或者整页是 JS 空壳 —— 三种在这一层长得一样，而下一步
+   * 该做的事是同一件：换一个来源，⛔ 不是把标题当正文脑补。
+   * ⚠ 做成拒绝而不是抛错（同 `critiqueFailed`）：抛错会让整轮以一句笼统的
+   * 「跑到一半失败了」结束，做成拒绝之后助手读得到理由、还能接着改口。
+   */
+  urlUnreadable: 'urlUnreadable',
 } as const
 
 export type AssistantOperatorRejectReason =
@@ -1184,6 +1256,15 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWeb]:
     "look something UP on the web — words, not pictures. Returns page titles, short extracts and where each came from. Use it when the creator's request turns on a fact you are not certain of: how an official name is spelled, what a character or product actually looks like per its source, a game's own terminology, current rules of a platform. Prefer it over guessing: a confidently wrong detail in a prompt is worse than a search step. You get the extract only, not the full page — if the extracts disagree or do not cover it, say so and cite what you saw instead of filling the gap yourself. Long, specific queries work well here (unlike search_web_images, which wants three or four words). ⚠ This is NOT how you find reference pictures — that is search_web_images.",
+  /**
+   * ⚠ 这段话的全部工作是把它与 `search_web` 分开：一个是「查一句」，一个是
+   * 「弄清一件事」。写不清楚的代价是模型永远只用便宜那条，然后在第一条摘要
+   * 之后放弃 —— owner 打回的就是这个行为。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.research]:
+    'find out about a SUBJECT properly — a character, a work, a studio, a piece of terminology. Give it a goal in one line plus the entities it turns on ("Ananta", "Shiye"), and it hits several kinds of source at once (encyclopedias, tag libraries, video, general web) and hands back evidence lines: what was said, who published it, how much weight it carries. Use it INSTEAD of search_web whenever the answer is a description rather than a single word, and use it FIRST when the creator names a character or work you are not certain of. You may call it a SECOND time in the same turn with a narrower goal once the first round tells you the official name, the right spelling, or which site is the source of truth — that second round is where the real answer usually is. One round that came back thin is not a dead end: change the entity spelling or the source mix and go again.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]:
+    'actually READ one web page and get the part you need out of it. Takes a url you saw in a research or search_web result (or one the creator gave you) plus a short \'focus\' saying what you are looking for — "appearance and outfit", "release date", "official name". The server pulls the page, finds the passages that match your focus, and returns just those. This is how you get the details that a search extract never contains: hair, eyes, costume, colours, the exact wording of an official description. ⛔ It reads words only — it does not fetch, save or attach pictures.',
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]:
     "attach one asset from a previous search_assets result to the workbench as a reference image. Takes an assetId, never a URL. ⚠ Web search results have no assetId and can never be mounted this way — only the creator's own library can.",
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]:
@@ -1219,8 +1300,13 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]:
     'actually LOOK at a picture and say what worked and what did not. Two ways to get one: pass "targetIds" with the id or the exact address of a picture the creator attached to THIS message (that is them pointing at it), or call it with no target when a run you armed has just come back. You may never invent an address — anything the creator did not reference this turn is refused. If they said "that one" and more than one picture is in play, call it with no target and the app will ask them which. Call it first when a picture is waiting, then fix the form with set_* based on what you saw.',
+  /**
+   * ⚠ 2026-09-06 放宽了**准入名单**（⛔ 不是放宽了闸）：除了「用户逐字写过的
+   * 地址」，本轮 `search_web_images` 真的展示过的候选也算数 —— 用户说「都挂上」
+   * 时那几张他看见了。⛔ 站方禁 AI 的那一档照旧拒，模型编的地址照旧拒。
+   */
   [ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl]:
-    'take ONE web address the creator typed in this conversation, fetch that picture into their library, and mount it as a reference — all in one step. Use it the moment they hand you a link; that is them saying yes. The url must be copied VERBATIM from their own message (a link you found yourself is refused). Plain image links work, and so does a normal web page — the picture on it is taken. ⛔ Never tell the creator to download, upload, or click anything for a link they already gave you: that is what this tool is for.',
+    "take ONE web address, fetch that picture into the creator's library, and mount it as a reference — all in one step. Two addresses are allowed and no others: one the creator typed VERBATIM in this conversation (use it the moment they hand you a link; that is them saying yes), or one of the candidates your own search_web_images actually put on screen this turn — and that second kind ONLY when they have already told you to attach them, one call per picture. A candidate marked REFERENCE ONLY is refused either way. Plain image links work, and so does a normal web page — the picture on it is taken. ⛔ Never tell the creator to download, upload, or click anything for a link they already gave you: that is what this tool is for.",
   /**
    * ⚠ 「短英文查询」那句与 `search_web_images` 同源，理由也一样：两个上游
    * （Civitai 的 meilisearch / HF 的仓库搜索）吃的都是名字与短标签，一整句描述
@@ -1258,6 +1344,122 @@ export const ASSISTANT_PROJECT_RULE_LIMITS = {
   /** 一次 `read_project_rules` 最多返回几条。 */
   maxReadResults: 50,
 } as const
+
+/**
+ * **有目标检索**与**读正文**这两条的上限（2026-09-06）。
+ *
+ * ⚠ 与 `ASSISTANT_OPERATOR_LIMITS` 分开一张表，判据是**成本形状不同**：那张表里
+ * 的数管的是「一条 op 能有多大」，这里的每一个数背后都是**真实的外部请求**
+ * （Serper credit / 萌百 / danbooru / Jina 的一次抓取）。混在一张表里的下场是
+ * 下一个人为了让日志好看一点把 `maxRoundsPerTurn` 调大，而账单在别处。
+ */
+export const ASSISTANT_RESEARCH_LIMITS = {
+  /**
+   * 一轮对话里最多发几次 `research`。
+   *
+   * ⭐ 2 不是保守，是**这条工具存在的理由**：第一轮定「作品的官方站在哪、角色
+   * 官方名怎么写」，第二轮拿着那个答案问「她的外貌与服饰」。给 1 就退回成
+   * 「搜一次就放弃」（owner 打回的那个行为）；给 4 则是一整轮步数全烧在检索上，
+   * 而 `maxSteps` 只有 8。
+   * ⚠ 撞上限按 `researchRoundsExhausted` 拒，⛔ 不静默降级成空结果。
+   */
+  maxRoundsPerTurn: 2,
+  /** 一次检索最多带几个实体（角色名 / 作品名）。 */
+  maxEntities: 4,
+  maxEntityChars: 80,
+  /** 「这一轮想查什么」——一句话，不是一段。 */
+  maxGoalChars: 200,
+  /**
+   * 一次检索最多回几条证据。
+   *
+   * ⚠ 比 `maxWebSearchResults`（6）宽：那条只有一个源，这条是几个源归并之后的
+   * 结果——按 6 截会让「萌百 + danbooru 两条一起说」这种最有价值的形态被砍掉一半。
+   */
+  maxEvidenceItems: 10,
+  /** 一条证据在工具环里的摘要长度（同 `maxWebSearchSnippetChars` 的量级）。 */
+  maxEvidenceSnippetChars: 300,
+  /** 一条证据的标题 / 出处。 */
+  maxEvidenceTitleChars: 200,
+  maxEvidencePublisherChars: 80,
+  /**
+   * `read_url` 截给模型看的正文长度。
+   *
+   * ⚠ 上游 Jina 给到 `URL_READER.maxContentLength`（6000），这里砍到 1600：
+   * 整页正文进工具环 = 之后每一步都要重付一次这段上下文的钱，而模型真正要的是
+   * 「外貌与服饰」那两三段。截段由 `focus` 在服务端做，⛔ 不指望模型自己跳读。
+   */
+  maxReadUrlExcerptChars: 1600,
+  /** `focus` 那句话（如「外貌与服饰」）的长度。 */
+  maxFocusChars: 120,
+  /**
+   * 带 `subject` 搜图时最多铺几条查询变体。
+   *
+   * ⚠ **每条一个 Serper credit**（免费池 2500），所以 3 是钱不是防御性大数。
+   * 变体表在 `constants/web-search.ts`，两边取小。
+   */
+  maxImageQueryVariants: 3,
+  /** `search_web_images` 的 `subject`（作品名 + 角色名）长度。 */
+  maxSubjectChars: 120,
+} as const
+
+/**
+ * `research` 能打哪几组源。
+ *
+ * ⚠ 这是**给模型看的粗粒度分组**，不是 `RESEARCH_SOURCE_IDS` 那张真源表：
+ * 让模型去挑「moegirl 还是 wikipedia_zh」是让它猜一件它不可能知道的事
+ * （哪个站收录了这个角色）。它只说「查 wiki」，服务端把该打的都打了。
+ */
+export const ASSISTANT_RESEARCH_SOURCE_IDS = {
+  /** 通用网搜（Serper）。 */
+  web: 'web',
+  /** 百科族：萌百 + 中文维基 + Fandom。 */
+  wiki: 'wiki',
+  /** B站——中文圈的一手实机与解说。 */
+  bilibili: 'bilibili',
+  /** danbooru——**已结构化的外观标签**（发色 / 瞳色 / 服饰），提示词直接吃得下。 */
+  danbooru: 'danbooru',
+} as const
+
+export const ASSISTANT_RESEARCH_SOURCES = [
+  ASSISTANT_RESEARCH_SOURCE_IDS.web,
+  ASSISTANT_RESEARCH_SOURCE_IDS.wiki,
+  ASSISTANT_RESEARCH_SOURCE_IDS.bilibili,
+  ASSISTANT_RESEARCH_SOURCE_IDS.danbooru,
+] as const
+
+export type AssistantResearchSource =
+  (typeof ASSISTANT_RESEARCH_SOURCES)[number]
+
+/**
+ * 一条证据有多可信 —— 由**源的层级**算出来，⛔ 不由模型写。
+ *
+ * ⚠ 三档对应 `EVIDENCE_SOURCE_TIERS`：官方 → high、百科/图库 → medium、
+ * 社区视频 → low。它印在证据卡上，用户据此决定信不信那句「她穿黑色长衫」。
+ */
+export const ASSISTANT_RESEARCH_CONFIDENCE_IDS = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+} as const
+
+export const ASSISTANT_RESEARCH_CONFIDENCES = [
+  ASSISTANT_RESEARCH_CONFIDENCE_IDS.high,
+  ASSISTANT_RESEARCH_CONFIDENCE_IDS.medium,
+  ASSISTANT_RESEARCH_CONFIDENCE_IDS.low,
+] as const
+
+export type AssistantResearchConfidence =
+  (typeof ASSISTANT_RESEARCH_CONFIDENCES)[number]
+
+/** 证据条的形状 —— 与 `EvidenceItem.kind` 逐字同名（文字 / 标签 / 图）。 */
+export const ASSISTANT_RESEARCH_EVIDENCE_KINDS = [
+  'text',
+  'tags',
+  'image',
+] as const
+
+export type AssistantResearchEvidenceKind =
+  (typeof ASSISTANT_RESEARCH_EVIDENCE_KINDS)[number]
 
 /**
  * 一条规则是谁记下来的。⚠ 值逐字对应 `prisma/schema.prisma` 的

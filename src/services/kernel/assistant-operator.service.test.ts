@@ -45,11 +45,38 @@ const mockIsWebImageSearchConfigured = vi.fn()
 /** 联网**查文字**（切片 3b）—— 同一条论据、同一份 mock 家族，一个 credit 都不花。 */
 const mockWebSearch = vi.fn()
 const mockIsWebSearchConfigured = vi.fn()
-vi.mock('@/services/web-research.service', () => ({
-  webImageSearch: (...args: unknown[]) => mockWebImageSearch(...args),
-  isWebImageSearchConfigured: () => mockIsWebImageSearchConfigured(),
-  webSearch: (...args: unknown[]) => mockWebSearch(...args),
-  isWebSearchConfigured: () => mockIsWebSearchConfigured(),
+/**
+ * 多语言变体搜图与读正文（2026-09-06）—— 同一条论据、同一份 mock 家族。
+ * ⚠ `extractFocusedExcerpt` **走真实现**：它是纯函数，桩掉它等于把「按 focus
+ * 截段」这件事从这一层的验收里删掉，而那正是这条工具的全部价值。
+ */
+const mockWebImageSearchMulti = vi.fn()
+const mockReadUrl = vi.fn()
+vi.mock('@/services/web-research.service', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/services/web-research.service')
+  >('@/services/web-research.service')
+  return {
+    extractFocusedExcerpt: actual.extractFocusedExcerpt,
+    webImageSearch: (...args: unknown[]) => mockWebImageSearch(...args),
+    webImageSearchMulti: (...args: unknown[]) =>
+      mockWebImageSearchMulti(...args),
+    isWebImageSearchConfigured: () => mockIsWebImageSearchConfigured(),
+    webSearch: (...args: unknown[]) => mockWebSearch(...args),
+    isWebSearchConfigured: () => mockIsWebSearchConfigured(),
+    readUrl: (...args: unknown[]) => mockReadUrl(...args),
+  }
+})
+
+/**
+ * 检索扇出（2026-09-06）。⚠ **全程 mock，一次都不打萌百 / danbooru / Serper** ——
+ * 与联网搜图那条同一条论据：让单元测试去打真上游是把别人的服务器当柴烧，
+ * 而这一层要验的是「几轮、怎么讲给模型听」，不是上游返回什么。
+ */
+const mockRunAssistantResearch = vi.fn()
+vi.mock('@/services/research/research-fanout.service', () => ({
+  runAssistantResearch: (...args: unknown[]) =>
+    mockRunAssistantResearch(...args),
 }))
 
 /**
@@ -120,6 +147,7 @@ import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  ASSISTANT_RESEARCH_LIMITS,
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_PERSONA_DEFAULTS,
@@ -130,6 +158,7 @@ import {
 import { TAG_BASED_GENERATION_PROMPT_RULE } from '@/constants/model-strengths'
 import { ASSISTANT_PLAN_VISUALS } from '@/constants/assistant-plan-visuals'
 import { AI_MODELS, getModelById } from '@/constants/models'
+import { getAppOrigin } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
 import {
@@ -268,6 +297,23 @@ beforeEach(() => {
   })
   mockIsWebImageSearchConfigured.mockReturnValue(true)
   mockWebImageSearch.mockResolvedValue([])
+  /**
+   * ⚠ 默认让**多变体那条委托回单条那条**：不给 `subject` 时服务端发的就是一条
+   * 查询，两者的行为逐字相同（真实现里 `webImageSearchMulti` 单条时也是直接
+   * 调 `webImageSearch`）。这样切片 3b 那批用例继续用 `mockWebImageSearch`
+   * 描述「上游返回什么」，⛔ 不必为一次内部重构改一遍。
+   */
+  mockWebImageSearchMulti.mockImplementation(
+    (queries: string[], options: unknown) =>
+      mockWebImageSearch(queries[0], options),
+  )
+  mockReadUrl.mockResolvedValue(null)
+  mockRunAssistantResearch.mockResolvedValue({
+    queries: [],
+    sources: ['wiki', 'web', 'danbooru'],
+    evidence: [],
+    receipts: [],
+  })
   mockIsWebSearchConfigured.mockReturnValue(true)
   mockWebSearch.mockResolvedValue([])
   mockFindVisionCapableRoute.mockResolvedValue(null)
@@ -375,6 +421,35 @@ describe('工具环 · 逐事件顺序', () => {
       collect(runAssistantOperator('clerk-1', buildRequest())),
     ).rejects.toThrow(/JSON/)
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+  })
+
+  it('反馈待定项缺失的字段，让合法 JSON 的结构错误能在下一轮修正', async () => {
+    const pending = {
+      options: [{ label: '3D 游戏画风' }, { label: '电影 CG' }],
+    }
+    mockLlmTextCompletion.mockImplementation(async ({ userPrompt }) =>
+      JSON.stringify({
+        plan: ['确定画风'],
+        pending: [
+          userPrompt.includes('pending.0.label')
+            ? { ...pending, label: '选择画风' }
+            : pending,
+        ],
+        finished: true,
+      }),
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest({ forcePlan: true })),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: ASSISTANT_OPERATOR_EVENTS.planRequest,
+        pending: [expect.objectContaining({ label: '选择画风' })],
+      }),
+    )
+    expect(stepsOf(events)).toHaveLength(0)
   })
 
   it('撞到步数上限时停下来并说出理由，不自动续跑（台账 AH：没有幂等键）', async () => {
@@ -1345,7 +1420,12 @@ describe('联网搜图 · 预览优先（P3-B）', () => {
     }
   })
 
-  it('⭐ 观察里必须写明「只是预览、你不能导入」——否则模型会拿去挂参考', async () => {
+  /**
+   * ⚠ 2026-09-06 改了口径的**只有一句**：候选在用户明确说「挂上」之后可以走
+   * `import_user_url`（准入名单是服务端记下的那几张，见 `planImportUserUrl`）。
+   * 「默认由用户点选」「什么都还没落地」「⛔ 别把地址写进提示词」三条一个字没改。
+   */
+  it('⭐ 观察里必须写明「只是预览、默认由用户点选、地址不许写进提示词」', async () => {
     mockWebImageSearch.mockResolvedValue(WEB_HITS)
     queueWebSearch()
 
@@ -1353,8 +1433,9 @@ describe('联网搜图 · 预览优先（P3-B）', () => {
 
     const prompt = lastUserPrompt()
     expect(prompt).toContain('PREVIEW')
-    expect(prompt).toContain('nothing was saved')
-    expect(prompt).toContain('cannot mount, import, or reference')
+    expect(prompt).toContain('nothing was saved yet')
+    expect(prompt).toContain('the creator presses "use this"')
+    expect(prompt).toContain('Never paste one of these URLs into a prompt')
   })
 
   it('⛔ 联网候选挂不上参考图：mount_reference 认的是本轮 search_assets 的 id', async () => {
@@ -4166,5 +4247,554 @@ describe('search_web · 联网查文字（切片 3b）', () => {
     )[1]
     expect((done.result as { totalFound: number }).totalFound).toBe(0)
     expect(lastUserPrompt()).toContain('Do not invent facts')
+  })
+})
+
+describe('research · 有目标的多轮检索（2026-09-06）', () => {
+  const EVIDENCE = [
+    {
+      title: '萌娘百科 · 时夜',
+      url: 'https://zh.moegirl.org.cn/shiye',
+      publisher: 'zh.moegirl.org.cn',
+      snippet: '黑色长发，金色瞳孔，改良中式长衫。',
+      kind: 'text' as const,
+      confidence: 'medium' as const,
+    },
+    {
+      title: 'danbooru tags',
+      publisher: 'danbooru',
+      snippet: '共现: black_hair, yellow_eyes, chinese_clothes',
+      kind: 'tags' as const,
+      confidence: 'medium' as const,
+    },
+  ]
+
+  function researchTurn(goal: string, entities: string[] = ['无限大', '时夜']) {
+    return {
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.research,
+        title: 'research the character',
+        args: { goal, entities },
+      },
+    }
+  }
+
+  it('读类：没有 inverse；证据带出处 / 置信度 / 形状三字段', async () => {
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: ['无限大 时夜 外貌'],
+      sources: ['wiki', 'web', 'danbooru'],
+      evidence: EVIDENCE,
+      receipts: [{ sourceId: 'moegirl', status: 'ok', count: 1, tookMs: 12 }],
+    })
+    queueTurns(researchTurn('外貌与服饰'), { finished: true })
+
+    const [running, done] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(running.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.running)
+    expect(done.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect(done.inverse).toBeUndefined()
+
+    const result = done.result as { totalFound: number; evidence: unknown[] }
+    expect(result.totalFound).toBe(2)
+    expect(result.evidence[0]).toMatchObject({
+      publisher: 'zh.moegirl.org.cn',
+      confidence: 'medium',
+      kind: 'text',
+    })
+    // 载荷里的 sources 是**服务端真的打过**的那几组，轮次从 1 起。
+    expect(done.payload).toMatchObject({
+      sources: ['wiki', 'web', 'danbooru'],
+      round: 1,
+      entities: ['无限大', '时夜'],
+    })
+  })
+
+  it('⭐ 观察里逐条带出处与置信度，并把标签档点名成可直接用的词', async () => {
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: [],
+      sources: ['wiki'],
+      evidence: EVIDENCE,
+      receipts: [{ sourceId: 'moegirl', status: 'ok', count: 1, tookMs: 5 }],
+    })
+    queueTurns(researchTurn('外貌与服饰'), { finished: true })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('zh.moegirl.org.cn')
+    expect(prompt).toContain('medium confidence')
+    expect(prompt).toContain('moegirl:ok')
+    expect(prompt).toContain('prompt-ready vocabulary')
+  })
+
+  it('⭐ 第二轮**允许**（多轮就是这条工具的核心），第三轮按上限拒', async () => {
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: [],
+      sources: ['wiki'],
+      evidence: EVIDENCE,
+      receipts: [],
+    })
+    queueTurns(
+      researchTurn('which site is official'),
+      researchTurn('appearance and outfit'),
+      researchTurn('one more time'),
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    ).filter(
+      (step) => step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+    )
+
+    expect(steps[0].status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect(steps[1].status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect((steps[1].payload as { round: number }).round).toBe(2)
+    expect(steps[2].status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.error)
+    expect((steps[2].error as { reason: string }).reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.researchRoundsExhausted,
+    )
+    // ⚠ 上限是**轮次**不是「同一步」：三次的 goal 各不相同，重复步那道闸拦不住它。
+    expect(mockRunAssistantResearch).toHaveBeenCalledTimes(2)
+    expect(ASSISTANT_RESEARCH_LIMITS.maxRoundsPerTurn).toBeGreaterThanOrEqual(2)
+  })
+
+  it('⭐ 空结果时**不许放弃**：观察里明说再换个角度试一次', async () => {
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: [],
+      sources: ['wiki'],
+      evidence: [],
+      receipts: [{ sourceId: 'moegirl', status: 'empty', count: 0, tookMs: 5 }],
+    })
+    queueTurns(researchTurn('nobody wrote about this'), { finished: true })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('Do NOT give up')
+    expect(prompt).toContain('moegirl:empty')
+  })
+
+  it('平台没配 key → searchUnavailable，⛔ 一次上游调用都不发', async () => {
+    mockIsWebSearchConfigured.mockReturnValue(false)
+    queueTurns(researchTurn('外貌'), { finished: true })
+
+    const [step] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect((step.error as { reason: string }).reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.searchUnavailable,
+    )
+    expect(mockRunAssistantResearch).not.toHaveBeenCalled()
+  })
+
+  it('⚠ 上游全挂（零证据）时**不吃掉那一轮**——轮次照记，免得无限重试', async () => {
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: [],
+      sources: ['web'],
+      evidence: [],
+      receipts: [
+        { sourceId: 'web_search', status: 'failed', count: 0, tookMs: 1 },
+      ],
+    })
+    queueTurns(researchTurn('a'), researchTurn('b'), researchTurn('c'), {
+      finished: true,
+    })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(mockRunAssistantResearch).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('read_url · 读一页正文（2026-09-06）', () => {
+  /**
+   * ⚠ 这一页**故意写得超过截取上限**：短于上限时截段那一步会原样返回整页
+   * （那是对的 —— 没必要为一页能全塞下的内容丢掉上下文），而这条用例要验的
+   * 恰恰是「超了的时候丢掉哪一半」。
+   */
+  const PAGE = {
+    url: 'https://zh.moegirl.org.cn/shiye',
+    content: [
+      '时夜是《无限大》中的可操作角色。',
+      '外貌与服饰：黑色长发束成低马尾，金色瞳孔，改良中式长衫。',
+      `战斗数据：武器为双刃，冷却 12 秒，技能循环以突进起手。${'队伍搭配建议见下表，配装与词条优先级同理。'.repeat(120)}`,
+    ].join('\n\n'),
+  }
+
+  function readTurn(url: string, focus?: string) {
+    return {
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
+        title: 'read the page',
+        args: { url, ...(focus ? { focus } : {}) },
+      },
+    }
+  }
+
+  it('⭐ 按 focus 在服务端截段：相关段落进来，无关段落被丢掉', async () => {
+    mockReadUrl.mockResolvedValue(PAGE)
+    queueTurns(readTurn(PAGE.url, '外貌与服饰'), { finished: true })
+
+    const [, done] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const result = done.result as { excerpt: string; url: string }
+    expect(result.url).toBe(PAGE.url)
+    expect(result.excerpt).toContain('金色瞳孔')
+    expect(result.excerpt).not.toContain('冷却 12 秒')
+    // 读类：没有 inverse。
+    expect(done.inverse).toBeUndefined()
+    expect(done.payload).toMatchObject({ focus: '外貌与服饰' })
+  })
+
+  it('没给 focus 时 payload 里是 null（⛔ 不是字段缺席）', async () => {
+    mockReadUrl.mockResolvedValue(PAGE)
+    queueTurns(readTurn(PAGE.url), { finished: true })
+
+    const [, done] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect((done.payload as { focus: string | null }).focus).toBeNull()
+  })
+
+  it('截出来的正文进观察，并说明这只是一段不是全文', async () => {
+    mockReadUrl.mockResolvedValue(PAGE)
+    queueTurns(readTurn(PAGE.url, '外貌'), { finished: true })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('金色瞳孔')
+    expect(prompt).toContain('not the whole thing')
+  })
+
+  it('⛔ 读不出来 → urlUnreadable（一条可教的拒绝，不是整轮抛错）', async () => {
+    mockReadUrl.mockResolvedValue(null)
+    queueTurns(readTurn('https://blocked.example.test/x', '外貌'), {
+      finished: true,
+    })
+
+    const [step] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(step.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.error)
+    expect((step.error as { reason: string }).reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.urlUnreadable,
+    )
+  })
+
+  it('⛔ 指向本站自己的地址一律拒，且一次抓取都不发', async () => {
+    queueTurns(readTurn(`${getAppOrigin()}/studio/image`), { finished: true })
+
+    const [step] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect((step.error as { reason: string }).reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.urlNotReadable,
+    )
+    expect(mockReadUrl).not.toHaveBeenCalled()
+  })
+})
+
+describe('search_web_images · 认准目标（2026-09-06）', () => {
+  it('给了 subject + preferOfficial → 铺多语言变体，⛔ 不只发一条英文', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: 'find official art',
+          args: {
+            query: 'character art',
+            subject: 'Ananta 时夜',
+            preferOfficial: true,
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const [, done] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const [queries] = mockWebImageSearchMulti.mock.calls[0] as [string[]]
+    expect(queries.length).toBeGreaterThan(1)
+    expect(queries.length).toBeLessThanOrEqual(
+      ASSISTANT_RESEARCH_LIMITS.maxImageQueryVariants,
+    )
+    // 主体出现在每一条里；官方限定词按语言铺开。
+    expect(queries.every((query) => query.includes('Ananta 时夜'))).toBe(true)
+    expect(queries.some((query) => query.includes('立绘'))).toBe(true)
+    expect(queries.some((query) => query.includes('公式'))).toBe(true)
+    // 日志载荷里记的是**真的发出去的那几条**。
+    expect(done.payload).toMatchObject({
+      subject: 'Ananta 时夜',
+      preferOfficial: true,
+      queries,
+    })
+  })
+
+  it('不给 subject 时仍是一条查询（⛔ 别白花 credit）', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: 'find a texture',
+          args: { query: 'wet asphalt texture' },
+        },
+      },
+      { finished: true },
+    )
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const [queries] = mockWebImageSearchMulti.mock.calls[0] as [string[]]
+    expect(queries).toEqual(['wet asphalt texture'])
+  })
+
+  it('⭐ preferOfficial 时官方 / wiki 来源排前，转载站往后', async () => {
+    mockWebImageSearchMulti.mockResolvedValue([
+      { imageUrl: 'https://cdn.random.test/a.jpg', domain: 'random-blog.test' },
+      {
+        imageUrl: 'https://upload.wikimedia.org/b.jpg',
+        domain: 'wikimedia.org',
+      },
+      { imageUrl: 'https://i.pinimg.com/c.jpg', domain: 'pinterest.com' },
+      { imageUrl: 'https://static.fandom.test/d.jpg', domain: 'fandom.com' },
+    ])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: 'find official art',
+          args: {
+            query: 'character art',
+            subject: 'Ananta 时夜',
+            preferOfficial: true,
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const [, done] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const images = (done.result as { images: { domain: string }[] }).images
+    expect(images.map((image) => image.domain)).toEqual([
+      // allowed 两档在前，同档内保持归并顺序；blocked 排最后但**不被剔除**。
+      'wikimedia.org',
+      'fandom.com',
+      'random-blog.test',
+      'pinterest.com',
+    ])
+  })
+
+  it('⚠ 不给 preferOfficial 时**不重排** —— 找普通参考图时顶一个百科上来是帮倒忙', async () => {
+    mockWebImageSearchMulti.mockResolvedValue([
+      { imageUrl: 'https://cdn.random.test/a.jpg', domain: 'random-blog.test' },
+      {
+        imageUrl: 'https://upload.wikimedia.org/b.jpg',
+        domain: 'wikimedia.org',
+      },
+    ])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: 'find a texture',
+          args: { query: 'wet asphalt texture' },
+        },
+      },
+      { finished: true },
+    )
+
+    const [, done] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const images = (done.result as { images: { domain: string }[] }).images
+    expect(images.map((image) => image.domain)).toEqual([
+      'random-blog.test',
+      'wikimedia.org',
+    ])
+  })
+
+  it('空结果时观察里说清楚「查了哪几条」并要求再试一次', async () => {
+    mockWebImageSearchMulti.mockResolvedValue([])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: 'find official art',
+          args: { query: 'art', subject: 'Ananta 时夜', preferOfficial: true },
+        },
+      },
+      { finished: true },
+    )
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('One empty search is not an answer')
+  })
+})
+
+describe('系统提示 · 找角色设定图的推荐链路（2026-09-06）', () => {
+  it('⭐ 四步链路逐条写在提示里，顺序也写死了', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const call = mockLlmTextCompletion.mock.calls.at(-1)?.[0] as {
+      systemPrompt: string
+    }
+    const prompt = call.systemPrompt
+    expect(prompt).toContain('FINDING WHAT A CHARACTER ACTUALLY LOOKS LIKE')
+    // 四步的关键动作各出现一次，且按 research → images → read_url → set_prompt 排。
+    const order = [
+      'research first',
+      'search_web_images with "subject"',
+      'read_url on the best page',
+      'set_prompt with what you read',
+    ].map((needle) => prompt.indexOf(needle))
+    expect(order.every((index) => index >= 0)).toBe(true)
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+  })
+
+  it('⭐ 「一次没搜到不算答案」写进硬规则，⛔ 不只是工具说明里的一句', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const call = mockLlmTextCompletion.mock.calls.at(-1)?.[0] as {
+      systemPrompt: string
+    }
+    expect(call.systemPrompt).toContain('ONE EMPTY SEARCH IS NOT AN ANSWER')
+    expect(call.systemPrompt).toContain('Never fill a gap with invention')
+  })
+
+  it('两条新工具都在图片档的工具表里（全域通用）', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const call = mockLlmTextCompletion.mock.calls.at(-1)?.[0] as {
+      systemPrompt: string
+    }
+    expect(call.systemPrompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.research)
+    expect(call.systemPrompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.readUrl)
+  })
+})
+
+describe('import_user_url · 已展示的候选（2026-09-06）', () => {
+  const CANDIDATES = [
+    {
+      title: 'official art',
+      imageUrl: 'https://cdn.wikimedia.test/a.jpg',
+      domain: 'wikimedia.org',
+      link: 'https://commons.wikimedia.org/a',
+    },
+    {
+      title: 'repost',
+      imageUrl: 'https://i.pinimg.test/b.jpg',
+      domain: 'pinterest.com',
+      link: 'https://www.pinterest.com/pin/1',
+    },
+  ]
+
+  it('⭐ 用户说「挂上」→ 助手可以对本轮展示过的候选直接 import_user_url', async () => {
+    mockWebImageSearch.mockResolvedValue(CANDIDATES)
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: 'find official art',
+          args: { query: 'shiye official art' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
+          title: 'attach the official one',
+          args: { url: 'https://cdn.wikimedia.test/a.jpg' },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            messages: [{ role: 'user', content: '找官方设定图，然后都挂上' }],
+          }),
+        ),
+      ),
+    ).filter(
+      (step) => step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+    )
+
+    const imported = steps.find(
+      (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
+    )
+    expect(imported?.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    // ⚠ 域名取的是**搜图时记下的站点域名**，⛔ 不是图床主机名。
+    expect(imported?.payload).toMatchObject({ domain: 'wikimedia.org' })
+    expect(imported?.inverse).toEqual({
+      url: 'https://cdn.wikimedia.test/a.jpg',
+    })
+  })
+
+  it('⛔ 候选里标了「仅参考」的那张照旧拒（站方声明不是用户能替它同意的）', async () => {
+    mockWebImageSearch.mockResolvedValue(CANDIDATES)
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: 'find art',
+          args: { query: 'shiye art' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
+          title: 'attach the repost',
+          args: { url: 'https://i.pinimg.test/b.jpg' },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            messages: [{ role: 'user', content: '都挂上' }],
+          }),
+        ),
+      ),
+    )
+    const rejected = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+    )
+    expect((rejected?.error as { reason: string }).reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.sourceNotUsable,
+    )
+  })
+
+  it('⛔ 没搜到过、用户也没写过的地址照旧按 urlNotFromUser 拒（闸没松）', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
+          title: 'attach something',
+          args: { url: 'https://made-up.example.test/x.jpg' },
+        },
+      },
+      { finished: true },
+    )
+
+    const [step] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect((step.error as { reason: string }).reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.urlNotFromUser,
+    )
   })
 })

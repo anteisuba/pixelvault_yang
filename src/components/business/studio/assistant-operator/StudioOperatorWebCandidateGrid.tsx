@@ -73,6 +73,30 @@ export function StudioOperatorWebCandidateGrid({
   const failedPicks = picks.filter((pick) => pick.status === 'error')
   const usedCount = picks.length - failedPicks.length
 
+  /**
+   * 「把能用的都挂上」那颗按钮要挂的**具体那几张**（2026-09-06）。
+   *
+   * ── 为什么这份名额算在这里，而不是在 hook 里 ─────────────────────
+   * `toggleCandidate` 每次调用都读一份**同一帧内还没更新**的选中态，所以循环调
+   * 它时每一张都以为自己是第一张 —— 名额判定会全部按旧值走。这在这里恰好是
+   * 安全的（都走「没选过 → 导入」那一支），但**只有在调用方自己把数量卡在剩余
+   * 名额之内**时才成立。所以这份筛选是这颗按钮的一部分，⛔ 不能省成
+   * 「把 images 全丢给 onToggle」。
+   *
+   * 三条闸，与格子上那颗「选用」逐条同源：
+   *  · `usableAsInput=false` 的**不在名单里**（用户点的是「能用的」，那几张本来
+   *    就不属于「能用的」——⛔ 不该因此弹一句拒绝理由）；
+   *  · 已经选过的跳过（⛔ 再点一次会变成取消选用，那正好是反效果）；
+   *  · 名额满了 = 一张都不动（⛔ 不挤掉用户自己挑好的那些）。
+   */
+  const remaining = limit - usedCount
+  const pendingUsable = images.filter(
+    (image) =>
+      image.usableAsInput &&
+      !picks.some((pick) => pick.imageUrl === image.imageUrl),
+  )
+  const batch = remaining > 0 ? pendingUsable.slice(0, remaining) : []
+
   if (images.length === 0) return null
 
   return (
@@ -270,11 +294,35 @@ export function StudioOperatorWebCandidateGrid({
           {webImport.cleanupError}
         </p>
       ) : null}
-      <p className="mt-1 text-2xs text-muted-foreground">
-        {usedCount > 0
-          ? t('web.selectedHint', { count: usedCount, limit })
-          : t('web.pickHint')}
-      </p>
+      {/* 「把能用的都挂上」（2026-09-06）—— owner 用例的收尾动作：助手搜到一行
+          官方设定图之后，用户要的是「都挂上」，而不是点四次「选用」。
+          ⚠ 名额为 0 或没有可挂的时**禁用而不是移除**（与格子上那颗同一条纪律）：
+            位置留着，旁边那行「已选 n/m」就是理由。
+          ⚠ 数量写在按钮上（「挂上 3 张」）——⛔ 不写一句无数字的「全部挂上」：
+            用户按之前要知道这一下会花掉几个参考位。 */}
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-1">
+        <p className="text-2xs text-muted-foreground">
+          {usedCount > 0
+            ? t('web.selectedHint', { count: usedCount, limit })
+            : t('web.pickHint')}
+        </p>
+        <button
+          type="button"
+          data-testid="operator-web-use-all"
+          disabled={batch.length === 0}
+          onClick={() => {
+            for (const image of batch) onToggle(entryId, image)
+          }}
+          className={cn(
+            'shrink-0 rounded-md border px-1.5 py-0.5 text-3xs transition-colors duration-(--duration-fast) ease-standard',
+            batch.length === 0
+              ? 'cursor-not-allowed border-border/70 text-muted-foreground/60'
+              : 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-primary',
+          )}
+        >
+          {t('web.useAll', { count: batch.length })}
+        </button>
+      </div>
     </div>
   )
 }

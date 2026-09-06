@@ -61,6 +61,16 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    */
   '@/services/web-research.service',
   /**
+   * **有目标的检索**（2026-09-06）。⭐ 判据与上一条**逐字同源**：它是
+   * **搜索 + 归并**模块 —— 打萌百 / 中文维基 / Fandom / danbooru / Serper 的只读
+   * 接口，出一串证据对象，一个字节都不下载、一分钱都不扣、一行 generation 都不建。
+   * ⛔ `@/services/research/research-run.service` **有意不在这份名单里**：那条会读
+   * 配额、写 `ResearchRun`，也就是会 import 库客户端 —— 而下面禁字表里那条 import
+   * 是硬拦。扇出那一段因此单独住在 `research-fanout.service`，它一行库都不碰。
+   * 哪天有人想「复用现成的」把 research-run 换进来，这条名单就是那个看得见的动作。
+   */
+  '@/services/research/research-fanout.service',
+  /**
    * 看图闭环的**路由解析**（P3-C）。⭐ 判据与上一条同源：它产出的是
    * 「用哪把 key、走哪个 adapter」，一个字节都不落、一分钱都不扣。真正看图的那次
    * 补全走的仍是 `assistant-completion.service`（本名单里早就有的那条）。

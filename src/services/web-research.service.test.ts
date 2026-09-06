@@ -8,8 +8,10 @@ import {
   hasWebContext,
   isWebImageSearchConfigured,
   isWebSearchConfigured,
+  extractFocusedExcerpt,
   readUrl,
   webImageSearch,
+  webImageSearchMulti,
   webSearch,
 } from '@/services/web-research.service'
 
@@ -282,5 +284,125 @@ describe('webImageSearch (Serper /images · P3-B 预览候选)', () => {
 
     expect(await webImageSearch('pvc figure')).toEqual([])
     expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('webImageSearchMulti（多语言变体归并，2026-09-06）', () => {
+  it('每条变体各打一次，⛔ 不合并成一次请求', async () => {
+    vi.stubEnv('SERPER_API_KEY', 'serper-key')
+    mockFetch.mockResolvedValue(jsonResponse({ images: [] }))
+
+    await webImageSearchMulti(
+      ['ananta shiye', 'ananta shiye 官方 立绘 设定图'],
+      { num: 4 },
+    )
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    const bodies = mockFetch.mock.calls.map(
+      (call) => JSON.parse((call[1] as RequestInit).body as string).q,
+    )
+    expect(bodies).toEqual(['ananta shiye', 'ananta shiye 官方 立绘 设定图'])
+  })
+
+  it('⭐ 归并是**轮转**的：每条变体的第一张先来，⛔ 不是一条接一条', async () => {
+    vi.stubEnv('SERPER_API_KEY', 'serper-key')
+    mockFetch
+      .mockResolvedValueOnce(
+        jsonResponse({
+          images: [
+            { imageUrl: 'https://a.test/1.jpg' },
+            { imageUrl: 'https://a.test/2.jpg' },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          images: [
+            { imageUrl: 'https://b.test/1.jpg' },
+            { imageUrl: 'https://b.test/2.jpg' },
+          ],
+        }),
+      )
+
+    const merged = await webImageSearchMulti(['en query', 'zh query'])
+    expect(merged.map((image) => image.imageUrl)).toEqual([
+      'https://a.test/1.jpg',
+      'https://b.test/1.jpg',
+      'https://a.test/2.jpg',
+      'https://b.test/2.jpg',
+    ])
+  })
+
+  it('同一张图被两条变体都搜到时只留一份', async () => {
+    vi.stubEnv('SERPER_API_KEY', 'serper-key')
+    mockFetch
+      .mockResolvedValueOnce(
+        jsonResponse({ images: [{ imageUrl: 'https://same.test/1.jpg' }] }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ images: [{ imageUrl: 'https://same.test/1.jpg' }] }),
+      )
+
+    const merged = await webImageSearchMulti(['a', 'b'])
+    expect(merged).toHaveLength(1)
+  })
+
+  it('只有一条查询时退回单次调用（⛔ 别白花第二个 credit）', async () => {
+    vi.stubEnv('SERPER_API_KEY', 'serper-key')
+    mockFetch.mockResolvedValue(jsonResponse({ images: [] }))
+
+    await webImageSearchMulti(['only one', 'only one  '])
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('extractFocusedExcerpt（按 focus 在服务端截段，2026-09-06）', () => {
+  const PAGE = [
+    '# 时夜',
+    '时夜是《无限大》中的可操作角色，隶属于夜巡组。',
+    '## 外貌与服饰\n黑色长发束成低马尾，金色瞳孔；身着改良中式长衫，外披深灰色风衣。',
+    '## 战斗数据\n武器为双刃，技能循环以突进起手，冷却 12 秒。',
+    '## 声优\n由某位声优配音，首次登场于第二章。',
+  ].join('\n\n')
+
+  it('短于上限时原样返回（⛔ 不做任何加工）', () => {
+    expect(extractFocusedExcerpt('  一句话  ', '外貌', 100)).toBe('一句话')
+  })
+
+  it('⭐ 命中 focus 的段落被选中，不相关的段落被丢掉', () => {
+    const excerpt = extractFocusedExcerpt(PAGE, '外貌与服饰', 120)
+    expect(excerpt).toContain('金色瞳孔')
+    expect(excerpt).not.toContain('冷却 12 秒')
+  })
+
+  it('中文 focus 走二元组匹配 —— 「服饰」这类词命中得到', () => {
+    const excerpt = extractFocusedExcerpt(PAGE, '服饰', 120)
+    expect(excerpt).toContain('改良中式长衫')
+  })
+
+  it('一段都没命中时退回页首，⛔ 不返回空串', () => {
+    const excerpt = extractFocusedExcerpt(PAGE, 'zzz nothing matches', 40)
+    expect(excerpt.length).toBeGreaterThan(0)
+    expect(excerpt.startsWith('# 时夜')).toBe(true)
+  })
+
+  it('没给 focus 时就是截页首', () => {
+    const excerpt = extractFocusedExcerpt(PAGE, undefined, 30)
+    expect(excerpt.startsWith('# 时夜')).toBe(true)
+    expect(excerpt.length).toBeLessThanOrEqual(30)
+  })
+
+  it('⚠ 命中的段落按**原文顺序**拼回去，⛔ 不按得分重排', () => {
+    const excerpt = extractFocusedExcerpt(PAGE, '角色 外貌', 200)
+    const intro = excerpt.indexOf('可操作角色')
+    const looks = excerpt.indexOf('金色瞳孔')
+    expect(intro).toBeGreaterThanOrEqual(0)
+    expect(looks).toBeGreaterThan(intro)
+  })
+
+  it('永远不超过上限', () => {
+    expect(extractFocusedExcerpt(PAGE, '外貌', 50).length).toBeLessThanOrEqual(
+      50,
+    )
   })
 })

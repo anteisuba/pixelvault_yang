@@ -46,3 +46,34 @@ export const URL_READER = {
   /** Cap URLs read per research turn so one message can't fan out unbounded. */
   maxUrlsPerTurn: 3,
 } as const
+
+/**
+ * 找**角色官方设定图**时往查询里加的限定词（助手检索线，2026-09-06）。
+ *
+ * ── 为什么是三条语言，而不是一条英文 ──────────────────────────────
+ * 🔬 owner 的真实用例是《无限大》（Ananta）的「时夜」：这类作品的一手立绘发在
+ * 中文/日文官方渠道，英文关键词只搜得到二手转载与攻略站。一条英文查询的表现
+ * 就是「搜到一句台词就放弃」——不是搜索坏了，是问错了语言。
+ *
+ * ⚠ 每条 = 一个 Serper credit，所以由 `ASSISTANT_RESEARCH_LIMITS.maxImageQueryVariants`
+ * 封顶（默认 3），⛔ 别在这里往下续第四条第五条。
+ * ⚠ 只有模型给了 `subject` 且 `preferOfficial` 时才铺开；不给 subject 的普通搜图
+ * 仍是**一条查询一个 credit**，与切片 3b 的成本形状不变。
+ */
+export const WEB_IMAGE_OFFICIAL_QUERY_SUFFIXES = [
+  /** 中文圈：官方设定图/立绘的通用叫法。 */
+  '官方 立绘 设定图',
+  /** 日文圈：公式設定資料集/キャラクターデザイン。 */
+  '公式 設定資料 キャラクターデザイン',
+  /** 英文兜底：官方角色美术。 */
+  'official character art reference sheet',
+] as const
+
+/**
+ * 不要求「官方」时的主体查询变体 —— 只加一个通用的「角色参考」限定，
+ * ⛔ 不加「官方」那类会把召回收得太窄的词。
+ */
+export const WEB_IMAGE_SUBJECT_QUERY_SUFFIXES = [
+  'character reference',
+  '角色 参考图',
+] as const

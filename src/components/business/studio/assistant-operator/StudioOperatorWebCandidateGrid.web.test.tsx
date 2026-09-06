@@ -121,3 +121,89 @@ describe('候选网格 · 来源三字段（切片 3b）', () => {
     ).toBe('web.referenceOnly')
   })
 })
+
+describe('候选网格 · 「把能用的都挂上」（2026-09-06）', () => {
+  function renderWith(
+    images: readonly AssistantOperatorWebImage[],
+    webImport?: Parameters<
+      typeof StudioOperatorWebCandidateGrid
+    >[0]['webImport'],
+    limit = 4,
+  ) {
+    const onToggle = vi.fn()
+    render(
+      <StudioOperatorWebCandidateGrid
+        entryId="run-1:step-1"
+        images={images}
+        webImport={webImport}
+        limit={limit}
+        onToggle={onToggle}
+      />,
+    )
+    return { onToggle }
+  }
+
+  it('⭐ 一下挂上所有**可用**的候选，⛔ 不碰 blocked 那张', () => {
+    const { onToggle } = renderWith([USABLE, NO_PUBLISHER, BLOCKED])
+
+    fireEvent.click(screen.getByTestId('operator-web-use-all'))
+
+    expect(onToggle).toHaveBeenCalledTimes(2)
+    expect(onToggle.mock.calls.map((call) => call[1])).toEqual([
+      USABLE,
+      NO_PUBLISHER,
+    ])
+  })
+
+  it('⭐ 受参考位上限约束：剩几个名额就挂几张', () => {
+    const { onToggle } = renderWith([USABLE, NO_PUBLISHER], undefined, 1)
+
+    fireEvent.click(screen.getByTestId('operator-web-use-all'))
+
+    expect(onToggle).toHaveBeenCalledTimes(1)
+    expect(onToggle.mock.calls[0]?.[1]).toEqual(USABLE)
+  })
+
+  it('⚠ 名额满了 = 按钮禁用，⛔ 不挤掉用户已经挑好的那张', () => {
+    const { onToggle } = renderWith(
+      [USABLE, NO_PUBLISHER],
+      {
+        picks: [
+          {
+            imageUrl: NO_PUBLISHER.imageUrl,
+            status: 'imported',
+            generationId: 'gen-1',
+          },
+        ],
+      },
+      1,
+    )
+
+    const button = screen.getByTestId('operator-web-use-all')
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(onToggle).not.toHaveBeenCalled()
+  })
+
+  it('已经选过的那张不会被再点一次（⛔ 那会变成取消选用）', () => {
+    const { onToggle } = renderWith([USABLE, NO_PUBLISHER], {
+      picks: [
+        {
+          imageUrl: USABLE.imageUrl,
+          status: 'imported',
+          generationId: 'gen-1',
+        },
+      ],
+    })
+
+    fireEvent.click(screen.getByTestId('operator-web-use-all'))
+
+    expect(onToggle).toHaveBeenCalledTimes(1)
+    expect(onToggle.mock.calls[0]?.[1]).toEqual(NO_PUBLISHER)
+  })
+
+  it('一张可用的都没有时禁用', () => {
+    renderWith([BLOCKED])
+    expect(screen.getByTestId('operator-web-use-all')).toBeDisabled()
+  })
+})

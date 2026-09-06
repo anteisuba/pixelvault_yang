@@ -335,3 +335,104 @@ describe('日志条 · 一格失败不该弄脏别格', () => {
     expect(screen.getByTestId('operator-web-import-error')).toBeTruthy()
   })
 })
+
+describe('日志条 · 证据卡（research，2026-09-06）', () => {
+  const RESEARCH_STEP = {
+    id: 'step-1',
+    tool: 'research',
+    status: 'done',
+    title: 'research the character',
+    payload: {
+      goal: 'appearance and outfit',
+      entities: ['Ananta', 'Shiye'],
+      sources: ['wiki', 'web', 'danbooru'],
+      round: 1,
+    },
+    result: {
+      totalFound: 2,
+      evidence: [
+        {
+          title: '萌娘百科 · 时夜',
+          url: 'https://zh.moegirl.org.cn/shiye',
+          publisher: 'zh.moegirl.org.cn',
+          snippet: '黑色长发，金色瞳孔。',
+          kind: 'text',
+          confidence: 'high',
+        },
+        {
+          // ⚠ 没有 url —— danbooru 的共现标签不指向单一页面。
+          title: 'danbooru tags',
+          publisher: 'danbooru',
+          snippet: 'black_hair, yellow_eyes',
+          kind: 'tags',
+          confidence: 'low',
+        },
+      ],
+    },
+  } as unknown as Parameters<typeof StudioOperatorLogItem>[0]['step']
+
+  it('每条证据一行，带出处 / 形状 / 置信度三枚标', () => {
+    renderItem({ step: RESEARCH_STEP })
+
+    const items = screen.getAllByTestId('operator-evidence-item')
+    expect(items).toHaveLength(2)
+    expect(items[0]).toHaveAttribute('data-kind', 'text')
+    expect(items[0]).toHaveAttribute('data-confidence', 'high')
+    expect(items[1]).toHaveAttribute('data-kind', 'tags')
+    expect(items[1]).toHaveAttribute('data-confidence', 'low')
+
+    const publishers = screen
+      .getAllByTestId('operator-evidence-publisher')
+      .map((node) => node.textContent)
+    expect(publishers).toEqual(['zh.moegirl.org.cn', 'danbooru'])
+  })
+
+  it('⭐ 有 url 的标题可点开原页；⛔ 没有 url 的不渲染成点不开的链接', () => {
+    renderItem({ step: RESEARCH_STEP })
+
+    const links = screen.getAllByTestId('operator-evidence-link')
+    expect(links).toHaveLength(1)
+    expect(links[0]).toHaveAttribute('href', 'https://zh.moegirl.org.cn/shiye')
+    expect(links[0]).toHaveAttribute('rel', 'noopener noreferrer')
+    // 没链接那条照样看得见标题。
+    expect(screen.getByText('danbooru tags')).toBeInTheDocument()
+  })
+
+  it('摘要照原样显示（标签档就是那串可直接用的词）', () => {
+    renderItem({ step: RESEARCH_STEP })
+    expect(screen.getByText('black_hair, yellow_eyes')).toBeInTheDocument()
+  })
+})
+
+describe('日志条 · 读回来的正文（read_url，2026-09-06）', () => {
+  const READ_STEP = {
+    id: 'step-1',
+    tool: 'read_url',
+    status: 'done',
+    title: 'read the page',
+    payload: {
+      url: 'https://zh.moegirl.org.cn/shiye',
+      focus: '外貌与服饰',
+    },
+    result: {
+      title: 'https://zh.moegirl.org.cn/shiye',
+      url: 'https://zh.moegirl.org.cn/shiye',
+      excerpt: '外貌与服饰：黑色长发，金色瞳孔。',
+    },
+  } as unknown as Parameters<typeof StudioOperatorLogItem>[0]['step']
+
+  it('⭐ 正文段**摊开画**（不折进详情）—— 用户要能当场对照助手写进提示词的原文', () => {
+    renderItem({ step: READ_STEP })
+    expect(screen.getByTestId('operator-read-url-excerpt')).toHaveTextContent(
+      '金色瞳孔',
+    )
+  })
+
+  it('地址可点开原页', () => {
+    renderItem({ step: READ_STEP })
+    expect(screen.getByTestId('operator-read-url-link')).toHaveAttribute(
+      'href',
+      'https://zh.moegirl.org.cn/shiye',
+    )
+  })
+})

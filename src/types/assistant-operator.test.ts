@@ -144,6 +144,46 @@ const STEP_FIXTURES: Record<
       ],
     },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.research]: {
+    payload: {
+      goal: 'appearance and outfit',
+      entities: ['Ananta', 'Shiye'],
+      sources: ['wiki', 'web', 'danbooru'],
+      round: 1,
+    },
+    result: {
+      totalFound: 2,
+      evidence: [
+        {
+          title: '萌娘百科 · 时夜',
+          url: 'https://zh.moegirl.org.cn/%E6%97%B6%E5%A4%9C',
+          publisher: 'zh.moegirl.org.cn',
+          snippet: '黑色长发，金色瞳孔，身着改良中式长衫…',
+          kind: 'text',
+          confidence: 'medium',
+        },
+        {
+          // ⚠ 标签档**没有 url** —— danbooru 的共现标签不指向单一页面。
+          title: 'danbooru tags',
+          publisher: 'danbooru',
+          snippet: '100 张样本共现: black_hair, yellow_eyes, chinese_clothes',
+          kind: 'tags',
+          confidence: 'medium',
+        },
+      ],
+    },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]: {
+    payload: {
+      url: 'https://zh.moegirl.org.cn/%E6%97%B6%E5%A4%9C',
+      focus: 'appearance and outfit',
+    },
+    result: {
+      title: 'https://zh.moegirl.org.cn/%E6%97%B6%E5%A4%9C',
+      url: 'https://zh.moegirl.org.cn/%E6%97%B6%E5%A4%9C',
+      excerpt: '外貌：黑色长发…',
+    },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]: {
     payload: {
       assetId: 'gen-1',
@@ -784,5 +824,74 @@ describe('模型这一轮写的东西（宽松层）', () => {
       ASSISTANT_OPERATOR_TOOL_IDS.setSpecs
     ].safeParse({ aspectRatio: '21:9', resolution: '8K' })
     expect(parsed.success).toBe(true)
+  })
+})
+
+describe('research / read_url 的入参形状（2026-09-06）', () => {
+  const researchSchema =
+    ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[ASSISTANT_OPERATOR_TOOL_IDS.research]
+  const readUrlSchema =
+    ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[ASSISTANT_OPERATOR_TOOL_IDS.readUrl]
+
+  it('research：goal 必填，entities / sources 可选', () => {
+    expect(researchSchema.safeParse({ goal: 'appearance' }).success).toBe(true)
+    expect(
+      researchSchema.safeParse({
+        goal: 'appearance',
+        entities: ['Ananta', 'Shiye'],
+        sources: ['wiki', 'danbooru'],
+      }).success,
+    ).toBe(true)
+    expect(researchSchema.safeParse({ entities: ['x'] }).success).toBe(false)
+    expect(researchSchema.safeParse({ goal: '' }).success).toBe(false)
+  })
+
+  it('⛔ research 的 sources 是**封闭词表**：真源 id 写进来一律不合法', () => {
+    expect(
+      researchSchema.safeParse({ goal: 'g', sources: ['moegirl'] }).success,
+    ).toBe(false)
+  })
+
+  it('read_url：只收 http(s)，⛔ `file:` / `ftp:` 一律不合法', () => {
+    expect(
+      readUrlSchema.safeParse({ url: 'https://example.com/a' }).success,
+    ).toBe(true)
+    expect(
+      readUrlSchema.safeParse({
+        url: 'https://example.com/a',
+        focus: 'appearance and outfit',
+      }).success,
+    ).toBe(true)
+    expect(readUrlSchema.safeParse({ url: 'file:///etc/passwd' }).success).toBe(
+      false,
+    )
+    expect(readUrlSchema.safeParse({ url: 'not a url' }).success).toBe(false)
+  })
+
+  it('⭐ search_web_images 多了 subject / preferOfficial，且都是可选（老形状仍合法）', () => {
+    const schema =
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages
+      ]
+    expect(schema.safeParse({ query: 'wet asphalt' }).success).toBe(true)
+    expect(
+      schema.safeParse({
+        query: 'character art',
+        subject: 'Ananta Shiye',
+        preferOfficial: true,
+      }).success,
+    ).toBe(true)
+  })
+
+  it('两条新工具都是**读类**：没有 inverse，也不在改动型 / 花钱档里', () => {
+    for (const tool of [
+      ASSISTANT_OPERATOR_TOOL_IDS.research,
+      ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
+    ] as const) {
+      expect(ASSISTANT_OPERATOR_READ_TOOLS).toContain(tool)
+      expect(isMutatingAssistantOperatorTool(tool)).toBe(false)
+      expect(isSpendAssistantOperatorTool(tool)).toBe(false)
+      expect(isRevertibleAssistantOperatorTool(tool)).toBe(false)
+    }
   })
 })

@@ -181,6 +181,37 @@ export interface StudioOperatorUpload {
   error?: string
 }
 
+/**
+ * 排在队里、**还没发出去**的那一句（§3.1 ㉒–㉔，本片）。
+ *
+ * ⭐ 它与 `StudioOperatorUserEntry` 是两个类型，理由与上传/附件那一对同源：
+ * 进了线程的那条是「已经说出去的话」（助手的上下文里有它），排队的这条**还没有**
+ * 任何人看见。合成一个「带 pending 旗标的用户条目」的下场是它会被 `buildMessages`
+ * 一起送进请求 —— 用户看着排队条还挂在那儿，助手却已经在回答它了。
+ * ⚠ 附件跟着排队一起等：排的时候挂了三张图，接住时得连图一起进那条消息。
+ */
+export interface StudioOperatorQueuedMessage {
+  id: string
+  text: string
+  attachments: readonly StudioOperatorAttachment[]
+}
+
+/**
+ * 结果行卡里的一格（§11.4「结果行卡」）。
+ *
+ * ⚠ 只留渲染要用的那几样，⛔ 不把 `RunItem` 整条塞进来：那条身上挂着
+ * `generation` 全量记录（含 snapshot / observability），而这张卡只画缩略图与序号。
+ * ⚠ `thumbnailUrl` 与 `url` 分开，理由同 `StudioOperatorAttachment`：视频的 `url`
+ * 是媒体文件本身，喂给 `next/image` 得到一个碎图标。
+ */
+export interface StudioOperatorResultItem {
+  id: string
+  url: string
+  thumbnailUrl?: string
+  /** chip 与灯箱标题上写的那句（一般是提示词头几个字）。 */
+  label?: string
+}
+
 /** 就地确认条（拍板 3）—— 直接复用事件载荷，不另立形状。 */
 export type StudioOperatorConfirm = Omit<
   AssistantOperatorConfirmRequestEvent,

@@ -6975,6 +6975,8 @@
       "interrupted": "You cut in — the assistant changed course",
       "revertRound": "You reverted this round's {count} change(s) (the assistant knows)",
       "resultArrived": "The run it armed came back — the assistant is looking at it",
+      "queuePicked": "Pause point — picking up the {count} message(s) you queued",
+      "queueDropped": "You pulled back the queued message: {subject}",
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
       "loraMountFailed": "Could not mount {subject} — nothing was added to the bench"
     },
@@ -7032,6 +7034,40 @@
       "borrowed": "Your model can't see pictures, so this look was borrowed from another one",
       "revertRound": "Undo this round ({count})",
       "nextRound": "Pre-filled for the next round:"
+    },
+    "askFirst": {
+      "label": "Ask me first",
+      "hint": "This round starts with a plan card for you to confirm"
+    },
+    "placeholderAskFirst": "Say what you want — this round starts with a plan card",
+    "queue": {
+      "badge": "Queued",
+      "hint": "handled at the next pause point",
+      "cancel": "Pull back"
+    },
+    "mention": {
+      "pickerLabel": "Pick something for the assistant to look at",
+      "recent": "Recent results",
+      "library": "Your library",
+      "empty": "Nothing matches — keep typing",
+      "remove": "Remove this reference",
+      "count": "will look at {count}",
+      "countWarn": "will look at {count} · over {limit} may get fuzzy"
+    },
+    "result": {
+      "title": "Results · {count}",
+      "select": "Pick result {ordinal}",
+      "ask": "Ask about it",
+      "zoom": "Zoom",
+      "selected": "Picked {ordinal}",
+      "unselected": "None picked",
+      "continue": "Continue from this one",
+      "continuePrefill": "Continue from this one: ",
+      "chipLabel": "Result {ordinal}"
+    },
+    "choice": {
+      "title": "Which one did you mean?",
+      "resolved": "Picked"
     },
     "error": {
       "generic": "The assistant did not finish this round"

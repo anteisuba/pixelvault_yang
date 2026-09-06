@@ -34,6 +34,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
 import {
+  STUDIO_OPERATOR_MENTION,
   STUDIO_OPERATOR_SUGGESTIONS,
   STUDIO_OPERATOR_TIMELINE,
 } from '@/constants/studio-assistant-operator'
@@ -50,7 +51,14 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorCheckpointCard'
 import { StudioOperatorCritiqueCard } from '@/components/business/studio/assistant-operator/StudioOperatorCritiqueCard'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
+import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
+import { StudioOperatorMentionPicker } from '@/components/business/studio/assistant-operator/StudioOperatorMentionPicker'
+import { StudioOperatorQueueBar } from '@/components/business/studio/assistant-operator/StudioOperatorQueueBar'
+import {
+  StudioOperatorResultRow,
+  resultOrdinal,
+} from '@/components/business/studio/assistant-operator/StudioOperatorResultRow'
 import {
   STUDIO_OPERATOR_BAND_STEP_STATES,
   StudioOperatorProgressBand,
@@ -63,17 +71,24 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { Spinner } from '@/components/ui/spinner'
+import { useStudioGenOptional } from '@/contexts/studio-context'
 import type { UseAssistantOperatorResult } from '@/hooks/use-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
 import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
+import { useStudioOperatorMention } from '@/hooks/use-studio-operator-mention'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
-import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
+import {
+  setOperatorAskFirst,
+  setOperatorSelectedResult,
+  useStudioOperatorState,
+} from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
 import type {
   StudioOperatorAttachment,
+  StudioOperatorResultItem,
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
@@ -155,8 +170,16 @@ export function StudioOperatorPanel({
     history: historyEntries,
     stepsDone,
     plannedSteps,
+    queue,
+    selectedResultId,
+    askFirst,
   } = useStudioOperatorState()
-  const { domain, send, stop, newThread } = operator
+  const { domain, send, stop, cancelQueued, newThread } = operator
+  /**
+   * `@` 的那条 chip 管线（§3.3 四入口）—— chips 住在 store（收放法则会卸载这颗
+   * 组件），触发解析与选择器开合住在 hook 里。
+   */
+  const mention = useStudioOperatorMention()
   const {
     undoStep,
     revertRound,
@@ -171,6 +194,62 @@ export function StudioOperatorPanel({
   const [attachOpen, setAttachOpen] = useState(false)
   const attachTriggerRef = useRef<HTMLButtonElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
+  // 「问助手」/「按这张继续」按完要把焦点还给输入框（§3.1 ⑲「chip 插入并聚焦」）
+  // —— 不还的话用户得再点一次输入框才能接着说，而他刚刚明明就在说话。
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const [dragOver, setDragOver] = useState(false)
+
+  /**
+   * 「最近生成」那一批（§3.3：@ 选择器最近生成在前 · §3.1 ⑱ 结果行卡）。
+   *
+   * ⭐ 数据源是工作台**本来就在跑**的那条回流（`activeRun`），⛔ 没有新轮询器 ——
+   * 与 `use-studio-operator-critique.ts` 读的是同一处。
+   * ⚠ 走 `useStudioGenOptional()`：面板也挂在 `/studio/lora` 上，而那条路由故意
+   * 不挂 `<StudioProvider>`，会抛的那版会把整颗面板打红。装配台那边这一段恒空
+   * （结果行卡整块不渲染），接它自己的结果列是第 3 轮的事。
+   */
+  const activeRun = useStudioGenOptional()?.activeRun
+  const resultItems = useMemo<readonly StudioOperatorResultItem[]>(() => {
+    const items = activeRun?.items ?? []
+    return items.flatMap((item) => {
+      const generation = item.generation
+      if (item.status !== 'completed' || !generation?.url) return []
+      return [
+        {
+          id: generation.id,
+          url: generation.url,
+          ...(generation.thumbnailUrl
+            ? { thumbnailUrl: generation.thumbnailUrl }
+            : {}),
+          ...(generation.prompt
+            ? { label: generation.prompt.slice(0, 40) }
+            : {}),
+        },
+      ]
+    })
+  }, [activeRun])
+
+  /**
+   * 结果格 → chip。
+   *
+   * ⚠ `label` 兜底成序号（「结果②」）而不是空串：chip 上什么都不写的话，挂了三张
+   * 之后用户分不出哪一枚是哪一张。⚠ `kind` 恒 `image`：结果行卡只画得下静态图，
+   * 视频域的结果行是第二期。
+   */
+  const toResultChip = useCallback(
+    (
+      item: StudioOperatorResultItem,
+      index: number,
+    ): StudioOperatorAttachment => ({
+      id: item.id,
+      url: item.url,
+      label:
+        item.label ?? t('result.chipLabel', { ordinal: resultOrdinal(index) }),
+      kind: 'image',
+      ...(item.thumbnailUrl ? { thumbnailUrl: item.thumbnailUrl } : {}),
+    }),
+    [t],
+  )
 
   const working = status === 'working'
   /**
@@ -196,12 +275,38 @@ export function StudioOperatorPanel({
       if (!value) return
       // 见上面 `uploading` 的注释：在飞的上传是发送的硬前提。
       if (uploading) return
-      send(value, attachments)
+      /**
+       * ⭐ **@chip 与 📎 附件合成同一个数组送出去**（§7「四条走同一条 chip 管线」）：
+       * 服务端一个新字段都没有，`buildMessages` 那条 `[attached: …]` 原样带上它们。
+       * ⚠ 去重按 id：同一张图既被 📎 挂过又被 @ 提过时，助手会收到两份同样的地址。
+       */
+      const merged = [...attachments]
+      for (const chip of mention.chips) {
+        if (!merged.some((item) => item.id === chip.id)) merged.push(chip)
+      }
+      send(value, merged)
       onDraftChange('')
       onAttachmentsChange([])
+      mention.clearChips()
+      mention.closePicker()
       setAttachOpen(false)
     },
-    [attachments, onAttachmentsChange, onDraftChange, send, uploading],
+    [attachments, mention, onAttachmentsChange, onDraftChange, send, uploading],
+  )
+
+  /**
+   * 四入口共用的那一步：插 chip、（可选）预填一句、把焦点还给输入框。
+   *
+   * ⛔ 不在四个调用点各写一遍：那正是「结果卡插进来的 chip 与 @ 选出来的 chip
+   * 行为不一样」这类不对称的来源。
+   */
+  const attachChip = useCallback(
+    (chip: StudioOperatorAttachment, prefill?: string) => {
+      mention.addChip(chip)
+      if (prefill && !draft.trim()) onDraftChange(prefill)
+      inputRef.current?.focus()
+    },
+    [draft, mention, onDraftChange],
   )
 
   /**
@@ -591,6 +696,37 @@ export function StudioOperatorPanel({
             }
           })}
 
+          {/* ── 结果行卡（§3.1 ⑱）────────────────────────────────────
+              ⚠ 钉在流末尾而不是插进 `blocks`：那一批结果不是线程条目（它来自
+                工作台的在飞回流，不落线程、不进上下文）。真正把它变成对话的是
+                用户点「问助手」之后插的那枚 @chip —— 那一条才进消息。
+              ⚠ LoRA 装配台上 `resultItems` 恒空 → 整块不渲染（⛔ 不做空占位）。 */}
+          {resultItems.length > 0 ? (
+            <StudioOperatorTimelineRow
+              node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+            >
+              <StudioOperatorResultRow
+                items={resultItems}
+                selectedId={selectedResultId}
+                onSelect={setOperatorSelectedResult}
+                onAsk={(item, index) => attachChip(toResultChip(item, index))}
+                onZoom={(item, index) =>
+                  openOperatorLightbox(
+                    item.url,
+                    item.label ??
+                      t('result.chipLabel', { ordinal: resultOrdinal(index) }),
+                  )
+                }
+                onContinue={(item, index) =>
+                  attachChip(
+                    toResultChip(item, index),
+                    t('result.continuePrefill'),
+                  )
+                }
+              />
+            </StudioOperatorTimelineRow>
+          ) : null}
+
           {status === 'error' ? (
             <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.system}>
               <p
@@ -620,6 +756,11 @@ export function StudioOperatorPanel({
           ))}
         </div>
       ) : null}
+
+      {/* ── 排队条（§3.1 ㉒–㉔）────────────────────────────────────
+          ⚠ 长在输入框**上方**（不是线程末尾）：它说的是「你刚打的这句还在手上」，
+            而线程里的一切都是「已经发生的事」。 */}
+      <StudioOperatorQueueBar items={queue} onCancel={cancelQueued} />
 
       {/* ── 上传中 / 上传失败的 chip（P3-A）──────────────────────
           ⭐ 与下面「已挂上的附件」是同一排、同一种形状：对用户来说这就是
@@ -746,8 +887,99 @@ export function StudioOperatorPanel({
         </div>
       ) : null}
 
+      {/* ── @chip 区（§11.4「@chip」/ §7）──────────────────────────
+          ⚠ 与 📎 附件分成两排是有意的：📎 是「我给你一份材料」，@ 是「看这几张」。
+            右端那个计数是这一片的承诺（「将看 N 张」），⛔ 不合并进附件排 ——
+            合并之后计数会把材料也算进去，而助手并不会去看一段音频。 */}
+      {mention.chips.length > 0 ? (
+        <div
+          data-testid="operator-mention-row"
+          className="flex shrink-0 flex-wrap items-center gap-1.5 px-3 pb-1.5"
+        >
+          {mention.chips.map((chip) => (
+            <span
+              key={chip.id}
+              data-testid="operator-mention-chip"
+              className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2xs text-primary"
+            >
+              {chip.thumbnailUrl ? (
+                <Image
+                  src={chip.thumbnailUrl}
+                  alt={chip.label}
+                  width={40}
+                  height={40}
+                  unoptimized
+                  className="size-5 rounded object-cover"
+                />
+              ) : (
+                <span className="grid size-5 place-items-center rounded bg-primary/15">
+                  <AttachKindGlyph kind={chip.kind} />
+                </span>
+              )}
+              <span className="max-w-24 truncate">{chip.label}</span>
+              <button
+                type="button"
+                data-testid="operator-mention-remove"
+                aria-label={t('mention.remove')}
+                onClick={() => mention.removeChip(chip.id)}
+                className="text-primary/70 hover:text-primary"
+              >
+                <X className="size-2.5" aria-hidden />
+              </button>
+            </span>
+          ))}
+          {/* ⚠ 超过 8 张只**转色 + 加一句**，⛔ 不拦截、⛔ 不截断（owner 2026-09-06）。 */}
+          <span
+            data-testid="operator-mention-count"
+            data-over-limit={mention.overLimit}
+            className={cn(
+              'ml-auto font-mono text-3xs tracking-nav tabular-nums',
+              mention.overLimit
+                ? 'text-status-warning'
+                : 'text-muted-foreground',
+            )}
+          >
+            {mention.overLimit
+              ? t('mention.countWarn', {
+                  count: mention.count,
+                  limit: STUDIO_OPERATOR_MENTION.warnAboveCount,
+                })
+              : t('mention.count', { count: mention.count })}
+          </span>
+        </div>
+      ) : null}
+
       {/* ── 输入区：上行工具条 + 下行输入（拍板 12）──────────────── */}
-      <div className="flex shrink-0 flex-col gap-1.5 border-t border-border bg-card px-3 py-2.5">
+      <div
+        data-testid="operator-input-area"
+        data-drag-over={dragOver}
+        /**
+         * 拖图进输入框（§3.3 第 3 行）—— 四入口之三。
+         *
+         * ⭐ 库内资产（`ASSET_DND_MIME`）成 @chip，其余原样交回上传三通道那一个
+         * 出口（拍板 16）。判据在 `use-studio-operator-mention.ts` 里，⛔ 这里
+         * 不再判一次。
+         * ⚠ `onDragOver` 必须 `preventDefault`，否则浏览器根本不会触发 `drop`
+         * （「拖上去光标是禁止号，松手什么都没发生」的经典成因）。
+         */
+        onDragOver={(event) => {
+          event.preventDefault()
+          setDragOver(true)
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(event) => {
+          event.preventDefault()
+          setDragOver(false)
+          const files = mention.acceptDrop(event.dataTransfer)
+          if (files.length > 0) upload.uploadFiles(files)
+        }}
+        className={cn(
+          'relative flex shrink-0 flex-col gap-1.5 border-t bg-card px-3 py-2.5 transition-colors duration-(--duration-fast) ease-standard',
+          dragOver
+            ? 'border-primary ring-2 ring-inset ring-primary'
+            : 'border-border',
+        )}
+      >
         <div data-testid="operator-toolbar" className="flex items-center gap-2">
           <button
             ref={attachTriggerRef}
@@ -777,6 +1009,25 @@ export function StudioOperatorPanel({
               emptyRouteLabel={tPrompt('routeAuto')}
             />
           </span>
+          {/* ── 「先问我」（§3.3 后两行）────────────────────────────
+              ⚠ 本片**只做开关与状态**：开着时占位语加一句「本轮先出计划卡」，
+                真正强制出卡的那一半由计划卡片那一片接（§5 的客户端硬判）。
+                ⛔ 但它不是假开关 —— 值真的存进 store，接线那片读它即可。 */}
+          <button
+            type="button"
+            data-testid="operator-ask-first"
+            aria-pressed={askFirst}
+            title={t('askFirst.hint')}
+            onClick={() => setOperatorAskFirst(!askFirst)}
+            className={cn(
+              'rounded-lg border px-2 py-1 text-2xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              askFirst
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border/70 text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t('askFirst.label')}
+          </button>
           <span className="flex-1" />
           {working ? (
             <button
@@ -793,11 +1044,28 @@ export function StudioOperatorPanel({
         </div>
         <div className="flex items-end gap-2">
           <textarea
+            ref={inputRef}
             data-testid="operator-input"
             value={draft}
             rows={1}
-            onChange={(event) => onDraftChange(event.target.value)}
+            /**
+             * ⚠ 每次变化都把草稿与**光标位置**喂给 `@` 解析（§3.3 第 1 行）：
+             * 只传文本的话，在一句话中间回头补一个 `@` 时会去匹配句尾那个 ——
+             * 表现是「选择器弹了，但选完插到了别的地方」。
+             */
+            onChange={(event) => {
+              onDraftChange(event.target.value)
+              mention.syncDraft(
+                event.target.value,
+                event.target.selectionStart ?? event.target.value.length,
+              )
+            }}
             onKeyDown={(event) => {
+              /**
+               * ⚠ 选择器开着时上下键 / 回车 / Esc **不归这里管**：它们由选择器挂在
+               * window 上的捕获监听吃掉（焦点必须留在输入框里，见那颗组件的头注）。
+               * 这里只处理「没开选择器时的回车 = 发送」。
+               */
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()
                 submit(draft)
@@ -821,7 +1089,11 @@ export function StudioOperatorPanel({
               upload.uploadFiles(files)
             }}
             placeholder={
-              working ? t('placeholderWorking') : t('placeholderIdle')
+              askFirst
+                ? t('placeholderAskFirst')
+                : working
+                  ? t('placeholderWorking')
+                  : t('placeholderIdle')
             }
             className="max-h-24 min-h-9 flex-1 resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-xs outline-none transition-colors duration-(--duration-fast) ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
           />
@@ -857,6 +1129,21 @@ export function StudioOperatorPanel({
             )}
           </button>
         </div>
+
+        {/* ── `@` 选择器（§3.3 第 1 行）—— 就地弹在输入区上方 ────────
+            ⚠ 定位锚是输入区自己（`relative`），⛔ 不用 portal：面板是 `fixed`
+              的覆盖层，portal 出去之后它会跟着页面滚而不是跟着面板。 */}
+        {mention.trigger ? (
+          <StudioOperatorMentionPicker
+            query={mention.trigger.query}
+            recent={resultItems.map((item, index) => toResultChip(item, index))}
+            onPick={(attachment) => {
+              onDraftChange(mention.pick(draft, attachment))
+              inputRef.current?.focus()
+            }}
+            onDismiss={mention.closePicker}
+          />
+        ) : null}
       </div>
 
       {attachOpen ? (

@@ -6975,6 +6975,8 @@
       "interrupted": "你插话了 —— 助手已转向",
       "revertRound": "你还原了这一轮的 {count} 处改动（助手已知晓）",
       "resultArrived": "它备的那一张回来了 —— 助手正在看",
+      "queuePicked": "停顿点到了 —— 接住你排的 {count} 句",
+      "queueDropped": "你撤回了排着的那句：{subject}",
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
       "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来"
     },
@@ -7032,6 +7034,40 @@
       "borrowed": "你选的模型看不了图，这一轮借了别的模型来看",
       "revertRound": "还原这轮（{count} 处）",
       "nextRound": "已预填下一轮："
+    },
+    "askFirst": {
+      "label": "先问我",
+      "hint": "本轮先出计划卡，等你确认再动手"
+    },
+    "placeholderAskFirst": "说一句你想要什么 —— 本轮先出计划卡",
+    "queue": {
+      "badge": "已排队",
+      "hint": "下一个停顿点处理",
+      "cancel": "撤回"
+    },
+    "mention": {
+      "pickerLabel": "挑一张给助手看",
+      "recent": "最近生成",
+      "library": "素材库",
+      "empty": "没找到 —— 接着打字试试",
+      "remove": "去掉这个引用",
+      "count": "将看 {count} 张",
+      "countWarn": "将看 {count} 张 · 超过 {limit} 张可能不准"
+    },
+    "result": {
+      "title": "结果 · {count} 张",
+      "select": "选中结果 {ordinal}",
+      "ask": "问助手",
+      "zoom": "放大",
+      "selected": "已选 {ordinal}",
+      "unselected": "未选定",
+      "continue": "按这张继续",
+      "continuePrefill": "按这张继续：",
+      "chipLabel": "结果 {ordinal}"
+    },
+    "choice": {
+      "title": "你说的是哪一张？",
+      "resolved": "已选定"
     },
     "error": {
       "generic": "助手这一轮没跑完"

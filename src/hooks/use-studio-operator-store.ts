@@ -29,6 +29,7 @@ import type {
   StudioOperatorAttachment,
   StudioOperatorChange,
   StudioOperatorConfirm,
+  StudioOperatorQueuedMessage,
   StudioOperatorStatus,
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
@@ -92,6 +93,43 @@ export interface StudioOperatorState {
   plannedSteps: number
   /** 这一轮失败了的话，说了什么。 */
   errorText: string | null
+  /**
+   * 排着队、还没发出去的那些话（§3.1 ㉒，本片）。
+   *
+   * ⭐ **住在 store 不住在面板**：面板会被收放法则（拍板 7）随时卸载，而排队条
+   * 的整个意义是「你说的话没丢，下一个停顿点就处理」—— 收一下面板它就丢了的话，
+   * 这条承诺是假的。同时驱动 hook 要在**事件处理器里同步读它**（`getOperatorState()`），
+   * 那正是这份 store 存在的理由（见 `getOperatorState` 头注）。
+   * ⚠ **跨域不分槽**：排队的是「用户说的话」，与他此刻站在哪台工作台无关。
+   */
+  queue: readonly StudioOperatorQueuedMessage[]
+  /**
+   * `@` 提及的那些图（§3.3 四入口共用的**同一条 chip 管线**）。
+   *
+   * ⚠ 类型就是附件类型，**不另立一个 mention 形状**：发送时它们与 📎 挂的那些
+   * 合成同一个数组送出去（`send(text, [...attachments, ...mentions])`），
+   * 服务端一个新字段都没有。分成两种形状的下场是下游要处处判「这是 @ 来的还是
+   * 📎 来的」，而对助手来说它们本来就是同一件事：这条消息附带的图。
+   * ⚠ 同样住在 store：它属于**还没发出去的那条消息**，与草稿同命（草稿今天住在
+   * dock 的 state 里 —— 本片不动 dock，chip 放这里反而更抗卸载）。
+   */
+  mentions: readonly StudioOperatorAttachment[]
+  /**
+   * 结果行卡上被点中的那一格（§4.2「结果行卡：未选 / 已选 / 被 @」）。
+   *
+   * ⚠ 存 id 不存整条：那一批的内容来自宿主的在飞回流，每次轮询都是新对象，
+   * 存整条会在下一次轮询后指向一份陈旧的记录。
+   */
+  selectedResultId: string | null
+  /**
+   * 「先问我」开关（§3.3 后两行）—— 本轮强制先出计划卡。
+   *
+   * ⚠ **本片只到状态为止**：真正「强制出卡」的那一半由计划卡片那一片接
+   * （客户端硬判在 §5 的流程图里）。⛔ 但开关不能因此做成假的 —— 它此刻就真的
+   * 在存值，接线那一片读它即可，形状一行不用改。
+   * ⚠ 跨域不分槽：它说的是「这个助手这一轮先问不问我」，与站在哪台工作台无关。
+   */
+  askFirst: boolean
 }
 
 const EMPTY_SLICE: StudioOperatorDomainSlice = {
@@ -116,6 +154,10 @@ const INITIAL_STATE: StudioOperatorState = {
   stepsDone: 0,
   plannedSteps: 0,
   errorText: null,
+  queue: [],
+  mentions: [],
+  selectedResultId: null,
+  askFirst: false,
 }
 
 /**
@@ -428,6 +470,80 @@ export function setOperatorPlannedSteps(plannedSteps: number): void {
   emit({ ...state, plannedSteps })
 }
 
+// ─── 排队（§3.1 ㉒–㉔）────────────────────────────────────────────
+//
+// ⭐ 本片把「插话」拆成了两件事：**排队**（默认，等下一个工具步边界）与
+// **⏹ Stop**（显式中断）。之前两件事共用 `send()` 的 abort，于是想补一句
+// 「顺便把比例改成 3:4」会把正在跑的三步整个掐掉重来 —— 用户付了三步的钱，
+// 看到的却是从头再跑一遍。
+
+export function enqueueOperatorMessage(
+  message: StudioOperatorQueuedMessage,
+): void {
+  emit({ ...state, queue: [...state.queue, message] })
+}
+
+/**
+ * 取走整队并清空 —— **取走即消费**。
+ *
+ * ⚠ 一次取整队而不是逐条：两条排在一起时用户的意思是「这两句一起说」，
+ * 逐条接住会让第二句再等一个工具步边界（而那一步可能永远不来）。
+ */
+export function takeOperatorQueue(): readonly StudioOperatorQueuedMessage[] {
+  const queue = state.queue
+  if (queue.length === 0) return queue
+  emit({ ...state, queue: [] })
+  return queue
+}
+
+/** 撤回一条（排队条上那颗「撤回」）—— 通报由调用方插系统行，这里只管队列。 */
+export function removeOperatorQueued(id: string): void {
+  if (!state.queue.some((item) => item.id === id)) return
+  emit({ ...state, queue: state.queue.filter((item) => item.id !== id) })
+}
+
+export function clearOperatorQueue(): void {
+  if (state.queue.length === 0) return
+  emit({ ...state, queue: [] })
+}
+
+// ─── @ chip（§3.3 / §7）──────────────────────────────────────────
+
+/**
+ * 加一枚 chip。
+ *
+ * ⚠ **按 id 去重**：四个入口（@ 选择器 / 结果卡「问助手」/ 拖图 / 歧义单选）
+ * 都可能指向同一张图，重复的 chip 会让「将看 N 张」多数一张，而助手那边看到的
+ * 还是一张 —— 界面上的数字与实际不符是本仓明令不许的那种失败。
+ */
+export function addOperatorMention(mention: StudioOperatorAttachment): void {
+  if (state.mentions.some((item) => item.id === mention.id)) return
+  emit({ ...state, mentions: [...state.mentions, mention] })
+}
+
+export function removeOperatorMention(id: string): void {
+  if (!state.mentions.some((item) => item.id === id)) return
+  emit({ ...state, mentions: state.mentions.filter((item) => item.id !== id) })
+}
+
+/** 发出去之后清空 —— chip 属于**那一条消息**，不是一直挂着的设置。 */
+export function clearOperatorMentions(): void {
+  if (state.mentions.length === 0) return
+  emit({ ...state, mentions: [] })
+}
+
+/** 结果行卡的选中格（§4.2）。⚠ 再点一次同一格 = 取消选中，由调用方传 `null`。 */
+export function setOperatorSelectedResult(id: string | null): void {
+  if (state.selectedResultId === id) return
+  emit({ ...state, selectedResultId: id })
+}
+
+/** 「先问我」（§3.3）—— 见 `askFirst` 头注：本片只存值，强制出卡是下一片。 */
+export function setOperatorAskFirst(askFirst: boolean): void {
+  if (state.askFirst === askFirst) return
+  emit({ ...state, askFirst })
+}
+
 /**
  * 记一笔改动。
  *
@@ -534,5 +650,11 @@ export function resetOperatorThread(): void {
     stepsDone: 0,
     plannedSteps: 0,
     errorText: null,
+    // ⚠ 队列跟着走：排的那几句是说给**上一条线程**听的，留到新话题里接住，
+    //   用户会看到助手回答一个他已经翻篇的问题。
+    queue: [],
+    selectedResultId: null,
+    // ⚠ `mentions` **不清**：它属于用户此刻正在写的那条消息（与草稿同命），
+    //   而「＋新对话」清的是已经说完的那些。顺手清掉 = 挂好的三张图凭空消失。
   })
 }

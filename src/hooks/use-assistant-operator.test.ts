@@ -1,8 +1,32 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ASSISTANT_OPERATOR_EVENTS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_STEP_STATUS_IDS,
+  ASSISTANT_OPERATOR_TOOL_IDS,
+} from '@/constants/assistant-operator'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
+
+/**
+ * 一步**跑完了**的 step 事件 —— 排队的接住点就取在这里（§3.1 ㉓）。
+ *
+ * ⚠ 用 `read_state`（读类工具）：它没有 op，`applyOperatorStep` 什么都不会写，
+ * 于是这份用例验的纯粹是「状态机在边界上怎么走」，⛔ 不会被表单侧的桩牵连。
+ */
+function doneStepEvent(id: string): AssistantOperatorEvent {
+  return {
+    type: ASSISTANT_OPERATOR_EVENTS.step,
+    step: {
+      id,
+      title: '读了一眼当前状态',
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      payload: {},
+      result: { digest: 'prompt: 海报' },
+    },
+  }
+}
 
 /**
  * 驱动 hook 的**四条收尾路径**（跑完 / 插话 / ⏹ / 真错误）。
@@ -192,7 +216,7 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     expect(store.getOperatorState().errorText).toBeNull()
   })
 
-  it('b) 干活时插话 → 旧 run 的 AbortError 不许把状态写成 error，新 run 照常收尾', async () => {
+  it('b) 干活时插话 → **排队**（不掐掉在飞的那一轮），到下一个工具步边界才接住', async () => {
     const { result } = render()
 
     act(() => {
@@ -202,26 +226,117 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     expect(streams).toHaveLength(1)
 
     act(() => {
-      result.current.send('等一下，改成夜景')
+      result.current.send('等一下，比例改成 3:4')
     })
     await settle()
 
-    // 插话确实换了一条流（abort + 带新消息重发，拍板 13）。
-    expect(streams).toHaveLength(2)
     /**
-     * ⭐ 这一条就是本次修复。没有 aborted 判据时：旧循环的 catch 在新一轮已经
-     * 置 `working` 之后写进 `error`，而收尾那句只在 `working` 时归 idle ——
-     * 新一轮跑完也擦不掉，胶囊永久红着。
+     * ⭐ 本片的改口（§3.1 ㉒）：插话**不再** abort 重发。
+     * 旧行为的代价是用户想补一句就把已经跑完的三步整个作废重跑一遍 ——
+     * 他付了三步的钱，看到的是同样三步再来一次。
      */
+    expect(streams).toHaveLength(1)
+    expect(store.getOperatorState().queue).toHaveLength(1)
+    expect(store.getOperatorState().queue[0]?.text).toBe('等一下，比例改成 3:4')
     expect(store.getOperatorState().status).toBe('working')
-    expect(store.getOperatorState().errorText).toBeNull()
+
+    // 一步跑完 = 停顿点（§3.1 ㉓）：这时才 abort + 带 priorSteps 重发。
+    streams[0].emit(doneStepEvent('step-1'))
+    await settle()
+
+    expect(streams).toHaveLength(2)
+    const state = store.getOperatorState()
+    expect(state.queue).toHaveLength(0)
+    // 线程里有交代：「停顿点 · 接住排队消息」，⛔ 不是悄悄接住。
+    expect(
+      state.entries.some(
+        (entry) => entry.kind === 'system' && entry.code === 'queuePicked',
+      ),
+    ).toBe(true)
+    // 排的那句真的进了对话（⛔ 不是只清了队列）。
+    expect(
+      state.entries.some(
+        (entry) =>
+          entry.kind === 'user' && entry.text === '等一下，比例改成 3:4',
+      ),
+    ).toBe(true)
+    // 已经跑完的那一步留在线程里 —— 它进 `priorSteps`，助手不会重做。
+    expect(state.entries.some((entry) => entry.kind === 'step')).toBe(true)
+    // 旧流的 AbortError 不许把状态写成 error（切片 A 那条回归闸照旧成立）。
+    expect(state.status).toBe('working')
+    expect(state.errorText).toBeNull()
 
     streams[1].emit({ type: ASSISTANT_OPERATOR_EVENTS.message, text: '好' })
     streams[1].close()
     await settle()
-
     expect(store.getOperatorState().status).toBe('idle')
     expect(store.getOperatorState().errorText).toBeNull()
+  })
+
+  it('b′) 撤回排队的那句 → 队列清掉、⛔ 不发请求，线程里留一行交代', async () => {
+    const { result } = render()
+
+    act(() => {
+      result.current.send('画一张海报')
+    })
+    await settle()
+    act(() => {
+      result.current.send('顺便配个音')
+    })
+    await settle()
+
+    const queued = store.getOperatorState().queue[0]
+    expect(queued).toBeTruthy()
+
+    act(() => {
+      result.current.cancelQueued(queued!.id)
+    })
+    await settle()
+
+    const state = store.getOperatorState()
+    expect(state.queue).toHaveLength(0)
+    // ⛔ 撤回不该起新一轮。
+    expect(streams).toHaveLength(1)
+    expect(
+      state.entries.some(
+        (entry) => entry.kind === 'system' && entry.code === 'queueDropped',
+      ),
+    ).toBe(true)
+    // ⛔ 那句话没有进对话（它从来没被发出去）。
+    expect(
+      state.entries.some(
+        (entry) => entry.kind === 'user' && entry.text === '顺便配个音',
+      ),
+    ).toBe(false)
+
+    // 撤回之后停顿点到了也不该冒出第二条流。
+    streams[0].emit(doneStepEvent('step-1'))
+    await settle()
+    expect(streams).toHaveLength(1)
+  })
+
+  it('b″) ⏹ 把队列一起清掉 —— ⛔ 停了之后不许它自己又接着跑排队的那句', async () => {
+    const { result } = render()
+
+    act(() => {
+      result.current.send('画一张海报')
+    })
+    await settle()
+    act(() => {
+      result.current.send('再来个夜景版')
+    })
+    await settle()
+    expect(store.getOperatorState().queue).toHaveLength(1)
+
+    act(() => {
+      result.current.stop()
+    })
+    await settle()
+
+    expect(store.getOperatorState().queue).toHaveLength(0)
+    expect(store.getOperatorState().status).toBe('idle')
+    // ⏹ 之后只该有那一条被掐掉的流。
+    expect(streams).toHaveLength(1)
   })
 
   it('c) ⏹ → idle + 一行系统行，且计划数清零（胶囊不再挂着上一轮的 3/7）', async () => {

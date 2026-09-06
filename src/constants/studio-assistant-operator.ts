@@ -189,6 +189,17 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'resultArrived',
   'stopped',
   'interrupted',
+  /**
+   * 排队的那句在**工具步边界**被接住了（§3.1 ㉓，本片）。
+   *
+   * ⚠ 与 `interrupted` 是**两件事**，⛔ 别合成一条：`interrupted` 说的是
+   * 「你插话了，助手立刻转向」（本片之前 `send()` 的旧语义），而这一条说的是
+   * 「在飞的那一步跑完了，你排的那句现在才进队」—— 用户等的就是这个交代，
+   * 少了它排队条淡出之后什么都没发生过。
+   */
+  'queuePicked',
+  /** 排队条上点了「撤回」（§3.1 ㉔）—— 那句话丢了，得说一声。 */
+  'queueDropped',
   'urlImportFailed',
   /**
    * 挂 LoRA 那一跳没成（P4-C）：作者关掉了下载、导入报错、或挂载栈拒了。
@@ -240,6 +251,15 @@ export const STUDIO_OPERATOR_SHELL = {
   progressBandHeightPx: 40,
   /** 面板 fixed 的 top/right/bottom（§11.1）。 */
   insetPx: 24,
+  /**
+   * 宽档的门槛（§11.1「≥700（`.wide`）时结果网格 2 列 → 4 列」）。
+   *
+   * ⚠ 它是**容器查询**的门槛不是视口断点：面板宽度是用户拖出来的（420–860），
+   * 视口断点在这里说不了话。落地写成 `@container` + `@min-[700px]:`，这个常量
+   * 是那串类名里那个数唯一的家 —— 组件与用例读同一个数（`StudioOperatorResultRow`
+   * 的用例就按它断言类名），⛔ 不是让组件去算 style。
+   */
+  wideAtPx: 700,
 } as const
 
 /**
@@ -287,3 +307,36 @@ export const STUDIO_OPERATOR_RAIL_TONES = {
 
 export type StudioOperatorRailTone =
   (typeof STUDIO_OPERATOR_RAIL_TONES)[keyof typeof STUDIO_OPERATOR_RAIL_TONES]
+
+/**
+ * `@` 提及选择器（§3.3 / §7 的四入口）。
+ *
+ * ⚠ `warnAboveCount` 是**提示线不是闸**（owner 2026-09-06 定「看图上限：不设硬
+ * 上限」）：超过它只把计数转 warning 并加一句「超 8 张可能不准」，⛔ 不拦截、
+ * ⛔ 不软截断。原型阶段那句「只细看前 8 张」已作废 —— 悄悄少看几张是本仓最
+ * 讨厌的那种失败（界面说看了 12 张，实际看了 8 张）。
+ * ⚠ `trigger` 单独列出来是因为解析（hook）与占位语（组件）读的必须是同一个字符。
+ */
+export const STUDIO_OPERATOR_MENTION = {
+  trigger: '@',
+  /** 选择器上半「最近生成」最多列几条。 */
+  recentCount: 6,
+  /** 下半素材库搜索一次取几条（走现有 `fetchGalleryImages`，⛔ 不新建 route）。 */
+  searchLimit: 12,
+  /** 打字到发请求之间等多久 —— 每个字符发一次请求是把库搜成一次 DDoS。 */
+  searchDebounceMs: 250,
+  /** 超过这么多张就把 chip 区计数转 warning（见上：只提示，不拦）。 */
+  warnAboveCount: 8,
+} as const
+
+/**
+ * 结果行卡的入场 stagger（§11.5：30ms，最多前 12 项）。
+ *
+ * ⚠ 单位是**秒**（motion 的 `delay` 收秒），与 `STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS`
+ * 同一条理由。⚠ 封顶 12 项：一批 20 张时第 20 张要等 600ms 才出现，而那时用户
+ * 已经在看第一张了 —— `ui-defaults.md §4` 的那条封顶就是为这个。
+ */
+export const STUDIO_OPERATOR_RESULT_STAGGER = {
+  stepSeconds: 0.03,
+  maxItems: 12,
+} as const

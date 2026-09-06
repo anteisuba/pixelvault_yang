@@ -19,6 +19,18 @@
  * 服务端没有会话态：`confirm_request` 之后流就结束，续跑 = 带 `confirmations`
  * 重发；插话 = abort + 带新消息重发。所以这里只需要一个 `AbortController` 和一份
  * 「刚才做过什么」（从线程条目现算，见 `buildPriorSteps`）。
+ *
+ * ── ⭐ 本片（切片 2b）：**排队 ≠ Stop**（§3.1 ㉒–㉕）───────────────
+ * 拍板 13 的「插话即转向」此前落成了「`send()` 干活时直接 abort 重发」，代价是
+ * 用户想补一句「顺便把比例改成 3:4」会把正在跑的三步整个掐掉从头再来 —— 他付了
+ * 三步的钱，看到的是同样三步再跑一遍。现在拆成两件事：
+ *  · **排队**（默认）—— 消息进 `state.queue`，输入框上方出排队条；到**下一个
+ *    工具步跑完**的那个停顿点才 abort + 带 `priorSteps` 重发。已经跑完的步在
+ *    `priorSteps` 里，所以助手不会重做它们（服务端仍然零会话态，一行没改）。
+ *  · **⏹ Stop**（显式）—— 才是中断：abort、清计划数、清队列、插一行系统行。
+ * ⚠ 停顿点取的是「一步**跑完**」而不是「一步开始」：`running` 的步会被
+ * `buildPriorSteps` 跳过（它还没有结论），在那一刻掐掉等于把这一步的工作丢了，
+ * 而助手下一轮会把它原样再做一遍。
  */
 
 import { useCallback, useEffect, useRef } from 'react'
@@ -38,16 +50,20 @@ import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
   appendOperatorEntry,
+  clearOperatorQueue,
+  enqueueOperatorMessage,
   getOperatorState,
   nextOperatorEntryId,
   operatorStepEntryId,
   recordOperatorChange,
   registerOperatorRunner,
+  removeOperatorQueued,
   resetOperatorThread,
   setOperatorConfirm,
   setOperatorPlannedSteps,
   setOperatorStatus,
   switchOperatorDomain,
+  takeOperatorQueue,
   upsertOperatorStep,
 } from '@/hooks/use-studio-operator-store'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
@@ -143,9 +159,17 @@ export interface UseAssistantOperatorResult {
   domain: AssistantOperatorDomain
   /** 助手实际会用哪个模型说话（chip 上写的那个）—— null = 自动路由。 */
   routeModelId: string | undefined
+  /**
+   * 说一句。
+   *
+   * ⚠ **干活时不再 abort**（本片改口）：那一句进队列，等下一个工具步边界。
+   * 排队条上的「撤回」走 `cancelQueued`，真要掐掉走 `stop()`。
+   */
   send(text: string, attachments?: readonly StudioOperatorAttachment[]): void
-  /** ⏹ —— 彻底叫停（拍板 13）。 */
+  /** ⏹ —— 彻底叫停（拍板 13）。**连队列一起清**：叫停的是「接下来的一切」。 */
   stop(): void
+  /** 撤回一条还没轮到的排队消息（§3.1 ㉔）—— 丢弃不发，线程里留一行交代。 */
+  cancelQueued(id: string): void
   /** 就地确认的三选一（拍板 3）：追加在后 / 覆盖 / 保留。 */
   answerConfirm(choice: AssistantOperatorConfirmChoice): void
   /**
@@ -208,6 +232,54 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     if (getOperatorState().status !== 'idle') setOperatorStatus('idle')
     switchOperatorDomain(domain)
   }, [domain])
+
+  /**
+   * 「再跑一轮」的自引用口。
+   *
+   * ⚠ 走 latest-ref 而不是在 `run` 里直接调 `run`：那样 `useCallback` 的依赖表
+   * 里要写它自己，是个解不开的环。停顿点接住排队消息之后要立刻起下一轮，
+   * 而那一刻正在 `run` 的 `for await` 里。
+   */
+  const runRef = useRef<
+    ((confirmations?: AssistantOperatorConfirmDecision[]) => void) | null
+  >(null)
+
+  /**
+   * 把排着的那些话接进线程（§3.1 ㉓）—— 返回「有没有接到」。
+   *
+   * ⭐ **一次接整队**：两句排在一起时用户的意思是「这两句一起说」，逐条接会让
+   * 第二句再等一个停顿点（而那一步可能永远不来）。
+   * ⚠ 先插一行系统行再插用户消息，顺序就是用户读到的顺序：「停顿点到了」→
+   * 「你说的那句」。⛔ 反过来的话线程里会先冒出一句没头没脑的用户消息。
+   */
+  const flushQueue = useCallback((): boolean => {
+    const queued = takeOperatorQueue()
+    if (queued.length === 0) return false
+    // 用户开口了 —— 那张待评的图不再随每一轮上传（同 `send()` 的理由）。
+    pendingResultRef.current = null
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      code: 'queuePicked',
+      count: queued.length,
+    })
+    for (const item of queued) {
+      appendOperatorEntry({
+        kind: 'user',
+        id: nextOperatorEntryId('user'),
+        text: item.text,
+        attachments: item.attachments,
+      })
+    }
+    /**
+     * 进度带的总步数当场 +N（§3.1 ㉓「进度带总步数 +1」）。
+     * ⚠ 它只活到下一帧 `plan` 事件到达 —— 那一帧会用新计划的真步数整体覆盖。
+     *   这里给的是**即时反馈**：不加的话，用户点完撤回/等到停顿点，进度带上
+     *   什么都没变，看起来像排队条白排了。
+     */
+    setOperatorPlannedSteps(getOperatorState().plannedSteps + queued.length)
+    return true
+  }, [])
 
   /**
    * 跑一轮。
@@ -319,6 +391,27 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   })
                 }
               }
+              /**
+               * ⭐ **停顿点**（§3.1 ㉓）：这一步有结论了，排着的话现在接住。
+               *
+               * ⚠ 判据是「不是 `running`」而不是「是 `done`」：被拒的那一步
+               * （`error`）同样是一个结论，它也进 `priorSteps`，在那儿停下来
+               * 一样安全。只认 `done` 的话，一轮里全是被拒的步时排队条会一直
+               * 挂着不动。
+               * ⚠ 顺序：先 abort 掉这条流（下面 `run()` 自己也会 abort，但那要
+               * 等到它执行；这里先断，才不会有半个事件在两条流之间穿过去），
+               * 再接队、再起新一轮。本函数就此返回 —— 旧流的 `AbortError` 由
+               * 下面那个 catch 的 `aborted` 判据吞掉。
+               */
+              if (
+                step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running &&
+                getOperatorState().queue.length > 0
+              ) {
+                controller.abort()
+                flushQueue()
+                runRef.current?.()
+                return
+              }
               break
             }
             case ASSISTANT_OPERATOR_EVENTS.confirmRequest:
@@ -358,24 +451,60 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       if (controller.signal.aborted) return
       // `done` 之后没有别的收尾 —— 状态没被 `stopped` / `error` 改过就是跑完了。
       if (getOperatorState().status === 'working') setOperatorStatus('idle')
+      /**
+       * 一步都没跑就收尾的那种轮次（纯说话、或最后一步之后才排上队）——
+       * 停顿点没来过，队列会在这里被接住。
+       * ⛔ `awaitingConfirm` / `error` 时**不接**：前者要用户先回答（接了等于替他
+       * 跳过那个问题），后者接了会把错误态擦掉而用户还没看见发生过什么。
+       * 队列留着，排队条还挂在输入框上方 —— 下一次 `send()` / 续跑会带上它。
+       */
+      if (getOperatorState().status === 'idle' && flushQueue()) {
+        runRef.current?.()
+      }
     },
     [
       applyContext,
       buildSnapshot,
       domain,
+      flushQueue,
       locale,
       route.apiKeyId,
       route.modelId,
     ],
   )
 
+  // 自引用口挂上（见 `runRef` 头注）。⚠ 同步写在 effect 里，⛔ 不在 render 阶段
+  //    改 ref（`react-hooks/refs` 会拦）。
+  useEffect(() => {
+    runRef.current = (confirmations) => {
+      void run(confirmations)
+    }
+    return () => {
+      runRef.current = null
+    }
+  }, [run])
+
   const send = useCallback(
     (text: string, attachments: readonly StudioOperatorAttachment[] = []) => {
       const trimmed = text.trim()
       if (!trimmed) return
-      // 拍板 13「插话即转向」：干活时发送 = abort 当前流 + 带上新消息重发。
-      // 一条机制两个用途 —— 这也是为什么没有单独的「插话」按钮。
-      abortRef.current?.abort()
+      /**
+       * ⭐ **干活时进队列，⛔ 不再 abort**（本片改口，见文件头注）。
+       * 排队条随即出现在输入框上方，接住发生在下一个工具步跑完的那一刻。
+       */
+      if (getOperatorState().status === 'working') {
+        enqueueOperatorMessage({
+          id: nextOperatorEntryId('queued'),
+          text: trimmed,
+          attachments,
+        })
+        return
+      }
+      // 没在跑：直接说。
+      // ⚠ 先把队里可能剩下的接掉（上一轮以 error / awaitingConfirm 收尾时会剩），
+      //   ⛔ 别让它们变成永远不会被发出去的孤儿 —— 排队条挂着而没有任何东西会
+      //   来处理它，正是本仓最讨厌的那种失败。
+      flushQueue()
       // 用户开口了：那张刚评过的图不再随每一轮上传（见 `pendingResultRef` 头注）。
       pendingResultRef.current = null
       appendOperatorEntry({
@@ -386,8 +515,26 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       })
       void run()
     },
-    [run],
+    [flushQueue, run],
   )
+
+  /**
+   * 撤回一条还没轮到的排队消息（§3.1 ㉔）。
+   *
+   * ⚠ 线程里**要留一行**：排队条淡出而什么都没说，用户下一秒就会怀疑自己到底
+   * 撤没撤掉（而这句话本来是要花钱的）。
+   */
+  const cancelQueued = useCallback((id: string) => {
+    const target = getOperatorState().queue.find((item) => item.id === id)
+    if (!target) return
+    removeOperatorQueued(id)
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      code: 'queueDropped',
+      subject: target.text.slice(0, ASSISTANT_OPERATOR_LIMITS.maxTitleChars),
+    })
+  }, [])
 
   const stop = useCallback(() => {
     abortRef.current?.abort()
@@ -396,6 +543,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     // ⚠ 计划数也得清：胶囊上那个 `3/7` 的分母来自上一轮的计划条，不清的表现是
     //    按了 ⏹ 之后胶囊继续挂着「还有四步没跑」，而根本不会再有那四步。
     setOperatorPlannedSteps(0)
+    /**
+     * ⭐ **队列一起清**（本片）：⏹ 说的是「接下来的一切都别做了」。留着队列的
+     * 表现是按了停止、一秒后助手又自己动起来去处理排着的那句 —— 而那正是用户
+     * 刚刚明确叫停的东西。
+     */
+    clearOperatorQueue()
     appendOperatorEntry({
       kind: 'system',
       id: nextOperatorEntryId('sys'),
@@ -474,6 +627,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     routeModelId: route.modelId,
     send,
     stop,
+    cancelQueued,
     answerConfirm,
     critique,
     newThread,

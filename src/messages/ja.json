@@ -6975,6 +6975,8 @@
       "interrupted": "割り込みました —— 方向を変えます",
       "revertRound": "このラウンドの変更 {count} 件を元に戻しました（アシスタントは把握済み）",
       "resultArrived": "用意した一枚が返ってきました —— アシスタントが見ています",
+      "queuePicked": "区切りです —— 並べておいた {count} 件を受け取りました",
+      "queueDropped": "並んでいたメッセージを取り消しました：{subject}",
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
       "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）"
     },
@@ -7032,6 +7034,40 @@
       "borrowed": "選択中のモデルは画像を見られないため、今回は別のモデルを借りて見ました",
       "revertRound": "このラウンドを元に戻す（{count} 件）",
       "nextRound": "次のラウンドに先入力："
+    },
+    "askFirst": {
+      "label": "先に聞いて",
+      "hint": "このラウンドはまず計画カードを出します"
+    },
+    "placeholderAskFirst": "やりたいことをどうぞ —— このラウンドはまず計画カードを出します",
+    "queue": {
+      "badge": "順番待ち",
+      "hint": "次の区切りで処理します",
+      "cancel": "取り消す"
+    },
+    "mention": {
+      "pickerLabel": "アシスタントに見せるものを選ぶ",
+      "recent": "最近の生成",
+      "library": "ライブラリ",
+      "empty": "見つかりません —— そのまま入力してください",
+      "remove": "この参照を外す",
+      "count": "{count} 枚を見ます",
+      "countWarn": "{count} 枚を見ます · {limit} 枚を超えると精度が落ちます"
+    },
+    "result": {
+      "title": "結果 · {count} 枚",
+      "select": "結果 {ordinal} を選ぶ",
+      "ask": "これについて聞く",
+      "zoom": "拡大",
+      "selected": "{ordinal} を選択中",
+      "unselected": "未選択",
+      "continue": "これで続ける",
+      "continuePrefill": "これで続けて：",
+      "chipLabel": "結果 {ordinal}"
+    },
+    "choice": {
+      "title": "どれのことですか？",
+      "resolved": "選びました"
     },
     "error": {
       "generic": "今回のラウンドは最後まで走りませんでした"

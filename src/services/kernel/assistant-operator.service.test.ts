@@ -392,6 +392,36 @@ describe('工具环 · 逐事件顺序', () => {
     expect(done.inverse).toEqual({ value: '' })
   })
 
+  it('⭐ message 带可折叠的 detail；⛔ 没有正文时不发一颗空气泡', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'a girl under a red umbrella' },
+        },
+        message: '提示词写好了，下一步挂参考图。',
+        detail: '红伞是画面里唯一的暖色，所以其余部分压成冷调，反差才立得住。',
+      },
+      { finished: true },
+    )
+    const withDetail = (
+      await collect(runAssistantOperator('clerk-1', buildRequest()))
+    ).find((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message) as
+      | Extract<AssistantOperatorEvent, { type: 'message' }>
+      | undefined
+    expect(withDetail?.text).toBe('提示词写好了，下一步挂参考图。')
+    expect(withDetail?.detail).toBe(
+      '红伞是画面里唯一的暖色，所以其余部分压成冷调，反差才立得住。',
+    )
+
+    // ⛔ 只有 detail 没有正文 = 一颗点开才有东西的空气泡，整帧不发。
+    queueTurns({ detail: '想了很多，但没有结论。' }, { finished: true })
+    const detailOnly = (
+      await collect(runAssistantOperator('clerk-1', buildRequest()))
+    ).filter((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
+    expect(detailOnly).toEqual([])
+  })
+
   it('⭐ 连改两次时，第二次的 inverse 撤回到第一次写完之后的值', async () => {
     queueTurns(
       {
@@ -515,17 +545,20 @@ describe('工具环 · 逐事件顺序', () => {
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
   })
 
-  it('反馈待定项缺失的字段，让合法 JSON 的结构错误能在下一轮修正', async () => {
-    const pending = {
-      options: [{ label: '3D 游戏画风' }, { label: '电影 CG' }],
+  it('反馈反问题缺失的字段，让合法 JSON 的结构错误能在下一轮修正', async () => {
+    const question = {
+      options: [
+        { label: '3D 游戏画风', description: '引擎质感，接近官方立绘。' },
+        { label: '电影 CG', description: '景深与噪点更重，像预告片。' },
+      ],
     }
     mockLlmTextCompletion.mockImplementation(async ({ userPrompt }) =>
       JSON.stringify({
         plan: ['确定画风'],
-        pending: [
-          userPrompt.includes('pending.0.label')
-            ? { ...pending, label: '选择画风' }
-            : pending,
+        questions: [
+          userPrompt.includes('questions.0.question')
+            ? { ...question, question: '要哪种画风？' }
+            : question,
         ],
         finished: true,
       }),
@@ -538,7 +571,7 @@ describe('工具环 · 逐事件顺序', () => {
     expect(events).toContainEqual(
       expect.objectContaining({
         type: ASSISTANT_OPERATOR_EVENTS.planRequest,
-        pending: [expect.objectContaining({ label: '选择画风' })],
+        questions: [expect.objectContaining({ question: '要哪种画风？' })],
       }),
     )
     expect(stepsOf(events)).toHaveLength(0)
@@ -3517,14 +3550,22 @@ describe('目标模型的提示词方言进系统提示', () => {
 // ─── persona 风格段（§8.5）与项目规则段（§10）────────────────────
 
 describe('persona 风格段', () => {
-  it('默认 persona 不改开场白，只印长度那一句', async () => {
+  it('⭐ 默认 persona = 简短直接 · 简洁：风格段是「结论一句 + 下一步一句」', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
     const prompt = systemPrompt()
     expect(prompt).toContain("You are PixelVault's workbench operator.")
-    // standard 档 = 2–4 句
-    expect(prompt).toContain('Answer in 2–4 sentences.')
+    // terse 档（默认）
+    expect(prompt).toContain('Be terse.')
+    // concise 档（默认）——**两句各自的职责**，理由指到 detail 去。
+    expect(prompt).toContain(
+      'Two sentences: what you concluded, then what happens next.',
+    )
+    expect(prompt).toContain('Reasoning goes in "detail", never in "message".')
+    // ⛔ 换掉的那两句一个字都不该再出现。
+    expect(prompt).not.toContain('Answer in 2–4 sentences.')
+    expect(prompt).not.toContain('Keep it professional and even')
     // auto 档什么都不写 —— 那就是今天的行为
     expect(prompt).not.toContain('Always open with a plan card')
     expect(prompt).not.toContain('Skip the plan unless')
@@ -3545,9 +3586,9 @@ describe('persona 风格段', () => {
     expect(prompt).toContain('WHAT THIS DOMAIN TURNS ON')
   })
 
-  it('长度三档各自映射成字数区间，⛔ 不给无边界形容词', async () => {
+  it('长度三档各自映射成句数区间，⛔ 不给无边界形容词', async () => {
     for (const [verbosity, expected] of [
-      [ASSISTANT_PERSONA_VERBOSITY_IDS.concise, 'Answer in under 2 sentences.'],
+      [ASSISTANT_PERSONA_VERBOSITY_IDS.standard, 'Answer in 2–4 sentences.'],
       [
         ASSISTANT_PERSONA_VERBOSITY_IDS.detailed,
         'Answer in up to 6 sentences.',
@@ -3612,12 +3653,9 @@ describe('persona 风格段', () => {
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
     const prompt = systemPrompt()
-    expect(prompt.indexOf('HOW YOU TALK')).toBeLessThan(
-      prompt.indexOf('Answer in 2–4 sentences.'),
-    )
-    expect(prompt.indexOf('Answer in 2–4 sentences.')).toBeLessThan(
-      prompt.indexOf('TOOLS:'),
-    )
+    const style = 'Two sentences: what you concluded, then what happens next.'
+    expect(prompt.indexOf('HOW YOU TALK')).toBeLessThan(prompt.indexOf(style))
+    expect(prompt.indexOf(style)).toBeLessThan(prompt.indexOf('TOOLS:'))
   })
 })
 
@@ -3811,17 +3849,26 @@ describe('计划卡协议 · plan_request', () => {
     )
   })
 
-  it('待定项带 id、图示与预估；词表外的 visual 被剥掉而整轮照跑', async () => {
+  it('反问题带 id、图示与预估；词表外的 visual 被剥掉而整轮照跑', async () => {
     queueTurns(
       {
         plan: ['定构图', '写提示词'],
-        pending: [
+        questions: [
           {
-            label: '取多少身？',
+            header: '取景',
+            question: '取多少身？',
             options: [
-              { label: '半身', visual: 'comp.halfBody' },
+              {
+                label: '半身',
+                description: '腰以上，脸看得清。',
+                visual: 'comp.halfBody',
+              },
               // ⛔ 词表外的 id —— 剥掉那个图示，⛔ 不作废这一轮。
-              { label: '全身', visual: 'comp.wholeThing' },
+              {
+                label: '全身',
+                description: '连鞋一起，服装看得全。',
+                visual: 'comp.wholeThing',
+              },
             ],
           },
         ],
@@ -3848,12 +3895,20 @@ describe('计划卡协议 · plan_request', () => {
       { id: 'plan-1', label: '定构图' },
       { id: 'plan-2', label: '写提示词' },
     ])
-    expect(frame.pending).toHaveLength(1)
-    expect(frame.pending[0]?.id).toBe('pending-1')
-    expect(frame.pending[0]?.kind).toBe('single')
-    expect(frame.pending[0]?.options[0]?.visual).toBe('comp.halfBody')
+    expect(frame.questions).toHaveLength(1)
+    expect(frame.questions[0]?.id).toBe('question-1')
+    expect(frame.questions[0]?.header).toBe('取景')
+    expect(frame.questions[0]?.question).toBe('取多少身？')
+    // ⚠ 两个开关都**显式**落地：⛔ 客户端不许靠选项个数猜。
+    expect(frame.questions[0]?.multiSelect).toBe(false)
+    // ⚠ `allowOther` 缺省 true —— 留一句「都不是」的出口是常态。
+    expect(frame.questions[0]?.allowOther).toBe(true)
+    expect(frame.questions[0]?.options[0]?.visual).toBe('comp.halfBody')
+    expect(frame.questions[0]?.options[0]?.description).toBe(
+      '腰以上，脸看得清。',
+    )
     // 剥掉的那个：选项还在（文字选得动），只是没有图示。
-    expect(frame.pending[0]?.options[1]?.visual).toBeUndefined()
+    expect(frame.questions[0]?.options[1]?.visual).toBeUndefined()
     // 预估从快照现算 —— 模型给不出，也不许它给。
     expect(frame.estimate.model).toBe('Seedream 4')
     expect(frame.estimate.count).toBe(1)
@@ -3861,11 +3916,22 @@ describe('计划卡协议 · plan_request', () => {
     expect(frame.reason).toBe('multi-step')
   })
 
-  it('只剩一个选项的待定项整条丢掉（一个选项的单选是通知不是问题）', async () => {
+  it('⭐ 没有 description 的选项整条丢掉（只有名字的 chip 正是这轮要消灭的形状）', async () => {
     queueTurns(
       {
         plan: ['写提示词'],
-        pending: [{ label: '要不要加雨？', options: [{ label: '加' }] }],
+        questions: [
+          {
+            header: '风格',
+            question: '要哪种画风？',
+            options: [
+              { label: '3D 游戏渲染', description: '接近官方立绘的引擎质感。' },
+              // ⛔ 没有说明 —— 用户看着它答不上来「它跟上一个差在哪」。
+              { label: '风格化 3D' },
+              { label: '厚涂', description: '笔触留得住，像插画。' },
+            ],
+          },
+        ],
       },
       { finished: true },
     )
@@ -3875,7 +3941,105 @@ describe('计划卡协议 · plan_request', () => {
     const frame = events.find(
       (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
     ) as Extract<AssistantOperatorEvent, { type: 'plan_request' }>
-    expect(frame.pending).toEqual([])
+    expect(frame.questions[0]?.options.map((option) => option.label)).toEqual([
+      '3D 游戏渲染',
+      '厚涂',
+    ])
+  })
+
+  it('⭐ 推荐项排第一，且一题只留一个；multiSelect / allowOther 照模型写的落', async () => {
+    queueTurns(
+      {
+        plan: ['写提示词'],
+        questions: [
+          {
+            header: '风格',
+            question: '要哪种画风？',
+            multiSelect: true,
+            allowOther: false,
+            options: [
+              { label: '厚涂', description: '笔触留得住，像插画。' },
+              {
+                label: '3D 游戏渲染',
+                description: '接近官方立绘的引擎质感。',
+                recommended: true,
+              },
+              // ⛔ 第二个「推荐」—— 剥掉标记，选项本身留着。
+              {
+                label: '赛璐璐',
+                description: '平涂硬边，接近动画分镜。',
+                recommended: true,
+              },
+            ],
+          },
+        ],
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const question = (
+      events.find(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
+      ) as Extract<AssistantOperatorEvent, { type: 'plan_request' }>
+    ).questions[0]
+    expect(question?.multiSelect).toBe(true)
+    expect(question?.allowOther).toBe(false)
+    expect(question?.options[0]?.label).toBe('3D 游戏渲染')
+    expect(question?.options[0]?.recommended).toBe(true)
+    expect(
+      question?.options.filter((option) => option.recommended === true),
+    ).toHaveLength(1)
+  })
+
+  it('只剩一个选项的反问题整道丢掉（一个选项的单选是通知不是问题）', async () => {
+    queueTurns(
+      {
+        plan: ['写提示词'],
+        questions: [
+          {
+            header: '下雨',
+            question: '要不要加雨？',
+            options: [{ label: '加', description: '地面留反光。' }],
+          },
+        ],
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const frame = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
+    ) as Extract<AssistantOperatorEvent, { type: 'plan_request' }>
+    expect(frame.questions).toEqual([])
+  })
+
+  it('⭐ header 漏了就从问句头上截，⛔ 不留空', async () => {
+    queueTurns(
+      {
+        plan: ['写提示词'],
+        questions: [
+          {
+            question: '要不要把背景换成雨夜的街道？',
+            options: [
+              { label: '换', description: '霓虹反光，气氛更重。' },
+              { label: '不换', description: '保留现在这张的干净背景。' },
+            ],
+          },
+        ],
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const frame = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
+    ) as Extract<AssistantOperatorEvent, { type: 'plan_request' }>
+    expect(frame.questions[0]?.header).toBe('要不要把背景换成雨夜的…')
+    expect(frame.questions[0]?.header.length).toBeLessThanOrEqual(12)
   })
 
   it('「先问我」开着时理由是 user-requested；备生成键那一轮是 spend', async () => {
@@ -3920,13 +4084,15 @@ describe('计划卡协议 · plan_request', () => {
         'clerk-1',
         buildRequest({
           planApproved: false,
-          planAnswers: [{ pendingId: 'pending-1', optionId: 'option-1-2' }],
+          planAnswers: [
+            { questionId: 'question-1', optionIds: ['option-1-2'] },
+          ],
         }),
       ),
     )
     const prompt = lastUserPrompt()
     expect(prompt).toContain('WANTS A DIFFERENT PLAN')
-    expect(prompt).toContain('pending-1: option-1-2')
+    expect(prompt).toContain('question-1: option-1-2')
   })
 
   it('planApproved=true 时答复是既定事实，⛔ 不要求重新规划', async () => {
@@ -3936,13 +4102,22 @@ describe('计划卡协议 · plan_request', () => {
         'clerk-1',
         buildRequest({
           planApproved: true,
-          planAnswers: [{ pendingId: 'pending-1', optionId: 'option-1-1' }],
+          planAnswers: [
+            {
+              questionId: 'question-1',
+              optionIds: ['option-1-1', 'option-1-3'],
+              otherText: '再暗一点',
+            },
+          ],
         }),
       ),
     )
     const prompt = lastUserPrompt()
     expect(prompt).toContain('APPROVED YOUR PLAN')
     expect(prompt).not.toContain('WANTS A DIFFERENT PLAN')
+    // ⭐ 多选题答了两项就喂回两项 —— ⛔ 不许只渲染第一个。
+    expect(prompt).toContain('question-1: option-1-1, option-1-3')
+    expect(prompt).toContain('other: "再暗一点"')
   })
 
   it('⭐ 「先问我」开着时系统提示要求这一轮必须先出计划', async () => {
@@ -4466,17 +4641,34 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     expect(prompt).toContain('moegirl:empty')
   })
 
-  it('平台没配 key → searchUnavailable，⛔ 一次上游调用都不发', async () => {
+  it('⭐ 缺 Serper key **照跑**——免 key 的百科腿不该被一把钥匙锁上（A1 拆闸）', async () => {
     mockIsWebSearchConfigured.mockReturnValue(false)
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: ['无限大 时夜'],
+      sources: ['wiki'],
+      evidence: EVIDENCE,
+      receipts: [
+        { sourceId: 'moegirl', status: 'ok', count: 1, tookMs: 5 },
+        {
+          sourceId: 'web_search',
+          status: 'skipped',
+          count: 0,
+          tookMs: 0,
+          error: 'missing SERPER_API_KEY',
+        },
+      ],
+    })
     queueTurns(researchTurn('外貌'), { finished: true })
 
-    const [step] = stepsOf(
+    const [, done] = stepsOf(
       await collect(runAssistantOperator('clerk-1', buildRequest())),
     )
-    expect((step.error as { reason: string }).reason).toBe(
-      ASSISTANT_OPERATOR_REJECT_REASON_IDS.searchUnavailable,
-    )
-    expect(mockRunAssistantResearch).not.toHaveBeenCalled()
+    expect(done.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect(done.error).toBeUndefined()
+    expect(mockRunAssistantResearch).toHaveBeenCalledTimes(1)
+    // 缺 key 只让 web_search 这一个源标 skipped，百科腿照样出证据。
+    expect(lastUserPrompt()).toContain('web_search:skipped')
+    expect(lastUserPrompt()).toContain('moegirl:ok')
   })
 
   it('⚠ 上游全挂（零证据）时**不吃掉那一轮**——轮次照记，免得无限重试', async () => {

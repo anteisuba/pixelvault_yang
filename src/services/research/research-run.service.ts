@@ -3,7 +3,6 @@ import 'server-only'
 import type { AssistantSurface, Prisma } from '@/lib/generated/prisma/client'
 
 import {
-  MEDIAWIKI_SITES,
   RESEARCH_DAILY_RUN_LIMIT,
   RESEARCH_FRESHNESS,
   RESEARCH_GROUP_SOURCES,
@@ -48,6 +47,7 @@ import {
   fetchMediaWikiEvidence,
   getMediaWikiSite,
   pickQueryForSite,
+  resolveFandomSite,
 } from '@/services/research/mediawiki.connector'
 import {
   fetchUrlEvidence,
@@ -226,6 +226,21 @@ async function fetchFromSource(
     return runConnector(sourceId, () => fetchBilibiliEvidence({ query }))
   }
 
+  if (sourceId === RESEARCH_SOURCE_IDS.fandom) {
+    /**
+     * ⭐ **Fandom 的 host 按作品解析**（2026-09-06 修）。以前它硬编码成
+     * `wutheringwaves.fandom.com`，于是任何题材都能拿到一条「看起来是真的」的
+     * 鸣潮条目。表里没有的作品直接跳过，⛔ 不退回任何一个具体子域。
+     */
+    const site = resolveFandomSite(queries.map((query) => query.text))
+    if (!site)
+      return { items: [], receipt: skippedReceipt(sourceId, 'no fandom site') }
+    const query = pickQueryForSite(site, queries)
+    if (!query)
+      return { items: [], receipt: skippedReceipt(sourceId, 'no query') }
+    return runConnector(sourceId, () => fetchMediaWikiEvidence({ site, query }))
+  }
+
   const site = getMediaWikiSite(sourceId)
   if (site) {
     const query = pickQueryForSite(site, queries)
@@ -241,15 +256,12 @@ function resolveSourceList(plan: ResearchPlan): ResearchSourceId[] {
   // 用户贴了 URL：只读它，不打搜索（规划器那条启发式的落点）。
   if (plan.urls.length > 0) return [RESEARCH_SOURCE_IDS.urlReader]
 
-  const configured = RESEARCH_GROUP_SOURCES[plan.sourceGroup]
-  return configured.filter((sourceId) => {
-    // Fandom 的 API host 在 v1 是固定的（见 MEDIAWIKI_SITES 注释），
-    // 打不中的查询会自然返回空 —— 不会造假证据，只会得到 empty 回执。
-    if (getMediaWikiSite(sourceId)) {
-      return MEDIAWIKI_SITES.some((site) => site.sourceId === sourceId)
-    }
-    return true
-  })
+  /**
+   * ⚠ 名单**原样返回**：Fandom 的 host 现在按作品解析（`resolveFandomSite`），
+   * 解析不出来由 `fetchFromSource` 标 `skipped: no fandom site` —— 那是一条
+   * 说得出理由的回执，比在这里静默筛掉一个源诚实。
+   */
+  return [...RESEARCH_GROUP_SOURCES[plan.sourceGroup]]
 }
 
 /**

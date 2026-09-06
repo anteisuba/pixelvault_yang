@@ -9,7 +9,7 @@ import {
 } from '@/constants/assistant-operator'
 import {
   EVIDENCE_SOURCE_TIERS,
-  MEDIAWIKI_SITES,
+  MEDIAWIKI_SOURCE_IDS,
   RESEARCH_FRESHNESS,
   RESEARCH_LIMITS,
   RESEARCH_SOURCE_IDS,
@@ -24,8 +24,13 @@ import {
   skippedReceipt,
 } from '@/services/research/connector-runtime'
 import { fetchDanbooruEvidence } from '@/services/research/danbooru.connector'
-import { fetchMediaWikiEvidence } from '@/services/research/mediawiki.connector'
+import {
+  fetchMediaWikiEvidence,
+  getMediaWikiSite,
+  resolveFandomSite,
+} from '@/services/research/mediawiki.connector'
 import { fetchWebSearchEvidence } from '@/services/research/web-search.connector'
+import { isWebSearchConfigured } from '@/services/web-research.service'
 
 /**
  * **助手工具环用的检索扇出**（2026-09-06）。
@@ -90,9 +95,7 @@ const SOURCE_GROUP_MEMBERS: Record<
   readonly ResearchSourceId[]
 > = {
   [ASSISTANT_RESEARCH_SOURCE_IDS.web]: [RESEARCH_SOURCE_IDS.webSearch],
-  [ASSISTANT_RESEARCH_SOURCE_IDS.wiki]: MEDIAWIKI_SITES.map(
-    (site) => site.sourceId,
-  ),
+  [ASSISTANT_RESEARCH_SOURCE_IDS.wiki]: MEDIAWIKI_SOURCE_IDS,
   [ASSISTANT_RESEARCH_SOURCE_IDS.bilibili]: [RESEARCH_SOURCE_IDS.bilibili],
   [ASSISTANT_RESEARCH_SOURCE_IDS.danbooru]: [RESEARCH_SOURCE_IDS.danbooru],
 }
@@ -113,46 +116,97 @@ const DEFAULT_SOURCES: readonly AssistantResearchSource[] = [
 // ─── 查询 ───────────────────────────────────────────────────────
 
 /**
- * 目标 + 实体 → 几条查询。
+ * 目标 + 实体 → 一份**查询计划**。
  *
- * 形状是刻意的：**第一条是「实体 + 目标」**（`时夜 无限大 外貌 服饰`），因为
- * 通用网搜吃的就是这种带限定词的长查询；**后面几条是单个实体**，因为 wiki 的
- * 标题解析吃的恰恰相反 —— 一个干净的页名。两种需求塞进同一条查询，两边都查不准。
+ * ── 修的是什么（2026-09-06）────────────────────────────────────────
+ * 🔬 owner 真机：`entities:['无限大','Ananta','时夜']` 进来，旧实现先拼一条
+ * 「全部实体 + 目标」的长查询，再把实体逐个排在后面，最后 `slice(maxQueries=3)`
+ * —— **正好把角色名切掉**，而 wiki 腿又取 `queries.at(-1)`，于是三个百科站全被
+ * 拿去查「Ananta」。查错了名字，后面每一条证据都是错的。
+ *
+ * ── 现在的形状 ────────────────────────────────────────────────────
+ * 前三条是**保底**：作品名 / 角色名 / 作品+角色。它们是三种源各自吃得下的形状 ——
+ * 单名喂 wiki 的标题解析、组合喂网搜与消歧。带目标的长查询与其余别名排在后面，
+ * 有位置才发。⛔ 别再让「截断」决定查什么。
  *
  * ⚠ 没有实体时只发目标本身，⛔ 不编一个实体出来。
  */
-export function buildResearchQueries(
+export interface ResearchQueryPlan {
+  /** 服务端真的发出去的那几条，顺序即优先级。 */
+  queries: string[]
+  /** wiki 腿吃的那一条 —— **作品 + 角色**，⛔ 不再是 `queries.at(-1)`。 */
+  wikiQuery: string
+  /** 判相关性 / 解析 Fandom 子站用的实体词（清洗过的原样实体）。 */
+  entities: string[]
+}
+
+export function buildResearchQueryPlan(
   goal: string,
   entities: readonly string[],
-): string[] {
+): ResearchQueryPlan {
   const cleanEntities = entities
     .map((entity) => entity.trim())
     .filter((entity) => entity.length > 0)
   const cleanGoal = goal.trim()
 
-  const queries: string[] = []
-  const primary = [...cleanEntities, cleanGoal].join(' ').trim()
-  if (primary) queries.push(primary)
-  for (const entity of cleanEntities) {
-    if (!queries.includes(entity)) queries.push(entity)
-  }
-  if (queries.length === 0 && cleanGoal) queries.push(cleanGoal)
+  // ⚠ 约定：第一个实体是**作品**，最后一个是**角色**（工具说明里写死这条顺序）。
+  const work = cleanEntities[0]
+  const character =
+    cleanEntities.length >= 2
+      ? cleanEntities[cleanEntities.length - 1]
+      : undefined
+  const combo = work && character ? `${work} ${character}` : undefined
 
-  return queries.slice(0, RESEARCH_LIMITS.maxQueries)
+  const ordered = [
+    work,
+    character,
+    combo,
+    [...cleanEntities, cleanGoal].join(' ').trim(),
+    ...cleanEntities.slice(1, -1),
+    cleanGoal,
+  ]
+
+  const queries: string[] = []
+  for (const candidate of ordered) {
+    const text = candidate?.trim()
+    if (!text || queries.includes(text)) continue
+    queries.push(text)
+  }
+
+  return {
+    queries: queries.slice(0, RESEARCH_LIMITS.maxQueries),
+    wikiQuery: combo ?? work ?? cleanGoal,
+    entities: cleanEntities,
+  }
 }
 
 // ─── 打源 ───────────────────────────────────────────────────────
 
 async function fetchOne(
   sourceId: ResearchSourceId,
-  queries: readonly string[],
+  plan: ResearchQueryPlan,
 ): Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }> {
+  const { queries } = plan
   const primary = queries[0] ?? ''
   if (!primary) {
     return { items: [], receipt: skippedReceipt(sourceId, 'no query') }
   }
 
   if (sourceId === RESEARCH_SOURCE_IDS.webSearch) {
+    /**
+     * ⭐ **缺 Serper 只关掉这一个源**（2026-09-06 修）。
+     *
+     * 🔬 这道闸原先长在工具入口上（`isWebSearchConfigured()` 不成就整条
+     * `research` 拒），于是没配 Serper 的部署连**免 key 的**萌百 / 中文维基 /
+     * Fandom / danbooru / B站一起关掉了 —— 一把钥匙锁了五扇本来就没上锁的门。
+     * 现在只把这一条标 `skipped`，回执里说得出是为什么。
+     */
+    if (!isWebSearchConfigured()) {
+      return {
+        items: [],
+        receipt: skippedReceipt(sourceId, 'missing SERPER_API_KEY'),
+      }
+    }
     return runConnector(sourceId, () =>
       fetchWebSearchEvidence({
         queries,
@@ -174,14 +228,42 @@ async function fetchOne(
     )
   }
 
-  const site = MEDIAWIKI_SITES.find((entry) => entry.sourceId === sourceId)
+  if (sourceId === RESEARCH_SOURCE_IDS.fandom) {
+    /**
+     * ⭐ **Fandom 按作品解析 host**（2026-09-06 修）。以前这里的 host 硬编码成
+     * `wutheringwaves.fandom.com` —— 问什么题材都回鸣潮的条目，而那条假证据长得
+     * 跟真的一模一样。表里没有的作品**直接跳过**，⛔ 不退回任何一个具体子域。
+     */
+    const site = resolveFandomSite(plan.entities)
+    if (!site) {
+      return {
+        items: [],
+        receipt: skippedReceipt(sourceId, 'no fandom site'),
+      }
+    }
+    return runConnector(sourceId, () =>
+      fetchMediaWikiEvidence({
+        site,
+        query: plan.wikiQuery,
+        entities: plan.entities,
+      }),
+    )
+  }
+
+  const site = getMediaWikiSite(sourceId)
   if (site) {
     /**
-     * ⚠ wiki 吃的是**页名**不是长查询：这里挑最后一条（`buildResearchQueries`
-     * 把单个实体排在后面），退回第一条只是为了「没有实体」那种形状也能跑。
+     * ⚠ wiki 吃的是**页名**不是长查询，而且必须是「作品 + 角色」那一条 ——
+     * 取 `queries.at(-1)` 的旧写法会随查询表的截断漂到别名上（见
+     * `buildResearchQueryPlan` 头注）。
      */
-    const query = queries.at(-1) ?? primary
-    return runConnector(sourceId, () => fetchMediaWikiEvidence({ site, query }))
+    return runConnector(sourceId, () =>
+      fetchMediaWikiEvidence({
+        site,
+        query: plan.wikiQuery,
+        entities: plan.entities,
+      }),
+    )
   }
 
   return { items: [], receipt: skippedReceipt(sourceId, 'unknown source') }
@@ -318,14 +400,14 @@ export async function runAssistantResearch(
     params.sources && params.sources.length > 0
       ? [...new Set(params.sources)]
       : [...DEFAULT_SOURCES]
-  const queries = buildResearchQueries(params.goal, params.entities ?? [])
+  const plan = buildResearchQueryPlan(params.goal, params.entities ?? [])
   const sourceIds = [
     ...new Set(groups.flatMap((group) => SOURCE_GROUP_MEMBERS[group])),
   ]
 
   const settled = await Promise.all(
     sourceIds.map((sourceId) =>
-      withDeadline(sourceId, fetchOne(sourceId, queries)),
+      withDeadline(sourceId, fetchOne(sourceId, plan)),
     ),
   )
 
@@ -335,7 +417,7 @@ export async function runAssistantResearch(
   )
 
   return {
-    queries,
+    queries: plan.queries,
     sources: groups,
     evidence: dedupe(settled.flatMap((entry) => entry.items))
       .slice(0, limit)

@@ -18,7 +18,6 @@ import {
   ASSISTANT_OPERATOR_WRITE_MODES,
   ASSISTANT_CHOICE_REQUEST_LIMITS as CHOICE_LIMITS,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
-  ASSISTANT_PLAN_PENDING_KINDS,
   ASSISTANT_PLAN_REQUEST_REASON_IDS as PLAN_REASON,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   isAssistantOperatorToolInDomain,
@@ -159,7 +158,7 @@ import {
   type AssistantOperatorEvent,
   type AssistantOperatorGenerationRequest,
   type AssistantOperatorPlanEstimate,
-  type AssistantOperatorPlanPending,
+  type AssistantOperatorPlanQuestion,
   type AssistantOperatorRequest,
   type AssistantOperatorResult,
   type AssistantOperatorSearchResultAsset,
@@ -1227,13 +1226,16 @@ async function planResearch(
     sources?: AssistantResearchSource[]
   },
 ): Promise<ToolPlan> {
-  if (!isWebSearchConfigured()) {
-    return reject(
-      REJECT.searchUnavailable,
-      'Live research is not wired up on this deployment. Answer from what you know, and say plainly when you are unsure.',
-    )
-  }
-
+  /**
+   * ⛔ **这里没有 `isWebSearchConfigured()` 闸**（2026-09-06 拆）。
+   *
+   * 🔬 它原先长在这一句上：没配 Serper 就整条 `research` 拒 —— 于是**免 key 的**
+   * 萌百 / 中文维基 / Fandom / danbooru / B站被一把 Serper 钥匙一起锁上了。
+   * 缺 key 现在只让 `web_search` 那**一个源**标 `skipped: missing SERPER_API_KEY`
+   * （见 `research-fanout` 的 `fetchOne`），回执上说得出理由。
+   * ⚠ `search_web` / `search_web_images` 的闸**保持** —— 那两条工具本身就是
+   * Serper，没 key 就是真的做不了。
+   */
   if (run.researchRounds >= RESEARCH_LIMITS.maxRoundsPerTurn) {
     return reject(
       REJECT.researchRoundsExhausted,
@@ -3001,11 +3003,17 @@ const TONE_DIRECTIVES: Record<
 }
 
 /**
- * 长度三档 → **字数区间**。
+ * 长度三档 → **句数区间**。
  * ⛔ 不给「简短点」这类无边界形容词：模型对它的解读每一轮都不一样。
+ *
+ * ⭐ `concise` 是**默认档**（`ASSISTANT_PERSONA_DEFAULTS`，owner 2026-09-06），
+ * 所以它不能只说「短一点」—— 那样模型会靠删掉「下一步」来达标，而那句恰恰是
+ * 用户唯一要读的。写成**两句各自的职责**（结论一句 + 下一步一句），并把理由指到
+ * `detail` 去：不给解释一个去处，它只会挤回正文。
  */
 const VERBOSITY_DIRECTIVES: Record<AssistantPersona['verbosity'], string> = {
-  [ASSISTANT_PERSONA_VERBOSITY_IDS.concise]: 'Answer in under 2 sentences.',
+  [ASSISTANT_PERSONA_VERBOSITY_IDS.concise]:
+    'Two sentences: what you concluded, then what happens next. Reasoning goes in "detail", never in "message".',
   [ASSISTANT_PERSONA_VERBOSITY_IDS.standard]: 'Answer in 2–4 sentences.',
   [ASSISTANT_PERSONA_VERBOSITY_IDS.detailed]: 'Answer in up to 6 sentences.',
 }
@@ -3078,7 +3086,7 @@ ${lines}
  */
 function buildPlanVisualSection(): string {
   return `
-- Each pending option may carry "visual" — a picture hint the app draws for the creator.
+- Each option may carry "visual" — a small picture hint the app draws beside its label.
   Use it ONLY when one of these exact ids fits; otherwise omit it and the option shows as plain text.
   Never invent an id, never translate one, never put a description there.
 ${buildAssistantPlanVisualCatalog()}
@@ -3193,16 +3201,18 @@ TOOLS:
 ${tools}
 
 OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outside it, no code fence:
-{"plan":["short step","short step"],"tool":{"name":"set_prompt","title":"one short line for the log","reason":"why, in one line","args":{"value":"..."}},"message":"what you are telling the creator","finished":false}
+{"plan":["short step","short step"],"tool":{"name":"set_prompt","title":"one short line for the log","reason":"why, in one line","args":{"value":"..."}},"message":"what you are telling the creator","detail":"the reasoning, if it is worth reading","finished":false}
 
 - "plan" only on your FIRST turn, at most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
 ${
   request.forcePlan
-    ? '- THE CREATOR TURNED ON "ask me first" FOR THIS MESSAGE. Your FIRST turn must carry a "plan" (and "pending" for anything genuinely open) — the app shows it to them and waits. Do not skip straight to a tool.\n'
+    ? '- THE CREATOR TURNED ON "ask me first" FOR THIS MESSAGE. Your FIRST turn must carry a "plan" (and "questions" for anything genuinely open) — the app shows it to them and waits. Do not skip straight to a tool.\n'
     : ''
-}- "pending" rides along with that first "plan" and ONLY there: at most ${PLAN_LIMITS.maxPendingItems} things you genuinely cannot settle from what they told you, each with 2–${PLAN_LIMITS.maxPendingOptions} concrete options. The app turns them into one tap. Leave it out when you can settle everything yourself — a question you already know the answer to costs them a round trip. Never ask about something the state block already answers.${buildPlanVisualSection()}
-- Every "pending" item MUST have a non-empty "label" and an "options" array of objects, each with its own non-empty "label": {"label":"Which visual direction?","options":[{"label":"3D game render"},{"label":"Stylized 3D"}]}. Labels must be in the creator's language. The question belongs in "label", not "question" or "title". Keep each question within ${LIMITS.maxPlanItemChars} characters and each option label within ${PLAN_LIMITS.maxPendingLabelChars} characters. Item and option "id" fields are optional; the server assigns them when omitted.
+}- "questions" rides along with that first "plan" and ONLY there: 1–${PLAN_LIMITS.maxQuestions} questions about things you genuinely cannot settle from what they told you. The app turns each into one tap. Leave it out when you can settle everything yourself — a question you already know the answer to costs them a round trip. Never ask about something the state block already answers.
+- ASK LIKE A PERSON, NOT LIKE A FORM. Every question is a real question ("Which look are you after?"), and every option carries a one-line description saying what that choice actually does — the description IS the difference between the options, so an option without one is useless and the server drops it. Put your recommendation FIRST and mark it "recommended":true — they hired you for an opinion, not a quiz. Say explicitly whether more than one answer is allowed with "multiSelect".
+- Shape: {"header":"Look","question":"Which look are you after?","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}. "header" is the ${PLAN_LIMITS.maxHeaderChars}-character label the app shows once the card is collapsed; "question" is the full sentence. ${PLAN_LIMITS.minOptions}–${PLAN_LIMITS.maxOptions} options each, question within ${PLAN_LIMITS.maxQuestionChars} characters, option labels within ${PLAN_LIMITS.maxOptionLabelChars} and descriptions within ${PLAN_LIMITS.maxOptionDescriptionChars}. All of it in the creator's language. "allowOther" defaults to true — leave it on unless the choice is a closed set. "id" fields are optional; the server assigns them.${buildPlanVisualSection()}
 - "message" is optional; use it to say something worth saying, not to narrate every step.
+- "detail" is where reasoning goes. The app folds it away behind a "why" the creator can open, so "message" stays short and "detail" carries the explanation, the trade-offs, what you found and rejected. Omit it when there is nothing worth opening — an empty "why" is worse than none.
 - KEY ORDER MATTERS: when you use "tool", write it BEFORE "message". The app streams your closing reply to the creator word by word as you write it, and it can only tell a closing reply apart from a mid-work aside by that order.
 - Omit "tool" (or set "finished":true) when the work is done. Do that as soon as the form is ready — an extra step costs the creator time.
 - One tool per turn. You get at most ${LIMITS.maxSteps} steps for the whole request.
@@ -3233,12 +3243,21 @@ ${run.request.priorSteps
     run.request.planAnswers?.length ||
     run.request.planApproved !== undefined
   ) {
-    const answers = (run.request.planAnswers ?? []).map(
-      (entry) => `- ${entry.pendingId}: ${entry.optionId}`,
-    )
+    /**
+     * ⚠ 一题的答复是**一串** option id（多选）外加可选的一句「其他」——
+     * ⛔ 别只渲染第一个：多选题答了三项只喂回一项，模型下一步就当另外两项不存在。
+     */
+    const answers = (run.request.planAnswers ?? []).map((entry) => {
+      const picked = entry.optionIds.join(', ')
+      const other = entry.otherText?.trim()
+      const said = [picked, other ? `other: "${other}"` : null]
+        .filter((part): part is string => Boolean(part))
+        .join(' + ')
+      return `- ${entry.questionId}: ${said || '(no answer)'}`
+    })
     const heading =
       run.request.planApproved === false
-        ? 'THE CREATOR WANTS A DIFFERENT PLAN. Re-plan from scratch this turn: send a NEW "plan" (and new "pending" if anything is still open) BEFORE calling any tool, and fold their answers below into it.'
+        ? 'THE CREATOR WANTS A DIFFERENT PLAN. Re-plan from scratch this turn: send a NEW "plan" (and new "questions" if anything is still open) BEFORE calling any tool, and fold their answers below into it.'
         : 'THE CREATOR APPROVED YOUR PLAN AND ANSWERED THE OPEN QUESTIONS. Treat these answers as settled facts — do not ask again.'
     sections.push(
       [
@@ -3545,7 +3564,7 @@ export async function* runAssistantOperator(
            *
            * ⛔ 它不决定出不出卡：那条判据在客户端（`lib/studio-operator-plan.ts`
            * 的 `shouldShowPlanCard`，owner 2026-09-06「客户端硬判」）。这里只把
-           * 判据要用的三样东西摆出来 —— 阶段、待定项、预估。
+           * 判据要用的三样东西摆出来 —— 阶段、反问题、预估。
            * ⚠ 顺序是硬要求：`plan` → `plan_request` → 第一个 `step`。客户端要在
            *   任何一步落地之前就能决定「先问一句」，晚一帧那一步已经落到表单上了。
            */
@@ -3559,7 +3578,7 @@ export async function* runAssistantOperator(
               id: `plan-${index + 1}`,
               label,
             })),
-            pending: normalizePlanPending(turn, clerkId),
+            questions: normalizePlanQuestions(turn, clerkId),
             estimate,
             reason: planRequestReason(turn, request),
           }
@@ -3571,9 +3590,15 @@ export async function* runAssistantOperator(
         }
       }
       if (turn.message?.trim()) {
+        /**
+         * ⚠ `detail` 只在**有正文**时跟着走：一条只有「为什么」没有结论的消息，
+         * 在流上表现为一颗点开才有东西的空气泡。
+         */
+        const detail = turn.detail?.trim()
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.message,
           text: turn.message.trim(),
+          ...(detail ? { detail } : {}),
         }
       }
 
@@ -3808,26 +3833,37 @@ export async function* runAssistantOperator(
 }
 
 /**
- * 模型写的待定项 → 出帧用的那份（§9 校验纪律）。
+ * 模型写的反问题 → 出帧用的那份（§9 校验纪律，2026-09-06 由 `pending` 改写）。
  *
- * 三条纪律，逐条对应一种模型常犯的错：
+ * 五条纪律，逐条对应一种模型常犯的错：
  *  ① **`visual` 不在词表就剥掉**并 `logger.warn` —— ⛔ 不作废整张卡，也 ⛔ 不猜一个
- *     近似图标。前端于是退化成纯文字 chip，那是词表外唯一诚实的画法。
+ *     近似图标。前端于是退化成纯文字，那是词表外唯一诚实的画法。
  *  ② **`assetUrl` 必须是 http(s)**：模型很爱写 `"the second reference"` 这种描述，
  *     那东西喂给 `<Image>` 就是一个碎图标。
- *  ③ **少于两个选项的待定项整条丢掉**：一个选项的「单选」不是问题，是通知，
+ *  ③ **没有 `description` 的选项整条丢掉**：一个只有名字的选项正是这轮要消灭的
+ *     形状 —— 用户看着两颗 chip 答不上来它俩差在哪。
+ *  ④ **推荐项排第一，且一题最多一个**：多给的那些剥掉 `recommended`。用户多数
+ *     时候要的是「你觉得呢」，把推荐藏在第三个等于没推荐。
+ *  ⑤ **少于两个选项的题整道丢掉**：一个选项的「单选」不是问题，是通知，
  *     而通知已经有 `message` 那条路了。
  * ⚠ id 一律由服务端补：模型给的 id 会在重规划之间漂，而客户端的 `planAnswers`
  *   要按 id 认回来。
+ * ⚠ `allowOther` 缺省 **true**（协议默认）：留一句「都不是」的出口是常态，
+ *   关掉它要模型明写。
  */
-function normalizePlanPending(
+function normalizePlanQuestions(
   turn: AssistantOperatorTurn,
   clerkId: string,
-): AssistantOperatorPlanPending[] {
-  const out: AssistantOperatorPlanPending[] = []
-  for (const [index, item] of (turn.pending ?? []).entries()) {
-    const options: AssistantOperatorPlanPending['options'] = []
+): AssistantOperatorPlanQuestion[] {
+  const out: AssistantOperatorPlanQuestion[] = []
+  for (const [index, item] of (turn.questions ?? []).entries()) {
+    const options: AssistantOperatorPlanQuestion['options'] = []
+    let recommendedTaken = false
     for (const [optionIndex, option] of item.options.entries()) {
+      // ③ 说明是这张卡的全部要点 —— 没有它这个选项不值得出现。
+      const description = option.description?.trim()
+      if (!description) continue
+
       const visual = getAssistantPlanVisual(option.visual ?? undefined)
       if (option.visual && !visual) {
         logger.warn('assistant operator used an unknown plan visual', {
@@ -3838,23 +3874,40 @@ function normalizePlanPending(
       const assetUrl = /^https?:\/\//.test(option.assetUrl ?? '')
         ? (option.assetUrl ?? undefined)
         : undefined
+      // ④ 一题只留第一个推荐项。
+      const recommended = option.recommended === true && !recommendedTaken
+      if (recommended) recommendedTaken = true
       options.push({
         id: option.id?.trim() || `option-${index + 1}-${optionIndex + 1}`,
-        label: clamp(option.label, PLAN_LIMITS.maxPendingLabelChars),
+        label: clamp(option.label, PLAN_LIMITS.maxOptionLabelChars),
+        description: clamp(description, PLAN_LIMITS.maxOptionDescriptionChars),
+        ...(recommended ? { recommended: true } : {}),
         ...(visual ? { visual: visual.id } : {}),
         ...(assetUrl ? { assetUrl } : {}),
       })
     }
-    if (options.length < 2) continue
+    if (options.length < PLAN_LIMITS.minOptions) continue
+
+    // ④ 推荐项排第一 —— ⛔ 不是「模型写在哪就在哪」。
+    options.sort(
+      (a, b) => Number(b.recommended ?? false) - Number(a.recommended ?? false),
+    )
+
+    const question = clamp(item.question, PLAN_LIMITS.maxQuestionChars)
     out.push({
-      id: item.id?.trim() || `pending-${index + 1}`,
-      label: clamp(item.label, LIMITS.maxPlanItemChars),
-      // 目前只有单选一种（词表里就一项），模型写别的一律归到它。
-      kind: ASSISTANT_PLAN_PENDING_KINDS[0],
-      options,
+      id: item.id?.trim() || `question-${index + 1}`,
+      // header 漏了就从问句头上截 —— ⛔ 不留空，收起态那一行要写得出东西。
+      header: clamp(
+        item.header?.trim() || question,
+        PLAN_LIMITS.maxHeaderChars,
+      ),
+      question,
+      multiSelect: item.multiSelect === true,
+      allowOther: item.allowOther !== false,
+      options: options.slice(0, PLAN_LIMITS.maxOptions),
     })
   }
-  return out
+  return out.slice(0, PLAN_LIMITS.maxQuestions)
 }
 
 /**

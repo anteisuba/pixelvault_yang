@@ -7,6 +7,7 @@ import {
   CircleAlert,
   CircleCheck,
   CircleSlash,
+  CircleX,
   Minus,
   Search,
   TriangleAlert,
@@ -82,6 +83,8 @@ const SOURCE_STATUS_ICON: Record<
 > = {
   [RESEARCH_SOURCE_STATUSES.ok]: CircleCheck,
   [RESEARCH_SOURCE_STATUSES.empty]: Minus,
+  // ⚠ 「搜到了但搜到的不是它」画的是 ✗ 不是「—」：那条证据被扔掉了。
+  [RESEARCH_SOURCE_STATUSES.unrelated]: CircleX,
   [RESEARCH_SOURCE_STATUSES.failed]: TriangleAlert,
   [RESEARCH_SOURCE_STATUSES.circuitOpen]: ZapOff,
   [RESEARCH_SOURCE_STATUSES.skipped]: CircleSlash,
@@ -97,6 +100,7 @@ const SOURCE_STATUS_ICON: Record<
 const SOURCE_STATUS_TONE: Record<ResearchSourceStatus, string> = {
   [RESEARCH_SOURCE_STATUSES.ok]: 'text-status-applied',
   [RESEARCH_SOURCE_STATUSES.empty]: 'text-muted-foreground',
+  [RESEARCH_SOURCE_STATUSES.unrelated]: 'text-muted-foreground',
   [RESEARCH_SOURCE_STATUSES.failed]: 'text-status-risk',
   [RESEARCH_SOURCE_STATUSES.circuitOpen]: 'text-status-risk',
   [RESEARCH_SOURCE_STATUSES.skipped]: 'text-muted-foreground',
@@ -105,6 +109,7 @@ const SOURCE_STATUS_TONE: Record<ResearchSourceStatus, string> = {
 const SOURCE_STATUS_LABEL_KEYS: Record<ResearchSourceStatus, string> = {
   [RESEARCH_SOURCE_STATUSES.ok]: 'research.sourceOk',
   [RESEARCH_SOURCE_STATUSES.empty]: 'research.sourceEmpty',
+  [RESEARCH_SOURCE_STATUSES.unrelated]: 'research.sourceUnrelated',
   [RESEARCH_SOURCE_STATUSES.failed]: 'research.sourceFailed',
   [RESEARCH_SOURCE_STATUSES.circuitOpen]: 'research.sourceCircuitOpen',
   [RESEARCH_SOURCE_STATUSES.skipped]: 'research.sourceSkipped',

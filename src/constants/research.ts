@@ -177,10 +177,18 @@ export const RESEARCH_RUN_STATUS_VALUES = [
 
 export type ResearchRunStatus = (typeof RESEARCH_RUN_STATUS_VALUES)[number]
 
-/** 源级回执的四态（UI 下一批渲染 chip：「萌百 ✓ · danbooru ✗ 超时」）。 */
+/** 源级回执的六态（UI 下一批渲染 chip：「萌百 ✓ · danbooru ✗ 超时」）。 */
 export const RESEARCH_SOURCE_STATUSES = {
   ok: 'ok',
   empty: 'empty',
+  /**
+   * 🔬 owner 2026-09-06 真机：查「无限大 时夜」，萌百 / zhwiki / Fandom 的模糊搜索
+   * 分别把《时之歌》《夜王》《鸣潮》当第一条返回，而这三条全被当 `ok` 交给了模型 ——
+   * 模型于是照着《时之歌》写「时夜」的设定。**「搜到了但搜到的不是它」是第三件事**：
+   * 既不是「没料」（换个词还有救），也不是「源挂了」（这条路不通），而是
+   * **这条证据必须被扔掉**。合进 `empty` 会丢掉「这个源其实是通的」这条信息。
+   */
+  unrelated: 'unrelated',
   failed: 'failed',
   /** 熔断器 OPEN —— 连挂即短路，没真发请求。 */
   circuitOpen: 'circuit_open',
@@ -190,6 +198,7 @@ export const RESEARCH_SOURCE_STATUSES = {
 export const RESEARCH_SOURCE_STATUS_VALUES = [
   RESEARCH_SOURCE_STATUSES.ok,
   RESEARCH_SOURCE_STATUSES.empty,
+  RESEARCH_SOURCE_STATUSES.unrelated,
   RESEARCH_SOURCE_STATUSES.failed,
   RESEARCH_SOURCE_STATUSES.circuitOpen,
   RESEARCH_SOURCE_STATUSES.skipped,
@@ -275,6 +284,11 @@ export const RESEARCH_LIMITS = {
   excerptChars: 900,
   /** tags 证据最多几个标签。 */
   maxTagsPerItem: 40,
+  /**
+   * 判「搜到的是不是它」时，导语看多长（`isRelevantToTerms`）。
+   * ⚠ **不看全文**：一篇长条目里蹭到两个字是常态，看全文这道闸等于不存在。
+   */
+  relevanceLeadChars: 200,
   /** 单个源的超时。单源慢不许拖垮整体。 */
   sourceTimeoutMs: 12_000,
   /** MediaWiki 单站的超时（两跳：解析页名 + 取正文）。 */
@@ -423,8 +437,109 @@ export interface MediaWikiSiteCapability {
 }
 
 /**
+ * Fandom 的**能力行**（api / pageUrlPrefix 由子域现拼，见 `buildFandomSite`）。
+ *
+ * 🔬 未装 TextExtracts，取正文只能走 wikitext（revisions → parse）。
+ */
+const FANDOM_CAPABILITY = {
+  sourceId: RESEARCH_SOURCE_IDS.fandom,
+  queryLanguage: 'en',
+  supportsOpenSearch: true,
+  supportsGeneratorSearch: true,
+  contentRoutes: [
+    MEDIAWIKI_CONTENT_ROUTES.revisions,
+    MEDIAWIKI_CONTENT_ROUTES.parse,
+  ],
+  supportsCategories: false,
+  supportsPageImages: false,
+} as const satisfies Omit<
+  MediaWikiSiteCapability,
+  'label' | 'api' | 'pageUrlPrefix'
+>
+
+/**
+ * **Fandom 是一族站，不是一个站**（2026-09-06 修）。
+ *
+ * ⛔ 这里以前硬编码着 `wutheringwaves.fandom.com` —— 于是**任何题材**问过来都会
+ * 得到鸣潮的条目，而那条证据长得跟真的一样（有页名、有正文、有 URL），模型没有
+ * 任何办法看出它答的是另一部作品。这是本管线出过的最贵的一个 bug：不是「查不到」，
+ * 是「查到了假的」。
+ *
+ * ⚠ 表里没有的作品**跳过 Fandom**（回执 `skipped: no fandom site`），
+ * ⛔ 不退回任何一个具体子域 —— 退回哪一个都是同一个 bug 换个名字。
+ * ⚠ `aliases` 全部小写、无空格比对（见 `normalizeResearchTerm`），中英日别名并列：
+ * 用户说「无限大」、模型送 `Ananta`，指的是同一个 wiki。
+ */
+export const FANDOM_WIKIS = [
+  {
+    subdomain: 'wutheringwaves',
+    label: 'Wuthering Waves Wiki',
+    aliases: ['鸣潮', '鳴潮', 'wutheringwaves', 'wuthering waves', 'wuwa'],
+  },
+  {
+    subdomain: 'ananta',
+    label: 'Ananta Wiki',
+    aliases: ['无限大', '無限大', 'ananta'],
+  },
+  {
+    subdomain: 'genshin-impact',
+    label: 'Genshin Impact Wiki',
+    aliases: ['原神', 'genshin', 'genshin impact', 'genshinimpact'],
+  },
+  {
+    subdomain: 'honkai-star-rail',
+    label: 'Honkai: Star Rail Wiki',
+    aliases: [
+      '崩坏星穹铁道',
+      '崩壞星穹鐵道',
+      '星穹铁道',
+      '崩铁',
+      'honkai star rail',
+      'honkaistarrail',
+      'star rail',
+      'hsr',
+    ],
+  },
+  {
+    subdomain: 'zenless-zone-zero',
+    label: 'Zenless Zone Zero Wiki',
+    aliases: ['绝区零', '絕區零', 'zenless zone zero', 'zzz'],
+  },
+  {
+    subdomain: 'arknights',
+    label: 'Arknights Wiki',
+    aliases: ['明日方舟', 'arknights'],
+  },
+  {
+    subdomain: 'blue-archive',
+    label: 'Blue Archive Wiki',
+    aliases: ['蔚蓝档案', '蔚藍檔案', 'blue archive', 'bluearchive'],
+  },
+] as const
+
+export interface FandomWiki {
+  subdomain: string
+  label: string
+  aliases: readonly string[]
+}
+
+/** 子域 → 完整能力行。⚠ 只有这一处拼 host，⛔ 别在连接器里再拼一遍。 */
+export function buildFandomSite(wiki: FandomWiki): MediaWikiSiteCapability {
+  return {
+    ...FANDOM_CAPABILITY,
+    label: wiki.label,
+    api: `https://${wiki.subdomain}.fandom.com/api.php`,
+    pageUrlPrefix: `https://${wiki.subdomain}.fandom.com/wiki/`,
+  }
+}
+
+/**
  * ⛔ **wiki.gg 不进首版**：本机出口整站 API 401 + 页面 403（Cloudflare 挑战），
  * 换浏览器 UA 无效。为它写第四条降级路不划算。
+ *
+ * ⚠ **Fandom 不在这张表里**：它的 host 按作品现解析（`FANDOM_WIKIS` +
+ * `resolveFandomSite`）。这张表只收**定址站** —— host 写死就是对的那些。
+ * 「wiki 腿打哪几个源」看 `MEDIAWIKI_SOURCE_IDS`，⛔ 不要拿这张表去数。
  */
 export const MEDIAWIKI_SITES: readonly MediaWikiSiteCapability[] = [
   {
@@ -454,22 +569,16 @@ export const MEDIAWIKI_SITES: readonly MediaWikiSiteCapability[] = [
     supportsCategories: false,
     supportsPageImages: false,
   },
-  {
-    sourceId: RESEARCH_SOURCE_IDS.fandom,
-    label: 'Fandom',
-    api: 'https://wutheringwaves.fandom.com/api.php',
-    pageUrlPrefix: 'https://wutheringwaves.fandom.com/wiki/',
-    queryLanguage: 'en',
-    supportsOpenSearch: true,
-    supportsGeneratorSearch: true,
-    // 🔬 未装 TextExtracts，取正文只能走 wikitext
-    contentRoutes: [
-      MEDIAWIKI_CONTENT_ROUTES.revisions,
-      MEDIAWIKI_CONTENT_ROUTES.parse,
-    ],
-    supportsCategories: false,
-    supportsPageImages: false,
-  },
+]
+
+/**
+ * wiki 腿实际打的那几个源（定址站 + Fandom）。
+ * ⚠ Fandom 在这张名单里但不在 `MEDIAWIKI_SITES` 里 —— 它的 host 按作品现解析。
+ */
+export const MEDIAWIKI_SOURCE_IDS: readonly ResearchSourceId[] = [
+  RESEARCH_SOURCE_IDS.moegirl,
+  RESEARCH_SOURCE_IDS.wikipediaZh,
+  RESEARCH_SOURCE_IDS.fandom,
 ]
 
 // ─── 证据注入防护（§3.5 安全底线）───────────────────────────────

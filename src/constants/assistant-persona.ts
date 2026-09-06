@@ -311,9 +311,18 @@ export const ASSISTANT_PERSONA_DEFAULTS = {
   name: null,
   avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[0],
   avatarUrl: null,
-  tone: ASSISTANT_PERSONA_TONE_IDS.professional,
+  /**
+   * ⭐ **默认是「简短直接 · 简洁」**（owner 2026-09-06 定）。
+   *
+   * 🔬 换掉的是 `professional` + `standard`。那一档跑出来的每一轮回复都是一段
+   * 三四句的小作文，而助手多数轮次要说的其实只有两句：**做了什么 / 下一步是什么**。
+   * 理由现在有地方放了（`turn.detail`，客户端折起来），所以正文不必再兼职解释。
+   * ⚠ 这两个值必须与 `prisma/schema.prisma` 上 `AssistantPersona` 的 `@default`
+   * 逐字一致 —— 漂了，「没存过」和「存了默认值」就是两个不同的助手。
+   */
+  tone: ASSISTANT_PERSONA_TONE_IDS.terse,
   toneCustom: null,
-  verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.standard,
+  verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.concise,
   planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.auto,
   language: ASSISTANT_PERSONA_LANGUAGE_IDS.ui,
 } as const

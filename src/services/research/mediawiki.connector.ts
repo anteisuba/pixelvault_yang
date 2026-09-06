@@ -1,9 +1,12 @@
 import 'server-only'
 
 import {
+  buildFandomSite,
+  FANDOM_WIKIS,
   MEDIAWIKI_CONTENT_ROUTES,
   MEDIAWIKI_SITES,
   RESEARCH_LIMITS,
+  RESEARCH_SOURCE_IDS,
   type MediaWikiSiteCapability,
   type ResearchSourceId,
 } from '@/constants/research'
@@ -280,6 +283,115 @@ export function getMediaWikiSite(
   return MEDIAWIKI_SITES.find((site) => site.sourceId === sourceId)
 }
 
+// ─── 归一化与相关性 ─────────────────────────────────────────────
+
+/**
+ * 比对用的归一化：全角→半角（NFKC）、小写、去掉空白与标点。
+ *
+ * ⚠ **不做简繁转换**：本仓没有现成的转换表，硬塞一张手抄的表迟早漂。单字差异
+ * 由下面 `sameShapeVariant` 的一位容差兜住（「鸣潮」↔「鳴潮」正是这一类），
+ * ⛔ 别把它扩成「差几个字都算」—— 那就等于没有这道闸。
+ */
+export function normalizeResearchTerm(text: string): string {
+  return text
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\s\u3000]+/g, '')
+    .replace(
+      /[·・．.,，、:：;；!！?？'"'"“”「」『』()（）\[\]【】<>《》\/\\_-]+/g,
+      '',
+    )
+}
+
+/**
+ * 同长、至多差一个字符 —— 简繁异体的形状（「鸣潮」/「鳴潮」）。
+ * ⚠ 只在长度 ≥ 2 时启用：一个字的「至多差一个」就是「随便什么字都行」。
+ */
+function sameShapeVariant(a: string, b: string): boolean {
+  if (a.length < 2 || a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i] && (diff += 1) > 1) return false
+  }
+  return diff === 1
+}
+
+/** 查询串 → 比对用的实体词（空白切分，⛔ 不切 CJK：那要分词器）。 */
+export function researchTermsOf(
+  query: string,
+  entities: readonly string[] = [],
+): string[] {
+  const raw = entities.length > 0 ? [...entities] : query.split(/[\s\u3000]+/)
+  const terms = raw
+    .map((term) => normalizeResearchTerm(term))
+    // 一个字的实体做不了判据（「时」能命中半个中文维基）。
+    .filter((term) => term.length >= 2)
+  return [...new Set(terms)]
+}
+
+/**
+ * **搜到的到底是不是它**（2026-09-06 新增的第三态）。
+ *
+ * 🔬 owner 真机：查「无限大 时夜」，三个 wiki 的模糊搜索分别把《时之歌》《夜王》
+ * 《鸣潮》当第一条返回 —— 而连接器一律当 `ok` 交了出去。**模糊搜索永远有第一条**，
+ * 所以「有没有结果」不是判据，「结果里有没有它」才是。
+ *
+ * 判据：页名或**导语**（正文开头一段）与任一实体词有重叠。⛔ 不看全文 ——
+ * 一篇长条目里蹭到两个字是常态，那样这道闸等于不存在。
+ */
+export function isRelevantToTerms(params: {
+  terms: readonly string[]
+  title: string
+  lead?: string
+}): boolean {
+  // ⚠ 没有可用实体词时**不判**：宁可放行，也不要拿一条空判据去删证据。
+  if (params.terms.length === 0) return true
+
+  const title = normalizeResearchTerm(params.title)
+  const lead = normalizeResearchTerm(
+    (params.lead ?? '').slice(0, RESEARCH_LIMITS.relevanceLeadChars),
+  )
+
+  return params.terms.some(
+    (term) =>
+      title.includes(term) ||
+      term.includes(title) ||
+      sameShapeVariant(term, title) ||
+      lead.includes(term),
+  )
+}
+
+/**
+ * 实体词 → Fandom 子站。**表里没有就返回 null**（调用方标 `skipped`）。
+ *
+ * ⛔ 不退回任何一个具体子域：那正是「问什么都答鸣潮」的来源。
+ */
+export function resolveFandomSite(
+  terms: readonly string[],
+): MediaWikiSiteCapability | null {
+  const normalized = terms.map((term) => normalizeResearchTerm(term))
+  for (const wiki of FANDOM_WIKIS) {
+    const aliases = wiki.aliases.map((alias) => normalizeResearchTerm(alias))
+    const hit = normalized.some((term) =>
+      aliases.some((alias) => term.includes(alias) || alias.includes(term)),
+    )
+    if (hit) return buildFandomSite(wiki)
+  }
+  return null
+}
+
+/**
+ * 源 id + 实体词 → 真要打的那个站。
+ * ⚠ Fandom 走 `resolveFandomSite`（按作品解析），其余走定址表。
+ */
+export function resolveMediaWikiSite(
+  sourceId: ResearchSourceId,
+  terms: readonly string[],
+): MediaWikiSiteCapability | null {
+  if (sourceId === RESEARCH_SOURCE_IDS.fandom) return resolveFandomSite(terms)
+  return getMediaWikiSite(sourceId) ?? null
+}
+
 /** 从规划器产出的查询里挑一条最适合这个站的（萌百中文 / Fandom 英文）。 */
 export function pickQueryForSite(
   site: MediaWikiSiteCapability,
@@ -298,12 +410,28 @@ export function pickQueryForSite(
 export async function fetchMediaWikiEvidence(params: {
   site: MediaWikiSiteCapability
   query: string
+  /** 判相关性用的实体词；缺省时按空白切 `query`。见 `isRelevantToTerms`。 */
+  entities?: readonly string[]
 }): Promise<ConnectorResult> {
   const { site, query } = params
   const title = await resolveTitle(site, query)
   if (!title) return { items: [] }
 
   const detail = await fetchDetail(site, title)
+
+  /**
+   * ⛔ **不相关的页一个字都不交出去**（第三态 `unrelated`）。返回空 items +
+   * `unrelated` 说明，`runConnector` 据此出回执 —— 与「没料」分得开，模型于是
+   * 知道该换名字重查，而不是照着一部别的作品写设定。
+   */
+  const terms = researchTermsOf(query, params.entities ?? [])
+  if (!isRelevantToTerms({ terms, title: detail.title, lead: detail.text })) {
+    return {
+      items: [],
+      unrelated: `${site.label} returned "${detail.title}", which does not match ${terms.join(' / ')}`,
+    }
+  }
+
   const retrievedAt = new Date().toISOString()
   const url = pageUrl(site, detail.title)
   const tier = evidenceTier(site.sourceId)

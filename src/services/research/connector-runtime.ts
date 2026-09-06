@@ -31,6 +31,13 @@ export interface ConnectorResult {
   items: EvidenceItem[]
   /** 走了退路时如实标注（如 B站退到 Serper）。 */
   via?: string
+  /**
+   * **搜到了，但搜到的不是它**（2026-09-06）。连接器自己判掉不相关的页之后填这
+   * 一句，`runConnector` 据此出 `unrelated` 回执。
+   * ⛔ 别把它折进 `empty`：「这个源是通的、只是名字对不上」下一步该换名字重查，
+   * 而「没料」下一步该换源 —— 两句话给模型的指令完全不同。
+   */
+  unrelated?: string
 }
 
 /** 连接器主动抛这个来表达「这个源坏了」，而不是「没料」。 */
@@ -66,17 +73,23 @@ export async function runConnector(
   try {
     const result = await getResearchBreaker(sourceId).call(fn)
     const items = result.items.slice(0, RESEARCH_LIMITS.maxItemsPerSource)
+    const status =
+      items.length > 0
+        ? RESEARCH_SOURCE_STATUSES.ok
+        : result.unrelated
+          ? RESEARCH_SOURCE_STATUSES.unrelated
+          : RESEARCH_SOURCE_STATUSES.empty
     return {
       items,
       receipt: {
         sourceId,
-        status:
-          items.length > 0
-            ? RESEARCH_SOURCE_STATUSES.ok
-            : RESEARCH_SOURCE_STATUSES.empty,
+        status,
         count: items.length,
         tookMs: Date.now() - startedAt,
         ...(result.via ? { via: result.via } : {}),
+        ...(items.length === 0 && result.unrelated
+          ? { error: result.unrelated.slice(0, 400) }
+          : {}),
       },
     }
   } catch (error) {

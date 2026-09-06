@@ -36,7 +36,6 @@ import {
   ASSISTANT_OPERATOR_TOOLS,
   ASSISTANT_OPERATOR_WRITE_MODES,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
-  ASSISTANT_PLAN_PENDING_KINDS,
   ASSISTANT_PLAN_REQUEST_REASONS,
   ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
   ASSISTANT_RESEARCH_CONFIDENCES,
@@ -433,38 +432,77 @@ export type AssistantOperatorGenerationRequest = z.infer<
   typeof AssistantOperatorGenerationRequestSchema
 >
 
-/** 计划卡上一格待定项的一个选项（§9 三条分支：缩略图 → 图示 → 纯文字）。 */
+/**
+ * 反问卡上**一个选项**（§9 三条画法分支：缩略图 → 图示 → 纯文字）。
+ *
+ * ⭐ `description` 是**必填**，这是本轮改写的要点：旧形状只有 `label`，于是卡上
+ * 出现的是「3D 游戏渲染 / 风格化 3D」两颗看不出差别的 chip，而用户要回答的正是
+ * 「它俩差在哪」。说明那一句就是差别本身 —— ⛔ 没有它就不该出这个选项。
+ * ⚠ `visual` / `assetUrl` 降成行首小图示，⛔ 不再是选项本体。
+ */
 export const AssistantOperatorPlanOptionSchema = z.object({
   id: IdSchema,
-  label: z.string().trim().min(1).max(PLAN_LIMITS.maxPendingLabelChars),
-  /** 命中词表才画图示；缺席 = 纯文字 chip。 */
+  label: z.string().trim().min(1).max(PLAN_LIMITS.maxOptionLabelChars),
+  /** 一句「这条路会发生什么」。 */
+  description: z
+    .string()
+    .trim()
+    .min(1)
+    .max(PLAN_LIMITS.maxOptionDescriptionChars),
+  /**
+   * 推荐项 —— 排第一并带「推荐」标。
+   * ⚠ 一题最多一个：服务端只认第一个，其余剥掉（见 `normalizePlanQuestions`）。
+   */
+  recommended: z.boolean().optional(),
+  /** 命中词表才画图示；缺席 = 纯文字。 */
   visual: AssistantPlanVisualSchema.optional(),
   /** 「选哪张参考图」这一类：缩略图本身就是选项，⚠ 优先级高于 `visual`。 */
   assetUrl: z.string().url().optional(),
 })
 
-export const AssistantOperatorPlanPendingSchema = z.object({
+/**
+ * 反问卡上**一道题**（2026-09-06，替换 `pending`）。
+ *
+ * ⚠ `header` 与 `question` **分开**：收起态那一行摘要只写得下 header，而问句
+ * 要完整。合成一个字段的代价是二选一 —— 要么摘要里塞一整句，要么卡上只有几个字。
+ * ⚠ `multiSelect` **显式**而不是「看选项个数猜」：猜错的表现是用户点了第二项、
+ * 第一项自己没了。
+ * ⚠ `allowOther` 缺省 **true**：多数题都该留一句「都不是，我要……」的出口，
+ * 关掉它是一个有意的动作（比如「用哪张参考图」这种闭集）。
+ */
+export const AssistantOperatorPlanQuestionSchema = z.object({
   id: IdSchema,
-  label: z.string().trim().min(1).max(LIMITS.maxPlanItemChars),
-  kind: z.enum(ASSISTANT_PLAN_PENDING_KINDS),
+  /** chip 上那几个字（≤12 字）。 */
+  header: z.string().trim().min(1).max(PLAN_LIMITS.maxHeaderChars),
+  question: z.string().trim().min(1).max(PLAN_LIMITS.maxQuestionChars),
+  multiSelect: z.boolean(),
+  allowOther: z.boolean(),
   /** ⚠ 至少两个：一个选项的「单选」不是问题，是通知。 */
   options: z
     .array(AssistantOperatorPlanOptionSchema)
-    .min(2)
-    .max(PLAN_LIMITS.maxPendingOptions),
+    .min(PLAN_LIMITS.minOptions)
+    .max(PLAN_LIMITS.maxOptions),
 })
 
-export type AssistantOperatorPlanPending = z.infer<
-  typeof AssistantOperatorPlanPendingSchema
+export type AssistantOperatorPlanQuestion = z.infer<
+  typeof AssistantOperatorPlanQuestionSchema
 >
 export type AssistantOperatorPlanOption = z.infer<
   typeof AssistantOperatorPlanOptionSchema
 >
 
-/** 用户在计划卡上的一次回答。⚠ 一格最多一条 —— 目前只有单选。 */
+/**
+ * 用户在反问卡上的一次回答。
+ *
+ * ⚠ `optionIds` 是**数组**而不是单值 —— 单选也是长度 1 的数组：两种形状会在
+ * 「多选题改成单选题」这种服务端改口时静默漂掉一半答案。
+ * ⚠ `otherText` 与 `optionIds` **并存**：多选题里可以既选 A 又补一句其他；
+ * 单选题选了「其他」时 `optionIds` 为空、只有这一句。
+ */
 export const AssistantOperatorPlanAnswerSchema = z.object({
-  pendingId: IdSchema,
-  optionId: IdSchema,
+  questionId: IdSchema,
+  optionIds: z.array(IdSchema).max(PLAN_LIMITS.maxOptions),
+  otherText: z.string().trim().max(PLAN_LIMITS.maxOtherTextChars).optional(),
 })
 
 export type AssistantOperatorPlanAnswer = z.infer<
@@ -528,7 +566,7 @@ export const AssistantOperatorRequestSchema = z.object({
    */
   planAnswers: z
     .array(AssistantOperatorPlanAnswerSchema)
-    .max(PLAN_LIMITS.maxPendingItems)
+    .max(PLAN_LIMITS.maxQuestions)
     .optional(),
   /**
    * 计划卡上按的是哪一颗。
@@ -832,8 +870,16 @@ export const AssistantOperatorTurnSchema = z.object({
     .array(z.string().trim().min(1).max(LIMITS.maxPlanItemChars))
     .max(LIMITS.maxPlanItems)
     .optional(),
-  /** 说给用户听的话。 */
+  /** 说给用户听的话。⚠ **只写结论一句 + 下一步一句**，理由写进 `detail`。 */
   message: z.string().max(LIMITS.maxMessageChars).optional(),
+  /**
+   * 「为什么」那一段（2026-09-06）—— 客户端把它折起来，用户想读才展开。
+   *
+   * ⭐ 它存在的意义是**让「正文两句」这条约束有个落点**：不给解释一个地方放，
+   * 模型只会把它塞回 `message`，于是每一轮回复都是一段小作文。
+   * ⚠ 缺席 = 这一条没有可展开的解释，⛔ 不画一颗点开是空的「为什么」。
+   */
+  detail: z.string().trim().max(LIMITS.maxMessageChars).optional(),
   tool: z
     .object({
       name: AssistantOperatorToolSchema,
@@ -863,20 +909,24 @@ export const AssistantOperatorTurnSchema = z.object({
    */
   ruleHits: z.array(IdSchema).max(RULE_LIMITS.maxInPrompt).optional(),
   /**
-   * 这一轮**还有什么没定**（§2.6 计划卡的待定项）。
+   * 这一轮**还有什么要问用户**（§2.6 反问卡，2026-09-06 替换 `pending`）。
    *
-   * ⚠ 一律宽松（与整份 turn schema 同一条纪律）：`id` 由服务端补、`kind` 缺省
-   * 单选、`visual` 收 `z.string()` 而不是枚举 —— 模型写错一个图示 id 只该丢掉
-   * 那个图示，⛔ 不该让整轮读不出来（§9「校验纪律」逐字同源）。收窄发生在服务端
-   * 出帧那一跳（`AssistantOperatorPlanPendingSchema`）。
-   * ⚠ 缺省为空：绝大多数轮次没什么可问的，⛔ 别逼模型每轮编两个待定项。
+   * ⚠ 一律宽松（与整份 turn schema 同一条纪律）：`id` 由服务端补、`multiSelect`
+   * / `allowOther` 缺省、`visual` 收 `z.string()` 而不是枚举 —— 模型写错一个图示
+   * id 只该丢掉那个图示，⛔ 不该让整轮读不出来（§9「校验纪律」逐字同源）。
+   * 收窄发生在服务端出帧那一跳（`AssistantOperatorPlanQuestionSchema`）。
+   * ⚠ `description` 在这一侧也**宽松**（可缺）：缺了由服务端剥掉那个选项，
+   * ⛔ 不作废整轮 —— 而剥到少于两项时整道题一起丢。
+   * ⚠ 缺省为空：绝大多数轮次没什么可问的，⛔ 别逼模型每轮编两道题。
    */
-  pending: z
+  questions: z
     .array(
       z.object({
         id: z.string().trim().max(LIMITS.maxIdChars).nullish(),
-        label: z.string().trim().min(1).max(LIMITS.maxPlanItemChars),
-        kind: z.string().trim().max(LIMITS.maxParamValueChars).nullish(),
+        header: z.string().trim().max(LIMITS.maxPlanItemChars).nullish(),
+        question: z.string().trim().min(1).max(LIMITS.maxPlanItemChars),
+        multiSelect: z.boolean().nullish(),
+        allowOther: z.boolean().nullish(),
         options: z
           .array(
             z.object({
@@ -885,7 +935,13 @@ export const AssistantOperatorTurnSchema = z.object({
                 .string()
                 .trim()
                 .min(1)
-                .max(PLAN_LIMITS.maxPendingLabelChars),
+                .max(PLAN_LIMITS.maxOptionLabelChars),
+              description: z
+                .string()
+                .trim()
+                .max(PLAN_LIMITS.maxOptionDescriptionChars)
+                .nullish(),
+              recommended: z.boolean().nullish(),
               visual: z.string().trim().max(LIMITS.maxIdChars).nullish(),
               assetUrl: z
                 .string()
@@ -894,10 +950,10 @@ export const AssistantOperatorTurnSchema = z.object({
                 .nullish(),
             }),
           )
-          .max(PLAN_LIMITS.maxPendingOptions),
+          .max(PLAN_LIMITS.maxOptions),
       }),
     )
-    .max(PLAN_LIMITS.maxPendingItems)
+    .max(PLAN_LIMITS.maxQuestions)
     .optional(),
   /** 模型认为活干完了。没有 `tool` 时等价于 true。 */
   finished: z.boolean().optional(),
@@ -1589,8 +1645,8 @@ export const AssistantOperatorPlanEventSchema = z.object({
  *
  * ⛔ 收到它**不等于**要出卡：出不出由 `lib/studio-operator-plan.ts` 的
  * `shouldShowPlanCard` 判（owner 2026-09-06「客户端硬判」）。这一帧只是把判据要
- * 用的三样东西摆出来 —— 阶段、待定项、预估。
- * ⚠ `pending` 允许为空数组：多数轮次没什么可问的，卡上就只有阶段列表 +「开始」。
+ * 用的三样东西摆出来 —— 阶段、反问题、预估。
+ * ⚠ `questions` 允许为空数组：多数轮次没什么可问的，卡上就只有阶段列表 +「开始」。
  */
 export const AssistantOperatorPlanRequestEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.planRequest),
@@ -1604,9 +1660,9 @@ export const AssistantOperatorPlanRequestEventSchema = z.object({
     )
     .min(1)
     .max(LIMITS.maxPlanItems),
-  pending: z
-    .array(AssistantOperatorPlanPendingSchema)
-    .max(PLAN_LIMITS.maxPendingItems),
+  questions: z
+    .array(AssistantOperatorPlanQuestionSchema)
+    .max(PLAN_LIMITS.maxQuestions),
   estimate: AssistantOperatorPlanEstimateSchema,
   /** 服务端**观察到**的理由 —— 证据不是判定，见常量头注。 */
   reason: z.enum(ASSISTANT_PLAN_REQUEST_REASONS),
@@ -1654,9 +1710,17 @@ export const AssistantOperatorConfirmRequestEventSchema = z.object({
   proposed: z.string().max(LIMITS.maxConfirmHaveChars),
 })
 
+/**
+ * 说给用户听的一条。
+ *
+ * ⚠ `detail` 是**可折叠的「为什么」**（2026-09-06）：正文只留结论 + 下一步，
+ * 解释放这里由客户端折起来。⛔ 别把它并进 `text` —— 并进去之后「两句」这条
+ * 约束在结构上就没有落点了，只能靠模型自觉。
+ */
 export const AssistantOperatorMessageEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.message),
   text: z.string().max(LIMITS.maxMessageChars),
+  detail: z.string().max(LIMITS.maxMessageChars).optional(),
 })
 
 /**

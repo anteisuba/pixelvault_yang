@@ -633,16 +633,39 @@ export type AssistantPlanRequestReason =
  */
 export const ASSISTANT_PLAN_CARD_MIN_STEPS = 3
 
-/** 待定项（§2.6：1–3 项）与每项选项数的协议护栏。 */
+/**
+ * **反问卡**的协议护栏（2026-09-06 改写，替换旧的三格待定项）。
+ *
+ * ── 换掉了什么 ────────────────────────────────────────────────────
+ * 旧形状是 `pending[]`：一行 `label` + 一排只有名字的 chip。它问出来的东西长得
+ * 像图钉墙 —— 用户看着「3D 游戏渲染 / 风格化 3D」两颗 chip，**答不上来它俩差在
+ * 哪**，因为差别根本没写在卡上。新形状逐条对着这件事修：
+ *  · `question` 是**一个问句**，`header` 是收起态那一行只写得下的几个字；
+ *  · 每个选项带**一句说明** —— 「这条路会发生什么」就是差别本身；
+ *  · **推荐项排第一**：用户多数时候要的是「你觉得呢」，不是一道选择题；
+ *  · `multiSelect` **显式**：⛔ 不许「看选项个数猜」，猜错的表现是用户点了第二项、
+ *    第一项自己没了。
+ *
+ * ⚠ 上限 4 题是**设计**不是护栏：一次问五件事就不是反问，是问卷。
+ * ⚠ 每题 2–4 项同理：一个选项的「单选」不是问题，是通知（`message` 那条路）；
+ *   五个以上说明问题问错了，该先缩小范围。
+ */
 export const ASSISTANT_PLAN_CARD_LIMITS = {
-  /** ⚠ 上限 3 是**设计**不是护栏：一次问四件事就不是「反问」，是问卷。 */
-  maxPendingItems: 3,
-  /** 一格 `grid-cols-3`，两行封顶。 */
-  maxPendingOptions: 6,
-  maxPendingLabelChars: 40,
+  maxQuestions: 4,
+  minOptions: 2,
+  maxOptions: 4,
+  /** chip 上那几个字（≤12 字）。⛔ 别拿它装问句。 */
+  maxHeaderChars: 12,
+  /** 问句本身。 */
+  maxQuestionChars: 80,
+  /** 选项标题。 */
+  maxOptionLabelChars: 40,
+  /** 选项那一句说明 —— 没有它，这张卡就退回图钉墙。 */
+  maxOptionDescriptionChars: 80,
+  /** 「其他」里用户自己写的那一句。 */
+  maxOtherTextChars: 200,
 } as const
 
-/** 待定项目前只有单选一种。⚠ 写成常量而不是字面量，加多选时这里是唯一的落点。 */
 /**
  * 歧义反问单选卡（`choice_request`）的护栏。
  *
@@ -655,11 +678,6 @@ export const ASSISTANT_CHOICE_REQUEST_LIMITS = {
   maxOptions: 8,
   maxQuestionChars: 160,
 } as const
-
-export const ASSISTANT_PLAN_PENDING_KINDS = ['single'] as const
-
-export type AssistantPlanPendingKind =
-  (typeof ASSISTANT_PLAN_PENDING_KINDS)[number]
 
 /**
  * `search_assets` 能检索的媒体类型。

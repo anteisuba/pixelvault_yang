@@ -11,11 +11,19 @@ vi.mock('@/lib/with-retry', () => ({
   withRetry: <T>(fn: () => Promise<T>) => fn(),
 }))
 
-import { MEDIAWIKI_SITES, RESEARCH_SOURCE_IDS } from '@/constants/research'
+import {
+  FANDOM_WIKIS,
+  MEDIAWIKI_SITES,
+  RESEARCH_SOURCE_IDS,
+} from '@/constants/research'
 import {
   fetchMediaWikiEvidence,
   getMediaWikiSite,
+  isRelevantToTerms,
   pickQueryForSite,
+  researchTermsOf,
+  resolveFandomSite,
+  resolveMediaWikiSite,
 } from '@/services/research/mediawiki.connector'
 
 const mockFetch = vi.fn()
@@ -54,9 +62,8 @@ function fetchedUrls(): string[] {
 const MOEGIRL = MEDIAWIKI_SITES.find(
   (site) => site.sourceId === RESEARCH_SOURCE_IDS.moegirl,
 )!
-const FANDOM = MEDIAWIKI_SITES.find(
-  (site) => site.sourceId === RESEARCH_SOURCE_IDS.fandom,
-)!
+/** ⚠ Fandom 的 host 按作品现解析（A4），⛔ 不再是能力表里的一行。 */
+const FANDOM = resolveFandomSite(['鸣潮'])!
 
 describe('fetchMediaWikiEvidence — 萌娘百科', () => {
   it('turns categories into structured tag evidence and pageimages into image evidence', async () => {
@@ -264,5 +271,149 @@ describe('per-site query selection', () => {
     expect(MEDIAWIKI_SITES.some((site) => site.api.includes('wiki.gg'))).toBe(
       false,
     )
+    // ⛔ Fandom 不许再出现在定址表里 —— 它的 host 按作品解析。
+    expect(
+      MEDIAWIKI_SITES.some(
+        (site) => site.sourceId === RESEARCH_SOURCE_IDS.fandom,
+      ),
+    ).toBe(false)
+  })
+})
+
+describe('A4 · Fandom 按实体解析子站', () => {
+  it('⭐ 中英日别名都能命中同一个 wiki（无限大 / Ananta）', () => {
+    expect(resolveFandomSite(['无限大'])?.api).toContain('ananta.fandom.com')
+    expect(resolveFandomSite(['Ananta', '时夜'])?.api).toContain(
+      'ananta.fandom.com',
+    )
+    expect(resolveFandomSite(['原神', '钟离'])?.api).toContain(
+      'genshin-impact.fandom.com',
+    )
+  })
+
+  it('⛔ 表里没有的作品返回 null，⛔ 不退回鸣潮（那正是旧 bug）', () => {
+    expect(resolveFandomSite(['某部没人写过的作品'])).toBeNull()
+    expect(resolveFandomSite([])).toBeNull()
+  })
+
+  it('resolveMediaWikiSite：定址站走能力表，Fandom 走解析', () => {
+    expect(
+      resolveMediaWikiSite(RESEARCH_SOURCE_IDS.moegirl, ['原神'])?.api,
+    ).toContain('moegirl')
+    expect(
+      resolveMediaWikiSite(RESEARCH_SOURCE_IDS.fandom, ['原神'])?.api,
+    ).toContain('genshin-impact')
+    expect(resolveMediaWikiSite(RESEARCH_SOURCE_IDS.fandom, ['x'])).toBeNull()
+  })
+
+  it('每个子域拼出的 api / pageUrlPrefix 同源', () => {
+    for (const wiki of FANDOM_WIKIS) {
+      const site = resolveFandomSite([wiki.aliases[0]!])!
+      expect(site.api).toBe(`https://${wiki.subdomain}.fandom.com/api.php`)
+      expect(site.pageUrlPrefix).toBe(
+        `https://${wiki.subdomain}.fandom.com/wiki/`,
+      )
+    }
+  })
+})
+
+describe('A2 · 相关性闸（搜到了但搜到的不是它）', () => {
+  it('实体词至少两个字符，⛔ 单字不做判据', () => {
+    expect(researchTermsOf('外貌', ['无限大', '时夜', '时'])).toEqual([
+      '无限大',
+      '时夜',
+    ])
+    // 没有实体时按空白切目标。
+    expect(researchTermsOf('无限大 时夜')).toEqual(['无限大', '时夜'])
+  })
+
+  it('⭐ 页名与实体无重叠 → 不相关（《时之歌》≠「时夜」）', () => {
+    const terms = researchTermsOf('', ['无限大', '时夜'])
+    expect(isRelevantToTerms({ terms, title: '时之歌' })).toBe(false)
+    expect(isRelevantToTerms({ terms, title: '夜王' })).toBe(false)
+    expect(isRelevantToTerms({ terms, title: '鸣潮' })).toBe(false)
+  })
+
+  it('页名命中、或导语里出现实体 → 相关', () => {
+    const terms = researchTermsOf('', ['无限大', '时夜'])
+    expect(isRelevantToTerms({ terms, title: '时夜' })).toBe(true)
+    expect(isRelevantToTerms({ terms, title: '时夜（无限大）' })).toBe(true)
+    expect(
+      isRelevantToTerms({
+        terms,
+        title: 'Shiye',
+        lead: '时夜是《无限大》的登场角色。',
+      }),
+    ).toBe(true)
+    // 简繁一位容差：「鸣潮」↔「鳴潮」。
+    expect(isRelevantToTerms({ terms: ['鸣潮'], title: '鳴潮' })).toBe(true)
+  })
+
+  it('⚠ 没有可用实体词时不判 —— 宁可放行也不拿空判据删证据', () => {
+    expect(isRelevantToTerms({ terms: [], title: '随便什么' })).toBe(true)
+  })
+
+  it('⭐ 不相关的页一个字都不交出去：items 空 + unrelated 说明', async () => {
+    routeFetch([
+      {
+        match: 'action=opensearch',
+        body: ['时夜', ['时之歌'], [''], ['https://zh.moegirl.org.cn/时之歌']],
+      },
+      {
+        match: 'prop=extracts',
+        body: {
+          query: {
+            pages: [
+              {
+                pageid: 1,
+                title: '时之歌',
+                extract: '《时之歌》是一个日本音乐企划。'.repeat(4),
+              },
+            ],
+          },
+        },
+      },
+    ])
+
+    const result = await fetchMediaWikiEvidence({
+      site: MOEGIRL,
+      query: '无限大 时夜',
+      entities: ['无限大', '时夜'],
+    })
+
+    expect(result.items).toEqual([])
+    expect(result.unrelated).toContain('时之歌')
+  })
+
+  it('相关的页照常出证据（同一条路，只是名字对上了）', async () => {
+    routeFetch([
+      {
+        match: 'action=opensearch',
+        body: ['时夜', ['时夜'], [''], ['https://zh.moegirl.org.cn/时夜']],
+      },
+      {
+        match: 'prop=extracts',
+        body: {
+          query: {
+            pages: [
+              {
+                pageid: 2,
+                title: '时夜',
+                extract: '时夜是《无限大》的登场角色。'.repeat(4),
+              },
+            ],
+          },
+        },
+      },
+    ])
+
+    const result = await fetchMediaWikiEvidence({
+      site: MOEGIRL,
+      query: '无限大 时夜',
+      entities: ['无限大', '时夜'],
+    })
+
+    expect(result.unrelated).toBeUndefined()
+    expect(result.items.length).toBeGreaterThan(0)
   })
 })

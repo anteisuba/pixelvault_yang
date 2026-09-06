@@ -8,13 +8,17 @@
  * 待定项、预估、观察到的理由），判定放在这一个纯函数里 —— 一处判、到处一致，
  * 而且脱离 React 就能钉死。
  *
- * ── 三条判据，任一成立就出卡 ───────────────────────────────────────
+ * ── 四条判据，任一成立就出卡 ───────────────────────────────────────
  *  ① 用户自己要求先问（输入区那颗「先问我」，§3.3）；
  *  ② 这一轮的工具是**花钱档**（`plan_request.reason === 'spend'`，服务端观察到的
  *     事实：本轮 tool 是 `prime_generate` / `request_generation`）；
  *  ③ 步数 ≥ `ASSISTANT_PLAN_CARD_MIN_STEPS`（3）—— 「它要替我做一串事」。
+ *  ④ **这一轮真有话要问**（`questions` 非空，2026-09-06 随反问卡协议加）。
+ *     ⚠ 这一条不是锦上添花：一道问出来却没地方显示的题，用户看到的是助手自作主张
+ *     按某个默认值往下做了 —— 比多弹一张卡糟得多。⛔ 别把它并进 ③：一句「要哪种
+ *     画风」常常只对应一步。
  *
- * ⛔ 三条都不成立就**直接进 working**：改一句提示词还先弹一张卡，是纯打扰。
+ * ⛔ 四条都不成立就**直接进 working**：改一句提示词还先弹一张卡，是纯打扰。
  */
 
 import {
@@ -44,5 +48,6 @@ export function shouldShowPlanCard(
 ): boolean {
   if (request.forcePlan === true) return true
   if (plan.reason === ASSISTANT_PLAN_REQUEST_REASON_IDS.spend) return true
+  if (plan.questions.length > 0) return true
   return plan.steps.length >= ASSISTANT_PLAN_CARD_MIN_STEPS
 }

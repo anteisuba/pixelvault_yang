@@ -675,12 +675,12 @@ model AssistantPersona {
   avatarStorageKey String?
 
   /// professional / friendly / terse / custom（`ASSISTANT_PERSONA_TONES`）。
-  tone       String  @default("professional")
+  tone       String  @default("terse")
   /// tone = custom 时那一句话，≤80 字；其余档位为 null。
   toneCustom String?
 
   /// concise / standard / detailed —— 落到系统提示里是**字数区间**，不是形容词。
-  verbosity String @default("standard")
+  verbosity String @default("concise")
   /// always / auto / direct —— 「先问我」开关的初始态 + 出卡判据。
   planMode  String @default("auto")
   /// ui / chinese / english —— 覆盖请求里的 responseLanguage。

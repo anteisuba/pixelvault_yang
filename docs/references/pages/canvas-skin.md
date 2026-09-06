@@ -276,7 +276,7 @@ v0 用一个 accent 同时表"主动作"和"选中态"——**在画布上这两
 
 - 皮肤落点：`src/app/canvas.css`（顶部 `:root` 反转块 = 传送门可达的那份；`.domain-canvas` 段 = `--canvas-*` 本体）
 - 结构与信息设计：`docs/references/pages/node-canvas.md` · `docs/references/pages/canvas-node-detail.md`
-- 域业务契约：`docs/references/domains/canvas.md`
+- 域业务契约：`docs/references/pages/node-canvas-v2.md` §0.1
 
 ## Last Verified
 

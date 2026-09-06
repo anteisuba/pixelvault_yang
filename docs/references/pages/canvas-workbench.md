@@ -8,10 +8,10 @@
 >
 > ⚠ **外观色板（2026-07-30）**：**画布改浅**，与实现一致。冷石墨舞台 `#101114`、钨丝琥珀作**唯一强调**等 **v1 深色数值不再作为施工色答案**。浅色数值 SoT = [`canvas-skin.md`](canvas-skin.md) + 已落地的 `src/app/canvas.css`（2026-07-27 token 反转；默认仅浅色预设）。
 >
-> 分工：opus 调查（`../domains/canvas.md`）→ Fable 设计（本文结构）→ 执行。
-> 与旧文档：`node-canvas.md` 暖炭纸卡 = 更早实现/回归证据；**新色以 skin-spec/canvas.css 为准**。业务锁定区见 `../domains/canvas.md` §7。
+> 分工：opus 调查（域定义现并入 `node-canvas-v2.md` §0.1）→ Fable 设计（本文结构）→ 执行。
+> 与旧文档：`node-canvas.md` 暖炭纸卡 = 更早实现/回归证据；**新色以 skin-spec/canvas.css 为准**。业务锁定区见 `node-canvas-v2.md` §0.1「未来 UI 必须保留的业务事实」。
 
-## 1. 域职责与本页任务（详见 domains/canvas.md，此处不重复）
+## 1. 域职责与本页任务（详见 `node-canvas-v2.md` §0.1，此处不重复）
 
 长视频导演台：剧本→分镜→逐镜生成→拼接。本页（`/studio/node`）承载全部六条核心工作流；最高频任务 = **一组素材汇入一个视频镜头**。非目标：不复制 Studio 工作台、不做通用白板、不做 ComfyUI 式接线板。
 
@@ -112,7 +112,7 @@
 
 ## Source of Truth
 
-- 域契约（业务锁定区/词汇/边界）：`../domains/canvas.md`
+- 域契约（业务锁定区/边界）：`node-canvas-v2.md` §0.1
 - 拍板记录：2026-07-19 本会话（三方向 widget + 关键切片 widget + owner 三连选择框）
 - 旧皮业务回归（迁移期并存）：`node-canvas.md`（关系呈现 v3 任务包结论已沉淀于此，原包已随 plans 清理）
 - 治理：`../../brand-dna.md` · `../../scenes/ui-page.md`

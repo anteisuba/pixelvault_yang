@@ -58,7 +58,7 @@ Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE ·
 | HAPPYHORSE_10                                       | alibaba/happy-horse/v1.1/text-to-video           | fal                                                           |
 | WAN_30                                              | alibaba/wan-3.0/text-to-video                    | fal（目录唯一 30s；首尾帧）                                   |
 | WAN_30_REFERENCE                                    | alibaba/wan-3.0/reference-to-video               | fal（图 10 / 视频 5 / 音频 5）                                |
-| **GEMINI_OMNI_FLASH**                               | gemini-omni-flash-preview                        | Gemini 直连（**Interactions API**，非 generateContent，见 ⑦） |
+| **GEMINI_OMNI_FLASH**                               | gemini-omni-1.1-flash                            | Gemini 直连（**Interactions API**，非 generateContent，见 ⑦） |
 
 ### 音频（2）
 
@@ -146,42 +146,36 @@ LoRA 底模（2026-07-30 社区对账；调研全文《LoRA底模与工作流调
 | ~~Gemini Omni Flash~~ | **已于 2026-07-26 接入**，见下节 ⑦                                                                                                                                                                                                                                                                                                                                            |
 | Seedream 5.0 edit     | Pro/Lite 都有 edit 端点，低幻觉可控编辑对编辑工作台是能力升级，未接                                                                                                                                                                                                                                                                                                           |
 
-### ⑦ Gemini Omni Flash 接入笔记（2026-07-26）
+### ⑦ Gemini Omni 1.1 Flash — Worker 执行链（2026-09-06）
 
-> ⚠ **2026-08-24 更新（死执行链删除）**：本节描述的实现从上线起就没进过 `canSubmitVideoViaExecutionWorker` 白名单，一直卡在 501（生产从未跑通）。死执行链清理已把 `src/services/providers/gemini.adapter.ts` 里的 `generateVideo`/`submitVideoToQueue`/`checkVideoQueueStatus` 三方法连同 `generate-video.service.ts` 的存在性守卫整块删除——**这套代码现在哪儿都不存在**，既不在 src/ 也从未进过 `workers/execution`。下文保留原始 API 形态笔记作历史记录（如果哪天要把 Gemini 视频真正迁进 worker，这仍是最详细的 Interactions API 调研），但别再照着找 `submitVideoToQueue`/`checkVideoQueueStatus` 这两个方法名——它们已经不是任何活代码的一部分。
+现役执行 ID 为 `gemini-omni-1.1-flash`，历史资产 ID 保持 `gemini-omni-flash`。旧 preview 实现未进入 Worker，曾恒定 501；本轮已补齐应用白名单、发送契约和 Worker 分支。
 
-**它不走 `:generateContent`。** Gemini 视频跑在 **Interactions API** 上——一个 create/poll 面，当时对上了 Next.js adapter 层（已删除）的 `submitVideoToQueue` + `checkVideoQueueStatus` 契约。
+| 阶段       | 当前实现                                                                                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 提交       | `POST /v1beta/interactions`，`input` 含文字和参考图；`response_format` 指定视频、比例、720p 和 `delivery: uri`；`background/store/stream: false`。不发旧 `video_config`。 |
+| 结果       | 从 REST `steps[type=model_output].content[type=video].uri` 读取文件；只接受 Google Files URI，任务状态不保存视频字节或明文 key。                                          |
+| 轮询与归档 | Files `PROCESSING` 继续等待、`FAILED` 报错、`ACTIVE` 后带 key 下载并写 R2，回调持久素材 URL。                                                                             |
 
-| 环节 | 形态                                                                                                                                                                             |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 提交 | `POST /v1beta/interactions`，body = `{ model, input[], response_format:{type:'video',aspect_ratio,delivery:'uri'}, video_config:{task} }`                                        |
-| 轮询 | `GET /v1beta/interactions/{id}`，状态机 `queued / in_progress / requires_action / completed / failed / cancelled / incomplete / budget_exceeded`                                 |
-| 取件 | `delivery:'uri'` 落到 Files API。**必须先等 `GET /v1beta/files/{id}` 的 `state` 变 `ACTIVE`**，否则下载 403；最终 URL = `…/files/{id}:download?alt=media`，需带 `x-goog-api-key` |
+只开放已接通的文字/参考图输入；音频和视频参考尚未接入。时长由模型决定，不把界面名义 8 秒写成实际输出时长。生成步骤不自动重试，避免不确定超时后重复扣费；文件轮询/归档沿用 Worker 重试。取消仍由本地任务取消与 Worker terminate 收口，没有新增 Google 上游取消实现。
 
-`input` 是新格式（旧 `contents[].parts[].inlineData` 的替代）：`[{type:'text',text}, {type:'image',mime_type,data}]`。带参考图时 `video_config.task` 自动切 `image_to_video`。
+官方核验：[Omni 指南](https://ai.google.dev/gemini-api/docs/omni)（2026-09-06）。已完成模拟执行链测试；未调用真实付费生成，未部署 Worker。
 
-选 `delivery:'uri'` 而非默认的 inline base64，是因为 720p 片段会变成几 MB 的 JSON；URL 需要鉴权下载，正好用 `ProviderVideoResult.fetchHeaders`（OpenAI Sora 同款路径）。
+同轮文本路由由 3.7 升级为 `gemini-3.8-flash`，覆盖 enhance 可选档、assistant 和 planner。官方支持函数调用、结构化输出及多模态输入；不支持 `minimal` thinking，本仓未发送该值。价格页列 2026 年底前输入 $0.75 / 输出 $3.75 每百万 token，2027-01-01 起翻倍。[模型页](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash) · [价格页](https://ai.google.dev/gemini-api/docs/pricing)。
 
-**三点已知限制**（都在代码注释里标了）：
-
-1. **时长不可控** —— Interactions API 没有 duration 参数，官方只说输出 3–10 秒。能力矩阵故意只声明 `[8]` 单值，而不是给一个假的选择器。
-2. **轮询拿不到方向** —— `checkVideoQueueStatus` 的入参只有 `statusUrl/responseUrl/apiKey`，看不到请求时的 aspect ratio，响应里也没有像素尺寸。所以竖屏片段会被标成 1280x720（文件本身是对的，只是元数据不准）。
-3. **⚠ 从未真机验证过，且实现已删** —— 当年完全按官方文档写，单测覆盖了提交/轮询/Files 三态/失败分支，但从没用真 API key 跑过一次真实生成，一直卡在 501。2026-08-24 死执行链清理时作为死代码整块删除（见本节顶部更新）——如果以后要重接，`Unrecognised video URI` 这类 uri 形态校验错误是当年笔记留下的唯一线索，实现要重写。
-
-`gemini-omni-flash-preview` 是 preview 档，enum 值特意写成 `gemini-omni-flash`（不含 `-preview`），GA 时只改一行 externalModelId——这是①那次事故的直接教训。
+Fish 复核：2026-09-06 的 [API reference](https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech) 及 [价格页](https://docs.fish.audio/developer-guide/models-pricing/pricing-and-rate-limits) 仍列 `s2.1-pro-free`，单价 $0。旧博客的 08-31 截止不足以证明停用；未知 ID 会回落到收费 `s2.1-pro`，并非必然失败。保留精确免费 ID，未自动切付费；账号实际可用性及延期仍未通过真实生成确认。
 
 ### ⑧ 2026-07-30 业界升级审计 — **已实现清单（别再当 backlog 排期）**
 
 > 来源：《全站模型升级审计-2026-07-30》调研 §9（已随任务包清理，git 历史可取）。
 > **回写理由**：那份调研文首是「优先级/建议」口吻，但 §9 记着当天已落地——只读文首会把这五项重新排一遍期。
 
-| 项                         | 状态             | 代码事实（2026-07-31 复核）                                                                                                 |
-| -------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **Fish TTS 升 s2.1-pro**   | ✅ 已实现        | `models/audio.ts` `externalModelId: 's2.1-pro'`；**稳定 key 仍是 `fish-audio-s2-pro`**（只换 external id，不动 enum）       |
-| **Kling O3 Pro**           | ✅ 已实现        | 新模型条目 + fal builder 与 V3 同形                                                                                         |
-| **ElevenLabs Music v2**    | ✅ 已实现        | `externalModelId: 'music_v2'` + `audioKind: MUSIC` + `generateMusic` + service 分支 → **speech / sfx / music 三档矩阵补齐** |
-| **FLUX.2 Pro Edit**        | ✅ 已实现        | catalog + fal 多参考分支 + 编辑能力 `object-replace` / `style-transfer`                                                     |
-| **Gemini Omni 去 preview** | ⏸ **被上游卡住** | 官方文档仍只有 `gemini-omni-flash-preview`；**未改 id**。enum 已预留（见 ⑦ 末段），GA 时改一行                              |
+| 项                         | 状态                          | 代码事实（2026-07-31 复核）                                                                                                 |
+| -------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **Fish TTS 升 s2.1-pro**   | ✅ 已实现                     | `models/audio.ts` `externalModelId: 's2.1-pro'`；**稳定 key 仍是 `fish-audio-s2-pro`**（只换 external id，不动 enum）       |
+| **Kling O3 Pro**           | ✅ 已实现                     | 新模型条目 + fal builder 与 V3 同形                                                                                         |
+| **ElevenLabs Music v2**    | ✅ 已实现                     | `externalModelId: 'music_v2'` + `audioKind: MUSIC` + `generateMusic` + service 分支 → **speech / sfx / music 三档矩阵补齐** |
+| **FLUX.2 Pro Edit**        | ✅ 已实现                     | catalog + fal 多参考分支 + 编辑能力 `object-replace` / `style-transfer`                                                     |
+| **Gemini Omni 去 preview** | **2026-09-06 已实现、待部署** | 已升级 1.1 并接通 Worker，当前契约见 ⑦                                                                                      |
 
 **剩余待办（真 backlog）：** ①Gemini Omni GA id（等 Google）②火山 Seedream/Seedance endpoint 月审（下次 2026-08）③3D 目录增量 —— 但 **产品优先于模型**：GLB 下游用途未定前不优先堆 Meshy / 完整 Tripo（`product.md` 3D 节已重述）。
 
@@ -294,7 +288,7 @@ curl -s "https://fal.ai/api/models?keywords=seedance&total=100&page=1" | python 
 
 ⚠ 两处数据限制：HappyHorse 原生价取自 **1.0-I2V** 档，项目接的是 **v1.1**，可能有出入；Kling 官方是灵感值积分制，网上能搜到的全是第三方中转报价，**不能当官方价用**——要准确数字得登录可灵开发者平台。
 
-**顺带查出的成本敞口**：`src/lib/video-model-resolver.ts:167` 的 `pickDefaultProvider` 是「用户持有 key 的 provider 优先 → 否则取该品牌第一个选项 → 兜底 FAL」，而 `VIDEO_MODEL_OPTIONS` 里 seedance 品牌第一个是 fal 的 `SEEDANCE_20_FAST`。**凡是没有火山 key 的路径默认走 fal，每条多付约 2.1 倍。** BYOK 优先本身是对的设计，但若该路径用的是平台自有 key，成本直接翻倍——把火山条目排到 fal 前面即可，是一行顺序的事（未改，待 owner 拍板）。
+**顺带查出的成本敞口**：`src/lib/video-model-resolver.ts:167` 的 `pickDefaultProvider` 是「用户持有 key 的 provider 优先 → 否则取该品牌第一个选项 → 兜底 FAL」，而 `VIDEO_MODEL_OPTIONS` 里 seedance 品牌第一个是 fal 的 `SEEDANCE_20_FAST`。**凡是没有火山 key 的路径默认走 fal，每条多付约 2.1 倍。** BYOK 优先本身是对的设计，但若该路径用的是平台自有 key，成本直接翻倍——把火山条目排到 fal 前面即可，是一行顺序的事——**2026-09-06 owner 定：火山条目排到 fal 前（代码切片进行中）**。
 
 ### ⑫ Seedance 2.5 状态更新（2026-07-31 当天，修正 §⑨）
 
@@ -379,8 +373,9 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
 1. ⚠ **`ratio` 在首帧/首尾帧/视频编辑/视频延长场景下仅接受 `adaptive`**（自动保持与输入视频一致的宽高比），
    传具体宽高比会 **400**。2.0 没有这条限制。**我们有首帧/首尾帧形态**（`referenceMode: 'text-or-first-frame'`
    - `FIRST_FRAME_SLOTS`），所以这条是真会撞上的：用户选了 2.5 + 首帧图，UI 若还允许选 16:9，请求就是 400。
-     代码里目前**没有 `adaptive` 这个选项**。⏸ **待 owner 定**：是「选了首帧就把宽高比锁成自适应」，
-     还是按 Hard Rule 8 的气质「给提示不禁用」。⚠ 与画布首尾帧能力是同一块 UI，**两件事要一起设计**。
+     代码里目前**没有 `adaptive` 这个选项**。**2026-09-06 owner 定：选了首帧图就把宽高比锁成自适应并显示提示**；
+     与画布首尾帧槽是同一逻辑，排在统一助手改版**第二期（视频域）**一起做，见
+     [`pages/assistant-shell.md`](pages/assistant-shell.md) 分期章节。
 2. ⚠ **不接受含真人人脸的参考图/视频**。官方原文对 **2.5 和 2.0 系列都成立** ——
    也就是说这是既存问题，不是 2.5 引入的。用户拿真人照片当参考图会失败，我们目前没有任何提示。
 3. **不支持离线推理**（`service_tier: "flex"`，价格是在线的 50%）与**样片模式**（`draft: true`）——

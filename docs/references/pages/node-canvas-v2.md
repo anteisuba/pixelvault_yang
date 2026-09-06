@@ -18,6 +18,50 @@
 
 ---
 
+## 0.1 域定义（2026-09-06 并入，原 `domains/canvas.md` 已删）
+
+> 原 `docs/references/domains/canvas.md`（2026-07-19 调查稿）已删除，仍有效的业务事实浓缩在本节。已过时的部分（暗炭/纸卡/石绿皮肤、「Fable 三方向 + 关键切片」的设计流程、「尚未拍板」清单）**不带过来**：视觉方向以 §2.5 视觉脊柱归位为准，结构方向以本文为准。
+
+### 域负责什么
+
+Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`../product.md`](../product.md)），定位是**长视频导演台**：把「剧本 → 分镜 → 逐镜生成 → 拼接」的可控流程放在一张无限画布上编排。三条核心承诺：
+
+- **可控编排** — 不是「一句 prompt 出一个结果」，而是把创作拆成可见、可复用、可追溯的节点与关系。
+- **一致性** — 角色、声音、场景、镜头规格靠身份单元 + 参考约束跨镜头保持稳定，不靠单一 prompt。
+- **跨能力汇聚** — 图片、声音、参考视频、剧本文本作为素材汇入视频生成；画布负责它们如何被组织、绑定、送进生成请求。
+
+具体责任：在无限画布上创建/排布/连接/编辑节点并维持视口与选择；承载导演工作流（剧本大纲 → 镜头 → 镜头图 → 视频镜头 → 合并长片）；组织跨模态素材的汇聚与绑定；维持资产复用（一个身份跨多镜复用）；把图结构编译为真实生成请求（收割上游成分 → 装配 payload → 创作名翻译成 provider 位置 token → 容量校验 → 图例注入）；承载画布助手；画布项目的创建/切换/命名/保存与刷新恢复（与 Assets 的 Project 归类文件夹是两回事）；保存产出谱系（lineage）使其可追溯并进入 Assets。
+
+### 与相邻域的分工
+
+| 相邻域       | 边界                                                                                                           |
+| ------------ | -------------------------------------------------------------------------------------------------------------- |
+| Studio Image | 通用/单次图片生成与专业图片编辑归 Studio；画布消费图片作为镜头素材，不复制完整图片工作台。                     |
+| Studio Video | 轻量短片快速入口归 Studio；画布承接长视频/系列镜头/角色一致性/分镜/参考约束/片段合并。两边不合成一套拥挤表单。 |
+| Studio Audio | 主力音频生成（TTS/试音/音效/音乐）归 Studio；画布只消费音频资产与音色身份作为视频成分。                        |
+| LoRA         | LoRA 的发现/挂载/组合/训练归 LoRA 域；LoRA 可作画布节点或生成输入，画布内不复制 LoRA 编排。                    |
+| Assets       | 长期归档/整理/批量/复用归 Assets；画布产出资产但不复制资产管理器，素材复用走既有 AssetSelector 入口。          |
+| Cards        | 角色/画风/声音/背景卡的持久身份管理归 Cards；画布消费卡片并可就地新建/编辑局部，长期管理页不搬进画布。         |
+| Prompts      | 持久化的个人配方与版本复用归 Prompts；画布只负责本次编排中的装配状态，用户明确保存后才成为配方。               |
+| 执行基础设施 | Runner / provider / 队列 / 回调负责真实执行；画布只暴露已接通的能力，**不用 UI 伪装未支持的参数**。            |
+
+**深浅两档是产品级契约**：Studio（Image/Video/Audio）= 轻量、单次、快速拿一个结果的入口；Canvas = 高级编排与连续制作。同一能力两处都在不是重复，是深浅两档——画布不吞并 Studio，也不降成通用白板。
+
+### 未来 UI 必须保留的业务事实
+
+- **生成链不可切断**：建图 → 收割上游成分 → 装配 payload（`assembleReferenceImagePayload` 等共享装配）→ @token 翻译 → 容量校验 → 图例注入。数据形状可以按本文改（四类节点 / 具名槽 / v4 迁移），但这条链不能断。
+- **provider 契约保真**：Seedance 袋型合同（1 prompt + image_urls / audio_urls / video_urls）、上限（image 9）、@token 翻译、音频绑定名——UI 不得伪装或绕过真实 provider 能力。
+- **一致性单位不退化**：「名字 + 出场图组 + 音色」整体参照、一卡多镜复用、每镜可覆写，是画布相对 Studio 的核心价值，不能退化成散图堆。
+- **合法性事实源唯一**：连线合法性以 `node-connection-rules.ts` 为唯一事实源；呈现层查表，不反向影响合法性。
+- **产出可谱系化**：画布产出保留足够 lineage 且能进 Assets，重构不切断持久化与回放路径。
+- **全局品质底线继承**：可访问性、键盘可达、焦点管理、状态真实性、reduced-motion、ResponsiveOverlay、触屏软键盘、i18n 三语——见 `brand-dna.md`，画布不例外。
+
+### 移动端
+
+本文 §0 把移动端列为第三期**非目标**（继续 `isMobile → return null`）。owner 2026-09-03 拍过「降级，要做」并给了 375 配方（节点卡 `calc(100vw - 2rem)` 单指拖动 · 左侧竖排浮动工具栏 · composer 底部 vaul 抽屉 · 小地图折叠 · 底部 44px 工具条 · 助手 dock 与节点详情改 Sheet · 连线用「点端口 → 点目标端口」两步点击 · 不做框选/快捷键/右键菜单 · 验收 = 375 图能跑通「打开项目 → 输入 → 生成 → 看结果」）；该配方**不在第三期范围内，另行排期**，配方细节见 `../ui-defaults.md §6`。
+
+---
+
 ## 1. 节点分类法
 
 ### 1.1 顶层四类
@@ -466,7 +510,7 @@ SlotBinding= { slot, versions: [{ id, edgeId, sourceNodeId, blocked, blockedReas
 - 连线与渲染：`src/lib/node-connection-rules.ts` · `src/components/business/node/nodes/NodeShell.tsx` · `src/hooks/node/use-node-workflow.ts`
 - 快照与助手：`src/lib/node-assistant-context.ts` · `src/services/node/node-assistant.service.ts`（第四期删）
 - 皮肤：`src/app/canvas.css`（第三期瘦身 90%）· `src/app/globals.css` · `docs/references/ui-defaults.md`
-- 现状描述：[`node-canvas.md`](node-canvas.md) · [`canvas-workbench.md`](canvas-workbench.md) · [`canvas-skin.md`](canvas-skin.md) · `docs/references/domains/canvas.md`
+- 现状描述：[`node-canvas.md`](node-canvas.md) · [`canvas-workbench.md`](canvas-workbench.md) · [`canvas-skin.md`](canvas-skin.md)（域定义已并入本文 §0.1）
 
 ## Last Verified
 

@@ -1,7 +1,7 @@
 /**
  * Public API for Node module components (L3 Orchestrator).
  *
- * See docs/references/domains/canvas.md.
+ * See docs/references/pages/node-canvas-v2.md.
  */
 export * from './AssistantConversation'
 export * from './CanvasAddMenu'

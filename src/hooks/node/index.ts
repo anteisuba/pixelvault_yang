@@ -1,7 +1,7 @@
 /**
  * Public API for Node module hooks (L3 Orchestrator).
  *
- * See docs/references/domains/canvas.md.
+ * See docs/references/pages/node-canvas-v2.md.
  *
  * use-node-workflow.ts is still a single 1,695-LOC file containing the
  * graph state, layout, and execution logic together. Splitting it into

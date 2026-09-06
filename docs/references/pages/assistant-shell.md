@@ -611,7 +611,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 
 ### 第二期 · 视频域
 
-复用同一面板（拍板 8）。内容：**看片评审卡**（内嵌 3 张抽帧 + 否定/异常/建议）· **视频参考槽**（首帧 / 尾帧 / 参考视频）· **素材分工与硬否定串串进工具环**（被判失败的素材不得再作首帧，命中时出规则薄卡 + 拒绝理由）· 补 §13c 的 30 视频 + 4 音频模型规则。
+复用同一面板（拍板 8）。内容：**看片评审卡**（内嵌 3 张抽帧 + 否定/异常/建议）· **视频参考槽**（首帧 / 尾帧 / 参考视频）· **素材分工与硬否定串串进工具环**（被判失败的素材不得再作首帧，命中时出规则薄卡 + 拒绝理由）· 补 §13c 的 30 视频 + 4 音频模型规则 · **Seedance 2.5 首帧场景宽高比锁自适应**（owner 2026-09-06 定：选了首帧图就把宽高比锁成 `adaptive` 并显示提示；与画布首尾帧槽同一逻辑，见 `../model-catalog.md`）。
 文件：`constants/models/video.ts` + `model-strengths.ts` → `types/assistant-operator.ts`（抽帧评审载荷 · 视频槽）→ `assistant-operator.service.ts`（视频域工具表）→ `use-studio-operator-critique.ts`（多帧）→ `StudioOperatorCritiqueCard`（三帧版）+ 视频工作台参考槽组件。
 **删掉什么**：旧 `StudioAssistantDock` 的视频分支。
 
@@ -710,7 +710,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 - 服务端：`src/services/kernel/assistant-operator.service.ts`（系统提示 `:2019`、上下文压缩 `:2153`）
 - 视觉 token：`src/app/globals.css`（动效 `:198-202`、三层浅底 `:355-365`）· `docs/references/ui-defaults.md`
 - 画布：[`node-canvas-v2.md`](node-canvas-v2.md)（目标态）· [`node-canvas.md`](node-canvas.md)（现状）
-- 域：`docs/references/domains/studio.md` · `docs/references/domains/canvas.md`
+- 域：`docs/references/domains/studio.md` · 画布域定义见 [`node-canvas-v2.md`](node-canvas-v2.md) §0.1
 
 ## Last Verified
 

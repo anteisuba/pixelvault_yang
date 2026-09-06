@@ -16,7 +16,7 @@
 ### model-doc-monitor 基线与已知退化
 
 - **基线已补**（2026-07-10，commit `206df3d6`）：`docs/reference/api/model-doc-monitor.snapshot.json` 已提交，每周一起有 diff 对比。本地生成时未带 OPENAI/GEMINI key（探测被干净 skip，快照 `apis:[]`），首次 CI 运行会把 2 个 API 探测报为 "added"——一次性噪音。
-- **⚠ 已知退化：模型清单为 0**。`scripts/check-model-docs.mjs` 只解析单文件 `src/constants/models.ts` 里的 `AI_MODELS` enum + `MODEL_OPTIONS` 数组字面量；模型拆进 `src/constants/models/{enum,image,video,audio,model-3d}.ts` 后该文件只剩 barrel，脚本静默解析出 **0 个模型**——per-model officialUrl 监控全部失效，当前只监控 9 个硬编码 EXTRA_WATCH_PAGES。修法：脚本改读 `src/constants/models/` 拆分文件后跑 `models:update-doc-snapshot` 重建基线；建议纳入 `model-catalog.md` 月审动作（待 owner 决定）。
+- **⚠ 已知退化：模型清单为 0**。`scripts/check-model-docs.mjs` 只解析单文件 `src/constants/models.ts` 里的 `AI_MODELS` enum + `MODEL_OPTIONS` 数组字面量；模型拆进 `src/constants/models/{enum,image,video,audio,model-3d}.ts` 后该文件只剩 barrel，脚本静默解析出 **0 个模型**——per-model officialUrl 监控全部失效，当前只监控 9 个硬编码 EXTRA_WATCH_PAGES。**2026-09-06 owner 定：修**——脚本改读 `src/constants/models/` 拆分文件、解析出 0 个模型时直接报错（不再静默），再跑 `models:update-doc-snapshot` 重建快照（代码切片进行中）。
 
 ### Execution Worker 部署（2026-09-03 接进 CI）
 

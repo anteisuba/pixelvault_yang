@@ -56,7 +56,7 @@ export function StudioOperatorCheckpointCard({
   )
 
   const ghost =
-    'rounded-md px-1.5 py-0.5 text-2xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+    'rounded-md px-1.5 py-0.5 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
   return (
     <div
@@ -64,7 +64,7 @@ export function StudioOperatorCheckpointCard({
       data-run-key={runKey}
       data-reverted={reverted ?? 'false'}
       className={cn(
-        'flex flex-wrap items-center gap-x-2 gap-y-1 rounded-r-md border-l-2 border-status-applied bg-status-applied-surface px-2.5 py-1.5 text-2xs text-foreground',
+        'flex flex-wrap items-center gap-x-2 gap-y-1 rounded-r-md border-l-2 border-status-applied bg-status-applied-surface px-2.5 py-1.5 text-2sm text-foreground',
         reverted && 'opacity-90',
       )}
     >
@@ -75,7 +75,7 @@ export function StudioOperatorCheckpointCard({
       {reverted ? (
         <span
           data-testid="operator-checkpoint-done"
-          className="shrink-0 font-mono text-3xs tracking-nav text-muted-foreground"
+          className="shrink-0 font-mono text-xs tracking-nav text-muted-foreground"
         >
           {t(`checkpoint.reverted.${reverted}`)}
         </span>
@@ -89,7 +89,7 @@ export function StudioOperatorCheckpointCard({
               onRevert(runKey, STUDIO_OPERATOR_REVERT_CHOICES.params)
               setReverted(STUDIO_OPERATOR_REVERT_CHOICES.params)
             }}
-            className="rounded-md border border-border bg-card px-1.5 py-0.5 text-2xs text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent"
+            className="rounded-md border border-border bg-card px-1.5 py-0.5 text-2sm text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent"
           >
             {t('checkpoint.choice.params')}
           </button>
@@ -102,7 +102,7 @@ export function StudioOperatorCheckpointCard({
               setReverted(STUDIO_OPERATOR_REVERT_CHOICES.thread)
             }}
             // 破坏性档只给 `--destructive`（§11.2）：它真的会删掉这一轮之后的对话。
-            className="rounded-md border border-destructive/40 bg-card px-1.5 py-0.5 text-2xs text-destructive shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-destructive/5"
+            className="rounded-md border border-destructive/40 bg-card px-1.5 py-0.5 text-2sm text-destructive shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-destructive/5"
           >
             {t('checkpoint.choice.thread')}
           </button>

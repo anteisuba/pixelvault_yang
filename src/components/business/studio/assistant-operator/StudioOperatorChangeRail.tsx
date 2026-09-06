@@ -104,7 +104,7 @@ export function StudioOperatorChangeRail() {
           className="overflow-hidden"
         >
           <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 px-2.5 py-2">
-            <p className="text-2xs text-primary">
+            <p className="text-2sm text-primary">
               {t(`confirm.have.${confirm.field}`, {
                 count: confirm.have.length,
               })}
@@ -117,7 +117,7 @@ export function StudioOperatorChangeRail() {
                   data-testid={`operator-confirm-${choice}`}
                   onClick={() => getOperatorRunner()?.resume(choice)}
                   className={cn(
-                    'rounded-full px-2.5 py-1 text-2xs font-medium transition-colors duration-fast ease-standard',
+                    'rounded-full px-2.5 py-1 text-2sm font-medium transition-colors duration-fast ease-standard',
                     choice === ASSISTANT_OPERATOR_CONFIRM_CHOICES.append
                       ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                       : 'border border-primary/30 text-primary hover:bg-primary/10',
@@ -154,7 +154,7 @@ export function StudioOperatorChangeRail() {
                 ]
                   .filter(Boolean)
                   .join('\n')}
-                className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-2xs font-medium text-primary transition-colors duration-fast ease-standard hover:bg-primary/20"
+                className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-2sm font-medium text-primary transition-colors duration-fast ease-standard hover:bg-primary/20"
               >
                 <Sparkles className="size-2.5" aria-hidden />
                 {t(`field.${field}`)}
@@ -166,7 +166,7 @@ export function StudioOperatorChangeRail() {
             data-testid="operator-revert-all"
             onClick={handleClear}
             className={cn(
-              'ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs transition-colors duration-fast ease-standard',
+              'ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2sm transition-colors duration-fast ease-standard',
               confirmingClear
                 ? 'bg-destructive/10 font-medium text-destructive'
                 : 'text-muted-foreground hover:text-foreground',

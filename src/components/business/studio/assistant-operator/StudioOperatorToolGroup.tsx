@@ -11,6 +11,8 @@
  * ⛔ 不做「跑完立刻收」：那一瞬间的折叠会让用户以为刚才那几行是自己看花眼了。
  * ⚠ 用户**手动展开过**之后就不再自动收 —— 自动化压过一次显式意图，用户下次就
  * 不敢再点开了。
+ * ⭐ **有失败步的组不自动收**（2026-09-06 面板轮，第 5 件）：折起来的那一行只
+ * 写着「1 失败」，而用户那一刻唯一要看的就是它错在哪。
  *
  * ⚠ 无卡框（§11.4）：它是沟里的一行，不是一张卡。加了框就和确认卡 / 结果卡
  * 抢同一档视觉重量。
@@ -57,7 +59,13 @@ export function StudioOperatorToolGroup({
   // ⚠ 懒初始化：`useRef(Date.now())` 会在每次 render 都求值一次（react-hooks/purity）。
   const [startedAt] = useState(() => Date.now())
 
-  const open = manualOpen ?? (running || !autoCollapsed)
+  /**
+   * ⭐ **失败自动展开**（2026-09-06 面板轮，第 5 件）：一行「5 个操作 · 1 失败」
+   * 折着，用户得先点开才知道错在哪 —— 而错在哪正是那一刻唯一要紧的事。
+   * ⚠ 用户手动收起过仍然算数（`manualOpen` 在最前）：自动化压过一次显式意图，
+   * 用户下次就不敢再点了。
+   */
+  const open = manualOpen ?? (running || failed > 0 || !autoCollapsed)
 
   useEffect(() => {
     if (running) {
@@ -98,7 +106,7 @@ export function StudioOperatorToolGroup({
         ) : null}
         <span
           data-testid="operator-tool-group-title"
-          className="min-w-0 truncate text-xs text-foreground"
+          className="min-w-0 truncate text-md text-foreground"
         >
           {elapsedSeconds !== null && !running
             ? t('toolGroup.elapsed', { seconds: elapsedSeconds })
@@ -107,18 +115,18 @@ export function StudioOperatorToolGroup({
         {running ? (
           <span
             data-testid="operator-tool-group-running"
-            className="shrink-0 font-mono text-3xs tracking-nav text-muted-foreground"
+            className="shrink-0 font-mono text-xs tracking-nav text-muted-foreground"
           >
             {t('toolGroup.running')}
           </span>
         ) : null}
-        <span className="shrink-0 font-mono text-3xs tracking-nav tabular-nums text-muted-foreground">
+        <span className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground">
           {t('toolGroup.succeeded', { count: succeeded })}
         </span>
         {failed > 0 ? (
           <span
             data-testid="operator-tool-group-failed"
-            className="shrink-0 font-mono text-3xs tracking-nav tabular-nums text-status-risk"
+            className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-status-risk"
           >
             {t('toolGroup.failed', { count: failed })}
           </span>

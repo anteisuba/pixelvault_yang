@@ -37,6 +37,7 @@ import type {
   StudioOperatorConfirm,
   StudioOperatorMessageEntry,
   StudioOperatorPlanPrompt,
+  StudioOperatorQuestionAnswer,
   StudioOperatorQueuedMessage,
   StudioOperatorSpendPrompt,
   StudioOperatorStatus,
@@ -457,19 +458,32 @@ export function appendOperatorMessageDelta(id: string, text: string): void {
  * ⭐ 覆盖而不是「校验一下累积对不对」：增量是从半截 JSON 里现解的，转义、围栏、
  * 模型改口都会让它与定稿差一两个字符。差一两个字符没人查得出来，覆盖一次就没了。
  */
-export function finalizeOperatorMessage(id: string, text: string): void {
+export function finalizeOperatorMessage(
+  id: string,
+  text: string,
+  /**
+   * 「为什么」那一段（2026-09-06 面板轮，第 4 件）—— 面板把它折起来。
+   * ⚠ 只在定稿这一跳落地：增量帧里没有它（服务端只在整份 turn 解出来之后才有
+   * 这一段），⛔ 别为它另开一条流式通道。
+   */
+  detail?: string,
+): void {
+  const entry: StudioOperatorMessageEntry = {
+    kind: 'message',
+    id,
+    text,
+    ...(detail ? { detail } : {}),
+  }
   const index = state.entries.findIndex(
-    (entry) => entry.kind === 'message' && entry.id === id,
+    (item) => item.kind === 'message' && item.id === id,
   )
   if (index < 0) {
-    appendOperatorEntry({ kind: 'message', id, text })
+    appendOperatorEntry(entry)
     return
   }
   emit({
     ...state,
-    entries: state.entries.map((entry, i) =>
-      i === index ? { kind: 'message', id, text } : entry,
-    ),
+    entries: state.entries.map((item, i) => (i === index ? entry : item)),
   })
 }
 
@@ -491,7 +505,12 @@ export function settleOperatorMessage(id: string): void {
     ...state,
     entries: state.entries.map((entry, i) =>
       i === index
-        ? { kind: 'message', id: existing.id, text: existing.text }
+        ? {
+            kind: 'message',
+            id: existing.id,
+            text: existing.text,
+            ...(existing.detail ? { detail: existing.detail } : {}),
+          }
         : entry,
     ),
   })
@@ -712,10 +731,25 @@ export function setOperatorPlan(plan: StudioOperatorPlanPrompt | null): void {
   emit({ ...state, plan })
 }
 
-/** 点过「开始」—— 卡收成一行摘要（§3.1 ④），⛔ 不删掉它。 */
-export function resolveOperatorPlan(): void {
+/**
+ * 点过「开始」—— 卡收成一行摘要（§3.1 ④），⛔ 不删掉它。
+ *
+ * ⚠ `answers` 是**反问卡**那一份（2026-09-06 面板轮）：收起态那一行写的是
+ * 「你选了：…」，没有它就只剩一句「已确认」—— 而用户下一秒要问的正是
+ * 「我刚才选了什么」。旧的三格待定项那条路不带它，行为一字不变。
+ */
+export function resolveOperatorPlan(
+  answers: readonly StudioOperatorQuestionAnswer[] = [],
+): void {
   if (!state.plan || state.plan.resolved) return
-  emit({ ...state, plan: { ...state.plan, resolved: true } })
+  emit({
+    ...state,
+    plan: {
+      ...state.plan,
+      resolved: true,
+      ...(answers.length > 0 ? { answers } : {}),
+    },
+  })
 }
 
 export function setOperatorSpend(

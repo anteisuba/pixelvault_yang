@@ -9,7 +9,7 @@
  *
  * ── 两件事，一颗组件 ──────────────────────────────────────────────
  *  · `text` 为空且还在流 → **占位脉冲**（三点）。它的高度**就是一行正文的高度**
- *    （`h-4` = `text-xs/leading-relaxed` 的行高），所以第一个字到达时那一行不跳。
+ *    （`h-6` = `text-md`/`leading-relaxed` 的行高），所以第一个字到达时那一行不跳。
  *  · `text` 有字 → 按词（中日韩按字）切片，新出现的那一片淡入 `--duration-fast`。
  *
  * ── ⚠ 为什么 key 用下标 ─────────────────────────────────────────────
@@ -63,10 +63,12 @@ export function StudioOperatorStreamingText({
     return (
       <p
         data-testid="operator-message-pending"
-        // ⚠ 高度写死成一行正文高（`text-xs` + `leading-relaxed` = 16px）：
-        //   §4.1「骨架尺寸 = 内容尺寸」，第一个字到达时这一行不许跳。
+        // ⚠ 高度写死成一行正文高（`text-md`(15px) + `leading-relaxed` ≈ 24px
+        //   = `h-6`）：§4.1「骨架尺寸 = 内容尺寸」，第一个字到达时这一行不许跳。
+        //   ⚠ 字号抬到 15 那一轮（2026-09-06）这里跟着从 `h-4` 改过来 —— 忘了改
+        //   的表现是占位行比正文矮一截，第一个字到达时整条跳一格。
         className={cn(
-          'flex h-4 items-center gap-1 text-xs leading-relaxed',
+          'flex h-6 items-center gap-1 text-md leading-relaxed',
           className,
         )}
         aria-label={t('streaming.pending')}
@@ -88,7 +90,7 @@ export function StudioOperatorStreamingText({
       data-testid="operator-message-text"
       data-streaming={streaming ? 'true' : 'false'}
       className={cn(
-        'whitespace-pre-wrap text-xs leading-relaxed text-foreground',
+        'whitespace-pre-wrap text-md leading-relaxed text-foreground',
         className,
       )}
     >

@@ -204,7 +204,7 @@ export function StudioOperatorProgressBand({
             {hasProgress ? (
               <span
                 data-testid="operator-band-fraction"
-                className="shrink-0 font-mono text-2xs tracking-nav tabular-nums text-foreground"
+                className="shrink-0 font-mono text-2sm tracking-nav tabular-nums text-foreground"
               >
                 {`${stepsDone}/${plannedSteps}`}
               </span>
@@ -213,7 +213,7 @@ export function StudioOperatorProgressBand({
         ) : (
           <span
             data-testid="operator-domain-chip"
-            className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-2xs font-medium text-muted-foreground"
+            className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-2sm font-medium text-muted-foreground"
           >
             {t(`domainName.${domain}`)}
           </span>
@@ -226,7 +226,7 @@ export function StudioOperatorProgressBand({
           aria-expanded={open}
           disabled={steps.length === 0}
           onClick={() => setOpen((value) => !value)}
-          className="min-w-0 flex-1 truncate text-left text-xs font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground disabled:cursor-default"
+          className="min-w-0 flex-1 truncate text-left text-md font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground disabled:cursor-default"
         >
           {bandTitle}
         </button>
@@ -251,16 +251,16 @@ export function StudioOperatorProgressBand({
               {t('newThread')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-2xs font-normal text-muted-foreground">
+            <DropdownMenuLabel className="text-2sm font-normal text-muted-foreground">
               {t('history.heading')}
             </DropdownMenuLabel>
             {history.isHydrating ? (
-              <DropdownMenuItem disabled className="text-2xs">
+              <DropdownMenuItem disabled className="text-2sm">
                 {t('history.loading')}
               </DropdownMenuItem>
             ) : null}
             {!history.isHydrating && history.sessions.length === 0 ? (
-              <DropdownMenuItem disabled className="text-2xs">
+              <DropdownMenuItem disabled className="text-2sm">
                 {t('history.empty')}
               </DropdownMenuItem>
             ) : null}
@@ -282,14 +282,14 @@ export function StudioOperatorProgressBand({
                   onSelect={() => history.selectSession(session)}
                 >
                   {sessionDomain ? (
-                    <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+                    <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-2sm text-muted-foreground">
                       {t(`domainName.${sessionDomain}`)}
                     </span>
                   ) : null}
                   <span className="min-w-0 flex-1 truncate">
                     {session.title ?? t('history.untitled')}
                   </span>
-                  <span className="ml-auto shrink-0 font-mono text-2xs tabular-nums text-muted-foreground">
+                  <span className="ml-auto shrink-0 font-mono text-2sm tabular-nums text-muted-foreground">
                     {format.dateTime(new Date(session.updatedAt), {
                       month: 'numeric',
                       day: 'numeric',
@@ -304,7 +304,7 @@ export function StudioOperatorProgressBand({
               )
             })}
             {history.error ? (
-              <DropdownMenuItem disabled className="text-2xs text-destructive">
+              <DropdownMenuItem disabled className="text-2sm text-destructive">
                 {history.error}
               </DropdownMenuItem>
             ) : null}
@@ -350,15 +350,15 @@ export function StudioOperatorProgressBand({
               <li
                 key={step.id}
                 data-state={step.state}
-                className="flex items-center gap-2 py-1 text-xs text-muted-foreground data-[state=running]:font-medium data-[state=running]:text-foreground data-[state=done]:text-foreground"
+                className="flex items-center gap-2 py-1 text-md text-muted-foreground data-[state=running]:font-medium data-[state=running]:text-foreground data-[state=done]:text-foreground"
               >
-                <span className="shrink-0 font-mono text-3xs tracking-nav tabular-nums text-muted-foreground">
+                <span className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground">
                   {String(index + 1).padStart(2, '0')}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{step.title}</span>
                 <span
                   className={cn(
-                    'shrink-0 font-mono text-3xs tracking-nav',
+                    'shrink-0 font-mono text-xs tracking-nav',
                     step.state === STUDIO_OPERATOR_BAND_STEP_STATES.done &&
                       'text-status-applied',
                     step.state === STUDIO_OPERATOR_BAND_STEP_STATES.running &&

@@ -3557,6 +3557,7 @@
       "viaFallback": "代替",
       "sourceOk": "成功",
       "sourceEmpty": "結果なし",
+      "sourceUnrelated": "別物がヒット",
       "sourceFailed": "失敗",
       "sourceCircuitOpen": "一時的に利用不可",
       "sourceSkipped": "未使用",
@@ -6862,7 +6863,9 @@
       "empty": "ほかの会話はまだありません",
       "loading": "読み込み中…",
       "untitled": "無題の会話",
-      "readonlyNote": "ここまでは履歴 · 読み取り専用"
+      "readonlyNote": "ここまでは履歴 · 読み取り専用",
+      "readonlyNoteAt": "{date} の記録 · 読み取り専用",
+      "earlierRounds": "それ以前の {count} 件"
     },
     "more": "その他",
     "share": "この会話を共有",
@@ -6871,7 +6874,7 @@
     "expand": "アシスタントを開く",
     "resize": "ドラッグで幅を変更",
     "empty": "やりたいことを一言どうぞ。無料の操作はそのまま実行し、クレジットを使うものは「押すだけ」の生成ボタンで止めます。",
-    "planTitle": "計画 · 無料の手順はそのまま実行",
+    "planFold": "計画 · {count} ステップ",
     "domainMark": "{domain}に切り替え —— 道具は変わっても会話は続きます",
     "placeholderIdle": "続けてどうぞ。素材を添付しても構いません…",
     "placeholderWorking": "どうぞ、聞いています —— 入力は次の区切りまで順番待ちに入ります",
@@ -7165,10 +7168,7 @@
     },
     "plan": {
       "title": "プラン · 確認待ち",
-      "meta": "{steps} ステップ · 未定 {pending} 件",
       "estimate": "約 {credits} クレジット",
-      "revise": "修正",
-      "start": "開始",
       "revisePrefill": "計画を変更："
     },
     "spend": {
@@ -7256,8 +7256,30 @@
         "low": "コミュニティ"
       }
     },
+    "research": {
+      "goal": "調べたこと：{goal}",
+      "goalUnknown": "調べもの",
+      "count": "根拠 {count} 件",
+      "process": "調べた過程"
+    },
+    "message": {
+      "expand": "全文を表示",
+      "collapse": "折りたたむ",
+      "why": "なぜ"
+    },
     "streaming": {
       "pending": "アシスタントが考えています"
+    },
+    "question": {
+      "title": "先に何点か確認させて",
+      "meta": "{count} 件の質問",
+      "recommended": "おすすめ",
+      "other": "その他",
+      "otherPlaceholder": "ほしいものを一言で…",
+      "summary": "選んだのは：{answers}",
+      "missing": "あと {count} 問が未回答",
+      "start": "開始",
+      "revise": "修正"
     }
   },
   "GenerationCancel": {

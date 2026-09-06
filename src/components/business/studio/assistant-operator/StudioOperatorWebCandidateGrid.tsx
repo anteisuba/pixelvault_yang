@@ -101,7 +101,7 @@ export function StudioOperatorWebCandidateGrid({
 
   return (
     <div className="@container mt-2" data-testid="operator-web-candidates">
-      <p className="mb-1 text-2xs text-muted-foreground">
+      <p className="mb-1 text-2sm text-muted-foreground">
         {t('web.candidates')}
       </p>
       {/* ⚠ 列数看**容器**不看视口（同 `StudioOperatorResultRow`）：面板宽度是用户
@@ -163,7 +163,7 @@ export function StudioOperatorWebCandidateGrid({
                   </span>
                 ) : null}
                 {imported ? (
-                  <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 bg-primary/90 py-px text-3xs text-primary-foreground">
+                  <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 bg-primary/90 py-px text-xs text-primary-foreground">
                     <Check className="size-2.5" aria-hidden />
                     {t('web.imported')}
                   </span>
@@ -172,7 +172,7 @@ export function StudioOperatorWebCandidateGrid({
                     本仓没有 `--color-destructive-foreground` 这枚 token，实心
                     红上没有配得上的字色（暗档会变成深红压深底）。 */}
                 {failed ? (
-                  <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 bg-background/90 py-px text-3xs text-destructive">
+                  <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 bg-background/90 py-px text-xs text-destructive">
                     <TriangleAlert className="size-2.5" aria-hidden />
                     {t('web.importFailedShort')}
                   </span>
@@ -189,7 +189,7 @@ export function StudioOperatorWebCandidateGrid({
                   rel="noopener noreferrer"
                   data-testid="operator-web-candidate-source"
                   title={t('web.openPage')}
-                  className="flex min-w-0 items-center gap-0.5 font-mono text-3xs tracking-nav text-muted-foreground underline-offset-2 transition-colors duration-(--duration-fast) ease-standard hover:text-primary hover:underline"
+                  className="flex min-w-0 items-center gap-0.5 font-mono text-xs tracking-nav text-muted-foreground underline-offset-2 transition-colors duration-(--duration-fast) ease-standard hover:text-primary hover:underline"
                 >
                   <span className="truncate">
                     {image.domain ?? image.title}
@@ -197,7 +197,7 @@ export function StudioOperatorWebCandidateGrid({
                   <ExternalLink className="size-2.5 shrink-0" aria-hidden />
                 </a>
               ) : (
-                <span className="truncate font-mono text-3xs tracking-nav text-muted-foreground">
+                <span className="truncate font-mono text-xs tracking-nav text-muted-foreground">
                   {image.domain ?? t('web.publisherUnknown')}
                 </span>
               )}
@@ -205,7 +205,7 @@ export function StudioOperatorWebCandidateGrid({
               {/* ② 发布者 —— 取不到就写「未知」，⛔ 不拿域名冒充。 */}
               <span
                 data-testid="operator-web-candidate-publisher"
-                className="truncate text-2xs text-muted-foreground"
+                className="truncate text-2sm text-muted-foreground"
               >
                 {image.publisher ?? t('web.publisherUnknown')}
               </span>
@@ -214,7 +214,7 @@ export function StudioOperatorWebCandidateGrid({
               <span
                 data-testid="operator-web-candidate-usable"
                 className={cn(
-                  'truncate text-2xs',
+                  'truncate text-2sm',
                   image.usableAsInput
                     ? 'text-status-applied'
                     : 'text-status-risk',
@@ -238,7 +238,7 @@ export function StudioOperatorWebCandidateGrid({
                 disabled={!image.usableAsInput}
                 onClick={() => onToggle(entryId, image)}
                 className={cn(
-                  'rounded-md border px-1 py-0.5 text-3xs transition-colors duration-(--duration-fast) ease-standard',
+                  'rounded-md border px-1 py-0.5 text-xs transition-colors duration-(--duration-fast) ease-standard',
                   imported
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-primary',
@@ -258,7 +258,7 @@ export function StudioOperatorWebCandidateGrid({
               {!image.usableAsInput ? (
                 <span
                   data-testid="operator-web-candidate-blocked"
-                  className="text-3xs text-muted-foreground"
+                  className="text-xs text-muted-foreground"
                 >
                   {t('web.notUsable')}
                 </span>
@@ -273,7 +273,7 @@ export function StudioOperatorWebCandidateGrid({
       {failedPicks.length > 0 ? (
         <p
           data-testid="operator-web-import-error"
-          className="mt-1 text-2xs text-destructive"
+          className="mt-1 text-2sm text-destructive"
         >
           {failedPicks[0]?.error ?? t('web.importFailed')}
         </p>
@@ -281,7 +281,7 @@ export function StudioOperatorWebCandidateGrid({
       {webImport?.refusalError ? (
         <p
           data-testid="operator-web-refusal-error"
-          className="mt-1 text-2xs text-status-risk"
+          className="mt-1 text-2sm text-status-risk"
         >
           {webImport.refusalError}
         </p>
@@ -289,7 +289,7 @@ export function StudioOperatorWebCandidateGrid({
       {webImport?.cleanupError ? (
         <p
           data-testid="operator-web-cleanup-error"
-          className="mt-1 text-2xs text-destructive"
+          className="mt-1 text-2sm text-destructive"
         >
           {webImport.cleanupError}
         </p>
@@ -301,7 +301,7 @@ export function StudioOperatorWebCandidateGrid({
           ⚠ 数量写在按钮上（「挂上 3 张」）——⛔ 不写一句无数字的「全部挂上」：
             用户按之前要知道这一下会花掉几个参考位。 */}
       <div className="mt-1 flex flex-wrap items-center justify-between gap-1">
-        <p className="text-2xs text-muted-foreground">
+        <p className="text-2sm text-muted-foreground">
           {usedCount > 0
             ? t('web.selectedHint', { count: usedCount, limit })
             : t('web.pickHint')}
@@ -314,7 +314,7 @@ export function StudioOperatorWebCandidateGrid({
             for (const image of batch) onToggle(entryId, image)
           }}
           className={cn(
-            'shrink-0 rounded-md border px-1.5 py-0.5 text-3xs transition-colors duration-(--duration-fast) ease-standard',
+            'shrink-0 rounded-md border px-1.5 py-0.5 text-xs transition-colors duration-(--duration-fast) ease-standard',
             batch.length === 0
               ? 'cursor-not-allowed border-border/70 text-muted-foreground/60'
               : 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-primary',

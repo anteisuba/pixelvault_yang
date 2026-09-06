@@ -58,16 +58,36 @@ describe('StudioOperatorToolGroup', () => {
     )
   })
 
-  it('默认折叠成一行；有失败时单独画失败计数', () => {
+  it('默认折叠成一行 —— 全成功的那种', () => {
+    render(
+      <StudioOperatorToolGroup total={5} failed={0} running={false}>
+        <span data-testid="child" />
+      </StudioOperatorToolGroup>,
+    )
+    expect(screen.getByTestId('operator-tool-group').dataset.open).toBe('false')
+  })
+
+  it('⭐ 有失败步就**自动展开**，并单独画失败计数（2026-09-06 第 5 件）', () => {
     render(
       <StudioOperatorToolGroup total={5} failed={1} running={false}>
         <span data-testid="child" />
       </StudioOperatorToolGroup>,
     )
-    expect(screen.getByTestId('operator-tool-group').dataset.open).toBe('false')
+    // 折起来的那一行只写着「1 失败」，而用户那一刻要看的是它错在哪。
+    expect(screen.getByTestId('operator-tool-group').dataset.open).toBe('true')
     expect(screen.getByTestId('operator-tool-group-failed').textContent).toBe(
       'toolGroup.failed',
     )
+  })
+
+  it('⭐ 失败组用户**手动收起**之后就收着 —— 自动化⛔ 不压过显式意图', () => {
+    render(
+      <StudioOperatorToolGroup total={5} failed={1} running={false}>
+        <span data-testid="child" />
+      </StudioOperatorToolGroup>,
+    )
+    fireEvent.click(screen.getByTestId('operator-tool-group-toggle'))
+    expect(screen.getByTestId('operator-tool-group').dataset.open).toBe('false')
   })
 
   it('用户手动展开之后不再被自动收起', () => {

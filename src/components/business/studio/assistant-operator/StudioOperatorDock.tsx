@@ -510,7 +510,7 @@ export function StudioOperatorDock() {
             {isResizing ? (
               <span
                 data-testid="operator-width-tip"
-                className="absolute left-3 top-3 z-20 rounded-md bg-foreground px-2 py-0.5 font-mono text-2xs tabular-nums text-background"
+                className="absolute left-3 top-3 z-20 rounded-md bg-foreground px-2 py-0.5 font-mono text-2sm tabular-nums text-background"
               >
                 {`${width}px`}
               </span>

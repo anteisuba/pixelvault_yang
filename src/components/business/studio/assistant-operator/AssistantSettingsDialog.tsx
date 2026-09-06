@@ -54,7 +54,7 @@ import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-ope
  *     右「说话方式」= 语气 / 长度 / 默认行为 / 语言 四组分段控件。
  *     ⚠ 这一条**推翻** §8.1 写的「`max-w-lg` 单列，⛔ 不分栏」——owner 2026-09-06
  *     当面定的两栏优先于文档，改文档是另一件事。
- *  ③ 每组 = `text-2xs tracking-nav` 小标题 + `h-8` 分段控件（`ToggleGroup` 原语），
+ *  ③ 每组 = `text-2sm tracking-nav` 小标题 + `h-8` 分段控件（`ToggleGroup` 原语），
  *     选中 `bg-primary text-primary-foreground`。⛔ 不再有 40px 圆胶囊。
  *  ④ 两页（助手 / 项目规则）走 `Tabs` 原语，⛔ 不是两颗大圆按钮。
  *  ⑤ **保存失败就地说话**（`role="alert"`）—— 旧版 `save()` 返回 false 就什么都
@@ -136,7 +136,7 @@ function PersonaSegment({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-2xs font-semibold uppercase tracking-nav text-muted-foreground">
+      <span className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground">
         {label}
       </span>
       <ToggleGroup
@@ -333,7 +333,7 @@ export function AssistantSettingsDialog({
           <ResponsiveDialogTitle className="text-base">
             {t('title')}
           </ResponsiveDialogTitle>
-          <ResponsiveDialogDescription className="text-xs">
+          <ResponsiveDialogDescription className="text-md">
             {t('description')}
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
@@ -366,7 +366,7 @@ export function AssistantSettingsDialog({
               <div className="grid gap-6 lg:grid-cols-5">
                 {/* ── 左：身份 ─────────────────────────────────── */}
                 <section className="flex flex-col gap-3 lg:col-span-2">
-                  <span className="text-2xs font-semibold uppercase tracking-nav text-muted-foreground">
+                  <span className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground">
                     {t('avatarLabel')}
                   </span>
 
@@ -468,7 +468,7 @@ export function AssistantSettingsDialog({
                   />
 
                   {isSaving ? (
-                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <p className="flex items-center gap-1.5 text-md text-muted-foreground">
                       <Spinner size="sm" />
                       {t('avatarUploading')}
                     </p>
@@ -476,7 +476,7 @@ export function AssistantSettingsDialog({
                   {avatarError ? (
                     <p
                       role="alert"
-                      className="flex items-center gap-1.5 text-xs text-status-risk"
+                      className="flex items-center gap-1.5 text-md text-status-risk"
                     >
                       <AlertCircle className="size-3.5 shrink-0" aria-hidden />
                       {avatarError}
@@ -486,7 +486,7 @@ export function AssistantSettingsDialog({
                   <div className="flex flex-col gap-1.5">
                     <Label
                       htmlFor="assistant-persona-name"
-                      className="text-2xs font-semibold uppercase tracking-nav text-muted-foreground"
+                      className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground"
                     >
                       {t('nameLabel')}
                     </Label>
@@ -536,7 +536,7 @@ export function AssistantSettingsDialog({
                       {showToneCustomError ? (
                         <p
                           role="alert"
-                          className="flex items-center gap-1.5 text-xs text-status-risk"
+                          className="flex items-center gap-1.5 text-md text-status-risk"
                         >
                           <AlertCircle
                             className="size-3.5 shrink-0"
@@ -566,9 +566,9 @@ export function AssistantSettingsDialog({
                     }
                   />
                   {/* 全弹层**唯一**一句辅助说明（`ui-defaults.md`：辅助文字
-                      `text-xs text-muted-foreground`，只留一句）。它挂在「默认
+                      `text-md text-muted-foreground`，只留一句）。它挂在「默认
                       行为」下面而不是弹层末尾，因为它解释的就是这一档。 */}
-                  <p className="-mt-2.5 text-xs text-muted-foreground">
+                  <p className="-mt-2.5 text-md text-muted-foreground">
                     {t('planModeHint')}
                   </p>
 
@@ -589,17 +589,17 @@ export function AssistantSettingsDialog({
                 data-testid="assistant-rules"
                 className="flex flex-col gap-2"
               >
-                <p className="text-xs text-muted-foreground">
+                <p className="text-md text-muted-foreground">
                   {t('rulesHint')}
                 </p>
                 {rules.isLoading ? (
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-1.5 text-md text-muted-foreground">
                     <Spinner size="sm" />
                     {t('rulesLoading')}
                   </p>
                 ) : null}
                 {!rules.isLoading && rules.rules.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-md text-muted-foreground">
                     {t('rulesEmpty')}
                   </p>
                 ) : null}
@@ -613,7 +613,7 @@ export function AssistantSettingsDialog({
                       <p className="text-sm leading-snug text-foreground">
                         {rule.text}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-md text-muted-foreground">
                         {tRule('recordedOn', {
                           date: rule.createdAt.slice(0, 10),
                         })}
@@ -634,7 +634,7 @@ export function AssistantSettingsDialog({
                   </div>
                 ))}
                 {rules.error ? (
-                  <p role="alert" className="text-xs text-status-risk">
+                  <p role="alert" className="text-md text-status-risk">
                     {rules.error}
                   </p>
                 ) : null}
@@ -652,7 +652,7 @@ export function AssistantSettingsDialog({
           <p
             role="alert"
             data-testid="assistant-persona-save-error"
-            className="mr-auto flex min-w-0 items-center gap-1.5 text-xs text-status-risk"
+            className="mr-auto flex min-w-0 items-center gap-1.5 text-md text-status-risk"
           >
             {saveFailed ? (
               <>

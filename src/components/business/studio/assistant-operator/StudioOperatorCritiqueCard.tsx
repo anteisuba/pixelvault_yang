@@ -54,9 +54,9 @@ export function StudioOperatorCritiqueCard({
     <div
       data-testid="operator-critique-card"
       data-run-key={runKey}
-      className="overflow-hidden rounded-xl border border-primary/30 text-xs"
+      className="overflow-hidden rounded-xl border border-primary/30 text-md"
     >
-      <p className="bg-primary/10 px-2.5 py-1.5 text-2xs font-medium text-primary">
+      <p className="bg-primary/10 px-2.5 py-1.5 text-2sm font-medium text-primary">
         {payload.modelLabel
           ? t('critique.titleWithModel', { model: payload.modelLabel })
           : t('critique.title')}
@@ -94,7 +94,7 @@ export function StudioOperatorCritiqueCard({
                   aria-hidden
                 />
               )}
-              <span className="min-w-0 text-2xs text-foreground">
+              <span className="min-w-0 text-2sm text-foreground">
                 {finding.text}
               </span>
             </li>
@@ -108,14 +108,14 @@ export function StudioOperatorCritiqueCard({
       {result.borrowedVisionRoute ? (
         <p
           data-testid="operator-critique-borrowed"
-          className="border-t border-dashed border-primary/30 px-2.5 py-1.5 text-2xs text-muted-foreground"
+          className="border-t border-dashed border-primary/30 px-2.5 py-1.5 text-2sm text-muted-foreground"
         >
           {t('critique.borrowed')}
         </p>
       ) : null}
 
       {result.advice ? (
-        <p className="border-t border-dashed border-primary/30 px-2.5 py-2 text-2xs text-muted-foreground">
+        <p className="border-t border-dashed border-primary/30 px-2.5 py-2 text-2sm text-muted-foreground">
           <span className="font-medium text-primary">
             {t('critique.nextRound')}
           </span>{' '}
@@ -131,7 +131,7 @@ export function StudioOperatorCritiqueCard({
             type="button"
             data-testid="operator-critique-revert-round"
             onClick={() => onRevertRound(runKey)}
-            className="flex items-center gap-1 rounded-md text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground"
+            className="flex items-center gap-1 rounded-md text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground"
           >
             <Undo2 className="size-3" aria-hidden />
             {t('critique.revertRound', { count: roundChangeCount })}

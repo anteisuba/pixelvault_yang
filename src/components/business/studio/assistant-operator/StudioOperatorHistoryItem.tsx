@@ -9,6 +9,10 @@
  * 错事的撤销钮 / 还原钮」在这颗组件里**写不出来**，不是靠一个 `readonly` 旗标
  * 拦着。同一条论据见 `types/studio-operator-history.ts` 的头注。
  *
+ * ⚠ 正文**无气泡、无边框、无底色**（2026-09-06 面板轮，第 4 件）：历史与实时线程
+ * 是同一条会话的昨天与今天，气泡只出现在其中一半的下场是「刷新之后我的话换了个
+ * 样子」。两方靠头像与节点形状分（时间线沟本来就分得出来），⛔ 不靠色块分。
+ *
  * ⚠ 「已撤销」的划线**留着**（那是历史事实），可点的撤销钮不留。
  * ⚠ 缩略图仍可点开灯箱：看大图是只读动作，不改任何东西。
  */
@@ -38,16 +42,16 @@ export function StudioOperatorHistoryItem({
   switch (entry.kind) {
     case 'user':
       return (
-        <div className="ml-8 flex flex-col items-end gap-1">
-          <p className="rounded-xl rounded-br-sm bg-foreground/85 px-3 py-2 text-xs text-background">
+        <div className="flex flex-col gap-1">
+          <p className="whitespace-pre-wrap text-md font-medium leading-relaxed text-foreground">
             {entry.text}
           </p>
           {entry.attachments.length > 0 ? (
-            <div className="flex flex-wrap justify-end gap-1">
+            <div className="flex flex-wrap gap-1">
               {entry.attachments.map((attachment) => (
                 <span
                   key={attachment.id}
-                  className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-2xs text-muted-foreground"
+                  className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-2sm text-muted-foreground"
                 >
                   {attachment.label}
                 </span>
@@ -58,30 +62,32 @@ export function StudioOperatorHistoryItem({
       )
     case 'message':
       return (
-        <p className="mr-6 whitespace-pre-wrap rounded-xl rounded-bl-sm bg-muted/45 px-3 py-2 text-xs text-foreground">
+        <p className="whitespace-pre-wrap text-md leading-relaxed text-foreground">
           {entry.text}
         </p>
       )
     case 'plan':
       return (
-        <div
-          data-testid="operator-history-plan"
-          className="rounded-xl border border-border/70 bg-muted/30 px-2.5 py-2"
-        >
-          <p className="mb-1.5 text-2xs font-medium text-muted-foreground">
-            {t('planTitle')}
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {entry.steps.map((step) => (
-              <span
+        /* 计划折成一行「计划 · N 步」（第 2 件）——与实时线程同一个形状：
+           历史里换个样子，用户会以为那是另一种东西。 */
+        <details data-testid="operator-history-plan" className="min-w-0">
+          <summary className="cursor-pointer list-none py-0.5 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+            {t('planFold', { count: entry.steps.length })}
+          </summary>
+          <ol className="mt-1 flex flex-col gap-1 border-l border-border pl-2.5">
+            {entry.steps.map((step, index) => (
+              <li
                 key={step}
-                className="rounded-full border border-border bg-background px-2 py-0.5 text-2xs text-muted-foreground"
+                className="flex items-baseline gap-2 text-md text-foreground"
               >
-                {step}
-              </span>
+                <span className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span className="min-w-0">{step}</span>
+              </li>
             ))}
-          </div>
-        </div>
+          </ol>
+        </details>
       )
     case 'step':
       return entry.critique ? (
@@ -93,7 +99,7 @@ export function StudioOperatorHistoryItem({
       return (
         <p
           data-testid="operator-history-system-line"
-          className="mx-auto rounded-full border border-dashed border-border px-3 py-1 text-2xs text-muted-foreground"
+          className="mx-auto rounded-full border border-dashed border-border px-3 py-1 text-2sm text-muted-foreground"
         >
           {/* ⚠ 与线程里那条同一套词条与同一条 subject 规矩（`revertField` 存的是
               字段 id，要过词表；`undoStep` 存的是模型写的标题，原样用）。 */}
@@ -111,7 +117,7 @@ export function StudioOperatorHistoryItem({
         <p
           data-testid="operator-history-domain-mark"
           data-domain={entry.domain}
-          className="mx-auto rounded-full border border-dashed border-border px-3 py-1 text-2xs text-muted-foreground"
+          className="mx-auto rounded-full border border-dashed border-border px-3 py-1 text-2sm text-muted-foreground"
         >
           {t('domainMark', { domain: t(`domainName.${entry.domain}`) })}
         </p>
@@ -144,7 +150,7 @@ function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
       data-status={entry.status}
       data-undone={entry.undone ? 'true' : 'false'}
       className={cn(
-        'rounded-xl border border-border/60 bg-muted/20 px-2.5 py-2 text-xs',
+        'rounded-xl border border-border/60 bg-muted/20 px-2.5 py-2 text-md',
         rejected && 'border-destructive/30 bg-destructive/5',
         entry.undone && 'opacity-55',
       )}
@@ -169,17 +175,17 @@ function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
             {entry.title}
           </span>
           {entry.reason ? (
-            <span className="mt-0.5 block text-2xs text-muted-foreground">
+            <span className="mt-0.5 block text-2sm text-muted-foreground">
               {entry.reason}
             </span>
           ) : null}
           {rejectText ? (
-            <span className="mt-0.5 block text-2xs text-destructive">
+            <span className="mt-0.5 block text-2sm text-destructive">
               {rejectText}
             </span>
           ) : null}
           {entry.detail ? (
-            <span className="mt-1 block break-words font-mono text-2xs leading-relaxed text-muted-foreground">
+            <span className="mt-1 block break-words font-mono text-2sm leading-relaxed text-muted-foreground">
               {entry.detail}
             </span>
           ) : null}
@@ -204,9 +210,9 @@ function HistoryCritiqueCard({ entry }: { entry: StudioOperatorHistoryStep }) {
   return (
     <div
       data-testid="operator-history-critique"
-      className="overflow-hidden rounded-xl border border-border/70 text-xs"
+      className="overflow-hidden rounded-xl border border-border/70 text-md"
     >
-      <p className="bg-muted/50 px-2.5 py-1.5 text-2xs font-medium text-muted-foreground">
+      <p className="bg-muted/50 px-2.5 py-1.5 text-2sm font-medium text-muted-foreground">
         {critique.modelLabel
           ? t('critique.titleWithModel', { model: critique.modelLabel })
           : t('critique.title')}
@@ -241,7 +247,7 @@ function HistoryCritiqueCard({ entry }: { entry: StudioOperatorHistoryStep }) {
                   aria-hidden
                 />
               )}
-              <span className="min-w-0 text-2xs text-foreground">
+              <span className="min-w-0 text-2sm text-foreground">
                 {finding.text}
               </span>
             </li>
@@ -249,7 +255,7 @@ function HistoryCritiqueCard({ entry }: { entry: StudioOperatorHistoryStep }) {
         </ul>
       </div>
       {critique.advice ? (
-        <p className="border-t border-dashed border-border px-2.5 py-2 text-2xs text-muted-foreground">
+        <p className="border-t border-dashed border-border px-2.5 py-2 text-2sm text-muted-foreground">
           <span className="font-medium text-foreground">
             {t('critique.nextRound')}
           </span>{' '}

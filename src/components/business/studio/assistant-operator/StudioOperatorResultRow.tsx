@@ -76,7 +76,7 @@ export function StudioOperatorResultRow({
       data-testid="operator-result-row"
       className="@container overflow-hidden rounded-xl border border-border bg-card"
     >
-      <p className="border-b border-border px-3 py-2 text-xs font-semibold text-foreground">
+      <p className="border-b border-border px-3 py-2 text-md font-semibold text-foreground">
         {t('result.title', { count: items.length })}
       </p>
 
@@ -128,7 +128,7 @@ export function StudioOperatorResultRow({
                 />
               </button>
 
-              <span className="pointer-events-none absolute left-1 top-1 rounded bg-card/85 px-1 font-mono text-3xs tracking-nav tabular-nums text-foreground">
+              <span className="pointer-events-none absolute left-1 top-1 rounded bg-card/85 px-1 font-mono text-xs tracking-nav tabular-nums text-foreground">
                 {resultOrdinal(index)}
               </span>
 
@@ -144,7 +144,7 @@ export function StudioOperatorResultRow({
                   title={t('result.ask')}
                   aria-label={t('result.ask')}
                   onClick={() => onAsk(item, index)}
-                  className="flex items-center gap-1 rounded-md bg-card px-1.5 py-0.5 text-3xs text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex items-center gap-1 rounded-md bg-card px-1.5 py-0.5 text-xs text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <MessageSquarePlus className="size-2.5" aria-hidden />
                   {t('result.ask')}
@@ -155,7 +155,7 @@ export function StudioOperatorResultRow({
                   title={t('result.zoom')}
                   aria-label={t('result.zoom')}
                   onClick={() => onZoom(item, index)}
-                  className="flex items-center gap-1 rounded-md bg-card px-1.5 py-0.5 text-3xs text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex items-center gap-1 rounded-md bg-card px-1.5 py-0.5 text-xs text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Maximize2 className="size-2.5" aria-hidden />
                   {t('result.zoom')}
@@ -169,7 +169,7 @@ export function StudioOperatorResultRow({
       <div className="flex items-center gap-2 border-t border-border bg-muted/45 px-3 py-2">
         <span
           data-testid="operator-result-selection"
-          className="min-w-0 flex-1 truncate font-mono text-3xs tracking-nav text-muted-foreground"
+          className="min-w-0 flex-1 truncate font-mono text-xs tracking-nav text-muted-foreground"
         >
           {selected
             ? t('result.selected', { ordinal: resultOrdinal(selectedIndex) })
@@ -181,7 +181,7 @@ export function StudioOperatorResultRow({
             type="button"
             data-testid="operator-result-continue"
             onClick={() => onContinue(selected, selectedIndex)}
-            className="shrink-0 rounded-md bg-primary px-2 py-1 text-2xs text-primary-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="shrink-0 rounded-md bg-primary px-2 py-1 text-2sm text-primary-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('result.continue')}
           </button>

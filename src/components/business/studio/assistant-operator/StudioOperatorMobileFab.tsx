@@ -96,7 +96,7 @@ export function StudioOperatorMobileFab({
       {hasProgress ? (
         <span
           data-testid="operator-mobile-fab-count"
-          className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-foreground px-1.5 font-mono text-3xs tabular-nums text-background"
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-foreground px-1.5 font-mono text-xs tabular-nums text-background"
           aria-hidden
         >
           {`${stepsDone}/${plannedSteps}`}

@@ -3557,6 +3557,7 @@
       "viaFallback": "退路",
       "sourceOk": "成功",
       "sourceEmpty": "无结果",
+      "sourceUnrelated": "搜到的不是它",
       "sourceFailed": "失败",
       "sourceCircuitOpen": "暂不可用",
       "sourceSkipped": "未使用",
@@ -6862,7 +6863,9 @@
       "empty": "还没有别的会话",
       "loading": "读取中…",
       "untitled": "未命名会话",
-      "readonlyNote": "以上是历史记录 · 只读"
+      "readonlyNote": "以上是历史记录 · 只读",
+      "readonlyNoteAt": "{date} 的记录 · 只读",
+      "earlierRounds": "更早的 {count} 条"
     },
     "more": "更多",
     "share": "分享这段会话",
@@ -6871,7 +6874,7 @@
     "expand": "展开助手",
     "resize": "拖动调整助手宽度",
     "empty": "说一句你想要什么。不花积分的它直接做，花钱的停在预填好的生成键上，等你来点。",
-    "planTitle": "计划 · 不花积分的直接做",
+    "planFold": "计划 · {count} 步",
     "domainMark": "切到{domain} —— 工具已换，会话不断",
     "placeholderIdle": "继续说，或把素材挂进来…",
     "placeholderWorking": "说，我在听 —— 你打的这句会排队，下一个停顿点处理",
@@ -7165,10 +7168,7 @@
     },
     "plan": {
       "title": "计划 · 待确认",
-      "meta": "{steps} 阶段 · {pending} 个待定",
       "estimate": "预估 {credits} credits",
-      "revise": "修改",
-      "start": "开始",
       "revisePrefill": "修改计划："
     },
     "spend": {
@@ -7256,8 +7256,30 @@
         "low": "社区"
       }
     },
+    "research": {
+      "goal": "查了：{goal}",
+      "goalUnknown": "查了一下",
+      "count": "{count} 条证据",
+      "process": "调查过程"
+    },
+    "message": {
+      "expand": "展开全文",
+      "collapse": "收起",
+      "why": "为什么"
+    },
     "streaming": {
       "pending": "助手正在思考"
+    },
+    "question": {
+      "title": "先确认几件事",
+      "meta": "{count} 个问题",
+      "recommended": "推荐",
+      "other": "其他",
+      "otherPlaceholder": "写一句你想要的…",
+      "summary": "你选了：{answers}",
+      "missing": "还有 {count} 题没答",
+      "start": "开始",
+      "revise": "修改"
     }
   },
   "GenerationCancel": {

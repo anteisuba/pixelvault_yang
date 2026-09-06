@@ -105,6 +105,7 @@ import type {
 } from '@/types/assistant-operator'
 import type {
   StudioOperatorAttachment,
+  StudioOperatorQuestionAnswer,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
 
@@ -231,6 +232,7 @@ function buildMentionedAssets(
 /** 跑一轮时那几样「带上下文重发」的东西（拍板 3 / §2.6 / §6 共用一条通道）。 */
 interface RunOptions {
   confirmations?: AssistantOperatorConfirmDecision[]
+  /** 反问卡那一份答复（`{questionId, optionIds, otherText}`）。 */
   planAnswers?: AssistantOperatorPlanAnswer[]
   planApproved?: boolean
   /** 缺省读 store 的「先问我」；计划卡续跑时显式给 `false`（那张卡已经问过了）。 */
@@ -254,8 +256,8 @@ export interface UseAssistantOperatorResult {
   cancelQueued(id: string): void
   /** 就地确认的三选一（拍板 3）：追加在后 / 覆盖 / 保留。 */
   answerConfirm(choice: AssistantOperatorConfirmChoice): void
-  /** 计划卡「开始」（§3.1 ④）—— 带 `planAnswers` + `planApproved: true` 重发。 */
-  answerPlan(answers: AssistantOperatorPlanAnswer[]): void
+  /** 反问卡「开始」—— 一卡 1–4 题一次交，之后卡收成一行「你选了：…」。 */
+  answerQuestions(answers: StudioOperatorQuestionAnswer[]): void
   /** 计划卡「修改」（§3.1 ⑤）—— ⛔ 不发请求，只记下「下一条消息是改计划」。 */
   revisePlan(): void
   /** 花钱硬确认卡「生成」（§3.1 ⑰）—— 勾了「不再问」就顺手记条子。 */
@@ -452,6 +454,22 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * ⚠ `settleDeltas()` 在**定稿之前**和收尾时各调一次 —— 否则最后半句会卡在
        *   缓冲里等一个再也不来的帧。
        */
+      /**
+       * 攒着的那份计划（第 2 件）—— `plan` 帧到达时只存不落，由紧跟的
+       * `plan_request` 判定去向。⚠ 判定之外还有两条出口：流以别的方式收尾
+       * （模型压根没吐 `plan_request`）时也要把它落下去，⛔ 不能凭空吞掉一份计划。
+       */
+      let pendingPlanSteps: readonly string[] | null = null
+      const flushPlanEntry = () => {
+        if (!pendingPlanSteps) return
+        appendOperatorEntry({
+          kind: 'plan',
+          id: nextOperatorEntryId('plan'),
+          steps: pendingPlanSteps,
+        })
+        pendingPlanSteps = null
+      }
+
       let deltaBuffer = ''
       let deltaFrame: number | null = null
       const flushDeltas = () => {
@@ -593,14 +611,32 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              */
             settleOperatorMessage(messageEntryId())
           }
+          /**
+           * 攒着的计划**最多只等一帧**（第 2 件）：`plan_request` 是紧挨着 `plan`
+           * 发的，所以别的帧一到就说明这一轮不会有卡了 —— 立刻落成折叠行。
+           * ⛔ 不拖到流末尾再落：那样它会排在这一轮所有工具步的后面，读起来像
+           * 「干完之后才想起来规划」。
+           */
+          if (
+            event.type !== ASSISTANT_OPERATOR_EVENTS.plan &&
+            event.type !== ASSISTANT_OPERATOR_EVENTS.planRequest
+          ) {
+            flushPlanEntry()
+          }
           switch (event.type) {
+            /**
+             * ⭐ **计划帧不再无条件落条目**（2026-09-06 面板轮，第 2 件）。
+             *
+             * 由来：一轮里同一份计划会出现两次 —— 一条 `kind:'plan'` 的清单卡，
+             * 外加钉在流末尾那张待确认的计划卡。两张卡列的是同一串阶段，用户读到
+             * 的是「它规划了两遍」。
+             * ⚠ 所以这里只**攒着**：`plan_request` 紧跟在下一帧（服务端那一侧写死
+             * 的顺序，见 `assistant-operator.service.ts` 的「顺序是硬要求」），
+             * 由它来判 —— 出卡 = 这份清单归卡，条目不落；不出卡 = 落成一行折叠。
+             */
             case ASSISTANT_OPERATOR_EVENTS.plan:
               setOperatorPlannedSteps(event.steps.length)
-              appendOperatorEntry({
-                kind: 'plan',
-                id: nextOperatorEntryId('plan'),
-                steps: event.steps,
-              })
+              pendingPlanSteps = event.steps
               break
             /**
              * **计划卡**（§2.6 / §5，切片 3a）—— 出不出由客户端硬判。
@@ -613,13 +649,20 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              *   下面那个 catch 的 `aborted` 判据吞掉。
              */
             case ASSISTANT_OPERATOR_EVENTS.planRequest: {
-              if (!shouldShowPlanCard(event, { forcePlan })) break
+              // ⛔ 不出卡的那一支：攒着的那份计划落成**一行折叠**（第 2 件）。
+              if (!shouldShowPlanCard(event, { forcePlan })) {
+                flushPlanEntry()
+                break
+              }
+              // 出卡 = 这份清单归卡 —— ⛔ 别再落一条 `kind:'plan'`。
+              pendingPlanSteps = null
               setOperatorPlan({
                 id: nextOperatorEntryId('plancard'),
                 steps: event.steps,
-                pending: event.pending,
+                questions: event.questions,
                 estimate: event.estimate,
                 resolved: false,
+                answers: [],
               })
               setOperatorStatus('awaitingPlan')
               controller.abort()
@@ -638,7 +681,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              */
             case ASSISTANT_OPERATOR_EVENTS.message:
               settleDeltas()
-              finalizeOperatorMessage(messageEntryId(), event.text)
+              finalizeOperatorMessage(
+                messageEntryId(),
+                event.text,
+                event.detail,
+              )
               messageSeq += 1
               break
             case ASSISTANT_OPERATOR_EVENTS.step: {
@@ -780,6 +827,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         }
       } catch {
         // 半句话卡在缓冲里比丢掉更糟 —— 先落地，再谈这是不是一次 abort。
+        flushPlanEntry()
         settleDeltas()
         dropOperatorPending(messageEntryId())
         settleOperatorMessage(messageEntryId())
@@ -795,6 +843,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         return
       }
 
+      flushPlanEntry()
       settleDeltas()
       dropOperatorPending(messageEntryId())
       settleOperatorMessage(messageEntryId())
@@ -931,16 +980,21 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   )
 
   /**
-   * 计划卡「开始」（§3.1 ④）—— 带 `planAnswers` + `planApproved: true` 重发。
+   * 反问卡「开始」（§3.1 ④ / 2026-09-06 面板轮，第 1 件）—— 带 `planAnswers`
+   * + `planApproved: true` 重发。
    *
-   * ⚠ `forcePlan: false` 是硬要求：这一轮的计划卡**已经问过了**，再带一次
-   * 「先问我」会让服务端再摆一帧、客户端再出一张卡 —— 用户点「开始」之后看到的
-   * 是同一张卡又回来了（一个自己喂自己的环）。
+   * ⚠ `forcePlan: false` 是硬要求：这一轮的卡**已经问过了**，再带一次「先问我」
+   * 会让服务端再摆一帧、客户端再出一张卡 —— 用户点「开始」之后看到的是同一张卡
+   * 又回来了（一个自己喂自己的环）。
+   *
+   * ⚠ 答复**存进 store 那张卡里**（`resolveOperatorPlan(answers)`）：收起态那一行
+   * 「你选了：…」按它写。⛔ 不存的表现是卡收起来之后只剩一句「已确认」——
+   * 而用户下一秒要问的正是「我刚才选了什么」。
    */
-  const answerPlan = useCallback(
-    (answers: AssistantOperatorPlanAnswer[]) => {
+  const answerQuestions = useCallback(
+    (answers: StudioOperatorQuestionAnswer[]) => {
       if (!getOperatorState().plan) return
-      resolveOperatorPlan()
+      resolveOperatorPlan(answers)
       void run({ planAnswers: answers, planApproved: true, forcePlan: false })
     },
     [run],
@@ -1087,7 +1141,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     stop,
     cancelQueued,
     answerConfirm,
-    answerPlan,
+    answerQuestions,
     revisePlan,
     answerSpend,
     cancelSpend,

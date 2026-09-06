@@ -91,7 +91,7 @@ export function StudioOperatorLightbox() {
             />
           </motion.div>
           {lightbox.caption ? (
-            <span className="pointer-events-none mt-4 text-2xs text-background/80">
+            <span className="pointer-events-none mt-4 text-2sm text-background/80">
               {lightbox.caption}
             </span>
           ) : null}

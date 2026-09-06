@@ -21,8 +21,10 @@ import type {
   AssistantOperatorAppliedStep,
   AssistantOperatorConfirmRequestEvent,
   AssistantOperatorGenerationRequest,
+  AssistantOperatorPlanAnswer,
   AssistantOperatorPlanEstimate,
-  AssistantOperatorPlanPending,
+  AssistantOperatorPlanOption,
+  AssistantOperatorPlanQuestion,
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
 
@@ -48,6 +50,15 @@ export interface StudioOperatorMessageEntry {
   id: string
   text: string
   streaming?: boolean
+  /**
+   * 「为什么」那一段（2026-09-06 面板轮）。
+   *
+   * ⭐ 正文只留两句，**解释折起来**：聊天感的一半就在这里 —— 助手把结论说完
+   * 就停，想读理由的人自己点开。⛔ 别把它并进 `text`：并进去之后「两句」这条
+   * 约束在结构上就没有落点了，只能靠模型自觉。
+   * ⚠ 缺席 = 这一条没有可展开的解释，⛔ 不画一颗点开是空的「为什么」。
+   */
+  detail?: string
 }
 
 /** 计划条（一轮最多一条）。 */
@@ -251,6 +262,19 @@ export type StudioOperatorConfirm = Omit<
 >
 
 /**
+ * 反问卡的三样东西 —— **契约住在 `types/assistant-operator.ts`**（2026-09-06 面板轮）。
+ *
+ * ⭐ 这里只留三个别名：那一份是 Zod（跨进程边界要运行时校验），面板这一侧要的
+ * 只是同一个形状的静态类型。⛔ 不在这里再抄一份 interface —— 两份形状迟早会分叉，
+ * 而分叉的表现是「服务端明明发了 `description`，卡上就是不显示」。
+ * ⚠ 别名而不是直接在组件里 import 那三个名字：面板目录里所有类型都从这一份进，
+ * 换契约时只改这三行。
+ */
+export type StudioOperatorQuestionOption = AssistantOperatorPlanOption
+export type StudioOperatorQuestion = AssistantOperatorPlanQuestion
+export type StudioOperatorQuestionAnswer = AssistantOperatorPlanAnswer
+
+/**
  * 钉在流末尾的**计划卡**（§2.6 / §4.1 `awaitingPlan`，切片 3a）。
  *
  * ⚠ 它**不是线程条目**：三张「等你定」的卡（计划 / 花钱 / 歧义反问）一轮最多各
@@ -262,10 +286,17 @@ export type StudioOperatorConfirm = Omit<
 export interface StudioOperatorPlanPrompt {
   id: string
   steps: readonly { id: string; label: string }[]
-  pending: readonly AssistantOperatorPlanPending[]
+  /**
+   * 反问卡的题（1–4 题，每题 2–4 项）。空 = 这一轮没什么可问的，卡上只有计划本身。
+   * ⚠ 旧的三格待定项区（`pending`）已**整块删掉**（2026-09-06 面板轮）：那一版
+   * 问的是「哪个图标好看」，⛔ 不留兼容分支。
+   */
+  questions: readonly StudioOperatorQuestion[]
   estimate: AssistantOperatorPlanEstimate
   /** 已经点过「开始」——卡收成一行摘要（§3.1 ④）。 */
   resolved: boolean
+  /** 点过「开始」时提交的那份答复 —— 收起态那一行摘要按它写。 */
+  answers: readonly StudioOperatorQuestionAnswer[]
 }
 
 /** 钉在流末尾的**花钱硬确认卡**（§6 第三档 / §3.1 ⑮–⑰）。 */

@@ -9,7 +9,7 @@ import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operat
 /**
  * **接线闸**（切片 3a）：四种卡真的出现在时间线里。
  *
- * ⭐ 这份用例存在的理由：前四片把 `StudioOperatorPlanCard` /
+ * ⭐ 这份用例存在的理由：前四片把 `StudioOperatorQuestionCard` /
  * `StudioOperatorSpendConfirmCard` / `RuleChip` / `StudioOperatorAssetChoiceCard`
  * 各自写完并单测过了，但**没有任何调用方** —— 四个组件全绿、面板里一张都不出。
  * 组件级用例永远发现不了这种失败，只有「把 store 摆成那个状态、看面板画了什么」
@@ -80,7 +80,7 @@ type PanelModule = typeof import('./StudioOperatorPanel')
 let store: Store
 let Panel: PanelModule['StudioOperatorPanel']
 
-const answerPlan = vi.fn()
+const answerQuestions = vi.fn()
 const revisePlan = vi.fn()
 const answerSpend = vi.fn()
 const answerChoice = vi.fn()
@@ -130,7 +130,7 @@ function renderPanel() {
           stop: vi.fn(),
           cancelQueued: vi.fn(),
           answerConfirm: vi.fn(),
-          answerPlan,
+          answerQuestions,
           revisePlan,
           answerSpend,
           cancelSpend: vi.fn(),
@@ -190,7 +190,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(disclosure).not.toContainElement(screen.getByText('搜索失败'))
   })
 
-  it('① 计划卡钉在流末尾，「开始」把答复交给驱动 hook', () => {
+  it('① 待确认卡钉在流末尾 —— 一轮只有一张，「开始」把答复交给驱动 hook', () => {
     store.setOperatorPlan({
       id: 'plancard-1',
       steps: [
@@ -198,18 +198,88 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
         { id: 'plan-2', label: '挂参考图' },
         { id: 'plan-3', label: '备好生成键' },
       ],
-      pending: [],
+      questions: [],
+      answers: [],
       estimate: { credits: 4 },
       resolved: false,
     })
     store.setOperatorStatus('awaitingPlan')
     renderPanel()
 
-    expect(screen.getByTestId('operator-plan-card')).toBeTruthy()
+    expect(screen.getByTestId('operator-question-card')).toBeTruthy()
+    // 没有题 → 阶段清单默认展开（那时它就是这张卡的全部内容）。
     expect(screen.getAllByTestId('operator-plan-step')).toHaveLength(3)
-    fireEvent.click(screen.getByTestId('operator-plan-start'))
-    // 没有待定项 → 空数组，⛔ 不是 undefined（服务端那边按数组读）。
-    expect(answerPlan).toHaveBeenCalledWith([])
+    fireEvent.click(screen.getByTestId('operator-question-start'))
+    // 没有题 → 空数组，⛔ 不是 undefined（服务端那边按数组读）。
+    expect(answerQuestions).toHaveBeenCalledWith([])
+  })
+
+  it('⭐ 有题时只有一张卡 —— ⛔ 阶段清单不再另起一张（第 2 件）', () => {
+    store.setOperatorPlan({
+      id: 'plancard-2',
+      steps: [{ id: 'plan-1', label: '写提示词' }],
+      questions: [
+        {
+          id: 'q1',
+          header: '取景',
+          question: '要取到多少身？',
+          multiSelect: false,
+          allowOther: false,
+          options: [
+            { id: 'o1', label: '半身', description: '腰以上' },
+            { id: 'o2', label: '全身', description: '连鞋一起' },
+          ],
+        },
+      ],
+      answers: [],
+      estimate: { credits: 4 },
+      resolved: false,
+    })
+    store.setOperatorStatus('awaitingPlan')
+    renderPanel()
+
+    expect(screen.getAllByTestId('operator-question-card')).toHaveLength(1)
+    // 有题 → 阶段清单折着（一行「计划 · N 步」）。
+    expect(screen.queryAllByTestId('operator-plan-step')).toHaveLength(0)
+    expect(screen.getByTestId('operator-plan-fold')).toBeTruthy()
+  })
+
+  it('⭐ 连续的切域行只留最后一条（第 5 件）', () => {
+    for (const [index, domain] of ['image', 'video', 'image'].entries()) {
+      store.appendOperatorEntry({
+        kind: 'domainMark',
+        id: `mark-${index}`,
+        domain: domain as 'image' | 'video',
+      })
+    }
+    renderPanel()
+
+    const marks = screen.getAllByTestId('operator-domain-mark')
+    expect(marks).toHaveLength(1)
+    // 留的是**最后一条**：用户要知道的只有「现在在哪」。
+    expect(marks[0]?.dataset.domain).toBe('image')
+  })
+
+  it('⭐ 历史只摊开最近两轮，更早的折成一行（第 5 件）', () => {
+    store.loadOperatorThread({
+      sessionId: null,
+      sessionSurface: null,
+      history: [
+        { kind: 'user', id: 'u1', text: '第一轮', attachments: [] },
+        { kind: 'message', id: 'a1', text: '第一轮答' },
+        { kind: 'user', id: 'u2', text: '第二轮', attachments: [] },
+        { kind: 'message', id: 'a2', text: '第二轮答' },
+        { kind: 'user', id: 'u3', text: '第三轮', attachments: [] },
+        { kind: 'message', id: 'a3', text: '第三轮答' },
+      ],
+    })
+    renderPanel()
+
+    const older = screen.getByTestId('operator-history-older')
+    expect(older).toContainElement(screen.getByText('第一轮'))
+    // 最近两轮摊在外面 —— ⛔ 不折掉「我刚才让它改的那件事」。
+    expect(older).not.toContainElement(screen.getByText('第二轮'))
+    expect(older).not.toContainElement(screen.getByText('第三轮'))
   })
 
   it('② 花钱硬确认卡出现，四要素齐；点「生成」把「不再问」一起交出去', () => {

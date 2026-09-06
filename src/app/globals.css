@@ -145,6 +145,16 @@
   --tracking-nav-dense: 0.14em;
   --text-3xs: 0.625rem; /* 10px */
   --text-2xs: 0.6875rem; /* 11px */
+  /* 2026-09-06 owner「面板字号整体抬一档」开的两档：辅助 12→13（`2sm`）、
+     正文 →15（`md`）。`2sm` 沿用「数字前缀 = 比这个名字小一档」（`2xs` 比 `xs`
+     小一档）；15 那一档叫 `md` 而**不是** `2base`，理由是硬的 ——
+     ⚠ `cn()` 走 tailwind-merge，它把认不出来的 `text-*` 当**文字颜色**处理，
+     于是 `text-md text-foreground` 会被合并成只剩 `text-foreground`：字号那一
+     半**静默消失**（2026-09-06 真机上量到 16px 才发现）。它认的是 T 恤码形状
+     （`xs`/`sm`/`md`/`lg` 带可选数字前缀），`base`/纯数字都不认。
+     ⚠ 只补两个**空档**，⛔ 不改 Tailwind 自带的 xs/sm/base —— 那三档全站都在用。 */
+  --text-2sm: 0.8125rem; /* 13px */
+  --text-md: 0.9375rem; /* 15px */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

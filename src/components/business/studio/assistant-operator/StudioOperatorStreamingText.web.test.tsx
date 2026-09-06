@@ -87,9 +87,9 @@ describe('StudioOperatorStreamingText', () => {
   it('空正文 + 还在流 = 三点占位，高度锁成一行正文高', () => {
     render(<StudioOperatorStreamingText text="" streaming />)
     const pending = screen.getByTestId('operator-message-pending')
-    // ⭐ `h-4` = `text-xs`/`leading-relaxed` 的行高：第一个字到达时这一行不许跳。
-    expect(pending.className).toContain('h-4')
-    expect(pending.className).toContain('text-xs')
+    // ⭐ `h-6` = `text-md`/`leading-relaxed` 的行高：第一个字到达时这一行不许跳。
+    expect(pending.className).toContain('h-6')
+    expect(pending.className).toContain('text-md')
     expect(pending.className).toContain('leading-relaxed')
     expect(pending.querySelectorAll('span')).toHaveLength(3)
     for (const dot of pending.querySelectorAll('span')) {

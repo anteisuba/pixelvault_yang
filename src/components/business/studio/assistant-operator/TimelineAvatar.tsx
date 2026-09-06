@@ -141,7 +141,7 @@ export function TimelineAvatar({
         <span
           role="img"
           aria-label={userLabel}
-          className="grid size-full place-items-center font-mono text-xs uppercase leading-none tracking-nav text-muted-foreground"
+          className="grid size-full place-items-center font-mono text-md uppercase leading-none tracking-nav text-muted-foreground"
         >
           <span aria-hidden>{timelineInitials(name)}</span>
         </span>

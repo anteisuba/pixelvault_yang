@@ -221,10 +221,10 @@ export function StudioOperatorAttachMenu({
           )}
           aria-hidden
         />
-        <span className="text-2xs text-muted-foreground">
+        <span className="text-2sm text-muted-foreground">
           {t('attach.uploadTitle')}
         </span>
-        <span className="text-2xs text-muted-foreground/70">
+        <span className="text-2sm text-muted-foreground/70">
           {t('attach.uploadHint')}
         </span>
       </button>
@@ -248,7 +248,7 @@ export function StudioOperatorAttachMenu({
       />
 
       <div className="mb-1.5 mt-2.5 flex items-center gap-2 px-0.5">
-        <span className="text-2xs text-muted-foreground">
+        <span className="text-2sm text-muted-foreground">
           {t('attach.libraryLabel')}
         </span>
         {/* 拍板 20：就地开弹层，不跳页。 */}
@@ -256,7 +256,7 @@ export function StudioOperatorAttachMenu({
           type="button"
           data-testid="operator-attach-open-library"
           onClick={() => setLibraryOpen(true)}
-          className="ml-auto text-2xs text-primary hover:underline"
+          className="ml-auto text-2sm text-primary hover:underline"
         >
           {t('attach.openLibrary')}
         </button>
@@ -267,7 +267,7 @@ export function StudioOperatorAttachMenu({
           <Spinner size="sm" className="text-muted-foreground" />
         </div>
       ) : tiles.length === 0 ? (
-        <p className="px-0.5 py-3 text-center text-2xs text-muted-foreground">
+        <p className="px-0.5 py-3 text-center text-2sm text-muted-foreground">
           {t('attach.libraryEmpty')}
         </p>
       ) : (
@@ -303,7 +303,7 @@ export function StudioOperatorAttachMenu({
         </div>
       )}
 
-      <p className="mt-2 flex items-center gap-1.5 border-t border-dashed border-border/70 pt-2 text-2xs text-muted-foreground">
+      <p className="mt-2 flex items-center gap-1.5 border-t border-dashed border-border/70 pt-2 text-2sm text-muted-foreground">
         <ClipboardPaste className="size-3 shrink-0" aria-hidden />
         {t('attach.pasteHint')}
       </p>

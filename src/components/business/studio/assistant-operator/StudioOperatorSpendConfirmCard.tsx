@@ -76,7 +76,7 @@ export function StudioOperatorSpendConfirmCard({
       <div className="border-b border-border px-3 py-2">
         <span
           className={cn(
-            'text-xs font-semibold',
+            'text-md font-semibold',
             resolved ? 'text-muted-foreground' : 'text-status-warning',
           )}
         >
@@ -84,7 +84,7 @@ export function StudioOperatorSpendConfirmCard({
         </span>
       </div>
 
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-1.5 p-3 text-2xs">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-1.5 p-3 text-2sm">
         <dt className="text-muted-foreground">{t('spend.model')}</dt>
         <dd data-testid="operator-spend-model" className="text-foreground">
           {request.model.label}
@@ -115,7 +115,7 @@ export function StudioOperatorSpendConfirmCard({
       </dl>
 
       {credits === undefined || resolved ? null : (
-        <label className="flex items-center gap-2 px-3 pb-3 text-2xs text-muted-foreground">
+        <label className="flex items-center gap-2 px-3 pb-3 text-2sm text-muted-foreground">
           <input
             type="checkbox"
             data-testid="operator-spend-remember"
@@ -135,7 +135,7 @@ export function StudioOperatorSpendConfirmCard({
             type="button"
             data-testid="operator-spend-cancel"
             onClick={onCancel}
-            className="rounded-md px-1.5 py-0.5 text-2xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-md px-1.5 py-0.5 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('spend.cancel')}
           </button>
@@ -143,7 +143,7 @@ export function StudioOperatorSpendConfirmCard({
             type="button"
             data-testid="operator-spend-confirm"
             onClick={() => onConfirm({ rememberForSession: remember })}
-            className="rounded-md bg-primary px-2 py-1 text-2xs text-primary-foreground transition-opacity duration-(--duration-fast) ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-md bg-primary px-2 py-1 text-2sm text-primary-foreground transition-opacity duration-(--duration-fast) ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('spend.confirm')}
           </button>

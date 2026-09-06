@@ -203,7 +203,7 @@ export function StudioOperatorMentionPicker({
       {options.length === 0 && searching ? (
         <p
           data-testid="operator-mention-searching"
-          className="flex items-center justify-center gap-1.5 px-3 py-4 text-2xs text-muted-foreground"
+          className="flex items-center justify-center gap-1.5 px-3 py-4 text-2sm text-muted-foreground"
         >
           <Spinner size="sm" />
           {t('mention.searching')}
@@ -213,14 +213,14 @@ export function StudioOperatorMentionPicker({
       {options.length === 0 && !searching ? (
         <p
           data-testid="operator-mention-empty"
-          className="px-3 py-4 text-center text-2xs text-muted-foreground"
+          className="px-3 py-4 text-center text-2sm text-muted-foreground"
         >
           {t('mention.empty')}
         </p>
       ) : null}
 
       {filteredRecent.length > 0 ? (
-        <p className="px-3 pb-1 pt-2 font-mono text-3xs tracking-nav text-muted-foreground">
+        <p className="px-3 pb-1 pt-2 font-mono text-xs tracking-nav text-muted-foreground">
           {t('mention.recent')}
         </p>
       ) : null}
@@ -234,7 +234,7 @@ export function StudioOperatorMentionPicker({
       ))}
 
       {library.length > 0 ? (
-        <p className="border-t border-border px-3 pb-1 pt-2 font-mono text-3xs tracking-nav text-muted-foreground">
+        <p className="border-t border-border px-3 pb-1 pt-2 font-mono text-xs tracking-nav text-muted-foreground">
           {t('mention.library')}
         </p>
       ) : null}
@@ -273,7 +273,7 @@ function MentionRow({
         onPick(item)
       }}
       className={cn(
-        'flex w-full items-center gap-2 px-3 py-1.5 text-left text-2xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent',
+        'flex w-full items-center gap-2 px-3 py-1.5 text-left text-2sm transition-colors duration-(--duration-fast) ease-standard hover:bg-accent',
         active ? 'bg-accent text-foreground' : 'text-muted-foreground',
       )}
     >

@@ -177,7 +177,7 @@ export function StudioOperatorIconRail({
       <span
         data-testid="operator-rail-readout"
         style={{ writingMode: 'vertical-rl' }}
-        className="font-mono text-3xs tracking-nav tabular-nums"
+        className="font-mono text-xs tracking-nav tabular-nums"
       >
         {readout}
       </span>

@@ -52,14 +52,14 @@ export function StudioOperatorAssetChoiceCard({
     >
       <p
         className={cn(
-          'border-b border-border px-3 py-2 text-xs font-semibold',
+          'border-b border-border px-3 py-2 text-md font-semibold',
           resolved ? 'text-muted-foreground' : 'text-foreground',
         )}
       >
         {resolved ? t('choice.resolved') : t('choice.title')}
       </p>
       <div className="flex flex-col gap-3 p-3">
-        <p className="text-2xs leading-relaxed text-muted-foreground">
+        <p className="text-2sm leading-relaxed text-muted-foreground">
           {question}
         </p>
         <div className="grid grid-cols-4 gap-1.5">

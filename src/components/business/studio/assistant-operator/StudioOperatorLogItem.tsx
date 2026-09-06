@@ -199,7 +199,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
       data-status={step.status}
       data-undone={undone ? 'true' : 'false'}
       className={cn(
-        'group relative rounded-xl border border-border/70 bg-background px-2.5 py-2 text-xs transition-colors duration-fast ease-standard',
+        'group relative rounded-xl border border-border/70 bg-background px-2.5 py-2 text-md transition-colors duration-fast ease-standard',
         isRunning && 'border-primary/40 bg-primary/5',
         isMoney && 'border-status-warning/40 bg-status-warning-surface',
         isRejected && 'border-destructive/40 bg-destructive/5',
@@ -235,12 +235,12 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             {step.title}
           </span>
           {step.reason ? (
-            <span className="mt-0.5 block text-2xs text-muted-foreground">
+            <span className="mt-0.5 block text-2sm text-muted-foreground">
               {step.reason}
             </span>
           ) : null}
           {isRejected ? (
-            <span className="mt-0.5 block text-2xs text-destructive">
+            <span className="mt-0.5 block text-2sm text-destructive">
               {t(`reject.${step.error.reason}`)}
             </span>
           ) : null}
@@ -250,7 +250,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             type="button"
             data-testid="operator-log-undo"
             onClick={() => onUndo(entryId)}
-            className="shrink-0 rounded-md px-1.5 py-0.5 text-2xs text-muted-foreground opacity-0 transition-opacity duration-fast ease-standard hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+            className="shrink-0 rounded-md px-1.5 py-0.5 text-2sm text-muted-foreground opacity-0 transition-opacity duration-fast ease-standard hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
           >
             {t('log.undo')}
           </button>
@@ -352,14 +352,14 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
                 target="_blank"
                 rel="noopener noreferrer"
                 data-testid="operator-web-source"
-                className="block truncate text-2xs text-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
+                className="block truncate text-2sm text-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
               >
                 {entry.title}
               </a>
-              <span className="block truncate font-mono text-3xs tracking-nav text-muted-foreground">
+              <span className="block truncate font-mono text-xs tracking-nav text-muted-foreground">
                 {entry.publisher ?? t('web.publisherUnknown')}
               </span>
-              <span className="mt-0.5 block text-2xs text-muted-foreground">
+              <span className="mt-0.5 block text-2sm text-muted-foreground">
                 {entry.snippet}
               </span>
             </li>
@@ -396,19 +396,19 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
                   target="_blank"
                   rel="noopener noreferrer"
                   data-testid="operator-evidence-link"
-                  className="block truncate text-2xs text-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
+                  className="block truncate text-2sm text-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
                 >
                   {item.title}
                 </a>
               ) : (
-                <span className="block truncate text-2xs text-foreground">
+                <span className="block truncate text-2sm text-foreground">
                   {item.title}
                 </span>
               )}
               <span className="flex min-w-0 items-center gap-1">
                 <span
                   data-testid="operator-evidence-publisher"
-                  className="truncate font-mono text-3xs tracking-nav text-muted-foreground"
+                  className="truncate font-mono text-xs tracking-nav text-muted-foreground"
                 >
                   {item.publisher}
                 </span>
@@ -417,14 +417,14 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
                       `muted-foreground`：三档各有各的颜色会让整片证据变成灯泡墙。 */}
                 <span
                   data-testid="operator-evidence-kind"
-                  className="shrink-0 rounded-sm border border-border/70 px-1 text-3xs text-muted-foreground"
+                  className="shrink-0 rounded-sm border border-border/70 px-1 text-xs text-muted-foreground"
                 >
                   {t(`evidence.kind.${item.kind}`)}
                 </span>
                 <span
                   data-testid="operator-evidence-confidence"
                   className={cn(
-                    'shrink-0 text-3xs',
+                    'shrink-0 text-xs',
                     item.confidence === 'high'
                       ? 'text-status-applied'
                       : item.confidence === 'low'
@@ -435,7 +435,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
                   {t(`evidence.confidence.${item.confidence}`)}
                 </span>
               </span>
-              <span className="mt-0.5 block text-2xs text-muted-foreground">
+              <span className="mt-0.5 block text-2sm text-muted-foreground">
                 {item.snippet}
               </span>
             </li>
@@ -456,13 +456,13 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             target="_blank"
             rel="noopener noreferrer"
             data-testid="operator-read-url-link"
-            className="block truncate font-mono text-3xs tracking-nav text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
+            className="block truncate font-mono text-xs tracking-nav text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
           >
             {step.result.title}
           </a>
           <p
             data-testid="operator-read-url-excerpt"
-            className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-2xs text-muted-foreground"
+            className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-2sm text-muted-foreground"
           >
             {step.result.excerpt}
           </p>
@@ -472,7 +472,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
       {open && detail ? (
         <p
           data-testid="operator-log-detail"
-          className="mt-2 whitespace-pre-wrap border-t border-dashed border-border/70 pt-2 text-2xs text-muted-foreground"
+          className="mt-2 whitespace-pre-wrap border-t border-dashed border-border/70 pt-2 text-2sm text-muted-foreground"
         >
           {detail}
         </p>

@@ -3557,6 +3557,7 @@
       "viaFallback": "fallback",
       "sourceOk": "OK",
       "sourceEmpty": "No results",
+      "sourceUnrelated": "Off-topic hit",
       "sourceFailed": "Failed",
       "sourceCircuitOpen": "Temporarily unavailable",
       "sourceSkipped": "Not used",
@@ -6862,7 +6863,9 @@
       "empty": "No earlier chats yet",
       "loading": "Loading…",
       "untitled": "Untitled chat",
-      "readonlyNote": "Earlier — read only"
+      "readonlyNote": "Earlier — read only",
+      "readonlyNoteAt": "From {date} — read only",
+      "earlierRounds": "{count} earlier entries"
     },
     "more": "More",
     "share": "Share this chat",
@@ -6871,7 +6874,7 @@
     "expand": "Expand assistant",
     "resize": "Drag to resize the assistant",
     "empty": "Say what you want. Anything free it just does; anything that costs credits stops at a pre-filled generate button for you to press.",
-    "planTitle": "Plan · the free steps happen right away",
+    "planFold": "Plan · {count} steps",
     "domainMark": "Switched to {domain} — new tools, same conversation",
     "placeholderIdle": "Keep talking, or attach something…",
     "placeholderWorking": "Go ahead, I am listening — what you type gets queued for the next pause point",
@@ -7165,10 +7168,7 @@
     },
     "plan": {
       "title": "Plan · needs your say",
-      "meta": "{steps} steps · {pending} open",
       "estimate": "≈ {credits} credits",
-      "revise": "Change",
-      "start": "Start",
       "revisePrefill": "Change the plan: "
     },
     "spend": {
@@ -7256,8 +7256,30 @@
         "low": "community"
       }
     },
+    "research": {
+      "goal": "Looked up: {goal}",
+      "goalUnknown": "Looked things up",
+      "count": "{count} sources",
+      "process": "How it looked"
+    },
+    "message": {
+      "expand": "Show all",
+      "collapse": "Show less",
+      "why": "Why"
+    },
     "streaming": {
       "pending": "The assistant is thinking"
+    },
+    "question": {
+      "title": "A few things to confirm",
+      "meta": "{count} questions",
+      "recommended": "Recommended",
+      "other": "Other",
+      "otherPlaceholder": "Tell it what you want…",
+      "summary": "You picked: {answers}",
+      "missing": "{count} still unanswered",
+      "start": "Start",
+      "revise": "Revise"
     }
   },
   "GenerationCancel": {

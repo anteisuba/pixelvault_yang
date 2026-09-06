@@ -6,7 +6,10 @@ import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
-import type { AssistantOperatorEvent } from '@/types/assistant-operator'
+import type {
+  AssistantOperatorEvent,
+  AssistantOperatorPlanRequestEvent,
+} from '@/types/assistant-operator'
 
 /**
  * 一步**跑完了**的 step 事件 —— 排队的接住点就取在这里（§3.1 ㉓）。
@@ -443,10 +446,29 @@ describe('useAssistantOperator 的四条收尾路径', () => {
 
 // ─── 切片 3a：三张「等你定」的卡 + 规则薄卡 + 「不再问」──────────────
 
-/** 计划帧的最小载荷。⚠ 阶段数决定 `shouldShowPlanCard` 的第三条判据（≥3）。 */
+const QUESTIONS: AssistantOperatorPlanRequestEvent['questions'] = [
+  {
+    id: 'q1',
+    header: '取景',
+    question: '取多少身？',
+    multiSelect: false,
+    allowOther: true,
+    options: [
+      { id: 'half', label: '半身', description: '腰以上，脸看得清' },
+      { id: 'full', label: '全身', description: '连鞋一起进画' },
+    ],
+  },
+]
+
+/**
+ * 计划帧的最小载荷。
+ * ⚠ 阶段数决定 `shouldShowPlanCard` 的最后一条判据（≥3）；⚠ **有题也一定出卡**
+ * （`questions` 非空是第三条判据），所以「不该出卡」那一条用例必须显式传空题。
+ */
 function planRequestEvent(
   steps: number,
   reason: 'spend' | 'multi-step' | 'user-requested' = 'multi-step',
+  questions: AssistantOperatorPlanRequestEvent['questions'] = QUESTIONS,
 ): AssistantOperatorEvent {
   return {
     type: ASSISTANT_OPERATOR_EVENTS.planRequest,
@@ -454,17 +476,7 @@ function planRequestEvent(
       id: `plan-${index + 1}`,
       label: `第 ${index + 1} 步`,
     })),
-    pending: [
-      {
-        id: 'pending-1',
-        label: '取多少身？',
-        kind: 'single',
-        options: [
-          { id: 'half', label: '半身' },
-          { id: 'full', label: '全身' },
-        ],
-      },
-    ],
+    questions,
     estimate: { credits: 4, model: 'Seedream 4', count: 1 },
     reason,
   }
@@ -510,7 +522,8 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
     })
     await settle()
 
-    streams[0].emit(planRequestEvent(2))
+    // ⚠ 显式空题：有题就一定出卡，那一条判据会盖过「步数不够」。
+    streams[0].emit(planRequestEvent(2, 'multi-step', []))
     await settle()
 
     expect(store.getOperatorState().plan).toBeNull()
@@ -547,6 +560,47 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
     expect(store.getOperatorState().askFirst).toBe(true)
   })
 
+  it('⭐ 出卡的那一轮 ⛔ 不再落 `plan` 条目 —— 同一份阶段只出现一次（第 2 件）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把这张改成三步')
+    })
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.plan,
+      steps: ['选模型', '写提示词', '备好生成键'],
+    })
+    streams[0].emit(planRequestEvent(3))
+    await settle()
+
+    const state = store.getOperatorState()
+    expect(state.plan).not.toBeNull()
+    // 阶段清单归卡了 —— 流里⛔ 不再有第二份。
+    expect(state.entries.some((entry) => entry.kind === 'plan')).toBe(false)
+    // 计数照旧（顶部进度带按它画）。
+    expect(state.plannedSteps).toBe(3)
+  })
+
+  it('⭐ 不出卡的那一轮，攒着的计划落成一条 `plan` 条目（第 2 件）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词改一下')
+    })
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.plan,
+      steps: ['写提示词', '存一下'],
+    })
+    streams[0].emit(planRequestEvent(2, 'multi-step', []))
+    await settle()
+
+    const state = store.getOperatorState()
+    expect(state.plan).toBeNull()
+    expect(state.entries.filter((entry) => entry.kind === 'plan')).toHaveLength(
+      1,
+    )
+  })
+
   it('「开始」带 planAnswers + planApproved 重发，并把卡收成摘要（⛔ 不再 forcePlan）', async () => {
     const { result } = render()
     act(() => {
@@ -557,14 +611,20 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
     await settle()
 
     act(() => {
-      result.current.answerPlan([{ pendingId: 'pending-1', optionId: 'half' }])
+      result.current.answerQuestions([
+        { questionId: 'q1', optionIds: ['half'] },
+      ])
     })
     await settle()
 
     expect(streams).toHaveLength(2)
     const sent = streamAssistantOperatorAPI.mock.calls[1]?.[0]
     expect(sent.planAnswers).toEqual([
-      { pendingId: 'pending-1', optionId: 'half' },
+      { questionId: 'q1', optionIds: ['half'] },
+    ])
+    // 答复也留在 store 那张卡上 —— 收起态那一行「你选了：…」按它写。
+    expect(store.getOperatorState().plan?.answers).toEqual([
+      { questionId: 'q1', optionIds: ['half'] },
     ])
     expect(sent.planApproved).toBe(true)
     // ⛔ 不带 forcePlan：带了会让服务端再摆一帧，用户点完「开始」看到同一张卡又回来。

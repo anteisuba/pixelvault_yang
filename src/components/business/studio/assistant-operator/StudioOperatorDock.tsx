@@ -17,8 +17,17 @@
  * （`STUDIO_PROMPT_TEXTAREA_ID`，本仓早就有的常量）。用现成的 id 意味着这条断言
  * **一行都不用改 `StudioPromptArea`** —— 那个文件此刻是别的会话的在飞文件。
  *
+ * ## 手机（本片）
+ * 同一颗外壳两种容器：`≥lg` 是右侧那颗 `<aside>`（两态 + 拖宽），`<lg` 是
+ * `StudioOperatorMobileSheet`（全屏底部 Sheet）+ `StudioOperatorMobileFab`
+ * （右下浮标，替代图标轨）。⭐ **面板与 props 两条分支共用同一个元素**，⛔ 手机
+ * 上没有第二套面板内容 —— 疏密由面板自己的 `@container` 收。
+ * ⚠ 手机上**不渲染图标轨、不记宽**：那两样都是「拖得动的浮层」才有的概念。
+ * ⛔ LoRA 装配台的手机档不在本片内（仍走 `LoraAssistantDock`），判据见下方
+ * `hasMobileShell`。
+ *
  * ## 与旧 `StudioAssistantDock` 的关系
- * 图片工作台**整体切到这里**，旧面板留给视频 / 音频（P4 扩域时再统一）。
+ * 图片工作台**整体切到这里**，旧面板留给音频（P4 扩域时再统一）。
  * ⛔ 没有 feature flag：本仓 flag 文化已死（只有 comfyRunner 还活着），
  * 加一个只会多一条没人翻的死分支。
  */
@@ -35,6 +44,7 @@ import {
 import { GripVertical } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import {
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
@@ -62,6 +72,8 @@ import {
 } from '@/components/business/studio/assistant-operator/AssistantSettingsDialog'
 import { StudioOperatorIconRail } from '@/components/business/studio/assistant-operator/StudioOperatorIconRail'
 import { StudioOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
+import { StudioOperatorMobileFab } from '@/components/business/studio/assistant-operator/StudioOperatorMobileFab'
+import { StudioOperatorMobileSheet } from '@/components/business/studio/assistant-operator/StudioOperatorMobileSheet'
 import { StudioOperatorPanel } from '@/components/business/studio/assistant-operator/StudioOperatorPanel'
 import { cn } from '@/lib/utils'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
@@ -130,7 +142,12 @@ export function StudioOperatorDock() {
    * （`LoraWorkbench`）。此前它直接 `useStudioForm()`，而 `/studio/lora` 故意不挂
    * `<StudioProvider>`。见 `contexts/studio-operator-host.tsx` 的头注。
    */
-  const { open, setOpen, referenceLimit } = useStudioOperatorHost()
+  const {
+    open,
+    setOpen,
+    referenceLimit,
+    domain: hostDomain,
+  } = useStudioOperatorHost()
   const isMobile = useIsMobile()
   const { status, primed, stepsDone, plannedSteps, domain } =
     useStudioOperatorState()
@@ -144,8 +161,8 @@ export function StudioOperatorDock() {
    * ⭐ 看图闭环的观察端（P3-C，拍板 4）也**住在外壳**：它盯的是工作台的结果
    * 回流，而那件事在面板收起（拍板 7 随时会卸载面板）时照样在发生。挂在面板里
    * 的下场是「收着面板等了三分钟，结果回来了却没人看」。
-   * ⚠ 小屏那条 `return null` 排在所有 hook 后面，所以这颗照样在跑 —— 小屏不渲染
-   *   面板，但闭环该照常闭。
+   * ⚠ 手机分支同样排在所有 hook 后面，所以这颗照样在跑 —— Sheet 关着的时候
+   *   面板是卸载的，但闭环该照常闭。
    */
   useStudioOperatorCritique({ onResult: operator.critique })
   /**
@@ -353,8 +370,86 @@ export function StudioOperatorDock() {
     [width],
   )
 
-  // 小屏走的是抽屉那条路（`StudioEnhanceButton` 里的宿主），这里不占位。
-  if (isMobile) return null
+  /**
+   * ⭐ **两条分支装的是同一个面板、同一份 props**：桌面那颗 `<aside>` 与手机那张
+   * 全屏 Sheet 换的只是**容器**。面板内部的疏密由 `@container` 按容器宽度自己收
+   * （§11.1 的宽档判据本来就不是视口断点），⛔ 不为手机写第二套内容 —— 那是
+   * 两份要同步的东西，而它们必然会漂。
+   */
+  const panel = (
+    <StudioOperatorPanel
+      operator={operator}
+      draft={draft}
+      onDraftChange={setDraft}
+      attachments={attachments}
+      onAttachmentsChange={setAttachments}
+      upload={upload}
+      webImport={webImport}
+      history={history}
+      persona={persona}
+      onOpenAssistantSettings={() =>
+        setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.persona)
+      }
+      onOpenProjectRules={() =>
+        setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.rules)
+      }
+      onCollapse={() => setOpen(false)}
+    />
+  )
+
+  /**
+   * 手机上有没有这套外壳 —— **只有工作台那两个域**（图片 / 视频）。
+   *
+   * ⛔ LoRA 装配台不在此列：那条路由的小屏助手仍是 `LoraAssistantDock`（旧面板的
+   * Drawer 宿主），而「两颗面板永不同屏」那道门就长在 `LoraWorkbench` 里 ——
+   * 它的判据是「Dock 在小屏什么都不渲染」。这里不按域收窄的话，LoRA 手机上会
+   * 同时弹出两张面板。LoRA 的收编是第四期（`assistant-shell.md` 四期次序）。
+   * ⚠ 判据用**宿主的域**不是路由：域是宿主说了算的（见 `studio-operator-host`）。
+   */
+  const hasMobileShell =
+    hostDomain === ASSISTANT_PROTOCOL_DOMAIN_IDS.image ||
+    hostDomain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+
+  if (isMobile && !hasMobileShell) return null
+
+  /**
+   * ── 手机：全屏 Sheet + 右下浮标（`ui-defaults.md §6`）─────────────────
+   *
+   * ⚠ 收放法则（拍板 7）在手机上**只剩一半**：Sheet 关闭即收，⛔ 没有「点工作台
+   * 收起」那条 —— 全屏 Sheet 底下根本没有工作台可点（实现上也自动成立：那条
+   * `pointerdown` 监听本来就 `isMobile` 时不挂）。
+   * ⚠ **宽度记忆整套在手机上不参与**：没有把手、不写 `storageKey` —— 手机上拖不
+   *   出宽度，往那个键里写数会污染用户在桌面拖出来的那一份。
+   */
+  if (isMobile) {
+    return (
+      <>
+        <StudioOperatorMobileFab
+          status={status}
+          primed={primed}
+          stepsDone={stepsDone}
+          plannedSteps={plannedSteps}
+          onOpen={() => setOpen(true)}
+        />
+        <StudioOperatorMobileSheet open={open} onOpenChange={setOpen}>
+          {panel}
+        </StudioOperatorMobileSheet>
+
+        {/* 设置弹层与灯箱两条**手机上照样要有**：前者是 ⋯ 菜单的落点，后者是
+            面板里点图看大图的唯一去处。⛔ 别只挂在桌面分支上。 */}
+        <AssistantSettingsDialog
+          open={settingsSection !== null}
+          section={settingsSection ?? ASSISTANT_SETTINGS_SECTIONS.persona}
+          onOpenChange={(next) => {
+            if (!next) setSettingsSection(null)
+          }}
+          fallbackInitial={t(`domainName.${domain}`)}
+        />
+
+        <StudioOperatorLightbox />
+      </>
+    )
+  }
 
   return (
     <>
@@ -421,24 +516,7 @@ export function StudioOperatorDock() {
               </span>
             ) : null}
 
-            <StudioOperatorPanel
-              operator={operator}
-              draft={draft}
-              onDraftChange={setDraft}
-              attachments={attachments}
-              onAttachmentsChange={setAttachments}
-              upload={upload}
-              webImport={webImport}
-              history={history}
-              persona={persona}
-              onOpenAssistantSettings={() =>
-                setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.persona)
-              }
-              onOpenProjectRules={() =>
-                setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.rules)
-              }
-              onCollapse={() => setOpen(false)}
-            />
+            {panel}
           </>
         ) : (
           <StudioOperatorIconRail

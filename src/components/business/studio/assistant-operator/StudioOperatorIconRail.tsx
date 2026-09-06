@@ -44,7 +44,7 @@ const RAIL_DOMAIN_ICONS: Record<AssistantOperatorDomain, LucideIcon> = {
  * 状态点的四档配色 —— **只用脊柱的状态四 token + `--primary`**（§11.2）。
  * ⛔ 不为助手面板新造强调色变量。
  */
-const RAIL_TONE_CLASS: Record<StudioOperatorRailTone, string> = {
+export const RAIL_TONE_CLASS: Record<StudioOperatorRailTone, string> = {
   [STUDIO_OPERATOR_RAIL_TONES.idle]: 'bg-muted-foreground',
   [STUDIO_OPERATOR_RAIL_TONES.working]:
     'bg-primary animate-pulse motion-reduce:animate-none',

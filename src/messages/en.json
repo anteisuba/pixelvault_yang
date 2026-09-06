@@ -6886,6 +6886,11 @@
       "primed": "Ready",
       "planning": "Your call"
     },
+    "mobile": {
+      "sheetTitle": "Assistant",
+      "sheetDescription": "Full-screen assistant panel — say what you want, or attach your assets.",
+      "open": "Open assistant"
+    },
     "band": {
       "working": "Working",
       "state": {
@@ -6894,6 +6899,7 @@
         "failed": "failed"
       }
     },
+    "researchDetails": "Research details",
     "toolGroup": {
       "title": "{count} operations",
       "elapsed": "took {seconds}s",
@@ -6938,7 +6944,10 @@
       "unknownLora": "That LoRA was not in this run's search results",
       "loraNotMounted": "That LoRA is not on the bench",
       "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page",
-      "sourceNotUsable": "That site asks not to be used as AI input, or republishes work without a traceable source"
+      "sourceNotUsable": "That site asks not to be used as AI input, or republishes work without a traceable source",
+      "researchRoundsExhausted": "It already researched as much as one turn allows — it is working from what it found",
+      "urlNotReadable": "That address can't be read here",
+      "urlUnreadable": "That page could not be read"
     },
     "field": {
       "prompt": "Prompt",
@@ -7036,7 +7045,8 @@
       "usableUnknownLicense": "Usable · licence unknown",
       "referenceOnly": "Reference only",
       "cannotUse": "Not usable",
-      "notUsable": "This site asks not to be used as AI input, or republishes work without a traceable source — open it if you like, but it will not be filed into your library."
+      "notUsable": "This site asks not to be used as AI input, or republishes work without a traceable source — open it if you like, but it will not be filed into your library.",
+      "useAll": "Attach {count}"
     },
     "critique": {
       "title": "Auto-check · it set this up, so it reviews it",
@@ -7081,7 +7091,12 @@
       "answer": "This one: {label}"
     },
     "error": {
-      "generic": "The assistant did not finish this round"
+      "generic": "The assistant did not finish this round",
+      "failed": "The assistant hit an error partway through this round",
+      "emptyStream": "No response came back from the assistant",
+      "unauthorized": "Your session expired — sign in again",
+      "rateLimited": "Too fast — give it a moment and try again",
+      "invalidRequest": "The server did not accept this request"
     },
     "assistantSettings": "Assistant settings",
     "persona": {
@@ -7214,7 +7229,30 @@
         "lineart": "Line art"
       }
     },
-    "sendQueue": "Queue this — it lands at the next pause point"
+    "sendQueue": "Queue this — it lands at the next pause point",
+    "timeline": {
+      "listLabel": "Assistant work log",
+      "rowUser": "You",
+      "rowAssistant": "{name}",
+      "rowSystem": "System",
+      "rowTool": "Tool step",
+      "rowAction": "Needs your call",
+      "assistantFallback": "Assistant",
+      "avatarUser": "Your avatar",
+      "avatarAssistant": "{name}'s avatar"
+    },
+    "evidence": {
+      "kind": {
+        "text": "passage",
+        "tags": "tags",
+        "image": "picture"
+      },
+      "confidence": {
+        "high": "official",
+        "medium": "reference",
+        "low": "community"
+      }
+    }
   },
   "GenerationCancel": {
     "cancel": "Cancel",

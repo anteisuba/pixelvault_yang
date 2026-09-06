@@ -249,7 +249,7 @@ export const STUDIO_OPERATOR_HISTORY = {
 /**
  * 面板外壳的几何（方向 C · `pages/assistant-shell.md` §11.1）。
  *
- * ⚠ 只放**不在 Tailwind 尺度上**的那几个数：48 = `w-12`、40 = `h-10`、24 = `p-6`
+ * ⚠ 只放由面板统一管理的那几个数：48 = `w-12`、40 = `h-10`、24 = `p-6`
  * 都能用工具类写，但它们同时是**真机验证要读的值**（面板宽 / inset / 轨宽 / 带高），
  * 写在这里是为了测试与组件读同一个数，⛔ 不是为了让组件去算 style。
  */
@@ -274,15 +274,15 @@ export const STUDIO_OPERATOR_SHELL = {
 /**
  * 时间线沟（§11.3）。
  *
- * ⚠ `gutterPx` 与 `linePx` **不在 Tailwind 尺度上**（78 / 18），所以走 style ——
- * ⛔ 不写 `grid-cols-[78px_1fr]`（Hard Rule 5：不用 arbitrary value），也不为它
+ * ⚠ `gutterPx` 与 `linePx` 由面板统一管理（24 / 18），所以走 style ——
+ * ⛔ 不写 `grid-cols-[24px_1fr]`（Hard Rule 5：不用 arbitrary value），也不为它
  * 去改 `globals.css` 的 `@theme inline`（那是全站脊柱，一个面板的沟宽不配进去）。
  * ⚠ `linePx` 必须等于「流的左内距 + 节点半宽」：节点与贯穿竖线**同轴**是这条沟
  * 唯一的视觉承诺，两个数分开调就会看到线从节点旁边擦过去。
  */
 export const STUDIO_OPERATOR_TIMELINE = {
-  /** 沟宽（节点 + 形状节点行的常显时间戳）。 */
-  gutterPx: 78,
+  /** 沟宽（头像与形状节点）。 */
+  gutterPx: 24,
   /** 贯穿竖线距流左缘多少 —— 同时是节点圆心的 x。 */
   linePx: 18,
 } as const
@@ -358,4 +358,37 @@ export const STUDIO_OPERATOR_MENTION = {
 export const STUDIO_OPERATOR_RESULT_STAGGER = {
   stepSeconds: 0.03,
   maxItems: 12,
+} as const
+
+/**
+ * 移动端外壳的几何（`ui-defaults.md §6` 移动端配方 · `assistant-shell.md` §11.1）。
+ *
+ * ⚠ 与 `STUDIO_OPERATOR_SHELL` **分开一份**：那份描述的是桌面那颗浮层
+ * （宽度记忆 / 48px 图标轨 / inset 24），手机上一个都不成立 —— 手机是全屏
+ * Sheet + 一颗浮标，既不记宽也没有轨。混进同一个对象只会让「面板宽」这类
+ * 在手机上根本没有意义的字段跟着到处传。
+ */
+export const STUDIO_OPERATOR_MOBILE_SHELL = {
+  /**
+   * 全屏 Sheet 的高度。
+   *
+   * ⚠ `dvh` 不是 `vh`（`ui-defaults.md §6`）：iOS 上地址栏收放会让 `100vh` 比
+   * 可视区高出一截，表现是输入区被顶到屏幕外面去。软键盘那一段由
+   * `--keyboard-inset` 从 `maxHeight` 里再扣（`KeyboardInsetBridge` 供值）。
+   */
+  sheetHeight: '100dvh',
+  /** 浮标的命中区 —— 触屏 44（`ui-defaults.md §5`）。 */
+  fabHitPx: 44,
+  /** 浮标距视口右缘的留白。 */
+  fabInsetPx: 16,
+  /**
+   * 浮标距视口下缘的留白（safe-area 与软键盘之上再加这么多）。
+   *
+   * ⚠ 它比 `fabInsetPx` 大得多是**有原因的**：图片 / 视频档的手机形态底部钉着
+   * `StudioMobileComposer` 那条固定栏（`fixed bottom-0 z-40`），浮标贴到 16px
+   * 会正好压在生成键上。这个数是「清过那条栏」的净空，⛔ 不是随手挑的留白。
+   * ⚠ 浮标同时用 `z-30`（低于 composer 的 `z-40`）兜底：净空万一不够，让位的
+   * 是浮标不是生成键。
+   */
+  fabBottomPx: 96,
 } as const

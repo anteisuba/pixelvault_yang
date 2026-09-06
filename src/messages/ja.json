@@ -6886,6 +6886,11 @@
       "primed": "準備完了",
       "planning": "あなた次第"
     },
+    "mobile": {
+      "sheetTitle": "アシスタント",
+      "sheetDescription": "全画面アシスタントパネル — やりたいことを話すか、素材を添付してください。",
+      "open": "アシスタントを開く"
+    },
     "band": {
       "working": "作業中",
       "state": {
@@ -6894,6 +6899,7 @@
         "failed": "失敗"
       }
     },
+    "researchDetails": "調査の詳細",
     "toolGroup": {
       "title": "{count} 件の操作",
       "elapsed": "所要 {seconds}s",
@@ -6938,7 +6944,10 @@
       "unknownLora": "その LoRA は今回の検索結果にありません",
       "loraNotMounted": "その LoRA はベンチに載っていません",
       "loraNotImportable": "その LoRA はライブラリに取り込めません。配布元ページでのみ確認できます",
-      "sourceNotUsable": "このサイトは AI の入力に使わないよう求めているか、出所をたどれない転載です"
+      "sourceNotUsable": "このサイトは AI の入力に使わないよう求めているか、出所をたどれない転載です",
+      "researchRoundsExhausted": "1 ターンで調べられる回数を使い切りました — 分かった範囲で進めます",
+      "urlNotReadable": "このアドレスはここでは読み込めません",
+      "urlUnreadable": "そのページを読み込めませんでした"
     },
     "field": {
       "prompt": "プロンプト",
@@ -7036,7 +7045,8 @@
       "usableUnknownLicense": "使えます · ライセンス不明",
       "referenceOnly": "参照のみ",
       "cannotUse": "使用不可",
-      "notUsable": "このサイトは AI の入力に使わないよう求めているか、出所をたどれない転載が中心です。開いて見るのは自由ですが、ライブラリには取り込みません。"
+      "notUsable": "このサイトは AI の入力に使わないよう求めているか、出所をたどれない転載が中心です。開いて見るのは自由ですが、ライブラリには取り込みません。",
+      "useAll": "{count} 枚を添付"
     },
     "critique": {
       "title": "自動チェック · 用意した本人が見ます",
@@ -7081,7 +7091,12 @@
       "answer": "これです：{label}"
     },
     "error": {
-      "generic": "今回のラウンドは最後まで走りませんでした"
+      "generic": "今回のラウンドは最後まで走りませんでした",
+      "failed": "今回のラウンドは途中でエラーになりました",
+      "emptyStream": "アシスタントから応答が返りませんでした",
+      "unauthorized": "セッションが切れました —— もう一度サインインしてください",
+      "rateLimited": "少し早すぎます —— 間をおいて再送してください",
+      "invalidRequest": "このリクエストはサーバーに受け付けられませんでした"
     },
     "assistantSettings": "アシスタント設定",
     "persona": {
@@ -7214,7 +7229,30 @@
         "lineart": "線画"
       }
     },
-    "sendQueue": "順番待ちに入れる — 次の区切りで処理されます"
+    "sendQueue": "順番待ちに入れる — 次の区切りで処理されます",
+    "timeline": {
+      "listLabel": "アシスタントの作業ログ",
+      "rowUser": "あなた",
+      "rowAssistant": "{name}",
+      "rowSystem": "システム",
+      "rowTool": "ツールステップ",
+      "rowAction": "確認待ち",
+      "assistantFallback": "アシスタント",
+      "avatarUser": "あなたのアバター",
+      "avatarAssistant": "{name}のアバター"
+    },
+    "evidence": {
+      "kind": {
+        "text": "本文",
+        "tags": "タグ",
+        "image": "画像"
+      },
+      "confidence": {
+        "high": "公式",
+        "medium": "資料",
+        "low": "コミュニティ"
+      }
+    }
   },
   "GenerationCancel": {
     "cancel": "キャンセル",

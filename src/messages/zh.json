@@ -6886,6 +6886,11 @@
       "primed": "已备好",
       "planning": "待你定"
     },
+    "mobile": {
+      "sheetTitle": "助手",
+      "sheetDescription": "全屏助手面板 —— 说一句你想要什么，或把素材挂进来。",
+      "open": "打开助手"
+    },
     "band": {
       "working": "正在干活",
       "state": {
@@ -6894,6 +6899,7 @@
         "failed": "失败"
       }
     },
+    "researchDetails": "调查过程",
     "toolGroup": {
       "title": "{count} 个操作",
       "elapsed": "用时 {seconds}s",
@@ -6938,7 +6944,10 @@
       "unknownLora": "这把 LoRA 不在这一轮搜到的结果里",
       "loraNotMounted": "这把 LoRA 没挂在装配台上",
       "loraNotImportable": "这把 LoRA 收不进你的库，只能去它的来源页看",
-      "sourceNotUsable": "这个站点声明不接受作为 AI 输入，或是溯源不到原作者的转载"
+      "sourceNotUsable": "这个站点声明不接受作为 AI 输入，或是溯源不到原作者的转载",
+      "researchRoundsExhausted": "这一轮能查的次数已经用完了 —— 它在用已经查到的东西继续",
+      "urlNotReadable": "这条地址在这里读不了",
+      "urlUnreadable": "这一页没能读出来"
     },
     "field": {
       "prompt": "提示词",
@@ -7036,7 +7045,8 @@
       "usableUnknownLicense": "可作输入 · 许可未知",
       "referenceOnly": "仅参考",
       "cannotUse": "不可用",
-      "notUsable": "这个站点声明不接受作为 AI 输入，或整站是溯源不到原作者的转载——你可以点开原页去看，但它不会被收进你的素材库。"
+      "notUsable": "这个站点声明不接受作为 AI 输入，或整站是溯源不到原作者的转载——你可以点开原页去看，但它不会被收进你的素材库。",
+      "useAll": "挂上 {count} 张"
     },
     "critique": {
       "title": "自动检查 · 它备的它负责看",
@@ -7081,7 +7091,12 @@
       "answer": "就这张：{label}"
     },
     "error": {
-      "generic": "助手这一轮没跑完"
+      "generic": "助手这一轮没跑完",
+      "failed": "助手这一轮中途出错了",
+      "emptyStream": "没收到助手的回应",
+      "unauthorized": "登录状态过期了，重新登录再试",
+      "rateLimited": "太快了 —— 缓一会儿再发",
+      "invalidRequest": "这一轮的请求服务端没认下来"
     },
     "assistantSettings": "助手设置",
     "persona": {
@@ -7214,7 +7229,30 @@
         "lineart": "线稿"
       }
     },
-    "sendQueue": "排队 — 下一个停顿点处理"
+    "sendQueue": "排队 — 下一个停顿点处理",
+    "timeline": {
+      "listLabel": "助手工作日志",
+      "rowUser": "你",
+      "rowAssistant": "{name}",
+      "rowSystem": "系统",
+      "rowTool": "工具步",
+      "rowAction": "待你定",
+      "assistantFallback": "助手",
+      "avatarUser": "你的头像",
+      "avatarAssistant": "{name}的头像"
+    },
+    "evidence": {
+      "kind": {
+        "text": "正文",
+        "tags": "标签",
+        "image": "图片"
+      },
+      "confidence": {
+        "high": "官方",
+        "medium": "资料",
+        "low": "社区"
+      }
+    }
   },
   "GenerationCancel": {
     "cancel": "取消",

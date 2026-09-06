@@ -4,9 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ─── Mocks ───────────────────────────────────────────────────────
 //
-// 这个宿主是**移动端**的面板宿主（<lg 走抽屉，≥lg 只是个开关，面板在
-// StudioAssistantDock 里）。测试只关心一件事：它有没有把面板需要的 props 都
-// 往下传 —— 见下方注释里的可选 prop 陷阱。
+// 这颗丸自 2026-09-06 起只在**音频档的手机**上还是面板宿主（旧
+// `PromptAssistantPanel` 的 ResponsiveDialog 抽屉）；图片 / 视频档桌面与手机
+// 都只是开关 —— 面板归 `StudioOperatorDock`（桌面 aside / 手机全屏 Sheet）。
+// 所以下面的宿主用例一律把 `outputType` 设成 `audio`，另有一条钉「操作员档的
+// 手机上这里不再渲染任何面板」。
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -63,6 +65,7 @@ vi.mock('@/components/business/assistant/StudioAssistantHeaderActions', () => ({
 
 vi.mock('@/contexts/studio-context', () => ({
   useStudioData: () => ({ promptEnhance: { isEnhancing: false } }),
+  useStudioForm: () => ({ state: { outputType: mockOutputType } }),
 }))
 
 vi.mock('@/hooks/use-mobile', () => ({
@@ -77,6 +80,8 @@ vi.mock('@/hooks/use-studio-assistant-controls', () => ({
 }))
 
 let mockIsMobile = true
+// ⚠ 默认 `audio`：只有音频档还留着这里的抽屉宿主。
+let mockOutputType = 'audio'
 const mockWriteback = {
   prompt: { apply: vi.fn(), isApplied: () => false },
 }
@@ -104,6 +109,7 @@ import { StudioEnhanceButton } from './StudioEnhanceButton'
 
 beforeEach(() => {
   mockIsMobile = true
+  mockOutputType = 'audio'
   panelSpy.mockClear()
 })
 
@@ -138,4 +144,21 @@ describe('StudioEnhanceButton', () => {
     expect(screen.queryByTestId('assistant-panel')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'enhance' })).toBeInTheDocument()
   })
+
+  // ⚠ 回归闸：图片 / 视频档的手机入口已从旧抽屉切到 `StudioOperatorDock` 的全屏
+  // Sheet（⛔ 不留 fallback）。这里再渲染一次旧面板 = 手机上两个助手同屏，
+  // 而且点开的是**另一套**东西。
+  it.each(['image', 'video'])(
+    '操作员档（%s）的手机上只剩开关，⛔ 不再有旧抽屉',
+    (outputType) => {
+      mockIsMobile = true
+      mockOutputType = outputType
+      render(<StudioEnhanceButton />)
+
+      expect(screen.queryByTestId('assistant-panel')).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'enhance' }),
+      ).toBeInTheDocument()
+    },
+  )
 })

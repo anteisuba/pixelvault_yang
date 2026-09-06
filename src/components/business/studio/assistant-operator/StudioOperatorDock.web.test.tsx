@@ -20,7 +20,10 @@ import {
  *     （胶囊连同它的 testid 已于切片 3a 全仓删净，所以这里不再断言它不存在 ——
  *      一条永远不会失败的断言只是噪音）；
  *  ③ 收起态渲染图标轨，展开态不渲染；
- *  ④ 点轨展开（收放法则的「点图标轨 → 展开」那一半）。
+ *  ④ 点轨展开（收放法则的「点图标轨 → 展开」那一半）；
+ *  ⑤ **手机档**（本片）：全屏 Sheet + 右下浮标，⛔ 没有图标轨、没有那颗
+ *     `<aside>`；LoRA 域在手机上整颗不渲染（那条路由仍走 `LoraAssistantDock`，
+ *     两颗面板永不同屏）。
  */
 
 vi.mock('next-intl', () => ({
@@ -29,11 +32,14 @@ vi.mock('next-intl', () => ({
 
 const setOpen = vi.hoisted(() => vi.fn())
 let hostOpen = true
+let hostDomain = 'image'
+let mobile = false
 
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
     open: hostOpen,
     setOpen,
+    domain: hostDomain,
     referenceLimit: 4,
     apply: {},
     // 结果行卡的数据源（切片 3a 起是宿主契约的一格）。
@@ -41,7 +47,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
   }),
 }))
 
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => mobile }))
 vi.mock('@/hooks/use-assistant-operator', () => ({
   useAssistantOperator: () => ({
     domain: 'image',
@@ -122,6 +128,8 @@ import { StudioOperatorDock } from './StudioOperatorDock'
 
 beforeEach(() => {
   hostOpen = true
+  hostDomain = 'image'
+  mobile = false
   setOpen.mockClear()
 })
 
@@ -163,5 +171,47 @@ describe('StudioOperatorDock', () => {
     render(<StudioOperatorDock />)
     fireEvent.click(screen.getByTestId('operator-rail'))
     expect(setOpen).toHaveBeenCalledWith(true)
+  })
+})
+
+describe('StudioOperatorDock · 手机档', () => {
+  it('渲染全屏 Sheet + 浮标，⛔ 没有图标轨、没有桌面 aside', () => {
+    mobile = true
+    render(<StudioOperatorDock />)
+    expect(screen.getByTestId('operator-mobile-sheet')).toBeTruthy()
+    expect(screen.getByTestId('operator-mobile-fab')).toBeTruthy()
+    expect(screen.queryByTestId('operator-rail')).toBeNull()
+    expect(screen.queryByTestId('operator-panel')).toBeNull()
+  })
+
+  it('Sheet 装的是同一个面板（open 时挂上、关闭时卸载）', () => {
+    mobile = true
+    const { unmount } = render(<StudioOperatorDock />)
+    expect(screen.getByTestId('operator-panel-content')).toBeTruthy()
+    unmount()
+
+    hostOpen = false
+    render(<StudioOperatorDock />)
+    expect(screen.queryByTestId('operator-mobile-sheet')).toBeNull()
+    expect(screen.queryByTestId('operator-panel-content')).toBeNull()
+    // 面板收起时浮标仍在 —— 它是手机上唯一的入口。
+    expect(screen.getByTestId('operator-mobile-fab')).toBeTruthy()
+  })
+
+  it('点浮标打开', () => {
+    mobile = true
+    hostOpen = false
+    render(<StudioOperatorDock />)
+    fireEvent.click(screen.getByTestId('operator-mobile-fab'))
+    expect(setOpen).toHaveBeenCalledWith(true)
+  })
+
+  it('LoRA 域在手机上整颗不渲染（装配台仍走 LoraAssistantDock）', () => {
+    mobile = true
+    hostDomain = 'lora'
+    const { container } = render(<StudioOperatorDock />)
+    expect(container.firstChild).toBeNull()
+    expect(screen.queryByTestId('operator-mobile-sheet')).toBeNull()
+    expect(screen.queryByTestId('operator-mobile-fab')).toBeNull()
   })
 })

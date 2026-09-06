@@ -6934,6 +6934,7 @@
       "critiqueFailed": "看过了，但没读出可用的评价",
       "urlNotFromUser": "这条链接不是你给的，助手不能自己收下",
       "repeatedStep": "这一步刚才做过了，跳过",
+      "ruleLimitReached": "项目规则已达上限，先删掉一条旧规则再添加。",
       "unknownLora": "这把 LoRA 不在这一轮搜到的结果里",
       "loraNotMounted": "这把 LoRA 没挂在装配台上",
       "loraNotImportable": "这把 LoRA 收不进你的库，只能去它的来源页看",

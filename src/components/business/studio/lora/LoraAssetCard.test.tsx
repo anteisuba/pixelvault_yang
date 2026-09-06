@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -98,6 +98,24 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
     const badge = screen.getByText('LoraWorkbench:typeSubject')
     expect(badge.className).toContain('bg-black/55')
     expect(screen.getByRole('img', { name: 'My Char' })).toBeInTheDocument()
+  })
+
+  it('opens saved details from the cover without mounting the LoRA', () => {
+    render(
+      <LoraAssetCard
+        asset={makeAsset({ id: 'detail', name: 'Saved style' })}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Saved style' }))
+    const detail = screen.getByRole('dialog', { name: 'Saved style' })
+    expect(within(detail).getByText('Illustrious')).toBeInTheDocument()
+    expect(within(detail).getByText('trigger')).toBeInTheDocument()
+    expect(mockStackPush).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+    fireEvent.click(
+      within(detail).getByRole('button', { name: 'LoraWorkbench:use' }),
+    )
+    expect(mockStackPush).toHaveBeenCalledTimes(1)
   })
 
   it('去生成: mounts the LoRA and navigates to the generate section', () => {

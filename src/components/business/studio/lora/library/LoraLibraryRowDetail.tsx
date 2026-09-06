@@ -24,7 +24,9 @@ import { getCompatibleBases } from '@/constants/lora-base-models'
 import { useCivitaiModelDescription } from '@/hooks/prompts/use-civitai-model-description'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
+import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
 import type {
+  LoraAssetRecord,
   CivitaiLoraLibraryItem,
   HuggingFaceLoraFile,
   HuggingFaceLoraSearchItem,
@@ -792,6 +794,119 @@ function HuggingFaceRowDetail({
       cover={cover}
       info={info}
       actions={<InlineActions model={actionModel} />}
+    />
+  )
+}
+
+export function LoraAssetDetail({
+  asset,
+  onUse,
+}: {
+  asset: LoraAssetRecord
+  onUse: () => void
+}) {
+  const t = useTranslations('LoraWorkbench')
+  const sourceUrl = getLoraAssetSourceUrl(asset)
+  const images = [
+    ...new Set(
+      [asset.coverImageUrl, ...asset.previewImageUrls].filter(
+        (url): url is string => Boolean(url),
+      ),
+    ),
+  ]
+  const [imageIndex, setImageIndex] = useState(0)
+  return (
+    <DetailDrawerBody
+      cover={
+        images[imageIndex] ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={proxyCivitaiImageUrl(images[imageIndex])}
+            alt={asset.name}
+            className="max-h-[45svh] w-full rounded-xl object-contain"
+          />
+        ) : (
+          <Sparkles className="mx-auto size-12 text-muted-foreground" />
+        )
+      }
+      info={
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold">{asset.name}</h3>
+          <dl className="space-y-1.5">
+            <FieldRow label={t('communityTriggerWord')}>
+              <code className="break-all">{asset.triggerWord}</code>
+            </FieldRow>
+            <FieldRow label={t('communityBaseModel')}>
+              {asset.baseModelFamily}
+            </FieldRow>
+            {sourceUrl ? (
+              <FieldRow label={t('communitySource')}>
+                <a
+                  href={sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="break-all underline"
+                >
+                  {asset.provider}
+                </a>
+              </FieldRow>
+            ) : null}
+            {asset.sourceSnapshot?.license.label ? (
+              <FieldRow label={t('licenseLabel')}>
+                {asset.sourceSnapshot.license.label}
+              </FieldRow>
+            ) : null}
+          </dl>
+        </div>
+      }
+      samples={
+        images.length > 1 ? (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              {t('sampleStripLabel')}
+            </p>
+            <div className="flex gap-2 overflow-x-auto">
+              {images.map((url, index) => (
+                <button
+                  type="button"
+                  key={url}
+                  onClick={() => setImageIndex(index)}
+                  aria-label={t('sampleImageAlt', { n: index + 1 })}
+                  aria-pressed={index === imageIndex}
+                  className="shrink-0 overflow-hidden rounded-lg focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={proxyCivitaiImageUrl(url)}
+                    alt=""
+                    className="h-20 w-16 object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : undefined
+      }
+      actions={
+        <div className="keyboard-aware-bottom-padding flex shrink-0 gap-2 border-t border-border bg-background px-4 pt-3">
+          <Button onClick={onUse} className="h-11 flex-1">
+            <Sparkles className="size-4" aria-hidden />
+            {t('use')}
+          </Button>
+          {sourceUrl ? (
+            <Button asChild variant="outline" size="icon" className="size-11">
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={t('assetActionOpenSource')}
+              >
+                <ExternalLink className="size-4" aria-hidden />
+              </a>
+            </Button>
+          ) : null}
+        </div>
+      }
     />
   )
 }

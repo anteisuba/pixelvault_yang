@@ -44,6 +44,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { LoraCoverTile } from '@/components/business/studio/lora/LoraCoverTile'
 import { cn } from '@/lib/utils'
+import { LoraLibraryDetailDrawer } from './library/LoraLibraryDetailDrawer'
+import { LoraAssetDetail } from './library/LoraLibraryRowDetail'
 
 interface LoraAssetCardProps {
   asset: LoraAssetRecord
@@ -78,6 +80,7 @@ export function LoraAssetCard({
   const t = useTranslations('LoraWorkbench')
   const router = useRouter()
   const stack = useActiveLoraStack()
+  const [detailOpen, setDetailOpen] = useState(false)
   const [isToggling, setIsToggling] = useState(false)
   // Delete is a two-step (menu → confirm) flow with the dialog mounted
   // outside the dropdown — Radix doesn't like AlertDialog as a direct
@@ -159,6 +162,9 @@ export function LoraAssetCard({
     // 菜单，两页网格读作同一套视觉语言。
     <article className="group flex min-w-0 flex-col">
       <LoraCoverTile
+        onClick={() => setDetailOpen(true)}
+        interactiveLabel={asset.name}
+        selected={detailOpen}
         coverUrl={asset.coverImageUrl}
         alt={asset.name}
         fallbackIcon={
@@ -307,6 +313,16 @@ export function LoraAssetCard({
           </div>
         ) : null}
       </div>
+
+      <LoraLibraryDetailDrawer
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        title={asset.name}
+      >
+        {detailOpen ? (
+          <LoraAssetDetail asset={asset} onUse={handleUse} />
+        ) : null}
+      </LoraLibraryDetailDrawer>
 
       {/* 删除确认对话框 — Radix AlertDialog 必须挂在 DropdownMenu 之外，
           否则两个 focus trap 会互相打架。controlled open 让 menu 关闭后

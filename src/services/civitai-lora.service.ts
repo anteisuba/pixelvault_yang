@@ -1703,7 +1703,7 @@ async function listCivitaiLorasBySearch({
   const query = {
     indexUid: CIVITAI_MODEL_SEARCH_INDEX,
     q: search,
-    matchingStrategy: 'all',
+    matchingStrategy: 'last',
     limit: pageSize,
     offset: (page - 1) * pageSize,
     filter: filters,

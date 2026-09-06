@@ -427,7 +427,8 @@ export function useCivitaiLoraLibrary(
   const commitSearch = useCallback(
     (term: string) => {
       const trimmed = term.trim()
-      if (trimmed === debouncedSearch) return
+      if (trimmed === debouncedSearch && (!trimmed || sort === 'Highest Rated'))
+        return
       // 先作废在飞请求再改 state：旧的第 6 页响应回来不能盖掉新搜索。
       // requestId 必须先加——abort 会让 fetch 立刻以 success:false 回来，
       // 若不先加，refresh 会把 AbortError 当成真正的加载失败。
@@ -436,10 +437,11 @@ export function useCivitaiLoraLibrary(
       // Issue C: a new search term starts a new session — unlock the
       // backend so the next page 1 is free to pick meilisearch/REST again.
       searchBackendRef.current = null
+      if (trimmed) setSortValue('Highest Rated')
       setDebouncedSearch(trimmed)
       setPage(1)
     },
-    [clearFacetResults, debouncedSearch],
+    [clearFacetResults, debouncedSearch, sort],
   )
 
   /** 回车 / 点搜索按钮时调用。 */

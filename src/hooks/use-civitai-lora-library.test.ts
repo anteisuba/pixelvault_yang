@@ -155,12 +155,15 @@ describe('useCivitaiLoraLibrary', () => {
         }),
       )
 
-    const { result } = renderHook(() => useCivitaiLoraLibrary())
+    const { result } = renderHook(() =>
+      useCivitaiLoraLibrary({ initialSort: 'Newest' }),
+    )
     await waitFor(() => expect(result.current.items).toEqual([oldItem]))
     act(() => result.current.setSearch('从零开始的'))
     act(() => result.current.submitSearch())
 
     expect(result.current.debouncedSearch).toBe('从零开始的')
+    expect(result.current.sort).toBe('Highest Rated')
     expect(result.current.items).toEqual([])
     expect(result.current.selectedItem).toBeNull()
     expect(result.current.total).toBeNull()

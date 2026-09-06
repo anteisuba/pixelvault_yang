@@ -6897,14 +6897,17 @@
         "done": "完成",
         "running": "进行中",
         "failed": "失败"
-      }
+      },
+      "thinking": "思考中…",
+      "awaitingPlan": "等你确认计划"
     },
     "researchDetails": "调查过程",
     "toolGroup": {
       "title": "{count} 个操作",
       "elapsed": "用时 {seconds}s",
       "succeeded": "{count} 成功",
-      "failed": "{count} 失败"
+      "failed": "{count} 失败",
+      "running": "进行中"
     },
     "checkpoint": {
       "summary": "已改 {count} 项：{fields}",
@@ -7072,7 +7075,8 @@
       "empty": "没找到 —— 接着打字试试",
       "remove": "去掉这个引用",
       "count": "将看 {count} 张",
-      "countWarn": "将看 {count} 张 · 超过 {limit} 张可能不准"
+      "countWarn": "将看 {count} 张 · 超过 {limit} 张可能不准",
+      "searching": "正在搜素材库…"
     },
     "result": {
       "title": "结果 · {count} 张",
@@ -7083,7 +7087,8 @@
       "unselected": "未选定",
       "continue": "按这张继续",
       "continuePrefill": "按这张继续：",
-      "chipLabel": "结果 {ordinal}"
+      "chipLabel": "结果 {ordinal}",
+      "pending": "生成中"
     },
     "choice": {
       "title": "你说的是哪一张？",
@@ -7107,10 +7112,8 @@
       "cancel": "取消",
       "reset": "恢复默认",
       "saveFailed": "没保存上，再试一次。",
-      "scopeNote": "图片、视频、LoRA 都按这份走。",
       "nameLabel": "名字",
       "namePlaceholder": "留空就用工作台的名字",
-      "nameHint": "最多 24 个字。",
       "avatarLabel": "头像",
       "avatarPresets": "预设",
       "avatarUpload": "上传",
@@ -7252,6 +7255,9 @@
         "medium": "资料",
         "low": "社区"
       }
+    },
+    "streaming": {
+      "pending": "助手正在思考"
     }
   },
   "GenerationCancel": {

@@ -6897,14 +6897,17 @@
         "done": "完了",
         "running": "進行中",
         "failed": "失敗"
-      }
+      },
+      "thinking": "考え中…",
+      "awaitingPlan": "プランの確認待ち"
     },
     "researchDetails": "調査の詳細",
     "toolGroup": {
       "title": "{count} 件の操作",
       "elapsed": "所要 {seconds}s",
       "succeeded": "{count} 成功",
-      "failed": "{count} 失敗"
+      "failed": "{count} 失敗",
+      "running": "進行中"
     },
     "checkpoint": {
       "summary": "{count} 項目を変更：{fields}",
@@ -7072,7 +7075,8 @@
       "empty": "見つかりません —— そのまま入力してください",
       "remove": "この参照を外す",
       "count": "{count} 枚を見ます",
-      "countWarn": "{count} 枚を見ます · {limit} 枚を超えると精度が落ちます"
+      "countWarn": "{count} 枚を見ます · {limit} 枚を超えると精度が落ちます",
+      "searching": "ライブラリを検索中…"
     },
     "result": {
       "title": "結果 · {count} 枚",
@@ -7083,7 +7087,8 @@
       "unselected": "未選択",
       "continue": "これで続ける",
       "continuePrefill": "これで続けて：",
-      "chipLabel": "結果 {ordinal}"
+      "chipLabel": "結果 {ordinal}",
+      "pending": "生成中"
     },
     "choice": {
       "title": "どれのことですか？",
@@ -7107,10 +7112,8 @@
       "cancel": "キャンセル",
       "reset": "初期値に戻す",
       "saveFailed": "保存できませんでした。もう一度お試しください。",
-      "scopeNote": "画像・動画・LoRA すべてに適用されます。",
       "nameLabel": "名前",
       "namePlaceholder": "空欄ならワークベンチ名を使います",
-      "nameHint": "24 文字まで。",
       "avatarLabel": "アイコン",
       "avatarPresets": "プリセット",
       "avatarUpload": "アップロード",
@@ -7252,6 +7255,9 @@
         "medium": "資料",
         "low": "コミュニティ"
       }
+    },
+    "streaming": {
+      "pending": "アシスタントが考えています"
     }
   },
   "GenerationCancel": {

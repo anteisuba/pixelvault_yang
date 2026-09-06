@@ -24,6 +24,7 @@ import { useTranslations } from 'next-intl'
 import { motionTransition } from '@/constants/motion'
 import { STUDIO_OPERATOR_MENTION } from '@/constants/studio-assistant-operator'
 import { AttachKindGlyph } from '@/components/business/studio/assistant-operator/StudioOperatorAttachMenu'
+import { Spinner } from '@/components/ui/spinner'
 import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { fetchGalleryImages } from '@/lib/api-client/gallery'
 import { cn } from '@/lib/utils'
@@ -55,6 +56,8 @@ export function StudioOperatorMentionPicker({
     [],
   )
   const [active, setActive] = useState(0)
+  /** 素材库那一跳在飞 —— 「没找到」与「还在搜」是两句话（§4.1 的加载态一族）。 */
+  const [searching, setSearching] = useState(false)
 
   const filteredRecent = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -102,18 +105,29 @@ export function StudioOperatorMentionPicker({
   useEffect(() => {
     let cancelled = false
     const timer = setTimeout(() => {
+      /**
+       * ⚠ `setSearching(true)` 在**定时器回调里**，⛔ 不在 effect 体里：effect
+       * 体里同步置态会被 `react-hooks/set-state-in-effect` 拦下来，而且那样连
+       * 「还在防抖、请求根本没发」的那 200ms 也会显示在搜。
+       */
+      setSearching(true)
       void fetchGalleryImages(1, STUDIO_OPERATOR_MENTION.searchLimit, {
         mine: true,
         type: ['image'],
         ...(query.trim() ? { search: query.trim() } : {}),
-      }).then((result) => {
-        if (cancelled) return
-        setResults(
-          (result.data?.generations ?? [])
-            .filter((item) => Boolean(item.url))
-            .map((item) => toOperatorAttachment(item)),
-        )
       })
+        .then((result) => {
+          if (cancelled) return
+          setResults(
+            (result.data?.generations ?? [])
+              .filter((item) => Boolean(item.url))
+              .map((item) => toOperatorAttachment(item)),
+          )
+        })
+        .finally(() => {
+          // ⚠ `finally`：请求失败时不熄灯的表现是那一行「正在搜」永远转下去。
+          if (!cancelled) setSearching(false)
+        })
     }, STUDIO_OPERATOR_MENTION.searchDebounceMs)
     return () => {
       cancelled = true
@@ -184,7 +198,19 @@ export function StudioOperatorMentionPicker({
       transition={motionTransition('base', reduceMotion)}
       className="absolute bottom-full left-0 right-0 z-10 mb-1.5 max-h-64 overflow-y-auto rounded-xl border border-border bg-card shadow-lg"
     >
-      {options.length === 0 ? (
+      {/* ⭐ 搜着的时候说一句（§4.1 的加载态一族）：⛔ 别在「还在搜」的那一秒里
+          显示「没找到」—— 那是一句会让人停下来的假结论。 */}
+      {options.length === 0 && searching ? (
+        <p
+          data-testid="operator-mention-searching"
+          className="flex items-center justify-center gap-1.5 px-3 py-4 text-2xs text-muted-foreground"
+        >
+          <Spinner size="sm" />
+          {t('mention.searching')}
+        </p>
+      ) : null}
+
+      {options.length === 0 && !searching ? (
         <p
           data-testid="operator-mention-empty"
           className="px-3 py-4 text-center text-2xs text-muted-foreground"

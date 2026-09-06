@@ -154,6 +154,42 @@ function renderPanel() {
 }
 
 describe('StudioOperatorPanel 接线（切片 3a）', () => {
+  it('历史调查默认折叠，最终结论与失败仍直接显示', () => {
+    store.loadOperatorThread({
+      sessionId: null,
+      sessionSurface: null,
+      history: [
+        { kind: 'message', id: 'intro', text: '正在核实资料' },
+        {
+          kind: 'step',
+          id: 'search',
+          tool: 'search_web',
+          title: '检索资料',
+          status: 'done',
+          undone: false,
+        },
+        { kind: 'message', id: 'answer', text: '已核实的最终结论' },
+        {
+          kind: 'step',
+          id: 'failure',
+          tool: 'search_web',
+          title: '搜索失败',
+          status: 'error',
+          undone: false,
+        },
+      ],
+    })
+    renderPanel()
+    const disclosure = screen.getByTestId('operator-research')
+    expect(disclosure).not.toHaveAttribute('open')
+    expect(disclosure).toContainElement(screen.getByText('正在核实资料'))
+    expect(disclosure).toContainElement(screen.getByText('检索资料'))
+    expect(disclosure).not.toContainElement(
+      screen.getByText('已核实的最终结论'),
+    )
+    expect(disclosure).not.toContainElement(screen.getByText('搜索失败'))
+  })
+
   it('① 计划卡钉在流末尾，「开始」把答复交给驱动 hook', () => {
     store.setOperatorPlan({
       id: 'plancard-1',
@@ -251,6 +287,47 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(screen.getByTestId('operator-result-row')).toBeTruthy()
     expect(screen.getAllByTestId('operator-result-tile')).toHaveLength(
       HOST_RESULTS.length,
+    )
+  })
+})
+
+/**
+ * 流式与加载态的**接线闸**（§4.1）。
+ *
+ * ⭐ 与上面那份同一条论据：`StudioOperatorTimelineList` 与
+ * `StudioOperatorStreamingText` 各自单测都绿，而面板不用它们的话屏幕上什么都
+ * 没变 —— 组件级用例永远发现不了这种失败。
+ */
+describe('StudioOperatorPanel · 流式正文与加载态', () => {
+  it('时间线容器是 B3 那颗 role=log 的 polite live region', () => {
+    renderPanel()
+    const thread = screen.getByTestId('operator-thread')
+    expect(thread).toHaveAttribute('role', 'log')
+    expect(thread).toHaveAttribute('aria-live', 'polite')
+    // 滚的仍然是这一层 —— 换容器不许把滚动挪走。
+    expect(thread.className).toContain('overflow-y-auto')
+  })
+
+  it('空正文 + streaming = 占位行（头像那一档 + 三点脉冲），⛔ 不是一行空白', () => {
+    store.appendOperatorPending('run-1:msg-0')
+    renderPanel()
+    expect(screen.getByTestId('operator-message-pending')).toBeTruthy()
+    // 占位行挂在**助手**那一档的沟位上 —— 头像必须已经在了。
+    const rows = screen.getAllByTestId('operator-timeline-row')
+    expect(rows.at(-1)?.dataset.node).toBe('assistant')
+  })
+
+  it('长出来的正文按片渲染，定稿之后 streaming 落下来', () => {
+    store.appendOperatorPending('run-1:msg-0')
+    store.appendOperatorMessageDelta('run-1:msg-0', '夜景')
+    renderPanel()
+    expect(
+      screen
+        .getAllByTestId('operator-message-slice')
+        .map((node) => node.textContent),
+    ).toEqual(['夜', '景'])
+    expect(screen.getByTestId('operator-message-text').dataset.streaming).toBe(
+      'true',
     )
   })
 })

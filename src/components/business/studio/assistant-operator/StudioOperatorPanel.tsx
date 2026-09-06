@@ -19,7 +19,14 @@
  *  · 三张「等你定」的卡钉在流末尾：计划 / 花钱硬确认 / 歧义反问单选（§4.1）
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import {
   Paperclip,
   RotateCw,
@@ -28,6 +35,10 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-react'
+import {
+  groupOperatorResearch,
+  isOperatorResearchTool,
+} from '@/lib/studio-operator-timeline'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
@@ -72,9 +83,11 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorProgressBand'
 import {
   STUDIO_OPERATOR_NODE_KINDS,
+  StudioOperatorTimelineList,
   StudioOperatorTimelineRow,
   type StudioOperatorNodeKind,
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
+import { StudioOperatorStreamingText } from '@/components/business/studio/assistant-operator/StudioOperatorStreamingText'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { Spinner } from '@/components/ui/spinner'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
@@ -451,12 +464,283 @@ export function StudioOperatorPanel({
     return result
   }, [entries])
 
+  const historyGroups = groupOperatorResearch(
+    historyEntries.map((entry) =>
+      entry.kind === 'message'
+        ? 'message'
+        : entry.kind === 'step' &&
+            entry.status === 'done' &&
+            isOperatorResearchTool(entry.tool)
+          ? 'research'
+          : 'result',
+    ),
+  )
+  const liveGroups = groupOperatorResearch(
+    blocks.map((block) =>
+      block.kind === 'tools' &&
+      block.steps.every(
+        ({ step }) =>
+          step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.error &&
+          isOperatorResearchTool(step.tool),
+      )
+        ? 'research'
+        : block.kind === 'entry' && block.entry.kind === 'message'
+          ? 'message'
+          : 'result',
+    ),
+  )
+  const renderGroups = (
+    groups: ReturnType<typeof groupOperatorResearch>,
+    renderItem: (index: number) => ReactNode,
+  ) =>
+    groups.map((group) =>
+      group.research ? (
+        <details
+          key={group.indexes[0]}
+          data-testid="operator-research"
+          className="mt-2"
+        >
+          <summary className="ml-8 cursor-pointer py-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+            {t('researchDetails')}
+          </summary>
+          {group.indexes.map(renderItem)}
+        </details>
+      ) : (
+        renderItem(group.indexes[0]!)
+      ),
+    )
+  const renderBlock = (block: (typeof blocks)[number]) => {
+    if (block.kind === 'tools') {
+      const failed = block.steps.filter(
+        (item) => item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      ).length
+      const running = block.steps.some(
+        (item) =>
+          item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+      )
+      /* checkpoint 只在**这一轮真的收尾了**之后出现（§2.13）：还在跑就
+                 挂一张「已改 3 项」，用户会以为它已经改完了。 */
+      const roundDone = !working || block.runKey !== latestRunKey
+      const changeCountInRound = countRoundChanges(block.runKey)
+      const fields = roundFields(block.runKey)
+      return (
+        <div key={`tools:${block.runKey}:${block.steps[0]?.id}`}>
+          <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.tool}>
+            <StudioOperatorToolGroup
+              total={block.steps.length}
+              failed={failed}
+              running={running}
+            >
+              {block.steps.map((item) => (
+                <StudioOperatorLogItem
+                  key={item.id}
+                  entryId={item.id}
+                  step={item.step}
+                  undone={item.undone}
+                  onUndo={undoStep}
+                  // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
+                  //    传一个每次 render 都换引用的对象等于把 memo 关掉。
+                  webImport={webImport.states[item.id]}
+                  webImportLimit={webImport.limit}
+                  onToggleWebImage={webImport.toggleCandidate}
+                />
+              ))}
+            </StudioOperatorToolGroup>
+          </StudioOperatorTimelineRow>
+          {roundDone && changeCountInRound > 0 ? (
+            <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.system}>
+              <StudioOperatorCheckpointCard
+                runKey={block.runKey}
+                count={changeCountInRound}
+                fieldSummary={fields
+                  .map((field) => t(`field.${field}`))
+                  .join(' · ')}
+                onRevert={handleCheckpointRevert}
+              />
+            </StudioOperatorTimelineRow>
+          ) : null}
+        </div>
+      )
+    }
+
+    const entry = block.entry
+    switch (entry.kind) {
+      case 'user':
+        return (
+          <StudioOperatorTimelineRow
+            key={entry.id}
+            node={STUDIO_OPERATOR_NODE_KINDS.user}
+          >
+            <p className="whitespace-pre-wrap text-xs font-medium leading-relaxed text-foreground">
+              {entry.text}
+            </p>
+            {entry.attachments.length > 0 ? (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {entry.attachments.map((attachment) => (
+                  <span
+                    key={attachment.id}
+                    className="rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-2xs text-primary"
+                  >
+                    {attachment.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </StudioOperatorTimelineRow>
+        )
+      /**
+       * 助手正文 —— 逐字长出来的那一条（§4.1）。
+       *
+       * ⚠ `streaming` 为真且还没有字 = **发送即回显**的占位行：头像已经在了，
+       *   正文位画三点脉冲，高度就是一行正文高，第一个字到达时不跳。
+       */
+      case 'message':
+        return (
+          <StudioOperatorTimelineRow
+            key={entry.id}
+            node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+            {...(persona ? { persona } : {})}
+          >
+            <StudioOperatorStreamingText
+              text={entry.text}
+              streaming={entry.streaming ?? false}
+            />
+          </StudioOperatorTimelineRow>
+        )
+      case 'plan':
+        return (
+          <StudioOperatorTimelineRow
+            key={entry.id}
+            node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+            {...(persona ? { persona } : {})}
+          >
+            <div
+              data-testid="operator-plan"
+              className="overflow-hidden rounded-xl border border-border bg-card"
+            >
+              <p className="border-b border-border px-3 py-2 text-xs font-semibold text-foreground">
+                {t('planTitle')}
+              </p>
+              <ul className="flex flex-col gap-1 p-3">
+                {entry.steps.map((step, index) => (
+                  <li
+                    key={step}
+                    className="flex items-baseline gap-2 text-xs text-foreground"
+                  >
+                    <span className="shrink-0 font-mono text-3xs tracking-nav tabular-nums text-muted-foreground">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="min-w-0">{step}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </StudioOperatorTimelineRow>
+        )
+      case 'step': {
+        /**
+         * ⭐ 看图那一条渲染成**评价卡**而不是日志条（拍板 6）：证据要长在
+         * 结论里，而日志条画不下一张图 + 四条结论。这里能走到的只有
+         * 「跑完且有结果」那一支 —— 其余在分组时就并进 ToolGroup 了。
+         */
+        const { step } = entry
+        if (
+          step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult ||
+          step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done ||
+          !step.result
+        ) {
+          return null
+        }
+        return (
+          <StudioOperatorTimelineRow
+            key={entry.id}
+            node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+            {...(persona ? { persona } : {})}
+          >
+            <StudioOperatorCritiqueCard
+              step={{ ...step, result: step.result }}
+              runKey={entry.runKey}
+              roundChangeCount={countRoundChanges(entry.runKey)}
+              onRevertRound={revertRound}
+            />
+          </StudioOperatorTimelineRow>
+        )
+      }
+      case 'system':
+        return (
+          <StudioOperatorTimelineRow
+            key={entry.id}
+            node={STUDIO_OPERATOR_NODE_KINDS.system}
+          >
+            <p
+              data-testid="operator-system-line"
+              className="text-2xs leading-relaxed text-muted-foreground"
+            >
+              {/* ⚠ 两种 subject：`revertField` 存的是**字段 id**（要过词表
+                          才是人话），`undoStep` 存的是模型写的那行标题（本来就是
+                          人话，翻译它等于把它弄丢）。 */}
+              {t(`system.${entry.code}`, {
+                subject:
+                  entry.code === 'revertField' && entry.subject
+                    ? t(`field.${entry.subject}`)
+                    : (entry.subject ?? ''),
+                count: entry.count ?? 0,
+              })}
+            </p>
+          </StudioOperatorTimelineRow>
+        )
+      /**
+       * 规则薄卡（§2.21 / §10，拍板 23）—— **系统行档**，⛔ 不用状态色：
+       * 规则不是成功也不是警告。
+       */
+      case 'rule':
+        return (
+          <StudioOperatorTimelineRow
+            key={entry.id}
+            node={STUDIO_OPERATOR_NODE_KINDS.system}
+          >
+            <RuleChip
+              ruleId={entry.ruleId}
+              text={entry.text}
+              source={entry.source}
+              createdAt={entry.createdAt}
+              onView={onOpenProjectRules}
+            />
+          </StudioOperatorTimelineRow>
+        )
+      /**
+       * 切域标记（拍板 8：切域换工具，会话不断）。
+       *
+       * ⚠ `entry.domain` 存的是**域 id**，印之前必须过词表 —— 直接塞进
+       * 文案会在中文界面上印出一个英文的 `video`。
+       */
+      case 'domainMark':
+        return (
+          <StudioOperatorTimelineRow
+            key={entry.id}
+            node={STUDIO_OPERATOR_NODE_KINDS.system}
+          >
+            <p
+              data-testid="operator-domain-mark"
+              data-domain={entry.domain}
+              className="text-2xs leading-relaxed text-muted-foreground"
+            >
+              {t('domainMark', {
+                domain: t(`domainName.${entry.domain}`),
+              })}
+            </p>
+          </StudioOperatorTimelineRow>
+        )
+    }
+  }
+
   return (
     <>
       {/* ── 顶部进度带（拍板 10 改口 · §2.4）──────────────────────── */}
       <StudioOperatorProgressBand
         domain={domain}
         working={working}
+        awaitingPlan={status === 'awaitingPlan'}
         stepsDone={stepsDone}
         plannedSteps={plannedSteps}
         currentStepTitle={currentStepTitle}
@@ -470,7 +754,7 @@ export function StudioOperatorPanel({
       {/* ── 时间线沟（§11.3）──────────────────────────────────────
           ⚠ 滚的是外面这一层，贯穿竖线画在里面那一层：线要跟着内容一起滚，
             画在滚动容器上会得到一条钉在视口里、内容从它旁边流过去的假线。 */}
-      <div
+      <StudioOperatorTimelineList
         ref={threadRef}
         data-testid="operator-thread"
         className="min-h-0 flex-1 overflow-y-auto"
@@ -501,15 +785,18 @@ export function StudioOperatorPanel({
               ⭐ 所以 key 里带上**位置**：历史是只读、只追加、按顺序渲染的数组，
                 位置在这里是稳定的身份。
               ⚠ 历史行**不画时间戳**：库里那份没有逐条时刻，拿「现在」去填是编数据。 */}
-          {historyEntries.map((entry, index) => (
-            <StudioOperatorTimelineRow
-              key={`h:${index}:${entry.id}`}
-              node={historyNodeKind(entry.kind)}
-              withTimestamp={false}
-            >
-              <StudioOperatorHistoryItem entry={entry} />
-            </StudioOperatorTimelineRow>
-          ))}
+          {renderGroups(historyGroups, (index) => {
+            const entry = historyEntries[index]!
+            return (
+              <StudioOperatorTimelineRow
+                key={`h:${index}:${entry.id}`}
+                node={historyNodeKind(entry.kind)}
+                {...(persona ? { persona } : {})}
+              >
+                <StudioOperatorHistoryItem entry={entry} />
+              </StudioOperatorTimelineRow>
+            )
+          })}
 
           {/* 分隔线只在**两边都有东西**时出现：只有历史时它是一条没有下文的线。 */}
           {historyEntries.length > 0 ? (
@@ -521,229 +808,7 @@ export function StudioOperatorPanel({
             </p>
           ) : null}
 
-          {blocks.map((block) => {
-            if (block.kind === 'tools') {
-              const failed = block.steps.filter(
-                (item) =>
-                  item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
-              ).length
-              const running = block.steps.some(
-                (item) =>
-                  item.step.status ===
-                  ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
-              )
-              /* checkpoint 只在**这一轮真的收尾了**之后出现（§2.13）：还在跑就
-                 挂一张「已改 3 项」，用户会以为它已经改完了。 */
-              const roundDone = !working || block.runKey !== latestRunKey
-              const changeCountInRound = countRoundChanges(block.runKey)
-              const fields = roundFields(block.runKey)
-              return (
-                <div key={`tools:${block.runKey}:${block.steps[0]?.id}`}>
-                  <StudioOperatorTimelineRow
-                    node={STUDIO_OPERATOR_NODE_KINDS.tool}
-                  >
-                    <StudioOperatorToolGroup
-                      total={block.steps.length}
-                      failed={failed}
-                      running={running}
-                    >
-                      {block.steps.map((item) => (
-                        <StudioOperatorLogItem
-                          key={item.id}
-                          entryId={item.id}
-                          step={item.step}
-                          undone={item.undone}
-                          onUndo={undoStep}
-                          // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
-                          //    传一个每次 render 都换引用的对象等于把 memo 关掉。
-                          webImport={webImport.states[item.id]}
-                          webImportLimit={webImport.limit}
-                          onToggleWebImage={webImport.toggleCandidate}
-                        />
-                      ))}
-                    </StudioOperatorToolGroup>
-                  </StudioOperatorTimelineRow>
-                  {roundDone && changeCountInRound > 0 ? (
-                    <StudioOperatorTimelineRow
-                      node={STUDIO_OPERATOR_NODE_KINDS.system}
-                    >
-                      <StudioOperatorCheckpointCard
-                        runKey={block.runKey}
-                        count={changeCountInRound}
-                        fieldSummary={fields
-                          .map((field) => t(`field.${field}`))
-                          .join(' · ')}
-                        onRevert={handleCheckpointRevert}
-                      />
-                    </StudioOperatorTimelineRow>
-                  ) : null}
-                </div>
-              )
-            }
-
-            const entry = block.entry
-            switch (entry.kind) {
-              case 'user':
-                return (
-                  <StudioOperatorTimelineRow
-                    key={entry.id}
-                    node={STUDIO_OPERATOR_NODE_KINDS.user}
-                  >
-                    <p className="whitespace-pre-wrap text-xs font-medium leading-relaxed text-foreground">
-                      {entry.text}
-                    </p>
-                    {entry.attachments.length > 0 ? (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {entry.attachments.map((attachment) => (
-                          <span
-                            key={attachment.id}
-                            className="rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-2xs text-primary"
-                          >
-                            {attachment.label}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </StudioOperatorTimelineRow>
-                )
-              case 'message':
-                return (
-                  <StudioOperatorTimelineRow
-                    key={entry.id}
-                    node={STUDIO_OPERATOR_NODE_KINDS.assistant}
-                    {...(persona ? { persona } : {})}
-                  >
-                    <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground">
-                      {entry.text}
-                    </p>
-                  </StudioOperatorTimelineRow>
-                )
-              case 'plan':
-                return (
-                  <StudioOperatorTimelineRow
-                    key={entry.id}
-                    node={STUDIO_OPERATOR_NODE_KINDS.assistant}
-                    {...(persona ? { persona } : {})}
-                  >
-                    <div
-                      data-testid="operator-plan"
-                      className="overflow-hidden rounded-xl border border-border bg-card"
-                    >
-                      <p className="border-b border-border px-3 py-2 text-xs font-semibold text-foreground">
-                        {t('planTitle')}
-                      </p>
-                      <ul className="flex flex-col gap-1 p-3">
-                        {entry.steps.map((step, index) => (
-                          <li
-                            key={step}
-                            className="flex items-baseline gap-2 text-xs text-foreground"
-                          >
-                            <span className="shrink-0 font-mono text-3xs tracking-nav tabular-nums text-muted-foreground">
-                              {String(index + 1).padStart(2, '0')}
-                            </span>
-                            <span className="min-w-0">{step}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </StudioOperatorTimelineRow>
-                )
-              case 'step': {
-                /**
-                 * ⭐ 看图那一条渲染成**评价卡**而不是日志条（拍板 6）：证据要长在
-                 * 结论里，而日志条画不下一张图 + 四条结论。这里能走到的只有
-                 * 「跑完且有结果」那一支 —— 其余在分组时就并进 ToolGroup 了。
-                 */
-                const { step } = entry
-                if (
-                  step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult ||
-                  step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done ||
-                  !step.result
-                ) {
-                  return null
-                }
-                return (
-                  <StudioOperatorTimelineRow
-                    key={entry.id}
-                    node={STUDIO_OPERATOR_NODE_KINDS.assistant}
-                    {...(persona ? { persona } : {})}
-                  >
-                    <StudioOperatorCritiqueCard
-                      step={{ ...step, result: step.result }}
-                      runKey={entry.runKey}
-                      roundChangeCount={countRoundChanges(entry.runKey)}
-                      onRevertRound={revertRound}
-                    />
-                  </StudioOperatorTimelineRow>
-                )
-              }
-              case 'system':
-                return (
-                  <StudioOperatorTimelineRow
-                    key={entry.id}
-                    node={STUDIO_OPERATOR_NODE_KINDS.system}
-                  >
-                    <p
-                      data-testid="operator-system-line"
-                      className="text-2xs leading-relaxed text-muted-foreground"
-                    >
-                      {/* ⚠ 两种 subject：`revertField` 存的是**字段 id**（要过词表
-                          才是人话），`undoStep` 存的是模型写的那行标题（本来就是
-                          人话，翻译它等于把它弄丢）。 */}
-                      {t(`system.${entry.code}`, {
-                        subject:
-                          entry.code === 'revertField' && entry.subject
-                            ? t(`field.${entry.subject}`)
-                            : (entry.subject ?? ''),
-                        count: entry.count ?? 0,
-                      })}
-                    </p>
-                  </StudioOperatorTimelineRow>
-                )
-              /**
-               * 规则薄卡（§2.21 / §10，拍板 23）—— **系统行档**，⛔ 不用状态色：
-               * 规则不是成功也不是警告。
-               */
-              case 'rule':
-                return (
-                  <StudioOperatorTimelineRow
-                    key={entry.id}
-                    node={STUDIO_OPERATOR_NODE_KINDS.system}
-                  >
-                    <RuleChip
-                      ruleId={entry.ruleId}
-                      text={entry.text}
-                      source={entry.source}
-                      createdAt={entry.createdAt}
-                      onView={onOpenProjectRules}
-                    />
-                  </StudioOperatorTimelineRow>
-                )
-              /**
-               * 切域标记（拍板 8：切域换工具，会话不断）。
-               *
-               * ⚠ `entry.domain` 存的是**域 id**，印之前必须过词表 —— 直接塞进
-               * 文案会在中文界面上印出一个英文的 `video`。
-               */
-              case 'domainMark':
-                return (
-                  <StudioOperatorTimelineRow
-                    key={entry.id}
-                    node={STUDIO_OPERATOR_NODE_KINDS.system}
-                  >
-                    <p
-                      data-testid="operator-domain-mark"
-                      data-domain={entry.domain}
-                      className="text-2xs leading-relaxed text-muted-foreground"
-                    >
-                      {t('domainMark', {
-                        domain: t(`domainName.${entry.domain}`),
-                      })}
-                    </p>
-                  </StudioOperatorTimelineRow>
-                )
-            }
-          })}
+          {renderGroups(liveGroups, (index) => renderBlock(blocks[index]!))}
 
           {/* ── 三张「等你定」的卡（§4.1「钉在流末尾」）──────────────────
               ⚠ 顺序是**计划 → 反问 → 花钱**，与它们在一轮里出现的先后一致：
@@ -850,7 +915,7 @@ export function StudioOperatorPanel({
             </StudioOperatorTimelineRow>
           ) : null}
         </div>
-      </div>
+      </StudioOperatorTimelineList>
 
       {/* ── 建议药丸：语境化，点即发送（拍板 15）────────────────── */}
       {suggestions.length > 0 ? (

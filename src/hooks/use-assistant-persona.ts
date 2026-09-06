@@ -29,6 +29,12 @@ const DEFAULT_PERSONA: AssistantPersona = {
   avatarUrl: null,
 }
 
+const personaListeners = new Set<(update: Partial<AssistantPersona>) => void>()
+
+function publishPersona(update: Partial<AssistantPersona>) {
+  for (const listener of personaListeners) listener(update)
+}
+
 export interface UseAssistantPersonaValue {
   persona: AssistantPersona
   isLoading: boolean
@@ -56,7 +62,12 @@ export function useAssistantPersona(
 
   useEffect(() => {
     aliveRef.current = true
+    const onChange = (update: Partial<AssistantPersona>) => {
+      setPersona((current) => ({ ...current, ...update }))
+    }
+    personaListeners.add(onChange)
     return () => {
+      personaListeners.delete(onChange)
       aliveRef.current = false
     }
   }, [])
@@ -92,7 +103,7 @@ export function useAssistantPersona(
     if (!aliveRef.current) return result.success
     setIsSaving(false)
     if (result.success) {
-      setPersona(result.data)
+      publishPersona(result.data)
       setError(null)
       return true
     }
@@ -106,7 +117,7 @@ export function useAssistantPersona(
     if (!aliveRef.current) return result.success
     setIsSaving(false)
     if (result.success) {
-      setPersona((current) => ({ ...current, avatarUrl: result.data.url }))
+      publishPersona({ avatarUrl: result.data.url })
       setError(null)
       return true
     }
@@ -120,7 +131,7 @@ export function useAssistantPersona(
     if (!aliveRef.current) return result.success
     setIsSaving(false)
     if (result.success) {
-      setPersona((current) => ({ ...current, avatarUrl: null }))
+      publishPersona({ avatarUrl: null })
       setError(null)
       return true
     }

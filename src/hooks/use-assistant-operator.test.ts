@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   ASSISTANT_OPERATOR_EVENTS,
@@ -794,5 +794,216 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     })
     await settle()
     expect(store.getOperatorState().spend).toBeNull()
+  })
+})
+
+/**
+ * 正文逐字流与加载态（owner 2026-09-06「一个字一个字连续出」「缺少加载中的状态」）。
+ *
+ * ⚠ rAF 在这里桩成 0ms 定时器：`settle()` 放的是微任务 + 一个 0ms 宏任务，
+ * jsdom 真实的 rAF 要 ~16ms 才跑 —— 不桩的话增量永远卡在缓冲里，用例测的就成了
+ * 「缓冲有没有攒住」而不是「有没有渲染出来」。
+ */
+describe('正文流式累积与占位行', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (callback: FrameRequestCallback) =>
+        setTimeout(() => callback(0), 0) as unknown as number,
+    )
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      clearTimeout(id)
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  /** 线程里那条**唯一的**助手正文条。 */
+  function messageEntry() {
+    return store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind === 'message')
+      .at(-1)
+  }
+
+  it('⭐ 发送即回显：用户行与助手占位行在同一轮里立刻落进线程', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词改成夜景')
+    })
+    await settle()
+
+    const kinds = store.getOperatorState().entries.map((entry) => entry.kind)
+    expect(kinds).toEqual(['user', 'message'])
+    // 占位行 = 空正文 + streaming 旗，正文与占位**共用一条条目**（⛔ 不换 key）。
+    expect(messageEntry()).toMatchObject({ text: '', streaming: true })
+  })
+
+  /**
+   * ⭐ 2026-09-06 真机撞到的那条：`open` 是**模型开口之前**的握手帧，它到达时
+   * 屏幕上还什么都没有。把它当成「它开口了」的表现是占位行闪一下就没了。
+   */
+  it('⛔ open 握手帧不算「它开口了」—— 占位行留着', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词改成夜景')
+    })
+    await settle()
+
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.open })
+    await settle()
+    expect(messageEntry()).toMatchObject({ text: '', streaming: true })
+  })
+
+  it('message_delta 逐帧累加进同一条，定稿帧整体覆盖并降旗', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词改成夜景')
+    })
+    await settle()
+    const placeholderId = messageEntry()?.id
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      text: '已经',
+    })
+    await settle()
+    expect(messageEntry()).toMatchObject({ text: '已经', streaming: true })
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      text: '改成夜',
+    })
+    await settle()
+    expect(messageEntry()?.text).toBe('已经改成夜')
+    // ⭐ 一路都是同一条条目 —— 换条目就是换 key，那一行会重挂一次。
+    expect(messageEntry()?.id).toBe(placeholderId)
+
+    /**
+     * ⭐ 定稿**覆盖**而不是追加：增量是从半截 JSON 里现解的，与定稿差一两个
+     * 字符是常态，而那种差错没有任何人查得出来。
+     */
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '已经改成夜景了。',
+    })
+    await settle()
+    expect(messageEntry()).toMatchObject({
+      id: placeholderId,
+      text: '已经改成夜景了。',
+    })
+    expect(messageEntry()?.streaming).toBeFalsy()
+    expect(
+      store.getOperatorState().entries.filter((e) => e.kind === 'message'),
+    ).toHaveLength(1)
+  })
+
+  it('⭐ 第一个 step 到达 → 空占位行让位，⛔ 不留一行空脉冲在日志上面', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('读一下当前状态')
+    })
+    await settle()
+    expect(messageEntry()).toBeTruthy()
+
+    streams[0].emit(doneStepEvent('step-1'))
+    await settle()
+
+    expect(store.getOperatorState().entries.map((entry) => entry.kind)).toEqual(
+      ['user', 'step'],
+    )
+  })
+
+  it('助手先说一句再去调工具 → 那句话留在屏幕上，⛔ 不被让位逻辑扫掉', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词改成夜景')
+    })
+    await settle()
+
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.message, text: '这就来' })
+    await settle()
+    streams[0].emit(doneStepEvent('step-1'))
+    await settle()
+
+    expect(store.getOperatorState().entries.map((entry) => entry.kind)).toEqual(
+      ['user', 'message', 'step'],
+    )
+    expect(messageEntry()?.text).toBe('这就来')
+  })
+
+  it('一轮里两段正文各占一条 —— 定稿之后序号进一位', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词改成夜景')
+    })
+    await settle()
+
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.message, text: '这就来' })
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      text: '好了',
+    })
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '好了，改完了。',
+    })
+    await settle()
+
+    const messages = store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind === 'message')
+    expect(messages.map((entry) => entry.text)).toEqual([
+      '这就来',
+      '好了，改完了。',
+    ])
+    expect(messages[0].id).not.toBe(messages[1].id)
+  })
+
+  /**
+   * ⭐ 计划卡那一条**掐掉了流**（客户端硬判之后 abort + return），定稿帧永远
+   * 不会来了。旗必须在那一刻放下来 —— 举着一面永远降不下来的 `streaming`
+   * 等于给后来加光标 / 加脉冲的人埋一个「永远在流」的假象。
+   */
+  it('计划卡掐流之后，已经流出来的那段字留在屏幕上且不再举 streaming 旗', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我配一张海报')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      text: '当前提示词是空的',
+    })
+    await settle()
+    streams[0].emit(planRequestEvent(3))
+    await settle()
+
+    expect(store.getOperatorState().status).toBe('awaitingPlan')
+    expect(messageEntry()).toMatchObject({ text: '当前提示词是空的' })
+    expect(messageEntry()?.streaming).toBeFalsy()
+  })
+
+  it('流炸了也不把半句话丢在缓冲里', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词改成夜景')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      text: '已经改',
+    })
+    streams[0].fail(new Error('boom'))
+    await settle()
+
+    expect(messageEntry()?.text).toBe('已经改')
+    expect(store.getOperatorState().status).toBe('error')
   })
 })

@@ -79,6 +79,7 @@ import {
 import {
   buildAssistantConversation,
   completeAssistantTextWithContextRetry,
+  streamAssistantTextWithContextRetry,
 } from '@/services/kernel/assistant-completion.service'
 import {
   resolveLlmTextRoute,
@@ -146,6 +147,7 @@ import {
  * 扇出那一段因此单独住在 `research-fanout.service`，它一行库都不碰。
  */
 import { runAssistantResearch } from '@/services/research/research-fanout.service'
+import { createOperatorMessageStreamer } from '@/lib/assistant-operator-stream'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { logger } from '@/lib/logger'
 import {
@@ -3191,7 +3193,7 @@ TOOLS:
 ${tools}
 
 OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outside it, no code fence:
-{"plan":["short step","short step"],"message":"what you are telling the creator","tool":{"name":"set_prompt","title":"one short line for the log","reason":"why, in one line","args":{"value":"..."}},"finished":false}
+{"plan":["short step","short step"],"tool":{"name":"set_prompt","title":"one short line for the log","reason":"why, in one line","args":{"value":"..."}},"message":"what you are telling the creator","finished":false}
 
 - "plan" only on your FIRST turn, at most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
 ${
@@ -3201,6 +3203,7 @@ ${
 }- "pending" rides along with that first "plan" and ONLY there: at most ${PLAN_LIMITS.maxPendingItems} things you genuinely cannot settle from what they told you, each with 2–${PLAN_LIMITS.maxPendingOptions} concrete options. The app turns them into one tap. Leave it out when you can settle everything yourself — a question you already know the answer to costs them a round trip. Never ask about something the state block already answers.${buildPlanVisualSection()}
 - Every "pending" item MUST have a non-empty "label" and an "options" array of objects, each with its own non-empty "label": {"label":"Which visual direction?","options":[{"label":"3D game render"},{"label":"Stylized 3D"}]}. Labels must be in the creator's language. The question belongs in "label", not "question" or "title". Keep each question within ${LIMITS.maxPlanItemChars} characters and each option label within ${PLAN_LIMITS.maxPendingLabelChars} characters. Item and option "id" fields are optional; the server assigns them when omitted.
 - "message" is optional; use it to say something worth saying, not to narrate every step.
+- KEY ORDER MATTERS: when you use "tool", write it BEFORE "message". The app streams your closing reply to the creator word by word as you write it, and it can only tell a closing reply apart from a mid-work aside by that order.
 - Omit "tool" (or set "finished":true) when the work is done. Do that as soon as the form is ready — an extra step costs the creator time.
 - One tool per turn. You get at most ${LIMITS.maxSteps} steps for the whole request.
 - After each tool you will be told what actually happened. If a call was refused, read the reason and adapt — do not repeat the same call.`
@@ -3464,7 +3467,18 @@ export async function* runAssistantOperator(
         return
       }
 
-      const raw = await completeAssistantTextWithContextRetry({
+      /**
+       * ⭐ **这一轮走流式**（owner 2026-09-06「助手回复应该一个字一个字连续出」）。
+       *
+       * 收到的仍然是同一份 turn JSON，`parseTurnJson` 那一段一个字都没改 ——
+       * 变的只是「边收边解出 `message` 字段吐给客户端」。⛔ 别为了这件事再补一次
+       * LLM 往返（用户为同一段话付两次钱），也别把 OUTPUT 契约改成两段协议。
+       * ⚠ 工具轮由 `createOperatorMessageStreamer` 自己闭嘴（判据是键的先后，
+       *   见那颗的头注），所以这里无条件把增量往外吐。
+       */
+      const messageStreamer = createOperatorMessageStreamer()
+      let raw = ''
+      for await (const chunk of streamAssistantTextWithContextRetry({
         systemPrompt,
         buildUserPrompt: (maxLength) => buildOperatorUserPrompt(run, maxLength),
         route,
@@ -3472,7 +3486,15 @@ export async function* runAssistantOperator(
           OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
         modelId,
         responseFormat: 'json_object',
-      })
+      })) {
+        raw += chunk
+        // ⚠ 客户端走了就别再往一条没人读的流里解字（同下面那道 abort 复查）。
+        if (options.signal?.aborted) break
+        const delta = messageStreamer.push(chunk)
+        if (delta) {
+          yield { type: ASSISTANT_OPERATOR_EVENTS.messageDelta, text: delta }
+        }
+      }
 
       // ⚠ abort 可能发生在这次 await 期间：结果已经拿到但客户端早就走了。
       //    这里再查一次，免得往一条没人读的流里继续吐事件。

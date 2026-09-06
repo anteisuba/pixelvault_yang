@@ -85,6 +85,14 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 interface StudioOperatorProgressBandProps {
   domain: AssistantOperatorDomain
   working: boolean
+  /**
+   * 计划卡钉住了，球在用户脚下（§4.1 最后一行）。
+   *
+   * ⚠ 与 `working` **分开一个 prop** 而不是并进它：两件事要用户做的动作完全不同
+   * ——「思考中」是等它，「等你确认计划」是等你。合成一个的表现是计划卡钉在屏幕上
+   * 而带上还写着「思考中」，于是没人知道要去点那张卡。
+   */
+  awaitingPlan: boolean
   stepsDone: number
   plannedSteps: number
   /** 现在这一步在做什么 —— `null` = 计划已下但还没有步在跑。 */
@@ -105,6 +113,7 @@ interface StudioOperatorProgressBandProps {
 export function StudioOperatorProgressBand({
   domain,
   working,
+  awaitingPlan,
   stepsDone,
   plannedSteps,
   currentStepTitle,
@@ -120,14 +129,28 @@ export function StudioOperatorProgressBand({
 
   const hasProgress = working && plannedSteps > 0
   const ratio = hasProgress ? Math.min(stepsDone / plannedSteps, 1) : 0
+  /** 进度环那一档露不露脸 —— 干活中和「等你定」共用它，空闲才退回域 chip。 */
+  const busy = working || awaitingPlan
+  /**
+   * **还没有分母**（`plan` 帧还没到）—— 环转起来，⛔ 不画 `0/0`：
+   * 一个没有分母的计数比一句「思考中」更像卡住了（§4.1 第三行）。
+   */
+  const indeterminate = working && !hasProgress
   const sessionTitle =
     history.sessions.find((item) => item.id === history.currentSessionId)
       ?.title ?? t('newThread')
+  const bandTitle = awaitingPlan
+    ? t('band.awaitingPlan')
+    : working
+      ? (currentStepTitle ??
+        (hasProgress ? t('band.working') : t('band.thinking')))
+      : (sessionTitle ?? t('newThread'))
 
   return (
     <div
       data-testid="operator-progress-band"
       data-working={working ? 'true' : 'false'}
+      data-awaiting-plan={awaitingPlan ? 'true' : 'false'}
       data-open={open ? 'true' : 'false'}
       className="shrink-0 border-b border-border bg-card"
     >
@@ -135,12 +158,17 @@ export function StudioOperatorProgressBand({
         style={{ height: `${STUDIO_OPERATOR_SHELL.progressBandHeightPx}px` }}
         className="flex items-center gap-2 px-3"
       >
-        {working ? (
+        {busy ? (
           <>
             <svg
               data-testid="operator-band-ring"
+              data-indeterminate={indeterminate ? 'true' : 'false'}
               viewBox="0 0 18 18"
-              className="size-4.5 shrink-0"
+              // ⚠ 转的是「不知道还剩多少」那一档；有了分母就停下来按比例画。
+              className={cn(
+                'size-4.5 shrink-0',
+                indeterminate && 'animate-spin motion-reduce:animate-none',
+              )}
               aria-hidden
             >
               <circle
@@ -159,10 +187,17 @@ export function StudioOperatorProgressBand({
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 transform="rotate(-90 9 9)"
-                style={{
-                  strokeDasharray: RING_CIRCUMFERENCE,
-                  strokeDashoffset: RING_CIRCUMFERENCE * (1 - ratio),
-                }}
+                style={
+                  indeterminate
+                    ? // 固定一段弧，靠外层 `animate-spin` 转 —— 这就是环形 spinner。
+                      {
+                        strokeDasharray: `${RING_CIRCUMFERENCE * 0.28} ${RING_CIRCUMFERENCE}`,
+                      }
+                    : {
+                        strokeDasharray: RING_CIRCUMFERENCE,
+                        strokeDashoffset: RING_CIRCUMFERENCE * (1 - ratio),
+                      }
+                }
                 className="stroke-primary transition-[stroke-dashoffset] duration-(--duration-slow) ease-standard motion-reduce:transition-none"
               />
             </svg>
@@ -193,9 +228,7 @@ export function StudioOperatorProgressBand({
           onClick={() => setOpen((value) => !value)}
           className="min-w-0 flex-1 truncate text-left text-xs font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground disabled:cursor-default"
         >
-          {working
-            ? (currentStepTitle ?? t('band.working'))
-            : (sessionTitle ?? t('newThread'))}
+          {bandTitle}
         </button>
 
         <DropdownMenu modal={false}>

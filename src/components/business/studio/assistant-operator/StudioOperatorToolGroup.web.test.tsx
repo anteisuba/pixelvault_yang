@@ -96,4 +96,28 @@ describe('StudioOperatorToolGroup', () => {
     })
     expect(group.dataset.open).toBe('true')
   })
+
+  /**
+   * pending 那一档（§4.1「ToolGroup pending」）—— 步在开跑时就进组，而那一步
+   * 要过好几秒才有结论。⛔ 没有 spinner 的话「它到底在干什么」只能靠盯着猜。
+   */
+  it('跑着的时候出 spinner 与「进行中」，跑完两样都收掉', () => {
+    const { rerender } = render(
+      <StudioOperatorToolGroup total={2} failed={0} running>
+        <span data-testid="child" />
+      </StudioOperatorToolGroup>,
+    )
+    expect(screen.getByTestId('operator-tool-group-spinner')).toBeTruthy()
+    expect(screen.getByTestId('operator-tool-group-running').textContent).toBe(
+      'toolGroup.running',
+    )
+
+    rerender(
+      <StudioOperatorToolGroup total={2} failed={0} running={false}>
+        <span data-testid="child" />
+      </StudioOperatorToolGroup>,
+    )
+    expect(screen.queryByTestId('operator-tool-group-spinner')).toBeNull()
+    expect(screen.queryByTestId('operator-tool-group-running')).toBeNull()
+  })
 })

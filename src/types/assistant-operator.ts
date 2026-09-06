@@ -1660,6 +1660,21 @@ export const AssistantOperatorMessageEventSchema = z.object({
 })
 
 /**
+ * 正文的逐字增量（§4.1「正文按帧累积」）。
+ *
+ * ⚠ `text` 是**这一帧新解出来的那几个字**，不是累积值 —— 累积在客户端做。
+ * ⛔ 别把它写成「到目前为止的全文」：那样每一帧都要重发整段正文，一段 400 字的
+ * 回复会在网线上跑成几十 KB。
+ * ⚠ 不设 `min(1)`：空增量在服务端就被挡掉了（`createOperatorMessageStreamer`
+ * 无字可吐时返回空串，调用方不发帧），这里再拒一次只会把一条本该无害的帧变成
+ * 整流报错。
+ */
+export const AssistantOperatorMessageDeltaEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.messageDelta),
+  text: z.string().max(LIMITS.maxMessageChars),
+})
+
+/**
  * 助手引用了一条项目规则（§10，拍板 23）—— 规则薄卡收的就是它。
  *
  * ⚠ 载荷里的 `text` / `createdAt` **由服务端填**（模型只给 id），所以这里可以、
@@ -1727,6 +1742,7 @@ export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorConfirmRequestEventSchema,
   AssistantOperatorSpendRequestEventSchema,
   AssistantOperatorMessageEventSchema,
+  AssistantOperatorMessageDeltaEventSchema,
   AssistantOperatorRuleHitEventSchema,
   AssistantOperatorChoiceRequestEventSchema,
   AssistantOperatorDoneEventSchema,

@@ -6897,14 +6897,17 @@
         "done": "done",
         "running": "running",
         "failed": "failed"
-      }
+      },
+      "thinking": "Thinking…",
+      "awaitingPlan": "Waiting on your plan"
     },
     "researchDetails": "Research details",
     "toolGroup": {
       "title": "{count} operations",
       "elapsed": "took {seconds}s",
       "succeeded": "{count} ok",
-      "failed": "{count} failed"
+      "failed": "{count} failed",
+      "running": "in progress"
     },
     "checkpoint": {
       "summary": "Changed {count}: {fields}",
@@ -7072,7 +7075,8 @@
       "empty": "Nothing matches — keep typing",
       "remove": "Remove this reference",
       "count": "will look at {count}",
-      "countWarn": "will look at {count} · over {limit} may get fuzzy"
+      "countWarn": "will look at {count} · over {limit} may get fuzzy",
+      "searching": "Searching your library…"
     },
     "result": {
       "title": "Results · {count}",
@@ -7083,7 +7087,8 @@
       "unselected": "None picked",
       "continue": "Continue from this one",
       "continuePrefill": "Continue from this one: ",
-      "chipLabel": "Result {ordinal}"
+      "chipLabel": "Result {ordinal}",
+      "pending": "Still generating"
     },
     "choice": {
       "title": "Which one did you mean?",
@@ -7107,10 +7112,8 @@
       "cancel": "Cancel",
       "reset": "Reset to defaults",
       "saveFailed": "Could not save. Try again.",
-      "scopeNote": "Applies everywhere — image, video and LoRA alike.",
       "nameLabel": "Name",
       "namePlaceholder": "Leave empty to use the workbench name",
-      "nameHint": "Up to 24 characters.",
       "avatarLabel": "Avatar",
       "avatarPresets": "Presets",
       "avatarUpload": "Upload",
@@ -7252,6 +7255,9 @@
         "medium": "reference",
         "low": "community"
       }
+    },
+    "streaming": {
+      "pending": "The assistant is thinking"
     }
   },
   "GenerationCancel": {

@@ -34,11 +34,20 @@ export interface StudioOperatorUserEntry {
   attachments: readonly StudioOperatorAttachment[]
 }
 
-/** 助手说的话。 */
+/**
+ * 助手说的话。
+ *
+ * ⚠ `streaming` 为真时这条**还在长**（`message_delta` 正在往里累加），⛔ 它不是
+ * 「渲染成什么样」的开关：面板据此决定要不要按词淡入、要不要画占位脉冲，而
+ * `text` 为空 + `streaming` 为真就是**发送即回显**的那条助手占位行（§4.1）。
+ * ⚠ 定稿帧（`message`）到达时由服务端那一版**整体覆盖** `text` 并把这面旗降下来
+ * —— 累积值是从半截 JSON 里现解的，与定稿差一两个字符是常态。
+ */
 export interface StudioOperatorMessageEntry {
   kind: 'message'
   id: string
   text: string
+  streaming?: boolean
 }
 
 /** 计划条（一轮最多一条）。 */

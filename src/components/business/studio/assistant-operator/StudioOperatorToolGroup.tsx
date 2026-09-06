@@ -20,6 +20,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { Spinner } from '@/components/ui/spinner'
 import { STUDIO_OPERATOR_TOOL_GROUP_COLLAPSE_MS } from '@/constants/studio-assistant-operator'
 import { cn } from '@/lib/utils'
 
@@ -84,6 +85,17 @@ export function StudioOperatorToolGroup({
         onClick={() => setManualOpen(!open)}
         className="flex w-full items-center gap-2 py-0.5 text-left transition-colors duration-(--duration-fast) ease-standard"
       >
+        {/* ⭐ 跑着的时候先给一颗 spinner（§4.1「ToolGroup pending」）——
+            这一组里已经有步在跑，但那一步要过好几秒才有结论。没有它的话，
+            「它到底在干什么」这个问题只能靠盯着不动的标题猜。
+            ⚠ 与「用时 Ns」占同一格：spinner 出现 / 消失时标题不换行也不移位。 */}
+        {running ? (
+          <Spinner
+            size="sm"
+            data-testid="operator-tool-group-spinner"
+            className="shrink-0 text-muted-foreground"
+          />
+        ) : null}
         <span
           data-testid="operator-tool-group-title"
           className="min-w-0 truncate text-xs text-foreground"
@@ -92,6 +104,14 @@ export function StudioOperatorToolGroup({
             ? t('toolGroup.elapsed', { seconds: elapsedSeconds })
             : t('toolGroup.title', { count: total })}
         </span>
+        {running ? (
+          <span
+            data-testid="operator-tool-group-running"
+            className="shrink-0 font-mono text-3xs tracking-nav text-muted-foreground"
+          >
+            {t('toolGroup.running')}
+          </span>
+        ) : null}
         <span className="shrink-0 font-mono text-3xs tracking-nav tabular-nums text-muted-foreground">
           {t('toolGroup.succeeded', { count: succeeded })}
         </span>

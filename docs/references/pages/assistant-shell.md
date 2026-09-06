@@ -184,7 +184,7 @@
 - `queued` 不是一档状态而是**正交的一格**：队列是 `state.queue`（`use-studio-operator-store.ts`），与 `status` 同时成立（working + 排队条）。
 - `stopped` 由 `stopped` 事件的 `reason` 说清楚（`ASSISTANT_OPERATOR_STOP_REASONS`：`aborted` / `awaiting_confirm` / `max_steps`），status 本身回 `idle`。
 
-**流式与加载态（目标态，接线中）**——这五条说的是「从按下发送到第一个字出现之间，屏幕上有什么」。今天这一段是空的：发出去之后时间线什么都不长，用户不知道它收到没有。
+**流式与加载态（2026-09-06 已落地）**——这五条说的是「从按下发送到第一个字出现之间，屏幕上有什么」。此前这一段是空的：发出去之后时间线什么都不长，用户不知道它收到没有。
 
 | 目标                      | 口径                                                                                                                                   |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -194,7 +194,7 @@
 | **ToolGroup pending**     | 工具步在**开跑时**就进组（状态字符走 pending 档），跑完再改成 `✓` / `✕`；⛔ 不做「跑完才出现」——那正是「它到底在干什么」这个问题的来源 |
 | **`awaitingPlan` 带文案** | 计划卡钉住那一刻进度带与图标轨都写「待你定」（§4.1 该列），⛔ 不留在「思考中」上——两件事对用户要做的动作完全不同                       |
 
-⚠ 五条都**接线中**：`message_delta` 事件与占位行在 `StudioOperatorPanel` 那一侧接，`StreamingText` 是它的正文渲染件（按词淡入用 §11.5 的 `fast` 配方）。
+⚠ 五条都已接线（2026-09-06）：服务端那一轮的 LLM 往返改走**流式**（`streamAssistantTextWithContextRetry`），`lib/assistant-operator-stream.ts` 的 `createOperatorMessageStreamer` 从**半截 turn JSON** 里边收边解出 `message` 字段吐成 `message_delta`；⛔ 一次 LLM 往返都没多花，OUTPUT 契约也没改成两段协议。工具轮靠**键的先后**闭嘴（OUTPUT 里 `"tool"` 排在 `"message"` 前面），模型不守序时两种失败都良性：漏吐 = 退回一次性刷出，多吐 = 定稿帧整体覆盖。客户端 `use-assistant-operator` 按 rAF 合批累加，`StudioOperatorStreamingText` 是正文渲染件（中日韩逐字 / 拉丁逐词，按 §11.5 的 `fast` 配方淡入，`motion-reduce` 直接显示）。
 
 ### 4.2 卡片态
 

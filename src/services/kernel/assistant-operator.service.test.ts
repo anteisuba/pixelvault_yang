@@ -15,8 +15,29 @@ vi.mock('@/services/user.service', () => ({
 
 const mockLlmTextCompletion = vi.fn()
 const mockResolveLlmTextRoute = vi.fn()
+/**
+ * 工具环那一轮走的是 `llmTextStream`（2026-09-06 的逐字流），**桩到同一颗
+ * `mockLlmTextCompletion` 上**：这一层要验的是「模型这一轮说了什么会怎么样」，
+ * 不是分块怎么切。现存的几十条 `mockLlmTextCompletion.mockResolvedValueOnce(...)`
+ * 因此一条都不用改。
+ *
+ * ⚠ 想验分块行为的用例自己覆盖 `mockLlmTextStreamChunks` —— 它按块吐，
+ * 增量帧的条数由它决定。
+ */
+const mockLlmTextStreamChunks = vi.fn<
+  (raw: string) => readonly string[] | null
+>(() => null)
 vi.mock('@/services/llm-text.service', () => ({
   llmTextCompletion: (...args: unknown[]) => mockLlmTextCompletion(...args),
+  llmTextStream: async function* (...args: unknown[]) {
+    const raw = (await mockLlmTextCompletion(...args)) as string
+    const chunks = mockLlmTextStreamChunks(raw)
+    if (chunks) {
+      yield* chunks
+      return
+    }
+    yield raw
+  },
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
   isLlmTextContextLimitError: () => false,
 }))
@@ -240,6 +261,9 @@ beforeEach(() => {
   //    剩下的那条会漏进下一个用例并压过它自己的 `mockImplementation`
   //    （本文件真踩过一次，表现是「abort 了却收到 done」）。
   mockLlmTextCompletion.mockReset()
+  // 分块策略默认「整段一块」—— 想验逐字的用例自己 `mockImplementation` 覆盖。
+  mockLlmTextStreamChunks.mockReset()
+  mockLlmTextStreamChunks.mockReturnValue(null)
   mockEnsureUser.mockResolvedValue({ id: 'user-db-1' })
   mockResolveLlmTextRoute.mockResolvedValue({
     adapterType: AI_ADAPTER_TYPES.GEMINI,
@@ -330,13 +354,15 @@ describe('工具环 · 逐事件顺序', () => {
     queueTurns(
       {
         plan: ['写提示词', '预填生成键'],
-        message: '这就来',
+        // ⚠ `tool` 排在 `message` 前面 —— OUTPUT 契约的键序（2026-09-06）。
+        //   工具轮靠这个顺序被认出来，认出来就不吐 `message_delta`。
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
           title: 'write the prompt',
           reason: 'the field is empty',
           args: { value: 'a girl under a red umbrella' },
         },
+        message: '这就来',
       },
       { finished: true },
     )
@@ -410,9 +436,75 @@ describe('工具环 · 逐事件顺序', () => {
       runAssistantOperator('clerk-1', buildRequest()),
     )
     expect(events.map((event) => event.type)).toEqual([
+      // 收尾轮 —— 正文先逐字流出来，再来一帧定稿。
+      ASSISTANT_OPERATOR_EVENTS.messageDelta,
       ASSISTANT_OPERATOR_EVENTS.message,
       ASSISTANT_OPERATOR_EVENTS.done,
     ])
+  })
+
+  /**
+   * 正文逐字流（owner 2026-09-06「助手回复应该一个字一个字连续出」）。
+   *
+   * ⚠ 验的是**协议**，不是分块怎么切：`message_delta` 拼起来必须与定稿的
+   * `message` 一字不差，否则客户端那次「定稿覆盖累积」会在屏幕上抖一下。
+   */
+  it('⭐ 收尾轮逐字吐 message_delta，最后一帧 message 是定稿', async () => {
+    queueTurns({ finished: true, message: '好的，已经改成夜景了。' })
+    mockLlmTextStreamChunks.mockImplementation((raw) =>
+      raw.match(/[\s\S]{1,6}/g),
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const deltas = events.filter(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.messageDelta,
+    )
+    const final = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.message,
+    )
+
+    expect(deltas.length).toBeGreaterThan(1)
+    expect(deltas.map((delta) => delta.text).join('')).toBe(
+      '好的，已经改成夜景了。',
+    )
+    expect(final?.text).toBe('好的，已经改成夜景了。')
+    // 定稿排在所有增量之后 —— 客户端靠它收掉 streaming 标。
+    expect(events.indexOf(final!)).toBeGreaterThan(
+      events.indexOf(deltas.at(-1)!),
+    )
+  })
+
+  it('⛔ 工具轮不吐 message_delta —— 那一句是过程旁白', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: 'write the prompt',
+          args: { value: 'night city' },
+        },
+        message: '这就来',
+      },
+      { finished: true },
+    )
+    mockLlmTextStreamChunks.mockImplementation((raw) =>
+      raw.match(/[\s\S]{1,6}/g),
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(
+      events.filter(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      ),
+    ).toEqual([])
+    // 旁白本身照旧整帧到达。
+    expect(
+      events.find((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
+        ?.text,
+    ).toBe('这就来')
   })
 
   it('连着两轮读不出 JSON 就大声失败，而不是把步数烧完', async () => {

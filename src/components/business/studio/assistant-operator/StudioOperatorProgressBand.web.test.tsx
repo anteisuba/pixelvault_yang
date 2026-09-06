@@ -61,6 +61,7 @@ function renderBand(
     <StudioOperatorProgressBand
       domain={ASSISTANT_PROTOCOL_DOMAIN_IDS.image}
       working={false}
+      awaitingPlan={false}
       stepsDone={0}
       plannedSteps={0}
       currentStepTitle={null}
@@ -135,5 +136,53 @@ describe('StudioOperatorProgressBand', () => {
     fireEvent.click(screen.getByTestId('operator-band-toggle'))
     expect(band.dataset.open).toBe('true')
     expect(screen.getByTestId('operator-band-list').children).toHaveLength(2)
+  })
+
+  /**
+   * 「还没有分母」那一档（§4.1 第三行）。⛔ 不显示 `0/0`：一个没有分母的计数
+   * 比一句「思考中」更像卡住了。
+   */
+  it('working 但还没有 plan 帧 → 「思考中」+ 环形 spinner，⛔ 不出分数', () => {
+    renderBand({ working: true, stepsDone: 0, plannedSteps: 0 })
+    expect(screen.getByTestId('operator-band-toggle').textContent).toBe(
+      'band.thinking',
+    )
+    expect(screen.queryByTestId('operator-band-fraction')).toBeNull()
+    const ring = screen.getByTestId('operator-band-ring')
+    expect(ring.dataset.indeterminate).toBe('true')
+    expect(ring.getAttribute('class')).toContain('animate-spin')
+    expect(ring.getAttribute('class')).toContain('motion-reduce:animate-none')
+  })
+
+  it('plan 帧到了 → 环停下来按比例画，标题回到那一步在做什么', () => {
+    renderBand({
+      working: true,
+      stepsDone: 1,
+      plannedSteps: 3,
+      currentStepTitle: '挂参考图',
+    })
+    expect(screen.getByTestId('operator-band-ring').dataset.indeterminate).toBe(
+      'false',
+    )
+    expect(screen.getByTestId('operator-band-fraction').textContent).toBe('1/3')
+    expect(screen.getByTestId('operator-band-toggle').textContent).toBe(
+      '挂参考图',
+    )
+  })
+
+  /**
+   * ⭐ `awaitingPlan` 与「思考中」是两句不同的话：前者要用户去点那张卡，后者
+   * 只要等。合成一句的表现是计划卡钉在屏幕上而带上写着「思考中」。
+   */
+  it('awaitingPlan → 「等你确认计划」，环露脸但不转', () => {
+    renderBand({ working: false, awaitingPlan: true })
+    expect(screen.getByTestId('operator-band-toggle').textContent).toBe(
+      'band.awaitingPlan',
+    )
+    const ring = screen.getByTestId('operator-band-ring')
+    expect(ring.dataset.indeterminate).toBe('false')
+    expect(ring.getAttribute('class')).not.toContain('animate-spin')
+    // 域 chip 是空闲那一副面孔 —— 等你定的时候不该退回去。
+    expect(screen.queryByTestId('operator-domain-chip')).toBeNull()
   })
 })

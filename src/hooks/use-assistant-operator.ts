@@ -53,9 +53,13 @@ import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-control
 import {
   addOperatorMention,
   appendOperatorEntry,
+  appendOperatorMessageDelta,
+  appendOperatorPending,
   clearOperatorPrompts,
   clearOperatorQueue,
+  dropOperatorPending,
   enqueueOperatorMessage,
+  finalizeOperatorMessage,
   getOperatorState,
   nextOperatorEntryId,
   operatorStepEntryId,
@@ -63,6 +67,7 @@ import {
   registerOperatorRunner,
   removeOperatorQueued,
   resetOperatorThread,
+  settleOperatorMessage,
   resolveOperatorChoice,
   resolveOperatorPlan,
   resolveOperatorSpend,
@@ -427,6 +432,44 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       const runKey = nextOperatorEntryId('run')
 
       /**
+       * ⭐ **发送即回显**（§4.1）—— 用户那一行由 `send()` 落，助手的**占位行**
+       * 在这里落，就在请求发出去之前的同一帧。它是「它收到了」的唯一凭证：
+       * 没有它，按下发送之后到第一步落地之间屏幕上什么都不长。
+       *
+       * ⚠ 占位行与正文**是同一条条目**：第一个增量直接往它里面写字（见
+       * `appendOperatorPending` 的头注）。⛔ 别换条目，换条目 = 换 key = 重挂。
+       * ⚠ 一轮里可能有好几段正文（旁白 + 收尾），所以 id 带序号，定稿一段进一位。
+       */
+      let messageSeq = 0
+      const messageEntryId = () => `${runKey}:msg-${messageSeq}`
+      appendOperatorPending(messageEntryId())
+
+      /**
+       * 增量**按帧合批**（§4.1 / `ui-defaults.md §4`）。
+       *
+       * ⚠ 一块一次 `setState` 的代价不是抽象的：provider 一秒能吐几十块，每块
+       * 都会把整条时间线（几十个条目 + 卡片）重渲一遍。合批之后一帧最多一次。
+       * ⚠ `settleDeltas()` 在**定稿之前**和收尾时各调一次 —— 否则最后半句会卡在
+       *   缓冲里等一个再也不来的帧。
+       */
+      let deltaBuffer = ''
+      let deltaFrame: number | null = null
+      const flushDeltas = () => {
+        deltaFrame = null
+        if (!deltaBuffer) return
+        const text = deltaBuffer
+        deltaBuffer = ''
+        appendOperatorMessageDelta(messageEntryId(), text)
+      }
+      const settleDeltas = () => {
+        if (deltaFrame !== null) {
+          cancelAnimationFrame(deltaFrame)
+          deltaFrame = null
+        }
+        flushDeltas()
+      }
+
+      /**
        * ⭐ **载回来的历史也进上下文**（P4-B）：不带它的下场是「用户看得见自己
        * 三分钟前说的话，助手却完全失忆」—— 刷新之后第一句就要重新自我介绍。
        * 旧助手线（`use-assistant-conversation`）也是把历史原样带回上下文的。
@@ -524,6 +567,32 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       try {
         for await (const event of result.events) {
           if (controller.signal.aborted) break
+          /**
+           * 占位行让位（§4.1）：**除了正文自己**，任何一帧到达都意味着「它已经
+           * 开口了」，那一行空脉冲该消失。
+           * ⚠ 只扔**还空着**的那条（`dropOperatorPending` 自己把关）：助手先说
+           *   一句再去调工具时，那句话必须留在屏幕上。
+           */
+          if (
+            event.type !== ASSISTANT_OPERATOR_EVENTS.messageDelta &&
+            event.type !== ASSISTANT_OPERATOR_EVENTS.message &&
+            /**
+             * ⛔ `open` **不算「它开口了」**：那一帧是成帧器在模型开口之前就发的
+             * 握手（见 `lib/assistant-operator-stream.ts` 头注），它到达时模型还
+             * 一个字都没写。把它算进来的表现是占位行闪一下就没了 —— 2026-09-06
+             * 真机实测：占位行出现 360ms 后消失，此后到第一个字之间又是一片空白，
+             * 而那正是这条占位行要填的那段时间。
+             */
+            event.type !== ASSISTANT_OPERATOR_EVENTS.open
+          ) {
+            settleDeltas()
+            dropOperatorPending(messageEntryId())
+            /**
+             * ⚠ 旗也要放下来：`planRequest` / `stopped` / `error` 之后定稿帧
+             * 永远不会来了（这条流就此结束），条目却还举着 `streaming`。
+             */
+            settleOperatorMessage(messageEntryId())
+          }
           switch (event.type) {
             case ASSISTANT_OPERATOR_EVENTS.plan:
               setOperatorPlannedSteps(event.steps.length)
@@ -556,12 +625,21 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               controller.abort()
               return
             }
+            /** 逐字增量 —— 攒进缓冲，下一帧一次性写进去。 */
+            case ASSISTANT_OPERATOR_EVENTS.messageDelta:
+              deltaBuffer += event.text
+              if (deltaFrame === null) {
+                deltaFrame = requestAnimationFrame(flushDeltas)
+              }
+              break
+            /**
+             * 定稿 —— 服务端那一版**整体覆盖**累积值（见 `finalizeOperatorMessage`），
+             * 然后序号进一位，下一段正文另起一条。
+             */
             case ASSISTANT_OPERATOR_EVENTS.message:
-              appendOperatorEntry({
-                kind: 'message',
-                id: nextOperatorEntryId('msg'),
-                text: event.text,
-              })
+              settleDeltas()
+              finalizeOperatorMessage(messageEntryId(), event.text)
+              messageSeq += 1
               break
             case ASSISTANT_OPERATOR_EVENTS.step: {
               const { step } = event
@@ -701,6 +779,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           }
         }
       } catch {
+        // 半句话卡在缓冲里比丢掉更糟 —— 先落地，再谈这是不是一次 abort。
+        settleDeltas()
+        dropOperatorPending(messageEntryId())
+        settleOperatorMessage(messageEntryId())
         /**
          * ⚠ abort 会**穿透 `for await`**：插话 / ⏹ 掐掉的是底下那个 `reader.read()`，
          * 它以 `AbortError` 拒绝，于是循环不是 `break` 出来的而是抛出来的。
@@ -713,6 +795,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         return
       }
 
+      settleDeltas()
+      dropOperatorPending(messageEntryId())
+      settleOperatorMessage(messageEntryId())
       if (controller.signal.aborted) return
       // `done` 之后没有别的收尾 —— 状态没被 `stopped` / `error` 改过就是跑完了。
       if (getOperatorState().status === 'working') setOperatorStatus('idle')

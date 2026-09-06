@@ -118,3 +118,118 @@ export function toAssistantOperatorSseResponse(
     },
   })
 }
+
+// ─── 正文的逐字增量 ─────────────────────────────────────────────
+
+/**
+ * JSON 字符串里的转义表（`\uXXXX` 单独走一支）。
+ *
+ * ⚠ 表外的转义**按原字符吐**（`\q` → `q`）：模型偶尔写出非法转义，为此把整轮正文
+ * 静默丢掉不值得 —— 定稿帧随后会把这一段整体覆盖掉。
+ */
+const JSON_STRING_ESCAPES: Readonly<Record<string, string>> = {
+  '"': '"',
+  '\\': '\\',
+  '/': '/',
+  b: '\b',
+  f: '\f',
+  n: '\n',
+  r: '\r',
+  t: '\t',
+}
+
+/** `"message": "` —— 键到值那一跳。 */
+const MESSAGE_KEY = /"message"\s*:\s*"/
+/** `"tool":` —— 见下面 `muted` 那一段。 */
+const TOOL_KEY = /"tool"\s*:/
+const HEX4 = /^[0-9a-fA-F]{4}$/
+
+export interface OperatorMessageStreamer {
+  /**
+   * 喂一块原文，拿回**这一块新解出来的那几个字**（没有就是空串）。
+   *
+   * ⚠ 返回增量而不是累积值：累积在客户端做，见 `ASSISTANT_OPERATOR_EVENTS.messageDelta`。
+   */
+  push(chunk: string): string
+}
+
+/**
+ * 从**半截 turn JSON** 里边收边解出 `message` 字段（owner 2026-09-06「助手回复
+ * 应该一个字一个字连续出」）。
+ *
+ * ⭐ 为什么是「解半截 JSON」而不是别的两条路：
+ *  · 让模型改成「先流正文、再给 JSON 块」的两段协议 —— 那是把整份 OUTPUT 契约
+ *    推倒重来，工具环每一条纪律都要重新验一遍，代价与收益完全不成比例。
+ *  · 收尾轮再补一次流式补全 —— 多一次 LLM 往返，用户为同一段话付两次钱。
+ *  这一条一次往返都不多花：本来就要收的那些字节，边收边解。
+ *
+ * ── ⚠ 工具轮闭嘴（`muted`）────────────────────────────────────────
+ * 这一颗解不出「这一轮到底会不会调工具」—— 那要等整个对象收完。判据因此是**键的
+ * 先后**：OUTPUT 格式把 `"tool"` 排在 `"message"` 前面，所以 `"tool"` 先到 = 工具
+ * 轮，整轮闭嘴。
+ * ⚠ 模型不守这个顺序时两种失败**都是良性的**：
+ *  · 漏吐（该流没流）= 退回今天的行为，一次性刷出；
+ *  · 多吐（工具轮流了）= 定稿帧随后整体覆盖，用户看到的是一段过程旁白在长。
+ * ⛔ 所以别为了这条顺序去加重试 / 去作废整轮 —— 那才是把良性偏差变成事故。
+ */
+export function createOperatorMessageStreamer(): OperatorMessageStreamer {
+  let raw = ''
+  /** `message` 字符串体里下一个待解字符的下标；-1 = 键还没到。 */
+  let cursor = -1
+  let muted = false
+  let finished = false
+
+  function drain(): string {
+    let out = ''
+    while (cursor < raw.length) {
+      const char = raw[cursor]!
+      if (char === '"') {
+        finished = true
+        break
+      }
+      if (char !== '\\') {
+        out += char
+        cursor += 1
+        continue
+      }
+      const next = raw[cursor + 1]
+      // 转义还没到齐 —— 停在反斜杠上，下一块补上再解。
+      if (next === undefined) break
+      if (next === 'u') {
+        const hex = raw.slice(cursor + 2, cursor + 6)
+        if (hex.length < 4) break
+        if (!HEX4.test(hex)) {
+          muted = true
+          return out
+        }
+        // ⚠ 代理对被拆在两个 `\uXXXX` 里时，两半各自拼上去就自动合回一个字符。
+        out += String.fromCharCode(Number.parseInt(hex, 16))
+        cursor += 6
+        continue
+      }
+      out += JSON_STRING_ESCAPES[next] ?? next
+      cursor += 2
+    }
+    return out
+  }
+
+  return {
+    push(chunk: string): string {
+      raw += chunk
+      if (muted || finished) return ''
+      if (cursor < 0) {
+        const match = MESSAGE_KEY.exec(raw)
+        if (!match) {
+          if (TOOL_KEY.test(raw)) muted = true
+          return ''
+        }
+        if (TOOL_KEY.test(raw.slice(0, match.index))) {
+          muted = true
+          return ''
+        }
+        cursor = match.index + match[0].length
+      }
+      return drain()
+    },
+  }
+}

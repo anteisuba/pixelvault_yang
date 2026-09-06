@@ -6,6 +6,7 @@
  */
 
 import { AI_MODELS } from '@/constants/models'
+import { MEDIA_MODEL_STRENGTHS } from '@/constants/model-strengths.media'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
@@ -524,7 +525,9 @@ export function getModelEnhanceHint(
   modelId: string,
   adapterType?: string,
 ): string | null {
-  const modelHint = MODEL_STRENGTHS[modelId as AI_MODELS]?.enhanceHint
+  const modelHint =
+    MODEL_STRENGTHS[modelId as AI_MODELS]?.enhanceHint ??
+    MEDIA_MODEL_STRENGTHS[modelId as AI_MODELS]?.enhanceHint
   if (modelHint) return modelHint
   const textModelHint = TEXT_MODEL_STRENGTHS[modelId]?.enhanceHint
   if (textModelHint) return textModelHint
@@ -542,6 +545,7 @@ export function getModelNegativePromptSupport(
 ): NegativePromptSupport | null {
   return (
     MODEL_STRENGTHS[modelId as AI_MODELS]?.negativePrompt ??
+    MEDIA_MODEL_STRENGTHS[modelId as AI_MODELS]?.negativePrompt ??
     TEXT_MODEL_STRENGTHS[modelId]?.negativePrompt ??
     null
   )

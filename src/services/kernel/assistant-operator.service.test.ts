@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { CINEMATIC_SHOT_GRAMMAR } from '@/constants/cinematic-grammar'
+import {
+  SEEDANCE_20_CONTROL_RULES,
+  SEEDANCE_25_CONTROL_RULES,
+} from '@/constants/seedance-prompt-plan'
+
 vi.mock('server-only', () => ({}))
 
 const mockEnsureUser = vi.fn()
@@ -3040,6 +3046,80 @@ describe('目标模型的提示词方言进系统提示', () => {
       ),
     )
     expect(systemPrompt()).toContain('score_9, score_8_up, score_7_up')
+  })
+
+  /**
+   * ⭐ 视频那半张名册（`model-strengths.media`）也得进方言段 —— 它跟图片那张
+   * 表是分开的两个文件，只查其中一张的下场是视频模型全部退回 adapter 兜底。
+   */
+  it('Kling 上带多镜头的 Shot 1 写法与 negative 上限', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildModelRequest(AI_MODELS.KLING_V3_PRO),
+      ),
+    )
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain('Shot 1')
+    expect(prompt).toContain('2500')
+  })
+
+  /**
+   * ⭐ Seedance 的控制规则以前只活在独立路由里（`/api/studio/seedance-prompt-plan`），
+   * 工具环写提示词时够不着 —— 同一台机器两条入口两套规则。这一组锁住：选了
+   * Seedance，系统提示里就有那一代的控制规则、素材分工契约、硬否定串和镜头语法。
+   */
+  it('Seedance 2.5 上带 2.5 的控制规则 + 硬否定串 + 镜头语法', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator('clerk-1', buildModelRequest(AI_MODELS.SEEDANCE_25)),
+    )
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain(SEEDANCE_25_CONTROL_RULES)
+    expect(prompt).toContain(
+      'SEEDANCE 2.5 CONTROL RULES — finalPrompt structure and stability.',
+    )
+    // 素材分工契约与硬否定串：owner 的真实流程里反复手写的那两条。
+    expect(prompt).toContain('REFERENCE ASSET CONTRACT')
+    expect(prompt).toContain('空气波纹')
+    expect(prompt).toContain('冻结姿势')
+    expect(prompt).toContain('整图缩放冒充运镜')
+    expect(prompt).toContain('字幕')
+    // 镜头语法与 ScriptDoc 同源，不是这里现编的第二份。
+    expect(prompt).toContain(CINEMATIC_SHOT_GRAMMAR)
+    // 2.0 那份不能同时在场，否则模型两套分段方言二选一。
+    expect(prompt).not.toContain(SEEDANCE_20_CONTROL_RULES)
+  })
+
+  it('Seedance 2.0 上带的是 2.0 那份（镜头号，不是时间戳）', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildModelRequest(AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS),
+      ),
+    )
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain(SEEDANCE_20_CONTROL_RULES)
+    expect(prompt).toContain('镜头1 / 镜头2 / 镜头3 / 镜头4')
+    expect(prompt).toContain('空气波纹')
+    expect(prompt).not.toContain(SEEDANCE_25_CONTROL_RULES)
+  })
+
+  it('不是 Seedance 的模型不挂 Seedance 控制规则', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator('clerk-1', buildModelRequest(AI_MODELS.VEO_31)),
+    )
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain('nouns')
+    expect(prompt).not.toContain('SEEDANCE 2.5 CONTROL RULES')
+    expect(prompt).not.toContain('SEEDANCE 2.0 CONTROL RULES')
   })
 
   it('快照没选模型时不印方言段（别对着一台还没定的机器讲方言）', async () => {

@@ -30,11 +30,13 @@ import { ASSISTANT_DOMAIN_BRIEFS } from '@/constants/assistant-protocol'
  * ⚠ 钱闸（`assistant-operator.money-gate.test.ts`）只管 `@/services/` 的 import；
  * 这三个来自 `@/constants/`，是纯数据，不碰 provider、不落库、不扣费。
  */
+import { CINEMATIC_SHOT_GRAMMAR } from '@/constants/cinematic-grammar'
 import {
   getModelEnhanceHint,
   isTagBasedPromptModel,
   TAG_BASED_GENERATION_PROMPT_RULE,
 } from '@/constants/model-strengths'
+import { getSeedanceControlRules } from '@/constants/model-strengths.media'
 import { resolveAdapterType } from '@/constants/models'
 import { resolveAssistantModelId } from '@/constants/node-studio'
 import {
@@ -2045,11 +2047,19 @@ function buildModelDialectSection(request: AssistantOperatorRequest): string {
   const dialect = isTagBasedPromptModel(modelId)
     ? `\n${TAG_BASED_GENERATION_PROMPT_RULE}`
     : ''
-  if (!hint && !dialect) return ''
+  /**
+   * ⭐ Seedance 的控制规则以前只活在独立路由 `/api/studio/seedance-prompt-plan`
+   * 里 —— 工具环写出来的提示词拿不到它，于是同一个模型在两条入口下吃到两套规则。
+   * 这里把 2.0 / 2.5 各自那份控制规则连同镜头语法一起拼进来，两条入口同源。
+   */
+  const seedanceRules = getSeedanceControlRules(modelId)
+  if (!hint && !dialect && !seedanceRules) return ''
 
   return `\n\nWHAT THE PROMPT MUST LOOK LIKE ON THIS MODEL — set_prompt and set_negative write into ${modelId}${adapterType ? ` (${adapterType})` : ''}, and the wrong dialect wastes the run even when every other knob is right:${
     hint ? `\n- ${hint}` : ''
-  }${dialect}`
+  }${dialect}${
+    seedanceRules ? `\n\n${seedanceRules}\n\n${CINEMATIC_SHOT_GRAMMAR}` : ''
+  }`
 }
 
 function buildOperatorSystemPrompt(request: AssistantOperatorRequest): string {

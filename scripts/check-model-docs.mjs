@@ -234,24 +234,6 @@ async function buildReport(models, args) {
   )
   const findings = []
 
-  // A zero-model catalog is always a bug in this script, never a real
-  // inventory: every per-model check below (preview residue, deprecation
-  // keywords, missing officialUrl) silently no-ops while the job still reports
-  // success. That is how gemini-3-pro-image-preview stayed in the catalog for a
-  // month past its 2026-06-25 shutdown — the catalog moved into
-  // src/constants/models/ and this loader kept returning [] without complaining.
-  if (models.length === 0) {
-    findings.push({
-      severity: 'error',
-      scope: 'inventory',
-      title: 'Model catalog parsed to zero models',
-      detail: `No available ModelOption entries were extracted from ${MODEL_CATALOG_FILES.map(
-        (file) => path.relative(process.cwd(), file).replaceAll('\\', '/'),
-      ).join(', ')}. The parser is out of sync with the catalog layout.`,
-      relatedModels: [],
-    })
-  }
-
   for (const model of missingOfficialUrl) {
     findings.push({
       severity: 'error',
@@ -829,6 +811,23 @@ async function loadModels() {
 
   for (const filePath of MODEL_CATALOG_FILES) {
     models.push(...(await loadModelsFromCatalogFile(filePath, enumValues)))
+  }
+
+  // A zero-model catalog is always a bug in this parser, never a real
+  // inventory — so it exits non-zero here instead of producing a "successful"
+  // report. Every per-model check downstream (preview residue, deprecation
+  // keywords, missing officialUrl) silently no-ops on an empty list while the
+  // weekly job still goes green. That is how gemini-3-pro-image-preview stayed
+  // in the catalog for a month past its 2026-06-25 shutdown: the catalog moved
+  // into src/constants/models/ and this loader kept returning [] without
+  // complaining. Reporting it as a finding is not enough — findings only fail
+  // the run under --fail-on-changes, which the weekly job does not pass.
+  if (models.length === 0) {
+    throw new Error(
+      `Parsed zero available models from ${MODEL_CATALOG_FILES.map((file) =>
+        path.relative(process.cwd(), file).replaceAll('\\', '/'),
+      ).join(', ')}. The parser is out of sync with the catalog layout.`,
+    )
   }
 
   return models

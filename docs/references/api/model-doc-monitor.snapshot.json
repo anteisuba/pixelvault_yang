@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-24T09:39:10.483Z",
+  "generatedAt": "2026-09-06T01:39:34.612Z",
   "sourceFile": "src/constants/models",
   "models": [
     {
@@ -64,6 +64,20 @@
       "adapterType": "VOLCENGINE",
       "externalModelId": "doubao-seedream-5-0-lite-260128",
       "officialUrl": "https://console.volcengine.com/ark/region:ark+cn-beijing/model"
+    },
+    {
+      "id": "seedream-5.0-pro-byteplus",
+      "outputType": "IMAGE",
+      "adapterType": "BYTEPLUS",
+      "externalModelId": "dola-seedream-5-0-pro-260628",
+      "officialUrl": "https://docs.byteplus.com/en/docs/ModelArk/1330310"
+    },
+    {
+      "id": "seedream-5.0-lite-byteplus",
+      "outputType": "IMAGE",
+      "adapterType": "BYTEPLUS",
+      "externalModelId": "seedream-5-0-lite-260128",
+      "officialUrl": "https://docs.byteplus.com/en/docs/ModelArk/1330310"
     },
     {
       "id": "recraft-v4-pro",
@@ -164,10 +178,24 @@
       "officialUrl": "https://fal.ai/models/alibaba/happy-horse/v1.1/text-to-video"
     },
     {
+      "id": "wan-3.0",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "alibaba/wan-3.0/text-to-video",
+      "officialUrl": "https://fal.ai/models/alibaba/wan-3.0/text-to-video"
+    },
+    {
+      "id": "wan-3.0-reference",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "alibaba/wan-3.0/reference-to-video",
+      "officialUrl": "https://fal.ai/models/alibaba/wan-3.0/reference-to-video"
+    },
+    {
       "id": "gemini-omni-flash",
       "outputType": "VIDEO",
       "adapterType": "GEMINI",
-      "externalModelId": "gemini-omni-flash-preview",
+      "externalModelId": "gemini-omni-1.1-flash",
       "officialUrl": "https://ai.google.dev/gemini-api/docs/omni"
     },
     {
@@ -332,6 +360,13 @@
       "officialUrl": "https://docs.fish.audio/developer-guide/models-pricing/models-overview"
     },
     {
+      "id": "fish-audio-s2-pro-free",
+      "outputType": "AUDIO",
+      "adapterType": "FISH_AUDIO",
+      "externalModelId": "s2.1-pro-free",
+      "officialUrl": "https://docs.fish.audio/developer-guide/models-pricing/models-overview"
+    },
+    {
       "id": "eleven-sfx-v2",
       "outputType": "AUDIO",
       "adapterType": "ELEVENLABS",
@@ -391,7 +426,7 @@
       "status": 200,
       "finalUrl": "https://developers.openai.com/api/docs/models/gpt-image-2",
       "title": null,
-      "hash": "061fbb75992066ca07c3077c52be768da9ca9333b7336be7691e3947b75209ae"
+      "hash": "51383b4fd347fc1054508c207f0f25c8b6b62eb251bc863971344d88984a6a8a"
     },
     {
       "id": "model:5d0514efd100",
@@ -402,7 +437,7 @@
       "status": 200,
       "finalUrl": "https://ai.google.dev/gemini-api/docs/image-generation?hl=en",
       "title": "Gemini API  |  Google AI for Developers",
-      "hash": "3b9f19fdb09ba1abaa6b6249441aef7ced672cbb139ba7119ba780133f017ff4"
+      "hash": "453602eb1a5ed6fdc702ade6b3924358f448c9fab093ee191a585d3b50aa6ebb"
     },
     {
       "id": "model:6b0421628218",
@@ -413,7 +448,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/fal-ai/flux-2-pro",
       "title": "FLUX.2 [pro]: Zero-Config AI Text-to-Image Generator | fal",
-      "hash": "023baf45c15733805d5a935b79ade86be06cff143c0d06932d054760c48cb767"
+      "hash": "9494117cbd0c455257f882fa7ceee4b562fdf512a77ef1d84e91df5b2eb6fecd"
     },
     {
       "id": "model:eca293e4ac7a",
@@ -424,7 +459,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/fal-ai/flux-2-pro/edit",
       "title": "FLUX.2 [pro]: State of the Art Multi-Reference AI Image Editor | fal",
-      "hash": "2303bc4cfd3416954fc4c277b03d86381c78733d289f3ae49af170be6db0cfc5"
+      "hash": "39e463b56a29249aaac91ad040bcbe4b68b39d559f8c8a2757ea2ba51b40adac"
     },
     {
       "id": "model:e25ea049a5bb",
@@ -435,7 +470,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/bytedance/seedream/v5/pro/text-to-image",
       "title": "Seedream 5.0 Pro (Text to Image) API on fal",
-      "hash": "d153ac6ba90d1ad39edeac5054c3889ca363ebc4d8e37535fc1266b90f66521b"
+      "hash": "abc8fcc57b3ff5bc16c1835798f22a8d1bebdba1d549557aaa02988d116578b9"
     },
     {
       "id": "model:3877b03aecbb",
@@ -446,7 +481,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/text-to-image",
       "title": "Seedream 5.0 Lite: Text-to-Image AI with Web Search & Reasoning | fal",
-      "hash": "b0e2d8ecf6a50b7d5a0ca20ec6875a6c29c413c05d3c581dd03701ef9aba9c64"
+      "hash": "dfb0139920ed77732fe56e588692ae65911bed0b773bea2046e38e24c4d1cac1"
     },
     {
       "id": "model:7c109e96abae",
@@ -468,6 +503,22 @@
       "hash": "8d0e2ffce64b37327af0c23336117cf24de7bbc9a5d79b7a1435f5a7c882caeb"
     },
     {
+      "id": "model:6e03af004829",
+      "kind": "modelDoc",
+      "label": "https://docs.byteplus.com/en/docs/ModelArk/1330310",
+      "url": "https://docs.byteplus.com/en/docs/ModelArk/1330310",
+      "models": [
+        "seedream-5.0-pro-byteplus",
+        "seedream-5.0-lite-byteplus",
+        "seedance-2.5-byteplus",
+        "seedance-2.5-reference-byteplus"
+      ],
+      "status": 200,
+      "finalUrl": "https://docs.byteplus.com/en/docs/ModelArk/1330310",
+      "title": null,
+      "hash": "6a0a2df54a8451272172d480c58b20a8ff651f09a643a9a7d631ca78ab26f87a"
+    },
+    {
       "id": "model:fb3ce4bd214c",
       "kind": "modelDoc",
       "label": "https://fal.ai/models/fal-ai/recraft/v4.1/pro/text-to-image",
@@ -476,7 +527,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/fal-ai/recraft/v4.1/pro/text-to-image",
       "title": "Recraft V4.1 Pro (Text to Image) API on fal",
-      "hash": "d0ed1f0b79025e28d47e04d5e565d8e34bb597bd19d5c3aa359a3f59c5c5cedd"
+      "hash": "183b430cc1adf27d7337d58b70666999892839de099285c427fede67478596bc"
     },
     {
       "id": "model:6de2885f400c",
@@ -487,7 +538,7 @@
       "status": 200,
       "finalUrl": "https://docs.novelai.net/en/image/models/",
       "title": "| NovelAI Documentation",
-      "hash": "5e30e731faa7a27df4e13ad238a080da8156bc9654732eecbdffe10b6c950a61"
+      "hash": "1d48452b677247b41804fb3fb6bcc2ac36b87805ae3c97d81d8b22719f706731"
     },
     {
       "id": "model:dbbdc76039c1",
@@ -498,7 +549,7 @@
       "status": 200,
       "finalUrl": "https://novelai.net/v5",
       "title": null,
-      "hash": "7bcc77d7174bc9cc2fe2c6c14cf2caf053a8d985f734b06e63a6b3cbf1e90d72"
+      "hash": "1b48f1964e5f7bae654be4bccc5993e4be049ed985c2398636c83a8aad3c8b52"
     },
     {
       "id": "model:1a1772330b31",
@@ -509,7 +560,7 @@
       "status": 200,
       "finalUrl": "https://replicate.com/delta-lock/noobai-xl",
       "title": "delta-lock/noobai-xl | Run with an API on Replicate",
-      "hash": "09475d91e51550ec0dde130b2aff0176d9a52308166db915f9b71e4561b00db9"
+      "hash": "8dd27b51b3428164414027090ef74f63777c3978ae2a73544d250eb329c60e02"
     },
     {
       "id": "model:e0be0fb7fabd",
@@ -520,7 +571,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/fal-ai/flux-lora",
       "title": "FLUX.1 with LoRAs: Custom AI Image Generator | fal",
-      "hash": "d616bdccdffdf09565c1c21127e86617d0b29cbfae3cbfeb66f5836173625a6e"
+      "hash": "bd996d6e5f8176028bf528745d58739d75c6454099dbe4713f059844f072d94c"
     },
     {
       "id": "model:d444934852b7",
@@ -531,7 +582,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/fal-ai/flux-2/flash",
       "title": "FLUX 2 Flash (Text to Image) API on fal",
-      "hash": "ac4a7a8bdda41d4171dae5823392c8aaff763d794b48e8b400cdd17d87b47fd6"
+      "hash": "80fae53787dfd82aa75b862f5a9e4e13a8a237087435881083dfcd110a03a7b8"
     },
     {
       "id": "model:a2e31992cadf",
@@ -542,7 +593,7 @@
       "status": 200,
       "finalUrl": "https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-image?hl=en",
       "title": "Gemini 3.1 Flash image  |  Gemini API  |  Google AI for Developers",
-      "hash": "f41eedc45ef438a792647b43583ef5e378a5797c64862579d7fa9d0aa879dfcb"
+      "hash": "22d70ba49bacea56dc816c35cdd03d6f4147203f1dd8d3d4fe0deadc0f884701"
     },
     {
       "id": "model:32769317e2f4",
@@ -553,7 +604,7 @@
       "status": 200,
       "finalUrl": "https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite-image?hl=en",
       "title": "Gemini 3.1 Flash Lite image  |  Gemini API  |  Google AI for Developers",
-      "hash": "bebd0a55a842b81a09bf427aa2999cad3bf987798a6ca0d2e80ad7e596b8207c"
+      "hash": "0d6ecf5d8bfe4f352a123de4b12694b7a9597bd71e237ca8441dd02074117a3f"
     },
     {
       "id": "model:863f4360649d",
@@ -564,7 +615,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/fal-ai/flux-pro/kontext/max/multi",
       "title": "FLUX.1 Kontext [max] (Image to Image) API on fal",
-      "hash": "abe3e4f0b73645a3a992a916bdfa96cb010bd299eabd348a0f630d031df9576d"
+      "hash": "8b219da5a2a02fc46dd689170331ad0032440cc1b1bf96a085f107f64167cee2"
     },
     {
       "id": "model:25f1c821a86e",
@@ -575,7 +626,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/bytedance/seedance-2.0/fast/text-to-video",
       "title": "Seedance 2.0 Fast (Text to Video) API on fal",
-      "hash": "ac4bf5aaf562fa4f95f7d70537a8b8048ac5783230085ab7fdca9a29c94a6ce3"
+      "hash": "c171715a890a99f6f03dadae404d8e60b70b5e2d6a989a98ef904b8396869b9b"
     },
     {
       "id": "model:737ff9749902",
@@ -586,7 +637,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/bytedance/seedance-2.0/text-to-video",
       "title": "Seedance 2.0 API (Text to Video) API on fal",
-      "hash": "d7b0ae8ddf04f32757391053cfa187ff48e088c689aeb224d12f013a9ac2aef5"
+      "hash": "9d11891ea226d0ed2ed3f62dbf79791d9cbad004ecc1223cb7ba2c203c3b3efc"
     },
     {
       "id": "model:512074ff865e",
@@ -597,7 +648,29 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/alibaba/happy-horse/v1.1/text-to-video",
       "title": "Happy Horse 1.1 (Text to Video) API on fal",
-      "hash": "7d3959d2ef7f7d82f11f77a134e4d8f8b5691f079c199be04155c55a4c2069c3"
+      "hash": "bbe7eafbf0631a31e43ca9014cd61cbdca54f813af308c34ff91dd4011471bab"
+    },
+    {
+      "id": "model:581fd1f9c0fe",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/alibaba/wan-3.0/text-to-video",
+      "url": "https://fal.ai/models/alibaba/wan-3.0/text-to-video",
+      "models": ["wan-3.0"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/alibaba/wan-3.0/text-to-video",
+      "title": "Wan (Text to Video) API on fal",
+      "hash": "bebbc92654ad0a233dd2184ce938ca9a86face89b4c2b50d157eaf316838cdc5"
+    },
+    {
+      "id": "model:13e2df5bff13",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/alibaba/wan-3.0/reference-to-video",
+      "url": "https://fal.ai/models/alibaba/wan-3.0/reference-to-video",
+      "models": ["wan-3.0-reference"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/alibaba/wan-3.0/reference-to-video",
+      "title": "Wan 3.0 (Image to Video) API on fal",
+      "hash": "1d1264486bfe3e1758fbaee0ecdb4aa2a5c050f13c27dff4d1c033199d985cad"
     },
     {
       "id": "model:2ba4c5b6b2c8",
@@ -608,7 +681,7 @@
       "status": 200,
       "finalUrl": "https://ai.google.dev/gemini-api/docs/omni?hl=en",
       "title": "Generate and edit videos with Gemini Omni Flash  |  Gemini API  |  Google AI for Developers",
-      "hash": "9392be286828c64df6ccf4dd1cb0482c98047368c6c9a159699a16b44a812794"
+      "hash": "04664d00cf06635c7bc2eee82501349b81edde8cf2ba3a875d1349940d43c326"
     },
     {
       "id": "model:c374477cb5d7",
@@ -619,7 +692,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/fal-ai/kling-video/v3/pro/text-to-video",
       "title": "Kling Video v3 [Pro] (Text to Video) API on fal",
-      "hash": "7357d2ced59ea3cbc1624646cb847dd7ad4c0a2f057fd8413c713f9a0d5e5723"
+      "hash": "4bf14521d5bd1e5f1e2624aa02f228b7d96ce61343860fb1eb58ca78cfff01a1"
     },
     {
       "id": "model:e4410a910e9c",
@@ -630,7 +703,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/fal-ai/kling-video/o3/pro/text-to-video",
       "title": "Kling O3 [Pro] (Text to Video) API on fal",
-      "hash": "66ab41535d4f3df59638e8bae3e11ebfda6991301869dd13915b23a4e977ad7e"
+      "hash": "c764b8a0bb225ec2abd167dc7c9b4a59c742bd8e457c5b3cb5243207265ff2ff"
     },
     {
       "id": "model:81dfcd4bf9fd",
@@ -641,7 +714,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/bytedance/seedance-2.0/fast/reference-to-video",
       "title": "Seedance 2.0 Fast Reference to Video (Image to Video) API on fal",
-      "hash": "f5012bfab37f7de29e1e639ba12ffbf95a29199a6da0c8ad4c5cd8a2b416bc39"
+      "hash": "e1adb548dba6ac257acd30516bfbc0250d13f1bd19a77c31bff0938111786cd2"
     },
     {
       "id": "model:a3e1dfaea59b",
@@ -652,7 +725,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/bytedance/seedance-2.0/reference-to-video",
       "title": "Seedance 2 Reference to Video (Image to Video) API on fal",
-      "hash": "378ff414e30ea6781e5d80843f3bfd6b280f0edb5b21a0106ef417ef7e4181c3"
+      "hash": "17c80b0733ccc649347303b564d405d36acd143b12607d34c5d868f2ceb707a5"
     },
     {
       "id": "model:e84e10cb9b06",
@@ -668,7 +741,7 @@
       "status": 200,
       "finalUrl": "https://docs.byteplus.com/en/docs/ModelArk/1520757",
       "title": null,
-      "hash": "5588cd31a698911d592312e194397d72fd0089e34290f166370a6bf127468e11"
+      "hash": "e78d1dadb0f5f0964505796a8e711388b47459beef28c6cb294e59f733df445f"
     },
     {
       "id": "model:49c044a7beb8",
@@ -679,7 +752,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/bytedance/seedance-2.5/text-to-video",
       "title": "Seedance 2.5 (Text to Video) API on fal",
-      "hash": "4e28354406d8199ff8d6ce245d63824ce306113922fca9a3fd48f28f70103dcd"
+      "hash": "faef81ecd5e963aedba8928ff8bf7b48d202fd4c619852b5973157eb670af63b"
     },
     {
       "id": "model:254aa729d899",
@@ -690,18 +763,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/bytedance/seedance-2.5/reference-to-video",
       "title": "Seedance 2.5 Reference to Video (Image to Video) API on fal",
-      "hash": "41bc55354cd429fa8da8ae279a28e97a8d6c8af4bb7e15b07088e9d07c16daaf"
-    },
-    {
-      "id": "model:6e03af004829",
-      "kind": "modelDoc",
-      "label": "https://docs.byteplus.com/en/docs/ModelArk/1330310",
-      "url": "https://docs.byteplus.com/en/docs/ModelArk/1330310",
-      "models": ["seedance-2.5-byteplus", "seedance-2.5-reference-byteplus"],
-      "status": 200,
-      "finalUrl": "https://docs.byteplus.com/en/docs/ModelArk/1330310",
-      "title": null,
-      "hash": "a67e0cc1630c10777bc8987b38e9f74451576e045e37b2eb30737d9093e99b2f"
+      "hash": "04eb9997ba998e60bb91c66f5c1c184e1270950eb768d8042cf23053059dc0a3"
     },
     {
       "id": "model:ec5173422a9b",
@@ -726,7 +788,7 @@
       "status": 200,
       "finalUrl": "https://platform.minimax.io/docs/guides/video-generation",
       "title": "Video Generation - MiniMax API Docs",
-      "hash": "15073fbdfb4e610c3391006904de5c00d044d406275a0b40c40518cab2e9fea8"
+      "hash": "e5517138d93a68fb3b18301c082454c2740f340090de4250f86df79c05f76a3f"
     },
     {
       "id": "model:68342fe72a36",
@@ -734,7 +796,7 @@
       "label": "https://platform.minimaxi.com/document/video_generation",
       "url": "https://platform.minimaxi.com/document/video_generation",
       "models": ["minimax-h3-cn", "minimax-h3-reference-cn"],
-      "status": 500,
+      "status": 200,
       "finalUrl": "https://platform.minimaxi.com/document/video_generation?key=",
       "title": "MiniMax-与用户共创智能",
       "hash": "0e8290917d42b591e933660b38952c607bc771d61733c682365e9893c7950d60"
@@ -748,7 +810,7 @@
       "status": 200,
       "finalUrl": "https://docs.fish.audio/developer-guide/models-pricing/models-overview",
       "title": "Models Overview - Fish Audio",
-      "hash": "ef1c6d6a5008d912b21c9cf885e5097c1d5a966b6fdc72481ea4da5fad53b892"
+      "hash": "0315d7177a2de1c63fd6f19031d61aa44aad9b8401bed900a90af797f498b9ce"
     },
     {
       "id": "model:887fe1c74851",
@@ -759,7 +821,7 @@
       "status": 200,
       "finalUrl": "https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert",
       "title": "Create sound effect | ElevenLabs Documentation",
-      "hash": "47b7297e22749bfc39cf052f736544d8d8a620dc14ef4eb06840494b4b1e0fec"
+      "hash": "428e82b3e7802cdd9fbc3ba56a1329dcad308da9e656808c4c10314a97ac1c0f"
     },
     {
       "id": "model:b655bdfea2a3",
@@ -770,7 +832,7 @@
       "status": 200,
       "finalUrl": "https://elevenlabs.io/docs/api-reference/music/compose",
       "title": "Compose music | ElevenLabs Documentation",
-      "hash": "e058c993da2837fb5d77f763abc8bf13148f4575da9486b1ff79005bb1765dd6"
+      "hash": "010f45955cfb802742034d3978a3fabf09236b99e35d50512a48fff55080269a"
     },
     {
       "id": "model:ce1199eb2979",
@@ -781,7 +843,7 @@
       "status": 200,
       "finalUrl": "https://docs.hyper3d.ai/en",
       "title": "Introduction | Hyper3D Docs",
-      "hash": "420fa7711aaaf37f44858c53f9078c6693d7e840a809fe7c066e47afaf41cbbd"
+      "hash": "73aef7d38eab7861b2f17c6047a922ac722910fbb324a2db61544f1e9eb7ab0b"
     },
     {
       "id": "model:207a6ca7bfaf",
@@ -792,7 +854,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/docs/model-api-reference/3d-api/hunyuan-3d-v3.1-pro",
       "title": "Hunyuan 3d V3.1 Pro API - fal",
-      "hash": "19af93c14658ecbc59a90ba476e0e41f0bd972e27efba2e058f2ea01c48dd626"
+      "hash": "7ffd5dfb84d812f282885cdb4061655aa59e0b35ca825a5975c0f192babd61d2"
     },
     {
       "id": "model:94733df1d9d3",
@@ -803,7 +865,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/fal-ai/hunyuan3d-v3/image-to-3d",
       "title": "Hunyuan3d V3 (Image to 3D) API on fal",
-      "hash": "eaefdafe882264885651c98fadc579e1fb51b5573631d7cde7a56b5233cca225"
+      "hash": "b622afb550b054e96b104bc52711412d8153f1e72783c1f1fb60cf5f6a493858"
     },
     {
       "id": "model:b03d6bf882be",
@@ -814,7 +876,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/docs/model-api-reference/3d-api/trellis-2",
       "title": "Trellis 2 API - fal",
-      "hash": "ddc9668d1e23c5f62d51d3409d2e3892a390a1607e4d778131ce32a9f805c247"
+      "hash": "df6635479cbb40f9eba7199c9bfb32ac3a58faf151ea5b153e39eb8d20ad03cb"
     },
     {
       "id": "model:53065741277d",
@@ -825,7 +887,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/models/fal-ai/triposr",
       "title": "TripoSR: Professional  Image to 3D Object Generator | fal",
-      "hash": "4508a0b064d2091d5810cd4f937d08bb02b86b71b23294e9f2b5a3ef714fc5d6"
+      "hash": "19873a4795c8df1d0c4d636f5311a249e5398ced488468e3d0fd18907afecce0"
     },
     {
       "id": "provider:openai:image-guide",
@@ -836,7 +898,7 @@
       "status": 200,
       "finalUrl": "https://developers.openai.com/api/docs/guides/image-generation",
       "title": null,
-      "hash": "01d11ee8357953e4bb702e6df98210997357149a2f816c2bdcf5eb296294e61e"
+      "hash": "e7618e65b2430b8bd24302a75d7687ed13dc7b605341c8a5e3c49599fa475053"
     },
     {
       "id": "provider:openai:models",
@@ -847,7 +909,7 @@
       "status": 200,
       "finalUrl": "https://developers.openai.com/api/docs/models",
       "title": null,
-      "hash": "2501a49a723fff3b8851bdc62f766d08a6ec5a0b0778c4f803be33c1223e59a7"
+      "hash": "45e8f8a82efc68444e1621f057059bda5b518dd09a0e1809914933872c815f90"
     },
     {
       "id": "provider:gemini:image-guide",
@@ -858,7 +920,7 @@
       "status": 200,
       "finalUrl": "https://ai.google.dev/gemini-api/docs/image-generation?hl=en",
       "title": "Gemini API  |  Google AI for Developers",
-      "hash": "3b9f19fdb09ba1abaa6b6249441aef7ced672cbb139ba7119ba780133f017ff4"
+      "hash": "453602eb1a5ed6fdc702ade6b3924358f448c9fab093ee191a585d3b50aa6ebb"
     },
     {
       "id": "provider:gemini:changelog",
@@ -869,7 +931,7 @@
       "status": 200,
       "finalUrl": "https://ai.google.dev/gemini-api/docs/changelog?hl=en",
       "title": "Release notes  |  Gemini API  |  Google AI for Developers",
-      "hash": "8385ef7050876ac6f7c8e8c1d2d06358342a249f689ab4192909973ec7e92c90"
+      "hash": "71a6415d2c074d54d4e58bb41fd8225261560acfa1910bfcf2576edef5153565"
     },
     {
       "id": "provider:gemini:deprecations",
@@ -880,7 +942,7 @@
       "status": 200,
       "finalUrl": "https://ai.google.dev/gemini-api/docs/deprecations?hl=en",
       "title": "Gemini deprecations  |  Gemini API  |  Google AI for Developers",
-      "hash": "1c0a70dd7ee335aab269681e7e88b010852a922edc0d9f9a67cbc9162e508eb3"
+      "hash": "71374d881ddd092e5294178b9c503ddc692acd40d095673e43fa7b1272a42889"
     },
     {
       "id": "provider:fal:models",
@@ -891,7 +953,7 @@
       "status": 200,
       "finalUrl": "https://fal.ai/explore",
       "title": "Explore | fal",
-      "hash": "835cfb764ea2be2b1d48bed831696abe5084cc9cf8cf0d84e887cf127184058d"
+      "hash": "94cfe72159515582c9b6ccf2df6159e5976dcea394e7f6be97d0f1e58790574d"
     },
     {
       "id": "provider:novelai:image-models",
@@ -902,7 +964,7 @@
       "status": 200,
       "finalUrl": "https://docs.novelai.net/en/image/models/",
       "title": "| NovelAI Documentation",
-      "hash": "5e30e731faa7a27df4e13ad238a080da8156bc9654732eecbdffe10b6c950a61"
+      "hash": "1d48452b677247b41804fb3fb6bcc2ac36b87805ae3c97d81d8b22719f706731"
     },
     {
       "id": "provider:volc:image-api",

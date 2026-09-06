@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { AI_MODELS, getModelById } from '@/constants/models'
+import {
+  AI_MODELS,
+  getAvailableVideoModels,
+  getModelById,
+} from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { DEFAULT_VIDEO_VARIANT } from '@/constants/video-node-modes'
 import {
@@ -162,6 +166,27 @@ describe('pickDefaultVideoModel', () => {
       ALL_OPTIONS,
     )
     expect(hit?.modelId).toBe(AI_MODELS.GEMINI_OMNI_FLASH)
+  })
+
+  /**
+   * 上面几条用的是手写夹具（fal 排第一），验的是「第一条兜底」这条规则本身。
+   * 这条验的是**目录真实顺序**下那条兜底落在谁身上 —— 一个 key 都没有的新用户
+   * 默认跑的是火山，不是 fal（同模型走 fal 转售约 2.1× 成本，owner 2026-09-06）。
+   */
+  it('无任何 key 时，目录顺序让 Seedance 默认渠道是火山方舟', () => {
+    const catalogOptions: NodeWorkflowModelOption[] =
+      getAvailableVideoModels().map((model) => opt(model.id))
+
+    for (const variant of [
+      'seedance-2.0-fast',
+      'seedance-2.0',
+      'seedance-2.5',
+    ]) {
+      for (const mode of ['keyframe', 'multimodal'] as const) {
+        const hit = pickDefaultVideoModel(variant, mode, catalogOptions)
+        expect(hit?.adapterType).toBe(AI_ADAPTER_TYPES.VOLCENGINE)
+      }
+    }
   })
 
   it('清单为空时返回 null 而不是抛', () => {

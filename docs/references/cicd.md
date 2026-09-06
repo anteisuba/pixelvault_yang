@@ -13,10 +13,10 @@
 | `post-deploy-smoke.yml` | **独立 workflow**（不是被 deploy-check 调用）：workflow_dispatch（手动传 base_url）+ deployment_status（同样仅 Production 成功后） | 跑 `scripts/smoke.ts`（带 Vercel protection bypass secret）；与 deploy-check 的内联冒烟是并行两套                                                                                                                                                                                                         |
 | `cron-monitor.yml`      | cron `37 13 * * *`（每日）+ 手动                                                                                                   | GET `/api/health/crons`（HEALTH_CHECK_TOKEN 鉴权，与 health-monitor 同一把，无需新 secret）；`healthy:false` → 开/追评 issue（`cron-failure` label）；端点非 200 → workflow 失败。见下方「Vercel cron 的可见性」                                                                                          |
 
-### model-doc-monitor 基线与已知退化
+### model-doc-monitor 基线
 
-- **基线已补**（2026-07-10，commit `206df3d6`）：`docs/reference/api/model-doc-monitor.snapshot.json` 已提交，每周一起有 diff 对比。本地生成时未带 OPENAI/GEMINI key（探测被干净 skip，快照 `apis:[]`），首次 CI 运行会把 2 个 API 探测报为 "added"——一次性噪音。
-- **⚠ 已知退化：模型清单为 0**。`scripts/check-model-docs.mjs` 只解析单文件 `src/constants/models.ts` 里的 `AI_MODELS` enum + `MODEL_OPTIONS` 数组字面量；模型拆进 `src/constants/models/{enum,image,video,audio,model-3d}.ts` 后该文件只剩 barrel，脚本静默解析出 **0 个模型**——per-model officialUrl 监控全部失效，当前只监控 9 个硬编码 EXTRA_WATCH_PAGES。**2026-09-06 owner 定：修**——脚本改读 `src/constants/models/` 拆分文件、解析出 0 个模型时直接报错（不再静默），再跑 `models:update-doc-snapshot` 重建快照（代码切片进行中）。
+- **基线已补**（2026-07-10，commit `206df3d6`）：`docs/references/api/model-doc-monitor.snapshot.json` 已提交，每周一起有 diff 对比。本地生成时未带 OPENAI/GEMINI key（探测被干净 skip，快照 `apis:[]`），首次 CI 运行会把 2 个 API 探测报为 "added"——一次性噪音。
+- **模型清单来源**：`scripts/check-model-docs.mjs` 自 2026-08-24（`6386b3a7` / `69d787ca`）起读 `src/constants/models/{enum,image,video,audio,model-3d}.ts`，只收 `available: true` 的条目（2026-09-06 为 58 个）。2026-09-06 owner 定并已落地：解析出 0 个模型时脚本**直接非零退出**（此前只记一条 finding、进程仍退 0），并已重建基线（58 模型 / 50 页，抓取全 200）；下次 CI 只会 diff 真实变化，一次性噪音仍只有无 key 时的 2 个 API 探测。
 
 ### Execution Worker 部署（2026-09-03 接进 CI）
 

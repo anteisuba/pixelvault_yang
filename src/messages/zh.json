@@ -1265,18 +1265,18 @@
         },
         "fish": {
           "pos": "台词主力：中文语音自然度的口碑档。",
-          "fare": "$0.20 / 千字符",
-          "routes": "在 ANTEI · s2.1-pro-free 免费档在架",
+          "fare": "免费档 $0；付费档 $15 / 百万 UTF-8 字节",
+          "routes": "在 ANTEI · S2.1 Pro 免费 / 付费双档",
           "src": "fish.audio 官方视觉",
           "tags": {
             "0": "中文台词",
             "1": "音色库",
-            "2": "免费档"
+            "2": "免费 / 付费可选"
           },
           "plus": {
             "0": "中文口语自然度第一梯队",
             "1": "站内音色库直选 + 克隆",
-            "2": "免费档已接（s2.1-pro-free）"
+            "2": "已接 S2.1 Pro 免费版与付费版"
           },
           "minus": {
             "0": "英文口音略平",
@@ -3890,8 +3890,8 @@
       "description": "Google 最新 — 4K、原生音频、对话同步"
     },
     "geminiOmniFlash": {
-      "label": "Gemini Omni Flash",
-      "description": "Google 视频（API 仍为 preview id）— 榜单表现强、原生音频；待 GA id 再换"
+      "label": "Gemini Omni 1.1 Flash",
+      "description": "根据文字和参考图生成带原生音频的视频。"
     },
     "seedance25Volcengine": {
       "label": "Seedance 2.5（火山方舟）",
@@ -3988,6 +3988,10 @@
     "seedance25ReferenceByteplus": {
       "label": "Seedance 2.5 参考（BytePlus）",
       "description": "BytePlus 国际站的多模态参考视频生成，最多 30 图 / 10 视频 / 10 音频。"
+    },
+    "fishAudioS2ProFree": {
+      "label": "Fish Audio S2.1 Pro Free",
+      "description": "上游免费 TTS，需自备 Fish API Key，受公平使用政策限制"
     }
   },
   "PromptPresets": {
@@ -6436,6 +6440,9 @@
       "invalidOutput": "看图结果没能整理成结构化结论（已重试一次）。换一张图或稍后再试。",
       "insufficientMedia": "对比至少需要两张图片。",
       "framesInvalid": "抽出的帧与确定性计划对不上，请重新抽帧。"
+    },
+    "projectRule": {
+      "limitReached": "规则已经到上限了，先删掉一条再加。"
     }
   },
   "Transform": {
@@ -6843,11 +6850,6 @@
   },
   "StudioOperator": {
     "title": "助手",
-    "domainChip": {
-      "image": "在图片工作台",
-      "video": "在视频工作台",
-      "lora": "在 LoRA 工作台"
-    },
     "domainName": {
       "image": "图片工作台",
       "video": "视频工作台",
@@ -6866,6 +6868,7 @@
     "share": "分享这段会话",
     "feedback": "问题反馈",
     "collapse": "收起助手",
+    "expand": "展开助手",
     "resize": "拖动调整助手宽度",
     "empty": "说一句你想要什么。不花积分的它直接做，花钱的停在预填好的生成键上，等你来点。",
     "planTitle": "计划 · 不花积分的直接做",
@@ -6876,12 +6879,39 @@
     "sendInterrupt": "插话即转向 —— 助手收下这句后调整计划继续",
     "stop": "停止当前工作",
     "lightboxLabel": "看大图",
-    "pill": {
-      "idle": "助手",
-      "working": "助手 · 干活中",
-      "workingCount": "助手 · 干活中 {done}/{total}",
-      "awaitingConfirm": "等你决定 · 提示词怎么写",
-      "primed": "已备好 · 生成键已亮"
+    "rail": {
+      "idle": "待命",
+      "working": "干活中",
+      "awaiting": "待你定",
+      "error": "出错了",
+      "primed": "已备好"
+    },
+    "band": {
+      "working": "正在干活",
+      "state": {
+        "done": "完成",
+        "running": "进行中",
+        "failed": "失败"
+      }
+    },
+    "toolGroup": {
+      "title": "{count} 个操作",
+      "elapsed": "用时 {seconds}s",
+      "succeeded": "{count} 成功",
+      "failed": "{count} 失败"
+    },
+    "checkpoint": {
+      "summary": "已改 {count} 项：{fields}",
+      "undo": "撤销",
+      "choice": {
+        "params": "只回参数",
+        "thread": "连对话一起回",
+        "cancel": "取消"
+      },
+      "reverted": {
+        "params": "已撤销 · 只回参数",
+        "thread": "已撤销 · 连对话一起回"
+      }
     },
     "log": {
       "undo": "撤销"
@@ -7005,6 +7035,62 @@
     },
     "error": {
       "generic": "助手这一轮没跑完"
+    },
+    "assistantSettings": "助手设置",
+    "persona": {
+      "title": "助手设置",
+      "description": "这个助手是谁、怎么说话。一份设置，四台工作台通用。",
+      "save": "保存",
+      "saved": "已保存",
+      "cancel": "取消",
+      "reset": "恢复默认",
+      "saveFailed": "没保存上，再试一次。",
+      "scopeNote": "图片、视频、LoRA 都按这份走。",
+      "nameLabel": "名字",
+      "namePlaceholder": "留空就用工作台的名字",
+      "nameHint": "最多 24 个字。",
+      "avatarLabel": "头像",
+      "avatarPresets": "预设",
+      "avatarUpload": "上传",
+      "avatarUploading": "上传中…",
+      "avatarRemove": "去掉自定义头像",
+      "avatarTooLarge": "这张图超过 5 MB 了。",
+      "avatarUnsupported": "换一张 JPEG、PNG 或 WebP。",
+      "toneLabel": "语气",
+      "tone": {
+        "professional": "专业",
+        "friendly": "亲和",
+        "terse": "简短",
+        "custom": "自定义"
+      },
+      "toneCustomPlaceholder": "一句话说清你想要的说话方式",
+      "toneCustomRequired": "写上那一句，或者换一档语气。",
+      "verbosityLabel": "回复长度",
+      "verbosity": {
+        "concise": "简短",
+        "standard": "标准",
+        "detailed": "详细"
+      },
+      "planModeLabel": "默认行为",
+      "planModeHint": "单轮勾了「先问我」永远压过这一档。",
+      "planMode": {
+        "always": "先问我",
+        "auto": "自动",
+        "direct": "直接做"
+      },
+      "languageLabel": "回复语言",
+      "language": {
+        "ui": "跟界面",
+        "chinese": "中文",
+        "english": "英文"
+      }
+    },
+    "rule": {
+      "recordedOn": "记于 {date}",
+      "sourceAssistant": "来自对话",
+      "sourceCreator": "你写的",
+      "view": "查看规则",
+      "scopeAll": "全部工作台"
     }
   },
   "GenerationCancel": {

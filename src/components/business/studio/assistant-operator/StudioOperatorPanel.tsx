@@ -4,8 +4,12 @@
  * 操作员面板的**内容**（头部 / 线程 / 药丸 / 输入区）。外壳（宽度、收放、胶囊）
  * 在 `StudioOperatorDock.tsx`。
  *
- * 逐条对应切片 v4：
- *  · 头部只剩「身份 + 域 chip · 会话 · ⋯ · 收起」（拍板 10）
+ * 方向 C「工作日志」（`pages/assistant-shell.md` §11）：
+ *  · 头部改**顶部进度带**（拍板 10 改口，~40px 钉住）——空闲时退化回
+ *    「域 chip · 会话名 · ⋯ · 收起」，会话 / 历史 / 新对话全收进 ⋯
+ *  · 对话流走**时间线沟**：左缘 1px 贯穿线 + 节点形状分级 + 会说话的两方挂头像
+ *  · 连续工具步收成 **ToolGroup 一行**（结果优先、过程自动折叠）
+ *  · 每轮改动后一张 **checkpoint 薄卡**（撤销二选：只回参数 / 连对话一起回）
  *  · **模型 chip 住输入框上方工具条明面**，点开是现有「自动路由」组件（拍板 11）——
  *    ⛔ 没有另行设计一个选择器：那件事 2026-08-19 出过生产事故（界面显示 GPT、
  *    实际打 Gemini），复用是唯一不会再犯的做法
@@ -15,11 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Check,
-  MessageSquarePlus,
-  MoreHorizontal,
   Paperclip,
-  PanelRightClose,
   RotateCw,
   Send,
   Square,
@@ -27,32 +27,41 @@ import {
   X,
 } from 'lucide-react'
 import Image from 'next/image'
-import { useFormatter, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
-  type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import { STUDIO_OPERATOR_SUGGESTIONS } from '@/constants/studio-assistant-operator'
+import {
+  STUDIO_OPERATOR_SUGGESTIONS,
+  STUDIO_OPERATOR_TIMELINE,
+} from '@/constants/studio-assistant-operator'
 import { CanvasAssistantRouteSelector } from '@/components/business/node/CanvasAssistantRouteSelector'
 import {
   AttachKindGlyph,
   STUDIO_OPERATOR_ATTACH_MENU_ID,
   StudioOperatorAttachMenu,
 } from '@/components/business/studio/assistant-operator/StudioOperatorAttachMenu'
+import {
+  STUDIO_OPERATOR_REVERT_CHOICES,
+  StudioOperatorCheckpointCard,
+  type StudioOperatorRevertChoice,
+} from '@/components/business/studio/assistant-operator/StudioOperatorCheckpointCard'
 import { StudioOperatorCritiqueCard } from '@/components/business/studio/assistant-operator/StudioOperatorCritiqueCard'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  STUDIO_OPERATOR_BAND_STEP_STATES,
+  StudioOperatorProgressBand,
+  type StudioOperatorBandStep,
+} from '@/components/business/studio/assistant-operator/StudioOperatorProgressBand'
+import {
+  STUDIO_OPERATOR_NODE_KINDS,
+  StudioOperatorTimelineRow,
+  type StudioOperatorNodeKind,
+} from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
+import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { Spinner } from '@/components/ui/spinner'
 import type { UseAssistantOperatorResult } from '@/hooks/use-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
@@ -62,29 +71,28 @@ import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
-import {
-  ASSISTANT_SURFACE_IDS,
-  type AssistantSurfaceId,
-} from '@/types/assistant-conversation'
-import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
+import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
+import type {
+  StudioOperatorAttachment,
+  StudioOperatorStepEntry,
+  StudioOperatorThreadEntry,
+} from '@/types/studio-assistant-operator'
 
 /**
- * 会话行上那枚域标签读哪条词条。
+ * 载回来的历史条目在沟里占哪一档（§11.3）。
  *
- * ⚠ `Record<Surface, …>`：surface 表加一档而这里没跟上，编译期就红 ——
- * 而漏掉的表现是菜单上一枚印着 `undefined` 的标签。
- * ⚠ LoRA / 画布也列在这儿是因为类型要求穷举；它们的会话**根本不会进这个列表**
- * （`use-studio-operator-history.ts` 只查图片与视频两个槽）。
+ * ⚠ 与实时线程用**同一张分级表**：历史里同一种条目换个形状，用户会以为那是
+ * 另一种东西 —— 而它只是同一条会话的昨天。
  */
-const SESSION_DOMAIN_BY_SURFACE: Record<
-  AssistantSurfaceId,
-  AssistantOperatorDomain | null
-> = {
-  [ASSISTANT_SURFACE_IDS.imageStudio]: ASSISTANT_PROTOCOL_DOMAIN_IDS.image,
-  [ASSISTANT_SURFACE_IDS.videoStudio]: ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
-  [ASSISTANT_SURFACE_IDS.lora]: ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
-  /** ⚠ 画布不是操作员的域，`domainName` 里也没有它的词条 —— 不画标签。 */
-  [ASSISTANT_SURFACE_IDS.nodeCanvas]: null,
+function historyNodeKind(
+  kind: StudioOperatorHistoryEntry['kind'],
+): StudioOperatorNodeKind {
+  if (kind === 'user') return STUDIO_OPERATOR_NODE_KINDS.user
+  if (kind === 'message' || kind === 'plan') {
+    return STUDIO_OPERATOR_NODE_KINDS.assistant
+  }
+  if (kind === 'step') return STUDIO_OPERATOR_NODE_KINDS.tool
+  return STUDIO_OPERATOR_NODE_KINDS.system
 }
 
 interface StudioOperatorPanelProps {
@@ -140,16 +148,23 @@ export function StudioOperatorPanel({
 }: StudioOperatorPanelProps) {
   const t = useTranslations('StudioOperator')
   const tPrompt = useTranslations('PromptAssistant')
-  const format = useFormatter()
   const {
     entries,
     status,
     errorText,
     history: historyEntries,
+    stepsDone,
+    plannedSteps,
   } = useStudioOperatorState()
   const { domain, send, stop, newThread } = operator
-  const { undoStep, revertRound, countRoundChanges, changeCount } =
-    useStudioOperatorRevert()
+  const {
+    undoStep,
+    revertRound,
+    revertRoundThread,
+    countRoundChanges,
+    roundFields,
+    changeCount,
+  } = useStudioOperatorRevert()
   const { route, setRoute } = useStudioAssistantControls()
 
   // 📎 面板开着与否**是**局部态：它是一次性的挑选动作，收起再展开时它该是关的。
@@ -210,324 +225,383 @@ export function StudioOperatorPanel({
     [changeCount, domain],
   )
 
+  /**
+   * checkpoint 二选的落点（§3.2）。
+   *
+   * ⭐ 两条路共用同一份 `inverse`，⛔ 没有第二套撤销：区别只在「连对话一起回」
+   * 多截一刀线程。
+   */
+  const handleCheckpointRevert = useCallback(
+    (runKey: string, choice: StudioOperatorRevertChoice) => {
+      if (choice === STUDIO_OPERATOR_REVERT_CHOICES.thread) {
+        revertRoundThread(runKey)
+        return
+      }
+      revertRound(runKey)
+    },
+    [revertRound, revertRoundThread],
+  )
+
+  /**
+   * 进度带的清单（§2.4）—— **从线程现算**，⛔ store 里不另存一份。
+   *
+   * ⚠ 数的是**这一轮**（最后一个 runKey）的步：把历史上所有轮的步都列进去，
+   * 「还剩几步」就变成了「这条会话一共跑过几步」，而那不是耐心的来源。
+   */
+  const latestRunKey = useMemo(() => {
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const entry = entries[index]
+      if (entry?.kind === 'step') return entry.runKey
+    }
+    return null
+  }, [entries])
+
+  const bandSteps = useMemo<readonly StudioOperatorBandStep[]>(() => {
+    if (!latestRunKey) return []
+    return entries
+      .filter(
+        (entry): entry is StudioOperatorStepEntry =>
+          entry.kind === 'step' && entry.runKey === latestRunKey,
+      )
+      .map((entry) => ({
+        id: entry.id,
+        title: entry.step.title,
+        state:
+          entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
+            ? STUDIO_OPERATOR_BAND_STEP_STATES.failed
+            : entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running
+              ? STUDIO_OPERATOR_BAND_STEP_STATES.running
+              : STUDIO_OPERATOR_BAND_STEP_STATES.done,
+      }))
+  }, [entries, latestRunKey])
+
+  const currentStepTitle =
+    bandSteps.find(
+      (step) => step.state === STUDIO_OPERATOR_BAND_STEP_STATES.running,
+    )?.title ?? null
+
+  /**
+   * 把线程劈成「渲染块」—— **连续的工具步合成一组**（§2.7）。
+   *
+   * ⚠ 看图那一条不进组：它渲染成评价卡（拍板 6），是大节点不是过程行 —— 混进
+   * ToolGroup 会被折叠掉，而「证据长在结论里」正是它存在的理由。
+   * ⚠ 组的边界是 `runKey` 也是「连不连续」：跨轮的两组步长得一样，但它们是两次
+   * 不同的委托，合成一行会让 checkpoint 的「这一轮」失去参照。
+   */
+  const blocks = useMemo(() => {
+    type Block =
+      | { kind: 'entry'; entry: StudioOperatorThreadEntry }
+      | { kind: 'tools'; runKey: string; steps: StudioOperatorStepEntry[] }
+    const result: Block[] = []
+    let group: {
+      kind: 'tools'
+      runKey: string
+      steps: StudioOperatorStepEntry[]
+    } | null = null
+
+    const isCritiqueCard = (entry: StudioOperatorStepEntry) =>
+      entry.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult &&
+      entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+      Boolean(entry.step.result)
+
+    for (const entry of entries) {
+      if (entry.kind === 'step' && !isCritiqueCard(entry)) {
+        if (group && group.runKey === entry.runKey) {
+          group.steps.push(entry)
+        } else {
+          group = { kind: 'tools', runKey: entry.runKey, steps: [entry] }
+          result.push(group)
+        }
+        continue
+      }
+      group = null
+      result.push({ kind: 'entry', entry })
+    }
+    return result
+  }, [entries])
+
   return (
     <>
-      {/* ── 头部：身份 + 域 chip · 会话 · ⋯ · 收起（拍板 10）─────── */}
-      <header className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-background/95 px-3 py-2.5">
-        <span
-          className={cn(
-            'size-2 shrink-0 rounded-full bg-primary',
-            working && 'animate-pulse',
-          )}
-          aria-hidden
-        />
-        <span className="text-sm font-semibold text-foreground">
-          {t('title')}
-        </span>
-        <span
-          data-testid="operator-domain-chip"
-          className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-2xs font-medium text-primary"
-        >
-          {t(`domainChip.${domain}`)}
-        </span>
-        <span className="flex-1" />
+      {/* ── 顶部进度带（拍板 10 改口 · §2.4）──────────────────────── */}
+      <StudioOperatorProgressBand
+        domain={domain}
+        working={working}
+        stepsDone={stepsDone}
+        plannedSteps={plannedSteps}
+        currentStepTitle={currentStepTitle}
+        steps={bandSteps}
+        history={history}
+        onNewThread={newThread}
+        onCollapse={onCollapse}
+      />
 
-        {/* ── 会话 = 历史 + 新对话合一（拍板 10），P4-B 起接的是真库 ────── */}
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              data-testid="operator-session-menu"
-              className="rounded-lg border border-border/70 px-2 py-1 text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground"
-            >
-              {t('session')}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="max-h-96 min-w-72 overflow-y-auto"
-          >
-            <DropdownMenuItem onSelect={() => newThread()}>
-              <MessageSquarePlus className="size-4" aria-hidden />
-              {t('newThread')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-2xs font-normal text-muted-foreground">
-              {t('history.heading')}
-            </DropdownMenuLabel>
-            {history.isHydrating ? (
-              <DropdownMenuItem disabled className="text-2xs">
-                {t('history.loading')}
-              </DropdownMenuItem>
-            ) : null}
-            {!history.isHydrating && history.sessions.length === 0 ? (
-              <DropdownMenuItem disabled className="text-2xs">
-                {t('history.empty')}
-              </DropdownMenuItem>
-            ) : null}
-            {history.sessions.map((session) => {
-              /* ⚠ 域标签读的是 `surface`（线程**起始**域）—— 一条线程后来切去
-                 哪儿只在它自己的域标记里，列表这一层看不到，也不该猜。
-                 ⚠ 先取出来再判：直接把索引表达式塞进模板串，`null` 会一起进
-                 `t()` 的键类型里（编译期就红）。 */
-              const sessionDomain = SESSION_DOMAIN_BY_SURFACE[session.surface]
-              return (
-                <DropdownMenuItem
-                  key={session.id}
-                  data-testid="operator-session-item"
-                  data-session-id={session.id}
-                  data-surface={session.surface}
-                  data-current={
-                    session.id === history.currentSessionId ? 'true' : 'false'
-                  }
-                  onSelect={() => history.selectSession(session)}
-                >
-                  {sessionDomain ? (
-                    <span className="shrink-0 rounded-full border border-border bg-muted/60 px-1.5 py-0.5 text-2xs text-muted-foreground">
-                      {t(`domainName.${sessionDomain}`)}
-                    </span>
-                  ) : null}
-                  <span className="min-w-0 flex-1 truncate">
-                    {session.title ?? t('history.untitled')}
-                  </span>
-                  <span className="ml-auto shrink-0 text-2xs text-muted-foreground">
-                    {format.dateTime(new Date(session.updatedAt), {
-                      month: 'numeric',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                  {session.id === history.currentSessionId ? (
-                    <Check className="size-3.5 shrink-0" aria-hidden />
-                  ) : null}
-                </DropdownMenuItem>
-              )
-            })}
-            {history.error ? (
-              <DropdownMenuItem disabled className="text-2xs text-destructive">
-                {history.error}
-              </DropdownMenuItem>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label={t('more')}
-              className="rounded-lg border border-border/70 px-2 py-1 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground"
-            >
-              <MoreHorizontal className="size-3.5" aria-hidden />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-48">
-            {/* 分享要有一条落了库的会话才有东西可分享（P4）—— 现在诚实地停用。 */}
-            <DropdownMenuItem disabled>{t('share')}</DropdownMenuItem>
-            <DropdownMenuItem disabled>{t('feedback')}</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <button
-          type="button"
-          data-testid="operator-collapse"
-          aria-label={t('collapse')}
-          onClick={onCollapse}
-          className="rounded-lg border border-border/70 px-2 py-1 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground"
-        >
-          <PanelRightClose className="size-3.5" aria-hidden />
-        </button>
-      </header>
-
-      {/* ── 线程 ────────────────────────────────────────────────── */}
+      {/* ── 时间线沟（§11.3）──────────────────────────────────────
+          ⚠ 滚的是外面这一层，贯穿竖线画在里面那一层：线要跟着内容一起滚，
+            画在滚动容器上会得到一条钉在视口里、内容从它旁边流过去的假线。 */}
       <div
         ref={threadRef}
         data-testid="operator-thread"
-        className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-3"
+        className="min-h-0 flex-1 overflow-y-auto"
       >
-        {entries.length === 0 && historyEntries.length === 0 ? (
-          <p className="my-auto rounded-xl bg-background/90 px-4 py-3 text-center text-xs leading-relaxed text-foreground">
-            {t('empty')}
-          </p>
-        ) : null}
-
-        {/* ── 载回来的只读历史（P4-B）───────────────────────────────
-            ⚠ 条目 id 是**本次页面加载现编的序号**（`user-3`），刷新之后从头再编
-              一遍，所以它会在两条轴上撞车：
-              ① 历史 ↔ 新线程 —— `h:` 前缀挡住这一条；
-              ② 历史 ↔ 历史 —— **一条跨了几次页面加载的线程，存下来的那个数组里
-                 本身就有两个 `user-1`**（保存时是「旧历史 + 本次 entries」拼接，
-                 而本次 entries 的序号从 1 重新开始）。2026-08-31 P4-C 真机撞到：
-                 控制台连着五条 `Encountered two children with the same key`
-                 （`h:user-1` / `h:plan-3` / `h:msg-4` / `h:run-2:step-1` / `h:msg-5`），
-                 后果是 React 把两条不同的历史当成同一个节点复用。
-            ⭐ 所以 key 里带上**位置**：历史是只读、只追加、按顺序渲染的数组，
-              位置在这里是稳定的身份；id 留在 key 里只是为了调试时看得出是哪一条。
-            ⛔ 别改成「保存时给历史重新编号」：那要动 P4-B 的落库格式，而这只是一个
-              渲染键的问题 —— 库里那份数据本身没有错，它只是不保证 id 唯一。 */}
-        {historyEntries.map((entry, index) => (
-          <StudioOperatorHistoryItem
-            key={`h:${index}:${entry.id}`}
-            entry={entry}
+        <div className="relative px-3.5 pb-5 pt-3.5">
+          {/* 贯穿的 1px border 色线 —— 节点与头像都压在它上面（同轴）。 */}
+          <span
+            aria-hidden
+            data-testid="operator-timeline-line"
+            style={{ left: `${STUDIO_OPERATOR_TIMELINE.linePx}px` }}
+            className="pointer-events-none absolute bottom-2 top-4 w-px bg-border"
           />
-        ))}
 
-        {/* 分隔线只在**两边都有东西**时出现：只有历史时它是一条没有下文的线。 */}
-        {historyEntries.length > 0 ? (
-          <p
-            data-testid="operator-history-divider"
-            className="my-1 flex items-center gap-2 text-2xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
-          >
-            {t('history.readonlyNote')}
-          </p>
-        ) : null}
+          {entries.length === 0 && historyEntries.length === 0 ? (
+            <p className="px-1 py-6 text-center text-xs leading-relaxed text-muted-foreground">
+              {t('empty')}
+            </p>
+          ) : null}
 
-        {entries.map((entry) => {
-          switch (entry.kind) {
-            case 'user':
+          {/* ── 载回来的只读历史（P4-B）───────────────────────────────
+              ⚠ 条目 id 是**本次页面加载现编的序号**（`user-3`），刷新之后从头再编
+                一遍，所以它会在两条轴上撞车：
+                ① 历史 ↔ 新线程 —— `h:` 前缀挡住这一条；
+                ② 历史 ↔ 历史 —— **一条跨了几次页面加载的线程，存下来的那个数组里
+                   本身就有两个 `user-1`**（保存时是「旧历史 + 本次 entries」拼接，
+                   而本次 entries 的序号从 1 重新开始）。2026-08-31 P4-C 真机撞到，
+                   后果是 React 把两条不同的历史当成同一个节点复用。
+              ⭐ 所以 key 里带上**位置**：历史是只读、只追加、按顺序渲染的数组，
+                位置在这里是稳定的身份。
+              ⚠ 历史行**不画时间戳**：库里那份没有逐条时刻，拿「现在」去填是编数据。 */}
+          {historyEntries.map((entry, index) => (
+            <StudioOperatorTimelineRow
+              key={`h:${index}:${entry.id}`}
+              node={historyNodeKind(entry.kind)}
+              withTimestamp={false}
+            >
+              <StudioOperatorHistoryItem entry={entry} />
+            </StudioOperatorTimelineRow>
+          ))}
+
+          {/* 分隔线只在**两边都有东西**时出现：只有历史时它是一条没有下文的线。 */}
+          {historyEntries.length > 0 ? (
+            <p
+              data-testid="operator-history-divider"
+              className="my-2 flex items-center gap-2 font-mono text-3xs tracking-nav text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+            >
+              {t('history.readonlyNote')}
+            </p>
+          ) : null}
+
+          {blocks.map((block) => {
+            if (block.kind === 'tools') {
+              const failed = block.steps.filter(
+                (item) =>
+                  item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+              ).length
+              const running = block.steps.some(
+                (item) =>
+                  item.step.status ===
+                  ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+              )
+              /* checkpoint 只在**这一轮真的收尾了**之后出现（§2.13）：还在跑就
+                 挂一张「已改 3 项」，用户会以为它已经改完了。 */
+              const roundDone = !working || block.runKey !== latestRunKey
+              const changeCountInRound = countRoundChanges(block.runKey)
+              const fields = roundFields(block.runKey)
               return (
-                <div
-                  key={entry.id}
-                  className="ml-8 flex flex-col items-end gap-1"
-                >
-                  <p className="rounded-xl rounded-br-sm bg-foreground px-3 py-2 text-xs text-background">
-                    {entry.text}
-                  </p>
-                  {entry.attachments.length > 0 ? (
-                    <div className="flex flex-wrap justify-end gap-1">
-                      {entry.attachments.map((attachment) => (
-                        <span
-                          key={attachment.id}
-                          className="rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-2xs text-primary"
-                        >
-                          {attachment.label}
-                        </span>
+                <div key={`tools:${block.runKey}:${block.steps[0]?.id}`}>
+                  <StudioOperatorTimelineRow
+                    node={STUDIO_OPERATOR_NODE_KINDS.tool}
+                  >
+                    <StudioOperatorToolGroup
+                      total={block.steps.length}
+                      failed={failed}
+                      running={running}
+                    >
+                      {block.steps.map((item) => (
+                        <StudioOperatorLogItem
+                          key={item.id}
+                          entryId={item.id}
+                          step={item.step}
+                          undone={item.undone}
+                          onUndo={undoStep}
+                          // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
+                          //    传一个每次 render 都换引用的对象等于把 memo 关掉。
+                          webImport={webImport.states[item.id]}
+                          webImportLimit={webImport.limit}
+                          onToggleWebImage={webImport.toggleCandidate}
+                        />
                       ))}
-                    </div>
+                    </StudioOperatorToolGroup>
+                  </StudioOperatorTimelineRow>
+                  {roundDone && changeCountInRound > 0 ? (
+                    <StudioOperatorTimelineRow
+                      node={STUDIO_OPERATOR_NODE_KINDS.system}
+                    >
+                      <StudioOperatorCheckpointCard
+                        runKey={block.runKey}
+                        count={changeCountInRound}
+                        fieldSummary={fields
+                          .map((field) => t(`field.${field}`))
+                          .join(' · ')}
+                        onRevert={handleCheckpointRevert}
+                      />
+                    </StudioOperatorTimelineRow>
                   ) : null}
                 </div>
               )
-            case 'message':
-              return (
-                <p
-                  key={entry.id}
-                  className="mr-6 whitespace-pre-wrap rounded-xl rounded-bl-sm bg-background/95 px-3 py-2 text-xs text-foreground"
-                >
-                  {entry.text}
-                </p>
-              )
-            case 'plan':
-              return (
-                <div
-                  key={entry.id}
-                  data-testid="operator-plan"
-                  className="rounded-xl border border-primary/30 bg-primary/5 px-2.5 py-2"
-                >
-                  <p className="mb-1.5 text-2xs font-medium text-primary">
-                    {t('planTitle')}
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {entry.steps.map((step) => (
-                      <span
-                        key={step}
-                        className="rounded-full border border-primary/30 bg-background px-2 py-0.5 text-2xs text-primary"
-                      >
-                        {step}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )
-            case 'step': {
-              /**
-               * ⭐ 看图那一条渲染成**评价卡**而不是日志条（拍板 6）：证据要长在
-               * 结论里，而日志条画不下一张图 + 四条结论。
-               * ⚠ 只有跑完（`result` 已经在）才换脸：`running` 那一帧和被拒的那
-               * 一支（没有结果可看 / 借不到视觉线）照旧走日志条 —— 它们本来就
-               * 只有一行标题加一句理由。
-               */
-              const { step } = entry
-              if (
-                step.tool === ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult &&
-                step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
-                step.result
-              ) {
+            }
+
+            const entry = block.entry
+            switch (entry.kind) {
+              case 'user':
                 return (
-                  <StudioOperatorCritiqueCard
+                  <StudioOperatorTimelineRow
                     key={entry.id}
-                    step={{ ...step, result: step.result }}
-                    runKey={entry.runKey}
-                    roundChangeCount={countRoundChanges(entry.runKey)}
-                    onRevertRound={revertRound}
-                  />
+                    node={STUDIO_OPERATOR_NODE_KINDS.user}
+                  >
+                    <p className="whitespace-pre-wrap text-xs font-medium leading-relaxed text-foreground">
+                      {entry.text}
+                    </p>
+                    {entry.attachments.length > 0 ? (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {entry.attachments.map((attachment) => (
+                          <span
+                            key={attachment.id}
+                            className="rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-2xs text-primary"
+                          >
+                            {attachment.label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </StudioOperatorTimelineRow>
+                )
+              case 'message':
+                return (
+                  <StudioOperatorTimelineRow
+                    key={entry.id}
+                    node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+                  >
+                    <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground">
+                      {entry.text}
+                    </p>
+                  </StudioOperatorTimelineRow>
+                )
+              case 'plan':
+                return (
+                  <StudioOperatorTimelineRow
+                    key={entry.id}
+                    node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+                  >
+                    <div
+                      data-testid="operator-plan"
+                      className="overflow-hidden rounded-xl border border-border bg-card"
+                    >
+                      <p className="border-b border-border px-3 py-2 text-xs font-semibold text-foreground">
+                        {t('planTitle')}
+                      </p>
+                      <ul className="flex flex-col gap-1 p-3">
+                        {entry.steps.map((step, index) => (
+                          <li
+                            key={step}
+                            className="flex items-baseline gap-2 text-xs text-foreground"
+                          >
+                            <span className="shrink-0 font-mono text-3xs tracking-nav tabular-nums text-muted-foreground">
+                              {String(index + 1).padStart(2, '0')}
+                            </span>
+                            <span className="min-w-0">{step}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </StudioOperatorTimelineRow>
+                )
+              case 'step': {
+                /**
+                 * ⭐ 看图那一条渲染成**评价卡**而不是日志条（拍板 6）：证据要长在
+                 * 结论里，而日志条画不下一张图 + 四条结论。这里能走到的只有
+                 * 「跑完且有结果」那一支 —— 其余在分组时就并进 ToolGroup 了。
+                 */
+                const { step } = entry
+                if (
+                  step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult ||
+                  step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done ||
+                  !step.result
+                ) {
+                  return null
+                }
+                return (
+                  <StudioOperatorTimelineRow
+                    key={entry.id}
+                    node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+                  >
+                    <StudioOperatorCritiqueCard
+                      step={{ ...step, result: step.result }}
+                      runKey={entry.runKey}
+                      roundChangeCount={countRoundChanges(entry.runKey)}
+                      onRevertRound={revertRound}
+                    />
+                  </StudioOperatorTimelineRow>
                 )
               }
-              return (
-                <StudioOperatorLogItem
-                  key={entry.id}
-                  entryId={entry.id}
-                  step={step}
-                  undone={entry.undone}
-                  onUndo={undoStep}
-                  // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
-                  //    传一个每次 render 都换引用的对象等于把 memo 关掉。
-                  webImport={webImport.states[entry.id]}
-                  webImportLimit={webImport.limit}
-                  onToggleWebImage={webImport.toggleCandidate}
-                />
-              )
+              case 'system':
+                return (
+                  <StudioOperatorTimelineRow
+                    key={entry.id}
+                    node={STUDIO_OPERATOR_NODE_KINDS.system}
+                  >
+                    <p
+                      data-testid="operator-system-line"
+                      className="text-2xs leading-relaxed text-muted-foreground"
+                    >
+                      {/* ⚠ 两种 subject：`revertField` 存的是**字段 id**（要过词表
+                          才是人话），`undoStep` 存的是模型写的那行标题（本来就是
+                          人话，翻译它等于把它弄丢）。 */}
+                      {t(`system.${entry.code}`, {
+                        subject:
+                          entry.code === 'revertField' && entry.subject
+                            ? t(`field.${entry.subject}`)
+                            : (entry.subject ?? ''),
+                        count: entry.count ?? 0,
+                      })}
+                    </p>
+                  </StudioOperatorTimelineRow>
+                )
+              /**
+               * 切域标记（拍板 8：切域换工具，会话不断）。
+               *
+               * ⚠ `entry.domain` 存的是**域 id**，印之前必须过词表 —— 直接塞进
+               * 文案会在中文界面上印出一个英文的 `video`。
+               */
+              case 'domainMark':
+                return (
+                  <StudioOperatorTimelineRow
+                    key={entry.id}
+                    node={STUDIO_OPERATOR_NODE_KINDS.system}
+                  >
+                    <p
+                      data-testid="operator-domain-mark"
+                      data-domain={entry.domain}
+                      className="text-2xs leading-relaxed text-muted-foreground"
+                    >
+                      {t('domainMark', {
+                        domain: t(`domainName.${entry.domain}`),
+                      })}
+                    </p>
+                  </StudioOperatorTimelineRow>
+                )
             }
-            case 'system':
-              return (
-                <p
-                  key={entry.id}
-                  data-testid="operator-system-line"
-                  className="mx-auto rounded-full border border-dashed border-destructive/40 bg-destructive/5 px-3 py-1 text-2xs text-destructive"
-                >
-                  {/* ⚠ 两种 subject：`revertField` 存的是**字段 id**（要过词表
-                      才是人话），`undoStep` 存的是模型写的那行标题（本来就是
-                      人话，翻译它等于把它弄丢）。 */}
-                  {t(`system.${entry.code}`, {
-                    subject:
-                      entry.code === 'revertField' && entry.subject
-                        ? t(`field.${entry.subject}`)
-                        : (entry.subject ?? ''),
-                    count: entry.count ?? 0,
-                  })}
-                </p>
-              )
-            /**
-             * 切域标记（拍板 8：切域换工具，会话不断）。
-             *
-             * ⚠ `entry.domain` 存的是**域 id**，印之前必须过词表 —— 直接塞进
-             * 文案会在中文界面上印出一个英文的 `video`。
-             * ⚠ 用的是 `domainName` 而**不是** chip 那三条：chip 写的是「在视频
-             * 工作台」（一句状语），塞进「切到{domain}」会读成「切到在视频工作台」。
-             * 同一个东西的两种语法位置，两套词条。
-             */
-            case 'domainMark':
-              return (
-                <p
-                  key={entry.id}
-                  data-testid="operator-domain-mark"
-                  data-domain={entry.domain}
-                  className="mx-auto rounded-full border border-dashed border-border px-3 py-1 text-2xs text-muted-foreground"
-                >
-                  {t('domainMark', { domain: t(`domainName.${entry.domain}`) })}
-                </p>
-              )
-          }
-        })}
+          })}
 
-        {status === 'error' ? (
-          <p
-            data-testid="operator-error"
-            className="rounded-lg border border-destructive/40 bg-destructive/5 px-2.5 py-2 text-2xs text-destructive"
-          >
-            {errorText ?? t('error.generic')}
-          </p>
-        ) : null}
+          {status === 'error' ? (
+            <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.system}>
+              <p
+                data-testid="operator-error"
+                className="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5 text-2xs text-destructive"
+              >
+                {errorText ?? t('error.generic')}
+              </p>
+            </StudioOperatorTimelineRow>
+          ) : null}
+        </div>
       </div>
 
       {/* ── 建议药丸：语境化，点即发送（拍板 15）────────────────── */}
@@ -539,7 +613,7 @@ export function StudioOperatorPanel({
               type="button"
               data-testid="operator-suggestion"
               onClick={() => submit(t(`suggestion.${suggestion.id}`))}
-              className="rounded-full border border-primary/30 bg-background px-2.5 py-1 text-2xs text-primary transition-colors duration-fast ease-standard hover:bg-primary/10"
+              className="rounded-full border border-primary/30 bg-card px-2.5 py-1 text-2xs text-primary transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/10"
             >
               {t(`suggestion.${suggestion.id}`)}
             </button>
@@ -673,7 +747,7 @@ export function StudioOperatorPanel({
       ) : null}
 
       {/* ── 输入区：上行工具条 + 下行输入（拍板 12）──────────────── */}
-      <div className="flex shrink-0 flex-col gap-1.5 border-t border-border/60 bg-background/95 px-3 py-2.5">
+      <div className="flex shrink-0 flex-col gap-1.5 border-t border-border bg-card px-3 py-2.5">
         <div data-testid="operator-toolbar" className="flex items-center gap-2">
           <button
             ref={attachTriggerRef}
@@ -687,7 +761,7 @@ export function StudioOperatorPanel({
             data-operator-attach-trigger
             onClick={() => setAttachOpen((open) => !open)}
             className={cn(
-              'grid size-7 place-items-center rounded-lg border border-border/70 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground',
+              'grid size-7 place-items-center rounded-lg border border-border/70 text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground',
               attachOpen && 'border-primary/40 bg-primary/10 text-primary',
             )}
           >
@@ -711,7 +785,7 @@ export function StudioOperatorPanel({
               aria-label={t('stop')}
               title={t('stop')}
               onClick={stop}
-              className="grid size-7 place-items-center rounded-lg border border-destructive/40 bg-destructive/5 text-destructive transition-colors duration-fast ease-standard hover:bg-destructive/10"
+              className="grid size-7 place-items-center rounded-lg border border-destructive/40 bg-destructive/5 text-destructive transition-colors duration-(--duration-fast) ease-standard hover:bg-destructive/10"
             >
               <Square className="size-3" aria-hidden />
             </button>
@@ -749,7 +823,7 @@ export function StudioOperatorPanel({
             placeholder={
               working ? t('placeholderWorking') : t('placeholderIdle')
             }
-            className="max-h-24 min-h-9 flex-1 resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-xs outline-none transition-colors duration-fast ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+            className="max-h-24 min-h-9 flex-1 resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-xs outline-none transition-colors duration-(--duration-fast) ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
           />
           <button
             type="button"
@@ -774,7 +848,7 @@ export function StudioOperatorPanel({
                   : t('send')
             }
             onClick={() => submit(draft)}
-            className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors duration-fast ease-standard hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {uploading ? (
               <Spinner size="sm" className="text-primary-foreground" />

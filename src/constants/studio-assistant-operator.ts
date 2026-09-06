@@ -227,19 +227,63 @@ export const STUDIO_OPERATOR_HISTORY = {
 } as const
 
 /**
- * 胶囊（收起态）说什么 —— 拍板 7 的收放法则要求胶囊**有状态文本**，
- * 不是一颗光秃秃的图标：面板让位之后，它是助手唯一还看得见的那一行。
+ * 面板外壳的几何（方向 C · `pages/assistant-shell.md` §11.1）。
+ *
+ * ⚠ 只放**不在 Tailwind 尺度上**的那几个数：48 = `w-12`、40 = `h-10`、24 = `p-6`
+ * 都能用工具类写，但它们同时是**真机验证要读的值**（面板宽 / inset / 轨宽 / 带高），
+ * 写在这里是为了测试与组件读同一个数，⛔ 不是为了让组件去算 style。
  */
-export const STUDIO_OPERATOR_PILL_TONES = {
-  /** 干活中（n/m）。 */
-  working: 'working',
-  /** 已备好 · $x —— 生成键亮着，等用户点。 */
-  primed: 'primed',
-  /** 已看完 · 有建议（P3 的评价闭环回来时用）。 */
-  alert: 'alert',
-  /** 什么都没在跑。 */
-  idle: 'idle',
+export const STUDIO_OPERATOR_SHELL = {
+  /** 收起态图标轨的宽（拍板 7：胶囊 → 48px 竖轨）。 */
+  railWidthPx: 48,
+  /** 顶部进度带的高（§2.4：~40px，钉住不滚）。 */
+  progressBandHeightPx: 40,
+  /** 面板 fixed 的 top/right/bottom（§11.1）。 */
+  insetPx: 24,
 } as const
 
-export type StudioOperatorPillTone =
-  (typeof STUDIO_OPERATOR_PILL_TONES)[keyof typeof STUDIO_OPERATOR_PILL_TONES]
+/**
+ * 时间线沟（§11.3）。
+ *
+ * ⚠ `gutterPx` 与 `linePx` **不在 Tailwind 尺度上**（78 / 18），所以走 style ——
+ * ⛔ 不写 `grid-cols-[78px_1fr]`（Hard Rule 5：不用 arbitrary value），也不为它
+ * 去改 `globals.css` 的 `@theme inline`（那是全站脊柱，一个面板的沟宽不配进去）。
+ * ⚠ `linePx` 必须等于「流的左内距 + 节点半宽」：节点与贯穿竖线**同轴**是这条沟
+ * 唯一的视觉承诺，两个数分开调就会看到线从节点旁边擦过去。
+ */
+export const STUDIO_OPERATOR_TIMELINE = {
+  /** 沟宽（节点 + 形状节点行的常显时间戳）。 */
+  gutterPx: 78,
+  /** 贯穿竖线距流左缘多少 —— 同时是节点圆心的 x。 */
+  linePx: 18,
+} as const
+
+/**
+ * ToolGroup 跑完之后**多久自动收起**（§3.1 ⑧：停留 1000ms，标题变「用时 Ns」）。
+ *
+ * ⚠ 不是 0：跑完那一瞬间立刻折起来，用户会觉得「刚才那几行是我看花眼了」。
+ * ⚠ 也不做「永不自动收起」：结果优先是方向 C 的全部意义，过程默认该让位。
+ */
+export const STUDIO_OPERATOR_TOOL_GROUP_COLLAPSE_MS = 1000
+
+/**
+ * 图标轨上那颗**状态点**的四档语义（拍板 7 改口：胶囊没了，语义迁到状态点）。
+ *
+ * ⚠ 这里是**语义档**不是颜色：颜色在组件里按脊柱四 token 落地
+ * （`ui-defaults.md §2.1` + `assistant-shell.md §11.2`），⛔ 常量层不存 hex。
+ * ⚠ 值同时是 i18n 键的后缀（`StudioOperator.rail.*`）—— 收起之后这一行字是助手
+ * 唯一还看得见的东西，光一颗点等于什么都没说。
+ */
+export const STUDIO_OPERATOR_RAIL_TONES = {
+  /** 什么都没在跑。 */
+  idle: 'idle',
+  /** 干活中（进度环 + 脉冲）。 */
+  working: 'working',
+  /** 停在就地确认上，等用户定。 */
+  awaiting: 'awaiting',
+  /** 这一轮失败了。 */
+  error: 'error',
+} as const
+
+export type StudioOperatorRailTone =
+  (typeof STUDIO_OPERATOR_RAIL_TONES)[keyof typeof STUDIO_OPERATOR_RAIL_TONES]

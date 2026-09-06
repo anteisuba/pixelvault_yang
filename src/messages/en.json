@@ -1265,18 +1265,18 @@
         },
         "fish": {
           "pos": "The workhorse for lines: the name people trust for natural Chinese speech.",
-          "fare": "$0.20 / thousand characters",
-          "routes": "On ANTEI · the free s2.1-pro-free tier is live",
+          "fare": "Free tier $0; paid tier $15 / million UTF-8 bytes",
+          "routes": "On ANTEI · S2.1 Pro free / paid tiers",
           "src": "fish.audio official artwork",
           "tags": {
             "0": "Chinese dialogue",
             "1": "Voice library",
-            "2": "Free tier"
+            "2": "Free / paid options"
           },
           "plus": {
             "0": "First rank for natural spoken Chinese",
             "1": "Pick from the in-app voice library, or clone",
-            "2": "The free tier is wired up (s2.1-pro-free)"
+            "2": "S2.1 Pro free and paid tiers connected"
           },
           "minus": {
             "0": "Slightly flat English accent",
@@ -3890,8 +3890,8 @@
       "description": "Google's latest — 4K, native audio, dialogue sync"
     },
     "geminiOmniFlash": {
-      "label": "Gemini Omni Flash",
-      "description": "Google video (still preview API id) — strong arena standing, native audio; watch for GA id."
+      "label": "Gemini Omni 1.1 Flash",
+      "description": "Generate video with native audio from text and reference images."
     },
     "seedance25Volcengine": {
       "label": "Seedance 2.5 (VolcEngine)",
@@ -3988,6 +3988,10 @@
     "seedance25ReferenceByteplus": {
       "label": "Seedance 2.5 (Reference, BytePlus)",
       "description": "BytePlus international multimodal reference generation with up to 30 images, 10 videos, and 10 audio clips."
+    },
+    "fishAudioS2ProFree": {
+      "label": "Fish Audio S2.1 Pro Free",
+      "description": "Free upstream TTS; bring your Fish API key. Subject to Fair Use."
     }
   },
   "PromptPresets": {
@@ -6436,6 +6440,9 @@
       "invalidOutput": "The analysis could not be turned into structured findings (already retried once). Try another image, or try again later.",
       "insufficientMedia": "Comparing needs at least two images.",
       "framesInvalid": "The extracted frames don't match the deterministic plan. Re-run the extraction."
+    },
+    "projectRule": {
+      "limitReached": "You already have the most rules this app keeps. Delete one to make room."
     }
   },
   "Transform": {
@@ -6843,11 +6850,6 @@
   },
   "StudioOperator": {
     "title": "Assistant",
-    "domainChip": {
-      "image": "on the image bench",
-      "video": "on the video bench",
-      "lora": "on the LoRA bench"
-    },
     "domainName": {
       "image": "the image bench",
       "video": "the video bench",
@@ -6866,6 +6868,7 @@
     "share": "Share this chat",
     "feedback": "Send feedback",
     "collapse": "Collapse assistant",
+    "expand": "Expand assistant",
     "resize": "Drag to resize the assistant",
     "empty": "Say what you want. Anything free it just does; anything that costs credits stops at a pre-filled generate button for you to press.",
     "planTitle": "Plan · the free steps happen right away",
@@ -6876,12 +6879,39 @@
     "sendInterrupt": "Cut in — the assistant takes this and adjusts its plan",
     "stop": "Stop the current work",
     "lightboxLabel": "View full size",
-    "pill": {
-      "idle": "Assistant",
-      "working": "Assistant · working",
-      "workingCount": "Assistant · working {done}/{total}",
-      "awaitingConfirm": "Waiting on you · how to write the prompt",
-      "primed": "Ready · generate button is armed"
+    "rail": {
+      "idle": "Idle",
+      "working": "Working",
+      "awaiting": "Your call",
+      "error": "Failed",
+      "primed": "Ready"
+    },
+    "band": {
+      "working": "Working",
+      "state": {
+        "done": "done",
+        "running": "running",
+        "failed": "failed"
+      }
+    },
+    "toolGroup": {
+      "title": "{count} operations",
+      "elapsed": "took {seconds}s",
+      "succeeded": "{count} ok",
+      "failed": "{count} failed"
+    },
+    "checkpoint": {
+      "summary": "Changed {count}: {fields}",
+      "undo": "Undo",
+      "choice": {
+        "params": "Params only",
+        "thread": "Params + chat",
+        "cancel": "Cancel"
+      },
+      "reverted": {
+        "params": "Undone · params only",
+        "thread": "Undone · params + chat"
+      }
     },
     "log": {
       "undo": "Undo"
@@ -7005,6 +7035,62 @@
     },
     "error": {
       "generic": "The assistant did not finish this round"
+    },
+    "assistantSettings": "Assistant settings",
+    "persona": {
+      "title": "Assistant settings",
+      "description": "Who this assistant is and how it talks. One set, shared by every workbench.",
+      "save": "Save",
+      "saved": "Saved",
+      "cancel": "Cancel",
+      "reset": "Reset to defaults",
+      "saveFailed": "Could not save. Try again.",
+      "scopeNote": "Applies everywhere — image, video and LoRA alike.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Leave empty to use the workbench name",
+      "nameHint": "Up to 24 characters.",
+      "avatarLabel": "Avatar",
+      "avatarPresets": "Presets",
+      "avatarUpload": "Upload",
+      "avatarUploading": "Uploading…",
+      "avatarRemove": "Remove custom avatar",
+      "avatarTooLarge": "That image is over 5 MB.",
+      "avatarUnsupported": "Use a JPEG, PNG or WebP image.",
+      "toneLabel": "Tone",
+      "tone": {
+        "professional": "Professional",
+        "friendly": "Friendly",
+        "terse": "Terse",
+        "custom": "Custom"
+      },
+      "toneCustomPlaceholder": "Describe how it should sound, in one line",
+      "toneCustomRequired": "Write that one line, or pick another tone.",
+      "verbosityLabel": "Reply length",
+      "verbosity": {
+        "concise": "Concise",
+        "standard": "Standard",
+        "detailed": "Detailed"
+      },
+      "planModeLabel": "Default behaviour",
+      "planModeHint": "Asking first for a single turn always wins over this.",
+      "planMode": {
+        "always": "Ask first",
+        "auto": "Auto",
+        "direct": "Go ahead"
+      },
+      "languageLabel": "Reply language",
+      "language": {
+        "ui": "Interface",
+        "chinese": "Chinese",
+        "english": "English"
+      }
+    },
+    "rule": {
+      "recordedOn": "recorded {date}",
+      "sourceAssistant": "from your conversation",
+      "sourceCreator": "written by you",
+      "view": "View rule",
+      "scopeAll": "all workbenches"
     }
   },
   "GenerationCancel": {

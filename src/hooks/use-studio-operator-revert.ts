@@ -29,6 +29,7 @@ import {
   getOperatorState,
   markOperatorStepUndone,
   nextOperatorEntryId,
+  truncateOperatorThreadAfterRound,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import {
@@ -73,8 +74,20 @@ export interface UseStudioOperatorRevertResult {
    * 收的是那一轮的 token（`StudioOperatorStepEntry.runKey`）。
    */
   revertRound(runKey: string): void
+  /**
+   * checkpoint 薄卡的「连对话一起回」（§3.2）—— 参数回滚 **+ 截断该轮之后的线程**。
+   *
+   * ⭐ 复用的仍是 `revertRound` 那一条机制，⛔ 没有第二套逆操作：区别只在多截一刀。
+   */
+  revertRoundThread(runKey: string): void
   /** 那一轮有几处可还原 —— 按钮上写的那个数；0 时按钮不该出现。 */
   countRoundChanges(runKey: string): number
+  /**
+   * 那一轮碰过哪几个字段 —— checkpoint 薄卡上「已改 3 项：模型 · 提示词 · 参考图」
+   * 的后半句。⚠ 去重且按 `STUDIO_OPERATOR_FIELDS` 的顺序排：同一轮里同一个字段
+   * 被改两次时列两遍，用户会以为助手动了四处。
+   */
+  roundFields(runKey: string): readonly StudioOperatorField[]
   /** 现在有几处改动 —— 「还原助手的全部改动（N 处）」里的那个数。 */
   changeCount: number
 }
@@ -258,6 +271,21 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
   )
 
   /**
+   * 「连对话一起回」。
+   *
+   * ⚠ **先截断再回滚**：`revertRound` 的最后一件事是往线程尾部插一条系统行
+   * （「你还原了这一轮的 N 处改动」），反过来做会把刚插进去的那条一起截掉 ——
+   * 表现是「撤了，但线程里什么都没说」，正是拍板 18 明令要避免的那种静默。
+   */
+  const revertRoundThread = useCallback(
+    (runKey: string) => {
+      truncateOperatorThreadAfterRound(runKey)
+      revertRound(runKey)
+    },
+    [revertRound],
+  )
+
+  /**
    * ⚠ 从 `operatorState` 现算而不是从 `getOperatorState()`：这个数印在按钮上，
    * 要跟着渲染走。（`revertRound` 里读的是「此刻」，那是事件处理器，两者不同。）
    */
@@ -272,6 +300,26 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
     [operatorState.entries],
   )
 
+  const roundFields = useCallback(
+    (runKey: string) => {
+      const touched = new Set(
+        operatorState.entries
+          .filter(
+            (entry): entry is StudioOperatorStepEntry =>
+              entry.kind === 'step' &&
+              entry.runKey === runKey &&
+              isRevertableStepEntry(entry),
+          )
+          .map((entry) => getOperatorStepField(entry.step))
+          .filter((field): field is StudioOperatorField => field !== null),
+      )
+      // ⚠ 按登记簿的顺序排，不按发生顺序：参数栏上的 ✦ 也是这个顺序，两处对不上
+      //   会让人以为它们说的是两件事。
+      return STUDIO_OPERATOR_FIELDS.filter((field) => touched.has(field))
+    },
+    [operatorState.entries],
+  )
+
   const changeCount = STUDIO_OPERATOR_FIELDS.filter(
     (field) => operatorState.changes[field] !== undefined,
   ).length
@@ -281,7 +329,9 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
     revertField,
     revertAll,
     revertRound,
+    revertRoundThread,
     countRoundChanges,
+    roundFields,
     changeCount,
   }
 }

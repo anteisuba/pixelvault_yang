@@ -1,10 +1,15 @@
 'use client'
 
 /**
- * 操作员面板的**外壳**：三态（展开 ↔ 胶囊）、注意力收放法则、左缘拖拽与宽度记忆。
+ * 操作员面板的**外壳**：两态（展开 ↔ 48px 图标轨）、注意力收放法则、左缘拖拽与
+ * 宽度记忆。
+ *
+ * ⭐ **胶囊已删**（拍板 7 改口 · `pages/assistant-shell.md` §2.3）：收起态是同一个
+ * `<aside>` 收到 48px，不再是另一颗 fixed 在别处的按钮。收放规则一字未改，变的只有
+ * 形态 —— 胶囊横向占位不可预期，而这条轨宽度恒定，收起前后主区永远不重排。
  *
  * ## 注意力收放法则（拍板 7 —— 唯一的收放规则）
- * 点工作台任意处 → 收成胶囊；点**提示词框**或**助手面板**→ 不收；点胶囊 → 展开。
+ * 点工作台任意处 → 收成图标轨；点**提示词框**或**助手面板**→ 不收；点轨 → 展开。
  * **没有定时器，没有流程钩子。** 推论：点生成键属于「工作台任意处」，所以扣扳机
  * 时面板自动让位 —— 这条不需要单独写代码，它是同一条规则的结果。
  *
@@ -27,14 +32,14 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
-import { GripVertical, Sparkles } from 'lucide-react'
+import { GripVertical } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import {
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
   STUDIO_OPERATOR_PANEL_RESIZE as RESIZE,
+  STUDIO_OPERATOR_SHELL,
 } from '@/constants/studio-assistant-operator'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -48,6 +53,7 @@ import {
 } from '@/hooks/use-studio-operator-store'
 import { useStudioOperatorUpload } from '@/hooks/use-studio-operator-upload'
 import { useStudioOperatorWebImport } from '@/hooks/use-studio-operator-web-import'
+import { StudioOperatorIconRail } from '@/components/business/studio/assistant-operator/StudioOperatorIconRail'
 import { StudioOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { StudioOperatorPanel } from '@/components/business/studio/assistant-operator/StudioOperatorPanel'
 import { cn } from '@/lib/utils'
@@ -119,8 +125,8 @@ export function StudioOperatorDock() {
    */
   const { open, setOpen, referenceLimit } = useStudioOperatorHost()
   const isMobile = useIsMobile()
-  const reduceMotion = useReducedMotion()
-  const { status, primed, stepsDone, plannedSteps } = useStudioOperatorState()
+  const { status, primed, stepsDone, plannedSteps, domain } =
+    useStudioOperatorState()
   /**
    * ⭐ 驱动 hook 在**外壳**这一层调用，不在面板里：收起面板时面板会被卸载，
    * 而收起（拍板 7）绝不该把在飞的那一轮掐掉 —— 胶囊上那句「干活中 3/7」
@@ -319,21 +325,6 @@ export function StudioOperatorDock() {
   // 小屏走的是抽屉那条路（`StudioEnhanceButton` 里的宿主），这里不占位。
   if (isMobile) return null
 
-  /**
-   * 胶囊上的那一行字（拍板 7 要求胶囊**有状态**）—— 面板让位之后它是助手唯一
-   * 还看得见的一行，写「助手」两个字等于什么都没说。
-   */
-  const pillLabel = (() => {
-    if (status === 'working') {
-      return plannedSteps > 0
-        ? t('pill.workingCount', { done: stepsDone, total: plannedSteps })
-        : t('pill.working')
-    }
-    if (status === 'awaitingConfirm') return t('pill.awaitingConfirm')
-    if (primed) return t('pill.primed')
-    return t('pill.idle')
-  })()
-
   return (
     <>
       {/* ⚠ **不用 `AnimatePresence`**（只做入场，不做退场）。
@@ -342,104 +333,86 @@ export function StudioOperatorDock() {
           却仍然占着右半屏并吃掉点击的幽灵面板（灯箱那颗更糟：全屏）。
           2026-08-30 真机实测撞到，判据是 `document.visibilityState === 'hidden'`
           时元素停在退场的终态却不消失。
-          收起本来就该是「让位」这种干脆的动作，退场动画不值这个风险。 */}
-      {open ? (
-        <motion.aside
-          key="operator-panel"
-          role="complementary"
-          aria-label={t('title')}
-          {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
-          data-testid="operator-panel"
-          style={{ width: `${width}px` }}
-          initial={reduceMotion ? false : { opacity: 0, x: 24, scale: 0.97 }}
-          animate={{ opacity: 1, x: 0, scale: 1 }}
-          transition={{
-            duration: reduceMotion ? 0 : 0.28,
-            ease: [0.3, 0.9, 0.3, 1],
-          }}
-          // bottom-6/right-6/top-6 而不是 -4：工作台脊柱接入后舞台内缩 18px
-          // （`.workbench-card`），面板贴视口边会压住卡片圆角。
-          className="fixed bottom-6 right-6 top-6 z-40 hidden flex-col overflow-hidden rounded-xl border border-border/60 bg-background/55 shadow-sm backdrop-blur-sm lg:flex"
-        >
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label={t('resize')}
-            aria-valuemin={RESIZE.minWidthPx}
-            aria-valuemax={RESIZE.maxWidthPx}
-            aria-valuenow={width}
-            tabIndex={0}
-            data-testid="operator-resize-handle"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            onKeyDown={handleKeyDown}
-            onDoubleClick={() => writeWidth(RESIZE.defaultWidthPx)}
-            title={t('resize')}
-            className="group absolute inset-y-0 left-0 z-10 flex w-2.5 cursor-col-resize items-center justify-center focus:outline-none"
-          >
-            <span
-              className={cn(
-                'flex h-14 w-1.5 items-center justify-center rounded-full bg-border/80 text-muted-foreground transition-colors duration-fast ease-standard group-hover:bg-primary/40 group-focus-visible:bg-primary/60',
-                isResizing && 'bg-primary/60',
-              )}
+          ⭐ 收起之后这颗 `<aside>` **不卸载**，它收到 48px 变成图标轨 —— 一个元素
+          两态，宽度过渡就是收放动画本身（§11.5：width 走 slow），⛔ 不需要
+          第二个 fixed 元素在别处淡入淡出。 */}
+      <aside
+        role="complementary"
+        aria-label={t('title')}
+        {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+        data-testid="operator-panel"
+        data-open={open ? 'true' : 'false'}
+        style={{
+          width: `${open ? width : STUDIO_OPERATOR_SHELL.railWidthPx}px`,
+        }}
+        // ⚠ 拖拽中关掉过渡：320ms 的 width 过渡会让把手「跟不上手」。
+        className={cn(
+          'fixed bottom-6 right-6 top-6 z-40 hidden flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg lg:flex',
+          !isResizing &&
+            'transition-[width] duration-(--duration-slow) ease-standard motion-reduce:transition-none',
+        )}
+      >
+        {open ? (
+          <>
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t('resize')}
+              aria-valuemin={RESIZE.minWidthPx}
+              aria-valuemax={RESIZE.maxWidthPx}
+              aria-valuenow={width}
+              tabIndex={0}
+              data-testid="operator-resize-handle"
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              onKeyDown={handleKeyDown}
+              onDoubleClick={() => writeWidth(RESIZE.defaultWidthPx)}
+              title={t('resize')}
+              className="group absolute inset-y-0 left-0 z-10 flex w-2.5 cursor-col-resize items-center justify-center focus:outline-none"
             >
-              <GripVertical className="size-3" aria-hidden />
-            </span>
-          </div>
-          {isResizing ? (
-            <span
-              data-testid="operator-width-tip"
-              className="absolute left-3 top-3 z-20 rounded-md bg-foreground px-2 py-0.5 font-mono text-2xs text-background"
-            >
-              {`${width}px`}
-            </span>
-          ) : null}
+              <span
+                className={cn(
+                  'flex h-14 w-1.5 items-center justify-center rounded-full bg-border text-muted-foreground transition-colors duration-(--duration-fast) ease-standard group-hover:bg-primary/40 group-focus-visible:bg-primary/60',
+                  isResizing && 'bg-primary/60',
+                )}
+              >
+                <GripVertical className="size-3" aria-hidden />
+              </span>
+            </div>
+            {isResizing ? (
+              <span
+                data-testid="operator-width-tip"
+                className="absolute left-3 top-3 z-20 rounded-md bg-foreground px-2 py-0.5 font-mono text-2xs tabular-nums text-background"
+              >
+                {`${width}px`}
+              </span>
+            ) : null}
 
-          <StudioOperatorPanel
-            operator={operator}
-            draft={draft}
-            onDraftChange={setDraft}
-            attachments={attachments}
-            onAttachmentsChange={setAttachments}
-            upload={upload}
-            webImport={webImport}
-            history={history}
-            onCollapse={() => setOpen(false)}
+            <StudioOperatorPanel
+              operator={operator}
+              draft={draft}
+              onDraftChange={setDraft}
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+              upload={upload}
+              webImport={webImport}
+              history={history}
+              onCollapse={() => setOpen(false)}
+            />
+          </>
+        ) : (
+          <StudioOperatorIconRail
+            domain={domain}
+            status={status}
+            primed={primed}
+            stepsDone={stepsDone}
+            plannedSteps={plannedSteps}
+            onExpand={() => setOpen(true)}
           />
-        </motion.aside>
-      ) : null}
-
-      {/* ── 胶囊（收起态）—— 点它展开（拍板 7）────────────────────── */}
-      {open ? null : (
-        <motion.button
-          key="operator-pill"
-          type="button"
-          data-testid="operator-pill"
-          onClick={() => setOpen(true)}
-          initial={reduceMotion ? false : { opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.2 }}
-          className={cn(
-            // right-6/top-6 而不是 -4：同上，收进 `.workbench-card` 的右上角。
-            'fixed right-6 top-6 z-50 hidden items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:inline-flex',
-            primed &&
-              'ring-2 ring-primary ring-offset-2 ring-offset-background',
-          )}
-        >
-          <span
-            className={cn(
-              'size-1.5 rounded-full bg-primary',
-              status !== 'working' && 'hidden',
-              status === 'working' && 'animate-pulse',
-            )}
-            aria-hidden
-          />
-          <Sparkles className="size-3.5" aria-hidden />
-          {pillLabel}
-        </motion.button>
-      )}
+        )}
+      </aside>
 
       <StudioOperatorLightbox />
     </>

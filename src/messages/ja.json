@@ -1265,18 +1265,18 @@
         },
         "fish": {
           "pos": "セリフの主力：中国語音声の自然さで評判の一段。",
-          "fare": "$0.20 / 千文字",
-          "routes": "ANTEI では s2.1-pro-free 無料帯が稼働中",
+          "fare": "無料枠 $0；有料枠 $15 / 100万 UTF-8 バイト",
+          "routes": "ANTEI · S2.1 Pro 無料 / 有料の2枠",
           "src": "fish.audio 公式ビジュアル",
           "tags": {
             "0": "中国語セリフ",
             "1": "音色ライブラリ",
-            "2": "無料帯"
+            "2": "無料 / 有料を選択"
           },
           "plus": {
             "0": "中国語の話し言葉の自然さは第一線",
             "1": "サイト内の音色ライブラリから直接選択、クローンも可",
-            "2": "無料帯を接続済み（s2.1-pro-free）"
+            "2": "S2.1 Pro 無料版・有料版に対応"
           },
           "minus": {
             "0": "英語のアクセントはやや平板",
@@ -3890,8 +3890,8 @@
       "description": "Google最新 — 4K、ネイティブ音声、対話同期"
     },
     "geminiOmniFlash": {
-      "label": "Gemini Omni Flash",
-      "description": "Google 動画（API は preview id のまま）— アリーナ高評価、ネイティブ音声。GA id 公開後に切替。"
+      "label": "Gemini Omni 1.1 Flash",
+      "description": "テキストと参照画像から音声付きの動画を生成。"
     },
     "seedance25Volcengine": {
       "label": "Seedance 2.5（VolcEngine）",
@@ -3988,6 +3988,10 @@
     "seedance25ReferenceByteplus": {
       "label": "Seedance 2.5（参照・BytePlus）",
       "description": "BytePlus 国際リージョンのマルチモーダル参照生成。最大 30 画像 / 10 動画 / 10 音声。"
+    },
+    "fishAudioS2ProFree": {
+      "label": "Fish Audio S2.1 Pro Free",
+      "description": "上流 API 無料の TTS。Fish API キーが必要。フェアユース制限あり。"
     }
   },
   "PromptPresets": {
@@ -6436,6 +6440,9 @@
       "invalidOutput": "分析結果を構造化できませんでした（一度再試行済み）。別の画像を試すか、時間をおいて再度お試しください。",
       "insufficientMedia": "比較には最低 2 枚の画像が必要です。",
       "framesInvalid": "抽出したフレームが決定的な抽出計画と一致しません。抽出をやり直してください。"
+    },
+    "projectRule": {
+      "limitReached": "ルールの上限に達しています。1 件削除してから追加してください。"
     }
   },
   "Transform": {
@@ -6843,11 +6850,6 @@
   },
   "StudioOperator": {
     "title": "アシスタント",
-    "domainChip": {
-      "image": "画像ワークベンチ",
-      "video": "動画ワークベンチ",
-      "lora": "LoRA ワークベンチ"
-    },
     "domainName": {
       "image": "画像ワークベンチ",
       "video": "動画ワークベンチ",
@@ -6866,6 +6868,7 @@
     "share": "この会話を共有",
     "feedback": "フィードバック",
     "collapse": "アシスタントを畳む",
+    "expand": "アシスタントを開く",
     "resize": "ドラッグで幅を変更",
     "empty": "やりたいことを一言どうぞ。無料の操作はそのまま実行し、クレジットを使うものは「押すだけ」の生成ボタンで止めます。",
     "planTitle": "計画 · 無料の手順はそのまま実行",
@@ -6876,12 +6879,39 @@
     "sendInterrupt": "割り込み —— 受け取って計画を組み直します",
     "stop": "作業を止める",
     "lightboxLabel": "拡大表示",
-    "pill": {
-      "idle": "アシスタント",
-      "working": "アシスタント · 作業中",
-      "workingCount": "アシスタント · 作業中 {done}/{total}",
-      "awaitingConfirm": "確認待ち · プロンプトの書き方",
-      "primed": "準備完了 · 生成ボタンが点灯"
+    "rail": {
+      "idle": "待機",
+      "working": "作業中",
+      "awaiting": "確認待ち",
+      "error": "失敗",
+      "primed": "準備完了"
+    },
+    "band": {
+      "working": "作業中",
+      "state": {
+        "done": "完了",
+        "running": "進行中",
+        "failed": "失敗"
+      }
+    },
+    "toolGroup": {
+      "title": "{count} 件の操作",
+      "elapsed": "所要 {seconds}s",
+      "succeeded": "{count} 成功",
+      "failed": "{count} 失敗"
+    },
+    "checkpoint": {
+      "summary": "{count} 項目を変更：{fields}",
+      "undo": "取り消す",
+      "choice": {
+        "params": "パラメータのみ戻す",
+        "thread": "会話ごと戻す",
+        "cancel": "キャンセル"
+      },
+      "reverted": {
+        "params": "取り消し済み · パラメータのみ",
+        "thread": "取り消し済み · 会話ごと"
+      }
     },
     "log": {
       "undo": "取り消す"
@@ -7005,6 +7035,62 @@
     },
     "error": {
       "generic": "今回のラウンドは最後まで走りませんでした"
+    },
+    "assistantSettings": "アシスタント設定",
+    "persona": {
+      "title": "アシスタント設定",
+      "description": "このアシスタントが誰で、どう話すか。1 セットで全ワークベンチ共通です。",
+      "save": "保存",
+      "saved": "保存しました",
+      "cancel": "キャンセル",
+      "reset": "初期値に戻す",
+      "saveFailed": "保存できませんでした。もう一度お試しください。",
+      "scopeNote": "画像・動画・LoRA すべてに適用されます。",
+      "nameLabel": "名前",
+      "namePlaceholder": "空欄ならワークベンチ名を使います",
+      "nameHint": "24 文字まで。",
+      "avatarLabel": "アイコン",
+      "avatarPresets": "プリセット",
+      "avatarUpload": "アップロード",
+      "avatarUploading": "アップロード中…",
+      "avatarRemove": "カスタムアイコンを削除",
+      "avatarTooLarge": "画像が 5 MB を超えています。",
+      "avatarUnsupported": "JPEG・PNG・WebP のいずれかを使ってください。",
+      "toneLabel": "口調",
+      "tone": {
+        "professional": "プロフェッショナル",
+        "friendly": "フレンドリー",
+        "terse": "簡潔",
+        "custom": "カスタム"
+      },
+      "toneCustomPlaceholder": "どんな話し方がいいか、一行で",
+      "toneCustomRequired": "その一行を書くか、別の口調を選んでください。",
+      "verbosityLabel": "返答の長さ",
+      "verbosity": {
+        "concise": "短め",
+        "standard": "標準",
+        "detailed": "詳しく"
+      },
+      "planModeLabel": "既定の動き",
+      "planModeHint": "その回だけ「先に聞いて」を指定した場合はそちらが優先されます。",
+      "planMode": {
+        "always": "先に聞く",
+        "auto": "自動",
+        "direct": "すぐ実行"
+      },
+      "languageLabel": "返答の言語",
+      "language": {
+        "ui": "画面に合わせる",
+        "chinese": "中国語",
+        "english": "英語"
+      }
+    },
+    "rule": {
+      "recordedOn": "{date} に記録",
+      "sourceAssistant": "会話から",
+      "sourceCreator": "自分で記入",
+      "view": "ルールを見る",
+      "scopeAll": "全ワークベンチ"
     }
   },
   "GenerationCancel": {

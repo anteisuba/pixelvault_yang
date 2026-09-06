@@ -1,5 +1,9 @@
-import { ASSISTANT_OPERATOR_TOOL_IDS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_STEP_STATUS_IDS,
+  ASSISTANT_OPERATOR_TOOL_IDS,
+} from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
+import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
 
 export function isOperatorResearchTool(tool: string): boolean {
   return (
@@ -68,6 +72,57 @@ export function groupOperatorResearchRuns(
     else groups.push({ runKey: step.runKey, indexes: [index] })
   }
   return groups
+}
+
+/**
+ * 这一轮的调查**查出东西来了没有**（2026-09-07 真机）。
+ *
+ * ⭐ 由来：一屏里三张调查卡，其中两张的结论行回落成占位文案「查了一下」（`goal`
+ * 空）且右上角写着「0 条证据」，有一张连候选图都没有 —— 一张既没有结论、没有
+ * 证据也没有候选的卡，占的是整整一张卡的重量，讲的是零。
+ * ⛔ 判据**不含 `goal`**：光有一句「我打算查 X」而什么都没查回来，仍然不值一张卡。
+ * ⚠ 不渲染卡 ≠ 把这几步藏起来：调用方那一支退回 `ToolGroup`（「N 个操作」那一行
+ *   折叠行），过程照旧可展开复核。
+ */
+export function hasOperatorResearchFindings(
+  steps: readonly StudioOperatorStepEntry[],
+): boolean {
+  for (const { step } of steps) {
+    // ⚠ 先判 `status` 再判 `tool` —— 与调查卡同一条收窄顺序（载荷只挂跑完那一支）。
+    if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) continue
+    if (
+      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+      (step.result?.evidence?.length ?? 0) > 0
+    ) {
+      return true
+    }
+    if (
+      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages &&
+      (step.result?.images?.length ?? 0) > 0
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * 新条目落位时**要不要跟着滚到底**（2026-09-07 真机）。
+ *
+ * ⭐ 由来：反问卡 / 新卡出现后视图停在旧位置 —— 那几张卡不是线程条目（住在 store
+ * 的 `plan` / `spend` / `choice` 里），滚动那一发只盯着 `entries`，于是「等你定」
+ * 的东西长在屏幕外面。
+ * ⚠ 判据是「**用户本来就在底部附近**」：他已经手动上滚去读三轮之前那段话时，
+ * 每来一条就把他拽回底部是本仓最讨厌的那种越俎代庖。阈值见常量头注。
+ */
+export function shouldStickOperatorScroll(metrics: {
+  scrollTop: number
+  scrollHeight: number
+  clientHeight: number
+}): boolean {
+  const distance =
+    metrics.scrollHeight - metrics.scrollTop - metrics.clientHeight
+  return distance <= STUDIO_OPERATOR_TIMELINE.stickToBottomPx
 }
 
 /**

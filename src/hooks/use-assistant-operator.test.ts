@@ -633,6 +633,69 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
     expect(store.getOperatorState().status).toBe('working')
   })
 
+  it('⭐ 连点两次「开始」**只发一次**（2026-09-07 真机：每次误点可能白烧 1 credit）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('分三步做')
+    })
+    await settle()
+    streams[0].emit(planRequestEvent(3))
+    await settle()
+
+    act(() => {
+      result.current.answerQuestions([
+        { questionId: 'q1', optionIds: ['half'] },
+      ])
+      result.current.answerQuestions([
+        { questionId: 'q1', optionIds: ['half'] },
+      ])
+    })
+    await settle()
+
+    // 第二发被 `plan.resolved` 挡掉 —— ⛔ 不是「发两次但第二次覆盖第一次」。
+    expect(streams).toHaveLength(2)
+  })
+
+  it('⭐ 点过「开始」的那一轮⛔ 不再立起新的待确认卡（服务端零会话态会再摆一帧）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('分三步做')
+    })
+    await settle()
+    streams[0].emit(planRequestEvent(3))
+    await settle()
+
+    act(() => {
+      result.current.answerQuestions([
+        { questionId: 'q1', optionIds: ['half'] },
+      ])
+    })
+    await settle()
+
+    // 续跑那条流里服务端又摆了一遍同样的计划 —— 这一轮**已经批过了**。
+    streams[1].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.plan,
+      steps: ['选模型', '写提示词', '备好生成键'],
+    })
+    streams[1].emit(planRequestEvent(3))
+    await settle()
+
+    const state = store.getOperatorState()
+    // 卡还是那张收起来的（`resolved`），⛔ 没有被一张新的待确认卡顶掉。
+    expect(state.plan?.resolved).toBe(true)
+    expect(state.status).toBe('working')
+    // 那份阶段落成一行折叠条目，⛔ 不再变成一张待确认卡。
+    expect(state.entries.filter((entry) => entry.kind === 'plan')).toHaveLength(
+      1,
+    )
+    // 流也没被掐 —— 后面的步照旧落地（此前那一支会 `return`）。
+    streams[1].emit(doneStepEvent('step-1'))
+    await settle()
+    expect(
+      store.getOperatorState().entries.some((entry) => entry.kind === 'step'),
+    ).toBe(true)
+  })
+
   it('「修改」⛔ 不发请求；下一条消息才带 planApproved: false，且只带一次', async () => {
     const { result } = render()
     act(() => {

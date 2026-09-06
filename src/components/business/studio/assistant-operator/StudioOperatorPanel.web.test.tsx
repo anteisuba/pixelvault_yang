@@ -401,3 +401,86 @@ describe('StudioOperatorPanel · 流式正文与加载态', () => {
     )
   })
 })
+
+/**
+ * 2026-09-07 真机三条的**接线闸**（调查卡 / checkpoint 去重）。
+ *
+ * ⭐ 与上面同一条论据：判据本身在 `lib/studio-operator-timeline.ts` 里单测过了，
+ * 但面板不用它的话屏幕上一点没变。
+ */
+describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
+  /** 一条跑完的步 —— `upsertOperatorStep` 收的形状。 */
+  function pushStep(runKey: string, step: Record<string, unknown>): void {
+    store.upsertOperatorStep(
+      step as unknown as Parameters<typeof store.upsertOperatorStep>[0],
+      runKey,
+    )
+  }
+
+  it('⭐ 证据与候选都为空 → ⛔ 不画调查卡，这一组退回 ToolGroup', () => {
+    pushStep('run-1', {
+      id: 'step-1',
+      title: '查了一下',
+      tool: 'research',
+      status: 'done',
+      payload: { goal: '', round: 1, sources: ['web'] },
+      result: { evidence: [], totalFound: 0 },
+    })
+    renderPanel()
+    expect(screen.queryByTestId('operator-research-card')).toBeNull()
+    // 过程没有被藏起来 —— 折叠行还在。
+    expect(screen.getByTestId('operator-tool-group')).toBeTruthy()
+  })
+
+  it('有一条证据就照旧画调查卡', () => {
+    pushStep('run-1', {
+      id: 'step-1',
+      title: '查了一下',
+      tool: 'research',
+      status: 'done',
+      payload: { goal: '找官方设定', round: 1, sources: ['web'] },
+      result: {
+        evidence: [
+          {
+            title: '官方设定集',
+            publisher: '官网',
+            snippet: '披风是深红',
+            kind: 'official',
+            confidence: 'high',
+          },
+        ],
+      },
+    })
+    renderPanel()
+    expect(screen.getByTestId('operator-research-card')).toBeTruthy()
+  })
+
+  it('⭐ 一轮被正文劈成两个工具块时，checkpoint 只出**一张**', () => {
+    pushStep('run-1', {
+      id: 'step-1',
+      title: '写提示词',
+      tool: 'set_prompt',
+      status: 'done',
+      payload: { value: '夜景' },
+      inverse: { tool: 'set_prompt', payload: { value: '' } },
+    })
+    store.appendOperatorEntry({
+      kind: 'message',
+      id: 'msg-1',
+      text: '顺手说一句',
+    })
+    pushStep('run-1', {
+      id: 'step-2',
+      title: '再写一次提示词',
+      tool: 'set_prompt',
+      status: 'done',
+      payload: { value: '夜景 + 霓虹' },
+      inverse: { tool: 'set_prompt', payload: { value: '夜景' } },
+    })
+    renderPanel()
+
+    // 两个工具块（正文把它们劈开了）——⛔ 但 checkpoint 只归最后那一个。
+    expect(screen.getAllByTestId('operator-tool-group')).toHaveLength(2)
+    expect(screen.getAllByTestId('operator-checkpoint')).toHaveLength(1)
+  })
+})

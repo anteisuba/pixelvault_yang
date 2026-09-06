@@ -295,6 +295,15 @@ export const STUDIO_OPERATOR_TIMELINE = {
    * 很少超过十来段），往小了调会把两句话的正常回答也折起来。
    */
   collapseAfterLines: 6,
+  /**
+   * 距底多少像素以内算「用户本来就在底部」—— 新条目落位时才跟着滚
+   * （2026-09-07 真机，见 `shouldStickOperatorScroll`）。
+   *
+   * ⚠ 不是 0：一条正文长出来的过程中距离每帧都在变，取 0 等于「只有分毫不差地
+   * 贴着底才跟滚」，而那几乎从不成立。
+   * ⚠ 也别调大到一屏：那样用户翻上去读旧内容时照样会被拽回来 —— 等于没做这条判据。
+   */
+  stickToBottomPx: 96,
 } as const
 
 /**

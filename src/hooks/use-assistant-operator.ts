@@ -650,7 +650,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              */
             case ASSISTANT_OPERATOR_EVENTS.planRequest: {
               // ⛔ 不出卡的那一支：攒着的那份计划落成**一行折叠**（第 2 件）。
-              if (!shouldShowPlanCard(event, { forcePlan })) {
+              if (
+                !shouldShowPlanCard(event, {
+                  forcePlan,
+                  ...(planApproved === undefined ? {} : { planApproved }),
+                })
+              ) {
                 flushPlanEntry()
                 break
               }
@@ -993,7 +998,13 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    */
   const answerQuestions = useCallback(
     (answers: StudioOperatorQuestionAnswer[]) => {
-      if (!getOperatorState().plan) return
+      /**
+       * ⚠ 已经点过一次就**直接返回**（2026-09-07 真机）：`resolveOperatorPlan` 自己
+       * 会挡住第二次写入，但挡不住第二次 `run()` —— 连点两下发的是两轮请求，而
+       * 第二轮会把第一轮 abort 掉再从头跑一遍（用户付两次的钱、看一次的结果）。
+       */
+      const plan = getOperatorState().plan
+      if (!plan || plan.resolved) return
       resolveOperatorPlan(answers)
       void run({ planAnswers: answers, planApproved: true, forcePlan: false })
     },

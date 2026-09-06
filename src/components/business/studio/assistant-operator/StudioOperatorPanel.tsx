@@ -39,7 +39,9 @@ import {
   foldOperatorDomainMarks,
   groupOperatorResearch,
   groupOperatorResearchRuns,
+  hasOperatorResearchFindings,
   isOperatorResearchTool,
+  shouldStickOperatorScroll,
   splitOperatorHistoryRounds,
 } from '@/lib/studio-operator-timeline'
 import Image from 'next/image'
@@ -247,6 +249,20 @@ export function StudioOperatorPanel({
   const [attachOpen, setAttachOpen] = useState(false)
   const attachTriggerRef = useRef<HTMLButtonElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
+  /**
+   * 用户此刻**贴着底**没有 —— 决定新条目要不要把视图拽到底（2026-09-07 真机）。
+   * ⚠ 初值 `true`：第一屏还没滚过，那时当然该跟着落到底。
+   */
+  const stickRef = useRef(true)
+  const handleThreadScroll = useCallback(() => {
+    const node = threadRef.current
+    if (!node) return
+    stickRef.current = shouldStickOperatorScroll({
+      scrollTop: node.scrollTop,
+      scrollHeight: node.scrollHeight,
+      clientHeight: node.clientHeight,
+    })
+  }, [])
   // 「问助手」/「按这张继续」按完要把焦点还给输入框（§3.1 ⑲「chip 插入并聚焦」）
   // —— 不还的话用户得再点一次输入框才能接着说，而他刚刚明明就在说话。
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -307,12 +323,29 @@ export function StudioOperatorPanel({
       ? t('sendQueue')
       : t('send')
 
-  // 新条目进来就滚到底 —— 日志是逐条落地的，不跟着滚等于让用户一直手动拖。
-  // ⚠ 载回历史也要滚（P4-B）：刷新之后停在几十条之前的开头，用户以为对话丢了。
+  /**
+   * 新条目进来就滚到底 —— 日志是逐条落地的，不跟着滚等于让用户一直手动拖。
+   * ⚠ 载回历史也要滚（P4-B）：刷新之后停在几十条之前的开头，用户以为对话丢了。
+   *
+   * ⭐ **三张「等你定」的卡也要滚**（2026-09-07 真机）：它们不是线程条目（住在
+   * store 的 `plan` / `spend` / `choice` 里），只盯 `entries` 的下场是反问卡出现在
+   * 屏幕外面，而那张卡正是此刻唯一要人动手的东西。
+   * ⚠ **用户已经手动上滚就不打扰**（`stickRef`）：他在读三轮之前那段话时被每一条
+   *   新日志拽回底部，比不滚更糟。
+   */
   useEffect(() => {
     const node = threadRef.current
-    if (node) node.scrollTop = node.scrollHeight
-  }, [entries, historyEntries])
+    if (!node || !stickRef.current) return
+    node.scrollTop = node.scrollHeight
+  }, [
+    entries,
+    historyEntries,
+    plan?.id,
+    plan?.resolved,
+    spend?.id,
+    spend?.resolved,
+    choice?.id,
+  ])
 
   const submit = useCallback(
     (text: string) => {
@@ -484,6 +517,22 @@ export function StudioOperatorPanel({
   }, [entries])
 
   /**
+   * 每一轮的**最后一个工具块**是哪一个（按块首条目 id 认，2026-09-07 真机）。
+   *
+   * ⚠ checkpoint 薄卡按它挂 —— 一轮被劈成两个工具块时，两块的 `runKey` 一样、
+   * `countRoundChanges` 也一样，各画一张就是两条重复的「已改 N 项」。
+   */
+  const lastToolsBlockKeys = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const block of blocks) {
+      if (block.kind !== 'tools') continue
+      const first = block.steps[0]
+      if (first) map.set(block.runKey, first.id)
+    }
+    return map
+  }, [blocks])
+
+  /**
    * 连续的**切域行**收成最后一条（第 5 件）。
    *
    * ⭐ 切工作台会一次落好几条「切到 X 工作台」（图 → 视频 → 图 是三条），说的是
@@ -582,6 +631,13 @@ export function StudioOperatorPanel({
       )
       /* checkpoint 只在**这一轮真的收尾了**之后出现（§2.13）：还在跑就
                  挂一张「已改 3 项」，用户会以为它已经改完了。 */
+      /**
+       * ⚠ checkpoint 只挂在这一轮**最后一个**工具块上（2026-09-07 真机）：一轮里
+       * 「几步 → 说一句 → 又几步」会被劈成两个 `tools` 块（`blocks` 遇到非 step
+       * 条目就断组），而 `countRoundChanges` 数的是**整轮**——两个块各画一张，
+       * 用户读到的是两条一模一样的「已改 2 项：提示词」。
+       */
+      const lastToolsBlock = lastToolsBlockKeys.get(block.runKey)
       const roundDone = !working || block.runKey !== latestRunKey
       const changeCountInRound = countRoundChanges(block.runKey)
       const fields = roundFields(block.runKey)
@@ -617,10 +673,17 @@ export function StudioOperatorPanel({
               group.indexes.map((index) => block.steps[index]!),
             )
           : []
+      /**
+       * ⭐ **一条证据、一张候选都没有就不出卡**（2026-09-07 真机）：那样的卡结论行
+       * 回落成占位文案「查了一下」、右上角写着「0 条证据」，整张卡讲的是零。
+       * ⚠ 退回 `ToolGroup`（下面那一支）而不是整组不渲染：过程照旧可展开复核。
+       */
+      const showResearchCard =
+        researchSteps.length > 0 && hasOperatorResearchFindings(researchSteps)
       return (
         <div key={`tools:${block.runKey}:${block.steps[0]?.id}`}>
           <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.tool}>
-            {researchSteps.length > 0 ? (
+            {showResearchCard ? (
               <StudioOperatorResearchCard
                 steps={researchSteps}
                 webImportStates={webImport.states}
@@ -639,7 +702,9 @@ export function StudioOperatorPanel({
               </StudioOperatorToolGroup>
             )}
           </StudioOperatorTimelineRow>
-          {roundDone && changeCountInRound > 0 ? (
+          {roundDone &&
+          changeCountInRound > 0 &&
+          lastToolsBlock === block.steps[0]?.id ? (
             <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.system}>
               <StudioOperatorCheckpointCard
                 runKey={block.runKey}
@@ -848,6 +913,7 @@ export function StudioOperatorPanel({
       <StudioOperatorTimelineList
         ref={threadRef}
         data-testid="operator-thread"
+        onScroll={handleThreadScroll}
         className="min-h-0 flex-1 overflow-y-auto"
       >
         <div className="relative px-3.5 pb-5 pt-3.5">

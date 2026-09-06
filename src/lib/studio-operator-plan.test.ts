@@ -95,6 +95,33 @@ describe('shouldShowPlanCard', () => {
     ).toBe(true)
   })
 
+  it('⭐ 已经点过「开始」的那一轮⛔ 一张卡都不再出 —— 四条判据全成立也不出', () => {
+    /**
+     * 由来（2026-09-07 真机）：服务端零会话态，`planApproved: true` 那一轮它照旧
+     * 摆一帧 `plan_request`。判据不压在最前面的表现是：点「开始」→ 卡又立起来、
+     * 步骤文案被重写一遍 —— 真机上要点三次才跑起来，而每次误点都可能烧掉 1 credit。
+     */
+    expect(
+      shouldShowPlanCard(
+        buildPlan({
+          steps: [
+            { id: 'plan-1', label: '一' },
+            { id: 'plan-2', label: '二' },
+            { id: 'plan-3', label: '三' },
+          ],
+          reason: ASSISTANT_PLAN_REQUEST_REASON_IDS.spend,
+        }),
+        { forcePlan: true, planApproved: true },
+      ),
+    ).toBe(false)
+  })
+
+  it('「修改」那一轮（planApproved: false）照旧出卡 —— 那是「请你重新规划」', () => {
+    expect(
+      shouldShowPlanCard(buildPlan(), { forcePlan: true, planApproved: false }),
+    ).toBe(true)
+  })
+
   it('⛔ 四条都不成立就不出卡（不花钱 · 步数不够 · 没问题 · 没开先问我）', () => {
     expect(shouldShowPlanCard(buildPlan(), {})).toBe(false)
     // 「先问我」显式关掉与缺席是同一件事。

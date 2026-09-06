@@ -19,6 +19,15 @@
  *     画风」常常只对应一步。
  *
  * ⛔ 四条都不成立就**直接进 working**：改一句提示词还先弹一张卡，是纯打扰。
+ *
+ * ── ⛔ 已经点过「开始」的那一轮**一张卡都不再出**（2026-09-07 真机） ────────
+ * 这一条压在四条判据**之前**。由来：点「开始」发出去的重发带着 `planApproved:
+ * true`，而服务端零会话态 —— 它照旧会再摆一帧 `plan_request`（步数还是 ≥3，题还
+ * 是那几道）。四条判据于是又成立一次，卡重新立起来、步骤文案被模型重写一遍，
+ * 用户读到的是「点了开始什么都没发生」。真机上要点三次才跑起来（第三次纯粹是
+ * 模型碰巧规划出 <3 步且无题），而每一次误点都可能真的烧掉 1 credit。
+ * ⚠ 判据只认 `=== true`：「修改」那条路带的是 `planApproved: false`（= 请你**重新
+ *   规划**），那一轮的卡必须照出。
  */
 
 import {
@@ -39,13 +48,14 @@ import type {
  */
 export type ShouldShowPlanCardRequest = Pick<
   AssistantOperatorRequest,
-  'forcePlan'
+  'forcePlan' | 'planApproved'
 >
 
 export function shouldShowPlanCard(
   plan: AssistantOperatorPlanRequestEvent,
   request: ShouldShowPlanCardRequest,
 ): boolean {
+  if (request.planApproved === true) return false
   if (request.forcePlan === true) return true
   if (plan.reason === ASSISTANT_PLAN_REQUEST_REASON_IDS.spend) return true
   if (plan.questions.length > 0) return true

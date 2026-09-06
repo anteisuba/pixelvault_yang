@@ -35,28 +35,59 @@ interface StudioOperatorMessageBodyProps {
   entry: StudioOperatorMessageEntry
 }
 
-export function StudioOperatorMessageBody({
-  entry,
-}: StudioOperatorMessageBodyProps) {
+/**
+ * 正文那一段字 + 「展开全文」—— **实时线程与只读历史共用这一颗**
+ * （2026-09-07 真机）。
+ *
+ * ⭐ 由来：历史里一条 8 行的正文整条铺开，既没有折叠开关也没有 `data-testid`。
+ * 根因不是 `streaming` 没清零，而是历史那一支**压根走的是另一段 JSX**（一个裸
+ * `<p>{entry.text}</p>`）—— 折叠逻辑只写在实时那一支里。⛔ 不在历史那边再抄一份：
+ * 抄的那份哪天与这份分叉，表现是「刷新之后同一句话的折法变了」。
+ */
+export function StudioOperatorCollapsibleText({
+  text,
+  streaming = false,
+  plain = false,
+}: {
+  text: string
+  /** 流着的时候不折（字长到一半自己没了）—— 历史那一支恒为 `false`。 */
+  streaming?: boolean
+  /**
+   * **一整段字，⛔ 不切片**（历史那一支）。
+   *
+   * ⚠ `StudioOperatorStreamingText` 把正文切成逐字的 `<span>` 并让新片淡入 ——
+   * 那是「看得出在长」的手段，而历史是一次性铺出来的几十条已完成的话：切片在那里
+   * 只换来成千上万个开屏就一起淡一遍的节点，还把一句连续的话在 DOM 上劈成碎片
+   * （按文本找它的人 —— 读屏与用例 —— 就此找不到）。
+   */
+  plain?: boolean
+}) {
   const t = useTranslations('StudioOperator')
   const [expanded, setExpanded] = useState(false)
 
-  const streaming = entry.streaming ?? false
-  const collapsible = !streaming && shouldCollapseOperatorText(entry.text)
+  const collapsible = !streaming && shouldCollapseOperatorText(text)
   const collapsed = collapsible && !expanded
 
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <>
       {collapsed ? (
         <p
           data-testid="operator-message-text"
           data-collapsed="true"
           className="whitespace-pre-wrap text-md leading-relaxed text-foreground"
         >
-          {firstOperatorSentence(entry.text)}
+          {firstOperatorSentence(text)}
+        </p>
+      ) : plain ? (
+        <p
+          data-testid="operator-message-text"
+          data-streaming="false"
+          className="whitespace-pre-wrap text-md leading-relaxed text-foreground"
+        >
+          {text}
         </p>
       ) : (
-        <StudioOperatorStreamingText text={entry.text} streaming={streaming} />
+        <StudioOperatorStreamingText text={text} streaming={streaming} />
       )}
 
       {collapsible ? (
@@ -77,6 +108,21 @@ export function StudioOperatorMessageBody({
           />
         </button>
       ) : null}
+    </>
+  )
+}
+
+export function StudioOperatorMessageBody({
+  entry,
+}: StudioOperatorMessageBodyProps) {
+  const t = useTranslations('StudioOperator')
+
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <StudioOperatorCollapsibleText
+        text={entry.text}
+        streaming={entry.streaming ?? false}
+      />
 
       {/* ⚠ 没有 `detail` 就**什么都不画**（⛔ 不画一颗点开是空的「为什么」）。 */}
       {entry.detail ? (

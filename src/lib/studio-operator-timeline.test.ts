@@ -6,11 +6,99 @@ import {
   foldOperatorDomainMarks,
   groupOperatorResearch,
   groupOperatorResearchRuns,
+  hasOperatorResearchFindings,
   isOperatorResearchCardTool,
   isOperatorResearchTool,
   shouldCollapseOperatorText,
+  shouldStickOperatorScroll,
   splitOperatorHistoryRounds,
 } from './studio-operator-timeline'
+import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
+import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
+
+/** 一条跑完的调查步 —— 只填这两个判据读得到的字段。 */
+function researchStep(
+  result: Record<string, unknown>,
+  tool: string = TOOLS.research,
+): StudioOperatorStepEntry {
+  return {
+    kind: 'step',
+    id: `entry-${tool}`,
+    runKey: 'run-1',
+    step: {
+      id: 'step-1',
+      title: '查了一下',
+      tool,
+      status: 'done',
+      payload: {},
+      result,
+    },
+  } as unknown as StudioOperatorStepEntry
+}
+
+describe('hasOperatorResearchFindings', () => {
+  it('⛔ 证据与候选都为空 → 不值一张卡（2026-09-07 真机的三张里两张）', () => {
+    expect(hasOperatorResearchFindings([researchStep({ evidence: [] })])).toBe(
+      false,
+    )
+    // 连 `result` 都没有的那一张同理。
+    expect(hasOperatorResearchFindings([researchStep({})])).toBe(false)
+  })
+
+  it('有一条证据就出卡', () => {
+    expect(
+      hasOperatorResearchFindings([
+        researchStep({
+          evidence: [{ title: 'a', publisher: 'b', snippet: 'c' }],
+        }),
+      ]),
+    ).toBe(true)
+  })
+
+  it('证据为空但有候选图 → 照旧出卡（候选是这张卡的下半部分）', () => {
+    expect(
+      hasOperatorResearchFindings([
+        researchStep({ evidence: [] }),
+        researchStep(
+          { images: [{ url: 'https://x/1.png' }] },
+          TOOLS.searchWebImages,
+        ),
+      ]),
+    ).toBe(true)
+  })
+})
+
+describe('shouldStickOperatorScroll', () => {
+  it('贴着底 → 跟着滚', () => {
+    expect(
+      shouldStickOperatorScroll({
+        scrollTop: 900,
+        scrollHeight: 1000,
+        clientHeight: 100,
+      }),
+    ).toBe(true)
+  })
+
+  it('阈值之内仍算「在底部附近」', () => {
+    expect(
+      shouldStickOperatorScroll({
+        scrollTop: 900 - STUDIO_OPERATOR_TIMELINE.stickToBottomPx,
+        scrollHeight: 1000,
+        clientHeight: 100,
+      }),
+    ).toBe(true)
+  })
+
+  it('⛔ 用户已经手动上滚 → 不打扰', () => {
+    expect(
+      shouldStickOperatorScroll({
+        scrollTop: 100,
+        scrollHeight: 1000,
+        clientHeight: 100,
+      }),
+    ).toBe(false)
+  })
+})
 
 describe('groupOperatorResearch', () => {
   it('连续调查与过渡说明合并，保留用户消息和最终结论', () => {

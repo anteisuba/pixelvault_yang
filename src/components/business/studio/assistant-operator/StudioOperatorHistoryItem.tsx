@@ -24,6 +24,7 @@ import { useTranslations } from 'next-intl'
 import type { AssistantOperatorTool } from '@/constants/assistant-operator'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { OPERATOR_TOOL_ICONS } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
+import { StudioOperatorCollapsibleText } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import { cn } from '@/lib/utils'
 import type {
   StudioOperatorHistoryEntry,
@@ -62,9 +63,12 @@ export function StudioOperatorHistoryItem({
       )
     case 'message':
       return (
-        <p className="whitespace-pre-wrap text-md leading-relaxed text-foreground">
-          {entry.text}
-        </p>
+        /* ⚠ 长回话的折叠**与实时线程共用一颗组件**（2026-09-07 真机）：历史里
+           一条 8 行的正文此前整条铺开，既没有折叠开关也没有那颗测试锚 ——
+           而历史恰恰是最需要折的地方（几十轮堆在一起）。 */
+        <div className="flex min-w-0 flex-col gap-1">
+          <StudioOperatorCollapsibleText text={entry.text} plain />
+        </div>
       )
     case 'plan':
       return (

@@ -33,7 +33,7 @@
  */
 
 import { useMemo, useRef, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { getAssistantPlanVisual } from '@/constants/assistant-plan-visuals'
@@ -111,6 +111,14 @@ export function StudioOperatorQuestionCard({
    */
   const [showMissing, setShowMissing] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  /**
+   * 点过「开始」了 —— 按钮进 loading 且**不可再点**（2026-09-07 真机）。
+   *
+   * ⚠ 它与 `resolved` 不是一回事：`resolved` 来自 store，是「这一轮已经被受理」；
+   * 这一格记的是「这次点击已经交出去了」，管的是同一帧里的连点。⛔ 少了它，
+   * 用户连点两下发的是两轮请求 —— 而这张卡下面挂着的常常是一次真花钱的生成。
+   */
+  const [submitted, setSubmitted] = useState(false)
   /** 阶段清单展开着没有 —— 没有题时它就是这张卡的全部内容，默认展开。 */
   const [stepsOpen, setStepsOpen] = useState(questions.length === 0)
   const groupRefs = useRef<Record<string, HTMLFieldSetElement | null>>({})
@@ -152,7 +160,12 @@ export function StudioOperatorQuestionCard({
             onClick={() => setExpanded((value) => !value)}
             className="min-w-0 flex-1 truncate text-left text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {t('question.summary', { answers: summary })}
+            {/* ⚠ **没有答复就写「计划 · N 步」**（2026-09-07 真机）：这张卡同时是
+                计划卡，而计划卡那一支压根没有题 —— 复用反问卡的「你选了：…」
+                得到的是一句冒号后面什么都没有的话。 */}
+            {summary
+              ? t('question.summary', { answers: summary })
+              : t('planFold', { count: steps.length })}
           </button>
           <button
             type="button"
@@ -457,12 +470,17 @@ export function StudioOperatorQuestionCard({
         <button
           type="button"
           data-testid="operator-question-start"
+          disabled={submitted}
+          aria-busy={submitted}
+          data-submitting={submitted ? 'true' : 'false'}
           onClick={() => {
+            if (submitted) return
             if (missing.length > 0) {
               setShowMissing(true)
               groupRefs.current[missing[0]!.id]?.focus()
               return
             }
+            setSubmitted(true)
             onSubmit(
               questions.map((question) => {
                 const otherText = otherOpen[question.id]
@@ -476,8 +494,14 @@ export function StudioOperatorQuestionCard({
               }),
             )
           }}
-          className="shrink-0 rounded-md bg-primary px-2 py-1 text-md text-primary-foreground transition-opacity duration-(--duration-fast) ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex shrink-0 items-center gap-1 rounded-md bg-primary px-2 py-1 text-md text-primary-foreground transition-opacity duration-(--duration-fast) ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
         >
+          {submitted ? (
+            <Loader2
+              aria-hidden
+              className="size-3 animate-spin motion-reduce:animate-none"
+            />
+          ) : null}
           {t('question.start')}
         </button>
       </div>

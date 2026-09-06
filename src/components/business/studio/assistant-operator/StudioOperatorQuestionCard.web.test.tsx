@@ -198,4 +198,32 @@ describe('StudioOperatorQuestionCard', () => {
     fireEvent.click(screen.getByTestId('operator-question-revise'))
     expect(onRevise).toHaveBeenCalledTimes(1)
   })
+
+  it('⭐ 没有答复时收起态写「计划 · N 步」—— ⛔ 不是一句空的「你选了：」', () => {
+    // 由来（2026-09-07 真机）：计划卡那一支压根没有题，复用反问卡的摘要文案得到
+    // 的是冒号后面什么都没有的一行。
+    renderCard({
+      resolved: true,
+      questions: [],
+      answers: [],
+      steps: [
+        { id: 's1', label: '写提示词' },
+        { id: 's2', label: '挂参考图' },
+      ],
+    })
+    const summary = screen.getByTestId('operator-question-summary').textContent
+    expect(summary).toBe('planFold:2')
+    expect(summary).not.toContain('question.summary')
+  })
+
+  it('⭐ 连点两次「开始」只提交一次，且按钮就地进 loading（不可再点）', () => {
+    const { onSubmit } = renderCard()
+    fireEvent.click(optionRows()[0]!.querySelector('input')!)
+    const start = screen.getByTestId('operator-question-start')
+    fireEvent.click(start)
+    fireEvent.click(start)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(start.getAttribute('aria-busy')).toBe('true')
+    expect((start as HTMLButtonElement).disabled).toBe(true)
+  })
 })

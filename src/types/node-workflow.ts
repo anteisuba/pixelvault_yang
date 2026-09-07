@@ -1065,3 +1065,29 @@ export type NodeV4Data = z.infer<typeof NodeV4DataSchema>
 export type NodeV4 = z.infer<typeof NodeV4Schema>
 export type NodeWorkflowEdgeV4 = z.infer<typeof NodeWorkflowEdgeV4Schema>
 export type NodeWorkflowStateV4 = z.infer<typeof NodeWorkflowStateV4Schema>
+
+/**
+ * v3 备份（node-canvas-v2 §9.2 · owner 拍板「画-3」）。
+ *
+ * 逐项目惰性升级的顺序纪律：**备份成功才允许写 v4**。备份失败 → 不升级、不写、
+ * 报错可见。⛔ 没有「先写了再补备份」这条路。
+ */
+export const NodeWorkflowV3BackupRequestSchema = z.object({
+  /** 幂等提示：同一次升级重试时带上，服务端仍按时间戳新建 key（不覆盖旧备份）。 */
+  reason: z.string().trim().min(1).max(200).optional(),
+})
+
+export const NodeWorkflowV3BackupResultSchema = z.object({
+  key: z.string(),
+  url: z.string(),
+  /** 备份下来的 v3 图规模——用来和升级后的 v4 对账。 */
+  nodeCount: z.number().int().min(0),
+  edgeCount: z.number().int().min(0),
+})
+
+export type NodeWorkflowV3BackupRequest = z.infer<
+  typeof NodeWorkflowV3BackupRequestSchema
+>
+export type NodeWorkflowV3BackupResult = z.infer<
+  typeof NodeWorkflowV3BackupResultSchema
+>

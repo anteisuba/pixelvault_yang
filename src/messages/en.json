@@ -5806,6 +5806,72 @@
         "unknownParamValue": "That value isn't one the selected model accepts",
         "notAttachable": "Only character and background cards collect reference images — connect the node instead"
       }
+    },
+    "v4": {
+      "untitledText": "Untitled text",
+      "textMeta": "{chars} chars · {paragraphs} paragraphs",
+      "editText": "Edit",
+      "previewText": "Preview",
+      "setCurrent": "Set as current",
+      "versionPrev": "Previous version",
+      "versionNext": "Next version",
+      "slotDisconnect": "Disconnect",
+      "slotEmpty": "Empty",
+      "changedBadge": "Changed this turn",
+      "blocked": "Marked failed: {reason}",
+      "audioDuration": "{seconds}s",
+      "audioEmpty": "No audio",
+      "audioOwner": "Voice: {name}",
+      "legacyMigrated": "Legacy node migrated",
+      "tidy": "Tidy",
+      "slots": {
+        "firstFrame": "First frame",
+        "lastFrame": "Last frame",
+        "reference": "Reference",
+        "voice": "Voice",
+        "text": "Text",
+        "timbre": "Timbre",
+        "closeup": "Close-up",
+        "clip": "Clip",
+        "source": "Source"
+      },
+      "outputs": {
+        "out": "Output",
+        "tailFrame": "Tail frame"
+      },
+      "statuses": {
+        "idle": "Idle",
+        "queued": "Queued",
+        "running": "Running",
+        "ready": "Ready",
+        "done": "Done",
+        "failed": "Failed",
+        "stale": "Stale",
+        "disabled": "Disabled"
+      },
+      "derive": {
+        "shotImage": "Make shot image",
+        "video": "Make video",
+        "character": "Make character sheet",
+        "background": "Make background",
+        "askAssistant": "Ask assistant"
+      },
+      "connectRejected": {
+        "selfLoop": "Can't connect a node to itself",
+        "unknownSlot": "This node has no such input",
+        "kindNotAllowed": "This input doesn't take that kind of asset",
+        "subtypeNotAllowed": "This input only takes reference or character images",
+        "slotFull": "This input is full",
+        "blockedSource": "This asset is marked failed and can't be a first frame",
+        "duplicateEdge": "Already connected",
+        "unknownNode": "Node not found",
+        "blockedVersion": "That version is disabled and can't be made current"
+      },
+      "upgrade": {
+        "backupFailed": "Backing up the v3 data failed — the canvas won't save. Retry or contact support.",
+        "migrationFailed": "This project's data can't be read; writes are stopped so nothing is overwritten."
+      },
+      "versionAdded": "Added as version {count} and set as current"
     }
   },
   "StudioMobile": {
@@ -6448,6 +6514,11 @@
     },
     "projectRule": {
       "limitReached": "You already have the most rules this app keeps. Delete one to make room."
+    },
+    "contextCard": {
+      "limitReached": "You already have the most context cards this app keeps. Delete one to make room.",
+      "imageLimitReached": "This card already holds the most reference images it can. Remove one first.",
+      "imageTooLarge": "Reference images must be under 10 MB."
     }
   },
   "Transform": {
@@ -7338,5 +7409,44 @@
     "libraryTitle": "Pick from the asset library",
     "libraryDescription": "Choose an asset to drop into this slot.",
     "aspectLockedByFirstFrame": "A first frame is set, so the aspect ratio follows the image (adaptive)."
+  },
+  "ContextCards": {
+    "titleNew": "New context card",
+    "titleEdit": "Edit context card",
+    "description": "Characters, styles and brand kits you write down once. The assistant works from them across every workbench.",
+    "kind": {
+      "character": "Character",
+      "style": "Style",
+      "brand": "Brand"
+    },
+    "nameLabel": "Name",
+    "summaryLabel": "One-line summary",
+    "summaryPlaceholder": "Silver hair, gold eyes, control-room mech suit",
+    "summaryHint": "This line is the only part the assistant sees every turn — it reads the full description when it needs the details.",
+    "bodyLabel": "Description",
+    "bodyPlaceholder": {
+      "character": "Appearance, outfit, personality. Markdown is fine.",
+      "style": "The rules this look follows — palette, rendering, what it never does.",
+      "brand": "Brand spec: colours, typefaces, tone, what must never appear."
+    },
+    "negativeLabel": "Never in the picture",
+    "negativePlaceholder": "air ripples, holographic overlay, subtitles",
+    "negativeHint": "Comma-separated. These go straight into the negative prompt.",
+    "imagesLabel": "Reference images ({count}/{max})",
+    "role": {
+      "reference": "Reference",
+      "sheet": "Character sheet",
+      "closeup": "Close-up"
+    },
+    "uploadImage": "Add image",
+    "removeImage": "Remove image",
+    "saveBeforeUpload": "Save the card first, then add images.",
+    "pinLabel": "Keep on this workbench",
+    "pinHint": "Pinned cards are in front of the assistant every turn, without being @-mentioned.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "errorNameRequired": "Give the card a name.",
+    "errorSaveFailed": "Could not save the card. Try again.",
+    "errorUploadFailed": "Could not add that image. Try again."
   }
 }

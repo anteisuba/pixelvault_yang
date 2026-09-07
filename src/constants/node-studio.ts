@@ -1236,3 +1236,61 @@ export const NODE_STUDIO_EDGE_VISUALS = {
   previewDash: '9 7',
   markerEndType: 'arrowclosed',
 } as const
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * v4 渲染层常量（第三期 · 画布 C2）。node-canvas-v2 §1.4 / §2 / §6。
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * 槽内版本轮播（§1.4）。版本 id 由**边 id** 派生：每个版本仍然是一条真边，
+ * 派生而不是随机生成，保证「同一份 state 重算两次得到同一批 versionId」——
+ * 迁移产物没有 `slots`，渲染层要能从边表把 binding 重算出来且幂等。
+ */
+export const NODE_V4_SLOT_VERSION = {
+  idPrefix: 'sv_',
+  /** 一个槽最多留几版（与 `NodeV4SlotBindingSchema.versions.max(64)` 对齐）。 */
+  maxVersions: 64,
+} as const
+
+/**
+ * 两态渲染尺寸（§2.1 / §2.2）。收起态宽度沿用现状图片卡钳制，
+ * `video.shot` 因为要显示五槽给固定宽。
+ */
+export const NODE_V4_CARD = {
+  collapsedWidth: 320,
+  textCollapsedWidth: 320,
+  shotCollapsedWidth: 400,
+  expandedWidth: 560,
+  expandedMaxHeight: 720,
+  /** 槽格边长（收起态左缘那一列小格）。 */
+  slotChipSize: 20,
+} as const
+
+/**
+ * 镜头带布局（§6）。⚠ 槽顺序不在这里——它是 `NODE_V4_PORTS[...].inputs` 的
+ * 数组顺序，两处不许各排各的。
+ */
+export const NODE_V4_LAYOUT = {
+  /** 每条镜头带的最小宽度。 */
+  minLaneWidth: 480,
+  /** 带间距。 */
+  laneGap: 80,
+  /** 带顶标题条高度。 */
+  laneHeaderHeight: 32,
+  /** 带内上行（文本）与下行（媒体）的间距。 */
+  laneRowGap: 24,
+  /** 带内同列节点的行距。 */
+  nodeRowGap: 24,
+  /** 时间轴原点。 */
+  originX: 0,
+  originY: 0,
+  /** 带内文本行的 y。 */
+  textRowY: 48,
+  /** 带内媒体行的 y。 */
+  mediaRowY: 300,
+  /** 散节点自由区的上边界（时间轴下方）。 */
+  looseAreaY: 900,
+  looseColumnGap: 360,
+  looseRowGap: 280,
+  looseColumns: 6,
+} as const

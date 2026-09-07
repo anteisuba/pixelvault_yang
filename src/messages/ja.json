@@ -5806,6 +5806,72 @@
         "unknownParamValue": "選択中のモデルが受け付ける値ではありません",
         "notAttachable": "参考画像を集められるのはキャラクター／背景カードだけです。代わりにノードをつないでください"
       }
+    },
+    "v4": {
+      "untitledText": "無題のテキスト",
+      "textMeta": "{chars} 文字 · {paragraphs} 段落",
+      "editText": "編集",
+      "previewText": "プレビュー",
+      "setCurrent": "現在の版にする",
+      "versionPrev": "前の版",
+      "versionNext": "次の版",
+      "slotDisconnect": "切断",
+      "slotEmpty": "空",
+      "changedBadge": "今回の変更あり",
+      "blocked": "不採用：{reason}",
+      "audioDuration": "{seconds} 秒",
+      "audioEmpty": "音声なし",
+      "audioOwner": "声：{name}",
+      "legacyMigrated": "旧ノードは移行済み",
+      "tidy": "整列",
+      "slots": {
+        "firstFrame": "開始フレーム",
+        "lastFrame": "終了フレーム",
+        "reference": "参照",
+        "voice": "音声",
+        "text": "テキスト",
+        "timbre": "音色",
+        "closeup": "クローズアップ",
+        "clip": "クリップ",
+        "source": "ソース"
+      },
+      "outputs": {
+        "out": "出力",
+        "tailFrame": "末尾フレーム"
+      },
+      "statuses": {
+        "idle": "待機",
+        "queued": "待ち",
+        "running": "生成中",
+        "ready": "準備完了",
+        "done": "完了",
+        "failed": "失敗",
+        "stale": "期限切れ",
+        "disabled": "無効"
+      },
+      "derive": {
+        "shotImage": "ショット画像を作る",
+        "video": "動画を作る",
+        "character": "キャラ設定を作る",
+        "background": "背景設定を作る",
+        "askAssistant": "アシスタントに聞く"
+      },
+      "connectRejected": {
+        "selfLoop": "自分自身には接続できません",
+        "unknownSlot": "このノードにその入力はありません",
+        "kindNotAllowed": "この入力はその種類の素材を受け付けません",
+        "subtypeNotAllowed": "この入力は参照画像かキャラ画像のみ受け付けます",
+        "slotFull": "この入力は満杯です",
+        "blockedSource": "この素材は不採用のため開始フレームにできません",
+        "duplicateEdge": "すでに接続済みです",
+        "unknownNode": "ノードが見つかりません",
+        "blockedVersion": "その版は無効のため現在の版にできません"
+      },
+      "upgrade": {
+        "backupFailed": "v3 データのバックアップに失敗したため保存を停止しました。再試行するかサポートへ。",
+        "migrationFailed": "このプロジェクトのデータを読めないため、上書きを防ぐ目的で書き込みを停止しました。"
+      },
+      "versionAdded": "第 {count} 版として追加し、現在の版にしました"
     }
   },
   "StudioMobile": {
@@ -6448,6 +6514,11 @@
     },
     "projectRule": {
       "limitReached": "ルールの上限に達しています。1 件削除してから追加してください。"
+    },
+    "contextCard": {
+      "limitReached": "コンテキストカードの上限に達しています。1 件削除してから追加してください。",
+      "imageLimitReached": "このカードの参考画像は上限です。1 枚削除してください。",
+      "imageTooLarge": "参考画像は 10 MB 未満にしてください。"
     }
   },
   "Transform": {
@@ -7338,5 +7409,44 @@
     "libraryTitle": "素材ライブラリから選ぶ",
     "libraryDescription": "このスロットに入れる素材を選びます。",
     "aspectLockedByFirstFrame": "最初のフレームがあるため、アスペクト比は画像に合わせて自動（adaptive）になります。"
+  },
+  "ContextCards": {
+    "titleNew": "コンテキストカードを作成",
+    "titleEdit": "コンテキストカードを編集",
+    "description": "キャラクター・スタイル・ブランドを一度書いておけば、どのワークベンチでもアシスタントがそれを踏まえて動きます。",
+    "kind": {
+      "character": "キャラクター",
+      "style": "スタイル",
+      "brand": "ブランド"
+    },
+    "nameLabel": "名前",
+    "summaryLabel": "一行の要約",
+    "summaryPlaceholder": "銀髪・金の瞳・管制室のメカスーツ",
+    "summaryHint": "毎ターンアシスタントが見るのはこの一行だけです。詳細が必要なときだけ本文を読みます。",
+    "bodyLabel": "説明",
+    "bodyPlaceholder": {
+      "character": "外見・服装・性格。Markdown で書けます。",
+      "style": "この画風のルール — 配色、描画、やらないこと。",
+      "brand": "ブランド規定：色、書体、トーン、出してはいけないもの。"
+    },
+    "negativeLabel": "絶対に出さないもの",
+    "negativePlaceholder": "空気の波紋, ホログラム, 字幕",
+    "negativeHint": "カンマ区切り。そのままネガティブプロンプトに入ります。",
+    "imagesLabel": "参考画像（{count}/{max}）",
+    "role": {
+      "reference": "参考",
+      "sheet": "設定画",
+      "closeup": "クローズアップ"
+    },
+    "uploadImage": "画像を追加",
+    "removeImage": "画像を削除",
+    "saveBeforeUpload": "先にカードを保存してから画像を追加してください。",
+    "pinLabel": "このワークベンチに常設",
+    "pinHint": "常設したカードは @ で指名しなくても毎ターン参照されます。",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "errorNameRequired": "カード名を入力してください。",
+    "errorSaveFailed": "カードを保存できませんでした。もう一度お試しください。",
+    "errorUploadFailed": "画像を追加できませんでした。もう一度お試しください。"
   }
 }

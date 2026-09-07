@@ -5806,6 +5806,72 @@
         "unknownParamValue": "这个值不在当前模型给的档位里",
         "notAttachable": "只有角色卡和背景卡才收参考图，其余节点请改用连线"
       }
+    },
+    "v4": {
+      "untitledText": "未命名文本",
+      "textMeta": "{chars} 字 · {paragraphs} 段",
+      "editText": "编辑",
+      "previewText": "预览",
+      "setCurrent": "设为当前",
+      "versionPrev": "上一版",
+      "versionNext": "下一版",
+      "slotDisconnect": "断开",
+      "slotEmpty": "空",
+      "changedBadge": "本轮有改动",
+      "blocked": "已判失败：{reason}",
+      "audioDuration": "{seconds} 秒",
+      "audioEmpty": "无音频",
+      "audioOwner": "音色：{name}",
+      "legacyMigrated": "旧节点已迁移",
+      "tidy": "整理",
+      "slots": {
+        "firstFrame": "首帧",
+        "lastFrame": "尾帧",
+        "reference": "参考",
+        "voice": "语音",
+        "text": "文本",
+        "timbre": "音色",
+        "closeup": "特写",
+        "clip": "片段",
+        "source": "来源"
+      },
+      "outputs": {
+        "out": "出口",
+        "tailFrame": "末帧"
+      },
+      "statuses": {
+        "idle": "待办",
+        "queued": "排队中",
+        "running": "生成中",
+        "ready": "就绪",
+        "done": "完成",
+        "failed": "失败",
+        "stale": "已过期",
+        "disabled": "已停用"
+      },
+      "derive": {
+        "shotImage": "出镜头图",
+        "video": "出视频",
+        "character": "做角色设定",
+        "background": "做背景设定",
+        "askAssistant": "问助手"
+      },
+      "connectRejected": {
+        "selfLoop": "不能连到自己",
+        "unknownSlot": "这个节点没有这个入口",
+        "kindNotAllowed": "这个入口不收这种素材",
+        "subtypeNotAllowed": "这个入口只收参考图或角色图",
+        "slotFull": "这个入口已满",
+        "blockedSource": "该素材已判失败，不能作首帧",
+        "duplicateEdge": "已经连过了",
+        "unknownNode": "找不到节点",
+        "blockedVersion": "该版本已停用，不能设为当前"
+      },
+      "upgrade": {
+        "backupFailed": "备份 v3 数据失败，画布暂不保存——请重试或联系支持",
+        "migrationFailed": "这个项目的数据读不出来，已停止写入以免覆盖"
+      },
+      "versionAdded": "已加为第 {count} 版并设为当前"
     }
   },
   "StudioMobile": {
@@ -6448,6 +6514,11 @@
     },
     "projectRule": {
       "limitReached": "规则已经到上限了，先删掉一条再加。"
+    },
+    "contextCard": {
+      "limitReached": "上下文卡已经到上限了，先删掉一张再加。",
+      "imageLimitReached": "这张卡的参考图满了，先摘掉一张。",
+      "imageTooLarge": "参考图得小于 10 MB。"
     }
   },
   "Transform": {
@@ -7338,5 +7409,44 @@
     "libraryTitle": "从素材库挑一个",
     "libraryDescription": "选一个素材放进这个槽。",
     "aspectLockedByFirstFrame": "已放首帧，宽高比跟随这张图（自适应）。"
+  },
+  "ContextCards": {
+    "titleNew": "新建上下文卡",
+    "titleEdit": "编辑上下文卡",
+    "description": "角色、风格、品牌写一次就行 —— 助手在每台工作台上都照着它干活。",
+    "kind": {
+      "character": "角色",
+      "style": "风格",
+      "brand": "品牌"
+    },
+    "nameLabel": "名字",
+    "summaryLabel": "一句话摘要",
+    "summaryPlaceholder": "银发、金瞳、控制室机甲装",
+    "summaryHint": "助手每一轮只看得到这一行；要细节时它会去读正文。",
+    "bodyLabel": "正文",
+    "bodyPlaceholder": {
+      "character": "外貌、服饰、性格。可以用 Markdown。",
+      "style": "这套画风的规则 —— 配色、渲染、什么不做。",
+      "brand": "品牌规范：配色、字体、语气、绝不能出现的东西。"
+    },
+    "negativeLabel": "画面里绝不能有",
+    "negativePlaceholder": "空气波纹, 透明全息层, 字幕",
+    "negativeHint": "逗号分隔，会直接进负面提示词。",
+    "imagesLabel": "参考图（{count}/{max}）",
+    "role": {
+      "reference": "参考",
+      "sheet": "设定图",
+      "closeup": "特写"
+    },
+    "uploadImage": "加一张图",
+    "removeImage": "删掉这张",
+    "saveBeforeUpload": "先保存这张卡，再传参考图。",
+    "pinLabel": "常挂在当前工作台",
+    "pinHint": "常挂之后不用 @ 点名，助手每一轮都带着它。",
+    "save": "保存",
+    "cancel": "取消",
+    "errorNameRequired": "给这张卡起个名字。",
+    "errorSaveFailed": "没能保存这张卡，再试一次。",
+    "errorUploadFailed": "这张图没加上，再试一次。"
   }
 }

@@ -2,6 +2,7 @@ import { API_ENDPOINTS } from '@/constants/config'
 import type {
   CreateNodeWorkflowProjectRequest,
   NodeWorkflowProjectRecord,
+  NodeWorkflowV3BackupResult,
   UpdateNodeWorkflowProjectRequest,
 } from '@/types/node-workflow'
 
@@ -259,6 +260,48 @@ export async function mergeVideosAPI(params: {
       }
     }
     return await response.json()
+  } catch (error) {
+    return { success: false, error: unexpectedError(error) }
+  }
+}
+
+/**
+ * v3→v4 惰性升级前的 R2 备份（node-canvas-v2 §9.2 · 「画-3」）。
+ * ⚠ 调用方**成功才允许写 v4**：失败时不升级、不写、把错误交给用户看得见的地方。
+ */
+export async function backupNodeWorkflowV3StateAPI(
+  projectId: string,
+  reason?: string,
+): Promise<NodeWorkflowApiResponse<NodeWorkflowV3BackupResult>> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.STUDIO_NODE_WORKFLOW}/${encodeURIComponent(projectId)}/backup`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reason ? { reason } : {}),
+      },
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Backup failed'),
+        status: response.status,
+      }
+    }
+    const payload = (await response
+      .json()
+      .catch(
+        () => null,
+      )) as NodeWorkflowApiResponse<NodeWorkflowV3BackupResult> | null
+    if (!payload?.success || !payload.data) {
+      return {
+        success: false,
+        error: payload?.error ?? 'Backup failed',
+        status: response.status,
+      }
+    }
+    return { ...payload, status: response.status }
   } catch (error) {
     return { success: false, error: unexpectedError(error) }
   }

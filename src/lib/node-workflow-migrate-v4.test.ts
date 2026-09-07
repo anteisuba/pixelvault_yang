@@ -13,7 +13,7 @@ import {
   migrateNodeWorkflowStateToV4,
   resolveV4Identity,
   type V3State,
-} from './migrate-node-workflow-v4'
+} from '@/lib/node-workflow-migrate-v4'
 
 const NOW = '2026-09-06T00:00:00.000Z'
 

@@ -151,6 +151,11 @@ export const API_ENDPOINTS = {
   ASSISTANT_PERSONA_AVATAR: '/api/assistant/persona/avatar',
   /** Standing project rules the assistant reads and records */
   ASSISTANT_RULES: '/api/assistant/rules',
+  /**
+   * Context cards — account-level character / style / brand context the creator
+   * can @-mention or pin to a workbench. Images live under `<id>/images`.
+   */
+  CONTEXT_CARDS: '/api/context-cards',
   /** Node Studio structured ScriptDoc draft (assistant → outline) */
   NODE_SCRIPT_DOC: '/api/studio/node-script-doc',
   /** Generation feedback (iterative refinement) */
@@ -243,6 +248,8 @@ export const API_ENDPOINTS = {
 
   /** Node Studio workflow projects */
   NODE_WORKFLOW_PROJECTS: '/api/node-workflow/projects',
+  /** v3→v4 惰性升级的备份端点前缀（`/<projectId>/backup`）。 */
+  STUDIO_NODE_WORKFLOW: '/api/studio/node-workflow',
 
   /** Character Cards */
   CHARACTER_CARDS: '/api/character-cards',
@@ -880,6 +887,8 @@ export const RATE_LIMIT_CONFIGS = {
   seedancePromptPlan: { limit: 12, windowSeconds: 60 },
   nodeAssistant: { limit: 30, windowSeconds: 60 },
   nodeScriptDoc: { limit: 12, windowSeconds: 60 },
+  /** v3→v4 惰性升级前的 R2 备份。每个项目一生只该跑一次，限流只防重试风暴。 */
+  nodeWorkflowV3Backup: { limit: 10, windowSeconds: 60 },
   imageTransform: { limit: 10, windowSeconds: 60 },
   // ─── Generic presets ─────────────────────────────────────────
   /** Authenticated list/read endpoints (cards, recipes, history) */

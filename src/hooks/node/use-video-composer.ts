@@ -40,7 +40,9 @@ import {
   isVisualReferenceNode,
   isShotTextNode,
   isVoiceProfileNode,
-  orderKeyframes,
+  harvestSlots,
+  keyframeSlotCategory,
+  orderedKeyframeEntries,
   readVoiceCoverImage,
   readVoiceUrl,
 } from '@/lib/node-workflow-graph'
@@ -225,6 +227,10 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
   // 音色没有直连边 → 没有 edgeId → 没有 × 按钮。
   const referenceTokens = useMemo<ComposerReferenceToken[]>(() => {
     const incoming = getUpstreamNodes(nodeId, edges, nodes)
+    // 第三期 C3a：这个节点的**具名槽**。目前只有关键帧区读它（首/尾帧此前靠
+    // `imageCategory` 猜），其余分区仍走各自的 URL 收割器 —— 那些收割器自己也在
+    // 同一套判据上（`inferLegacySlot` 就是它们的翻译），换过去是 C3b 的事。
+    const harvestedSlots = harvestSlots(nodeId, edges, nodes)
     // image_urls order = keyframes → main refs → 1-hop closeups, matching the
     // generate path (StudioNodeWorkbench). Closeups append last so 特写N's slot
     // number lines up with its 图N badge and the model's cap keeps main refs.
@@ -493,22 +499,20 @@ export function useVideoComposer(nodeId: string, data: NodeWorkflowNodeData) {
       })
     }
 
-    // Keyframe references (首/尾帧, role=frame) — they ride image_urls (first,
-    // per harvestUpstreamImageUrls) but have no name-token, so they surface as
+    // Keyframe references (首/尾帧) — they ride image_urls (first, per
+    // harvestUpstreamImageUrls) but have no name-token, so they surface as
     // projection-only slots in the 镜头 card (cast-redesign §3/§4, keyframe→镜头卡).
-    // ⚠ 与采集/图例同一个 `orderKeyframes`：素材条上展示的就是首帧与尾帧这两张，
-    // 排列顺序得和真正送出去的顺序一致。
-    for (const node of orderKeyframes(incoming)) {
+    //
+    // 第三期 C3a：**按槽读**（`harvestSlots` → `orderedKeyframeEntries`），不再自己
+    // 读 `imageCategory` 猜首尾。排列顺序仍与采集/图例一致（同一条槽 → rank 翻译），
+    // 但语义的载体换成了边上的槽 —— 边上写了 `slot` 的关键帧，只有这条路径听得懂。
+    for (const entry of orderedKeyframeEntries(harvestedSlots)) {
+      const node = entry.node
       const url = getNodeMediaUrl(node.data)
       if (!url) continue
       // cleanup §8.6：关键帧档是**两个具名位置**（首帧 / 尾帧），不是两张同名的图。
-      // 名字取自节点自己的 `imageCategory` —— 首尾语义的载体本来就是它，这里只是把
-      // 它显示出来。没标分类的（存量的旧关键帧节点）仍退回 `refKind.keyframe`。
-      const category = node.data.imageCategory
-      const namedSlot =
-        category === 'frameStart' || category === 'frameEnd'
-          ? tRoles(`roles.${category}`)
-          : ''
+      const category = keyframeSlotCategory(entry.slot)
+      const namedSlot = category ? tRoles(`roles.${category}`) : ''
       tokens.push({
         id: node.id,
         kind: 'keyframe',

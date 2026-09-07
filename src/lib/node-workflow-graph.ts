@@ -1,4 +1,11 @@
 import {
+  NODE_SLOT_IDS,
+  NODE_SLOT_TEXT_ROLE_FALLBACK,
+  NODE_SLOT_TEXT_ROLE_IDS,
+  type NodeSlotId,
+  type NodeSlotTextRole,
+} from '@/constants/node-slots'
+import {
   NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY,
   NODE_STUDIO_KEYFRAME_LEGEND_UNCLASSIFIED_CATEGORY,
   NODE_STUDIO_KEYFRAME_REFERENCE_ROLES,
@@ -206,20 +213,23 @@ export function resolveGenerateTargetKind(node: {
  * 采集与图例编号**共用这一个函数** —— 两处若各排各的，图例写着「关键帧尾2」而实际
  * 送出的第二张是别的图，用户看到的解释就是假的。
  */
+function keyframeRank(node: NodeWorkflowNode): number {
+  const category = node.data.imageCategory
+  const index =
+    typeof category === 'string'
+      ? (NODE_STUDIO_KEYFRAME_REFERENCE_ROLES as readonly string[]).indexOf(
+          category,
+        )
+      : -1
+  return index === -1 ? 0 : index
+}
+
 export function orderKeyframes(
   nodes: readonly NodeWorkflowNode[],
 ): NodeWorkflowNode[] {
-  const rank = (node: NodeWorkflowNode): number => {
-    const category = node.data.imageCategory
-    const index =
-      typeof category === 'string'
-        ? (NODE_STUDIO_KEYFRAME_REFERENCE_ROLES as readonly string[]).indexOf(
-            category,
-          )
-        : -1
-    return index === -1 ? 0 : index
-  }
-  return nodes.filter(isKeyframeNode).sort((a, b) => rank(a) - rank(b))
+  return nodes
+    .filter(isKeyframeNode)
+    .sort((a, b) => keyframeRank(a) - keyframeRank(b))
 }
 
 /**
@@ -1351,4 +1361,286 @@ export function mergePromptWithUpstreamText(
   if (!upstream) return base
   if (!base) return upstream
   return `${upstream}\n\n${base}`
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * 按槽收割（第三期 · 画布 C3a）
+ *
+ * ── 为什么必须换掉「按位置猜」 ────────────────────────────────────────
+ * v3 的边不带语义：每个节点恒定一进一出，「这条边是首帧还是参考」只能靠下游猜。
+ * 猜法散在两处（`orderKeyframes` 的 rank 排序 + 适配器按 `images[0]/[1]` 取首尾），
+ * 于是「删掉第一张、尾帧静默升级成首帧」这类事故有了土壤。C1 把槽写进了边
+ * （`NodeWorkflowEdgeV4Schema.slot` 必填），C3a 让**收割层先改读槽**：边上有
+ * `slot` 就按 slot，没有就用 `inferLegacySlot` 按旧位置规则推断一次，把推断结果
+ * 当作等价 slot。存量 v3 图因此不改一个字节也能走新路径。
+ *
+ * ⛔ 推断结果**不回写库、不做双写**。⚠ C3c 翻转到 v4 后 `inferLegacySlot` 与 v3
+ * 边的可选 `slot` 一起删——那时每条边都自带槽，没有可推断的东西。
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+/** 一条入边在某个槽里的收割结果。⚠ 只描述**结构**（谁经哪条边进了哪个槽），
+ *  URL 与审核门仍归 `harvestUpstream*Urls` —— 两件事分开，这层才可纯测。 */
+export interface HarvestedSlotEntry {
+  readonly node: NodeWorkflowNode
+  /** 这条入边的 id。⚠ 一跳外的来源（特写 / 绑在角色卡上的音色）不在这里，
+   *  它们是**那张卡**的槽，对那张卡再调一次 `harvestSlots`。 */
+  readonly edgeId: string
+  readonly slot: NodeSlotId
+  /** 只有 `text` 槽有角色；v3 边不带角色，一律回落 `script`（见下）。 */
+  readonly role?: NodeSlotTextRole
+}
+
+export interface HarvestedTextSlots {
+  /** 要拍的内容本身（0..1）。v3 图里 = 第一条文本边。 */
+  readonly script?: HarvestedSlotEntry
+  /** 风格 / 规则约束段（0..N）。v3 图恒空——旧图的文本边全部算剧本。 */
+  readonly style: readonly HarvestedSlotEntry[]
+  /** 角色描述段（0..N）。v3 图恒空，同上。 */
+  readonly character: readonly HarvestedSlotEntry[]
+  /**
+   * 全部文本边，**发现顺序**。
+   *
+   * ⚠ 存在的理由是**逐字保真**：`harvestUpstreamShotTextPrompt` 把每条文本边的
+   * 正文按图顺序拼成一段，v3 图里它们全是 `script`，而 `script` 只有一个位置。
+   * 没有这条名单，第 2 条起的文本边就会在装配时凭空消失或被误塞进约束段。
+   */
+  readonly ordered: readonly HarvestedSlotEntry[]
+}
+
+export interface HarvestedSlots {
+  /** 首帧（0..1）= `keyframes` 里第一条首帧档的边。 */
+  readonly first?: HarvestedSlotEntry
+  /** 尾帧（0..1）= `keyframes` 里第一条尾帧档的边。 */
+  readonly last?: HarvestedSlotEntry
+  /**
+   * 全部关键帧入边，**发现顺序**（`first` / `last` 是它的语义指针）。
+   *
+   * ⚠ 存在的理由是**逐字保真**：首尾槽都是 0..1，而存量图完全可能挂两张
+   * `frameStart`——按旧规则它们两张都骑 `image_urls`（`orderKeyframes` 收全部关键
+   * 帧，`planVideoKeyframeImages` 才 `slice(0, 2)`）。只留 first/last 两个指针就会
+   * 在装配时把第 2 张静默吃掉。⛔ 收割层不做这种删减。
+   */
+  readonly keyframes: readonly HarvestedSlotEntry[]
+  /** 参考素材（0..N）：角色卡 / 背景卡 / 镜头图 / 参考视频。 */
+  readonly reference: readonly HarvestedSlotEntry[]
+  /** 语音 / 音色（0..N），**只有直连的**。绑在角色卡上的那些是角色卡的槽。 */
+  readonly voice: readonly HarvestedSlotEntry[]
+  /** 面部特写（0..N）。只在角色卡上出现（特写连的是卡，不是视频）。 */
+  readonly closeup: readonly HarvestedSlotEntry[]
+  /** 合并节点的待接片段（2..9）。 */
+  readonly clip: readonly HarvestedSlotEntry[]
+  readonly text: HarvestedTextSlots
+}
+
+/**
+ * 旧位置规则 → 具名槽的**唯一**翻译点。
+ *
+ * 逐条对应改造前那套散落的判据（全部来自本文件上半部，行为逐字等价）：
+ *
+ * | 源节点 | 旧行为 | 槽 |
+ * | --- | --- | --- |
+ * | `isKeyframeNode` 且 `imageCategory === 'frameEnd'` | `orderKeyframes` rank 1 → 位置 [1] | `lastFrame` |
+ * | 其余 `isKeyframeNode`（含 `role==='frame'` 无分类） | rank 0 → 位置 [0] | `firstFrame` |
+ * | `isCloseupNode` | `harvestUpstreamCloseupUrls` 的一跳 | `closeup` |
+ * | `isVoiceProfileNode` | `harvestUpstreamAudioBindings` | `voice` |
+ * | `isShotTextNode` | `harvestUpstreamShotTextPrompt` | `text` |
+ * | `isVideoSourceNode` | `harvestUpstreamVideoUrls` | `reference` |
+ * | `isVisualReferenceNode` | `harvestUpstreamImageUrls` 第二轮 | `reference` |
+ *
+ * ⚠ 判据顺序即优先级：关键帧先于视觉参考（一张 `role=shot` 且带
+ * `imageCategory=frameStart` 的图两边都算，旧收割也是关键帧那一轮先要走它）。
+ *
+ * ⚠ `clip` 推不出来：合并节点的入边源就是普通视频节点，与「参考视频」在 v3 里
+ * 长得一模一样。判据靠**目标**，所以它在 `resolveEdgeSlot` 里按目标节点收窄，
+ * 不在这里 —— 本函数只回答「这个源能当什么用」。
+ */
+export function inferLegacySlot(
+  source: NodeWorkflowNode,
+): NodeSlotId | undefined {
+  if (isKeyframeNode(source)) {
+    // `NODE_STUDIO_KEYFRAME_REFERENCE_ROLES` 的数组顺序（frameStart → frameEnd）
+    // 本身就是时序，`orderKeyframes` 的 rank 读的也是它——⛔ 不另立一张映射表，
+    // 也不在这里写死 'frameEnd' 字面量。没分类的（旧 `role==='frame'`）= rank 0
+    // = 首帧，与改造前「按上游顺序、第一张当首帧」逐字一致。
+    return keyframeRank(source) > 0
+      ? NODE_SLOT_IDS.lastFrame
+      : NODE_SLOT_IDS.firstFrame
+  }
+  if (isCloseupNode(source)) return NODE_SLOT_IDS.closeup
+  if (isVoiceProfileNode(source)) return NODE_SLOT_IDS.voice
+  if (isShotTextNode(source)) return NODE_SLOT_IDS.text
+  if (isVideoSourceNode(source)) return NODE_SLOT_IDS.reference
+  if (isVisualReferenceNode(source)) return NODE_SLOT_IDS.reference
+  return undefined
+}
+
+/**
+ * 一条边最终算哪个槽：**边上写了就听边的**，没写才推断。这是「存量图不改也能走
+ * 新路径」的落点，也是 C3d（`onConnect` 写 `slot`）之后新边立刻生效的原因。
+ */
+export function resolveEdgeSlot(
+  edge: NodeWorkflowEdge,
+  source: NodeWorkflowNode,
+  target: NodeWorkflowNode | undefined,
+): NodeSlotId | undefined {
+  if (edge.slot) return edge.slot
+  const inferred = inferLegacySlot(source)
+  // 合并节点只有 `clip` 一个入口——同样一条「视频 → 视频」的边，进普通镜头是参考，
+  // 进合并节点是待接片段。源分不出来，目标能。
+  if (
+    inferred === NODE_SLOT_IDS.reference &&
+    target?.type === NODE_TYPE_IDS.videoMerge
+  ) {
+    return NODE_SLOT_IDS.clip
+  }
+  return inferred
+}
+
+/**
+ * 按槽收割一个节点的**直连**入边。
+ *
+ * ⚠ 只走一跳，而且这是设计而不是省事：槽是**边的属性**，一跳外的来源（特写 →
+ * 角色卡、音色 → 角色卡）占的是那张卡的槽。要它们就对那张卡再调一次本函数——
+ * 这样「谁的槽」永远只有一个答案，不会出现两处各走各的跳数（`use-video-composer`
+ * 的音频区与 `harvestUpstreamAudioBindings` 曾经就是这么对不上账的）。
+ */
+export function harvestSlots(
+  nodeId: string,
+  edges: readonly NodeWorkflowEdge[],
+  nodes: readonly NodeWorkflowNode[],
+): HarvestedSlots {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]))
+  const target = nodeById.get(nodeId)
+
+  let first: HarvestedSlotEntry | undefined
+  let last: HarvestedSlotEntry | undefined
+  const keyframes: HarvestedSlotEntry[] = []
+  const reference: HarvestedSlotEntry[] = []
+  const voice: HarvestedSlotEntry[] = []
+  const closeup: HarvestedSlotEntry[] = []
+  const clip: HarvestedSlotEntry[] = []
+  const textOrdered: HarvestedSlotEntry[] = []
+
+  // ⚠ 按 **nodes 顺序**遍历，不是 edges 顺序：改造前每一条收割（`orderKeyframes`
+  // 的输入、`harvestUpstreamImageUrls` 的第二轮、`harvestUpstreamShotTextPrompt`）
+  // 走的都是 `getUpstreamNodes` 的返回，而它是 `nodes.filter(...)`。换成边序会让
+  // 存量图里 `@ImageN` 的编号整体漂一遍。
+  const edgeBySource = new Map<string, NodeWorkflowEdge>()
+  for (const edge of edges) {
+    if (edge.target !== nodeId) continue
+    if (!edgeBySource.has(edge.source)) edgeBySource.set(edge.source, edge)
+  }
+
+  for (const source of nodes) {
+    const edge = edgeBySource.get(source.id)
+    if (!edge) continue
+    const slot = resolveEdgeSlot(edge, source, target)
+    if (!slot) continue
+    const entry: HarvestedSlotEntry = {
+      node: source,
+      edgeId: edge.id,
+      slot,
+      // v3 的边不带角色。⚠ 回落到 `script` 是 C1 定的缺省
+      // （`NODE_SLOT_TEXT_ROLE_FALLBACK`），也正是旧行为：所有上游文本一律拼进
+      // 正文，没有约束段这回事。
+      ...(slot === NODE_SLOT_IDS.text
+        ? { role: NODE_SLOT_TEXT_ROLE_FALLBACK }
+        : {}),
+    }
+
+    switch (slot) {
+      case NODE_SLOT_IDS.firstFrame:
+        keyframes.push(entry)
+        first ??= entry
+        break
+      case NODE_SLOT_IDS.lastFrame:
+        keyframes.push(entry)
+        last ??= entry
+        break
+      // `source` = 文本节点的「从这些素材写文本」入口（任意 kind）。它是这张卡的
+      // **参考素材**，和视频镜头的 `reference` 是同一件事，只是入口名字不同——
+      // ⛔ 不给它单开一个恒空的桶（v3 推不出 `source`，只有显式写了槽的边才有）。
+      case NODE_SLOT_IDS.reference:
+      case NODE_SLOT_IDS.source:
+        reference.push(entry)
+        break
+      case NODE_SLOT_IDS.voice:
+      case NODE_SLOT_IDS.timbre:
+        voice.push(entry)
+        break
+      case NODE_SLOT_IDS.closeup:
+        closeup.push(entry)
+        break
+      case NODE_SLOT_IDS.clip:
+        clip.push(entry)
+        break
+      case NODE_SLOT_IDS.text:
+        textOrdered.push(entry)
+        break
+    }
+  }
+
+  const scriptEntry = textOrdered.find(
+    (entry) => entry.role === NODE_SLOT_TEXT_ROLE_IDS.script,
+  )
+
+  return {
+    ...(first ? { first } : {}),
+    ...(last ? { last } : {}),
+    keyframes,
+    reference,
+    voice,
+    closeup,
+    clip,
+    text: {
+      // ⚠ 剧本是**按角色**取第一条，不是按顺序取第 0 条：约束段的边排在前面时，
+      // 「第 0 条即剧本」会把一段风格约束当成要拍的内容。
+      ...(scriptEntry ? { script: scriptEntry } : {}),
+      style: textOrdered.filter(
+        (entry) => entry.role === NODE_SLOT_TEXT_ROLE_IDS.style,
+      ),
+      character: textOrdered.filter(
+        (entry) => entry.role === NODE_SLOT_TEXT_ROLE_IDS.character,
+      ),
+      ordered: textOrdered,
+    },
+  }
+}
+
+/**
+ * 收割结果里的关键帧节点，**按时序**：首帧档在前、尾帧档在后，同档内保持发现顺序。
+ *
+ * `orderKeyframes` 的槽版本，**逐字等价**：那个函数按 `imageCategory` 现算 rank，
+ * 这个直接读已经定好的槽（`inferLegacySlot` 就是那条 rank 规则的翻译）。排序同样
+ * 必须**稳定**——同档两张之间漂一下，存量图里 `@ImageN` 的位置就跟着漂。
+ *
+ * 差别只在**谁说了算**：边上写了 `slot` 的图，只有这条路径听得懂。
+ */
+export function orderedKeyframeEntries(
+  slots: HarvestedSlots,
+): HarvestedSlotEntry[] {
+  return [...slots.keyframes].sort(
+    (a, b) =>
+      (a.slot === NODE_SLOT_IDS.lastFrame ? 1 : 0) -
+      (b.slot === NODE_SLOT_IDS.lastFrame ? 1 : 0),
+  )
+}
+
+/**
+ * 首尾帧槽 → 画布图例分类（`frameStart` / `frameEnd`）。
+ *
+ * 两套名字指的是同一件事：分类是 v3 存在节点身上的载体，槽是 v4 存在边上的载体。
+ * ⚠ 需要这条翻译的只有**显示**（图例标签、素材条槽名的 i18n 键）——判据一律走槽。
+ * C3c 之后分类那一半退役，这个函数跟着删。
+ */
+export function keyframeSlotCategory(
+  slot: NodeSlotId,
+): (typeof NODE_STUDIO_KEYFRAME_REFERENCE_ROLES)[number] | undefined {
+  if (slot === NODE_SLOT_IDS.firstFrame) {
+    return NODE_STUDIO_KEYFRAME_REFERENCE_ROLES[0]
+  }
+  if (slot === NODE_SLOT_IDS.lastFrame) {
+    return NODE_STUDIO_KEYFRAME_REFERENCE_ROLES[1]
+  }
+  return undefined
 }

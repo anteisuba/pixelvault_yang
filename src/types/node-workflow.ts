@@ -23,6 +23,7 @@ import {
   NODE_SLOT_OUTPUTS,
   NODE_SLOT_TEXT_ROLES,
   NODE_SLOTS,
+  type NodeSlotId,
 } from '@/constants/node-slots'
 import {
   NODE_GENERATION_SOURCES,
@@ -545,6 +546,19 @@ export const NodeWorkflowEdgeSchema = z
     target: z.string().min(1),
     sourceHandle: z.string().nullable().optional(),
     targetHandle: z.string().nullable().optional(),
+    /**
+     * 具名槽（第三期 · C3a）。**可选**，且只在 v3 上可选。
+     *
+     * 存量图的边一条都没有槽——「这条边是首帧还是参考」此前只能靠下游收割逻辑按
+     * 位置猜。收割层（`harvestSlots`，`lib/node-workflow-graph.ts`）现在一律按槽
+     * 读：边上有 `slot` 就用它，没有就用 `inferLegacySlot` 按**旧位置规则**推断一
+     * 次，把推断结果当作等价 slot。⛔ 推断结果**不回写库、不做双写** —— 存量图原
+     * 样躺着，新建的边才带槽。
+     *
+     * ⚠ 迁移顺序：C3c 翻转到 v4 之后，v4 边的 `slot` 是**必填**
+     * （`NodeWorkflowEdgeV4Schema`），此可选字段随整个 v3 schema 一起删。
+     */
+    slot: z.enum(NODE_SLOTS).optional(),
     data: NodeWorkflowEdgeDataSchema.optional().catch(undefined),
   })
   .passthrough()
@@ -801,7 +815,14 @@ export interface NodeWorkflowProjectSummary {
   nodeCount: number
 }
 export type NodeWorkflowNode = Node<NodeWorkflowNodeData, NodeWorkflowNodeType>
-export type NodeWorkflowEdge = Edge<Record<string, unknown>>
+/**
+ * v3 边。`slot` 是第三期 C3a 加的**可选**具名槽（见 `NodeWorkflowEdgeSchema`
+ * 里那条头注）：新建的边写得上，存量边一条都没有，收割层用 `inferLegacySlot`
+ * 按旧位置规则补一次。C3c 翻转到 v4 后随整个 v3 形状一起删。
+ */
+export type NodeWorkflowEdge = Edge<Record<string, unknown>> & {
+  slot?: NodeSlotId
+}
 
 /* ═════════════════════════════════════════════════════════════════════════
  * v4 数据模型（第三期 · 画布 C1，`docs/references/pages/node-canvas-v2.md` §9.1）

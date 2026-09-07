@@ -6,6 +6,7 @@ import {
   NODE_REVIEW_STATE_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
+import { NODE_SLOT_IDS, NODE_SLOT_TEXT_ROLE_IDS } from '@/constants/node-slots'
 import {
   NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY,
   NODE_STUDIO_KEYFRAME_LEGEND_UNCLASSIFIED_CATEGORY,
@@ -36,6 +37,8 @@ import {
   harvestUpstreamShotTextPrompt,
   harvestUpstreamVideoImageReferences,
   harvestUpstreamVideoUrls,
+  harvestSlots,
+  inferLegacySlot,
   isKeyframeNode,
   isShotNode,
   isShotTextNode,
@@ -44,6 +47,10 @@ import {
   isVoiceProfileNode,
   mergeComposerReferenceAssets,
   mergePromptWithUpstreamText,
+  keyframeSlotCategory,
+  orderKeyframes,
+  orderedKeyframeEntries,
+  resolveEdgeSlot,
   resolveGenerateTargetKind,
   type UpstreamImageReference,
   type VideoLegendImageReference,
@@ -2711,5 +2718,364 @@ describe('harvestUpstreamAudioBindings', () => {
         coverImage: 'https://cdn/reference-cover.png',
       },
     ])
+  })
+})
+
+/* ── 第三期 C3a：按槽收割 ─────────────────────────────────────────────── */
+
+describe('inferLegacySlot', () => {
+  it('maps every legacy position rule onto a named slot', () => {
+    expect(
+      inferLegacySlot(
+        makeNode('kf-start', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.shot,
+          imageCategory: 'frameStart',
+        }),
+      ),
+    ).toBe(NODE_SLOT_IDS.firstFrame)
+    expect(
+      inferLegacySlot(
+        makeNode('kf-end', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.shot,
+          imageCategory: 'frameEnd',
+        }),
+      ),
+    ).toBe(NODE_SLOT_IDS.lastFrame)
+    // 旧 `role==='frame'` 没有分类 → rank 0 → 首帧（存量图不改送出的首帧）。
+    expect(
+      inferLegacySlot(
+        makeNode('kf-legacy', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.frame,
+        }),
+      ),
+    ).toBe(NODE_SLOT_IDS.firstFrame)
+    expect(
+      inferLegacySlot(
+        makeNode('closeup', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.closeup,
+        }),
+      ),
+    ).toBe(NODE_SLOT_IDS.closeup)
+    expect(inferLegacySlot(makeNode('voice', NODE_TYPE_IDS.voice))).toBe(
+      NODE_SLOT_IDS.voice,
+    )
+    expect(inferLegacySlot(makeNode('txt', NODE_TYPE_IDS.shotText))).toBe(
+      NODE_SLOT_IDS.text,
+    )
+    expect(inferLegacySlot(makeNode('vid', NODE_TYPE_IDS.seedance))).toBe(
+      NODE_SLOT_IDS.reference,
+    )
+    expect(
+      inferLegacySlot(
+        makeNode('char', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.character,
+        }),
+      ),
+    ).toBe(NODE_SLOT_IDS.reference)
+    // 既不是媒体源也不是文本的节点（助手）不是任何槽的源。
+    expect(inferLegacySlot(makeNode('agent', NODE_TYPE_IDS.agent))).toBe(
+      undefined,
+    )
+  })
+
+  it('agrees with orderKeyframes on the first/last rank rule, verbatim', () => {
+    // 旧规则的既有夹具：两张 frameStart + 一张 frameEnd，稳定排序后
+    // [startA, startC, endB]。槽版本必须给出同一串。
+    const startA = makeNode('a', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+      imageCategory: 'frameStart',
+      mediaUrl: 'https://cdn/a.png',
+    })
+    const endB = makeNode('b', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+      imageCategory: 'frameEnd',
+      mediaUrl: 'https://cdn/b.png',
+    })
+    const startC = makeNode('c', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+      imageCategory: 'frameStart',
+      mediaUrl: 'https://cdn/c.png',
+    })
+    const video = makeNode('v', NODE_TYPE_IDS.seedance)
+    const nodes = [startA, endB, startC, video]
+    const edges = [
+      makeEdge('e1', 'a', 'v'),
+      makeEdge('e2', 'b', 'v'),
+      makeEdge('e3', 'c', 'v'),
+    ]
+
+    const legacyOrder = orderKeyframes(getUpstreamNodes('v', edges, nodes)).map(
+      (node) => node.id,
+    )
+    const slotOrder = orderedKeyframeEntries(
+      harvestSlots('v', edges, nodes),
+    ).map((entry) => entry.node.id)
+
+    expect(legacyOrder).toEqual(['a', 'c', 'b'])
+    expect(slotOrder).toEqual(legacyOrder)
+  })
+})
+
+describe('resolveEdgeSlot', () => {
+  const clipSource = makeNode('clip', NODE_TYPE_IDS.seedance, {
+    mediaUrl: 'https://cdn/clip.mp4',
+  })
+
+  it('prefers the slot written on the edge over inference', () => {
+    const source = makeNode('img', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.character,
+    })
+    const target = makeNode('v', NODE_TYPE_IDS.seedance)
+    const edge = {
+      ...makeEdge('e1', 'img', 'v'),
+      slot: NODE_SLOT_IDS.firstFrame,
+    } as NodeWorkflowEdge
+    expect(resolveEdgeSlot(edge, source, target)).toBe(NODE_SLOT_IDS.firstFrame)
+  })
+
+  it('narrows a video reference to `clip` when the target is a merge node', () => {
+    const shot = makeNode('v', NODE_TYPE_IDS.seedance)
+    const merge = makeNode('m', NODE_TYPE_IDS.videoMerge)
+    expect(resolveEdgeSlot(makeEdge('e1', 'clip', 'v'), clipSource, shot)).toBe(
+      NODE_SLOT_IDS.reference,
+    )
+    expect(
+      resolveEdgeSlot(makeEdge('e2', 'clip', 'm'), clipSource, merge),
+    ).toBe(NODE_SLOT_IDS.clip)
+  })
+})
+
+describe('harvestSlots', () => {
+  const first = makeNode('kf1', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.shot,
+    imageCategory: 'frameStart',
+    mediaUrl: 'https://cdn/first.png',
+  })
+  const last = makeNode('kf2', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.shot,
+    imageCategory: 'frameEnd',
+    mediaUrl: 'https://cdn/last.png',
+  })
+  const character = makeNode('char', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.character,
+    mediaUrl: 'https://cdn/char.png',
+  })
+  const voice = makeNode('voice', NODE_TYPE_IDS.voice, {
+    voiceClipUrl: 'https://cdn/voice.mp3',
+  })
+  const shotText = makeNode('txt', NODE_TYPE_IDS.shotText, {
+    sceneDescription: '走廊',
+  })
+  const video = makeNode('v', NODE_TYPE_IDS.seedance)
+  const nodes = [first, last, character, voice, shotText, video]
+
+  const shape = (nodeId: string, edges: NodeWorkflowEdge[]) => {
+    const slots = harvestSlots(nodeId, edges, nodes)
+    return {
+      first: slots.first?.node.id,
+      last: slots.last?.node.id,
+      reference: slots.reference.map((entry) => entry.node.id),
+      voice: slots.voice.map((entry) => entry.node.id),
+      text: slots.text.ordered.map((entry) => entry.node.id),
+      textRoles: slots.text.ordered.map((entry) => entry.role),
+      script: slots.text.script?.node.id,
+    }
+  }
+
+  const expected = {
+    first: 'kf1',
+    last: 'kf2',
+    reference: ['char'],
+    voice: ['voice'],
+    text: ['txt'],
+    textRoles: [NODE_SLOT_TEXT_ROLE_IDS.script],
+    script: 'txt',
+  }
+
+  it('harvests a slot-less v3 graph by inference', () => {
+    expect(
+      shape('v', [
+        makeEdge('e1', 'kf1', 'v'),
+        makeEdge('e2', 'kf2', 'v'),
+        makeEdge('e3', 'char', 'v'),
+        makeEdge('e4', 'voice', 'v'),
+        makeEdge('e5', 'txt', 'v'),
+      ]),
+    ).toEqual(expected)
+  })
+
+  it('harvests an all-slots graph identically', () => {
+    const withSlot = (
+      id: string,
+      source: string,
+      slot: (typeof NODE_SLOT_IDS)[keyof typeof NODE_SLOT_IDS],
+    ) => ({ ...makeEdge(id, source, 'v'), slot }) as NodeWorkflowEdge
+    expect(
+      shape('v', [
+        withSlot('e1', 'kf1', NODE_SLOT_IDS.firstFrame),
+        withSlot('e2', 'kf2', NODE_SLOT_IDS.lastFrame),
+        withSlot('e3', 'char', NODE_SLOT_IDS.reference),
+        withSlot('e4', 'voice', NODE_SLOT_IDS.voice),
+        withSlot('e5', 'txt', NODE_SLOT_IDS.text),
+      ]),
+    ).toEqual(expected)
+  })
+
+  it('harvests a mixed graph identically (some edges carry a slot, some do not)', () => {
+    expect(
+      shape('v', [
+        { ...makeEdge('e1', 'kf1', 'v'), slot: NODE_SLOT_IDS.firstFrame },
+        makeEdge('e2', 'kf2', 'v'),
+        { ...makeEdge('e3', 'char', 'v'), slot: NODE_SLOT_IDS.reference },
+        makeEdge('e4', 'voice', 'v'),
+        makeEdge('e5', 'txt', 'v'),
+      ] as NodeWorkflowEdge[]),
+    ).toEqual(expected)
+  })
+
+  it('lets an explicit slot override what the position rule would have guessed', () => {
+    // 同一张关键帧图，边上说它是参考 → 它就是参考，不再进首帧槽。
+    const slots = harvestSlots(
+      'v',
+      [
+        { ...makeEdge('e1', 'kf1', 'v'), slot: NODE_SLOT_IDS.reference },
+      ] as NodeWorkflowEdge[],
+      nodes,
+    )
+    expect(slots.first).toBeUndefined()
+    expect(slots.keyframes).toEqual([])
+    expect(slots.reference.map((entry) => entry.node.id)).toEqual(['kf1'])
+  })
+
+  it('keeps an over-subscribed keyframe slot instead of swallowing it', () => {
+    const extra = makeNode('kf3', NODE_TYPE_IDS.image, {
+      role: NODE_IMAGE_ROLE_IDS.shot,
+      imageCategory: 'frameStart',
+      mediaUrl: 'https://cdn/extra.png',
+    })
+    const slots = harvestSlots(
+      'v',
+      [makeEdge('e1', 'kf1', 'v'), makeEdge('e2', 'kf3', 'v')],
+      [...nodes, extra],
+    )
+    expect(slots.first?.node.id).toBe('kf1')
+    expect(slots.keyframes.map((entry) => entry.node.id)).toEqual([
+      'kf1',
+      'kf3',
+    ])
+  })
+
+  it('only walks direct edges — a voice bound to a character is that card slot', () => {
+    const edges = [makeEdge('e1', 'char', 'v'), makeEdge('e2', 'voice', 'char')]
+    expect(harvestSlots('v', edges, nodes).voice).toEqual([])
+    expect(
+      harvestSlots('char', edges, nodes).voice.map((e) => e.node.id),
+    ).toEqual(['voice'])
+  })
+})
+
+describe('keyframeSlotCategory', () => {
+  it('translates the two keyframe slots back to the legend categories', () => {
+    expect(keyframeSlotCategory(NODE_SLOT_IDS.firstFrame)).toBe('frameStart')
+    expect(keyframeSlotCategory(NODE_SLOT_IDS.lastFrame)).toBe('frameEnd')
+    expect(keyframeSlotCategory(NODE_SLOT_IDS.reference)).toBeUndefined()
+  })
+})
+
+describe('slot-driven payload assembly', () => {
+  // 一张存量 v3 图（一条边都不带 slot）：首帧 / 尾帧 / 参考 / 语音 / 三类文本
+  // 各自要落到自己的位置。装配走槽，⛔ 不再按 `images[0]/[1]` 取首尾。
+  const kfFirst = makeNode('kfA', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.shot,
+    imageCategory: 'frameStart',
+    mediaUrl: 'https://cdn/kfA.png',
+  })
+  const kfLast = makeNode('kfB', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.shot,
+    imageCategory: 'frameEnd',
+    mediaUrl: 'https://cdn/kfB.png',
+  })
+  const character = makeNode('char', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.character,
+    mediaUrl: 'https://cdn/char.png',
+  })
+  const refVideo = makeNode('refvid', NODE_TYPE_IDS.videoReference, {
+    mediaUrl: 'https://cdn/ref.mp4',
+  })
+  const voiceNode = makeNode('voice', NODE_TYPE_IDS.voice, {
+    voiceClipUrl: 'https://cdn/v.mp3',
+  })
+  const script = makeNode('txt', NODE_TYPE_IDS.shotText, {
+    sceneDescription: '走廊',
+  })
+  const video = makeNode('video', NODE_TYPE_IDS.seedance)
+  const nodes = [kfFirst, kfLast, character, refVideo, voiceNode, script, video]
+  const edges = [
+    makeEdge('e1', 'kfA', 'video'),
+    makeEdge('e2', 'kfB', 'video'),
+    makeEdge('e3', 'char', 'video'),
+    makeEdge('e4', 'refvid', 'video'),
+    makeEdge('e5', 'voice', 'video'),
+    makeEdge('e6', 'txt', 'video'),
+  ]
+
+  it('lands each slot in its own payload position', () => {
+    const slots = harvestSlots('video', edges, nodes)
+
+    // 首帧 / 尾帧：各取各的槽，不靠位置。
+    expect(getNodeMediaUrl(slots.first!.node.data)).toBe('https://cdn/kfA.png')
+    expect(getNodeMediaUrl(slots.last!.node.data)).toBe('https://cdn/kfB.png')
+
+    // 参考：图与视频同槽（`video.shot.reference` 两种 kind 都收），各自去各自的
+    // 载荷数组，由调用方按 kind 分流 —— 槽只回答「它是参考」。
+    expect(slots.reference.map((entry) => entry.node.id)).toEqual([
+      'char',
+      'refvid',
+    ])
+    expect(harvestUpstreamVideoUrls([refVideo])).toEqual([
+      'https://cdn/ref.mp4',
+    ])
+
+    // 语音：进 audio_urls。
+    expect(slots.voice.map((entry) => entry.node.id)).toEqual(['voice'])
+    expect(
+      harvestUpstreamAudioBindings('video', edges, nodes).map((b) => b.url),
+    ).toEqual(['https://cdn/v.mp3'])
+
+    // 文本：v3 图里全是 script → 全部进正文，约束段为空（与旧行为一致）。
+    expect(slots.text.script?.node.id).toBe('txt')
+    expect(slots.text.style).toEqual([])
+    expect(slots.text.character).toEqual([])
+    expect(
+      harvestUpstreamShotTextPrompt(
+        slots.text.ordered.map((entry) => entry.node),
+      ),
+    ).toBe(
+      harvestUpstreamShotTextPrompt(getUpstreamNodes('video', edges, nodes)),
+    )
+  })
+
+  it('routes style / character text edges into the constraint segments', () => {
+    const styleNode = makeNode('style', NODE_TYPE_IDS.shotText, {
+      sceneDescription: '胶片颗粒',
+    })
+    const slots = harvestSlots(
+      'video',
+      [
+        makeEdge('e6', 'txt', 'video'),
+        {
+          ...makeEdge('e7', 'style', 'video'),
+          slot: NODE_SLOT_IDS.text,
+        },
+      ] as NodeWorkflowEdge[],
+      [...nodes, styleNode],
+    )
+    // v3 边不带角色 → 两条都回落 script；约束段要靠 C3d 在连线时写 role。
+    expect(slots.text.ordered.map((entry) => entry.role)).toEqual([
+      NODE_SLOT_TEXT_ROLE_IDS.script,
+      NODE_SLOT_TEXT_ROLE_IDS.script,
+    ])
+    expect(slots.text.script?.node.id).toBe('txt')
+    expect(slots.text.ordered).toHaveLength(2)
   })
 })

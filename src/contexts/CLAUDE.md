@@ -12,6 +12,14 @@ StudioGenContext   (COLD) — generation state — changes only during generatio
 
 **Why split?** Putting fast-changing state (prompt text) in the same context as slow-changing state (cards list) causes unnecessary re-renders across 23+ components. The split prevents cascade renders.
 
+## Studio 视频档具名槽（2026-09-07 `48d6fecb`）
+
+`StudioFormState` 两个视频专属字段，改它们前先读 `studio-context.tsx` 里各自的头注：
+
+- `videoFrameSlots: { first: string | null; last: string | null }` — 首帧 / 尾帧**具名槽**，只在关键帧档（`videoMode === 'keyframe'`）成立；另外两档里图片是内容参考，仍走 `imageUpload`。action `SET_VIDEO_FRAME_SLOT`，`url: null` = 清空那个槽（⛔ 不是「删掉一个下标」——位置承载那一套已删，它会让尾帧静默升级成首帧）。
+- `videoReferenceVideos: string[]` — 参考视频槽；传输口是**早就在的** `videoUrls`，⛔ 不新造字段。上限由模型契约的 `slots.videos` 在发送口夹，不由数组自己夹。
+- 两者都存 URL 不存 File（发送口原样透传），并随 `RESET` 一起清空。
+
 ## Rules
 
 1. **Adding new state**: decide which context based on update frequency, not logical grouping

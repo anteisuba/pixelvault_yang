@@ -18,7 +18,9 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
     └── StudioWorkspaceUI (components/business/ — mounted once for image/video/audio)
         ├── StudioWorkbenchLayout (studio-shared/chrome/ — 三模态共用：左参数栏 + 右结果区)
         │   ├── params: StudioPromptArea (studio/ — 提示词 + 加料 chip + 模态参数 + 模型 + 规格 + 生成)
-        │   │   └── StudioCardSection (studio/ — 卡片工作流时才渲染，非音频)
+        │   │   ├── StudioCardSection (studio/ — 卡片工作流时才渲染，非音频)
+        │   │   └── StudioVideoReferenceSlots (studio-shared/chrome/ — 视频档具名参考槽：首帧 / 尾帧 / 参考视频；
+        │   │        槽的可见性来自模型发送契约 getVideoWorkbenchSlots，不支持的槽不渲染)
         │   └── stage: StudioCanvas (studio-shared/chrome/)
         │       ├── StudioReferenceRail (studio-shared/chrome/ — 参考轨，与结果并存)
         │       ├── GenerationPreview (studio/ — current result)
@@ -41,7 +43,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorResultRow (结果行卡 2/4 列，@ 闭环入口)
         │       ├── StudioOperatorLogItem (时间线一行：工具步 / 动作 / 系统行 / 证据卡)
         │       ├── StudioOperatorWebCandidateGrid (联网候选网格：来源三字段 + 「挂上 N 张」)
-        │       ├── StudioOperatorCritiqueCard (评价卡，内嵌被评的那张图)
+        │       ├── StudioOperatorCritiqueCard (评价卡，两个形态一颗组件：单图嵌图 / 视频三帧并排 + 时间码；分岔判据是载荷里有没有 frames，不是当前域)
         │       ├── StudioOperatorAttachMenu (📎 附件面板，素材库就地预览)
         │       ├── StudioOperatorHistoryItem (会话历史条目)
         │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 长回话折首句 / `detail` 折成「为什么」)
@@ -57,6 +59,8 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 ⚠ **operator 系对外只有两颗入口**（`assistant-operator/index.ts`）：`StudioOperatorDock`（`StudioWorkspaceUI` 挂）与 `StudioOperatorChangeRail`（`StudioPromptArea.tsx:711` 挂，改动标记长在被改的那一栏）。其余是面板内部件，不从 index 导出。LoRA 工作台也挂这两颗（`studio/lora/LoraWorkbench.tsx:176-177`）。
 ⚠ **文件已就位但还没有调用方（接线中）** —— 别以为它们没写：`StudioOperatorAssetChoiceCard`（歧义单选卡，等 `choice_request` 事件）。⛔ 要用它时**先 import 现成的**，别再写一个。
 ⚠ **已接线，别再按「接线中」找**：`StudioOperatorQuestionCard`（2026-09-06 起是**唯一**那张钉在流末尾的待确认卡，`StudioOperatorPlanCard` 已删）+ `PlanOptionVisual` · `StudioOperatorSpendConfirmCard` · `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（**进度带上那颗常驻齿轮** → `onOpenAssistantSettings`，开合 state 在 Dock；2026-09-07 起 ⋯ 菜单里不再有第二个入口）· `StudioOperatorTimelineList`（2026-09-06 起就是面板那颗 `threadRef` 容器）· `StudioOperatorStreamingText`（面板的 `message` 条目走它）。
+⚠ **视频档具名槽（2026-09-07 `48d6fecb`）**：视频参考区是 `StudioVideoReferenceSlots`（首帧 / 尾帧 / 参考视频），三条落法（拖入 / 素材库 / 助手 `mount_reference slot`）**汇到同一个 dispatch**（`use-video-reference-slots.ts`），⛔ 组件里没有第二条写入。⛔ 关键帧档下**不再渲染** `ReferenceImageChip`——那一档里图片是帧，留着它写进的参考图列表发送口根本不读（静默失效）。首帧在场且线路带图锁比例时，`StudioVideoSpecFields` 把比例组**禁用而不是移除**并说清怎么解除。
+
 ⚠ **手机形态（2026-09-06 `adb0a008`）**：Dock 在 `isMobile` 时**不再 `return null`**——图片 / 视频档改渲染 `StudioOperatorMobileFab` + `StudioOperatorMobileSheet`，装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。
 
 ⚠ **目标态：方向 C「工作日志」面板**——收起态 48px 图标轨、顶部进度带、计划卡 / 三档确认 / 结果行卡 / checkpoint 薄卡、时间线沟用 **32px 头像 + 24px 沟宽且不显示任何时间戳**、助手设置弹层（两栏 + `Tabs`）、手机全屏 Sheet、检索链（`research` / `read_url` / 官方优先搜图）。施工基准 `docs/references/pages/assistant-shell.md`（owner 2026-09-06 定，§7.1 检索链 / §11.3 时间线沟 / §11.6 移动端）；⛔ 动这一系之前先读它，别照现状扩。

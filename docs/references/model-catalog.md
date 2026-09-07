@@ -62,7 +62,7 @@ Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE ·
 
 ### 音频（2）
 
-FISH_AUDIO_S2_PRO（s2-pro，Fish 直连）· ELEVENLABS_SFX_V2（eleven_text_to_sound_v2，**唯一音效模型**）。
+FISH_AUDIO_S2_PRO / FISH_AUDIO_S2_PRO_FREE（s2.1-pro / s2.1-pro-free，Fish 直连）· ELEVENLABS_SFX_V2（eleven_text_to_sound_v2，**唯一音效模型**）。
 
 ### 3D（5）
 
@@ -162,7 +162,7 @@ LoRA 底模（2026-07-30 社区对账；调研全文《LoRA底模与工作流调
 
 同轮文本路由由 3.7 升级为 `gemini-3.8-flash`，覆盖 enhance 可选档、assistant 和 planner。官方支持函数调用、结构化输出及多模态输入；不支持 `minimal` thinking，本仓未发送该值。价格页列 2026 年底前输入 $0.75 / 输出 $3.75 每百万 token，2027-01-01 起翻倍。[模型页](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash) · [价格页](https://ai.google.dev/gemini-api/docs/pricing)。
 
-Fish 复核：2026-09-06 的 [API reference](https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech) 及 [价格页](https://docs.fish.audio/developer-guide/models-pricing/pricing-and-rate-limits) 仍列 `s2.1-pro-free`，单价 $0。旧博客的 08-31 截止不足以证明停用；未知 ID 会回落到收费 `s2.1-pro`，并非必然失败。保留精确免费 ID，未自动切付费；账号实际可用性及延期仍未通过真实生成确认。
+Fish：owner 2026-09-06 选择同时保留 `s2.1-pro` 和 `s2.1-pro-free`。付费档为默认，沿用稳定资产/VoiceCard 目录 ID；免费档新增独立目录 ID `fish-audio-s2-pro-free`，上游 $0、受 Fair Use 限制，同样需要 BYOK。付费档按 [官方价格](https://docs.fish.audio/developer-guide/models-pricing/pricing-and-rate-limits) $15 / 百万 UTF-8 字节计费，BYOK 用户自付。参考音色和多人对话继续使用现有 [TTS API](https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech)。三语首页已同步双档选择与字节计价，未真实付费生成。
 
 ### ⑧ 2026-07-30 业界升级审计 — **已实现清单（别再当 backlog 排期）**
 
@@ -376,6 +376,15 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
      代码里目前**没有 `adaptive` 这个选项**。**2026-09-06 owner 定：选了首帧图就把宽高比锁成自适应并显示提示**；
      与画布首尾帧槽是同一逻辑，排在统一助手改版**第二期（视频域）**一起做，见
      [`pages/assistant-shell.md`](pages/assistant-shell.md) 分期章节。
+     ✅ **已落地（2026-09-07，`6e91e0d0` + `48d6fecb`）**，三处一起：① 快照带
+     `videoSpecs.aspectRatioLock`（值由宿主从发送契约的 `imageAspectRatioLock` 取，
+     ⛔ 服务端不自己算——视频档快照里的模型 id 是 optionId，服务端查不出契约）；
+     ② 助手侧 `set_video_specs` 在**首帧槽里真有图**时只放行 `adaptive`，其余按
+     `aspectLockedByFirstFrame` 拒（⛔ 服务端不替用户自动改比例，助手要改就得自己再调
+     一次，日志上才留得下这一步）；③ 界面把比例组**禁用而不是移除**并写一句「是谁锁的、
+     怎么解除」（`StudioVideoSpecFields`，摘掉首帧即恢复）。⚠ 判据是**两条同时成立**：
+     线路带图时上游钉死 `ratio`，**且**首帧槽里真有图——纯文生视频不受限，只看模型
+     会把纯文生的比例也一起锁掉。
 2. ⚠ **不接受含真人人脸的参考图/视频**。官方原文对 **2.5 和 2.0 系列都成立** ——
    也就是说这是既存问题，不是 2.5 引入的。用户拿真人照片当参考图会失败，我们目前没有任何提示。
 3. **不支持离线推理**（`service_tier: "flex"`，价格是在线的 50%）与**样片模式**（`draft: true`）——
@@ -418,7 +427,7 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
 > 但 fal 公开 OpenAPI 要求参考音频必须搭配图片或视频，Ark 原生线允许纯音频参考，发送契约已分开表达。
 > 目录、模式解析、应用/Worker fal builder 与 Ark builder 均有回归测试；本轮未执行新的付费生成。
 
-⚠ §⑫ 说「GA 时要改三件事」实际是**五件**——漏了 `video-model-send-plan.ts` 的 slots 按代分叉（2.0/2.5 曾共用一个分支）和 tripwire 测试自身的改写（`seedance-25-reservation.test.ts` 曾把 2.0 的 slots 钉死，分叉后必挂，那是预期行为）。三站扩容与上述分叉均已落地；**仍未闭合的只剩本节上方那份约束清单**（`ratio: adaptive`、真人人脸、纯音频参考的 `min`/`requiresReferenceImage`）。
+⚠ §⑫ 说「GA 时要改三件事」实际是**五件**——漏了 `video-model-send-plan.ts` 的 slots 按代分叉（2.0/2.5 曾共用一个分支）和 tripwire 测试自身的改写（`seedance-25-reservation.test.ts` 曾把 2.0 的 slots 钉死，分叉后必挂，那是预期行为）。三站扩容与上述分叉均已落地；**仍未闭合的只剩本节上方那份约束清单**（真人人脸、纯音频参考的 `min`/`requiresReferenceImage`）——⚠ 其中 `ratio: adaptive` 那条**已于 2026-09-07 闭合**（首帧锁，见上方第 1 条的「已落地」段）。
 
 ### ⑭ 按模态重做的三线调查（2026-08-21，全量上网核实）
 
@@ -460,7 +469,7 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
 
 - 4 条目录条目**上游 id 全部无需改动**（`s2.1-pro` / `eleven_text_to_sound_v2` / `music_v2` 都是当前在售型号；ElevenLabs 没有 v4，Fish 没有比 s2.1-pro 更新的）。
 - ⚠ **「6.7 倍」这个退役理由只在拉丁字母下成立**：Fish 官方计价单位是 `$15 / 1M UTF-8 **bytes**`（不是字符），中日文每字 3 bytes，等效约 $45/1M 字，对 ElevenLabs v3 的 $100 只剩约 **2.2 倍**。本站是 en/ja/zh 三语，`audio.ts:57-59` 那条注释不能当普适结论读。**退役结论沿用，但理由要改写。**
-- ⏰ Fish 免费档 `s2.1-pro-free` 官方免费期写到 **2026-08-31**（此前已延期至少两次），要么接、要么明确不接。
+- Fish 档位已于 2026-09-06 由 owner 定为付费 `s2.1-pro` 默认，同时保留免费 `s2.1-pro-free` 独立选项。
 - 音乐/音效线无更好替代：Suno 至今无公开自助 API（2026-07-01 CPO 领英称仅「探索中、限定合作伙伴」），Udio 走 UMG/WMG 和解后的封闭消费端。唯一值得排期的是把 `fal-ai/stable-audio-25` 作为**唯一音效模型的第二来源**（容灾，不是省钱）。
 
 #### 视频线

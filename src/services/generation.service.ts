@@ -19,6 +19,7 @@ import type {
   OutputTypeValue,
 } from '@/types'
 import { PAGINATION } from '@/constants/config'
+import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import { updatePreferenceOnDeleted } from '@/services/user-preference.service'
 
 // ─── Input Types ──────────────────────────────────────────────────
@@ -449,6 +450,44 @@ export async function createGeneration(
   }
 
   return generation
+}
+
+/**
+ * 这条来源地址**是不是已经在这个用户的库里了**（联网导入的幂等键，2026-09-07）。
+ *
+ * ── 为什么需要它 ──────────────────────────────────────────────────
+ * 同一张候选图有**两条**导入路：用户按候选行上的「选用 / 挂上 N 张」，以及助手
+ * 拿着 `import_user_url` 自己挂（两者 2026-09-06 同一轮落地）。两条路各自调一次
+ * `POST /api/studio/web-image-import`，谁都不知道对方 —— 用户库里于是长出**成对**
+ * 的重复。⭐ 幂等只能落在服务端：那是两条路唯一的交汇点。
+ *
+ * ── 判据为什么是 snapshot 而不是新字段 ────────────────────────────
+ * 来源已经写在 `Generation.snapshot` 里（策略 C，`imageUrl` = 真正取到字节的地址、
+ * `pageUrl` = 那一页）。⛔ 不加列、不写迁移：一条可空列换不到任何这里没有的东西，
+ * 而 `snapshot` 里那两条**存量行也有**，于是历史导入立刻就能被复用。
+ * ⚠ 两条都比：用户递来的可能是网页（那时它落在 `pageUrl`），也可能是原图直链。
+ *
+ * ⚠ `provider` 收窄到本地素材那一档 —— 真正的生成不走这条链，别让一次 generation
+ * 的 snapshot 里碰巧同名的字段把导入去重带偏。
+ */
+export async function findImportedGenerationBySourceUrl(
+  userId: string,
+  sourceUrls: readonly string[],
+): Promise<GenerationRecord | null> {
+  const urls = [...new Set(sourceUrls.filter((url) => url.length > 0))]
+  if (urls.length === 0) return null
+  return db.generation.findFirst({
+    where: {
+      userId,
+      provider: USER_UPLOAD_PROVIDER,
+      OR: urls.flatMap((url) => [
+        { snapshot: { path: ['imageUrl'], equals: url } },
+        { snapshot: { path: ['pageUrl'], equals: url } },
+      ]),
+    },
+    // 重复里**留最早的那条**：后来那些是这个 bug 造出来的。
+    orderBy: { createdAt: 'asc' },
+  })
 }
 
 /**

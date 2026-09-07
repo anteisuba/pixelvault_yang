@@ -29,6 +29,19 @@ import { importWebImageAPI } from '@/lib/api-client/web-image-import'
  */
 const userUrlMounts = new Map<string, string>()
 
+/**
+ * **正在路上的那些源地址**（2026-09-07）。
+ *
+ * 🔬 根因：一条 `import_user_url` 的取图要几秒，而这几秒里同一条地址可以再来一次
+ * —— 打断后带 `priorSteps` 续跑、模型换个措辞把同一张再挂一遍、或者用户自己在候选
+ * 行上按了「选用」。`userUrlMounts` 只在**成功之后**才有这条键，所以它挡不住在飞的
+ * 那一次；这张表是同步写的，它才挡得住。
+ * ⚠ 模块级，理由同 `userUrlMounts`：应用与撤销发生在两个不同的 hook 实例上。
+ * ⛔ 它只是第一道 —— 跨路（助手 vs. 候选行「选用」）的那道在服务端（同一条来源
+ * 已在库里就复用，见 `web-image-import.service`）。
+ */
+const inflightUserUrls = new Set<string>()
+
 export interface OperatorReferenceSurface {
   referenceEntries: readonly { url: string }[]
   addReferenceImage(url: string): void
@@ -58,10 +71,14 @@ export function useOperatorUserUrlMount(
    * 线程里交代。
    */
   const mountUserUrl = useCallback((sourceUrl: string, domain?: string) => {
+    // 已经挂上的 / 正在路上的都**不再来一次**：那只会在库里多出一条一模一样的。
+    if (userUrlMounts.has(sourceUrl) || inflightUserUrls.has(sourceUrl)) return
+    inflightUserUrls.add(sourceUrl)
     void importWebImageAPI({
       imageUrl: sourceUrl,
       ...(domain ? { domain } : {}),
     }).then((response) => {
+      inflightUserUrls.delete(sourceUrl)
       if (!response.success) {
         appendOperatorEntry({
           kind: 'system',

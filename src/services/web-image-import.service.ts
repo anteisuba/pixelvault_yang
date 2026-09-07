@@ -14,7 +14,10 @@ import {
 import { ApiRequestError } from '@/lib/errors'
 import { assertSafeUrl } from '@/lib/url-guard'
 import { logger } from '@/lib/logger'
-import { createGeneration } from '@/services/generation.service'
+import {
+  createGeneration,
+  findImportedGenerationBySourceUrl,
+} from '@/services/generation.service'
 import {
   createImageThumbnailAsset,
   detectTrustedImageMime,
@@ -108,10 +111,21 @@ function extractPageImageUrl(html: string, pageUrl: string): string | null {
   return null
 }
 
+/**
+ * 一次导入的结果。`reused: true` = **库里本来就有这条来源**，什么都没新建。
+ *
+ * ⚠ 客户端要看得见这一位：候选行「取消选用」会**删素材**（拍板 21 的零残留），
+ * 而复用回来的那条不是这一次导入进来的 —— 删掉它就是删用户早先的东西。
+ */
+export interface WebImageImportResult {
+  generation: GenerationRecord
+  reused: boolean
+}
+
 export async function importWebImage(
   clerkId: string,
   input: WebImageImportRequest,
-): Promise<GenerationRecord> {
+): Promise<WebImageImportResult> {
   const dbUser = await ensureUser(clerkId)
 
   // SSRF：候选地址来自搜索引擎，也就是来自整个互联网 —— 内网地址同样是合法 URL。
@@ -127,6 +141,31 @@ export async function importWebImage(
       'errors.webImageImport.unreachable',
       'That image address is not allowed.',
     )
+  }
+
+  /**
+   * ⭐ **幂等闸（2026-09-07）**：同一条来源在同一个用户库里只留一条。
+   *
+   * 🔬 根因：同一张候选有两条导入路 —— 用户按「选用 / 挂上 N 张」
+   * （`use-studio-operator-web-import`）与助手的 `import_user_url`
+   * （`use-operator-user-url-mount`），两条各发一次这条请求，谁都不知道对方。
+   * 客户端那层防重复点击只按得住自己那一条，**跨路只有服务端按得住**。
+   *
+   * ⚠ 放在取字节**之前**：复用时连那次站外下载都省掉（这条路由的限流本来就是
+   * 按「每次都会打一个站外域名」定的）。落库前还会再查一次 —— 两条路几乎同时
+   * 出发时，那几秒的网络往返正是它们互相看不见的窗口。
+   */
+  const existing = await findImportedGenerationBySourceUrl(dbUser.id, [
+    sourceUrl,
+    ...(input.pageUrl ? [input.pageUrl] : []),
+  ])
+  if (existing) {
+    logger.info('web image import reused existing asset', {
+      userId: dbUser.id,
+      generationId: existing.id,
+      domain: input.domain,
+    })
+    return { generation: existing, reused: true }
   }
 
   let buffer: Buffer
@@ -222,6 +261,27 @@ export async function importWebImage(
     )
   }
 
+  /**
+   * 落库前再查一次 —— 上面那道查完之后到这里之间隔着一次站外下载（几秒），
+   * 而两条导入路恰恰是在那个窗口里彼此看不见的。⛔ 别省掉这一次：省掉的表现
+   * 就是「点得快一点还是会出现一对」。
+   * ⚠ 跟过一跳时把 og:image 那条也带上：那是它下次会被认出来的键。
+   */
+  const raced = await findImportedGenerationBySourceUrl(dbUser.id, [
+    sourceUrl,
+    imageUrl,
+    ...(input.pageUrl ? [input.pageUrl] : []),
+  ])
+  if (raced) {
+    logger.info('web image import reused existing asset', {
+      userId: dbUser.id,
+      generationId: raced.id,
+      domain: input.domain,
+      raced: true,
+    })
+    return { generation: raced, reused: true }
+  }
+
   const storageKey = generateStorageKey('IMAGE', dbUser.id)
   const [publicUrl, thumbnail] = await Promise.all([
     uploadToR2({ data: buffer, key: storageKey, mimeType: trustedMimeType }),
@@ -282,5 +342,5 @@ export async function importWebImage(
     followedPage: followedFromPage !== null,
   })
 
-  return generation
+  return { generation, reused: false }
 }

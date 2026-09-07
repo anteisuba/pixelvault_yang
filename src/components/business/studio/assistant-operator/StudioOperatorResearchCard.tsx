@@ -10,7 +10,12 @@
  *
  * ── 卡上三层，顺序是硬的 ─────────────────────────────────────────
  *  ① **结论**：这一轮去查的是什么、拿回来几条 —— 一行，第一眼就读得到；
- *  ② **证据**：谁说的（出处）+ 信得过几分（可信度 chip）+ 那句话；
+ *  ② **证据**：默认**每条一行**（标题 · 出处 · 可信度 chip），⛔ 不铺正文摘录；
+ *     点「N 条证据」才展开看那句话。🔬 owner 2026-09-07 打回：19 条证据连着整段
+ *     简介全文铺开，一张卡吃掉整屏 —— 结论被过程埋了。默认还只铺前
+ *     `STUDIO_OPERATOR_RESEARCH_EVIDENCE_PREVIEW` 条，其余进「还有 M 条」；
+ *     `image` / `tags` 那两档（图片占位、分类标签堆）**默认不进列表** ——
+ *     ⛔ 不是删掉，展开之后照样在（判据在常量里，见那两枚常量的头注）；
  *  ③ **候选**：找回来的图（复用 `StudioOperatorWebCandidateGrid`，含「挂上 N 张」）。
  * ⛔ 过程（翻了哪几页、读了哪一段）**默认折起来**：它是可复核的底稿，不是结论。
  *
@@ -21,18 +26,26 @@
  */
 
 import { useTranslations } from 'next-intl'
+import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
+import {
+  STUDIO_OPERATOR_RESEARCH_EVIDENCE_PREVIEW,
+  STUDIO_OPERATOR_RESEARCH_LOW_SIGNAL_KINDS,
+} from '@/constants/studio-assistant-operator'
 import { cn } from '@/lib/utils'
 import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
 import type { StudioOperatorWebImportState } from '@/hooks/use-studio-operator-web-import'
 import type { AssistantOperatorWebImage } from '@/types/assistant-operator'
 
 import { StudioOperatorWebCandidateGrid } from './StudioOperatorWebCandidateGrid'
+
+/** 展开键与列表的 `aria-controls` 对表 —— 两颗按钮指的是同一份列表。 */
+const EVIDENCE_LIST_ID = 'operator-research-evidence-list'
 
 interface StudioOperatorResearchCardProps {
   /** 这一轮里属于调查的那几步（结论 / 证据 / 候选都从它们身上取）。 */
@@ -53,6 +66,11 @@ export function StudioOperatorResearchCard({
   children,
 }: StudioOperatorResearchCardProps) {
   const t = useTranslations('StudioOperator')
+  /**
+   * 证据是**收着的**（2026-09-07，owner「图一这个过程直接跳过不显示吧」）。
+   * 展开 = 铺开摘录 + 把默认不进列表的那几条也放出来（可复核是这张卡的另一半）。
+   */
+  const [expanded, setExpanded] = useState(false)
 
   /** 结论那一行的两样：去查什么（`goal`）、拿回来几条。 */
   const goals: string[] = []
@@ -98,6 +116,28 @@ export function StudioOperatorResearchCard({
     }
   }
 
+  /**
+   * ⚠ `useMemo` 的依赖是 `steps`：上面那两个数组每次 render 现算，直接进
+   * `useMemo` 会每次都重算 —— 这里要的只是「同一轮的证据分档不用每帧再分一遍」。
+   */
+  const { preview, hidden } = useMemo(() => {
+    // ⛔ 低信号的不是被删掉，是**排到后面**：展开之后按「先结论后底稿」读下去。
+    const signal = evidence.filter(
+      (item) => !STUDIO_OPERATOR_RESEARCH_LOW_SIGNAL_KINDS.includes(item.kind),
+    )
+    const lowSignal = evidence.filter((item) =>
+      STUDIO_OPERATOR_RESEARCH_LOW_SIGNAL_KINDS.includes(item.kind),
+    )
+    const head = signal.slice(0, STUDIO_OPERATOR_RESEARCH_EVIDENCE_PREVIEW)
+    return {
+      preview: head,
+      hidden: [...signal.slice(head.length), ...lowSignal],
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- evidence 每次 render 现算（同一轮的 steps 决定它），依赖钉在 steps 上
+  }, [steps])
+
+  const visible = expanded ? [...preview, ...hidden] : preview
+
   return (
     <div
       data-testid="operator-research-card"
@@ -112,17 +152,33 @@ export function StudioOperatorResearchCard({
             ? t('research.goal', { goal: goals.join(' · ') })
             : t('research.goalUnknown')}
         </span>
-        <span className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground">
+        {/* 「N 条证据」就是那颗展开键（⛔ 不另画一颗：数字本身就是入口，
+            而卡上多一颗按钮就多一件要读的东西）。 */}
+        <button
+          type="button"
+          data-testid="operator-research-evidence-toggle"
+          aria-expanded={expanded}
+          aria-controls={EVIDENCE_LIST_ID}
+          disabled={evidence.length === 0}
+          onClick={() => setExpanded((current) => !current)}
+          className="shrink-0 rounded-sm font-mono text-xs tracking-nav tabular-nums text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-default disabled:hover:text-muted-foreground"
+        >
           {t('research.count', { count: evidence.length })}
-        </span>
+        </button>
       </div>
 
-      {evidence.length > 0 ? (
+      {visible.length > 0 ? (
         <ul
+          id={EVIDENCE_LIST_ID}
           data-testid="operator-research-evidence"
-          className="flex flex-col gap-2 p-3"
+          data-expanded={expanded ? 'true' : 'false'}
+          className={cn(
+            'flex flex-col p-3',
+            // 收着时每条一行 —— 行距按「一份清单」给，⛔ 不按「一段一段的正文」给。
+            expanded ? 'gap-2' : 'gap-1',
+          )}
         >
-          {evidence.map((item) => (
+          {visible.map((item) => (
             <li
               key={item.key}
               data-testid="operator-research-evidence-item"
@@ -154,9 +210,13 @@ export function StudioOperatorResearchCard({
                 >
                   {item.publisher}
                 </span>
-                <span className="shrink-0 rounded-sm border border-border/70 px-1 text-xs text-muted-foreground">
-                  {t(`evidence.kind.${item.kind}`)}
-                </span>
+                {/* 档位（正文 / 标签 / 图片）只在展开后说：收着时那一行要答的是
+                    「谁说的、信得过几分」，⛔ 不是「这条是什么形态」。 */}
+                {expanded ? (
+                  <span className="shrink-0 rounded-sm border border-border/70 px-1 text-xs text-muted-foreground">
+                    {t(`evidence.kind.${item.kind}`)}
+                  </span>
+                ) : null}
                 {/* ⚠ `high` 走 applied 绿、`low` 走 risk 橙，中间档留
                     `muted-foreground`：三档各给一个颜色会让整片证据变成灯泡墙。 */}
                 <span
@@ -173,12 +233,36 @@ export function StudioOperatorResearchCard({
                   {t(`evidence.confidence.${item.confidence}`)}
                 </span>
               </span>
-              <span className="mt-0.5 block text-md leading-relaxed text-muted-foreground">
-                {item.snippet}
-              </span>
+              {/* ⛔ 摘录默认不铺：一条萌娘百科的整段简介就能吃掉半屏，而它不是
+                  结论。展开之后才是可复核的那一半。 */}
+              {expanded ? (
+                <span
+                  data-testid="operator-research-evidence-snippet"
+                  className="mt-0.5 block text-md leading-relaxed text-muted-foreground"
+                >
+                  {item.snippet}
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {/* 「还有 M 条」/「收起」—— 与头上那颗数字是**同一个**开关，只是长在列表
+          尾巴上（读到底的人手边就有它，⛔ 不用滑回顶上去找）。 */}
+      {hidden.length > 0 || expanded ? (
+        <button
+          type="button"
+          data-testid="operator-research-evidence-more"
+          aria-expanded={expanded}
+          aria-controls={EVIDENCE_LIST_ID}
+          onClick={() => setExpanded((current) => !current)}
+          className="block w-full px-3 pb-2 text-left text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          {expanded
+            ? t('research.evidenceLess')
+            : t('research.evidenceMore', { count: hidden.length })}
+        </button>
       ) : null}
 
       {imageSteps.map((item) => (

@@ -16,6 +16,7 @@ vi.mock('@/services/user.service', () => ({
 
 vi.mock('@/services/generation.service', () => ({
   createGeneration: vi.fn(),
+  findImportedGenerationBySourceUrl: vi.fn(),
 }))
 
 vi.mock('@/services/storage/r2', () => ({
@@ -29,7 +30,10 @@ vi.mock('@/services/storage/r2', () => ({
 }))
 
 import { ensureUser } from '@/services/user.service'
-import { createGeneration } from '@/services/generation.service'
+import {
+  createGeneration,
+  findImportedGenerationBySourceUrl,
+} from '@/services/generation.service'
 import {
   createImageThumbnailAsset,
   detectTrustedImageMime,
@@ -75,6 +79,8 @@ beforeEach(() => {
   vi.mocked(createGeneration).mockResolvedValue(
     FAKE_GENERATION as unknown as Awaited<ReturnType<typeof createGeneration>>,
   )
+  // 默认「库里还没有这条来源」—— 幂等闸那几条自己覆写。
+  vi.mocked(findImportedGenerationBySourceUrl).mockResolvedValue(null)
 })
 
 describe('联网图片转存 · 硬闸', () => {
@@ -264,5 +270,67 @@ describe('联网图片转存 · 网页 → og:image（拍板 22）', () => {
     expect(fetchAsBuffer).toHaveBeenCalledTimes(1)
     const snapshot = createdInput().snapshot as Record<string, string>
     expect(snapshot.imageUrl).toBe(REQUEST.imageUrl)
+  })
+})
+
+/**
+ * 🔬 owner 2026-09-07 真机：素材库里出现**成对**重复。根因是同一张候选有两条导入
+ * 路（候选行的「选用 / 挂上 N 张」与助手的 `import_user_url`），两条各调一次这条
+ * 服务，谁都不知道对方 —— 幂等只能落在这里，那是两条路唯一的交汇点。
+ */
+describe('联网图片转存 · 幂等（2026-09-07）', () => {
+  it('同一条来源已经在库里 → 复用那条，⛔ 不新建、连站外那次下载都不打', async () => {
+    vi.mocked(findImportedGenerationBySourceUrl).mockResolvedValue(
+      FAKE_GENERATION as unknown as Awaited<
+        ReturnType<typeof findImportedGenerationBySourceUrl>
+      >,
+    )
+
+    const result = await importWebImage('clerk_test_user', REQUEST)
+
+    expect(result.reused).toBe(true)
+    expect(result.generation.id).toBe(FAKE_GENERATION.id)
+    expect(fetchAsBuffer).not.toHaveBeenCalled()
+    expect(uploadToR2).not.toHaveBeenCalled()
+    expect(createGeneration).not.toHaveBeenCalled()
+  })
+
+  it('⭐ 同一 URL 连着来两次只产生一条资产（第二次撞上第一次落好的那条）', async () => {
+    const first = await importWebImage('clerk_test_user', REQUEST)
+    expect(first.reused).toBe(false)
+    expect(createGeneration).toHaveBeenCalledTimes(1)
+
+    vi.mocked(findImportedGenerationBySourceUrl).mockResolvedValue(
+      FAKE_GENERATION as unknown as Awaited<
+        ReturnType<typeof findImportedGenerationBySourceUrl>
+      >,
+    )
+    const second = await importWebImage('clerk_test_user', REQUEST)
+
+    expect(second.reused).toBe(true)
+    expect(createGeneration).toHaveBeenCalledTimes(1)
+  })
+
+  it('取图那几秒里被另一条路抢先落库 → 落库前再查那一道接住，⛔ 不写第二条', async () => {
+    // 第一次查（取字节之前）为空，第二次查（落库之前）已经有了。
+    vi.mocked(findImportedGenerationBySourceUrl)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(
+        FAKE_GENERATION as unknown as Awaited<
+          ReturnType<typeof findImportedGenerationBySourceUrl>
+        >,
+      )
+
+    const result = await importWebImage('clerk_test_user', REQUEST)
+
+    expect(result.reused).toBe(true)
+    expect(createGeneration).not.toHaveBeenCalled()
+  })
+
+  it('查的是**两条**地址：原图直链与页面地址（用户递来的可能是一张网页）', async () => {
+    await importWebImage('clerk_test_user', REQUEST)
+    expect(
+      vi.mocked(findImportedGenerationBySourceUrl).mock.calls[0][1],
+    ).toEqual([REQUEST.imageUrl, REQUEST.pageUrl])
   })
 })

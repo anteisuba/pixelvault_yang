@@ -23,7 +23,11 @@ export const POST = createApiRoute({
   rateLimit: RATE_LIMIT_CONFIGS.outboundProbe,
   routeName: 'POST /api/studio/web-image-import',
   handler: async (clerkId, data) => {
-    const generation = await importWebImage(clerkId, data)
-    return { generation }
+    /**
+     * ⚠ 原样把 `{ generation, reused }` 交出去：`reused` 是「库里本来就有这条
+     * 来源，什么都没新建」（2026-09-07 的幂等闸）。客户端要靠它决定「取消选用」
+     * 时删不删素材 —— 吞掉这一位就会去删用户早先导入的东西。
+     */
+    return importWebImage(clerkId, data)
   },
 })

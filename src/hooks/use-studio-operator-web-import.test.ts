@@ -389,3 +389,62 @@ describe('联网候选 · 失败与隔离', () => {
     expect(deleteGenerationAPI).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * 🔬 owner 2026-09-07 真机：素材库里出现**成对**重复。服务端已经加了幂等闸
+ * （同一条来源已在库里就复用），这里钉的是客户端这一侧的两条。
+ */
+describe('联网候选 · 不重复导入（2026-09-07）', () => {
+  it('⭐ 同一张连点两次（同一帧内）只发一次导入 —— ⛔ 不产生第二条资产', async () => {
+    const { hook } = setup(3)
+    act(() => {
+      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
+      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
+    })
+
+    expect(importWebImageAPI).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      expect(picksOf(hook)[0]?.status).toBe('imported')
+    })
+    expect(picksOf(hook)).toHaveLength(1)
+  })
+
+  it('隔一帧之后再点那一格仍然是**取消**（拍板 21 的可换选没被连点闸吃掉）', async () => {
+    const { hook, removed } = setup()
+    act(() => {
+      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
+    })
+    await waitFor(() => {
+      expect(picksOf(hook)[0]?.status).toBe('imported')
+    })
+
+    act(() => {
+      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
+    })
+    expect(picksOf(hook)).toHaveLength(0)
+    expect(removed).toEqual(['gen-a'])
+    await waitFor(() => {
+      expect(deleteGenerationAPI).toHaveBeenCalledWith('gen-a')
+    })
+  })
+
+  it('⛔ 复用回来的那条（reused）取消选用时**不删素材** —— 那是用户早先的东西', async () => {
+    importWebImageAPI.mockResolvedValue({
+      success: true,
+      data: { generation: generation('gen-a'), reused: true },
+    })
+    const { hook, removed } = setup()
+    act(() => {
+      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
+    })
+    await waitFor(() => {
+      expect(picksOf(hook)[0]?.status).toBe('imported')
+    })
+
+    act(() => {
+      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
+    })
+    expect(removed).toEqual(['gen-a'])
+    expect(deleteGenerationAPI).not.toHaveBeenCalled()
+  })
+})

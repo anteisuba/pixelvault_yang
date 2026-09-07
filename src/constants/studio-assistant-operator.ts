@@ -247,6 +247,21 @@ export const STUDIO_OPERATOR_HISTORY = {
 } as const
 
 /**
+ * 正文逐字流的**落地节流**（`pages/assistant-shell.md` §4.1「正文按帧累积」）。
+ *
+ * ⭐ `flushFloorMs` 是 rAF 之外的**兜底闸**，不是替代它：合批本来只挂在
+ * `requestAnimationFrame` 上，而 rAF 在窗口被遮挡 / 标签页切走时会被浏览器
+ * 降到几帧每秒、甚至整段挂起 —— 表现是一段本该 600ms 长出来的回复在定稿那一刻
+ * 「啪」地一次落地（🔬 2026-09-07 真机：20 帧 `message_delta` 只换来 4 次 DOM
+ * 增长，窗口不在最前时更少）。有了这条闸，最长 `flushFloorMs` 必落一次。
+ * ⚠ 前台时永远是 rAF 先到（16ms < 80ms），所以这个数**不决定前台的节奏** ——
+ * ⛔ 别指望调大它能让字出得更慢，那只会让后台那一档更卡。
+ */
+export const STUDIO_OPERATOR_STREAMING = {
+  flushFloorMs: 80,
+} as const
+
+/**
  * 面板外壳的几何（方向 C · `pages/assistant-shell.md` §11.1）。
  *
  * ⚠ 只放由面板统一管理的那几个数：48 = `w-12`、40 = `h-10`、24 = `p-6`
@@ -431,3 +446,30 @@ export const STUDIO_OPERATOR_MOBILE_SHELL = {
    */
   fabBottomPx: 96,
 } as const
+
+/**
+ * 调查卡上**默认铺开几条证据**（2026-09-07）。
+ *
+ * 🔬 owner 打回：「图一这个过程直接跳过不显示吧」—— 一轮检索的 19 条证据连着
+ * 整段简介全文铺开，一张卡吃掉整屏，而用户要的答案（查到了什么、有哪些图）在
+ * 最上面一行。剩下的进「还有 M 条」。
+ * ⚠ 数字放这里而不是写在组件里：它是**产品判断**（一屏里留给证据多少行），
+ * 与那颗组件的排版无关。
+ */
+export const STUDIO_OPERATOR_RESEARCH_EVIDENCE_PREVIEW = 5
+
+/**
+ * **默认不进证据列表**的那几档（2026-09-07）。
+ *
+ * ⚠ 判据是证据的 `kind`，⛔ 不是去匹配摘要的字面：
+ *  · `image` —— 摘要恒是「image on this page (1024×1024)」这类占位（见
+ *    `toAssistantEvidence`：图片档有意不放地址），而那些图**本来就画在下面的
+ *    候选网格里**，在证据列里再列一遍是同一件事说两遍；
+ *  · `tags` —— 摘要是「danbooru: a, b, c, …」一整堆分类标签，它是给模型对齐用的
+ *    底稿，不是讲给人听的结论。
+ * ⛔ 不是删掉：展开之后照样看得见（可复核是这张卡的另一半）。
+ */
+export const STUDIO_OPERATOR_RESEARCH_LOW_SIGNAL_KINDS: readonly string[] = [
+  'image',
+  'tags',
+]

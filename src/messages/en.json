@@ -7118,7 +7118,10 @@
       "nameLabel": "Name",
       "namePlaceholder": "Leave empty to use the workbench name",
       "avatarLabel": "Avatar",
-      "avatarPresets": "Presets",
+      "avatarPreset": {
+        "mark": "Brand mark",
+        "monogram": "Initials"
+      },
       "avatarUpload": "Upload",
       "avatarUploading": "Uploading…",
       "avatarRemove": "Remove custom avatar",
@@ -7271,7 +7274,9 @@
       "goal": "Looked up: {goal}",
       "goalUnknown": "Looked things up",
       "count": "{count} sources",
-      "process": "How it looked"
+      "process": "How it looked",
+      "evidenceMore": "{count} more",
+      "evidenceLess": "Show less"
     },
     "message": {
       "expand": "Show all",

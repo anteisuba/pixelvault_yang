@@ -16,7 +16,7 @@ import type { GenerationRecord } from '@/types'
 import type { WebImageImportRequest } from '@/types/web-image-import'
 
 export type WebImageImportApiResponse =
-  | { success: true; data: { generation: GenerationRecord } }
+  | { success: true; data: { generation: GenerationRecord; reused: boolean } }
   | { success: false; error: string; errorCode?: string; i18nKey?: string }
 
 /**
@@ -51,7 +51,7 @@ export async function importWebImageAPI(
 
     const payload = (await response.json()) as {
       success?: boolean
-      data?: { generation: GenerationRecord }
+      data?: { generation: GenerationRecord; reused?: boolean }
       error?: string
     }
     if (!payload.success || !payload.data?.generation) {
@@ -60,7 +60,14 @@ export async function importWebImageAPI(
         error: payload.error ?? 'Import returned no asset',
       }
     }
-    return { success: true, data: { generation: payload.data.generation } }
+    return {
+      success: true,
+      data: {
+        generation: payload.data.generation,
+        // ⚠ 缺席按 `false` 读：那是「这一次真的导进来了」那一侧，与旧行为一致。
+        reused: payload.data.reused === true,
+      },
+    }
   } catch (error) {
     return {
       success: false,

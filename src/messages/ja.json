@@ -7118,7 +7118,10 @@
       "nameLabel": "名前",
       "namePlaceholder": "空欄ならワークベンチ名を使います",
       "avatarLabel": "アイコン",
-      "avatarPresets": "プリセット",
+      "avatarPreset": {
+        "mark": "ブランドマーク",
+        "monogram": "イニシャル"
+      },
       "avatarUpload": "アップロード",
       "avatarUploading": "アップロード中…",
       "avatarRemove": "カスタムアイコンを削除",
@@ -7271,7 +7274,9 @@
       "goal": "調べたこと：{goal}",
       "goalUnknown": "調べもの",
       "count": "根拠 {count} 件",
-      "process": "調べた過程"
+      "process": "調べた過程",
+      "evidenceMore": "他 {count} 件",
+      "evidenceLess": "閉じる"
     },
     "message": {
       "expand": "全文を表示",

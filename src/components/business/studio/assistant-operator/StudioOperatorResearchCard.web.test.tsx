@@ -1,6 +1,8 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+
+import { STUDIO_OPERATOR_RESEARCH_EVIDENCE_PREVIEW } from '@/constants/studio-assistant-operator'
 
 import { StudioOperatorResearchCard } from './StudioOperatorResearchCard'
 import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
@@ -12,7 +14,10 @@ import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
  *  ① 结论行写「查了什么」+ 拿回来几条；
  *  ② 证据带出处与可信度 chip，⚠ 没有 `url` 的那条⛔ 不画成链接；
  *  ③ 候选图走**复用**的 `StudioOperatorWebCandidateGrid`（含「挂上 N 张」）；
- *  ④ 过程默认折起来。
+ *  ④ 过程默认折起来；
+ *  ⑤ 证据默认**收着**（2026-09-07，owner「图一这个过程直接跳过不显示吧」）：
+ *     每条一行、不铺摘录、`image`/`tags` 那两档默认不进列表、超过 N 条进
+ *     「还有 M 条」—— 展开之后全部看得见。
  */
 
 vi.mock('next-intl', () => ({
@@ -94,6 +99,27 @@ const IMAGES: StudioOperatorStepEntry = {
   },
 } as unknown as StudioOperatorStepEntry
 
+/** 一步里塞 n 条**有信息量**的证据 —— 用来钉「默认只铺前 N 条」。 */
+function manyTextEvidence(count: number): StudioOperatorStepEntry {
+  return {
+    ...RESEARCH,
+    step: {
+      ...RESEARCH.step,
+      result: {
+        totalFound: count,
+        evidence: Array.from({ length: count }, (_unused, index) => ({
+          title: `证据 ${index + 1}`,
+          url: `https://example.com/${index}`,
+          publisher: 'example.com',
+          snippet: `摘录 ${index + 1}`,
+          kind: 'text',
+          confidence: 'medium',
+        })),
+      },
+    },
+  } as unknown as StudioOperatorStepEntry
+}
+
 function renderCard(steps: StudioOperatorStepEntry[], children?: string) {
   const onToggleWebImage = vi.fn()
   render(
@@ -115,13 +141,19 @@ describe('StudioOperatorResearchCard', () => {
     expect(screen.getByTestId('operator-research-goal').textContent).toContain(
       '这个角色长什么样',
     )
+    // ⚠ 头上那颗数字说的是**一共几条**（2 条），列表里默认只铺有信息量的那 1 条
+    //   —— `tags` 那档是底稿，展开才看。
+    expect(
+      screen.getByTestId('operator-research-evidence-toggle').textContent,
+    ).toContain('2')
     expect(
       screen.getAllByTestId('operator-research-evidence-item'),
-    ).toHaveLength(2)
+    ).toHaveLength(1)
   })
 
   it('⭐ 证据带出处与可信度；没有 url 的那条⛔ 不是链接', () => {
     renderCard([RESEARCH])
+    fireEvent.click(screen.getByTestId('operator-research-evidence-toggle'))
     const items = screen.getAllByTestId('operator-research-evidence-item')
     expect(items[0]?.dataset.confidence).toBe('high')
     expect(
@@ -155,5 +187,57 @@ describe('StudioOperatorResearchCard', () => {
     process.remove()
     renderCard([RESEARCH])
     expect(screen.queryByTestId('operator-research-process')).toBeNull()
+  })
+
+  /**
+   * 🔬 owner 2026-09-07 打回（图一）：19 条证据全文铺开，萌娘百科整段简介 +
+   * 分类标签堆 + 「image on this page (1024×1024)」占了整屏。
+   */
+  it('⭐ 默认收着：⛔ 一条摘录都不铺，无信息量的那两档也不进列表', () => {
+    renderCard([RESEARCH])
+    expect(
+      screen.queryByTestId('operator-research-evidence-snippet'),
+    ).toBeNull()
+    const items = screen.getAllByTestId('operator-research-evidence-item')
+    expect(items).toHaveLength(1)
+    expect(items[0]?.dataset.kind).toBe('text')
+    expect(
+      screen.getByTestId('operator-research-evidence').dataset.expanded,
+    ).toBe('false')
+  })
+
+  it('⭐ 点「N 条证据」展开：摘录出来了，被降级的那档也回来了', () => {
+    renderCard([RESEARCH])
+    fireEvent.click(screen.getByTestId('operator-research-evidence-toggle'))
+
+    expect(
+      screen.getAllByTestId('operator-research-evidence-item'),
+    ).toHaveLength(2)
+    expect(
+      screen.getAllByTestId('operator-research-evidence-snippet')[0]
+        ?.textContent,
+    ).toContain('粉发')
+    // 再点一次收回去 —— 同一颗开关。
+    fireEvent.click(screen.getByTestId('operator-research-evidence-toggle'))
+    expect(
+      screen.queryByTestId('operator-research-evidence-snippet'),
+    ).toBeNull()
+  })
+
+  it('⭐ 超过前 N 条时只铺 N 条，其余进「还有 M 条」（点它 = 同一个开关）', () => {
+    renderCard([manyTextEvidence(9)])
+
+    expect(
+      screen.getAllByTestId('operator-research-evidence-item'),
+    ).toHaveLength(STUDIO_OPERATOR_RESEARCH_EVIDENCE_PREVIEW)
+    const more = screen.getByTestId('operator-research-evidence-more')
+    expect(more.textContent).toContain(
+      String(9 - STUDIO_OPERATOR_RESEARCH_EVIDENCE_PREVIEW),
+    )
+
+    fireEvent.click(more)
+    expect(
+      screen.getAllByTestId('operator-research-evidence-item'),
+    ).toHaveLength(9)
   })
 })

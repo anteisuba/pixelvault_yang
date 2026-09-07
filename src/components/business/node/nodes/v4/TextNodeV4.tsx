@@ -12,8 +12,9 @@ import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
-import { cn } from '@/lib/utils'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_TEXT_ROLES } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
@@ -107,103 +108,123 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
           </div>
         }
         expandedBody={
-          editing ? (
-            <div
-              onBlur={() => {
-                setEditing(false)
-                if (draft !== textData.body) canvas.onEditText(id, draft)
+          <div className="flex flex-col gap-3">
+            {/* 预览 / 编辑 = 分段控件（互斥两态，⛔ 不再是一颗会翻字的按钮）。 */}
+            <ToggleGroup
+              type="single"
+              variant="segmented"
+              value={editing ? 'edit' : 'preview'}
+              onValueChange={(next) => {
+                if (!next) return
+                if (next === 'preview' && draft !== textData.body) {
+                  canvas.onEditText(id, draft)
+                }
+                setEditing(next === 'edit')
               }}
+              className="w-full"
             >
-              <MentionInput
-                ref={ref}
-                value={draft}
-                onValueChange={setDraft}
-                tokens={tokens}
-                mentionCandidates={candidates}
-                aria-label={t('editText')}
-                onMentionSelect={(candidate) => {
-                  const picked = canvas.nodes.find(
-                    (item) => item.id === candidate.id,
-                  )
-                  // 文本节点粘原文，素材插一枚 `@名字` 胶囊——两条路径分家，
-                  // ⛔ 不给文本也发一枚指不到任何素材的胶囊。
-                  if (picked?.data.kind === NODE_MEDIA_KIND_IDS.text) {
-                    ref.current?.insertText(picked.data.body)
-                  } else {
-                    ref.current?.insertToken(candidate.name)
+              <ToggleGroupItem value="preview">
+                {t('previewText')}
+              </ToggleGroupItem>
+              <ToggleGroupItem value="edit">{t('editText')}</ToggleGroupItem>
+            </ToggleGroup>
+
+            {editing ? (
+              <div
+                onBlur={() => {
+                  setEditing(false)
+                  if (draft !== textData.body) canvas.onEditText(id, draft)
+                }}
+              >
+                <MentionInput
+                  ref={ref}
+                  value={draft}
+                  onValueChange={setDraft}
+                  tokens={tokens}
+                  mentionCandidates={candidates}
+                  aria-label={t('editText')}
+                  onMentionSelect={(candidate) => {
+                    const picked = canvas.nodes.find(
+                      (item) => item.id === candidate.id,
+                    )
+                    // 文本节点粘原文，素材插一枚 `@名字` 胶囊——两条路径分家，
+                    // ⛔ 不给文本也发一枚指不到任何素材的胶囊。
+                    if (picked?.data.kind === NODE_MEDIA_KIND_IDS.text) {
+                      ref.current?.insertText(picked.data.body)
+                    } else {
+                      ref.current?.insertToken(candidate.name)
+                    }
+                  }}
+                  className="h-64 w-full overflow-auto rounded-xl bg-surface-fill p-3 font-mono text-xs corner-squircle"
+                />
+              </div>
+            ) : (
+              <div
+                data-markdown-preview
+                onDoubleClick={() => setEditing(true)}
+                onKeyDown={(event) => {
+                  if (
+                    (event.metaKey || event.ctrlKey) &&
+                    event.key.toLowerCase() === 'e'
+                  ) {
+                    event.preventDefault()
+                    setEditing(true)
                   }
                 }}
-                className="h-64 w-full overflow-auto rounded-md border bg-background p-2 font-mono text-xs"
-              />
-            </div>
-          ) : (
-            <div
-              data-markdown-preview
-              onDoubleClick={() => setEditing(true)}
-              onKeyDown={(event) => {
-                if (
-                  (event.metaKey || event.ctrlKey) &&
-                  event.key.toLowerCase() === 'e'
-                ) {
-                  event.preventDefault()
-                  setEditing(true)
-                }
-              }}
-              role="textbox"
-              tabIndex={0}
-              className="max-h-80 overflow-auto text-xs"
-            >
-              <Markdown>{textData.body || t('untitledText')}</Markdown>
-            </div>
-          )
-        }
-        toolbar={
-          <>
-            <button
-              type="button"
-              onClick={() => setEditing((value) => !value)}
-              className="rounded border px-2 py-0.5 text-2xs"
-            >
-              {editing ? t('previewText') : t('editText')}
-            </button>
+                role="textbox"
+                tabIndex={0}
+                className="max-h-80 overflow-auto rounded-xl bg-surface-fill p-3 text-2sm tracking-node-body corner-squircle"
+              >
+                <Markdown>{textData.body || t('untitledText')}</Markdown>
+              </div>
+            )}
+
             {/* 角色切换（C1 契约修正 2）：写的是节点的 `defaultRole`——「这段字连进
               镜头时默认当什么用」。⚠ 单条边上的角色仍以**边**为准（同一份文本
               可以在 A 镜当剧本、在 B 镜当风格），这里改的只是缺省值。 */}
-            {NODE_SLOT_TEXT_ROLES.map((role) => (
-              <button
-                key={role}
-                type="button"
-                data-text-role-option={role}
-                aria-pressed={textData.defaultRole === role}
-                onClick={() =>
-                  void canvas.onApplyOp({
-                    op: NODE_ASSISTANT_OP_V4_IDS.setField,
-                    target: id,
-                    field: 'defaultRole',
-                    value: role,
-                  })
-                }
-                className={cn(
-                  'rounded border px-2 py-0.5 text-2xs',
-                  textData.defaultRole === role &&
-                    'border-primary text-primary',
-                )}
-              >
-                {t(`textRoles.${role}`)}
-              </button>
-            ))}
-            {NODE_TEXT_DERIVE_ACTIONS.map((action) => (
-              <button
-                key={action}
-                type="button"
-                data-derive-action={action}
-                onClick={() => canvas.onDeriveFromText(id, action)}
-                className="rounded border px-2 py-0.5 text-2xs"
-              >
-                {t(`derive.${action}`)}
-              </button>
-            ))}
-          </>
+            <ToggleGroup
+              type="single"
+              variant="segmented"
+              value={textData.defaultRole ?? ''}
+              onValueChange={(role) => {
+                if (!role) return
+                void canvas.onApplyOp({
+                  op: NODE_ASSISTANT_OP_V4_IDS.setField,
+                  target: id,
+                  field: 'defaultRole',
+                  value: role,
+                })
+              }}
+              className="w-full"
+            >
+              {NODE_SLOT_TEXT_ROLES.map((role) => (
+                <ToggleGroupItem
+                  key={role}
+                  value={role}
+                  data-text-role-option={role}
+                >
+                  {t(`textRoles.${role}`)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+
+            {/* 五个派生动作缩成一行 sm 按钮（⛔ 不再各占一行）。 */}
+            <div className="flex flex-wrap gap-1.5">
+              {NODE_TEXT_DERIVE_ACTIONS.map((action) => (
+                <Button
+                  key={action}
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  data-derive-action={action}
+                  onClick={() => canvas.onDeriveFromText(id, action)}
+                  className="rounded-lg bg-surface-fill text-2sm hover:bg-surface-fill-hover"
+                >
+                  {t(`derive.${action}`)}
+                </Button>
+              ))}
+            </div>
+          </div>
         }
       />
     </>

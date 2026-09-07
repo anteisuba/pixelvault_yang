@@ -3,11 +3,20 @@
 /**
  * v4 节点外壳（node-canvas-v2 §2 两态渲染 · §2.5 视觉脊柱 · §3.2 具名端口）。
  *
- * ── 皮肤 ────────────────────────────────────────────────────────────────
+ * ── 皮肤（HIG 打磨版，owner 2026-09-08 定稿 = `proto6-expanded-A-hig`）──────
  * 直接写 Tailwind 类，⛔ 不新造 class、⛔ 不引画布私有令牌（那套自建令牌世界随第三期
- * 整体删除）。卡 = `bg-card border rounded-lg shadow-md`，选中 `ring-2 ring-ring`，
- * 失败 `border-destructive`。四族端口色是**唯一**保留的画布专属色，只上端口点与
+ * 整体删除）。卡 = `bg-card` **不透明** + `rounded-node corner-squircle` +
+ * 两层低不透明阴影（`shadow-node-card`，展开换 `-expanded`）；选中 `ring-2
+ * ring-ring`，失败 `border-destructive`。⛔ 卡面不上 `backdrop-filter` ——
+ * 半透明卡在 100+ 节点的画布上每帧都要合成，vibrancy 只给浮层（工具条 /
+ * 右键菜单 / transport）。四族端口色是**唯一**保留的画布专属色，只上端口点与
  * 槽名前的方色标，⛔ 不做面积填充。
+ *
+ * ── 两态 ────────────────────────────────────────────────────────────────
+ * 收起 = 卡头 + `collapsedBody`（左缘可带竖排槽格列）。展开 = 卡头 + **单列
+ * 顺序栈**，宽 320→480 原地长高、高上限 `NODE_V4_CARD.expandedMaxHeight` 内滚，
+ * 走 `spring-expand`。⛔ 展开态不再渲染左列槽轨（横轨由各 kind 在
+ * `expandedBody` 里按顺序放），⛔ 也不再有卡底那条工具栏（与浮动工具条重复）。
  *
  * ── 端口 ────────────────────────────────────────────────────────────────
  * 入口按 `getNodeV4Ports` 逐槽渲染（左，自上而下 = 端口表数组顺序），出口在右
@@ -16,6 +25,7 @@
  */
 
 import { Handle, Position } from '@xyflow/react'
+import { ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
@@ -24,6 +34,7 @@ import {
   type NodeSlotId,
   type NodeSlotOutputId,
 } from '@/constants/node-slots'
+import { NODE_V4_CARD } from '@/constants/node-studio'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { renameStableNodeName } from '@/lib/node-display-name'
@@ -67,7 +78,6 @@ export interface NodeV4ShellProps {
   /** 左缘的槽格列（`video.shot` 的四槽卡由节点自己给）。 */
   readonly slotRail?: ReactNode
   readonly width: number
-  readonly toolbar?: ReactNode
   /**
    * 卡头显示的名字。默认 `data.name`；镜头节点传的是
    * `formatShotDisplayName(label, shotNo)`——序号是**显示前缀**，⛔ 不落库
@@ -80,6 +90,23 @@ function portFamily(data: NodeV4Data): string {
   return data.kind
 }
 
+/**
+ * 卡头右侧的读数（等宽 tabular）：有画面的读 W×H，有声音/时长的读秒。
+ * ⛔ 不在这里编第三种读法——没有可读的就不渲染那一格，位置不留空。
+ */
+function nodeReadout(
+  data: NodeV4Data,
+  dimensions: (width: number, height: number) => string,
+): string | undefined {
+  if ('mediaWidth' in data && data.mediaWidth && data.mediaHeight) {
+    return dimensions(data.mediaWidth, data.mediaHeight)
+  }
+  if ('durationSec' in data && data.durationSec) {
+    return `${Math.round(data.durationSec)}s`
+  }
+  return undefined
+}
+
 export function NodeV4Shell({
   node,
   selected,
@@ -87,7 +114,6 @@ export function NodeV4Shell({
   expandedBody,
   slotRail,
   width,
-  toolbar,
   title,
 }: NodeV4ShellProps) {
   const t = useTranslations('StudioNode.v4')
@@ -95,6 +121,9 @@ export function NodeV4Shell({
   const ports = getNodeV4Ports(node.data.kind, node.data.subtype)
   const expanded = canvas.expandedNodeId === node.id
   const changed = canvas.changedNodeIds.includes(node.id)
+  const readout = nodeReadout(node.data, (width, height) =>
+    t('readout.dimensions', { width, height }),
+  )
 
   const source = canvas.draggingFrom
     ? canvas.nodes.find((item) => item.id === canvas.draggingFrom)
@@ -154,7 +183,11 @@ export function NodeV4Shell({
       data-changed={changed ? 'true' : 'false'}
       style={{ width }}
       className={cn(
-        'relative rounded-lg border bg-card text-card-foreground shadow-md transition-shadow',
+        'relative rounded-node border bg-card text-card-foreground corner-squircle shadow-node-card',
+        // 展开 / 收起 = 同一张卡原地长高：宽与影同一条弹簧同一个时长，⛔ 不给
+        // 影另起一档，否则卡长大和影跟上读起来是两件事。
+        'transition-[width,box-shadow] duration-spring-expand ease-spring-expand',
+        expanded && 'shadow-node-card-expanded',
         selected && 'ring-2 ring-ring',
         node.data.status === 'failed' && 'border-destructive',
         // §7 变更高亮：2px 描边 + 外发光，不自动消失。
@@ -200,95 +233,141 @@ export function NodeV4Shell({
         />
       ))}
 
-      {/* 卡头 = 状态点 + 可改名的名字 + 展开切换。
+      {/* 卡头 = 44px 一行（触控命中区底线）：状态点 · 序号 · 名字 · kind 标 ·
+          读数 · 展开钮。层级全靠字号 / 字重 / 字距，⛔ 名字与 kind 标不靠颜色分。
           ⚠ 展开切换是**名字右边那块空白**上的按钮，⛔ 不把整条做成 `<button>`：
-          名字要能点进编辑，而 `<button>` 里嵌可交互元素既不合法也点不准。 */}
-      <div className="flex w-full items-center gap-2 rounded-t-lg border-b px-3 py-2">
+          名字要能点进编辑，而 `<button>` 里嵌可交互元素既不合法也点不准。
+          375 档压成两行（第一行 名字 + 展开钮，第二行 kind 标 + 读数），
+          见 ui-defaults §6 「多列表格 → 主字段 + 一个次级行」同一条规则。 */}
+      <div className="node-v4-head flex min-h-11 w-full items-center gap-2 px-4 py-2">
         <span
           data-status={node.data.status}
           aria-label={t(`statuses.${node.data.status}`)}
           className={cn(
             'size-2 shrink-0 rounded-full',
             STATUS_DOT[node.data.status] ?? STATUS_DOT.idle,
+            // running 呼吸：⛔ 只给「正在跑」一档，其余静止。
+            node.data.status === 'running' && 'animate-pulse',
           )}
         />
+        {node.data.shotNo === undefined ? null : (
+          <span
+            data-shot-no
+            aria-hidden
+            className="shrink-0 font-mono text-3xs tabular-nums text-muted-foreground"
+          >
+            {String(node.data.shotNo).padStart(2, '0')}
+          </span>
+        )}
         <NodeV4EditableLabel
           value={title ?? node.data.name}
           editValue={stableNameOf(node.data)}
           ariaLabel={t('renameNode')}
           onCommit={(next) => renameNode(next)}
-          className="text-xs font-medium"
+          className="text-md font-semibold tracking-node-title"
         />
         {changed ? (
+          // 「助手改过」= 卡头一颗细点 + 关系带里的条目（owner 2026-09-08）。
           <span
-            className="rounded-full bg-primary px-1.5 text-2xs text-primary-foreground"
+            data-changed-dot
+            className="size-1.5 shrink-0 rounded-full bg-primary"
             title={t('changedBadge')}
-          >
-            •
-          </span>
+          />
         ) : null}
+        <span className="node-v4-head-meta flex min-w-0 shrink items-center gap-2 overflow-hidden">
+          <span
+            data-kind-tag
+            className="shrink-0 rounded-full bg-surface-fill px-1.5 py-0.5 font-mono text-3xs text-muted-foreground"
+          >
+            {t(`kinds.${node.data.kind}`)}
+          </span>
+          {readout ? (
+            <span
+              data-node-readout
+              className="truncate font-mono text-3xs tabular-nums text-muted-foreground"
+            >
+              {readout}
+            </span>
+          ) : null}
+        </span>
         <button
           type="button"
           onClick={() => canvas.onToggleExpanded(node.id)}
           aria-expanded={expanded}
           aria-label={t(expanded ? 'collapseNode' : 'expandNode')}
-          className="ml-auto size-5 shrink-0 rounded-md border text-2xs"
+          className={cn(
+            'nodrag nopan ml-auto flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-fill text-muted-foreground',
+            'transition-[background-color,transform] duration-spring-expand ease-spring-expand hover:bg-surface-fill-hover',
+            expanded && 'bg-surface-fill-hover rotate-180',
+          )}
         >
-          {expanded ? '−' : '+'}
+          <ChevronDown aria-hidden className="size-3.5" />
         </button>
       </div>
 
-      <div className="flex gap-2 p-3">
-        {slotRail}
-        <div className="min-w-0 flex-1">
-          {expanded && expandedBody ? expandedBody : collapsedBody}
+      {expanded && expandedBody ? (
+        // 展开态 = 单列顺序栈 + 卡内滚动。高上限是护栏：一张卡吃掉大半个视口时
+        // 「卡内滚 + 画布滚」会打架。⛔ 不把上限写成字面量（读 NODE_V4_CARD）。
+        <div
+          data-expanded-stack
+          style={{ maxHeight: NODE_V4_CARD.expandedMaxHeight }}
+          className="nowheel flex flex-col gap-5 overflow-y-auto px-4 pb-4"
+        >
+          {expandedBody}
         </div>
-      </div>
-
-      {expanded && toolbar ? (
-        <div className="flex flex-wrap gap-1 border-t px-3 py-2">{toolbar}</div>
-      ) : null}
+      ) : (
+        <div className="flex gap-2 px-4 pb-4">
+          {slotRail}
+          <div className="min-w-0 flex-1">{collapsedBody}</div>
+        </div>
+      )}
     </div>
   )
 }
 
-/** 收起态的媒体缩略 —— `.dark` 只在槽内媒体与灯箱（§2.5）。 */
+/**
+ * 媒体缩略 —— `.dark` 只在槽内媒体与灯箱（§2.5）。
+ *
+ * `fill` = 坐进 `NodeV4MediaWell` 那口井里：井负责圆角与底色，图只管铺满宽度并
+ * 保住自己的比例（⛔ 不裁成固定高度——展开态第一眼要看清产物本身）。
+ */
 export function NodeV4Thumbnail({
   url,
   alt,
   kind,
+  fill,
 }: {
   url?: string
   alt: string
   kind: NodeV4Data['kind']
+  fill?: boolean
 }) {
+  const frame = fill
+    ? 'dark aspect-video w-full object-cover'
+    : 'dark h-24 w-full rounded-md object-cover'
   if (!url) {
     return (
-      <div className="dark flex h-24 items-center justify-center rounded-md border border-dashed bg-muted/40 text-2xs text-muted-foreground">
+      <div
+        className={cn(
+          'flex items-center justify-center text-2xs text-muted-foreground',
+          fill
+            ? 'aspect-video w-full'
+            : 'dark h-24 rounded-md border border-dashed bg-muted/40',
+        )}
+      >
         {alt}
       </div>
     )
   }
   if (kind === NODE_MEDIA_KIND_IDS.video) {
     return (
-      <video
-        src={url}
-        className="dark h-24 w-full rounded-md object-cover"
-        muted
-        playsInline
-        preload="metadata"
-      />
+      <video src={url} className={frame} muted playsInline preload="metadata" />
     )
   }
   return (
     // 画布上的缩略走原始 <img>：ReactFlow 的节点在 transform 里，next/image 的
     // 布局测量在缩放画布下拿不到稳定尺寸。
     // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={url}
-      alt={alt}
-      className="dark h-24 w-full rounded-md object-cover"
-      draggable={false}
-    />
+    <img src={url} alt={alt} className={frame} draggable={false} />
   )
 }

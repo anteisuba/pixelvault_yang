@@ -69,12 +69,10 @@ export function VideoNodeV4Merge({ node }: VideoNodeV4MergeProps) {
   )
 
   return (
-    <section
-      data-merge-panel
-      className="space-y-2 rounded-xl border bg-card p-3"
-    >
+    // ⛔ 不做卡中卡：合并面靠留白与 inset 分组分层，不再套一层带边框的卡。
+    <section data-merge-panel className="flex flex-col gap-3">
       {/* ── 九槽阵列 ─────────────────────────────────────────────────── */}
-      <div data-merge-grid className="grid grid-cols-3 gap-1">
+      <div data-merge-grid className="grid grid-cols-3 gap-2">
         {plan.slots.map((slot) => (
           <div
             key={slot.index}
@@ -82,9 +80,11 @@ export function VideoNodeV4Merge({ node }: VideoNodeV4MergeProps) {
             data-merge-filled={slot.url ? 'true' : 'false'}
             data-merge-required={slot.required ? 'true' : 'false'}
             className={cn(
-              'flex h-10 items-center justify-center rounded-md border text-2xs',
-              slot.url ? 'bg-muted/40' : 'border-dashed text-muted-foreground',
-              slot.invalidRange && 'border-destructive text-destructive',
+              'flex h-10 items-center justify-center rounded-md text-3xs',
+              slot.url
+                ? 'bg-surface-fill-hover'
+                : 'border border-dashed bg-surface-fill text-muted-foreground',
+              slot.invalidRange && 'border border-destructive text-destructive',
             )}
           >
             {slot.url
@@ -100,25 +100,30 @@ export function VideoNodeV4Merge({ node }: VideoNodeV4MergeProps) {
       <Button
         type="button"
         size="sm"
-        variant="outline"
+        variant="ghost"
         data-merge-summary
         aria-expanded={trimOpen}
+        className="w-full rounded-lg bg-surface-fill text-2sm hover:bg-surface-fill-hover"
         onClick={() => setTrimOpen((open) => !open)}
       >
         {t('summary', summary)}
       </Button>
 
       {trimOpen ? (
-        <ul data-merge-trim className="space-y-1">
+        // 逐段裁剪 = 一个 inset 分组：一行一段，起点 → 终点右对齐等宽。
+        <ul
+          data-merge-trim
+          className="overflow-hidden rounded-xl bg-surface-fill corner-squircle"
+        >
           {plan.slots
             .filter((slot) => slot.url)
             .map((slot) => (
               <li
                 key={slot.index}
                 data-merge-trim-row={slot.index}
-                className="flex items-center gap-2"
+                className="flex min-h-11 items-center gap-2 border-t border-border/60 px-3 py-1.5 first:border-t-0"
               >
-                <span className="w-8 shrink-0 text-2xs text-muted-foreground">
+                <span className="shrink-0 text-2sm tracking-node-body">
                   {t('clipIndex', { index: slot.index + 1 })}
                 </span>
                 <input
@@ -128,7 +133,12 @@ export function VideoNodeV4Merge({ node }: VideoNodeV4MergeProps) {
                   value={slot.startSec ?? ''}
                   aria-label={t('startSec', { index: slot.index + 1 })}
                   placeholder={t('startPlaceholder')}
-                  className="w-16 rounded-md border bg-background px-2 py-1 text-2xs"
+                  className={cn(
+                    'ml-auto w-16 rounded-lg bg-surface-fill-hover px-2 py-1 text-right font-mono text-2sm tabular-nums focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
+                    // 非法区间 = 输入框红焦点环 + 组下红脚注，⛔ 不在行尾接一句
+                    // 会把行撑歪的红字。
+                    slot.invalidRange && 'ring-2 ring-destructive/60',
+                  )}
                   onChange={(event) =>
                     applyTrim(slot.index, {
                       ...(event.target.value
@@ -147,7 +157,10 @@ export function VideoNodeV4Merge({ node }: VideoNodeV4MergeProps) {
                   value={slot.endSec ?? ''}
                   aria-label={t('endSec', { index: slot.index + 1 })}
                   placeholder={t('endPlaceholder')}
-                  className="w-16 rounded-md border bg-background px-2 py-1 text-2xs"
+                  className={cn(
+                    'w-16 rounded-lg bg-surface-fill-hover px-2 py-1 text-right font-mono text-2sm tabular-nums focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
+                    slot.invalidRange && 'ring-2 ring-destructive/60',
+                  )}
                   onChange={(event) =>
                     applyTrim(slot.index, {
                       ...(slot.startSec === undefined
@@ -160,10 +173,7 @@ export function VideoNodeV4Merge({ node }: VideoNodeV4MergeProps) {
                   }
                 />
                 {slot.invalidRange ? (
-                  <span
-                    data-merge-invalid
-                    className="text-2xs text-destructive"
-                  >
+                  <span data-merge-invalid className="sr-only">
                     {t('invalidRange')}
                   </span>
                 ) : null}
@@ -174,12 +184,12 @@ export function VideoNodeV4Merge({ node }: VideoNodeV4MergeProps) {
 
       {/* ── 阻塞原因：一次说全 ───────────────────────────────────────── */}
       {issues.length > 0 ? (
-        <p data-merge-blocked className="text-2xs text-destructive">
+        <p data-merge-blocked className="text-3xs text-destructive">
           {t('needMoreClips', { min: 2 })}
         </p>
       ) : null}
       {plan.hasInvalidRange ? (
-        <p data-merge-blocked-range className="text-2xs text-destructive">
+        <p data-merge-blocked-range className="text-3xs text-destructive">
           {t('invalidRangeBlocks')}
         </p>
       ) : null}

@@ -1280,10 +1280,26 @@ export const NODE_V4_CARD = {
   collapsedWidth: 320,
   textCollapsedWidth: 320,
   shotCollapsedWidth: 400,
-  expandedWidth: 560,
+  /**
+   * 展开宽（owner 2026-09-08 定稿：方向 A「原地长高的卡」，spec v2 的 560 作废）。
+   * ⚠ 480 − 32 卡内左右内距 = 448 可用，配下面的槽卡 100 + 间隙 8 正好让
+   * 一屏排 4 格整齐、第 5 格露 24px。改任一个数都要回头核这条算术。
+   */
+  expandedWidth: 480,
   expandedMaxHeight: 720,
   /** 槽格边长（收起态左缘那一列小格）。 */
   slotChipSize: 20,
+  /** 展开态横轨里一张槽卡的宽与格间距。 */
+  slotCardWidth: 100,
+  slotCardGap: 8,
+} as const
+
+/**
+ * 节点右键菜单（HIG 定稿 2026-09-08）。宽度是唯一需要具名的几何量——行高 / 内距
+ * 走 Tailwind 档位。
+ */
+export const NODE_V4_CONTEXT_MENU = {
+  width: 224,
 } as const
 
 /**

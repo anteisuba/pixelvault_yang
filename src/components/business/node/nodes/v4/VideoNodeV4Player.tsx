@@ -27,7 +27,12 @@ import {
   type VideoFrameCaptureReason,
 } from '@/constants/video-analysis'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
-import { cn } from '@/lib/utils'
+
+import {
+  NodeV4MediaWell,
+  NodeV4Transport,
+  NodeV4TransportButton,
+} from './NodeV4MediaWell'
 
 /**
  * 机器可读的失败原因（kebab）→ 已有文案键（camel）。
@@ -70,6 +75,7 @@ export function VideoNodeV4Player({
   const [isPlaying, setIsPlaying] = useState(false)
   const [muted, setMuted] = useState(true)
   const [progress, setProgress] = useState(0)
+  const [clock, setClock] = useState({ current: 0, total: 0 })
   const [capturing, setCapturing] = useState(false)
   const [captureError, setCaptureError] = useState<string | null>(null)
 
@@ -106,7 +112,7 @@ export function VideoNodeV4Player({
     return (
       <div
         data-video-player="empty"
-        className="dark flex h-24 items-center justify-center rounded-md border border-dashed bg-muted/40 text-2xs text-muted-foreground"
+        className="dark flex h-24 items-center justify-center rounded-xl border border-dashed bg-surface-sunken text-2xs text-muted-foreground corner-squircle"
       >
         {t('empty')}
       </div>
@@ -114,102 +120,129 @@ export function VideoNodeV4Player({
   }
 
   return (
-    <div data-video-player="ready" className="space-y-1">
-      <video
-        ref={videoRef}
-        src={url}
-        poster={posterUrl}
-        muted={muted}
-        playsInline
-        preload="metadata"
-        aria-label={title}
-        className="dark h-32 w-full rounded-md object-cover"
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        onEnded={() => {
-          setIsPlaying(false)
-          setProgress(0)
-        }}
-        onTimeUpdate={(event) => {
-          const el = event.currentTarget
-          setProgress(el.duration > 0 ? el.currentTime / el.duration : 0)
-        }}
-      />
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          data-video-play
-          aria-pressed={isPlaying}
-          aria-label={isPlaying ? t('pause') : t('play')}
-          onClick={togglePlay}
-        >
-          {isPlaying ? '❚❚' : '▶'}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          data-video-mute
-          aria-pressed={muted}
-          aria-label={muted ? t('unmute') : t('mute')}
-          onClick={() => {
-            const video = videoRef.current
-            const next = !muted
-            setMuted(next)
-            if (video) video.muted = next
+    <div data-video-player="ready" className="space-y-2">
+      {/* 媒体坐在沉底的井里，transport 是浮在井底的一条玻璃胶囊。 */}
+      <NodeV4MediaWell testId="video">
+        <video
+          ref={videoRef}
+          src={url}
+          poster={posterUrl}
+          muted={muted}
+          playsInline
+          preload="metadata"
+          aria-label={title}
+          className="dark aspect-video w-full object-cover"
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onLoadedMetadata={(event) =>
+            setClock({
+              current: 0,
+              total: Number.isFinite(event.currentTarget.duration)
+                ? event.currentTarget.duration
+                : 0,
+            })
+          }
+          onEnded={() => {
+            setIsPlaying(false)
+            setProgress(0)
           }}
-        >
-          {muted ? '🔇' : '🔊'}
-        </Button>
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={progress}
-          data-video-progress
-          aria-label={t('progress')}
-          className={cn('h-1 min-w-0 flex-1 accent-primary')}
-          onChange={(event) => {
-            const video = videoRef.current
-            const next = Number(event.target.value)
-            setProgress(next)
-            if (video && video.duration > 0) {
-              video.currentTime = next * video.duration
-            }
+          onTimeUpdate={(event) => {
+            const el = event.currentTarget
+            setProgress(el.duration > 0 ? el.currentTime / el.duration : 0)
+            setClock({
+              current: el.currentTime,
+              total: Number.isFinite(el.duration) ? el.duration : 0,
+            })
           }}
         />
+        <NodeV4Transport>
+          <NodeV4TransportButton
+            testId="video-play"
+            label={isPlaying ? t('pause') : t('play')}
+            pressed={isPlaying}
+            onClick={togglePlay}
+          >
+            {isPlaying ? '❚❚' : '▶'}
+          </NodeV4TransportButton>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={progress}
+            data-video-progress
+            aria-label={t('progress')}
+            className="h-1 min-w-0 flex-1 accent-primary"
+            onChange={(event) => {
+              const video = videoRef.current
+              const next = Number(event.target.value)
+              setProgress(next)
+              if (video && video.duration > 0) {
+                video.currentTime = next * video.duration
+              }
+            }}
+          />
+          {/* 时间读数走等宽 tabular，⛔ 不让秒数跳动时把进度条推来推去。 */}
+          <span
+            data-video-clock
+            className="shrink-0 font-mono text-3xs tabular-nums text-muted-foreground"
+          >
+            {formatClock(clock.current)}/{formatClock(clock.total)}
+          </span>
+          <NodeV4TransportButton
+            testId="video-mute"
+            label={muted ? t('unmute') : t('mute')}
+            pressed={muted}
+            onClick={() => {
+              const video = videoRef.current
+              const next = !muted
+              setMuted(next)
+              if (video) video.muted = next
+            }}
+          >
+            {muted ? '🔇' : '🔊'}
+          </NodeV4TransportButton>
+        </NodeV4Transport>
+      </NodeV4MediaWell>
+
+      {/* 抓帧 / 下载在**井外**：它们改的是别的槽和本地文件，不是在放这段视频。
+          下载靠右，与抓帧动作分组。 */}
+      <div className="flex items-center gap-2">
+        {onCaptureFrames ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            data-video-capture
+            disabled={capturing}
+            className="rounded-lg bg-surface-fill hover:bg-surface-fill-hover"
+            onClick={() => void runCapture()}
+          >
+            {capturing ? t('capturing') : t('captureFrames')}
+          </Button>
+        ) : null}
         {/* 下载走 `<a download>`：文件已经在 R2 上，⛔ 不在客户端再拉一份 blob。 */}
         <a
           href={url}
           download
           data-video-download
-          className="rounded-md border px-2 py-1 text-2xs"
+          className="ml-auto rounded-lg bg-surface-fill px-2.5 py-1.5 text-2sm hover:bg-surface-fill-hover"
         >
           {t('download')}
         </a>
       </div>
-      {onCaptureFrames ? (
-        <div className="space-y-1">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            data-video-capture
-            disabled={capturing}
-            onClick={() => void runCapture()}
-          >
-            {capturing ? t('capturing') : t('captureFrames')}
-          </Button>
-          {captureError ? (
-            <p data-video-capture-failed className="text-2xs text-destructive">
-              {captureError}
-            </p>
-          ) : null}
-        </div>
+      {captureError ? (
+        <p data-video-capture-failed className="text-3xs text-destructive">
+          {captureError}
+        </p>
       ) : null}
     </div>
   )
+}
+
+/** `m:ss` 读数。⛔ 不引 date 库：这里只有一种格式。 */
+function formatClock(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0:00'
+  const total = Math.floor(seconds)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
 }

@@ -11,19 +11,23 @@
  */
 
 import { useTranslations } from 'next-intl'
-import { useState } from 'react'
 
 import { getNodeV4Ports } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import type { NodeV4 } from '@/types/node-workflow'
 
 import { useNodeV4Canvas } from './NodeV4Context'
+import { NodeV4Disclosure } from './NodeV4Disclosure'
 
+/** 证据行：`80px / 1fr` 两列，右列的数字走等宽 tabular。 */
 function EvidenceRow({ label, value }: { label: string; value: string }) {
   return (
-    <div data-evidence-row className="flex gap-2 text-2xs">
-      <span className="w-16 shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 flex-1 break-words">{value}</span>
+    <div
+      data-evidence-row
+      className="flex gap-2.5 py-0.5 text-3xs tracking-node-body"
+    >
+      <span className="w-20 shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 flex-1 break-words tabular-nums">{value}</span>
     </div>
   )
 }
@@ -31,7 +35,6 @@ function EvidenceRow({ label, value }: { label: string; value: string }) {
 export function NodeV4EvidenceDrawer({ node }: { node: NodeV4 }) {
   const t = useTranslations('StudioNode.v4')
   const canvas = useNodeV4Canvas()
-  const [open, setOpen] = useState(false)
 
   const data = node.data
   const ports = getNodeV4Ports(data.kind, data.subtype)
@@ -69,24 +72,19 @@ export function NodeV4EvidenceDrawer({ node }: { node: NodeV4 }) {
   }
 
   return (
-    <div data-evidence-drawer className="rounded-md border">
-      <button
-        type="button"
-        aria-expanded={open}
-        data-evidence-toggle
-        onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center justify-between px-2 py-1 text-left text-2xs"
+    <div data-evidence-drawer>
+      <NodeV4Disclosure
+        testId="evidence"
+        // 证据默认收起：它是「要查的时候查」，不是每次展开都得读一遍的东西。
+        // 计数已经在标题的 `{count}` 里，⛔ 不再在右侧重复一遍。
+        title={t('evidence.title', { count: rows.length })}
       >
-        <span>{t('evidence.title', { count: rows.length })}</span>
-        <span aria-hidden>{open ? '−' : '+'}</span>
-      </button>
-      {open ? (
-        <div className="space-y-1 border-t px-2 py-1">
+        <div className="space-y-0.5">
           {rows.map((row) => (
             <EvidenceRow key={row.label} label={row.label} value={row.value} />
           ))}
         </div>
-      ) : null}
+      </NodeV4Disclosure>
     </div>
   )
 }

@@ -40,6 +40,38 @@ export const DURATION_MS = {
 
 export type MotionDurationPreset = keyof typeof DURATION
 
+/**
+ * 弹簧三档（ui-defaults.md §4.1，owner 2026-09-08 定）——**只给画布节点卡**的
+ * 展开 / 槽卡 / 按压三类动作。CSS 侧的同名 token 是 globals.css 的
+ * `--duration-spring-*` / `--ease-spring-*`（`linear()` 是这三条弹簧的近似），
+ * 两处必须同步改。motion 侧用 `type: 'spring'`，⛔ 不把 stiffness/damping
+ * 散写进组件。
+ */
+export const SPRING = {
+  /** 卡展开 / 收起 / 邻居让位 / 分区进入 ≈ CSS `--spring-expand`（480ms） */
+  expand: { type: 'spring', stiffness: 220, damping: 26 },
+  /** 槽卡 / 折叠段 / 分段 thumb / 开关拨子 ≈ CSS `--spring-slot`（340ms） */
+  slot: { type: 'spring', stiffness: 320, damping: 28 },
+  /** 按压回弹 ≈ CSS `--spring-press`（160ms，无过冲） */
+  press: { type: 'spring', stiffness: 520, damping: 34 },
+} as const
+
+export type MotionSpringPreset = keyof typeof SPRING
+
+/**
+ * 弹簧 transition 预设。reducedMotion 传 useReducedMotion() 的返回值——为真时
+ * 退回脊柱线性档（与 CSS 侧的 `prefers-reduced-motion` 降级同一口径）。
+ */
+export function springTransition(
+  preset: MotionSpringPreset,
+  reducedMotion: boolean | null = false,
+):
+  | { duration: number; ease: [number, number, number, number] }
+  | (typeof SPRING)[MotionSpringPreset] {
+  if (reducedMotion) return motionTransition('base', true)
+  return SPRING[preset]
+}
+
 /** stagger：50ms 步进，总延迟封顶 300ms */
 export const STAGGER_STEP_S = 0.05
 export const STAGGER_MAX_S = 0.3

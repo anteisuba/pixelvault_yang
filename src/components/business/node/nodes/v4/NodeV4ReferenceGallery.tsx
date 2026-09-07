@@ -66,9 +66,11 @@ export function NodeV4ReferenceGallery({
   const full = max !== null && versions.length >= max
 
   return (
-    <div data-reference-gallery={slot} className="space-y-1">
+    // 图集是**常驻分区**不是折叠段：它是「参考槽的另一种视图」，藏起来会让人
+    // 以为没连（定稿 §⑤）。
+    <div data-reference-gallery={slot} className="space-y-2">
       <div className="flex items-center gap-2">
-        <p className="text-2xs text-muted-foreground">
+        <p className="text-2sm font-semibold tracking-node-sec">
           {t('gallery.title', {
             slot: t(`slots.${slot}`),
             count: versions.length,
@@ -79,18 +81,18 @@ export function NodeV4ReferenceGallery({
           data-gallery-add
           disabled={full || candidates.length === 0}
           onClick={() => setPicking((value) => !value)}
-          className="nodrag ml-auto rounded border px-1.5 text-2xs disabled:opacity-40"
+          className="nodrag ml-auto rounded-lg bg-surface-fill px-2 py-1 text-3xs hover:bg-surface-fill-hover disabled:opacity-40"
         >
           {t('gallery.add')}
         </button>
       </div>
 
       {versions.length === 0 ? (
-        <p data-gallery-empty className="text-2xs text-muted-foreground">
+        <p data-gallery-empty className="text-3xs text-muted-foreground">
           {t('gallery.empty')}
         </p>
       ) : (
-        <ul className="flex flex-wrap gap-1">
+        <ul className="flex flex-wrap gap-2">
           {versions.map((version) => {
             const source = canvas.nodes.find(
               (item) => item.id === version.sourceNodeId,
@@ -103,7 +105,7 @@ export function NodeV4ReferenceGallery({
               <li
                 key={version.id}
                 data-gallery-item={version.sourceNodeId}
-                className="w-16 space-y-0.5"
+                className="w-16 space-y-1"
               >
                 <button
                   type="button"
@@ -118,25 +120,25 @@ export function NodeV4ReferenceGallery({
                       src={url}
                       alt={source?.data.name ?? ''}
                       draggable={false}
-                      className="dark h-12 w-full rounded-sm object-cover"
+                      className="dark h-16 w-full rounded-lg object-cover"
                     />
                   ) : (
-                    <span className="flex h-12 items-center justify-center rounded-sm border border-dashed text-2xs text-muted-foreground">
+                    <span className="flex h-16 items-center justify-center rounded-lg border border-dashed bg-surface-fill text-3xs text-muted-foreground">
                       {t('slotEmpty')}
                     </span>
                   )}
                 </button>
-                <p className="truncate text-2xs text-muted-foreground">
+                <p className="truncate text-3xs text-muted-foreground">
                   {source?.data.name ?? version.sourceNodeId}
                 </p>
-                <div className="flex gap-0.5">
+                <div className="flex justify-center gap-1">
                   <button
                     type="button"
                     data-gallery-remove
                     onClick={() =>
                       canvas.onDisconnectSlot(node.id, slot, version.id)
                     }
-                    className="nodrag flex-1 rounded border text-2xs"
+                    className="nodrag flex-1 rounded-lg bg-surface-fill py-0.5 text-3xs hover:bg-surface-fill-hover"
                   >
                     {t('gallery.remove')}
                   </button>
@@ -147,7 +149,7 @@ export function NodeV4ReferenceGallery({
                       canvas.onDisconnectSlot(node.id, slot, version.id)
                       canvas.onFocusNode(version.sourceNodeId)
                     }}
-                    className="nodrag flex-1 rounded border text-2xs"
+                    className="nodrag flex-1 rounded-lg bg-surface-fill py-0.5 text-3xs hover:bg-surface-fill-hover"
                   >
                     {t('gallery.extract')}
                   </button>
@@ -159,7 +161,10 @@ export function NodeV4ReferenceGallery({
       )}
 
       {picking ? (
-        <ul data-gallery-picker className="max-h-24 space-y-0.5 overflow-auto">
+        <ul
+          data-gallery-picker
+          className="max-h-24 space-y-0.5 overflow-auto rounded-xl bg-surface-fill p-1 corner-squircle"
+        >
           {candidates.map((candidate) => (
             <li key={candidate.id}>
               <button
@@ -174,7 +179,7 @@ export function NodeV4ReferenceGallery({
                   })
                   setPicking(false)
                 }}
-                className="nodrag w-full truncate rounded border px-1 text-left text-2xs"
+                className="nodrag w-full truncate rounded-lg px-2 py-1 text-left text-3xs hover:bg-surface-fill-hover"
               >
                 {candidate.data.name}
               </button>

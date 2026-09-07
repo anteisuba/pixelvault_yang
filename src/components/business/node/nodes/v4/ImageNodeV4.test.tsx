@@ -313,7 +313,9 @@ describe('展开态的四块', () => {
 
   it('证据抽屉默认收起，展开后逐槽列出当前版', () => {
     renderImage(expandedContext())
-    const toggle = document.querySelector('[data-evidence-toggle]') as Element
+    const toggle = document.querySelector(
+      '[data-disclosure-toggle="evidence"]',
+    ) as Element
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(toggle)
     expect(

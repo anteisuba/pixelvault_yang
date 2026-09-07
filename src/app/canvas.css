@@ -4105,3 +4105,34 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   outline-offset: 2px;
   border-radius: 12px;
 }
+
+/* ── v4 节点卡 · 375 降级（ui-defaults.md §6「降级 · 画布」+ §3.1 卡例外）──
+   桌面档全部住在组件的 Tailwind 类里；这里只放**手机才成立**的三条改写，因为
+   它们改的是「同一份标记在窄视口下的排法」，而不是另一套皮肤。
+   ⚠ 断点用 1023px 与应用壳的移动断点同源，⛔ 不另起一个数。 */
+@media (max-width: 1023px) {
+  /* 卡头压成两行：第一行 状态点 + 序号 + 名字 + 展开钮，第二行 kind 标 + 读数
+     （= ui-defaults「多列表格 → 主字段 + 一个次级行」同一条规则）。 */
+  .node-v4-head {
+    flex-wrap: wrap;
+  }
+  .node-v4-head .node-v4-head-meta {
+    flex-basis: 100%;
+    order: 1;
+    overflow: visible;
+  }
+
+  /* 卡内**不再限高**，页面自己滚：手机上「卡内滚 + 页面滚」两层滚动必错。 */
+  [data-expanded-stack] {
+    max-height: none !important;
+    overflow-y: visible;
+  }
+
+  /* 槽轨 4 格 → 2 格，仍是横向 snap（每格 50% 减去半个间隙）。 */
+  /* ⚠ `!important`：槽卡的定宽是组件按 `NODE_V4_CARD.slotCardWidth` 写在
+     行内 style 上的，行内值不加这个盖不掉。 */
+  [data-slot-rail='horizontal'] > * {
+    width: calc(50% - 4px) !important;
+    min-width: calc(50% - 4px);
+  }
+}

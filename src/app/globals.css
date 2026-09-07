@@ -22,6 +22,15 @@
   --color-surface-composer-foreground: var(--surface-composer-foreground);
   /* 浅底第三层：应用壳底，主卡浮在其上（ui-defaults.md §2.2） */
   --color-surface-sunken: var(--surface-sunken);
+  /* ── 派生材质（owner 2026-09-08：backdrop 只给浮层，卡面用不透明卡色）──
+     `--surface-glass` 是浮层（工具条 / 右键菜单 / transport / 移动端条）的
+     半透明面，配 `.surface-glass` 工具类里的 `saturate(180%) blur(24px)`。
+     `--surface-fill*` 是 HIG 填充式控件的三档面（填充输入 / inset 分组 /
+     分段控件底 / 轨道），三档全部由 `--foreground` color-mix 派生，⛔ 无新色相。 */
+  --color-surface-glass: var(--surface-glass);
+  --color-surface-fill: var(--surface-fill);
+  --color-surface-fill-hover: var(--surface-fill-hover);
+  --color-surface-fill-track: var(--surface-fill-track);
   --color-node-canvas: var(--node-canvas);
   --color-node-panel: var(--node-panel);
   --color-node-panel-inner: var(--node-panel-inner);
@@ -217,6 +226,36 @@
      裸 cubic-bezier 字面量），也供本文件下方的 CSS 类兜底引用。 */
   --ease-ingest: cubic-bezier(0.45, 0.05, 0.6, 1);
   --ease-soft-return: cubic-bezier(0.3, 0.7, 0.4, 1.05);
+  /* ── 弹簧三档（ui-defaults.md §4「画布节点卡例外」，owner 2026-09-08 定）──
+     只给画布节点卡的展开 / 槽卡 / 按压三类动作用，四档线性时长仍是全站默认。
+     T-shirt 名：`duration-spring-expand` / `ease-spring-expand` 等；
+     ⛔ 不用数字后缀（`duration-480` 一类会被 tailwind-merge 与内置档冲掉）。
+     值经 `var()` 取自 :root，reduced-motion 下整体退化成
+     `--duration-base` + `--ease-standard`（见本文件末尾的降级块）。 */
+  --duration-spring-expand: var(--spring-expand-duration);
+  --duration-spring-slot: var(--spring-slot-duration);
+  --duration-spring-press: var(--spring-press-duration);
+  --ease-spring-expand: var(--spring-expand-ease);
+  --ease-spring-slot: var(--spring-slot-ease);
+  --ease-spring-press: var(--spring-press-ease);
+  /* 画布节点卡的圆角例外（ui-defaults.md §3）：18px，比卡片档 `rounded-lg` 大
+     一档，配 `corner-shape: squircle` 渐进增强。其他页面卡片不跟着抬。 */
+  --radius-node: 1.125rem;
+  /* 节点卡的两层低不透明阴影（一层贴边定位置、一层大扩散给「浮」）。展开态只把
+     扩散那层加大 = 「这是当前工作面」。⛔ 不退回一档 `shadow-lg`。 */
+  --shadow-node-card:
+    0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.18);
+  --shadow-node-card-expanded:
+    0 2px 4px rgb(0 0 0 / 0.05), 0 26px 60px -22px rgb(0 0 0 / 0.3);
+  /* 浮层（工具条 / 右键菜单 / transport）的影：比卡更聚更深一点。 */
+  --shadow-node-chrome:
+    0 1px 2px rgb(0 0 0 / 0.05), 0 8px 28px -12px rgb(0 0 0 / 0.32);
+  --shadow-node-menu:
+    0 1px 2px rgb(0 0 0 / 0.06), 0 18px 44px -18px rgb(0 0 0 / 0.38);
+  /* 卡内三档字距（层级靠字号 + 字重 + 字距，⛔ 不靠颜色）。 */
+  --tracking-node-title: -0.012em;
+  --tracking-node-sec: -0.008em;
+  --tracking-node-body: -0.004em;
   --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite
     alternate;
   --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
@@ -395,6 +434,74 @@
 
   --surface-elevated: color-mix(in oklab, var(--card) 92%, var(--background));
   --surface-soft: color-mix(in oklab, var(--secondary) 78%, var(--background));
+  /* ── 画布节点卡的 HIG 材质（ui-defaults.md §3「画布节点卡例外」）──────
+     浮层 70% 的 `--popover` + `.surface-glass` 的 saturate/blur；卡面本身
+     保持不透明 `--card`（owner 2026-09-08：100+ 节点每帧合成太贵）。
+     ⚠ 对比度（contrast-check，2026-09-08）：浅色 popover #fff 70% 合成后，
+     画布底 #ffffff 上 = #ffffff、壳底 #ebebeb 上 = #f9f9f9 ——
+     `--foreground`(#0a0a0a) 19.80 / 18.80 · `--muted-foreground`(#696969)
+     5.49 / 5.21 · `--destructive`(#e7000b) 4.77 / 4.53，全部过 AA 4.5。
+     暗色（card #1a1a1a 70% 落在 #0a0a0a = #131313）：fg 17.80 ·
+     muted-fg 7.19 · destructive 6.43。 */
+  --surface-glass: color-mix(in oklab, var(--popover) 70%, transparent);
+  /* 三档填充面。⚠ 对比度（contrast-check，2026-09-08：白卡面上合成后
+     #f5f5f5 / #eeeeee / #e4e4e4）：`--muted-foreground` 5.04 / 4.73 / 4.32、
+     `--foreground` 18.16 / 17.06 / 15.57 —— 前两档过 AA 4.5，
+     `--surface-fill-track` 只做滑杆轨 / 开关底等非文本图形（门槛 3:1）。
+     暗色档（#202020 / #272727 / #303030）：muted-fg 6.31 / 5.78 / 5.11。 */
+  --surface-fill: color-mix(in oklab, var(--foreground) 4%, transparent);
+  --surface-fill-hover: color-mix(in oklab, var(--foreground) 7%, transparent);
+  --surface-fill-track: color-mix(in oklab, var(--foreground) 11%, transparent);
+  /* 弹簧三档的真值（`@theme inline` 的 `--duration-spring-*` / `--ease-spring-*`
+     指向这里）。`linear()` 是 CSS 侧的弹簧近似：expand ≈ spring(220, 26)、
+     slot ≈ spring(320, 28)、press 无过冲。 */
+  --spring-expand-duration: 480ms;
+  --spring-slot-duration: 340ms;
+  --spring-press-duration: 160ms;
+  --spring-expand-ease: linear(
+    0,
+    0.0033,
+    0.0316,
+    0.1073,
+    0.2354,
+    0.3946,
+    0.5615,
+    0.7146,
+    0.8397,
+    0.9296,
+    0.9852,
+    1.0113,
+    1.0177,
+    1.0146,
+    1.0083,
+    1.003,
+    0.9998,
+    0.9986,
+    0.9987,
+    0.9993,
+    1
+  );
+  --spring-slot-ease: linear(
+    0,
+    0.0092,
+    0.0752,
+    0.2199,
+    0.4142,
+    0.6072,
+    0.7688,
+    0.8865,
+    0.9614,
+    1.0009,
+    1.0159,
+    1.0169,
+    1.0122,
+    1.0064,
+    1.0019,
+    0.9996,
+    0.999,
+    1
+  );
+  --spring-press-ease: linear(0, 0.1, 0.32, 0.58, 0.79, 0.92, 0.98, 1);
   --surface-highlight: color-mix(
     in oklab,
     var(--primary) 8%,
@@ -2252,8 +2359,52 @@ html:lang(ja) {
   }
 }
 
+/* ── 画布节点卡的两个 HIG 材质工具类（ui-defaults.md §3 例外一节）────────
+   `surface-glass`：浮层材质，半透明面 + vibrancy。⛔ 只给浮层（工具条 /
+   右键菜单 / transport / 移动端条），卡面用不透明 `bg-card`。
+   `corner-squircle`：连续圆角，Chromium 才有；不支持的浏览器自动退回同值普通
+   圆角（形状差、布局不差），所以永远与 `rounded-node` 一起写。 */
+@utility surface-glass {
+  background-color: var(--surface-glass);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  backdrop-filter: saturate(180%) blur(24px);
+}
+
+/* Tailwind 的 `duration-*` 只吃数字与 `(--var)` 两种写法，没有 `--duration-*`
+   命名空间（`ease-*` 有，所以 `ease-spring-expand` 直接可用）。这三个静态工具类
+   把弹簧时长补成同样的 T-shirt 名，⛔ 不在业务代码里散写 `duration-(--…)`。 */
+@utility duration-spring-expand {
+  transition-duration: var(--duration-spring-expand);
+}
+
+@utility duration-spring-slot {
+  transition-duration: var(--duration-spring-slot);
+}
+
+@utility duration-spring-press {
+  transition-duration: var(--duration-spring-press);
+}
+
+@utility corner-squircle {
+  @supports (corner-shape: squircle) {
+    corner-shape: squircle;
+  }
+}
+
 /* ── B7: Reduced motion preference ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  /* 弹簧三档整体退化成脊柱的线性档：曲线里的过冲在减弱动效偏好下必须消失，
+     而不是靠上面的 `transition-duration: 0.01ms` 把它压没——`animation` 的
+     keyframes 仍会按 `linear()` 播。 */
+  :root {
+    --spring-expand-duration: var(--duration-base);
+    --spring-slot-duration: var(--duration-base);
+    --spring-press-duration: var(--duration-base);
+    --spring-expand-ease: var(--ease-standard);
+    --spring-slot-ease: var(--ease-standard);
+    --spring-press-ease: var(--ease-standard);
+  }
+
   *,
   *::before,
   *::after {

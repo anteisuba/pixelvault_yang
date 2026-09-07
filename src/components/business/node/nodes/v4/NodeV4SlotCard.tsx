@@ -14,6 +14,7 @@ import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 import type { NodeSlotId } from '@/constants/node-slots'
+import { NODE_V4_CARD } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
 import type { NodeV4, NodeV4SlotBinding } from '@/types/node-workflow'
 
@@ -23,9 +24,19 @@ export interface NodeV4SlotCardProps {
   readonly nodeId: string
   readonly slot: NodeSlotId
   readonly binding?: NodeV4SlotBinding
+  /**
+   * `horizontal` = 展开态那条横轨里的一格（定宽 `slotCardWidth` + snap）；
+   * `vertical` = 收起态左缘那一列（形态不动）。
+   */
+  readonly layout?: 'vertical' | 'horizontal'
 }
 
-export function NodeV4SlotCard({ nodeId, slot, binding }: NodeV4SlotCardProps) {
+export function NodeV4SlotCard({
+  nodeId,
+  slot,
+  binding,
+  layout = 'vertical',
+}: NodeV4SlotCardProps) {
   const t = useTranslations('StudioNode.v4')
   const canvas = useNodeV4Canvas()
   const versions = binding?.versions ?? []
@@ -37,6 +48,10 @@ export function NodeV4SlotCard({ nodeId, slot, binding }: NodeV4SlotCardProps) {
   // 当前版换了（助手改了 / 新连了一版）→ 预览跳回当前版。渲染期同步，
   // ⛔ 不放 effect 里。
   const [syncedCurrent, setSyncedCurrent] = useState(currentIndex)
+  const horizontal = layout === 'horizontal'
+  const sizeStyle = horizontal
+    ? { width: NODE_V4_CARD.slotCardWidth }
+    : undefined
   if (syncedCurrent !== currentIndex) {
     setSyncedCurrent(currentIndex)
     setPreviewIndex(currentIndex)
@@ -47,10 +62,15 @@ export function NodeV4SlotCard({ nodeId, slot, binding }: NodeV4SlotCardProps) {
       <div
         data-slot-id={slot}
         data-slot-empty="true"
-        className="flex h-20 w-24 flex-col items-center justify-center rounded-md border border-dashed text-2xs text-muted-foreground"
+        style={sizeStyle}
+        className={cn(
+          'flex h-20 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl border border-dashed bg-surface-fill text-2xs text-muted-foreground corner-squircle',
+          !horizontal && 'w-24',
+        )}
       >
         <SlotSwatch slot={slot} />
         {t(`slots.${slot}`)}
+        <span className="text-3xs">{t('slotEmpty')}</span>
       </div>
     )
   }
@@ -66,7 +86,16 @@ export function NodeV4SlotCard({ nodeId, slot, binding }: NodeV4SlotCardProps) {
       data-slot-id={slot}
       data-slot-empty="false"
       data-version-current={isCurrent ? 'true' : 'false'}
-      className="w-24 rounded-md border p-1"
+      data-blocked={version?.blocked ? 'true' : 'false'}
+      style={sizeStyle}
+      className={cn(
+        // 槽卡进入走 `spring-slot`；⛔ 移除不用弹簧（弹着消失像 bug），
+        // 那一档在轨上由 `AnimatePresence` 之外的 CSS 过渡处理。
+        'group/slot shrink-0 snap-start rounded-xl border bg-card p-1.5 corner-squircle',
+        'transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard',
+        !horizontal && 'w-24',
+        version?.blocked && 'border-destructive',
+      )}
     >
       <div className="flex items-center gap-1 text-2xs text-muted-foreground">
         <SlotSwatch slot={slot} />
@@ -104,17 +133,17 @@ export function NodeV4SlotCard({ nodeId, slot, binding }: NodeV4SlotCardProps) {
       </button>
 
       {versions.length > 1 ? (
-        <div className="mt-1 flex items-center justify-between text-2xs">
+        <div className="mt-1.5 flex items-center justify-between text-3xs">
           <button
             type="button"
             aria-label={t('versionPrev')}
             disabled={previewIndex === 0}
             onClick={() => setPreviewIndex((index) => Math.max(0, index - 1))}
-            className="disabled:opacity-30"
+            className="flex size-5 items-center justify-center rounded-full hover:bg-surface-fill-hover disabled:opacity-30"
           >
             <ChevronLeft className="size-3" />
           </button>
-          <span data-version-counter>
+          <span data-version-counter className="font-mono tabular-nums">
             {previewIndex + 1}/{versions.length}
           </span>
           <button
@@ -126,7 +155,7 @@ export function NodeV4SlotCard({ nodeId, slot, binding }: NodeV4SlotCardProps) {
                 Math.min(versions.length - 1, index + 1),
               )
             }
-            className="disabled:opacity-30"
+            className="flex size-5 items-center justify-center rounded-full hover:bg-surface-fill-hover disabled:opacity-30"
           >
             <ChevronRight className="size-3" />
           </button>
@@ -140,7 +169,8 @@ export function NodeV4SlotCard({ nodeId, slot, binding }: NodeV4SlotCardProps) {
           title={version.blocked ? version.blockedReason : undefined}
           onClick={() => canvas.onSelectSlotVersion(nodeId, slot, version.id)}
           className={cn(
-            'mt-1 w-full rounded border px-1 py-0.5 text-2xs',
+            // blocked 时**禁用而不是隐藏**：位置一跳，用户就以为这一版没了。
+            'mt-1.5 w-full rounded-lg bg-surface-fill px-1 py-1 text-3xs hover:bg-surface-fill-hover',
             version.blocked && 'cursor-not-allowed opacity-50',
           )}
         >
@@ -148,12 +178,22 @@ export function NodeV4SlotCard({ nodeId, slot, binding }: NodeV4SlotCardProps) {
         </button>
       ) : null}
 
+      {version?.blocked ? (
+        // 卡内只留 10px 短标，完整理由是轨下的脚注（`NodeV4SlotRail` 的调用方
+        // 渲染）——长句塞进 100px 的格子里只会把卡撑成一段红色文字墙。
+        <p data-blocked-note className="mt-1 text-3xs text-destructive">
+          {t('blocked')}
+        </p>
+      ) : null}
+
       {version ? (
+        // 「断开」进 hover 动作（owner 2026-09-08）：常驻一行文字按钮会跟
+        // 「设为当前」抢整宽。触屏没有 hover，`coarse:` 下常显。
         <button
           type="button"
           aria-label={t('slotDisconnect')}
           onClick={() => canvas.onDisconnectSlot(nodeId, slot, version.id)}
-          className="mt-1 w-full text-2xs text-muted-foreground hover:text-destructive"
+          className="mt-1 w-full rounded-lg text-3xs text-muted-foreground opacity-0 transition-opacity duration-(--duration-fast) ease-standard group-hover/slot:opacity-100 focus-visible:opacity-100 hover:text-destructive coarse:opacity-100"
         >
           ×
         </button>

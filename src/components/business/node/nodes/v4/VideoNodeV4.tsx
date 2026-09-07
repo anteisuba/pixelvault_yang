@@ -157,9 +157,20 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         />
       }
       expandedBody={
-        <div className="space-y-2" data-shot-layout>
-          {/* 上排：文本槽摘要 */}
-          <div data-shot-row="text" className="rounded-md border p-2 text-2xs">
+        <div className="flex flex-col gap-5" data-shot-layout>
+          {/* 播放面（媒体永远排第一：展开第一眼要看到产物本身）。v4 展开态此前是
+              裸 `<video muted>`，一个控件都没有（盘点 §1 `NodeVideoSurface`）。 */}
+          <VideoNodeV4Player
+            url={videoData.url}
+            posterUrl={posterUrl}
+            title={displayName}
+            onCaptureFrames={onCaptureFrames}
+          />
+          {/* 文本槽摘要 */}
+          <div
+            data-shot-row="text"
+            className="rounded-xl bg-surface-fill p-3 text-2sm corner-squircle"
+          >
             <span className="text-muted-foreground">
               {t('slots.text')}
               {' · '}
@@ -175,7 +186,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                       )?.data.name ?? version.sourceNodeId}
                       {/* 角色小标：同一个槽里剧本 / 风格 / 角色三档去向不同，
                           不标出来就分不清哪段会被当画面描述念出来。 */}
-                      <span className="ml-1 rounded-xs border px-1">
+                      <span className="ml-1 rounded-full bg-surface-fill-hover px-1.5 py-0.5 text-3xs">
                         {t(`textRoles.${role}`)}
                       </span>
                     </span>
@@ -183,31 +194,30 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 })
               : t('slotEmpty')}
           </div>
-          {/* 下排：首帧 / 尾帧 / 参考 / 语音 四槽卡 */}
-          <div data-shot-row="media" className="flex gap-1">
+          {/* 槽轨：首帧 / 尾帧 / 参考 / 语音。480 内一屏 4 格整齐、第 5 格露
+              24px —— 露出的那 24px 本身就是「还有」的提示。 */}
+          <div
+            data-shot-row="media"
+            data-slot-rail="horizontal"
+            style={{ gap: NODE_V4_CARD.slotCardGap }}
+            className="nowheel flex snap-x snap-proximity overflow-x-auto pb-1"
+          >
             {mediaSlots.map((spec) => (
               <NodeV4SlotCard
                 key={spec.slot}
                 nodeId={node.id}
                 slot={spec.slot}
                 binding={node.data.slots?.[spec.slot]}
+                layout="horizontal"
               />
             ))}
           </div>
-          {/* 播放面：播放 / 静音 / 进度 / 下载 / 抓帧。v4 展开态此前是裸
-              `<video muted>`，一个控件都没有（盘点 §1 `NodeVideoSurface`）。 */}
-          <VideoNodeV4Player
-            url={videoData.url}
-            posterUrl={posterUrl}
-            title={displayName}
-            onCaptureFrames={onCaptureFrames}
-          />
           {/* 抓帧本身失败有自己的文案（`VideoAnalysis.captureReason.*`）；这里说的是
               **抓到了但传不上去**。重试重放同一个 File（`useNodeUploadV4.retry`），
               ⛔ 不让用户再抓一次帧。 */}
           {upload.error ? (
             <div data-poster-upload-failed className="space-y-1">
-              <p className="text-2xs text-destructive">
+              <p className="text-3xs text-destructive">
                 {t('player.posterFailed', { reason: upload.error })}
               </p>
               {upload.canRetry ? (
@@ -255,7 +265,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               </Button>
               {clipUpload.error ? (
                 <div data-clip-upload-failed className="space-y-1">
-                  <p className="text-2xs text-destructive">
+                  <p className="text-3xs text-destructive">
                     {t('player.videoUploadFailed', {
                       reason: clipUpload.error,
                     })}

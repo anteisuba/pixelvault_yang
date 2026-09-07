@@ -22,6 +22,7 @@ import type { NodeV4AudioData } from '@/types/node-workflow'
 import { AudioNodeV4Voice } from './AudioNodeV4Voice'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4GenerateDesk } from './NodeV4GenerateDesk'
+import { NodeV4MediaWell } from './NodeV4MediaWell'
 import { NodeV4SlotRail } from './NodeV4SlotRail'
 import { NodeV4Shell } from './NodeV4Shell'
 
@@ -46,9 +47,8 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
       width={
         expanded ? NODE_V4_CARD.expandedWidth : NODE_V4_CARD.collapsedWidth
       }
-      slotRail={expanded ? <NodeV4SlotRail node={node} /> : undefined}
       collapsedBody={
-        <div className="flex h-10 items-center gap-2 rounded-md border bg-muted/40 px-2 text-2xs text-muted-foreground">
+        <div className="flex h-10 items-center gap-2 rounded-xl bg-surface-sunken px-3 text-2xs text-muted-foreground corner-squircle">
           <span className="h-3 w-16 rounded-sm bg-amber-600/50" />
           {audioData.durationSec
             ? t('audioDuration', { seconds: Math.round(audioData.durationSec) })
@@ -56,13 +56,19 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         </div>
       }
       expandedBody={
-        <div className="space-y-2">
-          {audioData.url ? <AudioPlayer src={audioData.url} /> : null}
+        // 单列顺序栈：媒体 → 音色面 → 槽轨 → 编排。
+        <>
+          {audioData.url ? (
+            <NodeV4MediaWell testId="audio" className="p-2">
+              <AudioPlayer src={audioData.url} />
+            </NodeV4MediaWell>
+          ) : null}
           {/* 音色四态槽 / 声纹 / 声音库 / 归属 / 情绪·语速·音量 —— legacy
               `VoiceNode` 卡面与 `VoiceDetailBody` 详情两块在这里合成一块。 */}
           <AudioNodeV4Voice node={found} data={audioData} />
+          <NodeV4SlotRail node={node} orientation="horizontal" />
           <NodeV4GenerateDesk node={found} />
-        </div>
+        </>
       }
     />
   )

@@ -17,8 +17,13 @@
  *    生成」（v3 时代 `getMediaGenerateBlockReason` 之外还有三份手写判定，正是
  *    「按钮亮着但点了没反应」的来源）。
  *
- * 视觉走脊柱令牌：`bg-card` / `border` / `rounded-xl` / `shadow-lg`，唯一强调色
- * `--primary`，字号只用 `text-md` / `text-2sm`。⛔ 无 Tailwind 任意值、无魔法值。
+ * ── 形态（HIG 定稿 2026-09-08）────────────────────────────────────────────
+ * 自上而下五段，顺序即「先说做什么、再说怎么做、最后才是动作」：分区头（尾部灰
+ * 色模型名）→ 填充式提示词 → 参数 inset 分组（互斥参数一律**分段控件**，布尔用
+ * iOS 开关，连续量用滑杆）→ 贴在主按钮上方的校验脚注 → 整宽实心主按钮 + 无边框
+ * 次动作。⛔ 编排区不再是一张带边框带阴影的卡中卡：分区靠留白分层。
+ * 视觉走脊柱令牌 + `surface-fill` 三档，唯一强调色 `--primary`，字号只用
+ * `text-md` / `text-2sm` / `text-3xs`。⛔ 无 Tailwind 任意值、无魔法值。
  */
 
 import { useCallback, useMemo, useRef, useState } from 'react'
@@ -60,17 +65,61 @@ const IMAGE_ASPECT_RATIOS = Object.keys(IMAGE_SIZES)
 /** 模型没声明档位时的兜底秒数（与 `VideoComposer` 的同一份来源）。 */
 const FALLBACK_DURATIONS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
-function Row({
+/**
+ * 分区头（HIG grouped-list header）：13px/600 黑字 + 尾部灰色补充。
+ * ⚠ 层级交给字重，⛔ 不再全大写拉字距、⛔ 不靠颜色。
+ */
+function DeskHeading({ title, trail }: { title: string; trail?: string }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <h3 className="text-2sm font-semibold tracking-node-sec">{title}</h3>
+      {trail ? (
+        <span className="truncate font-mono text-3xs text-muted-foreground">
+          {trail}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+/** inset grouped list：一个圆角填充容器，行 42px，行间一条 border。 */
+function InsetGroup({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      data-inset-group
+      className="overflow-hidden rounded-xl bg-surface-fill corner-squircle"
+    >
+      {children}
+    </div>
+  )
+}
+
+function InsetRow({
   label,
+  stacked,
   children,
 }: {
   label: string
+  /**
+   * 宽控件（分段控件一排 4–6 格）放不进「标签 ‖ 值」一行时，改成标签在上、控件
+   * 整宽在下。⚠ 这不是两种样式，是同一行的两种排法——⛔ 别让分段控件横向溢出
+   * 到卡外，那会把「还有更多档」读成「这个控件坏了」。
+   */
+  stacked?: boolean
   children: React.ReactNode
 }) {
+  if (stacked) {
+    return (
+      <div className="flex flex-col gap-1.5 border-t border-border/60 px-3 py-2 first:border-t-0">
+        <span className="text-2sm tracking-node-body">{label}</span>
+        {children}
+      </div>
+    )
+  }
   return (
-    <div className="space-y-1">
-      <p className="text-2sm text-muted-foreground">{label}</p>
-      {children}
+    <div className="flex min-h-11 items-center gap-3 border-t border-border/60 px-3 py-1.5 first:border-t-0">
+      <span className="shrink-0 text-2sm tracking-node-body">{label}</span>
+      <div className="ml-auto flex min-w-0 items-center gap-2">{children}</div>
     </div>
   )
 }
@@ -153,123 +202,123 @@ export function NodeV4GenerateDesk({ node }: NodeV4GenerateDeskProps) {
   const blocking = !data.model?.modelId || issues.length > 0
 
   return (
-    <section
-      data-generate-desk={data.kind}
-      className="space-y-3 rounded-xl border bg-card p-3 shadow-lg"
-    >
-      <h3 className="text-md font-medium">{t('generateDesk.title')}</h3>
+    <section data-generate-desk={data.kind} className="flex flex-col gap-3">
+      <DeskHeading
+        title={t('generateDesk.title')}
+        trail={data.model?.modelId}
+      />
 
-      {/* ── 提示词（可编辑，失焦即存）──────────────────────────────── */}
-      <Row label={t('generateDesk.prompt')}>
-        <textarea
-          data-desk-prompt
-          value={draftPrompt}
-          aria-label={t('generateDesk.prompt')}
-          // 占位按 kind 分：音频卡上写「描述你要的画面」是明摆着的错话，而占位
-          // 正是新手唯一会照着写的示范。⛔ 不共用一句。
-          placeholder={t(`generateDesk.promptPlaceholder.${data.kind}`)}
-          onChange={(event) => setDraftPrompt(event.target.value)}
-          onBlur={() => {
-            if (draftPrompt !== currentPrompt) {
-              canvas.onSetPrompt(node.id, draftPrompt)
-            }
-          }}
-          className="h-20 w-full resize-none rounded-md border bg-background p-2 text-2sm"
-        />
-      </Row>
+      {/* ── 提示词：填充式 textarea（HIG filled field，⛔ 不描边）───────── */}
+      <textarea
+        data-desk-prompt
+        value={draftPrompt}
+        aria-label={t('generateDesk.prompt')}
+        // 占位按 kind 分：音频卡上写「描述你要的画面」是明摆着的错话，而占位
+        // 正是新手唯一会照着写的示范。⛔ 不共用一句。
+        placeholder={t(`generateDesk.promptPlaceholder.${data.kind}`)}
+        onChange={(event) => setDraftPrompt(event.target.value)}
+        onBlur={() => {
+          if (draftPrompt !== currentPrompt) {
+            canvas.onSetPrompt(node.id, draftPrompt)
+          }
+        }}
+        className="h-20 w-full resize-none rounded-xl bg-surface-fill p-3 text-2sm tracking-node-body corner-squircle focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+      />
 
-      {/* ── 模型 ────────────────────────────────────────────────────── */}
-      <Row label={t('generateDesk.model')}>
-        <DetailModelPicker
-          value={data.model}
-          options={modelOptions}
-          kind={data.kind}
-          onChange={(model) => canvas.onSetModel(node.id, model)}
-        />
-        {modelOptions.length === 0 || !data.model ? (
-          <p data-desk-no-model className="text-2sm text-muted-foreground">
-            {t('generateDesk.noModel')}
-          </p>
-        ) : null}
-      </Row>
-
-      {/* ── 参数：比例（图/视频）· 清晰度 / 时长 / 音轨 / 种子（仅视频）── */}
-      {data.kind === NODE_MEDIA_KIND_IDS.image ? (
-        <Row label={t('generateDesk.aspectRatio')}>
-          <AspectRatioSelector
-            options={IMAGE_ASPECT_RATIOS}
-            value={data.params?.aspectRatio ?? ''}
-            onChange={(aspectRatio) =>
-              canvas.onSetParams(node.id, { ...data.params, aspectRatio })
-            }
+      {/* ── 参数：一个 inset 分组，一行一参数 ───────────────────────── */}
+      <InsetGroup>
+        <InsetRow label={t('generateDesk.model')}>
+          <DetailModelPicker
+            value={data.model}
+            options={modelOptions}
+            kind={data.kind}
+            onChange={(model) => canvas.onSetModel(node.id, model)}
           />
-        </Row>
-      ) : null}
+        </InsetRow>
 
-      {data.kind === NODE_MEDIA_KIND_IDS.video ? (
-        <div className="space-y-3">
-          <Row label={t('generateDesk.aspectRatio')}>
+        {data.kind === NODE_MEDIA_KIND_IDS.image ? (
+          <InsetRow label={t('generateDesk.aspectRatio')} stacked>
             <AspectRatioSelector
-              options={VIDEO_ASPECT_RATIOS}
+              variant="segmented"
+              options={IMAGE_ASPECT_RATIOS}
               value={data.params?.aspectRatio ?? ''}
               onChange={(aspectRatio) =>
                 canvas.onSetParams(node.id, { ...data.params, aspectRatio })
               }
             />
-          </Row>
-          <Row label={t('generateDesk.resolution')}>
-            <AspectRatioSelector
-              variant="neutral"
-              options={DEFAULT_VIDEO_RESOLUTIONS}
-              value={data.params?.resolution ?? ''}
-              onChange={(resolution) =>
-                canvas.onSetParams(node.id, { ...data.params, resolution })
-              }
-            />
-          </Row>
-          <Row label={t('generateDesk.duration')}>
-            <AspectRatioSelector
-              variant="neutral"
-              options={durations.map((seconds) => ({
-                value: String(seconds),
-                label: t('generateDesk.durationSeconds', { seconds }),
-              }))}
-              value={data.params?.duration ?? ''}
-              onChange={(duration) =>
-                canvas.onSetParams(node.id, { ...data.params, duration })
-              }
-            />
-          </Row>
-          <div className="flex items-center justify-between">
-            <span className="text-2sm text-muted-foreground">
-              {t('generateDesk.generateAudio')}
-            </span>
-            <Switch
-              checked={data.params?.generateAudio ?? false}
-              aria-label={t('generateDesk.generateAudio')}
-              onCheckedChange={(generateAudio) =>
-                canvas.onSetParams(node.id, { ...data.params, generateAudio })
-              }
-            />
-          </div>
-          <Row label={t('generateDesk.seed')}>
-            <input
-              type="number"
-              value={data.params?.seed ?? ''}
-              aria-label={t('generateDesk.seed')}
-              placeholder={t('generateDesk.seedPlaceholder')}
-              onChange={(event) =>
-                canvas.onSetParams(node.id, {
-                  ...data.params,
-                  ...(event.target.value
-                    ? { seed: Number(event.target.value) }
-                    : { seed: undefined }),
-                })
-              }
-              className="w-full rounded-md border bg-background px-2 py-1 text-2sm"
-            />
-          </Row>
-        </div>
+          </InsetRow>
+        ) : null}
+
+        {data.kind === NODE_MEDIA_KIND_IDS.video ? (
+          <>
+            <InsetRow label={t('generateDesk.aspectRatio')} stacked>
+              <AspectRatioSelector
+                variant="segmented"
+                options={VIDEO_ASPECT_RATIOS}
+                value={data.params?.aspectRatio ?? ''}
+                onChange={(aspectRatio) =>
+                  canvas.onSetParams(node.id, { ...data.params, aspectRatio })
+                }
+              />
+            </InsetRow>
+            <InsetRow label={t('generateDesk.resolution')} stacked>
+              <AspectRatioSelector
+                variant="segmented"
+                options={DEFAULT_VIDEO_RESOLUTIONS}
+                value={data.params?.resolution ?? ''}
+                onChange={(resolution) =>
+                  canvas.onSetParams(node.id, { ...data.params, resolution })
+                }
+              />
+            </InsetRow>
+            <InsetRow label={t('generateDesk.duration')} stacked>
+              <AspectRatioSelector
+                variant="segmented"
+                options={durations.map((seconds) => ({
+                  value: String(seconds),
+                  label: t('generateDesk.durationSeconds', { seconds }),
+                }))}
+                value={data.params?.duration ?? ''}
+                onChange={(duration) =>
+                  canvas.onSetParams(node.id, { ...data.params, duration })
+                }
+              />
+            </InsetRow>
+            <InsetRow label={t('generateDesk.generateAudio')}>
+              <Switch
+                size="lg"
+                checked={data.params?.generateAudio ?? false}
+                aria-label={t('generateDesk.generateAudio')}
+                onCheckedChange={(generateAudio) =>
+                  canvas.onSetParams(node.id, { ...data.params, generateAudio })
+                }
+              />
+            </InsetRow>
+            <InsetRow label={t('generateDesk.seed')}>
+              <input
+                type="number"
+                value={data.params?.seed ?? ''}
+                aria-label={t('generateDesk.seed')}
+                placeholder={t('generateDesk.seedPlaceholder')}
+                onChange={(event) =>
+                  canvas.onSetParams(node.id, {
+                    ...data.params,
+                    ...(event.target.value
+                      ? { seed: Number(event.target.value) }
+                      : { seed: undefined }),
+                  })
+                }
+                className="w-24 rounded-lg bg-surface-fill-hover px-2 py-1 text-right font-mono text-2sm tabular-nums focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+              />
+            </InsetRow>
+          </>
+        ) : null}
+      </InsetGroup>
+
+      {modelOptions.length === 0 || !data.model ? (
+        <p data-desk-no-model className="text-3xs text-muted-foreground">
+          {t('generateDesk.noModel')}
+        </p>
       ) : null}
 
       {/* ── 素材槽架：镜头读 v4 令牌，图片读参考格 ────────────────── */}
@@ -289,7 +338,7 @@ export function NodeV4GenerateDesk({ node }: NodeV4GenerateDeskProps) {
         />
       ) : null}
       {data.kind === NODE_MEDIA_KIND_IDS.image ? (
-        <p data-desk-references className="text-2sm text-muted-foreground">
+        <p data-desk-references className="text-3xs text-muted-foreground">
           {t('generateDesk.slotCount', {
             slot: t(`slots.${NODE_SLOT_IDS.reference}`),
             count: imageComposer.referenceSlots.length,
@@ -297,14 +346,16 @@ export function NodeV4GenerateDesk({ node }: NodeV4GenerateDeskProps) {
         </p>
       ) : null}
 
-      {/* ── 槽校验：一次说全，⛔ 不修一条冒一条 ────────────────────── */}
+      {/* ── 槽校验：一次说全（⛔ 不修一条冒一条），位置贴在主按钮**正上方**
+          —— HIG footnote 位：解释谁就贴谁下面。阻塞时主按钮 disabled 但
+          **保持可见**。 */}
       {issues.length > 0 ? (
-        <ul data-desk-issues className="space-y-1">
+        <ul data-desk-issues className="space-y-0.5">
           {issues.map((issue) => (
             <li
               key={`${issue.slot}:${issue.issue}`}
               data-slot-issue={issue.issue}
-              className="text-2sm text-destructive"
+              className="text-3xs text-destructive"
             >
               {issue.i18nKey
                 ? tRoot(issue.i18nKey, { slot: t(`slots.${issue.slot}`) })
@@ -314,51 +365,72 @@ export function NodeV4GenerateDesk({ node }: NodeV4GenerateDeskProps) {
         </ul>
       ) : null}
 
-      {/* ── 上传 / 替换素材 ────────────────────────────────────────── */}
-      <div className="flex items-center gap-2">
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            if (file) void runUpload(file)
-            event.target.value = ''
-          }}
-        />
+      {/* ── 动作：整宽实心主按钮 → 无边框整宽次动作 ─────────────────── */}
+      <Button
+        type="button"
+        data-desk-generate
+        disabled={blocking || generation.isLoading}
+        className={cn('w-full rounded-xl')}
+        onClick={() =>
+          void generation.generateNode(node.id, {
+            nodes: canvas.nodes,
+            edges: canvas.edges,
+          })
+        }
+      >
+        {generation.isLoading
+          ? t('generateDesk.generating')
+          : generation.error
+            ? t('generateDesk.retry')
+            : data.url
+              ? t('generateDesk.regenerate')
+              : t('generateDesk.generate')}
+      </Button>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          if (file) void runUpload(file)
+          event.target.value = ''
+        }}
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        disabled={upload.isUploading}
+        className="w-full rounded-xl"
+        onClick={() => fileRef.current?.click()}
+      >
+        {upload.isUploading
+          ? t('generateDesk.uploading', { percent: upload.progress })
+          : t('generateDesk.upload')}
+      </Button>
+      {upload.isUploading ? (
         <Button
           type="button"
-          size="sm"
-          variant="outline"
-          disabled={upload.isUploading}
-          onClick={() => fileRef.current?.click()}
+          variant="ghost"
+          className="w-full rounded-xl"
+          onClick={upload.cancelUpload}
         >
-          {upload.isUploading
-            ? t('generateDesk.uploading', { percent: upload.progress })
-            : t('generateDesk.upload')}
+          {t('generateDesk.uploadCancel')}
         </Button>
-        {upload.isUploading ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={upload.cancelUpload}
-          >
-            {t('generateDesk.uploadCancel')}
-          </Button>
-        ) : null}
-      </div>
+      ) : null}
+
       {upload.error ? (
         <div data-desk-upload-failed className="space-y-1">
-          <p className="text-2sm text-destructive">
+          <p className="text-3xs text-destructive">
             {t('generateDesk.uploadFailed', { reason: upload.error })}
           </p>
           {pendingFile ? (
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="ghost"
+              className="w-full rounded-xl"
               onClick={() => void runUpload(pendingFile)}
             >
               {t('generateDesk.uploadRetry')}
@@ -366,33 +438,8 @@ export function NodeV4GenerateDesk({ node }: NodeV4GenerateDeskProps) {
           ) : null}
         </div>
       ) : null}
-
-      {/* ── 生成 / 重新生成 / 重试 ─────────────────────────────────── */}
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          data-desk-generate
-          disabled={blocking || generation.isLoading}
-          className={cn('min-w-24')}
-          onClick={() =>
-            void generation.generateNode(node.id, {
-              nodes: canvas.nodes,
-              edges: canvas.edges,
-            })
-          }
-        >
-          {generation.isLoading
-            ? t('generateDesk.generating')
-            : generation.error
-              ? t('generateDesk.retry')
-              : data.url
-                ? t('generateDesk.regenerate')
-                : t('generateDesk.generate')}
-        </Button>
-      </div>
       {generation.error ? (
-        <p data-desk-failed className="text-2sm text-destructive">
+        <p data-desk-failed className="text-3xs text-destructive">
           {t('generateDesk.failed', { reason: generation.error })}
         </p>
       ) : null}

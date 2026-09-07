@@ -45,6 +45,7 @@ import {
   NodeV4ToolbarButton,
 } from './NodeV4SelectionToolbar'
 import { NodeV4SlotRail } from './NodeV4SlotRail'
+import { NodeV4MediaWell } from './NodeV4MediaWell'
 import { NodeV4Shell, NodeV4Thumbnail } from './NodeV4Shell'
 
 /** 收起态卡宽：按媒体比例算，钳在两个已有档位之间（⛔ 不新造魔法值）。 */
@@ -132,7 +133,6 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         width={
           expanded ? NODE_V4_CARD.expandedWidth : collapsedImageWidth(imageData)
         }
-        slotRail={expanded ? <NodeV4SlotRail node={node} /> : undefined}
         collapsedBody={
           <div className="space-y-1">
             <NodeV4Thumbnail
@@ -144,25 +144,32 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           </div>
         }
         expandedBody={
-          <div className="space-y-2">
-            <NodeV4Thumbnail
-              url={imageData.url}
-              alt={imageData.name}
-              kind="image"
-            />
+          // 展开态 = 单列顺序栈：媒体 → 审核读数 → 槽轨 → 编排 → 图集 → 证据 →
+          // 关系带。⛔ 顺序不按卡的类型各排各的（HIG 定稿 §④「先说做什么、
+          // 再说怎么做、最后才是动作」）。
+          <>
+            <NodeV4MediaWell testId="image">
+              <NodeV4Thumbnail
+                url={imageData.url}
+                alt={imageData.name}
+                kind="image"
+                fill
+              />
+            </NodeV4MediaWell>
             <ImageReadout data={imageData} reviewState={reviewState} />
             {imageData.blocked ? (
-              <p data-blocked="true" className="text-2xs text-destructive">
+              <p data-blocked="true" className="text-3xs text-destructive">
                 {t('blocked', { reason: imageData.blockedReason ?? '' })}
               </p>
             ) : null}
-            <NodeV4ReferenceGallery node={node} />
-            <NodeV4RelationBand node={node} />
-            <NodeV4EvidenceDrawer node={node} />
+            <NodeV4SlotRail node={node} orientation="horizontal" />
             {/* 提示词的**可编辑**入口在编排区（§2 展开态底部），这里不再另放一份
                 只读文本 —— 两处显示同一段字，用户会去点那个点不动的。 */}
             <NodeV4GenerateDesk node={node} />
-          </div>
+            <NodeV4ReferenceGallery node={node} />
+            <NodeV4EvidenceDrawer node={node} />
+            <NodeV4RelationBand node={node} />
+          </>
         }
       />
       {menu ? (
@@ -196,7 +203,7 @@ function ImageReadout({
   return (
     <div
       data-image-readout
-      className="flex flex-wrap items-center gap-1 text-2xs text-muted-foreground"
+      className="flex flex-wrap items-center gap-1.5 text-3xs text-muted-foreground"
     >
       {data.mediaWidth && data.mediaHeight ? (
         <span data-readout-dimensions>
@@ -212,7 +219,7 @@ function ImageReadout({
       {data.imageSource ? (
         <span
           data-image-source={data.imageSource}
-          className="rounded-sm border px-1"
+          className="rounded-full bg-surface-fill px-1.5 py-0.5"
         >
           {t(
             data.imageSource === NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated
@@ -224,7 +231,7 @@ function ImageReadout({
       {reviewState === NODE_REVIEW_STATE_IDS.approved ? null : (
         <span
           data-readout-review={reviewState}
-          className="rounded-sm border px-1"
+          className="rounded-full bg-surface-fill px-1.5 py-0.5"
         >
           {t(`review.state.${reviewState}`)}
         </span>

@@ -26,6 +26,7 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { ParamSlider } from '@/components/ui/param-slider'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { TTS_SPEED_RANGE, TTS_VOLUME_RANGE } from '@/constants/audio-options'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import {
@@ -49,6 +50,7 @@ import type { NodeV4, NodeV4AudioData } from '@/types/node-workflow'
 import { AudioOwnerPicker } from '../../../studio-shared/primitives/AudioOwnerPicker'
 import { FishVoiceLibraryDialog } from '../../FishVoiceLibraryDialog'
 import { useNodeV4Canvas } from './NodeV4Context'
+import { NodeV4MediaWell } from './NodeV4MediaWell'
 
 const WAVEFORM_PATH = buildV4VoiceWaveformPath()
 
@@ -138,12 +140,10 @@ export function AudioNodeV4Voice({ node, data }: AudioNodeV4VoiceProps) {
   const playedWidth = v4VoiceWaveformPlayedWidth(progress)
 
   return (
-    <section
-      data-voice-panel={slotState}
-      className="space-y-3 rounded-xl border bg-card p-3"
-    >
-      {/* ── 四态槽 + 声纹 ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
+    // ⛔ 不做卡中卡：分区靠留白分层，声纹面自己坐进一口沉底的井里。
+    <section data-voice-panel={slotState} className="flex flex-col gap-4">
+      {/* ── 四态槽 + 声纹（沉底的井）─────────────────────────────────── */}
+      <NodeV4MediaWell testId="voice" className="flex items-center gap-3 p-3">
         <button
           type="button"
           data-voice-slot={slotState}
@@ -161,7 +161,8 @@ export function AudioNodeV4Voice({ node, data }: AudioNodeV4VoiceProps) {
             togglePlay()
           }}
           className={cn(
-            'flex size-10 shrink-0 items-center justify-center rounded-full border text-2xs',
+            // 44px 玻璃圆钮：触屏命中区底线，且它是井里唯一的可点物。
+            'flex size-11 shrink-0 items-center justify-center rounded-full border text-2xs surface-glass shadow-node-chrome',
             slotState === V4_VOICE_SLOT_STATE_IDS.failed &&
               'border-destructive text-destructive',
             slotState === V4_VOICE_SLOT_STATE_IDS.bound &&
@@ -214,18 +215,18 @@ export function AudioNodeV4Voice({ node, data }: AudioNodeV4VoiceProps) {
               className="stroke-primary"
             />
           </svg>
-          <p className="truncate text-2xs text-muted-foreground">
+          <p className="truncate font-mono text-3xs text-muted-foreground">
             {profile?.provider ?? t('providerFallback')}
             {profile?.voiceId ? ` · ${profile.voiceId}` : null}
           </p>
           {/* 诚实文案：没有样本就说没有，⛔ 不拿一个点不响的播放钮糊过去。 */}
           {!audioUrl ? (
-            <p data-voice-no-sample className="text-2xs text-muted-foreground">
+            <p data-voice-no-sample className="text-3xs text-muted-foreground">
               {t('noSample')}
             </p>
           ) : null}
         </div>
-      </div>
+      </NodeV4MediaWell>
 
       {audioUrl ? (
         // 隐藏的原生元素只负责放音与报进度；可见的控件是上面那颗圆槽。
@@ -281,7 +282,7 @@ export function AudioNodeV4Voice({ node, data }: AudioNodeV4VoiceProps) {
       </div>
       {upload.error ? (
         <div data-voice-upload-failed className="space-y-1">
-          <p className="text-2xs text-destructive">
+          <p className="text-3xs text-destructive">
             {t('uploadFailed', { reason: upload.error })}
           </p>
           {upload.canRetry ? (
@@ -297,32 +298,39 @@ export function AudioNodeV4Voice({ node, data }: AudioNodeV4VoiceProps) {
         </div>
       ) : null}
 
-      {/* ── 归属角色 ─────────────────────────────────────────────────── */}
-      <div className="space-y-1">
-        <p className="text-2sm text-muted-foreground">{t('ownerLabel')}</p>
-        <AudioOwnerPicker
-          value={data.ownerName}
-          candidates={ownerCandidates}
-          labels={{
-            none: t('ownerNone'),
-            custom: t('ownerCustom'),
-            customPlaceholder: t('ownerCustomPlaceholder'),
-            ariaLabel: t('ownerLabel'),
-          }}
-          onChange={(next) =>
-            void canvas.onApplyOp({
-              op: NODE_ASSISTANT_OP_V4_IDS.setField,
-              target: node.id,
-              field: 'ownerName',
-              value: next ?? null,
-            })
-          }
-        />
+      {/* ── 归属角色：inset 分组里的 pop-up 行（整行可点）───────────── */}
+      <div className="flex min-h-11 items-center gap-3 rounded-xl bg-surface-fill px-3 py-1.5 corner-squircle">
+        <span className="shrink-0 text-2sm tracking-node-body">
+          {t('ownerLabel')}
+        </span>
+        <div className="ml-auto flex min-w-0 items-center gap-2">
+          <AudioOwnerPicker
+            value={data.ownerName}
+            candidates={ownerCandidates}
+            labels={{
+              none: t('ownerNone'),
+              custom: t('ownerCustom'),
+              customPlaceholder: t('ownerCustomPlaceholder'),
+              ariaLabel: t('ownerLabel'),
+            }}
+            onChange={(next) =>
+              void canvas.onApplyOp({
+                op: NODE_ASSISTANT_OP_V4_IDS.setField,
+                target: node.id,
+                field: 'ownerName',
+                value: next ?? null,
+              })
+            }
+          />
+        </div>
       </div>
 
       {/* ── 合成参数：只在合成这条路上露出 ──────────────────────────── */}
       {showsV4VoiceSynthesisParams(data) ? (
-        <div data-voice-synthesis className="space-y-3">
+        <div
+          data-voice-synthesis
+          className="flex flex-col gap-3 rounded-xl bg-surface-fill p-3 corner-squircle"
+        >
           <ParamSlider
             label={t('speedLabel')}
             value={profile?.speed ?? TTS_SPEED_RANGE.default}
@@ -341,37 +349,35 @@ export function AudioNodeV4Voice({ node, data }: AudioNodeV4VoiceProps) {
             formatValue={(value) => `${value > 0 ? '+' : ''}${value}`}
             onChange={(volume) => patchProfile({ volume })}
           />
-          <div className="space-y-1">
-            <p className="text-2sm text-muted-foreground">
-              {t('emotionLabel')}
-            </p>
-            <div className="flex flex-wrap gap-1">
-              {NODE_STUDIO_VOICE_EMOTIONS.map((emotion) => {
-                const active =
-                  emotion === NODE_STUDIO_VOICE_EMOTION_IDS.none
-                    ? !profile?.emotion
-                    : profile?.emotion === emotion
-                return (
-                  <Button
-                    key={emotion}
-                    type="button"
-                    size="sm"
-                    variant={active ? 'default' : 'outline'}
-                    data-voice-emotion={emotion}
-                    aria-pressed={active}
-                    onClick={() =>
-                      // `none` = 清掉情绪。补丁里**显式**带一个 `undefined`：
-                      // 展开覆盖时它会把旧值盖掉，而漏写这个键才是「保持原样」。
-                      emotion === NODE_STUDIO_VOICE_EMOTION_IDS.none
-                        ? patchProfile({ emotion: undefined })
-                        : patchProfile({ emotion })
-                    }
-                  >
-                    {t(`emotions.${emotion}`)}
-                  </Button>
-                )
-              })}
-            </div>
+          {/* 情绪是**互斥**参数 → 分段控件，⛔ 不再拿一排 chip 冒充单选。 */}
+          <div className="space-y-1.5">
+            <p className="text-2sm tracking-node-body">{t('emotionLabel')}</p>
+            <ToggleGroup
+              type="single"
+              variant="segmented"
+              className="w-full"
+              value={profile?.emotion ?? NODE_STUDIO_VOICE_EMOTION_IDS.none}
+              onValueChange={(emotion) => {
+                if (!emotion) return
+                // `none` = 清掉情绪。补丁里**显式**带一个 `undefined`：
+                // 展开覆盖时它会把旧值盖掉，而漏写这个键才是「保持原样」。
+                if (emotion === NODE_STUDIO_VOICE_EMOTION_IDS.none) {
+                  patchProfile({ emotion: undefined })
+                } else {
+                  patchProfile({ emotion })
+                }
+              }}
+            >
+              {NODE_STUDIO_VOICE_EMOTIONS.map((emotion) => (
+                <ToggleGroupItem
+                  key={emotion}
+                  value={emotion}
+                  data-voice-emotion={emotion}
+                >
+                  {t(`emotions.${emotion}`)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </div>
         </div>
       ) : null}

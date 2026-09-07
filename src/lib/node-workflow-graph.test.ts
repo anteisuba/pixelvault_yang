@@ -48,7 +48,6 @@ import {
   mergeComposerReferenceAssets,
   mergePromptWithUpstreamText,
   keyframeSlotCategory,
-  orderKeyframes,
   orderedKeyframeEntries,
   resolveEdgeSlot,
   resolveGenerateTargetKind,
@@ -2778,9 +2777,11 @@ describe('inferLegacySlot', () => {
     )
   })
 
-  it('agrees with orderKeyframes on the first/last rank rule, verbatim', () => {
+  it('reproduces the legacy first/last rank order verbatim', () => {
     // 旧规则的既有夹具：两张 frameStart + 一张 frameEnd，稳定排序后
-    // [startA, startC, endB]。槽版本必须给出同一串。
+    // [startA, startC, endB]。⚠ 期望值写死成字面量而不是再调一次旧函数：
+    // C3b 把 `orderKeyframes` 删了（收割层只留槽这一条判据），这一串就是它
+    // 当时的返回值，锁在这里当回归基线。
     const startA = makeNode('a', NODE_TYPE_IDS.image, {
       role: NODE_IMAGE_ROLE_IDS.shot,
       imageCategory: 'frameStart',
@@ -2804,15 +2805,16 @@ describe('inferLegacySlot', () => {
       makeEdge('e3', 'c', 'v'),
     ]
 
-    const legacyOrder = orderKeyframes(getUpstreamNodes('v', edges, nodes)).map(
-      (node) => node.id,
-    )
     const slotOrder = orderedKeyframeEntries(
       harvestSlots('v', edges, nodes),
     ).map((entry) => entry.node.id)
 
-    expect(legacyOrder).toEqual(['a', 'c', 'b'])
-    expect(slotOrder).toEqual(legacyOrder)
+    expect(slotOrder).toEqual(['a', 'c', 'b'])
+    // 收割侧走的是同一条规则的节点列表版本 —— 两处不许各排各的。
+    expect(
+      harvestUpstreamImageUrls(getUpstreamNodes('v', edges, nodes), edges, 'v')
+        .keyframeUrls,
+    ).toEqual(['https://cdn/a.png', 'https://cdn/c.png', 'https://cdn/b.png'])
   })
 })
 
@@ -3077,5 +3079,208 @@ describe('slot-driven payload assembly', () => {
     ])
     expect(slots.text.script?.node.id).toBe('txt')
     expect(slots.text.ordered).toHaveLength(2)
+  })
+})
+
+/* ── 第三期 C3b：五个 URL 收割器换底（按槽派生）───────────────────────── */
+
+describe('C3b 收割器换底 · 存量 v3 图零漂移', () => {
+  // 一张不带任何 `slot` 的存量图：改底之后每一条收割的输出必须逐字不变。
+  // ⚠ 期望值是**改造前**跑出来的那一串（对拍夹具，见 C3b 报告），⛔ 不是照着
+  // 新实现回填的——那样这条测试就只会证明「代码等于它自己」。
+  const kfA = makeNode('kfA', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.shot,
+    imageCategory: 'frameStart',
+    mediaUrl: 'https://cdn/kfA.png',
+  })
+  const kfB = makeNode('kfB', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.shot,
+    imageCategory: 'frameEnd',
+    mediaUrl: 'https://cdn/kfB.png',
+  })
+  const kfC = makeNode('kfC', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.shot,
+    imageCategory: 'frameStart',
+    mediaUrl: 'https://cdn/kfC.png',
+  })
+  const kfLegacy = makeNode('kfL', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.frame,
+    mediaUrl: 'https://cdn/kfL.png',
+  })
+  const character = makeNode('char', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.character,
+    characterName: '阿岚',
+    mediaUrl: 'https://cdn/char.png',
+    referenceAssets: [
+      { id: 'a1', url: 'https://cdn/char-primary.png', isPrimary: true },
+      { id: 'a2', url: 'https://cdn/char-stage.png', onStage: true },
+      { id: 'a3', url: 'https://cdn/char-off.png' },
+    ] as NodeWorkflowReferenceAsset[],
+  })
+  const background = makeNode('bg', NODE_TYPE_IDS.backgroundImage, {
+    mediaUrl: 'https://cdn/bg.png',
+  })
+  const closeupA = makeNode('cu', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.closeup,
+    mediaUrl: 'https://cdn/cu.png',
+  })
+  const closeupB = makeNode('cu2', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.closeup,
+    mediaUrl: 'https://cdn/cu2.png',
+  })
+  const voiceDirect = makeNode('vd', NODE_TYPE_IDS.voice, {
+    voiceClipUrl: 'https://cdn/vd.mp3',
+    audioOwnerName: '旁白甲',
+  })
+  const voiceBound = makeNode('vb', NODE_TYPE_IDS.voice, {
+    voiceClipUrl: 'https://cdn/vb.mp3',
+  })
+  const text = makeNode('t1', NODE_TYPE_IDS.shotText, {
+    scene: '走廊',
+  })
+  const refVideo = makeNode('rv', NODE_TYPE_IDS.videoReference, {
+    mediaUrl: 'https://cdn/ref.mp4',
+  })
+  const video = makeNode('video', NODE_TYPE_IDS.seedance)
+  const nodes = [
+    kfA,
+    kfB,
+    kfC,
+    kfLegacy,
+    character,
+    background,
+    closeupA,
+    closeupB,
+    voiceDirect,
+    voiceBound,
+    text,
+    refVideo,
+    video,
+  ]
+  const edges = [
+    makeEdge('e1', 'kfA', 'video'),
+    makeEdge('e2', 'kfB', 'video'),
+    makeEdge('e3', 'kfC', 'video'),
+    makeEdge('e4', 'kfL', 'video'),
+    makeEdge('e5', 'char', 'video'),
+    makeEdge('e6', 'bg', 'video'),
+    makeEdge('e7', 'cu', 'char'),
+    makeEdge('e8', 'cu2', 'char'),
+    makeEdge('e9', 'vd', 'video'),
+    makeEdge('e10', 'vb', 'char'),
+    makeEdge('e11', 't1', 'video'),
+    makeEdge('e12', 'rv', 'video'),
+  ]
+  const upstream = getUpstreamNodes('video', edges, nodes)
+
+  it('图：关键帧段仍是 urls 的真前缀，首帧档在前、同档保序', () => {
+    const harvested = harvestUpstreamImageUrls(upstream, edges, 'video')
+    expect(harvested.urls).toEqual([
+      'https://cdn/kfA.png',
+      'https://cdn/kfC.png',
+      'https://cdn/kfL.png',
+      'https://cdn/kfB.png',
+      'https://cdn/char-primary.png',
+      'https://cdn/char-stage.png',
+      'https://cdn/bg.png',
+    ])
+    expect(harvested.keyframeUrls).toEqual(
+      harvested.urls.slice(0, harvested.keyframeUrls.length),
+    )
+    expect(harvested.keyframeUrls).toEqual([
+      'https://cdn/kfA.png',
+      'https://cdn/kfC.png',
+      'https://cdn/kfL.png',
+      'https://cdn/kfB.png',
+    ])
+  })
+
+  it('图：不传 edges/focalNodeId 时按旧位置规则推断，结果同上（镜头图那条路）', () => {
+    expect(harvestUpstreamImageUrls(upstream).urls).toEqual(
+      harvestUpstreamImageUrls(upstream, edges, 'video').urls,
+    )
+  })
+
+  it('特写 / 音频 / 视频 / 文本：顺序按 nodes 序，@ImageN 不漂', () => {
+    expect(harvestUpstreamCloseupUrls('video', edges, nodes).urls).toEqual([
+      'https://cdn/cu.png',
+      'https://cdn/cu2.png',
+    ])
+    // pass 1（绑在角色卡上）先于 pass 2（直挂），与改造前一致。
+    expect(harvestUpstreamAudioBindings('video', edges, nodes)).toEqual([
+      { url: 'https://cdn/vb.mp3', nodeId: 'vb', characterName: '阿岚' },
+      { url: 'https://cdn/vd.mp3', nodeId: 'vd', characterName: '旁白甲' },
+    ])
+    expect(harvestUpstreamVideoUrls(upstream, edges, 'video')).toEqual([
+      'https://cdn/ref.mp4',
+    ])
+    expect(harvestUpstreamShotTextPrompt(upstream)).toBe('走廊')
+  })
+})
+
+describe('C3b 收割器换底 · 边上写了槽就听边的', () => {
+  const keyframe = makeNode('kf', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.shot,
+    imageCategory: 'frameStart',
+    mediaUrl: 'https://cdn/kf.png',
+  })
+  const character = makeNode('char', NODE_TYPE_IDS.image, {
+    role: NODE_IMAGE_ROLE_IDS.character,
+    mediaUrl: 'https://cdn/char.png',
+  })
+  const video = makeNode('video', NODE_TYPE_IDS.seedance)
+  const nodes = [keyframe, character, video]
+  const edges = [
+    { ...makeEdge('e1', 'kf', 'video'), slot: NODE_SLOT_IDS.reference },
+    { ...makeEdge('e2', 'char', 'video'), slot: NODE_SLOT_IDS.firstFrame },
+  ] as NodeWorkflowEdge[]
+
+  it('一张 frameStart 的图被连成 reference 就不再占首帧位，反之亦然', () => {
+    const upstream = getUpstreamNodes('video', edges, nodes)
+    const harvested = harvestUpstreamImageUrls(upstream, edges, 'video')
+    expect(harvested.keyframeUrls).toEqual(['https://cdn/char.png'])
+    expect(harvested.urls).toEqual([
+      'https://cdn/char.png',
+      'https://cdn/kf.png',
+    ])
+    // 同一张图，不给 edges → 回落旧位置规则，存量调用方零漂移。
+    expect(harvestUpstreamImageUrls(upstream).keyframeUrls).toEqual([
+      'https://cdn/kf.png',
+    ])
+  })
+
+  it('合并节点的 clip 槽照样进 video_urls —— 参考与片段两个槽一起认', () => {
+    const clipA = makeNode('a', NODE_TYPE_IDS.seedance, {
+      mediaUrl: 'https://cdn/a.mp4',
+    })
+    const clipB = makeNode('b', NODE_TYPE_IDS.seedance, {
+      mediaUrl: 'https://cdn/b.mp4',
+    })
+    const merge = makeNode('m', NODE_TYPE_IDS.videoMerge)
+    const mergeEdges = [makeEdge('e1', 'a', 'm'), makeEdge('e2', 'b', 'm')]
+    const upstream = getUpstreamNodes('m', mergeEdges, [clipA, clipB, merge])
+    expect(harvestUpstreamVideoUrls(upstream, mergeEdges, 'm')).toEqual([
+      'https://cdn/a.mp4',
+      'https://cdn/b.mp4',
+    ])
+  })
+
+  it('文本：边上写了别的槽的文本节点不再进正文', () => {
+    const script = makeNode('t1', NODE_TYPE_IDS.shotText, {
+      scene: '走廊',
+    })
+    const note = makeNode('t2', NODE_TYPE_IDS.shotText, {
+      scene: '胶片颗粒',
+    })
+    const textEdges = [
+      makeEdge('e1', 't1', 'video'),
+      { ...makeEdge('e2', 't2', 'video'), slot: NODE_SLOT_IDS.reference },
+    ] as NodeWorkflowEdge[]
+    const upstream = getUpstreamNodes('video', textEdges, [script, note, video])
+    expect(
+      harvestUpstreamShotTextPrompt(upstream, '', textEdges, 'video'),
+    ).toBe('走廊')
+    // 不给 edges → 两条都算文本（旧行为）。
+    expect(harvestUpstreamShotTextPrompt(upstream)).toBe('走廊\n\n胶片颗粒')
   })
 })

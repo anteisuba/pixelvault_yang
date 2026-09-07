@@ -28,6 +28,7 @@ import type {
   NodeWorkflowReferenceAsset,
 } from '@/types/node-workflow'
 
+import { composeSlotPrompt } from './node-slot-payload'
 import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
 import { resolveNodeDisplayName } from './node-display-name'
 import {
@@ -222,14 +223,6 @@ function keyframeRank(node: NodeWorkflowNode): number {
         )
       : -1
   return index === -1 ? 0 : index
-}
-
-export function orderKeyframes(
-  nodes: readonly NodeWorkflowNode[],
-): NodeWorkflowNode[] {
-  return nodes
-    .filter(isKeyframeNode)
-    .sort((a, b) => keyframeRank(a) - keyframeRank(b))
 }
 
 /**
@@ -467,11 +460,13 @@ export function harvestUpstreamImageUrls(
 
   // 关键帧先入列（它们钉住时序），且**首帧在前、尾帧在后**。
   //
-  // 首尾区别一直存在于 `data.imageCategory`（frameStart / frameEnd），此前采集时没读
-  // 它，两张关键帧按上游节点顺序入列 —— 到了 provider 那边就是一组无序的图，视频不会
-  // 以第二张结尾（§1 五层链路的第 ② 层）。顺序在这里就是首尾语义的载体：下游按位置
-  // 取（images[0]=首帧、images[1]=尾帧），不必再发明一个并行字段。
-  for (const node of orderKeyframes(upstreamNodes)) {
+  // 第三期 C3b：**谁是关键帧、谁在前**一律由槽回答（`resolveUpstreamSlots` →
+  // `orderKeyframeNodes`），不再现场读 `imageCategory` 猜。存量 v3 边不带槽 →
+  // `inferLegacySlot` 按旧位置规则翻译一次，产出逐字节不变；边上写了槽的图，只有
+  // 这条路径听得懂（一张 frameStart 的图被显式连成 `reference` 就不再占首帧位）。
+  // 顺序仍是首尾语义的载体：下游按位置取（images[0]=首帧、images[1]=尾帧）。
+  const slotOf = resolveUpstreamSlots(upstreamNodes, edges, focalNodeId)
+  for (const node of orderKeyframeNodes(upstreamNodes, slotOf)) {
     const url = getNodeMediaUrl(node.data)
     // `pushGated` 返回「这张真的进了 urls 吗」—— 只收过审的那些，`keyframeUrls`
     // 必须是 `urls` 的真前缀，否则下游拿它去选图会选到一张压根没发出去的。
@@ -482,6 +477,12 @@ export function harvestUpstreamImageUrls(
   // (primary first, see getNodeStageMediaUrls); a shot card is a visual
   // reference too but not a collector (no gallery-of-the-same-subject
   // semantics), so it still sends only its ★-starred/primary image.
+  //
+  // ⚠ 这一轮的判据仍是 `isVisualReferenceNode`（**族**），不是槽（**用途**）：槽只
+  // 回答「这条边算什么」，而这里还要回答「它是收集器卡还是单张图」——两个问题。
+  // ⛔ 也不跳过已经进了关键帧段的节点：改造前两轮就是各走各的（重复 URL 由
+  // `pushGated` 去重），一张既是关键帧、又带 ★ 主图的卡因此会送两条，跳过它等于
+  // 在这一片里偷偷改了行为。
   for (const node of upstreamNodes) {
     if (!isVisualReferenceNode(node)) continue
     const kind = getSeedanceReferenceKind(node)
@@ -519,21 +520,22 @@ export function harvestUpstreamCloseupUrls(
   edges: readonly NodeWorkflowEdge[],
   nodes: readonly NodeWorkflowNode[],
 ): HarvestedImageUrls {
-  const directUpstream = getUpstreamNodes(focalNodeId, edges, nodes)
   const result: string[] = []
   const blocked: BlockedUpstreamMedia[] = []
 
-  for (const node of directUpstream) {
-    if (getSeedanceReferenceKind(node) !== 'character') continue
-    for (const upstream of getUpstreamNodes(node.id, edges, nodes)) {
-      if (!isCloseupNode(upstream)) continue
+  // 第三期 C3b：两跳都按槽走 —— 视频的 `reference` 槽里挑角色卡，再问**那张卡**的
+  // `closeup` 槽。⚠ 「谁的槽」永远只有一个答案（`harvestSlots` 只走一跳，见它的
+  // 头注），一跳外的特写占的是角色卡的槽，不是视频的。
+  for (const entry of harvestSlots(focalNodeId, edges, nodes).reference) {
+    if (getSeedanceReferenceKind(entry.node) !== 'character') continue
+    for (const closeup of harvestSlots(entry.node.id, edges, nodes).closeup) {
       // 特写走的是 1 跳，但它一样会骑上 image_urls，所以一样过门 ——
       // 只挡直连那一层等于留了条后门。
       pushGated(
         result,
         blocked,
-        upstream,
-        getNodePrimaryMediaUrl(upstream.data),
+        closeup.node,
+        getNodePrimaryMediaUrl(closeup.node.data),
       )
     }
   }
@@ -917,10 +919,16 @@ export function harvestUpstreamVideoImageReferences(
   // toolbar already read+write for a shot/frame card; an unnamed one falls
   // back to `${category}${ordinal}` — a cosmetic-only fallback (no composer
   // auto-name to byte-match, since keyframes have no insertable token).
-  // ⚠ 与采集用**同一个** `orderKeyframes` —— 两处各排各的，就会出现图例写着
-  // 「关键帧尾2」而实际送出的第二张是别的图，给用户的解释是假的。
+  // ⚠ 与采集用**同一条槽判据**（C3b：`resolveUpstreamSlots` + `orderKeyframeNodes`，
+  // 采集侧 `harvestUpstreamImageUrls` 读的是同两个函数）—— 两处各排各的，就会出现
+  // 图例写着「关键帧尾2」而实际送出的第二张是别的图，给用户的解释是假的。
   let keyframeOrdinal = 0
-  for (const node of orderKeyframes(directUpstream)) {
+  const keyframeSlotOf = resolveUpstreamSlots(
+    directUpstream,
+    edges,
+    focalNodeId,
+  )
+  for (const node of orderKeyframeNodes(directUpstream, keyframeSlotOf)) {
     const url = getNodeMediaUrl(node.data)
     if (!url || map.has(url)) continue
     keyframeOrdinal += 1
@@ -1113,11 +1121,21 @@ export function buildVideoReferenceLegend(input: {
  */
 export function harvestUpstreamVideoUrls(
   upstreamNodes: readonly NodeWorkflowNode[],
+  edges?: readonly NodeWorkflowEdge[],
+  focalNodeId?: string,
 ): string[] {
   const result: string[] = []
+  // 第三期 C3b：按槽收 —— `reference`（参考视频）与 `clip`（合并节点的待接片段）
+  // 都算。⚠ 两个槽必须一起认：同一条「视频 → 视频」的边进普通镜头是参考、进合并
+  // 节点是片段，而合并那一路正是靠这个函数取 URL 的。
+  const slotOf = resolveUpstreamSlots(upstreamNodes, edges, focalNodeId)
 
   for (const node of upstreamNodes) {
     if (!isVideoSourceNode(node)) continue
+    const slot = slotOf.get(node.id)
+    if (slot !== NODE_SLOT_IDS.reference && slot !== NODE_SLOT_IDS.clip) {
+      continue
+    }
     const url =
       typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl.trim() : ''
     if (!url) continue
@@ -1250,7 +1268,9 @@ export function harvestUpstreamAudioBindings(
   edges: readonly NodeWorkflowEdge[],
   nodes: readonly NodeWorkflowNode[],
 ): AudioBinding[] {
-  const directUpstream = getUpstreamNodes(focalNodeId, edges, nodes)
+  // 第三期 C3b：直连那一层按槽读；一跳外（音色绑在角色卡上）问**那张卡**的
+  // `voice` 槽 —— 与 `harvestUpstreamCloseupUrls` 同一条纪律。
+  const focalSlots = harvestSlots(focalNodeId, edges, nodes)
   const seenUrls = new Set<string>()
   const bindings: AudioBinding[] = []
 
@@ -1277,17 +1297,16 @@ export function harvestUpstreamAudioBindings(
   // Pass 1 — voices wired through a character node (character-bound) take
   // priority so the first @AudioN slot gets the named binding when both
   // direct and character-routed voices reference the same URL.
-  for (const node of directUpstream) {
-    if (!isVisualReferenceNode(node)) continue
+  for (const entry of focalSlots.reference) {
+    if (!isVisualReferenceNode(entry.node)) continue
     // 画布修法 08-A：走全仓唯一那个解析器——这里此前手抄的
     // characterName/character.name 优先链不带机器值守卫，「音色绑角色卡」
     // 那一路的 @AudioN 槽会把上传备注常量当角色名显示。
-    const characterName = resolveNodeDisplayName(node.data)
-    const characterUpstream = getUpstreamNodes(node.id, edges, nodes)
-    for (const candidate of characterUpstream) {
-      const url = readVoiceUrl(candidate)
+    const characterName = resolveNodeDisplayName(entry.node.data)
+    for (const bound of harvestSlots(entry.node.id, edges, nodes).voice) {
+      const url = readVoiceUrl(bound.node)
       if (!url) continue
-      push(url, candidate, characterName)
+      push(url, bound.node, characterName)
     }
   }
 
@@ -1301,14 +1320,14 @@ export function harvestUpstreamAudioBindings(
   //
   // ⚠ pass 1 优先仍然成立：同一个 URL 既走角色卡又直挂时，`seenUrls` 让角色卡
   // 那条先占位 —— 角色卡上的名字是更强的事实（它还带着图）。
-  for (const node of directUpstream) {
-    const url = readVoiceUrl(node)
+  for (const entry of focalSlots.voice) {
+    const url = readVoiceUrl(entry.node)
     if (!url) continue
     const ownerName =
-      typeof node.data.audioOwnerName === 'string'
-        ? node.data.audioOwnerName.trim() || undefined
+      typeof entry.node.data.audioOwnerName === 'string'
+        ? entry.node.data.audioOwnerName.trim() || undefined
         : undefined
-    push(url, node, ownerName)
+    push(url, entry.node, ownerName)
   }
 
   return bindings
@@ -1332,12 +1351,18 @@ export function harvestUpstreamAudioBindings(
 export function harvestUpstreamShotTextPrompt(
   upstreamNodes: readonly NodeWorkflowNode[],
   ownPrompt = '',
+  edges?: readonly NodeWorkflowEdge[],
+  focalNodeId?: string,
 ): string {
   const chunks: string[] = []
   const body = ownPrompt.trim()
+  // 第三期 C3b：按 `text` 槽收，不再直接问 `isShotTextNode`。v3 图两者等价
+  // （`inferLegacySlot` 就是那条判据的翻译）；边上写了槽之后，「这条文本这一镜
+  // 当什么用」才有地方说话。
+  const slotOf = resolveUpstreamSlots(upstreamNodes, edges, focalNodeId)
 
   for (const node of upstreamNodes) {
-    if (!isShotTextNode(node)) continue
+    if (slotOf.get(node.id) !== NODE_SLOT_IDS.text) continue
     const chunk = buildNodeWorkflowPrompt(node.type, node.data).trim()
     if (!chunk) continue
     if (body && body.includes(chunk)) continue
@@ -1355,12 +1380,14 @@ export function mergePromptWithUpstreamText(
   basePrompt: string,
   upstreamPrompt: string,
 ): string {
-  const base = basePrompt.trim()
-  const upstream = upstreamPrompt.trim()
-
-  if (!upstream) return base
-  if (!base) return upstream
-  return `${upstream}\n\n${base}`
+  // 第三期 C3b：拼法只留一份 —— v4 的 `composeSlotPrompt` 在「只有剧本 + 自有
+  // 提示词」这一档上与这里逐字等价（上游在前、自有在后、空的那边跳过），v3 与
+  // v4 因此不会在翻转当天拼出两段不同的字。约束段（style / character）在 v3 里
+  // 恒空，所以不传。
+  return composeSlotPrompt({
+    script: upstreamPrompt,
+    ownPrompt: basePrompt,
+  })
 }
 
 /* ═════════════════════════════════════════════════════════════════════════
@@ -1624,6 +1651,66 @@ export function orderedKeyframeEntries(
       (a.slot === NODE_SLOT_IDS.lastFrame ? 1 : 0) -
       (b.slot === NODE_SLOT_IDS.lastFrame ? 1 : 0),
   )
+}
+
+/**
+ * 一组上游节点 → 各自的槽（第三期 · C3b）。
+ *
+ * ⚠ 这是「收割层只有一条槽判据」的落点：拿得到边就走 `resolveEdgeSlot`（边上写了
+ * 就听边的），拿不到边（`harvestUpstream*` 那几个只收节点列表的签名）就退回
+ * `inferLegacySlot` —— 后者正是旧位置规则的逐字翻译，所以存量图两条路结果相同。
+ *
+ * ⚠ 目标节点传不进来时 `resolveEdgeSlot` 的 `videoMerge` 收窄（reference → clip）
+ * 不生效。读它的两个收割器（图 / 视频）本来就把 `reference` 与 `clip` 同等对待，
+ * ⛔ 不为此再编一个「猜目标」的判据。
+ */
+function resolveUpstreamSlots(
+  upstreamNodes: readonly NodeWorkflowNode[],
+  edges?: readonly NodeWorkflowEdge[],
+  focalNodeId?: string,
+  target?: NodeWorkflowNode,
+): Map<string, NodeSlotId | undefined> {
+  const edgeBySource = new Map<string, NodeWorkflowEdge>()
+  if (edges && focalNodeId) {
+    for (const edge of edges) {
+      if (edge.target !== focalNodeId) continue
+      if (!edgeBySource.has(edge.source)) edgeBySource.set(edge.source, edge)
+    }
+  }
+  const slots = new Map<string, NodeSlotId | undefined>()
+  for (const node of upstreamNodes) {
+    const edge = edgeBySource.get(node.id)
+    slots.set(
+      node.id,
+      edge ? resolveEdgeSlot(edge, node, target) : inferLegacySlot(node),
+    )
+  }
+  return slots
+}
+
+/**
+ * 上游节点里的关键帧，**按时序**：首帧档在前、尾帧档在后，同档内保持发现顺序。
+ *
+ * `orderedKeyframeEntries` 的「只有节点列表」版本（那个吃 `HarvestedSlots`）。两者
+ * 排的是同一条规则；⛔ 排序必须**稳定**——同档两张之间漂一下，存量图里 `@ImageN`
+ * 的位置就跟着漂。
+ */
+function orderKeyframeNodes(
+  upstreamNodes: readonly NodeWorkflowNode[],
+  slotOf: ReadonlyMap<string, NodeSlotId | undefined>,
+): NodeWorkflowNode[] {
+  return upstreamNodes
+    .filter((node) => {
+      const slot = slotOf.get(node.id)
+      return (
+        slot === NODE_SLOT_IDS.firstFrame || slot === NODE_SLOT_IDS.lastFrame
+      )
+    })
+    .sort(
+      (a, b) =>
+        (slotOf.get(a.id) === NODE_SLOT_IDS.lastFrame ? 1 : 0) -
+        (slotOf.get(b.id) === NODE_SLOT_IDS.lastFrame ? 1 : 0),
+    )
 }
 
 /**

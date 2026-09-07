@@ -767,3 +767,140 @@ describe('collectSlotLines', () => {
     expect(collectSlotLines(target, [])).toEqual([])
   })
 })
+
+/* ── 第三期 C3b：助手看到的 v4 画布上下文 ──────────────────────────────
+ * `buildNodeCanvasSnapshotV4` / `collectSlotLines` 在 C1 就已经按 v4 读了，本片
+ * 只补测试 —— 补的正是「按槽读」这条路径上没被锁住的三处：文本角色的来源、
+ * binding 与边表两条读法的优先级、以及一跳外的源不会被当成直连槽。
+ * ────────────────────────────────────────────────────────────────────── */
+
+describe('collectSlotLines · v4 读取路径（C3b 补测）', () => {
+  it('文本槽的角色优先读 binding 上落的那个，其次问源节点', () => {
+    const rule = v4Node('t_rule', {
+      kind: 'text',
+      subtype: 'rule',
+      body: '胶片颗粒',
+    })
+    const note = v4Node('t_note', {
+      kind: 'text',
+      subtype: 'shotNote',
+      body: '她回头',
+      defaultRole: 'script',
+    })
+    const shot = v4Node('v_1', { kind: 'video', subtype: 'shot', shotNo: 1 })
+    const byId = new Map([
+      [rule.id, rule],
+      [note.id, note],
+      [shot.id, shot],
+    ])
+    const lines = collectSlotLines(
+      shot,
+      [
+        v4Edge('e1', 't_note', 'v_1', 'text'),
+        v4Edge('e2', 't_rule', 'v_1', 'text'),
+      ],
+      byId,
+    )
+    // 没有 binding → 角色由源节点的 defaultRole / 子型推出来（rule 子型 → style）。
+    expect(lines.map((line) => line.role)).toEqual(['script', 'style'])
+  })
+
+  it('binding 上显式写了角色时，它压过源节点的子型', () => {
+    const note = v4Node('t_note', {
+      kind: 'text',
+      subtype: 'shotNote',
+      body: '她回头',
+      defaultRole: 'script',
+    })
+    const shot = v4Node('v_1', {
+      kind: 'video',
+      subtype: 'shot',
+      shotNo: 1,
+      slots: {
+        text: {
+          slot: 'text',
+          cur: 'ver-1',
+          versions: [
+            {
+              id: 'ver-1',
+              edgeId: 'e1',
+              sourceNodeId: 't_note',
+              role: 'character',
+              blocked: false,
+              addedAt: '2026-09-06T00:00:00.000Z',
+            },
+          ],
+        },
+      },
+    })
+    const lines = collectSlotLines(
+      shot,
+      [v4Edge('e1', 't_note', 'v_1', 'text')],
+      new Map([
+        [note.id, note],
+        [shot.id, shot],
+      ]),
+    )
+    expect(lines).toEqual([
+      { slot: 'text', sourceId: 't_note', versionCount: 1, role: 'character' },
+    ])
+  })
+
+  it('有 binding 的槽**不**再回落边表 —— 两条读法不叠加', () => {
+    const shot = v4Node('v_1', {
+      kind: 'video',
+      subtype: 'shot',
+      shotNo: 1,
+      slots: {
+        firstFrame: {
+          slot: 'firstFrame',
+          cur: 'ver-1',
+          versions: [
+            {
+              id: 'ver-1',
+              edgeId: 'e1',
+              sourceNodeId: 'img_a',
+              blocked: false,
+              addedAt: '2026-09-06T00:00:00.000Z',
+            },
+            {
+              id: 'ver-2',
+              edgeId: 'e2',
+              sourceNodeId: 'img_b',
+              blocked: false,
+              addedAt: '2026-09-06T00:00:00.000Z',
+            },
+          ],
+        },
+      },
+    })
+    const lines = collectSlotLines(shot, [
+      v4Edge('e1', 'img_a', 'v_1', 'firstFrame'),
+      v4Edge('e2', 'img_b', 'v_1', 'firstFrame'),
+    ])
+    // 轮播槽只报当前版，并把版本数带上（快照那行的「共 N 版」）。
+    expect(lines).toEqual([
+      { slot: 'firstFrame', sourceId: 'img_a', versionCount: 2 },
+    ])
+  })
+
+  it('一跳外的源不进这个节点的槽行（特写占的是角色卡的槽）', () => {
+    const shot = v4Node('v_1', { kind: 'video', subtype: 'shot', shotNo: 1 })
+    const lines = collectSlotLines(shot, [
+      v4Edge('e1', 'char', 'v_1', 'reference'),
+      v4Edge('e2', 'closeup', 'char', 'closeup'),
+    ])
+    expect(lines).toEqual([
+      { slot: 'reference', sourceId: 'char', versionCount: 1 },
+    ])
+  })
+
+  it('端口表里没有的槽不产生行（写错槽的边被忽略而不是乱入）', () => {
+    const merge = v4Node('m', { kind: 'video', subtype: 'merge', shotNo: 1 })
+    const lines = collectSlotLines(merge, [
+      v4Edge('e1', 'a', 'm', 'clip'),
+      v4Edge('e2', 'b', 'm', 'firstFrame'),
+    ])
+    expect(lines).toEqual([{ slot: 'clip', sourceId: 'a', versionCount: 1 }])
+  })
+})

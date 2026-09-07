@@ -11,17 +11,16 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
-import {
-  NODE_GENERATION_STATUS_IDS,
-  NODE_STATUS_IDS,
-} from '@/constants/node-types'
 import type {
   CanvasDerivedImageOutput,
   ReadyCanvasImageEditCapabilityId,
 } from '@/types/canvas-image-edit'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
-import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
+import {
+  useNodeCanvasActions,
+  type NodeCanvasRunState,
+} from './nodes/v4/NodeV4ActionsBridge'
 
 /**
  * 画布侧的编辑宿主 —— 只负责三件事：**弹窗外壳**、把节点数据翻成源图、把结果
@@ -61,8 +60,8 @@ export function CanvasImageEditWorkspace({
 }: CanvasImageEditWorkspaceProps) {
   const t = useTranslations('StudioImageEdit')
   const tCommon = useTranslations('Common')
-  const { placeDerivedImages, focusNode, updateNodeData } =
-    useNodeWorkflowActions()
+  const { placeDerivedImages, focusNode, setNodeRunState } =
+    useNodeCanvasActions()
   const [uncontrolledOpen, setUncontrolledOpen] = useState(true)
 
   const dialogOpen = open ?? uncontrolledOpen
@@ -86,10 +85,10 @@ export function CanvasImageEditWorkspace({
   // 画布落派生节点用不上，这里故意不接。
   const placeOutputs = useCallback(
     (outputs: CanvasDerivedImageOutput[]): boolean => {
-      const derivedNodeIds = placeDerivedImages?.(nodeId, outputs) ?? []
+      const derivedNodeIds = placeDerivedImages(nodeId, outputs)
       if (derivedNodeIds.length === 0) return false
 
-      focusNode?.(derivedNodeIds[0])
+      focusNode(derivedNodeIds[0])
       return true
     },
     [focusNode, nodeId, placeDerivedImages],
@@ -98,23 +97,10 @@ export function CanvasImageEditWorkspace({
   // C2: 进度要长在源对象上，不只在弹窗里。⚠ 三态各写各的 —— 失败必须写成
   // failed，否则节点会在编辑失败后显示成功。
   const handleRunStateChange = useCallback(
-    (state: 'running' | 'success' | 'error') => {
-      updateNodeData(nodeId, {
-        generationStatus:
-          state === 'running'
-            ? NODE_GENERATION_STATUS_IDS.pending
-            : state === 'success'
-              ? NODE_GENERATION_STATUS_IDS.success
-              : NODE_GENERATION_STATUS_IDS.error,
-        status:
-          state === 'running'
-            ? NODE_STATUS_IDS.running
-            : state === 'success'
-              ? NODE_STATUS_IDS.done
-              : NODE_STATUS_IDS.failed,
-      })
+    (state: NodeCanvasRunState) => {
+      setNodeRunState(nodeId, state)
     },
-    [nodeId, updateNodeData],
+    [nodeId, setNodeRunState],
   )
 
   return (

@@ -26,7 +26,7 @@ import type {
   NodeWorkflowNode,
 } from '@/types/node-workflow'
 
-import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
+import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 
 /**
  * Kept for the legacy, no-longer-mounted CastCard module while its ingest
@@ -164,7 +164,7 @@ export function CastDock({
   const tStudio = useTranslations('StudioNode')
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
-  const { focusNode } = useNodeWorkflowActions()
+  const { focusNode } = useNodeCanvasActions()
   const activateRow = onSelectNode ?? focusNode
 
   const referenceCountByNodeId = useMemo(() => {

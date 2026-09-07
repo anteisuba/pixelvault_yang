@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   focusNode: vi.fn(),
   inpaintImageAPI: vi.fn(),
   placeDerivedImages: vi.fn(),
-  updateNodeData: vi.fn(),
+  setNodeRunState: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   toastWarning: vi.fn(),
@@ -44,11 +44,11 @@ vi.mock('@/lib/api-client', () => ({
   inpaintImageAPI: mocks.inpaintImageAPI,
 }))
 
-vi.mock('./NodeWorkflowActionsContext', () => ({
-  useNodeWorkflowActions: () => ({
+vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
+  useNodeCanvasActions: () => ({
     placeDerivedImages: mocks.placeDerivedImages,
     focusNode: mocks.focusNode,
-    updateNodeData: mocks.updateNodeData,
+    setNodeRunState: mocks.setNodeRunState,
   }),
 }))
 

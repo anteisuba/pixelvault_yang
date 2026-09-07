@@ -19,8 +19,8 @@ vi.mock('@xyflow/react', () => ({
   useEdges: () => flowState.edges,
 }))
 
-vi.mock('./NodeWorkflowActionsContext', () => ({
-  useNodeWorkflowActions: () => ({ focusNode: mockFocusNode }),
+vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
+  useNodeCanvasActions: () => ({ focusNode: mockFocusNode }),
 }))
 
 // G1（画布修法 P2）：`CastDock` 自己的分组/呈现细节已经在 CastDock.test.tsx

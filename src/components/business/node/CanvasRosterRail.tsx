@@ -12,7 +12,7 @@ import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import { CastCard } from './CastCard'
 import { CastDock, type CastSectionId } from './CastDock'
-import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
+import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 
 /**
  * 名册 rail —— 左栏的 `cast` 视图，**定位器 + 收集器两段**
@@ -92,7 +92,7 @@ export function CanvasRosterRail() {
   const t = useTranslations('StudioNode.castDock')
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
-  const { focusNode } = useNodeWorkflowActions()
+  const { focusNode } = useNodeCanvasActions()
   // G1：唯一一份 query——上段的 `CastDock` 与下段的卡片区都读它。
   const [query, setQuery] = useState('')
 

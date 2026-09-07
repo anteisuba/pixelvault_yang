@@ -27,7 +27,7 @@ import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 import { NodeSelectionToolbarChrome } from '../CanvasImageSelectionToolbar'
 import { CanvasPopIn } from '../CanvasPopIn'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { NodeStatusBadge } from './NodeStatusBadge'
+import { NodeStatusBadge } from '../shared/NodeStatusBadge'
 
 interface NodeShellRootProps {
   type: NodeTokenType

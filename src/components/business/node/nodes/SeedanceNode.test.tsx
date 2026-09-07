@@ -41,11 +41,11 @@ vi.mock('../CanvasPopIn', () => ({
   CanvasPopIn: ({ children }: { children: ReactNode }) => children,
 }))
 
-vi.mock('./NodeProgressState', () => ({
+vi.mock('../shared/NodeProgressState', () => ({
   NodeProgressState: () => null,
 }))
 
-vi.mock('./NodeVideoSurface', () => ({
+vi.mock('../shared/NodeVideoSurface', () => ({
   NodeVideoSurface: () => <div>video-surface</div>,
 }))
 

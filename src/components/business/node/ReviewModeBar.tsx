@@ -4,16 +4,16 @@ import { useState } from 'react'
 import { ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_REVIEW_STATE_IDS } from '@/constants/node-types'
 import {
   getMediaReview,
-  rejectMedia,
   resolveMediaReviewState,
 } from '@/lib/node-media-review'
 import { findPreviousVersionUrl } from '@/lib/node-review-queue'
 import { cn } from '@/lib/utils'
 
-import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
+import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 
 interface ReviewDraft {
   /** `nodeId::url` —— 换了一张就换一份草稿，不用 effect 重置。 */
@@ -38,8 +38,7 @@ interface ReviewDraft {
  */
 export function ReviewModeBar() {
   const t = useTranslations('StudioNode.reviewMode')
-  const { reviewMode, updateNodeData, regenerateForReview } =
-    useNodeWorkflowActions()
+  const { reviewMode, applyOp, regenerateForReview } = useNodeCanvasActions()
   const [draft, setDraft] = useState<ReviewDraft | null>(null)
   const [regenerating, setRegenerating] = useState(false)
 
@@ -65,23 +64,24 @@ export function ReviewModeBar() {
   const canGoNext = reviewMode.hasNext || reviewMode.currentDecided
 
   /**
-   * 把理由 / 改词写回审核记录。
+   * 把理由 / 改词写回审核记录 —— 一条 `set_review_state` op。
    *
-   * ⚠ `rejectMedia` 的既有契约是「只写非空的那几项」，所以**清空输入不会抹掉**
-   * 已经存下的理由，重新打一段才会覆盖。那是它的判定语义的一部分，本包禁改。
+   * ⚠ 只发**非空**的那几项，所以清空输入不会抹掉已经存下的理由，重新打一段才会
+   * 覆盖。那是打回记录的判定语义的一部分（op 执行器与 `rejectMedia` 同款），
+   * 本包禁改。
    */
   function commit(next: ReviewDraft) {
     if (!node || !current) return
-    updateNodeData(
-      current.nodeId,
-      rejectMedia(node.data, current.url, {
-        reviewedAt: new Date().toISOString(),
-        ...(next.reason.trim() ? { reason: next.reason.trim() } : {}),
-        ...(next.promptPatch.trim()
-          ? { promptPatch: next.promptPatch.trim() }
-          : {}),
-      }),
-    )
+    void applyOp({
+      op: NODE_ASSISTANT_OP_V4_IDS.setReviewState,
+      target: current.nodeId,
+      url: current.url,
+      state: NODE_REVIEW_STATE_IDS.rejected,
+      ...(next.reason.trim() ? { reason: next.reason.trim() } : {}),
+      ...(next.promptPatch.trim()
+        ? { promptPatch: next.promptPatch.trim() }
+        : {}),
+    })
   }
 
   async function handleRegenerate() {
@@ -89,7 +89,7 @@ export function ReviewModeBar() {
     commit(active)
     setRegenerating(true)
     try {
-      await regenerateForReview?.(current.nodeId, active.promptPatch.trim())
+      await regenerateForReview(current.nodeId, active.promptPatch.trim())
     } finally {
       setRegenerating(false)
     }
@@ -185,7 +185,7 @@ export function ReviewModeBar() {
             <button
               type="button"
               onClick={() => void handleRegenerate()}
-              disabled={regenerating || !regenerateForReview}
+              disabled={regenerating}
               className="canvas-review-bar-btn canvas-review-bar-btn--text"
             >
               <RefreshCw

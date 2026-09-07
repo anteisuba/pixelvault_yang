@@ -13,7 +13,7 @@ import { runCanvasCapability } from '@/lib/canvas-capability-runtime'
 import { logger } from '@/lib/logger'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
-import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
+import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 
 interface CanvasQuickEditPromptProps {
   nodeId: string
@@ -51,7 +51,7 @@ export function CanvasQuickEditPrompt({
 }: CanvasQuickEditPromptProps) {
   const t = useTranslations('StudioNode.quickEdit')
   const tEdit = useTranslations('StudioImageEdit')
-  const { placeDerivedImages, focusNode } = useNodeWorkflowActions()
+  const { placeDerivedImages, focusNode } = useNodeCanvasActions()
   const [prompt, setPrompt] = useState('')
   const [running, setRunning] = useState(false)
   const sourceUrl = getSourceUrl(data)
@@ -84,21 +84,20 @@ export function CanvasQuickEditPrompt({
         return
       }
 
-      const derivedIds =
-        placeDerivedImages?.(
-          nodeId,
-          response.outputs.map((output) => ({
-            ...output,
-            label: output.label ?? tEdit('tasks.extract-element.label'),
-          })),
-        ) ?? []
+      const derivedIds = placeDerivedImages(
+        nodeId,
+        response.outputs.map((output) => ({
+          ...output,
+          label: output.label ?? tEdit('tasks.extract-element.label'),
+        })),
+      )
 
       if (derivedIds.length === 0) {
         toast.error(tEdit('extractFailed'))
         return
       }
 
-      focusNode?.(derivedIds[0])
+      focusNode(derivedIds[0])
 
       if (response.saveWarning) {
         logger.warn('[canvas-quick-edit] extracted element save failed')

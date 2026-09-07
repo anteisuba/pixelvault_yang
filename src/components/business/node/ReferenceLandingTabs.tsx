@@ -27,9 +27,9 @@ import { toNodeDisplayLabel } from '@/lib/node-display-name'
 import type { GenerationRecord } from '@/types'
 
 import {
-  useNodeWorkflowActions,
+  useNodeCanvasActions,
   type CanvasImageSource,
-} from './NodeWorkflowActionsContext'
+} from './nodes/v4/NodeV4ActionsBridge'
 
 /**
  * 「加一张参考图」的**唯一入口**（阶段 3，`plans/task-canvas-slot-rack-master-
@@ -94,7 +94,7 @@ export function ReferenceLandingTabs({
   const t = useTranslations('StudioNode.characterImage.reference')
   const tTypes = useTranslations('StudioNode.nodeTypes')
   const { spawnReference, listCanvasImageSources, connectReferenceNode } =
-    useNodeWorkflowActions()
+    useNodeCanvasActions()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   /**
    * 台账 B：Tabs 从非受控改成受控，只为了让「素材库」这一格在**被选中的那一刻**
@@ -115,7 +115,7 @@ export function ReferenceLandingTabs({
         onResolved(media)
         return
       }
-      spawnReference?.({
+      spawnReference({
         targetNodeId,
         nodeType: NODE_TYPE_IDS.image,
         media: {
@@ -196,7 +196,7 @@ export function ReferenceLandingTabs({
     [disabled, t, uploadAndLand],
   )
 
-  const canvasSources = listCanvasImageSources?.(targetNodeId) ?? []
+  const canvasSources = listCanvasImageSources(targetNodeId)
 
   /**
    * 第四源：画布上已有的那张图（阶段 8-a「图入卡」）。
@@ -220,7 +220,7 @@ export function ReferenceLandingTabs({
         })
         return
       }
-      connectReferenceNode?.(candidate.nodeId, targetNodeId)
+      connectReferenceNode(candidate.nodeId, targetNodeId)
     },
     [connectReferenceNode, onResolved, targetNodeId],
   )

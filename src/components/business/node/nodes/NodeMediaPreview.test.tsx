@@ -40,10 +40,10 @@ vi.mock('./NodeShell', () => {
   return { NodeShell: Shell }
 })
 
-vi.mock('./NodeProgressState', () => ({
+vi.mock('../shared/NodeProgressState', () => ({
   NodeProgressState: () => <div>progress</div>,
 }))
-vi.mock('./NodeVideoSurface', () => ({
+vi.mock('../shared/NodeVideoSurface', () => ({
   NodeVideoSurface: () => <div>video-surface</div>,
 }))
 vi.mock('./ImageCardMediaState', () => ({

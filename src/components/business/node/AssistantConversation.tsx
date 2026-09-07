@@ -36,7 +36,7 @@ import type { NodeAssistantOpBatch } from '@/types/node-assistant-ops'
 
 import { CanvasAssistantReferencePicker } from './CanvasAssistantReferencePicker'
 import { CanvasOpProposalCard } from './CanvasOpProposalCard'
-import type { NodeAssistantOpRunResult } from './NodeWorkflowActionsContext'
+import type { NodeAssistantOpRunResult } from './nodes/v4/NodeV4ActionsBridge'
 
 interface AssistantConversationProps {
   messages: AssistantConversationMessage[]

@@ -40,7 +40,7 @@ import type {
 } from '@/lib/node-assistant-op-plan'
 import type { NodeAssistantSetParamsOp } from '@/types/node-assistant-ops'
 
-import type { NodeAssistantOpRunResult } from './NodeWorkflowActionsContext'
+import type { NodeAssistantOpRunResult } from './nodes/v4/NodeV4ActionsBridge'
 
 interface CanvasOpProposalCardProps {
   plan: NodeAssistantOpPlan

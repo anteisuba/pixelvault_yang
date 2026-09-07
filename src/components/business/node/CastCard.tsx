@@ -5,6 +5,7 @@ import { Send, X } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_STUDIO_CAST_DOCK } from '@/constants/node-studio'
 import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import {
@@ -18,7 +19,7 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import type { CastSectionId } from './CastDock'
 import { useIngestDrag } from './IngestDragLayer'
-import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
+import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 
 interface CastCardProps {
   node: NodeWorkflowNode
@@ -114,7 +115,7 @@ export function CastCard({
   const t = useTranslations('StudioNode.castDock')
   const tIngest = useTranslations('StudioNode.ingest')
   const { beginDrag, enterQuickThrow } = useIngestDrag()
-  const { deleteNode } = useNodeWorkflowActions()
+  const { applyOp } = useNodeCanvasActions()
   const reducedMotion = useReducedMotion()
   // 画布修法 05 节「拖了必有回音」：素材拖进这张卡对应的角色/场景后，
   // referenceCount 会变大——▦N/📷N 是同一语义的两处显示，共享同一个
@@ -213,7 +214,10 @@ export function CastCard({
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => {
           event.stopPropagation()
-          deleteNode(node.id)
+          void applyOp({
+            op: NODE_ASSISTANT_OP_V4_IDS.delete,
+            target: node.id,
+          })
         }}
         // R3-4 §4.1 L3: hover-reveal chrome riding above this card's own
         // thumbnail content, same tier as the selection/magnet badges.

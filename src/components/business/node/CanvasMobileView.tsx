@@ -31,9 +31,9 @@ import {
   CANVAS_LEFT_PANEL_VIEW_IDS,
   type CanvasLeftPanelView,
 } from './CanvasLeftPanel'
-import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
-import { NodeStatusBadge } from './nodes/NodeStatusBadge'
-import { NodeVideoSurface } from './nodes/NodeVideoSurface'
+import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
+import { NodeStatusBadge } from './shared/NodeStatusBadge'
+import { NodeVideoSurface } from './shared/NodeVideoSurface'
 
 /**
  * 包 H（画布修法《手机 390px：能看、能审，不假装能编》，2026-08-26）。
@@ -49,7 +49,7 @@ import { NodeVideoSurface } from './nodes/NodeVideoSurface'
  * ── 复用点（横切纪律①「契约派生，不手写」）────────────────────────────────
  * · 列表 = `CastDock`（新增一个可选的 `onSelectNode`，省略时字节级不变）——
  *   不重新实现分组/搜索/名字解析。
- * · 审阅 = `useNodeWorkflowActions().reviewMode`（既有 hook 的整个状态机）+
+ * · 审阅 = `useNodeCanvasActions().reviewMode`（既有 hook 的整个状态机）+
  *   `MediaReviewButtons`（既有的通过/打回按钮，`GenerateComposer` 里就是这颗）。
  *   本文件一行审核逻辑都没有新写。
  * · 状态章 = `NodeStatusBadge`；视频播放 = `NodeVideoSurface`；连接关系的
@@ -252,7 +252,7 @@ export function CanvasMobileView({
   const tMobile = useTranslations('StudioNode.mobileCanvas')
   const nodes = useNodes<NodeWorkflowNode>()
   const edges = useEdges<NodeWorkflowEdge>()
-  const { reviewMode } = useNodeWorkflowActions()
+  const { reviewMode } = useNodeCanvasActions()
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [view, setView] = useState<CanvasLeftPanelView>(

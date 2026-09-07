@@ -14,7 +14,7 @@ import type { GenerationRecord } from '@/types'
 import type {
   CanvasImageSource,
   SpawnReferenceInput,
-} from './NodeWorkflowActionsContext'
+} from './nodes/v4/NodeV4ActionsBridge'
 import {
   ReferenceLandingTabs,
   type ResolvedReferenceMedia,
@@ -46,8 +46,8 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('./NodeWorkflowActionsContext', () => ({
-  useNodeWorkflowActions: () => ({
+vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
+  useNodeCanvasActions: () => ({
     spawnReference,
     connectReferenceNode,
     listCanvasImageSources,

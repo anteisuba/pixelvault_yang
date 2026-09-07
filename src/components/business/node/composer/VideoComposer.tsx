@@ -93,7 +93,7 @@ import type {
 
 import { IMEAwareInput, IMEAwareTextarea } from '../inspector/IMEAwareField'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { NodeProgressState } from '../nodes/NodeProgressState'
+import { NodeProgressState } from '../shared/NodeProgressState'
 import { CanvasSlotRack } from './CanvasSlotRack'
 import { ReferenceAddBar, type AddReferenceRequest } from './ReferenceAddBar'
 import {

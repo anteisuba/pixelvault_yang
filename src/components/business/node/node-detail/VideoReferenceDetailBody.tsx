@@ -11,7 +11,7 @@ import { useReferenceVideoUpload } from '@/hooks/node/use-reference-video-upload
 import { resolveNodeDisplayName } from '@/lib/node-display-name'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { NodeProgressState } from '../nodes/NodeProgressState'
+import { NodeProgressState } from '../shared/NodeProgressState'
 import { EvidenceDrawer, EvidenceRow } from './EvidenceDrawer'
 import { RelationsStrip } from './RelationsStrip'
 import type { NodeDetailBodyProps } from './registry'

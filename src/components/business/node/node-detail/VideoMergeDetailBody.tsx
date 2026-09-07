@@ -14,7 +14,7 @@ import { useVideoMergeAction } from '@/hooks/node/use-video-merge-action'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { NodeProgressState } from '../nodes/NodeProgressState'
+import { NodeProgressState } from '../shared/NodeProgressState'
 import { DraftNumberField } from './DraftNumberField'
 import { EvidenceDrawer, EvidenceRow } from './EvidenceDrawer'
 import { RelationsStrip } from './RelationsStrip'

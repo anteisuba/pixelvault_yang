@@ -20,8 +20,8 @@ vi.mock('@xyflow/react', () => ({
   useEdges: () => flowState.edges,
 }))
 
-vi.mock('./NodeWorkflowActionsContext', () => ({
-  useNodeWorkflowActions: () => ({
+vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
+  useNodeCanvasActions: () => ({
     focusNode: mockFocusNode,
   }),
 }))

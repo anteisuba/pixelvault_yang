@@ -31,8 +31,8 @@ import {
   ImageCardFailedContent,
   ImageCardStatusBadge,
 } from './ImageCardMediaState'
-import { NodeProgressState } from './NodeProgressState'
-import { NodeVideoSurface } from './NodeVideoSurface'
+import { NodeProgressState } from '../shared/NodeProgressState'
+import { NodeVideoSurface } from '../shared/NodeVideoSurface'
 import { NodeShell } from './NodeShell'
 
 interface NodeMediaPreviewProps extends NodeProps<NodeWorkflowNode> {

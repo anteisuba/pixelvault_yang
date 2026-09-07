@@ -275,6 +275,7 @@ import { VideoReferenceNode } from './nodes/VideoReferenceNode'
 import { VoiceNode } from './nodes/VoiceNode'
 import { NodeWorkflowStatusEdge } from './edges/NodeWorkflowStatusEdge'
 import { NODE_V4_COMPONENTS } from './nodes/v4/registry'
+import { NodeV4ActionsV3Adapter } from './nodes/v4/NodeV4ActionsV3Adapter'
 import { NodeV4Provider } from './nodes/v4/NodeV4Provider'
 
 // ⛔ 不注册 composer / agent：旧 planner 的组件已于 2026-08-02 删除。它们的
@@ -5237,327 +5238,331 @@ function StudioNodeCanvas() {
 
   return (
     <NodeWorkflowActionsProvider value={workflowActions}>
-      <CanvasWorkspaceLayout
-        assistantMode={assistantMode}
-        stageRef={canvasRef}
-        stageStyle={canvasStageStyle}
-        reviewMode={reviewMode.active}
-        assistant={
-          <StudioNodeAssistantDock
-            open={assistantDockOpen}
-            expanded={assistantExpanded}
-            projectId={workflow.currentProjectId}
-            projectName={workflow.currentProjectName}
+      {/* ⚠ ③d 翻转后删：画布外壳只认 `useNodeCanvasActions()`（v4 op 语义），
+        翻转前由这层适配器从 v3 总线取动作。见 `NodeV4ActionsV3Adapter` 头注。 */}
+      <NodeV4ActionsV3Adapter nodes={workflow.nodes}>
+        <CanvasWorkspaceLayout
+          assistantMode={assistantMode}
+          stageRef={canvasRef}
+          stageStyle={canvasStageStyle}
+          reviewMode={reviewMode.active}
+          assistant={
+            <StudioNodeAssistantDock
+              open={assistantDockOpen}
+              expanded={assistantExpanded}
+              projectId={workflow.currentProjectId}
+              projectName={workflow.currentProjectName}
+              nodes={workflow.nodes}
+              edges={workflow.edges}
+              modelOptionsByType={modelOptionsByType}
+              scriptDoc={workflow.scriptDoc}
+              locale={appLocale}
+              onOpenChange={setAssistantDockOpen}
+              onExpandedChange={setAssistantExpanded}
+              onFocusNode={handleFocusNode}
+              historyPortalTarget={assistantHistoryHost}
+            />
+          }
+        >
+          <IngestDragProvider
             nodes={workflow.nodes}
             edges={workflow.edges}
-            modelOptionsByType={modelOptionsByType}
-            scriptDoc={workflow.scriptDoc}
-            locale={appLocale}
-            onOpenChange={setAssistantDockOpen}
-            onExpandedChange={setAssistantExpanded}
-            onFocusNode={handleFocusNode}
-            historyPortalTarget={assistantHistoryHost}
-          />
-        }
-      >
-        <IngestDragProvider
-          nodes={workflow.nodes}
-          edges={workflow.edges}
-          onConnect={handleIngestConnect}
-          quickThrowApiRef={quickThrowApiRef}
-        >
-          <MaybeNodeV4Provider
-            state={v4Preview.state}
-            onStateChange={v4Preview.setState}
-            modelOptionsByKind={v4ModelOptionsByKind}
-            onFocusNode={handleFocusNode}
-            selectedNodeIds={v4SelectedNodeIds}
+            onConnect={handleIngestConnect}
+            quickThrowApiRef={quickThrowApiRef}
           >
-            <CanvasSurface appearance={workflow.canvasAppearance} />
-            {/* C3c-① D：state 为 v4（或开发用 `?v4=1`）时整块换 v4 组件并包
+            <MaybeNodeV4Provider
+              state={v4Preview.state}
+              onStateChange={v4Preview.setState}
+              modelOptionsByKind={v4ModelOptionsByKind}
+              onFocusNode={handleFocusNode}
+              selectedNodeIds={v4SelectedNodeIds}
+            >
+              <CanvasSurface appearance={workflow.canvasAppearance} />
+              {/* C3c-① D：state 为 v4（或开发用 `?v4=1`）时整块换 v4 组件并包
               `NodeV4Provider`；v3 仍走 `NODE_COMPONENTS`。⚠ 这是迁移顺序里
               「先看得见、后翻转」的那一步 —— ③ 翻转后 v3 分支整段删。 */}
-            <ReactFlow
-              nodes={
-                (v4RenderNodes ??
-                  renderedNodes) as unknown as NodeWorkflowNode[]
-              }
-              edges={
-                (v4RenderEdges ??
-                  renderedEdges) as unknown as NodeWorkflowEdge[]
-              }
-              nodeTypes={v4RenderNodes ? NODE_V4_COMPONENTS : NODE_COMPONENTS}
-              edgeTypes={NODE_EDGE_COMPONENTS}
-              onNodesChange={
-                v4RenderNodes ? handleV4NodesChange : workflow.onNodesChange
-              }
-              onEdgesChange={workflow.onEdgesChange}
-              onConnect={workflow.onConnect}
-              isValidConnection={isValidConnection}
-              onEdgeClick={handleEdgeClick}
-              onNodeClick={handleNodeClick}
-              onPaneClick={handlePaneClick}
-              onPaneContextMenu={handlePaneContextMenu}
-              onNodesDelete={handleNodesDelete}
-              onEdgesDelete={handleEdgesDelete}
-              onNodeDragStart={handleNodeDragStart}
-              onNodeDrag={handleNodeDrag}
-              onNodeDragStop={handleNodeDragStop}
-              onDrop={handleCanvasDrop}
-              onDragOver={handleCanvasDragOver}
-              // 画布级粘贴（§4.1）落点="鼠标当前位置"要靠这两个跟踪——粘贴事件本身
-              // 不带坐标，见上面 handlePaste 附近的注释。
-              onMouseMove={handleCanvasMouseMove}
-              onMouseLeave={handleCanvasMouseLeave}
-              deleteKeyCode={['Backspace', 'Delete']}
-              defaultViewport={NODE_STUDIO_CANVAS.defaultViewport}
-              // A3: explicit bounds instead of the library's implicit 0.5/2
-              // defaults — see NODE_STUDIO_CANVAS doc comment.
-              minZoom={NODE_STUDIO_CANVAS.minZoom}
-              maxZoom={NODE_STUDIO_CANVAS.maxZoom}
-              defaultEdgeOptions={NODE_STUDIO_DEFAULT_EDGE_OPTIONS}
-              connectionLineType={ConnectionLineType.SmoothStep}
-              connectionLineStyle={NODE_STUDIO_CONNECTION_LINE_STYLE}
-              proOptions={NODE_STUDIO_REACT_FLOW_PRO_OPTIONS}
-              nodesDraggable
-              // ⚠ 2026-07-28 反转「§2.4 端口锚点化退场」：原文说「binding only
-              // happens via 吞噬/快投 now」，于是把端口连线在 workbench 层和
-              // Handle 层双双关死。吞噬拖拽手势退役之后这条就翻过来了——**端口
-              // 拖拽是现在唯一的建边手势**，三层（这里 / Handle 的
-              // isConnectable / HANDLE_BASE 的 pointer-events）必须一起打开，
-              // 少一层就是「看得见端口但拉不出线」。
-              nodesConnectable
-              elementsSelectable
-              // D1（画布修法《键盘可达》）：102 个可聚焦项里 20 条是连线，Tab 从
-              // 画布进去要先穿过所有边才轮到按钮。边默认可聚焦
-              // （`edgesFocusable` 库默认 true）——关掉后边退出 Tab 序，但鼠标
-              // 点击选中（`elementsSelectable`/`onEdgeClick`）与全局
-              // `deleteKeyCode` 处理（读 `edge.selected`，与 DOM 焦点无关，见
-              // @xyflow/react 的 `useGlobalKeyHandler`）都不受这个开关影响——
-              // 鼠标点边选中 + Delete 删边这条通路原样保留。
-              edgesFocusable={false}
-              selectNodesOnDrag={false}
-              nodeDragThreshold={NODE_STUDIO_CANVAS.nodeDragThreshold}
-              panOnDrag={panOnDrag}
-              panActivationKeyCode={NODE_STUDIO_CANVAS.panActivationKeyCode}
-              selectionOnDrag
-              selectionMode={SelectionMode.Partial}
-              zoomOnScroll
-              // Detail opens only from an explicit expand button. Keep native
-              // double-click zoom disabled so the gesture is inert on nodes.
-              zoomOnDoubleClick={false}
-              fitView={false}
-              className="h-full w-full !bg-transparent"
-              style={{ backgroundColor: 'transparent' }}
-            >
-              <Background
-                variant={BackgroundVariant.Dots}
-                gap={NODE_STUDIO_CANVAS.background.gap}
-                size={NODE_STUDIO_CANVAS.background.size}
-                color="var(--canvas-grid-dot)"
-              />
-              {/* S2b：minimap 挪到 chrome 层（见下方带 --canvas-minimap-left 的
+              <ReactFlow
+                nodes={
+                  (v4RenderNodes ??
+                    renderedNodes) as unknown as NodeWorkflowNode[]
+                }
+                edges={
+                  (v4RenderEdges ??
+                    renderedEdges) as unknown as NodeWorkflowEdge[]
+                }
+                nodeTypes={v4RenderNodes ? NODE_V4_COMPONENTS : NODE_COMPONENTS}
+                edgeTypes={NODE_EDGE_COMPONENTS}
+                onNodesChange={
+                  v4RenderNodes ? handleV4NodesChange : workflow.onNodesChange
+                }
+                onEdgesChange={workflow.onEdgesChange}
+                onConnect={workflow.onConnect}
+                isValidConnection={isValidConnection}
+                onEdgeClick={handleEdgeClick}
+                onNodeClick={handleNodeClick}
+                onPaneClick={handlePaneClick}
+                onPaneContextMenu={handlePaneContextMenu}
+                onNodesDelete={handleNodesDelete}
+                onEdgesDelete={handleEdgesDelete}
+                onNodeDragStart={handleNodeDragStart}
+                onNodeDrag={handleNodeDrag}
+                onNodeDragStop={handleNodeDragStop}
+                onDrop={handleCanvasDrop}
+                onDragOver={handleCanvasDragOver}
+                // 画布级粘贴（§4.1）落点="鼠标当前位置"要靠这两个跟踪——粘贴事件本身
+                // 不带坐标，见上面 handlePaste 附近的注释。
+                onMouseMove={handleCanvasMouseMove}
+                onMouseLeave={handleCanvasMouseLeave}
+                deleteKeyCode={['Backspace', 'Delete']}
+                defaultViewport={NODE_STUDIO_CANVAS.defaultViewport}
+                // A3: explicit bounds instead of the library's implicit 0.5/2
+                // defaults — see NODE_STUDIO_CANVAS doc comment.
+                minZoom={NODE_STUDIO_CANVAS.minZoom}
+                maxZoom={NODE_STUDIO_CANVAS.maxZoom}
+                defaultEdgeOptions={NODE_STUDIO_DEFAULT_EDGE_OPTIONS}
+                connectionLineType={ConnectionLineType.SmoothStep}
+                connectionLineStyle={NODE_STUDIO_CONNECTION_LINE_STYLE}
+                proOptions={NODE_STUDIO_REACT_FLOW_PRO_OPTIONS}
+                nodesDraggable
+                // ⚠ 2026-07-28 反转「§2.4 端口锚点化退场」：原文说「binding only
+                // happens via 吞噬/快投 now」，于是把端口连线在 workbench 层和
+                // Handle 层双双关死。吞噬拖拽手势退役之后这条就翻过来了——**端口
+                // 拖拽是现在唯一的建边手势**，三层（这里 / Handle 的
+                // isConnectable / HANDLE_BASE 的 pointer-events）必须一起打开，
+                // 少一层就是「看得见端口但拉不出线」。
+                nodesConnectable
+                elementsSelectable
+                // D1（画布修法《键盘可达》）：102 个可聚焦项里 20 条是连线，Tab 从
+                // 画布进去要先穿过所有边才轮到按钮。边默认可聚焦
+                // （`edgesFocusable` 库默认 true）——关掉后边退出 Tab 序，但鼠标
+                // 点击选中（`elementsSelectable`/`onEdgeClick`）与全局
+                // `deleteKeyCode` 处理（读 `edge.selected`，与 DOM 焦点无关，见
+                // @xyflow/react 的 `useGlobalKeyHandler`）都不受这个开关影响——
+                // 鼠标点边选中 + Delete 删边这条通路原样保留。
+                edgesFocusable={false}
+                selectNodesOnDrag={false}
+                nodeDragThreshold={NODE_STUDIO_CANVAS.nodeDragThreshold}
+                panOnDrag={panOnDrag}
+                panActivationKeyCode={NODE_STUDIO_CANVAS.panActivationKeyCode}
+                selectionOnDrag
+                selectionMode={SelectionMode.Partial}
+                zoomOnScroll
+                // Detail opens only from an explicit expand button. Keep native
+                // double-click zoom disabled so the gesture is inert on nodes.
+                zoomOnDoubleClick={false}
+                fitView={false}
+                className="h-full w-full !bg-transparent"
+                style={{ backgroundColor: 'transparent' }}
+              >
+                <Background
+                  variant={BackgroundVariant.Dots}
+                  gap={NODE_STUDIO_CANVAS.background.gap}
+                  size={NODE_STUDIO_CANVAS.background.size}
+                  color="var(--canvas-grid-dot)"
+                />
+                {/* S2b：minimap 挪到 chrome 层（见下方带 --canvas-minimap-left 的
                 包装），这样它的左偏移能跟着左侧面板的展开态走。 */}
-              <VideoMergeComposeToolbar
-                nodeIds={composeSelectionNodeIds}
-                onCompose={handleComposeVideoMerge}
-              />
-              {/* canvas-generate-composer.md：画布级共享组件，挂载一次——同
+                <VideoMergeComposeToolbar
+                  nodeIds={composeSelectionNodeIds}
+                  onCompose={handleComposeVideoMerge}
+                />
+                {/* canvas-generate-composer.md：画布级共享组件，挂载一次——同
                 VideoMergeComposeToolbar 的手法，自己内部用 NodeToolbar(nodeId)
                 贴宿主卡右侧（《画布修法》02 节刀 1，与视频侧车同款位置几何），
                 或在无宿主时浮在固定屏幕坐标。 */}
-              <GenerateComposer />
-            </ReactFlow>
-            {workflow.nodes.length === 0 && (
-              // R3-4 §4.1: 空态引导画在画布内容之上、工作区 chrome 之下（两者
-              // 用 inset 互相避让，不实际重叠，这里的相对次序只是兜底）。
-              <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
-                <NodeCanvasEmptyGuide
-                  onChatOutline={() => {
-                    setAssistantDockOpen(true)
-                    setAssistantExpanded(true)
-                  }}
-                  onAddNode={handleTopbarAddClick}
-                />
-              </div>
-            )}
-            {/* R3-4 §4.1 L4: 工作区 chrome（顶栏 + 底部工具条行）；子级的
+                <GenerateComposer />
+              </ReactFlow>
+              {workflow.nodes.length === 0 && (
+                // R3-4 §4.1: 空态引导画在画布内容之上、工作区 chrome 之下（两者
+                // 用 inset 互相避让，不实际重叠，这里的相对次序只是兜底）。
+                <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
+                  <NodeCanvasEmptyGuide
+                    onChatOutline={() => {
+                      setAssistantDockOpen(true)
+                      setAssistantExpanded(true)
+                    }}
+                    onAddNode={handleTopbarAddClick}
+                  />
+                </div>
+              )}
+              {/* R3-4 §4.1 L4: 工作区 chrome（顶栏 + 底部工具条行）；子级的
               CanvasAddMenu(L5)/NodeDetailPanel(L6) 在这个局部栈内用更高的
               token 盖过顶栏/底部工具条，互不外泄到这个 div 的数值本身。 */}
-            <div className="pointer-events-none absolute inset-0 z-canvas-chrome">
-              <CanvasTopBar
-                assistantOpen={assistantDockOpen}
-                onOpenAssistant={() => setAssistantDockOpen(true)}
-                onOpenProjects={() => {
-                  setLeftPanelView(CANVAS_LEFT_PANEL_VIEW_IDS.projects)
-                  setLeftPanelExpanded(true)
-                }}
-                nodeCount={workflow.nodes.length}
-                projectName={workflow.currentProjectName}
-                canvasAppearance={workflow.canvasAppearance}
-                onCanvasAppearanceChange={workflow.setCanvasAppearance}
-                isSaving={isSaving}
-                reviewPendingCount={reviewMode.remaining}
-                onStartReview={reviewMode.enter}
-              />
-              {/* 包 6 片 2：模式条。只在模式里渲染（组件自己判），是本模式唯一新增
-                的表面 —— 审核动作仍在编辑框参数条首位（owner 拍板的落点）。 */}
-              <ReviewModeBar />
-              {/* Bottom chrome: tools + 卡匣 handle share one centered row. */}
-              <div
-                // canvas-bottom-row：给 right 加过渡。它与顶栏 padding、左轨宽度
-                // 由同一个 --canvas-assistant-width 驱动，此前只有那两层会动，
-                // 这一层是硬跳的（台账 §13.2 布局连续）。
-                className="canvas-bottom-row pointer-events-none absolute bottom-3 z-canvas-chrome flex items-end justify-center gap-2"
-                style={{
-                  left: bottomRowInsetPx.left,
-                  right: bottomRowInsetPx.right,
-                }}
-              >
-                <CanvasBottomDock
-                  activeMode={toolMode}
-                  canUndo={workflow.canUndo}
-                  canRedo={workflow.canRedo}
-                  onModeChange={setToolMode}
-                  onUndo={workflow.undo}
-                  onRedo={workflow.redo}
-                  relationsCollapsed={relationsCollapsed}
-                  onRelationsCollapsedChange={setRelationsCollapsed}
-                  onArrange={handleTidyLayout}
+              <div className="pointer-events-none absolute inset-0 z-canvas-chrome">
+                <CanvasTopBar
+                  assistantOpen={assistantDockOpen}
+                  onOpenAssistant={() => setAssistantDockOpen(true)}
+                  onOpenProjects={() => {
+                    setLeftPanelView(CANVAS_LEFT_PANEL_VIEW_IDS.projects)
+                    setLeftPanelExpanded(true)
+                  }}
                   nodeCount={workflow.nodes.length}
+                  projectName={workflow.currentProjectName}
+                  canvasAppearance={workflow.canvasAppearance}
+                  onCanvasAppearanceChange={workflow.setCanvasAppearance}
+                  isSaving={isSaving}
+                  reviewPendingCount={reviewMode.remaining}
+                  onStartReview={reviewMode.enter}
                 />
-              </div>
-              {/* S2b（2026-07-26）：卡匣从底部横匣搬进左侧合体面板。底部那行现在
+                {/* 包 6 片 2：模式条。只在模式里渲染（组件自己判），是本模式唯一新增
+                的表面 —— 审核动作仍在编辑框参数条首位（owner 拍板的落点）。 */}
+                <ReviewModeBar />
+                {/* Bottom chrome: tools + 卡匣 handle share one centered row. */}
+                <div
+                  // canvas-bottom-row：给 right 加过渡。它与顶栏 padding、左轨宽度
+                  // 由同一个 --canvas-assistant-width 驱动，此前只有那两层会动，
+                  // 这一层是硬跳的（台账 §13.2 布局连续）。
+                  className="canvas-bottom-row pointer-events-none absolute bottom-3 z-canvas-chrome flex items-end justify-center gap-2"
+                  style={{
+                    left: bottomRowInsetPx.left,
+                    right: bottomRowInsetPx.right,
+                  }}
+                >
+                  <CanvasBottomDock
+                    activeMode={toolMode}
+                    canUndo={workflow.canUndo}
+                    canRedo={workflow.canRedo}
+                    onModeChange={setToolMode}
+                    onUndo={workflow.undo}
+                    onRedo={workflow.redo}
+                    relationsCollapsed={relationsCollapsed}
+                    onRelationsCollapsedChange={setRelationsCollapsed}
+                    onArrange={handleTidyLayout}
+                    nodeCount={workflow.nodes.length}
+                  />
+                </div>
+                {/* S2b（2026-07-26）：卡匣从底部横匣搬进左侧合体面板。底部那行现在
                 只剩视图控制（选择·手/缩放/适应/撤销重做），符合规格 §12.2
                 「左 = 内容动作，底 = 视图控制」的职责分栏。 */}
-              <CanvasMiniMap />
-              <CanvasLeftPanel
-                expanded={leftPanelExpanded}
-                onExpandedChange={setLeftPanelExpanded}
-                view={leftPanelView}
-                onViewChange={setLeftPanelView}
-                nodeCount={nodeLocatorCount}
-                onAddClick={handleTopbarAddClick}
-                projectPanel={projectPanel}
-                assistantHistoryPanel={
-                  <div
-                    ref={isMobile ? undefined : setAssistantHistoryHost}
-                    className="h-full"
-                  />
-                }
-              >
-                <CanvasRosterRail />
-              </CanvasLeftPanel>
-              <CanvasAddMenu
-                open={Boolean(addMenu)}
-                screenPosition={addMenu?.menuPosition ?? null}
-                onSelect={handleAddNode}
-                onUpload={handleAddMenuUpload}
-                onPickFromLibrary={handleAddMenuPickFromLibrary}
-                onClose={closeAddMenu}
-              />
-              {/* 「从素材库选择」——多选，一次落一批（成批落位见
+                <CanvasMiniMap />
+                <CanvasLeftPanel
+                  expanded={leftPanelExpanded}
+                  onExpandedChange={setLeftPanelExpanded}
+                  view={leftPanelView}
+                  onViewChange={setLeftPanelView}
+                  nodeCount={nodeLocatorCount}
+                  onAddClick={handleTopbarAddClick}
+                  projectPanel={projectPanel}
+                  assistantHistoryPanel={
+                    <div
+                      ref={isMobile ? undefined : setAssistantHistoryHost}
+                      className="h-full"
+                    />
+                  }
+                >
+                  <CanvasRosterRail />
+                </CanvasLeftPanel>
+                <CanvasAddMenu
+                  open={Boolean(addMenu)}
+                  screenPosition={addMenu?.menuPosition ?? null}
+                  onSelect={handleAddNode}
+                  onUpload={handleAddMenuUpload}
+                  onPickFromLibrary={handleAddMenuPickFromLibrary}
+                  onClose={closeAddMenu}
+                />
+                {/* 「从素材库选择」——多选，一次落一批（成批落位见
                 `handlePickAssetsFromLibrary` 头注）。 */}
-              <AssetSelectorDialog
-                open={libraryPickerAnchor !== null}
-                onOpenChange={(next) => {
-                  if (!next) setLibraryPickerAnchor(null)
-                }}
-                multiSelect
-                mediaType="image"
-                maxSelection={
-                  NODE_STUDIO_NODE_PLACEMENT.libraryPick.maxSelection
-                }
-                onConfirmMany={handlePickAssetsFromLibrary}
-                title={t('addCatalog.pickFromLibraryTitle')}
-                description={t('addCatalog.pickFromLibraryDescription')}
-              />
-              {/* 台账 #26：添加菜单「上传图片」主行的隐藏 file input——菜单
+                <AssetSelectorDialog
+                  open={libraryPickerAnchor !== null}
+                  onOpenChange={(next) => {
+                    if (!next) setLibraryPickerAnchor(null)
+                  }}
+                  multiSelect
+                  mediaType="image"
+                  maxSelection={
+                    NODE_STUDIO_NODE_PLACEMENT.libraryPick.maxSelection
+                  }
+                  onConfirmMany={handlePickAssetsFromLibrary}
+                  title={t('addCatalog.pickFromLibraryTitle')}
+                  description={t('addCatalog.pickFromLibraryDescription')}
+                />
+                {/* 台账 #26：添加菜单「上传图片」主行的隐藏 file input——菜单
                 关掉后仍要在场接住系统对话框的 change，所以挂宿主不挂菜单。 */}
-              <input
-                ref={addUploadInputRef}
-                type="file"
-                accept={NODE_STUDIO_IMAGE_INPUT.accept}
-                multiple
-                className="hidden"
-                onChange={handleAddUploadChange}
-              />
-              <NodeDetailPanel
-                expandedNodeId={openNodeId}
-                onClose={() => setExpandedNodeId(null)}
-              />
-            </div>
-            <ProjectNameDialog
-              open={projectDialogMode !== null}
-              title={
-                projectDialogMode === 'rename'
-                  ? t('projectDialog.renameTitle')
-                  : t('projectDialog.createTitle')
-              }
-              placeholder={t('topbar.createProjectPrompt')}
-              submitLabel={
-                projectDialogMode === 'rename'
-                  ? t('projectDialog.renameSubmit')
-                  : t('projectDialog.createSubmit')
-              }
-              cancelLabel={t('projectDialog.cancel')}
-              defaultValue={
-                projectDialogMode === 'rename'
-                  ? workflow.currentProjectName
-                  : t('projectNewDefaultName', {
-                      n: workflow.projects.length + 1,
-                    })
-              }
-              onOpenChange={(open) => {
-                if (!open) {
-                  setProjectDialogMode(null)
+                <input
+                  ref={addUploadInputRef}
+                  type="file"
+                  accept={NODE_STUDIO_IMAGE_INPUT.accept}
+                  multiple
+                  className="hidden"
+                  onChange={handleAddUploadChange}
+                />
+                <NodeDetailPanel
+                  expandedNodeId={openNodeId}
+                  onClose={() => setExpandedNodeId(null)}
+                />
+              </div>
+              <ProjectNameDialog
+                open={projectDialogMode !== null}
+                title={
+                  projectDialogMode === 'rename'
+                    ? t('projectDialog.renameTitle')
+                    : t('projectDialog.createTitle')
                 }
-              }}
-              onSubmit={handleProjectNameSubmit}
-            />
-            <AlertDialog
-              open={deleteConfirmOpen}
-              onOpenChange={setDeleteConfirmOpen}
-            >
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {t('projectDialog.deleteTitle')}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t('topbar.deleteProjectConfirm', {
-                      name: workflow.currentProjectName,
-                    })}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>
-                    {t('projectDialog.cancel')}
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={handleConfirmDeleteProject}
-                  >
-                    {t('projectDialog.deleteConfirm')}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            {isMobile ? (
-              <CanvasMobileView
-                key={workflow.currentProjectId}
-                peeking={canvasPeek}
-                onEnterPeek={() => setCanvasPeek(true)}
-                onExitPeek={() => setCanvasPeek(false)}
-                projectPanel={projectPanel}
-                assistantHistoryPanel={
-                  <div ref={setAssistantHistoryHost} className="h-full" />
+                placeholder={t('topbar.createProjectPrompt')}
+                submitLabel={
+                  projectDialogMode === 'rename'
+                    ? t('projectDialog.renameSubmit')
+                    : t('projectDialog.createSubmit')
                 }
+                cancelLabel={t('projectDialog.cancel')}
+                defaultValue={
+                  projectDialogMode === 'rename'
+                    ? workflow.currentProjectName
+                    : t('projectNewDefaultName', {
+                        n: workflow.projects.length + 1,
+                      })
+                }
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setProjectDialogMode(null)
+                  }
+                }}
+                onSubmit={handleProjectNameSubmit}
               />
-            ) : null}
-          </MaybeNodeV4Provider>
-        </IngestDragProvider>
-      </CanvasWorkspaceLayout>
+              <AlertDialog
+                open={deleteConfirmOpen}
+                onOpenChange={setDeleteConfirmOpen}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t('projectDialog.deleteTitle')}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t('topbar.deleteProjectConfirm', {
+                        name: workflow.currentProjectName,
+                      })}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>
+                      {t('projectDialog.cancel')}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={handleConfirmDeleteProject}
+                    >
+                      {t('projectDialog.deleteConfirm')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              {isMobile ? (
+                <CanvasMobileView
+                  key={workflow.currentProjectId}
+                  peeking={canvasPeek}
+                  onEnterPeek={() => setCanvasPeek(true)}
+                  onExitPeek={() => setCanvasPeek(false)}
+                  projectPanel={projectPanel}
+                  assistantHistoryPanel={
+                    <div ref={setAssistantHistoryHost} className="h-full" />
+                  }
+                />
+              ) : null}
+            </MaybeNodeV4Provider>
+          </IngestDragProvider>
+        </CanvasWorkspaceLayout>
+      </NodeV4ActionsV3Adapter>
     </NodeWorkflowActionsProvider>
   )
 }

@@ -4,7 +4,7 @@ import { RotateCw, Square, Triangle, X, type LucideIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
-import { NodeProgressState } from './NodeProgressState'
+import { NodeProgressState } from '../shared/NodeProgressState'
 
 /**
  * S4（2026-07-27）图片卡状态语言共用件 —— canvas-image-card.md §1/§3。三个

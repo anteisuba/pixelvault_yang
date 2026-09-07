@@ -67,7 +67,7 @@ import type { ScriptDoc, ScriptDocFocus } from '@/types/script-doc'
 import type { ApplyScriptDocResult } from '@/hooks/node/use-node-workflow'
 
 import { ClarifyingQuestionCard } from './ClarifyingQuestionCard'
-import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
+import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 
 interface ScriptDocWorkspaceProps {
   scriptDoc: ScriptDoc | undefined
@@ -117,20 +117,21 @@ export function ScriptDocWorkspace({
   apiKeyId,
 }: ScriptDocWorkspaceProps) {
   const t = useTranslations('StudioNode.dock')
+  const { focusGeneratedNodes, scriptDoc: scriptDocActions } =
+    useNodeCanvasActions()
   const {
-    setScriptDoc,
-    applyScriptDocToGraph,
-    previewScriptDocProjection,
-    focusGeneratedNodes,
-    scriptDocStage,
-    scriptDocDepth,
-    scriptDocLocks,
-    scriptDocShotStills,
-    setScriptDocStage,
-    setScriptDocDepth,
-    setScriptDocLocks,
-    setScriptDocShotStills,
-  } = useNodeWorkflowActions()
+    setDoc: setScriptDoc,
+    applyToGraph: applyScriptDocToGraph,
+    previewProjection: previewScriptDocProjection,
+    stage: scriptDocStage,
+    depth: scriptDocDepth,
+    locks: scriptDocLocks,
+    shotStills: scriptDocShotStills,
+    setStage: setScriptDocStage,
+    setDepth: setScriptDocDepth,
+    setLocks: setScriptDocLocks,
+    setShotStills: setScriptDocShotStills,
+  } = scriptDocActions
   const { draft, isDrafting, error, trim } = useNodeScriptDoc()
 
   // Stage / depth / locks persist on the project state (survive reloads); only
@@ -347,7 +348,7 @@ export function ScriptDocWorkspace({
       toast.info(t('scriptDocApplyEmpty'), TOAST_OPTIONS)
       return
     }
-    focusGeneratedNodes?.()
+    focusGeneratedNodes()
     toast.success(
       t('scriptDocApplyResult', {
         created: result.created,

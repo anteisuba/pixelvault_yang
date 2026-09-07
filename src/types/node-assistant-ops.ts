@@ -553,6 +553,21 @@ export const NodeAssistantSetReviewStateV4OpSchema = z.object({
     .min(1)
     .max(NODE_ASSISTANT_OP_LIMITS.maxReasonLength)
     .optional(),
+  /**
+   * 「改词再来」时用户给的增补（C3c-③b 补）。
+   *
+   * ⚠ 与 `reason` 是两样东西，所以是两个字段：`reason` 是**为什么打回**（给人看
+   * 的判断），`promptPatch` 是**下一次生成要多写的那句话**（喂给模型的输入）。
+   * 打回条一直分两个框收、落库也一直是两个字段（`NodeMediaReview`）——op 表之前
+   * 只带 `reason`，于是模式条改词的那一下发不成 op，只能绕回 v3 的
+   * `updateNodeData`，而那正是本片要拆掉的第二条写入路径。
+   */
+  promptPatch: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxPromptPatchLength)
+    .optional(),
 })
 
 /** ⚠ 唯一扣 credit 的 op。硬确认，执行留客户端——这道结构性钱闸不能动。 */

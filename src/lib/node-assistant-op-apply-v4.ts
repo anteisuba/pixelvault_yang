@@ -718,6 +718,11 @@ export function applyNodeAssistantOpV4(
           ...previous,
           state: op.state,
           ...(op.reason ? { reason: op.reason } : {}),
+          ...(op.promptPatch ? { promptPatch: op.promptPatch } : {}),
+          // ⚠ 时间戳由执行器盖，不进载荷：让模型（或调用方）自己写「什么时候审
+          // 的」，就等于让一个可以撒谎的字段进了账。`context.now` 可注入，所以
+          // 这条仍然是可单测的纯函数。
+          reviewedAt: now,
         },
       }
       const parsed = NodeV4DataSchema.safeParse({

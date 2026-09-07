@@ -40,9 +40,18 @@ vi.mock('@xyflow/react', () => ({
   useEdges: () => flowState.edges,
 }))
 
+vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
+  useNodeCanvasActions: () => ({
+    focusNode: mockFocusNode,
+    reviewMode: actions.reviewMode,
+  }),
+}))
+
+// ⚠ 预览里的通过/打回是 legacy `MediaReviewButtons`（住在
+// `CanvasImageSelectionToolbar`，随 C3e 一起换轨），它还在 v3 总线上——所以这
+// 两条 mock 并存不是重复，是「换轨换到哪了」的实况。
 vi.mock('./NodeWorkflowActionsContext', () => ({
   useNodeWorkflowActions: () => ({
-    focusNode: mockFocusNode,
     updateNodeData: mockUpdateNodeData,
     reviewMode: actions.reviewMode,
   }),

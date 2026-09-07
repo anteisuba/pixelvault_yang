@@ -7,9 +7,9 @@ vi.mock('next-intl', () => ({
     params ? `${key} ${JSON.stringify(params)}` : key,
 }))
 
-const { mockBeginDrag, mockDeleteNode, mockMotion } = vi.hoisted(() => ({
+const { mockApplyOp, mockBeginDrag, mockMotion } = vi.hoisted(() => ({
+  mockApplyOp: vi.fn(),
   mockBeginDrag: vi.fn(),
-  mockDeleteNode: vi.fn(),
   mockMotion: { reducedMotion: false },
 }))
 
@@ -20,8 +20,8 @@ vi.mock('./IngestDragLayer', () => ({
   }),
 }))
 
-vi.mock('./NodeWorkflowActionsContext', () => ({
-  useNodeWorkflowActions: () => ({ deleteNode: mockDeleteNode }),
+vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
+  useNodeCanvasActions: () => ({ applyOp: mockApplyOp }),
 }))
 
 // 画布修法 05 节「拖了必有回音」：📷N 徽标换成 motion.span 做一次性脉冲。
@@ -370,7 +370,9 @@ describe('CastCard', () => {
       screen.getByRole('button', { name: 'deleteCard {"name":"黛西"}' }),
     )
 
-    expect(mockDeleteNode).toHaveBeenCalledWith('c1')
+    // ⚠ 断言的是**发出的 op**，不是「调了哪个函数」——外壳的写入口只剩 op 表，
+    // 这条断言因此同时锁住了「删卡走 delete op」这条语义。
+    expect(mockApplyOp).toHaveBeenCalledWith({ op: 'delete', target: 'c1' })
     expect(onSelect).not.toHaveBeenCalled()
   })
 

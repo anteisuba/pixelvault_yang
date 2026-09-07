@@ -281,6 +281,15 @@ export const NODE_ASSISTANT_OP_LIMITS = {
   /** 打回理由。与 `NodeMediaReview.reason` 同一个量级。 */
   maxReasonLength: 300,
   /**
+   * 「改词再来」的增补长度。
+   *
+   * ⚠ 这个 2000 必须与 `NodeMediaReviewSchema.promptPatch` 的 `.max(2000)` 一致 ——
+   * 超了不是显示被截断，是**整份 project state 落不了库**。⛔ 不与
+   * `maxReasonLength` 合并：理由是给人读的一句话，增补是要进下一次生成提示词的
+   * 一段字，两者的量级本来就不同。
+   */
+  maxPromptPatchLength: 2000,
+  /**
    * `set_merge_clips` 一次能带多少段。
    *
    * ⚠ 这个 9 必须与 `NodeV4VideoShape.mergeSettings.clips` 的 `.max(9)`、以及

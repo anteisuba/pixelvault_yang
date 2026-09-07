@@ -56,7 +56,7 @@ import type {
 import { FishVoiceLibraryDialog } from '../FishVoiceLibraryDialog'
 import type { SelectedVoice } from '../VoiceSelector'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
-import { NodeProgressState } from '../nodes/NodeProgressState'
+import { NodeProgressState } from '../shared/NodeProgressState'
 import { DetailModelPicker } from './DetailModelPicker'
 import { EvidenceDrawer, EvidenceRow } from './EvidenceDrawer'
 import { RelationsStrip } from './RelationsStrip'

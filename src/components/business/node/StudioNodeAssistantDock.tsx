@@ -36,7 +36,7 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useCanvasAssistantDrag } from '@/hooks/node/use-canvas-assistant-drag'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
-import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
+import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import { buildNodeAssistantNodeContexts } from '@/lib/node-assistant-context'
 import { resolveNodeDisplayName } from '@/lib/node-display-name'
@@ -188,8 +188,8 @@ export function StudioNodeAssistantDock({
   const tConversation = useTranslations('StudioNode.conversation')
   const tCanvasOps = useTranslations('StudioNode.canvasOps')
   const selection = useNodeSelection()
-  const { placeDerivedImages, focusNode, runAssistantCanvasOps, undo } =
-    useNodeWorkflowActions()
+  const { placeDerivedImages, focusNode, runAssistantOps, undo } =
+    useNodeCanvasActions()
   const conversation = useAssistantConversation({ projectId, persist: true })
   const [assistantRoute, setAssistantRoute] =
     useState<NodeAssistantRouteSelection>({
@@ -342,9 +342,8 @@ export function StudioNodeAssistantDock({
         toast.error(response.error || tConversation('capabilityFailed'))
         return
       }
-      const derivedNodeIds =
-        placeDerivedImages?.(node.id, response.outputs) ?? []
-      if (derivedNodeIds[0]) focusNode?.(derivedNodeIds[0])
+      const derivedNodeIds = placeDerivedImages(node.id, response.outputs)
+      if (derivedNodeIds[0]) focusNode(derivedNodeIds[0])
     },
     [focusNode, nodes, placeDerivedImages, tConversation],
   )
@@ -360,21 +359,13 @@ export function StudioNodeAssistantDock({
 
   const handleApplyAssistantOps = useCallback(
     async (ops: readonly PlannedNodeAssistantOp[]) => {
-      if (!runAssistantCanvasOps) {
-        return {
-          applied: 0,
-          skipped: ops.length,
-          failedConnects: 0,
-          createdNodeIds: [],
-        }
-      }
-      const result = await runAssistantCanvasOps(ops)
+      const result = await runAssistantOps(ops)
       if (result.applied > 0) {
         toast.success(tCanvasOps('appliedToast', { count: result.applied }))
       }
       return result
     },
-    [runAssistantCanvasOps, tCanvasOps],
+    [runAssistantOps, tCanvasOps],
   )
 
   // ─── B3 · 结构 op 自动落 ─────────────────────────────────────────────

@@ -2,10 +2,6 @@
 
 import { createContext, useContext, type ReactNode } from 'react'
 
-import type {
-  NodeImageRole,
-  NodeWorkflowNodeType,
-} from '@/constants/node-types'
 import type { NodeStudioToolMode } from '@/constants/node-studio'
 import type { ScriptDocDepth, ScriptDocStage } from '@/constants/script-doc'
 import type { NodeWorkflowActions } from '@/hooks/node/use-node-workflow'
@@ -17,46 +13,21 @@ import type {
   NodeWorkflowNode,
 } from '@/types/node-workflow'
 
-/** A backfilled reference to autospawn upstream of a video node (§7.1): an
- *  already-resolved media asset (uploaded or picked from the library) that
- *  becomes a new source node, auto-wired into the target. */
-export interface SpawnReferenceInput {
-  /** The video (seedance) node the new reference feeds into. */
-  targetNodeId: string
-  /** The source node type to create: `image` / `voice` / `videoReference`. */
-  nodeType: NodeWorkflowNodeType
-  /** Image role (character / background / shot) — required for `image`, so the
-   *  role-less unified image node is stamped with the department the user
-   *  added it under. */
-  role?: NodeImageRole
-  /** The resolved media the new node carries. */
-  media: {
-    url: string
-    /** Backing generation id, when the asset came from the library. */
-    generationId?: string
-    /** Poster for a video reference (§9). */
-    thumbnailUrl?: string
-    /** User-facing name / source label (defaults applied downstream). */
-    name?: string
-  }
-}
-
 /**
- * 画布上一张**可取的图**（阶段 8-a 第四源「从画布选择」）。
- *
- * 只带渲染这一格需要的三样：图、名字、类型。⚠ 刻意**不返回整个节点** —— 返回
- * `NodeWorkflowNode[]` 的话，调用方就得自己再解一次「主图是哪张、名字取哪个字段」，
- * 而那两件事各有一条既定链路（`getNodePrimaryMediaUrl` / `resolveNodeDisplayName`）。
- * 解两遍迟早分岔，卡里显示的名字与画布上那张卡的名字就会对不上。
+ * ⚠ 这三个形状**已经搬到 v4 侧的动作出口**（`nodes/v4/NodeV4ActionsBridge`）——
+ * 它们描述的是画布动作的载荷，与 v3 的 `updateNodeData` 无关，翻转后要继续活着。
+ * 这里保留同名导出，只是因为本文件（v3 总线）还没到删除的那一刻（C3e）。
  */
-export interface CanvasImageSource {
-  nodeId: string
-  url: string
-  /** 用户起过的名字；没起过就没有，由调用方按 `type` 兜底成类型名。 */
-  name?: string
-  /** 已解析的**呈现类型**（统一 image 节点按 role 映射回 legacy type），给类型标签用。 */
-  type: NodeWorkflowNodeType
-}
+export type {
+  CanvasImageSource,
+  NodeAssistantOpRunResult,
+  SpawnReferenceInput,
+} from './nodes/v4/NodeV4ActionsBridge'
+import type {
+  CanvasImageSource,
+  NodeAssistantOpRunResult,
+  SpawnReferenceInput,
+} from './nodes/v4/NodeV4ActionsBridge'
 
 export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   /** Persist a media-owned node size through the same React Flow change path
@@ -269,23 +240,6 @@ export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
    * 再指望生成读到（`updateNodeData` 是 setState，同一 tick 读不到自己刚写的值）。
    */
   regenerateForReview?(nodeId: string, promptAppend?: string): Promise<void>
-}
-
-/** 一批 op 实际执行完的账：给用户一句可信的回执，而不是「已应用」四个字。 */
-export interface NodeAssistantOpRunResult {
-  applied: number
-  /** 执行时才失效的（引用的新节点被用户从这一批里剔掉了）。 */
-  skipped: number
-  /**
-   * `skipped` 里**连线没建成**的那一部分（台账 K-2，2026-08-29 真机）。
-   *
-   * 单独拎出来是因为它与其余的 skipped 不是一回事：其余多半是用户自己剔掉了引用
-   * 的节点（预期之内），而连线失败意味着**助手规划的图结构没成形** —— 4 个镜头
-   * 文本与 4 个视频节点铺好了却一条都没连上，用户看到的画布是散的。回执里必须
-   * 点名说出来，否则一个只会变大的「已落 N 个」恰恰盖住了它。
-   */
-  failedConnects: number
-  createdNodeIds: string[]
 }
 
 const NodeWorkflowActionsContext =

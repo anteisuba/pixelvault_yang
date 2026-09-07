@@ -17,7 +17,7 @@ import { resolveNodePresentationType } from '@/lib/node-presentation'
 import { cn } from '@/lib/utils'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
-import { NodeStatusBadge } from '../nodes/NodeStatusBadge'
+import { NodeStatusBadge } from '../shared/NodeStatusBadge'
 import { NodeDetailFrame } from './NodeDetailFrame'
 import { isNodeDetailFamily, NODE_DETAIL_SLOT_REGISTRY } from './registry'
 

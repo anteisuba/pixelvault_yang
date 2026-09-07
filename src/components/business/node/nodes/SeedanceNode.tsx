@@ -24,8 +24,8 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 import { VideoComposer } from '../composer/VideoComposer'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { CanvasPopIn } from '../CanvasPopIn'
-import { NodeProgressState } from './NodeProgressState'
-import { NodeVideoSurface } from './NodeVideoSurface'
+import { NodeProgressState } from '../shared/NodeProgressState'
+import { NodeVideoSurface } from '../shared/NodeVideoSurface'
 import { NodeShell } from './NodeShell'
 
 export const SeedanceNode = memo(function SeedanceNode(

@@ -619,3 +619,55 @@ describe('音色档 / 合并裁剪 op（C3c-②Q）', () => {
     ).toBeUndefined()
   })
 })
+
+describe('审核态 op（C3c-③b）', () => {
+  it('set_review_state 把打回理由与改词增补分两个字段落下，并盖上执行器的时间戳', () => {
+    const context = makeContext()
+    const result = applyNodeAssistantOpV4(
+      baseState(),
+      {
+        op: 'set_review_state',
+        target: 'i_a',
+        url: 'https://cdn/shot.png',
+        state: 'rejected',
+        reason: '首帧动作不自然',
+        promptPatch: '让她把手放下',
+      },
+      context,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const data = result.state.nodes[0]?.data
+    expect(
+      data?.kind === 'image'
+        ? data.mediaReview?.['https://cdn/shot.png']
+        : null,
+    ).toEqual({
+      state: 'rejected',
+      reason: '首帧动作不自然',
+      promptPatch: '让她把手放下',
+      // ⚠ 时间戳由执行器盖（`context.now`），⛔ 不收进载荷 —— 让调用方自己写
+      // 「什么时候审的」等于让一个可以撒谎的字段进了账。
+      reviewedAt: NOW,
+    })
+  })
+
+  it('set_review_state 可撤销回没有审核记录的状态', () => {
+    const context = makeContext()
+    const result = applyNodeAssistantOpV4(
+      baseState(),
+      {
+        op: 'set_review_state',
+        target: 'i_a',
+        url: 'https://cdn/shot.png',
+        state: 'rejected',
+      },
+      context,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const undone = applyInverseV4(result.state, result.inverse, context)
+    const back = undone.nodes.find((node) => node.id === 'i_a')?.data
+    expect(back?.kind === 'image' ? back.mediaReview : null).toBeUndefined()
+  })
+})

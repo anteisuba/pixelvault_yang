@@ -201,7 +201,6 @@ import { runAssistantResearch } from '@/services/research/research-fanout.servic
 import { createOperatorMessageStreamer } from '@/lib/assistant-operator-stream'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import {
-  deriveGenerationSerial,
   readGenerationMentions,
   resolveGenerationDisplayName,
 } from '@/lib/generation-name'
@@ -2868,12 +2867,12 @@ function matchMentionedByName(
   if (!token) return undefined
   /**
    * ⚠ 按**序号**比，⛔ 不比整个身份段：这张名单上没有 `outputType`（契约里只有
-   * id / url / label），照 `图_` 拼一遍会让视频那几条（`视频_0xx`）永远对不上。
-   * 序号只由 id 决定，前缀是给人看的那一半。
+   * id / url / label / seq），照 `图_` 拼一遍会让视频那几条（`视频_0xx`）永远
+   * 对不上。前缀是给人看的那一半。
+   * ⚠ `seq` 缺席的条目（老客户端、迁移前的行）**一条都不命中** —— 没有号的行
+   * 没有名字可念，⛔ 不退回任何派生值去猜。
    */
-  return mentioned.find(
-    (asset) => deriveGenerationSerial(asset.id) === token.serial,
-  )
+  return mentioned.find((asset) => asset.seq === token.serial)
 }
 
 function resolveCritiqueTarget(

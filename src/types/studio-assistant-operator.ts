@@ -12,7 +12,10 @@
  * 按 id 覆盖；漏了 id 就变成追加，表现是每一步在日志流里出现两遍。
  */
 
+import type { ContextCardKindId } from '@/constants/context-cards'
+import type { ContextCardImage } from '@/types/context-cards'
 import type { ProjectRuleSourceId } from '@/constants/assistant-operator'
+import type { AssistantCostTickKind } from '@/constants/assistant-operator'
 import type {
   StudioOperatorField,
   StudioOperatorSystemCode,
@@ -27,6 +30,8 @@ import type {
   AssistantOperatorPlanOption,
   AssistantOperatorPlanQuestion,
   AssistantOperatorStep,
+  AssistantOperatorWorkingMemory,
+  AssistantOperatorWorkingMemoryArtifact,
 } from '@/types/assistant-operator'
 
 /** 用户说的话（含本地附件的展示名）。 */
@@ -192,6 +197,15 @@ export interface StudioOperatorAttachment {
   kind: 'image' | 'video' | 'audio' | 'model3d'
   /** 能拿来当预览的静态图；没有就没有。 */
   thumbnailUrl?: string
+  /**
+   * 这一条的产物序号（`Generation.seq`，切片 N1）。
+   *
+   * ⚠ 正文里的 `@图_012` **只按它比**（`matchGenerationMention`），也只按它随
+   * `mentionedAssets` 上服务端。缺席 = 这一行没有号（存量行 / 上传来的行），
+   * 于是永远不会被 `@序号` 命中 —— ⛔ 不从 id 派生一个：算出来的号会去撞别人的
+   * 真号。用户照旧能从选择器点它上来，那条路不经过名字。
+   */
+  seq?: number | null
 }
 
 /**
@@ -254,6 +268,14 @@ export interface StudioOperatorResultItem {
   thumbnailUrl?: string
   /** chip 与灯箱标题上写的那句（一般是提示词头几个字）。 */
   label?: string
+  /**
+   * 产物序号（`Generation.seq`，切片 N1）—— 格子左上角那枚角标写的就是它。
+   * ⚠ 缺席 = 这一格没有号，于是**不画角标**（⛔ 不编一个：编出来的号与真号
+   * 长得一模一样，而用户照着它打的 `@` 会落到别人头上）。
+   */
+  seq?: number | null
+  /** 角标前缀按它分（`图_` / `视频_`）。缺席按图算。 */
+  outputType?: string | null
 }
 
 /** 就地确认条（拍板 3）—— 直接复用事件载荷，不另立形状。 */
@@ -362,4 +384,48 @@ export function isVideoCritiquePayload(
   { videoUrl: string }
 > {
   return 'videoUrl' in payload
+}
+
+/**
+ * 一记**成本计数**（`cost_tick` 那一帧解出来的那份，切片 Y）。
+ *
+ * ⚠ 档位类型来自契约（`AssistantCostTickKind`），⛔ 客户端不另立一份枚举。
+ * `labelKey` 是服务端发的 **i18n 键**而不是人话（见 `ASSISTANT_COST_TICK_LABEL_KEYS`
+ * 头注）：服务端不知道用户此刻的界面语言。
+ * ⛔ 不在这里塞金额：金额那条链在 §6 的花钱卡上，两处各说一个数就是「界面上
+ * 两个价钱」。
+ */
+export interface StudioOperatorCostTick {
+  kind: AssistantCostTickKind
+  units: number
+  /** 明细行上写的那一句（服务端给的 i18n 键或一段原文标签）。 */
+  label?: string
+}
+
+/**
+ * 工作记忆里那一轮 / 那一件 —— **契约那份的别名**（同反问卡三个别名的判据）。
+ *
+ * ⛔ 不在这里抄一份 interface：这一份是要**原样进请求**的，抄一份的下场是
+ * 客户端攒出一个服务端 schema 拒收的形状，而拒收发生在运行时。
+ */
+export type StudioOperatorMemoryArtifact =
+  AssistantOperatorWorkingMemoryArtifact
+export type StudioOperatorMemoryRound =
+  AssistantOperatorWorkingMemory['rounds'][number]
+
+/**
+ * `@` 上来的**一张上下文卡**（切片 Y）—— 提示词栏里那颗 `ContextCardChip`。
+ *
+ * ⭐ **它不是附件**：附件是「这条消息带的几张图」（`StudioOperatorAttachment`，
+ * 走 `mentionedAssets` 那条闸），而卡是**一份资料**——助手拿到名字之后自己去
+ * `read_context_card` 读正文。两者混进同一个数组的下场是「看图 N 张」那个计数
+ * 把卡也算进去，而助手根本不会去看一张卡。
+ * ⚠ 只留**画那颗 chip 需要的四格**：正文、硬否定、常挂域一概不带 —— 那些是
+ * 服务端读卡时自己去库里取的，抄一份到客户端只会有两份会分叉的事实。
+ */
+export interface StudioOperatorCardMention {
+  cardId: string
+  name: string
+  kind: ContextCardKindId
+  images?: readonly ContextCardImage[]
 }

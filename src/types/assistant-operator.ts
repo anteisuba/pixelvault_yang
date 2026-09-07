@@ -865,6 +865,14 @@ export const AssistantOperatorRequestSchema = z.object({
         url: z.string().url(),
         label: LabelSchema.optional(),
         /**
+         * 这张的产物序号（`Generation.seq`，切片 N1 改真计数器）。
+         * ⚠ 正文里 `@图_012` 落到哪一张**只按它比**（`matchMentionedByName`）。
+         * ⚠ 缺席 = 这一条没有号（迁移前的存量行、老客户端），于是**永远不会被
+         * `@序号` 命中** —— ⛔ 不退回 id 派生：一个算出来的号会去撞别人的真号。
+         * 用户照旧能从选择器点它上来，那条路不经过名字。
+         */
+        seq: z.number().int().nonnegative().optional(),
+        /**
          * 这张此刻的审核态（切片 X）。⚠ **缺席 = `pending`**，⛔ 不是「未知所以
          * 拒」—— 存量的每一行都缺席，把缺席当成禁用等于禁掉整个素材库。
          * ⚠ 它由客户端带上来只是为了**省一次查库**：真正说了算的是服务端自己

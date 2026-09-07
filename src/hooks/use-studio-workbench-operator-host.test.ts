@@ -95,6 +95,8 @@ describe('useStudioWorkbenchOperatorHost 的 results 映射', () => {
             url: 'https://cdn.test/b.png',
             thumbnailUrl: 'https://cdn.test/b-thumb.png',
             prompt: '一把红伞',
+            seq: 21,
+            outputType: 'IMAGE',
           }),
           // ⚠ 跑完了却没有地址 —— 也不收：画出来是一个空格子。
           runItem('item-3', 'completed', { id: 'gen-3', url: '' }),
@@ -112,9 +114,12 @@ describe('useStudioWorkbenchOperatorHost 的 results 映射', () => {
         // ⭐ 切片 N1：结果格的 label 是**产物名**（`图_0xx·一把红伞`），因为它
         //    同时是用户照着打出来指认这一张的那串字。
         label: buildGenerationDisplayName({
-          id: 'gen-2',
+          seq: 21,
           prompt: '一把红伞',
         }),
+        // 角标与 `@` 指认的本钱：列表口读到的**真序号**（⛔ 不是派生值）。
+        seq: 21,
+        outputType: 'IMAGE',
       },
     ])
   })

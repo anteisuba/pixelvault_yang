@@ -392,6 +392,15 @@ model Generation {
   sourceSurface GenerationSourceSurface @default(IMAGE_STUDIO)
   loraLineage   Json?
 
+  // ── 产物序号 ──────────────────────────────────────────────────
+  // 用户内递增的真计数器（切片 N1 改序号语义）：`图_012` 就是这个用户的第 12 件。
+  // ⚠ 可空是**故意**的，两个理由：
+  //   · 迁移分两步 —— 先加空列（有存量行的表上一定成功），同一迁移里再回填；
+  //   · 匿名行（userId 为空）没有「第几件」可言，永远留 null，名字只带摘要。
+  // ⛔ 不加 unique：撞号由写入侧的取号事务避免（见 generation.service.ts），
+  //    唯一索引一旦有存量重复就会炸掉整个生产构建（见 migration-safety.test.ts）。
+  seq Int?
+
   // ── B0: Generation Snapshot ────────────────────────────────────
   snapshot      Json? // Full input parameter snapshot
   evaluation    Json? // GenerationEvaluation — written by generation-evaluator.service
@@ -411,6 +420,7 @@ model Generation {
   extractedElements ExtractedElement[] @relation("ExtractedElementSource")
 
   @@index([userId])
+  @@index([userId, seq])
   @@index([isPublic, createdAt(sort: Desc)])
   @@index([userId, isFeatured, isPublic, createdAt(sort: Desc)])
   @@index([userId, isFreeGeneration, createdAt(sort: Desc)])

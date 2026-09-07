@@ -106,22 +106,21 @@ describe('generation.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockUpdatePreferenceOnDeleted.mockResolvedValue(undefined)
+    // 取号那两条 raw 查询的默认回答：第一条是锁（不返回行），第二条给下一个号。
+    mockQueryRaw.mockResolvedValue([{ next: 1 }])
     mockDbTransaction.mockImplementation(
-      async (
-        fn: (tx: {
-          generation: {
-            findFirst: typeof mockGenerationFindFirst
-            updateMany: typeof mockGenerationUpdateMany
-            update: typeof mockGenerationUpdate
-          }
-        }) => Promise<unknown>,
-      ) =>
+      async (fn: (tx: unknown) => Promise<unknown>) =>
         fn({
           generation: {
+            create: mockGenerationCreate,
             findFirst: mockGenerationFindFirst,
             updateMany: mockGenerationUpdateMany,
             update: mockGenerationUpdate,
           },
+          generationCharacterCard: {
+            createMany: mockGenerationCharacterCardCreateMany,
+          },
+          $queryRaw: mockQueryRaw,
         }),
     )
   })
@@ -221,8 +220,10 @@ describe('generation.service', () => {
 
     it('每条产物落库即带名字（切片 N1：snapshot.displayName）', async () => {
       mockGenerationCreate.mockResolvedValue(BASE_GENERATION)
+      mockQueryRaw.mockResolvedValue([{ next: 7 }])
 
       await createGeneration({
+        userId: 'user-1',
         url: BASE_GENERATION.url,
         storageKey: BASE_GENERATION.storageKey,
         mimeType: BASE_GENERATION.mimeType,
@@ -235,18 +236,19 @@ describe('generation.service', () => {
       })
 
       const { data } = mockGenerationCreate.mock.calls[0]![0] as {
-        data: { id: string; snapshot: { displayName: string } }
+        data: { id: string; seq: number; snapshot: { displayName: string } }
       }
-      // ⭐ 名字必须与纯函数按同一个 id 现算的一致 —— 否则读取侧（列表口不带
+      // ⭐ 名字必须与纯函数按同一个 seq 现算的一致 —— 否则读取侧（列表口不带
       //    snapshot，按同一条规则现算）看到的会是另一个名字。
+      expect(data.seq).toBe(7)
       expect(data.snapshot.displayName).toBe(
         buildGenerationDisplayName({
-          id: data.id,
+          seq: 7,
           outputType: 'IMAGE',
           prompt: '银发少女立绘，雪原',
         }),
       )
-      expect(data.snapshot.displayName).toMatch(/^图_\d{3}·银发少女立绘，雪/)
+      expect(data.snapshot.displayName).toBe('图_007·银发少女立绘，雪')
     })
 
     it('displayLabel 覆盖摘要，且保留调用方自己的 snapshot 字段', async () => {
@@ -262,6 +264,7 @@ describe('generation.service', () => {
         model: BASE_GENERATION.model,
         provider: BASE_GENERATION.provider,
         requestCount: 1,
+        userId: 'user-1',
         displayLabel: '主视觉',
         snapshot: { imageUrl: 'https://example.com/a.png' },
       })
@@ -269,7 +272,7 @@ describe('generation.service', () => {
       const { data } = mockGenerationCreate.mock.calls[0]![0] as {
         data: { snapshot: { displayName: string; imageUrl: string } }
       }
-      expect(data.snapshot.displayName).toMatch(/^图_\d{3}·主视觉$/)
+      expect(data.snapshot.displayName).toBe('图_001·主视觉')
       expect(data.snapshot.imageUrl).toBe('https://example.com/a.png')
     })
 
@@ -286,13 +289,104 @@ describe('generation.service', () => {
         model: BASE_GENERATION.model,
         provider: BASE_GENERATION.provider,
         requestCount: 1,
+        userId: 'user-1',
         outputType: 'VIDEO',
       })
 
       const { data } = mockGenerationCreate.mock.calls[0]![0] as {
         data: { snapshot: { displayName: string } }
       }
-      expect(data.snapshot.displayName).toMatch(/^视频_\d{3}·海边日落$/)
+      expect(data.snapshot.displayName).toBe('视频_001·海边日落')
+    })
+
+    it('取号在同一个事务里：锁住 User 那一行，再读 max(seq)+1', async () => {
+      mockGenerationCreate.mockResolvedValue(BASE_GENERATION)
+      mockQueryRaw.mockResolvedValue([{ next: 42 }])
+
+      await createGeneration({
+        url: BASE_GENERATION.url,
+        storageKey: BASE_GENERATION.storageKey,
+        mimeType: BASE_GENERATION.mimeType,
+        width: BASE_GENERATION.width,
+        height: BASE_GENERATION.height,
+        prompt: BASE_GENERATION.prompt,
+        model: BASE_GENERATION.model,
+        provider: BASE_GENERATION.provider,
+        requestCount: 1,
+        userId: 'user-1',
+      })
+
+      // ⭐ 没有事务就没有取号的正确性：号发了而行还没落地时，下一个取号会拿到
+      //    同一个数。
+      expect(mockDbTransaction).toHaveBeenCalledOnce()
+      const [lockSql, nextSql] = mockQueryRaw.mock.calls.map((call) =>
+        (call[0] as string[]).join('?'),
+      )
+      expect(lockSql).toContain('FOR UPDATE')
+      expect(lockSql).toContain('"User"')
+      expect(nextSql).toContain('MAX("seq")')
+      const { data } = mockGenerationCreate.mock.calls[0]![0] as {
+        data: { seq: number }
+      }
+      expect(data.seq).toBe(42)
+    })
+
+    /**
+     * ⭐ 串行取号的判据：第二次取号看得见第一次插进去的行 —— 锁把同一用户的
+     * 两次取号排成前后，⛔ 不是两个都读到同一个 max。
+     */
+    it('同一用户连着取两次拿到不同的号', async () => {
+      mockGenerationCreate.mockResolvedValue(BASE_GENERATION)
+      let issued = 0
+      mockQueryRaw.mockImplementation(async (strings: string[]) =>
+        strings.join('?').includes('MAX("seq")')
+          ? [{ next: (issued += 1) }]
+          : [],
+      )
+
+      const input = {
+        url: BASE_GENERATION.url,
+        storageKey: BASE_GENERATION.storageKey,
+        mimeType: BASE_GENERATION.mimeType,
+        width: BASE_GENERATION.width,
+        height: BASE_GENERATION.height,
+        prompt: BASE_GENERATION.prompt,
+        model: BASE_GENERATION.model,
+        provider: BASE_GENERATION.provider,
+        requestCount: 1,
+        userId: 'user-1',
+      }
+      await createGeneration(input)
+      await createGeneration(input)
+
+      const seqs = mockGenerationCreate.mock.calls.map(
+        (call) => (call[0] as { data: { seq: number } }).data.seq,
+      )
+      expect(seqs).toEqual([1, 2])
+      expect(new Set(seqs).size).toBe(2)
+    })
+
+    it('匿名行不取号：seq 留空，名字只有摘要', async () => {
+      mockGenerationCreate.mockResolvedValue(BASE_GENERATION)
+
+      await createGeneration({
+        url: BASE_GENERATION.url,
+        storageKey: BASE_GENERATION.storageKey,
+        mimeType: BASE_GENERATION.mimeType,
+        width: BASE_GENERATION.width,
+        height: BASE_GENERATION.height,
+        prompt: '银发少女立绘',
+        model: BASE_GENERATION.model,
+        provider: BASE_GENERATION.provider,
+        requestCount: 1,
+      })
+
+      expect(mockQueryRaw).not.toHaveBeenCalled()
+      const { data } = mockGenerationCreate.mock.calls[0]![0] as {
+        data: { seq?: number; snapshot: { displayName: string } }
+      }
+      expect(data.seq).toBeUndefined()
+      expect(data.snapshot.displayName).toBe('银发少女立绘')
     })
 
     it('propagates database create failures', async () => {

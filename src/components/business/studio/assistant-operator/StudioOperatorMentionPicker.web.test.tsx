@@ -2,6 +2,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
+import { setOperatorReviewState } from '@/hooks/use-studio-operator-store'
 import { STUDIO_OPERATOR_MENTION } from '@/constants/studio-assistant-operator'
 import {
   buildGenerationDisplayName,
@@ -40,6 +42,19 @@ vi.mock('next/image', () => ({
 
 const fetchGalleryImages = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api-client/gallery', () => ({ fetchGalleryImages }))
+
+/** 卡表桩（切片 Y）—— 用例只关心「那一组画出来了、选中交出的是这张卡」。 */
+const cardsState = vi.hoisted(() => ({
+  current: [{ id: 'card-1', kind: 'character', name: '阿岚', images: [] }] as {
+    id: string
+    kind: string
+    name: string
+    images: never[]
+  }[],
+}))
+vi.mock('@/hooks/use-context-cards', () => ({
+  useContextCards: () => ({ cards: cardsState.current }),
+}))
 
 const recent = [
   {
@@ -104,21 +119,24 @@ async function renderPicker(overrides: { query?: string } = {}) {
 
 describe('StudioOperatorMentionPicker · 按产物名搜（切片 N1）', () => {
   it('打 `@图_` 时最近生成按名字过滤 —— 名字就是行上显示的那串字', async () => {
+    // ⚠ 号是库里那个真计数器（切片 N1），⛔ 不是从 id 派生的。
     const named = [
       {
         id: 'g1',
         url: 'https://cdn.test/1.png',
-        label: buildGenerationDisplayName({ id: 'g1', prompt: '海报 A' }),
+        label: buildGenerationDisplayName({ seq: 11, prompt: '海报 A' }),
         kind: 'image' as const,
+        seq: 11,
       },
       {
         id: 'g2',
         url: 'https://cdn.test/2.png',
-        label: buildGenerationDisplayName({ id: 'g2', prompt: '海报 B' }),
+        label: buildGenerationDisplayName({ seq: 12, prompt: '海报 B' }),
         kind: 'image' as const,
+        seq: 12,
       },
     ]
-    const tag = buildGenerationTag({ id: 'g2' })
+    const tag = buildGenerationTag({ seq: 12 })!
     fetchGalleryImages.mockResolvedValue({
       success: true,
       data: { generations: [] },
@@ -263,5 +281,73 @@ describe('StudioOperatorMentionPicker', () => {
     })
     expect(event.defaultPrevented).toBe(false)
     expect(onPick).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * 切片 Y —— 被判「已否」的那几张在名单里**看得出来**，但 ⛔ 依然选得中：
+ * 摘掉它等于让「这张哪里不行」这句话不可说。
+ */
+describe('`@` 选择器 · 已否的记号', () => {
+  it('已否的那一行打记号，且照旧能选中', () => {
+    setOperatorReviewState('g1', GENERATION_REVIEW_STATE_IDS.blocked)
+    const onPick = vi.fn()
+    render(
+      <StudioOperatorMentionPicker
+        query=""
+        recent={recent}
+        searchTypes={['image']}
+        onPick={onPick}
+        onDismiss={vi.fn()}
+      />,
+    )
+    const option = screen.getAllByTestId('operator-mention-option')[0]!
+    expect(option.getAttribute('data-blocked')).toBe('true')
+    expect(screen.getAllByTestId('operator-mention-blocked').length).toBe(1)
+
+    fireEvent.mouseDown(option)
+    expect(onPick).toHaveBeenCalledWith(recent[0])
+    setOperatorReviewState('g1', GENERATION_REVIEW_STATE_IDS.pending)
+  })
+})
+
+/**
+ * 切片 Y —— 「角色卡 / 风格卡」分组。钉两件：宿主接了这只手才画这一组
+ * （⛔ 不摆一组点不动的行）、选中交出的是那张卡。
+ */
+describe('`@` 选择器 · 上下文卡分组', () => {
+  it('宿主接了 onPickCard 才画卡组，选中把那张卡交出去', () => {
+    const onPickCard = vi.fn()
+    render(
+      <StudioOperatorMentionPicker
+        query=""
+        recent={recent}
+        searchTypes={['image']}
+        onPick={vi.fn()}
+        onPickCard={onPickCard}
+        onDismiss={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('operator-mention-cards')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('context-card-chip'))
+    expect(onPickCard).toHaveBeenCalledWith({
+      cardId: 'card-1',
+      name: '阿岚',
+      kind: 'character',
+      images: [],
+    })
+  })
+
+  it('⛔ 宿主不接卡时整组不渲染', () => {
+    render(
+      <StudioOperatorMentionPicker
+        query=""
+        recent={recent}
+        searchTypes={['image']}
+        onPick={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('operator-mention-cards')).toBeNull()
   })
 })

@@ -19,10 +19,12 @@
  */
 
 import { motion, useReducedMotion } from 'motion/react'
-import { Maximize2, MessageSquarePlus } from 'lucide-react'
+import { Check, Maximize2, MessageSquarePlus, X } from 'lucide-react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
+import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
+import type { GenerationReviewState } from '@/constants/assistant-operator'
 import { EASE_STANDARD, DURATION } from '@/constants/motion'
 import { STUDIO_OPERATOR_RESULT_STAGGER } from '@/constants/studio-assistant-operator'
 import { buildGenerationTag } from '@/lib/generation-name'
@@ -54,6 +56,14 @@ interface StudioOperatorResultRowProps {
   onZoom(item: StudioOperatorResultItem, index: number): void
   /** 「按这张继续」—— 插 @chip + 预填一句。 */
   onContinue(item: StudioOperatorResultItem, index: number): void
+  /**
+   * 这一格此刻的审核态（切片 Y）。⚠ 由宿主给（`useOperatorReview`），⛔ 这颗
+   * 组件不去 store 里摸：它挂在两个宿主上，而组件里摸一把 store 会让这张卡在
+   * 测试里也得先立一份模块状态。
+   */
+  reviewStateOf(id: string): GenerationReviewState
+  /** 点 ✓ / ✕ —— 已经是这一档时调用方把它改回「还没看」（取消标记）。 */
+  onReview(item: StudioOperatorResultItem, next: GenerationReviewState): void
 }
 
 export function StudioOperatorResultRow({
@@ -63,6 +73,8 @@ export function StudioOperatorResultRow({
   onAsk,
   onZoom,
   onContinue,
+  reviewStateOf,
+  onReview,
 }: StudioOperatorResultRowProps) {
   const t = useTranslations('StudioOperator')
   const reduceMotion = useReducedMotion()
@@ -86,11 +98,25 @@ export function StudioOperatorResultRow({
       <div className="grid grid-cols-2 gap-2 p-3 @min-[700px]:grid-cols-4">
         {items.map((item, index) => {
           const isSelected = item.id === selectedId
+          const reviewState = reviewStateOf(item.id)
+          const isBlocked = reviewState === GENERATION_REVIEW_STATE_IDS.blocked
+          const isApproved =
+            reviewState === GENERATION_REVIEW_STATE_IDS.approved
+          /**
+           * ⚠ 无号 = **不画角标**（切片 N1 收口）：`buildGenerationTag` 在
+           * `seq` 缺席时回 `undefined`，⛔ 这里不补一个派生号 —— 它与真号长得
+           * 一模一样，而用户照着它打出来的 `@` 会落到另一张图上。
+           */
+          const tag = buildGenerationTag({
+            seq: item.seq,
+            outputType: item.outputType,
+          })
           return (
             <motion.div
               key={item.id}
               data-testid="operator-result-tile"
               data-selected={isSelected}
+              data-review-state={reviewState}
               // `tileIn`（§11.5）：opacity + y8，stagger 30ms 封顶前 12 项。
               initial={reduceMotion ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -125,9 +151,88 @@ export function StudioOperatorResultRow({
                   width={240}
                   height={320}
                   unoptimized
-                  className="size-full object-cover"
+                  className={cn(
+                    'size-full object-cover transition-[filter,opacity] duration-(--duration-fast) ease-standard motion-reduce:transition-none',
+                    // 已否 = **降灰 + 压暗**，⛔ 不隐藏：那张图还在，它只是被否了。
+                    isBlocked && 'opacity-45 grayscale',
+                  )}
                 />
               </button>
+
+              {/**
+               * 已否的那一格打一个叉（§11.2 的状态色只用于状态记号）。
+               *
+               * ⭐ 单靠降灰不够：色觉与小屏上「灰一点」读不出来，而这一格的意思
+               * （「这张不能再当首帧了」）必须一眼看得出。⛔ 不用红底块 ——
+               * 那会把整行卡变成一片警告。
+               */}
+              {isBlocked ? (
+                <span
+                  aria-hidden
+                  data-testid="operator-result-blocked-mark"
+                  className="pointer-events-none absolute inset-0 grid place-items-center"
+                >
+                  <X className="size-8 text-status-risk" strokeWidth={1.5} />
+                </span>
+              ) : null}
+
+              {/**
+               * 右上角那两颗（切片 Y）—— **常驻，⛔ 不藏进 hover 浮层**。
+               *
+               * ⭐ 判据：审核是「看完这一屏就顺手点」的动作，藏起来等于要求用户
+               * 先把鼠标移上去才知道自己能标。而底部那层浮层（问助手 / 放大）是
+               * 「对这一张再做点什么」，两类动作不该挤在一处。
+               * ⚠ 命中区 24px：它压在缩略图上，再大就把图盖住了；两颗之间留 2px
+               * 缝，⛔ 别贴在一起（点错的那一下代价是「把想留的标成否了」）。
+               */}
+              {/* 🔬 contrast-check（2026-09-07，浅 / 深）：
+                  · `status-risk` 对卡背 **6.54 / 5.55**、对页底 6.54 / 6.13 —— 信息性
+                    图形按 1.4.11 走 3:1，两档都过；
+                  · 按下态 `primary-foreground` 压在 `status-risk` 上 **6.54 / 6.50**、
+                    压在 `status-applied` 上 **5.42 / 10.26**。 */}
+              <span
+                data-testid="operator-result-review"
+                className="absolute right-1 top-1 flex gap-0.5"
+              >
+                <button
+                  type="button"
+                  data-testid="operator-result-approve"
+                  data-active={isApproved}
+                  aria-pressed={isApproved}
+                  title={t('result.approve')}
+                  aria-label={t('result.approve')}
+                  onClick={() =>
+                    onReview(item, GENERATION_REVIEW_STATE_IDS.approved)
+                  }
+                  className={cn(
+                    'grid size-6 place-items-center rounded-md border shadow-xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                    isApproved
+                      ? 'border-status-applied bg-status-applied text-primary-foreground'
+                      : 'border-border bg-card/85 text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Check className="size-3.5" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  data-testid="operator-result-block"
+                  data-active={isBlocked}
+                  aria-pressed={isBlocked}
+                  title={t('result.block')}
+                  aria-label={t('result.block')}
+                  onClick={() =>
+                    onReview(item, GENERATION_REVIEW_STATE_IDS.blocked)
+                  }
+                  className={cn(
+                    'grid size-6 place-items-center rounded-md border shadow-xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                    isBlocked
+                      ? 'border-status-risk bg-status-risk text-primary-foreground'
+                      : 'border-border bg-card/85 text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <X className="size-3.5" aria-hidden />
+                </button>
+              </span>
 
               {/**
                * 角标写**产物名的身份段**（`图_012`，切片 N1）而不是 ①②③。
@@ -139,12 +244,14 @@ export function StudioOperatorResultRow({
                * ⚠ 序号本身**没有消失**：选中态文案与读屏名照旧用它（那两处说的
                * 就是「这一屏的第几格」），⛔ 不为了统一而把它们也换掉。
                */}
-              <span
-                data-testid="operator-result-name"
-                className="pointer-events-none absolute left-1 top-1 rounded bg-card/85 px-1 font-mono text-xs tracking-nav tabular-nums text-foreground"
-              >
-                {buildGenerationTag({ id: item.id })}
-              </span>
+              {tag ? (
+                <span
+                  data-testid="operator-result-name"
+                  className="pointer-events-none absolute left-1 top-1 rounded bg-card/85 px-1 font-mono text-xs tracking-nav tabular-nums text-foreground"
+                >
+                  {tag}
+                </span>
+              ) : null}
 
               {/* 底部渐变浮层（§3.1 ⑲）：默认透明，hover / 键盘聚焦才出现 ——
                   ⚠ `focus-within` 那一半不能省，否则这两颗按钮键盘永远够不着。 */}

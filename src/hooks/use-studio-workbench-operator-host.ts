@@ -25,7 +25,11 @@ import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
-import { setOperatorPrimed } from '@/hooks/use-studio-operator-store'
+import { setOperatorGenerationLabel } from '@/lib/studio-operator-label'
+import {
+  setOperatorPrimed,
+  setOperatorReviewState,
+} from '@/hooks/use-studio-operator-store'
 import { resolveGenerationDisplayName } from '@/lib/generation-name'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import {
@@ -262,6 +266,18 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
        */
       triggerGeneration: () => dispatch({ type: 'REQUEST_GENERATE' }),
       /**
+       * 助手给这一枪起的名字（切片 Y）—— 存进那只投递口，生成提交那一跳取走。
+       * ⚠ ⛔ 不塞进表单：表单上没有「产物名」这一格，而且它属于**这一枪**
+       *   而不是这份表单（用户下一次自己按生成时不该顶着它）。
+       */
+      setGenerationLabel: setOperatorGenerationLabel,
+      /**
+       * 助手标审核态（切片 Y）—— 直接落操作员 store（结果格与选择器都读那一份）。
+       * ⚠ ⛔ 这里**不打 PATCH**：助手那一步的服务端落库由服务端自己做完了
+       *   （`set_review_state` 是服务端工具），客户端再打一次就是同一件事两次写入。
+       */
+      setReviewState: setOperatorReviewState,
+      /**
        * ⛔ **工作台没有 `lora`**：`LoraStackProvider` 只包 `/studio/lora`，这里
        * 结构性拿不到挂载栈。缺席是诚实 —— 实现成空函数才是那种「点了没反应、
        * 三绿」的失败。域工具表本来就不给工作台那三条 LoRA 工具。
@@ -321,6 +337,13 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
            * 那串字，而用户要能**照着它打出来**指认这一张。
            */
           label: resolveGenerationDisplayName(generation),
+          /**
+           * ⭐ 角标与 `@` 指认认的是**真序号**（`Generation.seq`，切片 N1 收口）
+           * —— 列表口读得到它（`generation.service.ts` 的 select 里有这一列）。
+           * ⚠ 缺席就让它缺席：结果行卡因此不画角标，⛔ 不在这里编一个。
+           */
+          seq: generation.seq,
+          outputType: generation.outputType,
         },
       ]
     })

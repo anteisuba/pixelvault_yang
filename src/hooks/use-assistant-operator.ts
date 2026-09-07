@@ -43,6 +43,7 @@ import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  GENERATION_REVIEW_STATE_IDS,
   isAssistantOperatorToolInDomain,
   type AssistantOperatorConfirmChoice,
   type AssistantOperatorDomain,
@@ -53,6 +54,7 @@ import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
+  addOperatorCostTick,
   addOperatorMention,
   appendOperatorEntry,
   appendOperatorMessageDelta,
@@ -62,9 +64,11 @@ import {
   dropOperatorPending,
   enqueueOperatorMessage,
   finalizeOperatorMessage,
+  getOperatorReviewState,
   getOperatorState,
   nextOperatorEntryId,
   operatorStepEntryId,
+  recordOperatorArtifacts,
   recordOperatorChange,
   registerOperatorRunner,
   removeOperatorQueued,
@@ -87,6 +91,12 @@ import {
   upsertOperatorStep,
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import { readOperatorCostTick } from '@/lib/studio-operator-cost'
+import {
+  attachmentArtifacts,
+  collectStepArtifacts,
+  resultArtifacts,
+} from '@/lib/studio-operator-memory'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
 import {
@@ -253,11 +263,31 @@ function buildMentionedAssets(
         (isVideoDomain && attachment.kind === 'video'),
     )
     .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences)
-    .map((attachment) => ({
-      id: attachment.id,
-      url: attachment.url,
-      label: attachment.label,
-    }))
+    .map((attachment) => {
+      /**
+       * ⭐ **审核态随名单一起上去**（切片 Y）——它只是替服务端省一次查库：
+       * 真正说了算的是服务端自己从库里读到的那一位（见契约里 `reviewState`
+       * 的头注）。⛔ 客户端不拿它当闸，也不因为 `blocked` 就把这一条从名单里
+       * 摘掉：用户指着一张被否的图问「这张哪里不行」是完全正当的一句话。
+       * ⚠ `pending` **不带**：缺席就是 pending，写出来只是让每条请求都胖一点。
+       */
+      const reviewState = getOperatorReviewState(attachment.id)
+      return {
+        id: attachment.id,
+        url: attachment.url,
+        label: attachment.label,
+        /**
+         * ⭐ **真序号随名单一起上去**（切片 N1 收口）：服务端 `matchMentionedByName`
+         * 按 `seq === token.serial` 精确比，正文里那句 `@图_012` 全靠它落到这一条。
+         * ⚠ 缺席就缺席（存量行 / 上传来的行）—— 那一条于是不会被 `@序号` 命中，
+         * ⛔ 不从 id 派生一个补上。
+         */
+        ...(typeof attachment.seq === 'number' ? { seq: attachment.seq } : {}),
+        ...(reviewState === GENERATION_REVIEW_STATE_IDS.pending
+          ? {}
+          : { reviewState }),
+      }
+    })
 }
 
 /**
@@ -640,6 +670,30 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        */
       const forcePlan = options.forcePlan ?? getOperatorState().askFirst
       const autoApprove = getOperatorState().autoApprove
+      /**
+       * ⭐ 用户这一轮 `@` / 📎 上来的那几件先记进**这一轮**的工作记忆，再读整份
+       * 带走：顺序反过来的话，助手在下一轮才「记得」用户刚才指的是哪张。
+       * ⚠ 记的是最后一条用户消息上的那些（判据与 `mentionedAssets` 同源）：
+       *   把整条线程的附件都记一遍，五轮上限会被同一批图反复吃掉。
+       */
+      recordOperatorArtifacts(runKey, [
+        // ⚠ 它备的那一枪刚回来的那张也算这一轮见过的东西（`kind: 'result'`）：
+        //   用户下一句十有八九就是「刚出的那张」。⛔ 没有 generationId 时不记
+        //   —— 工作记忆是**按 id 指认**的，一条没有身份的记录指认不了任何东西。
+        ...(pendingResultRef.current?.generationId
+          ? resultArtifacts([
+              {
+                id: pendingResultRef.current.generationId,
+                url: pendingResultRef.current.url,
+                ...(pendingResultRef.current.prompt
+                  ? { label: pendingResultRef.current.prompt }
+                  : {}),
+              },
+            ])
+          : []),
+        ...attachmentArtifacts(lastUserAttachments(entries)),
+      ])
+      const workingMemory = getOperatorState().workingMemory
 
       /**
        * ⭐ **视频域评审的帧生产者**（第二期最后一环）—— 请求发出去之前抽 0/中/末。
@@ -710,6 +764,19 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            * 展示文本，当成权限清单用就是一条提示词注入的路。
            */
           ...(mentionedAssets.length ? { mentionedAssets } : {}),
+          /**
+           * ⭐ **跨轮工作记忆**（切片 Y）：最近几轮见过的产物索引。没有它，助手
+           * 每一轮都从零开始 —— 第三轮里用户说「用刚才那张官方立绘」，它会回一句
+           * 「我没有看到你说的那张」。
+           * ⚠ 上限（5 轮 / 每轮 20 件）由 store 在写入时就截好，这里原样带上去 ——
+           *   ⛔ 别在这里再截一次：两处判据迟早说两句不一样的话，而服务端 schema
+           *   的 `.max()` 会把超出的那一份整个拒掉。
+           */
+          ...(workingMemory.length
+            ? // ⚠ 复制一份可变数组：契约那边的 `rounds` 是 `z.infer` 出来的可变
+              //   数组，而 store 里那份是只读的（快照不可被下游改）。
+              { workingMemory: { rounds: [...workingMemory] } }
+            : {}),
           ...(videoFrames ? { videoFrames } : {}),
           ...(confirmations?.length ? { confirmations } : {}),
           ...(planAnswers?.length ? { planAnswers } : {}),
@@ -762,6 +829,20 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            * 拆 —— 拆它的是下面的让位逻辑（`dropOperatorPending` 只扔空的）。
            */
           cancelPendingAfterStep()
+          /**
+           * ⭐ **成本计数帧**（切片 Y）—— 它不是一步，也不打断任何东西：读出来
+           * 累加到 store，进度带右侧那行小字随之长一位。
+           * ⚠ 在占位行让位那一段**之前**处理并 `continue`：`cost_tick` 与 `open`
+           * 同理 —— 它到达时模型可能一个字都还没写（一次视觉往返发生在某一步的
+           * 规划期），把它算成「它开口了」会让占位行闪一下就没了。
+           * ⚠ 走纯函数读取（`readOperatorCostTick`）而不是 `switch` 的一支：
+           *   见那颗函数的头注。
+           */
+          const costTick = readOperatorCostTick(event)
+          if (costTick) {
+            addOperatorCostTick(costTick)
+            continue
+          }
           /**
            * 占位行让位（§4.1）：**除了正文自己**，任何一帧到达都意味着「它已经
            * 开口了」，那一行空脉冲该消失。
@@ -875,6 +956,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             case ASSISTANT_OPERATOR_EVENTS.step: {
               const { step } = event
               upsertOperatorStep(step, runKey)
+              /**
+               * ⭐ 这一步让谁看见了什么 —— 进工作记忆（切片 Y）。
+               * ⚠ 放在应用 op **之前**：下面那几条分支里有 `return`（停顿点、
+               *   计划卡），记在后面的话那几条路上这一步的产物就丢了。
+               */
+              recordOperatorArtifacts(runKey, collectStepArtifacts(step))
               // ⭐ 只在 `done` 那一次应用：`running` 也应用就会改两遍
               //    （append 类的会追加两次，而那是看得见的）。
               // ⚠ `status === 'done'` 同时把类型收窄成「应用过的那一支」——

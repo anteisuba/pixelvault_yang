@@ -34,6 +34,15 @@ import { describe, expect, it } from 'vitest'
  * 「migration was modified after it was applied」。所以登记簿只能放在迁移文件
  * 外面。
  *
+ * ## 什么不算「约束型」——别往 ACKNOWLEDGED 里塞
+ *
+ * **一次性数据回填不算**（2026-09-07，`20260907140000_generation_seq` 的
+ * `UPDATE ... ROW_NUMBER()`）。判据就是下面 `findConstraintsOnExistingTables`
+ * 认的那几种语句：加约束 / 唯一索引 / SET NOT NULL / 改列类型 / 非空无默认的新列。
+ * 一条 `UPDATE` 与一条**可空**的 `ADD COLUMN` 一条都不沾 —— 它们在有存量数据的库
+ * 上不会「建不上」，最坏是更新了 0 行。⛔ 别因为「感觉危险」就登记：末尾那条
+ * 「没有已经不需要登记的条目」会因此变红，闸门会当场把你拦下来。
+ *
  * ## 为什么不用「文件里有 DELETE 就放行」这种自动判据
  *
  * 因为那正好放过最危险的一类：**清理写了，但写错了**。今天那段 DELETE 是手写
@@ -71,7 +80,7 @@ const ACKNOWLEDGED: Record<string, string> = {
   '20260522000000_add_project_parent_id':
     '历史迁移，2026-05-22 已在生产成功应用（本闸门 2026-08-22 才建立）。⛔ 校验和已冻结，不可改动其 SQL。',
   '20260808000000_assistant_surface_per_domain':
-    '⭐ 这条是「做对了」的范例，别照抄成反面教材：它手写 USING (CASE "surface"::text WHEN \'STUDIO\' THEN \'IMAGE_STUDIO\' ELSE ... END) 正是因为 Prisma 自动生成的 ::text::"AssistantSurface_new" 对存量的 STUDIO 行会直接报错——值的改写与类型替换必须在同一条 ALTER 里完成。2026-08-08 已在生产成功应用。',
+    '⭐ 这条是「做对了」的范例，别照抄成反面教材：它手写 USING (CASE "surface"::text WHEN \'STUDIO\' THEN \'IMAGE_STUDIO\' ELSE ... END) 正是因为 Prisma 自动生成的 ::text::"AssistantSurface_new" 对存量的 STUDIO 行会直接报错——值的改写与类型替换必须在同一条 ALTER 里完成。2026-08-08 已在生产成功应用。2026-09-06 补跑前核对 ep-solitary-dew：12 条现有对话仅含 STUDIO（7）/ NODE_CANVAS（5），均被 CASE 映射覆盖；原 ID 与 surface 已保存在本机受限临时文件，迁移自身包裹事务。',
   '20260821210442_lora_unique_user_url':
     '2026-08-21T12:05:01Z 已在 Vercel 所用的生产库（ep-flat-violet-…）成功应用——作者当时的「本地库」就是生产库（.env.local 指向它），重复在那一刻已经清掉。前一条 20260821210441_dedupe_lora_assets 是给**别的**库重放这段历史时兜底的（例如落后 6 条迁移、至今仍有 2 组重复的 ep-solitary-dew-…）。⚠ 别照抄 d5fa8587 的提交信息：那条写的「部署前查生产仍有 2 组重复」查错了库，见 docs/references/cicd.md。',
 }

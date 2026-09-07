@@ -613,6 +613,8 @@ export const GenerateVideoRequestSchema = z.object({
     .enum([WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, WORKFLOW_IDS.CHARACTER_TO_VIDEO])
     .optional(),
   characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
+  /** 这一枪叫什么（切片 Y）—— 判据与 `StudioGenerateSchema.displayLabel` 同源。 */
+  displayLabel: z.string().trim().min(1).max(160).optional(),
 })
 
 export type GenerateVideoRequest = z.infer<typeof GenerateVideoRequestSchema>
@@ -2173,6 +2175,12 @@ export interface GenerationRecord {
   model: string
   provider: string
   requestCount: number
+  /**
+   * 产物序号 —— 这个用户的**第几件**（`Generation.seq`，切片 N1 改真计数器）。
+   * ⚠ 可空/缺席：迁移前的存量行、匿名行、以及没取到号的路径。缺席时名字不编号
+   * （见 `lib/generation-name.ts`），⛔ 别在别处临时编一个。
+   */
+  seq?: number | null
   isPublic: boolean
   isPromptPublic: boolean
   isFeatured?: boolean
@@ -3984,6 +3992,14 @@ export const StudioGenerateSchema = z
     runGroupIndex: z.number().int().min(0).optional(),
     /** Prompt template usage metadata for generation lineage */
     recipeUsage: RecipeUsageSchema.optional(),
+    /**
+     * 这一枪叫什么（切片 Y 的 `label` 透传）—— 落库时交给
+     * `createGeneration({ displayLabel })`，成为产物名的摘要段。
+     *
+     * ⚠ 缺席 = 没人给名字，落库那一跳照旧从提示词里摘一段。⛔ 别在客户端补一个
+     * 空串：空串会把摘要段整个盖成空白。
+     */
+    displayLabel: z.string().trim().min(1).max(160).optional(),
     /** 产物来源 surface（LoRA 域生成传 LORA_WORKBENCH；缺省走 DB 默认 IMAGE_STUDIO）。 */
     sourceSurface: GenerationSourceSurfaceSchema.optional(),
   })

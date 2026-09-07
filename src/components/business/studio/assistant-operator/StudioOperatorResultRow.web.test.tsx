@@ -2,6 +2,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
+import type { GenerationReviewState } from '@/constants/assistant-operator'
 import {
   STUDIO_OPERATOR_RESULT_STAGGER,
   STUDIO_OPERATOR_SHELL,
@@ -36,9 +38,18 @@ vi.mock('motion/react', () => ({
 }))
 
 vi.mock('next/image', () => ({
-  default: ({ src, alt }: { src: string; alt: string }) => (
+  // ⚠ `className` 要透下去：已否那一格的降灰就写在它身上，丢了这一格断言测不到。
+  default: ({
+    src,
+    alt,
+    className,
+  }: {
+    src: string
+    alt: string
+    className?: string
+  }) => (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} />
+    <img src={src} alt={alt} className={className} />
   ),
 }))
 
@@ -47,21 +58,33 @@ const items = [
     id: 'g1',
     url: 'https://cdn.test/1.png',
     thumbnailUrl: 'https://cdn.test/1t.png',
+    seq: 11,
   },
-  { id: 'g2', url: 'https://cdn.test/2.png', label: '夜景版' },
+  { id: 'g2', url: 'https://cdn.test/2.png', label: '夜景版', seq: 12 },
 ]
 
-function renderRow(selectedId: string | null = null) {
+function renderRow(
+  selectedId: string | null = null,
+  /**
+   * 审核态由宿主给（切片 Y）—— 测试里用一张明式表，⛔ 不去 store 里立状态：
+   * 这颗组件对 store 一无所知正是它能挂在两个宿主上的原因。
+   */
+  reviewStates: Record<string, GenerationReviewState> = {},
+) {
   const handlers = {
     onSelect: vi.fn(),
     onAsk: vi.fn(),
     onZoom: vi.fn(),
     onContinue: vi.fn(),
+    onReview: vi.fn(),
   }
   const view = render(
     <StudioOperatorResultRow
       items={items}
       selectedId={selectedId}
+      reviewStateOf={(id) =>
+        reviewStates[id] ?? GENERATION_REVIEW_STATE_IDS.pending
+      }
       {...handlers}
     />,
   )
@@ -127,8 +150,8 @@ describe('StudioOperatorResultRow', () => {
     renderRow()
     const badges = screen.getAllByTestId('operator-result-name')
     expect(badges.map((node) => node.textContent)).toEqual([
-      buildGenerationTag({ id: 'g1' }),
-      buildGenerationTag({ id: 'g2' }),
+      buildGenerationTag({ seq: 11 }),
+      buildGenerationTag({ seq: 12 }),
     ])
     // ⚠ 序号没有消失：读屏名与卡脚选中态照旧按「这一屏的第几格」说话。
     expect(
@@ -138,11 +161,73 @@ describe('StudioOperatorResultRow', () => {
     ).toBeTruthy()
   })
 
+  it('⛔ 没号的那一格不画角标（⛔ 不从 id 编一个：编出来的会撞别人的真号）', () => {
+    render(
+      <StudioOperatorResultRow
+        items={[{ id: 'legacy', url: 'https://cdn.test/legacy.png' }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+        onAsk={vi.fn()}
+        onZoom={vi.fn()}
+        onContinue={vi.fn()}
+        reviewStateOf={() => GENERATION_REVIEW_STATE_IDS.pending}
+        onReview={vi.fn()}
+      />,
+    )
+    expect(screen.queryAllByTestId('operator-result-name')).toHaveLength(0)
+  })
+
   it('序号用带圈数字，超出表长回落成 #N（⛔ 不让两格顶同一个号）', () => {
     expect(resultOrdinal(0)).toBe('①')
     expect(resultOrdinal(19)).toBe('⑳')
     expect(resultOrdinal(20)).toBe('#21')
     // stagger 封顶：一批 20 张时最后几张不该等到半秒后才出现（§11.5）。
     expect(STUDIO_OPERATOR_RESULT_STAGGER.maxItems).toBe(12)
+  })
+})
+
+/**
+ * 审核态（切片 Y）—— 钉三件：两颗动作**常驻**（⛔ 不藏进 hover 浮层）、
+ * 各自把那一格与目标态交出去、已否那一格降灰且打叉（单靠降灰在色觉与小屏上
+ * 读不出来）。
+ */
+describe('StudioOperatorResultRow · 审核态', () => {
+  it('每格都常驻两颗动作，各自交出那一格与目标态', () => {
+    const handlers = renderRow()
+    expect(screen.getAllByTestId('operator-result-review')).toHaveLength(2)
+
+    fireEvent.click(screen.getAllByTestId('operator-result-approve')[0]!)
+    expect(handlers.onReview).toHaveBeenCalledWith(
+      items[0],
+      GENERATION_REVIEW_STATE_IDS.approved,
+    )
+
+    fireEvent.click(screen.getAllByTestId('operator-result-block')[1]!)
+    expect(handlers.onReview).toHaveBeenCalledWith(
+      items[1],
+      GENERATION_REVIEW_STATE_IDS.blocked,
+    )
+  })
+
+  it('已否的那一格降灰 + 打叉，已确认的那一颗按下态', () => {
+    renderRow(null, {
+      g1: GENERATION_REVIEW_STATE_IDS.blocked,
+      g2: GENERATION_REVIEW_STATE_IDS.approved,
+    })
+    const tiles = screen.getAllByTestId('operator-result-tile')
+    expect(tiles[0]?.getAttribute('data-review-state')).toBe(
+      GENERATION_REVIEW_STATE_IDS.blocked,
+    )
+    expect(tiles[0]?.querySelector('img')?.className).toContain('grayscale')
+    // ⛔ 图没被藏起来 —— 它只是被否了。
+    expect(tiles[0]?.querySelector('img')).not.toBeNull()
+    expect(screen.getAllByTestId('operator-result-blocked-mark')).toHaveLength(
+      1,
+    )
+    expect(
+      screen
+        .getAllByTestId('operator-result-approve')[1]
+        ?.getAttribute('aria-pressed'),
+    ).toBe('true')
   })
 })

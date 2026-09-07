@@ -32,9 +32,13 @@ import { updatePreferenceOnDeleted } from '@/services/user-preference.service'
 
 // ─── Input Types ──────────────────────────────────────────────────
 
+/**
+ * ⚠ 带上 `$queryRaw` 是因为**取号必须走原生 SQL**：Prisma 没有「锁一行」的
+ * API，而取号的正确性全靠那把锁（见 `allocateGenerationSeq`）。
+ */
 type GenerationMutationClient = Pick<
   typeof db,
-  'generation' | 'generationCharacterCard'
+  'generation' | 'generationCharacterCard' | '$queryRaw'
 >
 
 interface GenerationStorageKeyFields {
@@ -199,6 +203,12 @@ export const LIST_GENERATION_SELECT = {
   runGroupIndex: true,
   isWinner: true,
   seed: true,
+  /**
+   * 产物序号（切片 N1 改真计数器）。⭐ 它**能**进列表口正是因为它是一个 Int：
+   * 名字过去只能从 id 派生，就是因为唯一存得下计数器的地方是那份 7 MB 的
+   * `snapshot`，而列表口拉不起它。一列整数把这条约束解掉了。
+   */
+  seq: true,
 } as const satisfies Prisma.GenerationSelect
 
 const OUTPUT_TYPE_ENUM_BY_VALUE: Record<OutputTypeValue, OutputType> = {
@@ -406,25 +416,57 @@ function normalizeGenerationReferenceImages(
 // ─── Service Functions ────────────────────────────────────────────
 
 /**
+ * 这个用户的**下一个产物序号**（切片 N1）。
+ *
+ * ── 判据：为什么并发下不撞号 ──────────────────────────────────────
+ * 撞号只有一个窗口：两个事务都读到同一个 `max(seq)`，然后各写各的。所以先对
+ * **`User` 那一行**加 `FOR UPDATE`：
+ *   · 行锁把**同一个用户**的取号串行化 —— 第二个事务卡在 `SELECT ... FOR UPDATE`
+ *     上，直到第一个提交；那时它读 `max(seq)` 已经看得见第一个插进去的行。
+ *   · 锁到**事务提交**才释放，而插入与取号在同一个事务里（`createGeneration`
+ *     整个包在 `$transaction` 中），中间不存在「号发了但行还没进去」的缝。
+ *   · 锁的是用户自己那一行，**不同用户互不阻塞** —— ⛔ 没有全表锁。
+ * ⚠ 之所以不锁 `Generation` 的行：`SELECT ... FOR UPDATE` 锁不住**还不存在的
+ * 行**（幻读），两个事务在一个空用户上会同时拿到 0。锁父行才是那把真锁。
+ *
+ * ⚠ 匿名行（`userId` 缺席）不取号：没有「谁的第几件」这回事，返回 `undefined`，
+ * 名字退化成只有摘要（见 `lib/generation-name.ts`）。
+ * ⚠ `User` 那一行不存在时锁不到任何东西 —— 但那种输入本来就会在插入时被外键
+ * 打回，⛔ 不在这里额外造一个报错。
+ */
+async function allocateGenerationSeq(
+  client: GenerationMutationClient,
+  userId: string | null | undefined,
+): Promise<number | undefined> {
+  if (!userId) return undefined
+  await client.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`
+  const rows = await client.$queryRaw<{ next: number }[]>`
+    SELECT COALESCE(MAX("seq"), 0) + 1 AS "next"
+    FROM "Generation"
+    WHERE "userId" = ${userId}
+  `
+  return Number(rows[0]?.next ?? 1)
+}
+
+/**
  * 落库前把**产物名**塞进 snapshot（切片 N1）。
  *
- * ── 为什么是 snapshot 而不是新列 ──────────────────────────────────
- * 零迁移，与 `findGenerationBySourceUrl` 的先例同一条理由：一条可空列换不到这里
- * 没有的东西，而 snapshot 是**已经在写**的那一份 JSON。
+ * ── 为什么还要存一份 ──────────────────────────────────────────────
+ * 序号本身已经是列（`seq`），列表口读得到，名字随时现算得出。存这一份只为
+ * **摘要**：助手给的 `label` 只在写入这一跳有，之后任何列表口都读不回来。
  *
- * ⚠ 存下来的这份是**给存量口径与 label 覆盖用的**，⛔ 不是唯一事实：列表口
- * （`LIST_GENERATION_SELECT`）故意不带 snapshot，那些路径按同一条纯函数现算，
- * 身份段一定相同（见 `lib/generation-name.ts` 头注）。
+ * ⚠ 存下来的这份⛔ 不是唯一事实：没存到的路径按同一条纯函数现算，身份段一定
+ * 相同（都只看 `seq` + `outputType`，见 `lib/generation-name.ts` 头注）。
  *
  * ⚠ snapshot 不是对象时（历史上有调用方塞过数组/标量）**不动它** —— 名字照旧
  * 现算，⛔ 不把一份别人的数据结构改形状。
  */
 function withGenerationDisplayName(
-  id: string,
+  seq: number | undefined,
   input: CreateGenerationInput,
 ): Prisma.InputJsonValue {
   const displayName = buildGenerationDisplayName({
-    id,
+    seq,
     outputType: input.outputType ?? 'IMAGE',
     prompt: input.prompt,
     label: input.displayLabel,
@@ -438,20 +480,38 @@ function withGenerationDisplayName(
 /**
  * Persist a completed generation to the database.
  * Called after the AI provider returns a result and R2 upload completes.
+ *
+ * ⭐ **取号与插入必须同一个事务**（切片 N1）：`seq` 是「这个用户的第几件」，
+ * 中间断开就等于把号发出去而行还没落地，下一个取号会拿到同一个数。所以
+ * 调用方没给事务客户端时，这里**自己开一个**。
+ * ⚠ 调用方给了 `client` 就当它已经在事务里（`execution-callback.service` /
+ * `generate-audio.service` 都是这么调的）—— ⛔ 不在事务里再开一个事务。
  */
 export async function createGeneration(
   input: CreateGenerationInput,
-  client: GenerationMutationClient = db,
+  client?: GenerationMutationClient,
 ): Promise<GenerationRecord> {
+  if (!client) {
+    return db.$transaction((tx) => createGenerationWithin(input, tx))
+  }
+  return createGenerationWithin(input, client)
+}
+
+async function createGenerationWithin(
+  input: CreateGenerationInput,
+  client: GenerationMutationClient,
+): Promise<GenerationRecord> {
+  const seq = await allocateGenerationSeq(client, input.userId)
   /**
-   * ⭐ id 在这里现取而不是交给 `@default(uuid())`：名字由 id 派生（切片 N1），
-   * 而插入之后再回写一次 snapshot 就是两次写、两个可以不一致的状态。
+   * ⭐ id 在这里现取而不是交给 `@default(uuid())`：名字要在插入的同一次写里
+   * 落进 snapshot，插入之后再回写一次就是两次写、两个可以不一致的状态。
    */
   const id = randomUUID()
   const generation = await client.generation.create({
     data: {
       id,
-      snapshot: withGenerationDisplayName(id, input),
+      seq,
+      snapshot: withGenerationDisplayName(seq, input),
       url: input.url,
       storageKey: input.storageKey,
       mimeType: input.mimeType,

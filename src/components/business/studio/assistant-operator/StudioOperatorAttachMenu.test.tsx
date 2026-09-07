@@ -62,6 +62,8 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
               prompt: '借伞 30 秒',
               model: 'seedance',
               outputType: 'VIDEO',
+              // 库里那个真计数器（切片 N1）——名字与 `@` 指认都只认它。
+              seq: 42,
             })
           }
         >
@@ -83,6 +85,7 @@ function galleryResponse() {
           prompt: '角色立绘',
           model: 'seedream',
           outputType: 'IMAGE',
+          seq: 7,
         },
       ],
       page: 1,
@@ -151,13 +154,15 @@ describe('StudioOperatorAttachMenu · 拍板 20 就地素材库弹层', () => {
     expect(onAttach.mock.calls[0]?.[0]).toEqual({
       id: 'gen-video',
       url: 'https://cdn.example.com/clip.mp4',
-      // ⭐ 切片 N1：附件 label 是产物名（`视频_0xx·借伞 30 秒`）。
+      // ⭐ 切片 N1：附件 label 是产物名（`视频_042·借伞 30 秒`），身份段来自
+      //   库里那个真计数器 —— ⛔ 不是从 id 派生的号。
       label: buildGenerationDisplayName({
-        id: 'gen-video',
+        seq: 42,
         outputType: 'VIDEO',
         prompt: '借伞 30 秒',
       }),
       kind: 'video',
+      seq: 42,
     })
     // 视频没有缩略图时**不给** thumbnailUrl —— 回落到 url 会让 next/image 碎掉。
     expect(onAttach.mock.calls[0]?.[0]).not.toHaveProperty('thumbnailUrl')
@@ -175,12 +180,13 @@ describe('StudioOperatorAttachMenu · 拍板 20 就地素材库弹层', () => {
       id: 'gen-image',
       url: 'https://cdn.example.com/a.png',
       label: buildGenerationDisplayName({
-        id: 'gen-image',
+        seq: 7,
         outputType: 'IMAGE',
         prompt: '角色立绘',
       }),
       kind: 'image',
       thumbnailUrl: 'https://cdn.example.com/a.png',
+      seq: 7,
     })
   })
 

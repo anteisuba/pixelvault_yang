@@ -98,6 +98,11 @@ export function toOperatorAttachment(
     label: label ?? resolveGenerationDisplayName(generation),
     kind,
     ...(thumbnailUrl ? { thumbnailUrl } : {}),
+    /**
+     * ⚠ 只在库里真有号时带上（切片 N1 收口）：`seq` 是 `@图_012` 唯一的指认
+     * 判据，缺席就让它缺席 —— ⛔ 不从 id 派生一个来凑，那个号会去撞别人的真号。
+     */
+    ...(typeof generation.seq === 'number' ? { seq: generation.seq } : {}),
   }
 }
 

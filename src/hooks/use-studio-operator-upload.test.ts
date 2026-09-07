@@ -351,17 +351,29 @@ describe('toOperatorAttachment', () => {
           url: 'https://cdn.example.com/mesh.glb',
           outputType: 'MODEL_3D',
           prompt: '一只小狐狸',
+          seq: 9,
         }),
       ),
     ).toEqual({
       id: 'gen-3d',
       url: 'https://cdn.example.com/mesh.glb',
       label: buildGenerationDisplayName({
-        id: 'gen-3d',
+        seq: 9,
         outputType: 'MODEL_3D',
         prompt: '一只小狐狸',
       }),
       kind: 'model3d',
+      // 身份段的本钱 —— 随附件一路上到 `mentionedAssets`（切片 N1）。
+      seq: 9,
     })
+  })
+
+  it('⛔ 库里没号就不带 `seq`（⛔ 不从 id 派生一个去撞别人的真号）', () => {
+    const attachment = toOperatorAttachment(
+      generation({ id: 'legacy', prompt: '存量行' }),
+    )
+    expect(attachment).not.toHaveProperty('seq')
+    // 没有身份段，名字退化成一段摘要 —— ⛔ 不编号。
+    expect(attachment.label).toBe('存量行')
   })
 })

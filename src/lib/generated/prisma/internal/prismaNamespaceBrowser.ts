@@ -264,6 +264,7 @@ export const GenerationScalarFieldEnum = {
   recipeSnapshot: 'recipeSnapshot',
   sourceSurface: 'sourceSurface',
   loraLineage: 'loraLineage',
+  seq: 'seq',
   snapshot: 'snapshot',
   evaluation: 'evaluation',
   runGroupId: 'runGroupId',

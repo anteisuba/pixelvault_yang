@@ -1,6 +1,6 @@
 /**
  * 产物名的**唯一一套算法**（第三期 · 工作台 N1）。词法见
- * `constants/generation-naming.ts` 的头注（含「序号为什么不是计数器」）。
+ * `constants/generation-naming.ts` 的头注（含「序号就是第几件」）。
  *
  * 纯函数、无 `server-only`：写入侧（`generation.service.ts`）、助手侧
  * （`search_assets` / 快照结果行）、客户端（`@` 选择器、结果行卡角标）**必须**
@@ -9,10 +9,14 @@
  * ── 名字分两段，只有前一段是「身份」 ──────────────────────────────
  *   `图_012` · `银发少女立绘`
  *    └ 标签 ┘   └── 摘要 ──┘
- * **标签**只由 `(outputType, id)` 决定 —— 任何入口、任何时候都一样，`@` 解析
- * 认的就是它。**摘要**是装饰：优先用助手给的 `label`（写进 snapshot 时定下），
- * 没有就取提示词头几个字。于是「助手给过 label 的那些行在列表口读不到 label」
- * 这件事只会让摘要退化，⛔ 不会让指认失灵。
+ * **标签**只由 `(outputType, seq)` 决定，`seq` 是库里那个**每用户递增的计数器**
+ * —— 任何入口、任何时候都一样，`@` 解析认的就是它。**摘要**是装饰：优先用助手
+ * 给的 `label`（写进 snapshot 时定下），没有就取提示词头几个字。于是「助手给过
+ * label 的那些行在列表口读不到 label」这件事只会让摘要退化，⛔ 不会让指认失灵。
+ *
+ * ⚠ **`seq` 缺席的行没有标签**（迁移前的行、匿名行、取号失败）：名字退化成
+ * 一段摘要，⛔ 不编号 —— 编出来的号与真号长得一模一样，而 `@` 解析会拿它去
+ * 撞别人的真号。
  */
 
 import {
@@ -32,47 +36,30 @@ function prefixOf(outputType: string | null | undefined): string {
   )
 }
 
-/**
- * 行 id → 序号。FNV-1a（32 位），取模到 `serialModulo`。
- *
- * ⚠ 要求只有一条：**同一个 id 永远得到同一个数**（跨进程、跨语言无关，这里
- * 只有 TS 一处实现）。⛔ 不用 `Math.random`、⛔ 不用时间、⛔ 不读 DB。
- */
-export function deriveGenerationSerial(id: string): number {
-  let hash = 0x811c9dc5
-  for (let index = 0; index < id.length; index += 1) {
-    hash ^= id.charCodeAt(index)
-    // FNV prime 16777619，用移位保持在 32 位无符号域内。
-    hash =
-      (hash +
-        ((hash << 1) +
-          (hash << 4) +
-          (hash << 7) +
-          (hash << 8) +
-          (hash << 24))) >>>
-      0
-  }
-  return hash % GENERATION_NAME.serialModulo
-}
-
-/** `12` → `012`。超出位数时原样展开（同 `formatShotPrefix` 的规矩，不截断）。 */
+/** `12` → `012`。超出位数时原样展开（第 1000 件写成 `1000`，⛔ 不截断）。 */
 export function formatGenerationSerial(serial: number): string {
   return String(serial).padStart(GENERATION_NAME.serialDigits, '0')
 }
 
 export interface GenerationNameIdentity {
-  readonly id: string
+  /** 库里那个每用户递增的计数器（`Generation.seq`）。缺席 = 这一行没有号。 */
+  readonly seq?: number | null
   readonly outputType?: string | null
 }
 
-/** 身份段 —— `图_012`。`@` 解析认的就是这一段。 */
+/**
+ * 身份段 —— `图_012`。`@` 解析认的就是这一段。
+ *
+ * ⚠ **没有 `seq` 就没有身份段**（`undefined`），⛔ 不回退到任何派生值。
+ */
 export function buildGenerationTag({
-  id,
+  seq,
   outputType,
-}: GenerationNameIdentity): string {
-  return `${prefixOf(outputType)}${GENERATION_NAME.prefixSeparator}${formatGenerationSerial(
-    deriveGenerationSerial(id),
-  )}`
+}: GenerationNameIdentity): string | undefined {
+  if (typeof seq !== 'number' || !Number.isInteger(seq) || seq < 0) {
+    return undefined
+  }
+  return `${prefixOf(outputType)}${GENERATION_NAME.prefixSeparator}${formatGenerationSerial(seq)}`
 }
 
 /**
@@ -102,12 +89,21 @@ export interface GenerationNameInput extends GenerationNameIdentity {
 
 /**
  * 完整名字。**幂等**：同一份输入永远同一个字符串，⛔ 不带任何时间/随机来源。
+ *
+ * 四种形状，按有没有 `seq`、有没有摘要：
+ *   `图_012·银发少女` / `图_012` / `银发少女` / `图`
+ * 最后那个是两头都空时的兜底 —— 一个空字符串会让结果行卡上出现一块空白，
+ * 而域前缀至少还说得清「这是张图」。
  */
 export function buildGenerationDisplayName(input: GenerationNameInput): string {
   const tag = buildGenerationTag(input)
   const summary =
     buildGenerationSummary(input.label) ?? buildGenerationSummary(input.prompt)
-  const name = summary ? `${tag}${GENERATION_NAME.separator}${summary}` : tag
+  const name = tag
+    ? summary
+      ? `${tag}${GENERATION_NAME.separator}${summary}`
+      : tag
+    : (summary ?? prefixOf(input.outputType))
   return name.slice(0, GENERATION_NAME.maxLength)
 }
 
@@ -130,8 +126,8 @@ export interface GenerationNameSource extends GenerationNameIdentity {
 /**
  * 读取侧的名字：**存了就用存的，没存就按同一条规则现算**（存量行不回填库）。
  *
- * ⚠ 现算与存的那次算的**身份段一定相同**（都只看 id + outputType），差别最多
- * 出现在摘要上（助手给过 label 而这一跳没带 snapshot）。
+ * ⚠ 现算与存的那次算的**身份段一定相同**（都只看 seq + outputType，而 `seq`
+ * 落库后不再变），差别最多出现在摘要上（助手给过 label 而这一跳没带 snapshot）。
  */
 export function resolveGenerationDisplayName(
   generation: GenerationNameSource,
@@ -191,6 +187,8 @@ export function readGenerationMentions(
 
 export interface GenerationMentionCandidate {
   readonly id: string
+  /** 这一行的 `Generation.seq`。缺席 = 它没有号，永远不会被 `@序号` 命中。 */
+  readonly seq?: number | null
   readonly label?: string
 }
 
@@ -198,17 +196,20 @@ export interface GenerationMentionCandidate {
  * 一个提及落到哪一条候选上。**名单之外一律不命中**（返回 `undefined`）——
  * 名字是给人念的，不是凭证：服务端拿它去 `mentionedAssets` 里找，找不到就拒。
  *
- * ⚠ 命中判据是**序号相等**（身份段只由 id 决定），不是「label 里含这几个字」：
- * 后者会让 `@图_012` 命中一条摘要里恰好写着 `图_012` 的行。
- * ⚠ 撞号时取**第一条** —— 调用方按「新的在前」给名单（选择器与结果行都是），
- * 于是撞号退化成「指的是最近那一张」，⛔ 不静默挂两张。
+ * ⚠ 命中判据是**序号精确相等**（`candidate.seq === token.serial`），不是
+ * 「label 里含这几个字」：后者会让 `@图_012` 命中一条摘要里恰好写着 `图_012`
+ * 的行。⛔ `seq` 缺席的候选一律不命中 —— 没有号的行没有名字可念。
+ * ⚠ 名单是**一个用户自己的**，而 `seq` 在用户内唯一，所以正常不会撞号；真撞上
+ * （名单混了两个用户）取**第一条** —— 调用方按「新的在前」给名单，于是退化成
+ * 「指的是最近那一张」，⛔ 不静默挂两张。
  */
 export function matchGenerationMention(
   token: GenerationMentionToken,
   candidates: readonly GenerationMentionCandidate[],
 ): GenerationMentionCandidate | undefined {
   return candidates.find(
-    (candidate) => deriveGenerationSerial(candidate.id) === token.serial,
+    (candidate) =>
+      typeof candidate.seq === 'number' && candidate.seq === token.serial,
   )
 }
 

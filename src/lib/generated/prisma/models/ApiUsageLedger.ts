@@ -763,14 +763,6 @@ export type ApiUsageLedgerUncheckedUpdateManyWithoutGenerationJobNestedInput = {
   deleteMany?: Prisma.ApiUsageLedgerScalarWhereInput | Prisma.ApiUsageLedgerScalarWhereInput[]
 }
 
-export type NullableIntFieldUpdateOperationsInput = {
-  set?: number | null
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
-}
-
 export type ApiUsageLedgerCreateWithoutUserInput = {
   id?: string
   adapterType: string

@@ -5,7 +5,6 @@ import { ASSET_DND_MIME } from '@/constants/asset-dnd'
 import { ASSISTANT_MENTION_LIMITS } from '@/constants/generation-naming'
 import {
   buildGenerationTag,
-  deriveGenerationSerial,
   formatGenerationSerial,
 } from '@/lib/generation-name'
 
@@ -38,12 +37,17 @@ beforeEach(async () => {
   mention = await import('@/hooks/use-studio-operator-mention')
 })
 
-function chip(id: string) {
+/**
+ * 一枚候选。`seq` 是**库里那个真计数器**（切片 N1）—— `@图_012` 只按它比。
+ * ⚠ 不传 `seq` = 这一条没有号（存量行 / 上传来的行），于是永远不该被名字命中。
+ */
+function chip(id: string, seq?: number) {
   return {
     id,
     url: `https://cdn.test/${id}.png`,
     label: id,
     kind: 'image' as const,
+    ...(seq === undefined ? {} : { seq }),
   }
 }
 
@@ -202,12 +206,12 @@ describe('useStudioOperatorMention', () => {
 describe('syncNameMentions（正文里直接写产物名）', () => {
   it('名字命中最近生成 → 成 chip', () => {
     const { result } = render()
-    const candidate = chip('g1')
+    const candidate = chip('g1', 12)
 
     let added: readonly { id: string }[] = []
     act(() => {
       added = result.current.syncNameMentions(
-        `把 @${buildGenerationTag({ id: 'g1' })} 换个背景`,
+        `把 @${buildGenerationTag({ seq: 12 })} 换个背景`,
         [candidate],
       )
     })
@@ -218,13 +222,23 @@ describe('syncNameMentions（正文里直接写产物名）', () => {
 
   it('未知名字 ⛔ 不成 chip（⛔ 也不静默挂一张别的）', () => {
     const { result } = render()
-    const unknown = (deriveGenerationSerial('g1') + 500) % 1000
 
     act(() => {
-      result.current.syncNameMentions(
-        `@图_${formatGenerationSerial(unknown)}`,
-        [chip('g1')],
-      )
+      result.current.syncNameMentions(`@图_${formatGenerationSerial(512)}`, [
+        chip('g1', 12),
+      ])
+    })
+
+    expect(result.current.chips).toHaveLength(0)
+  })
+
+  it('⛔ 没号的候选一律不命中 —— 没有号的行没有名字可念', () => {
+    const { result } = render()
+
+    act(() => {
+      result.current.syncNameMentions(`@图_${formatGenerationSerial(12)}`, [
+        chip('legacy'),
+      ])
     })
 
     expect(result.current.chips).toHaveLength(0)
@@ -232,14 +246,14 @@ describe('syncNameMentions（正文里直接写产物名）', () => {
 
   it('同一个名字继续打字不会重复上报（chip 也只有一张）', () => {
     const { result } = render()
-    const tag = buildGenerationTag({ id: 'g1' })
+    const tag = buildGenerationTag({ seq: 12 })
 
     act(() => {
-      result.current.syncNameMentions(`@${tag}`, [chip('g1')])
+      result.current.syncNameMentions(`@${tag}`, [chip('g1', 12)])
     })
     let again: readonly { id: string }[] = []
     act(() => {
-      again = result.current.syncNameMentions(`@${tag} 再来`, [chip('g1')])
+      again = result.current.syncNameMentions(`@${tag} 再来`, [chip('g1', 12)])
     })
 
     expect(again).toHaveLength(0)
@@ -248,18 +262,12 @@ describe('syncNameMentions（正文里直接写产物名）', () => {
 
   it(`一条消息最多解析 ${ASSISTANT_MENTION_LIMITS.maxPerMessage} 个名字`, () => {
     const { result } = render()
-    // 序号互不相同的一批候选（撞号的丢掉，用例要的是「够多」而不是「正好」）。
-    const candidates: ReturnType<typeof chip>[] = []
-    const seen = new Set<number>()
-    for (let index = 0; candidates.length < 14 && index < 200; index += 1) {
-      const id = `g-${index}`
-      const serial = deriveGenerationSerial(id)
-      if (seen.has(serial)) continue
-      seen.add(serial)
-      candidates.push(chip(id))
-    }
+    // 真序号在用户内唯一，所以候选直接按 1..14 排号（⛔ 不再有撞号这回事）。
+    const candidates = Array.from({ length: 14 }, (_, index) =>
+      chip(`g-${index}`, index + 1),
+    )
     const text = candidates
-      .map((item) => `@${buildGenerationTag({ id: item.id })}`)
+      .map((item) => `@${buildGenerationTag({ seq: item.seq })}`)
       .join(' ')
 
     act(() => {
@@ -269,5 +277,71 @@ describe('syncNameMentions（正文里直接写产物名）', () => {
     expect(result.current.chips).toHaveLength(
       ASSISTANT_MENTION_LIMITS.maxPerMessage,
     )
+  })
+})
+
+/**
+ * 切片 Y —— 上下文卡那一路。钉两件：`@token` **换成卡名**（⛔ 不像图那样剪掉 ——
+ * 助手要靠句子里那串名字去 `read_context_card`）、卡与图分成两排各数各的。
+ */
+describe('上下文卡 chip', () => {
+  const card = {
+    cardId: 'card-1',
+    name: '阿岚',
+    kind: 'character' as const,
+  }
+
+  it('选中一张卡：@token 换成卡名，chip 落在卡那一排', () => {
+    const { result } = render()
+
+    act(() => {
+      result.current.syncDraft('用 @阿 的样子', 4)
+    })
+    let next = ''
+    act(() => {
+      next = result.current.pickCard('用 @阿 的样子', card)
+    })
+    expect(next).toBe('用 @阿岚  的样子')
+    expect(result.current.cardChips.map((item) => item.cardId)).toEqual([
+      'card-1',
+    ])
+    // ⛔ 卡不进图那一排，也不该把「将看 N 张」加一。
+    expect(result.current.chips).toHaveLength(0)
+    expect(result.current.count).toBe(0)
+  })
+
+  it('同一张卡挂两次只有一颗；摘掉只摘那一颗', () => {
+    const { result } = render()
+
+    act(() => {
+      result.current.pickCard('', card)
+      result.current.pickCard('', card)
+      result.current.pickCard('', {
+        ...card,
+        cardId: 'card-2',
+        name: '西格莉卡',
+      })
+    })
+    expect(result.current.cardChips).toHaveLength(2)
+
+    act(() => {
+      result.current.removeCardChip('card-1')
+    })
+    expect(result.current.cardChips.map((item) => item.cardId)).toEqual([
+      'card-2',
+    ])
+  })
+
+  it('发出去之后两排一起清 —— chip 属于那一条消息', () => {
+    const { result } = render()
+    act(() => {
+      result.current.addChip(chip('g1'))
+      result.current.pickCard('', card)
+    })
+    act(() => {
+      result.current.clearChips()
+    })
+    expect(result.current.chips).toHaveLength(0)
+    expect(result.current.cardChips).toHaveLength(0)
   })
 })

@@ -13,7 +13,6 @@ import {
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_TONES,
   ASSISTANT_PERSONA_VERBOSITIES,
-  type AssistantAvatarPresetId,
   type AssistantPersonaLanguage,
   type AssistantPersonaPlanMode,
   type AssistantPersonaTone,
@@ -388,10 +387,8 @@ export function AssistantSettingsDialog({
                         />
                       ) : (
                         <AssistantAvatarGlyph
-                          presetId={
-                            draft.avatarPreset ?? ASSISTANT_AVATAR_PRESET_IDS[0]
-                          }
-                          initial={draft.name ?? fallbackInitial}
+                          presetId={draft.avatarPreset}
+                          name={draft.name ?? fallbackInitial}
                           className="size-full"
                         />
                       )}
@@ -423,10 +420,17 @@ export function AssistantSettingsDialog({
                     </div>
                   </div>
 
-                  {/* 六款预设。⚠ 格子用 `w-full aspect-square` 而不是固定 `size-8`：
-                      桌面两栏下每格 ~32px（fine pointer 够），抽屉档整宽下
-                      每格 ~50px（`ui-defaults.md §5` 触屏 44px 命中区）。 */}
-                  <div className="grid grid-cols-6 gap-1.5">
+                  {/* 两款预设（owner 2026-09-07：「只给一两张预设图」）——
+                      ① 项目品牌标 ② 首字母圆标。⚠ 格子 `h-11`（44px 触屏命中
+                      区，`ui-defaults.md §5`），选中态 `ring-2 ring-ring`。
+                      🔬 contrast-check（2026-09-07，浅 / 暗）：品牌标
+                      `text-foreground` 对卡背 19.80 / 17.18，未选 `text-muted-
+                      foreground` 5.49 / 6.94，选中 `text-primary` 21.00 / 17.93；
+                      首字母 `fill-muted-foreground` 对 `fill-muted` 圆底
+                      5.04 / 5.86。⚠ `ring-ring` 对卡背只有 2.58（浅档）——
+                      所以选中态**同时**换 `border-primary`（21.00），⛔ 别把
+                      「选中了没有」单独押在那圈 ring 上。 */}
+                  <div className="grid grid-cols-2 gap-2">
                     {ASSISTANT_AVATAR_PRESET_IDS.map((presetId) => {
                       const selected =
                         !persona.avatarUrl && draft.avatarPreset === presetId
@@ -435,20 +439,20 @@ export function AssistantSettingsDialog({
                           key={presetId}
                           type="button"
                           aria-pressed={selected}
-                          aria-label={`${t('avatarPresets')} ${presetId}`}
+                          aria-label={t(`avatarPreset.${presetId}`)}
+                          title={t(`avatarPreset.${presetId}`)}
                           onClick={() => patch({ avatarPreset: presetId })}
                           className={cn(
-                            'grid aspect-square w-full place-items-center rounded-md border p-1 transition-[border-color,color,transform] duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95 motion-reduce:transition-none',
+                            'grid h-11 place-items-center rounded-md border p-2 transition-[border-color,color,transform] duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95 motion-reduce:transition-none',
                             selected
-                              ? 'border-primary text-primary'
+                              ? 'border-primary text-primary ring-2 ring-ring'
                               : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
                           )}
                         >
                           <AssistantAvatarGlyph
-                            presetId={
-                              presetId satisfies AssistantAvatarPresetId
-                            }
-                            initial={draft.name ?? fallbackInitial}
+                            presetId={presetId}
+                            name={draft.name ?? fallbackInitial}
+                            className="size-7"
                           />
                         </button>
                       )

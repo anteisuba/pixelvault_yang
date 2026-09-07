@@ -125,7 +125,7 @@ describe('StudioOperatorTimelineRow', () => {
         node={STUDIO_OPERATOR_NODE_KINDS.assistant}
         persona={{
           name: '小满',
-          avatarPreset: 'spark',
+          avatarPreset: 'mark',
           avatarUrl: null,
           tone: 'professional',
           toneCustom: null,

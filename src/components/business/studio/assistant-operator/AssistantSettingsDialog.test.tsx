@@ -10,6 +10,7 @@ import {
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_VERBOSITY_IDS,
 } from '@/constants/assistant-persona'
+import type { AssistantPersona } from '@/types/assistant-persona'
 
 /**
  * 助手设置对话框（§8.1–8.2）的回归闸：**每一档控件都真的落进那一次保存**。
@@ -25,9 +26,9 @@ vi.mock('next-intl', () => ({
 const mockSave = vi.fn()
 const mockUploadAvatar = vi.fn()
 const mockRemoveAvatar = vi.fn()
-let personaState = {
+let personaState: AssistantPersona = {
   ...ASSISTANT_PERSONA_DEFAULTS,
-  avatarUrl: null as string | null,
+  avatarUrl: null,
 }
 let isSavingState = false
 
@@ -107,12 +108,43 @@ describe('AssistantSettingsDialog', () => {
   it('换预设头像后保存带上新的 preset id', async () => {
     renderDialog()
 
-    const second = ASSISTANT_AVATAR_PRESET_IDS[2]
-    fireEvent.click(screen.getByLabelText(`avatarPresets ${second}`))
+    const second = ASSISTANT_AVATAR_PRESET_IDS[1]
+    fireEvent.click(screen.getByLabelText(`avatarPreset.${second}`))
     fireEvent.click(screen.getByText('save'))
 
     await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1))
     expect(mockSave.mock.calls[0][0].avatarPreset).toBe(second)
+  })
+
+  /** owner 2026-09-07：「只给一两张预设图」—— 两个，⛔ 不是六个。 */
+  it('预设只有两款：品牌标 + 首字母', () => {
+    renderDialog()
+
+    expect(ASSISTANT_AVATAR_PRESET_IDS).toHaveLength(2)
+    for (const presetId of ASSISTANT_AVATAR_PRESET_IDS) {
+      expect(screen.getByLabelText(`avatarPreset.${presetId}`)).toBeTruthy()
+    }
+  })
+
+  /**
+   * 存量行里还留着收窄前的 id（`spark` 等）。⚠ 那种行**照样要能打开设置**：
+   * 预览退回默认款，⛔ 不空圈、⛔ 不炸。
+   */
+  it('persona 上是悬空 preset id 时预览退回默认款', () => {
+    personaState = {
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      // ⚠ 故意绕过词表：模拟库里存量的悬空 id（收窄前的 `spark`）。
+      avatarPreset: 'spark' as AssistantPersona['avatarPreset'],
+    }
+    renderDialog()
+
+    const preview = screen.getByTestId('assistant-avatar-preview')
+    expect(
+      preview
+        .querySelector('[data-testid="assistant-avatar-glyph"]')
+        ?.getAttribute('data-preset'),
+    ).toBe(ASSISTANT_AVATAR_PRESET_IDS[0])
   })
 
   /** 选了自定义语气却没写那句话 —— 就地拦住，⛔ 不发一次注定被拒的请求。 */

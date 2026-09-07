@@ -65,7 +65,7 @@ vi.mock('@/hooks/use-assistant-persona', () => ({
   useAssistantPersona: () => ({
     persona: {
       name: null,
-      avatarPreset: 'spark',
+      avatarPreset: 'mark',
       avatarUrl: null,
       tone: 'professional',
       toneCustom: null,

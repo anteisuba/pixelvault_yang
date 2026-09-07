@@ -9,220 +9,37 @@
  * import zod，schema 一律住 `src/types/`（这里对应 `types/assistant-persona.ts`）。
  * 本文件会被客户端对话框直接 import，让它拖上 zod 是白付的包体积。
  *
- * ── 预设头像为什么是**数据**而不是 SVG 字符串 ───────────────────────
- * §8.2 要的是「内联 SVG 常量，⛔ 不放静态图片文件」。真把 `<svg>…</svg>` 存成
- * 字符串，渲染那一跳就只能 `dangerouslySetInnerHTML` —— 为了六张 34px 的小图给
- * 自己开一个注入面，不值。所以这里存的是**画它要的几何**，由组件按 `kind` 画成
- * 真的 SVG 元素：一样不落文件、一样只用 `currentColor` 与 `--primary`，
- * 而且颜色只能取自下面那张封闭表（⛔ 脊柱外的颜色在类型上就写不出来）。
+ * ── 预设头像为什么这里只剩两个 id ─────────────────────────────────
+ * 画法住组件（`AssistantAvatarGlyph`）：`mark` 直接复用品牌标
+ * `components/ui/brand-mark.tsx`，`monogram` 是首字母圆标。⛔ 不落静态图片文件，
+ * ⛔ 也不再在这里存一张「画它要的几何」的封闭表 —— 两款之后那张表是纯负担。
  */
 
-/** 预设头像上允许出现的颜色——**只有这四个**，全部来自品牌脊柱。 */
-export const ASSISTANT_AVATAR_INK_IDS = {
-  /** `--primary` 实心。 */
-  primary: 'primary',
-  /** `--primary-foreground`，只用在 primary 底上的字/线。 */
-  onPrimary: 'onPrimary',
-  /** `currentColor` —— 跟着上下文的前景色走。 */
-  current: 'current',
-  /** `--muted` 实心底。 */
-  muted: 'muted',
-} as const
-
-export type AssistantAvatarInk =
-  (typeof ASSISTANT_AVATAR_INK_IDS)[keyof typeof ASSISTANT_AVATAR_INK_IDS]
-
 /**
- * 一张预设头像里的一个图元。坐标系固定 24×24（组件按 `viewBox="0 0 24 24"` 画）。
- *
- * `initial` 是「把助手名字的首字母画在这里」——字母款预设的全部内容。
- * 名字为空时组件退回域名首字母，⛔ 不画一个空格。
- */
-export type AssistantAvatarShape =
-  | {
-      kind: 'circle'
-      cx: number
-      cy: number
-      r: number
-      fill: AssistantAvatarInk
-    }
-  | {
-      kind: 'ring'
-      cx: number
-      cy: number
-      r: number
-      stroke: AssistantAvatarInk
-      strokeWidth: number
-    }
-  | {
-      kind: 'rect'
-      x: number
-      y: number
-      width: number
-      height: number
-      rx: number
-      fill: AssistantAvatarInk
-    }
-  | { kind: 'path'; d: string; fill: AssistantAvatarInk }
-  | {
-      kind: 'stroke'
-      d: string
-      stroke: AssistantAvatarInk
-      strokeWidth: number
-    }
-  | { kind: 'initial'; fill: AssistantAvatarInk }
-
-export interface AssistantAvatarPreset {
-  id: string
-  shapes: readonly AssistantAvatarShape[]
-}
-
-/**
- * 六款预设（§8.2「图形 / 字母 / 色块各 2–3 款」）。
+ * 预设头像**两款**（owner 2026-09-07 定：「先找一下，只给一两张预设图」）。
  *
  * ⚠ id 一旦发出去就**不能改**：它逐字存在 `AssistantPersona.avatarPreset` 列里。
- * 想换画法就改 `shapes`，⛔ 别改 id（改了等于把老用户的头像悄悄清空）。
+ * 收窄之后库里还留着 `spark` / `stamp` / `duotone` / `tide` 这些悬空值 ——
+ * ⛔ 不写迁移去改存量行，读的那一跳按 `normalizeAvatarPreset` 回落到默认款。
  */
-export const ASSISTANT_AVATAR_PRESET_IDS = [
-  'spark',
-  'orbit',
-  'monogram',
-  'stamp',
-  'duotone',
-  'tide',
-] as const
+export const ASSISTANT_AVATAR_PRESET_IDS = ['mark', 'monogram'] as const
 
 export type AssistantAvatarPresetId =
   (typeof ASSISTANT_AVATAR_PRESET_IDS)[number]
 
-export const ASSISTANT_AVATAR_PRESETS: Record<
-  AssistantAvatarPresetId,
-  AssistantAvatarPreset
-> = {
-  // 图形 ①：四角星。
-  spark: {
-    id: 'spark',
-    shapes: [
-      {
-        kind: 'path',
-        d: 'M12 2c.6 4.6 2.8 6.8 7.4 7.4v.2c-4.6.6-6.8 2.8-7.4 7.4h-.2c-.6-4.6-2.8-6.8-7.4-7.4v-.2C8.9 8.8 11.1 6.6 11.8 2Z',
-        fill: ASSISTANT_AVATAR_INK_IDS.primary,
-      },
-      {
-        kind: 'circle',
-        cx: 17.5,
-        cy: 18.5,
-        r: 2.2,
-        fill: ASSISTANT_AVATAR_INK_IDS.current,
-      },
-    ],
-  },
-  // 图形 ②：环与卫星。
-  orbit: {
-    id: 'orbit',
-    shapes: [
-      {
-        kind: 'ring',
-        cx: 12,
-        cy: 12,
-        r: 7,
-        stroke: ASSISTANT_AVATAR_INK_IDS.current,
-        strokeWidth: 1.5,
-      },
-      {
-        kind: 'circle',
-        cx: 12,
-        cy: 12,
-        r: 2.6,
-        fill: ASSISTANT_AVATAR_INK_IDS.primary,
-      },
-      {
-        kind: 'circle',
-        cx: 19,
-        cy: 7,
-        r: 2,
-        fill: ASSISTANT_AVATAR_INK_IDS.primary,
-      },
-    ],
-  },
-  // 字母 ①：实心底 + 首字母。
-  monogram: {
-    id: 'monogram',
-    shapes: [
-      {
-        kind: 'rect',
-        x: 1,
-        y: 1,
-        width: 22,
-        height: 22,
-        rx: 8,
-        fill: ASSISTANT_AVATAR_INK_IDS.primary,
-      },
-      { kind: 'initial', fill: ASSISTANT_AVATAR_INK_IDS.onPrimary },
-    ],
-  },
-  // 字母 ②：静音底 + 首字母 + 一道下划线。
-  stamp: {
-    id: 'stamp',
-    shapes: [
-      {
-        kind: 'rect',
-        x: 1,
-        y: 1,
-        width: 22,
-        height: 22,
-        rx: 4,
-        fill: ASSISTANT_AVATAR_INK_IDS.muted,
-      },
-      { kind: 'initial', fill: ASSISTANT_AVATAR_INK_IDS.current },
-      {
-        kind: 'stroke',
-        d: 'M7 19h10',
-        stroke: ASSISTANT_AVATAR_INK_IDS.primary,
-        strokeWidth: 1.5,
-      },
-    ],
-  },
-  // 色块 ①：对半分。
-  duotone: {
-    id: 'duotone',
-    shapes: [
-      {
-        kind: 'rect',
-        x: 1,
-        y: 1,
-        width: 22,
-        height: 22,
-        rx: 8,
-        fill: ASSISTANT_AVATAR_INK_IDS.muted,
-      },
-      {
-        kind: 'path',
-        d: 'M12 1a11 11 0 0 1 0 22Z',
-        fill: ASSISTANT_AVATAR_INK_IDS.primary,
-      },
-    ],
-  },
-  // 色块 ②：底 + 一道浪。
-  tide: {
-    id: 'tide',
-    shapes: [
-      {
-        kind: 'rect',
-        x: 1,
-        y: 1,
-        width: 22,
-        height: 22,
-        rx: 8,
-        fill: ASSISTANT_AVATAR_INK_IDS.muted,
-      },
-      {
-        kind: 'path',
-        d: 'M1 13c3.7 0 3.7-3 7.3-3s3.7 3 7.4 3S19 10 23 10v13H1Z',
-        fill: ASSISTANT_AVATAR_INK_IDS.primary,
-      },
-    ],
-  },
+/**
+ * 库里那个字符串 → 词表里的 id。**词表外的一律回落到默认款**（⛔ 不抛错、
+ * ⛔ 不出空圈）：老用户存的是已删掉的四款之一，他打开设置时该看到默认头像，
+ * 而不是一个打不开的对话框。
+ */
+export function normalizeAvatarPreset(
+  value: string | null | undefined,
+): AssistantAvatarPresetId {
+  return (ASSISTANT_AVATAR_PRESET_IDS as readonly string[]).includes(
+    value ?? '',
+  )
+    ? (value as AssistantAvatarPresetId)
+    : ASSISTANT_AVATAR_PRESET_IDS[0]
 }
 
 /** 语气四档（§8.2）。`custom` 多带一句用户自己写的话。 */

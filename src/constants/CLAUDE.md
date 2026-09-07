@@ -22,7 +22,7 @@ Constants are imported throughout the entire codebase. Changes here affect provi
 | `video-model-capabilities.ts` | MEDIUM   | Per-model video feature matrix                                                                             |
 | `assistant-operator.ts`       | HIGH     | 统一助手工具表 · SSE 事件名 · 确认三档 · 花钱工具表 · 项目规则限额。⚠ 钱闸总纲那段注释是宪法，改前读它     |
 | `assistant-plan-visuals.ts`   | MEDIUM   | 计划卡待定项图示**封闭词表**（7 组 32 项）+ `ASSISTANT_PLAN_SWATCH_MIX`。词表外一律退化纯文字，⛔ 不猜图标 |
-| `assistant-persona.ts`        | MEDIUM   | 助手 persona 取值表 + `ASSISTANT_PERSONA_DEFAULTS` + 预设 AI 头像内联 SVG（⛔ 不放静态图片文件）           |
+| `assistant-persona.ts`        | MEDIUM   | 助手 persona 取值表 + `ASSISTANT_PERSONA_DEFAULTS` + 预设头像 id（两款，画法住组件）                       |
 
 ## Change Checklist
 

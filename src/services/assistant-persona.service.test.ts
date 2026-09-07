@@ -73,6 +73,19 @@ describe('assistant persona service', () => {
     })
   })
 
+  /**
+   * 预设从六款收成两款（owner 2026-09-07）之后，库里留着 `spark` 这类悬空 id。
+   * ⚠ 只有头像那一格回落，语气 / 长度 / 语言**照样逐字读回**，⛔ 不整份退默认。
+   */
+  it('avatarPreset 是悬空 id 时只回落头像那一格', async () => {
+    mockFindUnique.mockResolvedValue({ ...STORED_ROW, avatarPreset: 'spark' })
+
+    await expect(getAssistantPersona('clerk_1')).resolves.toEqual({
+      ...STORED_ROW,
+      avatarPreset: ASSISTANT_PERSONA_DEFAULTS.avatarPreset,
+    })
+  })
+
   it('upsert 走 userId 唯一键，且不碰头像那两列', async () => {
     mockUpsert.mockResolvedValue(STORED_ROW)
 

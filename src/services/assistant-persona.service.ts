@@ -5,6 +5,7 @@ import {
   ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_PERSONA_LIMITS,
   ASSISTANT_PERSONA_TONE_IDS,
+  normalizeAvatarPreset,
 } from '@/constants/assistant-persona'
 import { sanitizePrompt } from '@/services/kernel/prompt-guard'
 import { ensureUser } from '@/services/user.service'
@@ -54,8 +55,19 @@ function toPersona(
    * ⚠ 用 schema 而不是 `as`：这几列在库里是 `String`（域词表住 constants，
    * ⛔ 不做成第二份 Prisma 枚举），所以「库里的值还在词表里」这件事只能在这里问。
    * 词表改过而存量行没跟上时，退回默认值而不是把一个词表外的值塞进系统提示。
+   *
+   * ⚠ `avatarPreset` **单独先回落**（`normalizeAvatarPreset`）：预设从六款收成
+   * 两款之后，库里还留着 `spark` / `tide` 这类悬空 id。交给下面那一发 safeParse
+   * 会连累整份 persona 一起退回默认值 —— 用户只是头像那一格过时了，语气和长度
+   * 不该跟着一起丢。⛔ 不写迁移去改存量行。`null`（从没选过）照旧是 `null`。
    */
-  const parsed = AssistantPersonaSchema.safeParse(row)
+  const parsed = AssistantPersonaSchema.safeParse({
+    ...row,
+    avatarPreset:
+      row.avatarPreset === null
+        ? null
+        : normalizeAvatarPreset(row.avatarPreset),
+  })
   return parsed.success
     ? parsed.data
     : { ...ASSISTANT_PERSONA_DEFAULTS, avatarUrl: null }

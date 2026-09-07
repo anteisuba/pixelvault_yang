@@ -19,29 +19,13 @@ import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
-import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
+import {
+  AssistantAvatarGlyph,
+  timelineInitials,
+} from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { cn } from '@/lib/utils'
 import type { AssistantPersona } from '@/types/assistant-persona'
-
-/**
- * 首字母圆标的文字。
- *
- * ⚠ 取两位（`FL` 式），中日文取一个字 —— 同
- * `components/business/ProfileHeader.tsx` 的取法，本轮扩到两位（§11.3）。
- * ⚠ `Array.from` 而不是 `slice(0,2)`：`slice` 按 UTF-16 码元切，emoji 或某些
- * CJK 扩展字会被劈成半个字符然后渲染成豆腐块。
- */
-export function timelineInitials(name: string): string {
-  const chars = Array.from(name.trim())
-  if (chars.length === 0) return '?'
-  // CJK 一个字已经够认人了，两个字反而挤不下 32px。
-  const isCjk = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/.test(chars[0] ?? '')
-  return chars
-    .slice(0, isCjk ? 1 : 2)
-    .join('')
-    .toUpperCase()
-}
 
 interface TimelineAvatarProps {
   /** 谁在说话 —— 用户回合读账户头像，助手回合读 persona（§8.2）。 */
@@ -108,7 +92,7 @@ export function TimelineAvatar({
               presetId={
                 persona?.avatarPreset ?? ASSISTANT_PERSONA_DEFAULTS.avatarPreset
               }
-              initial={persona?.name ?? ''}
+              name={persona?.name ?? ''}
               className="size-full"
             />
           </span>

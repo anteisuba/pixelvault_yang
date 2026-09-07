@@ -87,6 +87,8 @@ export function StudioOperatorResearchCard({
     entryId: string
     images: readonly AssistantOperatorWebImage[]
   }[] = []
+  /** 这张卡上已经画过的候选直链 —— 一张图一个格子（见下面那段头注）。 */
+  const seenImageUrls = new Set<string>()
 
   for (const entry of steps) {
     const { step } = entry
@@ -112,7 +114,25 @@ export function StudioOperatorResearchCard({
       step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages &&
       step.result?.images?.length
     ) {
-      imageSteps.push({ entryId: entry.id, images: step.result.images })
+      /**
+       * ⭐ **同一张候选在这张卡上只出现一次**（2026-09-07 真机）。
+       *
+       * 🔬 一轮里换个词再搜一次是常态（`search_web_images` 落两条步），而两次
+       * 召回重叠是常态中的常态 —— 服务端只在**一次调用内**按 `imageUrl` 去重
+       * （`webImageSearchMulti`），跨调用它看不见。不去重的表现是同一张图在卡上
+       * 有两个格子，而它们的选中态**各算各的**：选了上面那个，下面那个还写着
+       * 「选用」，点下去就是同一条来源导入两次（服务端的幂等闸兜住了落库，
+       * 但用户读到的是「我到底选没选」）。
+       * ⚠ 留**先出现**的那一格：候选顺序是服务端排过的（官方/wiki 在前）。
+       */
+      const fresh = step.result.images.filter((image) => {
+        if (seenImageUrls.has(image.imageUrl)) return false
+        seenImageUrls.add(image.imageUrl)
+        return true
+      })
+      if (fresh.length > 0) {
+        imageSteps.push({ entryId: entry.id, images: fresh })
+      }
     }
   }
 

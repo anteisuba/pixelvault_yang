@@ -122,6 +122,61 @@ describe('候选网格 · 来源三字段（切片 3b）', () => {
   })
 })
 
+/**
+ * 🔬 2026-09-07 真机：一行里同时有「403 拒了」和「不是图片格式」两种失败，而
+ * 界面上只写第一条 —— 用户读到的原因与他正看的那一格对不上。
+ */
+describe('候选网格 · 失败原因写在那一格下面（2026-09-07）', () => {
+  it('每个失败格各写各的原因，⛔ 不是整行共用一句', () => {
+    render(
+      <StudioOperatorWebCandidateGrid
+        entryId="run-1:step-1"
+        images={[USABLE, NO_PUBLISHER]}
+        webImport={{
+          picks: [
+            {
+              imageUrl: USABLE.imageUrl,
+              status: 'error',
+              error: '这张图所在的站点拒绝了我们的下载',
+            },
+            {
+              imageUrl: NO_PUBLISHER.imageUrl,
+              status: 'error',
+              error: '这个链接不是能收下的图片格式',
+            },
+          ],
+        }}
+        limit={4}
+        onToggle={vi.fn()}
+      />,
+    )
+    const reasons = screen
+      .getAllByTestId('operator-web-candidate-error')
+      .map((node) => node.textContent)
+    expect(reasons).toEqual([
+      '这张图所在的站点拒绝了我们的下载',
+      '这个链接不是能收下的图片格式',
+    ])
+  })
+
+  it('热链保护档：点之前就说明白「取不回来」，⛔ 不与版权那句混为一谈', () => {
+    renderGrid([
+      {
+        imageUrl: 'https://i.pximg.net/x.jpg',
+        pageUrl: 'https://www.pixiv.net/artworks/1',
+        domain: 'pixiv.net',
+        usableAsInput: false,
+        sourceVerdict: 'hotlinkProtected',
+      },
+    ])
+    const use = screen.getByTestId('operator-web-candidate-use')
+    expect((use as HTMLButtonElement).disabled).toBe(true)
+    expect(
+      screen.getByTestId('operator-web-candidate-blocked').textContent,
+    ).toBe('web.notUsableHotlink')
+  })
+})
+
 describe('候选网格 · 「把能用的都挂上」（2026-09-06）', () => {
   function renderWith(
     images: readonly AssistantOperatorWebImage[],

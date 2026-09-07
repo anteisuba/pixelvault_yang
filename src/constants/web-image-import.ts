@@ -83,3 +83,111 @@ export const WEB_IMAGE_IMPORT_LIMITS = {
   maxTitleChars: 200,
   maxDomainChars: 200,
 } as const
+
+/**
+ * 转存失败的**原因码**（2026-09-07 真机）。
+ *
+ * ⭐ 由来：16 个候选格里 4 个点「选用」变「重试」，而界面上只有一句「这张图所在的
+ * 站点不让我们下载它」—— 403、404、429、上游 500、超时、格式不对，六件不同的事
+ * 说成同一句话。用户读不出「换一张」和「等一下再试」的区别，我们也读不出这条
+ * 来源到底怎么了。
+ *
+ * ⚠ 每一档都要有**自己的下一步动作**，写不出下一步的档不该单独存在（那就是
+ * `unreachable` 兜底那一档在干的活）。
+ */
+export const WEB_IMAGE_IMPORT_FAILURE_IDS = {
+  /** 401 / 403 —— 站方拒了我们这次取图（热链保护 / 反爬）。 */
+  forbidden: 'WEB_IMAGE_IMPORT_FORBIDDEN',
+  /** 404 / 410 —— 这条直链已经不在了（搜索引擎的缓存比原站活得久）。 */
+  notFound: 'WEB_IMAGE_IMPORT_NOT_FOUND',
+  /** 429 —— 打得太密，等一下再试是有意义的。 */
+  rateLimited: 'WEB_IMAGE_IMPORT_RATE_LIMITED',
+  /** 5xx —— 对面站坏了，与这张图无关。 */
+  serverError: 'WEB_IMAGE_IMPORT_SERVER_ERROR',
+  /** 连不上 / 超时。 */
+  timeout: 'WEB_IMAGE_IMPORT_TIMEOUT',
+  /** 超过字节上限。 */
+  tooLarge: 'WEB_IMAGE_IMPORT_TOO_LARGE',
+  /** 其余全部 —— ⛔ 别让它长大：说得清的都该有自己的一档。 */
+  unreachable: 'WEB_IMAGE_IMPORT_UNREACHABLE',
+} as const
+
+export type WebImageImportFailureId =
+  (typeof WEB_IMAGE_IMPORT_FAILURE_IDS)[keyof typeof WEB_IMAGE_IMPORT_FAILURE_IDS]
+
+/**
+ * 原因码 → HTTP 状态 + 文案键。
+ *
+ * ⚠ 状态码**照搬上游的语义而不是原样透传**：站方的 404 对我们这条路由来说是
+ * 「你给的这条来源取不到」（502 家族），⛔ 不能变成「这条 API 路由不存在」。
+ * 唯一的例外是 429：那一档原样传下去，客户端的重试语义才对得上。
+ */
+export const WEB_IMAGE_IMPORT_FAILURES: Record<
+  WebImageImportFailureId,
+  { status: number; i18nKey: string }
+> = {
+  [WEB_IMAGE_IMPORT_FAILURE_IDS.forbidden]: {
+    status: 502,
+    i18nKey: 'errors.webImageImport.forbidden',
+  },
+  [WEB_IMAGE_IMPORT_FAILURE_IDS.notFound]: {
+    status: 502,
+    i18nKey: 'errors.webImageImport.notFound',
+  },
+  [WEB_IMAGE_IMPORT_FAILURE_IDS.rateLimited]: {
+    status: 429,
+    i18nKey: 'errors.webImageImport.rateLimited',
+  },
+  [WEB_IMAGE_IMPORT_FAILURE_IDS.serverError]: {
+    status: 502,
+    i18nKey: 'errors.webImageImport.serverError',
+  },
+  [WEB_IMAGE_IMPORT_FAILURE_IDS.timeout]: {
+    status: 504,
+    i18nKey: 'errors.webImageImport.timeout',
+  },
+  [WEB_IMAGE_IMPORT_FAILURE_IDS.tooLarge]: {
+    status: 502,
+    i18nKey: 'errors.webImageImport.tooLarge',
+  },
+  [WEB_IMAGE_IMPORT_FAILURE_IDS.unreachable]: {
+    status: 502,
+    i18nKey: 'errors.webImageImport.unreachable',
+  },
+}
+
+/**
+ * 从**取字节那一步抛出来的那句话**里读出原因码。
+ *
+ * ⚠ 判的是 `fetchAsBuffer` 自己造的两种句子（`Failed to fetch image (NNN): url`
+ * 与 `... exceeds maximum size ...`）与 undici / AbortSignal 的超时名 ——
+ * ⛔ 不是任意上游文案的模糊匹配：读不出来的一律落 `unreachable`，那才是诚实的
+ * 「不知道」。
+ * ⚠ 状态码用 `(\d{3})` 从括号里取：⛔ 别去 `includes('403')`，URL 里带 403 的
+ * 路径是真的存在。
+ */
+export function classifyWebImageImportFailure(
+  message: string,
+): WebImageImportFailureId {
+  if (message.includes('exceeds maximum size')) {
+    return WEB_IMAGE_IMPORT_FAILURE_IDS.tooLarge
+  }
+  if (/timeout|timed out|aborted|ETIMEDOUT/i.test(message)) {
+    return WEB_IMAGE_IMPORT_FAILURE_IDS.timeout
+  }
+  const status = Number.parseInt(
+    /Failed to fetch image \((\d{3})\)/.exec(message)?.[1] ?? '',
+    10,
+  )
+  if (Number.isFinite(status)) {
+    if (status === 401 || status === 403) {
+      return WEB_IMAGE_IMPORT_FAILURE_IDS.forbidden
+    }
+    if (status === 404 || status === 410) {
+      return WEB_IMAGE_IMPORT_FAILURE_IDS.notFound
+    }
+    if (status === 429) return WEB_IMAGE_IMPORT_FAILURE_IDS.rateLimited
+    if (status >= 500) return WEB_IMAGE_IMPORT_FAILURE_IDS.serverError
+  }
+  return WEB_IMAGE_IMPORT_FAILURE_IDS.unreachable
+}

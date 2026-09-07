@@ -151,6 +151,18 @@ interface StudioOperatorLogItemProps {
   webImportLimit: number
   /** 点「选用」—— 导入并挂上 / 取消选用（拍板 21）。⛔ 点缩略图不走这条。 */
   onToggleWebImage(entryId: string, image: AssistantOperatorWebImage): void
+  /**
+   * 这一条要不要**自己画候选网格**（2026-09-07 真机）。
+   *
+   * 🔬 根因：调查卡把同一轮的 `search_web_images` 候选画在卡面上，**同时**把这几条
+   * 日志原样塞进卡底那段「过程」——而日志条自己也画一份网格。`<details>` 收着时
+   * DOM 里照样有，于是 `[data-testid=operator-web-candidate]` 数出 16 个而唯一候选
+   * 只有 8 个，两份还共用同一个 `entryId`（选中态完全镜像）。
+   *
+   * ⚠ 写成**必填**而不是带默认值：默认值等于「谁忘了传谁就多画一份」，而这正是
+   * 出过事的那条路。⛔ 也不在这颗组件里去猜「我是不是长在卡里」——那是宿主的知识。
+   */
+  renderWebCandidates: boolean
 }
 
 export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
@@ -161,6 +173,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
   webImport,
   webImportLimit,
   onToggleWebImage,
+  renderWebCandidates,
 }: StudioOperatorLogItemProps) {
   const t = useTranslations('StudioOperator')
   const reduceMotion = useReducedMotion()
@@ -320,8 +333,11 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
       ) : null}
 
       {/* 联网候选（拍板 21）—— 网格搬去了 `StudioOperatorWebCandidateGrid`
-          （切片 3b）：那一块有自己的交互与自己的每格状态机，⛔ 别搬回来。 */}
-      {step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+          （切片 3b）：那一块有自己的交互与自己的每格状态机，⛔ 别搬回来。
+          ⚠ `renderWebCandidates` 为假 = 调查卡已经在卡面上画过这一份了（见 prop
+            头注）：这里再画一遍就是同一张候选出现两次。 */}
+      {renderWebCandidates &&
+      step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
       step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages &&
       step.result ? (
         <StudioOperatorWebCandidateGrid

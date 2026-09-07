@@ -133,19 +133,112 @@ describe('联网图片转存 · 硬闸', () => {
     expect(createGeneration).not.toHaveBeenCalled()
   })
 
-  it('取不到图（🔬 通用网图约三成 403）→ 报 unreachable，且不落任何库', async () => {
+  /**
+   * 🔬 2026-09-07 真机：16 个候选格里 4 个「取不到」，而界面上六种失败说的是
+   * 同一句话。原因码要分得开 —— 每一档的下一步动作不同。
+   */
+  it.each([
+    [
+      'Failed to fetch image (403): https://cdn.example.com/figure.jpg',
+      'WEB_IMAGE_IMPORT_FORBIDDEN',
+      'errors.webImageImport.forbidden',
+    ],
+    [
+      'Failed to fetch image (404): https://cdn.example.com/figure.jpg',
+      'WEB_IMAGE_IMPORT_NOT_FOUND',
+      'errors.webImageImport.notFound',
+    ],
+    [
+      'Failed to fetch image (429): https://cdn.example.com/figure.jpg',
+      'WEB_IMAGE_IMPORT_RATE_LIMITED',
+      'errors.webImageImport.rateLimited',
+    ],
+    [
+      'Failed to fetch image (503): https://cdn.example.com/figure.jpg',
+      'WEB_IMAGE_IMPORT_SERVER_ERROR',
+      'errors.webImageImport.serverError',
+    ],
+    [
+      'The operation was aborted due to timeout',
+      'WEB_IMAGE_IMPORT_TIMEOUT',
+      'errors.webImageImport.timeout',
+    ],
+    [
+      'fetch failed',
+      'WEB_IMAGE_IMPORT_UNREACHABLE',
+      'errors.webImageImport.unreachable',
+    ],
+  ])('取不到图时原因码分得开：%s → %s', async (message, code, i18nKey) => {
+    vi.mocked(fetchAsBuffer).mockRejectedValue(new Error(message))
+    await expect(
+      importWebImage('clerk_test_user', REQUEST),
+    ).rejects.toMatchObject({ errorCode: code, i18nKey })
+    expect(createGeneration).not.toHaveBeenCalled()
+  })
+
+  /**
+   * 🔬 那 4 个「取不到」里有一部分是普通的热链保护：图床只认「从我自己的页面
+   * 点过来」。带上 `Referer` 再取一次这一档就通了。
+   */
+  it('403 时带 Referer（作品页地址）重试一次，通了就照常落库', async () => {
+    vi.mocked(fetchAsBuffer)
+      .mockRejectedValueOnce(
+        new Error(
+          'Failed to fetch image (403): https://cdn.example.com/figure.jpg',
+        ),
+      )
+      .mockResolvedValueOnce({
+        buffer: Buffer.from('bytes'),
+        mimeType: 'image/jpeg',
+      })
+
+    await importWebImage('clerk_test_user', REQUEST)
+
+    expect(fetchAsBuffer).toHaveBeenNthCalledWith(2, REQUEST.imageUrl, {
+      headers: {
+        'User-Agent': WEB_IMAGE_IMPORT_USER_AGENT,
+        Referer: REQUEST.pageUrl,
+      },
+      maxBytes: WEB_IMAGE_IMPORT_MAX_BYTES,
+    })
+    expect(createGeneration).toHaveBeenCalledTimes(1)
+  })
+
+  it('⛔ 只对 403 重试，⛔ 且只重试一次（404 一次就认了）', async () => {
     vi.mocked(fetchAsBuffer).mockRejectedValue(
       new Error(
-        'Failed to fetch image (403): https://cdn.example.com/figure.jpg',
+        'Failed to fetch image (404): https://cdn.example.com/figure.jpg',
       ),
     )
     await expect(
       importWebImage('clerk_test_user', REQUEST),
-    ).rejects.toMatchObject({
-      errorCode: 'WEB_IMAGE_IMPORT_UNREACHABLE',
-      i18nKey: 'errors.webImageImport.unreachable',
+    ).rejects.toMatchObject({ errorCode: 'WEB_IMAGE_IMPORT_NOT_FOUND' })
+    expect(fetchAsBuffer).toHaveBeenCalledTimes(1)
+  })
+
+  it('没有作品页时 Referer 回落到图自己的 origin', async () => {
+    vi.mocked(fetchAsBuffer)
+      .mockRejectedValueOnce(
+        new Error(
+          'Failed to fetch image (403): https://cdn.example.com/figure.jpg',
+        ),
+      )
+      .mockResolvedValueOnce({
+        buffer: Buffer.from('bytes'),
+        mimeType: 'image/jpeg',
+      })
+
+    await importWebImage('clerk_test_user', {
+      imageUrl: REQUEST.imageUrl,
     })
-    expect(createGeneration).not.toHaveBeenCalled()
+
+    expect(fetchAsBuffer).toHaveBeenNthCalledWith(2, REQUEST.imageUrl, {
+      headers: {
+        'User-Agent': WEB_IMAGE_IMPORT_USER_AGENT,
+        Referer: 'https://cdn.example.com',
+      },
+      maxBytes: WEB_IMAGE_IMPORT_MAX_BYTES,
+    })
   })
 
   it('超过字节上限时报 tooLarge（与「取不到」分开，两者的下一步不同）', async () => {

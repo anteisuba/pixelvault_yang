@@ -673,20 +673,6 @@ export function StudioOperatorPanel({
       const roundDone = !working || block.runKey !== latestRunKey
       const changeCountInRound = countRoundChanges(block.runKey)
       const fields = roundFields(block.runKey)
-      const logItems = block.steps.map((item) => (
-        <StudioOperatorLogItem
-          key={item.id}
-          entryId={item.id}
-          step={item.step}
-          undone={item.undone}
-          onUndo={undoStep}
-          // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
-          //    传一个每次 render 都换引用的对象等于把 memo 关掉。
-          webImport={webImport.states[item.id]}
-          webImportLimit={webImport.limit}
-          onToggleWebImage={webImport.toggleCandidate}
-        />
-      ))
       /**
        * ⭐ 这一组里有调查步 → 整组改画**调查卡**（第 6 件）：结论 + 证据 + 候选
        * 在明面上，翻页读页那一串折进「过程」。⛔ 不与 ToolGroup 并排画 —— 那会
@@ -712,6 +698,26 @@ export function StudioOperatorPanel({
        */
       const showResearchCard =
         researchSteps.length > 0 && hasOperatorResearchFindings(researchSteps)
+      /**
+       * ⚠ `logItems` 必须**排在 `showResearchCard` 之后**算：出卡时这几条日志是
+       * 卡底那段「过程」的内容，而候选网格已经画在卡面上了 —— 日志条这时候
+       * ⛔ 不能再画一份（2026-09-07 真机：16 个格子 / 8 张唯一候选）。
+       */
+      const logItems = block.steps.map((item) => (
+        <StudioOperatorLogItem
+          key={item.id}
+          entryId={item.id}
+          step={item.step}
+          undone={item.undone}
+          onUndo={undoStep}
+          // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
+          //    传一个每次 render 都换引用的对象等于把 memo 关掉。
+          webImport={webImport.states[item.id]}
+          webImportLimit={webImport.limit}
+          onToggleWebImage={webImport.toggleCandidate}
+          renderWebCandidates={!showResearchCard}
+        />
+      ))
       return (
         <div key={`tools:${block.runKey}:${block.steps[0]?.id}`}>
           <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.tool}>

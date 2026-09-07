@@ -133,6 +133,7 @@ function renderItem(
       webImport={undefined}
       webImportLimit={4}
       onToggleWebImage={onToggleWebImage}
+      renderWebCandidates
       {...overrides}
     />,
   )
@@ -247,7 +248,7 @@ describe('日志条 · 联网候选（P3-B）', () => {
     expect(tiles[0].getAttribute('data-state')).toBe('error')
     expect(tiles[0].getAttribute('data-selected')).toBe('true')
     expect(
-      screen.getByTestId('operator-web-import-error').textContent,
+      screen.getAllByTestId('operator-web-candidate-error')[0].textContent,
     ).toContain('403')
   })
 
@@ -270,6 +271,16 @@ describe('日志条 · 联网候选（P3-B）', () => {
       },
     })
     expect(screen.getByTestId('spinner')).toBeTruthy()
+  })
+
+  /**
+   * 🔬 2026-09-07 真机：`[data-testid=operator-web-candidate]` 数出 16 个，唯一
+   * 候选只有 8 张 —— 调查卡画了一份，卡底「过程」里的这条日志又画了一份。
+   */
+  it('⛔ 调查卡已经画过时这一条不再画（同一张候选只有一个格子）', () => {
+    renderItem({ renderWebCandidates: false })
+    expect(screen.queryAllByTestId('operator-web-candidate')).toHaveLength(0)
+    expect(screen.queryByTestId('operator-web-candidates')).toBeNull()
   })
 
   it('⛔ 这一条没有撤销按钮 —— 读类，一个字节都没落', () => {
@@ -332,7 +343,9 @@ describe('日志条 · 一格失败不该弄脏别格', () => {
     expect(tiles[0].getAttribute('data-state')).toBe('imported')
     expect(tiles[1].getAttribute('data-state')).toBe('error')
     expect(tiles[0].getAttribute('data-selected')).toBe('true')
-    expect(screen.getByTestId('operator-web-import-error')).toBeTruthy()
+    expect(screen.getAllByTestId('operator-web-candidate-error')).toHaveLength(
+      1,
+    )
   })
 })
 

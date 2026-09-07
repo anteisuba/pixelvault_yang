@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isWebImageSourceUsableAsInput,
   judgeWebImageSource,
+  WEB_IMAGE_SOURCE_NOT_USABLE_MESSAGE_KEYS,
   WEB_IMAGE_SOURCE_VERDICT_IDS,
 } from '@/constants/web-image-sources'
 
@@ -64,7 +65,39 @@ describe('judgeWebImageSource', () => {
     }
   })
 
-  it('三档里只有 blocked 拿不来当输入', () => {
+  /**
+   * 🔬 2026-09-07 真机：16 个候选格里 4 个点「选用」变「重试」——共同点不是版权
+   * 而是热链保护。让用户点了才失败，等于把一次注定失败的往返写成一颗能按的按钮。
+   */
+  it('热链保护档：判在白名单之前，⛔ 拿不来当输入，且与 blocked 分得开', () => {
+    for (const host of [
+      'pixiv.net',
+      'i.pximg.net',
+      'www.weibo.com',
+      'wx1.sinaimg.cn',
+      'zhuanlan.zhihu.com',
+      'pic1.zhimg.com',
+      'www.xiaohongshu.com',
+      'i0.hdslb.com',
+      'https://www.instagram.com/p/abc/',
+    ]) {
+      const verdict = judgeWebImageSource(host)
+      expect(verdict).toBe(WEB_IMAGE_SOURCE_VERDICT_IDS.hotlinkProtected)
+      expect(isWebImageSourceUsableAsInput(verdict)).toBe(false)
+    }
+    // ⛔ 两句话不能互相冒充：「站方不许」与「取不回来」各有各的文案键。
+    expect(
+      WEB_IMAGE_SOURCE_NOT_USABLE_MESSAGE_KEYS[
+        WEB_IMAGE_SOURCE_VERDICT_IDS.hotlinkProtected
+      ],
+    ).not.toBe(
+      WEB_IMAGE_SOURCE_NOT_USABLE_MESSAGE_KEYS[
+        WEB_IMAGE_SOURCE_VERDICT_IDS.blocked
+      ],
+    )
+  })
+
+  it('四档里 blocked 与 hotlinkProtected 拿不来当输入', () => {
     expect(
       isWebImageSourceUsableAsInput(WEB_IMAGE_SOURCE_VERDICT_IDS.allowed),
     ).toBe(true)
@@ -75,6 +108,11 @@ describe('judgeWebImageSource', () => {
     ).toBe(true)
     expect(
       isWebImageSourceUsableAsInput(WEB_IMAGE_SOURCE_VERDICT_IDS.blocked),
+    ).toBe(false)
+    expect(
+      isWebImageSourceUsableAsInput(
+        WEB_IMAGE_SOURCE_VERDICT_IDS.hotlinkProtected,
+      ),
     ).toBe(false)
   })
 })

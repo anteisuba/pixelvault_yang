@@ -8,9 +8,11 @@
  * 白名单上的图照样可能是别人的作品，未知档更是明说「不知道」。真正的许可要看
  * 图所在页自己怎么写。
  *
- * ── 三档，判据是「我们知道什么」而不是「有多安全」 ────────────────
+ * ── 四档，判据是「我们知道什么」而不是「有多安全」 ────────────────
  *  · `blocked` —— 站方明令禁 AI 训练/生成，或整站是无法溯源的转载聚合。
  *    候选照样**画出来**（用户点开原页去看是他的自由），但「选用」那颗按钮关掉。
+ *  · `hotlinkProtected` —— 版权说不上话，纯粹是**取不回来**（热链保护）。同样画出来、
+ *    同样关掉按钮，但理由那一行说的是另一件事（2026-09-07 真机，见该档头注）。
  *  · `allowed` —— 官方 wiki / 官方社区 / 自由许可百科这类**发布方就是权利方**的站。
  *  · `unknownLicense` —— 其余全部。**可用**（互联网上绝大多数站都在这一档，
  *    默认拦下来等于把这个功能关掉），但格子上标一句「许可未知」。
@@ -27,12 +29,24 @@ export const WEB_IMAGE_SOURCE_VERDICT_IDS = {
   unknownLicense: 'unknownLicense',
   /** 站方禁 AI，或整站溯源不到原作者。 */
   blocked: 'blocked',
+  /**
+   * 站方**技术上**就不让外部取这张图（Referer 强校验 / JS challenge）。
+   *
+   * ⭐ 由来（2026-09-07 真机）：16 个候选格里 4 个点「选用」变「重试」——
+   * 这几张的共同点不是版权，是**热链保护**：直链在浏览器里能开（带着站内
+   * Referer），我们的服务端一取就 403。让用户点下去再失败，等于把一次注定
+   * 失败的往返写成了一颗看起来能按的按钮。
+   * ⚠ 与 `blocked` 分开而不是并进去：那一档说的是「站方不许」，这一档说的是
+   *   「取不回来」——⛔ 两句话不能互相冒充，用户按这句话决定要不要去别处找。
+   */
+  hotlinkProtected: 'hotlinkProtected',
 } as const
 
 export const WEB_IMAGE_SOURCE_VERDICTS = [
   WEB_IMAGE_SOURCE_VERDICT_IDS.allowed,
   WEB_IMAGE_SOURCE_VERDICT_IDS.unknownLicense,
   WEB_IMAGE_SOURCE_VERDICT_IDS.blocked,
+  WEB_IMAGE_SOURCE_VERDICT_IDS.hotlinkProtected,
 ] as const
 
 export type WebImageSourceVerdict = (typeof WEB_IMAGE_SOURCE_VERDICTS)[number]
@@ -57,6 +71,39 @@ export const WEB_IMAGE_SOURCE_BLOCKLIST = [
   'shutterstock.com',
   'istockphoto.com',
   'alamy.com',
+] as const
+
+/**
+ * **热链保护**的站：图能在浏览器里看，服务端直取一律拒（切片 3b 续，2026-09-07）。
+ *
+ * ⚠ 判据是「**我们实际取不到**」，不是「这个站的图不该用」——⛔ 别把版权判断
+ * 混进来，那是上面那张表的事。每一条都要写得出拒的是什么机制。
+ * ⚠ 页面域与图床域**两个都写**：判定喂进来的是 `domain ?? pageUrl`（作品页域），
+ * 而同一份判据在别处也可能拿到图床主机名 —— 两边都命中才不会分岔。
+ * ⚠ 这张表**只增不猜**：拿不准的留在未知档，让用户去试。误标一条的代价是一张
+ * 本来能用的图被我们提前关掉，而用户根本不知道它本来可以。
+ */
+export const WEB_IMAGE_SOURCE_HOTLINK_LIST = [
+  /** pixiv：图床对非站内 Referer 一律 403，这是它最出名的一条规则。 */
+  'pixiv.net',
+  'pximg.net',
+  /** 微博图床按 Referer 拒外链（换域也一样）。 */
+  'weibo.com',
+  'weibo.cn',
+  'sinaimg.cn',
+  /** 知乎图床同上。 */
+  'zhihu.com',
+  'zhimg.com',
+  /** 小红书：图床带签名参数且校验来源。 */
+  'xiaohongshu.com',
+  'xhscdn.com',
+  /** B 站图床（`hdslb`）对外链取图返回 403。 */
+  'bilibili.com',
+  'hdslb.com',
+  /** Instagram / Facebook 的 CDN 走短时签名，服务端直取拿到的是过期链接。 */
+  'instagram.com',
+  'cdninstagram.com',
+  'fbcdn.net',
 ] as const
 
 /**
@@ -137,6 +184,18 @@ export function judgeWebImageSource(
   ) {
     return WEB_IMAGE_SOURCE_VERDICT_IDS.blocked
   }
+  /**
+   * ⚠ 热链档判在**白名单之前**：一个站完全可以既是官方社区、又对外链取图 403，
+   * 而那时用户要读到的是「取不回来」而不是「出处清楚」——⛔ 后者会让他去点一颗
+   * 注定失败的按钮。
+   */
+  if (
+    WEB_IMAGE_SOURCE_HOTLINK_LIST.some((pattern) =>
+      matchesHostPattern(host, pattern),
+    )
+  ) {
+    return WEB_IMAGE_SOURCE_VERDICT_IDS.hotlinkProtected
+  }
   if (
     WEB_IMAGE_SOURCE_ALLOWLIST.some((pattern) =>
       matchesHostPattern(host, pattern),
@@ -150,13 +209,34 @@ export function judgeWebImageSource(
 /**
  * 这一档能不能当生成输入。
  *
- * ⚠ 只有 `blocked` 是不能——未知档**可以**。三档里唯一被禁的那一档写成一句谓词，
- * 是为了让服务端拒绝、客户端禁用、格子文案三处读的是同一句话。
+ * ⚠ 不能的是两档：`blocked`（站方不许）与 `hotlinkProtected`（我们取不回来）。
+ * 未知档**可以**。写成一句谓词是为了让服务端拒绝、客户端禁用、格子文案三处
+ * 读的是同一句话。
  */
 export function isWebImageSourceUsableAsInput(
   verdict: WebImageSourceVerdict,
 ): boolean {
-  return verdict !== WEB_IMAGE_SOURCE_VERDICT_IDS.blocked
+  return (
+    verdict !== WEB_IMAGE_SOURCE_VERDICT_IDS.blocked &&
+    verdict !== WEB_IMAGE_SOURCE_VERDICT_IDS.hotlinkProtected
+  )
+}
+
+/**
+ * 不可用那两档各自的**说给用户听的那句话**（键相对 `StudioOperator` 命名空间）。
+ *
+ * ⚠ 写成**全档**的表而不是只列两条：`Record<WebImageSourceVerdict, …>` 让「verdict
+ * 加了一档而文案没跟上」在编译期就红。可用的那两档填的是同一句兜底文案 ——
+ * 它们根本走不到这行（按钮没禁用就不画这句），⛔ 别为此把表做成可选。
+ */
+export const WEB_IMAGE_SOURCE_NOT_USABLE_MESSAGE_KEYS: Record<
+  WebImageSourceVerdict,
+  string
+> = {
+  [WEB_IMAGE_SOURCE_VERDICT_IDS.allowed]: 'web.notUsable',
+  [WEB_IMAGE_SOURCE_VERDICT_IDS.unknownLicense]: 'web.notUsable',
+  [WEB_IMAGE_SOURCE_VERDICT_IDS.blocked]: 'web.notUsable',
+  [WEB_IMAGE_SOURCE_VERDICT_IDS.hotlinkProtected]: 'web.notUsableHotlink',
 }
 
 /**

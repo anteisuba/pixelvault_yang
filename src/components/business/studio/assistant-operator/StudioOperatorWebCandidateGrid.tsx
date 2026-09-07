@@ -36,7 +36,10 @@ import { Check, ExternalLink, TriangleAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_OPERATOR_WEB_CANDIDATE_PIXELS } from '@/constants/studio-assistant-operator'
-import { WEB_IMAGE_SOURCE_VERDICT_IDS } from '@/constants/web-image-sources'
+import {
+  WEB_IMAGE_SOURCE_NOT_USABLE_MESSAGE_KEYS,
+  WEB_IMAGE_SOURCE_VERDICT_IDS,
+} from '@/constants/web-image-sources'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
@@ -260,7 +263,22 @@ export function StudioOperatorWebCandidateGrid({
                   data-testid="operator-web-candidate-blocked"
                   className="text-xs text-muted-foreground"
                 >
-                  {t('web.notUsable')}
+                  {t(
+                    WEB_IMAGE_SOURCE_NOT_USABLE_MESSAGE_KEYS[
+                      image.sourceVerdict
+                    ],
+                  )}
+                </span>
+              ) : null}
+              {/* ⛔ 失败原因写在**这一格**下面（2026-09-07 真机）：此前整行只写
+                  第一条失败的原因，而一行里可以同时有「403 拒了」和「不是图片
+                  格式」两种失败 —— 用户读到的原因与他正看的那一格对不上。 */}
+              {failed ? (
+                <span
+                  data-testid="operator-web-candidate-error"
+                  className="text-xs text-destructive"
+                >
+                  {pick?.error ?? t('web.importFailed')}
                 </span>
               ) : null}
             </div>
@@ -268,16 +286,6 @@ export function StudioOperatorWebCandidateGrid({
         })}
       </div>
 
-      {/* ⛔ 失败不静默：每一条原因都写出来 —— 「我点了但什么都没发生」
-          是本仓最难查的那一类。 */}
-      {failedPicks.length > 0 ? (
-        <p
-          data-testid="operator-web-import-error"
-          className="mt-1 text-2sm text-destructive"
-        >
-          {failedPicks[0]?.error ?? t('web.importFailed')}
-        </p>
-      ) : null}
       {webImport?.refusalError ? (
         <p
           data-testid="operator-web-refusal-error"

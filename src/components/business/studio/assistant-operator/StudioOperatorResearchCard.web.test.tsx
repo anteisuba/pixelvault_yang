@@ -99,6 +99,35 @@ const IMAGES: StudioOperatorStepEntry = {
   },
 } as unknown as StudioOperatorStepEntry
 
+/** 一步搜图，候选直链由调用方给 —— 用来钉「同一张候选只有一个格子」。 */
+function imageStep(
+  id: string,
+  imageUrls: readonly string[],
+): StudioOperatorStepEntry {
+  return {
+    kind: 'step',
+    id: `run-1:${id}`,
+    runKey: 'run-1',
+    undone: false,
+    step: {
+      id,
+      tool: 'search_web_images',
+      title: '搜图',
+      status: 'done',
+      payload: { query: '角色 A', limit: 4 },
+      result: {
+        totalFound: imageUrls.length,
+        images: imageUrls.map((imageUrl) => ({
+          imageUrl,
+          domain: 'example.com',
+          usableAsInput: true,
+          sourceVerdict: 'allowed',
+        })),
+      },
+    },
+  } as unknown as StudioOperatorStepEntry
+}
+
 /** 一步里塞 n 条**有信息量**的证据 —— 用来钉「默认只铺前 N 条」。 */
 function manyTextEvidence(count: number): StudioOperatorStepEntry {
   return {
@@ -176,6 +205,19 @@ describe('StudioOperatorResearchCard', () => {
   it('⭐ 候选图走复用的候选网格 —— ⛔ 没有另画一份', () => {
     renderCard([RESEARCH, IMAGES])
     expect(screen.getByTestId('operator-web-candidates')).toBeTruthy()
+  })
+
+  /**
+   * 🔬 2026-09-07 真机：一轮里换个词再搜一次，两次召回重叠 —— 服务端只在**一次
+   * 调用内**按 `imageUrl` 去重，跨调用它看不见。两个格子各算各的选中态。
+   */
+  it('⭐ 同一条候选直链在整张卡上只有一个格子', () => {
+    renderCard([
+      imageStep('step-2', ['https://cdn.test/a.png', 'https://cdn.test/b.png']),
+      imageStep('step-3', ['https://cdn.test/b.png', 'https://cdn.test/c.png']),
+    ])
+    const tiles = screen.getAllByTestId('operator-web-candidate')
+    expect(tiles).toHaveLength(3)
   })
 
   it('⭐ 过程默认折起来；没有过程时⛔ 一颗空折叠都不画', () => {

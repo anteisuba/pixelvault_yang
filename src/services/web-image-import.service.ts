@@ -1,6 +1,9 @@
 import 'server-only'
 
 import {
+  classifyWebImageImportFailure,
+  WEB_IMAGE_IMPORT_FAILURE_IDS,
+  WEB_IMAGE_IMPORT_FAILURES,
   WEB_IMAGE_IMPORT_HTML_MIME_PREFIXES,
   WEB_IMAGE_IMPORT_HTML_SCAN_BYTES,
   WEB_IMAGE_IMPORT_MAX_BYTES,
@@ -68,6 +71,56 @@ function importFailed(
   message: string,
 ): ApiRequestError {
   return new ApiRequestError(code, status, i18nKey, message)
+}
+
+/**
+ * 取字节 —— **403 时带 `Referer` 再试一次**（2026-09-07 真机）。
+ *
+ * 🔬 由来：16 个候选格里 4 个「取不到」，其中几张是普通的热链保护 ——
+ * 图床只认「从我自己的页面点过来」。带上那一页的地址（或图自己的 origin）
+ * 再取一次，这一档就通了。
+ * ⚠ **只对 403/401 重试一次**，⛔ 不是每次都带：Referer 是一句「我从这儿来」，
+ *   对方本来就同意的时候多说这一句只是多一次往返。
+ * ⛔ 也**不做递归重试**：Cloudflare 的 JS challenge 补 Referer 无效（选型报告
+ *   实测），再试第二次只是把用户的等待时间翻倍。
+ * ⛔ 不伪装浏览器 UA —— 与 `WEB_IMAGE_IMPORT_USER_AGENT` 头注同一条纪律。
+ */
+async function fetchImageBytes(
+  url: string,
+  referer: string | null,
+): Promise<{ buffer: Buffer; mimeType: string }> {
+  const headers: Record<string, string> = {
+    'User-Agent': WEB_IMAGE_IMPORT_USER_AGENT,
+  }
+  try {
+    return await fetchAsBuffer(url, {
+      headers,
+      maxBytes: WEB_IMAGE_IMPORT_MAX_BYTES,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    const failure = classifyWebImageImportFailure(message)
+    if (failure !== WEB_IMAGE_IMPORT_FAILURE_IDS.forbidden || !referer) {
+      throw error
+    }
+    return fetchAsBuffer(url, {
+      headers: { ...headers, Referer: referer },
+      maxBytes: WEB_IMAGE_IMPORT_MAX_BYTES,
+    })
+  }
+}
+
+/** 兜底的 `Referer`：没有作品页时用图自己的 origin（多数热链闸认的就是它）。 */
+function refererFor(
+  pageUrl: string | undefined,
+  imageUrl: string,
+): string | null {
+  if (pageUrl) return pageUrl
+  try {
+    return new URL(imageUrl).origin
+  } catch {
+    return null
+  }
 }
 
 function isHtmlResponse(mimeType: string): boolean {
@@ -180,10 +233,10 @@ export async function importWebImage(
   let followedFromPage: string | null = null
   try {
     // 🔬 礼仪 UA 是硬要求（wikimedia 空 UA 403）。⛔ 不伪装浏览器。
-    const fetched = await fetchAsBuffer(sourceUrl, {
-      headers: { 'User-Agent': WEB_IMAGE_IMPORT_USER_AGENT },
-      maxBytes: WEB_IMAGE_IMPORT_MAX_BYTES,
-    })
+    const fetched = await fetchImageBytes(
+      sourceUrl,
+      refererFor(input.pageUrl, sourceUrl),
+    )
     buffer = fetched.buffer
 
     /**
@@ -210,10 +263,8 @@ export async function importWebImage(
         allowedProtocols: ['http:', 'https:'],
       }).toString()
       followedFromPage = sourceUrl
-      const followed = await fetchAsBuffer(imageUrl, {
-        headers: { 'User-Agent': WEB_IMAGE_IMPORT_USER_AGENT },
-        maxBytes: WEB_IMAGE_IMPORT_MAX_BYTES,
-      })
+      // 跟过一跳时 Referer 就是那一页本身 —— 热链闸认的正是这条。
+      const followed = await fetchImageBytes(imageUrl, sourceUrl)
       buffer = followed.buffer
     }
   } catch (error) {
@@ -225,19 +276,17 @@ export async function importWebImage(
       domain: input.domain,
       error: message,
     })
-    // 🔬 选型报告：通用网图直链约三成 403（Cloudflare JS challenge，补 Referer
-    //    无效）。这不是 bug，是这条来源的常态 —— 所以文案说「换一张」，
-    //    ⛔ 别做自动换下一张：点哪张是用户的决定。
-    throw importFailed(
-      message.includes('exceeds maximum size')
-        ? 'WEB_IMAGE_IMPORT_TOO_LARGE'
-        : 'WEB_IMAGE_IMPORT_UNREACHABLE',
-      502,
-      message.includes('exceeds maximum size')
-        ? 'errors.webImageImport.tooLarge'
-        : 'errors.webImageImport.unreachable',
-      message,
-    )
+    /**
+     * 🔬 选型报告：通用网图直链约三成 403（一部分是热链保护 —— `fetchImageBytes`
+     * 已经带 Referer 重试过一次；剩下的是 Cloudflare JS challenge，补 Referer
+     * 无效）。这不是 bug，是这条来源的常态 —— ⛔ 别做自动换下一张：点哪张是
+     * 用户的决定。
+     * ⭐ 但**原因要分得开**（2026-09-07 真机）：403 / 404 / 429 / 上游 500 / 超时
+     * 各说各的下一步，⛔ 不再统统落成一句「站点不让我们下载」。
+     */
+    const failure = classifyWebImageImportFailure(message)
+    const { status, i18nKey } = WEB_IMAGE_IMPORT_FAILURES[failure]
+    throw importFailed(failure, status, i18nKey, message)
   }
 
   // ⛔ 不信 content-type：判型走 libvips 的魔数（SVG 有意不在允许集里 —— 它能带脚本）。

@@ -6326,7 +6326,12 @@
       "unreachable": "The site hosting that image refused the download. Try another candidate.",
       "unsupported": "That link is not a supported image (JPEG, PNG, WebP, or GIF).",
       "tooLarge": "That image is too large to import.",
-      "noImageOnPage": "That is a web page and it declares no main image. Send the address of the picture itself (right-click it, Copy image address)."
+      "noImageOnPage": "That is a web page and it declares no main image. Send the address of the picture itself (right-click it, Copy image address).",
+      "forbidden": "The site hosting this image refused our download (hotlink protection or anti-bot). Try another candidate.",
+      "notFound": "That image address is gone (the original site removed or moved it). Try another candidate.",
+      "rateLimited": "That site is rate-limiting us right now. Wait a moment, then press \"use this\" again.",
+      "serverError": "The site hosting this image returned an error of its own. Retry later, or pick another.",
+      "timeout": "Fetching that image timed out. Retry later, or pick a smaller one."
     },
     "assistant": {
       "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
@@ -7055,7 +7060,8 @@
       "referenceOnly": "Reference only",
       "cannotUse": "Not usable",
       "notUsable": "This site asks not to be used as AI input, or republishes work without a traceable source — open it if you like, but it will not be filed into your library.",
-      "useAll": "Attach {count}"
+      "useAll": "Attach {count}",
+      "notUsableHotlink": "This site’s image host only serves its own pages, so we cannot fetch it server-side — you can still open the original page, but it cannot be saved into your library."
     },
     "critique": {
       "title": "Auto-check · it set this up, so it reviews it",

@@ -54,8 +54,8 @@ const CRITIQUE_STEP = step({
   },
   result: {
     findings: [
-      { ok: true, text: '冷调到位' },
-      { ok: false, text: '伞的边缘糊了' },
+      { severity: 'pass', text: '冷调到位' },
+      { severity: 'fail', text: '伞的边缘糊了' },
     ],
     advice: '下一轮把伞往前推一点',
     borrowedVisionRoute: false,
@@ -205,8 +205,8 @@ describe('线程 → 可读历史', () => {
         thumbnailUrl: 'https://cdn.example.com/result-thumb.png',
         modelLabel: 'Seedream 4',
         findings: [
-          { ok: true, text: '冷调到位' },
-          { ok: false, text: '伞的边缘糊了' },
+          { severity: 'pass', text: '冷调到位' },
+          { severity: 'fail', text: '伞的边缘糊了' },
         ],
         advice: '下一轮把伞往前推一点',
       },

@@ -1708,8 +1708,8 @@ const RESULT: NonNullable<AssistantOperatorRequest['result']> = {
 
 const CRITIQUE_JSON = {
   findings: [
-    { ok: true, text: '红伞是画面唯一的暖色' },
-    { ok: false, text: '雨丝糊成一片' },
+    { severity: 'pass', text: '红伞是画面唯一的暖色' },
+    { severity: 'fail', text: '雨丝糊成一片' },
   ],
   advice: '把雨的方向写进提示词',
 }
@@ -2551,8 +2551,8 @@ describe('看片评审 · 视频域 critique_result', () => {
 
   const VIDEO_CRITIQUE_JSON = {
     verdicts: [
-      { ok: false, text: '三帧几乎一模一样，画面没动起来' },
-      { ok: true, text: '角色的发色与服装从头到尾一致' },
+      { severity: 'fail', text: '三帧几乎一模一样，画面没动起来' },
+      { severity: 'pass', text: '角色的发色与服装从头到尾一致' },
     ],
     advice: '把动作写进提示词，或者补一张尾帧',
   }
@@ -2740,6 +2740,44 @@ describe('看片评审 · 视频域 critique_result', () => {
       error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownAsset },
     })
     expect(mockPersistVideoFrameSet).not.toHaveBeenCalled()
+  })
+
+  it('三档严重度原样落进结果与观察行（异常 ≠ 否定）', async () => {
+    queueVideoCritiqueRound({
+      verdicts: [
+        { severity: 'fail', text: '三帧几乎一模一样' },
+        { severity: 'warn', text: '动起来了，但手在中段糊了一拍' },
+        { severity: 'pass', text: '发色与服装一致' },
+      ],
+      advice: '补一张尾帧',
+    })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildVideoRequest({
+          result: { url: CLIP_URL },
+          videoFrames: submittedFrames(),
+        }),
+      ),
+    )
+    const step = stepsOf(events).find(
+      (candidate) =>
+        candidate.tool === ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult &&
+        candidate.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    ) as { result: { verdicts: { severity: string }[] } }
+    expect(step.result.verdicts.map((verdict) => verdict.severity)).toEqual([
+      'fail',
+      'warn',
+      'pass',
+    ])
+    // 观察行三个记号各不相同 —— ⛔ warn 不许写成 ✗，否则模型会把一次基本成功
+    //   当成失败去重做。
+    const observations = mockLlmTextCompletion.mock.calls
+      .map((call) => (call[0] as { userPrompt?: string }).userPrompt ?? '')
+      .join('\n')
+    expect(observations).toContain('✗ 三帧几乎一模一样')
+    expect(observations).toContain('⚠ 动起来了，但手在中段糊了一拍')
+    expect(observations).toContain('✓ 发色与服装一致')
   })
 
   it('汇总读不出结构就按 critiqueFailed 拒 —— ⛔ 不假装看过', async () => {

@@ -3,7 +3,11 @@ import {
   VIDEO_FRAME_LIMITS,
   type VideoFrameCaptureReason,
 } from '@/constants/video-analysis'
-import { planVideoFrames, type VideoFramePlan } from '@/lib/video-frame-plan'
+import {
+  planVideoEndpointFrames,
+  planVideoFrames,
+  type VideoFramePlan,
+} from '@/lib/video-frame-plan'
 
 /**
  * 浏览器里按计划抽帧（AI 导演内核 · 切片 2 · §4.3「抽帧管线」）。
@@ -113,8 +117,9 @@ function scaledSize(width: number, height: number): { w: number; h: number } {
  *
  * @param source 已经在 R2 / 同源的视频 URL，或者用户刚选的 `File`。
  */
-export async function captureVideoFrames(
+async function captureFramesWithPlan(
   source: string | File,
+  planFrames: (durationSeconds: number) => VideoFramePlan,
 ): Promise<VideoFrameCaptureResult> {
   if (typeof document === 'undefined') {
     return failure(
@@ -152,7 +157,7 @@ export async function captureVideoFrames(
     await waitForEvent(video, 'loadedmetadata', remaining())
 
     const duration = video.duration
-    const plan = planVideoFrames(duration)
+    const plan = planFrames(duration)
     if (plan.entries.length === 0) {
       return failure(
         VIDEO_FRAME_CAPTURE_REASONS.unreadableDuration,
@@ -232,4 +237,31 @@ export async function captureVideoFrames(
   } finally {
     cleanup()
   }
+}
+
+/**
+ * 段中点那一组（`planVideoFrames`）—— 视频分析面板走的就是它。
+ */
+export function captureVideoFrames(
+  source: string | File,
+): Promise<VideoFrameCaptureResult> {
+  return captureFramesWithPlan(source, (duration) => planVideoFrames(duration))
+}
+
+/**
+ * **0 / 中 / 末三帧**（`planVideoEndpointFrames`）—— 助手视频域评审卡的生产者
+ * （第二期最后一环）。
+ *
+ * ⭐ 与上面那支**共用同一段抽帧实现，只换计划**：两支各抄一遍 `<video>` 生命周期
+ * 的下场是「seek 超时怎么算」「crossOrigin 什么时候打」这类踩过的坑只修在一处。
+ * ⚠ 产物直接就是 `AssistantOperatorVideoFramesSchema.frames` 的形状（`index` /
+ * `timestampSeconds` / `dataUrl`），⛔ 调用方不要再自己拼一遍：服务端按 `index`
+ * 认位置（0=start / 1=mid / 2=end），下标与序号在这里必须是同一个数。
+ */
+export function captureVideoEndpointFrames(
+  source: string | File,
+): Promise<VideoFrameCaptureResult> {
+  return captureFramesWithPlan(source, (duration) =>
+    planVideoEndpointFrames(duration),
+  )
 }

@@ -6901,7 +6901,8 @@
         "failed": "failed"
       },
       "thinking": "Thinking…",
-      "awaitingPlan": "Waiting on your plan"
+      "awaitingPlan": "Waiting on your plan",
+      "capturingFrames": "Taking frames…"
     },
     "researchDetails": "Research details",
     "toolGroup": {
@@ -6997,7 +6998,8 @@
       "queueDropped": "You pulled back the queued message: {subject}",
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
       "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
-      "autoApproved": "Sent straight away per your setting · {count} credits"
+      "autoApproved": "Sent straight away per your setting · {count} credits",
+      "videoFramesFailed": "No frames could be taken from this clip — the assistant cannot look at it this turn ({subject})"
     },
     "suggestion": {
       "setupShot": "Set this shot up for me",
@@ -7303,6 +7305,14 @@
       "missing": "{count} still unanswered",
       "start": "Start",
       "revise": "Revise"
+    },
+    "videoFrameCaptureReason": {
+      "unsupported-environment": "this environment cannot read video",
+      "load-failed": "the video would not load",
+      "unreadable-duration": "the clip's duration could not be read",
+      "tainted-canvas": "the video is cross-origin, so the canvas stayed blank",
+      "timeout": "frame capture timed out",
+      "encode-failed": "the frames could not be encoded"
     }
   },
   "GenerationCancel": {

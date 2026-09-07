@@ -6901,7 +6901,8 @@
         "failed": "失敗"
       },
       "thinking": "考え中…",
-      "awaitingPlan": "プランの確認待ち"
+      "awaitingPlan": "プランの確認待ち",
+      "capturingFrames": "フレーム抽出中…"
     },
     "researchDetails": "調査の詳細",
     "toolGroup": {
@@ -6997,7 +6998,8 @@
       "queueDropped": "並んでいたメッセージを取り消しました：{subject}",
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
       "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）",
-      "autoApproved": "設定に従いそのまま送信 · {count} クレジット"
+      "autoApproved": "設定に従いそのまま送信 · {count} クレジット",
+      "videoFramesFailed": "このクリップからフレームを取り出せませんでした —— 今回アシスタントは見られません（{subject}）"
     },
     "suggestion": {
       "setupShot": "この一枚を組み立てて",
@@ -7303,6 +7305,14 @@
       "missing": "あと {count} 問が未回答",
       "start": "開始",
       "revise": "修正"
+    },
+    "videoFrameCaptureReason": {
+      "unsupported-environment": "この環境では動画を読めません",
+      "load-failed": "動画を読み込めませんでした",
+      "unreadable-duration": "クリップの長さを読み取れません",
+      "tainted-canvas": "クロスオリジンのためキャンバスから画素を取得できません",
+      "timeout": "フレーム抽出がタイムアウトしました",
+      "encode-failed": "フレームのエンコードに失敗しました"
     }
   },
   "GenerationCancel": {

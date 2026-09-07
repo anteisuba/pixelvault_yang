@@ -28,6 +28,7 @@ import {
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
 } from '@/constants/assistant-operator'
+import { AssistantOperatorVerdictSeveritySchema } from '@/types/assistant-operator'
 import { STUDIO_OPERATOR_SYSTEM_CODES } from '@/constants/studio-assistant-operator'
 
 /**
@@ -78,7 +79,8 @@ export const StudioOperatorHistoryCritiqueSchema = z.object({
   findings: z
     .array(
       z.object({
-        ok: z.boolean(),
+        /** 与在线契约同一张表（`fail` / `warn` / `pass`）—— ⛔ 不在历史里另存一套。 */
+        severity: AssistantOperatorVerdictSeveritySchema,
         text: z.string().trim().min(1).max(LIMITS.maxCritiqueFindingChars),
       }),
     )

@@ -112,7 +112,7 @@ const CRITIQUE_STEP = {
     goal: 'a girl under a red umbrella',
   },
   result: {
-    findings: [{ ok: false, text: '雨丝糊成一片' }],
+    findings: [{ severity: 'fail', text: '雨丝糊成一片' }],
     advice: '把雨的方向写进提示词',
     borrowedVisionRoute: false,
   },

@@ -36,6 +36,7 @@ import {
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOLS,
+  ASSISTANT_OPERATOR_VERDICT_SEVERITIES,
   ASSISTANT_OPERATOR_WRITE_MODES,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   ASSISTANT_PLAN_REQUEST_REASONS,
@@ -437,12 +438,21 @@ export type AssistantOperatorResult = z.infer<
  *
  * ⚠ 故意不含图片地址：地址是服务端填的，模型只负责说它看见了什么。
  */
+/** 三段评审的严重度（`fail` / `warn` / `pass`）—— 值域住在 constants。 */
+export const AssistantOperatorVerdictSeveritySchema = z.enum(
+  ASSISTANT_OPERATOR_VERDICT_SEVERITIES,
+)
+
 export const AssistantOperatorCritiqueSchema = z.object({
   findings: z
     .array(
       z.object({
-        /** `true` = 这一条达成了；`false` = 没达成（卡片上那个 ✗）。 */
-        ok: z.boolean(),
+        /**
+         * 否定 / 异常 / 达成 —— 三档的分工写在
+         * `ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS` 的头注上。
+         * ⚠ 它取代了原来那个 `ok: boolean`，⛔ 没有并存的两套。
+         */
+        severity: AssistantOperatorVerdictSeveritySchema,
         text: z.string().trim().min(1).max(LIMITS.maxCritiqueFindingChars),
       }),
     )
@@ -487,7 +497,7 @@ export const AssistantOperatorVideoCritiqueSchema = z.object({
   verdicts: z
     .array(
       z.object({
-        ok: z.boolean(),
+        severity: AssistantOperatorVerdictSeveritySchema,
         text: z.string().trim().min(1).max(LIMITS.maxCritiqueFindingChars),
       }),
     )

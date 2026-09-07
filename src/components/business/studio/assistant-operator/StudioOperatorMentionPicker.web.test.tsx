@@ -82,6 +82,7 @@ async function renderPicker(overrides: { query?: string } = {}) {
   const onDismiss = vi.fn()
   render(
     <StudioOperatorMentionPicker
+      searchTypes={['image']}
       query={overrides.query ?? ''}
       recent={recent}
       onPick={onPick}
@@ -96,6 +97,29 @@ async function renderPicker(overrides: { query?: string } = {}) {
   })
   return { onPick, onDismiss }
 }
+
+describe('StudioOperatorMentionPicker · 搜哪几类', () => {
+  it('把 searchTypes 原样交给素材库那一跳（视频档要搜得到片子）', async () => {
+    render(
+      <StudioOperatorMentionPicker
+        searchTypes={['image', 'video']}
+        query="渡轮"
+        recent={[]}
+        onPick={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      vi.advanceTimersByTime(STUDIO_OPERATOR_MENTION.searchDebounceMs)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    const options = vi.mocked(fetchGalleryImages).mock.calls.at(-1)?.[2] as {
+      type?: string[]
+    }
+    expect(options.type).toEqual(['image', 'video'])
+  })
+})
 
 describe('StudioOperatorMentionPicker', () => {
   it('最近生成在前、素材库在后，重复的那条只出现一次', async () => {
@@ -167,6 +191,7 @@ describe('StudioOperatorMentionPicker', () => {
     const onPick = vi.fn()
     render(
       <StudioOperatorMentionPicker
+        searchTypes={['image']}
         query="找不到的东西"
         recent={[]}
         onPick={onPick}

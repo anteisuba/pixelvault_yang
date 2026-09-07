@@ -1,8 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { VIDEO_FRAME_PLAN } from '@/constants/video-analysis'
-import { planVideoFrames } from '@/lib/video-frame-plan'
-import { captureVideoFrames } from '@/lib/video-frame-capture'
+import {
+  VIDEO_FRAME_ENDPOINT_PLAN,
+  VIDEO_FRAME_LIMITS,
+  VIDEO_FRAME_PLAN,
+} from '@/constants/video-analysis'
+import {
+  planVideoEndpointFrames,
+  planVideoFrames,
+} from '@/lib/video-frame-plan'
+import {
+  captureVideoEndpointFrames,
+  captureVideoFrames,
+} from '@/lib/video-frame-capture'
 
 /**
  * jsdom 不解码视频，所以按 `video-thumbnail.test.ts` 那套手动驱动元素生命周期：
@@ -178,6 +188,69 @@ describe('captureVideoFrames', () => {
     installDom(makeFakeVideo({ duration: Number.NaN }))
 
     const result = await captureVideoFrames(URL_SOURCE)
+
+    expect(result).toMatchObject({ ok: false, reason: 'unreadable-duration' })
+  })
+})
+
+/**
+ * 助手视频域评审卡的生产者（第二期最后一环）—— 与上面那支**共用同一段实现**，
+ * 所以这里只验「换的是计划」以及三帧那一组自己的约束。
+ */
+describe('captureVideoEndpointFrames', () => {
+  const URL_SOURCE = 'https://cdn.anteisuba.com/clips/shot.mp4'
+
+  it('按 0 / 中 / 末三个时间点 seek，交出三帧 dataUrl', async () => {
+    const video = makeFakeVideo({ duration: 6 })
+    installDom(video)
+
+    const result = await captureVideoEndpointFrames(URL_SOURCE)
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.frames).toHaveLength(VIDEO_FRAME_ENDPOINT_PLAN.frameCount)
+    expect(video.seeks).toEqual(
+      planVideoEndpointFrames(6).entries.map((entry) => entry.timestampSeconds),
+    )
+    // 序号即语义（0=start / 1=mid / 2=end）—— 服务端按它挂标签。
+    expect(result.frames.map((frame) => frame.index)).toEqual([0, 1, 2])
+    expect(
+      result.frames.every((frame) => frame.dataUrl.startsWith('data:image/')),
+    ).toBe(true)
+    // ⛔ 不是段中点那一组：三帧各绑一个位置，取中点会把首末各挪进画面 1/6。
+    expect(video.seeks).not.toEqual(
+      planVideoFrames(6).entries.map((entry) => entry.timestampSeconds),
+    )
+  })
+
+  it('payload 上限：长边压到 maxEdgePixels 以内（三帧要一起进一次请求）', async () => {
+    installDom(
+      makeFakeVideo({ duration: 6, videoWidth: 3840, videoHeight: 2160 }),
+    )
+
+    await captureVideoEndpointFrames(URL_SOURCE)
+
+    expect(lastCanvas?.width).toBe(VIDEO_FRAME_LIMITS.maxEdgePixels)
+    expect(lastCanvas?.height).toBe(
+      Math.round((VIDEO_FRAME_LIMITS.maxEdgePixels * 2160) / 3840),
+    )
+  })
+
+  it('跨域被挡 → `tainted-canvas`（修法是配 R2 CORS，⛔ 不是换个视频重试）', async () => {
+    installDom(makeFakeVideo({ duration: 6 }))
+    canvasToDataUrl.mockImplementation(() => {
+      throw new Error('SecurityError: tainted canvas')
+    })
+
+    const result = await captureVideoEndpointFrames(URL_SOURCE)
+
+    expect(result).toMatchObject({ ok: false, reason: 'tainted-canvas' })
+  })
+
+  it('片长读不出来 → `unreadable-duration`，⛔ 不交半组帧', async () => {
+    installDom(makeFakeVideo({ duration: Number.NaN }))
+
+    const result = await captureVideoEndpointFrames(URL_SOURCE)
 
     expect(result).toMatchObject({ ok: false, reason: 'unreadable-duration' })
   })

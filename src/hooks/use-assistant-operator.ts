@@ -48,6 +48,7 @@ import {
   type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PERSONA_PLAN_MODE_IDS } from '@/constants/assistant-persona'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
@@ -74,6 +75,7 @@ import {
   resolveOperatorSpend,
   setOperatorAskFirst,
   setOperatorAutoApprove,
+  setOperatorCapturingFrames,
   setOperatorChoice,
   setOperatorConfirm,
   setOperatorPlan,
@@ -85,6 +87,7 @@ import {
   upsertOperatorStep,
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
 import {
   applyOperatorStep,
@@ -212,22 +215,72 @@ function buildPriorSteps(
  * ⚠ 只收图：视频 / 音频 / 3D 那条视觉线吃不下（`vision-route.service.ts` 头注），
  * 端上去只会换来一份格式完整、内容全编的评价。
  */
-function buildMentionedAssets(
+/** 最后那条用户消息挂了什么（`@` 与 📎 是同一条 chip 管线，见附件类型头注）。 */
+function lastUserAttachments(
   entries: readonly StudioOperatorThreadEntry[],
-): NonNullable<AssistantOperatorRequest['mentionedAssets']> {
+): readonly StudioOperatorAttachment[] {
   for (let index = entries.length - 1; index >= 0; index -= 1) {
     const entry = entries[index]
     if (entry?.kind !== 'user') continue
     return entry.attachments
-      .filter((attachment) => attachment.kind === 'image')
-      .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences)
-      .map((attachment) => ({
-        id: attachment.id,
-        url: attachment.url,
-        label: attachment.label,
-      }))
   }
   return []
+}
+
+/**
+ * `critique_result.targetIds` 的**准入名单**（§7）。
+ *
+ * ⚠ **视频档也进名单，但只在视频域**（第二期最后一环）：视频域的评审吃的是客户端
+ * 抽好的三帧，所以「用户 `@` 的那段片子」必须是服务端认得的目标。图片域一个字不改
+ * —— 那边的视觉线吃的是一张静态图，放一条 mp4 进名单就等于允许它把视频地址当图看，
+ * 而那正是 `vision-route.service.ts` 头注里「格式完整、内容全编」的那条路。
+ */
+function buildMentionedAssets(
+  entries: readonly StudioOperatorThreadEntry[],
+  domain: AssistantOperatorDomain,
+): NonNullable<AssistantOperatorRequest['mentionedAssets']> {
+  const isVideoDomain = domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+  return lastUserAttachments(entries)
+    .filter(
+      (attachment) =>
+        attachment.kind === 'image' ||
+        (isVideoDomain && attachment.kind === 'video'),
+    )
+    .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences)
+    .map((attachment) => ({
+      id: attachment.id,
+      url: attachment.url,
+      label: attachment.label,
+    }))
+}
+
+/**
+ * 这一轮**要不要抽帧、抽哪一段**（第二期最后一环）。
+ *
+ * ── 为什么客户端得先决定，而不是等模型说 ────────────────────────────
+ * 服务端 `critique_result` 的第二条闸是 `videoFrames.sourceUrl` 必须与它挑中的
+ * 目标**逐字相同**（对不上按 `unknownAsset` 拒）。帧只能在浏览器里抽
+ * （`lib/video-frame-capture.ts` 的选型头注），而抽帧发生在请求**发出去之前**
+ * —— 那一刻模型还一个字都没写。所以目标由客户端按同一条优先级预判：
+ *  ① 助手自己 primed 的那一枪刚回来（`result`）—— 服务端没有 `targetIds` 时挑的
+ *    就是它，两边因此必然对齐；
+ *  ② 否则取用户这一轮 `@` 的那段片子。
+ * ⛔ 两条都没有就**不抽**：抽一段没人要看的片子是白烧几秒解码 + 一份 payload。
+ *
+ * ⚠ 只在视频域触发。图片域一字不改 —— 那边的目标本来就是静态图。
+ */
+function resolveVideoCritiqueSource(
+  domain: AssistantOperatorDomain,
+  primedResult: AssistantOperatorResult | null,
+  entries: readonly StudioOperatorThreadEntry[],
+): string | null {
+  if (domain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.video) return null
+  if (primedResult) return primedResult.url
+  return (
+    lastUserAttachments(entries).find(
+      (attachment) => attachment.kind === 'video',
+    )?.url ?? null
+  )
 }
 
 /** 跑一轮时那几样「带上下文重发」的东西（拍板 3 / §2.6 / §6 共用一条通道）。 */
@@ -564,7 +617,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * ⚠ 只带最后几条对白（`historyToOperatorMessages` 自己截），显示是全部。
        */
       const { entries, history } = getOperatorState()
-      const mentionedAssets = buildMentionedAssets(entries)
+      const mentionedAssets = buildMentionedAssets(entries, domain)
       const messages = [
         ...historyToOperatorMessages(history),
         ...buildMessages(entries),
@@ -581,6 +634,47 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        */
       const forcePlan = options.forcePlan ?? getOperatorState().askFirst
       const autoApprove = getOperatorState().autoApprove
+
+      /**
+       * ⭐ **视频域评审的帧生产者**（第二期最后一环）—— 请求发出去之前抽 0/中/末。
+       *
+       * ⚠ 抽帧是**几秒级**的同步等待（浏览器解码 + 三次 seek），所以带子在这段时间
+       * 里写「正在抽帧」而不是「思考中」：它并没有在思考。⚠ 无论成败都复位
+       * （`finally`），否则带子会永远停在那句话上。
+       * ⚠ 失败**不拦住这一轮**：照常发出去，服务端按 `videoFramesMissing` 退回一条
+       * 可教的拒绝，助手会如实说它看不了。但线程里必须留一行说清楚**为什么**
+       * ——⛔ 不静默（见 `videoFramesFailed` 那条系统码的头注）。
+       */
+      const videoSourceUrl = resolveVideoCritiqueSource(
+        domain,
+        pendingResultRef.current,
+        entries,
+      )
+      let videoFrames: AssistantOperatorRequest['videoFrames']
+      if (videoSourceUrl) {
+        setOperatorCapturingFrames(true)
+        try {
+          const captured = await captureVideoEndpointFrames(videoSourceUrl)
+          if (captured.ok) {
+            videoFrames = {
+              sourceUrl: videoSourceUrl,
+              durationSeconds: captured.durationSeconds,
+              frames: captured.frames,
+            }
+          } else {
+            appendOperatorEntry({
+              kind: 'system',
+              id: nextOperatorEntryId('sys'),
+              code: 'videoFramesFailed',
+              subject: captured.reason,
+            })
+          }
+        } finally {
+          setOperatorCapturingFrames(false)
+        }
+        // 抽帧那几秒里用户可能已经按了 ⏹ / 插了话 —— 那一轮已经不是这一轮了。
+        if (controller.signal.aborted) return
+      }
 
       const result = await streamAssistantOperatorAPI(
         {
@@ -610,6 +704,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            * 展示文本，当成权限清单用就是一条提示词注入的路。
            */
           ...(mentionedAssets.length ? { mentionedAssets } : {}),
+          ...(videoFrames ? { videoFrames } : {}),
           ...(confirmations?.length ? { confirmations } : {}),
           ...(planAnswers?.length ? { planAnswers } : {}),
           ...(planApproved === undefined ? {} : { planApproved }),
@@ -1189,12 +1284,15 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   const critique = useCallback(
     (result: AssistantOperatorResult) => {
       /**
-       * ⛔ **只有有看图工具的域才闭环**（P4-A）。视频域没有 `critique_result`：
-       * 借来的那条视觉线吃的是一张静态图（`imageData`），把一条 mp4 地址喂给它
-       * 得到的是一份格式完整、内容全编的评价 —— 比说不出话坏得多
-       * （`vision-route.service.ts` 头注那条）。
-       * ⚠ 这里**整条不做**，⛔ 不插「结果回来了」那一行：那一行的意思是「助手
-       * 因此要动起来了」，而这个域里它并不会动。视频的结果照旧摆在工作台上。
+       * ⛔ **只有有看图工具的域才闭环**（P4-A）。⚠ 这里**整条不做**时也不插
+       * 「结果回来了」那一行：那一行的意思是「助手因此要动起来了」，而没有这条
+       * 工具的域里它并不会动（今天是装配台）。
+       *
+       * ⚠ **视频域已经在表里了**（第二期）：这条注释此前写着「视频域没有
+       * `critique_result`」，理由是借来的视觉线吃的是静态图、喂 mp4 地址会得到一份
+       * 内容全编的评价。那条理由没错，错的是它当时被当成了永久结论 —— 现在喂进去的
+       * 是浏览器抽出来的三张静态帧（`run()` 里那段 `captureVideoEndpointFrames`），
+       * mp4 从头到尾没有进过视觉线。
        */
       if (
         !isAssistantOperatorToolInDomain(

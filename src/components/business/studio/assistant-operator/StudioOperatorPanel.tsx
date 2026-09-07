@@ -55,6 +55,7 @@ import {
 import {
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
   STUDIO_OPERATOR_MENTION,
+  STUDIO_OPERATOR_MENTION_SEARCH_TYPES,
   STUDIO_OPERATOR_SUGGESTIONS,
   STUDIO_OPERATOR_TIMELINE,
 } from '@/constants/studio-assistant-operator'
@@ -218,6 +219,7 @@ export function StudioOperatorPanel({
     plan,
     spend,
     choice,
+    capturingFrames,
   } = useStudioOperatorState()
   const {
     domain,
@@ -495,10 +497,16 @@ export function StudioOperatorPanel({
       }))
   }, [entries, latestRunKey])
 
-  const currentStepTitle =
-    bandSteps.find(
-      (step) => step.state === STUDIO_OPERATOR_BAND_STEP_STATES.running,
-    )?.title ?? null
+  /**
+   * ⚠ **抽帧那一段压过步标题**（第二期最后一环）：它跑在请求发出去之前，进度带上
+   * 一步都还没有，而它实测要几秒（浏览器解码 + 三次 seek）。不说这一句的话，
+   * 那几秒里带上写的是「思考中」—— 而它并没有在思考。
+   */
+  const currentStepTitle = capturingFrames
+    ? t('band.capturingFrames')
+    : (bandSteps.find(
+        (step) => step.state === STUDIO_OPERATOR_BAND_STEP_STATES.running,
+      )?.title ?? null)
 
   /**
    * 把线程劈成「渲染块」—— **连续的工具步合成一组**（§2.7）。
@@ -860,11 +868,15 @@ export function StudioOperatorPanel({
               {/* ⚠ 两种 subject：`revertField` 存的是**字段 id**（要过词表
                           才是人话），`undoStep` 存的是模型写的那行标题（本来就是
                           人话，翻译它等于把它弄丢）。 */}
+              {/* ⚠ 第三种 subject：`videoFramesFailed` 存的是抽帧失败的**原因码**
+                          （六条修法各不相同，见常量头注），人话在这里过词表。 */}
               {t(`system.${entry.code}`, {
                 subject:
                   entry.code === 'revertField' && entry.subject
                     ? t(`field.${entry.subject}`)
-                    : (entry.subject ?? ''),
+                    : entry.code === 'videoFramesFailed' && entry.subject
+                      ? t(`videoFrameCaptureReason.${entry.subject}`)
+                      : (entry.subject ?? ''),
                 count: entry.count ?? 0,
               })}
             </p>
@@ -1522,6 +1534,7 @@ export function StudioOperatorPanel({
           <StudioOperatorMentionPicker
             query={mention.trigger.query}
             recent={resultItems.map((item, index) => toResultChip(item, index))}
+            searchTypes={STUDIO_OPERATOR_MENTION_SEARCH_TYPES[domain]}
             onPick={(attachment) => {
               onDraftChange(mention.pick(draft, attachment))
               inputRef.current?.focus()

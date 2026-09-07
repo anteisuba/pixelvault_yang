@@ -17,11 +17,20 @@
  * ⚠ 缩略图仍可点开灯箱：看大图是只读动作，不改任何东西。
  */
 
-import { Check, Sparkles, X, type LucideIcon } from 'lucide-react'
+import {
+  AlertTriangle,
+  Check,
+  Sparkles,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
-import type { AssistantOperatorTool } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS as SEVERITY,
+  type AssistantOperatorTool,
+} from '@/constants/assistant-operator'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { OPERATOR_TOOL_ICONS } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import { StudioOperatorCollapsibleText } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
@@ -111,7 +120,9 @@ export function StudioOperatorHistoryItem({
             subject:
               entry.code === 'revertField' && entry.subject
                 ? t(`field.${entry.subject}`)
-                : (entry.subject ?? ''),
+                : entry.code === 'videoFramesFailed' && entry.subject
+                  ? t(`videoFrameCaptureReason.${entry.subject}`)
+                  : (entry.subject ?? ''),
             count: entry.count ?? 0,
           })}
         </p>
@@ -238,11 +249,18 @@ function HistoryCritiqueCard({ entry }: { entry: StudioOperatorHistoryStep }) {
           />
         </button>
         <ul className="flex min-w-0 flex-1 flex-col gap-1">
+          {/* ⚠ 与实时卡同一张严重度表（否定 / 异常 / 达成），⛔ 不在历史里退回
+              两档：同一条结论在两个地方读出两个意思是最难查的那一类。 */}
           {critique.findings.map((finding) => (
             <li key={finding.text} className="flex items-start gap-1.5">
-              {finding.ok ? (
+              {finding.severity === SEVERITY.pass ? (
                 <Check
                   className="mt-0.5 size-3 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+              ) : finding.severity === SEVERITY.warn ? (
+                <AlertTriangle
+                  className="mt-0.5 size-3 shrink-0 text-status-warning"
                   aria-hidden
                 />
               ) : (

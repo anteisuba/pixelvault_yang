@@ -1354,6 +1354,38 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
   videoFramesMissing: 'videoFramesMissing',
 } as const
 
+/**
+ * 评审卡上一条结论的**严重度**（owner 2026-09-07 定的评审三段：否定 / 异常 / 建议）。
+ *
+ * ⭐ 它**取代了原来那个 `ok: boolean`**，⛔ 不是在它旁边多一格（工程原则 1）：
+ * 两套并存的下场是「`ok:true` 且 `severity:'fail'`」这种谁也说不清的行，而卡片
+ * 只能挑一个信。
+ *
+ * 三档各说一件不同的事，混起来就是这张卡最容易骗人的地方：
+ *  · `fail`（否定）—— **没做到**。要求的东西不在画面里。
+ *  · `warn`（异常）—— **做到了，但有瑕疵**。方向对，代价看得见（手指糊了、
+ *    末帧提前了半拍）。⛔ 这一档此前没有通道，于是它要么被写成 `ok:false`
+ *    （把一次基本成功说成失败），要么被写成 `ok:true`（把瑕疵抹掉）。
+ *  · `pass`（达成）—— 这一条落地了，卡上那个 ✓。
+ *
+ * ⚠ 图片域与视频域**共用同一张表**：同一颗卡片组件渲染两种载荷，两边各一套词
+ * 意味着卡片要按域分岔着读严重度。
+ */
+export const ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS = {
+  fail: 'fail',
+  warn: 'warn',
+  pass: 'pass',
+} as const
+
+export const ASSISTANT_OPERATOR_VERDICT_SEVERITIES = [
+  ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS.fail,
+  ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS.warn,
+  ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS.pass,
+] as const
+
+export type AssistantOperatorVerdictSeverity =
+  (typeof ASSISTANT_OPERATOR_VERDICT_SEVERITIES)[number]
+
 export type AssistantOperatorRejectReason =
   (typeof ASSISTANT_OPERATOR_REJECT_REASON_IDS)[keyof typeof ASSISTANT_OPERATOR_REJECT_REASON_IDS]
 

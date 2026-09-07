@@ -6901,7 +6901,8 @@
         "failed": "失败"
       },
       "thinking": "思考中…",
-      "awaitingPlan": "等你确认计划"
+      "awaitingPlan": "等你确认计划",
+      "capturingFrames": "正在抽帧…"
     },
     "researchDetails": "调查过程",
     "toolGroup": {
@@ -6997,7 +6998,8 @@
       "queueDropped": "你撤回了排着的那句：{subject}",
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
       "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
-      "autoApproved": "按你的设置直接生成 · {count} credits"
+      "autoApproved": "按你的设置直接生成 · {count} credits",
+      "videoFramesFailed": "这段片子没能抽出帧 —— 助手这一轮看不了它（{subject}）"
     },
     "suggestion": {
       "setupShot": "帮我配好这张图",
@@ -7303,6 +7305,14 @@
       "missing": "还有 {count} 题没答",
       "start": "开始",
       "revise": "修改"
+    },
+    "videoFrameCaptureReason": {
+      "unsupported-environment": "这个环境读不了视频",
+      "load-failed": "视频加载不出来",
+      "unreadable-duration": "读不出这段片子的时长",
+      "tainted-canvas": "视频跨域被挡，画布取不到像素",
+      "timeout": "抽帧超时",
+      "encode-failed": "帧编码失败"
     }
   },
   "GenerationCancel": {

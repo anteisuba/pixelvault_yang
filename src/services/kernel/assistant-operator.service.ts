@@ -17,7 +17,10 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN,
   ASSISTANT_OPERATOR_CONFIRM_TIER_IDS,
+  ASSISTANT_OPERATOR_VERDICT_SEVERITIES,
+  ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS as SEVERITY,
   ASSISTANT_OPERATOR_WRITE_MODES,
+  type AssistantOperatorVerdictSeverity,
   ASSISTANT_CHOICE_REQUEST_LIMITS as CHOICE_LIMITS,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   ASSISTANT_PLAN_REQUEST_REASON_IDS as PLAN_REASON,
@@ -2724,6 +2727,18 @@ function resolveCritiqueTarget(
 }
 
 /**
+ * 观察行里那一个字符 —— 模型下一步读的就是这段文字。
+ *
+ * ⚠ 三档各有各的记号（⛔ 不把 `warn` 混进 ✗）：观察行是模型判断「这一轮成没成」
+ * 的唯一依据，把「做到了但有瑕疵」写成 ✗ 会让它把一次基本成功当成失败去重做。
+ */
+const SEVERITY_MARKS: Record<AssistantOperatorVerdictSeverity, string> = {
+  [SEVERITY.fail]: '✗',
+  [SEVERITY.warn]: '⚠',
+  [SEVERITY.pass]: '✓',
+}
+
+/**
  * 看图闭环（P3-C，拍板 4 + 6）。
  *
  * ── 三件事按顺序发生，缺一条就退回一条**可教的**拒绝 ────────────────
@@ -2892,7 +2907,9 @@ async function planVideoCritique(
           ? ` (through a borrowed ${visionRoute.adapterType} route, because the creator's own model cannot see pictures)`
           : ''
       }:\n${critique.verdicts
-        .map((verdict) => `  ${verdict.ok ? '✓' : '✗'} ${verdict.text}`)
+        .map(
+          (verdict) => `  ${SEVERITY_MARKS[verdict.severity]} ${verdict.text}`,
+        )
         .join('\n')}${
         advice ? `\n  next: ${advice}` : ''
       }\nNow change the form to act on what you saw — the creator presses generate again themselves.`,
@@ -3004,7 +3021,9 @@ async function planCritiqueResult(
           ? ` (through a borrowed ${visionRoute.adapterType} route, because the creator's own model cannot see pictures)`
           : ''
       }:\n${critique.findings
-        .map((finding) => `  ${finding.ok ? '✓' : '✗'} ${finding.text}`)
+        .map(
+          (finding) => `  ${SEVERITY_MARKS[finding.severity]} ${finding.text}`,
+        )
         .join('\n')}${
         advice ? `\n  next: ${advice}` : ''
       }\nNow change the form to act on what you saw — the creator presses generate again themselves.`,
@@ -3738,12 +3757,16 @@ Be the kind of second pair of eyes a working art director is: concrete, specific
 
 RULES:
 - Between ${1} and ${LIMITS.maxCritiqueFindings} findings, one short sentence each, in ${language}.
-- "ok": true means that part of the intent LANDED. false means it did not. Do not mark everything true; do not mark everything false either.
+- "severity" is one of ${ASSISTANT_OPERATOR_VERDICT_SEVERITIES.map((value) => `"${value}"`).join(' / ')} and the three are NOT interchangeable:
+  · "${SEVERITY.fail}" — that part of the intent did NOT land. The thing asked for is not in the picture.
+  · "${SEVERITY.warn}" — it DID land, but something about it is visibly off: a smeared hand on an otherwise right pose, a colour that drifted, an edge that frayed. Use this instead of forcing a good-with-a-flaw result into pass or fail.
+  · "${SEVERITY.pass}" — it landed, with nothing worth flagging.
+  Do not mark everything one way.
 - "advice" is one sentence about what to change next time — a prompt or a setting, not a pep talk. Use null when the picture is genuinely good enough.
 - Judge only what is visible. You cannot see the generation settings, and you must never claim you changed anything.
 
 OUTPUT — one strict-JSON object and nothing else, no prose around it, no code fence:
-{"findings":[{"ok":true,"text":"..."},{"ok":false,"text":"..."}],"advice":"..."}`
+{"findings":[{"severity":"${SEVERITY.pass}","text":"..."},{"severity":"${SEVERITY.warn}","text":"..."},{"severity":"${SEVERITY.fail}","text":"..."}],"advice":"..."}`
 }
 
 function buildCritiquePrompt(
@@ -3825,7 +3848,9 @@ function buildVideoFramePrompt(
  * 汇总那一跳的系统提示（第二期）。
  *
  * ⭐ 评审维度对齐 owner 的 EVA 复核三段（**否定 / 异常 / 建议**，§7）：`verdicts`
- * 里 `ok:false` 的那几条就是「否定」与「异常」，`advice` 是「建议」。
+ * 里 `severity:'fail'` 是「否定」、`severity:'warn'` 是「异常」，`advice` 是「建议」。
+ * ⚠ 「异常」此前**没有通道**（契约只有 `ok:boolean`），于是「做到了但有瑕疵」只能
+ * 二选一地说谎。⛔ 别把它退回布尔：卡片按这三档分三段渲染。
  * ⚠ 三个必答问题写死在这里，因为它们正是三帧的语义：动作有没有**冻住**、
  * 身份有没有**漂**、末帧到没到 **endState**。少问一条，那一帧就白抽了。
  */
@@ -3847,12 +3872,16 @@ THREE QUESTIONS YOU MUST ANSWER, one verdict each, in this order:
 
 RULES:
 - Between ${1} and ${LIMITS.maxCritiqueFindings} verdicts, one short sentence each, in ${language}.
-- "ok": true means that dimension LANDED. false means it did not. Do not mark everything true; do not mark everything false either.
+- "severity" is one of ${ASSISTANT_OPERATOR_VERDICT_SEVERITIES.map((value) => `"${value}"`).join(' / ')} and the three are NOT interchangeable:
+  · "${SEVERITY.fail}" — that dimension did NOT land: nothing moved, the subject became someone else, the clip stops nowhere.
+  · "${SEVERITY.warn}" — it DID land, but with a visible flaw: the motion is there but stutters, the face holds but the hands melt for a beat, the end arrives but half a gesture early. Use this instead of forcing a landed-with-a-flaw dimension into pass or fail.
+  · "${SEVERITY.pass}" — it landed, with nothing worth flagging.
+  Do not mark everything one way.
 - "advice" is one sentence about what to change next — a prompt, a first/last frame, or a setting, not a pep talk. Use null when the clip is genuinely good enough.
 - Judge only what the frames show. You cannot see the frames between them, and you must never claim you changed anything.
 
 OUTPUT — one strict-JSON object and nothing else, no prose around it, no code fence:
-{"verdicts":[{"ok":true,"text":"..."},{"ok":false,"text":"..."}],"advice":"..."}`
+{"verdicts":[{"severity":"${SEVERITY.pass}","text":"..."},{"severity":"${SEVERITY.warn}","text":"..."},{"severity":"${SEVERITY.fail}","text":"..."}],"advice":"..."}`
 }
 
 function buildVideoCritiquePrompt(

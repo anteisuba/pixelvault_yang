@@ -173,6 +173,16 @@ export interface StudioOperatorState {
    * 每一次花钱的确认，而用户当时同意的是「本会话」。
    */
   autoApprove: AssistantOperatorAutoApprove | null
+  /**
+   * 视频域评审的**抽帧那一段**正在跑（第二期最后一环）。
+   *
+   * ⭐ 它与 `status: 'working'` **不是同一件事**：抽帧发生在请求发出去**之前**
+   * （浏览器里 `<video>` seek 三次，实测可达数秒），此刻服务端连一个字都还没收到，
+   * 进度带上一步都没有。不单独记一格的下场是那几秒里带上写着「思考中」——
+   * 而它并没有在思考，它在解码用户那段片子。
+   * ⚠ 无论成败都要复位（`finally`）：留在 true 上，带子会永远写着「正在抽帧」。
+   */
+  capturingFrames: boolean
 }
 
 const EMPTY_SLICE: StudioOperatorDomainSlice = {
@@ -206,6 +216,7 @@ const INITIAL_STATE: StudioOperatorState = {
   spend: null,
   choice: null,
   autoApprove: null,
+  capturingFrames: false,
 }
 
 /**
@@ -616,6 +627,12 @@ export function setOperatorStatus(
   errorText: string | null = null,
 ): void {
   emit({ ...state, status, errorText })
+}
+
+/** 抽帧那一段的开关（第二期）—— 见 `capturingFrames` 头注。 */
+export function setOperatorCapturingFrames(capturingFrames: boolean): void {
+  if (state.capturingFrames === capturingFrames) return
+  emit({ ...state, capturingFrames })
 }
 
 export function setOperatorConfirm(

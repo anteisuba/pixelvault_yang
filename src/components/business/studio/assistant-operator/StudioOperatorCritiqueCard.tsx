@@ -21,19 +21,25 @@
  * ⛔ 没有任何示意用的假数据：一张写着「示例」的评价卡与真评价长得一模一样，
  * 那是最容易被当成「已经能用」的一类假象。
  *
- * ⚠ **「异常」那一段今天没有数据源**：契约里只有 `verdicts`（`{ok,text}[]`）与
- * `advice` 两条通道，warning 档没有第三条。⛔ 不拿 `ok:true` 冒充异常 ——
- * 那会让「达成了」在卡上显示成一条警示。服务端补出第三条通道之前，这张卡只画
- * 否定与建议两段（缺席是诚实，摆一段永远空的标签才是假象）。
+ * ── 三段（否定 / 异常 / 达成）───────────────────────────────────────
+ * ⭐ 「异常」那一段**现在有数据源了**：契约里那个 `ok: boolean` 已经换成
+ * `severity`（`fail` / `warn` / `pass`，见常量头注），⛔ 没有并存的两套。
+ * ⚠ **空的段不摆**：一条 warn 都没有时那一段整个不渲染 —— 一个永远空着的
+ * 「异常」标题读起来像「还没检查」，而它其实是「检查了，没问题」。
  *
  * 缩略图与参考图**共用同一个灯箱**（拍板 17 的后半句）。
  */
 
-import { Check, Undo2, Wand2, X } from 'lucide-react'
+import { AlertTriangle, Check, Undo2, Wand2, X } from 'lucide-react'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import {
+  ASSISTANT_OPERATOR_VERDICT_SEVERITIES,
+  ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS as SEVERITY,
+  type AssistantOperatorVerdictSeverity,
+} from '@/constants/assistant-operator'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { STUDIO_OPERATOR_CRITIQUE_FRAME_STAGGER_SECONDS } from '@/constants/studio-assistant-operator'
 import { cn } from '@/lib/utils'
@@ -85,6 +91,31 @@ function formatTimecode(seconds: number): string {
   return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
 }
 
+/**
+ * 三档各一个记号 —— ⛔ 别只用颜色分：`status-warning` 与 `status-risk` 在色觉
+ * 障碍下会读成同一条，而这张卡的全部意义就是分清「没做到」和「做到了但有瑕疵」。
+ */
+function VerdictIcon({
+  severity,
+}: {
+  severity: AssistantOperatorVerdictSeverity
+}) {
+  if (severity === SEVERITY.fail) {
+    return <X className="mt-0.5 size-3 shrink-0 text-status-risk" aria-hidden />
+  }
+  if (severity === SEVERITY.warn) {
+    return (
+      <AlertTriangle
+        className="mt-0.5 size-3 shrink-0 text-status-warning"
+        aria-hidden
+      />
+    )
+  }
+  return (
+    <Check className="mt-0.5 size-3 shrink-0 text-status-applied" aria-hidden />
+  )
+}
+
 export function StudioOperatorCritiqueCard({
   step,
   runKey,
@@ -100,8 +131,14 @@ export function StudioOperatorCritiqueCard({
   const frames = isVideo ? result.frames : []
   const advice = result.advice ?? null
   const verdicts = isVideo ? result.verdicts : result.findings
-  const rejected = verdicts.filter((verdict) => !verdict.ok)
-  const met = verdicts.filter((verdict) => verdict.ok)
+  /**
+   * 三段的**顺序固定**：否定 → 异常 → 达成。坏消息先说 —— 这张卡存在的理由是
+   * 「它备的它负责看」，把达成排在前面等于让用户先读一段表扬。
+   */
+  const sections = ASSISTANT_OPERATOR_VERDICT_SEVERITIES.map((severity) => ({
+    severity,
+    items: verdicts.filter((verdict) => verdict.severity === severity),
+  })).filter((section) => section.items.length > 0)
 
   const openFrame = (frame: CritiqueFrame) =>
     openOperatorLightbox(frame.url, t(`critique.frame.${frame.label}`))
@@ -202,38 +239,21 @@ export function StudioOperatorCritiqueCard({
         ) : null}
 
         <ul className="flex min-w-0 flex-1 flex-col gap-1">
-          {rejected.map((verdict) => (
-            <li
-              key={verdict.text}
-              data-testid="operator-critique-verdict"
-              data-ok="false"
-              className="flex items-start gap-1.5"
-            >
-              <X
-                className="mt-0.5 size-3 shrink-0 text-status-risk"
-                aria-hidden
-              />
-              <span className="min-w-0 text-2sm text-foreground">
-                {verdict.text}
-              </span>
-            </li>
-          ))}
-          {met.map((verdict) => (
-            <li
-              key={verdict.text}
-              data-testid="operator-critique-verdict"
-              data-ok="true"
-              className="flex items-start gap-1.5"
-            >
-              <Check
-                className="mt-0.5 size-3 shrink-0 text-status-applied"
-                aria-hidden
-              />
-              <span className="min-w-0 text-2sm text-foreground">
-                {verdict.text}
-              </span>
-            </li>
-          ))}
+          {sections.map((section) =>
+            section.items.map((verdict) => (
+              <li
+                key={verdict.text}
+                data-testid="operator-critique-verdict"
+                data-severity={verdict.severity}
+                className="flex items-start gap-1.5"
+              >
+                <VerdictIcon severity={section.severity} />
+                <span className="min-w-0 text-2sm text-foreground">
+                  {verdict.text}
+                </span>
+              </li>
+            )),
+          )}
         </ul>
       </div>
 

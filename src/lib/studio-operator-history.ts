@@ -426,7 +426,7 @@ function toOperatorHistoryStep(
           findings: critiqueResult.findings
             .slice(0, LIMITS.maxCritiqueFindings)
             .map((finding) => ({
-              ok: finding.ok,
+              severity: finding.severity,
               text: truncate(finding.text, LIMITS.maxCritiqueFindingChars),
             })),
           ...(critiqueResult.advice

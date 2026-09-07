@@ -58,8 +58,8 @@ const STEP: DoneCritiqueStep = {
   payload: IMAGE_PAYLOAD,
   result: {
     findings: [
-      { ok: true, text: '红伞是画面唯一的暖色' },
-      { ok: false, text: '雨丝糊成一片' },
+      { severity: 'pass', text: '红伞是画面唯一的暖色' },
+      { severity: 'fail', text: '雨丝糊成一片' },
     ],
     advice: '把雨的方向写进提示词',
     borrowedVisionRoute: false,
@@ -158,8 +158,46 @@ describe('评价卡', () => {
  *  ① 三帧真的并排画出来，各带位置词 + 时间码；
  *  ② 点任一帧开的是**那一帧**的原图（不是结果视频本身）；
  *  ③ 三帧在场时单图那颗嵌图**让位** —— 证据已经在上面了，画两次是两个真相源；
- *  ④ `ok:false` 走 `status-risk`，⛔ 不与达成项混在一起排。
+ *  ④ 严重度分三段（否定 / 异常 / 达成），⛔ 不与达成项混在一起排。
  */
+describe('评价卡 · 三段（否定 / 异常 / 达成）', () => {
+  it('三档各走各的记号与颜色，顺序固定「否定 → 异常 → 达成」', () => {
+    renderCard({
+      step: {
+        ...STEP,
+        result: {
+          ...STEP.result,
+          findings: [
+            { severity: 'pass', text: '红伞是画面唯一的暖色' },
+            { severity: 'fail', text: '雨丝糊成一片' },
+            { severity: 'warn', text: '构图对了，但左下角有一块噪点' },
+          ],
+        },
+      } as DoneCritiqueStep,
+    })
+
+    const items = screen.getAllByTestId('operator-critique-verdict')
+    expect(items.map((el) => el.dataset.severity)).toEqual([
+      'fail',
+      'warn',
+      'pass',
+    ])
+    expect(items[0]?.querySelector('.text-status-risk')).not.toBeNull()
+    expect(items[1]?.querySelector('.text-status-warning')).not.toBeNull()
+    expect(items[2]?.querySelector('.text-status-applied')).not.toBeNull()
+  })
+
+  it('⛔ 一条 warn 都没有时不摆空段（空标题读起来像「还没检查」）', () => {
+    renderCard()
+
+    const items = screen.getAllByTestId('operator-critique-verdict')
+    expect(items.map((el) => el.dataset.severity)).toEqual(['fail', 'pass'])
+    expect(items.some((el) => el.querySelector('.text-status-warning'))).toBe(
+      false,
+    )
+  })
+})
+
 describe('评价卡 · 视频形态', () => {
   const VIDEO_STEP: DoneCritiqueStep = {
     ...STEP,
@@ -171,8 +209,8 @@ describe('评价卡 · 视频形态', () => {
         { t: 6.4, url: 'https://cdn.example.com/f2.jpg', label: 'end' },
       ],
       verdicts: [
-        { ok: false, text: '第二帧人物换了张脸' },
-        { ok: true, text: '镜头推进是连贯的' },
+        { severity: 'fail', text: '第二帧人物换了张脸' },
+        { severity: 'pass', text: '镜头推进是连贯的' },
       ],
       // ⚠ 故意同时留着 `findings` —— 服务端统一两边命名之前，一条真事件上两个键
       //   都可能在。卡必须优先读 `verdicts`，⛔ 不能把图片域那份也一起画出来。
@@ -219,7 +257,7 @@ describe('评价卡 · 视频形态', () => {
 
     const verdicts = screen.getAllByTestId('operator-critique-verdict')
     expect(verdicts).toHaveLength(2)
-    expect(verdicts[0]?.dataset.ok).toBe('false')
+    expect(verdicts[0]?.dataset.severity).toBe('fail')
     expect(verdicts[0]?.textContent).toContain('第二帧人物换了张脸')
     expect(verdicts[0]?.querySelector('.text-status-risk')).not.toBeNull()
     // 图片域那份 findings 不该同时被画出来

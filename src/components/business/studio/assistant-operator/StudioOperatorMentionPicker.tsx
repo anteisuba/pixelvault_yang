@@ -40,6 +40,16 @@ interface StudioOperatorMentionPickerProps {
    * 不去 context 里摸：面板会挂在两个宿主上，其中一个根本没有 `<StudioProvider>`。
    */
   recent: readonly StudioOperatorAttachment[]
+  /**
+   * 素材库那一跳搜哪几类（第二期最后一环）。
+   *
+   * ⭐ **视频档必须能搜到视频**：`critique_result` 在视频域吃的是客户端从被 `@` 的
+   * 那段片子抽出来的三帧，而「被 `@` 的那段片子」只能从这里挑。写死 `['image']`
+   * 的表现是那条路整条不可达 —— 用户搜自己的片子，picker 回一句「没找到」。
+   * ⚠ 由宿主按域给，⛔ 这颗组件不去 context 里摸域（它挂在两个宿主上，其中一个
+   * 没有 `<StudioProvider>`）。
+   */
+  searchTypes: readonly ('image' | 'video')[]
   onPick(attachment: StudioOperatorAttachment): void
   onDismiss(): void
 }
@@ -47,6 +57,7 @@ interface StudioOperatorMentionPickerProps {
 export function StudioOperatorMentionPicker({
   query,
   recent,
+  searchTypes,
   onPick,
   onDismiss,
 }: StudioOperatorMentionPickerProps) {
@@ -113,7 +124,7 @@ export function StudioOperatorMentionPicker({
       setSearching(true)
       void fetchGalleryImages(1, STUDIO_OPERATOR_MENTION.searchLimit, {
         mine: true,
-        type: ['image'],
+        type: [...searchTypes],
         ...(query.trim() ? { search: query.trim() } : {}),
       })
         .then((result) => {
@@ -133,7 +144,7 @@ export function StudioOperatorMentionPicker({
       cancelled = true
       clearTimeout(timer)
     }
-  }, [query])
+  }, [query, searchTypes])
 
   /**
    * 键盘（见头注 ③）。

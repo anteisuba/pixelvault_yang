@@ -219,6 +219,18 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * 而言下一步都一样（换一把），分成三条只会多两句他读不懂的话。
    */
   'loraMountFailed',
+  /**
+   * 视频域评审的**抽帧那一跳**没成（第二期最后一环）。
+   *
+   * ⛔ **不静默**：抽不出帧 = 这一轮助手看不了这段片子，而服务端那一侧只会回一句
+   * 「没有帧可看」（`videoFramesMissing`）—— 用户读到的是助手在推辞，却不知道
+   * 真正发生的是他这台浏览器解码失败 / R2 跨域被挡。
+   * ⚠ `subject` 存的是**机器可读的原因码**（`VideoFrameCaptureReason`），
+   *   人话在渲染那一侧过词表（同 `revertField` 存字段 id 的那条）：六条原因的
+   *   **修法完全不同**（跨域要配 CORS，超时是这台机器慢），压成一句「抽帧失败」
+   *   会让用户去试那条唯一无效的（换个视频）。
+   */
+  'videoFramesFailed',
 ] as const
 
 export type StudioOperatorSystemCode =
@@ -426,6 +438,27 @@ export const STUDIO_OPERATOR_MENTION = {
   searchDebounceMs: 250,
   /** 超过这么多张就把 chip 区计数转 warning（见上：只提示，不拦）。 */
   warnAboveCount: 8,
+} as const
+
+/**
+ * `@` 选择器搜素材库时搜哪几类 —— **按域**（第二期最后一环）。
+ *
+ * ⭐ 视频档必须能搜到视频：视频域 `critique_result` 吃的是客户端从被 `@` 的那段
+ * 片子抽出来的三帧，而那段片子只能从这个选择器里挑。此前这里写死 `['image']`，
+ * 表现是「@ 一段片子让助手看看」整条路不可达 —— 用户搜自己的片子，选择器回
+ * 一句「没找到」。
+ * ⛔ 图片域与装配台照旧只搜图：那两处的视觉线吃的是一张静态图，让一条 mp4 进得来
+ * 只会让用户挂上一个助手看不了的东西。
+ * ⚠ 引用必须稳定（`as const` 的字面量数组）：它是选择器那条搜索 effect 的依赖，
+ * 每次 render 新建一个数组会让每一帧都重搜一次库。
+ */
+export const STUDIO_OPERATOR_MENTION_SEARCH_TYPES: Record<
+  AssistantOperatorDomain,
+  readonly ('image' | 'video')[]
+> = {
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.image]: ['image'],
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: ['image', 'video'],
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: ['image'],
 } as const
 
 /**

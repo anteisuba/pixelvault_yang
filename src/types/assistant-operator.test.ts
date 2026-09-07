@@ -273,8 +273,8 @@ const STEP_FIXTURES: Record<
     },
     result: {
       findings: [
-        { ok: true, text: '红伞是画面唯一的暖色，主体立住了' },
-        { ok: false, text: '雨丝糊成一片，看不出方向' },
+        { severity: 'pass', text: '红伞是画面唯一的暖色，主体立住了' },
+        { severity: 'fail', text: '雨丝糊成一片，看不出方向' },
       ],
       advice: '下一轮把雨的方向写进提示词',
       borrowedVisionRoute: false,

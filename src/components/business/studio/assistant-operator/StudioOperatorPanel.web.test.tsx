@@ -118,6 +118,7 @@ const WEB_IMPORT = {
 } as unknown as UseStudioOperatorWebImportResult
 
 const onOpenProjectRules = vi.fn()
+const onOpenAssistantSettings = vi.fn()
 
 function renderPanel() {
   render(
@@ -146,7 +147,7 @@ function renderPanel() {
       upload={UPLOAD}
       webImport={WEB_IMPORT}
       history={HISTORY}
-      onOpenAssistantSettings={vi.fn()}
+      onOpenAssistantSettings={onOpenAssistantSettings}
       onOpenProjectRules={onOpenProjectRules}
       onCollapse={vi.fn()}
     />,
@@ -350,6 +351,19 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(screen.getByText('主角的耳环永远在左边')).toBeTruthy()
     fireEvent.click(screen.getByText('view'))
     expect(onOpenProjectRules).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * ⭐ 助手设置的入口在**进度带上**（owner 2026-09-07）—— 面板这一层验的是
+   * 「接线还在」：齿轮那颗组件级用例已经绿了，而面板不把 `onOpenAssistantSettings`
+   * 递下去的话，点它什么都不会发生。
+   */
+  it('⭐ 进度带上那颗常驻齿轮点得开助手设置', () => {
+    renderPanel()
+    const gear = screen.getByTestId('operator-assistant-settings')
+    expect(gear.tagName).toBe('BUTTON')
+    fireEvent.click(gear)
+    expect(onOpenAssistantSettings).toHaveBeenCalledTimes(1)
   })
 
   it('⑤ 结果行卡读的是**宿主的 results**（⛔ 不是 useStudioGen）', () => {

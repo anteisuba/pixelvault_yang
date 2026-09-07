@@ -495,11 +495,11 @@ export function finalizeOperatorMessage(
  * 是一句假话 —— 哪天给流式正文加一颗光标，那颗光标就会在一条早已停下的回复
  * 末尾永远闪下去。
  */
-export function settleOperatorMessage(id: string): void {
+export function settleOperatorMessage(id: string): boolean {
   const index = state.entries.findIndex(
     (entry) => entry.kind === 'message' && entry.id === id && entry.streaming,
   )
-  if (index < 0) return
+  if (index < 0) return false
   const existing = state.entries[index] as StudioOperatorMessageEntry
   emit({
     ...state,
@@ -514,6 +514,7 @@ export function settleOperatorMessage(id: string): void {
         : entry,
     ),
   })
+  return true
 }
 
 /**

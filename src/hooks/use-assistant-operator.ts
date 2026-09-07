@@ -520,6 +520,44 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       }
 
       /**
+       * ⭐ **收尾之前的那条占位行**（owner 2026-09-07）。
+       *
+       * 🔬 由来：最后一个工具步跑完到收尾正文第一个字之间实测可达数秒 —— 线程
+       * 里一条活的助手行都没有，只有顶上的进度带在转，读起来像「它不打算说话了」。
+       * ⚠ **不是一落定就挂**：连着跑的工具步之间常常只隔几十毫秒，那样会在每两步
+       * 之间闪一行三点脉冲又被下一步的让位逻辑拆掉。所以挂的条件是「这一步落定
+       * 之后 `pendingAfterStepMs` 内没有下一帧」——下一帧一到就撤（见循环顶上那句）。
+       * ⚠ 复用的是**同一条占位行**（`operator-message-pending`）与同一个条目 id：
+       * 首个 `message_delta` 直接往它里面写字，⛔ 不换条目（换条目 = 换 key = 重挂）。
+       */
+      let pendingStepTimer: ReturnType<typeof setTimeout> | null = null
+      const cancelPendingAfterStep = () => {
+        if (pendingStepTimer === null) return
+        clearTimeout(pendingStepTimer)
+        pendingStepTimer = null
+      }
+      const schedulePendingAfterStep = () => {
+        cancelPendingAfterStep()
+        pendingStepTimer = setTimeout(() => {
+          pendingStepTimer = null
+          // 这一轮已经停了（收尾 / 出错 / 等你定）就没有「它马上要说话」可言。
+          if (getOperatorState().status !== 'working') return
+          /**
+           * ⚠ 线程尾部**还有一条活的助手正文**就不挂：那条本身就在长字，
+           * 再挂一行三点是同一件事说两遍。判据取「这个 id 还在不在」——
+           * 工具步让位时序号已经进过一位（见让位那一段），所以 id 还在 = 那条
+           * 正文就是当前这一段。
+           */
+          const id = messageEntryId()
+          const live = getOperatorState().entries.some(
+            (entry) => entry.kind === 'message' && entry.id === id,
+          )
+          if (live) return
+          appendOperatorPending(id)
+        }, STUDIO_OPERATOR_STREAMING.pendingAfterStepMs)
+      }
+
+      /**
        * ⭐ **载回来的历史也进上下文**（P4-B）：不带它的下场是「用户看得见自己
        * 三分钟前说的话，助手却完全失忆」—— 刷新之后第一句就要重新自我介绍。
        * 旧助手线（`use-assistant-conversation`）也是把历史原样带回上下文的。
@@ -618,6 +656,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         for await (const event of result.events) {
           if (controller.signal.aborted) break
           /**
+           * ⚠ **下一帧一到就把占位行的闸撤掉**：连着跑的工具步之间不许闪一行
+           * 三点（见 `schedulePendingAfterStep` 头注）。已经挂出去的那条不在这里
+           * 拆 —— 拆它的是下面的让位逻辑（`dropOperatorPending` 只扔空的）。
+           */
+          cancelPendingAfterStep()
+          /**
            * 占位行让位（§4.1）：**除了正文自己**，任何一帧到达都意味着「它已经
            * 开口了」，那一行空脉冲该消失。
            * ⚠ 只扔**还空着**的那条（`dropOperatorPending` 自己把关）：助手先说
@@ -640,8 +684,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             /**
              * ⚠ 旗也要放下来：`planRequest` / `stopped` / `error` 之后定稿帧
              * 永远不会来了（这条流就此结束），条目却还举着 `streaming`。
+             * ⭐ **放下旗的同时序号进一位**（2026-09-07）：这一段字已经被一条
+             * 工具步挡在下面了，后面再来的字是**新的一段**——写回上面那条的表现
+             * 是文字长在工具组的上方，读起来像时间倒流。序号进位同时也让收尾前的
+             * 占位行有一个还没被占用的 id 可挂（见 `schedulePendingAfterStep`）。
              */
-            settleOperatorMessage(messageEntryId())
+            if (settleOperatorMessage(messageEntryId())) messageSeq += 1
           }
           /**
            * 攒着的计划**最多只等一帧**（第 2 件）：`plan_request` 是紧挨着 `plan`
@@ -786,6 +834,14 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 runRef.current?.()
                 return
               }
+              /**
+               * ⭐ 这一步有结论了 —— 下一帧再不来就挂占位行（owner 2026-09-07）。
+               * ⚠ 判据同上一段：`running` 之外的三档（done / error / rejected）
+               * 都是结论，只认 `done` 的话一串被拒的步之后仍然是一片空白。
+               */
+              if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running) {
+                schedulePendingAfterStep()
+              }
               break
             }
             case ASSISTANT_OPERATOR_EVENTS.confirmRequest:
@@ -862,6 +918,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         }
       } catch {
         // 半句话卡在缓冲里比丢掉更糟 —— 先落地，再谈这是不是一次 abort。
+        cancelPendingAfterStep()
         flushPlanEntry()
         settleDeltas()
         dropOperatorPending(messageEntryId())
@@ -878,6 +935,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         return
       }
 
+      cancelPendingAfterStep()
       flushPlanEntry()
       settleDeltas()
       dropOperatorPending(messageEntryId())

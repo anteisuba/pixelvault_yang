@@ -64,8 +64,17 @@ export function StudioOperatorCollapsibleText({
 }) {
   const t = useTranslations('StudioOperator')
   const [expanded, setExpanded] = useState(false)
+  /**
+   * ⭐ **揭示没走完就不折**（owner 2026-09-07 的打字机那一条）。
+   *
+   * 定稿帧到达时 `streaming` 就落了，而那时正文才写到一半 —— 只看 `streaming`
+   * 的表现是一条正在一个字一个字长出来的长回复突然折成首句，用户看到的是
+   * 「字长到一半自己没了」，比不做打字机还糟。
+   */
+  const [revealing, setRevealing] = useState(false)
 
-  const collapsible = !streaming && shouldCollapseOperatorText(text)
+  const collapsible =
+    !streaming && !revealing && shouldCollapseOperatorText(text)
   const collapsed = collapsible && !expanded
 
   return (
@@ -87,7 +96,11 @@ export function StudioOperatorCollapsibleText({
           {text}
         </p>
       ) : (
-        <StudioOperatorStreamingText text={text} streaming={streaming} />
+        <StudioOperatorStreamingText
+          text={text}
+          streaming={streaming}
+          onRevealingChange={setRevealing}
+        />
       )}
 
       {collapsible ? (

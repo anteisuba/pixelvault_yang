@@ -21,7 +21,7 @@ import {
   MessageSquarePlus,
   MoreHorizontal,
   PanelRightClose,
-  SlidersHorizontal,
+  Settings2,
 } from 'lucide-react'
 import { useFormatter, useTranslations } from 'next-intl'
 
@@ -101,10 +101,14 @@ interface StudioOperatorProgressBandProps {
   history: UseStudioOperatorHistoryResult
   onNewThread(): void
   /**
-   * 「助手设置」（§8.1 主入口）—— 挂在这个 ⋯ 菜单里，⛔ **不挂进会话菜单**：
-   * 那两个菜单本轮已经合成一个，但职责仍然分明 —— 上半是「这条会话」，下半是
-   * 「这个助手是谁」。⚠ 弹层住在外壳（`StudioOperatorDock`）：收放法则（拍板 7）
-   * 随时会把面板卸载，弹层跟着面板走的下场是它自己突然消失。
+   * 「助手设置」（§8.1 主入口）—— **带上那颗常驻齿轮**（owner 2026-09-07）。
+   *
+   * ⭐ 由来：它此前只活在 ⋯ 菜单的第三格里，等于「要先知道它在那儿才找得到」。
+   * 而「这个助手是谁」是每个人第一次用面板就要改的东西。
+   * ⚠ ⋯ 菜单里那一项**已经删掉**（工程原则 1）：⛔ 不留两个入口 —— 两个入口的
+   * 下场是有人改了菜单那一支而齿轮那一支还开着旧弹层。
+   * ⚠ 弹层住在外壳（`StudioOperatorDock`）：收放法则（拍板 7）随时会把面板卸载，
+   * 弹层跟着面板走的下场是它自己突然消失。
    */
   onOpenAssistantSettings(): void
   onCollapse(): void
@@ -231,6 +235,21 @@ export function StudioOperatorProgressBand({
           {bandTitle}
         </button>
 
+        {/* 助手设置（§8.1 主入口）—— ⚠ 带 `data-operator-keep`：点它弹层要开，
+            而收放法则（拍板 7）会因为「点了面板外面」把面板收掉，判据就是这个属性。
+            ⚠ 命中区 32px（`ui-defaults.md §5`：fine 32/36）：它比旁边两颗 28 大
+            一档是有意的 —— 常驻入口先保命中，⛔ 不为了对齐把它缩回 `size-7`。 */}
+        <button
+          type="button"
+          data-testid="operator-assistant-settings"
+          aria-label={t('assistantSettings')}
+          {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+          onClick={onOpenAssistantSettings}
+          className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
+        >
+          <Settings2 className="size-4" aria-hidden />
+        </button>
+
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <button
@@ -309,17 +328,8 @@ export function StudioOperatorProgressBand({
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuSeparator />
-            {/* 助手设置（§8.1）—— ⚠ 触发器带 `data-operator-keep`：点开弹层不该
-                把面板收掉（收放法则的判据就是这个属性）。 */}
-            <DropdownMenuItem
-              data-testid="operator-assistant-settings"
-              {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
-              onSelect={() => onOpenAssistantSettings()}
-            >
-              <SlidersHorizontal className="size-4" aria-hidden />
-              {t('assistantSettings')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {/* ⛔ 这里**没有**「助手设置」：它已经是进度带上那颗常驻齿轮
+                （owner 2026-09-07）。两个入口 = 两处要同步的接线。 */}
             {/* 分享要有一条落了库的会话才有东西可分享 —— 现在诚实地停用。 */}
             <DropdownMenuItem disabled>{t('share')}</DropdownMenuItem>
             <DropdownMenuItem disabled>{t('feedback')}</DropdownMenuItem>

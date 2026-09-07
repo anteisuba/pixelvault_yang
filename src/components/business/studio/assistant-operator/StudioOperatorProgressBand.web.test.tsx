@@ -185,4 +185,43 @@ describe('StudioOperatorProgressBand', () => {
     // 域 chip 是空闲那一副面孔 —— 等你定的时候不该退回去。
     expect(screen.queryByTestId('operator-domain-chip')).toBeNull()
   })
+
+  /**
+   * ⭐ 助手设置的**唯一**入口 = 带上那颗常驻齿轮（owner 2026-09-07）。
+   *
+   * ⚠ 这份桩把 ⋯ 菜单的内容**原地渲染**（见文件头那段 dropdown-menu mock），
+   * 所以「菜单里还留着一项」会在这里表现为找到两个同名 testid —— 这正是这条
+   * 断言拦得住「删了一个入口忘了删另一个」的原因（工程原则 1）。
+   */
+  it('⭐ 齿轮是常驻按钮，且⛔ ⋯ 菜单里不再有第二个「助手设置」', () => {
+    const onOpenAssistantSettings = vi.fn()
+    renderBand({ onOpenAssistantSettings })
+
+    const gears = screen.getAllByTestId('operator-assistant-settings')
+    expect(gears).toHaveLength(1)
+    const gear = gears[0]!
+    expect(gear.tagName).toBe('BUTTON')
+    expect(gear.getAttribute('aria-label')).toBe('assistantSettings')
+    // 命中区 32px（`ui-defaults.md §5`：fine 32/36）。
+    expect(gear.className).toContain('size-8')
+    // 收放法则的判据 —— 少了它，点齿轮会把面板一起收掉。
+    expect(gear.hasAttribute('data-operator-keep')).toBe(true)
+
+    fireEvent.click(gear)
+    expect(onOpenAssistantSettings).toHaveBeenCalledTimes(1)
+  })
+
+  it('齿轮七态：hover / active / focus-visible / disabled 都有落点', () => {
+    renderBand()
+    const gear = screen.getByTestId('operator-assistant-settings')
+    for (const state of [
+      'hover:bg-accent',
+      'active:bg-accent/80',
+      'focus-visible:ring-2',
+      'disabled:opacity-50',
+      'motion-reduce:transition-none',
+    ]) {
+      expect(gear.className).toContain(state)
+    }
+  })
 })

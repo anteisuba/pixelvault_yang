@@ -1152,6 +1152,91 @@ describe('正文流式累积与占位行', () => {
     expect(messageEntry()?.streaming).toBeFalsy()
   })
 
+  /**
+   * ⭐ **收尾之前的那条占位行**（owner 2026-09-07）。
+   *
+   * 🔬 由来：最后一个工具步跑完到收尾正文第一个字之间实测可达数秒 —— 那段时间
+   * 线程里一条活的助手行都没有，只有进度带在转。
+   * ⚠ 三条一起钉：**短间隔不挂**（连着跑的步之间不许闪三点）· **长间隔挂** ·
+   * **首字到达就地替换**（⛔ 不另起一条条目，那是换 key = 重挂）。
+   */
+  describe('收尾前的占位行（步间空窗）', () => {
+    async function wait(ms: number): Promise<void> {
+      await act(async () => {
+        await new Promise((resolve) => {
+          setTimeout(resolve, ms)
+        })
+      })
+    }
+
+    it('⛔ 连续工具步之间的短空窗不挂占位行（挂了又拆就是闪）', async () => {
+      const { result } = render()
+      act(() => {
+        result.current.send('读一下当前状态')
+      })
+      await settle()
+
+      streams[0].emit(doneStepEvent('step-1'))
+      await settle()
+      await wait(STUDIO_OPERATOR_STREAMING.pendingAfterStepMs / 2)
+      streams[0].emit(doneStepEvent('step-2'))
+      await settle()
+
+      expect(
+        store.getOperatorState().entries.map((entry) => entry.kind),
+      ).toEqual(['user', 'step', 'step'])
+    })
+
+    it('⭐ 一步落定之后空窗够长 → 挂占位行（三点脉冲那一条）', async () => {
+      const { result } = render()
+      act(() => {
+        result.current.send('读一下当前状态')
+      })
+      await settle()
+
+      streams[0].emit(doneStepEvent('step-1'))
+      await settle()
+      await wait(STUDIO_OPERATOR_STREAMING.pendingAfterStepMs + 60)
+
+      const entries = store.getOperatorState().entries
+      expect(entries.map((entry) => entry.kind)).toEqual([
+        'user',
+        'step',
+        'message',
+      ])
+      // 占位行 = 空正文 + streaming 旗（渲染侧照这两个值画三点）。
+      expect(entries.at(-1)).toMatchObject({ text: '', streaming: true })
+    })
+
+    it('⭐ 首个 message_delta 就地替换占位行 —— ⛔ 不另起一条条目', async () => {
+      const { result } = render()
+      act(() => {
+        result.current.send('读一下当前状态')
+      })
+      await settle()
+
+      streams[0].emit(doneStepEvent('step-1'))
+      await settle()
+      await wait(STUDIO_OPERATOR_STREAMING.pendingAfterStepMs + 60)
+      const placeholderId = messageEntry()?.id
+
+      streams[0].emit({
+        type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+        text: '改完了',
+      })
+      await settle()
+
+      expect(messageEntry()).toMatchObject({
+        id: placeholderId,
+        text: '改完了',
+        streaming: true,
+      })
+      expect(
+        store.getOperatorState().entries.filter((e) => e.kind === 'message'),
+      ).toHaveLength(1)
+    })
+  })
+
   it('流炸了也不把半句话丢在缓冲里', async () => {
     const { result } = render()
     act(() => {

@@ -1,9 +1,8 @@
 /**
- * 画布渲染代际开关（第三期 · 画布 C3c-③c）。
+ * 画布渲染代际（第三期 · 画布 C3c-③d 之后）。
  *
- * ⚠ 这不是功能开关，是**迁移顺序的闸**：③c 只翻转存储（hook 的 state 已经是
- * v4、库里写的也是 v4），画布仍旧由 v3 组件渲染 v4 的**投影视图**，所以 owner
- * 这一步看到的行为不变。③d 把这里改成 `true` 之后，v3 分支、`NODE_COMPONENTS`
- * 与 `projectV4ToV3View` 一起删 —— ⛔ 不留双分支，也不做成运行时可切的设置项。
+ * ③d 已翻转：画布只有 v4 一条渲染路径，`NODE_COMPONENTS` 与十个 legacy 节点
+ * 组件一并下线。常量留着只为让「画布是 v4」这件事在代码里有一个可搜的名字，
+ * ⛔ 不是运行时可切的设置项，也永远不会再有 false 分支。
  */
-export const NODE_CANVAS_RENDER_V4 = false
+export const NODE_CANVAS_RENDER_V4 = true

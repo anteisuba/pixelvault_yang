@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
-import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import {
+  NODE_IMAGE_ROLE_IDS,
+  NODE_MEDIA_KIND_IDS,
+  NODE_TYPE_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
+} from '@/constants/node-types'
+import type {
+  NodeV4Data,
+  NodeWorkflowEdge,
+  NodeWorkflowNode,
+} from '@/types/node-workflow'
 
 import {
   edgePairKey,
   NODE_EDGE_TIER_IDS,
   resolveNodeEdgeTier,
+  resolveNodeEdgeTierV4,
   resolveNodeEdgeVisibility,
 } from './node-edge-tier'
 
@@ -236,5 +247,93 @@ describe('edgePairKey', () => {
 
   it('is order-sensitive (a→b is not the same pair as b→a)', () => {
     expect(edgePairKey('a', 'b')).not.toBe(edgePairKey('b', 'a'))
+  })
+})
+
+/** v4 形状的最小节点数据 —— 分级只读 `kind` / `subtype`。 */
+function makeV4Data(kind: string, subtype: string): NodeV4Data {
+  return {
+    kind,
+    subtype,
+    name: `${kind}.${subtype}`,
+    status: 'idle',
+    createdAt: '2026-09-08T00:00:00.000Z',
+    ...(kind === NODE_MEDIA_KIND_IDS.video ? { label: 'L' } : {}),
+    ...(kind === NODE_MEDIA_KIND_IDS.text ? { body: '' } : {}),
+  } as unknown as NodeV4Data
+}
+
+describe('resolveNodeEdgeTierV4', () => {
+  it('classifies anything → video.merge as backbone (成片进片盒)', () => {
+    expect(
+      resolveNodeEdgeTierV4(
+        makeV4Data(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.result),
+        makeV4Data(NODE_MEDIA_KIND_IDS.video, NODE_V4_VIDEO_SUBTYPE_IDS.merge),
+      ),
+    ).toBe(NODE_EDGE_TIER_IDS.backbone)
+  })
+
+  it('classifies image.shot → video.shot as backbone (静帧先审再喂)', () => {
+    expect(
+      resolveNodeEdgeTierV4(
+        makeV4Data(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.shot),
+        makeV4Data(NODE_MEDIA_KIND_IDS.video, NODE_V4_VIDEO_SUBTYPE_IDS.shot),
+      ),
+    ).toBe(NODE_EDGE_TIER_IDS.backbone)
+  })
+
+  it('classifies video.clip → video.shot as backbone (前片引用)', () => {
+    expect(
+      resolveNodeEdgeTierV4(
+        makeV4Data(NODE_MEDIA_KIND_IDS.video, NODE_V4_VIDEO_SUBTYPE_IDS.clip),
+        makeV4Data(NODE_MEDIA_KIND_IDS.video, NODE_V4_VIDEO_SUBTYPE_IDS.shot),
+      ),
+    ).toBe(NODE_EDGE_TIER_IDS.backbone)
+  })
+
+  it('classifies image.character → video.shot as ingredient (供给关系)', () => {
+    expect(
+      resolveNodeEdgeTierV4(
+        makeV4Data(
+          NODE_MEDIA_KIND_IDS.image,
+          NODE_V4_IMAGE_SUBTYPE_IDS.character,
+        ),
+        makeV4Data(NODE_MEDIA_KIND_IDS.video, NODE_V4_VIDEO_SUBTYPE_IDS.shot),
+      ),
+    ).toBe(NODE_EDGE_TIER_IDS.ingredient)
+  })
+
+  it('classifies audio.voice → video.shot as ingredient', () => {
+    expect(
+      resolveNodeEdgeTierV4(
+        makeV4Data(NODE_MEDIA_KIND_IDS.audio, 'voice'),
+        makeV4Data(NODE_MEDIA_KIND_IDS.video, NODE_V4_VIDEO_SUBTYPE_IDS.shot),
+      ),
+    ).toBe(NODE_EDGE_TIER_IDS.ingredient)
+  })
+
+  it('classifies image.reference → image.result as ingredient (target 不是视频)', () => {
+    expect(
+      resolveNodeEdgeTierV4(
+        makeV4Data(
+          NODE_MEDIA_KIND_IDS.image,
+          NODE_V4_IMAGE_SUBTYPE_IDS.reference,
+        ),
+        makeV4Data(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.result),
+      ),
+    ).toBe(NODE_EDGE_TIER_IDS.ingredient)
+  })
+
+  it('agrees with the v3 table on the same pairing (镜头图 → 镜头)', () => {
+    const v3 = resolveNodeEdgeTier(
+      makeEdge('a', 'b'),
+      makeNode('a', NODE_TYPE_IDS.image, { role: NODE_IMAGE_ROLE_IDS.shot }),
+      makeNode('b', NODE_TYPE_IDS.seedance),
+    )
+    const v4 = resolveNodeEdgeTierV4(
+      makeV4Data(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.shot),
+      makeV4Data(NODE_MEDIA_KIND_IDS.video, NODE_V4_VIDEO_SUBTYPE_IDS.shot),
+    )
+    expect(v4).toBe(v3)
   })
 })

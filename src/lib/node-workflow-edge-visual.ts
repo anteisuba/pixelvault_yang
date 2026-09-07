@@ -16,6 +16,7 @@
 import { NODE_TYPE_IDS } from '@/constants/node-types'
 import {
   NODE_GENERATION_STATUS_IDS,
+  NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
 } from '@/constants/node-types'
 import { NODE_STUDIO_EDGE_VISUALS } from '@/constants/node-studio'
@@ -140,10 +141,42 @@ const MEDIA_PRODUCING_NODE_TYPES: ReadonlySet<string> = new Set([
   NODE_TYPE_IDS.videoMerge,
 ])
 
+/**
+ * v4 里「会产媒体」的三个 kind。`text` 不产媒体 —— 与 v3 把身份卡/音色卡排除在外
+ * 是同一条理由（一律算未就绪会让整张画布全是虚线，虚实这个编码位就废了）。
+ */
+const MEDIA_PRODUCING_V4_KINDS: ReadonlySet<string> = new Set([
+  NODE_MEDIA_KIND_IDS.image,
+  NODE_MEDIA_KIND_IDS.video,
+  NODE_MEDIA_KIND_IDS.audio,
+])
+
 export function isPendingSourceNode(
-  node: { type?: string; data?: { mediaUrl?: unknown } } | null | undefined,
+  node:
+    | {
+        type?: string
+        data?: { mediaUrl?: unknown; kind?: unknown; url?: unknown }
+      }
+    | null
+    | undefined,
 ): boolean {
   if (!node?.type) return false
+
+  /**
+   * v4 优先（C3c-③d 翻转后画布只喂 v4 节点）。
+   *
+   * ⚠ 这一支必须在前，而且判据是 `data.kind` 而不是 `node.type`：v4 的 RF `type`
+   * **就是 kind**，于是 `'image'` 恰好也是一个 legacy type 键 —— 落进下面那支就会
+   * 去读 v3 的 `data.mediaUrl`（v4 的产物字段叫 `url`），结果每张 v4 图片卡的出边
+   * 都被判成「还没产出」画成虚线。
+   */
+  const kind = node.data?.kind
+  if (typeof kind === 'string') {
+    if (!MEDIA_PRODUCING_V4_KINDS.has(kind)) return false
+    const url = node.data?.url
+    return typeof url !== 'string' || url.length === 0
+  }
+
   if (!MEDIA_PRODUCING_NODE_TYPES.has(node.type)) return false
   const url = node.data?.mediaUrl
   return typeof url !== 'string' || url.length === 0

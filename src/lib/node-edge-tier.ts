@@ -13,8 +13,18 @@
  * narrates, only drawn on the canvas when its node is selected.
  */
 
-import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import {
+  NODE_IMAGE_ROLE_IDS,
+  NODE_MEDIA_KIND_IDS,
+  NODE_TYPE_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
+} from '@/constants/node-types'
+import type {
+  NodeV4Data,
+  NodeWorkflowEdge,
+  NodeWorkflowNode,
+} from '@/types/node-workflow'
 
 export const NODE_EDGE_TIER_IDS = {
   backbone: 'backbone',
@@ -61,6 +71,42 @@ export function resolveNodeEdgeTier(
   if (
     targetNode.type === NODE_TYPE_IDS.seedance &&
     (sourceNode.type === NODE_TYPE_IDS.seedance || isShotImageNode(sourceNode))
+  ) {
+    return NODE_EDGE_TIER_IDS.backbone
+  }
+
+  return NODE_EDGE_TIER_IDS.ingredient
+}
+
+/**
+ * 同一张分级表的 **v4 形状**（C3c-③d 翻转后画布唯一走这一份）。
+ *
+ * ⚠ 判据与 `resolveNodeEdgeTier` 逐条对齐，只是把 v3 的 `type`/`role` 换成 v4 的
+ * `kind`/`subtype`：
+ *   - target 是 `video.merge` → backbone（成片进片盒）
+ *   - target 是 `video.shot` 且 source 是 `video.*` 或 `image.shot` → backbone
+ *   - 其余一律 ingredient
+ *
+ * ⛔ 不复用 v3 那份再做形状转换：转换层本身就是 ③d 要删的东西，而这张表小到
+ * 两条规则，两份各自直读自己的形状比中间隔一层更不容易漂。
+ */
+export function resolveNodeEdgeTierV4(
+  sourceData: NodeV4Data,
+  targetData: NodeV4Data,
+): NodeEdgeTier {
+  if (
+    targetData.kind === NODE_MEDIA_KIND_IDS.video &&
+    targetData.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.merge
+  ) {
+    return NODE_EDGE_TIER_IDS.backbone
+  }
+
+  if (
+    targetData.kind === NODE_MEDIA_KIND_IDS.video &&
+    targetData.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot &&
+    (sourceData.kind === NODE_MEDIA_KIND_IDS.video ||
+      (sourceData.kind === NODE_MEDIA_KIND_IDS.image &&
+        sourceData.subtype === NODE_V4_IMAGE_SUBTYPE_IDS.shot))
   ) {
     return NODE_EDGE_TIER_IDS.backbone
   }

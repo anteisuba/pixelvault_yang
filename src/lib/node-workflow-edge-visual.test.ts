@@ -189,4 +189,39 @@ describe('isPendingSourceNode', () => {
     expect(isPendingSourceNode({ type: 'voice', data: {} })).toBe(false)
     expect(isPendingSourceNode(undefined)).toBe(false)
   })
+
+  /* ── v4（C3c-③d 翻转后画布只喂 v4 节点）───────────────────────────── */
+
+  it('v4 图片卡有 url 就是已建立 —— ⛔ 不因为 kind 恰好也叫 image 就去读 mediaUrl', () => {
+    expect(
+      isPendingSourceNode({
+        type: 'image',
+        data: { kind: 'image', url: 'https://x/y.png' },
+      }),
+    ).toBe(false)
+  })
+
+  it('v4 图片卡没有 url 才算未就绪', () => {
+    expect(
+      isPendingSourceNode({ type: 'image', data: { kind: 'image' } }),
+    ).toBe(true)
+  })
+
+  it('v4 视频 / 音频卡同样按 url 判', () => {
+    expect(
+      isPendingSourceNode({ type: 'video', data: { kind: 'video' } }),
+    ).toBe(true)
+    expect(
+      isPendingSourceNode({
+        type: 'audio',
+        data: { kind: 'audio', url: 'https://x/y.mp3' },
+      }),
+    ).toBe(false)
+  })
+
+  it('v4 文本卡不产媒体，一律不算未就绪', () => {
+    expect(isPendingSourceNode({ type: 'text', data: { kind: 'text' } })).toBe(
+      false,
+    )
+  })
 })

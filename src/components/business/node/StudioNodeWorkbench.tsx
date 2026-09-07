@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
   type ChangeEvent as ReactChangeEvent,
-  type ReactNode,
   type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
@@ -26,7 +25,6 @@ import {
   type DefaultEdgeOptions,
   type EdgeTypes,
   type NodeChange,
-  type NodeTypes,
   type XYPosition,
 } from '@xyflow/react'
 import { useAuth } from '@clerk/nextjs'
@@ -57,6 +55,7 @@ import {
   NODE_STUDIO_TOOL_MODE_IDS,
   NODE_STUDIO_VIDEO_REFERENCE_LEGEND,
   NODE_STUDIO_VOICE_CLIP_SOURCE_IDS,
+  NODE_V4_SUBTYPE_LABELS,
   isNodeStudioReferenceRole,
   resolveReferenceAssetLimit,
   resolveTopbarAddSpawnPosition,
@@ -75,7 +74,6 @@ import {
   NODE_WORKFLOW_FIELD_IDS,
   type NodeGenerationSource,
   type NodeImageRole,
-  type NodeWorkflowMediaKind,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { NODE_ASSISTANT_OP_IDS } from '@/constants/node-assistant-ops'
@@ -135,7 +133,6 @@ import {
 } from '@/lib/node-assistant-op-patch'
 import {
   buildDisplayNamePatch,
-  resolveNodeAccessibleName,
   resolveNodeDisplayName,
   stripFileExtension,
   toNodeDisplayLabel,
@@ -194,8 +191,8 @@ import { resolveVideoSendSlotLimits } from '@/lib/node-video-send-slots'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import type { AdvancedParams, GenerationRecord } from '@/types'
 import type {
+  NodeV4Data,
   NodeWorkflowEdge,
-  NodeWorkflowModelOption,
   NodeWorkflowNode,
   NodeWorkflowNodeData,
   NodeWorkflowStateV4,
@@ -212,6 +209,7 @@ import {
   edgePairKey,
   NODE_EDGE_TIER_IDS,
   resolveNodeEdgeTier,
+  resolveNodeEdgeTierV4,
   resolveNodeEdgeVisibility,
 } from '@/lib/node-edge-tier'
 import { isNodeWorkflowGenerating } from '@/lib/node-workflow-edge-visual'
@@ -261,40 +259,11 @@ import { ProjectNameDialog } from './ProjectNameDialog'
 import { ReviewModeBar } from './ReviewModeBar'
 import { StudioNodeAssistantDock } from './StudioNodeAssistantDock'
 import { VideoMergeComposeToolbar } from './VideoMergeComposeToolbar'
-import { NodeDetailPanel } from './node-detail/NodeDetailPanel'
-import { BackgroundImageNode } from './nodes/BackgroundImageNode'
-import { CharacterImageNode } from './nodes/CharacterImageNode'
-import { FrameImageNode } from './nodes/FrameImageNode'
-import { ImageNode } from './nodes/ImageNode'
-import { SeedanceNode } from './nodes/SeedanceNode'
-import { ShotNode } from './nodes/ShotNode'
-import { ShotTextNode } from './nodes/ShotTextNode'
-import { VideoMergeNode } from './nodes/VideoMergeNode'
-import { VideoReferenceNode } from './nodes/VideoReferenceNode'
-import { VoiceNode } from './nodes/VoiceNode'
 import { NodeWorkflowStatusEdge } from './edges/NodeWorkflowStatusEdge'
-import { NODE_CANVAS_RENDER_V4 } from '@/constants/node-canvas'
 
 import { NODE_V4_COMPONENTS } from './nodes/v4/registry'
 import { NodeV4ActionsV3Adapter } from './nodes/v4/NodeV4ActionsV3Adapter'
 import { NodeV4Provider } from './nodes/v4/NodeV4Provider'
-
-// ⛔ 不注册 composer / agent：旧 planner 的组件已于 2026-08-02 删除。它们的
-// 节点在两条水化路径上都会被 `migrateRetirePlanner` 先剥掉，所以这里永远不会
-// 被查到 —— 实拍验证过（夹具注入两个节点，画布显示「0 个节点」）。
-// ⚠ enum 值与那份迁移都必须保留，理由写在 `NODE_TYPE_IDS` 定义处。
-const NODE_COMPONENTS: NodeTypes = {
-  [NODE_TYPE_IDS.shotText]: ShotTextNode,
-  [NODE_TYPE_IDS.shot]: ShotNode,
-  [NODE_TYPE_IDS.characterImage]: CharacterImageNode,
-  [NODE_TYPE_IDS.backgroundImage]: BackgroundImageNode,
-  [NODE_TYPE_IDS.frameImage]: FrameImageNode,
-  [NODE_TYPE_IDS.image]: ImageNode,
-  [NODE_TYPE_IDS.voice]: VoiceNode,
-  [NODE_TYPE_IDS.seedance]: SeedanceNode,
-  [NODE_TYPE_IDS.videoReference]: VideoReferenceNode,
-  [NODE_TYPE_IDS.videoMerge]: VideoMergeNode,
-}
 
 // Override the built-in `smoothstep` so every canvas edge renders with the
 // §2.3 four-state visual (default/hover/selected/running). All canvas edges use
@@ -662,42 +631,6 @@ export function StudioNodeWorkbench() {
   )
 }
 
-/**
- * v4 上下文的**条件包裹**（C3c-① D）。`state` 为 null（没开预览 / 迁移失败）时
- * 原样透传 children —— v3 的卡不需要这个上下文，包一层空 provider 只会让
- * `useNodeV4Canvas` 的「缺 provider 就抛错」那条保护失效。
- */
-function MaybeNodeV4Provider({
-  state,
-  onStateChange,
-  modelOptionsByKind,
-  onFocusNode,
-  selectedNodeIds,
-  children,
-}: {
-  state: NodeWorkflowStateV4 | null
-  onStateChange(next: NodeWorkflowStateV4): void
-  modelOptionsByKind: Partial<
-    Record<NodeWorkflowMediaKind, NodeWorkflowModelOption[]>
-  >
-  onFocusNode(nodeId: string): void
-  selectedNodeIds: readonly string[]
-  children: ReactNode
-}) {
-  if (!state) return <>{children}</>
-  return (
-    <NodeV4Provider
-      state={state}
-      onStateChange={onStateChange}
-      modelOptionsByKind={modelOptionsByKind}
-      onFocusNode={onFocusNode}
-      selectedNodeIds={selectedNodeIds}
-    >
-      {children}
-    </NodeV4Provider>
-  )
-}
-
 function StudioNodeCanvas() {
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const t = useTranslations('StudioNode')
@@ -705,9 +638,6 @@ function StudioNodeCanvas() {
   // 落槽容量闸的两句话：区名取槽架那一份（两处显示同一个词），拒绝理由取 ingest。
   const tSlotRack = useTranslations('StudioNode.videoComposer.slotRack')
   const tIngestReasons = useTranslations('StudioNode.ingest.reasons')
-  // D1（画布修法《键盘可达》）：节点 ariaLabel 的类型标签 + "类型：名字" 拼接
-  // 格式，消费点在下方的 renderedNodes。
-  const tNodeTypes = useTranslations('StudioNode.nodeTypes')
   const locale = useLocale()
   const searchParams = useSearchParams()
   const imageEditHandoff = useMemo(
@@ -727,13 +657,10 @@ function StudioNodeCanvas() {
   const nodeMediaGeneration = useNodeMediaGeneration()
   const canvasImageDrop = useCanvasImageDrop()
   const modelOptionsByType = useWorkflowModelOptions()
-  /* ── v4 渲染分支（C3c-③c）──────────────────────────────────────────────
-   * 存储**已经是 v4**（`workflow.stateV4` 就是落库的那一份），只有渲染还没翻：
-   * `NODE_CANVAS_RENDER_V4` 为 false 时画布仍走 v3 组件，消费的是 v4 的投影视图
-   * （`workflow.state`），所以 owner 这一步看到的行为不变。
-   * ⚠ 迁移顺序：③d 把常量改成 true，同时把下面每一处 `v4RenderNodes ? … : …`
-   * 的 v3 分支整段删，`NODE_COMPONENTS` 与它的十个 legacy 组件一起下线。 */
-  const v4RenderState = NODE_CANVAS_RENDER_V4 ? workflow.stateV4 : null
+  /* ── v4 渲染（C3c-③d 翻转后：唯一路径）────────────────────────────────
+   * 存储与渲染都是 v4（`workflow.stateV4` 就是落库的那一份）。v3 组件分支、
+   * `NODE_COMPONENTS` 与十个 legacy 节点组件已于 ③d 删除，⛔ 不要再加回条件。 */
+  const v4RenderState = workflow.stateV4
   const v4ModelOptionsByKind = useMemo(
     () => ({
       [NODE_MEDIA_KIND_IDS.image]:
@@ -777,7 +704,7 @@ function StudioNodeCanvas() {
       }),
     })
   }
-  const v4RenderNodes = v4RenderState ? v4Rendered.nodes : null
+  const v4RenderNodes = v4Rendered.nodes
   /**
    * v4 的选中集。⚠ 选中活在**渲染用的那份 RF 节点**上（`v4Rendered`），不在
    * v4 state 里——v4 的 `NodeV4` 形状没有 `selected` 字段，选中是视图状态。
@@ -788,9 +715,52 @@ function StudioNodeCanvas() {
       v4Rendered.nodes.filter((node) => node.selected).map((node) => node.id),
     [v4Rendered.nodes],
   )
-  const v4RenderEdges = useMemo(
-    () =>
-      v4RenderState?.edges.map((edge) => ({
+  // R3-1「关系线」总开关（§2.5），反转 by FB-B（真机反馈拍板，
+  // canvas-relationship-v3-2026-07 §2.2）: session-only, **default false =
+  // 展开/全显** — every two-ends-visible edge (骨干 + 成分) renders at the
+  // neutral default stroke (NOT the 石绿 revealed tint, which stays reserved
+  // for selection-driven reveals, see `revealed` below). Clicking the
+  // bottom-dock toggle flips this to `true` = **收起**, falling back to the
+  // old default (骨干常显 / 成分仅选中或生成中显现) for a cleaner canvas.
+  const [relationsCollapsed, setRelationsCollapsed] = useState(false)
+
+  /**
+   * R3-2 墨线签署/褪去（canvas-relationship-v3 §2.7）的渲染期记账。
+   *
+   * ⚠ 声明提到 `v4RenderEdges` 之上是 ③d 挪的：装饰层现在在这里，两个 Map 必须
+   * 先于它存在。写入方（`scheduleEdgeSigning` / `scheduleEdgeUnsign` 与它们的
+   * timeout ref）仍在下方原处，只用到 setter。
+   *
+   * `signedEdgePairs` 按 `source::target` 键（不是 edge.id —— connect 那一刻调用
+   * 方拿不到库里现铸的 id，而落槽闸先拒掉了重复对，所以这个键唯一）；
+   * `fadingEdges` 是刚被删、还在反向褪去的边快照。
+   */
+  const [signedEdgePairs, setSignedEdgePairs] = useState<
+    Map<string, 'drawing' | 'fading'>
+  >(new Map())
+  const [fadingEdges, setFadingEdges] = useState<Map<string, NodeWorkflowEdge>>(
+    new Map(),
+  )
+
+  /**
+   * v4 边 → ReactFlow 边，**带 §2.3 的两档可见性装饰**。
+   *
+   * ⚠ ③d 之前这段装饰住在 `renderedEdges`（读 v3 节点的 `type`/`role`/`status`）。
+   * 翻转后 v3 投影没了，判据整条改读 v4 的 `kind`/`subtype`/`status`：
+   *   · 分档走 `resolveNodeEdgeTierV4`（与 v3 那份逐条对齐的 v4 形状版）
+   *   · 「目标在生成」读 v4 的 `status`（v4 没有独立的 `generationStatus`）
+   *   · 可见性矩阵仍是同一个 `resolveNodeEdgeVisibility`，⛔ 不另立一份
+   *
+   * §2.7 的墨线签署 / 解绑反放照旧（记账本身与节点形状无关，只按 `source::target`
+   * 与 edge.id 走）。随 v3 投影一起下线的只有「入卡的线不画」那一条 —— v4 里没有
+   * identity 收集卡这种节点，规则本身失去了对象。
+   */
+  const v4RenderEdges = useMemo(() => {
+    const dataById = new Map(
+      v4RenderState.nodes.map((node) => [node.id, node.data] as const),
+    )
+    const live = v4RenderState.edges.map((edge) => {
+      const base = {
         id: edge.id,
         source: edge.source,
         sourceHandle: edge.sourceHandle,
@@ -798,9 +768,76 @@ function StudioNodeCanvas() {
         // v4 的边落在**具名入口**上 —— 目标 handle 就是槽 id（`NodeV4Shell`
         // 按端口表逐槽渲染 `Handle id={slot}`）。
         targetHandle: edge.slot,
-      })) ?? null,
-    [v4RenderState],
-  )
+      }
+      const sourceData = dataById.get(edge.source)
+      const targetData = dataById.get(edge.target)
+      // 两端有一头不在图上 = 不画（与 v3 那份同一条兜底）。
+      if (!sourceData || !targetData) return { ...base, hidden: true }
+
+      const tier = resolveNodeEdgeTierV4(sourceData, targetData)
+      const endpointSelected =
+        v4SelectedNodeIds.includes(edge.source) ||
+        v4SelectedNodeIds.includes(edge.target)
+      const underlyingShouldRender = resolveNodeEdgeVisibility({
+        tier,
+        endpointSelected,
+        targetGenerating: isNodeWorkflowGenerating(
+          targetData.status,
+          undefined,
+        ),
+        relationsCollapsed,
+      })
+      // §2.7：正在签署的边整段强制显形，与 §2.2 的答案无关。
+      const signingPhase = signedEdgePairs.get(
+        edgePairKey(edge.source, edge.target),
+      )
+      const isSigning = signingPhase !== undefined
+      if (!underlyingShouldRender && !isSigning) {
+        return { ...base, hidden: true }
+      }
+
+      const revealed =
+        (tier === NODE_EDGE_TIER_IDS.ingredient && endpointSelected) ||
+        isSigning
+      const data = {
+        ...(revealed ? { revealed: true } : {}),
+        ...(signingPhase === 'drawing' ? { justSigned: true } : {}),
+        ...(signingPhase === 'fading' && !underlyingShouldRender
+          ? { signingFadeOut: true }
+          : {}),
+      }
+      return {
+        ...base,
+        hidden: false,
+        ...(Object.keys(data).length > 0 ? { data } : {}),
+      }
+    })
+
+    if (fadingEdges.size === 0) return live
+
+    // §2.7 解绑反放：刚删掉、还在反向褪去的边补一份装饰性回声。按 id 去重，
+    // 免得一条其实还在图上的边被画两遍。
+    const liveIds = new Set(live.map((edge) => edge.id))
+    const echoes = []
+    for (const edge of fadingEdges.values()) {
+      if (liveIds.has(edge.id)) continue
+      if (!dataById.has(edge.source) || !dataById.has(edge.target)) continue
+      echoes.push({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        hidden: false,
+        data: { unsigning: true },
+      })
+    }
+    return echoes.length > 0 ? [...live, ...echoes] : live
+  }, [
+    v4RenderState,
+    v4SelectedNodeIds,
+    relationsCollapsed,
+    signedEdgePairs,
+    fadingEdges,
+  ])
   const handleV4NodesChange = useCallback((changes: NodeChange[]) => {
     setV4Rendered((previous) => ({
       ...previous,
@@ -3040,73 +3077,52 @@ function StudioNodeCanvas() {
   const reviewCurrentNodeId = reviewMode.active
     ? (reviewMode.current?.nodeId ?? null)
     : null
-  const reviewDecoratedNodes = useMemo(() => {
-    if (!reviewCurrentNodeId) return workflow.nodes
-    return workflow.nodes.map((node) =>
-      node.id === reviewCurrentNodeId
-        ? { ...node, className: cn(node.className, 'canvas-review-current') }
-        : node,
-    )
-  }, [reviewCurrentNodeId, workflow.nodes])
-
-  // D1（画布修法《键盘可达》，2026-08-26）：给每个节点挂 React Flow 的
-  // `ariaLabel`——不设置时 NodeWrapper 直接省掉 DOM `aria-label`（见
-  // `resolveNodeAccessibleName` 的文档注释），读屏会退化成「按内容拼可访问
-  // 名」，18 个节点因此全部念成卡头改名按钮的 aria-label「命名」。这里是唯一
-  // 消费点，别在具体某个节点组件里重复挂。
-  //
-  // ⚠ 性能：延续上面 `reviewDecoratedNodes` 同一条纪律——不在审阅模式时它原样
-  // 透传 `workflow.nodes`，而 `workflow.nodes` 在拖拽的每一帧都会换一个新的
-  // 数组引用（本文件多处 "A1 perf fix" 注释已确认这个前提——`applyNodeChanges`
-  // 只给真正变化的那个节点换新对象引用，没变的节点引用不动）。下面按节点引用
-  // 键控的缓存复用没变节点的旧装饰结果：不这样做的话，任何一次拖拽都会因为
-  // 「所有节点的 props 都换了新对象」而让全画布的节点组件跟着重渲染一遍，不只
-  // 是被拖的那一张。
-  const ariaLabelCacheRef = useRef<{
-    tNodeTypes: typeof tNodeTypes | null
-    byNode: WeakMap<NodeWorkflowNode, NodeWorkflowNode>
-  }>({ tNodeTypes: null, byNode: new WeakMap() })
-
-  const renderedNodes = useMemo(() => {
-    const cache = ariaLabelCacheRef.current
-    // 语言切换后 tNodeTypes 是新的函数引用——整份缓存作废，否则会读到别的
-    // 语言留下的旧字符串。
-    if (cache.tNodeTypes !== tNodeTypes) {
-      cache.tNodeTypes = tNodeTypes
-      cache.byNode = new WeakMap()
-    }
-    return reviewDecoratedNodes.map((node) => {
-      const cached = cache.byNode.get(node)
-      if (cached) return cached
-      // 理论上不会发生（画布里的节点全部走 NODE_TYPE_IDS 显式建type），但
-      // `Node.type` 在库的类型里是可选字段——没有就不装饰，原样返回。
-      if (!node.type) return node
-      // ⚠ 不能直接 `tNodeTypes(node.type)`——统一 image 节点的 `node.type` 恒为
-      // 'image'，角色/场景身份卡会因此读成「图片：xxx」而不是卡头实际显示的
-      // 「卡片：xxx」/「镜头图：xxx」。`resolveNodePresentationType` 是这个
-      // 仓库里「role → 展示类型」的单一事实源（GenerateComposer 的
-      // mentionKindOf 同一个坑，同一个解法），走它才能和卡面上的文字对上。
-      //
-      // ⚠ 唯一例外与 NodeDetailPanel 的 `isLooseImage` 同一个坑：无 role 的散图
-      // `resolveNodePresentationType` 会落到它自己的 shot 兜底（'镜头图'），但
-      // `ImageNode` 对无 role 的图片实际渲染的是 `LooseImageCard`/
-      // `ImageSourceStarter`，走的是通用 'image' 类型——同一处已有先例，这里
-      // 照抄同一个判据，不新发明一条。
-      const isLooseImage = node.type === NODE_TYPE_IDS.image && !node.data.role
-      const presentationType = isLooseImage
-        ? node.type
-        : resolveNodePresentationType(node)
-      const typeLabel = tNodeTypes(presentationType)
-      const ariaLabel = resolveNodeAccessibleName(
-        node.data,
-        typeLabel,
-        (type, name) => tNodeTypes('typeNameAria', { type, name }),
-      )
-      const decorated: NodeWorkflowNode = { ...node, ariaLabel }
-      cache.byNode.set(node, decorated)
+  /**
+   * 渲染期节点装饰（⚠ 只在渲染期，`workflow` / `stateV4` 一个字都不动）。
+   *
+   * 两件事合成一次 map（③d 之前它们是 `reviewDecoratedNodes` + `renderedNodes`
+   * 两层，输入是 v3 投影；翻转后输入换成 v4 的 RF 节点，两层没必要再分）：
+   *   ① 审阅模式给「正在审的那一张」挂 `canvas-review-current`，canvas.css 的
+   *      弱化规则认这个类名（§4.6「非待审弱化不隐藏，当前对象唯一强调」）。
+   *   ② `ariaLabel`（画布修法《键盘可达》D1）：不设置时 ReactFlow 的 NodeWrapper
+   *      直接省掉 DOM `aria-label`，读屏退化成「按内容拼可访问名」，整屏节点全
+   *      念成卡头改名按钮的文案。类型名读 `NODE_V4_SUBTYPE_LABELS`（与 CastDock
+   *      同一张表），⛔ 不查 `nodeTypes.*` —— 那张表的键是 legacy type。
+   *
+   * ⚠ 性能：不在审阅模式时也要 map（ariaLabel 是每个节点都要的），所以按节点对象
+   * 引用键控缓存 —— `applyNodeChanges` 只给真正变化的那个节点换新引用，拖一张卡
+   * 不该让全画布的节点组件跟着换 props。
+   */
+  const nodeDecorationCacheRef = useRef(
+    new WeakMap<NodeWorkflowNode, NodeWorkflowNode>(),
+  )
+  const v4DecoratedNodes = useMemo(() => {
+    const cache = nodeDecorationCacheRef.current
+    return v4RenderNodes.map((node) => {
+      const isReviewCurrent = node.id === reviewCurrentNodeId
+      // 审阅当前项那一张不进缓存：它的装饰依赖的是 id 之外的东西。
+      if (!isReviewCurrent) {
+        const cached = cache.get(node)
+        if (cached) return cached
+      }
+      const data = node.data as unknown as Partial<NodeV4Data>
+      const typeLabel =
+        (data.kind && data.subtype
+          ? NODE_V4_SUBTYPE_LABELS[`${data.kind}.${data.subtype}`]
+          : undefined) ?? ''
+      const decorated = {
+        ...node,
+        ...(isReviewCurrent
+          ? { className: cn(node.className, 'canvas-review-current') }
+          : {}),
+        ariaLabel: typeLabel
+          ? `${typeLabel}：${data.name ?? ''}`
+          : (data.name ?? ''),
+      } as NodeWorkflowNode
+      if (!isReviewCurrent) cache.set(node, decorated)
       return decorated
     })
-  }, [reviewDecoratedNodes, tNodeTypes])
+  }, [reviewCurrentNodeId, v4RenderNodes])
 
   // R3-1 选中集合（canvas-relationship-v3 §2.2）: `workflow.nodes[].selected`
   // already round-trips through `workflow.onNodesChange` (applyNodeChanges
@@ -3163,15 +3179,6 @@ function StudioNodeCanvas() {
       : null
   }, [selectedNodeIds, workflow.nodes])
 
-  // R3-1「关系线」总开关（§2.5），反转 by FB-B（真机反馈拍板，
-  // canvas-relationship-v3-2026-07 §2.2）: session-only, **default false =
-  // 展开/全显** — every two-ends-visible edge (骨干 + 成分) renders at the
-  // neutral default stroke (NOT the 石绿 revealed tint, which stays reserved
-  // for selection-driven reveals, see `revealed` below). Clicking the
-  // bottom-dock toggle flips this to `true` = **收起**, falling back to the
-  // old default (骨干常显 / 成分仅选中或生成中显现) for a cleaner canvas.
-  const [relationsCollapsed, setRelationsCollapsed] = useState(false)
-
   // R3-2 墨线签署/褪去 (canvas-relationship-v3 §2.7): render-layer-only
   // bookkeeping, never touching `workflow.edges`/`workflow.nodes` — a
   // `Map<pairKey, phase>` for edges currently playing their signing episode
@@ -3188,15 +3195,9 @@ function StudioNodeCanvas() {
   // maps; each scheduler tracks its own pending timeouts in a parallel ref
   // map so an unmount mid-animation can't leak a timer or write state on a
   // gone component.
-  const [signedEdgePairs, setSignedEdgePairs] = useState<
-    Map<string, 'drawing' | 'fading'>
-  >(new Map())
   const signingTimeoutsRef = useRef<
     Map<string, { drawTimeout: number; holdTimeout: number }>
   >(new Map())
-  const [fadingEdges, setFadingEdges] = useState<Map<string, NodeWorkflowEdge>>(
-    new Map(),
-  )
   const fadingTimeoutsRef = useRef<Map<string, number>>(new Map())
 
   const scheduleEdgeSigning = useCallback(
@@ -3461,166 +3462,6 @@ function StudioNodeCanvas() {
     scheduleEdgeSigning,
     t,
     workflow,
-  ])
-
-  // A1 perf fix: `renderedEdges` below only reads THREE things off each node
-  // via `nodeById` — `type`/`data.role` (tier resolution) and
-  // `data.status`/`data.generationStatus` (the "is this edge's target
-  // generating" pulse) — none of which move during a plain position drag.
-  // Depending on this cheap signature instead of raw `workflow.nodes` keeps
-  // the whole edges-array rebuild (and every edge component's props) stable
-  // across drag frames, using the same signature strategy as
-  // `selectedNodeIdsSignature` above.
-  const edgeRelevantNodesSignature = useMemo(() => {
-    let signature = ''
-    for (const node of workflow.nodes) {
-      signature +=
-        node.id +
-        ':' +
-        node.type +
-        ':' +
-        (node.data.role ?? '') +
-        ':' +
-        (node.data.status ?? '') +
-        ':' +
-        (node.data.generationStatus ?? '') +
-        '|'
-    }
-    return signature
-  }, [workflow.nodes])
-
-  // 连线渲染: §2.2 条件矩阵 replaces the old unconditional `hidden: true`. A
-  // backbone edge (制片流) is always shown; an ingredient edge (供给关系)
-  // FB-B 反转后默认（`relationsCollapsed === false`）也全部显示 — only the
-  // 「关系线」toggle's **收起** state (`relationsCollapsed === true`) narrows
-  // it back to "an endpoint selected / target generating / mid-签署 only".
-  // `revealed` is stamped onto the edge's `data` for the selection-driven AND
-  // the signing case alike, in EITHER toggle state — both get the 石绿 tint
-  // (NodeWorkflowStatusEdge reads it); the default-visible neutral stroke is
-  // not tinted. Every edge still goes through this map — `useEdges()`
-  // consumers (成分栏 / ReferenceManagerPanel / CastDock 计数 / inspectors)
-  // read the render store, not `workflow.edges`, so an empty/filtered array
-  // here would starve them (existing warning, still true).
-  const renderedEdges = useMemo<NodeWorkflowEdge[]>(() => {
-    const nodeById = new Map(
-      workflow.nodes.map((node) => [node.id, node] as const),
-    )
-    const liveEdges = workflow.edges.map((edge) => {
-      const sourceNode = nodeById.get(edge.source)
-      const targetNode = nodeById.get(edge.target)
-      if (!sourceNode || !targetNode) {
-        return { ...edge, hidden: true }
-      }
-
-      /**
-       * **入卡的线作废**（owner 2026-08-10）。原话：「之前不是通过连线吗，现在
-       * 有了这个功能后，连线这个可以作废了。但是卡片 → 视频这个应该保留。」
-       *
-       * 「这个功能」= 阶段 8-b 的**拖节点进卡**。建立「素材属于这张卡」的手势
-       * 已经从「拉线」换成「拖进卡」，那条线就只剩装饰 —— 而它换来的是每张卡
-       * 左边一把扇形线，正是这一轮要减的噪音。
-       *
-       * ⚠ 停的只是**画**，边照建、收割一个字没改：
-       *   · 音色 → 卡：`harvestUpstreamAudioBindings` 的 Pass 1 走两跳，读的就是
-       *     这条边；8-b 的音色落法建的也是它。
-       *   · 特写 → 卡：`CharacterDetailBody` 的 `closeupItems` 靠它并进图集。
-       * 两者的**可见证据都不在线上**：卡面有 🎙/无音色 chip 与图集计数（都由上游
-       * 边算出，与画不画无关），rail 卡上有 ♪ 与「参考 N」。
-       *
-       * ⚠ 这一句必须排在签署动画（`isSigning` 强制显形）**之前** —— 否则往卡上
-       * 落一个音色会先墨线画出一条线、再让它凭空消失，等于把刚退役的东西演一遍。
-       *
-       * ⛔ 只判 target：`卡 → 视频/镜头` 是出边，owner 明确要留。
-       */
-      if (isIdentityCardNode(targetNode)) {
-        return { ...edge, hidden: true }
-      }
-
-      const tier = resolveNodeEdgeTier(edge, sourceNode, targetNode)
-      const endpointSelected =
-        selectedNodeIds.has(edge.source) || selectedNodeIds.has(edge.target)
-      const targetGenerating = isNodeWorkflowGenerating(
-        targetNode.data.status,
-        targetNode.data.generationStatus,
-      )
-      const underlyingShouldRender = resolveNodeEdgeVisibility({
-        tier,
-        endpointSelected,
-        targetGenerating,
-        relationsCollapsed,
-      })
-
-      // R3-2 §2.7: an edge mid-签署 is forced visible for the whole ink-draw
-      // ('drawing') + settle-fade ('fading') hold window regardless of the
-      // §2.2 answer above. The settle fade-out class only ever gets attached
-      // when `underlyingShouldRender` is ALSO false at 'fading' time — read
-      // fresh every render, so if the user selects the node mid-window the
-      // fade simply never gets stamped (no explicit "cancel" needed).
-      const signingPhase = signedEdgePairs.get(
-        edgePairKey(edge.source, edge.target),
-      )
-      const isSigning = signingPhase !== undefined
-      const shouldRender = underlyingShouldRender || isSigning
-      if (!shouldRender) {
-        return { ...edge, hidden: true }
-      }
-
-      const revealed =
-        (tier === NODE_EDGE_TIER_IDS.ingredient && endpointSelected) ||
-        isSigning
-      return {
-        ...edge,
-        hidden: false,
-        data: {
-          ...edge.data,
-          ...(revealed ? { revealed: true } : {}),
-          ...(signingPhase === 'drawing' ? { justSigned: true } : {}),
-          ...(signingPhase === 'fading' && !underlyingShouldRender
-            ? { signingFadeOut: true }
-            : {}),
-        },
-      }
-    })
-
-    if (fadingEdges.size === 0) {
-      return liveEdges
-    }
-
-    // R3-2 §2.7 解绑反放: append a decorative echo of each just-deleted edge
-    // still finishing its reverse ink retreat. Guarded by id so an edge that
-    // somehow still exists in `workflow.edges` (shouldn't happen — the fade
-    // cache is only ever populated right before `workflow.deleteEdge`/the
-    // library's own removal fires) never double-renders.
-    const liveIds = new Set(liveEdges.map((edge) => edge.id))
-    const fadingRendered: NodeWorkflowEdge[] = []
-    for (const edge of fadingEdges.values()) {
-      if (liveIds.has(edge.id)) continue
-      const sourceNode = nodeById.get(edge.source)
-      const targetNode = nodeById.get(edge.target)
-      if (!sourceNode || !targetNode) continue
-      fadingRendered.push({
-        ...edge,
-        hidden: false,
-        data: { ...edge.data, unsigning: true },
-      })
-    }
-    return fadingRendered.length > 0
-      ? [...liveEdges, ...fadingRendered]
-      : liveEdges
-    // `edgeRelevantNodesSignature` stands in for `workflow.nodes` here (the
-    // memo body still reads the latter via closure to build `nodeById`) — it
-    // changes iff a node's id/type/role/status/generationStatus actually
-    // changes, so a pure position-drag frame (new `workflow.nodes` array
-    // reference, same relevant fields) correctly skips this rebuild. See the
-    // signature memo above for exactly what it tracks.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    workflow.edges,
-    edgeRelevantNodesSignature,
-    selectedNodeIds,
-    relationsCollapsed,
-    signedEdgePairs,
-    fadingEdges,
   ])
 
   // S11（2026-07-27）更正：上面这条注释描述的是 grid-squeeze 时代的行为，
@@ -5265,7 +5106,7 @@ function StudioNodeCanvas() {
             onConnect={handleIngestConnect}
             quickThrowApiRef={quickThrowApiRef}
           >
-            <MaybeNodeV4Provider
+            <NodeV4Provider
               state={v4RenderState}
               onStateChange={workflow.setStateV4}
               modelOptionsByKind={v4ModelOptionsByKind}
@@ -5273,23 +5114,12 @@ function StudioNodeCanvas() {
               selectedNodeIds={v4SelectedNodeIds}
             >
               <CanvasSurface appearance={workflow.canvasAppearance} />
-              {/* C3c-① D：state 为 v4（或开发用 `?v4=1`）时整块换 v4 组件并包
-              `NodeV4Provider`；v3 仍走 `NODE_COMPONENTS`。⚠ 这是迁移顺序里
-              「先看得见、后翻转」的那一步 —— ③ 翻转后 v3 分支整段删。 */}
               <ReactFlow
-                nodes={
-                  (v4RenderNodes ??
-                    renderedNodes) as unknown as NodeWorkflowNode[]
-                }
-                edges={
-                  (v4RenderEdges ??
-                    renderedEdges) as unknown as NodeWorkflowEdge[]
-                }
-                nodeTypes={v4RenderNodes ? NODE_V4_COMPONENTS : NODE_COMPONENTS}
+                nodes={v4DecoratedNodes as unknown as NodeWorkflowNode[]}
+                edges={v4RenderEdges as unknown as NodeWorkflowEdge[]}
+                nodeTypes={NODE_V4_COMPONENTS}
                 edgeTypes={NODE_EDGE_COMPONENTS}
-                onNodesChange={
-                  v4RenderNodes ? handleV4NodesChange : workflow.onNodesChange
-                }
+                onNodesChange={handleV4NodesChange}
                 onEdgesChange={workflow.onEdgesChange}
                 onConnect={workflow.onConnect}
                 isValidConnection={isValidConnection}
@@ -5481,10 +5311,6 @@ function StudioNodeCanvas() {
                   className="hidden"
                   onChange={handleAddUploadChange}
                 />
-                <NodeDetailPanel
-                  expandedNodeId={openNodeId}
-                  onClose={() => setExpandedNodeId(null)}
-                />
               </div>
               <ProjectNameDialog
                 open={projectDialogMode !== null}
@@ -5554,7 +5380,7 @@ function StudioNodeCanvas() {
                   }
                 />
               ) : null}
-            </MaybeNodeV4Provider>
+            </NodeV4Provider>
           </IngestDragProvider>
         </CanvasWorkspaceLayout>
       </NodeV4ActionsV3Adapter>

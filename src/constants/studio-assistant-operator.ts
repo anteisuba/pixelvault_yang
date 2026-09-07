@@ -499,3 +499,47 @@ export const STUDIO_OPERATOR_RESEARCH_LOW_SIGNAL_KINDS: readonly string[] = [
   'image',
   'tags',
 ]
+
+/**
+ * 三帧的入场 stagger（§11.5）。⚠ 单位是秒，与 `STUDIO_OPERATOR_RESULT_STAGGER`
+ * 同一条理由；三帧不需要封顶，条数是契约里的常量 3
+ * （`ASSISTANT_OPERATOR_LIMITS.videoCritiqueFrameCount`）。
+ *
+ * ⛔ **位置词表不在这里** —— 它是跨进程契约的一部分，住在
+ * `constants/assistant-operator.ts` 的 `ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS`。
+ * 在这里再抄一份就是同一件事两个真相源。
+ */
+export const STUDIO_OPERATOR_CRITIQUE_FRAME_STAGGER_SECONDS = 0.03
+
+/**
+ * 视频工作台参考区的**三个具名槽**（第二期，owner 定）。
+ *
+ * ⭐ 具名而不是位置：首尾帧此前靠**下标**承载（`reference-image-capabilities.ts`
+ * WAN_30 那段头注写得很明白，「[0] 首帧、[1] 尾帧」），于是「删掉第一张」会把
+ * 尾帧悄悄变成首帧 —— 一次静默的语义漂移，用户看不见也撤不回。槽有名字之后，
+ * 空首帧 + 有尾帧是一个**可表达**的状态。
+ *
+ * ⚠ `reference` 是普通图片参考槽（多图），`video` 是参考视频槽 —— 它们与首尾帧
+ * 是并列关系，不是「其余的都归它」：模型能力表决定哪些槽出现（见
+ * `getVideoWorkbenchSlots`），⛔ 不支持的槽**不渲染**，不摆禁用占位
+ * （`ui-defaults.md` 状态配方）。
+ */
+export const STUDIO_VIDEO_SLOT_IDS = {
+  first: 'first',
+  last: 'last',
+  reference: 'reference',
+  video: 'video',
+} as const
+
+export type StudioVideoSlotId =
+  (typeof STUDIO_VIDEO_SLOT_IDS)[keyof typeof STUDIO_VIDEO_SLOT_IDS]
+
+/** 槽的渲染顺序 —— 首帧 → 尾帧 → 参考视频，图片参考槽由既有的参考轨承担。 */
+export const STUDIO_VIDEO_FRAME_SLOT_ORDER = [
+  STUDIO_VIDEO_SLOT_IDS.first,
+  STUDIO_VIDEO_SLOT_IDS.last,
+  STUDIO_VIDEO_SLOT_IDS.video,
+] as const
+
+/** 空槽虚线框的边长（px）—— 缩略图与空态同尺寸，切换时不跳版。 */
+export const STUDIO_VIDEO_SLOT_SIZE_PX = 72

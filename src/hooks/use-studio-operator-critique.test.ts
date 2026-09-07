@@ -157,4 +157,36 @@ describe('看图闭环 · 观察端', () => {
     // 票照样销掉：这一枪已经有结局了，⛔ 别留着它去认领下一枪。
     expect(store.getOperatorClaim()).toBeNull()
   })
+
+  /**
+   * ── 视频域（第二期）──────────────────────────────────────────────
+   *
+   * 视频那一枪回来时投的是**同一条投递**：这颗 hook 不按模态分岔，它只回答
+   * 「助手备的那一枪有结局了吗」。抽帧发生在更下游（`lib/video-frame-capture.ts`
+   * 那条只能跑在浏览器里的路），⛔ 别在这里另开一条视频专用的观察端 —— 那会让
+   * 「有没有结局」这件事有两个真相源，而其中一个看不见另一个的票。
+   */
+  it('视频结果照样投 —— 观察端不按模态分岔', () => {
+    const { onResult, rerender } = mount()
+    store.claimOperatorGeneration()
+
+    activeRun.current = run([
+      {
+        id: 'mine',
+        status: 'completed',
+        generation: {
+          id: 'gen-v1',
+          url: 'https://cdn.example.com/clip.mp4',
+          model: 'Seedance 2.5',
+          prompt: '一段推镜',
+        },
+      },
+    ])
+    rerender()
+
+    expect(onResult).toHaveBeenCalledTimes(1)
+    expect(onResult.mock.calls[0]?.[0]?.url).toBe(
+      'https://cdn.example.com/clip.mp4',
+    )
+  })
 })

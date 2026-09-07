@@ -43,17 +43,19 @@ type DoneCritiqueStep = AssistantOperatorCritiqueStep & {
   result: NonNullable<AssistantOperatorCritiqueStep['result']>
 }
 
+const IMAGE_PAYLOAD = {
+  imageUrl: 'https://cdn.example.com/result.png',
+  thumbnailUrl: 'https://cdn.example.com/result.thumbnail.webp',
+  modelLabel: 'Seedream 4',
+  goal: 'a girl under a red umbrella',
+} as const
+
 const STEP: DoneCritiqueStep = {
   id: 'step-1',
   title: '看看刚出的那张',
   status: 'done',
   tool: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
-  payload: {
-    imageUrl: 'https://cdn.example.com/result.png',
-    thumbnailUrl: 'https://cdn.example.com/result.thumbnail.webp',
-    modelLabel: 'Seedream 4',
-    goal: 'a girl under a red umbrella',
-  },
+  payload: IMAGE_PAYLOAD,
   result: {
     findings: [
       { ok: true, text: '红伞是画面唯一的暖色' },
@@ -87,11 +89,11 @@ describe('评价卡', () => {
     renderCard()
 
     const img = screen.getByRole('img')
-    expect(img).toHaveAttribute('src', STEP.payload.thumbnailUrl)
+    expect(img).toHaveAttribute('src', IMAGE_PAYLOAD.thumbnailUrl)
 
     fireEvent.click(screen.getByTestId('operator-critique-evidence'))
     expect(openLightbox).toHaveBeenCalledWith(
-      STEP.payload.imageUrl,
+      IMAGE_PAYLOAD.imageUrl,
       expect.any(String),
     )
   })
@@ -100,12 +102,12 @@ describe('评价卡', () => {
     renderCard({
       step: {
         ...STEP,
-        payload: { ...STEP.payload, thumbnailUrl: undefined },
+        payload: { ...IMAGE_PAYLOAD, thumbnailUrl: undefined },
       },
     })
     expect(screen.getByRole('img')).toHaveAttribute(
       'src',
-      STEP.payload.imageUrl,
+      IMAGE_PAYLOAD.imageUrl,
     )
   })
 
@@ -145,6 +147,96 @@ describe('评价卡', () => {
     renderCard({ roundChangeCount: 0 })
     expect(
       screen.queryByTestId('operator-critique-revert-round'),
+    ).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * ── 视频形态（第二期）─────────────────────────────────────────────
+ *
+ * 钉四件事：
+ *  ① 三帧真的并排画出来，各带位置词 + 时间码；
+ *  ② 点任一帧开的是**那一帧**的原图（不是结果视频本身）；
+ *  ③ 三帧在场时单图那颗嵌图**让位** —— 证据已经在上面了，画两次是两个真相源；
+ *  ④ `ok:false` 走 `status-risk`，⛔ 不与达成项混在一起排。
+ */
+describe('评价卡 · 视频形态', () => {
+  const VIDEO_STEP: DoneCritiqueStep = {
+    ...STEP,
+    result: {
+      ...STEP.result,
+      frames: [
+        { t: 0, url: 'https://cdn.example.com/f0.jpg', label: 'start' },
+        { t: 3, url: 'https://cdn.example.com/f1.jpg', label: 'mid' },
+        { t: 6.4, url: 'https://cdn.example.com/f2.jpg', label: 'end' },
+      ],
+      verdicts: [
+        { ok: false, text: '第二帧人物换了张脸' },
+        { ok: true, text: '镜头推进是连贯的' },
+      ],
+      // ⚠ 故意同时留着 `findings` —— 服务端统一两边命名之前，一条真事件上两个键
+      //   都可能在。卡必须优先读 `verdicts`，⛔ 不能把图片域那份也一起画出来。
+    } as unknown as DoneCritiqueStep['result'],
+  }
+
+  it('三帧并排 —— 位置词 + 时间码都在', () => {
+    renderCard({ step: VIDEO_STEP })
+
+    const frames = screen.getAllByTestId('operator-critique-frame')
+    expect(frames).toHaveLength(3)
+    expect(frames.map((el) => el.dataset.frameLabel)).toEqual([
+      'start',
+      'mid',
+      'end',
+    ])
+    expect(frames[2]?.textContent).toContain('00:06')
+  })
+
+  it('点任一帧开的是那一帧的原图', () => {
+    renderCard({ step: VIDEO_STEP })
+
+    fireEvent.click(
+      screen.getAllByTestId('operator-critique-frame')[1] as HTMLElement,
+    )
+    expect(openLightbox).toHaveBeenCalledWith(
+      'https://cdn.example.com/f1.jpg',
+      expect.any(String),
+    )
+  })
+
+  it('三帧在场时单图那颗嵌图让位（⛔ 不画两份证据）', () => {
+    renderCard({ step: VIDEO_STEP })
+    expect(
+      screen.queryByTestId('operator-critique-evidence'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByTestId('operator-critique-card').dataset.form).toBe(
+      'video',
+    )
+  })
+
+  it('读的是 verdicts 而不是 findings —— 否定项排在前面且走 status-risk', () => {
+    renderCard({ step: VIDEO_STEP })
+
+    const verdicts = screen.getAllByTestId('operator-critique-verdict')
+    expect(verdicts).toHaveLength(2)
+    expect(verdicts[0]?.dataset.ok).toBe('false')
+    expect(verdicts[0]?.textContent).toContain('第二帧人物换了张脸')
+    expect(verdicts[0]?.querySelector('.text-status-risk')).not.toBeNull()
+    // 图片域那份 findings 不该同时被画出来
+    expect(screen.queryByText('雨丝糊成一片')).not.toBeInTheDocument()
+  })
+
+  it('「按这条建议改提示词」把 advice 交回宿主；宿主没有这只手时不渲染', () => {
+    const onApplyAdvice = vi.fn()
+    renderCard({ step: VIDEO_STEP, onApplyAdvice })
+    fireEvent.click(screen.getByTestId('operator-critique-apply-advice'))
+    expect(onApplyAdvice).toHaveBeenCalledWith('把雨的方向写进提示词')
+  })
+
+  it('宿主没有写提示词那只手时，那颗按钮不渲染（⛔ 不摆点了没反应的钮）', () => {
+    renderCard({ step: VIDEO_STEP })
+    expect(
+      screen.queryByTestId('operator-critique-apply-advice'),
     ).not.toBeInTheDocument()
   })
 })

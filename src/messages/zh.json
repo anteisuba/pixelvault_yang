@@ -1687,7 +1687,6 @@
       "actionPromptPlaceholder": "例如：在森林中行走，微笑，风吹动头发……",
       "imageWarning": "视频仅使用第一个角色卡的图片"
     },
-    "railLabelKeyframe": "首帧",
     "railLabelReference": "内容参考"
   },
   "Model3DGenerate": {
@@ -6953,7 +6952,9 @@
       "sourceNotUsable": "这个站点声明不接受作为 AI 输入，或是溯源不到原作者的转载",
       "researchRoundsExhausted": "这一轮能查的次数已经用完了 —— 它在用已经查到的东西继续",
       "urlNotReadable": "这条地址在这里读不了",
-      "urlUnreadable": "这一页没能读出来"
+      "urlUnreadable": "这一页没能读出来",
+      "aspectLockedByFirstFrame": "挂了首帧，这个模型的宽高比就只剩自适应",
+      "videoFramesMissing": "这段片子没能取出可看的帧"
     },
     "field": {
       "prompt": "提示词",
@@ -7059,7 +7060,13 @@
       "titleWithModel": "自动检查 · {model} 出的这张",
       "borrowed": "你选的模型看不了图，这一轮借了别的模型来看",
       "revertRound": "还原这轮（{count} 处）",
-      "nextRound": "已预填下一轮："
+      "nextRound": "已预填下一轮：",
+      "applyAdvice": "按这条建议改提示词",
+      "frame": {
+        "start": "0s",
+        "mid": "中",
+        "end": "末"
+      }
     },
     "askFirst": {
       "label": "先问我",
@@ -7304,5 +7311,16 @@
     "cancelling": "取消中…",
     "cancelled": "已取消",
     "cancelFailed": "取消失败，任务仍在进行"
+  },
+  "StudioVideoSlots": {
+    "sectionLabel": "具名参考槽",
+    "firstFrame": "首帧",
+    "lastFrame": "尾帧",
+    "referenceVideo": "参考视频",
+    "clear": "清空{slot}",
+    "upload": "为{slot}上传文件",
+    "libraryTitle": "从素材库挑一个",
+    "libraryDescription": "选一个素材放进这个槽。",
+    "aspectLockedByFirstFrame": "已放首帧，宽高比跟随这张图（自适应）。"
   }
 }

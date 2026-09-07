@@ -3,6 +3,14 @@
 /**
  * 评价卡（拍板 6：**证据长在结论里** —— 卡上内嵌它评的那张图）。
  *
+ * ── 两个形态，一颗组件（第二期 · 视频域）────────────────────────────
+ * · **单图**（图片域）：左 80×112 嵌图 + 右三段；
+ * · **三帧**（视频域）：顶部 `0s / 中 / 末` 三张抽帧并排 + 下方三段。
+ *
+ * 分岔判据是**载荷里有没有 `frames`**，⛔ 不是「当前工作台是哪个域」：卡是历史
+ * 记录的一部分，用户切到图片域之后那条视频评价照样要画得对。域是宿主此刻的
+ * 状态，帧是这条记录自己的事实。
+ *
  * ── 数据从哪来（P3-C）─────────────────────────────────────────────
  * 它收的是一条**真的 step**：`critique_result` 那一支。图片地址就在
  * `payload.imageUrl` 里，是服务端从请求里那份 `result` 抄过来的 —— 而那份
@@ -13,15 +21,34 @@
  * ⛔ 没有任何示意用的假数据：一张写着「示例」的评价卡与真评价长得一模一样，
  * 那是最容易被当成「已经能用」的一类假象。
  *
+ * ⚠ **「异常」那一段今天没有数据源**：契约里只有 `verdicts`（`{ok,text}[]`）与
+ * `advice` 两条通道，warning 档没有第三条。⛔ 不拿 `ok:true` 冒充异常 ——
+ * 那会让「达成了」在卡上显示成一条警示。服务端补出第三条通道之前，这张卡只画
+ * 否定与建议两段（缺席是诚实，摆一段永远空的标签才是假象）。
+ *
  * 缩略图与参考图**共用同一个灯箱**（拍板 17 的后半句）。
  */
 
-import { Check, Undo2, X } from 'lucide-react'
+import { Check, Undo2, Wand2, X } from 'lucide-react'
 import Image from 'next/image'
+import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import { DURATION, EASE_STANDARD } from '@/constants/motion'
+import { STUDIO_OPERATOR_CRITIQUE_FRAME_STAGGER_SECONDS } from '@/constants/studio-assistant-operator'
+import { cn } from '@/lib/utils'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
+import {
+  isVideoCritiquePayload,
+  isVideoCritiqueResult,
+} from '@/types/studio-assistant-operator'
 import type { AssistantOperatorCritiqueStep } from '@/types/assistant-operator'
+
+/** 三帧里的一帧 —— 从契约那份 union 里取出来，⛔ 不在客户端另抄一个形状。 */
+type CritiqueFrame = Extract<
+  NonNullable<AssistantOperatorCritiqueStep['result']>,
+  { frames: unknown }
+>['frames'][number]
 
 interface StudioOperatorCritiqueCardProps {
   /**
@@ -39,6 +66,23 @@ interface StudioOperatorCritiqueCardProps {
    */
   roundChangeCount: number
   onRevertRound(runKey: string): void
+  /**
+   * 「按这条建议改提示词」—— 把 `advice` 追加进提示词，走的是助手 `set_prompt`
+   * 的**同一条路**（宿主的 `apply.dispatch`）。
+   *
+   * ⚠ **可选，而且缺席时按钮不渲染**：历史面板那份卡（`StudioOperatorHistoryItem`）
+   * 是只读回放，它没有表单可写。⛔ 别为了「形状一致」在那边挂一颗点了没反应的
+   * 按钮。
+   */
+  onApplyAdvice?: ((advice: string) => void) | undefined
+}
+
+/** `mm:ss` —— 抽帧时间码。⚠ 只作位置词的注脚（见词表头注）。 */
+function formatTimecode(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds))
+  const mm = Math.floor(total / 60)
+  const ss = total % 60
+  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
 }
 
 export function StudioOperatorCritiqueCard({
@@ -46,56 +90,147 @@ export function StudioOperatorCritiqueCard({
   runKey,
   roundChangeCount,
   onRevertRound,
+  onApplyAdvice,
 }: StudioOperatorCritiqueCardProps) {
   const t = useTranslations('StudioOperator')
+  const reduceMotion = useReducedMotion()
   const { payload, result } = step
+
+  const isVideo = isVideoCritiqueResult(result)
+  const frames = isVideo ? result.frames : []
+  const advice = result.advice ?? null
+  const verdicts = isVideo ? result.verdicts : result.findings
+  const rejected = verdicts.filter((verdict) => !verdict.ok)
+  const met = verdicts.filter((verdict) => verdict.ok)
+
+  const openFrame = (frame: CritiqueFrame) =>
+    openOperatorLightbox(frame.url, t(`critique.frame.${frame.label}`))
 
   return (
     <div
       data-testid="operator-critique-card"
       data-run-key={runKey}
-      className="overflow-hidden rounded-xl border border-primary/30 text-md"
+      data-form={frames.length > 0 ? 'video' : 'image'}
+      className="@container overflow-hidden rounded-xl border border-primary/30 text-md"
     >
       <p className="bg-primary/10 px-2.5 py-1.5 text-2sm font-medium text-primary">
         {payload.modelLabel
           ? t('critique.titleWithModel', { model: payload.modelLabel })
           : t('critique.title')}
       </p>
-      <div className="flex gap-2.5 p-2.5">
-        <button
-          type="button"
-          data-testid="operator-critique-evidence"
-          // ⚠ 灯箱开的是**原图**，格子里画的是缩略图（视频/大图直接喂进这个
-          //    80×112 的框只是白解码一张大位图）。
-          onClick={() =>
-            openOperatorLightbox(payload.imageUrl, t('critique.title'))
-          }
-          className="relative h-28 w-20 shrink-0 cursor-zoom-in overflow-hidden rounded-lg border border-border/70"
+
+      {/* ── 视频域：三帧并排 ──────────────────────────────────────────
+          ⚠ 容器窄时纵排（`@container`，⛔ 不看视口：面板宽度是拖出来的）——
+          三张 16:9 挤在一条 240px 的轨上，每张只剩 70px 宽，位置词都读不出来。 */}
+      {frames.length > 0 ? (
+        <div
+          data-testid="operator-critique-frames"
+          className="grid grid-cols-1 gap-2 p-2.5 @min-[360px]:grid-cols-3"
         >
-          <Image
-            src={payload.thumbnailUrl ?? payload.imageUrl}
-            alt={t('critique.title')}
-            fill
-            sizes="80px"
-            className="object-cover"
-          />
-        </button>
+          {frames.map((frame, index) => (
+            <motion.button
+              key={`${frame.label}-${frame.url}`}
+              type="button"
+              data-testid="operator-critique-frame"
+              data-frame-label={frame.label}
+              onClick={() => openFrame(frame)}
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: reduceMotion ? 0 : DURATION.base,
+                ease: EASE_STANDARD,
+                delay: reduceMotion
+                  ? 0
+                  : index * STUDIO_OPERATOR_CRITIQUE_FRAME_STAGGER_SECONDS,
+              }}
+              className="group/frame flex cursor-zoom-in flex-col gap-1 text-left"
+            >
+              <span className="relative block aspect-video overflow-hidden rounded-lg border border-border/70">
+                <Image
+                  src={frame.url}
+                  alt={t(`critique.frame.${frame.label}`)}
+                  fill
+                  sizes="160px"
+                  className="object-cover"
+                />
+              </span>
+              <span className="flex items-baseline justify-between gap-1 font-mono text-2xs text-muted-foreground">
+                <span>{t(`critique.frame.${frame.label}`)}</span>
+                <span>{formatTimecode(frame.t)}</span>
+              </span>
+            </motion.button>
+          ))}
+        </div>
+      ) : null}
+
+      <div
+        className={cn(
+          'flex gap-2.5 px-2.5 pb-2.5',
+          frames.length > 0 ? 'pt-0' : 'pt-2.5',
+        )}
+      >
+        {/* 单图形态的那张嵌图 —— 三帧在场时它让位（证据已经在上面了）。 */}
+        {frames.length === 0 ? (
+          <button
+            type="button"
+            data-testid="operator-critique-evidence"
+            // ⚠ 灯箱开的是**原图**，格子里画的是缩略图（视频/大图直接喂进这个
+            //    80×112 的框只是白解码一张大位图）。
+            onClick={() =>
+              openOperatorLightbox(
+                isVideoCritiquePayload(payload)
+                  ? payload.videoUrl
+                  : payload.imageUrl,
+                t('critique.title'),
+              )
+            }
+            className="relative h-28 w-20 shrink-0 cursor-zoom-in overflow-hidden rounded-lg border border-border/70"
+          >
+            <Image
+              src={
+                payload.thumbnailUrl ??
+                (isVideoCritiquePayload(payload)
+                  ? payload.videoUrl
+                  : payload.imageUrl)
+              }
+              alt={t('critique.title')}
+              fill
+              sizes="80px"
+              className="object-cover"
+            />
+          </button>
+        ) : null}
+
         <ul className="flex min-w-0 flex-1 flex-col gap-1">
-          {result.findings.map((finding) => (
-            <li key={finding.text} className="flex items-start gap-1.5">
-              {finding.ok ? (
-                <Check
-                  className="mt-0.5 size-3 shrink-0 text-primary"
-                  aria-hidden
-                />
-              ) : (
-                <X
-                  className="mt-0.5 size-3 shrink-0 text-destructive"
-                  aria-hidden
-                />
-              )}
+          {rejected.map((verdict) => (
+            <li
+              key={verdict.text}
+              data-testid="operator-critique-verdict"
+              data-ok="false"
+              className="flex items-start gap-1.5"
+            >
+              <X
+                className="mt-0.5 size-3 shrink-0 text-status-risk"
+                aria-hidden
+              />
               <span className="min-w-0 text-2sm text-foreground">
-                {finding.text}
+                {verdict.text}
+              </span>
+            </li>
+          ))}
+          {met.map((verdict) => (
+            <li
+              key={verdict.text}
+              data-testid="operator-critique-verdict"
+              data-ok="true"
+              className="flex items-start gap-1.5"
+            >
+              <Check
+                className="mt-0.5 size-3 shrink-0 text-status-applied"
+                aria-hidden
+              />
+              <span className="min-w-0 text-2sm text-foreground">
+                {verdict.text}
               </span>
             </li>
           ))}
@@ -114,28 +249,42 @@ export function StudioOperatorCritiqueCard({
         </p>
       ) : null}
 
-      {result.advice ? (
+      {advice ? (
         <p className="border-t border-dashed border-primary/30 px-2.5 py-2 text-2sm text-muted-foreground">
           <span className="font-medium text-primary">
             {t('critique.nextRound')}
           </span>{' '}
-          {result.advice}
+          {advice}
         </p>
       ) : null}
 
-      {/* ── 还原这轮 —— 一键撤掉评价之后预填的整轮改动 ──────────────
-          ⭐ 复用的是同一条撤销机制（`use-studio-operator-revert`），⛔ 没有第二套。 */}
-      {roundChangeCount > 0 ? (
-        <div className="border-t border-primary/20 px-2.5 py-1.5">
-          <button
-            type="button"
-            data-testid="operator-critique-revert-round"
-            onClick={() => onRevertRound(runKey)}
-            className="flex items-center gap-1 rounded-md text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground"
-          >
-            <Undo2 className="size-3" aria-hidden />
-            {t('critique.revertRound', { count: roundChangeCount })}
-          </button>
+      {/* ── 卡底两颗动作 ────────────────────────────────────────────
+          ⭐ 「按这条建议改提示词」复用 `set_prompt` 的追加语义（宿主那条
+          `apply.dispatch`），⛔ 没有第二套写提示词的路。 */}
+      {(advice && onApplyAdvice) || roundChangeCount > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 border-t border-primary/20 px-2.5 py-1.5">
+          {advice && onApplyAdvice ? (
+            <button
+              type="button"
+              data-testid="operator-critique-apply-advice"
+              onClick={() => onApplyAdvice(advice)}
+              className="flex items-center gap-1 rounded-md text-2sm text-primary transition-colors duration-fast ease-standard hover:text-primary/80"
+            >
+              <Wand2 className="size-3" aria-hidden />
+              {t('critique.applyAdvice')}
+            </button>
+          ) : null}
+          {roundChangeCount > 0 ? (
+            <button
+              type="button"
+              data-testid="operator-critique-revert-round"
+              onClick={() => onRevertRound(runKey)}
+              className="flex items-center gap-1 rounded-md text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground"
+            >
+              <Undo2 className="size-3" aria-hidden />
+              {t('critique.revertRound', { count: roundChangeCount })}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

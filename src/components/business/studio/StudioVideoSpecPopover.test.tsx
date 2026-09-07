@@ -12,6 +12,11 @@ const mockState = vi.hoisted(() => ({
     videoResolution: '720p' as string | null,
     aspectRatio: '16:9',
     selectedOptionId: 'workspace:seedance-2.5',
+    videoMode: 'keyframe' as string,
+    videoFrameSlots: {
+      first: null as string | null,
+      last: null as string | null,
+    },
   },
 }))
 const mockOptions = vi.hoisted(() => ({
@@ -105,6 +110,8 @@ describe('StudioVideoSpecPopover', () => {
       videoResolution: '720p',
       aspectRatio: '16:9',
       selectedOptionId: 'workspace:seedance-2.5',
+      videoMode: 'keyframe',
+      videoFrameSlots: { first: null, last: null },
     }
     mockOptions.value = {
       durations: [5, 10],
@@ -233,5 +240,33 @@ describe('StudioVideoSpecPopover', () => {
       type: 'SET_ASPECT_RATIO',
       payload: '9:16',
     })
+  })
+
+  /**
+   * ── 首帧锁自适应（第二期，owner 2026-09-06 定）───────────────────
+   *
+   * 火山对 Seedance 2.5 的硬约束：**有图**的场景 `ratio` 只接受 `adaptive`，
+   * 传具体宽高比直接 400。所以判据是两条同时成立 —— 线路会钉 + 首帧槽里真有图。
+   * ⚠ 这里**禁用而不是移除**：锁的成因（你挂了首帧）与解法（摘掉它）都在用户
+   * 手上，移除等于把可解释的状态变成谜。
+   */
+  it('挂了首帧 → 比例整组禁用 + 一句提示', () => {
+    mockState.value = {
+      ...mockState.value,
+      videoFrameSlots: { first: 'https://cdn.example.com/a.png', last: null },
+    }
+    render(<StudioVideoSpecPopover />)
+
+    expect(screen.getByTestId('video-aspect-locked-hint')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '9:16' })).toBeDisabled()
+  })
+
+  it('没挂首帧就不锁 —— ⛔ 纯文生视频不受这条限制', () => {
+    render(<StudioVideoSpecPopover />)
+
+    expect(
+      screen.queryByTestId('video-aspect-locked-hint'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '9:16' })).not.toBeDisabled()
   })
 })

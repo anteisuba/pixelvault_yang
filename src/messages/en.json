@@ -1687,7 +1687,6 @@
       "actionPromptPlaceholder": "e.g. walking in a forest, smiling, wind blowing hair...",
       "imageWarning": "Only 1st card's image used for video"
     },
-    "railLabelKeyframe": "First frame",
     "railLabelReference": "Content reference"
   },
   "Model3DGenerate": {
@@ -6953,7 +6952,9 @@
       "sourceNotUsable": "That site asks not to be used as AI input, or republishes work without a traceable source",
       "researchRoundsExhausted": "It already researched as much as one turn allows — it is working from what it found",
       "urlNotReadable": "That address can't be read here",
-      "urlUnreadable": "That page could not be read"
+      "urlUnreadable": "That page could not be read",
+      "aspectLockedByFirstFrame": "A first frame is set, so this model only accepts the adaptive aspect ratio",
+      "videoFramesMissing": "Could not read frames from this clip"
     },
     "field": {
       "prompt": "Prompt",
@@ -7059,7 +7060,13 @@
       "titleWithModel": "Auto-check · this one from {model}",
       "borrowed": "Your model can't see pictures, so this look was borrowed from another one",
       "revertRound": "Undo this round ({count})",
-      "nextRound": "Pre-filled for the next round:"
+      "nextRound": "Pre-filled for the next round:",
+      "applyAdvice": "Apply this to the prompt",
+      "frame": {
+        "start": "0s",
+        "mid": "Middle",
+        "end": "Last"
+      }
     },
     "askFirst": {
       "label": "Ask me first",
@@ -7304,5 +7311,16 @@
     "cancelling": "Cancelling…",
     "cancelled": "Cancelled",
     "cancelFailed": "Cancel failed — the task is still running"
+  },
+  "StudioVideoSlots": {
+    "sectionLabel": "Named reference slots",
+    "firstFrame": "First frame",
+    "lastFrame": "Last frame",
+    "referenceVideo": "Reference video",
+    "clear": "Clear {slot}",
+    "upload": "Upload a file for {slot}",
+    "libraryTitle": "Pick from the asset library",
+    "libraryDescription": "Choose an asset to drop into this slot.",
+    "aspectLockedByFirstFrame": "A first frame is set, so the aspect ratio follows the image (adaptive)."
   }
 }

@@ -51,6 +51,7 @@ import { PlaceholderFillDialog } from '@/components/business/prompts/inspiration
 // 参数栏直接组合这几颗 —— 它们本来就是独立组件，不用经过一层横向工具条
 // （`StudioToolbarPanels` / `StudioToolbar` 已随 dock 一起退役）。
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
+import { StudioVideoReferenceSlots } from '@/components/business/studio-shared/chrome/StudioVideoReferenceSlots'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
 import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
 import { StudioCardSection } from '@/components/business/studio/StudioCardSection'
@@ -145,6 +146,14 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const selectedStyleCard = styles.activeCard
   const isAudioMode = state.outputType === 'audio'
   const isVideoMode = state.outputType === 'video'
+  /**
+   * 关键帧档 —— 这一档里图片是**帧**，归具名槽（第二期）。
+   *
+   * ⚠ 判据是 `state.videoMode` 而不是「选了哪个模型」：档位是用户显式选的、
+   * 且在没选模型时也成立（`video-node-modes.ts` 那条「必须是真 state，不能从
+   * 选中模型反推」）。
+   */
+  const isKeyframeVideo = isVideoMode && state.videoMode === 'keyframe'
 
   /**
    * 「这一枪能不能打、打出去发什么」整块住在 `useStudioGenerateAction`
@@ -506,6 +515,16 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           </div>
         ) : null}
 
+        {/* 具名参考槽 —— 首帧 / 尾帧 / 参考视频（第二期）。⚠ 紧跟在「用途」档
+            后面：档位决定哪些槽出现，两者隔开就看不出因果。组件自己按当前模型
+            的发送契约决定渲染谁，⛔ 不支持的槽不渲染（不摆禁用占位）。 */}
+        {isVideoMode ? (
+          <StudioVideoReferenceSlots
+            selectedModel={selectedModel}
+            disabled={isGenerating}
+          />
+        ) : null}
+
         {/* 提示词 —— 参数栏里它是一块独立的输入区，不再和发送键挤一行 */}
         <div className="flex flex-col gap-1.5">
           <span className="text-2xs font-medium text-muted-foreground/70">
@@ -688,7 +707,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               （`StudioToolbarPanels` 的音频分支只有 助手 / 音色 / 克隆 / 转脚本）。
               参数栏这一行是三模态共用的，不加这个闸就等于给语音凭空多一个
               点了没用的入口。音频要传的是**参考音频**，在音色面板里。 */}
-          {!isAudioMode ? <ReferenceImageChip disabled={isGenerating} /> : null}
+          {/* ⚠ 关键帧档下这颗**不渲染**（第二期）：那一档里图片就是首帧 / 尾帧，
+              而它们各有自己的具名槽。留着它等于给同一件事开第二个入口，而那个
+              入口写进的是参考图列表 —— 发送口在关键帧档下根本不读那条列表，
+              于是用户挂了图、生成出来一点关系都没有（典型的静默失效）。 */}
+          {!isAudioMode && !isKeyframeVideo ? (
+            <ReferenceImageChip disabled={isGenerating} />
+          ) : null}
           {/* 卡片入口 —— 切片 A 从退役的 `StudioToolbar` 搬过来的唯一一颗。
               其余四颗（助手 / 参考图 / 比例 / 张数）参数栏本来就有：比例与张数
               在「规格」浮层里，参考图就在左边，助手是右上角浮标。

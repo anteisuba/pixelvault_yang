@@ -113,7 +113,12 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
   // ⚠ `defaultRole` 只有 general / subject / style 三个值 —— 这里**没有**
   // 「首帧 / 尾帧」这种语义（`NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS` 里那套
   // frameStart/frameEnd 是画布图例的另一套字符串，不是这个类型）。两张图的
-  // 首尾语义由**位置**承载（[0] 首帧、[1] 尾帧，见 buildWan30），不由 role。
+  // 首尾语义在**线上契约**里仍由位置承载（[0] 首帧、[1] 尾帧，见 buildWan30）。
+  // ⚠ **工作台那一侧已经不是这样了**（第二期）：Studio 的首尾帧住在具名槽
+  // （`studio-context` 的 `videoFrameSlots`），位置只在**发送口那一步**才铺开
+  // （`use-studio-generate-action.ts` 的 `keyframeRefs`）。⛔ 别据这条注释在
+  // UI 层再按下标推语义 —— 那正是「删掉第一张、尾帧静默升级成首帧」的成因。
+  // 画布（VideoComposer）与 worker 仍是位置那套，收编排在第三期。
   [AI_MODELS.WAN_30]: {
     kind: 'flexible',
     min: 0,

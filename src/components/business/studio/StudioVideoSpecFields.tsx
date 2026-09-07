@@ -74,12 +74,38 @@ export function useStudioVideoSpec() {
         true)
       : true)
 
+  /**
+   * **首帧锁自适应**（第二期，owner 2026-09-06 定）。
+   *
+   * 判据两条**必须同时成立**：① 这条线路带图时上游把 `ratio` 钉死
+   * （契约的 `imageAspectRatioLock`，Seedance 2.5 系）；② 首帧槽里**真的有图**
+   * —— 纯文生视频不受限，只看模型会把纯文生的比例也一起锁掉
+   * （`video-model-send-plan.ts` 那条头注写的就是这个坑）。
+   *
+   * ⚠ 锁了之后**禁用而不是移除**那一组：移除等于把「为什么不能选」变成谜，
+   * 而这里的不可选是**可解释、可解除**的（摘掉首帧就恢复）——与「不支持的槽
+   * 不渲染」不是同一回事（那是永久事实，这是当前状态）。
+   */
+  const aspectLockedByFirstFrame = Boolean(
+    selectedModel &&
+    state.videoMode === 'keyframe' &&
+    state.videoFrameSlots.first !== null &&
+    getVideoModelSendContract(
+      selectedModel.modelId,
+      selectedModel.adapterType as AI_ADAPTER_TYPES,
+    ).imageAspectRatioLock !== null,
+  )
+
   const summary = [
     durations.includes(state.videoDuration) ? `${state.videoDuration}s` : null,
     state.videoResolution && resolutions.includes(state.videoResolution)
       ? state.videoResolution
       : null,
-    ratios.includes(state.aspectRatio) ? state.aspectRatio : null,
+    aspectLockedByFirstFrame
+      ? null
+      : ratios.includes(state.aspectRatio)
+        ? state.aspectRatio
+        : null,
   ]
     .filter(Boolean)
     .join(' · ')
@@ -88,6 +114,7 @@ export function useStudioVideoSpec() {
     durations,
     resolutions,
     ratios,
+    aspectLockedByFirstFrame,
     supportsGenerateAudio,
     generateAudioValue,
     summary,
@@ -108,10 +135,12 @@ interface StudioVideoSpecFieldsProps {
 export function StudioVideoSpecFields({ touch }: StudioVideoSpecFieldsProps) {
   const { state, dispatch } = useStudioForm()
   const tVideo = useTranslations('VideoGenerate')
+  const tSlots = useTranslations('StudioVideoSlots')
   const {
     durations,
     resolutions,
     ratios,
+    aspectLockedByFirstFrame,
     supportsGenerateAudio,
     generateAudioValue,
   } = useStudioVideoSpec()
@@ -226,15 +255,19 @@ export function StudioVideoSpecFields({ touch }: StudioVideoSpecFieldsProps) {
                 key={ratio}
                 type="button"
                 role="radio"
-                aria-checked={state.aspectRatio === ratio}
+                aria-checked={
+                  !aspectLockedByFirstFrame && state.aspectRatio === ratio
+                }
+                disabled={aspectLockedByFirstFrame}
                 onClick={() =>
                   dispatch({ type: 'SET_ASPECT_RATIO', payload: ratio })
                 }
                 className={cn(
                   chipClass,
-                  state.aspectRatio === ratio
+                  !aspectLockedByFirstFrame && state.aspectRatio === ratio
                     ? studioChipActiveClass
                     : studioSegInactiveClass,
+                  aspectLockedByFirstFrame && 'opacity-50',
                 )}
               >
                 <StudioRatioGlyph ratio={ratio} />
@@ -242,6 +275,16 @@ export function StudioVideoSpecFields({ touch }: StudioVideoSpecFieldsProps) {
               </button>
             ))}
           </div>
+          {/* ⚠ 一句话说清**是谁锁的、怎么解除** —— ⛔ 不是一条笼统的
+              「不可用」：锁的成因（你挂了首帧）与解法（摘掉它）都在用户手上。 */}
+          {aspectLockedByFirstFrame ? (
+            <p
+              data-testid="video-aspect-locked-hint"
+              className="text-xs text-muted-foreground"
+            >
+              {tSlots('aspectLockedByFirstFrame')}
+            </p>
+          ) : null}
         </div>
       )}
 

@@ -16,7 +16,6 @@ import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useLoraCandidateConfirm } from '@/hooks/use-lora-candidate-confirm'
 import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
-import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import type {
   ActiveRun,
   AdvancedParams,
@@ -61,6 +60,11 @@ function toWorkbenchRun(run: ActiveRun): AssistantWorkbenchRun {
  * assistant dock (StudioAssistantDock) and the mobile drawer trigger
  * (StudioEnhanceButton). Keeps model resolution, LLM key filtering, and the
  * prompt write-back callbacks in one place so the hosts can't drift.
+ *
+ * ⚠ **视频档不再经过这里**（第二期）：`StudioWorkspaceUI.isOperatorSurface` 已含
+ * video，图片与视频两档都走 `StudioOperatorDock`。旧面板今天只剩**音频**与
+ * LoRA 装配台两个宿主，所以 `state.outputType === 'video'` 的那几支已经整片删掉
+ * （Engineering Principles 1：不留「旧路径还能跑」）。
  */
 export function useStudioAssistantPanelInputs() {
   const { state, dispatch } = useStudioForm()
@@ -68,16 +72,9 @@ export function useStudioAssistantPanelInputs() {
   const { activeRun } = useStudioGen()
   // 当前模态对应的产出类型 —— 与 `StudioCanvas` 的 `expectedOutputType` 同一套
   // 映射（`GenerationRecord.outputType` / `ActiveRun.outputType` 的取值）。
-  const expectedRunOutputType =
-    state.outputType === 'video'
-      ? 'VIDEO'
-      : state.outputType === 'audio'
-        ? 'AUDIO'
-        : 'IMAGE'
+  const expectedRunOutputType = state.outputType === 'audio' ? 'AUDIO' : 'IMAGE'
   const { selectedModel: imageSelectedModel, modelOptions: imageModelOptions } =
     useImageModelOptions()
-  const { selectedModel: videoSelectedModel, modelOptions: videoModelOptions } =
-    useVideoModelOptions(state.selectedOptionId ?? '')
   const { selectedModel: audioSelectedModel } = useAudioModelOptions()
   const { keys: apiKeys } = useApiKeysContext()
   // §3.0b 第 4 条：「点生成图问助手」注入的附件。**放这里是因为这个 hook 就是
@@ -91,11 +88,7 @@ export function useStudioAssistantPanelInputs() {
 
   const selectedStyleCard = styles.activeCard
   const selectedModel =
-    state.outputType === 'audio'
-      ? audioSelectedModel
-      : state.outputType === 'video'
-        ? videoSelectedModel
-        : imageSelectedModel
+    state.outputType === 'audio' ? audioSelectedModel : imageSelectedModel
   const modelId =
     state.workflowMode === 'quick' && selectedModel
       ? selectedModel.modelId
@@ -114,13 +107,8 @@ export function useStudioAssistantPanelInputs() {
   // ⚠ 必须 useMemo：音频那一支返回的是**字面量空数组**，每次 render 都是新引用，
   // 下面 `onUseModel` / `modelNoteFor` 的 useCallback 会跟着每帧重建。
   const modelCatalog = useMemo(
-    () =>
-      state.outputType === 'video'
-        ? videoModelOptions
-        : state.outputType === 'image'
-          ? imageModelOptions
-          : [],
-    [state.outputType, videoModelOptions, imageModelOptions],
+    () => (state.outputType === 'image' ? imageModelOptions : []),
+    [state.outputType, imageModelOptions],
   )
   // ⚠ 按 modelId 去重：同一个模型可以有多条**路由**（workspace 内置 + 用户自己
   // 绑的 key），`modelOptions` 里就是多行。助手要选的是模型不是路由，不去重会
@@ -175,12 +163,6 @@ export function useStudioAssistantPanelInputs() {
       aspectRatio: state.aspectRatio,
       resolution: state.advancedParams.resolution,
       batchCount: state.imageBatchCount,
-      ...(state.outputType === 'video'
-        ? {
-            durationSeconds: state.videoDuration,
-            videoResolution: state.videoResolution ?? undefined,
-          }
-        : {}),
     },
     referenceImageCount: imageUpload.referenceImages.length,
     // ⚠ 与 `StudioCanvas` 同一道守卫：`activeRun` 一槽三模态共用（三个模态共享
@@ -495,8 +477,7 @@ export function useStudioAssistantPanelInputs() {
     setOpen,
     currentPrompt: state.prompt,
     modelId,
-    assistantDomain:
-      state.outputType === 'video' ? ('video' as const) : ('image' as const),
+    assistantDomain: 'image' as const,
     llmApiKeys,
     referenceImageData: imageUpload.referenceImages[0],
     injectedReference,

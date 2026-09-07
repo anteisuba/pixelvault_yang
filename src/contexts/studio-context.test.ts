@@ -78,6 +78,8 @@ function makeInitialState(
     videoDuration: 5,
     videoResolution: null,
     videoAudioRefs: [],
+    videoFrameSlots: { first: null, last: null },
+    videoReferenceVideos: [],
     videoGenerateAudio: null,
     longVideoMode: false,
     longVideoTargetDuration: 30,
@@ -732,5 +734,55 @@ describe('studioFormReducer', () => {
       payload: panel,
     })
     expect(next.panels[panel]).toBe(true)
+  })
+
+  // ── 视频具名帧槽（第二期）──────────────────────────────────────
+  //
+  // ⭐ 位置承载那套的病根就在这条用例上：删掉「第一张」会让尾帧静默升级成首帧。
+  // 具名之后，清空首帧是清空**那一个格子**，另一个一个字都不动。
+
+  it('SET_VIDEO_FRAME_SLOT 各写各的格子', () => {
+    const state = makeInitialState()
+    const withFirst = studioFormReducer(state, {
+      type: 'SET_VIDEO_FRAME_SLOT',
+      payload: { slot: 'first', url: 'https://cdn.example.com/a.png' },
+    })
+    const withBoth = studioFormReducer(withFirst, {
+      type: 'SET_VIDEO_FRAME_SLOT',
+      payload: { slot: 'last', url: 'https://cdn.example.com/z.png' },
+    })
+    expect(withBoth.videoFrameSlots).toEqual({
+      first: 'https://cdn.example.com/a.png',
+      last: 'https://cdn.example.com/z.png',
+    })
+  })
+
+  it('⭐ 清空首帧不动尾帧 —— 「只有尾帧」是一个可表达的状态', () => {
+    const state = {
+      ...makeInitialState(),
+      videoFrameSlots: {
+        first: 'https://cdn.example.com/a.png',
+        last: 'https://cdn.example.com/z.png',
+      },
+    }
+    const next = studioFormReducer(state, {
+      type: 'SET_VIDEO_FRAME_SLOT',
+      payload: { slot: 'first', url: null },
+    })
+    expect(next.videoFrameSlots).toEqual({
+      first: null,
+      last: 'https://cdn.example.com/z.png',
+    })
+  })
+
+  it('RESET_FORM 把两个新槽都归零', () => {
+    const state = {
+      ...makeInitialState(),
+      videoFrameSlots: { first: 'https://cdn.example.com/a.png', last: null },
+      videoReferenceVideos: ['https://cdn.example.com/clip.mp4'],
+    }
+    const next = studioFormReducer(state, { type: 'RESET_FORM' })
+    expect(next.videoFrameSlots).toEqual({ first: null, last: null })
+    expect(next.videoReferenceVideos).toEqual([])
   })
 })

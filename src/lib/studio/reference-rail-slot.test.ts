@@ -1,38 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
-import { VIDEO_NODE_MODES } from '@/constants/video-node-modes'
-
 import { resolveReferenceRailSlot } from './reference-rail-slot'
 
+/**
+ * ⛔ **`'first-frame'` 那一档在第二期删掉了**：关键帧档的图不再走这条轨，
+ * 它们住在具名槽（首帧 / 尾帧各一格）。旧那套整条轨都写着「首帧」，而第二张
+ * 其实是尾帧 —— 位置承载语义的典型代价。
+ */
 describe('resolveReferenceRailSlot', () => {
-  it('⭐ 视频关键帧档 = 首帧，不是「参考图」', () => {
-    expect(resolveReferenceRailSlot('video', 'keyframe')).toBe('first-frame')
+  it('⭐ 视频 = 内容参考 —— 关键帧档的图已经不在这条轨上了', () => {
+    expect(resolveReferenceRailSlot('video')).toBe('content-reference')
   })
 
-  it('⭐ 视频其余两档 = 内容参考 —— 同一张图，语义完全不同', () => {
-    expect(resolveReferenceRailSlot('video', 'image-reference')).toBe(
-      'content-reference',
-    )
-    expect(resolveReferenceRailSlot('video', 'multimodal')).toBe(
-      'content-reference',
-    )
-  })
-
-  it('非视频模态一律是老意义上的参考图，用途档不参与', () => {
-    for (const mode of VIDEO_NODE_MODES) {
-      expect(resolveReferenceRailSlot('image', mode)).toBe('image-reference')
-      expect(resolveReferenceRailSlot('audio', mode)).toBe('image-reference')
-    }
-  })
-
-  it('目录里每一档都有归属 —— 新增用途档时这条会先红', () => {
-    const slots = VIDEO_NODE_MODES.map((mode) =>
-      resolveReferenceRailSlot('video', mode),
-    )
-    expect(slots).toEqual([
-      'first-frame',
-      'content-reference',
-      'content-reference',
-    ])
+  it('非视频模态一律是老意义上的参考图', () => {
+    expect(resolveReferenceRailSlot('image')).toBe('image-reference')
+    expect(resolveReferenceRailSlot('audio')).toBe('image-reference')
   })
 })

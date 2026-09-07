@@ -1687,7 +1687,6 @@
       "actionPromptPlaceholder": "例：森の中を歩いている、微笑んでいる、風に髪がなびく...",
       "imageWarning": "動画では最初のカードの画像のみ使用されます"
     },
-    "railLabelKeyframe": "最初のフレーム",
     "railLabelReference": "コンテンツ参照"
   },
   "Model3DGenerate": {
@@ -6953,7 +6952,9 @@
       "sourceNotUsable": "このサイトは AI の入力に使わないよう求めているか、出所をたどれない転載です",
       "researchRoundsExhausted": "1 ターンで調べられる回数を使い切りました — 分かった範囲で進めます",
       "urlNotReadable": "このアドレスはここでは読み込めません",
-      "urlUnreadable": "そのページを読み込めませんでした"
+      "urlUnreadable": "そのページを読み込めませんでした",
+      "aspectLockedByFirstFrame": "最初のフレームがあるため、このモデルはアスペクト比「自動（adaptive）」しか受け付けません",
+      "videoFramesMissing": "この動画からフレームを取り出せませんでした"
     },
     "field": {
       "prompt": "プロンプト",
@@ -7059,7 +7060,13 @@
       "titleWithModel": "自動チェック · {model} が出したこの一枚",
       "borrowed": "選択中のモデルは画像を見られないため、今回は別のモデルを借りて見ました",
       "revertRound": "このラウンドを元に戻す（{count} 件）",
-      "nextRound": "次のラウンドに先入力："
+      "nextRound": "次のラウンドに先入力：",
+      "applyAdvice": "この助言をプロンプトに反映",
+      "frame": {
+        "start": "0s",
+        "mid": "中間",
+        "end": "最終"
+      }
     },
     "askFirst": {
       "label": "先に聞いて",
@@ -7304,5 +7311,16 @@
     "cancelling": "キャンセル中…",
     "cancelled": "キャンセル済み",
     "cancelFailed": "キャンセルに失敗しました。処理は続行中です"
+  },
+  "StudioVideoSlots": {
+    "sectionLabel": "名前付き参照スロット",
+    "firstFrame": "最初のフレーム",
+    "lastFrame": "最後のフレーム",
+    "referenceVideo": "参照動画",
+    "clear": "{slot} をクリア",
+    "upload": "{slot} にファイルをアップロード",
+    "libraryTitle": "素材ライブラリから選ぶ",
+    "libraryDescription": "このスロットに入れる素材を選びます。",
+    "aspectLockedByFirstFrame": "最初のフレームがあるため、アスペクト比は画像に合わせて自動（adaptive）になります。"
   }
 }

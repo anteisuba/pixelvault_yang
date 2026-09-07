@@ -251,6 +251,28 @@ export interface StudioFormState {
    */
   videoAudioRefs: VideoAudioReference[]
   /**
+   * 视频的**具名帧槽**（第二期，owner 2026-09-07 定）。
+   *
+   * ⭐ 具名而不是位置。此前首尾帧靠**下标**承载（`reference-image-capabilities.ts`
+   * WAN_30 那段头注：「[0] 首帧、[1] 尾帧」），于是「把第一张删掉」会让尾帧
+   * 静默升级成首帧 —— 一次用户看不见也撤不回的语义漂移。有名字之后，
+   * **空首帧 + 有尾帧**才是一个可表达的状态。
+   *
+   * ⚠ 只在**关键帧档**（`videoMode === 'keyframe'`）成立：另外两档（图像参考 /
+   * 全能参考）里图片不是帧，走的还是 `imageUpload` 那条参考轨。两档不会同时在场，
+   * 所以⛔ 不需要在发送口做「谁优先」的仲裁 —— 判据就是档位本身。
+   * ⚠ 存 URL 不存 File：与 `videoAudioRefs` 同一条理由（发送口原样透传）。
+   */
+  videoFrameSlots: { first: string | null; last: string | null }
+  /**
+   * 参考视频槽（第二期）。传输口是**早就在的** `videoUrls`（`types/index.ts`
+   * 那条 `.max(3)`）—— 断的一直只是「UI 没有入口」这一层，所以这里不新造字段。
+   *
+   * ⚠ 上限由模型契约的 `slots.videos` 说了算，不由这个数组自己夹 —— 夹在
+   * 发送口（`buildVideoInput`），与档位夹取同一条理由：残留值来自「切模型」。
+   */
+  videoReferenceVideos: string[]
+  /**
    * 原生出声开关（台账 A「顺带」）。`null` = **没设过**，最终值吃模型目录的
    * `videoDefaults.generateAudio` —— 服务端把 `undefined` 原样透传，worker 那边
    * 再落到目录默认。用户拨过一次就写死一个显式布尔。
@@ -334,6 +356,12 @@ export type StudioAction =
   | { type: 'SET_LONG_VIDEO_TARGET_DURATION'; payload: number }
   | { type: 'REQUEST_GENERATE' }
   | { type: 'SET_VIDEO_AUDIO_REFS'; payload: VideoAudioReference[] }
+  /** 落一张图进具名帧槽；`url: null` = 清空那个槽（⛔ 不是「删掉一个下标」）。 */
+  | {
+      type: 'SET_VIDEO_FRAME_SLOT'
+      payload: { slot: 'first' | 'last'; url: string | null }
+    }
+  | { type: 'SET_VIDEO_REFERENCE_VIDEOS'; payload: string[] }
   | { type: 'SET_VIDEO_GENERATE_AUDIO'; payload: boolean | null }
   | { type: 'TOGGLE_PANEL'; payload: PanelName }
   | { type: 'OPEN_PANEL'; payload: PanelName }
@@ -456,6 +484,8 @@ const initialFormState: StudioFormState = {
   videoResolution: null,
   videoAudioRefs: [],
   videoGenerateAudio: null,
+  videoFrameSlots: { first: null, last: null },
+  videoReferenceVideos: [],
   longVideoMode: false,
   longVideoTargetDuration: VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1], // 30s
   generateRequestId: 0,
@@ -616,6 +646,18 @@ export function studioFormReducer(
       return { ...state, videoDuration: action.payload }
     case 'SET_VIDEO_RESOLUTION':
       return { ...state, videoResolution: action.payload }
+    case 'SET_VIDEO_FRAME_SLOT':
+      return {
+        ...state,
+        videoFrameSlots: {
+          ...state.videoFrameSlots,
+          [action.payload.slot]: action.payload.url,
+        },
+      }
+
+    case 'SET_VIDEO_REFERENCE_VIDEOS':
+      return { ...state, videoReferenceVideos: action.payload }
+
     case 'SET_VIDEO_AUDIO_REFS':
       return { ...state, videoAudioRefs: action.payload }
     case 'SET_VIDEO_GENERATE_AUDIO':
@@ -701,6 +743,8 @@ export function studioFormReducer(
         videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
         videoResolution: null,
         videoAudioRefs: [],
+        videoFrameSlots: { first: null, last: null },
+        videoReferenceVideos: [],
         videoGenerateAudio: null,
         longVideoMode: false,
         longVideoTargetDuration:

@@ -307,10 +307,9 @@ export const StudioCanvas = memo(function StudioCanvas() {
    * 这里只负责把三种槽位映到文案。穷举 Record 无兜底：新增一种槽位时 tsc 先红。
    */
   const referenceRailLabel = {
-    'first-frame': tVideo('railLabelKeyframe'),
     'content-reference': tVideo('railLabelReference'),
     'image-reference': tImageChip('referenceLabel'),
-  }[resolveReferenceRailSlot(state.outputType, state.videoMode)]
+  }[resolveReferenceRailSlot(state.outputType)]
 
   /**
    * 队列里当前在播放器里看的那一条。null = 看最新结果（`lastGeneration`）。

@@ -19,6 +19,7 @@ import type {
 } from '@/constants/studio-assistant-operator'
 import type {
   AssistantOperatorAppliedStep,
+  AssistantOperatorCritiqueStep,
   AssistantOperatorConfirmRequestEvent,
   AssistantOperatorGenerationRequest,
   AssistantOperatorPlanAnswer,
@@ -333,3 +334,32 @@ export type StudioOperatorStatus =
   | 'awaitingConfirm'
   /** 这一轮失败了 —— 线程里已经有一条错误消息。 */
   | 'error'
+
+/**
+ * ─── 视频域评审卡：两支载荷的分岔（第二期）───────────────────────────
+ *
+ * 契约那边 `critique_result` 的 payload 与 result 都是 **union**（图片档 /
+ * 视频档，见 `types/assistant-operator.ts`）。卡片需要的只是「这条是哪一支」，
+ * 而 TS 的 `in` 收窄一步就够 —— ⛔ 不再抄一份结构读取器：那会让同一件事有两个
+ * 判据，而其中一个（结构读取）看不见 schema 的变化。
+ */
+
+/** 视频档的结果那一支 —— `frames` 是它独有的必填字段。 */
+export function isVideoCritiqueResult(
+  result: NonNullable<AssistantOperatorCritiqueStep['result']>,
+): result is Extract<
+  NonNullable<AssistantOperatorCritiqueStep['result']>,
+  { frames: unknown }
+> {
+  return 'frames' in result
+}
+
+/** 视频档的载荷那一支 —— `videoUrl` 是它独有的必填字段。 */
+export function isVideoCritiquePayload(
+  payload: AssistantOperatorCritiqueStep['payload'],
+): payload is Extract<
+  AssistantOperatorCritiqueStep['payload'],
+  { videoUrl: string }
+> {
+  return 'videoUrl' in payload
+}

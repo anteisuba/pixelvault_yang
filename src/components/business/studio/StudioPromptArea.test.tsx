@@ -356,6 +356,8 @@ function setupStudioForm(
     videoDuration: 5,
     videoResolution: '720p',
     videoAudioRefs: [],
+    videoFrameSlots: { first: null, last: null },
+    videoReferenceVideos: [],
     videoGenerateAudio: null,
     longVideoMode: false,
     longVideoTargetDuration: 10,

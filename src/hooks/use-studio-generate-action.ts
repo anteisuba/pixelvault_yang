@@ -185,7 +185,16 @@ export function useStudioGenerateAction() {
   const modelRequiresRef = currentModelId
     ? (getModelById(currentModelId)?.requiresReferenceImage ?? false)
     : false
-  const hasRefImage = imageUpload.referenceImages.length > 0
+  /**
+   * ⚠ 关键帧档的图不在参考图列表里（第二期：它们住在具名槽），所以这条闸必须
+   * 一起看两处 —— 只看列表的话，`requiresReferenceImage` 的视频模型会在用户
+   * 明明填了首帧的情况下被判「还没放参考图」。
+   */
+  const hasRefImage =
+    imageUpload.referenceImages.length > 0 ||
+    (state.outputType === 'video' &&
+      state.videoMode === 'keyframe' &&
+      state.videoFrameSlots.first !== null)
   const currentAdapterType = usesStyleCardForModel
     ? (selectedStyleCard?.adapterType as AI_ADAPTER_TYPES | undefined)
     : selectedModel?.adapterType
@@ -332,8 +341,39 @@ export function useStudioGenerateAction() {
       selectedModel.modelId,
     )
     const videoMax = getReferenceCapabilityMax(videoCap)
-    const refs = imageUpload.referenceImages.slice(0, videoMax)
+    /**
+     * ⭐ **关键帧档读具名槽**（第二期）：那一档里图片是首帧 / 尾帧，住在
+     * `state.videoFrameSlots`，⛔ 不再从参考图列表按下标推
+     * （`[0] 首帧、[1] 尾帧` 那套已在这一轮删掉 —— 位置承载会让「删掉第一张」
+     * 把尾帧静默升级成首帧）。
+     *
+     * ⚠ 线上契约仍是 `referenceImage` + `referenceImages` 两个位置字段，所以
+     * **序列化在这里发生**：`[首帧, 尾帧]` 按序铺开。⚠ 首帧缺席、只有尾帧时
+     * ⛔ 不把尾帧顶到第一位 —— 那正是要根治的那次漂移；这种情况下这一枪没有
+     * 首帧可发，尾帧也随之无处安放，于是两个都不发（模型看到的是纯文生视频）。
+     */
+    const keyframeRefs =
+      state.videoMode === 'keyframe'
+        ? state.videoFrameSlots.first
+          ? [state.videoFrameSlots.first, state.videoFrameSlots.last].filter(
+              (url): url is string => typeof url === 'string',
+            )
+          : []
+        : imageUpload.referenceImages
+    const refs = keyframeRefs.slice(0, videoMax)
     const firstRef = refs[0]
+    /**
+     * 参考视频（第二期）。传输口 `videoUrls` **早就在**（`types/index.ts` 那条
+     * `.max(3)`），断的一直是 UI 入口这一层。上限按契约夹 —— 残留值来自「切模型」，
+     * 与档位夹取同一条理由。
+     */
+    const videoRefUrls = state.videoReferenceVideos.slice(
+      0,
+      getVideoModelSendContract(
+        selectedModel.modelId,
+        selectedModel.adapterType as AI_ADAPTER_TYPES,
+      ).slots.videos,
+    )
     const videoAudioUrls = state.videoAudioRefs.map((ref) => ref.url)
 
     let finalPrompt = composePrompt(state.prompt) ?? ''
@@ -400,6 +440,7 @@ export function useStudioGenerateAction() {
       duration,
       referenceImage: firstRef,
       ...(videoMax > 1 && refs.length > 0 ? { referenceImages: refs } : {}),
+      ...(videoRefUrls.length > 0 ? { videoUrls: videoRefUrls } : {}),
       negativePrompt: state.advancedParams.negativePrompt ?? undefined,
       resolution: resolution as '480p' | '540p' | '720p' | '1080p' | undefined,
       ...(videoWorkflowId ? { workflowId: videoWorkflowId } : {}),
@@ -437,6 +478,9 @@ export function useStudioGenerateAction() {
     characters.activeCards,
     composePrompt,
     imageUpload.referenceImages,
+    state.videoMode,
+    state.videoFrameSlots,
+    state.videoReferenceVideos,
   ])
 
   /**

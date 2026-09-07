@@ -48,6 +48,7 @@ import Image from 'next/image'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import {
+  ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
@@ -277,7 +278,30 @@ export function StudioOperatorPanel({
    * 永远不可能出现。映射搬到两个宿主各自那边之后，两边就都有了。
    * ⛔ 面板从此不认识 `useStudioGen`：它挂在哪台工作台上不该由它自己去猜。
    */
-  const resultItems = useStudioOperatorHost().results
+  const operatorHost = useStudioOperatorHost()
+  const resultItems = operatorHost.results
+
+  /**
+   * 「按这条建议改提示词」（第二期 · 视频域评审卡）。
+   *
+   * ⭐ 走的是助手 `set_prompt` **追加**那一支的同一条路：同一个分隔符
+   * （`ASSISTANT_OPERATOR_APPEND_SEPARATOR`）、同一个 `SET_PROMPT` dispatch。
+   * ⛔ 不用 `appendPromptFragments`：那颗按顿号去重，与协议里那个分隔符是两套
+   * 口径，混用之后助手算 `inverse` 时会与表单里真的那串对不上
+   * （理由与 `studio-operator-apply.ts` 里那条头注逐字同源）。
+   */
+  const applyCritiqueAdvice = useCallback(
+    (advice: string) => {
+      const current = operatorHost.apply.getState().prompt
+      operatorHost.apply.dispatch({
+        type: 'SET_PROMPT',
+        payload: current
+          ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${advice}`
+          : advice,
+      })
+    },
+    [operatorHost],
+  )
 
   /**
    * 结果格 → chip。
@@ -818,6 +842,7 @@ export function StudioOperatorPanel({
               runKey={entry.runKey}
               roundChangeCount={countRoundChanges(entry.runKey)}
               onRevertRound={revertRound}
+              onApplyAdvice={applyCritiqueAdvice}
             />
           </StudioOperatorTimelineRow>
         )

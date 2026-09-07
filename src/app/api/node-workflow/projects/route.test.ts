@@ -79,7 +79,7 @@ beforeEach(() => {
 })
 
 describe('POST /api/node-workflow/projects — 写端判据', () => {
-  it('接受 v3 状态（③c 翻转前的迁移顺序，不是长期兼容层）', async () => {
+  it('⛔ 拒收 v3：C3c-③c 客户端已全量写 v4，v3 payload 是 400', async () => {
     const res = await POST(
       createPOST('/api/node-workflow/projects', {
         name: 'P',
@@ -87,13 +87,8 @@ describe('POST /api/node-workflow/projects — 写端判据', () => {
       }),
     )
 
-    expect(res.status).toBe(200)
-    expect(mockCreate).toHaveBeenCalledWith(
-      'clerk_test_user',
-      expect.objectContaining({
-        state: expect.objectContaining({ nodes: expect.any(Array) }),
-      }),
-    )
+    expect(res.status).toBe(400)
+    expect(mockCreate).not.toHaveBeenCalled()
   })
 
   it('接受 v4 状态并且 version 不被剥掉', async () => {

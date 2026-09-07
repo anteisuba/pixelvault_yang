@@ -5671,6 +5671,7 @@
       "localCacheFull": "本地缓存已满，画布不再本地暂存。你的内容仍在保存到云端。",
       "localCacheUnavailable": "浏览器拒绝了本地存储，画布不再本地暂存。你的内容仍在保存到云端。",
       "cloudSaveFailed": "连不上云端，最近的画布改动没有保存。请保持此标签页打开并检查网络连接。",
+      "v3UpgradeReadOnly": "这个项目的旧版数据还没备份成功，为避免覆盖原件，画布暂时只读。请刷新重试；若仍失败，请联系支持。",
       "cloudSaveRejected": "云端拒绝了这次保存，最近的画布改动没有保存。这不是网络问题——详情见下方错误信息。"
     },
     "quickEdit": {
@@ -5856,6 +5857,12 @@
         "failed": "失败",
         "stale": "已过期",
         "disabled": "已停用"
+      },
+      "kinds": {
+        "text": "文本",
+        "image": "图片",
+        "audio": "音频",
+        "video": "视频"
       },
       "derive": {
         "shotImage": "出镜头图",

@@ -1137,33 +1137,58 @@ export type NodeWorkflowStateV4 = z.infer<typeof NodeWorkflowStateV4Schema>
 // ─── API contracts for the Prisma-backed NodeWorkflowProject ─────────────
 
 /**
- * v3 的写入分支。与 `NodeWorkflowStateDataSchema` 唯一的差别：**顶层不能带
- * `version`**。没有这一条，一份 `{ version: 4, nodes: [], edges: [] }` 会被
- * 剥掉 `version` 后当成合法 v3 存下去——版本判据被静默抹平，正是这一轮要堵的洞。
+ * 读端记录里的 state。**读**仍然可能是 v3：升级是客户端逐项目做的（备份成功才
+ * 升），没轮到的项目原样躺在库里，服务端不代劳。v4 在前——`version === 4` 的图
+ * 必须走 v4 分支，坏掉的 v4 会被 v3 分支拒绝（顶层 `version` 不允许）而不是
+ * 降级成 v3。
  *
- * TODO(③c 翻转后删)：客户端全量写 v4 之后，这个分支连同 union 的 v3 一侧一起删，
- * 写端只留 `NodeWorkflowStateV4Schema`。
+ * ⚠ 迁移顺序：③d 回填跑完、库里没有 v3 之后，这个 union 连同整份 v3 schema 一起删。
  */
-export const NodeWorkflowStateV3WriteSchema =
+/**
+ * v4 的本地暂存快照（C3c-③c）。与上面那份 v3 快照**同一个 key、同一个 version
+ * 字面量**，只有 `projects[].state` 是 v4 —— 读端先试这一份，不中再试 v3 那份
+ * 并在内存里升级。⛔ 不 bump storage version：bump 等于把所有人的本地缓存判死，
+ * 而服务端才是事实源，本地缓存只需要能被认出来。
+ *
+ * ⚠ 定义在这里（而不是 store hook 里）是因为 `NodeWorkflowStateV4Schema` 与
+ * v3 的 `NodeWorkflowProjectSchema` 都在本文件，拆开放会长出第二份项目形状。
+ */
+export const NodeWorkflowProjectV4Schema = NodeWorkflowProjectSchema.extend({
+  state: NodeWorkflowStateV4Schema,
+})
+
+export const NodeWorkflowStorageV4Schema = z.object({
+  version: z.literal(NODE_STUDIO_WORKFLOW_STORAGE.version),
+  ownerClerkId: z.string().trim().min(1).max(160),
+  currentProjectId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_STUDIO_PROJECTS.idMaxLength),
+  projects: z.array(NodeWorkflowProjectV4Schema).min(1),
+})
+
+export type NodeWorkflowProjectV4 = z.infer<typeof NodeWorkflowProjectV4Schema>
+export type NodeWorkflowStorageV4Snapshot = z.infer<
+  typeof NodeWorkflowStorageV4Schema
+>
+
+export const NodeWorkflowReadStateSchema = z.union([
+  NodeWorkflowStateV4Schema,
   NodeWorkflowStateDataSchema.extend({
     version: z.undefined().optional(),
-  })
-
-/**
- * 服务端持久化 state 的判据（node-canvas-v2 §9.2 第 4 条）。
- *
- * ⚠ 顺序有意义：v4 在前。`version === 4` 的图必须走 v4 分支，坏掉的 v4 会被 v3
- * 分支拒绝（顶层 `version` 不允许）而不是降级成 v3。
- *
- * 读端不用它做兜底——读端按 `version` 显式分流（见
- * `node-workflow.service.ts` 的 `readPersistedState`）：v3 原样透传交给客户端的
- * `upgradeNodeWorkflowStateToV4` 升级，v4 严格校验，坏数据抛错。⛔ 不兜空。
- */
-export const NodeWorkflowPersistedStateSchema = z.union([
-  NodeWorkflowStateV4Schema,
-  NodeWorkflowStateV3WriteSchema,
+  }),
 ])
 
+/**
+ * **写端**持久化 state 的判据（node-canvas-v2 §9.2 第 4 条）。
+ *
+ * ⛔ C3c-③c 起只收 v4：客户端已经全量写 v4，再留一条 v3 写入分支就是给「版本
+ * 判据被静默抹平」留后门。v3 payload 在路由层直接 400。
+ */
+export const NodeWorkflowPersistedStateSchema = NodeWorkflowStateV4Schema
+
+export type NodeWorkflowReadState = z.infer<typeof NodeWorkflowReadStateSchema>
 export type NodeWorkflowPersistedState = z.infer<
   typeof NodeWorkflowPersistedStateSchema
 >
@@ -1179,7 +1204,7 @@ export const NodeWorkflowProjectRecordSchema = z.object({
   id: z.string().trim().min(1),
   userId: z.string().trim().min(1),
   name: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.nameMaxLength),
-  state: NodeWorkflowPersistedStateSchema,
+  state: NodeWorkflowReadStateSchema,
   lastActiveAt: z.string().trim().min(1),
   createdAt: z.string().trim().min(1),
   updatedAt: z.string().trim().min(1),

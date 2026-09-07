@@ -10,12 +10,12 @@ import {
   NodeWorkflowStateDataSchema,
   NodeWorkflowStateV4Schema,
   type CreateNodeWorkflowProjectRequest,
-  type NodeWorkflowPersistedState,
+  type NodeWorkflowReadState,
   type NodeWorkflowProjectRecord,
   type UpdateNodeWorkflowProjectRequest,
 } from '@/types/node-workflow'
 
-type NodeWorkflowStateData = NodeWorkflowPersistedState
+type NodeWorkflowStateData = NodeWorkflowReadState
 
 /**
  * Prisma's Json column type is `InputJsonValue` which requires an index
@@ -27,10 +27,15 @@ function toPrismaJson(state: NodeWorkflowStateData): Prisma.InputJsonValue {
   return state as unknown as Prisma.InputJsonValue
 }
 
+/**
+ * ⚠ C3c-③c 起是 **v4** 的空图：新建项目落库的第一份 state 也必须带 `version: 4`，
+ * 否则它一出生就是 v3，下一次打开还要再走一遍备份 + 升级。
+ */
 const EMPTY_STATE: NodeWorkflowStateData = {
+  version: 4,
   nodes: [],
   edges: [],
-} as unknown as NodeWorkflowStateData
+}
 
 /**
  * Cap on projects per user. Hitting this cap means "your account has lots
@@ -183,9 +188,8 @@ export async function createNodeWorkflowProject(
     throw new NodeWorkflowProjectLimitError()
   }
 
-  // 写端判据：`input.state` 已经过 `NodeWorkflowPersistedStateSchema`——v3 与 v4
-  // **各自严格校验**，校验失败在路由层就是 400，⛔ 不兜空、不降级。
-  // TODO(③c 翻转后删)：客户端全量写 v4 后，把 union 的 v3 分支删掉，v3 写入直接拒绝。
+  // 写端判据：`input.state` 已经过 `NodeWorkflowPersistedStateSchema` —— C3c-③c
+  // 起它**只剩 v4**，v3 payload 在路由层就是 400，⛔ 不兜空、不降级。
 
   const row = await db.nodeWorkflowProject.create({
     data: {

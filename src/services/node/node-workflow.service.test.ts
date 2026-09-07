@@ -53,6 +53,25 @@ const A_NODE = {
   data: { prompt: 'Keep me', status: NODE_STATUS_IDS.idle },
 }
 
+const V4_NODE = {
+  id: 'n_script',
+  position: { x: 0, y: 0 },
+  data: {
+    kind: NODE_MEDIA_KIND_IDS.text,
+    subtype: NODE_V4_TEXT_SUBTYPE_IDS.script,
+    name: 'S01·剧本',
+    body: '# 开场',
+    createdAt: '2026-09-08T00:00:00.000Z',
+  },
+}
+
+// 过一遍 schema：既给出正确的静态类型，也保证这份 fixture 真的是合法 v4。
+const V4_STATE = NodeWorkflowStateV4Schema.parse({
+  version: 4,
+  nodes: [V4_NODE],
+  edges: [],
+})
+
 function projectRow(state: unknown) {
   return {
     id: PROJECT_ID,
@@ -79,7 +98,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockEnsureUser.mockResolvedValue(DB_USER)
   mockUpdate.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
-    Promise.resolve(projectRow(data.state ?? { nodes: [A_NODE], edges: [] })),
+    Promise.resolve(projectRow(data.state ?? V4_STATE)),
   )
 })
 
@@ -88,7 +107,7 @@ describe('updateNodeWorkflowProject — empty-state overwrite guard', () => {
     mockFindFirst.mockResolvedValue(projectRow({ nodes: [A_NODE], edges: [] }))
 
     await updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, {
-      state: { nodes: [], edges: [] },
+      state: { version: 4, nodes: [], edges: [] },
     })
 
     // `state` 整体替换是这条链的杀伤面 —— 它必须**根本没进 data**。
@@ -107,12 +126,12 @@ describe('updateNodeWorkflowProject — empty-state overwrite guard', () => {
     mockFindFirst.mockResolvedValue(projectRow({ nodes: [A_NODE], edges: [] }))
 
     await updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, {
-      state: { nodes: [], edges: [] },
+      state: { version: 4, nodes: [], edges: [] },
       allowEmptyState: true,
     })
 
     // 画布没有一键清空入口，用户是一个个删空的 —— 这是合法操作，不能被闸挡住。
-    expect(updateData().state).toEqual({ nodes: [], edges: [] })
+    expect(updateData().state).toEqual({ version: 4, nodes: [], edges: [] })
     expect(loggerErrorMock).not.toHaveBeenCalled()
   })
 
@@ -121,7 +140,7 @@ describe('updateNodeWorkflowProject — empty-state overwrite guard', () => {
 
     await updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, {
       name: 'Renamed',
-      state: { nodes: [], edges: [] },
+      state: { version: 4, nodes: [], edges: [] },
     })
 
     const data = updateData()
@@ -133,11 +152,9 @@ describe('updateNodeWorkflowProject — empty-state overwrite guard', () => {
   it('writes a non-empty state normally', async () => {
     mockFindFirst.mockResolvedValue(projectRow({ nodes: [], edges: [] }))
 
-    await updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, {
-      state: { nodes: [A_NODE], edges: [] },
-    })
+    await updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, { state: V4_STATE })
 
-    expect(updateData().state).toEqual({ nodes: [A_NODE], edges: [] })
+    expect(updateData().state).toEqual(V4_STATE)
     expect(loggerErrorMock).not.toHaveBeenCalled()
   })
 
@@ -145,11 +162,11 @@ describe('updateNodeWorkflowProject — empty-state overwrite guard', () => {
     mockFindFirst.mockResolvedValue(projectRow({ nodes: [], edges: [] }))
 
     await updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, {
-      state: { nodes: [], edges: [] },
+      state: { version: 4, nodes: [], edges: [] },
     })
 
     // 没有东西会被抹掉，就没有理由拦 —— 这条闸只管「非空 → 空」。
-    expect(updateData().state).toEqual({ nodes: [], edges: [] })
+    expect(updateData().state).toEqual({ version: 4, nodes: [], edges: [] })
     expect(loggerErrorMock).not.toHaveBeenCalled()
   })
 
@@ -157,7 +174,7 @@ describe('updateNodeWorkflowProject — empty-state overwrite guard', () => {
     mockFindFirst.mockResolvedValue(projectRow({ nodes: [A_NODE], edges: [] }))
 
     await updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, {
-      state: { nodes: [], edges: [] },
+      state: { version: 4, nodes: [], edges: [] },
     })
 
     // 账号隔离：闸只决定 state 写不写，它读的那一行仍然是按 userId 圈出来的，
@@ -173,7 +190,7 @@ describe('updateNodeWorkflowProject — empty-state overwrite guard', () => {
 
     await expect(
       updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, {
-        state: { nodes: [], edges: [] },
+        state: { version: 4, nodes: [], edges: [] },
       }),
     ).rejects.toThrow(PROJECT_ID)
     expect(mockUpdate).not.toHaveBeenCalled()
@@ -185,25 +202,6 @@ describe('updateNodeWorkflowProject — empty-state overwrite guard', () => {
 // 旧行为：读写共用 v3 schema，parse 失败兜成空图。v4 节点没有 v3 必填的 `type`，
 // 所以客户端一写 v4、服务端没切，下一次读取每个项目都被兜成空——备份门救不了，
 // 因为备份的是升级前的 v3，清空发生在升级之后。这一组测试钉死反转后的判据。
-
-const V4_NODE = {
-  id: 'n_script',
-  position: { x: 0, y: 0 },
-  data: {
-    kind: NODE_MEDIA_KIND_IDS.text,
-    subtype: NODE_V4_TEXT_SUBTYPE_IDS.script,
-    name: 'S01·剧本',
-    body: '# 开场',
-    createdAt: '2026-09-08T00:00:00.000Z',
-  },
-}
-
-// 过一遍 schema：既给出正确的静态类型，也保证这份 fixture 真的是合法 v4。
-const V4_STATE = NodeWorkflowStateV4Schema.parse({
-  version: 4,
-  nodes: [V4_NODE],
-  edges: [],
-})
 
 describe('读端 · 版本判别', () => {
   it('v4 原样读出来，⛔ 不被 v3 schema 兜成空图', async () => {
@@ -254,7 +252,8 @@ describe('读端 · 版本判别', () => {
 
     const record = await getNodeWorkflowProject(CLERK_ID, PROJECT_ID)
 
-    expect(record?.state).toEqual({ nodes: [], edges: [] })
+    // ⚠ C3c-③c 起空图也是 v4：新建项目落库的第一份 state 就带 `version: 4`。
+    expect(record?.state).toEqual({ version: 4, nodes: [], edges: [] })
     expect(loggerErrorMock).not.toHaveBeenCalled()
   })
 

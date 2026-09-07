@@ -122,6 +122,28 @@ describe('PUT /api/node-workflow/projects/[id] — 写端', () => {
     expect(mockUpdate).not.toHaveBeenCalled()
   })
 
+  it('⛔ 拒收 v3：写端 C3c-③c 起只剩 v4，v3 payload 是 400', async () => {
+    const res = await PUT(
+      createPUT(`/api/node-workflow/projects/${PROJECT_ID}`, {
+        state: {
+          nodes: [
+            {
+              id: 'n1',
+              type: 'shotText',
+              position: { x: 0, y: 0 },
+              data: { prompt: 'legacy', status: 'idle' },
+            },
+          ],
+          edges: [],
+        },
+      }),
+      params,
+    )
+
+    expect(res.status).toBe(400)
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
   it('读端坏数据在写路径上也是 422（未带 state 的重命名读回旧行）', async () => {
     mockUpdate.mockRejectedValue(new FakeStateCorruptError())
 

@@ -5671,6 +5671,7 @@
       "localCacheFull": "This browser's local cache is full — the canvas is no longer kept here. Your work is still saved to the cloud.",
       "localCacheUnavailable": "This browser refused local storage — the canvas is no longer kept here. Your work is still saved to the cloud.",
       "cloudSaveFailed": "Can't reach the cloud — recent canvas changes aren't saved. Keep this tab open and check your connection.",
+      "v3UpgradeReadOnly": "This project's legacy data hasn't been backed up yet, so the canvas is read-only to avoid overwriting the original. Refresh to retry; contact support if it keeps failing.",
       "cloudSaveRejected": "The cloud rejected this save — recent canvas changes aren't saved. This is not a connection problem; the details are below."
     },
     "quickEdit": {
@@ -5856,6 +5857,12 @@
         "failed": "Failed",
         "stale": "Stale",
         "disabled": "Disabled"
+      },
+      "kinds": {
+        "text": "text",
+        "image": "image",
+        "audio": "audio",
+        "video": "video"
       },
       "derive": {
         "shotImage": "Make shot image",

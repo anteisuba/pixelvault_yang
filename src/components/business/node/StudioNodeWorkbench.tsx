@@ -92,7 +92,6 @@ import {
   computeSpawnPosition,
   type GenerateComposerSendInput,
 } from '@/hooks/node/use-generate-composer'
-import { useNodeV4Preview } from '@/hooks/node/use-node-v4-preview'
 import { useNodeGenerationReconcile } from '@/hooks/node/use-node-generation-reconcile'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
 import {
@@ -274,6 +273,8 @@ import { VideoMergeNode } from './nodes/VideoMergeNode'
 import { VideoReferenceNode } from './nodes/VideoReferenceNode'
 import { VoiceNode } from './nodes/VoiceNode'
 import { NodeWorkflowStatusEdge } from './edges/NodeWorkflowStatusEdge'
+import { NODE_CANVAS_RENDER_V4 } from '@/constants/node-canvas'
+
 import { NODE_V4_COMPONENTS } from './nodes/v4/registry'
 import { NodeV4ActionsV3Adapter } from './nodes/v4/NodeV4ActionsV3Adapter'
 import { NodeV4Provider } from './nodes/v4/NodeV4Provider'
@@ -726,19 +727,13 @@ function StudioNodeCanvas() {
   const nodeMediaGeneration = useNodeMediaGeneration()
   const canvasImageDrop = useCanvasImageDrop()
   const modelOptionsByType = useWorkflowModelOptions()
-  /* ── v4 渲染预览（C3c-① D · ⛔ 不翻转、不写库）────────────────────────
-   * 开关两档：state 已经是 v4（翻转后的常态），或开发用 `?v4=1`。前者今天还
-   * 不会出现（服务端仍写 v3），后者让 owner 现在就能在真机上看见 v4 的卡。
-   * ⚠ 迁移顺序：C3c-③ 翻转之后，下面每一处 `v4Preview.state ? … : …` 的 v3
-   * 分支整段删，`NODE_COMPONENTS` 与它的十个 legacy 组件一起下线。 */
-  const v4PreviewEnabled =
-    searchParams.get('v4') === '1' ||
-    (workflow.state as { version?: number }).version === 4
-  const v4Preview = useNodeV4Preview({
-    enabled: v4PreviewEnabled,
-    projectId: workflow.currentProjectId,
-    rawState: workflow.state,
-  })
+  /* ── v4 渲染分支（C3c-③c）──────────────────────────────────────────────
+   * 存储**已经是 v4**（`workflow.stateV4` 就是落库的那一份），只有渲染还没翻：
+   * `NODE_CANVAS_RENDER_V4` 为 false 时画布仍走 v3 组件，消费的是 v4 的投影视图
+   * （`workflow.state`），所以 owner 这一步看到的行为不变。
+   * ⚠ 迁移顺序：③d 把常量改成 true，同时把下面每一处 `v4RenderNodes ? … : …`
+   * 的 v3 分支整段删，`NODE_COMPONENTS` 与它的十个 legacy 组件一起下线。 */
+  const v4RenderState = NODE_CANVAS_RENDER_V4 ? workflow.stateV4 : null
   const v4ModelOptionsByKind = useMemo(
     () => ({
       [NODE_MEDIA_KIND_IDS.image]:
@@ -763,12 +758,12 @@ function StudioNodeCanvas() {
     source: NodeWorkflowStateV4 | null
     nodes: NodeWorkflowNode[]
   }>({ source: null, nodes: [] })
-  if (v4Rendered.source !== v4Preview.state) {
+  if (v4Rendered.source !== v4RenderState) {
     // 渲染期同步（React 官方的「派生 state」写法），⛔ 不放 effect 里。
     const previous = new Map(v4Rendered.nodes.map((node) => [node.id, node]))
     setV4Rendered({
-      source: v4Preview.state,
-      nodes: (v4Preview.state?.nodes ?? []).map((node) => {
+      source: v4RenderState,
+      nodes: (v4RenderState?.nodes ?? []).map((node) => {
         const before = previous.get(node.id)
         return {
           ...before,
@@ -782,7 +777,7 @@ function StudioNodeCanvas() {
       }),
     })
   }
-  const v4RenderNodes = v4Preview.state ? v4Rendered.nodes : null
+  const v4RenderNodes = v4RenderState ? v4Rendered.nodes : null
   /**
    * v4 的选中集。⚠ 选中活在**渲染用的那份 RF 节点**上（`v4Rendered`），不在
    * v4 state 里——v4 的 `NodeV4` 形状没有 `selected` 字段，选中是视图状态。
@@ -795,7 +790,7 @@ function StudioNodeCanvas() {
   )
   const v4RenderEdges = useMemo(
     () =>
-      v4Preview.state?.edges.map((edge) => ({
+      v4RenderState?.edges.map((edge) => ({
         id: edge.id,
         source: edge.source,
         sourceHandle: edge.sourceHandle,
@@ -804,7 +799,7 @@ function StudioNodeCanvas() {
         // 按端口表逐槽渲染 `Handle id={slot}`）。
         targetHandle: edge.slot,
       })) ?? null,
-    [v4Preview.state],
+    [v4RenderState],
   )
   const handleV4NodesChange = useCallback((changes: NodeChange[]) => {
     setV4Rendered((previous) => ({
@@ -5271,8 +5266,8 @@ function StudioNodeCanvas() {
             quickThrowApiRef={quickThrowApiRef}
           >
             <MaybeNodeV4Provider
-              state={v4Preview.state}
-              onStateChange={v4Preview.setState}
+              state={v4RenderState}
+              onStateChange={workflow.setStateV4}
               modelOptionsByKind={v4ModelOptionsByKind}
               onFocusNode={handleFocusNode}
               selectedNodeIds={v4SelectedNodeIds}

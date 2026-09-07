@@ -1,8 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 import {
   addEdge,
   applyEdgeChanges,
@@ -14,7 +12,6 @@ import {
 } from '@xyflow/react'
 
 import {
-  getNodeStudioWorkflowStorageKey,
   NODE_STUDIO_AGENT_MODE_IDS,
   NODE_STUDIO_EDGE_VISUALS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
@@ -22,10 +19,8 @@ import {
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,
   NODE_STUDIO_NODE_PLACEMENT,
-  NODE_STUDIO_PROJECTS,
   NODE_STUDIO_VOICE_PROFILE,
   NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
-  NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
@@ -37,37 +32,31 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import {
-  NodeWorkflowLegacyV2StorageSchema,
-  NodeWorkflowStateSchema,
-  NodeWorkflowStorageSchema,
   type CanvasAppearance,
   type NodeWorkflowEdge,
   type NodeWorkflowEdgeData,
   type NodeWorkflowNode,
   type NodeWorkflowNodeData,
-  type NodeWorkflowProject,
-  type NodeWorkflowProjectRecord,
   type NodeWorkflowProjectSummary,
   type NodeWorkflowState,
-  type NodeWorkflowStorageSnapshot,
+  type NodeWorkflowStateV4,
 } from '@/types/node-workflow'
 import {
   CanvasDerivedImageOutputsSchema,
   type CanvasDerivedImageOutput,
 } from '@/types/canvas-image-edit'
+import {} from '@/lib/api-client'
 import {
-  createNodeWorkflowProjectAPI,
-  deleteNodeWorkflowProjectAPI,
-  listNodeWorkflowProjectsAPI,
-  updateNodeWorkflowProjectAPI,
-  activateNodeWorkflowProjectAPI,
-} from '@/lib/api-client'
-import { logger } from '@/lib/logger'
+  createWorkflowId,
+  getCurrentProject,
+  useNodeWorkflowStore,
+  type NodeWorkflowReadOnlyReason,
+} from '@/hooks/node/use-node-workflow-store'
+import {
+  projectV4ToV3View,
+  writeV3ViewBackToV4,
+} from '@/lib/node-workflow-v3-view'
 import { applyDagreLayout } from '@/lib/node-workflow-layout'
-import { migrateRetireFusedNodes } from '@/lib/node-workflow-migrate-fused-nodes'
-import { migrateRetirePlanner } from '@/lib/node-workflow-migrate-planner'
-import { migrateImageRoles } from '@/lib/node-workflow-migrate-image-roles'
-import { migrateVoiceClip } from '@/lib/node-workflow-migrate-voice-clip'
 import {
   projectScriptDocToGraph,
   syncSeedanceDurationPatchToScriptDoc,
@@ -164,7 +153,16 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
   runAsSingleHistoryStep<T>(run: () => T | Promise<T>): Promise<T>
   /** True only after both local and server hydration finish for this user. */
   isHydrated: boolean
+  /**
+   * ⚠ v3 引擎与 legacy 画布消费的**投影视图**（③d 翻转后删）。事实在 `stateV4`。
+   */
   state: NodeWorkflowState
+  /** 存储的事实形状。`NODE_CANVAS_RENDER_V4` 那一支直接渲染它。 */
+  stateV4: NodeWorkflowStateV4
+  /** v4 组件（`NodeV4Provider`）的写回口 —— 整份替换，走同一个持久化层。 */
+  setStateV4(next: NodeWorkflowStateV4): void
+  /** 当前项目为什么只读（v3 备份没成功）；`null` = 可写。 */
+  readOnlyReason: NodeWorkflowReadOnlyReason | null
   scriptDoc: ScriptDoc | undefined
   canvasAppearance: CanvasAppearance | undefined
   scriptDocStage: ScriptDocStage | undefined
@@ -206,171 +204,6 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
    * hydrate completes — it will no-op and return false.
    */
   saveNow(): Promise<boolean>
-}
-
-let fallbackIdSequence = 0
-
-function createWorkflowId(prefix: string): string {
-  const randomId = globalThis.crypto?.randomUUID?.()
-  if (randomId) {
-    return `${prefix}-${randomId}`
-  }
-
-  fallbackIdSequence += 1
-  return `${prefix}-${Date.now()}-${fallbackIdSequence}`
-}
-
-function createEmptyWorkflowState(): NodeWorkflowState {
-  return {
-    nodes: [],
-    edges: [],
-  }
-}
-
-function createWorkflowTimestamp(): string {
-  return new Date().toISOString()
-}
-
-function normalizeProjectName(name: string, fallbackName: string): string {
-  const trimmedName = name.trim()
-  const trimmedFallback = fallbackName.trim()
-  const resolvedName =
-    trimmedName || trimmedFallback || NODE_STUDIO_PROJECTS.fallbackName
-
-  return resolvedName.slice(0, NODE_STUDIO_PROJECTS.nameMaxLength)
-}
-
-function createWorkflowProject(
-  name: string,
-  state: NodeWorkflowState,
-  timestamp = createWorkflowTimestamp(),
-): NodeWorkflowProject {
-  return {
-    id: createWorkflowId(NODE_STUDIO_ID_PREFIXES.project),
-    name,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    state,
-  }
-}
-
-function createWorkflowStorageFromProject(
-  project: NodeWorkflowProject,
-  ownerClerkId: string,
-): NodeWorkflowStorageSnapshot {
-  return {
-    version: NODE_STUDIO_WORKFLOW_STORAGE.version,
-    ownerClerkId,
-    currentProjectId: project.id,
-    projects: [project],
-  }
-}
-
-/**
- * Sentinel owner id used by the "parked" snapshot served before Clerk
- * resolves the real user. Writers must never persist a snapshot carrying
- * this id — the write helpers refuse to touch localStorage / the server
- * until a real clerkId is available.
- */
-const PARKED_OWNER_CLERK_ID = '__parked__'
-
-function createDefaultWorkflowStorage(
-  defaultProjectName: string,
-  ownerClerkId: string,
-): NodeWorkflowStorageSnapshot {
-  const normalizedName = normalizeProjectName(
-    defaultProjectName,
-    defaultProjectName,
-  )
-
-  return createWorkflowStorageFromProject(
-    createWorkflowProject(normalizedName, createEmptyWorkflowState()),
-    ownerClerkId,
-  )
-}
-
-function createWorkflowStorageFromLegacyState(
-  defaultProjectName: string,
-  state: NodeWorkflowState,
-  ownerClerkId: string,
-): NodeWorkflowStorageSnapshot {
-  const normalizedName = normalizeProjectName(
-    defaultProjectName,
-    defaultProjectName,
-  )
-
-  return createWorkflowStorageFromProject(
-    createWorkflowProject(normalizedName, state),
-    ownerClerkId,
-  )
-}
-
-function getCurrentProject(
-  storage: NodeWorkflowStorageSnapshot,
-  defaultProjectName: string,
-): NodeWorkflowProject {
-  const currentProject =
-    storage.projects.find(
-      (project) => project.id === storage.currentProjectId,
-    ) ?? storage.projects[0]
-
-  if (currentProject) {
-    return currentProject
-  }
-
-  return createWorkflowProject(
-    normalizeProjectName(defaultProjectName, defaultProjectName),
-    createEmptyWorkflowState(),
-  )
-}
-
-function getProjectSummaries(
-  projects: NodeWorkflowProject[],
-): NodeWorkflowProjectSummary[] {
-  return projects.map((project) => ({
-    id: project.id,
-    name: project.name,
-    createdAt: project.createdAt,
-    updatedAt: project.updatedAt,
-    nodeCount: project.state.nodes.length,
-  }))
-}
-
-function patchCurrentProjectState(
-  storage: NodeWorkflowStorageSnapshot,
-  defaultProjectName: string,
-  updater: (currentState: NodeWorkflowState) => NodeWorkflowState,
-): NodeWorkflowStorageSnapshot {
-  const currentProject = getCurrentProject(storage, defaultProjectName)
-  const updatedAt = createWorkflowTimestamp()
-  const nextProjects = storage.projects.map((project) =>
-    project.id === currentProject.id
-      ? {
-          ...project,
-          updatedAt,
-          state: updater(project.state),
-        }
-      : project,
-  )
-
-  if (nextProjects.length > 0) {
-    return {
-      ...storage,
-      currentProjectId: currentProject.id,
-      projects: nextProjects,
-    }
-  }
-
-  const replacementProject = createWorkflowProject(
-    normalizeProjectName(defaultProjectName, defaultProjectName),
-    updater(createEmptyWorkflowState()),
-    updatedAt,
-  )
-
-  return createWorkflowStorageFromProject(
-    replacementProject,
-    storage.ownerClerkId,
-  )
 }
 
 export function createDefaultNodeData(
@@ -489,413 +322,102 @@ export function createDefaultNodeData(
   }
 }
 
-function readWorkflowStorageFromStorage(
-  defaultProjectName: string,
-  clerkId: string,
-): NodeWorkflowStorageSnapshot {
-  if (typeof window === 'undefined') {
-    return createDefaultWorkflowStorage(defaultProjectName, clerkId)
-  }
-
-  try {
-    const raw = window.localStorage.getItem(
-      getNodeStudioWorkflowStorageKey(clerkId),
-    )
-    if (!raw) {
-      return createDefaultWorkflowStorage(defaultProjectName, clerkId)
-    }
-
-    const parsedJson = JSON.parse(raw) as unknown
-    const parsedStorage = NodeWorkflowStorageSchema.safeParse(parsedJson)
-    if (parsedStorage.success) {
-      // Belt-and-suspenders: the per-user storage key already isolates
-      // slots, but if a snapshot somehow lands in the wrong key (e.g.
-      // browser sync, manual import, dev tools tinkering) we still
-      // refuse to hydrate it. The empty default forces a fresh start
-      // for this account rather than rendering another account's work.
-      if (parsedStorage.data.ownerClerkId !== clerkId) {
-        return createDefaultWorkflowStorage(defaultProjectName, clerkId)
-      }
-      return parsedStorage.data
-    }
-
-    // v2 snapshots (no ownerClerkId) are accepted only because they live
-    // in the per-user key — there's no cross-account ambiguity. Stamp
-    // the current clerkId on so subsequent writes use the v3 contract.
-    const parsedLegacyV2Storage =
-      NodeWorkflowLegacyV2StorageSchema.safeParse(parsedJson)
-    if (parsedLegacyV2Storage.success) {
-      return {
-        version: NODE_STUDIO_WORKFLOW_STORAGE.version,
-        ownerClerkId: clerkId,
-        currentProjectId: parsedLegacyV2Storage.data.currentProjectId,
-        projects: parsedLegacyV2Storage.data.projects,
-      }
-    }
-
-    const parsedLegacyState = NodeWorkflowStateSchema.safeParse(parsedJson)
-    if (parsedLegacyState.success) {
-      return createWorkflowStorageFromLegacyState(
-        defaultProjectName,
-        {
-          nodes: parsedLegacyState.data.nodes,
-          edges: parsedLegacyState.data.edges,
-        },
-        clerkId,
-      )
-    }
-
-    return createDefaultWorkflowStorage(defaultProjectName, clerkId)
-  } catch {
-    return createDefaultWorkflowStorage(defaultProjectName, clerkId)
-  }
-}
-
-/**
- * 5s of inactivity before pushing the current project state to the server.
- * Long enough that rapid edits collapse into a single PUT; short enough
- * that a crash or tab close loses at most a few seconds of work.
- *
- * Exported so the write-gate tests can drive the exact debounce window
- * instead of hardcoding a second copy of the number.
- */
-export const SERVER_WRITE_DEBOUNCE_MS = 5000
-
-/**
- * Which server call failed. Only ever a log field, but named here so the
- * fire-and-forget call sites can't drift into free-form strings — and so a
- * log search for one of them finds every site that can emit it.
- */
-export const SERVER_WRITE_OPERATIONS = {
-  create: 'create-project',
-  update: 'update-project-state',
-  rename: 'rename-project',
-  delete: 'delete-project',
-  /** The one-time "local projects → server rows" upload on first hydrate. */
-  migrate: 'migrate-local-projects',
-  /**
-   * `lastActiveAt` bump on project switch. Deliberately in its own bucket:
-   * it is the only one of these whose failure costs the user *nothing but a
-   * pointer* — see `switchProject`.
-   */
-  activate: 'activate-project',
-} as const
-
-type ServerWriteOperation =
-  (typeof SERVER_WRITE_OPERATIONS)[keyof typeof SERVER_WRITE_OPERATIONS]
-
-function projectFromServerRecord(
-  record: NodeWorkflowProjectRecord,
-): NodeWorkflowProject {
-  return {
-    id: record.id,
-    name: record.name,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
-    // Hydration migrations are idempotent. The migrated state is held in
-    // memory and persisted back on the next normal write.
-    state: migrateWorkflowState(assertV3State(record.state)),
-  }
-}
-
-// 迁移顺序：③c 客户端翻转后此处改为 upgradeNodeWorkflowStateToV4，v3 分支删除。
-// 服务端读端已透传 v4，而 v3 画布无法消费 v4 状态，必须大声失败而不是兜空。
-function assertV3State(
-  state: NodeWorkflowProjectRecord['state'],
-): NodeWorkflowState {
-  if ('version' in state && state.version === 4) {
-    throw new Error(
-      `node workflow state is v4 but the v3 canvas is still active (C3c-③c pending)`,
-    )
-  }
-  return state
-}
-
-/**
- * One composition point for every post-parse workflow migration. Legacy
- * schemas remain parseable so old projects are never rejected as empty; this
- * function then converts their data to the current runtime model.
- */
-function migrateWorkflowState(state: NodeWorkflowState): NodeWorkflowState {
-  return migrateVoiceClip(
-    migrateRetireFusedNodes(migrateImageRoles(migrateRetirePlanner(state))),
-  )
-}
-
-/**
- * Apply hydration migrations to every project in a storage snapshot.
- * Preserves the snapshot/project reference when nothing changed so an
- * already-migrated load doesn't churn state.
- */
-function migrateStorageProjects(
-  storage: NodeWorkflowStorageSnapshot,
-): NodeWorkflowStorageSnapshot {
-  let changed = false
-  const projects = storage.projects.map((project) => {
-    const migratedState = migrateWorkflowState(project.state)
-    if (migratedState === project.state) return project
-    changed = true
-    return { ...project, state: migratedState }
-  })
-  return changed ? { ...storage, projects } : storage
-}
-
-/**
- * Outcome of one localStorage persist attempt.
- *
- * `skipped` is the *deliberate* no-op (SSR, or the account-isolation guard
- * refusing to stamp one user's snapshot into another's slot) — it must never
- * be reported to the user. The other two are real failures: the local cache
- * stopped working and the user has no way to know unless we say so.
- */
-const WORKFLOW_STORAGE_WRITE_OUTCOMES = {
-  written: 'written',
-  skipped: 'skipped',
-  quotaExceeded: 'quota-exceeded',
-  failed: 'failed',
-} as const
-
-type WorkflowStorageWriteOutcome =
-  (typeof WORKFLOW_STORAGE_WRITE_OUTCOMES)[keyof typeof WORKFLOW_STORAGE_WRITE_OUTCOMES]
-
-function isQuotaExceededError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false
-  return (
-    NODE_STUDIO_WORKFLOW_STORAGE.quotaExceededErrorNames as readonly string[]
-  ).includes(error.name)
-}
-
-/**
- * Persist the whole snapshot (every project, full state) under this user's
- * scoped key.
- *
- * ⚠ This write grows without bound: `MAX_PROJECTS_PER_USER` is 50, a
- * 40-node project serializes to ~70 KB, and Chromium bills localStorage in
- * UTF-16 code units — so a heavy account can walk into the ~5 MB ceiling.
- * When that happens the browser throws and **local persistence simply stops**.
- * The server copy is authoritative (see the server-hydration effect below),
- * so nothing is lost, but the user must be told — this used to be a bare
- * `catch { return }` and the failure was invisible.
- */
-function writeWorkflowStorageToStorage(
-  storage: NodeWorkflowStorageSnapshot,
-  clerkId: string,
-): WorkflowStorageWriteOutcome {
-  if (typeof window === 'undefined') {
-    return WORKFLOW_STORAGE_WRITE_OUTCOMES.skipped
-  }
-
-  // Refuse to persist a snapshot whose owner doesn't match the active
-  // session — that means we're mid-account-switch and the in-memory
-  // state is still the previous user's. Better to drop the write than
-  // to stamp another account's data into this user's slot.
-  if (storage.ownerClerkId !== clerkId) {
-    return WORKFLOW_STORAGE_WRITE_OUTCOMES.skipped
-  }
-
-  // Declared outside the try so the failure log can report how big the
-  // snapshot got. Serialization itself stays inside: a throw there (e.g.
-  // RangeError on an absurd string length) must be logged like any other
-  // persist failure, not escape uncaught from a setTimeout callback.
-  let serialized = ''
-
-  try {
-    serialized = JSON.stringify(storage)
-    window.localStorage.setItem(
-      getNodeStudioWorkflowStorageKey(clerkId),
-      serialized,
-    )
-    return WORKFLOW_STORAGE_WRITE_OUTCOMES.written
-  } catch (error) {
-    const quotaExceeded = isQuotaExceededError(error)
-    logger.error('[node-workflow] localStorage persist failed', {
-      quotaExceeded,
-      errorName: error instanceof Error ? error.name : typeof error,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      projectCount: storage.projects.length,
-      // Character count, not bytes: that's the unit Chromium's quota is
-      // billed in, so this is the number to compare against ~5 MB. `0`
-      // means serialization itself is what failed.
-      snapshotChars: serialized.length,
-    })
-    return quotaExceeded
-      ? WORKFLOW_STORAGE_WRITE_OUTCOMES.quotaExceeded
-      : WORKFLOW_STORAGE_WRITE_OUTCOMES.failed
-  }
-}
-
-/**
- * One-shot cleanup of the pre-v3 global key. v2 and earlier stored every
- * account's workflows under the same un-scoped localStorage slot, so
- * leaving the legacy row in place would keep leaking data into the v3
- * read path if any downstream code ever falls back to it. Run on hook
- * mount, swallow errors — this is purely best-effort.
- */
-function purgeLegacyGlobalStorage(): void {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.removeItem(NODE_STUDIO_WORKFLOW_STORAGE.legacyGlobalKey)
-  } catch {
-    // ignore
-  }
-}
-
 export function useNodeWorkflow({
   defaultProjectName,
   clerkId,
 }: UseNodeWorkflowOptions): UseNodeWorkflowValue {
-  const tToasts = useTranslations('StudioNode.toasts')
+  const store = useNodeWorkflowStore({ defaultProjectName, clerkId })
+  const { commitCurrentProjectState: commitV4, originV3Ref, storageRef } = store
+
   /**
-   * `t` behind a ref so `reportStorageWriteOutcome` can be identity-stable
-   * (`[]` deps). It is listed in the hydration effect's dependencies, and
-   * that effect resets the whole hydrate pipeline when it re-runs — a
-   * reporter that changed identity on every render would re-hydrate the
-   * canvas on every render.
+   * ── v3 投影视图（③d 翻转后整段删）──────────────────────────────────────
+   * 事实是 store 里那份 v4；v3 图引擎（本文件其余部分）与 `NODE_COMPONENTS` 消费
+   * 的是它的投影。⚠ 投影**只在 v4 从外部换掉时**重算（水化 / 切项目 / 撤销以外的
+   * 路径）；引擎自己的每一次改动直接把算好的 v3 结果留下，⛔ 不重投影——重投影会
+   * 让 v4 没有落点的残留字段（`scriptRef` / `referenceAssets`）每敲一个字丢一次。
    */
-  const tToastsRef = useRef(tToasts)
-  /**
-   * 「本地暂存写不进去」一个会话只说一次。本地写入是 400ms 的 debounce——
-   * 不抑制的话配额一满，用户每敲一下键盘就会再吃一次同样的 toast。
-   * 故意不在成功写入后复位：同一次会话里反复提醒同一件事只是噪音。
-   */
-  const hasReportedStorageWriteFailure = useRef(false)
-  const reportStorageWriteOutcome = useCallback(
-    (outcome: WorkflowStorageWriteOutcome) => {
-      if (
-        outcome === WORKFLOW_STORAGE_WRITE_OUTCOMES.written ||
-        outcome === WORKFLOW_STORAGE_WRITE_OUTCOMES.skipped
-      ) {
-        return
-      }
-      if (hasReportedStorageWriteFailure.current) {
-        return
-      }
-      hasReportedStorageWriteFailure.current = true
-      toast.error(
-        outcome === WORKFLOW_STORAGE_WRITE_OUTCOMES.quotaExceeded
-          ? tToastsRef.current('localCacheFull')
-          : tToastsRef.current('localCacheUnavailable'),
-      )
-    },
-    [],
+  const v3ViewRef = useRef<NodeWorkflowState>(EMPTY_NODE_WORKFLOW_STATE)
+  const projectedFrom = useRef<{
+    projectId: string | null
+    stateV4: NodeWorkflowStateV4 | null
+  }>({ projectId: null, stateV4: null })
+  const [v3View, setV3View] = useState<NodeWorkflowState>(
+    EMPTY_NODE_WORKFLOW_STATE,
   )
-  /**
-   * 「云端也保存不上」同样一个会话只弹一次 toast —— 自动保存是 5 秒 debounce，
-   * 断网时不抑制就会每 5 秒复读一次同一句话。日志则**每次都记**：抑制的是
-   * 噪音，不是证据。
-   *
-   * ⚠ 这是 `localCacheFull` / `localCacheUnavailable` 那两句「你的内容仍在
-   * 保存到云端」成立的前提——云端要是也在静默失败，那句话就是假的。
-   *
-   * ⚠ `activate` 故意**不**走这里（见 `switchProject`）：它失败只丢一个
-   * 「下次默认开哪个项目」的指针，共用这个一次性标志会让那种假阳性把后面
-   * 真正的内容写入失败告警一并吃掉。
-   */
-  const hasReportedServerWriteFailure = useRef(false)
-  const reportServerWriteFailure = useCallback(
-    (operation: ServerWriteOperation, error?: string, status?: number) => {
-      logger.error('[node-workflow] server persist failed', {
-        operation,
-        error,
-        status,
-      })
-      if (hasReportedServerWriteFailure.current) {
-        return
-      }
-      hasReportedServerWriteFailure.current = true
-      /**
-       * 台账 V（2026-08-29 真机）：**「服务端拒收 payload」和「连不上服务端」必须
-       * 说成两件事**。此前两条共用「连不上云端…请检查网络连接」，而真机上撞到的是
-       * `Too big: expected string to have <=160 characters, ×3` —— 一条 Zod 校验
-       * 失败被报成网络故障，用户去查网络查不出任何东西，画布却从那一刻起就不再
-       * 落库（整个项目的服务端状态停在最后一次成功写入）。
-       *
-       * 判据是 **4xx**，不是「有没有状态码」：
-       *   · 4xx = 请求到了，服务端说这份 payload 不行（校验失败 / 限流 / 越权）。
-       *     这是**用户这边有东西要改**的唯一一档，把服务端的原话带出来
-       *     （`description`）——它是唯一能指向真因的信息。
-       *   · 5xx 与「压根没响应」归同一档：都不是用户的 payload 的问题，重试是对的
-       *     处置，沿用原文案。
-       */
-      if (typeof status === 'number' && status >= 400 && status < 500) {
-        toast.error(tToastsRef.current('cloudSaveRejected'), {
-          description: error,
-        })
-        return
-      }
-      toast.error(tToastsRef.current('cloudSaveFailed'))
-    },
-    [],
-  )
-  useEffect(() => {
-    tToastsRef.current = tToasts
-  }, [tToasts])
-  const parkedStorage = useMemo(
-    () =>
-      createDefaultWorkflowStorage(defaultProjectName, PARKED_OWNER_CLERK_ID),
-    [defaultProjectName],
-  )
-  const [storageState, setStorageState] =
-    useState<NodeWorkflowStorageSnapshot>(parkedStorage)
-  const [hydrationStatus, setHydrationStatus] = useState<{
-    clerkId: string | null
-    defaultProjectName: string
-    isComplete: boolean
-  }>(() => ({
-    clerkId,
-    defaultProjectName,
-    isComplete: false,
-  }))
   if (
-    hydrationStatus.clerkId !== clerkId ||
-    hydrationStatus.defaultProjectName !== defaultProjectName
+    projectedFrom.current.stateV4 !== store.state ||
+    projectedFrom.current.projectId !== store.currentProject.id
   ) {
-    setHydrationStatus({
-      clerkId,
-      defaultProjectName,
-      isComplete: false,
-    })
+    const sameProject =
+      projectedFrom.current.projectId === store.currentProject.id
+    const previous = sameProject
+      ? v3ViewRef.current
+      : originV3Ref.current.get(store.currentProject.id)
+    const projected = projectV4ToV3View(store.state, previous)
+    projectedFrom.current = {
+      projectId: store.currentProject.id,
+      stateV4: store.state,
+    }
+    v3ViewRef.current = projected
+    // 渲染期同步（React 官方的「派生 state」写法），⛔ 不放 effect 里：放 effect
+    // 里画布会先闪一帧空图。
+    setV3View(projected)
   }
-  const storageRef = useRef<NodeWorkflowStorageSnapshot>(parkedStorage)
-  // Tracks whether we've finished the localStorage hydrate for the
-  // *currently active* clerkId. Cleared whenever clerkId changes so an
-  // account switch reruns the whole hydrate pipeline instead of leaving
-  // the previous user's snapshot on screen.
-  const hasHydrated = useRef(false)
-  const hasPreHydrationMutation = useRef(false)
-  // Which clerkId the in-memory snapshot belongs to. Distinct from
-  // `clerkId` (the prop), which is what Clerk says is current. They
-  // disagree briefly during account switches — we use `loadedForClerkId`
-  // to gate writes so we don't write user A's data into user B's slot.
-  const loadedForClerkId = useRef<string | null>(null)
-  // ── Server hydration (Phase 2 of 7g) ────────────────────────────────
-  // Refs declared up here (instead of next to their effect) so the
-  // clerkId-change effect below can reset them on account switch.
-  const hasServerHydrated = useRef(false)
-  const hasServerMigrationAttempted = useRef(false)
+
   /**
-   * 本会话里**服务端亲口确认存在**的项目 id。只有它们才允许被写回服务端。
+   * ⚠ **唯一写入口**：v3 引擎的改动在这里折回 v4。
    *
-   * 起因是一条数据丢失级的覆写链：`hasServerHydrated` 在 list 请求**失败**、
-   * 回落到 localStorage 之后照样置 true（它管的是「水化流程走完没有」，还带着
-   * `isHydrated` 那套 UI 语义），于是「网络抖一下 + 用户切个项目」就足以让本地
-   * 那份可能陈旧的 state 在 5 秒后整体 PUT 覆盖掉服务端的好副本。
-   *
-   * 这个 Set 回答的是另一个问题：**这一份 state 到底是不是从服务端来的**。
-   * 两个闸各管一件事，都留着，不合并。放 ref 不放 state —— 它只在写入路径上
-   * 被读，进 state 只会白白多一轮渲染。
+   * ⛔ 不重跑 `migrateNodeWorkflowStateToV4`（它会重算稳定名 / 镜号 / createdAt，
+   * 等于每敲一个字把 `@` 提及指向的节点洗一遍）——`writeV3ViewBackToV4` 以 v4 那份
+   * 为底逐字段覆盖，只有**新增**的节点才现造。
    */
-  const serverConfirmedProjectIds = useRef<Set<string>>(new Set())
-  /** 「未确认所以跳过写入」每个项目只警告一次：写入 effect 每次改动都会跑。 */
-  const warnedUnconfirmedProjectIds = useRef<Set<string>>(new Set())
   /**
-   * 「这个项目的空，是用户自己删空的」。服务端的空覆盖闸靠它放行。
-   *
-   * 画布没有「一键清空」入口，清空只能一个个删节点（或撤销回空），这些写入
-   * 全部经过 `setWorkflowStorage`，所以那里是唯一的记账点。项目重新有了节点
-   * 就撤掉记号：那之后再变空，得是**新一次**用户操作说了算。
+   * 「当前项目的 v3 视图」的同步取值。⚠ 必须读 `storageRef`（同步真值）而不是
+   * 渲染期的 `store.state`：同一个 act 批次里 `createProject` + `addNode` 会在
+   * React 还没重渲染时先后发生，读渲染期的那份等于把新节点写进**上一个项目**。
    */
-  const locallyClearedProjectIds = useRef<Set<string>>(new Set())
+  const readV3View = useCallback(() => {
+    const snapshot = storageRef.current
+    const project = getCurrentProject(snapshot, defaultProjectName)
+    if (
+      projectedFrom.current.projectId === project.id &&
+      projectedFrom.current.stateV4 === project.state
+    ) {
+      return v3ViewRef.current
+    }
+    const sameProject = projectedFrom.current.projectId === project.id
+    const previous = sameProject
+      ? v3ViewRef.current
+      : originV3Ref.current.get(project.id)
+    const projected = projectV4ToV3View(project.state, previous)
+    projectedFrom.current = { projectId: project.id, stateV4: project.state }
+    v3ViewRef.current = projected
+    return projected
+  }, [defaultProjectName, originV3Ref, storageRef])
+
+  /**
+   * ⚠ **唯一写入口**：v3 引擎的改动在这里折回 v4。
+   *
+   * ⛔ 不重跑 `migrateNodeWorkflowStateToV4`（它会重算稳定名 / 镜号 / createdAt，
+   * 等于每敲一个字把 `@` 提及指向的节点洗一遍）——`writeV3ViewBackToV4` 以 v4 那份
+   * 为底逐字段覆盖，只有**新增**的节点才现造。
+   */
+  const commitV3State = useCallback(
+    (updater: (currentState: NodeWorkflowState) => NodeWorkflowState) => {
+      const next = updater(readV3View())
+      v3ViewRef.current = next
+      const nextV4 = commitV4((currentV4) =>
+        writeV3ViewBackToV4(next, currentV4),
+      )
+      projectedFrom.current = {
+        projectId: storageRef.current.currentProjectId,
+        stateV4: nextV4,
+      }
+      setV3View(next)
+    },
+    [commitV4, readV3View, storageRef],
+  )
+
   const workflowHistory = useRef<{
     past: NodeWorkflowState[]
     future: NodeWorkflowState[]
@@ -929,53 +451,13 @@ export function useNodeWorkflow({
     })
   }, [])
 
-  const setWorkflowStorage = useCallback(
-    (
-      updater: (
-        currentStorage: NodeWorkflowStorageSnapshot,
-      ) => NodeWorkflowStorageSnapshot,
-    ) => {
-      if (!hasHydrated.current) {
-        hasPreHydrationMutation.current = true
-      }
-
-      const previousStorage = storageRef.current
-      const nextStorage = updater(previousStorage)
-
-      // 记账「用户把当前项目删空了」。只看当前项目，而且只在 currentProjectId
-      // 没变的那些写入里看 —— switchProject / deleteProject 会换掉它，那不是
-      // 「清空」，把它们算进来就等于给空覆盖闸开了后门。
-      const trackedProjectId = nextStorage.currentProjectId
-      if (trackedProjectId === previousStorage.currentProjectId) {
-        const before = previousStorage.projects.find(
-          (project) => project.id === trackedProjectId,
-        )
-        const after = nextStorage.projects.find(
-          (project) => project.id === trackedProjectId,
-        )
-        if (after && after.state.nodes.length > 0) {
-          locallyClearedProjectIds.current.delete(trackedProjectId)
-        } else if (after && before && before.state.nodes.length > 0) {
-          locallyClearedProjectIds.current.add(trackedProjectId)
-        }
-      }
-
-      storageRef.current = nextStorage
-      setStorageState(nextStorage)
-    },
-    [],
-  )
-
   const recordCurrentProjectHistory = useCallback(() => {
     // B2.5：批次进行中 —— 开头已经记过一次账，批内其余写入不再各记一笔。
     if (historySuppressed.current) return
 
-    const currentProjectForHistory = getCurrentProject(
-      storageRef.current,
-      defaultProjectName,
-    )
-    if (historyProjectId.current !== currentProjectForHistory.id) {
-      historyProjectId.current = currentProjectForHistory.id
+    const currentProjectId = storageRef.current.currentProjectId
+    if (historyProjectId.current !== currentProjectId) {
+      historyProjectId.current = currentProjectId
       workflowHistory.current = {
         past: [],
         future: [],
@@ -983,7 +465,10 @@ export function useNodeWorkflow({
       publishHistoryAvailability()
     }
 
-    const previousState = currentProjectForHistory.state
+    // 撤销栈存的是 **v3 视图**：栈里那份原样交回 `commitV3State`，与用户当时
+    // 看到的图逐字段相同。⚠ 撤销一次删除会让被删节点的 v4 独有字段（槽绑定 /
+    // sourceRef）重新按迁移生成——③d 之后撤销栈直接存 v4，这一条随之消失。
+    const previousState = v3ViewRef.current
     const lastState =
       workflowHistory.current.past[workflowHistory.current.past.length - 1]
     if (lastState === previousState) {
@@ -995,307 +480,12 @@ export function useNodeWorkflow({
       future: [],
     }
     publishHistoryAvailability()
-  }, [defaultProjectName, publishHistoryAvailability])
+  }, [publishHistoryAvailability, storageRef])
 
-  // One-shot legacy wipe — runs once per browser session regardless of
-  // who's signed in. Safe to call repeatedly; removeItem on a missing
-  // key is a no-op.
-  useEffect(() => {
-    purgeLegacyGlobalStorage()
-  }, [])
-
-  // Hydrate from the per-user localStorage slot whenever clerkId
-  // changes. When clerkId is null (parked / signed out), drop back to
-  // the empty default and clear all hydration flags so a later sign-in
-  // re-runs the full pipeline cleanly. All state writes happen in a
-  // microtask so React batches a single re-render per clerkId change
-  // instead of a cascading effect → setState → effect loop.
-  useEffect(() => {
-    // Synchronous ref resets are fine — they're not React state, so
-    // they don't trigger renders. We always want subsequent effects in
-    // the same tick to see the cleared values.
-    hasHydrated.current = false
-    hasPreHydrationMutation.current = false
-    hasServerHydrated.current = false
-    hasServerMigrationAttempted.current = false
-    // 换账号 = 换一整套项目 id。上一个账号确认过的 id 在这个账号里什么都不
-    // 证明，留着就等于把账号隔离撕了一个口子。
-    serverConfirmedProjectIds.current = new Set()
-    warnedUnconfirmedProjectIds.current = new Set()
-    locallyClearedProjectIds.current = new Set()
-    if (clerkId === null) {
-      loadedForClerkId.current = null
-    }
-
-    let cancelled = false
-    let preHydrationSaveTimeout: number | undefined
-
-    window.queueMicrotask(() => {
-      if (cancelled) {
-        return
-      }
-
-      if (clerkId === null) {
-        const reset = createDefaultWorkflowStorage(
-          defaultProjectName,
-          PARKED_OWNER_CLERK_ID,
-        )
-        storageRef.current = reset
-        setStorageState(reset)
-        return
-      }
-
-      hasHydrated.current = true
-      loadedForClerkId.current = clerkId
-
-      if (hasPreHydrationMutation.current) {
-        preHydrationSaveTimeout = window.setTimeout(() => {
-          reportStorageWriteOutcome(
-            writeWorkflowStorageToStorage(storageRef.current, clerkId),
-          )
-        }, NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
-        return
-      }
-
-      const hydratedStorage = migrateStorageProjects(
-        readWorkflowStorageFromStorage(defaultProjectName, clerkId),
-      )
-      storageRef.current = hydratedStorage
-      setStorageState(hydratedStorage)
-    })
-
-    return () => {
-      cancelled = true
-      if (preHydrationSaveTimeout !== undefined) {
-        window.clearTimeout(preHydrationSaveTimeout)
-      }
-    }
-    // `reportStorageWriteOutcome` is `useCallback([])` — stable for the life
-    // of the hook, so listing it here cannot re-trigger the hydrate.
-  }, [clerkId, defaultProjectName, reportStorageWriteOutcome])
-
-  useEffect(() => {
-    if (!hasHydrated.current) {
-      return
-    }
-    if (clerkId === null) return
-    if (loadedForClerkId.current !== clerkId) return
-
-    const timeoutId = window.setTimeout(() => {
-      reportStorageWriteOutcome(
-        writeWorkflowStorageToStorage(storageState, clerkId),
-      )
-    }, NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [clerkId, reportStorageWriteOutcome, storageState])
-
-  // Server hydration: once localStorage has settled AND we know who's
-  // signed in, pull the server-side project list. The server is the
-  // source of truth — if it has projects, they replace local state. If
-  // the server is empty, every local project **belonging to this user**
-  // is uploaded once — including the empty bootstrap default, which is
-  // how a brand-new user's very first session gets a server row at all.
-  // Critically, we re-verify `storageRef.current.ownerClerkId === clerkId`
-  // right before the migration POSTs run — that's the seatbelt that stops
-  // a previous account's leftover local state from being uploaded as the
-  // new user's projects.
-  useEffect(() => {
-    if (clerkId === null) return
-    if (hasServerHydrated.current) return
-    if (!hasHydrated.current) return
-    if (loadedForClerkId.current !== clerkId) return
-
-    let cancelled = false
-    const completeHydration = () => {
-      if (cancelled) return
-      hasServerHydrated.current = true
-      setHydrationStatus((current) =>
-        current.clerkId === clerkId &&
-        current.defaultProjectName === defaultProjectName
-          ? { ...current, isComplete: true }
-          : current,
-      )
-    }
-    void (async () => {
-      const response = await listNodeWorkflowProjectsAPI()
-      if (cancelled) return
-
-      // Network or auth failure — silently fall back to localStorage so the
-      // user keeps editing offline. We'll retry sync on the next state
-      // change via the write effect below.
-      if (!response.success || !response.data) {
-        completeHydration()
-        return
-      }
-
-      const serverProjects = response.data
-      const localSnapshot = storageRef.current
-
-      if (serverProjects.length > 0) {
-        // 唯一的登记点之一：这些 id 是服务端刚刚亲口报出来的，之后的写入
-        // 才敢往它们身上 PUT。失败分支（上面那个 early return）**不登记**。
-        for (const project of serverProjects) {
-          serverConfirmedProjectIds.current.add(project.id)
-        }
-        const nextStorage: NodeWorkflowStorageSnapshot = {
-          version: NODE_STUDIO_WORKFLOW_STORAGE.version,
-          ownerClerkId: clerkId,
-          currentProjectId: serverProjects[0].id,
-          projects: serverProjects.map(projectFromServerRecord),
-        }
-        storageRef.current = nextStorage
-        setStorageState(nextStorage)
-        completeHydration()
-        return
-      }
-
-      // Server is empty. Migration is only safe when the local snapshot
-      // is provably owned by the user currently signed in — otherwise
-      // we'd be POSTing a previous account's projects into this account.
-      if (localSnapshot.ownerClerkId !== clerkId) {
-        completeHydration()
-        return
-      }
-
-      // ⚠ 这里**不看**本地有没有内容。原先有一条「空项目（就那个 bootstrap
-      // 默认项目）不值得迁移」的短路，而新用户手里的项目恰恰就是空的 ——
-      // 于是它**从来没有在服务端建过行**：整个第一次会话只活在 localStorage，
-      // 要等到下次进页面、且那时本地已经有内容了，才顺着这条迁移路径上云。
-      // 中间清一次缓存 / 换台设备 / 浏览器崩一次，第一次会话就整段没了。
-      //
-      // 更糟的是安静：下面写入 effect 的 `serverConfirmedProjectIds` 闸会把这
-      // 期间的每一次写入都跳过（这个 id 服务端从没确认过），连原来每 5 秒撞一
-      // 次 404 的动静都没有了。代价是给空项目多发一次 POST，换来的是
-      // 「进过画布 = 云端有它的行」。
-      //
-      // ⚠ 触发条件必须留在「list 成功且返回空」上，不能放宽成「当前项目没被
-      // 确认过就补建」：list **失败**后本地项目同样是未确认状态，但服务端那行
-      // 是存在的，照着补建就是凭空多一行重复项目。
-      if (!hasServerMigrationAttempted.current) {
-        hasServerMigrationAttempted.current = true
-        // 这是**一次性**上传：`hasServerMigrationAttempted` 之后不再重试。
-        // 原来这个循环连返回值都不看 —— 上传全挂 → 下面 refetch 返回空 →
-        // 静默走回本地分支 → 用户以为已经同步了。
-        let migrationFailed = false
-        for (const project of localSnapshot.projects) {
-          const created = await createNodeWorkflowProjectAPI({
-            name: project.name,
-            state: project.state,
-          })
-          if (cancelled) return
-          if (!created.success || !created.data) {
-            migrationFailed = true
-            reportServerWriteFailure(
-              SERVER_WRITE_OPERATIONS.migrate,
-              created.error,
-              created.status,
-            )
-            break
-          }
-        }
-
-        // ⚠ 只在**整批**都上去了之后才做下面那步替换。下面是拿服务端结果
-        // **整体替换本地快照**——只传上去一半就替换，等于把没传成功的那几个
-        // 项目从本地内存里也一并抹掉。宁可让本地那份原样留着，等下次进页面
-        // 重跑迁移（这个标志只是 ref，刷新即复位）。
-        if (!migrationFailed) {
-          // Re-fetch to pick up server-assigned ids, then re-run the hydrate
-          // path so the canvas swaps to the migrated copy.
-          const refetch = await listNodeWorkflowProjectsAPI()
-          if (cancelled) return
-          if (refetch.success && refetch.data && refetch.data.length > 0) {
-            for (const project of refetch.data) {
-              serverConfirmedProjectIds.current.add(project.id)
-            }
-            const nextStorage: NodeWorkflowStorageSnapshot = {
-              version: NODE_STUDIO_WORKFLOW_STORAGE.version,
-              ownerClerkId: clerkId,
-              currentProjectId: refetch.data[0].id,
-              projects: refetch.data.map(projectFromServerRecord),
-            }
-            storageRef.current = nextStorage
-            setStorageState(nextStorage)
-          }
-        }
-      }
-
-      completeHydration()
-    })()
-
-    return () => {
-      cancelled = true
-    }
-    // Re-checked on every state tick so the "wait until localStorage
-    // hydrated" gate eventually opens the server hydrate.
-    // `reportServerWriteFailure` is `useCallback([])` — identity-stable, so
-    // listing it cannot re-trigger the hydrate.
-  }, [clerkId, defaultProjectName, reportServerWriteFailure, storageState])
-
-  // Debounced server write — pushes the CURRENT project's state up every
-  // ~5s of inactivity. We don't push the full snapshot (other projects)
-  // because Inspector edits only touch the current project; non-current
-  // projects only change when the user explicitly switches/renames/deletes
-  // them, and those operations go through their own server calls below.
-  useEffect(() => {
-    if (clerkId === null) return
-    if (!hasServerHydrated.current) return
-    if (storageState.ownerClerkId !== clerkId) return
-
-    const currentId = storageState.currentProjectId
-    const current = storageState.projects.find((p) => p.id === currentId)
-    if (!current) return
-
-    // ⚠ 覆写链的客户端这一头。`hasServerHydrated` 上面那条闸拦不住 list 请求
-    // 失败后的回落——它在失败分支里也会置 true。只有服务端本会话亲口确认过
-    // 的项目才允许被写回去；没确认过就说明手里这份 state 来路不明（陈旧的
-    // localStorage 快照、或干脆是清过站点数据后的空壳），PUT 上去就是拿它
-    // 覆盖服务端那份好的。
-    if (!serverConfirmedProjectIds.current.has(currentId)) {
-      if (!warnedUnconfirmedProjectIds.current.has(currentId)) {
-        warnedUnconfirmedProjectIds.current.add(currentId)
-        logger.warn(
-          '[node-workflow] skipped server write: project not confirmed by the server this session',
-          { projectId: currentId },
-        )
-      }
-      return
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      void updateNodeWorkflowProjectAPI(currentId, {
-        state: current.state,
-        // 服务端默认拒绝「空覆盖非空」。只有本地亲眼看见用户把它删空时才
-        // 放行——见 `locallyClearedProjectIds`。
-        allowEmptyState: locallyClearedProjectIds.current.has(currentId),
-      }).then((response) => {
-        if (!response.success) {
-          reportServerWriteFailure(
-            SERVER_WRITE_OPERATIONS.update,
-            response.error,
-            response.status,
-          )
-        }
-      })
-    }, SERVER_WRITE_DEBOUNCE_MS)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [clerkId, reportServerWriteFailure, storageState])
-
-  const currentProject = useMemo(
-    () => getCurrentProject(storageState, defaultProjectName),
-    [defaultProjectName, storageState],
-  )
-  const state = currentProject.state
-  const isHydrated =
-    clerkId !== null &&
-    hydrationStatus.clerkId === clerkId &&
-    hydrationStatus.defaultProjectName === defaultProjectName &&
-    hydrationStatus.isComplete
-  const projects = useMemo(
-    () => getProjectSummaries(storageState.projects),
-    [storageState.projects],
-  )
+  const currentProject = store.currentProject
+  const state = v3View
+  const isHydrated = store.isHydrated
+  const projects = store.projects
 
   useEffect(() => {
     if (historyProjectId.current === currentProject.id) {
@@ -1313,11 +503,9 @@ export function useNodeWorkflow({
   const commitCurrentProjectState = useCallback(
     (updater: (currentState: NodeWorkflowState) => NodeWorkflowState) => {
       recordCurrentProjectHistory()
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(currentStorage, defaultProjectName, updater),
-      )
+      commitV3State(updater)
     },
-    [defaultProjectName, recordCurrentProjectHistory, setWorkflowStorage],
+    [commitV3State, recordCurrentProjectHistory],
   )
 
   /**
@@ -1396,10 +584,7 @@ export function useNodeWorkflow({
         return []
       }
 
-      const currentState = getCurrentProject(
-        storageRef.current,
-        defaultProjectName,
-      ).state
+      const currentState = v3ViewRef.current
       const sourceNode = currentState.nodes.find(
         (node) => node.id === sourceNodeId,
       )
@@ -1479,316 +664,61 @@ export function useNodeWorkflow({
 
       return nextNodes.map((node) => node.id)
     },
-    [commitCurrentProjectState, defaultProjectName],
+    [commitCurrentProjectState],
   )
 
-  // Gate every server-side effect on (a) Clerk having loaded a user
-  // and (b) the in-memory storage already belonging to that user.
-  // The second condition is what stops mid-account-switch writes from
-  // hitting the new user's row before hydrate finishes.
-  const canCallServerNow = useCallback(() => {
-    if (clerkId === null) return false
-    if (!hasServerHydrated.current) return false
-    if (storageRef.current.ownerClerkId !== clerkId) return false
-    return true
-  }, [clerkId])
-
-  /**
-   * 给一个刚在本地建出来的项目在服务端建行。**每一条「本地凭空多出一个项目」
-   * 的路径都必须走这里**（新建项目、删掉最后一个项目后补的替代项目）。
-   *
-   * Fire-and-forget。成功但 id 不同（服务端自己发 UUID）就把本地 id 改写成服务
-   * 端的，否则后续写入 / activate 打的是一个不存在的行；失败就报出来，本地那份
-   * 继续留着，等下次刷新由服务端水化那条路收拾。
-   *
-   * ⚠ 登记 `serverConfirmedProjectIds` 是这里最要紧的一步（id 变没变都要登记）。
-   * 没登记的项目会被写入 effect 那条「本会话服务端确认过」的闸挡下 —— 每次写入
-   * 直接 return，只留一条用户看不见的 warn，`saveNow` 也直接返回 false 弹「保存
-   * 失败」。用户这一会话画的东西全都不上云。
-   */
-  const createProjectOnServer = useCallback(
-    (project: NodeWorkflowProject) => {
-      void createNodeWorkflowProjectAPI({
-        name: project.name,
-        state: project.state,
-      }).then((response) => {
-        if (!response.success || !response.data) {
-          reportServerWriteFailure(
-            SERVER_WRITE_OPERATIONS.create,
-            response.error,
-            response.status,
-          )
-          return
-        }
-
-        const serverId = response.data.id
-        serverConfirmedProjectIds.current.add(serverId)
-        if (serverId === project.id) return
-
-        setWorkflowStorage((currentStorage) => ({
-          ...currentStorage,
-          currentProjectId:
-            currentStorage.currentProjectId === project.id
-              ? serverId
-              : currentStorage.currentProjectId,
-          projects: currentStorage.projects.map((p) =>
-            p.id === project.id ? { ...p, id: serverId } : p,
-          ),
-        }))
-      })
-    },
-    [reportServerWriteFailure, setWorkflowStorage],
-  )
-
-  const createProject = useCallback(
-    (name: string) => {
-      const timestamp = createWorkflowTimestamp()
-      const normalizedName = normalizeProjectName(name, defaultProjectName)
-      const project = createWorkflowProject(
-        normalizedName,
-        createEmptyWorkflowState(),
-        timestamp,
-      )
-
-      setWorkflowStorage((currentStorage) => ({
-        ...currentStorage,
-        currentProjectId: project.id,
-        projects: [...currentStorage.projects, project],
-      }))
-
-      if (canCallServerNow()) {
-        createProjectOnServer(project)
-      }
-
-      return project.id
-    },
-    [
-      canCallServerNow,
-      createProjectOnServer,
-      defaultProjectName,
-      setWorkflowStorage,
-    ],
-  )
-
-  const switchProject = useCallback(
-    (id: string) => {
-      setWorkflowStorage((currentStorage) => {
-        const targetProject = currentStorage.projects.find(
-          (project) => project.id === id,
-        )
-
-        if (!targetProject) {
-          return currentStorage
-        }
-
-        return {
-          ...currentStorage,
-          currentProjectId: id,
-        }
-      })
-
-      // Bump server lastActiveAt so reopening this account on another
-      // device lands on the just-switched-to project.
-      if (canCallServerNow()) {
-        // ⚠ 只记日志，**不弹 toast**，也**不共用**内容写入那个一次性抑制标志。
-        // 两个理由，缺一不可：
-        // 1. activate 失败丢的只是「下次默认开哪个项目」这个指针，画布内容
-        //    一点风险都没有——套「你的内容没保存」那句话是假警报。
-        // 2. 更要命的是，如果共用一次性标志，这种假阳性会把后面**真正**的
-        //    state 写入失败告警一并吃掉——用户从此再也收不到该收的警报。
-        void activateNodeWorkflowProjectAPI(id).then((response) => {
-          if (!response.success) {
-            logger.error('[node-workflow] server persist failed', {
-              operation: SERVER_WRITE_OPERATIONS.activate,
-              error: response.error,
-            })
-          }
-        })
-      }
-    },
-    [canCallServerNow, setWorkflowStorage],
-  )
-
-  const renameCurrentProject = useCallback(
-    (name: string) => {
-      let renamedId: string | null = null
-      let renamedName: string | null = null
-      setWorkflowStorage((currentStorage) => {
-        const current = getCurrentProject(currentStorage, defaultProjectName)
-        const normalizedName = normalizeProjectName(name, current.name)
-        const updatedAt = createWorkflowTimestamp()
-        renamedId = current.id
-        renamedName = normalizedName
-
-        return {
-          ...currentStorage,
-          currentProjectId: current.id,
-          projects: currentStorage.projects.map((project) =>
-            project.id === current.id
-              ? {
-                  ...project,
-                  name: normalizedName,
-                  updatedAt,
-                }
-              : project,
-          ),
-        }
-      })
-
-      if (canCallServerNow() && renamedId && renamedName) {
-        // 只送 name，不带 state —— 改名不该顺手把画布也推一遍。
-        void updateNodeWorkflowProjectAPI(renamedId, {
-          name: renamedName,
-        }).then((response) => {
-          if (!response.success) {
-            reportServerWriteFailure(
-              SERVER_WRITE_OPERATIONS.rename,
-              response.error,
-              response.status,
-            )
-          }
-        })
-      }
-    },
-    [
-      canCallServerNow,
-      defaultProjectName,
-      reportServerWriteFailure,
-      setWorkflowStorage,
-    ],
-  )
-
-  const deleteProject = useCallback(
-    (id: string): NodeWorkflowProjectSummary | null => {
-      const snapshot = storageRef.current
-      const targetProject = snapshot.projects.find(
-        (project) => project.id === id,
-      )
-
-      if (!targetProject) {
-        return null
-      }
-
-      const remainingProjects = snapshot.projects.filter(
-        (project) => project.id !== id,
-      )
-
-      // 删掉最后一个项目时本地立刻补一个空项目顶上。它必须**在这里**先建出来，
-      // 好走下面 `createProjectOnServer` 那条建行 + 登记 id 的路。
-      //
-      // ⚠ 原先它是在 `setWorkflowStorage` 的 updater 里现造的，没有任何人给它在
-      // 服务端建行：这个新 id 于是从没被服务端确认过，写入 effect 对它的每一次
-      // 写入都 return（只留一条用户看不见的 warn），`saveNow` 直接返回 false 让
-      // 工作台弹「保存失败」。用户删完最后一个项目后接着画的东西整个会话都不
-      // 上云，要等下次刷新、服务端 list 返回空、走一次性迁移路径才补上。
-      const replacementProject =
-        remainingProjects.length === 0
-          ? createWorkflowProject(
-              normalizeProjectName(defaultProjectName, defaultProjectName),
-              createEmptyWorkflowState(),
-            )
-          : null
-
-      setWorkflowStorage((currentStorage) =>
-        replacementProject
-          ? createWorkflowStorageFromProject(
-              replacementProject,
-              currentStorage.ownerClerkId,
-            )
-          : {
-              ...currentStorage,
-              currentProjectId:
-                currentStorage.currentProjectId === id
-                  ? remainingProjects[0].id
-                  : currentStorage.currentProjectId,
-              projects: remainingProjects,
-            },
-      )
-
-      serverConfirmedProjectIds.current.delete(id)
-      warnedUnconfirmedProjectIds.current.delete(id)
-      locallyClearedProjectIds.current.delete(id)
-
-      if (canCallServerNow()) {
-        void deleteNodeWorkflowProjectAPI(id).then((response) => {
-          if (!response.success) {
-            reportServerWriteFailure(
-              SERVER_WRITE_OPERATIONS.delete,
-              response.error,
-              response.status,
-            )
-          }
-        })
-
-        if (replacementProject) {
-          createProjectOnServer(replacementProject)
-        }
-      }
-
-      return getProjectSummaries([targetProject])[0] ?? null
-    },
-    [
-      canCallServerNow,
-      createProjectOnServer,
-      defaultProjectName,
-      reportServerWriteFailure,
-      setWorkflowStorage,
-    ],
-  )
+  const createProject = store.createProject
+  const switchProject = store.switchProject
+  const renameCurrentProject = store.renameCurrentProject
+  const deleteProject = store.deleteProject
 
   const updateNodeData = useCallback(
     (id: string, patch: Partial<NodeWorkflowNodeData>) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => {
-            const nodes = currentState.nodes.map((node) =>
-              node.id === id
-                ? {
-                    ...node,
-                    data: {
-                      ...node.data,
-                      ...patch,
-                    },
-                  }
-                : node,
-            )
-            // owner 2026-08-02：「助手这边只是自动生成，不用助手则用户手动
-            // 输入然后生成 —— 是一种东西」。所以镜头文本不是「助手的产物」，
-            // 是「一镜的文字定义」，助手只是填它的一种方式。
-            //
-            // 由此：投影出来的 shotText 节点（带 scriptRef）在节点上被编辑时
-            // 必须回写 ScriptDoc，否则下一次投影会把用户的修改覆盖掉 —— 那
-            // 不是「保护剧本」，只是两份数据没对齐。手工添加的节点没有
-            // scriptRef（见 NodeWorkflowNodeDataSchema 该字段注释），本来就
-            // 不受投影管辖，这里也自然跳过。
-            //
-            // ⚠ 落点选在这里而不是各个编辑组件里：`scriptDoc` 与 `nodes` 同在
-            // 一个 state 对象上，这一次 setState 就能把两者原子更新，且以后
-            // 任何新增的编辑入口都自动一致，不必各自记得回写。
-            // 画布对齐三梁 · 梁1：镜头时长同一套道理——seedance 节点上的
-            // duration 是「一镜的显式时长」的另一个入口，编辑后必须回写
-            // ScriptDoc，否则下一次投影会把它覆盖掉。链在同一次 setState里，
-            // 两个 sync 函数各自只认自己的节点类型（shotText / seedance），
-            // 互不干扰，串行调用等价于同时生效。
-            const scriptDoc = syncSeedanceDurationPatchToScriptDoc(
-              syncShotTextPatchToScriptDoc(
-                currentState.scriptDoc,
-                currentState.nodes.find((node) => node.id === id),
-                patch,
-              ),
-              currentState.nodes.find((node) => node.id === id),
-              patch,
-            )
-            return scriptDoc === currentState.scriptDoc
-              ? { ...currentState, nodes }
-              : { ...currentState, nodes, scriptDoc }
-          },
-        ),
-      )
+      commitV3State((currentState) => {
+        const nodes = currentState.nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  ...patch,
+                },
+              }
+            : node,
+        )
+        // owner 2026-08-02：「助手这边只是自动生成，不用助手则用户手动
+        // 输入然后生成 —— 是一种东西」。所以镜头文本不是「助手的产物」，
+        // 是「一镜的文字定义」，助手只是填它的一种方式。
+        //
+        // 由此：投影出来的 shotText 节点（带 scriptRef）在节点上被编辑时
+        // 必须回写 ScriptDoc，否则下一次投影会把用户的修改覆盖掉 —— 那
+        // 不是「保护剧本」，只是两份数据没对齐。手工添加的节点没有
+        // scriptRef（见 NodeWorkflowNodeDataSchema 该字段注释），本来就
+        // 不受投影管辖，这里也自然跳过。
+        //
+        // ⚠ 落点选在这里而不是各个编辑组件里：`scriptDoc` 与 `nodes` 同在
+        // 一个 state 对象上，这一次 setState 就能把两者原子更新，且以后
+        // 任何新增的编辑入口都自动一致，不必各自记得回写。
+        // 画布对齐三梁 · 梁1：镜头时长同一套道理——seedance 节点上的
+        // duration 是「一镜的显式时长」的另一个入口，编辑后必须回写
+        // ScriptDoc，否则下一次投影会把它覆盖掉。链在同一次 setState里，
+        // 两个 sync 函数各自只认自己的节点类型（shotText / seedance），
+        // 互不干扰，串行调用等价于同时生效。
+        const scriptDoc = syncSeedanceDurationPatchToScriptDoc(
+          syncShotTextPatchToScriptDoc(
+            currentState.scriptDoc,
+            currentState.nodes.find((node) => node.id === id),
+            patch,
+          ),
+          currentState.nodes.find((node) => node.id === id),
+          patch,
+        )
+        return scriptDoc === currentState.scriptDoc
+          ? { ...currentState, nodes }
+          : { ...currentState, nodes, scriptDoc }
+      })
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitV3State],
   )
 
   // R3-6b §3 每镜覆写: shallow-merges `patch` into the edge's `data`, same
@@ -1798,28 +728,22 @@ export function useNodeWorkflow({
   // `commitCurrentProjectState`, which DOES record history).
   const updateEdgeData = useCallback(
     (id: string, patch: Partial<NodeWorkflowEdgeData>) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({
-            ...currentState,
-            edges: currentState.edges.map((edge) =>
-              edge.id === id
-                ? {
-                    ...edge,
-                    data: {
-                      ...edge.data,
-                      ...patch,
-                    },
-                  }
-                : edge,
-            ),
-          }),
+      commitV3State((currentState) => ({
+        ...currentState,
+        edges: currentState.edges.map((edge) =>
+          edge.id === id
+            ? {
+                ...edge,
+                data: {
+                  ...edge.data,
+                  ...patch,
+                },
+              }
+            : edge,
         ),
-      )
+      }))
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitV3State],
   )
 
   const deleteNode = useCallback(
@@ -1837,10 +761,7 @@ export function useNodeWorkflow({
 
   const deleteEdge = useCallback(
     (id: string) => {
-      const currentState = getCurrentProject(
-        storageRef.current,
-        defaultProjectName,
-      ).state
+      const currentState = v3ViewRef.current
       if (!currentState.edges.some((edge) => edge.id === id)) {
         return
       }
@@ -1850,91 +771,67 @@ export function useNodeWorkflow({
         edges: latestState.edges.filter((edge) => edge.id !== id),
       }))
     },
-    [commitCurrentProjectState, defaultProjectName],
+    [commitCurrentProjectState],
   )
 
   const setScriptDoc = useCallback(
     (scriptDoc: ScriptDoc | undefined) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({
-            ...currentState,
-            scriptDoc,
-          }),
-        ),
-      )
+      commitV3State((currentState) => ({
+        ...currentState,
+        scriptDoc,
+      }))
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitV3State],
   )
 
   const setCanvasAppearance = useCallback(
     (value: CanvasAppearance | undefined) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({
-            ...currentState,
-            canvasAppearance: value,
-          }),
-        ),
-      )
+      commitV3State((currentState) => ({
+        ...currentState,
+        canvasAppearance: value,
+      }))
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitV3State],
   )
 
   const setScriptDocStage = useCallback(
     (value: ScriptDocStage) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({ ...currentState, scriptDocStage: value }),
-        ),
-      )
+      commitV3State((currentState) => ({
+        ...currentState,
+        scriptDocStage: value,
+      }))
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitV3State],
   )
 
   const setScriptDocDepth = useCallback(
     (value: ScriptDocDepth) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({ ...currentState, scriptDocDepth: value }),
-        ),
-      )
+      commitV3State((currentState) => ({
+        ...currentState,
+        scriptDocDepth: value,
+      }))
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitV3State],
   )
 
   const setScriptDocLocks = useCallback(
     (value: string[]) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({ ...currentState, scriptDocLocks: value }),
-        ),
-      )
+      commitV3State((currentState) => ({
+        ...currentState,
+        scriptDocLocks: value,
+      }))
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitV3State],
   )
 
   const setScriptDocShotStills = useCallback(
     (value: boolean) => {
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({ ...currentState, scriptDocShotStills: value }),
-        ),
-      )
+      commitV3State((currentState) => ({
+        ...currentState,
+        scriptDocShotStills: value,
+      }))
     },
-    [defaultProjectName, setWorkflowStorage],
+    [commitV3State],
   )
 
   /**
@@ -1950,10 +847,7 @@ export function useNodeWorkflow({
    * 但别把预览结果缓存起来当成实投的结果用。
    */
   const previewScriptDocProjection = useCallback((): ApplyScriptDocResult => {
-    const currentState = getCurrentProject(
-      storageRef.current,
-      defaultProjectName,
-    ).state
+    const currentState = v3ViewRef.current
     const scriptDoc = currentState.scriptDoc
     if (!scriptDoc) {
       return {
@@ -1990,7 +884,7 @@ export function useNodeWorkflow({
       removedEdges: result.edgesToRemove.length,
       refusal: null,
     }
-  }, [defaultProjectName])
+  }, [])
 
   /**
    * Project the current project's ScriptDoc into the graph. Reads the latest
@@ -1999,10 +893,7 @@ export function useNodeWorkflow({
    * `patchCurrentProjectState`. Re-running with the same doc is a no-op.
    */
   const applyScriptDocToGraph = useCallback((): ApplyScriptDocResult => {
-    const currentState = getCurrentProject(
-      storageRef.current,
-      defaultProjectName,
-    ).state
+    const currentState = v3ViewRef.current
     const scriptDoc = currentState.scriptDoc
     if (!scriptDoc) {
       return {
@@ -2089,14 +980,11 @@ export function useNodeWorkflow({
       removedEdges: result.removedEdges,
       refusal: null,
     }
-  }, [commitCurrentProjectState, defaultProjectName])
+  }, [commitCurrentProjectState])
 
   const getOutgoingTargetByType = useCallback(
     (sourceId: string, targetType: NodeWorkflowNodeType) => {
-      const currentState = getCurrentProject(
-        storageRef.current,
-        defaultProjectName,
-      ).state
+      const currentState = v3ViewRef.current
       for (const edge of currentState.edges) {
         if (edge.source !== sourceId) {
           continue
@@ -2113,7 +1001,7 @@ export function useNodeWorkflow({
 
       return null
     },
-    [defaultProjectName],
+    [],
   )
 
   const onNodesChange = useCallback<OnNodesChange<NodeWorkflowNode>>(
@@ -2125,18 +1013,12 @@ export function useNodeWorkflow({
         recordCurrentProjectHistory()
       }
 
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({
-            ...currentState,
-            nodes: applyNodeChanges(changes, currentState.nodes),
-          }),
-        ),
-      )
+      commitV3State((currentState) => ({
+        ...currentState,
+        nodes: applyNodeChanges(changes, currentState.nodes),
+      }))
     },
-    [defaultProjectName, recordCurrentProjectHistory, setWorkflowStorage],
+    [recordCurrentProjectHistory, commitV3State],
   )
 
   const onEdgesChange = useCallback<OnEdgesChange<NodeWorkflowEdge>>(
@@ -2148,43 +1030,21 @@ export function useNodeWorkflow({
         recordCurrentProjectHistory()
       }
 
-      setWorkflowStorage((currentStorage) =>
-        patchCurrentProjectState(
-          currentStorage,
-          defaultProjectName,
-          (currentState) => ({
-            ...currentState,
-            edges: applyEdgeChanges(changes, currentState.edges),
-          }),
-        ),
-      )
+      commitV3State((currentState) => ({
+        ...currentState,
+        edges: applyEdgeChanges(changes, currentState.edges),
+      }))
     },
-    [defaultProjectName, recordCurrentProjectHistory, setWorkflowStorage],
+    [recordCurrentProjectHistory, commitV3State],
   )
 
-  const saveNow = useCallback(async (): Promise<boolean> => {
-    if (!canCallServerNow()) return false
-    const snapshot = storageRef.current
-    const currentId = snapshot.currentProjectId
-    const current = snapshot.projects.find((p) => p.id === currentId)
-    if (!current) return false
-    // 手动保存走同一条闸。服务端水化失败时，用户手里这份 state 同样来路不明
-    // ——「手动点的」不代表它比服务端那份新。这里返回 false，调用方
-    // （StudioNodeWorkbench 的保存按钮）会照常弹「保存失败」，所以是**可见**
-    // 的拒绝，不是静默吞掉。
-    if (!serverConfirmedProjectIds.current.has(currentId)) {
-      logger.warn(
-        '[node-workflow] skipped manual save: project not confirmed by the server this session',
-        { projectId: currentId },
-      )
-      return false
-    }
-    const response = await updateNodeWorkflowProjectAPI(currentId, {
-      state: current.state,
-      allowEmptyState: locallyClearedProjectIds.current.has(currentId),
-    })
-    return response.success
-  }, [canCallServerNow])
+  const saveNow = store.saveNow
+  const setStateV4 = useCallback(
+    (next: NodeWorkflowStateV4) => {
+      commitV4(() => next)
+    },
+    [commitV4],
+  )
 
   const tidyLayout = useCallback(() => {
     commitCurrentProjectState((currentState) => ({
@@ -2231,27 +1091,18 @@ export function useNodeWorkflow({
       return
     }
 
-    const currentState = getCurrentProject(
-      storageRef.current,
-      defaultProjectName,
-    ).state
+    const currentState = v3ViewRef.current
     workflowHistory.current = {
       past: workflowHistory.current.past.slice(0, -1),
       future: [currentState, ...workflowHistory.current.future.slice(0, 49)],
     }
     isRestoringHistory.current = true
     publishHistoryAvailability()
-    setWorkflowStorage((currentStorage) =>
-      patchCurrentProjectState(
-        currentStorage,
-        defaultProjectName,
-        () => previousState,
-      ),
-    )
+    commitV3State(() => previousState)
     window.setTimeout(() => {
       isRestoringHistory.current = false
     }, 300)
-  }, [defaultProjectName, publishHistoryAvailability, setWorkflowStorage])
+  }, [publishHistoryAvailability, commitV3State])
 
   const redo = useCallback(() => {
     const [nextState, ...remainingFuture] = workflowHistory.current.future
@@ -2259,32 +1110,26 @@ export function useNodeWorkflow({
       return
     }
 
-    const currentState = getCurrentProject(
-      storageRef.current,
-      defaultProjectName,
-    ).state
+    const currentState = v3ViewRef.current
     workflowHistory.current = {
       past: [...workflowHistory.current.past.slice(-49), currentState],
       future: remainingFuture,
     }
     isRestoringHistory.current = true
     publishHistoryAvailability()
-    setWorkflowStorage((currentStorage) =>
-      patchCurrentProjectState(
-        currentStorage,
-        defaultProjectName,
-        () => nextState,
-      ),
-    )
+    commitV3State(() => nextState)
     window.setTimeout(() => {
       isRestoringHistory.current = false
     }, 300)
-  }, [defaultProjectName, publishHistoryAvailability, setWorkflowStorage])
+  }, [publishHistoryAvailability, commitV3State])
 
   return useMemo(
     () => ({
       isHydrated,
       state,
+      stateV4: store.state,
+      setStateV4,
+      readOnlyReason: store.readOnlyReason,
       scriptDoc: state.scriptDoc,
       canvasAppearance: state.canvasAppearance,
       scriptDocStage: state.scriptDocStage,
@@ -2346,6 +1191,9 @@ export function useNodeWorkflow({
       previewScriptDocProjection,
       runAsSingleHistoryStep,
       projects,
+      setStateV4,
+      store.readOnlyReason,
+      store.state,
       redo,
       renameCurrentProject,
       saveNow,

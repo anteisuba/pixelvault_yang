@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   getNodeStudioWorkflowStorageKey,
-  NODE_STUDIO_AGENT_MODE_IDS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_NODE_PLACEMENT,
@@ -12,20 +11,21 @@ import {
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
+  NODE_IMAGE_ROLE_IDS,
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
-import { NodeWorkflowStorageSchema } from '@/types/node-workflow'
+import { NodeWorkflowStorageV4Schema } from '@/types/node-workflow'
 import type { CanvasDerivedImageOutput } from '@/types/canvas-image-edit'
 import type { ScriptBreakdownResult } from '@/types/script-breakdown'
 
 import {
   SERVER_WRITE_DEBOUNCE_MS,
   SERVER_WRITE_OPERATIONS,
-  useNodeWorkflow,
-} from './use-node-workflow'
+} from './use-node-workflow-store'
+import { useNodeWorkflow } from './use-node-workflow'
 
 // The hook only reaches for i18n + toast on one path: the alarm it raises
 // when localStorage persistence stops working. `translate` is created once
@@ -165,7 +165,8 @@ function readStoredStorage(clerkId: string = TEST_CLERK_ID) {
     getNodeStudioWorkflowStorageKey(clerkId),
   )
   expect(raw).not.toBeNull()
-  return NodeWorkflowStorageSchema.parse(JSON.parse(raw ?? '{}') as unknown)
+  // ⚠ C3c-③c：本地暂存写的是 **v4** 快照（`projects[].state.version === 4`）。
+  return NodeWorkflowStorageV4Schema.parse(JSON.parse(raw ?? '{}') as unknown)
 }
 
 function readStoredCurrentState() {
@@ -175,7 +176,7 @@ function readStoredCurrentState() {
   )
 
   expect(currentProject).toBeDefined()
-  return currentProject?.state ?? { nodes: [], edges: [] }
+  return currentProject?.state ?? { version: 4 as const, nodes: [], edges: [] }
 }
 
 // ── Server-write test rig ────────────────────────────────────────────────
@@ -201,14 +202,16 @@ function serverProjectRecord(
   overrides: Partial<{
     id: string
     name: string
-    state: { nodes: unknown[]; edges: unknown[] }
+    state: { version?: number; nodes: unknown[]; edges: unknown[] }
   }> = {},
 ) {
   return {
     id: 'srv_project_1',
     userId: 'db_user_1',
     name: 'Server project',
-    state: { nodes: [], edges: [] },
+    // ⚠ C3c-③c：服务端的常态是 v4。v3 记录走的是**另一条**路（备份门 + 升级），
+    // 那条路有它自己的用例，别让每个用例都顺带触发一次备份 POST。
+    state: { version: 4, nodes: [], edges: [] },
     lastActiveAt: '2026-08-25T00:00:00.000Z',
     createdAt: '2026-08-25T00:00:00.000Z',
     updatedAt: '2026-08-25T00:00:00.000Z',
@@ -216,11 +219,18 @@ function serverProjectRecord(
   }
 }
 
+/**
+ * ⚠ 用 `image`+role 而不是 `shotText`：③c 之后 v3 引擎看到的是 v4 的投影，
+ * 而 `shotText` 的四栏正文在 v4 里合成一段 `body`，投影回来只落第一栏
+ * （见 `node-workflow-v3-view.ts` 的头注）。`image` 的 `prompt` 是逐字段直映，
+ * 用它来钉「水化把提示词带回来了」才不会把投影的已知合并当成 bug。
+ */
 const HYDRATED_NODE = {
   id: 'node-hydrated',
-  type: NODE_TYPE_IDS.shotText,
+  type: NODE_TYPE_IDS.image,
   position: FIRST_POSITION,
   data: {
+    role: NODE_IMAGE_ROLE_IDS.shot,
     prompt: 'Hydrated prompt',
     status: NODE_STATUS_IDS.idle,
   },
@@ -233,6 +243,11 @@ interface ServerFetchHandlers {
   post?: () => Response
   /** POST /projects/:id/activate — the `lastActiveAt` pointer bump. */
   activate?: () => Response
+  /**
+   * POST /api/studio/node-workflow/:id/backup —— v3→v4 升级的**备份门**
+   * （C3c-③c）。默认成功；返回失败的 handler 让「备份失败 = 只读」那条路可测。
+   */
+  backup?: () => Response
 }
 
 function stubServerFetch(handlers: ServerFetchHandlers) {
@@ -254,6 +269,20 @@ function stubServerFetch(handlers: ServerFetchHandlers) {
       )
     }
     if (method === 'POST') {
+      if (String(input).endsWith('/backup')) {
+        return Promise.resolve(
+          handlers.backup?.() ??
+            jsonResponse({
+              success: true,
+              data: {
+                key: `backups/node-workflow-v3/x/${calls.length}.json`,
+                url: 'https://cdn.example.com/backup.json',
+                nodeCount: 0,
+                edgeCount: 0,
+              },
+            }),
+        )
+      }
       const handler = String(input).endsWith('/activate')
         ? (handlers.activate ?? handlers.post)
         : handlers.post
@@ -269,7 +298,14 @@ function stubServerFetch(handlers: ServerFetchHandlers) {
     putCalls: () => calls.filter((call) => call.method === 'PUT'),
     createCalls: () =>
       calls.filter(
-        (call) => call.method === 'POST' && !call.url.endsWith('/activate'),
+        (call) =>
+          call.method === 'POST' &&
+          !call.url.endsWith('/activate') &&
+          !call.url.endsWith('/backup'),
+      ),
+    backupCalls: () =>
+      calls.filter(
+        (call) => call.method === 'POST' && call.url.endsWith('/backup'),
       ),
     listCalls: () => calls.filter((call) => call.method === 'GET'),
   }
@@ -432,18 +468,23 @@ describe('useNodeWorkflow', () => {
     expect(result.current.state).not.toHaveProperty('canvasAppearance')
   })
 
-  it('adds a composer node with default data', () => {
+  /**
+   * ⚠ C3c-③c：`composer` / `agent` 是**退役类型**，v4 里没有落点，写回时整节点
+   * 被剥除（与 `migrateNodeWorkflowStateToV4` 同一条规则）。它们本来就没有 UI
+   * 入口，所以这里改用还活着的类型 —— 断言的是「新建节点带默认数据」这件事。
+   */
+  it('adds a node with default data', () => {
     const { result } = renderNodeWorkflowHook()
 
     let nodeId = ''
     act(() => {
-      nodeId = result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      nodeId = result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
 
     expect(result.current.nodes).toHaveLength(1)
     expect(result.current.nodes[0]).toMatchObject({
       id: nodeId,
-      type: NODE_TYPE_IDS.composer,
+      type: NODE_TYPE_IDS.image,
       position: FIRST_POSITION,
       data: {
         prompt: '',
@@ -452,19 +493,18 @@ describe('useNodeWorkflow', () => {
     })
   })
 
-  it('adds an agent node with default data', () => {
+  it('adds a voice node with default data', () => {
     const { result } = renderNodeWorkflowHook()
 
     act(() => {
-      result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.voice, SECOND_POSITION)
     })
 
     expect(result.current.nodes[0]).toMatchObject({
-      type: NODE_TYPE_IDS.agent,
+      type: NODE_TYPE_IDS.voice,
       position: SECOND_POSITION,
       data: {
         prompt: '',
-        agentMode: NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown,
         status: NODE_STATUS_IDS.idle,
       },
     })
@@ -553,7 +593,7 @@ describe('useNodeWorkflow', () => {
 
     let nodeId = ''
     act(() => {
-      nodeId = result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      nodeId = result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
       result.current.updateNodeData(nodeId, { prompt: 'A quiet studio' })
     })
 
@@ -831,8 +871,8 @@ describe('useNodeWorkflow', () => {
     let sourceId = ''
     let targetId = ''
     act(() => {
-      sourceId = result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
-      targetId = result.current.addNode(NODE_TYPE_IDS.composer, SECOND_POSITION)
+      sourceId = result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+      targetId = result.current.addNode(NODE_TYPE_IDS.image, SECOND_POSITION)
       result.current.onConnect({
         source: sourceId,
         target: targetId,
@@ -851,7 +891,7 @@ describe('useNodeWorkflow', () => {
 
     let nodeId = ''
     act(() => {
-      nodeId = result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      nodeId = result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
 
     act(() => {
@@ -897,8 +937,8 @@ describe('useNodeWorkflow', () => {
     let sourceId = ''
     let targetId = ''
     act(() => {
-      sourceId = result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
-      targetId = result.current.addNode(NODE_TYPE_IDS.composer, SECOND_POSITION)
+      sourceId = result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+      targetId = result.current.addNode(NODE_TYPE_IDS.image, SECOND_POSITION)
     })
 
     const connection: Connection = {
@@ -927,8 +967,8 @@ describe('useNodeWorkflow', () => {
     let targetId = ''
     let edgeId = ''
     act(() => {
-      sourceId = result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
-      targetId = result.current.addNode(NODE_TYPE_IDS.composer, SECOND_POSITION)
+      sourceId = result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+      targetId = result.current.addNode(NODE_TYPE_IDS.image, SECOND_POSITION)
       result.current.onConnect({
         source: sourceId,
         target: targetId,
@@ -961,7 +1001,7 @@ describe('useNodeWorkflow', () => {
     const { result } = renderNodeWorkflowHook()
 
     act(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
 
     act(() => {
@@ -979,8 +1019,8 @@ describe('useNodeWorkflow', () => {
     let sourceId = ''
     let agentId = ''
     act(() => {
-      sourceId = result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
-      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+      sourceId = result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+      agentId = result.current.addNode(NODE_TYPE_IDS.voice, SECOND_POSITION)
       result.current.onConnect({
         source: sourceId,
         target: agentId,
@@ -990,10 +1030,10 @@ describe('useNodeWorkflow', () => {
     })
 
     expect(
-      result.current.getOutgoingTargetByType(sourceId, NODE_TYPE_IDS.agent)?.id,
+      result.current.getOutgoingTargetByType(sourceId, NODE_TYPE_IDS.voice)?.id,
     ).toBe(agentId)
     expect(
-      result.current.getOutgoingTargetByType(agentId, NODE_TYPE_IDS.agent),
+      result.current.getOutgoingTargetByType(agentId, NODE_TYPE_IDS.voice),
     ).toBeNull()
   })
 
@@ -1006,10 +1046,7 @@ describe('useNodeWorkflow', () => {
     let secondNodeId = ''
     act(() => {
       firstProjectId = result.current.currentProjectId
-      firstNodeId = result.current.addNode(
-        NODE_TYPE_IDS.composer,
-        FIRST_POSITION,
-      )
+      firstNodeId = result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
       secondProjectId = result.current.createProject('Storyboard pass')
     })
 
@@ -1019,7 +1056,7 @@ describe('useNodeWorkflow', () => {
 
     act(() => {
       secondNodeId = result.current.addNode(
-        NODE_TYPE_IDS.agent,
+        NODE_TYPE_IDS.voice,
         SECOND_POSITION,
       )
       result.current.switchProject(firstProjectId)
@@ -1068,7 +1105,7 @@ describe('useNodeWorkflow', () => {
 
     let deletedNodeCount = 0
     act(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
       deletedNodeCount =
         result.current.deleteProject(result.current.currentProjectId)
           ?.nodeCount ?? 0
@@ -1092,9 +1129,9 @@ describe('useNodeWorkflow', () => {
     let secondProjectId = ''
     act(() => {
       firstProjectId = result.current.currentProjectId
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
       secondProjectId = result.current.createProject('Second workflow')
-      result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.voice, SECOND_POSITION)
     })
 
     act(() => {
@@ -1142,9 +1179,10 @@ describe('useNodeWorkflow', () => {
               nodes: [
                 {
                   id: 'node-hydrated',
-                  type: NODE_TYPE_IDS.shotText,
+                  type: NODE_TYPE_IDS.image,
                   position: FIRST_POSITION,
                   data: {
+                    role: NODE_IMAGE_ROLE_IDS.shot,
                     prompt: 'Hydrated prompt',
                     status: NODE_STATUS_IDS.idle,
                   },
@@ -1238,9 +1276,10 @@ describe('useNodeWorkflow', () => {
               nodes: [
                 {
                   id: 'node-kept',
-                  type: NODE_TYPE_IDS.shotText,
+                  type: NODE_TYPE_IDS.image,
                   position: FIRST_POSITION,
                   data: {
+                    role: NODE_IMAGE_ROLE_IDS.shot,
                     prompt: 'Keep this node',
                     status: NODE_STATUS_IDS.idle,
                   },
@@ -1304,9 +1343,13 @@ describe('useNodeWorkflow', () => {
                 },
                 {
                   id: 'shot-keep',
-                  type: NODE_TYPE_IDS.shotText,
+                  type: NODE_TYPE_IDS.image,
                   position: MOVED_POSITION,
-                  data: { prompt: 'keep me', status: NODE_STATUS_IDS.idle },
+                  data: {
+                    role: NODE_IMAGE_ROLE_IDS.shot,
+                    prompt: 'keep me',
+                    status: NODE_STATUS_IDS.idle,
+                  },
                 },
               ],
               edges: [
@@ -1323,9 +1366,9 @@ describe('useNodeWorkflow', () => {
     await waitFor(() => {
       expect(result.current.currentProjectName).toBe('Legacy planner')
     })
-    // composer + agent stripped; only the surviving shotText node remains.
+    // composer + agent stripped; only the surviving image node remains.
     expect(result.current.nodes.map((node) => node.type)).toEqual([
-      NODE_TYPE_IDS.shotText,
+      NODE_TYPE_IDS.image,
     ])
     // the dangling composer→agent edge is removed with its nodes.
     expect(result.current.edges).toHaveLength(0)
@@ -1416,9 +1459,10 @@ describe('useNodeWorkflow', () => {
         nodes: [
           {
             id: 'node-existing',
-            type: NODE_TYPE_IDS.shotText,
+            type: NODE_TYPE_IDS.image,
             position: FIRST_POSITION,
             data: {
+              role: NODE_IMAGE_ROLE_IDS.shot,
               prompt: 'Stored prompt',
               status: NODE_STATUS_IDS.idle,
             },
@@ -1485,7 +1529,7 @@ describe('useNodeWorkflow', () => {
     })
 
     act(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
 
     act(() => {
@@ -1515,7 +1559,7 @@ describe('useNodeWorkflow', () => {
     })
 
     act(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     act(() => {
       vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
@@ -1545,7 +1589,7 @@ describe('useNodeWorkflow', () => {
     })
 
     act(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     act(() => {
       vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
@@ -1566,7 +1610,7 @@ describe('useNodeWorkflow', () => {
     })
 
     act(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     act(() => {
       vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
@@ -1594,7 +1638,7 @@ describe('useNodeWorkflow', () => {
     // would be three toasts (and in real use, one per keystroke).
     for (const position of [FIRST_POSITION, SECOND_POSITION, MOVED_POSITION]) {
       act(() => {
-        result.current.addNode(NODE_TYPE_IDS.composer, position)
+        result.current.addNode(NODE_TYPE_IDS.image, position)
       })
       act(() => {
         vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
@@ -1617,7 +1661,7 @@ describe('useNodeWorkflow', () => {
     })
 
     act(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     act(() => {
       vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs + 10)
@@ -1638,7 +1682,7 @@ describe('useNodeWorkflow', () => {
     })
 
     act(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
 
     act(() => {
@@ -1661,7 +1705,7 @@ describe('useNodeWorkflow', () => {
       await Promise.resolve()
     })
     act(() => {
-      userARender.result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      userARender.result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     act(() => {
       vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
@@ -1775,7 +1819,7 @@ describe('useNodeWorkflow', () => {
     expect(result.current.isHydrated).toBe(true)
 
     mutateAndFlushServerWrite(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
 
     // ……但**一个字节都不许写回服务端**：手里这份 state 来路不明。
@@ -1788,7 +1832,7 @@ describe('useNodeWorkflow', () => {
 
     // 每次改动写入 effect 都会重跑——警告只能响一次，否则等于把日志刷爆。
     mutateAndFlushServerWrite(() => {
-      result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.voice, SECOND_POSITION)
     })
     expect(putCalls()).toHaveLength(0)
     expect(loggerWarnMock).toHaveBeenCalledTimes(1)
@@ -1801,7 +1845,7 @@ describe('useNodeWorkflow', () => {
     })
 
     mutateAndFlushServerWrite(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
 
     const writes = putCalls()
@@ -1811,6 +1855,99 @@ describe('useNodeWorkflow', () => {
       1,
     )
     expect(loggerWarnMock).not.toHaveBeenCalled()
+  })
+
+  // ─── C3c-③c · 存储翻转：v3 → 备份 → 升级 → 只写 v4 ──────────────────────
+  //
+  // 顺序纪律（`node-workflow-v4-upgrade.ts` 的头注）：**备份成功才允许写 v4**。
+  // 静默失败等于用户的 v3 原件在 5 秒后被防抖写入覆盖且没有退路。
+
+  const V3_SERVER_NODE = {
+    id: 'node-legacy',
+    type: NODE_TYPE_IDS.image,
+    position: FIRST_POSITION,
+    data: {
+      role: NODE_IMAGE_ROLE_IDS.character,
+      characterName: '西格莉卡',
+      prompt: 'legacy prompt',
+      status: NODE_STATUS_IDS.idle,
+    },
+  }
+
+  it('读到 v3 就先备份再升级，随后的写入是 v4', async () => {
+    const { result, putCalls, backupCalls } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({
+          success: true,
+          data: [
+            serverProjectRecord({
+              state: { nodes: [V3_SERVER_NODE], edges: [] },
+            }),
+          ],
+        }),
+    })
+
+    // ① 备份先发，且打在这个项目上。
+    expect(backupCalls()).toHaveLength(1)
+    expect(backupCalls()[0]?.url).toContain('srv_project_1')
+    // ② 画布看到的仍是 v3 视图（③d 之前不换渲染）。
+    expect(result.current.nodes.map((node) => node.id)).toEqual(['node-legacy'])
+    expect(result.current.nodes[0]?.data.characterName).toBe('西格莉卡')
+    // ③ 但事实已经是 v4。
+    expect(result.current.stateV4.version).toBe(4)
+    expect(result.current.readOnlyReason).toBeNull()
+
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.image, SECOND_POSITION)
+    })
+
+    const writes = putCalls()
+    expect(writes).toHaveLength(1)
+    const written = writes[0]?.body?.state as {
+      version?: number
+      nodes: { id: string }[]
+    }
+    expect(written.version).toBe(4)
+    expect(written.nodes).toHaveLength(2)
+  })
+
+  it('备份失败就不升级、不写、明确告诉用户是只读', async () => {
+    const { result, putCalls, backupCalls } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({
+          success: true,
+          data: [
+            serverProjectRecord({
+              state: { nodes: [V3_SERVER_NODE], edges: [] },
+            }),
+          ],
+        }),
+      backup: () => jsonResponse({ success: false, error: 'R2 down' }, 500),
+    })
+
+    expect(backupCalls()).toHaveLength(1)
+    expect(result.current.readOnlyReason).toBe('backupFailed')
+    // 用户看得见：一句话的 toast，不是只在 console 里。
+    expect(toastErrorMock).toHaveBeenCalledWith('v3UpgradeReadOnly')
+
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.image, SECOND_POSITION)
+    })
+
+    // ⛔ 一个字都没写回去 —— 库里那份 v3 原件还没有保险。
+    expect(putCalls()).toHaveLength(0)
+    await expect(result.current.saveNow()).resolves.toBe(false)
+  })
+
+  it('读到 v4 直接用，⛔ 不再打备份', async () => {
+    const { result, backupCalls } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({ success: true, data: [serverProjectRecord()] }),
+    })
+
+    expect(backupCalls()).toHaveLength(0)
+    expect(result.current.stateV4.version).toBe(4)
+    expect(result.current.readOnlyReason).toBeNull()
   })
 
   it('does not carry one account’s confirmed ids into the next sign-in', async () => {
@@ -1841,7 +1978,7 @@ describe('useNodeWorkflow', () => {
 
     const secondAccountFetch = vi.mocked(globalThis.fetch)
     mutateAndFlushServerWrite(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
 
     const writeCalls = secondAccountFetch.mock.calls.filter(
@@ -1875,7 +2012,7 @@ describe('useNodeWorkflow', () => {
 
     // 重新有了节点，记号就得撤掉：之后再变空得是**新一次**用户操作说了算。
     mutateAndFlushServerWrite(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, SECOND_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, SECOND_POSITION)
     })
     expect(putCalls().at(-1)?.body?.allowEmptyState).toBe(false)
   })
@@ -1908,7 +2045,7 @@ describe('useNodeWorkflow', () => {
     })
 
     mutateAndFlushServerWrite(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     await waitFor(() => expect(serverPersistErrorCalls()).toHaveLength(1))
 
@@ -1922,7 +2059,7 @@ describe('useNodeWorkflow', () => {
     // toast 只此一次（否则断网时每 5 秒复读一遍）。
     for (const position of [SECOND_POSITION, MOVED_POSITION]) {
       mutateAndFlushServerWrite(() => {
-        result.current.addNode(NODE_TYPE_IDS.agent, position)
+        result.current.addNode(NODE_TYPE_IDS.voice, position)
       })
     }
     await waitFor(() => expect(serverPersistErrorCalls()).toHaveLength(3))
@@ -1943,7 +2080,7 @@ describe('useNodeWorkflow', () => {
     })
 
     mutateAndFlushServerWrite(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     await waitFor(() => expect(serverPersistErrorCalls()).toHaveLength(1))
 
@@ -1985,7 +2122,7 @@ describe('useNodeWorkflow', () => {
 
     // 而且它绝不能把一次性抑制标志用掉：紧接着真正的内容写入失败必须还能响。
     mutateAndFlushServerWrite(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(1))
     expect(toastErrorMock).toHaveBeenCalledWith('cloudSaveFailed')
@@ -2074,7 +2211,7 @@ describe('useNodeWorkflow', () => {
     // 那个 Set 是 ref，唯一的外部可观测面就是「这个项目的写入放不放行」——
     // 没进去的话下面这次改动会被静默跳过，等于建了个寂寞。
     mutateAndFlushServerWrite(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     expect(putCalls()).toHaveLength(1)
     expect(putCalls()[0]?.url).toContain('srv_bootstrap_1')
@@ -2104,7 +2241,7 @@ describe('useNodeWorkflow', () => {
     // 没建成 = 没确认。绝不能顺手把本地 id 登记进去「让写入先跑起来」——
     // 那等于让一份来路不明的 state 去 PUT 一个可能根本不存在的行。
     mutateAndFlushServerWrite(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     expect(putCalls()).toHaveLength(0)
     expect(loggerWarnMock).toHaveBeenCalledWith(
@@ -2171,7 +2308,7 @@ describe('useNodeWorkflow', () => {
     // 能达到的同一个状态。
     const { result } = renderNodeWorkflowHook()
     act(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     await act(async () => {
       await Promise.resolve()
@@ -2179,7 +2316,7 @@ describe('useNodeWorkflow', () => {
     // 水化 microtask 在「有 pre-hydration 写入」这条路上不 setState，所以要再
     // 推一次渲染，服务端水化 effect 才会重跑。
     act(() => {
-      result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.voice, SECOND_POSITION)
     })
     await waitFor(() => expect(result.current.isHydrated).toBe(true))
 
@@ -2248,7 +2385,7 @@ describe('useNodeWorkflow', () => {
     // ⭐ 判据：接着画的东西真的 PUT 到了服务端那个新 id 上。`serverConfirmedProjectIds`
     // 是 ref，唯一的外部可观测面就是「这个项目的写入放不放行」。
     mutateAndFlushServerWrite(() => {
-      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
     })
     expect(putCalls()).toHaveLength(1)
     expect(putCalls()[0]?.url).toContain('srv_replacement_1')

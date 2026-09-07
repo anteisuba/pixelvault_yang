@@ -445,6 +445,17 @@ const STEP_FIXTURES: Record<
       updatedAt: '2026-09-07T10:00:00.000Z',
     },
   },
+  /** 切片 X：`inverse` 里是**旧值**，撤销 = 写回去。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]: {
+    payload: {
+      assetId: 'gen-1',
+      state: 'blocked',
+      reason: 'hands are mangled',
+      displayName: '图_012·银发少女',
+      url: 'https://cdn.example.com/a.png',
+    },
+    inverse: { assetId: 'gen-1', state: 'pending' },
+  },
 }
 
 function buildStep(tool: AssistantOperatorTool, omitInverse = false) {

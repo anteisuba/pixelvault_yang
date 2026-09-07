@@ -26,6 +26,10 @@ import {
   ASSISTANT_PLAN_REQUEST_REASON_IDS as PLAN_REASON,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   ASSISTANT_RESEARCH_SCOPE_IDS,
+  ASSISTANT_COST_TICK_KIND_IDS as COST,
+  ASSISTANT_COST_TICK_LABEL_KEYS as COST_LABELS,
+  ASSISTANT_WORKING_MEMORY as MEMORY_LIMITS,
+  GENERATION_REVIEW_STATE_IDS as REVIEW,
   isAssistantOperatorToolInDomain,
   isUnfinishedClosingMessage,
   type AssistantOperatorConfirmField,
@@ -33,8 +37,10 @@ import {
   type AssistantOperatorReferenceSlot,
   type AssistantOperatorRejectReason,
   type AssistantOperatorSearchKind,
+  type AssistantCostTickKind,
   type AssistantOperatorTool,
   type AssistantResearchSource,
+  type GenerationReviewState,
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_PERSONA_LANGUAGE_IDS,
@@ -96,7 +102,19 @@ import {
   resolveLlmTextRoute,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
-import { getPublicGenerationPage } from '@/services/generation.service'
+/**
+ * ⚠ 三条都来自**同一个允许名单里的模块**（`generation.service`），判据逐条：
+ *  · `getPublicGenerationPage` —— 只读分页查询（`search_assets`，早就在用）。
+ *  · `readGenerationReviewStates` —— 只读一格 JSON 标量（切片 X）。
+ *  · `setGenerationReviewState` —— **写**，但写的是用户对自己产物的一句判断：
+ *    不建 generation、不扣 credit、不调 provider、不碰 R2。与
+ *    `project-rule.service` 的那一条写是同一条判据（钱闸的用例里逐条写着）。
+ */
+import {
+  getPublicGenerationPage,
+  readGenerationReviewStates,
+  setGenerationReviewState,
+} from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 /**
  * ⭐ 助手人设（§8.5）。加它进钱闸白名单的判据：它读写的是**一张只有文本列的
@@ -205,6 +223,7 @@ import {
   type AssistantOperatorSearchResultAsset,
   type AssistantOperatorSnapshot,
   type AssistantOperatorTurn,
+  type AssistantOperatorWorkingMemoryArtifact,
 } from '@/types/assistant-operator'
 import type { OutputType, PromptAssistantResponseLanguage } from '@/types'
 import type { AssistantPersona, ProjectRule } from '@/types/assistant-persona'
@@ -450,6 +469,37 @@ interface OperatorRun {
    * 索引里，模型引用它们不必先调一次工具。
    */
   contextCardIndex: Map<string, ContextCard>
+  /**
+   * **跨轮工作记忆的准入索引**（切片 X）—— 键是产物 id **与**它的地址（两样都进
+   * 表），值是那件产物。
+   *
+   * ⭐ 它是 `import_user_url` / `mount_reference` / `critique_result` 的**第三张
+   * 准入名单**（前两张：本轮检索结果、用户 `@` 上来的那些）。加它的判据只有一条：
+   * 用户说「把刚才那张挂上」时，「刚才那张」产生于上一轮 —— 而服务端零会话态，
+   * 前两张名单里一条都没有。
+   * ⛔ 它仍然**不放宽任何实体闸**：blocked 照旧拒、站点判定照旧、参考位上限照旧。
+   * ⚠ 整份记忆由客户端在请求里带上来，读完就丢 —— ⛔ 服务端不存。
+   */
+  workingMemoryIndex: Map<string, AssistantOperatorWorkingMemoryArtifact>
+  /**
+   * 这一步产生的**成本计数帧**（切片 X），等着被主循环吐出去。
+   *
+   * ⚠ 为什么是一个队列而不是直接 yield：真正花钱的那几跳（看图、检索、LLM 往返）
+   * 发生在 `plan.run()` 这类**普通 async 函数**里，它们不是生成器，吐不出事件。
+   * 主循环在每一步前后把这个队列排空 —— ⛔ 别为了「能 yield」把整条规划链改写成
+   * 生成器，那是为一条计数帧重做整个控制流。
+   */
+  costTicks: { kind: AssistantCostTickKind; units: number }[]
+}
+
+/** 记一帧「又花了一次」。⚠ `units` 是**这一次数了几**，累计在客户端做。 */
+function tickCost(
+  run: OperatorRun,
+  kind: AssistantCostTickKind,
+  units = 1,
+): void {
+  if (units <= 0) return
+  run.costTicks.push({ kind, units })
 }
 
 /**
@@ -932,7 +982,12 @@ function planSearchAssets(
         sort: 'newest',
       })
 
-      const assets = page.generations
+      /**
+       * ⭐ **审核态从库里现读**（切片 X），⛔ 不从客户端收：客户端把 `blocked`
+       * 写成 `approved` 就能挂首帧，那不是一道闸。取的是 `snapshot->>'reviewState'`
+       * 一个短标量，整份快照一个字节都没过网（见 `readGenerationReviewStates`）。
+       */
+      const assetRows = page.generations
         // 没出完 / 失败的那些没有 url，挂不上去，别端给模型；类型不在可挂表里的
         // 同理（正常查不到，但这条 filter 让「查到了也挂不上」不可能发生）。
         .flatMap((generation) => {
@@ -942,27 +997,34 @@ function planSearchAssets(
             : []
         })
         .slice(0, limit)
-        .map(({ generation, url, kind }) => ({
-          assetId: generation.id,
-          // 名字与用户屏幕上那串字是同一个（同一条纯函数，切片 N1）——
-          // 模型说「图_012 的手有问题」时，用户看着结果行卡就知道说的是哪一张。
-          displayName: resolveGenerationDisplayName(generation),
-          url,
-          ...(generation.thumbnailUrl
-            ? { thumbnailUrl: generation.thumbnailUrl }
-            : {}),
-          kind,
-          ...(generation.prompt
-            ? {
-                prompt: clamp(
-                  generation.prompt,
-                  LIMITS.maxPriorStepSummaryChars,
-                ),
-              }
-            : {}),
-          ...(generation.model ? { model: generation.model } : {}),
-          createdAt: generation.createdAt.toISOString(),
-        }))
+      const reviewStates = await readGenerationReviewStates(
+        userId,
+        assetRows.map(({ generation }) => generation.id),
+      )
+
+      const assets = assetRows.map(({ generation, url, kind }) => ({
+        assetId: generation.id,
+        // 名字与用户屏幕上那串字是同一个（同一条纯函数，切片 N1）——
+        // 模型说「图_012 的手有问题」时，用户看着结果行卡就知道说的是哪一张。
+        displayName: resolveGenerationDisplayName(generation),
+        url,
+        ...(generation.thumbnailUrl
+          ? { thumbnailUrl: generation.thumbnailUrl }
+          : {}),
+        kind,
+        ...(generation.prompt
+          ? {
+              prompt: clamp(generation.prompt, LIMITS.maxPriorStepSummaryChars),
+            }
+          : {}),
+        ...(generation.model ? { model: generation.model } : {}),
+        createdAt: generation.createdAt.toISOString(),
+        /**
+         * ⚠ `pending` 也**如实写出来**而不是省略：省略时模型读到的是「这一格
+         * 没有」，而它要判断的恰恰是「这张被否过没有」——两者在提示里长得一样。
+         */
+        reviewState: reviewStates.get(generation.id) ?? REVIEW.pending,
+      }))
 
       for (const asset of assets) run.searchIndex.set(asset.assetId, asset)
 
@@ -974,8 +1036,12 @@ function planSearchAssets(
               .map(
                 (asset, index) =>
                   `  ${index + 1}. ${asset.displayName} (assetId=${asset.assetId}) · ${asset.kind}${
-                    asset.prompt ? ` · "${asset.prompt}"` : ''
-                  }`,
+                    asset.reviewState === REVIEW.blocked
+                      ? ' · BLOCKED (the creator marked this one as failed — it can no longer be a first or last frame; stop offering it)'
+                      : asset.reviewState === REVIEW.approved
+                        ? ' · approved'
+                        : ''
+                  }${asset.prompt ? ` · "${asset.prompt}"` : ''}`,
               )
               .join('\n')}`
 
@@ -1053,6 +1119,8 @@ function planInspectAssetFolder(
         instruction,
         ...(run.request.apiKeyId ? { apiKeyId: run.request.apiKeyId } : {}),
       })
+      // ⚠ 数的是**真的送进模型的张数**（不是文件夹里有多少张）——切片 X。
+      tickCost(run, COST.vision, result.inspectedImages)
 
       const observation =
         result.inspectedImages === 0
@@ -1156,6 +1224,8 @@ function planSearchWebImages(
     },
     run: async () => {
       const found = await webImageSearchMulti(queries, { num: limit })
+      // ⚠ 一条变体查询就是一次外部往返（也是一个 Serper credit）——切片 X。
+      tickCost(run, COST.research, queries.length)
       /**
        * ⭐ **官方 / wiki 来源排前**（2026-09-06）。
        *
@@ -1272,6 +1342,7 @@ function planSearchWeb(
     payload: { query: args.query, limit },
     run: async () => {
       const found = await webSearch(args.query, { num: limit })
+      tickCost(run, COST.research, 1)
       const results = found.slice(0, limit).map((entry) => {
         // 出处**现算**（⛔ 不让模型写、也不编）—— 界面上那行小字与模型引用时说的
         // 是同一个词。上游的 organic 结果没有站名字段，域名是这里唯一的真值。
@@ -1366,6 +1437,11 @@ async function planResearch(
    * 问题」开了无限重试，而 `maxSteps` 只有 8，代价是整轮步数全烧光、表单没动。
    */
   run.researchRounds = round
+  /**
+   * ⚠ 数的是**真的打出去的源数**（回执一条一个源），不是「一次 research」——
+   * 一轮扇出打五个源与打一个源，贵的程度差五倍（切片 X）。
+   */
+  tickCost(run, COST.research, Math.max(1, outcome.receipts.length))
 
   const roundsLeft = RESEARCH_LIMITS.maxRoundsPerTurn - round
   /**
@@ -1502,6 +1578,8 @@ async function planReadUrl(
 
   const focus = args.focus?.trim()
   const page = await readUrl(args.url)
+  // ⚠ 打了就算，读不出来也算：那一次外部往返照样发生了（切片 X）。
+  tickCost(run, COST.research, 1)
   if (!page) {
     return reject(
       REJECT.urlUnreadable,
@@ -1558,10 +1636,18 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
     (message) => message.role === 'user' && message.content.includes(args.url),
   )
   const shownCandidate = run.webImageIndex.get(args.url)
-  if (!fromCreator && !shownCandidate) {
+  /**
+   * ⭐ **第三张准入名单**（切片 X）：这条地址是**前几轮**你自己摆出来 / 产出过的
+   * 东西之一。加它的判据与第二张（本轮展示过的候选）逐字同源 —— 用户说「上一轮
+   * 那几张挂上」时，那些地址他看见了，只是发生在上一轮，而服务端零会话态让本轮
+   * 的两张名单里一条都没有。
+   * ⛔ 它照旧**不松任何实体闸**：下面那道来源判定、参考位上限一条都没动。
+   */
+  const remembered = run.workingMemoryIndex.has(args.url)
+  if (!fromCreator && !shownCandidate && !remembered) {
     return reject(
       REJECT.urlNotFromUser,
-      'That address is neither one the creator typed nor one of the candidates you actually put on screen this turn. Search first with search_web_images, then you may attach from what came back.',
+      'That address is neither one the creator typed, nor one of the candidates you put on screen, nor anything you produced earlier in this session. Search first with search_web_images, then you may attach from what came back.',
     )
   }
 
@@ -1622,6 +1708,29 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
 }
 
 /**
+ * 跨轮记忆里那件东西 → 一条**能挂的素材**（切片 X）。
+ *
+ * ⚠ `kind` 恒 `image`：记忆里那条 `kind` 说的是「它从哪来」（result / candidate /
+ * evidence / asset），**不是**媒体类型 —— 契约里没有后者。而参考位、首尾帧这几个
+ * 槽收的本来就是图，挂错类型那一步在客户端会自己失败，⛔ 别在这里猜一个视频。
+ * ⚠ 没有地址的那些（一段检索证据）**不进这张名单**：挂不上去的东西不该出现在
+ * 准入表里，否则模型会拿它去挂然后撞一条读不懂的错。
+ */
+function workingMemoryAsset(
+  run: OperatorRun,
+  wanted: string,
+): AssistantOperatorSearchResultAsset | null {
+  const artifact = run.workingMemoryIndex.get(wanted)
+  if (!artifact?.url) return null
+  return {
+    assetId: artifact.id,
+    displayName: artifact.displayName,
+    url: artifact.url,
+    kind: 'image',
+  }
+}
+
+/**
  * 首帧一挂上，宽高比就只剩自适应了吗（第二期，owner 2026-09-06）。
  *
  * ⭐ **两个条件缺一不可**：① 这条线路声明了带图锁（`videoSpecs.aspectRatioLock`，
@@ -1642,21 +1751,46 @@ function aspectLockValue(run: OperatorRun): string | null {
  * ⚠ 每一条闸都问「这个宿主 / 这个模型**此刻**有没有这个槽」，⛔ 不问模型 id：
  * 判据一律来自快照（拍板 19「助手只动用户看得见的旋钮」的落地方式）。
  */
-function planMountReference(
+async function planMountReference(
   run: OperatorRun,
   args: { assetId: string; slot?: AssistantOperatorReferenceSlot },
-): ToolPlan {
+  userId: string,
+): Promise<ToolPlan> {
   const slot = args.slot ?? SLOT.reference
 
-  const asset = run.searchIndex.get(args.assetId)
+  /**
+   * ⚠ 准入两张名单：本轮 `search_assets` 返回过的，**以及**跨轮记忆里那几件
+   * （切片 X）。⛔ 名单之外照旧 `unknownAsset` —— 模型仍然写不出一个凭空的 id。
+   */
+  const asset =
+    run.searchIndex.get(args.assetId) ??
+    workingMemoryAsset(run, args.assetId) ??
+    undefined
   if (!asset) {
     return reject(
       REJECT.unknownAsset,
-      'Only asset ids returned by search_assets in this run can be mounted.',
+      'Only assets that came back from search_assets in this run, or ones you produced earlier in this session, can be mounted.',
     )
   }
 
   if (slot === SLOT.first || slot === SLOT.last) {
+    /**
+     * ⭐ **判失败的图不能当首帧 / 尾帧**（切片 X，owner「禁止用失败的旧图」）。
+     *
+     * ⚠ 判据**从库里现读**，⛔ 不信本轮检索结果上那一格缓存：这一步可能来自跨轮
+     * 记忆（那份由客户端带上来），而「客户端说它不是 blocked」不是一道闸。
+     * 一次查询取一个短标量（见 `readGenerationReviewStates`）。
+     * ⚠ 只拦这两个槽 —— 普通参考位与评价照旧（词表 `blockedSource` 头注）。
+     */
+    const reviewStates = await readGenerationReviewStates(userId, [
+      asset.assetId,
+    ])
+    if (reviewStates.get(asset.assetId) === REVIEW.blocked) {
+      return reject(
+        REJECT.blockedSource,
+        `${asset.displayName ?? asset.assetId} was marked as failed by the creator, so it can no longer open or close a clip. Pick another one — and stop offering this one.`,
+      )
+    }
     if (!run.state.hasFrameSlotControl) {
       return reject(
         REJECT.noSuchControl,
@@ -2526,15 +2660,30 @@ function planSetLoraWeight(
   }
 }
 
-function planPrimeGenerate(run: OperatorRun): ToolPlan {
+function planPrimeGenerate(
+  run: OperatorRun,
+  args: { label?: string },
+): ToolPlan {
   if (run.state.hasModelControl && !run.state.modelId) {
     return reject(REJECT.noModelSelected)
   }
   if (!run.state.prompt.trim()) return reject(REJECT.emptyPrompt)
 
+  /**
+   * ⚠ 名字**只透传**（切片 X）：服务端一行库都不写，落库发生在客户端提交那一跳
+   * （它把这个字当成 `displayLabel` 交给落库那一跳 —— 那个函数的名字逐字写在钱闸
+   * 的禁字表里，所以这里不写出来：那份测试扫的是源码文本，注释也算数）。
+   * ⛔ 别在这里顺手写库「省一次往返」——
+   * 那一枪还没打，这时候写下的名字属于一条不存在的产物。
+   */
+  const label = args.label?.trim()
+
   return {
     kind: 'mutate',
-    payload: { primed: true },
+    payload: {
+      primed: true,
+      ...(label ? { label: clamp(label, LIMITS.maxGenerationLabelChars) } : {}),
+    },
     inverse: { primed: false },
     observation:
       'The generate button is armed with the current form. The creator presses it themselves — you cannot.',
@@ -2577,6 +2726,7 @@ function currentGenerationCount(run: OperatorRun): number {
 function buildGenerationRequestPayload(
   run: OperatorRun,
   modelId: string,
+  runLabel?: string,
 ): AssistantOperatorGenerationRequest {
   const count = currentGenerationCount(run)
   const credits = estimateGenerationCredits(modelId, count)
@@ -2600,6 +2750,10 @@ function buildGenerationRequestPayload(
       durationSeconds: run.state.videoDurationSeconds,
     },
     estimate,
+    /** ⚠ 只透传（切片 X）：服务端不写库，见 `planPrimeGenerate` 的头注。 */
+    ...(runLabel?.trim()
+      ? { label: clamp(runLabel.trim(), LIMITS.maxGenerationLabelChars) }
+      : {}),
   }
 }
 
@@ -2637,7 +2791,10 @@ function isSpendAutoApproved(
  * ⛔ **这个函数一分钱都花不掉**：它不建 generation、不扣 credit、不调 provider ——
  * 它只是把一份载荷交出去。扣扳机那一跳在客户端（`studio-operator-apply.ts`）。
  */
-function planRequestGeneration(run: OperatorRun): ToolPlan {
+function planRequestGeneration(
+  run: OperatorRun,
+  args: { label?: string },
+): ToolPlan {
   if (run.state.hasModelControl && !run.state.modelId) {
     return reject(REJECT.noModelSelected)
   }
@@ -2650,7 +2807,7 @@ function planRequestGeneration(run: OperatorRun): ToolPlan {
   const modelId = run.state.modelId
   if (!modelId) return reject(REJECT.noModelSelected)
 
-  const payload = buildGenerationRequestPayload(run, modelId)
+  const payload = buildGenerationRequestPayload(run, modelId, args.label)
   if (!isSpendAutoApproved(run, payload)) {
     return { kind: 'confirmSpend', request: payload }
   }
@@ -2727,8 +2884,21 @@ function resolveCritiqueTarget(
 
   if (targetIds?.length) {
     const wanted = targetIds[0] as string
+    /**
+     * ⚠ 名单**三张**（切片 X 加了第三张）：用户 `@` 上来的、按产物名对上的、
+     * 以及跨轮记忆里那几件。⛔ 三张之外照旧 `unknownAsset` —— 名字与记忆都是
+     * 称呼，名单才是权限。
+     */
+    const rememberedTarget = run.workingMemoryIndex.get(wanted)
     const hit =
       mentioned.find((asset) => asset.id === wanted || asset.url === wanted) ??
+      (rememberedTarget?.url
+        ? {
+            id: rememberedTarget.id,
+            url: rememberedTarget.url,
+            label: rememberedTarget.displayName,
+          }
+        : undefined) ??
       /**
        * **产物名**也认（`图_012`，切片 N1）—— 系统提示让模型用名字指认，那这条闸
        * 就必须听得懂名字，否则「按我们教的说法说话」= 一律被拒。
@@ -2915,6 +3085,10 @@ async function planVideoCritique(
     ),
   )
 
+  // ⚠ 三帧 = 三次真的看图（切片 X）。归总那一次是纯文本，算 `llm` 不算 `vision`。
+  tickCost(run, COST.vision, frames.length)
+  tickCost(run, COST.llm, 1)
+
   const raw = await completeAssistantTextWithContextRetry({
     systemPrompt: buildVideoCritiqueSystemPrompt(run.request, run.persona),
     buildUserPrompt: (maxLength) =>
@@ -3050,6 +3224,8 @@ async function planCritiqueResult(
     imageData: result.url,
     responseFormat: 'json_object',
   })
+  // ⚠ 唯一真的「看」的那一下（切片 X）。
+  tickCost(run, COST.vision, 1)
 
   const critique = parseCritiqueJson(raw)
   if (!critique) {
@@ -3201,6 +3377,64 @@ async function planAddProjectRule(
  * 等于让每一条日志都拖着一整份设定过网。要正文的那一跳是 `read_context_card`。
  * ⚠ 空结果**说出来**：静默的空结果会让模型接着编一张卡出来引用。
  */
+/**
+ * 标一张产物的**审核态**（切片 X）—— owner「禁止用失败的旧图」的落点。
+ *
+ * ⚠ 它是全表**第二条后果落在服务端**的改动型工具（第一条是 `add_project_rule`），
+ * 判据逐字同源：写的是**用户自己对自己产物的一句判断**——不建 generation、
+ * 不扣 credit、不调 provider、不碰 R2。钱闸的允许名单因此一条都不用松。
+ * ⚠ `inverse` 里放的是服务端读到的**旧值**，撤销 = 写回去。⛔ 不像 `mount_lora`
+ * 那样放一个客户端要反查的候选 id：这里没有「落地值在客户端才产生」那回事。
+ * ⚠ 准入是**库**（按 userId 查这一行在不在），不是本轮检索名单 —— 与挂载那条闸
+ * 的方向相反是有意的：挂载怕的是「模型编一个 id 把陌生图挂上表单」，而标记连
+ * 一个字都改不了别人的东西（不是他的行 → 服务返回 null → 这里按 `unknownAsset` 拒）。
+ * ⭐ 于是「上一轮那张不行」也标得动 —— 那正是这条工具存在的场景。
+ */
+async function planSetReviewState(
+  run: OperatorRun,
+  args: { assetId: string; state: GenerationReviewState; reason?: string },
+  userId: string,
+): Promise<ToolPlan> {
+  const known =
+    run.searchIndex.get(args.assetId) ??
+    workingMemoryAsset(run, args.assetId) ??
+    undefined
+
+  const result = await setGenerationReviewState(
+    userId,
+    args.assetId,
+    args.state,
+    args.reason,
+  )
+  if (!result) {
+    return reject(
+      REJECT.unknownAsset,
+      "No asset of the creator's has that id. Use an id that came back from search_assets, or one of the things you produced earlier in this session.",
+    )
+  }
+
+  const name = known?.displayName ?? args.assetId
+  const reason = args.reason?.trim()
+
+  return {
+    kind: 'mutate',
+    payload: {
+      assetId: args.assetId,
+      state: args.state,
+      ...(reason ? { reason: clamp(reason, LIMITS.maxReviewReasonChars) } : {}),
+      ...(known?.displayName ? { displayName: known.displayName } : {}),
+      ...(known?.url ? { url: known.url } : {}),
+    },
+    inverse: { assetId: args.assetId, state: result.previous },
+    observation:
+      args.state === REVIEW.blocked
+        ? `Marked ${name} as failed${reason ? ` (${reason})` : ''}. It stays in the library and you can still review it, but it can no longer be a first or last frame — stop offering it.`
+        : `Marked ${name} as ${args.state}${reason ? ` (${reason})` : ''}.`,
+    // 后果已经落在库里了（这是服务端档），这里没有本地状态要动。
+    apply: () => {},
+  }
+}
+
 function planListContextCards(
   run: OperatorRun,
   args: { kind?: ContextCardKindId },
@@ -3397,6 +3631,7 @@ async function planTool(
           assetId: string
           slot?: AssistantOperatorReferenceSlot
         },
+        userId,
       )
     case TOOL.setModel:
       return planSetModel(run, parsed.data as { modelId: string })
@@ -3436,9 +3671,9 @@ async function planTool(
     case TOOL.setSound:
       return planSetSound(run, parsed.data as { enabled: boolean })
     case TOOL.primeGenerate:
-      return planPrimeGenerate(run)
+      return planPrimeGenerate(run, parsed.data as { label?: string })
     case TOOL.requestGeneration:
-      return planRequestGeneration(run)
+      return planRequestGeneration(run, parsed.data as { label?: string })
     case TOOL.critiqueResult:
       return planCritiqueResult(
         run,
@@ -3485,6 +3720,16 @@ async function planTool(
       )
     case TOOL.readContextCard:
       return planReadContextCard(run, parsed.data as { cardId: string }, userId)
+    case TOOL.setReviewState:
+      return planSetReviewState(
+        run,
+        parsed.data as {
+          assetId: string
+          state: GenerationReviewState
+          reason?: string
+        },
+        userId,
+      )
     default:
       return assertNever(tool)
   }
@@ -3719,6 +3964,38 @@ ${lines}
  * ⚠ 清单由 `constants/assistant-plan-visuals.ts` 现生成，⛔ 别在这里手抄一份 ——
  * 抄的那份会先过期，而过期的表现是「明明加了新图示，模型从来不用」。
  */
+/**
+ * **最近几轮你产出 / 看过的东西**（切片 X）。
+ *
+ * ⭐ 它进的是**系统提示**而不是用户提示，与项目规则 / 上下文卡同一档：这几行是
+ * 「你是谁、你手上有什么」的一部分，每一步都要在场 —— 一件助手记不住的产物等于
+ * 没产出过。
+ * ⚠ 只写**名字**（切片 N1 的产物名），⛔ 不写 id、不写地址：id 它会抄错，
+ * 地址它会当成可以随便挂的东西。名字是称呼，准入名单在服务端
+ * （`run.workingMemoryIndex`）—— 模型念一个名字，服务端在名单里解析。
+ * ⚠ 最近的排在最后：模型对末尾的东西更敏感，而「刚才那张」指的正是最后一轮。
+ */
+function buildWorkingMemorySection(
+  memory: AssistantOperatorRequest['workingMemory'],
+): string {
+  const rounds = (memory?.rounds ?? []).slice(-MEMORY_LIMITS.maxRounds)
+  if (rounds.length === 0) return ''
+
+  const lines = rounds.flatMap((round) => {
+    const items = round.artifacts
+      .slice(0, MEMORY_LIMITS.maxArtifactsPerRound)
+      .map((artifact) => `${artifact.displayName} (${artifact.kind})`)
+    return items.length > 0 ? [`  - ${items.join(', ')}`] : []
+  })
+  if (lines.length === 0) return ''
+
+  return `
+
+WHAT YOU PRODUCED AND LOOKED AT EARLIER IN THIS SESSION — oldest first, the last line is the most recent:
+${lines.join('\n')}
+The creator says "that one" or "the earlier one" about these. Call them by these names, and you may mount, import or review one directly — no need to search for it again. Anything else still has to come from a search this turn.`
+}
+
 function buildPlanVisualSection(): string {
   return `
 - Each option may carry "visual" — a small picture hint the app draws beside its label.
@@ -3828,6 +4105,7 @@ HARD RULES — these are structural, not stylistic:
 - You may only touch knobs that exist on this workbench. The state block tells you which ones exist; a field described as absent has no control behind it, and calling its tool will be refused.
 - Never invent a model id or an asset id. Model ids come from the state block, asset ids come from search_assets results. A made-up id is refused and wastes a step.
 - Every asset the creator owns has a NAME, printed by search_assets and attached to what they hand you (图_012·silver-haired girl). Call it by that name whenever you talk about it — "the second one" is ambiguous the moment they scroll, and an asset id is a uuid neither of you can check by eye. Never read an id out loud; ids belong inside tool arguments only.
+- An asset the creator marked as FAILED can never be used as a first or last frame again. search_assets prints that mark, and trying anyway is refused — pick another one, and stop offering the one they rejected. When they say a picture did not work, record it with set_review_state so the verdict survives the turn; blocking deletes nothing and you can still review a blocked picture.
 - Never invent a folder id. Call list_asset_folders first, then pass one exact folderId from THIS run to inspect_asset_folder. Folder names alone are ambiguous.
 - THE CREATOR HANDED YOU A LINK → call import_user_url on it, right then. Their link is their yes. It works for a direct image address and for an ordinary web page alike. Never answer a link with a search, and never ask them to save it, upload it, or pick it out of a list — you have the tool, so you do it.
 - When a request turns on a fact you are not sure of — how an official name is spelled, what a character or product actually looks like in its source, a game's own terminology, a platform's current rules — call search_web and look it up before you write it into the form. One search step is cheaper than a prompt full of confident inventions. It returns extracts, not whole pages: name the source when it matters, and say plainly when the extracts do not answer the question. It finds words, never pictures.
@@ -3850,7 +4128,7 @@ HOW YOU TALK — the creator hired an operator, not a rulebook:
 - NEVER recite your own constraints to them. Not what you cannot do, not why, not "as I mentioned". They did not ask for the manual, and repeating it makes them do the thinking you were hired for.
 - If a tool in your list can do a thing, DO IT. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The one exception is the generate button itself, which is theirs by design.
 - When a call is refused, change the approach silently. Say what you are doing next, not which rule stopped you. Never explain the same rule twice.
-- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.${buildPersonaStyleSection(persona)}${buildProjectRulesSection(rules)}${buildContextCardsSection(contextCards)}
+- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.${buildPersonaStyleSection(persona)}${buildProjectRulesSection(rules)}${buildContextCardsSection(contextCards)}${buildWorkingMemorySection(request.workingMemory)}
 
 TOOLS:
 ${tools}
@@ -4283,6 +4561,25 @@ export async function* runAssistantOperator(
     assistantWrittenFields: new Set(),
     executedStepKeys: new Set(),
     stepSeq: 0,
+    /**
+     * 跨轮记忆的准入索引（切片 X）—— **id 与地址两样都进表**：模型指认时用的是
+     * 名字（→ 服务端按 id 找），而 `import_user_url` 认的是地址。
+     * ⚠ 只收最近 `maxRounds` 轮，与系统提示里印出来的那几行**同一份数据** ——
+     * 印出来的与认得的不是同一批，是「它说了个名字却被拒」的成因。
+     */
+    workingMemoryIndex: new Map(
+      (request.workingMemory?.rounds ?? [])
+        .slice(-MEMORY_LIMITS.maxRounds)
+        .flatMap((round) =>
+          round.artifacts
+            .slice(0, MEMORY_LIMITS.maxArtifactsPerRound)
+            .flatMap((artifact) => [
+              [artifact.id, artifact] as const,
+              ...(artifact.url ? [[artifact.url, artifact] as const] : []),
+            ]),
+        ),
+    ),
+    costTicks: [],
   }
 
   const systemPrompt = buildOperatorSystemPrompt(
@@ -4300,6 +4597,26 @@ export async function* runAssistantOperator(
   /** 收尾那句话已经被退回去要过一次结论了。⛔ 只退一次，不做开放循环。 */
   let conclusionRetried = false
   let completed = false
+
+  /**
+   * 把这一步攒下的成本计数帧排空（切片 X）。
+   *
+   * ⚠ 它是个**局部生成器**而不是 `run` 上的方法：只有主循环能 yield，而攒帧的
+   * 那几处（看图 / 检索 / LLM 往返）都在普通 async 函数里 —— 这就是队列存在的
+   * 全部理由（见 `OperatorRun.costTicks` 头注）。
+   */
+  function* drainCostTicks(): Generator<AssistantOperatorEvent> {
+    while (run.costTicks.length > 0) {
+      const tick = run.costTicks.shift()
+      if (!tick) break
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.costTick,
+        kind: tick.kind,
+        units: tick.units,
+        label: COST_LABELS[tick.kind],
+      }
+    }
+  }
 
   try {
     for (let index = 0; index < LIMITS.maxSteps; index += 1) {
@@ -4347,6 +4664,13 @@ export async function* runAssistantOperator(
           yield { type: ASSISTANT_OPERATOR_EVENTS.messageDelta, text: delta }
         }
       }
+
+      /**
+       * ⚠ 一次完整的规划往返 = 一帧 `llm`（切片 X）。记在**这里**而不是记在每个
+       * 工具上：一轮里最贵的那部分正是这几次往返，而它们不属于任何一步。
+       */
+      tickCost(run, COST.llm, 1)
+      yield* drainCostTicks()
 
       // ⚠ abort 可能发生在这次 await 期间：结果已经拿到但客户端早就走了。
       //    这里再查一次，免得往一条没人读的流里继续吐事件。
@@ -4587,6 +4911,8 @@ export async function* runAssistantOperator(
 
       // ⚠ `await`：`critique_result` 的视觉那一跳跑在**规划期**（见它的头注）。
       const plan = await planTool(run, name, args, user.id)
+      // ⚠ 规划期就可能看过图（`critique_result`）—— 那几帧现在就该出去。
+      yield* drainCostTicks()
 
       if (plan.kind === 'confirm') {
         // 拍板 3：就地确认。流停在这里，客户端带 `confirmations` 重发续跑 ——
@@ -4686,6 +5012,8 @@ export async function* runAssistantOperator(
           result: null,
         })
         const { result, observation } = await plan.run()
+        // 读类工具真正打外部源是在 `run()` 里（检索 / 读正文 / 文件夹视觉）。
+        yield* drainCostTicks()
         yield toStepEvent({
           ...base,
           tool: name,

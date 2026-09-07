@@ -121,6 +121,19 @@ export const ASSISTANT_OPERATOR_EVENTS = {
    * 它一分钱都不花，也不覆盖任何东西，它只是在问路。
    */
   choiceRequest: 'choice_request',
+  /**
+   * **这一轮又看了 / 又查了 / 又问了一次模型**（切片 X）。
+   *
+   * ⭐ 它是一条**计数帧**，不是账单：本仓这条链花的是用户自己那把 key 的额度，
+   * 服务端一分钱都扣不掉（钱闸不变）。做它的理由是「看不见的开销」——一轮里
+   * 看三张图、检索两轮、来回八次 LLM，用户在日志上只看得见八条 step，
+   * 而真正贵的是那三张图。客户端把这些帧累加成一行小字。
+   * ⚠ 它**不是一步**（没有 step id、没有 payload / inverse）：一次视觉往返可能
+   * 发生在某一步的规划期（`critique_result` 的那一跳），绑在 step 上就得挑一步
+   * 来绑，而挑哪一步没有判据 —— 与 `rule_hit` 逐字同源。
+   * ⛔ 它也**不是闸**：读到 `cost_tick` 不会拦住任何东西，拦是三档确认的事。
+   */
+  costTick: 'cost_tick',
   /** 正常收尾。 */
   done: 'done',
   /** 未跑完就停了 —— 载荷带 `reason`，与 `done` 分开是为了让 UI 说得出为什么。 */
@@ -432,7 +445,51 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * ⚠ 回的是正文 + 硬否定串 + 参考图 URL 列表（供 `mount_reference` 直接挂）。
    */
   readContextCard: 'read_context_card',
+  /**
+   * 把一张产物标成 **待定 / 采用 / 判失败**（第三期 · 切片 X）。
+   *
+   * ⭐ 起因是 owner 的一句话：「禁止用失败的旧图」。在这之前系统里没有任何地方
+   * 存着「这张不行」——助手于是每一轮都可能把同一张被否掉的图重新挂成首帧，
+   * 而用户每一轮都要再说一遍。这条工具给的就是那个落点：判断由**用户或助手**
+   * 在结果卡上下，落进 `Generation.snapshot.reviewState`（零迁移，缺席 = `pending`）。
+   * ⚠ 它是本表**第二条后果落在服务端**的改动型工具（第一条是 `add_project_rule`）：
+   * 写的是用户自己对自己产物的判断 —— 不建 generation、不扣 credit、不调 provider。
+   * 所以 `inverse` 里放的是**旧值**（服务端读得到），撤销 = 写回去。
+   * ⛔ 标 blocked **不删图**：它只是不再能当首帧/尾帧（见 `blockedSource`），
+   * 库里那张照旧在、照旧搜得到、照旧能拿去评价。
+   */
+  setReviewState: 'set_review_state',
 } as const
+
+/**
+ * 一张产物的**审核态**（切片 X）。
+ *
+ * ── 为什么住在 `snapshot` 里而不是一列 ────────────────────────────
+ * 零迁移，判据与产物名（`withGenerationDisplayName`）逐字同源：snapshot 是**已经
+ * 在写**的那份 JSON，而一条可空列换不到这里没有的东西。
+ * ⚠ **缺席 = `pending`**，⛔ 不是「没审过所以不能用」：存量的每一行都缺席，
+ * 把缺席当成禁用等于一次性禁掉用户的整个素材库。
+ * ⚠ 与画布域的 `NODE_REVIEW_STATE_IDS` **是两张表**：那张标的是画布上某个 URL
+ * 在**这张画布里**的去留（收集器里那一格），这张标的是**素材本身**的判断，
+ * 跟着 generation 走、跨工作台成立。合成一张的代价是「在画布上否掉一格」会
+ * 悄悄让那张图在图片工作台上也挂不了首帧。
+ */
+export const GENERATION_REVIEW_STATE_IDS = {
+  /** 还没判过 —— 缺席时的语义。 */
+  pending: 'pending',
+  /** 用户/助手认可的那些。今天不改变任何行为，是给「只用采用过的」留的位置。 */
+  approved: 'approved',
+  /** 判失败：⛔ 不得再作首帧 / 尾帧。其余用途照旧。 */
+  blocked: 'blocked',
+} as const
+
+export const GENERATION_REVIEW_STATES = [
+  GENERATION_REVIEW_STATE_IDS.pending,
+  GENERATION_REVIEW_STATE_IDS.approved,
+  GENERATION_REVIEW_STATE_IDS.blocked,
+] as const
+
+export type GenerationReviewState = (typeof GENERATION_REVIEW_STATES)[number]
 
 export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.readState,
@@ -464,6 +521,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
   ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
   ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
+  ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
 ] as const
 
 export type AssistantOperatorTool = (typeof ASSISTANT_OPERATOR_TOOLS)[number]
@@ -562,6 +620,12 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
    * 而不是像 `mount_lora` 那样放一个客户端要自己反查的候选 id。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+  /**
+   * ⚠ 第二条后果落在**服务端**的改动型工具（切片 X）：`inverse` 里放的是那张图
+   * **原来的审核态**（服务端读得到），撤销 = 写回去。⛔ 不像 `mount_lora` 那样
+   * 放一个客户端要自己反查的候选 id —— 这里没有「落地值在客户端才产生」那回事。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
 ] as const
 
 /**
@@ -882,6 +946,12 @@ const COMMON_DOMAIN_TOOLS = [
    */
   ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
   ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
+  /**
+   * 审核态**全域可用**（切片 X）：「这张不行」在图片、视频、LoRA 三台工作台上
+   * 说的是同一件事，而被否掉的那张图恰恰最容易在换一台工作台之后被重新挂上。
+   * ⛔ 别按域裁 —— 那等于让用户在每台工作台上把同一张图再否一遍。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
 ] as const satisfies readonly AssistantOperatorTool[]
 
 /**
@@ -1187,7 +1257,91 @@ export const ASSISTANT_OPERATOR_LIMITS = {
   maxLoraResults: 6,
   /** LoRA 检索词长度 —— 与库内检索同量级（上游吃的是短查询）。 */
   maxLoraQueryChars: 120,
+  /**
+   * `set_review_state` 的理由长度（切片 X）。
+   *
+   * ⚠ 与 `maxReasonChars`(300) 分开而不是复用：那条是日志条上那行「为什么做这一步」，
+   * 这条要**落进 snapshot 跟着素材走**，会被下一轮、下一台工作台读回来。短一点是
+   * 有意的 —— 一句「手指糊了」够用，一段三百字的评价该写进评价卡。
+   */
+  maxReviewReasonChars: 120,
+  /**
+   * `prime_generate` / `request_generation` 上那个 `label` 的长度（切片 X）。
+   *
+   * ⚠ 24 是**产物名摘要那一段**的尺度而不是随手拍的数：它最终落到
+   * `图_012·主视觉` 里点号后面那截（`GENERATION_NAME.maxLength` 40 减去身份段
+   * 与分隔符还剩下的余量）。给得更长只会让名字在结果行卡上被截断，
+   * 而截断过的名字用户读不出来自己当时说的是哪一张。
+   */
+  maxGenerationLabelChars: 24,
 } as const
+
+/**
+ * **跨轮工作记忆**的上限（切片 X）。
+ *
+ * ── 它解决的是什么 ────────────────────────────────────────────────
+ * 服务端零会话态（拍板 13）的代价一直很具体：上一轮搜到的候选、上一轮生成的那张
+ * 图，这一轮的准入名单里**一个都不在** —— 于是用户说「把刚才那张挂上」时助手只能
+ * 重新搜一遍，或者干脆按 `unknownAsset` 拒。`priorSteps` 带回来的是「做过什么」
+ * （一行摘要），带不回「产出了什么」（可指认的东西）。
+ * ⚠ 它仍然**不是服务端状态**：整份记忆由客户端在每次请求里带上来，服务端读完就
+ * 丢。⛔ 别把它做成服务端的一张表 —— 那正是打断语义要躲开的东西。
+ * ⚠ 它也**不放宽任何实体闸**：blocked 照旧拒、参考位上限照旧、站点判定照旧。
+ * 它只是让「这一轮之前产出过的东西」进得了准入名单。
+ */
+export const ASSISTANT_WORKING_MEMORY = {
+  /**
+   * 记得最近几轮。
+   *
+   * ⚠ 5 是「够用户说得出『刚才那张』」与「每一步系统提示都要重发这一段」之间的
+   * 那个数：每一轮至多 `maxArtifactsPerRound` 条名字，5 轮就是一屏 token，而
+   * 每一步 LLM 往返都要重付一次。⛔ 别调大成「整条会话」：那是把上下文窗口的钱
+   * 花在用户十分钟前就不再提的东西上。
+   */
+  maxRounds: 5,
+  /** 一轮里最多记几件产物。 */
+  maxArtifactsPerRound: 20,
+} as const
+
+/**
+ * `cost_tick` 的三档（切片 X）—— **按「贵在哪」分，不按工具名分**。
+ *
+ * ⚠ 一条工具可能同时属于两档（`critique_result` 借一条视觉线看图 = `vision`，
+ * 而它自己那次 JSON 往返 = `llm`），所以这张表分的是**这一帧在数什么**。
+ */
+export const ASSISTANT_COST_TICK_KIND_IDS = {
+  /** 看了一次图（含视频抽出来的帧）—— `units` = 这一次真的送进模型的图片张数。 */
+  vision: 'vision',
+  /** 打了一次外部源（检索 / 搜网 / 读正文）—— `units` = 这一次真的打出去的次数。 */
+  research: 'research',
+  /** 一次完整的 LLM 往返 —— `units` 恒 1。 */
+  llm: 'llm',
+} as const
+
+export const ASSISTANT_COST_TICK_KINDS = [
+  ASSISTANT_COST_TICK_KIND_IDS.vision,
+  ASSISTANT_COST_TICK_KIND_IDS.research,
+  ASSISTANT_COST_TICK_KIND_IDS.llm,
+] as const
+
+export type AssistantCostTickKind = (typeof ASSISTANT_COST_TICK_KINDS)[number]
+
+/**
+ * 每一档在界面上怎么念 —— **服务端只发 i18n key**，⛔ 不发人话。
+ *
+ * ⚠ 判据与 `error.i18nKey` 那条同源：服务端不知道用户此刻的界面语言（
+ * `responseLanguage` 说的是**助手说话**用哪种语言，与界面语言不是一回事），
+ * 发一句中文过去的表现是英文界面上蹦出一行中文。
+ * ⚠ 写成 `Record<档, …>`：加一档而这里没跟上，编译期就红。
+ */
+export const ASSISTANT_COST_TICK_LABEL_KEYS: Record<
+  AssistantCostTickKind,
+  string
+> = {
+  [ASSISTANT_COST_TICK_KIND_IDS.vision]: 'StudioOperator.cost.vision',
+  [ASSISTANT_COST_TICK_KIND_IDS.research]: 'StudioOperator.cost.research',
+  [ASSISTANT_COST_TICK_KIND_IDS.llm]: 'StudioOperator.cost.llm',
+}
 
 /**
  * 工具被规划器拒绝的理由。
@@ -1386,6 +1540,19 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    * 的评价（论据与 `visionUnavailable` 逐字同源）。
    */
   videoFramesMissing: 'videoFramesMissing',
+  /**
+   * 这张素材**被判过失败**，不能再作首帧 / 尾帧（切片 X）。
+   *
+   * ⭐ owner 的原话是「禁止用失败的旧图」。判据是素材自己身上那一位
+   * （`Generation.snapshot.reviewState === 'blocked'`，由用户或助手在结果卡上标），
+   * ⛔ 不是模型的判断 —— 让模型自己决定「哪张算失败」，它下一轮就会改口。
+   * ⚠ 只拦**首帧 / 尾帧**两个槽：那两格决定整段片子长什么样，用一张已经被否掉的
+   * 图开头，后面每一步都是白跑。⛔ 不拦评价（`critique_result`）—— 恰恰相反，
+   * 「这张为什么不行」正是它要回答的问题；也不拦普通参考位。
+   * ⚠ 与 `unknownAsset` 分开：那条是「你编了一个 id」，这条是「这张确实是你的，
+   * 但你自己把它否了」—— 后者可教，助手读到就该去换一张，而不是换个参数再挂一次。
+   */
+  blockedSource: 'blockedSource',
 } as const
 
 /**
@@ -1529,6 +1696,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'read one context card in full: the body the creator wrote (appearance, outfit, personality — or the style rules, or the brand spec), the hard negatives that card carries, and the URLs of its reference images with what each one is for. The card id comes from list_context_cards or from your instructions — never invent one. A sheet image is identity evidence: the look is decided by it. Mount the images you actually need with mount_reference; reading a card mounts nothing on its own.',
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
     'write down ONE standing rule the creator just stated — something that should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
+    'mark one of the creator\'s own assets as approved or blocked, so the verdict survives this turn. Use "blocked" when they say a picture did not work ("the hands are wrong", "not this one") — a blocked asset can never be used as a first or last frame again, on any workbench, and you should stop offering it. Use "approved" when they settle on one. The assetId comes from search_assets, from what they handed you, or from what you produced earlier this session — never invent one. Blocking deletes nothing: the picture stays in their library and you can still review it. Give a short reason in their words.',
 }
 
 /**

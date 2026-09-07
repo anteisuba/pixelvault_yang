@@ -22,6 +22,11 @@ import type {
   OutputTypeValue,
 } from '@/types'
 import { PAGINATION } from '@/constants/config'
+import {
+  GENERATION_REVIEW_STATES,
+  GENERATION_REVIEW_STATE_IDS,
+  type GenerationReviewState,
+} from '@/constants/assistant-operator'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import { updatePreferenceOnDeleted } from '@/services/user-preference.service'
 
@@ -1041,6 +1046,111 @@ export async function setAudioCoverImage(
   })
 
   return updated
+}
+
+// ─── 审核态（切片 X · `Generation.snapshot.reviewState`）─────────────
+
+/**
+ * 一批产物**此刻的审核态**，按 id 索引。
+ *
+ * ── 为什么是一条裸 SQL，而不是在 select 里多带一个字段 ────────────
+ * 列表口（`LIST_GENERATION_SELECT`）**故意不带 `snapshot`** —— 单行快照能到 7 MB，
+ * 一页 24 条就是 30 MB+（那段头注写在上面）。而审核态住在 snapshot 里（零迁移，
+ * 判据同产物名）。Prisma 的 `select` 取不出 JSON 里的一个标量，于是这里只能
+ * **单独取那一格**：`snapshot->>'reviewState'` 出来的是一个短字符串，整份 JSON
+ * 一个字节都没过网。
+ * ⛔ 别改成「顺手把 snapshot 也 select 出来反正只有几条」：`search_assets` 一次
+ * 最多 12 条，12 × 7 MB 是同一个事故的十二分之一，不是一个不同的事故。
+ *
+ * ⚠ 按 `userId` 收敛：这是**别人的库读不到**那道闸，不是一次性能优化。
+ * ⚠ 查不到的 id 就是不在结果里（缺席 = `pending`，⛔ 不回落成任何别的值）。
+ */
+export async function readGenerationReviewStates(
+  userId: string,
+  ids: readonly string[],
+): Promise<Map<string, GenerationReviewState>> {
+  const states = new Map<string, GenerationReviewState>()
+  if (ids.length === 0) return states
+
+  const rows = await db.$queryRaw<
+    { id: string; reviewState: string | null }[]
+  >`SELECT "id", "snapshot"->>'reviewState' AS "reviewState"
+      FROM "Generation"
+     WHERE "userId" = ${userId} AND "id" = ANY(${[...ids]})`
+
+  for (const row of rows) {
+    const value = row.reviewState
+    if (
+      value &&
+      (GENERATION_REVIEW_STATES as readonly string[]).includes(value)
+    ) {
+      states.set(row.id, value as GenerationReviewState)
+    }
+  }
+  return states
+}
+
+/**
+ * 标一张产物的审核态（切片 X）—— owner 的「禁止用失败的旧图」的落点。
+ *
+ * ⚠ **零迁移**：写的是 `snapshot` 里的两格（`reviewState` / `reviewReason`），
+ * 判据与产物名（`withGenerationDisplayName`）逐字同源。
+ * ⚠ 写法是 `snapshot || patch` 的**浅合并**，⛔ 不是读出来改完写回去：后者要把
+ * 整份 7 MB 快照拉进 Node 再推回去，而且两次并发写会互相抹掉。合并发生在库里，
+ * 一次 UPDATE。
+ * ⚠ `jsonb_typeof = 'object'` 那道守卫是有意的：历史上有调用方往 snapshot 里塞过
+ * 数组 / 标量，`||` 碰上数组会**追加一个元素**而不是合并 —— 那是在改别人的数据
+ * 结构。这种行改不动，返回 `false`，⛔ 不悄悄把它重写成对象。
+ * ⚠ 返回**旧值**（缺席时是 `pending`）：`set_review_state` 的 `inverse` 要它，
+ * 撤销 = 写回去。
+ *
+ * ⛔ 这条路径不建 generation、不扣 credit、不调 provider —— 它写的是用户自己对
+ * 自己产物的一句判断。
+ */
+export async function setGenerationReviewState(
+  userId: string,
+  id: string,
+  state: GenerationReviewState,
+  reason?: string,
+): Promise<{
+  id: string
+  state: GenerationReviewState
+  previous: GenerationReviewState
+} | null> {
+  /**
+   * ⚠ 先问归属：下面那条读按 userId 收敛，于是「不是他的」与「是他的但没标过」
+   * 读出来长得一样 —— 而前者该是 404，后者该是 `pending`。这一问只取两个标量列，
+   * ⛔ 不碰 snapshot。
+   */
+  const owned = await db.generation.findUnique({
+    where: { id },
+    select: { id: true, userId: true },
+  })
+  if (!owned || owned.userId !== userId) return null
+
+  const existing = await readGenerationReviewStates(userId, [id])
+
+  const patch: Record<string, string | null> = {
+    reviewState: state,
+    // ⚠ 没给理由就**清掉旧理由**，⛔ 不留着上一次的：一条说着「手指糊了」的
+    //    理由挂在一张刚被改成 approved 的图上，比没有理由坏得多。
+    reviewReason: reason?.trim() ? reason.trim() : null,
+  }
+
+  const updated = await db.$executeRaw`
+    UPDATE "Generation"
+       SET "snapshot" = COALESCE("snapshot", '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb
+     WHERE "id" = ${id}
+       AND "userId" = ${userId}
+       AND jsonb_typeof(COALESCE("snapshot", '{}'::jsonb)) = 'object'`
+
+  if (updated === 0) return null
+
+  return {
+    id,
+    state,
+    previous: existing.get(id) ?? GENERATION_REVIEW_STATE_IDS.pending,
+  }
 }
 
 /**

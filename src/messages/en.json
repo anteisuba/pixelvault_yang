@@ -7177,7 +7177,8 @@
       "remove": "Remove this reference",
       "count": "will look at {count}",
       "countWarn": "will look at {count} · over {limit} may get fuzzy",
-      "searching": "Searching your library…"
+      "searching": "Searching your library…",
+      "cards": "Character & style cards"
     },
     "result": {
       "title": "Results · {count}",

@@ -52,6 +52,7 @@ import {
   type AssistantStreamMessage,
 } from '@/lib/assistant-stream-client'
 import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
+import type { GenerationReviewState } from '@/constants/assistant-operator'
 import {
   UPLOAD_RATE_LIMIT_MAX_RETRIES,
   UPLOAD_RATE_LIMIT_FALLBACK_MS,
@@ -955,6 +956,50 @@ export async function setGenerationVisibility(
         errorCode: payload.errorCode,
         i18nKey: payload.i18nKey,
       }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/**
+ * 标一张产物的**审核态**（切片 X）—— 结果卡上那颗「不行 / 就它」。
+ *
+ * ⚠ Hard Rule 3：组件不 `fetch`。⛔ 助手工具环**不走这条**（它够不着 api-client，
+ * 那是钱闸锁的东西之一）；服务端那条路径直接调 `setGenerationReviewState`。
+ * ⚠ 不给 `reason` = 清掉上一次的理由（服务端头注写着为什么）。
+ */
+export async function setGenerationReviewStateAPI(
+  id: string,
+  state: GenerationReviewState,
+  reason?: string,
+): Promise<{
+  success: boolean
+  data?: {
+    id: string
+    state: GenerationReviewState
+    previous: GenerationReviewState
+  }
+  error?: string
+}> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/${id}/review`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state, ...(reason ? { reason } : {}) }),
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
+    })
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Failed with status ${response.status}`,
+      )
+      return { success: false, error: payload.error }
     }
     return await response.json()
   } catch (error) {

@@ -7177,7 +7177,8 @@
       "remove": "去掉这个引用",
       "count": "将看 {count} 张",
       "countWarn": "将看 {count} 张 · 超过 {limit} 张可能不准",
-      "searching": "正在搜素材库…"
+      "searching": "正在搜素材库…",
+      "cards": "角色卡 / 风格卡"
     },
     "result": {
       "title": "结果 · {count} 张",

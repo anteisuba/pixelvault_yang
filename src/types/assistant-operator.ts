@@ -46,6 +46,9 @@ import {
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   ASSISTANT_RESEARCH_SCOPES,
   ASSISTANT_RESEARCH_SOURCES,
+  ASSISTANT_COST_TICK_KINDS,
+  ASSISTANT_WORKING_MEMORY as MEMORY_LIMITS,
+  GENERATION_REVIEW_STATES,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PLAN_VISUAL_IDS } from '@/constants/assistant-plan-visuals'
@@ -118,6 +121,16 @@ export const AssistantOperatorReferenceSlotSchema = z.enum(
 export const AssistantOperatorCritiqueFrameLabelSchema = z.enum(
   ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS,
 )
+
+/**
+ * 一张产物的审核态（切片 X）。⚠ **缺席 = `pending`** —— 词表头注写着为什么。
+ * ⛔ 别在任何一处把缺席当成「不可用」：存量的每一行都缺席。
+ */
+export const GenerationReviewStateSchema = z.enum(GENERATION_REVIEW_STATES)
+
+export type GenerationReviewStateValue = z.infer<
+  typeof GenerationReviewStateSchema
+>
 
 export const AssistantOperatorSearchKindSchema = z.enum(
   ASSISTANT_OPERATOR_SEARCH_KINDS satisfies readonly OutputTypeValue[],
@@ -562,6 +575,18 @@ export const AssistantOperatorGenerationRequestSchema = z.object({
   count: z.number().int().positive(),
   specs: AssistantOperatorGenerationSpecsSchema,
   estimate: AssistantOperatorPlanEstimateSchema,
+  /**
+   * 助手给这一枪起的名（切片 X）——**透传字段**：服务端只是把模型给的那个字
+   * 抄进来，客户端提交时把它交给 `createGeneration({ displayLabel })`。
+   * ⚠ 服务端在这一步照旧一行库都不写（钱闸不变）。
+   * ⚠ 缺席 = 不起名，产物名的摘要段退回提示词头几个字。
+   */
+  label: z
+    .string()
+    .trim()
+    .min(1)
+    .max(LIMITS.maxGenerationLabelChars)
+    .optional(),
 })
 
 export type AssistantOperatorGenerationRequest = z.infer<
@@ -714,6 +739,62 @@ export type AssistantOperatorVideoFrames = z.infer<
   typeof AssistantOperatorVideoFramesSchema
 >
 
+/**
+ * **跨轮工作记忆**（客户端 → 服务端，切片 X）—— 上限见
+ * `ASSISTANT_WORKING_MEMORY` 的头注（含「它为什么仍然不是服务端状态」）。
+ *
+ * ⭐ 它答的是一个具体的失败：用户说「把刚才那张挂上」，而「刚才那张」产生于上一轮
+ * —— 服务端零会话态，本轮的 `searchIndex` 里一条都没有，于是助手要么重搜一遍，
+ * 要么按 `unknownAsset` 拒。`priorSteps` 带得回「做过什么」（一行摘要），
+ * 带不回「产出了什么」（可指认、挂得上的东西）。
+ *
+ * ⚠ 每件产物带 `displayName`：模型在对白里指认用的就是它（切片 N1 的名字），
+ * ⛔ 不念 id。`url` 可选 —— 有地址的才挂得上，没地址的（一段检索证据）只是让
+ * 助手记得「这件事我上一轮查过了」。
+ */
+export const AssistantOperatorWorkingMemoryArtifactSchema = z.object({
+  id: IdSchema,
+  displayName: LabelSchema,
+  /**
+   * 这件东西是什么：助手备的那一枪的产物 / 联网候选 / 检索证据 / 素材库里的一张。
+   * ⚠ 它**不是** `AssistantOperatorSearchKind`（image / video / audio）：那说的是
+   * 媒体类型，这说的是「它从哪来」—— 而准入判定关心的正是后者。
+   */
+  kind: z.enum(['result', 'candidate', 'evidence', 'asset']),
+  url: z.string().url().optional(),
+})
+
+export const AssistantOperatorWorkingMemoryRoundSchema = z.object({
+  /** 那一轮的身份（客户端给的稳定串）—— 只用于把同一轮的东西归到一起。 */
+  runKey: IdSchema,
+  /** ISO 串。系统提示里按它排「最近的在最后」。 */
+  at: z.string(),
+  /**
+   * ⚠ `.readonly()` 是**给调用方留的口**：客户端那份记忆是只读结构（它是从
+   * 已经落定的历史里算出来的），而 `T[]` 可以赋给 `readonly T[]`、反过来不行。
+   * 写成可变数组的表现是客户端要为了过类型 `[...]` 拷一份 —— 拷贝没有任何收益。
+   */
+  artifacts: z
+    .array(AssistantOperatorWorkingMemoryArtifactSchema)
+    .max(MEMORY_LIMITS.maxArtifactsPerRound)
+    .readonly(),
+})
+
+export const AssistantOperatorWorkingMemorySchema = z.object({
+  rounds: z
+    .array(AssistantOperatorWorkingMemoryRoundSchema)
+    .max(MEMORY_LIMITS.maxRounds)
+    .readonly(),
+})
+
+export type AssistantOperatorWorkingMemory = z.infer<
+  typeof AssistantOperatorWorkingMemorySchema
+>
+
+export type AssistantOperatorWorkingMemoryArtifact = z.infer<
+  typeof AssistantOperatorWorkingMemoryArtifactSchema
+>
+
 export const AssistantOperatorRequestSchema = z.object({
   messages: z.array(AssistantOperatorMessageSchema).min(1),
   domain: AssistantOperatorDomainSchema,
@@ -783,10 +864,25 @@ export const AssistantOperatorRequestSchema = z.object({
         id: IdSchema,
         url: z.string().url(),
         label: LabelSchema.optional(),
+        /**
+         * 这张此刻的审核态（切片 X）。⚠ **缺席 = `pending`**，⛔ 不是「未知所以
+         * 拒」—— 存量的每一行都缺席，把缺席当成禁用等于禁掉整个素材库。
+         * ⚠ 它由客户端带上来只是为了**省一次查库**：真正说了算的是服务端自己
+         * 从库里读到的那一位（`readGenerationReviewStates`）。客户端把
+         * `blocked` 写成 `approved` 换不到放行 —— 挂载那一步会自己去读。
+         */
+        reviewState: GenerationReviewStateSchema.optional(),
       }),
     )
     .max(LIMITS.maxSnapshotReferences)
     .optional(),
+  /**
+   * 最近几轮的产出（切片 X）。见 `AssistantOperatorWorkingMemorySchema` 头注。
+   *
+   * ⚠ 缺席 = 这一轮没有跨轮记忆（新会话 / 老客户端），一切照旧：准入名单退回
+   * 「本轮检索 + `@` 名单」那两张。
+   */
+  workingMemory: AssistantOperatorWorkingMemorySchema.optional(),
   /**
    * 这一轮客户端抽好的**三帧**（第二期 · 视频域评审）。见 schema 头注。
    *
@@ -966,14 +1062,37 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     ownerName: LabelSchema.optional(),
   }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setSound]: z.object({ enabled: z.boolean() }),
-  [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]: z.object({}),
+  /**
+   * ⚠ 唯一的入参是一个**可选的名字**（切片 X）：助手给这一枪起的名，最长
+   * `maxGenerationLabelChars` 字。它落到产物名的**摘要段**（`图_012·主视觉`），
+   * ⛔ 落不到身份段 —— 那一段只由 id 决定（`lib/generation-name.ts` 头注）。
+   * ⚠ 服务端**不写库**：它只把这个字透传进 op 载荷，写库发生在客户端提交那一跳
+   * （`createGeneration({ displayLabel })`）—— 与钱闸的分工逐字一致。
+   * ⛔ 别把它做成必填：想不出名字时取提示词头几个字，比逼模型编一个好。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]: z.object({
+    label: z
+      .string()
+      .trim()
+      .min(1)
+      .max(LIMITS.maxGenerationLabelChars)
+      .optional(),
+  }),
   /**
    * ⛔ **空入参是这条工具的一半设计**：要发什么全部来自快照（模型 / 张数 / 规格），
    * 而快照是客户端此刻真正看到的那份。让模型自己写一份「我想发的参数」，就会出现
    * 卡上写 4 张、表单里是 1 张这种对不上的情况 —— 而那正是花钱档最不能出的错。
    * 要改参数就先调 `set_*`，改完再请求发送。
    */
-  [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]: z.object({}),
+  [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]: z.object({
+    /** ⚠ 与 `prime_generate` 上那个**同一件事**：给这一枪起个名，见那边的头注。 */
+    label: z
+      .string()
+      .trim()
+      .min(1)
+      .max(LIMITS.maxGenerationLabelChars)
+      .optional(),
+  }),
   /**
    * ⛔ **仍然没有图片地址这个参数**：模型只能从两处**已有的名单**里挑，⛔ 不许
    * 自己写一条 URL。两处是——
@@ -1076,6 +1195,20 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   /** ⚠ 只吃 id：卡名会重（两张都叫「西格莉卡」），id 不会。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.readContextCard]: z.object({
     cardId: IdSchema,
+  }),
+  /**
+   * 标一张产物的审核态（切片 X）。
+   *
+   * ⚠ `state` 收下**三个值都收**（含 `approved`），值域不在这里收窄 —— 与本文件
+   * 头注 ② 同一条。真正的准入（这张是不是这个用户的）在服务端按 userId 查库，
+   * 模型给一个别人的 id 只会得到一条「找不到」。
+   * ⚠ `reason` 可选但**强烈建议给**：它跟着素材落进 snapshot，下一轮、下一台
+   * 工作台读回来的就是这句话。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]: z.object({
+    assetId: IdSchema,
+    state: GenerationReviewStateSchema,
+    reason: z.string().trim().max(LIMITS.maxReviewReasonChars).optional(),
   }),
 }
 
@@ -1258,6 +1391,13 @@ export const AssistantOperatorSearchResultAssetSchema = z.object({
   prompt: z.string().max(LIMITS.maxPriorStepSummaryChars).optional(),
   model: LabelSchema.optional(),
   createdAt: z.string().optional(),
+  /**
+   * 这张此刻的审核态（切片 X）—— **服务端从库里读出来的那一位**，不是模型写的。
+   * ⚠ 缺席 = `pending`。`blocked` 的素材**照旧出现在结果里**（⛔ 不静默过滤：
+   * 用户问「刚才那张呢」时，一句「被你否了」比一个空结果有用得多），只是挂不上
+   * 首帧 / 尾帧（`blockedSource`）。
+   */
+  reviewState: GenerationReviewStateSchema.optional(),
 })
 
 export type AssistantOperatorSearchResultAsset = z.infer<
@@ -1723,7 +1863,16 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
      * ⛔ 这里是整条链上离「生成」最近的地方，也就到此为止：`primed: true` 只是
      * 让生成键亮起来并算价，服务端不创建任何 generation（见词表文件头注）。
      */
-    z.object({ primed: z.literal(true) }),
+    z.object({
+      primed: z.literal(true),
+      /** 助手给这一枪起的名（切片 X）——客户端提交时透传给 `displayLabel`。 */
+      label: z
+        .string()
+        .trim()
+        .min(1)
+        .max(LIMITS.maxGenerationLabelChars)
+        .optional(),
+    }),
     z.object({ primed: z.literal(false) }),
   ),
   /**
@@ -1866,6 +2015,26 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
     z.object({ cardId: IdSchema }),
     ContextCardSchema.nullable(),
+  ),
+  /**
+   * 标一张产物的审核态（切片 X）。
+   *
+   * ⚠ 与 `add_project_rule` 同一档：后果**落在服务端**（写 `Generation.snapshot`），
+   * 所以 `inverse` 里放的是**服务端读到的旧值**——撤销 = 写回去，⛔ 不需要客户端
+   * 反查任何对照表。
+   * ⚠ 载荷里带 `displayName` 与 `url`：日志条上那一格要画得出「你否掉的是这张」，
+   * 而客户端此刻手上未必有这条素材（它可能来自上一轮）。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+    z.object({
+      assetId: IdSchema,
+      state: GenerationReviewStateSchema,
+      reason: z.string().max(LIMITS.maxReviewReasonChars).optional(),
+      displayName: LabelSchema.optional(),
+      url: z.string().url().optional(),
+    }),
+    z.object({ assetId: IdSchema, state: GenerationReviewStateSchema }),
   ),
 ])
 
@@ -2068,6 +2237,27 @@ export const AssistantOperatorChoiceRequestEventSchema = z.object({
     .max(CHOICE_LIMITS.maxOptions),
 })
 
+/**
+ * **成本计数帧**（切片 X）—— 词表 `ASSISTANT_OPERATOR_EVENTS.costTick` 的头注写着
+ * 它为什么不是一步、也不是账单。
+ *
+ * ⚠ `label` 是 **i18n key**（`ASSISTANT_COST_TICK_LABEL_KEYS`），⛔ 不是人话：
+ * 服务端不知道用户此刻的界面语言（`responseLanguage` 说的是助手说话用哪种语言，
+ * 那是另一件事）。
+ * ⚠ `units` 是**这一帧数了几次**，不是累计值：累计在客户端做。⛔ 别改成累计 ——
+ * 那样每一帧都得知道前面所有帧，而这条流本来就允许客户端中途接进来。
+ */
+export const AssistantOperatorCostTickEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.costTick),
+  kind: z.enum(ASSISTANT_COST_TICK_KINDS),
+  units: z.number().int().positive(),
+  label: z.string().trim().min(1).max(LIMITS.maxIdChars),
+})
+
+export type AssistantOperatorCostTickEvent = z.infer<
+  typeof AssistantOperatorCostTickEventSchema
+>
+
 export const AssistantOperatorDoneEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.done),
 })
@@ -2096,6 +2286,7 @@ export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorMessageDeltaEventSchema,
   AssistantOperatorRuleHitEventSchema,
   AssistantOperatorChoiceRequestEventSchema,
+  AssistantOperatorCostTickEventSchema,
   AssistantOperatorDoneEventSchema,
   AssistantOperatorStoppedEventSchema,
   AssistantOperatorErrorEventSchema,

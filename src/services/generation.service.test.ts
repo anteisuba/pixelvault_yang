@@ -13,6 +13,8 @@ const mockGenerationDeleteMany = vi.hoisted(() => vi.fn())
 const mockProjectFindFirst = vi.hoisted(() => vi.fn())
 const mockGenerationCharacterCardCreateMany = vi.hoisted(() => vi.fn())
 const mockDbTransaction = vi.hoisted(() => vi.fn())
+const mockQueryRaw = vi.hoisted(() => vi.fn())
+const mockExecuteRaw = vi.hoisted(() => vi.fn())
 const mockUpdatePreferenceOnDeleted = vi.hoisted(() => vi.fn())
 
 vi.mock('@/services/user-preference.service', () => ({
@@ -42,6 +44,8 @@ vi.mock('@/lib/db', () => ({
       findFirst: (...args: unknown[]) => mockProjectFindFirst(...args),
     },
     $transaction: (...args: unknown[]) => mockDbTransaction(...args),
+    $queryRaw: (...args: unknown[]) => mockQueryRaw(...args),
+    $executeRaw: (...args: unknown[]) => mockExecuteRaw(...args),
   },
 }))
 
@@ -62,6 +66,8 @@ import {
   getPublicGenerationPage,
   getPublicGenerations,
   getUserGenerations,
+  readGenerationReviewStates,
+  setGenerationReviewState,
   selectVariantWinner,
   setAudioCoverImage,
   setGenerationVisibility,
@@ -1252,6 +1258,120 @@ describe('generation.service', () => {
         selectVariantWinner('user-1', 'run-1', 'missing-gen'),
       ).rejects.toThrow('Generation not found or not part of this run group')
       expect(mockGenerationUpdateMany).not.toHaveBeenCalled()
+    })
+  })
+
+  /**
+   * 审核态（切片 X）—— owner 的「禁止用失败的旧图」在库这一层的落点。
+   *
+   * ⚠ 这几条锁的都是同一件事：**整份 snapshot 一个字节都不许被拉出来**
+   * （单行能到 7 MB，头注写着为什么）。读只取 `snapshot->>'reviewState'`，
+   * 写是库里的一次浅合并 —— 两边都不经过 Node。
+   */
+  describe('审核态', () => {
+    it('只取 snapshot 里那一格，且按 userId 收敛', async () => {
+      mockQueryRaw.mockResolvedValue([
+        { id: 'gen-1', reviewState: 'blocked' },
+        { id: 'gen-2', reviewState: null },
+        // 词表外的值（手改过库 / 老数据）一律当成没标过，⛔ 不透传出去。
+        { id: 'gen-3', reviewState: 'garbage' },
+      ])
+
+      const states = await readGenerationReviewStates('user-1', [
+        'gen-1',
+        'gen-2',
+        'gen-3',
+      ])
+
+      expect(states.get('gen-1')).toBe('blocked')
+      expect(states.has('gen-2')).toBe(false)
+      expect(states.has('gen-3')).toBe(false)
+      const sql = mockQueryRaw.mock.calls[0]?.[0]?.join('?') ?? ''
+      expect(sql).toContain("snapshot\"->>'reviewState'")
+      expect(sql).toContain('"userId" =')
+      // ⛔ 整份 snapshot 不许出现在 select 里。
+      expect(sql).not.toContain('"snapshot",')
+    })
+
+    it('空 id 列表不查库', async () => {
+      const states = await readGenerationReviewStates('user-1', [])
+      expect(states.size).toBe(0)
+      expect(mockQueryRaw).not.toHaveBeenCalled()
+    })
+
+    it('写的是一次浅合并，并把旧值交出去当 inverse', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+      })
+      mockQueryRaw.mockResolvedValue([{ id: 'gen-1', reviewState: 'approved' }])
+      mockExecuteRaw.mockResolvedValue(1)
+
+      const result = await setGenerationReviewState(
+        'user-1',
+        'gen-1',
+        'blocked',
+        '  hands are mangled  ',
+      )
+
+      expect(result).toEqual({
+        id: 'gen-1',
+        state: 'blocked',
+        previous: 'approved',
+      })
+      const params = mockExecuteRaw.mock.calls[0]?.slice(1) ?? []
+      expect(params[0]).toContain('"reviewState":"blocked"')
+      // ⚠ 理由 trim 过再落库；⛔ 不落一串空格。
+      expect(params[0]).toContain('"reviewReason":"hands are mangled"')
+    })
+
+    it('没给理由时清掉上一次的理由', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+      })
+      mockQueryRaw.mockResolvedValue([])
+      mockExecuteRaw.mockResolvedValue(1)
+
+      const result = await setGenerationReviewState(
+        'user-1',
+        'gen-1',
+        'approved',
+      )
+
+      // 没标过 → 旧值是 pending（缺席的语义），撤销回得去。
+      expect(result?.previous).toBe('pending')
+      const params = mockExecuteRaw.mock.calls[0]?.slice(1) ?? []
+      expect(params[0]).toContain('"reviewReason":null')
+    })
+
+    it('别人的行改不动，也不发一条 UPDATE 出去', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'someone-else',
+      })
+
+      const result = await setGenerationReviewState(
+        'user-1',
+        'gen-1',
+        'blocked',
+      )
+
+      expect(result).toBeNull()
+      expect(mockExecuteRaw).not.toHaveBeenCalled()
+    })
+
+    it('snapshot 不是对象的历史行改不动（UPDATE 影响 0 行）', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+      })
+      mockQueryRaw.mockResolvedValue([])
+      mockExecuteRaw.mockResolvedValue(0)
+
+      await expect(
+        setGenerationReviewState('user-1', 'gen-1', 'blocked'),
+      ).resolves.toBeNull()
     })
   })
 })

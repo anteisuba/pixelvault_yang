@@ -255,6 +255,34 @@ describe('⛔ 助手工具环的钱闸', () => {
   })
 
   /**
+   * ⭐ **第六次值得复核的改动**（切片 X）：`set_review_state` 是名单里**第二条
+   * 会往库里写**的工具（第一条是 `add_project_rule` 写一行文本）。
+   *
+   * ── 判据，逐条 ─────────────────────────────────────────────────
+   *  · **写的是什么** —— `Generation.snapshot` 里的两格（审核态 + 一句理由），
+   *    也就是**用户对自己产物的判断**。⛔ 不建 generation、不扣 credit、
+   *    不调 provider、不碰 R2。
+   *  · **为什么非写不可** —— owner 的「禁止用失败的旧图」需要一个跨轮、跨工作台
+   *    活着的落点，而这条链**没有服务端会话态**（拍板 13）：不落库就只能靠客户端
+   *    每轮把「哪几张不行」再带一遍，而那正是「说了三遍还在用那张」的成因。
+   *  · **它写的模块早就在名单里** —— `generation.service`（`search_assets` 用的
+   *    同一个）。允许名单因此一条都不用加，禁字表一条都不用松。
+   * ⛔ 下一个人想在这条工具上「顺便重跑一次」，撞的是同一份禁字表。
+   */
+  it('⭐ set_review_state 会写库，而写的仍然只是一句判断', () => {
+    expect(ASSISTANT_OPERATOR_TOOLS).toContain('set_review_state')
+    // 它是改动型（因此必须带 inverse —— 旧值），⛔ 不是花钱档。
+    expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).toContain('set_review_state')
+    expect(ASSISTANT_OPERATOR_SPEND_TOOLS).not.toContain('set_review_state')
+    // 服务端确实接了这条工具，而且写的是那一个函数……
+    expect(SOURCE).toContain('planSetReviewState')
+    expect(SOURCE).toContain('setGenerationReviewState')
+    // ……禁字表那条用例逐条扫着同一份源码；这里再补两条它绝不该碰的：
+    expect(SOURCE).not.toContain('deleteGeneration')
+    expect(SOURCE).not.toContain('deleteManyFromR2')
+  })
+
+  /**
    * 「本会话不再问」（拍板 24）**的记忆不在服务端**。
    *
    * ⭐ 服务端存一份「这个用户说过不用问了」的记忆，就等于把「花不花钱」这件事的

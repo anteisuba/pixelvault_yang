@@ -7177,7 +7177,8 @@
       "remove": "この参照を外す",
       "count": "{count} 枚を見ます",
       "countWarn": "{count} 枚を見ます · {limit} 枚を超えると精度が落ちます",
-      "searching": "ライブラリを検索中…"
+      "searching": "ライブラリを検索中…",
+      "cards": "キャラクター / スタイルカード"
     },
     "result": {
       "title": "結果 · {count} 枚",

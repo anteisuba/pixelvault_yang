@@ -490,17 +490,15 @@ export interface V4SlotIssue {
   readonly slot: NodeSlotId
   readonly issue: V4SlotIssueId
   /**
-   * 文案键，**只用现有键**（`src/messages/*.json`）。
-   *
-   * ⚠ `belowMin` 今天**没有**对应文案 —— 现有的 `connectRejected.*` 说的都是
-   * 「这条线连不上」，而这里是「这个槽还没填满，生成不了」，借用会说反话。
-   * 留空并记进 C3d 的待办（新增 `StudioNode.v4.slotIssue.belowMin` 三语），
-   * ⛔ 不在本片凭空造键。
+   * 文案键。⚠ `belowMin` 不能借 `connectRejected.*` —— 那一组说的是「这条线连不
+   * 上」，而这里是「这个槽还没填满，生成不了」，借用会说反话。C3c-① 给它补了
+   * 专属键 `StudioNode.v4.slotIssue.belowMin`（三语，带 `{slot}` 参数）。
    */
   readonly i18nKey?: string
 }
 
-const SLOT_ISSUE_I18N: Partial<Record<V4SlotIssueId, string>> = {
+const SLOT_ISSUE_I18N: Record<V4SlotIssueId, string> = {
+  [V4_SLOT_ISSUE_IDS.belowMin]: 'StudioNode.v4.slotIssue.belowMin',
   [V4_SLOT_ISSUE_IDS.blockedSource]:
     'StudioNode.v4.connectRejected.blockedSource',
   [V4_SLOT_ISSUE_IDS.currentMissing]:
@@ -523,7 +521,7 @@ export function validateV4Slots(
     issues.push({
       slot,
       issue,
-      ...(SLOT_ISSUE_I18N[issue] ? { i18nKey: SLOT_ISSUE_I18N[issue] } : {}),
+      i18nKey: SLOT_ISSUE_I18N[issue],
     })
   }
 

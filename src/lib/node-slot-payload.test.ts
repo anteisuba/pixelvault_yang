@@ -404,7 +404,7 @@ describe('buildV4ImagePayload / buildV4AudioPayload / buildV4MergeClipUrls', () 
 })
 
 describe('validateV4Slots · 缺槽的说法', () => {
-  it('合并节点少于 2 条片段 → belowMin（⚠ 今天没有对应文案，留给 C3d）', () => {
+  it('合并节点少于 2 条片段 → belowMin，走 C3c-① 新增的专属键', () => {
     const a = node('a', {
       kind: 'video',
       subtype: 'shot',
@@ -418,9 +418,12 @@ describe('validateV4Slots · 缺槽的说法', () => {
       [a, merge],
     )
     expect(issues).toEqual([
-      { slot: NODE_SLOT_IDS.clip, issue: V4_SLOT_ISSUE_IDS.belowMin },
+      {
+        slot: NODE_SLOT_IDS.clip,
+        issue: V4_SLOT_ISSUE_IDS.belowMin,
+        i18nKey: 'StudioNode.v4.slotIssue.belowMin',
+      },
     ])
-    expect(issues[0]?.i18nKey).toBeUndefined()
   })
 
   it('已判失败的素材挂在槽上 → blockedSource，走现有键', () => {

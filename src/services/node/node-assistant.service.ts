@@ -55,6 +55,7 @@ import {
   buildReferenceHandles,
   formatReferenceTag,
 } from '@/lib/assistant-reference-handles'
+import { buildNodeCanvasSnapshotV4 } from '@/lib/node-assistant-context'
 import { ApiRequestError } from '@/lib/errors'
 import type {
   NodeAssistantMessage,
@@ -443,7 +444,23 @@ function buildNodeAssistantUserPrompt(
       ? undefined
       : Math.max(1, Math.floor(maxLength * 0.1))
   const prefix = `CURRENT CANVAS NODES:
-${buildNodeSummary(request.nodes, nodeBudget)}
+${
+  // C3c-① E：state 为 v4 时用 v4 分层快照 —— 槽内联在目标节点下面、非当前镜
+  // 只报一行标题。⛔ 不做「两份都发」：那会让同一张图在上下文里出现两次，
+  // 且两份对不上时模型按哪份答无从判断。
+  request.canvasV4
+    ? buildNodeCanvasSnapshotV4(
+        request.canvasV4.nodes,
+        request.canvasV4.edges,
+        {
+          selectedIds: request.selectedNodeIds,
+          ...(request.canvasV4.currentShotNo === undefined
+            ? {}
+            : { currentShotNo: request.canvasV4.currentShotNo }),
+        },
+      )
+    : buildNodeSummary(request.nodes, nodeBudget)
+}
 
 SELECTED NODES:
 ${buildSelectedNodeText(request.selectedNodeIds, request.nodes)}

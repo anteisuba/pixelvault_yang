@@ -24,6 +24,7 @@ import { formatShotDisplayName } from '@/lib/node-display-name'
 import type { NodeV4, NodeV4VideoData } from '@/types/node-workflow'
 
 import { useNodeV4Canvas } from './NodeV4Context'
+import { NodeV4GenerateDesk } from './NodeV4GenerateDesk'
 import { NodeV4SlotCard } from './NodeV4SlotCard'
 import { NodeV4Shell, NodeV4Thumbnail } from './NodeV4Shell'
 
@@ -133,11 +134,10 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             alt={displayName}
             kind={videoData.url ? 'video' : 'image'}
           />
-          {videoData.prompt ? (
-            <p className="max-h-24 overflow-auto text-2xs text-muted-foreground">
-              {videoData.prompt}
-            </p>
-          ) : null}
+          {/* 生成编排区：镜头的模型 / 参数 / 提示词 / 槽架 / 生成按钮。⚠ 这一块
+              取代 v3 里 `SeedanceNode` 的右侧侧车（内嵌整个 `VideoComposer`）——
+              盘点的第一风险项「video.shot 的生成能力整块无落点」的落点。 */}
+          <NodeV4GenerateDesk node={node} />
         </div>
       }
     />

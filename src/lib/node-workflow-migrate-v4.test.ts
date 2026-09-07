@@ -285,6 +285,108 @@ describe('migrateNodeWorkflowStateToV4', () => {
   })
 })
 
+describe('migrateNodeWorkflowStateToV4 · C3c-① A 上传回填字段与两个迁移缺口', () => {
+  it('videoThumbnailUrl / sizeBytes / mediaWidth / mediaHeight / imageSource 一路搬进 v4', () => {
+    const { state } = migrateNodeWorkflowStateToV4(
+      {
+        nodes: [
+          node('n_clip', NODE_TYPE_IDS.videoReference, {
+            mediaUrl: 'https://x/a.mp4',
+            videoThumbnailUrl: 'https://x/a.webp',
+            sizeBytes: 1234,
+            mediaWidth: 1920,
+            mediaHeight: 1080,
+          }),
+          node('n_img', NODE_TYPE_IDS.shot, {
+            mediaUrl: 'https://x/b.png',
+            mediaWidth: 1024,
+            mediaHeight: 1024,
+            imageSource: 'existing',
+          }),
+        ],
+      },
+      { now: NOW },
+    )
+    const clip = state.nodes.find((item) => item.id === 'n_clip')
+    const image = state.nodes.find((item) => item.id === 'n_img')
+    expect(clip?.data).toMatchObject({
+      videoThumbnailUrl: 'https://x/a.webp',
+      sizeBytes: 1234,
+      mediaWidth: 1920,
+      mediaHeight: 1080,
+    })
+    expect(image?.data).toMatchObject({
+      mediaWidth: 1024,
+      mediaHeight: 1024,
+      imageSource: 'existing',
+    })
+  })
+
+  it('坏值不落库，也不让整份 parse 失败', () => {
+    const { state } = migrateNodeWorkflowStateToV4(
+      {
+        nodes: [
+          node('n_img', NODE_TYPE_IDS.shot, {
+            mediaWidth: -3,
+            mediaHeight: 0,
+            sizeBytes: 'big',
+            imageSource: 'nonsense',
+            videoThumbnailUrl: '   ',
+          }),
+        ],
+      },
+      { now: NOW },
+    )
+    const data = state.nodes[0]?.data as Record<string, unknown>
+    expect(data.mediaWidth).toBeUndefined()
+    expect(data.mediaHeight).toBeUndefined()
+    expect(data.sizeBytes).toBeUndefined()
+    expect(data.imageSource).toBeUndefined()
+    expect(data.videoThumbnailUrl).toBeUndefined()
+  })
+
+  it('缺口①：v3 四栏合成 Markdown 正文（`prompt` 空也不丢字）', () => {
+    const { state } = migrateNodeWorkflowStateToV4(
+      {
+        nodes: [
+          node('n_text', NODE_TYPE_IDS.shotText, {
+            prompt: '',
+            scene: '走廊·夜',
+            action: '她回头',
+            camera: '缓慢推入',
+            composition: '中近景',
+          }),
+        ],
+      },
+      { now: NOW },
+    )
+    const data = state.nodes[0]?.data
+    expect(data?.kind === 'text' ? data.body : '').toBe(
+      '走廊·夜\n她回头\n缓慢推入\n中近景',
+    )
+  })
+
+  it('缺口②：台词 id 反查到所属镜头的镜号', () => {
+    const { state } = migrateNodeWorkflowStateToV4(
+      {
+        scriptDoc: {
+          shots: [
+            { id: 'shot_a', dialogue: [{ id: 'line_1' }] },
+            { id: 'shot_b', dialogue: [{ id: 'line_2' }] },
+          ],
+        },
+        nodes: [
+          node('n_voice', NODE_TYPE_IDS.voice, {
+            scriptRef: { kind: 'dialogue', sourceId: 'line_2' },
+          }),
+        ],
+      },
+      { now: NOW },
+    )
+    expect(state.nodes[0]?.data.shotNo).toBe(2)
+  })
+})
+
 describe('resolveV4Identity', () => {
   it('composer / agent 整节点剥除', () => {
     expect(

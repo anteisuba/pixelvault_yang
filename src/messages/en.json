@@ -4420,7 +4420,10 @@
       "seedance": "Video Generation",
       "videoReference": "Reference Video",
       "videoMerge": "Compose videos",
-      "typeNameAria": "{type}: {name}"
+      "typeNameAria": "{type}: {name}",
+      "text": "Text",
+      "audio": "Audio",
+      "video": "Video"
     },
     "addMenuHelpers": {
       "shotText": "Draft shot direction, action, and camera notes.",
@@ -5876,7 +5879,40 @@
         "backupFailed": "Backing up the v3 data failed — the canvas won't save. Retry or contact support.",
         "migrationFailed": "This project's data can't be read; writes are stopped so nothing is overwritten."
       },
-      "versionAdded": "Added as version {count} and set as current"
+      "versionAdded": "Added as version {count} and set as current",
+      "opFailed": "Could not apply this step: {reason}",
+      "slotIssue": {
+        "belowMin": "{slot} is not filled yet — cannot generate"
+      },
+      "generateDesk": {
+        "title": "Generate",
+        "prompt": "Prompt",
+        "promptPlaceholder": "Describe the shot you want…",
+        "model": "Model",
+        "params": "Parameters",
+        "aspectRatio": "Aspect ratio",
+        "resolution": "Resolution",
+        "duration": "Duration",
+        "durationSeconds": "{seconds}s",
+        "generateAudio": "Generate audio",
+        "seed": "Seed",
+        "seedPlaceholder": "Empty = random",
+        "negativePrompt": "Negative prompt",
+        "generate": "Generate",
+        "regenerate": "Regenerate",
+        "retry": "Retry",
+        "generating": "Generating…",
+        "failed": "Generation failed: {reason}",
+        "upload": "Upload media",
+        "uploading": "Uploading {percent}%",
+        "uploadCancel": "Cancel",
+        "uploadFailed": "Upload failed: {reason}",
+        "uploadRetry": "Retry upload",
+        "noModel": "Pick a model first",
+        "slotRack": "Slots",
+        "slotCount": "{slot} {count}",
+        "noGenerate": "Text nodes do not generate — derive instead"
+      }
     }
   },
   "StudioMobile": {

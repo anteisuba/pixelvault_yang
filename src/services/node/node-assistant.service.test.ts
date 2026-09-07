@@ -122,8 +122,8 @@ describe('createNodeAssistantStream', () => {
         providerManagedOutput: true,
         promptGuardMaxLength: null,
         // label≠actual fix: the Gemini assistant route resolves to the
-        // assistant-table model (3.7 Flash), not the generic text default.
-        modelId: 'gemini-3.7-flash',
+        // assistant-table model (3.8 Flash), not the generic text default.
+        modelId: 'gemini-3.8-flash',
       }),
     )
   })
@@ -180,6 +180,62 @@ describe('createNodeAssistantStream', () => {
     // 它缺席说出来的（身份卡的 type 也是 image，光看 type 分不出来）。
     expect(userPrompt).toContain('[[node:video-1]] 第一镜 (seedance, idle)')
     expect(userPrompt).not.toContain('第一镜 (seedance, idle) · category')
+  })
+
+  // C3c-① E：state 为 v4 时快照换成分层的那一份，⛔ 不再发 v3 的平铺清单。
+  it('带 canvasV4 时走 v4 分层快照（槽内联，⛔ 不再发 v3 平铺清单）', async () => {
+    mockLlmTextCompletion.mockResolvedValue('Ack.')
+    const NOW = '2026-09-07T00:00:00.000Z'
+
+    await createNodeAssistantStream('clerk_user_1', {
+      ...REQUEST,
+      canvasV4: {
+        nodes: [
+          {
+            id: 'v_1',
+            position: { x: 0, y: 0 },
+            data: {
+              name: 'S01·有人还在',
+              status: NODE_STATUS_IDS.idle,
+              createdAt: NOW,
+              shotNo: 1,
+              kind: 'video',
+              subtype: 'shot',
+              label: '有人还在',
+            },
+          },
+          {
+            id: 'i_1',
+            position: { x: 0, y: 0 },
+            data: {
+              name: 'S01·首帧',
+              status: NODE_STATUS_IDS.idle,
+              createdAt: NOW,
+              shotNo: 1,
+              kind: 'image',
+              subtype: 'shot',
+              url: 'https://cdn/a.png',
+            },
+          },
+        ],
+        edges: [
+          {
+            id: 'e1',
+            source: 'i_1',
+            sourceHandle: 'out',
+            target: 'v_1',
+            slot: 'firstFrame',
+          },
+        ],
+        currentShotNo: 1,
+      },
+    })
+
+    const userPrompt = mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt
+    expect(userPrompt).toContain('有人还在')
+    expect(userPrompt).toContain('firstFrame')
+    // v3 那份平铺清单的行首标记不再出现。
+    expect(userPrompt).not.toContain('- [[node:node-1]]')
   })
 
   it('系统提示词把两个新 op 与合法分类值列全（词表从常量生成，不手抄）', async () => {
@@ -554,7 +610,7 @@ describe('createNodeAssistantStream — reference research turn', () => {
       expect.objectContaining({
         adapterType: AI_ADAPTER_TYPES.GEMINI,
         apiKey: 'gemini-key',
-        modelId: 'gemini-3.7-flash',
+        modelId: 'gemini-3.8-flash',
         useGrounding: true,
       }),
     )

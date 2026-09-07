@@ -9,6 +9,8 @@ import {
 } from '@/constants/node-studio'
 import {
   NodeStatusSchema,
+  NodeV4Schema,
+  NodeWorkflowEdgeV4Schema,
   NodeWorkflowNodeTypeSchema,
 } from '@/types/node-workflow'
 import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
@@ -190,6 +192,22 @@ export const NodeAssistantRequestSchema = z.object({
     .array(z.string().trim().min(1).max(160))
     .max(NODE_STUDIO_ASSISTANT_LIMITS.maxSelectedNodes)
     .default([]),
+  /**
+   * v4 整图（C3c-① E）。**在场 = 这个项目的 state 已经是 v4**，服务端据此改用
+   * `buildNodeCanvasSnapshotV4`（分层快照：当前镜完整档、其余每镜一行标题，槽
+   * 内联在目标节点下面）。缺席 = v3，仍走 `buildNodeSummary` 那份平铺清单。
+   *
+   * ⚠ 判据是**这一份在不在**，⛔ 不由服务端去猜 `nodes[].type` 是不是 legacy：
+   * 客户端才知道自己这张图是哪一版，猜一次就多一处会漂的判据。
+   */
+  canvasV4: z
+    .object({
+      nodes: z.array(NodeV4Schema).max(NODE_STUDIO_ASSISTANT_LIMITS.maxNodes),
+      edges: z.array(NodeWorkflowEdgeV4Schema),
+      /** 用户当前所在的镜号 —— 它与相邻两镜进完整档。 */
+      currentShotNo: z.number().int().min(1).max(999).optional(),
+    })
+    .optional(),
   references: z
     .array(NodeAssistantMediaReferenceSchema)
     .max(NODE_STUDIO_ASSISTANT_LIMITS.maxReferences)

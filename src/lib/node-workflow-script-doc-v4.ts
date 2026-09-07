@@ -42,6 +42,7 @@ import {
   NODE_SLOT_TEXT_ROLE_IDS,
 } from '@/constants/node-slots'
 import { buildShotLabel, buildStableNodeName } from '@/lib/node-display-name'
+import { composeShotTextBody } from '@/lib/node-workflow-prompt'
 import { tidyShotLanes } from '@/lib/node-shot-layout'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import {
@@ -79,10 +80,12 @@ export interface ProjectScriptDocV4Options {
  * camera → composition），⛔ 别按 ScriptDoc 字段的声明顺序重排。
  */
 export function buildShotTextBody(shot: ScriptDocShot): string {
-  return [shot.sceneLabel, shot.summary, shot.camera, shot.composition]
-    .map((value) => value?.trim() ?? '')
-    .filter(Boolean)
-    .join('\n')
+  return composeShotTextBody([
+    shot.sceneLabel,
+    shot.summary,
+    shot.camera,
+    shot.composition,
+  ])
 }
 
 interface Builder {

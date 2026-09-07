@@ -148,6 +148,11 @@ function harness(
     onFocusNode: vi.fn(),
     onEditText: vi.fn(),
     onDeriveFromText: vi.fn(),
+    modelOptionsByKind: {},
+    onSetPrompt: vi.fn(),
+    onSetModel: vi.fn(),
+    onSetParams: vi.fn(),
+    onSetMedia: vi.fn(),
     ...overrides,
   }
 }

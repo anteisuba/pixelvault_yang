@@ -26,6 +26,7 @@ import {
   NODE_IMAGE_ROLE_IDS,
   NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
+  NODE_WORKFLOW_FIELDS_BY_NODE_TYPE,
   NODE_V4_AUDIO_SUBTYPE_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
@@ -41,6 +42,7 @@ import {
   type NodeSlotId,
 } from '@/constants/node-slots'
 import {
+  NODE_STUDIO_IMAGE_OUTPUT_SOURCES,
   NODE_STUDIO_KEYFRAME_REFERENCE_ROLES,
   NODE_V4_SUBTYPE_LABELS,
 } from '@/constants/node-studio'
@@ -50,10 +52,15 @@ import {
   resolveNodeDisplayName,
 } from '@/lib/node-display-name'
 import {
+  composeShotTextBody,
+  getNodeWorkflowFieldValue,
+} from '@/lib/node-workflow-prompt'
+import {
   NodeWorkflowStateV4Schema,
   type NodeV4,
   type NodeV4Data,
   type NodeWorkflowEdgeV4,
+  type NodeWorkflowImageOutputSource,
   type NodeWorkflowNodeData,
   type NodeWorkflowStateV4,
 } from '@/types/node-workflow'
@@ -82,7 +89,9 @@ interface V3Edge {
 export interface V3State {
   nodes?: V3Node[]
   edges?: V3Edge[]
-  scriptDoc?: { shots?: { id: string }[] } & Record<string, unknown>
+  scriptDoc?: {
+    shots?: { id: string; dialogue?: { id: string }[] }[]
+  } & Record<string, unknown>
   [key: string]: unknown
 }
 
@@ -203,12 +212,23 @@ function readString(value: unknown): string | undefined {
   return next.length > 0 ? next : undefined
 }
 
-/** ScriptDoc 里镜头的排序 = 镜号。没有 `scriptRef` 的节点无镜号（散节点）。 */
+/**
+ * ScriptDoc 里镜头的排序 = 镜号。没有 `scriptRef` 的节点无镜号（散节点）。
+ *
+ * ⚠ C3c-① A 迁移缺口②：**台词也进这张表**。音色节点的 `scriptRef.sourceId` 存的
+ * 是**台词 id**（投影时一条台词一个音色节点），不是镜头 id —— 只按 `shot.id` 建
+ * 索引的话，整张图里所有音色节点的 `shotNo` 全为空，于是它们落到镜头带下方的
+ * 自由区，用户看到的是「音色全掉出镜头了」。台词映到它所属镜头的镜号。
+ */
 function buildShotNoIndex(state: V3State): Map<string, number> {
   const index = new Map<string, number>()
   const shots = state.scriptDoc?.shots ?? []
   shots.forEach((shot, position) => {
-    index.set(shot.id, position + 1)
+    const shotNo = position + 1
+    index.set(shot.id, shotNo)
+    for (const line of shot.dialogue ?? []) {
+      if (line?.id) index.set(line.id, shotNo)
+    }
   })
   return index
 }
@@ -273,6 +293,50 @@ export function resolveEdgeSlot(
   }
 }
 
+/**
+ * 上传 / 生成回填的媒体元数据（C3c-① A）。v3 把它们散在 data 顶层，v4 收进
+ * `NodeV4MediaMetaShape`（image / audio / video 三类共用一份形状）。
+ *
+ * ⚠ 这一段在此之前是**断的**：`/api/node-workflow/upload-reference-video` 回填的
+ * `videoThumbnailUrl` / `sizeBytes` / `mediaWidth` / `mediaHeight` 在 v4 schema 里
+ * 没有落点，迁移一跑视频 poster、文件大小、W×H 读数与「已有图/生成图」角标就
+ * 全部静默消失。
+ */
+function readMediaMeta(node: V3Node): {
+  videoThumbnailUrl?: string
+  sizeBytes?: number
+  mediaWidth?: number
+  mediaHeight?: number
+  imageSource?: NodeWorkflowImageOutputSource
+} {
+  const positiveInt = (value: unknown): number | undefined =>
+    typeof value === 'number' && Number.isInteger(value) && value > 0
+      ? value
+      : undefined
+  const size =
+    typeof node.data.sizeBytes === 'number' &&
+    Number.isInteger(node.data.sizeBytes) &&
+    node.data.sizeBytes >= 0
+      ? node.data.sizeBytes
+      : undefined
+  const source = NODE_STUDIO_IMAGE_OUTPUT_SOURCES.find(
+    (candidate) => candidate === node.data.imageSource,
+  )
+  return {
+    ...(readString(node.data.videoThumbnailUrl)
+      ? { videoThumbnailUrl: readString(node.data.videoThumbnailUrl) }
+      : {}),
+    ...(size === undefined ? {} : { sizeBytes: size }),
+    ...(positiveInt(node.data.mediaWidth) === undefined
+      ? {}
+      : { mediaWidth: positiveInt(node.data.mediaWidth) }),
+    ...(positiveInt(node.data.mediaHeight) === undefined
+      ? {}
+      : { mediaHeight: positiveInt(node.data.mediaHeight) }),
+    ...(source ? { imageSource: source } : {}),
+  }
+}
+
 function buildNodeData(
   node: V3Node,
   identity: V4Identity,
@@ -293,6 +357,7 @@ function buildNodeData(
     readString(node.data.mediaUrl) ??
     readString(node.data.imageUrl) ??
     readString(node.data.videoUrl)
+  const mediaMeta = readMediaMeta(node)
   const params = {
     ...(readString(node.data.aspectRatio)
       ? { aspectRatio: readString(node.data.aspectRatio) }
@@ -316,7 +381,23 @@ function buildNodeData(
         ...base,
         kind: NODE_MEDIA_KIND_IDS.text,
         subtype: identity.subtype as 'script' | 'shotNote' | 'rule',
-        body: readString(node.data.prompt) ?? '',
+        // C3c-① A 迁移缺口①：v3 的 `shotText` 正文住在 scene / action / camera /
+        // composition **四栏**里，`prompt` 在这类节点上通常是空的 —— 之前只读
+        // `prompt` 等于把整段镜头文字迁没了。合成走与投影 / v3 送模型同一份
+        // `composeShotTextBody`，顺序取自 `NODE_WORKFLOW_FIELDS_BY_NODE_TYPE`。
+        body:
+          composeShotTextBody(
+            (
+              NODE_WORKFLOW_FIELDS_BY_NODE_TYPE[NODE_TYPE_IDS.shotText] ?? []
+            ).map((fieldId) =>
+              getNodeWorkflowFieldValue(
+                node.data as NodeWorkflowNodeData,
+                fieldId,
+              ),
+            ),
+          ) ||
+          readString(node.data.prompt) ||
+          '',
         // v3 的 `shotText` 连进镜头的那条边一律是剧本（C1 契约修正 2）——v3 里
         // 根本没有「风格约束 / 角色描述」这两档，把它们猜出来就是编数据。
         defaultRole: NODE_SLOT_TEXT_ROLE_IDS.script,
@@ -326,6 +407,7 @@ function buildNodeData(
         ...base,
         kind: NODE_MEDIA_KIND_IDS.audio,
         subtype: identity.subtype as 'voice' | 'ambience',
+        ...mediaMeta,
         // 三条 deprecated 字段在迁移里合流后删除——一次性回填不受「读路径先 parse
         // 后 migrate」那条约束（那正是它们今天不能删的唯一原因）。
         ...((readString(node.data.voiceClipUrl) ??
@@ -348,6 +430,7 @@ function buildNodeData(
         ...base,
         kind: NODE_MEDIA_KIND_IDS.video,
         subtype: identity.subtype as 'shot' | 'clip' | 'merge',
+        ...mediaMeta,
         label,
         ...(media ? { url: media } : {}),
         ...(node.data.model ? { model: node.data.model } : {}),
@@ -373,6 +456,7 @@ function buildNodeData(
           | 'shot'
           | 'reference'
           | 'result',
+        ...mediaMeta,
         ...(media ? { url: media } : {}),
         ...(node.data.model ? { model: node.data.model } : {}),
         ...(readString(node.data.prompt)

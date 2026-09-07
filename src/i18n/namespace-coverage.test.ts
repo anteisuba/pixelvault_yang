@@ -703,6 +703,18 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
     calls: ['useTranslations()'],
     namespaces: ['workflows'],
   },
+  'components/business/node/nodes/v4/NodeV4GenerateDesk.tsx': {
+    // C3c-①：`t(issue.i18nKey)` —— 键来自 `validateV4Slots` 的
+    // `SLOT_ISSUE_I18N`（`src/lib/node-slot-payload.ts`），三条全是
+    // `StudioNode.v4.` 下的完整点路径。⚠ 槽校验文案必须与「连线被拒」的文案
+    // 同源（同一条规则的两个出口），所以键住在那张表里而不是这个组件里。
+    reason:
+      'Renders `validateV4Slots` issues via `t(issue.i18nKey)`. Every key in ' +
+      '`SLOT_ISSUE_I18N` (`src/lib/node-slot-payload.ts`) is a full dotted ' +
+      'path under `StudioNode.v4.`.',
+    calls: ['useTranslations()'],
+    namespaces: ['StudioNode'],
+  },
   'components/business/studio-shared/workflow/StudioWorkflowSummary.tsx': {
     // line 9 as of 2026-08-25
     reason:

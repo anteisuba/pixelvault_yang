@@ -4420,7 +4420,10 @@
       "seedance": "视频生成",
       "videoReference": "参考视频",
       "videoMerge": "视频合成",
-      "typeNameAria": "{type}：{name}"
+      "typeNameAria": "{type}：{name}",
+      "text": "文本",
+      "audio": "音频",
+      "video": "视频"
     },
     "addMenuHelpers": {
       "shotText": "整理镜头说明、动作和画面调度。",
@@ -5876,7 +5879,40 @@
         "backupFailed": "备份 v3 数据失败，画布暂不保存——请重试或联系支持",
         "migrationFailed": "这个项目的数据读不出来，已停止写入以免覆盖"
       },
-      "versionAdded": "已加为第 {count} 版并设为当前"
+      "versionAdded": "已加为第 {count} 版并设为当前",
+      "opFailed": "这一步没能应用：{reason}",
+      "slotIssue": {
+        "belowMin": "{slot} 还没填够，暂时不能生成"
+      },
+      "generateDesk": {
+        "title": "生成",
+        "prompt": "提示词",
+        "promptPlaceholder": "描述你要的画面…",
+        "model": "模型",
+        "params": "参数",
+        "aspectRatio": "比例",
+        "resolution": "清晰度",
+        "duration": "时长",
+        "durationSeconds": "{seconds} 秒",
+        "generateAudio": "生成音轨",
+        "seed": "随机种子",
+        "seedPlaceholder": "留空=随机",
+        "negativePrompt": "负面词",
+        "generate": "生成",
+        "regenerate": "重新生成",
+        "retry": "重试",
+        "generating": "生成中…",
+        "failed": "生成失败：{reason}",
+        "upload": "上传素材",
+        "uploading": "上传中 {percent}%",
+        "uploadCancel": "取消",
+        "uploadFailed": "上传失败：{reason}",
+        "uploadRetry": "重试上传",
+        "noModel": "先选一个模型",
+        "slotRack": "素材槽",
+        "slotCount": "{slot} {count}",
+        "noGenerate": "文本节点没有生成，只能派生"
+      }
     }
   },
   "StudioMobile": {

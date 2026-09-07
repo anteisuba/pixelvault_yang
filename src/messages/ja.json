@@ -4420,7 +4420,10 @@
       "seedance": "動画生成",
       "videoReference": "参考動画",
       "videoMerge": "動画合成",
-      "typeNameAria": "{type}：{name}"
+      "typeNameAria": "{type}：{name}",
+      "text": "テキスト",
+      "audio": "オーディオ",
+      "video": "ビデオ"
     },
     "addMenuHelpers": {
       "shotText": "ショット説明、動き、カメラ指示を整理します。",
@@ -5876,7 +5879,40 @@
         "backupFailed": "v3 データのバックアップに失敗したため保存を停止しました。再試行するかサポートへ。",
         "migrationFailed": "このプロジェクトのデータを読めないため、上書きを防ぐ目的で書き込みを停止しました。"
       },
-      "versionAdded": "第 {count} 版として追加し、現在の版にしました"
+      "versionAdded": "第 {count} 版として追加し、現在の版にしました",
+      "opFailed": "この操作を適用できませんでした：{reason}",
+      "slotIssue": {
+        "belowMin": "{slot} がまだ足りません。生成できません"
+      },
+      "generateDesk": {
+        "title": "生成",
+        "prompt": "プロンプト",
+        "promptPlaceholder": "欲しい画づくりを記述…",
+        "model": "モデル",
+        "params": "パラメータ",
+        "aspectRatio": "アスペクト比",
+        "resolution": "解像度",
+        "duration": "長さ",
+        "durationSeconds": "{seconds}秒",
+        "generateAudio": "音声を生成",
+        "seed": "シード",
+        "seedPlaceholder": "空欄=ランダム",
+        "negativePrompt": "ネガティブ",
+        "generate": "生成",
+        "regenerate": "再生成",
+        "retry": "再試行",
+        "generating": "生成中…",
+        "failed": "生成に失敗：{reason}",
+        "upload": "素材をアップロード",
+        "uploading": "アップロード中 {percent}%",
+        "uploadCancel": "キャンセル",
+        "uploadFailed": "アップロード失敗：{reason}",
+        "uploadRetry": "再アップロード",
+        "noModel": "まずモデルを選択",
+        "slotRack": "スロット",
+        "slotCount": "{slot} {count}",
+        "noGenerate": "テキストノードは生成せず派生のみ"
+      }
     }
   },
   "StudioMobile": {

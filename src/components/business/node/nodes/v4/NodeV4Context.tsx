@@ -12,7 +12,27 @@
 import { createContext, useContext, type ReactNode } from 'react'
 
 import type { NodeSlotId } from '@/constants/node-slots'
-import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
+import type { NodeWorkflowMediaKind } from '@/constants/node-types'
+import type {
+  NodeV4,
+  NodeV4GenerationParams,
+  NodeWorkflowEdgeV4,
+  NodeWorkflowModelOption,
+  NodeWorkflowModelSelection,
+} from '@/types/node-workflow'
+
+/**
+ * 上传 / 生成回填的媒体补丁（C3c-① A 补进 schema 的那一组字段）。
+ * ⚠ 字段集与 `NodeV4MediaMetaShape` 同源，⛔ 不在 UI 层另发明字段。
+ */
+export interface NodeV4MediaPatch {
+  readonly url?: string
+  readonly videoThumbnailUrl?: string
+  readonly sizeBytes?: number
+  readonly mediaWidth?: number
+  readonly mediaHeight?: number
+  readonly imageSource?: 'generated' | 'existing'
+}
 
 export interface NodeV4CanvasContextValue {
   readonly nodes: readonly NodeV4[]
@@ -31,6 +51,20 @@ export interface NodeV4CanvasContextValue {
   onEditText(nodeId: string, body: string): void
   /** 文本节点工具条的五个派生动作（§8）。 */
   onDeriveFromText(nodeId: string, action: NodeTextDeriveAction): void
+
+  /* ── 生成编排区（§2 展开态底部）需要的四件 ───────────────────────────
+   * ⚠ 它们与上面六个回调**同一条路径**：都由 `NodeV4Provider` 落到
+   * `applyNodeAssistantOpV4` 的 op 表上（`set_prompt` / `set_model` /
+   * `set_params`），⛔ 不给编排区开一条自己的写入通道。`onSetMedia` 例外，
+   * 见 Provider 里那条注释（助手不许塞 URL，它只走用户上传）。 */
+  /** 每个 kind 可选的模型清单。空 = 该模态整栏不渲染（Hard Rule 8 的组级不可用）。 */
+  readonly modelOptionsByKind: Partial<
+    Record<NodeWorkflowMediaKind, NodeWorkflowModelOption[]>
+  >
+  onSetPrompt(nodeId: string, prompt: string): void
+  onSetModel(nodeId: string, model: NodeWorkflowModelSelection): void
+  onSetParams(nodeId: string, params: NodeV4GenerationParams): void
+  onSetMedia(nodeId: string, patch: NodeV4MediaPatch): void
 }
 
 export const NODE_TEXT_DERIVE_ACTIONS = [

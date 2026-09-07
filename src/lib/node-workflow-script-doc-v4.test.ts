@@ -117,21 +117,20 @@ describe('projectScriptDocToGraphV4 · v3 → v4 投影等价', () => {
     )
   })
 
-  it('镜号只在「台词的音色节点」上分家 —— 迁移那侧掉出了镜头带', () => {
-    // ⚠ 迁移按 `scriptRef.sourceId` 反查镜号，而音色节点的 sourceId 是**台词 id**
-    // 不是镜头 id → 查不到 → 该节点无镜号，落进散节点自由区。v4 投影直接知道
-    // 「这条台词属于第几镜」，所以给了 1。这是 C3c 翻转前要补的第二个迁移缺口
-    // （第一个是文本 body，见下一条），⛔ 不在本片顺手改迁移函数。
+  it('镜号一致 —— 台词的音色节点也归到它所属的镜（C3c-① A 缺口②已补）', () => {
+    // ⚠ 音色节点的 `scriptRef.sourceId` 是**台词 id** 不是镜头 id。迁移的镜号索引
+    // 因此把台词也收进去（`buildShotNoIndex`），否则整张图的音色节点全部无镜号、
+    // 掉进散节点自由区 —— 用户看到的是「音色全掉出镜头了」。
     const shotNoOf = (
       nodes: readonly { data: { kind: string; shotNo?: number } }[],
     ) =>
       nodes
         .filter((node) => node.data.kind === 'audio')
         .map((node) => node.data.shotNo)
-    expect(shotNoOf(upgraded.nodes)).toEqual([undefined])
+    expect(shotNoOf(upgraded.nodes)).toEqual([1])
     expect(shotNoOf(projected.nodes)).toEqual([1])
 
-    // 其余节点的镜号两侧一致。
+    // 其余节点的镜号两侧同样一致。
     const nonAudio = (
       nodes: readonly { data: { kind: string; shotNo?: number } }[],
     ) =>
@@ -157,10 +156,9 @@ describe('projectScriptDocToGraphV4 · v3 → v4 投影等价', () => {
   })
 
   it('文本内容一致 —— 以「真正送进模型的那一段」为准', () => {
-    // ⚠ 比的不是 v4 迁移产物的 `body`（迁移只读 v3 的 `prompt`，而投影把四栏写在
-    // scene/action/camera/composition 上、`prompt` 恒空 → 迁移后 body 为空串，
-    // 这是 C3c 翻转前要补的迁移缺口，见本片报告）。这里比的是**同一份文字**：
-    // v3 那条路上 `harvestUpstreamShotTextPrompt` 前置进提示词的那一段。
+    // 比的是**同一份文字**：v3 那条路上 `harvestUpstreamShotTextPrompt` 前置进
+    // 提示词的那一段。C3c-① A 缺口①补完之后，迁移产物的 `body` 与它逐字相同
+    // （三处共用 `composeShotTextBody`）。
     const v3Text = v3State.nodes
       .filter((node) => node.type === 'seedance')
       .map((node) =>
@@ -192,12 +190,12 @@ describe('projectScriptDocToGraphV4 · v3 → v4 投影等价', () => {
       '走廊·夜\n她回头看了一眼空荡的走廊\n缓慢推入\n中近景',
       '楼梯间\n灯灭了',
     ])
-    // 迁移那一侧的 body 确实是空的 —— 把缺口钉住，别让它悄悄长回来。
+    // 迁移那一侧的 body 现在与投影逐字相同 —— 缺口①的回归闸门。
     expect(
       upgraded.nodes
         .filter((node) => node.data.kind === 'text')
         .map((node) => (node.data.kind === 'text' ? node.data.body : '')),
-    ).toEqual(['', ''])
+    ).toEqual(v3Text)
   })
 
   it('位置允许不同（v4 走镜头带版式，v3 走 anchor 偏移）', () => {

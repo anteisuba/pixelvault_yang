@@ -20,6 +20,7 @@ import type {
 } from '@/types/node-workflow'
 
 import { useNodeV4Canvas } from './NodeV4Context'
+import { NodeV4GenerateDesk } from './NodeV4GenerateDesk'
 import { NodeV4SlotCard } from './NodeV4SlotCard'
 import { NodeV4Shell, NodeV4Thumbnail } from './NodeV4Shell'
 
@@ -75,11 +76,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               {t('blocked', { reason: imageData.blockedReason ?? '' })}
             </p>
           ) : null}
-          {imageData.prompt ? (
-            <p className="max-h-24 overflow-auto text-2xs text-muted-foreground">
-              {imageData.prompt}
-            </p>
-          ) : null}
+          {/* 提示词的**可编辑**入口在编排区（§2 展开态底部），这里不再另放一份
+              只读文本 —— 两处显示同一段字，用户会去点那个点不动的。 */}
+          <NodeV4GenerateDesk node={node} />
         </div>
       }
     />
@@ -118,6 +117,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
               {t('audioOwner', { name: audioData.ownerName })}
             </p>
           ) : null}
+          <NodeV4GenerateDesk node={node} />
         </div>
       }
     />

@@ -16,6 +16,24 @@ export function getNodeWorkflowFieldValue(
   return typeof value === 'string' ? value : ''
 }
 
+/**
+ * 多段文本 → 一段正文：**空段跳过、换行相连**（C3c-① A）。
+ *
+ * ⚠ 这是「v3 四栏 → v4 单一 Markdown 正文」与「ScriptDoc 一镜 → 文本节点正文」
+ * 共用的**唯一**一份合成：`buildNodeWorkflowPrompt`（v3 送进模型的那一串）、
+ * `node-workflow-script-doc-v4.buildShotTextBody`（投影）、
+ * `node-workflow-migrate-v4`（迁移）三处走它。三处一旦各拼各的，v4 翻转当天
+ * 用户就会发现镜头文字变了 —— 而那正是最难被测试抓住的一类回归。
+ */
+export function composeShotTextBody(
+  values: readonly (string | undefined | null)[],
+): string {
+  return values
+    .map((value) => value?.trim() ?? '')
+    .filter(Boolean)
+    .join('\n')
+}
+
 export function buildNodeWorkflowPrompt(
   type: NodeWorkflowNodeType,
   data: NodeWorkflowNodeData,
@@ -37,10 +55,9 @@ export function buildNodeWorkflowPrompt(
     NODE_WORKFLOW_FIELD_IDS.prompt,
   ]
 
-  return fields
-    .map((fieldId) => getNodeWorkflowFieldValue(data, fieldId).trim())
-    .filter(Boolean)
-    .join('\n')
+  return composeShotTextBody(
+    fields.map((fieldId) => getNodeWorkflowFieldValue(data, fieldId)),
+  )
 }
 
 export type MediaGenerateBlockReason = 'noModel' | 'noPrompt'

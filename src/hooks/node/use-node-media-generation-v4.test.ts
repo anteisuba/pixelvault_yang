@@ -183,7 +183,11 @@ describe('planV4Generation · 其余分支', () => {
       edges: [edge('a', 'c1', 'm', NODE_SLOT_IDS.clip)],
     })!
     expect(plan.issues).toEqual([
-      { slot: NODE_SLOT_IDS.clip, issue: V4_SLOT_ISSUE_IDS.belowMin },
+      {
+        slot: NODE_SLOT_IDS.clip,
+        issue: V4_SLOT_ISSUE_IDS.belowMin,
+        i18nKey: 'StudioNode.v4.slotIssue.belowMin',
+      },
     ])
   })
 })

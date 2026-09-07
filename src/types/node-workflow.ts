@@ -910,6 +910,40 @@ export const NodeV4GenerationParamsSchema = z.object({
 })
 
 /**
+ * 媒体元数据（上传 / 生成回填链，C3c-① A）。
+ *
+ * ⚠ **一处定义、三类共用**（image / audio / video）。上传路由回填的是**一份
+ * patch**（`/api/node-workflow/upload-reference-video` 返回 url + 尺寸 + 大小 +
+ * poster），按 kind 各写一份形状就等于让同一份 patch 分裂成三种写法，
+ * 而 `videoThumbnailUrl` 只对视频有值、`mediaWidth/Height` 只对有画面的素材有值
+ * 这件事由**有没有值**表达，⛔ 不由「schema 里有没有这个字段」表达。
+ *
+ * ⚠ 全部 `.catch(undefined)`：与 v3 的 `mediaWidth` 同一条安全带 —— 一条坏掉的
+ * 元数据不该让整份 state 读不出来（v4 的读路径不再兜空状态，parse 失败=整个项目
+ * 打不开）。
+ */
+const NodeV4MediaMetaShape = {
+  /** 视频 poster。AI 视频取 `Generation.thumbnailUrl`，手传参考视频取客户端抓帧。 */
+  videoThumbnailUrl: z
+    .string()
+    .trim()
+    .min(1)
+    .max(4000)
+    .optional()
+    .catch(undefined),
+  /** 素材字节数 —— 参考视频台座的「文件大小」读它。 */
+  sizeBytes: z.number().int().min(0).optional().catch(undefined),
+  /** 媒体固有像素尺寸。卡宽按真实比例算与 W×H 读数都读它。 */
+  mediaWidth: z.number().int().positive().optional().catch(undefined),
+  mediaHeight: z.number().int().positive().optional().catch(undefined),
+  /**
+   * 「已有图 / 生成图」角标。⛔ 不新造词表 —— 与 v3 同一个
+   * `NodeWorkflowImageOutputSourceSchema`（`existing` / `generated`）。
+   */
+  imageSource: NodeWorkflowImageOutputSourceSchema.optional().catch(undefined),
+}
+
+/**
  * 四类节点共有的部分。
  *
  * ⛔ 这里**没有** `collapsed` / `parentId`：§1.3 选了「视频节点即镜头 + lane 布局」
@@ -959,6 +993,7 @@ export const NodeV4TextDataSchema = z.object({
 
 export const NodeV4ImageDataSchema = z.object({
   ...NodeV4BaseShape,
+  ...NodeV4MediaMetaShape,
   kind: z.literal(NODE_MEDIA_KIND_IDS.image),
   subtype: z.enum(NODE_V4_IMAGE_SUBTYPES),
   url: z.string().trim().min(1).max(4000).optional(),
@@ -990,6 +1025,7 @@ export const NodeV4ImageDataSchema = z.object({
 
 export const NodeV4AudioDataSchema = z.object({
   ...NodeV4BaseShape,
+  ...NodeV4MediaMetaShape,
   kind: z.literal(NODE_MEDIA_KIND_IDS.audio),
   subtype: z.enum(NODE_V4_AUDIO_SUBTYPES),
   /**
@@ -1028,6 +1064,7 @@ export const NodeV4ShotLabelSchema = z.string().trim().min(1).max(160)
 
 const NodeV4VideoShape = {
   ...NodeV4BaseShape,
+  ...NodeV4MediaMetaShape,
   kind: z.literal(NODE_MEDIA_KIND_IDS.video),
   url: z.string().trim().min(1).max(4000).optional(),
   model: NodeWorkflowModelSelectionSchema.optional(),

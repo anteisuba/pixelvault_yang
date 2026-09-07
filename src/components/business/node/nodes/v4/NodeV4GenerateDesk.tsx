@@ -165,7 +165,9 @@ export function NodeV4GenerateDesk({ node }: NodeV4GenerateDeskProps) {
           data-desk-prompt
           value={draftPrompt}
           aria-label={t('generateDesk.prompt')}
-          placeholder={t('generateDesk.promptPlaceholder')}
+          // 占位按 kind 分：音频卡上写「描述你要的画面」是明摆着的错话，而占位
+          // 正是新手唯一会照着写的示范。⛔ 不共用一句。
+          placeholder={t(`generateDesk.promptPlaceholder.${data.kind}`)}
           onChange={(event) => setDraftPrompt(event.target.value)}
           onBlur={() => {
             if (draftPrompt !== currentPrompt) {

@@ -22,13 +22,52 @@
  */
 
 import {
+  NODE_MEDIA_KIND_IDS,
   NODE_REVIEW_STATE_IDS,
   type NodeReviewState,
 } from '@/constants/node-types'
 import type {
   NodeMediaReview,
+  NodeV4ImageData,
+  NodeV4VideoData,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
+
+/**
+ * 审核记录的**承载者**（v3 节点 data 与 v4 的 image / video data）。
+ *
+ * ⚠ v4 里 `mediaReview` 只长在 image / video 两种形状上——`text` / `audio` 没有
+ * 这个字段，也不该有（一段字和一条音轨不进图片审阅队列）。所以这里收的是判别
+ * 联合而不是 `NodeV4Data` 全集：传错类型在编译期就被拦住，⛔ 不靠运行时 `?.`
+ * 静默返回「未审」。
+ *
+ * ⛔ 不是「字段改名」——v3 的 `referenceAssets` 那一路在 v4 是**上游节点各自的
+ * `url`**，谁审谁自己那张，见 `node-review-queue.ts`。
+ */
+export type NodeMediaReviewCarrier =
+  | NodeWorkflowNodeData
+  | NodeV4ImageData
+  | NodeV4VideoData
+
+/**
+ * 这份 data 是 v4 形状吗。
+ *
+ * 判据是 **`kind` 字段的存在**：`kind` 是四个 v4 形状的判别键（`node-workflow.ts:979`
+ * 起的四个 `z.literal`），v3 的 `NodeWorkflowNodeData` 上根本没有这个字段。
+ * ⛔ 不判 `node.type`：v3/v4 两套 type 表在翻转期同时活着，而 data 那份才是落库的
+ * 事实源。
+ *
+ * ⚠ 收窄到 image / video 两支——审核记录只长在这两种形状上。text / audio 传进来
+ * 时返回 `false`，调用方走「没有审核记录」那一路（而不是崩）。
+ */
+export function isNodeV4ReviewCarrier(
+  data: NodeMediaReviewCarrier,
+): data is NodeV4ImageData | NodeV4VideoData {
+  const kind = (data as Partial<NodeV4ImageData>).kind
+  return (
+    kind === NODE_MEDIA_KIND_IDS.image || kind === NODE_MEDIA_KIND_IDS.video
+  )
+}
 
 /** 打回时可以带的补充信息。「通过」不需要这些，所以整个参数可省。 */
 export interface ReviewDecisionInput {
@@ -55,7 +94,7 @@ export interface ReviewDecisionInput {
  * 的注释：反过来设计会让所有存量项目的所有图当场停止喂下游。
  */
 export function resolveMediaReviewState(
-  data: NodeWorkflowNodeData,
+  data: NodeMediaReviewCarrier,
   url: string | undefined,
 ): NodeReviewState {
   if (!url) return NODE_REVIEW_STATE_IDS.approved
@@ -64,7 +103,7 @@ export function resolveMediaReviewState(
 
 /** 这张图的完整审核记录；没被标过就是 undefined（≠ 未审，见上）。 */
 export function getMediaReview(
-  data: NodeWorkflowNodeData,
+  data: NodeMediaReviewCarrier,
   url: string | undefined,
 ): NodeMediaReview | undefined {
   if (!url) return undefined
@@ -76,17 +115,17 @@ export function getMediaReview(
  * `awaiting_review` 与 `rejected` 都挡 —— 「审核不影响下游 = 审核是装饰」。
  */
 export function isMediaApprovedForDownstream(
-  data: NodeWorkflowNodeData,
+  data: NodeMediaReviewCarrier,
   url: string | undefined,
 ): boolean {
   return resolveMediaReviewState(data, url) === NODE_REVIEW_STATE_IDS.approved
 }
 
 function withEntry(
-  data: NodeWorkflowNodeData,
+  data: NodeMediaReviewCarrier,
   url: string,
   entry: NodeMediaReview,
-): Partial<NodeWorkflowNodeData> {
+): Pick<NodeWorkflowNodeData, 'mediaReview'> {
   return { mediaReview: { ...(data.mediaReview ?? {}), [url]: entry } }
 }
 
@@ -101,10 +140,10 @@ function withEntry(
  * 规矩：**调用方传时钟**，本模块保持纯函数。不传就不写，队列把它当最早处理。
  */
 export function markMediaAwaitingReview(
-  data: NodeWorkflowNodeData,
+  data: NodeMediaReviewCarrier,
   url: string | undefined,
   input: Pick<ReviewDecisionInput, 'markedAt'> = {},
-): Partial<NodeWorkflowNodeData> {
+): Pick<NodeWorkflowNodeData, 'mediaReview'> {
   if (!url) return {}
   return withEntry(data, url, {
     state: NODE_REVIEW_STATE_IDS.awaitingReview,
@@ -114,10 +153,10 @@ export function markMediaAwaitingReview(
 
 /** 放行一张图。清掉上一次打回留下的理由，免得通过了还挂着旧的驳回词。 */
 export function approveMedia(
-  data: NodeWorkflowNodeData,
+  data: NodeMediaReviewCarrier,
   url: string | undefined,
   input: Pick<ReviewDecisionInput, 'reviewedAt'> = {},
-): Partial<NodeWorkflowNodeData> {
+): Pick<NodeWorkflowNodeData, 'mediaReview'> {
   if (!url) return {}
   return withEntry(data, url, {
     state: NODE_REVIEW_STATE_IDS.approved,
@@ -130,10 +169,10 @@ export function approveMedia(
  * R2）」，所以这里只改状态、记理由，节点上的 `mediaUrl` 原封不动。
  */
 export function rejectMedia(
-  data: NodeWorkflowNodeData,
+  data: NodeMediaReviewCarrier,
   url: string | undefined,
   input: ReviewDecisionInput = {},
-): Partial<NodeWorkflowNodeData> {
+): Pick<NodeWorkflowNodeData, 'mediaReview'> {
   if (!url) return {}
   return withEntry(data, url, {
     state: NODE_REVIEW_STATE_IDS.rejected,

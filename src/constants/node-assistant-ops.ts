@@ -281,6 +281,14 @@ export const NODE_ASSISTANT_OP_LIMITS = {
   /** 打回理由。与 `NodeMediaReview.reason` 同一个量级。 */
   maxReasonLength: 300,
   /**
+   * `set_merge_clips` 一次能带多少段。
+   *
+   * ⚠ 这个 9 必须与 `NodeV4VideoShape.mergeSettings.clips` 的 `.max(9)`、以及
+   * `NODE_V4_PORTS['video.merge'].clip` 的 `max` 一致 —— 三处说的是同一件事
+   * 「一次合并最多九段」。超了不是截断，是整份 state 落不了库。
+   */
+  maxMergeClips: 9,
+  /**
    * `set_image_category` 的自定义分类名。
    *
    * ⚠ 这个 80 必须与 `NodeWorkflowNodeDataSchema.imageCategoryLabel` 的 `.max(80)`
@@ -419,6 +427,21 @@ export const NODE_ASSISTANT_OP_V4_IDS = {
   markVersionBlocked: 'mark_version_blocked',
   setModel: 'set_model',
   setParams: 'set_params',
+  /**
+   * 音色档（情绪 / 语速 / 音量 / provider / voiceId）。
+   *
+   * ⚠ 不并进 `set_field`：那条的词表是**扁平字段**且值域是
+   * `string | number | boolean | null`，而 `voiceProfile` 是一个嵌套对象。硬塞进去
+   * 要么让 `value` 变成 `unknown`（守卫全丢），要么给六个子字段各加一个词表项
+   * （改一次档位要发六条 op，撤销粒度也跟着碎成六步）。
+   */
+  setVoiceProfile: 'set_voice_profile',
+  /**
+   * 合并节点的逐段裁剪（`mergeSettings.clips`）。同样是嵌套结构（每段带
+   * `url` / `startSec` / `endSec`），理由同 `set_voice_profile`。
+   * ⚠ 段的**来源**仍然是 `clip` 槽的边 —— 这条 op 只写裁剪区间，⛔ 不新增片段。
+   */
+  setMergeClips: 'set_merge_clips',
   setReviewState: 'set_review_state',
   /** ⚠ 唯一扣 credit 的 op。 */
   generate: 'generate',
@@ -441,6 +464,8 @@ export const NODE_ASSISTANT_OPS_V4 = [
   NODE_ASSISTANT_OP_V4_IDS.markVersionBlocked,
   NODE_ASSISTANT_OP_V4_IDS.setModel,
   NODE_ASSISTANT_OP_V4_IDS.setParams,
+  NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
+  NODE_ASSISTANT_OP_V4_IDS.setMergeClips,
   NODE_ASSISTANT_OP_V4_IDS.setReviewState,
   NODE_ASSISTANT_OP_V4_IDS.generate,
 ] as const
@@ -585,6 +610,18 @@ export const NODE_ASSISTANT_OP_V4_SPECS = {
     inverse: NODE_ASSISTANT_OP_V4_IDS.setParams,
     autoApply: true,
   },
+  [NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setMergeClips]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setMergeClips,
+    autoApply: true,
+  },
   [NODE_ASSISTANT_OP_V4_IDS.setReviewState]: {
     group: review,
     tier: free,
@@ -623,12 +660,20 @@ export type NodeAssistantWriteMode = (typeof NODE_ASSISTANT_WRITE_MODES)[number]
 /** `set_field` 能写的字段——**封闭词表**，⛔ 不给自由 key。 */
 export const NODE_ASSISTANT_SETTABLE_FIELDS = [
   'shotNo',
+  /**
+   * 稳定名（`@` 提及用它）。⚠ 镜头节点改的是下面的 `label`，不是这一条——
+   * `name` 与 `label` 在镜头上写同一个值，改错一个就会让两处显示对不上。
+   * 唯一性由 UI 层的 `renameStableNodeName` 先判，op 只负责落值。
+   */
+  'name',
   /** 镜头标签 = 稳定名（C1 契约修正 1）。改名改的是它，⛔ 不是 `shotNo` 前缀。 */
   'label',
   'characterName',
   /** 角色节点硬链的角色卡 id（C1 契约修正 3）。存在性在服务端校验，不在数据层。 */
   'contextCardId',
   'ownerName',
+  /** 文本节点连进 `text` 槽时的**缺省**角色（C1 契约修正 2）。单条边上的角色以边为准。 */
+  'defaultRole',
   'sourceRef',
   'blocked',
   'note',

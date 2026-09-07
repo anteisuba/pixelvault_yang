@@ -13,6 +13,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 
 import type { NodeSlotId } from '@/constants/node-slots'
 import type { NodeWorkflowMediaKind } from '@/constants/node-types'
+import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   NodeV4,
   NodeV4GenerationParams,
@@ -43,6 +44,15 @@ export interface NodeV4CanvasContextValue {
   readonly changedNodeIds: readonly string[]
   /** 就地展开的那一个节点（同一时刻最多一个，§2.3）。 */
   readonly expandedNodeId: string | null
+  /**
+   * 画布上当前选中的节点（ReactFlow 的选中集）。
+   *
+   * ⚠ 节点自己的 `selected` prop 只回答「我被选中了吗」，回答不了「一共选了
+   * 几个」——而多选时每张卡都弹一条自己的工具条正是 v3 的老毛病。所以选中集
+   * 整份给到卡里，`size >= 2` 时各卡收起自己的工具条（legacy `multiSelectActive`
+   * 的同一条判据）。
+   */
+  readonly selectedNodeIds: readonly string[]
   onToggleExpanded(nodeId: string): void
   onSelectSlotVersion(nodeId: string, slot: NodeSlotId, versionId: string): void
   onDisconnectSlot(nodeId: string, slot: NodeSlotId, versionId: string): void
@@ -65,6 +75,33 @@ export interface NodeV4CanvasContextValue {
   onSetModel(nodeId: string, model: NodeWorkflowModelSelection): void
   onSetParams(nodeId: string, params: NodeV4GenerationParams): void
   onSetMedia(nodeId: string, patch: NodeV4MediaPatch): void
+
+  /**
+   * 通用 op 出口：把**任意一条** v4 op 交给 Provider 的同一条路径
+   * （`applyNodeAssistantOpV4` + 失败 toast）。
+   *
+   * ⚠ 存在理由：上面那些具名回调是「常用动作的短名」，但展开态还要发
+   * `delete` / `clone` / `move_to_shot` / `connect` 这类**一次性**的 op，为每一条
+   * 再加一个具名回调只会让契约越来越长。⛔ 但不要拿它绕开已有具名回调——
+   * 同一个动作两个入口，撤销粒度就会漂。
+   */
+  onApplyOp(op: NodeAssistantOpV4): Promise<void> | void
+  /**
+   * 按镜头带重排（`tidyShotLanes`）。⚠ 不是 op —— 它只动坐标、不动图的语义，
+   * 走 op 表会给每次「整理」产生一条与内容无关的撤销记录。
+   */
+  onTidyLayout(): void
+
+  /**
+   * 撤销 / 重做（§7，走 op inverses）。
+   *
+   * ⚠ `canUndo` / `canRedo` 摆进契约是为了让入口能**置灰而不是消失**：一个时有时无
+   * 的撤销键会让用户以为自己刚才那步没被记下来。
+   */
+  readonly canUndo: boolean
+  readonly canRedo: boolean
+  onUndo(): void
+  onRedo(): void
 }
 
 export const NODE_TEXT_DERIVE_ACTIONS = [

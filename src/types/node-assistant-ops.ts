@@ -500,6 +500,48 @@ export const NodeAssistantSetParamsV4OpSchema = z.object({
   }),
 })
 
+/**
+ * 音色档（`NodeV4AudioData.voiceProfile`）。
+ *
+ * ⚠ 载荷是**整份 profile 的补丁**而不是六条 `set_field`：情绪 / 语速 / 音量常常
+ * 一起改（「再慢一点、温柔些」），拆成六条 op 会把一次调档碎成六个撤销步。
+ * 值域（0.5–2 的语速、±20 的音量）由 `NodeV4AudioDataSchema` 在执行层复查 ——
+ * 这里放宽，与 `set_params` 同一条论据：schema 层拒 = 整块 JSON 陪葬。
+ */
+export const NodeAssistantSetVoiceProfileOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile),
+  target: NodeAssistantOpTargetSchema,
+  profile: z.object({
+    provider: z.string().trim().min(1).max(80).optional(),
+    voiceId: z.string().trim().min(1).max(160).optional(),
+    style: z.string().trim().min(1).max(160).optional(),
+    emotion: z.string().trim().min(1).max(160).optional(),
+    speed: z.number().optional(),
+    volume: z.number().optional(),
+  }),
+})
+
+/**
+ * 合并节点的逐段裁剪（`NodeV4VideoShape.mergeSettings.clips`）。
+ *
+ * ⛔ **不新增片段**：段的来源永远是 `clip` 槽上的边，这条 op 只写每段的
+ * `startSec` / `endSec`。`url` 必填是为了让裁剪跟着**素材**走而不是跟着下标走 ——
+ * 换一次片段顺序，按下标存的裁剪就会落到别的段上。
+ */
+export const NodeAssistantSetMergeClipsOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setMergeClips),
+  target: NodeAssistantOpTargetSchema,
+  clips: z
+    .array(
+      z.object({
+        url: z.string().trim().min(1).max(4000),
+        startSec: z.number().optional(),
+        endSec: z.number().optional(),
+      }),
+    )
+    .max(NODE_ASSISTANT_OP_LIMITS.maxMergeClips),
+})
+
 export const NodeAssistantSetReviewStateV4OpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setReviewState),
   target: NodeAssistantOpTargetSchema,
@@ -536,6 +578,8 @@ export const NodeAssistantOpV4Schema = z.discriminatedUnion('op', [
   NodeAssistantAttachAssetV4OpSchema,
   NodeAssistantSetModelV4OpSchema,
   NodeAssistantSetParamsV4OpSchema,
+  NodeAssistantSetVoiceProfileOpSchema,
+  NodeAssistantSetMergeClipsOpSchema,
   NodeAssistantSetReviewStateV4OpSchema,
   NodeAssistantGenerateV4OpSchema,
 ])

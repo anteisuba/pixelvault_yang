@@ -63,7 +63,11 @@ const edges = [
   edge('e4', 't1', 'shot', NODE_SLOT_IDS.text),
 ]
 
-import { evaluateV4Ingest, previewV4SlotCapacity } from './use-cast-ingest-v4'
+import {
+  evaluateV4Ingest,
+  planV4IngestDrop,
+  previewV4SlotCapacity,
+} from './use-cast-ingest-v4'
 
 describe('evaluateV4Ingest · 能不能吃 → 吃进哪个口', () => {
   it('一张图拖到镜头上：首帧 / 尾帧 / 参考三个口都亮', () => {
@@ -136,5 +140,51 @@ describe('previewV4SlotCapacity · 张口预览的 n/m', () => {
 
   it('目标没有这个槽 → null', () => {
     expect(previewV4SlotCapacity(shot, NODE_SLOT_IDS.closeup, edges)).toBeNull()
+  })
+})
+
+describe('planV4IngestDrop · 这一投落哪个槽', () => {
+  it('多个口都收得下 → 不替用户挑，把候选连同 n/m 交回去点亮', () => {
+    const plan = planV4IngestDrop(first, shot, [], nodes)
+    expect(plan.kind).toBe('choose')
+    if (plan.kind !== 'choose') return
+    expect(plan.candidates.map((candidate) => candidate.slot)).toEqual([
+      NODE_SLOT_IDS.firstFrame,
+      NODE_SLOT_IDS.lastFrame,
+      NODE_SLOT_IDS.reference,
+    ])
+    expect(plan.candidates[0]?.capacity).toEqual({ current: 0, limit: 1 })
+    // 0..N 的槽报不出上限 —— 诚实沉默，⛔ 不硬造一个数。
+    expect(plan.candidates[2]?.capacity).toBeNull()
+  })
+
+  it('只剩一个口收得下 → 直接给落点，不必问', () => {
+    const plan = planV4IngestDrop(script, shot, [], nodes)
+    expect(plan).toMatchObject({
+      kind: 'single',
+      candidate: { slot: NODE_SLOT_IDS.text },
+    })
+  })
+
+  it('一个口都不亮 → rejected，并带上可见的理由', () => {
+    const leaf = node('leaf', {
+      kind: 'image',
+      subtype: 'reference',
+      url: 'https://cdn/leaf.png',
+    })
+    const plan = planV4IngestDrop(shot, leaf, [], [shot, leaf])
+    expect(plan.kind).toBe('rejected')
+  })
+
+  it('点亮与落点是同一次判定 —— 动态上限关掉参考槽后候选里就没有它', () => {
+    const plan = planV4IngestDrop(first, shot, edges, nodes, {
+      [NODE_SLOT_IDS.reference]: 1,
+    })
+    if (plan.kind === 'rejected') throw new Error('should be connectable')
+    const slots =
+      plan.kind === 'single'
+        ? [plan.candidate.slot]
+        : plan.candidates.map((candidate) => candidate.slot)
+    expect(slots).not.toContain(NODE_SLOT_IDS.reference)
   })
 })

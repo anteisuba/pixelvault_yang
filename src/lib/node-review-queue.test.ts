@@ -287,3 +287,77 @@ describe('resolveReviewTargetUrl（审核动作落在哪个 URL 上）', () => {
     expect(resolveReviewTargetUrl(empty, 'n1', null)).toBe('')
   })
 })
+
+/**
+ * v4 分支：一张卡只审自己那一张 `url`。
+ *
+ * ⚠ 这一组是「语义搬家」的回归闸：v3 里 `referenceAssets[].url` 由引用方代收，
+ * v4 里参考图是独立节点、各自入队。代收一旦复活，同一张图会在每个引用它的镜头
+ * 下各排一次。
+ */
+describe('review queue · v4 形状', () => {
+  function makeV4Node(
+    id: string,
+    data: Record<string, unknown>,
+  ): NodeWorkflowNode {
+    return {
+      id,
+      type: 'image',
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'image',
+        subtype: 'reference',
+        name: id,
+        status: 'idle',
+        ...data,
+      } as unknown as NodeWorkflowNodeData,
+    }
+  }
+
+  it('收 v4 的 `url`，⛔ 不再碰 imageUrl / referenceAssets', () => {
+    const queue = collectReviewQueue([
+      makeV4Node('v1', {
+        url: 'https://cdn/v1.png',
+        // 这两个字段在 v4 不存在；即使脏数据带着，也不许入队。
+        imageUrl: 'https://cdn/ghost-a.png',
+        referenceAssets: [{ url: 'https://cdn/ghost-b.png' }],
+        mediaReview: {
+          'https://cdn/v1.png': awaiting('2026-09-01T00:00:01Z'),
+          'https://cdn/ghost-a.png': awaiting('2026-09-01T00:00:02Z'),
+          'https://cdn/ghost-b.png': awaiting('2026-09-01T00:00:03Z'),
+        },
+      }),
+    ])
+    expect(queue.map((item) => item.url)).toEqual(['https://cdn/v1.png'])
+  })
+
+  it('v4 的审核落点 = 自己的 url，钉住的幽灵条目退回主媒体', () => {
+    const data = {
+      kind: 'image',
+      subtype: 'reference',
+      name: 'v1',
+      status: 'idle',
+      url: 'https://cdn/v1.png',
+    } as unknown as NodeWorkflowNodeData
+    expect(resolveReviewTargetUrl(data, 'v1', null)).toBe('https://cdn/v1.png')
+    const ghost: ReviewQueueItem = {
+      nodeId: 'v1',
+      url: 'https://cdn/gone.png',
+      nodeIndex: 0,
+    }
+    expect(resolveReviewTargetUrl(data, 'v1', ghost)).toBe('https://cdn/v1.png')
+  })
+
+  it('v4 的 text / audio 没有 mediaReview，静默不入队', () => {
+    expect(
+      collectReviewQueue([
+        makeV4Node('t1', { kind: 'text', subtype: 'note', body: 'x' }),
+        makeV4Node('a1', {
+          kind: 'audio',
+          subtype: 'voice',
+          url: 'https://cdn/a.mp3',
+        }),
+      ]),
+    ).toEqual([])
+  })
+})

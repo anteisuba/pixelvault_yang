@@ -670,6 +670,7 @@ function MaybeNodeV4Provider({
   onStateChange,
   modelOptionsByKind,
   onFocusNode,
+  selectedNodeIds,
   children,
 }: {
   state: NodeWorkflowStateV4 | null
@@ -678,6 +679,7 @@ function MaybeNodeV4Provider({
     Record<NodeWorkflowMediaKind, NodeWorkflowModelOption[]>
   >
   onFocusNode(nodeId: string): void
+  selectedNodeIds: readonly string[]
   children: ReactNode
 }) {
   if (!state) return <>{children}</>
@@ -687,6 +689,7 @@ function MaybeNodeV4Provider({
       onStateChange={onStateChange}
       modelOptionsByKind={modelOptionsByKind}
       onFocusNode={onFocusNode}
+      selectedNodeIds={selectedNodeIds}
     >
       {children}
     </NodeV4Provider>
@@ -779,6 +782,16 @@ function StudioNodeCanvas() {
     })
   }
   const v4RenderNodes = v4Preview.state ? v4Rendered.nodes : null
+  /**
+   * v4 的选中集。⚠ 选中活在**渲染用的那份 RF 节点**上（`v4Rendered`），不在
+   * v4 state 里——v4 的 `NodeV4` 形状没有 `selected` 字段，选中是视图状态。
+   * 多选时各卡按它收起自己的工具条。
+   */
+  const v4SelectedNodeIds = useMemo(
+    () =>
+      v4Rendered.nodes.filter((node) => node.selected).map((node) => node.id),
+    [v4Rendered.nodes],
+  )
   const v4RenderEdges = useMemo(
     () =>
       v4Preview.state?.edges.map((edge) => ({
@@ -5258,6 +5271,7 @@ function StudioNodeCanvas() {
             onStateChange={v4Preview.setState}
             modelOptionsByKind={v4ModelOptionsByKind}
             onFocusNode={handleFocusNode}
+            selectedNodeIds={v4SelectedNodeIds}
           >
             <CanvasSurface appearance={workflow.canvasAppearance} />
             {/* C3c-① D：state 为 v4（或开发用 `?v4=1`）时整块换 v4 组件并包

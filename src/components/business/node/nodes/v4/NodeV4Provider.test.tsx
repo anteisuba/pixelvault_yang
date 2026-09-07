@@ -11,6 +11,7 @@ vi.mock('sonner', () => ({
   toast: { error: (...args: unknown[]) => toastError(...args) },
 }))
 
+import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
@@ -252,11 +253,188 @@ describe('NodeV4Provider · NodeV4Context 的回调实现', () => {
     })
   })
 
+  it('onApplyOp：任意一条 op 走同一条路径（这里用 delete）', () => {
+    const harness = mount(scene())
+    act(
+      () =>
+        void harness
+          .ctx()
+          .onApplyOp({ op: NODE_ASSISTANT_OP_V4_IDS.delete, target: 'i_a' }),
+    )
+    expect(harness.state().nodes.some((n) => n.id === 'i_a')).toBe(false)
+  })
+
+  it('onApplyOp 失败时出声，state 不动', () => {
+    toastError.mockClear()
+    const harness = mount(scene())
+    const before = harness.state()
+    act(
+      () =>
+        void harness
+          .ctx()
+          .onApplyOp({ op: NODE_ASSISTANT_OP_V4_IDS.delete, target: 'nope' }),
+    )
+    expect(toastError).toHaveBeenCalledTimes(1)
+    expect(harness.state()).toBe(before)
+  })
+
   it('onFocusNode / onDeriveFromText 未接时是 no-op，⛔ 不抛错', () => {
     const harness = mount(scene())
     expect(() => {
       harness.ctx().onFocusNode('i_a')
       harness.ctx().onDeriveFromText('t_1', 'shotImage')
     }).not.toThrow()
+  })
+})
+
+/**
+ * 撤销 / 重做（§7 走 op inverses）。
+ *
+ * ⚠ 这一组盯的是那条最容易被写错的：`add_node` 的重做**必须还给同一个 id**。
+ * 「把原 op 再跑一遍」看起来更对称，但 `mintId` 每次发新 id，重做出来的节点跟被
+ * 撤销的那个不是同一个，所有指向它的边和 `@` 提及会静默指空。
+ */
+describe('NodeV4Provider · 撤销 / 重做', () => {
+  it('空栈时 canUndo / canRedo 都是 false，点了也不炸', () => {
+    const harness = mount(scene())
+    expect(harness.ctx().canUndo).toBe(false)
+    expect(harness.ctx().canRedo).toBe(false)
+    act(() => harness.ctx().onUndo())
+    act(() => harness.ctx().onRedo())
+    expect(harness.state().nodes).toHaveLength(scene().nodes.length)
+  })
+
+  it('改文本 → 撤销回旧正文 → 重做回新正文', () => {
+    const harness = mount(scene())
+    act(() => harness.ctx().onEditText('t_1', '新正文'))
+    const read = () =>
+      harness.state().nodes.find((node) => node.id === 't_1')?.data
+    expect(read()).toMatchObject({ body: '新正文' })
+    expect(harness.ctx().canUndo).toBe(true)
+
+    act(() => harness.ctx().onUndo())
+    expect(read()).toMatchObject({ body: '旧正文' })
+    expect(harness.ctx().canUndo).toBe(false)
+    expect(harness.ctx().canRedo).toBe(true)
+
+    act(() => harness.ctx().onRedo())
+    expect(read()).toMatchObject({ body: '新正文' })
+    expect(harness.ctx().canRedo).toBe(false)
+    expect(harness.ctx().canUndo).toBe(true)
+  })
+
+  it('新增节点：撤销移除，重做还回**同一个 id**（⛔ 不重新发号）', () => {
+    const harness = mount(scene())
+    const before = new Set(harness.state().nodes.map((node) => node.id))
+    act(() =>
+      harness.ctx().onApplyOp({
+        op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+        kind: 'image',
+        subtype: 'reference',
+      }),
+    )
+    const added = harness
+      .state()
+      .nodes.map((node) => node.id)
+      .filter((id) => !before.has(id))
+    expect(added).toHaveLength(1)
+
+    act(() => harness.ctx().onUndo())
+    expect(harness.state().nodes.map((node) => node.id)).not.toContain(added[0])
+
+    act(() => harness.ctx().onRedo())
+    expect(harness.state().nodes.map((node) => node.id)).toContain(added[0])
+
+    // 重做之后再撤销一次，仍然回得去（这一档走整份快照，见 onRedo 的注释）。
+    act(() => harness.ctx().onUndo())
+    expect(harness.state().nodes.map((node) => node.id)).not.toContain(added[0])
+  })
+
+  it('撤销之后又落了新 op，重做栈清空（⛔ 不让被撤销的分支复活）', () => {
+    const harness = mount(scene())
+    act(() => harness.ctx().onEditText('t_1', 'A'))
+    act(() => harness.ctx().onUndo())
+    expect(harness.ctx().canRedo).toBe(true)
+    act(() => harness.ctx().onEditText('t_1', 'B'))
+    expect(harness.ctx().canRedo).toBe(false)
+  })
+})
+
+/**
+ * ⌘C / ⌘V —— 复制的是**形状**（kind / subtype / shotNo），不是媒体。
+ *
+ * ⛔ 不复制 url：一张图两个节点指向同一个 R2 对象，删任一个都会让另一个静默变空白。
+ */
+describe('NodeV4Provider · 复制粘贴', () => {
+  function press(key: string, init: KeyboardEventInit = {}) {
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key,
+          metaKey: true,
+          bubbles: true,
+          cancelable: true,
+          ...init,
+        }),
+      )
+    })
+  }
+
+  function mountSelected(selected: readonly string[]) {
+    let captured: NodeV4CanvasContextValue | null = null
+    let latest = scene()
+    const report = (value: NodeV4CanvasContextValue) => {
+      captured = value
+    }
+    const track = (value: NodeWorkflowStateV4) => {
+      latest = value
+    }
+    function Probe({
+      onValue,
+    }: {
+      onValue(value: NodeV4CanvasContextValue): void
+    }) {
+      onValue(useNodeV4Canvas())
+      return null
+    }
+    function Harness() {
+      const [state, setState] = useState(scene())
+      track(state)
+      return (
+        <NodeV4Provider
+          state={state}
+          onStateChange={setState}
+          selectedNodeIds={selected}
+        >
+          <Probe onValue={report} />
+        </NodeV4Provider>
+      )
+    }
+    render(<Harness />)
+    return {
+      ctx: () => captured as NodeV4CanvasContextValue,
+      state: () => latest,
+    }
+  }
+
+  it('选中一张卡 ⌘C → ⌘V 建出同类空节点，⛔ 不带 url', () => {
+    const harness = mountSelected(['i_a'])
+    const before = harness.state().nodes.length
+    press('c')
+    press('v')
+    const nodes = harness.state().nodes
+    expect(nodes).toHaveLength(before + 1)
+    const added = nodes[nodes.length - 1]
+    expect(added?.data.kind).toBe('image')
+    expect(added?.data.subtype).toBe('shot')
+    expect(added?.data).not.toHaveProperty('url', 'https://x/a.png')
+  })
+
+  it('多选时 ⌘C 不记（一次粘贴该还原哪一张说不清）', () => {
+    const harness = mountSelected(['i_a', 'i_b'])
+    const before = harness.state().nodes.length
+    press('c')
+    press('v')
+    expect(harness.state().nodes).toHaveLength(before)
   })
 })

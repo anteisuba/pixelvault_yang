@@ -5887,7 +5887,12 @@
       "generateDesk": {
         "title": "生成",
         "prompt": "プロンプト",
-        "promptPlaceholder": "欲しい画づくりを記述…",
+        "promptPlaceholder": {
+          "image": "欲しい画をどうぞ…",
+          "audio": "読み上げるセリフ、または音の説明…",
+          "video": "このカットの動きを説明…",
+          "text": "何か書いてください…"
+        },
         "model": "モデル",
         "params": "パラメータ",
         "aspectRatio": "アスペクト比",
@@ -5911,7 +5916,119 @@
         "noModel": "まずモデルを選択",
         "slotRack": "スロット",
         "slotCount": "{slot} {count}",
-        "noGenerate": "テキストノードは生成せず派生のみ"
+        "noGenerate": "テキストノードは生成せず派生のみ",
+        "shortcutPending": "生成は今のところ編成台のボタンから実行します。⌘+Enter は次の段階で有効になります。"
+      },
+      "renameNode": "ノード名を変更",
+      "expandNode": "展開",
+      "collapseNode": "折りたたむ",
+      "renameTaken": "その名前は他のノードが使用中です",
+      "toolbar": {
+        "download": "ダウンロード",
+        "clone": "空ノードを複製",
+        "tidy": "整列",
+        "delete": "ノードを削除"
+      },
+      "review": {
+        "approve": "承認",
+        "reject": "差し戻し",
+        "state": {
+          "awaiting_review": "未審査",
+          "rejected": "差し戻し済み",
+          "approved": "承認済み"
+        }
+      },
+      "readout": {
+        "dimensions": "{width}×{height}",
+        "sourceGenerated": "生成画像",
+        "sourceExisting": "既存画像"
+      },
+      "relations": {
+        "title": "下流での用途",
+        "empty": "まだ使われていません",
+        "chip": "{name} · {slot}"
+      },
+      "evidence": {
+        "title": "送信プレビュー（{count}）",
+        "model": "モデル",
+        "prompt": "プロンプト",
+        "blocked": "不合格",
+        "none": "—",
+        "slotValue": "{name}（全 {count} 版）"
+      },
+      "gallery": {
+        "title": "{slot}ギャラリー（{count}）",
+        "add": "＋追加",
+        "empty": "ギャラリーは空です",
+        "remove": "外す",
+        "extract": "切り離す"
+      },
+      "voice": {
+        "slotStates": {
+          "empty": "音声未選択",
+          "loading": "処理中",
+          "bound": "音声設定済み",
+          "failed": "失敗"
+        },
+        "providerFallback": "提供元不明",
+        "noSample": "試聴サンプルはまだありません",
+        "openLibrary": "ボイスライブラリ",
+        "uploadAudio": "音声をアップロード",
+        "uploading": "アップロード中…",
+        "uploadFailed": "アップロード失敗：{reason}",
+        "uploadRetry": "再アップロード",
+        "ownerLabel": "担当キャラクター",
+        "ownerNone": "ナレーション",
+        "ownerCustom": "手入力…",
+        "ownerCustomPlaceholder": "キャラクター名",
+        "speedLabel": "話速",
+        "volumeLabel": "音量",
+        "emotionLabel": "感情",
+        "emotions": {
+          "none": "なし",
+          "calm": "落ち着き",
+          "angry": "怒り",
+          "sad": "悲しみ",
+          "surprised": "驚き"
+        }
+      },
+      "mentionGroups": {
+        "text": "テキスト",
+        "image": "画像",
+        "audio": "音声",
+        "video": "動画"
+      },
+      "player": {
+        "empty": "動画はまだありません",
+        "play": "再生",
+        "pause": "一時停止",
+        "mute": "ミュート",
+        "unmute": "ミュート解除",
+        "progress": "再生位置",
+        "download": "ダウンロード",
+        "captureFrames": "サムネイルを取得",
+        "capturing": "取得中…",
+        "posterFailed": "サムネイルのアップロード失敗：{reason}",
+        "posterRetry": "サムネイルを再アップロード",
+        "uploadVideo": "動画をアップロード",
+        "replaceVideo": "動画を差し替え",
+        "uploadingVideo": "アップロード中…",
+        "videoUploadFailed": "動画のアップロード失敗：{reason}",
+        "videoUploadRetry": "再アップロード"
+      },
+      "merge": {
+        "slotFilled": "クリップ {index}",
+        "slotRequired": "クリップ {index}（必須）",
+        "slotOptional": "クリップ {index}（任意）",
+        "summary": "{clipCount}/{slotCount} クリップ · {trimmedCount} 件トリム済み",
+        "clipIndex": "クリップ {index}",
+        "startSec": "クリップ {index} の開始秒",
+        "endSec": "クリップ {index} の終了秒",
+        "startPlaceholder": "開始",
+        "endPlaceholder": "終了",
+        "invalidRange": "開始は終了より前である必要があります",
+        "invalidRangeBlocks": "トリム範囲が不正なクリップがあるため結合できません",
+        "needMoreClips": "結合には最低 {min} クリップが必要です"
       }
     }
   },

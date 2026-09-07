@@ -5887,7 +5887,12 @@
       "generateDesk": {
         "title": "生成",
         "prompt": "提示词",
-        "promptPlaceholder": "描述你要的画面…",
+        "promptPlaceholder": {
+          "image": "描述你要的画面…",
+          "audio": "要念的台词或声音描述…",
+          "video": "描述这个镜头怎么动…",
+          "text": "写点什么…"
+        },
         "model": "模型",
         "params": "参数",
         "aspectRatio": "比例",
@@ -5911,7 +5916,119 @@
         "noModel": "先选一个模型",
         "slotRack": "素材槽",
         "slotCount": "{slot} {count}",
-        "noGenerate": "文本节点没有生成，只能派生"
+        "noGenerate": "文本节点没有生成，只能派生",
+        "shortcutPending": "生成暂时走编排台上的按钮，⌘+Enter 通路在下一步接上。"
+      },
+      "renameNode": "重命名节点",
+      "expandNode": "展开",
+      "collapseNode": "收起",
+      "renameTaken": "这个名字已经被别的节点用了",
+      "toolbar": {
+        "download": "下载",
+        "clone": "克隆空节点",
+        "tidy": "整理排布",
+        "delete": "删除节点"
+      },
+      "review": {
+        "approve": "通过",
+        "reject": "打回",
+        "state": {
+          "awaiting_review": "待审",
+          "rejected": "已打回",
+          "approved": "已通过"
+        }
+      },
+      "readout": {
+        "dimensions": "{width}×{height}",
+        "sourceGenerated": "生成图",
+        "sourceExisting": "已有图"
+      },
+      "relations": {
+        "title": "下游用途",
+        "empty": "还没有节点用到它",
+        "chip": "{name} · {slot}"
+      },
+      "evidence": {
+        "title": "发送预览（{count}）",
+        "model": "模型",
+        "prompt": "提示词",
+        "blocked": "已判失败",
+        "none": "—",
+        "slotValue": "{name}（共 {count} 版）"
+      },
+      "gallery": {
+        "title": "{slot}图集（{count}）",
+        "add": "＋加入",
+        "empty": "图集为空",
+        "remove": "移除",
+        "extract": "拆出"
+      },
+      "voice": {
+        "slotStates": {
+          "empty": "未选音色",
+          "loading": "处理中",
+          "bound": "已绑音色",
+          "failed": "失败"
+        },
+        "providerFallback": "未知来源",
+        "noSample": "暂无试听样本",
+        "openLibrary": "声音库",
+        "uploadAudio": "上传音频",
+        "uploading": "上传中…",
+        "uploadFailed": "上传失败：{reason}",
+        "uploadRetry": "重试上传",
+        "ownerLabel": "归属角色",
+        "ownerNone": "旁白",
+        "ownerCustom": "手填…",
+        "ownerCustomPlaceholder": "角色名",
+        "speedLabel": "语速",
+        "volumeLabel": "音量",
+        "emotionLabel": "情绪",
+        "emotions": {
+          "none": "无",
+          "calm": "平静",
+          "angry": "愤怒",
+          "sad": "悲伤",
+          "surprised": "惊讶"
+        }
+      },
+      "mentionGroups": {
+        "text": "文本",
+        "image": "图片",
+        "audio": "音频",
+        "video": "视频"
+      },
+      "player": {
+        "empty": "还没有视频",
+        "play": "播放",
+        "pause": "暂停",
+        "mute": "静音",
+        "unmute": "取消静音",
+        "progress": "播放进度",
+        "download": "下载",
+        "captureFrames": "抓封面帧",
+        "capturing": "抓帧中…",
+        "posterFailed": "封面上传失败：{reason}",
+        "posterRetry": "重试上传封面",
+        "uploadVideo": "上传视频",
+        "replaceVideo": "替换视频",
+        "uploadingVideo": "上传中…",
+        "videoUploadFailed": "视频上传失败：{reason}",
+        "videoUploadRetry": "重试上传"
+      },
+      "merge": {
+        "slotFilled": "第 {index} 段",
+        "slotRequired": "第 {index} 段（必填）",
+        "slotOptional": "第 {index} 段（可选）",
+        "summary": "{clipCount}/{slotCount} 段 · 已裁 {trimmedCount} 段",
+        "clipIndex": "第 {index} 段",
+        "startSec": "第 {index} 段起点秒",
+        "endSec": "第 {index} 段终点秒",
+        "startPlaceholder": "起",
+        "endPlaceholder": "止",
+        "invalidRange": "起点必须小于终点",
+        "invalidRangeBlocks": "有段的裁剪区间不成立，合并暂时不能开始",
+        "needMoreClips": "至少要接 {min} 段片段才能合并"
       }
     }
   },

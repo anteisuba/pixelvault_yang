@@ -623,6 +623,85 @@ export function applyNodeAssistantOpV4(
       }
     }
 
+    case ids.setVoiceProfile: {
+      const node = resolveTarget(state, op.target, context.refs)
+      if (!node) return { ok: false, reason: 'unknownNode' }
+      if (node.data.kind !== NODE_MEDIA_KIND_IDS.audio) {
+        return { ok: false, reason: 'notAnAudioNode' }
+      }
+      const previous = node.data.voiceProfile
+      // 补丁语义：只带来的那几档被覆盖，没带的留着（「再慢一点」不该把情绪清空）。
+      const merged = { ...previous, ...op.profile }
+      const parsed = NodeV4DataSchema.safeParse({
+        ...node.data,
+        voiceProfile: merged,
+      })
+      // 值域（语速 0.5–2 / 音量 ±20）在这里落地 —— schema 层放宽是为了不让一条越界
+      // 的档位把同批其它 op 一起拖垮，但**越界的值不许落进节点**。
+      if (!parsed.success) return { ok: false, reason: 'invalidVoiceProfile' }
+      return {
+        ok: true,
+        state: replaceNodeData(state, node.id, () => parsed.data),
+        inverse: previous
+          ? {
+              kind: 'op',
+              op: {
+                op: ids.setVoiceProfile,
+                target: node.id,
+                profile: previous,
+              },
+            }
+          : { kind: 'restore', nodes: [node], edges: [] },
+        changedNodeIds: [node.id],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.setMergeClips: {
+      const node = resolveTarget(state, op.target, context.refs)
+      if (!node) return { ok: false, reason: 'unknownNode' }
+      if (
+        node.data.kind !== NODE_MEDIA_KIND_IDS.video ||
+        node.data.subtype !== NODE_V4_VIDEO_SUBTYPE_IDS.merge
+      ) {
+        return { ok: false, reason: 'notAMergeNode' }
+      }
+      // 区间必须成立：`start >= end` 的段合并出来是零帧，让它落库等于把一次失败
+      // 推迟到后端。⛔ 不静默交换两端 —— 用户看到的数字要和落下去的一致。
+      if (
+        op.clips.some(
+          (clip) =>
+            clip.startSec !== undefined &&
+            clip.endSec !== undefined &&
+            clip.startSec >= clip.endSec,
+        )
+      ) {
+        return { ok: false, reason: 'invalidClipRange' }
+      }
+      const previous = node.data.mergeSettings
+      const parsed = NodeV4DataSchema.safeParse({
+        ...node.data,
+        mergeSettings: { ...previous, clips: op.clips },
+      })
+      if (!parsed.success) return { ok: false, reason: 'invalidMergeClips' }
+      return {
+        ok: true,
+        state: replaceNodeData(state, node.id, () => parsed.data),
+        inverse: previous?.clips
+          ? {
+              kind: 'op',
+              op: {
+                op: ids.setMergeClips,
+                target: node.id,
+                clips: previous.clips,
+              },
+            }
+          : { kind: 'restore', nodes: [node], edges: [] },
+        changedNodeIds: [node.id],
+        changedEdgeIds: [],
+      }
+    }
+
     case ids.setReviewState: {
       const node = resolveTarget(state, op.target, context.refs)
       if (!node) return { ok: false, reason: 'unknownNode' }

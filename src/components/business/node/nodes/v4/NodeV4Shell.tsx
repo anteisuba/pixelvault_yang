@@ -25,10 +25,13 @@ import {
   type NodeSlotOutputId,
 } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import { renameStableNodeName } from '@/lib/node-display-name'
 import { listLiveConnectableSlots } from '@/lib/node-slot-binding'
 import { cn } from '@/lib/utils'
 import type { NodeV4, NodeV4Data } from '@/types/node-workflow'
 
+import { NodeV4EditableLabel } from './NodeV4EditableLabel'
 import { useNodeV4Canvas } from './NodeV4Context'
 
 /**
@@ -105,6 +108,44 @@ export function NodeV4Shell({
     : []
   const dragging = Boolean(source) && source?.id !== node.id
 
+  /**
+   * 改名：镜头节点改的是 `label`（序号是显示前缀，⛔ 不落库），其余改 `name`。
+   * 重名先在这里判——`renameStableNodeName` 就地拒绝，⛔ 不加后缀。
+   */
+  const stableNameOf = (data: NodeV4Data): string =>
+    data.kind === NODE_MEDIA_KIND_IDS.video
+      ? (data.label ?? data.name)
+      : data.name
+
+  const renameNode = (next: string): boolean => {
+    const isShot = node.data.kind === NODE_MEDIA_KIND_IDS.video
+    const current = stableNameOf(node.data)
+    const taken = new Set(
+      canvas.nodes
+        .filter((item) => item.id !== node.id)
+        .map((item) => stableNameOf(item.data)),
+    )
+    const result = renameStableNodeName(current, next, taken)
+    if (!result.ok) return false
+    // 镜头的 `name` 与 `label` 写同一个值（add_node 里就是这条约定），两条 op
+    // 一起发才不会让卡头与 `@` 提及读到两个不同的名字。
+    void canvas.onApplyOp({
+      op: NODE_ASSISTANT_OP_V4_IDS.setField,
+      target: node.id,
+      field: isShot ? 'label' : 'name',
+      value: result.name,
+    })
+    if (isShot) {
+      void canvas.onApplyOp({
+        op: NODE_ASSISTANT_OP_V4_IDS.setField,
+        target: node.id,
+        field: 'name',
+        value: result.name,
+      })
+    }
+    return true
+  }
+
   return (
     <div
       data-node-kind={node.data.kind}
@@ -159,12 +200,10 @@ export function NodeV4Shell({
         />
       ))}
 
-      <button
-        type="button"
-        onClick={() => canvas.onToggleExpanded(node.id)}
-        aria-expanded={expanded}
-        className="flex w-full items-center gap-2 rounded-t-lg border-b px-3 py-2 text-left"
-      >
+      {/* 卡头 = 状态点 + 可改名的名字 + 展开切换。
+          ⚠ 展开切换是**名字右边那块空白**上的按钮，⛔ 不把整条做成 `<button>`：
+          名字要能点进编辑，而 `<button>` 里嵌可交互元素既不合法也点不准。 */}
+      <div className="flex w-full items-center gap-2 rounded-t-lg border-b px-3 py-2">
         <span
           data-status={node.data.status}
           aria-label={t(`statuses.${node.data.status}`)}
@@ -173,18 +212,31 @@ export function NodeV4Shell({
             STATUS_DOT[node.data.status] ?? STATUS_DOT.idle,
           )}
         />
-        <span className="truncate text-xs font-medium">
-          {title ?? node.data.name}
-        </span>
+        <NodeV4EditableLabel
+          value={title ?? node.data.name}
+          editValue={stableNameOf(node.data)}
+          ariaLabel={t('renameNode')}
+          onCommit={(next) => renameNode(next)}
+          className="text-xs font-medium"
+        />
         {changed ? (
           <span
-            className="ml-auto rounded-full bg-primary px-1.5 text-2xs text-primary-foreground"
+            className="rounded-full bg-primary px-1.5 text-2xs text-primary-foreground"
             title={t('changedBadge')}
           >
             •
           </span>
         ) : null}
-      </button>
+        <button
+          type="button"
+          onClick={() => canvas.onToggleExpanded(node.id)}
+          aria-expanded={expanded}
+          aria-label={t(expanded ? 'collapseNode' : 'expandNode')}
+          className="ml-auto size-5 shrink-0 rounded-md border text-2xs"
+        >
+          {expanded ? '−' : '+'}
+        </button>
+      </div>
 
       <div className="flex gap-2 p-3">
         {slotRail}

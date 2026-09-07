@@ -139,6 +139,13 @@ function context(state: NodeWorkflowStateV4): NodeV4CanvasContextValue {
     onSetModel: vi.fn(),
     onSetParams: vi.fn(),
     onSetMedia: vi.fn(),
+    onApplyOp: vi.fn(),
+    onTidyLayout: vi.fn(),
+    canUndo: false,
+    canRedo: false,
+    onUndo: vi.fn(),
+    onRedo: vi.fn(),
+    selectedNodeIds: [],
   }
 }
 

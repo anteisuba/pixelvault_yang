@@ -21,10 +21,11 @@
  */
 
 import { NODE_REVIEW_STATE_IDS } from '@/constants/node-types'
-import type {
-  NodeWorkflowNode,
-  NodeWorkflowNodeData,
-} from '@/types/node-workflow'
+import {
+  isNodeV4ReviewCarrier,
+  type NodeMediaReviewCarrier,
+} from '@/lib/node-media-review'
+import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 export interface ReviewQueueItem {
   nodeId: string
@@ -42,9 +43,21 @@ export interface ReviewQueueItem {
  * 刻意不复用 `getNodeMediaUrl`（node-workflow-graph）：那个函数只回答「主媒体是
  * 哪一张」，这里要的是「审核态可以合法落在哪些 URL 上」—— 包含 `referenceAssets`，
  * 因为助手的 `set_review_state` op 能标到收集器里的任意一条。
+ *
+ * ── v4 分支：一张卡只审自己那一张 ────────────────────────────────
+ * v3 的三条来源（`mediaUrl` / `imageUrl` / `referenceAssets[]`）在 v4 全部合流成
+ * **一个 `url`**：`imageUrl` 是 v3 双写的历史包袱，v4 没有；而 `referenceAssets`
+ * 在 v4 是**语义搬家**——参考图不再是挂在这张卡上的 URL 数组，而是一个个真的上游
+ * 节点，各自带名字、审核态和下游关系。所以它们**由自己那张卡入队**，⛔ 不再由
+ * 引用方代收：代收会让同一张图在每个引用它的镜头下各排一次队，「还剩几张」当场
+ * 翻倍。
  */
-function collectLiveUrls(data: NodeWorkflowNodeData): Set<string> {
+function collectLiveUrls(data: NodeMediaReviewCarrier): Set<string> {
   const urls = new Set<string>()
+  if (isNodeV4ReviewCarrier(data)) {
+    if (data.url) urls.add(data.url)
+    return urls
+  }
   if (data.mediaUrl) urls.add(data.mediaUrl)
   if (data.imageUrl) urls.add(data.imageUrl)
   for (const reference of data.referenceAssets ?? []) {
@@ -74,13 +87,15 @@ function collectLiveUrls(data: NodeWorkflowNodeData): Set<string> {
  * —— 本轮已经在容量检查上栽过完全同一个形状。
  */
 export function resolveReviewTargetUrl(
-  data: NodeWorkflowNodeData,
+  data: NodeMediaReviewCarrier,
   nodeId: string,
   current: ReviewQueueItem | null | undefined,
 ): string {
   if (current?.nodeId === nodeId && collectLiveUrls(data).has(current.url)) {
     return current.url
   }
+  // v4：单字段，两层兜底消失（见 `collectLiveUrls` 的 v4 分支）。
+  if (isNodeV4ReviewCarrier(data)) return data.url?.trim() ?? ''
   const media = data.mediaUrl?.trim()
   if (media) return media
   return data.imageUrl?.trim() ?? ''
@@ -174,7 +189,7 @@ export function findPrevReviewItem(
  * 「刚才被我否掉的那张」和「改词之后新出的这张」。
  */
 export function findPreviousVersionUrl(
-  data: NodeWorkflowNodeData,
+  data: NodeMediaReviewCarrier,
   currentUrl: string,
 ): string | undefined {
   const review = data.mediaReview

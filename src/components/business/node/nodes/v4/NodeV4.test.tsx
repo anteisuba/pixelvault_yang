@@ -19,7 +19,16 @@ vi.mock('@xyflow/react', () => ({
       data-type={props.type as string}
     />
   ),
-  Position: { Left: 'left', Right: 'right' },
+  Position: { Left: 'left', Right: 'right', Top: 'top' },
+  // `NodeResizer` / `NodeToolbar` 同样要 ReactFlow 的 store。桩成可断言的壳：
+  // 工具条要能点（删除/克隆/审核都从它出去），resizer 只需存在性。
+  NodeResizer: (props: Record<string, unknown>) => (
+    <span data-testid="resizer" data-visible={String(props.isVisible)} />
+  ),
+  NodeToolbar: (props: Record<string, unknown>) =>
+    props.isVisible ? (
+      <div data-testid="node-toolbar">{props.children as ReactNode}</div>
+    ) : null,
 }))
 
 vi.mock('@/components/ui/markdown', () => ({
@@ -37,7 +46,8 @@ vi.mock('@/components/ui/audio-player', () => ({
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
-import { AudioNodeV4, ImageNodeV4 } from './MediaNodeV4'
+import { AudioNodeV4 } from './MediaNodeV4'
+import { ImageNodeV4 } from './ImageNodeV4'
 import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
@@ -153,6 +163,13 @@ function harness(
     onSetModel: vi.fn(),
     onSetParams: vi.fn(),
     onSetMedia: vi.fn(),
+    onApplyOp: vi.fn(),
+    onTidyLayout: vi.fn(),
+    canUndo: false,
+    canRedo: false,
+    onUndo: vi.fn(),
+    onRedo: vi.fn(),
+    selectedNodeIds: [],
     ...overrides,
   }
 }
@@ -198,9 +215,12 @@ describe('四类节点的两态渲染', () => {
       harness(state, { expandedNodeId: 't_02', onEditText }),
     )
     fireEvent.click(screen.getByText('editText'))
+    // 编辑器是 `MentionInput`（contentEditable，⛔ 没有 value setter）——
+    // 改 `textContent` + 派一次 `input`，与用户真的敲字走的是同一条路径。
     const editor = screen.getByLabelText('editText')
-    fireEvent.change(editor, { target: { value: '改过的正文' } })
-    fireEvent.blur(editor)
+    editor.textContent = '改过的正文'
+    fireEvent.input(editor)
+    fireEvent.focusOut(editor)
     expect(onEditText).toHaveBeenCalledWith('t_02', '改过的正文')
   })
 

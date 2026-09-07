@@ -468,3 +468,154 @@ describe('一轮批次的撤销', () => {
     expect(undone.edges).toHaveLength(0)
   })
 })
+
+describe('音色档 / 合并裁剪 op（C3c-②Q）', () => {
+  function audioNode(id: string): NodeV4 {
+    return {
+      id,
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'audio',
+        subtype: 'voice',
+        name: id,
+        status: 'idle',
+        createdAt: NOW,
+        voiceProfile: { emotion: '平静', speed: 1 },
+      },
+    }
+  }
+
+  function mergeNode(id: string): NodeV4 {
+    return {
+      id,
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'video',
+        subtype: 'merge',
+        name: id,
+        status: 'idle',
+        createdAt: NOW,
+      },
+    }
+  }
+
+  it('set_voice_profile 是补丁：没带的档位留着', () => {
+    const state: NodeWorkflowStateV4 = {
+      ...baseState(),
+      nodes: [audioNode('a_01')],
+    }
+    const result = applyNodeAssistantOpV4(
+      state,
+      { op: 'set_voice_profile', target: 'a_01', profile: { speed: 1.4 } },
+      makeContext(),
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const data = result.state.nodes[0]?.data
+    expect(data?.kind === 'audio' && data.voiceProfile).toEqual({
+      emotion: '平静',
+      speed: 1.4,
+    })
+  })
+
+  it('越界的语速不许落进节点（schema 层放宽、执行层拒）', () => {
+    const state: NodeWorkflowStateV4 = {
+      ...baseState(),
+      nodes: [audioNode('a_01')],
+    }
+    const result = applyNodeAssistantOpV4(
+      state,
+      { op: 'set_voice_profile', target: 'a_01', profile: { speed: 9 } },
+      makeContext(),
+    )
+    expect(result).toMatchObject({ ok: false, reason: 'invalidVoiceProfile' })
+  })
+
+  it('set_voice_profile 的 inverse 能把旧档位放回去', () => {
+    const state: NodeWorkflowStateV4 = {
+      ...baseState(),
+      nodes: [audioNode('a_01')],
+    }
+    const context = makeContext()
+    const result = applyNodeAssistantOpV4(
+      state,
+      {
+        op: 'set_voice_profile',
+        target: 'a_01',
+        profile: { emotion: '愤怒', speed: 1.8 },
+      },
+      context,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const undone = applyInverseV4(result.state, result.inverse, context)
+    const data = undone.nodes[0]?.data
+    expect(data?.kind === 'audio' && data.voiceProfile).toEqual({
+      emotion: '平静',
+      speed: 1,
+    })
+  })
+
+  it('set_merge_clips 拒收 start >= end 的段', () => {
+    const state: NodeWorkflowStateV4 = {
+      ...baseState(),
+      nodes: [mergeNode('m_01')],
+    }
+    const result = applyNodeAssistantOpV4(
+      state,
+      {
+        op: 'set_merge_clips',
+        target: 'm_01',
+        clips: [{ url: 'https://cdn/a.mp4', startSec: 4, endSec: 2 }],
+      },
+      makeContext(),
+    )
+    expect(result).toMatchObject({ ok: false, reason: 'invalidClipRange' })
+  })
+
+  it('set_merge_clips 只落在 video.merge 上', () => {
+    const state = baseState()
+    const result = applyNodeAssistantOpV4(
+      state,
+      {
+        op: 'set_merge_clips',
+        target: 'v_02',
+        clips: [{ url: 'https://cdn/a.mp4', startSec: 0, endSec: 2 }],
+      },
+      makeContext(),
+    )
+    expect(result).toMatchObject({ ok: false, reason: 'notAMergeNode' })
+  })
+
+  it('set_merge_clips 写进 mergeSettings 并可撤销', () => {
+    const state: NodeWorkflowStateV4 = {
+      ...baseState(),
+      nodes: [mergeNode('m_01')],
+    }
+    const context = makeContext()
+    const result = applyNodeAssistantOpV4(
+      state,
+      {
+        op: 'set_merge_clips',
+        target: 'm_01',
+        clips: [{ url: 'https://cdn/a.mp4', startSec: 0.5, endSec: 3 }],
+      },
+      context,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const data = result.state.nodes[0]?.data
+    expect(
+      data?.kind === 'video' && data.subtype === 'merge'
+        ? data.mergeSettings?.clips
+        : undefined,
+    ).toEqual([{ url: 'https://cdn/a.mp4', startSec: 0.5, endSec: 3 }])
+    const undone = applyInverseV4(result.state, result.inverse, context)
+    const back = undone.nodes[0]?.data
+    expect(
+      back?.kind === 'video' && back.subtype === 'merge'
+        ? back.mergeSettings
+        : undefined,
+    ).toBeUndefined()
+  })
+})

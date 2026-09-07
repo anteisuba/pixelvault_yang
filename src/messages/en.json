@@ -5887,7 +5887,12 @@
       "generateDesk": {
         "title": "Generate",
         "prompt": "Prompt",
-        "promptPlaceholder": "Describe the shot you want…",
+        "promptPlaceholder": {
+          "image": "Describe the image you want…",
+          "audio": "Lines to speak, or a sound description…",
+          "video": "Describe how this shot moves…",
+          "text": "Write something…"
+        },
         "model": "Model",
         "params": "Parameters",
         "aspectRatio": "Aspect ratio",
@@ -5911,7 +5916,119 @@
         "noModel": "Pick a model first",
         "slotRack": "Slots",
         "slotCount": "{slot} {count}",
-        "noGenerate": "Text nodes do not generate — derive instead"
+        "noGenerate": "Text nodes do not generate — derive instead",
+        "shortcutPending": "Generate runs from the desk button for now — the ⌘+Enter path lands next."
+      },
+      "renameNode": "Rename node",
+      "expandNode": "Expand",
+      "collapseNode": "Collapse",
+      "renameTaken": "Another node already uses that name",
+      "toolbar": {
+        "download": "Download",
+        "clone": "Clone empty node",
+        "tidy": "Tidy layout",
+        "delete": "Delete node"
+      },
+      "review": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "state": {
+          "awaiting_review": "Awaiting review",
+          "rejected": "Rejected",
+          "approved": "Approved"
+        }
+      },
+      "readout": {
+        "dimensions": "{width}×{height}",
+        "sourceGenerated": "Generated",
+        "sourceExisting": "Existing"
+      },
+      "relations": {
+        "title": "Used downstream by",
+        "empty": "Nothing uses it yet",
+        "chip": "{name} · {slot}"
+      },
+      "evidence": {
+        "title": "Send preview ({count})",
+        "model": "Model",
+        "prompt": "Prompt",
+        "blocked": "Blocked",
+        "none": "—",
+        "slotValue": "{name} ({count} versions)"
+      },
+      "gallery": {
+        "title": "{slot} gallery ({count})",
+        "add": "+ Add",
+        "empty": "Gallery is empty",
+        "remove": "Remove",
+        "extract": "Detach"
+      },
+      "voice": {
+        "slotStates": {
+          "empty": "No voice",
+          "loading": "Working",
+          "bound": "Voice bound",
+          "failed": "Failed"
+        },
+        "providerFallback": "Unknown source",
+        "noSample": "No preview sample yet",
+        "openLibrary": "Voice library",
+        "uploadAudio": "Upload audio",
+        "uploading": "Uploading…",
+        "uploadFailed": "Upload failed: {reason}",
+        "uploadRetry": "Retry upload",
+        "ownerLabel": "Owner character",
+        "ownerNone": "Narration",
+        "ownerCustom": "Type a name…",
+        "ownerCustomPlaceholder": "Character name",
+        "speedLabel": "Speed",
+        "volumeLabel": "Volume",
+        "emotionLabel": "Emotion",
+        "emotions": {
+          "none": "None",
+          "calm": "Calm",
+          "angry": "Angry",
+          "sad": "Sad",
+          "surprised": "Surprised"
+        }
+      },
+      "mentionGroups": {
+        "text": "Text",
+        "image": "Image",
+        "audio": "Audio",
+        "video": "Video"
+      },
+      "player": {
+        "empty": "No video yet",
+        "play": "Play",
+        "pause": "Pause",
+        "mute": "Mute",
+        "unmute": "Unmute",
+        "progress": "Playback progress",
+        "download": "Download",
+        "captureFrames": "Capture poster frame",
+        "capturing": "Capturing…",
+        "posterFailed": "Poster upload failed: {reason}",
+        "posterRetry": "Retry poster upload",
+        "uploadVideo": "Upload video",
+        "replaceVideo": "Replace video",
+        "uploadingVideo": "Uploading…",
+        "videoUploadFailed": "Video upload failed: {reason}",
+        "videoUploadRetry": "Retry upload"
+      },
+      "merge": {
+        "slotFilled": "Clip {index}",
+        "slotRequired": "Clip {index} (required)",
+        "slotOptional": "Clip {index} (optional)",
+        "summary": "{clipCount}/{slotCount} clips · {trimmedCount} trimmed",
+        "clipIndex": "Clip {index}",
+        "startSec": "Clip {index} start seconds",
+        "endSec": "Clip {index} end seconds",
+        "startPlaceholder": "Start",
+        "endPlaceholder": "End",
+        "invalidRange": "Start must be before end",
+        "invalidRangeBlocks": "A clip's trim range is invalid — merging is blocked",
+        "needMoreClips": "Connect at least {min} clips to merge"
       }
     }
   },

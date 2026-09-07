@@ -25,16 +25,29 @@
  * 反而会给每次展开产生一条撤销记录。
  */
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import type { NodeSlotId } from '@/constants/node-slots'
 import type { NodeWorkflowMediaKind } from '@/constants/node-types'
-import { applyNodeAssistantOpV4 } from '@/lib/node-assistant-op-apply-v4'
+import {
+  applyInverseV4,
+  applyNodeAssistantOpV4,
+  type NodeV4Inverse,
+} from '@/lib/node-assistant-op-apply-v4'
+import { tidyShotLanes } from '@/lib/node-shot-layout'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
+  NodeV4Data,
   NodeV4GenerationParams,
   NodeWorkflowModelOption,
   NodeWorkflowModelSelection,
@@ -59,12 +72,27 @@ const OP_FAILURE_KEYS: Readonly<Record<string, string>> = {
   blockedVersion: 'connectRejected.blockedVersion',
 }
 
+/**
+ * 一个撤销条目。
+ *
+ * `inverse` 档是常态（正向 op 落地时执行器顺手算出来的那份）；`state` 档只给
+ * 「重做之后再撤销」用，理由写在 `onRedo` 里。
+ */
+type NodeV4HistoryEntry = {
+  readonly undo:
+    | { readonly kind: 'inverse'; readonly inverse: NodeV4Inverse }
+    | { readonly kind: 'state'; readonly state: NodeWorkflowStateV4 }
+  readonly redoState: NodeWorkflowStateV4
+}
+
 export interface NodeV4ProviderProps {
   readonly state: NodeWorkflowStateV4
   /** 应用一条 op 之后的新 state。调用方负责持久化（预览路径下不写库）。 */
   onStateChange(next: NodeWorkflowStateV4): void
   readonly draggingFrom?: string | null
   readonly changedNodeIds?: readonly string[]
+  /** ReactFlow 的选中集。多选时各卡收起自己的工具条。 */
+  readonly selectedNodeIds?: readonly string[]
   /** 生成编排区的模型清单，按 kind 分档（`useWorkflowModelOptions` 的产物）。 */
   readonly modelOptionsByKind?: Partial<
     Record<NodeWorkflowMediaKind, NodeWorkflowModelOption[]>
@@ -81,6 +109,7 @@ export function NodeV4Provider({
   onStateChange,
   draggingFrom = null,
   changedNodeIds,
+  selectedNodeIds,
   modelOptionsByKind,
   onFocusNode,
   onDeriveFromText,
@@ -89,20 +118,173 @@ export function NodeV4Provider({
   const t = useTranslations('StudioNode.v4')
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
 
+  /**
+   * 撤销栈（§7 「撤销重做走 op inverses」）。
+   *
+   * ⚠ 一条成功的 op = **一个**撤销条目。存 `inverse`（而不是「改前的整份 state」）
+   * 是 §7 定的：助手一轮可能是十几条 op，逐条存整份 state 会把内存和 diff 成本
+   * 都翻十几倍，而 inverse 本来就是执行器顺手算出来的。
+   *
+   * ── 为什么「重做」存的是**结果 state**，不是「把原 op 再跑一遍」───────
+   * `add_node` 每跑一次 `mintId` 都发一个新 id。重跑 = 新节点 id ≠ 被撤销的那个，
+   * 于是所有指向它的边、`@` 提及、下游槽绑定全部指空。⛔ 不为了对称把 id 也一起
+   * 重做——重做的语义是「把刚才那一步原样放回来」，那就得是同一个节点。
+   *
+   * 栈只活在这个 Provider 里（预览态本来就不落库）；新 op 落地时清空重做栈——
+   * 撤销后又改了别的，那条被撤销的分支就不该还能回来。
+   */
+  const [undoStack, setUndoStack] = useState<readonly NodeV4HistoryEntry[]>([])
+  const [redoStack, setRedoStack] = useState<
+    readonly { redoState: NodeWorkflowStateV4 }[]
+  >([])
+
+  const mintId = useCallback(
+    (prefix: string) => `${prefix}${crypto.randomUUID()}`,
+    [],
+  )
+
   const dispatch = useCallback(
     (op: NodeAssistantOpV4): boolean => {
-      const result = applyNodeAssistantOpV4(state, op, {
-        mintId: (prefix) => `${prefix}${crypto.randomUUID()}`,
-      })
+      const result = applyNodeAssistantOpV4(state, op, { mintId })
       if (!result.ok) {
         const key = OP_FAILURE_KEYS[result.reason]
         toast.error(key ? t(key) : t('opFailed', { reason: result.reason }))
         return false
       }
+      setUndoStack((stack) => [
+        ...stack,
+        {
+          undo: { kind: 'inverse', inverse: result.inverse },
+          redoState: result.state,
+        },
+      ])
+      setRedoStack([])
       onStateChange(result.state)
       return true
     },
-    [state, onStateChange, t],
+    [state, mintId, onStateChange, t],
+  )
+
+  const onUndo = useCallback(() => {
+    const entry = undoStack[undoStack.length - 1]
+    if (!entry) return
+    setUndoStack((stack) => stack.slice(0, -1))
+    setRedoStack((stack) => [...stack, { redoState: entry.redoState }])
+    onStateChange(
+      entry.undo.kind === 'inverse'
+        ? applyInverseV4(state, entry.undo.inverse, { mintId })
+        : entry.undo.state,
+    )
+  }, [undoStack, state, mintId, onStateChange])
+
+  const onRedo = useCallback(() => {
+    const entry = redoStack[redoStack.length - 1]
+    if (!entry) return
+    setRedoStack((stack) => stack.slice(0, -1))
+    // ⚠ 重做推回撤销栈的那一条**不能**再用原来那份 inverse：那份 inverse 是针对
+    // 「撤销前那份 state」算的，现在的 state 已经是撤销后的了。也不能用 `restore`
+    // —— 它只把节点/边**加回来**，删不掉重做刚补上的那些。所以这一档存整份快照。
+    // ⛔ 不为了对称把正向 op 也改成存快照：正向那一条走 inverse 才是 §7 定的。
+    const snapshot = state
+    setUndoStack((stack) => [
+      ...stack,
+      {
+        undo: { kind: 'state', state: snapshot },
+        redoState: entry.redoState,
+      },
+    ])
+    onStateChange(entry.redoState)
+  }, [redoStack, state, onStateChange])
+
+  /**
+   * 「复制」记下的**形状**（kind / subtype / shotNo），不是节点本身。
+   * ⚠ 用 ref 而不是 state：剪贴板变了不需要重渲染任何一张卡。
+   */
+  const clipboardRef = useRef<{
+    kind: NodeV4Data['kind']
+    subtype: NodeV4Data['subtype']
+    shotNo?: number
+  } | null>(null)
+
+  /**
+   * 画布级快捷键（§3 跨节点）。
+   *
+   * ⚠ 打字时**一律不接管**：`⌘Z` 在 textarea 里是「撤销我刚敲的那几个字」，把它
+   * 抢去撤销画布是 v3 时代最容易被抓到的一条。判据用 `closest`——`MentionInput` 是
+   * contentEditable，事件靶子可能是内部的文本节点包装元素而不是输入框本身。
+   *
+   * ⛔ 不在这里绑删除键：删除已经由 ReactFlow 的 `deleteKeyCode` 接着，两处各绑
+   * 一次会让一次按键删两遍（第二遍落在已经不存在的节点上，弹一条 `unknownNode`）。
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return
+      // ⚠ `event.target` 不一定是元素 —— 没有焦点时它是 `document`／`window`，
+      // 两者都没有 `closest`。⛔ 不直接 `target.closest(...)`：那会在「画布上什么都
+      // 没选中的时候按 ⌘Z」这条最常见的路径上抛异常，而异常吞掉之后表现就是
+      // 「撤销键坏了」。
+      const target = event.target
+      if (
+        target instanceof Element &&
+        target.closest(
+          'input, textarea, select, [contenteditable="true"], [role="textbox"]',
+        )
+      ) {
+        return
+      }
+      const key = event.key.toLowerCase()
+      // 复制 / 粘贴 = **同类空节点**，与工具条的「克隆」是同一条语义（owner 定）。
+      // ⛔ 不复制媒体：一张图两个节点指向同一个 R2 对象，删任一个都会让另一个
+      // 静默变空白。剪贴板只记「形状」，所以它跨项目也说得通。
+      if (key === 'c') {
+        const only =
+          selectedNodeIds?.length === 1
+            ? state.nodes.find((node) => node.id === selectedNodeIds[0])
+            : undefined
+        if (!only) return
+        event.preventDefault()
+        clipboardRef.current = {
+          kind: only.data.kind,
+          subtype: only.data.subtype,
+          ...(only.data.shotNo === undefined
+            ? {}
+            : { shotNo: only.data.shotNo }),
+        }
+        return
+      }
+      if (key === 'v') {
+        const shape = clipboardRef.current
+        if (!shape) return
+        event.preventDefault()
+        dispatch({ op: NODE_ASSISTANT_OP_V4_IDS.addNode, ...shape })
+        return
+      }
+      if (key === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) onRedo()
+        else onUndo()
+        return
+      }
+      // ⌘+Enter = 生成。执行器在 C3d（`generate` 那条 op 要走真实的生成链路），
+      // 这一步只把键位占住并诚实说明——⛔ 不静默吞掉：一个「按了没反应」的快捷键
+      // 会被当成坏了，而不是「还没做」。
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        toast.info(t('generateDesk.shortcutPending'))
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onUndo, onRedo, dispatch, selectedNodeIds, state.nodes, t])
+
+  // 通用出口：展开态里那些「一次性」的 op（delete / clone / connect /
+  // move_to_shot …）不再各自加一个具名回调，全部从这里出去 —— 与具名回调**同一条**
+  // 路径（同一张 op 表、同一份 inverse、同一批失败文案）。
+  const onApplyOp = useCallback(
+    (op: NodeAssistantOpV4) => {
+      dispatch(op)
+    },
+    [dispatch],
   )
 
   const onToggleExpanded = useCallback((nodeId: string) => {
@@ -211,6 +393,10 @@ export function NodeV4Provider({
     [dispatch],
   )
 
+  const onTidyLayout = useCallback(() => {
+    onStateChange(tidyShotLanes(state))
+  }, [state, onStateChange])
+
   const onSetMedia = useCallback(
     (nodeId: string, patch: NodeV4MediaPatch) => {
       // 媒体回填不是 op 表上的东西（助手不许直接塞 URL，§5 纪律 1）——它是用户
@@ -234,6 +420,7 @@ export function NodeV4Provider({
       edges: state.edges,
       draggingFrom,
       changedNodeIds: changedNodeIds ?? [],
+      selectedNodeIds: selectedNodeIds ?? [],
       expandedNodeId,
       modelOptionsByKind: modelOptionsByKind ?? {},
       onToggleExpanded,
@@ -246,12 +433,19 @@ export function NodeV4Provider({
       onSetModel,
       onSetParams,
       onSetMedia,
+      onApplyOp,
+      onTidyLayout,
+      canUndo: undoStack.length > 0,
+      canRedo: redoStack.length > 0,
+      onUndo,
+      onRedo,
     }),
     [
       state.nodes,
       state.edges,
       draggingFrom,
       changedNodeIds,
+      selectedNodeIds,
       expandedNodeId,
       modelOptionsByKind,
       onToggleExpanded,
@@ -264,6 +458,12 @@ export function NodeV4Provider({
       onSetModel,
       onSetParams,
       onSetMedia,
+      onApplyOp,
+      onTidyLayout,
+      undoStack.length,
+      redoStack.length,
+      onUndo,
+      onRedo,
     ],
   )
 

@@ -114,6 +114,72 @@ export function previewV4SlotCapacity(
   return { current, limit }
 }
 
+/* ═════════════════════════════════════════════════════════════════════════
+ * 落哪个槽（C3c-②Q · 接线清单 9）
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+export interface V4IngestSlotCandidate {
+  readonly slot: NodeSlotId
+  /** 这个口现在几条 / 上限几条；上限不可得时是 `null`（⛔ 不硬造一个数）。 */
+  readonly capacity: { readonly current: number; readonly limit: number } | null
+}
+
+/**
+ * 一次拖投的**落点决议**。
+ *
+ * ⚠ 三态而不是「一个 slot 或 null」：v4 的目标节点有多个具名口，**同一张图对
+ * 镜头卡同时点亮首帧 / 尾帧 / 参考三个口**。此时替用户挑一个就是替他做主 ——
+ * 挑首帧他会得到一个没打算要的关键帧，挑参考又违背「拖到首帧口上」的直觉。
+ * 所以多口时这里**不挑**，把候选交回 UI 点亮（§3.3 理由必须可见的同一条：
+ * 落点也必须可见）。
+ *
+ * ⛔ 不按端口表顺序取第一个当默认：那个顺序是**版式**顺序（§6 源节点自上而下），
+ * 不是优先级，把它当优先级用就是拿排版当语义。
+ */
+export type V4IngestDropPlan =
+  | { readonly kind: 'rejected'; readonly reason?: NodeConnectRejectReason }
+  /** 只有一个口收得下 —— 可以直接落，不必问。 */
+  | { readonly kind: 'single'; readonly candidate: V4IngestSlotCandidate }
+  /** 多个口都收得下 —— 全部点亮，由用户挑。 */
+  | {
+      readonly kind: 'choose'
+      readonly candidates: readonly V4IngestSlotCandidate[]
+    }
+
+/**
+ * 纯函数：这一投落哪个槽。点亮与落点走**同一次** `evaluateV4Ingest`，
+ * ⛔ 不许点亮一套判据、落点另一套（v3 那两处分家过一次）。
+ */
+export function planV4IngestDrop(
+  source: NodeV4,
+  target: NodeV4,
+  edges: readonly NodeWorkflowEdgeV4[],
+  nodes: readonly NodeV4[],
+  capacityBySlot?: Partial<Record<NodeSlotId, number>>,
+): V4IngestDropPlan {
+  const evaluation = evaluateV4Ingest(
+    source,
+    target,
+    edges,
+    nodes,
+    capacityBySlot,
+  )
+  if (!evaluation.legal || evaluation.slots.length === 0) {
+    return {
+      kind: 'rejected',
+      ...(evaluation.reason ? { reason: evaluation.reason } : {}),
+    }
+  }
+  const candidates = evaluation.slots.map((slot) => ({
+    slot,
+    capacity: previewV4SlotCapacity(target, slot, edges, capacityBySlot),
+  }))
+  const only = candidates[0]
+  if (candidates.length === 1 && only)
+    return { kind: 'single', candidate: only }
+  return { kind: 'choose', candidates }
+}
+
 /** React 外壳：把上面两个纯函数绑到当前这张图上。 */
 export function useCastIngestV4(
   nodes: readonly NodeV4[],

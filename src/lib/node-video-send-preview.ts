@@ -15,15 +15,28 @@
  * legend or 图N slot concept, so this isn't a general-purpose "preview any
  * node" utility.
  */
-import { NODE_STUDIO_VIDEO_REFERENCE_LEGEND } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS,
+  NODE_STUDIO_VIDEO_REFERENCE_LEGEND,
+} from '@/constants/node-studio'
 import { NODE_REVIEW_STATE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getVideoModelSendContract,
   type VideoModelSendContract,
 } from '@/constants/video-model-send-plan'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { NODE_SLOT_IDS } from '@/constants/node-slots'
+import {
+  buildV4VideoPayload,
+  readNodeUrl,
+  readSlotSources,
+  type SlotSource,
+} from './node-slot-payload'
 import type {
+  NodeV4,
   NodeWorkflowEdge,
+  NodeWorkflowEdgeV4,
   NodeWorkflowNode,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
@@ -45,6 +58,7 @@ import {
   mergePromptWithUpstreamText,
   type AudioBinding,
   type VideoLegendImageKind,
+  type VideoLegendImageReference,
 } from './node-workflow-graph'
 import {
   buildReferenceImageIndexByName,
@@ -466,5 +480,299 @@ export function summarizeVideoSendReferences(
     audio: preview.audioEntries.map((entry) =>
       entry.characterName ? { characterName: entry.characterName } : {},
     ),
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * v4 分支（第三期 · 画布 C3c-②Q · 接线清单 5）
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * v4 的发送预览 —— **读 `buildV4VideoPayload` 的那一份结果**，⛔ 不再自己收割。
+ *
+ * ── 这是本模块存在理由的 v4 版重述 ──────────────────────────────────
+ * 上面那支 v3 实现的整个头注可以压成一句：「预览必须调用发送路径调用的同一批
+ * 函数」。v4 把收割整块换成了具名槽装配（`node-slot-payload.buildV4VideoPayload`），
+ * 而发送路径（`useNodeMediaGenerationV4.generateNode`）调的正是它。所以 v4 预览
+ * 的正确做法不是把 v3 的收割链改写一遍，而是**直接读同一个装配结果**。
+ *
+ * 装配之后的每一步照旧共用 v3 的函数：容量解算（`resolveVideoSendSlotLimits`）、
+ * 关键帧档守卫（`planVideoKeyframeImages`）、图例（`buildVideoReferenceLegend`）、
+ * `@name → @ImageN`（`translatePromptTokensToPositional`）。⛔ 这四件不给 v4 另写
+ * 一份 —— 它们回答的是「模型这一侧收什么」，与画布是 v3 还是 v4 无关。
+ *
+ * ⚠ v3 分支**保留到 ③**（翻转那一步才删）：存量项目仍在 v3 形状上跑。
+ */
+export interface BuildVideoSendPreviewV4Input {
+  readonly nodeId: string
+  readonly nodes: readonly NodeV4[]
+  readonly edges: readonly NodeWorkflowEdgeV4[]
+  readonly modelId?: string
+  readonly adapterType?: AI_ADAPTER_TYPES
+  /** 与 v3 同义：`undefined` = 上限不可得，整个截断步跳过（诚实沉默）。 */
+  readonly maxReferenceImages: number | undefined
+  readonly autoNamePrefix: Record<VideoLegendImageKind | 'video', string>
+}
+
+/**
+ * url → 这张图在创作层叫什么、是哪一档。
+ *
+ * v3 靠 `harvestUpstreamVideoImageReferences` 反查；v4 直接问槽 —— 名字就是源
+ * 节点的稳定名（`data.name`），档位由**槽**决定（首/尾帧槽 = 关键帧，特写槽 =
+ * 特写，其余按源节点子型）。⛔ 不按 url 猜。
+ */
+function buildV4ImageRefByUrl(
+  nodeId: string,
+  nodes: readonly NodeV4[],
+  edges: readonly NodeWorkflowEdgeV4[],
+): Map<string, VideoLegendImageReference> {
+  const map = new Map<string, VideoLegendImageReference>()
+  const node = nodes.find((candidate) => candidate.id === nodeId)
+  if (!node) return map
+  const record = (
+    sources: readonly SlotSource[],
+    kind: VideoLegendImageKind | undefined,
+  ): void => {
+    for (const source of sources) {
+      const url = readNodeUrl(source.node.data)
+      if (!url || map.has(url)) continue
+      map.set(url, {
+        name: source.node.data.name,
+        ...(kind ? { kind } : {}),
+      })
+    }
+  }
+  /**
+   * 关键帧不是 `VideoLegendImageKind` 的一档（SF-2b：它没有可插入的 `@token`），
+   * 它走的是**分类**那一支 —— 图例打印成「@ImageN = 名字（首帧）」。
+   *
+   * v3 只能按序位兜底猜首尾（`resolveKeyframeLegendCategory`），因为那边两张
+   * 关键帧挂的是同一种边；v4 首尾各有自己的槽，槽本身就是那份语义，所以这里
+   * 直接按槽给分类，⛔ 不再猜。
+   */
+  const recordKeyframe = (
+    sources: readonly SlotSource[],
+    category: string,
+  ): void => {
+    for (const source of sources) {
+      const url = readNodeUrl(source.node.data)
+      if (!url || map.has(url)) continue
+      map.set(url, { name: source.node.data.name, category })
+    }
+  }
+  recordKeyframe(
+    readSlotSources(node, NODE_SLOT_IDS.firstFrame, edges, nodes),
+    NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS.frameStart,
+  )
+  recordKeyframe(
+    readSlotSources(node, NODE_SLOT_IDS.lastFrame, edges, nodes),
+    NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS.frameEnd,
+  )
+  for (const source of readSlotSources(
+    node,
+    NODE_SLOT_IDS.reference,
+    edges,
+    nodes,
+  )) {
+    const url = readNodeUrl(source.node.data)
+    if (!url || map.has(url)) continue
+    const data = source.node.data
+    const kind: VideoLegendImageKind | undefined =
+      data.kind === NODE_MEDIA_KIND_IDS.image && data.subtype === 'character'
+        ? 'character'
+        : data.kind === NODE_MEDIA_KIND_IDS.image
+          ? 'shot'
+          : undefined
+    map.set(url, { name: data.name, ...(kind ? { kind } : {}) })
+    // 一跳：角色卡上的特写。
+    if (
+      data.kind === NODE_MEDIA_KIND_IDS.image &&
+      data.subtype === 'character'
+    ) {
+      record(
+        readSlotSources(source.node, NODE_SLOT_IDS.closeup, edges, nodes),
+        'closeup',
+      )
+    }
+  }
+  return map
+}
+
+export function buildVideoSendPreviewV4({
+  nodeId,
+  nodes,
+  edges,
+  modelId,
+  adapterType,
+  maxReferenceImages,
+  autoNamePrefix,
+}: BuildVideoSendPreviewV4Input): VideoSendPreview {
+  const legacyMode = !modelId
+  const contract = getVideoModelSendContract(modelId, adapterType)
+  const node = nodes.find((candidate) => candidate.id === nodeId)
+  const ownPrompt =
+    node && node.data.kind !== 'text' ? (node.data.prompt ?? '') : ''
+  // ⭐ 唯一的收割来源。
+  const payload = buildV4VideoPayload({ nodeId, nodes, edges, ownPrompt })
+
+  const slotLimits = resolveVideoSendSlotLimits({
+    contract,
+    legacyMode,
+    legacyMaxReferenceImages: maxReferenceImages,
+    audioCandidateCount: payload.audioBindings.length,
+    videoCandidateCount: payload.videoUrls.length,
+  })
+  const audioBindings = payload.audioBindings.slice(0, slotLimits.audio)
+  const videoUrls = payload.videoUrls.slice(0, slotLimits.videos)
+
+  const dropped: VideoSendPreviewDroppedEntry[] = [
+    ...payload.audioBindings.slice(slotLimits.audio).map((binding) => ({
+      kind: 'audio' as const,
+      url: binding.url,
+      reason:
+        slotLimits.audio === 0
+          ? ('unsupported' as const)
+          : ('model-limit' as const),
+    })),
+    ...payload.videoUrls.slice(slotLimits.videos).map((url) => ({
+      kind: 'video' as const,
+      url,
+      reason:
+        slotLimits.videos === 0
+          ? ('unsupported' as const)
+          : ('model-limit' as const),
+    })),
+  ]
+
+  // 去重已在装配层做过（`pushUnique`），这里只按上限截断。
+  const assembly = assembleReferenceImagePayload(
+    [...payload.imageUrls],
+    slotLimits.images,
+  )
+  const cappedImages = payload.imageUrls.slice(0, slotLimits.images)
+  const keyframePlan = planVideoKeyframeImages({
+    imageUrls: cappedImages,
+    keyframeUrls: [...payload.keyframeUrls],
+    modelId,
+    adapterType,
+  })
+  const effectiveImages = keyframePlan.imageUrls
+  dropped.push(
+    ...keyframePlan.dropped.map((url) => ({
+      kind: 'image' as const,
+      url,
+      reason: 'unsupported' as const,
+    })),
+  )
+  for (const url of payload.imageUrls.slice(slotLimits.images)) {
+    dropped.push({
+      kind: 'image',
+      url,
+      reason: slotLimits.imagesLimitedByTotal ? 'total-limit' : 'model-limit',
+    })
+  }
+
+  const imageRefByUrl = buildV4ImageRefByUrl(nodeId, nodes, edges)
+  const indexByName = buildReferenceImageIndexByName(
+    payload.imageUrls,
+    imageRefByUrl,
+    autoNamePrefix,
+  )
+  const imageIndexByName = new Map(
+    Array.from(indexByName).filter(
+      ([, position]) => position <= effectiveImages.length,
+    ),
+  )
+
+  const legend = buildVideoReferenceLegend({
+    referenceImages: effectiveImages,
+    imageRefByUrl,
+    videoUrls,
+    audioBindings,
+    labels: {
+      title: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.title,
+      imagePrefix: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.imagePrefix,
+      videoPrefix: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.videoPrefix,
+      audioPrefix: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.audioPrefix,
+      kindLabel: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.kindLabel,
+      autoNamePrefix,
+      characterVoiceSuffix:
+        NODE_STUDIO_VIDEO_REFERENCE_LEGEND.characterVoiceSuffix,
+      narration: NODE_STUDIO_VIDEO_REFERENCE_LEGEND.narration,
+    },
+  })
+
+  const images: VideoSendPreviewImageEntry[] = effectiveImages.map((url, i) => {
+    const ref = imageRefByUrl.get(url)
+    const index = i + 1
+    const name =
+      ref?.name ||
+      (ref?.kind ? `${autoNamePrefix[ref.kind]}${index}` : undefined)
+    return { url, index, name, kind: ref?.kind, category: ref?.category }
+  })
+
+  const audioEntries: VideoSendPreviewAudioEntry[] = audioBindings.map(
+    (binding, i) => ({
+      index: i + 1,
+      url: binding.url,
+      ...(binding.characterName
+        ? { characterName: binding.characterName }
+        : {}),
+      label: binding.characterName
+        ? `${NODE_STUDIO_VIDEO_REFERENCE_LEGEND.kindLabel.character}「${binding.characterName}」${NODE_STUDIO_VIDEO_REFERENCE_LEGEND.characterVoiceSuffix}`
+        : NODE_STUDIO_VIDEO_REFERENCE_LEGEND.narration,
+    }),
+  )
+
+  const usesPositionalTokens =
+    legacyMode || contract.positionalImageTokens === true
+  const outboundLegend = usesPositionalTokens ? legend : ''
+  const outboundPromptBody = usesPositionalTokens
+    ? translatePromptTokensToPositional(payload.prompt, imageIndexByName)
+    : payload.prompt
+  const requestPrompt = outboundLegend
+    ? `${outboundLegend}\n\n${outboundPromptBody}`
+    : outboundPromptBody
+
+  const blockers: VideoSendPreview['blockers'] = []
+  if (contract.execution !== 'ready') blockers.push('execution-not-migrated')
+  if (
+    !legacyMode &&
+    contract.slots.audioRequiresVisual &&
+    audioBindings.length > 0 &&
+    effectiveImages.length === 0 &&
+    videoUrls.length === 0
+  ) {
+    blockers.push('audio-requires-visual')
+  }
+
+  return {
+    translatedPrompt: outboundPromptBody,
+    legend: outboundLegend,
+    images,
+    overflow: assembly.overflow.map((entry) => ({
+      url: entry.url,
+      ...(imageRefByUrl.get(entry.url)?.name
+        ? { name: imageRefByUrl.get(entry.url)?.name }
+        : {}),
+    })),
+    assembledImageCount: assembly.imageUrls.length,
+    videoUrls,
+    audioEntries,
+    dropped,
+    contract,
+    slotLimits,
+    request: {
+      prompt: requestPrompt,
+      referenceImages: effectiveImages.length > 0 ? effectiveImages : undefined,
+      videoUrls: videoUrls.length > 0 ? videoUrls : undefined,
+      audioUrls:
+        audioBindings.length > 0
+          ? audioBindings.map((binding) => binding.url)
+          : undefined,
+      audioBindings: audioBindings.length > 0 ? audioBindings : undefined,
+    },
+    canSubmit: blockers.length === 0,
+    blockers,
   }
 }

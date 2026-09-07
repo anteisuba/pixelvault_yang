@@ -10,8 +10,10 @@ import {
 import { NodeAssistantOpV4Schema } from '@/types/node-assistant-ops'
 
 describe('v4 op 表（spec §5）', () => {
-  it('18 条 op 全部有一条 spec，且 spec 里没有词表外的 op', () => {
-    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(18)
+  it('20 条 op 全部有一条 spec，且 spec 里没有词表外的 op', () => {
+    // C3c-②Q 新增两条：`set_voice_profile` / `set_merge_clips`（嵌套载荷，
+    // 不并进 `set_field`，理由见 `NODE_ASSISTANT_OP_V4_IDS` 上的注释）。
+    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(20)
     expect(Object.keys(NODE_ASSISTANT_OP_V4_SPECS).sort()).toEqual(
       [...NODE_ASSISTANT_OPS_V4].sort(),
     )

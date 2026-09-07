@@ -14,9 +14,17 @@ import {
   type NodeWorkflowMediaKind,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
-import { resolveNodeDisplayName } from '@/lib/node-display-name'
+import { NODE_V4_SUBTYPE_LABELS } from '@/constants/node-studio'
+import {
+  formatShotDisplayName,
+  resolveNodeDisplayName,
+} from '@/lib/node-display-name'
 import { cn } from '@/lib/utils'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import type {
+  NodeV4Data,
+  NodeWorkflowEdge,
+  NodeWorkflowNode,
+} from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from './NodeWorkflowActionsContext'
 
@@ -63,6 +71,11 @@ function getNodeDisplayName(node: NodeWorkflowNode): string | undefined {
 }
 
 function getNodeThumbnail(node: NodeWorkflowNode): string | undefined {
+  const v4 = readV4Data(node)
+  if (v4) {
+    if (v4.kind === NODE_MEDIA_KIND_IDS.text) return undefined
+    return trimmed(v4.url) ?? trimmed(v4.videoThumbnailUrl)
+  }
   const kind = NODE_MEDIA_KIND_BY_NODE_TYPE[node.type]
   if (kind === NODE_MEDIA_KIND_IDS.image) {
     return trimmed(node.data.mediaUrl) ?? trimmed(node.data.imageUrl)
@@ -79,8 +92,32 @@ function getNodeThumbnail(node: NodeWorkflowNode): string | undefined {
   return undefined
 }
 
+/**
+ * v4 节点认领：ReactFlow 的 `type` 在 v4 里**就是 `kind`**（`NODE_V4_COMPONENTS`
+ * 的键），`data` 上也有 `kind`。判 `data.kind` 而不是 `node.type`——两者同源，
+ * 但 data 那份是持久化的事实源。
+ */
+function readV4Data(node: NodeWorkflowNode): NodeV4Data | undefined {
+  const data = node.data as unknown as Partial<NodeV4Data>
+  return data.kind && data.subtype && typeof data.name === 'string'
+    ? (data as NodeV4Data)
+    : undefined
+}
+
 function getNodeGroup(node: NodeWorkflowNode): LocatorGroupId {
+  // ⚠ v4 分支必须在前：`NODE_MEDIA_KIND_BY_NODE_TYPE` 的键是 12 个 legacy type，
+  // 查 `'audio'` 查不到 → 兜底把**音频节点归进「文本」组**。真机 2026-09-07 抓到
+  // 的正是这一条（音频卡进文本组、名字显示成「音频」）。
+  const v4 = readV4Data(node)
+  if (v4) return v4.kind
   return NODE_MEDIA_KIND_BY_NODE_TYPE[node.type] ?? NODE_MEDIA_KIND_IDS.text
+}
+
+/** v4 的显示名：镜头带 `S02·` 前缀，其余就是稳定名 `data.name`。 */
+function getV4DisplayName(data: NodeV4Data): string {
+  return data.kind === NODE_MEDIA_KIND_IDS.video
+    ? formatShotDisplayName(data.label ?? data.name, data.shotNo)
+    : data.name
 }
 
 export function countCanvasNodes(nodes: readonly NodeWorkflowNode[]): number {
@@ -141,9 +178,16 @@ export function CastDock({
   const entries = useMemo(
     () =>
       nodes.map((node) => {
-        const presentationType = resolvePresentationType(node)
-        const typeLabel = tStudio(`nodeTypes.${presentationType}`)
-        const name = getNodeDisplayName(node) ?? typeLabel
+        const v4 = readV4Data(node)
+        // v4 的类型名读子型标签表（`image.character` → 「角色」）——⛔ 不查
+        // `nodeTypes.*`：那张表的键是 legacy type，v4 查不到会把 kind 原样显示
+        // 成「音频」当成名字。
+        const typeLabel = v4
+          ? (NODE_V4_SUBTYPE_LABELS[`${v4.kind}.${v4.subtype}`] ?? v4.subtype)
+          : tStudio(`nodeTypes.${resolvePresentationType(node)}`)
+        const name = v4
+          ? getV4DisplayName(v4)
+          : (getNodeDisplayName(node) ?? typeLabel)
         const searchText = [name, typeLabel, node.data.prompt, node.data.role]
           .filter((value): value is string => typeof value === 'string')
           .join(' ')

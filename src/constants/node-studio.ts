@@ -298,8 +298,8 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
-    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_7_FLASH,
-    label: 'Gemini 3.7 Flash',
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+    label: 'Gemini 3.8 Flash',
   },
   {
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
@@ -763,6 +763,74 @@ export function resolveReferenceAssetLimit(
  */
 export const NODE_STUDIO_DISPLAY_NAME = {
   maxLength: 160,
+} as const
+
+/**
+ * v4 稳定命名的格式常量（第三期 · 画布 C1，node-canvas-v2 §4.2）。
+ * 格式：`S<两位镜号><分隔符><子型标签>[<序号>]`，例 `S02·首帧` / `S02·镜头图3`。
+ * 名字**创建即持久化**，所以这几个字面量一旦发布就不能再改——改了等于让存量
+ * 项目里的 `@` 提及与画布上的名字对不上。
+ */
+export const NODE_V4_NAME = {
+  shotPrefix: 'S',
+  separator: '·',
+  /** 同名冲突最多追加到几号；到顶是数据异常，不静默复用已占用的名字。 */
+  maxConflictSuffix: 999,
+} as const
+
+/**
+ * v4 子型标签——**会被写进 `data.name` 落库**（`S02·首帧` 的后半段）。
+ *
+ * ⚠ 所以它不是 i18n 文案：名字创建即持久化，一个项目里的名字必须稳定，不能跟着
+ * 界面语言变。画布域今天只有中文一种落法；要做多语言名字，那是「名字与显示分离」
+ * 的另一件事，不是把这张表挪进 `messages/`。
+ */
+export const NODE_V4_SUBTYPE_LABELS: Record<string, string> = {
+  'text.script': '剧本',
+  'text.shotNote': '分镜',
+  'text.rule': '规则',
+  'image.character': '角色',
+  'image.background': '背景',
+  'image.shot': '镜头图',
+  'image.reference': '参考图',
+  'image.result': '生成图',
+  'audio.voice': '语音',
+  'audio.ambience': '环境音',
+  'video.shot': '镜头',
+  'video.clip': '参考片段',
+  'video.merge': '成片',
+}
+
+/**
+ * v4 快照序列化的字面量与预算（node-canvas-v2 §4.4）。
+ *
+ * ⚠ **分层取代节点数硬上限**：24 镜 × 平均 4 个节点 ≈ 96，任何固定数字要么盖不全
+ * 要么爆上下文。完整档 = 当前镜 + 相邻两镜 + 选中 + 最近改动；其余每镜一行标题。
+ * `NODE_STUDIO_ASSISTANT_LIMITS.maxNodes`（32）在 v4 里的含义因此从「节点数上限」
+ * 变成 `maxTitleRows` 的默认值，⛔ 不再用来截断完整档。
+ */
+export const NODE_V4_SNAPSHOT = {
+  shotSection: '# 镜头',
+  looseSection: '# 散节点',
+  continuitySection: '# 接续',
+  slotArrow: '←',
+  fieldSeparator: ' · ',
+  currentVersion: '当前',
+  versionCountPrefix: '共 ',
+  versionCountSuffix: ' 版',
+  blockedPrefix: 'blocked: ',
+  promptPrefix: 'prompt: ',
+  paramsPrefix: 'params: ',
+  ownerPrefix: 'owner=',
+  /** 完整档相邻镜的半径。1 = 当前镜 + 前一镜 + 后一镜。 */
+  neighborRadius: 1,
+  /** 单镜结构的字符预算；超了先降 prompt 行，再降 params 行，最后降成标题行。 */
+  maxShotBlockLength: 1400,
+  maxPromptLength: 400,
+  /** 被降级 / 被省略时写给模型看的提示——让它知道自己没看全。 */
+  demotedSuffix: ' 已降为标题行（结构过长）',
+  omittedPrefix: '… 另有 ',
+  omittedSuffix: ' 个镜头未列出',
 } as const
 
 export const NODE_STUDIO_CHARACTER_IMAGE_OUTPUT = {

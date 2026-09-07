@@ -154,6 +154,110 @@ export const NODE_MEDIA_KINDS = [
 
 export type NodeWorkflowMediaKind = (typeof NODE_MEDIA_KINDS)[number]
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * v4 分类法（第三期 · 画布 C1，`docs/references/pages/node-canvas-v2.md` §1.2）
+ *
+ * 顶层沿用上面的 `NODE_MEDIA_KIND_IDS`（新旧共用同一份 kind），新增的只有**子型**
+ * ——「这张图是什么」从节点 type 降为 kind 下的 subtype。
+ *
+ * ⚠ **并行存在，不是兼容层**：上面那 12 个 `NODE_TYPE_IDS` 与本段同时活着，是
+ * **迁移顺序**要求的（见文件顶部那段警告：`NodeWorkflowStateSchema.nodes` 无逐项
+ * `.catch()`，先删 enum 再迁移 = 存量项目整份 parse 失败、静默兜成空画布、下一次
+ * 防抖写入把空状态持久化，不可恢复）。
+ * TODO(C3)：v4 一次性回填跑完并验证后，删除 12 个 legacy type、`NODE_IMAGE_ROLES`
+ * 与两条读路径垫片（`node-workflow-migrate-planner.ts` / `-voice-clip.ts`），本段
+ * 成为唯一分类法。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+export const NODE_V4_TEXT_SUBTYPE_IDS = {
+  script: 'script',
+  shotNote: 'shotNote',
+  rule: 'rule',
+} as const
+
+export const NODE_V4_IMAGE_SUBTYPE_IDS = {
+  character: 'character',
+  background: 'background',
+  shot: 'shot',
+  reference: 'reference',
+  /** 生成落点：来源卡出图时新落的那张散图，还没被归类（§9.3 `role` 缺失→result）。 */
+  result: 'result',
+} as const
+
+export const NODE_V4_AUDIO_SUBTYPE_IDS = {
+  voice: 'voice',
+  ambience: 'ambience',
+} as const
+
+export const NODE_V4_VIDEO_SUBTYPE_IDS = {
+  /** 一个镜头 = 一次视频生成的完整配置与产物（§1.3 选 B：视频节点即镜头）。 */
+  shot: 'shot',
+  clip: 'clip',
+  merge: 'merge',
+} as const
+
+export const NODE_V4_TEXT_SUBTYPES = [
+  NODE_V4_TEXT_SUBTYPE_IDS.script,
+  NODE_V4_TEXT_SUBTYPE_IDS.shotNote,
+  NODE_V4_TEXT_SUBTYPE_IDS.rule,
+] as const
+
+export const NODE_V4_IMAGE_SUBTYPES = [
+  NODE_V4_IMAGE_SUBTYPE_IDS.character,
+  NODE_V4_IMAGE_SUBTYPE_IDS.background,
+  NODE_V4_IMAGE_SUBTYPE_IDS.shot,
+  NODE_V4_IMAGE_SUBTYPE_IDS.reference,
+  NODE_V4_IMAGE_SUBTYPE_IDS.result,
+] as const
+
+export const NODE_V4_AUDIO_SUBTYPES = [
+  NODE_V4_AUDIO_SUBTYPE_IDS.voice,
+  NODE_V4_AUDIO_SUBTYPE_IDS.ambience,
+] as const
+
+export const NODE_V4_VIDEO_SUBTYPES = [
+  NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+  NODE_V4_VIDEO_SUBTYPE_IDS.clip,
+  NODE_V4_VIDEO_SUBTYPE_IDS.merge,
+] as const
+
+export type NodeV4TextSubtype = (typeof NODE_V4_TEXT_SUBTYPES)[number]
+export type NodeV4ImageSubtype = (typeof NODE_V4_IMAGE_SUBTYPES)[number]
+export type NodeV4AudioSubtype = (typeof NODE_V4_AUDIO_SUBTYPES)[number]
+export type NodeV4VideoSubtype = (typeof NODE_V4_VIDEO_SUBTYPES)[number]
+export type NodeV4Subtype =
+  | NodeV4TextSubtype
+  | NodeV4ImageSubtype
+  | NodeV4AudioSubtype
+  | NodeV4VideoSubtype
+
+/** kind → 它下面合法的子型。端口表与迁移脚本都按这张表判「这个组合存在吗」。 */
+export const NODE_V4_SUBTYPES_BY_KIND = {
+  [NODE_MEDIA_KIND_IDS.text]: NODE_V4_TEXT_SUBTYPES,
+  [NODE_MEDIA_KIND_IDS.image]: NODE_V4_IMAGE_SUBTYPES,
+  [NODE_MEDIA_KIND_IDS.audio]: NODE_V4_AUDIO_SUBTYPES,
+  [NODE_MEDIA_KIND_IDS.video]: NODE_V4_VIDEO_SUBTYPES,
+} as const satisfies Record<NodeWorkflowMediaKind, readonly NodeV4Subtype[]>
+
+/**
+ * 溯源七字段的「可信等级」（§1.2 `sourceRef`）。三档，不做更细的分级——
+ * 它只用于候选网格卡上的一行提示与「能不能继续作生成输入」的人工判断。
+ */
+export const NODE_V4_SOURCE_TRUST_LEVEL_IDS = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+} as const
+
+export const NODE_V4_SOURCE_TRUST_LEVELS = [
+  NODE_V4_SOURCE_TRUST_LEVEL_IDS.high,
+  NODE_V4_SOURCE_TRUST_LEVEL_IDS.medium,
+  NODE_V4_SOURCE_TRUST_LEVEL_IDS.low,
+] as const
+
+export type NodeV4SourceTrustLevel =
+  (typeof NODE_V4_SOURCE_TRUST_LEVELS)[number]
+
 export const NODE_WORKFLOW_FIELD_IDS = {
   prompt: 'prompt',
   scene: 'scene',

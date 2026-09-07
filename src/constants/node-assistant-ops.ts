@@ -376,3 +376,260 @@ export const NODE_ASSISTANT_OP_REJECT_REASON_IDS = {
 
 export type NodeAssistantOpRejectReason =
   (typeof NODE_ASSISTANT_OP_REJECT_REASON_IDS)[keyof typeof NODE_ASSISTANT_OP_REJECT_REASON_IDS]
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * v4 op 集（第三期 · 画布 C1，spec §5）
+ *
+ * 现状 10 条**没有 delete / disconnect / move**——助手能建不能拆、能连不能断。
+ * 目标表补齐结构类，并把三件事写进常量而不是散在规划器里：
+ *   ① **确认三档**（免费直做 / 需确认 / 花钱硬确认）
+ *   ② **inverse 形状**（每条 op 必须能算出逆操作，否则不进自动落集合）
+ *   ③ **能不能自动落**
+ *
+ * 三条纪律（§5）：
+ *   1. `attach_asset` / `connect` / `disconnect` 载荷里**只有节点引用没有 URL**
+ *      ——让模型写 URL 等于让它编地址。
+ *   2. 算不出 inverse 的不自动落：`delete` 的 inverse 要整份 data 快照 + 边列表 +
+ *      各槽 `versions`/`cur`，够贵，所以它不自动落。
+ *   3. `generate` 依旧是**唯一扣 credit** 的 op，服务端只吐 op、执行在客户端。
+ *      这道结构性钱闸不能动。
+ *
+ * ⛔ 本片只定词表与形状，**不接执行器**（C2）。⛔ 没有 `collapse_lane`：镜头带不
+ * 折叠（§1.3）。
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+export const NODE_ASSISTANT_OP_V4_IDS = {
+  /** 读画布现值。scope 四档：viewport / shot / selection / all。 */
+  readCanvas: 'read_canvas',
+  findNode: 'find_node',
+  addNode: 'add_node',
+  /** ⚠ `slot` 必填——没有槽的连线在 v4 里不存在（§3.4）。 */
+  connect: 'connect',
+  disconnect: 'disconnect',
+  /** ⚠ 唯一的「需确认档」结构 op（owner 拍板「画-2」）：就地卡，可勾「本会话不再问」。 */
+  delete: 'delete',
+  moveToShot: 'move_to_shot',
+  reorderShot: 'reorder_shot',
+  setText: 'set_text',
+  setPrompt: 'set_prompt',
+  setField: 'set_field',
+  attachAsset: 'attach_asset',
+  /** 槽内版本轮播：把某个版本设为当前（§1.4）。指向 blocked 版本时拒绝并给理由。 */
+  setSlotVersion: 'set_slot_version',
+  markVersionBlocked: 'mark_version_blocked',
+  setModel: 'set_model',
+  setParams: 'set_params',
+  setReviewState: 'set_review_state',
+  /** ⚠ 唯一扣 credit 的 op。 */
+  generate: 'generate',
+} as const
+
+export const NODE_ASSISTANT_OPS_V4 = [
+  NODE_ASSISTANT_OP_V4_IDS.readCanvas,
+  NODE_ASSISTANT_OP_V4_IDS.findNode,
+  NODE_ASSISTANT_OP_V4_IDS.addNode,
+  NODE_ASSISTANT_OP_V4_IDS.connect,
+  NODE_ASSISTANT_OP_V4_IDS.disconnect,
+  NODE_ASSISTANT_OP_V4_IDS.delete,
+  NODE_ASSISTANT_OP_V4_IDS.moveToShot,
+  NODE_ASSISTANT_OP_V4_IDS.reorderShot,
+  NODE_ASSISTANT_OP_V4_IDS.setText,
+  NODE_ASSISTANT_OP_V4_IDS.setPrompt,
+  NODE_ASSISTANT_OP_V4_IDS.setField,
+  NODE_ASSISTANT_OP_V4_IDS.attachAsset,
+  NODE_ASSISTANT_OP_V4_IDS.setSlotVersion,
+  NODE_ASSISTANT_OP_V4_IDS.markVersionBlocked,
+  NODE_ASSISTANT_OP_V4_IDS.setModel,
+  NODE_ASSISTANT_OP_V4_IDS.setParams,
+  NODE_ASSISTANT_OP_V4_IDS.setReviewState,
+  NODE_ASSISTANT_OP_V4_IDS.generate,
+] as const
+
+export type NodeAssistantOpV4Id = (typeof NODE_ASSISTANT_OPS_V4)[number]
+
+export const NODE_ASSISTANT_OP_V4_GROUP_IDS = {
+  read: 'read',
+  structure: 'structure',
+  content: 'content',
+  review: 'review',
+  paid: 'paid',
+} as const
+
+export type NodeAssistantOpV4Group =
+  (typeof NODE_ASSISTANT_OP_V4_GROUP_IDS)[keyof typeof NODE_ASSISTANT_OP_V4_GROUP_IDS]
+
+/** 确认三档。`confirm` = 就地卡（可勾本会话不再问）；`hardConfirm` = 花钱卡。 */
+export const NODE_ASSISTANT_OP_V4_TIER_IDS = {
+  free: 'free',
+  confirm: 'confirm',
+  hardConfirm: 'hardConfirm',
+} as const
+
+export type NodeAssistantOpV4Tier =
+  (typeof NODE_ASSISTANT_OP_V4_TIER_IDS)[keyof typeof NODE_ASSISTANT_OP_V4_TIER_IDS]
+
+/**
+ * inverse 的**形状**（不是值）：撤销这条 op 要发哪条 op。`null` = 不可逆
+ * （读类没有副作用；`generate` 的结果不删，只回参数）。
+ */
+export interface NodeAssistantOpV4Spec {
+  readonly group: NodeAssistantOpV4Group
+  readonly tier: NodeAssistantOpV4Tier
+  readonly inverse: NodeAssistantOpV4Id | null
+  /** 能不能进「自动落」集合（算不出 inverse / 花钱 / 需确认的都不能）。 */
+  readonly autoApply: boolean
+}
+
+const { free, confirm, hardConfirm } = NODE_ASSISTANT_OP_V4_TIER_IDS
+const { read, structure, content, review, paid } =
+  NODE_ASSISTANT_OP_V4_GROUP_IDS
+
+export const NODE_ASSISTANT_OP_V4_SPECS = {
+  [NODE_ASSISTANT_OP_V4_IDS.readCanvas]: {
+    group: read,
+    tier: free,
+    inverse: null,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.findNode]: {
+    group: read,
+    tier: free,
+    inverse: null,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.addNode]: {
+    group: structure,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.delete,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.connect]: {
+    group: structure,
+    tier: free,
+    // 替换（往已有内容的 0..1 槽再连）时 inverse = 恢复旧边，仍然是一条 disconnect。
+    inverse: NODE_ASSISTANT_OP_V4_IDS.disconnect,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.disconnect]: {
+    group: structure,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.connect,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.delete]: {
+    group: structure,
+    // owner 拍板「画-2」：不降为免费直做（助手一句话能删掉一整镜），也不做弹窗。
+    tier: confirm,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.addNode,
+    autoApply: false,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.moveToShot]: {
+    group: structure,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.moveToShot,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.reorderShot]: {
+    group: structure,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.reorderShot,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setSlotVersion]: {
+    group: structure,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setSlotVersion,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.markVersionBlocked]: {
+    group: structure,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.markVersionBlocked,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setText]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setText,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setPrompt]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setPrompt,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setField]: {
+    group: content,
+    // ⚠ `blocked` 是这条 op 的例外：它把一个素材判失败，与 delete 同族的破坏性，
+    // 收窄在规划器（本片只定形状，不接执行器）。
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setField,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.attachAsset]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.disconnect,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setModel]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setModel,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setParams]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setParams,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setReviewState]: {
+    group: review,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setReviewState,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.generate]: {
+    group: paid,
+    tier: hardConfirm,
+    // 结果不删，只回参数——所以没有一条能把它抹掉的 op。
+    inverse: null,
+    autoApply: false,
+  },
+} as const satisfies Record<NodeAssistantOpV4Id, NodeAssistantOpV4Spec>
+
+/** `read_canvas` 的取值范围。 */
+export const NODE_ASSISTANT_READ_CANVAS_SCOPES = [
+  'viewport',
+  'shot',
+  'selection',
+  'all',
+] as const
+
+export type NodeAssistantReadCanvasScope =
+  (typeof NODE_ASSISTANT_READ_CANVAS_SCOPES)[number]
+
+/** `set_text` / `set_prompt` 的覆盖三选（覆盖手写内容时才问）。 */
+export const NODE_ASSISTANT_WRITE_MODES = [
+  'replace',
+  'append',
+  'suggest',
+] as const
+
+export type NodeAssistantWriteMode = (typeof NODE_ASSISTANT_WRITE_MODES)[number]
+
+/** `set_field` 能写的字段——**封闭词表**，⛔ 不给自由 key。 */
+export const NODE_ASSISTANT_SETTABLE_FIELDS = [
+  'shotNo',
+  'characterName',
+  'ownerName',
+  'sourceRef',
+  'blocked',
+  'note',
+  'title',
+] as const
+
+export type NodeAssistantSettableField =
+  (typeof NODE_ASSISTANT_SETTABLE_FIELDS)[number]

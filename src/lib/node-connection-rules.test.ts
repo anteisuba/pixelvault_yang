@@ -14,9 +14,32 @@ import { describe, expect, it } from 'vitest'
  * （见函数注释末尾那条）。
  */
 
-import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  getNodeV4Ports,
+  slotSupportsVersions,
+  NODE_SLOT_IDS,
+  NODE_SLOT_OUTPUT_IDS,
+  type NodeSlotId,
+} from '@/constants/node-slots'
+import {
+  NODE_IMAGE_ROLE_IDS,
+  NODE_MEDIA_KIND_IDS,
+  NODE_TYPE_IDS,
+  NODE_V4_AUDIO_SUBTYPE_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
+  NODE_V4_SUBTYPES_BY_KIND,
+  NODE_V4_TEXT_SUBTYPE_IDS,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
+  type NodeV4Subtype,
+} from '@/constants/node-types'
 
-import { canConnectNodeTypes } from './node-connection-rules'
+import {
+  canConnect,
+  canConnectNodeTypes,
+  listConnectableSlots,
+  NODE_CONNECT_REJECT_REASON_IDS,
+  type NodeConnectionEndpoint,
+} from './node-connection-rules'
 
 describe('canConnectNodeTypes', () => {
   it('allows every edge the ScriptDoc projection creates', () => {
@@ -153,5 +176,367 @@ describe('canConnectNodeTypes', () => {
     expect(
       canConnectNodeTypes(NODE_TYPE_IDS.videoMerge, NODE_TYPE_IDS.videoMerge),
     ).toBe(true)
+  })
+})
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * v4 · 具名槽矩阵（spec §3.3）。矩阵**每一格**都有断言：合法矩阵表里的九行
+ * 目标槽 × 四个源 kind = 36 格，全打；再加容量、语义门、自环、未知槽。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+const KINDS = [
+  NODE_MEDIA_KIND_IDS.text,
+  NODE_MEDIA_KIND_IDS.image,
+  NODE_MEDIA_KIND_IDS.audio,
+  NODE_MEDIA_KIND_IDS.video,
+] as const
+
+function src(
+  kind: (typeof KINDS)[number],
+  subtype: NodeV4Subtype,
+  blocked?: boolean,
+): NodeConnectionEndpoint {
+  return { id: 'src', kind, subtype, ...(blocked ? { blocked } : {}) }
+}
+
+const SUBTYPE_OF_KIND = {
+  [NODE_MEDIA_KIND_IDS.text]: NODE_V4_TEXT_SUBTYPE_IDS.script,
+  [NODE_MEDIA_KIND_IDS.image]: NODE_V4_IMAGE_SUBTYPE_IDS.reference,
+  [NODE_MEDIA_KIND_IDS.audio]: NODE_V4_AUDIO_SUBTYPE_IDS.voice,
+  [NODE_MEDIA_KIND_IDS.video]: NODE_V4_VIDEO_SUBTYPE_IDS.clip,
+} as const
+
+const VIDEO_SHOT: NodeConnectionEndpoint = {
+  id: 'tgt',
+  kind: NODE_MEDIA_KIND_IDS.video,
+  subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+}
+const IMAGE_SHOT: NodeConnectionEndpoint = {
+  id: 'tgt',
+  kind: NODE_MEDIA_KIND_IDS.image,
+  subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
+}
+const IMAGE_CHARACTER: NodeConnectionEndpoint = {
+  id: 'tgt',
+  kind: NODE_MEDIA_KIND_IDS.image,
+  subtype: NODE_V4_IMAGE_SUBTYPE_IDS.character,
+}
+const AUDIO_VOICE: NodeConnectionEndpoint = {
+  id: 'tgt',
+  kind: NODE_MEDIA_KIND_IDS.audio,
+  subtype: NODE_V4_AUDIO_SUBTYPE_IDS.voice,
+}
+const VIDEO_MERGE: NodeConnectionEndpoint = {
+  id: 'tgt',
+  kind: NODE_MEDIA_KIND_IDS.video,
+  subtype: NODE_V4_VIDEO_SUBTYPE_IDS.merge,
+}
+const TEXT_NOTE: NodeConnectionEndpoint = {
+  id: 'tgt',
+  kind: NODE_MEDIA_KIND_IDS.text,
+  subtype: NODE_V4_TEXT_SUBTYPE_IDS.shotNote,
+}
+
+/** 矩阵一行：目标节点 + 槽 → 允许的源 kind 集合。 */
+const MATRIX: ReadonlyArray<{
+  label: string
+  target: NodeConnectionEndpoint
+  slot: NodeSlotId
+  allow: readonly (typeof KINDS)[number][]
+}> = [
+  {
+    label: 'video.shot firstFrame',
+    target: VIDEO_SHOT,
+    slot: NODE_SLOT_IDS.firstFrame,
+    allow: [NODE_MEDIA_KIND_IDS.image],
+  },
+  {
+    label: 'video.shot lastFrame',
+    target: VIDEO_SHOT,
+    slot: NODE_SLOT_IDS.lastFrame,
+    allow: [NODE_MEDIA_KIND_IDS.image],
+  },
+  {
+    label: 'image family reference',
+    target: IMAGE_SHOT,
+    slot: NODE_SLOT_IDS.reference,
+    allow: [NODE_MEDIA_KIND_IDS.image],
+  },
+  {
+    label: 'video.shot reference',
+    target: VIDEO_SHOT,
+    slot: NODE_SLOT_IDS.reference,
+    allow: [NODE_MEDIA_KIND_IDS.image, NODE_MEDIA_KIND_IDS.video],
+  },
+  {
+    label: 'video.shot voice',
+    target: VIDEO_SHOT,
+    slot: NODE_SLOT_IDS.voice,
+    allow: [NODE_MEDIA_KIND_IDS.audio],
+  },
+  {
+    label: 'video.shot text',
+    target: VIDEO_SHOT,
+    slot: NODE_SLOT_IDS.text,
+    allow: [NODE_MEDIA_KIND_IDS.text],
+  },
+  {
+    label: 'audio.voice timbre',
+    target: AUDIO_VOICE,
+    slot: NODE_SLOT_IDS.timbre,
+    allow: [NODE_MEDIA_KIND_IDS.audio],
+  },
+  {
+    label: 'image.character closeup',
+    target: IMAGE_CHARACTER,
+    slot: NODE_SLOT_IDS.closeup,
+    allow: [NODE_MEDIA_KIND_IDS.image],
+  },
+  {
+    label: 'video.merge clip',
+    target: VIDEO_MERGE,
+    slot: NODE_SLOT_IDS.clip,
+    allow: [NODE_MEDIA_KIND_IDS.video],
+  },
+  {
+    label: 'text source',
+    target: TEXT_NOTE,
+    slot: NODE_SLOT_IDS.source,
+    allow: KINDS,
+  },
+]
+
+describe('canConnect · 合法矩阵（源 kind × 目标槽）', () => {
+  for (const row of MATRIX) {
+    for (const kind of KINDS) {
+      const expected = row.allow.includes(kind)
+      it(`${row.label} ${expected ? '收' : '拒'} ${kind}`, () => {
+        const result = canConnect(
+          src(kind, SUBTYPE_OF_KIND[kind]),
+          row.target,
+          { slot: row.slot },
+        )
+        expect(result.ok).toBe(expected)
+        if (!result.ok) {
+          expect(result.reason).toBe(
+            NODE_CONNECT_REJECT_REASON_IDS.kindNotAllowed,
+          )
+        }
+      })
+    }
+  }
+})
+
+describe('canConnect · 子型门 / 语义门 / 容量 / 自环', () => {
+  it('closeup 只收 reference / character 两种图，镜头图被拒且理由是子型', () => {
+    for (const subtype of [
+      NODE_V4_IMAGE_SUBTYPE_IDS.reference,
+      NODE_V4_IMAGE_SUBTYPE_IDS.character,
+    ]) {
+      expect(
+        canConnect(src(NODE_MEDIA_KIND_IDS.image, subtype), IMAGE_CHARACTER, {
+          slot: NODE_SLOT_IDS.closeup,
+        }).ok,
+      ).toBe(true)
+    }
+    const rejected = canConnect(
+      src(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.shot),
+      IMAGE_CHARACTER,
+      { slot: NODE_SLOT_IDS.closeup },
+    )
+    expect(rejected).toEqual({
+      ok: false,
+      reason: NODE_CONNECT_REJECT_REASON_IDS.subtypeNotAllowed,
+    })
+  })
+
+  it('已判失败的素材连首/尾帧被拒（§3.3 语义门），但作参考仍可以', () => {
+    const blocked = src(
+      NODE_MEDIA_KIND_IDS.image,
+      NODE_V4_IMAGE_SUBTYPE_IDS.shot,
+      true,
+    )
+    for (const slot of [NODE_SLOT_IDS.firstFrame, NODE_SLOT_IDS.lastFrame]) {
+      expect(canConnect(blocked, VIDEO_SHOT, { slot })).toEqual({
+        ok: false,
+        reason: NODE_CONNECT_REJECT_REASON_IDS.blockedSource,
+      })
+    }
+    expect(
+      canConnect(blocked, VIDEO_SHOT, { slot: NODE_SLOT_IDS.reference }).ok,
+    ).toBe(true)
+  })
+
+  it('轮播槽（max=1）已有内容时再连一条不算超限——那是加新版本', () => {
+    expect(
+      canConnect(
+        src(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.shot),
+        VIDEO_SHOT,
+        { slot: NODE_SLOT_IDS.firstFrame, occupancy: 5 },
+      ).ok,
+    ).toBe(true)
+  })
+
+  it('merge 的 clip 槽静态上限 9，满了就拒', () => {
+    const clip = src(NODE_MEDIA_KIND_IDS.video, NODE_V4_VIDEO_SUBTYPE_IDS.clip)
+    expect(
+      canConnect(clip, VIDEO_MERGE, { slot: NODE_SLOT_IDS.clip, occupancy: 8 })
+        .ok,
+    ).toBe(true)
+    expect(
+      canConnect(clip, VIDEO_MERGE, { slot: NODE_SLOT_IDS.clip, occupancy: 9 }),
+    ).toEqual({ ok: false, reason: NODE_CONNECT_REJECT_REASON_IDS.slotFull })
+  })
+
+  it('0..N 槽的实际上限跟模型走：不传 capacity 不设限，传了就按它拒', () => {
+    const image = src(
+      NODE_MEDIA_KIND_IDS.image,
+      NODE_V4_IMAGE_SUBTYPE_IDS.reference,
+    )
+    expect(
+      canConnect(image, VIDEO_SHOT, {
+        slot: NODE_SLOT_IDS.reference,
+        occupancy: 99,
+      }).ok,
+    ).toBe(true)
+    expect(
+      canConnect(image, VIDEO_SHOT, {
+        slot: NODE_SLOT_IDS.reference,
+        occupancy: 3,
+        capacity: 3,
+      }),
+    ).toEqual({ ok: false, reason: NODE_CONNECT_REJECT_REASON_IDS.slotFull })
+  })
+
+  it('叶子源没有任何入口槽；不存在的槽给 unknownSlot 而不是静默 false', () => {
+    const leaf: NodeConnectionEndpoint = {
+      id: 'tgt',
+      kind: NODE_MEDIA_KIND_IDS.image,
+      subtype: NODE_V4_IMAGE_SUBTYPE_IDS.reference,
+    }
+    expect(
+      canConnect(
+        src(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.shot),
+        leaf,
+        { slot: NODE_SLOT_IDS.reference },
+      ),
+    ).toEqual({ ok: false, reason: NODE_CONNECT_REJECT_REASON_IDS.unknownSlot })
+    expect(
+      canConnect(
+        src(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.shot),
+        VIDEO_SHOT,
+        { slot: NODE_SLOT_IDS.timbre },
+      ).ok,
+    ).toBe(false)
+  })
+
+  it('自环先于一切被拒', () => {
+    const self: NodeConnectionEndpoint = {
+      id: 'same',
+      kind: NODE_MEDIA_KIND_IDS.video,
+      subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+    }
+    expect(
+      canConnect({ ...self }, { ...self }, { slot: NODE_SLOT_IDS.reference }),
+    ).toEqual({ ok: false, reason: NODE_CONNECT_REJECT_REASON_IDS.selfLoop })
+  })
+})
+
+describe('listConnectableSlots', () => {
+  it('拖一张图到镜头上：点亮首帧 / 尾帧 / 参考，顺序与端口表一致', () => {
+    expect(
+      listConnectableSlots(
+        src(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.shot),
+        VIDEO_SHOT,
+      ),
+    ).toEqual([
+      NODE_SLOT_IDS.firstFrame,
+      NODE_SLOT_IDS.lastFrame,
+      NODE_SLOT_IDS.reference,
+    ])
+  })
+
+  it('已判失败的图只剩参考槽点亮', () => {
+    expect(
+      listConnectableSlots(
+        src(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.shot, true),
+        VIDEO_SHOT,
+      ),
+    ).toEqual([NODE_SLOT_IDS.reference])
+  })
+
+  it('容量满的槽不点亮', () => {
+    expect(
+      listConnectableSlots(
+        src(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.reference),
+        VIDEO_SHOT,
+        { capacityBySlot: { reference: 2 }, occupancyBySlot: { reference: 2 } },
+      ),
+    ).toEqual([NODE_SLOT_IDS.firstFrame, NODE_SLOT_IDS.lastFrame])
+  })
+
+  it('叶子源目标一个槽都不点亮', () => {
+    expect(
+      listConnectableSlots(
+        src(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.shot),
+        {
+          id: 'tgt',
+          kind: NODE_MEDIA_KIND_IDS.video,
+          subtype: NODE_V4_VIDEO_SUBTYPE_IDS.clip,
+        },
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('端口表自洽（spec §3.2）', () => {
+  it('video.shot 的入口顺序就是 §6 版式的槽顺序', () => {
+    expect(
+      getNodeV4Ports(
+        NODE_MEDIA_KIND_IDS.video,
+        NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+      )?.inputs.map((input) => input.slot),
+    ).toEqual([
+      NODE_SLOT_IDS.firstFrame,
+      NODE_SLOT_IDS.lastFrame,
+      NODE_SLOT_IDS.reference,
+      NODE_SLOT_IDS.voice,
+      NODE_SLOT_IDS.text,
+    ])
+  })
+
+  it('只有 video.shot 有 tailFrame 出口', () => {
+    expect(
+      getNodeV4Ports(NODE_MEDIA_KIND_IDS.video, NODE_V4_VIDEO_SUBTYPE_IDS.shot)
+        ?.outputs,
+    ).toContain(NODE_SLOT_OUTPUT_IDS.tailFrame)
+    expect(
+      getNodeV4Ports(NODE_MEDIA_KIND_IDS.video, NODE_V4_VIDEO_SUBTYPE_IDS.merge)
+        ?.outputs,
+    ).toEqual([NODE_SLOT_OUTPUT_IDS.out])
+  })
+
+  it('轮播只作用在 0..1 槽上', () => {
+    const shotPorts = getNodeV4Ports(
+      NODE_MEDIA_KIND_IDS.video,
+      NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+    )
+    const versioned = shotPorts?.inputs
+      .filter((input) => slotSupportsVersions(input))
+      .map((input) => input.slot)
+    expect(versioned).toEqual([
+      NODE_SLOT_IDS.firstFrame,
+      NODE_SLOT_IDS.lastFrame,
+    ])
+  })
+
+  it('每个 kind 的每个子型都在端口表里有一条', () => {
+    for (const [kind, subtypes] of Object.entries(NODE_V4_SUBTYPES_BY_KIND)) {
+      for (const subtype of subtypes) {
+        expect(
+          getNodeV4Ports(kind as (typeof KINDS)[number], subtype),
+        ).toBeDefined()
+      }
+    }
   })
 })

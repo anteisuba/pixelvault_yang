@@ -40,11 +40,14 @@ import {
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
   NODE_STUDIO_DISPLAY_NAME,
   NODE_STUDIO_MEDIA_IMAGE_OUTPUT,
+  NODE_V4_NAME,
 } from '@/constants/node-studio'
 import {
   NODE_IMAGE_ROLE_IDS,
   NODE_TYPE_IDS,
   type NodeImageRole,
+  type NodeV4Subtype,
+  type NodeWorkflowMediaKind,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
@@ -297,4 +300,124 @@ export function resolveNodeAccessibleName(
   // 身份卡是「角色：店员小林」。再套一层模板会读成「音色：音色：常客」（真机
   // 2026-08-26 实测）。名字已经以类型词开头时直接用名字，别念两遍。
   return name.startsWith(typeLabel) ? name : formatNamed(typeLabel, name)
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * v4 · 稳定命名（第三期 · 画布 C1，spec §4.2）
+ *
+ * ── 它替掉的是什么 ──────────────────────────────────────────────────────
+ * 上面 `buildFallbackNodeNames` 自己的注释已经写清：序号按传入列表顺序算，
+ * **增删节点就重新编号**，而 `@` 提及会把字面文本存进 prompt——于是今天的
+ * `@参考视频2` 会静默指向另一个节点。v4 的答案是「创建即持久化」：任何路径新建
+ * 节点（手动、右键、助手 `add_node`、文本派生）都在同一次状态提交里写 `data.name`，
+ * 显示时不再编号。
+ *
+ * ── 为什么标签由调用方传进来 ────────────────────────────────────────────
+ * 名字是**要落库的**，所以它是一个具体语言的字符串，不能在纯函数里现取 next-intl。
+ * 调用方传 `labelOf(kind, subtype)`（画布域今天只有中文一种落法），这里只负责
+ * 格式、序号与冲突。
+ *
+ * TODO(C3)：v3 的七字段显示名优先链（`resolveNodeDisplayName` / `buildDisplayNamePatch`
+ * / `buildFallbackNodeNames`）随 legacy type 一起删，`data.name` 成为唯一名字。
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+/** `S02` —— 镜号前缀。两位补零；>99 时原样展开（`S100`），不截断。 */
+export function formatShotPrefix(shotNo: number): string {
+  return `${NODE_V4_NAME.shotPrefix}${String(shotNo).padStart(2, '0')}`
+}
+
+const SHOT_PREFIX_PATTERN = new RegExp(
+  `^${NODE_V4_NAME.shotPrefix}\\d{2,}${NODE_V4_NAME.separator}`,
+)
+
+export interface StableNodeNameInput {
+  readonly kind: NodeWorkflowMediaKind
+  readonly subtype: NodeV4Subtype
+  /** 有镜号 → `S02·首帧`；无镜号 → `参考图4` 这种散节点名。 */
+  readonly shotNo?: number
+  /**
+   * 专有名优先（§4.2）：角色 / 背景类有专有名时用它，`角色·西格莉卡`。
+   * 传进来的值仍然过 `toNodeDisplayLabel` 截到 schema 上限。
+   */
+  readonly properName?: string
+}
+
+export interface StableNodeNameOptions {
+  /** 子型标签（`首帧` / `镜头图` / `语音` / `剧本`）——落库的那个字面量。 */
+  labelOf(kind: NodeWorkflowMediaKind, subtype: NodeV4Subtype): string
+  /** 画布上已被占用的名字。 */
+  taken: ReadonlySet<string>
+}
+
+/**
+ * 新建节点时算一个稳定名。
+ *
+ * 规则一条（§4.2 两个例子共用同一条）：先试不带序号的基名，被占用就追加最小的
+ * `n ≥ 2`。于是同一镜里第三张镜头图是 `S02·镜头图3`，画布上第四张散参考图是
+ * `参考图4`——⛔ 不做「按当前列表顺序编号」，那正是要修的那个洞。
+ */
+export function buildStableNodeName(
+  input: StableNodeNameInput,
+  { labelOf, taken }: StableNodeNameOptions,
+): string {
+  const label =
+    toNodeDisplayLabel(input.properName) ?? labelOf(input.kind, input.subtype)
+  const base =
+    input.shotNo === undefined
+      ? label
+      : `${formatShotPrefix(input.shotNo)}${NODE_V4_NAME.separator}${label}`
+  if (!taken.has(base)) return base
+  for (let n = 2; n <= NODE_V4_NAME.maxConflictSuffix; n += 1) {
+    const candidate = `${base}${n}`
+    if (!taken.has(candidate)) return candidate
+  }
+  // 同名到 999 是数据异常，不静默返回一个已占用的名字。
+  throw new Error(`Cannot allocate a stable node name for "${base}"`)
+}
+
+export const NODE_RENAME_REJECT_REASON_IDS = {
+  taken: 'taken',
+  empty: 'empty',
+} as const
+
+export type NodeRenameRejectReason =
+  (typeof NODE_RENAME_REJECT_REASON_IDS)[keyof typeof NODE_RENAME_REJECT_REASON_IDS]
+
+export type NodeRenameResult =
+  | { readonly ok: true; readonly name: string }
+  | { readonly ok: false; readonly reason: NodeRenameRejectReason }
+
+/**
+ * 手动改名（§4.2）。**改名不改 id**，所以这里只回一个新名字，边 / op / 快照都不动。
+ *
+ * ⛔ 冲突时**就地拒绝**，不静默加后缀——加后缀会让用户以为改成功了，而他下次
+ * `@` 的是自己以为的那个名字。
+ */
+export function renameStableNodeName(
+  currentName: string,
+  nextValue: string,
+  taken: ReadonlySet<string>,
+): NodeRenameResult {
+  const name = toNodeDisplayLabel(nextValue)
+  if (!name) return { ok: false, reason: NODE_RENAME_REJECT_REASON_IDS.empty }
+  if (name === currentName) return { ok: true, name }
+  if (taken.has(name)) {
+    return { ok: false, reason: NODE_RENAME_REJECT_REASON_IDS.taken }
+  }
+  return { ok: true, name }
+}
+
+/**
+ * 镜号变更（拖镜头换序）后把名字里的 `S<nn>` 段跟着重排，**用户自定义的后半段
+ * 保留**：`S02·西格莉卡近景` 移到第 5 位后变 `S05·西格莉卡近景`（§4.2 末条）。
+ *
+ * `shotNo` 传 `undefined` = 移出镜头带，前缀整段剥掉。原本没有前缀的名字加上前缀。
+ */
+export function applyShotNoToNodeName(
+  name: string,
+  shotNo: number | undefined,
+): string {
+  const bare = name.replace(SHOT_PREFIX_PATTERN, '')
+  if (shotNo === undefined) return bare
+  return `${formatShotPrefix(shotNo)}${NODE_V4_NAME.separator}${bare}`
 }

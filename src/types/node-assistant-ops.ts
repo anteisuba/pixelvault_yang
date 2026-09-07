@@ -5,8 +5,13 @@ import {
   NODE_ASSISTANT_DURATION_AUTO,
   NODE_ASSISTANT_OP_IDS,
   NODE_ASSISTANT_OP_LIMITS,
+  NODE_ASSISTANT_OP_V4_IDS,
+  NODE_ASSISTANT_READ_CANVAS_SCOPES,
+  NODE_ASSISTANT_SETTABLE_FIELDS,
+  NODE_ASSISTANT_WRITE_MODES,
 } from '@/constants/node-assistant-ops'
-import { NODE_REVIEW_STATES } from '@/constants/node-types'
+import { NODE_SLOT_OUTPUTS, NODE_SLOTS } from '@/constants/node-slots'
+import { NODE_MEDIA_KINDS, NODE_REVIEW_STATES } from '@/constants/node-types'
 
 /**
  * 一个节点引用：要么是画布上已有节点的 id（助手在 `[[node:id]]` 里读到的那个），
@@ -302,3 +307,232 @@ export type NodeAssistantGenerateOp = z.infer<
 >
 export type NodeAssistantOp = z.infer<typeof NodeAssistantOpSchema>
 export type NodeAssistantOpBatch = z.infer<typeof NodeAssistantOpBatchSchema>
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * v4 op 载荷（第三期 · 画布 C1，spec §5）。词表 / 档位 / inverse 形状在
+ * `@/constants/node-assistant-ops` 的 `NODE_ASSISTANT_OP_V4_SPECS`。
+ *
+ * ⛔ 本片只定形状，**不接执行器、不接规划器**（C2）。所以这里同样只管「这段 JSON
+ * 长得对不对」，收窄（模型 id 在不在可选列表里、槽合不合法、目标节点存不存在）
+ * 一律留给 `resolve()` 阶段——与 v3 那批同一条分工。
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+const NodeAssistantSlotSchema = z.enum(NODE_SLOTS)
+
+export const NodeAssistantReadCanvasOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.readCanvas),
+  scope: z.enum(NODE_ASSISTANT_READ_CANVAS_SCOPES),
+  shotNo: z.number().int().min(1).max(999).optional(),
+})
+
+export const NodeAssistantFindNodeOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.findNode),
+  query: z.string().trim().min(1).max(NODE_ASSISTANT_OP_LIMITS.maxNameLength),
+  kind: z.enum(NODE_MEDIA_KINDS).optional(),
+  subtype: z.string().trim().min(1).max(40).optional(),
+  shotNo: z.number().int().min(1).max(999).optional(),
+})
+
+export const NodeAssistantAddNodeV4OpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.addNode),
+  kind: z.enum(NODE_MEDIA_KINDS),
+  subtype: z.string().trim().min(1).max(40),
+  /** 批内别名，供同一批的 connect / set_prompt 引用这个还没有 id 的新节点。 */
+  ref: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxRefLength)
+    .optional(),
+  shotNo: z.number().int().min(1).max(999).optional(),
+  position: z.object({ x: z.number(), y: z.number() }).optional(),
+  name: NodeAssistantOpNameSchema.optional(),
+})
+
+/** ⛔ 载荷里只有节点引用没有 URL（§5 纪律 1）。`slot` 必填。 */
+export const NodeAssistantConnectV4OpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.connect),
+  source: NodeAssistantOpTargetSchema,
+  sourceHandle: z.enum(NODE_SLOT_OUTPUTS).optional(),
+  target: NodeAssistantOpTargetSchema,
+  slot: NodeAssistantSlotSchema,
+})
+
+export const NodeAssistantDisconnectOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.disconnect),
+  edgeId: NodeAssistantOpTargetSchema,
+})
+
+export const NodeAssistantDeleteOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.delete),
+  target: NodeAssistantOpTargetSchema,
+})
+
+export const NodeAssistantMoveToShotOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.moveToShot),
+  target: NodeAssistantOpTargetSchema,
+  /** `null` = 移出镜头带，落到未归镜区。 */
+  shotNo: z.number().int().min(1).max(999).nullable(),
+})
+
+export const NodeAssistantReorderShotOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.reorderShot),
+  from: z.number().int().min(1).max(999),
+  to: z.number().int().min(1).max(999),
+})
+
+export const NodeAssistantSetSlotVersionOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setSlotVersion),
+  target: NodeAssistantOpTargetSchema,
+  slot: NodeAssistantSlotSchema,
+  versionId: NodeAssistantOpTargetSchema,
+})
+
+export const NodeAssistantMarkVersionBlockedOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.markVersionBlocked),
+  target: NodeAssistantOpTargetSchema,
+  slot: NodeAssistantSlotSchema,
+  versionId: NodeAssistantOpTargetSchema,
+  blocked: z.boolean(),
+  /** 例「首帧动作不自然」——同一句话既进拒绝理由也进规则薄卡。 */
+  reason: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxReasonLength)
+    .optional(),
+})
+
+export const NodeAssistantSetTextOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setText),
+  target: NodeAssistantOpTargetSchema,
+  body: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxPromptLength)
+    .transform(stripNodeMarkers),
+  mode: z.enum(NODE_ASSISTANT_WRITE_MODES),
+})
+
+export const NodeAssistantSetPromptV4OpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setPrompt),
+  target: NodeAssistantOpTargetSchema,
+  prompt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxPromptLength)
+    .transform(stripNodeMarkers),
+  mode: z.enum(NODE_ASSISTANT_WRITE_MODES),
+})
+
+/** `field` 是**封闭词表**，⛔ 不给自由 key。值的类型校验在规划器。 */
+export const NodeAssistantSetFieldOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setField),
+  target: NodeAssistantOpTargetSchema,
+  field: z.enum(NODE_ASSISTANT_SETTABLE_FIELDS),
+  value: z.union([
+    z.string().trim().max(NODE_ASSISTANT_OP_LIMITS.maxNameLength),
+    z.number(),
+    z.boolean(),
+    z.null(),
+  ]),
+})
+
+/** ⛔ 同 `connect`：只有节点引用没有 URL。 */
+export const NodeAssistantAttachAssetV4OpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.attachAsset),
+  target: NodeAssistantOpTargetSchema,
+  slot: NodeAssistantSlotSchema,
+  sourceNodeId: NodeAssistantOpTargetSchema,
+})
+
+export const NodeAssistantSetModelV4OpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setModel),
+  target: NodeAssistantOpTargetSchema,
+  modelId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxModelIdLength),
+})
+
+export const NodeAssistantSetParamsV4OpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setParams),
+  target: NodeAssistantOpTargetSchema,
+  params: z.object({
+    aspectRatio: z
+      .string()
+      .trim()
+      .min(1)
+      .max(NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
+      .optional(),
+    resolution: z
+      .string()
+      .trim()
+      .min(1)
+      .max(NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
+      .optional(),
+    duration: z
+      .string()
+      .trim()
+      .min(1)
+      .max(NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
+      .optional(),
+    generateAudio: z.boolean().optional(),
+    seed: z.number().int().optional(),
+  }),
+})
+
+export const NodeAssistantSetReviewStateV4OpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setReviewState),
+  target: NodeAssistantOpTargetSchema,
+  url: z.string().trim().min(1).max(4000),
+  state: z.enum(NODE_REVIEW_STATES),
+  reason: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxReasonLength)
+    .optional(),
+})
+
+/** ⚠ 唯一扣 credit 的 op。硬确认，执行留客户端——这道结构性钱闸不能动。 */
+export const NodeAssistantGenerateV4OpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.generate),
+  target: NodeAssistantOpTargetSchema,
+})
+
+export const NodeAssistantOpV4Schema = z.discriminatedUnion('op', [
+  NodeAssistantReadCanvasOpSchema,
+  NodeAssistantFindNodeOpSchema,
+  NodeAssistantAddNodeV4OpSchema,
+  NodeAssistantConnectV4OpSchema,
+  NodeAssistantDisconnectOpSchema,
+  NodeAssistantDeleteOpSchema,
+  NodeAssistantMoveToShotOpSchema,
+  NodeAssistantReorderShotOpSchema,
+  NodeAssistantSetSlotVersionOpSchema,
+  NodeAssistantMarkVersionBlockedOpSchema,
+  NodeAssistantSetTextOpSchema,
+  NodeAssistantSetPromptV4OpSchema,
+  NodeAssistantSetFieldOpSchema,
+  NodeAssistantAttachAssetV4OpSchema,
+  NodeAssistantSetModelV4OpSchema,
+  NodeAssistantSetParamsV4OpSchema,
+  NodeAssistantSetReviewStateV4OpSchema,
+  NodeAssistantGenerateV4OpSchema,
+])
+
+export const NodeAssistantOpV4BatchSchema = z.object({
+  ops: z
+    .array(NodeAssistantOpV4Schema)
+    .min(1)
+    .max(NODE_ASSISTANT_OP_LIMITS.maxOps),
+})
+
+export type NodeAssistantOpV4 = z.infer<typeof NodeAssistantOpV4Schema>
+export type NodeAssistantOpV4Batch = z.infer<
+  typeof NodeAssistantOpV4BatchSchema
+>

@@ -19,6 +19,11 @@ import {
 } from '@/constants/node-studio'
 import { IMAGE_SIZES } from '@/constants/config'
 import {
+  NODE_SLOT_OUTPUT_IDS,
+  NODE_SLOT_OUTPUTS,
+  NODE_SLOTS,
+} from '@/constants/node-slots'
+import {
   NODE_GENERATION_SOURCES,
   NODE_GENERATION_STATUSES,
   NODE_IMAGE_ROLES,
@@ -27,6 +32,12 @@ import {
   NODE_MEDIA_KINDS,
   NODE_STATUSES,
   NODE_TYPES,
+  NODE_MEDIA_KIND_IDS,
+  NODE_V4_AUDIO_SUBTYPES,
+  NODE_V4_IMAGE_SUBTYPES,
+  NODE_V4_SOURCE_TRUST_LEVELS,
+  NODE_V4_TEXT_SUBTYPES,
+  NODE_V4_VIDEO_SUBTYPES,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
@@ -790,3 +801,267 @@ export interface NodeWorkflowProjectSummary {
 }
 export type NodeWorkflowNode = Node<NodeWorkflowNodeData, NodeWorkflowNodeType>
 export type NodeWorkflowEdge = Edge<Record<string, unknown>>
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * v4 数据模型（第三期 · 画布 C1，`docs/references/pages/node-canvas-v2.md` §9.1）
+ *
+ * ── 与上面 v3 的关系：并行存在，不是兼容层 ──────────────────────────────
+ * v3 的 `NodeWorkflowNodeDataSchema` 是一个扁平 `passthrough()` 大对象，80+ 字段
+ * 共存，`voice*` / `merge*` / `image*` 挤在一起，谁属于谁只能靠注释——`passthrough`
+ * 正是字段能随手长出来的原因，也是死字段的温床。v4 用 `discriminatedUnion('kind')`
+ * 取代它。
+ *
+ * ⚠ **两份 schema 同时活着是迁移顺序，不是留垫片**（Engineering Principles 1 不冲突）：
+ * `NodeWorkflowStateSchema.nodes` 是 `z.array()` **无逐项 `.catch()`**，先删 v3 再迁移
+ * = 存量项目整份 parse 失败 → `validateState` 兜成空状态 → 用户看到空画布且静默
+ * 无报错 → 下一次防抖写入把空状态持久化，不可恢复。
+ * TODO(C3)：`scripts/migrate-node-workflow-v4.ts` 一次性回填跑完并逐项目验证
+ * （节点数 / 边数 / legacy type 零残留）之后，删除本文件上半部的 v3 schema、
+ * `NODE_TYPES` 12 个 legacy 值与两条读路径垫片，v4 成为唯一形状。
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+export const NodeSlotIdSchema = z.enum(NODE_SLOTS)
+export const NodeSlotOutputSchema = z.enum(NODE_SLOT_OUTPUTS)
+
+/**
+ * 溯源七字段（§1.2）。同时喂候选网格卡的三字段与「能不能继续作生成输入」的判断。
+ */
+export const NodeV4SourceRefSchema = z.object({
+  /** 这条素材说的是谁（角色名 / 主体名）。 */
+  subjectName: z.string().trim().min(1).max(160).optional(),
+  url: z.string().trim().min(1).max(4000).optional(),
+  publisher: z.string().trim().min(1).max(160).optional(),
+  /** 原片时间码，自由格式（`00:12:31` / `12m31s`），不解析。 */
+  timecode: z.string().trim().min(1).max(40).optional(),
+  usage: z.string().trim().min(1).max(400).optional(),
+  trustLevel: z.enum(NODE_V4_SOURCE_TRUST_LEVELS).optional(),
+  /** 允不允许把它继续当生成输入（版权 / 合规判断的落点）。 */
+  reusableAsInput: z.boolean().optional(),
+})
+
+/**
+ * 槽内一个版本（§1.4）。**每个版本仍然是一条真边**——`versions` 不复制素材，
+ * 只记「哪条边在这个槽里排第几」。
+ */
+export const NodeV4SlotVersionSchema = z.object({
+  /** versionId，稳定：改名 / 换序 / 翻版都不变。 */
+  id: z.string().trim().min(1).max(160),
+  edgeId: z.string().trim().min(1).max(160),
+  sourceNodeId: z.string().trim().min(1).max(160),
+  /** 停用：画叉、压暗，且**不可设为当前**。 */
+  blocked: z.boolean().default(false),
+  /** 例「首帧动作不自然」——直接进拒绝理由与规则薄卡。 */
+  blockedReason: z.string().trim().min(1).max(400).optional(),
+  addedAt: z.string().trim().min(1).max(40),
+})
+
+/**
+ * 一个槽的绑定：`{ versions, cur }`（§1.4 owner 拍板「画-1」）。
+ *
+ * ⚠ **版本是槽的属性，不是节点的身份**：同一张图可以同时是 S02 的首帧第 5 版和
+ * S03 的构图参考；版本若写进节点身份，复用就退化成复制，且 N 个候选节点各占一行
+ * 快照，24 镜下上下文直接爆掉——轮播只报一行。
+ */
+export const NodeV4SlotBindingSchema = z.object({
+  slot: NodeSlotIdSchema,
+  /** 有序，追加在尾。 */
+  versions: z.array(NodeV4SlotVersionSchema).max(64),
+  /** 当前版 versionId；空槽为 null。⛔ `cur` 为空且该槽必填 → 生成前置校验失败，不静默用第一版。 */
+  cur: z.string().trim().min(1).max(160).nullable(),
+})
+
+/** 生成档位。与 v3 散在 data 顶层的那五个字段同值域，只是收进一个对象。 */
+export const NodeV4GenerationParamsSchema = z.object({
+  aspectRatio: z.string().trim().min(1).max(20).optional(),
+  resolution: z.string().trim().min(1).max(20).optional(),
+  duration: z.string().trim().min(1).max(20).optional(),
+  generateAudio: z.boolean().optional(),
+  seed: z.number().int().optional(),
+})
+
+/**
+ * 四类节点共有的部分。
+ *
+ * ⛔ 这里**没有** `collapsed` / `parentId`：§1.3 选了「视频节点即镜头 + lane 布局」
+ * 而不是容器节点，两个零消费者的桩随 v4 删除（§9.3）。镜头带是布局层按 `shotNo`
+ * 派生的分组，不是数据。
+ */
+const NodeV4BaseShape = {
+  /**
+   * 稳定名（§4.2）。`S02·首帧` 式，**创建即持久化**——任何路径新建节点（手动、
+   * 右键、助手 `add_node`、派生）都在同一次状态提交里写它。
+   *
+   * ⚠ 这条取代 v3 的七字段显示名优先链（`characterName` / `backgroundName` /
+   * `shotName` / `voiceName` / `mediaLabel` / `sourceLabel` / `character.name`）与
+   * `buildFallbackNodeNames` 的「显示时才编号」——那套的序号按传入列表顺序算，
+   * 增删节点就重新编号，于是 `@参考视频2` 会静默指向另一个节点。
+   * 改名不改 id：边、op、快照一律用 `id`。
+   */
+  name: z.string().trim().min(1).max(160),
+  status: NodeStatusSchema.default('idle'),
+  /** 镜号（1 起）。空 = 未归镜的散节点，落在镜头带下方的自由区。 */
+  shotNo: z.number().int().min(1).max(999).optional(),
+  note: z.string().trim().min(1).max(2000).optional(),
+  createdAt: z.string().trim().min(1).max(40),
+  /**
+   * 这个节点各具名槽的当前绑定（§1.4）。挂在**目标节点**上：边是事实，binding 是
+   * 「这个槽当前用哪条边」的指针。空槽可以不出现在这张表里。
+   */
+  slots: z.partialRecord(NodeSlotIdSchema, NodeV4SlotBindingSchema).optional(),
+}
+
+export const NodeV4TextDataSchema = z.object({
+  ...NodeV4BaseShape,
+  kind: z.literal(NODE_MEDIA_KIND_IDS.text),
+  subtype: z.enum(NODE_V4_TEXT_SUBTYPES),
+  /** Markdown 正文（§2.4）。 */
+  body: z.string().max(100_000),
+  title: z.string().trim().min(1).max(160).optional(),
+  source: z.string().trim().min(1).max(400).optional(),
+  recordedAt: z.string().trim().min(1).max(40).optional(),
+})
+
+export const NodeV4ImageDataSchema = z.object({
+  ...NodeV4BaseShape,
+  kind: z.literal(NODE_MEDIA_KIND_IDS.image),
+  subtype: z.enum(NODE_V4_IMAGE_SUBTYPES),
+  url: z.string().trim().min(1).max(4000).optional(),
+  model: NodeWorkflowModelSelectionSchema.optional(),
+  prompt: z.string().max(20_000).optional(),
+  negativePrompt: z.string().trim().min(1).max(1000).optional(),
+  params: NodeV4GenerationParamsSchema.optional(),
+  sourceRef: NodeV4SourceRefSchema.optional(),
+  /**
+   * 该素材已判失败（§3.3 语义门）。连 `firstFrame` 被拒并给理由「该素材已判失败，
+   * 不能作首帧」，与「已在槽里的停用版不能设为当前」是同一条规则的两个出口。
+   */
+  blocked: z.boolean().optional(),
+  blockedReason: z.string().trim().min(1).max(400).optional(),
+  characterName: z.string().trim().min(1).max(160).optional(),
+  /** 候选序号（`kf02-v5` 的 5）。⚠ 不是槽内版本——那个住在 `slots[].versions`。 */
+  version: z.number().int().min(1).max(999).optional(),
+  mediaReview: z.record(z.string(), NodeMediaReviewSchema).optional(),
+})
+
+export const NodeV4AudioDataSchema = z.object({
+  ...NodeV4BaseShape,
+  kind: z.literal(NODE_MEDIA_KIND_IDS.audio),
+  subtype: z.enum(NODE_V4_AUDIO_SUBTYPES),
+  /**
+   * 这个节点交付的那段音频——**唯一产物**。v3 的 `voiceClipUrl` /
+   * `voiceSampleUrl` / `voiceReferenceAudioUrl` 三条在迁移里合流到这里。
+   */
+  url: z.string().trim().min(1).max(4000).optional(),
+  model: NodeWorkflowModelSelectionSchema.optional(),
+  prompt: z.string().max(20_000).optional(),
+  /** 这条音色属于哪个角色（v3 的 `audioOwnerName`）。⛔ 与 `name` 是两件事。 */
+  ownerName: z.string().trim().min(1).max(160).optional(),
+  voiceProfile: z
+    .object({
+      provider: z.string().trim().min(1).max(80).optional(),
+      voiceId: z.string().trim().min(1).max(160).optional(),
+      style: z.string().trim().min(1).max(160).optional(),
+      emotion: z.string().trim().min(1).max(160).optional(),
+      speed: z.number().min(0.5).max(2).optional(),
+      volume: z.number().min(-20).max(20).optional(),
+    })
+    .optional(),
+  sourceRef: NodeV4SourceRefSchema.optional(),
+  cleanupMethod: z.string().trim().min(1).max(80).optional(),
+  durationSec: z.number().min(0).max(36_000).optional(),
+})
+
+export const NodeV4VideoDataSchema = z.object({
+  ...NodeV4BaseShape,
+  kind: z.literal(NODE_MEDIA_KIND_IDS.video),
+  subtype: z.enum(NODE_V4_VIDEO_SUBTYPES),
+  url: z.string().trim().min(1).max(4000).optional(),
+  model: NodeWorkflowModelSelectionSchema.optional(),
+  prompt: z.string().max(20_000).optional(),
+  negativePrompt: z.string().trim().min(1).max(1000).optional(),
+  videoMode: z.enum(VIDEO_NODE_MODES).optional(),
+  params: NodeV4GenerationParamsSchema.optional(),
+  mergeSettings: z
+    .object({
+      clips: z
+        .array(
+          z.object({
+            url: z.string().trim().min(1).max(4000),
+            startSec: z.number().min(0).max(600).optional(),
+            endSec: z.number().min(0).max(600).optional(),
+          }),
+        )
+        .max(9)
+        .optional(),
+    })
+    .optional(),
+  sourceRef: NodeV4SourceRefSchema.optional(),
+  /** 参考片段的用途：接续 or 纯参考（`video.clip`）。 */
+  clipRole: z.enum(['continuation', 'reference']).optional(),
+  durationSec: z.number().min(0).max(36_000).optional(),
+  mediaReview: z.record(z.string(), NodeMediaReviewSchema).optional(),
+})
+
+export const NodeV4DataSchema = z.discriminatedUnion('kind', [
+  NodeV4TextDataSchema,
+  NodeV4ImageDataSchema,
+  NodeV4AudioDataSchema,
+  NodeV4VideoDataSchema,
+])
+
+export const NodeV4Schema = z.object({
+  id: z.string().min(1).max(160),
+  position: NodeWorkflowPositionSchema,
+  data: NodeV4DataSchema,
+  selected: z.boolean().optional(),
+  dragging: z.boolean().optional(),
+})
+
+/**
+ * v4 边。与 v3 的关键差异：**必须带 `slot`**。没有槽的边在 v4 里不存在——
+ * 「这条边是首帧还是参考」不再靠下游收割逻辑猜。
+ */
+export const NodeWorkflowEdgeV4Schema = z.object({
+  id: z.string().min(1).max(160),
+  source: z.string().min(1).max(160),
+  /** 出口 handle。`tailFrame` = 接续镜（S02 末帧 → S03 首帧）。默认 `out`。 */
+  sourceHandle: NodeSlotOutputSchema.default(NODE_SLOT_OUTPUT_IDS.out),
+  target: z.string().min(1).max(160),
+  slot: NodeSlotIdSchema,
+  data: NodeWorkflowEdgeDataSchema.optional().catch(undefined),
+})
+
+/**
+ * v4 整图。`version: 4` 是硬门：读到 `version !== 4` **直接抛错并阻止写入**
+ * （§9.2 第 4 条），⛔ 不是兜成空状态——静默清空那条路在 v4 里彻底封死。
+ *
+ * ⚠ `nodes` 逐项**没有** `.catch()`，与 v3 同：一个坏节点应当让整份 parse 失败并
+ * 被上游当成错误报出来，而不是悄悄少一个节点。区别在 v4 的读路径不再把 parse
+ * 失败翻译成空状态。
+ */
+export const NodeWorkflowStateV4Schema = z.object({
+  version: z.literal(4),
+  nodes: z.array(NodeV4Schema),
+  edges: z.array(NodeWorkflowEdgeV4Schema),
+  scriptDoc: ScriptDocSchema.optional().catch(undefined),
+  canvasAppearance: CanvasAppearanceSchema.optional().catch(undefined),
+  scriptDocStage: z.enum(SCRIPT_DOC_STAGES).optional().catch(undefined),
+  scriptDocDepth: z.enum(SCRIPT_DOC_DEPTHS).optional().catch(undefined),
+  scriptDocLocks: z.array(z.string()).optional().catch(undefined),
+  scriptDocShotStills: z.boolean().optional().catch(undefined),
+})
+
+export type NodeV4SourceRef = z.infer<typeof NodeV4SourceRefSchema>
+export type NodeV4SlotVersion = z.infer<typeof NodeV4SlotVersionSchema>
+export type NodeV4SlotBinding = z.infer<typeof NodeV4SlotBindingSchema>
+export type NodeV4GenerationParams = z.infer<
+  typeof NodeV4GenerationParamsSchema
+>
+export type NodeV4TextData = z.infer<typeof NodeV4TextDataSchema>
+export type NodeV4ImageData = z.infer<typeof NodeV4ImageDataSchema>
+export type NodeV4AudioData = z.infer<typeof NodeV4AudioDataSchema>
+export type NodeV4VideoData = z.infer<typeof NodeV4VideoDataSchema>
+export type NodeV4Data = z.infer<typeof NodeV4DataSchema>
+export type NodeV4 = z.infer<typeof NodeV4Schema>
+export type NodeWorkflowEdgeV4 = z.infer<typeof NodeWorkflowEdgeV4Schema>
+export type NodeWorkflowStateV4 = z.infer<typeof NodeWorkflowStateV4Schema>

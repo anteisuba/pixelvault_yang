@@ -2,11 +2,20 @@ import { describe, expect, it } from 'vitest'
 
 import {
   NODE_IMAGE_ROLE_IDS,
+  NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
   type NodeImageRole,
+  type NodeV4Subtype,
+  type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
 import {
+  applyShotNoToNodeName,
   buildDisplayNamePatch,
+  buildStableNodeName,
+  NODE_RENAME_REJECT_REASON_IDS,
+  renameStableNodeName,
   resolveNodeAccessibleName,
   resolveNodeDisplayName,
   stripFileExtension,
@@ -309,5 +318,130 @@ describe('resolveNodeAccessibleName', () => {
     expect(calls).toBe(0)
     resolveNodeAccessibleName(data({ voiceName: '旁白' }), '音色', spy)
     expect(calls).toBe(1)
+  })
+})
+
+/* ── v4 稳定命名（spec §4.2）───────────────────────────────────────────── */
+
+const LABELS: Record<string, string> = {
+  'video.shot': '镜头',
+  'image.shot': '镜头图',
+  'image.reference': '参考图',
+  'image.character': '角色',
+  'audio.voice': '语音',
+  'text.shotNote': '分镜',
+}
+
+const labelOf = (kind: NodeWorkflowMediaKind, subtype: NodeV4Subtype) =>
+  LABELS[`${kind}.${subtype}`] ?? subtype
+
+describe('buildStableNodeName', () => {
+  it('带镜号 → S02·标签；镜号两位补零', () => {
+    expect(
+      buildStableNodeName(
+        {
+          kind: NODE_MEDIA_KIND_IDS.image,
+          subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
+          shotNo: 2,
+        },
+        { labelOf, taken: new Set() },
+      ),
+    ).toBe('S02·镜头图')
+    expect(
+      buildStableNodeName(
+        {
+          kind: NODE_MEDIA_KIND_IDS.video,
+          subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+          shotNo: 12,
+        },
+        { labelOf, taken: new Set() },
+      ),
+    ).toBe('S12·镜头')
+  })
+
+  it('无镜号的散节点用裸标签，冲突从 2 起追加序号', () => {
+    const taken = new Set(['参考图', '参考图2', '参考图3'])
+    expect(
+      buildStableNodeName(
+        {
+          kind: NODE_MEDIA_KIND_IDS.image,
+          subtype: NODE_V4_IMAGE_SUBTYPE_IDS.reference,
+        },
+        { labelOf, taken },
+      ),
+    ).toBe('参考图4')
+  })
+
+  it('同一镜里第三张镜头图是 S02·镜头图3', () => {
+    const taken = new Set(['S02·镜头图', 'S02·镜头图2'])
+    expect(
+      buildStableNodeName(
+        {
+          kind: NODE_MEDIA_KIND_IDS.image,
+          subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
+          shotNo: 2,
+        },
+        { labelOf, taken },
+      ),
+    ).toBe('S02·镜头图3')
+  })
+
+  it('专有名优先于子型标签', () => {
+    expect(
+      buildStableNodeName(
+        {
+          kind: NODE_MEDIA_KIND_IDS.image,
+          subtype: NODE_V4_IMAGE_SUBTYPE_IDS.character,
+          properName: '角色·西格莉卡',
+        },
+        { labelOf, taken: new Set() },
+      ),
+    ).toBe('角色·西格莉卡')
+  })
+
+  it('名字过长时截到 schema 上限，不让整份 state 被服务端拒收', () => {
+    const name = buildStableNodeName(
+      {
+        kind: NODE_MEDIA_KIND_IDS.image,
+        subtype: NODE_V4_IMAGE_SUBTYPE_IDS.character,
+        properName: 'x'.repeat(400),
+      },
+      { labelOf, taken: new Set() },
+    )
+    expect(name).toHaveLength(160)
+  })
+})
+
+describe('renameStableNodeName', () => {
+  it('冲突就地拒绝，⛔ 不静默加后缀', () => {
+    expect(
+      renameStableNodeName('S03·首帧', 'S02·首帧', new Set(['S02·首帧'])),
+    ).toEqual({ ok: false, reason: NODE_RENAME_REJECT_REASON_IDS.taken })
+  })
+
+  it('改成自己现在的名字是合法的（不算冲突）', () => {
+    expect(
+      renameStableNodeName('S02·首帧', 'S02·首帧', new Set(['S02·首帧'])),
+    ).toEqual({ ok: true, name: 'S02·首帧' })
+  })
+
+  it('空名字拒绝', () => {
+    expect(renameStableNodeName('S02·首帧', '   ', new Set())).toEqual({
+      ok: false,
+      reason: NODE_RENAME_REJECT_REASON_IDS.empty,
+    })
+  })
+})
+
+describe('applyShotNoToNodeName', () => {
+  it('换序只改 S 段，用户自定义的后半段保留', () => {
+    expect(applyShotNoToNodeName('S02·西格莉卡近景', 5)).toBe(
+      'S05·西格莉卡近景',
+    )
+  })
+
+  it('原本没有前缀的散节点名归镜时加上前缀；移出镜头带剥掉前缀', () => {
+    expect(applyShotNoToNodeName('参考图4', 7)).toBe('S07·参考图4')
+    expect(applyShotNoToNodeName('S07·参考图4', undefined)).toBe('参考图4')
   })
 })

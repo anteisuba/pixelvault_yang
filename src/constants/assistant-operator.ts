@@ -414,6 +414,24 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * 那些走设置界面（`CREATOR`）。来源写错的表现是规则薄卡上的出处对不上。
    */
   addProjectRule: 'add_project_rule',
+  /**
+   * 列出用户的**上下文卡**（第三期 K1）——角色 / 风格 / 品牌，账号级持久上下文。
+   *
+   * ⭐ 与 `read_project_rules` 同一条论据：常挂在当前工作台上的那几张已经在
+   * 系统提示里（只有**名字 + 一句话摘要**），这条工具管的是「把没常挂的那些翻
+   * 出来」——用户嘴里的「用上次那个角色」指的往往是一张没挂的卡。
+   * ⚠ 只读：一个字都不改。
+   */
+  listContextCards: 'list_context_cards',
+  /**
+   * 读一张上下文卡的**全文**（第三期 K1）。
+   *
+   * ⭐ 为什么摘要与正文分两跳：正文是四千字的设定（外貌 / 服饰 / 性格，或一整套
+   * 风格规则），而系统提示每一步都要重发。全量进提示 = 每一步都重付一次这段钱。
+   * 摘要每轮都在，正文按需拉 —— 与 `read_url` 的 `focus` 截段同一条判据。
+   * ⚠ 回的是正文 + 硬否定串 + 参考图 URL 列表（供 `mount_reference` 直接挂）。
+   */
+  readContextCard: 'read_context_card',
 } as const
 
 export const ASSISTANT_OPERATOR_TOOLS = [
@@ -444,6 +462,8 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
   ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
   ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+  ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
+  ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
 ] as const
 
 export type AssistantOperatorTool = (typeof ASSISTANT_OPERATOR_TOOLS)[number]
@@ -492,6 +512,13 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
   /** 读规则就是读：翻出用户写下的几句话，表单一个字都没动。 */
   ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
+  /**
+   * 上下文卡两条也是读（K1）：翻卡与读全文都只把文本摆到模型面前，表单一个字
+   * 都没动。⛔ 别因为「卡上有参考图 URL」就以为它挂了图 —— 真挂上那一跳是之后
+   * 那条 `mount_reference`，撤销也撤在那一条上（与 `search_web_images` 同源）。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
+  ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
 ] as const
 
 /**
@@ -848,6 +875,13 @@ const COMMON_DOMAIN_TOOLS = [
    */
   ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
   ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+  /**
+   * 上下文卡两条**全域可用**（K1）：一张角色卡在图片、视频、LoRA 三台工作台上
+   * 说的是同一个人。⛔ 别按域裁 —— 那等于让用户在每个工作台上把同一份设定再写
+   * 一遍，而这张表存在的全部意义就是不必再写一遍。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
+  ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
 ] as const satisfies readonly AssistantOperatorTool[]
 
 /**
@@ -1489,6 +1523,10 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'change how strongly one already-mounted LoRA applies. The id comes from the mounted list in the state block. Weight is a plain number in the range the state block gives.',
   [ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules]:
     "read the standing rules this creator has written down for their work. The newest ones are already quoted in your instructions — call this only when you need the older ones, or the ones scoped to another workbench. Returns each rule's id, its exact wording, and the date it was recorded.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.listContextCards]:
+    'list the context cards this creator keeps — characters, styles and brand kits they wrote down once and reuse. Each entry gives an id, its kind, its name and a one-line summary. The ones pinned to this workbench are already quoted in your instructions; call this when they mention a character, a look or a brand you do not have in front of you. Filter by kind when you know which sort you are after.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.readContextCard]:
+    'read one context card in full: the body the creator wrote (appearance, outfit, personality — or the style rules, or the brand spec), the hard negatives that card carries, and the URLs of its reference images with what each one is for. The card id comes from list_context_cards or from your instructions — never invent one. A sheet image is identity evidence: the look is decided by it. Mount the images you actually need with mount_reference; reading a card mounts nothing on its own.',
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
     'write down ONE standing rule the creator just stated — something that should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice.',
 }

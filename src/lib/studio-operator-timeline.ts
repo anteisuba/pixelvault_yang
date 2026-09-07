@@ -10,7 +10,10 @@ export function isOperatorResearchTool(tool: string): boolean {
     tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWeb ||
     tool === ASSISTANT_OPERATOR_TOOL_IDS.readState ||
     tool === ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders ||
-    tool === ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules
+    tool === ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules ||
+    /** 翻卡与读卡都属于「查资料」那一档，折进同一组研究行（K1）。 */
+    tool === ASSISTANT_OPERATOR_TOOL_IDS.listContextCards ||
+    tool === ASSISTANT_OPERATOR_TOOL_IDS.readContextCard
   )
 }
 

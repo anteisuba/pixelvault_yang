@@ -159,8 +159,14 @@ function buildMessages(
     if (entry.kind === 'user') {
       const attachmentNote =
         entry.attachments.length > 0
-          ? `\n[attached: ${entry.attachments
-              .map((attachment) => `${attachment.kind} ${attachment.url}`)
+          ? // ⭐ 名字写在最前（切片 N1）：模型要用 `图_012` 指认这一张，而不是
+            //   念一串它会抄错、用户也核对不了的地址。地址仍然带着 —— 视觉线
+            //   与 `critique_result` 的目标匹配都还认它。
+            `\n[attached: ${entry.attachments
+              .map(
+                (attachment) =>
+                  `${attachment.label} (${attachment.kind}) ${attachment.url}`,
+              )
               .join(', ')}]`
           : ''
       messages.push({ role: 'user', content: `${entry.text}${attachmentNote}` })

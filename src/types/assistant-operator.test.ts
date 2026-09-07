@@ -407,6 +407,44 @@ const STEP_FIXTURES: Record<
     },
     inverse: { ruleId: 'rule-2' },
   },
+  /** 上下文卡两条（K1）——都是读，所以都没有 `inverse`。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.listContextCards]: {
+    payload: { kind: null },
+    result: {
+      cards: [
+        {
+          id: 'card-1',
+          kind: 'character',
+          name: 'Sigrika',
+          summary: 'Silver hair, gold eyes, control-room mech suit.',
+          hasNegative: true,
+          imageCount: 2,
+          pinnedScopes: ['video'],
+        },
+      ],
+    },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.readContextCard]: {
+    payload: { cardId: 'card-1' },
+    result: {
+      id: 'card-1',
+      kind: 'character',
+      name: 'Sigrika',
+      summary: 'Silver hair, gold eyes, control-room mech suit.',
+      body: '## Appearance\nSilver hair, gold eyes.',
+      images: [
+        {
+          url: 'https://cdn.example.com/context-cards/u1/sheet.png',
+          role: 'sheet',
+          sourceRef: 'official site',
+        },
+      ],
+      negative: 'air ripples, holographic overlay',
+      pinnedScopes: ['video'],
+      createdAt: '2026-09-07T10:00:00.000Z',
+      updatedAt: '2026-09-07T10:00:00.000Z',
+    },
+  },
 }
 
 function buildStep(tool: AssistantOperatorTool, omitInverse = false) {

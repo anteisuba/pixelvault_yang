@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
+
 import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import { logger } from '@/lib/logger'
@@ -8,6 +10,7 @@ import {
   cacheableFn,
   invalidatePublicGalleryCache,
 } from '@/lib/cache-tags'
+import { buildGenerationDisplayName } from '@/lib/generation-name'
 import { normalizeReferenceImages } from '@/lib/reference-image-compat'
 import type {
   AssetSectionCounts,
@@ -95,6 +98,12 @@ export interface CreateGenerationInput {
   runGroupIndex?: number
   /** 产物来源 surface（缺省 IMAGE_STUDIO）。 */
   sourceSurface?: GenerationSourceSurface
+  /**
+   * 助手给这条产物起的名字（切片 N1）——覆盖名字里的**摘要**那一段
+   * （`图_012·主视觉`），⛔ 覆盖不了身份段（那一段只由 id 决定）。
+   * 不给就取提示词头几个字。
+   */
+  displayLabel?: string
 }
 
 export interface ListGenerationsOptions {
@@ -392,6 +401,36 @@ function normalizeGenerationReferenceImages(
 // ─── Service Functions ────────────────────────────────────────────
 
 /**
+ * 落库前把**产物名**塞进 snapshot（切片 N1）。
+ *
+ * ── 为什么是 snapshot 而不是新列 ──────────────────────────────────
+ * 零迁移，与 `findGenerationBySourceUrl` 的先例同一条理由：一条可空列换不到这里
+ * 没有的东西，而 snapshot 是**已经在写**的那一份 JSON。
+ *
+ * ⚠ 存下来的这份是**给存量口径与 label 覆盖用的**，⛔ 不是唯一事实：列表口
+ * （`LIST_GENERATION_SELECT`）故意不带 snapshot，那些路径按同一条纯函数现算，
+ * 身份段一定相同（见 `lib/generation-name.ts` 头注）。
+ *
+ * ⚠ snapshot 不是对象时（历史上有调用方塞过数组/标量）**不动它** —— 名字照旧
+ * 现算，⛔ 不把一份别人的数据结构改形状。
+ */
+function withGenerationDisplayName(
+  id: string,
+  input: CreateGenerationInput,
+): Prisma.InputJsonValue {
+  const displayName = buildGenerationDisplayName({
+    id,
+    outputType: input.outputType ?? 'IMAGE',
+    prompt: input.prompt,
+    label: input.displayLabel,
+  })
+  const snapshot = input.snapshot
+  if (snapshot === undefined || snapshot === null) return { displayName }
+  if (typeof snapshot !== 'object' || Array.isArray(snapshot)) return snapshot
+  return { ...(snapshot as Record<string, unknown>), displayName }
+}
+
+/**
  * Persist a completed generation to the database.
  * Called after the AI provider returns a result and R2 upload completes.
  */
@@ -399,8 +438,15 @@ export async function createGeneration(
   input: CreateGenerationInput,
   client: GenerationMutationClient = db,
 ): Promise<GenerationRecord> {
+  /**
+   * ⭐ id 在这里现取而不是交给 `@default(uuid())`：名字由 id 派生（切片 N1），
+   * 而插入之后再回写一次 snapshot 就是两次写、两个可以不一致的状态。
+   */
+  const id = randomUUID()
   const generation = await client.generation.create({
     data: {
+      id,
+      snapshot: withGenerationDisplayName(id, input),
       url: input.url,
       storageKey: input.storageKey,
       mimeType: input.mimeType,
@@ -425,7 +471,6 @@ export async function createGeneration(
       isPromptPublic: input.isPromptPublic ?? false,
       userId: input.userId,
       projectId: input.projectId,
-      snapshot: input.snapshot,
       recipeSnapshot: input.recipeSnapshot,
       seed: input.seed,
       runGroupId: input.runGroupId,

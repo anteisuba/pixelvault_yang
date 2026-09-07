@@ -96,7 +96,8 @@ export const ModelName = {
   InspirationPrompt: 'InspirationPrompt',
   CivitaiSearchSnapshot: 'CivitaiSearchSnapshot',
   CivitaiLoraMirror: 'CivitaiLoraMirror',
-  CivitaiMirrorSyncState: 'CivitaiMirrorSyncState'
+  CivitaiMirrorSyncState: 'CivitaiMirrorSyncState',
+  ContextCard: 'ContextCard'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -970,6 +971,23 @@ export const CivitaiMirrorSyncStateScalarFieldEnum = {
 } as const
 
 export type CivitaiMirrorSyncStateScalarFieldEnum = (typeof CivitaiMirrorSyncStateScalarFieldEnum)[keyof typeof CivitaiMirrorSyncStateScalarFieldEnum]
+
+
+export const ContextCardScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  kind: 'kind',
+  name: 'name',
+  summary: 'summary',
+  body: 'body',
+  images: 'images',
+  negative: 'negative',
+  pinnedScopes: 'pinnedScopes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ContextCardScalarFieldEnum = (typeof ContextCardScalarFieldEnum)[keyof typeof ContextCardScalarFieldEnum]
 
 
 export const SortOrder = {

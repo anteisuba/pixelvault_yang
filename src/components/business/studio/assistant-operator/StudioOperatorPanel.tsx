@@ -327,6 +327,48 @@ export function StudioOperatorPanel({
     [t],
   )
 
+  /**
+   * `@` 的候选名单（选择器上半段 + 正文名字解析共用同一份，切片 N1）。
+   *
+   * ⛔ 两处各算一份的下场是「选择器里列着 `图_012`，正文里打 `@图_012` 却挂不上」
+   * —— 同一个名字在同一个输入框里两种行为。
+   */
+  /**
+   * 这一轮用户**看见过**的素材（选择器那一跳列出来的那些）。
+   *
+   * ⭐ 正文里的 `@图_012` 只能在这份名单里解析 —— 名字里的序号是 id 的派生，
+   * ⛔ 反查不回来（没有、也不打算有一张名字表）。「看得见的才 @ 得到」既是实现
+   * 约束也是正确的语义：用户指认的本来就是他刚看过的那几张。
+   * ⚠ 按 id 合并、⛔ 不清空：选择器关掉之后那句话还在输入框里没发出去。
+   */
+  const [seenAssets, setSeenAssets] = useState<
+    readonly StudioOperatorAttachment[]
+  >([])
+  const handleSeenAssets = useCallback(
+    (assets: readonly StudioOperatorAttachment[]) => {
+      setSeenAssets((current) => {
+        const known = new Set(current.map((item) => item.id))
+        const fresh = assets.filter((item) => !known.has(item.id))
+        return fresh.length === 0 ? current : [...current, ...fresh]
+      })
+    },
+    [],
+  )
+
+  const recentChips = useMemo(
+    () => resultItems.map((item, index) => toResultChip(item, index)),
+    [resultItems, toResultChip],
+  )
+
+  /**
+   * 正文名字解析的候选：**在飞那一批在前**（撞号时取第一条 = 最近那一张，
+   * 见 `matchGenerationMention` 的头注），素材库里看过的在后。
+   */
+  const mentionCandidates = useMemo(
+    () => [...recentChips, ...seenAssets],
+    [recentChips, seenAssets],
+  )
+
   const working = status === 'working'
   /**
    * ⭐ 有文件还在传时**不许发送**。
@@ -1469,6 +1511,12 @@ export function StudioOperatorPanel({
                 event.target.value,
                 event.target.selectionStart ?? event.target.value.length,
               )
+              /**
+               * 正文里直接写的产物名（`@图_012`）当场成 chip（切片 N1）。
+               * ⚠ 与 `syncDraft` 是两件事：那个管「弹不弹选择器」，这个管「这句话
+               * 里点了哪几张的名」，⛔ 不合并 —— 选择器只看光标前那一个 token。
+               */
+              mention.syncNameMentions(event.target.value, mentionCandidates)
             }}
             onKeyDown={(event) => {
               /**
@@ -1539,7 +1587,8 @@ export function StudioOperatorPanel({
         {mention.trigger ? (
           <StudioOperatorMentionPicker
             query={mention.trigger.query}
-            recent={resultItems.map((item, index) => toResultChip(item, index))}
+            recent={recentChips}
+            onSeen={handleSeenAssets}
             searchTypes={STUDIO_OPERATOR_MENTION_SEARCH_TYPES[domain]}
             onPick={(attachment) => {
               onDraftChange(mention.pick(draft, attachment))

@@ -74,6 +74,7 @@ vi.mock('@/lib/studio-operator-snapshot', () => ({
 }))
 
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
+import { buildGenerationDisplayName } from '@/lib/generation-name'
 
 function runItem(
   id: string,
@@ -108,7 +109,12 @@ describe('useStudioWorkbenchOperatorHost 的 results 映射', () => {
         id: 'gen-2',
         url: 'https://cdn.test/b.png',
         thumbnailUrl: 'https://cdn.test/b-thumb.png',
-        label: '一把红伞',
+        // ⭐ 切片 N1：结果格的 label 是**产物名**（`图_0xx·一把红伞`），因为它
+        //    同时是用户照着打出来指认这一张的那串字。
+        label: buildGenerationDisplayName({
+          id: 'gen-2',
+          prompt: '一把红伞',
+        }),
       },
     ])
   })

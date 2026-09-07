@@ -31,6 +31,20 @@ enum GenerationSourceSurface {
   EDIT
 }
 
+/// 上下文卡是哪一类（`ContextCard.kind`）。
+///
+/// ⚠ 三档是**同一件事的三个对象**：一张账号级、可 @ 注入、可常挂的持久上下文。
+/// ⛔ 不拆三张表 —— 它们的列一模一样（名字 / 摘要 / 正文 / 参考图 / 硬否定 /
+/// 常挂域），拆开只会让「列出这个用户的全部卡」变成三次查询再归并。
+enum ContextCardKind {
+  /// 角色：外貌 / 服饰 / 性格，正文进系统提示，参考图供 `mount_reference` 直接挂。
+  CHARACTER
+  /// 风格：画风规则，落到 `set_prompt` 的约束上。
+  STYLE
+  /// 品牌：品牌规范（配色、字体、禁用元素），与风格同一条注入路径。
+  BRAND
+}
+
 /// 一条项目规则是谁记下来的（规则薄卡上那行「来源：××」）。
 enum ProjectRuleSource {
   /// 助手在对话里通过 add_project_rule 记的。
@@ -164,6 +178,7 @@ model User {
   voiceRooms             VoiceRoom[]
   assistantPersona       AssistantPersona?
   projectRules           ProjectRule[]
+  contextCards           ContextCard[]
 
   @@index([username])
   @@index([isDeleted])
@@ -1431,4 +1446,50 @@ model CivitaiMirrorSyncState {
   lastError       String?
 
   updatedAt DateTime @updatedAt
+}
+
+/// **上下文卡**（第三期 K1）—— 账号级、可 `@` 注入、可在工作台常挂的持久上下文。
+///
+/// 起因是 owner 的真实流程（EVA 复现，`S2` / `S4` / `S8`）：角色的外貌与服饰、
+/// 「什么不许出现」的硬否定串、参考图各自的分工，都靠他自己抄在四篇 docs 里，
+/// 助手一条都读不到。这张表就是那本册子。
+///
+/// ⛔ **有意不复用 `CharacterCard`**：那张表是**生成管线的产物** —— 必填
+/// `sourceImageUrl` / `sourceStorageKey`、挂着 LoRA 训练任务、配方、变体树与
+/// `stabilityScore`，它的一行是「从这张图训出来的这个角色资产」。这张表的一行是
+/// 「用户写下来的一段设定」：没有源图也成立、没有任何生成血缘、正文是 Markdown、
+/// 而且同一套列还要装风格与品牌。把两者并进一张表的表现是 `CharacterCard` 上
+/// 多出一堆只有半数行会填的列，而 `sourceImageUrl` 的必填约束会挡住纯文字的卡。
+///
+/// ⛔ 同理不复用 `StyleCard` / `BackgroundCard`：它们是同一套生成侧卡片体系。
+model ContextCard {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind ContextCardKind
+
+  /// 卡名（@ 面板上那行字，也是 chip 上的名字）。
+  name    String
+  /// 一句话摘要 —— **它才是进系统提示的那一行**，正文靠 `read_context_card` 拉。
+  summary String @db.Text
+  /// Markdown 正文：外貌 / 服饰 / 性格，或风格规则，或品牌规范。
+  body    String @db.Text
+
+  /// 参考图，`ContextCardImage[]`（`types/context-cards.ts`）。
+  /// ⚠ 存的是**已上传到 R2 的 URL**，⛔ 一个 base64 字节都不落库。
+  images Json @default("[]")
+
+  /// 这张卡的硬否定串（owner 的 `VIDEO-LESSONS` 里那一行）。null = 没有。
+  negative String? @db.Text
+
+  /// **常挂**到哪些域 / 工作台：非空且命中当前域时，这张卡每一轮都进系统提示。
+  /// 空数组 = 只在被 `@` 点名时才注入。
+  pinnedScopes String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([userId, kind, updatedAt(sort: Desc)])
 }

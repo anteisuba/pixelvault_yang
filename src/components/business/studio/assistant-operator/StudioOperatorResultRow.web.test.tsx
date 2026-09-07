@@ -6,6 +6,7 @@ import {
   STUDIO_OPERATOR_RESULT_STAGGER,
   STUDIO_OPERATOR_SHELL,
 } from '@/constants/studio-assistant-operator'
+import { buildGenerationTag } from '@/lib/generation-name'
 
 import {
   StudioOperatorResultRow,
@@ -120,6 +121,21 @@ describe('StudioOperatorResultRow', () => {
     const handlers = renderRow('g2')
     fireEvent.click(screen.getByTestId('operator-result-continue'))
     expect(handlers.onContinue).toHaveBeenCalledWith(items[1], 1)
+  })
+
+  it('每格角标写产物名的身份段（`图_0xx`）—— 用户照着打就能 @ 出来（切片 N1）', () => {
+    renderRow()
+    const badges = screen.getAllByTestId('operator-result-name')
+    expect(badges.map((node) => node.textContent)).toEqual([
+      buildGenerationTag({ id: 'g1' }),
+      buildGenerationTag({ id: 'g2' }),
+    ])
+    // ⚠ 序号没有消失：读屏名与卡脚选中态照旧按「这一屏的第几格」说话。
+    expect(
+      screen
+        .getAllByTestId('operator-result-select')[0]
+        ?.getAttribute('aria-label'),
+    ).toBeTruthy()
   })
 
   it('序号用带圈数字，超出表长回落成 #N（⛔ 不让两格顶同一个号）', () => {

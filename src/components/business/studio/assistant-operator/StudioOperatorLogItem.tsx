@@ -16,11 +16,13 @@ import { memo, useState } from 'react'
 import {
   Ban,
   Blocks,
+  BookUser,
   CircleDollarSign,
   Eye,
   FolderSearch,
   Globe,
   ImagePlus,
+  IdCard,
   Layers,
   Library,
   Link2,
@@ -129,6 +131,12 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules]: ScrollText,
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]: NotebookPen,
+  /**
+   * 上下文卡两条（K1）。⚠ 与规则那一对同一条论据：翻卡与读全文在日志流里常常
+   * 前后脚出现，长一样就分不出哪条是哪条。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.listContextCards]: BookUser,
+  [ASSISTANT_OPERATOR_TOOL_IDS.readContextCard]: IdCard,
 }
 
 interface StudioOperatorLogItemProps {

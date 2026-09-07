@@ -52,6 +52,15 @@ interface StudioOperatorMentionPickerProps {
   searchTypes: readonly ('image' | 'video')[]
   onPick(attachment: StudioOperatorAttachment): void
   onDismiss(): void
+  /**
+   * 这一跳从素材库看到的那些（切片 N1）。
+   *
+   * ⭐ 宿主拿它当**正文里 `@图_012` 的候选名单**：名字里的序号是 id 的派生，
+   * ⛔ **反查不回来** —— 服务端不可能拿一个名字去库里找那一行。所以「用户能按
+   * 名字指认的」= 「他这一轮真的看见过的」，而选择器正是他看见它们的地方。
+   * ⚠ 只是上报，⛔ 不是权限：挂载照旧只认这份名单里的 id。
+   */
+  onSeen?(assets: readonly StudioOperatorAttachment[]): void
 }
 
 export function StudioOperatorMentionPicker({
@@ -60,6 +69,7 @@ export function StudioOperatorMentionPicker({
   searchTypes,
   onPick,
   onDismiss,
+  onSeen,
 }: StudioOperatorMentionPickerProps) {
   const t = useTranslations('StudioOperator')
   const reduceMotion = useReducedMotion()
@@ -107,6 +117,15 @@ export function StudioOperatorMentionPicker({
     options.length === 0 ? 0 : Math.min(active, options.length - 1)
 
   /**
+   * ⚠ `onSeen` 走 ref：把它写进搜索 effect 的依赖里，宿主每次重建这个回调都会
+   * 重搜一次库（而宿主重建它的时机是「又看见了几条」——自激）。
+   */
+  const seenRef = useRef(onSeen)
+  useEffect(() => {
+    seenRef.current = onSeen
+  }, [onSeen])
+
+  /**
    * 搜库 —— 打字节流。
    *
    * ⚠ 每个字符发一次请求等于把自己的库搜成一次 DDoS；`searchDebounceMs` 是那道闸。
@@ -129,11 +148,13 @@ export function StudioOperatorMentionPicker({
       })
         .then((result) => {
           if (cancelled) return
-          setResults(
-            (result.data?.generations ?? [])
-              .filter((item) => Boolean(item.url))
-              .map((item) => toOperatorAttachment(item)),
-          )
+          const next = (result.data?.generations ?? [])
+            .filter((item) => Boolean(item.url))
+            .map((item) => toOperatorAttachment(item))
+          setResults(next)
+          // ⚠ 在 `.then` 里报给宿主，⛔ 不在 effect 体里 setState 上游（本仓
+          //   eslint 的 `react-hooks/set-state-in-effect` 拦的是那一种）。
+          seenRef.current?.(next)
         })
         .finally(() => {
           // ⚠ `finally`：请求失败时不熄灯的表现是那一行「正在搜」永远转下去。

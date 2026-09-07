@@ -344,6 +344,13 @@ export function applyOperatorStep(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules:
     case ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule:
+    /**
+     * ⚠ 上下文卡两条也不动表单（K1）：读卡就是把文本摆到模型面前。
+     * ⛔ 别因为卡上带着参考图 URL 就以为这一步挂了图 —— 真挂上那一跳是之后那条
+     * `mount_reference`，归属标记与撤销都归它。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.listContextCards:
+    case ASSISTANT_OPERATOR_TOOL_IDS.readContextCard:
       return null
 
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
@@ -546,6 +553,8 @@ export function revertOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.research:
     case ASSISTANT_OPERATOR_TOOL_IDS.readUrl:
     case ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules:
+    case ASSISTANT_OPERATOR_TOOL_IDS.listContextCards:
+    case ASSISTANT_OPERATOR_TOOL_IDS.readContextCard:
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
       return
 

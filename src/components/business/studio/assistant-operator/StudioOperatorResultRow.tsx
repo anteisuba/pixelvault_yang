@@ -25,6 +25,7 @@ import { useTranslations } from 'next-intl'
 
 import { EASE_STANDARD, DURATION } from '@/constants/motion'
 import { STUDIO_OPERATOR_RESULT_STAGGER } from '@/constants/studio-assistant-operator'
+import { buildGenerationTag } from '@/lib/generation-name'
 import { cn } from '@/lib/utils'
 import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
 
@@ -128,8 +129,21 @@ export function StudioOperatorResultRow({
                 />
               </button>
 
-              <span className="pointer-events-none absolute left-1 top-1 rounded bg-card/85 px-1 font-mono text-xs tracking-nav tabular-nums text-foreground">
-                {resultOrdinal(index)}
+              {/**
+               * 角标写**产物名的身份段**（`图_012`，切片 N1）而不是 ①②③。
+               *
+               * ⭐ 理由是这个角标要能**照着打出来**：用户在输入框里写
+               * `@图_012 手指有问题`，正文解析当场把它变成 chip。序号 ① 做不到
+               * 这件事 —— 它每一轮都从 ① 重新数，指的是「这一屏的第几格」，
+               * 一换轮次就指向另一张图。
+               * ⚠ 序号本身**没有消失**：选中态文案与读屏名照旧用它（那两处说的
+               * 就是「这一屏的第几格」），⛔ 不为了统一而把它们也换掉。
+               */}
+              <span
+                data-testid="operator-result-name"
+                className="pointer-events-none absolute left-1 top-1 rounded bg-card/85 px-1 font-mono text-xs tracking-nav tabular-nums text-foreground"
+              >
+                {buildGenerationTag({ id: item.id })}
               </span>
 
               {/* 底部渐变浮层（§3.1 ⑲）：默认透明，hover / 键盘聚焦才出现 ——

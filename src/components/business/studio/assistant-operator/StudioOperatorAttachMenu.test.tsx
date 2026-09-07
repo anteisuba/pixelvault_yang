@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useRef, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { buildGenerationDisplayName } from '@/lib/generation-name'
 import { StudioOperatorAttachMenu } from './StudioOperatorAttachMenu'
 
 const defaultProps = {
@@ -150,7 +151,12 @@ describe('StudioOperatorAttachMenu · 拍板 20 就地素材库弹层', () => {
     expect(onAttach.mock.calls[0]?.[0]).toEqual({
       id: 'gen-video',
       url: 'https://cdn.example.com/clip.mp4',
-      label: '借伞 30 秒',
+      // ⭐ 切片 N1：附件 label 是产物名（`视频_0xx·借伞 30 秒`）。
+      label: buildGenerationDisplayName({
+        id: 'gen-video',
+        outputType: 'VIDEO',
+        prompt: '借伞 30 秒',
+      }),
       kind: 'video',
     })
     // 视频没有缩略图时**不给** thumbnailUrl —— 回落到 url 会让 next/image 碎掉。
@@ -168,7 +174,11 @@ describe('StudioOperatorAttachMenu · 拍板 20 就地素材库弹层', () => {
     expect(onAttach.mock.calls[0]?.[0]).toEqual({
       id: 'gen-image',
       url: 'https://cdn.example.com/a.png',
-      label: '角色立绘',
+      label: buildGenerationDisplayName({
+        id: 'gen-image',
+        outputType: 'IMAGE',
+        prompt: '角色立绘',
+      }),
       kind: 'image',
       thumbnailUrl: 'https://cdn.example.com/a.png',
     })

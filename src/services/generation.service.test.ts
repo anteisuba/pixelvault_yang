@@ -45,6 +45,7 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+import { buildGenerationDisplayName } from '@/lib/generation-name'
 import {
   batchAssignProject,
   batchDeleteGenerations,
@@ -210,6 +211,82 @@ describe('generation.service', () => {
           previewStorageKey: 'generations/gen.preview.webp',
         }),
       })
+    })
+
+    it('每条产物落库即带名字（切片 N1：snapshot.displayName）', async () => {
+      mockGenerationCreate.mockResolvedValue(BASE_GENERATION)
+
+      await createGeneration({
+        url: BASE_GENERATION.url,
+        storageKey: BASE_GENERATION.storageKey,
+        mimeType: BASE_GENERATION.mimeType,
+        width: BASE_GENERATION.width,
+        height: BASE_GENERATION.height,
+        prompt: '银发少女立绘，雪原',
+        model: BASE_GENERATION.model,
+        provider: BASE_GENERATION.provider,
+        requestCount: 1,
+      })
+
+      const { data } = mockGenerationCreate.mock.calls[0]![0] as {
+        data: { id: string; snapshot: { displayName: string } }
+      }
+      // ⭐ 名字必须与纯函数按同一个 id 现算的一致 —— 否则读取侧（列表口不带
+      //    snapshot，按同一条规则现算）看到的会是另一个名字。
+      expect(data.snapshot.displayName).toBe(
+        buildGenerationDisplayName({
+          id: data.id,
+          outputType: 'IMAGE',
+          prompt: '银发少女立绘，雪原',
+        }),
+      )
+      expect(data.snapshot.displayName).toMatch(/^图_\d{3}·银发少女立绘，雪/)
+    })
+
+    it('displayLabel 覆盖摘要，且保留调用方自己的 snapshot 字段', async () => {
+      mockGenerationCreate.mockResolvedValue(BASE_GENERATION)
+
+      await createGeneration({
+        url: BASE_GENERATION.url,
+        storageKey: BASE_GENERATION.storageKey,
+        mimeType: BASE_GENERATION.mimeType,
+        width: BASE_GENERATION.width,
+        height: BASE_GENERATION.height,
+        prompt: '银发少女立绘',
+        model: BASE_GENERATION.model,
+        provider: BASE_GENERATION.provider,
+        requestCount: 1,
+        displayLabel: '主视觉',
+        snapshot: { imageUrl: 'https://example.com/a.png' },
+      })
+
+      const { data } = mockGenerationCreate.mock.calls[0]![0] as {
+        data: { snapshot: { displayName: string; imageUrl: string } }
+      }
+      expect(data.snapshot.displayName).toMatch(/^图_\d{3}·主视觉$/)
+      expect(data.snapshot.imageUrl).toBe('https://example.com/a.png')
+    })
+
+    it('视频产物用视频前缀', async () => {
+      mockGenerationCreate.mockResolvedValue(BASE_GENERATION)
+
+      await createGeneration({
+        url: BASE_GENERATION.url,
+        storageKey: BASE_GENERATION.storageKey,
+        mimeType: 'video/mp4',
+        width: BASE_GENERATION.width,
+        height: BASE_GENERATION.height,
+        prompt: '海边日落',
+        model: BASE_GENERATION.model,
+        provider: BASE_GENERATION.provider,
+        requestCount: 1,
+        outputType: 'VIDEO',
+      })
+
+      const { data } = mockGenerationCreate.mock.calls[0]![0] as {
+        data: { snapshot: { displayName: string } }
+      }
+      expect(data.snapshot.displayName).toMatch(/^视频_\d{3}·海边日落$/)
     })
 
     it('propagates database create failures', async () => {

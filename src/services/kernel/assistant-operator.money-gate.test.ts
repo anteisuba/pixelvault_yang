@@ -104,6 +104,17 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    */
   '@/services/project-rule.service',
   /**
+   * 上下文卡（第三期 K1）。⭐ 判据逐条与上面两条同源：一张**只有文本列与一列
+   * Json** 的表，Json 里存的是**已经上传好的** URL —— 不创建 generation、
+   * 不扣 credit、不调 provider、不碰 R2。它做的全部事情是把用户自己写下的一段
+   * 设定读出来。
+   * ⛔ 参考图**上传**那条腿（`context-cards-avatar.service`）**有意不在这份名单
+   * 里**：它会写 R2，所以它住在另一个文件 —— 与 persona「读写在名单里、头像上传
+   * 不在」是同一条论据的第三次应用。哪天有人想把上传挪进来「省一次往返」，
+   * 那就是这条判据破的那一天。
+   */
+  '@/services/context-cards.service',
+  /**
    * **抽帧落库**（第二期 · 视频域评审）。⭐ 这是第五次值得复核的改动，而且是名单
    * 里**第二条会往外写字节**的服务（第一条是 `project-rule.service` 写一行文本）。
    *
@@ -381,10 +392,33 @@ describe('⛔ 助手工具环的钱闸', () => {
     expect(source).toContain('uploadToR2')
   })
 
-  it('persona / 规则两个服务都不具备生成、扣费或上传能力', () => {
+  /**
+   * ⭐ 上下文卡两条工具（K1）都是**只读**，而卡上带着参考图 URL —— 最容易被
+   * 「顺手」改坏的正是这一点：下一个人会想「读到卡了不如直接把图挂上」，
+   * 而挂图那一跳一旦挪进服务端，它就得 import 上传那条腿。这条用例把两件事钉住：
+   * 工具在表里、在只读档里，而上传服务的三个名字一个都不许出现在工具环里。
+   */
+  it('上下文卡可读，而工具环仍然够不着参考图上传那条腿', () => {
+    expect(ASSISTANT_OPERATOR_TOOLS).toContain('list_context_cards')
+    expect(ASSISTANT_OPERATOR_TOOLS).toContain('read_context_card')
+    expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).not.toContain(
+      'list_context_cards',
+    )
+    expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).not.toContain('read_context_card')
+    expect(SOURCE).toContain('listContextCards')
+    expect(SOURCE).toContain('getContextCard')
+    // 上传那条腿的名字，一个都不许出现。
+    expect(SOURCE).not.toContain('context-cards-avatar')
+    expect(SOURCE).not.toContain('addContextCardImage')
+    expect(SOURCE).not.toContain('removeContextCardImage')
+    expect(SOURCE).not.toContain('purgeContextCardImages')
+  })
+
+  it('persona / 规则 / 上下文卡三个服务都不具备生成、扣费或上传能力', () => {
     for (const path of [
       'src/services/assistant-persona.service.ts',
       'src/services/project-rule.service.ts',
+      'src/services/context-cards.service.ts',
     ]) {
       const source = readFileSync(join(process.cwd(), path), 'utf8')
       for (const identifier of [

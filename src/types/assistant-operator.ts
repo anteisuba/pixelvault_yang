@@ -63,6 +63,12 @@ import {
   AssistantAssetFolderVisionResultSchema,
 } from '@/types/asset-folder-vision'
 import { LoraCandidateImportPayloadSchema } from '@/types/lora-candidate'
+import { CONTEXT_CARD_LIMITS } from '@/constants/context-cards'
+import {
+  ContextCardDigestSchema,
+  ContextCardKindSchema,
+  ContextCardSchema,
+} from '@/types/context-cards'
 import {
   ProjectRuleSchema,
   ProjectRuleScopeSchema,
@@ -1057,6 +1063,20 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     text: z.string().trim().min(1).max(RULE_LIMITS.maxTextChars),
     scope: ProjectRuleScopeSchema.optional(),
   }),
+  /**
+   * 上下文卡两条（K1）。
+   *
+   * ⚠ 列表那条**只有一个可选的类型过滤，没有查询词** —— 判据与
+   * `read_project_rules` 逐字同源：一个用户的卡总共几十张，全量列回来比让模型猜
+   * 一个关键词靠谱（猜错的表现是「明明建过的角色卡助手说没有」）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.listContextCards]: z.object({
+    kind: ContextCardKindSchema.optional(),
+  }),
+  /** ⚠ 只吃 id：卡名会重（两张都叫「西格莉卡」），id 不会。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.readContextCard]: z.object({
+    cardId: IdSchema,
+  }),
 }
 
 export const AssistantOperatorTurnSchema = z.object({
@@ -1224,6 +1244,13 @@ function spendStep<T extends AssistantOperatorTool, P extends z.ZodType>(
 
 export const AssistantOperatorSearchResultAssetSchema = z.object({
   assetId: IdSchema,
+  /**
+   * 产物名（`图_012·银发少女立绘`，切片 N1）—— **模型在句子里指认这一张时用的
+   * 就是它**，⛔ 不念 assetId（那串 uuid 它转手就抄错，而用户也核对不了）。
+   * ⚠ 可选：名字是纯函数现算的（`lib/generation-name.ts`），⛔ 不是准入凭证 ——
+   * 挂载照旧只认 `assetId`。
+   */
+  displayName: LabelSchema.optional(),
   url: z.string().url(),
   thumbnailUrl: z.string().url().optional(),
   kind: AssistantOperatorSearchKindSchema,
@@ -1818,6 +1845,27 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
     ProjectRuleSchema.extend({ ruleId: IdSchema }).omit({ id: true }),
     z.object({ ruleId: IdSchema }),
+  ),
+  /**
+   * 上下文卡两条（K1）——都是**读**，没有 `inverse`，日志条上不该出现撤销。
+   *
+   * ⚠ 列表那条的 `result` 只带**卡摘要**（id / 类型 / 名字 / 一句话 / 有没有硬
+   * 否定 / 几张图），⛔ 不带正文：正文四千字，塞进 SSE 载荷等于让每一条日志都
+   * 拖着一整份设定过网。正文由 `read_context_card` 单独拉。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
+    z.object({ kind: ContextCardKindSchema.nullable() }),
+    z.object({
+      cards: z
+        .array(ContextCardDigestSchema)
+        .max(CONTEXT_CARD_LIMITS.maxReadResults),
+    }),
+  ),
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
+    z.object({ cardId: IdSchema }),
+    ContextCardSchema.nullable(),
   ),
 ])
 

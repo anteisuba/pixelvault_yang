@@ -170,6 +170,16 @@ vi.mock('@/services/project-rule.service', async () => {
   }
 })
 
+/** 上下文卡（第三期 K1）—— 与规则那一份同形，一行库都不碰。 */
+const mockListContextCards = vi.fn(
+  async (..._args: unknown[]) => [] as unknown[],
+)
+const mockGetContextCard = vi.fn(async (..._args: unknown[]) => null as unknown)
+vi.mock('@/services/context-cards.service', () => ({
+  listContextCards: (...args: unknown[]) => mockListContextCards(...args),
+  getContextCard: (...args: unknown[]) => mockGetContextCard(...args),
+}))
+
 import {
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
@@ -5861,5 +5871,150 @@ describe('import_user_url · 已展示的候选（2026-09-06）', () => {
     expect((step.error as { reason: string }).reason).toBe(
       ASSISTANT_OPERATOR_REJECT_REASON_IDS.urlNotFromUser,
     )
+  })
+})
+
+describe('上下文卡（第三期 K1）', () => {
+  const CARD = {
+    id: 'card-1',
+    kind: 'character' as const,
+    name: 'Sigrika',
+    summary: 'Silver hair, gold eyes, control-room mech suit.',
+    body: '## Appearance\nSilver hair down to the shoulder.',
+    images: [
+      {
+        url: 'https://cdn.test/context-cards/u1/sheet.png',
+        role: 'sheet' as const,
+        sourceRef: 'official site',
+      },
+      {
+        url: 'https://cdn.test/context-cards/u1/mood.png',
+        role: 'reference' as const,
+        sourceRef: null,
+      },
+    ],
+    negative: 'air ripples, holographic overlay',
+    pinnedScopes: ['image'],
+    createdAt: '2026-09-07T10:00:00.000Z',
+    updatedAt: '2026-09-07T10:00:00.000Z',
+  }
+
+  it('一张常挂卡都没有时不印这一段', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(systemPrompt()).not.toContain('CONTEXT CARDS PINNED TO THIS')
+  })
+
+  /**
+   * ⭐ 摘要 + 硬否定 + 图 URL 进提示，**正文不进** —— 正文四千字，而系统提示每一步
+   * 都要重发。这条用例把那条判据钉死。
+   */
+  it('常挂卡按当前域拉，摘要 / 硬否定 / 图 URL 进提示，正文不进', async () => {
+    mockListContextCards.mockResolvedValue([CARD])
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain('CONTEXT CARDS PINNED TO THIS WORKBENCH')
+    expect(prompt).toContain('[card-1]')
+    expect(prompt).toContain(CARD.summary)
+    expect(prompt).toContain(`NEVER: ${CARD.negative}`)
+    expect(prompt).toContain(
+      '[sheet] https://cdn.test/context-cards/u1/sheet.png',
+    )
+    expect(prompt).toContain(
+      '[reference] https://cdn.test/context-cards/u1/mood.png',
+    )
+    // ⛔ 正文不在这一段里 —— 它靠 read_context_card 拉。
+    expect(prompt).not.toContain('Silver hair down to the shoulder')
+    // 按**当前域**收敛，⛔ 不把用户全部的卡拼进提示。
+    expect(mockListContextCards).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ pinnedScope: 'image' }),
+    )
+  })
+
+  it('两条只读工具都在工具表里', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const prompt = systemPrompt()
+    expect(prompt).toContain('list_context_cards:')
+    expect(prompt).toContain('read_context_card:')
+  })
+
+  it('list_context_cards 出摘要，⛔ 不带正文', async () => {
+    mockListContextCards.mockResolvedValue([CARD])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
+          title: 'check the cards',
+          args: {},
+        },
+      },
+      { finished: true },
+    )
+
+    // ⚠ 读类工具吐两帧（running / done）——结果在**后一帧**上。
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const step = steps.at(-1)!
+    expect(step.tool).toBe(ASSISTANT_OPERATOR_TOOL_IDS.listContextCards)
+    const result = step.result as { cards: { id: string }[] }
+    expect(result.cards).toEqual([
+      {
+        id: 'card-1',
+        kind: 'character',
+        name: 'Sigrika',
+        summary: CARD.summary,
+        hasNegative: true,
+        imageCount: 2,
+        pinnedScopes: ['image'],
+      },
+    ])
+  })
+
+  it('read_context_card 出全文 + 硬否定 + 逐张带分工的图', async () => {
+    mockGetContextCard.mockResolvedValue(CARD)
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
+          title: 'read the card',
+          args: { cardId: 'card-1' },
+        },
+      },
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const step = stepsOf(events).at(-1)!
+    expect((step.result as { body: string }).body).toContain(
+      'Silver hair down to the shoulder',
+    )
+    // 下一轮喂回给模型的那段观察里，图逐张带着它的分工。
+    const observation = lastUserPrompt()
+    expect(observation).toContain('[sheet]')
+    expect(observation).toContain('[reference]')
+  })
+
+  it('编出来的卡 id 拿不到卡，观察里明说别再编', async () => {
+    mockGetContextCard.mockResolvedValue(null)
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
+          title: 'read the card',
+          args: { cardId: 'card-made-up' },
+        },
+      },
+      { finished: true },
+    )
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(lastUserPrompt()).toContain('never invent one')
   })
 })

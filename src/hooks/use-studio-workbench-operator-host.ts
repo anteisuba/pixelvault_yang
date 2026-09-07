@@ -26,6 +26,7 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
 import { setOperatorPrimed } from '@/hooks/use-studio-operator-store'
+import { resolveGenerationDisplayName } from '@/lib/generation-name'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import {
   buildImageOperatorSnapshot,
@@ -39,9 +40,6 @@ import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator
  * ⚠ 参数写成结构类型而不是 `ReturnType<typeof useImageUpload>`：这个函数只用到
  * 两样东西，把整个上传 API 拖进签名只会让它看起来依赖更多。
  */
-/** 结果格 chip / 灯箱标题上那句话截多长 —— 一行放得下的长度。 */
-const RESULT_LABEL_CHARS = 40
-
 function removeReferenceByUrl(
   imageUpload: {
     referenceEntries: readonly { url: string }[]
@@ -317,9 +315,12 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
           ...(generation.thumbnailUrl
             ? { thumbnailUrl: generation.thumbnailUrl }
             : {}),
-          ...(generation.prompt
-            ? { label: generation.prompt.slice(0, RESULT_LABEL_CHARS) }
-            : {}),
+          /**
+           * ⭐ label = **产物名**（`图_012·银发少女立绘`，切片 N1）而不是提示词
+           * 前 40 字：这条 label 会成为 chip 上、灯箱标题上和 `@` 选择器里显示的
+           * 那串字，而用户要能**照着它打出来**指认这一张。
+           */
+          label: resolveGenerationDisplayName(generation),
         },
       ]
     })

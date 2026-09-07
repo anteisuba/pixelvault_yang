@@ -323,3 +323,21 @@ export type CivitaiLoraMirror = Prisma.CivitaiLoraMirrorModel
  * 以按 cursor 分片续跑：每次 cron 推进若干批，扫到头才收尾。
  */
 export type CivitaiMirrorSyncState = Prisma.CivitaiMirrorSyncStateModel
+/**
+ * Model ContextCard
+ * **上下文卡**（第三期 K1）—— 账号级、可 `@` 注入、可在工作台常挂的持久上下文。
+ * 
+ * 起因是 owner 的真实流程（EVA 复现，`S2` / `S4` / `S8`）：角色的外貌与服饰、
+ * 「什么不许出现」的硬否定串、参考图各自的分工，都靠他自己抄在四篇 docs 里，
+ * 助手一条都读不到。这张表就是那本册子。
+ * 
+ * ⛔ **有意不复用 `CharacterCard`**：那张表是**生成管线的产物** —— 必填
+ * `sourceImageUrl` / `sourceStorageKey`、挂着 LoRA 训练任务、配方、变体树与
+ * `stabilityScore`，它的一行是「从这张图训出来的这个角色资产」。这张表的一行是
+ * 「用户写下来的一段设定」：没有源图也成立、没有任何生成血缘、正文是 Markdown、
+ * 而且同一套列还要装风格与品牌。把两者并进一张表的表现是 `CharacterCard` 上
+ * 多出一堆只有半数行会填的列，而 `sourceImageUrl` 的必填约束会挡住纯文字的卡。
+ * 
+ * ⛔ 同理不复用 `StyleCard` / `BackgroundCard`：它们是同一套生成侧卡片体系。
+ */
+export type ContextCard = Prisma.ContextCardModel

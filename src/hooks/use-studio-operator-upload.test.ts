@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { buildGenerationDisplayName } from '@/lib/generation-name'
 import type { GenerationRecord } from '@/types'
 
 import {
@@ -341,6 +342,8 @@ describe('useStudioOperatorUpload · 探不到本地元数据不许把上传判�
 
 describe('toOperatorAttachment', () => {
   it('三处共用同一个映射：3D 也认得，缩略图缺席时不回落到 url', () => {
+    // ⭐ 切片 N1：`label` 默认是**产物名**（`模型_0xx·一只小狐狸`）——三处显示的
+    //    与用户能 `@` 出来的必须是同一串字。
     expect(
       toOperatorAttachment(
         generation({
@@ -353,7 +356,11 @@ describe('toOperatorAttachment', () => {
     ).toEqual({
       id: 'gen-3d',
       url: 'https://cdn.example.com/mesh.glb',
-      label: '一只小狐狸',
+      label: buildGenerationDisplayName({
+        id: 'gen-3d',
+        outputType: 'MODEL_3D',
+        prompt: '一只小狐狸',
+      }),
       kind: 'model3d',
     })
   })

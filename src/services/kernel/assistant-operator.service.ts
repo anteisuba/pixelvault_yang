@@ -120,6 +120,19 @@ import {
   listProjectRules,
 } from '@/services/project-rule.service'
 /**
+ * ⭐ 上下文卡（第三期 K1）。判据与上面两条逐字同源：一张只有文本列与一列 Json
+ * 的表，而 Json 里存的是**已经上传好的** URL —— 读写它不创建 generation、
+ * 不扣 credit、不调任何 provider、**不碰 R2**。
+ * ⛔ 参考图**上传**那条腿有意住在另一个文件，且**不在**钱闸名单里：它会写 R2。
+ * 工具环因此在 import 表上就够不着上传 —— 与 persona 的头像「读写在名单里、
+ * 上传不在」是同一条论据的第三次应用。那个文件的名字逐字写在
+ * `assistant-operator.money-gate.test.ts` 的禁字表里（写在这里会让那条用例自己红）。
+ */
+import {
+  getContextCard,
+  listContextCards,
+} from '@/services/context-cards.service'
+/**
  * ⭐ 借一条**能看图**的路（P3-C）。加它进钱闸白名单的判据与
  * `web-research.service` 同一条：它是**路由解析**模块 —— 产出是一把 key 加一个
  * adapter，一个字节都不落、一分钱都不扣（真正花钱的那次补全走的仍是本文件已经
@@ -169,6 +182,11 @@ import {
 import { runAssistantResearch } from '@/services/research/research-fanout.service'
 import { createOperatorMessageStreamer } from '@/lib/assistant-operator-stream'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
+import {
+  deriveGenerationSerial,
+  readGenerationMentions,
+  resolveGenerationDisplayName,
+} from '@/lib/generation-name'
 import { logger } from '@/lib/logger'
 import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
@@ -190,6 +208,9 @@ import {
 } from '@/types/assistant-operator'
 import type { OutputType, PromptAssistantResponseLanguage } from '@/types'
 import type { AssistantPersona, ProjectRule } from '@/types/assistant-persona'
+import { toContextCardDigest, type ContextCard } from '@/types/context-cards'
+import type { ContextCardKindId } from '@/constants/context-cards'
+import { CONTEXT_CARD_LIMITS as CARD_LIMITS } from '@/constants/context-cards'
 import type { AssistantAssetFolderCandidate } from '@/types/asset-folder-vision'
 import type { LoraCandidate } from '@/types/lora-candidate'
 
@@ -424,6 +445,11 @@ interface OperatorRun {
    * ⚠ 开跑前就把进系统提示的那几条塞进来（模型引用它们时不必先调工具）。
    */
   ruleIndex: Map<string, ProjectRule>
+  /**
+   * 本轮见过的上下文卡（K1）。⚠ 与 `ruleIndex` 同一个用途：常挂那几张一开始就在
+   * 索引里，模型引用它们不必先调一次工具。
+   */
+  contextCardIndex: Map<string, ContextCard>
 }
 
 /**
@@ -918,6 +944,9 @@ function planSearchAssets(
         .slice(0, limit)
         .map(({ generation, url, kind }) => ({
           assetId: generation.id,
+          // 名字与用户屏幕上那串字是同一个（同一条纯函数，切片 N1）——
+          // 模型说「图_012 的手有问题」时，用户看着结果行卡就知道说的是哪一张。
+          displayName: resolveGenerationDisplayName(generation),
           url,
           ...(generation.thumbnailUrl
             ? { thumbnailUrl: generation.thumbnailUrl }
@@ -944,7 +973,7 @@ function planSearchAssets(
           : `search_assets("${args.query}") → ${assets.length} asset(s):\n${assets
               .map(
                 (asset, index) =>
-                  `  ${index + 1}. assetId=${asset.assetId} · ${asset.kind}${
+                  `  ${index + 1}. ${asset.displayName} (assetId=${asset.assetId}) · ${asset.kind}${
                     asset.prompt ? ` · "${asset.prompt}"` : ''
                   }`,
               )
@@ -2665,6 +2694,31 @@ type CritiqueTarget =
       options: { id: string; label: string; assetUrl: string }[]
     }
 
+/**
+ * 用户 `@` 上来的那批里，名字（`图_012` / `@图_012·摘要`）指的是哪一张。
+ *
+ * ⚠ 判据是**身份段**（`lib/generation-name.ts` 的纯函数），不是字符串包含 ——
+ * 摘要写没写、写得对不对都不影响，而一条摘要里恰好含 `图_012` 的素材也不会
+ * 被误命中。名单里没有 → `undefined` → 调用方按 `unknownAsset` 拒。
+ */
+function matchMentionedByName(
+  mentioned: NonNullable<AssistantOperatorRequest['mentionedAssets']>,
+  wanted: string,
+): (typeof mentioned)[number] | undefined {
+  const [token] = readGenerationMentions(
+    wanted.startsWith('@') ? wanted : `@${wanted}`,
+  )
+  if (!token) return undefined
+  /**
+   * ⚠ 按**序号**比，⛔ 不比整个身份段：这张名单上没有 `outputType`（契约里只有
+   * id / url / label），照 `图_` 拼一遍会让视频那几条（`视频_0xx`）永远对不上。
+   * 序号只由 id 决定，前缀是给人看的那一半。
+   */
+  return mentioned.find(
+    (asset) => deriveGenerationSerial(asset.id) === token.serial,
+  )
+}
+
 function resolveCritiqueTarget(
   run: OperatorRun,
   targetIds: string[] | undefined,
@@ -2673,9 +2727,15 @@ function resolveCritiqueTarget(
 
   if (targetIds?.length) {
     const wanted = targetIds[0] as string
-    const hit = mentioned.find(
-      (asset) => asset.id === wanted || asset.url === wanted,
-    )
+    const hit =
+      mentioned.find((asset) => asset.id === wanted || asset.url === wanted) ??
+      /**
+       * **产物名**也认（`图_012`，切片 N1）—— 系统提示让模型用名字指认，那这条闸
+       * 就必须听得懂名字，否则「按我们教的说法说话」= 一律被拒。
+       * ⛔ 名字仍然**不是凭证**：只在 `mentionedAssets` 这张名单里找，找不到照旧
+       * `unknownAsset`。名字是称呼，名单才是权限。
+       */
+      matchMentionedByName(mentioned, wanted)
     if (!hit) return { kind: 'unknown' }
     /**
      * ⚠ 一次只看一张（同 `readOperatorClaimEvidence` 的「只取一张」）：评价卡内嵌
@@ -3132,6 +3192,107 @@ async function planAddProjectRule(
   }
 }
 
+// ─── 上下文卡（第三期 K1）────────────────────────────────────────
+
+/**
+ * 列出用户的上下文卡。
+ *
+ * ⚠ 结果里**只有摘要**（`toContextCardDigest`）—— 正文四千字，塞进这一步的载荷
+ * 等于让每一条日志都拖着一整份设定过网。要正文的那一跳是 `read_context_card`。
+ * ⚠ 空结果**说出来**：静默的空结果会让模型接着编一张卡出来引用。
+ */
+function planListContextCards(
+  run: OperatorRun,
+  args: { kind?: ContextCardKindId },
+  userId: string,
+): ToolPlan {
+  const kind = args.kind ?? null
+
+  return {
+    kind: 'read',
+    payload: { kind },
+    run: async () => {
+      const cards = await listContextCards(userId, {
+        kind,
+        limit: CARD_LIMITS.maxReadResults,
+      })
+      for (const card of cards) run.contextCardIndex.set(card.id, card)
+
+      const observation =
+        cards.length === 0
+          ? 'list_context_cards found NO context cards for this creator. Do not invent one, and do not cite a card id.'
+          : `list_context_cards → ${cards.length} card(s):\n${cards
+              .map(
+                (card) =>
+                  `  - id=${card.id} · ${card.kind} · "${card.name}" · ${
+                    card.summary || 'no summary'
+                  } · ${card.images.length} reference image(s)${
+                    card.negative ? ' · has hard negatives' : ''
+                  }`,
+              )
+              .join('\n')}`
+
+      return {
+        result: { cards: cards.map(toContextCardDigest) },
+        observation,
+      }
+    },
+  }
+}
+
+/**
+ * 读一张卡的全文。
+ *
+ * ⚠ 正文按 `CARD_LIMITS.maxBodyInToolChars` 截 —— 与 `read_url` 的截段同一条判据：
+ * 整篇进工具环 = 之后每一步都要重付一次这段上下文的钱。
+ * ⚠ 参考图**逐张带上它的分工**（sheet 是身份证据 / closeup 是部件细节 /
+ * reference 只是口味）：owner 在 `VIDEO-LESSONS` 里记下的那次失败，起因正是三张
+ * 图被一视同仁地全挂上。
+ * ⚠ 读到就是读到 —— **这一步不挂任何东西**，挂图是之后那条 `mount_reference`。
+ */
+function planReadContextCard(
+  run: OperatorRun,
+  args: { cardId: string },
+  userId: string,
+): ToolPlan {
+  return {
+    kind: 'read',
+    payload: { cardId: args.cardId },
+    run: async () => {
+      const card = await getContextCard(userId, args.cardId)
+      if (!card) {
+        return {
+          result: null,
+          observation: `read_context_card found no card with id=${args.cardId}. Call list_context_cards and use an id from that list — never invent one.`,
+        }
+      }
+      run.contextCardIndex.set(card.id, card)
+
+      const body = clamp(card.body, CARD_LIMITS.maxBodyInToolChars)
+      const images =
+        card.images.length === 0
+          ? '  (no reference images on this card)'
+          : card.images
+              .map(
+                (image) =>
+                  `  - [${image.role}] ${image.url}${
+                    image.sourceRef ? ` (source: ${image.sourceRef})` : ''
+                  }`,
+              )
+              .join('\n')
+
+      return {
+        result: card,
+        observation: `read_context_card → ${card.kind} card "${card.name}"
+${body || '(no body written)'}
+${card.negative ? `HARD NEGATIVES for this card: ${card.negative}` : 'This card carries no hard negatives.'}
+REFERENCE IMAGES — mount the ones you need with mount_reference; reading this card mounted nothing:
+${images}`,
+      }
+    },
+  }
+}
+
 async function planTool(
   run: OperatorRun,
   tool: AssistantOperatorTool,
@@ -3316,6 +3477,14 @@ async function planTool(
         parsed.data as { text: string; scope?: AssistantOperatorDomain },
         userId,
       )
+    case TOOL.listContextCards:
+      return planListContextCards(
+        run,
+        parsed.data as { kind?: ContextCardKindId },
+        userId,
+      )
+    case TOOL.readContextCard:
+      return planReadContextCard(run, parsed.data as { cardId: string }, userId)
     default:
       return assertNever(tool)
   }
@@ -3502,6 +3671,47 @@ ${lines}
 }
 
 /**
+ * **常挂的上下文卡**段（第三期 K1）—— 用户在这台工作台上挂着的角色 / 风格 /
+ * 品牌，每一轮都摆在模型面前。
+ *
+ * ⭐ **为什么不是只给两条工具**：一张助手从没读过的卡等于没有（与项目规则那段
+ * 逐字同一条论据）。常挂的意思就是「这台工作台上默认带着它」——还要模型先调一次
+ * 工具才知道它存在，那颗常挂开关就白按了。
+ * ⭐ **为什么只放摘要 + 硬否定 + 图 URL，不放正文**：正文四千字，而系统提示每一步
+ * 都要重发。摘要说清「这是谁」，正文按需靠 `read_context_card` 拉。
+ * ⚠ **图的分工逐张写出来**：sheet 是身份证据，reference 只是口味 —— 混着挂正是
+ * owner 在 `VIDEO-LESSONS` 里记下的那次失败。
+ */
+function buildContextCardsSection(cards: readonly ContextCard[]): string {
+  if (cards.length === 0) return ''
+
+  const lines = cards
+    .map((card) => {
+      const images =
+        card.images.length === 0
+          ? null
+          : card.images
+              .map((image) => `      [${image.role}] ${image.url}`)
+              .join('\n')
+      return [
+        `  - [${card.id}] ${card.kind} · "${card.name}" — ${card.summary || 'no summary written'}`,
+        card.negative ? `      NEVER: ${card.negative}` : null,
+        images,
+      ]
+        .filter((line): line is string => line !== null)
+        .join('\n')
+    })
+    .join('\n')
+
+  return `\n\nCONTEXT CARDS PINNED TO THIS WORKBENCH — the creator keeps these and expects you to work from them without being reminded:
+${lines}
+- A character card decides who is in the picture: its appearance and outfit go into the prompt, and its NEVER line goes into the negative prompt. A style or brand card decides how it looks — fold its rules into set_prompt instead of inventing your own look.
+- The image URLs above are ready to mount with mount_reference, as they are. A [sheet] image is identity evidence — the face and the outfit are decided by it; a [reference] image is only taste. Never mix them as if they carried the same weight, and never mount all of them by reflex.
+- Only the summary is quoted here. When you need the full description — the exact hair, the outfit details, the personality — call read_context_card with that id before you write the prompt.
+- These cards are the creator's, not yours. Never contradict one silently: if a request fights a pinned card, say so in one line and ask which one wins.`
+}
+
+/**
  * 图示词表段（§9）。
  *
  * ⭐ **32 项逐条列全**是这一段的全部要点：只写「从预置词表里选」的下场是模型
@@ -3522,6 +3732,7 @@ function buildOperatorSystemPrompt(
   request: AssistantOperatorRequest,
   persona: AssistantPersona,
   rules: readonly ProjectRule[],
+  contextCards: readonly ContextCard[],
 ): string {
   const brief = ASSISTANT_DOMAIN_BRIEFS[request.domain]
   const language =
@@ -3616,6 +3827,7 @@ HARD RULES — these are structural, not stylistic:
 - You CANNOT generate anything. No tool of yours spends the creator's credits. The most you can do is prime_generate, which arms the button; the creator presses it. Never claim you generated, rendered, or started anything.
 - You may only touch knobs that exist on this workbench. The state block tells you which ones exist; a field described as absent has no control behind it, and calling its tool will be refused.
 - Never invent a model id or an asset id. Model ids come from the state block, asset ids come from search_assets results. A made-up id is refused and wastes a step.
+- Every asset the creator owns has a NAME, printed by search_assets and attached to what they hand you (图_012·silver-haired girl). Call it by that name whenever you talk about it — "the second one" is ambiguous the moment they scroll, and an asset id is a uuid neither of you can check by eye. Never read an id out loud; ids belong inside tool arguments only.
 - Never invent a folder id. Call list_asset_folders first, then pass one exact folderId from THIS run to inspect_asset_folder. Folder names alone are ambiguous.
 - THE CREATOR HANDED YOU A LINK → call import_user_url on it, right then. Their link is their yes. It works for a direct image address and for an ordinary web page alike. Never answer a link with a search, and never ask them to save it, upload it, or pick it out of a list — you have the tool, so you do it.
 - When a request turns on a fact you are not sure of — how an official name is spelled, what a character or product actually looks like in its source, a game's own terminology, a platform's current rules — call search_web and look it up before you write it into the form. One search step is cheaper than a prompt full of confident inventions. It returns extracts, not whole pages: name the source when it matters, and say plainly when the extracts do not answer the question. It finds words, never pictures.
@@ -3638,7 +3850,7 @@ HOW YOU TALK — the creator hired an operator, not a rulebook:
 - NEVER recite your own constraints to them. Not what you cannot do, not why, not "as I mentioned". They did not ask for the manual, and repeating it makes them do the thinking you were hired for.
 - If a tool in your list can do a thing, DO IT. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The one exception is the generate button itself, which is theirs by design.
 - When a call is refused, change the approach silently. Say what you are doing next, not which rule stopped you. Never explain the same rule twice.
-- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.${buildPersonaStyleSection(persona)}${buildProjectRulesSection(rules)}
+- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.${buildPersonaStyleSection(persona)}${buildProjectRulesSection(rules)}${buildContextCardsSection(contextCards)}
 
 TOOLS:
 ${tools}
@@ -4034,11 +4246,20 @@ export async function* runAssistantOperator(
    * ⚠ 不在每一步重读：系统提示每一步都要重发，但它每一步都是同一份 —— 重读只是
    * 给每一步多加一次库查询。⚠ 也不从客户端收：这两样直连系统提示。
    */
-  const [persona, rules] = await Promise.all([
+  const [persona, rules, contextCards] = await Promise.all([
     getAssistantPersonaByUserId(user.id),
     listProjectRules(user.id, {
       scope: request.domain,
       limit: RULE_LIMITS.maxInPrompt,
+    }),
+    /**
+     * 常挂在**当前域**上的上下文卡（K1）。⚠ 按 `pinnedScopes` 命中收敛，
+     * ⛔ 不把用户全部的卡拼进提示 —— 常挂那颗开关的全部意义就是「这台工作台上
+     * 带哪几张」，全带等于没有这颗开关。没挂的那些靠 `list_context_cards` 翻。
+     */
+    listContextCards(user.id, {
+      pinnedScope: request.domain,
+      limit: CARD_LIMITS.maxInPrompt,
     }),
   ])
 
@@ -4047,6 +4268,8 @@ export async function* runAssistantOperator(
     persona,
     // 进了系统提示的那几条一开始就在索引里 —— 引用它们不必先调一次工具。
     ruleIndex: new Map(rules.map((rule) => [rule.id, rule])),
+    // 进了系统提示的那几张卡一开始就在索引里 —— 引用它们不必先调一次工具。
+    contextCardIndex: new Map(contextCards.map((card) => [card.id, card])),
     state: toWorkingState(request.snapshot),
     route,
     modelId,
@@ -4062,7 +4285,12 @@ export async function* runAssistantOperator(
     stepSeq: 0,
   }
 
-  const systemPrompt = buildOperatorSystemPrompt(request, persona, rules)
+  const systemPrompt = buildOperatorSystemPrompt(
+    request,
+    persona,
+    rules,
+    contextCards,
+  )
   let planEmitted = false
   /** 本轮已经吐过薄卡的规则 —— 同一条不重复贴（见下面那段）。 */
   const emittedRuleHits = new Set<string>()

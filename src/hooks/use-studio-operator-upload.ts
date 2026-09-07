@@ -39,6 +39,7 @@ import {
   USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES,
 } from '@/constants/uploads'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { resolveGenerationDisplayName } from '@/lib/generation-name'
 import {
   uploadAudioFileAPI,
   uploadImageFileAPI,
@@ -67,6 +68,13 @@ import type {
  * `label` 可覆盖：刚传上去的东西 `prompt` 是空的，回落到 `model` 会得到
  * `user-upload` 这个零信息量的字符串（P2 遗留 ④）。上传通道知道文件叫什么，
  * 就用文件名。
+ *
+ * ── 2026-09-07 · 切片 N1：`label` 默认是**产物名** ────────────────
+ * `图_012·银发少女立绘`。理由是这条 label 同时是三处的显示名（选择器行、chip、
+ * 灯箱标题）**和**用户在正文里 `@` 出来的那串字 —— 三处显示的与能打出来的必须
+ * 是同一个词，否则「按看到的名字指认」这件事第一步就断了。
+ * ⚠ 名字优先取 snapshot 里存的那个；列表口不带 snapshot，按同一条纯函数现算，
+ * 身份段（`图_012`）一定相同（见 `lib/generation-name.ts` 头注）。
  */
 export function toOperatorAttachment(
   generation: GenerationRecord,
@@ -87,7 +95,7 @@ export function toOperatorAttachment(
   return {
     id: generation.id,
     url: generation.url,
-    label: label ?? (generation.prompt.slice(0, 40) || generation.model),
+    label: label ?? resolveGenerationDisplayName(generation),
     kind,
     ...(thumbnailUrl ? { thumbnailUrl } : {}),
   }

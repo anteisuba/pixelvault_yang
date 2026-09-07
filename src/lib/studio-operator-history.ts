@@ -241,6 +241,14 @@ export function describeOperatorStepDetail(
       return `${step.result?.rules.length ?? 0}`
     case ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule:
       return step.payload.text
+    /**
+     * 上下文卡两条（K1）：列表显示张数，读全文显示**卡名** —— 用户认的是那个
+     * 名字，不是 uuid。卡没找到时那一步的 `result` 是 null，显示空。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.listContextCards:
+      return `${step.result?.cards.length ?? 0}`
+    case ASSISTANT_OPERATOR_TOOL_IDS.readContextCard:
+      return step.result?.name ?? ''
   }
 }
 
@@ -536,8 +544,14 @@ export function historyToOperatorMessages(
     if (entry.kind === 'user') {
       const attachmentNote =
         entry.attachments.length > 0
-          ? `\n[attached: ${entry.attachments
-              .map((attachment) => `${attachment.kind} ${attachment.url}`)
+          ? // ⭐ 名字写在最前（切片 N1）：模型要用 `图_012` 指认这一张，而不是
+            //   念一串它会抄错、用户也核对不了的地址。地址仍然带着 —— 视觉线
+            //   与 `critique_result` 的目标匹配都还认它。
+            `\n[attached: ${entry.attachments
+              .map(
+                (attachment) =>
+                  `${attachment.label} (${attachment.kind}) ${attachment.url}`,
+              )
               .join(', ')}]`
           : ''
       messages.push({ role: 'user', content: `${entry.text}${attachmentNote}` })

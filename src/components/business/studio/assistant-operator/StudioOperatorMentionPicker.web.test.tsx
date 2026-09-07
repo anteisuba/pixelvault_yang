@@ -3,6 +3,10 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { STUDIO_OPERATOR_MENTION } from '@/constants/studio-assistant-operator'
+import {
+  buildGenerationDisplayName,
+  buildGenerationTag,
+} from '@/lib/generation-name'
 
 import { StudioOperatorMentionPicker } from './StudioOperatorMentionPicker'
 
@@ -97,6 +101,50 @@ async function renderPicker(overrides: { query?: string } = {}) {
   })
   return { onPick, onDismiss }
 }
+
+describe('StudioOperatorMentionPicker · 按产物名搜（切片 N1）', () => {
+  it('打 `@图_` 时最近生成按名字过滤 —— 名字就是行上显示的那串字', async () => {
+    const named = [
+      {
+        id: 'g1',
+        url: 'https://cdn.test/1.png',
+        label: buildGenerationDisplayName({ id: 'g1', prompt: '海报 A' }),
+        kind: 'image' as const,
+      },
+      {
+        id: 'g2',
+        url: 'https://cdn.test/2.png',
+        label: buildGenerationDisplayName({ id: 'g2', prompt: '海报 B' }),
+        kind: 'image' as const,
+      },
+    ]
+    const tag = buildGenerationTag({ id: 'g2' })
+    fetchGalleryImages.mockResolvedValue({
+      success: true,
+      data: { generations: [] },
+    })
+
+    render(
+      <StudioOperatorMentionPicker
+        searchTypes={['image']}
+        query={tag}
+        recent={named}
+        onPick={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      vi.advanceTimersByTime(STUDIO_OPERATOR_MENTION.searchDebounceMs)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const options = screen.getAllByTestId('operator-mention-option')
+    expect(options).toHaveLength(1)
+    expect(options[0]?.textContent).toContain(tag)
+    expect(options[0]?.textContent).toContain('海报 B')
+  })
+})
 
 describe('StudioOperatorMentionPicker · 搜哪几类', () => {
   it('把 searchTypes 原样交给素材库那一跳（视频档要搜得到片子）', async () => {

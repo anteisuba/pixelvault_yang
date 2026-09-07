@@ -2,6 +2,12 @@ import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
+import { ASSISTANT_MENTION_LIMITS } from '@/constants/generation-naming'
+import {
+  buildGenerationTag,
+  deriveGenerationSerial,
+  formatGenerationSerial,
+} from '@/lib/generation-name'
 
 /**
  * `@` 那条 chip 管线的回归闸（`pages/assistant-shell.md` §3.3 / §7）。
@@ -12,7 +18,9 @@ import { ASSET_DND_MIME } from '@/constants/asset-dnd'
  *  ② 选中之后 `@token` 从草稿里剪掉（chip 才是引用的载体）；
  *  ③ chip 按 id 去重 —— 四个入口都可能指向同一张图，重复会让「将看 N 张」说谎；
  *  ④ 「将看 N 张」超过 8 转 warning，**但不拦不截**（owner 2026-09-06）；
- *  ⑤ 拖进来的东西：库内资产（`ASSET_DND_MIME`）成 chip，其余原样交回上传通道。
+ *  ⑤ 拖进来的东西：库内资产（`ASSET_DND_MIME`）成 chip，其余原样交回上传通道；
+ *  ⑥ 正文里直接写产物名（`@图_012`）也成 chip —— 名字命中 / 未知名字 / 超限
+ *    三条（切片 N1）。
  */
 
 const fetchGenerationByIdAPI = vi.hoisted(() => vi.fn())
@@ -188,5 +196,78 @@ describe('useStudioOperatorMention', () => {
     expect(files).toEqual([file])
     expect(fetchGenerationByIdAPI).not.toHaveBeenCalled()
     expect(result.current.chips).toHaveLength(0)
+  })
+})
+
+describe('syncNameMentions（正文里直接写产物名）', () => {
+  it('名字命中最近生成 → 成 chip', () => {
+    const { result } = render()
+    const candidate = chip('g1')
+
+    let added: readonly { id: string }[] = []
+    act(() => {
+      added = result.current.syncNameMentions(
+        `把 @${buildGenerationTag({ id: 'g1' })} 换个背景`,
+        [candidate],
+      )
+    })
+
+    expect(added.map((item) => item.id)).toEqual(['g1'])
+    expect(result.current.chips.map((item) => item.id)).toEqual(['g1'])
+  })
+
+  it('未知名字 ⛔ 不成 chip（⛔ 也不静默挂一张别的）', () => {
+    const { result } = render()
+    const unknown = (deriveGenerationSerial('g1') + 500) % 1000
+
+    act(() => {
+      result.current.syncNameMentions(
+        `@图_${formatGenerationSerial(unknown)}`,
+        [chip('g1')],
+      )
+    })
+
+    expect(result.current.chips).toHaveLength(0)
+  })
+
+  it('同一个名字继续打字不会重复上报（chip 也只有一张）', () => {
+    const { result } = render()
+    const tag = buildGenerationTag({ id: 'g1' })
+
+    act(() => {
+      result.current.syncNameMentions(`@${tag}`, [chip('g1')])
+    })
+    let again: readonly { id: string }[] = []
+    act(() => {
+      again = result.current.syncNameMentions(`@${tag} 再来`, [chip('g1')])
+    })
+
+    expect(again).toHaveLength(0)
+    expect(result.current.chips).toHaveLength(1)
+  })
+
+  it(`一条消息最多解析 ${ASSISTANT_MENTION_LIMITS.maxPerMessage} 个名字`, () => {
+    const { result } = render()
+    // 序号互不相同的一批候选（撞号的丢掉，用例要的是「够多」而不是「正好」）。
+    const candidates: ReturnType<typeof chip>[] = []
+    const seen = new Set<number>()
+    for (let index = 0; candidates.length < 14 && index < 200; index += 1) {
+      const id = `g-${index}`
+      const serial = deriveGenerationSerial(id)
+      if (seen.has(serial)) continue
+      seen.add(serial)
+      candidates.push(chip(id))
+    }
+    const text = candidates
+      .map((item) => `@${buildGenerationTag({ id: item.id })}`)
+      .join(' ')
+
+    act(() => {
+      result.current.syncNameMentions(text, candidates)
+    })
+
+    expect(result.current.chips).toHaveLength(
+      ASSISTANT_MENTION_LIMITS.maxPerMessage,
+    )
   })
 })

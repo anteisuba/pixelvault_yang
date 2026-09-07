@@ -3,12 +3,13 @@
 /**
  * `@` 提及的**唯一一条 chip 管线**（`pages/assistant-shell.md` §3.3 / §7）。
  *
- * 四个入口一条管线：
+ * 五个入口一条管线：
  *  ① 输入框打 `@` → 就地选择器（`StudioOperatorMentionPicker`）；
  *  ② 结果行卡缩略图 hover →「问助手」；
  *  ③ 拖一张图进输入框 —— **库里的资产成 chip，其余原样交回上传通道**；
- *  ④ 助手歧义反问的单选卡（组件已就位，服务端接线是第 3 轮的事）。
- * 四条最后都落到 `addChip`，⛔ 没有第二套「引用」形状。
+ *  ④ 助手歧义反问的单选卡（组件已就位，服务端接线是第 3 轮的事）；
+ *  ⑤ 正文里直接写产物名 `@图_012`（切片 N1 —— `syncNameMentions`）。
+ * 五条最后都落到 `addChip`，⛔ 没有第二套「引用」形状。
  *
  * ── 为什么 chip 就是 `StudioOperatorAttachment` ────────────────────
  * 发送时它们与 📎 挂上来的那些**合成同一个数组**送出去，服务端一个新字段都没有
@@ -37,6 +38,7 @@ import {
 } from '@/hooks/use-studio-operator-store'
 import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { fetchGenerationByIdAPI } from '@/lib/api-client/gallery'
+import { resolveGenerationMentions } from '@/lib/generation-name'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 
 /** 光标前那个 `@token` 在草稿里的位置与内容。 */
@@ -129,6 +131,29 @@ export interface UseStudioOperatorMentionResult {
   /** 选中一条：加 chip、剪掉 `@token`，返回新草稿供调用方写回。 */
   pick(draft: string, attachment: StudioOperatorAttachment): string
   /**
+   * **正文里直接写名字**（切片 N1，第五个入口）。
+   *
+   * 用户不点选择器，直接打 `@图_012 换个背景` —— 命中就成 chip。三条判据：
+   *  ① 只认**身份段**（`图_012`），摘要写不写、写错都不影响命中；
+   *  ② 名字**不是凭证**：只在 `candidates`（最近生成 + 已有 chip 那一批）里找，
+   *    找不到就什么都不做 —— ⛔ 不静默挂一张别的图；
+   *  ③ 一条消息最多 `ASSISTANT_MENTION_LIMITS.maxPerMessage` 个（见常量头注：
+   *    与「chip 不设硬上限」不冲突，限的是我们**替用户**做的那部分）。
+   *
+   * ⚠ 与选择器那条路不同，**正文里的那几个字保留**：`cutMentionTrigger` 剪掉是因为
+   * 选完之后那段 `@海报` 已经没有意义（chip 才是载体），而这里那串名字本身就是
+   * 用户写给助手看的指认词 —— 剪掉会让句子变成「 换个背景」。
+   *
+   * ⚠ 之后把名字从正文里删掉**不会**自动摘掉 chip：摘 chip 是一个用户按 × 的显式
+   * 动作。反向自动摘除会在「改错字重打一遍」时把用户刚挂上的图弄没。
+   *
+   * 返回这一次新挂上的那几条（多半是空数组 —— 用户没写名字）。
+   */
+  syncNameMentions(
+    text: string,
+    candidates: readonly StudioOperatorAttachment[],
+  ): readonly StudioOperatorAttachment[]
+  /**
    * 拖进输入框的东西。
    *
    * ⭐ 返回值是「**该走上传通道**的那些文件」—— 库内资产已经在这里变成 chip 了，
@@ -177,6 +202,28 @@ export function useStudioOperatorMention(): UseStudioOperatorMentionResult {
     [trigger],
   )
 
+  const syncNameMentions = useCallback(
+    (
+      text: string,
+      candidates: readonly StudioOperatorAttachment[],
+    ): readonly StudioOperatorAttachment[] => {
+      const hits = resolveGenerationMentions(text, candidates)
+      const added: StudioOperatorAttachment[] = []
+      for (const hit of hits) {
+        const attachment = candidates.find((item) => item.id === hit.id)
+        // 已经挂着的那条不算「新挂上」——`addOperatorMention` 自己按 id 去重，
+        // 这里只是不把它再报一次给调用方（否则每敲一个键都像挂了一张新图）。
+        if (!attachment || mentions.some((item) => item.id === attachment.id)) {
+          continue
+        }
+        addOperatorMention(attachment)
+        added.push(attachment)
+      }
+      return added
+    },
+    [mentions],
+  )
+
   const acceptDrop = useCallback(
     (dataTransfer: DataTransfer | null): readonly File[] => {
       if (!dataTransfer) return []
@@ -217,6 +264,7 @@ export function useStudioOperatorMention(): UseStudioOperatorMentionResult {
     syncDraft,
     closePicker,
     pick,
+    syncNameMentions,
     acceptDrop,
   }
 }

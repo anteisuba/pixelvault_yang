@@ -13,8 +13,14 @@
 import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
-import { getNodeV4Ports, NODE_SLOT_IDS } from '@/constants/node-slots'
+import {
+  getNodeV4Ports,
+  NODE_SLOT_IDS,
+  NODE_SLOT_TEXT_ROLE_FALLBACK,
+} from '@/constants/node-slots'
+import { NODE_V4_VIDEO_SUBTYPE_IDS } from '@/constants/node-types'
 import { NODE_V4_CARD } from '@/constants/node-studio'
+import { formatShotDisplayName } from '@/lib/node-display-name'
 import type { NodeV4, NodeV4VideoData } from '@/types/node-workflow'
 
 import { useNodeV4Canvas } from './NodeV4Context'
@@ -27,6 +33,14 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const videoData = data as unknown as NodeV4VideoData
   const node = canvas.nodes.find((item) => item.id === id) as NodeV4 | undefined
   if (!node) return null
+
+  // `label` 只在 `subtype === 'shot'` 上必填（`NodeV4VideoDataSchema` 是按 subtype
+  // 的 discriminatedUnion），所以读它之前先收窄，⛔ 不用 `?.` 糊过去。
+  // 显示串 = `S02·有人还在`，**渲染时才拼**：落库的是 `label` 与 `shotNo` 两个字段。
+  const displayName =
+    videoData.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
+      ? formatShotDisplayName(videoData.label, videoData.shotNo)
+      : videoData.name
 
   const expanded = canvas.expandedNodeId === id
   const ports = getNodeV4Ports(node.data.kind, node.data.subtype)
@@ -54,6 +68,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
       width={
         expanded ? NODE_V4_CARD.expandedWidth : NODE_V4_CARD.shotCollapsedWidth
       }
+      title={displayName}
       slotRail={
         expanded ? undefined : (
           <div className="flex flex-col gap-1">
@@ -71,7 +86,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
       collapsedBody={
         <NodeV4Thumbnail
           url={posterUrl}
-          alt={videoData.name}
+          alt={displayName}
           kind={videoData.url ? 'video' : 'image'}
         />
       }
@@ -84,14 +99,22 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               {' · '}
             </span>
             {textBinding && textBinding.versions.length > 0
-              ? textBinding.versions
-                  .map(
-                    (version) =>
-                      canvas.nodes.find(
+              ? textBinding.versions.map((version, index) => {
+                  const role = version.role ?? NODE_SLOT_TEXT_ROLE_FALLBACK
+                  return (
+                    <span key={version.id} data-text-role={role}>
+                      {index > 0 ? ' / ' : null}
+                      {canvas.nodes.find(
                         (item) => item.id === version.sourceNodeId,
-                      )?.data.name ?? version.sourceNodeId,
+                      )?.data.name ?? version.sourceNodeId}
+                      {/* 角色小标：同一个槽里剧本 / 风格 / 角色三档去向不同，
+                          不标出来就分不清哪段会被当画面描述念出来。 */}
+                      <span className="ml-1 rounded-xs border px-1">
+                        {t(`textRoles.${role}`)}
+                      </span>
+                    </span>
                   )
-                  .join(' / ')
+                })
               : t('slotEmpty')}
           </div>
           {/* 下排：首帧 / 尾帧 / 参考 / 语音 四槽卡 */}
@@ -107,7 +130,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           </div>
           <NodeV4Thumbnail
             url={posterUrl}
-            alt={videoData.name}
+            alt={displayName}
             kind={videoData.url ? 'video' : 'image'}
           />
           {videoData.prompt ? (

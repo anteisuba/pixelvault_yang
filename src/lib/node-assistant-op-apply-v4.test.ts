@@ -40,17 +40,33 @@ function imageNode(id: string, shotNo?: number): NodeV4 {
   }
 }
 
-function shotNode(id: string, shotNo: number): NodeV4 {
+function shotNode(id: string, shotNo: number, label = `镜头${shotNo}`): NodeV4 {
   return {
     id,
     position: { x: 0, y: 0 },
     data: {
       kind: 'video',
       subtype: 'shot',
-      name: `S0${shotNo}·镜头`,
+      // 稳定名 = `label`，⛔ 不带 `S<nn>` 前缀（C1 契约修正 1）。
+      label,
+      name: label,
       status: 'idle',
       createdAt: NOW,
       shotNo,
+    },
+  }
+}
+
+function characterNode(id: string): NodeV4 {
+  return {
+    id,
+    position: { x: 0, y: 0 },
+    data: {
+      kind: 'image',
+      subtype: 'character',
+      name: id,
+      status: 'idle',
+      createdAt: NOW,
     },
   }
 }
@@ -170,7 +186,7 @@ describe('结构 op', () => {
     expect(restored.edges).toHaveLength(1)
   })
 
-  it('reorder_shot 一次改完所有镜号与名字，inverse 是反向 reorder', () => {
+  it('reorder_shot 一次改完所有镜号，inverse 是反向 reorder', () => {
     const context = makeContext()
     const result = applyNodeAssistantOpV4(
       baseState(),
@@ -180,11 +196,27 @@ describe('结构 op', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.state.nodes.find((n) => n.id === 'v_02')?.data.shotNo).toBe(3)
-    expect(result.state.nodes.find((n) => n.id === 'v_02')?.data.name).toBe(
-      'S03·镜头',
-    )
     const undone = applyInverseV4(result.state, result.inverse, context)
     expect(undone.nodes.find((n) => n.id === 'v_02')?.data.shotNo).toBe(2)
+  })
+
+  it('reorder_shot 只翻 shotNo：label 与 name 一个字都不改（C1 契约修正 1）', () => {
+    const context = makeContext()
+    const before = baseState()
+    const result = applyNodeAssistantOpV4(
+      before,
+      { op: 'reorder_shot', from: 2, to: 3 },
+      context,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const nameOf = (state: NodeWorkflowStateV4, id: string) => {
+      const data = state.nodes.find((n) => n.id === id)?.data
+      return [data?.name, data?.kind === 'video' ? data.label : undefined]
+    }
+    for (const id of ['v_02', 'v_03']) {
+      expect(nameOf(result.state, id)).toEqual(nameOf(before, id))
+    }
   })
 
   it('move_to_shot 的 inverse 回到原镜号', () => {
@@ -290,7 +322,7 @@ describe('内容 op', () => {
     expect(back?.data.kind === 'image' && back.data.blocked).toBeUndefined()
   })
 
-  it('set_field shotNo 走 move_to_shot，名字跟着改', () => {
+  it('set_field shotNo 走 move_to_shot，⛔ 名字不跟着改', () => {
     const context = makeContext()
     const result = applyNodeAssistantOpV4(
       { ...baseState(), nodes: [shotNode('v_02', 2)] },
@@ -299,7 +331,81 @@ describe('内容 op', () => {
     )
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.state.nodes[0]?.data.name).toBe('S05·镜头')
+    expect(result.state.nodes[0]?.data.shotNo).toBe(5)
+    expect(result.state.nodes[0]?.data.name).toBe('镜头2')
+  })
+
+  it('改名 = set_field label，落在镜头的稳定名上并可撤销', () => {
+    const context = makeContext()
+    const result = applyNodeAssistantOpV4(
+      baseState(),
+      { op: 'set_field', target: 'v_02', field: 'label', value: '有人还在' },
+      context,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const shot = result.state.nodes.find((n) => n.id === 'v_02')?.data
+    expect(shot?.kind === 'video' && shot.label).toBe('有人还在')
+    const undone = applyInverseV4(result.state, result.inverse, context)
+    const back = undone.nodes.find((n) => n.id === 'v_02')?.data
+    expect(back?.kind === 'video' && back.label).toBe('镜头2')
+  })
+
+  it('label 落在没有这个字段的节点上 → 失败可见，⛔ 不静默剥掉', () => {
+    const context = makeContext()
+    expect(
+      applyNodeAssistantOpV4(
+        baseState(),
+        { op: 'set_field', target: 'i_a', field: 'label', value: '随便' },
+        context,
+      ),
+    ).toEqual({ ok: false, reason: 'fieldNotOnThisNode' })
+  })
+
+  it('set_field contextCardId 写进角色图节点（C1 契约修正 3）', () => {
+    const context = makeContext()
+    const state = { ...baseState(), nodes: [characterNode('i_c')] }
+    const result = applyNodeAssistantOpV4(
+      state,
+      { op: 'set_field', target: 'i_c', field: 'contextCardId', value: 'cc_1' },
+      context,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const data = result.state.nodes[0]?.data
+    expect(data?.kind === 'image' && data.contextCardId).toBe('cc_1')
+    const undone = applyInverseV4(result.state, result.inverse, context)
+    const back = undone.nodes[0]?.data
+    expect(back?.kind === 'image' && back.contextCardId).toBeUndefined()
+  })
+
+  it('attach_asset 带 contextCardId：边与硬链一起落，inverse 一起撤', () => {
+    const context = makeContext()
+    const state: NodeWorkflowStateV4 = {
+      ...baseState(),
+      nodes: [imageNode('i_ref'), characterNode('i_c')],
+    }
+    const result = applyNodeAssistantOpV4(
+      state,
+      {
+        op: 'attach_asset',
+        target: 'i_c',
+        slot: NODE_SLOT_IDS.reference,
+        sourceNodeId: 'i_ref',
+        contextCardId: 'cc_1',
+      },
+      context,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const linked = result.state.nodes.find((n) => n.id === 'i_c')?.data
+    expect(linked?.kind === 'image' && linked.contextCardId).toBe('cc_1')
+    expect(result.state.edges).toHaveLength(1)
+
+    const undone = applyInverseV4(result.state, result.inverse, context)
+    const back = undone.nodes.find((n) => n.id === 'i_c')?.data
+    expect(back?.kind === 'image' && back.contextCardId).toBeUndefined()
+    expect(undone.edges).toHaveLength(0)
   })
 
   it('set_model 在没有旧选择也没有 resolver 时失败可见，不静默半写', () => {

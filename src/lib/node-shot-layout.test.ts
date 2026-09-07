@@ -36,7 +36,8 @@ function node(
         ? { ...base, kind, subtype: subtype as 'voice' }
         : kind === 'image'
           ? { ...base, kind, subtype: subtype as 'shot' }
-          : { ...base, kind, subtype: subtype as 'shot' }
+          : // `video.shot` 的 `label` 必填——它就是稳定名（C1 契约修正 1）。
+            { ...base, kind, subtype: subtype as 'shot', label: name }
   return { id, position: { x: 999, y: 999 }, data: data as NodeV4['data'] }
 }
 
@@ -44,11 +45,11 @@ function scene(): NodeWorkflowStateV4 {
   const state: NodeWorkflowStateV4 = {
     version: 4,
     nodes: [
-      node('t2', 'text', 'shotNote', 2, 'S02·分镜'),
-      node('i_kf2', 'image', 'shot', 2, 'S02·首帧'),
-      node('a_v2', 'audio', 'voice', 2, 'S02·语音'),
-      node('v2', 'video', 'shot', 2, 'S02·镜头'),
-      node('v3', 'video', 'shot', 3, 'S03·镜头'),
+      node('t2', 'text', 'shotNote', 2, '分镜'),
+      node('i_kf2', 'image', 'shot', 2, '首帧'),
+      node('a_v2', 'audio', 'voice', 2, '语音'),
+      node('v2', 'video', 'shot', 2, '有人还在'),
+      node('v3', 'video', 'shot', 3, '走廊尽头'),
       node('i_ref', 'image', 'reference', undefined, '参考图1'),
     ],
     edges: [
@@ -133,16 +134,33 @@ describe('tidyShotLanes', () => {
 })
 
 describe('reorderShots', () => {
-  it('换序后镜号与名字里的 S<nn> 段一起重排，自定义后半段保留', () => {
+  it('换序只改 shotNo，名字一个都不动（C1 契约修正 1）', () => {
     const state = scene()
-    state.nodes.push(node('x', 'image', 'shot', 2, 'S02·西格莉卡近景'))
+    state.nodes.push(node('x', 'image', 'shot', 2, '西格莉卡近景'))
     const after = reorderShots(state, 2, 3)
     const moved = after.nodes.find((item) => item.id === 'x')
     expect(moved?.data.shotNo).toBe(3)
-    expect(moved?.data.name).toBe('S03·西格莉卡近景')
-    expect(after.nodes.find((item) => item.id === 'v3')?.data.name).toBe(
-      'S02·镜头',
-    )
+    expect(moved?.data.name).toBe('西格莉卡近景')
+    expect(after.nodes.find((item) => item.id === 'v3')?.data.shotNo).toBe(2)
+  })
+
+  it('换序后镜头 label 不变——`@` 提及仍然命中同一个镜头', () => {
+    const state = scene()
+    const before = state.nodes.map((item) => [
+      item.id,
+      item.data.name,
+      item.data.kind === 'video' ? item.data.label : undefined,
+    ])
+    const after = reorderShots(state, 2, 3)
+    expect(
+      after.nodes.map((item) => [
+        item.id,
+        item.data.name,
+        item.data.kind === 'video' ? item.data.label : undefined,
+      ]),
+    ).toEqual(before)
+    // 变的只有 shotNo
+    expect(after.nodes.find((item) => item.id === 'v2')?.data.shotNo).toBe(3)
   })
 
   it('from === to 是空操作', () => {
@@ -152,18 +170,18 @@ describe('reorderShots', () => {
 })
 
 describe('moveNodeToShot', () => {
-  it('移出镜头带把前缀整段剥掉', () => {
+  it('移出镜头带只清 shotNo，名字不动', () => {
     const after = moveNodeToShot(scene(), 'i_kf2', null)
     const moved = after.nodes.find((item) => item.id === 'i_kf2')
     expect(moved?.data.shotNo).toBeUndefined()
     expect(moved?.data.name).toBe('首帧')
   })
 
-  it('归镜时加上前缀', () => {
+  it('归镜只写 shotNo，⛔ 不给名字加前缀', () => {
     const after = moveNodeToShot(scene(), 'i_ref', 5)
     const moved = after.nodes.find((item) => item.id === 'i_ref')
     expect(moved?.data.shotNo).toBe(5)
-    expect(moved?.data.name).toBe('S05·参考图1')
+    expect(moved?.data.name).toBe('参考图1')
   })
 })
 

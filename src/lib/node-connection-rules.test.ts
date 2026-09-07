@@ -19,6 +19,7 @@ import {
   slotSupportsVersions,
   NODE_SLOT_IDS,
   NODE_SLOT_OUTPUT_IDS,
+  NODE_SLOT_TEXT_ROLE_IDS,
   type NodeSlotId,
 } from '@/constants/node-slots'
 import {
@@ -37,6 +38,7 @@ import {
   canConnect,
   canConnectNodeTypes,
   listConnectableSlots,
+  resolveTextSlotRole,
   NODE_CONNECT_REJECT_REASON_IDS,
   type NodeConnectionEndpoint,
 } from './node-connection-rules'
@@ -439,6 +441,81 @@ describe('canConnect · 子型门 / 语义门 / 容量 / 自环', () => {
     expect(
       canConnect({ ...self }, { ...self }, { slot: NODE_SLOT_IDS.reference }),
     ).toEqual({ ok: false, reason: NODE_CONNECT_REJECT_REASON_IDS.selfLoop })
+  })
+})
+
+describe('canConnect · 文本槽三档容量（C1 契约修正 2）', () => {
+  const text = (subtype: NodeV4Subtype) =>
+    src(NODE_MEDIA_KIND_IDS.text, subtype)
+
+  it('script 0..1：已有一份剧本再连一条剧本是超限', () => {
+    expect(
+      canConnect(text(NODE_V4_TEXT_SUBTYPE_IDS.script), VIDEO_SHOT, {
+        slot: NODE_SLOT_IDS.text,
+        occupancy: 1,
+        role: NODE_SLOT_TEXT_ROLE_IDS.script,
+      }),
+    ).toEqual({ ok: false, reason: NODE_CONNECT_REJECT_REASON_IDS.slotFull })
+    expect(
+      canConnect(text(NODE_V4_TEXT_SUBTYPE_IDS.script), VIDEO_SHOT, {
+        slot: NODE_SLOT_IDS.text,
+        occupancy: 0,
+        role: NODE_SLOT_TEXT_ROLE_IDS.script,
+      }).ok,
+    ).toBe(true)
+  })
+
+  it('style / character 0..N：可叠加，不设静态上限', () => {
+    for (const role of [
+      NODE_SLOT_TEXT_ROLE_IDS.style,
+      NODE_SLOT_TEXT_ROLE_IDS.character,
+    ]) {
+      expect(
+        canConnect(text(NODE_V4_TEXT_SUBTYPE_IDS.rule), VIDEO_SHOT, {
+          slot: NODE_SLOT_IDS.text,
+          occupancy: 9,
+          role,
+        }).ok,
+      ).toBe(true)
+    }
+  })
+
+  it('缺省角色 = script：不传 role 时按 0..1 判', () => {
+    expect(
+      canConnect(text(NODE_V4_TEXT_SUBTYPE_IDS.script), VIDEO_SHOT, {
+        slot: NODE_SLOT_IDS.text,
+        occupancy: 1,
+      }),
+    ).toEqual({ ok: false, reason: NODE_CONNECT_REJECT_REASON_IDS.slotFull })
+  })
+})
+
+describe('resolveTextSlotRole · 角色优先链', () => {
+  it('显式 > defaultRole > 子型 > script', () => {
+    expect(
+      resolveTextSlotRole({
+        subtype: NODE_V4_TEXT_SUBTYPE_IDS.rule,
+        defaultRole: NODE_SLOT_TEXT_ROLE_IDS.character,
+        explicitRole: NODE_SLOT_TEXT_ROLE_IDS.script,
+      }),
+    ).toBe(NODE_SLOT_TEXT_ROLE_IDS.script)
+    expect(
+      resolveTextSlotRole({
+        subtype: NODE_V4_TEXT_SUBTYPE_IDS.rule,
+        defaultRole: NODE_SLOT_TEXT_ROLE_IDS.character,
+      }),
+    ).toBe(NODE_SLOT_TEXT_ROLE_IDS.character)
+    // 子型推两档：script 子型 → 剧本、rule 子型 → 风格约束。
+    expect(
+      resolveTextSlotRole({ subtype: NODE_V4_TEXT_SUBTYPE_IDS.rule }),
+    ).toBe(NODE_SLOT_TEXT_ROLE_IDS.style)
+    expect(
+      resolveTextSlotRole({ subtype: NODE_V4_TEXT_SUBTYPE_IDS.script }),
+    ).toBe(NODE_SLOT_TEXT_ROLE_IDS.script)
+    // shotNote 不猜，落回 script。
+    expect(
+      resolveTextSlotRole({ subtype: NODE_V4_TEXT_SUBTYPE_IDS.shotNote }),
+    ).toBe(NODE_SLOT_TEXT_ROLE_IDS.script)
   })
 })
 

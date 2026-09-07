@@ -132,6 +132,67 @@ describe('v4 op 载荷', () => {
     ).toBe(true)
   })
 
+  it('connect 带文本角色；缺席合法（缺省 script）', () => {
+    expect(
+      NodeAssistantOpV4Schema.parse({
+        op: 'connect',
+        source: 't_1',
+        target: 'v_02',
+        slot: 'text',
+        role: 'style',
+      }),
+    ).toMatchObject({ role: 'style' })
+    expect(
+      NodeAssistantOpV4Schema.safeParse({
+        op: 'connect',
+        source: 't_1',
+        target: 'v_02',
+        slot: 'text',
+      }).success,
+    ).toBe(true)
+    // 词表外的角色整条拒收。
+    expect(
+      NodeAssistantOpV4Schema.safeParse({
+        op: 'connect',
+        source: 't_1',
+        target: 'v_02',
+        slot: 'text',
+        role: 'narration',
+      }).success,
+    ).toBe(false)
+  })
+
+  it('角色卡 id 能经 set_field / attach_asset 写进去', () => {
+    expect(
+      NodeAssistantOpV4Schema.safeParse({
+        op: 'set_field',
+        target: 'i_char',
+        field: 'contextCardId',
+        value: 'card_7f3',
+      }).success,
+    ).toBe(true)
+    expect(
+      NodeAssistantOpV4Schema.parse({
+        op: 'attach_asset',
+        target: 'i_char',
+        slot: 'reference',
+        sourceNodeId: 'i_1',
+        contextCardId: 'card_7f3',
+      }),
+    ).toMatchObject({ contextCardId: 'card_7f3' })
+  })
+
+  it('镜头标签是改名对象：set_field 收 label', () => {
+    expect(
+      NodeAssistantOpV4Schema.safeParse({
+        op: 'set_field',
+        target: 'v_02',
+        field: 'label',
+        value: '有人还在',
+      }).success,
+    ).toBe(true)
+  })
+
   it('attach_asset / connect 的载荷里没有 URL 字段（§5 纪律 1）', () => {
     const parsed = NodeAssistantOpV4Schema.parse({
       op: 'attach_asset',

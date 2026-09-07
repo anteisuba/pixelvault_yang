@@ -19,14 +19,19 @@ import {
   NODE_ASSISTANT_OP_V4_IDS,
   type NodeAssistantWriteMode,
 } from '@/constants/node-assistant-ops'
-import { NODE_SLOT_OUTPUT_IDS, type NodeSlotId } from '@/constants/node-slots'
+import {
+  NODE_SLOT_OUTPUT_IDS,
+  type NodeSlotId,
+  type NodeSlotTextRole,
+} from '@/constants/node-slots'
 import {
   NODE_MEDIA_KIND_IDS,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
   type NodeV4Subtype,
   type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
 import { NODE_V4_SUBTYPE_LABELS } from '@/constants/node-studio'
-import { buildStableNodeName } from '@/lib/node-display-name'
+import { buildShotLabel, buildStableNodeName } from '@/lib/node-display-name'
 import {
   looseAreaSpawn,
   moveNodeToShot,
@@ -65,6 +70,12 @@ export type NodeV4Inverse =
       readonly kind: 'removeNode'
       readonly nodeId: string
     }
+  /**
+   * 一条 op 改了两处、而两处的撤销是两条不同的 op 时用它（今天只有带
+   * `contextCardId` 的 `attach_asset`：既建了边又写了字段）。⛔ 不是给调用方
+   * 攒批用的——一轮批次仍然是 `NodeV4Inverse[]` 逆序回放。
+   */
+  | { readonly kind: 'sequence'; readonly items: readonly NodeV4Inverse[] }
 
 export interface ApplyOpV4Context {
   readonly now?: string
@@ -156,17 +167,43 @@ export function applyNodeAssistantOpV4(
       const subtype = op.subtype as NodeV4Subtype
       const id = context.mintId(kind)
       const taken = new Set(state.nodes.map((node) => node.data.name))
+      // `video.shot` 的稳定名是 `label`（C1 契约修正 1）：**必填**，唯一，⛔ 不带
+      // `S<nn>` 前缀——前缀是显示时才拼的，落库带上它换一次序就全错。所以镜头节点
+      // 的 `name` 与 `label` 写同一个值，其余节点走原来的 `buildStableNodeName`。
+      const isShot =
+        kind === NODE_MEDIA_KIND_IDS.video &&
+        subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
       let name: string
+      let label: string | undefined
       try {
-        name =
-          op.name ??
-          buildStableNodeName(
-            { kind, subtype, shotNo: op.shotNo },
-            {
-              labelOf: (k, s) => NODE_V4_SUBTYPE_LABELS[`${k}.${s}`] ?? s,
-              taken,
-            },
+        if (isShot) {
+          const takenLabels = new Set(
+            state.nodes
+              .map((node) =>
+                node.data.kind === NODE_MEDIA_KIND_IDS.video
+                  ? node.data.label
+                  : undefined,
+              )
+              .filter((item): item is string => item !== undefined),
           )
+          label = buildShotLabel(
+            {
+              ...(op.name ? { given: op.name } : {}),
+            },
+            takenLabels,
+          )
+          name = label
+        } else {
+          name =
+            op.name ??
+            buildStableNodeName(
+              { kind, subtype, shotNo: op.shotNo },
+              {
+                labelOf: (k, s) => NODE_V4_SUBTYPE_LABELS[`${k}.${s}`] ?? s,
+                taken,
+              },
+            )
+        }
       } catch {
         return { ok: false, reason: 'nameExhausted' }
       }
@@ -183,6 +220,7 @@ export function applyNodeAssistantOpV4(
         kind,
         subtype,
         name,
+        ...(label === undefined ? {} : { label }),
         status: 'idle',
         createdAt: now,
         ...(op.shotNo === undefined ? {} : { shotNo: op.shotNo }),
@@ -208,6 +246,10 @@ export function applyNodeAssistantOpV4(
       const source = resolveTarget(state, sourceRef, context.refs)
       const target = resolveTarget(state, op.target, context.refs)
       if (!source || !target) return { ok: false, reason: 'unknownNode' }
+      // `role` 只有 `connect` 带（C1 契约修正 2）。不给 = 由 `connectIntoSlot` 按
+      // 源节点推，推出来的档满了自动落 `style`——点亮与落点用的是同一个函数。
+      const role: NodeSlotTextRole | undefined =
+        op.op === ids.connect ? op.role : undefined
       const result = connectIntoSlot(state, {
         source: source.id,
         target: target.id,
@@ -217,15 +259,53 @@ export function applyNodeAssistantOpV4(
             ? (op.sourceHandle ?? NODE_SLOT_OUTPUT_IDS.out)
             : NODE_SLOT_OUTPUT_IDS.out,
         edgeId: context.mintId('e'),
+        ...(role ? { role } : {}),
         now,
       })
       if (!result.ok) return { ok: false, reason: result.reason }
+
+      const disconnectInverse: NodeV4Inverse = {
+        kind: 'op',
+        op: { op: ids.disconnect, edgeId: result.edgeId },
+      }
+
+      // `attach_asset` 可以顺手把角色卡硬链上去（C1 契约修正 3）。只对图片节点
+      // 有意义；⛔ 不在这里校验这张卡存不存在——那是服务端 ownership 的事。
+      const contextCardId =
+        op.op === ids.attachAsset ? op.contextCardId : undefined
+      if (!contextCardId || target.data.kind !== NODE_MEDIA_KIND_IDS.image) {
+        return {
+          ok: true,
+          state: result.state,
+          inverse: disconnectInverse,
+          changedNodeIds: [target.id],
+          changedEdgeIds: [result.edgeId],
+        }
+      }
+
+      const previousCardId = target.data.contextCardId
+      const linked = replaceNodeData(result.state, target.id, (data) => ({
+        ...data,
+        contextCardId,
+      }))
       return {
         ok: true,
-        state: result.state,
+        state: linked,
+        // 一条 op 改了两处 → inverse 也是两条：先把字段改回去，再删边。
         inverse: {
-          kind: 'op',
-          op: { op: ids.disconnect, edgeId: result.edgeId },
+          kind: 'sequence',
+          items: [
+            {
+              kind: 'op',
+              op: {
+                op: ids.setField,
+                target: target.id,
+                field: 'contextCardId',
+                value: previousCardId ?? null,
+              },
+            },
+            disconnectInverse,
+          ],
         },
         changedNodeIds: [target.id],
         changedEdgeIds: [result.edgeId],
@@ -450,10 +530,21 @@ export function applyNodeAssistantOpV4(
       }
       const before = (node.data as Record<string, unknown>)[field]
       const nextData = { ...node.data } as Record<string, unknown>
-      if (op.value === null || op.value === '') delete nextData[field]
+      const clearing = op.value === null || op.value === ''
+      if (clearing) delete nextData[field]
       else nextData[field] = op.value
       const parsed = NodeV4DataSchema.safeParse(nextData)
       if (!parsed.success) return { ok: false, reason: 'invalidFieldValue' }
+      // 词表是**全体**节点共用的，但每个字段只活在某几种 data 形状上
+      // （`label` 只在 video、`contextCardId` 只在 image）。Zod 对象会把不认识的
+      // key **静默剥掉**——parse 成功但值没落进去，报 ok 就是骗人。所以写入之后
+      // 回读一次：没落住 = 这个字段不属于这种节点，⛔ 不静默成功。
+      if (
+        !clearing &&
+        (parsed.data as Record<string, unknown>)[field] !== op.value
+      ) {
+        return { ok: false, reason: 'fieldNotOnThisNode' }
+      }
       return {
         ok: true,
         state: replaceNodeData(state, node.id, () => parsed.data),
@@ -588,6 +679,12 @@ export function applyInverseV4(
       nodes: state.nodes.filter((node) => node.id !== inverse.nodeId),
       edges,
     }
+  }
+  if (inverse.kind === 'sequence') {
+    return inverse.items.reduce(
+      (next, item) => applyInverseV4(next, item, context),
+      state,
+    )
   }
   if (inverse.kind === 'restore') {
     const restoredIds = new Set(inverse.nodes.map((node) => node.id))

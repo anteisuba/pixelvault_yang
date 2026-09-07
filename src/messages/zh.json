@@ -5835,6 +5835,11 @@
         "clip": "片段",
         "source": "来源"
       },
+      "textRoles": {
+        "script": "剧本",
+        "style": "风格",
+        "character": "角色"
+      },
       "outputs": {
         "out": "出口",
         "tailFrame": "末帧"
@@ -7031,7 +7036,14 @@
       "urlNotReadable": "这条地址在这里读不了",
       "urlUnreadable": "这一页没能读出来",
       "aspectLockedByFirstFrame": "挂了首帧，这个模型的宽高比就只剩自适应",
-      "videoFramesMissing": "这段片子没能取出可看的帧"
+      "videoFramesMissing": "这段片子没能取出可看的帧",
+      "blockedSource": "这张被你判过失败，不能再作首帧或尾帧"
+    },
+    "cost": {
+      "title": "助手这一轮的开销",
+      "vision": "看图",
+      "research": "检索与读正文",
+      "llm": "模型往返"
     },
     "field": {
       "prompt": "提示词",
@@ -7176,6 +7188,9 @@
       "unselected": "未选定",
       "continue": "按这张继续",
       "continuePrefill": "按这张继续：",
+      "approve": "标为已确认",
+      "block": "标为已否",
+      "reviewFailed": "这个标记没能存上",
       "chipLabel": "结果 {ordinal}",
       "pending": "生成中"
     },
@@ -7246,7 +7261,14 @@
       "rulesHint": "助手动手之前会先读这些规则。你说了值得记下来的事，它就记一条。",
       "rulesLoading": "加载中…",
       "rulesEmpty": "还没有规则 — 说一句值得记下来的话，助手会记下来。",
-      "ruleDelete": "删掉这条规则"
+      "ruleDelete": "删掉这条规则",
+      "tabCards": "上下文卡",
+      "cardsHint": "角色卡 / 风格卡写一次，助手在每台工作台上都照着它干活。",
+      "cardsLoading": "正在读这些卡…",
+      "cardsEmpty": "还没有卡 —— 建一张角色卡，助手下一轮就认得它。",
+      "cardNew": "新建卡",
+      "cardEdit": "编辑「{name}」",
+      "cardPinnedHere": "常挂在这台工作台"
     },
     "rule": {
       "recordedOn": "记于 {date}",

@@ -15,16 +15,21 @@
 
 import {
   NODE_SLOT_OUTPUT_IDS,
+  NODE_SLOT_TEXT_ROLE_FALLBACK,
+  NODE_SLOT_TEXT_ROLE_IDS,
   getNodeV4Ports,
   getNodeV4Slot,
+  resolveSlotRoleCapacity,
   slotSupportsVersions,
   type NodeSlotId,
   type NodeSlotOutputId,
+  type NodeSlotTextRole,
 } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { NODE_V4_SLOT_VERSION } from '@/constants/node-studio'
 import {
   canConnect,
+  resolveTextSlotRole,
   type NodeConnectRejectReason,
   type NodeConnectionEndpoint,
 } from '@/lib/node-connection-rules'
@@ -58,6 +63,112 @@ export function toConnectionEndpoint(node: NodeV4): NodeConnectionEndpoint {
 
 type SlotBindings = NonNullable<NodeV4Data['slots']>
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * 文本槽的角色（C1 契约修正 2）
+ *
+ * 角色是**边的属性**：同一份文本可以在 A 镜当剧本、在 B 镜当风格约束。所以它落在
+ * `slots[].versions[].role` 上，不在节点身份里；容量按角色算（script 0..1 /
+ * style 0..N / character 0..N），`canConnect` 的 `occupancy` 因此必须是**同角色**
+ * 的占用数，⛔ 不是这个槽的总边数。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/** 这个槽分不分角色（今天只有带 `byRole` 的 `video.shot.text`）。 */
+function slotHasRoles(target: NodeV4, slot: NodeSlotId): boolean {
+  return Boolean(
+    getNodeV4Slot(target.data.kind, target.data.subtype, slot)?.byRole,
+  )
+}
+
+/**
+ * 一条已有边在文本槽里当什么用：binding 上落过的 `role` 优先（那是当初连线时的
+ * 决定），否则按源节点的 `defaultRole` / 子型推——迁移产物只有边没有 binding，
+ * 这条回落就是它们的角色来源。
+ */
+export function resolveEdgeTextRole(
+  edge: NodeWorkflowEdgeV4,
+  target: NodeV4,
+  nodes: readonly NodeV4[],
+): NodeSlotTextRole | undefined {
+  if (!slotHasRoles(target, edge.slot)) return undefined
+  const recorded = target.data.slots?.[edge.slot]?.versions.find(
+    (version) => version.edgeId === edge.id,
+  )?.role
+  if (recorded) return recorded
+  const source = nodes.find((node) => node.id === edge.source)
+  if (!source || source.data.kind !== NODE_MEDIA_KIND_IDS.text) return undefined
+  return resolveTextSlotRole({
+    subtype: source.data.subtype,
+    ...(source.data.defaultRole
+      ? { defaultRole: source.data.defaultRole }
+      : {}),
+  })
+}
+
+/** 某个槽在**某个角色**下占了几条边。 */
+export function getSlotRoleOccupancy(
+  target: NodeV4,
+  slot: NodeSlotId,
+  edges: readonly NodeWorkflowEdgeV4[],
+  nodes: readonly NodeV4[],
+  role: NodeSlotTextRole,
+): number {
+  return edges.filter(
+    (edge) =>
+      edge.target === target.id &&
+      edge.slot === slot &&
+      (resolveEdgeTextRole(edge, target, nodes) ??
+        NODE_SLOT_TEXT_ROLE_FALLBACK) === role,
+  ).length
+}
+
+export interface SlotConnectRolePlan {
+  /** 这条连线按哪个角色算。非角色槽 / 非文本源 → `undefined`。 */
+  readonly role?: NodeSlotTextRole
+  /** 传给 `canConnect` 的占用数：有角色时是同角色占用，否则是槽总占用。 */
+  readonly occupancy: number
+}
+
+/**
+ * 这条连线按哪个角色落、同角色已占几条。
+ *
+ * ⚠ **取舍（C2b，owner 未另行指定时的默认）**：没显式给角色、而推出来的角色已满
+ * （`script` 0..1）时**自动落 `style`**，而不是把端口画灰。理由是拖一份文本到镜头
+ * 上是个明确意图，而「这镜已经有剧本了」不该表现成「这里连不上」——那正是恒真矩阵
+ * 那条注释里记下的坑（连不上和端口坏掉长得一模一样）。显式给了 `role` 就照给的算，
+ * 满了就按满拒绝并给理由，⛔ 不替用户改主意。
+ */
+export function planSlotConnectRole(
+  source: NodeV4,
+  target: NodeV4,
+  slot: NodeSlotId,
+  edges: readonly NodeWorkflowEdgeV4[],
+  nodes: readonly NodeV4[],
+  explicitRole?: NodeSlotTextRole,
+): SlotConnectRolePlan {
+  const spec = getNodeV4Slot(target.data.kind, target.data.subtype, slot)
+  if (!spec?.byRole || source.data.kind !== NODE_MEDIA_KIND_IDS.text) {
+    return { occupancy: getSlotOccupancy(target.id, slot, edges) }
+  }
+  const preferred = resolveTextSlotRole({
+    subtype: source.data.subtype,
+    ...(source.data.defaultRole
+      ? { defaultRole: source.data.defaultRole }
+      : {}),
+    ...(explicitRole ? { explicitRole } : {}),
+  })
+  const occupancy = getSlotRoleOccupancy(target, slot, edges, nodes, preferred)
+  if (explicitRole) return { role: preferred, occupancy }
+  const limit = resolveSlotRoleCapacity(spec, preferred).max
+  if (limit !== null && occupancy >= limit) {
+    const fallback = NODE_SLOT_TEXT_ROLE_IDS.style
+    return {
+      role: fallback,
+      occupancy: getSlotRoleOccupancy(target, slot, edges, nodes, fallback),
+    }
+  }
+  return { role: preferred, occupancy }
+}
+
 /**
  * 把一个节点各槽的 binding 与边表对齐。幂等。
  *
@@ -65,10 +176,19 @@ type SlotBindings = NonNullable<NodeV4Data['slots']>
  * - 版本在、边不在 → 剔除（`disconnect` 的落点）
  * - `cur` 指向已剔除或已停用的版本 → 回落到**最近一个未停用版**；都没有 → `null`
  */
+export interface ReconcileSlotOptions {
+  readonly now?: string
+  /**
+   * 新版本落哪个角色（C1 契约修正 2）。只对带 `byRole` 的槽有意义；不给这个函数
+   * 时新版本不带 `role`，读侧按 `NODE_SLOT_TEXT_ROLE_FALLBACK` 算。
+   */
+  roleOf?(edge: NodeWorkflowEdgeV4): NodeSlotTextRole | undefined
+}
+
 export function reconcileSlotBindings(
   node: NodeV4,
   edges: readonly NodeWorkflowEdgeV4[],
-  options: { now?: string } = {},
+  options: ReconcileSlotOptions = {},
 ): SlotBindings | undefined {
   const ports = getNodeV4Ports(node.data.kind, node.data.subtype)
   if (!ports || ports.inputs.length === 0) return undefined
@@ -90,8 +210,10 @@ export function reconcileSlotBindings(
     const versions: NodeV4SlotVersion[] = [...kept]
     for (const edge of incoming) {
       if (knownEdgeIds.has(edge.id)) continue
+      const role = spec.byRole ? options.roleOf?.(edge) : undefined
       versions.push({
         id: slotVersionId(edge.id),
+        ...(role ? { role } : {}),
         edgeId: edge.id,
         sourceNodeId: edge.source,
         blocked: false,
@@ -125,13 +247,31 @@ function resolveCurrent(
   return null
 }
 
+/**
+ * 整图的 `roleOf`：按边的目标节点 + 源节点推角色。迁移产物只有边没有 binding，
+ * 这条就是它们的角色来源（`text.script` 子型 → 剧本、`text.rule` → 风格约束、
+ * 其余 → 剧本）。
+ */
+function buildRoleOf(
+  nodes: readonly NodeV4[],
+): (edge: NodeWorkflowEdgeV4) => NodeSlotTextRole | undefined {
+  return (edge) => {
+    const target = nodes.find((node) => node.id === edge.target)
+    return target ? resolveEdgeTextRole(edge, target, nodes) : undefined
+  }
+}
+
 /** 整图 reconcile —— 加载一份 v4 state 之后跑一次，渲染层就只读 `slots`。 */
 export function reconcileStateSlots(
   state: NodeWorkflowStateV4,
   options: { now?: string } = {},
 ): NodeWorkflowStateV4 {
+  const roleOf = buildRoleOf(state.nodes)
   const nodes = state.nodes.map((node) => {
-    const slots = reconcileSlotBindings(node, state.edges, options)
+    const slots = reconcileSlotBindings(node, state.edges, {
+      ...options,
+      roleOf,
+    })
     if (!slots && !node.data.slots) return node
     const nextData = { ...node.data } as NodeV4Data
     if (slots) nextData.slots = slots
@@ -151,29 +291,47 @@ export function getSlotOccupancy(
     .length
 }
 
+export interface LiveConnectableOptions {
+  /**
+   * 画布上的全部节点——算**同角色占用**要按边找源节点（`planSlotConnectRole`）。
+   * 不给时退化成只认 `source` / `target` 两个：其余文本边的角色只能从 binding 上
+   * 已落的 `role` 读，读不到就按 `script` 算。
+   */
+  readonly nodes?: readonly NodeV4[]
+  readonly capacityBySlot?: Partial<Record<NodeSlotId, number>>
+}
+
 /**
  * 拖线阶段：目标节点上哪些槽该点亮。与 `listConnectableSlots` 的差别是这里自己
  * 从边表算 occupancy —— 调用方（画布）手上就是整份 state。
+ *
+ * ⚠ 文本槽按**角色**算（C1 契约修正 2）：`script` 已满时按 `planSlotConnectRole`
+ * 的取舍自动改按 `style` 点亮，落点与 `connectIntoSlot` 用的是同一个函数，⛔ 不许
+ * 点亮和落点各算各的。
  */
 export function listLiveConnectableSlots(
   source: NodeV4,
   target: NodeV4,
   edges: readonly NodeWorkflowEdgeV4[],
-  capacityBySlot?: Partial<Record<NodeSlotId, number>>,
+  options: LiveConnectableOptions = {},
 ): NodeSlotId[] {
   const ports = getNodeV4Ports(target.data.kind, target.data.subtype)
   if (!ports) return []
+  const nodes = options.nodes ?? [source, target]
   const from = toConnectionEndpoint(source)
   const to = toConnectionEndpoint(target)
   return ports.inputs
-    .filter(
-      (spec) =>
-        canConnect(from, to, {
-          slot: spec.slot,
-          occupancy: getSlotOccupancy(target.id, spec.slot, edges),
-          capacity: capacityBySlot?.[spec.slot],
-        }).ok,
-    )
+    .filter((spec) => {
+      const plan = planSlotConnectRole(source, target, spec.slot, edges, nodes)
+      return canConnect(from, to, {
+        slot: spec.slot,
+        occupancy: plan.occupancy,
+        ...(plan.role ? { role: plan.role } : {}),
+        ...(options.capacityBySlot?.[spec.slot] === undefined
+          ? {}
+          : { capacity: options.capacityBySlot[spec.slot] }),
+      }).ok
+    })
     .map((spec) => spec.slot)
 }
 
@@ -186,6 +344,11 @@ export interface ConnectIntoSlotParams {
   readonly edgeId: string
   readonly now?: string
   readonly capacity?: number
+  /**
+   * 文本槽的角色（C1 契约修正 2）。不给 = 按源节点推，推出来的档满了就落 `style`
+   * （见 `planSlotConnectRole` 的取舍）；给了就照给的算，满了按满拒绝。
+   */
+  readonly role?: NodeSlotTextRole
 }
 
 export type ConnectIntoSlotResult =
@@ -215,11 +378,24 @@ export function connectIntoSlot(
   const target = state.nodes.find((node) => node.id === params.target)
   if (!source || !target) return { ok: false, reason: 'unknownNode' }
 
-  const occupancy = getSlotOccupancy(target.id, params.slot, state.edges)
+  const plan = planSlotConnectRole(
+    source,
+    target,
+    params.slot,
+    state.edges,
+    state.nodes,
+    params.role,
+  )
+  const occupancy = plan.occupancy
   const verdict = canConnect(
     toConnectionEndpoint(source),
     toConnectionEndpoint(target),
-    { slot: params.slot, occupancy, capacity: params.capacity },
+    {
+      slot: params.slot,
+      occupancy,
+      ...(plan.role ? { role: plan.role } : {}),
+      ...(params.capacity === undefined ? {} : { capacity: params.capacity }),
+    },
   )
   if (!verdict.ok) return { ok: false, reason: verdict.reason }
 
@@ -244,9 +420,15 @@ export function connectIntoSlot(
   const now = params.now ?? new Date().toISOString()
   const versionId = slotVersionId(edge.id)
 
+  // 新边的角色用上面算好的 plan，其余边沿用各自已落 / 可推的角色。
+  const roleOf = (item: NodeWorkflowEdgeV4): NodeSlotTextRole | undefined =>
+    item.id === edge.id
+      ? plan.role
+      : resolveEdgeTextRole(item, target, state.nodes)
+
   const nodes = state.nodes.map((node) => {
     if (node.id !== target.id) return node
-    const slots = reconcileSlotBindings(node, edges, { now })
+    const slots = reconcileSlotBindings(node, edges, { now, roleOf })
     if (!slots) return node
     const binding = slots[params.slot]
     // 新连入自动成为当前版（§1.4）——reconcile 的默认回落已是「最近一个未停用
@@ -278,9 +460,10 @@ export function disconnectEdge(
   const removed = state.edges.find((edge) => edge.id === edgeId)
   if (!removed) return { state, removed: undefined }
   const edges = state.edges.filter((edge) => edge.id !== edgeId)
+  const roleOf = buildRoleOf(state.nodes)
   const nodes = state.nodes.map((node) => {
     if (node.id !== removed.target) return node
-    const slots = reconcileSlotBindings(node, edges, options)
+    const slots = reconcileSlotBindings(node, edges, { ...options, roleOf })
     const nextData = { ...node.data } as NodeV4Data
     if (slots) nextData.slots = slots
     else delete nextData.slots

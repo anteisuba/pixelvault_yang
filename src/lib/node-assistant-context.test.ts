@@ -444,6 +444,7 @@ describe('buildNodeCanvasSnapshotV4', () => {
     kind: 'video',
     subtype: 'shot',
     name: 'S02·镜头',
+    label: '有人还在',
     status: 'running',
     shotNo: 2,
     prompt: '以新首帧锁定人物、饰件、服装及体积感。',
@@ -509,7 +510,7 @@ describe('buildNodeCanvasSnapshotV4', () => {
       { currentShotNo: 2 },
     )
     expect(text).toContain(
-      'S02 [[node:v_02]] video.shot · running · 7 · seedance-2.5 · 16:9',
+      'S02·有人还在 [[node:v_02]] video.shot · running · 7 · seedance-2.5 · 16:9',
     )
     expect(text).toContain(
       '  firstFrame ← [[node:i_kf02c5]] S02·首帧 (image.shot, done, 当前 · 共 2 版)',
@@ -541,6 +542,7 @@ describe('buildNodeCanvasSnapshotV4', () => {
         kind: 'video',
         subtype: 'shot',
         name: `S0${shotNo}·镜头`,
+        label: `镜头${shotNo}`,
         shotNo,
         prompt: '别的镜头提示词',
       }),
@@ -550,7 +552,7 @@ describe('buildNodeCanvasSnapshotV4', () => {
     })
     // 相邻镜 S03 完整（带 prompt），远镜 S05 / S07 只有标题行。
     expect(text).toContain('  prompt: 别的镜头提示词')
-    expect(text).toContain('S05 [[node:v_05]] video.shot · done')
+    expect(text).toContain('S05·镜头5 [[node:v_05]] video.shot · done')
     expect(text.match(/prompt: 别的镜头提示词/g)).toHaveLength(1)
   })
 
@@ -661,6 +663,81 @@ describe('buildNodeCanvasSnapshotV4', () => {
 
   it('空画布给空串，不编造结构', () => {
     expect(buildNodeCanvasSnapshotV4([], [])).toBe('')
+  })
+})
+
+describe('快照 · C1 契约修正', () => {
+  it('镜头行是「序号 + 标签」，换序只动序号，标签不变', () => {
+    const shot = v4Node('v_02', {
+      kind: 'video',
+      subtype: 'shot',
+      name: 'S02·镜头',
+      label: '有人还在',
+      shotNo: 2,
+    })
+    expect(
+      buildNodeCanvasSnapshotV4([shot], [], { currentShotNo: 2 }),
+    ).toContain('S02·有人还在 [[node:v_02]]')
+    const reordered = { ...shot, data: { ...shot.data, shotNo: 5 } }
+    expect(
+      buildNodeCanvasSnapshotV4([reordered], [], { currentShotNo: 5 }),
+    ).toContain('S05·有人还在 [[node:v_02]]')
+  })
+
+  it('文本槽按角色分列，⛔ 剧本与约束不混成一行', () => {
+    const shot = v4Node('v_02', {
+      kind: 'video',
+      subtype: 'shot',
+      label: '有人还在',
+      shotNo: 2,
+    })
+    const script = v4Node('t_script', {
+      kind: 'text',
+      subtype: 'script',
+      name: '台词',
+      body: '她转身',
+      shotNo: 2,
+    })
+    const style = v4Node('t_rule', {
+      kind: 'text',
+      subtype: 'rule',
+      name: '风格卡',
+      body: '不许出现字幕',
+      shotNo: 2,
+    })
+    const character = v4Node('t_char', {
+      kind: 'text',
+      subtype: 'shotNote',
+      name: '角色设定',
+      body: '西格莉卡：银发',
+      defaultRole: 'character',
+      shotNo: 2,
+    })
+    const text = buildNodeCanvasSnapshotV4(
+      [shot, script, style, character],
+      [
+        v4Edge('e1', 't_script', 'v_02', 'text'),
+        v4Edge('e2', 't_rule', 'v_02', 'text'),
+        v4Edge('e3', 't_char', 'v_02', 'text'),
+      ],
+      { currentShotNo: 2 },
+    )
+    expect(text).toContain('  text[剧本] ← [[node:t_script]] 台词')
+    expect(text).toContain('  text[风格约束] ← [[node:t_rule]] 风格卡')
+    expect(text).toContain('  text[角色描述] ← [[node:t_char]] 角色设定')
+  })
+
+  it('角色节点带 [卡:名]，⛔ 只给名字不给 id', () => {
+    const character = v4Node('i_char', {
+      kind: 'image',
+      subtype: 'character',
+      name: '角色·西格莉卡',
+      characterName: '西格莉卡',
+      contextCardId: 'card_7f3',
+    })
+    const text = buildNodeCanvasSnapshotV4([character], [])
+    expect(text).toContain('[[node:i_char]] 角色·西格莉卡 [卡:西格莉卡]')
+    expect(text).not.toContain('card_7f3')
   })
 })
 

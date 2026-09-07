@@ -15,8 +15,10 @@
 
 import {
   getNodeV4Ports,
+  NODE_SLOT_IDS,
   NODE_SLOT_OUTPUT_IDS,
   type NodeSlotId,
+  type NodeSlotTextRole,
 } from '@/constants/node-slots'
 import {
   NODE_STUDIO_ASSISTANT_LIMITS,
@@ -29,14 +31,17 @@ import {
   NODE_IMAGE_MODEL_NODE_TYPES,
   NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
   NODE_VIDEO_MODEL_NODE_TYPES,
 } from '@/constants/node-types'
 import { isIdentityCardNode } from '@/lib/node-workflow-graph'
 import {
+  formatShotDisplayName,
   formatShotPrefix,
   resolveNodeDisplayName,
 } from '@/lib/node-display-name'
+import { resolveTextSlotRole } from '@/lib/node-connection-rules'
 import type { NodeAssistantNodeContext } from '@/types/node-assistant'
 import type {
   NodeV4Data,
@@ -276,6 +281,8 @@ interface SlotLine {
   readonly slot: NodeSlotId
   readonly sourceId: string
   readonly versionCount: number
+  /** 文本槽的角色（C1 契约修正 2）。非文本槽缺席。 */
+  readonly role?: NodeSlotTextRole
 }
 
 function nodeTypeLabel(data: NodeV4Data): string {
@@ -304,9 +311,28 @@ function readPrompt(data: NodeV4Data): string | undefined {
 export function collectSlotLines(
   node: CanvasSnapshotV4Node,
   edges: readonly NodeWorkflowEdgeV4[],
+  byId?: ReadonlyMap<string, CanvasSnapshotV4Node>,
 ): SlotLine[] {
   const ports = getNodeV4Ports(node.data.kind, node.data.subtype)
   if (!ports) return []
+  // 文本槽的角色：版本上显式写了就用它，没写就问源节点（`defaultRole` / 子型）。
+  // ⛔ 不在这里瞎猜——`resolveTextSlotRole` 是那条优先链的唯一实现。
+  const roleOf = (
+    slot: NodeSlotId,
+    sourceId: string,
+    explicitRole?: NodeSlotTextRole,
+  ): NodeSlotTextRole | undefined => {
+    if (slot !== NODE_SLOT_IDS.text) return undefined
+    const source = byId?.get(sourceId)
+    return resolveTextSlotRole({
+      subtype: source?.data.subtype ?? node.data.subtype,
+      defaultRole:
+        source?.data.kind === NODE_MEDIA_KIND_IDS.text
+          ? source.data.defaultRole
+          : undefined,
+      explicitRole,
+    })
+  }
   const lines: SlotLine[] = []
   for (const spec of ports.inputs) {
     const binding = node.data.slots?.[spec.slot]
@@ -317,16 +343,41 @@ export function collectSlotLines(
           slot: spec.slot,
           sourceId: current.sourceNodeId,
           versionCount: binding.versions.length,
+          ...(roleOf(spec.slot, current.sourceNodeId, current.role)
+            ? { role: roleOf(spec.slot, current.sourceNodeId, current.role) }
+            : {}),
         })
       }
       continue
     }
     for (const edge of edges) {
       if (edge.target !== node.id || edge.slot !== spec.slot) continue
-      lines.push({ slot: spec.slot, sourceId: edge.source, versionCount: 1 })
+      const role = roleOf(spec.slot, edge.source)
+      lines.push({
+        slot: spec.slot,
+        sourceId: edge.source,
+        versionCount: 1,
+        ...(role ? { role } : {}),
+      })
     }
   }
   return lines
+}
+
+/**
+ * 角色节点硬链的角色卡（C1 契约修正 3）：行内写 `[卡:名]`。
+ * ⛔ 只给名字不给 id —— id 对模型无意义，还白占 token；名字从 `characterName` 取。
+ */
+function renderCardMark(data: NodeV4Data): string {
+  if (
+    data.kind !== NODE_MEDIA_KIND_IDS.image ||
+    data.subtype !== NODE_V4_IMAGE_SUBTYPE_IDS.character ||
+    !data.contextCardId
+  ) {
+    return ''
+  }
+  const name = data.characterName ?? data.name
+  return ` ${NODE_V4_SNAPSHOT.cardPrefix}${name}${NODE_V4_SNAPSHOT.cardSuffix}`
 }
 
 function renderSlotLine(
@@ -350,8 +401,15 @@ function renderSlotLine(
     )
   }
   const name = source ? source.data.name : ''
+  const card = source ? renderCardMark(source.data) : ''
   const suffix = parts.length > 0 ? ` (${parts.join(', ')})` : ''
-  return `  ${line.slot} ${NODE_V4_SNAPSHOT.slotArrow} [[node:${line.sourceId}]] ${name}${suffix}`.trimEnd()
+  // 文本槽按角色分列：`text[剧本]` / `text[风格约束]` / `text[角色描述]`——
+  // 混成一行，模型就分不出「要拍的内容」和「不许违反的约束」。
+  const slotLabel =
+    line.role === undefined
+      ? line.slot
+      : `${line.slot}[${NODE_V4_SNAPSHOT.textRoleLabels[line.role]}]`
+  return `  ${slotLabel} ${NODE_V4_SNAPSHOT.slotArrow} [[node:${line.sourceId}]] ${name}${card}${suffix}`.trimEnd()
 }
 
 /** 镜头行（完整档与标题档共用同一行）。 */
@@ -364,9 +422,17 @@ function renderShotHeadline(node: CanvasSnapshotV4Node): string {
     parts.push(data.model.modelId)
   }
   if (params?.aspectRatio) parts.push(params.aspectRatio)
-  const shot =
-    data.shotNo === undefined ? '' : `${formatShotPrefix(data.shotNo)} `
-  return `${shot}[[node:${node.id}]] ${parts.join(NODE_V4_SNAPSHOT.fieldSeparator)}`
+  // `S02 · 有人还在`（序号 + 标签，C1 契约修正 1）。⚠ 标签才是稳定名：换序只动
+  // 序号，这一行的后半段不变，用户 `@` 的那个名字因此始终指同一个镜头。
+  const label =
+    data.kind === NODE_MEDIA_KIND_IDS.video
+      ? (data.label ?? data.name)
+      : data.name
+  const head =
+    data.shotNo === undefined
+      ? label
+      : formatShotDisplayName(label, data.shotNo)
+  return `${head} [[node:${node.id}]] ${parts.join(NODE_V4_SNAPSHOT.fieldSeparator)}`
 }
 
 /** 散节点 / 非镜头节点的一行摘要。 */
@@ -378,7 +444,7 @@ function renderPlainLine(node: CanvasSnapshotV4Node): string {
       `${NODE_V4_SNAPSHOT.blockedPrefix}${data.blockedReason ?? ''}`.trimEnd(),
     )
   }
-  return `[[node:${node.id}]] ${data.name} (${parts.join(', ')})`
+  return `[[node:${node.id}]] ${data.name}${renderCardMark(data)} (${parts.join(', ')})`
 }
 
 function renderParamsLine(data: NodeV4Data): string | undefined {
@@ -444,7 +510,7 @@ export function buildNodeCanvasSnapshotV4(
   // 被某个槽引用的源节点不再单列——它已经内联在目标节点下面了。
   const inlined = new Set<string>()
   for (const node of nodes) {
-    for (const line of collectSlotLines(node, edges)) {
+    for (const line of collectSlotLines(node, edges, byId)) {
       inlined.add(line.sourceId)
     }
   }
@@ -489,7 +555,7 @@ export function buildNodeCanvasSnapshotV4(
         node.data.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
       const block = renderFullBlock(
         node,
-        collectSlotLines(node, edges),
+        collectSlotLines(node, edges, byId),
         byId,
         isShot,
         NODE_V4_SNAPSHOT.maxShotBlockLength,
@@ -508,7 +574,7 @@ export function buildNodeCanvasSnapshotV4(
       looseLines.push(
         ...renderFullBlock(
           node,
-          collectSlotLines(node, edges),
+          collectSlotLines(node, edges, byId),
           byId,
           false,
           NODE_V4_SNAPSHOT.maxShotBlockLength,

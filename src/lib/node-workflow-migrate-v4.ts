@@ -36,6 +36,7 @@ import {
 import {
   NODE_SLOT_IDS,
   NODE_SLOT_OUTPUT_IDS,
+  NODE_SLOT_TEXT_ROLE_IDS,
   getNodeV4Slot,
   type NodeSlotId,
 } from '@/constants/node-slots'
@@ -44,6 +45,7 @@ import {
   NODE_V4_SUBTYPE_LABELS,
 } from '@/constants/node-studio'
 import {
+  buildShotLabel,
   buildStableNodeName,
   resolveNodeDisplayName,
 } from '@/lib/node-display-name'
@@ -277,6 +279,8 @@ function buildNodeData(
   name: string,
   shotNo: number | undefined,
   createdAt: string,
+  /** 镜头标签（C1 契约修正 1）。只有 `video.shot` 必须带；其余 kind 忽略。 */
+  label: string,
 ): NodeV4Data {
   const base = {
     name,
@@ -313,6 +317,9 @@ function buildNodeData(
         kind: NODE_MEDIA_KIND_IDS.text,
         subtype: identity.subtype as 'script' | 'shotNote' | 'rule',
         body: readString(node.data.prompt) ?? '',
+        // v3 的 `shotText` 连进镜头的那条边一律是剧本（C1 契约修正 2）——v3 里
+        // 根本没有「风格约束 / 角色描述」这两档，把它们猜出来就是编数据。
+        defaultRole: NODE_SLOT_TEXT_ROLE_IDS.script,
       } as NodeV4Data
     case NODE_MEDIA_KIND_IDS.audio:
       return {
@@ -341,6 +348,7 @@ function buildNodeData(
         ...base,
         kind: NODE_MEDIA_KIND_IDS.video,
         subtype: identity.subtype as 'shot' | 'clip' | 'merge',
+        label,
         ...(media ? { url: media } : {}),
         ...(node.data.model ? { model: node.data.model } : {}),
         ...(readString(node.data.prompt)
@@ -414,6 +422,7 @@ export function migrateNodeWorkflowStateToV4(
   const identities = new Map<string, V4Identity>()
   const nodes: NodeV4[] = []
   const taken = new Set<string>()
+  const takenLabels = new Set<string>()
 
   for (const node of nodesIn) {
     stats.bySourceType[node.type] = (stats.bySourceType[node.type] ?? 0) + 1
@@ -438,10 +447,22 @@ export function migrateNodeWorkflowStateToV4(
       },
     )
     taken.add(name)
+    // 镜头标签（C1 契约修正 1）：v3 没有这个字段，按 title → 提示词前 8 字 →
+    // `镜头` 兜底。⚠ 标签与显示名分家之后，这里算出来的才是 `@` 认的那个名字。
+    const label = buildShotLabel(
+      {
+        given:
+          readString(node.data.shotName) ??
+          resolveNodeDisplayName(node.data as NodeWorkflowNodeData),
+        prompt: readString(node.data.prompt),
+      },
+      takenLabels,
+    )
+    takenLabels.add(label)
     nodes.push({
       id: node.id,
       position: node.position,
-      data: buildNodeData(node, identity, name, shotNo, createdAt),
+      data: buildNodeData(node, identity, name, shotNo, createdAt, label),
     })
     const key = `${identity.kind}.${identity.subtype}`
     stats.byTarget[key] = (stats.byTarget[key] ?? 0) + 1

@@ -21,6 +21,7 @@ import { IMAGE_SIZES } from '@/constants/config'
 import {
   NODE_SLOT_OUTPUT_IDS,
   NODE_SLOT_OUTPUTS,
+  NODE_SLOT_TEXT_ROLES,
   NODE_SLOTS,
 } from '@/constants/node-slots'
 import {
@@ -37,7 +38,7 @@ import {
   NODE_V4_IMAGE_SUBTYPES,
   NODE_V4_SOURCE_TRUST_LEVELS,
   NODE_V4_TEXT_SUBTYPES,
-  NODE_V4_VIDEO_SUBTYPES,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
@@ -846,6 +847,14 @@ export const NodeV4SourceRefSchema = z.object({
 export const NodeV4SlotVersionSchema = z.object({
   /** versionId，稳定：改名 / 换序 / 翻版都不变。 */
   id: z.string().trim().min(1).max(160),
+  /**
+   * 这条文本在这个槽里**当什么用**（C1 契约修正 2）。只对 `text` 槽有意义——
+   * 角色是边的属性不是节点身份：同一份文本可以在 A 镜当剧本、在 B 镜当风格约束。
+   *
+   * 缺席 = `script`（`NODE_SLOT_TEXT_ROLE_FALLBACK`）。⛔ 不给非文本槽编默认值，
+   * 那会让「角色只对文本槽有意义」这条事实在两处各写各的。
+   */
+  role: z.enum(NODE_SLOT_TEXT_ROLES).optional(),
   edgeId: z.string().trim().min(1).max(160),
   sourceNodeId: z.string().trim().min(1).max(160),
   /** 停用：画叉、压暗，且**不可设为当前**。 */
@@ -916,6 +925,12 @@ export const NodeV4TextDataSchema = z.object({
   subtype: z.enum(NODE_V4_TEXT_SUBTYPES),
   /** Markdown 正文（§2.4）。 */
   body: z.string().max(100_000),
+  /**
+   * 连进 `text` 槽时默认当什么用（C1 契约修正 2）。`script` 子型 → 剧本、
+   * `rule` 子型 → 风格约束，两者由 `resolveTextSlotRole` 从子型推出来，这个字段
+   * 只在用户/助手要覆盖时才写；连线时显式给的 `role` 仍然优先。
+   */
+  defaultRole: z.enum(NODE_SLOT_TEXT_ROLES).optional(),
   title: z.string().trim().min(1).max(160).optional(),
   source: z.string().trim().min(1).max(400).optional(),
   recordedAt: z.string().trim().min(1).max(40).optional(),
@@ -938,6 +953,15 @@ export const NodeV4ImageDataSchema = z.object({
   blocked: z.boolean().optional(),
   blockedReason: z.string().trim().min(1).max(400).optional(),
   characterName: z.string().trim().min(1).max(160).optional(),
+  /**
+   * 硬链到 `ContextCard`（C1 契约修正 3）。只对 `image.character` 有意义：这张角色
+   * 图说的是**哪张角色卡**上的那个人。
+   *
+   * ⚠ 本片只加字段与形状，**不校验这张卡存不存在**——存在性是服务端 ownership 的
+   * 事（K1 的表），在数据层查等于让纯 schema 依赖 DB。快照里只带卡名不带 id：id
+   * 对模型无意义，还白占 token。
+   */
+  contextCardId: z.string().trim().min(1).max(160).optional(),
   /** 候选序号（`kf02-v5` 的 5）。⚠ 不是槽内版本——那个住在 `slots[].versions`。 */
   version: z.number().int().min(1).max(999).optional(),
   mediaReview: z.record(z.string(), NodeMediaReviewSchema).optional(),
@@ -971,10 +995,19 @@ export const NodeV4AudioDataSchema = z.object({
   durationSec: z.number().min(0).max(36_000).optional(),
 })
 
-export const NodeV4VideoDataSchema = z.object({
+/**
+ * 镜头标签（C1 契约修正 1）——**稳定名就是它**。
+ *
+ * ⚠ 换序只动 `shotNo`，⛔ 不重写名字：`shotNo` 是显示序号，`S02` 只是前缀。
+ * 在这之前稳定名是 `S02·首帧` 这样一整串，于是把 S02 拖到第 5 位就要重写 `name`，
+ * 而 `@` 提及把字面文本存进了提示词——换一次序，用户写下的 `@S02·有人还在` 就
+ * 指向了另一个镜头。标签与序号分家之后，换序不动任何名字。
+ */
+export const NodeV4ShotLabelSchema = z.string().trim().min(1).max(160)
+
+const NodeV4VideoShape = {
   ...NodeV4BaseShape,
   kind: z.literal(NODE_MEDIA_KIND_IDS.video),
-  subtype: z.enum(NODE_V4_VIDEO_SUBTYPES),
   url: z.string().trim().min(1).max(4000).optional(),
   model: NodeWorkflowModelSelectionSchema.optional(),
   prompt: z.string().max(20_000).optional(),
@@ -1000,7 +1033,35 @@ export const NodeV4VideoDataSchema = z.object({
   clipRole: z.enum(['continuation', 'reference']).optional(),
   durationSec: z.number().min(0).max(36_000).optional(),
   mediaReview: z.record(z.string(), NodeMediaReviewSchema).optional(),
+}
+
+/**
+ * 镜头。`label` **必填**——它是稳定名，`@` 名、快照行名、改名对象都是它。
+ *
+ * 创建时由用户 / 助手给（「有人还在」），缺省从提示词取前 8 字（`deriveShotLabel`）。
+ * ⛔ 没有「先建了再补标签」这条路：无名镜头一旦落库，`@` 就只剩序号可指，而序号
+ * 会随换序变——正是这条修正要修的洞。
+ */
+export const NodeV4VideoShotDataSchema = z.object({
+  ...NodeV4VideoShape,
+  subtype: z.literal(NODE_V4_VIDEO_SUBTYPE_IDS.shot),
+  label: NodeV4ShotLabelSchema,
 })
+
+/** 参考片段 / 成片。标签可选：它们不进镜头带，`@` 指的是节点名。 */
+export const NodeV4VideoAuxDataSchema = z.object({
+  ...NodeV4VideoShape,
+  subtype: z.enum([
+    NODE_V4_VIDEO_SUBTYPE_IDS.clip,
+    NODE_V4_VIDEO_SUBTYPE_IDS.merge,
+  ]),
+  label: NodeV4ShotLabelSchema.optional(),
+})
+
+export const NodeV4VideoDataSchema = z.discriminatedUnion('subtype', [
+  NodeV4VideoShotDataSchema,
+  NodeV4VideoAuxDataSchema,
+])
 
 export const NodeV4DataSchema = z.discriminatedUnion('kind', [
   NodeV4TextDataSchema,
@@ -1060,6 +1121,8 @@ export type NodeV4GenerationParams = z.infer<
 export type NodeV4TextData = z.infer<typeof NodeV4TextDataSchema>
 export type NodeV4ImageData = z.infer<typeof NodeV4ImageDataSchema>
 export type NodeV4AudioData = z.infer<typeof NodeV4AudioDataSchema>
+export type NodeV4VideoShotData = z.infer<typeof NodeV4VideoShotDataSchema>
+export type NodeV4VideoAuxData = z.infer<typeof NodeV4VideoAuxDataSchema>
 export type NodeV4VideoData = z.infer<typeof NodeV4VideoDataSchema>
 export type NodeV4Data = z.infer<typeof NodeV4DataSchema>
 export type NodeV4 = z.infer<typeof NodeV4Schema>

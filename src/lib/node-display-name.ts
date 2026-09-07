@@ -388,7 +388,11 @@ export type NodeRenameResult =
   | { readonly ok: false; readonly reason: NodeRenameRejectReason }
 
 /**
- * 手动改名（§4.2）。**改名不改 id**，所以这里只回一个新名字，边 / op / 快照都不动。
+ * 手动改名（§4.2 + C1 契约修正 1）。**改名不改 id**，所以这里只回一个新名字，
+ * 边 / op / 快照都不动。
+ *
+ * ⚠ 镜头节点上改的是 **`label`**，不是带序号的整串：序号是显示前缀，跟着 `shotNo`
+ * 走，换序时自己会变。传进来的 `currentName` / `taken` 对镜头就是标签与标签集。
  *
  * ⛔ 冲突时**就地拒绝**，不静默加后缀——加后缀会让用户以为改成功了，而他下次
  * `@` 的是自己以为的那个名字。
@@ -407,17 +411,140 @@ export function renameStableNodeName(
   return { ok: true, name }
 }
 
-/**
- * 镜号变更（拖镜头换序）后把名字里的 `S<nn>` 段跟着重排，**用户自定义的后半段
- * 保留**：`S02·西格莉卡近景` 移到第 5 位后变 `S05·西格莉卡近景`（§4.2 末条）。
+/* ─────────────────────────────────────────────────────────────────────────
+ * C1 契约修正 1 · 标签与序号分家
  *
- * `shotNo` 传 `undefined` = 移出镜头带，前缀整段剥掉。原本没有前缀的名字加上前缀。
+ * 之前这里是 `applyShotNoToNodeName(name, shotNo)`：换序时把名字里的 `S<nn>` 段
+ * 重写回存储。⛔ 已删，**不是**换个名字留着。理由是它重写的是稳定名本身——而
+ * `@` 提及把字面文本存进了提示词，于是把 S02 拖到第 5 位，用户写下的
+ * `@S02·有人还在` 就静默指向了另一个镜头。
+ *
+ * 现在：`label` 是稳定名（落库、`@` 用它、改名改它），`shotNo` 只是显示序号，
+ * 显示串由 `formatShotDisplayName` **临时拼**，⛔ 不落库。换序只动 `shotNo`。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/**
+ * 显示名：`S02·有人还在`。⚠ **只用于渲染**——落库的是 `label` 与 `shotNo` 两个
+ * 字段，不是这一串。`shotNo` 缺席（未归镜的散节点）时就是标签本身。
  */
-export function applyShotNoToNodeName(
-  name: string,
-  shotNo: number | undefined,
+export function formatShotDisplayName(label: string, shotNo?: number): string {
+  if (shotNo === undefined) return label
+  return `${formatShotPrefix(shotNo)}${NODE_V4_NAME.separator}${label}`
+}
+
+/**
+ * 从提示词取缺省标签（C1 契约修正 1）：**前 8 字**，空提示词兜底 `镜头`。
+ *
+ * ⚠ 缺省值仍然是**真标签**，创建即落库——不是「显示时才算」。所以它必须是确定的：
+ * 同一段提示词永远得到同一个标签，改提示词不会让已经落库的标签跟着变。
+ */
+export function deriveShotLabel(prompt?: string): string {
+  const source = toNodeDisplayLabel(prompt)
+  if (!source) return NODE_V4_NAME.shotLabelFallback
+  return source.slice(0, NODE_V4_NAME.labelFromPromptLength)
+}
+
+export interface ShotLabelInput {
+  /** 用户 / 助手给的标签。给了就用它。 */
+  readonly given?: string
+  /** 没给时从提示词取前 8 字。 */
+  readonly prompt?: string
+}
+
+/**
+ * 新建镜头时算一个**唯一**标签。冲突规则与 `buildStableNodeName` 同：追加最小的
+ * `n ≥ 2`。唯一是 `@` 解析的前提——两个「有人还在」会让 `@有人还在` 指谁全靠猜。
+ */
+export function buildShotLabel(
+  input: ShotLabelInput,
+  taken: ReadonlySet<string>,
 ): string {
-  const bare = name.replace(SHOT_PREFIX_PATTERN, '')
-  if (shotNo === undefined) return bare
-  return `${formatShotPrefix(shotNo)}${NODE_V4_NAME.separator}${bare}`
+  const base = toNodeDisplayLabel(input.given) ?? deriveShotLabel(input.prompt)
+  if (!taken.has(base)) return base
+  for (let n = 2; n <= NODE_V4_NAME.maxConflictSuffix; n += 1) {
+    const candidate = `${base}${n}`
+    if (!taken.has(candidate)) return candidate
+  }
+  throw new Error(`Cannot allocate a shot label for "${base}"`)
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * `@` 解析（C1 契约修正 1）
+ *
+ * 判据一条：**按标签匹配，序号只作辅助**。用户写 `@S02·有人还在`，我们先把
+ * `S02` 剥成一个提示（用来消歧），真正比对的是「有人还在」。于是换序之后同一句
+ * `@S02·有人还在` 仍然命中同一个镜头——序号对不上只是少了一个消歧信号，不是没命中。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+export interface NodeMentionCandidate {
+  readonly id: string
+  /** 稳定名：镜头是 `label`，其余节点是 `data.name`。 */
+  readonly label: string
+  readonly shotNo?: number
+}
+
+export const NODE_MENTION_REJECT_REASON_IDS = {
+  notFound: 'notFound',
+  ambiguous: 'ambiguous',
+} as const
+
+export type NodeMentionRejectReason =
+  (typeof NODE_MENTION_REJECT_REASON_IDS)[keyof typeof NODE_MENTION_REJECT_REASON_IDS]
+
+export type NodeMentionResult =
+  | { readonly ok: true; readonly id: string }
+  | { readonly ok: false; readonly reason: NodeMentionRejectReason }
+
+/** 把 `S02·有人还在` 拆成 `{ shotNo: 2, label: '有人还在' }`；没前缀就整串是标签。 */
+export function parseNodeMention(query: string): {
+  readonly label: string
+  readonly shotNo?: number
+} {
+  const raw = query.trim()
+  const match = SHOT_PREFIX_PATTERN.exec(raw)
+  if (!match) return { label: raw }
+  const shotNo = Number.parseInt(
+    match[0].slice(NODE_V4_NAME.shotPrefix.length),
+    10,
+  )
+  return { label: raw.slice(match[0].length).trim(), shotNo }
+}
+
+/**
+ * 解析一个 `@` 提及。精确标签 → 前缀标签，两级都用序号（若给了）作消歧，
+ * ⛔ 序号从不单独决定命中：换序会让它过期，而标签不会。
+ *
+ * 仍然歧义时**报歧义**，不静默取第一个——静默取第一个正是「改了另一个镜头」这类
+ * 事故的形状。
+ */
+export function resolveNodeMention(
+  query: string,
+  candidates: readonly NodeMentionCandidate[],
+): NodeMentionResult {
+  const { label, shotNo } = parseNodeMention(query)
+  if (!label)
+    return { ok: false, reason: NODE_MENTION_REJECT_REASON_IDS.notFound }
+
+  const pick = (
+    matches: readonly NodeMentionCandidate[],
+  ): NodeMentionResult | undefined => {
+    if (matches.length === 0) return undefined
+    if (matches.length === 1) return { ok: true, id: matches[0]!.id }
+    const hinted =
+      shotNo === undefined
+        ? []
+        : matches.filter((candidate) => candidate.shotNo === shotNo)
+    if (hinted.length === 1) return { ok: true, id: hinted[0]!.id }
+    return { ok: false, reason: NODE_MENTION_REJECT_REASON_IDS.ambiguous }
+  }
+
+  return (
+    pick(candidates.filter((candidate) => candidate.label === label)) ??
+    pick(
+      candidates.filter((candidate) => candidate.label.startsWith(label)),
+    ) ?? {
+      ok: false,
+      reason: NODE_MENTION_REJECT_REASON_IDS.notFound,
+    }
+  )
 }

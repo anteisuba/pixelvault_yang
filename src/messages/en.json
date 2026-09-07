@@ -5835,6 +5835,11 @@
         "clip": "Clip",
         "source": "Source"
       },
+      "textRoles": {
+        "script": "Script",
+        "style": "Style",
+        "character": "Character"
+      },
       "outputs": {
         "out": "Output",
         "tailFrame": "Tail frame"
@@ -7031,7 +7036,14 @@
       "urlNotReadable": "That address can't be read here",
       "urlUnreadable": "That page could not be read",
       "aspectLockedByFirstFrame": "A first frame is set, so this model only accepts the adaptive aspect ratio",
-      "videoFramesMissing": "Could not read frames from this clip"
+      "videoFramesMissing": "Could not read frames from this clip",
+      "blockedSource": "You marked this one as failed, so it can't open or close a clip"
+    },
+    "cost": {
+      "title": "Assistant work",
+      "vision": "Looked at pictures",
+      "research": "Searched and read sources",
+      "llm": "Model round trips"
     },
     "field": {
       "prompt": "Prompt",
@@ -7176,6 +7188,9 @@
       "unselected": "None picked",
       "continue": "Continue from this one",
       "continuePrefill": "Continue from this one: ",
+      "approve": "Mark as good",
+      "block": "Mark as failed",
+      "reviewFailed": "Could not save that mark",
       "chipLabel": "Result {ordinal}",
       "pending": "Still generating"
     },
@@ -7246,7 +7261,14 @@
       "rulesHint": "Standing rules the assistant reads before it touches anything. It writes them down when you tell it something worth keeping.",
       "rulesLoading": "Loading…",
       "rulesEmpty": "No rules yet — tell the assistant something worth keeping and it records one.",
-      "ruleDelete": "Delete this rule"
+      "ruleDelete": "Delete this rule",
+      "tabCards": "Context cards",
+      "cardsHint": "Write a character or style card once — the assistant follows it on every workbench.",
+      "cardsLoading": "Loading your cards…",
+      "cardsEmpty": "No cards yet — make a character card and the assistant knows it next turn.",
+      "cardNew": "New card",
+      "cardEdit": "Edit “{name}”",
+      "cardPinnedHere": "Always on in this workbench"
     },
     "rule": {
       "recordedOn": "recorded {date}",

@@ -623,7 +623,11 @@ export type NodeAssistantWriteMode = (typeof NODE_ASSISTANT_WRITE_MODES)[number]
 /** `set_field` 能写的字段——**封闭词表**，⛔ 不给自由 key。 */
 export const NODE_ASSISTANT_SETTABLE_FIELDS = [
   'shotNo',
+  /** 镜头标签 = 稳定名（C1 契约修正 1）。改名改的是它，⛔ 不是 `shotNo` 前缀。 */
+  'label',
   'characterName',
+  /** 角色节点硬链的角色卡 id（C1 契约修正 3）。存在性在服务端校验，不在数据层。 */
+  'contextCardId',
   'ownerName',
   'sourceRef',
   'blocked',

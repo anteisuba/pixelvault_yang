@@ -10,7 +10,11 @@ import {
   NODE_ASSISTANT_SETTABLE_FIELDS,
   NODE_ASSISTANT_WRITE_MODES,
 } from '@/constants/node-assistant-ops'
-import { NODE_SLOT_OUTPUTS, NODE_SLOTS } from '@/constants/node-slots'
+import {
+  NODE_SLOT_OUTPUTS,
+  NODE_SLOT_TEXT_ROLES,
+  NODE_SLOTS,
+} from '@/constants/node-slots'
 import { NODE_MEDIA_KINDS, NODE_REVIEW_STATES } from '@/constants/node-types'
 
 /**
@@ -356,6 +360,12 @@ export const NodeAssistantConnectV4OpSchema = z.object({
   sourceHandle: z.enum(NODE_SLOT_OUTPUTS).optional(),
   target: NodeAssistantOpTargetSchema,
   slot: NodeAssistantSlotSchema,
+  /**
+   * 文本槽的角色（C1 契约修正 2）。缺席 = `script`——`video.shot.text` 的容量按
+   * 角色分（script 0..1 / style 0..N / character 0..N），收窄在规划器判。
+   * ⛔ 其它槽给 `role` 无意义，规划器忽略它而不是整批拒绝。
+   */
+  role: z.enum(NODE_SLOT_TEXT_ROLES).optional(),
 })
 
 export const NodeAssistantDisconnectOpSchema = z.object({
@@ -446,6 +456,11 @@ export const NodeAssistantAttachAssetV4OpSchema = z.object({
   target: NodeAssistantOpTargetSchema,
   slot: NodeAssistantSlotSchema,
   sourceNodeId: NodeAssistantOpTargetSchema,
+  /**
+   * 顺手把角色卡硬链上去（C1 契约修正 3）。只对 `image.character` 有意义；
+   * 卡存不存在、是不是这个用户的，是执行层的事——数据层只管形状。
+   */
+  contextCardId: NodeAssistantOpTargetSchema.optional(),
 })
 
 export const NodeAssistantSetModelV4OpSchema = z.object({

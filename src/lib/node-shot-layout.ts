@@ -7,8 +7,13 @@
  * 是**布局层按 `data.shotNo` 派生的分组**——纯渲染，无 schema、无坐标系变更。
  *
  * ⛔ 一条写死的边界（§6 末条）：**整理只动位置**。绝不顺手改 `shotNo`、绝不删边
- * ——否则用户不敢按它。改 `shotNo` 的只有 `moveNodeToShot` / `reorderShots`，
- * 它们各自把名字里的 `S<nn>` 段一起带走。
+ * ——否则用户不敢按它。改 `shotNo` 的只有 `moveNodeToShot` / `reorderShots`。
+ *
+ * ⛔ 换序 / 归镜 **只写 `shotNo`，一个字都不碰名字**（C1 契约修正 1）。在这之前
+ * 它们调 `applyShotNoToNodeName` 把名字里的 `S<nn>` 段一起重写——而 `@` 提及把
+ * 字面文本存进了提示词，于是把 S02 拖到第 5 位，用户写下的 `@S02·有人还在` 就
+ * 静默指向了另一个镜头。现在序号只是显示前缀（`formatShotDisplayName` 渲染时
+ * 临时拼），标签才是稳定名。
  *
  * ⛔ 纯函数：不碰 DOM、不碰 ReactFlow 实例。
  */
@@ -16,7 +21,6 @@
 import { getNodeV4Ports, type NodeSlotId } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { NODE_V4_CARD, NODE_V4_LAYOUT } from '@/constants/node-studio'
-import { applyShotNoToNodeName } from '@/lib/node-display-name'
 import { resolveCurrentSourceId } from '@/lib/node-slot-binding'
 import type {
   NodeV4,
@@ -255,16 +259,18 @@ export function shotSpawnPosition(
   }
 }
 
-function renameForShot(node: NodeV4, shotNo: number | undefined): NodeV4 {
-  const name = applyShotNoToNodeName(node.data.name, shotNo)
+/**
+ * 只改镜号。⛔ **不动 `data.name` / `data.label`**（C1 契约修正 1）——名字是稳定名，
+ * 序号是显示前缀，两者分家之后归镜与换序都不产生改名。
+ */
+function withShotNo(node: NodeV4, shotNo: number | undefined): NodeV4 {
   const data = { ...node.data } as NodeV4Data
-  data.name = name
   if (shotNo === undefined) delete data.shotNo
   else data.shotNo = shotNo
   return { ...node, data }
 }
 
-/** `move_to_shot`：改镜号 + 名字里的 `S<nn>` 段跟随（§4.2 末条）。 */
+/** `move_to_shot`：**只**改镜号。名字不跟随——显示串由 `formatShotDisplayName` 现拼。 */
 export function moveNodeToShot(
   state: NodeWorkflowStateV4,
   nodeId: string,
@@ -273,14 +279,14 @@ export function moveNodeToShot(
   return {
     ...state,
     nodes: state.nodes.map((node) =>
-      node.id === nodeId ? renameForShot(node, shotNo ?? undefined) : node,
+      node.id === nodeId ? withShotNo(node, shotNo ?? undefined) : node,
     ),
   }
 }
 
 /**
  * `reorder_shot`：把第 `from` 镜挪到第 `to` 位，其余镜号顺移。
- * 整次换序是**一步**（一次 undo 记录），名字全部跟随重排。
+ * 整次换序是**一步**（一次 undo 记录）。⛔ **名字一个都不改**——换序只是换 `shotNo`。
  */
 export function reorderShots(
   state: NodeWorkflowStateV4,
@@ -310,7 +316,7 @@ export function reorderShots(
       if (current === undefined) return node
       const next = mapping.get(current)
       if (next === undefined || next === current) return node
-      return renameForShot(node, next)
+      return withShotNo(node, next)
     }),
   }
 }

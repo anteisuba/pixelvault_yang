@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import { NODE_SLOT_IDS } from '@/constants/node-slots'
+import {
+  NODE_SLOT_IDS,
+  NODE_SLOT_TEXT_ROLE_IDS,
+  type NodeSlotTextRole,
+} from '@/constants/node-slots'
 import {
   connectIntoSlot,
   disconnectEdge,
   getSlotOccupancy,
+  getSlotRoleOccupancy,
   listLiveConnectableSlots,
   markVersionBlocked,
+  planSlotConnectRole,
   reconcileStateSlots,
   resolveCurrentSourceId,
   setSlotVersion,
@@ -39,6 +45,8 @@ function shotNode(id: string, shotNo = 2): NodeV4 {
     data: {
       kind: 'video',
       subtype: 'shot',
+      // `label` 必填，且**就是**稳定名（C1 契约修正 1）。
+      label: id,
       name: id,
       status: 'idle',
       createdAt: NOW,
@@ -47,17 +55,22 @@ function shotNode(id: string, shotNo = 2): NodeV4 {
   }
 }
 
-function textNode(id: string): NodeV4 {
+function textNode(
+  id: string,
+  subtype: 'shotNote' | 'script' | 'rule' = 'shotNote',
+  defaultRole?: NodeSlotTextRole,
+): NodeV4 {
   return {
     id,
     position: { x: 0, y: 0 },
     data: {
       kind: 'text',
-      subtype: 'shotNote',
+      subtype,
       name: id,
       status: 'idle',
       createdAt: NOW,
       body: '# S02\n控制室广角',
+      ...(defaultRole ? { defaultRole } : {}),
     },
   }
 }
@@ -350,5 +363,155 @@ describe('listLiveConnectableSlots', () => {
     expect(
       listLiveConnectableSlots(state.nodes[0]!, leaf, state.edges),
     ).toEqual([])
+  })
+})
+
+describe('文本槽按角色算容量（C1 契约修正 2）', () => {
+  function textScene(): NodeWorkflowStateV4 {
+    return {
+      version: 4,
+      nodes: [
+        shotNode('v_02'),
+        textNode('t_script', 'script'),
+        textNode('t_script2', 'script'),
+        textNode('t_rule', 'rule'),
+      ],
+      edges: [],
+    }
+  }
+
+  it('第一条剧本落 script，binding 上记下角色', () => {
+    const result = connectIntoSlot(textScene(), {
+      source: 't_script',
+      target: 'v_02',
+      slot: NODE_SLOT_IDS.text,
+      edgeId: 'e1',
+      now: NOW,
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const binding = result.state.nodes.find((n) => n.id === 'v_02')?.data.slots
+      ?.text
+    expect(binding?.versions[0]?.role).toBe(NODE_SLOT_TEXT_ROLE_IDS.script)
+  })
+
+  it('script 已满（0..1）时第二条剧本自动落 style，⛔ 不报满', () => {
+    const first = connectIntoSlot(textScene(), {
+      source: 't_script',
+      target: 'v_02',
+      slot: NODE_SLOT_IDS.text,
+      edgeId: 'e1',
+      now: NOW,
+    })
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    const second = connectIntoSlot(first.state, {
+      source: 't_script2',
+      target: 'v_02',
+      slot: NODE_SLOT_IDS.text,
+      edgeId: 'e2',
+      now: NOW,
+    })
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    const versions =
+      second.state.nodes.find((n) => n.id === 'v_02')?.data.slots?.text
+        ?.versions ?? []
+    expect(versions.map((version) => version.role)).toEqual([
+      NODE_SLOT_TEXT_ROLE_IDS.script,
+      NODE_SLOT_TEXT_ROLE_IDS.style,
+    ])
+  })
+
+  it('显式给 role 就照给的算：script 满了再显式要 script → 报满', () => {
+    const first = connectIntoSlot(textScene(), {
+      source: 't_script',
+      target: 'v_02',
+      slot: NODE_SLOT_IDS.text,
+      edgeId: 'e1',
+      now: NOW,
+    })
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    expect(
+      connectIntoSlot(first.state, {
+        source: 't_script2',
+        target: 'v_02',
+        slot: NODE_SLOT_IDS.text,
+        edgeId: 'e2',
+        role: NODE_SLOT_TEXT_ROLE_IDS.script,
+        now: NOW,
+      }),
+    ).toEqual({ ok: false, reason: 'slotFull' })
+  })
+
+  it('规则文本推成 style，与已有剧本并存，两个角色各算各的', () => {
+    const first = connectIntoSlot(textScene(), {
+      source: 't_script',
+      target: 'v_02',
+      slot: NODE_SLOT_IDS.text,
+      edgeId: 'e1',
+      now: NOW,
+    })
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    const second = connectIntoSlot(first.state, {
+      source: 't_rule',
+      target: 'v_02',
+      slot: NODE_SLOT_IDS.text,
+      edgeId: 'e2',
+      now: NOW,
+    })
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    const target = second.state.nodes.find((n) => n.id === 'v_02')!
+    expect(
+      getSlotRoleOccupancy(
+        target,
+        NODE_SLOT_IDS.text,
+        second.state.edges,
+        second.state.nodes,
+        NODE_SLOT_TEXT_ROLE_IDS.script,
+      ),
+    ).toBe(1)
+    expect(
+      getSlotRoleOccupancy(
+        target,
+        NODE_SLOT_IDS.text,
+        second.state.edges,
+        second.state.nodes,
+        NODE_SLOT_TEXT_ROLE_IDS.style,
+      ),
+    ).toBe(1)
+  })
+
+  it('拖线点亮按角色算：script 满了 text 槽仍然点亮（会落 style）', () => {
+    const first = connectIntoSlot(textScene(), {
+      source: 't_script',
+      target: 'v_02',
+      slot: NODE_SLOT_IDS.text,
+      edgeId: 'e1',
+      now: NOW,
+    })
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    const state = first.state
+    expect(
+      listLiveConnectableSlots(
+        state.nodes.find((n) => n.id === 't_script2')!,
+        state.nodes.find((n) => n.id === 'v_02')!,
+        state.edges,
+        { nodes: state.nodes },
+      ),
+    ).toEqual([NODE_SLOT_IDS.text])
+    expect(
+      planSlotConnectRole(
+        state.nodes.find((n) => n.id === 't_script2')!,
+        state.nodes.find((n) => n.id === 'v_02')!,
+        NODE_SLOT_IDS.text,
+        state.edges,
+        state.nodes,
+      ).role,
+    ).toBe(NODE_SLOT_TEXT_ROLE_IDS.style)
   })
 })

@@ -776,6 +776,13 @@ export const NODE_V4_NAME = {
   separator: '·',
   /** 同名冲突最多追加到几号；到顶是数据异常，不静默复用已占用的名字。 */
   maxConflictSuffix: 999,
+  /**
+   * 镜头标签缺省时从提示词取几个字（C1 契约修正 1）。⚠ 取的是**标签**不是名字：
+   * 标签是稳定名，序号只是显示前缀，换序不动它。
+   */
+  labelFromPromptLength: 8,
+  /** 提示词也空时的兜底标签。 */
+  shotLabelFallback: '镜头',
 } as const
 
 /**
@@ -822,6 +829,19 @@ export const NODE_V4_SNAPSHOT = {
   promptPrefix: 'prompt: ',
   paramsPrefix: 'params: ',
   ownerPrefix: 'owner=',
+  /**
+   * 文本槽按角色分列（C1 契约修正 2）。⚠ 三行不是同一件事：提示词编译时
+   * `剧本` 进正文、`风格约束` 进约束段、`角色描述` 进角色段——快照里混成一行，
+   * 模型就分不出「要拍的内容」和「不许违反的约束」。
+   */
+  textRoleLabels: {
+    script: '剧本',
+    style: '风格约束',
+    character: '角色描述',
+  },
+  /** 角色节点硬链角色卡时的行内标记（C1 契约修正 3）。⛔ 只给名字不给 id。 */
+  cardPrefix: '[卡:',
+  cardSuffix: ']',
   /** 完整档相邻镜的半径。1 = 当前镜 + 前一镜 + 后一镜。 */
   neighborRadius: 1,
   /** 单镜结构的字符预算；超了先降 prompt 行，再降 params 行，最后降成标题行。 */

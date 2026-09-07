@@ -213,6 +213,35 @@ describe('migrateNodeWorkflowStateToV4', () => {
     expect(slotOf('e_merge_a')).toBe('clip')
   })
 
+  it('镜头标签：v3 没有这个字段 → 取显示名 / 提示词前 8 字，兜底「镜头」', () => {
+    const { state } = migrateNodeWorkflowStateToV4(
+      {
+        nodes: [
+          node('v_named', NODE_TYPE_IDS.seedance, { shotName: '有人还在' }),
+          node('v_prompt', NODE_TYPE_IDS.seedance, {
+            prompt: '雨夜里她回头看了一眼空荡的走廊',
+          }),
+          node('v_bare', NODE_TYPE_IDS.seedance),
+        ],
+      },
+      { now: NOW },
+    )
+    const labelOf = (id: string) => {
+      const data = state.nodes.find((n) => n.id === id)?.data
+      return data?.kind === 'video' ? data.label : undefined
+    }
+    expect(labelOf('v_named')).toBe('有人还在')
+    expect(labelOf('v_prompt')).toBe('雨夜里她回头看了')
+    expect(labelOf('v_bare')).toBe('镜头')
+  })
+
+  it('v3 的 shotText 连进来默认是剧本档', () => {
+    const { state } = migrateNodeWorkflowStateToV4(fullFixture(), { now: NOW })
+    const text = state.nodes.find((n) => n.id === 'n_text')?.data
+    expect(text?.kind).toBe('text')
+    expect(text?.kind === 'text' ? text.defaultRole : undefined).toBe('script')
+  })
+
   it('imageCategory 的 frameEnd 落尾帧槽，字段本身消失', () => {
     const state: V3State = {
       nodes: [

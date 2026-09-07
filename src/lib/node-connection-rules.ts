@@ -27,10 +27,15 @@ import {
   getNodeV4Ports,
   getNodeV4Slot,
   NODE_SLOT_IDS,
+  NODE_SLOT_TEXT_ROLE_FALLBACK,
+  NODE_SLOT_TEXT_ROLE_IDS,
+  resolveSlotRoleCapacity,
   type NodeSlotId,
+  type NodeSlotTextRole,
 } from '@/constants/node-slots'
 import {
   NODE_TYPE_IDS,
+  NODE_V4_TEXT_SUBTYPE_IDS,
   type NodeImageRole,
   type NodeV4Subtype,
   type NodeWorkflowMediaKind,
@@ -152,6 +157,44 @@ export interface CanConnectOptions {
    * 只对静态 `max === null` 的 0..N 槽有意义；不传 = 不设上限。
    */
   readonly capacity?: number
+  /**
+   * 文本槽的角色（C1 契约修正 2）。缺省 `script`。容量按角色算——`occupancy`
+   * 因此也要是**同角色**的占用数：script 已有一条时再连一条 script 是超限，
+   * 再连一条 style 不是。
+   */
+  readonly role?: NodeSlotTextRole
+}
+
+/**
+ * 文本节点连进 `text` 槽时算哪个角色（C1 契约修正 2）。
+ *
+ * 优先级：连线时显式给的 > 节点自己的 `defaultRole` > 子型推出来的 > `script`。
+ * ⚠ 子型只推两档（`script` 子型→剧本、`rule` 子型→风格约束）：`shotNote` 既可能
+ * 是要拍的内容也可能是补充说明，猜错比让调用方显式给更贵。
+ */
+export function defaultRoleForTextSubtype(
+  subtype: NodeV4Subtype,
+): NodeSlotTextRole | undefined {
+  if (subtype === NODE_V4_TEXT_SUBTYPE_IDS.script) {
+    return NODE_SLOT_TEXT_ROLE_IDS.script
+  }
+  if (subtype === NODE_V4_TEXT_SUBTYPE_IDS.rule) {
+    return NODE_SLOT_TEXT_ROLE_IDS.style
+  }
+  return undefined
+}
+
+export function resolveTextSlotRole(source: {
+  readonly subtype: NodeV4Subtype
+  readonly defaultRole?: NodeSlotTextRole
+  readonly explicitRole?: NodeSlotTextRole
+}): NodeSlotTextRole {
+  return (
+    source.explicitRole ??
+    source.defaultRole ??
+    defaultRoleForTextSubtype(source.subtype) ??
+    NODE_SLOT_TEXT_ROLE_FALLBACK
+  )
 }
 
 const VERSIONED_SLOT_CAPACITY = 1
@@ -197,10 +240,18 @@ export function canConnect(
     return { ok: false, reason: NODE_CONNECT_REJECT_REASON_IDS.blockedSource }
   }
 
+  // 容量按角色算（文本槽三档；其余槽 `resolveSlotRoleCapacity` 回落到顶层 max）。
+  const capacity = resolveSlotRoleCapacity(spec, options.role)
   // 轮播槽不看容量：再连一条 = 加一个新版本（§1.4），不是超限。
+  // ⚠ 判据用的是**角色档的** max：`text` 槽顶层 0..N，但 script 档 0..1 —— 它不是
+  // 轮播槽（多连一条 script 是超限，不是新版本），所以只有顶层就 =1 的槽才免检。
   if (spec.max !== VERSIONED_SLOT_CAPACITY) {
-    const limit = spec.max ?? options.capacity
-    if (limit !== undefined && (options.occupancy ?? 0) >= limit) {
+    const limit = capacity.max ?? options.capacity
+    if (
+      limit !== null &&
+      limit !== undefined &&
+      (options.occupancy ?? 0) >= limit
+    ) {
       return { ok: false, reason: NODE_CONNECT_REJECT_REASON_IDS.slotFull }
     }
   }
@@ -218,6 +269,8 @@ export function listConnectableSlots(
   options?: {
     readonly occupancyBySlot?: Partial<Record<NodeSlotId, number>>
     readonly capacityBySlot?: Partial<Record<NodeSlotId, number>>
+    /** 拖的是文本时按哪个角色点亮（缺省 `script`）。 */
+    readonly role?: NodeSlotTextRole
   },
 ): NodeSlotId[] {
   const ports = getNodeV4Ports(target.kind, target.subtype)
@@ -229,6 +282,7 @@ export function listConnectableSlots(
           slot: spec.slot,
           occupancy: options?.occupancyBySlot?.[spec.slot],
           capacity: options?.capacityBySlot?.[spec.slot],
+          role: options?.role,
         }).ok,
     )
     .map((spec) => spec.slot)

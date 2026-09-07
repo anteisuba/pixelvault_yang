@@ -89,7 +89,13 @@ function scene(): NodeWorkflowStateV4 {
           url: 'https://cdn.test/v.mp3',
           durationSec: 4,
         }),
-        node('v_02', { kind: 'video', subtype: 'shot', shotNo: 2 }),
+        // `video.shot` 的 `label` 必填 —— 稳定名就是它，`S02` 只是显示前缀。
+        node('v_02', {
+          kind: 'video',
+          subtype: 'shot',
+          shotNo: 2,
+          label: '有人还在',
+        }),
       ],
       edges: [
         {
@@ -230,6 +236,31 @@ describe('四类节点的两态渲染', () => {
     ).toEqual(['firstFrame', 'lastFrame', 'reference', 'voice'])
   })
 
+  it('镜头卡头显示 `S02·label`——序号是显示前缀，落库的是 label 与 shotNo', () => {
+    const state = scene()
+    renderNode(VideoNodeV4, 'v_02', harness(state))
+    expect(screen.getByText('S02·有人还在')).toBeInTheDocument()
+    // ⛔ 存的不是这一串：节点自己的 name 与 label 都不带前缀。
+    const stored = state.nodes.find((item) => item.id === 'v_02')!.data
+    expect(stored.kind === 'video' && stored.label).toBe('有人还在')
+  })
+
+  it('文本槽的每一项带角色小标（C1 契约修正 2）', () => {
+    const state = scene()
+    const { container } = renderNode(
+      VideoNodeV4,
+      'v_02',
+      harness(state, { expandedNodeId: 'v_02' }),
+    )
+    const textRow = container.querySelector('[data-shot-row="text"]')!
+    expect(
+      [...textRow.querySelectorAll('[data-text-role]')].map((element) =>
+        element.getAttribute('data-text-role'),
+      ),
+      // t_02 是 shotNote 子型 → 推不出角色，按缺省 script 落
+    ).toEqual(['script'])
+  })
+
   it('空槽渲染成虚线 + 槽名', () => {
     const state = scene()
     const { container } = renderNode(
@@ -286,6 +317,27 @@ describe('具名端口与拖线点亮', () => {
       VideoNodeV4,
       'v_02',
       harness(state, { draggingFrom: 't_02' }),
+    )
+    const lit = [...container.querySelectorAll('[data-type="target"]')]
+      .filter((element) => element.getAttribute('data-lit') === 'true')
+      .map((element) => element.getAttribute('data-slot'))
+    expect(lit).toEqual(['text'])
+  })
+
+  it('script 已满时 text 槽仍然点亮——会落 style，⛔ 不表现成「连不上」', () => {
+    const state = scene()
+    // 场景里 t_02 已经占了 script（0..1）。再拖一份剧本子型的文本过来。
+    const withSecondScript: NodeWorkflowStateV4 = {
+      ...state,
+      nodes: [
+        ...state.nodes,
+        node('t_script', { kind: 'text', subtype: 'script', body: '第二份' }),
+      ],
+    }
+    const { container } = renderNode(
+      VideoNodeV4,
+      'v_02',
+      harness(withSecondScript, { draggingFrom: 't_script' }),
     )
     const lit = [...container.querySelectorAll('[data-type="target"]')]
       .filter((element) => element.getAttribute('data-lit') === 'true')

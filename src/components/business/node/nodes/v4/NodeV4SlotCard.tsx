@@ -71,6 +71,17 @@ export function NodeV4SlotCard({ nodeId, slot, binding }: NodeV4SlotCardProps) {
       <div className="flex items-center gap-1 text-2xs text-muted-foreground">
         <SlotSwatch slot={slot} />
         <span className="truncate">{t(`slots.${slot}`)}</span>
+        {/* 角色小标（C1 契约修正 2）：只有分角色的槽（`video.shot.text`）才有
+            `role`，三档去向不同——剧本进正文、风格进约束段、角色进角色段。不标
+            出来，用户看不出哪段会被当画面描述念出来。 */}
+        {version?.role ? (
+          <span
+            data-text-role={version.role}
+            className="ml-auto shrink-0 rounded-xs border px-1"
+          >
+            {t(`textRoles.${version.role}`)}
+          </span>
+        ) : null}
       </div>
 
       <button

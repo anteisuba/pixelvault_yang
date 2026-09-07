@@ -11,11 +11,15 @@ import {
   type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
 import {
-  applyShotNoToNodeName,
+  buildShotLabel,
+  deriveShotLabel,
+  formatShotDisplayName,
   buildDisplayNamePatch,
   buildStableNodeName,
+  NODE_MENTION_REJECT_REASON_IDS,
   NODE_RENAME_REJECT_REASON_IDS,
   renameStableNodeName,
+  resolveNodeMention,
   resolveNodeAccessibleName,
   resolveNodeDisplayName,
   stripFileExtension,
@@ -433,15 +437,80 @@ describe('renameStableNodeName', () => {
   })
 })
 
-describe('applyShotNoToNodeName', () => {
-  it('换序只改 S 段，用户自定义的后半段保留', () => {
-    expect(applyShotNoToNodeName('S02·西格莉卡近景', 5)).toBe(
-      'S05·西格莉卡近景',
-    )
+describe('镜头标签与序号分家（C1 契约修正 1）', () => {
+  it('显示名是临时拼的：换序只动 shotNo，标签一个字不变', () => {
+    expect(formatShotDisplayName('有人还在', 2)).toBe('S02·有人还在')
+    expect(formatShotDisplayName('有人还在', 5)).toBe('S05·有人还在')
+    // 未归镜 = 只有标签，没有前缀。
+    expect(formatShotDisplayName('有人还在')).toBe('有人还在')
   })
 
-  it('原本没有前缀的散节点名归镜时加上前缀；移出镜头带剥掉前缀', () => {
-    expect(applyShotNoToNodeName('参考图4', 7)).toBe('S07·参考图4')
-    expect(applyShotNoToNodeName('S07·参考图4', undefined)).toBe('参考图4')
+  it('缺省标签取提示词前 8 字，空提示词兜底「镜头」', () => {
+    expect(deriveShotLabel('雨夜里她回头看了一眼空荡的走廊')).toBe(
+      '雨夜里她回头看了',
+    )
+    expect(deriveShotLabel('  ')).toBe('镜头')
+    expect(deriveShotLabel(undefined)).toBe('镜头')
+  })
+
+  it('用户给了标签就用它；重名从 2 起追加序号（@ 解析要求唯一）', () => {
+    expect(
+      buildShotLabel({ given: '有人还在', prompt: '别用这段' }, new Set()),
+    ).toBe('有人还在')
+    expect(buildShotLabel({ given: '有人还在' }, new Set(['有人还在']))).toBe(
+      '有人还在2',
+    )
+  })
+})
+
+describe('resolveNodeMention（换序后 @ 仍然指同一个镜头）', () => {
+  const candidates = [
+    { id: 'n1', label: '有人还在', shotNo: 2 },
+    { id: 'n2', label: '空走廊', shotNo: 3 },
+  ]
+
+  it('序号变了、标签没变 → 仍然命中同一个节点', () => {
+    expect(resolveNodeMention('S02·有人还在', candidates)).toEqual({
+      ok: true,
+      id: 'n1',
+    })
+    // 同一句 @，节点被拖到第 5 位（shotNo: 5）之后照样命中。
+    const reordered = [{ ...candidates[0]!, shotNo: 5 }, candidates[1]!]
+    expect(resolveNodeMention('S02·有人还在', reordered)).toEqual({
+      ok: true,
+      id: 'n1',
+    })
+    expect(resolveNodeMention('有人还在', reordered)).toEqual({
+      ok: true,
+      id: 'n1',
+    })
+  })
+
+  it('前缀匹配兜底；序号只作消歧，⛔ 不单独决定命中', () => {
+    expect(resolveNodeMention('空走', candidates)).toEqual({
+      ok: true,
+      id: 'n2',
+    })
+    const twins = [
+      { id: 'a', label: '回头', shotNo: 2 },
+      { id: 'b', label: '回头2', shotNo: 7 },
+    ]
+    expect(resolveNodeMention('回头', twins)).toEqual({ ok: true, id: 'a' })
+    expect(resolveNodeMention('S07·回', twins)).toEqual({ ok: true, id: 'b' })
+  })
+
+  it('歧义就报歧义，找不到就报找不到，⛔ 不静默取第一个', () => {
+    const twins = [
+      { id: 'a', label: '回头一' },
+      { id: 'b', label: '回头二' },
+    ]
+    expect(resolveNodeMention('回头', twins)).toEqual({
+      ok: false,
+      reason: NODE_MENTION_REJECT_REASON_IDS.ambiguous,
+    })
+    expect(resolveNodeMention('不存在', twins)).toEqual({
+      ok: false,
+      reason: NODE_MENTION_REJECT_REASON_IDS.notFound,
+    })
   })
 })

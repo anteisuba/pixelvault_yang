@@ -65,6 +65,12 @@ export interface NodeV4ShellProps {
   readonly slotRail?: ReactNode
   readonly width: number
   readonly toolbar?: ReactNode
+  /**
+   * 卡头显示的名字。默认 `data.name`；镜头节点传的是
+   * `formatShotDisplayName(label, shotNo)`——序号是**显示前缀**，⛔ 不落库
+   * （C1 契约修正 1）。
+   */
+  readonly title?: string
 }
 
 function portFamily(data: NodeV4Data): string {
@@ -79,6 +85,7 @@ export function NodeV4Shell({
   slotRail,
   width,
   toolbar,
+  title,
 }: NodeV4ShellProps) {
   const t = useTranslations('StudioNode.v4')
   const canvas = useNodeV4Canvas()
@@ -90,7 +97,11 @@ export function NodeV4Shell({
     ? canvas.nodes.find((item) => item.id === canvas.draggingFrom)
     : undefined
   const litSlots: NodeSlotId[] = source
-    ? listLiveConnectableSlots(source, node, canvas.edges)
+    ? // 传整份 nodes：文本槽的容量按**角色**算，同角色占用要按边回查源节点
+      // （`planSlotConnectRole`）。少给它就会把 style 的边也算进 script 的额度。
+      listLiveConnectableSlots(source, node, canvas.edges, {
+        nodes: canvas.nodes,
+      })
     : []
   const dragging = Boolean(source) && source?.id !== node.id
 
@@ -162,7 +173,9 @@ export function NodeV4Shell({
             STATUS_DOT[node.data.status] ?? STATUS_DOT.idle,
           )}
         />
-        <span className="truncate text-xs font-medium">{node.data.name}</span>
+        <span className="truncate text-xs font-medium">
+          {title ?? node.data.name}
+        </span>
         {changed ? (
           <span
             className="ml-auto rounded-full bg-primary px-1.5 text-2xs text-primary-foreground"

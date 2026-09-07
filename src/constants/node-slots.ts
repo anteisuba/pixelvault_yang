@@ -80,6 +80,38 @@ export const NODE_SLOT_OUTPUTS = [
 
 export type NodeSlotOutputId = (typeof NODE_SLOT_OUTPUTS)[number]
 
+/**
+ * `text` 槽的角色（第三期 · C1 契约修正 2，owner 定）。
+ *
+ * ── 为什么槽要再分角色 ──────────────────────────────────────────────────
+ * `video.shot.text` 原本是一个 0..N 的口袋：剧本、风格约束、角色描述全塞进去，
+ * 提示词编译时分不出「这段是要拍的内容」还是「这段是不许违反的约束」——于是约束
+ * 会被当成画面描述念出来。角色是**边的属性**（同一个文本节点可以在 A 镜当剧本、
+ * 在 B 镜当风格约束），所以它住在槽的版本上，不住在节点身份里。
+ *
+ * 三档就是三种编译去向：`script` 进正文、`style` 进约束段、`character` 进角色段。
+ */
+export const NODE_SLOT_TEXT_ROLE_IDS = {
+  /** 要拍的内容本身。一个镜头只能有一份（0..1）。 */
+  script: 'script',
+  /** 风格 / 规则约束，可叠加（0..N）。 */
+  style: 'style',
+  /** 角色描述，可叠加（0..N）。 */
+  character: 'character',
+} as const
+
+export const NODE_SLOT_TEXT_ROLES = [
+  NODE_SLOT_TEXT_ROLE_IDS.script,
+  NODE_SLOT_TEXT_ROLE_IDS.style,
+  NODE_SLOT_TEXT_ROLE_IDS.character,
+] as const
+
+export type NodeSlotTextRole = (typeof NODE_SLOT_TEXT_ROLES)[number]
+
+/** 缺省角色：不带 `role` 的文本连线一律按剧本算（迁移与旧 op 的落点）。 */
+export const NODE_SLOT_TEXT_ROLE_FALLBACK: NodeSlotTextRole =
+  NODE_SLOT_TEXT_ROLE_IDS.script
+
 /** 端口表里一个入口槽的完整定义。 */
 export interface NodeSlotSpec {
   readonly slot: NodeSlotId
@@ -91,6 +123,17 @@ export interface NodeSlotSpec {
   readonly sourceKinds: readonly NodeWorkflowMediaKind[]
   /** 更窄的子型门（只有 `closeup` 有：只收 reference / character 两种图）。 */
   readonly sourceSubtypes?: readonly NodeV4Subtype[]
+  /**
+   * 按角色分的容量（只有 `text` 槽有）。有这张表时 `canConnect` 的容量判据走它，
+   * 顶层 `max` 只描述整个槽的总量。⚠ 三档不是同一个口袋：`script` 0..1 是「一个
+   * 镜头只拍一份内容」，`style` / `character` 0..N 是可叠加的约束。
+   */
+  readonly byRole?: Readonly<
+    Record<
+      NodeSlotTextRole,
+      { readonly min: number; readonly max: number | null }
+    >
+  >
 }
 
 /** `${kind}.${subtype}`——端口表的键。 */
@@ -246,6 +289,11 @@ export const NODE_V4_PORTS = {
         min: 0,
         max: null,
         sourceKinds: [NODE_MEDIA_KIND_IDS.text],
+        byRole: {
+          [NODE_SLOT_TEXT_ROLE_IDS.script]: { min: 0, max: 1 },
+          [NODE_SLOT_TEXT_ROLE_IDS.style]: { min: 0, max: null },
+          [NODE_SLOT_TEXT_ROLE_IDS.character]: { min: 0, max: null },
+        },
       },
     ],
     outputs: [NODE_SLOT_OUTPUT_IDS.out, NODE_SLOT_OUTPUT_IDS.tailFrame],
@@ -292,4 +340,16 @@ export function getNodeV4Slot(
  */
 export function slotSupportsVersions(spec: NodeSlotSpec): boolean {
   return spec.max === 1
+}
+
+/**
+ * 这个槽在某个角色下的容量。没有 `byRole` 的槽（所有非文本槽）回落到顶层
+ * `min`/`max`——⛔ 不给它们编一份假的角色表，那会让「角色只对文本槽有意义」这条
+ * 事实在两处各写各的。
+ */
+export function resolveSlotRoleCapacity(
+  spec: NodeSlotSpec,
+  role: NodeSlotTextRole = NODE_SLOT_TEXT_ROLE_FALLBACK,
+): { readonly min: number; readonly max: number | null } {
+  return spec.byRole?.[role] ?? { min: spec.min, max: spec.max }
 }

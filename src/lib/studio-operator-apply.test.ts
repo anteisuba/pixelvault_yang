@@ -25,6 +25,7 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
   dispatched: StudioAction[]
   state: StudioFormState
   references: string[]
+  slots: (string | undefined)[]
   primed: { value: boolean }
   userUrls: { sourceUrl: string; domain?: string }[]
   unmounted: string[]
@@ -47,6 +48,8 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
 
   const dispatched: StudioAction[] = []
   const references: string[] = []
+  /** 每次挂载记下**槽名**（第二期）—— 「挂到哪儿」是这一轮新加的那半件事。 */
+  const slots: (string | undefined)[] = []
   const primed = { value: false }
   const userUrls: { sourceUrl: string; domain?: string }[] = []
   const unmounted: string[] = []
@@ -73,8 +76,12 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
     },
     resolveOptionId: (modelId) =>
       modelId === 'known-model' ? 'workspace:known-model' : null,
-    addReference: (url) => references.push(url),
-    removeReference: (url) => {
+    addReference: (url, slot) => {
+      references.push(url)
+      slots.push(slot)
+    },
+    removeReference: (url, slot) => {
+      slots.push(slot)
       const index = references.indexOf(url)
       if (index >= 0) references.splice(index, 1)
     },
@@ -113,6 +120,7 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
     dispatched,
     state,
     references,
+    slots,
     primed,
     userUrls,
     unmounted,
@@ -398,7 +406,7 @@ describe('revertOperatorStep', () => {
   })
 
   it('参考图按 payload 里的 URL 摘除 —— inverse 只有 assetId，摘不动', () => {
-    const { ctx, references } = makeContext()
+    const { ctx, references, slots } = makeContext()
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
@@ -406,15 +414,45 @@ describe('revertOperatorStep', () => {
         assetId: 'asset-1',
         url: 'https://cdn.example.com/a.png',
         kind: 'image',
+        slot: 'reference',
       },
-      inverse: { assetId: 'asset-1' },
+      inverse: { assetId: 'asset-1', slot: 'reference' },
     } satisfies AssistantOperatorAppliedStep
 
     applyOperatorStep(step, ctx)
     expect(references).toEqual(['https://cdn.example.com/a.png'])
     revertOperatorStep(step, ctx)
     expect(references).toEqual([])
+    // 挂与摘各带一次槽名 —— 撤销那一侧读的是 `inverse.slot`（第二期）。
+    expect(slots).toEqual(['reference', 'reference'])
   })
+
+  /**
+   * 具名槽（第二期 · 视频域）：`slot` 一路原样传到宿主那只手上。
+   * ⭐ 这里锁的是**「挂到哪儿」不许在中途丢失** —— 丢了的表现是「助手说换了尾帧，
+   * 画面上换的是首帧」，而两张图看上去都很合理，没人查得出来。
+   */
+  it.each([['first'], ['last'], ['video']] as const)(
+    'mount_reference 把 slot=%s 原样交给宿主，撤销读 inverse.slot',
+    (slot) => {
+      const { ctx, slots } = makeContext()
+      const step = {
+        ...BASE,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
+        payload: {
+          assetId: 'asset-1',
+          url: 'https://cdn.example.com/a.mp4',
+          kind: slot === 'video' ? 'video' : 'image',
+          slot,
+        },
+        inverse: { assetId: 'asset-1', slot },
+      } satisfies AssistantOperatorAppliedStep
+
+      applyOperatorStep(step, ctx)
+      revertOperatorStep(step, ctx)
+      expect(slots).toEqual([slot, slot])
+    },
+  )
 
   // ── 视频域（P4-A）──────────────────────────────────────────────
   it('set_video_specs 三格一起落，且各走各的收窄谓词（不复用图片那张 auto/1K/2K 表）', () => {

@@ -28,6 +28,8 @@ import {
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
+  ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS,
+  ASSISTANT_OPERATOR_REFERENCE_SLOTS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
   ASSISTANT_OPERATOR_SEARCH_KINDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
@@ -47,6 +49,7 @@ import {
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PLAN_VISUAL_IDS } from '@/constants/assistant-plan-visuals'
 import { EVIDENCE_CREDIBILITY_VALUES } from '@/constants/research'
+import { VIDEO_FRAME_LIMITS } from '@/constants/video-analysis'
 import { WEB_IMAGE_SOURCE_VERDICTS } from '@/constants/web-image-sources'
 import {
   LORA_CANDIDATE_NOT_IMPORTABLE_REASON_VALUES,
@@ -101,6 +104,14 @@ export const AssistantOperatorStepStatusSchema = z.enum(
  * ⚠ `satisfies` 是这里唯一的用处：把「操作员能搜的类型」钉成
  * `OUTPUT_TYPE_VALUES` 的真子集。哪天媒体类型词表改名，这一行编译期就红。
  */
+export const AssistantOperatorReferenceSlotSchema = z.enum(
+  ASSISTANT_OPERATOR_REFERENCE_SLOTS,
+)
+
+export const AssistantOperatorCritiqueFrameLabelSchema = z.enum(
+  ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS,
+)
+
 export const AssistantOperatorSearchKindSchema = z.enum(
   ASSISTANT_OPERATOR_SEARCH_KINDS satisfies readonly OutputTypeValue[],
 )
@@ -161,6 +172,21 @@ export const AssistantOperatorSnapshotVideoSpecsSchema = z.object({
     .max(LIMITS.maxSpecOptions),
   aspectRatioOptions: z.array(ParamValueSchema).max(LIMITS.maxSpecOptions),
   resolutionOptions: z.array(ParamValueSchema).max(LIMITS.maxSpecOptions),
+  /**
+   * **带图时**上游把宽高比钉死成这个值（第二期）。`null` / 缺席 = 这条线路不钉。
+   *
+   * ⭐ 值由宿主从发送契约里取（`getVideoModelSendContract().imageAspectRatioLock`），
+   * ⛔ 服务端不自己算：视频档快照里的模型 id 是 **optionId**（型号 × 渠道，K-3），
+   * 服务端拿它查不出契约，硬要查就得在这一层再抄一份 optionId → modelId 的解析。
+   * 出处（官方）：火山「视频生成教程」使用限制段 —— Seedance 2.5 在首帧 / 首尾帧 /
+   * 视频编辑 / 视频延长这些**有图**的场景下 `ratio` 只接受 `adaptive`，传具体宽高比
+   * 直接 400（`constants/video-model-send-plan.ts` 的 `VOLCENGINE_ADAPTIVE_RATIO`）。
+   * ⚠ 它是**能力声明**不是当前状态：真的锁上要再加一条「首帧槽里有图」——
+   * 纯文生视频不受限，那一条判在规划器（`aspectLockedByFirstFrame`）。
+   * ⚠ 这个值**可以不在 `aspectRatioOptions` 里**（`adaptive` 就不在，界面上没有这一档）：
+   * 规划器因此对它单开一条放行，见 `planSetVideoSpecs`。
+   */
+  aspectRatioLock: ParamValueSchema.nullish(),
 })
 
 /**
@@ -219,6 +245,50 @@ export const AssistantOperatorSnapshotReferencesSchema = z.object({
     .array(AssistantOperatorSnapshotReferenceSchema)
     .max(LIMITS.maxSnapshotReferences),
   /** 这个模型的参考图槽位数。已满时 `mount_reference` 按 `referencesFull` 拒。 */
+  limit: z.number().int().nonnegative(),
+})
+
+/**
+ * 视频档的**具名帧槽**（第二期）。
+ *
+ * ⭐ 它与 `references` 是**同一批图的两个视角**，不是两处素材：`keyframe` 档的参考
+ * 位今天靠位置承载语义（[0] 首帧、[1] 尾帧，见
+ * `constants/reference-image-capabilities.ts` 头注与 `buildWan30`）。宿主把那两个
+ * 位置**读成名字**放在这里，助手于是能说「把这张换成尾帧」而不是「换第 1 个」。
+ * ⛔ 别让它成为第二份真值：落地那一跳仍然写回同样那两个位置。
+ *
+ * ⚠ 整节缺席 = 这个工作台 / 这个模型没有帧槽（图片域、多图参考档、全能参考档都
+ * 是这一档）。`last` 单独缺席 = 这个模型只有首帧（`keyframeSlots === 1`）——
+ * 那时 `mount_reference slot:'last'` 按 `noSuchControl` 拒。
+ */
+export const AssistantOperatorSnapshotFrameReferencesSchema = z.object({
+  /** 首帧。缺席 = 槽位空着（不是「没有这个槽」——那是整节缺席）。 */
+  first: AssistantOperatorSnapshotReferenceSchema.optional(),
+  /** 尾帧。⚠ 只有 `keyframeSlots === 2` 的模型有这个槽。 */
+  last: AssistantOperatorSnapshotReferenceSchema.optional(),
+  /** 这个模型认几个具名帧槽：1 = 只有首帧，2 = 首帧 + 尾帧。 */
+  slots: z.union([z.literal(1), z.literal(2)]),
+})
+
+export const AssistantOperatorSnapshotVideoReferenceSchema = z.object({
+  assetId: IdSchema.optional(),
+  url: z.string().url(),
+  label: LabelSchema.optional(),
+})
+
+/**
+ * 视频档的**参考视频位**（第二期）。
+ *
+ * ⚠ 整节缺席 = 这条线路不吃参考视频（`slots.videos === 0`，绝大多数模型），
+ * **或者这个宿主上还没有那个控件** —— 工作台今天就是后者：表单里没有任何一处存
+ * 参考视频（2026-09-07 清点 `studio-context` 全文）。按本文件的头注纪律，
+ * 「控件不在整节就不给」，于是 `mount_reference slot:'video'` 在工作台上一律
+ * `noSuchControl`。⛔ 别为了形状整齐补一个空节：那会让助手去挂一段落不了地的视频。
+ */
+export const AssistantOperatorSnapshotVideoReferencesSchema = z.object({
+  items: z
+    .array(AssistantOperatorSnapshotVideoReferenceSchema)
+    .max(LIMITS.maxSnapshotReferences),
   limit: z.number().int().nonnegative(),
 })
 
@@ -291,6 +361,10 @@ export const AssistantOperatorSnapshotSchema = z.object({
   videoSpecs: AssistantOperatorSnapshotVideoSpecsSchema.optional(),
   count: AssistantOperatorSnapshotCountSchema.optional(),
   references: AssistantOperatorSnapshotReferencesSchema.optional(),
+  /** ⚠ 缺席 = 没有具名帧槽（图片档 / 多图参考档 / 全能参考档）。见 schema 头注。 */
+  frameReferences: AssistantOperatorSnapshotFrameReferencesSchema.optional(),
+  /** ⚠ 缺席 = 这个宿主上没有参考视频位。见 schema 头注。 */
+  videoReferences: AssistantOperatorSnapshotVideoReferencesSchema.optional(),
   /** ⚠ 缺席 = 这个工作台挂不了音频参考（图片档、或视频档但线路不吃音频）。 */
   audioReferences: AssistantOperatorSnapshotAudioReferencesSchema.optional(),
   /** ⚠ 缺席 = 这条线路没有「出不出声」这个开关（界面上那颗 Switch 也不渲染）。 */
@@ -380,6 +454,50 @@ export const AssistantOperatorCritiqueSchema = z.object({
 
 export type AssistantOperatorCritique = z.infer<
   typeof AssistantOperatorCritiqueSchema
+>
+
+/**
+ * 视频评审卡上的**一帧**（第二期）。
+ *
+ * `t` 是秒（服务端从计划里取的真时间戳），`url` 是转存后的 R2 地址，`label` 是
+ * 位置名。三个字段各有各的读者：`url` 给卡片、`label` 给模型与文案、`t` 给
+ * 「回到那一刻」那种将来会有的动作。⛔ 别把 `t` 省掉换成「按序号推」——
+ * 极短片的三帧会退化（见 `planVideoEndpointFrames` 头注），序号推不出真时间。
+ */
+export const AssistantOperatorCritiqueFrameSchema = z.object({
+  t: z.number().nonnegative(),
+  url: z.string().url(),
+  label: AssistantOperatorCritiqueFrameLabelSchema,
+})
+
+/**
+ * 视频域看片评审的产出（第二期，§7「视频域第二期扩成三帧抽帧版」）。
+ *
+ * ⚠ 与图片档那份**分成两张 schema**而不是给它加可选字段：图片档的 `findings` 说的
+ * 是「这一张图达没达成」，视频档的 `verdicts` 说的是「这段片子达没达成」，而后者
+ * 的证据是三帧**合起来**。合成一张的下场是卡片分不出该画一张图还是三格帧带。
+ * ⚠ `frames` 恒三张（`length`，不是 `max`）：三个位置各绑一个固定问题，
+ * 少一张就有一个问题没人回答。
+ */
+export const AssistantOperatorVideoCritiqueSchema = z.object({
+  frames: z
+    .array(AssistantOperatorCritiqueFrameSchema)
+    .length(LIMITS.videoCritiqueFrameCount),
+  /** 三段评审（否定 / 异常 / 建议里的前两段）。形状与图片档的 `findings` 同构。 */
+  verdicts: z
+    .array(
+      z.object({
+        ok: z.boolean(),
+        text: z.string().trim().min(1).max(LIMITS.maxCritiqueFindingChars),
+      }),
+    )
+    .min(1)
+    .max(LIMITS.maxCritiqueFindings),
+  advice: z.string().trim().max(LIMITS.maxCritiqueAdviceChars).nullish(),
+})
+
+export type AssistantOperatorVideoCritique = z.infer<
+  typeof AssistantOperatorVideoCritiqueSchema
 >
 
 /**
@@ -532,6 +650,54 @@ export type AssistantOperatorAutoApprove = z.infer<
   typeof AssistantOperatorAutoApproveSchema
 >
 
+/**
+ * 客户端抽好的那组帧（**客户端 → 服务端**，第二期 · 视频域评审）。
+ *
+ * ⭐ **为什么帧从客户端来**：抽帧发生在浏览器里（`<video>` + canvas，
+ * `lib/video-frame-capture.ts`），服务端只**复算计划再逐帧核对时间戳**
+ * （`persistVideoFrameSet`）—— 那一次核对就是「这组帧真的是按计划抽的」的全部凭证。
+ * ⛔ 服务端不自己抽：本仓没有服务端解码器，而且视频本来就已经在用户浏览器里。
+ *
+ * ⚠ `sourceUrl` 必须与被评的那个目标**逐字相同**，否则服务端按 `unknownAsset` 拒：
+ * 没有这一条，「看片」就变成了「客户端说这是哪段片子就是哪段」。
+ */
+export const AssistantOperatorVideoFrameSchema = z.object({
+  /** 计划里的**序号**（0 = start / 1 = mid / 2 = end），不是数组下标。 */
+  index: z
+    .number()
+    .int()
+    .min(0)
+    .max(LIMITS.videoCritiqueFrameCount - 1),
+  timestampSeconds: z.number().min(0),
+  /**
+   * `data:image/webp;base64,…`。上限按字节上限的 2 倍字符给（base64 膨胀 ~4/3）——
+   * 真正说了算的是服务端解码后的字节数与魔数校验（`persistVideoFrameSet`），
+   * 这里只挡住离谱载荷。形状与 `lib/video-frame-request.ts` 那份逐字同源。
+   */
+  dataUrl: z
+    .string()
+    .min(1)
+    .max(VIDEO_FRAME_LIMITS.maxFrameBytes * 2),
+})
+
+export const AssistantOperatorVideoFramesSchema = z.object({
+  /** 这组帧是从哪段视频抽的。 */
+  sourceUrl: z.string().url(),
+  /** 客户端从 `<video>.duration` 读到的片长 —— 服务端按它复算计划。 */
+  durationSeconds: z.number().positive(),
+  /**
+   * ⚠ **整组或者没有**：缺一帧的帧集评出来的结论复跑不出来，而它看起来完全正常
+   * （与 `VideoAnalyzeRequestSchema` 那条 `superRefine` 同一条纪律）。
+   */
+  frames: z
+    .array(AssistantOperatorVideoFrameSchema)
+    .length(LIMITS.videoCritiqueFrameCount),
+})
+
+export type AssistantOperatorVideoFrames = z.infer<
+  typeof AssistantOperatorVideoFramesSchema
+>
+
 export const AssistantOperatorRequestSchema = z.object({
   messages: z.array(AssistantOperatorMessageSchema).min(1),
   domain: AssistantOperatorDomainSchema,
@@ -605,6 +771,15 @@ export const AssistantOperatorRequestSchema = z.object({
     )
     .max(LIMITS.maxSnapshotReferences)
     .optional(),
+  /**
+   * 这一轮客户端抽好的**三帧**（第二期 · 视频域评审）。见 schema 头注。
+   *
+   * ⚠ 缺席 = 这一轮没有帧可看，视频域 `critique_result` 按 `videoFramesMissing`
+   * 拒。⛔ 服务端不去「自己抽一次」：本仓没有、也不打算有服务端解码器
+   * （`lib/video-frame-capture.ts` 的选型头注：worker 跑不了原生二进制，
+   * 服务端 ffmpeg 要往 Vercel 包里塞几十 MB）。
+   */
+  videoFrames: AssistantOperatorVideoFramesSchema.optional(),
 })
 
 export type AssistantOperatorRequest = z.infer<
@@ -730,6 +905,14 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]: z.object({
     /** ⛔ 只有 id，没有 URL —— URL 由服务端从本轮检索结果里查出来填。 */
     assetId: IdSchema,
+    /**
+     * 挂到**哪个槽**（第二期 · 视频域）。缺席 = `reference`（无语义参考图），
+     * 图片域永远是这一档。
+     * ⚠ 这里是**宽松**的（值域校验留在规划器，见文件头注 ②）：模型写了一个这个
+     * 模型没有的槽（比如只有首帧的模型上写 `last`），规划器按 `noSuchControl` 拒
+     * 并说清楚 —— schema 拒的话它这一轮整个作废，还学不到为什么。
+     */
+    slot: AssistantOperatorReferenceSlotSchema.optional(),
   }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: z.object({ modelId: IdSchema }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]: z.object({
@@ -1351,9 +1534,19 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       thumbnailUrl: z.string().url().optional(),
       kind: AssistantOperatorSearchKindSchema,
       label: LabelSchema.optional(),
+      /**
+       * 落到哪个槽（第二期）。**必填**而不是可选：客户端按它决定写 0 槽、1 槽还是
+       * 追加一张 —— 缺席时那一跳只能猜，而猜错的表现是「助手说换了尾帧，画面上
+       * 换的是首帧」。服务端在规划期就把它收窄成四个值之一（默认 `reference`）。
+       */
+      slot: AssistantOperatorReferenceSlotSchema,
     }),
-    /** 撤销 = 按 id 把它摘掉。 */
-    z.object({ assetId: IdSchema }),
+    /**
+     * 撤销 = 按 id 把它摘掉。
+     * ⚠ `slot` 在逆操作里**也带着**：摘首帧是「把 0 槽清空」，摘一张普通参考图是
+     * 「把这张从列表里删掉」—— 两者在客户端是不同的动作。
+     */
+    z.object({ assetId: IdSchema, slot: AssistantOperatorReferenceSlotSchema }),
   ),
   mutatingStep(
     ASSISTANT_OPERATOR_TOOL_IDS.setModel,
@@ -1449,21 +1642,43 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
    */
   readStep(
     ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
-    z.object({
-      imageUrl: z.string().url(),
-      thumbnailUrl: z.string().url().optional(),
-      modelLabel: LabelSchema.optional(),
-      /** 模型自己说的「这一轮想要什么」；没写就是 `null`。 */
-      goal: z.string().max(LIMITS.maxCritiqueGoalChars).nullable(),
-    }),
-    AssistantOperatorCritiqueSchema.extend({
+    /**
+     * ⚠ **两支**（第二期）：图片档给 `imageUrl`，视频档给 `videoUrl`。用 union 而
+     * 不是「`imageUrl` 里塞一条 mp4 地址」——后者会让卡片把视频画进 `<img>`，
+     * 而那是一个空白格子加一次静默失败。
+     */
+    z.union([
+      z.object({
+        imageUrl: z.string().url(),
+        thumbnailUrl: z.string().url().optional(),
+        modelLabel: LabelSchema.optional(),
+        /** 模型自己说的「这一轮想要什么」；没写就是 `null`。 */
+        goal: z.string().max(LIMITS.maxCritiqueGoalChars).nullable(),
+      }),
+      z.object({
+        videoUrl: z.string().url(),
+        thumbnailUrl: z.string().url().optional(),
+        modelLabel: LabelSchema.optional(),
+        goal: z.string().max(LIMITS.maxCritiqueGoalChars).nullable(),
+      }),
+    ]),
+    z.union([
+      AssistantOperatorCritiqueSchema.extend({
+        /**
+         * 用户选的那条路看不了图、这一轮借了别的模型来看。
+         * ⚠ 如实说出来 —— 「你选的是 DeepSeek，但看图用的是 Gemini」
+         * （形态照 `ResolvedVisionRoute.borrowed`）。
+         */
+        borrowedVisionRoute: z.boolean(),
+      }),
       /**
-       * 用户选的那条路看不了图、这一轮借了别的模型来看。
-       * ⚠ 如实说出来 —— 「你选的是 DeepSeek，但看图用的是 Gemini」
-       * （形态照 `ResolvedVisionRoute.borrowed`）。
+       * 视频档（第二期）。客户端靠 `frames` 在不在分支 —— 两支的必填字段
+       * （`findings` vs `frames` + `verdicts`）互不相容，parse 不会走岔。
        */
-      borrowedVisionRoute: z.boolean(),
-    }),
+      AssistantOperatorVideoCritiqueSchema.extend({
+        borrowedVisionRoute: z.boolean(),
+      }),
+    ]),
   ),
   mutatingStep(
     ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,

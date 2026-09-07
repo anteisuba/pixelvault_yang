@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  VIDEO_FRAME_ENDPOINT_PLAN,
   VIDEO_FRAME_LIMITS,
   VIDEO_FRAME_PLAN,
 } from '@/constants/video-analysis'
 import {
   findFramePlanMismatches,
   formatFrameTimestamp,
+  planVideoEndpointFrames,
   planVideoFrames,
 } from '@/lib/video-frame-plan'
 
@@ -103,5 +105,41 @@ describe('formatFrameTimestamp', () => {
     expect(formatFrameTimestamp(12.4)).toBe('0:12')
     expect(formatFrameTimestamp(75)).toBe('1:15')
     expect(formatFrameTimestamp(3725)).toBe('1:02:05')
+  })
+})
+
+/**
+ * 端点计划（第二期 · 助手视频域评审）。⭐ 三帧**序号即语义**：
+ * 0=start / 1=mid / 2=end，所以这里逐个时间戳钉死，⛔ 不用「大概均分」那种断言。
+ */
+describe('planVideoEndpointFrames', () => {
+  it('恒三帧：0 / 中点 / 末帧（末帧按 endTrimSeconds 退开 seek 边界）', () => {
+    const plan = planVideoEndpointFrames(8)
+    expect(plan.strategy).toBe(VIDEO_FRAME_ENDPOINT_PLAN.strategy)
+    expect(plan.frameCount).toBe(VIDEO_FRAME_ENDPOINT_PLAN.frameCount)
+    expect(plan.entries.map((entry) => entry.timestampSeconds)).toEqual([
+      0,
+      4,
+      8 - VIDEO_FRAME_ENDPOINT_PLAN.endTrimSeconds,
+    ])
+    expect(plan.entries.map((entry) => entry.index)).toEqual([0, 1, 2])
+  })
+
+  it('同一个片长永远算出同一组时间戳（⛔ 不随机、⛔ 不按内容自适应）', () => {
+    expect(planVideoEndpointFrames(12.345)).toEqual(
+      planVideoEndpointFrames(12.345),
+    )
+  })
+
+  it('⚠ 极短片退化成 [0, d/2, d/2] 而不是判成抽不了', () => {
+    const plan = planVideoEndpointFrames(VIDEO_FRAME_LIMITS.minDurationSeconds)
+    expect(plan.entries).toHaveLength(3)
+    expect(plan.entries[2]?.timestampSeconds).toBeGreaterThanOrEqual(0)
+  })
+
+  it('片长非法就给空计划而不是抛（坏容器不该把整条链炸掉）', () => {
+    for (const duration of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(planVideoEndpointFrames(duration).entries).toEqual([])
+    }
   })
 })

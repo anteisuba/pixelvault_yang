@@ -111,6 +111,17 @@ vi.mock('@/services/vision/vision-route.service', () => ({
 }))
 
 /**
+ * 抽帧落库（第二期）。⚠ **全程 mock，一个字节都不写 R2** —— 这一层要验的是
+ * 「三帧怎么被读、怎么被汇总」，不是 R2 客户端。⛔ 也别在这里放真实现：那会让
+ * 单测去打对象存储。
+ */
+const mockPersistVideoFrameSet = vi.fn()
+vi.mock('@/services/video-frames/video-frame-set.service', () => ({
+  persistVideoFrameSet: (...args: unknown[]) =>
+    mockPersistVideoFrameSet(...args),
+}))
+
+/**
  * LoRA 检索（P4-C）。⚠ **全程 mock，一次都不打 Civitai / HF** —— 与联网搜图那条
  * 同一条论据：让单元测试去打真上游是把别人的额度当柴烧，而且这一层要验的是
  * 「候选怎么投影、装不上的怎么说」，不是上游返回什么。
@@ -1001,7 +1012,9 @@ describe('规划器的拒绝', () => {
       url: 'https://cdn.example.test/1.png',
       kind: 'image',
     })
-    expect(mounted?.inverse).toEqual({ assetId: 'gen-1' })
+    // 没写 slot 就落默认档（第二期）—— 图片域永远是这一档。
+    expect(mounted?.payload).toMatchObject({ slot: 'reference' })
+    expect(mounted?.inverse).toEqual({ assetId: 'gen-1', slot: 'reference' })
   })
 
   it('set_specs 的值不在选项里就拒；合法时两个字段一起下（台账 AE/BG/BS）', async () => {
@@ -2398,7 +2411,7 @@ function systemPrompt(): string {
 }
 
 describe('域工具表', () => {
-  it('视频域的清单里没有 set_count / set_specs / critique_result，有那三条视频件', async () => {
+  it('视频域的清单里没有 set_count / set_specs，有那三条视频件 + 看片评审', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildVideoRequest()))
 
@@ -2406,12 +2419,12 @@ describe('域工具表', () => {
     expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs)
     expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference)
     expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.setSound)
+    // ⭐ 看片评审（第二期）：视频档**现在有** critique_result —— 它吃的仍然是静态图
+    //    （客户端抽的 0/中/末 三帧），⛔ 不是把 mp4 喂给视觉线。
+    expect(prompt).toContain(`- ${ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult}:`)
     // ⭐ 列全集的代价是实打实的：看得见就会去试，而一轮只有 maxSteps 步。
     expect(prompt).not.toContain(`- ${ASSISTANT_OPERATOR_TOOL_IDS.setCount}:`)
     expect(prompt).not.toContain(`- ${ASSISTANT_OPERATOR_TOOL_IDS.setSpecs}:`)
-    expect(prompt).not.toContain(
-      `- ${ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult}:`,
-    )
   })
 
   it('图片域的清单里没有视频那三条', async () => {
@@ -2479,7 +2492,15 @@ describe('域工具表', () => {
     })
   })
 
-  it('⛔ 视频域即使带着 result 也不给看图 —— 借来的视觉线读不了 mp4', async () => {
+  /**
+   * ⭐ 抽不出帧时**说实话**（第二期）。
+   *
+   * 这条曾经写的是「视频域即使带着 result 也不给看图」—— 那时的判据没错（借来的
+   * 视觉线读不了 mp4），第二期换掉的不是判据而是路径：片子先在浏览器里抽成三张
+   * 静态图。⛔ 而抽不出来的时候仍然**一步都不许猜**，只是拒绝理由从
+   * 「这个域没这条工具」变成了「这一轮没有帧」——后者可教得多。
+   */
+  it('⛔ 视频域没有帧就不看：拒 videoFramesMissing，⛔ 不拿 mp4 地址去猜', async () => {
     queueTurns(
       {
         tool: {
@@ -2503,13 +2524,535 @@ describe('域工具表', () => {
     )
     expect(steps[0]).toMatchObject({
       status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: {
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.videoFramesMissing,
+      },
+    })
+    // ⛔ 一次「看」都没发生过 —— 没有帧就没有 imageData。
+    expect(visionCalls()).toHaveLength(0)
+  })
+})
+
+/**
+ * 看片评审（第二期 · 视频域）。
+ *
+ * ⭐ 这一组锁的是**三件事**，每一件都对应一次曾经很容易发生的静默失败：
+ *  ① 喂给视觉线的是**三张转存后的帧**，⛔ 不是那条 mp4 地址；
+ *  ② 三帧各自带着自己的位置名去看（start / mid / end），汇总那一跳不带图；
+ *  ③ 帧集与被评的那段片子**同源**，客户端换一段就拒。
+ */
+describe('看片评审 · 视频域 critique_result', () => {
+  const CLIP_URL = 'https://cdn.example.test/clip.mp4'
+  const FRAME_URLS = [
+    'https://cdn.example.test/frames/frame-01.webp',
+    'https://cdn.example.test/frames/frame-02.webp',
+    'https://cdn.example.test/frames/frame-03.webp',
+  ]
+
+  const VIDEO_CRITIQUE_JSON = {
+    verdicts: [
+      { ok: false, text: '三帧几乎一模一样，画面没动起来' },
+      { ok: true, text: '角色的发色与服装从头到尾一致' },
+    ],
+    advice: '把动作写进提示词，或者补一张尾帧',
+  }
+
+  function submittedFrames(): NonNullable<
+    AssistantOperatorRequest['videoFrames']
+  > {
+    return {
+      sourceUrl: CLIP_URL,
+      durationSeconds: 8,
+      frames: [
+        { index: 0, timestampSeconds: 0, dataUrl: 'data:image/webp;base64,AA' },
+        { index: 1, timestampSeconds: 4, dataUrl: 'data:image/webp;base64,BB' },
+        {
+          index: 2,
+          timestampSeconds: 7.92,
+          dataUrl: 'data:image/webp;base64,CC',
+        },
+      ],
+    }
+  }
+
+  beforeEach(() => {
+    mockPersistVideoFrameSet.mockResolvedValue({
+      sourceVideoUrl: CLIP_URL,
+      durationSeconds: 8,
+      planVersion: 1,
+      strategy: 'endpoints-start-mid-end',
+      frames: [
+        {
+          index: 0,
+          timestampSeconds: 0,
+          url: FRAME_URLS[0],
+          width: 8,
+          height: 8,
+        },
+        {
+          index: 1,
+          timestampSeconds: 4,
+          url: FRAME_URLS[1],
+          width: 8,
+          height: 8,
+        },
+        {
+          index: 2,
+          timestampSeconds: 7.92,
+          url: FRAME_URLS[2],
+          width: 8,
+          height: 8,
+        },
+      ],
+    })
+  })
+
+  function queueVideoCritiqueRound(summary: unknown = VIDEO_CRITIQUE_JSON) {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+          title: 'watch it',
+          args: {},
+        },
+      },
+      // 逐帧那三段（纯文本，⛔ 不是 JSON —— 它们是给汇总那一跳读的）
+      '起手：少女站在雨里，红伞举过头顶。',
+      '中段：姿势与起手几乎一致，只有雨丝位置变了。',
+      '末帧：仍然是同一个站姿，没有走到任何新位置。',
+      summary,
+      { finished: true },
+    )
+  }
+
+  it('抽 3 帧、逐帧看、再汇总 —— 喂进视觉线的是帧，⛔ 不是 mp4 地址', async () => {
+    queueVideoCritiqueRound()
+
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildVideoRequest({
+            result: { url: CLIP_URL, modelLabel: 'Seedance 2.5' },
+            videoFrames: submittedFrames(),
+          }),
+        ),
+      ),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+
+    // 载荷这一侧给的是**视频**地址（卡片要拿它当封面），⛔ 不是 imageUrl。
+    expect(done?.payload).toMatchObject({
+      videoUrl: CLIP_URL,
+      modelLabel: 'Seedance 2.5',
+    })
+    // 结果这一侧恒三帧，各带时间戳与位置名。
+    expect(done?.result).toMatchObject({
+      frames: [
+        { t: 0, url: FRAME_URLS[0], label: 'start' },
+        { t: 4, url: FRAME_URLS[1], label: 'mid' },
+        { t: 7.92, url: FRAME_URLS[2], label: 'end' },
+      ],
+      verdicts: VIDEO_CRITIQUE_JSON.verdicts,
+      advice: VIDEO_CRITIQUE_JSON.advice,
+      borrowedVisionRoute: false,
+    })
+
+    // ⭐ 真的看了三下，而且看的是**帧**：mp4 地址一次都没进过 imageData。
+    expect(visionCalls().map((call) => call.imageData)).toEqual(FRAME_URLS)
+    expect(visionCalls().map((call) => call.imageData)).not.toContain(CLIP_URL)
+
+    // 服务端复算的是 0/中/末 那份计划，⛔ 不是默认的「切 8 段取段中点」。
+    expect(mockPersistVideoFrameSet).toHaveBeenCalledTimes(1)
+    const persisted = mockPersistVideoFrameSet.mock.calls[0]?.[0] as {
+      sourceVideoUrl: string
+      plan: { strategy: string; entries: { timestampSeconds: number }[] }
+    }
+    expect(persisted.sourceVideoUrl).toBe(CLIP_URL)
+    expect(persisted.plan.strategy).toBe('endpoints-start-mid-end')
+    expect(
+      persisted.plan.entries.map((entry) => entry.timestampSeconds),
+    ).toEqual([0, 4, 7.92])
+  })
+
+  it('每一帧都被告知自己站在哪儿，汇总那一跳不带图', async () => {
+    queueVideoCritiqueRound()
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildVideoRequest({
+          result: { url: CLIP_URL },
+          videoFrames: submittedFrames(),
+        }),
+      ),
+    )
+
+    const prompts = mockLlmTextCompletion.mock.calls.map(
+      (call) => call[0] as { imageData?: unknown; userPrompt?: string },
+    )
+    const framePrompts = prompts.filter((call) => call.imageData !== undefined)
+    expect(framePrompts[0]?.userPrompt).toContain('"start" FRAME')
+    expect(framePrompts[1]?.userPrompt).toContain('"mid" FRAME')
+    expect(framePrompts[2]?.userPrompt).toContain('"end" FRAME')
+
+    // 汇总那一跳读的是三段描述，⛔ 不再送一次图（那一跳判的是帧之间的差异）。
+    const summary = prompts.find((call) =>
+      call.userPrompt?.includes('WHAT EACH FRAME SHOWS'),
+    )
+    expect(summary?.imageData).toBeUndefined()
+    expect(summary?.userPrompt).toContain('[start @ 0s]')
+    expect(summary?.userPrompt).toContain('[end @ 7.92s]')
+  })
+
+  it('⛔ 帧集与被评的片子不同源就拒 —— 客户端说是哪段不算数', async () => {
+    // ⚠ 只排规划器那两轮：这一步在**看之前**就被拒了，逐帧那三段永远不会被消费，
+    //   排进去只会漏给下一轮规划器（然后炸在 JSON 解析上）。
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+          title: 'watch it',
+          args: {},
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildVideoRequest({
+            result: { url: CLIP_URL },
+            videoFrames: {
+              ...submittedFrames(),
+              sourceUrl: 'https://cdn.example.test/another.mp4',
+            },
+          }),
+        ),
+      ),
+    )
+    expect(steps[0]).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownAsset },
+    })
+    expect(mockPersistVideoFrameSet).not.toHaveBeenCalled()
+  })
+
+  it('汇总读不出结构就按 critiqueFailed 拒 —— ⛔ 不假装看过', async () => {
+    queueVideoCritiqueRound('不是 JSON，只是一段话')
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildVideoRequest({
+            result: { url: CLIP_URL },
+            videoFrames: submittedFrames(),
+          }),
+        ),
+      ),
+    )
+    expect(steps[0]).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.critiqueFailed },
+    })
+  })
+})
+
+/**
+ * 具名帧槽 + 参考视频（第二期 · 视频域）。
+ *
+ * ⭐ 三条槽三条闸，判据一律来自**快照**（拍板 19）：模型 id 在这一层说了不算。
+ */
+describe('视频参考槽 · mount_reference slot', () => {
+  const ASSET = {
+    id: 'gen-1',
+    url: 'https://cdn.example.test/1.png',
+    outputType: 'IMAGE',
+    prompt: 'a girl',
+    createdAt: new Date('2026-09-01T00:00:00.000Z'),
+  }
+
+  function queueMount(slot: string, args: Record<string, unknown> = {}) {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+          title: 'search',
+          args: { query: 'girl' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
+          title: 'mount',
+          args: { assetId: 'gen-1', slot, ...args },
+        },
+      },
+      { finished: true },
+    )
+  }
+
+  /** ⚠ 取**终态**那一条：同一个 step id 先 running 后 done/error。 */
+  function mountedStep(events: AssistantOperatorEvent[]) {
+    return stepsOf(events)
+      .filter(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.mountReference &&
+          step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+      )
+      .at(-1)
+  }
+
+  beforeEach(() => {
+    mockGetPublicGenerationPage.mockResolvedValue({
+      generations: [ASSET],
+      total: 1,
+      hasMore: false,
+      nextCursor: null,
+    })
+  })
+
+  it.each([['first'], ['last']] as const)(
+    '首尾帧档：slot=%s 落进具名槽，载荷与 inverse 都带着它',
+    async (slot) => {
+      queueMount(slot)
+      const step = mountedStep(
+        await collect(
+          runAssistantOperator(
+            'clerk-1',
+            buildVideoRequest({
+              snapshot: {
+                ...VIDEO_SNAPSHOT,
+                frameReferences: { slots: 2 },
+              },
+            }),
+          ),
+        ),
+      )
+      expect(step?.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+      expect(step?.payload).toMatchObject({ slot, url: ASSET.url })
+      expect(step?.inverse).toEqual({ assetId: 'gen-1', slot })
+    },
+  )
+
+  it('⛔ 只有首帧的模型上挂尾帧被拒（noSuchControl）—— 声明得比实现宽 = 静默丢掉', async () => {
+    queueMount('last')
+    const step = mountedStep(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildVideoRequest({
+            snapshot: { ...VIDEO_SNAPSHOT, frameReferences: { slots: 1 } },
+          }),
+        ),
+      ),
+    )
+    expect(step).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
       error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
     })
-    // ⚠ 状态块里也不该出现「有一张结果在等你看」那一行 —— 它会教模型白烧一步。
-    //   （断言只看状态块：被拒那一步的 observation 里当然会出现工具名。）
-    const stateBlock = lastUserPrompt().split('WHAT HAPPENED SO FAR')[0]
-    expect(stateBlock).not.toContain('FRESH RESULT')
-    expect(stateBlock).not.toContain('fresh result of yours')
+  })
+
+  it('⛔ 没有帧槽的档（多图参考 / 图片域）上挂首帧被拒', async () => {
+    queueMount('first')
+    const step = mountedStep(
+      await collect(runAssistantOperator('clerk-1', buildVideoRequest())),
+    )
+    expect(step).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
+    })
+  })
+
+  it('参考视频：有槽就挂得上，槽满了按 referencesFull 拒', async () => {
+    queueMount('video')
+    const ok = mountedStep(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildVideoRequest({
+            snapshot: {
+              ...VIDEO_SNAPSHOT,
+              videoReferences: { items: [], limit: 2 },
+            },
+          }),
+        ),
+      ),
+    )
+    expect(ok?.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect(ok?.payload).toMatchObject({ slot: 'video' })
+
+    queueMount('video')
+    const full = mountedStep(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildVideoRequest({
+            snapshot: {
+              ...VIDEO_SNAPSHOT,
+              videoReferences: {
+                items: [{ url: 'https://cdn.example.test/a.mp4' }],
+                limit: 1,
+              },
+            },
+          }),
+        ),
+      ),
+    )
+    expect(full).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.referencesFull },
+    })
+  })
+
+  it('⛔ 宿主没有参考视频控件时挂视频被拒（工作台今天就是这一档）', async () => {
+    queueMount('video')
+    const step = mountedStep(
+      await collect(runAssistantOperator('clerk-1', buildVideoRequest())),
+    )
+    expect(step).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
+    })
+  })
+
+  /**
+   * ⭐ 挂首帧时**只提醒、不自动改**比例（拍板 19：比例是用户看得见的旋钮）。
+   */
+  it('挂首帧时在观察里提示去改比例，⛔ 服务端不替他改', async () => {
+    queueMount('first')
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildVideoRequest({
+          snapshot: {
+            ...VIDEO_SNAPSHOT,
+            videoSpecs: {
+              ...VIDEO_SNAPSHOT.videoSpecs!,
+              aspectRatioLock: 'adaptive',
+            },
+            frameReferences: { slots: 2 },
+          },
+        }),
+      ),
+    )
+    expect(mountedStep(events)?.status).toBe(
+      ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    // 观察里说清楚下一步，而**没有**任何一条 set_video_specs 被服务端替他跑掉。
+    expect(lastUserPrompt()).toContain('set_video_specs')
+    expect(lastUserPrompt()).toContain('adaptive')
+    expect(
+      stepsOf(events).some(
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
+      ),
+    ).toBe(false)
+  })
+})
+
+/**
+ * Seedance 2.5 首帧锁自适应（第二期，owner 2026-09-06）。
+ * 出处：火山「视频生成教程」使用限制段 —— 有图的场景 `ratio` 只收 `adaptive`。
+ */
+describe('首帧锁 · aspectLockedByFirstFrame', () => {
+  function lockedSnapshot(firstUrl: string | null) {
+    return {
+      ...VIDEO_SNAPSHOT,
+      videoSpecs: {
+        ...VIDEO_SNAPSHOT.videoSpecs!,
+        aspectRatioLock: 'adaptive',
+      },
+      frameReferences: {
+        slots: 2 as const,
+        ...(firstUrl ? { first: { url: firstUrl } } : {}),
+      },
+    }
+  }
+
+  function queueRatio(aspectRatio: string) {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
+          title: 'ratio',
+          args: { aspectRatio },
+        },
+      },
+      { finished: true },
+    )
+  }
+
+  it('挂了首帧就只收 adaptive —— 其他值按 aspectLockedByFirstFrame 拒', async () => {
+    queueRatio('9:16')
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildVideoRequest({
+            snapshot: lockedSnapshot('https://cdn.example.test/first.png'),
+          }),
+        ),
+      ),
+    )
+    expect(steps[0]).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: {
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.aspectLockedByFirstFrame,
+      },
+    })
+  })
+
+  it('⭐ adaptive 本来不在档位表里，锁上时照样放行（否则撞的是一句读不懂的 unknownValue）', async () => {
+    queueRatio('adaptive')
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildVideoRequest({
+            snapshot: lockedSnapshot('https://cdn.example.test/first.png'),
+          }),
+        ),
+      ),
+    )
+    const done = steps.find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(done?.payload).toMatchObject({ aspectRatio: 'adaptive' })
+  })
+
+  it('⛔ 没挂首帧就不锁 —— 纯文生视频照旧能选具体比例', async () => {
+    queueRatio('9:16')
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildVideoRequest({ snapshot: lockedSnapshot(null) }),
+        ),
+      ),
+    )
+    const done = steps.find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(done?.payload).toMatchObject({ aspectRatio: '9:16' })
+  })
+
+  it('状态块在锁上时把档位表整张换掉，⛔ 不是补一句「但是」', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildVideoRequest({
+          snapshot: lockedSnapshot('https://cdn.example.test/first.png'),
+        }),
+      ),
+    )
+    const state = lastUserPrompt()
+    expect(state).toContain('PINNED to "adaptive"')
+    expect(state).not.toContain('options: 16:9, 9:16')
   })
 })
 

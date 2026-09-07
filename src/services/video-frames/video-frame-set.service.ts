@@ -18,6 +18,7 @@ import {
   findFramePlanMismatches,
   formatFrameTimestamp,
   planVideoFrames,
+  type VideoFramePlan,
 } from '@/lib/video-frame-plan'
 import { detectTrustedImageMime, uploadToR2 } from '@/services/storage/r2'
 import type { EvidenceItem } from '@/types/research'
@@ -51,6 +52,17 @@ export interface PersistVideoFrameSetInput {
   sourceVideoUrl: string
   durationSeconds: number
   frames: SubmittedVideoFrame[]
+  /**
+   * 用**哪一份**计划核对（第二期 · 助手视频域评审）。
+   *
+   * 缺席 = 默认那份「切 8 段取段中点」（`planVideoFrames`）—— 既有调用方一个字
+   * 都不用改。助手评审那条线传的是 `planVideoEndpointFrames` 算出来的 0/中/末
+   * 三帧计划。
+   * ⚠ 传进来而不是在这里按一个 `strategy` 字符串重算：**计划是客户端抽帧时依据
+   * 的那一份**，服务端要核对的正是「你说的那份计划」与「你交的这组时间戳」对不
+   * 对得上。让本服务自己选计划，等于把「按哪份计划抽的」这个事实变成两处各猜一次。
+   */
+  plan?: VideoFramePlan
 }
 
 export interface PersistedVideoFrame {
@@ -122,7 +134,7 @@ function buildFrameStorageKey(
 export async function persistVideoFrameSet(
   input: PersistVideoFrameSetInput,
 ): Promise<VideoFrameSet> {
-  const plan = planVideoFrames(input.durationSeconds)
+  const plan = input.plan ?? planVideoFrames(input.durationSeconds)
   if (plan.entries.length === 0) {
     throw invalidFrames(
       `duration ${input.durationSeconds}s yields no deterministic plan`,

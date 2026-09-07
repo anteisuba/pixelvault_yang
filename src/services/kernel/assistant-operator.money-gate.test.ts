@@ -103,6 +103,30 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * 那就是这条判据破的那一天。
    */
   '@/services/project-rule.service',
+  /**
+   * **抽帧落库**（第二期 · 视频域评审）。⭐ 这是第五次值得复核的改动，而且是名单
+   * 里**第二条会往外写字节**的服务（第一条是 `project-rule.service` 写一行文本）。
+   *
+   * ── 判据，逐条 ─────────────────────────────────────────────────
+   *  · **不建 generation** —— 全文没有 `createGeneration`，也没有任何 prisma /
+   *    `@/lib/db` 的 import（下面那条用例逐字扫）。它写完 R2 就返回一个对象，
+   *    库里不留任何一行。⭐ owner 定的门槛就是这一条：**只落帧不建 generation
+   *    才进得来**。
+   *  · **不扣 credit** —— 没有 credit policy、没有 provider 调用；这一整条链花的
+   *    是助手线的 token（与 `critique_result` 的视觉那一跳同源），不是用户的积分。
+   *  · **落的是什么** —— 客户端在浏览器里抽好的三张帧图（`data:image/…`），
+   *    服务端复算计划、核对时间戳、验魔数之后转存到 `VIDEO_FRAME_STORAGE_PREFIX`
+   *    下这个用户自己的目录。字节的来源是**用户自己的视频**，不是助手从网上搜到的
+   *    候选 —— 这正是 `web-image-import` 被挡在名单外的那条判据的另一面：那条落的是
+   *    「助手搜来的、用户还没点头的」东西，这条落的是「用户手上已经有的那段片子的
+   *    三个截面」。
+   *  · **为什么非落不可** —— 评审卡上那三格要稳定 URL；不落盘就只能把三张
+   *    base64 塞进 SSE 载荷，那是几百 KB 走一条本该只走文本的流。
+   * ⛔ `@/services/vision/video-analysis.service` **有意不在名单里**：那条经
+   * `analyzeVisual` 写 `ResearchRun`，也就是会 import 库客户端。哪天有人想
+   * 「复用现成的视频分析入口」把它换进来，这份名单就是那个看得见的动作。
+   */
+  '@/services/video-frames/video-frame-set.service',
 ])
 
 /** 出现即失败的标识符 —— 每一条都是一条能花掉用户钱的路。 */
@@ -317,6 +341,46 @@ describe('⛔ 助手工具环的钱闸', () => {
    * 两个新服务**自己**也得够不着花钱的那几条路 —— 上面那份 import 白名单只管
    * 工具环这一个文件，不管它 import 进来的模块里有什么。形状照抄文件夹视觉那一条。
    */
+  /**
+   * ⭐ 第五次值得复核的改动（前四次是 `import_user_url` / `mount_lora` /
+   * `add_project_rule` / `request_generation`）：抽帧那条**真的会写 R2**，
+   * 而它照样进得来 —— 判据只有一条：**只落帧，不建 generation、不扣 credit**。
+   *
+   * 这条用例把那句话钉成机器可读的：帧服务里不许出现任何一条能建 generation /
+   * 扣钱 / 查库的路，而 `uploadToR2` **必须**出现（它就是那条被允许的、也是唯一的
+   * 副作用；哪天有人把它换成别的写入，这里会红）。
+   * ⛔ 工具环那一侧的禁字表**一个字都没松**：`uploadToR2` 仍然不许出现在
+   * `assistant-operator.service.ts` 里，上面那条用例照旧扫着。
+   */
+  it('⭐ 抽帧服务只落帧：写 R2 是它唯一的副作用，够不着 generation / credit / 库', () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        'src/services/video-frames/video-frame-set.service.ts',
+      ),
+      'utf8',
+    )
+    for (const identifier of [
+      'createGeneration',
+      'generateImage',
+      'generateVideo',
+      'generateAudio',
+      'deductCredits',
+      'submitGeneration',
+      'execution-worker',
+      "from '@/lib/db'",
+      'prisma',
+      'creditCost',
+    ]) {
+      expect(
+        source.includes(identifier),
+        `抽帧服务里出现了 ${identifier}`,
+      ).toBe(false)
+    }
+    // 唯一被允许的那条副作用，必须还在（换掉了就得重新过一次这条判据）。
+    expect(source).toContain('uploadToR2')
+  })
+
   it('persona / 规则两个服务都不具备生成、扣费或上传能力', () => {
     for (const path of [
       'src/services/assistant-persona.service.ts',

@@ -26,6 +26,7 @@ import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_WRITE_MODES,
+  type AssistantOperatorReferenceSlot,
 } from '@/constants/assistant-operator'
 import { isAspectRatio } from '@/constants/config'
 import { isImageBatchCount } from '@/constants/studio'
@@ -102,8 +103,19 @@ export interface StudioOperatorApplyContext {
    * 逻辑的答案）—— ⛔ 别在这里另写一套路由选择。
    */
   resolveOptionId(modelId: string): string | null
-  addReference(url: string): void
-  removeReference(url: string): void
+  /**
+   * 挂一张参考图到**指定槽**（`slot` 第二期加）。
+   *
+   * ⚠ 名字没跟着改成 `mountReference`：这只手在图片档、视频档、装配台三个宿主上
+   * 是同一只，改名等于把三处调用点连同它们的测试一起动 —— 而这一轮真正变的只有
+   * 「挂到哪儿」。⛔ 不为对齐工具名而改（Engineering Principles 2）。
+   * ⚠ `slot` 缺席 = `reference`（追加一张无语义参考图），也就是改动之前的行为。
+   * 首帧 / 尾帧落到**位置**（0 槽 / 1 槽），那是首尾帧今天真正的承载方式
+   * （`constants/reference-image-capabilities.ts` 头注）；宿主拿不到那个槽时
+   * （装配台）忽略 `slot` 即可 —— 域工具表本来就不会在那里发出具名槽。
+   */
+  addReference(url: string, slot?: AssistantOperatorReferenceSlot): void
+  removeReference(url: string, slot?: AssistantOperatorReferenceSlot): void
   /**
    * 挂一段音频参考（P4-A，台账 A）—— 视频档的第二个参考槽。
    *
@@ -444,7 +456,7 @@ export function applyOperatorStep(
     }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference: {
-      ctx.addReference(step.payload.url)
+      ctx.addReference(step.payload.url, step.payload.slot)
       return STUDIO_OPERATOR_FIELD_IDS.references
     }
 
@@ -627,7 +639,7 @@ export function revertOperatorStep(
       return
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference:
-      ctx.removeReference(step.payload.url)
+      ctx.removeReference(step.payload.url, step.inverse.slot)
       return
 
     /**

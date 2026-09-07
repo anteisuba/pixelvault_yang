@@ -56,6 +56,13 @@ export interface StudioOperatorSnapshotForm {
   videoDurationSeconds: number
   videoResolution: string | null
   videoAudioRefs: readonly VideoAudioReference[]
+  /**
+   * 具名帧槽（第二期）。⚠ 只在 `keyframe` 档有意义 —— 另外两档里图片不是帧，
+   * 走的还是 `imageUpload` 那条参考轨（判据与 `studio-context` 那段头注同源）。
+   */
+  videoFrameSlots: { first: string | null; last: string | null }
+  /** 参考视频（第二期）。上限由模型契约的 `slots.videos` 说了算。 */
+  videoReferenceVideos: readonly string[]
   /** 三态：`null` = 用户没设过。⛔ 别在调用处 `?? false`。 */
   videoSoundEnabled: boolean | null
 }
@@ -253,6 +260,33 @@ export function buildVideoOperatorSnapshot({
 
   const audioSlots = contract?.slots.audio ?? 0
 
+  /**
+   * 具名帧槽（第二期）。**整节只在关键帧档给** —— 另外两档界面上根本没有首尾帧
+   * 那两个格子（`studio-context` 里 `videoFrameSlots` 的头注：那两档里图片不是帧）。
+   * 缺席即拒，那正是 `mount_reference slot:'first'` 在多图参考档下该有的行为。
+   * ⚠ `slots` 来自契约的 `keyframeSlots`（**能力声明**，不是数量上限）：
+   * 声明 1 的模型上写尾帧会被静默丢掉，那正是这条闸要拦的东西。
+   */
+  const keyframeSlots = contract?.keyframeSlots ?? 1
+  const frameReferences =
+    videoMode === 'keyframe' && selectedModel
+      ? {
+          ...(form.videoFrameSlots.first
+            ? { first: { url: form.videoFrameSlots.first } }
+            : {}),
+          ...(keyframeSlots === 2 && form.videoFrameSlots.last
+            ? { last: { url: form.videoFrameSlots.last } }
+            : {}),
+          slots: keyframeSlots,
+        }
+      : null
+
+  /**
+   * 参考视频位（第二期）。⚠ 槽位为 0（绝大多数模型）时整节缺席 —— 与音频那一节
+   * 逐字同构，助手因此连试都不会试。
+   */
+  const videoSlots = contract?.slots.videos ?? 0
+
   return {
     prompt: form.prompt,
     // 视频档**有**负面框（参数栏那条折叠行图片/视频共用，值落 `negativePrompt`）。
@@ -294,10 +328,25 @@ export function buildVideoOperatorSnapshot({
               0,
               ASSISTANT_OPERATOR_LIMITS.maxSpecOptions,
             ),
+            // 带图时上游钉死的那个比例（第二期）。⚠ 原样透传契约，⛔ 别在这里
+            // 判「现在有没有图」—— 那是规划器的事（`aspectLockedByFirstFrame`）。
+            aspectRatioLock: contract?.imageAspectRatioLock ?? null,
           },
         }
       : {}),
     references: buildReferencesNode(references),
+    ...(frameReferences ? { frameReferences } : {}),
+    ...(videoSlots > 0
+      ? {
+          videoReferences: {
+            items: form.videoReferenceVideos
+              .filter((url) => url.startsWith('http'))
+              .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences)
+              .map((url) => ({ url })),
+            limit: videoSlots,
+          },
+        }
+      : {}),
     // ⚠ 槽位为 0（这条线路不吃音频参考）时整节缺席 —— 与界面上那句
     //   「这个模型不支持」对应，助手因此连试都不会试。
     ...(audioSlots > 0

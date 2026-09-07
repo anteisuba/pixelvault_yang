@@ -863,6 +863,60 @@ const COMMON_DOMAIN_TOOLS = [
  *
  * ⚠ 写成 `Record<域, …>`：域词表加一个而这里没跟上，编译期就红。
  */
+/**
+ * **参考位的具名槽**（第二期 · 视频域）。
+ *
+ * ── 为什么现在才有名字 ────────────────────────────────────────────
+ * 首尾帧的语义今天**靠位置承载**：`reference-image-capabilities.ts` 的头注写得很
+ * 清楚 —— 那边曾经预留过一个 `slotted` 变体来表达首尾帧，零个模型声明、唯一用例
+ * 在测试里，2026-08-08 补首尾帧时删掉了；真正生效的是 `buildWan30` 这类 builder
+ * 里的「[0] 首帧、[1] 尾帧」。位置对**人**够用（界面上两个格子挨着摆），对**模型**
+ * 不够：它写不出「第 0 个」，它只会说「首帧」。
+ *
+ * ⚠ 所以这张表是**协议层的名字**，不是新的一套能力声明：它落地那一跳仍然回到
+ * 位置（客户端 `studio-operator-apply.ts` 把 `first` 写进 0 槽、`last` 写进 1 槽），
+ * ⛔ 不在 `reference-image-capabilities.ts` 里把那个死变体复活 —— 同一件事留两套
+ * 并行概念，比没有更糟（那正是它当初被删的理由）。
+ *
+ * ⚠ `reference` 是**默认档**（没写 slot 就是它），也就是「一张无语义的参考图」——
+ * 图片域全部落在这一档，视频域的多图参考 / 全能参考档也是。
+ */
+export const ASSISTANT_OPERATOR_REFERENCE_SLOT_IDS = {
+  /** 首帧（`keyframe` 档的 [0] 槽）。 */
+  first: 'first',
+  /** 尾帧（`keyframe` 档的 [1] 槽）。⚠ 只有 `keyframeSlots === 2` 的模型有。 */
+  last: 'last',
+  /** 无语义的参考图 —— 默认档。 */
+  reference: 'reference',
+  /** 参考**视频**（Seedance 2.x 全能参考那一档的 `slots.videos`）。 */
+  video: 'video',
+} as const
+
+export const ASSISTANT_OPERATOR_REFERENCE_SLOTS = [
+  ASSISTANT_OPERATOR_REFERENCE_SLOT_IDS.first,
+  ASSISTANT_OPERATOR_REFERENCE_SLOT_IDS.last,
+  ASSISTANT_OPERATOR_REFERENCE_SLOT_IDS.reference,
+  ASSISTANT_OPERATOR_REFERENCE_SLOT_IDS.video,
+] as const
+
+export type AssistantOperatorReferenceSlot =
+  (typeof ASSISTANT_OPERATOR_REFERENCE_SLOTS)[number]
+
+/**
+ * 视频评审卡那三帧各自**站在哪儿**（第二期）。
+ *
+ * ⚠ 是位置名不是时间戳：`t` 那个秒数照样带在载荷里，但卡上写的、模型读的都是这
+ * 三个词 —— 「末帧没到 endState」比「7.94 秒那张没到 endState」可读得多。
+ */
+export const ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS = [
+  'start',
+  'mid',
+  'end',
+] as const
+
+export type AssistantOperatorCritiqueFrameLabel =
+  (typeof ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS)[number]
+
 export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
   AssistantOperatorDomain,
   readonly AssistantOperatorTool[]
@@ -879,10 +933,9 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
      */
     ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
     /**
-     * ⭐ 看图闭环**只在图片域**：借来的那条视觉线吃的是一张静态图
-     * （`imageData: result.url`）。把一条 mp4 地址喂给它，得到的是一份格式完整、
-     * 内容全编的评价 —— 正是 `vision-route.service.ts` 头注里说的那种，比说不出话
-     * 坏得多。视频要能被看，得先有一条真的能读视频的路，那是另一件事。
+     * ⭐ 看图闭环。借来的那条视觉线吃的是一张**静态图**（`imageData: result.url`）
+     * —— 这条约束一个字都没松；视频档能进表，靠的是先把片子抽成三张静态图
+     * （见下面视频档那条注释），⛔ 不是把 mp4 地址直接喂给它。
      */
     ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
   ],
@@ -892,6 +945,19 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
     ASSISTANT_OPERATOR_TOOL_IDS.setSound,
     ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+    /**
+     * ⭐ 看片评审（第二期）。**这里曾经写着「看图闭环只在图片域」并把视频档排除**
+     * —— 那条判据没错，错的是它当时被写成了永久结论：把一条 mp4 地址喂给静态图
+     * 视觉线，得到的是一份格式完整、内容全编的评价（`vision-route.service.ts` 头注）。
+     *
+     * 第二期给的正是那句「视频要能被看，得先有一条真的能读视频的路」的答案，而且
+     * 走的**不是**原生读视频那条：客户端按确定性计划抽 **0 / 中 / 末三帧**
+     * （`lib/video-frame-capture.ts`，浏览器里 `<video>` + canvas），服务端复算计划
+     * 逐帧核对时间戳、转存 R2，然后**三张静态图**照旧走同一条视觉线。喂进去的
+     * 从头到尾都是 png/webp，那条「全编」的风险因此在结构上就不存在。
+     * ⚠ 抽不出帧时按 `videoFramesMissing` 拒，⛔ 不回落成拿视频地址去猜。
+     */
+    ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
   ],
   /**
    * LoRA 装配台（P4-C）。
@@ -1048,6 +1114,16 @@ export const ASSISTANT_OPERATOR_LIMITS = {
   maxCritiqueAdviceChars: 300,
   /** 评价那一步能带的目标描述（模型自己写的「这一轮想要什么」）。 */
   maxCritiqueGoalChars: 300,
+  /**
+   * 视频域评审卡上**恒定三帧**（第二期，owner 2026-09-06 定 0 / 中 / 末）。
+   *
+   * ⚠ 它是**契约上的常数**而不是一个可调档位：卡片版式按三格排（`start` / `mid` /
+   * `end` 各一格），而三个位置各自回答一个固定的问题 —— 起手对不对、中段动作有没有
+   * 冻住、末帧到没到 `endState`。给 5 帧只会让「末帧」这个语义在卡上找不到位置。
+   * ⛔ 别把它接成一个用户可调的数：那时抽帧计划、卡片版式、系统提示里那三句话
+   *    要一起改，而它们分散在三个文件里。
+   */
+  videoCritiqueFrameCount: 3,
   /**
    * `import_user_url` 收的地址长度（P3-D，拍板 22）。
    *
@@ -1251,6 +1327,31 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    * 「跑到一半失败了」结束，做成拒绝之后助手读得到理由、还能接着改口。
    */
   urlUnreadable: 'urlUnreadable',
+  /**
+   * **选了首帧图，宽高比就只剩自适应**（第二期，owner 2026-09-06 定）。
+   *
+   * 判据来自发送契约里那条 `imageAspectRatioLock`（`video-model-send-plan.ts`）：
+   * 火山对 Seedance 2.5 的硬约束是「首帧 / 首尾帧 / 视频编辑 / 视频延长这些**有图**
+   * 的场景 `ratio` 只接受 `adaptive`，传具体宽高比直接 400」（官方「视频生成教程」
+   * 使用限制段）。
+   * ⚠ 与 `unknownValue` 分开：那条说「这个值不在档位表里」，这条说「这个值本来在表里，
+   * 是**你自己挂的那张首帧**把它锁掉了」—— 后者可教，模型读到就知道该去摘首帧
+   * 还是该改成自适应。
+   * ⛔ 服务端**不替用户自动改比例**：比例是用户看得见的旋钮（拍板 19），
+   * 助手要改就得自己调一次 `set_video_specs`，那样日志上才留得下这一步。
+   */
+  aspectLockedByFirstFrame: 'aspectLockedByFirstFrame',
+  /**
+   * 视频域 `critique_result` **手上没有帧**（第二期）。
+   *
+   * ⭐ 抽帧发生在**浏览器里**（`lib/video-frame-capture.ts` 的选型头注：worker 跑不了
+   * 原生二进制、服务端塞不下 ffmpeg），所以服务端能不能看这段片子，取决于客户端
+   * 这一轮有没有把三帧一起送上来。送不上来的成因有具体的几种（跨域画布被污染、
+   * 容器读不出时长、平台链接根本解不了），而下一步该做的事是同一件：**说实话**。
+   * ⛔ 绝不降级成「拿视频地址喂静态图视觉线」—— 那得到的是一份格式完整、内容全编
+   * 的评价（论据与 `visionUnavailable` 逐字同源）。
+   */
+  videoFramesMissing: 'videoFramesMissing',
 } as const
 
 export type AssistantOperatorRejectReason =
@@ -1333,7 +1434,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
    * 几张，模型自己写一条地址会被 `unknownAsset` 拒。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]:
-    'actually LOOK at a picture and say what worked and what did not. Two ways to get one: pass "targetIds" with the id or the exact address of a picture the creator attached to THIS message (that is them pointing at it), or call it with no target when a run you armed has just come back. You may never invent an address — anything the creator did not reference this turn is refused. If they said "that one" and more than one picture is in play, call it with no target and the app will ask them which. Call it first when a picture is waiting, then fix the form with set_* based on what you saw.',
+    'actually LOOK at a picture and say what worked and what did not. Two ways to get one: pass "targetIds" with the id or the exact address of a picture the creator attached to THIS message (that is them pointing at it), or call it with no target when a run you armed has just come back. You may never invent an address — anything the creator did not reference this turn is refused. If they said "that one" and more than one picture is in play, call it with no target and the app will ask them which. Call it first when a picture is waiting, then fix the form with set_* based on what you saw. On the video bench the target is a CLIP and you are shown three stills from it (first / middle / last) instead of one picture — same tool, same rules.',
   /**
    * ⚠ 2026-09-06 放宽了**准入名单**（⛔ 不是放宽了闸）：除了「用户逐字写过的
    * 地址」，本轮 `search_web_images` 真的展示过的候选也算数 —— 用户说「都挂上」

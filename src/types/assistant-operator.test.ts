@@ -193,8 +193,9 @@ const STEP_FIXTURES: Record<
       assetId: 'gen-1',
       url: 'https://cdn.example.com/a.png',
       kind: 'image',
+      slot: 'reference',
     },
-    inverse: { assetId: 'gen-1' },
+    inverse: { assetId: 'gen-1', slot: 'reference' },
   },
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: {
     payload: { modelId: 'seedream-4', modelLabel: 'Seedream 4' },

@@ -7,7 +7,9 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_DEFAULT_SEARCH_KINDS,
   ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS as FRAME_LABELS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
+  ASSISTANT_OPERATOR_REFERENCE_SLOT_IDS as SLOT,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS as REJECT,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
   ASSISTANT_OPERATOR_STOP_REASONS,
@@ -25,6 +27,7 @@ import {
   isUnfinishedClosingMessage,
   type AssistantOperatorConfirmField,
   type AssistantOperatorDomain,
+  type AssistantOperatorReferenceSlot,
   type AssistantOperatorRejectReason,
   type AssistantOperatorSearchKind,
   type AssistantOperatorTool,
@@ -42,7 +45,11 @@ import {
   PROJECT_RULE_SOURCE_IDS,
 } from '@/constants/assistant-operator'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
-import { ASSISTANT_DOMAIN_BRIEFS } from '@/constants/assistant-protocol'
+import { planVideoEndpointFrames } from '@/lib/video-frame-plan'
+import {
+  ASSISTANT_DOMAIN_BRIEFS,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS,
+} from '@/constants/assistant-protocol'
 /**
  * ⭐ 生成器方言（提示词准确性 P0）。与旧助手 `prompt-assistant.service` **同源同一个
  * 常量**，不是抄一份字符串 —— 两处各写一份的下场是改了一处忘另一处，而「哪一处对」
@@ -119,6 +126,15 @@ import {
  */
 import { findVisionCapableRoute } from '@/services/vision/vision-route.service'
 /**
+ * ⭐ **抽帧落库**（第二期 · 视频域评审）。加它进钱闸白名单的判据只有一条：
+ * 它把客户端交上来的三张**帧图**核对后转存 R2，然后就结束了 —— 不建 generation、
+ * 不扣 credit、不碰 provider、一行库都不写（`video-frame-set.service.ts` 全文没有
+ * prisma / `@/lib/db`）。钱闸那份名单里逐字写着这条判据，另有一条用例逐字扫它的源码。
+ * ⛔ `services/vision/video-analysis.service` **有意不在名单里**：那条会经
+ * `analyzeVisual` 写 `ResearchRun`，也就是会 import 库客户端。
+ */
+import { persistVideoFrameSet } from '@/services/video-frames/video-frame-set.service'
+/**
  * ⭐ LoRA 检索（P4-C）。加它进钱闸白名单的判据与上面两条**逐字同源**：它是
  * **检索 + 归一**模块 —— 打 Civitai / HF 的搜索接口，出一串候选对象，
  * 一个字节都不下载、一分钱都不扣、一行 generation 都不创建。
@@ -154,9 +170,11 @@ import { logger } from '@/lib/logger'
 import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
   AssistantOperatorCritiqueSchema,
+  AssistantOperatorVideoCritiqueSchema,
   AssistantOperatorStepSchema,
   AssistantOperatorTurnSchema,
   type AssistantOperatorCritique,
+  type AssistantOperatorVideoCritique,
   type AssistantOperatorEvent,
   type AssistantOperatorGenerationRequest,
   type AssistantOperatorPlanEstimate,
@@ -227,6 +245,22 @@ interface OperatorWorkingState {
   videoAspectRatio: string | null
   videoResolution: string | null
   hasVideoSpecsControl: boolean
+  /**
+   * 带图时上游钉死的比例（第二期）。`null` = 这条线路不钉。
+   * ⚠ 它**只是能力声明**：真锁上还要加一条「首帧槽里有图」，见 `isAspectLocked`。
+   */
+  videoAspectRatioLock: string | null
+  // ── 具名帧槽（第二期 · 视频域）──────────────────────────────────
+  /** ⚠ 缺席（`hasFrameSlotControl=false`）= 这个档没有首尾帧那两个格子。 */
+  hasFrameSlotControl: boolean
+  /** 这个模型认几个具名帧槽：1 = 只有首帧，2 = 首帧 + 尾帧。 */
+  frameSlotCount: 1 | 2
+  frameFirstUrl: string | null
+  frameLastUrl: string | null
+  /** 参考视频位。⚠ 缺席 = 这个宿主上没有那个控件（工作台今天就是）。 */
+  hasVideoReferenceControl: boolean
+  videoReferenceCount: number
+  videoReferenceLimit: number
   audioReferenceCount: number
   audioReferenceLimit: number
   hasAudioReferenceControl: boolean
@@ -279,6 +313,14 @@ function toWorkingState(
     videoAspectRatio: snapshot.videoSpecs?.aspectRatio ?? null,
     videoResolution: snapshot.videoSpecs?.resolution ?? null,
     hasVideoSpecsControl: snapshot.videoSpecs !== undefined,
+    videoAspectRatioLock: snapshot.videoSpecs?.aspectRatioLock ?? null,
+    hasFrameSlotControl: snapshot.frameReferences !== undefined,
+    frameSlotCount: snapshot.frameReferences?.slots ?? 1,
+    frameFirstUrl: snapshot.frameReferences?.first?.url ?? null,
+    frameLastUrl: snapshot.frameReferences?.last?.url ?? null,
+    hasVideoReferenceControl: snapshot.videoReferences !== undefined,
+    videoReferenceCount: snapshot.videoReferences?.items.length ?? 0,
+    videoReferenceLimit: snapshot.videoReferences?.limit ?? 0,
     audioReferenceCount: snapshot.audioReferences?.items.length ?? 0,
     audioReferenceLimit: snapshot.audioReferences?.limit ?? 0,
     hasAudioReferenceControl: snapshot.audioReferences !== undefined,
@@ -608,10 +650,18 @@ function renderState(run: OperatorRun): string {
             } — options: ${specs.durationOptions.join(', ')}`
           : '- Clip length: this model does not take a length — omit durationSeconds.',
       )
+      /**
+       * ⭐ 首帧锁那一行（第二期）：**锁上时把档位表整张换掉**，不是在后面补一句
+       * 「但是」。印着五个可选值再加一句「其实只能选 adaptive」的下场是模型照表
+       * 挑一个，然后撞 `aspectLockedByFirstFrame` ——那一步白烧了。
+       */
+      const lockedRatio = aspectLockValue(run)
       lines.push(
-        specs && specs.aspectRatioOptions.length > 0
-          ? `- Aspect ratio: ${state.videoAspectRatio ?? '(not set)'} — options: ${specs.aspectRatioOptions.join(', ')}`
-          : '- Aspect ratio: this model does not take one — omit aspectRatio.',
+        lockedRatio
+          ? `- Aspect ratio: ${state.videoAspectRatio ?? '(not set)'} — PINNED to "${lockedRatio}" because a first frame is attached. That is the only value this model accepts in this scene; any other one is refused. (Take the first frame off and the normal options come back.)`
+          : specs && specs.aspectRatioOptions.length > 0
+            ? `- Aspect ratio: ${state.videoAspectRatio ?? '(not set)'} — options: ${specs.aspectRatioOptions.join(', ')}`
+            : '- Aspect ratio: this model does not take one — omit aspectRatio.',
       )
       lines.push(
         specs && specs.resolutionOptions.length > 0
@@ -673,6 +723,29 @@ function renderState(run: OperatorRun): string {
       ? `- Reference images mounted: ${state.referenceCount}/${state.referenceLimit}`
       : '- Reference images: this workbench takes no reference images.',
   )
+
+  /**
+   * 具名帧槽（第二期）。⚠ **有槽才印** —— 印一句「这个档没有首尾帧」在多图参考档
+   * 上是噪音（那一档本来就不该想到帧），而在关键帧档上不印才是真的漏。
+   * ⚠ 只有首帧的模型要**明说**尾帧不存在：不说的话模型会按「一般视频模型都有」
+   * 去挂，然后撞一条它本可以避开的拒绝。
+   */
+  if (state.hasFrameSlotControl) {
+    lines.push(
+      `- First frame slot: ${state.frameFirstUrl ? 'filled' : 'empty'} (mount_reference with slot "first")`,
+    )
+    lines.push(
+      state.frameSlotCount === 2
+        ? `- Last frame slot: ${state.frameLastUrl ? 'filled' : 'empty'} (mount_reference with slot "last")`
+        : '- Last frame slot: THIS MODEL HAS NO LAST FRAME — slot "last" is refused here. Switch model if the creator needs one.',
+    )
+  }
+
+  if (state.hasVideoReferenceControl) {
+    lines.push(
+      `- Reference videos mounted: ${state.videoReferenceCount}/${state.videoReferenceLimit} (mount_reference with slot "video")`,
+    )
+  }
 
   // ── 视频档的两条（P4-A）──────────────────────────────────────────
   if (state.hasAudioReferenceControl) {
@@ -1516,11 +1589,32 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
   }
 }
 
+/**
+ * 首帧一挂上，宽高比就只剩自适应了吗（第二期，owner 2026-09-06）。
+ *
+ * ⭐ **两个条件缺一不可**：① 这条线路声明了带图锁（`videoSpecs.aspectRatioLock`，
+ * 今天只有 Seedance 2.5 的关键帧档有）；② 首帧槽里**真的有图** —— 纯文生视频不受
+ * 限，那是官方限制段里写死的分界（`video-model-send-plan.ts` 的
+ * `VOLCENGINE_ADAPTIVE_RATIO` 头注）。
+ * ⛔ 别退化成「模型是 2.5 就锁」：那会让纯文生的用户失去全部比例档，而上游根本
+ * 不会拒他。
+ */
+function aspectLockValue(run: OperatorRun): string | null {
+  if (!run.state.videoAspectRatioLock) return null
+  return run.state.frameFirstUrl ? run.state.videoAspectRatioLock : null
+}
+
+/**
+ * 挂参考素材 —— **按槽分岔**（第二期 · 视频域）。
+ *
+ * ⚠ 每一条闸都问「这个宿主 / 这个模型**此刻**有没有这个槽」，⛔ 不问模型 id：
+ * 判据一律来自快照（拍板 19「助手只动用户看得见的旋钮」的落地方式）。
+ */
 function planMountReference(
   run: OperatorRun,
-  args: { assetId: string },
+  args: { assetId: string; slot?: AssistantOperatorReferenceSlot },
 ): ToolPlan {
-  if (!run.state.hasReferenceControl) return reject(REJECT.noSuchControl)
+  const slot = args.slot ?? SLOT.reference
 
   const asset = run.searchIndex.get(args.assetId)
   if (!asset) {
@@ -1529,6 +1623,95 @@ function planMountReference(
       'Only asset ids returned by search_assets in this run can be mounted.',
     )
   }
+
+  if (slot === SLOT.first || slot === SLOT.last) {
+    if (!run.state.hasFrameSlotControl) {
+      return reject(
+        REJECT.noSuchControl,
+        'This bench has no first/last frame slots right now — that only exists on the keyframe mode. Mount it as a plain reference instead (omit slot).',
+      )
+    }
+    if (slot === SLOT.last && run.state.frameSlotCount < 2) {
+      return reject(
+        REJECT.noSuchControl,
+        // ⚠ 说清楚是**模型**的事而不是工作台的事：换个模型这条路就通了。
+        'The selected model only takes a first frame — it has no last-frame slot, and anything you put there would be silently dropped on the way to the provider.',
+      )
+    }
+    /**
+     * ⚠ 帧槽**不数参考位上限**：它就是那一个格子，挂第二张 = 换掉第一张
+     * （`SET_VIDEO_FRAME_SLOT` 是覆盖写）。拿 `referencesFull` 去拦它，
+     * 表现是「参考位满了所以你换不了首帧」——一句读不懂的话。
+     */
+    const previousUrl =
+      slot === SLOT.first ? run.state.frameFirstUrl : run.state.frameLastUrl
+    const lock = run.state.videoAspectRatioLock
+    /**
+     * ⚠ 只在**观察里**提醒改比例，⛔ 不自动改：比例是用户看得见的旋钮，
+     * 助手要改就得自己调一次 `set_video_specs`，日志上才留得下那一步（拍板 19）。
+     */
+    const lockHint =
+      slot === SLOT.first &&
+      lock &&
+      !previousUrl &&
+      run.state.videoAspectRatio !== lock
+        ? ` This model pins the aspect ratio to "${lock}" whenever a first frame is attached — the current ratio "${
+            run.state.videoAspectRatio ?? '(unset)'
+          }" would be refused by the provider, so call set_video_specs with aspectRatio "${lock}" next.`
+        : ''
+
+    return {
+      kind: 'mutate',
+      payload: {
+        assetId: asset.assetId,
+        url: asset.url,
+        ...(asset.thumbnailUrl ? { thumbnailUrl: asset.thumbnailUrl } : {}),
+        kind: asset.kind,
+        ...(asset.model ? { label: asset.model } : {}),
+        slot,
+      },
+      inverse: { assetId: asset.assetId, slot },
+      observation: `Put ${asset.assetId} in the ${slot} frame slot${
+        previousUrl ? ' (replacing what was there)' : ''
+      }.${lockHint}`,
+      apply: () => {
+        if (slot === SLOT.first) run.state.frameFirstUrl = asset.url
+        else run.state.frameLastUrl = asset.url
+      },
+    }
+  }
+
+  if (slot === SLOT.video) {
+    if (!run.state.hasVideoReferenceControl) {
+      return reject(
+        REJECT.noSuchControl,
+        'This bench has no reference-video slot — the selected route takes no reference videos, or this workbench has no control for them.',
+      )
+    }
+    if (run.state.videoReferenceCount >= run.state.videoReferenceLimit) {
+      return reject(REJECT.referencesFull)
+    }
+    return {
+      kind: 'mutate',
+      payload: {
+        assetId: asset.assetId,
+        url: asset.url,
+        ...(asset.thumbnailUrl ? { thumbnailUrl: asset.thumbnailUrl } : {}),
+        kind: asset.kind,
+        ...(asset.model ? { label: asset.model } : {}),
+        slot,
+      },
+      inverse: { assetId: asset.assetId, slot },
+      observation: `Mounted ${asset.assetId} as a reference video (${
+        run.state.videoReferenceCount + 1
+      }/${run.state.videoReferenceLimit}).`,
+      apply: () => {
+        run.state.videoReferenceCount += 1
+      },
+    }
+  }
+
+  if (!run.state.hasReferenceControl) return reject(REJECT.noSuchControl)
   if (run.state.referenceCount >= run.state.referenceLimit) {
     return reject(REJECT.referencesFull)
   }
@@ -1541,8 +1724,9 @@ function planMountReference(
       ...(asset.thumbnailUrl ? { thumbnailUrl: asset.thumbnailUrl } : {}),
       kind: asset.kind,
       ...(asset.model ? { label: asset.model } : {}),
+      slot,
     },
-    inverse: { assetId: asset.assetId },
+    inverse: { assetId: asset.assetId, slot },
     observation: `Mounted ${asset.assetId} as a reference (${
       run.state.referenceCount + 1
     }/${run.state.referenceLimit}).`,
@@ -1773,7 +1957,20 @@ function planSetVideoSpecs(
       )
     }
   }
-  if (args.aspectRatio !== undefined) {
+  /**
+   * **首帧锁**（第二期，owner 2026-09-06）。⚠ 它跑在档位表校验**之前**：
+   * 锁上的那个值（`adaptive`）本来就不在 `aspectRatioOptions` 里（界面上没有这一档），
+   * 顺序反了的话助手照锁去设，撞回来的是一句读不懂的 `unknownValue`。
+   */
+  const lock = aspectLockValue(run)
+  if (args.aspectRatio !== undefined && lock) {
+    if (args.aspectRatio !== lock) {
+      return reject(
+        REJECT.aspectLockedByFirstFrame,
+        `A first frame is attached, so this model only accepts aspectRatio "${lock}" — the provider rejects any explicit ratio in that scene. Either set it to "${lock}", or take the first frame off first if the creator really wants a fixed ratio.`,
+      )
+    }
+  } else if (args.aspectRatio !== undefined) {
     if (!specs.aspectRatioOptions.includes(args.aspectRatio)) {
       return reject(
         REJECT.unknownValue,
@@ -2546,6 +2743,163 @@ function resolveCritiqueTarget(
  * ⛔ 这一跳**不花用户的积分**：它是一次文本补全（带一张图），走的是本文件
  * 一直在用的那条助手线，与钱闸无关 —— 生成永远只有用户点得动。
  */
+/**
+ * 看片评审（第二期 · 视频域，§7「视频域第二期扩成三帧抽帧版」）。
+ *
+ * ── 三件事按顺序发生，缺一条就退回一条**可教的**拒绝 ────────────────
+ *  ① 客户端这一轮交没交上帧 —— 没交就 `videoFramesMissing`。
+ *     ⭐ 抽帧发生在**浏览器里**（`lib/video-frame-capture.ts` 的选型头注：worker
+ *     跑不了原生二进制、服务端塞不下 ffmpeg），服务端只**复算计划再核对时间戳**。
+ *     ⛔ 绝不回落成「把 mp4 地址喂给静态图视觉线」—— 那得到的是一份格式完整、
+ *     内容全编的评价，正是 `vision-route.service.ts` 头注里说的那种。
+ *  ② 帧是不是**这段片子**的 —— `sourceUrl` 对不上就 `unknownAsset`。没有这一条，
+ *     「看片」就变成了「客户端说这是哪段片子就是哪段」。
+ *  ③ 借不借得到一条看得见图的路 —— 借不到就 `visionUnavailable`（与图片档同源）。
+ *
+ * ── 逐帧 + 汇总，而不是一次把三张塞进去 ────────────────────────────
+ * 三帧各自绑一个固定问题（起手 / 动作有没有冻住 / 末帧到没到 endState），
+ * 而一次多图补全回来的是**一段混在一起的话**——模型分不清它在说哪一帧，
+ * 卡上那三格也就配不上文字。所以三帧**并行**各看一次（`Promise.all`，延迟 ≈ 一次
+ * 往返），再拿三段观察做一次**纯文本**汇总。汇总那一跳不带图：它要判的是
+ * 「三帧之间发生了什么」，那件事只存在于三段描述的**差异**里。
+ *
+ * ⛔ 这一跳照旧**不花用户的积分**：三次文本补全（各带一张 png）+ 一次纯文本，
+ * 走的是本文件一直在用的那条助手线；落 R2 的只有那三张帧（不建 generation、
+ * 不扣 credit，判据逐字写在 `assistant-operator.money-gate.test.ts` 的白名单里）。
+ */
+async function planVideoCritique(
+  run: OperatorRun,
+  result: AssistantOperatorResult,
+  goal: string | null,
+  userId: string,
+): Promise<ToolPlan> {
+  const submitted = run.request.videoFrames
+  if (!submitted) {
+    return reject(
+      REJECT.videoFramesMissing,
+      'No frames came with this turn, so there is nothing for you to look at. Say plainly that you could not read this clip — do NOT describe it from the prompt.',
+    )
+  }
+  if (submitted.sourceUrl !== result.url) {
+    return reject(
+      REJECT.unknownAsset,
+      'The frames on this turn were taken from a different clip than the one you asked about.',
+    )
+  }
+
+  const seesImages = assistantAdapterSupportsImage(
+    run.route.adapterType,
+    run.modelId,
+  )
+  const visionRoute = seesImages
+    ? run.route
+    : await findVisionCapableRoute(userId)
+  if (!visionRoute) {
+    return reject(
+      REJECT.visionUnavailable,
+      'No model available to this account can look at pictures, so the frames cannot be read. Say so plainly — do not guess what the clip looks like.',
+    )
+  }
+  const borrowedVisionRoute = !seesImages
+  const visionModelId = borrowedVisionRoute
+    ? resolveAssistantModelId(visionRoute.adapterType)
+    : run.modelId
+
+  /**
+   * ⚠ 计划**在服务端复算**：客户端说它按 0/中/末抽的，这里自己算一遍再逐帧对
+   * 时间戳（`persistVideoFrameSet` 内部做的正是这件事）。少了这一次复算，
+   * 「三帧站在哪儿」就只是客户端的一句承诺 —— 而评审卡上那三个标签全靠它。
+   */
+  const frameSet = await persistVideoFrameSet({
+    userId,
+    sourceVideoUrl: result.url,
+    durationSeconds: submitted.durationSeconds,
+    frames: submitted.frames,
+    plan: planVideoEndpointFrames(submitted.durationSeconds),
+  })
+
+  const frames = frameSet.frames.map((frame, index) => ({
+    t: frame.timestampSeconds,
+    url: frame.url,
+    label: FRAME_LABELS[index] ?? FRAME_LABELS[FRAME_LABELS.length - 1],
+  }))
+
+  const notes = await Promise.all(
+    frames.map(async (frame) =>
+      completeAssistantTextWithContextRetry({
+        systemPrompt: buildVideoFrameSystemPrompt(run.request, run.persona),
+        buildUserPrompt: (maxLength) =>
+          buildVideoFramePrompt(run, goal, frame.label, frame.t, maxLength),
+        route: visionRoute,
+        contextCompactionTargetLength:
+          OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
+        ...(visionModelId ? { modelId: visionModelId } : {}),
+        // ⭐ 唯一真的「看」的那三下，喂进去的是**转存后的静态帧**，不是 mp4。
+        imageData: frame.url,
+      }),
+    ),
+  )
+
+  const raw = await completeAssistantTextWithContextRetry({
+    systemPrompt: buildVideoCritiqueSystemPrompt(run.request, run.persona),
+    buildUserPrompt: (maxLength) =>
+      buildVideoCritiquePrompt(
+        run,
+        goal,
+        result.modelLabel,
+        frames.map((frame, index) => ({
+          label: frame.label,
+          t: frame.t,
+          note: notes[index] ?? '',
+        })),
+        maxLength,
+      ),
+    route: visionRoute,
+    contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
+    ...(visionModelId ? { modelId: visionModelId } : {}),
+    responseFormat: 'json_object',
+  })
+
+  const critique = parseVideoCritiqueJson(raw)
+  if (!critique) {
+    return reject(
+      REJECT.critiqueFailed,
+      'The frame review did not come back in a readable shape. Do not pretend you watched the clip.',
+    )
+  }
+
+  const advice = critique.advice?.trim() || null
+
+  return {
+    kind: 'read',
+    payload: {
+      videoUrl: result.url,
+      ...(result.thumbnailUrl ? { thumbnailUrl: result.thumbnailUrl } : {}),
+      ...(result.modelLabel ? { modelLabel: result.modelLabel } : {}),
+      goal: goal ? clamp(goal, LIMITS.maxCritiqueGoalChars) : null,
+    },
+    run: async () => ({
+      result: {
+        frames,
+        verdicts: critique.verdicts,
+        advice,
+        borrowedVisionRoute,
+      },
+      observation: `critique_result — you watched ${frames.length} frames of the clip (${frames
+        .map((frame) => `${frame.label} @ ${frame.t}s`)
+        .join(', ')})${
+        borrowedVisionRoute
+          ? ` (through a borrowed ${visionRoute.adapterType} route, because the creator's own model cannot see pictures)`
+          : ''
+      }:\n${critique.verdicts
+        .map((verdict) => `  ${verdict.ok ? '✓' : '✗'} ${verdict.text}`)
+        .join('\n')}${
+        advice ? `\n  next: ${advice}` : ''
+      }\nNow change the form to act on what you saw — the creator presses generate again themselves.`,
+    }),
+  }
+}
+
 async function planCritiqueResult(
   run: OperatorRun,
   args: { goal?: string; targetIds?: string[] },
@@ -2573,6 +2927,20 @@ async function planCritiqueResult(
   }
   const result = target.result
 
+  const goal =
+    args.goal?.trim() ||
+    result.prompt?.trim() ||
+    run.state.prompt.trim() ||
+    null
+
+  /**
+   * 视频域走另一条实现（第二期）：抽帧 → 逐帧看 → 汇总。
+   * ⚠ 目标解析、歧义反问、准入名单那几条闸**共用上面同一段** —— 换了域不换判据。
+   */
+  if (run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video) {
+    return planVideoCritique(run, result, goal, userId)
+  }
+
   // 用户选的那条路看得见图就直接用它；看不见才去借（省得平白换掉他选的模型）。
   const seesImages = assistantAdapterSupportsImage(
     run.route.adapterType,
@@ -2593,12 +2961,6 @@ async function planCritiqueResult(
   const visionModelId = borrowedVisionRoute
     ? resolveAssistantModelId(visionRoute.adapterType)
     : run.modelId
-
-  const goal =
-    args.goal?.trim() ||
-    result.prompt?.trim() ||
-    run.state.prompt.trim() ||
-    null
 
   const raw = await completeAssistantTextWithContextRetry({
     systemPrompt: buildCritiqueSystemPrompt(run.request, run.persona),
@@ -2849,7 +3211,13 @@ async function planTool(
         parsed.data as { query: string; limit?: number },
       )
     case TOOL.mountReference:
-      return planMountReference(run, parsed.data as { assetId: string })
+      return planMountReference(
+        run,
+        parsed.data as {
+          assetId: string
+          slot?: AssistantOperatorReferenceSlot
+        },
+      )
     case TOOL.setModel:
       return planSetModel(run, parsed.data as { modelId: string })
     case TOOL.setPrompt:
@@ -2892,7 +3260,11 @@ async function planTool(
     case TOOL.requestGeneration:
       return planRequestGeneration(run)
     case TOOL.critiqueResult:
-      return planCritiqueResult(run, parsed.data as { goal?: string }, userId)
+      return planCritiqueResult(
+        run,
+        parsed.data as { goal?: string; targetIds?: string[] },
+        userId,
+      )
     case TOOL.importUserUrl:
       return planImportUserUrl(run, parsed.data as { url: string })
     case TOOL.searchLoras:
@@ -3174,6 +3546,22 @@ function buildOperatorSystemPrompt(
       ? '- When the state block says a fresh result of yours is waiting, look at it FIRST with critique_result, then act on what you saw. You review only the runs you armed — never the ones the creator started on their own, and you cannot see those at all.'
       : null,
     /**
+     * 视频域看片那一段（第二期）。
+     *
+     * ⭐ 三帧的语义必须**逐条写出来**：模型看到的是三张静态图，如果不告诉它这三张
+     * 站在哪儿、各自要回答什么问题，它会把它们当成「三张风格参考」然后夸一遍构图。
+     * 三个维度对齐 owner 的 EVA 复核（否定 / 异常 / 建议）。
+     * ⚠ 首帧锁那一条也在这里：它是模型**在挂首帧之前**就该知道的事，等撞上
+     * `aspectLockedByFirstFrame` 再学就白烧一步。
+     */
+    request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video &&
+    isAssistantOperatorToolInDomain(TOOL.critiqueResult, request.domain)
+      ? `- REVIEWING A CLIP: critique_result does not play the video. It reads THREE stills — the very first frame, the middle, and the last — and you judge the clip by what changes between them. Answer three things every time: did anything actually MOVE (three near-identical frames mean a breathing still image, and that is a failure, not a style); does the subject stay the SAME across them (name the drift — a face that resets, clothes that change colour); and does the END frame arrive where the creator was going. Say the uncomfortable one first, then one concrete change for the next run.
+- You can only review a clip when the app sent this turn's frames up with it. When it did not, say plainly that you could not read the clip — never describe a video from its prompt.
+- FIRST/LAST FRAME SLOTS: mount_reference takes slot "first" or "last" on the keyframe mode. They are named slots, not positions — putting an image in "last" never disturbs "first". Some models only have a first frame; the state block says which, and asking for a last frame there is refused.
+- Some models pin the aspect ratio the moment a first frame is attached: the state block prints that pinned value. When it is pinned, set_video_specs must use exactly that value — any explicit ratio is refused by the provider, not by us.`
+      : null,
+    /**
      * LoRA 域的三条硬规矩（P4-C）。
      *
      * ⭐ 第三条（「没有上限」）是**产品事实**：本仓三个后端全不限挂载数。不写出来
@@ -3385,6 +3773,127 @@ function buildCritiquePrompt(
 }
 
 /**
+ * 逐帧那一跳的系统提示（第二期）。
+ *
+ * ⚠ **不要 JSON**：这一跳的产物是给下一跳（汇总）读的一段描述，不是给客户端渲染
+ * 的结构。硬要 JSON 只会多一处解析失败点，而失败在这里的代价是整段片子评不了。
+ * ⚠ 每一帧都告诉它**自己站在哪儿**（start / mid / end）：同一张画面在「起手」和
+ * 「末帧」两个位置上要看的东西不同（前者看构图与身份，后者看有没有到 endState）。
+ */
+function buildVideoFrameSystemPrompt(
+  request: AssistantOperatorRequest,
+  persona: AssistantPersona,
+): string {
+  const language =
+    RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
+
+  return `You are looking at ONE still frame taken from a clip PixelVault just produced for its creator.
+
+Describe only what is visibly in THIS frame, in ${language}, in at most three short sentences: the subject and who/what it is, the pose and where the motion is, the framing, and anything visibly broken (melted hands, a face that changed, text that turned to mush).
+
+RULES:
+- Do NOT guess what happens before or after this frame — you are only shown this one.
+- Do NOT judge the clip yet and do NOT give advice. Another pass compares the frames.
+- No JSON, no lists, no preamble. Just the description.`
+}
+
+function buildVideoFramePrompt(
+  run: OperatorRun,
+  goal: string | null,
+  label: string,
+  timestampSeconds: number,
+  maxLength?: number,
+): string {
+  const sections: string[] = [
+    `THIS FRAME IS THE "${label}" FRAME, taken at ${timestampSeconds}s of the clip.`,
+    goal
+      ? `WHAT THE CLIP WAS SUPPOSED TO BE:\n${goal}`
+      : 'WHAT THE CLIP WAS SUPPOSED TO BE: the creator never wrote it down — describe the frame on its own terms.',
+  ]
+
+  const prefix = `${sections.join('\n\n')}\n\nCONVERSATION THAT LED HERE:\n`
+  const conversationBudget =
+    maxLength === undefined ? undefined : Math.max(1, maxLength - prefix.length)
+
+  return `${prefix}${buildAssistantConversation(
+    run.request.messages,
+    conversationBudget,
+  )}`
+}
+
+/**
+ * 汇总那一跳的系统提示（第二期）。
+ *
+ * ⭐ 评审维度对齐 owner 的 EVA 复核三段（**否定 / 异常 / 建议**，§7）：`verdicts`
+ * 里 `ok:false` 的那几条就是「否定」与「异常」，`advice` 是「建议」。
+ * ⚠ 三个必答问题写死在这里，因为它们正是三帧的语义：动作有没有**冻住**、
+ * 身份有没有**漂**、末帧到没到 **endState**。少问一条，那一帧就白抽了。
+ */
+function buildVideoCritiqueSystemPrompt(
+  request: AssistantOperatorRequest,
+  persona: AssistantPersona,
+): string {
+  const language =
+    RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
+
+  return `You are judging a clip PixelVault just produced for its creator. You did not watch it play — you were shown three still frames (start, middle, end) and their descriptions, and you judge the clip from what changes between them.
+
+Be the kind of second pair of eyes a working director is: concrete, specific to THIS clip, willing to say the uncomfortable thing. Vague praise is worse than silence.
+
+THREE QUESTIONS YOU MUST ANSWER, one verdict each, in this order:
+1. MOTION — did anything actually move? If the three frames are near-identical, the clip is a breathing still image and that is a failure, not a style.
+2. IDENTITY — does the subject stay the same person/object across the three frames? Name the drift you see (a face that resets, clothing that changes colour, a limb that grows).
+3. END STATE — does the end frame arrive where the creator was going? If they described an ending, judge against it; otherwise judge whether the clip lands somewhere instead of cutting mid-gesture.
+
+RULES:
+- Between ${1} and ${LIMITS.maxCritiqueFindings} verdicts, one short sentence each, in ${language}.
+- "ok": true means that dimension LANDED. false means it did not. Do not mark everything true; do not mark everything false either.
+- "advice" is one sentence about what to change next — a prompt, a first/last frame, or a setting, not a pep talk. Use null when the clip is genuinely good enough.
+- Judge only what the frames show. You cannot see the frames between them, and you must never claim you changed anything.
+
+OUTPUT — one strict-JSON object and nothing else, no prose around it, no code fence:
+{"verdicts":[{"ok":true,"text":"..."},{"ok":false,"text":"..."}],"advice":"..."}`
+}
+
+function buildVideoCritiquePrompt(
+  run: OperatorRun,
+  goal: string | null,
+  modelLabel: string | undefined,
+  frames: readonly { label: string; t: number; note: string }[],
+  maxLength?: number,
+): string {
+  const sections: string[] = [
+    goal
+      ? `WHAT THIS CLIP WAS SUPPOSED TO BE:\n${goal}`
+      : 'WHAT THIS CLIP WAS SUPPOSED TO BE: the creator never wrote it down — judge it on its own craft instead.',
+  ]
+  if (modelLabel) sections.push(`MADE BY: ${modelLabel}`)
+  sections.push(
+    `WHAT EACH FRAME SHOWS:\n${frames
+      .map(
+        (frame) =>
+          `[${frame.label} @ ${frame.t}s] ${clamp(
+            frame.note.trim(),
+            LIMITS.maxMessageChars,
+          )}`,
+      )
+      .join('\n\n')}`,
+  )
+
+  const prefix = `${sections.join('\n\n')}\n\nCONVERSATION THAT LED HERE:\n`
+  const suffix = '\n\nReply with ONE JSON object.'
+  const conversationBudget =
+    maxLength === undefined
+      ? undefined
+      : Math.max(1, maxLength - prefix.length - suffix.length)
+
+  return `${prefix}${buildAssistantConversation(
+    run.request.messages,
+    conversationBudget,
+  )}${suffix}`
+}
+
+/**
  * 剥掉围栏，把模型这一轮的输出还原成候选 JSON 串。
  * `responseFormat:'json_object'` 只在部分 provider 上是硬保证，剩下那些照样会给你
  * 包一层 ```json —— 这十行是那一档的代价。
@@ -3434,6 +3943,28 @@ function parseCritiqueJson(raw: string): AssistantOperatorCritique | null {
       const parsed = AssistantOperatorCritiqueSchema.safeParse(
         JSON.parse(candidate) as unknown,
       )
+      if (parsed.success) return parsed.data
+    } catch {
+      // 下一个候选
+    }
+  }
+  return null
+}
+
+/**
+ * 汇总那一跳的 JSON（第二期）。形状与 `parseCritiqueJson` 逐字同构，
+ * ⚠ 只是 schema 换成视频那份（`verdicts` 而不是 `findings`，⛔ 别合并成一个
+ * 带可选字段的宽 schema —— 那样两个域都能过，而卡片分不出该画哪一种）。
+ * ⚠ `frames` 由服务端填，模型这一跳**碰不到帧地址**（与图片档的 `imageUrl` 同源），
+ * 所以这里只解析 `verdicts` + `advice`。
+ */
+function parseVideoCritiqueJson(
+  raw: string,
+): Omit<AssistantOperatorVideoCritique, 'frames'> | null {
+  const schema = AssistantOperatorVideoCritiqueSchema.omit({ frames: true })
+  for (const candidate of jsonCandidates(raw)) {
+    try {
+      const parsed = schema.safeParse(JSON.parse(candidate) as unknown)
       if (parsed.success) return parsed.data
     } catch {
       // 下一个候选

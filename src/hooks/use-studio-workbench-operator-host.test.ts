@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * 宿主契约的 `results`（切片 3a）—— **结果行卡的唯一数据源**。
@@ -17,6 +17,11 @@ import { describe, expect, it, vi } from 'vitest'
  */
 
 const useStudioGenOptional = vi.hoisted(() => vi.fn())
+/** 表单 dispatch —— 第二期的具名槽落地那一跳走的就是它。 */
+const dispatch = vi.hoisted(() => vi.fn())
+const addReferenceImage = vi.hoisted(() => vi.fn())
+const removeReferenceImage = vi.hoisted(() => vi.fn())
+const formState = vi.hoisted(() => ({ videoReferenceVideos: [] as string[] }))
 
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
@@ -33,15 +38,19 @@ vi.mock('@/contexts/studio-context', () => ({
       outputType: 'image',
       selectedOptionId: null,
       panels: { enhance: false },
+      videoFrameSlots: { first: null, last: null },
+      get videoReferenceVideos() {
+        return formState.videoReferenceVideos
+      },
     },
-    dispatch: vi.fn(),
+    dispatch,
   }),
   useStudioData: () => ({
     imageUpload: {
       referenceEntries: [],
       maxImages: 4,
-      addReferenceImage: vi.fn(),
-      removeReferenceImage: vi.fn(),
+      addReferenceImage,
+      removeReferenceImage,
     },
   }),
   useStudioGenOptional,
@@ -108,5 +117,71 @@ describe('useStudioWorkbenchOperatorHost 的 results 映射', () => {
     useStudioGenOptional.mockReturnValue(undefined)
     const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
     expect(result.current.results).toEqual([])
+  })
+})
+
+/**
+ * 具名槽落地（第二期 · 视频域）。
+ *
+ * ⭐ 锁的是「挂到哪儿」在宿主这一跳**分成了三条真的不同的路**：首尾帧走
+ * `SET_VIDEO_FRAME_SLOT`（覆盖写那一格）、参考视频走
+ * `SET_VIDEO_REFERENCE_VIDEOS`、默认档照旧走 `imageUpload`。
+ * ⛔ 三条合成一条的表现是「助手说换了尾帧，画面上换的是首帧」——两张图看上去
+ *    都很合理，没人查得出来。
+ */
+describe('useStudioWorkbenchOperatorHost 的 addReference/removeReference 分槽', () => {
+  beforeEach(() => {
+    dispatch.mockClear()
+    addReferenceImage.mockClear()
+    removeReferenceImage.mockClear()
+    formState.videoReferenceVideos = []
+    useStudioGenOptional.mockReturnValue(undefined)
+  })
+
+  it.each([['first'], ['last']] as const)(
+    'slot=%s 写进具名槽，撤销把**那一格**清空（⛔ 不动另一格）',
+    (slot) => {
+      const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+      result.current.apply.addReference('https://cdn.test/f.png', slot)
+      expect(dispatch).toHaveBeenCalledWith({
+        type: 'SET_VIDEO_FRAME_SLOT',
+        payload: { slot, url: 'https://cdn.test/f.png' },
+      })
+
+      result.current.apply.removeReference('https://cdn.test/f.png', slot)
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: 'SET_VIDEO_FRAME_SLOT',
+        payload: { slot, url: null },
+      })
+      // 帧槽一路都没碰参考图列表。
+      expect(addReferenceImage).not.toHaveBeenCalled()
+    },
+  )
+
+  it('slot=video 走参考视频列表，按 URL 去重', () => {
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    result.current.apply.addReference('https://cdn.test/a.mp4', 'video')
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'SET_VIDEO_REFERENCE_VIDEOS',
+      payload: ['https://cdn.test/a.mp4'],
+    })
+
+    formState.videoReferenceVideos = ['https://cdn.test/a.mp4']
+    dispatch.mockClear()
+    result.current.apply.addReference('https://cdn.test/a.mp4', 'video')
+    expect(dispatch).not.toHaveBeenCalled()
+
+    result.current.apply.removeReference('https://cdn.test/a.mp4', 'video')
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'SET_VIDEO_REFERENCE_VIDEOS',
+      payload: [],
+    })
+  })
+
+  it('没写 slot 就是默认档 —— 照旧走 imageUpload（图片域一个字都没变）', () => {
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    result.current.apply.addReference('https://cdn.test/a.png')
+    expect(addReferenceImage).toHaveBeenCalledWith('https://cdn.test/a.png')
+    expect(dispatch).not.toHaveBeenCalled()
   })
 })

@@ -130,6 +130,32 @@ export const VIDEO_FRAME_PLAN = {
   timestampDecimals: 3,
 } as const
 
+/**
+ * **端点计划**：0 / 中 / 末三帧（助手视频域评审卡专用，owner 2026-09-06 定）。
+ *
+ * ── 为什么不复用 `segment-midpoints` ────────────────────────────────
+ * 上面那份的三条好处（避黑场、避 seek 边界、每帧代表一段）在「分析一段片子讲了
+ * 什么」的场景里全部成立；而评审卡问的是**另外三个问题**，它们各自绑死在一个位置上：
+ *  ① 起手对不对（首帧是不是用户挂的那张 / 是不是想要的构图）；
+ *  ② 中段动作有没有**冻住**（生成视频最常见的坏法就是「一张会呼吸的静态图」）；
+ *  ③ **末帧到没到 `endState`**（首尾帧档尤其：尾帧就是验收标准）。
+ * 取段中点会把 ① 和 ③ 各挪进画面 1/6，而那正是这两个问题最不该被挪的地方。
+ *
+ * ⚠ `endTrimSeconds` 不是保守，是**必须**：`t = duration` 在不同浏览器 / 容器上
+ * seek 行为不一致（见上面 `strategy` 的头注），退 80ms 换来的是一个稳定可复跑的
+ * 采样点；首帧那头不退 —— 首帧就是要看第 0 帧本身（黑场也是一条结论）。
+ * ⚠ `frameCount` 与 `ASSISTANT_OPERATOR_LIMITS.videoCritiqueFrameCount` 是同一个数，
+ * 两处各自为政的表现是「服务端算 3 帧、卡片排 4 格」。⛔ 改一处必须改另一处，
+ * 而 `assistant-operator.service` 的单测逐字对着这条断言。
+ */
+export const VIDEO_FRAME_ENDPOINT_PLAN = {
+  frameCount: 3,
+  planVersion: 1,
+  strategy: 'endpoints-start-mid-end',
+  /** 末帧从片尾退这么多秒取（seek 边界，见头注）。 */
+  endTrimSeconds: 0.08,
+} as const
+
 export const VIDEO_FRAME_LIMITS = {
   /**
    * 服务端复算计划后允许的偏差。浏览器 seek 到的是**最近的可解码帧**，不是数学上

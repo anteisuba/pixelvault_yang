@@ -1,4 +1,5 @@
 import {
+  VIDEO_FRAME_ENDPOINT_PLAN,
   VIDEO_FRAME_LIMITS,
   VIDEO_FRAME_PLAN,
 } from '@/constants/video-analysis'
@@ -72,6 +73,52 @@ export function planVideoFrames(
     frameCount: entries.length,
     planVersion: VIDEO_FRAME_PLAN.planVersion,
     strategy: VIDEO_FRAME_PLAN.strategy,
+    entries,
+  }
+}
+
+/**
+ * `t = [0, duration / 2, duration - endTrim]` —— **0 / 中 / 末**三帧
+ * （助手视频域评审卡，owner 2026-09-06 定）。
+ *
+ * 为什么与 `planVideoFrames` 分成两个函数而不是给它加一个 `strategy` 参数：
+ * 两者的**产物含义不同**。段中点那份是「这段片子的 N 个等价样本」，谁是第 3 帧
+ * 无所谓；这一份的三帧各自有名字（`start` / `mid` / `end`，见
+ * `ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS`），序号即语义。合成一个函数之后，
+ * 调用方得靠一个字符串参数去猜「我拿到的 entries 能不能按名字用」——
+ * 而那正是它会被用错的地方。
+ *
+ * ⚠ 同一条确定性纪律照旧：⛔ 不随机、⛔ 不按内容自适应，片长非法时返回空计划
+ * 而不是抛（理由与 `planVideoFrames` 逐字同源）。
+ */
+export function planVideoEndpointFrames(
+  durationSeconds: number,
+): VideoFramePlan {
+  const usable =
+    Number.isFinite(durationSeconds) &&
+    durationSeconds >= VIDEO_FRAME_LIMITS.minDurationSeconds
+
+  /**
+   * ⚠ 末帧用 `Math.max(0, …)`：极短片（刚过 `minDurationSeconds`）减掉 80ms 之后
+   * 可能小于中点甚至为负 —— 那时三帧退化成 `[0, d/2, d/2]`，仍然是一组**确定的**
+   * 时间戳，⛔ 不为此把整段片子判成抽不了（那会让一条 1 秒的片子永远评不了）。
+   */
+  const entries: VideoFramePlanEntry[] = usable
+    ? [
+        0,
+        durationSeconds / 2,
+        Math.max(0, durationSeconds - VIDEO_FRAME_ENDPOINT_PLAN.endTrimSeconds),
+      ].map((timestampSeconds, index) => ({
+        index,
+        timestampSeconds: roundToPlanPrecision(timestampSeconds),
+      }))
+    : []
+
+  return {
+    durationSeconds: usable ? roundToPlanPrecision(durationSeconds) : 0,
+    frameCount: entries.length,
+    planVersion: VIDEO_FRAME_ENDPOINT_PLAN.planVersion,
+    strategy: VIDEO_FRAME_ENDPOINT_PLAN.strategy,
     entries,
   }
 }

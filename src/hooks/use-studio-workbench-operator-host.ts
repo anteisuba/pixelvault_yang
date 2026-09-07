@@ -108,6 +108,9 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       videoDurationSeconds: current.videoDuration,
       videoResolution: current.videoResolution,
       videoAudioRefs: current.videoAudioRefs,
+      // 具名帧槽 / 参考视频（第二期）—— 表单里那两处新状态原样端上去。
+      videoFrameSlots: current.videoFrameSlots,
+      videoReferenceVideos: current.videoReferenceVideos,
       // ⛔ 三态原样传，别 `?? false`（见词表 `setSound` 头注）。
       videoSoundEnabled: current.videoGenerateAudio,
     }
@@ -155,9 +158,52 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
           )?.optionId ?? null
         )
       },
-      addReference: (url) => latest.current.imageUpload.addReferenceImage(url),
-      removeReference: (url) =>
-        removeReferenceByUrl(latest.current.imageUpload, url),
+      /**
+       * 挂参考素材 —— **按槽分三条路**（第二期）。
+       *
+       * ⭐ 首尾帧走的是**具名槽**（`SET_VIDEO_FRAME_SLOT`）而不是参考图列表的
+       * 0/1 下标：位置承载语义的老写法里「把第一张删掉」会让尾帧静默升级成首帧
+       * （`studio-context` 里那段头注记的就是这次漂移）。
+       * ⚠ 默认档（`reference` / 缺席）保持原样走 `imageUpload` —— 图片域、多图参考
+       * 档、全能参考档的图都在那条轨上。
+       */
+      addReference: (url, slot) => {
+        if (slot === 'first' || slot === 'last') {
+          dispatch({ type: 'SET_VIDEO_FRAME_SLOT', payload: { slot, url } })
+          return
+        }
+        if (slot === 'video') {
+          const current = latest.current.state.videoReferenceVideos
+          if (current.includes(url)) return
+          dispatch({
+            type: 'SET_VIDEO_REFERENCE_VIDEOS',
+            payload: [...current, url],
+          })
+          return
+        }
+        latest.current.imageUpload.addReferenceImage(url)
+      },
+      /** ⚠ 撤销读的是 `inverse.slot`，所以这里的分岔与上面**逐条对称**。 */
+      removeReference: (url, slot) => {
+        if (slot === 'first' || slot === 'last') {
+          // ⛔ 清空那个槽，不是「删掉一个下标」——另一个槽一个字都不该动。
+          dispatch({
+            type: 'SET_VIDEO_FRAME_SLOT',
+            payload: { slot, url: null },
+          })
+          return
+        }
+        if (slot === 'video') {
+          const current = latest.current.state.videoReferenceVideos
+          if (!current.includes(url)) return
+          dispatch({
+            type: 'SET_VIDEO_REFERENCE_VIDEOS',
+            payload: current.filter((entry) => entry !== url),
+          })
+          return
+        }
+        removeReferenceByUrl(latest.current.imageUpload, url)
+      },
       /**
        * 音频参考（P4-A，台账 A）—— 走的是**面板那条既有的写入**
        * （`SET_VIDEO_AUDIO_REFS` 整体替换），⛔ 不新开一条通道。

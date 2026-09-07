@@ -57,6 +57,8 @@ const FORM: StudioOperatorSnapshotForm = {
   videoDurationSeconds: 5,
   videoResolution: '720p',
   videoAudioRefs: [],
+  videoFrameSlots: { first: null, last: null },
+  videoReferenceVideos: [],
   videoSoundEnabled: null,
 }
 
@@ -109,22 +111,30 @@ function videoContract(
     audio: number
     audioRequiresVisual: boolean
     sound: boolean
+    videos: number
+    keyframeSlots: 1 | 2
+    imageAspectRatioLock: string | null
   }> = {},
 ) {
   const merged = {
     audio: 10,
     audioRequiresVisual: false,
     sound: true,
+    videos: 10,
+    keyframeSlots: 2 as 1 | 2,
+    imageAspectRatioLock: null as string | null,
     ...overrides,
   }
   mockGetVideoModelSendContract.mockReturnValue({
     slots: {
       images: 30,
-      videos: 10,
+      videos: merged.videos,
       audio: merged.audio,
       audioRequiresVisual: merged.audioRequiresVisual,
     },
     parameters: { generateAudio: merged.sound },
+    keyframeSlots: merged.keyframeSlots,
+    imageAspectRatioLock: merged.imageAspectRatioLock,
   })
 }
 
@@ -198,6 +208,8 @@ describe('buildVideoOperatorSnapshot', () => {
       durationOptions: [5, 10],
       aspectRatioOptions: ['16:9', '9:16'],
       resolutionOptions: ['720p', '1080p'],
+      // 带图锁（第二期）：契约里没有就是 `null`，⛔ 不缺席（缺席读起来像「没这回事」）。
+      aspectRatioLock: null,
     })
   })
 
@@ -462,5 +474,114 @@ describe('buildLoraOperatorSnapshot（P4-C）', () => {
         buildLoraOperatorSnapshot(BASE_INPUT),
       ).success,
     ).toBe(true)
+  })
+})
+
+/**
+ * 视频参考槽（第二期）。⭐ 这一组锁的全是**「缺席即拒」**那条纪律的落点：
+ * 一节给出来就等于告诉助手「这里有个格子」，而它会去填。
+ */
+describe('buildVideoOperatorSnapshot · 具名帧槽与参考视频（第二期）', () => {
+  it('关键帧档给 frameReferences，槽数来自契约的 keyframeSlots', () => {
+    const snapshot = buildVideoOperatorSnapshot({
+      form: {
+        ...FORM,
+        videoFrameSlots: {
+          first: 'https://cdn.example.com/first.png',
+          last: 'https://cdn.example.com/last.png',
+        },
+      },
+      modelOptions: [SEEDANCE_ON_BYTEPLUS],
+      selectedModel: SEEDANCE_ON_BYTEPLUS,
+      references: { items: [], limit: 4 },
+      videoMode: 'keyframe',
+    })
+    expect(snapshot.frameReferences).toEqual({
+      first: { url: 'https://cdn.example.com/first.png' },
+      last: { url: 'https://cdn.example.com/last.png' },
+      slots: 2,
+    })
+  })
+
+  it('⛔ 只有首帧的模型上尾帧整格不给（声明得比实现宽 = 用户填了被静默丢掉）', () => {
+    videoContract({ keyframeSlots: 1 })
+    const snapshot = buildVideoOperatorSnapshot({
+      form: {
+        ...FORM,
+        videoFrameSlots: {
+          first: 'https://cdn.example.com/first.png',
+          last: 'https://cdn.example.com/last.png',
+        },
+      },
+      modelOptions: [SEEDANCE_ON_BYTEPLUS],
+      selectedModel: SEEDANCE_ON_BYTEPLUS,
+      references: { items: [], limit: 4 },
+      videoMode: 'keyframe',
+    })
+    expect(snapshot.frameReferences).toEqual({
+      first: { url: 'https://cdn.example.com/first.png' },
+      slots: 1,
+    })
+  })
+
+  it('⛔ 另外两档没有帧槽这回事 —— 整节缺席', () => {
+    mockGetNodeModeForModel.mockReturnValue('multimodal')
+    const snapshot = buildVideoOperatorSnapshot({
+      form: {
+        ...FORM,
+        videoFrameSlots: {
+          first: 'https://cdn.example.com/first.png',
+          last: null,
+        },
+      },
+      modelOptions: [SEEDANCE_ON_BYTEPLUS],
+      selectedModel: SEEDANCE_ON_BYTEPLUS,
+      references: { items: [], limit: 4 },
+      videoMode: 'multimodal',
+    })
+    expect(snapshot.frameReferences).toBeUndefined()
+  })
+
+  it('参考视频：槽位为 0 时整节缺席，>0 时带上限', () => {
+    videoContract({ videos: 0 })
+    expect(
+      buildVideoOperatorSnapshot({
+        form: FORM,
+        modelOptions: [SEEDANCE_ON_BYTEPLUS],
+        selectedModel: SEEDANCE_ON_BYTEPLUS,
+        references: { items: [], limit: 4 },
+        videoMode: 'keyframe',
+      }).videoReferences,
+    ).toBeUndefined()
+
+    videoContract({ videos: 3 })
+    expect(
+      buildVideoOperatorSnapshot({
+        form: {
+          ...FORM,
+          videoReferenceVideos: ['https://cdn.example.com/a.mp4', 'blob:nope'],
+        },
+        modelOptions: [SEEDANCE_ON_BYTEPLUS],
+        selectedModel: SEEDANCE_ON_BYTEPLUS,
+        references: { items: [], limit: 4 },
+        videoMode: 'keyframe',
+      }).videoReferences,
+    ).toEqual({
+      // ⚠ 非 http(s) 的照旧滤掉（与参考图那条同一道闸：schema 要求合法 URL）。
+      items: [{ url: 'https://cdn.example.com/a.mp4' }],
+      limit: 3,
+    })
+  })
+
+  it('带图锁原样透传契约 —— ⛔ 这一层不判「现在有没有图」', () => {
+    videoContract({ imageAspectRatioLock: 'adaptive' })
+    const snapshot = buildVideoOperatorSnapshot({
+      form: FORM,
+      modelOptions: [SEEDANCE_ON_BYTEPLUS],
+      selectedModel: SEEDANCE_ON_BYTEPLUS,
+      references: { items: [], limit: 4 },
+      videoMode: 'keyframe',
+    })
+    expect(snapshot.videoSpecs?.aspectRatioLock).toBe('adaptive')
   })
 })

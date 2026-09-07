@@ -48,6 +48,7 @@ import {
   type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PERSONA_PLAN_MODE_IDS } from '@/constants/assistant-persona'
+import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
@@ -472,19 +473,50 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
 
       let deltaBuffer = ''
       let deltaFrame: number | null = null
+      /**
+       * ⭐ **rAF 之外的兜底闸**（`STUDIO_OPERATOR_STREAMING.flushFloorMs`）。
+       *
+       * 🔬 2026-09-07 真机（`localhost:3000/zh/studio/image`，窗口没在最前）：
+       * 服务端 20 帧 `message_delta` 跨 620ms 全都到齐了，DOM 里的正文却只长了
+       * 4 次 —— 浏览器把这一档的 rAF 降到了 ~6fps。窗口真被切走时 rAF 整段挂起，
+       * 那一整段字就在定稿帧那一刻一次落地，看起来与「压根没做流式」一模一样，
+       * 而这正是 owner 打回的那句话。
+       * ⚠ 两个闸**先到的那个赢**，赢了就把另一个撤掉：前台恒是 rAF（16ms），
+       * 后台恒是这颗定时器。⛔ 别把 rAF 换成纯定时器 —— 那等于放弃与绘制同步，
+       * 前台会看到字在帧中间半截落地。
+       */
+      let deltaTimer: ReturnType<typeof setTimeout> | null = null
+      const cancelFlushSchedule = () => {
+        if (deltaFrame !== null) {
+          cancelAnimationFrame(deltaFrame)
+          deltaFrame = null
+        }
+        if (deltaTimer !== null) {
+          clearTimeout(deltaTimer)
+          deltaTimer = null
+        }
+      }
       const flushDeltas = () => {
-        deltaFrame = null
+        cancelFlushSchedule()
         if (!deltaBuffer) return
         const text = deltaBuffer
         deltaBuffer = ''
         appendOperatorMessageDelta(messageEntryId(), text)
       }
-      const settleDeltas = () => {
-        if (deltaFrame !== null) {
-          cancelAnimationFrame(deltaFrame)
-          deltaFrame = null
+      const scheduleFlush = () => {
+        if (deltaFrame === null) {
+          deltaFrame = requestAnimationFrame(flushDeltas)
         }
+        if (deltaTimer === null) {
+          deltaTimer = setTimeout(
+            flushDeltas,
+            STUDIO_OPERATOR_STREAMING.flushFloorMs,
+          )
+        }
+      }
+      const settleDeltas = () => {
         flushDeltas()
+        // ⚠ 缓冲空时 `flushDeltas` 提前返回**之前**已经撤过闸了，这里不必再撤。
       }
 
       /**
@@ -676,9 +708,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             /** 逐字增量 —— 攒进缓冲，下一帧一次性写进去。 */
             case ASSISTANT_OPERATOR_EVENTS.messageDelta:
               deltaBuffer += event.text
-              if (deltaFrame === null) {
-                deltaFrame = requestAnimationFrame(flushDeltas)
-              }
+              scheduleFlush()
               break
             /**
              * 定稿 —— 服务端那一版**整体覆盖**累积值（见 `finalizeOperatorMessage`），

@@ -6,6 +6,7 @@ import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
+import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import type {
   AssistantOperatorEvent,
   AssistantOperatorPlanRequestEvent,
@@ -923,20 +924,21 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
 /**
  * 正文逐字流与加载态（owner 2026-09-06「一个字一个字连续出」「缺少加载中的状态」）。
  *
- * ⚠ rAF 在这里桩成 0ms 定时器：`settle()` 放的是微任务 + 一个 0ms 宏任务，
- * jsdom 真实的 rAF 要 ~16ms 才跑 —— 不桩的话增量永远卡在缓冲里，用例测的就成了
- * 「缓冲有没有攒住」而不是「有没有渲染出来」。
+ * ⚠ rAF 在这里桩成**微任务**：jsdom 真实的 rAF 要 ~16ms 才跑，不桩的话增量永远
+ * 卡在缓冲里，用例测的就成了「缓冲有没有攒住」而不是「有没有渲染出来」。
+ * ⛔ 别桩回 `setTimeout(…, 0)`（2026-09-07 修）：事件是在 `for await` 的**微任务**
+ * 里被接住的，那时 `settle()` 那颗 0ms 宏任务早就排在队里了 —— 两颗 0ms 定时器
+ * 谁先跑取决于谁先排，表现是这一档用例六次里挂一次。微任务桩把「落地」拉回与
+ * 「接住事件」同一次排空，race 就没有了。
  */
 describe('正文流式累积与占位行', () => {
   beforeEach(() => {
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (callback: FrameRequestCallback) =>
-        setTimeout(() => callback(0), 0) as unknown as number,
-    )
-    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
-      clearTimeout(id)
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      queueMicrotask(() => callback(0))
+      return 0
     })
+    // ⚠ 撤不掉也无害：`flushDeltas` 见缓冲是空的就直接返回（幂等）。
+    vi.stubGlobal('cancelAnimationFrame', () => {})
   })
 
   afterEach(() => {
@@ -1021,6 +1023,44 @@ describe('正文流式累积与占位行', () => {
     expect(
       store.getOperatorState().entries.filter((e) => e.kind === 'message'),
     ).toHaveLength(1)
+  })
+
+  /**
+   * ⭐ **rAF 停摆时正文照样一段一段长出来**（owner 2026-09-07 打回「流式还没实现」）。
+   *
+   * 🔬 根因就在这里：合批此前只挂在 rAF 上，而浏览器在窗口被遮挡 / 标签页切走时
+   * 把 rAF 降到几帧每秒甚至整段挂起 —— 真机上 20 帧 `message_delta` 只换来 4 次
+   * DOM 增长。这条用例把 rAF 桩成**永不回调**，逼出那条兜底闸：
+   * `STUDIO_OPERATOR_STREAMING.flushFloorMs` 到点必落一次。
+   * ⚠ 断言的是「落了不止一次」，⛔ 不是「落了几次」：帧数是浏览器的事。
+   */
+  it('⭐ rAF 停摆时靠 flushFloorMs 兜底 —— ⛔ 不许整段憋到定稿才一次落地', async () => {
+    vi.stubGlobal('requestAnimationFrame', () => 0)
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词改成夜景')
+    })
+    await settle()
+
+    const lengths: number[] = []
+    for (const text of ['已经', '改成', '夜景了。']) {
+      streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.messageDelta, text })
+      await act(async () => {
+        await new Promise((resolve) => {
+          setTimeout(resolve, STUDIO_OPERATOR_STREAMING.flushFloorMs + 20)
+        })
+      })
+      lengths.push(messageEntry()?.text.length ?? 0)
+    }
+
+    // 一次落地的表现是 [0, 0, 8]；兜底闸在的表现是逐段增长。
+    expect(lengths).toEqual([2, 4, 8])
+    expect(messageEntry()).toMatchObject({
+      text: '已经改成夜景了。',
+      streaming: true,
+    })
   })
 
   it('⭐ 第一个 step 到达 → 空占位行让位，⛔ 不留一行空脉冲在日志上面', async () => {

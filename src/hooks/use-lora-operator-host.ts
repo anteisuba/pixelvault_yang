@@ -32,6 +32,7 @@ import {
   appendOperatorEntry,
   nextOperatorEntryId,
   setOperatorPrimed,
+  setOperatorReviewState,
 } from '@/hooks/use-studio-operator-store'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
@@ -302,6 +303,12 @@ export function useLoraOperatorHost(
       mountUserUrl: userUrl.mountUserUrl,
       unmountUserUrl: userUrl.unmountUserUrl,
       setPrimed: setOperatorPrimed,
+      /**
+       * 助手标审核态（切片 Y）—— 与工作台共用同一份 store 写入。
+       * ⛔ **没有 `setGenerationLabel`**：装配台的出图键不走 `REQUEST_GENERATE`，
+       *   接一只取不到的手就是那种「点了没反应、三绿」的失败。
+       */
+      setReviewState: setOperatorReviewState,
       lora: {
         /**
          * 挂一把：**先过下载闸，再走既有的一次确认链**。

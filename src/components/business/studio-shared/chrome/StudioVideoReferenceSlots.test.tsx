@@ -2,8 +2,11 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ASSET_DND_MIME } from '@/constants/asset-dnd'
+import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { setOperatorReviewState } from '@/hooks/use-studio-operator-store'
 
 import { StudioVideoReferenceSlots } from './StudioVideoReferenceSlots'
 
@@ -26,6 +29,10 @@ vi.mock('next-intl', () => ({
     return t
   },
 }))
+
+/** 拒绝那一句要**说出来** —— 这个桩就是「有没有说话」的证据。 */
+const toastError = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { error: toastError } }))
 
 const dispatch = vi.hoisted(() => vi.fn())
 const formState = vi.hoisted(() => ({
@@ -71,17 +78,25 @@ const SEEDANCE_25 = {
 
 beforeEach(() => {
   dispatch.mockClear()
+  toastError.mockClear()
   formState.current = {
     videoFrameSlots: { first: null, last: null },
     videoReferenceVideos: [],
   }
 })
 
-function dropUrl(testId: string, url: string) {
+function dropUrl(testId: string, url: string, assetIds?: readonly string[]) {
   fireEvent.drop(screen.getByTestId(testId), {
     dataTransfer: {
       files: [],
-      getData: (type: string) => (type === 'text/uri-list' ? url : ''),
+      getData: (type: string) => {
+        if (type === 'text/uri-list') return url
+        // 画廊格子拖动时同时写库内 id（`ASSET_DND_MIME`）与那条 uri-list。
+        if (type === ASSET_DND_MIME && assetIds) {
+          return JSON.stringify(assetIds)
+        }
+        return ''
+      },
     },
   })
 }
@@ -152,5 +167,31 @@ describe('视频具名参考槽', () => {
     expect(
       screen.queryByTestId('studio-video-reference-slots'),
     ).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * 切片 Y —— **已否的产物进不了首尾帧槽**。钉三件：拒的时候一个 dispatch 都不发、
+ * 拒的时候要说话（⛔ 不做「拖不进去也不解释」的死角）、没被否的那张照旧放行。
+ */
+describe('视频具名参考槽 · 已否的产物', () => {
+  it('拖一张被判「已否」的进首帧槽 —— 拒收并说出理由', () => {
+    setOperatorReviewState('gen-blocked', GENERATION_REVIEW_STATE_IDS.blocked)
+    render(<StudioVideoReferenceSlots selectedModel={SEEDANCE_25} />)
+    dropUrl('video-slot-first', 'https://cdn.example.com/blocked.png', [
+      'gen-blocked',
+    ])
+
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(toastError).toHaveBeenCalledTimes(1)
+    setOperatorReviewState('gen-blocked', GENERATION_REVIEW_STATE_IDS.pending)
+  })
+
+  it('没被否的那张照旧落进槽里（⛔ 闸不是把所有拖入都拦掉）', () => {
+    render(<StudioVideoReferenceSlots selectedModel={SEEDANCE_25} />)
+    dropUrl('video-slot-last', 'https://cdn.example.com/ok.png', ['gen-ok'])
+
+    expect(dispatch).toHaveBeenCalledTimes(1)
+    expect(toastError).not.toHaveBeenCalled()
   })
 })

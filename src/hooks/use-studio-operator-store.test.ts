@@ -444,3 +444,147 @@ describe('流式正文与占位行', () => {
     expect(result.current.entries).toHaveLength(1)
   })
 })
+
+// ── 切片 Y：审核态 / 跨轮工作记忆 / 成本计数 ─────────────────────────
+
+describe('审核态', () => {
+  it('pending 不落键（没有键 = 没人看过），再标一次同一档才是 no-op', async () => {
+    const { GENERATION_REVIEW_STATE_IDS } =
+      await import('@/constants/assistant-operator')
+    const result = readState()
+    act(() =>
+      store.setOperatorReviewState(
+        'gen-1',
+        GENERATION_REVIEW_STATE_IDS.blocked,
+      ),
+    )
+    expect(result.current.reviewStates).toEqual({
+      'gen-1': GENERATION_REVIEW_STATE_IDS.blocked,
+    })
+    expect(store.getOperatorReviewState('gen-1')).toBe(
+      GENERATION_REVIEW_STATE_IDS.blocked,
+    )
+
+    act(() =>
+      store.setOperatorReviewState(
+        'gen-1',
+        GENERATION_REVIEW_STATE_IDS.pending,
+      ),
+    )
+    // ⛔ 不留一个写着 `'pending'` 的键 —— 两种表示法并存会让「看过几张」数错。
+    expect(result.current.reviewStates).toEqual({})
+    expect(store.getOperatorReviewState('gen-1')).toBe(
+      GENERATION_REVIEW_STATE_IDS.pending,
+    )
+  })
+
+  it('⛔ 新对话不清审核态 —— 那是对产物的判断，与聊哪条线程无关', async () => {
+    const { GENERATION_REVIEW_STATE_IDS } =
+      await import('@/constants/assistant-operator')
+    const result = readState()
+    act(() =>
+      store.setOperatorReviewState(
+        'gen-1',
+        GENERATION_REVIEW_STATE_IDS.blocked,
+      ),
+    )
+    act(() => store.resetOperatorThread())
+    expect(result.current.reviewStates['gen-1']).toBe(
+      GENERATION_REVIEW_STATE_IDS.blocked,
+    )
+  })
+})
+
+describe('跨轮工作记忆', () => {
+  const artifact = (id: string) => ({
+    id,
+    displayName: id,
+    kind: 'result' as const,
+    url: `https://x/${id}`,
+  })
+
+  it('同一轮按 runKey 合并、轮内按 id 去重', () => {
+    const result = readState()
+    act(() => store.recordOperatorArtifacts('run-1', [artifact('a')]))
+    act(() =>
+      store.recordOperatorArtifacts('run-1', [artifact('a'), artifact('b')]),
+    )
+    expect(result.current.workingMemory).toHaveLength(1)
+    expect(
+      result.current.workingMemory[0]?.artifacts.map((item) => item.id),
+    ).toEqual(['a', 'b'])
+  })
+
+  it('轮内封顶留最先见到的那些，轮数封顶只留最近几轮', async () => {
+    const { ASSISTANT_WORKING_MEMORY } =
+      await import('@/constants/assistant-operator')
+    const result = readState()
+    const many = Array.from(
+      { length: ASSISTANT_WORKING_MEMORY.maxArtifactsPerRound + 5 },
+      (_, index) => artifact(`a${index}`),
+    )
+    act(() => store.recordOperatorArtifacts('run-0', many))
+    expect(result.current.workingMemory[0]?.artifacts).toHaveLength(
+      ASSISTANT_WORKING_MEMORY.maxArtifactsPerRound,
+    )
+    // ⚠ 留的是**最先**那些：截头会让助手记不住这一轮从什么开始。
+    expect(result.current.workingMemory[0]?.artifacts[0]?.id).toBe('a0')
+
+    for (
+      let round = 1;
+      round <= ASSISTANT_WORKING_MEMORY.maxRounds;
+      round += 1
+    ) {
+      act(() =>
+        store.recordOperatorArtifacts(`run-${round}`, [artifact(`r${round}`)]),
+      )
+    }
+    expect(result.current.workingMemory).toHaveLength(
+      ASSISTANT_WORKING_MEMORY.maxRounds,
+    )
+    // 最早那一轮（run-0）被挤掉了。
+    expect(
+      result.current.workingMemory.map((round) => round.runKey),
+    ).not.toContain('run-0')
+  })
+
+  it('新对话清空 —— 新话题里指认上一条线程的产物是幻觉', () => {
+    const result = readState()
+    act(() => store.recordOperatorArtifacts('run-1', [artifact('a')]))
+    act(() => store.resetOperatorThread())
+    expect(result.current.workingMemory).toHaveLength(0)
+  })
+})
+
+describe('成本计数', () => {
+  it('同一档累加而不是覆盖，明细留最近几条', async () => {
+    const { STUDIO_OPERATOR_COST_DETAIL_LIMIT } =
+      await import('@/constants/studio-assistant-operator')
+    const result = readState()
+    act(() => store.addOperatorCostTick({ kind: 'vision', units: 2 }))
+    act(() => store.addOperatorCostTick({ kind: 'vision', units: 1 }))
+    act(() => store.addOperatorCostTick({ kind: 'llm', units: 3 }))
+    expect(result.current.costs.vision).toBe(3)
+    expect(result.current.costs.llm).toBe(3)
+    expect(result.current.costs.research).toBe(0)
+
+    for (
+      let index = 0;
+      index < STUDIO_OPERATOR_COST_DETAIL_LIMIT + 4;
+      index += 1
+    ) {
+      act(() => store.addOperatorCostTick({ kind: 'research', units: 1 }))
+    }
+    expect(result.current.costDetails).toHaveLength(
+      STUDIO_OPERATOR_COST_DETAIL_LIMIT,
+    )
+  })
+
+  it('新对话归零 —— ⛔ 一条新对话不该一上来就写着往返 37', () => {
+    const result = readState()
+    act(() => store.addOperatorCostTick({ kind: 'llm', units: 7 }))
+    act(() => store.resetOperatorThread())
+    expect(result.current.costs.llm).toBe(0)
+    expect(result.current.costDetails).toHaveLength(0)
+  })
+})

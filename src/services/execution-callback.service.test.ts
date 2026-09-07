@@ -640,6 +640,73 @@ describe('execution-callback.service', () => {
     )
   })
 
+  /**
+   * 切片 Y 的**落地那一跳** —— 提交时随队列元数据存下的 `displayLabel` 必须在
+   * 这里交给 `createGeneration`，否则产物名的摘要段永远只能是提示词头几个字。
+   * ⚠ 图与视频两条独立分支各钉一次。
+   */
+  it('把队列元数据里的 displayLabel 交给 createGeneration（IMAGE，切片 Y）', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      adapterType: 'fal',
+      provider: 'fal.ai',
+      modelId: 'flux-2-pro',
+      prompt: 'image prompt',
+      externalRequestId: JSON.stringify({
+        outputType: 'IMAGE',
+        creditCost: 1,
+        aspectRatio: '1:1',
+        originalModelId: 'flux-2-pro',
+        displayLabel: '主视觉',
+      }),
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'generation-image-1',
+      outputType: 'IMAGE',
+    })
+
+    await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/image.png',
+        imageR2Key: 'generations/user-1/image/worker.png',
+        mimeType: 'image/png',
+        requestCount: 1,
+      },
+    })
+
+    expect(mockCreateGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({ displayLabel: '主视觉' }),
+      expect.anything(),
+    )
+  })
+
+  it('把队列元数据里的 displayLabel 交给 createGeneration（VIDEO，切片 Y）', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      externalRequestId: JSON.stringify({
+        outputType: 'VIDEO',
+        displayLabel: '借伞 30 秒',
+        providerMetadata: { requestId: 'request-1' },
+      }),
+    })
+
+    await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://provider.example.com/video.mp4',
+        providerMetadata: { requestId: 'request-1' },
+        mimeType: 'video/mp4',
+        requestCount: 1,
+      },
+    })
+
+    expect(mockCreateGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({ displayLabel: '借伞 30 秒' }),
+      expect.anything(),
+    )
+  })
+
   it('records server-sealed image billing units instead of worker request attempts', async () => {
     mockFindUnique.mockResolvedValue({
       ...buildJob('RUNNING'),

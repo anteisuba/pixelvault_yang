@@ -115,6 +115,14 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     multiViewAngle: z.enum(['back', 'left', 'right']).optional(),
     sourceGenerationId: z.string().min(1).optional(),
     sourceSurface: GenerationSourceSurfaceSchema.optional(),
+    /**
+     * 助手给这一枪起的名（切片 Y）—— 提交时随队列元数据存进
+     * `GenerationJob.externalRequestId`，落库这一跳交给
+     * `createGeneration({ displayLabel })` 当产物名的摘要段。
+     * ⚠ 上限与 `StudioGenerateSchema.displayLabel` / `GenerateVideoRequestSchema`
+     * 同源（160）：两处分家的表现是名字在队列里被静默截一刀。
+     */
+    displayLabel: z.string().min(1).max(160).optional(),
     studioSnapshot: z
       .object({
         freePrompt: z.string().optional(),
@@ -579,6 +587,7 @@ async function finalizeExecutionResult(
               outputType === 'VIDEO' ? metadata.characterCardIds : undefined,
             projectId: metadata.projectId,
             isFreeGeneration: metadata.isFreeGeneration,
+            displayLabel: metadata.displayLabel,
             snapshot: withGenerationObservability(
               {
                 executionCallback: {
@@ -945,6 +954,7 @@ async function finalizeImageResult(
             runGroupType: metadata.runGroupType,
             runGroupIndex: metadata.runGroupIndex,
             sourceSurface: metadata.sourceSurface,
+            displayLabel: metadata.displayLabel,
             snapshot: withGenerationObservability(
               {
                 ...metadata.studioSnapshot,

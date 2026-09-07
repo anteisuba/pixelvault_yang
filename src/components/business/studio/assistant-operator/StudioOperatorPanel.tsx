@@ -77,6 +77,7 @@ import { StudioOperatorCritiqueCard } from '@/components/business/studio/assista
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
+import { ContextCardChip } from '@/components/business/studio/assistant-operator/ContextCardChip'
 import { StudioOperatorMentionPicker } from '@/components/business/studio/assistant-operator/StudioOperatorMentionPicker'
 import { StudioOperatorMessageBody } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import { StudioOperatorResearchCard } from '@/components/business/studio/assistant-operator/StudioOperatorResearchCard'
@@ -104,6 +105,7 @@ import type { UseAssistantOperatorResult } from '@/hooks/use-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
 import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
+import { useOperatorReview } from '@/hooks/use-operator-review'
 import { useStudioOperatorMention } from '@/hooks/use-studio-operator-mention'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
@@ -220,6 +222,8 @@ export function StudioOperatorPanel({
     spend,
     choice,
     capturingFrames,
+    costs,
+    costDetails,
   } = useStudioOperatorState()
   const {
     domain,
@@ -238,6 +242,11 @@ export function StudioOperatorPanel({
    * 组件），触发解析与选择器开合住在 hook 里。
    */
   const mention = useStudioOperatorMention()
+  /**
+   * 结果格上那两颗 ✓/✕（切片 Y）—— 乐观更新 + PATCH 在 hook 里，
+   * ⛔ 面板不自己打请求（Hard Rule 3）。
+   */
+  const review = useOperatorReview()
   const {
     undoStep,
     revertRound,
@@ -980,6 +989,8 @@ export function StudioOperatorPanel({
       {/* ── 顶部进度带（拍板 10 改口 · §2.4）──────────────────────── */}
       <StudioOperatorProgressBand
         domain={domain}
+        costs={costs}
+        costDetails={costDetails}
         working={working}
         awaitingPlan={status === 'awaitingPlan'}
         stepsDone={stepsDone}
@@ -1160,6 +1171,8 @@ export function StudioOperatorPanel({
               <StudioOperatorResultRow
                 items={resultItems}
                 selectedId={selectedResultId}
+                reviewStateOf={review.stateOf}
+                onReview={(item, next) => review.toggle(item.id, next)}
                 onSelect={setOperatorSelectedResult}
                 onAsk={(item, index) => attachChip(toResultChip(item, index))}
                 onZoom={(item, index) =>
@@ -1343,6 +1356,29 @@ export function StudioOperatorPanel({
           ⚠ 与 📎 附件分成两排是有意的：📎 是「我给你一份材料」，@ 是「看这几张」。
             右端那个计数是这一片的承诺（「将看 N 张」），⛔ 不合并进附件排 ——
             合并之后计数会把材料也算进去，而助手并不会去看一段音频。 */}
+      {/* ── 上下文卡 chip（切片 Y）──────────────────────────────
+          ⚠ 与图 chip **分成两排**：「看这几张」和「照这张卡干活」不是同一件事，
+            合成一排之后右端那个「将看 N 张」的计数会把卡也数进去。 */}
+      {mention.cardChips.length > 0 ? (
+        <div
+          data-testid="operator-card-chip-row"
+          className="flex shrink-0 flex-wrap items-center gap-1.5 px-3 pb-1.5"
+        >
+          {mention.cardChips.map((card) => (
+            <ContextCardChip
+              key={card.cardId}
+              cardId={card.cardId}
+              name={card.name}
+              kind={card.kind}
+              images={card.images}
+              active
+              onRemove={mention.removeCardChip}
+              removeLabel={t('mention.remove')}
+            />
+          ))}
+        </div>
+      ) : null}
+
       {mention.chips.length > 0 ? (
         <div
           data-testid="operator-mention-row"
@@ -1592,6 +1628,12 @@ export function StudioOperatorPanel({
             searchTypes={STUDIO_OPERATOR_MENTION_SEARCH_TYPES[domain]}
             onPick={(attachment) => {
               onDraftChange(mention.pick(draft, attachment))
+              inputRef.current?.focus()
+            }}
+            /* ⭐ 卡这一路把 `@token` 换成卡名（⛔ 不剪掉）——助手要靠句子里那串
+               名字去 `read_context_card`，chip 只是可见的凭据。 */
+            onPickCard={(card) => {
+              onDraftChange(mention.pickCard(draft, card))
               inputRef.current?.focus()
             }}
             onDismiss={mention.closePicker}

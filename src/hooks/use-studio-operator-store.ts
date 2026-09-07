@@ -25,6 +25,16 @@ import {
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_COST_TICK_KIND_IDS,
+  ASSISTANT_WORKING_MEMORY,
+  GENERATION_REVIEW_STATE_IDS,
+} from '@/constants/assistant-operator'
+import type {
+  AssistantCostTickKind,
+  GenerationReviewState,
+} from '@/constants/assistant-operator'
+import { STUDIO_OPERATOR_COST_DETAIL_LIMIT } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorField } from '@/constants/studio-assistant-operator'
 import {
   createOperatorClaim,
@@ -32,7 +42,11 @@ import {
 } from '@/lib/studio-operator-claim'
 import type {
   StudioOperatorAttachment,
+  StudioOperatorCardMention,
   StudioOperatorChange,
+  StudioOperatorCostTick,
+  StudioOperatorMemoryArtifact,
+  StudioOperatorMemoryRound,
   StudioOperatorChoicePrompt,
   StudioOperatorConfirm,
   StudioOperatorMessageEntry,
@@ -128,6 +142,14 @@ export interface StudioOperatorState {
    */
   mentions: readonly StudioOperatorAttachment[]
   /**
+   * `@` 上来的**上下文卡**（切片 Y）—— 与 `mentions` 分开的一排。
+   *
+   * ⭐ 分开的判据写在 `StudioOperatorCardMention` 的头注里：卡不是附件，
+   * 混进同一个数组会让「将看 N 张」把卡也数进去。
+   * ⚠ 与 `mentions` 同命：属于用户正在写的那条消息，发出去之后一起清。
+   */
+  cardMentions: readonly StudioOperatorCardMention[]
+  /**
    * 结果行卡上被点中的那一格（§4.2「结果行卡：未选 / 已选 / 被 @」）。
    *
    * ⚠ 存 id 不存整条：那一批的内容来自宿主的在飞回流，每次轮询都是新对象，
@@ -183,7 +205,41 @@ export interface StudioOperatorState {
    * ⚠ 无论成败都要复位（`finally`）：留在 true 上，带子会永远写着「正在抽帧」。
    */
   capturingFrames: boolean
+  /**
+   * 产物的**审核态**（切片 Y）—— 键是 generation id。
+   *
+   * ⭐ **跨会话不清**：它说的是「用户对这件产物的判断」，与他在哪条线程里聊天
+   * 无关。＋新对话就把「已否」忘掉的表现是那张被否掉的图又能拖进首帧槽了。
+   * ⚠ 这里存的是**乐观值**：点下去先写这里，PATCH 失败再退回去（见
+   * `use-operator-review.ts`）。⛔ 别等服务端回来才变 —— 一次往返的空窗里用户
+   * 会以为自己没点上。
+   * ⚠ `pending` **不落键**：没有键就是没人看过，⛔ 别为每一张都写一行 pending。
+   */
+  reviewStates: Readonly<Record<string, GenerationReviewState>>
+  /**
+   * **跨轮工作记忆**（切片 Y）—— 最近 `maxRounds` 轮的产物索引，随请求一起上去。
+   *
+   * ⚠ 住 store 而不是 hook 的 ref：面板会被收放法则（拍板 7）随时卸载，而
+   * 「上一轮那张图叫什么」不该因为收了一下面板就没了。
+   */
+  workingMemory: readonly StudioOperatorMemoryRound[]
+  /**
+   * 这条会话到此为止的**成本计数**（切片 Y）—— 按档累计的次数。
+   *
+   * ⚠ 计数**不是闸**：⛔ 面板不拦、不弹窗，只如实显示。切会话归零。
+   */
+  costs: Readonly<Record<AssistantCostTickKind, number>>
+  /** hover 展开的那一列明细（最近 `STUDIO_OPERATOR_COST_DETAIL_LIMIT` 条）。 */
+  costDetails: readonly StudioOperatorCostTick[]
 }
+
+const EMPTY_COSTS: Readonly<Record<AssistantCostTickKind, number>> = {
+  [ASSISTANT_COST_TICK_KIND_IDS.vision]: 0,
+  [ASSISTANT_COST_TICK_KIND_IDS.research]: 0,
+  [ASSISTANT_COST_TICK_KIND_IDS.llm]: 0,
+}
+
+const EMPTY_MEMORY: readonly StudioOperatorMemoryRound[] = []
 
 const EMPTY_SLICE: StudioOperatorDomainSlice = {
   changes: {},
@@ -209,6 +265,7 @@ const INITIAL_STATE: StudioOperatorState = {
   errorText: null,
   queue: [],
   mentions: [],
+  cardMentions: [],
   selectedResultId: null,
   askFirst: false,
   planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
@@ -217,6 +274,10 @@ const INITIAL_STATE: StudioOperatorState = {
   choice: null,
   autoApprove: null,
   capturingFrames: false,
+  reviewStates: {},
+  workingMemory: EMPTY_MEMORY,
+  costs: EMPTY_COSTS,
+  costDetails: [],
 }
 
 /**
@@ -687,6 +748,110 @@ export function clearOperatorQueue(): void {
   emit({ ...state, queue: [] })
 }
 
+// ─── 审核态 / 工作记忆 / 成本计数（切片 Y）────────────────────────
+
+/**
+ * 标一件产物的审核态。
+ *
+ * ⚠ `pending` **删键**而不是写一个 `'pending'`：没有键就是「没人看过」，两种
+ * 表示法并存的下场是 `Object.keys` 数出来的「看过的张数」比实际多。
+ * ⚠ 值没变时整个 no-op：结果行卡与选择器都订这份 store，白发一次 emit 就是
+ * 一次全面板重渲染。
+ */
+export function setOperatorReviewState(
+  id: string,
+  reviewState: GenerationReviewState,
+): void {
+  const current = state.reviewStates[id] ?? GENERATION_REVIEW_STATE_IDS.pending
+  if (current === reviewState) return
+  const reviewStates = { ...state.reviewStates }
+  if (reviewState === GENERATION_REVIEW_STATE_IDS.pending) {
+    delete reviewStates[id]
+  } else {
+    reviewStates[id] = reviewState
+  }
+  emit({ ...state, reviewStates })
+}
+
+/** 非响应式地问一件产物的审核态 —— 拖拽的 `onDrop` 里要同步读它。 */
+export function getOperatorReviewState(id: string): GenerationReviewState {
+  return state.reviewStates[id] ?? GENERATION_REVIEW_STATE_IDS.pending
+}
+
+/**
+ * 把这一轮见过的产物记进工作记忆。
+ *
+ * ⭐ **按 runKey 合并**：一轮里产物是陆续到的（先出结果、再 `@` 一张素材），
+ * 每次都新起一轮的下场是五轮上限在半分钟内就被同一轮吃光。
+ * ⚠ 轮内按 id 去重、超过 `maxArtifactsPerRound` 只留**最先见到的那些**：后来的
+ * 那些多半是同一批的尾巴，而截头会让助手记不住这一轮是从什么开始的。
+ * ⚠ 只留最近 `maxRounds` 轮。
+ */
+export function recordOperatorArtifacts(
+  runKey: string,
+  artifacts: readonly StudioOperatorMemoryArtifact[],
+): void {
+  if (artifacts.length === 0) return
+  const rounds = [...state.workingMemory]
+  const index = rounds.findIndex((round) => round.runKey === runKey)
+  const existing = index >= 0 ? rounds[index] : undefined
+  const seen = new Set((existing?.artifacts ?? []).map((item) => item.id))
+  const fresh = artifacts.filter((item) => {
+    if (seen.has(item.id)) return false
+    seen.add(item.id)
+    return true
+  })
+  if (fresh.length === 0) return
+  const merged = [...(existing?.artifacts ?? []), ...fresh].slice(
+    0,
+    ASSISTANT_WORKING_MEMORY.maxArtifactsPerRound,
+  )
+  const round: StudioOperatorMemoryRound = {
+    runKey,
+    at: existing?.at ?? new Date().toISOString(),
+    artifacts: merged,
+  }
+  if (index >= 0) rounds[index] = round
+  else rounds.push(round)
+  emit({
+    ...state,
+    workingMemory: rounds.slice(-ASSISTANT_WORKING_MEMORY.maxRounds),
+  })
+}
+
+/** 切会话清空（见 `workingMemory` 的头注）。 */
+export function clearOperatorWorkingMemory(): void {
+  if (state.workingMemory.length === 0) return
+  emit({ ...state, workingMemory: EMPTY_MEMORY })
+}
+
+/**
+ * 收一记成本计数（`cost_tick`）。
+ *
+ * ⚠ `units` 累加而不是覆盖：服务端每看一张图发一记，覆盖的表现是计数永远是 1。
+ * ⚠ 明细只留最近几条 —— 一条会无限长的流水账没人读得完，而 hover 那一列只有
+ *   几行的高度。
+ */
+export function addOperatorCostTick(tick: StudioOperatorCostTick): void {
+  const costs = {
+    ...state.costs,
+    [tick.kind]: (state.costs[tick.kind] ?? 0) + tick.units,
+  }
+  emit({
+    ...state,
+    costs,
+    costDetails: [...state.costDetails, tick].slice(
+      -STUDIO_OPERATOR_COST_DETAIL_LIMIT,
+    ),
+  })
+}
+
+/** 切会话归零（见 `costs` 的头注）。 */
+export function clearOperatorCosts(): void {
+  if (state.costDetails.length === 0) return
+  emit({ ...state, costs: EMPTY_COSTS, costDetails: [] })
+}
+
 // ─── @ chip（§3.3 / §7）──────────────────────────────────────────
 
 /**
@@ -708,8 +873,27 @@ export function removeOperatorMention(id: string): void {
 
 /** 发出去之后清空 —— chip 属于**那一条消息**，不是一直挂着的设置。 */
 export function clearOperatorMentions(): void {
-  if (state.mentions.length === 0) return
-  emit({ ...state, mentions: [] })
+  if (state.mentions.length === 0 && state.cardMentions.length === 0) return
+  // ⚠ 两排一起清：卡与图都属于刚发出去的那一条消息。
+  emit({ ...state, mentions: [], cardMentions: [] })
+}
+
+/**
+ * 挂一张上下文卡（切片 Y）。
+ *
+ * ⚠ 按 `cardId` 去重：`@` 两次同一张卡，chip 排上不该出现两颗一模一样的。
+ */
+export function addOperatorCardMention(card: StudioOperatorCardMention): void {
+  if (state.cardMentions.some((item) => item.cardId === card.cardId)) return
+  emit({ ...state, cardMentions: [...state.cardMentions, card] })
+}
+
+export function removeOperatorCardMention(cardId: string): void {
+  if (!state.cardMentions.some((item) => item.cardId === cardId)) return
+  emit({
+    ...state,
+    cardMentions: state.cardMentions.filter((item) => item.cardId !== cardId),
+  })
 }
 
 /** 结果行卡的选中格（§4.2）。⚠ 再点一次同一格 = 取消选中，由调用方传 `null`。 */
@@ -877,6 +1061,10 @@ export function loadOperatorThread(args: {
     stepsDone: 0,
     plannedSteps: 0,
     errorText: null,
+    // ⚠ 换一条线程 = 换一份工作记忆与一份账（同 `resetOperatorThread`）。
+    workingMemory: EMPTY_MEMORY,
+    costs: EMPTY_COSTS,
+    costDetails: [],
   })
 }
 
@@ -938,5 +1126,14 @@ export function resetOperatorThread(): void {
      * 又发了一枪，而他这一次根本没看见过任何确认卡。
      */
     autoApprove: null,
+    /**
+     * ⭐ 工作记忆与成本计数**跟着会话走**（切片 Y）：新话题里带着上一条线程的
+     * 产物索引，助手会去指认一件用户已经翻篇的东西；计数不归零则是「这条新
+     * 对话一上来就写着往返 37」。
+     * ⛔ `reviewStates` **不在这里清**：那是用户对产物的判断，与聊哪条线程无关。
+     */
+    workingMemory: EMPTY_MEMORY,
+    costs: EMPTY_COSTS,
+    costDetails: [],
   })
 }

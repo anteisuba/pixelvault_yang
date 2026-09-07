@@ -86,6 +86,7 @@ export async function compileAndGenerate(
         runGroupType: input.runGroupType,
         runGroupIndex: input.runGroupIndex,
         sourceSurface: input.sourceSurface,
+        displayLabel: input.displayLabel,
       },
     )
   }
@@ -146,6 +147,7 @@ export async function compileAndGenerate(
       runGroupType: input.runGroupType,
       runGroupIndex: input.runGroupIndex,
       sourceSurface: input.sourceSurface,
+      displayLabel: input.displayLabel,
       studioSnapshot: {
         freePrompt: input.freePrompt,
         characterCardId: input.characterCardId,

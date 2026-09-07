@@ -130,3 +130,50 @@ describe('compileAndGenerate prompt limits', () => {
     )
   })
 })
+
+/**
+ * 切片 Y 的**服务端半条** —— 助手给这一枪起的名要一路走到落库那一跳。
+ *
+ * ⭐ 钉的是「它搭队列元数据走」这件事：图片生成是异步的，请求这一跳只建 job，
+ * 而产物名只有在几十秒后的回调里才写得进 snapshot。名字掉在这一跳的表现是
+ * 「助手说这枪叫『主视觉』，出来的名字却是提示词头几个字」。
+ * ⚠ 两条路（quick / card）各钉一次：它们在这个文件里是两段独立的调用。
+ */
+describe('compileAndGenerate 透传 displayLabel（切片 Y）', () => {
+  it('quick 模式把 displayLabel 交给队列元数据', async () => {
+    await compileAndGenerate('clerk-1', {
+      ...QUICK_INPUT,
+      displayLabel: '主视觉',
+    })
+
+    expect(submitImageGeneration).toHaveBeenCalledWith(
+      'clerk-1',
+      expect.any(Object),
+      {},
+      expect.objectContaining({ displayLabel: '主视觉' }),
+    )
+  })
+
+  it('card 模式同样透传', async () => {
+    await compileAndGenerate('clerk-1', {
+      styleCardId: 'style-card-1',
+      freePrompt: '雪原',
+      aspectRatio: '1:1',
+      displayLabel: '主视觉',
+    })
+
+    expect(submitImageGeneration).toHaveBeenCalledWith(
+      'clerk-1',
+      expect.any(Object),
+      {},
+      expect.objectContaining({ displayLabel: '主视觉' }),
+    )
+  })
+
+  it('⚠ 没人给名字时不带这一格（⛔ 不写一个空串盖掉摘要）', async () => {
+    await compileAndGenerate('clerk-1', QUICK_INPUT)
+
+    const queueMeta = vi.mocked(submitImageGeneration).mock.calls[0]![3]
+    expect(queueMeta?.displayLabel).toBeUndefined()
+  })
+})

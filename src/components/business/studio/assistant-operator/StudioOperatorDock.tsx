@@ -444,6 +444,8 @@ export function StudioOperatorDock() {
             if (!next) setSettingsSection(null)
           }}
           fallbackInitial={t(`domainName.${domain}`)}
+          // ⭐「常挂在这台工作台」认的就是当前域（切片 Y）。
+          scope={domain}
         />
 
         <StudioOperatorLightbox />
@@ -540,6 +542,7 @@ export function StudioOperatorDock() {
           if (!next) setSettingsSection(null)
         }}
         fallbackInitial={t(`domainName.${domain}`)}
+        scope={domain}
       />
 
       <StudioOperatorLightbox />

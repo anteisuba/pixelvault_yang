@@ -25,6 +25,10 @@ import {
 } from 'lucide-react'
 import { useFormatter, useTranslations } from 'next-intl'
 
+import {
+  ASSISTANT_COST_TICK_KINDS,
+  type AssistantCostTickKind,
+} from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
@@ -41,6 +45,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { cn } from '@/lib/utils'
+import type { StudioOperatorCostTick } from '@/types/studio-assistant-operator'
 import {
   ASSISTANT_SURFACE_IDS,
   type AssistantSurfaceId,
@@ -84,6 +89,18 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 
 interface StudioOperatorProgressBandProps {
   domain: AssistantOperatorDomain
+  /**
+   * 这条会话到此为止的**成本计数**（切片 Y）—— 按档累计的次数。
+   *
+   * ⭐ 它长在带子右侧那一行小字里：一轮里看了三张图、检索两轮、来回八次 LLM，
+   * 日志上只看得见八条 step，而真正贵的是那三张图。⛔ 它**不是闸**：这里不拦、
+   * 不弹窗，只如实说它做了多少次。
+   * ⚠ 一档都没有时整块不渲染（⛔ 不画三个 0：那是给一条还没花过钱的会话摆一份
+   *   账单）。
+   */
+  costs: Readonly<Record<AssistantCostTickKind, number>>
+  /** hover 展开的那一列明细 —— 空数组 = 只有合计，没有细项。 */
+  costDetails: readonly StudioOperatorCostTick[]
   working: boolean
   /**
    * 计划卡钉住了，球在用户脚下（§4.1 最后一行）。
@@ -116,6 +133,8 @@ interface StudioOperatorProgressBandProps {
 
 export function StudioOperatorProgressBand({
   domain,
+  costs,
+  costDetails,
   working,
   awaitingPlan,
   stepsDone,
@@ -143,6 +162,31 @@ export function StudioOperatorProgressBand({
   const sessionTitle =
     history.sessions.find((item) => item.id === history.currentSessionId)
       ?.title ?? t('newThread')
+  /**
+   * 「看图 3 · 检索 2 · 往返 7」——**只写非零的那几档**（⛔ 不写 `看图 0`：
+   * 一个恒等于 0 的计数只是噪音）。
+   */
+  const costTotal = ASSISTANT_COST_TICK_KINDS.reduce(
+    (total, kind) => total + (costs[kind] ?? 0),
+    0,
+  )
+  const costSummary = ASSISTANT_COST_TICK_KINDS.filter(
+    (kind) => (costs[kind] ?? 0) > 0,
+  )
+    .map((kind) => `${t(`cost.${kind}`)} ${costs[kind]}`)
+    .join(' · ')
+  /**
+   * hover 那一列 —— 逐条写「档位 ×次数 · 那一句标签」。
+   * ⚠ 服务端给的 `label` 可能是一条 i18n 键（见 `ASSISTANT_COST_TICK_LABEL_KEYS`），
+   *   也可能是一段原文（检索词）。⛔ 这里不去猜：键取不到就原样显示那一串 ——
+   *   显示一句读得懂的原文，永远好过显示一个空行。
+   */
+  const costDetailText = costDetails
+    .map(
+      (tick) =>
+        `${t(`cost.${tick.kind}`)} ×${tick.units}${tick.label ? ` · ${tick.label}` : ''}`,
+    )
+    .join('\n')
   const bandTitle = awaitingPlan
     ? t('band.awaitingPlan')
     : working
@@ -234,6 +278,21 @@ export function StudioOperatorProgressBand({
         >
           {bandTitle}
         </button>
+
+        {/* ── 成本计数（切片 Y）────────────────────────────────────
+            ⚠ 长在标题右边、齿轮左边：它是「这一轮花了多少」的注脚，⛔ 不挤进
+              标题那一格（标题要能占满剩下的宽度）。
+            ⚠ `title` 就是 hover 明细：⛔ 不为它新做一颗 tooltip 组件 —— 这一行
+              是注脚不是主角，而原生 title 在键盘聚焦时也念得出来。 */}
+        {costTotal > 0 ? (
+          <span
+            data-testid="operator-cost-counter"
+            title={costDetailText}
+            className="shrink-0 font-mono text-2xs tracking-nav tabular-nums text-muted-foreground"
+          >
+            {costSummary}
+          </span>
+        ) : null}
 
         {/* 助手设置（§8.1 主入口）—— ⚠ 带 `data-operator-keep`：点它弹层要开，
             而收放法则（拍板 7）会因为「点了面板外面」把面板收掉，判据就是这个属性。

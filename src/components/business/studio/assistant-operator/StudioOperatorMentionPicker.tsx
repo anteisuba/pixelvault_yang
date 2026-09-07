@@ -18,17 +18,25 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
+import { X } from 'lucide-react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
+import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import { motionTransition } from '@/constants/motion'
 import { STUDIO_OPERATOR_MENTION } from '@/constants/studio-assistant-operator'
 import { AttachKindGlyph } from '@/components/business/studio/assistant-operator/StudioOperatorAttachMenu'
 import { Spinner } from '@/components/ui/spinner'
+import { useContextCards } from '@/hooks/use-context-cards'
+import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { fetchGalleryImages } from '@/lib/api-client/gallery'
 import { cn } from '@/lib/utils'
-import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
+import { ContextCardChip } from '@/components/business/studio/assistant-operator/ContextCardChip'
+import type {
+  StudioOperatorAttachment,
+  StudioOperatorCardMention,
+} from '@/types/studio-assistant-operator'
 
 interface StudioOperatorMentionPickerProps {
   /** `@` 后面那段（可能是空串 —— 刚打完 `@` 时就该先把最近的列出来）。 */
@@ -51,6 +59,14 @@ interface StudioOperatorMentionPickerProps {
    */
   searchTypes: readonly ('image' | 'video')[]
   onPick(attachment: StudioOperatorAttachment): void
+  /**
+   * 选中一张**上下文卡**（切片 Y）。
+   *
+   * ⚠ 与 `onPick` 分开一只手：卡不是附件（判据见 `StudioOperatorCardMention`
+   * 头注），合成一只手就得在调用方里判「这条是图还是卡」，而那正是判别联合该
+   * 干的事。缺席 = 这个宿主不接卡（⛔ 那时整组不渲染，不摆一组点不动的行）。
+   */
+  onPickCard?(card: StudioOperatorCardMention): void
   onDismiss(): void
   /**
    * 这一跳从素材库看到的那些（切片 N1）。
@@ -68,11 +84,18 @@ export function StudioOperatorMentionPicker({
   recent,
   searchTypes,
   onPick,
+  onPickCard,
   onDismiss,
   onSeen,
 }: StudioOperatorMentionPickerProps) {
   const t = useTranslations('StudioOperator')
   const reduceMotion = useReducedMotion()
+  /**
+   * ⭐ **被判「已否」的那几张要在名单里看得出来**（切片 Y）：⛔ 不从名单里摘掉 ——
+   * 用户指着一张被否的图问「这张哪里不行」是完全正当的一句话，摘掉它等于把这句话
+   * 变成不可说。这里只做记号（降灰 + ✕），拒绝发生在首尾帧槽那一侧。
+   */
+  const { reviewStates } = useStudioOperatorState()
   const [results, setResults] = useState<readonly StudioOperatorAttachment[]>(
     [],
   )
@@ -101,6 +124,27 @@ export function StudioOperatorMentionPicker({
     [filteredRecent, results],
   )
 
+  /**
+   * 「角色卡 / 风格卡」那一组（切片 Y）。
+   *
+   * ⚠ 全量拉一次、**在本地按名字过滤**：一个用户的卡总共几十张（判据与
+   * `list_context_cards` 那条工具逐字同源 —— 那里也没有查询词），为它再开一条
+   * 打字节流的搜索是白花的往返。
+   * ⚠ 宿主不接卡时 `enabled: false` —— ⛔ 别为一个不显示的分组拉一次表。
+   */
+  const contextCards = useContextCards({ enabled: Boolean(onPickCard) })
+  const cardOptions = useMemo(() => {
+    if (!onPickCard) return []
+    const needle = query.trim().toLowerCase()
+    const list = contextCards.cards
+    if (!needle) return list
+    return list.filter((card) => card.name.toLowerCase().includes(needle))
+  }, [contextCards.cards, onPickCard, query])
+
+  /**
+   * ⚠ 卡**排在图后面**且一起进 `options`：上下键要能走到它们，否则「打 @ 再按
+   * 回车」这条最常用的路对卡不可达。图在前的判据没变（十次里九次说的是刚出那张）。
+   */
   const options = useMemo(
     () => [...filteredRecent, ...library],
     [filteredRecent, library],
@@ -232,7 +276,7 @@ export function StudioOperatorMentionPicker({
     >
       {/* ⭐ 搜着的时候说一句（§4.1 的加载态一族）：⛔ 别在「还在搜」的那一秒里
           显示「没找到」—— 那是一句会让人停下来的假结论。 */}
-      {options.length === 0 && searching ? (
+      {options.length === 0 && cardOptions.length === 0 && searching ? (
         <p
           data-testid="operator-mention-searching"
           className="flex items-center justify-center gap-1.5 px-3 py-4 text-2sm text-muted-foreground"
@@ -242,7 +286,7 @@ export function StudioOperatorMentionPicker({
         </p>
       ) : null}
 
-      {options.length === 0 && !searching ? (
+      {options.length === 0 && cardOptions.length === 0 && !searching ? (
         <p
           data-testid="operator-mention-empty"
           className="px-3 py-4 text-center text-2sm text-muted-foreground"
@@ -261,6 +305,9 @@ export function StudioOperatorMentionPicker({
           key={item.id}
           item={item}
           active={index === activeIndex}
+          blocked={
+            reviewStates[item.id] === GENERATION_REVIEW_STATE_IDS.blocked
+          }
           onPick={onPick}
         />
       ))}
@@ -275,9 +322,45 @@ export function StudioOperatorMentionPicker({
           key={item.id}
           item={item}
           active={filteredRecent.length + index === activeIndex}
+          blocked={
+            reviewStates[item.id] === GENERATION_REVIEW_STATE_IDS.blocked
+          }
           onPick={onPick}
         />
       ))}
+
+      {/* ── 角色卡 / 风格卡（切片 Y）─────────────────────────────
+          ⚠ 一张卡都没有时**整组不渲染**：⛔ 不摆一句「你还没有卡」——
+            那是设置里那一页该说的话，选择器只列挑得中的东西。 */}
+      {cardOptions.length > 0 ? (
+        <>
+          <p className="border-t border-border px-3 pb-1 pt-2 font-mono text-xs tracking-nav text-muted-foreground">
+            {t('mention.cards')}
+          </p>
+          <div
+            data-testid="operator-mention-cards"
+            className="flex flex-wrap gap-1.5 px-3 pb-2"
+          >
+            {cardOptions.map((card) => (
+              <ContextCardChip
+                key={card.id}
+                cardId={card.id}
+                name={card.name}
+                kind={card.kind}
+                images={card.images}
+                onSelect={() =>
+                  onPickCard?.({
+                    cardId: card.id,
+                    name: card.name,
+                    kind: card.kind,
+                    images: card.images,
+                  })
+                }
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
     </motion.div>
   )
 }
@@ -285,12 +368,16 @@ export function StudioOperatorMentionPicker({
 function MentionRow({
   item,
   active,
+  blocked,
   onPick,
 }: {
   item: StudioOperatorAttachment
   active: boolean
+  /** 用户把这一张判过「已否」（切片 Y）—— ⚠ 记号而已，⛔ 它照旧可选。 */
+  blocked: boolean
   onPick(attachment: StudioOperatorAttachment): void
 }) {
+  const t = useTranslations('StudioOperator')
   return (
     <button
       type="button"
@@ -298,6 +385,7 @@ function MentionRow({
       aria-selected={active}
       data-testid="operator-mention-option"
       data-active={active}
+      data-blocked={blocked}
       // ⚠ `onMouseDown` + `preventDefault`：`onClick` 会先让输入框失焦，
       //    而失焦会关掉这颗弹层 —— 表现是「点了没反应」。
       onMouseDown={(event) => {
@@ -317,13 +405,30 @@ function MentionRow({
             alt=""
             width={48}
             height={48}
-            className="size-full object-cover"
+            className={cn('size-full object-cover', blocked && 'grayscale')}
           />
         ) : (
           <AttachKindGlyph kind={item.kind} />
         )}
       </span>
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      <span
+        className={cn(
+          'min-w-0 flex-1 truncate',
+          // ⚠ 已否的名字划一道 —— 缩略图那一点灰在 24px 上读不出来。
+          blocked && 'line-through opacity-70',
+        )}
+      >
+        {item.label}
+      </span>
+      {/* 🔬 contrast-check（2026-09-07）：`status-risk` 对卡背 **6.54 / 5.55**
+          （浅 / 深）—— 信息性图形 3:1 门槛，两档都过。 */}
+      {blocked ? (
+        <X
+          data-testid="operator-mention-blocked"
+          aria-label={t('result.block')}
+          className="size-3.5 shrink-0 text-status-risk"
+        />
+      ) : null}
     </button>
   )
 }

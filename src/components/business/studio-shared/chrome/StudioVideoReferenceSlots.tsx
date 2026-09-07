@@ -22,10 +22,15 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Film, ImagePlus, Upload, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
+import { ASSET_DND_MIME } from '@/constants/asset-dnd'
+import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import { STUDIO_VIDEO_SLOT_SIZE_PX } from '@/constants/studio-assistant-operator'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { Spinner } from '@/components/ui/spinner'
+import { getOperatorReviewState } from '@/hooks/use-studio-operator-store'
+import { parseDroppedAssetIds } from '@/hooks/use-studio-operator-mention'
 import { useVideoReferenceSlots } from '@/hooks/use-video-reference-slots'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
@@ -57,6 +62,14 @@ interface SlotShellProps {
   onPick(): void
   onDropUrl(url: string): void
   onDropFile?(file: File): void
+  /**
+   * 拖进来的这几件**收不收**（切片 Y）。
+   *
+   * ⭐ 判据在宿主那边（首尾帧槽拒「已否」的产物），⛔ 不写在这颗壳里：参考视频
+   * 槽用同一颗壳，而那一档没有这条限制。缺席 = 这个槽什么都收。
+   * ⚠ 返回 false 时**由宿主说话**（它才知道拒的理由）—— 这里只负责不写进去。
+   */
+  guardDrop?(assetIds: readonly string[]): boolean
   onClear(): void
   clearLabel: string
   /**
@@ -79,6 +92,7 @@ function SlotShell({
   onPick,
   onDropUrl,
   onDropFile,
+  guardDrop,
   onClear,
   clearLabel,
   onUpload,
@@ -96,6 +110,17 @@ function SlotShell({
     event.preventDefault()
     setIsOver(false)
     if (disabled) return
+    /**
+     * ⭐ **先问准入，再看载荷**（切片 Y）：画廊格子拖过来时同时写了库内 id
+     * （`ASSET_DND_MIME`）与一条 uri-list。被判「已否」的那张要在这里就拦下 ——
+     * 落进槽里再回滚的表现是「图闪进去又自己消失」，没有人知道发生了什么。
+     * ⚠ 只有拖的是库内资产时才有 id 可问；本地文件与裸 URL 照旧放行（它们身上
+     *   没有身份，客户端问不出审核态）。
+     */
+    const assetIds = parseDroppedAssetIds(
+      event.dataTransfer.getData(ASSET_DND_MIME),
+    )
+    if (assetIds.length > 0 && guardDrop && !guardDrop(assetIds)) return
     const file = event.dataTransfer.files?.[0]
     if (file && onDropFile) {
       onDropFile(file)
@@ -182,6 +207,8 @@ export function StudioVideoReferenceSlots({
   disabled = false,
 }: StudioVideoReferenceSlotsProps) {
   const t = useTranslations('StudioVideoSlots')
+  /** 拒绝那一句住在助手的 `reject` 档里 —— 它说的是「助手/审核为什么不收」。 */
+  const tOperator = useTranslations('StudioOperator')
   const slots = useVideoReferenceSlots(selectedModel)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pendingFrame, setPendingFrame] = useState<'first' | 'last' | null>(
@@ -213,6 +240,27 @@ export function StudioVideoReferenceSlots({
     setPendingFrame(null)
   }
 
+  /**
+   * ⭐ **首尾帧拒收「已否」的产物**（切片 Y）—— 客户端先拒，⛔ 不等服务端。
+   *
+   * 判据：标 blocked 说的正是「这张不能再开头也不能收尾」（见
+   * `GENERATION_REVIEW_STATE_IDS.blocked` 的头注）。悄悄收下再让服务端拒的表现
+   * 是「拖进去了、生成时才报错」，而那时用户早忘了这一张是哪来的。
+   * ⚠ 拒的时候**要说话**（toast）：⛔ 不做「拖不进去也不解释」的死角。
+   * ⚠ ⛔ 参考视频槽不接这只手：那一档没有首尾之分，blocked 不该连它一起拦。
+   */
+  const allowFrameSource = (assetIds: readonly string[]): boolean => {
+    const blocked = assetIds.some(
+      (id) =>
+        getOperatorReviewState(id) === GENERATION_REVIEW_STATE_IDS.blocked,
+    )
+    if (blocked) {
+      toast.error(tOperator('reject.blockedSource'))
+      return false
+    }
+    return true
+  }
+
   const handlePicked = (generation: GenerationRecord) => {
     if (picker === 'video') {
       if (generation.outputType !== 'VIDEO') return
@@ -225,6 +273,8 @@ export function StudioVideoReferenceSlots({
     }
     if (!picker) return
     if (generation.outputType !== 'IMAGE') return
+    // ⭐ 素材库那条路与拖入同一道闸 —— 两条各判一次的下场是其中一条静默过期。
+    if (!allowFrameSource([generation.id])) return
     slots.setFrame(picker, generation.url)
   }
 
@@ -257,6 +307,7 @@ export function StudioVideoReferenceSlots({
             onUpload={() => openFilePicker('first')}
             uploadLabel={t('upload', { slot: t('firstFrame') })}
             onDropUrl={(url) => slots.setFrame('first', url)}
+            guardDrop={allowFrameSource}
             onDropFile={(file) => void slots.uploadFrameFile('first', file)}
             onClear={() => slots.setFrame('first', null)}
             clearLabel={t('clear', { slot: t('firstFrame') })}
@@ -285,6 +336,7 @@ export function StudioVideoReferenceSlots({
             onUpload={() => openFilePicker('last')}
             uploadLabel={t('upload', { slot: t('lastFrame') })}
             onDropUrl={(url) => slots.setFrame('last', url)}
+            guardDrop={allowFrameSource}
             onDropFile={(file) => void slots.uploadFrameFile('last', file)}
             onClear={() => slots.setFrame('last', null)}
             clearLabel={t('clear', { slot: t('lastFrame') })}

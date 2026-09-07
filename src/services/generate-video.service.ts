@@ -62,6 +62,7 @@ import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
  * workflow instead of failing fast with a 501 here.
  */
 const WORKER_CAPABLE_VIDEO_ADAPTERS: ReadonlySet<string> = new Set([
+  AI_ADAPTER_TYPES.GEMINI,
   AI_ADAPTER_TYPES.FAL,
   AI_ADAPTER_TYPES.MINIMAX,
   AI_ADAPTER_TYPES.MINIMAX_CN,
@@ -247,6 +248,12 @@ async function submitFalVideoWorkerRun(params: {
     referenceImageUrl,
     characterCardIds: input.characterCardIds,
     isFreeGeneration,
+    /**
+     * 助手给这一枪起的名（切片 Y）。⭐ 只能搭这趟队列元数据走：视频生成是异步的，
+     * 请求这一跳只建 job，产物名要等几十秒后的回调（`execution-callback.service`）
+     * 才写得进 snapshot。⚠ 缺席 = 没人给名字，摘要照旧从提示词里摘一段。
+     */
+    displayLabel: input.displayLabel,
   }
 
   const generationJob = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>

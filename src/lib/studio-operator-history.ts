@@ -249,6 +249,12 @@ export function describeOperatorStepDetail(
       return `${step.result?.cards.length ?? 0}`
     case ASSISTANT_OPERATOR_TOOL_IDS.readContextCard:
       return step.result?.name ?? ''
+    /**
+     * 标审核态（切片 Y）—— 详情写**理由**，⛔ 不写 assetId：那串 uuid 用户核对
+     * 不了，而「为什么否掉」正是他事后要读的那一句。没给理由时不画详情行。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
+      return step.payload.reason ?? null
   }
 }
 

@@ -44,6 +44,7 @@ import { composeCharacterInjection } from '@/lib/character-card-injection'
 import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
+import { takeOperatorGenerationLabel } from '@/lib/studio-operator-label'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import type { CostPreviewBasis } from '@/components/business/studio/StudioCostPreview'
 
@@ -747,17 +748,27 @@ export function useStudioGenerateAction() {
       })
       return
     }
+    /**
+     * ⭐ 助手给这一枪起的名字（切片 Y）——**取走即消费**：留着它，用户下一次
+     * 自己按生成的那一枪会顶着助手上一轮起的名字，而那一张与那个名字毫无关系。
+     * ⚠ 取在**提交这一跳**而不是 `buildImageInput` 里：那颗函数还被成本预览与
+     *   快照读取调用，在那里取走等于「看一眼预览就把名字吃掉了」。
+     */
+    const displayLabel = takeOperatorGenerationLabel() ?? undefined
     if (isVideoMode && selectedModel) {
       const video = buildVideoInput()
       if (!video) return
-      await generate({ mode: 'video', video })
+      await generate({
+        mode: 'video',
+        video: displayLabel ? { ...video, displayLabel } : video,
+      })
       return
     }
     const image = buildImageInput()
     if (!image) return
     const result = await generate({
       mode: 'image',
-      image,
+      image: displayLabel ? { ...image, displayLabel } : image,
       variantCount: state.imageBatchCount,
       // 只有一条时不送名单 —— 让它走原来的单模型路径，请求逐字节不变。
       compareModels:

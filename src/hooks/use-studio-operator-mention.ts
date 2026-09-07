@@ -31,15 +31,20 @@ import { useCallback, useState } from 'react'
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
 import { STUDIO_OPERATOR_MENTION } from '@/constants/studio-assistant-operator'
 import {
+  addOperatorCardMention,
   addOperatorMention,
   clearOperatorMentions,
+  removeOperatorCardMention,
   removeOperatorMention,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { fetchGenerationByIdAPI } from '@/lib/api-client/gallery'
 import { resolveGenerationMentions } from '@/lib/generation-name'
-import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
+import type {
+  StudioOperatorAttachment,
+  StudioOperatorCardMention,
+} from '@/types/studio-assistant-operator'
 
 /** 光标前那个 `@token` 在草稿里的位置与内容。 */
 export interface StudioOperatorMentionTrigger {
@@ -149,6 +154,20 @@ export interface UseStudioOperatorMentionResult {
    *
    * 返回这一次新挂上的那几条（多半是空数组 —— 用户没写名字）。
    */
+  /**
+   * 这条消息挂着的**上下文卡**（切片 Y）—— 与 `chips` 分成两排，判据见
+   * `StudioOperatorCardMention` 头注。
+   */
+  cardChips: readonly StudioOperatorCardMention[]
+  /**
+   * `@` 里选中一张卡。
+   *
+   * ⭐ 与图那条路的**唯一区别**：`@token` 换成卡名而不是剪掉。判据与
+   * `syncNameMentions` 逐字同源 —— 卡是助手要去 `read_context_card` 的**指认词**，
+   * 句子里没有它就只剩「 用这个风格」。chip 只是那条指认的可见凭据。
+   */
+  pickCard(draft: string, card: StudioOperatorCardMention): string
+  removeCardChip(cardId: string): void
   syncNameMentions(
     text: string,
     candidates: readonly StudioOperatorAttachment[],
@@ -165,7 +184,7 @@ export interface UseStudioOperatorMentionResult {
 }
 
 export function useStudioOperatorMention(): UseStudioOperatorMentionResult {
-  const { mentions } = useStudioOperatorState()
+  const { mentions, cardMentions } = useStudioOperatorState()
   const [trigger, setTrigger] = useState<StudioOperatorMentionTrigger | null>(
     null,
   )
@@ -195,6 +214,22 @@ export function useStudioOperatorMention(): UseStudioOperatorMentionResult {
     (draft: string, attachment: StudioOperatorAttachment): string => {
       addOperatorMention(attachment)
       const next = trigger ? cutMentionTrigger(draft, trigger) : draft
+      setTrigger(null)
+      setClosedStart(null)
+      return next
+    },
+    [trigger],
+  )
+
+  const pickCard = useCallback(
+    (draft: string, card: StudioOperatorCardMention): string => {
+      addOperatorCardMention(card)
+      if (!trigger) return draft
+      // ⚠ 卡名两侧各留一个空格的判据：用户多半是在句子中间打的 `@`，
+      //   贴着上一个字会写出「立绘@阿岚换个背景」。
+      const next = `${draft.slice(0, trigger.start)}@${card.name} ${draft.slice(
+        trigger.caret,
+      )}`
       setTrigger(null)
       setClosedStart(null)
       return next
@@ -264,6 +299,9 @@ export function useStudioOperatorMention(): UseStudioOperatorMentionResult {
     syncDraft,
     closePicker,
     pick,
+    cardChips: cardMentions,
+    pickCard,
+    removeCardChip: removeOperatorCardMention,
     syncNameMentions,
     acceptDrop,
   }

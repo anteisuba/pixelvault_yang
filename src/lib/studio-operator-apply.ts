@@ -27,6 +27,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_WRITE_MODES,
   type AssistantOperatorReferenceSlot,
+  type GenerationReviewState,
 } from '@/constants/assistant-operator'
 import { isAspectRatio } from '@/constants/config'
 import { isImageBatchCount } from '@/constants/studio'
@@ -166,6 +167,22 @@ export interface StudioOperatorApplyContext {
    * 把 `request_generation` 锁在图片 / 视频两个域里。这里的可选是类型层的诚实。
    */
   triggerGeneration?(request: AssistantOperatorGenerationRequest): void
+  /**
+   * **这一枪叫什么**（切片 Y）—— `prime_generate` / `request_generation` 的
+   * `label`。
+   *
+   * ⭐ 名字不是装饰：产物名的摘要段按它算（`lib/generation-name.ts`），而用户
+   * 之后就是打 `@图_012·银发少女` 来指认这一张的。助手给了名字却丢在半路上的
+   * 表现是产物名回落成提示词头 8 个字 —— 一批 4 张全叫同一个名字。
+   * ⚠ 缺席 = 这个宿主的生成链还没有名字这一格（LoRA 装配台）。缺席静默不做。
+   */
+  setGenerationLabel?(label: string): void
+  /**
+   * 助手把一件产物标成**已确认 / 已否**（切片 Y 的 `set_review_state`）。
+   *
+   * ⚠ 它落在操作员 store 而不是表单上（见 `applyOperatorStep` 里那条分支的头注）。
+   */
+  setReviewState?(assetId: string, state: GenerationReviewState): void
   /** ⚠ 缺席 = 这个宿主没有 LoRA 挂载栈。见 `StudioOperatorLoraContext` 头注。 */
   lora?: StudioOperatorLoraContext
   /**
@@ -511,6 +528,24 @@ export function applyOperatorStep(
 
     case ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate: {
       ctx.setPrimed(true)
+      // ⭐ 备枪时给的名字**跟着这一枪走**（切片 Y）：它会成为产物名的摘要段
+      //    （`图_012·银发少女立绘`），用户之后就是按这串字指认这一张的。
+      //    ⚠ 没给名字时**不清掉**上一次的：模型常常先 `prime_generate` 定名、
+      //    再改两格参数、最后 `request_generation` 空着 label 发出去。
+      if (step.payload.label) ctx.setGenerationLabel?.(step.payload.label)
+      return null
+    }
+
+    /**
+     * 审核态（切片 Y）—— **落在 store，不落表单**。
+     *
+     * ⚠ 返回 `null`：它一格旋钮都没动，因此不进登记簿、✦ 不亮。撤销这件事由
+     * 结果格上那两颗动作自己负责（再点一次就改回去），⛔ 不走撤销链 —— 那条链
+     * 撤的是「助手对表单做过的事」。
+     * ⚠ 宿主没接这只手时静默不做（同 `triggerGeneration` 的判据）。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState: {
+      ctx.setReviewState?.(step.payload.assetId, step.payload.state)
       return null
     }
 
@@ -524,6 +559,9 @@ export function applyOperatorStep(
      * 这里不抛：一条走不到的路不值得让整轮崩掉。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration: {
+      // ⚠ 名字先落、再扣扳机：扣扳机那一跳是同步 dispatch，落在它后面的话
+      //    这一枪带的还是上一次的名字（或者干脆没有）。
+      if (step.payload.label) ctx.setGenerationLabel?.(step.payload.label)
       ctx.triggerGeneration?.(step.payload)
       return null
     }
@@ -689,6 +727,14 @@ export function revertOperatorStep(
      * `noImplicitReturns`，编译器一声不吭（同 `search_web_images` 那条头注）。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration:
+      return
+
+    /**
+     * ⛔ 审核态**不进撤销链**（切片 Y）：它不是「助手改了表单的一格」，而是
+     * 一条对产物的判断。改回去的入口是结果格上那两颗动作 —— 那里能看见那张图。
+     * ⚠ 空分支照旧写出来（同上一条的理由：本仓没开 `noImplicitReturns`）。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
       return
   }
 }

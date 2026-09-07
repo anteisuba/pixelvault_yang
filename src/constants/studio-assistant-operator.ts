@@ -576,3 +576,15 @@ export const STUDIO_VIDEO_FRAME_SLOT_ORDER = [
 
 /** 空槽虚线框的边长（px）—— 缩略图与空态同尺寸，切换时不跳版。 */
 export const STUDIO_VIDEO_SLOT_SIZE_PX = 72
+
+/**
+ * 成本明细最多记几条（切片 Y）—— hover 展开那一列，⛔ 不是无限长的流水账。
+ *
+ * ⚠ 档位（`vision` / `research` / `llm`）与事件名**不在这里**：那是跨进程契约，
+ * 家在 `constants/assistant-operator.ts`（`ASSISTANT_COST_TICK_KIND_IDS` /
+ * `ASSISTANT_OPERATOR_EVENTS.costTick`）。⛔ 客户端不抄第二份词表 —— 抄一份的
+ * 表现是服务端加了一档而进度带上那一档永远显示 0。
+ * 同理审核态读 `GENERATION_REVIEW_STATE_IDS`、工作记忆上限读
+ * `ASSISTANT_WORKING_MEMORY`。
+ */
+export const STUDIO_OPERATOR_COST_DETAIL_LIMIT = 12

@@ -32,6 +32,9 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
   audioReferences: { url: string; fileName: string; ownerName?: string }[]
   sound: { value: boolean | null }
   triggered: AssistantOperatorGenerationRequest[]
+  /** 切片 Y：助手起的名字与它标过的审核态。 */
+  labels: string[]
+  reviewed: { assetId: string; state: string }[]
 } {
   const state = {
     prompt: '',
@@ -62,6 +65,8 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
   const sound: { value: boolean | null } = { value: null }
   const triggered: AssistantOperatorGenerationRequest[] = []
 
+  const labels: string[] = []
+  const reviewed: { assetId: string; state: string }[] = []
   const ctx: StudioOperatorApplyContext = {
     getState: () => state,
     dispatch: (action) => {
@@ -113,6 +118,13 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
     triggerGeneration: (request) => {
       triggered.push(request)
     },
+    /** 切片 Y：名字与审核态同样只记账（真实实现一个落投递口、一个落 store）。 */
+    setGenerationLabel: (value) => {
+      labels.push(value)
+    },
+    setReviewState: (assetId, reviewState) => {
+      reviewed.push({ assetId, state: reviewState })
+    },
   }
 
   return {
@@ -127,6 +139,8 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
     audioReferences,
     sound,
     triggered,
+    labels,
+    reviewed,
   }
 }
 
@@ -575,6 +589,62 @@ describe('revertOperatorStep', () => {
       ctx,
     )
     expect(primed.value).toBe(false)
+  })
+
+  /**
+   * 切片 Y —— 名字透传与审核态。钉四件：
+   *  ① `prime_generate` 带名字时落到投递口；
+   *  ② `request_generation` **先落名字再扣扳机**（顺序反了这一枪带的是上一次的名字）；
+   *  ③ 没给名字时 ⛔ 不清掉上一次的（模型常常先定名、再改参数、最后空着 label 发）；
+   *  ④ `set_review_state` 落 store 且**不进登记簿**（它一格旋钮都没动）。
+   */
+  it('prime_generate / request_generation 的 label 落到投递口，⛔ 空 label 不清名字', () => {
+    const { ctx, labels, triggered } = makeContext()
+    applyOperatorStep(
+      {
+        ...BASE,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+        payload: { primed: true, label: '银发少女立绘' },
+        inverse: { primed: false },
+      } satisfies AssistantOperatorAppliedStep,
+      ctx,
+    )
+    expect(labels).toEqual(['银发少女立绘'])
+
+    // ⛔ 空着 label 的那一枪不覆盖上一次定的名字。
+    applyOperatorStep(
+      {
+        ...BASE,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+        payload: {
+          model: { id: 'seedream-4', label: 'Seedream 4' },
+          count: 1,
+          specs: { aspectRatio: null, resolution: null, durationSeconds: null },
+          estimate: {},
+        },
+      } satisfies AssistantOperatorAppliedStep,
+      ctx,
+    )
+    expect(labels).toEqual(['银发少女立绘'])
+    expect(triggered).toHaveLength(1)
+  })
+
+  it('set_review_state 落到宿主，且不进登记簿（它没动表单的任何一格）', () => {
+    const { ctx, reviewed, dispatched } = makeContext()
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+      payload: { assetId: 'gen-9', state: 'blocked', reason: '手指糊了' },
+      inverse: { assetId: 'gen-9', state: 'pending' },
+    } satisfies AssistantOperatorAppliedStep
+
+    expect(applyOperatorStep(step, ctx)).toBeNull()
+    expect(reviewed).toEqual([{ assetId: 'gen-9', state: 'blocked' }])
+    expect(dispatched).toHaveLength(0)
+
+    // ⛔ 撤销链不碰它 —— 改回去的入口是结果格上那两颗动作。
+    revertOperatorStep(step, ctx)
+    expect(reviewed).toHaveLength(1)
   })
 })
 

@@ -2,11 +2,13 @@
 /* eslint-disable @next/next/no-img-element -- recent-asset thumbnails are remote URLs */
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { Library, UploadCloud } from 'lucide-react'
+import { Library, UploadCloud, X } from 'lucide-react'
 
+import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import { STUDIO_ASSISTANT_RECENT_ASSETS } from '@/constants/studio'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { cn } from '@/lib/utils'
@@ -53,6 +55,8 @@ export function ImagePickerPopoverBody({
   className,
 }: ImagePickerPopoverBodyProps) {
   const [assets, setAssets] = useState<GenerationRecord[] | null>(null)
+  /** 审核态住操作员 store（切片 Y）—— 这里只读，⛔ 不在选择器里改它。 */
+  const { reviewStates } = useStudioOperatorState()
   const [isDragOver, setIsDragOver] = useState(false)
 
   useEffect(() => {
@@ -135,22 +139,49 @@ export function ImagePickerPopoverBody({
           </p>
         ) : (
           <div className="grid grid-cols-4 gap-1.5">
-            {assets.map((generation) => (
-              <button
-                key={generation.id}
-                type="button"
-                disabled={Boolean(disabledReason)}
-                onClick={() => onPickAsset(generation)}
-                className="group relative aspect-square overflow-hidden rounded-lg border border-border/60 bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-              >
-                <img
-                  src={generation.url}
-                  alt=""
-                  loading="lazy"
-                  className="size-full object-cover transition-transform duration-200 group-hover:scale-105"
-                />
-              </button>
-            ))}
+            {assets.map((generation) => {
+              /**
+               * ⭐ 用户判过「已否」的那几张**看得出来**（切片 Y）：降灰 + 一个叉。
+               * ⛔ 不禁用、也不从格子里摘掉 —— 它照旧能当普通参考图，被拒的只有
+               * 首帧 / 尾帧那两个槽（见 `StudioVideoReferenceSlots`）。
+               */
+              const blocked =
+                reviewStates[generation.id] ===
+                GENERATION_REVIEW_STATE_IDS.blocked
+              return (
+                <button
+                  key={generation.id}
+                  type="button"
+                  data-blocked={blocked}
+                  disabled={Boolean(disabledReason)}
+                  onClick={() => onPickAsset(generation)}
+                  className="group relative aspect-square overflow-hidden rounded-lg border border-border/60 bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                >
+                  <img
+                    src={generation.url}
+                    alt=""
+                    loading="lazy"
+                    className={cn(
+                      'size-full object-cover transition-transform duration-200 group-hover:scale-105',
+                      blocked && 'opacity-45 grayscale',
+                    )}
+                  />
+                  {blocked ? (
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 grid place-items-center"
+                    >
+                      {/* 🔬 contrast-check（2026-09-07）：`status-risk` 对卡背
+                       **6.54 / 5.55**（浅 / 深）——信息性图形 3:1，两档都过。 */}
+                      <X
+                        className="size-5 text-status-risk"
+                        strokeWidth={1.5}
+                      />
+                    </span>
+                  ) : null}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>

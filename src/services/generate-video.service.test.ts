@@ -209,6 +209,64 @@ describe('generate-video.service worker dispatch', () => {
     )
   })
 
+  /**
+   * 切片 Y 的**服务端半条**（视频侧）：助手给这一枪起的名要搭队列元数据走到
+   * 回调那一跳（`execution-callback.service` 再交给 `createGeneration`）。
+   * ⚠ 落点是 `GenerationJob.externalRequestId` 那个 JSON —— 视频生成是异步的，
+   * 请求这一跳除了它没有第二个能把名字带过去的地方。
+   */
+  it('把 displayLabel 存进队列元数据（切片 Y）', async () => {
+    await submitVideoGeneration(
+      'clerk-1',
+      buildVideoRequest({ displayLabel: '借伞 30 秒' }),
+    )
+
+    const jobArgs = mockCreateGenerationJob.mock.calls[0]![0] as {
+      externalRequestId: string
+    }
+    expect(JSON.parse(jobArgs.externalRequestId)).toMatchObject({
+      displayLabel: '借伞 30 秒',
+    })
+  })
+
+  it('⚠ 没人给名字时队列元数据里不带这一格', async () => {
+    await submitVideoGeneration('clerk-1', buildVideoRequest())
+
+    const jobArgs = mockCreateGenerationJob.mock.calls[0]![0] as {
+      externalRequestId: string
+    }
+    expect(JSON.parse(jobArgs.externalRequestId)).not.toHaveProperty(
+      'displayLabel',
+    )
+  })
+
+  it('dispatches Gemini Omni with its current execution ID and without plaintext keys', async () => {
+    mockResolveGenerationRoute.mockResolvedValueOnce({
+      modelId: AI_MODELS.GEMINI_OMNI_FLASH,
+      adapterType: 'gemini',
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+      },
+      apiKey: 'plain-key',
+      resolvedApiKeyId: 'key-1',
+      isFreeGeneration: false,
+      creditCost: 6,
+    })
+    const result = await submitVideoGeneration(
+      'clerk-1',
+      buildVideoRequest({ modelId: AI_MODELS.GEMINI_OMNI_FLASH }),
+    )
+    expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-job-1' })
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string)
+    expect(body).toMatchObject({
+      providerId: 'gemini',
+      apiKeyId: 'key-1',
+      providerInput: { externalModelId: 'gemini-omni-1.1-flash' },
+    })
+    expect(JSON.stringify(body)).not.toContain('plain-key')
+  })
+
   it('dispatches ordinary FAL video runs to the execution worker', async () => {
     const result = await submitVideoGeneration(
       'clerk-1',

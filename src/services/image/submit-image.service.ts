@@ -84,6 +84,15 @@ export interface ImageQueueMetadata {
   sourceGenerationId?: string
   /** 产物来源 surface（LoRA 域生成传 LORA_WORKBENCH；缺省 IMAGE_STUDIO）。 */
   sourceSurface?: GenerationSourceSurface
+  /**
+   * 助手给这一枪起的名（切片 Y）。落库那一跳交给
+   * `createGeneration({ displayLabel })`，成为产物名的**摘要段**。
+   *
+   * ⭐ 它必须搭这趟队列元数据走：图片生成是异步的，请求这一跳只建 job，而名字
+   * 只有在几十秒后的回调里才写得进 snapshot。⛔ 不另起一张表。
+   * ⚠ 缺席 = 没人给名字，摘要照旧从提示词里摘一段。
+   */
+  displayLabel?: string
   studioSnapshot?: {
     freePrompt?: string
     characterCardId?: string
@@ -111,6 +120,7 @@ export async function submitImageGeneration(
     | 'sourceGenerationId'
     | 'sourceSurface'
     | 'studioSnapshot'
+    | 'displayLabel'
   > = {},
 ): Promise<ImageSubmitResponseData> {
   const createGenerationJobFn = deps.createGenerationJob ?? createGenerationJob
@@ -215,6 +225,7 @@ export async function submitImageGeneration(
     sourceGenerationId: queueMetadataInput.sourceGenerationId,
     sourceSurface: queueMetadataInput.sourceSurface,
     studioSnapshot: queueMetadataInput.studioSnapshot,
+    displayLabel: queueMetadataInput.displayLabel,
   }
 
   const job = await createGenerationJobFn({

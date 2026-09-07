@@ -56,7 +56,45 @@ vi.mock('@/hooks/use-project-rules', () => ({
   }),
 }))
 
-import { AssistantSettingsDialog } from './AssistantSettingsDialog'
+/**
+ * 上下文卡那一页（切片 Y）—— 桩住卡表，用例只验「列表画出来了、常挂开关落到
+ * `setPinned`、新建按钮开出编辑器」。
+ */
+const setPinned = vi.hoisted(() => vi.fn())
+const cardsState = vi.hoisted(() => ({
+  current: [
+    {
+      id: 'card-1',
+      kind: 'character',
+      name: '阿岚',
+      summary: '银发、金瞳',
+      pinnedScopes: [] as string[],
+    },
+  ],
+}))
+vi.mock('@/hooks/use-context-cards', () => ({
+  useContextCards: () => ({
+    cards: cardsState.current,
+    isLoading: false,
+    error: null,
+    setPinned,
+    reload: vi.fn(),
+  }),
+}))
+
+/** 编辑器本身有自己的用例 —— 这里只要知道「它开了」。 */
+vi.mock(
+  '@/components/business/studio/assistant-operator/ContextCardDialog',
+  () => ({
+    ContextCardDialog: ({ open }: { open: boolean }) =>
+      open ? <div data-testid="context-card-dialog" /> : null,
+  }),
+)
+
+import {
+  ASSISTANT_SETTINGS_SECTIONS,
+  AssistantSettingsDialog,
+} from './AssistantSettingsDialog'
 
 function renderDialog() {
   return render(
@@ -251,5 +289,39 @@ describe('AssistantSettingsDialog', () => {
     const button = screen.getByText('save').closest('button')
     expect(button).toBeDisabled()
     expect(button?.querySelector('[role="status"]')).not.toBeNull()
+  })
+})
+
+describe('助手设置 · 上下文卡页（切片 Y）', () => {
+  it('列出卡、常挂开关落到 setPinned、新建开出编辑器', () => {
+    render(
+      <AssistantSettingsDialog
+        open
+        onOpenChange={vi.fn()}
+        section={ASSISTANT_SETTINGS_SECTIONS.cards}
+        scope="image"
+        fallbackInitial="图"
+      />,
+    )
+    expect(screen.getAllByTestId('assistant-context-card-item')).toHaveLength(1)
+
+    fireEvent.click(screen.getByTestId('assistant-context-card-pin'))
+    expect(setPinned).toHaveBeenCalledWith('card-1', 'image', true)
+
+    expect(screen.queryByTestId('context-card-dialog')).toBeNull()
+    fireEvent.click(screen.getByTestId('assistant-context-card-new'))
+    expect(screen.getByTestId('context-card-dialog')).toBeInTheDocument()
+  })
+
+  it('⛔ 没有 scope 时不画常挂开关（没有「这里」可挂）', () => {
+    render(
+      <AssistantSettingsDialog
+        open
+        onOpenChange={vi.fn()}
+        section={ASSISTANT_SETTINGS_SECTIONS.cards}
+        fallbackInitial="图"
+      />,
+    )
+    expect(screen.queryByTestId('assistant-context-card-pin')).toBeNull()
   })
 })

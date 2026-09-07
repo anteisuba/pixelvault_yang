@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import { AlertCircle, Upload, X } from 'lucide-react'
+import { AlertCircle, Pencil, Plus, Upload, X } from 'lucide-react'
 
 import {
   ASSISTANT_AVATAR_PRESET_IDS,
@@ -20,13 +20,16 @@ import {
 } from '@/constants/assistant-persona'
 import { PROFILE } from '@/constants/config'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
+import { useContextCards } from '@/hooks/use-context-cards'
 import { useProjectRules } from '@/hooks/use-project-rules'
 import { cn } from '@/lib/utils'
 import type { UpdateAssistantPersonaRequest } from '@/types/assistant-persona'
+import type { ContextCard } from '@/types/context-cards'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Spinner } from '@/components/ui/spinner'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
@@ -38,6 +41,7 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
+import { ContextCardDialog } from '@/components/business/studio/assistant-operator/ContextCardDialog'
 
 /**
  * 助手设置（`docs/references/pages/assistant-shell.md` §8.1–8.2）。
@@ -86,6 +90,14 @@ import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-ope
 export const ASSISTANT_SETTINGS_SECTIONS = {
   persona: 'persona',
   rules: 'rules',
+  /**
+   * 上下文卡（第三期 K1 的入口，切片 Y 接线）—— **列表 + 建/改 + 常挂开关**。
+   *
+   * ⚠ 与规则页的分工写在两处头注里：规则是「从真实工作里长出来的」，所以那一页
+   * 只读；卡是**用户自己写的资料**，所以这一页有新建与编辑。⛔ 别把两页做成
+   * 一样的形状。
+   */
+  cards: 'cards',
 } as const
 
 export type AssistantSettingsSection =
@@ -96,6 +108,11 @@ interface AssistantSettingsDialogProps {
   onOpenChange(open: boolean): void
   /** 开在哪一页（§10 的「查看规则」直接落到 `rules`）。缺省是设置页。 */
   section?: AssistantSettingsSection
+  /**
+   * 当前工作台的域 id ——「常挂在这台工作台」那颗开关认它。
+   * ⚠ 缺席时**不画那颗开关**（没有「这里」可挂），⛔ 不摆一颗点了没反应的。
+   */
+  scope?: string
   /**
    * 名字留空时字母款头像画哪个字（§8.2：空 = 用域名）。
    * ⚠ 由调用方给 —— 这颗组件不知道自己开在哪台工作台上。
@@ -168,10 +185,13 @@ export function AssistantSettingsDialog({
   open,
   onOpenChange,
   section = ASSISTANT_SETTINGS_SECTIONS.persona,
+  scope,
   fallbackInitial,
 }: AssistantSettingsDialogProps) {
   const t = useTranslations('StudioOperator.persona')
   const tRule = useTranslations('StudioOperator.rule')
+  /** 卡的档名（角色 / 风格 / 品牌）与编辑器共用一份词表，⛔ 不抄第二份。 */
+  const tCards = useTranslations('ContextCards')
   const { persona, isSaving, save, uploadAvatar, removeAvatar } =
     useAssistantPersona({ enabled: open })
   /**
@@ -189,6 +209,20 @@ export function AssistantSettingsDialog({
   const rules = useProjectRules({
     enabled: open && tab === ASSISTANT_SETTINGS_SECTIONS.rules,
   })
+  /**
+   * ⚠ 判据与规则页逐字同源：只在这一页开着时才拉一遍卡表。
+   */
+  const cards = useContextCards({
+    enabled: open && tab === ASSISTANT_SETTINGS_SECTIONS.cards,
+  })
+  /**
+   * 编辑器开在哪张卡上 —— `'new'` 是新建，`null` 是没开。
+   * ⚠ ⛔ 不用两个布尔（「开着吗」+「编的是哪张」）：两个变量必然出现
+   * 「开着但没有卡」的组合，而那一帧里编辑器不知道自己在编什么。
+   */
+  const [cardEditing, setCardEditing] = useState<ContextCard | 'new' | null>(
+    null,
+  )
 
   /**
    * 草稿 = **服务端那一份 + 用户这一次动过的几格**，⛔ 不是一份 `useEffect` 里
@@ -348,12 +382,15 @@ export function AssistantSettingsDialog({
           className="flex min-h-0 flex-1 flex-col gap-0"
         >
           <div className="shrink-0 px-4 pb-3 lg:px-6">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value={ASSISTANT_SETTINGS_SECTIONS.persona}>
                 {t('tabPersona')}
               </TabsTrigger>
               <TabsTrigger value={ASSISTANT_SETTINGS_SECTIONS.rules}>
                 {t('tabRules')}
+              </TabsTrigger>
+              <TabsTrigger value={ASSISTANT_SETTINGS_SECTIONS.cards}>
+                {t('tabCards')}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -644,8 +681,113 @@ export function AssistantSettingsDialog({
                 ) : null}
               </div>
             </TabsContent>
+
+            {/* ── 上下文卡（第三期 K1 的入口）────────────────────────
+                ⚠ 这一页与规则页**不是同一种页**：卡是用户自己写的资料，所以有
+                  新建与编辑；规则是从工作里长出来的，所以那一页只读。 */}
+            <TabsContent value={ASSISTANT_SETTINGS_SECTIONS.cards}>
+              <div
+                data-testid="assistant-context-cards"
+                className="flex flex-col gap-2"
+              >
+                <p className="text-md text-muted-foreground">
+                  {t('cardsHint')}
+                </p>
+                {cards.isLoading ? (
+                  <p className="flex items-center gap-1.5 text-md text-muted-foreground">
+                    <Spinner size="sm" />
+                    {t('cardsLoading')}
+                  </p>
+                ) : null}
+                {!cards.isLoading && cards.cards.length === 0 ? (
+                  <p className="text-md text-muted-foreground">
+                    {t('cardsEmpty')}
+                  </p>
+                ) : null}
+                {cards.cards.map((card) => (
+                  <div
+                    key={card.id}
+                    data-testid="assistant-context-card-item"
+                    className="flex items-start gap-2 rounded-r-md border-l-2 border-border bg-muted/40 px-3 py-2"
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <p className="truncate text-sm leading-snug text-foreground">
+                        <span className="font-mono text-2xs uppercase tracking-nav text-muted-foreground">
+                          {tCards(`kind.${card.kind}`)}
+                        </span>{' '}
+                        {card.name}
+                      </p>
+                      {card.summary ? (
+                        <p className="truncate text-md text-muted-foreground">
+                          {card.summary}
+                        </p>
+                      ) : null}
+                      {/* ⭐ 常挂开关就地放（⛔ 不要求先打开编辑器）：「这一台上
+                          带不带它」是随手切的判断，进一层弹层就没人切了。
+                          ⚠ 没有 scope 时不画它 —— 没有「这里」可挂。 */}
+                      {scope ? (
+                        <label className="mt-0.5 flex items-center gap-1.5 text-md text-muted-foreground">
+                          <Switch
+                            data-testid="assistant-context-card-pin"
+                            checked={card.pinnedScopes.includes(scope)}
+                            onCheckedChange={(next) =>
+                              void cards.setPinned(card.id, scope, next)
+                            }
+                          />
+                          {t('cardPinnedHere')}
+                        </label>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      data-testid="assistant-context-card-edit"
+                      aria-label={t('cardEdit', { name: card.name })}
+                      title={t('cardEdit', { name: card.name })}
+                      onClick={() => setCardEditing(card)}
+                      className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                      <Pencil className="size-3.5" aria-hidden />
+                    </button>
+                  </div>
+                ))}
+                {cards.error ? (
+                  <p role="alert" className="text-md text-status-risk">
+                    {cards.error}
+                  </p>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-testid="assistant-context-card-new"
+                  className="h-9 self-start"
+                  onClick={() => setCardEditing('new')}
+                >
+                  <Plus className="size-3.5" aria-hidden />
+                  {t('cardNew')}
+                </Button>
+              </div>
+            </TabsContent>
           </div>
         </Tabs>
+
+        {/* ⚠ 编辑器**挂在设置弹层里**而不是它的兄弟：关掉设置就该把它一起带走，
+            ⛔ 别留一个飘在页面上的孤儿弹层。
+            ⚠ 存完重拉一遍列表（`reload`）：新建那张不出现在列表里的表现是
+              「保存了但什么都没发生」。 */}
+        {cardEditing ? (
+          <ContextCardDialog
+            open
+            onOpenChange={(next) => {
+              if (!next) setCardEditing(null)
+            }}
+            card={cardEditing === 'new' ? null : cardEditing}
+            {...(scope ? { scope } : {})}
+            onSaved={() => {
+              setCardEditing(null)
+              void cards.reload()
+            }}
+          />
+        ) : null}
 
         <ResponsiveDialogFooter className="shrink-0 flex-row flex-wrap items-center justify-end gap-2 border-t border-border px-4 py-3 lg:px-6">
           {/* **bug 1** 的落点：失败就地说话，⛔ 不是一条会自己走掉的 toast ——
@@ -674,9 +816,10 @@ export function AssistantSettingsDialog({
             >
               {t('cancel')}
             </Button>
-            {/* ⚠ 规则页**没有保存**：删除是即时的（它改的是库里那一行），摆一颗
-                「保存」在那儿只会让人以为不点就没删掉。 */}
-            {tab === ASSISTANT_SETTINGS_SECTIONS.rules ? null : (
+            {/* ⚠ 规则页与卡片页**都没有保存**：删除 / 常挂是即时的（它们改的是库里
+                那一行），而建卡改卡有自己那颗保存。摆一颗在这儿只会让人以为
+                不点就没生效。 */}
+            {tab === ASSISTANT_SETTINGS_SECTIONS.persona ? (
               <Button
                 type="button"
                 className="h-9"
@@ -690,7 +833,7 @@ export function AssistantSettingsDialog({
                 </span>
                 {t('save')}
               </Button>
-            )}
+            ) : null}
           </div>
         </ResponsiveDialogFooter>
       </ResponsiveDialogContent>

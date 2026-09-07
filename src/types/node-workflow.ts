@@ -482,8 +482,9 @@ export const NodeWorkflowNodeDataSchema = z
      * 条注释的意图不符；包 6 片 1 修正，存量假待审不回填（审掉即可）。
      *
      * `.catch(undefined)` 与 `lineage` / `mediaWidth` 同一条安全带：一条记录坏掉
-     * 时整个字段降级成 undefined（＝全部按通过），而不是让整份工作流状态解析失败
-     * 被 `validateState` 强制清空成空画布。
+     * 时整个字段降级成 undefined（＝全部按通过），而不是让整份工作流状态解析失败。
+     * ⚠ C3c-③a 起读端不再兜空，整份 parse 失败 = 显式报错（422），安全带仍然值得
+     * 留着：一条坏记录不该让整个项目读不出来。
      */
     mediaReview: z
       .record(z.string(), NodeMediaReviewSchema)
@@ -591,8 +592,9 @@ export const NodeWorkflowStateDataSchema = z.object({
    * The assistant's ScriptDoc fact model, persisted alongside the graph so
    * "chat → outline → spawn" survives reloads. `.catch(undefined)` is a
    * seatbelt: a malformed persisted doc degrades to undefined instead of
-   * failing the whole-state parse — which the server's `validateState`
-   * coerces to an EMPTY state, wiping the user's nodes/edges.
+   * failing the whole-state parse — which the server's `readPersistedState`
+   * now reports as an explicit 422 (it no longer coerces to an EMPTY state,
+   * C3c-③a), so the seatbelt keeps one bad doc from blocking the whole read.
    */
   scriptDoc: ScriptDocSchema.optional().catch(undefined),
   /**
@@ -695,61 +697,6 @@ export const NodeWorkflowStorageSchema = z
     }
   })
 
-// ─── API contracts for the Prisma-backed NodeWorkflowProject ─────────────
-
-/**
- * Server-side record shape — what API routes return to the client.
- * Mirrors the `NodeWorkflowProject` Prisma model 1:1 except `state` is
- * the validated `NodeWorkflowStateDataSchema` shape (JSON in DB → typed
- * here before crossing the network boundary).
- */
-export const NodeWorkflowProjectRecordSchema = z.object({
-  id: z.string().trim().min(1),
-  userId: z.string().trim().min(1),
-  name: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.nameMaxLength),
-  state: NodeWorkflowStateDataSchema,
-  lastActiveAt: z.string().trim().min(1),
-  createdAt: z.string().trim().min(1),
-  updatedAt: z.string().trim().min(1),
-})
-
-export const CreateNodeWorkflowProjectRequestSchema = z.object({
-  name: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.nameMaxLength),
-  state: NodeWorkflowStateDataSchema.optional(),
-})
-
-export const UpdateNodeWorkflowProjectRequestSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(NODE_STUDIO_PROJECTS.nameMaxLength)
-    .optional(),
-  state: NodeWorkflowStateDataSchema.optional(),
-  /**
-   * 「这个空 state 是用户自己删空的，不是事故」。
-   *
-   * `state` 是整体替换，没有 merge —— 一份空的 state 上来就会把库里那份好副本
-   * 抹平。服务端因此默认拒绝「空覆盖非空」（见 `updateNodeWorkflowProject`），
-   * 而**用户真的把画布删空**是合法操作，得有一条显式的放行路径，就是这个字段。
-   *
-   * 只有 `useNodeWorkflow` 亲眼看见「本项目从有节点变成零节点」时才置 true；
-   * 客户端拿不准那份 state 是不是真的（比如服务端 list 失败后回落到
-   * localStorage 的那一份）时一律不带这个标记。
-   */
-  allowEmptyState: z.boolean().optional(),
-})
-
-export type NodeWorkflowProjectRecord = z.infer<
-  typeof NodeWorkflowProjectRecordSchema
->
-export type CreateNodeWorkflowProjectRequest = z.infer<
-  typeof CreateNodeWorkflowProjectRequestSchema
->
-export type UpdateNodeWorkflowProjectRequest = z.infer<
-  typeof UpdateNodeWorkflowProjectRequestSchema
->
-
 export type NodeWorkflowStatus = z.infer<typeof NodeStatusSchema>
 export type NodeWorkflowGenerationStatus = z.infer<
   typeof NodeWorkflowGenerationStatusSchema
@@ -835,8 +782,8 @@ export type NodeWorkflowEdge = Edge<Record<string, unknown>> & {
  *
  * ⚠ **两份 schema 同时活着是迁移顺序，不是留垫片**（Engineering Principles 1 不冲突）：
  * `NodeWorkflowStateSchema.nodes` 是 `z.array()` **无逐项 `.catch()`**，先删 v3 再迁移
- * = 存量项目整份 parse 失败 → `validateState` 兜成空状态 → 用户看到空画布且静默
- * 无报错 → 下一次防抖写入把空状态持久化，不可恢复。
+ * = 存量项目整份 parse 失败 → 读端报错、项目打不开（C3c-③a 之前更糟：兜成空状态、
+ * 静默无报错、下一次防抖写入把空状态持久化，不可恢复）。
  * TODO(C3)：`scripts/migrate-node-workflow-v4.ts` 一次性回填跑完并逐项目验证
  * （节点数 / 边数 / legacy type 零残留）之后，删除本文件上半部的 v3 schema、
  * `NODE_TYPES` 12 个 legacy 值与两条读路径垫片，v4 成为唯一形状。
@@ -1186,6 +1133,94 @@ export type NodeV4Data = z.infer<typeof NodeV4DataSchema>
 export type NodeV4 = z.infer<typeof NodeV4Schema>
 export type NodeWorkflowEdgeV4 = z.infer<typeof NodeWorkflowEdgeV4Schema>
 export type NodeWorkflowStateV4 = z.infer<typeof NodeWorkflowStateV4Schema>
+
+// ─── API contracts for the Prisma-backed NodeWorkflowProject ─────────────
+
+/**
+ * v3 的写入分支。与 `NodeWorkflowStateDataSchema` 唯一的差别：**顶层不能带
+ * `version`**。没有这一条，一份 `{ version: 4, nodes: [], edges: [] }` 会被
+ * 剥掉 `version` 后当成合法 v3 存下去——版本判据被静默抹平，正是这一轮要堵的洞。
+ *
+ * TODO(③c 翻转后删)：客户端全量写 v4 之后，这个分支连同 union 的 v3 一侧一起删，
+ * 写端只留 `NodeWorkflowStateV4Schema`。
+ */
+export const NodeWorkflowStateV3WriteSchema =
+  NodeWorkflowStateDataSchema.extend({
+    version: z.undefined().optional(),
+  })
+
+/**
+ * 服务端持久化 state 的判据（node-canvas-v2 §9.2 第 4 条）。
+ *
+ * ⚠ 顺序有意义：v4 在前。`version === 4` 的图必须走 v4 分支，坏掉的 v4 会被 v3
+ * 分支拒绝（顶层 `version` 不允许）而不是降级成 v3。
+ *
+ * 读端不用它做兜底——读端按 `version` 显式分流（见
+ * `node-workflow.service.ts` 的 `readPersistedState`）：v3 原样透传交给客户端的
+ * `upgradeNodeWorkflowStateToV4` 升级，v4 严格校验，坏数据抛错。⛔ 不兜空。
+ */
+export const NodeWorkflowPersistedStateSchema = z.union([
+  NodeWorkflowStateV4Schema,
+  NodeWorkflowStateV3WriteSchema,
+])
+
+export type NodeWorkflowPersistedState = z.infer<
+  typeof NodeWorkflowPersistedStateSchema
+>
+
+/**
+ * Server-side record shape — what API routes return to the client.
+ * Mirrors the `NodeWorkflowProject` Prisma model 1:1 except `state` is
+ * the validated persisted-state shape (JSON in DB → typed here before
+ * crossing the network boundary). v3 和 v4 都可能出现在这里：升级是客户端
+ * 逐项目做的，服务端不代劳。
+ */
+export const NodeWorkflowProjectRecordSchema = z.object({
+  id: z.string().trim().min(1),
+  userId: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.nameMaxLength),
+  state: NodeWorkflowPersistedStateSchema,
+  lastActiveAt: z.string().trim().min(1),
+  createdAt: z.string().trim().min(1),
+  updatedAt: z.string().trim().min(1),
+})
+
+export const CreateNodeWorkflowProjectRequestSchema = z.object({
+  name: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.nameMaxLength),
+  state: NodeWorkflowPersistedStateSchema.optional(),
+})
+
+export const UpdateNodeWorkflowProjectRequestSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_STUDIO_PROJECTS.nameMaxLength)
+    .optional(),
+  state: NodeWorkflowPersistedStateSchema.optional(),
+  /**
+   * 「这个空 state 是用户自己删空的，不是事故」。
+   *
+   * `state` 是整体替换，没有 merge —— 一份空的 state 上来就会把库里那份好副本
+   * 抹平。服务端因此默认拒绝「空覆盖非空」（见 `updateNodeWorkflowProject`），
+   * 而**用户真的把画布删空**是合法操作，得有一条显式的放行路径，就是这个字段。
+   *
+   * 只有 `useNodeWorkflow` 亲眼看见「本项目从有节点变成零节点」时才置 true；
+   * 客户端拿不准那份 state 是不是真的（比如服务端 list 失败后回落到
+   * localStorage 的那一份）时一律不带这个标记。
+   */
+  allowEmptyState: z.boolean().optional(),
+})
+
+export type NodeWorkflowProjectRecord = z.infer<
+  typeof NodeWorkflowProjectRecordSchema
+>
+export type CreateNodeWorkflowProjectRequest = z.infer<
+  typeof CreateNodeWorkflowProjectRequestSchema
+>
+export type UpdateNodeWorkflowProjectRequest = z.infer<
+  typeof UpdateNodeWorkflowProjectRequestSchema
+>
 
 /**
  * v3 备份（node-canvas-v2 §9.2 · owner 拍板「画-3」）。

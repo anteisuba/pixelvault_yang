@@ -8,12 +8,14 @@ import { logger } from '@/lib/logger'
 import { ensureUser } from '@/services/user.service'
 import {
   NodeWorkflowStateDataSchema,
+  NodeWorkflowStateV4Schema,
   type CreateNodeWorkflowProjectRequest,
+  type NodeWorkflowPersistedState,
   type NodeWorkflowProjectRecord,
   type UpdateNodeWorkflowProjectRequest,
 } from '@/types/node-workflow'
 
-type NodeWorkflowStateData = NodeWorkflowProjectRecord['state']
+type NodeWorkflowStateData = NodeWorkflowPersistedState
 
 /**
  * Prisma's Json column type is `InputJsonValue` which requires an index
@@ -51,20 +53,82 @@ export class NodeWorkflowProjectNotFoundError extends Error {
 }
 
 /**
- * Validate untrusted JSON before write. We do this server-side even though
- * the API route already validated the request body — DB-stored state should
- * never trust the persisted JSON to round-trip cleanly; bad data here means
- * the hydrating client crashes silently and the user thinks their work is
- * gone.
+ * 读端坏数据。⛔ 故意不兜空：兜空 = 用户下一次打开就看见空画布，而防抖写入紧接着
+ * 把那份空图存回去。报错可见比静默清空好一万倍（node-canvas-v2 §9.2 第 4 条）。
  */
-function validateState(value: unknown): NodeWorkflowStateData {
-  const parsed = NodeWorkflowStateDataSchema.safeParse(value)
-  if (!parsed.success) {
-    // Coerce to empty rather than throw — better to lose the bad save than
-    // to brick the user's whole project list.
+export class NodeWorkflowStateCorruptError extends Error {
+  readonly projectId: string
+  readonly detail: string
+
+  constructor(projectId: string, detail: string) {
+    super(`Node workflow project ${projectId} has an unreadable state`)
+    this.name = 'NodeWorkflowStateCorruptError'
+    this.projectId = projectId
+    this.detail = detail
+  }
+}
+
+/**
+ * 读端判据（§9.2 第 4 条的反转）：
+ *
+ * - `null` / 未初始化 → `EMPTY_STATE`（**只有**这一种情况给空图）
+ * - `version === 4` → `NodeWorkflowStateV4Schema.parse`，失败抛
+ *   `NodeWorkflowStateCorruptError`
+ * - 其余（无 version / v3）→ 过 v3 schema **只做校验**，随后把库里那份**原样**
+ *   透传回去；判 v3/v4 与升级都归客户端的 `upgradeNodeWorkflowStateToV4`，
+ *   服务端不代劳、也不重写字段
+ *
+ * ⛔ 任何一条路径都不把 parse 失败翻译成空状态。
+ */
+function readPersistedState(
+  projectId: string,
+  value: unknown,
+): NodeWorkflowStateData {
+  if (value === null || value === undefined) {
     return EMPTY_STATE
   }
-  return parsed.data
+
+  const version =
+    typeof value === 'object' && value !== null
+      ? (value as { version?: unknown }).version
+      : undefined
+
+  if (version === 4) {
+    const parsed = NodeWorkflowStateV4Schema.safeParse(value)
+    if (!parsed.success) {
+      logger.error('[node-workflow] v4 state failed to parse on read', {
+        projectId,
+        error: parsed.error.message,
+      })
+      throw new NodeWorkflowStateCorruptError(projectId, parsed.error.message)
+    }
+    return parsed.data
+  }
+
+  const parsed = NodeWorkflowStateDataSchema.safeParse(value)
+  if (!parsed.success) {
+    logger.error('[node-workflow] legacy state failed to parse on read', {
+      projectId,
+      error: parsed.error.message,
+    })
+    throw new NodeWorkflowStateCorruptError(projectId, parsed.error.message)
+  }
+  // 原样透传：v3 只是被校验了一遍，字段不删不补，交给客户端升级。
+  return value as NodeWorkflowStateData
+}
+
+/**
+ * 空覆盖闸只需要「库里那份有几个节点」。故意宽容、故意不抛错：它不是校验点，
+ * 校验点是 `readPersistedState`；这里抛错只会让一次合法保存失败。
+ */
+function countPersistedNodes(value: unknown): number {
+  if (typeof value === 'object' && value !== null) {
+    const nodes = (value as { nodes?: unknown }).nodes
+    if (Array.isArray(nodes)) {
+      return nodes.length
+    }
+  }
+  return 0
 }
 
 function toRecord(row: NodeWorkflowProject): NodeWorkflowProjectRecord {
@@ -72,7 +136,7 @@ function toRecord(row: NodeWorkflowProject): NodeWorkflowProjectRecord {
     id: row.id,
     userId: row.userId,
     name: row.name,
-    state: validateState(row.state),
+    state: readPersistedState(row.id, row.state),
     lastActiveAt: row.lastActiveAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -119,6 +183,10 @@ export async function createNodeWorkflowProject(
     throw new NodeWorkflowProjectLimitError()
   }
 
+  // 写端判据：`input.state` 已经过 `NodeWorkflowPersistedStateSchema`——v3 与 v4
+  // **各自严格校验**，校验失败在路由层就是 400，⛔ 不兜空、不降级。
+  // TODO(③c 翻转后删)：客户端全量写 v4 后，把 union 的 v3 分支删掉，v3 写入直接拒绝。
+
   const row = await db.nodeWorkflowProject.create({
     data: {
       userId: user.id,
@@ -157,7 +225,7 @@ export async function updateNodeWorkflowProject(
   // name / lastActiveAt 照常写。故意不抛错——被拦下来意味着用户的数据是
   // 安全的，把它报成「保存失败」反而是假警报；真正需要看见它的是我们，
   // 所以走 logger.error。
-  const existingNodeCount = validateState(existing.state).nodes.length
+  const existingNodeCount = countPersistedNodes(existing.state)
   const incomingNodeCount = input.state?.nodes.length ?? 0
   const refusesEmptyOverwrite =
     input.state !== undefined &&

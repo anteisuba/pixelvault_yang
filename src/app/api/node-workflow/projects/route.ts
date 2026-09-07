@@ -12,12 +12,20 @@ import {
 } from '@/services/node/node-workflow.service'
 import { CreateNodeWorkflowProjectRequestSchema } from '@/types/node-workflow'
 
+import { rethrowNodeWorkflowStateError } from './state-error'
+
 export const GET = createApiGetRoute({
   schema: z.object({}),
   routeName: 'GET /api/node-workflow/projects',
   requireAuth: true,
   rateLimit: RATE_LIMIT_CONFIGS.authedRead,
-  handler: async ({ clerkId }) => listNodeWorkflowProjectsForUser(clerkId!),
+  handler: async ({ clerkId }) => {
+    try {
+      return await listNodeWorkflowProjectsForUser(clerkId!)
+    } catch (error) {
+      return rethrowNodeWorkflowStateError(error)
+    }
+  },
 })
 
 export const POST = createApiRoute({
@@ -36,7 +44,7 @@ export const POST = createApiRoute({
           'Maximum Node Studio projects reached',
         )
       }
-      throw error
+      return rethrowNodeWorkflowStateError(error)
     }
   },
 })

@@ -594,8 +594,21 @@ function projectFromServerRecord(
     updatedAt: record.updatedAt,
     // Hydration migrations are idempotent. The migrated state is held in
     // memory and persisted back on the next normal write.
-    state: migrateWorkflowState(record.state),
+    state: migrateWorkflowState(assertV3State(record.state)),
   }
+}
+
+// 迁移顺序：③c 客户端翻转后此处改为 upgradeNodeWorkflowStateToV4，v3 分支删除。
+// 服务端读端已透传 v4，而 v3 画布无法消费 v4 状态，必须大声失败而不是兜空。
+function assertV3State(
+  state: NodeWorkflowProjectRecord['state'],
+): NodeWorkflowState {
+  if ('version' in state && state.version === 4) {
+    throw new Error(
+      `node workflow state is v4 but the v3 canvas is still active (C3c-③c pending)`,
+    )
+  }
+  return state
 }
 
 /**

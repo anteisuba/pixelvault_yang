@@ -15,13 +15,16 @@ import {
   NodeAssistantOpBatchSchema,
   type NodeAssistantOpBatch,
 } from '@/types/node-assistant-ops'
+import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import type {
+  NodeV4,
   NodeWorkflowEdge,
+  NodeWorkflowEdgeV4,
   NodeWorkflowModelOptionsByType,
   NodeWorkflowNode,
 } from '@/types/node-workflow'
 
-import { planNodeAssistantOps } from './node-assistant-op-plan'
+import { planNodeAssistantOps, planV4Connect } from './node-assistant-op-plan'
 
 function makeNode(
   id: string,
@@ -1125,5 +1128,70 @@ describe('planNodeAssistantOps · 穷尽断言', () => {
       )
       expect(plan.ops).toHaveLength(1)
     }
+  })
+})
+
+/* ── v4 分支（C3c-③d-3）───────────────────────────────────────────────── */
+
+describe('planV4Connect · v4 具名口的连线裁决', () => {
+  const now = '2026-09-08T00:00:00.000Z'
+  const v4Node = (
+    id: string,
+    data: Record<string, unknown> & { kind: string },
+  ) =>
+    ({
+      id,
+      position: { x: 0, y: 0 },
+      data: { name: id, status: 'idle', createdAt: now, ...data },
+    }) as unknown as NodeV4
+
+  const v4Edge = (id: string, source: string, target: string, slot: string) =>
+    ({
+      id,
+      source,
+      sourceHandle: 'out',
+      target,
+      slot,
+    }) as unknown as NodeWorkflowEdgeV4
+
+  const img = v4Node('img', {
+    kind: 'image',
+    subtype: 'shot',
+    url: 'https://cdn/a.png',
+  })
+  const shot = v4Node('shot', { kind: 'video', subtype: 'shot', label: 'S01' })
+
+  it('口收得下 → ready', () => {
+    expect(
+      planV4Connect(img, shot, NODE_SLOT_IDS.firstFrame, [], [img, shot])
+        .status,
+    ).toBe('ready')
+  })
+
+  // ⚠ 用 `reference`（0..N，非轮播）而不是 `firstFrame`：轮播槽再连一条**不是**
+  // 超限，是「加为第 N 版并设为当前」（§1.4），拿它试容量会永远是 ready。
+  it('口满了 → rejected 且带 n/m（卡上显示得出「1/1」）', () => {
+    const other = v4Node('img2', {
+      kind: 'image',
+      subtype: 'shot',
+      url: 'https://cdn/b.png',
+    })
+    const result = planV4Connect(
+      other,
+      shot,
+      NODE_SLOT_IDS.reference,
+      [v4Edge('e1', 'img', 'shot', NODE_SLOT_IDS.reference)],
+      [img, other, shot],
+      { [NODE_SLOT_IDS.reference]: 1 },
+    )
+    expect(result.status).toBe('rejected')
+    expect(result.capacity).toEqual({ current: 1, limit: 1 })
+  })
+
+  it('这个节点根本没有这个口 → rejected（⛔ 不恒真放行）', () => {
+    expect(
+      planV4Connect(shot, img, NODE_SLOT_IDS.firstFrame, [], [img, shot])
+        .status,
+    ).toBe('rejected')
   })
 })

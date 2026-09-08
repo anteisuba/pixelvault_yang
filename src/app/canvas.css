@@ -4136,3 +4136,17 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
     min-width: calc(50% - 4px);
   }
 }
+
+/* ── v4 workbench · 375 卡宽（`proto6-hig-notes.md` 未落三项之三）───────────
+   卡宽 = `100vw − 2rem`（左右各留 1rem 的呼吸），⚠ 只在 v4 workbench 的作用域
+   内成立：`.node-workbench-v4` 是 `NodeWorkbenchV4` 的根类名，⛔ 不写成全局规则
+   —— 现役 workbench 还在跑，全局改宽会当场动到生产画布。
+
+   ⚠ 用 `max-width` 而不是 `width`：卡的宽度是组件按 `NODE_V4_CARD.*` 写在行内
+   style 上的，行内 `width` 赢过外部 `width`，但 `max-width` 赢过 `width`。所以
+   这条不需要 `!important`（对比上面槽轨那条 —— 那条改的是宽度本身）。 */
+@media (max-width: 420px) {
+  .node-workbench-v4 .react-flow__node > * {
+    max-width: calc(100vw - 2rem);
+  }
+}

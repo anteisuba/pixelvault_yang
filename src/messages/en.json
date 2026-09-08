@@ -6036,6 +6036,10 @@
         "invalidRange": "Start must be before end",
         "invalidRangeBlocks": "A clip's trim range is invalid — merging is blocked",
         "needMoreClips": "Connect at least {min} clips to merge"
+      },
+      "ingest": {
+        "chooseSlot": "Which slot?",
+        "chooseSlotCancel": "Cancel"
       }
     }
   },

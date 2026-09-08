@@ -68,6 +68,16 @@ import {
   resolveGenerateTargetKind,
 } from '@/lib/node-workflow-graph'
 import { evaluateCastIngest } from '@/hooks/node/use-cast-ingest'
+import {
+  evaluateV4Ingest,
+  previewV4SlotCapacity,
+} from '@/hooks/node/use-cast-ingest-v4'
+import type { NodeSlotId } from '@/constants/node-slots'
+import {
+  NODE_CONNECT_REJECT_REASON_IDS,
+  type NodeConnectRejectReason,
+} from '@/lib/node-connection-rules'
+import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 import { isRunnableModelOption } from '@/hooks/use-split-model-options'
 import type {
   NodeAssistantOp,
@@ -881,5 +891,73 @@ export function planNodeAssistantOps(
     readyStructuralCount: readyCount - readyGenerateCount,
     readyGenerateCount,
     rejectedCount: planned.length - readyCount,
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * v4 分支（第三期 · 画布 C3c-③d-3「写好不接」）
+ *
+ * ⛔ 生产调用方为 0；接线在 ③d-4，同批删上面那条 v3 分支
+ * （`planNodeAssistantOps` 与它依赖的 `evaluateCastIngest` / `createPendingNode`）。
+ *
+ * ── 为什么必须另起一条而不是给旧的加参数 ────────────────────────────────
+ * 旧分支的连线合法性问的是 `evaluateCastIngest`：v3 的一节点一入口，答案是
+ * yes/no。v4 的目标有**多个具名口**，`connect` 载荷里带的正是那个 `slot`，所以
+ * 问题从「能不能连」变成「这个口现在收不收」。同一个函数回答不了两个问题 ——
+ * 硬塞的结果是助手在 v4 图上永远拿到 v3 的答案（恒真），一批连线全放行、执行时
+ * 再一条条失败，用户看到的是「说落好了但图是散的」（台账 K-2 那一幕）。
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * 一条 v4 连线提案的裁决。`capacity` 只有满档时带（显示 `n/m`）。
+ *
+ * ⚠ 理由词表是 **v4 那一份**（`NodeConnectRejectReason`），⛔ 不复用 v3 的
+ * `NodeStudioIngestRejectReason`：两者不是同义词（v4 的 `slotFull` 说的是「这个
+ * **口**满了」，v3 的 `capacityFull` 说的是「参考位满了」——v3 只有一个口，所以
+ * 它从来不需要区分是哪个）。文案键 `StudioNode.v4.connectRejected.*` 已按 v4 词表
+ * 逐条存在。
+ */
+export interface PlannedV4Connect {
+  readonly status: 'ready' | 'rejected'
+  readonly slot: NodeSlotId
+  readonly reason?: NodeConnectRejectReason
+  readonly capacity?: { readonly current: number; readonly limit: number }
+}
+
+/**
+ * 一条 v4 `connect` / `attach_asset` 能不能落。
+ *
+ * ⚠ 判据走 `evaluateV4Ingest` —— 与**拖拽落槽**、与**端口点亮**是同一个函数。
+ * 助手和人手因此永远拿到同一个答案，⛔ 不在这里自己重写一遍端口表。
+ */
+export function planV4Connect(
+  source: NodeV4,
+  target: NodeV4,
+  slot: NodeSlotId,
+  edges: readonly NodeWorkflowEdgeV4[],
+  nodes: readonly NodeV4[],
+  capacityBySlot?: Partial<Record<NodeSlotId, number>>,
+): PlannedV4Connect {
+  const evaluation = evaluateV4Ingest(
+    source,
+    target,
+    edges,
+    nodes,
+    capacityBySlot,
+  )
+  if (evaluation.slots.includes(slot)) return { status: 'ready', slot }
+
+  const capacity = previewV4SlotCapacity(target, slot, edges, capacityBySlot)
+  // 这个口存在但没亮：多半是满了 —— 把 `n/m` 一并带上，卡上显示「参考位 3/3」
+  // 比一句「不能连」有用得多。
+  const full = capacity !== null && capacity.current >= capacity.limit
+  const reason: NodeConnectRejectReason = full
+    ? NODE_CONNECT_REJECT_REASON_IDS.slotFull
+    : (evaluation.reason ?? NODE_CONNECT_REJECT_REASON_IDS.kindNotAllowed)
+  return {
+    status: 'rejected',
+    slot,
+    reason,
+    ...(full && capacity ? { capacity } : {}),
   }
 }

@@ -6036,6 +6036,10 @@
         "invalidRange": "起点必须小于终点",
         "invalidRangeBlocks": "有段的裁剪区间不成立，合并暂时不能开始",
         "needMoreClips": "至少要接 {min} 段片段才能合并"
+      },
+      "ingest": {
+        "chooseSlot": "落到哪个口？",
+        "chooseSlotCancel": "取消"
       }
     }
   },

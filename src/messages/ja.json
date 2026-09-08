@@ -6036,6 +6036,10 @@
         "invalidRange": "開始は終了より前である必要があります",
         "invalidRangeBlocks": "トリム範囲が不正なクリップがあるため結合できません",
         "needMoreClips": "結合には最低 {min} クリップが必要です"
+      },
+      "ingest": {
+        "chooseSlot": "どのスロットに？",
+        "chooseSlotCancel": "キャンセル"
       }
     }
   },

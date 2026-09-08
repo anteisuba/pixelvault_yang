@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 
 import {
+  NODE_ASSISTANT_OP_V4_IDS,
   NODE_ASSISTANT_OP_V4_SPECS,
   NODE_ASSISTANT_OP_V4_TIER_IDS,
 } from '@/constants/node-assistant-ops'
@@ -41,11 +42,16 @@ import { useCanvasAssistantDrag } from '@/hooks/node/use-canvas-assistant-drag'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
+import {
+  subscribeCanvasRerunDownstream,
+  takeCanvasRerunDownstream,
+} from '@/lib/canvas-rerun-request'
 import { resolveV4NodeReadableName } from '@/lib/node-assistant-context'
 import {
   planNodeAssistantOpsV4,
   type PlannedNodeAssistantOpV4,
 } from '@/lib/node-assistant-op-plan'
+import { buildRerunDownstreamPlan } from '@/lib/node-rerun-downstream'
 import type { AppLocale } from '@/i18n/routing'
 import type { NodeAssistantMediaReference } from '@/types/node-assistant'
 import type { NodeAssistantOpV4Batch } from '@/types/node-assistant-ops'
@@ -168,6 +174,7 @@ export function StudioNodeAssistantDock({
   const tHistory = useTranslations('StudioNode.history')
   const tConversation = useTranslations('StudioNode.conversation')
   const tCanvasOps = useTranslations('StudioNode.canvasOps')
+  const tRerun = useTranslations('StudioNode.rerunDownstream')
   const selection = useNodeSelection()
   const { placeDerivedImages, focusNode, runAssistantOps, undo } =
     useNodeCanvasActions()
@@ -276,6 +283,35 @@ export function StudioNodeAssistantDock({
     [buildConversationContext, conversation],
   )
 
+  /**
+   * 画布右键菜单投来的「重跑下游」（第三期）。
+   *
+   * ⭐ 它走的是**和用户自己打字一模一样的那条路**（`handleSend`）：一条带
+   * `[[node:…]]` 标记的普通消息。⛔ 不为它开一条专用请求 —— 专用路径意味着这一
+   * 条消息不进对话历史、不进上下文快照，而助手下一轮就会「不记得刚才在说哪个
+   * 节点」。
+   * ⚠ **只开面板不自动批准**：助手接下来出的是一份只读名单，真要重跑还得过
+   *   `generate` 那道硬确认。
+   * ⚠ 取走即消费（见 `takeCanvasRerunDownstream` 头注）：dock 会随折叠 / 展开
+   *   重挂，留着那张便条会让同一句话被发第二遍。
+   */
+  useEffect(
+    () =>
+      subscribeCanvasRerunDownstream(() => {
+        const nodeId = takeCanvasRerunDownstream()
+        if (!nodeId) return
+        const node = nodes.find((candidate) => candidate.id === nodeId)
+        if (!node) return
+        onOpenChange(true)
+        void handleSend(
+          `${tRerun('ask', {
+            name: resolveV4NodeReadableName(node.data),
+          })} [[node:${nodeId}]]`,
+        )
+      }),
+    [handleSend, nodes, onOpenChange, tRerun],
+  )
+
   const handleRetry = useCallback(async () => {
     await conversation.retry(buildConversationContext())
   }, [buildConversationContext, conversation])
@@ -347,6 +383,35 @@ export function StudioNodeAssistantDock({
   const planAssistantOps = useCallback(
     (batch: NodeAssistantOpV4Batch) =>
       planNodeAssistantOpsV4(batch.ops, nodes, edges),
+    [edges, nodes],
+  )
+
+  /**
+   * 「只重跑下游」那份**只读名单**（第三期）。
+   *
+   * ⚠ 同样只能发生在 dock：下游是**图算出来的**（`collectDownstream`），而只有
+   * 这里看得到 nodes/edges。⛔ 不让模型自己列名单 —— 漏一个分支用户拿到的是一份
+   * 前后不一致的成片，多列一个是白花的钱。
+   * ⚠ 一批里只认**第一条** `plan_rerun_downstream`：一次问「改了哪一个」只该有
+   *   一个答案，两张名单并排摆着没有人读得懂哪张是这一次的。
+   */
+  const planRerunDownstream = useCallback(
+    (batch: NodeAssistantOpV4Batch) => {
+      const op = batch.ops.find(
+        (entry) => entry.op === NODE_ASSISTANT_OP_V4_IDS.planRerunDownstream,
+      )
+      if (!op || op.op !== NODE_ASSISTANT_OP_V4_IDS.planRerunDownstream) {
+        return null
+      }
+      return buildRerunDownstreamPlan({
+        targetId: op.target,
+        ...(op.includeSelf === undefined
+          ? {}
+          : { includeSelf: op.includeSelf }),
+        nodes,
+        edges,
+      })
+    },
     [edges, nodes],
   )
 
@@ -678,6 +743,7 @@ export function StudioNodeAssistantDock({
                 canUseReference={canUseReference}
                 onRunCapability={handleRunCapability}
                 planAssistantOps={planAssistantOps}
+                planRerunDownstream={planRerunDownstream}
                 onApplyAssistantOps={handleApplyAssistantOps}
                 autoAppliedByMessageId={autoAppliedByMessageId}
                 autoFailedConnectsByMessageId={autoFailedConnectsByMessageId}
@@ -709,6 +775,7 @@ export function StudioNodeAssistantDock({
               canUseReference={canUseReference}
               onRunCapability={handleRunCapability}
               planAssistantOps={planAssistantOps}
+              planRerunDownstream={planRerunDownstream}
               onApplyAssistantOps={handleApplyAssistantOps}
               autoAppliedByMessageId={autoAppliedByMessageId}
               autoFailedConnectsByMessageId={autoFailedConnectsByMessageId}

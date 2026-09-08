@@ -92,7 +92,7 @@ export type NodeAssistantOpId = (typeof NODE_ASSISTANT_OPS)[number]
  *
  * ── 为什么图片的比例 / 清晰度不在这里（切片 5 第二批查证结论）──────────
  * `NodeWorkflowNodeDataSchema.imageResolution` 是**死字段**：schema 里有、全仓零
- * 个写者；图片的比例与清晰度真正住在 `use-generate-composer.ts` 的 React state
+ * 个写者；图片的比例与清晰度真正住在 `use-generate-composer-v4.ts` 的 React state
  * 里（`useState<AspectRatio>` / `useState<ImageResolutionTier>`，注释写明是
  * 「session-sticky, not reset per host」的**设计**），随 `runGenerateComposer` 的
  * 入参直传。`handleGenerateMediaNode` 里读 `data.aspectRatio` / `data.resolution`
@@ -425,6 +425,15 @@ export const NODE_ASSISTANT_OP_V4_IDS = {
   /** 读画布现值。scope 四档：viewport / shot / selection / all。 */
   readCanvas: 'read_canvas',
   findNode: 'find_node',
+  /**
+   * **只重跑下游**的只读规划（第三期，owner 2026-09-07 定）。
+   *
+   * ⭐ 它**只列名单，一个字都不改、一分钱都不花**：改了一个节点之后，沿具名槽边
+   * 从它出发的后继闭包里有哪些节点要重跑、大概几档积分。真正的重跑是紧随其后的
+   * 一串 `generate` —— 那条照旧是唯一扣 credit 的 op、照旧硬确认。
+   * ⛔ 别把它做成「顺便把那几个也跑了」：那等于在钱闸上开一条只读工具的后门。
+   */
+  planRerunDownstream: 'plan_rerun_downstream',
   addNode: 'add_node',
   /** ⚠ `slot` 必填——没有槽的连线在 v4 里不存在（§3.4）。 */
   connect: 'connect',
@@ -465,6 +474,7 @@ export const NODE_ASSISTANT_OP_V4_IDS = {
 export const NODE_ASSISTANT_OPS_V4 = [
   NODE_ASSISTANT_OP_V4_IDS.readCanvas,
   NODE_ASSISTANT_OP_V4_IDS.findNode,
+  NODE_ASSISTANT_OP_V4_IDS.planRerunDownstream,
   NODE_ASSISTANT_OP_V4_IDS.addNode,
   NODE_ASSISTANT_OP_V4_IDS.connect,
   NODE_ASSISTANT_OP_V4_IDS.disconnect,
@@ -532,6 +542,13 @@ export const NODE_ASSISTANT_OP_V4_SPECS = {
     autoApply: true,
   },
   [NODE_ASSISTANT_OP_V4_IDS.findNode]: {
+    group: read,
+    tier: free,
+    inverse: null,
+    autoApply: true,
+  },
+  /** ⚠ 只读组：没有副作用，也就没有 inverse。 */
+  [NODE_ASSISTANT_OP_V4_IDS.planRerunDownstream]: {
     group: read,
     tier: free,
     inverse: null,

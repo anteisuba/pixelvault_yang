@@ -34,9 +34,11 @@ import type {
   PlannedNodeAssistantOpV4,
 } from '@/lib/node-assistant-op-plan'
 import type { NodeAssistantOpV4Batch } from '@/types/node-assistant-ops'
+import type { RerunDownstreamPlan } from '@/lib/node-rerun-downstream'
 
 import { CanvasAssistantReferencePicker } from './CanvasAssistantReferencePicker'
 import { CanvasOpProposalCard } from './CanvasOpProposalCard'
+import { CanvasRerunDownstreamCard } from './CanvasRerunDownstreamCard'
 import type { NodeAssistantOpRunResult } from './nodes/v4/NodeV4ActionsBridge'
 
 interface AssistantConversationProps {
@@ -66,6 +68,16 @@ interface AssistantConversationProps {
    * nodes/edges，对话组件自己不认识图。两个回调缺任何一个就不出提案卡。
    */
   planAssistantOps?(batch: NodeAssistantOpV4Batch): NodeAssistantOpPlanV4
+  /**
+   * 「只重跑下游」那份**只读名单**（第三期）。
+   *
+   * ⚠ 与 `planAssistantOps` 分成两个 prop 而不是一个返回两样东西的调用：提案卡
+   * 与名单卡是两张互不相干的卡，合起来算的下场是没有名单的那一轮也要为它跑一遍
+   * 拓扑。`null` = 这一轮没有 `plan_rerun_downstream`（绝大多数轮次）。
+   */
+  planRerunDownstream?(
+    batch: NodeAssistantOpV4Batch,
+  ): RerunDownstreamPlan | null
   onApplyAssistantOps?(
     ops: readonly PlannedNodeAssistantOpV4[],
   ): Promise<NodeAssistantOpRunResult>
@@ -147,6 +159,7 @@ export function AssistantConversation({
   canUseReference = () => true,
   onRunCapability,
   planAssistantOps,
+  planRerunDownstream,
   onApplyAssistantOps,
   autoAppliedByMessageId,
   autoFailedConnectsByMessageId,
@@ -448,6 +461,20 @@ export function AssistantConversation({
                       })}
                     </div>
                   ) : null}
+                  {/* ── 只重跑下游的只读名单（第三期）────────────────
+                      ⚠ 排在提案卡**之前**：它回答的是「为什么会有下面这几条
+                        generate」，而理由要先于动作。 */}
+                  {message.ops && planRerunDownstream
+                    ? (() => {
+                        const rerun = planRerunDownstream(message.ops)
+                        return rerun ? (
+                          <CanvasRerunDownstreamCard
+                            plan={rerun}
+                            onFocusNode={onFocusNode}
+                          />
+                        ) : null
+                      })()
+                    : null}
                   {message.ops && planAssistantOps && onApplyAssistantOps ? (
                     <CanvasOpProposalCard
                       plan={planAssistantOps(message.ops)}

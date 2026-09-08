@@ -588,3 +588,99 @@ describe('成本计数', () => {
     expect(result.current.costDetails).toHaveLength(0)
   })
 })
+
+/**
+ * 断点续跑（第三期）——「刷新之后还在」是这一组唯一要钉的事。
+ *
+ * ⚠ 用真的 `localStorage`（jsdom 自带）而不是 mock：这一段的失败模式全在盘上
+ * （写了读不回来、串了 scope、跑完了没清），mock 掉的话每一条都测不到。
+ */
+describe('resume（断点续跑）', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('没设 scope 时一切都是 no-op —— ⛔ 不往默认键里写', () => {
+    const result = readState()
+    act(() =>
+      store.startOperatorResumePlan({ planId: 'p1', labels: ['一', '二'] }),
+    )
+    expect(result.current.resume).toBeNull()
+    expect(localStorage.length).toBe(0)
+  })
+
+  it('批准计划 → 落盘 → 刷新后 hydrate 得回来', async () => {
+    const first = readState()
+    act(() => store.setOperatorResumeScope('project-a'))
+    act(() =>
+      store.startOperatorResumePlan({
+        planId: 'p1',
+        labels: ['读表单', '写提示词', '生成'],
+      }),
+    )
+    expect(first.current.resume?.steps).toHaveLength(3)
+
+    // 「刷新」= 换一份全新的模块实例，只有盘上那一格活得过去。
+    vi.resetModules()
+    store = await import('@/hooks/use-studio-operator-store')
+    const second = readState()
+    expect(second.current.resume).toBeNull()
+    act(() => store.setOperatorResumeScope('project-a'))
+    act(() => store.hydrateOperatorResume())
+    expect(second.current.resume?.planId).toBe('p1')
+    expect(second.current.resume?.steps).toHaveLength(3)
+  })
+
+  it('按 scope 隔离：换个项目 hydrate 不到别人的计划', () => {
+    const result = readState()
+    act(() => store.setOperatorResumeScope('project-a'))
+    act(() => store.startOperatorResumePlan({ planId: 'p1', labels: ['一'] }))
+    act(() => store.setOperatorResumeScope('project-b'))
+    // 换 scope 当帧就把镜像清掉，⛔ 不让上一个项目那份多活一帧。
+    expect(result.current.resume).toBeNull()
+    act(() => store.hydrateOperatorResume())
+    expect(result.current.resume).toBeNull()
+  })
+
+  it('逐步标记落盘，failed 带得回那句原因', () => {
+    const result = readState()
+    act(() => store.setOperatorResumeScope('project-a'))
+    act(() =>
+      store.startOperatorResumePlan({ planId: 'p1', labels: ['一', '二'] }),
+    )
+    act(() =>
+      store.markOperatorResumeStep('p1:0', {
+        state: 'done',
+        artifactIds: ['gen-1'],
+      }),
+    )
+    act(() =>
+      store.markOperatorResumeStep('p1:1', {
+        state: 'failed',
+        reason: '模型超时',
+      }),
+    )
+    expect(result.current.resume?.steps[0]).toMatchObject({
+      state: 'done',
+      artifactIds: ['gen-1'],
+    })
+    expect(result.current.resume?.steps[1]?.reason).toBe('模型超时')
+
+    const stored = JSON.parse(
+      localStorage.getItem(
+        'pixelvault.studio.operatorResume.v1.project-a',
+      ) as string,
+    )
+    expect(stored.steps[1].state).toBe('failed')
+  })
+
+  it('＋新对话把那份计划连盘上一起清掉', () => {
+    const result = readState()
+    act(() => store.setOperatorResumeScope('project-a'))
+    act(() => store.startOperatorResumePlan({ planId: 'p1', labels: ['一'] }))
+    act(() => store.resetOperatorThread())
+    expect(result.current.resume).toBeNull()
+    act(() => store.hydrateOperatorResume())
+    expect(result.current.resume).toBeNull()
+  })
+})

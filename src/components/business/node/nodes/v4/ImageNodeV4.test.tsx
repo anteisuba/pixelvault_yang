@@ -325,7 +325,12 @@ describe('展开态的四块', () => {
 })
 
 describe('右键菜单', () => {
-  it('在节点上右键出菜单，项数固定五条', () => {
+  /**
+   * ⚠ 五条是**常驻**那几条（展开 / 下载 / 克隆 / 整理 / 删除）。第六条
+   * 「重跑下游」只在这个节点真的有下游时才出现（第三期）—— 这一幕里 `i_char`
+   * 连着 `v_01`，所以它在。⛔ 别把它写成「固定六条」：叶子节点上一条都不该有。
+   */
+  it('在节点上右键出菜单：常驻五条 + 有下游时的「重跑下游」', () => {
     renderImage(harness(scene()))
     fireEvent.contextMenu(
       document.querySelector('[data-node-kind="image"]') as Element,
@@ -333,7 +338,10 @@ describe('右键菜单', () => {
     expect(
       document.querySelectorAll('[data-node-context-menu] [role="menuitem"]')
         .length,
-    ).toBe(5)
+    ).toBe(6)
+    expect(
+      document.querySelector('[data-menu-action="rerunDownstream"]'),
+    ).not.toBeNull()
   })
 })
 

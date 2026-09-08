@@ -110,10 +110,16 @@ import { useStudioOperatorMention } from '@/hooks/use-studio-operator-mention'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
+  hydrateOperatorResume,
   setOperatorAskFirst,
+  setOperatorResumeScope,
   setOperatorSelectedResult,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
+import {
+  failedResumeStep,
+  nextResumeStepNumber,
+} from '@/lib/studio-operator-resume'
 import { cn } from '@/lib/utils'
 import type { AssistantPersona } from '@/types/assistant-persona'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
@@ -224,6 +230,7 @@ export function StudioOperatorPanel({
     capturingFrames,
     costs,
     costDetails,
+    resume,
   } = useStudioOperatorState()
   const {
     domain,
@@ -236,7 +243,41 @@ export function StudioOperatorPanel({
     answerSpend,
     cancelSpend,
     answerChoice,
+    resumePlan,
   } = operator
+
+  /**
+   * **续跑记录挂到这台工作台上**（第三期）。
+   *
+   * ⭐ scope 取的是**域**：工作台本身是单例，一个用户在图片档只有一台。画布那边
+   * 以后接进来时传的是 projectId —— 同一个 `setOperatorResumeScope` 口，⛔ 不为
+   * 它另开一条路。
+   * ⚠ 每次挂载都 `hydrate` 一次：面板会被收放法则（拍板 7）随时卸载，而「有未完成
+   * 计划」这句话必须在**重新展开的那一帧**就成立。读盘是同步的，⛔ 不值得为它做
+   * 「只读一次」的缓存。
+   * ⚠ ⛔ 卸载时**不清 scope**：清了它，收一下面板就会把内存里那份镜像抹掉，而
+   * 那正是 store 里 `setOperatorResumeScope(null)` 的行为。
+   */
+  useEffect(() => {
+    setOperatorResumeScope(domain)
+    hydrateOperatorResume()
+  }, [domain])
+
+  /**
+   * 「有未完成计划」此刻成不成立。
+   *
+   * ⚠ 判据是「还有下一步」而不是「有过一份计划」：跑完的那一份由驱动 hook 清掉，
+   * 但清盘失败（无痕模式）时镜像还在 —— 这一句是最后一道。
+   * ⚠ **域要对得上**：图片档批的计划⛔ 不在视频档上问「要继续吗」（那六步改的
+   *   全是图片表单上的旋钮）。
+   */
+  const { resumeStepNumber, resumeFailedReason } = useMemo(() => {
+    const active = resume && resume.domain === domain ? resume : null
+    return {
+      resumeStepNumber: active ? nextResumeStepNumber(active) : null,
+      resumeFailedReason: active ? failedResumeStep(active)?.reason : undefined,
+    }
+  }, [domain, resume])
   /**
    * `@` 的那条 chip 管线（§3.3 四入口）—— chips 住在 store（收放法则会卸载这颗
    * 组件），触发解析与选择器开合住在 hook 里。
@@ -802,6 +843,17 @@ export function StudioOperatorPanel({
                   .map((field) => t(`field.${field}`))
                   .join(' · ')}
                 onRevert={handleCheckpointRevert}
+                {...(resumeStepNumber !== null && block.runKey === latestRunKey
+                  ? {
+                      resume: {
+                        stepNumber: resumeStepNumber,
+                        ...(resumeFailedReason
+                          ? { failedReason: resumeFailedReason }
+                          : {}),
+                        onResume: resumePlan,
+                      },
+                    }
+                  : {})}
               />
             </StudioOperatorTimelineRow>
           ) : null}
@@ -1001,6 +1053,11 @@ export function StudioOperatorPanel({
         onNewThread={newThread}
         onOpenAssistantSettings={onOpenAssistantSettings}
         onCollapse={onCollapse}
+        {...(resumeStepNumber === null
+          ? {}
+          : {
+              resume: { stepNumber: resumeStepNumber, onResume: resumePlan },
+            })}
       />
 
       {/* ── 时间线沟（§11.3）──────────────────────────────────────

@@ -129,6 +129,21 @@ interface StudioOperatorProgressBandProps {
    */
   onOpenAssistantSettings(): void
   onCollapse(): void
+  /**
+   * **有未完成计划**（第三期 · 断点续跑）—— 刷新之后唯一还看得见的入口。
+   *
+   * ⭐ 它必须在带子上而不是只在流里：刷新之后线程是从库里载回来的**只读历史**
+   * （`state.history`），checkpoint 薄卡那一档在历史类型里根本不存在 —— 于是
+   * 「从第 N 步继续」在最需要它的那一刻（刚刷新完）一个入口都没有。
+   * ⚠ 只在**空闲**时露脸：正在跑的时候带子上写的是这一轮的进度，再挤一颗
+   *   「继续」按钮会让人以为要开第二条流。
+   * ⚠ 缺席 = 没有没跑完的计划，⛔ 不画停用态。
+   */
+  resume?: {
+    /** 1 起数。 */
+    stepNumber: number
+    onResume(): void
+  }
 }
 
 export function StudioOperatorProgressBand({
@@ -145,6 +160,7 @@ export function StudioOperatorProgressBand({
   onNewThread,
   onOpenAssistantSettings,
   onCollapse,
+  resume,
 }: StudioOperatorProgressBandProps) {
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
@@ -278,6 +294,22 @@ export function StudioOperatorProgressBand({
         >
           {bandTitle}
         </button>
+
+        {/* ── 有未完成计划（第三期 · 断点续跑）───────────────────────
+            ⚠ 长在标题右边、成本计数左边：它是一个**动作**，而右边那两样是注脚
+              与常驻入口 —— 动作排在注脚前面。
+            ⚠ `busy` 时整块不渲染（见 prop 头注）。 */}
+        {resume && !busy ? (
+          <button
+            type="button"
+            data-testid="operator-band-resume"
+            data-step={resume.stepNumber}
+            onClick={resume.onResume}
+            className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-2sm font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t('resume.band', { step: resume.stepNumber })}
+          </button>
+        ) : null}
 
         {/* ── 成本计数（切片 Y）────────────────────────────────────
             ⚠ 长在标题右边、齿轮左边：它是「这一轮花了多少」的注脚，⛔ 不挤进

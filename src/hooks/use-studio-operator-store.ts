@@ -40,6 +40,17 @@ import {
   createOperatorClaim,
   type StudioOperatorClaim,
 } from '@/lib/studio-operator-claim'
+import {
+  clearOperatorResume,
+  createResumePlan,
+  markResumeStep,
+  readOperatorResume,
+  writeOperatorResume,
+} from '@/lib/studio-operator-resume'
+import type {
+  StudioOperatorResumePlan,
+  StudioOperatorResumeStep,
+} from '@/types/studio-operator-resume'
 import type {
   StudioOperatorAttachment,
   StudioOperatorCardMention,
@@ -231,6 +242,17 @@ export interface StudioOperatorState {
   costs: Readonly<Record<AssistantCostTickKind, number>>
   /** hover 展开的那一列明细（最近 `STUDIO_OPERATOR_COST_DETAIL_LIMIT` 条）。 */
   costDetails: readonly StudioOperatorCostTick[]
+  /**
+   * **上一份还没跑完的计划**（第三期 · 断点续跑）。
+   *
+   * ⭐ 与那三张「等你定」的卡不同，它**活得比这一次挂载长**：真正的记录在
+   * localStorage 上（`lib/studio-operator-resume.ts`），这里只是那一份的镜像，
+   * 好让进度带与检查点卡直接读得到。刷新之后由外壳 `hydrateOperatorResume()`
+   * 填回来 —— 断点续跑的整个意义就在于「刷新之后还在」。
+   * ⚠ `null` 有两种意思：没有过计划，或者上一份已经跑完了。两者对 UI 是同一件事
+   *   （不露续跑入口），⛔ 不为此加第三档。
+   */
+  resume: StudioOperatorResumePlan | null
 }
 
 const EMPTY_COSTS: Readonly<Record<AssistantCostTickKind, number>> = {
@@ -278,6 +300,7 @@ const INITIAL_STATE: StudioOperatorState = {
   workingMemory: EMPTY_MEMORY,
   costs: EMPTY_COSTS,
   costDetails: [],
+  resume: null,
 }
 
 /**
@@ -1088,6 +1111,105 @@ export function setOperatorSession(
   emit({ ...state, sessionId, sessionSurface })
 }
 
+// ─── 断点续跑（第三期）────────────────────────────────────────────
+//
+// ⭐ **scope 与 runner 同族，不进 `state`**：它不是渲染要读的数据（渲染读的是
+// `state.resume`），进了 state 只会让外壳每次挂载都触发一次全面板重渲染。
+// ⚠ 没设过 scope 时**所有写入都是 no-op**：一份不知道该存到哪个项目下的计划
+// 存进一个默认键，下一次换项目就会问「要继续吗」而那份计划与眼前的画布无关。
+
+let resumeScope: string | null = null
+
+/**
+ * 这台工作台的续跑记录存哪一格（项目 id / 工作台 surface）。
+ *
+ * ⚠ 换 scope 时**顺手把镜像清掉**：留着上一个项目那份的表现是刚切过去的那一帧
+ * 里进度带写着「有未完成计划」，而它说的是上一个项目的事。真正该显示的那一份由
+ * 紧随其后的 `hydrateOperatorResume()` 填回来。
+ */
+export function setOperatorResumeScope(scope: string | null): void {
+  if (resumeScope === scope) return
+  resumeScope = scope
+  if (state.resume) emit({ ...state, resume: null })
+}
+
+export function getOperatorResumeScope(): string | null {
+  return resumeScope
+}
+
+/**
+ * 刷新之后把那一份读回来（外壳挂载时调一次）。
+ *
+ * ⚠ 读不动 / 过期 / 没存过一律填 `null` —— 判据全在 `readOperatorResume` 里，
+ * ⛔ 这里不再判一次。
+ */
+export function hydrateOperatorResume(now: number = Date.now()): void {
+  if (!resumeScope) return
+  const resume = readOperatorResume(resumeScope, now)
+  emit({ ...state, resume })
+}
+
+/**
+ * 计划卡刚被批准 —— 落一份新的续跑记录。
+ *
+ * ⚠ 每一份**整个顶掉**上一份，⛔ 不做「几份计划排队」：用户点「开始」时想的是
+ * 这一份，而一个能同时提示两份未完成计划的面板没有人读得懂。
+ */
+export function startOperatorResumePlan(input: {
+  planId: string
+  labels: readonly string[]
+  now?: number
+}): void {
+  if (!resumeScope) return
+  const resume = createResumePlan({
+    planId: input.planId,
+    domain: state.domain,
+    sessionId: state.sessionId,
+    labels: input.labels,
+    now: input.now ?? Date.now(),
+  })
+  if (!resume) return
+  writeOperatorResume(resumeScope, resume)
+  emit({ ...state, resume })
+}
+
+/**
+ * 某一步有结论了（做完 / 挂了）。
+ *
+ * ⚠ **先落盘再 emit**：反过来的话，写盘失败（无痕模式 / 配额满）时屏幕上写着
+ * 「4/6」而刷新之后一步都没有 —— 那种不一致没有任何人会去查。
+ * ⚠ 没有在飞的计划时整个是 no-op：没有计划的那一轮里每一步都来敲一次门，判在
+ * 这里一次好过让四个调用点各判一次。
+ */
+export function markOperatorResumeStep(
+  stepId: string,
+  patch: {
+    state: StudioOperatorResumeStep['state']
+    artifactIds?: readonly string[]
+    reason?: string
+  },
+  now: number = Date.now(),
+): void {
+  if (!resumeScope || !state.resume) return
+  const next = markResumeStep(state.resume, stepId, patch, now)
+  // ⚠ 同一个引用 = 那一步压根不在这份计划里（`markResumeStep` 的短路）。
+  if (next === state.resume) return
+  writeOperatorResume(resumeScope, next)
+  emit({ ...state, resume: next })
+}
+
+/**
+ * 这份计划到此为止（跑完了 / ＋新对话 / 用户不打算续了）。
+ *
+ * ⛔ **不留「已完成的历史计划」**：续跑记录的唯一用途是那颗按钮，跑完之后它只是
+ * 一格会过期的噪音。
+ */
+export function clearOperatorResumePlan(): void {
+  if (resumeScope) clearOperatorResume(resumeScope)
+  if (!state.resume) return
+  emit({ ...state, resume: null })
+}
+
 /**
  * 新对话（拍板 10 的「＋新对话」）。
  *
@@ -1135,5 +1257,13 @@ export function resetOperatorThread(): void {
     workingMemory: EMPTY_MEMORY,
     costs: EMPTY_COSTS,
     costDetails: [],
+    /**
+     * ⭐ 续跑记录也跟着会话走：那份没跑完的计划是**上一个话题**的事，留在新话题
+     * 里的表现是一颗「从第 4 步继续」按钮，点下去助手接着做用户已经翻篇的活。
+     * ⚠ 盘上那一格由 `clearOperatorResumePlan()` 清 —— 只清内存镜像的话，刷新
+     *   之后它自己又回来了。
+     */
+    resume: null,
   })
+  clearOperatorResumePlan()
 }

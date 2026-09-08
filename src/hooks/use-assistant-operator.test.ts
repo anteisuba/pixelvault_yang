@@ -1255,3 +1255,103 @@ describe('正文流式累积与占位行', () => {
     expect(store.getOperatorState().status).toBe('error')
   })
 })
+
+/**
+ * **断点续跑**（第三期）—— 这一组钉的是**接线**：计划一开跑就落记录、
+ * 一步有结论就改记录、点「继续」发的是 `resumeFrom` + `planApproved: true`。
+ *
+ * ⛔ 钱闸不在这一组里验（它在 `assistant-operator.money-gate.test.ts` 与服务端
+ * 用例里）：这一层根本不知道哪一步要花钱。
+ */
+describe('断点续跑', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    store.setOperatorResumeScope('image')
+  })
+
+  /** 计划直接开跑（不出卡）的那一支 —— `plan` 帧之后紧跟一个别的帧。 */
+  function startPlan(steps: number): void {
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.plan,
+      steps: Array.from({ length: steps }, (_, index) => `第 ${index + 1} 步`),
+    } as AssistantOperatorEvent)
+  }
+
+  it('⭐ 计划一开跑就落一份续跑记录（每步 pending）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('分三步做')
+    })
+    await settle()
+    startPlan(3)
+    streams[0].emit(doneStepEvent('step-1'))
+    await settle()
+
+    const resume = store.getOperatorState().resume
+    expect(resume?.steps).toHaveLength(3)
+    // 第一步已经有结论了，其余还没。
+    expect(resume?.steps.map((step) => step.state)).toEqual([
+      'done',
+      'pending',
+      'pending',
+    ])
+  })
+
+  it('⭐ 点「继续」发 resumeFrom + planApproved:true，⛔ 不再带 forcePlan', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('分三步做')
+    })
+    await settle()
+    startPlan(3)
+    streams[0].emit(doneStepEvent('step-1'))
+    await settle()
+    streams[0].fail(new Error('boom'))
+    await settle()
+
+    act(() => {
+      result.current.resumePlan()
+    })
+    await settle()
+
+    const sent = streamAssistantOperatorAPI.mock.calls[1]?.[0]
+    expect(sent.planApproved).toBe(true)
+    expect(sent.forcePlan).toBeUndefined()
+    expect(sent.resumeFrom.completedSteps).toHaveLength(1)
+    expect(sent.resumeFrom.completedSteps[0].label).toBe('第 1 步')
+  })
+
+  it('一步都没做完时「继续」是 no-op（那是重跑，不是续跑）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('分三步做')
+    })
+    await settle()
+    startPlan(3)
+    await settle()
+
+    act(() => {
+      result.current.resumePlan()
+    })
+    await settle()
+    expect(streamAssistantOperatorAPI.mock.calls).toHaveLength(1)
+  })
+
+  it('⭐ 每一步都跑完之后记录整条清掉（⛔ 不留一颗点了会重做的按钮）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('分两步做')
+    })
+    await settle()
+    startPlan(2)
+    streams[0].emit(doneStepEvent('step-1'))
+    streams[0].emit(doneStepEvent('step-2'))
+    streams[0].close()
+    await settle()
+
+    expect(store.getOperatorState().resume).toBeNull()
+    expect(
+      localStorage.getItem('pixelvault.studio.operatorResume.v1.image'),
+    ).toBeNull()
+  })
+})

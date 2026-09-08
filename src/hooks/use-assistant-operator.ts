@@ -82,8 +82,11 @@ import {
   setOperatorCapturingFrames,
   setOperatorChoice,
   setOperatorConfirm,
+  clearOperatorResumePlan,
+  markOperatorResumeStep,
   setOperatorPlan,
   setOperatorPlannedSteps,
+  startOperatorResumePlan,
   setOperatorSpend,
   setOperatorStatus,
   switchOperatorDomain,
@@ -108,11 +111,17 @@ import {
   historyToPriorSteps,
 } from '@/lib/studio-operator-history'
 import { shouldShowPlanCard } from '@/lib/studio-operator-plan'
+import {
+  firstUnfinishedStepId,
+  hasUnfinishedSteps,
+  toResumeFrom,
+} from '@/lib/studio-operator-resume'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
   AssistantOperatorConfirmDecision,
   AssistantOperatorMessage,
   AssistantOperatorPlanAnswer,
+  AssistantOperatorResumeFrom,
   AssistantOperatorPriorStep,
   AssistantOperatorRequest,
   AssistantOperatorResult,
@@ -327,6 +336,13 @@ interface RunOptions {
   planApproved?: boolean
   /** 缺省读 store 的「先问我」；计划卡续跑时显式给 `false`（那张卡已经问过了）。 */
   forcePlan?: boolean
+  /**
+   * **断点续跑**（第三期）—— 从上一份没跑完的计划接着跑。
+   *
+   * ⚠ 带着它的那一轮**不重新落一份续跑记录**：那份记录里已经记着前几步做完了，
+   * 重新落等于把它们抹掉，于是第二次中断之后又要从头开始。
+   */
+  resumeFrom?: AssistantOperatorResumeFrom
 }
 
 export interface UseAssistantOperatorResult {
@@ -350,6 +366,15 @@ export interface UseAssistantOperatorResult {
   answerQuestions(answers: StudioOperatorQuestionAnswer[]): void
   /** 计划卡「修改」（§3.1 ⑤）—— ⛔ 不发请求，只记下「下一条消息是改计划」。 */
   revisePlan(): void
+  /**
+   * **从断点接着跑**（第三期）—— 检查点卡 / 进度带上那颗「从第 N 步继续」。
+   *
+   * ⚠ ⛔ **不重新弹计划卡**：那份计划当初就是用户批过的（`planApproved: true`
+   * 沿用）。但**花钱步照常走 `spend_request` 硬确认** —— 续跑不是免检通道
+   * （owner 2026-09-07 定）。
+   * ⚠ 没有未完成的计划时是 no-op：那颗按钮本来就不该在。
+   */
+  resumePlan(): void
   /** 花钱硬确认卡「生成」（§3.1 ⑰）—— 勾了「不再问」就顺手记条子。 */
   answerSpend(input: { rememberForSession: boolean }): void
   /** 花钱硬确认卡「取消」—— 流已经停了，只把卡收掉。 */
@@ -509,7 +534,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    */
   const run = useCallback(
     async (options: RunOptions = {}) => {
-      const { confirmations, planAnswers, planApproved } = options
+      const { confirmations, planAnswers, planApproved, resumeFrom } = options
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -552,11 +577,22 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       let pendingPlanSteps: readonly string[] | null = null
       const flushPlanEntry = () => {
         if (!pendingPlanSteps) return
+        const planId = nextOperatorEntryId('plan')
         appendOperatorEntry({
           kind: 'plan',
-          id: nextOperatorEntryId('plan'),
+          id: planId,
           steps: pendingPlanSteps,
         })
+        /**
+         * ⭐ **续跑记录就落在这里**（第三期）：这一帧的含义正是「这份计划要开跑
+         * 了」——出卡那一支根本走不到这儿（卡还钉着，一步都没开始），而不出卡与
+         * 点过「开始」两条路都从这里过。⛔ 别改到 `answerQuestions` 里去落：
+         * 那样「步数不够、没出卡」的那一类多步计划一份记录都不会有。
+         * ⚠ 续跑那一轮**不重落**：记录里前几步的 done 就是它存在的全部理由。
+         */
+        if (!resumeFrom) {
+          startOperatorResumePlan({ planId, labels: pendingPlanSteps })
+        }
         pendingPlanSteps = null
       }
 
@@ -783,6 +819,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           ...(planApproved === undefined ? {} : { planApproved }),
           ...(forcePlan ? { forcePlan: true } : {}),
           /**
+           * ⭐ **断点续跑**（第三期）：前几步的既成事实。⛔ 它不放宽钱闸 ——
+           * 剩下的步里但凡有一步花钱，`spend_request` 照出（owner 定）。
+           */
+          ...(resumeFrom ? { resumeFrom } : {}),
+          /**
            * 「本会话此类不再问」的条子（§6 拍板 24）。⚠ 服务端**逐条核**（同模型 +
            * 金额不超上次），核不过就照旧吐 `spend_request` —— 客户端这一侧不做任何
            * 判断，⛔ 别在这里先比一次：两处判据迟早说两句不一样的话，而说错的那
@@ -962,6 +1003,44 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                *   计划卡），记在后面的话那几条路上这一步的产物就丢了。
                */
               recordOperatorArtifacts(runKey, collectStepArtifacts(step))
+              /**
+               * ⭐ **续跑记录跟着走**（第三期）：这一步有结论了，把计划里第一个
+               * 还没有结论的那一格填掉。
+               *
+               * ⚠ 映射按「第一个未完成」而不是按下标（见 `firstUnfinishedStepId`
+               * 的头注）：工具步与计划步不是一一对应的，按下标配的表现是模型多跑
+               * 一步、后面每一格的状态错位一整格。
+               * ⚠ `running` 不落：三态里没有那一档，落了它刷新之后会变成一句
+               *   「这一步做完了」——而它并没有。
+               */
+              if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running) {
+                const resume = getOperatorState().resume
+                const resumeStepId = resume
+                  ? firstUnfinishedStepId(resume)
+                  : null
+                if (resumeStepId) {
+                  if (
+                    step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
+                  ) {
+                    /**
+                     * ⚠ 那句原因取的是**被拒的理由**（`error.detail` 优先，否则
+                     * 那条 reason 码）：⛔ 别写一句「这一步失败了」—— 续跑按钮
+                     * 旁边唯一有用的信息就是它为什么挂。
+                     */
+                    markOperatorResumeStep(resumeStepId, {
+                      state: 'failed',
+                      reason: step.error.detail ?? step.error.reason,
+                    })
+                  } else {
+                    markOperatorResumeStep(resumeStepId, {
+                      state: 'done',
+                      artifactIds: collectStepArtifacts(step).map(
+                        (artifact) => artifact.id,
+                      ),
+                    })
+                  }
+                }
+              }
               // ⭐ 只在 `done` 那一次应用：`running` 也应用就会改两遍
               //    （append 类的会追加两次，而那是看得见的）。
               // ⚠ `status === 'done'` 同时把类型收窄成「应用过的那一支」——
@@ -1132,6 +1211,16 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       // `done` 之后没有别的收尾 —— 状态没被 `stopped` / `error` 改过就是跑完了。
       if (getOperatorState().status === 'working') setOperatorStatus('idle')
       /**
+       * ⭐ **跑完了就把续跑记录清掉**（第三期）。
+       *
+       * ⚠ 判据是「每一步都 done」而不是「这一轮没报错」：一轮跑完不等于计划跑完
+       * （工具步 8 个上限撞到过、模型自己收尾过）。留着那颗按钮的表现是用户点
+       * 「从第 4 步继续」，而第 4 步早就做完了 —— 助手把同一件事又做一遍。
+       * ⛔ 报错 / 被 ⏹ 掐掉的那一支**不清**：那正是它存在的理由。
+       */
+      const finished = getOperatorState().resume
+      if (finished && !hasUnfinishedSteps(finished)) clearOperatorResumePlan()
+      /**
        * 一步都没跑就收尾的那种轮次（纯说话、或最后一步之后才排上队）——
        * 停顿点没来过，队列会在这里被接住。
        * ⛔ `awaitingConfirm` / `error` 时**不接**：前者要用户先回答（接了等于替他
@@ -1288,6 +1377,26 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   )
 
   /**
+   * **从断点接着跑**（第三期 · 断点续跑）。
+   *
+   * ⭐ 三件事，缺一不可：
+   *  ① `resumeFrom` —— 已经做完的那几步（服务端据此不重跑、不重规划）；
+   *  ② `planApproved: true` —— ⛔ 不再弹一次计划卡（那份计划批过了）；
+   *  ③ `forcePlan: false` —— 同一条论据：「先问我」在续跑这一轮里会把卡叫回来。
+   *
+   * ⛔ **钱闸一个字都不动**：剩下的步里有生成，`spend_request` 照出、硬确认卡
+   * 照钉。判据不在这里，在服务端的工具表 —— 这里连「这一步要不要花钱」都不知道。
+   */
+  const resumePlan = useCallback(() => {
+    const resume = getOperatorState().resume
+    if (!resume) return
+    const resumeFrom = toResumeFrom(resume)
+    // ⚠ 一步都没做完 = 这不是续跑而是重跑，⛔ 别发一份服务端会拒的空清单。
+    if (!resumeFrom) return
+    void run({ resumeFrom, planApproved: true, forcePlan: false })
+  }, [run])
+
+  /**
    * 计划卡「修改」（§3.1 ⑤）—— ⛔ **不发请求**。
    *
    * 面板把输入框预填成「修改计划：」并聚焦；用户按发送时那条消息带
@@ -1433,6 +1542,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     answerConfirm,
     answerQuestions,
     revisePlan,
+    resumePlan,
     answerSpend,
     cancelSpend,
     answerChoice,

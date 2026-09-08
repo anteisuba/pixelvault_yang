@@ -5719,6 +5719,14 @@
         "chooseSlot": "どのスロットに？",
         "chooseSlotCancel": "キャンセル"
       }
+    },
+    "rerunDownstream": {
+      "title": "「{origin}」を変更 → 下流 {count} 件が再実行対象",
+      "free": "クレジット不要",
+      "estimate": "クレジットが必要：{summary}",
+      "noCost": "このバッチはクレジットを使いません",
+      "menu": "下流を再実行",
+      "ask": "「{name}」を変更しました。その下流だけを再実行したいので、まず一覧を出してください。"
     }
   },
   "StudioMobile": {
@@ -7255,6 +7263,11 @@
       "tainted-canvas": "クロスオリジンのためキャンバスから画素を取得できません",
       "timeout": "フレーム抽出がタイムアウトしました",
       "encode-failed": "フレームのエンコードに失敗しました"
+    },
+    "resume": {
+      "continue": "ステップ {step} から続行",
+      "failed": "失敗：{reason}",
+      "band": "未完了の計画 · ステップ {step} から続行"
     }
   },
   "GenerationCancel": {

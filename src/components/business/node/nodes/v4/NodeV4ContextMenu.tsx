@@ -20,6 +20,8 @@ import { NODE_V4_CONTEXT_MENU } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import { requestCanvasRerunDownstream } from '@/lib/canvas-rerun-request'
+import { collectDownstream } from '@/lib/node-downstream'
 import type { NodeV4 } from '@/types/node-workflow'
 
 import { useNodeV4Canvas } from './NodeV4Context'
@@ -42,8 +44,19 @@ export function NodeV4ContextMenu({
   onClose,
 }: NodeV4ContextMenuProps) {
   const t = useTranslations('StudioNode.v4')
+  const tRerun = useTranslations('StudioNode.rerunDownstream')
   const canvas = useNodeV4Canvas()
   const ref = useRef<HTMLDivElement>(null)
+  /**
+   * 「重跑下游」露不露脸（第三期）。
+   *
+   * ⚠ 一个下游都没有就**不渲染**（⛔ 不画停用态，`ui-defaults.md` 状态配方）：
+   * 画布上大半节点是叶子，给每一个都摆一颗点了什么都不会发生的按钮，菜单立刻
+   * 变成噪音。
+   * ⚠ 现算而不是 memo：菜单只在打开的那一帧渲染一次，而 memo 的依赖数组反而会
+   *   在边表变化时给出一份过期的答案。
+   */
+  const hasDownstream = collectDownstream(node.id, canvas.edges).length > 0
 
   // Esc 关闭 + 点外部关闭。⚠ 用 capture：ReactFlow 在冒泡阶段吃掉画布上的点击。
   useEffect(() => {
@@ -97,6 +110,23 @@ export function NodeV4ContextMenu({
             : { shotNo: node.data.shotNo }),
         }),
     },
+    /**
+     * **重跑下游**（第三期，owner 2026-09-07 定）。
+     *
+     * ⭐ 它**不直接生成**：投一张便条给助手 dock，由助手先出一份只读名单
+     * （`plan_rerun_downstream`），用户看过再决定。⛔ 不从这里开一条绕过助手与
+     * 钱闸的重跑路径 —— 那正是这条入口最容易长歪的方向。
+     */
+    ...(hasDownstream
+      ? [
+          {
+            id: 'rerunDownstream',
+            startsGroup: true,
+            label: tRerun('menu'),
+            run: () => requestCanvasRerunDownstream(node.id),
+          },
+        ]
+      : []),
     {
       id: 'tidy',
       label: t('toolbar.tidy'),

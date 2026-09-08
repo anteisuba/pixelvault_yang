@@ -13,7 +13,8 @@ describe('v4 op 表（spec §5）', () => {
   it('20 条 op 全部有一条 spec，且 spec 里没有词表外的 op', () => {
     // C3c-②Q 新增两条：`set_voice_profile` / `set_merge_clips`（嵌套载荷，
     // 不并进 `set_field`，理由见 `NODE_ASSISTANT_OP_V4_IDS` 上的注释）。
-    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(20)
+    // 第三期加一条只读的 `plan_rerun_downstream`（只列名单，不改图不花钱）。
+    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(21)
     expect(Object.keys(NODE_ASSISTANT_OP_V4_SPECS).sort()).toEqual(
       [...NODE_ASSISTANT_OPS_V4].sort(),
     )

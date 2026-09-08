@@ -259,3 +259,39 @@ describe('StudioOperatorProgressBand · 成本计数', () => {
     )
   })
 })
+
+/**
+ * **有未完成计划**（第三期 · 断点续跑）—— 刷新之后唯一还看得见的续跑入口。
+ */
+describe('续跑入口', () => {
+  it('缺席时⛔ 一颗按钮都不画', () => {
+    renderBand({ working: false })
+    expect(screen.queryByTestId('operator-band-resume')).toBeNull()
+  })
+
+  it('空闲时画出来，点了把命令交出去', () => {
+    const onResume = vi.fn()
+    renderBand({ working: false, resume: { stepNumber: 3, onResume } })
+    const button = screen.getByTestId('operator-band-resume')
+    expect(button.dataset.step).toBe('3')
+    fireEvent.click(button)
+    expect(onResume).toHaveBeenCalledTimes(1)
+  })
+
+  it('⭐ 正在跑的时候不画：带子上写的是这一轮的进度，⛔ 不许再摆一颗「继续」', () => {
+    renderBand({
+      working: true,
+      resume: { stepNumber: 3, onResume: vi.fn() },
+    })
+    expect(screen.queryByTestId('operator-band-resume')).toBeNull()
+  })
+
+  it('等计划确认的时候也不画（球在用户脚下，不是断点）', () => {
+    renderBand({
+      working: false,
+      awaitingPlan: true,
+      resume: { stepNumber: 3, onResume: vi.fn() },
+    })
+    expect(screen.queryByTestId('operator-band-resume')).toBeNull()
+  })
+})

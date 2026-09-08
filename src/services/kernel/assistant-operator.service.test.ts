@@ -4795,6 +4795,102 @@ describe('计划卡协议 · plan_request', () => {
     expect(lastUserPrompt()).toContain('question-1: option-1-1')
   })
 
+  /**
+   * **断点续跑**（第三期）—— 三条判据：已完成的步进提示、产物按名字念、
+   * ⛔ 不再摆 plan_request。
+   */
+  it('⭐ resumeFrom 把已完成的步当既成事实喂回去，并要求接着跑', async () => {
+    queueTurns({ plan: ['接着跑'] }, { finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          resumeFrom: {
+            planId: 'plan-7',
+            completedSteps: [
+              { id: 'plan-7:0', label: '读取表单' },
+              {
+                id: 'plan-7:1',
+                label: '写提示词',
+                artifactIds: ['gen-42'],
+              },
+            ],
+          },
+        }),
+      ),
+    )
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('RESUMING AN APPROVED PLAN')
+    expect(prompt).toContain('[1] 读取表单')
+    expect(prompt).toContain('[2] 写提示词')
+  })
+
+  it('⭐ 产物按**名字**念（工作记忆水合），水合不到才退回 id', async () => {
+    queueTurns({ plan: ['接着跑'] }, { finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          workingMemory: {
+            rounds: [
+              {
+                runKey: 'run-1',
+                at: '2026-09-08T09:00:00.000Z',
+                artifacts: [
+                  {
+                    id: 'gen-42',
+                    displayName: '图_012·银发少女',
+                    kind: 'result',
+                  },
+                ],
+              },
+            ],
+          },
+          resumeFrom: {
+            planId: 'plan-7',
+            completedSteps: [
+              {
+                id: 'plan-7:1',
+                label: '生成 4 张',
+                artifactIds: ['gen-42', 'gen-unknown'],
+              },
+            ],
+          },
+        }),
+      ),
+    )
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('图_012·银发少女')
+    // ⚠ 水合不到的那一条显示 id —— ⛔ 不是一行空白。
+    expect(prompt).toContain('gen-unknown')
+  })
+
+  it('⭐ 续跑那一轮⛔ 不再摆 plan_request（用户已经批过一次了）', async () => {
+    queueTurns({ plan: ['接着跑', '再写一遍', '第三步'] }, { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          resumeFrom: {
+            planId: 'plan-7',
+            completedSteps: [{ id: 'plan-7:0', label: '读取表单' }],
+          },
+        }),
+      ),
+    )
+    expect(
+      events.some(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
+      ),
+    ).toBe(false)
+  })
+
+  it('没有 resumeFrom 的那一轮提示里一个字都不提续跑', async () => {
+    queueTurns({ plan: ['普通一轮'] }, { finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest({})))
+    expect(lastUserPrompt()).not.toContain('RESUMING AN APPROVED PLAN')
+  })
+
   it('planApproved=false 那一支照旧摆 plan_request（那就是要重新规划）', async () => {
     queueTurns({ plan: ['重新来一版', '再写一遍提示词'] }, { finished: true })
     const events = await collect(

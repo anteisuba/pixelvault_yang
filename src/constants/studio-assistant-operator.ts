@@ -588,3 +588,33 @@ export const STUDIO_VIDEO_SLOT_SIZE_PX = 72
  * `ASSISTANT_WORKING_MEMORY`。
  */
 export const STUDIO_OPERATOR_COST_DETAIL_LIMIT = 12
+
+/**
+ * **断点续跑**（第三期，owner 2026-09-07 定「失败断点续跑 / 只重跑下游」）。
+ *
+ * ── 为什么这几个数住面板侧而不是协议侧 ────────────────────────────────
+ * 服务端只收 `resumeFrom`（`planId` + 已完成步），它一个 localStorage 键都不认识。
+ * 「上次那份计划存在哪、存几步、按哪个项目分隔」全是客户端一侧的事 —— 服务端
+ * 零会话态（§1）在续跑上没有任何例外，所以这块的家在这份面板词表里。
+ *
+ * ⚠ 步数与产物条数的上限**不在这里** —— 它们是 `resumeFrom` 载荷的形状，家在
+ * `constants/assistant-operator.ts` 的 `ASSISTANT_OPERATOR_RESUME_LIMITS`。
+ * ⚠ `keyPrefix` 后面**必须再拼一段 scope**（项目 id / 工作台 surface）：一个全局
+ * 键的下场是在 A 项目里失败的那份计划，跑到 B 项目的面板上问「要继续吗」——
+ * 而那份计划里的每一个产物 id 在 B 项目里都不存在。
+ * ⚠ 键里带 `v1`：这份结构以后会变，而一份读不动的旧值应当被整条丢掉
+ * （`readOperatorResume` 解不出来就返回 null），⛔ 不做迁移分支。
+ */
+export const STUDIO_OPERATOR_RESUME = {
+  keyPrefix: 'pixelvault.studio.operatorResume.v1',
+} as const
+
+/**
+ * 续跑记录的**保质期**：超过这个岁数的一份计划不再提示「有未完成计划」。
+ *
+ * ⭐ 24 小时的判据是「同一个创作时段」。一份三天前失败的计划，其中每一步引用的
+ * 表单值、参考图、模型档位大概率都已经不是现在这一份了 —— 照着它续跑等于按一份
+ * 过期的快照花钱。⛔ 别做成永不过期：那颗按钮会在某天突然出现，而用户完全想不
+ * 起它说的是哪件事。
+ */
+export const STUDIO_OPERATOR_RESUME_TTL_MS = 24 * 60 * 60 * 1000

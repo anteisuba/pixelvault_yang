@@ -68,6 +68,8 @@ interface CanvasOpProposalCardProps {
 const OP_ICONS: Record<NodeAssistantOpV4Id, LucideIcon> = {
   [NODE_ASSISTANT_OP_V4_IDS.readCanvas]: Film,
   [NODE_ASSISTANT_OP_V4_IDS.findNode]: Film,
+  // ⚠ 只读规划：图标与 `generate` 分得开 —— 它列名单，不出图。
+  [NODE_ASSISTANT_OP_V4_IDS.planRerunDownstream]: ListOrdered,
   [NODE_ASSISTANT_OP_V4_IDS.addNode]: Plus,
   [NODE_ASSISTANT_OP_V4_IDS.connect]: Link2,
   [NODE_ASSISTANT_OP_V4_IDS.disconnect]: Link2Off,

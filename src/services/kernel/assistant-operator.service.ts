@@ -4165,6 +4165,33 @@ ${run.request.priorSteps
   }
 
   /**
+   * **断点续跑**（第三期）—— 「这几步已经做完了，别再做一遍」。
+   *
+   * ⭐ 它压在计划那一段**之前**：模型读到的第一件事应当是既成事实，然后才是
+   * 「用户批过什么」。反过来的顺序里，模型常常照着计划从第一步重新排一遍，而
+   * 前几步的产物在下一段才出现 —— 它已经决定重做了。
+   * ⚠ 每一步只念 `label` 与产物的**名字**（`workingMemoryIndex` 水合得到），
+   * ⛔ 不念 id：名字是用户和它共用的那套称呼（切片 N1），id 两边都核对不了。
+   *   水合不到就退回 id 原文 —— 显示一个 id，永远好过显示一行空白。
+   * ⛔ **续跑不放宽钱闸**：这一段一个字都没提「可以直接生成」。剩下的步里但凡
+   *   有一步花钱，`spend_request` 照出（owner 2026-09-07 定）。
+   */
+  if (run.request.resumeFrom) {
+    const done = run.request.resumeFrom.completedSteps.map((step, index) => {
+      const artifacts = (step.artifactIds ?? [])
+        .map((id) => run.workingMemoryIndex.get(id)?.displayName ?? id)
+        .join(', ')
+      return `- [${index + 1}] ${step.label}${artifacts ? ` → produced: ${artifacts}` : ''}`
+    })
+    sections.push(
+      [
+        'YOU ARE RESUMING AN APPROVED PLAN THAT WAS INTERRUPTED. The steps below are ALREADY DONE — their results exist and are part of the current state. Do NOT redo them, do NOT re-plan from the start, and do NOT ask the creator to approve the plan again. Pick up at the first step that is not listed and carry on. Anything those steps produced is yours to build on; refer to it by the name printed here.',
+        ...done,
+      ].join('\n'),
+    )
+  }
+
+  /**
    * 计划卡的回答（§2.6 / §3.1 ③–⑤）。⚠ 与 `confirmations` 走同一条通道 ——
    * 「带上下文重发」，服务端照旧零会话态。
    * ⭐ **「修改」那一支要说得出口**：`planApproved === false` 时这一段的最后一行
@@ -4731,7 +4758,14 @@ export async function* runAssistantOperator(
            * 正是**重新规划**，照旧出卡。
            * ⚠ `plan` 帧照旧发 —— 进度带要用。
            */
-          const planApproved = request.planApproved === true
+          /**
+           * ⚠ **续跑等同已批准**（第三期）：那份计划当初就是用户点过「开始」的
+           * 那一份，中途断了不会让它重新变成待批。客户端确实也会带
+           * `planApproved: true`（`resumePlan()`），这里再认一次 `resumeFrom` 是
+           * 因为「续跑却弹出一张计划卡」这条失败太贵 —— 用户会以为前几步白跑了。
+           */
+          const planApproved =
+            request.planApproved === true || request.resumeFrom !== undefined
           if (planApproved) {
             /**
              * ⛔ 用户已经批过了，⛔ 不要再拦一次：模型这一轮又给出的反问题一律丢掉，

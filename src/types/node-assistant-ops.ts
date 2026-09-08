@@ -337,6 +337,21 @@ export const NodeAssistantFindNodeOpSchema = z.object({
   shotNo: z.number().int().min(1).max(999).optional(),
 })
 
+/**
+ * **只重跑下游**的只读规划（第三期）。
+ *
+ * ⚠ 载荷只有一个起点：下游是**图算出来的**（`lib/node-downstream.ts` 的
+ * `collectDownstream`），⛔ 不让模型自己列一份名单 —— 让它列的下场是漏一个分支
+ * （用户拿到一份前后不一致的成片）或多列一个无关分支（多花一份钱）。
+ * ⚠ `includeSelf` 默认 false：用户刚换上去的那一个不该被盖掉（判据与
+ * `collectDownstream` 头注第②条同源）。
+ */
+export const NodeAssistantPlanRerunDownstreamOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.planRerunDownstream),
+  target: NodeAssistantOpTargetSchema,
+  includeSelf: z.boolean().optional(),
+})
+
 export const NodeAssistantAddNodeV4OpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_V4_IDS.addNode),
   kind: z.enum(NODE_MEDIA_KINDS),
@@ -579,6 +594,7 @@ export const NodeAssistantGenerateV4OpSchema = z.object({
 export const NodeAssistantOpV4Schema = z.discriminatedUnion('op', [
   NodeAssistantReadCanvasOpSchema,
   NodeAssistantFindNodeOpSchema,
+  NodeAssistantPlanRerunDownstreamOpSchema,
   NodeAssistantAddNodeV4OpSchema,
   NodeAssistantConnectV4OpSchema,
   NodeAssistantDisconnectOpSchema,

@@ -5719,6 +5719,14 @@
         "chooseSlot": "落到哪个口？",
         "chooseSlotCancel": "取消"
       }
+    },
+    "rerunDownstream": {
+      "title": "改了「{origin}」→ 下游 {count} 个要重跑",
+      "free": "不花积分",
+      "estimate": "预估会花积分的：{summary}",
+      "noCost": "这一批都不花积分",
+      "menu": "重跑下游",
+      "ask": "我把「{name}」改了，只重跑它的下游，先给我名单。"
     }
   },
   "StudioMobile": {
@@ -7255,6 +7263,11 @@
       "tainted-canvas": "视频跨域被挡，画布取不到像素",
       "timeout": "抽帧超时",
       "encode-failed": "帧编码失败"
+    },
+    "resume": {
+      "continue": "从第 {step} 步继续",
+      "failed": "失败：{reason}",
+      "band": "有未完成计划 · 从第 {step} 步继续"
     }
   },
   "GenerationCancel": {

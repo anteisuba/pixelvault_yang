@@ -31,6 +31,7 @@ import {
   ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS,
   ASSISTANT_OPERATOR_REFERENCE_SLOTS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
+  ASSISTANT_OPERATOR_RESUME_LIMITS as RESUME_LIMITS,
   ASSISTANT_OPERATOR_SEARCH_KINDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_STOP_REASONS,
@@ -795,6 +796,58 @@ export type AssistantOperatorWorkingMemoryArtifact = z.infer<
   typeof AssistantOperatorWorkingMemoryArtifactSchema
 >
 
+/**
+ * **断点续跑**的续跑凭据（客户端 → 服务端，第三期）。
+ *
+ * ⭐ 它答的是一个具体的失败：一份六步的计划跑到第四步断了（网络掉线 / 刷新 /
+ * provider 抽风），用户再说一句「继续」，服务端零会话态 —— 它对前三步一无所知，
+ * 于是从头再规划一遍，前三步已经花掉的时间和 credits 白花一次。
+ *
+ * ⚠ **只带「做完了什么」，不带「接下来做什么」**：`completedSteps` 是既成事实，
+ * 而剩下的步由模型重新看一眼现场再定 —— 那三步之后表单已经变了，照着一份陈旧的
+ * 待办清单往下跑，跑的是一个不存在的现场。
+ * ⚠ 每一步只带 `label` 与产物 id：⛔ 不搬产物内容（那是 `workingMemory` 的活，
+ * 两处都搬等于同一段 token 付两遍钱）。
+ * ⛔ **续跑不是花钱的免检通道**：`resumeFrom` 一个字都不影响 `spend_request` ——
+ * 剩下的步里但凡有一步要花钱，硬确认卡照出（owner 2026-09-07 定）。判据写在
+ * `assistant-operator.money-gate.test.ts` 里。
+ */
+export const AssistantOperatorResumeStepSchema = z.object({
+  id: IdSchema,
+  /** 这一步在计划卡上写的那句话 —— 提示里念的就是它。 */
+  label: LabelSchema,
+  /**
+   * 这一步落下来的东西（generation id / asset id）。
+   * ⚠ 可空：`read_state` 这类步做完了也不产出任何可指认的东西。
+   */
+  artifactIds: z
+    .array(IdSchema)
+    .max(RESUME_LIMITS.maxArtifactsPerStep)
+    .optional(),
+})
+
+export const AssistantOperatorResumeFromSchema = z.object({
+  /** 客户端给的那份计划的身份 —— 服务端只把它当不透明串回显进提示。 */
+  planId: IdSchema,
+  /**
+   * 已经做完的那几步，**按原顺序**。
+   * ⚠ `.min(1)`：一步都没做完的「续跑」就是普通的重跑，⛔ 别让它带着一份空清单
+   * 上来 —— 那会让提示里出现一段「你已经完成了：（空）」。
+   */
+  completedSteps: z
+    .array(AssistantOperatorResumeStepSchema)
+    .min(1)
+    .max(RESUME_LIMITS.maxSteps),
+})
+
+export type AssistantOperatorResumeStep = z.infer<
+  typeof AssistantOperatorResumeStepSchema
+>
+
+export type AssistantOperatorResumeFrom = z.infer<
+  typeof AssistantOperatorResumeFromSchema
+>
+
 export const AssistantOperatorRequestSchema = z.object({
   messages: z.array(AssistantOperatorMessageSchema).min(1),
   domain: AssistantOperatorDomainSchema,
@@ -842,6 +895,12 @@ export const AssistantOperatorRequestSchema = z.object({
   planApproved: z.boolean().optional(),
   /** 输入区那颗「先问我」（§3.3）。开着 = 本轮无条件先出计划卡。 */
   forcePlan: z.boolean().optional(),
+  /**
+   * 从上一份没跑完的计划**接着跑**（第三期）。见 schema 头注。
+   *
+   * ⚠ 缺席 = 这一轮不是续跑（新话题 / 老客户端），一切照旧。
+   */
+  resumeFrom: AssistantOperatorResumeFromSchema.optional(),
   /** 「本会话此类不再问」的条子（§6 拍板 24）。见 schema 头注。 */
   autoApprove: AssistantOperatorAutoApproveSchema.optional(),
   /**

@@ -5719,6 +5719,14 @@
         "chooseSlot": "Which slot?",
         "chooseSlotCancel": "Cancel"
       }
+    },
+    "rerunDownstream": {
+      "title": "Changed \"{origin}\" → {count} downstream nodes to rerun",
+      "free": "no credits",
+      "estimate": "Would spend credits on: {summary}",
+      "noCost": "None of these spend credits",
+      "menu": "Rerun downstream",
+      "ask": "I changed \"{name}\". Rerun only what is downstream of it — list them first."
     }
   },
   "StudioMobile": {
@@ -7255,6 +7263,11 @@
       "tainted-canvas": "the video is cross-origin, so the canvas stayed blank",
       "timeout": "frame capture timed out",
       "encode-failed": "the frames could not be encoded"
+    },
+    "resume": {
+      "continue": "Continue from step {step}",
+      "failed": "Failed: {reason}",
+      "band": "Unfinished plan · continue from step {step}"
     }
   },
   "GenerationCancel": {

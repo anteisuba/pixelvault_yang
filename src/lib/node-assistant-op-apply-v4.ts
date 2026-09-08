@@ -159,6 +159,12 @@ export function applyNodeAssistantOpV4(
   switch (op.op) {
     case ids.readCanvas:
     case ids.findNode:
+    /**
+     * ⚠ 只重跑下游的规划**同样不改图**（第三期）：它只是把「哪些节点要重跑」
+     * 算出来给用户看。真正的重跑是紧随其后的一串 `generate`，而那条照旧走
+     * 硬确认、照旧只在客户端执行。⛔ 别在这里顺手把它们跑了。
+     */
+    case ids.planRerunDownstream:
     case ids.generate:
       return NOT_HANDLED
 

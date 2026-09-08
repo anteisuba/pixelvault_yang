@@ -1304,6 +1304,43 @@ export const ASSISTANT_WORKING_MEMORY = {
 } as const
 
 /**
+ * **断点续跑**的载荷上限（第三期）。
+ *
+ * ⭐ 它在协议侧而不是面板侧：`resumeFrom` 是客户端发上来、服务端 zod 要卡住的
+ * 那一份，两边必须读同一个数。⛔ 面板那份词表里只留 localStorage 的键与保质期。
+ *
+ * ⚠ `maxSteps` 与 `ASSISTANT_OPERATOR_LIMITS.maxSteps`（一轮跑几步）**不是一回事**：
+ * 一份计划可以横跨好几轮（失败、续跑、再失败），所以这个数比它大一档。
+ */
+export const ASSISTANT_OPERATOR_RESUME_LIMITS = {
+  maxSteps: 12,
+  /** 一步最多带回几件产物 id —— 续跑提示里只念名字，⛔ 不搬内容。 */
+  maxArtifactsPerStep: 8,
+} as const
+
+/**
+ * 计划里**一步的三态**（第三期 · 断点续跑）。
+ *
+ * ⚠ 只有三档，⛔ 没有「running」：续跑记录是**落地在 localStorage 上的事实**，
+ * 而「正在跑」在下一次刷新之后一定不再成立。跑到一半被打断的那一步按 `pending`
+ * 记 —— 它没做完，续跑时就该重做一次。
+ */
+export const ASSISTANT_OPERATOR_RESUME_STEP_STATE_IDS = {
+  pending: 'pending',
+  done: 'done',
+  failed: 'failed',
+} as const
+
+export const ASSISTANT_OPERATOR_RESUME_STEP_STATES = [
+  ASSISTANT_OPERATOR_RESUME_STEP_STATE_IDS.pending,
+  ASSISTANT_OPERATOR_RESUME_STEP_STATE_IDS.done,
+  ASSISTANT_OPERATOR_RESUME_STEP_STATE_IDS.failed,
+] as const
+
+export type AssistantOperatorResumeStepState =
+  (typeof ASSISTANT_OPERATOR_RESUME_STEP_STATES)[number]
+
+/**
  * `cost_tick` 的三档（切片 X）—— **按「贵在哪」分，不按工具名分**。
  *
  * ⚠ 一条工具可能同时属于两档（`critique_result` 借一条视觉线看图 = `vision`，

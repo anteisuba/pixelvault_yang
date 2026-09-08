@@ -88,7 +88,7 @@ function getTiltClass(nodeId: string): string {
  * A single Polaroid-style card in the Cast dock (§6.2). A mirrored
  * presentation of an existing canvas node — a plain tap/keyboard activation
  * opens its ⤢ detail panel (`onSelect`); a pointer drag past the threshold
- * (§6.3, `use-cast-ingest.ts`) hands it to the ingest engine to feed a
+ * (§6.3, `use-cast-ingest-engine-v4.ts`) hands it to the ingest engine to feed a
  * target node instead. The two never double-fire: the drag engine only
  * calls `onSelect` when the gesture never crossed the drag threshold, and
  * the native `onClick` only fires it for keyboard/AT activation

@@ -222,7 +222,7 @@
   /* 吞噬三拍专属曲线（node-canvas.md §8，与 src/constants/motion.ts
      EASE_INGEST_CSS / EASE_SOFT_RETURN_CSS 同步）。CSS 侧只有 .node-card-paper
      的拖拽微倾复用 --ease-standard；吸入/软弹回飞行路径走 Web Animations API
-     （use-cast-ingest.ts），这两个变量是给那条 JS 路径的具名常量落点（不允许
+     （use-cast-ingest-engine-v4.ts），这两个变量是给那条 JS 路径的具名常量落点（不允许
      裸 cubic-bezier 字面量），也供本文件下方的 CSS 类兜底引用。 */
   --ease-ingest: cubic-bezier(0.45, 0.05, 0.6, 1);
   --ease-soft-return: cubic-bezier(0.3, 0.7, 0.4, 1.05);

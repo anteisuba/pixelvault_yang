@@ -36,8 +36,7 @@ vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
 
 // 画布修法 05 节「拖了必有回音」：📷N 徽标换成 motion.span 做一次性脉冲。
 // motion/react 在 jsdom 里跑真动画意义不大，这里只截下传给它的 `initial`/
-// `transition`（同 CanvasPopIn.test.tsx / IdentityCollectorCard.test.tsx 的
-// 手法），其余渲染行为（文本内容、× 按钮等）继续走真实 DOM 断言。
+// `transition`（画布测试里截 motion props 的通用手法），其余渲染行为（文本内容、× 按钮等）继续走真实 DOM 断言。
 const motionCaptures: Array<{
   initial: unknown
   transition: { duration: number }

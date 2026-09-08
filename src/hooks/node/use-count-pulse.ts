@@ -10,7 +10,7 @@ import { useState } from 'react'
  * 而不用手写 keyframes 数组。数值不变或**减少**时 key 不动，不放回执
  * （减少通常是删除/撤销，不是「拖了新素材进来」那类值得庆祝的动作）。
  *
- * 用渲染期调整 state（VoiceNode.tsx 的 `playbackSourceUrl` 同款手法）而不是
+ * 用渲染期调整 state（渲染期派生而非提交后同步的同款手法）而不是
  * `useEffect`：省一帧，也避免多一次 commit。
  *
  * 首次挂载不算「增加」——`useState(count)` 的初始值就是 `count` 本身，
@@ -44,7 +44,7 @@ export function useCountPulse(count: number): number {
  * - 幅度 1.2 与 `constants/motion.ts` 的 `INGEST_MOTION.chipPopScale`
  *   同值——都是「一个 chip 因为有新东西进来而弹一下」的量级，但这是**独立**
  *   的判断（拖入之外，「从画布选择」也会经同一条计数变化触发这个脉冲，不是
- *   吞噬三拍 `use-cast-ingest.ts` 那套编排的一部分），所以不直接 import
+ *   吞噬三拍 `use-cast-ingest-engine-v4.ts` 那套编排的一部分），所以不直接 import
  *   `INGEST_MOTION` 复用同一个字段，避免两套语义被绑死成同一个常量。
  * - 时长/缓动走**画布域**自己的三档时长（`canvas.css` `--canvas-dur-fast`
  *   150ms / `--canvas-dur-base` 250ms，非 `constants/motion.ts` 的

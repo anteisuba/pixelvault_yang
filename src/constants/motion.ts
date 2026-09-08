@@ -107,7 +107,7 @@ export const EASE_SOFT_RETURN_CSS = 'cubic-bezier(0.3, 0.7, 0.4, 1.05)'
 
 /**
  * 吞噬三拍数值表（node-canvas.md §8「幅度加强」档，逐字照抄，不做二次设计）。
- * `use-cast-ingest.ts` 的 Web Animations API keyframes 全部从这里取值——手势里
+ * `node-ingest-dom.ts` / `use-cast-ingest-engine-v4.ts` 的 Web Animations API keyframes 全部从这里取值——手势里
  * 不允许出现裸数字（禁 inline 魔法值，任务包 B1-3 红线）。
  */
 export const INGEST_MOTION = {

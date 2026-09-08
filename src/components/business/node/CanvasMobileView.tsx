@@ -50,8 +50,7 @@ import { NodeVideoSurface } from './shared/NodeVideoSurface'
  *   本文件一行审核逻辑都没有新写。
  * · 状态章 = `NodeStatusBadge`；视频播放 = `NodeVideoSurface`；连接关系的
  *   上游 = 既有导出 `getUpstreamNodes`（下游是它的对称写法，节点图里没有共享
- *   的「下游」导出，`CanvasImageSelectionToolbar.tsx` 的 `PerformancesButton`
- *   也是就地写的同款两行 `edges.filter(source===id).map(target)`）。
+ *   的「下游」导出，就地写同款两行 `edges.filter(source===id).map(target)`）。
  *
  * ── 关掉做不了的（横切纪律⑤「形态即说明」）─────────────────────────────
  * 生成 / 拖拽建边 / 多选合成三件事在这棵树里**没有对应入口**——不是置灰，是

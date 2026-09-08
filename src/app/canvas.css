@@ -1,84 +1,28 @@
 /* canvas.css — 画布（Node 导演台）域皮肤
- * 2026-07-24 从 globals.css 清场平移（纯搬家，零改值）。node/canvas 的 :root
- * 变量定值 + 全部 .node-* 类/keyframe 住这里；画布 chat 迭代视觉只改本文件，
- * 不碰 globals.css 脊柱段。
- * ⚠⚠ 2026-09-03：本文件（173 KB）**只由画布路由 import** ——
- * `src/app/[locale]/(main)/studio/node/layout.tsx`，不再挂根 layout。此前它进
- * 每一个路由的首屏 CSS，而唯一渲染它的是 /studio/node 那一颗
- * StudioNodeWorkbench。`@xyflow/react/dist/style.css` 同批从 globals.css 的
- * @import 挪到同一个 layout（React Flow 也只有画布用）。
- * 搬家时留在 globals.css 脊柱的那一小部分（**别搬回来，也别在这里重复定义**）：
+ * ⚠ 只由画布路由 import（`src/app/[locale]/(main)/studio/node/layout.tsx`），
+ *   不挂根 layout；`@xyflow/react/dist/style.css` 在同一个 layout 里排在它前面，
+ *   域皮肤才盖得住 React Flow 默认值。
+ * ⚠ 留在 globals.css 脊柱、**别搬回来也别在这里重复定义**：
  *   · --node-panel/-panel-inner/-panel-soft/-foreground/-muted/-edge/
- *     -focus-ring/-shadow 的**定值** —— 画布域外的 ImageEditSurface /
- *     CanvasRoutePicker 读它们（后者经 --shadow-node-panel 读 -shadow）。
- *   · `.node-canvas-panel-motion` —— StudioAssistantDock / LoraAssistantDock
- *     两个画布域外的 dock 也挂这个类。
- * 本文件里这些 token 只剩**域内重映射**（.node-card-paper / .domain-canvas /
- * 详情面板…），全都写在更近的选择器上，级联照旧。
- * ⚠ 其余 node-* 仍是 :root 常量、未 scope 成 .domain-canvas —— Radix 传送门
- * 把内容挂到 document.body，自定义属性不跨那个边界，scope 会破（详见下方 ⚠⚠）。
- * 级联位置：由画布路由 layout import，排在根 layout 的 globals.css 之后，node
- * 类仍在级联"最后"（零 cascade 变化）。@theme inline 的 --color-node-* 映射留在
- * globals.css（Tailwind 编译入口）。施工基准见 docs/references/pages/node-canvas.md。
- *
- * ⚠⚠（2026-07-27，owner 拍板方向 B 第二轮修订，施工基准
- * docs/references/pages/canvas-skin.md）：下面这批
- * --node-panel/-foreground/-muted/-subtle/-canvas/-focus-ring/-shadow/
- * -status-failed(-fg)/-status-done(-fg) 的**默认值已从旧深皮反转成 v0.2 浅色**。
- * 第一版把反转挂在 .domain-canvas 上，真机暴露系统性缺口：Radix
- * Popover/Dialog/DropdownMenu/Select 的内容传送到 document.body，在
- * .domain-canvas 的 DOM 子树之外，CSS 自定义属性不跨这个边界，14 个传送门文件
- * 因此全部回退到这里、也就是当年 #191612 那批旧值。验证过 --node-* 在画布
- * 目录外的消费者极少（globals.css 的 @theme inline 桥接、CanvasRoutePicker、
- * ImageEditSurface、constants/node-*、health-status-utils 的 'node' 变体）——
- * 挂 :root 零跨域爆炸半径。2026-09-03 复核：真把它当颜色用的只有
- * CanvasRoutePicker / ImageEditSurface 两处，两者用到的 8 个 token 已随本文件
- * 下沉一并提到 globals.css 的 :root（见上方 ⚠⚠），其余仍住这里。
- * 值全部写字面量而非 var(--canvas-*)：--canvas-* 只在 .domain-canvas 内定义，
- * :root 这一层引用不到，字面量是唯一能跨传送门生效的写法（数值仍 1:1 抄自
- * references/pages/canvas-skin.md，不是新造颜色）。
- * 局部覆盖不受影响，挂在更近的元素上，级联照样赢：.node-card-paper（纸卡）·
- * .node-card-window（媒体深窗）· .canvas-glass（顶栏/底部胶囊/左侧面板的
- * strangler 重映射）· 下方 S3 段的 .domain-canvas 连线覆盖块。真机逐条验证
- * 记录见任务报告，不是只从层叠理论推。
- * 仍打不到的第二类：脊柱令牌（bg-card/text-foreground）传送门
- * （FishVoiceLibraryDialog/ProjectNameDialog/VoiceSelector 等）——这批用的
- * 不是 --node-*，是脊柱令牌，而 app 全局 <html class="dark">，脊柱本来就是
- * 深的。挪 --node-* 治不了这一类，根因是画布是深色 app 里的浅色孤岛；长期正
- * 解是 .domain-canvas 也重映射脊柱表面令牌（同 lora.css:55-57 .domain-lora
- * 的做法）+ 给画布一个自己的 Portal container，本轮不做，见 §4.6 记录。 */
+ *     -focus-ring/-shadow 的定值（域外的 ImageEditSurface / CanvasRoutePicker 读）
+ *   · `.node-canvas-panel-motion`（StudioAssistantDock / LoraAssistantDock 也挂）
+ *   · 助手「历史对话」浮层 `.canvas-assistant-popover*`（Radix 传送门，三个 dock 共用）
+ * ⚠ 下面这批 --node-* 挂 :root 而不是 .domain-canvas：Radix 传送门把内容挂到
+ *   document.body，自定义属性不跨那个边界，scope 会破。值写字面量而非
+ *   var(--canvas-*)，因为 --canvas-* 只在 .domain-canvas 内定义。
+ *   数值 1:1 出自 docs/references/pages/canvas-skin.md，不是新造颜色。
+ * ⚠ 画布是深色 app 里的浅色孤岛：用脊柱令牌（bg-card/text-foreground）的传送门
+ *   仍会解析成暗值，长期解是 .domain-canvas 也重映射脊柱表面令牌 + 自带 Portal
+ *   container。施工基准 docs/references/pages/node-canvas.md。 */
 :root {
-  /* v2 制片桌（施工图 references/pages/node-canvas.md）：panel 系原为暖炭深色
-     chrome（§2.1 调值 2026-07-10 S1），2026-07-27 反转为 v0.2 浅色（见上方
-     ⚠⚠ 说明）；card-* = 纸卡材质（S2 起消费，不受这次反转影响）；
-     paint = 石绿颜料（唯一高光，§5 克制档五落点，本轮不动）。 */
   --node-canvas: #ffffff;
-  /* Canvas workspace surface tokens stay separate from --node-canvas because
-     that legacy token also colors handles, scrims, and inverse button text.
-     ⚠ --canvas-surface 本身不在本次反转范围内——它是 CanvasSurface.tsx 运行时
-     内联覆盖的画布壁纸底色（用户可选深浅），字面量 #14120f 只是 JS 接管前的
-     启动瞬间兜底，不是本轮要治的旧皮残留（已在上一轮任务报告里查证过）。 */
+  /* --canvas-surface / --canvas-grid-dot 由 CanvasSurface.tsx 运行时内联覆盖
+     （画布壁纸，用户可选深浅）；这里的字面量只是 JS 接管前的启动兜底。 */
   --canvas-surface: #14120f;
   --canvas-grid-dot: rgba(235, 229, 216, 0.18);
-  --canvas-safe-left: 1rem;
-  --canvas-safe-right: 1rem;
-  --canvas-top-inset: 4.5rem;
-  --canvas-bottom-inset: 4rem;
-  --canvas-minimap-width: 12rem;
-  /* ⚠ --node-panel/-panel-inner/-panel-soft/-foreground/-muted 的**定值**
-     2026-09-03 提到 globals.css 的 :root（本文件下沉到画布路由后，画布域外
-     的 ImageEditSurface / CanvasRoutePicker 还要读它们）。这里只保留域内
-     重映射（.node-card-paper / .domain-canvas / 详情面板等更近的选择器）。 */
-  --node-subtle: #737373; /* = --canvas-ink-muted 字面量 */
-  /* node-amber 已全部分流到中性 token（node-muted/foreground/edge/focus-ring/
-     panel-inner）并于 2026-06-20 删除。node-danger strangler 别名已于 S4
-     （2026-07-10）完成收编：全部 7 处引用改指 --node-status-failed，
-     --node-danger 定义 + @theme 映射删除，勿在新代码引用 node-danger。
-     node-success（emerald）/ node-lipsync（紫）已于 2026-07-10 S1 删除：
-     生成键改 --node-paint 石绿（§2.3），lipsync 语义靠图标降中性。 */
-  /* 纸卡材质组（§2.2，S1 只定义、S2 起消费）+ 石绿颜料。
-     paint 由施工图 #3D8A6B 微调至 #3E8C6C：WCAG 深字 text-node-canvas
-     4.61:1 达标（规格值上深字 4.49 / 浅字 3.68 均 <4.5，确定性计算存档 S1 报告）。 */
+  --node-subtle: #737373; /* = --canvas-ink-muted */
+
+  /* 纸卡材质组 + 石绿颜料。paint #3e8c6c：深字 text-node-canvas 4.61:1 达标。 */
   --node-card-paper: #ebe5d8;
   --node-card-paper-strong: #e0d8c8;
   --node-card-paper-soft: #f4efe4;
@@ -89,77 +33,42 @@
   --node-card-line: #c9c0ab;
   --node-paint: #3e8c6c;
   --node-paint-fg: #ebf3ee;
-  /* ⚠ --node-shadow 定值 2026-09-03 提到 globals.css 的 :root：globals 的
-     @theme inline 把它编译进 --shadow-node-panel，而 CanvasRoutePicker
-     （画布域外）用的正是 shadow-node-panel。 */
-  --shadow-canvas-control: 0 10px 28px rgb(0 0 0 / 0.22);
+
   --shadow-canvas-menu: 0 12px 26px rgb(0 0 0 / 0.2);
-  --shadow-canvas-task: 0 18px 44px rgb(0 0 0 / 0.28);
-  /* 中性语义 token（替代被删 amber · §2.2-3）：连线/焦点靠明度不靠色相。
-     ⚠ --node-edge / --node-edge-active 不在本次反转范围——画布域内的连线颜色
-     另有 .domain-canvas 的 S3 覆盖块单独接管（见下方），这里的字面量只是
-     传送门/域外场景的兜底，本轮不动它。 */
-  /* ⚠ --node-edge / --node-focus-ring 定值 2026-09-03 提到 globals.css 的
-     :root（CanvasRoutePicker 在画布域外读这两个）。--node-edge-active 没有
-     域外消费者，留在这里。 */
-  --node-edge-active: #e8e6de; /* = foreground，流动/hover/选中提亮 */
-  /* 端口类型色（极淡·功能性例外 · 草稿 fill-5 §2.3）：靠图标 + 低饱和类型色配对 */
+  --node-edge-active: #e8e6de; /* 流动 / hover / 选中提亮，无域外消费者 */
+
+  /* 端口族色（低饱和类型色，形状是主编码）。on-paper 变体现值 = 原值：确定性
+     WCAG 脚本核实 5 支对 --node-card-paper 均 ≥3:1（3.70–4.10:1），最小偏移
+     量为 0；仍单开 token，是为纸面/深底两套上下文可各自调参。 */
   --node-port-character: #6f6a86;
   --node-port-background: #5f7a73;
   --node-port-voice: #856a72;
   --node-port-video: #647386;
-  --node-port-image: #6f6a86; /* image 模态色（统一图片节点）— 与角色同属图片族紫 */
-  /* S2 端口纸面校准（§2.3，纸卡缘变体，NodeShell Handle 消费）：确定性 WCAG 脚本核实
-     5 支现值对 --node-card-paper #ebe5d8 均已 ≥3:1（3.70–4.10:1，同色相同饱和度只调
-     明度未偏移，见 S2 报告），故 on-paper 变体本轮定值 = 原值，最小偏移量为 0。仍新增
-     独立 token（而非直接复用）是为纸面/深底两套上下文各自可独立调参，不互相牵连。 */
+  --node-port-image: #6f6a86;
   --node-port-character-on-paper: #6f6a86; /* 4.10:1 vs #ebe5d8 */
   --node-port-background-on-paper: #5f7a73; /* 3.70:1 vs #ebe5d8 */
   --node-port-voice-on-paper: #856a72; /* 3.89:1 vs #ebe5d8 */
   --node-port-video-on-paper: #647386; /* 3.86:1 vs #ebe5d8 */
   --node-port-image-on-paper: #6f6a86; /* 4.10:1 vs #ebe5d8 */
-  /* 状态色（去黄 §6 · fill-5）：进行中靠动效，完成克制，失败才红。
-     2026-07-27 done/done-fg 反转为 --canvas-ok 系字面量（10% color-mix 浅底，
-     配方同 .canvas-image-badge--danger 已用的比例，不新造混合比）。 */
+
+  /* 状态色：进行中靠动效，完成克制，失败才红。 */
   --node-status-done: color-mix(in oklab, #16794c 10%, transparent);
-  --node-status-done-fg: #16794c; /* = --canvas-ok 字面量 */
-  /* S4 failed 真红（node-canvas.md §4 已知发现修复，node-danger 收编）历史
-     WCAG 账在 git blame 里，2026-07-27 随反转作废（原真红 #e5484d 是给深底
-     panel 配的，现在 panel 已翻白）。新值 = --canvas-danger 字面量，5.57:1
-     vs 白（确定性脚本核实，见任务报告），-fg 收窄为「红底上的前景」用白。
-     .node-card-paper 作用域仍有自己独立的纸面深红覆盖（#a32d2d，下方 S4
-     覆盖块），不受这里影响。 */
-  --node-status-failed: #c0342e; /* = --canvas-danger 字面量 */
+  --node-status-done-fg: #16794c;
+  --node-status-failed: #c0342e; /* = --canvas-danger，5.57:1 vs 白 */
   --node-status-failed-fg: #ffffff;
-  --node-status-failed-tint: #fbeae8; /* 失败态浅底；red 对它 5.65 */
-  /* 视频监视器语言（v4 §3.3/§4 C4）：取景框角标，纯装饰不承载语义，独立 token */
-  --node-monitor-frame: #4a4f5c;
-  --node-monitor-matte: #050505;
-  /* S4 minimap 蓝图纸（施工图 §3）：深青底 + 青线，独立于暖炭 canvas/panel
-     系，让左下角小窗读出"图纸材质"而非"又一块深色面板"。 */
+  --node-status-failed-tint: #fbeae8; /* red 对它 5.65 */
+
+  /* minimap 蓝图纸：深青底 + 青线，读作「图纸材质」而非又一块深色面板。 */
   --node-blueprint-bg: #101820;
   --node-blueprint-line: #2e4a5e;
 }
 
-/* ── Canvas (Node 导演台) S2 纸卡材质作用域 ────────────────────────────
-   施工图 references/pages/node-canvas.md §2.3 / §3：容器级 CSS 变量覆盖
-   （strangler 局部反转，不改 --node-panel 系全局语义，见 §2 关键建模决定）。
-   `.node-card-paper` 挂在 NodeShell Root（article）：卡内 281 处既有
-   `bg-node-panel* / text-node-foreground / text-node-muted / text-node-subtle`
-   引用零改动，靠 Tailwind v4 `@theme inline` 单跳 `var(--node-panel)` 编译
-   （非 var(--color-node-panel) 两跳）自动读到覆盖值 —— 已用 DevTools
-   getComputedStyle 手工验证级联成立（2026-07-10 S2）。
-   `.node-card-window` 挂在 NodeMediaPreview 媒体容器：深窗只反转前景/次级/提示字
-   （回到深底浅字），不动 panel 系——媒体容器自身背景由 `bg-node-card-window`
-   工具类显式设置，是独立于 panel 覆盖链之外的字面值。
-   S4 追加 failed 覆盖（§4 已知发现修复）：NodeShellRoot 的 `.node-card-paper`
-   是无条件类（所有卡都是纸卡，deep chrome 只剩顶栏/工具条/minimap/剧本笺），
-   所以 root 的 --node-status-failed 真红对纸面文字对比度不够（vs #ebe5d8
-   仅 3.12:1），必须在这里覆盖成纸面专用深红。WCAG 确定性计算（S4 报告）：
-   纸红 #a32d2d vs card-paper-strong(#e0d8c8，badge 底) 4.99:1、vs card-paper
-   (#ebe5d8，卡边框/banner 底) 5.63:1；-fg（banner 正文用，纸红/50 混
-   card-paper 组合底 #c78983 上的墨色）#1a1310 vs 组合底 6.41:1，/80 二级
-   文字实测 4.66:1，均 ≥4.5:1 达标。 */
+/* 纸卡材质作用域：容器级变量覆盖（strangler），卡内既有的
+   `bg-node-panel* / text-node-*` 工具类靠 Tailwind v4 `@theme inline` 单跳
+   `var(--node-panel)` 自动读到覆盖值，markup 零改动。
+   ⚠ failed 必须在这里覆盖成纸面专用深红：root 的真红 vs #ebe5d8 只有 3.12:1。
+   纸红 #a32d2d vs paper-strong 4.99:1 · vs paper 5.63:1；-fg #1a1310 对
+   纸红/50 混 paper 的组合底 6.41:1，均达标。 */
 .node-card-paper {
   --node-panel: var(--node-card-paper);
   --node-panel-inner: var(--node-card-paper-strong);
@@ -169,13 +78,10 @@
   --node-subtle: var(--node-card-ink-subtle);
   --node-status-failed: #a32d2d;
   --node-status-failed-fg: #1a1310;
-  /* 纸面作用域的浅底：按纸背 #ebe5d8 调，不是照抄 root 的 #fbeae8（那是按白面调的）。 */
+  /* 纸背 #ebe5d8 上的浅底，不是照抄 root 那份按白面调的 #fbeae8。 */
   --node-status-failed-tint: #f2dedb;
-  /* 拖拽微倾（§3/§9-S2）：ReactFlow 拖拽态类名实测为
-     `.react-flow__node.draggable.dragging`（node_modules/@xyflow/react/dist/style.css），
-     `.dragging` 单类选择器即可命中。倾斜落在 article 自身的 rotate 上，独立于
-     ReactFlow 加在 `.react-flow__node` 外层的 translate transform，互不干扰。
-     release 靠同一条 transition 立即归位（不额外分 in/out 曲线）。 */
+  /* 拖拽微倾落在 article 自身的 rotate 上，独立于 ReactFlow 加在
+     `.react-flow__node` 外层的 translate，互不干扰。 */
   transition: rotate var(--duration-base) var(--ease-standard);
 }
 .node-card-window {
@@ -184,57 +90,26 @@
   --node-subtle: #6f6a63;
 }
 
-/* 视频生成 / 参考视频 / 视频合成共享同一种初始窗口：白色轻表面、深色内容。
-   只有真实视频到达后才切回深色媒体窗，避免“空态像一块黑色视频”。 */
-.domain-canvas .canvas-video-empty-surface {
-  --node-foreground: var(--canvas-ink);
-  --node-muted: var(--canvas-ink-regular);
-  --node-subtle: var(--canvas-ink-muted);
-  border-color: var(--canvas-stroke-regular);
-  background: var(--canvas-card-bg);
-}
-/* 画布修法 D2（刀三·修缝，2026-08-26）：两栏卡（声音卡 canvas-voice-cover +
-   正文、身份卡 canvas-identity-cover + 库存行）左栏各自独立 overflow:hidden
-   + 圆角裁边，拖拽时整卡微倾 1deg 会让浏览器把左栏与右栏拆成两个独立合成层
-   分别栅格化再各自旋转——两层的边缘各自四舍五入到设备像素，缝隙处露出画布
-   底色，成了一条能看见的发丝缝。`will-change: transform` 逼卡根在旋转前把
-   整个子树（左栏+右栏）先合成到同一张位图上，再整体旋转，两栏之间就不再有
-   缝可露。只在 .dragging 期间挂——常驻会让所有卡永远占一个合成层，17/18 张
-   没有这个问题的卡白付出显存代价。 */
+/* 两栏卡拖拽微倾时，左右栏各自成合成层分别栅格化，缝隙会露出画布底色。
+   `will-change: transform` 逼卡根先把整棵子树合成到同一张位图再旋转。
+   ⛔ 只在 .dragging 期间挂——常驻会让每张卡永远占一个合成层。 */
 .react-flow__node.dragging .node-card-paper {
   rotate: 1deg;
   will-change: transform;
 }
 
-/* 键盘焦点环（画布修法 D1，2026-08-26）：@xyflow/react 的基础样式表对**所有**
-   节点写死 `.react-flow__node.selectable:focus{,-visible} { outline: none }`，
-   只给库内置的 input/default/output/group 四种类型另配了 box-shadow 替代——
-   本项目的自定义类型（image/voice/seedance/…）一个都不在那份名单里，于是
-   Tab 到任何一张卡都完全看不见焦点在哪。这里把它补回来。
-   ⚠ 只认 `:focus-visible`：鼠标点选不该画环（选中态自有 --canvas-accent 环，
-   两个环叠在一起会读成两种状态）。`--canvas-stroke-focus` 是既有 token，
-   4.74:1 已过对比度，不新造颜色。 */
+/* 键盘焦点环：@xyflow/react 对所有节点写死 `outline: none`，只给库内置的四种
+   类型另配 box-shadow 替代，本项目的自定义类型一个都不在名单里。
+   ⚠ 只认 `:focus-visible`：鼠标点选自有 --canvas-accent 选中环，两环叠加会读成
+   两种状态。--canvas-stroke-focus 是既有 token（4.74:1），不新造颜色。 */
 .domain-canvas .react-flow__node.selectable:focus-visible {
   outline: 2px solid var(--canvas-stroke-focus);
   outline-offset: 2px;
 }
 
-/* ── Canvas (Node 导演台) motion standard ─────────────────────────────
-   Size morphs of canvas panels (the assistant dock expand⤢↔dock, etc.) ride
-   the global motion canon — --ease-standard + --duration-slow (the canon's
-   "面板展开折叠" tier; see src/constants/motion.ts). Continuous pointer drags
-   set data-resizing='true' to suppress the transition so the panel tracks the
-   cursor 1:1 instead of lagging behind it. Reduced motion is neutralised by the
-   global prefers-reduced-motion block above. New canvas components that morph
-   size should reuse this class; transform/opacity morphs compose the Tailwind
-   `duration-slow ease-standard` utilities instead. */
-/* ⚠ `.node-canvas-panel-motion` 本体 2026-09-03 搬到 globals.css：它的三个
-   消费者里有两个（StudioAssistantDock / LoraAssistantDock）在画布域外，本文件
-   下沉到画布路由后规则跟着走它们就没有过渡了。新的画布面板形变仍复用那个类。 */
-
-/* §2.3 edge "running" state — neutral pulse (brightness via stroke-opacity, never
-   hue). Applied by NodeWorkflowStatusEdge when the target node is generating; the
-   global prefers-reduced-motion block disables it automatically. */
+/* 连线 running：中性脉冲，靠 stroke-opacity 变明度，绝不换色相。
+   NodeWorkflowStatusEdge 在目标节点生成中时挂上；全局 prefers-reduced-motion
+   块会自动停掉。 */
 @keyframes node-canvas-edge-pulse {
   0%,
   100% {
@@ -248,58 +123,18 @@
   animation: node-canvas-edge-pulse 1.4s ease-in-out infinite;
 }
 
-/* R3-2 墨线签署「淡出隐藏」(canvas-relationship-v3 §2.7): once a just-signed
-   ingredient edge's ink draw-in finishes, if it won't otherwise qualify to
-   stay visible (not selected, generating, or 关系线-toggled), it gets this
-   class for its last ~200ms before StudioNodeWorkbench actually flips it
-   `hidden` — a plain opacity transition on the existing --duration-base/
-   --ease-standard tokens, not a new curve. reduced-motion collapses the
-   transition to ~0 via the global block above, matching every other
-   CSS-driven canvas motion in this file. */
+/* 墨线签署「淡出隐藏」：刚签好的成分边如果不满足留显条件（未选中 / 未生成中 /
+   未开关系线），在 workbench 真正把它置 hidden 前的最后 ~200ms 挂这个类。 */
 .node-canvas-edge-signing-fade-out {
   transition: opacity var(--duration-base) var(--ease-standard);
   opacity: 0;
 }
 
-/* must-1 「进度在节点」: an indeterminate generating bar on the node card. A real
-   percentage needs backend progress events; this neutral sweep at least shows
-   work-in-progress on the card itself. reduced-motion disabled globally. */
-@keyframes node-canvas-progress-sweep {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(260%);
-  }
-}
-.node-canvas-progress-track {
-  position: relative;
-  overflow: hidden;
-}
-.node-canvas-progress-track::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 38%;
-  border-radius: inherit;
-  background: var(--node-foreground);
-  animation: node-canvas-progress-sweep 1.2s ease-in-out infinite;
-}
-
-/* ── S5b 吞噬手势（node-canvas.md §6.3/§8）───────────────────────────
-   张口/咬不动的 outline+transform 反馈是纯 DOM 命令式切换（use-cast-ingest.ts
-   的 pointermove 命中检测直接 classList.add/remove 目标卡的 .node-card-paper
-   元素），刻意不改 NodeShell.tsx 的 JSX/state —— 命中的目标节点在拖拽过程中
-   不触发任何 React re-render，class 才不会被下一次渲染吐出的 className 字符
-   串覆盖掉（任务包 Allowed Scope 把 NodeShell.tsx 限定在成分栏 chip ×，这里
-   全靠 CSS class 名 + 内联 transform 绕开那个文件）。吸入/软弹回的副本飞行路
-   径改用 Web Animations API（起止点运行时算，量不出一条静态 keyframes），不
-   在这里定义。 */
-/* S5f B1 磁吸弱档：拖拽中所有合法目标微亮（石绿 55% 细描边）。声明顺序
-   刻意排在 .node-ingest-bite 之前——两个类同特异性，最近目标同时挂
-   magnet+bite 时，后声明的 bite（满档 2px 实色）赢得 outline。 */
+/* 吞噬手势：张口/咬不动的反馈由 node-ingest-dom.ts 命令式 classList 切换，
+   刻意不进 React state——命中的目标卡在拖拽中不 re-render，class 才不会被下一
+   次渲染的 className 覆盖掉。
+   ⚠ .node-ingest-magnet 必须声明在 .node-ingest-bite 之前：两者同特异性，最近
+   目标同时挂 magnet+bite 时靠后声明让 bite（满档 2px 实色）赢得 outline。 */
 .node-ingest-magnet {
   transition: outline-color 180ms var(--ease-standard);
   outline: 1px solid color-mix(in oklab, var(--node-paint) 55%, transparent);
@@ -321,9 +156,8 @@
   border-radius: inherit;
 }
 
-/* S5f B2 快投模式：合法目标全亮 + 序号角标（::after 读 JS 注入的
-   --node-qt-index 自定义属性，序号由命令式 classList/style 写入，与
-   吞噬手势同一条"不进 React state"纪律）；已含该卡的目标 ⊘ 半透明。 */
+/* 快投模式：合法目标全亮 + 序号角标（::after 读 JS 注入的 --node-qt-index，
+   与吞噬手势同一条「不进 React state」纪律）；已含该卡的目标 ⊘ 半透明。 */
 .node-quick-throw-target {
   outline: 2px solid var(--node-paint);
   outline-offset: 4px;
@@ -334,8 +168,7 @@
   position: absolute;
   top: -0.625rem;
   left: -0.625rem;
-  /* R3-4 §4.1 L3: badge sits above this one card's own content, same tier
-     as the selection chrome it rides alongside (magnet highlight). */
+  /* 角标只压这一张卡自己的内容，与它并排的选中 chrome 同层。 */
   z-index: var(--z-index-canvas-selection);
   display: flex;
   align-items: center;
@@ -371,123 +204,9 @@
   box-shadow: 0 1px 4px var(--node-shadow);
 }
 
-/* C4 监视器遮幅 — 上下 letterbox bars, 纯装饰，不接受交互。 */
-.node-monitor-matte::before,
-.node-monitor-matte::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 30px;
-  background: var(--node-monitor-matte);
-  pointer-events: none;
-}
-.node-monitor-matte::before {
-  top: 0;
-}
-.node-monitor-matte::after {
-  bottom: 0;
-}
-
-/* C4 监视器四角取景框 — inset 14px，1.5px 描边，纯装饰。 */
-.node-monitor-corner {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border: 1.5px solid var(--node-monitor-frame);
-  pointer-events: none;
-}
-.node-monitor-corner[data-pos='tl'] {
-  top: 14px;
-  left: 14px;
-  border-right: none;
-  border-bottom: none;
-}
-.node-monitor-corner[data-pos='tr'] {
-  top: 14px;
-  right: 14px;
-  border-left: none;
-  border-bottom: none;
-}
-.node-monitor-corner[data-pos='bl'] {
-  bottom: 14px;
-  left: 14px;
-  border-right: none;
-  border-top: none;
-}
-.node-monitor-corner[data-pos='br'] {
-  bottom: 14px;
-  right: 14px;
-  border-left: none;
-  border-top: none;
-}
-
-/* FB-4 高级上传加载 — a frosted veil over a media window while a clip uploads.
-   A diagonal light band sweeps across (::before) over a translucent card-window
-   wash; the glyph / label / filename / indeterminate bar the JSX layers on top
-   ride above it (z-10). Reduced-motion freezes the sweep to a static dim veil. */
-.node-upload-loading {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  overflow: hidden;
-  background: color-mix(in oklab, var(--node-card-window) 78%, transparent);
-  backdrop-filter: blur(2px);
-}
-.node-upload-loading::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    115deg,
-    transparent 30%,
-    color-mix(in oklab, var(--node-foreground) 14%, transparent) 50%,
-    transparent 70%
-  );
-  transform: translateX(-100%);
-  animation: node-upload-shimmer 1.5s ease-in-out infinite;
-}
-@keyframes node-upload-shimmer {
-  to {
-    transform: translateX(100%);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .node-upload-loading::before {
-    animation: none;
-    transform: none;
-    opacity: 0.5;
-  }
-}
-
-/* Neutralise the shared radix Slider inside the video detail panel (去黄橙 D1):
-   the default uses --primary/--muted; here the duration slider is pure neutral. */
-.node-duration-slider [data-slot='slider-track'] {
-  background: var(--node-panel-inner);
-}
-.node-duration-slider [data-slot='slider-range'] {
-  background: var(--node-foreground);
-}
-.node-duration-slider [data-slot='slider-thumb'] {
-  background: var(--node-foreground);
-  border-color: var(--node-foreground);
-}
-
-/* Collapsible disclosure — grid-template-rows 0fr↔1fr collapses without
-   measuring. The child must clip + allow 0 min-height for the 0fr track to
-   actually collapse.
-
-   ⚠ 阶段 6-C（2026-08-10）**撤掉了这里的 `transition: grid-template-rows`**：
-   高度类属性的补间每帧都要重新布局，整棵子树掉出合成层 —— 这正是契约把六个
-   `.node-collapsible` 退役的原因，剩下这最后一个（composer 的种子披露）漏在
-   网里。规矩是「容器高度**瞬时**，动效只走 transform / opacity」，所以高度
-   直接到位，改由下面那条只动 opacity/translate 的进场动画负责「它出来了」。
-   ⛔ 别把 transition 加回来。 */
+/* 披露折叠 —— grid-template-rows 0fr↔1fr，不用测高。
+   ⛔ 别把 `transition: grid-template-rows` 加回来：高度补间每帧重排，整棵子树掉出
+   合成层。规矩是「容器高度瞬时，动效只走 transform / opacity」。 */
 .node-collapsible {
   display: grid;
   grid-template-rows: 0fr;
@@ -511,77 +230,31 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   S0 · 画布域皮肤 v0.2 —— token 地基（2026-07-26）
-   施工基准 docs/references/pages/canvas-skin.md（v0.2 = 真机取样值）。
-   S0 是分段落地的第一段：只铺 token、不接消费者。
-
-   与上面遗留部分的关系：
-   · 上面的 --node-* 与 --canvas-surface / --canvas-grid-dot / --canvas-safe-* /
-     --canvas-*-inset / --canvas-minimap-width 是**旧皮**，本片一个都不动。
-     其中 --canvas-surface / --canvas-grid-dot 由 CanvasSurface.tsx 运行时内联
-     写入（跟项目外观设置走），与本节的 --canvas-bg / --canvas-dot 是两套东西。
-   · 本节全部 token 只活在 .domain-canvas 作用域内，S0 阶段**零消费者**，
-     所以落地后画面必须完全不变——这就是 S0 的验收点。
-
-   ⚠ color-scheme：app 在 layout.tsx 硬编码 <html class="dark">，而画布域是
-   **浅色档**。不显式声明 color-scheme:light，原生滚动条/表单控件会继续用暗色
-   渲染，在白卡上出现深色竖条（同 memory reference-dark-color-scheme 的反向）。
-
-   对比度：全部用确定性脚本按 WCAG 2.x 相对亮度逐对计算，非目测。
+   画布域皮肤 v0.2 token 地基 —— 施工基准 docs/references/pages/canvas-skin.md
+   （v0.2 = 真机取样值）。全部 token 只活在 .domain-canvas 作用域内。
+   ⚠ color-scheme：app 在 layout.tsx 硬编码 <html class="dark">，画布域是浅色档；
+   不显式声明 light，原生滚动条/表单控件会在白卡上渲染成深色竖条。
+   对比度全部用确定性脚本按 WCAG 2.x 逐对计算，⛔ 禁目测。
    ══════════════════════════════════════════════════════════════════════════ */
-
 .domain-canvas {
   color-scheme: light;
 
-  /* 1 · 画布底与点阵 —— 实测 updream 画布：#F1F1F1 + 圆点 1px / 间距 48px */
+  /* 1 · 画布底 */
   --canvas-bg: #f1f1f1;
-  --canvas-dot: rgba(200, 200, 200, 0.447);
-  --canvas-dot-gap: 48px;
-  --canvas-dot-size: 1px;
 
-  /* 2 · 卡 —— 静态无投影，只有发丝边；纵深靠 hover 抬升，不靠常驻阴影 */
+  /* 2 · 卡 —— 静态无投影，只有发丝边；纵深靠 hover 抬升 */
   --canvas-card-bg: #ffffff; /* 对底 1.13:1 —— 刻意的极小分层 */
   --canvas-card-radius: 8px;
   --canvas-card-line: rgba(0, 0, 0, 0.08);
   --canvas-card-shadow: none;
   --canvas-card-shadow-hover: 0 4px 24px rgba(0, 0, 0, 0.08);
-  /* S4（2026-07-27）：固定 250px 已废——canvas-image-card.md §2 判定为取样
-     错误（参考站同屏三张图片卡明显不等宽）。图片卡改按媒体真实比例算宽，
-     只保留 min/max 钳制；声音卡/身份卡各自固定 240（两文各自 §1）。 */
-  --canvas-card-w-min: 180px;
-  --canvas-card-w-max: 480px;
-  --canvas-card-w-fixed: 240px;
-  /* 组装台紧凑态。2026-08-09 从 320 放大到 420（owner「目前看上去有点小了」）——
-     槽架三级折叠 + 参数条挤在 320 里，槽位名字几乎全被截断。
-     ⚠ 没有直接上契约 §7.1 的 660：那是 LibTV **屏幕固定**提示词面板的宽度，而
-     这条侧车是跟着节点走的，660 会挡掉大半画布。660 留给阶段 6 全域形态对齐时
-     连同圆角/字号/间距一起过一遍再定。
-     ── 阶段 6-A 结论（2026-08-10）：**展开态**上 660，紧凑态留 420。
-     两档分开定是因为上面那条顾虑只对**常驻**的紧凑态成立 —— 展开态是用户主动
-     打开、用完就收的写作面，正是 LibTV 那 660 服务的场景；紧凑态仍跟着节点常
-     驻画布，660 会挡掉大半画布，维持 420。 */
-  --canvas-card-w-console: 420px;
-  --canvas-card-w-console-open: 660px; /* 组装台展开态（560 → 660，度量表 §5 #2） */
-  /* 《画布修法》02 节刀 1 task B（2026-08-26）：生成类节点"空态"（还没有内容）
-     的卡宽——新建三秒不占半屏。覆盖镜头图/视频生成(Seedance)/片盒(videoMerge)/
-     镜头文本四族的空态，一旦有内容（图落地/视频落地/写了字）各自切回原有宽度
-     算法，这个 token 只管空态那一刻。参考视频(videoReference)不读它——那张卡
-     从建出来就直接吃 NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE(320)，本来就已经是
-     这个数（use-node-workflow.ts 的 addNode，needsExplicitSize 分支）。 */
-  --canvas-card-w-empty: 320px;
-  /* 同一刀 task C：镜头文本脱离 16:9 主窗之后的高度地板——内容比这个矮时卡不
-     塌成一条缝，比这个高时改由内容把卡撑高（.canvas-text-preview-surface）。 */
-  --canvas-text-preview-min-h: 96px;
 
-  /* 3 · 边线与控件填充（对比度纪律见规格 §3.1：可识别性由内容+焦点承担） */
-  --canvas-stroke-light: rgba(0, 0, 0, 0.02);
+  /* 3 · 边线与控件填充（可识别性由内容 + 焦点承担） */
   --canvas-stroke-regular: rgba(0, 0, 0, 0.08); /* 默认档，装饰性 */
   --canvas-stroke-bold: rgba(0, 0, 0, 0.15); /* 次级按钮边 */
   --canvas-stroke-focus: #737373; /* 4.74:1 —— 焦点环 2px */
   --canvas-fill-control: rgba(0, 0, 0, 0.04);
   --canvas-fill-control-hover: rgba(0, 0, 0, 0.06);
-  --canvas-seg-selected: #ffffff; /* 分段控件选中块 */
-  --canvas-seg-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 
   /* 4 · 文字四档（括号内 = vs 卡背 / vs 画布底） */
   --canvas-ink: #0a0a0a; /* 19.80 / 17.53 —— 卡名与主数值 */
@@ -589,160 +262,59 @@
   --canvas-ink-muted: #737373; /* 4.74 / 4.20 —— 次级说明、placeholder */
   --canvas-ink-subtle: #8f8f8f; /* 3.23 / 2.86 ⚠ 只在卡背上用，别放画布底 */
 
-  /* 5 · 主动作与强调 —— 拆成两个角色，规格 §0.6
-     主动作 = 墨色实底（画面上唯一的实底重色）
-     强调蓝 = 只表「指向」：选中 / 活跃 / @引用（不许用在主动作按钮上） */
+  /* 5 · 主动作 = 墨色实底（画面唯一实底重色）；强调蓝只表「指向」，
+     ⛔ 不许用在主动作按钮上 */
   --canvas-action: #0a0a0a;
   --canvas-action-hover: #262626;
   --canvas-action-fg: #ffffff; /* 19.80 */
   --canvas-accent: #2b5ce6; /* 5.56 / 4.92 */
 
   /* 6 · 语义色 —— 只在徽章尺寸出现，不做面积填充 */
-  --canvas-ok: #16794c; /* 5.42 */
   --canvas-warn: #8a5a00; /* 5.93 */
   --canvas-danger: #c0342e; /* 5.57 */
-  /* 生成中（§17.3 拍板）。值就是 :root `--node-paint` 的石绿原值 ——
-     `node-tokens.ts:137` 当初写的「进行中靠动效 + 石绿」指的是它，但
-     canvas.css:1635 把 `--node-paint` 重映射给连线用了（「只变明度不换色相」），
-     徽标搭那趟车的结果是 running 变成 #2a2a2a、与 ready/done 的 #26231e
-     ΔE-ok 0.029 = 真同色。所以另起一个名字，不再共用。
-     ⚠ 只作边与点，**不作文字**：三个底色预设上 4.06 / 3.69 / 3.59，
-     够图形档（≥3）不够 12px 文字档（≥4.5）。 */
+  /* 生成中另起一个名字，不与连线共用 --node-paint（那个已被下方 S3 重映射成
+     墨线，徽标搭车会让 running 与 ready/done 变成同色 ΔE-ok 0.029）。
+     ⚠ 只作边与点，**不作文字**：三个底色预设上 4.06 / 3.69 / 3.59。 */
   --canvas-status-running: #3e8c6c;
 
-  /* 7 · 端口族色 —— 形状是主编码、色是辅编码，且全部避开强调蓝的色相区 */
-  --canvas-port-image: #6b7280; /* 4.83 · 实心方 */
-  --canvas-port-audio: #7c6f86; /* 4.69 · 实心圆 */
-  --canvas-port-video: #6f7f72; /* 4.24 · 空心方 */
-  --canvas-port-identity: #8a7b6a; /* 4.10 · 圆环 */
-
-  /* 8 · 连线 —— 关系是一等信息（已确认条款 3），所以已建立档守 ≥3:1；
-     未就绪档是弱信息，允许弱。三个维度编码三件事：粗细/虚实/流光 */
-  /* ⚠ **连线的粗细与热区不在这里**（2026-08-10 真机验出来的）：边的 style 由
-     `StudioNodeWorkbench` 从 `NODE_STUDIO_EDGE_VISUALS` 内联写死，本节曾经的
-     `--canvas-edge-w` / `--canvas-edge-hit-w` **零消费者**，改它们画面纹丝不动。
-     两个 token 已删；粗细 2px / 热区 20px 改在 `constants/node-studio.ts`。 */
+  /* 7 · 连线 —— 已建立档守 ≥3:1，未就绪档允许弱。
+     ⚠ 粗细与热区不在这里：边的 style 由画布从 `NODE_STUDIO_EDGE_VISUALS`
+     内联写死（2px / 20px），改 CSS 纹丝不动。 */
   --canvas-edge: #8a8a8a; /* 3.06 vs 底 */
-  --canvas-edge-pending: #a3a3a3; /* 2.23 vs 底 —— 配 opacity .6 使用 */
-  --canvas-edge-pending-w: 1.5px;
-  --canvas-edge-pending-dash: 6 5;
   --canvas-edge-active: #2a2a2a; /* 选中彗星流光，只变明度不换色相 */
 
-  /* 9 · 浮层与玻璃容器
-     ⚠ 圆角阶梯只有三档 + 圆：**控件 8 · 浮层与工具条 12 · 大输入面板 16 ·
-     圆钮 50%**（度量表 §4 规则 1、§5 #5）。旧阶梯 6/8/14/16 里的 14 是唯一的
-     野值，收到 12 —— 三档之外每多一个数，"这里为什么不一样" 就多一次。 */
+  /* 8 · 浮层与玻璃容器。圆角阶梯只有三档 + 圆：控件 8 · 浮层与工具条 12 ·
+     大输入面板 16 · 圆钮 50%。 */
   --canvas-pop-bg: #ffffff;
-  --canvas-pop-radius: 12px; /* 14 → 12 */
+  --canvas-pop-radius: 12px;
   --canvas-pop-shadow:
     0 4px 12px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
   --canvas-glass: rgba(255, 255, 255, 0.84);
   --canvas-glass-blur: 28px;
   --canvas-glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  --canvas-panel-radius: 16px; /* 左侧合体面板展开态 */
 
-  /* 16 · 详情面板（方向 E「静默」）—— 实面 + 投影分层，**不是玻璃**
-     ─────────────────────────────────────────────────────────────
-     ⚠ 这一组与上面第 9 组的玻璃是**有意分族**（契约 §5）：画布 chrome（顶栏 /
-     底部胶囊 / 左面板）仍是玻璃，详情面板是实面。面板是模态，打开时画布已被遮罩
-     推远，两者不同屏并置。**后来者不要以「材质语言应该统一」为由把它改回玻璃。**
-
-     为什么取消玻璃：owner 原始诉求是「背景加透明玻璃质感」，三份方向原型实测后
-     改判。证据是浅色画布上玻璃收不到任何东西 —— 透过面板的点阵对比合成后全部掉到
-     1.1 以下且被 blur 抹平，「看得见画布」的地方全在面板之外的边缘带。
-
-     对比度（contrast-check 确定性计算，2026-08-04，禁目测）：
-       正文  ink/S0 15.04 · ink/S1 13.27 · ink/S2 11.46
-             ink-2/S0 7.32 · /S1 6.45 · /S2 5.58
-             red/S0 6.57 · /S1 5.80 · /S2 5.01 · red/red-bg 5.65 · 白/实心红 6.57
-       边界  bd/S0 4.67 · /S1 4.12 · /S2 3.56          （门槛 3）
-       表面等级差  S0/S1 1.13 · S1/S2 1.16 · S0/S2 1.31 （门槛 1.05）
-       遮罩合成 vs S1：画布底 #F1F1F1→1.13 · #FFFFFF→1.07 · #F4F4F3→1.11
-         ⚠ 连纯白底那档都过 1.05 —— 今天的白雾玻璃在纯白底下会塌成 1.000。
-       ghost/S2 = 1.40 **装饰**（空态字形，语义由文案承担，不计门槛）。 */
-  --canvas-detail-s0: #ffffff; /* 白操作面：输入框 / 卡 */
-  --canvas-detail-s1: #eef1f4; /* 面板基面 */
-  --canvas-detail-s2: #dee1e5; /* 媒体井 / 托盘 / 抽屉 */
-  --canvas-detail-ink: #1f2733;
-  --canvas-detail-ink-2: #4d5766;
-  --canvas-detail-bd: #6b7583; /* 唯一的可点控件边界色 */
-  --canvas-detail-red: #b42318;
-  --canvas-detail-red-bg: #fbeae8;
-  --canvas-detail-ghost: #b9c0c9; /* 空态字形，装饰 */
-  --canvas-detail-scrim: rgba(218, 222, 228, 0.68);
-  /* ── 阶段 6-B：四级投影收敛成「零」，层次改押表面等级（owner 2026-08-10 拍板，
-     度量表 §5 #3）────────────────────────────────────────────────────────
-     原文是「投影是实面之后**唯一**的层次手段」，四级：面板 → 浮层 → 坞 → 白卡。
-     那条结论当初有硬证据（同屏 7 套白玻璃差值 1.00–1.03，确实撑不住），但它把
-     结论下在了**玻璃**上；换成实面之后，上面第 16 组那三级表面等级
-     （S0/S1 1.13 · S1/S2 1.16 · S0/S2 1.31，全部过 1.05 门槛）已经足以承担分层。
-
-     逐条的依据（`contrast-check` 确定性计算，2026-08-10，禁目测）：
-       · 面板 = S1，浮在遮罩之上，**遮罩后画布对 S1 = 1.13** → 去投影不塌
-       · 坞  = S0 压在 S1 上 = 1.13 → 去投影，靠表面差 + 它自己的通栏形状
-       · 白卡 = S0 压在 S1 上 = 1.13 → 去投影
-     ⚠ **浮层那一层不在这里**：`--canvas-detail-shadow-pop` 查下来**零消费者**
-       （面板里的弹层走 shadcn 原语自带的投影），所以它是死配置，随本次删除。
-       参考站的做法正是「面板与工具栏零投影，**浮层保留一层**」——我们的浮层那
-       一层还在，只是不由这里管。别以为这轮把浮层的投影也拿掉了。
-     ⚠ 原注释那句「必须压过底部胶囊的 y=10px」随之作废：面板不再有投影，也就
-       不存在与谁比高低的问题；而胶囊在遮罩之下已经被推远。 */
-  --canvas-detail-shadow: none;
-  --canvas-detail-shadow-dock: none;
-  --canvas-detail-shadow-card: none;
-
-  /* 10 · 媒体窗（卡内纯媒体区的底与占位斜纹） */
+  /* 9 · 媒体窗底 */
   --canvas-media-bg: #fafafa;
-  --canvas-stripe: rgba(0, 0, 0, 0.055);
 
-  /* 11 · 字号（只三级）与几何
-     ── 全域形态对齐（2026-08-10 owner 批准）─────────────────────────────
-     实测基准（对标站真机取样）：
-     字号三档 **13 UI · 14 输入 · 11 元信息** · 控件高三档 **24 / 28 / 32**。
-     旧值 15/14/12 与 28/32/36 各自比基准高一档 —— 不是微调，是整条梯子平移，
-     所以**必须整块换**，只改一个会把三档踩成两档。 */
-  --canvas-text-body: 14px; /* 输入档，与基准一致，未动 */
+  /* 10 · 字号三档（13 UI · 14 输入 · 11 元信息）与控件高，实测对标站取样 */
   --canvas-text-body-lh: 1.6;
-  --canvas-text-name: 13px; /* 15 → 13（实测 13/20.15/400） */
-  --canvas-text-name-lh: 20px; /* 24 → 20；⚠ 有一处当 height 用（.canvas-card-label） */
-  --canvas-text-meta: 11px; /* 12 → 11 */
-  --canvas-text-meta-lh: 1.55; /* 11×1.55 ≈ 17.05，实测行高 */
-  --canvas-rail-w: 56px; /* 左侧图标轨 */
-  --canvas-panel-w: 240px; /* 左侧内容区（班底架） */
+  --canvas-text-name: 13px;
+  --canvas-text-name-lh: 20px;
+  --canvas-text-meta: 11px;
+  --canvas-text-meta-lh: 1.55;
   --canvas-topbar-h: 48px;
-  --canvas-control-h-sm: 24px; /* 28 → 24 */
-  --canvas-control-h: 28px; /* 32 → 28 */
-  --canvas-control-h-action: 32px; /* 36 → 32 */
+  --canvas-control-h-sm: 24px;
 
-  /* 12 · 动效 —— 只三档时长、两条曲线 */
+  /* 11 · 动效 —— 只三档时长、两条曲线 */
   --canvas-dur-fast: 150ms; /* hover、状态标 */
   --canvas-dur-base: 250ms; /* 浮层出入、选中 */
-  --canvas-dur-slow: 420ms; /* 面板展开、画布避让 */
   --canvas-ease-in: cubic-bezier(0.22, 1, 0.36, 1); /* 进入与落位 */
   --canvas-ease-state: cubic-bezier(0.4, 0, 0.2, 1); /* 状态过渡 */
 
-  /* 13 · 声音卡（canvas-voice-card.md §2，仅声音族消费） */
-  --canvas-voice-cover-scrim: rgba(10, 10, 10, 0.18);
-  --canvas-voice-slot-bg: rgba(255, 255, 255, 0.92);
-  /* 波形未播色：基准给出的字面值，不等于任何既有 ink token（最接近的
-     --canvas-ink-subtle 是 #8f8f8f，非同一值），故单开一个 token 而不是
-     借用已有变量把颜色悄悄改掉。 */
-  --canvas-waveform-idle: #a1a1a1;
-
-  /* 14 · 身份卡底条 token 已随 2026-08-26 画布修法 05 节的名片脸改版删除
-     （`--canvas-identity-bar-bg`，旧压图玻璃条专用，零消费者）——身份卡
-     现在的库存行是普通卡背上的一排 chip，不再需要玻璃配方，见下方身份卡
-     CSS 块头注。 */
-
-  /* 15 · 语义脊柱映射（D7/D2 刀 1 · 2026-08-02 owner 拍板）——
-     app 全局 <html class="dark">，画布是浅色孤岛：子树里共享组件
-     （BaseModelPickerPanel / code-block 等）的脊柱令牌一直解析成暗值，
-     实拍病灶 = 视频框模型丸白字落白底、图片框模型丸深灰异类。
-     做法同 lora.css .domain-lora「语义脊柱映射」：提槽不提皮，全部
-     var(--canvas-*) 间接引用 —— [data-scheme='dark'] 档重定义 --canvas-*
-     后这批自动跟随翻面，无需重复声明。
-     ⚠ Radix 传送门（portal 到 body）不在本作用域，维持字面量类
-     （.canvas-composer-popover 等）的既有做法，见文件头注 §4.6。 */
+  /* 12 · 语义脊柱映射（同 lora.css .domain-lora）：app 全局 dark，画布是浅色
+     孤岛，子树里共享组件的脊柱令牌一直解析成暗值。提槽不提皮，全部
+     var(--canvas-*) 间接引用 —— [data-scheme='dark'] 档自动跟随翻面。
+     ⚠ Radix 传送门不在本作用域，维持字面量类的既有做法。 */
   --background: var(--canvas-card-bg);
   --foreground: var(--canvas-ink);
   --card: var(--canvas-card-bg);
@@ -763,28 +335,12 @@
   --ring: var(--canvas-stroke-focus);
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   圆角三档：把 shadcn 的刻度也拉进梯子（2026-08-10，真机验出来的）
-   ──────────────────────────────────────────────────────────────────────────
-   ⚠ 6-A 第一版只改了本文件里的 `border-radius` 字面量，**真机一量画布上大量圆角
-   还是野值**：6px×4 · 10px×42 · 14px×29 · 18px×11 · 22px×1。来源不在 CSS 里，
-   在**组件的 Tailwind 类**上 —— 每个 shadcn 原语（Popover / Button / Tabs …）
-   一进画布就把 `rounded-sm/md/lg/xl/2xl` 带进来，而它们从 `--radius: .625rem`
-   （10px）派生：sm=r−4=6 · md=r−2=8 · lg=r=10 · xl=r+4=14 · 2xl=r+8=18。
-
-   ⛔ **改 `--radius-*` 没用，试过了。** `globals.css` 用的是 `@theme inline`，
-   Tailwind 会把**定义**内联进工具类（`rounded-lg` 编译成 `border-radius:
-   var(--radius)`），所以域内覆盖 `--radius-lg` 一点效果都没有。唯一还起作用的
-   杠杆是 `--radius` 本身，但它是等差派生的，**没有任何一个 r 能同时给出
-   8 / 8 / 8 / 12 / 16**（r=12 时 md 变 10、2xl 变 20）。
-
-   所以直接在域内覆盖工具类。这不是绕过 token 体系，正是它说的那条路：
-   **薄脊柱 + 域皮肤，原语零改换皮**（`project-token-minimal-unification`）。
-   特异度 `.domain-canvas .rounded-lg`(0,2,0) 稳压 `.rounded-lg`(0,1,0)，
-   且只在画布域内生效，域外一点不动。
-   真机复验：野值从 87 处降到 5 处（其中 7px×2 是下面 `calc(--canvas-card-radius
-   - 1px)` 的媒体窗内缩，**有意为之**）。
-   ══════════════════════════════════════════════════════════════════════════ */
+/* 圆角三档也要管住 shadcn 原语带进来的刻度。
+   ⛔ 改 `--radius-*` 没用，试过了：globals.css 用 `@theme inline`，Tailwind 把
+   定义内联进工具类，域内覆盖 `--radius-lg` 零效果；唯一杠杆 `--radius` 是等差
+   派生的，没有任何 r 能同时给出 8 / 8 / 8 / 12 / 16。
+   所以直接在域内覆盖工具类——薄脊柱 + 域皮肤、原语零改换皮那条路。特异度
+   `.domain-canvas .rounded-lg`(0,2,0) 稳压 `.rounded-lg`(0,1,0)，域外不动。 */
 .domain-canvas .rounded-sm,
 .domain-canvas .rounded-md,
 .domain-canvas .rounded-lg {
@@ -799,28 +355,22 @@
 }
 
 /* 深色档 —— 不是浅色反相：卡背比底亮，投影靠加深不靠发光。
-   ⚠（2026-07-27，owner 拍板 token-inversion §4.5）：全仓没有一处设
-   data-scheme——本轮起画布外观预设精简为只留浅色（node-studio.ts 的
-   NODE_STUDIO_CANVAS_APPEARANCE_PRESETS），这块暂无激活路径，是 v0.2 规格
-   的一部分先留着，不是死代码要清，将来做深色域时是现成的。 */
+   ⚠ 全仓没有一处设 data-scheme（外观预设精简为只留浅色），这块暂无激活路径，
+   是 v0.2 规格的一部分先留着，不是死代码要清。 */
 .domain-canvas[data-scheme='dark'] {
   color-scheme: dark;
 
   --canvas-bg: #0a0a0a;
-  --canvas-dot: rgba(255, 255, 255, 0.1);
 
   --canvas-card-bg: #171717; /* 对底 1.10:1 */
   --canvas-card-line: rgba(255, 255, 255, 0.1);
   --canvas-card-shadow-hover: 0 4px 24px rgba(0, 0, 0, 0.6);
 
-  --canvas-stroke-light: rgba(255, 255, 255, 0.04);
   --canvas-stroke-regular: rgba(255, 255, 255, 0.1);
   --canvas-stroke-bold: rgba(255, 255, 255, 0.18);
   --canvas-stroke-focus: #a1a1a1;
   --canvas-fill-control: rgba(255, 255, 255, 0.06);
   --canvas-fill-control-hover: rgba(255, 255, 255, 0.09);
-  --canvas-seg-selected: #262626;
-  --canvas-seg-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 
   --canvas-ink: #fafafa; /* 17.18 / 18.97 */
   --canvas-ink-regular: #d4d4d4; /* 12.09 */
@@ -832,17 +382,10 @@
   --canvas-action-fg: #0a0a0a;
   --canvas-accent: #6e9bff; /* 6.66 */
 
-  --canvas-ok: #4fbf8b; /* 7.82 */
   --canvas-warn: #d9a441; /* 7.97 */
   --canvas-danger: #f0736c; /* 6.30 */
 
-  --canvas-port-image: #9ba1ac; /* 6.90 */
-  --canvas-port-audio: #a899b2; /* 6.71 */
-  --canvas-port-video: #93a697; /* 6.95 */
-  --canvas-port-identity: #b3a392; /* 7.32 */
-
   --canvas-edge: #8a8a8a; /* 5.73 vs 底 */
-  --canvas-edge-pending: #6e6e6e; /* 3.88 vs 底 */
   --canvas-edge-active: #ffffff;
 
   --canvas-pop-bg: #1f1f1f;
@@ -852,30 +395,19 @@
   --canvas-glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 
   --canvas-media-bg: #101010;
-  --canvas-stripe: rgba(255, 255, 255, 0.07);
-
-  /* 声音卡 / 身份卡深色档 —— 两份基准都没写深色值，这里按「卡背比底亮、
-     投影靠加深」的既定规则（§9 顶部注释）推算，非基准原文，真机核对时留意。 */
-  --canvas-voice-cover-scrim: rgba(0, 0, 0, 0.35);
-  --canvas-voice-slot-bg: rgba(23, 23, 23, 0.92);
-  --canvas-waveform-idle: var(--canvas-ink-muted);
 }
 
-/* reduced-motion：三档时长全部压到 1ms 并保留终态（规格 §9） */
+/* reduced-motion：三档时长全部压到 1ms 并保留终态 */
 @media (prefers-reduced-motion: reduce) {
   .domain-canvas {
     --canvas-dur-fast: 1ms;
     --canvas-dur-base: 1ms;
-    --canvas-dur-slow: 1ms;
   }
 }
 
-/* ── S1 · 节点外壳语言（2026-07-26）────────────────────────────────────────
-   规格：docs/references/pages/canvas-skin.md §2（卡）/ §7（端口与连线）。
-   写成类而非 Tailwind arbitrary value —— Hard Rule 5。
-   ⚠ 只在 .domain-canvas 作用域内生效，旧皮 .node-card-paper 不受影响。 */
-
-/* 卡框：卡 = 媒体本身。静态无投影，只有发丝边；纵深靠 hover 抬升。 */
+/* 卡框（名册卡 CastCard）：卡 = 媒体本身。静态无投影，只有发丝边；纵深靠
+   hover 抬升。审核态复用同一条卡边着色规则，不新造第二套卡面 chrome：
+   已出未审 = warn 边，已打回 = danger 边（同失败一族）。 */
 .domain-canvas .canvas-card {
   background: var(--canvas-card-bg);
   border: 1px solid var(--canvas-card-line);
@@ -895,12 +427,6 @@
 .domain-canvas .canvas-card[data-status='failed'] {
   border-color: var(--canvas-danger);
 }
-/* 包 4 审核态：复用**同一条**卡边着色规则，不新造第二套卡面 chrome。
-   §5-W3 明写这一档「视觉极小」，且 包 4 设计门＝否 —— 卡是「卡即媒体」，
-   底部加状态带属于改卡面视觉，要过 ui-page 门，不属于本包。
-   已出未审 = warn 边（用户要来看一眼），已打回 = danger 边（同失败一族，
-   都是「这张不能用」）。两个 token 都是既有的、之前已算过对比度的值；
-   这里只当描边用，不承载文字。 */
 .domain-canvas .canvas-card[data-status='awaiting-review'] {
   border-color: var(--canvas-warn);
 }
@@ -908,36 +434,19 @@
   border-color: var(--canvas-danger);
 }
 
-/* ── 包 6 片 2 · 显式审阅模式 ────────────────────────────────────────
-   §4.6 只定行为契约不定数值（画布视觉方向 owner 尚未表态），所以这一段**不新造
-   任何颜色**：强调完全由「别人弱化、它不弱化」构成，再叠一层既有的 hover 投影。
-   这样也天然不会跟选中态（--canvas-accent 描边）或显现态撞 —— 它压根不是一条
-   边的着色，是对比度层级本身。
-   弱化用 opacity 而不是隐藏：D2 保留空间上下文的优势全靠这些卡还看得见。数值
-   与画布里既有的几处淡出（0.45 / 0.5 / 0.55）同一量级。 */
+/* 显式审阅模式：不新造任何颜色，强调完全由「别人弱化、它不弱化」构成，天然
+   不会跟选中态（--canvas-accent 描边）撞。弱化用 opacity 而不是隐藏——保留
+   空间上下文全靠这些卡还看得见。 */
 .domain-canvas[data-review-mode='true'] .react-flow__node {
   opacity: 0.4;
   transition: opacity var(--canvas-dur-base) var(--canvas-ease-state);
 }
-.domain-canvas[data-review-mode='true']
-  .react-flow__node.canvas-review-current {
-  opacity: 1;
-}
-.domain-canvas[data-review-mode='true']
-  .react-flow__node.canvas-review-current
-  .canvas-card {
-  box-shadow: var(--canvas-card-shadow-hover);
-}
 
-/* 手机「查看画布」态的返回按钮：贴在顶栏**正下方**。
-   ⚠ 2026-09-03 owner 报「画布返回列表这边重叠了」——原来写 `top-3`(12px)，
-   正好落在 `--canvas-topbar-h`(48px) 的顶栏里，和项目名叠在一起。
-   与 `.canvas-review-bar` 同源同一条基线，改高度只需改顶栏那个变量。 */
+/* 手机「查看画布」态的返回按钮与审阅模式条：同一条基线贴在顶栏正下方，
+   改高度只需改 --canvas-topbar-h。 */
 .domain-canvas .canvas-peek-exit {
   top: calc(var(--canvas-topbar-h) + 12px);
 }
-
-/* 模式条：视口固定的一条窄条，贴在顶栏正下方居中。只在模式里存在。 */
 .domain-canvas .canvas-review-bar {
   top: calc(var(--canvas-topbar-h) + 12px);
   max-width: min(520px, calc(100% - 32px));
@@ -983,7 +492,7 @@
   font-weight: 500;
 }
 
-/* 打回后那一屏（§4.2 停在原地 + §⑤ 新旧双联）。 */
+/* 打回后那一屏：停在原地 + 新旧双联 */
 .domain-canvas .canvas-review-reject {
   padding-top: 8px;
   border-top: 1px solid var(--canvas-card-line);
@@ -1028,7 +537,7 @@
   color: var(--canvas-ink-muted);
 }
 
-/* 375 compact：双联改上下堆叠，输入行标签换行放上面，条本身贴左右边距。 */
+/* 375 compact：双联改上下堆叠，条本身贴左右边距。 */
 @media (max-width: 480px) {
   .domain-canvas .canvas-review-bar {
     max-width: calc(100% - 16px);
@@ -1040,141 +549,14 @@
   }
 }
 
-/* 视频卡 + 节点右侧编排器（canvas-video-card.md）。
-   卡始终是纯视频媒体；参数面固定在右边，详细态只向右扩，节点尺寸与端口锚点
-   不变。NodeToolbar 负责真实 24/20px offset，本段只负责面板自身尺寸和皮肤。 */
-.domain-canvas .canvas-video-card {
-  width: var(--canvas-card-w-console);
-}
-
-.domain-canvas .canvas-video-sidecar-toolbar {
-  pointer-events: auto;
-}
-
-.domain-canvas .canvas-video-sidecar {
-  --node-panel: var(--canvas-card-bg);
-  --node-panel-inner: var(--canvas-fill-control);
-  --node-panel-soft: var(--canvas-bg);
-  --node-foreground: var(--canvas-ink);
-  --node-muted: var(--canvas-ink-regular);
-  --node-subtle: var(--canvas-ink-muted);
-  --node-canvas: var(--canvas-action-fg);
-  --node-edge: var(--canvas-ink-muted);
-  --node-focus-ring: var(--canvas-stroke-focus);
-  display: flex;
-  width: var(--canvas-card-w-console);
-  max-height: calc(
-    100vh - var(--canvas-topbar-h) - var(--canvas-bottom-inset) - 48px
-  );
-  flex-direction: column;
-  overflow: hidden;
-  translate: 0 -40px;
-  color: var(--canvas-ink);
-  background: var(--canvas-pop-bg);
-  border: 1px solid var(--canvas-stroke-regular);
-  border-radius: var(--canvas-pop-radius);
-  box-shadow: var(--canvas-pop-shadow);
-  transition:
-    width var(--canvas-dur-slow) var(--canvas-ease-in),
-    box-shadow var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-
-@media (max-width: 767px) {
-  .domain-canvas .canvas-video-sidecar {
-    translate: 0 -20px;
-  }
-}
-
-/* ⚠ 死 CSS 已删（《画布修法》02 节刀 1 task D，2026-08-26）：这里原来有三条
-   `.canvas-video-sidecar[data-expanded='false'|'true']` 规则（折叠头/展开
-   宽度），零匹配——`SeedanceNode` 从不给这个元素写 `data-expanded`；唯二两个
-   `data-expanded` 产出者是 `CanvasLeftPanel`（class 是 `canvas-left-panel`）
-   与 `CanvasSlotRack`（class 是 `canvas-slot-rack`），都不是这个类。「展开」
-   动作已改道 ⤢ 详情面板，这条 data 属性驱动的折叠态没有活的写入方。
-   `--canvas-card-w-console-open` 随之失去这唯一的消费者，令牌定义本身按本
-   包边界保留未删（详见任务报告）。 */
-.domain-canvas .canvas-video-sidecar-header {
-  display: flex;
-  min-height: 56px;
-  flex: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px 10px 16px;
-  border-bottom: 1px solid var(--canvas-stroke-regular);
-}
-
-.domain-canvas .canvas-video-sidecar-eyebrow {
-  overflow: hidden;
-  color: var(--canvas-ink-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  line-height: 14px;
-  letter-spacing: 0.08em;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.domain-canvas .canvas-video-sidecar-title {
-  overflow: hidden;
-  margin-top: 2px;
-  color: var(--canvas-ink);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.domain-canvas .canvas-video-sidecar-icon-button {
-  display: inline-flex;
-  width: var(--canvas-control-h);
-  min-height: var(--canvas-control-h);
-  align-items: center;
-  justify-content: center;
-  color: var(--canvas-ink-regular);
-  background: var(--canvas-card-bg);
-  border: 1px solid var(--canvas-stroke-bold);
-  border-radius: 50%;
-  transition:
-    background var(--canvas-dur-fast) var(--canvas-ease-state),
-    border-color var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-
-.domain-canvas .canvas-video-sidecar-icon-button:hover {
-  background: var(--canvas-fill-control-hover);
-  border-color: var(--canvas-stroke-focus);
-}
-
-.domain-canvas .canvas-video-sidecar-icon-button:focus-visible {
-  outline: 2px solid var(--canvas-stroke-focus);
-  outline-offset: 2px;
-}
-
-.domain-canvas .canvas-video-sidecar-body {
-  min-height: 0;
-  flex: 1;
-  overflow: auto;
-  overscroll-behavior: contain;
-  padding: 12px;
-}
-
-.domain-canvas .canvas-video-composer-compact {
-  display: flex;
-  min-height: 340px;
-  flex-direction: column;
-  gap: 10px;
-}
-
 /* @ 提及候选浮层。挂在 body 坐标系上（fixed），所以**不套 .domain-canvas 作用域**
-   —— 它虽然由画布里的编辑器唤起，但定位参照的是视口。 */
+   —— 定位参照的是视口。 */
 .canvas-mention-popover {
   position: fixed;
   z-index: var(--z-index-canvas-transient);
   display: flex;
   min-width: 180px;
-  /* ⚠ 改这个数要同步 `MentionInput.tsx` 的 `MENTION_POPOVER_MAX_W` —— 那边靠它
+  /* ⚠ 改这个数要同步 `MentionInput.tsx` 的 `MENTION_POPOVER_MAX_W`——那边靠它
      把浮层夹回视口内，对不上就会夹过头或夹不住。 */
   max-width: 280px;
   flex-direction: column;
@@ -1185,10 +567,7 @@
   border-radius: 12px;
   box-shadow: var(--shadow-node-panel);
 }
-
-/* ⚠ 行内从 flex-row 改成 column：高亮那一条要在名字下面再展开一段内容预览
-   （文本节点点下去是把原文倒进正文，不先看一眼等于闭着眼倒）。名字与类型标签
-   自己在一个 row 里，所以横向排布没变。 */
+/* 行内是 column：高亮那一条要在名字下面再展开一段内容预览。 */
 .canvas-mention-popover button {
   display: flex;
   flex-direction: column;
@@ -1200,19 +579,15 @@
   text-align: left;
   cursor: pointer;
 }
-
 .canvas-mention-popover button[data-active='true'] {
   background: var(--node-panel-soft);
 }
-
 .canvas-mention-popover-kind {
   flex-shrink: 0;
   color: var(--node-muted);
   font-size: 11px;
 }
-
-/* 内容预览：最多三行，超出省略。**不做滚动** —— 这里是「够不够我判断要不要点」，
-   不是阅读器；真要通读该去那个节点自己的卡面。 */
+/* 内容预览最多三行，⛔ 不做滚动——这里是「够不够我判断要不要点」，不是阅读器。 */
 .canvas-mention-popover-preview {
   display: -webkit-box;
   overflow: hidden;
@@ -1224,295 +599,8 @@
   white-space: pre-wrap;
 }
 
-.domain-canvas .canvas-video-composer-mode {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.domain-canvas .canvas-video-composer-mode button {
-  display: inline-flex;
-  min-height: var(--canvas-control-h-sm);
-  align-items: center;
-  padding: 0 9px;
-  color: var(--canvas-ink-muted);
-  background: var(--canvas-fill-control);
-  /* ⚠ 透明描边不能省：选中态要加 1px 实边，基态没有的话，每次切档整行都会因为
-     多出 2px 而重排一次。原先只有一个静态的「选中」项，看不出来；三档可点之后
-     它每一次点击都会抖。 */
-  border: 1px solid transparent;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    color 160ms ease,
-    background-color 160ms ease,
-    border-color 160ms ease;
-}
-
-.domain-canvas .canvas-video-composer-mode button:hover {
-  color: var(--canvas-ink);
-}
-
-.domain-canvas .canvas-video-composer-mode button[data-active='true'] {
-  color: var(--canvas-ink);
-  background: var(--canvas-seg-selected);
-  border-color: var(--canvas-stroke-bold);
-  box-shadow: var(--canvas-seg-shadow);
-}
-
-/* 素材计数是这一行的说明文字，不是第四个档 —— 推到右端，且不穿控件壳。 */
-.domain-canvas .canvas-video-composer-mode-count {
-  margin-left: auto;
-  padding-right: 2px;
-  color: var(--canvas-ink-muted);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.domain-canvas .canvas-video-composer-helper {
-  display: flex;
-  min-height: var(--canvas-control-h);
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0 8px 0 10px;
-  color: var(--canvas-ink-muted);
-  background: var(--canvas-fill-control);
-  border-radius: 8px;
-  font-size: 10px;
-  line-height: 1.4;
-}
-
-.domain-canvas .canvas-video-composer-helper span {
-  min-width: 0;
-}
-
-.domain-canvas .canvas-video-composer-helper button {
-  flex: none;
-  min-height: var(--canvas-control-h-sm);
-  padding: 0 8px;
-  color: var(--canvas-ink-regular);
-  background: var(--canvas-card-bg);
-  border: 1px solid var(--canvas-stroke-regular);
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-.domain-canvas .canvas-video-composer-assets {
-  display: flex;
-  min-height: 52px;
-  align-items: center;
-  gap: 6px;
-}
-
-.domain-canvas .canvas-video-composer-assets-empty {
-  min-width: 0;
-  flex: 1;
-  color: var(--canvas-ink-muted);
-  font-size: 10px;
-}
-
-.domain-canvas .canvas-video-composer-asset-add {
-  display: inline-flex;
-  width: 46px;
-  height: 46px;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  color: var(--canvas-ink-muted);
-  background: transparent;
-  border: 1px dashed var(--canvas-stroke-bold);
-  border-radius: 8px;
-  font-size: 18px;
-}
-
-.domain-canvas .canvas-video-composer-asset-add:hover {
-  color: var(--canvas-ink);
-  background: var(--canvas-fill-control);
-  border-color: var(--canvas-stroke-focus);
-}
-
-/* 输入框 + 框外字数计数（台账 D2），一起当作父层的一个 flex 项 */
-.domain-canvas .canvas-video-composer-prompt-group {
-  display: flex;
-  min-height: 0;
-  flex: 1;
-  flex-direction: column;
-}
-
-.domain-canvas .canvas-video-composer-prompt {
-  position: relative;
-  min-height: 150px;
-  flex: 1;
-  overflow: hidden;
-  background: var(--canvas-card-bg);
-  border: 1px solid var(--canvas-stroke-regular);
-  border-radius: 8px;
-}
-
-.domain-canvas .canvas-video-composer-prompt-input {
-  display: block;
-  width: 100%;
-  min-height: 150px;
-  resize: none;
-  /* 底部那 28px 是给行内字数计数留的位（见下），计数移出框后不再需要 */
-  padding: 12px;
-  color: var(--canvas-ink);
-  background: transparent;
-  border: 0;
-  font-size: 12px;
-  line-height: 1.65;
-}
-@media (max-width: 767px) {
-  .domain-canvas .canvas-video-composer-prompt-input {
-    font-size: 1rem;
-  }
-}
-
-.domain-canvas .canvas-video-composer-prompt-input:focus-visible {
-  outline: 2px solid var(--canvas-stroke-focus);
-  outline-offset: -2px;
-}
-
-/* 台账 D2：字数计数搬出输入框。原先是 `position:absolute` 压在框内右下角，
-   靠 textarea 的 padding-bottom 给它腾位 —— 但 textarea 会**滚动**，正文一
-   长就从计数底下穿过去，两层字叠在一起（实拍图里的「0/2000 被正文压住」）。
-   改成框外的一条静态行，顺带 9px → 11px（9px 已经在可读下限以下）。 */
-.domain-canvas .canvas-video-composer-count {
-  display: block;
-  padding-top: 4px;
-  text-align: right;
-  color: var(--canvas-ink-muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.domain-canvas .canvas-video-composer-dock {
-  display: flex;
-  min-height: var(--canvas-control-h-action);
-  align-items: center;
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid var(--canvas-stroke-regular);
-}
-
-.domain-canvas .canvas-video-composer-model,
-.domain-canvas .canvas-video-composer-summary {
-  display: inline-flex;
-  min-width: 0;
-  min-height: var(--canvas-control-h);
-  align-items: center;
-  gap: 5px;
-  padding: 0 8px;
-  color: var(--canvas-ink-regular);
-  background: transparent;
-  border-radius: 8px;
-  /* 台账 D2：10px → 12px。这两颗是视频框里仅有的两条参数读数，却比图片框
-     同职责的 .canvas-composer-pill（12px）小两档；`480p · 12s · 4:3` 这种
-     全是数字和冒号的串在 10px 下最难认。 */
-  font-size: 12px;
-  font-weight: 600;
-}
-
-/* 这一行只有两颗，谁该让位是**内容密度**说了算：模型名截一半（`Seedance
-   2.0 F…`）仍然认得出，而 `480p · 12s · 4:3` 截掉末尾就整个丢掉一个字段。
-   所以模型丸既吃富余（grow 1）也第一个吐出来（shrink 1），摘要 flex:none
-   站住自然宽；模型的下限用 min-width 兜（4.5rem 够 2 字 + 省略号）。 */
-.domain-canvas .canvas-video-composer-model {
-  flex: 1 1 auto;
-  min-width: 4.5rem;
-}
-
-.domain-canvas .canvas-video-composer-model span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 台账 D2：去掉 `max-width: 46%` 那顶硬帽 —— 它跟内容毫无关系，宽度明明够
-   的时候也把 `480p · 12s · 4:3` 截成 `480p · 12s · 4…`（实拍图就是这么拍
-   到的）。真正的约束交给上面那条 flex 分工。 */
-.domain-canvas .canvas-video-composer-summary {
-  flex: none;
-  min-width: 0;
-  color: var(--canvas-ink-muted);
-}
-
-.domain-canvas .canvas-video-composer-summary span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.domain-canvas .canvas-video-composer-model:hover,
-.domain-canvas .canvas-video-composer-summary:hover {
-  background: var(--canvas-fill-control-hover);
-}
-
-.domain-canvas .canvas-video-composer-generate {
-  display: inline-flex;
-  width: var(--canvas-control-h-action);
-  height: var(--canvas-control-h-action);
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  color: var(--canvas-action-fg);
-  background: var(--canvas-action);
-  border-radius: 50%;
-  font-size: 20px;
-  transition:
-    background var(--canvas-dur-fast) var(--canvas-ease-state),
-    transform var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-
-.domain-canvas .canvas-video-composer-generate:hover:not(:disabled) {
-  background: var(--canvas-action-hover);
-  transform: translateY(-1px);
-}
-
-.domain-canvas .canvas-video-composer-generate:disabled {
-  color: var(--canvas-ink-muted);
-  background: var(--canvas-fill-control);
-}
-
-.domain-canvas .canvas-video-composer-disabled-reason {
-  color: var(--canvas-ink-muted);
-  font-size: 10px;
-  line-height: 1.4;
-}
-
-/* 卡名在卡「外」上方。用 absolute + bottom:100% 脱离文档流 —— 卡的 box 尺寸
-   一点不变，React Flow 的节点测量与端口锚点因此完全不受影响。 */
-.domain-canvas .canvas-card-label {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  right: 0;
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: var(--canvas-text-name-lh);
-  font-size: var(--canvas-text-name);
-  line-height: var(--canvas-text-name-lh);
-  /* 阶段 6-A：600 → 400（度量表 §5 #4，实测 13px / 20.15px / **400**）。
-     卡外标签靠**位置**（脱离卡、贴在卡上沿）已经足够被读成标题，再加粗一档是
-     两次强调；而卡名用的 --canvas-ink 是 19.80:1，400 字重照样清楚。 */
-  font-weight: 400;
-  color: var(--canvas-ink);
-  pointer-events: none;
-}
-.domain-canvas .canvas-card-label > * {
-  pointer-events: auto;
-}
-
-/* 盖章状态徽标 · running 档（台账 §17.3）。石绿只落在**边与点**上，章文仍是
-   墨色 —— 石绿作 12px 文字在三个底色预设上最差 3.59，够图形档不够文字档。
-   在这之前 running 的编码是 `text-node-paint`，而 canvas.css 上面把
-   `--node-paint` 重映射给连线了，于是 running 与 ready/done 是同一个色
-   （ΔE-ok 0.029），加上那颗点又不动 —— 等于「正在生成」这件事在画面上无声。 */
+/* 盖章状态徽标 · running：石绿只落在边与点上，章文仍是墨色（石绿作 12px 文字
+   在三个底色预设上最差 3.59，够图形档不够文字档）。 */
 .domain-canvas .canvas-status-badge--running {
   border-color: var(--canvas-status-running);
 }
@@ -1520,121 +608,8 @@
   background: var(--canvas-status-running);
 }
 
-/* 端口：形状是主编码、色是辅编码（族色全部避开强调蓝的色相区）。
-   R3-1 曾把端口视觉退场，新方向（已确认条款 3「常显连线 + 类型色 handle」）
-   把它长回来；DOM 与 !size-5 命中区不变，只恢复可见性。 */
-/* ⚠ Handle 自带 `!size-5`（20px 命中区）与 `!bg-transparent`，都带 !important。
-   所以视觉点画在 ::after 上：命中区仍是 20px（边的锚点与拖拽热区不变），
-   看得见的只有居中的 10px。 */
-.domain-canvas .canvas-port::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 3px var(--canvas-card-bg);
-}
-/* ⚠ 下面这一小撮 2 / 3 / 4px 圆角**故意留在阶梯之外**（阶段 6-A 2026-08-10）：
-   端口的方 / 圆、标签字形的方 / 圆是**族的编码**（哪个模态），不是控件圆角 ——
-   把它们抬到 8px 会把 10px 见方的端口变成圆点，直接抹掉"方=图片、圆=音频"这条
-   区分。同理 `.canvas-label-input`(4) 与 `.canvas-composer-aspect-box`(2) 是控件
-   **内部**的细节而非控件本体。圆角三档 8/12/16 管的是控件与容器，不管这些。 */
-.domain-canvas .canvas-port[data-family='image']::after {
-  background: var(--canvas-port-image);
-  border-radius: 2px;
-}
-.domain-canvas .canvas-port[data-family='audio']::after {
-  background: var(--canvas-port-audio);
-  border-radius: 50%;
-}
-.domain-canvas .canvas-port[data-family='video']::after {
-  background: var(--canvas-card-bg);
-  border: 2px solid var(--canvas-port-video);
-  border-radius: 2px;
-}
-.domain-canvas .canvas-port[data-family='identity']::after {
-  background: var(--canvas-card-bg);
-  border: 2px solid var(--canvas-port-identity);
-  border-radius: 50%;
-}
-
-/* 卡名前置的族图标：与端口同一套形状 + 族色（规格 §12.1「前置一个族图标」）。
-   旧皮那个带字母的方牌在 24px 标签行里太挤，也和端口的编码语言对不上。 */
-.domain-canvas .canvas-label-glyph {
-  width: 13px;
-  height: 13px;
-  flex: none;
-  display: block;
-}
-.domain-canvas .canvas-label-glyph[data-family='image'] {
-  background: var(--canvas-port-image);
-  border-radius: 3px;
-}
-.domain-canvas .canvas-label-glyph[data-family='audio'] {
-  background: var(--canvas-port-audio);
-  border-radius: 50%;
-}
-.domain-canvas .canvas-label-glyph[data-family='video'] {
-  border: 2px solid var(--canvas-port-video);
-  border-radius: 3px;
-}
-.domain-canvas .canvas-label-glyph[data-family='identity'] {
-  border: 2px solid var(--canvas-port-identity);
-  border-radius: 50%;
-}
-
-/* 卡名原地编辑（canvas-image-card.md §1「原地可编辑」/ S4 修复：近场工具条的
-   改名输入删掉去重后，卡外这个名字曾经一直是只读 span）。只读态是可 Tab 聚焦
-   的按钮，焦点环与编辑态输入框共用同一套 --canvas-stroke-focus；编辑态底色
-   复用 --canvas-fill-control——两个都是既有 token，不新造颜色（Hard Rule 5）。 */
-.domain-canvas .canvas-label-trigger,
-.domain-canvas .canvas-label-input {
-  border-radius: 4px;
-  font: inherit;
-  color: inherit;
-  /* 先清默认态的浏览器原生 outline，:focus-visible 规则（特异度更高）再补
-     回 2px 焦点环——否则某些浏览器的原生蓝框会跟自定义环同屏叠两圈。 */
-  outline: none;
-}
-.domain-canvas .canvas-label-trigger:focus-visible,
-.domain-canvas .canvas-label-input:focus-visible {
-  outline: 2px solid var(--canvas-stroke-focus);
-  outline-offset: 2px;
-}
-.domain-canvas .canvas-label-input {
-  background: var(--canvas-fill-control);
-  border: none;
-  margin: 0 -4px;
-  padding: 0 4px;
-}
-
-/* S5（2026-07-27，canvas-image-card.md §三）：hover / focus 时名字右侧浮出
-   铅笔图标提示可编辑——之前只读态和可编辑态视觉完全一样，没有 hover 线索。
-   图标色用既有的 --canvas-ink-muted（Hard Rule 5，不新造颜色），常态透明，
-   hover/focus 才显影。挂在共享的 `.canvas-label-trigger`（EditableNodeLabel，
-   NodeShell.tsx 导出）上，八个消费者统一生效，不逐组件重画。 */
-.domain-canvas .canvas-label-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.domain-canvas .canvas-label-edit-hint {
-  flex: none;
-  color: var(--canvas-ink-muted);
-  opacity: 0;
-  transition: opacity var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-label-trigger:hover .canvas-label-edit-hint,
-.domain-canvas .canvas-label-trigger:focus-visible .canvas-label-edit-hint {
-  opacity: 1;
-}
-
-/* ── S2a · 浮起玻璃容器（2026-07-26）──────────────────────────────────────
-   规格 §8。顶栏 / 底部胶囊 / 左侧面板（S2b）共用一套玻璃配方：白 84%
-   + backdrop-blur + 发丝边 + 柔投影。用类而非 arbitrary value（Hard Rule 5）。
-   ⚠ backdrop-filter 不支持时降级成近不透明，否则文字会糊在画布内容上。 */
+/* 浮起玻璃容器：顶栏 / 底部胶囊 / 左侧面板共用一套配方（白 84% + blur + 发丝边
+   + 柔投影）。⚠ backdrop-filter 不支持时降级成近不透明，否则文字糊在画布上。 */
 .domain-canvas .canvas-glass {
   background: var(--canvas-glass);
   border: 1px solid var(--canvas-stroke-regular);
@@ -1670,23 +645,16 @@
     0 10px 15px -3px rgba(0, 0, 0, 0.5);
 }
 
-/* 玻璃容器内的前景色重映射（strangler，同 .node-card-paper 的做法）。
-   顶栏/底部胶囊里 200+ 处仍在用 text-node-foreground / -muted / -subtle 与
-   bg-node-panel-inner —— 那套值是给**深色**面板配的，搬到白玻璃上就糊了。
-   这里做容器级变量覆盖，markup 一行不用改，靠 Tailwind v4 @theme inline 的
-   单跳 var(--node-foreground) 自动读到新值。 */
+/* 玻璃容器内的前景色重映射（strangler，同 .node-card-paper 的做法）：顶栏/底部
+   胶囊里仍在用的 text-node-* / bg-node-panel-inner 那套值是给深色面板配的。 */
 .domain-canvas .canvas-glass {
   --node-foreground: var(--canvas-ink);
   --node-muted: var(--canvas-ink-muted);
   --node-subtle: var(--canvas-ink-subtle);
-  /* ⚠ 别把 --node-panel 设成 transparent：选中态的工具按钮是「深底 +
-     text-node-panel 反白字」，透明会让图标整个消失（S2a 真机撞到过）。
-     容器自身的背景由 .canvas-glass 的 background 接管（特异度更高），
-     所以这里把它留作「反白字的颜色」用。 */
+  /* ⚠ 别把 --node-panel 设成 transparent：选中态工具按钮是「深底 +
+     text-node-panel 反白字」，透明会让图标整个消失。容器自身背景由
+     .canvas-glass 的 background 接管，这里留作「反白字的颜色」用。 */
   --node-panel: var(--canvas-card-bg);
-  /* 选中态的工具按钮是 `bg-node-foreground text-node-canvas`（墨底 + 反白字），
-     正好对应规格 §0.6 的「主动作 = 墨色实底」。--node-foreground 已经被映射成
-     墨色，反白色也必须跟着换——否则暖炭深字压在黑底上是一坨看不见的黑点。 */
   --node-canvas: var(--canvas-action-fg);
   --node-panel-inner: var(--canvas-fill-control);
   --node-panel-soft: var(--canvas-fill-control);
@@ -1694,8 +662,8 @@
   --node-focus-ring: var(--canvas-stroke-focus);
 }
 
-/* ── S2b · 左侧合体面板（2026-07-26）────────────────────────────────────
-   规格 §8：56px 图标轨 + 240px 内容区，一个容器一条投影。 */
+/* 左侧合体面板：56px 图标轨 + 240px 内容区，一个容器一条投影。展开/收起共用
+   同一块 16px 壳体——窄轨不切成胶囊，避免一次手势前后改变形状语言。 */
 .domain-canvas .canvas-left-panel {
   border-radius: 16px;
   height: calc(100% - var(--canvas-topbar-h) - 32px);
@@ -1706,7 +674,6 @@
 .domain-canvas .canvas-left-panel[data-expanded='false'] {
   height: 177px;
 }
-
 .domain-canvas .canvas-left-panel-body {
   opacity: 1;
   transform: translateX(0);
@@ -1720,9 +687,7 @@
   opacity: 0;
   transform: translateX(-8px);
 }
-
-/* 减动偏好下 globals.css 的全局块已把时长压到 .01ms；这里再显式撤掉位移，
-   免得留下一次可见的「跳一下」。 */
+/* 减动偏好下全局块已把时长压到 .01ms；这里再显式撤掉位移，免得留下一次可见的跳。 */
 @media (prefers-reduced-motion: reduce) {
   .domain-canvas .canvas-left-panel,
   .domain-canvas .canvas-left-panel-body {
@@ -1730,24 +695,16 @@
     animation: none;
   }
 }
-/* 展开 / 收起共用同一块 16px 壳体。窄轨不再切成胶囊，避免同一个侧栏在一次
-   展开手势前后改变形状语言（owner 2026-08-04 真机反馈）。 */
 .domain-canvas .canvas-panel-title {
   font-size: var(--canvas-text-name);
   line-height: var(--canvas-text-name-lh);
   font-weight: 600;
 }
 
-/* 图标轨顶部的 ＋添加：全画面唯一的墨色实底（规格 §0.6）。 */
-/* ── 主动作（墨底）唯一配方 ────────────────────────────────────────────
-   owner 2026-08-02「这个 css 样式也同步一下」。全画布只有三处墨底实底
-   （§0.6）：左轨 ＋添加 · 助手唤起 · 生成框发送。它们此前各写各的——颜色
-   token 确实是同一对，但**过渡属性、按下态、禁用态三样全不一致**（发送键
-   有 :disabled、另外两个没有；三条 transition 写法各不相同）。
-   三个类名保留（各自还带语境专属的形状/尺寸），共用这一份颜色与状态。 */
+/* 主动作（墨底）唯一配方：全画布只有左轨 ＋添加 与助手唤起两处墨底实底。
+   两个类名各带语境专属的形状/尺寸，共用这一份颜色与状态。 */
 .domain-canvas .canvas-rail-action,
-.domain-canvas .canvas-assistant-action,
-.domain-canvas .canvas-composer-send-btn {
+.domain-canvas .canvas-assistant-action {
   background: var(--canvas-action);
   color: var(--canvas-action-fg);
   transition:
@@ -1755,39 +712,28 @@
     transform var(--canvas-dur-fast) var(--canvas-ease-state);
 }
 .domain-canvas .canvas-rail-action:hover:not(:disabled),
-.domain-canvas .canvas-assistant-action:hover:not(:disabled),
-.domain-canvas .canvas-composer-send-btn:hover:not(:disabled) {
+.domain-canvas .canvas-assistant-action:hover:not(:disabled) {
   background: var(--canvas-action-hover);
   color: var(--canvas-action-fg);
 }
 .domain-canvas .canvas-rail-action:disabled,
-.domain-canvas .canvas-assistant-action:disabled,
-.domain-canvas .canvas-composer-send-btn:disabled {
+.domain-canvas .canvas-assistant-action:disabled {
   background: var(--canvas-fill-control);
   color: var(--canvas-ink-subtle);
   cursor: not-allowed;
 }
 
-/* ── 按下态 ────────────────────────────────────────────────────────────
-   owner 2026-08-02「点击前后的过渡动画补充」。在这之前 canvas.css 里
-   **一条 :active 都没有** —— 从按下到松手之间画面纹丝不动，慢一点的动作
-   （生成、整理画布、切项目）分不清是「没点上」还是「在等」。
-   只用 transform，不动颜色：hover 的变色已经占了颜色这条通道，按下再叠一
-   层颜色会糊成一团；缩一下是最不占语义的反馈。 */
+/* 按下态只用 transform，不动颜色：hover 的变色已经占了颜色这条通道。 */
 .domain-canvas .canvas-rail-action:active:not(:disabled),
-.domain-canvas .canvas-assistant-action:active:not(:disabled),
-.domain-canvas .canvas-composer-send-btn:active:not(:disabled) {
+.domain-canvas .canvas-assistant-action:active:not(:disabled) {
   transform: scale(0.94);
 }
-/* chrome 上的幽灵钮（顶栏 / 底部胶囊 / 近场工具条 / 左面板）：一条容器级
-   规则扫掉，不用去每个文件挂类。⚠ transition 必须把颜色一起写上——这条
-   选择器特异度 0,2,1 高于 Tailwind 的 .transition-colors（0,1,0），只写
-   transform 会把原有的颜色过渡覆盖没。 */
+/* chrome 上的幽灵钮（顶栏 / 底部胶囊 / 左面板）：一条容器级规则扫掉。
+   ⚠ transition 必须把颜色一起写上——这条选择器 (0,2,1) 高于 Tailwind 的
+   .transition-colors (0,1,0)，只写 transform 会把原有的颜色过渡覆盖没。 */
 .domain-canvas .canvas-topbar button,
 .domain-canvas .canvas-toolbar-capsule button,
-.domain-canvas .canvas-selection-toolbar button,
-.domain-canvas .canvas-left-panel button,
-.domain-canvas .canvas-composer-root button {
+.domain-canvas .canvas-left-panel button {
   transition:
     background-color var(--canvas-dur-fast) var(--canvas-ease-state),
     border-color var(--canvas-dur-fast) var(--canvas-ease-state),
@@ -1796,109 +742,34 @@
 }
 .domain-canvas .canvas-topbar button:active:not(:disabled),
 .domain-canvas .canvas-toolbar-capsule button:active:not(:disabled),
-.domain-canvas .canvas-selection-toolbar button:active:not(:disabled),
-.domain-canvas .canvas-left-panel button:active:not(:disabled),
-.domain-canvas .canvas-composer-root button:active:not(:disabled) {
+.domain-canvas .canvas-left-panel button:active:not(:disabled) {
   transform: scale(0.96);
 }
-/* 减动偏好下时长已被压到 1ms，但「瞬间缩一下再瞬间弹回」仍是可见的尺寸
-   跳变——这类用户要的是不跳，所以整条按下态撤掉，只留颜色反馈。 */
+/* 减动偏好：整条按下态撤掉，只留颜色反馈（时长压到 1ms 也仍是可见的尺寸跳变）。 */
 @media (prefers-reduced-motion: reduce) {
   .domain-canvas .canvas-rail-action:active:not(:disabled),
   .domain-canvas .canvas-assistant-action:active:not(:disabled),
   .domain-canvas .canvas-topbar button:active:not(:disabled),
   .domain-canvas .canvas-toolbar-capsule button:active:not(:disabled),
-  .domain-canvas .canvas-selection-toolbar button:active:not(:disabled),
-  .domain-canvas .canvas-left-panel button:active:not(:disabled),
-  .domain-canvas .canvas-composer-root button:active:not(:disabled) {
+  .domain-canvas .canvas-left-panel button:active:not(:disabled) {
     transform: none;
   }
 }
 
-/* ── S3 · 连线语言（2026-07-26）──────────────────────────────────────────
-   规格 §7.1。旧皮的连线是「中性灰 + 石绿高亮」，v0.2 把石绿整个赶出连线：
-   颜色只有两档，选中/生成中靠**明度**变化不换色相。
-   这里做的是容器级重映射——NodeWorkflowStatusEdge 与 node-workflow-edge-visual
-   的解析逻辑一行不用改，它们读的 --node-edge* / --node-paint 在域内换了值。 */
+/* 连线语言：容器级重映射——NodeWorkflowStatusEdge 与 node-workflow-edge-visual
+   一行不用改，它们读的 --node-edge* / --node-paint 在域内换了值。
+   颜色只有两档，选中/生成中靠明度变化，⛔ 不换色相。 */
 .domain-canvas {
   --node-edge: var(--canvas-edge);
   --node-edge-active: var(--canvas-edge-active);
-  /* 边被选中 / 成分边被带出：原本是纯石绿与石绿混墨线两档，现在统一收进
-     「提亮」这一件事，靠明度拉开，不再引入色相。 */
   --node-paint: var(--canvas-edge-active);
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   S4 · 三族卡内视觉（2026-07-27）
-   施工基准 docs/references/pages/canvas-image-card.md /
-   canvas-voice-card.md / canvas-identity-card.md。数值唯一来源仍是
-   docs/references/pages/canvas-skin.md——本节只新增三族卡各自专属的布局类，颜色
-   一律引用上面已有的 --canvas-* token，不新造。
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* ── 图片卡（canvas-image-card.md）──────────────────────────────────────── */
-
-/* NodeMediaPreview kind=image（shot/frame/closeup 落媒体前的形态）媒体窗：
-   替掉旧「深色监视器」皮（.node-card-window，video/audio kind 仍在用，不动），
-   换成 §10 的浅媒体窗底，与 LooseImageCard/ImageSourceStarter 同一张脸。 */
-.domain-canvas .canvas-image-preview-window {
-  background: var(--canvas-media-bg);
-  border-color: var(--canvas-card-line);
-}
-
-/* 空态卡边：虚线复用「未就绪边」的节奏（规格 §3.1 例外条）。CSS 原生
-   border-style:dashed 不能像 SVG stroke-dasharray 那样精确到 6/5px 的
-   段长比例，这里用浏览器默认虚线渲染取同一视觉意图——与 NodeShellRoot 里
-   既有的 `overridden && 'border-dashed'`（shot 覆盖默认模型的虚线）同一条
-   技术路线，不是本片新发明的手法。 */
-.domain-canvas .canvas-card--dashed {
-  border-style: dashed;
-  border-color: var(--canvas-stroke-focus);
-}
-
-/* 状态浮标：媒体窗内左上角，内缩 8px，形 + 词双编码（§1/§3）。就绪态不挂
-   这个类——「有图即就绪」，无需再证明一遍。 */
-.domain-canvas .canvas-image-badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: var(--canvas-text-meta);
-  line-height: 1;
-  font-weight: 500;
-  white-space: nowrap;
-  background: var(--canvas-fill-control);
-  color: var(--canvas-ink-regular);
-  pointer-events: none;
-}
-.domain-canvas .canvas-image-badge--danger {
-  background: color-mix(in oklab, var(--canvas-danger) 10%, transparent);
-  border: 1px solid var(--canvas-danger);
-  color: var(--canvas-danger);
-}
-
-/* 内联提示条（助手 dock 的 ScriptDoc 工作区先用）。两条都不自带底色以外的
-   面积填充，语义色只落在字与边上，守 §6「语义色只在徽章尺寸出现」。
-
-   ⚠ 起因：错误框原本写死 `text-red-100` 配 `bg-red-500/10`，是深色画布时代
-   的遗留类名。画布翻浅色后实测 **1.05:1** —— 字和底几乎同色，等于没有错误
-   提示（缺口清单 canvas-pipeline-gap-2026-07-31 §2 附带伤②）。
-
-   数值为**真机实测**（localhost:3000 画布页，把 color-mix 交给 Canvas 2D
-   光栅化后读真实像素，不是手算——手算按 sRGB alpha 叠加会比 oklab 混合
-   偏高约 0.03）：
-   - danger 字 #c0342e 对 danger-10% 叠在卡背（painted #f9eaea）= 4.77:1 ✅
-     ⚠ 同一配方叠在 --canvas-bg #f1f1f1（painted #ecdddd）只有 4.23:1 ✗ ——
-     所以这条只许放在卡背上，别挪进 bg-node-panel-soft 的容器里。
-   - warn 字 #8a5a00 对卡背 = 5.93:1 ✅（warn 不带面积填充，两种底都过）
-   深色档为手算（该档 UI 未实跑到）：danger #f0736c 对合成 #2d2020 = 5.51:1，
-   warn #d9a441 对卡背 7.97:1，两者余量都远大于 oklab/sRGB 那 0.03 的差。 */
+/* 内联提示条（助手 dock 的 ScriptDoc 工作区）：语义色只落在字与边上。
+   数值为真机实测（把 color-mix 交给 Canvas 2D 光栅化后读真实像素）：
+   danger 字 #c0342e 对 danger-10% 叠**卡背** = 4.77:1 ✅
+   ⚠ 同一配方叠在 --canvas-bg #f1f1f1 上只有 4.23:1 ✗ —— 这条只许放卡背上，
+   别挪进 bg-node-panel-soft 的容器里。warn 字对卡背 5.93:1 ✅（两种底都过）。 */
 .domain-canvas .canvas-inline-notice--danger {
   background: color-mix(in oklab, var(--canvas-danger) 10%, transparent);
   border: 1px solid color-mix(in oklab, var(--canvas-danger) 40%, transparent);
@@ -1909,547 +780,8 @@
   color: var(--canvas-warn);
 }
 
-/* 上传中 / 生成中：半透明白 + 一道扫光，两态共用同一视觉语言——生成中在
-   canvas-generate-composer.md §7 owner 2026-07-28 真机实测缺陷④定为「沿用
-   上传中语言，但不显示百分比」（ImageCardGeneratingOverlay 只是不传百分比
-   文案，容器复用这同一条规则，不重复写一份）。扫光复用既有
-   node-upload-shimmer 关键帧（定义见本文件 FB-4 段），这里只换配色，不重复
-   定义关键帧。 */
-/* ── 进行态（上传中 / 生成中）唯一配方 —— 台账 #14 ────────────────────
-   owner 2026-08-03 拍板。此前「生成中」在画布上有四份互不相同的实现（见
-   NodeProgressState.tsx 的文件注释），根因是没有共享件。统一后：
-
-     · 器件恒定 —— 一条扫光条 + 一句文案
-     · 遮罩看情况 —— 底下有内容要遮才上（`--veiled`），空态不上
-     · 有真实百分比走确定式，拿不到走不定式
-
-   ⚠ 遮罩统一到 **82%**（原图片族那一档）而不是 70%：70% 下深窗
-   （--node-card-window #1b1917）透上来太多，文字压在半黑半白上。82% 两种底下
-   都是稳定的浅面。blur 同样统一到 2px（原视频族走 Tailwind 的 4px）。
-
-   ⚠ 原来那道 115° 扫光（`node-upload-shimmer`）已撤：它是第三种动效器件，
-   而且峰值只有墨色 10%，压在 82% 白遮罩上非常弱 —— 生成动辄 30s+，长任务里
-   用户会以为卡住了。条同样不承诺时长，但明确得多。 */
-.domain-canvas .canvas-progress-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 100%;
-  color: var(--canvas-ink);
-}
-.domain-canvas .canvas-progress-state--veiled {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  height: auto;
-  overflow: hidden;
-  background: color-mix(in oklab, var(--canvas-card-bg) 82%, transparent);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
-}
-.domain-canvas .canvas-progress-label {
-  position: relative;
-  z-index: 1;
-  font-size: var(--canvas-text-body);
-  font-weight: 600;
-  color: var(--canvas-ink);
-  /* ⚠ 等宽数字是必需的，不是排版偏好：上传态的文案里带百分比且**每帧都在变**
-     （「上传中 41%」→「42%」），比例数字会让整行左右抖。这条是从被删掉的
-     `.canvas-image-upload-text` 继承过来的，别顺手拿掉。 */
-  font-variant-numeric: tabular-nums;
-}
-.domain-canvas .canvas-progress-bar {
-  position: relative;
-  z-index: 1;
-  display: block;
-  overflow: hidden;
-  width: 96px;
-  height: 4px;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--canvas-ink) 12%, transparent);
-}
-.domain-canvas .canvas-progress-bar-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 38%;
-  border-radius: inherit;
-  background: var(--canvas-ink);
-  animation: node-canvas-progress-sweep 1.2s ease-in-out infinite;
-}
-/* 确定式：宽度由内联 style 给（真实百分比），不扫。 */
-.domain-canvas .canvas-progress-bar--determinate .canvas-progress-bar-fill {
-  animation: none;
-  transition: width var(--canvas-dur-base) var(--canvas-ease-state);
-}
-
-/* 呼吸档（`indicator='breath'`，详情面板专用）——
-   ⚠ 静止态就是**亮**的那一帧（base opacity 1，动画谷底在 50%）。反过来写
-   （0%/100% 暗）在 reduced-motion 下会停成一颗几乎看不见的点：全局那条
-   reduce 规则把 iteration-count 压到 1、duration 压到 0.01ms，元素会停在
-   最后一帧上。关掉动效的用户仍然要看得见「在跑」。 */
-@keyframes node-canvas-progress-breath {
-  50% {
-    opacity: 0.3;
-    transform: scale(0.78);
-  }
-}
-.domain-canvas .canvas-progress-breath {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--canvas-ink);
-  /* 只动 opacity/transform —— 合成层，长任务里跑 30s+ 也不掉帧。 */
-  animation: node-canvas-progress-breath 1.9s var(--canvas-ease-state) infinite;
-}
-
-/* ⚠ `.canvas-image-upload-scrim` / `.canvas-image-generating-scrim` /
-   `.canvas-image-upload-text` 三个类已随 #14 删除 —— 它们的两个调用方
-   （ImageCardUploadOverlay / ImageCardGeneratingOverlay）都改渲染
-   `NodeProgressState` 了。别再加回来：那正是「四份拷贝」的其中两份。 */
-.domain-canvas .canvas-image-cancel-btn {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  color: var(--canvas-ink-muted);
-  transition: background var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-image-cancel-btn:hover {
-  background: var(--canvas-fill-control);
-  color: var(--canvas-ink);
-}
-
-/* 失败：具体原因 + 重试次级按钮，居中铺满媒体窗（§11-⑥「禁用不消失，
-   必须给原因」的图片卡落点）。 */
-.domain-canvas .canvas-image-failed {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px;
-  text-align: center;
-  background: var(--canvas-card-bg);
-}
-.domain-canvas .canvas-image-failed-reason {
-  font-size: var(--canvas-text-meta);
-  line-height: var(--canvas-text-meta-lh);
-  color: var(--canvas-ink-regular);
-}
-
-/* 次级按钮通用配方（规格 §3 次级按钮边 --canvas-stroke-bold）——三族共用：
-   图片卡的重试/素材库/AI 生成、声音卡的重试、身份卡将来若需要都走这一个
-   类，不按族各写一份。放在图片卡这段只是历史书写顺序，不代表只给图片用。 */
-.domain-canvas .canvas-secondary-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--canvas-stroke-bold);
-  border-radius: 999px;
-  font-size: var(--canvas-text-meta);
-  font-weight: 600;
-  color: var(--canvas-ink-regular);
-  transition: background var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-secondary-btn:hover {
-  background: var(--canvas-fill-control);
-  color: var(--canvas-ink);
-}
-.domain-canvas .canvas-secondary-btn:disabled {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-/* 空态 dropzone：媒体窗底色 + 图标/文案居中，相对定位给徽标/扫光/失败三层
-   挂靠。拖拽悬停时用强调蓝描边提示「放这里」。2026-07-27：点击开文件选择器
-   已撤销（composer 的 + 参考图槽已提供上传入口，卡上再放一个是重复，见
-   canvas-image-card.md §4）——dropzone 本身不再是可点击/可 Tab 聚焦的控件，
-   之前配套的 :focus-visible 描边随之一起去掉；拖放悬停态不变。 */
-.domain-canvas .canvas-image-dropzone {
-  position: relative;
-  overflow: hidden;
-  background: var(--canvas-media-bg);
-}
-.domain-canvas .canvas-image-dropzone[data-drag-over='true'] {
-  outline: 2px solid var(--canvas-accent);
-  outline-offset: -2px;
-}
-.domain-canvas .canvas-image-empty-hint {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  color: var(--canvas-ink-muted);
-}
-.domain-canvas .canvas-image-empty-hint span {
-  padding: 0 12px;
-  font-size: var(--canvas-text-meta);
-  line-height: var(--canvas-text-meta-lh);
-}
-
-/* 就绪 · hover：「替换」白胶囊，仅 hover / 选中出现，不常驻（§3）。
-   触发条件挂在卡根的 `.group` / `data-selected`（LooseImageCard 根节点已有
-   这两个标记，见该文件）。
-
-   ⚠ 台账 R（owner 2026-08-29 真机）：这颗胶囊原先**居中**（`top/left: 50%`），
-   照搬的是图片详情模态「唯一主动作居中浮层」那套。在模态里成立（图大、胶囊是
-   那一屏唯一的主动作），搬到卡上就不成立：卡只有 ~320px 宽，画面正中通常正是
-   主体。而且它并不是「hover 才出现」—— `data-selected` 那条同样会点亮它，
-   **刚生成完的卡是自动选中的**，于是用户想看结果时它恰好挂在脸上。owner 实测
-   要看角色肩上的湿痕，只能开详情面板绕过它。
-
-   改到**右下角**：让开画面正中，且避开左上的来源徽标（`.canvas-image-badge`
-   是 top/left: 8px）与左下的出场旗标。触发条件一字不动 —— 问题从来不是它什么
-   时候出现，是它出现在哪。 */
-.domain-canvas .canvas-image-replace-pill {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: var(--canvas-card-bg);
-  box-shadow: var(--canvas-seg-shadow);
-  font-size: var(--canvas-text-meta);
-  font-weight: 600;
-  color: var(--canvas-ink);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .group:hover .canvas-image-replace-pill,
-.domain-canvas .group[data-selected='true'] .canvas-image-replace-pill {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* ── 声音卡 / 身份卡共用：固定宽 240（各自 §1）────────────────────────────
-   两族都不随内容变宽，用同一个 token 而非各写一次字面值。specificity
-   0,2,0 压过 NodeShellRoot 的 w-node-card 工具类，同 .canvas-card 已有的
-   写法（本文件 S1 段注释）。 */
-.domain-canvas .canvas-card--w-fixed {
-  width: var(--canvas-card-w-fixed);
-}
-
-/* 《画布修法》02 节刀 1 task B：生成类节点空态卡宽，同一份 0,2,0 specificity
-   压过 w-node-card 工具类的写法（上面 .canvas-card--w-fixed 那份注释）。
-   ⚠ 本文件更早处的 `.domain-canvas .canvas-video-card` 规则（`SeedanceNode`
-   用）也在设同一个 `width` 属性，且 specificity 同为 0,2,0——两条同时命中同一
-   张卡时（空态视频卡）靠**源码顺序**分胜负，这条规则必须留在
-   `.canvas-video-card` 之后（按符号名 grep，别按行号），才能在空态时压过
-   --canvas-card-w-console（420）。 */
-.domain-canvas .canvas-card--w-empty {
-  width: var(--canvas-card-w-empty);
-}
-
-/* 同一刀 task C：镜头文本按内容定高——display:grid 让空态的"图标+状态词"能在
-   min-height 地板内居中，有内容态超过地板时改由内容把卡撑高，两态共用同一条
-   规则，组件不需要量高度写内联 style。 */
-.domain-canvas .canvas-text-preview-surface {
-  display: grid;
-  align-content: stretch;
-  justify-content: stretch;
-  min-height: var(--canvas-text-preview-min-h);
-}
-
-/* 图片卡宽钳制的 CSS 安全网（§2）：真正的宽度由 LooseImageCard 按媒体比例
-   算出并写成内联 style，这两条 min/max 只是兜底——即便算法哪天算漏了，
-   卡也不会跌出 180–480 的范围。 */
-.domain-canvas .canvas-card--image-bounds {
-  min-width: var(--canvas-card-w-min);
-  max-width: var(--canvas-card-w-max);
-}
-
-/* 台账 #25（2026-08-02）：「卡即媒体」的圆角裁切从卡根下沉到媒体层。
-   卡根原来的 overflow-hidden 会把卡框外的 .canvas-card-label（bottom:100%）
-   连同改名入口、端口外半整个裁掉——所有有媒体的图片卡因此没有卡外名字。
-   -1px 对应 .canvas-card 的 1px 边框：媒体层 inset-0 定位在 padding box，
-   照抄 8px 原值会在深色图四角露出约 1px 白底弧线。 */
-.domain-canvas .canvas-card-media {
-  overflow: hidden;
-  border-radius: calc(var(--canvas-card-radius) - 1px);
-}
-
-/* ── 声音卡（canvas-voice-card.md §1/§2）─────────────────────────────────
-   84 封面 + 156 右列 = 240，卡高固定 84。 */
-.domain-canvas .canvas-voice-card {
-  height: 84px;
-}
-.domain-canvas .canvas-voice-cover {
-  position: relative;
-  width: 84px;
-  height: 84px;
-  flex: none;
-  overflow: hidden;
-  /* 封面齐边铺满卡高的整个左缘，跟卡的左侧两角重合——裁成卡的左侧圆角，
-     右缘挨着波形列是直角内缝，不用圆。 */
-  border-top-left-radius: inherit;
-  border-bottom-left-radius: inherit;
-}
-/* 压一层暗底让圆形槽读得出来（§2）——只在真的有槽要衬的时候上（空态没有
-   圆形槽，见 §3「一个槽四种含义」表，那一态就不需要暗底压亮白圈）。 */
-.domain-canvas .canvas-voice-cover[data-scrim='true']::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--canvas-voice-cover-scrim);
-}
-.domain-canvas .canvas-voice-slot {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  background: var(--canvas-voice-slot-bg);
-  color: var(--canvas-ink);
-  transition: transform var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-voice-slot:hover:not(:disabled) {
-  transform: translate(-50%, -50%) scale(1.05);
-}
-.domain-canvas .canvas-voice-slot[data-tone='danger'] {
-  color: var(--canvas-danger);
-}
-.domain-canvas .canvas-voice-body {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  height: 84px;
-}
-.domain-canvas .canvas-voice-waveform {
-  position: absolute;
-  left: 16px;
-  top: 16px;
-}
-.domain-canvas .canvas-voice-meta {
-  position: absolute;
-  left: 16px;
-  right: 12px;
-  top: 60px;
-  font-size: var(--canvas-text-meta);
-  line-height: var(--canvas-text-meta-lh);
-  color: var(--canvas-ink-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* 位置/宽度覆盖——视觉配方（边/字色/hover）来自 .canvas-secondary-btn，
-   两个类一起挂在同一个 button 上（结构见 VoiceNode.tsx）。 */
-.domain-canvas .canvas-voice-empty-action {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 126px;
-}
-
-/* 波形两段配色（§3「曲线分色」）：已播 accent，未播基准给的字面值。 */
-.domain-canvas .canvas-voice-waveform-idle {
-  stroke: var(--canvas-waveform-idle);
-}
-.domain-canvas .canvas-voice-waveform-played {
-  stroke: var(--canvas-accent);
-}
-
-/* 生成中：右列主文案，位置与波形同一条基线（32px）附近。 */
-.domain-canvas .canvas-voice-generating-text {
-  position: absolute;
-  left: 16px;
-  right: 12px;
-  top: 24px;
-  font-size: var(--canvas-text-meta);
-  font-weight: 600;
-  color: var(--canvas-ink-regular);
-}
-
-/* 失败：右列换成原因 + 重试，垂直居中铺满右列（§3「具体原因」）。 */
-.domain-canvas .canvas-voice-failed {
-  position: absolute;
-  inset: 0;
-  left: 16px;
-  right: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 6px;
-}
-.domain-canvas .canvas-voice-failed-reason {
-  font-size: var(--canvas-text-meta);
-  line-height: var(--canvas-text-meta-lh);
-  color: var(--canvas-ink-regular);
-}
-
-/* ── 身份卡（canvas-identity-card.md §1/§2，2026-08-26 画布修法 05 节
-   「名片脸」取代版）────────────────────────────────────────────────────
-   旧版 240 × 135，代表图铺满 + 底部玻璃条 36 压在图上——诊断是「长得像
-   照片，谁都会认错」。改版收成真正的名片：固定 240 × 84（与声音卡同高，
-   见上方「声音卡 / 身份卡共用：固定宽 240」那条注释，本轮起连高度也共用），
-   左侧 84×84 定妆照缩略、右侧库存行横排，不再有任何东西压在图上。
-   空态与有内容态**同构**（两栏结构不变，只换内容，不换版式）——VoiceNode
-   的「封面 + 正文」两栏、空态换图标的写法就是这个模式的先例，这里直接
-   照抄同一套几何，不重新发明。 */
-.domain-canvas .canvas-identity-card {
-  height: 84px;
-}
-/* 左栏：定妆照缩略。方形圆角继承卡身的 --canvas-card-radius（8px）——同
-   .canvas-voice-cover 的裁边手法（齐边铺满卡高的整个左缘，圆角吃卡的左
-   侧两角）。没有代表图时换成族图标（见下方 JSX 的 EmptyIcon：角色=人形、
-   场景=山形），底用 --canvas-fill-control，与 VoiceNode 空态封面同色。 */
-.domain-canvas .canvas-identity-cover {
-  position: relative;
-  width: 84px;
-  height: 84px;
-  flex: none;
-  overflow: hidden;
-  border-top-left-radius: inherit;
-  border-bottom-left-radius: inherit;
-}
-/* 右栏：库存行，占满剩余宽度、纵向居中。有内容态放两枚 chip（▦N + 音色
-   状态），空态放提示文案——两态共用同一个容器，只是子节点不同（「占几何
-   不占内容」，不再是旧版那种另起一套居中铺满的空态版式）。 */
-.domain-canvas .canvas-identity-body {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 84px;
-  min-width: 0;
-  flex: 1;
-  padding: 0 12px;
-  overflow: hidden;
-}
-.domain-canvas .canvas-identity-empty-hint {
-  font-size: var(--canvas-text-meta);
-  line-height: var(--canvas-text-meta-lh);
-  color: var(--canvas-ink-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.domain-canvas .canvas-identity-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: var(--canvas-text-meta);
-  font-weight: 500;
-  white-space: nowrap;
-  background: var(--canvas-fill-control);
-  color: var(--canvas-ink-regular);
-}
-.domain-canvas .canvas-identity-chip--voice {
-  background: color-mix(in oklab, var(--canvas-port-audio) 10%, transparent);
-  color: var(--canvas-port-audio);
-}
-.domain-canvas .canvas-identity-chip--muted {
-  padding: 0 2px;
-  background: transparent;
-  color: var(--canvas-ink-subtle);
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   S5 · 近场工具条 v0.2 玻璃皮（2026-07-27）
-   施工基准 docs/references/pages/canvas-image-card.md §6。配方与 §8「底部
-   工具条」行一致（999px 胶囊 · 同投影 · blur(20px) saturate(1.5)），背景
-   0.85 白是该行的字面值——与 --canvas-glass（0.84，顶栏/左侧面板共用的
-   通用玻璃 token）刻意分开，不复用它，理由见下。
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* 不直接套用 .canvas-glass：那套通用重映射把空闲态图标钉在 --canvas-ink-muted
-   （4.74:1），这里 owner 明确要 --canvas-ink-regular（7.81:1，§3.1 图标
-   ≥3:1 硬要求的更高选择）。两条规则分开写，不必在层叠顺序上和 .canvas-glass
-   抢当前值。容器级 --node-* 重映射沿用 .canvas-glass 已验证的 strangler 手法
-   （见上方“玻璃容器内的前景色重映射”注释）——工具条内部 200+ 处仍在用
-   text-node-foreground / -muted / bg-node-panel-inner 等 Tailwind 类，这里
-   换值即可让它们在白玻璃上读对，markup 不逐处碰。 */
-.domain-canvas .canvas-selection-toolbar {
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid var(--canvas-stroke-regular);
-  border-radius: 999px;
-  box-shadow:
-    0 4px 6px -2px rgba(0, 0, 0, 0.06),
-    0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  backdrop-filter: blur(20px) saturate(1.5);
-  color: var(--canvas-ink);
-  --node-foreground: var(--canvas-ink);
-  --node-muted: var(--canvas-ink-regular);
-  --node-subtle: var(--canvas-ink-subtle);
-  --node-panel: var(--canvas-card-bg);
-  --node-canvas: var(--canvas-action-fg);
-  --node-panel-inner: var(--canvas-fill-control);
-  --node-panel-soft: var(--canvas-fill-control);
-  --node-edge: var(--canvas-ink-muted);
-  --node-focus-ring: var(--canvas-stroke-focus);
-  /* 删除项是工具条里唯一的彩色项（§6）：text-node-status-failed-fg 常态即
-     红，不必等 hover 才变色——两个 token 都指向同一个 --canvas-danger，
-     常态/hover 底色（/40 混合）自然是同一色相不同明度。 */
-  --node-status-failed: var(--canvas-danger);
-  --node-status-failed-fg: var(--canvas-danger);
-}
-@supports not (
-  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
-) {
-  /* 规格 §13 硬要求：玻璃降级到不透明度 0.95，否则文字糊在画布内容上。 */
-  .domain-canvas .canvas-selection-toolbar {
-    background: rgba(255, 255, 255, 0.95);
-  }
-}
-.domain-canvas[data-scheme='dark'] .canvas-selection-toolbar {
-  /* 深色档：卡背比底亮、投影靠加深——同 .canvas-toolbar-capsule 深色档
-     的既有数值（S2a），不重新定一套。 */
-  background: rgba(23, 23, 23, 0.85);
-  box-shadow:
-    0 4px 6px -2px rgba(0, 0, 0, 0.4),
-    0 10px 15px -3px rgba(0, 0, 0, 0.5);
-}
-
-/* 分隔线——规格 §6 明确要 1px rgba(0,0,0,0.08)，即 --canvas-stroke-regular
-   本身；不借 --node-panel-inner（那个数值是 .04，改叫 hover 底色用，混用
-   会让分隔线和 hover 态糊在一起分不清）。 */
-.domain-canvas .canvas-selection-toolbar-divider {
-  background: var(--canvas-stroke-regular);
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   S6 · Cast 卡匣 v0.2 玻璃皮（2026-07-27）
-   施工基准：docs/references/pages/assistant-shell.md +
-   docs/references/pages/canvas-skin.md。CastDock 的 panel 布局挂在 CanvasLeftPanel
-   的 .canvas-glass 容器内——大部分残留 node-* 类已经靠那层的 strangler 重
-   映射读到 v0.2 值（见上方"玻璃容器内的前景色重映射"注释）；这里只补一处
-   它没覆盖到的缺口：卡角徽标按钮的语义色 hover。只换皮，不改结构。
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* CastCard 卡角微按钮（删除/快投）——圆形白底徽标，默认墨灰图标，hover 才提示
-   语义色：删除=危险红，快投=强调蓝（§0.6「强调只表指向」——快投正是"把这张卡
-   指向一个目标"这个动作，语义对得上，不是随手选的颜色）。 */
+/* CastCard 卡角微按钮（删除/快投）：默认墨灰图标，hover 才提示语义色——
+   删除 = 危险红，快投 = 强调蓝（「把这张卡指向一个目标」，语义对得上）。 */
 .domain-canvas .canvas-cast-badge-btn {
   border: 1px solid var(--canvas-stroke-regular);
   background: var(--canvas-card-bg);
@@ -2463,582 +795,8 @@
   color: var(--canvas-accent);
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   S7 · 节点详情模态 v0.2（2026-07-27）
-   施工基准：canvas-image-card.md §5「点卡扩大=模态」——图片放大 / 编辑器 /
-   节点详情三个模态共用同一套配方。这里落地 NodeDetailPanel 的壳（遮罩 +
-   模态面 + 分栏），内容分区（各 Detail Body：CharacterImageInspector 等）
-   不在本片范围，靠下方 .canvas-modal-surface 的 strangler 变量重映射（同
-   .canvas-glass 手法）自动读到浅色值，markup 不逐处碰。
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* 遮罩：中性浅灰实色，**不糊、不深**（方向 E，owner 2026-08-03）。
-   ⚠ 原来是 rgba(255,255,255,.72) + blur(20px) 的白雾。取消理由见第 16 组 token 头注：
-   白雾压近白画布，把点阵从 1.54:1 压到 1.12:1、白卡压到 1.03:1，模糊因此无内容可折射。
-   换成中性浅灰后遮罩合成对 S1 有 1.07–1.13 的可辨差（三档画布底预设全过）。
-   ⚠ 不再需要 @supports 降级 —— 没有 backdrop-filter 可降。 */
-.domain-canvas .canvas-modal-scrim {
-  background: var(--canvas-detail-scrim);
-}
-
-/* 模态面：白卡 + 16 圆角 + 发丝边 + 柔投影（§5 数值原样）。--node-* 重映射
-   沿用 .canvas-glass 已验证的清单，外加 status-failed 一对——NodeStatusBadge
-   在模态头部渲染失败态时会读它，参考 .canvas-selection-toolbar 同样收窄到
-   --canvas-danger 的做法（那条已验证过对比度，5.57:1 vs 白）。 */
-/* 模态面：**实面**，零 backdrop-filter，层次靠投影 + 留白 + 尺度。
-   ⚠ 下面这段 strangler 映射是本片杠杆最大的地方 —— 详情面板作用域内
-   bg-node-panel-soft 64 处 / -inner 27 处 / -panel 13 处 / -canvas 8 处，
-   共 112 个 markup 位零改动跟随。改错变量名**不会报错**，只会让它们静默变透明，
-   所以这一段的验收必须程序化读 getComputedStyle，禁目检。 */
-.domain-canvas .canvas-modal-surface {
-  background: var(--canvas-detail-s1);
-  border: 0;
-  border-radius: var(--canvas-panel-radius);
-  box-shadow: var(--canvas-detail-shadow);
-  color: var(--canvas-detail-ink);
-  --node-foreground: var(--canvas-detail-ink);
-  --node-muted: var(--canvas-detail-ink-2);
-  --node-subtle: var(--canvas-detail-ink-2);
-  --node-panel: var(--canvas-detail-s0);
-  --node-canvas: var(--canvas-action-fg);
-  --node-panel-inner: var(--canvas-detail-s2);
-  --node-panel-soft: var(--canvas-detail-s2);
-  --node-edge: var(--canvas-detail-bd);
-  --node-focus-ring: var(--canvas-stroke-focus);
-  /* ⚠ 这一对**必须拆开**：原来两者双双映射 --canvas-danger，于是
-     `bg-node-status-failed + text-node-status-failed-fg` 渲染出红底红图标，
-     对比 1:1、图标完全不可见（ReferenceManagerPanel 的超容量角标正落在此作用域）。
-     现在 fg = 白（对实心红 6.57），另给 tint 作浅底（red 对 tint 5.65）。 */
-  --node-status-failed: var(--canvas-detail-red);
-  --node-status-failed-fg: var(--canvas-detail-s0);
-  --node-status-failed-tint: var(--canvas-detail-red-bg);
-}
-
-/* 头部分栏：规格要求精确的 .08（--canvas-stroke-regular），比上面 strangler
-   映射给 border-node-panel-inner 的 --canvas-fill-control（.04）更实一档，
-   所以头部这条边显式点名，不吃 cascade 给的近似值。 */
-.domain-canvas .canvas-modal-divider {
-  border-color: var(--canvas-stroke-regular);
-}
-
-/* Round 2 A「媒体优先」：主体媒体是第一视觉对象，编辑栏只占完成任务所需的
-   稳定宽度。面板仍住在 canvas stage 内，不改成 fixed。 */
-.domain-canvas .canvas-object-studio-overlay {
-  padding: 16px 24px;
-}
-
-.domain-canvas .canvas-object-studio-surface {
-  width: min(1320px, calc(100% - 48px));
-  height: min(860px, calc(100% - 32px));
-  max-height: calc(100% - 32px);
-  border-radius: 16px;
-}
-
-/* ⚠ 头部原来铺一层 74% 的半透白。半透只在有 blur 时成立 —— 实面之下它会直接
-   露出下方滚动内容。实面已由 surface 提供，头部不需要自己的底。 */
-.domain-canvas .canvas-object-studio-header {
-  gap: 24px;
-  padding: 20px 28px;
-}
-
-.domain-canvas .canvas-object-studio-body {
-  background: var(--canvas-detail-s0);
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-}
-
-.domain-canvas .canvas-object-studio-content {
-  padding: 18px;
-}
-
-/* 主体台 + 编辑栏组成一个工作区。DOM 仍是主体 → 编排 → 素材 → 关系/证据，
-   CSS 只映射空间，不重排键盘顺序。 */
-.domain-canvas .canvas-detail-workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 384px;
-  overflow: hidden;
-}
-
-.domain-canvas .canvas-detail-workspace:not([data-has-stage='true']) {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.domain-canvas .canvas-detail-stage-pin {
-  position: relative;
-  display: flex;
-  min-height: 0;
-  flex-direction: column;
-  justify-content: center;
-  overflow: hidden;
-  border-right: 1px solid var(--canvas-stroke-regular);
-  padding: 24px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.54), transparent 46%),
-    var(--canvas-detail-s2);
-}
-
-.domain-canvas
-  .canvas-detail-workspace:not([data-has-stage='true'])
-  .canvas-object-studio-body {
-  width: min(760px, 100%);
-  justify-self: center;
-}
-
-.domain-canvas .canvas-detail-dock {
-  flex: 0 0 auto;
-}
-
-/* ── 方向 E 槽内词汇（S4，2026-08-04）──────────────────────────────────
-   契约 R1「一级面零标题预算」意味着每个槽的边界只能靠**形状与留白**表达，
-   所以这些类不是装饰，是槽的承载物本身。
-
-   ⚠ 全部写在 CSS 而不是 Tailwind 工具类：E 的尺度是 11.5 / 12.5 / 13 / 13.5px
-   这种半档值（Hard Rule 5 禁 arbitrary value），且 R10 要求「尺寸档位 ≤3」——
-   把它们收在一处才数得清有几档。 */
-
-/* R12：层间距 : 层内距 ≈ 3 : 1。槽与槽之间 28，槽内 8–10。 */
-.domain-canvas .canvas-object-studio-content {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-/* 槽 2 · 主体台 —— R11：井宽由宽高比推导、居中；**空余宽度不画表面**
-   （不给底色不给边框，那就是面板底本身）。 */
-.domain-canvas .canvas-detail-stage {
-  display: flex;
-  width: 100%;
-  min-height: 0;
-  align-items: center;
-  justify-content: center;
-}
-.domain-canvas .canvas-detail-well {
-  position: relative;
-  display: flex;
-  overflow: hidden;
-  align-items: center;
-  justify-content: center;
-  /* R2：空态与满态版式**完全同构** —— 同高同圆角同底，只把内容像素换成一枚
-     极淡字形。禁虚线取景框 / 棋盘格 / 四角标记 / 「生成后在此预览」类文案。 */
-  width: 100%;
-  height: auto;
-  max-height: min(620px, 100%);
-  max-width: 100%;
-  aspect-ratio: var(--canvas-detail-ar, 16 / 9);
-  border-radius: 12px;
-  background: var(--canvas-detail-s2);
-}
-.domain-canvas .canvas-detail-well-glyph {
-  color: var(--canvas-detail-ghost);
-}
-/* 井左上角的来源角标（AI 生成 / 素材库）。 */
-.domain-canvas .canvas-detail-well-corner {
-  position: absolute;
-  left: 10px;
-  top: 10px;
-  border: 1px solid var(--canvas-detail-bd);
-  border-radius: 8px;
-  padding: 2px 8px;
-  background: var(--canvas-detail-s0);
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--canvas-detail-ink);
-}
-/* 台座：R6「只读/派生值不穿控件壳」——灰标签 + 亮值纯文本，居中贴井下。 */
-.domain-canvas .canvas-detail-pedestal {
-  margin-top: 8px;
-  font-size: 11.5px;
-  text-align: center;
-  color: var(--canvas-detail-ink-2);
-}
-
-/* ── 空态让位（画布修法包 C，2026-08-26 owner 确认）─────────────────────
-   施工基准见 docs/references/pages/canvas-node-detail.md §3.1「空态几何」。
-   镜头图 / 视频生成 / 视频合成三族在没有输出媒体时，把「下一步要做的事」
-   （写作台字段 / 素材清单+提示词 / 九槽阵列）整块搬进 stage 槽渲染，
-   井本体退成 `.canvas-detail-stage-band` 那条窄带；desk/rack 对应槽在
-   这个状态下传 `undefined`（内容临时寄居在 stage，不是被删）。
-   ⚠ DOM 序不变（stage 仍先于 desk/rack），变的只是这两个槽此刻由谁承载
-   视觉大位置；有内容态与其余七族一像素不受影响——下面这组类只在族主动
-   套用 `.canvas-detail-stage-promoted` 时生效。
-   ⚠ 负 margin 精确抵消 `.canvas-detail-stage-pin` 当前断点的 padding，
-   让子元素接管整块背景/对齐，不必改父级规则本身（零回归风险）。 */
-.domain-canvas .canvas-detail-stage-promoted {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-height: 0;
-  margin: -24px;
-  padding: 20px;
-  gap: 14px;
-  overflow-y: auto;
-  background: var(--canvas-detail-s0);
-}
-/* 井退成的预览带 —— R2 版式同构的空态字形，只是几何缩成一条，
-   贴在主区（promoted 内容）之后，同一个 stage 槽内、工作区底部。 */
-.domain-canvas .canvas-detail-stage-band {
-  position: relative;
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 74px;
-  max-height: 96px;
-  border-radius: 10px;
-  background: var(--canvas-detail-s2);
-  color: var(--canvas-detail-ink-2);
-  font-size: 12px;
-}
-.domain-canvas .canvas-detail-stage-band svg {
-  color: var(--canvas-detail-ghost);
-}
-@media (max-width: 960px) {
-  .domain-canvas .canvas-detail-stage-promoted {
-    margin: -20px -24px;
-  }
-}
-@media (max-width: 680px) {
-  .domain-canvas .canvas-detail-stage-promoted {
-    margin: -14px;
-    padding: 14px;
-  }
-  .domain-canvas .canvas-detail-stage-band {
-    min-height: 64px;
-    max-height: 84px;
-  }
-}
-
-/* 散图空态先问一句（画布修法包 E，2026-08-26 owner 确认）── 施工基准见
-   docs/references/pages/canvas-node-detail.md §3.2。
-   `!hasMedia` 时 stage 槽先渲染两颗选择卡，不把上传/生成两条路的控件同时
-   铺开；选「用 AI 生成」后退场，改走上面 `.canvas-detail-stage-promoted`
-   那一套（`ImageFamilyBody` 的 `showEmptyChoice`/`offerChoiceWhenEmpty`）。
-   ⚠ 复用既有 token（s0/bd/ink/ink-2），不新造色值——Hard Rule 5。 */
-.domain-canvas .canvas-detail-fork {
-  display: grid;
-  width: 100%;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.domain-canvas .canvas-detail-fork-opt {
-  display: grid;
-  place-items: center;
-  gap: 6px;
-  border: 1px solid var(--canvas-detail-bd);
-  border-radius: 10px;
-  padding: 20px 16px;
-  background: var(--canvas-detail-s0);
-  color: var(--canvas-detail-ink);
-  text-align: center;
-  transition: border-color var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-detail-fork-opt:hover {
-  border-color: var(--canvas-detail-ink-2);
-}
-.domain-canvas .canvas-detail-fork-icon {
-  color: var(--canvas-detail-ink-2);
-}
-.domain-canvas .canvas-detail-fork-title {
-  font-size: 13px;
-  font-weight: 650;
-}
-.domain-canvas .canvas-detail-fork-hint {
-  font-size: 11.5px;
-  color: var(--canvas-detail-ink-2);
-}
-@media (max-width: 680px) {
-  .domain-canvas .canvas-detail-fork {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 视频合成空态：素材架的九槽阵列，替代纯文本 URL 列表（契约 §6 rack =
-   「上游片段列表」，这里只是同一件事的新形状）；只在 `!mediaUrl` 时套用，
-   有成片后 rack 走原来的 `<ol>` 文本列表，一像素不改。
-   上限 9 与「至少 2 段」不是这里的字面值——组件按 `minClips`/`maxClips`
-   算好 `data-required` 再传下来，CSS 只管形状。 */
-.domain-canvas .canvas-detail-merge-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--canvas-detail-ink);
-}
-.domain-canvas .canvas-detail-merge-heading-count {
-  flex: 0 0 auto;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-  color: var(--canvas-detail-ink-2);
-}
-.domain-canvas .canvas-detail-merge-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-.domain-canvas .canvas-detail-merge-slot {
-  display: flex;
-  min-height: 84px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  overflow: hidden;
-  border: 1px solid var(--canvas-detail-bd);
-  border-radius: 10px;
-  padding: 8px;
-  background: var(--canvas-detail-s0);
-  color: var(--canvas-detail-ink-2);
-  font-size: 11px;
-  text-align: center;
-}
-.domain-canvas .canvas-detail-merge-slot-index {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--canvas-detail-ink);
-}
-/* 前两格「必须」——contrast-check：#2b5ce6 on #FFFFFF = 5.56（边界与文字
-   门槛均过）。 */
-.domain-canvas .canvas-detail-merge-slot[data-required='true'] {
-  border-color: var(--canvas-accent);
-}
-.domain-canvas
-  .canvas-detail-merge-slot[data-required='true']
-  .canvas-detail-merge-slot-index,
-.domain-canvas
-  .canvas-detail-merge-slot[data-required='true']
-  .canvas-detail-merge-slot-tag {
-  color: var(--canvas-accent);
-}
-.domain-canvas .canvas-detail-merge-slot[data-filled='true'] {
-  border-style: solid;
-  color: var(--canvas-detail-ink);
-}
-.domain-canvas .canvas-detail-merge-slot-url {
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 10.5px;
-  color: var(--canvas-detail-ink-2);
-}
-@media (max-width: 680px) {
-  .domain-canvas .canvas-detail-merge-slot {
-    min-height: 64px;
-    padding: 6px;
-  }
-}
-
-/* 槽 3 · 素材架 —— R1：一行文字按钮 ⟷ 右对齐弱化计数，一行即一槽。
-   ⚠ 「AI 生成」那颗已删（owner 2026-08-03）：它内联区装的提示词/模型按七槽
-   契约属于编排台，挂在这里是槽位错放；而账本 ③「编排台全族默认展开」已经
-   取消了它作为唯一 editTarget 切换器的职责。素材库与 Studio **不能**删 ——
-   前者是全画布唯一能把素材库的图落进节点自身 mediaUrl 的入口，后者是
-   画布→图片 Studio 往返的唯一起点。 */
-.domain-canvas .canvas-detail-shelf {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 20px;
-}
-.domain-canvas .canvas-detail-shelf-label {
-  font-size: 13px;
-  font-weight: 650;
-  color: var(--canvas-detail-ink);
-}
-.domain-canvas .canvas-detail-txt-btn {
-  border: none;
-  padding: 0;
-  background: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--canvas-detail-ink);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 4px;
-}
-.domain-canvas .canvas-detail-txt-btn:hover {
-  text-decoration-thickness: 2px;
-}
-.domain-canvas .canvas-detail-txt-btn:disabled {
-  color: var(--canvas-detail-ink-2);
-  cursor: not-allowed;
-  text-decoration: none;
-}
-.domain-canvas .canvas-detail-count {
-  margin-left: auto;
-  font-size: 12px;
-  white-space: nowrap;
-  color: var(--canvas-detail-ink-2);
-}
-/* 两档来源（音色库 / 我的音色）——选中态用**加粗下划线**而不是实底分段控件：
-   R10「全屏只有一个实心元素」，那一个归动作坞的主动作。 */
-.domain-canvas .canvas-detail-txt-btn--seg {
-  color: var(--canvas-detail-ink-2);
-  text-decoration: none;
-}
-.domain-canvas .canvas-detail-txt-btn--seg[aria-pressed='true'] {
-  color: var(--canvas-detail-ink);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 5px;
-}
-
-/* 音色卡 —— 音色族没有媒体井（听不出宽高比），主体台放一张浮起的白卡。
-   宽度收在 420 是因为里面只有「封面 + 名字 + 播放器」三样，铺满 896 会让
-   一行字横跨整屏（R11 的同一条理由：空余宽度不画表面）。 */
-.domain-canvas .canvas-detail-voice-card {
-  position: relative;
-  width: min(420px, 100%);
-  border-radius: 12px;
-  padding: 14px 16px;
-  background: var(--canvas-detail-s0);
-  box-shadow: var(--canvas-detail-shadow-card);
-}
-/* 空态哑轨：R2「空态与满态版式同构」—— 没有可播 clip 时几何照留，
-   不写「先选一个音色」之类的解释文案。 */
-.domain-canvas .canvas-detail-voice-track {
-  height: 32px;
-  border-radius: 999px;
-  background: var(--canvas-detail-s2);
-}
-
-/* 槽 4 · 编排台 —— R7「一栏内只有两类排法」：
-   长文本 = 整宽、无标签、无边框（白面浮起，靠表面级差 + 投影分层，不描边）；
-   短值 = 标签左、值右、一行。**prompt 不配独立标签行**。 */
-.domain-canvas .canvas-detail-prompt-block {
-  border-radius: 12px;
-  padding: 2px 4px;
-  background: var(--canvas-detail-s0);
-  box-shadow: var(--canvas-detail-shadow-card);
-}
-.domain-canvas .canvas-detail-prompt-block textarea {
-  display: block;
-  width: 100%;
-  min-height: 92px;
-  border: none;
-  padding: 9px 10px;
-  background: transparent;
-  color: var(--canvas-detail-ink);
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 1.65;
-  resize: vertical;
-}
-.domain-canvas .canvas-detail-prompt-block textarea:disabled {
-  color: var(--canvas-detail-ink-2);
-}
-/* 镜头图的正文换成了 contenteditable 的 `MentionInput`（契约 §5.4 落点）——
-   与上面那条 textarea 规则**逐条对齐**，两种输入在同一个面板里必须长得一样。
-   ⚠ 少的只有 `resize`：contenteditable 本来就随内容长高，给它 resize 手柄会出现
-   一个拖了没反应的角。 */
-.domain-canvas .canvas-detail-prompt-input {
-  display: block;
-  width: 100%;
-  min-height: 92px;
-  padding: 9px 10px;
-  color: var(--canvas-detail-ink);
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 1.65;
-}
-/* iOS 触摸/窄视口 focus-zoom 修复：两条规则逐条对齐，这里也一起改，
-   保持 textarea 与 contenteditable 版本长得一样。 */
-@media (max-width: 767px) {
-  .domain-canvas .canvas-detail-prompt-block textarea,
-  .domain-canvas .canvas-detail-prompt-input {
-    font-size: 1rem;
-  }
-}
-.domain-canvas .canvas-detail-krow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.domain-canvas .canvas-detail-krow-key {
-  flex: 0 0 64px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--canvas-detail-ink-2);
-}
-.domain-canvas .canvas-detail-krow-input {
-  min-width: 0;
-  flex: 1;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: var(--canvas-detail-s0);
-  color: var(--canvas-detail-ink);
-  font-size: 13px;
-  box-shadow: var(--canvas-detail-shadow-card);
-}
-@media (max-width: 767px) {
-  .domain-canvas .canvas-detail-krow-input {
-    font-size: 1rem;
-  }
-}
-.domain-canvas .canvas-detail-stack {
-  display: flex;
-  flex-direction: column;
-  /* 槽**内**距（R12 的 1 那一档）。 */
-  gap: 10px;
-}
-/* 短值/可编辑派生值的 chip 形（R10：同层同形；**描边不实心** ——
-   全屏唯一的实心元素归动作坞的主动作）。 */
-.domain-canvas .canvas-detail-chip {
-  display: inline-flex;
-  max-width: 100%;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid var(--canvas-detail-bd);
-  border-radius: 999px;
-  padding: 5px 13px;
-  background: var(--canvas-detail-s0);
-  color: var(--canvas-detail-ink);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-.domain-canvas .canvas-detail-chip-value {
-  overflow: hidden;
-  /* R8：单行不折行。折行的那一刻它就不是一颗按钮了，是又一块面板。 */
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.domain-canvas .canvas-detail-chip[data-unset] .canvas-detail-chip-value {
-  font-weight: 400;
-  color: var(--canvas-detail-ink-2);
-}
-.domain-canvas .canvas-detail-chip:disabled {
-  color: var(--canvas-detail-ink-2);
-  cursor: not-allowed;
-}
-.domain-canvas .canvas-detail-krow-input[data-invalid] {
-  box-shadow:
-    var(--canvas-detail-shadow-card),
-    inset 0 0 0 1px var(--canvas-detail-red);
-}
-
-/* 参考图行 —— R1 行首左置标签 + 一排等尺寸方块；R5 每项常驻控件收敛到 1 颗。
-   ⚠ 三家（Krea/LibTV/UpDream）都靠 hover 显形，我们不能抄：已拍板控件必须常显，
-   触屏够不着 hover，键盘焦点会落在看不见的按钮上。只抄「收敛到 1」这个算术。 */
-.domain-canvas .canvas-detail-ref-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-.domain-canvas .canvas-detail-ref-label {
-  flex: 0 0 auto;
-  padding-top: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--canvas-detail-ink-2);
-}
-/* ⚠ 定宽 88px 流式排，**不是** `grid-cols-4`。四列在 960 面板里一格能撑到 209px，
-   于是空图集时那颗「添加」变成一个 209×209 的虚线大方块 —— 真机实拍到的、
-   R2 明写要删的「虚线取景框」。定宽同时把尺寸档位收进 R10 的 ≤3。 */
+/* 参考图集：定宽 88px 流式排，**不是** `grid-cols-4`——四列在宽面板里一格能撑到
+   209px，空图集时那颗「添加」就变成一个虚线大方块。 */
 .domain-canvas .canvas-detail-ref-grid {
   display: flex;
   flex-wrap: wrap;
@@ -3049,274 +807,46 @@
   width: 88px;
 }
 
-/* 角色详情的图集属于主体媒体，不沿用素材栏 88px 缩略图。 */
-.domain-canvas .canvas-detail-character-gallery {
-  width: 100%;
-  max-height: 100%;
-  overflow-y: auto;
-  padding: 4px;
-}
-
-.domain-canvas .canvas-detail-character-gallery .canvas-detail-ref-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 220px));
-  justify-content: center;
-  gap: 14px;
-}
-
-.domain-canvas .canvas-detail-character-gallery .canvas-detail-ref-grid > * {
-  width: 100%;
-  min-width: 0;
-  flex: none;
-}
-
-/* 槽 5 · 关系带 / 槽 6 · 证据抽屉的一行灰字。 */
-.domain-canvas .canvas-detail-line {
-  font-size: 12.5px;
-  line-height: 1.6;
-  color: var(--canvas-detail-ink-2);
-}
-
-/* 槽 7 · 动作坞 —— 通栏、在滚动区之外、**全屏唯一的实心元素**（R10）。 */
-.domain-canvas .canvas-detail-dock-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 32px;
-  background: var(--canvas-detail-s0);
-  box-shadow: var(--canvas-detail-shadow-dock);
-  /* 6-B：投影撤了之后，坞与工作区的分层由**表面等级**承担（S0 压 S1 = 1.13，
-     过 1.05 门槛）；这根线只是加固，滚动到底时不让内容看起来直接长进坞里。
-     ⚠ 刻意用**装饰档**而不是 `--canvas-detail-bd`（那个是可点控件的边界色，
-     对 S0 有 4.67）：一根 4.67 的通栏实线会和坞里那颗主动作抢分量，而 R10
-     只允许全屏有一个实心元素。合成后 `#E6E6E6`：对坞底 1.25 · 对工作区 1.10
-     （`contrast-check` 2026-08-10）—— **装饰**，语义由表面差与主动作承担。 */
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-  position: relative;
-  z-index: 2;
-}
-.domain-canvas .canvas-detail-dock-reason {
-  min-width: 0;
-  flex: 1 1 160px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--canvas-detail-ink-2);
-}
-.domain-canvas .canvas-detail-dock-reason[data-tone='error'] {
-  font-weight: 600;
-  color: var(--canvas-detail-red);
-}
-.domain-canvas .canvas-detail-primary {
-  border: none;
-  border-radius: 12px;
-  padding: 10px 30px;
-  background: var(--canvas-detail-ink);
-  color: var(--canvas-detail-s0);
-  font-size: 14px;
-  font-weight: 700;
-  transition: transform var(--canvas-dur-base) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-detail-primary:not(:disabled):hover {
-  transform: translateY(-1px);
-}
-.domain-canvas .canvas-detail-primary:disabled {
-  background: var(--canvas-detail-s2);
-  color: var(--canvas-detail-ink-2);
-  cursor: not-allowed;
-}
-@media (max-width: 960px) {
-  .domain-canvas .canvas-object-studio-overlay {
-    padding: 14px;
-  }
-
-  .domain-canvas .canvas-object-studio-surface {
-    width: calc(100% - 28px);
-    height: calc(100% - 28px);
-    max-height: calc(100% - 28px);
-  }
-
-  .domain-canvas .canvas-detail-workspace {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(280px, 46%) minmax(0, 1fr);
-  }
-
-  .domain-canvas .canvas-detail-stage-pin {
-    border-right: 0;
-    border-bottom: 1px solid var(--canvas-stroke-regular);
-    padding: 20px 24px;
-  }
-
-  .domain-canvas .canvas-detail-stage {
-    height: 100%;
-  }
-
-  .domain-canvas .canvas-detail-well {
-    width: auto;
-    height: 100%;
-  }
-
-  .domain-canvas .canvas-object-studio-content {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-content: start;
-    gap: 18px;
-    padding: 18px 22px 22px;
-  }
-
-  .domain-canvas
-    .canvas-object-studio-content
-    > [data-node-detail-slot='relations-strip'],
-  .domain-canvas
-    .canvas-object-studio-content
-    > [data-node-detail-slot='evidence-drawer'] {
-    grid-column: 1 / -1;
-  }
-
-  .domain-canvas
-    .canvas-detail-workspace:not([data-has-stage='true'])
-    .canvas-object-studio-content {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 680px) {
-  .domain-canvas .canvas-object-studio-overlay {
-    padding: 0;
-  }
-
-  .domain-canvas .canvas-object-studio-surface {
-    width: 100%;
-    height: 100%;
-    max-height: 100%;
-    border-radius: 0;
-  }
-
-  .domain-canvas .canvas-object-studio-header {
-    align-items: center;
-    gap: 10px;
-    padding: 12px 14px;
-  }
-
-  .domain-canvas .canvas-detail-workspace {
-    grid-template-rows: minmax(210px, 34%) minmax(0, 1fr);
-  }
-
-  .domain-canvas .canvas-detail-stage-pin {
-    padding: 14px;
-  }
-
-  .domain-canvas .canvas-object-studio-content,
-  .domain-canvas
-    .canvas-detail-workspace:not([data-has-stage='true'])
-    .canvas-object-studio-content {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 16px;
-  }
-
-  .domain-canvas .canvas-detail-dock-bar {
-    gap: 8px;
-    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
-  }
-
-  .domain-canvas .canvas-detail-primary {
-    min-height: 44px;
-    padding: 10px 20px;
-  }
-
-  .domain-canvas .canvas-detail-prompt-block textarea {
-    min-height: 112px;
-  }
-}
-
-/* 生成视频详情的主动作按钮。⚠ 只剩这一条：两轨 object studio 版式（grid /
-   media-rail / task-rail / video-object-studio-section 一族）已被七槽骨架取代，
-   随消费组件一起退场；这个类仍挂在 VideoComposer 的生成按钮上。 */
-.domain-canvas .canvas-video-object-studio-generate {
-  width: auto;
-  min-width: 168px;
-  flex: none;
-}
-
-/* 断点量的是**画布 stage 的宽度**而不是视口 —— 左面板展开、助手 dock 打开都会
-   压缩 stage，而视口宽度纹丝不动。stage 已是 inline-size 容器
-   （CanvasWorkspaceLayout 的 @container），overlay 是它的 absolute inset-0 后代。 */
-@container stage (max-width: 479px) {
-  .domain-canvas .canvas-video-object-studio-generate {
-    width: 100%;
-  }
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   S8 · 画布助手 dock 白面（2026-07-27，owner 纠正 + 门禁复核）
-   施工基准：owner 原话「结构照搬 LoRA，颜色显式覆盖成白」+
-   assistant-shell.md 修订版 §2「⛔ 上面这句话是错的」/ §4。
-   背景：真机实测 LoRA dock 实际是暗色「近炭暖灰」（.domain-lora 自己的头注
-   写了「冷瓷浅✗」被否），照抄它的 bg-card/text-foreground 类名在画布助手
-   rail 这个位置解析出的是**脊柱暗色**（lab(7.78%) ≈ 近黑，因为 rail 是
-   canvas-stage 的兄弟，够不到任何局部反转脊柱的作用域）。owner 要的是白，
-   不是 LoRA 的暗——这里改走 --canvas-* 这一套（与 CastDock/CastCard 同源，
-   不新造 token），前提是 rail 容器已在 CanvasWorkspaceLayout.tsx 里追加
-   .domain-canvas（见该文件），否则这些类读不到变量。 */
-
-/* 壳表面：AssistantShell 的 bg-card 默认值留着不动（LoRA/Studio 两个消费者
-   还要用），这里用一个未分层的 canvas.css 类覆盖——未分层规则恒压过
-   Tailwind 生成的分层 utility（同 .node-card-paper 那条已验证的机制），
-   不依赖 twMerge 的字符串顺序，真机已核实见任务报告。 */
+/* 画布助手 dock 白面：AssistantShell 的 bg-card 在 rail 这个位置解析出的是脊柱
+   暗色（rail 够不到任何局部反转脊柱的作用域），这里用一个**未分层**的 canvas.css
+   类覆盖——未分层规则恒压过 Tailwind 生成的分层 utility，不依赖 twMerge 顺序。
+   前提是 rail 容器已在 CanvasWorkspaceLayout.tsx 里追加 .domain-canvas。 */
 .domain-canvas .canvas-assistant-surface {
   color-scheme: light;
   background: var(--canvas-card-bg);
   color: var(--canvas-ink);
   border-color: var(--canvas-stroke-regular);
 }
-
-/* 浮动卡材质（lg: 起）。顶部 64px、右下 16px 留白由 CanvasWorkspaceLayout 的
-   lg:top-16/right-4/bottom-4 负责，这里只给「浮层」该有的两件：
-   圆角比节点卡**大一档**（14px vs 8px）+ **必须有投影**。
-
-   ⚠ 这两条与节点卡的材质纪律**故意相反**（assistant-shell.md §1 几何表）：
-   节点卡是「桌面上的纸」——静态无投影、小圆角；助手是「浮在桌面上方的
-   面板」。两者混同会让这张浮层读起来像一张巨大的节点卡，层级就消失了。
-
-   移动端不进这条：那一档是贴边的 bottom sheet（组件自带 rounded-t-2xl +
-   border-b-0），贴边就不该有四角圆角，也不需要投影去表达"浮起"。 */
+/* 浮动卡材质（lg: 起）：圆角比节点卡大一档 + **必须有投影**。
+   ⚠ 与节点卡的材质纪律故意相反——节点卡是「桌面上的纸」（静态无投影、小圆角），
+   助手是「浮在桌面上方的面板」；混同会让浮层读起来像一张巨大的节点卡。
+   ⛔ 移动端不进这条：那一档是贴边 bottom sheet，贴边不该有四角圆角与投影。 */
 @media (min-width: 1024px) {
   .domain-canvas .canvas-assistant-surface {
     border-radius: var(--canvas-pop-radius);
     box-shadow: var(--canvas-pop-shadow);
   }
 }
-
-/* 助手输入框（MentionInput 的 contenteditable）手机端满 16px：小于 16px 的可编辑
-   控件会让 iOS Safari 一聚焦就整页放大，且缩不回去。组件那边是 Tailwind 的
-   `text-sm`（14px），这里按域皮肤在窄口覆盖，桌面档保持 14px 不动。
-   与 `.canvas-video-composer-prompt-input` / `.canvas-detail-prompt-input` 同款处理。 */
+/* 助手输入框（contenteditable）手机端满 16px：小于 16px 的可编辑控件会让 iOS
+   Safari 一聚焦就整页放大且缩不回去。桌面档保持组件的 14px 不动。 */
 @media (max-width: 767px) {
   .domain-canvas .mention-input {
     font-size: 1rem;
   }
 }
-
-/* 独立于壳表面之外的分栏（头部下边线、展开态两栏之间的竖线）。 */
 .domain-canvas .canvas-assistant-divider {
   border-color: var(--canvas-stroke-regular);
 }
-
-/* 头部标题/副标题两档字色——AssistantShellHeader 是三个 dock 共用组件，不能
-   动它自己的默认（text-foreground/text-muted-foreground，LoRA/Studio 还要
-   用），只能从这层传入的 className 覆盖，覆盖机制同上（未分层类）。 */
+/* 头部标题/副标题两档字色——AssistantShellHeader 是三个 dock 共用组件，不能动
+   它自己的默认，只能从这层传入的 className 覆盖。 */
 .domain-canvas .canvas-assistant-header-text p {
   color: var(--canvas-ink);
 }
 .domain-canvas .canvas-assistant-header-text p + p {
   color: var(--canvas-ink-muted);
 }
-
-/* 头部工具条的纯图标 ghost 按钮：默认墨灰，hover 靠 --canvas-fill-control-
-   hover 填底 + 字色升到 --canvas-ink——「控件被悬停」的通用语义（规格 §3 定义的
-   那个 token 就是给这个场景用的），不是指向/危险这类语义色。 */
+/* 头部工具条的纯图标 ghost 按钮：hover 是「控件被悬停」的通用语义，不是指向/
+   危险这类语义色。 */
 .domain-canvas .canvas-assistant-ghost-btn {
   color: var(--canvas-ink-muted);
   transition:
@@ -3327,31 +857,31 @@
   background: var(--canvas-fill-control-hover);
   color: var(--canvas-ink);
 }
-
-/* 移动端收起抓手条——用 --canvas-fill-control（比卡背深一档的中性灰），不用
-   全局 bg-muted（脊柱色，同样会在这个位置解析成暗色）。 */
+/* 移动端收起抓手条——用 --canvas-fill-control，不用全局 bg-muted（脊柱色在这个
+   位置同样会解析成暗色）。 */
 .domain-canvas .canvas-assistant-handle {
   background: var(--canvas-fill-control);
 }
+/* 收起态的悬浮开关按钮：跟壳表面同一张脸，但自己要一个 hover。 */
+.domain-canvas .canvas-assistant-fab {
+  background: var(--canvas-card-bg);
+  color: var(--canvas-ink);
+  border-color: var(--canvas-stroke-regular);
+  transition:
+    border-color var(--canvas-dur-fast) var(--canvas-ease-state),
+    background var(--canvas-dur-fast) var(--canvas-ease-state);
+}
+.domain-canvas .canvas-assistant-fab:hover {
+  border-color: var(--canvas-stroke-bold);
+  background: var(--canvas-fill-control-hover);
+}
 
-/* ── 助手回复的 Markdown 排版（台账 G3，2026-08-02）────────────────────
-   起因：`AssistantConversation` 一直用 `<p className="whitespace-pre-wrap">`
-   渲染助手回复，`###` `**` 原样打在屏幕上。换成 Markdown 原语只解决一半 ——
-   Tailwind v4 preflight 把 h1–h6 与 list-style 全抹平了，不补一份排版配方，
-   标题列表渲染出来仍与正文同形。
-
-   ⚠ 为什么不复用全站的 `.message-md`（globals.css）：域皮肤纪律。那边注释
-   里就写明画布这份要**另写一份作用域内的**。尺度照抄它（同一套 em 档），
-   但这里是独立的一份，改画布不牵动 Studio/LoRA。
-
-   两条纪律：
-   · 尺度用 **em** 不用 px —— 跟随调用方字号（气泡是 14px/24px），气泡字号
-     哪天变了排版比例自动跟着走。
-   · 颜色一律从 **currentColor** 用 color-mix 派生，不引 --canvas-ink-* ——
-     气泡有深浅两种底（用户气泡是墨底白字），派生色才能两边都成立；这也是
-     `.message-md` 那边实测 --muted-foreground 在浅底上只有 3.80 之后定下的
-     同一条做法。
-   · 不进 @layer：未分层规则恒压过 Tailwind 分层 utility（同本文件 S8 段）。 */
+/* 助手回复的 Markdown 排版。⚠ 不复用全站的 `.message-md`（globals.css）：域皮肤
+   纪律，那边注释就写明画布这份要另写一份作用域内的。
+   · 尺度用 **em** 不用 px —— 跟随气泡字号，比例自动跟着走。
+   · 颜色一律从 **currentColor** 用 color-mix 派生 —— 气泡有深浅两种底
+     （用户气泡是墨底白字），派生色才能两边都成立。
+   · ⛔ 不进 @layer：未分层规则恒压过 Tailwind 分层 utility。 */
 .domain-canvas .canvas-md {
   line-height: var(--canvas-text-body-lh);
 }
@@ -3440,7 +970,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   padding-inline-start: 0.85em;
 }
 /* ⚠ 降调放**子元素**不放 blockquote 自身：同元素既设 color 又用 currentColor
-   推边线会复利成 0.3 × 0.74（memory 的 currentColor 复利陷阱）。 */
+   推边线会复利成 0.3 × 0.74。 */
 .domain-canvas .canvas-md blockquote > * {
   color: color-mix(in oklab, currentColor 74%, transparent);
 }
@@ -3448,7 +978,7 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   margin-block: 1.1em;
   border-top-color: color-mix(in oklab, currentColor 30%, transparent);
 }
-/* 链接只靠下划线，不引颜色——画布的强调蓝是「指向」专用（规格 §0.6） */
+/* 链接只靠下划线，不引颜色——画布的强调蓝是「指向」专用 */
 .domain-canvas .canvas-md a {
   text-decoration: underline;
   text-decoration-thickness: from-font;
@@ -3479,15 +1009,14 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   height: auto;
   border-radius: var(--canvas-card-radius);
 }
-/* 内联代码：`AssistantConversation` 的自定义 code 组件挂这个类（原语默认那
-   份用脊柱令牌 bg-primary-foreground，在气泡上无论翻黑翻白都不成立）。 */
+/* 内联代码：原语默认那份用脊柱令牌 bg-primary-foreground，在气泡上无论翻黑
+   翻白都不成立。 */
 .domain-canvas .canvas-md-inline-code {
   background: color-mix(in oklab, currentColor 10%, transparent);
   font-size: 0.9em;
 }
-/* 围栏代码块：CodeBlock 落成 .canvas-md 的直接子 div，且它自己用脊柱令牌
-   （bg-card/border-border），shiki 主题却硬编码 github-light —— 这里把外壳
-   拉回画布的白卡+发丝边，与高亮主题对齐。 */
+/* 围栏代码块：CodeBlock 落成 .canvas-md 的直接子 div，自己用脊柱令牌而 shiki
+   主题硬编码 github-light —— 这里把外壳拉回画布的白卡 + 发丝边。 */
 .domain-canvas .canvas-md > div {
   margin-block: 0.7em;
   border-color: var(--canvas-stroke-regular);
@@ -3495,568 +1024,16 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   color: var(--canvas-ink);
 }
 
-/* 唯一的墨色实底动作——研究模式被按下（aria-pressed）时的填色态，对应规格
-   §0.6「主动作=墨色实底」，跟 CanvasLeftPanel 的 ＋添加主按钮
-   （.canvas-rail-action）用的是同一对 token，只是换了个语境专属类名。 */
-/* 助手唤起 —— 颜色/hover/按下/禁用全部来自上面那条三者共享的主动作配方 */
-
-/* 收起态的悬浮开关按钮（在 AssistantShell 外，桌面贴顶栏/移动端贴底部）：
-   跟壳表面同一张脸，但自己要一个 hover（壳表面本身是容器，没有 hover）。 */
-.domain-canvas .canvas-assistant-fab {
-  background: var(--canvas-card-bg);
-  color: var(--canvas-ink);
-  border-color: var(--canvas-stroke-regular);
-  transition:
-    border-color var(--canvas-dur-fast) var(--canvas-ease-state),
-    background var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-assistant-fab:hover {
-  border-color: var(--canvas-stroke-bold);
-  background: var(--canvas-fill-control-hover);
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   S9 · 画布启动骨架（2026-07-27，owner 拍板）
-   施工基准：owner 反馈硬刷新画布先空白 ~5.1s 才出现（StudioNodeCanvas 的
-   useSearchParams() 挂起 Suspense，fallback 原是 null）。骨架组件见
-   CanvasStartupSkeleton.tsx，这里只补它消费的一个类——shadcn Skeleton 原语
-   默认 bg-accent（脊柱色），在骨架自己的 .domain-canvas 作用域里会解析出
-   脊柱暗色（同本轮助手 rail 撞的坑），改用 --canvas-fill-control。 */
-.domain-canvas .canvas-startup-skeleton-block {
-  background: var(--canvas-fill-control);
-}
-
-/* S10 · 域级令牌反转 —— 2026-07-27 第一版曾挂在 .domain-canvas，真机暴露
-   Radix 传送门（Popover/Dialog/DropdownMenu/Select 内容渲染进
-   document.body）够不到这个作用域的系统性缺口，第二轮改挂 :root（本文件
-   顶部 :root 块直接反转默认值），详见该处的 ⚠⚠ 说明与
-   docs/references/pages/canvas-skin.md。这里不再重复
-   一份 .domain-canvas 覆盖——两处同时存在只会制造「改一处漏一处」的风险，
-   故整块移除，不留空选择器。 */
-
-/* ⚠ 助手「历史对话」浮层（`.canvas-assistant-popover*`）2026-09-03 整块搬到
-   globals.css：CanvasAssistantHistory 虽然住在画布目录，却被
-   StudioAssistantHeaderActions 渲染进**三个** dock —— StudioNodeAssistantDock
-   （画布）· StudioAssistantDock（studio 工作台）· LoraAssistantDock，后两个在
-   画布路由之外。这批规则本来就是无作用域的（Radix 传送门到 document.body），
-   跟着本文件下沉那两个 dock 的浮层就掉皮了。 */
-
-/* ══════════════════════════════════════════════════════════════════════════
-   S11 · 画布助手浮动卡（2026-07-27）
-   施工基准：docs/references/pages/assistant-shell.md（「⛔ 下面这节已被
-   owner 推翻」节 + 紧随其后的几何表）。S8 已经把画布助手表面从近黑改白
-   （背景/字色/边色）；这里改的是外框——从贴边挤压侧栏改浮动卡片。桌面档
-   定位/宽高在 CanvasWorkspaceLayout.tsx 的 Tailwind className 与其
-   .module.css 里（四边 16px 留白、宽度随 data-assistant-mode 变化，见两个
-   文件的头注），这里只补颜色系统管不到的两件材质、外加"控件让位"。
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* 圆角 + 投影：比节点卡（--canvas-card-radius 8px）大一档，用 §9 已经定义的
-   --canvas-pop-radius（12px）/ --canvas-pop-shadow（浮层 composer 同款配方）
-   ——不新造 token。节点卡是「桌面上的纸」（静态零投影、小圆角），助手是
-   「浮在桌面上方的面板」，两者材质纪律故意不同（assistant-shell.md 该节
-   ⚠ 段），混同会让浮层读起来像一张巨大的节点卡，层级就没了。
-   ⚠ 只在 lg: 生效——mobile 维持原本的底部抽屉材质（rounded-t-2xl +
-   shadow-sm，StudioNodeAssistantDock.tsx 的 base class），这次「浮动卡片」
-   任务书原话「桌面档」，不覆盖 mobile。 */
-@media (min-width: 1024px) {
-  .domain-canvas .canvas-assistant-surface {
-    border-radius: var(--canvas-pop-radius);
-    box-shadow: var(--canvas-pop-shadow);
-  }
-}
-
-/* 顶栏始终铺满画布，右侧外观入口固定在最右侧。助手从顶栏下方开始，
-   因此不再按助手宽度动态挪动顶栏控件。 */
-
-/* 底部胶囊行给助手让位 —— 与顶栏 padding、左轨宽度由**同一个**
-   `--canvas-assistant-width` 驱动，此前却只有那两层有过渡，这一层是硬跳的：
-   助手开合时顶栏在平移、底部工具条却「啪」地挪一下（台账 §13.2 布局连续）。
-   ⚠ 这里动的是 `right` 而不是 transform：这一行是 left/right 拉伸的容器，
-   它变的是**宽度**，translate 复现不了。同 `.node-canvas-panel-motion` 的
-   width 与顶栏的 padding-right —— 都是没法用 transform 表达的布局形变，
-   §13.2「只动 transform/opacity」管的是装饰性动效。 */
+/* 底部胶囊行给助手让位——与顶栏 padding、左轨宽度由同一个
+   `--canvas-assistant-width` 驱动，这一层不加过渡就会「啪」地挪一下。
+   ⚠ 动的是 `right` 而不是 transform：这一行是 left/right 拉伸的容器，变的是
+   **宽度**，translate 复现不了。 */
 .domain-canvas .canvas-bottom-row {
   transition: right var(--duration-slow) var(--ease-standard);
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   S12 · 生成提示词框（2026-07-27）
-   施工基准：docs/references/pages/canvas-generate-composer.md。画布级共享组
-   件——贴选中卡下方（`NodeToolbar` `Position.Bottom`，随节点跟随平移/缩放）
-   或画布空白双击处（固定屏幕坐标，无宿主节点）。浮层配方 = §1「浮层
-   composer」一栏，原样采用 --canvas-pop-*，不新造颜色/圆角/投影 token。
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* 宽度改读 `--canvas-card-w-console`（420px，与视频侧车同一个令牌）——此前的
-   440px 字面量停在 2026-07-27 二轮反馈那次修订上，没跟上 2026-08-09 阶段
-   6-A 把这个宽度收成令牌、定值改到 420 那一轮（canvas-slot-rack.md §7.3
-   #2、canvas-generate-composer.md §1）。《画布修法》02 节刀 1 挪位置到右侧
-   侧车时一并把这处漂移的字面量对齐回去，不新造第二份「440」。 */
-.domain-canvas .canvas-composer-root {
-  width: var(--canvas-card-w-console);
-  max-width: min(var(--canvas-card-w-console), calc(100vw - 32px));
-}
-/* 空白唤起态没有宿主节点，NodeToolbar 管不到它——自己用 fixed 定位钉在双击
-   点，L5 瞬时浮层同一档 z-index（同「添加菜单」，都是"还没有对象"的瞬时
-   拾取层）。translate(-50%, 12px) 让浮层横向居中于点击点、纵向留一点空隙，
-   不是精确复刻某处已有值——这块没有可复用的现成定位规则。 */
-.domain-canvas .canvas-composer-root--blank {
-  position: fixed;
-  z-index: var(--z-index-canvas-transient);
-  transform: translate(-50%, 12px);
-}
-
-.domain-canvas .canvas-composer-core {
-  display: flex;
-  flex-direction: column;
-  /* 紧凑修订（2026-07-27，canvas-generate-composer.md §6 紧凑档）：§1 原文
-     padding 16px / 组间 20px 抄自规格 §8「浮层 composer」栏的实测值——两者
-     本就不是通用间距阶梯 4/8/12/16/24/32 的成员（§8 表格里的 8/12/16 同样
-     不落在那个阶梯上），沿用同一路子，在实测值内收一档，而不是改去够阶梯。 */
-  gap: 12px;
-  padding: 12px;
-  background: var(--canvas-pop-bg);
-  border: 1px solid var(--canvas-stroke-regular);
-  border-radius: var(--canvas-pop-radius);
-  box-shadow: var(--canvas-pop-shadow);
-  color: var(--canvas-ink);
-}
-
-/* 顶行：参考图槽（左）+ 扩大按钮（右）。扩大按钮用 margin-left:auto 而非
-   justify-content:space-between——纯音频宿主没有参考图槽，此时扩大按钮是
-   唯一的 flex 子项，space-between 会把单个子项摆在起始端而不是末端。行高
-   32px 跟随二轮修订的控件高上限（§1「参数条控件高 28–32px」，整颗 composer
-   一起放大一档，不只是外框变宽）。 */
-.domain-canvas .canvas-composer-top-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-}
-.domain-canvas .canvas-composer-top-row > .canvas-composer-icon-btn {
-  margin-left: auto;
-}
-
-/* §4 参考图槽——首轮紧凑修订把 40px 缩到 28px，二轮 owner 反馈「整体看着有
-   点小」后跟着控件高一起回升到 32px（§1，与本行内的扩大按钮、下面参数条的
-   控件同一档），仍比原 40px 小一截——「槽在左上（更小）」这条本轮要求没有被
-   推翻，只是不再压到比新控件高档还低。首格钉宿主图不可删 + 角标；其后是可
-   删的额外槽 + 尾随的 + 添加位。 */
-.domain-canvas .canvas-composer-ref-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.domain-canvas .canvas-composer-ref-slot {
-  position: relative;
-  display: flex;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  overflow: hidden;
-  border-radius: 8px;
-  border: 1px solid var(--canvas-stroke-regular);
-  background: var(--canvas-fill-control);
-}
-.domain-canvas .canvas-composer-ref-slot img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-/* 「正在改」角标——钉住的宿主图专属，不可删，形状同其它状态浮标的深底浅字
-   语言（NodeStatusBadge/ImageCardStatusBadge 同款深底反白）。28px 槽位放不
-   下一整条文字角标，缩成一个纯色圆点（同样是「有一张钉住的图」的信号，
-   hover 或点开参考图槽时不需要再读文字）。 */
-.domain-canvas .canvas-composer-ref-pinned-badge {
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 6px;
-  height: 6px;
-  padding: 0;
-  overflow: hidden;
-  color: transparent;
-  border-radius: 9999px;
-  background: var(--canvas-action-fg);
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--canvas-ink) 78%, transparent);
-}
-.domain-canvas .canvas-composer-ref-remove {
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  border-radius: 9999px;
-  color: var(--canvas-action-fg);
-  background: var(--canvas-ink);
-  opacity: 0;
-  transition: opacity var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-composer-ref-slot:hover .canvas-composer-ref-remove,
-.domain-canvas .canvas-composer-ref-remove:focus-visible {
-  opacity: 1;
-}
-.domain-canvas .canvas-composer-ref-add {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  border: 1px dashed var(--canvas-stroke-bold);
-  color: var(--canvas-ink-muted);
-  transition:
-    border-color var(--canvas-dur-fast) var(--canvas-ease-state),
-    color var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-composer-ref-add:hover {
-  border-color: var(--canvas-stroke-focus);
-  color: var(--canvas-ink);
-}
-
-/* MentionInput 承载指令文本——去掉独立边框与底色（首轮修订），直接躺在浮
-   层表面（.canvas-composer-core 已经是白面），只留 placeholder 的字色层级
-   （:empty::before 的 ink-muted）区分"没打字"和"打了字"，不再用一个方框把
-   它从卡面上切出来。min-height 72px 是二轮 owner 反馈值（§1「prompt 区最小
-   高 ≥72px」，「它是这个组件的主角，要看得出这里可以写一段话」）。 */
-.domain-canvas .canvas-composer-input {
-  min-height: 72px;
-  width: 100%;
-  padding: 2px 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--canvas-ink);
-}
-@media (max-width: 767px) {
-  .domain-canvas .canvas-composer-input {
-    font-size: 1rem;
-  }
-}
-.domain-canvas .canvas-composer-input:focus-visible {
-  outline: none;
-}
-.domain-canvas .canvas-composer-input:empty::before {
-  color: var(--canvas-ink-muted);
-}
-
-/* 第二行：参数条（或音频占位）+ 发送键，发送键永远在行末——紧凑修订
-   （2026-07-27）：原先参数条与「扩大/发送」footer 是两行，发送是浅色圆（因
-   为默认没选模型，canSend 恒为 false，一直显示 :disabled 的浅底），改为单
-   行后发送键内联在参数条最右端，一有模型+文字就能立刻读出「这是主动作」的
-   墨底白箭头。.canvas-composer-param-row 单独 flex:1 而不是让发送键跟着一
-   起 wrap——避免小卡宽度不够时参数条换行把发送键也挤到下一行、显得发送键
-   悬空。 */
-.domain-canvas .canvas-composer-second-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-/* §5 参数条：模型 ∨ · 比例+清晰度 ∨ · 张数 ∨ ·〔⚡ 预留〕。控件高 二轮
-   owner 反馈从「22–28px」升到 **28–32px**（§1）——外框拉宽了，控件不跟着
-   放大会显得更空更小，取区间上限 32px（skin-spec §6 命名档位「常规」）。 */
-/* ⚠ nowrap 是 owner 2026-08-02 的明确要求（「工具那一栏确保在一行」，台账
-   D1）。原先是 wrap，于是 376px 的可用宽装不下 414px 的五颗丸就折成两行，
-   发送键悬在两行中间。收成一行靠的是**先减内容再锁 nowrap**：审核动作挪到
-   发送键旁（-48px）、「用模板」收成图标（-52px），剩 314px 才装得下；只锁
-   nowrap 不减内容会变成溢出裁切，那是把折行换成了藏控件。
-   剩余的窄屏兜底交给模型丸：它是这一行唯一可收缩项（自带 truncate），其余
-   三颗 flex:none —— 挤到极窄时截的是模型名，不是把张数挤没。 */
-.domain-canvas .canvas-composer-param-row {
-  display: flex;
-  flex: 1 1 auto;
-  min-width: 0;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 6px;
-}
-.domain-canvas .canvas-composer-param-row > * {
-  flex: none;
-}
-.domain-canvas .canvas-composer-param-row > .canvas-composer-model-pill {
-  flex: 0 1 auto;
-  min-width: 0;
-}
-.domain-canvas .canvas-composer-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 9999px;
-  border: 1px solid var(--canvas-stroke-regular);
-  background: var(--canvas-fill-control);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--canvas-ink);
-  transition: border-color var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-/* 图标档（「用模板」）：收窄内边距，∨ 贴紧图标 */
-.domain-canvas .canvas-composer-pill--icon {
-  gap: 2px;
-  padding: 0 8px;
-}
-.domain-canvas .canvas-composer-pill:hover {
-  border-color: var(--canvas-stroke-focus);
-}
-/* WorkflowModelPicker 自带触发器视觉（NodeMediaInspector 同款组件，节点态
-   --node-* 已在 :root 反转为画布色，见文件顶部）；这里只收紧它在参数条里的
-   高度/字号，不覆盖它自己的形状语言。 */
-.domain-canvas .canvas-composer-model-pill {
-  height: 32px;
-  font-size: 12px;
-}
-
-/* 弹层内容（Popover 通过 Radix Portal 传送到 document.body，脱离
-   .domain-canvas 的 DOM 子树，var(--canvas-*) 在那个位置读不到——改用字面值，
-   逐条对应来源：#ffffff =
-   --canvas-pop-bg，12px = --canvas-pop-radius，投影 = --canvas-pop-shadow，
-   rgba(0,0,0,.08) = --canvas-stroke-regular，#0a0a0a/#525252/#737373 =
-   --canvas-ink/-regular/-muted，rgba(0,0,0,.04) = --canvas-fill-control。 */
-.canvas-composer-popover {
-  padding: 12px;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.06);
-  color: #0a0a0a;
-}
-.canvas-composer-popover-label {
-  margin-bottom: 6px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #737373;
-}
-/* §3.3 画幅选项：图形在上（按真实比例画的小矩形）、文字在下；选中态是填充
-   块不是描边（规格 §3.3 原文，VideoComposer 的 aspectBoxStyle 同一颗函数，
-   这里只是换了紧凑 popover 外壳）。 */
-.canvas-composer-aspect-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 52px;
-  padding: 6px 4px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  font-size: 10px;
-  font-weight: 600;
-  color: #525252;
-  transition:
-    background 150ms cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.canvas-composer-aspect-tile:hover {
-  border-color: #737373;
-}
-.canvas-composer-aspect-tile--active {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: #0a0a0a;
-  color: #0a0a0a;
-}
-.canvas-composer-aspect-box {
-  border: 2px solid currentColor;
-  border-radius: 2px;
-}
-.canvas-composer-seg-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  height: 26px;
-  padding: 0 8px;
-  border-radius: 9999px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  font-size: 11px;
-  font-weight: 600;
-  color: #525252;
-  transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.canvas-composer-seg-btn:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-.canvas-composer-seg-btn--active {
-  background: #0a0a0a;
-  border-color: #0a0a0a;
-  color: #ffffff;
-}
-
-/* §5.5「用模板」浮层——同样是 Portal 到 document.body 的弹层内容，沿用上面
-   .canvas-composer-popover 那套字面值映射（不重复注释来源，见该规则头部）。
-   约 430×380 是 owner 目检值（文档原文「约」），宽度/高度用 max- 夹一道，不
-   死锁精确像素。两列网格的列数/卡片像素是本次新写部分自己填的版式细节——
-   文档只定了"封面优先网格"，没给列数。 */
-.canvas-composer-template-popover {
-  display: flex;
-  width: 430px;
-  max-width: min(430px, calc(100vw - 32px));
-  max-height: 380px;
-  flex-direction: column;
-  gap: 8px;
-}
-.canvas-composer-template-search {
-  height: 30px;
-  flex-shrink: 0;
-  padding: 0 10px;
-  border-radius: 9999px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: rgba(0, 0, 0, 0.04);
-  font-size: 12px;
-  color: #0a0a0a;
-}
-@media (max-width: 767px) {
-  .canvas-composer-template-search {
-    font-size: 1rem;
-  }
-}
-.canvas-composer-template-search::placeholder {
-  color: #737373;
-}
-.canvas-composer-template-search:focus-visible {
-  outline: none;
-  border-color: #0a0a0a;
-}
-.canvas-composer-template-filters {
-  display: flex;
-  flex-shrink: 0;
-  gap: 6px;
-}
-.canvas-composer-template-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  overflow-y: auto;
-  padding-right: 2px;
-}
-.canvas-composer-template-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: left;
-  /* Portal 内容读不到 var(--canvas-*)（见本节顶部 .canvas-composer-popover
-     注释），150ms cubic-bezier(0.4,0,0.2,1) 是 --canvas-dur-fast/
-     --canvas-ease-state 的字面值，同 .canvas-composer-aspect-tile 的写法。 */
-  transition: opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.canvas-composer-template-card:hover {
-  opacity: 0.92;
-}
-.canvas-composer-template-card-cover {
-  position: relative;
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.04);
-}
-.canvas-composer-template-card-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.canvas-composer-template-card-fallback {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-}
-/* 正文（compiledPrompt）退到 hover 才浮现——composer 浮层比 /prompts 页网
-   格窄得多，没有余量常显一段提示词（§5.5「正文退到 hover 才浮现在封面
-   上」）。 */
-.canvas-composer-template-card-hover {
-  position: absolute;
-  inset: 0;
-  display: -webkit-box;
-  overflow: hidden;
-  padding: 8px;
-  color: #ffffff;
-  background: rgba(10, 10, 10, 0.82);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 6;
-  font-size: 10px;
-  line-height: 1.4;
-  opacity: 0;
-  transition: opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.canvas-composer-template-card:hover .canvas-composer-template-card-hover,
-.canvas-composer-template-card:focus-visible
-  .canvas-composer-template-card-hover {
-  opacity: 1;
-}
-.canvas-composer-template-card-title {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  font-size: 11px;
-  font-weight: 600;
-  color: #0a0a0a;
-}
-.canvas-composer-template-card-usage {
-  font-size: 10px;
-  color: #737373;
-}
-.canvas-composer-template-empty {
-  grid-column: 1 / -1;
-  padding: 24px 8px;
-  text-align: center;
-  font-size: 12px;
-  color: #737373;
-}
-
-/* §8 音频模式参数条——本轮先留占位，别自己发明参数。flex:1 1 auto 与
-   .canvas-composer-param-row 同一职责：占满 second-row 除发送键外的空间。 */
-.domain-canvas .canvas-composer-audio-placeholder {
-  display: flex;
-  flex: 1 1 auto;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px dashed var(--canvas-stroke-bold);
-  font-size: 12px;
-  color: var(--canvas-ink-muted);
-}
-
-.domain-canvas .canvas-composer-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9999px;
-  color: var(--canvas-ink-muted);
-  transition:
-    background var(--canvas-dur-fast) var(--canvas-ease-state),
-    color var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-composer-icon-btn:hover {
-  background: var(--canvas-fill-control-hover);
-  color: var(--canvas-ink);
-}
-/* §5 发送键：圆形 36px。颜色/hover/按下/禁用全部来自三者共享的
-   主动作配方（§0.6），这里只管形状。 */
-.domain-canvas .canvas-composer-send-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 9999px;
-}
-/* 台账 D1：审核动作（通过 / 打回）挪到发送键左邻。做成同尺寸圆钮而不是丸，
-   是为了让「这一组是对这一版的处置」在形状上就跟左边那排选择器丸分开；不给
-   墨底 —— §0.6 的主动作实底这一行只留给发送键一个。 */
+/* 审核动作（通过 / 打回）：同尺寸圆钮而不是丸，让「这一组是对这一版的处置」在
+   形状上就跟左边那排选择器丸分开；⛔ 不给墨底——主动作实底这一行只留给发送键。 */
 .domain-canvas .canvas-composer-review-btn {
   display: flex;
   flex: none;
@@ -4073,33 +1050,8 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   color: var(--canvas-ink);
 }
 
-/* §3 画布空白处唤起的模式二选一——挂在卡下时锁定该族，不显示这组控件。 */
-.domain-canvas .canvas-composer-mode-picker {
-  padding: 4px;
-}
-.domain-canvas .canvas-composer-mode-btn {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 20px;
-  border-radius: 8px;
-  border: 1px solid var(--canvas-stroke-regular);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--canvas-ink-regular);
-  transition:
-    border-color var(--canvas-dur-fast) var(--canvas-ease-state),
-    color var(--canvas-dur-fast) var(--canvas-ease-state);
-}
-.domain-canvas .canvas-composer-mode-btn:hover {
-  border-color: var(--canvas-stroke-focus);
-  color: var(--canvas-ink);
-}
-
-/* 阶段 8-b：画布图拖到名册卡上的悬停靶。⚠ 只动 outline 不动尺寸/位移 ——
-   卡在一个 240px 的窄栏里两列排布，一放大就把邻居挤走，用户以为自己拖歪了。 */
+/* 画布图拖到名册卡上的悬停靶。⚠ 只动 outline 不动尺寸/位移——卡在一个 240px 的
+   窄栏里两列排布，一放大就把邻居挤走。 */
 .domain-canvas .canvas-roster-card-hover > * {
   outline: 2px solid var(--canvas-accent);
   outline-offset: 2px;
@@ -4107,12 +1059,10 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 }
 
 /* ── v4 节点卡 · 375 降级（ui-defaults.md §6「降级 · 画布」+ §3.1 卡例外）──
-   桌面档全部住在组件的 Tailwind 类里；这里只放**手机才成立**的三条改写，因为
-   它们改的是「同一份标记在窄视口下的排法」，而不是另一套皮肤。
-   ⚠ 断点用 1023px 与应用壳的移动断点同源，⛔ 不另起一个数。 */
+   桌面档全部住在组件的 Tailwind 类里；这里只放**手机才成立**的三条改写。
+   ⚠ 断点 1023px 与应用壳的移动断点同源，⛔ 不另起一个数。 */
 @media (max-width: 1023px) {
-  /* 卡头压成两行：第一行 状态点 + 序号 + 名字 + 展开钮，第二行 kind 标 + 读数
-     （= ui-defaults「多列表格 → 主字段 + 一个次级行」同一条规则）。 */
+  /* 卡头压成两行：第一行 状态点 + 序号 + 名字 + 展开钮，第二行 kind 标 + 读数。 */
   .node-v4-head {
     flex-wrap: wrap;
   }
@@ -4128,23 +1078,20 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
     overflow-y: visible;
   }
 
-  /* 槽轨 4 格 → 2 格，仍是横向 snap（每格 50% 减去半个间隙）。 */
-  /* ⚠ `!important`：槽卡的定宽是组件按 `NODE_V4_CARD.slotCardWidth` 写在
-     行内 style 上的，行内值不加这个盖不掉。 */
+  /* 槽轨 4 格 → 2 格，仍是横向 snap。
+     ⚠ `!important`：槽卡定宽是组件按 `NODE_V4_CARD.slotCardWidth` 写在行内
+     style 上的，行内值不加这个盖不掉。 */
   [data-slot-rail='horizontal'] > * {
     width: calc(50% - 4px) !important;
     min-width: calc(50% - 4px);
   }
 }
 
-/* ── v4 workbench · 375 卡宽（`proto6-hig-notes.md` 未落三项之三）───────────
-   卡宽 = `100vw − 2rem`（左右各留 1rem 的呼吸），⚠ 只在 v4 workbench 的作用域
-   内成立：`.node-workbench-v4` 是 `NodeWorkbenchV4` 的根类名，⛔ 不写成全局规则
-   —— 现役 workbench 还在跑，全局改宽会当场动到生产画布。
-
-   ⚠ 用 `max-width` 而不是 `width`：卡的宽度是组件按 `NODE_V4_CARD.*` 写在行内
-   style 上的，行内 `width` 赢过外部 `width`，但 `max-width` 赢过 `width`。所以
-   这条不需要 `!important`（对比上面槽轨那条 —— 那条改的是宽度本身）。 */
+/* ── v4 workbench · 375 卡宽 ───────────────────────────────────────────────
+   卡宽 = `100vw − 2rem`（左右各留 1rem）。⚠ 只在 `.node-workbench-v4`
+   （NodeWorkbenchV4 的根类名）作用域内成立，⛔ 不写成全局规则。
+   ⚠ 用 `max-width` 而不是 `width`：卡宽是组件按 `NODE_V4_CARD.*` 写在行内 style
+   上的，行内 `width` 赢过外部 `width`，但 `max-width` 赢过 `width`。 */
 @media (max-width: 420px) {
   .node-workbench-v4 .react-flow__node > * {
     max-width: calc(100vw - 2rem);

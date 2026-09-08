@@ -3,7 +3,7 @@
 /**
  * 视频节点编排的 v4 读取层（第三期 · 画布 C3b）。
  *
- * ⛔ **写好不接线** —— 生产调用方为 0，接线在 C3c（`composer/VideoComposer.tsx`
+ * ③d 起已接线：唯一调用方是 `nodes/v4/NodeV4GenerateDesk.tsx`（原 `composer/VideoComposer.tsx`
  * 的 `useVideoComposer(id, data)` 换成这里，`CanvasSlotRack` 跟着改读 `tokens`）。
  * v3 那个钩子本片不改。
  *

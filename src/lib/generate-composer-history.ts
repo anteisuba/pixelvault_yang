@@ -10,12 +10,11 @@ import { NODE_STUDIO_GENERATE_COMPOSER } from '@/constants/node-studio'
  * 也不需要服务端同步。纯函数 + 在函数体内做 `typeof window` 判空，在
  * SSR/测试环境下安全地退化成空历史，不抛错。
  *
- * ⚠ 现状（2026-07-27）：composer 自建的「扩大 = modal + 这条 chip 行」已经
- * 退役（§6 修订——扩大改成打开宿主节点详情页，详情页与 composer 自建 modal
- * 功能重叠）。`pushComposerHistory` 仍然被 `use-generate-composer.ts` 的
- * `send()` 调用，写入没停；`readComposerHistory` 暂时没有消费者——读端落点
- * 挪到重设计后的节点详情页（那一轮尚未开始，见 canvas-generate-composer.md
- * §6「⬜ 节点详情页需要重新设计」）。到时候直接读这个模块，不要重新发明存储。
+ * ⚠ 现状（③d 之后）：composer 自建的「扩大 = modal + 这条 chip 行」已经退役，
+ * v3 的写端（`use-generate-composer.ts` 的 `send()`）随 ③d 一并删除——**读写
+ * 两端目前都是 0**。模块留着是 owner 早先的判断（「本身是个好东西，先别删」）：
+ * 读写端落点等节点详情页重设计那一轮再接（见 canvas-generate-composer.md §6），
+ * 到时候直接用这个模块，不要重新发明存储。
  */
 
 const STORAGE_KEY = 'pixelvault:canvas:generate-composer:history:v1'

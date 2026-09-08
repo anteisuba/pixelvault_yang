@@ -3,7 +3,7 @@
 /**
  * 生成框（组装台之外那条）的 v4 读取层（第三期 · 画布 C3b）。
  *
- * ⛔ **写好不接线** —— 生产调用方为 0，接线在 C3c（`composer/GenerateComposer.tsx`
+ * ③d 起已接线：唯一调用方是 `nodes/v4/NodeV4GenerateDesk.tsx`（原 `composer/GenerateComposer.tsx`
  * 的 `useGenerateComposer()` 换成这里）。v3 那个钩子本片不改。
  *
  * ── v4 让这里少了一整条判据 ────────────────────────────────────────────

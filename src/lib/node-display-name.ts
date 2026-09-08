@@ -91,7 +91,7 @@ export function stripFileExtension(fileName: string): string {
  *    "error":"Too big: expected string to have <=160 characters, ×3"}`
  *
  * 服务端 Zod 拒收整个 payload，客户端却把它报成「连不上云端，请检查网络连接」
- * （已同步修，见 `use-node-workflow.ts` 的 `reportServerWriteFailure`）。用户被
+ * （已同步修，见 `use-node-workflow-store.ts` 的写失败上报）。用户被
  * 指去修网络，而这轮所有配置只活在浏览器内存里，刷新即失。
  *
  * ⚠ 截断而不是拒绝：这些字段本就该短（是标题不是内容），原文一直都在
@@ -156,10 +156,10 @@ export function buildFallbackNodeNames<
  * 已知的「上传备注」机器串 —— `useNodeReferenceUpload` 的 `note` 参数没写
  * 描述时会原样落进 `generation.prompt`（服务端行为，见 A 节改动背景）。之后
  * 「选已有图」一类写入口（`ReferenceLandingTabs.handleSelectAssets` /
- * `StudioNodeWorkbench` 素材库拖拽落图 / `ImageFamilyBody.handleSelectExisting`
+ * 画布 workbench 素材库拖拽落图 / `ImageFamilyBody.handleSelectExisting`
  * / `CharacterDetailBody` / `VideoComposer` 同模式）直接拿 `generation.prompt`
  * 当名字，于是这几个常量原样穿透进 `characterName`/`backgroundName`/
- * `shotName`/`mediaLabel`/`sourceLabel` 里的任意一个（`StudioNodeWorkbench.
+ * `shotName`/`mediaLabel`/`sourceLabel` 里的任意一个（画布 workbench.
  * handleSpawnReference` 按 role 决定具体落哪个字段）。
  *
  * import 常量本身，不手抄字符串 —— 串值一旦漂移这里要跟着漂移，硬编码会
@@ -279,7 +279,7 @@ export function buildDisplayNamePatch(
  * 上。不设置时 `NodeWrapper` 直接省掉 DOM `aria-label` 属性（node_modules/
  * @xyflow/react 源码里就是 `"aria-label": node.ariaLabel`，没有兜底字符串），
  * 读屏于是退化成「按内容拼可访问名」：卡里唯一带显式 aria-label 的后代通常是
- * 卡头的改名按钮（`EditableNodeLabel`，见 NodeShell.tsx），它的 aria-label
+ * 卡头的改名按钮（见 `nodes/v4/NodeV4EditableLabel.tsx`），它的 aria-label
  * 固定是 `StudioNode.nodeToolbar.rename`（"命名"）——这正是「18 个节点读屏都
  * 念成同一个词」的来源。显式给节点自己的 ariaLabel 从根上堵住这条退化路径。
  *

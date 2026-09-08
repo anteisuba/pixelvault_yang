@@ -65,8 +65,8 @@ export function VideoMergeComposeToolbar({
           from the toolbar's node internals (always above L2 node cards) —
           the same L3-equivalent placement every per-node selection toolbar
           in this codebase already relies on without setting the token
-          itself (see `GenericSelectionToolbar` in CanvasImageSelectionToolbar.tsx,
-          whose shell classes this div mirrors). */}
+          itself (the same placement `NodeV4SelectionToolbar` relies on, whose
+          shell classes this div mirrors). */}
       <CanvasPopIn side="top">
         <div
           role="toolbar"

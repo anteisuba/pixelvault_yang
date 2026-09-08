@@ -3,10 +3,8 @@
 /**
  * v4 生成入口（第三期 · 画布 C3b）。
  *
- * ⛔ **写好不接线** —— 生产调用方为 0，接线在 C3c（`StudioNodeWorkbench.tsx` 的
- * `handleGenerateMediaNode` 那一整段收割 + 装配换成这里的 `generateNode`，
- * `node-video-send-preview.ts` 的预览跟着改读 `planV4Generation`）。v3 的
- * `use-node-media-generation.ts` 本片不改。
+ * ③d-4 起这是画布**唯一**的生成入口（`NodeWorkbenchV4` 直接调 `generateNode`）。
+ * v3 的 `use-node-media-generation.ts` 仍被工作台那条路用着，本片不动它。
  *
  * ── 这一层做什么、不做什么 ──────────────────────────────────────────────
  * 做：把「一个 v4 节点 + 整张图」翻译成 `useNodeMediaGeneration` 那个既有的

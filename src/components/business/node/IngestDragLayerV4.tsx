@@ -1,9 +1,8 @@
 'use client'
 
 /**
- * v4 吞噬拖拽的**外壳层**（第三期 · 画布 C3c-③d-3「写好不接」）。
- *
- * ⛔ 本片生产调用方为 0 —— 接线在 ③d-4，同批删 `IngestDragLayer.tsx`（v3 版）。
+ * v4 吞噬拖拽的**外壳层**（第三期 · 画布）。③d-4 起挂在 `NodeWorkbenchV4` 上，
+ * v3 版 `IngestDragLayer.tsx` 同批删除。
  *
  * ── 为什么是**新文件**而不是给 `IngestDragLayer` 加 props ────────────────
  * 两者的差别不在装饰而在**契约**：v3 那层的 context 出口是
@@ -46,6 +45,11 @@ import type { V4IngestDropPlan } from '@/hooks/node/use-cast-ingest-v4'
 interface IngestDragV4ContextValue {
   readonly dragState: V4IngestDragState
   beginDrag(params: BeginV4DragParams): void
+  /** 快投模式（S5f B2）。`null` = 不在模式里。 */
+  readonly quickThrowSource: NodeV4 | null
+  enterQuickThrow(source: NodeV4): void
+  exitQuickThrow(): void
+  feedQuickThrow(targetId: string): void
 }
 
 const IngestDragV4Context = createContext<IngestDragV4ContextValue | null>(null)
@@ -105,7 +109,13 @@ export function IngestDragProviderV4({
     ...(capacityBySlot ? { capacityBySlot } : {}),
   })
 
-  const { cancelChoice } = engine
+  const {
+    cancelChoice,
+    quickThrowSource,
+    enterQuickThrow,
+    exitQuickThrow,
+    feedQuickThrow,
+  } = engine
   const hasChoice = engine.dragState.pendingChoice !== null
 
   // Esc 退出落点选择。⚠ 与画布的 Esc 链是**同一条纪律**（一次一层）：待决的落点
@@ -122,8 +132,22 @@ export function IngestDragProviderV4({
   }, [hasChoice, cancelChoice])
 
   const value = useMemo<IngestDragV4ContextValue>(
-    () => ({ dragState: engine.dragState, beginDrag: engine.beginDrag }),
-    [engine.dragState, engine.beginDrag],
+    () => ({
+      dragState: engine.dragState,
+      beginDrag: engine.beginDrag,
+      quickThrowSource,
+      enterQuickThrow,
+      exitQuickThrow,
+      feedQuickThrow,
+    }),
+    [
+      engine.dragState,
+      engine.beginDrag,
+      quickThrowSource,
+      enterQuickThrow,
+      exitQuickThrow,
+      feedQuickThrow,
+    ],
   )
 
   return (

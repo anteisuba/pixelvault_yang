@@ -18,6 +18,9 @@ import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
 import { useNodeV4Canvas, type NodeV4CanvasContextValue } from './NodeV4Context'
+import { useNodeGraphV4 } from '@/hooks/node/use-node-graph-v4'
+import { useWorkbenchShortcutsV4 } from '@/components/business/node/workbench-v4/WorkbenchShortcutsV4'
+
 import { NodeV4Provider } from './NodeV4Provider'
 
 const NOW = '2026-09-07T00:00:00.000Z'
@@ -121,8 +124,16 @@ function mount(initial: NodeWorkflowStateV4) {
   function Harness() {
     const [state, setState] = useState(initial)
     track(state)
+    // ③d-4：`graph` 是必给的 prop —— Provider 只是图引擎的投影，不再自己起一份。
+    // 失败出声由调用方接（③d-4 起 `OP_FAILURE_KEYS` 住在 workbench）——
+    // 这里给一份最小实现，只为证明「失败真的有出口」。
+    const graph = useNodeGraphV4({
+      state,
+      onStateChange: setState,
+      onOpFailed: () => toastError('op failed'),
+    })
     return (
-      <NodeV4Provider state={state} onStateChange={setState}>
+      <NodeV4Provider graph={graph}>
         <Probe onValue={report} />
       </NodeV4Provider>
     )
@@ -400,12 +411,20 @@ describe('NodeV4Provider · 复制粘贴', () => {
     function Harness() {
       const [state, setState] = useState(scene())
       track(state)
+      const graph = useNodeGraphV4({
+        state,
+        onStateChange: setState,
+        selectedNodeIds: selected,
+      })
+      // ⌘C/⌘V 的键位住在 `WorkbenchShortcutsV4`（画布唯一一份），⛔ 不在 Provider
+      // 里再绑一份 —— 同时挂两份会让一次 ⌘Z 撤两步。
+      useWorkbenchShortcutsV4({
+        graph,
+        onGenerateSelected: () => undefined,
+        onTidyLayout: () => undefined,
+      })
       return (
-        <NodeV4Provider
-          state={state}
-          onStateChange={setState}
-          selectedNodeIds={selected}
-        >
+        <NodeV4Provider graph={graph} selectedNodeIds={selected}>
           <Probe onValue={report} />
         </NodeV4Provider>
       )

@@ -1,11 +1,8 @@
 /**
  * @vitest-environment jsdom
  *
- * ⚠ 本片是「写好不接」——真机上看不到这套 workbench（页面入口还指向
- * `StudioNodeWorkbench`）。所以**证据只能是 DOM 断言**：这里断言的是
- * ① 一个 v4 state 节点渲染出一张 v4 卡、legacy 空壳一个都不出现；
- * ② 添加菜单的项数与词表一致，且每一项都带 v4 身份；
- * ③ 快捷键真的接到了图引擎与生成上（⌘+Enter / ⌘Z）。
+ * ⚠ 本片是**渲染快照**：只证明画布层把四类 v4 节点各自挑对了组件、把键位真的
+ * 绑上了；真机行为（拖投、连线、生成）在真机验收里过。
  */
 import { act, render, renderHook, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -63,6 +60,11 @@ vi.mock('@xyflow/react', () => {
       props.isVisible ? <div>{props.children as ReactNode}</div> : null,
     Position: { Left: 'left', Right: 'right', Top: 'top' },
     useNodes: () => [],
+    // `useUpdateNodeInternalsOnInit`（首绘强推 handle 位置）只读 store，
+    // 快照里给一个空 store 就够 —— 它一次性、且没有边时立刻收工。
+    useStoreApi: () => ({
+      getState: () => ({ edges: [], updateNodeInternals: () => undefined }),
+    }),
     useEdges: () => [],
     useReactFlow: () => ({
       fitView: vi.fn(),
@@ -93,6 +95,7 @@ import { NODE_STUDIO_TOOL_MODE_IDS } from '@/constants/node-studio'
 import { useNodeGraphV4 } from '@/hooks/node/use-node-graph-v4'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
+import { IngestDragProviderV4 } from '../IngestDragLayerV4'
 import { NodeV4Provider } from '../nodes/v4/NodeV4Provider'
 import { CanvasV4 } from './CanvasV4'
 import { WORKBENCH_V4_ADD_ITEM_COUNT } from './WorkbenchToolbarV4'
@@ -119,17 +122,32 @@ const STATE: NodeWorkflowStateV4 = {
   edges: [],
 }
 
+/** 墨线签署的空账本 —— 渲染快照不测装饰，只要装饰层有个可读的入口。 */
+const NO_EDGE_SIGNING = {
+  signedEdgePairs: new Map(),
+  fadingEdges: new Map(),
+  scheduleEdgeSigning: () => undefined,
+  scheduleEdgeUnsign: () => undefined,
+}
+
 function Harness({ state }: { state: NodeWorkflowStateV4 }) {
   const graph = useNodeGraphV4({ state, onStateChange: () => undefined })
   return (
-    <NodeV4Provider state={state} onStateChange={() => undefined} graph={graph}>
-      <CanvasV4
-        graph={graph}
-        toolMode={NODE_STUDIO_TOOL_MODE_IDS.hand}
-        relationsCollapsed={false}
-        canvasAppearance={undefined}
-      />
-    </NodeV4Provider>
+    <IngestDragProviderV4
+      nodes={graph.nodes}
+      edges={graph.edges}
+      onConnect={() => undefined}
+    >
+      <NodeV4Provider graph={graph}>
+        <CanvasV4
+          graph={graph}
+          toolMode={NODE_STUDIO_TOOL_MODE_IDS.hand}
+          relationsCollapsed={false}
+          canvasAppearance={undefined}
+          edgeSigning={NO_EDGE_SIGNING}
+        />
+      </NodeV4Provider>
+    </IngestDragProviderV4>
   )
 }
 

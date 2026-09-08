@@ -22,10 +22,12 @@
 
 import { NODE_REVIEW_STATE_IDS } from '@/constants/node-types'
 import {
+  isNodeV4Data,
   isNodeV4ReviewCarrier,
+  readReviewMap,
   type NodeMediaReviewCarrier,
 } from '@/lib/node-media-review'
-import type { NodeWorkflowNode } from '@/types/node-workflow'
+import type { NodeV4 } from '@/types/node-workflow'
 
 export interface ReviewQueueItem {
   nodeId: string
@@ -54,8 +56,10 @@ export interface ReviewQueueItem {
  */
 function collectLiveUrls(data: NodeMediaReviewCarrier): Set<string> {
   const urls = new Set<string>()
-  if (isNodeV4ReviewCarrier(data)) {
-    if (data.url) urls.add(data.url)
+  if (isNodeV4Data(data)) {
+    // 文本节点没有 `url`（也不进审阅队列）—— 空集合，⛔ 不落到 v3 分支去读
+    // 一堆 v4 形状上根本不存在的字段。
+    if (isNodeV4ReviewCarrier(data) && data.url) urls.add(data.url)
     return urls
   }
   if (data.mediaUrl) urls.add(data.mediaUrl)
@@ -95,7 +99,9 @@ export function resolveReviewTargetUrl(
     return current.url
   }
   // v4：单字段，两层兜底消失（见 `collectLiveUrls` 的 v4 分支）。
-  if (isNodeV4ReviewCarrier(data)) return data.url?.trim() ?? ''
+  if (isNodeV4Data(data)) {
+    return isNodeV4ReviewCarrier(data) ? (data.url?.trim() ?? '') : ''
+  }
   const media = data.mediaUrl?.trim()
   if (media) return media
   return data.imageUrl?.trim() ?? ''
@@ -125,10 +131,11 @@ export function isSameReviewItem(
 
 /** 全图的待审队列，已排好序。 */
 export function collectReviewQueue(
-  nodes: readonly NodeWorkflowNode[],
+  nodes: readonly NodeV4[],
 ): ReviewQueueItem[] {
   const items: ReviewQueueItem[] = []
   nodes.forEach((node, nodeIndex) => {
+    if (!isNodeV4ReviewCarrier(node.data)) return
     const review = node.data.mediaReview
     if (!review) return
     const live = collectLiveUrls(node.data)
@@ -192,7 +199,7 @@ export function findPreviousVersionUrl(
   data: NodeMediaReviewCarrier,
   currentUrl: string,
 ): string | undefined {
-  const review = data.mediaReview
+  const review = readReviewMap(data)
   if (!review) return undefined
   let bestUrl: string | undefined
   let bestAt = ''

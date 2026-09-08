@@ -4439,47 +4439,59 @@
     },
     "addCatalog": {
       "groups": {
+        "text": "Text",
         "image": "Images",
-        "video": "Video",
         "audio": "Sound",
-        "organize": "Organize"
+        "video": "Video"
       },
       "items": {
-        "imageAsset": {
-          "label": "Image",
-          "helper": "Upload, paste, choose an asset, or generate with AI later."
+        "textScript": {
+          "label": "Script",
+          "helper": "The scene, action, camera and dialogue this beat is made of."
+        },
+        "textRule": {
+          "label": "Rule",
+          "helper": "A style or production constraint — it governs whatever you wire it into."
+        },
+        "textNote": {
+          "label": "Note",
+          "helper": "Remarks for yourself. Never sent to a model as a constraint."
         },
         "imageShot": {
-          "label": "Shot image",
-          "helper": "Generate a still from shot direction plus character and scene references."
+          "label": "Shot still",
+          "helper": "One frame generated from the script plus character and background references."
         },
-        "videoGenerate": {
-          "label": "Generate video",
-          "helper": "Combine a prompt with visual and sound references to create a video shot."
+        "imageCharacter": {
+          "label": "Character",
+          "helper": "What this person looks like: key art, close-ups and a bound voice."
         },
-        "videoReference": {
-          "label": "Reference video",
-          "helper": "Upload a clip as motion or visual guidance for downstream generation."
+        "imageBackground": {
+          "label": "Background",
+          "helper": "What this place looks like: scene, mood and lighting."
         },
-        "videoShotText": {
-          "label": "Shot text",
-          "helper": "Write this shot's scene, action, camera, and composition for downstream video nodes."
+        "imageResult": {
+          "label": "Generated image",
+          "helper": "Upload, paste, pick from assets, or generate with AI later."
+        },
+        "audioVoice": {
+          "label": "Voice line",
+          "helper": "The audio for one spoken line — generated or uploaded."
+        },
+        "audioTimbre": {
+          "label": "Timbre",
+          "helper": "A reusable vocal identity. Wire it into a shot or character to fix how they sound."
+        },
+        "videoShot": {
+          "label": "Shot",
+          "helper": "One shot, with its own first frame, last frame, reference, voice and text ports."
+        },
+        "videoClip": {
+          "label": "Clip",
+          "helper": "Upload a video to use as a motion or look reference."
         },
         "videoMerge": {
-          "label": "Compose videos",
-          "helper": "Join 2–9 clips in order, with optional per-clip ranges."
-        },
-        "audioVoiceProfile": {
-          "label": "Voice profile",
-          "helper": "Choose a system voice or upload reference audio as a reusable identity."
-        },
-        "organizeCharacter": {
-          "label": "Character profile",
-          "helper": "Collect a character's hero image, references, close-ups, and bound voice."
-        },
-        "organizeScene": {
-          "label": "Scene profile",
-          "helper": "Collect scene images, location, mood, and lighting direction."
+          "label": "Merge",
+          "helper": "Stitch 2–9 clips in order. Trim each one first if you like."
         }
       },
       "cast": "Cast tray",

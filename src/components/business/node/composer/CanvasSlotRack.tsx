@@ -7,7 +7,21 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { motionTransition, staggerDelay } from '@/constants/motion'
-import type { ComposerReferenceToken } from '@/hooks/node/use-video-composer'
+import type { ReferenceTokenData } from './ReferenceTokenChip'
+
+/**
+ * 槽架认的一格。
+ *
+ * ⚠ ③d-4：原来直接吃 v3 的 `CanvasSlotRackToken`（`use-video-composer` 已随
+ * legacy 一起删）。槽架实际只读**这几个字段** —— 那份 v3 类型上的
+ * `galleryAssets` / `stageOverrideActive` / `parentCharacterId` 全是 v3 收集器
+ * 的东西，v4 里没有对象。所以这里声明自己要的那一小块，⛔ 不再顺着一个巨大的
+ * 类型往回拖一整条 v3 依赖。
+ */
+export interface CanvasSlotRackToken extends ReferenceTokenData {
+  /** 直连这个节点的那条边（× = 删掉它）。 */
+  edgeId?: string
+}
 import type { VideoSendSlotLimits } from '@/lib/node-video-send-slots'
 import { cn } from '@/lib/utils'
 
@@ -96,7 +110,7 @@ const ZONE_BY_KIND: Record<ReferenceTokenKind, SlotZoneId> = {
 }
 
 export interface CanvasSlotRackProps {
-  tokens: readonly ComposerReferenceToken[]
+  tokens: readonly CanvasSlotRackToken[]
   /**
    * 这一档**解算后**的容量（已扣掉跨模态总额）。分类清单与「满没满」的唯一
    * 事实源 —— 来自 `sendPreview.slotLimits`，即发送路径读的同一份。
@@ -134,7 +148,7 @@ export interface CanvasSlotRackProps {
    * 胶囊显示位置（「图 3」）、存储 `@名字`；它只标位置**不决定发不发** ——
    * 范围是槽架的事（契约 §一）。缺省则单击不做任何事。
    */
-  onInsert?(token: ComposerReferenceToken): void
+  onInsert?(token: CanvasSlotRackToken): void
   /**
    * 移除槽位 = **删连线**（节点保留）。只对有直连边的素材提供 —— 经 1-hop 路由
    * 进来的（voice → character → video）没有自己的边可删。
@@ -142,13 +156,13 @@ export interface CanvasSlotRackProps {
    * ⚠ 这是新契约下「不想发某条素材」的**唯一**手势：`@` narrowing 退役后，
    * 在槽里就等于会发送（Q4「删边不删 token」消解为「移除槽位」）。
    */
-  onRemove?(token: ComposerReferenceToken): void
+  onRemove?(token: CanvasSlotRackToken): void
 }
 
 /** 该区当前的持有量与上限。`Infinity` 上限不渲染成我们编的数字。 */
 function zoneCount(
   zone: SlotZoneId,
-  tokens: readonly ComposerReferenceToken[],
+  tokens: readonly CanvasSlotRackToken[],
   slotLimits: VideoSendSlotLimits,
 ): { held: number; limit: number } {
   return {

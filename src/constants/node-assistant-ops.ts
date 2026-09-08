@@ -102,7 +102,7 @@ export type NodeAssistantOpId = (typeof NODE_ASSISTANT_OPS)[number]
  * 顺手项，且要动 composer 与工作台的发送路径。所以本批只做视频节点，图片节点给
  * `notParameterizable` 明说「这几档不在节点上」。
  *
- * ⚠ 每一项都逐个确认过读侧（`StudioNodeWorkbench.handleGenerateMediaNode`）：
+ * ⚠ 每一项都逐个确认过读侧（画布的生成路径）：
  * duration/resolution/aspectRatio/generateAudio/seed 五个都会进 `nodeMediaGeneration
  * .generate(...)` 的载荷，且 `VideoComposer` 有对应控件读同一个字段。
  * ⛔ `negativePrompt` 有读侧但**没放进来**：它是自由文字不是档位，覆盖用户手写内容
@@ -175,15 +175,18 @@ export function isAutoApplyAssistantOp(op: NodeAssistantOpId): boolean {
  * 必须同步进这张表」—— 漏了的话助手会安静地少一种能建的节点，而不是报错。
  */
 export const NODE_ASSISTANT_ADD_INTENTS = [
-  CANVAS_ADD_INTENT_IDS.imageAsset,
+  CANVAS_ADD_INTENT_IDS.textScript,
+  CANVAS_ADD_INTENT_IDS.textRule,
+  CANVAS_ADD_INTENT_IDS.textNote,
   CANVAS_ADD_INTENT_IDS.imageShot,
-  CANVAS_ADD_INTENT_IDS.videoGenerate,
-  CANVAS_ADD_INTENT_IDS.videoReference,
-  CANVAS_ADD_INTENT_IDS.videoShotText,
+  CANVAS_ADD_INTENT_IDS.imageCharacter,
+  CANVAS_ADD_INTENT_IDS.imageBackground,
+  CANVAS_ADD_INTENT_IDS.imageResult,
+  CANVAS_ADD_INTENT_IDS.audioVoice,
+  CANVAS_ADD_INTENT_IDS.audioTimbre,
+  CANVAS_ADD_INTENT_IDS.videoShot,
+  CANVAS_ADD_INTENT_IDS.videoClip,
   CANVAS_ADD_INTENT_IDS.videoMerge,
-  CANVAS_ADD_INTENT_IDS.audioVoiceProfile,
-  CANVAS_ADD_INTENT_IDS.organizeCharacter,
-  CANVAS_ADD_INTENT_IDS.organizeScene,
 ] as const satisfies readonly CanvasAddIntentId[]
 
 /**
@@ -198,26 +201,29 @@ export const NODE_ASSISTANT_ADD_INTENT_HINTS: Record<
   CanvasAddIntentId,
   string
 > = {
-  [CANVAS_ADD_INTENT_IDS.organizeCharacter]:
-    'a CHARACTER identity card — use it for any person / role',
-  [CANVAS_ADD_INTENT_IDS.organizeScene]:
-    'a BACKGROUND / scene identity card — use it for places, environments, locations',
+  [CANVAS_ADD_INTENT_IDS.textScript]:
+    'a SCRIPT text node — the written scene / action / camera / dialogue, feeds shots and images',
+  [CANVAS_ADD_INTENT_IDS.textRule]:
+    'a RULE text node — a style or production constraint that applies to whatever it is wired into',
+  [CANVAS_ADD_INTENT_IDS.textNote]:
+    'a NOTE text node — free remarks that are not sent to any model as a constraint',
   [CANVAS_ADD_INTENT_IDS.imageShot]:
     'a shot still — one frame generated from shot text plus character / background references',
-  // ⚠ 没有 keyframe 这一项：造关键帧的入口 2026-08-09 退役（见
-  // `CANVAS_ADD_INTENT_IDS` 头注）。助手要铺关键帧就铺 `image.asset`，首/尾用
-  // `set_image_category` 标 `frameStart` / `frameEnd`（切片 5 第一批补上了这条
-  // op —— 在那之前助手只能建图、标不了首尾，得让用户回详情面板自己下拉）。
-  [CANVAS_ADD_INTENT_IDS.imageAsset]:
-    'a loose image with no assigned role — only when none of the roles above fits',
-  [CANVAS_ADD_INTENT_IDS.videoShotText]:
-    'a shot-text node — the written scene / action / camera / composition for one shot, feeding a video node',
-  [CANVAS_ADD_INTENT_IDS.videoGenerate]: 'a video generation node',
-  [CANVAS_ADD_INTENT_IDS.videoReference]: 'a reference video clip',
+  [CANVAS_ADD_INTENT_IDS.imageCharacter]:
+    'a CHARACTER image — use it for any person / role',
+  [CANVAS_ADD_INTENT_IDS.imageBackground]:
+    'a BACKGROUND / scene image — use it for places, environments, locations',
+  [CANVAS_ADD_INTENT_IDS.imageResult]:
+    'a loose generated image with no assigned role — only when none of the roles above fits',
+  [CANVAS_ADD_INTENT_IDS.audioVoice]:
+    'a spoken line / voice clip for a character',
+  [CANVAS_ADD_INTENT_IDS.audioTimbre]:
+    'a voice timbre profile — wire it into a shot or character to fix how they sound',
+  [CANVAS_ADD_INTENT_IDS.videoShot]:
+    'a SHOT — one video generation with its own first/last frame, references, voice and text slots',
+  [CANVAS_ADD_INTENT_IDS.videoClip]: 'a reference video clip',
   [CANVAS_ADD_INTENT_IDS.videoMerge]:
     'a node that stitches several clips into one sequence',
-  [CANVAS_ADD_INTENT_IDS.audioVoiceProfile]:
-    'a voice / timbre profile used for a character',
 }
 
 /**

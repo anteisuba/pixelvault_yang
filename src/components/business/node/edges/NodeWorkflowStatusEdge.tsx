@@ -7,7 +7,7 @@ import { NODE_STUDIO_EDGE_VISUALS } from '@/constants/node-studio'
 import {
   playInkSignAnimation,
   playInkUnsignAnimation,
-} from '@/hooks/node/use-cast-ingest'
+} from '@/hooks/node/node-ingest-dom'
 import { cn } from '@/lib/utils'
 import {
   isPendingSourceNode,
@@ -43,7 +43,7 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
  * stroke-dashoffset draw-in/retreat needs the path's real measured length,
  * not a static keyframe table. `data.justSigned` / `data.signingFadeOut` /
  * `data.unsigning` are all render-layer-only markers stamped by
- * `StudioNodeWorkbench`'s `renderedEdges` memo — never persisted (same
+ * `CanvasV4`'s `renderEdges` memo — never persisted (same
  * discipline as `data.revealed`). The two-phase timing itself (draw → hold →
  * settle-fade) is owned entirely by the workbench's timers, NOT by this
  * component — it only ever reacts to the two booleans it's handed, so it
@@ -84,11 +84,11 @@ export const NodeWorkflowStatusEdge = memo(function NodeWorkflowStatusEdge({
     targetData?.data.status,
     targetData?.data.generationStatus,
   )
-  // Set by StudioNodeWorkbench's renderedEdges memo — true for a selection-
+  // Set by `CanvasV4`'s renderEdges memo — true for a selection-
   // revealed ingredient edge AND for the whole 墨线签署 hold window (both
   // ride the same 石绿 tint).
   const revealed = Boolean(data?.revealed)
-  // True only for the draw-in sub-phase (StudioNodeWorkbench's `'drawing'`
+  // True only for the draw-in sub-phase (`useEdgeSigning`'s `'drawing'`
   // phase) — the rising edge triggers the dash-in once.
   const justSigned = Boolean(data?.justSigned)
   // True only for the settle sub-phase, and only when the workbench has
@@ -105,7 +105,7 @@ export const NodeWorkflowStatusEdge = memo(function NodeWorkflowStatusEdge({
     playInkSignAnimation(pathRef.current)
   }, [justSigned])
 
-  // Reverse ink retreat: plays once while StudioNodeWorkbench keeps a doomed
+  // Reverse ink retreat: plays once while `useEdgeSigning` keeps a doomed
   // edge's snapshot alive in the render array for exactly this long after the
   // real edge is already gone from `workflow.edges`.
   useEffect(() => {

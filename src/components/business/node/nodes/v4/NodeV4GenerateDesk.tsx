@@ -48,7 +48,7 @@ import { useGenerateComposerV4 } from '@/hooks/node/use-generate-composer-v4'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { useNodeReferenceUpload } from '@/hooks/node/use-node-reference-upload'
 import { useVideoComposerV4 } from '@/hooks/node/use-video-composer-v4'
-import type { ComposerReferenceToken } from '@/hooks/node/use-video-composer'
+
 import type { V4ComposerToken } from '@/hooks/node/use-video-composer-v4'
 import type { VideoSendSlotLimits } from '@/lib/node-video-send-slots'
 import { validateV4Slots } from '@/lib/node-slot-payload'
@@ -56,7 +56,10 @@ import { cn } from '@/lib/utils'
 import type { ReferenceTokenKind } from '../../composer/ReferenceTokenChip'
 import type { NodeV4 } from '@/types/node-workflow'
 
-import { CanvasSlotRack } from '../../composer/CanvasSlotRack'
+import {
+  CanvasSlotRack,
+  type CanvasSlotRackToken,
+} from '../../composer/CanvasSlotRack'
 import { DetailModelPicker } from '../../node-detail/DetailModelPicker'
 import { useNodeV4Canvas } from './NodeV4Context'
 
@@ -458,8 +461,8 @@ export function NodeV4GenerateDesk({ node }: NodeV4GenerateDeskProps) {
 function toRackTokens(
   tokens: readonly V4ComposerToken[],
   nodes: readonly NodeV4[],
-): ComposerReferenceToken[] {
-  const rack: ComposerReferenceToken[] = []
+): CanvasSlotRackToken[] {
+  const rack: CanvasSlotRackToken[] = []
   for (const token of tokens) {
     // 文本槽不进槽架：那一格发的是字，槽架回答的是「挂了哪些素材」。
     if (token.slot === NODE_SLOT_IDS.text) continue

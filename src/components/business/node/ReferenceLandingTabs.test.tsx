@@ -8,7 +8,12 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  NODE_MEDIA_KIND_IDS,
+  NODE_TYPE_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
+} from '@/constants/node-types'
+import { NODE_V4_SUBTYPE_LABELS } from '@/constants/node-studio'
 import type { GenerationRecord } from '@/types'
 
 import type {
@@ -33,12 +38,14 @@ const listCanvasImageSources = vi.fn<
     nodeId: 'shot-9',
     url: 'https://cdn.example.com/shot9.png',
     name: '镜头9-静帧',
-    type: NODE_TYPE_IDS.shot,
+    kind: NODE_MEDIA_KIND_IDS.image,
+    subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
   },
   {
     nodeId: 'loose-3',
     url: 'https://cdn.example.com/loose3.png',
-    type: NODE_TYPE_IDS.image,
+    kind: NODE_MEDIA_KIND_IDS.image,
+    subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
   },
 ])
 
@@ -205,11 +212,14 @@ describe('ReferenceLandingTabs · 第四源「从画布选择」（阶段 8-a）
     expect(listCanvasImageSources).toHaveBeenCalledWith('host-1')
   })
 
-  it('没起过名的节点退回类型名，不显示空白格', () => {
+  it('没起过名的节点退回**子型**标签，不显示空白格', () => {
     render(<ReferenceLandingTabs targetNodeId="host-1" />)
     fireEvent.mouseDown(screen.getByText('canvasTab'))
-    // mock 的 useTranslations 原样吐 key，所以类型兜底显示的是 `image`。
-    expect(screen.getByText(NODE_TYPE_IDS.image)).toBeInTheDocument()
+    // ⚠ ③d-4：兜底读的是子型标签表（`image.shot` → 「镜头图」），
+    // ⛔ 不再查 legacy `nodeTypes.*`（那张表的键 v4 查不到）。
+    expect(
+      screen.getByText(NODE_V4_SUBTYPE_LABELS['image.shot'] as string),
+    ).toBeInTheDocument()
   })
 
   it('画布上一张图都没有时给空态，不给一个空网格', () => {

@@ -8,6 +8,7 @@ import {
   type ComponentType,
 } from 'react'
 import {
+  AudioLines,
   Clapperboard,
   FileText,
   Film,
@@ -16,6 +17,8 @@ import {
   Layers,
   Mic2,
   Mountain,
+  ScrollText,
+  StickyNote,
   Upload,
   UserRound,
   Video,
@@ -59,15 +62,18 @@ const ICON_BY_INTENT: Record<
   CanvasAddIntentId,
   ComponentType<{ className?: string }>
 > = {
-  [CANVAS_ADD_INTENT_IDS.imageAsset]: ImagePlus,
+  [CANVAS_ADD_INTENT_IDS.textScript]: FileText,
+  [CANVAS_ADD_INTENT_IDS.textRule]: ScrollText,
+  [CANVAS_ADD_INTENT_IDS.textNote]: StickyNote,
   [CANVAS_ADD_INTENT_IDS.imageShot]: Clapperboard,
-  [CANVAS_ADD_INTENT_IDS.videoGenerate]: Video,
-  [CANVAS_ADD_INTENT_IDS.videoReference]: Film,
-  [CANVAS_ADD_INTENT_IDS.videoShotText]: FileText,
+  [CANVAS_ADD_INTENT_IDS.imageCharacter]: UserRound,
+  [CANVAS_ADD_INTENT_IDS.imageBackground]: Mountain,
+  [CANVAS_ADD_INTENT_IDS.imageResult]: ImagePlus,
+  [CANVAS_ADD_INTENT_IDS.audioVoice]: Mic2,
+  [CANVAS_ADD_INTENT_IDS.audioTimbre]: AudioLines,
+  [CANVAS_ADD_INTENT_IDS.videoShot]: Video,
+  [CANVAS_ADD_INTENT_IDS.videoClip]: Film,
   [CANVAS_ADD_INTENT_IDS.videoMerge]: Layers,
-  [CANVAS_ADD_INTENT_IDS.audioVoiceProfile]: Mic2,
-  [CANVAS_ADD_INTENT_IDS.organizeCharacter]: UserRound,
-  [CANVAS_ADD_INTENT_IDS.organizeScene]: Mountain,
 }
 
 /**
@@ -141,7 +147,7 @@ export function CanvasAddMenu({
     }
 
     // R3-4 §4.2「一次一层」: 这一下 Esc 已经被菜单消费掉了，别再让它冒到
-    // StudioNodeWorkbench 挂在 window 上的 Esc 阶梯——否则同一次按键关完菜单
+    // workbench 挂在 window 上的 Esc 阶梯——否则同一次按键关完菜单
     // 顺手把选中也清了。stopPropagation 与 ReferenceManagerPanel 同一套写法
     // （keydown 冒泡 target → … → document → window，document 级监听恒先跑），
     // 这样菜单不需要知道工作台的存在。
@@ -238,7 +244,7 @@ export function CanvasAddMenu({
       ref={menuRef}
       role="menu"
       aria-label={t('addMenuTitle')}
-      // R3-4 §4.1 L5: 瞬时浮层，与 CastDock 展开浮层同刻互斥（见 StudioNodeWorkbench）。
+      // R3-4 §4.1 L5: 瞬时浮层，与 CastDock 展开浮层同刻互斥（见 `NodeWorkbenchV4`）。
       className="pointer-events-auto absolute z-canvas-transient w-56 overflow-y-auto overscroll-contain rounded-xl border border-node-panel-inner bg-node-panel p-1.5 text-node-foreground [scrollbar-width:none] sm:w-64 [&::-webkit-scrollbar]:hidden"
       style={{
         left: activeLayout?.left ?? screenPosition.x,

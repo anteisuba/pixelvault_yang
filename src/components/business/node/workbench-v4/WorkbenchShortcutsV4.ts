@@ -1,9 +1,7 @@
 'use client'
 
 /**
- * v4 workbench 的**画布级快捷键**（第三期 · 画布 C3c-③d-3「写好不接」）。
- *
- * ⛔ 生产调用方为 0 —— 接线在 ③d-4。
+ * v4 workbench 的**画布级快捷键**（第三期 · 画布）。全画布**唯一**一份。
  *
  * ── 只有一处绑键 ────────────────────────────────────────────────────────
  * `NodeV4Provider` 里那份同名的监听在收到 `graph` prop 时**自己关掉**（见该文件
@@ -19,7 +17,58 @@
 
 import { useEffect, useRef } from 'react'
 
+import {
+  NODE_ALIGN_EDGE_IDS,
+  NODE_DISTRIBUTE_AXIS_IDS,
+  alignNodes,
+  distributeNodes,
+  type AlignBox,
+  type NodeAlignEdge,
+  type NodeDistributeAxis,
+} from '@/lib/node-align'
 import type { NodeGraphV4 } from '@/hooks/node/use-node-graph-v4'
+
+/**
+ * 这次按键落在哪个字母上。
+ *
+ * ⚠ 先看 `event.code`：macOS 上 alt 会把字母键的 `key` 变成 `å`/`∂`/`∑`/`ß`，
+ * 只按 `key` 判，alt 那一组永远不命中。`key` 是**兜底**（合成事件常常只给 key）。
+ */
+function pressedLetter(event: KeyboardEvent): string {
+  if (event.code.startsWith('Key')) return event.code.slice(3).toLowerCase()
+  return event.key.length === 1 ? event.key.toLowerCase() : ''
+}
+
+/** alt + a/d/w/s = 左/右/上/下对齐（8e-3 从星流抄来的键位）。 */
+const ALIGN_EDGE_BY_LETTER: Record<string, NodeAlignEdge> = {
+  a: NODE_ALIGN_EDGE_IDS.left,
+  d: NODE_ALIGN_EDGE_IDS.right,
+  w: NODE_ALIGN_EDGE_IDS.top,
+  s: NODE_ALIGN_EDGE_IDS.bottom,
+}
+
+/** shift + h/v = 横/纵等距。 */
+const DISTRIBUTE_AXIS_BY_LETTER: Record<string, NodeDistributeAxis> = {
+  h: NODE_DISTRIBUTE_AXIS_IDS.horizontal,
+  v: NODE_DISTRIBUTE_AXIS_IDS.vertical,
+}
+
+/**
+ * 选中的卡 → 对齐用的盒子。宽高取 ReactFlow 量到的那份（`measured`）——量不到时
+ * 传 0，右/下对齐就退化成按左/上对齐，⛔ 不硬造一个默认卡宽。
+ */
+function selectedAlignBoxes(graph: NodeGraphV4): AlignBox[] {
+  const selected = new Set(graph.selectedNodeIds)
+  return graph.rfNodes
+    .filter((node) => selected.has(node.id))
+    .map((node) => ({
+      id: node.id,
+      x: node.position.x,
+      y: node.position.y,
+      width: node.measured?.width ?? 0,
+      height: node.measured?.height ?? 0,
+    }))
+}
 
 /** 事件靶子正在输入框里 —— 一律不接管（⌘Z 在 textarea 里是「撤销我刚敲的字」）。 */
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -78,16 +127,34 @@ export function useWorkbenchShortcutsV4({
         return
       }
 
-      // shift+A = 自动排列（星流那套的同一个键位）。
-      if (
-        event.shiftKey &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        event.key.toLowerCase() === 'a'
-      ) {
+      // alt + a/d/w/s = 对齐。⚠ 排在 shift 那条**前面**：alt 组合里没有 shift，
+      // 两条互不重叠，但顺序写死能省掉「以后谁加了 alt+shift 谁负责」这种口头约定。
+      if (event.altKey && !event.metaKey && !event.ctrlKey) {
+        const edge = ALIGN_EDGE_BY_LETTER[pressedLetter(event)]
+        if (!edge) return
         if (isTypingTarget(event.target)) return
         event.preventDefault()
-        latest.current.onTidyLayout()
+        const moves = alignNodes(selectedAlignBoxes(g), edge)
+        if (moves.length > 0) g.moveNodes(moves)
+        return
+      }
+
+      if (event.shiftKey && !event.metaKey && !event.ctrlKey) {
+        const letter = pressedLetter(event)
+        // shift+A = 自动排列（星流那套的同一个键位）。
+        if (letter === 'a') {
+          if (isTypingTarget(event.target)) return
+          event.preventDefault()
+          latest.current.onTidyLayout()
+          return
+        }
+        // shift + h/v = 等距。
+        const axis = DISTRIBUTE_AXIS_BY_LETTER[letter]
+        if (!axis) return
+        if (isTypingTarget(event.target)) return
+        event.preventDefault()
+        const moves = distributeNodes(selectedAlignBoxes(g), axis)
+        if (moves.length > 0) g.moveNodes(moves)
         return
       }
 

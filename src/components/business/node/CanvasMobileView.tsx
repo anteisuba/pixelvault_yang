@@ -12,20 +12,16 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import {
-  NODE_MEDIA_KIND_BY_NODE_TYPE,
-  NODE_MEDIA_KIND_IDS,
-} from '@/constants/node-types'
-import { resolveNodeDisplayName } from '@/lib/node-display-name'
-import { resolveNodePresentationType } from '@/lib/node-presentation'
-import {
-  getNodePrimaryMediaUrl,
-  getUpstreamNodes,
-} from '@/lib/node-workflow-graph'
-import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { NODE_V4_SUBTYPE_LABELS } from '@/constants/node-studio'
+import { formatShotDisplayName } from '@/lib/node-display-name'
+import type {
+  NodeV4,
+  NodeV4Data,
+  NodeWorkflowEdgeV4,
+} from '@/types/node-workflow'
 
-import { MediaReviewButtons } from './CanvasImageSelectionToolbar'
+import { MediaReviewButtonsV4 } from './nodes/v4/MediaReviewButtonsV4'
 import { CastDock } from './CastDock'
 import {
   CANVAS_LEFT_PANEL_VIEW_IDS,
@@ -63,6 +59,21 @@ import { NodeVideoSurface } from './shared/NodeVideoSurface'
  * 媒体 + 状态章 + 通过/打回，没有 prompt 框、没有模型选择器、没有「重新生成」。
  */
 
+/**
+ * 类型名读**子型标签表**（`image.character` → 「角色」）。
+ * ⛔ 不查 `nodeTypes.*`：那张表的键是 legacy type，v4 查不到只会把 kind 原样吐出来。
+ */
+function resolveV4TypeLabel(data: NodeV4Data): string {
+  return NODE_V4_SUBTYPE_LABELS[`${data.kind}.${data.subtype}`] ?? data.subtype
+}
+
+/** 显示名 = 稳定名；镜头带 `S02·` 序号前缀（与定位器同一条）。 */
+function resolveV4NodeName(data: NodeV4Data): string {
+  return data.kind === NODE_MEDIA_KIND_IDS.video
+    ? formatShotDisplayName(data.label ?? data.name, data.shotNo)
+    : data.name
+}
+
 interface CanvasMobileViewProps {
   /** 用户主动点了「查看画布」，正停在桌面缩微画布上。 */
   peeking: boolean
@@ -72,11 +83,23 @@ interface CanvasMobileViewProps {
   onExitPeek(): void
 }
 
+function resolveUpstreamNodes(
+  nodeId: string,
+  edges: readonly NodeWorkflowEdgeV4[],
+  nodes: readonly NodeV4[],
+): NodeV4[] {
+  const sourceIds = new Set<string>()
+  for (const edge of edges) {
+    if (edge.target === nodeId) sourceIds.add(edge.source)
+  }
+  return nodes.filter((node) => sourceIds.has(node.id))
+}
+
 function resolveDownstreamNodes(
   nodeId: string,
-  edges: readonly NodeWorkflowEdge[],
-  nodes: readonly NodeWorkflowNode[],
-): NodeWorkflowNode[] {
+  edges: readonly NodeWorkflowEdgeV4[],
+  nodes: readonly NodeV4[],
+): NodeV4[] {
   const targetIds = new Set<string>()
   for (const edge of edges) {
     if (edge.source === nodeId) targetIds.add(edge.target)
@@ -92,10 +115,9 @@ function ConnectionGroup({
 }: {
   icon: typeof ArrowUpRight
   label: string
-  items: readonly NodeWorkflowNode[]
+  items: readonly NodeV4[]
   onSelect(nodeId: string): void
 }) {
-  const tTypes = useTranslations('StudioNode.nodeTypes')
   if (items.length === 0) return null
 
   return (
@@ -110,9 +132,8 @@ function ConnectionGroup({
       </div>
       <div className="flex flex-col gap-1">
         {items.map((node) => {
-          const presentationType = resolveNodePresentationType(node)
-          const name =
-            resolveNodeDisplayName(node.data) ?? tTypes(presentationType)
+          const typeLabel = resolveV4TypeLabel(node.data)
+          const name = resolveV4NodeName(node.data)
           return (
             <button
               key={node.id}
@@ -124,7 +145,7 @@ function ConnectionGroup({
                 {name}
               </span>
               <span className="shrink-0 truncate text-2xs text-node-subtle">
-                {tTypes(presentationType)}
+                {typeLabel}
               </span>
             </button>
           )
@@ -135,9 +156,9 @@ function ConnectionGroup({
 }
 
 interface CanvasMobileNodePreviewProps {
-  node: NodeWorkflowNode
-  nodes: readonly NodeWorkflowNode[]
-  edges: readonly NodeWorkflowEdge[]
+  node: NodeV4
+  nodes: readonly NodeV4[]
+  edges: readonly NodeWorkflowEdgeV4[]
   onSelectNode(nodeId: string): void
 }
 
@@ -147,22 +168,20 @@ function CanvasMobileNodePreview({
   edges,
   onSelectNode,
 }: CanvasMobileNodePreviewProps) {
-  const tTypes = useTranslations('StudioNode.nodeTypes')
   const tMobile = useTranslations('StudioNode.mobileCanvas')
 
-  const presentationType = resolveNodePresentationType(node)
-  const typeLabel = tTypes(presentationType)
-  const name = resolveNodeDisplayName(node.data) ?? typeLabel
-  const kind = NODE_MEDIA_KIND_BY_NODE_TYPE[node.type]
-  const mediaUrl = getNodePrimaryMediaUrl(node.data)
-  const textContent = buildNodeWorkflowPrompt(node.type, node.data)
-  const videoThumbnailUrl =
-    typeof node.data.videoThumbnailUrl === 'string'
-      ? node.data.videoThumbnailUrl
-      : undefined
+  const { data } = node
+  const typeLabel = resolveV4TypeLabel(data)
+  const name = resolveV4NodeName(data)
+  const kind = data.kind
+  const isText = kind === NODE_MEDIA_KIND_IDS.text
+  const mediaUrl = isText ? undefined : data.url
+  // 文本卡的正文就是它交付的东西；有画面的卡回落到提示词（只读，看一眼当时写了啥）。
+  const textContent = isText ? data.body : data.prompt
+  const videoThumbnailUrl = isText ? undefined : data.videoThumbnailUrl
 
   const upstream = useMemo(
-    () => getUpstreamNodes(node.id, edges, nodes),
+    () => resolveUpstreamNodes(node.id, edges, nodes),
     [node.id, edges, nodes],
   )
   const downstream = useMemo(
@@ -215,9 +234,7 @@ function CanvasMobileNodePreview({
         )}
       </div>
 
-      {mediaUrl ? (
-        <MediaReviewButtons nodeId={node.id} data={node.data} />
-      ) : null}
+      {mediaUrl ? <MediaReviewButtonsV4 nodeId={node.id} data={data} /> : null}
 
       <ConnectionGroup
         icon={ArrowUpRight}
@@ -250,8 +267,9 @@ export function CanvasMobileView({
   const t = useTranslations('StudioNode')
   const tReviewMode = useTranslations('StudioNode.reviewMode')
   const tMobile = useTranslations('StudioNode.mobileCanvas')
-  const nodes = useNodes<NodeWorkflowNode>()
-  const edges = useEdges<NodeWorkflowEdge>()
+  // ③d-4 起 RF store 里只有 v4 节点。
+  const nodes = useNodes<NodeV4>()
+  const edges = useEdges<NodeWorkflowEdgeV4>()
   const { reviewMode } = useNodeCanvasActions()
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -328,10 +346,7 @@ export function CanvasMobileView({
           </span>
         )}
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-node-foreground">
-          {previewNode
-            ? (resolveNodeDisplayName(previewNode.data) ??
-              t(`nodeTypes.${resolveNodePresentationType(previewNode)}`))
-            : null}
+          {previewNode ? resolveV4NodeName(previewNode.data) : null}
         </span>
         <button
           type="button"

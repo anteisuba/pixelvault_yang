@@ -11,7 +11,7 @@ import {
   isSameReviewItem,
   type ReviewQueueItem,
 } from '@/lib/node-review-queue'
-import type { NodeWorkflowNode } from '@/types/node-workflow'
+import type { NodeV4 } from '@/types/node-workflow'
 
 /**
  * 显式审阅模式（包 6 片 2，owner 2026-08-01 拍板 ②-A）。
@@ -41,7 +41,7 @@ export interface NodeReviewMode {
    * 再去图里找 —— `nodes` 不在画布 context 上（那上面只有动作，没有图），要么每个
    * 消费者各自接一份数据源，要么在这里解析一次。选后者。
    */
-  currentNode: NodeWorkflowNode | null
+  currentNode: NodeV4 | null
   /**
    * 当前这张已经被裁决（通过 / 打回），队列里已经没有它 —— 打回后「停在原地」
    * 的那一屏就是这个状态。
@@ -58,7 +58,7 @@ export interface NodeReviewMode {
 }
 
 interface UseNodeReviewModeInput {
-  nodes: NodeWorkflowNode[]
+  nodes: readonly NodeV4[]
   /** 选中 + 相机飞过去 —— D2 消除「找」的成本靠的就是这一下。 */
   focusNode(nodeId: string): void
 }

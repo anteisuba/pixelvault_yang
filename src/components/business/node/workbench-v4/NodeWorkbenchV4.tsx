@@ -1,12 +1,12 @@
 'use client'
 
 /**
- * **v4 原生 workbench**（第三期 · 画布 C3c-③d-3「写好不接」）。
+ * **v4 原生 workbench**（第三期 · 画布 C3c-③d-4「原子翻转」之后的**唯一** workbench）。
  *
- * ⛔ 生产调用方为 0 —— 页面入口仍指向 `StudioNodeWorkbench`。接线是 ③d-4：
- * 把 `src/app/[locale]/(main)/studio/node/page.tsx` 换成本组件，同批删
- * `StudioNodeWorkbench.tsx` / `use-node-workflow.ts` / `node-workflow-v3-view.ts`
- * / `NodeV4ActionsV3Adapter.tsx` / `NodeWorkflowActionsContext.tsx`。
+ * 页面入口 `src/app/[locale]/(main)/studio/node/page.tsx` 直接挂本组件；v3 那份
+ * （`StudioNodeWorkbench.tsx` / `use-node-workflow.ts` / `node-workflow-v3-view.ts`
+ * / `NodeV4ActionsV3Adapter.tsx` / `NodeWorkflowActionsContext.tsx` /
+ * `IngestDragLayer.tsx`）在同一次改动里删干净，⛔ 不留兼容层。
  *
  * ── 分层（顺序有意义，⛔ 别调）──────────────────────────────────────────
  *   ReactFlowProvider          ← store 在最外，卡匣 / 定位器 `useNodes()` 才读得到
@@ -34,6 +34,7 @@ import {
 } from 'react'
 import { ReactFlowProvider, useReactFlow, type XYPosition } from '@xyflow/react'
 import { useAuth } from '@clerk/nextjs'
+import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -44,6 +45,7 @@ import {
 import {
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_DOCK,
+  NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_TOOL_MODE_IDS,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
@@ -51,26 +53,47 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
   type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
-import { NODE_SLOT_IDS } from '@/constants/node-slots'
+import { NODE_SLOT_IDS, getNodeV4Slot } from '@/constants/node-slots'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
-import { useNodeGraphV4 } from '@/hooks/node/use-node-graph-v4'
+import { useCanvasImageEditHandoffV4 } from '@/hooks/node/use-canvas-image-edit-handoff-v4'
+import { useEdgeSigning } from '@/hooks/node/use-edge-signing'
+import {
+  useNodeGraphV4,
+  type NodeGraphV4,
+} from '@/hooks/node/use-node-graph-v4'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { useNodeReviewMode } from '@/hooks/node/use-node-review-mode'
 import { useNodeWorkflowStore } from '@/hooks/node/use-node-workflow-store'
+import { prefersReducedMotion } from '@/hooks/node/node-ingest-dom'
+import { readCanvasImageEditHandoff } from '@/lib/canvas-image-edit-handoff'
 import type {
   CanvasAppearance,
-  NodeWorkflowEdge,
+  NodeV4,
   NodeWorkflowNode,
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+
 import { CanvasWorkspaceLayout } from '../CanvasWorkspaceLayout'
 import { CanvasProjectPanel } from '../CanvasProjectPanel'
+import { ProjectNameDialog } from '../ProjectNameDialog'
+import { VideoMergeComposeToolbar } from '../VideoMergeComposeToolbar'
 import { NodeCanvasEmptyGuide } from '../NodeCanvasEmptyGuide'
 import { IngestDragProviderV4 } from '../IngestDragLayerV4'
 import {
@@ -83,6 +106,25 @@ import { WorkbenchAssistantDockV4, WorkbenchDocksV4 } from './WorkbenchDocksV4'
 import { useWorkbenchDndV4 } from './WorkbenchDndV4'
 import { useWorkbenchShortcutsV4 } from './WorkbenchShortcutsV4'
 import { WorkbenchToolbarV4 } from './WorkbenchToolbarV4'
+import { useWorkbenchRosterDropV4 } from './WorkbenchRosterDropV4'
+
+/**
+ * 一键成盒至少要几段 —— **读端口表**（`video.merge` 的 `clip` 槽 `min`），
+ * ⛔ 不在这里另写一个 2：那个下限是连线规则的一部分，两处各写一份就会漂。
+ */
+const VIDEO_MERGE_MIN_CLIPS =
+  getNodeV4Slot(
+    NODE_MEDIA_KIND_IDS.video,
+    NODE_V4_VIDEO_SUBTYPE_IDS.merge,
+    NODE_SLOT_IDS.clip,
+  )?.min ?? 0
+
+const OP_FAILURE_KEYS: Readonly<Record<string, string>> = {
+  unknownNode: 'connectRejected.unknownNode',
+  unknownSlot: 'connectRejected.unknownSlot',
+  unknownEdge: 'connectRejected.unknownNode',
+  blockedVersion: 'connectRejected.blockedVersion',
+}
 
 export function NodeWorkbenchV4() {
   return (
@@ -114,18 +156,52 @@ function NodeWorkbenchV4Inner() {
     [store],
   )
 
+  /**
+   * op 失败理由 → 一句人话。⛔ 只映射**真的会产出**的那几条；其余落 `opFailed`
+   * 的通用句（带原始理由），⚠ 不静默吞掉：一条没有出口的失败等于一次「点了没反应」。
+   */
   const onOpFailed = useCallback(
     (reason: string) => {
-      toast.error(tV4('opFailed', { reason }))
+      const key = OP_FAILURE_KEYS[reason]
+      toast.error(key ? tV4(key) : tV4('opFailed', { reason }))
     },
     [tV4],
   )
 
-  const graph = useNodeGraphV4({
+  const rawGraph = useNodeGraphV4({
     state: store.state,
     onStateChange: commitState,
     onOpFailed,
   })
+
+  /**
+   * §2.7 墨线签署 / 解绑反放。写入方是**连边 / 断边**这两个动作，所以在这里包一层
+   * 而不是散在每个调用点上：端口拖拽、拖投、快投、名册落位、助手 op、一键成盒
+   * 全都从 `graph.connect` 走，包一次就全都有了。
+   *
+   * ⚠ 只包 `connect`/`disconnect` 两个出口，⛔ 不把记账塞进图引擎：签署是**视觉
+   * 的**，它不该出现在 op 表里，更不该进撤销栈。
+   */
+  const edgeSigning = useEdgeSigning()
+  const { scheduleEdgeSigning, scheduleEdgeUnsign } = edgeSigning
+  const graph = useMemo<NodeGraphV4>(() => {
+    const skipSigning = prefersReducedMotion()
+    return {
+      ...rawGraph,
+      connect: (source, target, slot, options) => {
+        const ok = rawGraph.connect(source, target, slot, options)
+        if (ok && !skipSigning) scheduleEdgeSigning(source, target)
+        return ok
+      },
+      disconnect: (edgeId) => {
+        const edge = rawGraph.edges.find((candidate) => candidate.id === edgeId)
+        const ok = rawGraph.disconnect(edgeId)
+        // 快照要在删之前取 —— 反向褪去画的是一条已经不在图上的边。
+        if (ok && edge && !skipSigning) scheduleEdgeUnsign(edge)
+        return ok
+      },
+    }
+  }, [rawGraph, scheduleEdgeSigning, scheduleEdgeUnsign])
 
   const { fitView, screenToFlowPosition } = useReactFlow()
   const modelOptionsByType = useWorkflowModelOptions()
@@ -149,6 +225,10 @@ function NodeWorkbenchV4Inner() {
     flow: XYPosition
   } | null>(null)
   const [canvasPeek, setCanvasPeek] = useState(false)
+  const [projectDialogMode, setProjectDialogMode] = useState<
+    'create' | 'rename' | null
+  >(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -180,11 +260,25 @@ function NodeWorkbenchV4Inner() {
     })
   }, [fitView])
 
+  /* ── 图片编辑 handoff（工作台「在画布里编辑」）────────────────────────── */
+  const searchParams = useSearchParams()
+  const imageEditHandoff = useMemo(
+    () => readCanvasImageEditHandoff(searchParams),
+    [searchParams],
+  )
+  useCanvasImageEditHandoffV4({
+    graph,
+    request: imageEditHandoff,
+    userId: isLoaded ? userId : null,
+    projectId: store.currentProject.id,
+    isHydrated: store.isHydrated,
+    onFocusNode: focusNode,
+  })
+
   /* ── 审阅模式 ────────────────────────────────────────────────────────── */
-  // ⚠ 队列读的是 RF store 那份节点（= v4 数据）。`useNodeReviewMode` 的入参类型
-  // 仍是 v3 形状 —— 见 `WorkbenchDocksV4` 头注的已知缺口，③d-4 一并改签名。
-  const reviewNodes = graph.rfNodes as NodeWorkflowNode[]
-  const reviewMode = useNodeReviewMode({ nodes: reviewNodes, focusNode })
+  // 队列读的就是图引擎那份 v4 节点 —— `useNodeReviewMode` 的入参在 ③d-4 已改成
+  // v4 形状，⛔ 这里没有任何转换层。
+  const reviewMode = useNodeReviewMode({ nodes: graph.nodes, focusNode })
 
   /* ── 生成 ────────────────────────────────────────────────────────────── */
   const generateNodes = useCallback(
@@ -211,6 +305,66 @@ function NodeWorkbenchV4Inner() {
 
   /* ── 落物 ────────────────────────────────────────────────────────────── */
   const dnd = useWorkbenchDndV4({ graph, pasteEnabled: !heavyOverlayOpen })
+  const rosterDrop = useWorkbenchRosterDropV4(graph)
+
+  /* ── 一键成盒（多选视频 → 合并节点）──────────────────────────────────── */
+  /**
+   * 选中的这几张卡能不能一键成盒。⚠ 判据只有一条：**全是视频**。混进任何一个
+   * 非视频节点就整条不渲染（不是置灰）—— 一条点了没反应的按钮比没有更糟。
+   */
+  const composeSelectionNodeIds = useMemo(() => {
+    if (graph.selectedNodeIds.length < VIDEO_MERGE_MIN_CLIPS) {
+      return null
+    }
+    const selected = graph.nodes.filter((node) =>
+      graph.selectedNodeIds.includes(node.id),
+    )
+    if (selected.length !== graph.selectedNodeIds.length) return null
+    return selected.every(
+      (node) => node.data.kind === NODE_MEDIA_KIND_IDS.video,
+    )
+      ? selected.map((node) => node.id)
+      : null
+  }, [graph.nodes, graph.selectedNodeIds])
+
+  const composeVideoMerge = useCallback(() => {
+    if (!composeSelectionNodeIds) return
+    // 点击那一刻**重读**当前图，⛔ 不吃上面那个 memo 的快照（框选可能在渲染与
+    // 点击之间又变了）。
+    const composeIds = new Set(composeSelectionNodeIds)
+    const selected = graph.nodes.filter((node) => composeIds.has(node.id))
+    if (selected.length < VIDEO_MERGE_MIN_CLIPS) return
+
+    // 建边顺序 = 从左到右的空间阅读顺序（y 做次序兜底）。
+    const ordered = [...selected].sort(
+      (a, b) => a.position.x - b.position.x || a.position.y - b.position.y,
+    )
+    const bounds = ordered.reduce(
+      (acc, node) => ({
+        maxX: Math.max(acc.maxX, node.position.x),
+        minY: Math.min(acc.minY, node.position.y),
+      }),
+      { maxX: -Infinity, minY: Infinity },
+    )
+    const newNodeId = graph.addNode(
+      NODE_MEDIA_KIND_IDS.video,
+      NODE_V4_VIDEO_SUBTYPE_IDS.merge,
+      {
+        position: {
+          x: bounds.maxX + NODE_STUDIO_NODE_PLACEMENT.videoMergeCompose.offsetX,
+          y: bounds.minY,
+        },
+      },
+    )
+    if (!newNodeId) return
+    // 每段落进 `clip` 槽 —— 与手拖一条线**同一条** `connect`（同样的闸、同样的
+    // 撤销、同样的墨线签署）。
+    for (const node of ordered) {
+      graph.connect(node.id, newNodeId, NODE_SLOT_IDS.clip)
+    }
+    toast.success(t('toasts.videoMergeComposed', { count: ordered.length }))
+    focusNode(newNodeId)
+  }, [composeSelectionNodeIds, graph, focusNode, t])
 
   /* ── 快捷键（**唯一**一份，Provider 那份因为收到 graph 自动让位）───── */
   const onEscape = useCallback((): boolean => {
@@ -236,7 +390,7 @@ function NodeWorkbenchV4Inner() {
     onEscape,
   })
 
-  /* ── 动作出口（v4 实现，替掉 `NodeV4ActionsV3Adapter`）──────────────── */
+  /* ── 动作出口（v4 实现，替掉 ③d-4 之前那个 v3 适配器）──────────────── */
   const actions = useMemo<NodeCanvasActions>(
     () => ({
       applyOp: async (op) => {
@@ -317,11 +471,11 @@ function NodeWorkbenchV4Inner() {
             nodeId: node.id,
             url:
               node.data.kind === NODE_MEDIA_KIND_IDS.image
-                ? node.data.url!
+                ? (node.data.url ?? '')
                 : '',
             name: node.data.name,
-            // ⚠ 出口契约上这一栏还是 legacy 的 `NodeWorkflowNodeType`（③d-4 改签名）。
-            type: NODE_TYPE_IDS.image,
+            kind: node.data.kind,
+            subtype: node.data.subtype,
           })),
       connectReferenceNode: (sourceNodeId, targetNodeId) => {
         const already = graph.edges.some(
@@ -485,9 +639,9 @@ function NodeWorkbenchV4Inner() {
       nodeCount={graph.nodes.length}
       isSaving={false}
       onSave={() => void store.saveNow()}
-      onCreateProject={() => store.createProject(t('projectUntitled'))}
-      onRenameProject={() => undefined}
-      onDeleteProject={() => store.deleteProject(store.currentProject.id)}
+      onCreateProject={() => setProjectDialogMode('create')}
+      onRenameProject={() => setProjectDialogMode('rename')}
+      onDeleteProject={() => setDeleteConfirmOpen(true)}
       onSwitchProject={store.switchProject}
     />
   )
@@ -505,7 +659,7 @@ function NodeWorkbenchV4Inner() {
             modelOptionsByType={modelOptionsByType}
             scriptDoc={store.state.scriptDoc}
             locale={appLocale}
-            edges={[] as NodeWorkflowEdge[]}
+            edges={graph.edges}
             assistantOpen={assistantOpen}
             assistantExpanded={assistantExpanded}
             onAssistantOpenChange={setAssistantOpen}
@@ -521,8 +675,6 @@ function NodeWorkbenchV4Inner() {
           onConnect={graph.connect}
         >
           <NodeV4Provider
-            state={graph.state}
-            onStateChange={commitState}
             graph={graph}
             modelOptionsByKind={modelOptionsByKind}
             onFocusNode={focusNode}
@@ -533,9 +685,34 @@ function NodeWorkbenchV4Inner() {
                 toolMode={toolMode}
                 relationsCollapsed={relationsCollapsed}
                 canvasAppearance={store.state.canvasAppearance}
+                edgeSigning={edgeSigning}
                 onDrop={dnd.onDrop}
                 onDragOver={dnd.onDragOver}
-              />
+                onNodeDragStart={(node) =>
+                  rosterDrop.onNodeDragStart(node as unknown as NodeV4)
+                }
+                onNodeDrag={(node, event) =>
+                  rosterDrop.onNodeDrag(
+                    node as unknown as NodeV4,
+                    event.clientX,
+                    event.clientY,
+                  )
+                }
+                onNodeDragStopIntercept={(node, event) =>
+                  rosterDrop.onNodeDragStop(
+                    node as unknown as NodeV4,
+                    event.clientX,
+                    event.clientY,
+                  )
+                }
+              >
+                {/* 多选包围盒上方的「合成 N 段」条。挂在 `<ReactFlow>` 里当兄弟，
+                    由 `NodeToolbar` 自己做画布→屏幕换算并跟随平移缩放。 */}
+                <VideoMergeComposeToolbar
+                  nodeIds={composeSelectionNodeIds}
+                  onCompose={composeVideoMerge}
+                />
+              </CanvasV4>
               {graph.nodes.length === 0 ? (
                 <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
                   <NodeCanvasEmptyGuide
@@ -580,7 +757,7 @@ function NodeWorkbenchV4Inner() {
                   modelOptionsByType={modelOptionsByType}
                   scriptDoc={store.state.scriptDoc}
                   locale={appLocale}
-                  edges={[] as NodeWorkflowEdge[]}
+                  edges={graph.edges}
                   leftPanelExpanded={leftPanelExpanded}
                   onLeftPanelExpandedChange={setLeftPanelExpanded}
                   leftPanelView={leftPanelView}
@@ -620,6 +797,70 @@ function NodeWorkbenchV4Inner() {
                   }}
                 />
               </div>
+              <ProjectNameDialog
+                open={projectDialogMode !== null}
+                title={
+                  projectDialogMode === 'rename'
+                    ? t('projectDialog.renameTitle')
+                    : t('projectDialog.createTitle')
+                }
+                placeholder={t('topbar.createProjectPrompt')}
+                submitLabel={
+                  projectDialogMode === 'rename'
+                    ? t('projectDialog.renameSubmit')
+                    : t('projectDialog.createSubmit')
+                }
+                cancelLabel={t('projectDialog.cancel')}
+                defaultValue={
+                  projectDialogMode === 'rename'
+                    ? store.currentProject.name
+                    : t('projectNewDefaultName', {
+                        n: store.projects.length + 1,
+                      })
+                }
+                onOpenChange={(open) => {
+                  if (!open) setProjectDialogMode(null)
+                }}
+                onSubmit={(name) => {
+                  if (projectDialogMode === 'rename') {
+                    store.renameCurrentProject(name)
+                  } else {
+                    store.createProject(name)
+                  }
+                  setProjectDialogMode(null)
+                }}
+              />
+              <AlertDialog
+                open={deleteConfirmOpen}
+                onOpenChange={setDeleteConfirmOpen}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t('projectDialog.deleteTitle')}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t('topbar.deleteProjectConfirm', {
+                        name: store.currentProject.name,
+                      })}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>
+                      {t('projectDialog.cancel')}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => {
+                        store.deleteProject(store.currentProject.id)
+                        setDeleteConfirmOpen(false)
+                      }}
+                    >
+                      {t('projectDialog.deleteConfirm')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </NodeV4Provider>
         </IngestDragProviderV4>

@@ -5,10 +5,13 @@ import { useEdges, useNodes } from '@xyflow/react'
 import { Image as ImageIcon, ListTree, User } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-import { resolveNodeDisplayName } from '@/lib/node-display-name'
-import { isIdentityCardNode } from '@/lib/node-workflow-graph'
-import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import {
+  NODE_IMAGE_ROLE_IDS,
+  NODE_MEDIA_KIND_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
+} from '@/constants/node-types'
+import { NODE_SLOT_IDS } from '@/constants/node-slots'
+import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 
 import { CastCard } from './CastCard'
 import { CastDock, type CastSectionId } from './CastDock'
@@ -32,7 +35,7 @@ import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
  * 模式点选目标。否则就是两段长得像的列表，正是这次拍板要避免的。
  *
  * ⭐ 那套手势**不用新造**：`CastCard` + `use-cast-ingest` 引擎整套都在，
- * `IngestDragProvider` 也一直挂在 `StudioNodeWorkbench` 上 —— 只是 `CastCard`
+ * `IngestDragProviderV4` 也一直挂在 workbench 上 —— 只是 `CastCard`
  * 自 2026-07 卡匣改版后**没有任何挂载点**，成了孤儿（全仓只有它自己的测试引用
  * 它）。这一段就是把源接回去。
  * ⚠ 别与 `CANVAS_INGEST_DRAG_GESTURE_ENABLED = false` 搞混：那个 flag 管的是
@@ -56,42 +59,37 @@ import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
  * 一个子集，不做结构重排（两段位置、内容来源全部不变）。
  */
 
-/** 收集器卡在 `CastCard` 里的分区 id —— 只有角色/背景两族是收集器。 */
-const SECTION_BY_ROLE: Record<
-  string,
-  { id: CastSectionId; Icon: typeof User }
+/**
+ * 收集器卡在 `CastCard` 里的分区 —— 只有角色 / 背景两族是收集器。
+ *
+ * ⚠ v4 判据是 `kind:'image'` + **子型**，⛔ 不再看 v3 的 `type` / `data.role`：
+ * 那两个字段在 v4 形状上不存在，照旧读会让整段名册永远空着。
+ */
+const SECTION_BY_IMAGE_SUBTYPE: Partial<
+  Record<string, { id: CastSectionId; Icon: typeof User }>
 > = {
-  [NODE_IMAGE_ROLE_IDS.character]: {
+  [NODE_V4_IMAGE_SUBTYPE_IDS.character]: {
     id: NODE_IMAGE_ROLE_IDS.character,
     Icon: User,
   },
-  [NODE_IMAGE_ROLE_IDS.background]: {
+  [NODE_V4_IMAGE_SUBTYPE_IDS.background]: {
     id: NODE_IMAGE_ROLE_IDS.background,
     Icon: ImageIcon,
   },
 }
 
-/**
- * 卡的分区 —— 统一 `image` 节点看 role，两个 legacy 类型按名字认。
- * ⚠ 与 `isIdentityCardNode` 判的是同一件事（它的头注写着为什么必须按 role 而不
- * 是按媒体种类），这里只是把「是不是卡」的布尔升级成「是哪一族卡」。
- */
 function resolveCardSection(
-  node: NodeWorkflowNode,
+  node: NodeV4,
 ): { id: CastSectionId; Icon: typeof User } | undefined {
-  if (node.type === NODE_TYPE_IDS.characterImage) {
-    return SECTION_BY_ROLE[NODE_IMAGE_ROLE_IDS.character]
-  }
-  if (node.type === NODE_TYPE_IDS.backgroundImage) {
-    return SECTION_BY_ROLE[NODE_IMAGE_ROLE_IDS.background]
-  }
-  return node.data.role ? SECTION_BY_ROLE[node.data.role] : undefined
+  if (node.data.kind !== NODE_MEDIA_KIND_IDS.image) return undefined
+  return SECTION_BY_IMAGE_SUBTYPE[node.data.subtype]
 }
 
 export function CanvasRosterRail() {
   const t = useTranslations('StudioNode.castDock')
-  const nodes = useNodes<NodeWorkflowNode>()
-  const edges = useEdges<NodeWorkflowEdge>()
+  // RF store 里就是 v4 节点（③d-4 起画布只有这一种）。
+  const nodes = useNodes<NodeV4>()
+  const edges = useEdges<NodeWorkflowEdgeV4>()
   const { focusNode } = useNodeCanvasActions()
   // G1：唯一一份 query——上段的 `CastDock` 与下段的卡片区都读它。
   const [query, setQuery] = useState('')
@@ -103,19 +101,22 @@ export function CanvasRosterRail() {
   const cards = useMemo(() => {
     const performance = new Map<string, number>()
     const closeups = new Map<string, number>()
+    const references = new Map<string, number>()
     const voiced = new Set<string>()
     for (const edge of edges) {
       performance.set(edge.source, (performance.get(edge.source) ?? 0) + 1)
-      const source = nodes.find((node) => node.id === edge.source)
-      if (!source) continue
-      if (source.type === NODE_TYPE_IDS.voice) voiced.add(edge.target)
-      if (source.data.role === NODE_IMAGE_ROLE_IDS.closeup) {
+      // ⚠ 三个计数全部按**槽**判，⛔ 不按源节点子型猜：一条边落在哪个口是
+      // v4 里唯一说得准的事实（同一张图既可能是参考也可能是特写）。
+      if (edge.slot === NODE_SLOT_IDS.voice) voiced.add(edge.target)
+      if (edge.slot === NODE_SLOT_IDS.closeup) {
         closeups.set(edge.target, (closeups.get(edge.target) ?? 0) + 1)
+      }
+      if (edge.slot === NODE_SLOT_IDS.reference) {
+        references.set(edge.target, (references.get(edge.target) ?? 0) + 1)
       }
     }
 
     return nodes.flatMap((node) => {
-      if (!isIdentityCardNode(node)) return []
       const section = resolveCardSection(node)
       if (!section) return []
       return [
@@ -123,9 +124,9 @@ export function CanvasRosterRail() {
           node,
           section,
           performanceCount: performance.get(node.id) ?? 0,
+          // v4 的参考不再是卡里的数组，而是**连进来的边** —— 参考口 + 特写口。
           referenceCount:
-            (node.data.referenceAssets?.length ?? 0) +
-            (closeups.get(node.id) ?? 0),
+            (references.get(node.id) ?? 0) + (closeups.get(node.id) ?? 0),
           hasVoice: voiced.has(node.id),
         },
       ]
@@ -139,9 +140,7 @@ export function CanvasRosterRail() {
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const filteredCards = normalizedQuery
     ? cards.filter((card) => {
-        const name =
-          resolveNodeDisplayName(card.node.data) ??
-          t(`sections.${card.section.id}`)
+        const name = card.node.data.name || t(`sections.${card.section.id}`)
         return name.toLocaleLowerCase().includes(normalizedQuery)
       })
     : cards
@@ -193,7 +192,7 @@ export function CanvasRosterRail() {
             <div className="grid grid-cols-2 gap-1.5 px-2 pt-1.5">
               {filteredCards.map((card) => (
                 /* ⚠ 这一层 wrapper 只为一件事：给阶段 8-b 的命中检测一个标记
-                  （`StudioNodeWorkbench` 的 `findRosterCardAt` 按这个属性找落点）。
+                  （`WorkbenchRosterDropV4` 的 `findRosterCardAt` 按这个属性找落点）。
                   ⚠ 标记打在**外层**不打在 `CastCard` 上 —— 那张卡自己已经是
                   「面板 → 画布」那条手势的**拖拽源**，把落点属性塞进同一个元素，
                   两条方向相反的手势就共用一个 DOM 身份，读代码的人分不清哪条在用它。 */

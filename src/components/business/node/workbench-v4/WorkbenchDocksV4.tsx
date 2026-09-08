@@ -1,15 +1,13 @@
 'use client'
 
 /**
- * v4 workbench 的**外壳组件挂载点**（第三期 · 画布 C3c-③d-3「写好不接」）。
- *
- * ⛔ 生产调用方为 0 —— 接线在 ③d-4。
+ * v4 workbench 的**外壳组件挂载点**（第三期 · 画布）。
  *
  * ── 这些组件为什么一行都不用改 ──────────────────────────────────────────
  * ③b 已经把它们全部换到 `useNodeCanvasActions()`（薄动作出口）与 ReactFlow 的
  * store（`useNodes()`）上，两者都与图的版本无关。所以本文件只负责**摆放**：
  * 动作出口由外层的 `NodeCanvasActionsProvider` 给（v4 实现，⛔ 不再走
- * `NodeV4ActionsV3Adapter`），节点由外层的 `<ReactFlow>` 给。
+ * ③d-4 之前那个 v3 适配器），节点由外层的 `<ReactFlow>` 给。
  *
  * ⚠ 已知缺口（③d-4 的接线清单里点名）：`StudioNodeAssistantDock` 的 `nodes` /
  * `edges` props 与 `CanvasMobileView` / `CastDock` 的 `useNodes<NodeWorkflowNode>()`
@@ -104,8 +102,6 @@ export function WorkbenchAssistantDockV4({
       projectId={projectId}
       projectName={projectName}
       nodes={nodes}
-      edges={edges as NodeWorkflowEdge[]}
-      modelOptionsByType={modelOptionsByType}
       scriptDoc={scriptDoc}
       locale={locale}
       onOpenChange={onAssistantOpenChange}

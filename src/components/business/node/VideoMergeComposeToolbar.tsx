@@ -5,7 +5,7 @@ import { Combine } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { CanvasPopIn } from './CanvasPopIn'
-import { ToolbarLabelButton } from './CanvasImageSelectionToolbar'
+import { ToolbarLabelButton } from './CanvasToolbarButton'
 
 interface VideoMergeComposeToolbarProps {
   /**

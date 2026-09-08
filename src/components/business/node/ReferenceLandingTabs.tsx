@@ -16,6 +16,7 @@ import {
   NODE_STUDIO_IMAGE_INPUT,
   NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_REFERENCE_SOURCE_IDS,
+  NODE_V4_SUBTYPE_LABELS,
 } from '@/constants/node-studio'
 import { NODE_TYPE_IDS } from '@/constants/node-types'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
@@ -86,13 +87,24 @@ interface ReferenceLandingTabsProps {
   onResolved?(media: ResolvedReferenceMedia): void
 }
 
+/**
+ * 「从画布选择」候选卡上的兜底名 —— 节点没起过名时显示它是**哪一族**
+ * （角色 / 背景 / 镜头图…）。读子型标签表，⛔ 不查 `nodeTypes.*`：那张表的键是
+ * legacy type，v4 查不到只会把 `subtype` 原样吐出来当名字。
+ */
+function resolveCandidateLabel(candidate: CanvasImageSource): string {
+  return (
+    NODE_V4_SUBTYPE_LABELS[`${candidate.kind}.${candidate.subtype}`] ??
+    candidate.subtype
+  )
+}
+
 export function ReferenceLandingTabs({
   targetNodeId,
   disabled = false,
   onResolved,
 }: ReferenceLandingTabsProps) {
   const t = useTranslations('StudioNode.characterImage.reference')
-  const tTypes = useTranslations('StudioNode.nodeTypes')
   const { spawnReference, listCanvasImageSources, connectReferenceNode } =
     useNodeCanvasActions()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
@@ -352,7 +364,7 @@ export function ReferenceLandingTabs({
                   type="button"
                   disabled={disabled}
                   onClick={() => landFromCanvas(candidate)}
-                  title={candidate.name ?? tTypes(candidate.type)}
+                  title={candidate.name ?? resolveCandidateLabel(candidate)}
                   className="group flex flex-col gap-1 overflow-hidden rounded-xl border border-node-panel-inner bg-node-panel-soft p-1 text-left transition-colors hover:border-node-edge disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -362,7 +374,7 @@ export function ReferenceLandingTabs({
                     className="aspect-square w-full rounded-lg object-cover"
                   />
                   <span className="truncate px-0.5 text-2xs text-node-muted group-hover:text-node-foreground">
-                    {candidate.name ?? tTypes(candidate.type)}
+                    {candidate.name ?? resolveCandidateLabel(candidate)}
                   </span>
                 </button>
               ))}

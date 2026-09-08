@@ -28,6 +28,7 @@ import {
 } from '@/constants/node-types'
 import type {
   NodeMediaReview,
+  NodeV4Data,
   NodeV4ImageData,
   NodeV4VideoData,
   NodeWorkflowNodeData,
@@ -37,17 +38,27 @@ import type {
  * 审核记录的**承载者**（v3 节点 data 与 v4 的 image / video data）。
  *
  * ⚠ v4 里 `mediaReview` 只长在 image / video 两种形状上——`text` / `audio` 没有
- * 这个字段，也不该有（一段字和一条音轨不进图片审阅队列）。所以这里收的是判别
- * 联合而不是 `NodeV4Data` 全集：传错类型在编译期就被拦住，⛔ 不靠运行时 `?.`
- * 静默返回「未审」。
+ * 这个字段，也不该有（一段字和一条音轨不进图片审阅队列）。收 `NodeV4Data` 全集
+ * 是因为调用方拿到的就是四类的联合（审阅队列逐个节点问「你有审核记录吗」），
+ * 取窄那一步在 `isNodeV4ReviewCarrier` / `readReviewMap` 里做，两支没有字段的
+ * 形状走「没有审核记录」那一路而不是崩。
  *
  * ⛔ 不是「字段改名」——v3 的 `referenceAssets` 那一路在 v4 是**上游节点各自的
  * `url`**，谁审谁自己那张，见 `node-review-queue.ts`。
  */
-export type NodeMediaReviewCarrier =
-  | NodeWorkflowNodeData
-  | NodeV4ImageData
-  | NodeV4VideoData
+export type NodeMediaReviewCarrier = NodeWorkflowNodeData | NodeV4Data
+
+/**
+ * 这份 data 上的审核表。
+ *
+ * ⚠ v4 的 `text` / `audio` 形状**没有** `mediaReview` 字段（审核记录只长在有画面
+ * 的素材上），所以联合里必须先取窄再读，⛔ 不给两个形状硬加一个空字段。
+ */
+export function readReviewMap(
+  data: NodeMediaReviewCarrier,
+): Record<string, NodeMediaReview> | undefined {
+  return (data as { mediaReview?: Record<string, NodeMediaReview> }).mediaReview
+}
 
 /**
  * 这份 data 是 v4 形状吗。
@@ -60,6 +71,18 @@ export type NodeMediaReviewCarrier =
  * ⚠ 收窄到 image / video 两支——审核记录只长在这两种形状上。text / audio 传进来
  * 时返回 `false`，调用方走「没有审核记录」那一路（而不是崩）。
  */
+/**
+ * 这份 data 是四类 v4 形状里的**任何**一种吗（含 text / audio）。
+ *
+ * ⚠ 与 `isNodeV4ReviewCarrier` 是两问：那个问「有没有审核记录这回事」（只有
+ * image / video 有），这个问「是不是 v4 形状」。收割 URL 的一路要先分 v3/v4，再
+ * 在 v4 里区分有没有画面 —— 拿前者当后者用，v4 的文本节点会掉进 v3 分支去读一堆
+ * 根本不存在的字段。
+ */
+export function isNodeV4Data(data: NodeMediaReviewCarrier): data is NodeV4Data {
+  return (data as Partial<NodeV4Data>).kind !== undefined
+}
+
 export function isNodeV4ReviewCarrier(
   data: NodeMediaReviewCarrier,
 ): data is NodeV4ImageData | NodeV4VideoData {
@@ -98,7 +121,7 @@ export function resolveMediaReviewState(
   url: string | undefined,
 ): NodeReviewState {
   if (!url) return NODE_REVIEW_STATE_IDS.approved
-  return data.mediaReview?.[url]?.state ?? NODE_REVIEW_STATE_IDS.approved
+  return readReviewMap(data)?.[url]?.state ?? NODE_REVIEW_STATE_IDS.approved
 }
 
 /** 这张图的完整审核记录；没被标过就是 undefined（≠ 未审，见上）。 */
@@ -107,7 +130,7 @@ export function getMediaReview(
   url: string | undefined,
 ): NodeMediaReview | undefined {
   if (!url) return undefined
-  return data.mediaReview?.[url]
+  return readReviewMap(data)?.[url]
 }
 
 /**
@@ -126,7 +149,7 @@ function withEntry(
   url: string,
   entry: NodeMediaReview,
 ): Pick<NodeWorkflowNodeData, 'mediaReview'> {
-  return { mediaReview: { ...(data.mediaReview ?? {}), [url]: entry } }
+  return { mediaReview: { ...(readReviewMap(data) ?? {}), [url]: entry } }
 }
 
 /**

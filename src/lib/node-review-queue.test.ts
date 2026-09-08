@@ -11,20 +11,31 @@ import {
   type ReviewQueueItem,
 } from '@/lib/node-review-queue'
 import type {
+  NodeV4,
+  NodeV4ImageData,
   NodeWorkflowNode,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
 
-function makeNode(
-  id: string,
-  data: Partial<NodeWorkflowNodeData>,
-): NodeWorkflowNode {
+/**
+ * ⚠ ③d-4：队列改吃 v4 节点。v3 的三条来源（`mediaUrl` / `imageUrl` /
+ * `referenceAssets[]`）在 v4 合流成**一个 `url`** —— 参考图不再是挂在这张卡上的
+ * URL 数组，而是一个个真的上游节点，各自入队（⛔ 不再由引用方代收）。
+ */
+function makeNode(id: string, data: Partial<NodeV4ImageData>): NodeV4 {
   return {
     id,
     type: 'image',
     position: { x: 0, y: 0 },
-    data: { prompt: '', status: 'idle', ...data } as NodeWorkflowNodeData,
-  }
+    data: {
+      kind: 'image',
+      subtype: 'result',
+      name: id,
+      status: 'idle',
+      createdAt: '2026-09-08T00:00:00.000Z',
+      ...data,
+    } as NodeV4ImageData,
+  } as NodeV4
 }
 
 function awaiting(markedAt?: string) {
@@ -38,17 +49,17 @@ describe('collectReviewQueue', () => {
   it('只收待审的，通过和打回都不进队列', () => {
     const nodes = [
       makeNode('n1', {
-        mediaUrl: 'https://cdn/a.png',
+        url: 'https://cdn/a.png',
         mediaReview: { 'https://cdn/a.png': awaiting('2026-08-01T00:00:01Z') },
       }),
       makeNode('n2', {
-        mediaUrl: 'https://cdn/b.png',
+        url: 'https://cdn/b.png',
         mediaReview: {
           'https://cdn/b.png': { state: NODE_REVIEW_STATE_IDS.approved },
         },
       }),
       makeNode('n3', {
-        mediaUrl: 'https://cdn/c.png',
+        url: 'https://cdn/c.png',
         mediaReview: {
           'https://cdn/c.png': { state: NODE_REVIEW_STATE_IDS.rejected },
         },
@@ -62,18 +73,18 @@ describe('collectReviewQueue', () => {
   it('按 markedAt 排序，没有 markedAt 的存量记录排最前', () => {
     const nodes = [
       makeNode('n1', {
-        mediaUrl: 'https://cdn/late.png',
+        url: 'https://cdn/late.png',
         mediaReview: {
           'https://cdn/late.png': awaiting('2026-08-01T00:00:09Z'),
         },
       }),
       makeNode('n2', {
-        mediaUrl: 'https://cdn/legacy.png',
+        url: 'https://cdn/legacy.png',
         // 存量：包 6 之前标的，没有 markedAt
         mediaReview: { 'https://cdn/legacy.png': awaiting() },
       }),
       makeNode('n3', {
-        mediaUrl: 'https://cdn/early.png',
+        url: 'https://cdn/early.png',
         mediaReview: {
           'https://cdn/early.png': awaiting('2026-08-01T00:00:01Z'),
         },
@@ -88,11 +99,11 @@ describe('collectReviewQueue', () => {
 
   it('节点顺序不参与排序 —— 拖动画布不该改变审阅顺序', () => {
     const a = makeNode('n-a', {
-      mediaUrl: 'https://cdn/a.png',
+      url: 'https://cdn/a.png',
       mediaReview: { 'https://cdn/a.png': awaiting('2026-08-01T00:00:01Z') },
     })
     const b = makeNode('n-b', {
-      mediaUrl: 'https://cdn/b.png',
+      url: 'https://cdn/b.png',
       mediaReview: { 'https://cdn/b.png': awaiting('2026-08-01T00:00:02Z') },
     })
     expect(collectReviewQueue([a, b]).map((i) => i.url)).toEqual([
@@ -111,7 +122,7 @@ describe('collectReviewQueue', () => {
     // 还会让「还剩几张」骗人。
     const nodes = [
       makeNode('n1', {
-        mediaUrl: 'https://cdn/v2.png',
+        url: 'https://cdn/v2.png',
         mediaReview: {
           'https://cdn/v1.png': awaiting('2026-08-01T00:00:01Z'),
           'https://cdn/v2.png': awaiting('2026-08-01T00:00:02Z'),
@@ -123,21 +134,11 @@ describe('collectReviewQueue', () => {
     ])
   })
 
-  it('收集器里被标的参考图也算 —— 助手的 set_review_state 能标到那儿', () => {
-    const nodes = [
-      makeNode('n1', {
-        referenceAssets: [
-          { id: 'r1', url: 'https://cdn/ref.png' },
-        ] as NodeWorkflowNodeData['referenceAssets'],
-        mediaReview: {
-          'https://cdn/ref.png': awaiting('2026-08-01T00:00:01Z'),
-        },
-      }),
-    ]
-    expect(collectReviewQueue(nodes).map((i) => i.url)).toEqual([
-      'https://cdn/ref.png',
-    ])
-  })
+  /**
+   * ⚠ v3 的「收集器里被标的参考图也算」用例随 ③d-4 删除：v4 里参考图**不再是挂在
+   * 这张卡上的 URL 数组**，而是一个个真的上游节点，各自入队。代收会让同一张图在
+   * 每个引用它的镜头下各排一次队，「还剩几张」当场翻倍。
+   */
 })
 
 describe('推进', () => {
@@ -296,10 +297,7 @@ describe('resolveReviewTargetUrl（审核动作落在哪个 URL 上）', () => {
  * 下各排一次。
  */
 describe('review queue · v4 形状', () => {
-  function makeV4Node(
-    id: string,
-    data: Record<string, unknown>,
-  ): NodeWorkflowNode {
+  function makeV4Node(id: string, data: Record<string, unknown>): NodeV4 {
     return {
       id,
       type: 'image',
@@ -309,9 +307,10 @@ describe('review queue · v4 形状', () => {
         subtype: 'reference',
         name: id,
         status: 'idle',
+        createdAt: '2026-09-08T00:00:00.000Z',
         ...data,
-      } as unknown as NodeWorkflowNodeData,
-    }
+      },
+    } as unknown as NodeV4
   }
 
   it('收 v4 的 `url`，⛔ 不再碰 imageUrl / referenceAssets', () => {
@@ -351,7 +350,7 @@ describe('review queue · v4 形状', () => {
   it('v4 的 text / audio 没有 mediaReview，静默不入队', () => {
     expect(
       collectReviewQueue([
-        makeV4Node('t1', { kind: 'text', subtype: 'note', body: 'x' }),
+        makeV4Node('t1', { kind: 'text', subtype: 'shotNote', body: 'x' }),
         makeV4Node('a1', {
           kind: 'audio',
           subtype: 'voice',

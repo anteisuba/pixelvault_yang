@@ -153,7 +153,7 @@ export function createReferenceId(): string {
 }
 
 /**
- * Exported (not just used internally) so `StudioNodeWorkbench`'s S5c 三.3
+ * Exported (not just used internally) so the workbench's S5c 三.3
  * 融合 handler builds `source:'canvas'` entries through the exact same
  * constructor as upload/asset/paste — one shape, one default role/weight,
  * instead of a second ad hoc object literal drifting out of sync.

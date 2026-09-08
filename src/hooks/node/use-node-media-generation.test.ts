@@ -161,7 +161,7 @@ describe('useNodeMediaGeneration', () => {
 
   it('carries a 30s Seedance 2.5 duration all the way into the request payload', async () => {
     // 回归（2026-08-22）：2.5 的档位到 30 秒，滑条也能拖到 30，但发送路径上
-    // 曾有两道写死 15 的墙 —— `StudioNodeWorkbench` 的 `parsed > 15` 把它吞成
+    // 曾有两道写死 15 的墙 —— 画布 workbench 的 `parsed > 15` 把它吞成
     // undefined，`GenerateVideoRequestSchema` 的 `.max(15)` 再把漏网的 400 掉。
     // 用户看到的是「选了 30 秒，出来 5 秒」，没有报错。这条锁住整条链。
     vi.mocked(submitVideoAPI).mockResolvedValue({

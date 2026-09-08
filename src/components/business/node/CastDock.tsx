@@ -7,23 +7,17 @@ import { useTranslations } from 'next-intl'
 
 import {
   NODE_IMAGE_ROLE_IDS,
-  NODE_IMAGE_ROLE_TO_LEGACY_TYPE,
-  NODE_MEDIA_KIND_BY_NODE_TYPE,
   NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
   type NodeWorkflowMediaKind,
-  type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { NODE_V4_SUBTYPE_LABELS } from '@/constants/node-studio'
-import {
-  formatShotDisplayName,
-  resolveNodeDisplayName,
-} from '@/lib/node-display-name'
+import { formatShotDisplayName } from '@/lib/node-display-name'
 import { cn } from '@/lib/utils'
 import type {
+  NodeV4,
   NodeV4Data,
-  NodeWorkflowEdge,
-  NodeWorkflowNode,
+  NodeWorkflowEdgeV4,
 } from '@/types/node-workflow'
 
 import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
@@ -57,60 +51,14 @@ function trimmed(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
-function resolvePresentationType(node: NodeWorkflowNode): NodeWorkflowNodeType {
-  if (node.type !== NODE_TYPE_IDS.image || !node.data.role) {
-    return node.type
-  }
-  return NODE_IMAGE_ROLE_TO_LEGACY_TYPE[node.data.role] ?? node.type
+function getNodeThumbnail(data: NodeV4Data): string | undefined {
+  if (data.kind === NODE_MEDIA_KIND_IDS.text) return undefined
+  return trimmed(data.url) ?? trimmed(data.videoThumbnailUrl)
 }
 
-// 包 4.5：这条七字段优先链原本就写在这里，且是全仓最全的一条 —— 抽进
-// `lib/node-display-name` 成为单一事实源，本处改为消费它。行为零变化。
-function getNodeDisplayName(node: NodeWorkflowNode): string | undefined {
-  return resolveNodeDisplayName(node.data)
-}
-
-function getNodeThumbnail(node: NodeWorkflowNode): string | undefined {
-  const v4 = readV4Data(node)
-  if (v4) {
-    if (v4.kind === NODE_MEDIA_KIND_IDS.text) return undefined
-    return trimmed(v4.url) ?? trimmed(v4.videoThumbnailUrl)
-  }
-  const kind = NODE_MEDIA_KIND_BY_NODE_TYPE[node.type]
-  if (kind === NODE_MEDIA_KIND_IDS.image) {
-    return trimmed(node.data.mediaUrl) ?? trimmed(node.data.imageUrl)
-  }
-  if (kind === NODE_MEDIA_KIND_IDS.audio) {
-    return (
-      trimmed(node.data.voiceCoverImage) ??
-      trimmed(node.data.voiceReferenceCoverImage)
-    )
-  }
-  if (kind === NODE_MEDIA_KIND_IDS.video) {
-    return trimmed(node.data.videoThumbnailUrl)
-  }
-  return undefined
-}
-
-/**
- * v4 节点认领：ReactFlow 的 `type` 在 v4 里**就是 `kind`**（`NODE_V4_COMPONENTS`
- * 的键），`data` 上也有 `kind`。判 `data.kind` 而不是 `node.type`——两者同源，
- * 但 data 那份是持久化的事实源。
- */
-function readV4Data(node: NodeWorkflowNode): NodeV4Data | undefined {
-  const data = node.data as unknown as Partial<NodeV4Data>
-  return data.kind && data.subtype && typeof data.name === 'string'
-    ? (data as NodeV4Data)
-    : undefined
-}
-
-function getNodeGroup(node: NodeWorkflowNode): LocatorGroupId {
-  // ⚠ v4 分支必须在前：`NODE_MEDIA_KIND_BY_NODE_TYPE` 的键是 12 个 legacy type，
-  // 查 `'audio'` 查不到 → 兜底把**音频节点归进「文本」组**。真机 2026-09-07 抓到
-  // 的正是这一条（音频卡进文本组、名字显示成「音频」）。
-  const v4 = readV4Data(node)
-  if (v4) return v4.kind
-  return NODE_MEDIA_KIND_BY_NODE_TYPE[node.type] ?? NODE_MEDIA_KIND_IDS.text
+/** 分组就是 `kind` —— v4 的四类顶层类型与定位器的四组一一对应。 */
+function getNodeGroup(data: NodeV4Data): LocatorGroupId {
+  return data.kind
 }
 
 /** v4 的显示名：镜头带 `S02·` 前缀，其余就是稳定名 `data.name`。 */
@@ -120,7 +68,7 @@ function getV4DisplayName(data: NodeV4Data): string {
     : data.name
 }
 
-export function countCanvasNodes(nodes: readonly NodeWorkflowNode[]): number {
+export function countCanvasNodes(nodes: readonly NodeV4[]): number {
   return nodes.length
 }
 
@@ -162,8 +110,9 @@ export function CastDock({
 }: CastDockProps) {
   const t = useTranslations('StudioNode.castDock')
   const tStudio = useTranslations('StudioNode')
-  const nodes = useNodes<NodeWorkflowNode>()
-  const edges = useEdges<NodeWorkflowEdge>()
+  // ③d-4 起 RF store 里只有 v4 节点，⛔ 不再兼容 v3 形状。
+  const nodes = useNodes<NodeV4>()
+  const edges = useEdges<NodeWorkflowEdgeV4>()
   const { focusNode } = useNodeCanvasActions()
   const activateRow = onSelectNode ?? focusNode
 
@@ -178,17 +127,18 @@ export function CastDock({
   const entries = useMemo(
     () =>
       nodes.map((node) => {
-        const v4 = readV4Data(node)
-        // v4 的类型名读子型标签表（`image.character` → 「角色」）——⛔ 不查
+        const data = node.data
+        // 类型名读**子型标签表**（`image.character` → 「角色」），⛔ 不查
         // `nodeTypes.*`：那张表的键是 legacy type，v4 查不到会把 kind 原样显示
-        // 成「音频」当成名字。
-        const typeLabel = v4
-          ? (NODE_V4_SUBTYPE_LABELS[`${v4.kind}.${v4.subtype}`] ?? v4.subtype)
-          : tStudio(`nodeTypes.${resolvePresentationType(node)}`)
-        const name = v4
-          ? getV4DisplayName(v4)
-          : (getNodeDisplayName(node) ?? typeLabel)
-        const searchText = [name, typeLabel, node.data.prompt, node.data.role]
+        // 成「音频」当成名字（真机 2026-09-07 抓到过）。
+        const typeLabel =
+          NODE_V4_SUBTYPE_LABELS[`${data.kind}.${data.subtype}`] ?? data.subtype
+        const name = getV4DisplayName(data)
+        const searchText = [
+          name,
+          typeLabel,
+          data.kind === NODE_MEDIA_KIND_IDS.text ? data.body : data.prompt,
+        ]
           .filter((value): value is string => typeof value === 'string')
           .join(' ')
           .toLocaleLowerCase()
@@ -197,13 +147,13 @@ export function CastDock({
           node,
           name,
           typeLabel,
-          thumbnailUrl: getNodeThumbnail(node),
-          groupId: getNodeGroup(node),
+          thumbnailUrl: getNodeThumbnail(data),
+          groupId: getNodeGroup(data),
           searchText,
           referenceCount: referenceCountByNodeId.get(node.id) ?? 0,
         }
       }),
-    [nodes, referenceCountByNodeId, tStudio],
+    [nodes, referenceCountByNodeId],
   )
 
   const normalizedQuery = query.trim().toLocaleLowerCase()

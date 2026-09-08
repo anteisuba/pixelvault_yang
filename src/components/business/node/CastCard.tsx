@@ -7,22 +7,24 @@ import { useTranslations } from 'next-intl'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_STUDIO_CAST_DOCK } from '@/constants/node-studio'
-import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  NODE_MEDIA_KIND_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
+} from '@/constants/node-types'
 import {
   countPulseInitial,
   countPulseTransition,
   useCountPulse,
 } from '@/hooks/node/use-count-pulse'
-import { resolveNodeDisplayName } from '@/lib/node-display-name'
 import { cn } from '@/lib/utils'
-import type { NodeWorkflowNode } from '@/types/node-workflow'
+import type { NodeV4 } from '@/types/node-workflow'
 
 import type { CastSectionId } from './CastDock'
-import { useIngestDrag } from './IngestDragLayer'
+import { useIngestDragV4 } from './IngestDragLayerV4'
 import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 
 interface CastCardProps {
-  node: NodeWorkflowNode
+  node: NodeV4
   sectionId: CastSectionId
   /** Section glyph — rendered as the empty-thumbnail fallback and the
    *  type badge overlaid on a real thumbnail. */
@@ -42,39 +44,31 @@ function trimmedOrUndefined(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
-/** Card display name — single source of truth is `resolveNodeDisplayName`
- *  (画布修法 08-A：这里此前手抄了一份按 sectionId 分支的同款优先链，绕开了
- *  读侧的机器值守卫——「选已有图」写入口把上传备注常量当名字写进
- *  characterName/backgroundName/mediaLabel 时，这张卡会照单展示。四个
- *  section 各自只有一个专属身份字段，与共享解析器的优先链结果一致，故这里
- *  不再需要按 sectionId 分支；`voiceId` 兜底是本卡独有的（resolver 不认
- *  id 类字段），单独保留）。 */
-function getCastCardName(node: NodeWorkflowNode): string | undefined {
-  return (
-    resolveNodeDisplayName(node.data) ?? trimmedOrUndefined(node.data.voiceId)
-  )
+/**
+ * 卡面名字。
+ *
+ * ⚠ v4 里显示名就是 `data.name`（**稳定名**，创建即持久化）——v3 那条七字段
+ * 优先链（`characterName` / `voiceName` / `mediaLabel`…）随翻转整条退役，⛔ 不在
+ * 这里手抄一份替代品。
+ */
+function getCastCardName(node: NodeV4): string | undefined {
+  return trimmedOrUndefined(node.data.name)
 }
 
-/** Card thumbnail source — the node's own image for character/background,
- *  voice cover art for voice, poster frame for a reference video clip. */
-function getCastCardThumbnail(
-  node: NodeWorkflowNode,
-  sectionId: CastSectionId,
-): string | undefined {
-  switch (sectionId) {
-    case NODE_IMAGE_ROLE_IDS.character:
-    case NODE_IMAGE_ROLE_IDS.background:
-      return trimmedOrUndefined(node.data.mediaUrl)
-    case NODE_TYPE_IDS.voice:
-      return (
-        trimmedOrUndefined(node.data.voiceCoverImage) ||
-        trimmedOrUndefined(node.data.voiceReferenceCoverImage)
-      )
-    case NODE_TYPE_IDS.videoReference:
-      return trimmedOrUndefined(node.data.videoThumbnailUrl)
-    default:
-      return undefined
+/** 卡面缩略：有画面的取 `url`，视频取 poster（v4 里三类媒体共用同一组字段）。 */
+function getCastCardThumbnail(node: NodeV4): string | undefined {
+  const { data } = node
+  if (data.kind === NODE_MEDIA_KIND_IDS.text) return undefined
+  if (data.kind === NODE_MEDIA_KIND_IDS.video) {
+    return (
+      trimmedOrUndefined(data.videoThumbnailUrl) ?? trimmedOrUndefined(data.url)
+    )
   }
+  if (data.kind === NODE_MEDIA_KIND_IDS.audio) {
+    // 音色的脸只可能来自封面；没有封面就走 Icon 兜底。
+    return trimmedOrUndefined(data.videoThumbnailUrl)
+  }
+  return trimmedOrUndefined(data.url)
 }
 
 /**
@@ -114,7 +108,7 @@ export function CastCard({
 }: CastCardProps) {
   const t = useTranslations('StudioNode.castDock')
   const tIngest = useTranslations('StudioNode.ingest')
-  const { beginDrag, enterQuickThrow } = useIngestDrag()
+  const { beginDrag, enterQuickThrow } = useIngestDragV4()
   const { applyOp } = useNodeCanvasActions()
   const reducedMotion = useReducedMotion()
   // 画布修法 05 节「拖了必有回音」：素材拖进这张卡对应的角色/场景后，
@@ -123,7 +117,7 @@ export function CastCard({
   const pulseKey = useCountPulse(referenceCount)
   const fallbackName = t(`sections.${sectionId}`)
   const name = getCastCardName(node) || fallbackName
-  const thumbnailUrl = getCastCardThumbnail(node, sectionId)
+  const thumbnailUrl = getCastCardThumbnail(node)
   const tiltClass = getTiltClass(node.id)
   const hasIdentityBadge = referenceCount > 0 || hasVoice
   const identityBadgeAria = [
@@ -135,18 +129,21 @@ export function CastCard({
     .filter((part): part is string => Boolean(part))
     .join(' · ')
 
-  const quickThrowSourceInfo = { node, sectionId, label: name, thumbnailUrl }
+  const dragSource = {
+    node,
+    label: name,
+    ...(thumbnailUrl ? { thumbnailUrl } : {}),
+  }
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return
     beginDrag({
-      source: quickThrowSourceInfo,
+      source: dragSource,
       pointerEvent: event,
       originElement: event.currentTarget,
       onTap: onSelect,
-      // S5f B2: touch entry into quick-throw — a long-press before the drag
-      // threshold. Desktop uses the hover button below instead.
-      onLongPress: () => enterQuickThrow(quickThrowSourceInfo),
+      // 触屏进快投：长按（桌面走下面那颗 hover 浮出的按钮）。
+      onLongPress: () => enterQuickThrow(node),
     })
   }
 
@@ -174,7 +171,7 @@ export function CastCard({
       aria-pressed={selected}
       title={name}
       // S3c 散图融合循环 §三.3 命中检测挂钩：把手/浮层内角色卡的包围盒判定
-      // 读这个属性（StudioNodeWorkbench 的 onNodeDragStop），不吃 React state。
+      // 读这个属性（CanvasV4 的 onNodeDragStop），不吃 React state。
       data-cast-card-node-id={node.id}
       data-cast-section-id={sectionId}
       // A4 ③按下反馈实测发现：`.node-card-paper`（globals.css，未入
@@ -235,7 +232,7 @@ export function CastCard({
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => {
           event.stopPropagation()
-          enterQuickThrow(quickThrowSourceInfo)
+          enterQuickThrow(node)
         }}
         className="canvas-cast-badge-btn canvas-cast-badge-btn--accent absolute -left-1.5 -top-1.5 z-canvas-selection flex size-5 items-center justify-center rounded-full opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
       >

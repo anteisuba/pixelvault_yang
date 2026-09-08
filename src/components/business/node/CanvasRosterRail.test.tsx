@@ -53,22 +53,33 @@ vi.mock('./CastCard', () => ({
     node: { id: string; data: Record<string, unknown> }
   }) => (
     <div data-testid={`stub-card-${node.id}`}>
-      {(node.data.characterName as string | undefined) ??
-        (node.data.backgroundName as string | undefined)}
+      {node.data.name as string | undefined}
     </div>
   ),
 }))
 
-import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-
 import { CanvasRosterRail } from './CanvasRosterRail'
 
+/** ⚠ ③d-4：名册只认 v4 —— 收集器卡 = `image.character` / `image.background`。 */
 function makeNode(
   id: string,
-  type: string,
+  kind: string,
+  subtype: string,
   data: Record<string, unknown> = {},
 ) {
-  return { id, type, position: { x: 0, y: 0 }, data }
+  return {
+    id,
+    type: kind,
+    position: { x: 0, y: 0 },
+    data: {
+      kind,
+      subtype,
+      name: id,
+      status: 'idle',
+      createdAt: '2026-09-08T00:00:00.000Z',
+      ...data,
+    },
+  }
 }
 
 describe('CanvasRosterRail', () => {
@@ -83,14 +94,8 @@ describe('CanvasRosterRail', () => {
   // 命中的卡复现并锁住修复：同一个输入框改一次值，两段必须同时反应。
   it('用同一个搜索框过滤上段定位器与下段卡片区', () => {
     flowState.nodes = [
-      makeNode('char-1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '镜头1专用角色',
-      }),
-      makeNode('char-2', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '不相关的角色',
-      }),
+      makeNode('char-1', 'image', 'character', { name: '镜头1专用角色' }),
+      makeNode('char-2', 'image', 'character', { name: '不相关的角色' }),
     ]
 
     render(<CanvasRosterRail />)
@@ -109,10 +114,7 @@ describe('CanvasRosterRail', () => {
   // 两种状态混在一起分不清。
   it('搜索把卡全部滤掉时显示「没有匹配」而不是让卡片段消失', () => {
     flowState.nodes = [
-      makeNode('char-1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-      }),
+      makeNode('char-1', 'image', 'character', { name: '黛西' }),
     ]
 
     render(<CanvasRosterRail />)
@@ -128,7 +130,7 @@ describe('CanvasRosterRail', () => {
   // 没有时空标题+空网格是伪装能力」这条既有约束不能被这次改动破坏。
   it('项目里没有收集器卡时下段整体不渲染', () => {
     flowState.nodes = [
-      makeNode('shot-1', NODE_TYPE_IDS.shotText, { mediaLabel: '镜头1' }),
+      makeNode('shot-1', 'text', 'script', { name: '镜头1', body: '' }),
     ]
 
     render(<CanvasRosterRail />)
@@ -139,10 +141,7 @@ describe('CanvasRosterRail', () => {
   // G3：两段各有一个能读懂的标题，不是只有下段有、上段没有。
   it('上下两段各有自己的标题', () => {
     flowState.nodes = [
-      makeNode('char-1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-      }),
+      makeNode('char-1', 'image', 'character', { name: '黛西' }),
     ]
 
     render(<CanvasRosterRail />)

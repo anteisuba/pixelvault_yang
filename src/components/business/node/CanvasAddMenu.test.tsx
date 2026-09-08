@@ -47,24 +47,21 @@ describe('CanvasAddMenu', () => {
         screen.getByText(`addCatalog.groups.${groupId}`),
       ).toBeInTheDocument()
     }
-    // 顶部真上传/从素材库选择 2 + 图片 2 + 视频 4 + 声音 1 + 组织 2 = 11。
-    // 图片从 3 降到 2：关键帧 2026-08-09 退役（canvas-add-catalog 头注）。
-    // 组织从「塌成一颗收集」改回两行（《画布修法》A2）：角色档案/场景档案
-    // 各自独立可达，不再有孤儿的 collect 文案。
-    expect(screen.getAllByRole('menuitem')).toHaveLength(11)
+    // 顶部真上传 / 从素材库选择 2 + 文本 3 + 图片 4 + 声音 2 + 视频 3 = 14
+    // （③d-4 按 8e-9 重组词表：分组就是 v4 的四类，`organize` 那一组不存在了）。
+    expect(screen.getAllByRole('menuitem')).toHaveLength(14)
     expect(screen.getByText('addCatalog.pickFromLibrary')).toBeInTheDocument()
+    // 角色 / 背景现在住在**图片**组里 —— 它们本来就是 image 的两个子型。
     expect(
-      screen.queryByText('addCatalog.items.collect.label'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByText('addCatalog.items.organizeCharacter.label'),
+      screen.getByText('addCatalog.items.imageCharacter.label'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('addCatalog.items.organizeScene.label'),
+      screen.getByText('addCatalog.items.imageBackground.label'),
     ).toBeInTheDocument()
     expect(screen.queryByText('addCatalog.cast')).not.toBeInTheDocument()
+    // 首/尾帧是**槽**不是节点，菜单里没有它（2026-08-09 owner「连根拔」）。
     expect(
-      screen.queryByText('addCatalog.items.shotText.label'),
+      screen.queryByText('addCatalog.items.imageKeyframe.label'),
     ).not.toBeInTheDocument()
   })
 
@@ -108,32 +105,30 @@ describe('CanvasAddMenu', () => {
 
     fireEvent.click(
       screen
-        .getByText('addCatalog.items.imageAsset.label')
+        .getByText('addCatalog.items.imageResult.label')
         .closest('button') as HTMLElement,
     )
-    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageAsset)
+    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageResult)
 
     fireEvent.click(
       screen
-        .getByText('addCatalog.items.organizeCharacter.label')
+        .getByText('addCatalog.items.imageCharacter.label')
         .closest('button') as HTMLElement,
     )
-    expect(onSelect).toHaveBeenCalledWith(
-      CANVAS_ADD_INTENT_IDS.organizeCharacter,
-    )
+    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageCharacter)
 
     fireEvent.click(
       screen
-        .getByText('addCatalog.items.organizeScene.label')
+        .getByText('addCatalog.items.imageBackground.label')
         .closest('button') as HTMLElement,
     )
-    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.organizeScene)
+    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageBackground)
 
     expect(onSelect).toHaveBeenCalledTimes(3)
   })
 
   // R3-4 §4.2「一次一层」回归（owner 实测，2026-07-27）: 菜单在 document 级
-  // 消费掉 Esc 后必须截断冒泡，否则同一次按键会继续跑到 StudioNodeWorkbench
+  // 消费掉 Esc 后必须截断冒泡，否则同一次按键会继续跑到 workbench
   // 挂在 window 上的 Esc 阶梯，关完菜单顺手把画布选中也清掉。工作台那边"看
   // addMenu 还开着就早退"兜不住——keydown 是 discrete 事件，React 会在
   // document 与 window 两个阶段之间同步 flush 重渲染，window 监听器届时已经
@@ -226,7 +221,7 @@ describe('CanvasAddMenu', () => {
   it('swallows the click that follows an outside pointerdown, so it only closes the menu', () => {
     const outsideOnClick = vi.fn()
 
-    // 用一个持有 open 状态的小外壳来贴近真实宿主（StudioNodeWorkbench 里
+    // 用一个持有 open 状态的小外壳来贴近真实宿主（`NodeWorkbenchV4` 里
     // onClose 会把 addMenu 置空，从而让 open 真正翻成 false）——直接传静态
     // `open` + `vi.fn()` 测不出「菜单关闭之后再点一次应该正常生效」这一半，
     // 因为 open 全程没变过，outside-pointerdown 监听器会在第二次点击时重新
@@ -282,11 +277,11 @@ describe('CanvasAddMenu', () => {
     )
 
     const button = screen
-      .getByText('addCatalog.items.imageAsset.label')
+      .getByText('addCatalog.items.imageResult.label')
       .closest('button') as HTMLElement
     fireEvent.pointerDown(button, { pointerId: 1, button: 0 })
     fireEvent.click(button)
 
-    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageAsset)
+    expect(onSelect).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageResult)
   })
 })

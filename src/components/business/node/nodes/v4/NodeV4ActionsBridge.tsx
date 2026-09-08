@@ -10,7 +10,7 @@
  * **外面**。外壳要的从来只是「发一条动作」，不是「读整张图」。
  *
  * 所以这里是一层**薄出口**：只有动作，没有图。翻转前由 workbench 用
- * `NodeV4ActionsV3Adapter` 把 v3 的 `updateNodeData` 等包成这个形状；③d 翻转后改由
+ * ③d-3 之前由一个适配器把 v3 的 `updateNodeData` 等包成这个形状；③d-4 翻转后改由
  * `NodeV4Provider` 一侧提供，13 个外壳组件一行不用改。
  *
  * ── 接口按 v4 op 语义写，⛔ 不按 v3 patch 语义写 ────────────────────────
@@ -35,11 +35,33 @@ import type { CanvasDerivedImageOutput } from '@/types/canvas-image-edit'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   NodeImageRole,
+  NodeV4Subtype,
+  NodeWorkflowMediaKind,
   NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import type { ScriptDocDepth, ScriptDocStage } from '@/constants/script-doc'
-import type { ApplyScriptDocResult } from '@/hooks/node/use-node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
+
+/**
+ * 一次剧本投影的账。
+ *
+ * ⚠ ③d-4 从 `use-node-workflow`（已删）搬来。它描述的是**投影的结果**，与 v3 的
+ * `updateNodeData` 无关，翻转后要继续活着 —— 剧本工作区那句「新建 N / 保留 M」
+ * 读的就是它。
+ */
+export interface ApplyScriptDocResult {
+  /** 这次投影新建的节点数。 */
+  created: number
+  /** 已存在、且被剧本改写了字段的节点数。 */
+  updated: number
+  /** 已经有对应节点、原样保留的（幂等复用）。 */
+  skipped: number
+  /** 因为大纲里删掉了对应条目而移除的节点数。 */
+  removed: number
+  /** 因为大纲变了而移除的剧本托管边数。 */
+  removedEdges: number
+  refusal: 'noScriptDoc' | 'emptyScriptDoc' | null
+}
 
 /** 一批 op 实际执行完的账：给用户一句可信的回执，而不是「已应用」四个字。 */
 export interface NodeAssistantOpRunResult {
@@ -83,7 +105,16 @@ export interface CanvasImageSource {
   nodeId: string
   url: string
   name?: string
-  type: NodeWorkflowNodeType
+  /**
+   * 这张图是**哪一族**的（`image.character` / `image.shot` …）。
+   *
+   * ⚠ ③d-4：这一栏原来是 legacy 的 `NodeWorkflowNodeType`，翻转后图上根本不存在
+   * 那套 type。改带 v4 的 `kind` + `subtype` 两截，⛔ 不套一层「v4 子型 → legacy
+   * type」的换算：那正是给旧签名留垫片，而候选卡要的本来就是「角色 / 背景 / 镜头
+   * 图」这个子型词，不是 12 个 legacy type 里的某一个。
+   */
+  kind: NodeWorkflowMediaKind
+  subtype: NodeV4Subtype
 }
 
 /**

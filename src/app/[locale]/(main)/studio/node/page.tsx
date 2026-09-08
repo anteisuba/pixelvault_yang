@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { StudioNodeWorkbench } from '@/components/business/node/StudioNodeWorkbench'
+import { NodeWorkbenchV4 } from '@/components/business/node/workbench-v4/NodeWorkbenchV4'
 import type { AppLocale } from '@/i18n/routing'
 
 interface StudioNodePageProps {
@@ -21,5 +21,5 @@ export async function generateMetadata({
 }
 
 export default function StudioNodePage() {
-  return <StudioNodeWorkbench />
+  return <NodeWorkbenchV4 />
 }

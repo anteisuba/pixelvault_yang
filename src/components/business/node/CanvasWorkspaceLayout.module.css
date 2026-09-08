@@ -8,7 +8,7 @@
  * className 里（lg:top-16/right-4/bottom-4，z-index 复用 mobile 起就有的
  * z-20，理由见该文件注释）——这里只留“宽度随 data-assistant-mode 变化 +
  * 过渡”这一件用 CSS 变量才写得干净
- * 的事，供 .rail 的 width 消费，也供 canvas.css / StudioNodeWorkbench.tsx
+ * 的事，供 .rail 的 width 消费，也供 canvas.css / 画布 workbench
  * 里"控件让位"的 calc() 表达式继承读取（自定义属性的继承走 DOM 祖先链，不
  * 认 CSS Modules 的类名哈希，跨文件读同一个变量名是安全的）。 */
 .workspace {

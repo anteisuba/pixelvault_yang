@@ -7,7 +7,7 @@ import '@/app/canvas.css'
  * 这一层存在的唯一理由是**把画布的 CSS 关在画布路由里**：
  *   - `canvas.css` 173 KB 的域皮肤，2026-09-03 前由根 `layout.tsx` import，
  *     等于进每一个路由的首屏 CSS；而唯一渲染它的是本路由那一颗
- *     `StudioNodeWorkbench`（画布组件全在 `components/business/node/`）。
+ *     `NodeWorkbenchV4`（画布组件全在 `components/business/node/`）。
  *   - `@xyflow/react/dist/style.css` 同理，原先写在 `globals.css` 的
  *     `@import` 里 —— React Flow 也只有画布用。
  *

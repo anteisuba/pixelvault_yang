@@ -13,10 +13,20 @@ const { mockApplyOp, mockBeginDrag, mockMotion } = vi.hoisted(() => ({
   mockMotion: { reducedMotion: false },
 }))
 
-vi.mock('./IngestDragLayer', () => ({
-  useIngestDrag: () => ({
+vi.mock('./IngestDragLayerV4', () => ({
+  useIngestDragV4: () => ({
     beginDrag: mockBeginDrag,
-    dragState: { active: false, sourceNodeId: null, ghost: null, reason: null },
+    dragState: {
+      active: false,
+      sourceNodeId: null,
+      ghost: null,
+      reason: null,
+      pendingChoice: null,
+    },
+    quickThrowSource: null,
+    enterQuickThrow: vi.fn(),
+    exitQuickThrow: vi.fn(),
+    feedQuickThrow: vi.fn(),
   }),
 }))
 
@@ -56,7 +66,7 @@ vi.mock('motion/react', () => ({
 }))
 
 import { NODE_IMAGE_ROLE_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-import type { NodeWorkflowNode } from '@/types/node-workflow'
+import type { NodeV4 } from '@/types/node-workflow'
 
 import { CastCard } from './CastCard'
 
@@ -64,17 +74,26 @@ function FakeIcon({ className }: { className?: string }) {
   return <svg data-testid="fake-icon" className={className} />
 }
 
-function makeNode(
-  id: string,
-  type: string,
-  data: Record<string, unknown> = {},
-): NodeWorkflowNode {
+/**
+ * ⚠ ③d-4：卡吃的是 v4 节点。显示名就是**稳定名** `data.name`（创建即持久化），
+ * v3 那条七字段优先链（`characterName` / `voiceName` / `mediaLabel`…）随翻转退役
+ * ——连带那条「机器串被当人名显示」的回归用例也失去了对象（v4 里名字只有一个
+ * 来源，不存在「哪个字段被写脏了」这回事）。
+ */
+function makeNode(id: string, data: Record<string, unknown> = {}): NodeV4 {
   return {
     id,
-    type: type as NodeWorkflowNode['type'],
+    type: (data.kind as string) ?? 'image',
     position: { x: 0, y: 0 },
-    data: { prompt: '', status: 'idle', ...data },
-  } as NodeWorkflowNode
+    data: {
+      kind: 'image',
+      subtype: 'character',
+      name: id,
+      status: 'idle',
+      createdAt: '2026-09-08T00:00:00.000Z',
+      ...data,
+    },
+  } as unknown as NodeV4
 }
 
 beforeEach(() => {
@@ -85,10 +104,7 @@ beforeEach(() => {
 
 describe('CastCard', () => {
   it('shows the character name when set', () => {
-    const node = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-    })
+    const node = makeNode('c1', { name: '黛西' })
     render(
       <CastCard
         node={node}
@@ -104,9 +120,7 @@ describe('CastCard', () => {
   })
 
   it('falls back to the section label when the node has no custom name', () => {
-    const node = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-    })
+    const node = makeNode('c1', { name: '' })
     render(
       <CastCard
         node={node}
@@ -122,10 +136,9 @@ describe('CastCard', () => {
   })
 
   it('renders a thumbnail image when the node has media, an icon fallback otherwise', () => {
-    const withMedia = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-      mediaUrl: 'https://example.com/c1.png',
+    const withMedia = makeNode('c1', {
+      name: '黛西',
+      url: 'https://example.com/c1.png',
     })
     const { rerender } = render(
       <CastCard
@@ -144,10 +157,7 @@ describe('CastCard', () => {
       'https://example.com/c1.png',
     )
 
-    const withoutMedia = makeNode('c2', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '莱昂',
-    })
+    const withoutMedia = makeNode('c2', { name: '莱昂' })
     rerender(
       <CastCard
         node={withoutMedia}
@@ -163,9 +173,11 @@ describe('CastCard', () => {
   })
 
   it('resolves the voice cover image, falling back to the reference-audio cover', () => {
-    const node = makeNode('v1', NODE_TYPE_IDS.voice, {
-      voiceName: '温柔女声',
-      voiceReferenceCoverImage: 'https://example.com/ref-cover.png',
+    const node = makeNode('v1', {
+      kind: 'audio',
+      subtype: 'voice',
+      name: '温柔女声',
+      videoThumbnailUrl: 'https://example.com/ref-cover.png',
     })
     render(
       <CastCard
@@ -183,9 +195,11 @@ describe('CastCard', () => {
     )
   })
 
-  it('reads the videoReference display name from mediaLabel', () => {
-    const node = makeNode('r1', NODE_TYPE_IDS.videoReference, {
-      mediaLabel: '开场运镜',
+  it('视频片段的卡名同样读稳定名', () => {
+    const node = makeNode('r1', {
+      kind: 'video',
+      subtype: 'clip',
+      name: '开场运镜',
     })
     render(
       <CastCard
@@ -200,54 +214,14 @@ describe('CastCard', () => {
     expect(screen.getByTitle('开场运镜')).toBeInTheDocument()
   })
 
-  // 画布修法 08-A 回归测试：card name 此前手抄了一份不带机器值守卫的优先
-  // 链（`getCastCardName`），「选已有图」写入口把上传备注常量当名字写进
-  // characterName/mediaLabel 时，这张卡会把机器串当人名显示。改走共享的
-  // `resolveNodeDisplayName` 之后必须回落到 section 兜底文案。
-  it('falls back to the section label instead of showing a known upload-note machine string', () => {
-    const characterNode = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: 'Node Studio character output',
-    })
-    const { rerender } = render(
-      <CastCard
-        node={characterNode}
-        sectionId={NODE_IMAGE_ROLE_IDS.character}
-        Icon={FakeIcon}
-        performanceCount={0}
-        selected={false}
-        onSelect={vi.fn()}
-      />,
-    )
-    expect(screen.getByTitle('sections.character')).toBeInTheDocument()
-    expect(
-      screen.queryByText('Node Studio character output'),
-    ).not.toBeInTheDocument()
-
-    const videoRefNode = makeNode('r1', NODE_TYPE_IDS.videoReference, {
-      mediaLabel: 'Node Studio image node output',
-    })
-    rerender(
-      <CastCard
-        node={videoRefNode}
-        sectionId={NODE_TYPE_IDS.videoReference}
-        Icon={FakeIcon}
-        performanceCount={0}
-        selected={false}
-        onSelect={vi.fn()}
-      />,
-    )
-    expect(screen.getByTitle('sections.videoReference')).toBeInTheDocument()
-    expect(
-      screen.queryByText('Node Studio image node output'),
-    ).not.toBeInTheDocument()
-  })
+  /**
+   * ⚠ 「机器串被当人名显示」那条回归用例随 ③d-4 删除：它守的是 v3 的七字段
+   * 显示名优先链（`characterName` / `mediaLabel` 被写入上传备注常量时的兜底）。
+   * v4 里名字只有一个来源 —— 创建即持久化的稳定名 `data.name`，那条链不存在了。
+   */
 
   it('shows "出演 N 镜" only when performanceCount is greater than zero', () => {
-    const node = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-    })
+    const node = makeNode('c1', { name: '黛西' })
     const { rerender } = render(
       <CastCard
         node={node}
@@ -274,10 +248,7 @@ describe('CastCard', () => {
   })
 
   it('calls onSelect on a keyboard/AT click (event.detail===0) and reflects the selected state', () => {
-    const node = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-    })
+    const node = makeNode('c1', { name: '黛西' })
     const onSelect = vi.fn()
     render(
       <CastCard
@@ -298,10 +269,7 @@ describe('CastCard', () => {
   })
 
   it('calls onSelect on Enter/Space keyboard activation', () => {
-    const node = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-    })
+    const node = makeNode('c1', { name: '黛西' })
     const onSelect = vi.fn()
     render(
       <CastCard
@@ -318,10 +286,9 @@ describe('CastCard', () => {
   })
 
   it('starts an ingest drag on pointerdown, handing the engine the card label/thumbnail/onTap fallback', () => {
-    const node = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-      mediaUrl: 'https://example.com/c1.png',
+    const node = makeNode('c1', {
+      name: '黛西',
+      url: 'https://example.com/c1.png',
     })
     const onSelect = vi.fn()
     render(
@@ -343,7 +310,6 @@ describe('CastCard', () => {
     const call = mockBeginDrag.mock.calls[0][0]
     expect(call.source).toEqual({
       node,
-      sectionId: NODE_IMAGE_ROLE_IDS.character,
       label: '黛西',
       thumbnailUrl: 'https://example.com/c1.png',
     })
@@ -351,10 +317,7 @@ describe('CastCard', () => {
   })
 
   it('deletes the underlying node when the hover-reveal × is clicked, without opening the card', () => {
-    const node = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-    })
+    const node = makeNode('c1', { name: '黛西' })
     const onSelect = vi.fn()
     render(
       <CastCard
@@ -377,10 +340,7 @@ describe('CastCard', () => {
   })
 
   it('shows the identity badge row only when referenceCount or hasVoice is truthy (零内容不显示)', () => {
-    const node = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-    })
+    const node = makeNode('c1', { name: '黛西' })
     const { rerender } = render(
       <CastCard
         node={node}
@@ -425,10 +385,7 @@ describe('CastCard', () => {
   })
 
   it('assigns a deterministic tilt class that is stable across renders', () => {
-    const node = makeNode('stable-id-42', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-    })
+    const node = makeNode('stable-id-42', { name: '黛西' })
     const { unmount } = render(
       <CastCard
         node={node}
@@ -458,10 +415,7 @@ describe('CastCard', () => {
 
   // 画布修法 05 节「拖了必有回音」：📷N 只在 referenceCount 真的增加时弹一次。
   it('does not pop the 📷N badge on first mount, but does once referenceCount increases', () => {
-    const node = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-    })
+    const node = makeNode('c1', { name: '黛西' })
     const { rerender } = render(
       <CastCard
         node={node}
@@ -491,10 +445,7 @@ describe('CastCard', () => {
   })
 
   it('does not pop the 📷N badge when referenceCount decreases', () => {
-    const node = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-    })
+    const node = makeNode('c1', { name: '黛西' })
     const { rerender } = render(
       <CastCard
         node={node}
@@ -523,10 +474,7 @@ describe('CastCard', () => {
 
   it('keeps the pulse duration at 0 under prefers-reduced-motion while the badge text still updates', () => {
     mockMotion.reducedMotion = true
-    const node = makeNode('c1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-    })
+    const node = makeNode('c1', { name: '黛西' })
     const { rerender } = render(
       <CastCard
         node={node}

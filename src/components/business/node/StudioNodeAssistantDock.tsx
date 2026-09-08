@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Bot,
@@ -26,7 +26,6 @@ import {
   VIDEO_ANALYSIS_TASKS,
   VIDEO_ANALYSIS_TASK_TIERS,
 } from '@/constants/video-analysis'
-import { isAutoApplyAssistantOp } from '@/constants/node-assistant-ops'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
@@ -40,16 +39,11 @@ import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import { buildNodeAssistantNodeContexts } from '@/lib/node-assistant-context'
 import { resolveNodeDisplayName } from '@/lib/node-display-name'
-import {
-  planNodeAssistantOps,
-  type PlannedNodeAssistantOp,
-} from '@/lib/node-assistant-op-plan'
 import type { AppLocale } from '@/i18n/routing'
 import type {
   NodeAssistantMediaReference,
   NodeAssistantNodeContext,
 } from '@/types/node-assistant'
-import type { NodeAssistantOpBatch } from '@/types/node-assistant-ops'
 import type {
   NodeWorkflowEdge,
   NodeWorkflowModelOptionsByType,
@@ -78,17 +72,15 @@ interface StudioNodeAssistantDockProps {
   expanded: boolean
   projectId: string
   projectName: string
-  nodes: NodeWorkflowNode[]
-  /** 包 5：提案的合法性要在真实的图上判（重复边 / 参考位都要读边）。 */
-  edges: NodeWorkflowEdge[]
   /**
-   * 切片 5 第二批：`set_model` 的取值范围。
+   * 画布上的节点 —— 助手的**上下文投影**（模型能看见什么）与 `@` 候选都读它。
    *
-   * ⚠ 从 workbench 传进来而不是在这里再调一次 `useWorkflowModelOptions()` ——
-   * 那个 hook 订阅 api-keys context 并按 key 重算三张表，第二个实例只是把同一份
-   * 计算再做一遍，且两份引用不同会让下面的 `useCallback` 每帧重建。
+   * ⚠ ③d-4 一并删掉了 `edges` 与 `modelOptionsByType` 两个 prop：它们只服务
+   * 已经删掉的 v3 op 规划器（连线重复判定 / `set_model` 取值范围）。③e 用 v4
+   * 规划器接回来时，要的入参与它们并不相同（v4 判的是**槽**），⛔ 不留着两个空转
+   * 的 prop 假装接口还在。
    */
-  modelOptionsByType: NodeWorkflowModelOptionsByType
+  nodes: NodeWorkflowNode[]
   scriptDoc: ScriptDoc | undefined
   locale: AppLocale
   onOpenChange(open: boolean): void
@@ -172,8 +164,6 @@ export function StudioNodeAssistantDock({
   projectId,
   projectName,
   nodes,
-  edges,
-  modelOptionsByType,
   scriptDoc,
   locale,
   onOpenChange,
@@ -186,10 +176,8 @@ export function StudioNodeAssistantDock({
   const tHistory = useTranslations('StudioNode.history')
   const tNodeTypes = useTranslations('StudioNode.nodeTypes')
   const tConversation = useTranslations('StudioNode.conversation')
-  const tCanvasOps = useTranslations('StudioNode.canvasOps')
   const selection = useNodeSelection()
-  const { placeDerivedImages, focusNode, runAssistantOps, undo } =
-    useNodeCanvasActions()
+  const { placeDerivedImages, focusNode } = useNodeCanvasActions()
   const conversation = useAssistantConversation({ projectId, persist: true })
   const [assistantRoute, setAssistantRoute] =
     useState<NodeAssistantRouteSelection>({
@@ -348,94 +336,19 @@ export function StudioNodeAssistantDock({
     [focusNode, nodes, placeDerivedImages, tConversation],
   )
 
-  // 包 5：提案的合法性在真实的图上算 —— dock 是**唯一**同时握着 nodes/edges 和
-  // 对话消息的地方，所以规划落在这里；执行则必须回到 workbench（addNode /
-  // onConnect 只在那儿），中间隔着 context 上那一个高层动作。
-  const planAssistantOps = useCallback(
-    (batch: NodeAssistantOpBatch) =>
-      planNodeAssistantOps(batch, nodes, edges, modelOptionsByType),
-    [edges, modelOptionsByType, nodes],
-  )
-
-  const handleApplyAssistantOps = useCallback(
-    async (ops: readonly PlannedNodeAssistantOp[]) => {
-      const result = await runAssistantOps(ops)
-      if (result.applied > 0) {
-        toast.success(tCanvasOps('appliedToast', { count: result.applied }))
-      }
-      return result
-    },
-    [runAssistantOps, tCanvasOps],
-  )
-
-  // ─── B3 · 结构 op 自动落 ─────────────────────────────────────────────
-  //
-  // 「节点结构立即落画布（免费）；像素等确认（花钱）」。用户不用先读一段文字提案再
-  // 点一下，才看得到 AI 的计划在画布上的空间结构。
-  //
-  // ⚠ **难点全在「恰好一次」**，不在自动本身：
-  //   ① 流式回复每来一个 chunk 就重建一次消息对象，提案卡跟着重渲染 —— 放在卡里做
-  //      会重复建节点。所以做在这里，并按**消息 id**（流内稳定）去重。
-  //   ② 关掉 dock 再打开，最后一条消息**仍然带着 ops**。挂载时先把已有消息全部记成
-  //      「已处理」，只有挂载之后**新到**的才自动落 —— 否则开关一次浮卡就多一批节点。
-  //   ③ 提案本身有意不跨刷新存活（`use-assistant-conversation` 只入库剥干净的正文），
-  //      所以刷新后不存在「几分钟前的旧提案被自动执行」这条路。
-  const autoAppliedRef = useRef<Set<string> | null>(null)
-  const [autoAppliedByMessageId, setAutoAppliedByMessageId] = useState<
-    Record<string, number>
-  >({})
   /**
-   * 台账 K-2：自动落里**连线没建成**的条数，按消息 id 记。与 `applied` 分开存是
-   * 因为它们答的是两个问题 ——「落了几个」和「结构成没成形」。回执把后者漏掉时，
-   * 前者越大越让人放心。
+   * ⚠ **助手写画布这条路在 C3c-③d-4 断开了**（③e 接回）。
+   *
+   * v3 规划器（`planNodeAssistantOps`）随画布翻转一起删了 —— 它答的是「一节点一
+   * 入口能不能连」，而 v4 的目标有多个具名口，那个问题没有对象。同时
+   * `runAssistantOps` 今天把每一条都记成 skipped（见 `NodeV4ActionsBridge`）。
+   *
+   * 所以本 dock **不再向 `AssistantConversation` 传** `planAssistantOps` /
+   * `onApplyAssistantOps`：提案卡因此整张不渲染。⛔ 不留一张点了什么都不会发生的
+   * 卡 —— 一个「已应用 0 项」的回执比没有卡更让人以为坏了。原来的「结构 op 自动
+   * 落」（按消息 id 恰好一次、连线失败单独记账）随之一并下线，③e 用 v4 规划器
+   * （`planV4Connect`）重建时连同它的去重纪律一起搬回来。
    */
-  const [autoFailedConnectsByMessageId, setAutoFailedConnectsByMessageId] =
-    useState<Record<string, number>>({})
-
-  useEffect(() => {
-    // ② 首次挂载：现有消息一律记成已处理，不回溯执行。
-    if (autoAppliedRef.current === null) {
-      autoAppliedRef.current = new Set(
-        conversation.messages.map((message) => message.id),
-      )
-      return
-    }
-    if (conversation.isLoading) return
-
-    const seen = autoAppliedRef.current
-    const pending = conversation.messages.filter(
-      (message) =>
-        message.role === 'assistant' && message.ops && !seen.has(message.id),
-    )
-    if (pending.length === 0) return
-
-    for (const message of pending) {
-      seen.add(message.id)
-      if (!message.ops) continue
-      const autoOps = planAssistantOps(message.ops).ops.filter(
-        (entry) =>
-          entry.status === 'ready' && isAutoApplyAssistantOp(entry.op.op),
-      )
-      if (autoOps.length === 0) continue
-      void handleApplyAssistantOps(autoOps).then((result) => {
-        setAutoAppliedByMessageId((current) => ({
-          ...current,
-          [message.id]: result.applied,
-        }))
-        if (result.failedConnects > 0) {
-          setAutoFailedConnectsByMessageId((current) => ({
-            ...current,
-            [message.id]: result.failedConnects,
-          }))
-        }
-      })
-    }
-  }, [
-    conversation.isLoading,
-    conversation.messages,
-    handleApplyAssistantOps,
-    planAssistantOps,
-  ])
 
   const handleNewConversation = useCallback(() => {
     conversation.clear()
@@ -702,11 +615,6 @@ export function StudioNodeAssistantDock({
                 referenceOptions={referenceOptions}
                 canUseReference={canUseReference}
                 onRunCapability={handleRunCapability}
-                planAssistantOps={planAssistantOps}
-                onApplyAssistantOps={handleApplyAssistantOps}
-                autoAppliedByMessageId={autoAppliedByMessageId}
-                autoFailedConnectsByMessageId={autoFailedConnectsByMessageId}
-                onUndoAutoApply={undo}
               />
             </div>
             <div className="flex min-h-0 flex-1 flex-col">
@@ -733,11 +641,6 @@ export function StudioNodeAssistantDock({
               referenceOptions={referenceOptions}
               canUseReference={canUseReference}
               onRunCapability={handleRunCapability}
-              planAssistantOps={planAssistantOps}
-              onApplyAssistantOps={handleApplyAssistantOps}
-              autoAppliedByMessageId={autoAppliedByMessageId}
-              autoFailedConnectsByMessageId={autoFailedConnectsByMessageId}
-              onUndoAutoApply={undo}
             />
           </div>
         )}

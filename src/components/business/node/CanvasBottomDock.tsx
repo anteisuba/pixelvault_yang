@@ -81,7 +81,7 @@ interface CanvasBottomDockProps {
  * The tool pill itself — no self-positioning. S5b B0 merges this into the
  * same bottom row as the Cast dock handle ("紧贴工具条右侧同底座"), so the
  * shared `absolute bottom-*` + assistant-dock inset math now lives ONCE in
- * `StudioNodeWorkbench`'s wrapper instead of being duplicated in every dock
+ * the workbench's wrapper instead of being duplicated in every dock
  * that sits on that row.
  */
 export function CanvasBottomDock({

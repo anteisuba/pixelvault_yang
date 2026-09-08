@@ -3,33 +3,34 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { NODE_REVIEW_STATE_IDS } from '@/constants/node-types'
 import { useNodeReviewMode } from '@/hooks/node/use-node-review-mode'
-import type {
-  NodeWorkflowNode,
-  NodeWorkflowNodeData,
-} from '@/types/node-workflow'
+import type { NodeV4 } from '@/types/node-workflow'
 
+/** ⚠ ③d-4：审阅模式改吃 v4 节点，媒体是单字段 `url`。 */
 function node(
   id: string,
   url: string,
   state: string,
   markedAt?: string,
-): NodeWorkflowNode {
+): NodeV4 {
   return {
     id,
     type: 'image',
     position: { x: 0, y: 0 },
     data: {
-      prompt: '',
+      kind: 'image',
+      subtype: 'result',
+      name: id,
       status: 'idle',
-      mediaUrl: url,
+      createdAt: '2026-09-08T00:00:00.000Z',
+      url,
       mediaReview: { [url]: { state, ...(markedAt ? { markedAt } : {}) } },
-    } as unknown as NodeWorkflowNodeData,
-  }
+    },
+  } as unknown as NodeV4
 }
 
 const AWAITING = NODE_REVIEW_STATE_IDS.awaitingReview
 
-function threeAwaiting(): NodeWorkflowNode[] {
+function threeAwaiting(): NodeV4[] {
   return [
     node('n1', 'https://cdn/1.png', AWAITING, '2026-08-01T00:00:01Z'),
     node('n2', 'https://cdn/2.png', AWAITING, '2026-08-01T00:00:02Z'),
@@ -37,11 +38,10 @@ function threeAwaiting(): NodeWorkflowNode[] {
   ]
 }
 
-function setup(initial: NodeWorkflowNode[]) {
+function setup(initial: NodeV4[]) {
   const focusNode = vi.fn()
   const view = renderHook(
-    ({ nodes }: { nodes: NodeWorkflowNode[] }) =>
-      useNodeReviewMode({ nodes, focusNode }),
+    ({ nodes }: { nodes: NodeV4[] }) => useNodeReviewMode({ nodes, focusNode }),
     { initialProps: { nodes: initial } },
   )
   return { view, focusNode }

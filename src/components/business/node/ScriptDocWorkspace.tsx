@@ -64,10 +64,11 @@ import type { AssistantConversationMessage } from '@/hooks/use-assistant-convers
 import type { AppLocale } from '@/i18n/routing'
 import type { AssistantClarifyingQuestion } from '@/types/assistant-protocol'
 import type { ScriptDoc, ScriptDocFocus } from '@/types/script-doc'
-import type { ApplyScriptDocResult } from '@/hooks/node/use-node-workflow'
-
 import { ClarifyingQuestionCard } from './ClarifyingQuestionCard'
-import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
+import {
+  useNodeCanvasActions,
+  type ApplyScriptDocResult,
+} from './nodes/v4/NodeV4ActionsBridge'
 
 interface ScriptDocWorkspaceProps {
   scriptDoc: ScriptDoc | undefined

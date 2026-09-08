@@ -1,10 +1,8 @@
 'use client'
 
 /**
- * v4 **吞噬手势引擎**（第三期 · 画布 C3c-③d-3「写好不接」）。
- *
- * ⛔ 本片生产调用方为 0 —— 接线在 ③d-4（`IngestDragLayerV4` 挂进 `NodeWorkbenchV4`，
- * 同批删 `use-cast-ingest.ts` 的 `useCastIngestEngine` 与 `IngestDragLayer.tsx`）。
+ * v4 **吞噬手势引擎**（第三期 · 画布）。③d-4 起由 `IngestDragLayerV4` 挂在
+ * `NodeWorkbenchV4` 上，v3 那台引擎（`use-cast-ingest` / `IngestDragLayer`）已删。
  *
  * ── 与 v3 那台引擎差在哪 ──────────────────────────────────────────────
  * v3 只能回答 yes/no，落点是隐式的「一个节点一个入口」。v4 的目标节点有**多个具名
@@ -26,7 +24,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
 import { EASE_SOFT_RETURN_CSS, INGEST_MOTION } from '@/constants/motion'
-import { NODE_STUDIO_INGEST_MAGNET } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_INGEST_MAGNET,
+  NODE_STUDIO_INGEST_QUICK_THROW,
+} from '@/constants/node-studio'
 import type { NodeSlotId } from '@/constants/node-slots'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 
@@ -40,7 +41,7 @@ import {
   playTargetGulpAnimation,
   playTargetRejectShakeAnimation,
   prefersReducedMotion,
-} from './use-cast-ingest'
+} from './node-ingest-dom'
 import {
   planV4IngestDrop,
   type V4IngestDropPlan,
@@ -103,6 +104,11 @@ export interface BeginV4DragParams {
   readonly originElement: HTMLElement
   /** 没越过拖拽阈值 —— 当成一次普通点击，⛔ 不双重处理 click。 */
   onTap?(): void
+  /**
+   * 触屏进快投：**长按**（越过拖拽阈值之前）。桌面走卡上的 hover 按钮。
+   * ⚠ 只对 `pointerType === 'touch'` 起效 —— 鼠标长按什么都不该发生。
+   */
+  onLongPress?(): void
 }
 
 /** 咬到一个目标时的张口预览（`null` = 离开目标 / 拖拽结束）。 */
@@ -111,6 +117,11 @@ export interface V4IngestBiteChange {
   readonly targetNode: NodeV4
   readonly plan: V4IngestDropPlan
 }
+
+/** 快投模式的命令式高亮（CSS 在 `canvas.css`）。 */
+const QUICK_THROW_TARGET_CLASS = 'node-quick-throw-target'
+const QUICK_THROW_INCLUDED_CLASS = 'node-quick-throw-included'
+const QUICK_THROW_INDEX_PROP = '--node-qt-index'
 
 interface MagnetTarget {
   readonly id: string
@@ -126,6 +137,8 @@ interface PendingDrag {
   dragging: boolean
   currentTargetId: string | null
   magnetTargets: MagnetTarget[] | null
+  /** 触屏长按 → 快投的计时器；越过拖拽阈值 / 松手都要撤掉它。 */
+  longPressTimer: number | null
   onTap?(): void
 }
 
@@ -145,6 +158,18 @@ export interface UseCastIngestEngineV4Params {
 export interface CastIngestEngineV4 {
   readonly dragState: V4IngestDragState
   beginDrag(params: BeginV4DragParams): void
+  /**
+   * 快投模式：先点一个源，之后每点一个目标就投一次，直到 Esc 退出。
+   * `null` = 不在模式里。
+   */
+  readonly quickThrowSource: NodeV4 | null
+  enterQuickThrow(source: NodeV4): void
+  exitQuickThrow(): void
+  /**
+   * 快投一次。非法 / 已连的目标是**空操作**（它在遮罩里本来就是暗的），所以
+   * 误点不会错投。多口都收得下时不替用户挑 —— 走与拖投**同一个**候选面板。
+   */
+  feedQuickThrow(targetId: string): void
   registerGhostElement(el: HTMLDivElement | null): void
   /** 用户在候选里点了一个槽 —— 这一投就落它。 */
   resolveChoice(slot: NodeSlotId): void
@@ -247,6 +272,11 @@ export function useCastIngestEngineV4({
       if (!pending.dragging) {
         if (Math.hypot(dx, dy) < INGEST_MOTION.dragThresholdPx) return
         pending.dragging = true
+        // 越过阈值 = 这是一次拖，不是长按。
+        if (pending.longPressTimer !== null) {
+          window.clearTimeout(pending.longPressTimer)
+          pending.longPressTimer = null
+        }
         // 磁吸弱档：拖拽激活时把**每一个收得下的目标**点亮一次，判据与落点走
         // 同一个 `planV4IngestDrop`，⛔ 高亮不许承诺一个落不下去的目标。
         const magnetTargets: MagnetTarget[] = []
@@ -425,11 +455,18 @@ export function useCastIngestEngineV4({
     (event: PointerEvent) => {
       const pending = pendingRef.current
       if (!pending || event.pointerId !== pending.pointerId) return
+      const longPressFired =
+        pending.longPressTimer === null && !pending.dragging
+      if (pending.longPressTimer !== null) {
+        window.clearTimeout(pending.longPressTimer)
+        pending.longPressTimer = null
+      }
       detach()
       pendingRef.current = null
 
       if (!pending.dragging) {
-        pending.onTap?.()
+        // 长按已经把用户送进快投模式了 —— 松手不该再触发一次「点了这张卡」。
+        if (!longPressFired) pending.onTap?.()
         return
       }
 
@@ -487,6 +524,9 @@ export function useCastIngestEngineV4({
     (event: PointerEvent) => {
       const pending = pendingRef.current
       if (!pending || event.pointerId !== pending.pointerId) return
+      if (pending.longPressTimer !== null) {
+        window.clearTimeout(pending.longPressTimer)
+      }
       detach()
       pendingRef.current = null
       clearMagnets(pending)
@@ -506,8 +546,14 @@ export function useCastIngestEngineV4({
   }
 
   const beginDrag = useCallback(
-    ({ source, pointerEvent, originElement, onTap }: BeginV4DragParams) => {
-      pendingRef.current = {
+    ({
+      source,
+      pointerEvent,
+      originElement,
+      onTap,
+      onLongPress,
+    }: BeginV4DragParams) => {
+      const pending: PendingDrag = {
         source,
         pointerId: pointerEvent.pointerId,
         startClientX: pointerEvent.clientX,
@@ -516,8 +562,17 @@ export function useCastIngestEngineV4({
         dragging: false,
         currentTargetId: null,
         magnetTargets: null,
+        longPressTimer: null,
         ...(onTap ? { onTap } : {}),
       }
+      if (pointerEvent.pointerType === 'touch' && onLongPress) {
+        pending.longPressTimer = window.setTimeout(() => {
+          pending.longPressTimer = null
+          if (pending.dragging) return
+          onLongPress()
+        }, NODE_STUDIO_INGEST_QUICK_THROW.longPressMs)
+      }
+      pendingRef.current = pending
       window.addEventListener('pointermove', handlePointerMove)
       window.addEventListener('pointerup', handlePointerUp)
       window.addEventListener('pointercancel', handlePointerCancel)
@@ -545,6 +600,103 @@ export function useCastIngestEngineV4({
     )
   }, [])
 
+  /* ── 快投模式（S5f B2）────────────────────────────────────────────────── */
+  const [quickThrowSource, setQuickThrowSource] = useState<NodeV4 | null>(null)
+  const enterQuickThrow = useCallback((source: NodeV4) => {
+    setQuickThrowSource(source)
+  }, [])
+  const exitQuickThrow = useCallback(() => setQuickThrowSource(null), [])
+
+  const feedQuickThrow = useCallback(
+    (targetId: string) => {
+      if (!quickThrowSource) return
+      const target = nodesRef.current.find((node) => node.id === targetId)
+      if (!target || target.id === quickThrowSource.id) return
+      // 合法性走**与拖投同一条** `plan`，⛔ 不在这里另判一遍。
+      const dropPlan = plan(quickThrowSource, target)
+      if (dropPlan.kind === 'rejected') {
+        playTargetRejectShakeAnimation(findNodeCardElement(targetId))
+        return
+      }
+      if (dropPlan.kind === 'single') {
+        onConnectRef.current(
+          quickThrowSource.id,
+          targetId,
+          dropPlan.candidate.slot,
+        )
+        playTargetGulpAnimation(findNodeCardElement(targetId))
+        // 模式**留着** —— 快投就是「投一个，再投一个」，直到 Esc。
+        return
+      }
+      const targetRect = findNodeCardElement(targetId)?.getBoundingClientRect()
+      setDragState({
+        ...EMPTY_DRAG_STATE,
+        pendingChoice: {
+          sourceNodeId: quickThrowSource.id,
+          targetNodeId: targetId,
+          candidates: dropPlan.candidates,
+          x: targetRect ? targetRect.left + targetRect.width / 2 : 0,
+          y: targetRect ? targetRect.top : 0,
+        },
+      })
+    },
+    [quickThrowSource, plan],
+  )
+
+  /**
+   * 模式开着时点亮每个合法目标、把已连的压暗。命令式改 class（与磁吸同款纪律）
+   * —— 目标节点组件一次都不为此重渲。图变了就重跑一遍（投中一个 → 那个目标从
+   * 「可投」翻成「已连」）。
+   */
+  useEffect(() => {
+    if (!quickThrowSource) return
+    const touched: HTMLElement[] = []
+    let index = 0
+    for (const node of nodes) {
+      if (node.id === quickThrowSource.id) continue
+      const el = findNodeCardElement(node.id)
+      if (!el) continue
+      // 已经连着的目标压暗（⊘）—— 「已在里面」与「不能进」是两件事，用户要
+      // 分得出来。⚠ 判据是**图上有没有这条边**，⛔ 不去猜某个拒绝理由。
+      const alreadyConnected = edgesRef.current.some(
+        (edge) =>
+          edge.source === quickThrowSource.id && edge.target === node.id,
+      )
+      if (alreadyConnected) {
+        el.classList.add(QUICK_THROW_INCLUDED_CLASS)
+        touched.push(el)
+        continue
+      }
+      if (plan(quickThrowSource, node).kind === 'rejected') continue
+      index += 1
+      el.classList.add(QUICK_THROW_TARGET_CLASS)
+      // CSS `content` 要的是带引号的字符串，序号搭自定义属性走。
+      el.style.setProperty(QUICK_THROW_INDEX_PROP, `"${index}"`)
+      touched.push(el)
+    }
+    return () => {
+      for (const el of touched) {
+        el.classList.remove(
+          QUICK_THROW_TARGET_CLASS,
+          QUICK_THROW_INCLUDED_CLASS,
+        )
+        el.style.removeProperty(QUICK_THROW_INDEX_PROP)
+      }
+    }
+  }, [quickThrowSource, nodes, plan])
+
+  // Esc 退出模式（点画布空白退出接在 workbench 上）。
+  useEffect(() => {
+    if (!quickThrowSource) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.isComposing) {
+        setQuickThrowSource(null)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [quickThrowSource])
+
   // 卸载时的兜底：拖到一半离开页面也不留 window 监听。
   useEffect(
     () => () => {
@@ -563,5 +715,9 @@ export function useCastIngestEngineV4({
     registerGhostElement,
     resolveChoice,
     cancelChoice,
+    quickThrowSource,
+    enterQuickThrow,
+    exitQuickThrow,
+    feedQuickThrow,
   }
 }

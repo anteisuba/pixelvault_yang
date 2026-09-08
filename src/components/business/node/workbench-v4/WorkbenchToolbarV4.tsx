@@ -2,9 +2,7 @@
 
 /**
  * v4 workbench 的 chrome：顶栏 / 添加菜单 / 底部视图条 / 左侧面板
- * （第三期 · 画布 C3c-③d-3「写好不接」）。
- *
- * ⛔ 生产调用方为 0 —— 接线在 ③d-4。
+ * （第三期 · 画布）。
  *
  * ── 为什么是**复用**这几个既有组件而不是重画 ────────────────────────────
  * `CanvasTopBar` / `CanvasBottomDock` / `CanvasAddMenu` / `CanvasLeftPanel` 的

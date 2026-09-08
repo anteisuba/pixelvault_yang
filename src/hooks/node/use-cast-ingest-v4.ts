@@ -3,10 +3,9 @@
 /**
  * 「拖一张卡喂给节点」的 v4 合法性层（第三期 · 画布 C3b）。
  *
- * ⛔ **写好不接线** —— 生产调用方为 0，接线在 C3c（`StudioNodeWorkbench.tsx` 四处、
- * `IngestDragLayer.tsx` 三处、`node-assistant-op-plan.ts` 一处的
- * `evaluateCastIngest` / `previewIngestCapacity` 换成这里两个）。v3 那个钩子的
- * 动画部分（磁吸 / 咬合 / 签字）与本片无关，翻转时原样留用。
+ * ③d-4 起这是**唯一**的落槽合法性层（v3 的 `evaluateCastIngest` 已随画布翻转删
+ * 除）。那一套的动画部分（磁吸 / 咬合 / 签字）与形状无关，原样搬进
+ * `node-ingest-dom.ts` 继续用。
  *
  * ── v4 把「能不能吃」变成了「吃进哪个口」───────────────────────────────
  * v3 只能回答 yes/no（`canConnectNodeTypes` 今天恒真，容量另问

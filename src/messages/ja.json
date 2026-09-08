@@ -4439,47 +4439,59 @@
     },
     "addCatalog": {
       "groups": {
+        "text": "テキスト",
         "image": "画像",
-        "video": "動画",
         "audio": "サウンド",
-        "organize": "整理"
+        "video": "動画"
       },
       "items": {
-        "imageAsset": {
-          "label": "画像",
-          "helper": "アップロード、貼り付け、素材選択、または後から AI 生成できます。"
+        "textScript": {
+          "label": "脚本",
+          "helper": "この一幕の情景・動き・カメラ・セリフを書き出します。"
+        },
+        "textRule": {
+          "label": "ルール",
+          "helper": "画風や制作上の制約。つないだ先のノードだけに効きます。"
+        },
+        "textNote": {
+          "label": "メモ",
+          "helper": "自分用の覚え書き。制約としてモデルには渡しません。"
         },
         "imageShot": {
-          "label": "ショット画像",
-          "helper": "ショット指示とキャラクター・シーン参照から静止画を生成します。"
+          "label": "カット絵",
+          "helper": "脚本とキャラ・背景の参照から一枚の画を生成します。"
         },
-        "videoGenerate": {
-          "label": "動画生成",
-          "helper": "プロンプトと画像・音声参照を組み合わせて動画ショットを生成します。"
+        "imageCharacter": {
+          "label": "キャラクター",
+          "helper": "この人物の見た目：メイン画・寄り・ひも付けた声。"
         },
-        "videoReference": {
-          "label": "参照動画",
-          "helper": "下流の生成で動きや画面の参考にする動画をアップロードします。"
+        "imageBackground": {
+          "label": "背景",
+          "helper": "この場所の見た目：情景・空気感・ライティング。"
         },
-        "videoShotText": {
-          "label": "ショットテキスト",
-          "helper": "このショットのシーン・アクション・カメラ・構図を書き、下流の動画ノードで使います。"
+        "imageResult": {
+          "label": "生成画像",
+          "helper": "アップロード・貼り付け・素材から選択、あとで AI 生成も可。"
+        },
+        "audioVoice": {
+          "label": "ボイス",
+          "helper": "このセリフの音声。生成またはアップロード。"
+        },
+        "audioTimbre": {
+          "label": "声色",
+          "helper": "使い回せる声の個性。カットやキャラにつなぐと話し方が決まります。"
+        },
+        "videoShot": {
+          "label": "カット",
+          "helper": "ひとつのカット。始点・終点・参照・ボイス・テキストの各口を持ちます。"
+        },
+        "videoClip": {
+          "label": "クリップ",
+          "helper": "動きや画の参照にする動画をアップロードします。"
         },
         "videoMerge": {
-          "label": "動画合成",
-          "helper": "2〜9 本の動画を順番に結合し、クリップ範囲も設定できます。"
-        },
-        "audioVoiceProfile": {
-          "label": "ボイスプロフィール",
-          "helper": "システム音声または参照音声を再利用できる声の個性として保存します。"
-        },
-        "organizeCharacter": {
-          "label": "キャラクタープロフィール",
-          "helper": "メイン画像、参照、クローズアップ、紐づく音声をまとめます。"
-        },
-        "organizeScene": {
-          "label": "シーンプロフィール",
-          "helper": "シーン画像、場所、ムード、照明設定をまとめます。"
+          "label": "結合",
+          "helper": "2〜9 本のクリップを順に結合。範囲指定も可。"
         }
       },
       "cast": "キャスト匣",

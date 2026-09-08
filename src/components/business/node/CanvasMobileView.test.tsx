@@ -6,77 +6,71 @@ vi.mock('next-intl', () => ({
     params ? `${key} ${JSON.stringify(params)}` : key,
 }))
 
-const { flowState, actions, mockFocusNode, mockUpdateNodeData } = vi.hoisted(
-  () => ({
-    flowState: {
-      nodes: [] as Array<Record<string, unknown>>,
-      edges: [] as Array<Record<string, unknown>>,
-    },
-    mockFocusNode: vi.fn(),
-    mockUpdateNodeData: vi.fn(),
-    actions: {
-      reviewMode: undefined as
-        | {
-            active: boolean
-            queue: Array<{ nodeId: string; url: string }>
-            current: { nodeId: string; url: string } | null
-            currentNode: Record<string, unknown> | null
-            currentDecided: boolean
-            remaining: number
-            hasNext: boolean
-            hasPrev: boolean
-            enter: ReturnType<typeof vi.fn>
-            exit: ReturnType<typeof vi.fn>
-            goNext: ReturnType<typeof vi.fn>
-            goPrev: ReturnType<typeof vi.fn>
-          }
-        | undefined,
-    },
-  }),
-)
+const { flowState, actions, mockFocusNode, mockApplyOp } = vi.hoisted(() => ({
+  flowState: {
+    nodes: [] as Array<Record<string, unknown>>,
+    edges: [] as Array<Record<string, unknown>>,
+  },
+  mockFocusNode: vi.fn(),
+  mockApplyOp: vi.fn(),
+  actions: {
+    reviewMode: undefined as
+      | {
+          active: boolean
+          queue: Array<{ nodeId: string; url: string }>
+          current: { nodeId: string; url: string } | null
+          currentNode: Record<string, unknown> | null
+          currentDecided: boolean
+          remaining: number
+          hasNext: boolean
+          hasPrev: boolean
+          enter: ReturnType<typeof vi.fn>
+          exit: ReturnType<typeof vi.fn>
+          goNext: ReturnType<typeof vi.fn>
+          goPrev: ReturnType<typeof vi.fn>
+        }
+      | undefined,
+  },
+}))
 
 vi.mock('@xyflow/react', () => ({
   useNodes: () => flowState.nodes,
   useEdges: () => flowState.edges,
 }))
 
+// ③d-4：预览里的通过/打回换成了 `MediaReviewButtonsV4` —— 它走 **op 表**
+// （`set_review_state`），与助手写审核态同一条路径，⛔ 不再有 v3 总线。
 vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
   useNodeCanvasActions: () => ({
     focusNode: mockFocusNode,
+    applyOp: mockApplyOp,
     reviewMode: actions.reviewMode,
   }),
 }))
 
-// ⚠ 预览里的通过/打回是 legacy `MediaReviewButtons`（住在
-// `CanvasImageSelectionToolbar`，随 C3e 一起换轨），它还在 v3 总线上——所以这
-// 两条 mock 并存不是重复，是「换轨换到哪了」的实况。
-vi.mock('./NodeWorkflowActionsContext', () => ({
-  useNodeWorkflowActions: () => ({
-    updateNodeData: mockUpdateNodeData,
-    reviewMode: actions.reviewMode,
-  }),
-}))
-
-import {
-  NODE_IMAGE_ROLE_IDS,
-  NODE_REVIEW_STATE_IDS,
-  NODE_STATUS_IDS,
-  NODE_TYPE_IDS,
-} from '@/constants/node-types'
+import { NODE_REVIEW_STATE_IDS, NODE_STATUS_IDS } from '@/constants/node-types'
 
 import { CanvasMobileView } from './CanvasMobileView'
 
 function makeNode(
   id: string,
-  type: string,
+  kind: string,
+  subtype: string,
   data: Record<string, unknown> = {},
 ) {
   return {
     id,
-    type,
+    type: kind,
     position: { x: 0, y: 0 },
     selected: false,
-    data: { prompt: '', status: NODE_STATUS_IDS.idle, ...data },
+    data: {
+      kind,
+      subtype,
+      name: id,
+      status: NODE_STATUS_IDS.idle,
+      createdAt: '2026-09-08T00:00:00.000Z',
+      ...data,
+    },
   }
 }
 
@@ -139,10 +133,9 @@ describe('CanvasMobileView', () => {
 
   it('defaults to the node list, not a shrunk canvas', () => {
     flowState.nodes = [
-      makeNode('image-1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-        mediaUrl: 'https://cdn.example.com/daisy.png',
+      makeNode('image-1', 'image', 'character', {
+        name: '黛西',
+        url: 'https://cdn.example.com/daisy.png',
       }),
     ]
 
@@ -157,14 +150,14 @@ describe('CanvasMobileView', () => {
 
   it('opens a read-only preview with media, status, and connections when a row is tapped', () => {
     flowState.nodes = [
-      makeNode('image-1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-        mediaUrl: 'https://cdn.example.com/daisy.png',
+      makeNode('image-1', 'image', 'character', {
+        name: '黛西',
+        url: 'https://cdn.example.com/daisy.png',
         status: NODE_STATUS_IDS.done,
       }),
-      makeNode('video-1', NODE_TYPE_IDS.seedance, {
-        mediaLabel: '渡轮甲板',
+      makeNode('video-1', 'video', 'shot', {
+        name: '渡轮甲板',
+        label: '渡轮甲板',
       }),
     ]
     flowState.edges = [{ id: 'e1', source: 'image-1', target: 'video-1' }]
@@ -189,11 +182,8 @@ describe('CanvasMobileView', () => {
 
   it('shows connected nodes and lets tapping one retarget the preview', () => {
     flowState.nodes = [
-      makeNode('card-1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-      }),
-      makeNode('shot-1', NODE_TYPE_IDS.shot, { mediaLabel: '开场镜头' }),
+      makeNode('card-1', 'image', 'character', { name: '黛西' }),
+      makeNode('shot-1', 'image', 'shot', { name: '开场镜头' }),
     ]
     flowState.edges = [{ id: 'e1', source: 'card-1', target: 'shot-1' }]
 
@@ -212,9 +202,9 @@ describe('CanvasMobileView', () => {
 
   it('hides every editing/generation entry point in the preview (no prompt box, no generate/upload/delete controls)', () => {
     flowState.nodes = [
-      makeNode('shot-1', NODE_TYPE_IDS.shot, {
-        mediaLabel: '镜头',
-        mediaUrl: 'https://cdn.example.com/shot.png',
+      makeNode('shot-1', 'image', 'shot', {
+        name: '镜头',
+        url: 'https://cdn.example.com/shot.png',
       }),
     ]
 
@@ -245,10 +235,9 @@ describe('CanvasMobileView', () => {
   })
 
   it('makes the review path reachable: start review shows the queued node with approve/reject and prev/next', () => {
-    const reviewedNode = makeNode('image-1', NODE_TYPE_IDS.image, {
-      role: NODE_IMAGE_ROLE_IDS.character,
-      characterName: '黛西',
-      mediaUrl: 'https://cdn.example.com/daisy.png',
+    const reviewedNode = makeNode('image-1', 'image', 'character', {
+      name: '黛西',
+      url: 'https://cdn.example.com/daisy.png',
       mediaReview: {
         'https://cdn.example.com/daisy.png': {
           state: NODE_REVIEW_STATE_IDS.awaitingReview,
@@ -299,12 +288,11 @@ describe('CanvasMobileView', () => {
     expect(screen.getByRole('button', { name: 'next' })).toBeInTheDocument()
   })
 
-  it('approve/reject in the preview call the same updateNodeData channel review uses everywhere else', () => {
+  it('预览里的通过/打回走 op 表 —— 与助手写审核态同一条路径', () => {
     flowState.nodes = [
-      makeNode('image-1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-        mediaUrl: 'https://cdn.example.com/daisy.png',
+      makeNode('image-1', 'image', 'character', {
+        name: '黛西',
+        url: 'https://cdn.example.com/daisy.png',
         mediaReview: {
           'https://cdn.example.com/daisy.png': {
             state: NODE_REVIEW_STATE_IDS.awaitingReview,
@@ -319,24 +307,19 @@ describe('CanvasMobileView', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'approve' }))
 
-    expect(mockUpdateNodeData).toHaveBeenCalledWith(
-      'image-1',
-      expect.objectContaining({
-        mediaReview: expect.objectContaining({
-          'https://cdn.example.com/daisy.png': expect.objectContaining({
-            state: NODE_REVIEW_STATE_IDS.approved,
-          }),
-        }),
-      }),
-    )
+    // ⚠ 断言的是**发出的 op**，不是「调了哪个函数」—— 审核态因此可撤销、
+    // 也过同一份 schema 校验。
+    expect(mockApplyOp).toHaveBeenCalledWith({
+      op: 'set_review_state',
+      target: 'image-1',
+      url: 'https://cdn.example.com/daisy.png',
+      state: NODE_REVIEW_STATE_IDS.approved,
+    })
   })
 
   it('back from a plain preview returns to the list; back during review exits review mode', () => {
     flowState.nodes = [
-      makeNode('image-1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-      }),
+      makeNode('image-1', 'image', 'character', { name: '黛西' }),
     ]
     const { rerender } = renderDefault()
     fireEvent.click(
@@ -376,10 +359,7 @@ describe('CanvasMobileView', () => {
 
   it('shows a graceful notice instead of crashing when the previewed node was removed mid-session', () => {
     flowState.nodes = [
-      makeNode('image-1', NODE_TYPE_IDS.image, {
-        role: NODE_IMAGE_ROLE_IDS.character,
-        characterName: '黛西',
-      }),
+      makeNode('image-1', 'image', 'character', { name: '黛西' }),
     ]
     const { rerender } = renderDefault()
     fireEvent.click(

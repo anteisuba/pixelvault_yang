@@ -1,11 +1,8 @@
 'use client'
 
 /**
- * v4 **图引擎**（第三期 · 画布 C3c-③d-3「写好不接」）。
- *
- * ⛔ 本片生产调用方为 0 —— 接线在 ③d-4（页面入口换成 `NodeWorkbenchV4`，同批删
- * `use-node-workflow.ts` / `node-workflow-v3-view.ts` / `StudioNodeWorkbench.tsx`
- * / `NodeV4ActionsV3Adapter.tsx`）。
+ * v4 **图引擎**（第三期 · 画布）。③d-4 起是画布**唯一**的图引擎 —— v3 那套
+ * （`use-node-workflow` / `node-workflow-v3-view` / `StudioNodeWorkbench`）已删。
  *
  * ── 与两个既有层的分工 ────────────────────────────────────────────────
  * · `use-node-workflow-store.ts`（**复用**，不重写）：项目从哪来往哪去。

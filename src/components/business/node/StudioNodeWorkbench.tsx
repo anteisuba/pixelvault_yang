@@ -1257,16 +1257,21 @@ function StudioNodeCanvas() {
   const createCanvasObject = useCallback(
     (intentId: CanvasAddIntentId, position: XYPosition): string => {
       const item = getCanvasAddCatalogItem(intentId)
-      const newId = workflow.addNode(item.nodeType, position)
-
-      if (item.role) {
-        workflow.updateNodeData(newId, {
-          ...createDefaultNodeData(NODE_IMAGE_ROLE_TO_LEGACY_TYPE[item.role]),
-          role: item.role,
-        })
-      }
-
-      return newId
+      // ⚠ 一次提交给全：role 是 v4 身份（kind/subtype）的唯一判据，而身份只在
+      // 节点第一次落进 v4 时定。分两次提交 = 菜单里选「镜头图」落成「生成图」
+      // （真机 ②）。
+      return workflow.addNode(
+        item.nodeType,
+        position,
+        item.role
+          ? {
+              ...createDefaultNodeData(
+                NODE_IMAGE_ROLE_TO_LEGACY_TYPE[item.role],
+              ),
+              role: item.role,
+            }
+          : undefined,
+      )
     },
     [workflow],
   )

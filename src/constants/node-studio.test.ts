@@ -54,53 +54,64 @@ describe('resolveTopbarAddSpawnPosition（《画布修法》02 节刀 1 task A�
    * 居中过（生成后自动选中 + 聚焦）。两次「+ → 镜头图」都盖住了刚出的图。
    */
   describe('碰撞避让', () => {
-    const { topbarAddStep, topbarAddCascadeLimit } = NODE_STUDIO_NODE_PLACEMENT
+    const { topbarAddStep, topbarAddCascadeLimit, spawnFootprint } =
+      NODE_STUDIO_NODE_PLACEMENT
 
-    it('视口中心被占时，往下顺延到第一个空格位', () => {
+    // ⚠ C3c-③d-2 真机 ③：占用判据从「一个错位步进（64）」改成「一张卡的占地」。
+    // 旧判据下顺延一格的落点与原卡仍重叠 85%——避让顺延了，但没解决重叠。
+    it('视口中心被占时，顺延到第一个真正空出来的格位', () => {
       const spawned = resolveTopbarAddSpawnPosition(center, 0, [center])
       expect(spawned).not.toEqual(center)
-      expect(spawned).toEqual({
-        x: center.x + topbarAddStep.x,
-        y: center.y + topbarAddStep.y,
-      })
+      // 错位链上的六格全在一张卡的占地之内，所以直接跳到占地网格的第一环。
+      expect(
+        Math.abs(spawned.x - center.x) >= spawnFootprint.width ||
+          Math.abs(spawned.y - center.y) >= spawnFootprint.height,
+      ).toBe(true)
     })
 
-    it('连着两格都被占就再顺延一格', () => {
+    it('落点与已有节点在两轴上不再重叠', () => {
       const occupied = [
         center,
-        { x: center.x + topbarAddStep.x, y: center.y + topbarAddStep.y },
+        { x: center.x + spawnFootprint.width, y: center.y },
       ]
-      expect(resolveTopbarAddSpawnPosition(center, 0, occupied)).toEqual({
-        x: center.x + 2 * topbarAddStep.x,
-        y: center.y + 2 * topbarAddStep.y,
-      })
+      const spawned = resolveTopbarAddSpawnPosition(center, 0, occupied)
+      for (const node of occupied) {
+        expect(
+          Math.abs(node.x - spawned.x) >= spawnFootprint.width ||
+            Math.abs(node.y - spawned.y) >= spawnFootprint.height,
+        ).toBe(true)
+      }
     })
 
-    it('判据是两轴都在一个步进之内 —— 只有一轴接近不算占住', () => {
-      // 同一个 y，但 x 差了整整一个步进：卡角必然错开，不该被判成占住。
-      const nearMiss = [{ x: center.x + topbarAddStep.x, y: center.y }]
+    it('只有一轴接近不算占住', () => {
+      // 同一个 y，但 x 差了整整一张卡的占地：卡不重叠，不该被判成占住。
+      const nearMiss = [{ x: center.x + spawnFootprint.width, y: center.y }]
       expect(resolveTopbarAddSpawnPosition(center, 0, nearMiss)).toEqual(center)
     })
 
-    it('整条错位链都满时退回原落点，绝不飘出视口', () => {
-      const everySlot = Array.from(
-        { length: topbarAddCascadeLimit },
-        (_, index) => ({
-          x: center.x + index * topbarAddStep.x,
-          y: center.y + index * topbarAddStep.y,
-        }),
-      )
-      expect(resolveTopbarAddSpawnPosition(center, 0, everySlot)).toEqual(
+    it('周围整片都满时退回原落点，绝不无限飘远', () => {
+      const { spawnGridRings } = NODE_STUDIO_NODE_PLACEMENT
+      const everywhere: { x: number; y: number }[] = []
+      for (let dx = -spawnGridRings; dx <= spawnGridRings; dx += 1) {
+        for (let dy = -spawnGridRings; dy <= spawnGridRings; dy += 1) {
+          everywhere.push({
+            x: center.x + dx * spawnFootprint.width,
+            y: center.y + dy * spawnFootprint.height,
+          })
+        }
+      }
+      expect(resolveTopbarAddSpawnPosition(center, 0, everywhere)).toEqual(
         center,
       )
     })
 
-    it('不传清单时行为与改动前逐字相同', () => {
+    it('空画布上仍按错位步进走，不被占地网格接管', () => {
       expect(resolveTopbarAddSpawnPosition(center, 0)).toEqual(center)
       expect(resolveTopbarAddSpawnPosition(center, 2, [])).toEqual({
         x: center.x + 2 * topbarAddStep.x,
         y: center.y + 2 * topbarAddStep.y,
       })
+      expect(topbarAddCascadeLimit).toBeGreaterThan(0)
     })
   })
 })

@@ -267,18 +267,23 @@ export function reconcileStateSlots(
   options: { now?: string } = {},
 ): NodeWorkflowStateV4 {
   const roleOf = buildRoleOf(state.nodes)
+  let changed = false
   const nodes = state.nodes.map((node) => {
     const slots = reconcileSlotBindings(node, state.edges, {
       ...options,
       roleOf,
     })
     if (!slots && !node.data.slots) return node
+    // ⚠ 引用相等要保住：这个函数现在**每一次图提交**都会跑一遍（v3 视图的折回
+    // 写入口也调它），无脑造新对象等于每敲一个字把所有带槽的卡标脏。
+    if (JSON.stringify(slots) === JSON.stringify(node.data.slots)) return node
+    changed = true
     const nextData = { ...node.data } as NodeV4Data
     if (slots) nextData.slots = slots
     else delete nextData.slots
     return { ...node, data: nextData }
   })
-  return { ...state, nodes }
+  return changed ? { ...state, nodes } : state
 }
 
 /** 某个槽当前占了几条边（`canConnect` 的 `occupancy`）。 */

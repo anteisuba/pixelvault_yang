@@ -44,6 +44,7 @@ import {
   resolveEdgeSlot,
   resolveV4Identity,
 } from '@/lib/node-workflow-migrate-v4'
+import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import {
   NodeWorkflowStateV4Schema,
   type NodeV4,
@@ -499,17 +500,26 @@ export function writeV3ViewBackToV4(
     })
   }
 
-  return NodeWorkflowStateV4Schema.parse({
-    version: 4,
-    nodes,
-    edges,
-    ...defined({
-      scriptDoc: v3.scriptDoc,
-      canvasAppearance: v3.canvasAppearance,
-      scriptDocStage: v3.scriptDocStage,
-      scriptDocDepth: v3.scriptDocDepth,
-      scriptDocLocks: v3.scriptDocLocks,
-      scriptDocShotStills: v3.scriptDocShotStills,
+  // ⚠ 边建完就地把槽绑定对齐（真机 ①）。
+  //
+  // v3 引擎只认「边」，v4 的槽卡认的是目标节点 `data.slots` 上的绑定。此前这里
+  // 只写边不写绑定，于是拖一条线：v4 里边有了、`slot: "reference"` 也对，但镜头卡
+  // 的参考槽里空空如也——用户看到的是「连了等于没连」。`reconcileStateSlots`
+  // 是幂等的（保留已选版本 / 停用标记），所以放在唯一写入口的末尾最省心。
+  return reconcileStateSlots(
+    NodeWorkflowStateV4Schema.parse({
+      version: 4,
+      nodes,
+      edges,
+      ...defined({
+        scriptDoc: v3.scriptDoc,
+        canvasAppearance: v3.canvasAppearance,
+        scriptDocStage: v3.scriptDocStage,
+        scriptDocDepth: v3.scriptDocDepth,
+        scriptDocLocks: v3.scriptDocLocks,
+        scriptDocShotStills: v3.scriptDocShotStills,
+      }),
     }),
-  })
+    { ...(options.now ? { now: options.now } : {}) },
+  )
 }

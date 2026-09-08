@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { Connection } from '@xyflow/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { CANVAS_ADD_CATALOG } from '@/constants/canvas-add-catalog'
 import {
   getNodeStudioWorkflowStorageKey,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
@@ -1948,6 +1949,162 @@ describe('useNodeWorkflow', () => {
     expect(backupCalls()).toHaveLength(0)
     expect(result.current.stateV4.version).toBe(4)
     expect(result.current.readOnlyReason).toBeNull()
+  })
+
+  // ─── C3c-③d-2 · 真机 ②：加号菜单选「镜头图」落成了「生成图」──────────────
+  //
+  // v4 身份（kind/subtype）只在节点**第一次**落进 v4 时定。此前建点是两次提交
+  // （先建无 role 的 image，再补 role），第一次就把它定成了 `image.result`。
+
+  it('建点时给了 role 就按 role 定 v4 身份，不落成 image.result', async () => {
+    const { result } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({ success: true, data: [serverProjectRecord()] }),
+    })
+
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION, {
+        role: NODE_IMAGE_ROLE_IDS.shot,
+      })
+    })
+
+    const created = result.current.stateV4.nodes.at(-1)
+    expect(created?.data.kind).toBe('image')
+    expect(created?.data.subtype).toBe('shot')
+  })
+
+  it('加号菜单每一项落出来的 v4 身份，与词表里写死的那一项逐项相等', async () => {
+    const { result } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({ success: true, data: [serverProjectRecord()] }),
+    })
+
+    const items = CANVAS_ADD_CATALOG.flatMap((group) => group.items)
+    expect(items.length).toBeGreaterThan(0)
+
+    for (const item of items) {
+      act(() => {
+        result.current.addNode(
+          item.nodeType,
+          FIRST_POSITION,
+          item.role ? { role: item.role } : undefined,
+        )
+      })
+      const created = result.current.stateV4.nodes.at(-1)
+      expect({
+        intent: item.id,
+        kind: created?.data.kind,
+        subtype: created?.data.subtype,
+      }).toEqual({
+        intent: item.id,
+        kind: item.v4.kind,
+        subtype: item.v4.subtype,
+      })
+    }
+  })
+
+  it('不给 role 的散图仍落 image.result', async () => {
+    const { result } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({ success: true, data: [serverProjectRecord()] }),
+    })
+
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.image, FIRST_POSITION)
+    })
+
+    expect(result.current.stateV4.nodes.at(-1)?.data.subtype).toBe('result')
+  })
+
+  // ─── C3c-③d-2 · 备份闸误判（真机：v4 的「AI拟人剧场」弹只读 toast）─────────
+  //
+  // 真机根因：hydration 把账号下**每一条** v3 记录都发一次备份 POST。30 个 v3
+  // 项目撞上 10/分钟的限流，二十来个备份 500 → 全被标 backupFailed，而 toast
+  // 是「本会话报一次」的全局提示，于是用户手上那张**已经是 v4** 的图也被告知
+  // 「画布暂时只读」。备份是**打开项目那一刻**的事，不是 hydration 的事。
+
+  it('打开的是 v4 项目时，账号里其他 v3 项目不发备份、不弹只读', async () => {
+    const { result, backupCalls } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({
+          success: true,
+          data: [
+            // 第 0 条 = 服务端 lastActiveAt 最新的那个 = 马上要打开的那个。
+            serverProjectRecord({ id: 'srv_v4_active' }),
+            serverProjectRecord({
+              id: 'srv_v3_idle_1',
+              state: { nodes: [V3_SERVER_NODE], edges: [] },
+            }),
+            serverProjectRecord({
+              id: 'srv_v3_idle_2',
+              state: { nodes: [V3_SERVER_NODE], edges: [] },
+            }),
+          ],
+        }),
+    })
+
+    expect(result.current.currentProjectId).toBe('srv_v4_active')
+    // ⛔ 没打开的 v3 项目一个备份请求都不发（这正是把限流打爆的那一批）。
+    expect(backupCalls()).toHaveLength(0)
+    // 当前项目是 v4：可写、不弹 toast。
+    expect(result.current.readOnlyReason).toBeNull()
+    expect(toastErrorMock).not.toHaveBeenCalled()
+  })
+
+  it('切到还没升级的 v3 项目时才补备份，成功即解闸', async () => {
+    const { result, backupCalls } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({
+          success: true,
+          data: [
+            serverProjectRecord({ id: 'srv_v4_active' }),
+            serverProjectRecord({
+              id: 'srv_v3_idle_1',
+              state: { nodes: [V3_SERVER_NODE], edges: [] },
+            }),
+          ],
+        }),
+    })
+    expect(backupCalls()).toHaveLength(0)
+
+    await act(async () => {
+      result.current.switchProject('srv_v3_idle_1')
+    })
+    await waitFor(() => expect(backupCalls()).toHaveLength(1))
+    expect(backupCalls()[0]?.url).toContain('srv_v3_idle_1')
+    await waitFor(() => expect(result.current.readOnlyReason).toBeNull())
+    expect(toastErrorMock).not.toHaveBeenCalled()
+  })
+
+  it('切过去补备份失败才置只读，并且这次 toast 说的就是手上这张图', async () => {
+    const { result, putCalls, backupCalls } = await renderHydratedHook({
+      list: () =>
+        jsonResponse({
+          success: true,
+          data: [
+            serverProjectRecord({ id: 'srv_v4_active' }),
+            serverProjectRecord({
+              id: 'srv_v3_idle_1',
+              state: { nodes: [V3_SERVER_NODE], edges: [] },
+            }),
+          ],
+        }),
+      backup: () => jsonResponse({ success: false, error: 'R2 down' }, 500),
+    })
+
+    await act(async () => {
+      result.current.switchProject('srv_v3_idle_1')
+    })
+    await waitFor(() => expect(backupCalls()).toHaveLength(1))
+    await waitFor(() =>
+      expect(result.current.readOnlyReason).toBe('backupFailed'),
+    )
+    expect(toastErrorMock).toHaveBeenCalledWith('v3UpgradeReadOnly')
+
+    mutateAndFlushServerWrite(() => {
+      result.current.addNode(NODE_TYPE_IDS.image, SECOND_POSITION)
+    })
+    expect(putCalls()).toHaveLength(0)
   })
 
   it('does not carry one account’s confirmed ids into the next sign-in', async () => {

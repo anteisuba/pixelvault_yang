@@ -10,6 +10,7 @@ import {
   migrateNodeWorkflowStateToV4,
   type V3State,
 } from '@/lib/node-workflow-migrate-v4'
+import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import {
   projectV4ToV3View,
   writeV3ViewBackToV4,
@@ -114,13 +115,17 @@ describe('projectV4ToV3View', () => {
 })
 
 describe('writeV3ViewBackToV4', () => {
-  it('原样折回：投影再写回 = 原 v4（v4 独有字段一个不丢）', () => {
+  // ⚠ 比的是**对齐过槽绑定**的那一份，不是 `v4Of()` 原件（C3c-③d-2 · 真机 ①）：
+  // 写回时会顺手把边对应的 `data.slots` 补齐，否则「连了线但槽卡是空的」。
+  it('原样折回：投影再写回 = 原 v4（v4 独有字段一个不丢，槽绑定按边对齐）', () => {
     const v4 = v4Of()
     const view = projectV4ToV3View(
       v4,
       fixture() as unknown as NodeWorkflowState,
     )
-    expect(writeV3ViewBackToV4(view, v4, { now: NOW })).toEqual(v4)
+    expect(writeV3ViewBackToV4(view, v4, { now: NOW })).toEqual(
+      reconcileStateSlots(v4, { now: NOW }),
+    )
   })
 
   it('往返稳定：再投影一次仍然是同一份视图', () => {
@@ -148,13 +153,70 @@ describe('writeV3ViewBackToV4', () => {
       ),
     }
     const next = writeV3ViewBackToV4(edited, v4, { now: NOW })
-    const before = v4.nodes.find((n) => n.id === 'n_video')
+    const before = reconcileStateSlots(v4, { now: NOW }).nodes.find(
+      (n) => n.id === 'n_video',
+    )
     const after = next.nodes.find((n) => n.id === 'n_video')
     expect(after).toEqual({
       ...before,
       data: { ...before?.data, prompt: '她停住' },
     })
     expect(next.edges).toEqual(v4.edges)
+  })
+
+  // ─── C3c-③d-2 · 真机 ①：连线建成了边，但目标节点的槽绑定没写 ──────────────
+  //
+  // v3 引擎只认「边」，v4 的槽卡认的是目标节点 `data.slots`。写回口只落边不落
+  // 绑定 = 用户拖完线看到的是「连了等于没连」。
+  it('新连的一条边，目标节点的槽绑定同步落上（不是只有边）', () => {
+    const v4 = v4Of()
+    const view = projectV4ToV3View(
+      v4,
+      fixture() as unknown as NodeWorkflowState,
+    )
+    const edited: NodeWorkflowState = {
+      ...view,
+      edges: [
+        ...view.edges,
+        {
+          id: 'e_bg_new',
+          source: 'n_bg',
+          target: 'n_video',
+        } as (typeof view.edges)[number],
+      ],
+    }
+
+    const next = writeV3ViewBackToV4(edited, v4, { now: NOW })
+    const video = next.nodes.find((n) => n.id === 'n_video')
+    const reference = video?.data.slots?.[NODE_SLOT_IDS.reference]
+    expect(
+      reference?.versions.map((version) => version.sourceNodeId),
+    ).toContain('n_bg')
+    // 新连的那一版成为当前版 —— 用户刚拖的线要在槽里看得见。
+    expect(
+      reference?.versions.find((version) => version.id === reference.cur)
+        ?.sourceNodeId,
+    ).toBe('n_bg')
+  })
+
+  it('拆掉一条边，槽绑定里对应的那一版跟着消失', () => {
+    const v4 = reconcileStateSlots(v4Of(), { now: NOW })
+    const view = projectV4ToV3View(
+      v4,
+      fixture() as unknown as NodeWorkflowState,
+    )
+    const edited: NodeWorkflowState = {
+      ...view,
+      edges: view.edges.filter((edge) => edge.id !== 'e_char'),
+    }
+
+    const next = writeV3ViewBackToV4(edited, v4, { now: NOW })
+    const reference = next.nodes.find((n) => n.id === 'n_video')?.data.slots?.[
+      NODE_SLOT_IDS.reference
+    ]
+    expect(reference?.versions.map((version) => version.edgeId)).not.toContain(
+      'e_char',
+    )
   })
 
   it('新增的 v3 节点现造一份 v4；删掉的节点连它的边一起走', () => {

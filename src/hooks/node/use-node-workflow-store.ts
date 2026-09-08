@@ -106,6 +106,15 @@ export const NODE_WORKFLOW_READ_ONLY_REASONS = {
   backupFailed: 'backupFailed',
   /** state 坏到迁移不出来 —— 报错可见，⛔ 不兜空覆盖。 */
   migrationFailed: 'migrationFailed',
+  /**
+   * v3 记录**还没轮到升级**：用户没打开它，所以我们既没备份也没写。
+   *
+   * ⚠ 与 `backupFailed` 分开是因为它不是故障：备份是**打开项目那一刻**才做的
+   * （见 `switchProject`）。此前 hydration 会把账号下每一个 v3 项目都发一次备份
+   * 请求，30 个项目撞上 10/分钟的限流 → 二十来个项目被误判成「备份失败」并置只读，
+   * 连当前打开的 v4 项目也跟着吃一条「画布暂时只读」的 toast。
+   */
+  pendingUpgrade: 'pendingUpgrade',
 } as const
 
 export type NodeWorkflowReadOnlyReason =
@@ -280,6 +289,7 @@ function isV4State(state: unknown): state is NodeWorkflowStateV4 {
  */
 async function upgradeServerRecord(
   record: NodeWorkflowProjectRecord,
+  options: { readonly backupAllowed: boolean },
 ): Promise<UpgradedProject> {
   const base = {
     id: record.id,
@@ -295,7 +305,11 @@ async function upgradeServerRecord(
   const result = await upgradeNodeWorkflowStateToV4({
     projectId: record.id,
     rawState: originV3 ?? record.state,
+    // ⛔ 没打开的 v3 项目不发备份请求：它此刻既不会被渲染也不会被写回，备份
+    // 留到 `switchProject` 真的打开它那一刻。返回 null = 「没备份」，升级函数
+    // 会给出可渲染的 v4 视图但 `canPersist: false`。
     backup: async (projectId) => {
+      if (!options.backupAllowed) return null
       const response = await backupNodeWorkflowV3StateAPI(
         projectId,
         'v3 -> v4 client upgrade',
@@ -322,7 +336,9 @@ async function upgradeServerRecord(
     project: { ...base, state: result.state },
     readOnly: result.canPersist
       ? null
-      : NODE_WORKFLOW_READ_ONLY_REASONS.backupFailed,
+      : options.backupAllowed
+        ? NODE_WORKFLOW_READ_ONLY_REASONS.backupFailed
+        : NODE_WORKFLOW_READ_ONLY_REASONS.pendingUpgrade,
     ...(originV3 ? { originV3 } : {}),
     ...(result.backupKey ? { backupKey: result.backupKey } : {}),
   }
@@ -663,17 +679,39 @@ export function useNodeWorkflowStore({
   >({})
   const readOnlyRef = useRef<Record<string, NodeWorkflowReadOnlyReason>>({})
   const hasReportedReadOnly = useRef(false)
+  /**
+   * ⚠ toast **只为用户当前打开的那个项目**发。
+   *
+   * 之前是「本会话只要有任何一个项目只读就报一次」，于是账号里某个久未打开的
+   * v3 项目备份失败，正在编辑的 v4 项目也会弹「画布暂时只读」——用户看到的是
+   * 一句与手上这张图无关、却明确说不能编辑的话。`pendingUpgrade` 更不该出声：
+   * 它是「还没轮到」，不是故障。
+   */
   const markReadOnly = useCallback(
     (entries: Record<string, NodeWorkflowReadOnlyReason>) => {
       if (Object.keys(entries).length === 0) return
       readOnlyRef.current = { ...readOnlyRef.current, ...entries }
       setReadOnlyProjectIds(readOnlyRef.current)
+      const currentReason = entries[storageRef.current.currentProjectId]
+      if (!currentReason) return
+      if (currentReason === NODE_WORKFLOW_READ_ONLY_REASONS.pendingUpgrade) {
+        return
+      }
       if (hasReportedReadOnly.current) return
       hasReportedReadOnly.current = true
       toast.error(tToastsRef.current('v3UpgradeReadOnly'))
     },
     [],
   )
+
+  /** 只读闸解除（备份补做成功后）。 */
+  const clearReadOnly = useCallback((projectId: string) => {
+    if (!readOnlyRef.current[projectId]) return
+    const next = { ...readOnlyRef.current }
+    delete next[projectId]
+    readOnlyRef.current = next
+    setReadOnlyProjectIds(next)
+  }, [])
 
   const hasHydrated = useRef(false)
   const hasPreHydrationMutation = useRef(false)
@@ -834,8 +872,13 @@ export function useNodeWorkflowStore({
     ): Promise<boolean> => {
       const projects: NodeWorkflowProjectV4[] = []
       const readOnly: Record<string, NodeWorkflowReadOnlyReason> = {}
+      // 服务端按 lastActiveAt 排序，第 0 条就是马上要打开的那个项目 —— 也是
+      // 本次 hydration 里**唯一**允许发备份请求的那个。
+      const activeRecordId = records[0]?.id ?? null
       for (const record of records) {
-        const upgraded = await upgradeServerRecord(record)
+        const upgraded = await upgradeServerRecord(record, {
+          backupAllowed: record.id === activeRecordId,
+        })
         if (cancelled) return false
         projects.push(upgraded.project)
         if (upgraded.readOnly) readOnly[record.id] = upgraded.readOnly
@@ -1069,6 +1112,37 @@ export function useNodeWorkflowStore({
     ],
   )
 
+  /**
+   * 补做一个 `pendingUpgrade` 项目的 v3 备份 —— 「打开它」就是升级的触发点。
+   * 备份成功 → 解闸，这个项目从此按 v4 正常读写；失败 → 升级成 `backupFailed`
+   * 并让用户看见（它现在**是**当前项目，toast 说的就是手上这张图）。
+   */
+  const ensureBackupBeforeEditing = useCallback(
+    (id: string) => {
+      if (
+        readOnlyRef.current[id] !==
+        NODE_WORKFLOW_READ_ONLY_REASONS.pendingUpgrade
+      ) {
+        return
+      }
+      // ⛔ 服务端还没确认过身份就别发：那一发失败会把「还没轮到」误升级成
+      // 「备份失败」，用户下次打开这个项目就永远只读了。
+      if (!canCallServerNow()) return
+      void backupNodeWorkflowV3StateAPI(id, 'v3 -> v4 client upgrade').then(
+        (response) => {
+          if (response.success && response.data) {
+            clearReadOnly(id)
+            return
+          }
+          markReadOnly({
+            [id]: NODE_WORKFLOW_READ_ONLY_REASONS.backupFailed,
+          })
+        },
+      )
+    },
+    [canCallServerNow, clearReadOnly, markReadOnly],
+  )
+
   const switchProject = useCallback(
     (id: string) => {
       setWorkflowStorage((currentStorage) =>
@@ -1076,6 +1150,7 @@ export function useNodeWorkflowStore({
           ? { ...currentStorage, currentProjectId: id }
           : currentStorage,
       )
+      ensureBackupBeforeEditing(id)
 
       // Bump server lastActiveAt so reopening this account on another
       // device lands on the just-switched-to project.
@@ -1092,7 +1167,7 @@ export function useNodeWorkflowStore({
         })
       }
     },
-    [canCallServerNow, setWorkflowStorage],
+    [canCallServerNow, ensureBackupBeforeEditing, setWorkflowStorage],
   )
 
   const renameCurrentProject = useCallback(

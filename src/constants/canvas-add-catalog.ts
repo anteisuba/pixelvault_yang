@@ -1,7 +1,14 @@
 import {
   NODE_IMAGE_ROLE_IDS,
+  NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
+  NODE_V4_AUDIO_SUBTYPE_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
+  NODE_V4_TEXT_SUBTYPE_IDS,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
   type NodeImageRole,
+  type NodeV4Subtype,
+  type NodeWorkflowMediaKind,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 
@@ -67,6 +74,16 @@ export interface CanvasAddCatalogItem {
     | 'organizeScene'
   nodeType: NodeWorkflowNodeType
   role?: NodeImageRole
+  /**
+   * 这一项**应该**落成的 v4 身份（node-canvas-v2 §1）。
+   *
+   * ⚠ 真机 ②：菜单里选「镜头图」落成了 `image.result` —— 加号菜单说的是 legacy
+   * 词表（type + role），v4 身份是另一头按 role 推的，两边没有任何东西把它们钉在
+   * 一起，推错了也没人喊。这一栏就是那颗钉子：`NODE_V4_SUBTYPE_LABELS` 的键
+   * （`${kind}.${subtype}`）在这里写死，建点路径落出来的身份必须与它逐项相等
+   * （见 `use-node-workflow.test.ts` 的词表守卫用例）。
+   */
+  v4: { kind: NodeWorkflowMediaKind; subtype: NodeV4Subtype }
 }
 
 export interface CanvasAddCatalogGroup {
@@ -80,6 +97,10 @@ const CATALOG_ITEMS: readonly CanvasAddCatalogItem[] = [
     group: CANVAS_ADD_GROUP_IDS.image,
     labelKey: 'imageAsset',
     nodeType: NODE_TYPE_IDS.image,
+    v4: {
+      kind: NODE_MEDIA_KIND_IDS.image,
+      subtype: NODE_V4_IMAGE_SUBTYPE_IDS.result,
+    },
   },
   {
     id: CANVAS_ADD_INTENT_IDS.imageShot,
@@ -87,36 +108,62 @@ const CATALOG_ITEMS: readonly CanvasAddCatalogItem[] = [
     labelKey: 'imageShot',
     nodeType: NODE_TYPE_IDS.image,
     role: NODE_IMAGE_ROLE_IDS.shot,
+    v4: {
+      kind: NODE_MEDIA_KIND_IDS.image,
+      subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
+    },
   },
   {
     id: CANVAS_ADD_INTENT_IDS.videoGenerate,
     group: CANVAS_ADD_GROUP_IDS.video,
     labelKey: 'videoGenerate',
     nodeType: NODE_TYPE_IDS.seedance,
+    v4: {
+      kind: NODE_MEDIA_KIND_IDS.video,
+      subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+    },
   },
   {
     id: CANVAS_ADD_INTENT_IDS.videoReference,
     group: CANVAS_ADD_GROUP_IDS.video,
     labelKey: 'videoReference',
     nodeType: NODE_TYPE_IDS.videoReference,
+    v4: {
+      kind: NODE_MEDIA_KIND_IDS.video,
+      subtype: NODE_V4_VIDEO_SUBTYPE_IDS.clip,
+    },
   },
   {
     id: CANVAS_ADD_INTENT_IDS.videoShotText,
     group: CANVAS_ADD_GROUP_IDS.video,
     labelKey: 'videoShotText',
     nodeType: NODE_TYPE_IDS.shotText,
+    // 手工建的镜头文本没有 `scriptRef` → v4 身份是 `text.script`（剧本），
+    // 不是 `text.shotNote`（那是剧本笺投影出来的）。
+    v4: {
+      kind: NODE_MEDIA_KIND_IDS.text,
+      subtype: NODE_V4_TEXT_SUBTYPE_IDS.script,
+    },
   },
   {
     id: CANVAS_ADD_INTENT_IDS.videoMerge,
     group: CANVAS_ADD_GROUP_IDS.video,
     labelKey: 'videoMerge',
     nodeType: NODE_TYPE_IDS.videoMerge,
+    v4: {
+      kind: NODE_MEDIA_KIND_IDS.video,
+      subtype: NODE_V4_VIDEO_SUBTYPE_IDS.merge,
+    },
   },
   {
     id: CANVAS_ADD_INTENT_IDS.audioVoiceProfile,
     group: CANVAS_ADD_GROUP_IDS.audio,
     labelKey: 'audioVoiceProfile',
     nodeType: NODE_TYPE_IDS.voice,
+    v4: {
+      kind: NODE_MEDIA_KIND_IDS.audio,
+      subtype: NODE_V4_AUDIO_SUBTYPE_IDS.voice,
+    },
   },
   {
     id: CANVAS_ADD_INTENT_IDS.organizeCharacter,
@@ -124,6 +171,10 @@ const CATALOG_ITEMS: readonly CanvasAddCatalogItem[] = [
     labelKey: 'organizeCharacter',
     nodeType: NODE_TYPE_IDS.image,
     role: NODE_IMAGE_ROLE_IDS.character,
+    v4: {
+      kind: NODE_MEDIA_KIND_IDS.image,
+      subtype: NODE_V4_IMAGE_SUBTYPE_IDS.character,
+    },
   },
   {
     id: CANVAS_ADD_INTENT_IDS.organizeScene,
@@ -131,6 +182,10 @@ const CATALOG_ITEMS: readonly CanvasAddCatalogItem[] = [
     labelKey: 'organizeScene',
     nodeType: NODE_TYPE_IDS.image,
     role: NODE_IMAGE_ROLE_IDS.background,
+    v4: {
+      kind: NODE_MEDIA_KIND_IDS.image,
+      subtype: NODE_V4_IMAGE_SUBTYPE_IDS.background,
+    },
   },
 ] as const
 

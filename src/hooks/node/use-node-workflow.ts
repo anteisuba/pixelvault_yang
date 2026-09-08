@@ -175,7 +175,12 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
   projects: NodeWorkflowProjectSummary[]
   currentProjectId: string
   currentProjectName: string
-  addNode(type: NodeWorkflowNodeType, position: XYPosition): string
+  addNode(
+    type: NodeWorkflowNodeType,
+    position: XYPosition,
+    /** 建点即生效的初始 data —— 身份字段（`role`）必须走这里，见实现处注释。 */
+    initialData?: Partial<NodeWorkflowNodeData>,
+  ): string
   placeDerivedImages(
     sourceNodeId: string,
     outputs: readonly CanvasDerivedImageOutput[],
@@ -535,7 +540,11 @@ export function useNodeWorkflow({
   )
 
   const addNode = useCallback(
-    (type: NodeWorkflowNodeType, position: XYPosition) => {
+    (
+      type: NodeWorkflowNodeType,
+      position: XYPosition,
+      initialData?: Partial<NodeWorkflowNodeData>,
+    ) => {
       const nodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
       // Resizable card shells need an explicit RF size at creation so a
       // freshly-added node renders at a real size before anything is
@@ -555,7 +564,12 @@ export function useNodeWorkflow({
         id: nodeId,
         type,
         position,
-        data: createDefaultNodeData(type),
+        // ⚠ 身份字段（`role`）必须在**建点这一次提交**里给全。
+        // 真机 ②：加号菜单选「镜头图」落成了 `image.result` —— 因为此前是
+        // 「先 addNode 建一张无 role 的 image，再 updateNodeData 补 role」，
+        // 而 v4 身份是在节点第一次出现时定的（`resolveUnifiedImageIdentity`：
+        // role 缺失 → result），第二次提交只逐字段覆盖、不会重定 subtype。
+        data: { ...createDefaultNodeData(type), ...initialData },
         ...(needsExplicitSize
           ? {
               width: NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE,

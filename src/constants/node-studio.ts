@@ -1012,6 +1012,24 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
   /** 错位步进按取模回卷的上限：连点超过这个次数后从头开始叠错位，避免几十次
    *  连点后越飘越远、飘出可见范围（"落点在视口内"是这条路径的另一条硬指标）。 */
   topbarAddCascadeLimit: 6,
+  /**
+   * 「这块地被占了」的判据（`resolveTopbarAddSpawnPosition`）。
+   *
+   * ⚠ C3c-③d-2 真机 ③：此前占用判据借用的是错位步进（64），而卡宽 320–400。
+   * 于是「往下顺延一格」顺延完的落点与原卡仍然重叠 85%，六格错位链整条加起来
+   * 也不到一张卡宽——用户看到的就是「新建的节点全叠在一起」。判据必须是卡的
+   * **真实占地**，不是让人看出层次的那个视觉步进。
+   *
+   * 取值 = 最宽的收起态卡（`NODE_V4_CARD.shotCollapsedWidth` 400）+ 一档间隙，
+   * 高度按收起态镜头卡的典型高给（画布这条路径拿不到测量后的真高，宁可略大：
+   * 判大了只是多挪一格，判小了就是重叠）。
+   */
+  spawnFootprint: {
+    width: 440,
+    height: 340,
+  },
+  /** 错位链整条被占满后，按占地网格往外找空位的最大环数。 */
+  spawnGridRings: 3,
   // projectScriptDocToGraph anchors a recognisable left→right pipeline:
   // characters | shotText | shotStill | voice | seedance | videoMerge.
   // ScriptDoc has no on-canvas node to anchor on, so positions are absolute
@@ -1105,7 +1123,12 @@ export function resolveTopbarAddSpawnPosition(
    */
   occupied?: readonly { x: number; y: number }[],
 ): { x: number; y: number } {
-  const { topbarAddStep, topbarAddCascadeLimit } = NODE_STUDIO_NODE_PLACEMENT
+  const {
+    topbarAddStep,
+    topbarAddCascadeLimit,
+    spawnFootprint,
+    spawnGridRings,
+  } = NODE_STUDIO_NODE_PLACEMENT
   const at = (index: number) => ({
     x: viewportCenter.x + index * topbarAddStep.x,
     y: viewportCenter.y + index * topbarAddStep.y,
@@ -1115,24 +1138,40 @@ export function resolveTopbarAddSpawnPosition(
   if (!occupied || occupied.length === 0) return fallback
 
   /**
-   * 「占住了」的判据是**两轴都落在一个步进之内**。用步进本身当阈值而不是去量
-   * 卡的真实尺寸：卡宽从 320 到 420 不等且随内容变，工作台这条路径手里没有可靠
-   * 的尺寸；而错位步进（64）本来就是「让人一眼看出这是两张卡」的那个数，
-   * 挪一格之后卡角必然错开，这正是要的结果。
+   * 「占住了」的判据是**两轴都落在一张卡的占地之内**（`spawnFootprint`）。
+   *
+   * ⚠ 曾经用的是错位步进（64）当阈值，理由是「工作台拿不到卡的真实尺寸」。
+   * 但那让避让形同虚设：顺延一格之后两张 400 宽的卡还压着 85%，真机上看到的
+   * 就是「新建的节点全叠在一起」（C3c-③d-2 真机 ③）。拿不到真尺寸不等于要用
+   * 一个已知偏小的数——宁可按最宽的收起态卡估一个偏大的占地。
    */
   const isFree = (candidate: { x: number; y: number }) =>
     !occupied.some(
       (node) =>
-        Math.abs(node.x - candidate.x) < topbarAddStep.x &&
-        Math.abs(node.y - candidate.y) < topbarAddStep.y,
+        Math.abs(node.x - candidate.x) < spawnFootprint.width &&
+        Math.abs(node.y - candidate.y) < spawnFootprint.height,
     )
 
   for (let offset = 0; offset < topbarAddCascadeLimit; offset += 1) {
     const candidate = at((sequence + offset) % topbarAddCascadeLimit)
     if (isFree(candidate)) return candidate
   }
-  // 整条错位链都被占满 —— 与其飘到视野外，不如退回原来的落点（「落点在视口内」
-  // 是这条路径的另一条硬指标，见 `topbarAddCascadeLimit` 的注释）。
+
+  // 错位链整条被占满（视口中心那一片本来就密）——按**卡的占地**往外一环一环
+  // 找空位。⚠ 不再原地退回 `fallback`：那正是「明明有空地却把新卡叠在旧卡上」
+  // 的那一步。环数有上限，找不到才认了落回原点，不让它无限飘远。
+  for (let ring = 1; ring <= spawnGridRings; ring += 1) {
+    for (let dx = -ring; dx <= ring; dx += 1) {
+      for (let dy = -ring; dy <= ring; dy += 1) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue
+        const candidate = {
+          x: fallback.x + dx * spawnFootprint.width,
+          y: fallback.y + dy * spawnFootprint.height,
+        }
+        if (isFree(candidate)) return candidate
+      }
+    }
+  }
   return fallback
 }
 

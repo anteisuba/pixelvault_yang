@@ -29,7 +29,15 @@ import { MentionInput, type MentionToken } from './composer/MentionInput'
 import { cn } from '@/lib/utils'
 import type { NodeAssistantMediaReference } from '@/types/node-assistant'
 
+import type {
+  NodeAssistantOpPlanV4,
+  PlannedNodeAssistantOpV4,
+} from '@/lib/node-assistant-op-plan'
+import type { NodeAssistantOpV4Batch } from '@/types/node-assistant-ops'
+
 import { CanvasAssistantReferencePicker } from './CanvasAssistantReferencePicker'
+import { CanvasOpProposalCard } from './CanvasOpProposalCard'
+import type { NodeAssistantOpRunResult } from './nodes/v4/NodeV4ActionsBridge'
 
 interface AssistantConversationProps {
   messages: AssistantConversationMessage[]
@@ -53,6 +61,23 @@ interface AssistantConversationProps {
   referenceOptions?: NodeAssistantMediaReference[]
   canUseReference?(reference: NodeAssistantMediaReference): boolean
   onRunCapability?(reference: AssistantCapabilityReference): Promise<void>
+  /**
+   * 把一份提案排成「哪些能做、哪些不能以及为什么」。由 dock 提供 —— 只有它看得到
+   * nodes/edges，对话组件自己不认识图。两个回调缺任何一个就不出提案卡。
+   */
+  planAssistantOps?(batch: NodeAssistantOpV4Batch): NodeAssistantOpPlanV4
+  onApplyAssistantOps?(
+    ops: readonly PlannedNodeAssistantOpV4[],
+  ): Promise<NodeAssistantOpRunResult>
+  /**
+   * 哪些消息的结构 op 已经自动落了画布，各落了几条。**由 dock 记账** ——
+   * 「恰好一次」的判定要跨流式重渲染与浮卡开关，不能放在按消息渲染的卡里。
+   */
+  autoAppliedByMessageId?: Record<string, number>
+  /** 台账 K-2：自动落里连线没建成的条数，按消息 id。 */
+  autoFailedConnectsByMessageId?: Record<string, number>
+  /** 自动落之后那一步「撤销」。整批只占一个撤销步。 */
+  onUndoAutoApply?(): void
 }
 
 /**
@@ -121,6 +146,11 @@ export function AssistantConversation({
   referenceOptions = [],
   canUseReference = () => true,
   onRunCapability,
+  planAssistantOps,
+  onApplyAssistantOps,
+  autoAppliedByMessageId,
+  autoFailedConnectsByMessageId,
+  onUndoAutoApply,
 }: AssistantConversationProps) {
   const t = useTranslations('StudioNode.conversation')
   const tAssistant = useTranslations('PromptAssistant')
@@ -418,9 +448,18 @@ export function AssistantConversation({
                       })}
                     </div>
                   ) : null}
-                  {/* ⚠ 助手 op 提案卡随 C3c-③d-4 下线（v3 规划器删了、v4 规划器
-                      是 ③e）：留一张点了不会发生任何事的卡比没有更糟。⛔ 别在这里
-                      塞一句「暂不支持」——`opsMalformed` 那条说的是另一件事。 */}
+                  {message.ops && planAssistantOps && onApplyAssistantOps ? (
+                    <CanvasOpProposalCard
+                      plan={planAssistantOps(message.ops)}
+                      getNodeLabel={getNodeLabel}
+                      onApply={onApplyAssistantOps}
+                      autoAppliedCount={autoAppliedByMessageId?.[message.id]}
+                      autoFailedConnects={
+                        autoFailedConnectsByMessageId?.[message.id]
+                      }
+                      {...(onUndoAutoApply ? { onUndoAutoApply } : {})}
+                    />
+                  ) : null}
                   {message.opsMalformed ? (
                     <p className="mt-2 text-2xs text-node-subtle">
                       {t('opsMalformed')}

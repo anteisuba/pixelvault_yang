@@ -234,3 +234,21 @@ export function getCanvasAddCatalogItem(
   }
   return item
 }
+
+const CATALOG_ITEM_BY_V4 = new Map(
+  CATALOG_ITEMS.map((item) => [`${item.v4.kind}.${item.v4.subtype}`, item]),
+)
+
+/**
+ * v4 身份 → 添加菜单里的那一项（③e 提案卡用它取「新建了什么」的说法）。
+ *
+ * ⚠ 找不到时返回 `undefined` 而不是抛：助手的 `add_node` 收的是**全部** kind ×
+ * subtype 组合，而菜单只摆了其中 12 项（`image.reference` 这类只由派生产生，
+ * 菜单里没有）。抛错会让整张对话白屏，缺一个词只是少一个更好听的说法。
+ */
+export function findCanvasAddCatalogItemByV4(
+  kind: NodeWorkflowMediaKind,
+  subtype: NodeV4Subtype,
+): CanvasAddCatalogItem | undefined {
+  return CATALOG_ITEM_BY_V4.get(`${kind}.${subtype}`)
+}

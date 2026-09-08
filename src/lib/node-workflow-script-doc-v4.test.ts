@@ -4,10 +4,6 @@ import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import type { NodeWorkflowState } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
-import {
-  getUpstreamNodes,
-  harvestUpstreamShotTextPrompt,
-} from './node-workflow-graph'
 import { migrateNodeWorkflowStateToV4 } from './node-workflow-migrate-v4'
 import { projectScriptDocToGraph } from './node-workflow-script-doc'
 import {
@@ -100,7 +96,7 @@ function sortEdges(edges: ReturnType<typeof edgeShape>[]) {
 }
 
 describe('projectScriptDocToGraphV4 · v3 → v4 投影等价', () => {
-  const { v3State, v4: upgraded } = v3ThenUpgrade()
+  const { v4: upgraded } = v3ThenUpgrade()
   const projected = projectScriptDocToGraphV4(doc, {
     makeId: makeCounterIds(),
     now: NOW,
@@ -156,16 +152,9 @@ describe('projectScriptDocToGraphV4 · v3 → v4 投影等价', () => {
   })
 
   it('文本内容一致 —— 以「真正送进模型的那一段」为准', () => {
-    // 比的是**同一份文字**：v3 那条路上 `harvestUpstreamShotTextPrompt` 前置进
-    // 提示词的那一段。C3c-① A 缺口①补完之后，迁移产物的 `body` 与它逐字相同
-    // （三处共用 `composeShotTextBody`）。
-    const v3Text = v3State.nodes
-      .filter((node) => node.type === 'seedance')
-      .map((node) =>
-        harvestUpstreamShotTextPrompt(
-          getUpstreamNodes(node.id, v3State.edges, v3State.nodes),
-        ),
-      )
+    // ⚠ 对照物换了：v3 收割层随 ③e 删了，「真正送进模型的那一段」不再有 v3 侧的
+    // 实现可比。改成**正面钉住那段字面文本**（下面那条 `toEqual` 本来就在），
+    // ⛔ 不为了留一个对照而把收割层留着。
     const v4Text = projected.nodes
       .filter(
         (node) => node.data.kind === 'video' && node.data.subtype === 'shot',
@@ -185,17 +174,17 @@ describe('projectScriptDocToGraphV4 · v3 → v4 投影等价', () => {
           .join('\n\n'),
       )
 
-    expect(v4Text).toEqual(v3Text)
-    expect(v4Text).toEqual([
+    const EXPECTED_BODIES = [
       '走廊·夜\n她回头看了一眼空荡的走廊\n缓慢推入\n中近景',
       '楼梯间\n灯灭了',
-    ])
-    // 迁移那一侧的 body 现在与投影逐字相同 —— 缺口①的回归闸门。
+    ]
+    expect(v4Text).toEqual(EXPECTED_BODIES)
+    // 迁移那一侧的 body 与投影逐字相同 —— 缺口①的回归闸门。
     expect(
       upgraded.nodes
         .filter((node) => node.data.kind === 'text')
         .map((node) => (node.data.kind === 'text' ? node.data.body : '')),
-    ).toEqual(v3Text)
+    ).toEqual(EXPECTED_BODIES)
   })
 
   it('位置允许不同（v4 走镜头带版式，v3 走 anchor 偏移）', () => {

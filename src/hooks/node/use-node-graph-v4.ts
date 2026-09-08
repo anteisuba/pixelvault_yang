@@ -68,6 +68,15 @@ type NodeGraphV4HistoryEntry = {
 }
 
 /** 剪贴板记的是**形状**，不是节点本身（⛔ 不复制媒体，见 `copySelection`）。 */
+/** 一批助手 op 落图之后的真实账（回执卡读它）。 */
+export interface NodeGraphV4BatchResult {
+  readonly applied: number
+  readonly skipped: number
+  /** `skipped` 里连线 / 挂载没建成的那一部分（台账 K-2）。 */
+  readonly failedConnects: number
+  readonly createdNodeIds: readonly string[]
+}
+
 export interface NodeGraphV4ClipboardShape {
   readonly kind: NodeV4Data['kind']
   readonly subtype: NodeV4Data['subtype']
@@ -147,6 +156,7 @@ export interface NodeGraphV4 {
 
   /* ── 图动作 ────────────────────────────────────────────────────────── */
   dispatch(op: NodeAssistantOpV4): boolean
+  dispatchBatch(ops: readonly NodeAssistantOpV4[]): NodeGraphV4BatchResult
   addNode(
     kind: NodeV4Data['kind'],
     subtype: NodeV4Data['subtype'],
@@ -348,6 +358,77 @@ export function useNodeGraphV4({
       setRedoStack([])
       onStateChange(next)
       return true
+    },
+    [state, resolveModel, onOpFailed, onStateChange],
+  )
+
+  /**
+   * 一批 op 一次落图（③e，助手提案的执行口）。
+   *
+   * ⚠ ⛔ 不能拿 `dispatch` 循环：它读的是闭包里的 `state`，同一 tick 内第二条 op
+   * 看到的还是这一批开始前的那份图 —— 「新建角色 → 连到镜头」里的 connect 会
+   * 找不到那个刚建出来的节点。这里与 `deleteNodes` 同一条纪律：在本地 `working`
+   * 上串行推进，收成**一个**撤销条目（助手的一轮 = 一步撤销，§7）。
+   *
+   * `refs` 是批内别名表（`add_node.ref`）——执行器自己往里写，后面的 op 因此认得
+   * 出这一批刚建的节点。
+   */
+  const dispatchBatch = useCallback(
+    (ops: readonly NodeAssistantOpV4[]): NodeGraphV4BatchResult => {
+      let working = state
+      const inverses: NodeV4Inverse[] = []
+      const refs = new Map<string, string>()
+      const createdNodeIds: string[] = []
+      let applied = 0
+      let skipped = 0
+      let failedConnects = 0
+
+      for (const op of ops) {
+        const result = applyNodeAssistantOpV4(working, op, {
+          mintId,
+          refs,
+          ...(resolveModel ? { resolveModel } : {}),
+        })
+        if (!result.ok) {
+          onOpFailed?.(result.reason)
+          skipped += 1
+          // 连线没建成要**单独记账**（台账 K-2）：其余的 skipped 多半是用户自己
+          // 剔掉了引用的节点，而连线失败意味着助手规划的结构没成形 —— 一个只会
+          // 变大的「已落 N 个」恰恰盖住它。
+          if (
+            op.op === NODE_ASSISTANT_OP_V4_IDS.connect ||
+            op.op === NODE_ASSISTANT_OP_V4_IDS.attachAsset
+          ) {
+            failedConnects += 1
+          }
+          continue
+        }
+        working = result.state
+        inverses.push(result.inverse)
+        applied += 1
+        if (op.op === NODE_ASSISTANT_OP_V4_IDS.addNode) {
+          const created = result.changedNodeIds[0]
+          if (created) createdNodeIds.push(created)
+        }
+      }
+
+      if (applied === 0)
+        return { applied, skipped, failedConnects, createdNodeIds }
+
+      const next = reconcileStateSlots(working)
+      setUndoStack((stack) => [
+        ...stack,
+        {
+          undo: {
+            kind: 'inverse',
+            inverse: { kind: 'sequence', items: [...inverses].reverse() },
+          },
+          redoState: next,
+        },
+      ])
+      setRedoStack([])
+      onStateChange(next)
+      return { applied, skipped, failedConnects, createdNodeIds }
     },
     [state, resolveModel, onOpFailed, onStateChange],
   )
@@ -722,6 +803,7 @@ export function useNodeGraphV4({
     toggleExpanded,
     neighborOffsets,
     dispatch,
+    dispatchBatch,
     addNode,
     connect,
     disconnect,

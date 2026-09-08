@@ -14,7 +14,7 @@ vi.mock('@/services/node/node-assistant.service', () => ({
     mockCreateNodeAssistantStream(...args),
 }))
 
-import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_STATUS_IDS } from '@/constants/node-types'
 import { ApiRequestError } from '@/lib/errors'
 
 import { POST } from './route'
@@ -31,12 +31,18 @@ const REQUEST_BODY = {
   nodes: [
     {
       id: 'node-1',
-      type: NODE_TYPE_IDS.composer,
-      status: NODE_STATUS_IDS.idle,
-      title: 'Composer',
-      promptExcerpt: 'story idea',
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'text',
+        subtype: 'script',
+        name: 'Composer',
+        status: NODE_STATUS_IDS.idle,
+        createdAt: '2026-09-08T00:00:00.000Z',
+        body: 'story idea',
+      },
     },
   ],
+  edges: [],
 }
 
 beforeEach(() => {

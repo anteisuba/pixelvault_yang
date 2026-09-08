@@ -308,10 +308,15 @@ export function NodeV4Shell({
       {expanded && expandedBody ? (
         // 展开态 = 单列顺序栈 + 卡内滚动。高上限是护栏：一张卡吃掉大半个视口时
         // 「卡内滚 + 画布滚」会打架。⛔ 不把上限写成字面量（读 NODE_V4_CARD）。
+        //
+        // ⚠ **普通流 + `space-y`，⛔ 不是 `flex flex-col gap`**（2026-09-08 真机）：
+        // flex 子项默认 `flex-shrink: 1`，内容一超过 `maxHeight`，靠比例定高的那
+        // 两个（媒体井 `aspect-video`、槽轨）就被压成一条线 —— 图整个看不见、
+        // 槽卡只剩一排虚线，而不是像预期那样出现滚动条。
         <div
           data-expanded-stack
           style={{ maxHeight: NODE_V4_CARD.expandedMaxHeight }}
-          className="nowheel flex flex-col gap-5 overflow-y-auto px-4 pb-4"
+          className="nowheel space-y-5 overflow-y-auto px-4 pb-4"
         >
           {expandedBody}
         </div>

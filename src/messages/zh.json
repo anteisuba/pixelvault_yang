@@ -4387,8 +4387,6 @@
       "description": "颜色与背景图会随当前项目保存。",
       "colorLabel": "背景颜色",
       "customColor": "自定义颜色",
-      "colorValueLabel": "颜色值",
-      "invalidColor": "请输入 #RRGGBB 格式的颜色值。",
       "presetColor": "使用颜色 {color}",
       "imageLabel": "背景图片",
       "chooseImage": "选择或上传图片",
@@ -4496,9 +4494,7 @@
       },
       "cast": "卡匣",
       "upload": "上传图片",
-      "pickFromLibrary": "从素材库选择",
-      "pickFromLibraryTitle": "从素材库选择图片",
-      "pickFromLibraryDescription": "从你的素材库里挑图片放到画布上，可多选。"
+      "pickFromLibrary": "从素材库选择"
     },
     "statuses": {
       "idle": "空闲",
@@ -4511,24 +4507,15 @@
       "disabled": "停用"
     },
     "imageSourceStarter": {
-      "uploadAria": "上传图片",
       "uploadTitle": "上传图片",
       "uploadHint": "拖入即可上传",
       "library": "素材库",
-      "aiGenerate": "AI 生成",
       "libraryDialogTitle": "选择图片素材",
       "libraryDialogDescription": "从素材库选一张图，直接作为这张图片卡的内容。",
       "untitled": "未命名图片",
       "uploadFailed": "图片上传失败",
       "generationFailed": "图片生成失败",
       "categoryLabel": "分类",
-      "categoryUnset": "未分类",
-      "categoryCustomLabel": "自定义分类名",
-      "categoryCustomPlaceholder": "输入自定义分类…",
-      "badgeEmpty": "空",
-      "badgeUploading": "上传中",
-      "badgeGenerating": "生成中",
-      "badgeFailed": "失败",
       "uploading": "上传中 {percent}%",
       "cancelUpload": "取消上传",
       "generating": "生成中...",
@@ -4556,62 +4543,32 @@
     },
     "characterImage": {
       "voiceBound": {
-        "namedVoice": "🎙 已绑定音色：{voiceName}（视频生成时会标注角色名）",
         "unnamed": "🎙 已绑定上游音色（视频生成时会标注角色名）",
-        "remove": "解除音色绑定",
-        "notReady": "🎙 已绑定 {voiceName} · 还没有可发送的音频"
+        "remove": "解除音色绑定"
       },
       "promptLabel": "角色图提示词",
       "promptPlaceholder": "描述角色外观、服装、情绪和画面风格...",
-      "emptyPreview": "还没有生成图片",
-      "modeExistingTitle": "直接使用已有图",
-      "modeExistingDescription": "上传、粘贴或从素材库选择一张图，作为角色图节点的结果。",
-      "modeCardTitle": "从角色卡库选",
-      "modeCardDescription": "用角色卡里的姓名、提示词、封面图和参考图一键填充本节点。",
-      "modeAiTitle": "在节点内 AI 生成",
-      "modeAiDescription": "填写角色设定，选择模型、参考图和 LoRA 后生成。",
-      "modeStudioTitle": "去图像生成",
-      "modeStudioDescription": "把当前提示词带到图像工作台，使用完整图像生成流程。",
       "cardLibrary": {
         "title": "角色卡库",
         "hint": "选一张已有角色卡，自动套用到这个节点。",
         "searchPlaceholder": "搜索角色卡名称 / 标签…",
         "loading": "正在加载角色卡…",
         "empty": "还没有保存过角色卡。先去 Studio 创建一张吧。",
-        "noMatch": "没有匹配的角色卡。",
         "variantCount": "{count} 个衍生卡",
         "applied": "已套用角色卡「{name}」。",
         "bound": "📇 来自角色卡：{name}"
       },
-      "activeExistingTitle": "已有图模式",
-      "activeExistingDescription": "当前节点使用选中的图片；也可以把它作为参考图继续 AI 生成。",
-      "activeAiTitle": "AI 生成模式",
-      "activeAiDescription": "在当前节点内生成或重新生成角色设定图。",
-      "backToChoice": "返回选择",
-      "useExistingAsReference": "作为参考生成",
-      "selectExistingShort": "用已有图",
-      "generateWithAi": "AI 生成",
       "generate": "生成",
       "regenerate": "重新生成",
-      "generateFromExisting": "AI 重生成",
       "generating": "生成中...",
       "noModel": "请先选择图像模型。",
       "noPrompt": "请先填写角色提示词。",
-      "failedTitle": "图片生成失败",
       "fallbackError": "角色图生成失败。",
-      "statusIdle": "可开始生成",
-      "statusPending": "正在生成图片",
-      "statusSuccess": "图片已生成",
-      "statusExisting": "正在使用已有图片",
-      "statusError": "生成失败",
       "imageAlt": "{name} 的生成角色图",
       "sourceExisting": "已有图片",
       "sourceGenerated": "AI 生成",
-      "sourceFallback": "已选素材",
       "replaceImage": "替换",
       "clearImage": "清空图片",
-      "existingAssetDialogTitle": "选择已有图片",
-      "existingAssetDialogDescription": "选择一张之前生成的图片，直接作为这个角色图节点的最终产物。",
       "existing": {
         "title": "使用图片",
         "hint": "上传、从素材库选择，或直接粘贴剪贴板图片。",
@@ -4622,8 +4579,6 @@
         "pasteEmpty": "剪贴板里没有图片。",
         "uploadFailed": "图片上传失败。"
       },
-      "openImageStudio": "在图像生成中打开",
-      "openImageStudioShort": "图像",
       "reference": {
         "title": "参考图",
         "chip": "参考图 {count}/{max}",
@@ -4671,69 +4626,28 @@
       "description": "这个节点只负责定义声音身份，视频节点会把它作为角色或旁白的音色线索。",
       "emptyTitle": "未设置音色",
       "emptyDescription": "选择声音库音色、粘贴模型音色 ID，或上传参考音频。",
-      "readyDescription": "这个音色会作为下游视频节点的声音线索。",
       "providerLabel": "来源",
       "providerFallback": "手动音色",
       "noSample": "暂无试听样本",
       "referenceLabel": "参考音频",
-      "referenceEmpty": "未上传",
-      "footerReady": "可连接到视频节点",
-      "footerEmpty": "等待音色设置",
-      "chooseVoice": "声音库",
-      "openAudioStudio": "音频工作台",
-      "referenceAudioTitle": "参考音频",
-      "referenceAudioDescription": "上传 MP3/WAV 等音频样本。支持的模型可用它做声音克隆或参考。",
-      "replaceAudio": "替换参考音频",
       "uploadAudio": "上传音频",
-      "uploadAudioMeta": "MP3 / WAV / M4A / FLAC",
-      "referenceAudioFallback": "参考音频",
-      "clearAudio": "清除参考音频",
-      "generateReferenceAudio": "用此音色生成 15 秒参考音频",
-      "outputHint": "台词和具体说话内容放在视频节点的音频说明里；音色节点只描述声音是谁、来自哪里、听起来怎样。",
       "toasts": {
         "voiceSelected": "音色已选择。",
-        "referenceUploaded": "参考音频已上传。",
-        "referenceGenerated": "参考音频已生成。",
-        "referenceGenerateNoVoice": "请先选择 Fish Audio 音色。",
-        "referenceGenerateFailed": "参考音频生成失败，请稍后重试。",
-        "unsupportedAudio": "请上传音频文件。",
-        "uploadFailed": "参考音频上传失败。",
-        "sampleGenerated": "试听音频已就绪。"
+        "uploadFailed": "参考音频上传失败。"
       },
-      "referenceFromAssets": "从素材选择",
-      "referenceDialogTitle": "选择参考音频",
-      "referenceDialogDescription": "从素材库中选择一段生成的语音作为参考音频。",
       "kindSpeech": "语音",
-      "emptyCardAction": "从音频库选择音色",
-      "generatingReference": "生成参考音频中",
       "retry": "重试"
     },
     "videoGeneration": {
       "timeline": {
-        "title": "分镜时间轴",
-        "secondsRange": "{start}–{end}秒",
-        "beatLabel": "镜头{index}",
-        "cameraLabel": "运镜",
-        "compositionLabel": "构图"
+        "title": "分镜时间轴"
       },
-      "emptyPreview": "还没有生成视频",
       "generating": "生成中...",
-      "motionLabel": "运动",
-      "cameraLabel": "镜头",
       "durationLabel": "时长",
       "resolutionLabel": "分辨率",
-      "resolutionHint": "再点一次取消选择，使用模型默认。",
       "aspectRatioLabel": "画幅比例",
-      "aspectRatioHint": "再点一次取消选择，使用模型默认。",
       "negativePromptLabel": "负面提示词",
       "negativePromptPlaceholder": "不希望出现的内容，例如：模糊、变形、低画质…",
-      "fieldEmpty": "未设置",
-      "upstreamHintReady": "视频节点会读取连入的角色图、背景、关键帧和音色。",
-      "upstreamHintEmpty": "把角色图、背景图、关键帧和音色节点连接到这里。",
-      "footerDone": "视频已生成",
-      "footerEmpty": "聚合上游节点生成视频",
-      "upstreamTitle": "上游输入",
-      "upstreamDescription": "连接到这里的节点会参与视频提示词和参考图编译。",
       "referenceCount": "{count}/{max} 参考图",
       "upstreamGroups": {
         "visual": "角色 / 背景 / 镜头图",
@@ -4742,9 +4656,6 @@
         "text": "镜头文本",
         "voice": "音色"
       },
-      "upstreamGroupsEffective": "已生效：会进入生成请求",
-      "voiceRoutedChip": "{voice} · 经 {character}",
-      "voiceRoutedTooltip": "{voice} 通过角色「{character}」接入，生成时会带上角色名标记",
       "upstreamEmpty": {
         "visual": "还没有连接图像节点。",
         "keyframe": "还没有连接关键帧。",
@@ -4753,28 +4664,20 @@
         "voice": "还没有连接音色节点。"
       },
       "capabilities": {
-        "referenceTitle": "视觉参考",
-        "referenceRequired": "当前模型需要至少一张参考图才能生成。",
-        "referenceOptional": "当前模型可从文字生成，也会按能力使用已连接参考图。",
-        "audioTitle": "音频能力"
+        "referenceRequired": "当前模型需要至少一张参考图才能生成。"
       },
       "audioCapabilities": {
         "referenceAudio": "支持参考音频/音色线索；当前版本会把音色节点写入提示词，后续接模型直传音频。",
-        "voiceId": "支持模型专属音色 ID；请在音色节点填写可用于该模型的 voice ID。",
-        "nativeAudio": "模型支持原生音频提示，但不通用接收上传音色；音色节点会转为文字线索。",
-        "promptOnly": "当前模型主要通过提示词控制声音，音色节点会作为提示词上下文。"
+        "voiceId": "支持模型专属音色 ID；请在音色节点填写可用于该模型的 voice ID。"
       },
       "audioCallout": {
         "ignored": {
           "title": "音色节点不会用于此模型",
-          "body": "Veo / Kling / 普通 Seedance 只能根据 prompt 自动合成音频，不接受上传的参考音频。声音会按 prompt 描述生成，但无法复刻音色节点的音色。\n如需声音克隆，请切换到 Seedance 2.0 Reference 端点。",
-          "switchAction": "一键切换到 Seedance 2.0 Reference  →",
-          "statusPill": "将被忽略"
+          "body": "Veo / Kling / 普通 Seedance 只能根据 prompt 自动合成音频，不接受上传的参考音频。声音会按 prompt 描述生成，但无法复刻音色节点的音色。\n如需声音克隆，请切换到 Seedance 2.0 Reference 端点。"
         },
         "cloning": {
           "title": "声音克隆已激活",
-          "body": "Seedance 会用音色节点的参考音频，\n读出 prompt 里 \"双引号\" 包起来的台词。",
-          "statusPill": "声音克隆"
+          "body": "Seedance 会用音色节点的参考音频，\n读出 prompt 里 \"双引号\" 包起来的台词。"
         }
       },
       "videoDiscount": {
@@ -4782,28 +4685,18 @@
         "tooltip": "Seedance Reference 接视频参考自动 0.6x 价格"
       },
       "noModel": "请先选择视频模型。",
-      "noInput": "请填写视频提示词，或连接上游节点。",
-      "executionNotMigrated": "这个模型的视频执行链尚未接入，暂时不能从画布发送。",
       "audioRequiresVisual": "参考音频不能单独发送，请再连接一张图片或一个视频。",
       "generate": "生成视频",
       "regenerate": "重新生成视频",
-      "statusIdle": "可开始生成",
-      "statusPending": "正在生成视频",
-      "statusSuccess": "视频已生成",
-      "statusError": "生成失败",
       "sidecar": {
         "ariaLabel": "视频编排器",
         "eyebrow": "视频编排 · 右侧编辑",
-        "titleFallback": "视频生成",
-        "detailAction": "展开编辑器",
-        "compactAction": "收起详情",
         "close": "关闭视频编排器"
       }
     },
     "videoReference": {
       "title": "参考视频",
       "description": "上传一段视频片段，作为下游视频生成节点的参考。Seedance Reference 接到参考视频时会自动应用 6 折价格。",
-      "emptyPreview": "还没有上传视频",
       "upload": "上传视频",
       "replace": "替换视频",
       "clear": "清空",
@@ -4816,20 +4709,15 @@
       "constraints": "支持 mp4 / mov / webm，单个片段 ≤ 15 秒、≤ 50 MB。",
       "errors": {
         "tooLong": "视频时长 {actual}s 超过 {max}s 的上限。",
-        "metadataFailed": "无法读取视频信息，请换个文件再试。",
         "uploadFailed": "视频上传失败，请重试。"
       }
     },
     "videoMerge": {
       "title": "视频合并",
       "description": "把上游连进来的多段视频按顺序拼接成一段长视频，输出仍是 mp4，可继续接 Seedance Reference 使用。",
-      "emptyPreview": "还没有合并视频",
       "merging": "正在合并",
       "merged": "视频合并成功",
       "mediaLabel": "合并的 {count} 段视频",
-      "upstreamHeader": "上游视频片段",
-      "upstreamEmpty": "至少连接 2 段视频再开始合并。",
-      "slotsHeading": "按顺序接入视频片段",
       "slotRequired": "必须",
       "slotOptional": "可选",
       "clipCount": "{count} / {max} 段",
@@ -4840,69 +4728,28 @@
       "clear": "清空结果",
       "hint": "成本约 $0.001/段，处理时长约 8 秒。合并后的视频会自动保留音轨。",
       "trim": {
-        "startLabel": "起始（秒）",
-        "endLabel": "结束（秒）",
         "startPlaceholder": "0",
         "endPlaceholder": "整段",
-        "startLabelA11y": "第 {n} 段起始秒",
-        "endLabelA11y": "第 {n} 段结束秒",
-        "editLabel": "编辑裁剪",
-        "trimmedCount": "已裁 {count} 段",
-        "rangeWarning": "结束秒应大于起始秒。",
-        "composeHint": "设置了裁剪起止时会切换到 fal compose 端点。起始秒目前 best-effort（fal 暂不暴露源偏移），结束秒可用来截断每段播放长度。"
-      },
-      "errors": {
-        "tooFewClips": "至少需要 {min} 段视频。",
-        "tooManyClips": "最多支持 {max} 段视频。",
-        "mergeFailed": "视频合并失败，请稍后重试。"
+        "trimmedCount": "已裁 {count} 段"
       }
     },
     "mediaNodes": {
       "promptLabel": "提示词",
       "promptPlaceholder": "描述这个节点要生成的内容...",
-      "emptyPreview": "还没有生成素材",
-      "textPreview": "在右侧整理镜头文本",
       "imageAlt": "节点生成图片",
       "sourceExisting": "已有图片",
       "sourceGenerated": "AI 生成",
-      "sourceFallback": "节点图片",
-      "modeExistingTitle": "直接使用已有图",
-      "modeExistingDescription": "上传、粘贴或从素材库选择一张图，作为这个节点的结果。",
-      "modeCardTitle": "从背景卡库选",
-      "modeCardDescription": "用背景卡里的提示词、封面图一键填充本节点。",
-      "modeAiTitle": "在节点内 AI 生成",
-      "modeAiDescription": "填写节点字段，选择模型、参考图和 LoRA 后生成。",
-      "modeStudioTitle": "去图像生成",
-      "modeStudioDescription": "把当前节点内容带到图像工作台，使用完整图像生成流程。",
       "cardLibrary": {
         "title": "背景卡库",
         "hint": "选一张已有背景卡，自动套用到这个节点。",
         "searchPlaceholder": "搜索背景卡名称 / 标签…",
         "loading": "正在加载背景卡…",
         "empty": "还没有保存过背景卡。先去 Studio 创建一张吧。",
-        "noMatch": "没有匹配的背景卡。",
         "applied": "已套用背景卡「{name}」。",
         "bound": "📇 来自背景卡：{name}"
       },
-      "activeExistingTitle": "正在使用已有图",
-      "activeExistingDescription": "这张图会作为当前节点结果，也可以转为参考图继续生成。",
-      "activeAiTitle": "AI 生成模式",
-      "activeAiDescription": "在当前节点内生成或重新生成图像结果。",
-      "backToChoice": "返回选择",
-      "useExistingAsReference": "作为参考生成",
       "replaceImage": "替换图片",
-      "selectExistingShort": "选择已有图",
-      "changeSourceExisting": "素材库",
-      "changeSourceAi": "AI 生成",
-      "changeSourceStudio": "Studio",
-      "dropzoneHint": "点击 / 拖拽 / 粘贴 (Ctrl+V)",
-      "upstreamRefsHint": "上游参考 · 点击插入名字",
-      "removeUpstreamRef": "断开连接",
-      "unnamedRef": "未命名",
       "clearImage": "清除图片",
-      "generateFromExisting": "按参考生成",
-      "existingAssetDialogTitle": "选择节点图片",
-      "existingAssetDialogDescription": "从素材库选择一张图片作为当前节点结果。",
       "existing": {
         "title": "使用已有图",
         "hint": "上传、粘贴或从素材库选择一张图。",
@@ -4914,43 +4761,21 @@
         "uploadFailed": "图片上传失败。"
       },
       "emptyChoice": {
-        "uploadHint": "也可以直接拖文件进来",
-        "generateTitle": "用 AI 生成",
-        "generateHint": "写一句话，选个模型",
-        "dockHint": "两条路都行，选一条开始。"
+        "uploadHint": "也可以直接拖文件进来"
       },
       "generate": "生成",
       "regenerate": "重跑（覆盖）",
-      "regenerateConfirmTitle": "覆盖当前这张图？",
-      "regenerateConfirmDescription": "重跑会用新结果替换掉当前节点上的图，且会消耗一次生成额度。想保留现在这张、另开一张，请用编排台的发送箭头（它新建下游节点）。",
-      "regenerateConfirmCancel": "取消",
-      "regenerateConfirmAction": "覆盖重跑",
       "generating": "生成中...",
       "noModel": "请先选择模型。",
       "noPrompt": "请先填写提示词。",
-      "reviewBlocked": "有 {total} 张参考图没进这次生成：{pending} 张还没审、{rejected} 张已打回。去卡片上点「通过」再跑一次。",
-      "failedTitle": "生成失败",
-      "fallbackError": "节点素材生成失败。",
-      "statusIdle": "可开始生成",
-      "statusPending": "正在生成素材",
-      "statusSuccess": "素材已生成",
-      "statusError": "生成失败",
-      "statusTextReady": "文本会作为下游节点输入"
+      "fallbackError": "节点素材生成失败。"
     },
     "videoComposer": {
       "monitor": {
-        "empty": "生成后在此预览",
-        "rec": "REC"
+        "empty": "生成后在此预览"
       },
       "studio": {
-        "currentFilm": "当前影片",
-        "filmMeta": "{duration} · {aspect} · {resolution}",
-        "sentAssets": "实际发送素材",
-        "assetCount": "已连接 {count} 个",
-        "composition": "本次编排",
-        "modelParameters": "模型参数",
-        "supportedOnly": "仅显示当前模型支持项",
-        "sendSummary": "{inputs} inputs · {dropped} dropped"
+        "composition": "本次编排"
       },
       "variant": {
         "standard": "标准",
@@ -4963,28 +4788,14 @@
         "volcengine": "火山方舟",
         "byteplus": "BytePlus"
       },
-      "referenceModeOn": "已连接参考输入，自动使用参考模型。",
       "sidecar": {
-        "modeNoModel": "这一档暂时没有可用模型",
         "modeLabel": "视频生成模式",
         "mode": {
           "keyframe": "关键帧",
-          "image-reference": "多图参考",
           "multimodal": "全能参考"
         },
-        "connectedCount": "{count} 个素材",
-        "referenceHelper": "连接的素材会按模型能力进入本次请求",
-        "textHelper": "可直接写提示词，或从画布接入参考素材",
-        "chooseFromCanvas": "从画布选择",
-        "noReferences": "当前没有参考素材",
-        "keyframeSlotHint": "在上游图片的「分类」里选「首帧」或「尾帧」",
         "addReference": "添加参考素材",
-        "promptPlaceholder": "描述你想生成的镜头、动作与声音…",
-        "editParameters": "编辑视频参数"
-      },
-      "slate": {
-        "modeReference": "参考模式",
-        "modeText": "文生模式"
+        "promptPlaceholder": "描述你想生成的镜头、动作与声音…"
       },
       "autoName": {
         "character": "角色",
@@ -5006,8 +4817,6 @@
         "ready": "我的密钥",
         "needsKey": "需配置"
       },
-      "expandCard": "展开卡片",
-      "collapseCard": "收起卡片",
       "pickModel": "选择模型",
       "refKind": {
         "character": "角色",
@@ -5040,26 +4849,16 @@
       "references": {
         "label": "已引用",
         "counter": "已引用 {referenced} / 已连接 {connected}",
-        "charCount": "{length}/{max}",
         "slotLabel": "图 {index}",
         "insertHint": "点击槽位插入到提示词",
         "unnamed": "需命名",
         "unnamedHint": "给该节点命名后即可作为标签插入",
         "locate": "定位到画布对应节点",
-        "emptyDept": "暂无引用 · 画布连线后出现",
-        "stripEmptyHint": "已连接但还没有引用 · 点击下方「管理素材」插入到提示词",
         "videoAutoHint": "参考视频随连线自动发送，无需插入提示词",
         "keyframeHint": "首/尾帧随连线自动发送，无需插入提示词",
         "voiceNotReadyHint": "未上传/选择参考音频 — 本次生成不会发送",
         "addVoice": "给「{name}」配音色",
-        "addCloseup": "给「{name}」加面部特写",
         "remove": "断开「{name}」的连线（节点保留）",
-        "removedToast": "已断开「{name}」的连线，节点保留",
-        "addDialogTitle": "从素材库选择参考",
-        "addDialogDescription": "选中的素材会自动建成上游节点并连到本视频节点。",
-        "manageButton": "管理素材 · {count}",
-        "manageTitle": "管理素材",
-        "manageDescription": "浏览所有已连接到该视频节点的素材，插入到提示词或管理连接。",
         "searchPlaceholder": "搜索名称或 @token",
         "tabs": {
           "all": "全部",
@@ -5075,26 +4874,7 @@
           "video": "添加参考视频",
           "voice": "添加配音"
         },
-        "managerEmpty": "没有匹配的素材",
-        "statusReferenced": "已引用",
-        "statusInsert": "插入",
-        "rowMenu": "更多操作",
-        "rowLocate": "定位到画布",
-        "rowRemove": "断开连接",
-        "routedThrough": "随 {name} 发送",
-        "capacityWarning": "共 {count} 张候选参考图，超出模型上限 {max} 张，其中 {truncated} 张不会发送",
-        "counterOverflow": "{sent}/{max} ⚠",
-        "closeManager": "收起管理素材",
-        "folderExpand": "展开「{name}」的图集",
-        "folderCollapse": "收起「{name}」的图集",
-        "galleryCount": "图集 {count} 张",
-        "galleryEmpty": "图集为空",
         "onStageBadge": "出场",
-        "voiceBoundBadge": "已绑音色",
-        "willNotSendHint": "超出上限，不会发送",
-        "restoreDefaultStage": "恢复「{name}」的默认出场组",
-        "stageCheckboxLabel": "本镜是否发送「{name}」的这张图",
-        "primaryAlwaysStaged": "主图恒出场，不可取消",
         "addGroups": {
           "image": "图片",
           "voice": "音频",
@@ -5113,14 +4893,8 @@
         "audioBadge": "音{index}",
         "empty": "（本次没有额外提示词）"
       },
-      "aspectAuto": "自动",
       "generateAudioLabel": "生成音频",
-      "seedLabel": "种子(seed)",
       "seedRandom": "每次随机",
-      "seedRandomize": "随机种子",
-      "lastSeedLabel": "本次 seed",
-      "seedLock": "锁定",
-      "enhanceEmptyTip": "先写一句提示词，再让 AI 编排。",
       "rebind": {
         "title": "切换到 {brand}？",
         "map": "将映射",
@@ -5132,81 +4906,27 @@
     "nodeToolbar": {
       "expand": "展开",
       "delete": "删除",
-      "imageEditToolbar": "图片编辑工具",
       "toolbar": "节点操作",
       "more": "更多",
-      "quickEdit": "快捷编辑",
       "download": "下载",
       "rename": "命名",
       "category": "分类",
-      "moreEdits": "编辑能力",
-      "moreEditsInstant": "一键出结果",
-      "moreEditsRegion": "要在图上圈范围",
-      "moreEditsDescribe": "要写一句话",
-      "addAsset": "添加素材",
       "preview": "预览",
       "reorder": "排序",
-      "performancesAria": "在画布上定位 {count} 个出演",
       "compose": "合成 {count} 段",
       "composeAria": "把选中的 {count} 段视频合成到片盒"
     },
     "nodeDetail": {
-      "backToCanvas": "返回画布",
-      "canvasCrumb": "画布",
       "close": "收起",
-      "focusOnCanvas": "在画布上定位「{name}」",
       "generate": "生成",
-      "promptPreview": "拼成的提示词",
       "upload": "上传",
       "openStudio": "Studio ↗",
-      "sourceCounts": "参考图 {refs}/{refMax} · LoRA {loras}/{loraMax}",
-      "sendPreview": "发送预览",
-      "identityPackage": "对下游的身份包",
-      "fieldModel": "模型",
-      "fieldReferences": "参考图",
-      "fieldLastFailure": "上次失败",
-      "fieldCategory": "分类",
-      "fieldDisplayName": "显示名",
-      "fieldVisualSeed": "外观描述",
-      "fieldBoundVoice": "听觉身份",
-      "valueEmpty": "（空）",
-      "valueUnset": "未选择",
-      "valueUnbound": "未绑定",
-      "cardCharacter": "角色卡",
-      "cardBackground": "场景卡",
-      "relationsEmptyImage": "还没有被任何节点引用",
-      "relationsEmptyShot": "还没有视频节点用到这张镜头图",
-      "relationsEmptyFrame": "还没有视频节点用到这张关键帧",
-      "relationsEmptyBackground": "还没有镜头或视频用到这个背景",
-      "relationsEmptyCharacter": "还没有镜头或视频用到这个角色",
-      "relationsEmptyVoice": "还没有角色绑定这个音色",
-      "sampleWillSend": "取样将发送",
-      "editParams": "编辑参数",
-      "relationsEmptyVideo": "还没有合进任何片盒",
-      "fieldSource": "来源",
-      "reasonNoVoice": "先从声音库挑一个音色。",
-      "relationsEmptyMerge": "还没有节点用到这段合成视频",
-      "relationsEmptyReference": "还没有下游节点在参考这段视频",
-      "fieldClips": "片段",
-      "fieldTrim": "裁剪",
-      "fieldRoute": "路由",
-      "fieldFile": "文件",
-      "fieldConstraints": "格式约束",
-      "valueBoundNotReady": "已绑定 · 无可发送音频",
-      "stagePreviewHint": "生成后出现在这里"
+      "sampleWillSend": "取样将发送"
     },
     "voiceDetail": {
-      "paramsLabel": "基础调节",
       "speedLabel": "语速",
       "volumeLabel": "音量",
-      "timbreLabel": "音色",
-      "sourceSystem": "系统音色",
-      "sourceMine": "我的音色",
       "emotionLabel": "情绪",
-      "audioOwnerLabel": "属于角色",
-      "audioOwnerNone": "旁白（无归属）",
-      "audioOwnerCustom": "手填角色名…",
-      "audioOwnerPlaceholder": "例如：ひなた",
       "emotions": {
         "none": "无",
         "calm": "沉稳",
@@ -5214,15 +4934,7 @@
         "sad": "悲伤",
         "surprised": "惊讶"
       },
-      "sampleLabel": "代表音频",
-      "generateSample": "获取试听",
-      "coverAlt": "音色封面",
-      "coverChange": "更换封面",
-      "coverUpload": "上传音色封面",
-      "coverFromAssets": "从素材选择封面",
-      "coverDialogTitle": "选择音色封面",
-      "coverDialogDescription": "选择一张图片，与当前声音一起保存到音色素材。",
-      "coverUploadFailed": "封面上传失败"
+      "coverAlt": "音色封面"
     },
     "workflowFields": {
       "prompt": {
@@ -5303,39 +5015,20 @@
     },
     "workflowNodes": {
       "shotText": {
-        "emptyPreview": "把场景、动作、镜头和构图整理成可执行镜头文本。",
         "emptyState": "还没有镜头文本",
-        "footerEmpty": "等待镜头文本",
-        "editText": "编辑文本",
-        "detailHint": "这些字段会按顺序拼成提示词，送进下游的视频节点。"
+        "editText": "编辑文本"
       },
       "characterImage": {
-        "emptyState": "还没有角色图",
-        "footerEmpty": "等待角色设置"
+        "emptyState": "还没有角色图"
       },
       "shot": {
-        "emptyState": "还没有镜头图",
-        "footerEmpty": "等待镜头提示"
+        "emptyState": "还没有镜头图"
       },
       "backgroundImage": {
-        "emptyState": "还没有背景图",
-        "footerEmpty": "等待背景设定"
+        "emptyState": "还没有背景图"
       },
       "frameImage": {
-        "emptyState": "还没有关键帧",
-        "footerEmpty": "等待关键帧设定"
-      },
-      "voice": {
-        "emptyPreview": "选择音色、音色 ID 或参考音频，供视频节点使用。",
-        "footerEmpty": "等待音色"
-      },
-      "seedance": {
-        "emptyPreview": "聚合角色图、背景图、关键帧和音色生成视频。",
-        "footerEmpty": "等待视频输入"
-      },
-      "videoReference": {
-        "emptyPreview": "上传一段 ≤15 秒的视频，作为下游 Seedance Reference 的参考。",
-        "footerEmpty": "等待上传"
+        "emptyState": "还没有关键帧"
       },
       "videoMerge": {
         "emptyState": "还没有成片"
@@ -5350,7 +5043,6 @@
       "expand": "展开顶栏",
       "defaultModel": "默认",
       "createProjectPrompt": "项目名称",
-      "renameProjectPrompt": "重命名项目",
       "deleteProjectConfirm": "确定删除「{name}」吗？这个画布项目会被移除。"
     },
     "projectMenu": {
@@ -5526,8 +5218,6 @@
       }
     },
     "inspector": {
-      "multiTitle": "已选择 {count} 个节点",
-      "multiDescription": "批量编辑暂时受保护。在破坏性确认弹窗落地前，请一次编辑一个节点。",
       "unsupported": "这个节点类型暂时还没有检查器。"
     },
     "conversation": {
@@ -5644,40 +5334,11 @@
       "onStageOn": "已出场",
       "onStageOff": "未出场",
       "onStageToggleOn": "标记出场",
-      "onStageToggleOff": "取消出场",
-      "identityVisualSeedLabel": "视觉种子（助手设定）",
-      "backgroundCardTitle": "场景卡",
-      "backgroundCardHint": "选择场景卡并完整载入节点",
-      "voiceSection": "听觉身份",
-      "voiceBind": "绑定音色",
-      "voiceBindDialogDescription": "从已生成或已上传的音频里选一段作为这个角色的音色参考。",
-      "closeupAdd": "加面部特写",
-      "closeupAddDialogDescription": "选一张面部特写并入这个角色的图集，随角色一起发给模型。",
-      "noVoice": "无音色",
-      "identityEmptyHint": "选一张代表图",
-      "nodeCountAria": "名下 {count} 个节点",
-      "performanceSection": "出演",
-      "performanceEmpty": "还没有出演任何镜头",
-      "performanceFocusAria": "在画布上定位 {name}",
-      "identityPrimaryLabel": "卡片主图"
+      "onStageToggleOff": "取消出场"
     },
     "toasts": {
       "notImplemented": "暂未实现。",
-      "layoutTidied": "画布已整理。",
-      "workflowSaved": "工作流已保存到云端。",
-      "workflowSaveFailed": "保存失败，请稍后重试。",
-      "nodesDeleted": "已删除 {count} 个节点。",
-      "seedancePromptPlanned": "Seedance 提示词已生成。",
-      "seedancePromptPlanFailed": "Seedance 提示词规划失败。",
-      "characterGenerated": "角色图已生成。",
-      "mediaGenerated": "节点素材已生成。",
-      "mediaGenerationFailed": "节点素材生成失败。",
-      "stillProcessing": "仍在后台生成，请稍后回来查看。",
-      "studioResultAttached": "已将 Studio 生成图回填到节点。",
-      "timelineCannotDeleteLast": "至少保留一个镜头段。",
-      "edgeDeleted": "连线已移除。",
       "projectCreated": "项目「{name}」已创建。",
-      "projectRenamed": "项目已重命名为「{name}」。",
       "projectDeleted": "项目「{name}」已删除。",
       "videoMergeComposed": "已把 {count} 段视频合成到片盒。",
       "localCacheFull": "本地缓存已满，画布不再本地暂存。你的内容仍在保存到云端。",
@@ -5695,38 +5356,21 @@
       "hint": "描述要提取的元素。结果会作为新图片放在画布上。"
     },
     "generateComposer": {
-      "placeholderEmpty": "描述你想生成的画面…",
-      "placeholderEditing": "说说想把这张图改成什么…",
-      "placeholderEmptyAudio": "描述你想生成的声音…",
-      "placeholderEditingAudio": "说说想把这段声音改成什么…",
-      "editingBadge": "正在改",
       "addReference": "添加参考图",
-      "aspectLabel": "比例",
-      "batchLabel": "张数",
       "removeReference": "移除 {name}",
       "expand": "展开",
       "collapse": "收起",
       "send": "发送",
-      "reasonNoModel": "先选一个模型",
-      "reasonNoInput": "说说想生成什么",
       "historyTitle": "最近用过",
       "historyEmpty": "还没有历史记录",
-      "modePickerTitle": "生成",
       "modeImage": "图片",
       "modeAudio": "音频",
       "audioPlaceholder": "音频参数条留到声音卡那一轮接入",
-      "templateButton": "用模板",
-      "templateSearchPlaceholder": "搜索名字、正文或标签",
       "templateFilterLabel": {
         "recent": "最近用",
         "all": "全部",
         "mostUsed": "用得最多"
-      },
-      "templateUsageCount": "用过 {count} 次",
-      "templateLoading": "正在加载模板…",
-      "templateEmpty": "没有找到匹配的提示词模板",
-      "templateApplied": "已替换为模板提示词",
-      "templateUndo": "撤销"
+      }
     },
     "history": {
       "title": "历史对话",
@@ -5794,7 +5438,22 @@
         "reject": "打回「{target}」",
         "approve": "把「{target}」标为通过",
         "awaitReview": "把「{target}」标为待审",
-        "generate": "生成「{target}」"
+        "generate": "生成「{target}」",
+        "connectSlot": "把「{source}」连到「{target}」的{slot}",
+        "disconnect": "断开一条连线",
+        "delete": "删除「{target}」",
+        "moveToShot": "把「{target}」移到第 {shotNo} 镜",
+        "moveOutOfShot": "把「{target}」移出镜头带",
+        "reorderShot": "把第 {from} 镜移到第 {to} 位",
+        "setText": "改写「{target}」的正文",
+        "setField": "把「{target}」的 {field} 设为 {value}",
+        "attachAssetSlot": "把「{source}」挂到「{target}」的{slot}",
+        "setSlotVersion": "切换「{target}」{slot}的当前版本",
+        "blockVersion": "把「{target}」{slot}的这一版判为不用",
+        "unblockVersion": "解除「{target}」{slot}这一版的不用标记",
+        "setParamsV4": "改「{target}」的生成档位",
+        "setVoiceProfile": "改「{target}」的音色档",
+        "setMergeClips": "重设「{target}」的片段范围"
       },
       "params": {
         "duration": "{value} 秒",
@@ -5821,6 +5480,13 @@
         "unsupportedParam": "当前模型不吃这个参数",
         "unknownParamValue": "这个值不在当前模型给的档位里",
         "notAttachable": "只有角色卡和背景卡才收参考图，其余节点请改用连线"
+      },
+      "confirmDelete": "确认删除",
+      "overwriteQuestion": "这里已经有你写的内容：",
+      "overwriteChoice": {
+        "append": "追加在后",
+        "replace": "覆盖",
+        "keep": "保留"
       }
     },
     "v4": {

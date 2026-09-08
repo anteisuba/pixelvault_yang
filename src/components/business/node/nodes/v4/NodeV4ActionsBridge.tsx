@@ -30,7 +30,7 @@
 import { createContext, useContext, type ReactNode } from 'react'
 
 import type { NodeReviewMode } from '@/hooks/node/use-node-review-mode'
-import type { PlannedNodeAssistantOp } from '@/lib/node-assistant-op-plan'
+import type { PlannedNodeAssistantOpV4 } from '@/lib/node-assistant-op-plan'
 import type { CanvasDerivedImageOutput } from '@/types/canvas-image-edit'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
@@ -177,9 +177,14 @@ export interface NodeCanvasActions {
    * 重复引用同样返回 `true` —— 调用方靠它决定要不要在正文里留 `@名字`。
    */
   connectReferenceNode(sourceNodeId: string, targetNodeId: string): boolean
-  /** 执行一批**已经规划过**的助手 op，返回实际发生了什么。 */
+  /**
+   * 执行一批**已经规划过**的助手 op，返回实际发生了什么。
+   *
+   * ⚠ 整批一次落图 = **一个撤销条目**（§7 助手的一轮 = 一步撤销）：一次铺十个
+   * 节点要按十次撤销才回得来，那不是用户点「应用」时的意图。
+   */
   runAssistantOps(
-    ops: readonly PlannedNodeAssistantOp[],
+    ops: readonly PlannedNodeAssistantOpV4[],
   ): Promise<NodeAssistantOpRunResult>
   /** 显式审阅模式的全部状态与推进动作。`undefined` = 没有审阅模式。 */
   readonly reviewMode: NodeReviewMode | undefined

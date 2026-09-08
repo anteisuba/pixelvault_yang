@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest'
 
-import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { NODE_STUDIO_ASSISTANT_LIMITS } from '@/constants/node-studio'
 import { sanitizeNodeAssistantRequest } from '@/lib/node-assistant-request'
 import type { NodeAssistantRequest } from '@/types/node-assistant'
+
+function v4Node(id: string): NodeAssistantRequest['nodes'][number] {
+  return {
+    id,
+    position: { x: 0, y: 0 },
+    data: {
+      kind: 'image',
+      subtype: 'result',
+      name: id,
+      status: 'idle',
+      createdAt: '2026-09-08T00:00:00.000Z',
+    },
+  }
+}
 
 function baseRequest(
   overrides: Partial<NodeAssistantRequest> = {},
@@ -11,14 +24,8 @@ function baseRequest(
   return {
     locale: 'zh',
     messages: [{ role: 'user', content: 'hello' }],
-    nodes: [
-      {
-        id: 'node-1',
-        type: NODE_TYPE_IDS.composer,
-        status: NODE_STATUS_IDS.idle,
-        title: 'Composer',
-      },
-    ],
+    nodes: [v4Node('node-1')],
+    edges: [],
     selectedNodeIds: ['node-1'],
     ...overrides,
   }
@@ -119,84 +126,42 @@ describe('sanitizeNodeAssistantRequest', () => {
     )
   })
 
-  /**
-   * ⚠ 这个白名单是本轮反复出现的那类 bug 的落点：给节点上下文加了字段却漏改这里，
-   * 新字段会在**发请求前**被安静地丢掉 —— 编译过、测试过、真机上模型照样看不见。
-   * 所以每加一个现值字段，就在这里钉一条。
-   */
-  it('切片 5 第二批的三个现值字段能活着出去（漏改白名单就红在这里）', () => {
-    const result = sanitizeNodeAssistantRequest(
-      baseRequest({
-        nodes: [
-          {
-            id: 'card-1',
-            type: NODE_TYPE_IDS.image,
-            status: NODE_STATUS_IDS.idle,
-            title: '小林',
-            model: 'seedance-2.0',
-            params: { resolution: '720p', generateAudio: false, seed: 42 },
-            references: {
-              limit: 3,
-              items: [{ role: 'identity', sourceId: 'img-7' }],
-            },
-          },
-        ],
-      }),
+  // v4 起节点是整份 `NodeV4`，⛔ 不再逐字段白名单（理由见 `sanitizeNodes` 的头注）。
+  // 这里钉的是接替它的那两道闸：节点数上限、悬空边。
+  it('节点数按 maxV4Nodes 截断', () => {
+    const nodes = Array.from(
+      { length: NODE_STUDIO_ASSISTANT_LIMITS.maxV4Nodes + 5 },
+      (_, index) => v4Node(`node-${index}`),
     )
-
-    expect(result.nodes[0]).toMatchObject({
-      model: 'seedance-2.0',
-      params: { resolution: '720p', generateAudio: false, seed: 42 },
-      references: {
-        limit: 3,
-        items: [{ role: 'identity', sourceId: 'img-7' }],
-      },
-    })
+    const result = sanitizeNodeAssistantRequest(baseRequest({ nodes }))
+    expect(result.nodes).toHaveLength(NODE_STUDIO_ASSISTANT_LIMITS.maxV4Nodes)
   })
 
-  // 空的 `params` 是**有意义的值**（「有档位、一个都没设」），与字段整个缺席
-  // 是两回事。清理时把它优化掉，模型就又分不出这两种情况了。
-  it('params 的空对象要原样留着，不被当成「没有」清掉', () => {
+  // 悬空边会被快照渲染成一条指向不存在节点的槽行 —— 模型读到的是「这里挂了个
+  // 东西」，比没有更坏。
+  it('两端有一头不在这次节点里的边一律丢掉', () => {
     const result = sanitizeNodeAssistantRequest(
       baseRequest({
-        nodes: [
+        nodes: [v4Node('a'), v4Node('b')],
+        edges: [
           {
-            id: 'vid-1',
-            type: NODE_TYPE_IDS.seedance,
-            status: NODE_STATUS_IDS.idle,
-            title: '镜头 1',
-            params: {},
+            id: 'e1',
+            source: 'a',
+            sourceHandle: 'out',
+            target: 'b',
+            slot: 'reference',
+          },
+          {
+            id: 'e2',
+            source: 'a',
+            sourceHandle: 'out',
+            target: 'ghost',
+            slot: 'reference',
           },
         ],
       }),
     )
-
-    expect(result.nodes[0]?.params).toEqual({})
-  })
-
-  it('参考图条目按上限截断，且不会凭空长出 URL 字段', () => {
-    const items = Array.from(
-      { length: NODE_STUDIO_ASSISTANT_LIMITS.maxNodeReferences + 3 },
-      () => ({ role: 'identity' as const }),
-    )
-    const result = sanitizeNodeAssistantRequest(
-      baseRequest({
-        nodes: [
-          {
-            id: 'card-1',
-            type: NODE_TYPE_IDS.image,
-            status: NODE_STATUS_IDS.idle,
-            title: '小林',
-            references: { limit: 3, items },
-          },
-        ],
-      }),
-    )
-
-    expect(result.nodes[0]?.references?.items).toHaveLength(
-      NODE_STUDIO_ASSISTANT_LIMITS.maxNodeReferences,
-    )
-    expect(JSON.stringify(result.nodes[0])).not.toContain('http')
+    expect(result.edges.map((edge) => edge.id)).toEqual(['e1'])
   })
 
   it('does not truncate long assistant history on later turns', () => {

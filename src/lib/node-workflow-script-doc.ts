@@ -379,7 +379,7 @@ export function projectScriptDocToGraph(
       )
       // ⚠ 有意不连 shotText → 静帧（owner 2026-07-31）。三条理由：
       // ① 今天不会被消费 —— `upstreamTextPrompt` 只对视频节点计算
-      //    (`StudioNodeWorkbench`: `isVideoMediaNode ? harvest : ''`)。
+      //    (画布 workbench: `isVideoMediaNode ? harvest : ''`)。
       // ② 就算接通也不该接 —— shotText 拼的是 场景/动作/镜头/构图 四段，
       //    其中「镜头」是运动词（缓慢推入 / 过肩），那是写给视频的；喂给图片
       //    模型只是噪音。静帧要的是这一镜长什么样，不是镜头怎么动。
@@ -443,7 +443,7 @@ export function projectScriptDocToGraph(
       if (shotStillId) {
         // ADDITIVE, on top of character→seedance above (owner 2026-07-31):
         // a shot node is the one image-gen node that reads its own upstream —
-        // `harvestUpstreamImageReferences` turns these into named references
+        // the deleted v3 image harvest turned these into named references
         // ("图1：角色「…」"), which is what keeps the face in the still on
         // model. Without this edge the still would generate from bare text.
         addDesiredEdge(characterNodeId, shotStillId)

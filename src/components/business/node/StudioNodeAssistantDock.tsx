@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Bot,
@@ -15,11 +15,15 @@ import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 
 import {
+  NODE_ASSISTANT_OP_V4_SPECS,
+  NODE_ASSISTANT_OP_V4_TIER_IDS,
+} from '@/constants/node-assistant-ops'
+import {
   NODE_STUDIO_ASSISTANT_LIMITS,
   NODE_STUDIO_ASSISTANT_ROUTE_MODELS,
   NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS,
 } from '@/constants/node-studio'
-import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { assistantAdapterAcceptsReferenceKind } from '@/constants/assistant'
 import {
@@ -37,18 +41,15 @@ import { useCanvasAssistantDrag } from '@/hooks/node/use-canvas-assistant-drag'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
-import { buildNodeAssistantNodeContexts } from '@/lib/node-assistant-context'
-import { resolveNodeDisplayName } from '@/lib/node-display-name'
+import { resolveV4NodeReadableName } from '@/lib/node-assistant-context'
+import {
+  planNodeAssistantOpsV4,
+  type PlannedNodeAssistantOpV4,
+} from '@/lib/node-assistant-op-plan'
 import type { AppLocale } from '@/i18n/routing'
-import type {
-  NodeAssistantMediaReference,
-  NodeAssistantNodeContext,
-} from '@/types/node-assistant'
-import type {
-  NodeWorkflowEdge,
-  NodeWorkflowModelOptionsByType,
-  NodeWorkflowNode,
-} from '@/types/node-workflow'
+import type { NodeAssistantMediaReference } from '@/types/node-assistant'
+import type { NodeAssistantOpV4Batch } from '@/types/node-assistant-ops'
+import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
 import { AssistantConversation } from './AssistantConversation'
@@ -73,14 +74,14 @@ interface StudioNodeAssistantDockProps {
   projectId: string
   projectName: string
   /**
-   * 画布上的节点 —— 助手的**上下文投影**（模型能看见什么）与 `@` 候选都读它。
+   * 画布 v4 整图 —— 助手的上下文（模型能看见什么）、`@` 候选、提案卡的规划都读它。
    *
-   * ⚠ ③d-4 一并删掉了 `edges` 与 `modelOptionsByType` 两个 prop：它们只服务
-   * 已经删掉的 v3 op 规划器（连线重复判定 / `set_model` 取值范围）。③e 用 v4
-   * 规划器接回来时，要的入参与它们并不相同（v4 判的是**槽**），⛔ 不留着两个空转
-   * 的 prop 假装接口还在。
+   * ⚠ ③e 把 `edges` 接了回来，但**入参与 ③d-4 删掉的那个不是一回事**：v4 判的是
+   * 「这条边进哪个具名槽」，所以带的是 `NodeWorkflowEdgeV4`（`slot` 必填），
+   * ⛔ 不是 v3 那份无槽边。
    */
-  nodes: NodeWorkflowNode[]
+  nodes: readonly NodeV4[]
+  edges: readonly NodeWorkflowEdgeV4[]
   scriptDoc: ScriptDoc | undefined
   locale: AppLocale
   onOpenChange(open: boolean): void
@@ -88,6 +89,14 @@ interface StudioNodeAssistantDockProps {
   onFocusNode(nodeId: string): void
   historyPortalTarget?: HTMLElement | null
 }
+
+/**
+ * 媒体没有记录固有尺寸时，能力调用（放大 / 去背）要报一个方框。
+ *
+ * ⚠ 这不是「默认尺寸」而是**兜底**：真实尺寸从上传/生成回填（`mediaWidth` /
+ * `mediaHeight`），存量素材才落到这里。
+ */
+const CANVAS_CAPABILITY_FALLBACK_SIZE = 1024
 
 function isHttpMediaUrl(value: string): boolean {
   try {
@@ -99,47 +108,27 @@ function isHttpMediaUrl(value: string): boolean {
 }
 
 function getAssistantMediaReferences(
-  nodes: NodeWorkflowNode[],
-  getNodeTypeLabel: (type: NodeWorkflowNode['type']) => string,
+  nodes: readonly NodeV4[],
 ): NodeAssistantMediaReference[] {
   const references: NodeAssistantMediaReference[] = []
 
   for (const node of nodes) {
-    const url =
-      typeof node.data.mediaUrl === 'string' && node.data.mediaUrl.trim()
-        ? node.data.mediaUrl.trim()
-        : typeof node.data.imageUrl === 'string' && node.data.imageUrl.trim()
-          ? node.data.imageUrl.trim()
-          : ''
+    if (node.data.kind === NODE_MEDIA_KIND_IDS.text) continue
+    const url = node.data.url?.trim() ?? ''
     // Schema requires absolute http(s) URLs — skip data/blob/relative paths.
     if (!url || !isHttpMediaUrl(url)) continue
 
+    // ⚠ 只有图和视频进得了附件：音频这条路模型收不下（`assistantAdapterAccepts…`
+    // 的两个 kind 就是全部），⛔ 不在这里给它编一个 kind。
     const kind =
-      node.data.mediaKind === NODE_MEDIA_KIND_IDS.video ||
-      node.type === NODE_TYPE_IDS.seedance ||
-      node.type === NODE_TYPE_IDS.videoReference ||
-      node.type === NODE_TYPE_IDS.videoMerge
+      node.data.kind === NODE_MEDIA_KIND_IDS.video
         ? 'video'
-        : node.data.mediaKind === NODE_MEDIA_KIND_IDS.image ||
-            node.type === NODE_TYPE_IDS.image ||
-            node.type === NODE_TYPE_IDS.characterImage ||
-            node.type === NODE_TYPE_IDS.backgroundImage ||
-            node.type === NODE_TYPE_IDS.frameImage ||
-            node.type === NODE_TYPE_IDS.shot
+        : node.data.kind === NODE_MEDIA_KIND_IDS.image
           ? 'image'
           : null
     if (!kind) continue
 
-    // 画布修法 08-A：直接读 mediaLabel/sourceLabel 绕开了机器值守卫——
-    // 「选已有图」写入口把上传备注常量当名字写进这两个字段时，@ 菜单候选名
-    // 会照单展示那串机器备注。改走共享解析器，顺带也能认出 characterName 等
-    // 专有身份字段（原逻辑不认）。
-    const label =
-      resolveNodeDisplayName(node.data) || getNodeTypeLabel(node.type)
-    const videoThumb =
-      typeof node.data.videoThumbnailUrl === 'string'
-        ? node.data.videoThumbnailUrl.trim()
-        : ''
+    const videoThumb = node.data.videoThumbnailUrl?.trim()
     references.push({
       id: `node-reference:${node.id}`,
       nodeId: node.id,
@@ -151,7 +140,9 @@ function getAssistantMediaReferences(
         : kind === 'image'
           ? { thumbnailUrl: url }
           : {}),
-      label,
+      // v4 的稳定名就是显示名（`data.name` / 镜头的 `label`）——⛔ 不再走 v3 那条
+      // 七字段优先链，也不再拿类型标签兜底：v4 节点建出来就有名字。
+      label: resolveV4NodeReadableName(node.data),
     })
   }
 
@@ -164,6 +155,7 @@ export function StudioNodeAssistantDock({
   projectId,
   projectName,
   nodes,
+  edges,
   scriptDoc,
   locale,
   onOpenChange,
@@ -174,10 +166,11 @@ export function StudioNodeAssistantDock({
   const t = useTranslations('StudioNode.dock')
   const tAssistant = useTranslations('StudioNode.assistant')
   const tHistory = useTranslations('StudioNode.history')
-  const tNodeTypes = useTranslations('StudioNode.nodeTypes')
   const tConversation = useTranslations('StudioNode.conversation')
+  const tCanvasOps = useTranslations('StudioNode.canvasOps')
   const selection = useNodeSelection()
-  const { placeDerivedImages, focusNode } = useNodeCanvasActions()
+  const { placeDerivedImages, focusNode, runAssistantOps, undo } =
+    useNodeCanvasActions()
   const conversation = useAssistantConversation({ projectId, persist: true })
   const [assistantRoute, setAssistantRoute] =
     useState<NodeAssistantRouteSelection>({
@@ -201,17 +194,6 @@ export function StudioNodeAssistantDock({
       }
     : undefined
 
-  // 投影本身住在 `lib/node-assistant-context` —— 它决定模型**能看见什么**，
-  // 而看不见就只能编，所以那段逻辑必须能脱离画布单测（空态 / 截断 / 哪些节点
-  // 有分类字段）。dock 这里只负责把本地化的类型标签递进去。
-  const nodeContexts = useMemo<NodeAssistantNodeContext[]>(
-    () =>
-      buildNodeAssistantNodeContexts(nodes, {
-        getNodeTypeLabel: (type) => tNodeTypes(type),
-      }),
-    [nodes, tNodeTypes],
-  )
-
   const selectedNodeIds = useMemo(
     () =>
       selection.nodes
@@ -220,9 +202,24 @@ export function StudioNodeAssistantDock({
     [selection.nodes],
   )
 
+  /**
+   * 用户「现在在哪一镜」—— 快照据此把这一镜与相邻两镜升成完整档。
+   *
+   * ⚠ 判据是**选中**，不是视口：视口里可能同时躺着五镜，取哪一镜要一条新规则，
+   * 而选中是用户刚刚点过的那个，没有歧义。什么都没选就不给 —— ⛔ 不猜一个镜号，
+   * 猜错等于把三镜的完整结构花在了用户根本没在看的地方。
+   */
+  const currentShotNo = useMemo(() => {
+    for (const selected of selection.nodes) {
+      const node = nodes.find((candidate) => candidate.id === selected.id)
+      if (node?.data.shotNo !== undefined) return node.data.shotNo
+    }
+    return undefined
+  }, [nodes, selection.nodes])
+
   const referenceOptions = useMemo(
-    () => getAssistantMediaReferences(nodes, tNodeTypes),
-    [nodes, tNodeTypes],
+    () => getAssistantMediaReferences(nodes),
+    [nodes],
   )
 
   /**
@@ -245,7 +242,9 @@ export function StudioNodeAssistantDock({
 
   const buildConversationContext = useCallback(
     () => ({
-      nodes: nodeContexts,
+      nodes,
+      edges,
+      ...(currentShotNo === undefined ? {} : { currentShotNo }),
       selectedNodeIds,
       references: lastReferences,
       locale,
@@ -256,8 +255,10 @@ export function StudioNodeAssistantDock({
     [
       assistantRoute.apiKeyId,
       assistantRoute.modelId,
+      currentShotNo,
+      edges,
       locale,
-      nodeContexts,
+      nodes,
       lastReferences,
       researchEnabled,
       selectedNodeIds,
@@ -282,25 +283,27 @@ export function StudioNodeAssistantDock({
   const handleRunCapability = useCallback(
     async ({ capability, nodeId }: AssistantCapabilityReference) => {
       const node = nodes.find((candidate) => candidate.id === nodeId)
+      // v4 的媒体只有**一个**产物字段（`data.url`）——v3 的 `mediaUrl` /
+      // `imageUrl` 两条在迁移里合流到它，⛔ 这里不再问第二个字段。
       const sourceUrl =
-        typeof node?.data.mediaUrl === 'string' && node.data.mediaUrl.trim()
-          ? node.data.mediaUrl.trim()
-          : typeof node?.data.imageUrl === 'string' && node.data.imageUrl.trim()
-            ? node.data.imageUrl.trim()
-            : ''
+        node && node.data.kind !== NODE_MEDIA_KIND_IDS.text
+          ? (node.data.url?.trim() ?? '')
+          : ''
       if (!node || !sourceUrl) {
         toast.error(tConversation('capabilityUnavailable'))
         return
       }
 
+      const meta =
+        node.data.kind === NODE_MEDIA_KIND_IDS.text ? undefined : node.data
       const sourceWidth =
-        typeof node.data.mediaWidth === 'number' && node.data.mediaWidth > 0
-          ? node.data.mediaWidth
-          : 1024
+        meta?.mediaWidth && meta.mediaWidth > 0
+          ? meta.mediaWidth
+          : CANVAS_CAPABILITY_FALLBACK_SIZE
       const sourceHeight =
-        typeof node.data.mediaHeight === 'number' && node.data.mediaHeight > 0
-          ? node.data.mediaHeight
-          : 1024
+        meta?.mediaHeight && meta.mediaHeight > 0
+          ? meta.mediaHeight
+          : CANVAS_CAPABILITY_FALLBACK_SIZE
       const descriptor = canvasCapabilityRuntime.open(capability)
       const response = await canvasCapabilityRuntime.run(
         capability === 'upscale'
@@ -308,7 +311,6 @@ export function StudioNodeAssistantDock({
               capability,
               target: {
                 sourceUrl,
-                sourceGenerationId: node.data.generationId,
                 sourceWidth,
                 sourceHeight,
               },
@@ -319,7 +321,6 @@ export function StudioNodeAssistantDock({
               capability,
               target: {
                 sourceUrl,
-                sourceGenerationId: node.data.generationId,
                 sourceWidth,
                 sourceHeight,
               },
@@ -337,18 +338,79 @@ export function StudioNodeAssistantDock({
   )
 
   /**
-   * ⚠ **助手写画布这条路在 C3c-③d-4 断开了**（③e 接回）。
+   * 一份提案 → 「哪些能做、哪些不能以及为什么」（③e 接回）。
    *
-   * v3 规划器（`planNodeAssistantOps`）随画布翻转一起删了 —— 它答的是「一节点一
-   * 入口能不能连」，而 v4 的目标有多个具名口，那个问题没有对象。同时
-   * `runAssistantOps` 今天把每一条都记成 skipped（见 `NodeV4ActionsBridge`）。
-   *
-   * 所以本 dock **不再向 `AssistantConversation` 传** `planAssistantOps` /
-   * `onApplyAssistantOps`：提案卡因此整张不渲染。⛔ 不留一张点了什么都不会发生的
-   * 卡 —— 一个「已应用 0 项」的回执比没有卡更让人以为坏了。原来的「结构 op 自动
-   * 落」（按消息 id 恰好一次、连线失败单独记账）随之一并下线，③e 用 v4 规划器
-   * （`planV4Connect`）重建时连同它的去重纪律一起搬回来。
+   * ⚠ 规划必须发生在 dock：只有它看得到 nodes/edges。合法性问的是 v4 的
+   * `evaluateV4Ingest`（与拖拽落槽、端口点亮同一个函数）—— 助手和人手因此永远
+   * 拿到同一个答案。
    */
+  const planAssistantOps = useCallback(
+    (batch: NodeAssistantOpV4Batch) =>
+      planNodeAssistantOpsV4(batch.ops, nodes, edges),
+    [edges, nodes],
+  )
+
+  const handleApplyAssistantOps = useCallback(
+    async (ops: readonly PlannedNodeAssistantOpV4[]) => {
+      const result = await runAssistantOps(ops)
+      if (result.applied > 0) {
+        toast.success(tCanvasOps('appliedToast', { count: result.applied }))
+      }
+      return result
+    },
+    [runAssistantOps, tCanvasOps],
+  )
+
+  /**
+   * 结构 op 的**自动落**（brief §5 第一档：免费动作直做，留一个撤销步）。
+   *
+   * ⚠ 「恰好一次」的账记在这里，⛔ 不在按消息渲染的卡里：流式期间同一条消息会
+   * 重渲染几十次，浮卡还能被开开关关 —— 判据放在卡上就会重复落图。`seenRef` 只
+   * 进不出，一条消息落过就永远不再落。
+   */
+  const autoAppliedRef = useRef<Set<string>>(new Set())
+  const [autoAppliedByMessageId, setAutoAppliedByMessageId] = useState<
+    Record<string, number>
+  >({})
+  const [autoFailedConnectsByMessageId, setAutoFailedConnectsByMessageId] =
+    useState<Record<string, number>>({})
+
+  useEffect(() => {
+    if (conversation.isLoading) return
+    for (const message of conversation.messages) {
+      if (!message.ops || autoAppliedRef.current.has(message.id)) continue
+      autoAppliedRef.current.add(message.id)
+      const plan = planNodeAssistantOpsV4(message.ops.ops, nodes, edges)
+      // 自动落只收**免费且不覆盖手写内容**的那一档：`delete` / `generate` 与
+      // 三选那批留给卡上的按钮。判据与卡完全同源（都问 `planNodeAssistantOpsV4`）。
+      const auto = plan.ops.filter(
+        (entry) =>
+          entry.status === 'ready' &&
+          NODE_ASSISTANT_OP_V4_SPECS[entry.op.op].tier ===
+            NODE_ASSISTANT_OP_V4_TIER_IDS.free &&
+          entry.requiresChoice !== true,
+      )
+      if (auto.length === 0) continue
+      void runAssistantOps(auto).then((result) => {
+        setAutoAppliedByMessageId((current) => ({
+          ...current,
+          [message.id]: result.applied,
+        }))
+        if (result.failedConnects > 0) {
+          setAutoFailedConnectsByMessageId((current) => ({
+            ...current,
+            [message.id]: result.failedConnects,
+          }))
+        }
+      })
+    }
+  }, [
+    conversation.isLoading,
+    conversation.messages,
+    edges,
+    nodes,
+    runAssistantOps,
+  ])
 
   const handleNewConversation = useCallback(() => {
     conversation.clear()
@@ -402,10 +464,10 @@ export function StudioNodeAssistantDock({
   // leaking the internal node id into the chat UI.
   const getNodeLabel = useCallback(
     (nodeId: string): string | undefined => {
-      const nodeContext = nodeContexts.find((node) => node.id === nodeId)
-      return nodeContext?.title
+      const node = nodes.find((candidate) => candidate.id === nodeId)
+      return node ? resolveV4NodeReadableName(node.data) : undefined
     },
-    [nodeContexts],
+    [nodes],
   )
 
   const dockStarters = useMemo(() => {
@@ -615,6 +677,11 @@ export function StudioNodeAssistantDock({
                 referenceOptions={referenceOptions}
                 canUseReference={canUseReference}
                 onRunCapability={handleRunCapability}
+                planAssistantOps={planAssistantOps}
+                onApplyAssistantOps={handleApplyAssistantOps}
+                autoAppliedByMessageId={autoAppliedByMessageId}
+                autoFailedConnectsByMessageId={autoFailedConnectsByMessageId}
+                onUndoAutoApply={undo}
               />
             </div>
             <div className="flex min-h-0 flex-1 flex-col">
@@ -641,6 +708,11 @@ export function StudioNodeAssistantDock({
               referenceOptions={referenceOptions}
               canUseReference={canUseReference}
               onRunCapability={handleRunCapability}
+              planAssistantOps={planAssistantOps}
+              onApplyAssistantOps={handleApplyAssistantOps}
+              autoAppliedByMessageId={autoAppliedByMessageId}
+              autoFailedConnectsByMessageId={autoFailedConnectsByMessageId}
+              onUndoAutoApply={undo}
             />
           </div>
         )}

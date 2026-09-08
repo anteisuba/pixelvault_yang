@@ -18,13 +18,11 @@
  */
 
 import type { ReactNode } from 'react'
-import { useNodes } from '@xyflow/react'
-
 import type { AppLocale } from '@/i18n/routing'
 import type {
-  NodeWorkflowEdge,
+  NodeV4,
+  NodeWorkflowEdgeV4,
   NodeWorkflowModelOptionsByType,
-  NodeWorkflowNode,
 } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
@@ -41,7 +39,8 @@ export interface WorkbenchDocksV4Props {
   readonly modelOptionsByType: NodeWorkflowModelOptionsByType
   readonly scriptDoc: ScriptDoc | undefined
   readonly locale: AppLocale
-  readonly edges: readonly NodeWorkflowEdge[]
+  readonly nodes: readonly NodeV4[]
+  readonly edges: readonly NodeWorkflowEdgeV4[]
 
   readonly leftPanelExpanded: boolean
   onLeftPanelExpandedChange(expanded: boolean): void
@@ -68,9 +67,9 @@ export interface WorkbenchDocksV4Props {
 export function WorkbenchAssistantDockV4({
   projectId,
   projectName,
-  modelOptionsByType,
   scriptDoc,
   locale,
+  nodes,
   edges,
   assistantOpen,
   assistantExpanded,
@@ -82,9 +81,9 @@ export function WorkbenchAssistantDockV4({
   WorkbenchDocksV4Props,
   | 'projectId'
   | 'projectName'
-  | 'modelOptionsByType'
   | 'scriptDoc'
   | 'locale'
+  | 'nodes'
   | 'edges'
   | 'assistantOpen'
   | 'assistantExpanded'
@@ -93,8 +92,6 @@ export function WorkbenchAssistantDockV4({
   | 'onFocusNode'
   | 'assistantHistoryHost'
 >) {
-  // RF store 里就是 v4 节点；类型是 v3 的（见文件头注的已知缺口）。
-  const nodes = useNodes<NodeWorkflowNode>()
   return (
     <StudioNodeAssistantDock
       open={assistantOpen}
@@ -102,6 +99,7 @@ export function WorkbenchAssistantDockV4({
       projectId={projectId}
       projectName={projectName}
       nodes={nodes}
+      edges={edges}
       scriptDoc={scriptDoc}
       locale={locale}
       onOpenChange={onAssistantOpenChange}

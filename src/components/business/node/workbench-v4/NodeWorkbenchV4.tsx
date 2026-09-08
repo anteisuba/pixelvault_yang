@@ -44,6 +44,7 @@ import {
 } from '../CanvasLeftPanel'
 import {
   NODE_STUDIO_CANVAS,
+  NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_DOCK,
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_TOOL_MODE_IDS,
@@ -67,6 +68,7 @@ import {
   type NodeGraphV4,
 } from '@/hooks/node/use-node-graph-v4'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
+import { useNodeGenerationReconcileV4 } from '@/hooks/node/use-node-generation-reconcile-v4'
 import { useNodeReviewMode } from '@/hooks/node/use-node-review-mode'
 import { useNodeWorkflowStore } from '@/hooks/node/use-node-workflow-store'
 import { prefersReducedMotion } from '@/hooks/node/node-ingest-dom'
@@ -74,7 +76,6 @@ import { readCanvasImageEditHandoff } from '@/lib/canvas-image-edit-handoff'
 import type {
   CanvasAppearance,
   NodeV4,
-  NodeWorkflowNode,
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
@@ -294,14 +295,56 @@ function NodeWorkbenchV4Inner() {
           toast.info(tV4('generateDesk.noGenerate'))
           continue
         }
-        void generation.generateNode(nodeId, {
-          nodes: graph.nodes,
-          edges: graph.edges,
-        })
+        graph.setRunState(nodeId, NODE_STATUS_IDS.running)
+        void generation
+          .generateNode(
+            nodeId,
+            { nodes: graph.nodes, edges: graph.edges },
+            {
+              // 落 job id = **持久化**「有一单在飞」。刷新 / 轮询窗口关掉之后，
+              // `useNodeGenerationReconcileV4` 就是靠它把结果取回来的。
+              onJobCreated: (jobId) =>
+                graph.setMedia(nodeId, { mediaJobId: jobId }),
+            },
+          )
+          .then((result) => {
+            if (result.success) {
+              graph.setMedia(nodeId, {
+                url: result.mediaUrl,
+                generationId: result.generation.id,
+                mediaJobId: undefined,
+                imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+                ...(result.thumbnailUrl
+                  ? { videoThumbnailUrl: result.thumbnailUrl }
+                  : {}),
+              })
+              graph.setRunState(nodeId, NODE_STATUS_IDS.done)
+              return
+            }
+            // ⚠ `pending` 不是失败：轮询窗口关了而 worker 还在跑。job id 留着，
+            // 交给回填 hook —— ⛔ 不在这里把它标成 failed。
+            if (result.pending) return
+            toast.error(tV4('generateDesk.failed', { reason: result.error }))
+            graph.setMedia(nodeId, { mediaJobId: undefined })
+            graph.setRunState(nodeId, NODE_STATUS_IDS.failed)
+          })
       }
     },
-    [graph.nodes, graph.edges, generation, tV4],
+    [graph, generation, tV4],
   )
+
+  /**
+   * 生成回填（③e）。⚠ 前台那条路（上面 `generateNodes` 的 `.then`）与刷新之后的
+   * 这一条**读同一个 job id**，⛔ 两处不各存一份状态。
+   */
+  useNodeGenerationReconcileV4({
+    nodes: graph.nodes,
+    setMedia: graph.setMedia,
+    setRunState: graph.setRunState,
+    reportFailure: (_nodeId, payload) => {
+      toast.error(tV4('generateDesk.failed', { reason: payload.error ?? '' }))
+    },
+  })
 
   /* ── 落物 ────────────────────────────────────────────────────────────── */
   const dnd = useWorkbenchDndV4({ graph, pasteEnabled: !heavyOverlayOpen })
@@ -493,17 +536,23 @@ function NodeWorkbenchV4Inner() {
         )
       },
       /**
-       * ⚠ **③e 的活**：助手提案目前仍是 v3 op 形状（`PlannedNodeAssistantOp`），
-       * 落到 v4 图上要先过 v4 规划器（`planV4Connect` 那条分支的完整版）。
-       * 这里**不假装成功** —— 全部记为 skipped 并返回真实的账，⛔ 不静默丢弃：
-       * 一个只会变大的「已落 N 个」恰恰盖住了「一条都没落」。
+       * 助手提案的执行口（③e）。
+       *
+       * ⚠ 走 `graph.dispatchBatch` 而不是逐条 `applyOp`：批内 `add_node` 的别名要
+       * 让后面的 `connect` 认得出（`refs` 表），而逐条 dispatch 读的是同一 tick 里
+       * 的旧 state —— 「新建角色 → 连到镜头」会连不上。返回的是**真实的账**，
+       * ⛔ 不假装成功：一个只会变大的「已落 N 个」恰恰盖住了「一条都没落」。
        */
-      runAssistantOps: async (ops) => ({
-        applied: 0,
-        skipped: ops.length,
-        failedConnects: 0,
-        createdNodeIds: [],
-      }),
+      runAssistantOps: async (planned) => {
+        const result = graph.dispatchBatch(planned.map((entry) => entry.op))
+        lastCreatedRef.current = [...result.createdNodeIds]
+        return {
+          applied: result.applied,
+          skipped: result.skipped,
+          failedConnects: result.failedConnects,
+          createdNodeIds: [...result.createdNodeIds],
+        }
+      },
       reviewMode,
       regenerateForReview: async (nodeId, promptAppend) => {
         await generation.generateNode(
@@ -656,9 +705,9 @@ function NodeWorkbenchV4Inner() {
           <WorkbenchAssistantDockV4
             projectId={store.currentProject.id}
             projectName={store.currentProject.name}
-            modelOptionsByType={modelOptionsByType}
             scriptDoc={store.state.scriptDoc}
             locale={appLocale}
+            nodes={graph.nodes}
             edges={graph.edges}
             assistantOpen={assistantOpen}
             assistantExpanded={assistantExpanded}
@@ -757,6 +806,7 @@ function NodeWorkbenchV4Inner() {
                   modelOptionsByType={modelOptionsByType}
                   scriptDoc={store.state.scriptDoc}
                   locale={appLocale}
+                  nodes={graph.nodes}
                   edges={graph.edges}
                   leftPanelExpanded={leftPanelExpanded}
                   onLeftPanelExpandedChange={setLeftPanelExpanded}

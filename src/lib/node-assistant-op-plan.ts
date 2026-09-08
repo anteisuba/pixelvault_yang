@@ -28,45 +28,12 @@
  */
 
 import {
-  NODE_ASSISTANT_DURATION_AUTO,
-  NODE_ASSISTANT_OP_IDS,
-  NODE_ASSISTANT_OP_LIMITS,
-  NODE_ASSISTANT_OP_REJECT_REASON_IDS,
-  type NodeAssistantOpRejectReason,
+  NODE_ASSISTANT_OP_V4_GROUP_IDS,
+  NODE_ASSISTANT_OP_V4_IDS,
+  NODE_ASSISTANT_OP_V4_SPECS,
+  NODE_ASSISTANT_OP_V4_TIER_IDS,
 } from '@/constants/node-assistant-ops'
-import { getCanvasAddCatalogItem } from '@/constants/canvas-add-catalog'
-import {
-  isNodeStudioReferenceRole,
-  NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
-  NODE_STUDIO_INGEST_REJECT_REASON_IDS,
-  NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
-  NODE_STUDIO_REFERENCE_SOURCE_IDS,
-  resolveReferenceAssetLimit,
-  type NodeStudioIngestRejectReason,
-} from '@/constants/node-studio'
-import { NODE_STATUS_IDS } from '@/constants/node-types'
-import {
-  getVideoModelParameterOptions,
-  getVideoModelSendContract,
-} from '@/constants/video-model-send-plan'
-import { canAssistantSetReviewState } from '@/lib/node-media-review'
-import {
-  canAttachReferenceAsset,
-  canCarryGenerationParams,
-  canCarryImageCategory,
-  canCarryModel,
-} from '@/lib/node-assistant-context'
-import {
-  buildAssistantAttachAssetPatch,
-  buildAssistantSetImageCategoryPatch,
-  buildAssistantSetModelPatch,
-  buildAssistantSetParamsPatch,
-} from '@/lib/node-assistant-op-patch'
-import {
-  getNodeMediaUrl,
-  getNodePrimaryMediaUrl,
-  resolveGenerateTargetKind,
-} from '@/lib/node-workflow-graph'
+import { NODE_MEDIA_KIND_IDS, NODE_STATUS_IDS } from '@/constants/node-types'
 import {
   evaluateV4Ingest,
   previewV4SlotCapacity,
@@ -77,70 +44,30 @@ import {
   type NodeConnectRejectReason,
 } from '@/lib/node-connection-rules'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
-import { isRunnableModelOption } from '@/hooks/use-split-model-options'
-import type {
-  NodeAssistantOp,
-  NodeAssistantOpBatch,
-  NodeAssistantSetParamsOp,
-} from '@/types/node-assistant-ops'
-import type {
-  NodeWorkflowEdge,
-  NodeWorkflowModelOption,
-  NodeWorkflowModelOptionsByType,
-  NodeWorkflowModelSelection,
-  NodeWorkflowNode,
-  NodeWorkflowReferenceAsset,
-} from '@/types/node-workflow'
-
-/** 只活在一次规划里的占位 id 前缀，绝不进图、绝不进持久化。 */
-const PENDING_NODE_ID_PREFIX = 'canvas-op-pending:'
-
-export type NodeAssistantOpPlanRejectReason =
-  | NodeAssistantOpRejectReason
-  | NodeStudioIngestRejectReason
+import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 
 /**
- * 一个引用解析成了什么。执行层据此决定去图里找现成节点，还是用本批刚建出来的
- * 那个 —— 所以这里给的是 `ref`，不是规划期的占位 id（占位 id 出了这个模块就没有
- * 意义）。
+ * 一次提案里一条 op 的裁决（③e）。
+ *
+ * ⚠ 形状与 v3 那份同构（`index` / `status` / `reason`），但**理由词表是 v4 的**
+ * ——两套词表不是同义词，见 `PlannedV4Connect` 的头注。
  */
-export type NodeAssistantOpNodeRef =
-  | { kind: 'existing'; nodeId: string }
-  | { kind: 'pending'; ref: string }
-
-export interface PlannedNodeAssistantOp {
+export interface PlannedNodeAssistantOpV4 {
   /** 在原提案里的下标 —— 卡上按这个顺序显示，执行也按这个顺序。 */
-  index: number
-  op: NodeAssistantOp
-  status: 'ready' | 'rejected'
-  reason?: NodeAssistantOpPlanRejectReason
-  /** 只有 `capacityFull` 会带，用来显示「参考位 n/m」。 */
-  capacity?: { current: number; limit: number }
-  source?: NodeAssistantOpNodeRef
-  target?: NodeAssistantOpNodeRef
+  readonly index: number
+  readonly op: NodeAssistantOpV4
+  readonly status: 'ready' | 'rejected'
   /**
-   * 两条 op 共用的「这次动的是哪条媒体」：
-   *   · `set_review_state` —— 审核态按 URL 键控，这是它的落点。
-   *   · `attach_asset` —— 源节点的主媒体，也就是要挂进目标的那一条。
-   * 两者都是**规划期就定下来**的，执行层不再自己去图上取一遍（同一 tick 内读回来
-   * 的可能已经是被本批改过的图）。
+   * 这条写入会盖掉用户手写的内容，必须走就地三选（brief §5 第二档）。
+   *
+   * ⚠ 判据在规划器算一次、卡与 dock 都读它，⛔ 两边各判各的：dock 决定「进不进
+   * 自动落」、卡决定「出不出三选」，同一个问题两个答案会让一条 op 既自动落了、
+   * 卡上又还在问你要不要覆盖。
    */
-  mediaUrl?: string
-  /**
-   * `set_model` 查表命中的那条选项。载荷里只有一个模型 id，剩下四个字段
-   * （optionId / adapterType / providerConfig / apiKeyId）全部来自这里 ——
-   * 执行层直接用，⛔ 不再查第二遍表（两次查表就有两种「挑哪条渠道」的规则）。
-   */
-  modelOption?: NodeWorkflowModelOption
-}
-
-export interface NodeAssistantOpPlan {
-  ops: PlannedNodeAssistantOp[]
-  /** 可执行的结构操作 —— 整批一次应用的那一堆。 */
-  readyStructuralCount: number
-  /** 可执行且**会扣 credit** 的 op，审批上必须单独确认。 */
-  readyGenerateCount: number
-  rejectedCount: number
+  readonly requiresChoice?: boolean
+  readonly reason?: NodeConnectRejectReason
+  /** 只有 `slotFull` 会带，用来显示「参考位 n/m」。 */
+  readonly capacity?: { readonly current: number; readonly limit: number }
 }
 
 /* ═════════════════════════════════════════════════════════════════════════
@@ -220,4 +147,223 @@ export function planV4Connect(
     reason,
     ...(full && capacity ? { capacity } : {}),
   }
+}
+
+/**
+ * 一次提案的裁决（③e）。
+ *
+ * ── 为什么读类 op 不进这张表 ──────────────────────────────────────────
+ * `read_canvas` / `find_node` 没有副作用：它们既不改图也不花钱，摆在审批卡上只会
+ * 让用户去批准一件根本不会发生的事。执行器对它们返回 `handled: false`，这里同源
+ * 地把它们滤掉，⛔ 不是「显示成已跳过」——那会让一张两条真 op 的卡看起来有五条。
+ */
+export interface NodeAssistantOpPlanV4 {
+  readonly ops: readonly PlannedNodeAssistantOpV4[]
+  /** 自动落的那一批（免费、算得出 inverse、且不覆盖用户手写内容）。 */
+  readonly autoApplyCount: number
+  /** 要用户就地确认的（`delete` 那一档 + 会覆盖手写内容的写入）。 */
+  readonly confirmCount: number
+  /** 会扣 credit 的。审批上必须单独确认。 */
+  readonly generateCount: number
+  readonly rejectedCount: number
+}
+
+/** 规划期给本批新节点的占位 id。只活在这一次规划里，⛔ 绝不进图。 */
+const PENDING_NODE_ID_PREFIX = 'canvas-op-pending:'
+
+function readExistingText(node: NodeV4 | undefined): string {
+  if (!node) return ''
+  return (
+    (node.data.kind === NODE_MEDIA_KIND_IDS.text
+      ? node.data.body
+      : node.data.prompt) ?? ''
+  ).trim()
+}
+
+/**
+ * 这条内容 op 会不会**盖掉用户已经写下的字**（brief §5 第二档）。
+ *
+ * ⚠ 判据是「目标里现在有没有字」而不是「模型给的 mode 是什么」：模型一律会写
+ * `replace`（它不知道那里有东西），把决定权交给它等于取消这道门。空字段直接落，
+ * 非空才问 —— 三选（追加 / 覆盖 / 保留）由卡给。
+ */
+function overwritesHandwrittenText(
+  op: NodeAssistantOpV4,
+  node: NodeV4 | undefined,
+): boolean {
+  if (
+    op.op !== NODE_ASSISTANT_OP_V4_IDS.setText &&
+    op.op !== NODE_ASSISTANT_OP_V4_IDS.setPrompt
+  ) {
+    return false
+  }
+  return op.mode === 'replace' && readExistingText(node).length > 0
+}
+
+/**
+ * 一批 v4 op → 「哪些能做、哪些不能以及为什么」。
+ *
+ * ── 为什么要在一份模拟图上推进 ────────────────────────────────────────
+ * 一次提案里「新建角色 → 连到镜头」是常态，而新节点在规划时还没有 id。所以
+ * `add_node` 先在模拟图上落一个占位节点，后面的 `connect` 就能被 `planV4Connect`
+ * 真正校验（槽收不收、满没满都算得准），而不是碰到新节点就跳过检查 —— 跳过的
+ * 结果是一批连线全放行、执行时再一条条失败（台账 K-2 那一幕）。
+ */
+export function planNodeAssistantOpsV4(
+  batch: readonly NodeAssistantOpV4[],
+  nodes: readonly NodeV4[],
+  edges: readonly NodeWorkflowEdgeV4[],
+  capacityBySlot?: Partial<Record<NodeSlotId, number>>,
+): NodeAssistantOpPlanV4 {
+  const simulated: NodeV4[] = [...nodes]
+  const refToId = new Map<string, string>()
+  const planned: PlannedNodeAssistantOpV4[] = []
+
+  const resolve = (reference: string): NodeV4 | undefined => {
+    const id = refToId.get(reference) ?? reference
+    return simulated.find((node) => node.id === id)
+  }
+
+  batch.forEach((op, index) => {
+    const spec = NODE_ASSISTANT_OP_V4_SPECS[op.op]
+    if (spec.group === NODE_ASSISTANT_OP_V4_GROUP_IDS.read) return
+
+    const reject = (reason: NodeConnectRejectReason) => {
+      planned.push({ index, op, status: 'rejected', reason })
+    }
+
+    if (op.op === NODE_ASSISTANT_OP_V4_IDS.addNode) {
+      const id = `${PENDING_NODE_ID_PREFIX}${index}`
+      if (op.ref) refToId.set(op.ref, id)
+      simulated.push({
+        id,
+        position: op.position ?? { x: 0, y: 0 },
+        data: buildPendingNodeData(op),
+      })
+      planned.push({ index, op, status: 'ready' })
+      return
+    }
+
+    if (
+      op.op === NODE_ASSISTANT_OP_V4_IDS.connect ||
+      op.op === NODE_ASSISTANT_OP_V4_IDS.attachAsset
+    ) {
+      const sourceRef =
+        op.op === NODE_ASSISTANT_OP_V4_IDS.connect ? op.source : op.sourceNodeId
+      const source = resolve(sourceRef)
+      const target = resolve(op.target)
+      if (!source || !target) {
+        reject(NODE_CONNECT_REJECT_REASON_IDS.unknownNode)
+        return
+      }
+      const verdict = planV4Connect(
+        source,
+        target,
+        op.slot,
+        edges,
+        simulated,
+        capacityBySlot,
+      )
+      planned.push({
+        index,
+        op,
+        status: verdict.status,
+        ...(verdict.reason ? { reason: verdict.reason } : {}),
+        ...(verdict.capacity ? { capacity: verdict.capacity } : {}),
+      })
+      return
+    }
+
+    if (op.op === NODE_ASSISTANT_OP_V4_IDS.disconnect) {
+      const exists = edges.some((edge) => edge.id === op.edgeId)
+      planned.push(
+        exists
+          ? { index, op, status: 'ready' }
+          : {
+              index,
+              op,
+              status: 'rejected',
+              reason: NODE_CONNECT_REJECT_REASON_IDS.unknownNode,
+            },
+      )
+      return
+    }
+
+    if (op.op === NODE_ASSISTANT_OP_V4_IDS.reorderShot) {
+      planned.push({ index, op, status: 'ready' })
+      return
+    }
+
+    // 剩下的都有一个 `target`：找不到就拒，⛔ 不静默跳过（用户读不出少了什么）。
+    const target = resolve(readOpTarget(op))
+    if (!target) {
+      reject(NODE_CONNECT_REJECT_REASON_IDS.unknownNode)
+      return
+    }
+    planned.push({ index, op, status: 'ready' })
+  })
+
+  let autoApplyCount = 0
+  let confirmCount = 0
+  let generateCount = 0
+  let rejectedCount = 0
+  const ops: PlannedNodeAssistantOpV4[] = planned.map((entry) => {
+    if (entry.status === 'rejected') {
+      rejectedCount += 1
+      return entry
+    }
+    const spec = NODE_ASSISTANT_OP_V4_SPECS[entry.op.op]
+    if (spec.tier === NODE_ASSISTANT_OP_V4_TIER_IDS.hardConfirm) {
+      generateCount += 1
+      return entry
+    }
+    const target = readOpTarget(entry.op)
+    const requiresChoice =
+      target !== '' && overwritesHandwrittenText(entry.op, resolve(target))
+    if (spec.tier === NODE_ASSISTANT_OP_V4_TIER_IDS.confirm || requiresChoice) {
+      confirmCount += 1
+      return requiresChoice ? { ...entry, requiresChoice } : entry
+    }
+    autoApplyCount += 1
+    return entry
+  })
+
+  return {
+    ops,
+    autoApplyCount,
+    confirmCount,
+    generateCount,
+    rejectedCount,
+  }
+}
+
+/** 一条 op 指着谁。没有 `target` 的（`disconnect` / `reorder_shot`）返回空串。 */
+function readOpTarget(op: NodeAssistantOpV4): string {
+  return 'target' in op && typeof op.target === 'string' ? op.target : ''
+}
+
+/**
+ * 一条 `add_node` 在模拟图上的占位数据。
+ *
+ * ⚠ 只填**判连线要用到的**那几样（kind / subtype / name / shotNo）：端口表问的
+ * 就是这两个。⛔ 不在这里造一份「像真的一样」的完整 data —— 真数据由执行器建，
+ * 这里多写一个字段就是多一处会与它分叉的规则。
+ */
+function buildPendingNodeData(op: {
+  readonly kind: NodeV4['data']['kind']
+  readonly subtype: string
+  readonly name?: string
+  readonly shotNo?: number
+}): NodeV4['data'] {
+  const base = {
+    kind: op.kind,
+    subtype: op.subtype,
+    name: op.name ?? op.subtype,
+    status: NODE_STATUS_IDS.idle,
+    createdAt: '',
+    ...(op.shotNo === undefined ? {} : { shotNo: op.shotNo }),
+  }
+  return (
+    op.kind === NODE_MEDIA_KIND_IDS.text ? { ...base, body: '' } : base
+  ) as NodeV4['data']
 }

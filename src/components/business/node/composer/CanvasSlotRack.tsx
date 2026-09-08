@@ -95,7 +95,7 @@ const ZONE_IDS: readonly SlotZoneId[] = (
  * 素材落在哪个区。
  *
  * ⚠ 这份映射必须与**收割侧**一致，否则界面说的和发出去的是两回事：
- * `harvestUpstreamAudioBindings` 收 voice · `harvestUpstreamVideoUrls` 收 video ·
+ * v3 收割层按 voice / video 各收一轮（已随 ③e 删除）·
  * 其余五种 kind 全部进 `assembleReferenceImagePayload` 的图片位。
  * `Record<ReferenceTokenKind, …>` 保证七种 kind 一个不漏。
  */

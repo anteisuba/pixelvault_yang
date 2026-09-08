@@ -387,7 +387,7 @@ export const NODE_WORKFLOW_FIELDS_BY_IMAGE_ROLE: Record<
  * ── 为什么需要这张表（台账 K-1，2026-08-29 真机）──────────────────────
  * 助手的 `add_node.prompt` / `set_prompt` 一律写 `data.prompt`，而 `shotText`
  * 节点的读侧（详情面板渲染、`buildNodeWorkflowPrompt`、下游视频的
- * `harvestUpstreamShotTextPrompt`）读的是那四栏。真机后果：助手写的四段镜头文本
+ * v3 收割层的镜头文本 pass，已随 ③e 删除）读的是那四栏。真机后果：助手写的四段镜头文本
  * （401 / 288 / 302 / 270 字符）**全部作废**，节点只显示「还没有镜头文本」，
  * 既不报错也看不出内容写错了地方 —— 静默且看起来像「助手没写」。
  *

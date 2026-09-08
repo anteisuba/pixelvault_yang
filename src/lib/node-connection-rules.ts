@@ -12,9 +12,9 @@
  *     (character / background / keyframe / shot), voice audio, and reference
  *     video clips (seedance / videoReference / videoMerge).
  *   - characterImage accepts voice — the voice→character→seedance audio-binding
- *     hop (harvestUpstreamAudioBindings labels @AudioN with the character name).
+ *     hop (the deleted v3 audio harvest labelled @AudioN with the character name).
  *   - shot accepts character + background image references: the shot generator
- *     harvests them as named reference images (harvestUpstreamImageReferences)
+ *     harvests them as named reference images (the deleted v3 image harvest)
  *     and labels them in the prompt legend so the model binds name → image.
  *   - videoMerge aggregates video-source clips.
  *   - every other node type is a leaf/source and accepts no inputs.
@@ -73,8 +73,8 @@ export const NODE_CONNECTION_RULES: Partial<
  * 换来的是「不再出现拖了半天连不上、且和端口坏掉长得一模一样」，代价是丢了
  * 「连得上就一定被用到」这条纪律：可以画出一条下游收割时被静默丢弃的边。
  *
- * TODO(C2)：v4 的具名槽落到 `NodeShell` / `StudioNodeWorkbench` 之后，这三个 v3
- * 调用方（`StudioNodeWorkbench:4179`、`use-cast-ingest:108`、`node-assistant-op-plan`）
+ * TODO(C2)：v4 的具名槽落到 `NodeShell` / 画布 workbench 之后，这三个 v3
+ * 调用方（画布 workbench:4179`、`use-cast-ingest:108`、`node-assistant-op-plan`）
  * 改调下面的 `canConnect`，本函数与 `NODE_CONNECTION_RULES` 随 12 个 legacy type
  * 一起删（C3）。⛔ 在那之前不要「顺手收紧」这里：收紧必须与**可见的拒绝理由**
  * 同批落地，否则就是退回静默失败那个坑。
@@ -125,6 +125,11 @@ export const NODE_CONNECT_REJECT_REASON_IDS = {
   slotFull: 'slotFull',
   /** 语义门：该素材已判失败，不能作首帧。 */
   blockedSource: 'blockedSource',
+  /**
+   * 引用的节点 / 边不存在（③e）。⚠ 只有**助手提案**能落到这一条：拖拽是从图上
+   * 的两个真节点起手的，不存在「找不到」。文案键早就在三语里备着。
+   */
+  unknownNode: 'unknownNode',
 } as const
 
 export const NODE_CONNECT_REJECT_REASONS = [
@@ -134,6 +139,7 @@ export const NODE_CONNECT_REJECT_REASONS = [
   NODE_CONNECT_REJECT_REASON_IDS.subtypeNotAllowed,
   NODE_CONNECT_REJECT_REASON_IDS.slotFull,
   NODE_CONNECT_REJECT_REASON_IDS.blockedSource,
+  NODE_CONNECT_REJECT_REASON_IDS.unknownNode,
 ] as const
 
 export type NodeConnectRejectReason =

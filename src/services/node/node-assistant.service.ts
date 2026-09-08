@@ -3,14 +3,21 @@ import 'server-only'
 import { streamText } from 'ai'
 
 import {
-  NODE_ASSISTANT_ADD_INTENT_HINTS,
-  NODE_ASSISTANT_ADD_INTENTS,
-  NODE_ASSISTANT_AUTO_APPLY_OPS,
-  NODE_ASSISTANT_CATEGORY_HINTS,
   NODE_ASSISTANT_DURATION_AUTO,
   NODE_ASSISTANT_OP_LIMITS,
   NODE_ASSISTANT_OP_MARKERS,
+  NODE_ASSISTANT_OP_V4_SPECS,
+  NODE_ASSISTANT_OP_V4_TIER_IDS,
+  NODE_ASSISTANT_OPS_V4,
+  NODE_ASSISTANT_SETTABLE_FIELDS,
+  NODE_ASSISTANT_WRITE_MODES,
+  type NodeAssistantOpV4Tier,
 } from '@/constants/node-assistant-ops'
+import {
+  NODE_MEDIA_KINDS,
+  NODE_V4_SUBTYPES_BY_KIND,
+} from '@/constants/node-types'
+import { getNodeV4Ports } from '@/constants/node-slots'
 import {
   getAvailableAudioModels,
   getAvailableImageModels,
@@ -27,8 +34,7 @@ import {
 import {
   NODE_STUDIO_ASSISTANT,
   NODE_STUDIO_ASSISTANT_LIMITS,
-  NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID,
-  NODE_STUDIO_REFERENCE_ROLES,
+  NODE_V4_SNAPSHOT,
   resolveAssistantModelId,
 } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -55,12 +61,14 @@ import {
   buildReferenceHandles,
   formatReferenceTag,
 } from '@/lib/assistant-reference-handles'
-import { buildNodeCanvasSnapshotV4 } from '@/lib/node-assistant-context'
+import {
+  buildNodeCanvasSnapshotV4,
+  resolveV4NodeReadableName,
+} from '@/lib/node-assistant-context'
 import { ApiRequestError } from '@/lib/errors'
 import type {
   NodeAssistantMessage,
   NodeAssistantMediaReference,
-  NodeAssistantNodeContext,
   NodeAssistantRequest,
 } from '@/types/node-assistant'
 
@@ -83,86 +91,6 @@ function shouldUseGateway(): boolean {
   return Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL)
 }
 
-/**
- * 档位现值 → 一段话。**空对象要说出「一个都没设」** —— 它与「这节点没有档位」
- * （字段整个缺席）是两件事，压成同一种渲染模型就分不出来了。
- */
-function formatNodeParams(
-  params: NonNullable<NodeAssistantNodeContext['params']>,
-): string {
-  const parts: string[] = []
-  if (params.aspectRatio) parts.push(params.aspectRatio)
-  if (params.resolution) parts.push(params.resolution)
-  if (params.duration) parts.push(`${params.duration}s`)
-  if (typeof params.generateAudio === 'boolean') {
-    parts.push(`audio ${params.generateAudio ? 'on' : 'off'}`)
-  }
-  if (typeof params.seed === 'number') parts.push(`seed ${params.seed}`)
-  return parts.length > 0 ? parts.join(', ') : 'none set'
-}
-
-/**
- * 参考图现值 → 一段话。⛔ **一个 URL 都不出现**：模型拿一条 R2 长地址没有任何
- * 用处，而它恰恰是最贵的那种 token。带 `sourceId` 是为了让模型看得出「这张卡已经
- * 收了哪个节点的图」，从而不再提一条注定被判重的挂载。
- */
-function formatNodeReferences(
-  references: NonNullable<NodeAssistantNodeContext['references']>,
-): string {
-  const head = `${references.items.length}/${references.limit}`
-  if (references.items.length === 0) return head
-  const detail = references.items
-    .map((item) =>
-      item.sourceId ? `${item.role} from ${item.sourceId}` : item.role,
-    )
-    .join(', ')
-  return `${head} (${detail})`
-}
-
-function buildNodeSummary(
-  nodes: NodeAssistantNodeContext[],
-  maxLength?: number,
-): string {
-  if (nodes.length === 0) {
-    return 'No nodes on the canvas yet.'
-  }
-
-  const summary = nodes
-    .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodes)
-    .map((node) => {
-      // 现值逐项**指名道姓**（切片 5 第一批）。以前这一行的尾巴是一段没有名字的
-      // `— <summary>`，模型无从知道那就是它能改写的 `prompt` 字段；分类则完全
-      // 看不见，于是「把这张标成首帧」它只能答「你去详情面板标一下」。
-      const category = node.imageCategory
-        ? ` · category: ${node.imageCategory}${
-            node.imageCategoryLabel ? ` ("${node.imageCategoryLabel}")` : ''
-          }`
-        : ''
-      const prompt = node.promptExcerpt
-        ? ` · prompt: ${node.promptExcerpt}`
-        : ''
-      // 切片 5 第二批的三个现值。都遵循同一条：**字段在 = 这个节点有这回事**，
-      // 所以缺席时整段不渲染，模型据此知道那条 op 对它无效。
-      const model = node.model ? ` · model: ${node.model}` : ''
-      const params = node.params
-        ? ` · params: ${formatNodeParams(node.params)}`
-        : ''
-      const references = node.references
-        ? ` · refs: ${formatNodeReferences(node.references)}`
-        : ''
-      return `- [[node:${node.id}]] ${node.title} (${node.type}, ${node.status})${category}${model}${params}${references}${prompt}`
-    })
-    .join('\n')
-
-  return maxLength === undefined
-    ? summary
-    : truncateAssistantContextBlock(
-        summary,
-        maxLength,
-        'Additional canvas node details compacted for the retry.',
-      )
-}
-
 function buildConversation(
   messages: NodeAssistantMessage[],
   maxLength?: number,
@@ -172,22 +100,24 @@ function buildConversation(
 
 function buildSelectedNodeText(
   selectedNodeIds: string[],
-  nodes: NodeAssistantNodeContext[],
+  nodes: NodeAssistantRequest['nodes'],
 ): string {
   if (selectedNodeIds.length === 0) {
     return 'No node is selected.'
   }
 
-  // Same [[node:id]] title pairing buildNodeSummary uses above, so a
-  // selected-node reference reads with its title instead of a bare id the
-  // model has no way to name in its reply.
-  const titleById = new Map(nodes.map((node) => [node.id, node.title]))
+  // Same [[node:id]] title pairing the v4 snapshot uses, so a selected-node
+  // reference reads with its name instead of a bare id the model has no way
+  // to name in its reply.
+  const nameById = new Map(
+    nodes.map((node) => [node.id, resolveV4NodeReadableName(node.data)]),
+  )
 
   return selectedNodeIds
     .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxSelectedNodes)
     .map((id) => {
-      const title = titleById.get(id)
-      return title ? `[[node:${id}]] ${title}` : `[[node:${id}]]`
+      const name = nameById.get(id)
+      return name ? `[[node:${id}]] ${name}` : `[[node:${id}]]`
     })
     .join(', ')
 }
@@ -309,57 +239,95 @@ ${lines.join('\n')}`
 }
 
 /**
- * 画布写能力的协议说明（包 5）。
+ * 一个 kind.subtype 收哪些槽 —— 从端口表生成，⛔ 不在提示词里手抄。
  *
- * 词表从常量生成，不在提示词里手抄一份 —— ＋添加 菜单加了一族而这里没跟上，
- * 模型就会提出一个应用端根本不认识的 intent，用户看到的是「读不出来」。
+ * 助手每条 `connect` 都必须带 `slot`（v4 没有无槽的边），所以「谁有哪些口」是它
+ * 唯一算得出合法连线的依据。抄一份的后果与模型目录那条完全一样：端口表加了一个
+ * 口而提示词没跟上，模型就永远不会用它。
+ */
+function buildSlotTableInstructions(): string {
+  const lines: string[] = []
+  for (const kind of NODE_MEDIA_KINDS) {
+    for (const subtype of NODE_V4_SUBTYPES_BY_KIND[kind]) {
+      const ports = getNodeV4Ports(kind, subtype)
+      if (!ports) continue
+      const inputs = ports.inputs
+        .map((input) => {
+          const capacity = input.max === null ? 'N' : String(input.max)
+          return `${input.slot} (${input.min}..${capacity}, takes ${input.sourceKinds.join('/')})`
+        })
+        .join(', ')
+      lines.push(
+        `  ${kind}.${subtype} — inputs: ${inputs || 'none'}; outputs: ${ports.outputs.join(', ')}`,
+      )
+    }
+  }
+  return `- NODE TYPES AND THEIR NAMED INPUTS (a v4 edge ALWAYS lands in one named slot — "connect" without a valid slot is refused):
+${lines.join('\n')}`
+}
+
+/**
+ * v4 画布写能力的协议说明（③e）。
+ *
+ * ⚠ 词表 / 分档 / 自动落三件事全部从 `NODE_ASSISTANT_OP_V4_SPECS` 生成 —— op 表
+ * 加一条而提示词没跟上，模型就会提出一个应用端根本不认识的 op，用户看到的是
+ * 「读不出来」。这与旧版从 `NODE_ASSISTANT_ADD_INTENTS` 生成意图列表是同一条纪律。
  */
 function buildCanvasOpsInstructions(): string {
   const { open, close } = NODE_ASSISTANT_OP_MARKERS
+  const byTier = (tier: NodeAssistantOpV4Tier): string[] =>
+    NODE_ASSISTANT_OPS_V4.filter(
+      (op) => NODE_ASSISTANT_OP_V4_SPECS[op].tier === tier,
+    ).slice()
+  const autoApply = NODE_ASSISTANT_OPS_V4.filter(
+    (op) => NODE_ASSISTANT_OP_V4_SPECS[op].autoApply,
+  )
+  const { free, confirm, hardConfirm } = NODE_ASSISTANT_OP_V4_TIER_IDS
+
   return `CANVAS WRITE TOOLS:
-- These ops (${NODE_ASSISTANT_AUTO_APPLY_OPS.join(' / ')}) are applied to the canvas AS SOON AS you emit them — they are free and the creator can undo the whole batch in one step. So describe them as done, not as a request ("Placed three character nodes" — not "click apply to place them", and never invent an apply button).
-- set_review_state and generate are NOT applied automatically: the creator confirms each one. For those, say what you are proposing.
+- These ops (${autoApply.join(' / ')}) are applied to the canvas AS SOON AS you emit them — they are free and the creator can undo the whole batch in one step. So describe them as done, not as a request ("Placed three character nodes" — not "click apply to place them", and never invent an apply button).
+- These ops need the creator to confirm each one, so say what you are PROPOSING, never that it happened: ${byTier(confirm).join(' / ')} (destructive) and ${byTier(hardConfirm).join(' / ')} (spends their credits — propose it only when they explicitly asked to generate).
 - To propose, append exactly ONE block at the very END of your reply:
   ${open}{"ops":[ … ]}${close}
   Raw JSON, no code fence, no commentary inside. The user never sees what is between the markers, so put every human-facing word outside it.
 - Available ops (at most ${NODE_ASSISTANT_OP_LIMITS.maxOps} per block):
-  {"op":"add_node","intent":"<intent>","ref":"<short alias>","name":"<display name>","prompt":"<the node's generation prompt>"} — "ref", "name" and "prompt" are optional; "ref" lets later ops in the SAME block point at the node you are creating.
-  {"op":"connect","source":"<node id or ref>","target":"<node id or ref>"}
-  {"op":"rename","target":"<node id or ref>","name":"<new name>"}
-  {"op":"set_prompt","target":"<node id or ref>","prompt":"<the node's new generation prompt>"} — REPLACES that node's prompt. Use it to edit a node that already exists instead of creating a duplicate one.
-  {"op":"set_image_category","target":"<node id or ref>","category":"<category>","label":"<name>"} — tags what an image is FOR. "label" is required only for "custom".
-  {"op":"set_model","target":"<node id or ref>","model":"<model id>"} — switches which model that node generates with. The id MUST be copied from MODELS THE CREATOR CAN PICK below; never invent one and never use a marketing name.
-  {"op":"set_params","target":"<node id>","aspectRatio":"16:9","resolution":"720p","duration":6,"generateAudio":true,"seed":123} — every field is optional, send only the ones you are changing, but send at least one. VIDEO generation nodes only, and every value must be one the node's current model accepts. "duration" is seconds (or "${NODE_ASSISTANT_DURATION_AUTO}" to let the model decide).
-  {"op":"attach_asset","target":"<character/background card>","source":"<node id or ref>","role":"<category>","onStage":true} — attaches the SOURCE node's image to that card's gallery. "role" and "onStage" are optional ("onStage" also sends this image downstream alongside the card's main one). There is no URL field: name the node that holds the image.
-  {"op":"set_review_state","target":"<node id>","state":"awaiting_review" | "rejected","reason":"<why>"}
-  {"op":"generate","target":"<node id>"} — spends the user's credits; propose it only when they explicitly asked to generate.
-- "intent" must be one of these exact values — pick by what the thing IS, not by which word the user happened to use:
-${NODE_ASSISTANT_ADD_INTENTS.map(
-  (intent) => `  ${intent} — ${NODE_ASSISTANT_ADD_INTENT_HINTS[intent]}`,
+  {"op":"add_node","kind":"<kind>","subtype":"<subtype>","ref":"<short alias>","name":"<display name>","shotNo":2} — "ref" lets later ops in the SAME block point at the node you are creating; "shotNo" puts it in that shot's lane, omit it for a loose node.
+  {"op":"connect","source":"<node id or ref>","target":"<node id or ref>","slot":"<slot>","role":"script|style|character"} — "role" only applies to the "text" slot (script = what to shoot, style = constraints, character = who); it is ignored elsewhere.
+  {"op":"disconnect","edgeId":"<edge id>"}
+  {"op":"delete","target":"<node id>"} — needs confirmation.
+  {"op":"move_to_shot","target":"<node id>","shotNo":3} — null moves it out of the shot lanes.
+  {"op":"reorder_shot","from":2,"to":5} — moves a whole shot in the timeline. Shot NAMES never change with the order: only the displayed number does.
+  {"op":"set_text","target":"<text node>","body":"<markdown body>","mode":"${NODE_ASSISTANT_WRITE_MODES.join('|')}"}
+  {"op":"set_prompt","target":"<node id or ref>","prompt":"<the node's generation prompt>","mode":"${NODE_ASSISTANT_WRITE_MODES.join('|')}"}
+  {"op":"set_field","target":"<node id>","field":"<field>","value":<string|number|boolean|null>}
+  {"op":"attach_asset","target":"<node id>","slot":"<slot>","sourceNodeId":"<node id>","contextCardId":"<character card id>"} — attaches the SOURCE node's media into that slot. There is no URL field: name the node that holds the media.
+  {"op":"set_slot_version","target":"<node id>","slot":"<slot>","versionId":"<version id>"} — picks which version of a slot is the current one.
+  {"op":"mark_version_blocked","target":"<node id>","slot":"<slot>","versionId":"<version id>","blocked":true,"reason":"<why>"} — a blocked version can never be used as a keyframe again.
+  {"op":"set_model","target":"<node id or ref>","modelId":"<model id>"} — the id MUST be copied from MODELS THE CREATOR CAN PICK below; never invent one and never use a marketing name.
+  {"op":"set_params","target":"<node id>","params":{"aspectRatio":"16:9","resolution":"720p","duration":"6","generateAudio":true,"seed":123}} — send only the dials you are changing, but send at least one. Every value must be one the node's current model accepts. "duration" is seconds as a string (or "${NODE_ASSISTANT_DURATION_AUTO}" to let the model decide).
+  {"op":"set_voice_profile","target":"<audio.voice node>","profile":{"provider":"…","voiceId":"…","style":"…","emotion":"…","speed":1,"volume":0}}
+  {"op":"set_merge_clips","target":"<video.merge node>","clips":[{"url":"<clip url>","startSec":0,"endSec":4}]} — trims the clips ALREADY wired into the merge node; it never adds one.
+  {"op":"set_review_state","target":"<node id>","url":"<the media url>","state":"awaiting_review|rejected","reason":"<why>","promptPatch":"<what to add to the next prompt>"}
+  {"op":"generate","target":"<node id>"} — spends the user's credits.
+- "mode" on set_text / set_prompt says what to do with what the creator already wrote there: "replace" overwrites it, "append" adds after it, "suggest" leaves their text alone and offers yours. When the field already holds THEIR words, the app asks them which one — so pick the mode that matches what they asked for and never assume replace.
+- "kind" is one of ${NODE_MEDIA_KINDS.join(' / ')}; "subtype" must be one from that kind's list:
+${NODE_MEDIA_KINDS.map(
+  (kind) => `  ${kind}: ${NODE_V4_SUBTYPES_BY_KIND[kind].join(', ')}`,
 ).join('\n')}
-- WRITE THE "prompt" whenever the node is something that gets generated (an image, a shot still, a keyframe, a video, shot text). A node you create without one lands on the canvas empty and the creator has to write it themselves — which is the work they asked you to do. The same rules apply to set_prompt, which replaces the whole prompt of an existing node — so restate the parts that stay, or they are gone. Rules for it:
+- "field" (set_field) is a closed list — no synonyms, no inventing new ones: ${NODE_ASSISTANT_SETTABLE_FIELDS.join(', ')}. A shot's readable name is "label"; renaming a shot changes that, NEVER its shot number.
+${buildSlotTableInstructions()}
+- WRITE THE "prompt" whenever the node is something that gets generated (an image, a shot still, a keyframe, a video). A node you create without one lands on the canvas empty and the creator has to write it themselves — which is the work they asked you to do. Rules for it:
   · Write the finished prompt, not a label. "A girl in the rain" is a label; the prompt says who, where, framing, light, and style.
   · When the new node is a VARIATION of something already on the canvas, carry over every attribute that must NOT change — same hairstyle, same outfit design, same proportions, same art style — and state them explicitly. The creator says "make it blue"; keeping everything else identical is your job, not theirs, and an unstated constraint is one the model will drift on.
   · Keep the whole set coherent: characters in the same story share a described look across every node you create in one block.
   · Plain text only. Never put a [[node:…]] marker inside a prompt — that field goes to the image model, not to the chat UI. Name the thing in words instead ("same face and hairstyle as the existing Kimi character sheet").
   · At most ${NODE_ASSISTANT_OP_LIMITS.maxPromptLength} characters.
-- "category" (set_image_category) and "role" (attach_asset) share one list — use one of these exact values, no synonyms, no casing variants, no inventing new ones:
-${NODE_STUDIO_REFERENCE_ROLES.map(
-  (role) => `  ${role}${NODE_ASSISTANT_CATEGORY_HINTS[role]}`,
-).join('\n')}
 ${buildModelCatalogInstructions()}
-- READ THE CURRENT VALUES before you write. Each line in CURRENT CANVAS NODES carries what that node holds right now:
-  · "prompt: …" is the node's current generation prompt — the exact field set_prompt overwrites. When the creator asks for a change to an existing node, edit that prompt (keep everything they did not ask to change) instead of adding another node.
-  · "category: …" is the node's current image category. "${NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID}" means it can be categorized but is not yet — never write "${NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID}" back as a category.
-  · "model: …" is the model that node generates with; "${NODE_STUDIO_IMAGE_CATEGORY_UNSET_ID}" means it can pick one but has not yet.
-  · "params: …" are that node's generation dials (aspect ratio, resolution, duration, audio, seed); "none set" means the provider's own defaults apply.
-  · "refs: 2/3 (identity from img-7, …)" is that card's reference gallery — how many images it holds, its limit, and which canvas node each came from. Do not attach the same source twice, and do not propose one when the card is full.
-  · A line that does NOT carry one of those parts means the node has no such thing at all — no "category:" (video, voice, shot text, identity cards), no "model:" (identity cards, shot text, reference video, merge nodes), no "params:" (everything except video generation nodes), no "refs:" (everything except character/background cards). Do not propose the matching op for it.
-  · Image nodes have no "params:" on purpose: their aspect ratio and resolution live on the compose bar, not on the node. If the creator asks to change those, tell them where the control is instead of proposing set_params.
-  · Anything not shown on the line you simply cannot see — say so rather than guessing, and never state a value you were not given.
-- Node ids are exactly the ids listed in CURRENT CANVAS NODES. Never invent one, and never use a node's display name as its id.
+- READ THE CURRENT VALUES before you write. CURRENT CANVAS NODES is a layered snapshot: the shot you are on and its neighbours carry their full structure (each named slot with what is wired into it, the prompt, the dials); every other shot is one title line, and a line saying how many were not listed at all. A node's slot line shows the CURRENT version only — other versions exist but are not shown.
+  · Anything not on the line you simply cannot see — say so rather than guessing, and never state a value you were not given. If you need a shot that was only listed as a title, ask for it or say you have not read it.
+  · Node ids are exactly the ids in that snapshot. Never invent one, and never use a node's display name as its id.
 - You may NOT approve media: "approved" is refused by the app every single time. Approving is the person's job — you may only send something back or mark it as awaiting review.
-- Propose only what the user actually asked for. When nothing needs to change, omit the block entirely.`
+- Propose only what the user actually asked for. When nothing needs to change, omit the block entirely. Ops whose tier is "${free}" still show up in the creator's undo history, so a wrong one costs them a click, not their work.`
 }
 
 function buildNodeAssistantSystemPrompt(request: NodeAssistantRequest): string {
@@ -435,32 +403,22 @@ function buildNodeAssistantUserPrompt(
   request: NodeAssistantRequest,
   maxLength?: number,
 ): string {
-  const nodeBudget =
-    maxLength === undefined
-      ? undefined
-      : Math.max(1, Math.floor(maxLength * 0.2))
   const referenceBudget =
     maxLength === undefined
       ? undefined
       : Math.max(1, Math.floor(maxLength * 0.1))
   const prefix = `CURRENT CANVAS NODES:
-${
-  // C3c-① E：state 为 v4 时用 v4 分层快照 —— 槽内联在目标节点下面、非当前镜
-  // 只报一行标题。⛔ 不做「两份都发」：那会让同一张图在上下文里出现两次，
-  // 且两份对不上时模型按哪份答无从判断。
-  request.canvasV4
-    ? buildNodeCanvasSnapshotV4(
-        request.canvasV4.nodes,
-        request.canvasV4.edges,
-        {
-          selectedIds: request.selectedNodeIds,
-          ...(request.canvasV4.currentShotNo === undefined
-            ? {}
-            : { currentShotNo: request.canvasV4.currentShotNo }),
-        },
-      )
-    : buildNodeSummary(request.nodes, nodeBudget)
-}
+${buildNodeCanvasSnapshotV4(request.nodes, request.edges, {
+  selectedIds: request.selectedNodeIds,
+  ...(request.currentShotNo === undefined
+    ? {}
+    : { currentShotNo: request.currentShotNo }),
+  // 压缩重试砍的是**标题档行数**，⛔ 不是把某镜的结构切掉一半（半截结构比没有
+  // 结构更容易让模型编）。
+  ...(maxLength === undefined
+    ? {}
+    : { maxTitleRows: NODE_V4_SNAPSHOT.compactedTitleRows }),
+})}
 
 SELECTED NODES:
 ${buildSelectedNodeText(request.selectedNodeIds, request.nodes)}

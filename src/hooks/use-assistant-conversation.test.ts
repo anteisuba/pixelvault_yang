@@ -29,7 +29,7 @@ vi.mock('next-intl', () => {
   }
 })
 
-import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_STATUS_IDS } from '@/constants/node-types'
 import type { AssistantStreamMessage } from '@/lib/assistant-stream-client'
 import { useAssistantConversation } from '@/hooks/use-assistant-conversation'
 import type { AssistantConversationContext } from '@/hooks/use-assistant-conversation'
@@ -134,17 +134,22 @@ async function streamAssistantCharacters(script: string) {
 const CONTEXT: AssistantConversationContext = {
   locale: 'zh',
   selectedNodeIds: ['node-1'],
+  // ③e：上下文就是 v4 整图（节点 + 带槽的边），⛔ 不再是 v3 的窄投影。
   nodes: [
     {
       id: 'node-1',
-      type: NODE_TYPE_IDS.composer,
-      status: NODE_STATUS_IDS.idle,
-      title: 'Composer',
-      // `summary` 2026-08-21 改名为 `promptExcerpt` —— 它一直就是 node.data.prompt，
-      // 改名是为了让模型知道那段文字是可写的字段（`set_prompt` 的前提）。
-      promptExcerpt: 'story idea',
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'text',
+        subtype: 'script',
+        name: 'Composer',
+        status: NODE_STATUS_IDS.idle,
+        createdAt: '2026-09-08T00:00:00.000Z',
+        body: 'story idea',
+      },
     },
   ],
+  edges: [],
 }
 
 beforeEach(() => {

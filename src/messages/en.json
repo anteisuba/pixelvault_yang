@@ -4387,8 +4387,6 @@
       "description": "Color and wallpaper are saved with this project.",
       "colorLabel": "Background color",
       "customColor": "Custom color",
-      "colorValueLabel": "Color value",
-      "invalidColor": "Enter a color in #RRGGBB format.",
       "presetColor": "Use color {color}",
       "imageLabel": "Background image",
       "chooseImage": "Choose or upload image",
@@ -4496,9 +4494,7 @@
       },
       "cast": "Cast tray",
       "upload": "Upload image",
-      "pickFromLibrary": "Pick from library",
-      "pickFromLibraryTitle": "Pick images from your library",
-      "pickFromLibraryDescription": "Drop images from your asset library onto the canvas. Multiple selection allowed."
+      "pickFromLibrary": "Pick from library"
     },
     "statuses": {
       "idle": "Idle",
@@ -4511,24 +4507,15 @@
       "disabled": "Disabled"
     },
     "imageSourceStarter": {
-      "uploadAria": "Upload image",
       "uploadTitle": "Upload image",
       "uploadHint": "Drag in to upload",
       "library": "Library",
-      "aiGenerate": "AI Generate",
       "libraryDialogTitle": "Choose an image asset",
       "libraryDialogDescription": "Pick an image from your library to use as this card's content.",
       "untitled": "Untitled image",
       "uploadFailed": "Image upload failed",
       "generationFailed": "Image generation failed",
       "categoryLabel": "Category",
-      "categoryUnset": "Uncategorized",
-      "categoryCustomLabel": "Custom category name",
-      "categoryCustomPlaceholder": "Type a custom category…",
-      "badgeEmpty": "Empty",
-      "badgeUploading": "Uploading",
-      "badgeGenerating": "Generating",
-      "badgeFailed": "Failed",
       "uploading": "Uploading {percent}%",
       "cancelUpload": "Cancel upload",
       "generating": "Generating...",
@@ -4556,62 +4543,32 @@
     },
     "characterImage": {
       "voiceBound": {
-        "namedVoice": "🎙 Voice bound: {voiceName} (will label the @AudioN slot in the video prompt)",
         "unnamed": "🎙 Voice bound from upstream (will label the @AudioN slot in the video prompt)",
-        "remove": "Unbind voice",
-        "notReady": "🎙 {voiceName} bound · no sendable audio yet"
+        "remove": "Unbind voice"
       },
       "promptLabel": "Character image prompt",
       "promptPlaceholder": "Describe the character appearance, wardrobe, mood, and style...",
-      "emptyPreview": "No generated image yet",
-      "modeExistingTitle": "Use an existing image",
-      "modeExistingDescription": "Upload, paste, or pick an image from assets as this character node's result.",
-      "modeCardTitle": "From character card",
-      "modeCardDescription": "Pull a saved card's name, prompt, cover, and reference images straight into this node.",
-      "modeAiTitle": "Generate inside this node",
-      "modeAiDescription": "Write the character brief, choose model, references, and LoRA, then generate.",
-      "modeStudioTitle": "Open Image Studio",
-      "modeStudioDescription": "Send the current prompt to the full image generation workspace.",
       "cardLibrary": {
         "title": "Character cards",
         "hint": "Pick a saved card to populate this node.",
         "searchPlaceholder": "Search name or tags…",
         "loading": "Loading cards…",
         "empty": "No character cards yet. Create one in Studio first.",
-        "noMatch": "No matching cards.",
         "variantCount": "{count, plural, one {# variant} other {# variants}}",
         "applied": "Applied character card \"{name}\".",
         "bound": "📇 From card: {name}"
       },
-      "activeExistingTitle": "Existing image mode",
-      "activeExistingDescription": "This node is using the selected image; you can also continue with it as an AI reference.",
-      "activeAiTitle": "AI generation mode",
-      "activeAiDescription": "Generate or regenerate the character design inside this node.",
-      "backToChoice": "Back to choices",
-      "useExistingAsReference": "Use as reference",
-      "selectExistingShort": "Use asset",
-      "generateWithAi": "AI generate",
       "generate": "Generate",
       "regenerate": "Regenerate",
-      "generateFromExisting": "AI regenerate",
       "generating": "Generating...",
       "noModel": "Select an image model first.",
       "noPrompt": "Add a character prompt first.",
-      "failedTitle": "Image generation failed",
       "fallbackError": "Character image generation failed.",
-      "statusIdle": "Ready for generation",
-      "statusPending": "Generating image",
-      "statusSuccess": "Image generated",
-      "statusExisting": "Using an existing image",
-      "statusError": "Generation failed",
       "imageAlt": "{name} generated character image",
       "sourceExisting": "Existing image",
       "sourceGenerated": "AI generated",
-      "sourceFallback": "Selected asset",
       "replaceImage": "Replace",
       "clearImage": "Clear image",
-      "existingAssetDialogTitle": "Select existing image",
-      "existingAssetDialogDescription": "Choose a previously generated image as the final character image output.",
       "existing": {
         "title": "Use image",
         "hint": "Upload, pick from assets, or paste an image from the clipboard.",
@@ -4622,8 +4579,6 @@
         "pasteEmpty": "No image found in the clipboard.",
         "uploadFailed": "Image upload failed."
       },
-      "openImageStudio": "Open in Image Studio",
-      "openImageStudioShort": "Image",
       "reference": {
         "title": "Reference images",
         "chip": "Refs {count}/{max}",
@@ -4671,69 +4626,28 @@
       "description": "This node only defines voice identity. Video nodes use it as character or narration voice context.",
       "emptyTitle": "No voice set",
       "emptyDescription": "Choose a library voice, paste a model voice ID, or upload reference audio.",
-      "readyDescription": "This voice will feed downstream video nodes.",
       "providerLabel": "Source",
       "providerFallback": "Manual voice",
       "noSample": "No sample yet",
       "referenceLabel": "Reference audio",
-      "referenceEmpty": "Not uploaded",
-      "footerReady": "Ready for video nodes",
-      "footerEmpty": "Waiting for voice setup",
-      "chooseVoice": "Voice library",
-      "openAudioStudio": "Audio Studio",
-      "referenceAudioTitle": "Reference audio",
-      "referenceAudioDescription": "Upload an MP3/WAV sample. Supported models can use it for voice cloning or reference.",
-      "replaceAudio": "Replace reference audio",
       "uploadAudio": "Upload audio",
-      "uploadAudioMeta": "MP3 / WAV / M4A / FLAC",
-      "referenceAudioFallback": "Reference audio",
-      "clearAudio": "Clear reference audio",
-      "generateReferenceAudio": "Generate a 15-second sample with this voice",
-      "outputHint": "Dialogue and exact spoken content belong in the video node's audio direction. This node only defines who the voice is, where it comes from, and how it sounds.",
       "toasts": {
         "voiceSelected": "Voice selected.",
-        "referenceUploaded": "Reference audio uploaded.",
-        "referenceGenerated": "Reference audio generated.",
-        "referenceGenerateNoVoice": "Pick a Fish Audio voice first.",
-        "referenceGenerateFailed": "Could not generate reference audio. Try again.",
-        "unsupportedAudio": "Upload an audio file.",
-        "uploadFailed": "Reference audio upload failed.",
-        "sampleGenerated": "Voice sample ready."
+        "uploadFailed": "Reference audio upload failed."
       },
-      "referenceFromAssets": "Choose from library",
-      "referenceDialogTitle": "Choose reference audio",
-      "referenceDialogDescription": "Pick a generated voice clip from your library to use as reference audio.",
       "kindSpeech": "Speech",
-      "emptyCardAction": "Choose a voice from the library",
-      "generatingReference": "Generating reference audio",
       "retry": "Retry"
     },
     "videoGeneration": {
       "timeline": {
-        "title": "Shot timeline",
-        "secondsRange": "{start}–{end}s",
-        "beatLabel": "Beat {index}",
-        "cameraLabel": "Camera",
-        "compositionLabel": "Composition"
+        "title": "Shot timeline"
       },
-      "emptyPreview": "No video generated yet",
       "generating": "Generating...",
-      "motionLabel": "Motion",
-      "cameraLabel": "Camera",
       "durationLabel": "Duration",
       "resolutionLabel": "Resolution",
-      "resolutionHint": "Click again to clear and fall back to the model default.",
       "aspectRatioLabel": "Aspect ratio",
-      "aspectRatioHint": "Click again to clear and fall back to the model default.",
       "negativePromptLabel": "Negative prompt",
       "negativePromptPlaceholder": "What to avoid (e.g. blurry, distorted, low quality)…",
-      "fieldEmpty": "Not set",
-      "upstreamHintReady": "This video node reads connected character images, backgrounds, keyframes, and voices.",
-      "upstreamHintEmpty": "Connect character images, backgrounds, keyframes, and voice nodes here.",
-      "footerDone": "Video generated",
-      "footerEmpty": "Aggregate upstream nodes into video",
-      "upstreamTitle": "Upstream inputs",
-      "upstreamDescription": "Connected nodes are compiled into the video prompt and reference images.",
       "referenceCount": "{count}/{max} refs",
       "upstreamGroups": {
         "visual": "Characters / backgrounds / shots",
@@ -4742,9 +4656,6 @@
         "text": "Shot text",
         "voice": "Voices"
       },
-      "upstreamGroupsEffective": "Active: included in the generation request",
-      "voiceRoutedChip": "{voice} · via {character}",
-      "voiceRoutedTooltip": "{voice} is routed through character \"{character}\"; the generation request labels it with that name.",
       "upstreamEmpty": {
         "visual": "No image nodes connected.",
         "keyframe": "No keyframes connected.",
@@ -4753,28 +4664,20 @@
         "voice": "No voice nodes connected."
       },
       "capabilities": {
-        "referenceTitle": "Visual references",
-        "referenceRequired": "The selected model requires at least one reference image.",
-        "referenceOptional": "The selected model can generate from text and will use connected references when supported.",
-        "audioTitle": "Audio capability"
+        "referenceRequired": "The selected model requires at least one reference image."
       },
       "audioCapabilities": {
         "referenceAudio": "Supports reference audio or voice context; this version writes voice nodes into the prompt, with direct audio wiring reserved for the provider path.",
-        "voiceId": "Supports model-specific voice IDs. Fill a compatible voice ID on the voice node.",
-        "nativeAudio": "Supports native audio prompting but not universal uploaded voice cloning; voice nodes become text context.",
-        "promptOnly": "This model mainly controls audio through prompt text, so voice nodes become prompt context."
+        "voiceId": "Supports model-specific voice IDs. Fill a compatible voice ID on the voice node."
       },
       "audioCallout": {
         "ignored": {
           "title": "Voice node won't apply to this model",
-          "body": "Veo, Kling, and the non-Reference Seedance endpoints only let the model synthesize audio from your prompt — they don't accept uploaded reference clips. Speech will be generated, but the voice node's timbre is ignored.\nSwitch to a Seedance 2.0 Reference endpoint to actually clone the voice.",
-          "switchAction": "Switch to Seedance 2.0 Reference  →",
-          "statusPill": "Will be ignored"
+          "body": "Veo, Kling, and the non-Reference Seedance endpoints only let the model synthesize audio from your prompt — they don't accept uploaded reference clips. Speech will be generated, but the voice node's timbre is ignored.\nSwitch to a Seedance 2.0 Reference endpoint to actually clone the voice."
         },
         "cloning": {
           "title": "Voice cloning is active",
-          "body": "Seedance will use the voice node's reference audio\nto read prompt lines wrapped in \"double quotes\".",
-          "statusPill": "Voice cloning"
+          "body": "Seedance will use the voice node's reference audio\nto read prompt lines wrapped in \"double quotes\"."
         }
       },
       "videoDiscount": {
@@ -4782,28 +4685,18 @@
         "tooltip": "Seedance Reference applies a 0.6x discount when a reference video is connected."
       },
       "noModel": "Select a video model first.",
-      "noInput": "Write a video prompt or connect upstream nodes.",
-      "executionNotMigrated": "This model's video execution route is not connected yet, so it cannot be sent from the canvas.",
       "audioRequiresVisual": "Reference audio cannot be sent alone. Connect at least one image or video.",
       "generate": "Generate video",
       "regenerate": "Regenerate video",
-      "statusIdle": "Ready to generate",
-      "statusPending": "Generating video",
-      "statusSuccess": "Video generated",
-      "statusError": "Generation failed",
       "sidecar": {
         "ariaLabel": "Video assembly editor",
         "eyebrow": "Video assembly · right editor",
-        "titleFallback": "Video generation",
-        "detailAction": "Expand editor",
-        "compactAction": "Collapse details",
         "close": "Close video assembly editor"
       }
     },
     "videoReference": {
       "title": "Reference video",
       "description": "Upload a clip to use as reference for a downstream Seedance Reference node. Connecting a video automatically applies the 0.6x discount.",
-      "emptyPreview": "No video uploaded yet",
       "upload": "Upload video",
       "replace": "Replace video",
       "clear": "Clear",
@@ -4816,20 +4709,15 @@
       "constraints": "Supports mp4 / mov / webm; up to 15 seconds and 50 MB per clip.",
       "errors": {
         "tooLong": "Video is {actual}s — longer than the {max}s cap.",
-        "metadataFailed": "Couldn't read the video metadata. Try a different file.",
         "uploadFailed": "Video upload failed. Please try again."
       }
     },
     "videoMerge": {
       "title": "Video merge",
       "description": "Concatenate connected upstream videos into one mp4. The result is still a video URL, so downstream Seedance Reference / further merges can use it.",
-      "emptyPreview": "No merged video yet",
       "merging": "Merging",
       "merged": "Video merged",
       "mediaLabel": "Merged {count} clips",
-      "upstreamHeader": "Upstream clips",
-      "upstreamEmpty": "Connect at least 2 video nodes to start merging.",
-      "slotsHeading": "Connect clips in order",
       "slotRequired": "Required",
       "slotOptional": "Optional",
       "clipCount": "{count} / {max} clips",
@@ -4840,69 +4728,28 @@
       "clear": "Clear result",
       "hint": "Costs ~$0.001/clip, completes in ~8s. Audio tracks are preserved automatically.",
       "trim": {
-        "startLabel": "Start (s)",
-        "endLabel": "End (s)",
         "startPlaceholder": "0",
         "endPlaceholder": "Full",
-        "startLabelA11y": "Clip {n} start second",
-        "endLabelA11y": "Clip {n} end second",
-        "editLabel": "Edit trim",
-        "trimmedCount": "{count} trimmed",
-        "rangeWarning": "End second must be greater than start second.",
-        "composeHint": "Adding trims switches the merge to fal's compose endpoint. Start is best-effort (fal does not expose source offset yet); end caps how long each clip plays."
-      },
-      "errors": {
-        "tooFewClips": "Need at least {min} clips.",
-        "tooManyClips": "Up to {max} clips supported.",
-        "mergeFailed": "Video merge failed. Please retry."
+        "trimmedCount": "{count} trimmed"
       }
     },
     "mediaNodes": {
       "promptLabel": "Prompt",
       "promptPlaceholder": "Describe what this node should create...",
-      "emptyPreview": "No media generated yet",
-      "textPreview": "Draft shot text in the Inspector",
       "imageAlt": "Generated node image",
       "sourceExisting": "Existing image",
       "sourceGenerated": "AI generated",
-      "sourceFallback": "Node image",
-      "modeExistingTitle": "Use an existing image",
-      "modeExistingDescription": "Upload, paste, or choose an asset as this node's result.",
-      "modeCardTitle": "From background card",
-      "modeCardDescription": "Pull a saved card's prompt + cover image straight into this node.",
-      "modeAiTitle": "Generate inside this node",
-      "modeAiDescription": "Fill the node fields, then choose a model, references, and LoRA.",
-      "modeStudioTitle": "Open Image Studio",
-      "modeStudioDescription": "Send the current node content to the full image generation workflow.",
       "cardLibrary": {
         "title": "Background cards",
         "hint": "Pick a saved card to populate this node.",
         "searchPlaceholder": "Search name or tags…",
         "loading": "Loading cards…",
         "empty": "No background cards yet. Create one in Studio first.",
-        "noMatch": "No matching cards.",
         "applied": "Applied background card \"{name}\".",
         "bound": "📇 From card: {name}"
       },
-      "activeExistingTitle": "Using an existing image",
-      "activeExistingDescription": "This image is the node result and can also become a reference for generation.",
-      "activeAiTitle": "AI generation mode",
-      "activeAiDescription": "Generate or regenerate the image result inside this node.",
-      "backToChoice": "Back to choices",
-      "useExistingAsReference": "Use as reference",
       "replaceImage": "Replace image",
-      "selectExistingShort": "Choose image",
-      "changeSourceExisting": "Asset library",
-      "changeSourceAi": "AI generate",
-      "changeSourceStudio": "Studio",
-      "dropzoneHint": "Click / drop / paste (Ctrl+V)",
-      "upstreamRefsHint": "Upstream refs · click to insert name",
-      "removeUpstreamRef": "Disconnect",
-      "unnamedRef": "Unnamed",
       "clearImage": "Clear image",
-      "generateFromExisting": "Generate from reference",
-      "existingAssetDialogTitle": "Choose node image",
-      "existingAssetDialogDescription": "Choose an image asset as the current node result.",
       "existing": {
         "title": "Use existing image",
         "hint": "Upload, paste, or choose an image asset.",
@@ -4914,43 +4761,21 @@
         "uploadFailed": "Image upload failed."
       },
       "emptyChoice": {
-        "uploadHint": "You can also drag a file in",
-        "generateTitle": "Generate with AI",
-        "generateHint": "Write a sentence, pick a model",
-        "dockHint": "Either works — pick one to start."
+        "uploadHint": "You can also drag a file in"
       },
       "generate": "Generate",
       "regenerate": "Rerun (overwrite)",
-      "regenerateConfirmTitle": "Overwrite this image?",
-      "regenerateConfirmDescription": "Rerunning replaces the image on this node with the new result and spends a generation. To keep this one and make another, use the composer's send arrow — it creates a downstream node instead.",
-      "regenerateConfirmCancel": "Cancel",
-      "regenerateConfirmAction": "Overwrite and rerun",
       "generating": "Generating...",
       "noModel": "Select a model first.",
       "noPrompt": "Write a prompt first.",
-      "reviewBlocked": "{total} reference image(s) sat this generation out: {pending} not reviewed yet, {rejected} sent back. Approve them on the card, then run again.",
-      "failedTitle": "Generation failed",
-      "fallbackError": "Node media generation failed.",
-      "statusIdle": "Ready to generate",
-      "statusPending": "Generating media",
-      "statusSuccess": "Media generated",
-      "statusError": "Generation failed",
-      "statusTextReady": "Text will feed downstream nodes"
+      "fallbackError": "Node media generation failed."
     },
     "videoComposer": {
       "monitor": {
-        "empty": "Preview appears here once generated",
-        "rec": "REC"
+        "empty": "Preview appears here once generated"
       },
       "studio": {
-        "currentFilm": "Current film",
-        "filmMeta": "{duration} · {aspect} · {resolution}",
-        "sentAssets": "Assets being sent",
-        "assetCount": "{count} connected",
-        "composition": "This generation",
-        "modelParameters": "Model parameters",
-        "supportedOnly": "Only controls supported by this model",
-        "sendSummary": "{inputs} inputs · {dropped} dropped"
+        "composition": "This generation"
       },
       "variant": {
         "standard": "Standard",
@@ -4963,28 +4788,14 @@
         "volcengine": "VolcEngine",
         "byteplus": "BytePlus"
       },
-      "referenceModeOn": "Reference inputs connected — using the reference model.",
       "sidecar": {
-        "modeNoModel": "No available model for this mode yet",
         "modeLabel": "Video generation mode",
         "mode": {
           "keyframe": "Keyframe",
-          "image-reference": "Image reference",
           "multimodal": "Full reference"
         },
-        "connectedCount": "{count} assets",
-        "referenceHelper": "Connected assets enter this request when the model supports them",
-        "textHelper": "Write a prompt or connect reference assets from the canvas",
-        "chooseFromCanvas": "Choose from canvas",
-        "noReferences": "No reference assets connected",
-        "keyframeSlotHint": "In an upstream image's Category, pick First frame or Last frame",
         "addReference": "Add reference asset",
-        "promptPlaceholder": "Describe the shot, motion, and sound you want…",
-        "editParameters": "Edit video parameters"
-      },
-      "slate": {
-        "modeReference": "Reference mode",
-        "modeText": "Text mode"
+        "promptPlaceholder": "Describe the shot, motion, and sound you want…"
       },
       "autoName": {
         "character": "Character",
@@ -5006,8 +4817,6 @@
         "ready": "Your key",
         "needsKey": "Set up key"
       },
-      "expandCard": "Expand card",
-      "collapseCard": "Collapse card",
       "pickModel": "Pick a model",
       "refKind": {
         "character": "Character",
@@ -5040,26 +4849,16 @@
       "references": {
         "label": "Referenced",
         "counter": "{referenced} referenced / {connected} connected",
-        "charCount": "{length}/{max}",
         "slotLabel": "Image {index}",
         "insertHint": "Click a slot to insert it into the prompt",
         "unnamed": "needs a name",
         "unnamedHint": "Name this node to use it as an insertable tag",
         "locate": "Locate this node on canvas",
-        "emptyDept": "None yet · wire nodes on the canvas",
-        "stripEmptyHint": "Connected but not referenced yet · open \"Manage assets\" below to insert",
         "videoAutoHint": "Reference videos are sent automatically with the wire — nothing to insert",
         "keyframeHint": "First/last frames are sent automatically with the wire — nothing to insert",
         "voiceNotReadyHint": "No reference audio uploaded/selected — it will NOT be sent this generation",
         "addVoice": "Add a voice to \"{name}\"",
-        "addCloseup": "Add a face close-up to \"{name}\"",
         "remove": "Disconnect \"{name}\" (node kept)",
-        "removedToast": "Disconnected \"{name}\" — the node is kept",
-        "addDialogTitle": "Pick a reference from your library",
-        "addDialogDescription": "The chosen asset becomes an upstream node wired into this video node.",
-        "manageButton": "Manage assets · {count}",
-        "manageTitle": "Manage assets",
-        "manageDescription": "Browse every asset connected to this video node — insert it into the prompt or manage the connection.",
         "searchPlaceholder": "Search by name or @token",
         "tabs": {
           "all": "All",
@@ -5075,26 +4874,7 @@
           "video": "Add reference video",
           "voice": "Add narration"
         },
-        "managerEmpty": "No matching assets",
-        "statusReferenced": "Referenced",
-        "statusInsert": "Insert",
-        "rowMenu": "More actions",
-        "rowLocate": "Locate on canvas",
-        "rowRemove": "Disconnect",
-        "routedThrough": "Sent with {name}",
-        "capacityWarning": "{count} candidate reference images exceed the model's {max}-image cap — {truncated} won't be sent",
-        "counterOverflow": "{sent}/{max} ⚠",
-        "closeManager": "Close asset manager",
-        "folderExpand": "Expand \"{name}\"'s gallery",
-        "folderCollapse": "Collapse \"{name}\"'s gallery",
-        "galleryCount": "{count} in gallery",
-        "galleryEmpty": "Gallery is empty",
         "onStageBadge": "On stage",
-        "voiceBoundBadge": "Voice bound",
-        "willNotSendHint": "Over the cap — won't be sent",
-        "restoreDefaultStage": "Restore \"{name}\"'s default stage set",
-        "stageCheckboxLabel": "Send \"{name}\"'s this image for this shot",
-        "primaryAlwaysStaged": "Primary always on stage, can't uncheck",
         "addGroups": {
           "image": "Image",
           "voice": "Audio",
@@ -5113,14 +4893,8 @@
         "audioBadge": "Audio{index}",
         "empty": "(no extra prompt text this time)"
       },
-      "aspectAuto": "Auto",
       "generateAudioLabel": "Generate audio",
-      "seedLabel": "Seed",
       "seedRandom": "Random each run",
-      "seedRandomize": "Randomize seed",
-      "lastSeedLabel": "Last seed",
-      "seedLock": "Lock",
-      "enhanceEmptyTip": "Write a prompt first, then let AI orchestrate it.",
       "rebind": {
         "title": "Switch to {brand}?",
         "map": "will map",
@@ -5132,81 +4906,27 @@
     "nodeToolbar": {
       "expand": "Expand",
       "delete": "Delete",
-      "imageEditToolbar": "Image edit tools",
       "toolbar": "Node actions",
       "more": "More",
-      "quickEdit": "Quick edit",
       "download": "Download",
       "rename": "Name",
       "category": "Category",
-      "moreEdits": "Edit tools",
-      "moreEditsInstant": "One click",
-      "moreEditsRegion": "Needs a region on the image",
-      "moreEditsDescribe": "Needs a sentence",
-      "addAsset": "Add material",
       "preview": "Preview",
       "reorder": "Reorder",
-      "performancesAria": "Focus {count, plural, one {# appearance} other {# appearances}} on the canvas",
       "compose": "Compose {count, plural, one {# clip} other {# clips}}",
       "composeAria": "Bundle the selected {count, plural, one {# clip} other {# clips}} into a merge bin"
     },
     "nodeDetail": {
-      "backToCanvas": "Back to canvas",
-      "canvasCrumb": "Canvas",
       "close": "Collapse",
-      "focusOnCanvas": "Locate \"{name}\" on the canvas",
       "generate": "Generate",
-      "promptPreview": "Assembled prompt",
       "upload": "Upload",
       "openStudio": "Studio ↗",
-      "sourceCounts": "References {refs}/{refMax} · LoRA {loras}/{loraMax}",
-      "sendPreview": "Send preview",
-      "identityPackage": "Identity passed downstream",
-      "fieldModel": "Model",
-      "fieldReferences": "References",
-      "fieldLastFailure": "Last failure",
-      "fieldCategory": "Category",
-      "fieldDisplayName": "Display name",
-      "fieldVisualSeed": "Appearance",
-      "fieldBoundVoice": "Voice identity",
-      "valueEmpty": "(empty)",
-      "valueUnset": "Not selected",
-      "valueUnbound": "Not bound",
-      "cardCharacter": "Character card",
-      "cardBackground": "Scene card",
-      "relationsEmptyImage": "No node uses this image yet",
-      "relationsEmptyShot": "No video node uses this shot image yet",
-      "relationsEmptyFrame": "No video node uses this key frame yet",
-      "relationsEmptyBackground": "No shot or video uses this background yet",
-      "relationsEmptyCharacter": "No shot or video uses this character yet",
-      "relationsEmptyVoice": "No character is bound to this voice yet",
-      "sampleWillSend": "Sampling will send",
-      "editParams": "Edit parameters",
-      "relationsEmptyVideo": "Not merged into any reel yet",
-      "fieldSource": "Source",
-      "reasonNoVoice": "Pick a voice from the library first.",
-      "relationsEmptyMerge": "No node uses this merged video yet",
-      "relationsEmptyReference": "No downstream node references this video yet",
-      "fieldClips": "Clips",
-      "fieldTrim": "Trim",
-      "fieldRoute": "Route",
-      "fieldFile": "File",
-      "fieldConstraints": "Format limits",
-      "valueBoundNotReady": "bound · no sendable audio",
-      "stagePreviewHint": "Appears here once generated"
+      "sampleWillSend": "Sampling will send"
     },
     "voiceDetail": {
-      "paramsLabel": "Adjustments",
       "speedLabel": "Speed",
       "volumeLabel": "Volume",
-      "timbreLabel": "Timbre",
-      "sourceSystem": "System voice",
-      "sourceMine": "My voice",
       "emotionLabel": "Emotion",
-      "audioOwnerLabel": "Belongs to",
-      "audioOwnerNone": "Narration (no character)",
-      "audioOwnerCustom": "Type a name…",
-      "audioOwnerPlaceholder": "e.g. Hinata",
       "emotions": {
         "none": "None",
         "calm": "Calm",
@@ -5214,15 +4934,7 @@
         "sad": "Sad",
         "surprised": "Surprised"
       },
-      "sampleLabel": "Voice sample",
-      "generateSample": "Get sample",
-      "coverAlt": "Voice cover",
-      "coverChange": "Change cover",
-      "coverUpload": "Upload voice cover",
-      "coverFromAssets": "Choose cover from assets",
-      "coverDialogTitle": "Choose voice cover",
-      "coverDialogDescription": "Choose an image to save with the current audio as one voice asset.",
-      "coverUploadFailed": "Could not upload the cover"
+      "coverAlt": "Voice cover"
     },
     "workflowFields": {
       "prompt": {
@@ -5303,39 +5015,20 @@
     },
     "workflowNodes": {
       "shotText": {
-        "emptyPreview": "Turn scene, action, camera, and composition into executable shot text.",
         "emptyState": "No shot text yet",
-        "footerEmpty": "Waiting for shot text",
-        "editText": "Edit text",
-        "detailHint": "These fields are joined in order into the prompt sent to downstream video nodes."
+        "editText": "Edit text"
       },
       "characterImage": {
-        "emptyState": "No character image yet",
-        "footerEmpty": "Waiting for character setup"
+        "emptyState": "No character image yet"
       },
       "shot": {
-        "emptyState": "No shot image yet",
-        "footerEmpty": "Waiting for shot prompt"
+        "emptyState": "No shot image yet"
       },
       "backgroundImage": {
-        "emptyState": "No background image yet",
-        "footerEmpty": "Waiting for background setup"
+        "emptyState": "No background image yet"
       },
       "frameImage": {
-        "emptyState": "No keyframe yet",
-        "footerEmpty": "Waiting for keyframe setup"
-      },
-      "voice": {
-        "emptyPreview": "Choose a voice, voice ID, or reference audio for the video node.",
-        "footerEmpty": "Waiting for voice"
-      },
-      "seedance": {
-        "emptyPreview": "Aggregate character images, backgrounds, keyframes, and voices into video.",
-        "footerEmpty": "Waiting for video inputs"
-      },
-      "videoReference": {
-        "emptyPreview": "Upload a ≤15s clip as a reference for downstream Seedance Reference.",
-        "footerEmpty": "Waiting for upload"
+        "emptyState": "No keyframe yet"
       },
       "videoMerge": {
         "emptyState": "No merged video yet"
@@ -5350,7 +5043,6 @@
       "expand": "Expand topbar",
       "defaultModel": "Default",
       "createProjectPrompt": "Project name",
-      "renameProjectPrompt": "Rename project",
       "deleteProjectConfirm": "Delete \"{name}\"? This removes this canvas project."
     },
     "projectMenu": {
@@ -5526,8 +5218,6 @@
       }
     },
     "inspector": {
-      "multiTitle": "{count, plural, one {# node selected} other {# nodes selected}}",
-      "multiDescription": "Batch editing is guarded for now. Edit one node at a time until destructive confirmations land.",
       "unsupported": "This node type does not have an Inspector yet."
     },
     "conversation": {
@@ -5644,40 +5334,11 @@
       "onStageOn": "On stage",
       "onStageOff": "Not on stage",
       "onStageToggleOn": "Mark on stage",
-      "onStageToggleOff": "Remove from stage",
-      "identityVisualSeedLabel": "Visual seed (set by the assistant)",
-      "backgroundCardTitle": "Scene card",
-      "backgroundCardHint": "Select a scene card to hydrate this node",
-      "voiceSection": "Voice identity",
-      "voiceBind": "Bind voice",
-      "voiceBindDialogDescription": "Pick a generated or uploaded audio clip as this character's voice reference.",
-      "closeupAdd": "Add face close-up",
-      "closeupAddDialogDescription": "Pick a face close-up to join this character's gallery — it ships alongside the character.",
-      "noVoice": "No voice",
-      "identityEmptyHint": "Pick a representative image",
-      "nodeCountAria": "{count} nodes under this identity",
-      "performanceSection": "Appears in",
-      "performanceEmpty": "Not used in any shot yet",
-      "performanceFocusAria": "Focus {name} on the canvas",
-      "identityPrimaryLabel": "Card cover"
+      "onStageToggleOff": "Remove from stage"
     },
     "toasts": {
       "notImplemented": "Not implemented yet.",
-      "layoutTidied": "Canvas tidied.",
-      "workflowSaved": "Workflow saved to the cloud.",
-      "workflowSaveFailed": "Save failed. Try again.",
-      "nodesDeleted": "{count, plural, one {Deleted # node.} other {Deleted # nodes.}}",
-      "seedancePromptPlanned": "Seedance prompt generated.",
-      "seedancePromptPlanFailed": "Seedance prompt planning failed.",
-      "characterGenerated": "Character image generated.",
-      "mediaGenerated": "Node media generated.",
-      "mediaGenerationFailed": "Node media generation failed.",
-      "stillProcessing": "Still generating in the background — check back in a moment.",
-      "studioResultAttached": "Studio image attached to the node.",
-      "timelineCannotDeleteLast": "At least one segment must remain.",
-      "edgeDeleted": "Connection removed.",
       "projectCreated": "Project \"{name}\" created.",
-      "projectRenamed": "Project renamed to \"{name}\".",
       "projectDeleted": "Project \"{name}\" deleted.",
       "videoMergeComposed": "{count, plural, one {Composed # clip} other {Composed # clips}} into a merge bin.",
       "localCacheFull": "This browser's local cache is full — the canvas is no longer kept here. Your work is still saved to the cloud.",
@@ -5695,38 +5356,21 @@
       "hint": "Describe the element to extract. Result is a new image on the canvas."
     },
     "generateComposer": {
-      "placeholderEmpty": "Describe the image you want to generate…",
-      "placeholderEditing": "Describe what to change about this image…",
-      "placeholderEmptyAudio": "Describe the sound you want to generate…",
-      "placeholderEditingAudio": "Describe what to change about this sound…",
-      "editingBadge": "Editing",
       "addReference": "Add reference",
-      "aspectLabel": "Aspect ratio",
-      "batchLabel": "Count",
       "removeReference": "Remove {name}",
       "expand": "Expand",
       "collapse": "Collapse",
       "send": "Send",
-      "reasonNoModel": "Choose a model first",
-      "reasonNoInput": "Describe what to generate",
       "historyTitle": "Recently used",
       "historyEmpty": "No history yet",
-      "modePickerTitle": "Generate",
       "modeImage": "Image",
       "modeAudio": "Audio",
       "audioPlaceholder": "Audio parameters ship in the voice-card round",
-      "templateButton": "Templates",
-      "templateSearchPlaceholder": "Search name, prompt, or tags",
       "templateFilterLabel": {
         "recent": "Recent",
         "all": "All",
         "mostUsed": "Most used"
-      },
-      "templateUsageCount": "Used {count} times",
-      "templateLoading": "Loading templates…",
-      "templateEmpty": "No matching prompt templates",
-      "templateApplied": "Replaced with template prompt",
-      "templateUndo": "Undo"
+      }
     },
     "history": {
       "title": "History",
@@ -5794,7 +5438,22 @@
         "reject": "Send back “{target}”",
         "approve": "Mark “{target}” as approved",
         "awaitReview": "Mark “{target}” as awaiting review",
-        "generate": "Generate “{target}”"
+        "generate": "Generate “{target}”",
+        "connectSlot": "Wire “{source}” into “{target}” · {slot}",
+        "disconnect": "Remove a connection",
+        "delete": "Delete “{target}”",
+        "moveToShot": "Move “{target}” to shot {shotNo}",
+        "moveOutOfShot": "Move “{target}” out of the shot lanes",
+        "reorderShot": "Move shot {from} to position {to}",
+        "setText": "Rewrite the text of “{target}”",
+        "setField": "Set {field} of “{target}” to {value}",
+        "attachAssetSlot": "Attach “{source}” into “{target}” · {slot}",
+        "setSlotVersion": "Switch the current version of “{target}” · {slot}",
+        "blockVersion": "Mark the “{target}” · {slot} version as rejected",
+        "unblockVersion": "Un-reject the “{target}” · {slot} version",
+        "setParamsV4": "Change the generation dials of “{target}”",
+        "setVoiceProfile": "Change the voice settings of “{target}”",
+        "setMergeClips": "Retrim the clips of “{target}”"
       },
       "params": {
         "duration": "{value}s",
@@ -5821,6 +5480,13 @@
         "unsupportedParam": "The selected model doesn't take that setting",
         "unknownParamValue": "That value isn't one the selected model accepts",
         "notAttachable": "Only character and background cards collect reference images — connect the node instead"
+      },
+      "confirmDelete": "Confirm delete",
+      "overwriteQuestion": "You already wrote something there:",
+      "overwriteChoice": {
+        "append": "Append after",
+        "replace": "Overwrite",
+        "keep": "Keep mine"
       }
     },
     "v4": {

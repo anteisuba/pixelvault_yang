@@ -40,7 +40,7 @@ export const NODE_STUDIO_CARD_LABEL_LANE = {
 
 export const NODE_STUDIO_CANVAS = {
   // A3（canvas-relationship-v3 §7b）：owner 手动缩到 200% 实测拍板为舒适基准，
-  // 提为默认视图。项目状态目前不持久化 viewport（见 use-node-workflow.ts），
+  // 提为默认视图。项目状态目前不持久化 viewport（见 use-node-workflow-store.ts），
   // 所以这只是 ReactFlow 挂载时的初始值——同一会话内切换项目不会重置视口
   // （ReactFlow 实例不重挂载），新开页面/新项目都落在这个基准上。
   defaultViewport: {
@@ -252,6 +252,14 @@ export const NODE_STUDIO_ASSISTANT_LIMITS = {
    * `…and N more not listed` 如实说，不假装列全了。
    */
   maxCatalogModels: 32,
+  /**
+   * v4 整图请求的 DoS 闸（③e）。⚠ 与 `maxNodes`（32）不是一件事：那是**平铺清单
+   * 每次最多列几行**的展示上限，而 v4 快照是分层的（完整档 + 标题档 + 「另有 N 个
+   * 未列出」），整图必须整份发过去才算得出哪几镜进完整档。按 32 收就会让一张
+   * 正常规模的画布整条请求 400。
+   */
+  maxV4Nodes: 400,
+  maxV4Edges: 800,
   maxReferences: ASSISTANT_MEDIA_LIMITS.maxReferences,
   contextCompactionTargetLength: 32_000,
 } as const
@@ -412,7 +420,7 @@ export const NODE_STUDIO_CAST_DOCK = {
 
 /**
  * 吞噬拒绝原因（B1-5 原因气泡）。类型不合走连线合法性矩阵；已含该卡 = 目标已有
- * 同源边；参考位已满 = 契约上限命中（可得上限才带 n/m，见 use-cast-ingest.ts）。
+ * 同源边；参考位已满 = 契约上限命中（可得上限才带 n/m，见 use-cast-ingest-engine-v4.ts）。
  */
 export const NODE_STUDIO_INGEST_REJECT_REASON_IDS = {
   typeMismatch: 'typeMismatch',
@@ -730,7 +738,7 @@ export const NODE_STUDIO_CHARACTER_IMAGE_REFERENCES = {
  * 一个节点的 `referenceAssets` 还能放几条 —— **这个数的唯一出处**。
  *
  * ⚠ 它此前被手抄了三份（`CharacterDetailBody` / `CanvasImageSelectionToolbar` /
- * `StudioNodeWorkbench` 的名册落卡），三处写的都是同一条链：
+ * 名册落卡），三处写的都是同一条链：
  * 「选了模型就问模型的上限，没选就回落到收集器卡的默认 3」。抄第四份的场合恰好
  * 出现了（助手的 `attach_asset` 也要问同一个数），所以就地收成一处 ——
  * 「多入口的闸只写一处」，这条在本仓翻过车。
@@ -847,6 +855,14 @@ export const NODE_V4_SNAPSHOT = {
   /** 单镜结构的字符预算；超了先降 prompt 行，再降 params 行，最后降成标题行。 */
   maxShotBlockLength: 1400,
   maxPromptLength: 400,
+  /**
+   * 上下文被 provider 拒了之后**重试那一次**的标题档行数（③e）。
+   *
+   * ⚠ 快照本身没有「按字符截断」这回事：它是分层的，砍的单位是**一整行标题**，
+   * 而不是把某个镜头的结构切掉一半（半截结构比没有结构更容易让模型编）。所以
+   * 压缩重试改的就是这一个数字，其余分层规则一律不动。
+   */
+  compactedTitleRows: 8,
   /** 被降级 / 被省略时写给模型看的提示——让它知道自己没看全。 */
   demotedSuffix: ' 已降为标题行（结构过长）',
   omittedPrefix: '… 另有 ',
@@ -916,7 +932,7 @@ export const NODE_STUDIO_VIDEO_REFERENCE_LEGEND = {
  * model-facing category label for a directly-referenced shot/frame IMAGE-ROLE
  * node (`NODE_IMAGE_ROLE_IDS.shot`/`.frame` — the node's own connection/
  * harvest role, NOT `NODE_STUDIO_REFERENCE_ROLES`, a referenceAsset's own
- * classification enum). Feeds `harvestUpstreamVideoImageReferences`'s
+ * classification enum). Fed the v3 video-legend harvest (deleted in ③e)'s
  * `category` field so a directly-referenced shot/frame node's
  * `buildVideoReferenceLegend` line goes through the SAME "名字（分类）" pipeline
  * `resolveReferenceAssetCategory` already gives imageCategory-tagged
@@ -925,7 +941,7 @@ export const NODE_STUDIO_VIDEO_REFERENCE_LEGEND = {
  * 直接知道这个图片的名字以及分类".
  *
  * `frame` is the net-new case: a keyframe/首帧 node was previously OMITTED
- * from this legend entirely (see `isKeyframeNode`'s / `harvestUpstreamVideoImageReferences`'s
+ * from this legend entirely (see `isKeyframeNode`'s / the deleted v3 harvest's
  * old docstring — "no name/token"). It still carries no `@token` mention (that
  * stays projection-only per cast-redesign §3/§4 — an unrelated system, the
  * composer's `referenceTokens`), but it now gets a category-only legend line.
@@ -984,7 +1000,7 @@ export const NODE_STUDIO_DOUBLE_TAP = {
 export const NODE_STUDIO_NODE_PLACEMENT = {
   // ⚠《画布修法》02 节刀 1 task A（2026-08-26）之后，`topbarAddPosition` 只剩
   // 两个**旧**兜底调用方在用（图片编辑 handoff 建节点 / handleSpawnReference
-  // 找不到宿主节点时的锚点，均在 StudioNodeWorkbench.tsx）——这两条不在本刀
+  // 找不到宿主节点时的锚点，均在画布 workbench）——这两条不在本刀
   // 范围内，故意留着没改。顶栏 ＋ 添加菜单本身的落点已经改用
   // `resolveTopbarAddSpawnPosition`（本文件下方），不再读这个常量：写死的画布
   // 坐标角在用户平移过画布后会落到看不见的地方，且连点添加菜单 N 次会让 N 张
@@ -1100,7 +1116,7 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
  * 顶栏 ＋ 添加菜单的新建落点（《画布修法》02 节刀 1 task A）：当前视口中心 +
  * 按连续新建次数取模的错位步进。抽成纯函数是为了不依赖 ReactFlow 实例就能单
  * 测——真正的「屏幕坐标 → 画布坐标」换算（`screenToFlowPosition`）留给调用方
- * （`StudioNodeWorkbench.handleTopbarAddClick`），这里只管「视口中心算出来之
+ * （顶栏 ＋ 的建点路径），这里只管「视口中心算出来之
  * 后，第 N 次新建该落在哪」这一步纯算术。
  *
  * `sequence` 是调用方自己维护的「这是第几次从这条路径新建」计数（0 起，每次
@@ -1271,7 +1287,7 @@ export const NODE_STUDIO_EDGE_VISUALS = {
   // ⚠ 阶段 6-A（2026-08-10 真机验出来的）：**连线的粗细与热区在这里，不在
   // canvas.css**。当时我改的是 `--canvas-edge-w` / `--canvas-edge-hit-w`，
   // 真机实测渲染出来仍是旧值 —— 因为那两个 token **零消费者**（边的 style 由
-  // `StudioNodeWorkbench` 从本表内联写死）。两个 token 已随本次删除。
+  // 画布从本表内联写死）。两个 token 已随本次删除。
   // 度量表 §4 规则 9：可见 2px + 20px 透明热区，视觉更轻、可点性反而更高。
   strokeWidth: 2,
   hoverStrokeWidth: 2,

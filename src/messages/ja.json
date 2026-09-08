@@ -4387,8 +4387,6 @@
       "description": "色と背景画像は現在のプロジェクトに保存されます。",
       "colorLabel": "背景色",
       "customColor": "カスタムカラー",
-      "colorValueLabel": "カラーコード",
-      "invalidColor": "#RRGGBB 形式のカラーコードを入力してください。",
       "presetColor": "色 {color} を使用",
       "imageLabel": "背景画像",
       "chooseImage": "画像を選択またはアップロード",
@@ -4496,9 +4494,7 @@
       },
       "cast": "キャスト匣",
       "upload": "画像をアップロード",
-      "pickFromLibrary": "素材ライブラリから選ぶ",
-      "pickFromLibraryTitle": "ライブラリから画像を選ぶ",
-      "pickFromLibraryDescription": "素材ライブラリの画像をキャンバスに配置します。複数選択できます。"
+      "pickFromLibrary": "素材ライブラリから選ぶ"
     },
     "statuses": {
       "idle": "待機中",
@@ -4511,24 +4507,15 @@
       "disabled": "無効"
     },
     "imageSourceStarter": {
-      "uploadAria": "画像をアップロード",
       "uploadTitle": "画像をアップロード",
       "uploadHint": "ドラッグしてアップロード",
       "library": "素材ライブラリ",
-      "aiGenerate": "AI 生成",
       "libraryDialogTitle": "画像素材を選択",
       "libraryDialogDescription": "ライブラリから画像を選び、このカードの内容にします。",
       "untitled": "無題の画像",
       "uploadFailed": "画像のアップロードに失敗しました",
       "generationFailed": "画像の生成に失敗しました",
       "categoryLabel": "分類",
-      "categoryUnset": "未分類",
-      "categoryCustomLabel": "カスタム分類名",
-      "categoryCustomPlaceholder": "カスタム分類を入力…",
-      "badgeEmpty": "空",
-      "badgeUploading": "アップロード中",
-      "badgeGenerating": "生成中",
-      "badgeFailed": "失敗",
       "uploading": "アップロード中 {percent}%",
       "cancelUpload": "アップロードをキャンセル",
       "generating": "生成中...",
@@ -4556,62 +4543,32 @@
     },
     "characterImage": {
       "voiceBound": {
-        "namedVoice": "🎙 音色をバインド：{voiceName}（動画生成時に @AudioN にキャラクター名が付きます）",
         "unnamed": "🎙 上流から音色をバインド（動画生成時に @AudioN にキャラクター名が付きます）",
-        "remove": "音色のバインドを解除",
-        "notReady": "🎙 {voiceName} をバインド済み · 送信できる音声がまだありません"
+        "remove": "音色のバインドを解除"
       },
       "promptLabel": "キャラクター画像プロンプト",
       "promptPlaceholder": "外見、衣装、ムード、スタイルを記述...",
-      "emptyPreview": "生成画像はまだありません",
-      "modeExistingTitle": "既存画像をそのまま使う",
-      "modeExistingDescription": "アップロード、貼り付け、または素材から選んだ画像をこのノードの結果にします。",
-      "modeCardTitle": "キャラクターカードから選ぶ",
-      "modeCardDescription": "保存したカードの名前 / プロンプト / カバー / 参考画像をこのノードに一括反映します。",
-      "modeAiTitle": "このノードで AI 生成",
-      "modeAiDescription": "キャラクター設定、モデル、参考画像、LoRA を選んで生成します。",
-      "modeStudioTitle": "画像生成へ移動",
-      "modeStudioDescription": "現在のプロンプトを画像生成ワークスペースへ送ります。",
       "cardLibrary": {
         "title": "キャラクターカード",
         "hint": "保存済みのカードを選んでノードを自動入力します。",
         "searchPlaceholder": "名前 / タグを検索…",
         "loading": "カードを読み込み中…",
         "empty": "保存済みのキャラクターカードがありません。Studio で作成してください。",
-        "noMatch": "該当するカードはありません。",
         "variantCount": "{count} 個の派生カード",
         "applied": "キャラクターカード「{name}」を適用しました。",
         "bound": "📇 カード由来：{name}"
       },
-      "activeExistingTitle": "既存画像モード",
-      "activeExistingDescription": "選択した画像を使用中です。参考画像として AI 生成に進むこともできます。",
-      "activeAiTitle": "AI 生成モード",
-      "activeAiDescription": "このノード内でキャラクター設定画を生成または再生成します。",
-      "backToChoice": "選択へ戻る",
-      "useExistingAsReference": "参考として生成",
-      "selectExistingShort": "既存画像",
-      "generateWithAi": "AI 生成",
       "generate": "生成",
       "regenerate": "再生成",
-      "generateFromExisting": "AI で再生成",
       "generating": "生成中...",
       "noModel": "先に画像モデルを選択してください。",
       "noPrompt": "先にキャラクタープロンプトを入力してください。",
-      "failedTitle": "画像生成に失敗しました",
       "fallbackError": "キャラクター画像の生成に失敗しました。",
-      "statusIdle": "生成できます",
-      "statusPending": "画像を生成中",
-      "statusSuccess": "画像を生成しました",
-      "statusExisting": "既存画像を使用中",
-      "statusError": "生成に失敗しました",
       "imageAlt": "{name} の生成キャラクター画像",
       "sourceExisting": "既存画像",
       "sourceGenerated": "AI 生成",
-      "sourceFallback": "選択した素材",
       "replaceImage": "置き換え",
       "clearImage": "画像をクリア",
-      "existingAssetDialogTitle": "既存画像を選択",
-      "existingAssetDialogDescription": "以前生成した画像を選び、このキャラクター画像ノードの最終出力として使用します。",
       "existing": {
         "title": "画像を使用",
         "hint": "アップロード、素材から選択、またはクリップボード画像を貼り付けます。",
@@ -4622,8 +4579,6 @@
         "pasteEmpty": "クリップボードに画像がありません。",
         "uploadFailed": "画像のアップロードに失敗しました。"
       },
-      "openImageStudio": "画像生成で開く",
-      "openImageStudioShort": "画像",
       "reference": {
         "title": "参考画像",
         "chip": "参考 {count}/{max}",
@@ -4671,69 +4626,28 @@
       "description": "このノードは声のアイデンティティだけを定義します。動画ノードはキャラクターやナレーションの音色コンテキストとして使用します。",
       "emptyTitle": "音色未設定",
       "emptyDescription": "音声ライブラリから選択、モデル音色 ID を貼り付け、または参考音声をアップロードします。",
-      "readyDescription": "この音色は下流の動画ノードへ渡されます。",
       "providerLabel": "ソース",
       "providerFallback": "手動音色",
       "noSample": "サンプルなし",
       "referenceLabel": "参考音声",
-      "referenceEmpty": "未アップロード",
-      "footerReady": "動画ノードへ接続できます",
-      "footerEmpty": "音色設定を待機中",
-      "chooseVoice": "音声ライブラリ",
-      "openAudioStudio": "音声ワークスペース",
-      "referenceAudioTitle": "参考音声",
-      "referenceAudioDescription": "MP3/WAV などの音声サンプルをアップロードします。対応モデルでは声の複製や参考に使えます。",
-      "replaceAudio": "参考音声を置き換え",
       "uploadAudio": "音声をアップロード",
-      "uploadAudioMeta": "MP3 / WAV / M4A / FLAC",
-      "referenceAudioFallback": "参考音声",
-      "clearAudio": "参考音声をクリア",
-      "generateReferenceAudio": "この音色で 15 秒の参考音声を生成",
-      "outputHint": "台詞や具体的な発話内容は動画ノードの音声指示に書きます。このノードは声が誰か、どこ由来か、どう聞こえるかだけを定義します。",
       "toasts": {
         "voiceSelected": "音色を選択しました。",
-        "referenceUploaded": "参考音声をアップロードしました。",
-        "referenceGenerated": "参考音声を生成しました。",
-        "referenceGenerateNoVoice": "先に Fish Audio の音色を選択してください。",
-        "referenceGenerateFailed": "参考音声の生成に失敗しました。再度お試しください。",
-        "unsupportedAudio": "音声ファイルをアップロードしてください。",
-        "uploadFailed": "参考音声のアップロードに失敗しました。",
-        "sampleGenerated": "音声サンプルを準備しました。"
+        "uploadFailed": "参考音声のアップロードに失敗しました。"
       },
-      "referenceFromAssets": "素材から選択",
-      "referenceDialogTitle": "参考音声を選択",
-      "referenceDialogDescription": "素材ライブラリから生成済みの音声を選んで参考音声にします。",
       "kindSpeech": "音声",
-      "emptyCardAction": "音声ライブラリから音色を選択",
-      "generatingReference": "参考音声を生成中",
       "retry": "再試行"
     },
     "videoGeneration": {
       "timeline": {
-        "title": "ショットタイムライン",
-        "secondsRange": "{start}–{end}秒",
-        "beatLabel": "ビート{index}",
-        "cameraLabel": "カメラ",
-        "compositionLabel": "構図"
+        "title": "ショットタイムライン"
       },
-      "emptyPreview": "動画はまだ生成されていません",
       "generating": "生成中...",
-      "motionLabel": "動き",
-      "cameraLabel": "カメラ",
       "durationLabel": "長さ",
       "resolutionLabel": "解像度",
-      "resolutionHint": "もう一度クリックすると解除し、モデル既定に戻ります。",
       "aspectRatioLabel": "アスペクト比",
-      "aspectRatioHint": "もう一度クリックすると解除し、モデル既定に戻ります。",
       "negativePromptLabel": "ネガティブプロンプト",
       "negativePromptPlaceholder": "避けたい内容（例：ぼやけ、変形、低画質）…",
-      "fieldEmpty": "未設定",
-      "upstreamHintReady": "この動画ノードは接続されたキャラクター画像、背景、キーフレーム、音色を読み取ります。",
-      "upstreamHintEmpty": "キャラクター画像、背景、キーフレーム、音色ノードをここへ接続します。",
-      "footerDone": "動画を生成しました",
-      "footerEmpty": "上流ノードを集約して動画化",
-      "upstreamTitle": "上流入力",
-      "upstreamDescription": "接続されたノードは動画プロンプトと参考画像に編成されます。",
       "referenceCount": "参考 {count}/{max}",
       "upstreamGroups": {
         "visual": "キャラクター / 背景 / ショット",
@@ -4742,9 +4656,6 @@
         "text": "ショット文",
         "voice": "音色"
       },
-      "upstreamGroupsEffective": "有効：生成リクエストに含まれます",
-      "voiceRoutedChip": "{voice} · {character} 経由",
-      "voiceRoutedTooltip": "{voice} はキャラクター「{character}」経由で接続されています。生成時にそのキャラクター名でラベル付けされます。",
       "upstreamEmpty": {
         "visual": "画像ノードはまだ接続されていません。",
         "keyframe": "キーフレームはまだ接続されていません。",
@@ -4753,28 +4664,20 @@
         "voice": "音色ノードはまだ接続されていません。"
       },
       "capabilities": {
-        "referenceTitle": "視覚参考",
-        "referenceRequired": "選択中のモデルは少なくとも 1 枚の参考画像が必要です。",
-        "referenceOptional": "選択中のモデルはテキスト生成が可能で、対応時は接続された参考画像を使用します。",
-        "audioTitle": "音声機能"
+        "referenceRequired": "選択中のモデルは少なくとも 1 枚の参考画像が必要です。"
       },
       "audioCapabilities": {
         "referenceAudio": "参考音声または音色コンテキストに対応します。現段階では音色ノードをプロンプトへ書き込み、音声直結はプロバイダー経路で対応します。",
-        "voiceId": "モデル専用の音色 ID に対応します。音色ノードに互換 voice ID を入力してください。",
-        "nativeAudio": "ネイティブ音声プロンプトには対応しますが、汎用の音色アップロードには対応しません。音色ノードはテキスト文脈になります。",
-        "promptOnly": "このモデルは主にプロンプトで音声を制御するため、音色ノードはプロンプト文脈になります。"
+        "voiceId": "モデル専用の音色 ID に対応します。音色ノードに互換 voice ID を入力してください。"
       },
       "audioCallout": {
         "ignored": {
           "title": "音色ノードはこのモデルでは反映されません",
-          "body": "Veo / Kling / 通常版 Seedance は、プロンプトから音声を自動合成するだけで、アップロードした参考音声を受け付けません。発話自体は生成されますが、音色ノードの声色はコピーされません。\n声をクローンしたい場合は、Seedance 2.0 Reference エンドポイントに切り替えてください。",
-          "switchAction": "Seedance 2.0 Reference にワンクリック切替  →",
-          "statusPill": "無視されます"
+          "body": "Veo / Kling / 通常版 Seedance は、プロンプトから音声を自動合成するだけで、アップロードした参考音声を受け付けません。発話自体は生成されますが、音色ノードの声色はコピーされません。\n声をクローンしたい場合は、Seedance 2.0 Reference エンドポイントに切り替えてください。"
         },
         "cloning": {
           "title": "ボイスクローニングが有効です",
-          "body": "Seedance は音色ノードの参考音声を使い、\nプロンプト内の \"ダブルクォート\" で囲まれた台詞を読み上げます。",
-          "statusPill": "ボイスクローン"
+          "body": "Seedance は音色ノードの参考音声を使い、\nプロンプト内の \"ダブルクォート\" で囲まれた台詞を読み上げます。"
         }
       },
       "videoDiscount": {
@@ -4782,28 +4685,18 @@
         "tooltip": "Seedance Reference は参考動画を接続すると 0.6x 価格になります。"
       },
       "noModel": "先に動画モデルを選択してください。",
-      "noInput": "動画プロンプトを入力するか、上流ノードを接続してください。",
-      "executionNotMigrated": "このモデルの動画実行経路はまだ接続されていないため、キャンバスから送信できません。",
       "audioRequiresVisual": "参照音声だけでは送信できません。画像または動画を1つ以上接続してください。",
       "generate": "動画を生成",
       "regenerate": "動画を再生成",
-      "statusIdle": "生成できます",
-      "statusPending": "動画を生成中",
-      "statusSuccess": "動画を生成しました",
-      "statusError": "生成に失敗しました",
       "sidecar": {
         "ariaLabel": "動画構成エディター",
         "eyebrow": "動画構成 · 右側編集",
-        "titleFallback": "動画生成",
-        "detailAction": "エディターを拡大",
-        "compactAction": "詳細を閉じる",
         "close": "動画構成エディターを閉じる"
       }
     },
     "videoReference": {
       "title": "参考動画",
       "description": "動画クリップをアップロードして下流の Seedance Reference ノードの参考に使用します。参考動画を接続すると 0.6 倍の価格が自動適用されます。",
-      "emptyPreview": "まだ動画がアップロードされていません",
       "upload": "動画をアップロード",
       "replace": "動画を差し替え",
       "clear": "クリア",
@@ -4816,20 +4709,15 @@
       "constraints": "mp4 / mov / webm に対応。1 クリップあたり ≤ 15 秒、≤ 50 MB です。",
       "errors": {
         "tooLong": "動画は {actual} 秒で、{max} 秒の上限を超えています。",
-        "metadataFailed": "動画のメタデータを読み取れませんでした。別のファイルをお試しください。",
         "uploadFailed": "動画のアップロードに失敗しました。再度お試しください。"
       }
     },
     "videoMerge": {
       "title": "動画結合",
       "description": "上流から接続された複数の動画を順番に結合して 1 本の mp4 にします。出力も動画 URL なので、下流の Seedance Reference / 別の結合ノードでそのまま使えます。",
-      "emptyPreview": "結合した動画はまだありません",
       "merging": "結合中",
       "merged": "動画を結合しました",
       "mediaLabel": "結合した {count} 本の動画",
-      "upstreamHeader": "上流のクリップ",
-      "upstreamEmpty": "結合するには 2 本以上の動画を接続してください。",
-      "slotsHeading": "順番にクリップを接続",
       "slotRequired": "必須",
       "slotOptional": "任意",
       "clipCount": "{count} / {max} 本",
@@ -4840,69 +4728,28 @@
       "clear": "結果をクリア",
       "hint": "コストは約 $0.001/本、処理時間は約 8 秒。音声トラックは自動的に保持されます。",
       "trim": {
-        "startLabel": "開始（秒）",
-        "endLabel": "終了（秒）",
         "startPlaceholder": "0",
         "endPlaceholder": "全長",
-        "startLabelA11y": "クリップ {n} の開始秒",
-        "endLabelA11y": "クリップ {n} の終了秒",
-        "editLabel": "トリムを編集",
-        "trimmedCount": "{count} 本トリム済み",
-        "rangeWarning": "終了秒は開始秒より大きくしてください。",
-        "composeHint": "トリムを設定すると fal の compose エンドポイントに切り替わります。開始秒は best-effort（fal はソースオフセットを公開していません）、終了秒で再生長を制限できます。"
-      },
-      "errors": {
-        "tooFewClips": "少なくとも {min} 本の動画が必要です。",
-        "tooManyClips": "最大 {max} 本までサポートされます。",
-        "mergeFailed": "動画の結合に失敗しました。再度お試しください。"
+        "trimmedCount": "{count} 本トリム済み"
       }
     },
     "mediaNodes": {
       "promptLabel": "プロンプト",
       "promptPlaceholder": "このノードで生成する内容を説明...",
-      "emptyPreview": "まだ素材は生成されていません",
-      "textPreview": "Inspector でショット文を整理",
       "imageAlt": "ノード生成画像",
       "sourceExisting": "既存画像",
       "sourceGenerated": "AI 生成",
-      "sourceFallback": "ノード画像",
-      "modeExistingTitle": "既存画像を使う",
-      "modeExistingDescription": "アップロード、貼り付け、または素材から選んで、このノードの結果にします。",
-      "modeCardTitle": "背景カードから選ぶ",
-      "modeCardDescription": "保存したカードのプロンプト + カバー画像をこのノードに一括反映。",
-      "modeAiTitle": "ノード内で AI 生成",
-      "modeAiDescription": "ノード項目を入力し、モデル、参照画像、LoRA を選んで生成します。",
-      "modeStudioTitle": "画像生成へ移動",
-      "modeStudioDescription": "現在のノード内容を画像ワークフローに渡して生成します。",
       "cardLibrary": {
         "title": "背景カード",
         "hint": "保存済みの背景カードを選んでノードを自動入力します。",
         "searchPlaceholder": "名前 / タグを検索…",
         "loading": "カードを読み込み中…",
         "empty": "保存済みの背景カードがありません。Studio で作成してください。",
-        "noMatch": "該当するカードはありません。",
         "applied": "背景カード「{name}」を適用しました。",
         "bound": "📇 カード由来：{name}"
       },
-      "activeExistingTitle": "既存画像を使用中",
-      "activeExistingDescription": "この画像は現在のノード結果です。参照画像として生成にも使えます。",
-      "activeAiTitle": "AI 生成モード",
-      "activeAiDescription": "このノード内で画像結果を生成または再生成します。",
-      "backToChoice": "選択に戻る",
-      "useExistingAsReference": "参照として生成",
       "replaceImage": "画像を置き換え",
-      "selectExistingShort": "画像を選択",
-      "changeSourceExisting": "素材ライブラリ",
-      "changeSourceAi": "AI生成",
-      "changeSourceStudio": "Studio",
-      "dropzoneHint": "クリック / ドロップ / 貼り付け (Ctrl+V)",
-      "upstreamRefsHint": "上流参照 · クリックで名前を挿入",
-      "removeUpstreamRef": "接続を解除",
-      "unnamedRef": "名称未設定",
       "clearImage": "画像をクリア",
-      "generateFromExisting": "参照から生成",
-      "existingAssetDialogTitle": "ノード画像を選択",
-      "existingAssetDialogDescription": "現在のノード結果にする画像素材を選択します。",
       "existing": {
         "title": "既存画像を使う",
         "hint": "アップロード、貼り付け、または素材から選びます。",
@@ -4914,43 +4761,21 @@
         "uploadFailed": "画像のアップロードに失敗しました。"
       },
       "emptyChoice": {
-        "uploadHint": "ファイルをドラッグしてもOK",
-        "generateTitle": "AIで生成",
-        "generateHint": "一文を書いて、モデルを選ぶ",
-        "dockHint": "どちらでも始められます。"
+        "uploadHint": "ファイルをドラッグしてもOK"
       },
       "generate": "生成",
       "regenerate": "再実行（上書き）",
-      "regenerateConfirmTitle": "この画像を上書きしますか？",
-      "regenerateConfirmDescription": "再実行するとこのノードの画像が新しい結果に置き換わり、生成枠を 1 回消費します。今の画像を残して別に作るには、編成台の送信矢印を使ってください（下流にノードを新規作成します）。",
-      "regenerateConfirmCancel": "キャンセル",
-      "regenerateConfirmAction": "上書きして再実行",
       "generating": "生成中...",
       "noModel": "先にモデルを選択してください。",
       "noPrompt": "先にプロンプトを入力してください。",
-      "reviewBlocked": "参考画像 {total} 枚が今回の生成から除外されました（未確認 {pending} 枚 / 差し戻し {rejected} 枚）。カードで「承認」してから再実行してください。",
-      "failedTitle": "生成に失敗しました",
-      "fallbackError": "ノード素材の生成に失敗しました。",
-      "statusIdle": "生成できます",
-      "statusPending": "素材を生成中",
-      "statusSuccess": "素材を生成しました",
-      "statusError": "生成に失敗しました",
-      "statusTextReady": "このテキストは下流ノードの入力になります"
+      "fallbackError": "ノード素材の生成に失敗しました。"
     },
     "videoComposer": {
       "monitor": {
-        "empty": "生成後にここにプレビューが表示されます",
-        "rec": "REC"
+        "empty": "生成後にここにプレビューが表示されます"
       },
       "studio": {
-        "currentFilm": "現在の映像",
-        "filmMeta": "{duration} · {aspect} · {resolution}",
-        "sentAssets": "実際に送信する素材",
-        "assetCount": "接続済み {count} 件",
-        "composition": "今回の構成",
-        "modelParameters": "モデルパラメータ",
-        "supportedOnly": "現在のモデルが対応する項目のみ表示",
-        "sendSummary": "入力 {inputs} 件 · 除外 {dropped} 件"
+        "composition": "今回の構成"
       },
       "variant": {
         "standard": "標準",
@@ -4963,28 +4788,14 @@
         "volcengine": "VolcEngine",
         "byteplus": "BytePlus"
       },
-      "referenceModeOn": "参照入力が接続されています — 参照モデルを使用します。",
       "sidecar": {
-        "modeNoModel": "このモードで使えるモデルがまだありません",
         "modeLabel": "動画生成モード",
         "mode": {
           "keyframe": "キーフレーム",
-          "image-reference": "画像参照",
           "multimodal": "フル参照"
         },
-        "connectedCount": "素材 {count} 件",
-        "referenceHelper": "接続した素材はモデルの対応範囲に応じて今回のリクエストへ送信されます",
-        "textHelper": "プロンプトを書くか、キャンバスから参照素材を接続します",
-        "chooseFromCanvas": "キャンバスから選択",
-        "noReferences": "参照素材はまだありません",
-        "keyframeSlotHint": "上流画像の「分類」で「開始フレーム」または「終了フレーム」を選択",
         "addReference": "参照素材を追加",
-        "promptPlaceholder": "生成したいショット、動き、音を説明…",
-        "editParameters": "動画パラメータを編集"
-      },
-      "slate": {
-        "modeReference": "参照モード",
-        "modeText": "テキストモード"
+        "promptPlaceholder": "生成したいショット、動き、音を説明…"
       },
       "autoName": {
         "character": "キャラクター",
@@ -5006,8 +4817,6 @@
         "ready": "自分のキー",
         "needsKey": "キー設定"
       },
-      "expandCard": "カードを展開",
-      "collapseCard": "カードを折りたたむ",
       "pickModel": "モデルを選択",
       "refKind": {
         "character": "キャラクター",
@@ -5040,26 +4849,16 @@
       "references": {
         "label": "引用済み",
         "counter": "引用済み {referenced} / 接続済み {connected}",
-        "charCount": "{length}/{max}",
         "slotLabel": "画像 {index}",
         "insertHint": "スロットをクリックしてプロンプトに挿入",
         "unnamed": "要命名",
         "unnamedHint": "ノードに名前を付けるとタグとして挿入できます",
         "locate": "キャンバス上のノードに移動",
-        "emptyDept": "参照なし · キャンバスで接続後に表示",
-        "stripEmptyHint": "接続済みですがまだ引用されていません · 下の「素材を管理」から挿入",
         "videoAutoHint": "参照動画は接続に従って自動送信されます。挿入は不要です",
         "keyframeHint": "先頭/末尾フレームは接続に従って自動送信されます。挿入は不要です",
         "voiceNotReadyHint": "参照音声が未アップロード/未選択 — 今回の生成では送信されません",
         "addVoice": "「{name}」に音色を追加",
-        "addCloseup": "「{name}」に顔のクローズアップを追加",
         "remove": "「{name}」の接続を解除（ノードは保持）",
-        "removedToast": "「{name}」の接続を解除しました。ノードは保持されます",
-        "addDialogTitle": "ライブラリから参照を選択",
-        "addDialogDescription": "選んだ素材は上流ノードとして自動作成され、この動画ノードに接続されます。",
-        "manageButton": "素材を管理 · {count}",
-        "manageTitle": "素材を管理",
-        "manageDescription": "この動画ノードに接続されているすべての素材を表示します。プロンプトに挿入したり接続を管理できます。",
         "searchPlaceholder": "名前または @token で検索",
         "tabs": {
           "all": "すべて",
@@ -5075,26 +4874,7 @@
           "video": "参照動画を追加",
           "voice": "ナレーションを追加"
         },
-        "managerEmpty": "一致する素材がありません",
-        "statusReferenced": "引用済み",
-        "statusInsert": "挿入",
-        "rowMenu": "その他の操作",
-        "rowLocate": "キャンバスで表示",
-        "rowRemove": "接続を解除",
-        "routedThrough": "{name} と一緒に送信",
-        "capacityWarning": "候補の参考画像が合計 {count} 枚あり、モデルの上限 {max} 枚を超えています（うち {truncated} 枚は送信されません）",
-        "counterOverflow": "{sent}/{max} ⚠",
-        "closeManager": "素材管理を閉じる",
-        "folderExpand": "「{name}」のギャラリーを展開",
-        "folderCollapse": "「{name}」のギャラリーを折りたたむ",
-        "galleryCount": "ギャラリー {count} 枚",
-        "galleryEmpty": "ギャラリーは空です",
         "onStageBadge": "登場",
-        "voiceBoundBadge": "音色を設定済み",
-        "willNotSendHint": "上限超過のため送信されません",
-        "restoreDefaultStage": "「{name}」の既定の登場グループに戻す",
-        "stageCheckboxLabel": "このショットで「{name}」のこの画像を送信する",
-        "primaryAlwaysStaged": "メイン画像は常に登場（解除不可）",
         "addGroups": {
           "image": "画像",
           "voice": "音声",
@@ -5113,14 +4893,8 @@
         "audioBadge": "音声{index}",
         "empty": "（今回は追加のプロンプトはありません）"
       },
-      "aspectAuto": "自動",
       "generateAudioLabel": "音声を生成",
-      "seedLabel": "シード",
       "seedRandom": "毎回ランダム",
-      "seedRandomize": "シードをランダム化",
-      "lastSeedLabel": "前回のシード",
-      "seedLock": "ロック",
-      "enhanceEmptyTip": "まずプロンプトを入力してから AI に構成させてください。",
       "rebind": {
         "title": "{brand} に切り替えますか？",
         "map": "引き継がれます",
@@ -5132,81 +4906,27 @@
     "nodeToolbar": {
       "expand": "拡大",
       "delete": "削除",
-      "imageEditToolbar": "画像編集ツール",
       "toolbar": "ノード操作",
       "more": "その他",
-      "quickEdit": "クイック編集",
       "download": "ダウンロード",
       "rename": "名前",
       "category": "分類",
-      "moreEdits": "編集ツール",
-      "moreEditsInstant": "ワンクリック",
-      "moreEditsRegion": "画像上で範囲を指定",
-      "moreEditsDescribe": "文章で指定",
-      "addAsset": "素材を追加",
       "preview": "プレビュー",
       "reorder": "並べ替え",
-      "performancesAria": "{count}件の出演をキャンバスで表示",
       "compose": "{count}本を合成",
       "composeAria": "選択した{count}本の動画を合成ビンにまとめる"
     },
     "nodeDetail": {
-      "backToCanvas": "キャンバスに戻る",
-      "canvasCrumb": "キャンバス",
       "close": "折りたたむ",
-      "focusOnCanvas": "キャンバス上で「{name}」を表示",
       "generate": "生成",
-      "promptPreview": "組み立てたプロンプト",
       "upload": "アップロード",
       "openStudio": "Studio ↗",
-      "sourceCounts": "参照画像 {refs}/{refMax} · LoRA {loras}/{loraMax}",
-      "sendPreview": "送信プレビュー",
-      "identityPackage": "下流に渡すアイデンティティ",
-      "fieldModel": "モデル",
-      "fieldReferences": "参照画像",
-      "fieldLastFailure": "前回の失敗",
-      "fieldCategory": "分類",
-      "fieldDisplayName": "表示名",
-      "fieldVisualSeed": "外見の記述",
-      "fieldBoundVoice": "声のアイデンティティ",
-      "valueEmpty": "（空）",
-      "valueUnset": "未選択",
-      "valueUnbound": "未バインド",
-      "cardCharacter": "キャラクターカード",
-      "cardBackground": "シーンカード",
-      "relationsEmptyImage": "まだどのノードにも使われていません",
-      "relationsEmptyShot": "まだどの動画ノードにも使われていません",
-      "relationsEmptyFrame": "まだどの動画ノードにも使われていません",
-      "relationsEmptyBackground": "まだどのショット・動画にも使われていません",
-      "relationsEmptyCharacter": "まだどのショット・動画にも使われていません",
-      "relationsEmptyVoice": "まだどのキャラクターにもバインドされていません",
-      "sampleWillSend": "サンプリング時に送信される内容",
-      "editParams": "パラメータを編集",
-      "relationsEmptyVideo": "まだどのリールにもマージされていません",
-      "fieldSource": "ソース",
-      "reasonNoVoice": "先にライブラリから音色を選んでください。",
-      "relationsEmptyMerge": "まだどのノードにも使われていません",
-      "relationsEmptyReference": "まだどの下流ノードにも参照されていません",
-      "fieldClips": "クリップ",
-      "fieldTrim": "トリム",
-      "fieldRoute": "ルート",
-      "fieldFile": "ファイル",
-      "fieldConstraints": "フォーマット制限",
-      "valueBoundNotReady": "バインド済み · 送信可能な音声なし",
-      "stagePreviewHint": "生成されるとここに表示されます"
+      "sampleWillSend": "サンプリング時に送信される内容"
     },
     "voiceDetail": {
-      "paramsLabel": "基本調整",
       "speedLabel": "速度",
       "volumeLabel": "音量",
-      "timbreLabel": "音色",
-      "sourceSystem": "システム音色",
-      "sourceMine": "マイ音色",
       "emotionLabel": "感情",
-      "audioOwnerLabel": "所属キャラクター",
-      "audioOwnerNone": "ナレーション（所属なし）",
-      "audioOwnerCustom": "名前を入力…",
-      "audioOwnerPlaceholder": "例：ひなた",
       "emotions": {
         "none": "なし",
         "calm": "落ち着き",
@@ -5214,15 +4934,7 @@
         "sad": "悲しみ",
         "surprised": "驚き"
       },
-      "sampleLabel": "音声サンプル",
-      "generateSample": "サンプルを取得",
-      "coverAlt": "音色カバー",
-      "coverChange": "カバーを変更",
-      "coverUpload": "音色カバーをアップロード",
-      "coverFromAssets": "素材からカバーを選択",
-      "coverDialogTitle": "音色カバーを選択",
-      "coverDialogDescription": "現在の音声と一緒に1つの音色素材として保存する画像を選択します。",
-      "coverUploadFailed": "カバーをアップロードできませんでした"
+      "coverAlt": "音色カバー"
     },
     "workflowFields": {
       "prompt": {
@@ -5303,39 +5015,20 @@
     },
     "workflowNodes": {
       "shotText": {
-        "emptyPreview": "シーン、動き、カメラ、構図を実行可能なショット文に整理します。",
         "emptyState": "ショット文はまだありません",
-        "footerEmpty": "ショット文を待機中",
-        "editText": "テキストを編集",
-        "detailHint": "これらの項目は順にプロンプトへ連結され、下流の動画ノードに渡されます。"
+        "editText": "テキストを編集"
       },
       "characterImage": {
-        "emptyState": "キャラクター画像はまだありません",
-        "footerEmpty": "キャラクター設定待ち"
+        "emptyState": "キャラクター画像はまだありません"
       },
       "shot": {
-        "emptyState": "ショット画像はまだありません",
-        "footerEmpty": "ショットプロンプトを待機中"
+        "emptyState": "ショット画像はまだありません"
       },
       "backgroundImage": {
-        "emptyState": "背景画像はまだありません",
-        "footerEmpty": "背景設定を待機中"
+        "emptyState": "背景画像はまだありません"
       },
       "frameImage": {
-        "emptyState": "キーフレームはまだありません",
-        "footerEmpty": "キーフレーム設定を待機中"
-      },
-      "voice": {
-        "emptyPreview": "動画ノード用の音色、音色 ID、または参考音声を選択します。",
-        "footerEmpty": "音色を待機中"
-      },
-      "seedance": {
-        "emptyPreview": "キャラクター画像、背景、キーフレーム、音色を集約して動画化します。",
-        "footerEmpty": "動画入力を待機中"
-      },
-      "videoReference": {
-        "emptyPreview": "≤15 秒の動画をアップロードして、下流の Seedance Reference の参考にします。",
-        "footerEmpty": "アップロード待ち"
+        "emptyState": "キーフレームはまだありません"
       },
       "videoMerge": {
         "emptyState": "結合した動画はまだありません"
@@ -5350,7 +5043,6 @@
       "expand": "トップバーを開く",
       "defaultModel": "既定",
       "createProjectPrompt": "プロジェクト名",
-      "renameProjectPrompt": "プロジェクト名を変更",
       "deleteProjectConfirm": "「{name}」を削除しますか？このキャンバスプロジェクトは削除されます。"
     },
     "projectMenu": {
@@ -5526,8 +5218,6 @@
       }
     },
     "inspector": {
-      "multiTitle": "{count} 件のノードを選択中",
-      "multiDescription": "一括編集はまだ保護されています。破壊的操作の確認ダイアログが入るまでは、1 件ずつ編集してください。",
       "unsupported": "このノードタイプの Inspector はまだありません。"
     },
     "conversation": {
@@ -5644,40 +5334,11 @@
       "onStageOn": "登場中",
       "onStageOff": "未登場",
       "onStageToggleOn": "登場に設定",
-      "onStageToggleOff": "登場を解除",
-      "identityVisualSeedLabel": "ビジュアルシード（アシスタント設定）",
-      "backgroundCardTitle": "シーンカード",
-      "backgroundCardHint": "シーンカードを選択してノードに読み込む",
-      "voiceSection": "ボイス識別",
-      "voiceBind": "ボイスを紐付け",
-      "voiceBindDialogDescription": "生成済みまたはアップロード済みの音声クリップを、このキャラクターのボイス参照として選択します。",
-      "closeupAdd": "顔のクローズアップを追加",
-      "closeupAddDialogDescription": "顔のクローズアップを選んでこのキャラクターの画像集に加えます。キャラクターと一緒に送信されます。",
-      "noVoice": "音色なし",
-      "identityEmptyHint": "代表画像を選択",
-      "nodeCountAria": "紐づくノード {count} 件",
-      "performanceSection": "出演ショット",
-      "performanceEmpty": "まだどのショットにも使われていません",
-      "performanceFocusAria": "{name}をキャンバスでフォーカス",
-      "identityPrimaryLabel": "カード主画像"
+      "onStageToggleOff": "登場を解除"
     },
     "toasts": {
       "notImplemented": "まだ実装されていません。",
-      "layoutTidied": "キャンバスを整理しました。",
-      "workflowSaved": "ワークフローをクラウドに保存しました。",
-      "workflowSaveFailed": "保存に失敗しました。後でもう一度お試しください。",
-      "nodesDeleted": "{count} 個のノードを削除しました。",
-      "seedancePromptPlanned": "Seedance プロンプトを生成しました。",
-      "seedancePromptPlanFailed": "Seedance プロンプト設計に失敗しました。",
-      "characterGenerated": "キャラクター画像を生成しました。",
-      "mediaGenerated": "ノード素材を生成しました。",
-      "mediaGenerationFailed": "ノード素材の生成に失敗しました。",
-      "stillProcessing": "バックグラウンドで生成を続けています。少し後でもう一度確認してください。",
-      "studioResultAttached": "Studio で生成した画像をノードへ反映しました。",
-      "timelineCannotDeleteLast": "少なくとも 1 つのセグメントを残してください。",
-      "edgeDeleted": "接続を削除しました。",
       "projectCreated": "プロジェクト「{name}」を作成しました。",
-      "projectRenamed": "プロジェクト名を「{name}」に変更しました。",
       "projectDeleted": "プロジェクト「{name}」を削除しました。",
       "videoMergeComposed": "{count}本の動画を合成ビンにまとめました。",
       "localCacheFull": "このブラウザのローカルキャッシュが満杯です。キャンバスはここに保持されなくなりました。作業内容はクラウドに保存されています。",
@@ -5695,38 +5356,21 @@
       "hint": "抽出したい要素を書いてください。結果は新しい画像としてキャンバスに置かれます。"
     },
     "generateComposer": {
-      "placeholderEmpty": "生成したい画面を書いてください…",
-      "placeholderEditing": "この画像をどう変えたいか書いてください…",
-      "placeholderEmptyAudio": "生成したい音を書いてください…",
-      "placeholderEditingAudio": "この音をどう変えたいか書いてください…",
-      "editingBadge": "編集中",
       "addReference": "参考画像を追加",
-      "aspectLabel": "アスペクト比",
-      "batchLabel": "枚数",
       "removeReference": "{name} を削除",
       "expand": "展開",
       "collapse": "折りたたむ",
       "send": "送信",
-      "reasonNoModel": "先にモデルを選んでください",
-      "reasonNoInput": "生成したい内容を書いてください",
       "historyTitle": "最近使ったプロンプト",
       "historyEmpty": "まだ履歴がありません",
-      "modePickerTitle": "生成",
       "modeImage": "画像",
       "modeAudio": "音声",
       "audioPlaceholder": "音声パラメータはボイスカードの回で対応予定",
-      "templateButton": "テンプレート",
-      "templateSearchPlaceholder": "名前・本文・タグで検索",
       "templateFilterLabel": {
         "recent": "最近使った",
         "all": "すべて",
         "mostUsed": "よく使う"
-      },
-      "templateUsageCount": "{count} 回使用",
-      "templateLoading": "テンプレートを読み込み中…",
-      "templateEmpty": "一致するプロンプトテンプレートがありません",
-      "templateApplied": "テンプレートのプロンプトに置き換えました",
-      "templateUndo": "元に戻す"
+      }
     },
     "history": {
       "title": "履歴",
@@ -5794,7 +5438,22 @@
         "reject": "「{target}」を差し戻す",
         "approve": "「{target}」を承認済みにする",
         "awaitReview": "「{target}」を未確認にする",
-        "generate": "「{target}」を生成"
+        "generate": "「{target}」を生成",
+        "connectSlot": "「{source}」を「{target}」の{slot}につなぐ",
+        "disconnect": "接続を 1 本外す",
+        "delete": "「{target}」を削除する",
+        "moveToShot": "「{target}」をカット {shotNo} に移す",
+        "moveOutOfShot": "「{target}」をカット帯の外に出す",
+        "reorderShot": "カット {from} を {to} 番目に移す",
+        "setText": "「{target}」の本文を書き換える",
+        "setField": "「{target}」の {field} を {value} にする",
+        "attachAssetSlot": "「{source}」を「{target}」の{slot}に入れる",
+        "setSlotVersion": "「{target}」の{slot}の現在のバージョンを切り替える",
+        "blockVersion": "「{target}」の{slot}のこのバージョンを不採用にする",
+        "unblockVersion": "「{target}」の{slot}のこのバージョンの不採用を解除する",
+        "setParamsV4": "「{target}」の生成設定を変更する",
+        "setVoiceProfile": "「{target}」の音声設定を変更する",
+        "setMergeClips": "「{target}」のクリップの範囲を変更する"
       },
       "params": {
         "duration": "{value}秒",
@@ -5821,6 +5480,13 @@
         "unsupportedParam": "選択中のモデルはその設定を受け付けません",
         "unknownParamValue": "選択中のモデルが受け付ける値ではありません",
         "notAttachable": "参考画像を集められるのはキャラクター／背景カードだけです。代わりにノードをつないでください"
+      },
+      "confirmDelete": "削除を確認",
+      "overwriteQuestion": "そこにはすでにあなたが書いた内容があります：",
+      "overwriteChoice": {
+        "append": "後ろに追記",
+        "replace": "上書き",
+        "keep": "そのまま"
       }
     },
     "v4": {

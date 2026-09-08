@@ -1,13 +1,9 @@
 import {
   NODE_SLOT_IDS,
-  NODE_SLOT_TEXT_ROLE_FALLBACK,
-  NODE_SLOT_TEXT_ROLE_IDS,
   type NodeSlotId,
   type NodeSlotTextRole,
 } from '@/constants/node-slots'
 import {
-  NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY,
-  NODE_STUDIO_KEYFRAME_LEGEND_UNCLASSIFIED_CATEGORY,
   NODE_STUDIO_KEYFRAME_REFERENCE_ROLES,
   NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID,
   NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS,
@@ -28,14 +24,7 @@ import type {
   NodeWorkflowReferenceAsset,
 } from '@/types/node-workflow'
 
-import { composeSlotPrompt } from './node-slot-payload'
-import { buildNodeWorkflowPrompt } from './node-workflow-prompt'
-import { resolveNodeDisplayName } from './node-display-name'
-import {
-  isMediaApprovedForDownstream,
-  resolveMediaReviewState,
-} from './node-media-review'
-import { assembleReferenceImagePayload } from './node-reference-payload'
+import {} from './node-media-review'
 
 /**
  * 被审核门挡下的一张图（包 4 / §4.2 Q3）。
@@ -69,32 +58,6 @@ export interface HarvestedImageUrls {
 export interface HarvestedImageReferences {
   references: UpstreamImageReference[]
   blocked: BlockedUpstreamMedia[]
-}
-
-/**
- * 收割时的统一闸门：approved 才进 `urls`，其余落 `blocked`。
- * 每个 push 点都走它，避免出现「某一条路径忘了挡」这种半漏的门。
- */
-function pushGated(
-  accepted: string[],
-  blocked: BlockedUpstreamMedia[],
-  node: NodeWorkflowNode,
-  url: string | undefined,
-): boolean {
-  if (!url) return false
-  if (accepted.includes(url) || blocked.some((item) => item.url === url)) {
-    return false
-  }
-  if (isMediaApprovedForDownstream(node.data, url)) {
-    accepted.push(url)
-    return true
-  }
-  blocked.push({
-    url,
-    nodeId: node.id,
-    state: resolveMediaReviewState(node.data, url),
-  })
-  return false
 }
 
 /** Unified image roles that feed Seedance as a plain visual reference (vs the
@@ -200,37 +163,11 @@ export function resolveGenerateTargetKind(node: {
 }
 
 /**
- * 关键帧节点按**时序**排：首帧在前、尾帧在后。
- *
- * `NODE_STUDIO_KEYFRAME_REFERENCE_ROLES` 的数组顺序（frameStart → frameEnd）本身就是
- * 时序，直接拿它当排名，不另立一张映射表。
- *
- * ⚠ 旧的 `role === 'frame'` 节点没有 `imageCategory`，一律算**首帧**（rank 0）——
- * 与改造前「按上游顺序、第一张当首帧」的行为一致，存量图不会因此改变送出的首帧。
- *
- * ⚠ 排序必须**稳定**：同类关键帧（比如两个 frameStart）之间保持原有上游顺序，否则
- * 存量图里 `@ImageN` 的位置会漂。`Array.prototype.sort` 在现代 JS 里保证稳定。
- *
- * 采集与图例编号**共用这一个函数** —— 两处若各排各的，图例写着「关键帧尾2」而实际
- * 送出的第二张是别的图，用户看到的解释就是假的。
- */
-function keyframeRank(node: NodeWorkflowNode): number {
-  const category = node.data.imageCategory
-  const index =
-    typeof category === 'string'
-      ? (NODE_STUDIO_KEYFRAME_REFERENCE_ROLES as readonly string[]).indexOf(
-          category,
-        )
-      : -1
-  return index === -1 ? 0 : index
-}
-
-/**
  * A closeup image (face detail) — a unified `image` node with role=closeup
  * (cast-redesign §9 B). closeup has no legacy per-type equivalent, so it only
  * ever exists as `image` + role. It is NOT a direct visual reference (it wires
  * into a character, not a video), so it rides image_urls via the 1-hop
- * `harvestUpstreamCloseupUrls`, not the direct `harvestUpstreamImageUrls`.
+ * the deleted v3 close-up harvest, not the direct image one.
  */
 export function isCloseupNode(node: NodeWorkflowNode): boolean {
   return (
@@ -400,16 +337,6 @@ export function getEdgeStageOverrideUrls(
   return raw.filter((value): value is string => typeof value === 'string')
 }
 
-function findEdgeBetween(
-  edges: readonly NodeWorkflowEdge[],
-  sourceId: string,
-  targetId: string,
-): NodeWorkflowEdge | undefined {
-  return edges.find(
-    (edge) => edge.source === sourceId && edge.target === targetId,
-  )
-}
-
 export function getUpstreamNodes(
   nodeId: string,
   edges: readonly NodeWorkflowEdge[],
@@ -431,125 +358,6 @@ function pushUnique(target: string[], value: string | undefined): void {
   target.push(value)
 }
 
-/**
- * Harvest reference-image URLs from upstream visual + keyframe nodes.
- *
- * Order: keyframe nodes first (they pin temporal structure), then visual
- * reference nodes (character / background / shot). Duplicates are dropped and
- * empty `mediaUrl` / `imageUrl` are skipped. Callers should `.slice(0, max)`
- * against the chosen video model's reference-image cap.
- *
- * R3-6b §3 每镜覆写: `edges` + `focalNodeId` are OPTIONAL and, when both are
- * supplied, let a collector's (character/background) contribution honor a
- * per-edge `stageOverrideUrls` on the specific `collector → focalNodeId` edge
- * (§ `getEdgeStageOverrideUrls`) instead of the card's own onStage curation —
- * "每镜" = the override is scoped to THIS one downstream node, other edges
- * from the same collector keep resolving their own override (or the card
- * default). Omitting either param (the shot-image harvest path, which does
- * NOT get per-edge overrides per §3.0a's "shot 路径不做覆写") falls back to
- * the pre-R3-6b behavior byte-for-byte.
- */
-export function harvestUpstreamImageUrls(
-  upstreamNodes: readonly NodeWorkflowNode[],
-  edges?: readonly NodeWorkflowEdge[],
-  focalNodeId?: string,
-): HarvestedImageUrls {
-  const result: string[] = []
-  const blocked: BlockedUpstreamMedia[] = []
-  const keyframeUrls: string[] = []
-
-  // 关键帧先入列（它们钉住时序），且**首帧在前、尾帧在后**。
-  //
-  // 第三期 C3b：**谁是关键帧、谁在前**一律由槽回答（`resolveUpstreamSlots` →
-  // `orderKeyframeNodes`），不再现场读 `imageCategory` 猜。存量 v3 边不带槽 →
-  // `inferLegacySlot` 按旧位置规则翻译一次，产出逐字节不变；边上写了槽的图，只有
-  // 这条路径听得懂（一张 frameStart 的图被显式连成 `reference` 就不再占首帧位）。
-  // 顺序仍是首尾语义的载体：下游按位置取（images[0]=首帧、images[1]=尾帧）。
-  const slotOf = resolveUpstreamSlots(upstreamNodes, edges, focalNodeId)
-  for (const node of orderKeyframeNodes(upstreamNodes, slotOf)) {
-    const url = getNodeMediaUrl(node.data)
-    // `pushGated` 返回「这张真的进了 urls 吗」—— 只收过审的那些，`keyframeUrls`
-    // 必须是 `urls` 的真前缀，否则下游拿它去选图会选到一张压根没发出去的。
-    if (pushGated(result, blocked, node, url) && url) keyframeUrls.push(url)
-  }
-  // V-2 主图 + R3-6 出场组: a COLLECTOR card (character/background — the
-  // "身份档案夹" with a curatable gallery) expands to its full onStage set
-  // (primary first, see getNodeStageMediaUrls); a shot card is a visual
-  // reference too but not a collector (no gallery-of-the-same-subject
-  // semantics), so it still sends only its ★-starred/primary image.
-  //
-  // ⚠ 这一轮的判据仍是 `isVisualReferenceNode`（**族**），不是槽（**用途**）：槽只
-  // 回答「这条边算什么」，而这里还要回答「它是收集器卡还是单张图」——两个问题。
-  // ⛔ 也不跳过已经进了关键帧段的节点：改造前两轮就是各走各的（重复 URL 由
-  // `pushGated` 去重），一张既是关键帧、又带 ★ 主图的卡因此会送两条，跳过它等于
-  // 在这一片里偷偷改了行为。
-  for (const node of upstreamNodes) {
-    if (!isVisualReferenceNode(node)) continue
-    const kind = getSeedanceReferenceKind(node)
-    if (kind === 'character' || kind === 'background') {
-      const override =
-        edges && focalNodeId
-          ? getEdgeStageOverrideUrls(
-              findEdgeBetween(edges, node.id, focalNodeId),
-            )
-          : undefined
-      for (const url of getNodeStageMediaUrls(node.data, override)) {
-        pushGated(result, blocked, node, url)
-      }
-    } else {
-      pushGated(result, blocked, node, getNodePrimaryMediaUrl(node.data))
-    }
-  }
-
-  return { urls: result, blocked, keyframeUrls }
-}
-
-/**
- * 1-hop harvest of closeup face-detail images (cast-redesign §9 B). A closeup
- * wires into a character (`closeup → character`), not the focal video node, so
- * it never appears in `harvestUpstreamImageUrls(directUpstream)`. This walks one
- * hop past each upstream character to collect its closeup images, in character
- * order then closeup order, so they ride image_urls right behind their subject.
- *
- * Callers append the result AFTER `harvestUpstreamImageUrls` (keyframes → main
- * refs → closeups) and dedup, so a closeup shared with a direct reference is
- * counted once and the main references keep priority under the model's cap.
- */
-export function harvestUpstreamCloseupUrls(
-  focalNodeId: string,
-  edges: readonly NodeWorkflowEdge[],
-  nodes: readonly NodeWorkflowNode[],
-): HarvestedImageUrls {
-  const result: string[] = []
-  const blocked: BlockedUpstreamMedia[] = []
-
-  // 第三期 C3b：两跳都按槽走 —— 视频的 `reference` 槽里挑角色卡，再问**那张卡**的
-  // `closeup` 槽。⚠ 「谁的槽」永远只有一个答案（`harvestSlots` 只走一跳，见它的
-  // 头注），一跳外的特写占的是角色卡的槽，不是视频的。
-  for (const entry of harvestSlots(focalNodeId, edges, nodes).reference) {
-    if (getSeedanceReferenceKind(entry.node) !== 'character') continue
-    for (const closeup of harvestSlots(entry.node.id, edges, nodes).closeup) {
-      // 特写走的是 1 跳，但它一样会骑上 image_urls，所以一样过门 ——
-      // 只挡直连那一层等于留了条后门。
-      pushGated(
-        result,
-        blocked,
-        closeup.node,
-        getNodePrimaryMediaUrl(closeup.node.data),
-      )
-    }
-  }
-
-  // 特写永远不是关键帧（它跟在主图后面入列），所以这里恒空。
-  return { urls: result, blocked, keyframeUrls: [] }
-}
-
-/**
- * A shot-image node (镜头) — legacy `shot` type OR a unified `image` node whose
- * role is shot (role-less defaults to shot, mirroring isVisualReferenceNode).
- * Shot nodes are the only image-gen nodes that read the graph: they harvest
- * upstream character/background images as named references.
- */
 export function isShotNode(node: NodeWorkflowNode): boolean {
   if (node.type === NODE_TYPE_IDS.image) {
     return (
@@ -599,78 +407,6 @@ function resolveReferenceAssetCategory(
     : NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS[asset.role]
 }
 
-/**
- * Harvest named character/background image references from a shot node's
- * upstream nodes. Each entry pairs the reference URL with its subject name so
- * the caller can both pass the URL to the image model AND label it in the
- * prompt legend. Empty media and duplicate URLs are dropped; edge/graph order
- * is preserved so the legend numbering is stable.
- *
- * R3-6 出场组: a collector (character/background) expands to its full
- * onStage set (`getNodeStageMediaUrls`), primary first — unchanged single
- * `{url, kind, name}` entry for the primary; each EXTRA onStage image gets
- * its own entry, labeled either "名字（分类）" (via the asset's own `role` +
- * name, S5d ③ category mechanism) when both resolve, or the SAME kind+name
- * format as the primary when they don't (§3.0a "无分类则同名同 kind 格式").
- * A card with no onStage entries degrades to exactly one entry per node,
- * byte-identical to the pre-R3-6 behavior.
- */
-export function harvestUpstreamImageReferences(
-  upstreamNodes: readonly NodeWorkflowNode[],
-): HarvestedImageReferences {
-  const result: UpstreamImageReference[] = []
-  const blocked: BlockedUpstreamMedia[] = []
-  const seen = new Set<string>()
-
-  for (const node of upstreamNodes) {
-    const kind = getSeedanceReferenceKind(node)
-    if (kind !== 'character' && kind !== 'background') continue
-    // 画布修法 08-A：走全仓唯一那个解析器，不再自己读 characterName/
-    // backgroundName 两个字段——`harvestUpstreamVideoImageReferences`（视频
-    // 图例，同文件）2026-08-09 已经改过，这个镜头图例的姊妹函数当时漏改，
-    // 于是同一张选了机器备注当名字的图，在视频图例里显示正常、在镜头图例
-    // 里却把机器串原样递给模型。
-    const name = resolveNodeDisplayName(node.data)
-    const stageUrls = getNodeStageMediaUrls(node.data)
-    stageUrls.forEach((url, index) => {
-      if (!url || seen.has(url)) return
-      seen.add(url)
-      // 镜头图这条路径和视频那条是**两条**收割链（包 4 必读结论）。只挡一条
-      // 等于没挡：未过审的角色图照样能从这里进静帧的具名参考。
-      if (!isMediaApprovedForDownstream(node.data, url)) {
-        blocked.push({
-          url,
-          nodeId: node.id,
-          state: resolveMediaReviewState(node.data, url),
-        })
-        return
-      }
-      if (index === 0) {
-        result.push({ url, kind, name })
-        return
-      }
-      const asset = (node.data.referenceAssets ?? []).find(
-        (candidate) => candidate.url === url,
-      )
-      const category = asset ? resolveReferenceAssetCategory(asset) : undefined
-      if (category && asset?.name) {
-        result.push({ url, name: asset.name, category })
-      } else {
-        result.push({ url, kind, name })
-      }
-    })
-  }
-
-  return { references: result, blocked }
-}
-
-/**
- * Build the prompt legend that maps each named reference image (by its final
- * 1-based position in `referenceImages`) to its subject, so the image model
- * binds the name used in the prompt to the right reference picture. References
- * without a known name (e.g. manual uploads) are skipped. Returns '' when no
- * named reference made the cut.
- */
 export function buildShotReferenceLegend(
   referenceImages: readonly string[],
   referenceByUrl: ReadonlyMap<string, UpstreamImageReference>,
@@ -700,9 +436,9 @@ export function buildShotReferenceLegend(
  * legend from a caller's OWN candidate URLs (whatever it already collected —
  * e.g. the generate-composer's pinned host thumbnail + manually picked
  * slots) plus the SAME upstream character/background harvest the toolbar
- * 「生成」button (`handleGenerateMediaNode`, `StudioNodeWorkbench.tsx`) has
+ * 「生成」button (`handleGenerateMediaNode`, 画布 workbench) has
  * always read for a shot node. One function, built from the exact primitives
- * that handler already calls in this order — `harvestUpstreamImageReferences`
+ * that handler already calls in this order — the deleted v3 image harvest
  * → merge → `assembleReferenceImagePayload` (dedupe + cap) →
  * `buildShotReferenceLegend` — so a second reference-collecting call site
  * never again has to re-derive (and silently diverge from) that recipe.
@@ -717,39 +453,6 @@ export function buildShotReferenceLegend(
  * other reference-collecting call site) — an upstream reference only fills a
  * slot the caller's own picks didn't already claim.
  */
-export interface ShotImageReferencePlan {
-  /** Deduped + capped, ready to ship as `referenceImages`. */
-  referenceImages: string[]
-  /** '' when nothing named made the cut — same contract as `buildShotReferenceLegend`. */
-  legend: string
-  /** Upstream media the review gate excluded — caller must surface, never swallow (§5-W3). */
-  blocked: BlockedUpstreamMedia[]
-}
-
-export function assembleShotImageReferencePlan(
-  ownCandidateUrls: readonly (string | undefined)[],
-  upstreamNodes: readonly NodeWorkflowNode[],
-  maxReferenceImages: number,
-): ShotImageReferencePlan {
-  const harvested = harvestUpstreamImageReferences(upstreamNodes)
-  const referenceByUrl = new Map<string, UpstreamImageReference>()
-  for (const reference of harvested.references) {
-    referenceByUrl.set(reference.url, reference)
-  }
-  const referenceImages = assembleReferenceImagePayload(
-    [
-      ...ownCandidateUrls,
-      ...harvested.references.map((reference) => reference.url),
-    ],
-    maxReferenceImages,
-  ).imageUrls
-  return {
-    referenceImages,
-    legend: buildShotReferenceLegend(referenceImages, referenceByUrl),
-    blocked: harvested.blocked,
-  }
-}
-
 /**
  * 画布修法包 F 续（owner 2026-08-26 拍板「只修抹掉、不改发送」）：把 generate
  * composer 这一次要落盘的 `referenceAssets` 与**宿主已有的那份**合并，而不是
@@ -822,7 +525,7 @@ export interface VideoLegendImageReference {
    * unnamed-fallback (`autoNamePrefix.shot`) still resolves; `frame` carries
    * no `kind` at all — it's never a `VideoLegendImageKind` member, and its
    * `name` is always populated at harvest time instead (see
-   * `harvestUpstreamVideoImageReferences`'s keyframe pass), so the
+   * the deleted v3 video-legend harvest's keyframe pass), so the
    * kind-driven fallback path is never actually reached for it.
    */
   kind?: VideoLegendImageKind
@@ -842,187 +545,6 @@ export interface VideoLegendImageReference {
    * every shot/frame reference, not only onStage extras.
    */
   category?: string
-}
-
-/**
- * SF-2b: resolve the model-facing category label for a directly-referenced
- * KEYFRAME node (`isKeyframeNode` — role=frame / legacy frameImage OR a
- * role-less loose image classified `imageCategory: 'frameStart'|'frameEnd'`).
- * A role-less S5d ③ classification wins when present (more specific —
- * 关键帧首/关键帧尾 vs the generic 首帧); a plain role=frame/frameImage node
- * (no `imageCategory`) falls back by ORDINAL.
- *
- * ⚠ 兜底必须看序位（2026-08-09 修）：此前无分类一律回落成「首帧」，于是两张都
- * 没标分类时图例**双双自称首帧**（`name` 也跟着叫「首帧2」），模型分不出首尾。
- * 而「两张都没标」正是默认路径 —— 菜单建的关键帧不带 `imageCategory`，且那一族
- * 的详情面板没有分类下拉。现在只有**第一张**还叫首帧（它在火山关键帧端点上
- * 确实是 `first_frame`），第二张起走中性文案，见常量本身的注释。
- */
-function resolveKeyframeLegendCategory(
-  node: NodeWorkflowNode,
-  /** 1-based，与图例里的 `${category}${ordinal}` 同一个号。 */
-  ordinal: number,
-): string {
-  const nodeCategory = node.data.imageCategory
-  if (nodeCategory) {
-    const resolved =
-      nodeCategory === NODE_STUDIO_REFERENCE_ROLE_CUSTOM_ID
-        ? node.data.imageCategoryLabel
-        : NODE_STUDIO_REFERENCE_ROLE_LEGEND_LABELS[nodeCategory]
-    if (resolved) return resolved
-  }
-  return ordinal <= 1
-    ? NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY.frame
-    : NODE_STUDIO_KEYFRAME_LEGEND_UNCLASSIFIED_CATEGORY
-}
-
-/**
- * Map every named image reference a VIDEO node sends to its subject, keyed by
- * URL. Covers direct visual refs (character / background / shot) AND 1-hop
- * closeups (closeup → character), so the legend can bind `@特写N` too. The
- * caller looks each sent URL up by its FINAL position in `referenceImages`,
- * so this map's own iteration order doesn't matter (mirrors
- * buildShotReferenceLegend).
- *
- * SF-2b: keyframes are NO LONGER omitted — see the dedicated keyframe pass
- * at the top of the function body below, which gives every sent keyframe/
- * 首帧 a category-only entry (`resolveKeyframeLegendCategory`).
- *
- * R3-6 出场组: a collector (character/background) expands to its full
- * onStage set (`getNodeStageMediaUrls`), primary first — unchanged single
- * map entry for the primary; each EXTRA onStage image gets its own entry via
- * the same category-or-kind fallback `harvestUpstreamImageReferences` uses.
- * `shot` stays single-image (not a collector). A card with no onStage entries
- * degrades to exactly one map entry per node, byte-identical to pre-R3-6.
- *
- * R3-6b §3 每镜覆写: a collector's expansion honors the `collector →
- * focalNodeId` edge's `stageOverrideUrls` when present (§
- * `getEdgeStageOverrideUrls`), so this legend never disagrees with what
- * `harvestUpstreamImageUrls(..., edges, focalNodeId)` actually sends for the
- * SAME video node.
- */
-export function harvestUpstreamVideoImageReferences(
-  focalNodeId: string,
-  edges: readonly NodeWorkflowEdge[],
-  nodes: readonly NodeWorkflowNode[],
-): Map<string, VideoLegendImageReference> {
-  const directUpstream = getUpstreamNodes(focalNodeId, edges, nodes)
-  const map = new Map<string, VideoLegendImageReference>()
-
-  // SF-2b (canvas-shot-frame-fold-2026-07 §-1): keyframe/首帧 nodes used to be
-  // entirely OMITTED from this map (see the old docstring — "no name/token").
-  // They still carry no `@token` mention (projection-only, cast-redesign
-  // §3/§4 — a separate system, use-video-composer.ts's `referenceTokens`),
-  // but they now get a category-only legend line so a sent keyframe still
-  // tells the model "this image is a 首帧/关键帧首/关键帧尾". Named via the
-  // SAME generic `mediaLabel` rename field LooseImageCard/the selection
-  // toolbar already read+write for a shot/frame card; an unnamed one falls
-  // back to `${category}${ordinal}` — a cosmetic-only fallback (no composer
-  // auto-name to byte-match, since keyframes have no insertable token).
-  // ⚠ 与采集用**同一条槽判据**（C3b：`resolveUpstreamSlots` + `orderKeyframeNodes`，
-  // 采集侧 `harvestUpstreamImageUrls` 读的是同两个函数）—— 两处各排各的，就会出现
-  // 图例写着「关键帧尾2」而实际送出的第二张是别的图，给用户的解释是假的。
-  let keyframeOrdinal = 0
-  const keyframeSlotOf = resolveUpstreamSlots(
-    directUpstream,
-    edges,
-    focalNodeId,
-  )
-  for (const node of orderKeyframeNodes(directUpstream, keyframeSlotOf)) {
-    const url = getNodeMediaUrl(node.data)
-    if (!url || map.has(url)) continue
-    keyframeOrdinal += 1
-    const category = resolveKeyframeLegendCategory(node, keyframeOrdinal)
-    // 画布修法 08-A：走全仓唯一那个解析器——关键帧没有专有身份字段，写侧
-    // 落的是 mediaLabel，与散图同款，因此同样吃「选已有图」写入口把上传
-    // 备注常量当名字写进去的那个 bug。
-    map.set(url, {
-      name:
-        resolveNodeDisplayName(node.data) ?? `${category}${keyframeOrdinal}`,
-      category,
-    })
-  }
-
-  for (const node of directUpstream) {
-    const kind = getSeedanceReferenceKind(node)
-    if (kind !== 'character' && kind !== 'background' && kind !== 'shot') {
-      continue
-    }
-    /**
-     * ⚠ 名字走**全仓唯一那个解析器**，不再自己读三个 `*Name` 字段。
-     *
-     * 那三个字段够不到 `mediaLabel` / `sourceLabel`，于是一张上传进来、卡片标题
-     * 明明写着「漂泊者_全身_官方_0016」的图，在图例里叫「镜头2」（autoName 兜底）
-     * —— 同一个节点两个名字，取决于你在哪看。owner 2026-08-09 真机点出来的。
-     *
-     * 同一个文件里本来就不一致：上面关键帧那一支早就在读 `mediaLabel` 了。
-     */
-    const name = resolveNodeDisplayName(node.data)
-
-    if (kind === 'character' || kind === 'background') {
-      // R3-6b §3 每镜覆写: this legend is always built FOR a specific
-      // `focalNodeId`, so the override lookup is unconditional here (unlike
-      // harvestUpstreamImageUrls, which is also called from the shot-image
-      // path where overrides don't apply).
-      const override = getEdgeStageOverrideUrls(
-        findEdgeBetween(edges, node.id, focalNodeId),
-      )
-      const stageUrls = getNodeStageMediaUrls(node.data, override)
-      stageUrls.forEach((url, index) => {
-        if (!url || map.has(url)) return
-        if (index === 0) {
-          map.set(url, { kind, name })
-          return
-        }
-        const asset = (node.data.referenceAssets ?? []).find(
-          (candidate) => candidate.url === url,
-        )
-        const category = asset
-          ? resolveReferenceAssetCategory(asset)
-          : undefined
-        map.set(
-          url,
-          category && asset?.name
-            ? { kind, name: asset.name, category }
-            : { kind, name },
-        )
-      })
-    } else {
-      // V-2 主图: key by the SAME primary-aware URL harvestUpstreamImageUrls
-      // puts in referenceImages — otherwise this map misses every card whose
-      // ★ pick differs from its raw mediaUrl, and the V-1 name→@ImageN
-      // translation (buildReferenceImageIndexByName) silently fails to bind it.
-      const url = getNodePrimaryMediaUrl(node.data)
-      if (url && !map.has(url)) {
-        // SF-2b: a directly-referenced shot ALSO carries the role→category
-        // mapping (NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY.shot, '镜头')
-        // so it prints through the SAME "名字（分类）" pipeline as an
-        // imageCategory-tagged referenceAsset, not the older kind「名字」
-        // bracket wording — `kind` stays set too so the unnamed-fallback
-        // (`autoNamePrefix.shot`) is unchanged for the rare unnamed shot.
-        map.set(url, {
-          kind,
-          name,
-          category: NODE_STUDIO_IMAGE_ROLE_VIDEO_LEGEND_CATEGORY.shot,
-        })
-      }
-    }
-
-    if (kind !== 'character') continue
-    for (const upstream of getUpstreamNodes(node.id, edges, nodes)) {
-      if (!isCloseupNode(upstream)) continue
-      const closeupUrl = getNodePrimaryMediaUrl(upstream.data)
-      if (!closeupUrl || map.has(closeupUrl)) continue
-      // 画布修法 08-A：走全仓唯一那个解析器，不再直读 characterName——原来
-      // 这里是本函数一个通用 trim 版 `readName` helper，不带机器值守卫。
-      map.set(closeupUrl, {
-        kind: 'closeup',
-        name: resolveNodeDisplayName(upstream.data),
-      })
-    }
-  }
-
-  return map
 }
 
 export interface VideoReferenceLegendLabels {
@@ -1047,7 +569,7 @@ export interface VideoReferenceLegendLabels {
  * Returns '' when nothing is nameable.
  *
  * SF-2b: a keyframe/首帧 slot is no longer silently skipped — its map entry
- * (see `harvestUpstreamVideoImageReferences`'s keyframe pass) always carries a
+ * (see the deleted v3 video-legend harvest's keyframe pass) always carries a
  * `category` and a `name` (real or ordinal-fallback), so it prints a
  * "@ImageN = 名字（首帧）" line through the SAME branch below a shot/imageCategory
  * reference uses, even though it's still never an insertable `@token` mention
@@ -1112,46 +634,6 @@ export function buildVideoReferenceLegend(input: {
   return `${labels.title}\n${lines.join('\n')}`
 }
 
-/**
- * Harvest reference-video URLs from upstream video-source nodes (e.g. a
- * Seedance node whose generation has resolved). Only their `mediaUrl` is
- * read — `imageUrl` is treated as a preview poster and ignored. Empty and
- * duplicate entries are dropped. Callers should `.slice(0, 3)` against the
- * fal cap.
- */
-export function harvestUpstreamVideoUrls(
-  upstreamNodes: readonly NodeWorkflowNode[],
-  edges?: readonly NodeWorkflowEdge[],
-  focalNodeId?: string,
-): string[] {
-  const result: string[] = []
-  // 第三期 C3b：按槽收 —— `reference`（参考视频）与 `clip`（合并节点的待接片段）
-  // 都算。⚠ 两个槽必须一起认：同一条「视频 → 视频」的边进普通镜头是参考、进合并
-  // 节点是片段，而合并那一路正是靠这个函数取 URL 的。
-  const slotOf = resolveUpstreamSlots(upstreamNodes, edges, focalNodeId)
-
-  for (const node of upstreamNodes) {
-    if (!isVideoSourceNode(node)) continue
-    const slot = slotOf.get(node.id)
-    if (slot !== NODE_SLOT_IDS.reference && slot !== NODE_SLOT_IDS.clip) {
-      continue
-    }
-    const url =
-      typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl.trim() : ''
-    if (!url) continue
-    pushUnique(result, url)
-  }
-
-  return result
-}
-
-/**
- * A reference-audio clip plus optional binding info — the character name
- * the voice belongs to, when the user wired the voice node through a
- * character node instead of directly into Seedance. The Seedance Reference
- * builder uses the name to label the `@AudioN` token in the prompt so the
- * model knows which audio goes with which character.
- */
 export interface AudioBinding {
   /** Reference audio URL — what gets sent as fal `audio_urls[N]`. */
   url: string
@@ -1227,18 +709,6 @@ export function readVoiceUrlFromData(
   return clipUrl || undefined
 }
 
-function getAudioBindingSourceKind(
-  node: NodeWorkflowNode,
-): AudioBinding['sourceKind'] {
-  // ⚠ 判据必须与 `readVoiceUrlFromData` 的两档一一对应 —— 它取哪一档，这里就报哪一种。
-  // 此前这里只认 `voiceReferenceAudioUrl`，于是能发声的系统音色被标成 undefined。
-  return node.data.audioClip && typeof node.data.audioClip === 'object'
-    ? 'audio-clip'
-    : node.data.voiceClipUrl
-      ? 'voice-profile'
-      : undefined
-}
-
 export function readVoiceCoverImage(
   node: NodeWorkflowNode,
 ): string | undefined {
@@ -1254,159 +724,6 @@ export function readVoiceCoverImage(
   return systemCover || undefined
 }
 
-/**
- * Harvest reference-audio bindings (URL + optional character name) for a
- * focal node. Walks one hop further than a direct-only sweep:
- * voice nodes connected directly are emitted as unbound clips, voice nodes
- * connected to an upstream character node are emitted with that character's
- * name attached. The grand-upstream character chain is intentionally
- * 1-deep — anything further is exotic enough that explicit edges make more
- * sense than implicit propagation.
- */
-export function harvestUpstreamAudioBindings(
-  focalNodeId: string,
-  edges: readonly NodeWorkflowEdge[],
-  nodes: readonly NodeWorkflowNode[],
-): AudioBinding[] {
-  // 第三期 C3b：直连那一层按槽读；一跳外（音色绑在角色卡上）问**那张卡**的
-  // `voice` 槽 —— 与 `harvestUpstreamCloseupUrls` 同一条纪律。
-  const focalSlots = harvestSlots(focalNodeId, edges, nodes)
-  const seenUrls = new Set<string>()
-  const bindings: AudioBinding[] = []
-
-  const push = (
-    url: string,
-    voiceNode: NodeWorkflowNode,
-    characterName?: string,
-  ) => {
-    if (seenUrls.has(url)) return
-    seenUrls.add(url)
-    bindings.push({
-      url,
-      nodeId: voiceNode.id,
-      ...(getAudioBindingSourceKind(voiceNode) === 'audio-clip'
-        ? { sourceKind: 'audio-clip' as const }
-        : {}),
-      ...(characterName ? { characterName } : {}),
-      ...(readVoiceCoverImage(voiceNode)
-        ? { coverImage: readVoiceCoverImage(voiceNode) }
-        : {}),
-    })
-  }
-
-  // Pass 1 — voices wired through a character node (character-bound) take
-  // priority so the first @AudioN slot gets the named binding when both
-  // direct and character-routed voices reference the same URL.
-  for (const entry of focalSlots.reference) {
-    if (!isVisualReferenceNode(entry.node)) continue
-    // 画布修法 08-A：走全仓唯一那个解析器——这里此前手抄的
-    // characterName/character.name 优先链不带机器值守卫，「音色绑角色卡」
-    // 那一路的 @AudioN 槽会把上传备注常量当角色名显示。
-    const characterName = resolveNodeDisplayName(entry.node.data)
-    for (const bound of harvestSlots(entry.node.id, edges, nodes).voice) {
-      const url = readVoiceUrl(bound.node)
-      if (!url) continue
-      push(url, bound.node, characterName)
-    }
-  }
-
-  // Pass 2 — voices wired directly into the focal node.
-  //
-  // ⚠ 台账 X（owner 2026-08-29）：这一路此前恒**无标签** —— 送出预览里全写
-  // 「旁白」，多角色对白片在 UI 上钉不到角色。音色节点自己现在能声明归属
-  // （`data.audioOwnerName`，见它的 schema 注释），有就带上。绕过角色卡直挂
-  // 是完全合法的用法（不是每条音色都值得为它建一张角色卡），不该因此就丢掉
-  // 「谁在说话」这条信息。
-  //
-  // ⚠ pass 1 优先仍然成立：同一个 URL 既走角色卡又直挂时，`seenUrls` 让角色卡
-  // 那条先占位 —— 角色卡上的名字是更强的事实（它还带着图）。
-  for (const entry of focalSlots.voice) {
-    const url = readVoiceUrl(entry.node)
-    if (!url) continue
-    const ownerName =
-      typeof entry.node.data.audioOwnerName === 'string'
-        ? entry.node.data.audioOwnerName.trim() || undefined
-        : undefined
-    push(url, entry.node, ownerName)
-  }
-
-  return bindings
-}
-
-/**
- * Build a prompt string from every upstream shotText node, in graph order.
- * Each shotText contributes its own scene/action/camera/composition stack via
- * `buildNodeWorkflowPrompt`. Multiple shotTexts are separated by a blank line
- * so downstream models see them as distinct beats.
- *
- * ⚠ **正文里已经有的那一段就不再前置**（`ownPrompt`）。2026-08-10 owner 把文本
- * 引用定成「`@` 菜单点一下，把内容原文粘进输入框」之后，同一个文本节点可以同时
- * 以两种方式进请求：一条边（自动前置）+ 一段用户手动粘进去的原文。真机实拍到
- * 的后果是**最终提示词里同一段话出现两遍**。
- *
- * 判据是「正文里逐字包含这一段」而不是「有没有连线」—— 连线仍然是有意义的
- * （用户没粘的时候它照旧供文本），只有**重复**才该压掉。胶囊时代这道闸叫
- * `expandedNames`，粘原文之后换成这条。
- */
-export function harvestUpstreamShotTextPrompt(
-  upstreamNodes: readonly NodeWorkflowNode[],
-  ownPrompt = '',
-  edges?: readonly NodeWorkflowEdge[],
-  focalNodeId?: string,
-): string {
-  const chunks: string[] = []
-  const body = ownPrompt.trim()
-  // 第三期 C3b：按 `text` 槽收，不再直接问 `isShotTextNode`。v3 图两者等价
-  // （`inferLegacySlot` 就是那条判据的翻译）；边上写了槽之后，「这条文本这一镜
-  // 当什么用」才有地方说话。
-  const slotOf = resolveUpstreamSlots(upstreamNodes, edges, focalNodeId)
-
-  for (const node of upstreamNodes) {
-    if (slotOf.get(node.id) !== NODE_SLOT_IDS.text) continue
-    const chunk = buildNodeWorkflowPrompt(node.type, node.data).trim()
-    if (!chunk) continue
-    if (body && body.includes(chunk)) continue
-    chunks.push(chunk)
-  }
-
-  return chunks.join('\n\n')
-}
-
-/**
- * Merge an upstream shotText prompt block in front of the focal node's own
- * prompt. If either side is empty the other is returned verbatim.
- */
-export function mergePromptWithUpstreamText(
-  basePrompt: string,
-  upstreamPrompt: string,
-): string {
-  // 第三期 C3b：拼法只留一份 —— v4 的 `composeSlotPrompt` 在「只有剧本 + 自有
-  // 提示词」这一档上与这里逐字等价（上游在前、自有在后、空的那边跳过），v3 与
-  // v4 因此不会在翻转当天拼出两段不同的字。约束段（style / character）在 v3 里
-  // 恒空，所以不传。
-  return composeSlotPrompt({
-    script: upstreamPrompt,
-    ownPrompt: basePrompt,
-  })
-}
-
-/* ═════════════════════════════════════════════════════════════════════════
- * 按槽收割（第三期 · 画布 C3a）
- *
- * ── 为什么必须换掉「按位置猜」 ────────────────────────────────────────
- * v3 的边不带语义：每个节点恒定一进一出，「这条边是首帧还是参考」只能靠下游猜。
- * 猜法散在两处（`orderKeyframes` 的 rank 排序 + 适配器按 `images[0]/[1]` 取首尾），
- * 于是「删掉第一张、尾帧静默升级成首帧」这类事故有了土壤。C1 把槽写进了边
- * （`NodeWorkflowEdgeV4Schema.slot` 必填），C3a 让**收割层先改读槽**：边上有
- * `slot` 就按 slot，没有就用 `inferLegacySlot` 按旧位置规则推断一次，把推断结果
- * 当作等价 slot。存量 v3 图因此不改一个字节也能走新路径。
- *
- * ⛔ 推断结果**不回写库、不做双写**。⚠ C3c 翻转到 v4 后 `inferLegacySlot` 与 v3
- * 边的可选 `slot` 一起删——那时每条边都自带槽，没有可推断的东西。
- * ═════════════════════════════════════════════════════════════════════════ */
-
-/** 一条入边在某个槽里的收割结果。⚠ 只描述**结构**（谁经哪条边进了哪个槽），
- *  URL 与审核门仍归 `harvestUpstream*Urls` —— 两件事分开，这层才可纯测。 */
 export interface HarvestedSlotEntry {
   readonly node: NodeWorkflowNode
   /** 这条入边的 id。⚠ 一跳外的来源（特写 / 绑在角色卡上的音色）不在这里，
@@ -1427,7 +744,7 @@ export interface HarvestedTextSlots {
   /**
    * 全部文本边，**发现顺序**。
    *
-   * ⚠ 存在的理由是**逐字保真**：`harvestUpstreamShotTextPrompt` 把每条文本边的
+   * ⚠ 存在的理由是**逐字保真**：v3 收割层（已删）把每条文本边的
    * 正文按图顺序拼成一段，v3 图里它们全是 `script`，而 `script` 只有一个位置。
    * 没有这条名单，第 2 条起的文本边就会在装配时凭空消失或被误塞进约束段。
    */
@@ -1459,190 +776,6 @@ export interface HarvestedSlots {
   readonly text: HarvestedTextSlots
 }
 
-/**
- * 旧位置规则 → 具名槽的**唯一**翻译点。
- *
- * 逐条对应改造前那套散落的判据（全部来自本文件上半部，行为逐字等价）：
- *
- * | 源节点 | 旧行为 | 槽 |
- * | --- | --- | --- |
- * | `isKeyframeNode` 且 `imageCategory === 'frameEnd'` | `orderKeyframes` rank 1 → 位置 [1] | `lastFrame` |
- * | 其余 `isKeyframeNode`（含 `role==='frame'` 无分类） | rank 0 → 位置 [0] | `firstFrame` |
- * | `isCloseupNode` | `harvestUpstreamCloseupUrls` 的一跳 | `closeup` |
- * | `isVoiceProfileNode` | `harvestUpstreamAudioBindings` | `voice` |
- * | `isShotTextNode` | `harvestUpstreamShotTextPrompt` | `text` |
- * | `isVideoSourceNode` | `harvestUpstreamVideoUrls` | `reference` |
- * | `isVisualReferenceNode` | `harvestUpstreamImageUrls` 第二轮 | `reference` |
- *
- * ⚠ 判据顺序即优先级：关键帧先于视觉参考（一张 `role=shot` 且带
- * `imageCategory=frameStart` 的图两边都算，旧收割也是关键帧那一轮先要走它）。
- *
- * ⚠ `clip` 推不出来：合并节点的入边源就是普通视频节点，与「参考视频」在 v3 里
- * 长得一模一样。判据靠**目标**，所以它在 `resolveEdgeSlot` 里按目标节点收窄，
- * 不在这里 —— 本函数只回答「这个源能当什么用」。
- */
-export function inferLegacySlot(
-  source: NodeWorkflowNode,
-): NodeSlotId | undefined {
-  if (isKeyframeNode(source)) {
-    // `NODE_STUDIO_KEYFRAME_REFERENCE_ROLES` 的数组顺序（frameStart → frameEnd）
-    // 本身就是时序，`orderKeyframes` 的 rank 读的也是它——⛔ 不另立一张映射表，
-    // 也不在这里写死 'frameEnd' 字面量。没分类的（旧 `role==='frame'`）= rank 0
-    // = 首帧，与改造前「按上游顺序、第一张当首帧」逐字一致。
-    return keyframeRank(source) > 0
-      ? NODE_SLOT_IDS.lastFrame
-      : NODE_SLOT_IDS.firstFrame
-  }
-  if (isCloseupNode(source)) return NODE_SLOT_IDS.closeup
-  if (isVoiceProfileNode(source)) return NODE_SLOT_IDS.voice
-  if (isShotTextNode(source)) return NODE_SLOT_IDS.text
-  if (isVideoSourceNode(source)) return NODE_SLOT_IDS.reference
-  if (isVisualReferenceNode(source)) return NODE_SLOT_IDS.reference
-  return undefined
-}
-
-/**
- * 一条边最终算哪个槽：**边上写了就听边的**，没写才推断。这是「存量图不改也能走
- * 新路径」的落点，也是 C3d（`onConnect` 写 `slot`）之后新边立刻生效的原因。
- */
-export function resolveEdgeSlot(
-  edge: NodeWorkflowEdge,
-  source: NodeWorkflowNode,
-  target: NodeWorkflowNode | undefined,
-): NodeSlotId | undefined {
-  if (edge.slot) return edge.slot
-  const inferred = inferLegacySlot(source)
-  // 合并节点只有 `clip` 一个入口——同样一条「视频 → 视频」的边，进普通镜头是参考，
-  // 进合并节点是待接片段。源分不出来，目标能。
-  if (
-    inferred === NODE_SLOT_IDS.reference &&
-    target?.type === NODE_TYPE_IDS.videoMerge
-  ) {
-    return NODE_SLOT_IDS.clip
-  }
-  return inferred
-}
-
-/**
- * 按槽收割一个节点的**直连**入边。
- *
- * ⚠ 只走一跳，而且这是设计而不是省事：槽是**边的属性**，一跳外的来源（特写 →
- * 角色卡、音色 → 角色卡）占的是那张卡的槽。要它们就对那张卡再调一次本函数——
- * 这样「谁的槽」永远只有一个答案，不会出现两处各走各的跳数（`use-video-composer`
- * 的音频区与 `harvestUpstreamAudioBindings` 曾经就是这么对不上账的）。
- */
-export function harvestSlots(
-  nodeId: string,
-  edges: readonly NodeWorkflowEdge[],
-  nodes: readonly NodeWorkflowNode[],
-): HarvestedSlots {
-  const nodeById = new Map(nodes.map((node) => [node.id, node]))
-  const target = nodeById.get(nodeId)
-
-  let first: HarvestedSlotEntry | undefined
-  let last: HarvestedSlotEntry | undefined
-  const keyframes: HarvestedSlotEntry[] = []
-  const reference: HarvestedSlotEntry[] = []
-  const voice: HarvestedSlotEntry[] = []
-  const closeup: HarvestedSlotEntry[] = []
-  const clip: HarvestedSlotEntry[] = []
-  const textOrdered: HarvestedSlotEntry[] = []
-
-  // ⚠ 按 **nodes 顺序**遍历，不是 edges 顺序：改造前每一条收割（`orderKeyframes`
-  // 的输入、`harvestUpstreamImageUrls` 的第二轮、`harvestUpstreamShotTextPrompt`）
-  // 走的都是 `getUpstreamNodes` 的返回，而它是 `nodes.filter(...)`。换成边序会让
-  // 存量图里 `@ImageN` 的编号整体漂一遍。
-  const edgeBySource = new Map<string, NodeWorkflowEdge>()
-  for (const edge of edges) {
-    if (edge.target !== nodeId) continue
-    if (!edgeBySource.has(edge.source)) edgeBySource.set(edge.source, edge)
-  }
-
-  for (const source of nodes) {
-    const edge = edgeBySource.get(source.id)
-    if (!edge) continue
-    const slot = resolveEdgeSlot(edge, source, target)
-    if (!slot) continue
-    const entry: HarvestedSlotEntry = {
-      node: source,
-      edgeId: edge.id,
-      slot,
-      // v3 的边不带角色。⚠ 回落到 `script` 是 C1 定的缺省
-      // （`NODE_SLOT_TEXT_ROLE_FALLBACK`），也正是旧行为：所有上游文本一律拼进
-      // 正文，没有约束段这回事。
-      ...(slot === NODE_SLOT_IDS.text
-        ? { role: NODE_SLOT_TEXT_ROLE_FALLBACK }
-        : {}),
-    }
-
-    switch (slot) {
-      case NODE_SLOT_IDS.firstFrame:
-        keyframes.push(entry)
-        first ??= entry
-        break
-      case NODE_SLOT_IDS.lastFrame:
-        keyframes.push(entry)
-        last ??= entry
-        break
-      // `source` = 文本节点的「从这些素材写文本」入口（任意 kind）。它是这张卡的
-      // **参考素材**，和视频镜头的 `reference` 是同一件事，只是入口名字不同——
-      // ⛔ 不给它单开一个恒空的桶（v3 推不出 `source`，只有显式写了槽的边才有）。
-      case NODE_SLOT_IDS.reference:
-      case NODE_SLOT_IDS.source:
-        reference.push(entry)
-        break
-      case NODE_SLOT_IDS.voice:
-      case NODE_SLOT_IDS.timbre:
-        voice.push(entry)
-        break
-      case NODE_SLOT_IDS.closeup:
-        closeup.push(entry)
-        break
-      case NODE_SLOT_IDS.clip:
-        clip.push(entry)
-        break
-      case NODE_SLOT_IDS.text:
-        textOrdered.push(entry)
-        break
-    }
-  }
-
-  const scriptEntry = textOrdered.find(
-    (entry) => entry.role === NODE_SLOT_TEXT_ROLE_IDS.script,
-  )
-
-  return {
-    ...(first ? { first } : {}),
-    ...(last ? { last } : {}),
-    keyframes,
-    reference,
-    voice,
-    closeup,
-    clip,
-    text: {
-      // ⚠ 剧本是**按角色**取第一条，不是按顺序取第 0 条：约束段的边排在前面时，
-      // 「第 0 条即剧本」会把一段风格约束当成要拍的内容。
-      ...(scriptEntry ? { script: scriptEntry } : {}),
-      style: textOrdered.filter(
-        (entry) => entry.role === NODE_SLOT_TEXT_ROLE_IDS.style,
-      ),
-      character: textOrdered.filter(
-        (entry) => entry.role === NODE_SLOT_TEXT_ROLE_IDS.character,
-      ),
-      ordered: textOrdered,
-    },
-  }
-}
-
-/**
- * 收割结果里的关键帧节点，**按时序**：首帧档在前、尾帧档在后，同档内保持发现顺序。
- *
- * `orderKeyframes` 的槽版本，**逐字等价**：那个函数按 `imageCategory` 现算 rank，
- * 这个直接读已经定好的槽（`inferLegacySlot` 就是那条 rank 规则的翻译）。排序同样
- * 必须**稳定**——同档两张之间漂一下，存量图里 `@ImageN` 的位置就跟着漂。
- *
- * 差别只在**谁说了算**：边上写了 `slot` 的图，只有这条路径听得懂。
- */
 export function orderedKeyframeEntries(
   slots: HarvestedSlots,
 ): HarvestedSlotEntry[] {
@@ -1651,66 +784,6 @@ export function orderedKeyframeEntries(
       (a.slot === NODE_SLOT_IDS.lastFrame ? 1 : 0) -
       (b.slot === NODE_SLOT_IDS.lastFrame ? 1 : 0),
   )
-}
-
-/**
- * 一组上游节点 → 各自的槽（第三期 · C3b）。
- *
- * ⚠ 这是「收割层只有一条槽判据」的落点：拿得到边就走 `resolveEdgeSlot`（边上写了
- * 就听边的），拿不到边（`harvestUpstream*` 那几个只收节点列表的签名）就退回
- * `inferLegacySlot` —— 后者正是旧位置规则的逐字翻译，所以存量图两条路结果相同。
- *
- * ⚠ 目标节点传不进来时 `resolveEdgeSlot` 的 `videoMerge` 收窄（reference → clip）
- * 不生效。读它的两个收割器（图 / 视频）本来就把 `reference` 与 `clip` 同等对待，
- * ⛔ 不为此再编一个「猜目标」的判据。
- */
-function resolveUpstreamSlots(
-  upstreamNodes: readonly NodeWorkflowNode[],
-  edges?: readonly NodeWorkflowEdge[],
-  focalNodeId?: string,
-  target?: NodeWorkflowNode,
-): Map<string, NodeSlotId | undefined> {
-  const edgeBySource = new Map<string, NodeWorkflowEdge>()
-  if (edges && focalNodeId) {
-    for (const edge of edges) {
-      if (edge.target !== focalNodeId) continue
-      if (!edgeBySource.has(edge.source)) edgeBySource.set(edge.source, edge)
-    }
-  }
-  const slots = new Map<string, NodeSlotId | undefined>()
-  for (const node of upstreamNodes) {
-    const edge = edgeBySource.get(node.id)
-    slots.set(
-      node.id,
-      edge ? resolveEdgeSlot(edge, node, target) : inferLegacySlot(node),
-    )
-  }
-  return slots
-}
-
-/**
- * 上游节点里的关键帧，**按时序**：首帧档在前、尾帧档在后，同档内保持发现顺序。
- *
- * `orderedKeyframeEntries` 的「只有节点列表」版本（那个吃 `HarvestedSlots`）。两者
- * 排的是同一条规则；⛔ 排序必须**稳定**——同档两张之间漂一下，存量图里 `@ImageN`
- * 的位置就跟着漂。
- */
-function orderKeyframeNodes(
-  upstreamNodes: readonly NodeWorkflowNode[],
-  slotOf: ReadonlyMap<string, NodeSlotId | undefined>,
-): NodeWorkflowNode[] {
-  return upstreamNodes
-    .filter((node) => {
-      const slot = slotOf.get(node.id)
-      return (
-        slot === NODE_SLOT_IDS.firstFrame || slot === NODE_SLOT_IDS.lastFrame
-      )
-    })
-    .sort(
-      (a, b) =>
-        (slotOf.get(a.id) === NODE_SLOT_IDS.lastFrame ? 1 : 0) -
-        (slotOf.get(b.id) === NODE_SLOT_IDS.lastFrame ? 1 : 0),
-    )
 }
 
 /**

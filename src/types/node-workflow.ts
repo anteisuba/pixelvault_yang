@@ -23,7 +23,6 @@ import {
   NODE_SLOT_OUTPUTS,
   NODE_SLOT_TEXT_ROLES,
   NODE_SLOTS,
-  type NodeSlotId,
 } from '@/constants/node-slots'
 import {
   NODE_GENERATION_SOURCES,
@@ -250,7 +249,7 @@ export const NodeWorkflowNodeDataSchema = z
      *
      * 只在音色**绕过角色卡、直接挂进视频节点**时才需要：走
      * `voice → character → video` 两跳的那条，角色名由角色卡自己给
-     * （`harvestUpstreamAudioBindings` 的 pass 1）。直挂的那条此前没有任何地方
+     * （v3 收割层的音频 pass 1，已随 ③e 删除）。直挂的那条此前没有任何地方
      * 能说「这条属于谁」，于是送出预览里两条音频都写「旁白」，多角色对白片
      * 在 UI 上根本钉不到角色 —— 而这正是 Seedance 2.5 官方推荐的写法
      * （「Images 1-2 are Character 1 and correspond to Audio 1」）。
@@ -547,26 +546,13 @@ export const NodeWorkflowEdgeSchema = z
     target: z.string().min(1),
     sourceHandle: z.string().nullable().optional(),
     targetHandle: z.string().nullable().optional(),
-    /**
-     * 具名槽（第三期 · C3a）。**可选**，且只在 v3 上可选。
-     *
-     * 存量图的边一条都没有槽——「这条边是首帧还是参考」此前只能靠下游收割逻辑按
-     * 位置猜。收割层（`harvestSlots`，`lib/node-workflow-graph.ts`）现在一律按槽
-     * 读：边上有 `slot` 就用它，没有就用 `inferLegacySlot` 按**旧位置规则**推断一
-     * 次，把推断结果当作等价 slot。⛔ 推断结果**不回写库、不做双写** —— 存量图原
-     * 样躺着，新建的边才带槽。
-     *
-     * ⚠ 迁移顺序：C3c 翻转到 v4 之后，v4 边的 `slot` 是**必填**
-     * （`NodeWorkflowEdgeV4Schema`），此可选字段随整个 v3 schema 一起删。
-     */
-    slot: z.enum(NODE_SLOTS).optional(),
     data: NodeWorkflowEdgeDataSchema.optional().catch(undefined),
   })
   .passthrough()
 
 // 2026-08-08：`VideoDefaultModelSchema`（项目级默认视频型号 + 跨镜头漂移徽标）整条
 // 删除。管道齐全但**没有写入口** —— `setDefaultVideoModel` 从来不在
-// `NodeWorkflowActionsContext` 的类型里，没有任何组件能写它，于是它恒为 undefined、
+// 已删的 v3 动作总线类型里，没有任何组件能写它，于是它恒为 undefined、
 // 徽标从不点亮、autospawn 永远走硬编码兜底。注释里说的「topbar chip」不存在。
 // owner 拍板删（cleanup §9.10）：留着无人消费的管道，正是这一轮清掉的那套 brand
 // switcher 的成因 —— 下一个会话会以为它在跑。要做时按新分类重建。
@@ -763,13 +749,13 @@ export interface NodeWorkflowProjectSummary {
 }
 export type NodeWorkflowNode = Node<NodeWorkflowNodeData, NodeWorkflowNodeType>
 /**
- * v3 边。`slot` 是第三期 C3a 加的**可选**具名槽（见 `NodeWorkflowEdgeSchema`
- * 里那条头注）：新建的边写得上，存量边一条都没有，收割层用 `inferLegacySlot`
- * 按旧位置规则补一次。C3c 翻转到 v4 后随整个 v3 形状一起删。
+ * v3 边。
+ *
+ * ⚠ C3a 加的那个**可选** `slot` 随 ③e 删了：它存在的全部理由是让 v3 收割层能
+ * 「边上写了就听边的」，而收割层本身已经不在了（画布已原子翻转，v4 边的 `slot`
+ * 是必填）。读端 schema 本身保留——30 个 v3 项目还没回填。
  */
-export type NodeWorkflowEdge = Edge<Record<string, unknown>> & {
-  slot?: NodeSlotId
-}
+export type NodeWorkflowEdge = Edge<Record<string, unknown>>
 
 /* ═════════════════════════════════════════════════════════════════════════
  * v4 数据模型（第三期 · 画布 C1，`docs/references/pages/node-canvas-v2.md` §9.1）
@@ -888,6 +874,17 @@ const NodeV4MediaMetaShape = {
    * `NodeWorkflowImageOutputSourceSchema`（`existing` / `generated`）。
    */
   imageSource: NodeWorkflowImageOutputSourceSchema.optional().catch(undefined),
+  /**
+   * 在飞生成的 job id（③e 生成回填）。
+   *
+   * ⚠ **必须持久化**：前台轮询窗口关掉、或用户刷新页面时，worker 仍在服务端跑完。
+   * 这个字段就是刷新之后「还有一单在飞」的唯一证据 —— 内存里的那份随刷新没了。
+   * 落成终态（成功回填 url / 失败）时清空，⛔ 不留着当历史：留着会让下一次
+   * 回填 pass 反复去查一个早就结束的 job。
+   */
+  mediaJobId: z.string().trim().min(1).max(200).optional().catch(undefined),
+  /** 回填进来的那条 `Generation` 记录 id —— 素材库 / 审阅按它反查。 */
+  generationId: z.string().trim().min(1).max(200).optional().catch(undefined),
 }
 
 /**

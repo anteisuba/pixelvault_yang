@@ -1,9 +1,7 @@
-import { NODE_ASSISTANT_OP_LIMITS } from '@/constants/node-assistant-ops'
 import { NODE_STUDIO_ASSISTANT_LIMITS } from '@/constants/node-studio'
 import type {
   NodeAssistantMediaReference,
   NodeAssistantMessage,
-  NodeAssistantNodeContext,
   NodeAssistantRequest,
 } from '@/types/node-assistant'
 
@@ -30,87 +28,46 @@ function sanitizeMessages(
     .slice(-NODE_STUDIO_ASSISTANT_LIMITS.maxMessages)
 }
 
-function sanitizeNodeParams(
-  params: NonNullable<NodeAssistantNodeContext['params']>,
-): NonNullable<NodeAssistantNodeContext['params']> {
-  const aspectRatio = params.aspectRatio?.trim()
-  const resolution = params.resolution?.trim()
-  const duration = params.duration?.trim()
-  const clamp = (value: string) =>
-    value.slice(0, NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
-  return {
-    ...(aspectRatio ? { aspectRatio: clamp(aspectRatio) } : {}),
-    ...(resolution ? { resolution: clamp(resolution) } : {}),
-    ...(duration ? { duration: clamp(duration) } : {}),
-    ...(typeof params.generateAudio === 'boolean'
-      ? { generateAudio: params.generateAudio }
-      : {}),
-    ...(typeof params.seed === 'number' ? { seed: params.seed } : {}),
-  }
+/**
+ * v4 整图的 DoS 闸（③e）。
+ *
+ * ⚠ 这里**不再逐字段白名单**：v3 的投影是一个七字段的窄对象，抄一份白名单是可行
+ * 的；v4 送的是节点自己那份 `data`（四族各二十余字段 + 槽 binding + 版本表），
+ * 手抄一遍等于把 `NodeV4Schema` 在这里再实现一次，而漏掉的字段会在发请求前被
+ * **安静地丢掉** —— 编译过、测试过、真机上模型照样看不见。形状校验归服务端那份
+ * Zod（唯一事实源），这里只做「别发太多」和「别发没有 id 的」。
+ */
+/**
+ * 调用方手上的图是**只读**的（RF store / v4 graph 都不给可变引用），而
+ * `NodeAssistantRequest` 是 Zod 推出来的可变数组。⛔ 不在调用方 `[...nodes]` 拷一
+ * 份绕过去：那是每轮对话把整张图复制一遍，且掩盖了「这里读不写」这个事实。
+ */
+export type NodeAssistantRequestInput = Omit<
+  NodeAssistantRequest,
+  'nodes' | 'edges'
+> & {
+  readonly nodes: readonly NodeAssistantRequest['nodes'][number][]
+  readonly edges?: readonly NodeAssistantRequest['edges'][number][]
 }
 
-/**
- * ⚠ 这里是**白名单**：出去的对象逐个字段自己拼。所以给
- * `NodeAssistantNodeContextSchema` 加字段而漏改这里，新字段会在发请求前被安静
- * 地丢掉 —— 编译过、测试过、真机上模型照样看不见（判据只能是抓请求体）。
- * 加字段就来这儿加一行。
- */
 function sanitizeNodes(
-  nodes: NodeAssistantNodeContext[],
-): NodeAssistantNodeContext[] {
+  nodes: NodeAssistantRequestInput['nodes'],
+): NodeAssistantRequest['nodes'] {
   return nodes
-    .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodes)
-    .map((node) => {
-      const title = node.title.trim() || node.type
-      const promptExcerpt = node.promptExcerpt?.trim()
-      const imageCategoryLabel = node.imageCategoryLabel?.trim()
-      const model = node.model?.trim()
-      return {
-        id: node.id.trim(),
-        type: node.type,
-        status: node.status,
-        title: title.slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodeLabelLength),
-        ...(promptExcerpt
-          ? {
-              promptExcerpt: promptExcerpt.slice(
-                0,
-                NODE_STUDIO_ASSISTANT_LIMITS.maxNodeSummaryLength,
-              ),
-            }
-          : {}),
-        ...(node.imageCategory ? { imageCategory: node.imageCategory } : {}),
-        ...(node.imageCategory && imageCategoryLabel
-          ? {
-              imageCategoryLabel: imageCategoryLabel.slice(
-                0,
-                NODE_ASSISTANT_OP_LIMITS.maxCategoryLabelLength,
-              ),
-            }
-          : {}),
-        ...(model
-          ? { model: model.slice(0, NODE_ASSISTANT_OP_LIMITS.maxModelIdLength) }
-          : {}),
-        // ⚠ `params` 的空对象要**原样留着**：它表示「这节点有档位、一个都没设」，
-        // 与「这节点没有档位」（字段缺席）是两回事。
-        ...(node.params ? { params: sanitizeNodeParams(node.params) } : {}),
-        ...(node.references
-          ? {
-              references: {
-                limit: Math.max(0, Math.trunc(node.references.limit)),
-                items: node.references.items
-                  .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxNodeReferences)
-                  .map((item) => ({
-                    role: item.role,
-                    ...(item.sourceId?.trim()
-                      ? { sourceId: item.sourceId.trim() }
-                      : {}),
-                  })),
-              },
-            }
-          : {}),
-      }
-    })
-    .filter((node) => node.id.length > 0 && node.title.length > 0)
+    .filter((node) => node.id.trim().length > 0)
+    .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxV4Nodes)
+}
+
+function sanitizeEdges(
+  edges: readonly NodeAssistantRequest['edges'][number][],
+  nodes: NodeAssistantRequest['nodes'],
+): NodeAssistantRequest['edges'] {
+  const ids = new Set(nodes.map((node) => node.id))
+  // 悬空边（两端有一头不在本次发出的节点里）一律丢：快照会把它渲染成一条指向
+  // 不存在节点的槽行，而模型读到的是「这里挂了个东西」——比没有更坏。
+  return edges
+    .filter((edge) => ids.has(edge.source) && ids.has(edge.target))
+    .slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxV4Edges)
 }
 
 function sanitizeReferences(
@@ -156,15 +113,21 @@ function sanitizeReferences(
  * over the limit, empty failed-turn messages, or non-http media URLs.
  */
 export function sanitizeNodeAssistantRequest(
-  request: NodeAssistantRequest,
+  request: NodeAssistantRequestInput,
 ): NodeAssistantRequest {
   const messages = sanitizeMessages(request.messages)
   const apiKeyId = request.apiKeyId?.trim()
   const llmModelId = request.llmModelId?.trim()
 
+  const nodes = sanitizeNodes(request.nodes ?? [])
+
   return {
     messages,
-    nodes: sanitizeNodes(request.nodes ?? []),
+    nodes,
+    edges: sanitizeEdges(request.edges ?? [], nodes),
+    ...(request.currentShotNo === undefined
+      ? {}
+      : { currentShotNo: request.currentShotNo }),
     selectedNodeIds: (request.selectedNodeIds ?? [])
       .map((id) => id.trim())
       .filter((id) => id.length > 0)
@@ -188,7 +151,7 @@ export function sanitizeNodeAssistantRequestBody(body: unknown): unknown {
 
   try {
     return sanitizeNodeAssistantRequest(
-      record as unknown as NodeAssistantRequest,
+      record as unknown as NodeAssistantRequestInput,
     )
   } catch {
     return body

@@ -1,5 +1,5 @@
 /**
- * 从助手回复正文里取出 op 提案（包 5）。
+ * 从助手回复正文里取出 op 提案（包 5；③e 起只认 **v4 op 表**）。
  *
  * 与 `[[capability:…]]` 同一条路数：**正文里留标记，客户端剥掉再渲染成可点的
  * 东西**。这里只做「取出来 + 校验形状」，合不合法（能不能连、能不能标）归
@@ -13,15 +13,15 @@
 
 import { extractMarkerBlock } from '@/lib/assistant-marker-block'
 import {
-  NodeAssistantOpBatchSchema,
-  type NodeAssistantOpBatch,
+  NodeAssistantOpV4BatchSchema,
+  type NodeAssistantOpV4Batch,
 } from '@/types/node-assistant-ops'
 
 export interface NodeAssistantOpsExtraction {
   /** 正文，已剥掉 op 块（含还没写完的那半截）。 */
   content: string
   /** 校验通过的提案；没有提案、或还在流式写入时为 null。 */
-  batch: NodeAssistantOpBatch | null
+  batch: NodeAssistantOpV4Batch | null
   /**
    * 出现了**完整**的 op 块但读不出提案（JSON 坏了 / 形状不对）。
    * 用来告诉用户「助手想动画布但没说清楚」，而不是假装什么都没发生 ——
@@ -42,7 +42,7 @@ export function extractNodeAssistantOps(
 ): NodeAssistantOpsExtraction {
   const { content, payload, malformed } = extractMarkerBlock(rawContent, {
     marker: OPS_MARKER,
-    schema: NodeAssistantOpBatchSchema,
+    schema: NodeAssistantOpV4BatchSchema,
     streamComplete: options.streamComplete,
   })
 

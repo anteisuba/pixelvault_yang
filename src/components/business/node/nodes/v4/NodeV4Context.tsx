@@ -33,6 +33,13 @@ export interface NodeV4MediaPatch {
   readonly mediaWidth?: number
   readonly mediaHeight?: number
   readonly imageSource?: 'generated' | 'existing'
+  /**
+   * 在飞 job id。⚠ 显式的 `undefined` 就是「清掉它」—— 所以 `setMedia` 用的是
+   * 展开合并（`{...data, ...patch}`），⛔ 不能改成「过滤掉 undefined」的合并，
+   * 那样终态永远清不掉这个字段。
+   */
+  readonly mediaJobId?: string | undefined
+  readonly generationId?: string | undefined
 }
 
 export interface NodeV4CanvasContextValue {

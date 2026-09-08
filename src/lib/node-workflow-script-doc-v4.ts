@@ -1,10 +1,9 @@
 /**
  * ScriptDoc → v4 整图投影（第三期 · 画布 C3b）。
  *
- * ⛔ **本片写好不接线** —— 生产调用方为 0，接线在 C3c（翻转到 v4 时把
- * `use-node-workflow.ts` 里那两处 `projectScriptDocToGraph(...)`（投影 / 重投影）
- * 换成这个函数）。旧的 v3 `projectScriptDocToGraph`（`node-workflow-script-doc.ts`）
- * 本片**不改不删**。
+ * ③d 起这是**唯一**的生产投影：`use-node-graph-v4.ts` 的投影 / 重投影都调它。
+ * v3 的 `projectScriptDocToGraph`（`node-workflow-script-doc.ts`）只剩读端
+ * 等价测试在用。
  *
  * ── 与 v3 投影的关系：同一张图的两种写法 ──────────────────────────────
  * 这里产出的节点集合 / 边槽 / 送进模型的文本，与「跑 v3 投影再
@@ -73,7 +72,7 @@ export interface ProjectScriptDocV4Options {
  * 一镜的文本正文 = 场景 / 动作 / 镜头 / 构图 四段，空段跳过、换行相连。
  *
  * ⚠ 这一串必须与 `buildNodeWorkflowPrompt(shotText, …)` 的产出逐字相同：v3 那条
- * 路径上真正送进模型的就是它（`harvestUpstreamShotTextPrompt` 拼的那一段）。
+ * 路径上真正送进模型的就是它（v3 收割层拼的那一段，已随 ③e 删除）。
  * 两处拼法一旦分家，v4 翻转当天用户就会发现镜头文字变了。
  *
  * ⚠ 顺序取自 `NODE_WORKFLOW_FIELDS_BY_NODE_TYPE[shotText]`（scene → action →

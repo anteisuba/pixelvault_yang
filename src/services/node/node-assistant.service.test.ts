@@ -43,15 +43,19 @@ vi.mock('@/services/web-research.service', () => ({
     context.results.length > 0 || context.pages.length > 0,
 }))
 
-import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_STATUS_IDS } from '@/constants/node-types'
 import {
-  NODE_STUDIO_ASSISTANT_LIMITS,
-  NODE_STUDIO_REFERENCE_ROLES,
-} from '@/constants/node-studio'
+  NODE_ASSISTANT_OPS_V4,
+  NODE_ASSISTANT_SETTABLE_FIELDS,
+} from '@/constants/node-assistant-ops'
+import { NODE_SLOTS } from '@/constants/node-slots'
+import { NODE_STUDIO_ASSISTANT_LIMITS } from '@/constants/node-studio'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { createNodeAssistantStream } from '@/services/node/node-assistant.service'
 import type { NodeAssistantRequest } from '@/types/node-assistant'
+
+const NOW = '2026-09-08T00:00:00.000Z'
 
 const REQUEST: NodeAssistantRequest = {
   locale: 'en',
@@ -60,12 +64,18 @@ const REQUEST: NodeAssistantRequest = {
   nodes: [
     {
       id: 'node-1',
-      type: NODE_TYPE_IDS.composer,
-      status: NODE_STATUS_IDS.idle,
-      title: 'Composer',
-      promptExcerpt: 'A small story idea.',
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'text',
+        subtype: 'script',
+        name: 'Composer',
+        status: NODE_STATUS_IDS.idle,
+        createdAt: NOW,
+        body: 'A small story idea.',
+      },
     },
   ],
+  edges: [],
 }
 
 /**
@@ -137,98 +147,50 @@ describe('createNodeAssistantStream', () => {
     expect(userPrompt).toContain('SELECTED NODES:\n[[node:node-1]] Composer')
   })
 
-  // 切片 5 第一批：能写一个字段，就得先看得见那个字段的现值。盲写的后果有实证
-  // （工作台不给可选模型列表 → 模型编了个不存在的「Animagine XL」）。
-  it('每个节点行带出它当前的提示词与图片分类，并说出「有这个字段但还没标」', async () => {
+  // ③e：助手只认 v4 —— legacy 快照与 `canvasV4` 可选格都删了，请求本身就是 v4。
+  it('整图走 v4 分层快照，槽内联在目标节点下面', async () => {
     mockLlmTextCompletion.mockResolvedValue('Ack.')
 
     await createNodeAssistantStream('clerk_user_1', {
       ...REQUEST,
       nodes: [
         {
-          id: 'img-1',
-          type: NODE_TYPE_IDS.image,
-          status: NODE_STATUS_IDS.idle,
-          title: '街口空镜',
-          promptExcerpt: '雨夜，霓虹反光',
-          imageCategory: 'frameStart',
+          id: 'v_1',
+          position: { x: 0, y: 0 },
+          data: {
+            name: 'S01·有人还在',
+            status: NODE_STATUS_IDS.idle,
+            createdAt: NOW,
+            shotNo: 1,
+            kind: 'video',
+            subtype: 'shot',
+            label: '有人还在',
+          },
         },
         {
-          id: 'img-2',
-          type: NODE_TYPE_IDS.image,
-          status: NODE_STATUS_IDS.idle,
-          title: '还没分类的散图',
-          imageCategory: 'unset',
-        },
-        {
-          id: 'video-1',
-          type: NODE_TYPE_IDS.seedance,
-          status: NODE_STATUS_IDS.idle,
-          title: '第一镜',
+          id: 'i_1',
+          position: { x: 0, y: 0 },
+          data: {
+            name: 'S01·首帧',
+            status: NODE_STATUS_IDS.idle,
+            createdAt: NOW,
+            shotNo: 1,
+            kind: 'image',
+            subtype: 'shot',
+            url: 'https://cdn/a.png',
+          },
         },
       ],
-    })
-
-    const userPrompt = mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt
-    expect(userPrompt).toContain(
-      '[[node:img-1]] 街口空镜 (image, idle) · category: frameStart · prompt: 雨夜，霓虹反光',
-    )
-    expect(userPrompt).toContain(
-      '[[node:img-2]] 还没分类的散图 (image, idle) · category: unset',
-    )
-    // 没有分类字段的节点整条不带 category —— 「这个节点根本标不了分类」就是靠
-    // 它缺席说出来的（身份卡的 type 也是 image，光看 type 分不出来）。
-    expect(userPrompt).toContain('[[node:video-1]] 第一镜 (seedance, idle)')
-    expect(userPrompt).not.toContain('第一镜 (seedance, idle) · category')
-  })
-
-  // C3c-① E：state 为 v4 时快照换成分层的那一份，⛔ 不再发 v3 的平铺清单。
-  it('带 canvasV4 时走 v4 分层快照（槽内联，⛔ 不再发 v3 平铺清单）', async () => {
-    mockLlmTextCompletion.mockResolvedValue('Ack.')
-    const NOW = '2026-09-07T00:00:00.000Z'
-
-    await createNodeAssistantStream('clerk_user_1', {
-      ...REQUEST,
-      canvasV4: {
-        nodes: [
-          {
-            id: 'v_1',
-            position: { x: 0, y: 0 },
-            data: {
-              name: 'S01·有人还在',
-              status: NODE_STATUS_IDS.idle,
-              createdAt: NOW,
-              shotNo: 1,
-              kind: 'video',
-              subtype: 'shot',
-              label: '有人还在',
-            },
-          },
-          {
-            id: 'i_1',
-            position: { x: 0, y: 0 },
-            data: {
-              name: 'S01·首帧',
-              status: NODE_STATUS_IDS.idle,
-              createdAt: NOW,
-              shotNo: 1,
-              kind: 'image',
-              subtype: 'shot',
-              url: 'https://cdn/a.png',
-            },
-          },
-        ],
-        edges: [
-          {
-            id: 'e1',
-            source: 'i_1',
-            sourceHandle: 'out',
-            target: 'v_1',
-            slot: 'firstFrame',
-          },
-        ],
-        currentShotNo: 1,
-      },
+      edges: [
+        {
+          id: 'e1',
+          source: 'i_1',
+          sourceHandle: 'out',
+          target: 'v_1',
+          slot: 'firstFrame',
+        },
+      ],
+      currentShotNo: 1,
     })
 
     const userPrompt = mockLlmTextCompletion.mock.calls[0]?.[0]?.userPrompt
@@ -238,19 +200,25 @@ describe('createNodeAssistantStream', () => {
     expect(userPrompt).not.toContain('- [[node:node-1]]')
   })
 
-  it('系统提示词把两个新 op 与合法分类值列全（词表从常量生成，不手抄）', async () => {
+  // 词表从常量生成，不手抄 —— op 表加一条而提示词没跟上，模型就会提出一个应用端
+  // 根本不认识的 op，用户看到的是「读不出来」。
+  it('系统提示词把 v4 op 表、可写字段与槽表全列出来', async () => {
     mockLlmTextCompletion.mockResolvedValue('Ack.')
 
     await createNodeAssistantStream('clerk_user_1', REQUEST)
 
     const systemPrompt = mockLlmTextCompletion.mock.calls[0]?.[0]?.systemPrompt
-    expect(systemPrompt).toContain('{"op":"set_prompt"')
-    expect(systemPrompt).toContain('{"op":"set_image_category"')
-    for (const role of NODE_STUDIO_REFERENCE_ROLES) {
-      expect(systemPrompt).toContain(`\n  ${role}`)
+    for (const op of NODE_ASSISTANT_OPS_V4) {
+      expect(systemPrompt).toContain(op)
     }
-    // 自动落那一档是从常量生成的 —— 新 op 进了白名单，这句话就得跟着变。
-    expect(systemPrompt).toContain('set_prompt / set_image_category')
+    for (const field of NODE_ASSISTANT_SETTABLE_FIELDS) {
+      expect(systemPrompt).toContain(field)
+    }
+    for (const slot of NODE_SLOTS) {
+      expect(systemPrompt).toContain(slot)
+    }
+    // ⛔ v3 的 op 名一个都不该再出现。
+    expect(systemPrompt).not.toContain('set_image_category')
   })
 
   it('falls back to a bare marker for a selected id that no longer matches any node', async () => {

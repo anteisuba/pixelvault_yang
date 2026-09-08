@@ -20,12 +20,12 @@ import { getApiErrorMessage } from '@/lib/api-error-message'
 import { collectConversationMediaReferences } from '@/lib/assistant-media-selection'
 import { extractNodeAssistantOps } from '@/lib/node-assistant-ops'
 import { sanitizeNodeAssistantRequest } from '@/lib/node-assistant-request'
-import type { NodeAssistantOpBatch } from '@/types/node-assistant-ops'
+import type { NodeAssistantOpV4Batch } from '@/types/node-assistant-ops'
 import type { AssistantConversationSummary } from '@/types/assistant-conversation'
 import type {
   NodeAssistantMessage,
   NodeAssistantMediaReference,
-  NodeAssistantNodeContext,
+  NodeAssistantRequest,
 } from '@/types/node-assistant'
 import type { AppLocale } from '@/i18n/routing'
 
@@ -52,13 +52,16 @@ export interface AssistantConversationMessage {
    * ⚠ 入库的是**剥干净的正文**，所以提案**不跨刷新存活**。这是有意的：一条几分
    * 钟前针对另一张图的提案，重新加载后再点「应用」只会做错事。
    */
-  ops?: NodeAssistantOpBatch | null
+  ops?: NodeAssistantOpV4Batch | null
   /** 出现了完整的提案块却读不出来 —— 明说，不装作什么都没发生。 */
   opsMalformed?: boolean
 }
 
 export interface AssistantConversationContext {
-  nodes: NodeAssistantNodeContext[]
+  nodes: readonly NodeAssistantRequest['nodes'][number][]
+  edges: readonly NodeAssistantRequest['edges'][number][]
+  /** 用户当前所在的镜号（快照分层用）。 */
+  currentShotNo?: number
   selectedNodeIds: string[]
   references?: NodeAssistantMediaReference[]
   locale: AppLocale
@@ -503,6 +506,10 @@ export function useAssistantConversation(
       const request = sanitizeNodeAssistantRequest({
         messages: nextMessages.map(toApiMessage),
         nodes: context.nodes,
+        edges: context.edges,
+        ...(context.currentShotNo === undefined
+          ? {}
+          : { currentShotNo: context.currentShotNo }),
         selectedNodeIds: context.selectedNodeIds,
         references: collectCanvasConversationMediaReferences(
           nextMessages,
@@ -620,6 +627,10 @@ export function useAssistantConversation(
       const request = sanitizeNodeAssistantRequest({
         messages: withoutTrailingAssistant.map(toApiMessage),
         nodes: context.nodes,
+        edges: context.edges,
+        ...(context.currentShotNo === undefined
+          ? {}
+          : { currentShotNo: context.currentShotNo }),
         selectedNodeIds: context.selectedNodeIds,
         references: collectCanvasConversationMediaReferences(
           withoutTrailingAssistant,

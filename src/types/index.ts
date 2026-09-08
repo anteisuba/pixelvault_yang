@@ -132,7 +132,6 @@ export type {
 export type {
   NodeAssistantMessage,
   NodeAssistantMessageRole,
-  NodeAssistantNodeContext,
   NodeAssistantRequest,
 } from '@/types/node-assistant'
 export {

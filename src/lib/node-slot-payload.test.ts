@@ -7,7 +7,6 @@ import type {
   NodeWorkflowEdgeV4,
 } from '@/types/node-workflow'
 
-import { mergePromptWithUpstreamText } from './node-workflow-graph'
 import {
   V4_SLOT_ISSUE_IDS,
   buildV4AudioPayload,
@@ -314,20 +313,17 @@ describe('readTextSegments · 角色是边的属性', () => {
   })
 })
 
-describe('composeSlotPrompt · v3 / v4 只有一份拼法', () => {
-  it('只有剧本 + 自有提示词那一档与 v3 的 mergePromptWithUpstreamText 逐字相同', () => {
-    const cases: [string, string][] = [
-      ['自有', '上游'],
-      ['', '上游'],
-      ['自有', ''],
-      ['', ''],
-      ['  自有  ', '  上游  '],
-    ]
-    for (const [base, upstream] of cases) {
-      expect(composeSlotPrompt({ ownPrompt: base, script: upstream })).toBe(
-        mergePromptWithUpstreamText(base, upstream),
-      )
-    }
+describe('composeSlotPrompt', () => {
+  // ⚠ 「与 v3 的 `mergePromptWithUpstreamText` 逐字相同」那条随 ③e 删了：v3 收割层
+  // 整块不在了，对照物没了就没有「逐字相同」可言。这条纪律现在由下面两条正面钉：
+  // **上游在前、自有在后、空的那一边整段跳过**。
+  it('上游剧本在前、自有提示词在后', () => {
+    expect(composeSlotPrompt({ ownPrompt: '自有', script: '上游' })).toBe(
+      '上游\n\n自有',
+    )
+    expect(composeSlotPrompt({ ownPrompt: '', script: '上游' })).toBe('上游')
+    expect(composeSlotPrompt({ ownPrompt: '自有', script: '' })).toBe('自有')
+    expect(composeSlotPrompt({ ownPrompt: '', script: '' })).toBe('')
   })
 
   it('空段一律跳过，不留空行', () => {

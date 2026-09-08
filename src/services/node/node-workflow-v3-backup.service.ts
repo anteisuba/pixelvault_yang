@@ -4,7 +4,6 @@ import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { buildV3BackupKey } from '@/lib/node-workflow-migrate-v4'
 import { uploadToR2 } from '@/services/storage/r2'
-import { ensureUser } from '@/services/user.service'
 import type { NodeWorkflowV3BackupResult } from '@/types/node-workflow'
 
 /**
@@ -16,14 +15,18 @@ import type { NodeWorkflowV3BackupResult } from '@/types/node-workflow'
  *
  * ⛔ 失败就抛。调用方（惰性升级）**备份成功才允许写 v4**：静默失败等于用户的 v3
  * 图在下一次防抖写入时被 v4 覆盖且没有退路。
+ *
+ * ⚠ 归属校验走关系过滤而不是 `ensureUser`：批量回填脚本
+ * （`scripts/migrate-node-workflow-v4.ts`）要在 Next 运行时之外调这个函数，而
+ * `user.service` 的依赖链拽进 `next/navigation`，在 tsx 里加载不起来。用户不存在
+ * 时关系过滤查不到行 —— 与「先 ensureUser 再按 userId 查」同样返回 null。
  */
 export async function backupNodeWorkflowV3State(
   clerkId: string,
   projectId: string,
 ): Promise<NodeWorkflowV3BackupResult | null> {
-  const user = await ensureUser(clerkId)
   const row = await db.nodeWorkflowProject.findFirst({
-    where: { id: projectId, userId: user.id, isDeleted: false },
+    where: { id: projectId, user: { clerkId }, isDeleted: false },
     select: { id: true, state: true },
   })
   if (!row) return null

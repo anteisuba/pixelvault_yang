@@ -1,11 +1,9 @@
 /**
- * v4 具名槽 → 生成载荷（第三期 · 画布 C3b）。
- *
- * ⛔ **本片写好不接线** —— 生产调用方为 0；接线在 C3c（`src/hooks/node/*-v4.ts`
- * 四个钩子与本文件一起换上去，见该片的接线清单）。
+ * v4 具名槽 → 生成载荷。生产调用方：`src/hooks/node/*-v4.ts` 四个生成钩子与
+ * `NodeV4GenerateDesk`；服务端送出预览（`node-video-send-preview.ts`）读同一份结果。
  *
  * ── 为什么装配要单独成一层纯函数 ────────────────────────────────────────
- * v3 的装配散在钩子与组件里（`use-video-composer` 的槽架、`StudioNodeWorkbench`
+ * v3 的装配散在钩子与组件里（v3 的槽架与 workbench
  * 的 handler、`node-video-send-preview` 的预览各拼一遍），三处对同一张图算出不同
  * 的账是这一域最老的病。v4 把「读哪个槽 → 落哪个位置」收进这里一份：钩子只负责
  * React 那一半（读 store、发请求），装配一律问本文件。

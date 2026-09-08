@@ -113,7 +113,7 @@ StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlow
 
 ### 画布域（`business/node/`）要点
 
-StudioNodeWorkbench（主工作台）· CanvasTopBar / CanvasBottomDock / CanvasMiniMap · StudioNodeAssistantDock + ScriptDocWorkspace（助手 = 剧本脑）· NodeCanvasEmptyGuide；节点卡片族在子目录。**改画布先读 `pages/node-canvas.md`（长期行为与不变量）与 `pages/canvas-skin.md`（皮肤数值）。**
+画布是 v4：工作台外壳在 `node/workbench-v4/`（`NodeWorkbenchV4` / `CanvasV4` / 工具条 / 快捷键 / 拖放），四类节点卡在 `node/nodes/v4/`，外壳组件（CanvasTopBar / CanvasBottomDock / CanvasMiniMap / CastDock / ScriptDocWorkspace / StudioNodeAssistantDock / NodeCanvasEmptyGuide）留在 `node/` 根。**改画布先读 `pages/node-canvas-v2.md`（现行基准）与 `ui-defaults.md §3.1 / §4.1`（节点卡的圆角例外与弹簧三档）；组件分层与禁改见 `src/components/business/node/CLAUDE.md`。**
 
 ## 移动端范式
 

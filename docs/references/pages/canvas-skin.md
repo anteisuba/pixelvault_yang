@@ -1,5 +1,8 @@
 # 画布域皮肤数值规格 v0.2 —— `src/app/canvas.css` 的施工基准
 
+> ⚠ **画布的现行基准是 [`node-canvas-v2.md`](node-canvas-v2.md)**（v4：四类节点与子型 · 具名槽 · 展开态 · op 表）。本文写于 v3 时期：**凡提到 `StudioNodeWorkbench` / `NodeDetailPanel` / legacy 节点组件的段落一律作废**，其余业务语义仍可参考，但施工以基准文与代码为准。
+> ⛔ 本文的 `--canvas-*` 令牌世界**正在整体删除**（基准文 §10「皮肤收尾」）：画布皮肤并入全站脊柱，只保留四族端口色与边三态。别拿本文的色值造新东西。
+
 > 目的：把 owner 认可的外壳语言从**散文**变成**可执行数值**。散文（"轻盈""白卡""柔和投影"）钉不住观感，三轮都在漂 —— 这份文件是钉子。
 > 作用域：`src/app/canvas.css`；**脊柱（`globals.css` / `@theme` / `ui` 原语）不动**。
 > 相邻文档：结构与信息设计见 [`node-canvas.md`](node-canvas.md) 与 [`canvas-node-detail.md`](canvas-node-detail.md)。

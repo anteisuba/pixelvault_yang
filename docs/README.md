@@ -24,10 +24,10 @@ docs/
 
 UI 设计文档按职责读取：`brand-dna.md` 管全局不变量与设计权力边界，`references/frontend.md` 管实现事实与共享行为，`references/domains/` 管业务域责任，`references/pages/` 只保存 owner 已确认的页面方向与施工契约。
 
-`references/pages/` 里两处**现状 / 目标态成对**，别读错那一份：
+`references/pages/` 里两处**一个主题只有一份现行基准**，别读错那一份：
 
 - 助手 → `assistant-shell.md`（**现行施工基准**，2026-09-06 方向 C；旧方向 A 的决策逐条状态在它 §16「历史决策表」）
-- 画布 → `node-canvas.md`（**只描述现状**，用于回归与定位实现）+ `node-canvas-v2.md`（**第三期目标态**：四类节点 · 具名槽端口 · 槽内版本轮播 · 稳定命名与带边快照 · v4 迁移 · 皮肤并入全站脊柱）；皮肤数值仍看 `canvas-skin.md`
+- 画布 → `node-canvas-v2.md`（**现行基准**：四类节点与子型 · 具名槽与连线矩阵 · 展开态 · 添加菜单词表 · 动作出口与撤销 · 助手 op 与提案卡 · 存储与升级）。⚠ 同目录的 `node-canvas.md` 与 `canvas-*.md` 描述的是已删除的 v3 实现，只作旧决策的论据来源，⛔ 不作施工依据。
 
 ⚠ `archive/` 与 `references/ui-inspiration/` 已于 2026-08-07 删除（owner 拍板「删，不是归档」）。历史证据一律从 git 历史取，不再有常驻目录。
 

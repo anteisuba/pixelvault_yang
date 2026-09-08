@@ -1,5 +1,7 @@
 # Canvas Node Locator
 
+> ⚠ **画布的现行基准是 [`node-canvas-v2.md`](node-canvas-v2.md)**（v4：四类节点与子型 · 具名槽 · 展开态 · op 表）。本文写于 v3 时期：**凡提到 `StudioNodeWorkbench` / `NodeDetailPanel` / legacy 节点组件的段落一律作废**，其余业务语义仍可参考，但施工以基准文与代码为准。
+
 Last updated: 2026-07-30
 
 ## Domain definition

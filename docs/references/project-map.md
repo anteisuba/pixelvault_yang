@@ -62,7 +62,7 @@ flowchart LR
 
 - 🎯 你想做：学习 haivis 画布工作区；整理初始状态；功能明确分化——助手、编辑图片、生成视频、管理资源（卡片收集一个角色的图片/声音）。
 - 📍 现状：节点按模态收敛为 5 类；助手=剧本脑→ScriptDoc→autospawn 投影节点；两阶段脚本流（大纲→镜头）引擎已落、**UI 两道门待做**；cast v2（缩略图/特写/自动编号/视频引用）已交付；视频汇点用 Seedance reference。services `node-workflow`/`script-breakdown`/`story`；核心状态 `studio-context.tsx`（47 files 高风险）。
-- 💡 衔接：haivis-canvas 你已确认整套 CSS/助手布局作为**画布重构对标**（大画布 + 可收起固定右助手 / 选中对象近场工具条 / 附件·模态·模型·思考独立披露）。落点 `docs/references/pages/node-canvas.md`。你说的三件事分别落到：**编辑图片**→图片域迁移/编辑能力接进画布；**生成视频**→视频汇点(已有)；**管理资源(卡片)**→卡片×资产融合（见下）。
+- 💡 衔接：haivis-canvas 你已确认整套 CSS/助手布局作为**画布重构对标**（大画布 + 可收起固定右助手 / 选中对象近场工具条 / 附件·模态·模型·思考独立披露）。落点 `docs/references/pages/node-canvas-v2.md`。你说的三件事分别落到：**编辑图片**→图片域迁移/编辑能力接进画布；**生成视频**→视频汇点(已有)；**管理资源(卡片)**→卡片×资产融合（见下）。
 - 图片可以直接粘贴。![](assets/project-map/canvas-01.png) -点击图片后上面出现编辑框 ![](assets/project-map/canvas-02.png)
 - ![](assets/project-map/canvas-03.png)
 - 整体风格![](assets/project-map/canvas-04.png)

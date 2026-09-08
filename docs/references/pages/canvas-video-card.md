@@ -1,5 +1,8 @@
 # 画布 · 视频卡与右侧编排器（施工基准）
 
+> ⚠ **本文描述的是已被删除的 v3 画布实现**（`StudioNodeWorkbench` / `NodeDetailPanel` / `VideoComposer` / 12 个 legacy 节点组件族）。**现行基准是 [`node-canvas-v2.md`](node-canvas-v2.md)**，施工、设计与回归都看那一份；节点卡的视觉走 `../ui-defaults.md` §3.1 / §4.1。
+> 本文只作旧决策的论据来源，⛔ 不作施工依据，组件名与 `文件:行号` 一律作废，⛔ 不再更新。
+
 > owner 于 2026-07-28 确认关键切片并授权落地。交互原型：
 > `C:\Users\15620\.codex\visualizations\2026\07\27\019fa404-dd78-7973-92d7-bf14c9ad6557\canvas-video-sidecar-prototype.html`
 >

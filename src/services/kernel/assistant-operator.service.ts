@@ -1,6 +1,8 @@
 import 'server-only'
 import {
   analyzeOperatorReferences,
+  buildOperatorReferenceBrief,
+  ReferenceAnalysisValidationError,
   reviewOperatorReferencePrompt,
 } from '@/services/kernel/assistant-reference-analysis.service'
 import type { ReferenceAnalysis } from '@/types/assistant-reference-analysis'
@@ -1990,6 +1992,7 @@ async function completeReferenceAnalysisText(
 async function planAnalyzeReferences(
   run: OperatorRun,
   userId: string,
+  args: { imageIndices?: number[] },
 ): Promise<ToolPlan> {
   const urls = run.state.referenceUrls
   if (!urls.length || urls.some((url) => !url || !/^https?:\/\//.test(url))) {
@@ -2000,8 +2003,17 @@ async function planAnalyzeReferences(
   }
   const cached =
     run.referenceAnalysis?.profiles ?? run.request.referenceProfiles ?? []
-  const needsVision = urls.some(
-    (url) => !cached.some((profile) => profile.url === url),
+  const indices = args.imageIndices ?? urls.map((_, index) => index)
+  if (
+    new Set(indices).size !== indices.length ||
+    indices.some((index) => index >= urls.length)
+  )
+    return reject(
+      REJECT.unknownAsset,
+      'Select only current mounted reference indices; @Image3 means imageIndices: [2].',
+    )
+  const needsVision = indices.some(
+    (index) => !cached.some((profile) => profile.url === urls[index]),
   )
   const seesImages = assistantAdapterSupportsImage(
     run.route.adapterType,
@@ -2016,12 +2028,12 @@ async function planAnalyzeReferences(
       REJECT.visionUnavailable,
       'No available model can inspect these references. Do not invent visual evidence.',
     )
-  let analysis: ReferenceAnalysis | null
+  let analysis: ReferenceAnalysis
   try {
     analysis = await analyzeOperatorReferences({
       urls: urls as string[],
       cached,
-      context: referenceCreatorContext(run),
+      imageIndices: indices,
       language:
         RESPONSE_LANGUAGE_LABELS[
           resolveResponseLanguage(run.request, run.persona)
@@ -2039,6 +2051,23 @@ async function planAnalyzeReferences(
         ),
     })
   } catch (error) {
+    logger.warn('assistant reference inspection failed', {
+      stage:
+        error instanceof ReferenceAnalysisValidationError
+          ? 'vision_validation'
+          : 'vision_request',
+      adapter: visionRoute.adapterType,
+      modelId: seesImages
+        ? run.modelId
+        : resolveAssistantModelId(visionRoute.adapterType),
+      imageIndices: indices,
+      errorName: error instanceof Error ? error.name : 'UnknownError',
+    })
+    if (error instanceof ReferenceAnalysisValidationError)
+      return reject(
+        REJECT.referenceAnalysisFailed,
+        `The model returned an invalid visual analysis (${error.reason}). This is not evidence of an unreadable image. Do not ask for re-upload or infer its contents.`,
+      )
     const failedImage =
       error instanceof Error
         ? /^Failed to fetch image \((\d{3})\): (.+)$/.exec(error.message)
@@ -2050,11 +2079,6 @@ async function planAnalyzeReferences(
       `@Image${index + 1} · HTTP ${failedImage![1]}`,
     )
   }
-  if (!analysis)
-    return reject(
-      REJECT.referenceAnalysisFailed,
-      'Reference analysis was incomplete or malformed. No visual facts or assignments were accepted.',
-    )
   return {
     kind: 'read',
     payload: {},
@@ -2062,7 +2086,7 @@ async function planAnalyzeReferences(
       run.referenceAnalysis = analysis
       return {
         result: analysis,
-        observation: `REFERENCE ANALYSIS (current @ImageN order; URLs identify the actual sources):\n${JSON.stringify(analysis)}\nUse this brief for one coherent prompt. Ask only its unresolved uncertainties. Do not critique source references as failed generations.`,
+        observation: `VERIFIED REFERENCE VISUAL FACTS (match URLs to CURRENT REFERENCE ORDER):\n${JSON.stringify(analysis.profiles)}\nAnswer the creator's current visual question directly. These facts do not assign source roles or change the prompt. A role brief is built only when set_prompt is requested. Do not critique source references as failed generations.`,
       }
     },
   }
@@ -2119,6 +2143,36 @@ async function planSetText(
         REJECT.referenceAnalysisRequired,
         'Call analyze_references before writing this prompt. It uses the current mounted image order and reuses unchanged visual evidence.',
       )
+    }
+    if (!analysis.brief) {
+      try {
+        analysis.brief = await buildOperatorReferenceBrief({
+          profiles: analysis.profiles,
+          context: referenceCreatorContext(run),
+          language:
+            RESPONSE_LANGUAGE_LABELS[
+              resolveResponseLanguage(run.request, run.persona)
+            ],
+          complete: (system, prompt) =>
+            completeReferenceAnalysisText(run, system, prompt),
+        })
+      } catch (error) {
+        logger.warn('assistant reference brief failed', {
+          stage:
+            error instanceof ReferenceAnalysisValidationError
+              ? 'brief_validation'
+              : 'brief_request',
+          adapter: run.route.adapterType,
+          modelId: run.modelId,
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+        })
+        if (error instanceof ReferenceAnalysisValidationError)
+          return reject(
+            REJECT.referenceBriefFailed,
+            `Visual inspection succeeded; source-role brief validation failed (${error.reason}). The verified visual facts remain available. Do not claim the images are unreadable or ask for re-upload. The prompt was not changed.`,
+          )
+        throw error
+      }
     }
     if (analysis.brief.uncertainties.length) {
       return reject(
@@ -3818,7 +3872,11 @@ async function planTool(
     case TOOL.readState:
       return planReadState(run)
     case TOOL.analyzeReferences:
-      return planAnalyzeReferences(run, userId)
+      return planAnalyzeReferences(
+        run,
+        userId,
+        parsed.data as { imageIndices?: number[] },
+      )
     case TOOL.searchAssets:
       return planSearchAssets(
         run,
@@ -4281,7 +4339,7 @@ function buildOperatorSystemPrompt(
    */
   const domainRules = [
     request.domain === 'image'
-      ? `- REFERENCE ANALYSIS: Before set_prompt with mounted references, call analyze_references. It inspects multiple images together, reuses unchanged visual facts, and builds a current role/keep/exclude brief. Do not use critique_result on source references. Use the brief to make ONE coherent revision; unresolved role questions must be answered before writing. set_prompt checks the complete resulting prompt for semantic conflicts; correct named issues once, and stop if it still fails.
+      ? `- REFERENCE ANALYSIS: Before set_prompt with mounted references, call analyze_references. It inspects the requested images and reuses unchanged visual facts. For a question about @Image3 alone, pass imageIndices: [2]. Answer visual questions from these facts without editing the prompt. set_prompt separately builds the current role/keep/exclude brief. Do not use critique_result on source references. Use the brief to make ONE coherent revision; unresolved role questions must be answered before writing. set_prompt checks the complete resulting prompt for semantic conflicts; correct named issues once, and stop if it still fails.
 - REFERENCE IDENTITY: CURRENT REFERENCE ORDER is authoritative. Match the image URLs to the creator's latest message before assigning roles; old Image numbers may refer to different pictures after a removal, replacement or undo. Never guess from old numbering. In set_prompt use @Image1, @Image2, etc. so the creator sees each referenced thumbnail inline.
 - STYLE REFERENCE: Use analyze_references to distinguish the style source from character identity, costume, pose and background sources. Use one primary style source unless they explicitly requested a blend. If visual inspection is unavailable, say so rather than infer appearance from filenames or generation prompts.
 - Describe the chosen style's observable proportions, outlines, shading, hair volumes and material response. A stylized 3D game character is not a photorealistic person: do not replace the requested aesthetic with generic UE5/PBR/AAA vocabulary. If an identity sheet is illustrated, use it only for identity and costume, not as a competing rendering-style instruction. Pose-only references must not supply colours, lighting, characters or background.
@@ -4558,7 +4616,7 @@ function buildCritiquePrompt(
         .map((url, index) => `@Image${index + 1}: ${url}`)
         .join('\n')}`,
     )
-    if (run.referenceAnalysis)
+    if (run.referenceAnalysis?.brief)
       sections.push(
         `REFERENCE BRIEF:\n${JSON.stringify(run.referenceAnalysis.brief)}`,
       )
@@ -5221,7 +5279,20 @@ export async function* runAssistantOperator(
           status: STATUS.running,
         })
       }
-      const plan = await planTool(run, name, args, user.id)
+      let plan: ToolPlan
+      try {
+        plan = await planTool(run, name, args, user.id)
+      } catch (error) {
+        if (name === TOOL.analyzeReferences) {
+          yield toStepEvent({
+            ...base,
+            tool: name,
+            status: STATUS.error,
+            error: { reason: REJECT.referenceAnalysisFailed },
+          })
+        }
+        throw error
+      }
       // ⚠ 规划期就可能看过图（`critique_result`）—— 那几帧现在就该出去。
       yield* drainCostTicks()
 

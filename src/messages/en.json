@@ -6897,6 +6897,7 @@
       "referenceAnalysisRequired": "Analyze the current references first",
       "referenceImageUnavailable": "A reference image could not be read. Re-upload or replace the unavailable image.",
       "referenceAnalysisFailed": "Reference analysis was incomplete; no analysis was accepted.",
+      "referenceBriefFailed": "Images were analyzed, but reference-role validation failed; the prompt was not changed.",
       "promptConflict": "The prompt conflicts with reference roles or requirements"
     },
     "cost": {

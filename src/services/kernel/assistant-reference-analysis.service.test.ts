@@ -4,6 +4,7 @@ vi.mock('server-only', () => ({}))
 
 import {
   analyzeOperatorReferences,
+  buildOperatorReferenceBrief,
   reviewOperatorReferencePrompt,
 } from './assistant-reference-analysis.service'
 import type { ReferenceVisualProfile } from '@/types/assistant-reference-analysis'
@@ -44,6 +45,16 @@ const input = {
 }
 
 describe('reference analysis', () => {
+  it('returns verified visual evidence without requiring a creative brief', async () => {
+    const complete = vi.fn().mockResolvedValueOnce(
+      JSON.stringify({
+        images: profiles.map((facts, imageIndex) => ({ ...facts, imageIndex })),
+      }),
+    )
+    const result = await analyzeOperatorReferences({ ...input, complete })
+    expect(complete).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ profiles, brief: null })
+  })
   it('sends multiple images together and binds visual facts by server-owned URL', async () => {
     const complete = vi
       .fn()
@@ -60,7 +71,7 @@ describe('reference analysis', () => {
     expect(complete.mock.calls[0]?.[2]).toEqual(urls)
     expect(complete.mock.calls[0]?.[0]).toContain('NOT as generated results')
     expect(result?.profiles).toEqual(profiles)
-    expect(result?.brief).toEqual(brief)
+    expect(result?.brief).toBeNull()
   })
 
   it('reorders cached profiles by current URL rather than reusing old image numbers', async () => {
@@ -71,13 +82,12 @@ describe('reference analysis', () => {
       cached: profiles,
       complete,
     })
-    expect(complete).toHaveBeenCalledTimes(1)
-    expect(complete.mock.calls[0]?.[2]).toBeUndefined()
+    expect(complete).not.toHaveBeenCalled()
     expect(result?.profiles.map((item) => item.identity)).toEqual([
       'Character 1',
       'Character 0',
     ])
-    expect(result?.brief.assignments[0]?.url).toBe(urls[0])
+    expect(result?.brief).toBeNull()
   })
 
   it('analyzes only replacement images and preserves evidence for unchanged images', async () => {
@@ -85,7 +95,7 @@ describe('reference analysis', () => {
     const complete = vi
       .fn()
       .mockResolvedValueOnce(
-        JSON.stringify({ images: [{ ...profiles[1], imageIndex: 0 }] }),
+        JSON.stringify({ images: [{ ...profiles[1], imageIndex: 1 }] }),
       )
       .mockResolvedValueOnce(
         JSON.stringify({
@@ -118,24 +128,100 @@ describe('reference analysis', () => {
           })),
         }),
       )
-      expect(await analyzeOperatorReferences({ ...input, complete })).toBeNull()
+      await expect(
+        analyzeOperatorReferences({ ...input, complete }),
+      ).rejects.toMatchObject({ stage: 'vision', reason: 'image_mapping' })
       expect(complete).toHaveBeenCalledTimes(1)
     },
   )
 
-  it('refuses a brief assigning an unseen image', async () => {
+  it('binds brief indices to server-owned URLs even with reordered output', async () => {
     const complete = vi.fn().mockResolvedValue(
       JSON.stringify({
         ...brief,
-        assignments: [
-          { ...brief.assignments[0], url: 'https://unseen.test/image.png' },
-          brief.assignments[1],
-        ],
+        assignments: brief.assignments
+          .map(({ roles, preserve, exclude }, imageIndex) => ({
+            roles,
+            preserve,
+            exclude,
+            imageIndex,
+          }))
+          .reverse(),
       }),
     )
-    expect(
-      await analyzeOperatorReferences({ ...input, cached: profiles, complete }),
-    ).toBeNull()
+    const result = await buildOperatorReferenceBrief({
+      ...input,
+      profiles,
+      complete,
+    })
+    expect(result.assignments).toEqual([...brief.assignments].reverse())
+    expect(complete.mock.calls[0]?.[1]).not.toContain(urls[0])
+  })
+
+  it.each([[0, 0], [0], [0, 2]])(
+    'rejects invalid brief indices %j',
+    async (...indices) => {
+      const complete = vi.fn().mockResolvedValue(
+        JSON.stringify({
+          ...brief,
+          assignments: indices.map((imageIndex) => ({
+            ...brief.assignments[0],
+            imageIndex,
+          })),
+        }),
+      )
+      await expect(
+        buildOperatorReferenceBrief({ ...input, profiles, complete }),
+      ).rejects.toMatchObject({ stage: 'brief', reason: 'image_mapping' })
+    },
+  )
+
+  it.each(['vision', 'brief'] as const)(
+    'reports malformed JSON at the %s stage',
+    async (stage) => {
+      const complete = vi.fn().mockResolvedValue('not JSON')
+      const call =
+        stage === 'vision'
+          ? analyzeOperatorReferences({ ...input, complete })
+          : buildOperatorReferenceBrief({ ...input, profiles, complete })
+      await expect(call).rejects.toMatchObject({ stage, reason: 'json' })
+    },
+  )
+
+  it('reports invalid visual fields without logging model content', async () => {
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        images: [{ imageIndex: 0, identity: 'private text' }],
+      }),
+    )
+    await expect(
+      analyzeOperatorReferences({ ...input, complete }),
+    ).rejects.toMatchObject({
+      stage: 'vision',
+      reason: 'schema',
+      paths: expect.arrayContaining(['images.0.style:invalid_type']),
+    })
+  })
+
+  it('inspects only image 3 and keeps its current index with two cached references', async () => {
+    const third = 'https://cdn.test/third.png'
+    const complete = vi
+      .fn()
+      .mockResolvedValue(
+        JSON.stringify({ images: [{ ...profiles[0], imageIndex: 2 }] }),
+      )
+    const result = await analyzeOperatorReferences({
+      ...input,
+      urls: [...urls, third],
+      cached: profiles,
+      imageIndices: [2],
+      complete,
+    })
+    expect(complete).toHaveBeenCalledTimes(1)
+    expect(complete.mock.calls[0]?.[2]).toEqual([third])
+    expect(complete.mock.calls[0]?.[1]).toContain('[2]')
+    expect(result.profiles[2]?.url).toBe(third)
+    expect(result.brief).toBeNull()
   })
 
   it('checks the entire appended prompt and reports concrete conflicts without rewriting', async () => {

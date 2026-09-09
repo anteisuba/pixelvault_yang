@@ -202,7 +202,7 @@ export function describeOperatorStepDetail(
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
       return null
     case ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences:
-      return step.result?.brief.summary ?? null
+      return step.result?.brief?.summary ?? null
     /** 详情写**源地址**：那是用户自己粘的那一串，他一眼认得出接的是不是这条。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl:
       return step.payload.url

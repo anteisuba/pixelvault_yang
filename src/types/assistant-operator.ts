@@ -1190,7 +1190,13 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
       .max(LIMITS.maxSnapshotReferences)
       .optional(),
   }),
-  [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]: z.object({}),
+  [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]: z.object({
+    imageIndices: z
+      .array(z.number().int().nonnegative())
+      .min(1)
+      .max(LIMITS.maxSnapshotReferences)
+      .optional(),
+  }),
   /**
    * 用户亲手递来的那条地址（P3-D，拍板 22）。
    *

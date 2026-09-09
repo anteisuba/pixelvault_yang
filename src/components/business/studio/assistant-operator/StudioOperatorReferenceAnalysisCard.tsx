@@ -11,43 +11,59 @@ export function StudioOperatorReferenceAnalysisCard({
   analysis: ReferenceAnalysis
 }) {
   const t = useTranslations('StudioOperator.referenceAnalysis')
+  const brief = analysis.brief
+  const sources = brief
+    ? brief.assignments.map((assignment) => ({
+        url: assignment.url,
+        assignment,
+        profile: analysis.profiles.find(
+          (profile) => profile.url === assignment.url,
+        ),
+      }))
+    : analysis.profiles.map((profile) => ({
+        url: profile.url,
+        profile,
+        assignment: undefined,
+      }))
   return (
     <section
       data-testid="operator-reference-analysis"
       className="min-w-0 space-y-3 rounded-xl border border-border p-3 text-2sm"
     >
       <p className="font-medium">{t('title')}</p>
-      <p className="break-words">{analysis.brief.summary}</p>
-      {analysis.brief.assignments.map((assignment) => {
-        const profile = analysis.profiles.find(
-          (item) => item.url === assignment.url,
-        )
+      {brief && <p className="break-words">{brief.summary}</p>}
+      {sources.map(({ url, profile, assignment }) => {
         return (
-          <div key={assignment.url} className="flex min-w-0 gap-3">
+          <div key={url} className="flex min-w-0 gap-3">
             <Image
-              src={assignment.url}
-              alt={assignment.roles.map((role) => t(role)).join(' / ')}
+              src={url}
+              alt={
+                assignment?.roles.map((role) => t(role)).join(' / ') ??
+                t('details')
+              }
               width={48}
               height={48}
               unoptimized
               className="size-12 shrink-0 rounded-md object-cover"
             />
             <div className="min-w-0 flex-1 space-y-1 break-words">
-              <p className="font-medium">
-                {assignment.roles.map((role) => t(role)).join(' / ')}
-              </p>
-              {assignment.preserve.length > 0 && (
+              {assignment && (
+                <p className="font-medium">
+                  {assignment.roles.map((role) => t(role)).join(' / ')}
+                </p>
+              )}
+              {assignment && assignment.preserve.length > 0 && (
                 <p>
                   {t('keep')}：{assignment.preserve.join('；')}
                 </p>
               )}
-              {assignment.exclude.length > 0 && (
+              {assignment && assignment.exclude.length > 0 && (
                 <p className="text-muted-foreground">
                   {t('exclude')}：{assignment.exclude.join('；')}
                 </p>
               )}
               {profile && (
-                <details>
+                <details open={!brief}>
                   <summary className="cursor-pointer text-muted-foreground">
                     {t('details')}
                   </summary>
@@ -73,19 +89,19 @@ export function StudioOperatorReferenceAnalysisCard({
           </div>
         )
       })}
-      {analysis.brief.requirements.length > 0 && (
+      {brief && brief.requirements.length > 0 && (
         <p className="break-words">
-          {t('requirements')}：{analysis.brief.requirements.join('；')}
+          {t('requirements')}：{brief.requirements.join('；')}
         </p>
       )}
-      {analysis.brief.avoid.length > 0 && (
+      {brief && brief.avoid.length > 0 && (
         <p className="break-words text-muted-foreground">
-          {t('exclude')}：{analysis.brief.avoid.join('；')}
+          {t('exclude')}：{brief.avoid.join('；')}
         </p>
       )}
-      {analysis.brief.uncertainties.length > 0 && (
+      {brief && brief.uncertainties.length > 0 && (
         <p className="break-words text-status-warning">
-          {t('uncertain')}：{analysis.brief.uncertainties.join('；')}
+          {t('uncertain')}：{brief.uncertainties.join('；')}
         </p>
       )}
     </section>

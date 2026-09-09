@@ -51,7 +51,18 @@ export const ReferenceBriefSchema = z.object({
 })
 export const ReferenceAnalysisSchema = z.object({
   profiles: ReferenceProfilesSchema,
-  brief: ReferenceBriefSchema,
+  brief: ReferenceBriefSchema.nullable(),
+})
+export const ReferenceBriefOutputSchema = ReferenceBriefSchema.extend({
+  assignments: z
+    .array(
+      ReferenceBriefSchema.shape.assignments.element
+        .omit({ url: true })
+        .extend({
+          imageIndex: z.number().int().nonnegative(),
+        }),
+    )
+    .max(LIMITS.maxSnapshotReferences),
 })
 export const ReferenceVisionOutputSchema = z.object({
   images: z

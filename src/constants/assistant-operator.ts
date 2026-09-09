@@ -1406,6 +1406,7 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
   referenceAnalysisRequired: 'referenceAnalysisRequired',
   referenceImageUnavailable: 'referenceImageUnavailable',
   referenceAnalysisFailed: 'referenceAnalysisFailed',
+  referenceBriefFailed: 'referenceBriefFailed',
   promptConflict: 'promptConflict',
   /**
    * `mount_reference` 引的 asset 本轮 `search_assets` 从没返回过。
@@ -1714,7 +1715,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]:
     'actually LOOK at a picture and say what worked and what did not. Two ways to get one: pass "targetIds" with the id or the exact address of a picture the creator attached to THIS message (that is them pointing at it), or call it with no target when a run you armed has just come back. You may never invent an address — anything the creator did not reference this turn is refused. If they said "that one" and more than one picture is in play, call it with no target and the app will ask them which. Call it first when a picture is waiting, then fix the form with set_* based on what you saw. On the video bench the target is a CLIP and you are shown three stills from it (first / middle / last) instead of one picture — same tool, same rules.',
   [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]:
-    'Analyze all currently mounted image references together and build a role/keep/exclude brief for the latest creator request. Call before set_prompt when references are present. Also call when the creator asks to update the reference brief or its requirements; do not claim the brief was updated without a successful call. Unchanged images reuse their visual facts; source roles are reconsidered for the current request. Read uncertainties and ask only unresolved questions. Use this for source images, never critique_result. Mount the intended references first; no URLs or targetIds are needed. On referenceImageUnavailable, identify the exact failed image and ask the creator to re-upload or replace it. Do not remove it, substitute another source, infer its contents, or retry unchanged. A failed analysis has not verified any new visual facts.',
+    'Inspect mounted source images and return verified visual facts, without assigning creative roles or changing the prompt. For a specific reference pass zero-based imageIndices (e.g. @Image3 -> [2]); omit to inspect all mounted references. Unchanged images reuse visual facts. Call before set_prompt with references; set_prompt separately builds and validates source roles. Answer visual/style questions directly from the facts. Do not use critique_result on sources. On referenceImageUnavailable, identify the exact failed image. On referenceAnalysisFailed, report the supplied failure stage; invalid model output is not evidence that an image is unreadable. Do not ask for re-upload unless image transport actually failed. Do not invent visual facts or retry unchanged.',
   /**
    * ⚠ 2026-09-06 放宽了**准入名单**（⛔ 不是放宽了闸）：除了「用户逐字写过的
    * 地址」，本轮 `search_web_images` 真的展示过的候选也算数 —— 用户说「都挂上」

@@ -6681,8 +6681,8 @@ describe('current reference image bindings', () => {
   }
   const brief = {
     summary: 'Two characters embracing against a white background',
-    assignments: refs.map(({ url }, index) => ({
-      url,
+    assignments: refs.map((_, index) => ({
+      imageIndex: index,
       roles: [index === 2 ? 'pose' : index === 3 ? 'style' : 'identity'],
       preserve: ['Assigned features'],
       exclude: ['Source background'],
@@ -6705,9 +6705,133 @@ describe('current reference image bindings', () => {
         : [
             { images: refs.map((_, imageIndex) => ({ imageIndex, ...facts })) },
           ]),
-      brief,
     ]
   }
+
+  it('answers a question about image 3 without invoking source-role planning', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+          title: '分析图3',
+          args: { imageIndices: [2] },
+        },
+      },
+      { images: [{ imageIndex: 2, ...facts }] },
+      { finished: true, message: '这是图3的画风分析。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).findLast(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
+          step.status !== 'running',
+      ),
+    ).toMatchObject({
+      status: 'done',
+      result: { profiles: [{ url: refs[2]!.url, ...facts }], brief: null },
+    })
+    const vision = mockLlmTextCompletion.mock.calls.filter(
+      ([input]) => input.imageData,
+    )
+    expect(vision).toHaveLength(1)
+    expect(vision[0]?.[0].imageData).toEqual([refs[2]!.url])
+    expect(
+      mockLlmTextCompletion.mock.calls.some(([input]) =>
+        input.systemPrompt.includes('Build a reference-use brief'),
+      ),
+    ).toBe(false)
+  })
+
+  it('keeps inspected evidence when the source-role brief fails and never writes the prompt', async () => {
+    queueTurns(
+      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '写提示词',
+          args: { value: 'A hug on white' },
+        },
+      },
+      { assignments: [] },
+      { finished: true, message: '看图已完成，分工整理失败。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).findLast(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
+          step.status !== 'running',
+      ),
+    ).toMatchObject({
+      status: 'done',
+      result: {
+        profiles: refs.map(({ url }) => ({ url, ...facts })),
+        brief: null,
+      },
+    })
+    expect(
+      stepsOf(events).findLast(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status !== 'running',
+      ),
+    ).toMatchObject({
+      status: 'error',
+      error: {
+        reason: 'referenceBriefFailed',
+        detail: expect.stringContaining(
+          'Do not claim the images are unreadable',
+        ),
+      },
+    })
+    expect(
+      mockLlmTextCompletion.mock.calls.filter(([input]) => input.imageData),
+    ).toHaveLength(1)
+  })
+
+  it('rejects malformed visual fields without exceeding the error event limit', async () => {
+    queueTurns(
+      analysisTurns()[0],
+      { images: [{ imageIndex: 0 }] },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).findLast(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
+          step.status !== 'running',
+      ),
+    ).toMatchObject({
+      status: 'error',
+      error: {
+        reason: 'referenceAnalysisFailed',
+        detail: expect.stringContaining('Do not ask for re-upload'),
+      },
+    })
+  })
 
   it('shows the current numbered images and emits thumbnail tokens when writing the prompt', async () => {
     queueTurns(
@@ -6722,6 +6846,7 @@ describe('current reference image bindings', () => {
           },
         },
       },
+      brief,
       { issues: [] },
       { finished: true, message: '已填写参考分工。' },
     )
@@ -6794,7 +6919,7 @@ describe('current reference image bindings', () => {
     ).toBe(false)
   })
 
-  it('reuses unchanged visual evidence after refresh and recomputes the current brief', async () => {
+  it('reuses unchanged visual evidence after refresh without an extra brief call', async () => {
     queueTurns(...analysisTurns(true), {
       finished: true,
       message: '分工已更新。',
@@ -6818,6 +6943,31 @@ describe('current reference image bindings', () => {
           step.status === 'done',
       ),
     ).toBe(true)
+  })
+
+  it('marks interrupted reference analysis as failed before propagating the provider error', async () => {
+    const failure = new Error('Gemini returned no text')
+    mockLlmTextCompletion
+      .mockReset()
+      .mockResolvedValueOnce(JSON.stringify(analysisTurns()[0]))
+      .mockRejectedValueOnce(failure)
+    const events: AssistantOperatorEvent[] = []
+    const consume = async () => {
+      for await (const event of runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ))
+        events.push(event)
+    }
+    await expect(consume()).rejects.toBe(failure)
+    expect(stepsOf(events).at(-1)).toMatchObject({
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+      status: 'error',
+      error: { reason: 'referenceAnalysisFailed' },
+    })
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
   })
 
   it('reports the unavailable reference instead of aborting the analysis stream on a source 404', async () => {
@@ -6865,6 +7015,7 @@ describe('current reference image bindings', () => {
             args: { value },
           },
         },
+        ...(value === 'A hug in a forest' ? [brief] : []),
         { issues: ['The background must be white, not a forest.'] },
       )
     }
@@ -6926,7 +7077,9 @@ describe('current reference image bindings', () => {
         JSON.stringify(
           input.systemPrompt.includes('Check an image-generation prompt')
             ? { issues: [] }
-            : (turns.shift() ?? { finished: true }),
+            : input.systemPrompt.includes('Build a reference-use brief')
+              ? brief
+              : (turns.shift() ?? { finished: true }),
         ),
       )
     const events = await collect(
@@ -6961,6 +7114,7 @@ describe('current reference image bindings', () => {
           args: { value: 'White background', mode: 'append' },
         },
       },
+      brief,
       { finished: true },
     )
     const events = await collect(

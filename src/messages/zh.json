@@ -6897,6 +6897,7 @@
       "referenceAnalysisRequired": "需要先分析当前参考图",
       "referenceImageUnavailable": "参考图无法读取，请重新上传或替换失效图片",
       "referenceAnalysisFailed": "参考图分析不完整，尚未采用分析结果",
+      "referenceBriefFailed": "图片已分析，但参考用途分配未通过校验；提示词未修改",
       "promptConflict": "提示词与参考图分工或创作要求存在冲突"
     },
     "cost": {
